@@ -54,6 +54,29 @@ main:  PR #123 merged ✓ / tag v26.39.3 pushed ✓ / release ✓
        PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기
 ```
 
+## Post-Merge Cleanup (필수)
+
+PR 머지 직후 stale branch 누적 방지. Session Cleanup 의 "open PR 점검" 과 보완 관계.
+
+1. **머지 시 remote branch 자동 삭제** — `gh pr merge <num> --squash --delete-branch`
+   - GitHub repo settings 의 "Automatically delete head branches" 토글이 켜져 있으면 `--delete-branch` 생략 가능. 둘 중 1개는 항상 적용
+2. **local main 동기화** — `git checkout main && git pull --ff-only`
+3. **local feature branch 삭제** — `git branch -d <branch>`
+   - squash merge 후엔 git 가 "unmerged" 경고 → 같은 변경 내용 확인 후 `-D` 사용 가능
+4. **정기 stale 점검** (선택) — `git branch --merged main | grep -v '^\*\| main$'` 으로 잔존 확인
+
+### 보고 형식 보강
+
+ship 보고에 branch cleanup 상태 한 줄 추가:
+
+```
+gate:  build ✓ / verify ✓ / review ✓ / ship ✓
+main:  PR #123 merged ✓ / tag v26.39.6 ✓ / release ✓
+branch: fix/foo deleted (local + remote) ✓
+       OR
+branch: fix/foo OPEN — 삭제 필요
+```
+
 ## Versioning Convention (절대 위반 금지)
 
 **형식**: `vMAJOR.MINOR.PATCH`
