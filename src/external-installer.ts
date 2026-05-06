@@ -155,7 +155,18 @@ function installOne(
  * git noise 만 차단하고 disk 디렉토리 생성은 막지 못함.
  *
  * 본 fix: `spec.cli` 의 base CLI 만 콤마 구분 명시 → 의도된 agent 만 install.
+ *
+ * v26.39.6 fix — skills CLI agent name 매핑.
+ * skills CLI 1.5.5 valid agent 이름은 `claude-code` 인데 우리 CliBase 는 `claude`.
+ * 매핑 누락 시 `Invalid agents: claude` 로 exit 1 → 외부 사용자 (DYLD-GoalTrack
+ * reproduce 2026-05-06) 환경에서 7건 skill 자산 100% skip.
  */
+const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
+  claude: "claude-code",
+  codex: "codex",
+  opencode: "opencode",
+};
+
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
   cli: CliTargets,
@@ -165,7 +176,8 @@ function buildSkillArgs(
     args.push("--skill", method.skill);
   }
   if (cli.length > 0) {
-    args.push("--agent", cli.join(","));
+    const mapped = cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
+    args.push("--agent", mapped.join(","));
   }
   args.push("--yes");
   return args;
