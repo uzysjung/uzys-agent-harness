@@ -88,7 +88,7 @@ describe("runExternalInstall — method dispatch", () => {
       "add",
       "owner/repo",
       "--agent",
-      "claude",
+      "claude-code",
       "--yes",
     ]);
   });
@@ -106,13 +106,14 @@ describe("runExternalInstall — method dispatch", () => {
       "--skill",
       "react",
       "--agent",
-      "claude",
+      "claude-code",
       "--yes",
     ]);
   });
 
-  // v26.39.5 — multi-CLI 매핑 검증 (사용자 보고 #3 진짜 fix)
-  it("skill with multi-CLI passes --agent <comma-list>", () => {
+  // v26.39.5 — multi-CLI 콤마 구분 (사용자 보고 #3)
+  // v26.39.6 — `claude` → `claude-code` 매핑 (skills CLI 1.5.5 valid name)
+  it("skill with multi-CLI passes mapped --agent <comma-list>", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       {
@@ -127,7 +128,7 @@ describe("runExternalInstall — method dispatch", () => {
       "add",
       "owner/repo",
       "--agent",
-      "claude,codex,opencode",
+      "claude-code,codex,opencode",
       "--yes",
     ]);
   });

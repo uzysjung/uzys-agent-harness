@@ -5,6 +5,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+## [v0.8.8] — 2026-05-06 (fix: skills CLI agent name 매핑 `claude` → `claude-code`)
+
+### Fixed — 외부 사용자 skill 자산 100% skip (P0 prod-blocker)
+
+skills CLI 1.5.5 valid agent 이름은 `claude-code` 인데 v0.8.7 은 `claude` 그대로 보냄 → `Invalid agents: claude` 로 exit 1. claude track 환경에서 모든 `npx skills add` 호출 실패 (impeccable, playwright-skill, find-skills, architecture-decision-record, react-best-practices, shadcn-ui, web-design-guidelines — 7건 skip).
+
+증거: 2026-05-06 외부 사용자 (DYLD-GoalTrack) `npx -y github:uzysjung/uzys-claude-harness` 실행 → Phase 2 에서 skill 형식 7건 모두 `npx exited 1`. plugin 형식 6건 (addy/railway/product/karpathy/trailofbits/ecc) 은 skills CLI 미사용이라 영향 없음. 직접 reproduce: `npx -y skills add https://github.com/pbakaus/impeccable --skill impeccable --agent claude --yes` → `■ Invalid agents: claude` + valid list 출력.
+
+Fix: `buildSkillArgs` 직전에 `SKILLS_CLI_AGENT_MAP` 추가, `cli.map(c => map[c] ?? c)` 적용.
+
+```diff
+# Before (v0.8.7)
+npx skills add <pkg> --agent claude --yes
+# → Invalid agents: claude → exit 1
+
+# After (v0.8.8)
+npx skills add <pkg> --agent claude-code --yes
+# → install OK
+```
+
+| `spec.cli` | v0.8.7 (broken) | v0.8.8 (fixed) |
+|---|---|---|
+| `["claude"]` | `--agent claude` | `--agent claude-code` |
+| `["claude","codex","opencode"]` | `--agent claude,codex,opencode` | `--agent claude-code,codex,opencode` |
+
+### Internal
+- `src/external-installer.ts` `SKILLS_CLI_AGENT_MAP` 추가 (`claude → claude-code`, `codex → codex`, `opencode → opencode`)
+- `tests/external-installer.test.ts` 3 invariant 갱신 (`claude-code` expect)
+
+### 검증
+- typecheck PASS
+- vitest 523/523 PASS
+- lint 6 warnings (기존)
+- build OK (149.48 KB)
+
+### Known limitation
+- skills CLI 가 valid agent name 변경 시 본 매핑도 갱신 필요. 현재 1.5.5 기준 hardcoded. 향후 1.6+ 출시 시 valid list re-verify.
+
 ## [v0.8.7] — 2026-05-03 (fix: npx skills --agent 명시 — universal install 차단)
 
 ### Fixed — `.factory/`/`.goose/` 디렉토리 자동 생성 (사용자 보고 #3 진짜 fix)
