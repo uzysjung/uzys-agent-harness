@@ -62,9 +62,10 @@ describe("buildManifest", () => {
     ).toBe(true);
   });
 
-  it("adds the project-claude single-track CLAUDE.md only with one track", () => {
+  it("does not include any project-root CLAUDE.md entry — merged via installer", () => {
     const single = buildManifest({ tracks: ["tooling"] });
-    expect(single.find((e) => e.source === "project-claude/tooling.md")).toBeDefined();
+    expect(single.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
+    expect(single.find((e) => e.source.startsWith("project-claude/"))).toBeUndefined();
 
     const multi = buildManifest({ tracks: ["tooling", "data"] });
     expect(multi.find((e) => e.target === "CLAUDE.md")).toBeUndefined();

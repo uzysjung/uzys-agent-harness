@@ -24,6 +24,7 @@ import {
 import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
 import { buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
+import { mergeProjectClaude } from "./project-claude-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
@@ -146,6 +147,8 @@ export interface BaselineReport {
   };
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
+  /** Root CLAUDE.md merged from project-claude fragments. null when claude baseline disabled. */
+  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
 }
 
 export interface InstallReport {
@@ -232,6 +235,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
         mcpAllowlist: null,
         gitignoreNpxSkillsAdded: [],
       },
+      rootClaudeMd: null,
     };
     ctx.onProgress?.({ type: "baseline-complete", baseline });
     return { ...baseline, external: null, karpathyHook: null };
@@ -288,6 +292,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
     // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
     writeInstalledTracks(projectDir, spec.tracks);
+
+    // Project root CLAUDE.md — merge from fragments (single/multi/full).
+    writeRootClaudeMd(harnessRoot, projectDir, spec.tracks);
   }
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
@@ -343,6 +350,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     mode,
     envFiles,
     categories,
+    rootClaudeMd: claudeBaselineEnabled ? { tracks: spec.tracks } : null,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -500,6 +508,16 @@ function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>)
   mkdirSync(dirname(path), { recursive: true });
   const sorted = [...new Set(tracks)].sort().join("\n");
   writeFileSync(path, `${sorted}\n`);
+}
+
+function writeRootClaudeMd(
+  harnessRoot: string,
+  projectDir: string,
+  tracks: ReadonlyArray<Track>,
+): void {
+  const baseDir = join(harnessRoot, "templates/project-claude");
+  const content = mergeProjectClaude(tracks, { baseDir });
+  writeFileSync(join(projectDir, "CLAUDE.md"), content);
 }
 
 function chmodHooksSync(hookDir: string): void {
