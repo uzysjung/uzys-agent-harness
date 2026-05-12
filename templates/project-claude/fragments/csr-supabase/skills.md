@@ -1,0 +1,7 @@
+- **agent-skills**: 워크플로우 백본 (spec-driven-development, idea-refine)
+- **ECC CL-v2**: instinct 기반 학습. 세션 관찰 -> 패턴 축적
+- **Impeccable**: 프론트엔드 디자인 품질 (polish, critique, audit)
+- **react-best-practices**: React 패턴, 훅 규칙, 상태 관리
+- **shadcn-ui**: shadcn/ui 컴포넌트 가이드, 테마 커스터마이징
+- **supabase**: Supabase 종합 (DB/Auth/Edge/Realtime/Storage/Vectors/Cron/Queues)
+- **postgres-best-practices**: 쿼리 최적화, RLS, 인덱스, 연결 풀링, SSR 통합

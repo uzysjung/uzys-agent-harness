@@ -1,0 +1,5 @@
+- **Framework**: Next.js (App Router) + TypeScript
+- **Frontend**: React + Server Components + Server Actions
+- **UI**: shadcn/ui + Tailwind CSS
+- **Database**: PostgreSQL (Drizzle ORM / Prisma)
+- **Infra**: Railway

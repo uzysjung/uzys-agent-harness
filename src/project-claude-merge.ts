@@ -11,6 +11,7 @@ export const SECTIONS = [
   "plugins",
   "commands",
   "boundaries",
+  "supabase-auth",
 ] as const;
 export type Section = (typeof SECTIONS)[number];
 
@@ -23,6 +24,7 @@ const SECTION_TITLES: Record<Section, string> = {
   plugins: "Plugins",
   commands: "Commands",
   boundaries: "Boundaries",
+  "supabase-auth": "Supabase 인증 설정",
 };
 
 export const TRACK_DISPLAY_NAMES: Record<Track, string> = {

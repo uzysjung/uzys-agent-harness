@@ -19,3 +19,5 @@
 <!-- INSERT: commands -->
 
 <!-- INSERT: boundaries -->
+
+<!-- INSERT: supabase-auth -->

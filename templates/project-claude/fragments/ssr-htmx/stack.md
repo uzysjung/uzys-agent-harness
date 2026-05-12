@@ -1,0 +1,6 @@
+- **Backend**: FastAPI + Python 3.12+ (uvicorn)
+- **Templating**: Jinja2
+- **Frontend**: HTMX + Alpine.js (필요 시)
+- **UI**: Tailwind CSS + daisyUI
+- **Database**: PostgreSQL (SQLAlchemy / SQLModel)
+- **Infra**: Railway

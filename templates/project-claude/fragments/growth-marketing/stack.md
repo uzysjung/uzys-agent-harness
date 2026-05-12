@@ -1,0 +1,7 @@
+- **Output**: 콘텐츠(blog/landing/twitter), SEO 최적화, demand gen 캠페인, 시장 조사 요약
+- **Tools**: marketing-skills (44 — content/SEO/CRO/channels/growth/intelligence/sales/twitter)
+- **Tools**: business-growth-skills (4 — customer success, sales engineering, RevOps, contract)
+- **Tools**: content-creator (SEO content + brand voice + frameworks)
+- **Tools**: demand-gen (multi-channel demand gen + paid + partnership)
+- **Tools**: research-summarizer (시장 조사 요약)
+- **No Dev Stack**: 코드 개발 프로젝트가 아님. 산출물은 콘텐츠/캠페인 자료.

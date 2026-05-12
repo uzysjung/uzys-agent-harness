@@ -1,0 +1,6 @@
+- **Backend**: FastAPI + Python 3.12+ (uvicorn)
+- **Database**: PostgreSQL (SQLAlchemy / SQLModel)
+- **Frontend**: React + TypeScript + Vite
+- **UI**: shadcn/ui + Tailwind CSS
+- **Desktop**: Tauri (Rust shell)
+- **Infra**: Railway
