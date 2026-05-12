@@ -5,21 +5,22 @@
 
 ---
 
-## Phase A — 설계 & PoC
+## Phase A — 설계 & PoC ✅
 
-- [ ] **A1** `templates/project-claude/_base.md` 작성
-  - [ ] 헤더 + 안내문
-  - [ ] 8 INSERT 마커 (`<!-- INSERT: stack -->` 등)
-- [ ] **A2** `templates/project-claude/fragments/tooling/*.md` 7개 (plugins 제외)
-  - [ ] stack.md
-  - [ ] workflow.md
-  - [ ] active-rules.md
-  - [ ] agents.md
-  - [ ] skills.md
-  - [ ] commands.md
-  - [ ] boundaries.md
-- [ ] **A3** `src/project-claude-merge.ts` 골격 + single-track 동작
-- [ ] **A4** PoC: `mergeProjectClaude(['tooling'])` 결과 = 기존 `tooling.md` 본문 동등 (수동 diff)
+- [x] **A1** `templates/project-claude/_base.md` 작성
+  - [x] 헤더 + 안내문 (track-list + tagline 마커)
+  - [x] 8 섹션 INSERT 마커 + tagline 마커 (총 9개, R5)
+- [x] **A2** `templates/project-claude/fragments/tooling/*.md` 8개 (plugins 제외, tagline 포함)
+  - [x] tagline.md
+  - [x] stack.md
+  - [x] workflow.md
+  - [x] active-rules.md
+  - [x] agents.md
+  - [x] skills.md
+  - [x] commands.md
+  - [x] boundaries.md
+- [x] **A3** `src/project-claude-merge.ts` — single/multi/full/옵션 섹션/tagline 모두 구현 (Phase B 일부 선행)
+- [x] **A4** PoC: `mergeProjectClaude(['tooling'])` 본문 동등 확인. 헤더 부가정보(`(6-Gate)`, `(10개)`) 누락은 경미 손실 수용
 
 ## Phase B — 머지 로직 완성
 

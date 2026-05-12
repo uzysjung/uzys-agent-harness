@@ -70,6 +70,7 @@
 - **R2** (was OQ2): `full.md` 파일 **삭제**. 'full' 트랙은 머지 로직에서 모든 dev 트랙 union으로 자동 처리. `fragments/full/` 디렉토리 없음.
 - **R3** (was OQ3): 트랙 display name은 머지 모듈(`src/project-claude-merge.ts`) 내부 `const TRACK_DISPLAY_NAMES` 매핑으로 정의. 단일 책임.
 - **R4** (was OQ4): 트랙 fragment 파일이 없는 섹션은 **섹션 자체 생략**. (예: `tooling`에 `plugins.md` 없으면 결과 `CLAUDE.md`에 `## Plugins` 섹션 자체 없음). multi-track에서 다른 트랙이 해당 섹션 fragment를 가지면 그 트랙 분만 포함.
+- **R5** (Phase A1 PoC CR Minor, 2026-05-12 승인): 트랙 tagline = 9번째 INSERT 마커. `fragments/<track>/tagline.md`는 1줄 한글 설명. 단일 트랙 그대로 표시, multi-track은 ` / ` 구분자로 join. `_base.md` 상단의 `> ...` 인용 블록에 위치.
 
 ## 4. Phase 분해
 
