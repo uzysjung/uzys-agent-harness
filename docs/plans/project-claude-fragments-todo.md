@@ -22,17 +22,13 @@
 - [x] **A3** `src/project-claude-merge.ts` — single/multi/full/옵션 섹션/tagline 모두 구현 (Phase B 일부 선행)
 - [x] **A4** PoC: `mergeProjectClaude(['tooling'])` 본문 동등 확인. 헤더 부가정보(`(6-Gate)`, `(10개)`) 누락은 경미 손실 수용
 
-## Phase B — 머지 로직 완성
+## Phase B — 머지 로직 완성 ✅
 
-- [ ] **B1** Multi-track concat + `### <Track>` 소제목 자동 삽입
-- [ ] **B2** `TRACK_DISPLAY_NAMES` const (11 트랙)
-- [ ] **B3** 'full' 자동 union (모든 dev 트랙 머지)
-- [ ] **B4** 옵션 섹션 처리 — fragment 없으면 마커 제거
-- [ ] **B5** `tests/project-claude-merge.test.ts`
-  - [ ] 단일 트랙 케이스
-  - [ ] 이중 트랙 케이스 (concat + 소제목)
-  - [ ] full 케이스 (전체 union)
-  - [ ] 옵션 섹션 누락 케이스
+- [x] **B1** Multi-track concat + `### <Track>` 소제목 (A3에서 선행 구현)
+- [x] **B2** `TRACK_DISPLAY_NAMES` const 11 트랙 (A3)
+- [x] **B3** 'full' 자동 union — FULL_EXPANSION 10 트랙 (A3)
+- [x] **B4** 옵션 섹션 stripMarkerLine 처리 (A3)
+- [x] **B5** `tests/project-claude-merge.test.ts` 6 test PASS / 전체 529/529 회귀 0
 
 ## Phase C — 트랙 분해
 

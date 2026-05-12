@@ -65,10 +65,7 @@ export interface MergeOptions {
  * - Section with no fragments from any selected track: section omitted entirely.
  * - 'full' track: expanded to every non-full track.
  */
-export function mergeProjectClaude(
-  tracks: ReadonlyArray<Track>,
-  opts: MergeOptions,
-): string {
+export function mergeProjectClaude(tracks: ReadonlyArray<Track>, opts: MergeOptions): string {
   const expanded = expandTracks(tracks);
   const baseRaw = readFileSync(join(opts.baseDir, "_base.md"), "utf8");
 
@@ -138,16 +135,12 @@ function renderSection(
   if (present.length === 1 && present[0]) {
     return `${title}\n\n${present[0].body}\n`;
   }
-  const blocks = present.map(
-    ({ track, body }) => `### ${TRACK_DISPLAY_NAMES[track]}\n\n${body}`,
-  );
+  const blocks = present.map(({ track, body }) => `### ${TRACK_DISPLAY_NAMES[track]}\n\n${body}`);
   return `${title}\n\n${blocks.join("\n\n")}\n`;
 }
 
 /** Remove a marker line cleanly, including its surrounding blank line. */
 function stripMarkerLine(text: string, marker: string): string {
-  const pattern = new RegExp(
-    `(?:\\n)?${marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n)?`,
-  );
+  const pattern = new RegExp(`(?:\\n)?${marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n)?`);
   return text.replace(pattern, "");
 }
