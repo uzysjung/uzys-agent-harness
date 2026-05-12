@@ -30,34 +30,25 @@
 - [x] **B4** 옵션 섹션 stripMarkerLine 처리 (A3)
 - [x] **B5** `tests/project-claude-merge.test.ts` 6 test PASS / 전체 529/529 회귀 0
 
-## Phase C — 트랙 분해
+## Phase C — 트랙 분해 ✅
 
-- [ ] **C1** CSR 계열 (3 트랙)
-  - [ ] csr-fastapi/{stack,workflow,active-rules,agents,skills,plugins,commands,boundaries}.md
-  - [ ] csr-fastify/...
-  - [ ] csr-supabase/... (+ supabase 인증 섹션)
-- [ ] **C2** Non-dev 계열 (4 트랙)
-  - [ ] data/...
-  - [ ] executive/...
-  - [ ] growth-marketing/...
-  - [ ] project-management/...
-- [ ] **C3** SSR 계열 (2 트랙)
-  - [ ] ssr-htmx/...
-  - [ ] ssr-nextjs/...
-- [ ] **C4** csr-supabase 옵션 섹션 (`supabase-auth.md`) 통합 방식 결정 + 적용
-- [ ] **C5** C1-C4 각 트랙 단일 머지 결과 ↔ 기존 .md 본문 sanity check
+- [x] **C1** CSR 계열 (3 트랙) — sub-agent 일괄
+- [x] **C2** Non-dev 계열 (4 트랙) — sub-agent 일괄
+- [x] **C3** SSR 계열 (2 트랙) — sub-agent 일괄
+- [x] **C4** csr-supabase supabase-auth.md = 9번째 INSERT 마커 (R6)
+- [x] **C5** sanity check: csr-fastapi/csr-supabase/data/executive 머지 결과 OK
 
-## Phase D — manifest & install 통합
+## Phase D — manifest & install 통합 ✅
 
-- [ ] **D1** `src/manifest.ts:261` single-track 가드 제거
-- [ ] **D2** manifest entry → 머지 모듈 호출 (patch entry 메커니즘)
-- [ ] **D3** `src/commands/install.ts` 로그 `merged from N tracks`
-- [ ] **D4** `bash tests/test-harness.sh` 147/147 PASS 확인
+- [x] **D1** `src/manifest.ts` single-track 가드 + project-claude entry 제거
+- [x] **D2** `installer.ts`에 `mergeProjectClaude` 호출 + writeFileSync(CLAUDE.md)
+- [x] **D3** `install.ts` 로그 `CLAUDE.md (root) merged from N tracks`
+- [x] **D4** vitest 529/529 PASS (test-harness.sh는 현재 repo에 부재 — plan 오기재)
 
-## Phase E — 정리
+## Phase E — 정리 ✅
 
-- [ ] **E1** `templates/project-claude/*.md` 11 트랙 + full.md 삭제 (= `_base.md`만 잔존)
-- [ ] **E2** 필요 시 README/USAGE 1줄 sync
+- [x] **E1** `templates/project-claude/*.md` 11개(tooling/csr-*/ssr-*/data/executive/full/etc) 모두 삭제. `_base.md` + `fragments/` 만 잔존
+- [ ] **E2** README/USAGE sync (필요 시) — Phase F 직전 결정
 
 ## Phase F — Review & Ship
 
