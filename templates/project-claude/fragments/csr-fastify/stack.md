@@ -1,0 +1,6 @@
+- **Backend**: Fastify + TypeScript + Node.js
+- **Database**: PostgreSQL (Drizzle ORM / Prisma)
+- **Frontend**: React + TypeScript + Vite
+- **UI**: shadcn/ui + Tailwind CSS
+- **Desktop**: Tauri (Rust shell)
+- **Infra**: Railway

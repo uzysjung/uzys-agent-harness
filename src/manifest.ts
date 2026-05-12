@@ -256,17 +256,8 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: all,
   });
 
-  // Project root CLAUDE.md (project-claude/<track>.md)
-  // Only when a single track is selected; multi-track is handled by the user.
-  if (spec.tracks.length === 1) {
-    const [t] = spec.tracks;
-    m.push({
-      source: `project-claude/${t}.md`,
-      target: "CLAUDE.md",
-      type: "file",
-      applies: all,
-    });
-  }
+  // Project root CLAUDE.md — handled outside manifest by `mergeProjectClaude`
+  // (single/multi/full tracks all merged from fragments in installer.ts).
 
   return m;
 }

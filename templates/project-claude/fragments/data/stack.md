@@ -1,0 +1,7 @@
+- **Language**: Python 3.12+
+- **Query Engine**: DuckDB (로컬 분석) + Trino (분산 쿼리)
+- **ML/DL**: scikit-learn, PyTorch, transformers
+- **Data**: pandas, polars, Apache Arrow, Parquet
+- **Visualization**: matplotlib, seaborn, plotly
+- **Desktop**: PySide6 (Qt for Python)
+- **Notebook**: Jupyter / JupyterLab

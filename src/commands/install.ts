@@ -440,7 +440,11 @@ function renderPhase1Rows(
   } else {
     // v0.6.0 backwards compat — categories 없는 fakeReport 등
     log(assetRow("success", "rules + hooks + commands + agents", `${baseline.filesCopied} files`));
-    log(assetRow("success", "skeleton + project-claude/<track>.md", `${baseline.dirsCopied} dirs`));
+    log(assetRow("success", "skeleton", `${baseline.dirsCopied} dirs`));
+  }
+  if (baseline.rootClaudeMd) {
+    const n = baseline.rootClaudeMd.tracks.length;
+    log(assetRow("success", "CLAUDE.md (root)", `merged from ${n} track${n > 1 ? "s" : ""}`));
   }
   if (baseline.skipped > 0) {
     log(assetRow("skip", "manifest entries (applies → false)", `${baseline.skipped} skipped`));

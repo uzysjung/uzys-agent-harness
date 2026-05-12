@@ -1,0 +1,4 @@
+- **Output**: Jira tickets, Confluence pages, PRD/RICE/agile artifacts, sprint reports
+- **Tools**: pm-skills (6 — senior PM, scrum master, Jira expert, Confluence expert, Atlassian admin, template creator)
+- **Tools**: product-skills (15 — RICE, PRD, agile PO, UX research, landing page, SaaS scaffolder ...)
+- **No Dev Stack**: 코드 개발 프로젝트가 아님. 산출물은 문서/티켓/리포트.

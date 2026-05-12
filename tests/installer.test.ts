@@ -103,7 +103,7 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/rules/git-policy.md"))).toBe(true);
   });
 
-  it("multi-track: union of rules + no project-root CLAUDE.md", () => {
+  it("multi-track: union of rules + merged project-root CLAUDE.md with track subheaders", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -128,8 +128,13 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/data-analysis.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/pyside6.md"))).toBe(true);
-    // multi-track skips the project-root CLAUDE.md
-    expect(existsSync(join(projectDir, "CLAUDE.md"))).toBe(false);
+    // multi-track now merges fragments into a single root CLAUDE.md
+    const rootMd = join(projectDir, "CLAUDE.md");
+    expect(existsSync(rootMd)).toBe(true);
+    const content = readFileSync(rootMd, "utf8");
+    expect(content).toContain("활성 Track(s): Tooling, Data");
+    expect(content).toMatch(/### Tooling/);
+    expect(content).toMatch(/### Data/);
   });
 
   it("backup option moves existing .claude/ aside before install", () => {

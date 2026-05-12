@@ -1,0 +1,4 @@
+- **Output**: PPT (pptx), Excel (xlsx), Word (docx), PDF
+- **Tools**: Anthropic document-skills (pptx, docx, xlsx, pdf)
+- **Analysis**: 사업 제안서, Due Diligence, 경쟁 분석, 재무 모델
+- **No Dev Stack**: 코드 개발 프로젝트가 아님

@@ -1,0 +1,4 @@
+- **agent-skills**: 6-gate 워크플로우 엔진
+- **supabase-agent-skills**: Supabase 전용 전문 지식 (공식 플러그인, D23)
+- **Vercel CLI** + **Netlify CLI**: 프론트엔드 배포 (Supabase backend + JAMstack hosting)
+- **Supabase CLI**: 프로젝트 link / DB migration / Edge Functions 배포

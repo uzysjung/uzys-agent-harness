@@ -22,6 +22,7 @@ function pipelineFor(report: InstallReport) {
       updateMode: report.updateMode,
       mode: report.mode,
       envFiles: report.envFiles,
+      rootClaudeMd: null,
     };
     callbacks?.onProgress?.({ type: "baseline-complete", baseline });
     if (report.external && report.external.attempted.length > 0) {

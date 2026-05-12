@@ -1,0 +1,3 @@
+- **agent-skills**: 워크플로우 백본 (spec-driven-development, idea-refine)
+- **ECC CL-v2**: instinct 기반 학습. 세션 관찰 -> 패턴 축적
+- **Impeccable**: 디자인 품질 (PySide6 UI 용도)
