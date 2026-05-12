@@ -34,7 +34,7 @@ const onTracks =
 
 const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy"];
 const DEV_RULES = ["test-policy", "ship-checklist", "code-style", "error-handling"];
-const UI_RULES = ["design-workflow"];
+const UI_RULES = ["design-workflow", "playwright-launch"];
 
 const TRACK_RULES: Record<Track, string[]> = {
   "csr-supabase": ["shadcn", "api-contract"],
