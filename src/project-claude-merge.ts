@@ -141,8 +141,9 @@ function renderSection(
   return `${title}\n\n${blocks.join("\n\n")}\n`;
 }
 
-/** Remove a marker line cleanly, including its surrounding blank line. */
+/** Remove a marker line plus the leading blank line that separates it from the previous block. */
 function stripMarkerLine(text: string, marker: string): string {
-  const pattern = new RegExp(`(?:\\n)?${marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n)?`);
-  return text.replace(pattern, "");
+  const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`\\n*${escaped}\\n*`);
+  return text.replace(pattern, "\n");
 }

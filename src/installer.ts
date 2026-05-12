@@ -248,6 +248,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   let filesCopied = 0;
   let dirsCopied = 0;
   let skipped = 0;
+  let rootClaudeMd: { tracks: ReadonlyArray<Track> } | null = null;
   const categories: BaselineCategoryCounts = {
     rules: [],
     agents: [],
@@ -294,7 +295,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     writeInstalledTracks(projectDir, spec.tracks);
 
     // Project root CLAUDE.md — merge from fragments (single/multi/full).
+    // Note: overwrites any user customization on re-install. Documented behavior.
     writeRootClaudeMd(harnessRoot, projectDir, spec.tracks);
+    rootClaudeMd = { tracks: spec.tracks };
   }
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
@@ -350,7 +353,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     mode,
     envFiles,
     categories,
-    rootClaudeMd: claudeBaselineEnabled ? { tracks: spec.tracks } : null,
+    rootClaudeMd,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
