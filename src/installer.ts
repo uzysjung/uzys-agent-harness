@@ -24,8 +24,8 @@ import {
 import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
 import { buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
-import { mergeProjectClaude } from "./project-claude-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
+import { mergeProjectClaude } from "./project-claude-merge.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
