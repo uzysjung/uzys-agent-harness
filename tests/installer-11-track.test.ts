@@ -17,6 +17,7 @@ const NO_OPTS: OptionFlags = {
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
+  withAddyAgentSkills: false,
 };
 
 function buildSpec(tracks: Track[], projectDir: string): InstallSpec {

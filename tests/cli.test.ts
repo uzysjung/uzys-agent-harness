@@ -68,6 +68,7 @@ describe("defaultAction", () => {
         withCodexTrust: false,
         withKarpathyHook: false,
         withCodexPrompts: false,
+        withAddyAgentSkills: false,
       },
       cli: ["claude"] as const,
       projectDir: "/p",

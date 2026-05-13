@@ -44,8 +44,8 @@ function runForTrack(
 describe("Track matrix — assets called per track", () => {
   it("tooling: dev baseline + dev-tools + v0.5.0 dev assets (product-skills + karpathy-coder)", () => {
     const { ids } = runForTrack(["tooling"]);
+    // v26.42.0 — addy-agent-skills moved to option-gated (withAddyAgentSkills).
     expect(ids).toEqual([
-      "addy-agent-skills",
       "playwright-skill",
       "find-skills",
       "agent-browser",
@@ -63,7 +63,6 @@ describe("Track matrix — assets called per track", () => {
       "python-resource-management",
       "python-performance-optimization",
       "anthropic-data-plugin",
-      "addy-agent-skills",
       "playwright-skill",
       "find-skills",
       "agent-browser",
@@ -78,7 +77,7 @@ describe("Track matrix — assets called per track", () => {
     // v0.6.3 — railway-plugin entry 제거. railway-skills만 남음.
     expect(ids).toContain("railway-skills");
     expect(ids).not.toContain("railway-plugin");
-    expect(ids).toContain("addy-agent-skills");
+    expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
     expect(ids).toContain("impeccable");
     // csr-* matches CSR_SSR_NEXTJS_FULL set → react/shadcn/web-design applies
     expect(ids).toContain("react-best-practices");
@@ -150,7 +149,6 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toEqual(
       expect.arrayContaining([
         "polars-K-Dense",
-        "addy-agent-skills",
         "railway-skills", // v0.6.3 — railway-plugin entry 제거
         "vercel-cli",
         "impeccable",
@@ -163,6 +161,12 @@ describe("Track matrix — assets called per track", () => {
         "finance-skills",
       ]),
     );
+    expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
+  });
+
+  it("--with-addy-agent-skills adds addy-agent-skills plugin (v26.42.0)", () => {
+    const { ids } = runForTrack(["tooling"], { withAddyAgentSkills: true });
+    expect(ids).toContain("addy-agent-skills");
   });
 
   it("--with-ecc adds ecc-plugin to attempt list (option-gated)", () => {
@@ -190,16 +194,16 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 10 spawn calls (v0.5.0 — product-skills + karpathy-coder added)", () => {
-    // addy(plugin=2) + playwright(1) + find-skills(1) + agent-browser(npm=1) + ADR(1)
-    //   + product-skills(plugin=2) + karpathy-coder(plugin=2) = 10
+  it("tooling: 8 spawn calls (v26.42.0 — addy moved to opt-in, -2 plugin calls)", () => {
+    // playwright(1) + find-skills(1) + agent-browser(npm=1) + ADR(1)
+    //   + product-skills(plugin=2) + karpathy-coder(plugin=2) = 8
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(10);
+    expect(spawnCallCount).toBe(8);
   });
 
-  it("data: tooling baseline 10 + data 6 (4 skills + 1 plugin × 2) = 16", () => {
+  it("data: tooling baseline 8 + data 6 (4 skills + 1 plugin × 2) = 14 (v26.42.0)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(16);
+    expect(spawnCallCount).toBe(14);
   });
 
   it("--with-gsd alone (executive base) adds 1 npx call", () => {

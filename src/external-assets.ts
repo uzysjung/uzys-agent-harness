@@ -153,11 +153,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
 
-  // === dev baseline (모든 dev track) ===
+  // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
   {
     id: "addy-agent-skills",
     description: "addy agent-skills (general dev)",
-    condition: { kind: "has-dev-track" },
+    condition: { kind: "option", flag: "withAddyAgentSkills" },
     method: {
       kind: "plugin",
       marketplace: "addyosmani/agent-skills",

@@ -71,6 +71,7 @@ describe("runInteractive", () => {
         withCodexTrust: false,
         withKarpathyHook: false,
         withCodexPrompts: false,
+        withAddyAgentSkills: false,
       },
       cli: ["claude"],
       projectDir: "/tmp/proj",
@@ -234,6 +235,7 @@ describe("formatSummary", () => {
         withCodexTrust: false,
         withKarpathyHook: false,
         withCodexPrompts: false,
+        withAddyAgentSkills: false,
       },
       cli: ["codex"],
       projectDir: "/proj",
@@ -257,6 +259,7 @@ describe("formatSummary", () => {
         withCodexTrust: false,
         withKarpathyHook: false,
         withCodexPrompts: false,
+        withAddyAgentSkills: false,
       },
       cli: ["claude"],
       projectDir: "/p",
@@ -277,6 +280,7 @@ describe("toOptionFlags", () => {
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
+      withAddyAgentSkills: false,
     });
   });
 
@@ -291,6 +295,7 @@ describe("toOptionFlags", () => {
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
+      withAddyAgentSkills: false,
     });
   });
 });
@@ -307,6 +312,7 @@ describe("applyOptionRules", () => {
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
+      withAddyAgentSkills: false,
     });
     expect(result.withEcc).toBe(true);
     expect(result.withPrune).toBe(true);
@@ -323,6 +329,7 @@ describe("applyOptionRules", () => {
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
+      withAddyAgentSkills: false,
     };
     expect(applyOptionRules(flags)).toEqual(flags);
   });
@@ -338,6 +345,7 @@ describe("applyOptionRules", () => {
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
+      withAddyAgentSkills: false,
     };
     expect(applyOptionRules(flags)).toEqual(flags);
   });
