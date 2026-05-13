@@ -20,6 +20,8 @@ export interface InstallOptions {
   withKarpathyHook?: boolean;
   /** v0.7.0 — Codex slash 통일 opt-in (~/.codex/prompts/uzys-*.md). D16 패턴. */
   withCodexPrompts?: boolean;
+  /** v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install). */
+  withAddyAgentSkills?: boolean;
 }
 
 export interface RunInstallResult {
@@ -134,6 +136,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
       withCodexPrompts: options.withCodexPrompts === true,
+      withAddyAgentSkills: options.withAddyAgentSkills === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
@@ -498,6 +501,7 @@ function formatOptions(spec: InstallSpec): string {
   if (spec.options.withPrune) flags.push("prune");
   if (spec.options.withTob) flags.push("tob");
   if (spec.options.withKarpathyHook) flags.push("karpathy-hook");
+  if (spec.options.withAddyAgentSkills) flags.push("addy-agent-skills");
   return flags.length > 0 ? flags.join(", ") : c.dim("(defaults only)");
 }
 
@@ -593,6 +597,10 @@ export function registerInstallCommand(cli: Cli): void {
     .option(
       "--with-codex-prompts",
       "Codex slash 통일 (v0.7.0): ~/.codex/prompts/uzys-*.md 6 file 글로벌 복사 → /uzys-spec slash 작동. D16 opt-in.",
+    )
+    .option(
+      "--with-addy-agent-skills",
+      "addyosmani/agent-skills marketplace plugin install. v26.42.0 — opt-in (이전엔 dev 트랙 자동 설치). /spec /plan /build slash commands (no namespace).",
     )
     .action((options: InstallOptions) => installAction(options));
 }

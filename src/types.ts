@@ -61,6 +61,12 @@ export interface OptionFlags {
    * 기존 .agents/skills/uzys-(phase) 디렉토리의 SKILL.md ($name mention 형식)도 병존.
    */
   withCodexPrompts: boolean;
+  /**
+   * v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install on dev tracks).
+   * Sibling option to withGsd. Same plugin install method (`addyosmani/agent-skills`
+   * marketplace + `agent-skills@addy-agent-skills`).
+   */
+  withAddyAgentSkills: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
@@ -73,6 +79,7 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
+  withAddyAgentSkills: false,
 };
 
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */

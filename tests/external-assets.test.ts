@@ -130,7 +130,7 @@ describe("filterApplicableAssets", () => {
     expect(ids).toContain("c-level-skills");
     expect(ids).toContain("finance-skills");
     expect(ids).not.toContain("gsd-orchestrator"); // option-gated
-    expect(ids).not.toContain("addy-agent-skills"); // dev only
+    expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
     expect(ids).not.toContain("polars-K-Dense"); // data|full
   });
 
@@ -147,11 +147,11 @@ describe("filterApplicableAssets", () => {
         "python-resource-management",
         "python-performance-optimization",
         "anthropic-data-plugin",
-        "addy-agent-skills",
         "find-skills",
         "agent-browser",
       ]),
     );
+    expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
     expect(ids).not.toContain("railway-skills"); // not in data
   });
 

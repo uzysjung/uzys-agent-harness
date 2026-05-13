@@ -27,6 +27,7 @@ const NO_OPTS: OptionFlags = {
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
+  withAddyAgentSkills: false,
 };
 
 function spec(tracks: Track[], options: Partial<OptionFlags>, projectDir: string): InstallSpec {

@@ -40,6 +40,11 @@ const TRACK_LABELS: Record<Track, string> = {
 const OPTION_DEFS: ReadonlyArray<{ key: keyof OptionFlags; label: string; hint: string }> = [
   { key: "withTauri", label: "Tauri desktop rule", hint: "CSR / full tracks" },
   { key: "withGsd", label: "GSD orchestrator", hint: "Large-project agent coordination" },
+  {
+    key: "withAddyAgentSkills",
+    label: "addy agent-skills (addyosmani/agent-skills)",
+    hint: "general dev skill suite · /spec /plan /build slash commands (no namespace)",
+  },
   { key: "withEcc", label: "ECC plugin (project-scoped)", hint: "everything-claude-code" },
   { key: "withPrune", label: "Prune ECC items beyond curated 89", hint: "Implies ECC" },
   { key: "withTob", label: "Trail of Bits security plugin", hint: "CodeQL + Semgrep" },
