@@ -13,9 +13,21 @@
 ```bash
 # in your project directory:
 npx -y github:uzysjung/uzys-claude-harness
-# → interactive prompts: Track, options (grouped by category since v26.45.0), CLI target.
-#   For /uzys:* 6-gate slash commands, check 'uzys-harness 6-Gate workflow' in options
+# → interactive 5-step wizard (since v26.47.0):
+#     1. Track    (preset: csr-supabase, ssr-nextjs, ...)
+#     2. Options  (grouped by category + [source] labels; v26.45.0+)
+#     3. CLI      (claude / codex / opencode)
+#     4. Assets   (32+ external assets with preset-recommended ✓ pre-check; v26.47.0+)
+#     5. Confirm
+#   ESC at step 2-4 = back to previous (wizard back nav, v26.46.0+)
+#   For /uzys:* 6-gate slash commands, check 'uzys-harness 6-Gate workflow' in step 2
 #   (v26.44.0+ BREAKING — was auto-installed on dev tracks before).
+
+# Non-interactive (CI / scripted):
+#   --with <asset-id>    : force-include external asset (repeatable)
+#   --without <asset-id> : force-exclude from preset recommendation (repeatable)
+#   --with-uzys-harness  : opt-in 6-Gate slash commands (v26.44.0+)
+#   --no-codex-prompts   : opt-out Codex global prompts (v26.46.0+, cli=codex default ON)
 
 # then start Claude Code:
 claude

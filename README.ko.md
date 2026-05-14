@@ -13,9 +13,21 @@
 ```bash
 # 프로젝트 디렉토리에서:
 npx -y github:uzysjung/uzys-claude-harness
-# → 인터랙티브로 Track, 옵션 (v26.45.0 부터 카테고리별 그룹화 + 출처 라벨), CLI 타깃.
-#   /uzys:* 6-gate 슬래시 커맨드를 쓰려면 옵션에서 'uzys-harness 6-Gate workflow' 체크
+# → 인터랙티브 5-step wizard (v26.47.0+):
+#     1. Track    (preset: csr-supabase, ssr-nextjs, ...)
+#     2. Options  (카테고리별 그룹 + [출처] 라벨, v26.45.0+)
+#     3. CLI      (claude / codex / opencode)
+#     4. Assets   (32+ external asset, preset 추천 ✓ 미리 체크; v26.47.0+)
+#     5. Confirm
+#   step 2-4 에서 ESC = 이전 단계로 (wizard back nav, v26.46.0+)
+#   /uzys:* 6-gate 슬래시는 step 2 에서 'uzys-harness 6-Gate workflow' 체크
 #   (v26.44.0+ BREAKING — 이전엔 dev 트랙 자동 설치).
+
+# Non-interactive (CI / 스크립트):
+#   --with <asset-id>    : external asset 강제 포함 (repeatable)
+#   --without <asset-id> : preset 추천에서 제외 (repeatable)
+#   --with-uzys-harness  : 6-Gate slash commands opt-in (v26.44.0+)
+#   --no-codex-prompts   : Codex 글로벌 prompts opt-out (v26.46.0+, cli=codex 시 default ON)
 
 # Claude Code 시작:
 claude
