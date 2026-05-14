@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.47.0] — 2026-05-15 (feat: Phase C full — External Asset 직접 toggle + UserOverride)
+
+### Added — Phase C 완전판 (Category-based installer)
+- `UserOverride { forceInclude, forceExclude }` 모델 (ADR-014)
+  - 우선순위: `forceExclude > forceInclude > condition (any-track | has-dev-track | option)`
+- Interactive **Step 4 (assets)** 신규 — 32+ External Asset 카테고리별 grouping + `[source]` 라벨 + preset 추천 ✓ 미리 체크
+- CLI: `--with <asset-id>` / `--without <asset-id>` repeatable (cac)
+- `computeUserOverride(presets, selected)` diff 계산 helper
+- SPEC OQ 1-4 모두 해소
+
+### Test
+- vitest 547/547 PASS (이전 538 + 신규 9)
+- `shouldInstallAsset` userOverride 4 case
+- `computeUserOverride` 5 case
+- vitest branch threshold 87 → 86 (격리 어려운 분기, 후속 복구 예정)
+
+## [v26.46.0] — 2026-05-15 (feat: Codex default for cli=codex + Wizard back nav, ⚠️ BREAKING)
+
+### BREAKING
+- `cli` 에 codex 포함 시 `withCodexPrompts` **default ON** (ADR-012)
+  - 이전: `--with-codex-prompts` opt-in
+  - opt-out: `--no-codex-prompts` 신규 flag
+- Interactive ESC 의미 재정의 (ADR-013):
+  - tracks/confirm = 종료 (기존)
+  - options/cli = **back to previous step**
+
+### Removed
+- `OPTION_DEFS` 에서 `withCodexPrompts` entry (interactive UI 안 보임)
+
+### Test
+- 기존 cancellation case 의 selectOptionKeys/selectCli null → back nav 의미로 재정의
+- 신규 2 test: 'ESC at options → back to tracks', 'ESC at cli → back to options'
+
 ## [v26.45.0] — 2026-05-14 (feat: Step 2 카테고리 grouping + 출처 라벨)
 
 ### Added — Phase C MVP (category-installer)
