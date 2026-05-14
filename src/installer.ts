@@ -426,7 +426,7 @@ function wireKarpathyHook(
     return { wired: false, reason: "external-skipped" };
   }
   const karpathyResult = external.attempted.find((r) => r.asset.id === KARPATHY_ASSET_ID);
-  if (!karpathyResult || !karpathyResult.ok) {
+  if (!karpathyResult?.ok) {
     return { wired: false, reason: "plugin-install-failed" };
   }
 

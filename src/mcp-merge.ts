@@ -79,7 +79,6 @@ export function mergeMcpServers(
     };
   }
   // Strip _comment marker (parity with the bash `jq 'del(._comment)'`).
-  // biome-ignore lint/performance/noDelete: explicit removal preserves JSON output cleanliness
   delete out._comment;
   return out;
 }

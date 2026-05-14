@@ -775,6 +775,55 @@ describe("executeSpec", () => {
   });
 });
 
+describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
+  it("unknown id in --with → warning + skip (no fail)", () => {
+    const log = vi.fn();
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { cli: ["claude"], track: ["tooling"], with: "nonexistent-asset", projectDir: "/tmp/p" },
+      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining("Unknown asset id 'nonexistent-asset'"),
+    );
+    expect(exit).not.toHaveBeenCalled();
+    expect(runPipeline).toHaveBeenCalledOnce();
+  });
+
+  it("known + unknown mix in --with → known applied, unknown warning", () => {
+    const log = vi.fn();
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["tooling"],
+        with: ["railway-skills", "nonexistent"],
+        projectDir: "/tmp/p",
+      },
+      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown asset id 'nonexistent'"));
+    expect(err).not.toHaveBeenCalledWith(expect.stringContaining("'railway-skills'"));
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it("unknown id in --without → warning + skip", () => {
+    const log = vi.fn();
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { cli: ["claude"], track: ["tooling"], without: "fake-id", projectDir: "/tmp/p" },
+      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown asset id 'fake-id'"));
+  });
+});
+
 describe("v26.48.0 — install helpers (coverage 복구)", () => {
   it("formatCliPhaseTitle: claude only → 'CLI artifacts'", async () => {
     const { formatCliPhaseTitle } = await import("../src/commands/install.js");
