@@ -1,6 +1,6 @@
 # uzys-claude-harness
 
-> A Claude Code agent harness — 6-gate workflow + Ralph loop + 9 stack tracks. Lean by design.
+> A Claude Code agent harness — 6-gate workflow + Ralph loop + 11 stack tracks. Lean by design.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
@@ -13,7 +13,9 @@
 ```bash
 # in your project directory:
 npx -y github:uzysjung/uzys-claude-harness
-# → interactive prompts: Track, options, CLI target. project-dir defaults to cwd.
+# → interactive prompts: Track, options (grouped by category since v26.45.0), CLI target.
+#   For /uzys:* 6-gate slash commands, check 'uzys-harness 6-Gate workflow' in options
+#   (v26.44.0+ BREAKING — was auto-installed on dev tracks before).
 
 # then start Claude Code:
 claude
@@ -39,8 +41,9 @@ Tracks available in the prompt: `csr-supabase`, `csr-fastify`, `csr-fastapi`, `s
 
 A **deterministic harness** around [Claude Code](https://claude.com/claude-code) that:
 
-- Enforces a **6-gate workflow** (`Spec → Plan → Build → Test → Review → Ship`) via hooks
-- Supports **9 stack tracks** (csr-supabase / csr-fastify / csr-fastapi / ssr-htmx / ssr-nextjs / data / executive / tooling / full)
+- Enforces a **6-gate workflow** (`Spec → Plan → Build → Test → Review → Ship`) via hooks — opt-in via `--with-uzys-harness` (v26.44.0+ BREAKING)
+- Supports **11 stack tracks** (csr-supabase / csr-fastify / csr-fastapi / ssr-htmx / ssr-nextjs / data / executive / tooling / full / project-management / growth-marketing)
+- Curates **6 workflow alternatives** (uzys-harness / addy-agent-skills / superpowers / gsd) — pick one or more, all opt-in
 - Bundles **vetted plugins, skills, MCP servers, and agents** per track ([docs/REFERENCE.md](./docs/REFERENCE.md))
 - Stays **lean** — Rule 17 files / Hook 6 auto-registered. Removes anything obvious or duplicate.
 - Self-improves via **continuous-learning + Ralph loop** (SPEC-driven autonomous cycle)

@@ -2,7 +2,18 @@
 // no transformation logic — interactive.ts owns the business rules. This file
 // is excluded from coverage in vitest.config.ts (justification at exclude line).
 
-import { cancel, confirm, intro, isCancel, multiselect, outro, select } from "@clack/prompts";
+import {
+  cancel,
+  confirm,
+  groupMultiselect,
+  intro,
+  isCancel,
+  multiselect,
+  outro,
+  select,
+} from "@clack/prompts";
+import type { Category } from "./categories.js";
+import { CATEGORY_TITLES } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
@@ -37,37 +48,98 @@ const TRACK_LABELS: Record<Track, string> = {
   "growth-marketing": "growth-marketing — Growth / Marketing / Content",
 };
 
-const OPTION_DEFS: ReadonlyArray<{ key: keyof OptionFlags; label: string; hint: string }> = [
-  { key: "withTauri", label: "Tauri desktop rule", hint: "CSR / full tracks" },
-  { key: "withGsd", label: "GSD orchestrator", hint: "Large-project agent coordination" },
+interface OptionDef {
+  key: keyof OptionFlags;
+  label: string;
+  hint: string;
+  /** v26.45.0 — Category grouping for Step 2 UI. */
+  category: Category;
+  /** v26.45.0 — Source label shown in `[source]` form. */
+  source: string;
+}
+
+const OPTION_DEFS: ReadonlyArray<OptionDef> = [
+  {
+    key: "withTauri",
+    category: "frontend",
+    source: "본 프로젝트",
+    label: "Tauri desktop rule",
+    hint: "CSR / full tracks",
+  },
+  {
+    key: "withGsd",
+    category: "workflow",
+    source: "get-shit-done-cc",
+    label: "GSD orchestrator",
+    hint: "Large-project agent coordination",
+  },
   {
     key: "withAddyAgentSkills",
-    label: "addy agent-skills (addyosmani/agent-skills)",
-    hint: "general dev skill suite · /spec /plan /build slash commands (no namespace)",
+    category: "workflow",
+    source: "addyosmani",
+    label: "addy agent-skills",
+    hint: "general dev skill suite · /spec /plan /build slash (no namespace)",
   },
   {
     key: "withUzysHarness",
-    label: "uzys-harness 6-Gate workflow (본 프로젝트)",
+    category: "workflow",
+    source: "본 프로젝트",
+    label: "uzys-harness 6-Gate workflow",
     hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship · v26.44.0 opt-in",
   },
   {
     key: "withSuperpowers",
-    label: "superpowers (obra/superpowers, Anthropic 공식 marketplace)",
+    category: "workflow",
+    source: "obra / anthropics 공식",
+    label: "superpowers",
     hint: "agentic skills framework · /spec /plan /build slash (no namespace)",
   },
-  { key: "withEcc", label: "ECC plugin (project-scoped)", hint: "everything-claude-code" },
-  { key: "withPrune", label: "Prune ECC items beyond curated 89", hint: "Implies ECC" },
-  { key: "withTob", label: "Trail of Bits security plugin", hint: "CodeQL + Semgrep" },
+  {
+    key: "withEcc",
+    category: "ecc-suite",
+    source: "affaan-m",
+    label: "ECC plugin (project-scoped)",
+    hint: "everything-claude-code",
+  },
+  {
+    key: "withPrune",
+    category: "ecc-suite",
+    source: "본 프로젝트",
+    label: "Prune ECC items beyond curated 89",
+    hint: "Implies --with-ecc",
+  },
+  {
+    key: "withTob",
+    category: "dev-tools",
+    source: "trailofbits",
+    label: "Trail of Bits security plugin",
+    hint: "differential security review",
+  },
   {
     key: "withKarpathyHook",
-    label: "karpathy-coder pre-commit hook (opt-in)",
+    category: "dev-tools",
+    source: "alirezarezvani",
+    label: "karpathy-coder pre-commit hook",
     hint: "Claude Code Write|Edit gate · Python 3 권장 · 비차단 (warn-only)",
   },
   {
     key: "withCodexPrompts",
-    label: "Codex slash commands (opt-in)",
-    hint: "~/.codex/prompts/uzys-*.md 6 file 글로벌 복사 · /uzys-spec slash 등록 · D16 opt-in",
+    category: "workflow",
+    source: "본 프로젝트",
+    label: "Codex slash commands",
+    hint: "~/.codex/prompts/uzys-*.md 글로벌 복사 · /uzys-spec slash 등록 · D16 opt-in",
   },
+];
+
+/** Category render order in Step 2 group multiselect. */
+const CATEGORY_ORDER: ReadonlyArray<Category> = [
+  "frontend",
+  "backend",
+  "data",
+  "business",
+  "dev-tools",
+  "workflow",
+  "ecc-suite",
 ];
 
 const CLI_BASE_LABELS: Record<CliBase, string> = {
@@ -92,9 +164,23 @@ export const defaultPrompts: Prompts = {
   },
 
   selectOptionKeys: async (initial) => {
-    const result = await multiselect({
+    // v26.45.0 — groupMultiselect 카테고리별 그룹화 + [source] 라벨.
+    const groups: Record<
+      string,
+      Array<{ value: keyof OptionFlags; label: string; hint: string }>
+    > = {};
+    for (const cat of CATEGORY_ORDER) {
+      const entries = OPTION_DEFS.filter((o) => o.category === cat);
+      if (entries.length === 0) continue;
+      groups[CATEGORY_TITLES[cat]] = entries.map((o) => ({
+        value: o.key,
+        label: `${o.label}  [${o.source}]`,
+        hint: o.hint,
+      }));
+    }
+    const result = await groupMultiselect({
       message: "Optional features (Space to toggle, Enter to skip):",
-      options: OPTION_DEFS.map((o) => ({ value: o.key, label: o.label, hint: o.hint })),
+      options: groups,
       ...(initial ? { initialValues: [...initial] } : {}),
       required: false,
     });
