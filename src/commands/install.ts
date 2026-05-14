@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import type { Cli } from "../cli.js";
 import { parseCliTargets, targetsInclude } from "../cli-targets.js";
 import { assetRow, c, infoRow, phaseHeader, sectionHeader, status } from "../design.js";
+import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { type CliTargets, type InstallSpec, isTrack, type Track } from "../types.js";
 
@@ -153,8 +154,23 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
+  // v26.49.0 — unknown asset id validation (silent ignore 방지).
+  const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
+  for (const id of [...forceInclude, ...forceExclude]) {
+    if (!validIds.has(id)) {
+      err(
+        c.yellow(
+          `[WARN] Unknown asset id '${id}' (--with/--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+        ),
+      );
+    }
+  }
+  const filteredInclude = forceInclude.filter((id) => validIds.has(id));
+  const filteredExclude = forceExclude.filter((id) => validIds.has(id));
   const userOverride =
-    forceInclude.length > 0 || forceExclude.length > 0 ? { forceInclude, forceExclude } : undefined;
+    filteredInclude.length > 0 || filteredExclude.length > 0
+      ? { forceInclude: filteredInclude, forceExclude: filteredExclude }
+      : undefined;
 
   const spec: InstallSpec = {
     tracks: (options.track as Track[]) ?? [],
