@@ -83,6 +83,29 @@ describe("runInteractive", () => {
     expect(prompts.outro).toHaveBeenCalledOnce();
   });
 
+  it("v26.46.0 — cli=codex auto-enables withCodexPrompts (ADR-012)", async () => {
+    const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
+    const prompts = makePrompts({ selectCli });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.options.withCodexPrompts).toBe(true);
+    expect(result.spec?.cli).toEqual(["claude", "codex"]);
+  });
+
+  it("v26.46.0 — cli without codex keeps withCodexPrompts=false", async () => {
+    const prompts = makePrompts(); // default selectCli → ["claude"]
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.spec?.options.withCodexPrompts).toBe(false);
+  });
+
   it("existing install: action=exit returns reason=exit", async () => {
     const prompts = makePrompts({ selectAction: vi.fn(async () => "exit" as const) });
     const result = await runInteractive("/tmp/proj", {

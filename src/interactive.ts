@@ -167,13 +167,22 @@ export async function runInteractive(
       cli = result;
       step = "confirm";
     } else {
-      // confirm
+      // confirm — tracks/optionKeys/cli 모두 이전 step 에서 set (narrowing).
+      // biome-ignore lint/style/noNonNullAssertion: confirm step 도달 = 모든 이전 step 완료 보장
+      const finalTracks = tracks!;
+      // biome-ignore lint/style/noNonNullAssertion: same as above
+      const finalCli = cli!;
       const options = applyOptionRules(toOptionFlags(optionKeys ?? []));
       // v26.46.0 — cli=codex 시 Codex prompts default ON (ADR-012).
-      if ((cli ?? []).includes("codex")) {
+      if (finalCli.includes("codex")) {
         options.withCodexPrompts = true;
       }
-      const summary = formatSummary({ tracks: tracks ?? [], options, cli: cli ?? [], projectDir });
+      const summary = formatSummary({
+        tracks: finalTracks,
+        options,
+        cli: finalCli,
+        projectDir,
+      });
       const confirmed = await prompts.confirmInstall(summary);
       if (confirmed === null) {
         prompts.cancel("Cancelled.");
@@ -187,7 +196,7 @@ export async function runInteractive(
       return {
         ok: true,
         mode,
-        spec: { tracks: tracks ?? [], options, cli: cli ?? [], projectDir },
+        spec: { tracks: finalTracks, options, cli: finalCli, projectDir },
       };
     }
   }
