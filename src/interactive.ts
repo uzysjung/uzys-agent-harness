@@ -3,7 +3,11 @@ import { defaultPrompts, type Prompts } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
 
-/** Convert an array of selected option keys into a fully-populated OptionFlags. */
+/**
+ * Convert an array of selected option keys into a fully-populated OptionFlags.
+ * v26.46.0 — `withCodexPrompts` 는 interactive 옵션 list 에서 제거됨. cli=codex 선택 시
+ * `runInteractive` 에서 자동 ON. 본 함수는 default false 로 시작.
+ */
 export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFlags {
   const picked = new Set<keyof OptionFlags>(keys);
   return {
@@ -15,7 +19,7 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
     withCodexSkills: picked.has("withCodexSkills"),
     withCodexTrust: picked.has("withCodexTrust"),
     withKarpathyHook: picked.has("withKarpathyHook"),
-    withCodexPrompts: picked.has("withCodexPrompts"),
+    withCodexPrompts: false, // v26.46.0 — cli=codex 결정 후 자동 설정 (interactive 직접 토글 X)
     withAddyAgentSkills: picked.has("withAddyAgentSkills"),
     withUzysHarness: picked.has("withUzysHarness"),
     withSuperpowers: picked.has("withSuperpowers"),
@@ -128,42 +132,65 @@ export async function runInteractive(
     }
   }
 
-  const tracks = await prompts.selectTracks(initialTracks);
-  if (tracks === null) {
-    prompts.cancel("Cancelled.");
-    return { ok: false, reason: "cancelled" };
-  }
+  // v26.46.0 — Wizard back navigation. ESC at each step = back to previous;
+  // ESC at the first step (tracks) = exit. confirmInstall ESC/No = cancel
+  // (clack convention; back nav 는 step-level ESC 로만).
+  type Step = "tracks" | "options" | "cli" | "confirm";
+  let step: Step = "tracks";
+  let tracks: Track[] | null = null;
+  let optionKeys: Array<keyof OptionFlags> | null = null;
+  let cli: import("./types.js").CliTargets | null = null;
 
-  const optionKeys = await prompts.selectOptionKeys();
-  if (optionKeys === null) {
-    prompts.cancel("Cancelled.");
-    return { ok: false, reason: "cancelled" };
+  while (true) {
+    if (step === "tracks") {
+      const result = await prompts.selectTracks(tracks ?? initialTracks);
+      if (result === null) {
+        prompts.cancel("Cancelled.");
+        return { ok: false, reason: "cancelled" };
+      }
+      tracks = result;
+      step = "options";
+    } else if (step === "options") {
+      const result = await prompts.selectOptionKeys(optionKeys ?? undefined);
+      if (result === null) {
+        step = "tracks";
+        continue;
+      }
+      optionKeys = result;
+      step = "cli";
+    } else if (step === "cli") {
+      const result = await prompts.selectCli(cli ?? ["claude"]);
+      if (result === null) {
+        step = "options";
+        continue;
+      }
+      cli = result;
+      step = "confirm";
+    } else {
+      // confirm
+      const options = applyOptionRules(toOptionFlags(optionKeys ?? []));
+      // v26.46.0 — cli=codex 시 Codex prompts default ON (ADR-012).
+      if ((cli ?? []).includes("codex")) {
+        options.withCodexPrompts = true;
+      }
+      const summary = formatSummary({ tracks: tracks ?? [], options, cli: cli ?? [], projectDir });
+      const confirmed = await prompts.confirmInstall(summary);
+      if (confirmed === null) {
+        prompts.cancel("Cancelled.");
+        return { ok: false, reason: "cancelled" };
+      }
+      if (!confirmed) {
+        prompts.outro("Cancelled by user.");
+        return { ok: false, reason: "cancelled" };
+      }
+      prompts.outro("Running install pipeline...");
+      return {
+        ok: true,
+        mode,
+        spec: { tracks: tracks ?? [], options, cli: cli ?? [], projectDir },
+      };
+    }
   }
-  const options = applyOptionRules(toOptionFlags(optionKeys));
-
-  const cli = await prompts.selectCli(["claude"]);
-  if (cli === null) {
-    prompts.cancel("Cancelled.");
-    return { ok: false, reason: "cancelled" };
-  }
-
-  const summary = formatSummary({ tracks, options, cli, projectDir });
-  const confirmed = await prompts.confirmInstall(summary);
-  if (confirmed === null) {
-    prompts.cancel("Cancelled.");
-    return { ok: false, reason: "cancelled" };
-  }
-  if (!confirmed) {
-    prompts.outro("Cancelled by user.");
-    return { ok: false, reason: "cancelled" };
-  }
-
-  prompts.outro("Running install pipeline...");
-  return {
-    ok: true,
-    mode,
-    spec: { tracks, options, cli, projectDir },
-  };
 }
 
 export function formatSummary(spec: InstallSpec): string {

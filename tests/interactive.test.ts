@@ -179,11 +179,11 @@ describe("runInteractive", () => {
     expect(selectTracks).toHaveBeenCalledWith(undefined);
   });
 
+  // v26.46.0 — Wizard back navigation: selectTracks/confirmInstall ESC=exit,
+  // selectOptionKeys/selectCli ESC=back to previous step (not cancel).
   it.each([
     ["selectAction", { selectAction: vi.fn(async () => null) }, true],
     ["selectTracks", { selectTracks: vi.fn(async () => null) }, false],
-    ["selectOptionKeys", { selectOptionKeys: vi.fn(async () => null) }, false],
-    ["selectCli", { selectCli: vi.fn(async () => null) }, false],
     ["confirmInstall", { confirmInstall: vi.fn(async () => null) }, false],
   ] as const)("cancellation in %s returns reason=cancelled", async (_label, override, useExisting) => {
     const prompts = makePrompts(override);
@@ -194,6 +194,50 @@ describe("runInteractive", () => {
     });
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("cancelled");
+  });
+
+  it("v26.46.0 — ESC at selectOptionKeys goes back to selectTracks (wizard back nav)", async () => {
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(null); // 2번째 호출 = exit
+    const selectOptionKeys = vi
+      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
+      .mockResolvedValueOnce(null); // back to tracks
+    const prompts = makePrompts({ selectTracks, selectOptionKeys });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(selectTracks).toHaveBeenCalledTimes(2);
+    expect(selectOptionKeys).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("cancelled");
+  });
+
+  it("v26.46.0 — ESC at selectCli goes back to selectOptionKeys (wizard back nav)", async () => {
+    const selectOptionKeys = vi
+      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
+      .mockResolvedValueOnce([] as Array<keyof OptionFlags>)
+      .mockResolvedValueOnce(null); // 2번째 = back to tracks
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(null); // 2번째 호출 시 exit
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(null); // back to options
+    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectCli });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(selectCli).toHaveBeenCalledTimes(1);
+    expect(selectOptionKeys).toHaveBeenCalledTimes(2);
+    expect(selectTracks).toHaveBeenCalledTimes(2);
+    expect(result.ok).toBe(false);
   });
 
   it("user declines confirm → reason=cancelled (without prompts.cancel)", async () => {
