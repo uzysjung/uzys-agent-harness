@@ -84,6 +84,7 @@ describe("runInstall — external assets integration", () => {
   });
 
   it("attaches external report to InstallReport when runExternal returns one", () => {
+    // Mock ExternalAsset — category/source placeholders (type compat only).
     const fakeExternal: ExternalInstallReport = {
       attempted: [
         {

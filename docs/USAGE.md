@@ -41,6 +41,62 @@ npx -y --loglevel=error github:uzysjung/uzys-claude-harness
 
 Impeccable 스킬은 직접 호출: `/polish`, `/critique`, `/audit`, `/teach` 등.
 
+## Install Options (v26.42-44.0 BREAKING + 신규)
+
+v26.42.0 부터 외부 워크플로우 plugin 들이 모두 **opt-in**. 기존 자동 설치 동작이 BREAKING 변경됨.
+
+| Flag | 효과 | 출처 | BREAKING |
+|------|------|------|----------|
+| `--with-uzys-harness` | 본 harness 6-Gate slash commands (`/uzys:spec` ... `/uzys:ship`) | 본 프로젝트 | ✅ v26.44.0 — 이전엔 dev 트랙 자동 설치 |
+| `--with-addy-agent-skills` | `/spec /plan /build` slash (no namespace) | `addyosmani/agent-skills` | ✅ v26.42.0 — 이전엔 dev 트랙 자동 설치 |
+| `--with-superpowers` | agentic skills framework | `obra/superpowers` (Anthropic 공식 marketplace 등록) | v26.44.0 신규 |
+| `--with-gsd` | 대형 프로젝트 오케스트레이션 | `get-shit-done-cc` | 기존 |
+| `--with-tauri` | Tauri desktop rule | 본 프로젝트 | 기존 |
+| `--with-ecc` | ECC plugin (project-scoped) | `affaan-m/everything-claude-code` | 기존 |
+| `--with-prune` | ECC 큐레이션 외 항목 제거 | 본 프로젝트 | 기존 |
+| `--with-tob` | Trail of Bits differential security review | `trailofbits` | 기존 |
+| `--with-karpathy-hook` | pre-commit 단순성 gate | `alirezarezvani` | 기존 |
+| `--with-codex-prompts` | Codex slash 통일 (~/.codex/prompts/uzys-*.md 글로벌) | 본 프로젝트 | 기존 |
+
+### Migration (BREAKING — v26.42.0 / v26.44.0)
+
+기존 dev 트랙 (`csr-*/ssr-*/data/tooling/full`) 으로 설치하던 사용자가 `/uzys:*` 와 `/spec /plan` 둘 다 쓰고 싶었으면:
+
+```bash
+npx claude-harness install --track <track> --with-uzys-harness --with-addy-agent-skills
+```
+
+`/uzys:*` 만 쓰면:
+
+```bash
+npx claude-harness install --track <track> --with-uzys-harness
+```
+
+### Step 2 Interactive (v26.45.0+)
+
+Interactive 모드의 옵션 multiselect 가 카테고리별로 그룹화되고 자산 출처가 라벨로 표시됨:
+
+```
+Optional features (Space to toggle, Enter to skip):
+
+  🎨 Frontend (UI · Design)
+    [ ] Tauri desktop rule  [본 프로젝트]
+  🛡️  Dev Tools (Security · Quality)
+    [ ] Trail of Bits security plugin  [trailofbits]
+    [ ] karpathy-coder pre-commit hook  [alirezarezvani]
+  🔄 Workflow (Development Cycle)
+    [ ] GSD orchestrator  [get-shit-done-cc]
+    [ ] addy agent-skills  [addyosmani]
+    [ ] uzys-harness 6-Gate workflow  [본 프로젝트]
+    [ ] superpowers  [obra / anthropics 공식]
+    [ ] Codex slash commands  [본 프로젝트]
+  📦 ECC Suite
+    [ ] ECC plugin (project-scoped)  [affaan-m]
+    [ ] Prune ECC items beyond curated 89  [본 프로젝트]
+```
+
+자세한 결정 사유는 ADR 참조: [ADR-009](decisions/ADR-009-addy-agent-skills-opt-in.md), [ADR-010](decisions/ADR-010-category-installer-pivot.md), [ADR-011](decisions/ADR-011-uzys-harness-opt-in.md).
+
 ## Core Commands (uzys:)
 
 ### `/uzys:spec` — Define
