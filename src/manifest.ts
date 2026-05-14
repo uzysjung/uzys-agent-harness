@@ -13,9 +13,17 @@ import type { Track } from "./types.js";
 export interface AssetSpec {
   /** Selected tracks (union). */
   tracks: ReadonlyArray<Track>;
-  /** Optional opt-in: --with-tauri. */
+  /**
+   * Optional opt-in: --with-tauri.
+   * Note: copied from `OptionFlags.withTauri` by installer; keep both fields in sync
+   * when adding new opt-in flags that affect manifest gating.
+   */
   withTauri?: boolean;
-  /** v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING). */
+  /**
+   * v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING).
+   * Note: copied from `OptionFlags.withUzysHarness` by installer; keep both fields in sync.
+   * Track-independent: opt-in on ANY track installs `/uzys:*` commands. SPEC R7.
+   */
   withUzysHarness?: boolean;
 }
 

@@ -162,6 +162,7 @@
 - **R4**: 전체 사이클 한 세션 진행 (SPEC → ship).
 - **R5**: Step 2 = 추천 ✓ 미리 체크 + unchecked 가능 + 추가 opt-in 가능.
 - **R6**: 출처 라벨 = 정확한 GitHub org/user. `[3rd-party]` 같은 generic 금지.
+- **R7** (Phase D 리뷰 LOW, 2026-05-14): `withUzysHarness` 는 **track 무관** opt-in. executive 등 비-개발 트랙에 `--with-uzys-harness` 명시 시에도 `/uzys:*` slash commands 설치 허용. 사용자 명시 의도가 트랙보다 우선.
 
 ## 4. Phase 분해
 

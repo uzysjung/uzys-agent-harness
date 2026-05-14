@@ -18,9 +18,10 @@ describe("recommendedExternalAssets", () => {
     expect(ids).toContain("impeccable");
   });
 
-  it("does NOT include option-gated assets (addy/gsd/superpowers/ecc)", () => {
+  it("does NOT include option-gated assets (addy/gsd/superpowers/ecc/tob)", () => {
     const ids = recommendedExternalAssets(["csr-supabase"]);
     expect(ids).not.toContain("addy-agent-skills");
+    expect(ids).not.toContain("superpowers");
     expect(ids).not.toContain("gsd-orchestrator");
     expect(ids).not.toContain("ecc-plugin");
     expect(ids).not.toContain("trailofbits-skills");

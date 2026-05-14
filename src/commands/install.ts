@@ -612,7 +612,7 @@ export function registerInstallCommand(cli: Cli): void {
     )
     .option(
       "--with-uzys-harness",
-      "uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in. v26.44.0 BREAKING — 이전엔 dev 트랙 자동 설치.",
+      "uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in. v26.44.0 BREAKING — 이전엔 dev 트랙 자동 설치. 기존 동작 복원: install <같은 옵션> --with-uzys-harness",
     )
     .option(
       "--with-superpowers",
