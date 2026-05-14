@@ -1,4 +1,5 @@
 import type { InstallMode } from "./installer.js";
+import { recommendedExternalAssets } from "./preset-recommend.js";
 import { defaultPrompts, type Prompts } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
@@ -132,14 +133,14 @@ export async function runInteractive(
     }
   }
 
-  // v26.46.0 — Wizard back navigation. ESC at each step = back to previous;
-  // ESC at the first step (tracks) = exit. confirmInstall ESC/No = cancel
-  // (clack convention; back nav 는 step-level ESC 로만).
-  type Step = "tracks" | "options" | "cli" | "confirm";
+  // v26.46.0 — Wizard back navigation. v26.47.0 — assets step 추가 (Phase C full).
+  // ESC at each step = back to previous; ESC at tracks = exit; ESC at confirm = exit.
+  type Step = "tracks" | "options" | "cli" | "assets" | "confirm";
   let step: Step = "tracks";
   let tracks: Track[] | null = null;
   let optionKeys: Array<keyof OptionFlags> | null = null;
   let cli: import("./types.js").CliTargets | null = null;
+  let assetSelections: ReadonlyArray<string> | null = null;
 
   while (true) {
     if (step === "tracks") {
@@ -165,6 +166,17 @@ export async function runInteractive(
         continue;
       }
       cli = result;
+      step = "assets";
+    } else if (step === "assets") {
+      // v26.47.0 (Phase C full) — External Asset Step 2. preset 추천 + 옵션-키 활성 자산이 추천 ✓.
+      const recommended = recommendedExternalAssets(tracks ?? []);
+      const initial = assetSelections ?? recommended;
+      const result = await prompts.selectExternalAssets(initial);
+      if (result === null) {
+        step = "cli";
+        continue;
+      }
+      assetSelections = result;
       step = "confirm";
     } else {
       // confirm — tracks/optionKeys/cli 모두 이전 step 에서 set (narrowing).
@@ -177,11 +189,14 @@ export async function runInteractive(
       if (finalCli.includes("codex")) {
         options.withCodexPrompts = true;
       }
+      // v26.47.0 — Phase C full: assets step 결과 → userOverride diff 계산.
+      const userOverride = computeUserOverride(finalTracks, assetSelections);
       const summary = formatSummary({
         tracks: finalTracks,
         options,
         cli: finalCli,
         projectDir,
+        ...(userOverride ? { userOverride } : {}),
       });
       const confirmed = await prompts.confirmInstall(summary);
       if (confirmed === null) {
@@ -196,10 +211,35 @@ export async function runInteractive(
       return {
         ok: true,
         mode,
-        spec: { tracks: finalTracks, options, cli: finalCli, projectDir },
+        spec: {
+          tracks: finalTracks,
+          options,
+          cli: finalCli,
+          projectDir,
+          ...(userOverride ? { userOverride } : {}),
+        },
       };
     }
   }
+}
+
+/**
+ * v26.47.0 — Phase C full. Step 2 결과 (assetSelections) 와 preset 추천 비교 → forceInclude/forceExclude.
+ * - `recommended - selected` → forceExclude (사용자가 추천에서 unchecked)
+ * - `selected - recommended` → forceInclude (사용자가 추가 선택)
+ * - 둘 다 비어 있으면 undefined (backward compat — userOverride 없음).
+ */
+export function computeUserOverride(
+  tracks: ReadonlyArray<Track>,
+  assetSelections: ReadonlyArray<string> | null,
+): { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> } | undefined {
+  if (assetSelections === null) return undefined;
+  const recommended = new Set(recommendedExternalAssets(tracks));
+  const selected = new Set(assetSelections);
+  const forceExclude = [...recommended].filter((id) => !selected.has(id)).sort();
+  const forceInclude = [...selected].filter((id) => !recommended.has(id)).sort();
+  if (forceInclude.length === 0 && forceExclude.length === 0) return undefined;
+  return { forceInclude, forceExclude };
 }
 
 export function formatSummary(spec: InstallSpec): string {

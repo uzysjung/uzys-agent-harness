@@ -378,12 +378,14 @@ export function runInstall(ctx: InstallContext): InstallReport {
     if (ctx.externalDeps?.onAssetResult) {
       externalDeps.onAssetResult = ctx.externalDeps.onAssetResult;
     }
-    const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, {
+    const filterCtx = {
       tracks: spec.tracks,
       options: spec.options,
-    }).length;
+      ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+    };
+    const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
     ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
-    external = runExt({ tracks: spec.tracks, options: spec.options, cli: spec.cli }, externalDeps);
+    external = runExt({ ...filterCtx, cli: spec.cli }, externalDeps);
     ctx.onProgress?.({ type: "external-complete", report: external });
   }
 

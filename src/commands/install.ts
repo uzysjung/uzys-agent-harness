@@ -32,6 +32,17 @@ export interface InstallOptions {
   withUzysHarness?: boolean;
   /** v26.44.0 — obra/superpowers opt-in. Anthropic 공식 marketplace 등록. */
   withSuperpowers?: boolean;
+  /**
+   * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
+   * cac repeatable. 예: `--with railway-skills --with impeccable`.
+   * 옵션-키 flag (예: `--with-uzys-harness`) 와 별개 — External Asset id 만.
+   */
+  with?: string | string[];
+  /**
+   * v26.47.0 (Phase C full) — External Asset 직접 제외 (preset 추천에서 unchecked).
+   * cac repeatable. 예: `--without netlify-cli`.
+   */
+  without?: string | string[];
 }
 
 export interface RunInstallResult {
@@ -139,8 +150,15 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     return;
   }
 
+  // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
+  const forceInclude = normalizeRepeatable(options.with);
+  const forceExclude = normalizeRepeatable(options.without);
+  const userOverride =
+    forceInclude.length > 0 || forceExclude.length > 0 ? { forceInclude, forceExclude } : undefined;
+
   const spec: InstallSpec = {
     tracks: (options.track as Track[]) ?? [],
+    ...(userOverride ? { userOverride } : {}),
     options: {
       withTauri: options.withTauri === true,
       withGsd: options.withGsd === true,
@@ -514,6 +532,16 @@ function formatNamesWithCount(names: ReadonlyArray<string>): string {
   return `${names.join(", ")} (${names.length})`;
 }
 
+/**
+ * v26.47.0 — Normalize cac repeatable flag (string | string[] | undefined) → string[].
+ * Trim 빈 문자열 + dedup.
+ */
+function normalizeRepeatable(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  const arr = Array.isArray(value) ? value : [value];
+  return [...new Set(arr.map((s) => s.trim()).filter((s) => s.length > 0))];
+}
+
 function formatOptions(spec: InstallSpec): string {
   const flags: string[] = [];
   if (spec.options.withTauri) flags.push("tauri");
@@ -636,6 +664,14 @@ export function registerInstallCommand(cli: Cli): void {
     .option(
       "--with-superpowers",
       "obra/superpowers (190k★, Anthropic 공식 marketplace 등록) plugin install. /spec /plan /build slash (no namespace).",
+    )
+    .option(
+      "--with <asset-id>",
+      "v26.47.0 (Phase C full) — External Asset id 강제 포함 (preset 조건 무관). Repeatable. 예: --with railway-skills --with impeccable",
+    )
+    .option(
+      "--without <asset-id>",
+      "v26.47.0 (Phase C full) — External Asset id 강제 제외 (preset 추천에서 제거). Repeatable. 예: --without netlify-cli",
     )
     .action((options: InstallOptions) => installAction(options));
 }
