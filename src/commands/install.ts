@@ -562,7 +562,8 @@ function formatOptions(spec: InstallSpec): string {
  *   /private/tmp/x.X   → /tmp/x.X
  *   /a/very/long/path  → …/long/path (≥3 segs from end if > 50 chars)
  */
-function shortenPath(p: string): string {
+/** v26.48.0 — export for direct unit test (branch coverage 복구). */
+export function shortenPath(p: string): string {
   if (p.length <= 50) return p;
   const home = process.env.HOME ?? "";
   if (home && p.startsWith(home)) {
@@ -584,8 +585,9 @@ function shortenPath(p: string): string {
 /**
  * v0.7.0 — CliTargets에서 codex/opencode 포함 여부에 따라 title 결정.
  * Phase 3는 codex 또는 opencode 1개 이상 포함 시 호출됨.
+ * v26.48.0 — export for direct unit test (branch coverage 복구).
  */
-function formatCliPhaseTitle(targets: CliTargets): string {
+export function formatCliPhaseTitle(targets: CliTargets): string {
   const hasCodex = targets.includes("codex");
   const hasOpenCode = targets.includes("opencode");
   if (hasCodex && hasOpenCode) return "Codex + OpenCode artifacts";

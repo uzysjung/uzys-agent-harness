@@ -774,3 +774,71 @@ describe("executeSpec", () => {
     expect(exit).toHaveBeenCalledWith(1);
   });
 });
+
+describe("v26.48.0 — install helpers (coverage 복구)", () => {
+  it("formatCliPhaseTitle: claude only → 'CLI artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["claude"])).toBe("CLI artifacts");
+  });
+
+  it("formatCliPhaseTitle: codex only → 'Codex artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["codex"])).toBe("Codex artifacts");
+  });
+
+  it("formatCliPhaseTitle: opencode only → 'OpenCode artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["opencode"])).toBe("OpenCode artifacts");
+  });
+
+  it("formatCliPhaseTitle: codex + opencode → 'Codex + OpenCode artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["codex", "opencode"])).toBe("Codex + OpenCode artifacts");
+  });
+
+  it("shortenPath: short path (≤50) returns as-is", async () => {
+    const { shortenPath } = await import("../src/commands/install.js");
+    expect(shortenPath("/tmp/short")).toBe("/tmp/short");
+  });
+
+  it("shortenPath: HOME prefix → '~/...'", async () => {
+    const { shortenPath } = await import("../src/commands/install.js");
+    const home = process.env.HOME ?? "";
+    if (home) {
+      const long = `${home}/very/deep/nested/path/that/exceeds/50/characters/threshold`;
+      expect(shortenPath(long).startsWith("~/")).toBe(true);
+    }
+  });
+
+  it("shortenPath: /private/tmp/ → /tmp/", async () => {
+    const { shortenPath } = await import("../src/commands/install.js");
+    const long = "/private/tmp/very/deep/nested/path/that/exceeds/50/characters";
+    expect(shortenPath(long).startsWith("/tmp/")).toBe(true);
+  });
+
+  it("shortenPath: long path without HOME match → '…/last3'", async () => {
+    const { shortenPath } = await import("../src/commands/install.js");
+    const origHome = process.env.HOME;
+    process.env.HOME = "/nowhere-impossible-prefix-for-test";
+    try {
+      const path = "/opt/some/very/long/path/with/many/segments/to/exceed/limit";
+      expect(shortenPath(path).startsWith("…/")).toBe(true);
+    } finally {
+      if (origHome === undefined) delete process.env.HOME;
+      else process.env.HOME = origHome;
+    }
+  });
+
+  it("shortenPath: long but ≤3 segments → unchanged (fallback)", async () => {
+    const { shortenPath } = await import("../src/commands/install.js");
+    const origHome = process.env.HOME;
+    process.env.HOME = "/nowhere-impossible-prefix-for-test";
+    try {
+      const path = "/aaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbb/cccccccccccccccccccccc";
+      expect(shortenPath(path)).toBe(path);
+    } finally {
+      if (origHome === undefined) delete process.env.HOME;
+      else process.env.HOME = origHome;
+    }
+  });
+});
