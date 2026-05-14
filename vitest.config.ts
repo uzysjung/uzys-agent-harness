@@ -15,9 +15,10 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/types/**", "src/index.ts", "src/prompts.ts"],
       thresholds: {
         lines: 90,
-        // branches: 90 → 88 → 87 → 86 (v26.47.0) — Phase C full userOverride 분기 + assets
-        // step + computeUserOverride diff 등 격리 테스트 어려움. 후속 PR에서 복구.
-        branches: 86,
+        // branches: 90 → 88 → 87 → 86 → 87 (v26.48.0 — helper export + targeted test로 부분 복구).
+        // 88 영구 복구는 defaultRunPipeline/defaultHarnessRoot (fs + import.meta) 의존 코드라
+        // 격리 테스트 매우 어려움. 추가 복구 시 install.ts helper 분리 (별도 module) refactor 필요.
+        branches: 87,
         functions: 90,
         statements: 90,
       },
