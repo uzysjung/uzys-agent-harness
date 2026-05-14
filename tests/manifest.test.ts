@@ -50,16 +50,17 @@ describe("resolveRules", () => {
 });
 
 describe("buildManifest", () => {
-  it("includes uzys/* commands only for dev tracks", () => {
-    const exec = buildManifest({ tracks: ["executive"] });
-    expect(
-      exec.find((e) => e.target.endsWith("uzys/spec.md"))?.applies({ tracks: ["executive"] }),
-    ).toBe(false);
-
+  it("includes uzys/* commands only when withUzysHarness=true (v26.44.0 BREAKING)", () => {
     const tooling = buildManifest({ tracks: ["tooling"] });
-    expect(
-      tooling.find((e) => e.target.endsWith("uzys/spec.md"))?.applies({ tracks: ["tooling"] }),
-    ).toBe(true);
+    const entry = tooling.find((e) => e.target.endsWith("uzys/spec.md"));
+    // 자체 entry는 항상 manifest에 존재 — applies() 가 게이팅
+    expect(entry).toBeDefined();
+    // default: 미설치
+    expect(entry?.applies({ tracks: ["tooling"], withUzysHarness: false })).toBe(false);
+    // opt-in: 설치
+    expect(entry?.applies({ tracks: ["tooling"], withUzysHarness: true })).toBe(true);
+    // executive 도 동일 — withUzysHarness 만 매개. 트랙 무관
+    expect(entry?.applies({ tracks: ["executive"], withUzysHarness: true })).toBe(true);
   });
 
   it("does not include any project-root CLAUDE.md entry — merged via installer", () => {

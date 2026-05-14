@@ -17,6 +17,8 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
     withKarpathyHook: picked.has("withKarpathyHook"),
     withCodexPrompts: picked.has("withCodexPrompts"),
     withAddyAgentSkills: picked.has("withAddyAgentSkills"),
+    withUzysHarness: picked.has("withUzysHarness"),
+    withSuperpowers: picked.has("withSuperpowers"),
   };
 }
 

@@ -22,6 +22,10 @@ export interface InstallOptions {
   withCodexPrompts?: boolean;
   /** v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install). */
   withAddyAgentSkills?: boolean;
+  /** v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING vs prior auto-install). */
+  withUzysHarness?: boolean;
+  /** v26.44.0 — obra/superpowers opt-in. Anthropic 공식 marketplace 등록. */
+  withSuperpowers?: boolean;
 }
 
 export interface RunInstallResult {
@@ -137,6 +141,8 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withKarpathyHook: options.withKarpathyHook === true,
       withCodexPrompts: options.withCodexPrompts === true,
       withAddyAgentSkills: options.withAddyAgentSkills === true,
+      withUzysHarness: options.withUzysHarness === true,
+      withSuperpowers: options.withSuperpowers === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
@@ -502,6 +508,8 @@ function formatOptions(spec: InstallSpec): string {
   if (spec.options.withTob) flags.push("tob");
   if (spec.options.withKarpathyHook) flags.push("karpathy-hook");
   if (spec.options.withAddyAgentSkills) flags.push("addy-agent-skills");
+  if (spec.options.withUzysHarness) flags.push("uzys-harness");
+  if (spec.options.withSuperpowers) flags.push("superpowers");
   return flags.length > 0 ? flags.join(", ") : c.dim("(defaults only)");
 }
 
@@ -601,6 +609,14 @@ export function registerInstallCommand(cli: Cli): void {
     .option(
       "--with-addy-agent-skills",
       "addyosmani/agent-skills marketplace plugin install. v26.42.0 — opt-in (이전엔 dev 트랙 자동 설치). /spec /plan /build slash commands (no namespace).",
+    )
+    .option(
+      "--with-uzys-harness",
+      "uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in. v26.44.0 BREAKING — 이전엔 dev 트랙 자동 설치.",
+    )
+    .option(
+      "--with-superpowers",
+      "obra/superpowers (190k★, Anthropic 공식 marketplace 등록) plugin install. /spec /plan /build slash (no namespace).",
     )
     .action((options: InstallOptions) => installAction(options));
 }

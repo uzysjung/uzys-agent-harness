@@ -54,10 +54,11 @@
 | Asset ID | 출처 |
 |---|---|
 | shadcn-ui | shadcn/ui |
-| frontend-design | vercel-labs |
-| react-best-practices | vercel-labs |
 | web-design-guidelines | vercel-labs |
+| react-best-practices | vercel-labs |
 | impeccable | pbakaus |
+
+(Phase A 작성 시 'frontend-design' 자산명을 잘못 표기 — 실제 코드의 자산은 `web-design-guidelines`. SPEC 정정.)
 
 #### 🗄️ Backend (API · DB · Deploy)
 | Asset ID | 출처 |

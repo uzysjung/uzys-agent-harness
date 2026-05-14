@@ -72,6 +72,8 @@ describe("runInteractive", () => {
         withKarpathyHook: false,
         withCodexPrompts: false,
         withAddyAgentSkills: false,
+        withUzysHarness: false,
+        withSuperpowers: false,
       },
       cli: ["claude"],
       projectDir: "/tmp/proj",
@@ -236,6 +238,8 @@ describe("formatSummary", () => {
         withKarpathyHook: false,
         withCodexPrompts: false,
         withAddyAgentSkills: false,
+        withUzysHarness: false,
+        withSuperpowers: false,
       },
       cli: ["codex"],
       projectDir: "/proj",
@@ -260,6 +264,8 @@ describe("formatSummary", () => {
         withKarpathyHook: false,
         withCodexPrompts: false,
         withAddyAgentSkills: false,
+        withUzysHarness: false,
+        withSuperpowers: false,
       },
       cli: ["claude"],
       projectDir: "/p",
@@ -281,6 +287,8 @@ describe("toOptionFlags", () => {
       withKarpathyHook: false,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     });
   });
 
@@ -296,6 +304,8 @@ describe("toOptionFlags", () => {
       withKarpathyHook: false,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     });
   });
 });
@@ -313,6 +323,8 @@ describe("applyOptionRules", () => {
       withKarpathyHook: false,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     });
     expect(result.withEcc).toBe(true);
     expect(result.withPrune).toBe(true);
@@ -330,6 +342,8 @@ describe("applyOptionRules", () => {
       withKarpathyHook: false,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     };
     expect(applyOptionRules(flags)).toEqual(flags);
   });
@@ -346,6 +360,8 @@ describe("applyOptionRules", () => {
       withKarpathyHook: false,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     };
     expect(applyOptionRules(flags)).toEqual(flags);
   });

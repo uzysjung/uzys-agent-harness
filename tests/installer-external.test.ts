@@ -28,6 +28,8 @@ const NO_OPTS: OptionFlags = {
   withKarpathyHook: false,
   withCodexPrompts: false,
   withAddyAgentSkills: false,
+  withUzysHarness: false,
+  withSuperpowers: false,
 };
 
 function spec(tracks: Track[], options: Partial<OptionFlags>, projectDir: string): InstallSpec {

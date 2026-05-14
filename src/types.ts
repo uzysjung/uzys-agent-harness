@@ -67,6 +67,17 @@ export interface OptionFlags {
    * marketplace + `agent-skills@addy-agent-skills`).
    */
   withAddyAgentSkills: boolean;
+  /**
+   * v26.44.0 — uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in.
+   * BREAKING vs prior dev-track auto-install. Workflow 카테고리의 1 옵션.
+   * `templates/commands/uzys/*.md` 매핑을 gating. 다른 baseline(rules/agents/hooks)은 유지.
+   */
+  withUzysHarness: boolean;
+  /**
+   * v26.44.0 — obra/superpowers (anthropics/claude-plugins-official marketplace 등록) opt-in.
+   * Workflow 카테고리. /spec /plan /build /test /review /ship slash (no namespace) 가 깔림.
+   */
+  withSuperpowers: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
@@ -80,6 +91,8 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withKarpathyHook: false,
   withCodexPrompts: false,
   withAddyAgentSkills: false,
+  withUzysHarness: false,
+  withSuperpowers: false,
 };
 
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */

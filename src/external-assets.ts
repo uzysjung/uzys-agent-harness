@@ -181,6 +181,18 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "agent-skills@addy-agent-skills",
     },
   },
+  {
+    id: "superpowers",
+    description: "Superpowers — agentic skills framework (obra, anthropics 공식 marketplace)",
+    category: "workflow",
+    source: "obra",
+    condition: { kind: "option", flag: "withSuperpowers" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "superpowers@claude-plugins-official",
+    },
+  },
 
   // === Railway (csr-fastify|csr-fastapi|ssr-*|full) ===
   // v0.6.3 — railway-plugin entry 제거. railwayapp/railway-plugin repo 자체 존재 안 함
