@@ -18,8 +18,14 @@ export interface InstallOptions {
   withCodexSkills?: boolean;
   withCodexTrust?: boolean;
   withKarpathyHook?: boolean;
-  /** v0.7.0 — Codex slash 통일 opt-in (~/.codex/prompts/uzys-*.md). D16 패턴. */
+  /**
+   * v0.7.0 — Codex slash 통일 (~/.codex/prompts/uzys-*.md).
+   * v26.46.0 — `cli` 에 codex 포함 시 default ON (ADR-012). Opt-out 은 `--no-codex-prompts`.
+   * 명시 true: 사용자 explicit (legacy --with-codex-prompts 호환).
+   */
   withCodexPrompts?: boolean;
+  /** v26.46.0 — Codex slash 통일 opt-out (cli=codex 일 때 default ON 해제). */
+  noCodexPrompts?: boolean;
   /** v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install). */
   withAddyAgentSkills?: boolean;
   /** v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING vs prior auto-install). */
@@ -114,12 +120,17 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   for (const w of validated.warnings) {
     err(c.yellow(`[WARN] ${w}`));
   }
-  // v0.7.0 — withCodexPrompts는 cli에 codex 포함 시에만 의미. 누락 시 stderr warning.
+  // v26.46.0 — Codex prompts default 화. cli=codex 시 자동. --with-codex-prompts 명시는 호환 유지.
   if (validated.ok && options.withCodexPrompts === true && !validated.cli.includes("codex")) {
     err(
       c.yellow(
         "[WARN] --with-codex-prompts requires --cli codex. Skipping (no Codex prompts will be installed).",
       ),
+    );
+  }
+  if (validated.ok && options.noCodexPrompts === true && !validated.cli.includes("codex")) {
+    err(
+      c.yellow("[WARN] --no-codex-prompts has no effect without --cli codex (already excluded)."),
     );
   }
   if (!validated.ok) {
@@ -139,7 +150,11 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
-      withCodexPrompts: options.withCodexPrompts === true,
+      // v26.46.0 — cli=codex 시 default ON (ADR-012). --no-codex-prompts 또는 --with-codex-prompts=false 명시 시 OFF.
+      withCodexPrompts:
+        options.noCodexPrompts === true
+          ? false
+          : options.withCodexPrompts === true || validated.cli.includes("codex"),
       withAddyAgentSkills: options.withAddyAgentSkills === true,
       withUzysHarness: options.withUzysHarness === true,
       withSuperpowers: options.withSuperpowers === true,
@@ -604,7 +619,11 @@ export function registerInstallCommand(cli: Cli): void {
     )
     .option(
       "--with-codex-prompts",
-      "Codex slash 통일 (v0.7.0): ~/.codex/prompts/uzys-*.md 6 file 글로벌 복사 → /uzys-spec slash 작동. D16 opt-in.",
+      "Codex slash 통일 (~/.codex/prompts/uzys-*.md 글로벌 복사). v26.46.0 부터 --cli codex 시 default ON. 본 flag는 cli=claude 단독에서도 강제 시 사용 (보통 불필요).",
+    )
+    .option(
+      "--no-codex-prompts",
+      "v26.46.0 — Codex slash default ON 해제. --cli codex 명시 시에도 ~/.codex/prompts/uzys-*.md 글로벌 복사 안 함.",
     )
     .option(
       "--with-addy-agent-skills",

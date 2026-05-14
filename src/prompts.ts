@@ -122,13 +122,8 @@ const OPTION_DEFS: ReadonlyArray<OptionDef> = [
     label: "karpathy-coder pre-commit hook",
     hint: "Claude Code Write|Edit gate · Python 3 권장 · 비차단 (warn-only)",
   },
-  {
-    key: "withCodexPrompts",
-    category: "workflow",
-    source: "본 프로젝트",
-    label: "Codex slash commands",
-    hint: "~/.codex/prompts/uzys-*.md 글로벌 복사 · /uzys-spec slash 등록 · D16 opt-in",
-  },
+  // v26.46.0 — withCodexPrompts entry removed from interactive options.
+  // cli=codex 선택 시 default ON. opt-out 은 --no-codex-prompts CLI flag.
 ];
 
 /** Category render order in Step 2 group multiselect. */

@@ -85,7 +85,7 @@ export function mergeProjectClaude(tracks: ReadonlyArray<Track>, opts: MergeOpti
     }
   }
 
-  return output.replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+  return `${output.replace(/\n{3,}/g, "\n\n").trimEnd()}\n`;
 }
 
 function expandTracks(tracks: ReadonlyArray<Track>): ReadonlyArray<Track> {
