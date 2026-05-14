@@ -15,6 +15,7 @@ import {
 import type { Category } from "./categories.js";
 import { CATEGORY_TITLES } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
+import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
 import { type CliBase, type CliTargets, type OptionFlags, TRACKS, type Track } from "./types.js";
@@ -32,6 +33,15 @@ export interface Prompts {
   selectCli: (initial?: CliTargets) => Promise<CliTargets | null>;
   selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
+  /**
+   * v26.47.0 (Phase C full) — Step 2 External Asset multiselect.
+   * 카테고리별 그룹화 + 추천 ✓ 미리 체크 + 출처 라벨.
+   * 결과 = 사용자 최종 선택한 asset id 배열. caller 가 recommended set 과 비교해
+   * forceInclude/forceExclude 계산.
+   */
+  selectExternalAssets: (
+    initialChecked: ReadonlyArray<string>,
+  ) => Promise<ReadonlyArray<string> | null>;
 }
 
 const TRACK_LABELS: Record<Track, string> = {
@@ -219,5 +229,26 @@ export const defaultPrompts: Prompts = {
       initialValue: true,
     });
     return isCancel(result) ? null : result;
+  },
+
+  selectExternalAssets: async (initialChecked) => {
+    // v26.47.0 — Phase C full. EXTERNAL_ASSETS 를 카테고리별로 그룹화, 추천 ✓ 미리 체크.
+    const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
+    for (const cat of CATEGORY_ORDER) {
+      const entries = EXTERNAL_ASSETS.filter((a) => a.category === cat);
+      if (entries.length === 0) continue;
+      groups[CATEGORY_TITLES[cat]] = entries.map((a) => ({
+        value: a.id,
+        label: `${a.id}  [${a.source}]`,
+        hint: a.description,
+      }));
+    }
+    const result = await groupMultiselect({
+      message: "External Assets (Space to toggle, Enter to confirm. ✓ = preset 추천):",
+      options: groups,
+      initialValues: [...initialChecked],
+      required: false,
+    });
+    return isCancel(result) ? null : (result as ReadonlyArray<string>);
   },
 };

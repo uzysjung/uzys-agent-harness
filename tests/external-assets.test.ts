@@ -210,3 +210,54 @@ describe("Track partition invariants — v0.8.1 SSOT", () => {
     expect([...ps.condition.tracks].sort()).toEqual([...DEV_PLUS_PM_TRACKS].sort());
   });
 });
+
+describe("v26.47.0 — shouldInstallAsset userOverride (Phase C full)", () => {
+  it("forceExclude > condition: 매칭 자산도 강제 제외", () => {
+    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
+    if (!polars) throw new Error("polars missing");
+    // data track 에서 추천이지만 사용자가 unchecked
+    expect(
+      shouldInstallAsset(polars, {
+        tracks: ["data"] as Track[],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: [], forceExclude: ["polars-K-Dense"] },
+      }),
+    ).toBe(false);
+  });
+
+  it("forceInclude > condition: 미매칭 자산도 강제 포함", () => {
+    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
+    if (!polars) throw new Error("polars missing");
+    // tooling track 은 폴라스 추천 X — 사용자가 명시 추가
+    expect(
+      shouldInstallAsset(polars, {
+        tracks: ["tooling"] as Track[],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["polars-K-Dense"], forceExclude: [] },
+      }),
+    ).toBe(true);
+  });
+
+  it("forceExclude > forceInclude (동시 명시 시 exclude 우선)", () => {
+    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
+    if (!polars) throw new Error("polars missing");
+    expect(
+      shouldInstallAsset(polars, {
+        tracks: ["data"] as Track[],
+        options: NO_OPTIONS,
+        userOverride: {
+          forceInclude: ["polars-K-Dense"],
+          forceExclude: ["polars-K-Dense"],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("userOverride 미제공 시 기존 condition 만 평가 (backward compat)", () => {
+    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
+    if (!polars) throw new Error("polars missing");
+    expect(shouldInstallAsset(polars, { tracks: ["data"] as Track[], options: NO_OPTIONS })).toBe(
+      true,
+    );
+  });
+});

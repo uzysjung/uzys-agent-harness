@@ -69,7 +69,13 @@ const DEFAULT_SPAWN_TIMEOUT_MS = 120_000;
  * spec에 적용 가능한 자산을 모두 시도. 실패는 warn-skip (기본).
  */
 export function runExternalInstall(
-  ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags; cli: CliTargets },
+  ctx: {
+    tracks: ReadonlyArray<Track>;
+    options: OptionFlags;
+    cli: CliTargets;
+    /** v26.47.0 — Phase C full user override (forceInclude/forceExclude). */
+    userOverride?: { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> };
+  },
   deps: ExternalInstallerDeps = {},
 ): ExternalInstallReport {
   const log = deps.log ?? console.log;

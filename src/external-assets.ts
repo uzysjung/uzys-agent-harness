@@ -567,12 +567,36 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
 ];
 
 /**
- * 조건 평가 — 주어진 spec(tracks + options)에서 자산이 설치 대상인지 판정.
+ * v26.47.0 — User override of preset/option condition (Phase C full, SPEC §3.1).
+ * - `forceInclude`: condition 무관 강제 포함 (사용자가 명시 추가)
+ * - `forceExclude`: condition 무관 강제 제외 (사용자가 추천 ✓ 풀음)
+ *
+ * 우선순위: `forceExclude` > `forceInclude` > `condition`.
+ */
+export interface UserOverride {
+  forceInclude: ReadonlyArray<string>;
+  forceExclude: ReadonlyArray<string>;
+}
+
+export const EMPTY_USER_OVERRIDE: UserOverride = {
+  forceInclude: [],
+  forceExclude: [],
+};
+
+/**
+ * 조건 평가 — 주어진 spec(tracks + options + userOverride)에서 자산이 설치 대상인지 판정.
  */
 export function shouldInstallAsset(
   asset: ExternalAsset,
-  ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags },
+  ctx: {
+    tracks: ReadonlyArray<Track>;
+    options: OptionFlags;
+    userOverride?: UserOverride;
+  },
 ): boolean {
+  // v26.47.0 — userOverride 우선순위: forceExclude > forceInclude > condition.
+  if (ctx.userOverride?.forceExclude.includes(asset.id)) return false;
+  if (ctx.userOverride?.forceInclude.includes(asset.id)) return true;
   const cond = asset.condition;
   switch (cond.kind) {
     case "any-track":
@@ -591,7 +615,11 @@ export function shouldInstallAsset(
  */
 export function filterApplicableAssets(
   assets: ReadonlyArray<ExternalAsset>,
-  ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags },
+  ctx: {
+    tracks: ReadonlyArray<Track>;
+    options: OptionFlags;
+    userOverride?: UserOverride;
+  },
 ): ReadonlyArray<ExternalAsset> {
   return assets.filter((a) => shouldInstallAsset(a, ctx));
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applyOptionRules,
+  computeUserOverride,
   formatSummary,
   runInteractive,
   toOptionFlags,
@@ -19,6 +20,8 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     selectCli: vi.fn(async () => ["claude"] as CliTargets),
     selectAction: vi.fn(async () => "add" as const),
     confirmInstall: vi.fn(async () => true),
+    // v26.47.0 — Phase C full. default mock: 빈 선택 (preset 추천 그대로).
+    selectExternalAssets: vi.fn(async (initial) => initial),
     ...overrides,
   };
 }
@@ -431,5 +434,62 @@ describe("applyOptionRules", () => {
       withSuperpowers: false,
     };
     expect(applyOptionRules(flags)).toEqual(flags);
+  });
+});
+
+describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
+  it("null assetSelections → undefined (backward compat)", () => {
+    expect(computeUserOverride(["tooling"] as Track[], null)).toBeUndefined();
+  });
+
+  it("selections == recommended → undefined (no override)", () => {
+    // tooling preset 의 추천 자산을 그대로 선택 → diff 0
+    const recommended = [
+      "agent-browser",
+      "architecture-decision-record",
+      "find-skills",
+      "karpathy-coder",
+      "playwright-skill",
+      "product-skills",
+    ];
+    expect(computeUserOverride(["tooling"] as Track[], recommended)).toBeUndefined();
+  });
+
+  it("forceExclude — 추천에서 unchecked", () => {
+    // tooling 추천에서 playwright-skill 만 제거
+    const without = [
+      "agent-browser",
+      "architecture-decision-record",
+      "find-skills",
+      "karpathy-coder",
+      "product-skills",
+    ];
+    const result = computeUserOverride(["tooling"] as Track[], without);
+    expect(result).toBeDefined();
+    expect(result?.forceExclude).toEqual(["playwright-skill"]);
+    expect(result?.forceInclude).toEqual([]);
+  });
+
+  it("forceInclude — 추천 외 추가 선택", () => {
+    // tooling 추천 + railway-skills 추가
+    const withRailway = [
+      "agent-browser",
+      "architecture-decision-record",
+      "find-skills",
+      "karpathy-coder",
+      "playwright-skill",
+      "product-skills",
+      "railway-skills",
+    ];
+    const result = computeUserOverride(["tooling"] as Track[], withRailway);
+    expect(result?.forceInclude).toEqual(["railway-skills"]);
+    expect(result?.forceExclude).toEqual([]);
+  });
+
+  it("mix — include + exclude 동시", () => {
+    const mixed = ["agent-browser", "railway-skills"]; // tooling 추천 5건 제거 + railway 추가
+    const result = computeUserOverride(["tooling"] as Track[], mixed);
+    expect(result?.forceInclude).toEqual(["railway-skills"]);
+    expect(result?.forceExclude.length).toBeGreaterThan(0);
   });
 });

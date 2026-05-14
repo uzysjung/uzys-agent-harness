@@ -102,4 +102,14 @@ export interface InstallSpec {
   /** v0.7.0 — sorted readonly array of CliBase (이전: single CliMode). */
   cli: CliTargets;
   projectDir: string;
+  /**
+   * v26.47.0 — User-level override of preset/option condition (Phase C full).
+   * `forceInclude`: condition 무관 강제 포함 / `forceExclude`: condition 무관 강제 제외.
+   * 우선순위: forceExclude > forceInclude > condition.
+   * Optional — 미제공 시 기존 condition 만 평가 (backward compat).
+   */
+  userOverride?: {
+    forceInclude: ReadonlyArray<string>;
+    forceExclude: ReadonlyArray<string>;
+  };
 }
