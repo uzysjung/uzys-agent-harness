@@ -41,6 +41,9 @@ function fail(stderr = "boom"): SpawnSyncReturns<string> {
   };
 }
 
+// Mock ExternalAsset fixtures — category/source are placeholders for type
+// compatibility only (these are not real assets; the dispatcher tests only
+// the install method routing, not the category/source semantics).
 const TEST_ASSETS: ExternalAsset[] = [
   {
     id: "skill-no-name",

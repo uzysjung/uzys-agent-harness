@@ -5,6 +5,68 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ## [Unreleased]
 
+> v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
+
+## [v26.45.0] — 2026-05-14 (feat: Step 2 카테고리 grouping + 출처 라벨)
+
+### Added — Phase C MVP (category-installer)
+- `src/prompts.ts`: `selectOptionKeys` → `groupMultiselect` (clack/prompts)
+- OPTION_DEFS 항목에 `category` + `source` 메타데이터
+- CATEGORY_ORDER 따라 Frontend/Backend/Data/Business/Dev Tools/Workflow/ECC Suite 그룹
+- 라벨 형식: `<label>  [<source>]`
+
+### Docs
+- README.md: 9 → 11 tracks 정정, v26.44.0+ BREAKING 안내, Workflow 카테고리 4 대안 소개
+
+## [v26.44.0] — 2026-05-14 (feat: uzys-harness opt-in + superpowers, ⚠️ BREAKING)
+
+### BREAKING
+- `uzys-harness` 자체 6-Gate slash commands (`/uzys:spec ... /uzys:ship`) 가 **dev 트랙 자동 설치 → opt-in** 전환
+- 기존 dev 트랙 사용자: 다음 install 시 `--with-uzys-harness` 필요
+
+### Added — Phase B/D/E/F (category-installer)
+- `src/preset-recommend.ts`: preset → 추천 외부 자산 id 매핑
+- `OptionFlags.withUzysHarness` + `--with-uzys-harness` (track 무관, SPEC R7)
+- `obra/superpowers` 신규 자산 (anthropics/claude-plugins-official 공식 marketplace 등록)
+- `OptionFlags.withSuperpowers` + `--with-superpowers`
+
+## [v26.43.0] — 2026-05-14 (feat: category-installer Phase A scaffolding)
+
+### Added
+- `src/categories.ts` — 7 카테고리 (frontend/backend/data/business/dev-tools/workflow/ecc-suite) + 19 출처 라벨 (SOURCE_LABELS)
+- `ExternalAsset` 에 `category` + `source` 필드
+- 32 자산 entry 모두 정확한 출처 부여
+- SPEC 정정: Business 카테고리의 Anthropic 자산은 `anthropic-document-skills` 1개만 (c-level/business-growth/finance 등 8개는 `alirezarezvani/claude-skills` 출처)
+
+## [v26.42.0] — 2026-05-13 (feat: addy-agent-skills opt-in, ⚠️ BREAKING)
+
+### BREAKING
+- `addyosmani/agent-skills` 플러그인이 **dev 트랙 자동 설치 → opt-in** 전환 (GSD 동일 패턴)
+- `--with-addy-agent-skills` 또는 interactive 체크박스 필요
+
+### Why
+- 외부 plugin 강제 설치 제거
+- `/uzys:*` (본 harness 자체) 와 `/spec /plan` (addy 외부 plugin) 의 slash namespace 분리 명확화
+
+## [v26.41.0] — 2026-05-12 (feat: playwright-launch rule)
+
+### Added — UI 트랙 신규 rule
+- `templates/rules/playwright-launch.md` — 영속 profile + 자동화 0 패턴
+- `UI_RULES` 에 등록 (csr-*/ssr-*/full 자동 적용)
+- 절대 금지: chrome-devtools MCP attach, Playwright MCP 일회성 context, OAuth 입력 시 자동화 동시 실행
+- 필수: 영속 profile dir + Chrome for Testing 별도 binary + 자동화 layer 0 + dev bypass auth
+
+## [v26.40.0] — 2026-05-12 (feat: project-claude section-fragment 머지)
+
+### Added — Multi-track 설치 시 root CLAUDE.md 자동 생성
+- `templates/project-claude/_base.md` (공통 골격) + `fragments/<track>/<section>.md` (트랙×섹션)
+- `src/project-claude-merge.ts` 머지 모듈 (single/multi/full 자동)
+- `### <Track Display Name>` 소제목으로 multi-track concat
+- 'full' 트랙 자동 union (10 dev 트랙)
+
+### Removed
+- 11 legacy `templates/project-claude/<track>.md` + `full.md`
+
 ## [v0.8.8] — 2026-05-06 (fix: skills CLI agent name 매핑 `claude` → `claude-code`)
 
 ### Fixed — 외부 사용자 skill 자산 100% skip (P0 prod-blocker)

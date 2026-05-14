@@ -441,6 +441,8 @@ describe("executeSpec", () => {
   it("renders Phase 2 (External Assets) when report.external has attempted entries", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
+    // Mock ExternalAsset — category/source placeholders (type compat only;
+    // tests below assert install report rendering, not category/source semantics).
     const runPipeline = pipelineFor({
       ...fakeReport,
       external: {

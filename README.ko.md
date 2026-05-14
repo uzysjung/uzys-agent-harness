@@ -1,6 +1,6 @@
 # uzys-claude-harness
 
-> Claude Code 에이전트 하네스 — 6-gate 워크플로우 + Ralph 루프 + 9 스택 트랙. Lean by design.
+> Claude Code 에이전트 하네스 — 6-gate 워크플로우 + Ralph 루프 + 11 스택 트랙. Lean by design.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
@@ -13,7 +13,9 @@
 ```bash
 # 프로젝트 디렉토리에서:
 npx -y github:uzysjung/uzys-claude-harness
-# → 인터랙티브로 Track, 옵션, CLI 타깃 묻는다. project-dir은 현재 디렉토리 자동.
+# → 인터랙티브로 Track, 옵션 (v26.45.0 부터 카테고리별 그룹화 + 출처 라벨), CLI 타깃.
+#   /uzys:* 6-gate 슬래시 커맨드를 쓰려면 옵션에서 'uzys-harness 6-Gate workflow' 체크
+#   (v26.44.0+ BREAKING — 이전엔 dev 트랙 자동 설치).
 
 # Claude Code 시작:
 claude
