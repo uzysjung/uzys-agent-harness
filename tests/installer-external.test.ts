@@ -88,6 +88,8 @@ describe("runInstall — external assets integration", () => {
           asset: {
             id: "test-skill",
             description: "test",
+            category: "dev-tools",
+            source: "uzys",
             condition: { kind: "any-track", tracks: ["tooling"] },
             method: { kind: "skill", source: "owner/repo" },
           },

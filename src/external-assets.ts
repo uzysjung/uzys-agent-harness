@@ -8,6 +8,7 @@
  * 실패는 "warn-skip" — 종료 시 누락 자산 보고 (OQ1 결정).
  */
 
+import type { Category, Source } from "./categories.js";
 import { hasDevTrack } from "./track-match.js";
 import type { OptionFlags, Track } from "./types.js";
 
@@ -36,6 +37,10 @@ export interface ExternalAsset {
   id: string;
   /** 사람이 읽는 라벨 (한 줄) */
   description: string;
+  /** v26.43.0 — Category-based UI 그룹화. SPEC §3.1. */
+  category: Category;
+  /** v26.43.0 — 정확한 출처 (GitHub org/user). Step 2 라벨. SPEC §3.5 R6. */
+  source: Source;
   condition: ExternalAssetCondition;
   method: ExternalAssetMethod;
   /** 실패 시 동작 — 기본 warn-skip. abort는 vibe killer라 신중히 사용 */
@@ -113,18 +118,24 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "polars-K-Dense",
     description: "polars (K-Dense scientific-skills)",
+    category: "data",
+    source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "polars" },
   },
   {
     id: "dask-K-Dense",
     description: "dask (K-Dense, 분산처리)",
+    category: "data",
+    source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "dask" },
   },
   {
     id: "python-resource-management",
     description: "python-resource-management (wshobson)",
+    category: "data",
+    source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: {
       kind: "skill",
@@ -135,6 +146,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "python-performance-optimization",
     description: "python-performance-optimization (wshobson)",
+    category: "data",
+    source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: {
       kind: "skill",
@@ -145,6 +158,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "anthropic-data-plugin",
     description: "Anthropic data plugin (visualization, SQL exploration)",
+    category: "data",
+    source: "anthropics",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: {
       kind: "plugin",
@@ -157,6 +172,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "addy-agent-skills",
     description: "addy agent-skills (general dev)",
+    category: "workflow",
+    source: "addyosmani",
     condition: { kind: "option", flag: "withAddyAgentSkills" },
     method: {
       kind: "plugin",
@@ -173,6 +190,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "railway-skills",
     description: "Railway agent-skills (deploy + project/service/env management)",
+    category: "backend",
+    source: "railwayapp",
     condition: { kind: "any-track", tracks: RAILWAY_TRACKS },
     method: {
       kind: "plugin",
@@ -185,18 +204,24 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "vercel-cli",
     description: "Vercel CLI (npm -g)",
+    category: "backend",
+    source: "vercel",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
     method: { kind: "npm-global", pkg: "vercel" },
   },
   {
     id: "netlify-cli",
     description: "Netlify CLI (npm -g)",
+    category: "backend",
+    source: "netlify",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
     method: { kind: "npm-global", pkg: "netlify-cli" },
   },
   {
     id: "supabase-cli",
     description: "Supabase CLI (npm -g) — 'supabase login' 첫 실행 후 OAuth 필요",
+    category: "backend",
+    source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
     method: { kind: "npm-global", pkg: "supabase" },
   },
@@ -205,6 +230,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "impeccable",
     description: "Impeccable UI design skill (pbakaus)",
+    category: "frontend",
+    source: "pbakaus",
     condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
     method: { kind: "skill", source: "pbakaus/impeccable" },
   },
@@ -213,24 +240,32 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "playwright-skill",
     description: "Playwright skill (testdino-hq)",
+    category: "dev-tools",
+    source: "testdino-hq",
     condition: { kind: "has-dev-track" },
     method: { kind: "skill", source: "testdino-hq/playwright-skill" },
   },
   {
     id: "find-skills",
     description: "find-skills (vercel-labs) — Skill 검색",
+    category: "dev-tools",
+    source: "vercel-labs",
     condition: { kind: "has-dev-track" },
     method: { kind: "skill", source: "vercel-labs/skills", skill: "find-skills" },
   },
   {
     id: "agent-browser",
     description: "agent-browser (npm -g) — Playwright 래퍼",
+    category: "dev-tools",
+    source: "vercel-labs",
     condition: { kind: "has-dev-track" },
     method: { kind: "npm-global", pkg: "agent-browser" },
   },
   {
     id: "architecture-decision-record",
     description: "ADR skill (orchestkit)",
+    category: "dev-tools",
+    source: "yonatangross",
     condition: { kind: "has-dev-track" },
     method: {
       kind: "skill",
@@ -243,6 +278,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "supabase-agent-skills",
     description: "Supabase agent-skills",
+    category: "backend",
+    source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
     method: {
       kind: "plugin",
@@ -253,6 +290,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "postgres-best-practices",
     description: "postgres-best-practices (Supabase 마켓 plugin)",
+    category: "backend",
+    source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
     method: {
       kind: "plugin",
@@ -267,6 +306,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "react-best-practices",
     description: "vercel-react-best-practices (vercel-labs/agent-skills)",
+    category: "frontend",
+    source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
     method: {
       kind: "skill",
@@ -279,12 +320,16 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "shadcn-ui",
     description: "shadcn/ui skill",
+    category: "frontend",
+    source: "shadcn-ui",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
     method: { kind: "skill", source: "shadcn/ui" },
   },
   {
     id: "web-design-guidelines",
     description: "web-design-guidelines (vercel-labs/agent-skills)",
+    category: "frontend",
+    source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
     method: {
       kind: "skill",
@@ -295,6 +340,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "next-skills",
     description: "next-skills (vercel-labs)",
+    category: "backend",
+    source: "vercel-labs",
     condition: { kind: "any-track", tracks: ["ssr-nextjs", "full"] },
     method: { kind: "skill", source: "vercel-labs/next-skills" },
   },
@@ -303,6 +350,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "anthropic-document-skills",
     description: "Anthropic document-skills (pptx/docx/xlsx/pdf)",
+    category: "business",
+    source: "anthropics",
     condition: { kind: "any-track", tracks: ["executive", "full"] },
     method: {
       kind: "plugin",
@@ -316,6 +365,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "c-level-skills",
     description: "c-level-skills (claude-code-skills, 28 advisory)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["executive", "full"] },
     method: {
       kind: "plugin",
@@ -326,6 +377,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "business-growth-skills",
     description: "business-growth-skills (4 — customer success, sales eng, revops, contract)",
+    category: "business",
+    source: "alirezarezvani",
     // v0.5.0 — growth-marketing Track에서도 재사용. 합집합 조건.
     condition: { kind: "any-track", tracks: ["executive", "full", "growth-marketing"] },
     method: {
@@ -337,6 +390,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "finance-skills",
     description: "finance-skills (3 — financial analyst, SaaS metrics, investment advisor)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["executive", "full"] },
     method: {
       kind: "plugin",
@@ -351,6 +406,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "pm-skills",
     description:
       "pm-skills (6 — senior PM, scrum master, Jira/Confluence/Atlassian admin, template creator)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["project-management"] },
     method: {
       kind: "plugin",
@@ -363,6 +420,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "product-skills",
     description: "product-skills (15 — RICE, PRD, agile PO, UX research, SaaS scaffolder ...)",
+    category: "dev-tools",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: [...DEV_PLUS_PM_TRACKS] },
     method: {
       kind: "plugin",
@@ -377,6 +436,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "marketing-skills",
     description:
       "marketing-skills (44 — content/SEO/CRO/channels/growth/intelligence/sales/twitter)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["growth-marketing"] },
     method: {
       kind: "plugin",
@@ -387,6 +448,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "content-creator",
     description: "content-creator (SEO content + brand voice + frameworks)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["growth-marketing"] },
     method: {
       kind: "plugin",
@@ -397,6 +460,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "demand-gen",
     description: "demand-gen (multi-channel demand gen + paid media + partnership)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["growth-marketing"] },
     method: {
       kind: "plugin",
@@ -407,6 +472,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "research-summarizer",
     description: "research-summarizer (시장 조사 요약)",
+    category: "business",
+    source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["growth-marketing"] },
     method: {
       kind: "plugin",
@@ -422,6 +489,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "karpathy-coder",
     description:
       "karpathy-coder (4 Python tool + reviewer agent + /karpathy-check + pre-commit hook)",
+    category: "dev-tools",
+    source: "alirezarezvani",
     condition: { kind: "has-dev-track" },
     method: {
       kind: "plugin",
@@ -434,6 +503,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "gsd-orchestrator",
     description: "GSD orchestrator (npx get-shit-done-cc@latest)",
+    category: "workflow",
+    source: "get-shit-done-cc",
     condition: { kind: "option", flag: "withGsd" },
     method: { kind: "npx-run", cmd: "get-shit-done-cc@latest" },
   },
@@ -444,6 +515,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 추가 plugin 원하는 사용자는: `claude plugin install <name>@trailofbits` (예: audit-context-building)
     id: "trailofbits-skills",
     description: "Trail of Bits differential-review plugin (security-focused code review)",
+    category: "dev-tools",
+    source: "trailofbits",
     condition: { kind: "option", flag: "withTob" },
     method: {
       kind: "plugin",
@@ -454,6 +527,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "ecc-plugin",
     description: "ECC (everything-claude-code) 마켓플레이스 + plugin install",
+    category: "ecc-suite",
+    source: "affaan-m",
     condition: { kind: "option", flag: "withEcc" },
     method: {
       kind: "plugin",
@@ -464,6 +539,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "ecc-prune",
     description: "ECC prune (89 KEEP 외 제거 → .claude/local-plugins/ecc/로 복사)",
+    category: "ecc-suite",
+    source: "uzys",
     condition: { kind: "option", flag: "withPrune" },
     method: {
       kind: "shell-script",

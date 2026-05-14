@@ -85,9 +85,14 @@
 | Asset ID | 출처 |
 |---|---|
 | anthropic-document-skills | anthropics |
-| c-level-skills | anthropics |
-| business-growth-skills | anthropics |
-| finance-skills | anthropics |
+| c-level-skills | alirezarezvani |
+| business-growth-skills | alirezarezvani |
+| finance-skills | alirezarezvani |
+| pm-skills | alirezarezvani |
+| marketing-skills | alirezarezvani |
+| content-creator | alirezarezvani |
+| demand-gen | alirezarezvani |
+| research-summarizer | alirezarezvani |
 
 #### 🛡️ Dev Tools (Security · Quality)
 | Asset ID | 출처 |

@@ -46,6 +46,8 @@ function spec(withFlag: boolean, projectDir: string): InstallSpec {
 const KARPATHY_ASSET: ExternalAsset = {
   id: "karpathy-coder",
   description: "karpathy-coder mock",
+  category: "dev-tools",
+  source: "alirezarezvani",
   condition: { kind: "has-dev-track" },
   method: {
     kind: "plugin",

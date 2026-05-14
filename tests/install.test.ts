@@ -445,6 +445,8 @@ describe("executeSpec", () => {
             asset: {
               id: "test-skill",
               description: "test",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: { kind: "skill", source: "owner/repo", skill: "react" } as const,
             },
@@ -454,6 +456,8 @@ describe("executeSpec", () => {
             asset: {
               id: "test-plugin",
               description: "plugin",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: { kind: "plugin", marketplace: "ms/foo", pluginId: "foo@ms" } as const,
             },
@@ -463,6 +467,8 @@ describe("executeSpec", () => {
             asset: {
               id: "test-npm",
               description: "npm pkg",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: { kind: "npm-global", pkg: "vercel" } as const,
             },
@@ -472,6 +478,8 @@ describe("executeSpec", () => {
             asset: {
               id: "test-npx",
               description: "npx",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: { kind: "npx-run", cmd: "gsd@latest" } as const,
             },
@@ -481,6 +489,8 @@ describe("executeSpec", () => {
             asset: {
               id: "test-shell",
               description: "shell",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: {
                 kind: "shell-script",
@@ -529,6 +539,8 @@ describe("executeSpec", () => {
             asset: {
               id: "x",
               description: "x",
+              category: "dev-tools" as const,
+              source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
               method: { kind: "skill", source: "owner/repo" } as const,
             },
