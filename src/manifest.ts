@@ -13,8 +13,18 @@ import type { Track } from "./types.js";
 export interface AssetSpec {
   /** Selected tracks (union). */
   tracks: ReadonlyArray<Track>;
-  /** Optional opt-in: --with-tauri. */
+  /**
+   * Optional opt-in: --with-tauri.
+   * Note: copied from `OptionFlags.withTauri` by installer; keep both fields in sync
+   * when adding new opt-in flags that affect manifest gating.
+   */
   withTauri?: boolean;
+  /**
+   * v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING).
+   * Note: copied from `OptionFlags.withUzysHarness` by installer; keep both fields in sync.
+   * Track-independent: opt-in on ANY track installs `/uzys:*` commands. SPEC R7.
+   */
+  withUzysHarness?: boolean;
 }
 
 export interface AssetEntry {
@@ -134,13 +144,14 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     });
   }
 
-  // uzys: commands (dev tracks)
+  // uzys: commands (v26.44.0 — opt-in; BREAKING vs prior dev-track auto-install).
+  // 본 harness 자체 6-Gate slash commands. Workflow 카테고리의 1 옵션.
   for (const cmd of UZYS_COMMANDS) {
     m.push({
       source: `commands/uzys/${cmd}.md`,
       target: `.claude/commands/uzys/${cmd}.md`,
       type: "file",
-      applies: dev,
+      applies: (s) => Boolean(s.withUzysHarness),
     });
   }
 

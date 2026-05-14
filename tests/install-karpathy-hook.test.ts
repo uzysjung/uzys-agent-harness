@@ -37,6 +37,8 @@ function spec(withFlag: boolean, projectDir: string): InstallSpec {
       withKarpathyHook: withFlag,
       withCodexPrompts: false,
       withAddyAgentSkills: false,
+      withUzysHarness: false,
+      withSuperpowers: false,
     },
     cli: ["claude"],
     projectDir,

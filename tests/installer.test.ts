@@ -35,6 +35,8 @@ describe("installer (integration with templates/)", () => {
           withKarpathyHook: false,
           withCodexPrompts: false,
           withAddyAgentSkills: false,
+          withUzysHarness: false,
+          withSuperpowers: false,
         },
         cli: ["claude"],
         projectDir,
@@ -58,9 +60,9 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/hooks/session-start.sh"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/hooks/hito-counter.sh"))).toBe(true);
 
-    // uzys commands (tooling = dev track)
-    expect(existsSync(join(projectDir, ".claude/commands/uzys/spec.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/commands/uzys/auto.md"))).toBe(true);
+    // uzys commands (v26.44.0 — opt-in. withUzysHarness=false 이므로 미설치)
+    expect(existsSync(join(projectDir, ".claude/commands/uzys/spec.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude/commands/uzys/auto.md"))).toBe(false);
 
     // Project root CLAUDE.md
     expect(existsSync(join(projectDir, "CLAUDE.md"))).toBe(true);
@@ -94,6 +96,8 @@ describe("installer (integration with templates/)", () => {
           withKarpathyHook: false,
           withCodexPrompts: false,
           withAddyAgentSkills: false,
+          withUzysHarness: false,
+          withSuperpowers: false,
         },
         cli: ["claude"],
         projectDir,
@@ -123,6 +127,8 @@ describe("installer (integration with templates/)", () => {
           withKarpathyHook: false,
           withCodexPrompts: false,
           withAddyAgentSkills: false,
+          withUzysHarness: false,
+          withSuperpowers: false,
         },
         cli: ["claude"],
         projectDir,
@@ -159,6 +165,8 @@ describe("installer (integration with templates/)", () => {
           withKarpathyHook: false,
           withCodexPrompts: false,
           withAddyAgentSkills: false,
+          withUzysHarness: false,
+          withSuperpowers: false,
         },
         cli: ["claude"],
         projectDir,
@@ -182,6 +190,8 @@ describe("installer (integration with templates/)", () => {
           withKarpathyHook: false,
           withCodexPrompts: false,
           withAddyAgentSkills: false,
+          withUzysHarness: false,
+          withSuperpowers: false,
         },
         cli: ["claude"],
         projectDir,
@@ -210,6 +220,8 @@ describe("installer (integration with templates/)", () => {
             withKarpathyHook: false,
             withCodexPrompts: false,
             withAddyAgentSkills: false,
+            withUzysHarness: false,
+            withSuperpowers: false,
           },
           cli: ["claude"],
           projectDir,

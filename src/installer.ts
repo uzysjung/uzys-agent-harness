@@ -260,13 +260,15 @@ export function runInstall(ctx: InstallContext): InstallReport {
   if (claudeBaselineEnabled) {
     ensureProjectSkeleton(projectDir);
 
-    const manifest = buildManifest({
+    const manifestSpec = {
       tracks: spec.tracks,
       withTauri: spec.options.withTauri,
-    });
+      withUzysHarness: spec.options.withUzysHarness,
+    };
+    const manifest = buildManifest(manifestSpec);
 
     for (const entry of manifest) {
-      if (!entry.applies({ tracks: spec.tracks, withTauri: spec.options.withTauri })) {
+      if (!entry.applies(manifestSpec)) {
         continue;
       }
       const source = join(templatesDir, entry.source);

@@ -181,6 +181,22 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "agent-skills@addy-agent-skills",
     },
   },
+  {
+    id: "superpowers",
+    // 저자 = obra (190k★ github.com/obra/superpowers). 호스팅 = Anthropic 공식
+    // marketplace github.com/anthropics/claude-plugins-official ("Official,
+    // Anthropic-managed directory of high quality Claude Code Plugins").
+    // source/marketplace 분리는 의도적 — source=저자, marketplace=registry.
+    description: "Superpowers — agentic skills framework (obra, Anthropic 공식 marketplace)",
+    category: "workflow",
+    source: "obra",
+    condition: { kind: "option", flag: "withSuperpowers" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "superpowers@claude-plugins-official",
+    },
+  },
 
   // === Railway (csr-fastify|csr-fastapi|ssr-*|full) ===
   // v0.6.3 — railway-plugin entry 제거. railwayapp/railway-plugin repo 자체 존재 안 함

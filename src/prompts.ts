@@ -45,6 +45,16 @@ const OPTION_DEFS: ReadonlyArray<{ key: keyof OptionFlags; label: string; hint: 
     label: "addy agent-skills (addyosmani/agent-skills)",
     hint: "general dev skill suite · /spec /plan /build slash commands (no namespace)",
   },
+  {
+    key: "withUzysHarness",
+    label: "uzys-harness 6-Gate workflow (본 프로젝트)",
+    hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship · v26.44.0 opt-in",
+  },
+  {
+    key: "withSuperpowers",
+    label: "superpowers (obra/superpowers, Anthropic 공식 marketplace)",
+    hint: "agentic skills framework · /spec /plan /build slash (no namespace)",
+  },
   { key: "withEcc", label: "ECC plugin (project-scoped)", hint: "everything-claude-code" },
   { key: "withPrune", label: "Prune ECC items beyond curated 89", hint: "Implies ECC" },
   { key: "withTob", label: "Trail of Bits security plugin", hint: "CodeQL + Semgrep" },
