@@ -72,14 +72,20 @@ describe("buildManifest", () => {
     expect(multi.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
   });
 
-  it("includes UI skill dirs only for ui tracks", () => {
-    const data = buildManifest({ tracks: ["data"] });
+  it("includes UI skill dirs only for ui tracks (e2e-testing requires withEcc, v26.55.0)", () => {
+    // v26.55.0 — e2e-testing 은 ECC cherry-pick → withEcc + ui track 둘 다 필요. ADR-016.
+    const data = buildManifest({ tracks: ["data"], withEcc: true });
     const e2eEntry = data.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eEntry?.applies({ tracks: ["data"] })).toBe(false);
+    expect(e2eEntry?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
 
-    const ui = buildManifest({ tracks: ["ssr-nextjs"] });
+    const ui = buildManifest({ tracks: ["ssr-nextjs"], withEcc: true });
     const e2eEntryUi = ui.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eEntryUi?.applies({ tracks: ["ssr-nextjs"] })).toBe(true);
+    expect(e2eEntryUi?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
+
+    // withEcc 없으면 ui track 이라도 빠짐
+    const uiNoEcc = buildManifest({ tracks: ["ssr-nextjs"] });
+    const e2eEntryNoEcc = uiNoEcc.find((e) => e.source === "skills/e2e-testing");
+    expect(e2eEntryNoEcc?.applies({ tracks: ["ssr-nextjs"] })).toBe(false);
   });
 
   it("includes hooks for all tracks", () => {

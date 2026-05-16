@@ -245,7 +245,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === UI tracks (csr-*|ssr-*|full) ===
   {
     id: "impeccable",
-    description: "Impeccable UI design skill (pbakaus)",
+    description: "Impeccable — UI 디자인 가이드 + 시각적 일관성 검토 (pbakaus, single-skill repo)",
     category: "frontend",
     source: "pbakaus",
     condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
@@ -256,7 +256,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === dev tools (has_dev_track) ===
   {
     id: "playwright-skill",
-    description: "Playwright skill (testdino-hq)",
+    description: "Playwright — 브라우저 자동화 E2E 테스트 작성 가이드 (testdino-hq)",
     category: "dev-tools",
     source: "testdino-hq",
     condition: { kind: "has-dev-track" },
@@ -285,7 +285,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "architecture-decision-record",
-    description: "ADR skill (orchestkit)",
+    description:
+      "ADR — Architecture Decision Record 템플릿 + status 흐름 (orchestkit, 80+ skill 중)",
     category: "dev-tools",
     source: "yonatangross",
     condition: { kind: "has-dev-track" },
@@ -341,7 +342,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "shadcn-ui",
-    description: "shadcn/ui skill",
+    description: "shadcn/ui — Radix 기반 React 컴포넌트 카피 + Tailwind 테마 (shadcn 공식)",
     category: "frontend",
     source: "shadcn-ui",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -549,7 +550,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "ecc-plugin",
-    description: "ECC (everything-claude-code) 마켓플레이스 + plugin install",
+    description: "ECC — 60 agents · 230 skills · 75 commands. Affaan 종합 hackathon 패키지",
     category: "ecc-suite",
     source: "affaan-m",
     condition: { kind: "option", flag: "withEcc" },

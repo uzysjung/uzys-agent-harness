@@ -264,6 +264,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
       tracks: spec.tracks,
       withTauri: spec.options.withTauri,
       withUzysHarness: spec.options.withUzysHarness,
+      // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
+      withEcc: spec.options.withEcc,
     };
     const manifest = buildManifest(manifestSpec);
 
