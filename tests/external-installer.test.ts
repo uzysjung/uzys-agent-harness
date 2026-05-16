@@ -7,6 +7,7 @@ import {
   runExternalInstall,
 } from "../src/external-installer.js";
 import { DEFAULT_OPTIONS } from "../src/types.js";
+import { createMockAsset } from "./helpers/mock-asset.js";
 
 type SpawnFn = NonNullable<ExternalInstallerDeps["spawn"]>;
 
@@ -41,50 +42,38 @@ function fail(stderr = "boom"): SpawnSyncReturns<string> {
   };
 }
 
-// Mock ExternalAsset fixtures — category/source are placeholders for type
-// compatibility only (these are not real assets; the dispatcher tests only
-// the install method routing, not the category/source semantics).
+// v26.53.0 — createMockAsset helper (tests/helpers/mock-asset.ts). category/source = placeholder.
 const TEST_ASSETS: ExternalAsset[] = [
-  {
+  createMockAsset({
     id: "skill-no-name",
     description: "skill without explicit name",
-    category: "dev-tools",
-    source: "uzys",
     condition: { kind: "any-track", tracks: ["tooling"] },
     method: { kind: "skill", source: "owner/repo" },
-  },
-  {
+  }),
+  createMockAsset({
     id: "skill-with-name",
     description: "skill with --skill flag",
-    category: "dev-tools",
-    source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "skill", source: "owner/repo", skill: "react" },
-  },
-  {
+  }),
+  createMockAsset({
     id: "plugin-asset",
     description: "claude plugin",
-    category: "dev-tools",
-    source: "uzys",
     condition: { kind: "any-track", tracks: ["full"] },
     method: { kind: "plugin", marketplace: "ms/foo", pluginId: "foo@ms-foo" },
-  },
-  {
+  }),
+  createMockAsset({
     id: "npm-asset",
     description: "npm install -g",
-    category: "dev-tools",
-    source: "uzys",
     condition: { kind: "option", flag: "withEcc" },
     method: { kind: "npm-global", pkg: "vercel" },
-  },
-  {
+  }),
+  createMockAsset({
     id: "npx-asset",
     description: "npx run",
-    category: "dev-tools",
-    source: "uzys",
     condition: { kind: "option", flag: "withGsd" },
     method: { kind: "npx-run", cmd: "get-shit-done-cc@latest" },
-  },
+  }),
 ];
 
 describe("runExternalInstall — method dispatch", () => {
@@ -202,15 +191,13 @@ describe("runExternalInstall — failure modes", () => {
 
   it("abort failureMode stops install on first failure", () => {
     const spawn = makeSpawnMock(() => fail());
-    const abortAsset: ExternalAsset = {
+    const abortAsset = createMockAsset({
       id: "must-have",
       description: "abort if missing",
-      category: "dev-tools",
-      source: "uzys",
       condition: { kind: "any-track", tracks: ["tooling"] },
       method: { kind: "npm-global", pkg: "critical-pkg" },
       failureMode: "abort",
-    };
+    });
     const report = runExternalInstall(
       { tracks: ["tooling"], options: DEFAULT_OPTIONS, cli: ["claude"] },
       { spawn, assets: [abortAsset, TEST_ASSETS[0] as ExternalAsset] },
