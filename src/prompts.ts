@@ -12,13 +12,23 @@ import {
   outro,
   select,
 } from "@clack/prompts";
-import type { Category } from "./categories.js";
-import { CATEGORY_TITLES } from "./categories.js";
+import { CATEGORIES as CATEGORY_ORDER, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
 import { type CliBase, type CliTargets, type OptionFlags, TRACKS, type Track } from "./types.js";
+
+/**
+ * v26.54.0 — All-in-one install-targets value scheme.
+ * groupMultiselect 의 단일 string value 에 두 source 통합:
+ *   - `option:<key>` → OPTION_DEFS 의 manifest-영향 build option (현재: withTauri, withUzysHarness)
+ *   - `asset:<id>` → EXTERNAL_ASSETS 의 외부 자산
+ * 다른 OptionFlags 항목 (withGsd, withEcc, withPrune, withTob, withKarpathyHook,
+ * withAddyAgentSkills, withSuperpowers) 은 EXTERNAL_ASSETS 에 1:1 자산이 있어
+ * 자산 체크 → userOverride.forceInclude 로 처리. UI 중복 표시 없음.
+ */
+export type InstallTargetId = `option:${keyof OptionFlags}` | `asset:${string}`;
 
 export interface Prompts {
   intro: (msg: string) => void;
@@ -26,40 +36,19 @@ export interface Prompts {
   cancel: (msg: string) => void;
 
   selectTracks: (initial?: Track[]) => Promise<Track[] | null>;
-  selectOptionKeys: (
-    initial?: ReadonlyArray<keyof OptionFlags>,
-  ) => Promise<Array<keyof OptionFlags> | null>;
   /** v0.7.0 — single select → multiselect (3 base 체크박스). default `["claude"]`. */
   selectCli: (initial?: CliTargets) => Promise<CliTargets | null>;
   selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
-  /**
-   * v26.47.0 (Phase C full) — Step 2 External Asset multiselect (1-tier).
-   * 카테고리별 그룹화 + 추천 ✓ 미리 체크 + 출처 라벨.
-   * v26.52.0 — 2-tier navigator (selectAssetCategory + selectAssetsInCategory) 로 대체.
-   * 본 1-tier 함수는 호환 유지 (CI / non-interactive 또는 fallback).
-   */
-  selectExternalAssets: (
-    initialChecked: ReadonlyArray<string>,
-  ) => Promise<ReadonlyArray<string> | null>;
 
   /**
-   * v26.52.0 — Step 4 (a) Category navigator. SPEC: docs/specs/step-4-category-navigator.md
-   * 7 카테고리 + "Proceed →" 항목. 각 카테고리에 [N/M ✓] 진행률 표시.
-   * 결과: Category 선택 → sub-prompt 진입 / "proceed" → confirm step / null → back to cli.
+   * v26.54.0 — Step 3 (all-in-one). EXTERNAL_ASSETS + 표시-대상 OPTION_DEFS 를
+   * 카테고리 그룹화. 추천 ✓ pre-check. ESC → null (silent back).
    */
-  selectAssetCategory: (
-    counts: ReadonlyArray<{ category: Category; selected: number; total: number }>,
-  ) => Promise<Category | "proceed" | null>;
-
-  /**
-   * v26.52.0 — Step 4 (b) Sub-prompt. 카테고리 내 자산 multiselect.
-   * 결과: 카테고리 내 새 선택 asset id 배열. ESC → null (navigator 복귀).
-   */
-  selectAssetsInCategory: (
-    category: Category,
-    initialChecked: ReadonlyArray<string>,
-  ) => Promise<ReadonlyArray<string> | null>;
+  selectInstallTargets: (
+    initialChecked: ReadonlyArray<InstallTargetId>,
+    step: { current: number; total: number },
+  ) => Promise<ReadonlyArray<InstallTargetId> | null>;
 }
 
 const TRACK_LABELS: Record<Track, string> = {
@@ -80,89 +69,35 @@ interface OptionDef {
   key: keyof OptionFlags;
   label: string;
   hint: string;
-  /** v26.45.0 — Category grouping for Step 2 UI. */
   category: Category;
-  /** v26.45.0 — Source label shown in `[source]` form. */
   source: string;
 }
 
-const OPTION_DEFS: ReadonlyArray<OptionDef> = [
+/**
+ * v26.54.0 — 표시 대상 OPTION_DEFS 축소.
+ * EXTERNAL_ASSETS 에 1:1 자산이 있는 OptionFlags 는 UI 에서 자산 노출만 (중복 제거).
+ * 본 list 의 옵션은 manifest 정책 파일 매핑에 직접 영향 (자산 X).
+ * - withTauri → manifest 의 tauri-desktop rule (자산 매핑 없음)
+ * - withUzysHarness → manifest 의 uzys-* slash commands (자산 매핑 없음)
+ * 제외: withGsd, withEcc, withPrune, withTob, withKarpathyHook, withAddyAgentSkills,
+ *       withSuperpowers (자산 1:1 매핑 → 자산 체크로 갈음)
+ * 제외 (D16/자동): withCodexSkills, withCodexTrust, withCodexPrompts
+ */
+export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [
   {
     key: "withTauri",
     category: "frontend",
     source: "본 프로젝트",
-    label: "Tauri desktop rule",
-    hint: "CSR / full tracks",
-  },
-  {
-    key: "withGsd",
-    category: "workflow",
-    source: "get-shit-done-cc",
-    label: "GSD orchestrator",
-    hint: "Large-project agent coordination",
-  },
-  {
-    key: "withAddyAgentSkills",
-    category: "workflow",
-    source: "addyosmani",
-    label: "addy agent-skills",
-    hint: "general dev skill suite · /spec /plan /build slash (no namespace)",
+    label: "Tauri desktop rule (option)",
+    hint: "CSR / full tracks · manifest rule 매핑",
   },
   {
     key: "withUzysHarness",
     category: "workflow",
     source: "본 프로젝트",
-    label: "uzys-harness 6-Gate workflow",
-    hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship · v26.44.0 opt-in",
+    label: "uzys-harness 6-Gate workflow (option)",
+    hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship",
   },
-  {
-    key: "withSuperpowers",
-    category: "workflow",
-    source: "obra / anthropics 공식",
-    label: "superpowers",
-    hint: "agentic skills framework · /spec /plan /build slash (no namespace)",
-  },
-  {
-    key: "withEcc",
-    category: "ecc-suite",
-    source: "affaan-m",
-    label: "ECC plugin (project-scoped)",
-    hint: "everything-claude-code",
-  },
-  {
-    key: "withPrune",
-    category: "ecc-suite",
-    source: "본 프로젝트",
-    label: "Prune ECC items beyond curated 89",
-    hint: "Implies --with-ecc",
-  },
-  {
-    key: "withTob",
-    category: "dev-tools",
-    source: "trailofbits",
-    label: "Trail of Bits security plugin",
-    hint: "differential security review",
-  },
-  {
-    key: "withKarpathyHook",
-    category: "dev-tools",
-    source: "alirezarezvani",
-    label: "karpathy-coder pre-commit hook",
-    hint: "Claude Code Write|Edit gate · Python 3 권장 · 비차단 (warn-only)",
-  },
-  // v26.46.0 — withCodexPrompts entry removed from interactive options.
-  // cli=codex 선택 시 default ON. opt-out 은 --no-codex-prompts CLI flag.
-];
-
-/** Category render order in Step 2 group multiselect. */
-const CATEGORY_ORDER: ReadonlyArray<Category> = [
-  "frontend",
-  "backend",
-  "data",
-  "business",
-  "dev-tools",
-  "workflow",
-  "ecc-suite",
 ];
 
 const CLI_BASE_LABELS: Record<CliBase, string> = {
@@ -178,7 +113,7 @@ export const defaultPrompts: Prompts = {
 
   selectTracks: async (initial) => {
     const result = await multiselect({
-      message: "Select Track(s) (Space to toggle, Enter to confirm):",
+      message: "Step 1/3 — Select Track(s) (Space to toggle, Enter to confirm):",
       options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
       ...(initial ? { initialValues: initial } : {}),
       required: true,
@@ -186,35 +121,11 @@ export const defaultPrompts: Prompts = {
     return isCancel(result) ? null : (result as Track[]);
   },
 
-  selectOptionKeys: async (initial) => {
-    // v26.45.0 — groupMultiselect 카테고리별 그룹화 + [source] 라벨.
-    const groups: Record<
-      string,
-      Array<{ value: keyof OptionFlags; label: string; hint: string }>
-    > = {};
-    for (const cat of CATEGORY_ORDER) {
-      const entries = OPTION_DEFS.filter((o) => o.category === cat);
-      if (entries.length === 0) continue;
-      groups[CATEGORY_TITLES[cat]] = entries.map((o) => ({
-        value: o.key,
-        label: `${o.label}  [${o.source}]`,
-        hint: o.hint,
-      }));
-    }
-    const result = await groupMultiselect({
-      message: "Optional features (Space to toggle, Enter to skip):",
-      options: groups,
-      ...(initial ? { initialValues: [...initial] } : {}),
-      required: false,
-    });
-    return isCancel(result) ? null : (result as Array<keyof OptionFlags>);
-  },
-
   selectCli: async (initial) => {
     // v0.7.0 — multiselect (3 base 체크박스). default ["claude"]. required: true.
     const initialValues: CliBase[] = initial && initial.length > 0 ? [...initial] : ["claude"];
     const result = await multiselect({
-      message: "Target CLI(s) (Space to toggle, Enter to confirm):",
+      message: "Step 2/3 — Target CLI(s) (Space to toggle, Enter to confirm. ESC to go back):",
       options: [
         { value: "claude" as const, label: CLI_BASE_LABELS.claude },
         { value: "codex" as const, label: CLI_BASE_LABELS.codex },
@@ -224,7 +135,6 @@ export const defaultPrompts: Prompts = {
       required: true,
     });
     if (isCancel(result)) return null;
-    // sorted (claude → codex → opencode 순). cli-targets.ts SSOT.
     return [...(result as CliBase[])].sort(
       (a, b) => CLI_BASE_SORT_ORDER[a] - CLI_BASE_SORT_ORDER[b],
     );
@@ -249,51 +159,36 @@ export const defaultPrompts: Prompts = {
     return isCancel(result) ? null : result;
   },
 
-  selectAssetCategory: async (counts) => {
-    const options = counts.map((c) => ({
-      value: c.category,
-      label: `${CATEGORY_TITLES[c.category]}  [${c.selected}/${c.total} ✓]`,
-    }));
-    const result = await select({
-      message: "External Assets — pick category to edit (or Proceed →):",
-      options: [...options, { value: "proceed" as const, label: "─────────── Proceed → confirm" }],
-    });
-    return isCancel(result) ? null : (result as Category | "proceed");
-  },
-
-  selectAssetsInCategory: async (category, initialChecked) => {
-    const entries = EXTERNAL_ASSETS.filter((a) => a.category === category);
-    const result = await multiselect({
-      message: `${CATEGORY_TITLES[category]} (Space to toggle, Enter to confirm. ESC to cancel):`,
-      options: entries.map((a) => ({
-        value: a.id,
-        label: `${a.id}  [${a.source}]`,
-        hint: a.description,
-      })),
-      initialValues: [...initialChecked],
-      required: false,
-    });
-    return isCancel(result) ? null : (result as ReadonlyArray<string>);
-  },
-
-  selectExternalAssets: async (initialChecked) => {
-    // v26.47.0 — Phase C full. EXTERNAL_ASSETS 를 카테고리별로 그룹화, 추천 ✓ 미리 체크.
+  selectInstallTargets: async (initialChecked, step) => {
+    // v26.54.0 — Step 3 all-in-one. EXTERNAL_ASSETS + VISIBLE_OPTION_DEFS 카테고리 그룹화.
     const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
     for (const cat of CATEGORY_ORDER) {
-      const entries = EXTERNAL_ASSETS.filter((a) => a.category === cat);
-      if (entries.length === 0) continue;
-      groups[CATEGORY_TITLES[cat]] = entries.map((a) => ({
-        value: a.id,
-        label: `${a.id}  [${a.source}]`,
-        hint: a.description,
-      }));
+      const items: Array<{ value: string; label: string; hint?: string }> = [];
+      // 옵션 먼저 (상단)
+      for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
+        items.push({
+          value: `option:${o.key}`,
+          label: `${o.label}  [${o.source}]`,
+          hint: o.hint,
+        });
+      }
+      // 그 다음 자산
+      for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
+        items.push({
+          value: `asset:${a.id}`,
+          label: `${a.id}  [${a.source}]`,
+          hint: a.description,
+        });
+      }
+      if (items.length === 0) continue;
+      groups[CATEGORY_TITLES[cat]] = items;
     }
     const result = await groupMultiselect({
-      message: "External Assets (Space to toggle, Enter to confirm. ✓ = preset 추천):",
+      message: `Step ${step.current}/${step.total} — What will be installed (Space to toggle, Enter to confirm. ESC to go back. ✓ = preset 추천):`,
       options: groups,
       initialValues: [...initialChecked],
       required: false,
     });
-    return isCancel(result) ? null : (result as ReadonlyArray<string>);
+    return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
   },
 };

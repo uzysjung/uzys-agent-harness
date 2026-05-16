@@ -1,13 +1,37 @@
-import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import type { InstallMode } from "./installer.js";
 import { recommendedExternalAssets } from "./preset-recommend.js";
-import { defaultPrompts, type Prompts } from "./prompts.js";
+import {
+  defaultPrompts,
+  type InstallTargetId,
+  type Prompts,
+  VISIBLE_OPTION_DEFS,
+} from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
 
 /**
- * Convert an array of selected option keys into a fully-populated OptionFlags.
+ * v26.54.0 — All-in-one 결과 → option keys + asset id list 분리.
+ * `option:<key>` → OptionFlags key
+ * `asset:<id>` → EXTERNAL_ASSETS id
+ */
+export function splitInstallTargets(targets: ReadonlyArray<InstallTargetId>): {
+  optionKeys: Array<keyof OptionFlags>;
+  assetIds: Array<string>;
+} {
+  const optionKeys: Array<keyof OptionFlags> = [];
+  const assetIds: Array<string> = [];
+  for (const t of targets) {
+    if (t.startsWith("option:")) {
+      optionKeys.push(t.slice("option:".length) as keyof OptionFlags);
+    } else if (t.startsWith("asset:")) {
+      assetIds.push(t.slice("asset:".length));
+    }
+  }
+  return { optionKeys, assetIds };
+}
+
+/**
  * v26.46.0 — `withCodexPrompts` 는 interactive 옵션 list 에서 제거됨. cli=codex 선택 시
  * `runInteractive` 에서 자동 ON. 본 함수는 default false 로 시작.
  */
@@ -22,7 +46,7 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
     withCodexSkills: picked.has("withCodexSkills"),
     withCodexTrust: picked.has("withCodexTrust"),
     withKarpathyHook: picked.has("withKarpathyHook"),
-    withCodexPrompts: false, // v26.46.0 — cli=codex 결정 후 자동 설정 (interactive 직접 토글 X)
+    withCodexPrompts: false,
     withAddyAgentSkills: picked.has("withAddyAgentSkills"),
     withUzysHarness: picked.has("withUzysHarness"),
     withSuperpowers: picked.has("withSuperpowers"),
@@ -46,23 +70,20 @@ export interface InteractiveDeps {
 export interface InteractiveResult {
   ok: boolean;
   spec?: InstallSpec;
-  /** Install mode dispatched (router action). Default "fresh" for new installs. */
   mode?: InstallMode;
-  /** When ok=false: machine-readable reason (`no-tty`, `cancelled`, `disabled-action`, `exit`). */
   reason?: "no-tty" | "cancelled" | "disabled-action" | "exit";
   message?: string;
 }
 
 /**
- * Orchestrates the interactive flow.
+ * v26.54.0 — 3-step wizard. SPEC: docs/specs/v26-54-all-in-one-installer.md
  *
- * Phase B scope:
- *   - State detection (new vs existing)
- *   - 5-action router for existing installs
- *   - Track / options / CLI prompts for new + add + reinstall paths
- *   - Confirmation summary
+ * Step 1: tracks (ESC = exit + cancel msg)
+ * Step 2: cli   (ESC = silent back to tracks)
+ * Step 3: install-targets all-in-one (ESC = silent back to cli)
+ * confirm prompt (ESC = silent back to targets)
  *
- * The actual install pipeline (Phase C) consumes the returned `InstallSpec`.
+ * 이전 5-step 의 options + 2-tier asset navigator 를 step 3 1 화면 group multiselect 로 흡수.
  */
 export async function runInteractive(
   projectDir: string,
@@ -102,7 +123,6 @@ export async function runInteractive(
     }
     if (action === "update") {
       mode = "update";
-      // Update mode은 정책 파일만 갱신 — Track 변경 없음. spec.tracks = state.tracks.
       const summary = formatSummary({
         tracks: state.tracks,
         options: applyOptionRules(toOptionFlags([])),
@@ -131,96 +151,62 @@ export async function runInteractive(
       initialTracks = state.tracks;
     } else if (action === "reinstall") {
       mode = "reinstall";
-      // reinstall: clean slate prompt (no initialTracks)
     }
   }
 
-  // v26.46.0 — Wizard back navigation. v26.47.0 — assets step 추가 (Phase C full).
-  // ESC at each step = back to previous; ESC at tracks = exit; ESC at confirm = exit.
-  type Step = "tracks" | "options" | "cli" | "assets" | "confirm";
+  type Step = "tracks" | "cli" | "targets" | "confirm";
   let step: Step = "tracks";
   let tracks: Track[] | null = null;
-  let optionKeys: Array<keyof OptionFlags> | null = null;
   let cli: import("./types.js").CliTargets | null = null;
-  let assetSelections: ReadonlyArray<string> | null = null;
+  let targetSelections: ReadonlyArray<InstallTargetId> | null = null;
 
   while (true) {
     if (step === "tracks") {
       const result = await prompts.selectTracks(tracks ?? initialTracks);
       if (result === null) {
+        // Step 1 ESC = exit with cancel message (only step where ESC is "cancel")
         prompts.cancel("Cancelled.");
         return { ok: false, reason: "cancelled" };
       }
-      // v26.50.0 — preset 변경 감지. 다르면 Step 4 assetSelections reset →
-      // 다음 Step 4 진입 시 recommendedExternalAssets(new tracks) 재평가.
+      // preset 변경 감지 → install-targets reset (v26.50 정책 유지)
       if (tracks !== null && !tracksEqual(tracks, result)) {
-        assetSelections = null;
+        targetSelections = null;
       }
       tracks = result;
-      step = "options";
-    } else if (step === "options") {
-      const result = await prompts.selectOptionKeys(optionKeys ?? undefined);
-      if (result === null) {
-        step = "tracks";
-        continue;
-      }
-      optionKeys = result;
       step = "cli";
     } else if (step === "cli") {
       const result = await prompts.selectCli(cli ?? ["claude"]);
       if (result === null) {
-        step = "options";
+        step = "tracks"; // silent back
         continue;
       }
       cli = result;
-      step = "assets";
-    } else if (step === "assets") {
-      // v26.52.0 — 2-tier navigator (Phase C UX). SPEC: docs/specs/step-4-category-navigator.md
-      const recommended = recommendedExternalAssets(tracks ?? []);
-      const allSelected: Set<string> = new Set(assetSelections ?? recommended);
-      let backToCli = false;
-      while (true) {
-        const counts = CATEGORY_ORDER.map((cat) => {
-          const inCat = EXTERNAL_ASSETS.filter((a) => a.category === cat);
-          const selected = inCat.filter((a) => allSelected.has(a.id)).length;
-          return { category: cat, selected, total: inCat.length };
-        });
-        const navResult = await prompts.selectAssetCategory(counts);
-        if (navResult === null) {
-          backToCli = true; // ESC at navigator = back to cli
-          break;
-        }
-        if (navResult === "proceed") {
-          assetSelections = [...allSelected];
-          break;
-        }
-        // Category 선택 → sub-prompt
-        const categoryAssetIds = EXTERNAL_ASSETS.filter((a) => a.category === navResult).map(
-          (a) => a.id,
-        );
-        const initial = categoryAssetIds.filter((id) => allSelected.has(id));
-        const subResult = await prompts.selectAssetsInCategory(navResult, initial);
-        if (subResult === null) continue; // ESC at sub = stay at navigator (state 보존)
-        // 카테고리 내 자산만 갱신 (다른 카테고리 보존)
-        for (const id of categoryAssetIds) {
-          if (subResult.includes(id)) allSelected.add(id);
-          else allSelected.delete(id);
-        }
+      step = "targets";
+    } else if (step === "targets") {
+      const initial: InstallTargetId[] =
+        targetSelections !== null
+          ? [...targetSelections]
+          : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
+      const result = await prompts.selectInstallTargets(initial, { current: 3, total: 3 });
+      if (result === null) {
+        step = "cli"; // silent back
+        continue;
       }
-      step = backToCli ? "cli" : "confirm";
+      targetSelections = result;
+      step = "confirm";
     } else {
-      // confirm — tracks/optionKeys/cli 모두 이전 step 에서 set (narrowing).
+      // confirm
       // biome-ignore lint/style/noNonNullAssertion: confirm step 도달 = 모든 이전 step 완료 보장
       const finalTracks = tracks!;
       // biome-ignore lint/style/noNonNullAssertion: same as above
       const finalCli = cli!;
-      const options = applyOptionRules(toOptionFlags(optionKeys ?? []));
-      // v26.46.0 — cli=codex 시 Codex prompts default ON (ADR-012).
+      const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
+      const options = applyOptionRules(toOptionFlags(optionKeys));
       if (finalCli.includes("codex")) {
         options.withCodexPrompts = true;
       }
-      // v26.47.0 — Phase C full: assets step 결과 → userOverride diff 계산.
-      const userOverride = computeUserOverride(finalTracks, assetSelections);
+      const userOverride =
+        targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
       const summary = formatSummary({
         tracks: finalTracks,
         options,
@@ -230,8 +216,8 @@ export async function runInteractive(
       });
       const confirmed = await prompts.confirmInstall(summary);
       if (confirmed === null) {
-        prompts.cancel("Cancelled.");
-        return { ok: false, reason: "cancelled" };
+        step = "targets"; // silent back
+        continue;
       }
       if (!confirmed) {
         prompts.outro("Cancelled by user.");
@@ -254,8 +240,7 @@ export async function runInteractive(
 }
 
 /**
- * v26.50.0 — Track 배열 동등 비교 (순서 무관, 중복 무시).
- * Preset 변경 감지에 사용 — 다르면 Step 4 assetSelections reset.
+ * Track 배열 동등 비교 (순서 무관). Preset 변경 감지에 사용.
  */
 function tracksEqual(a: ReadonlyArray<Track>, b: ReadonlyArray<Track>): boolean {
   if (a.length !== b.length) return false;
@@ -265,18 +250,17 @@ function tracksEqual(a: ReadonlyArray<Track>, b: ReadonlyArray<Track>): boolean 
 }
 
 /**
- * v26.47.0 — Phase C full. Step 2 결과 (assetSelections) 와 preset 추천 비교 → forceInclude/forceExclude.
- * - `recommended - selected` → forceExclude (사용자가 추천에서 unchecked)
+ * v26.54.0 — Asset 선택 결과 (id 만) 와 preset 추천 비교 → forceInclude / forceExclude.
+ * - `recommended - selected` → forceExclude (사용자가 unchecked)
  * - `selected - recommended` → forceInclude (사용자가 추가 선택)
- * - 둘 다 비어 있으면 undefined (backward compat — userOverride 없음).
+ * 둘 다 비어있으면 undefined (no override).
  */
 export function computeUserOverride(
   tracks: ReadonlyArray<Track>,
-  assetSelections: ReadonlyArray<string> | null,
+  assetIds: ReadonlyArray<string>,
 ): { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> } | undefined {
-  if (assetSelections === null) return undefined;
   const recommended = new Set(recommendedExternalAssets(tracks));
-  const selected = new Set(assetSelections);
+  const selected = new Set(assetIds);
   const forceExclude = [...recommended].filter((id) => !selected.has(id)).sort();
   const forceInclude = [...selected].filter((id) => !recommended.has(id)).sort();
   if (forceInclude.length === 0 && forceExclude.length === 0) return undefined;
@@ -288,10 +272,22 @@ export function formatSummary(spec: InstallSpec): string {
     .filter((k) => spec.options[k])
     .map((k) => k.replace(/^with/, "").toLowerCase());
   const optsLabel = opts.length > 0 ? opts.join(", ") : "(defaults only)";
-  return [
+  const lines = [
     `Tracks:    ${spec.tracks.join(", ")}`,
     `Options:   ${optsLabel}`,
     `CLI:       ${spec.cli.join(" · ")}`,
     `Target:    ${spec.projectDir}`,
-  ].join("\n");
+  ];
+  if (spec.userOverride) {
+    if (spec.userOverride.forceInclude.length > 0) {
+      lines.push(`  +Assets: ${spec.userOverride.forceInclude.join(", ")}`);
+    }
+    if (spec.userOverride.forceExclude.length > 0) {
+      lines.push(`  -Assets: ${spec.userOverride.forceExclude.join(", ")}`);
+    }
+  }
+  return lines.join("\n");
 }
+
+// v26.54.0 — Re-exports to keep test imports stable (test의 mock 구조 변경 없음)
+export { EXTERNAL_ASSETS, VISIBLE_OPTION_DEFS };
