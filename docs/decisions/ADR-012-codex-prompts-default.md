@@ -4,7 +4,7 @@
 - **Date**: 2026-05-15
 - **PR**: TBD (v26.46.0)
 - **Supersedes**: 없음
-- **Related**: ADR-008 (D16 — global ~/.codex/ protection 원칙)
+- **Related**: ADR-002 (D16 정신 명시 — codex hook gap), ADR-004 (opencode 글로벌 미수정 원칙), ADR-013 (Wizard back nav 같은 PR)
 
 ## Context
 

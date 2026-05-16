@@ -25,8 +25,12 @@ export interface InstallOptions {
    * 명시 true: 사용자 explicit (legacy --with-codex-prompts 호환).
    */
   withCodexPrompts?: boolean;
-  /** v26.46.0 — Codex slash 통일 opt-out (cli=codex 일 때 default ON 해제). */
-  noCodexPrompts?: boolean;
+  /**
+   * v26.46.0 — Codex slash 통일 opt-out (cli=codex 일 때 default ON 해제).
+   * cac negation flag — `--no-codex-prompts` 명시 시 cac 가 `codexPrompts: false` 로 set.
+   * v26.51.0 — bug fix: 이전엔 `noCodexPrompts` field 참조 (cac 가 만들지 않음) → 동작 안 함.
+   */
+  codexPrompts?: boolean;
   /** v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install). */
   withAddyAgentSkills?: boolean;
   /** v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING vs prior auto-install). */
@@ -140,7 +144,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       ),
     );
   }
-  if (validated.ok && options.noCodexPrompts === true && !validated.cli.includes("codex")) {
+  if (validated.ok && options.codexPrompts === false && !validated.cli.includes("codex")) {
     err(
       c.yellow("[WARN] --no-codex-prompts has no effect without --cli codex (already excluded)."),
     );
@@ -184,9 +188,10 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
-      // v26.46.0 — cli=codex 시 default ON (ADR-012). --no-codex-prompts 또는 --with-codex-prompts=false 명시 시 OFF.
+      // v26.46.0 — cli=codex 시 default ON (ADR-012). --no-codex-prompts 명시 시 OFF.
+      // v26.51.0 bug fix — cac negation `--no-codex-prompts` 는 `codexPrompts: false` 로 set.
       withCodexPrompts:
-        options.noCodexPrompts === true
+        options.codexPrompts === false
           ? false
           : options.withCodexPrompts === true || validated.cli.includes("codex"),
       withAddyAgentSkills: options.withAddyAgentSkills === true,
@@ -639,57 +644,67 @@ export { defaultHarnessRoot };
 export function registerInstallCommand(cli: Cli): void {
   cli
     .command("install", "Install harness assets into a project")
-    .option("--track <name>", "Track to install (repeatable)", { type: [String] })
-    .option(
-      "--cli <target>",
-      "Target CLI (repeatable): claude | codex | opencode. Multiple --cli flags combine (e.g. --cli claude --cli codex).",
-      { type: [String], default: "claude" },
-    )
-    .option("--project-dir <path>", "Target project directory", { default: process.cwd() })
-    .option("--with-tauri", "Include tauri.md rule")
-    .option("--with-gsd", "Include GSD orchestrator")
-    .option("--with-ecc", "Install ECC plugin (project-scoped)")
-    .option("--with-prune", "Prune ECC items beyond curated 89 (implies --with-ecc)")
-    .option("--with-tob", "Install Trail of Bits security plugin")
-    .option(
-      "--with-codex-skills",
-      "Codex global opt-in: copy uzys-* skills to ~/.codex/skills/ (requires --cli codex)",
-    )
-    .option(
-      "--with-codex-trust",
-      'Codex global opt-in: register [projects."..."] trust entry in ~/.codex/config.toml',
-    )
-    .option(
-      "--with-karpathy-hook",
-      "karpathy-coder pre-commit hook auto-wire (.claude/settings.json PreToolUse Write|Edit). karpathy-coder plugin install 성공 시에만 활성화. opt-in.",
-    )
-    .option(
-      "--with-codex-prompts",
-      "Codex slash 통일 (~/.codex/prompts/uzys-*.md 글로벌 복사). v26.46.0 부터 --cli codex 시 default ON. 본 flag는 cli=claude 단독에서도 강제 시 사용 (보통 불필요).",
-    )
-    .option(
-      "--no-codex-prompts",
-      "v26.46.0 — Codex slash default ON 해제. --cli codex 명시 시에도 ~/.codex/prompts/uzys-*.md 글로벌 복사 안 함.",
-    )
-    .option(
-      "--with-addy-agent-skills",
-      "addyosmani/agent-skills marketplace plugin install. v26.42.0 — opt-in (이전엔 dev 트랙 자동 설치). /spec /plan /build slash commands (no namespace).",
-    )
-    .option(
-      "--with-uzys-harness",
-      "uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in. v26.44.0 BREAKING — 이전엔 dev 트랙 자동 설치. 기존 동작 복원: install <같은 옵션> --with-uzys-harness",
-    )
-    .option(
-      "--with-superpowers",
-      "obra/superpowers (190k★, Anthropic 공식 marketplace 등록) plugin install. /spec /plan /build slash (no namespace).",
-    )
+    // === Track / CLI / Project ===
+    .option("--track <name>", "[Track] Track to install (repeatable)", { type: [String] })
+    .option("--cli <target>", "[CLI] Target CLI (repeatable): claude | codex | opencode", {
+      type: [String],
+      default: "claude",
+    })
+    .option("--project-dir <path>", "[Project] Target project directory", {
+      default: process.cwd(),
+    })
+    // === Asset selection (Phase C full, v26.47.0+) ===
     .option(
       "--with <asset-id>",
-      "v26.47.0 (Phase C full) — External Asset id 강제 포함 (preset 조건 무관). Repeatable. 예: --with railway-skills --with impeccable",
+      "[Asset] External Asset id 강제 포함 (preset 조건 무관). Repeatable. v26.47.0+",
     )
     .option(
       "--without <asset-id>",
-      "v26.47.0 (Phase C full) — External Asset id 강제 제외 (preset 추천에서 제거). Repeatable. 예: --without netlify-cli",
+      "[Asset] External Asset id 강제 제외 (preset 추천에서 제거). Repeatable. v26.47.0+",
     )
+    // === Codex global (v26.46.0+) ===
+    .option(
+      "--with-codex-prompts",
+      "[Codex] Codex slash 통일 (~/.codex/prompts/uzys-*.md). v26.46.0+ --cli codex 시 default ON",
+    )
+    .option(
+      "--no-codex-prompts",
+      "[Codex] Codex slash default ON 해제 (--cli codex 명시 시에도 글로벌 복사 안 함)",
+    )
+    .option(
+      "--with-codex-skills",
+      "[Codex] Codex global opt-in: copy uzys-* skills to ~/.codex/skills/",
+    )
+    .option(
+      "--with-codex-trust",
+      "[Codex] Codex global opt-in: register trust entry in ~/.codex/config.toml",
+    )
+    // === Workflow opt-in (v26.42.0+) ===
+    .option(
+      "--with-uzys-harness",
+      "[Workflow] uzys-harness 6-Gate slash (/uzys:spec ... /uzys:ship). v26.44.0 BREAKING",
+    )
+    .option(
+      "--with-addy-agent-skills",
+      "[Workflow] addyosmani/agent-skills (/spec /plan /build slash). v26.42.0 BREAKING",
+    )
+    .option("--with-superpowers", "[Workflow] obra/superpowers (Anthropic 공식 marketplace 등록)")
+    .option("--with-gsd", "[Workflow] GSD orchestrator (대형 프로젝트)")
+    // === ECC Suite ===
+    .option("--with-ecc", "[ECC] ECC plugin (project-scoped)")
+    .option("--with-prune", "[ECC] Prune ECC items beyond curated 89 (implies --with-ecc)")
+    // === Dev Tools ===
+    .option("--with-tob", "[Dev Tools] Trail of Bits differential security review")
+    .option(
+      "--with-karpathy-hook",
+      "[Dev Tools] karpathy-coder pre-commit hook (.claude/settings.json PreToolUse Write|Edit)",
+    )
+    // === Misc ===
+    .option("--with-tauri", "[Misc] Tauri desktop rule (csr-*/full)")
+    // === Examples (v26.50.0+) ===
+    .example("install --track tooling --with-uzys-harness")
+    .example("install --track csr-supabase --cli claude --cli codex")
+    .example("install --track csr-supabase --without netlify-cli --with railway-skills")
+    .example("install --track full --no-codex-prompts")
     .action((options: InstallOptions) => installAction(options));
 }

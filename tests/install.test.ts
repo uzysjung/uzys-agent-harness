@@ -775,6 +775,57 @@ describe("executeSpec", () => {
   });
 });
 
+describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", () => {
+  it("cli=codex + codexPrompts=false (cac negation) → withCodexPrompts=false (opt-out)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      {
+        cli: ["codex"],
+        track: ["tooling"],
+        codexPrompts: false, // cac --no-codex-prompts
+        projectDir: "/p",
+      },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.options.withCodexPrompts).toBe(false);
+  });
+
+  it("cli=codex + 명시 없음 → withCodexPrompts=true (default ON, ADR-012)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["codex"], track: ["tooling"], projectDir: "/p" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.options.withCodexPrompts).toBe(true);
+  });
+
+  it("cli=claude + codexPrompts=false → warning (no effect)", () => {
+    const log = vi.fn();
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { cli: ["claude"], track: ["tooling"], codexPrompts: false },
+      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining("--no-codex-prompts has no effect without --cli codex"),
+    );
+  });
+});
+
 describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
   it("unknown id in --with → warning + skip (no fail)", () => {
     const log = vi.fn();
