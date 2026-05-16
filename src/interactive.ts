@@ -149,6 +149,11 @@ export async function runInteractive(
         prompts.cancel("Cancelled.");
         return { ok: false, reason: "cancelled" };
       }
+      // v26.50.0 — preset 변경 감지. 다르면 Step 4 assetSelections reset →
+      // 다음 Step 4 진입 시 recommendedExternalAssets(new tracks) 재평가.
+      if (tracks !== null && !tracksEqual(tracks, result)) {
+        assetSelections = null;
+      }
       tracks = result;
       step = "options";
     } else if (step === "options") {
@@ -221,6 +226,17 @@ export async function runInteractive(
       };
     }
   }
+}
+
+/**
+ * v26.50.0 — Track 배열 동등 비교 (순서 무관, 중복 무시).
+ * Preset 변경 감지에 사용 — 다르면 Step 4 assetSelections reset.
+ */
+function tracksEqual(a: ReadonlyArray<Track>, b: ReadonlyArray<Track>): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((t, i) => t === sortedB[i]);
 }
 
 /**

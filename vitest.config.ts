@@ -15,10 +15,9 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/types/**", "src/index.ts", "src/prompts.ts"],
       thresholds: {
         lines: 90,
-        // branches: 90 → 88 → 87 → 86 → 87 (v26.48.0 — helper export + targeted test로 부분 복구).
-        // 88 영구 복구는 defaultRunPipeline/defaultHarnessRoot (fs + import.meta) 의존 코드라
-        // 격리 테스트 매우 어려움. 추가 복구 시 install.ts helper 분리 (별도 module) refactor 필요.
-        branches: 87,
+        // branches: 90 → 88 → 87 → 86 → 87 → 88 (v26.50.0 — preset reset test 추가로 영구 복구).
+        // ADR-012/013/014 약속 완전 달성.
+        branches: 88,
         functions: 90,
         statements: 90,
       },
