@@ -36,3 +36,4 @@ dist/
 coverage/
 *.tsbuildinfo
 .vitest-cache/
+.claude/skills/
