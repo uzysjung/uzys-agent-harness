@@ -4,9 +4,10 @@ import {
   computeUserOverride,
   formatSummary,
   runInteractive,
+  splitInstallTargets,
   toOptionFlags,
 } from "../src/interactive.js";
-import type { Prompts } from "../src/prompts.js";
+import type { InstallTargetId, Prompts } from "../src/prompts.js";
 import type { DetectedInstall } from "../src/state.js";
 import type { CliTargets, OptionFlags, Track } from "../src/types.js";
 
@@ -16,15 +17,11 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     outro: vi.fn(),
     cancel: vi.fn(),
     selectTracks: vi.fn(async () => ["tooling"] as Track[]),
-    selectOptionKeys: vi.fn(async () => [] as Array<keyof OptionFlags>),
     selectCli: vi.fn(async () => ["claude"] as CliTargets),
     selectAction: vi.fn(async () => "add" as const),
     confirmInstall: vi.fn(async () => true),
-    // v26.47.0 — Phase C full. default mock: 빈 선택 (preset 추천 그대로).
-    selectExternalAssets: vi.fn(async (initial) => initial),
-    // v26.52.0 — 2-tier navigator default mock: 바로 proceed (Step 4 skip).
-    selectAssetCategory: vi.fn(async () => "proceed" as const),
-    selectAssetsInCategory: vi.fn(async (_cat, initial) => initial),
+    // v26.54.0 — default mock: 사용자가 추천 그대로 confirm. selectInstallTargets returns initial.
+    selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial),
     ...overrides,
   };
 }
@@ -43,6 +40,21 @@ const existingState: DetectedInstall = {
   hasClaudeDir: true,
 };
 
+const ALL_FALSE_OPTIONS: OptionFlags = {
+  withTauri: false,
+  withGsd: false,
+  withEcc: false,
+  withPrune: false,
+  withTob: false,
+  withCodexSkills: false,
+  withCodexTrust: false,
+  withKarpathyHook: false,
+  withCodexPrompts: false,
+  withAddyAgentSkills: false,
+  withUzysHarness: false,
+  withSuperpowers: false,
+};
+
 describe("runInteractive", () => {
   it("aborts with reason=no-tty when stdin is not a TTY", async () => {
     const prompts = makePrompts();
@@ -57,7 +69,7 @@ describe("runInteractive", () => {
     expect(prompts.intro).not.toHaveBeenCalled();
   });
 
-  it("happy path (new install) returns InstallSpec", async () => {
+  it("happy path (new install) returns InstallSpec without userOverride (selections == recommended)", async () => {
     const prompts = makePrompts();
     const result = await runInteractive("/tmp/proj", {
       prompts,
@@ -65,26 +77,11 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec).toEqual({
-      tracks: ["tooling"],
-      options: {
-        withTauri: false,
-        withGsd: false,
-        withEcc: false,
-        withPrune: false,
-        withTob: false,
-        withCodexSkills: false,
-        withCodexTrust: false,
-        withKarpathyHook: false,
-        withCodexPrompts: false,
-        withAddyAgentSkills: false,
-        withUzysHarness: false,
-        withSuperpowers: false,
-      },
-      cli: ["claude"],
-      projectDir: "/tmp/proj",
-    });
-    expect(prompts.selectAction).not.toHaveBeenCalled(); // skipped on new install
+    expect(result.spec?.tracks).toEqual(["tooling"]);
+    expect(result.spec?.options).toEqual(ALL_FALSE_OPTIONS);
+    expect(result.spec?.cli).toEqual(["claude"]);
+    expect(result.spec?.userOverride).toBeUndefined();
+    expect(prompts.selectAction).not.toHaveBeenCalled();
     expect(prompts.intro).toHaveBeenCalledOnce();
     expect(prompts.outro).toHaveBeenCalledOnce();
   });
@@ -103,13 +100,60 @@ describe("runInteractive", () => {
   });
 
   it("v26.46.0 — cli without codex keeps withCodexPrompts=false", async () => {
-    const prompts = makePrompts(); // default selectCli → ["claude"]
+    const prompts = makePrompts();
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
       isTty: () => true,
     });
     expect(result.spec?.options.withCodexPrompts).toBe(false);
+  });
+
+  it("v26.54.0 — option:withTauri checked in install-targets sets OptionFlags.withTauri=true", async () => {
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
+      ...initial,
+      "option:withTauri" as InstallTargetId,
+    ]);
+    const prompts = makePrompts({
+      selectTracks: vi.fn(async () => ["csr-fastapi"] as Track[]),
+      selectInstallTargets,
+    });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.options.withTauri).toBe(true);
+  });
+
+  it("v26.54.0 — asset addition outside recommended → userOverride.forceInclude", async () => {
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
+      ...initial,
+      "asset:railway-skills" as InstallTargetId,
+    ]);
+    const prompts = makePrompts({ selectInstallTargets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.userOverride?.forceInclude).toContain("railway-skills");
+  });
+
+  it("v26.54.0 — asset unchecked from recommended → userOverride.forceExclude", async () => {
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
+      initial.filter((t) => t !== "asset:playwright-skill"),
+    );
+    const prompts = makePrompts({ selectInstallTargets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.userOverride?.forceExclude).toContain("playwright-skill");
   });
 
   it("existing install: action=exit returns reason=exit", async () => {
@@ -149,7 +193,6 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(true);
     expect(result.mode).toBe("update");
     expect(result.spec?.tracks).toEqual(existingState.tracks);
-    // selectTracks NOT called — update preserves existing
     expect(prompts.selectTracks).not.toHaveBeenCalled();
   });
 
@@ -208,12 +251,9 @@ describe("runInteractive", () => {
     expect(selectTracks).toHaveBeenCalledWith(undefined);
   });
 
-  // v26.46.0 — Wizard back navigation: selectTracks/confirmInstall ESC=exit,
-  // selectOptionKeys/selectCli ESC=back to previous step (not cancel).
   it.each([
     ["selectAction", { selectAction: vi.fn(async () => null) }, true],
     ["selectTracks", { selectTracks: vi.fn(async () => null) }, false],
-    ["confirmInstall", { confirmInstall: vi.fn(async () => null) }, false],
   ] as const)("cancellation in %s returns reason=cancelled", async (_label, override, useExisting) => {
     const prompts = makePrompts(override);
     const result = await runInteractive("/tmp/proj", {
@@ -225,48 +265,141 @@ describe("runInteractive", () => {
     expect(result.reason).toBe("cancelled");
   });
 
-  it("v26.46.0 — ESC at selectOptionKeys goes back to selectTracks (wizard back nav)", async () => {
+  it("v26.54.0 — ESC at selectCli goes back to selectTracks (silent back)", async () => {
     const selectTracks = vi
       .fn<(initial?: Track[]) => Promise<Track[] | null>>()
       .mockResolvedValueOnce(["tooling"] as Track[])
-      .mockResolvedValueOnce(null); // 2번째 호출 = exit
-    const selectOptionKeys = vi
-      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce(null); // back to tracks
-    const prompts = makePrompts({ selectTracks, selectOptionKeys });
+      .mockResolvedValueOnce(null);
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(null);
+    const prompts = makePrompts({ selectTracks, selectCli });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
       isTty: () => true,
     });
     expect(selectTracks).toHaveBeenCalledTimes(2);
-    expect(selectOptionKeys).toHaveBeenCalledTimes(1);
+    expect(selectCli).toHaveBeenCalledTimes(1);
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("cancelled");
   });
 
-  it("v26.46.0 — ESC at selectCli goes back to selectOptionKeys (wizard back nav)", async () => {
-    const selectOptionKeys = vi
-      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce([] as Array<keyof OptionFlags>)
-      .mockResolvedValueOnce(null); // 2번째 = back to tracks
+  it("v26.54.0 — ESC at selectInstallTargets goes back to selectCli (silent back)", async () => {
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(["claude"] as CliTargets)
+      .mockResolvedValueOnce(null);
     const selectTracks = vi
       .fn<(initial?: Track[]) => Promise<Track[] | null>>()
       .mockResolvedValueOnce(["tooling"] as Track[])
-      .mockResolvedValueOnce(null); // 2번째 호출 시 exit
-    const selectCli = vi
-      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
-      .mockResolvedValueOnce(null); // back to options
-    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectCli });
+      .mockResolvedValueOnce(null);
+    const selectInstallTargets = vi
+      .fn<
+        (initial: ReadonlyArray<InstallTargetId>) => Promise<ReadonlyArray<InstallTargetId> | null>
+      >()
+      .mockResolvedValueOnce(null);
+    const prompts = makePrompts({ selectTracks, selectCli, selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
       isTty: () => true,
     });
-    expect(selectCli).toHaveBeenCalledTimes(1);
-    expect(selectOptionKeys).toHaveBeenCalledTimes(2);
+    expect(selectInstallTargets).toHaveBeenCalledTimes(1);
+    expect(selectCli).toHaveBeenCalledTimes(2);
     expect(selectTracks).toHaveBeenCalledTimes(2);
     expect(result.ok).toBe(false);
+  });
+
+  it("v26.54.0 — ESC at confirm goes back to selectInstallTargets (silent back)", async () => {
+    const confirmInstall = vi
+      .fn<(summary: string) => Promise<boolean | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(true);
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
+    const prompts = makePrompts({ confirmInstall, selectInstallTargets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(confirmInstall).toHaveBeenCalledTimes(2);
+    expect(selectInstallTargets).toHaveBeenCalledTimes(2);
+  });
+
+  it("v26.54.0 — Step 1 ESC emits cancel message (not silent)", async () => {
+    const prompts = makePrompts({ selectTracks: vi.fn(async () => null) });
+    await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(prompts.cancel).toHaveBeenCalledWith("Cancelled.");
+  });
+
+  it("v26.54.0 — Step 2/3/confirm ESC do not emit cancel message (silent back)", async () => {
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(["tooling"] as Track[]);
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(null) // step2 ESC → back to step1 (silent)
+      .mockResolvedValueOnce(["claude"] as CliTargets)
+      .mockResolvedValueOnce(["claude"] as CliTargets);
+    const selectInstallTargets = vi
+      .fn<
+        (initial: ReadonlyArray<InstallTargetId>) => Promise<ReadonlyArray<InstallTargetId> | null>
+      >()
+      .mockResolvedValueOnce(null) // step3 ESC → back to step2 (silent)
+      .mockResolvedValueOnce([] as ReadonlyArray<InstallTargetId>);
+    const confirmInstall = vi
+      .fn<(summary: string) => Promise<boolean | null>>()
+      .mockResolvedValueOnce(null) // confirm ESC → back to step3 (silent)
+      .mockResolvedValueOnce(true);
+    const prompts = makePrompts({
+      selectTracks,
+      selectCli,
+      selectInstallTargets,
+      confirmInstall,
+    });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    // Step1 미통과 ESC 없음 → cancel 호출 0
+    expect(prompts.cancel).not.toHaveBeenCalled();
+  });
+
+  it("v26.54.0 — preset change resets install-targets to new recommendations", async () => {
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["csr-supabase"] as Track[])
+      .mockResolvedValueOnce(["csr-fastapi"] as Track[]);
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(null) // step2 ESC → back to step1
+      .mockResolvedValueOnce(["claude"] as CliTargets);
+    const selectInstallTargets = vi
+      .fn<
+        (initial: ReadonlyArray<InstallTargetId>) => Promise<ReadonlyArray<InstallTargetId> | null>
+      >()
+      .mockResolvedValueOnce([] as ReadonlyArray<InstallTargetId>);
+    const prompts = makePrompts({ selectTracks, selectCli, selectInstallTargets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
+    const initialPassed = selectInstallTargets.mock.calls[0]?.[0] ?? [];
+    expect(initialPassed.some((t) => t === "asset:railway-skills")).toBe(true);
+    expect(initialPassed.some((t) => t === "asset:vercel-cli")).toBe(false);
   });
 
   it("user declines confirm → reason=cancelled (without prompts.cancel)", async () => {
@@ -282,8 +415,6 @@ describe("runInteractive", () => {
   });
 
   it("uses default deps without throwing the dep-resolution path", async () => {
-    // Force isTty=false default so we don't actually prompt; this exercises the
-    // `?? defaultPrompts` and `?? detectInstallState` defaults at minimum.
     const original = process.stdin.isTTY;
     Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true });
     try {
@@ -301,18 +432,10 @@ describe("formatSummary", () => {
     const summary = formatSummary({
       tracks: ["tooling", "csr-fastapi"],
       options: {
+        ...ALL_FALSE_OPTIONS,
         withTauri: true,
         withGsd: true,
         withEcc: true,
-        withPrune: false,
-        withTob: false,
-        withCodexSkills: false,
-        withCodexTrust: false,
-        withKarpathyHook: false,
-        withCodexPrompts: false,
-        withAddyAgentSkills: false,
-        withUzysHarness: false,
-        withSuperpowers: false,
       },
       cli: ["codex"],
       projectDir: "/proj",
@@ -326,240 +449,83 @@ describe("formatSummary", () => {
   it("renders '(defaults only)' when no opts toggled", () => {
     const summary = formatSummary({
       tracks: ["tooling"],
-      options: {
-        withTauri: false,
-        withGsd: false,
-        withEcc: false,
-        withPrune: false,
-        withTob: false,
-        withCodexSkills: false,
-        withCodexTrust: false,
-        withKarpathyHook: false,
-        withCodexPrompts: false,
-        withAddyAgentSkills: false,
-        withUzysHarness: false,
-        withSuperpowers: false,
-      },
+      options: ALL_FALSE_OPTIONS,
       cli: ["claude"],
       projectDir: "/p",
     });
     expect(summary).toContain("defaults only");
   });
+
+  it("v26.54.0 — userOverride 표시 (forceInclude + forceExclude 각 라인)", () => {
+    const summary = formatSummary({
+      tracks: ["tooling"],
+      options: ALL_FALSE_OPTIONS,
+      cli: ["claude"],
+      projectDir: "/p",
+      userOverride: { forceInclude: ["railway-skills"], forceExclude: ["playwright-skill"] },
+    });
+    expect(summary).toContain("+Assets: railway-skills");
+    expect(summary).toContain("-Assets: playwright-skill");
+  });
 });
 
 describe("toOptionFlags", () => {
   it("maps an empty array to all-false flags", () => {
-    expect(toOptionFlags([])).toEqual({
-      withTauri: false,
-      withGsd: false,
-      withEcc: false,
-      withPrune: false,
-      withTob: false,
-      withCodexSkills: false,
-      withCodexTrust: false,
-      withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
-    });
+    expect(toOptionFlags([])).toEqual(ALL_FALSE_OPTIONS);
   });
 
   it("sets only the keys present in the array to true", () => {
     expect(toOptionFlags(["withTauri", "withTob"])).toEqual({
+      ...ALL_FALSE_OPTIONS,
       withTauri: true,
-      withGsd: false,
-      withEcc: false,
-      withPrune: false,
       withTob: true,
-      withCodexSkills: false,
-      withCodexTrust: false,
-      withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
     });
   });
 });
 
 describe("applyOptionRules", () => {
   it("withPrune implies withEcc — sets withEcc=true if missing", () => {
-    const result = applyOptionRules({
-      withTauri: false,
-      withGsd: false,
-      withEcc: false,
-      withPrune: true,
-      withTob: false,
-      withCodexSkills: false,
-      withCodexTrust: false,
-      withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
-    });
+    const result = applyOptionRules({ ...ALL_FALSE_OPTIONS, withPrune: true });
     expect(result.withEcc).toBe(true);
     expect(result.withPrune).toBe(true);
   });
 
   it("leaves flags unchanged when withPrune=false", () => {
-    const flags: OptionFlags = {
-      withTauri: false,
-      withGsd: false,
-      withEcc: false,
-      withPrune: false,
-      withTob: false,
-      withCodexSkills: false,
-      withCodexTrust: false,
-      withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
-    };
-    expect(applyOptionRules(flags)).toEqual(flags);
+    expect(applyOptionRules(ALL_FALSE_OPTIONS)).toEqual(ALL_FALSE_OPTIONS);
   });
 
   it("does nothing when withPrune+withEcc already both true", () => {
-    const flags: OptionFlags = {
-      withTauri: false,
-      withGsd: false,
-      withEcc: true,
-      withPrune: true,
-      withTob: false,
-      withCodexSkills: false,
-      withCodexTrust: false,
-      withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
-    };
+    const flags: OptionFlags = { ...ALL_FALSE_OPTIONS, withEcc: true, withPrune: true };
     expect(applyOptionRules(flags)).toEqual(flags);
   });
 });
 
-describe("v26.52.0 — Step 4 2-tier category navigator", () => {
-  it("navigator → category → sub-prompt → navigator → proceed", async () => {
-    // workflow: tooling preset → backend category 선택 → sub-prompt 에서 railway 추가 → proceed
-    const selectAssetCategory = vi
-      .fn()
-      .mockResolvedValueOnce("backend" as const)
-      .mockResolvedValueOnce("proceed" as const);
-    const selectAssetsInCategory = vi.fn(async (_cat: unknown, _initial: ReadonlyArray<string>) => [
-      "railway-skills",
+describe("v26.54.0 — splitInstallTargets", () => {
+  it("split mixed list of option:* and asset:* prefixed ids", () => {
+    const { optionKeys, assetIds } = splitInstallTargets([
+      "option:withTauri",
+      "asset:playwright-skill",
+      "option:withUzysHarness",
+      "asset:railway-skills",
     ]);
-    const prompts = makePrompts({ selectAssetCategory, selectAssetsInCategory });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    expect(selectAssetCategory).toHaveBeenCalledTimes(2);
-    expect(selectAssetsInCategory).toHaveBeenCalledTimes(1);
-    // tooling preset 의 추천(playwright-skill, find-skills 등) + 사용자가 추가 선택한 railway-skills 포함
-    expect(result.spec?.userOverride?.forceInclude).toContain("railway-skills");
+    expect(optionKeys).toEqual(["withTauri", "withUzysHarness"]);
+    expect(assetIds).toEqual(["playwright-skill", "railway-skills"]);
   });
 
-  it("navigator ESC → back to cli step", async () => {
-    const selectCli = vi
-      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
-      .mockResolvedValueOnce(["claude"] as CliTargets)
-      .mockResolvedValueOnce(null); // 2nd ESC at cli = back to options (wizard)
-    const selectOptionKeys = vi
-      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce([] as Array<keyof OptionFlags>)
-      .mockResolvedValueOnce(null);
-    const selectTracks = vi
-      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
-      .mockResolvedValueOnce(["tooling"] as Track[])
-      .mockResolvedValueOnce(null);
-    const selectAssetCategory = vi.fn(async () => null); // ESC at navigator
-    const prompts = makePrompts({
-      selectTracks,
-      selectOptionKeys,
-      selectCli,
-      selectAssetCategory,
-    });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    // navigator ESC → cli step (다시) → options ESC → tracks ESC → exit
-    expect(result.ok).toBe(false);
-    expect(selectAssetCategory).toHaveBeenCalled();
-    expect(selectCli).toHaveBeenCalledTimes(2); // navigator ESC 후 cli 다시
+  it("empty input → empty arrays", () => {
+    const { optionKeys, assetIds } = splitInstallTargets([]);
+    expect(optionKeys).toEqual([]);
+    expect(assetIds).toEqual([]);
   });
 
-  it("sub-prompt ESC → stay at navigator (다른 카테고리 보존)", async () => {
-    const selectAssetCategory = vi
-      .fn()
-      .mockResolvedValueOnce("frontend" as const) // 1st: frontend 진입
-      .mockResolvedValueOnce("proceed" as const); // 2nd: proceed
-    const selectAssetsInCategory = vi.fn(async () => null); // ESC at sub
-    const prompts = makePrompts({ selectAssetCategory, selectAssetsInCategory });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    expect(selectAssetCategory).toHaveBeenCalledTimes(2);
-    expect(selectAssetsInCategory).toHaveBeenCalledOnce();
+  it("asset id with embedded colon survives prefix slice", () => {
+    const { assetIds } = splitInstallTargets(["asset:foo:bar"]);
+    expect(assetIds).toEqual(["foo:bar"]);
   });
 });
 
-describe("v26.50.0 — preset change resets Step 4 assetSelections (2-tier nav, v26.52.0)", () => {
-  it("user changes track → Step 4 (b) sub-prompt initial 이 new preset 추천 반영", async () => {
-    // 1st csr-supabase → back → 2nd csr-fastapi → Step 4 backend sub-prompt initial 검증
-    const selectTracks = vi
-      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
-      .mockResolvedValueOnce(["csr-supabase"] as Track[])
-      .mockResolvedValueOnce(["csr-fastapi"] as Track[]);
-    const selectOptionKeys = vi
-      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce(null) // ESC at options → back to tracks
-      .mockResolvedValueOnce([] as Array<keyof OptionFlags>);
-    // Step 4 navigator: backend 카테고리 선택 후 proceed
-    const selectAssetCategory = vi
-      .fn()
-      .mockResolvedValueOnce("backend" as const)
-      .mockResolvedValueOnce("proceed" as const);
-    const selectAssetsInCategory = vi.fn(
-      async (_cat: unknown, initial: ReadonlyArray<string>) => initial,
-    );
-    const prompts = makePrompts({
-      selectTracks,
-      selectOptionKeys,
-      selectAssetCategory,
-      selectAssetsInCategory,
-    });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
-    // backend sub-prompt initial 이 csr-fastapi 추천 — railway-skills 있고 vercel-cli 없음
-    const subCall = selectAssetsInCategory.mock.calls[0];
-    expect(subCall?.[0]).toBe("backend");
-    const initialPassed: ReadonlyArray<string> = subCall?.[1] ?? [];
-    expect(initialPassed).toContain("railway-skills");
-    expect(initialPassed).not.toContain("vercel-cli");
-  });
-});
-
-describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
-  it("null assetSelections → undefined (backward compat)", () => {
-    expect(computeUserOverride(["tooling"] as Track[], null)).toBeUndefined();
-  });
-
+describe("computeUserOverride", () => {
   it("selections == recommended → undefined (no override)", () => {
-    // tooling preset 의 추천 자산을 그대로 선택 → diff 0
     const recommended = [
       "agent-browser",
       "architecture-decision-record",
@@ -572,7 +538,6 @@ describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
-    // tooling 추천에서 playwright-skill 만 제거
     const without = [
       "agent-browser",
       "architecture-decision-record",
@@ -587,7 +552,6 @@ describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
   });
 
   it("forceInclude — 추천 외 추가 선택", () => {
-    // tooling 추천 + railway-skills 추가
     const withRailway = [
       "agent-browser",
       "architecture-decision-record",
@@ -603,9 +567,15 @@ describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
   });
 
   it("mix — include + exclude 동시", () => {
-    const mixed = ["agent-browser", "railway-skills"]; // tooling 추천 5건 제거 + railway 추가
+    const mixed = ["agent-browser", "railway-skills"];
     const result = computeUserOverride(["tooling"] as Track[], mixed);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
+    expect(result?.forceExclude.length).toBeGreaterThan(0);
+  });
+
+  it("empty selection on track with recommendations → forceExclude all", () => {
+    const result = computeUserOverride(["tooling"] as Track[], []);
+    expect(result?.forceInclude).toEqual([]);
     expect(result?.forceExclude.length).toBeGreaterThan(0);
   });
 });
