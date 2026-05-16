@@ -34,12 +34,30 @@ export interface Prompts {
   selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
   /**
-   * v26.47.0 (Phase C full) — Step 2 External Asset multiselect.
+   * v26.47.0 (Phase C full) — Step 2 External Asset multiselect (1-tier).
    * 카테고리별 그룹화 + 추천 ✓ 미리 체크 + 출처 라벨.
-   * 결과 = 사용자 최종 선택한 asset id 배열. caller 가 recommended set 과 비교해
-   * forceInclude/forceExclude 계산.
+   * v26.52.0 — 2-tier navigator (selectAssetCategory + selectAssetsInCategory) 로 대체.
+   * 본 1-tier 함수는 호환 유지 (CI / non-interactive 또는 fallback).
    */
   selectExternalAssets: (
+    initialChecked: ReadonlyArray<string>,
+  ) => Promise<ReadonlyArray<string> | null>;
+
+  /**
+   * v26.52.0 — Step 4 (a) Category navigator. SPEC: docs/specs/step-4-category-navigator.md
+   * 7 카테고리 + "Proceed →" 항목. 각 카테고리에 [N/M ✓] 진행률 표시.
+   * 결과: Category 선택 → sub-prompt 진입 / "proceed" → confirm step / null → back to cli.
+   */
+  selectAssetCategory: (
+    counts: ReadonlyArray<{ category: Category; selected: number; total: number }>,
+  ) => Promise<Category | "proceed" | null>;
+
+  /**
+   * v26.52.0 — Step 4 (b) Sub-prompt. 카테고리 내 자산 multiselect.
+   * 결과: 카테고리 내 새 선택 asset id 배열. ESC → null (navigator 복귀).
+   */
+  selectAssetsInCategory: (
+    category: Category,
     initialChecked: ReadonlyArray<string>,
   ) => Promise<ReadonlyArray<string> | null>;
 }
@@ -229,6 +247,33 @@ export const defaultPrompts: Prompts = {
       initialValue: true,
     });
     return isCancel(result) ? null : result;
+  },
+
+  selectAssetCategory: async (counts) => {
+    const options = counts.map((c) => ({
+      value: c.category,
+      label: `${CATEGORY_TITLES[c.category]}  [${c.selected}/${c.total} ✓]`,
+    }));
+    const result = await select({
+      message: "External Assets — pick category to edit (or Proceed →):",
+      options: [...options, { value: "proceed" as const, label: "─────────── Proceed → confirm" }],
+    });
+    return isCancel(result) ? null : (result as Category | "proceed");
+  },
+
+  selectAssetsInCategory: async (category, initialChecked) => {
+    const entries = EXTERNAL_ASSETS.filter((a) => a.category === category);
+    const result = await multiselect({
+      message: `${CATEGORY_TITLES[category]} (Space to toggle, Enter to confirm. ESC to cancel):`,
+      options: entries.map((a) => ({
+        value: a.id,
+        label: `${a.id}  [${a.source}]`,
+        hint: a.description,
+      })),
+      initialValues: [...initialChecked],
+      required: false,
+    });
+    return isCancel(result) ? null : (result as ReadonlyArray<string>);
   },
 
   selectExternalAssets: async (initialChecked) => {

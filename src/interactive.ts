@@ -1,3 +1,5 @@
+import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
+import { EXTERNAL_ASSETS } from "./external-assets.js";
 import type { InstallMode } from "./installer.js";
 import { recommendedExternalAssets } from "./preset-recommend.js";
 import { defaultPrompts, type Prompts } from "./prompts.js";
@@ -173,16 +175,39 @@ export async function runInteractive(
       cli = result;
       step = "assets";
     } else if (step === "assets") {
-      // v26.47.0 (Phase C full) — External Asset Step 2. preset 추천 + 옵션-키 활성 자산이 추천 ✓.
+      // v26.52.0 — 2-tier navigator (Phase C UX). SPEC: docs/specs/step-4-category-navigator.md
       const recommended = recommendedExternalAssets(tracks ?? []);
-      const initial = assetSelections ?? recommended;
-      const result = await prompts.selectExternalAssets(initial);
-      if (result === null) {
-        step = "cli";
-        continue;
+      const allSelected: Set<string> = new Set(assetSelections ?? recommended);
+      let backToCli = false;
+      while (true) {
+        const counts = CATEGORY_ORDER.map((cat) => {
+          const inCat = EXTERNAL_ASSETS.filter((a) => a.category === cat);
+          const selected = inCat.filter((a) => allSelected.has(a.id)).length;
+          return { category: cat, selected, total: inCat.length };
+        });
+        const navResult = await prompts.selectAssetCategory(counts);
+        if (navResult === null) {
+          backToCli = true; // ESC at navigator = back to cli
+          break;
+        }
+        if (navResult === "proceed") {
+          assetSelections = [...allSelected];
+          break;
+        }
+        // Category 선택 → sub-prompt
+        const categoryAssetIds = EXTERNAL_ASSETS.filter((a) => a.category === navResult).map(
+          (a) => a.id,
+        );
+        const initial = categoryAssetIds.filter((id) => allSelected.has(id));
+        const subResult = await prompts.selectAssetsInCategory(navResult, initial);
+        if (subResult === null) continue; // ESC at sub = stay at navigator (state 보존)
+        // 카테고리 내 자산만 갱신 (다른 카테고리 보존)
+        for (const id of categoryAssetIds) {
+          if (subResult.includes(id)) allSelected.add(id);
+          else allSelected.delete(id);
+        }
       }
-      assetSelections = result;
-      step = "confirm";
+      step = backToCli ? "cli" : "confirm";
     } else {
       // confirm — tracks/optionKeys/cli 모두 이전 step 에서 set (narrowing).
       // biome-ignore lint/style/noNonNullAssertion: confirm step 도달 = 모든 이전 step 완료 보장
