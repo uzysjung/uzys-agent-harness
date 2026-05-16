@@ -249,7 +249,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "frontend",
     source: "pbakaus",
     condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
-    method: { kind: "skill", source: "pbakaus/impeccable" },
+    // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수 (single-skill repo 도)
+    method: { kind: "skill", source: "pbakaus/impeccable", skill: "impeccable" },
   },
 
   // === dev tools (has_dev_track) ===
@@ -259,7 +260,12 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "testdino-hq",
     condition: { kind: "has-dev-track" },
-    method: { kind: "skill", source: "testdino-hq/playwright-skill" },
+    // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수
+    method: {
+      kind: "skill",
+      source: "testdino-hq/playwright-skill",
+      skill: "playwright-skill",
+    },
   },
   {
     id: "find-skills",
@@ -339,7 +345,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "frontend",
     source: "shadcn-ui",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
-    method: { kind: "skill", source: "shadcn/ui" },
+    // v26.54.1 — shadcn/ui repo 의 실제 skill 이름은 `shadcn` (자산 id 와 다름).
+    method: { kind: "skill", source: "shadcn/ui", skill: "shadcn" },
   },
   {
     id: "web-design-guidelines",
@@ -546,10 +553,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "ecc-suite",
     source: "affaan-m",
     condition: { kind: "option", flag: "withEcc" },
+    // v26.54.1 — upstream marketplace.json 의 name 은 "ecc" (plugin name 도 "ecc").
+    // 기존 매핑 `everything-claude-code@everything-claude-code` 는 marketplace 가
+    // 그 이름으로 등록되던 옛 버전 기준. fresh install 에서는 "Plugin not found" 발생.
     method: {
       kind: "plugin",
       marketplace: "affaan-m/everything-claude-code",
-      pluginId: "everything-claude-code@everything-claude-code",
+      pluginId: "ecc@ecc",
     },
   },
   {
