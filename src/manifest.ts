@@ -25,6 +25,13 @@ export interface AssetSpec {
    * Track-independent: opt-in on ANY track installs `/uzys:*` commands. SPEC R7.
    */
   withUzysHarness?: boolean;
+  /**
+   * v26.55.0 — withEcc gating (BREAKING).
+   * Note: copied from `OptionFlags.withEcc` by installer; keep both fields in sync.
+   * ECC cherry-pick (agents/skills/commands) 항목은 withEcc=true 일 때만 manifest 포함.
+   * ADR-016 참조.
+   */
+  withEcc?: boolean;
 }
 
 export interface AssetEntry {
@@ -96,15 +103,14 @@ export function resolveRules(spec: AssetSpec): string[] {
 
 const UZYS_COMMANDS = ["spec", "plan", "build", "test", "review", "ship", "auto"];
 
-const CORE_AGENTS = [
-  "reviewer",
-  "data-analyst",
-  "strategist",
-  "code-reviewer",
-  "security-reviewer",
-];
+// v26.55.0 — ECC cherry-pick 분리. ADR-016.
+// 본 프로젝트 (always): reviewer, data-analyst, strategist
+// ECC (withEcc 필요): code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver
+const CORE_AGENTS = ["reviewer", "data-analyst", "strategist"];
+const CORE_AGENTS_ECC = ["code-reviewer", "security-reviewer"];
 
-const DEV_AGENTS = ["silent-failure-hunter", "build-error-resolver", "plan-checker"];
+const DEV_AGENTS = ["plan-checker"];
+const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
 
 /** Hooks installed for every project (parity with setup-harness.sh L815-826). */
 const ALWAYS_HOOKS = [
@@ -118,17 +124,18 @@ const ALWAYS_HOOKS = [
   "hito-counter.sh",
 ];
 
-const COMMON_SKILL_DIRS = [
-  "continuous-learning-v2",
-  "strategic-compact",
-  "north-star",
-  "gh-issue-workflow",
-  "deep-research",
-];
+// v26.55.0 — ECC cherry-pick 분리. ADR-016.
+const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
+const COMMON_SKILL_DIRS_ECC = ["continuous-learning-v2", "strategic-compact", "deep-research"];
 
-const DEV_SKILL_DIRS = ["eval-harness", "verification-loop", "agent-introspection-debugging"];
+const DEV_SKILL_DIRS: string[] = [];
+const DEV_SKILL_DIRS_ECC = ["eval-harness", "verification-loop", "agent-introspection-debugging"];
 
-const UI_SKILL_DIRS = ["e2e-testing", "ui-visual-review"];
+const UI_SKILL_DIRS = ["ui-visual-review"];
+const UI_SKILL_DIRS_ECC = ["e2e-testing"];
+
+// python-* skills (data|csr-fastapi|full) — 둘 다 ECC cherry-pick. withEcc + track 둘 다 필요.
+const PYTHON_SKILL_DIRS_ECC = ["python-patterns", "python-testing"];
 
 /** Build the full asset manifest for the given spec. */
 export function buildManifest(spec: AssetSpec): AssetEntry[] {
@@ -155,12 +162,12 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     });
   }
 
-  // ecc: commands — copy directory wholesale (every project)
+  // ecc: commands — v26.55.0 withEcc gating (BREAKING vs prior unconditional install). ADR-016.
   m.push({
     source: "commands/ecc",
     target: ".claude/commands/ecc",
     type: "dir",
-    applies: all,
+    applies: (s) => Boolean(s.withEcc),
   });
 
   // Project meta CLAUDE.md
@@ -171,7 +178,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: all,
   });
 
-  // Agents
+  // Agents (본 프로젝트)
   for (const a of CORE_AGENTS) {
     m.push({
       source: `agents/${a}.md`,
@@ -188,6 +195,23 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: dev,
     });
   }
+  // v26.55.0 — Agents (ECC). ADR-016. withEcc gating.
+  for (const a of CORE_AGENTS_ECC) {
+    m.push({
+      source: `agents/${a}.md`,
+      target: `.claude/agents/${a}.md`,
+      type: "file",
+      applies: (s) => Boolean(s.withEcc),
+    });
+  }
+  for (const a of DEV_AGENTS_ECC) {
+    m.push({
+      source: `agents/${a}.md`,
+      target: `.claude/agents/${a}.md`,
+      type: "file",
+      applies: (s) => Boolean(s.withEcc) && hasDevTrack(s.tracks),
+    });
+  }
 
   // Common skill directories
   for (const sd of COMMON_SKILL_DIRS) {
@@ -196,6 +220,15 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: all,
+    });
+  }
+  // v26.55.0 — Common skill dirs (ECC). ADR-016. withEcc gating.
+  for (const sd of COMMON_SKILL_DIRS_ECC) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: (s) => Boolean(s.withEcc),
     });
   }
   m.push({
@@ -224,12 +257,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     type: "dir",
     applies: onTracks("ssr-nextjs|full"),
   });
-  for (const sd of ["python-patterns", "python-testing"]) {
+  // v26.55.0 — python-* / DEV_SKILL_DIRS / UI_SKILL_DIRS 중 ECC 출처는 withEcc gating. ADR-016.
+  for (const sd of PYTHON_SKILL_DIRS_ECC) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: onTracks("data|csr-fastapi|full"),
+      applies: (s) => Boolean(s.withEcc) && anyTrack(s.tracks, "data|csr-fastapi|full"),
     });
   }
   for (const sd of DEV_SKILL_DIRS) {
@@ -240,12 +274,28 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: dev,
     });
   }
+  for (const sd of DEV_SKILL_DIRS_ECC) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: (s) => Boolean(s.withEcc) && hasDevTrack(s.tracks),
+    });
+  }
   for (const sd of UI_SKILL_DIRS) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: ui,
+    });
+  }
+  for (const sd of UI_SKILL_DIRS_ECC) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: (s) => Boolean(s.withEcc) && hasUiTrack(s.tracks),
     });
   }
 

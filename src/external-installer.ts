@@ -13,6 +13,7 @@
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import { EXTERNAL_ASSETS, type ExternalAsset, filterApplicableAssets } from "./external-assets.js";
 import type { CliTargets, OptionFlags, Track } from "./types.js";
 
@@ -85,10 +86,17 @@ export function runExternalInstall(
   const harnessRoot = deps.harnessRoot ?? process.cwd();
 
   const applicable = filterApplicableAssets(assets, ctx);
+  // v26.55.0 — Phase 2 grouped progress UX. 카테고리 순서로 정렬 → install.ts 의 onAssetStart
+  // callback 이 category 변경 감지로 헤더 출력 가능. ADR-016.
+  const sorted = [...applicable].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.category);
+    const bi = CATEGORY_ORDER.indexOf(b.category);
+    return ai - bi;
+  });
   const attempted: AssetInstallResult[] = [];
   const cli = ctx.cli;
 
-  for (const asset of applicable) {
+  for (const asset of sorted) {
     deps.onAssetStart?.(asset);
     log(`  → ${asset.description}`);
     const result = installOne(asset, { spawn, harnessRoot, cli });

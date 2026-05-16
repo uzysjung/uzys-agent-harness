@@ -125,15 +125,24 @@ describe("track-specific skills routing", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("data + full route python-patterns / python-testing", () => {
+  it("data + full route python-patterns / python-testing (withEcc)", () => {
+    // v26.55.0 — python-* skills 는 ECC cherry-pick. withEcc=true 필수. ADR-016.
+    const spec = buildSpec(["data"], projectDir);
+    spec.options = { ...spec.options, withEcc: true };
+    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
+    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
+  });
+
+  it("v26.55.0 — python-* NOT routed without withEcc", () => {
     runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: buildSpec(["data"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(false);
   });
 
   it("data does NOT route nextjs-turbopack", () => {
@@ -178,13 +187,11 @@ describe("track-specific skills routing", () => {
     expect(existsSync(join(projectDir, ".claude/skills/investor-materials"))).toBe(false);
   });
 
-  it("csr-fastapi routes python-patterns (csr-fastapi + data + full union)", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["csr-fastapi"], projectDir),
-    });
+  it("csr-fastapi routes python-patterns (csr-fastapi + data + full union, withEcc)", () => {
+    // v26.55.0 — python-* skills 는 ECC cherry-pick. withEcc=true 필수. ADR-016.
+    const spec = buildSpec(["csr-fastapi"], projectDir);
+    spec.options = { ...spec.options, withEcc: true };
+    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
     expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
   });
 });

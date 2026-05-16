@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { CATEGORY_TITLES, type Category } from "../categories.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets, targetsInclude } from "../cli-targets.js";
 import { assetRow, c, infoRow, phaseHeader, sectionHeader, status } from "../design.js";
@@ -256,6 +257,9 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
 
   // Streaming progress: baseline 완료 시 즉시 Phase 1 rows 출력, external은 per-asset 스트리밍.
   let phase2HeaderPrinted = false;
+  // v26.55.0 — Phase 2 grouped progress UX (ADR-016). category 변경 시 ━━ <Title> ━━ 헤더 출력.
+  // external-installer 가 카테고리 순서로 정렬해 호출 → 첫 번째 호출이 category 1 의 첫 자산.
+  let currentCategory: Category | null = null;
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
@@ -268,11 +272,16 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     },
     externalDeps: {
       onAssetStart: (asset) => {
-        log(`  ${c.dim("→")} ${c.dim(asset.description)} ${c.dim("...")}`);
+        if (asset.category !== currentCategory) {
+          if (currentCategory !== null) log("");
+          log(`  ${c.bold(`━━ ${CATEGORY_TITLES[asset.category]} ━━`)}`);
+          currentCategory = asset.category;
+        }
+        log(`    ${c.dim("→")} ${c.dim(asset.description)} ${c.dim("...")}`);
       },
       onAssetResult: (result) => {
         const meta = result.ok ? formatAssetMeta(result.asset) : (result.message ?? "failed");
-        log(assetRow(result.ok ? "success" : "skip", result.asset.id, meta));
+        log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
       },
     },
   };
