@@ -437,6 +437,62 @@ describe("applyOptionRules", () => {
   });
 });
 
+describe("v26.50.0 — preset change resets Step 4 assetSelections", () => {
+  it("user changes track via wizard back nav → assetSelections recomputed from new preset", async () => {
+    // 1st tracks: csr-supabase  → Step 4 추천 ✓ (vercel-cli 등 포함)
+    // back to Step 1, change → csr-fastapi  → Step 4 ✓ 재평가 (railway 등, vercel 없음)
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["csr-supabase"] as Track[])
+      .mockResolvedValueOnce(["csr-fastapi"] as Track[]);
+    // selectOptionKeys 두 번 호출 (첫 진행 + back 후 다시)
+    const selectOptionKeys = vi
+      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
+      .mockResolvedValueOnce(null) // 첫 진행: options ESC → back to tracks
+      .mockResolvedValueOnce([] as Array<keyof OptionFlags>);
+    // selectExternalAssets — 첫 호출의 initial 이 csr-fastapi 추천이어야 (csr-supabase 아님)
+    const selectExternalAssets = vi.fn<
+      (initial: ReadonlyArray<string>) => Promise<ReadonlyArray<string> | null>
+    >(async (initial) => initial);
+    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectExternalAssets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
+    // selectExternalAssets 의 initial 인자가 csr-fastapi 추천이어야 — vercel-cli 없음, railway 있음
+    const initialPassed = selectExternalAssets.mock.calls[0]?.[0] ?? [];
+    expect(initialPassed).not.toContain("vercel-cli");
+    expect(initialPassed).toContain("railway-skills");
+  });
+
+  it("same tracks → assetSelections 보존 (caching)", async () => {
+    // tracks 변경 없이 back/forward — assetSelections cached
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(["tooling"] as Track[]); // 동일
+    const selectOptionKeys = vi
+      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce([] as Array<keyof OptionFlags>);
+    const selectExternalAssets = vi.fn<
+      (initial: ReadonlyArray<string>) => Promise<ReadonlyArray<string> | null>
+    >(async (initial) => initial);
+    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectExternalAssets });
+    await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    // 동일 preset 이라 reset 안 됨 → initial 이 recommended (캐시는 아니지만 동일 결과)
+    const initialPassed = selectExternalAssets.mock.calls[0]?.[0] ?? [];
+    expect(initialPassed).toContain("playwright-skill"); // tooling 추천
+  });
+});
+
 describe("v26.47.0 — computeUserOverride (Phase C full)", () => {
   it("null assetSelections → undefined (backward compat)", () => {
     expect(computeUserOverride(["tooling"] as Track[], null)).toBeUndefined();
