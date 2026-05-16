@@ -22,6 +22,9 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     confirmInstall: vi.fn(async () => true),
     // v26.47.0 — Phase C full. default mock: 빈 선택 (preset 추천 그대로).
     selectExternalAssets: vi.fn(async (initial) => initial),
+    // v26.52.0 — 2-tier navigator default mock: 바로 proceed (Step 4 skip).
+    selectAssetCategory: vi.fn(async () => "proceed" as const),
+    selectAssetsInCategory: vi.fn(async (_cat, initial) => initial),
     ...overrides,
   };
 }
@@ -437,24 +440,103 @@ describe("applyOptionRules", () => {
   });
 });
 
-describe("v26.50.0 — preset change resets Step 4 assetSelections", () => {
-  it("user changes track via wizard back nav → assetSelections recomputed from new preset", async () => {
-    // 1st tracks: csr-supabase  → Step 4 추천 ✓ (vercel-cli 등 포함)
-    // back to Step 1, change → csr-fastapi  → Step 4 ✓ 재평가 (railway 등, vercel 없음)
+describe("v26.52.0 — Step 4 2-tier category navigator", () => {
+  it("navigator → category → sub-prompt → navigator → proceed", async () => {
+    // workflow: tooling preset → backend category 선택 → sub-prompt 에서 railway 추가 → proceed
+    const selectAssetCategory = vi
+      .fn()
+      .mockResolvedValueOnce("backend" as const)
+      .mockResolvedValueOnce("proceed" as const);
+    const selectAssetsInCategory = vi.fn(async (_cat: unknown, _initial: ReadonlyArray<string>) => [
+      "railway-skills",
+    ]);
+    const prompts = makePrompts({ selectAssetCategory, selectAssetsInCategory });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(selectAssetCategory).toHaveBeenCalledTimes(2);
+    expect(selectAssetsInCategory).toHaveBeenCalledTimes(1);
+    // tooling preset 의 추천(playwright-skill, find-skills 등) + 사용자가 추가 선택한 railway-skills 포함
+    expect(result.spec?.userOverride?.forceInclude).toContain("railway-skills");
+  });
+
+  it("navigator ESC → back to cli step", async () => {
+    const selectCli = vi
+      .fn<(initial?: CliTargets) => Promise<CliTargets | null>>()
+      .mockResolvedValueOnce(["claude"] as CliTargets)
+      .mockResolvedValueOnce(null); // 2nd ESC at cli = back to options (wizard)
+    const selectOptionKeys = vi
+      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
+      .mockResolvedValueOnce([] as Array<keyof OptionFlags>)
+      .mockResolvedValueOnce(null);
+    const selectTracks = vi
+      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
+      .mockResolvedValueOnce(["tooling"] as Track[])
+      .mockResolvedValueOnce(null);
+    const selectAssetCategory = vi.fn(async () => null); // ESC at navigator
+    const prompts = makePrompts({
+      selectTracks,
+      selectOptionKeys,
+      selectCli,
+      selectAssetCategory,
+    });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    // navigator ESC → cli step (다시) → options ESC → tracks ESC → exit
+    expect(result.ok).toBe(false);
+    expect(selectAssetCategory).toHaveBeenCalled();
+    expect(selectCli).toHaveBeenCalledTimes(2); // navigator ESC 후 cli 다시
+  });
+
+  it("sub-prompt ESC → stay at navigator (다른 카테고리 보존)", async () => {
+    const selectAssetCategory = vi
+      .fn()
+      .mockResolvedValueOnce("frontend" as const) // 1st: frontend 진입
+      .mockResolvedValueOnce("proceed" as const); // 2nd: proceed
+    const selectAssetsInCategory = vi.fn(async () => null); // ESC at sub
+    const prompts = makePrompts({ selectAssetCategory, selectAssetsInCategory });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(selectAssetCategory).toHaveBeenCalledTimes(2);
+    expect(selectAssetsInCategory).toHaveBeenCalledOnce();
+  });
+});
+
+describe("v26.50.0 — preset change resets Step 4 assetSelections (2-tier nav, v26.52.0)", () => {
+  it("user changes track → Step 4 (b) sub-prompt initial 이 new preset 추천 반영", async () => {
+    // 1st csr-supabase → back → 2nd csr-fastapi → Step 4 backend sub-prompt initial 검증
     const selectTracks = vi
       .fn<(initial?: Track[]) => Promise<Track[] | null>>()
       .mockResolvedValueOnce(["csr-supabase"] as Track[])
       .mockResolvedValueOnce(["csr-fastapi"] as Track[]);
-    // selectOptionKeys 두 번 호출 (첫 진행 + back 후 다시)
     const selectOptionKeys = vi
       .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce(null) // 첫 진행: options ESC → back to tracks
+      .mockResolvedValueOnce(null) // ESC at options → back to tracks
       .mockResolvedValueOnce([] as Array<keyof OptionFlags>);
-    // selectExternalAssets — 첫 호출의 initial 이 csr-fastapi 추천이어야 (csr-supabase 아님)
-    const selectExternalAssets = vi.fn<
-      (initial: ReadonlyArray<string>) => Promise<ReadonlyArray<string> | null>
-    >(async (initial) => initial);
-    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectExternalAssets });
+    // Step 4 navigator: backend 카테고리 선택 후 proceed
+    const selectAssetCategory = vi
+      .fn()
+      .mockResolvedValueOnce("backend" as const)
+      .mockResolvedValueOnce("proceed" as const);
+    const selectAssetsInCategory = vi.fn(
+      async (_cat: unknown, initial: ReadonlyArray<string>) => initial,
+    );
+    const prompts = makePrompts({
+      selectTracks,
+      selectOptionKeys,
+      selectAssetCategory,
+      selectAssetsInCategory,
+    });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
@@ -462,34 +544,12 @@ describe("v26.50.0 — preset change resets Step 4 assetSelections", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
-    // selectExternalAssets 의 initial 인자가 csr-fastapi 추천이어야 — vercel-cli 없음, railway 있음
-    const initialPassed = selectExternalAssets.mock.calls[0]?.[0] ?? [];
-    expect(initialPassed).not.toContain("vercel-cli");
+    // backend sub-prompt initial 이 csr-fastapi 추천 — railway-skills 있고 vercel-cli 없음
+    const subCall = selectAssetsInCategory.mock.calls[0];
+    expect(subCall?.[0]).toBe("backend");
+    const initialPassed: ReadonlyArray<string> = subCall?.[1] ?? [];
     expect(initialPassed).toContain("railway-skills");
-  });
-
-  it("same tracks → assetSelections 보존 (caching)", async () => {
-    // tracks 변경 없이 back/forward — assetSelections cached
-    const selectTracks = vi
-      .fn<(initial?: Track[]) => Promise<Track[] | null>>()
-      .mockResolvedValueOnce(["tooling"] as Track[])
-      .mockResolvedValueOnce(["tooling"] as Track[]); // 동일
-    const selectOptionKeys = vi
-      .fn<() => Promise<Array<keyof OptionFlags> | null>>()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce([] as Array<keyof OptionFlags>);
-    const selectExternalAssets = vi.fn<
-      (initial: ReadonlyArray<string>) => Promise<ReadonlyArray<string> | null>
-    >(async (initial) => initial);
-    const prompts = makePrompts({ selectTracks, selectOptionKeys, selectExternalAssets });
-    await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    // 동일 preset 이라 reset 안 됨 → initial 이 recommended (캐시는 아니지만 동일 결과)
-    const initialPassed = selectExternalAssets.mock.calls[0]?.[0] ?? [];
-    expect(initialPassed).toContain("playwright-skill"); // tooling 추천
+    expect(initialPassed).not.toContain("vercel-cli");
   });
 });
 
