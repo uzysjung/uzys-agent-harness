@@ -106,16 +106,32 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
   opencode: "OpenCode (anomalyco)",
 };
 
+/**
+ * v26.58.1 — Wizard viewport size. clack 의 limitOptions 가 maxItems 안에서만
+ * cursor follow + ↕ ... indicator. 미지정 시 Infinity → terminal height 초과 시
+ * 위 항목이 scrollback 으로 밀려 selected indicator 안 보임 (사용자 보고된 문제).
+ *
+ * rowPadding 10 = message line + status footer + safety margin.
+ * floor 8 = 너무 작아도 최소한의 viewport 보장.
+ */
+function viewportItems(itemCount: number): number {
+  const rows = process.stdout.rows ?? 24;
+  return Math.max(8, Math.min(itemCount, rows - 10));
+}
+
 export const defaultPrompts: Prompts = {
   intro: (msg) => intro(msg),
   outro: (msg) => outro(msg),
   cancel: (msg) => cancel(msg),
 
   selectTracks: async (initial) => {
+    // v26.58.1 — maxItems 로 viewport scroll. cursor follow + ↕ ... indicator (clack limitOptions).
+    // 단 11 tracks 라 width 30 미만 환경에서만 의미. 그래도 default 안전망.
     const result = await multiselect({
       message: "Step 1/3 — Select Track(s) (Space to toggle, Enter to confirm):",
       options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
       ...(initial ? { initialValues: initial } : {}),
+      maxItems: viewportItems(11),
       required: true,
     });
     return isCancel(result) ? null : (result as Track[]);
@@ -188,16 +204,20 @@ export const defaultPrompts: Prompts = {
       const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
       groups[header] = items;
     }
-    // v26.57.0 — viewport scroll 시 selected indicator 가 viewport 외 자산은 안 보임 (clack 한계).
-    // 카테고리 헤더 [N/M ✓ default] 카운트로 카테고리 단위 인지. 32+ 항목 다 보려면 터미널 height 30+ 권장.
+    // v26.58.1 — maxItems 로 viewport scroll fix. cursor 가 항상 visible viewport 안에 있도록
+    // clack 의 limitOptions 가 자동 follow + ↕ ... indicator. 이전 'height 30+ 권장' 한계 해제.
+    // Note: clack 1.3 type def 가 GroupMultiSelectOptions 에 maxItems 누락. runtime 은 정상
+    //   (limitOptions 가 t.maxItems 참조). 향후 clack upgrade 시 cast 제거.
     const totalDefault = initialSet.size;
     const totalItems = Object.values(groups).reduce((sum, list) => sum + list.length, 0);
-    const result = await groupMultiselect({
-      message: `Step ${step.current}/${step.total} — What will be installed  (default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back. 터미널 height 30+ 권장):`,
+    const groupOpts = {
+      message: `Step ${step.current}/${step.total} — What will be installed  (default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back):`,
       options: groups,
       initialValues: [...initialChecked],
+      maxItems: viewportItems(totalItems),
       required: false,
-    });
+    } as Parameters<typeof groupMultiselect>[0];
+    const result = await groupMultiselect(groupOpts);
     return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
   },
 };
