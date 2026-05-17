@@ -16,11 +16,12 @@ v26.55.0 (ADR-016) 의 `withEcc=true` 시:
 - **A. cherry-pick 복사** — `templates/agents/{code-reviewer, ...}.md` 등 22개 → `.claude/` 복사
 - **B. ECC plugin install** — `ecc@ecc` from `affaan-m/everything-claude-code` 외부 plugin
 
-두 가지가 같은 옵션에 묶임 → **사용자 mental model 깨짐**:
+두 가지가 같은 옵션에 묶임 → **사용자 mental model 깨짐**.
 
-> 사용자: "ECC plugin 설치하면 저절로 되는 거 아닌가? 왜 cherry-pick 도 복사하지?"
+초기 설계 의도 (ADR-016 작성 시): ECC 사용자에게 cherry-pick fallback + plugin 둘 다 보장.
+실제: plugin 단독으로 충분 (`ecc@ecc` install 만으로 code-reviewer / security-review / continuous-learning-v2 등 작동 — 60 agents + 230 skills 가 cache 에서 활성). → cherry-pick 복사는 **중복**.
 
-정확한 답: **맞음. plugin install 만 하면 code-reviewer / security-review / continuous-learning-v2 등 다 작동**. cherry-pick 복사는 history 누적.
+> **본 PRD 의 `withEcc` 정의 (v26.58 신규 의미)**: "ECC plugin opt-in (즉 `ecc@ecc` 외부 plugin 설치 요청)". 이전 ADR-016 의미 (cherry-pick 도 같이 install) 와 **opposite**. 본 문서 본문에서는 항상 v26.58 신규 의미로 사용.
 
 ### 진짜 의미
 
@@ -41,15 +42,15 @@ cherry-pick 의 본래 역할 = **plugin OFF 시에도 가치 있는 것 미리 
 
 ### Goals
 
-1. cherry-pick 22개의 plugin OFF 가치 명확히 평가
-2. plugin install 여부에 따라 cherry-pick install 동적 결정 (manifest gating)
-3. 설계 명시 — ADR 작성. 다음 cycle 에서 잊지 않도록
+1. cherry-pick 22개의 plugin OFF 가치 명확히 평가 (C1/C2/C3 분류 확정)
+2. plugin install 여부에 따라 cherry-pick install 동적 결정 (manifest gating, opt-out 패턴)
+3. ADR-019 작성 — ADR-016 의 cherry-pick 매핑 부분 supersede 명문화
 
 ### Non-Goals
 
 - ECC plugin 자체 변경
-- prune-ecc.sh 의 89-KEEP 정책 변경 (별도 검토)
-- 코드 자체 정리 (`templates/agents/code-reviewer.md` 파일은 유지 — gating 으로만 결정)
+- `scripts/prune-ecc.sh` 의 89-KEEP 정책 갱신 — 별도 cycle (본 cycle 에서는 손대지 않음). **89 KEEP 누락 6 cherry-pick (security-reviewer / silent-failure-hunter / build-error-resolver / e2e-testing / agent-introspection-debugging / nextjs-turbopack) 는 본 cycle 에서 C2 (plugin OFF 시 install) 로 처리하여 누락 영향 최소화**
+- `templates/` 의 cherry-pick 파일 자체 삭제 (gating 으로만 결정 — 파일은 유지)
 
 ### AC (Acceptance Criteria)
 
@@ -66,19 +67,15 @@ cherrypicks.lock 의 22개 → 3 카테고리:
 
 `src/manifest.ts` 의 `*_ECC` 매핑 (ADR-016 추가) 의 `applies` 함수 변경:
 
-| 현재 (v26.55.0) | 신규 (v26.58.0) |
-|---|---|
-| `applies: (s) => Boolean(s.withEcc)` | C1: `applies: () => false` (제거 or unused 표시) |
-| 동일 | C2: `applies: (s) => !s.withEcc` (plugin OFF 시만 install) |
-| 동일 | C3: `applies: (s) => Boolean(s.withEcc)` (그대로) |
+| 분류 | 현재 (v26.55.0) | 신규 (v26.58.0) |
+|---|---|---|
+| **C1** (완전 중복) | `applies: (s) => Boolean(s.withEcc)` | **매핑 자체 삭제** (코드 cleanup, 단일 선택) |
+| **C2** (OFF default) | 동일 | `applies: (s) => !s.withEcc` (plugin OFF 시만 install) |
+| **C3** (modified or 특수) | 동일 | `applies: (s) => true` 또는 트랙 조건 (cherry-pick 항상 install, plugin 무관) |
 
-`AssetSpec.withEcc` 의미가 **opposite**:
-- 이전: "ECC opt-in → cherry-pick 도 같이 install"
-- 신규: "ECC plugin opt-in → cherry-pick 은 skip (plugin 으로 갈음)"
+#### AC3 — addy plugin manifest 주석 일관성
 
-#### AC3 — addy plugin 동일 로직
-
-addy agent-skills (`withAddyAgentSkills`) 도 동일 패턴 — cherry-pick 0개라 영향 없지만, **설계 일관성** 위해 manifest 에 동일 패턴 적용 (future-proof).
+`templates/` 에 addy 출처 cherry-pick = 0개. 단 manifest 의 `withAddyAgentSkills` 관련 매핑이 있다면 C1/C2/C3 패턴 적용. 신규 cherry-pick 추가 시 동일 패턴 유지하도록 manifest 상단 주석 1줄 (`// cherry-pick opt-out pattern: withXxx=true → skip cherry-pick (plugin 으로 갈음)`) 추가.
 
 #### AC4 — install 출력 정확성
 
@@ -92,9 +89,11 @@ ADR-019 작성 — supersedes ADR-016 부분. 미래 cycle 에서 같은 실수 
 
 #### AC6 — 회귀 0 + 신규 test
 
-- AssetSpec.withEcc=true 시 cherry-pick (C1, C2) install **안 됨**
-- AssetSpec.withEcc=false 시 C2 install **됨**, C3 install **안 됨**
-- modified 인 continuous-learning-v2 (C3) 별도 검증
+- 기존 579 tests pass 유지 (회귀 0)
+- 신규 test 3-4 case:
+  - `withEcc=true` → cherry-pick (C1, C2) 매핑 결과 install 안 됨
+  - `withEcc=false` → C2 install 됨, C3 (modified) 도 install 됨
+  - `withEcc=true` → C3 (modified, continuous-learning-v2) 의 install 정책 (양쪽 install vs plugin only) 별도 검증
 
 ---
 
@@ -138,7 +137,7 @@ addy 출처 cherry-pick = 0개 확인. 단 미래 cherry-pick 가능성 평가.
 - ADR-016 (ECC opt-in gating) 의 의미 정정 명시
 - supersede 표시 + Migration 안내
 
-**Task 2.5**: `docs/specs/v26-58-cherry-pick-plugin-gating.md` — 본 PRD 의 SPEC 측면 (구현 디테일)
+**Task 2.5**: ~~별도 SPEC 작성~~ — 본 PRD 가 SPEC 역할 통합. 별도 docs/specs/ 파일 X.
 
 ### Phase 3 — Tests + 검증
 
@@ -174,7 +173,7 @@ Phase 1 (분류) → Phase 2 (코드) → Phase 3 (test) → PR
 ### Phase 1 — 분류 (1-2 시간)
 
 - [ ] 1.1 cherrypicks.lock 22개 ECC plugin 안 path 매핑 확인
-- [ ] 1.2 89 KEEP list 와 cherry-pick 22개 교집합 확인 (이미 일부 — security-reviewer / silent-failure-hunter / build-error-resolver / e2e-testing / agent-introspection-debugging / nextjs-turbopack 6개 KEEP 누락 의심)
+- [ ] 1.2 **검증**: 89 KEEP list 와 cherry-pick 22개 교집합. 다음 6개 의심 → KEEP 안에 없는지 grep 으로 확정: `security-reviewer`, `silent-failure-hunter`, `build-error-resolver`, `e2e-testing`, `agent-introspection-debugging`, `nextjs-turbopack` (KEEP 의 `security-review`, `e2e`/`e2e-runner` 와 이름 차이 주의)
 - [ ] 1.3 각 cherry-pick → C1/C2/C3 분류
 - [ ] 1.4 PRD §6 부록 표 갱신
 - [ ] 1.5 사용자 합의 (분류 표 검증, 필요 시 컨펌)
@@ -185,7 +184,7 @@ Phase 1 (분류) → Phase 2 (코드) → Phase 3 (test) → PR
 - [ ] 2.2 src/installer.ts — 주석 update
 - [ ] 2.3 src/commands/install.ts — Phase 1 출력 description 정정
 - [ ] 2.4 docs/decisions/ADR-019 작성
-- [ ] 2.5 docs/specs/v26-58 SPEC 측면 작성 (구현 디테일)
+- [ ] ~~2.5 별도 SPEC~~ — 본 PRD 가 SPEC 통합. skip.
 
 ### Phase 3 — Tests + 검증 (1-2 시간)
 
@@ -233,38 +232,37 @@ Phase 1 출력에 명확히:
 
 ---
 
-## 6. 부록 — Cherry-pick 분류 표 (Phase 1 결과 채울 자리)
+## 6. 부록 — Cherry-pick 분류 표 (DRAFT)
 
-> **상태**: Phase 1 에서 갱신. 현재는 1차 추정.
+> ⚠️ **DRAFT — Phase 1.3 (사용자 합의 전) 까지 수정 금지**. 본 표는 1차 추정이며 새 세션이 확정된 결과로 오인하면 안 됨.
+> `?` = Phase 1 에서 확정. ECC 22개 + 별개 source 2개 (gsd, alirezarezvani) **= 분류 대상 24개 전체**.
 
-| ID | ECC plugin path | 89 KEEP? | OFF 가치 | 트랙 매핑 | 분류 |
+| ID | source path | 89 KEEP? | OFF 가치 | 트랙 매핑 | 분류 (DRAFT) |
 |---|---|---|---|---|---|
-| ecc-code-reviewer | agents/code-reviewer.md | ✓ (`code-reviewer`) | 높음 | 모든 dev | **C2** (OFF default) |
-| ecc-security-reviewer | agents/security-reviewer.md | **✗** (KEEP 은 `security-review` 만) | 높음 | 모든 dev | **C2** (KEEP 누락 확인 필요) |
-| ecc-silent-failure-hunter | agents/silent-failure-hunter.md | **✗** | 중간 | dev | C2 |
-| ecc-build-error-resolver | agents/build-error-resolver.md | **✗** | 중간 | dev | C2 |
-| ecc-cl-v2 (MODIFIED) | skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C3** (modified — 양쪽 install) |
-| ecc-strategic-compact | skills/strategic-compact/ | ✓ | 높음 | 모든 | **C1** 또는 C2 (사용 빈도) |
-| ecc-deep-research | .agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | C2 |
-| ecc-market-research | .agents/skills/market-research/ | ✓ | 중간 | executive | C2 |
-| ecc-eval-harness | .agents/skills/eval-harness/ | ✓ | 중간 | dev | C2 |
-| ecc-verification-loop | .agents/skills/verification-loop/ | ✓ | 중간 | dev | C2 |
-| ecc-e2e-testing | .agents/skills/e2e-testing/ | **✗** (KEEP `e2e`/`e2e-runner` 만) | 높음 | ui | C2 |
-| ecc-agent-introspection-debugging | .agents/skills/agent-introspection-debugging/ | **✗** | 낮음 | dev | C1 or C2 |
-| ecc-python-patterns | skills/python-patterns/ | ✓ | 중간 | data/csr-fastapi | C2 |
-| ecc-python-testing | skills/python-testing/ | ✓ | 중간 | data/csr-fastapi | C2 |
-| ecc-nextjs-turbopack | skills/nextjs-turbopack/ | **✗** | 중간 | ssr-nextjs | C2 |
-| ecc-investor-materials | skills/investor-materials/ | ✓ | 높음 | executive | C2 |
-| ecc-investor-outreach | skills/investor-outreach/ | ✓ | 높음 | executive | C2 |
-| ecc-cmd-e2e | .opencode/commands/e2e.md | ✓ | 중간 | dev | C2 |
-| ecc-cmd-eval | .opencode/commands/eval.md | ✓ | 중간 | dev | C2 |
-| ecc-cmd-harness-audit | .opencode/commands/harness-audit.md | ✓ | 중간 | dev | C2 |
-| gsd-gates-taxonomy | get-shit-done/references/gates.md | (별개 source) | 높음 | 모든 | (검토 필요) |
-| alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | (별개) | 높음 | dev | **C3** (modified) |
+| ecc-code-reviewer | ecc/agents/code-reviewer.md | ✓ | 높음 | 모든 dev | C2 |
+| ecc-security-reviewer | ecc/agents/security-reviewer.md | ✗ (KEEP=`security-review`) | 높음 | 모든 dev | C2 |
+| ecc-silent-failure-hunter | ecc/agents/silent-failure-hunter.md | ? | 중간 | dev | C2 |
+| ecc-build-error-resolver | ecc/agents/build-error-resolver.md | ? | 중간 | dev | C2 |
+| ecc-cl-v2 (MODIFIED) | ecc/skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C3** (modified) |
+| ecc-strategic-compact | ecc/skills/strategic-compact/ | ✓ | 높음 | 모든 | ? |
+| ecc-deep-research | ecc/.agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | C2 |
+| ecc-market-research | ecc/.agents/skills/market-research/ | ✓ | 중간 | executive | C2 |
+| ecc-eval-harness | ecc/.agents/skills/eval-harness/ | ✓ | 중간 | dev | C2 |
+| ecc-verification-loop | ecc/.agents/skills/verification-loop/ | ✓ | 중간 | dev | C2 |
+| ecc-e2e-testing | ecc/.agents/skills/e2e-testing/ | ✗ (KEEP=`e2e`/`e2e-runner`) | 높음 | ui | C2 |
+| ecc-agent-introspection-debugging | ecc/.agents/skills/agent-introspection-debugging/ | ? | 낮음 | dev | ? |
+| ecc-python-patterns | ecc/skills/python-patterns/ | ✓ | 중간 | data/csr-fastapi | C2 |
+| ecc-python-testing | ecc/skills/python-testing/ | ✓ | 중간 | data/csr-fastapi | C2 |
+| ecc-nextjs-turbopack | ecc/skills/nextjs-turbopack/ | ? | 중간 | ssr-nextjs | C2 |
+| ecc-investor-materials | ecc/skills/investor-materials/ | ✓ | 높음 | executive | C2 |
+| ecc-investor-outreach | ecc/skills/investor-outreach/ | ✓ | 높음 | executive | C2 |
+| ecc-cmd-e2e | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | C2 |
+| ecc-cmd-eval | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | C2 |
+| ecc-cmd-harness-audit | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | C2 |
+| gsd-gates-taxonomy | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 | ? |
+| alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | **C3** (modified) |
 
-> **1차 분류 추정**: C1 (완전 중복) = 1-2개, C2 (OFF default) = 18-19개, C3 (modified or 트랙 분기 critical) = 2개 (cl-v2 + karpathy-gate).
-
-> **Phase 1 에서 정확히 확정**.
+> **1차 추정 (확정 X)**: C1=0-2개, C2=18-20개, C3=2개 (cl-v2 + karpathy-gate 확정). Phase 1.3 합의 후 확정.
 
 ---
 
@@ -300,10 +298,10 @@ v26.58.0 cycle 진행. PRD: docs/PRD/v26-58-cherry-pick-plugin-gating.md
 2. 사용자 컨펌 필수 (C1/C2/C3 분류 + 89 KEEP 누락 6개 처리)
 3. Phase 2 (manifest 코드) → Phase 3 (tests + release)
 
-세션 첫 명령:
-- cat docs/PRD/v26-58-cherry-pick-plugin-gating.md  # 전체 plan 재확인
-- cat .dev-references/cherrypicks.lock | jq '.cherrypicks[]'  # 22개 cherry-pick
-- grep KEEP_ITEMS -A 20 scripts/prune-ecc.sh  # 89 KEEP list
+세션 첫 명령 (macOS BSD / Linux GNU 양쪽 호환):
+- cat docs/PRD/v26-58-cherry-pick-plugin-gating.md         # 전체 plan 재확인
+- cat .dev-references/cherrypicks.lock                      # 22 cherry-pick (jq 미설치 환경 호환)
+- grep -A 20 "KEEP_ITEMS=" scripts/prune-ecc.sh             # 89 KEEP list
 
 배경:
 사용자 핵심 통찰 (2026-05-17): "ECC plugin install 만 하면 code-reviewer 등 작동.
