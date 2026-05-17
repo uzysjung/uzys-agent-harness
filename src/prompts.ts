@@ -2,17 +2,8 @@
 // no transformation logic — interactive.ts owns the business rules. This file
 // is excluded from coverage in vitest.config.ts (justification at exclude line).
 
-import {
-  cancel,
-  confirm,
-  groupMultiselect,
-  intro,
-  isCancel,
-  multiselect,
-  outro,
-  select,
-} from "@clack/prompts";
-import { CATEGORIES as CATEGORY_ORDER, CATEGORY_TITLES, type Category } from "./categories.js";
+import { cancel, confirm, intro, isCancel, multiselect, outro, select } from "@clack/prompts";
+import { CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
@@ -179,61 +170,94 @@ export const defaultPrompts: Prompts = {
   },
 
   selectInstallTargets: async (initialChecked, step, recap) => {
-    // v26.54.0 — Step 3 all-in-one. EXTERNAL_ASSETS + VISIBLE_OPTION_DEFS 카테고리 그룹화.
-    // v26.56.0 (F4) — 카테고리 헤더에 selected count [N/M ✓] 표시. viewport 외 selected 가시화.
-    //   clack 한계: dynamic count update X. 초기 selected count 만 표시 (가시성 ~80%).
+    // v26.62.0 — 3-page category paginate. 사유:
+    //   1. clack GroupMultiSelectOptions 에 maxItems 미지원 (옵션 type 정의 + class
+    //      implementation 모두 누락) → groupMultiselect 의 list 가 terminal 보다 길면
+    //      cursor highlight viewport 밖으로 빠지는 본질적 한계.
+    //   2. multiselect 는 maxItems 정상 지원 → page 안에서도 viewport scroll OK.
+    //   3. 한 page 당 ~10-20 옵션 묶음 (사용자 의도 "잘게 쪼개기 회피" — 3 page 만).
+    //   4. label prefix 로 카테고리 시각 구분 (group header 대체).
+    //
+    // 페이지 묶음:
+    //   Page 1: Dev domain     — frontend + backend + dev-tools + data
+    //   Page 2: Business       — pm + executive + documents
+    //   Page 3: Workflow/ECC   — workflow + ecc-suite
     const initialSet = new Set<string>(initialChecked);
-    const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
-    for (const cat of CATEGORY_ORDER) {
+    const collected = new Set<string>(initialChecked);
+
+    type PageDef = { label: string; cats: ReadonlyArray<Category> };
+    const pages: ReadonlyArray<PageDef> = [
+      {
+        label: "Dev (Frontend · Backend · Dev Tools · Data)",
+        cats: ["frontend", "backend", "dev-tools", "data"],
+      },
+      { label: "Business (PM · Executive · Documents)", cats: ["business"] },
+      { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
+    ];
+
+    const buildPageOptions = (cats: ReadonlyArray<Category>) => {
       const items: Array<{ value: string; label: string; hint?: string }> = [];
-      // 옵션 먼저 (상단)
-      for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
-        items.push({
-          value: `option:${o.key}`,
-          label: `${o.label}  [${o.source}]`,
-          hint: o.hint,
-        });
+      for (const cat of cats) {
+        for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
+          items.push({
+            value: `option:${o.key}`,
+            label: `${CATEGORY_TITLES[cat].split(" ")[0]} ${o.label}  [${o.source}]`,
+            hint: o.hint,
+          });
+        }
+        for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
+          items.push({
+            value: `asset:${a.id}`,
+            label: `${CATEGORY_TITLES[cat].split(" ")[0]} ${a.id}  [${a.source}]`,
+            hint: a.description,
+          });
+        }
       }
-      // 그 다음 자산
-      for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
-        items.push({
-          value: `asset:${a.id}`,
-          label: `${a.id}  [${a.source}]`,
-          hint: a.description,
-        });
-      }
-      if (items.length === 0) continue;
-      const selectedInCat = items.filter((it) => initialSet.has(it.value)).length;
-      const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
-      groups[header] = items;
-    }
-    // v26.58.1 — maxItems 로 viewport scroll fix. cursor 가 항상 visible viewport 안에 있도록
-    // clack 의 limitOptions 가 자동 follow + ↕ ... indicator.
-    // Note: clack 1.3 type def 가 GroupMultiSelectOptions 에 maxItems 누락. runtime 은 정상
-    //   (limitOptions 가 t.maxItems 참조). 향후 clack upgrade 시 cast 제거.
-    const totalDefault = initialSet.size;
-    const totalItems = Object.values(groups).reduce((sum, list) => sum + list.length, 0);
-    // v26.61.0 — recap (Step 1, 2 결과) message 안 한 줄 표시. alt screen 안에서 동작하므로
-    //   사용자가 wizard 중 이전 step 출력을 직접 못 봄. recap 으로 의사결정 컨텍스트 보강.
+      return items;
+    };
+
     const recapLine = recap
-      ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}\n  `
+      ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}`
       : "";
-    const groupOpts = {
-      message: `Step ${step.current}/${step.total} — What will be installed\n  ${recapLine}default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back`,
-      options: groups,
-      initialValues: [...initialChecked],
-      maxItems: viewportItems(totalItems),
-      required: false,
-    } as Parameters<typeof groupMultiselect>[0];
-    // v26.61.0 — alternate screen buffer (vim/htop 패턴):
-    //   - 진입 시 별도 buffer → terminal scrollback 자체 차단 → 마우스 휠 scroll 영향 없음
-    //   - clack 의 viewport scroll (maxItems + limitOptions) 만 작동 → cursor 항상 visible
-    //   - 종료 시 원래 buffer 복원 → intro / Phase 0 / Step 1·2 결과 다시 보임
-    //   - try/finally 로 ESC/Cancel/Ctrl+C 시에도 cleanup 보장
+
+    // v26.61.0 — alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
     process.stdout.write("\x1b[?1049h");
     try {
-      const result = await groupMultiselect(groupOpts);
-      return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
+      let pageIdx = 0;
+      while (pageIdx < pages.length) {
+        const page = pages[pageIdx];
+        if (!page) break;
+        const items = buildPageOptions(page.cats);
+        const selectedNow = items.filter((it) => collected.has(it.value)).map((it) => it.value);
+        const pageDefault = items.filter((it) => initialSet.has(it.value)).length;
+        const totalSelected = collected.size;
+        const message = [
+          `Step ${step.current}/${step.total}  ·  Page ${pageIdx + 1}/${pages.length}  ·  ${page.label}`,
+          recapLine ? `  ${recapLine}` : "",
+          `  Selected so far: ${totalSelected} items  ·  This page default ✓ ${pageDefault}/${items.length}`,
+          "  Space toggle · Enter → next · ESC → prev",
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        const result = await multiselect({
+          message,
+          options: items,
+          initialValues: selectedNow,
+          maxItems: viewportItems(items.length),
+          required: false,
+        });
+        if (isCancel(result)) {
+          if (pageIdx === 0) return null; // first page ESC → Step 2 back
+          pageIdx--; // prev page
+          continue;
+        }
+        // update collected: remove page items + add the new selection
+        for (const it of items) collected.delete(it.value);
+        for (const v of result as ReadonlyArray<string>) collected.add(v);
+        pageIdx++;
+      }
+      return [...collected] as ReadonlyArray<InstallTargetId>;
     } finally {
       process.stdout.write("\x1b[?1049l");
     }
