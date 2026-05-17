@@ -82,7 +82,7 @@ export function specFromOptions(options: InstallOptions): RunInstallResult {
       warnings: parsed.warnings,
       // v26.56.0 (F6) — wizard 진입 안내. `install` subcommand 는 non-interactive.
       message:
-        "At least one --track is required (e.g. --track tooling)\n       Interactive wizard 는 subcommand 없이 실행: `claude-harness` (install 단어 제거)",
+        "At least one --track is required (e.g. --track tooling)\n       Interactive wizard: run without subcommand → `claude-harness` (drop the `install` word)",
     };
   }
   for (const t of trackInputs) {
@@ -512,7 +512,7 @@ function renderPhase1Rows(
       phase1Row(
         "rules",
         cats.rules.length,
-        "코딩·git/PR·테스트·ship checklist·MCP 정책 (공통 + 트랙별 추가)",
+        "coding · git/PR · tests · ship checklist · MCP policy (common + per-track)",
         cats.rules,
       );
     }
@@ -520,7 +520,7 @@ function renderPhase1Rows(
       phase1Row(
         "agents",
         cats.agents.length,
-        "SOD reviewer (opus) + 3종. ECC plugin 미사용 시 code/security-reviewer 등 cherry-pick fallback (최대 4)",
+        "SOD reviewer (opus) + 3 base. Without ECC plugin: code/security-reviewer cherry-pick fallback (up to 4)",
         cats.agents,
       );
     }
@@ -528,7 +528,7 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · gate-check (6-Gate 순서) · spec-drift · agentshield (보안) 등",
+        "session-start · gate-check (6-Gate order) · spec-drift · agentshield (security) etc.",
         cats.hooks,
       );
     }
@@ -536,14 +536,14 @@ function renderPhase1Rows(
       phase1Row(
         "commands",
         cats.commands,
-        "uzys-harness 옵션: /uzys:* 7개 · ECC plugin 미사용 시: /ecc:* cherry-pick fallback (3)",
+        "uzys-harness option: /uzys:* (7) · Without ECC plugin: /ecc:* cherry-pick fallback (3)",
       );
     }
     if (cats.skills.length > 0) {
       phase1Row(
         "skills",
         cats.skills.length,
-        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified) · ECC plugin 미사용 시 cherry-pick fallback (최대 8)",
+        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified) · Without ECC plugin: cherry-pick fallback (up to 8)",
         cats.skills,
       );
     }
@@ -574,7 +574,7 @@ function renderPhase1Rows(
     );
   }
   if (baseline.envFiles.envExampleCreated) {
-    log(assetRow("success", ".env.example", "Supabase 토큰 가이드"));
+    log(assetRow("success", ".env.example", "Supabase token guide"));
   }
   if (baseline.envFiles.gitignoreEnvAdded) {
     log(assetRow("success", ".gitignore", "+ .env"));
@@ -694,20 +694,20 @@ export function registerInstallCommand(cli: Cli): void {
     // === Asset selection (Phase C full, v26.47.0+) ===
     .option(
       "--with <asset-id>",
-      "[Asset] External Asset id 강제 포함 (preset 조건 무관). Repeatable. v26.47.0+",
+      "[Asset] Force-include External Asset id (regardless of preset). Repeatable. v26.47.0+",
     )
     .option(
       "--without <asset-id>",
-      "[Asset] External Asset id 강제 제외 (preset 추천에서 제거). Repeatable. v26.47.0+",
+      "[Asset] Force-exclude External Asset id (drop from preset recommendation). Repeatable. v26.47.0+",
     )
     // === Codex global (v26.46.0+) ===
     .option(
       "--with-codex-prompts",
-      "[Codex] Codex slash 통일 (~/.codex/prompts/uzys-*.md). v26.46.0+ --cli codex 시 default ON",
+      "[Codex] Unify Codex slash (~/.codex/prompts/uzys-*.md). v26.46.0+ default ON when --cli codex",
     )
     .option(
       "--no-codex-prompts",
-      "[Codex] Codex slash default ON 해제 (--cli codex 명시 시에도 글로벌 복사 안 함)",
+      "[Codex] Disable Codex slash default ON (skip global copy even with --cli codex)",
     )
     .option(
       "--with-codex-skills",
@@ -726,8 +726,11 @@ export function registerInstallCommand(cli: Cli): void {
       "--with-addy-agent-skills",
       "[Workflow] addyosmani/agent-skills (/spec /plan /build slash). v26.42.0 BREAKING",
     )
-    .option("--with-superpowers", "[Workflow] obra/superpowers (Anthropic 공식 marketplace 등록)")
-    .option("--with-gsd", "[Workflow] GSD orchestrator (대형 프로젝트)")
+    .option(
+      "--with-superpowers",
+      "[Workflow] obra/superpowers (registered in Anthropic official marketplace)",
+    )
+    .option("--with-gsd", "[Workflow] GSD orchestrator (for large projects)")
     // === ECC Suite ===
     .option("--with-ecc", "[ECC] ECC plugin (project-scoped)")
     .option("--with-prune", "[ECC] Prune ECC items beyond curated 89 (implies --with-ecc)")

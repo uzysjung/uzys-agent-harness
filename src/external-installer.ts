@@ -345,6 +345,6 @@ export function formatSkippedReport(report: ExternalInstallReport): string {
     `${failed.length}개 외부 자산이 설치되지 않았습니다 (warn-skip):`,
     ...lines,
     "",
-    "수동 설치 또는 후속 재시도 필요. 자세한 내용은 docs/REFERENCE.md 또는 README.md 참조.",
+    "Manual install or retry needed. See docs/REFERENCE.md or README.md for details.",
   ].join("\n");
 }

@@ -56,13 +56,13 @@ export function parseCliTargets(input: string | string[] | undefined): ParseCliT
       // v0.8.0 — alias 제거 마이그레이션 힌트
       let hint = "";
       if (item === "both") {
-        hint = "\n         v0.8.0에서 'both' alias 제거됨. --cli claude --cli codex 사용.";
+        hint = "\n         v0.8.0 removed 'both' alias. Use --cli claude --cli codex.";
       } else if (item === "all") {
         hint =
-          "\n         v0.8.0에서 'all' alias 제거됨. --cli claude --cli codex --cli opencode 사용.";
+          "\n         v0.8.0 removed 'all' alias. Use --cli claude --cli codex --cli opencode.";
       } else if (item.includes(",")) {
-        // v0.7.1 — comma-separated 입력 힌트
-        hint = "\n         Tip: comma-separated 값은 미지원. 여러 CLI는 --cli A --cli B 형식으로.";
+        // v0.7.1 — comma-separated input hint
+        hint = "\n         Tip: comma-separated not supported. Use --cli A --cli B for multiple.";
       }
       return {
         ok: false,

@@ -81,7 +81,7 @@ describe("parseCliTargets — alias removed (v0.8.0 BREAKING)", () => {
     const r = parseCliTargets("both");
     expect(r.ok).toBe(false);
     expect(r.error).toContain("Invalid --cli value: both");
-    expect(r.error).toContain("v0.8.0에서 'both' alias 제거");
+    expect(r.error).toContain("v0.8.0 removed 'both' alias");
     expect(r.error).toContain("--cli claude --cli codex");
   });
 
@@ -89,7 +89,7 @@ describe("parseCliTargets — alias removed (v0.8.0 BREAKING)", () => {
     const r = parseCliTargets("all");
     expect(r.ok).toBe(false);
     expect(r.error).toContain("Invalid --cli value: all");
-    expect(r.error).toContain("v0.8.0에서 'all' alias 제거");
+    expect(r.error).toContain("v0.8.0 removed 'all' alias");
     expect(r.error).toContain("--cli claude --cli codex --cli opencode");
   });
 
@@ -122,7 +122,7 @@ describe("parseCliTargets — invalid reject", () => {
   it("comma-separated 'claude,codex' → ok=false + Tip 힌트 포함", () => {
     const r = parseCliTargets("claude,codex");
     expect(r.ok).toBe(false);
-    expect(r.error).toContain("comma-separated 값은 미지원");
+    expect(r.error).toContain("comma-separated not supported");
     expect(r.error).toContain("--cli A --cli B");
   });
 });

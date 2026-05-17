@@ -24,7 +24,7 @@ const SECTION_TITLES: Record<Section, string> = {
   plugins: "Plugins",
   commands: "Commands",
   boundaries: "Boundaries",
-  "supabase-auth": "Supabase 인증 설정",
+  "supabase-auth": "Supabase auth configuration",
 };
 
 export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
