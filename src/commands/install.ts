@@ -451,14 +451,15 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   log("");
   log(infoRow("STATUS", c.green("Install complete")));
   log(infoRow("TRACKS", report.installedTracks.join(", ")));
+  // v26.63.4 (P3): install header `CLI` 와 Summary `CLIs` 라벨 불일치 → `CLI` 로 통일.
   if (report.codex && report.opencode) {
-    log(infoRow("CLIs", "Claude · Codex · OpenCode"));
+    log(infoRow("CLI", "Claude · Codex · OpenCode"));
   } else if (report.codex) {
-    log(infoRow("CLIs", "Claude · Codex"));
+    log(infoRow("CLI", "Claude · Codex"));
   } else if (report.opencode) {
-    log(infoRow("CLIs", "Claude · OpenCode"));
+    log(infoRow("CLI", "Claude · OpenCode"));
   } else {
-    log(infoRow("CLIs", "Claude"));
+    log(infoRow("CLI", "Claude"));
   }
   if (report.external && report.external.skipped > 0) {
     log("");
@@ -598,24 +599,42 @@ function renderPhase1Rows(
     log(assetRow("success", "rules + hooks + commands + agents", `${baseline.filesCopied} files`));
     log(assetRow("success", "skeleton", `${baseline.dirsCopied} dirs`));
   }
+  // v26.63.4 (P3): Templates section 의 assetRow 호출 labelWidth=28 명시 → phase1Row 와 column 정렬.
+  //   default 40 은 External assets 의 긴 asset id (architecture-decision-record 등) 용 — 별개.
+  const TEMPLATES_COL = 28;
   if (baseline.rootClaudeMd) {
     const n = baseline.rootClaudeMd.tracks.length;
-    log(assetRow("success", "CLAUDE.md (root)", `merged from ${n} track${n > 1 ? "s" : ""}`));
+    log(
+      assetRow(
+        "success",
+        "CLAUDE.md (root)",
+        `merged from ${n} track${n > 1 ? "s" : ""}`,
+        TEMPLATES_COL,
+      ),
+    );
   }
   if (baseline.skipped > 0) {
-    log(assetRow("skip", "manifest entries (applies → false)", `${baseline.skipped} skipped`));
+    log(
+      assetRow(
+        "skip",
+        "manifest entries (applies → false)",
+        `${baseline.skipped} skipped`,
+        TEMPLATES_COL,
+      ),
+    );
   }
   if (baseline.backup) {
-    log(assetRow("success", "backup", shortenPath(baseline.backup)));
+    log(assetRow("success", "backup", shortenPath(baseline.backup), TEMPLATES_COL));
   }
   const mcpList = baseline.mcpServers.join(", ") || "(none)";
-  log(assetRow("success", ".mcp.json", mcpList));
+  log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
   if (baseline.envFiles.mcpAllowlist) {
     log(
       assetRow(
         "success",
         ".mcp-allowlist",
         `${baseline.envFiles.mcpAllowlist.length} servers (D35 opt-in gate)`,
+        TEMPLATES_COL,
       ),
     );
   }
