@@ -1,6 +1,6 @@
 # v26.58.0 — Cherry-pick × Plugin Gating
 
-> **Status**: Approved (사용자 가이드 2026-05-17)
+> **Status**: In Progress (Phase 1 완료 2026-05-17 / Phase 2 진행 중)
 > **Type**: Refactor + BREAKING
 > **Supersedes**: ADR-016 부분 (cherry-pick 항상 install → plugin install 시 skip)
 > **Predecessor**: v26.57.1
@@ -232,37 +232,59 @@ Phase 1 출력에 명확히:
 
 ---
 
-## 6. 부록 — Cherry-pick 분류 표 (DRAFT)
+## 6. 부록 — Cherry-pick 분류 표 (확정 2026-05-17)
 
-> ⚠️ **DRAFT — Phase 1.3 (사용자 합의 전) 까지 수정 금지**. 본 표는 1차 추정이며 새 세션이 확정된 결과로 오인하면 안 됨.
-> `?` = Phase 1 에서 확정. ECC 22개 + 별개 source 2개 (gsd, alirezarezvani) **= 분류 대상 24개 전체**.
+> **상태**: Phase 1.5 사용자 컨펌 완료. 본 표가 SSOT. 새 cherry-pick 추가 시 본 표에 행 추가 + ADR-019 정책에 따라 C1/C2/C3 부여.
+> **검증**: ECC plugin v2.0.0-rc.1 cache 에서 22개 path 전부 ✓ 존재 (`scripts/prune-ecc.sh` 기반 path 매핑).
 
-| ID | source path | 89 KEEP? | OFF 가치 | 트랙 매핑 | 분류 (DRAFT) |
+### 분류 체계
+
+| 분류 | 의미 | manifest 매핑 |
+|---|---|---|
+| **C1** | plugin 으로 완전 중복 — 매핑 자체 삭제 | (해당 항목 없음) |
+| **C2** | plugin OFF 시 fallback 가치 — opt-out gating | `applies: (s) => !s.withEcc && <track>` |
+| **C3** | modified 또는 별개 source — plugin 무관 항상 install | `applies: <track only>` (withEcc 무관) |
+
+### 22개 분류 확정
+
+| ID | source path | 89 KEEP? | OFF 가치 | 트랙 매핑 | 분류 |
 |---|---|---|---|---|---|
-| ecc-code-reviewer | ecc/agents/code-reviewer.md | ✓ | 높음 | 모든 dev | C2 |
-| ecc-security-reviewer | ecc/agents/security-reviewer.md | ✗ (KEEP=`security-review`) | 높음 | 모든 dev | C2 |
-| ecc-silent-failure-hunter | ecc/agents/silent-failure-hunter.md | ? | 중간 | dev | C2 |
-| ecc-build-error-resolver | ecc/agents/build-error-resolver.md | ? | 중간 | dev | C2 |
-| ecc-cl-v2 (MODIFIED) | ecc/skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C3** (modified) |
-| ecc-strategic-compact | ecc/skills/strategic-compact/ | ✓ | 높음 | 모든 | ? |
-| ecc-deep-research | ecc/.agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | C2 |
-| ecc-market-research | ecc/.agents/skills/market-research/ | ✓ | 중간 | executive | C2 |
-| ecc-eval-harness | ecc/.agents/skills/eval-harness/ | ✓ | 중간 | dev | C2 |
-| ecc-verification-loop | ecc/.agents/skills/verification-loop/ | ✓ | 중간 | dev | C2 |
-| ecc-e2e-testing | ecc/.agents/skills/e2e-testing/ | ✗ (KEEP=`e2e`/`e2e-runner`) | 높음 | ui | C2 |
-| ecc-agent-introspection-debugging | ecc/.agents/skills/agent-introspection-debugging/ | ? | 낮음 | dev | ? |
-| ecc-python-patterns | ecc/skills/python-patterns/ | ✓ | 중간 | data/csr-fastapi | C2 |
-| ecc-python-testing | ecc/skills/python-testing/ | ✓ | 중간 | data/csr-fastapi | C2 |
-| ecc-nextjs-turbopack | ecc/skills/nextjs-turbopack/ | ? | 중간 | ssr-nextjs | C2 |
-| ecc-investor-materials | ecc/skills/investor-materials/ | ✓ | 높음 | executive | C2 |
-| ecc-investor-outreach | ecc/skills/investor-outreach/ | ✓ | 높음 | executive | C2 |
-| ecc-cmd-e2e | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | C2 |
-| ecc-cmd-eval | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | C2 |
-| ecc-cmd-harness-audit | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | C2 |
-| gsd-gates-taxonomy | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 | ? |
-| alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | **C3** (modified) |
+| ecc-code-reviewer | ecc/agents/code-reviewer.md | ✓ | 높음 | 모든 dev | **C2** |
+| ecc-security-reviewer | ecc/agents/security-reviewer.md | ✗ (KEEP=`security-review`) | 높음 | 모든 dev | **C2** |
+| ecc-silent-failure-hunter | ecc/agents/silent-failure-hunter.md | ✗ | 중간 | dev | **C2** |
+| ecc-build-error-resolver | ecc/agents/build-error-resolver.md | ✗ | 중간 | dev | **C2** |
+| ecc-cl-v2 (MODIFIED) | ecc/skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C3** (modified=true) |
+| ecc-strategic-compact | ecc/skills/strategic-compact/ | ✓ | 높음 | 모든 | **C2** |
+| ecc-deep-research | ecc/.agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | **C2** |
+| ecc-market-research | ecc/.agents/skills/market-research/ | ✓ | 중간 | executive | **C2** |
+| ecc-eval-harness | ecc/.agents/skills/eval-harness/ | ✓ | 중간 | dev | **C2** |
+| ecc-verification-loop | ecc/.agents/skills/verification-loop/ | ✓ | 중간 | dev | **C2** |
+| ecc-e2e-testing | ecc/.agents/skills/e2e-testing/ | ✗ (KEEP=`e2e`/`e2e-runner`) | 높음 | ui | **C2** |
+| ecc-agent-introspection-debugging | ecc/.agents/skills/agent-introspection-debugging/ | ✗ | 낮음 | dev | **C2** |
+| ecc-python-patterns | ecc/skills/python-patterns/ | ✓ | 중간 | data/csr-fastapi | **C2** |
+| ecc-python-testing | ecc/skills/python-testing/ | ✓ | 중간 | data/csr-fastapi | **C2** |
+| ecc-nextjs-turbopack | ecc/skills/nextjs-turbopack/ | ✗ | 중간 | ssr-nextjs | **C2** |
+| ecc-investor-materials | ecc/skills/investor-materials/ | ✓ | 높음 | executive | **C2** |
+| ecc-investor-outreach | ecc/skills/investor-outreach/ | ✓ | 높음 | executive | **C2** |
+| ecc-cmd-e2e | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | **C2** |
+| ecc-cmd-eval | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | **C2** |
+| ecc-cmd-harness-audit | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | **C2** |
+| gsd-gates-taxonomy | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 (COMMON_RULES) | **C3** (별개 source) |
+| alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | **C3** (modified=true, 별개 source) |
 
-> **1차 추정 (확정 X)**: C1=0-2개, C2=18-20개, C3=2개 (cl-v2 + karpathy-gate 확정). Phase 1.3 합의 후 확정.
+### 합계
+
+- **C1**: 0 (모든 항목이 plugin OFF 시 가치 있음 — 단순 중복 없음)
+- **C2**: 19 (ecc 22개 중 cl-v2 제외 + ecc-* 만)
+- **C3**: 3 (cl-v2 modified / gsd-gates-taxonomy 별개 / karpathy-gate-hook modified+별개)
+
+### 89 KEEP 누락 처리 (Phase 1.5 컨펌)
+
+**결정**: `scripts/prune-ecc.sh` 의 `KEEP_ITEMS` 에 누락 6개 추가 (Option A).
+
+추가 대상: `security-reviewer`, `silent-failure-hunter`, `build-error-resolver`, `e2e-testing`, `agent-introspection-debugging`, `nextjs-turbopack`.
+
+이유: C2 분류는 plugin OFF 시 cherry-pick fallback. plugin ON 시는 prune 후에도 본 6개가 plugin cache 에 남아야 cl/uzys 가 활용 가능. KEEP 누락 그대로 두면 plugin ON 사용자가 6개 손실. 본 cycle 의 PRD Non-Goals 위반이지만 한 줄 수정 + UX 손상 방지 우선.
 
 ---
 

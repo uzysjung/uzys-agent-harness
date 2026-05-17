@@ -82,24 +82,31 @@ warn() { echo -e "  ${YELLOW}!${NC} $1"; }
 fail() { echo -e "  ${RED}✗${NC} $1" >&2; }
 section() { echo ""; echo -e "${CYAN}${BOLD}$1${NC}"; }
 
-# --- KEEP list (사용자 정의 89건) ---
+# --- KEEP list (총 98건, v26.58.0 +6) ---
+# v26.58.0 (ADR-019): cherrypicks.lock 의 C2 6개 KEEP 추가 (plugin ON 시 prune 으로 사라지는 구멍 차단):
+#   security-reviewer, silent-failure-hunter, build-error-resolver,
+#   e2e-testing, agent-introspection-debugging, nextjs-turbopack.
+# 직전 baseline 92건 (이전 코멘트 "89건" 은 오기 — 실제 단어 count 검증 시 92).
 KEEP_ITEMS="
-agent-harness-construction agentic-engineering ai-first-engineering api-design aside
-autonomous-loops backend-patterns blueprint build-fix checkpoint claude-api claw
+agent-harness-construction agent-introspection-debugging agentic-engineering
+ai-first-engineering api-design aside autonomous-loops backend-patterns
+blueprint build-error-resolver build-fix checkpoint claude-api claw
 code-review code-reviewer coding-standards configure-ecc content-engine
 content-hash-cache-pattern continuous-agent-loop continuous-learning continuous-learning-v2
 cost-aware-llm-pipeline crosspost database-migrations database-reviewer deep-research
-deployment-patterns dmux-workflows docker-patterns e2e e2e-runner eval eval-harness
-evolve exa-search frontend-patterns frontend-slides harness-audit harness-optimizer
-instinct-export instinct-import instinct-status investor-materials investor-outreach
-iterative-retrieval learn learn-eval loop-operator loop-start loop-status
-market-research model-route multi-backend multi-execute multi-frontend multi-plan
-multi-workflow orchestrate plan plankton-code-quality planner postgres-patterns
-projects promote prompt-optimize prompt-optimizer python-patterns python-review
-python-reviewer python-testing quality-gate refactor-clean regex-vs-llm-structured-text
-resume-session save-session search-first security-review security-scan sessions
-setup-pm skill-create skill-stocktake strategic-compact tdd tdd-guide tdd-workflow
-test-coverage update-codemaps update-docs verification-loop verify x-api
+deployment-patterns dmux-workflows docker-patterns e2e e2e-runner e2e-testing
+eval eval-harness evolve exa-search frontend-patterns frontend-slides
+harness-audit harness-optimizer instinct-export instinct-import instinct-status
+investor-materials investor-outreach iterative-retrieval learn learn-eval
+loop-operator loop-start loop-status market-research model-route multi-backend
+multi-execute multi-frontend multi-plan multi-workflow nextjs-turbopack orchestrate
+plan plankton-code-quality planner postgres-patterns projects promote
+prompt-optimize prompt-optimizer python-patterns python-review python-reviewer
+python-testing quality-gate refactor-clean regex-vs-llm-structured-text
+resume-session save-session search-first security-review security-reviewer
+security-scan sessions setup-pm silent-failure-hunter skill-create skill-stocktake
+strategic-compact tdd tdd-guide tdd-workflow test-coverage update-codemaps
+update-docs verification-loop verify x-api
 "
 
 is_keep() {

@@ -26,10 +26,15 @@ export interface AssetSpec {
    */
   withUzysHarness?: boolean;
   /**
-   * v26.55.0 — withEcc gating (BREAKING).
+   * v26.58.0 — withEcc opt-out gating (BREAKING vs v26.55.0). ADR-019 supersedes ADR-016 부분.
    * Note: copied from `OptionFlags.withEcc` by installer; keep both fields in sync.
-   * ECC cherry-pick (agents/skills/commands) 항목은 withEcc=true 일 때만 manifest 포함.
-   * ADR-016 참조.
+   *
+   * 정책 (cherry-pick × plugin gating):
+   * - C1 (단순 중복): 매핑 자체 삭제. 현재 0개.
+   * - C2 (plugin OFF fallback): `applies: (s) => !s.withEcc && <track>`. 19개.
+   * - C3 (modified or 별개 source): `applies: <track only>` (withEcc 무관 항상 install). 3개.
+   *
+   * 분류 표 SSOT: docs/PRD/v26-58-cherry-pick-plugin-gating.md §6.
    */
   withEcc?: boolean;
 }
@@ -103,9 +108,10 @@ export function resolveRules(spec: AssetSpec): string[] {
 
 const UZYS_COMMANDS = ["spec", "plan", "build", "test", "review", "ship", "auto"];
 
-// v26.55.0 — ECC cherry-pick 분리. ADR-016.
+// v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 본 프로젝트 (always): reviewer, data-analyst, strategist
-// ECC (withEcc 필요): code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver
+// ECC cherry-pick C2 (plugin OFF 시 fallback — opt-out gating, !s.withEcc):
+//   code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver
 const CORE_AGENTS = ["reviewer", "data-analyst", "strategist"];
 const CORE_AGENTS_ECC = ["code-reviewer", "security-reviewer"];
 
@@ -124,9 +130,12 @@ const ALWAYS_HOOKS = [
   "hito-counter.sh",
 ];
 
-// v26.55.0 — ECC cherry-pick 분리. ADR-016.
+// v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
-const COMMON_SKILL_DIRS_ECC = ["continuous-learning-v2", "strategic-compact", "deep-research"];
+// C2 (plugin OFF fallback, opt-out): strategic-compact, deep-research.
+const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "deep-research"];
+// C3 (modified=true — plugin 으로 갈음 불가, 항상 install): continuous-learning-v2.
+const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2"];
 
 const DEV_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS_ECC = ["eval-harness", "verification-loop", "agent-introspection-debugging"];
@@ -134,7 +143,7 @@ const DEV_SKILL_DIRS_ECC = ["eval-harness", "verification-loop", "agent-introspe
 const UI_SKILL_DIRS = ["ui-visual-review"];
 const UI_SKILL_DIRS_ECC = ["e2e-testing"];
 
-// python-* skills (data|csr-fastapi|full) — 둘 다 ECC cherry-pick. withEcc + track 둘 다 필요.
+// python-* skills (data|csr-fastapi|full) — C2 (plugin OFF fallback).
 const PYTHON_SKILL_DIRS_ECC = ["python-patterns", "python-testing"];
 
 /** Build the full asset manifest for the given spec. */
@@ -162,12 +171,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     });
   }
 
-  // ecc: commands — v26.55.0 withEcc gating (BREAKING vs prior unconditional install). ADR-016.
+  // ecc: commands — v26.58.0 opt-out gating (BREAKING vs v26.55.0). ADR-019.
+  // C2 — plugin OFF 시만 cherry-pick (plugin ON 이면 ecc plugin 의 /ecc:e2e, /ecc:eval, /ecc:harness-audit 사용).
   m.push({
     source: "commands/ecc",
     target: ".claude/commands/ecc",
     type: "dir",
-    applies: (s) => Boolean(s.withEcc),
+    applies: (s) => !s.withEcc,
   });
 
   // Project meta CLAUDE.md
@@ -195,13 +205,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: dev,
     });
   }
-  // v26.55.0 — Agents (ECC). ADR-016. withEcc gating.
+  // v26.58.0 — Agents (ECC cherry-pick). ADR-019. C2: plugin OFF 시만 install (opt-out).
   for (const a of CORE_AGENTS_ECC) {
     m.push({
       source: `agents/${a}.md`,
       target: `.claude/agents/${a}.md`,
       type: "file",
-      applies: (s) => Boolean(s.withEcc),
+      applies: (s) => !s.withEcc,
     });
   }
   for (const a of DEV_AGENTS_ECC) {
@@ -209,7 +219,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       source: `agents/${a}.md`,
       target: `.claude/agents/${a}.md`,
       type: "file",
-      applies: (s) => Boolean(s.withEcc) && hasDevTrack(s.tracks),
+      applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
     });
   }
 
@@ -222,13 +232,22 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: all,
     });
   }
-  // v26.55.0 — Common skill dirs (ECC). ADR-016. withEcc gating.
+  // v26.58.0 — Common skill dirs (ECC cherry-pick). ADR-019. C2: plugin OFF 시만 install (opt-out).
   for (const sd of COMMON_SKILL_DIRS_ECC) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: (s) => Boolean(s.withEcc),
+      applies: (s) => !s.withEcc,
+    });
+  }
+  // v26.58.0 — C3 (modified=true). plugin 으로 갈음 불가, 항상 install. ADR-019.
+  for (const sd of MODIFIED_COMMON_SKILL_DIRS) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: all,
     });
   }
   m.push({
@@ -257,13 +276,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     type: "dir",
     applies: onTracks("ssr-nextjs|full"),
   });
-  // v26.55.0 — python-* / DEV_SKILL_DIRS / UI_SKILL_DIRS 중 ECC 출처는 withEcc gating. ADR-016.
+  // v26.58.0 — python-* / DEV_SKILL_DIRS / UI_SKILL_DIRS 중 ECC 출처는 opt-out gating. ADR-019. C2.
   for (const sd of PYTHON_SKILL_DIRS_ECC) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: (s) => Boolean(s.withEcc) && anyTrack(s.tracks, "data|csr-fastapi|full"),
+      applies: (s) => !s.withEcc && anyTrack(s.tracks, "data|csr-fastapi|full"),
     });
   }
   for (const sd of DEV_SKILL_DIRS) {
@@ -279,7 +298,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: (s) => Boolean(s.withEcc) && hasDevTrack(s.tracks),
+      applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
     });
   }
   for (const sd of UI_SKILL_DIRS) {
@@ -295,7 +314,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: (s) => Boolean(s.withEcc) && hasUiTrack(s.tracks),
+      applies: (s) => !s.withEcc && hasUiTrack(s.tracks),
     });
   }
 

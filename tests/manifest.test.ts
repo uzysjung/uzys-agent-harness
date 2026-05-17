@@ -72,20 +72,72 @@ describe("buildManifest", () => {
     expect(multi.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
   });
 
-  it("includes UI skill dirs only for ui tracks (e2e-testing requires withEcc, v26.55.0)", () => {
-    // v26.55.0 — e2e-testing 은 ECC cherry-pick → withEcc + ui track 둘 다 필요. ADR-016.
-    const data = buildManifest({ tracks: ["data"], withEcc: true });
-    const e2eEntry = data.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eEntry?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
+  it("e2e-testing: C2 opt-out gating (plugin OFF + ui track → install). v26.58.0 ADR-019", () => {
+    // v26.58.0 — e2e-testing 은 ECC cherry-pick C2 → !withEcc + ui track 둘 다 필요.
+    // ui track + withEcc=true → skip (plugin ON → cherry-pick 갈음)
+    const uiWithEcc = buildManifest({ tracks: ["ssr-nextjs"], withEcc: true });
+    const e2eUiOn = uiWithEcc.find((e) => e.source === "skills/e2e-testing");
+    expect(e2eUiOn?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(false);
 
-    const ui = buildManifest({ tracks: ["ssr-nextjs"], withEcc: true });
-    const e2eEntryUi = ui.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eEntryUi?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
-
-    // withEcc 없으면 ui track 이라도 빠짐
+    // ui track + withEcc=false (default) → install (cherry-pick fallback)
     const uiNoEcc = buildManifest({ tracks: ["ssr-nextjs"] });
-    const e2eEntryNoEcc = uiNoEcc.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eEntryNoEcc?.applies({ tracks: ["ssr-nextjs"] })).toBe(false);
+    const e2eUiOff = uiNoEcc.find((e) => e.source === "skills/e2e-testing");
+    expect(e2eUiOff?.applies({ tracks: ["ssr-nextjs"] })).toBe(true);
+
+    // 비-UI track (data) + withEcc=false → skip (track 미일치)
+    const dataNoEcc = buildManifest({ tracks: ["data"] });
+    const e2eDataOff = dataNoEcc.find((e) => e.source === "skills/e2e-testing");
+    expect(e2eDataOff?.applies({ tracks: ["data"] })).toBe(false);
+  });
+
+  it("CORE_AGENTS_ECC (code-reviewer, security-reviewer): C2 opt-out. v26.58.0 ADR-019", () => {
+    // plugin OFF (default) → cherry-pick fallback install
+    const off = buildManifest({ tracks: ["tooling"] });
+    const codeOff = off.find((e) => e.source === "agents/code-reviewer.md");
+    const secOff = off.find((e) => e.source === "agents/security-reviewer.md");
+    expect(codeOff?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(secOff?.applies({ tracks: ["tooling"] })).toBe(true);
+
+    // plugin ON → cherry-pick skip (plugin 으로 갈음)
+    const on = buildManifest({ tracks: ["tooling"], withEcc: true });
+    const codeOn = on.find((e) => e.source === "agents/code-reviewer.md");
+    const secOn = on.find((e) => e.source === "agents/security-reviewer.md");
+    expect(codeOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    expect(secOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+  });
+
+  it("ecc commands dir: C2 opt-out gating. v26.58.0 ADR-019", () => {
+    const m = buildManifest({ tracks: ["tooling"] });
+    const eccCmd = m.find((e) => e.source === "commands/ecc");
+    expect(eccCmd).toBeDefined();
+    // plugin OFF → cherry-pick fallback
+    expect(eccCmd?.applies({ tracks: ["tooling"] })).toBe(true);
+    // plugin ON → skip
+    expect(eccCmd?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+  });
+
+  it("continuous-learning-v2: C3 (modified) → withEcc 무관 항상 install. v26.58.0 ADR-019", () => {
+    // C3 분류 — modified=true 라 plugin 으로 갈음 불가. 양쪽 install.
+    const off = buildManifest({ tracks: ["tooling"] });
+    const clOff = off.find((e) => e.source === "skills/continuous-learning-v2");
+    expect(clOff).toBeDefined();
+    expect(clOff?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(clOff?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
+
+    // 다른 track 도 동일 (track 무관)
+    expect(clOff?.applies({ tracks: ["executive"], withEcc: false })).toBe(true);
+    expect(clOff?.applies({ tracks: ["data"], withEcc: true })).toBe(true);
+  });
+
+  it("python-* skills: C2 opt-out + track gating. v26.58.0 ADR-019", () => {
+    const m = buildManifest({ tracks: ["data"] });
+    const pp = m.find((e) => e.source === "skills/python-patterns");
+    // data track + plugin OFF → install
+    expect(pp?.applies({ tracks: ["data"] })).toBe(true);
+    // data track + plugin ON → skip
+    expect(pp?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
+    // 비-Python track + plugin OFF → skip (track 미일치)
+    expect(pp?.applies({ tracks: ["executive"] })).toBe(false);
   });
 
   it("includes hooks for all tracks", () => {
