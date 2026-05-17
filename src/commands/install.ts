@@ -487,58 +487,54 @@ function renderPhase1Rows(
     return;
   }
 
-  // Fresh / add / reinstall — Phase 1 rows (v0.6.1: 카테고리별 분리 + names 일부 표시)
-  // v26.56.0 (F2) — 카테고리별 한 줄 설명 + names dim. visual hierarchy.
+  // Fresh / add / reinstall — Phase 1 rows
+  // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
+  // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
   const cats = baseline.categories;
   if (cats) {
+    const phase1Row = (label: string, count: number, useText: string, files?: string[]) => {
+      log(`  ${c.green("✓")} ${c.bold(`${label}`)} ${c.dim(`(${count})`)}`);
+      log(`      ${c.dim("use   ")} ${useText}`);
+      if (files && files.length > 0) {
+        log(`      ${c.dim("files ")} ${c.dim(files.join(", "))}`);
+      }
+      log("");
+    };
+
     if (cats.rules.length > 0) {
-      log(
-        assetRow(
-          "success",
-          `rules (${cats.rules.length})`,
-          "코딩 컨벤션 · git/PR · 테스트 · ship checklist · MCP allowlist 등 정책. 트랙별 추가 (csr-* 의 shadcn / data 의 pyside6 등)",
-        ),
+      phase1Row(
+        "rules",
+        cats.rules.length,
+        "코딩·git/PR·테스트·ship checklist·MCP 정책 (공통 + 트랙별 추가)",
+        cats.rules,
       );
-      log(`    ${c.dim(cats.rules.join(", "))}`);
     }
     if (cats.agents.length > 0) {
-      log(
-        assetRow(
-          "success",
-          `agents (${cats.agents.length})`,
-          "SOD 검증 reviewer (opus) + data-analyst · strategist · plan-checker. ECC 옵션 시 code/security-reviewer 등 4 추가",
-        ),
+      phase1Row(
+        "agents",
+        cats.agents.length,
+        "SOD reviewer (opus) + 3종. ECC 옵션 시 code/security-reviewer 등 4 추가",
+        cats.agents,
       );
-      log(`    ${c.dim(cats.agents.join(", "))}`);
     }
     if (cats.hooks.length > 0) {
-      log(
-        assetRow(
-          "success",
-          `hooks (${cats.hooks.length})`,
-          "session-start · gate-check (6-Gate 순서 강제) · spec-drift-check · agentshield-gate (보안) · hito-counter (turn 카운트) · checkpoint-snapshot",
-        ),
+      phase1Row(
+        "hooks",
+        cats.hooks.length,
+        "session-start · gate-check (6-Gate 순서) · spec-drift · agentshield (보안) 등",
+        cats.hooks,
       );
-      log(`    ${c.dim(cats.hooks.join(", "))}`);
     }
     if (cats.commands > 0) {
-      log(
-        assetRow(
-          "success",
-          `commands (${cats.commands})`,
-          "uzys-harness 옵션 시 /uzys:spec~ship 7개 (6-Gate + auto) · ECC 옵션 시 /ecc:* 8 slash commands",
-        ),
-      );
+      phase1Row("commands", cats.commands, "uzys-harness 옵션: /uzys:* 7개 · ECC 옵션: /ecc:* 8개");
     }
     if (cats.skills.length > 0) {
-      log(
-        assetRow(
-          "success",
-          `skills (${cats.skills.length})`,
-          "north-star (4-gate decision) · gh-issue-workflow · ui-visual-review (Playwright baseline diff). ECC 옵션 시 9 cherry-pick 추가",
-        ),
+      phase1Row(
+        "skills",
+        cats.skills.length,
+        "north-star (4-gate) · gh-issue-workflow · ui-visual-review (ECC 옵션 시 9 추가)",
+        cats.skills,
       );
-      log(`    ${c.dim(cats.skills.join(", "))}`);
     }
   } else {
     // v0.6.0 backwards compat — categories 없는 fakeReport 등
