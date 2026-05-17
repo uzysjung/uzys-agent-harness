@@ -67,10 +67,22 @@ export function header(title: string): string {
 
 /**
  * Render a phase header — `━━━ Phase N · Title ━━━━━━━...` (full-width).
- * Used to delimit major install pipeline phases.
+ * v26.63.0 (deprecated): kept for non-interactive mode + backward compat.
+ *   wizard 모드는 unifiedSection() 사용 (5-step 통합 — phase 카운터 무관).
  */
 export function phaseHeader(n: number | string, title: string, width = DEFAULT_WIDTH): string {
   const label = `${symbol.rule}${symbol.rule}${symbol.rule} Phase ${n} ${symbol.mid} ${title} `;
+  const fill = symbol.rule.repeat(Math.max(0, width - visibleLength(label)));
+  return c.bold(c.cyan(`${label}${fill}`));
+}
+
+/**
+ * v26.63.0 — Step 5 (Installing) 안의 sub-section 헤더.
+ * `━━ Templates ━━` / `━━ External assets (n) ━━` / `━━ Codex artifacts ━━`.
+ * phaseHeader (3 rule + Phase N + ·) 대비 단순 — 2 rule + title.
+ */
+export function unifiedSection(title: string, width = DEFAULT_WIDTH): string {
+  const label = `${symbol.rule}${symbol.rule} ${title} `;
   const fill = symbol.rule.repeat(Math.max(0, width - visibleLength(label)));
   return c.bold(c.cyan(`${label}${fill}`));
 }

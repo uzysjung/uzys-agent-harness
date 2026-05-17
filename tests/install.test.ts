@@ -527,9 +527,8 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("npx · gsd@latest"));
     // failed asset shows error message
     expect(log).toHaveBeenCalledWith(expect.stringContaining("script missing"));
-    // Phase 2 header rendered
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Phase 2"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("External Assets"));
+    // v26.63.0 — unifiedSection "━━ External assets (N) ━━" (Phase 카운터 제거)
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("External assets"));
     // Summary WARN line for skipped
     expect(log).toHaveBeenCalledWith(expect.stringContaining("1 external asset"));
   });
@@ -568,9 +567,9 @@ describe("executeSpec", () => {
       { ...baseSpec, cli: ["codex"] },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    // Phase 2 (external) + Phase 3 (codex)
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Phase 2"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Phase 3"));
+    // v26.63.0 — unifiedSection (Phase 카운터 제거). External assets + Codex artifacts 둘 다.
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("External assets"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("Codex"));
   });
 
   it("renders .env.example + .gitignore + .mcp-allowlist rows when envFiles flags set", () => {

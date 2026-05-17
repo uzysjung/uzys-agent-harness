@@ -41,7 +41,13 @@ export async function defaultAction(deps: DefaultActionDeps = {}): Promise<void>
     exit(1);
     return;
   }
-  const execDeps: import("./commands/install.js").ExecuteSpecDeps = { log, err, exit };
+  // v26.63.0 — wizard 모드 표시. install header (TARGET 등) 출력 skip → Step 5 sub-section 으로 자연 흐름.
+  const execDeps: import("./commands/install.js").ExecuteSpecDeps = {
+    log,
+    err,
+    exit,
+    fromWizard: true,
+  };
   if (result.mode) execDeps.mode = result.mode;
   execute(result.spec, execDeps);
 }

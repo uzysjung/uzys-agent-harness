@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets, targetsInclude } from "../cli-targets.js";
-import { assetRow, c, infoRow, phaseHeader, sectionHeader, status } from "../design.js";
+import { assetRow, c, infoRow, sectionHeader, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
@@ -12,6 +12,8 @@ export interface InstallOptions {
   track?: string[];
   /** v0.7.0 — repeatable. cac type: [String]. v0.8.0 — legacy alias 'both'/'all' 제거됨. */
   cli?: string | string[];
+  /** v26.63.0 — Phase 1 templates 의 files 라인 표시 (default: counts only). */
+  verbose?: boolean;
   projectDir?: string;
   withTauri?: boolean;
   withGsd?: boolean;
@@ -210,7 +212,14 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     projectDir: resolve(options.projectDir ?? process.cwd()),
   };
 
-  executeSpec(spec, { log, err, exit, runPipeline, resolveHarnessRoot });
+  executeSpec(spec, {
+    log,
+    err,
+    exit,
+    runPipeline,
+    resolveHarnessRoot,
+    verbose: options.verbose === true,
+  });
 }
 
 export interface ExecuteSpecDeps {
@@ -226,6 +235,18 @@ export interface ExecuteSpecDeps {
   resolveHarnessRoot?: () => string;
   /** Router action mode (forwarded to runInstall). Default "fresh". */
   mode?: import("../installer.js").InstallMode;
+  /**
+   * v26.63.0 — wizard 모드 (Step 1~4 통과 후 호출) 식별. true 시:
+   *   - install header (TARGET / TRACKS / CLI / OPTIONS / ASSETS) 출력 skip
+   *     (Step 3 review + Step 4 confirm 에서 이미 표시)
+   *   - "Step 5/5 — Installing" 흐름에 자연 연결
+   */
+  fromWizard?: boolean;
+  /**
+   * v26.63.0 — verbose 출력 (Phase 1 templates 의 files 라인 표시).
+   * Default false — 카운트 + use 만 표시 (cognitive load 감소).
+   */
+  verbose?: boolean;
 }
 
 /**
@@ -240,35 +261,37 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   const runPipeline = deps.runPipeline ?? defaultRunPipeline;
   const resolveHarnessRoot = deps.resolveHarnessRoot ?? defaultHarnessRoot;
 
-  // ━━━ TARGET ━━━ pre-flight info block ━━━
-  const headerLabel =
-    deps.mode === "update"
-      ? "uzys-claude-harness · update"
-      : deps.mode === "add"
-        ? "uzys-claude-harness · add"
-        : deps.mode === "reinstall"
-          ? "uzys-claude-harness · reinstall"
-          : "uzys-claude-harness · install";
-  log("");
-  log(sectionHeader(headerLabel));
-  log("");
-  log(infoRow("TARGET", shortenPath(spec.projectDir)));
-  log(infoRow("TRACKS", spec.tracks.join(", ")));
-  log(infoRow("CLI", spec.cli.join(" · ")));
-  log(infoRow("OPTIONS", formatOptions(spec)));
-  // v26.62.4 — install header 에 최종 자산 list 표시 (Step 3 의 wizard 결과 가시화).
-  //   userOverride 가 적용된 후 실제 install 될 자산 카운트 + 카테고리별 nested list.
-  const finalAssets = computeFinalAssets(spec);
-  if (finalAssets.length > 0) {
-    log(infoRow("ASSETS", `${finalAssets.length} selected`));
-    for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
-      log(`              ${c.dim(`· ${cat}:`)} ${ids.join(", ")}`);
+  // v26.63.0 — wizard 모드는 header (TARGET ~ ASSETS) 출력 skip — Step 3/4 에서 이미 표시.
+  //   non-interactive (--track ...) 모드는 기존 header 유지 — 사용자 spec 확인 cue 필요.
+  if (!deps.fromWizard) {
+    const headerLabel =
+      deps.mode === "update"
+        ? "uzys-claude-harness · update"
+        : deps.mode === "add"
+          ? "uzys-claude-harness · add"
+          : deps.mode === "reinstall"
+            ? "uzys-claude-harness · reinstall"
+            : "uzys-claude-harness · install";
+    log("");
+    log(sectionHeader(headerLabel));
+    log("");
+    log(infoRow("TARGET", shortenPath(spec.projectDir)));
+    log(infoRow("TRACKS", spec.tracks.join(", ")));
+    log(infoRow("CLI", spec.cli.join(" · ")));
+    log(infoRow("OPTIONS", formatOptions(spec)));
+    const finalAssets = computeFinalAssets(spec);
+    if (finalAssets.length > 0) {
+      log(infoRow("ASSETS", `${finalAssets.length} selected`));
+      for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
+        log(`              ${c.dim(`· ${cat}:`)} ${ids.join(", ")}`);
+      }
     }
+    log("");
   }
-  log("");
 
-  // ━━━ Phase 1 — Templates (또는 Update Mode) ━━━
-  log(phaseHeader(1, deps.mode === "update" ? "Update Mode" : "Templates"));
+  // v26.63.0 — phaseHeader → unifiedSection. Phase 카운터 (1/2/3) 제거 — 5-step 통합 시
+  //   wizard step 5/5 안 sub-section 으로 자연 흐름. Update mode 도 동일.
+  log(unifiedSection(deps.mode === "update" ? "Update Mode" : "Templates"));
   log("");
 
   // Streaming progress: baseline 완료 시 즉시 Phase 1 rows 출력, external은 per-asset 스트리밍.
@@ -279,9 +302,10 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
-        renderPhase1Rows(log, event.baseline);
+        renderPhase1Rows(log, event.baseline, deps.verbose === true);
       } else if (event.type === "external-start" && event.assetCount > 0) {
-        log(phaseHeader(2, "External Assets"));
+        // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
+        log(unifiedSection(`External assets (${event.assetCount})`));
         log("");
         phase2HeaderPrinted = true;
       }
@@ -335,14 +359,12 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     log("");
   }
 
-  // ━━━ Phase 3 — Codex / OpenCode (CLI-specific) ━━━
-  // Phase 3 = Codex 또는 OpenCode 산출물이 있을 때만 출력 (claude 단독 install은 skip)
+  // v26.63.0 — Codex / OpenCode 산출물 sub-section. phaseHeader → unifiedSection.
   if (
     (report.codex || report.opencode) &&
     (targetsInclude(spec.cli, "codex") || targetsInclude(spec.cli, "opencode"))
   ) {
-    const phaseN = report.external && report.external.attempted.length > 0 ? 3 : 2;
-    log(phaseHeader(phaseN, formatCliPhaseTitle(spec.cli)));
+    log(unifiedSection(formatCliPhaseTitle(spec.cli)));
     log("");
     // AGENTS.md is shared across Codex/OpenCode — render once with shared note
     if (report.codex && report.opencode) {
@@ -475,6 +497,7 @@ function formatAssetMeta(
 function renderPhase1Rows(
   log: (msg: string) => void,
   baseline: import("../installer.js").BaselineReport,
+  verbose = false,
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
@@ -509,13 +532,12 @@ function renderPhase1Rows(
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
   const cats = baseline.categories;
   if (cats) {
+    // v26.63.0 — files 라인은 verbose 옵션 시만. 기본은 카운트 + use 1 줄.
     const phase1Row = (label: string, count: number, useText: string, files?: string[]) => {
-      log(`  ${c.green("✓")} ${c.bold(`${label}`)} ${c.dim(`(${count})`)}`);
-      log(`      ${c.dim("use   ")} ${useText}`);
-      if (files && files.length > 0) {
-        log(`      ${c.dim("files ")} ${c.dim(files.join(", "))}`);
+      log(`  ${c.green("✓")} ${c.bold(`${label}`)} ${c.dim(`(${count})`)}  ${c.dim(useText)}`);
+      if (verbose && files && files.length > 0) {
+        log(`      ${c.dim("└ files:")} ${c.dim(files.join(", "))}`);
       }
-      log("");
     };
 
     if (cats.rules.length > 0) {
@@ -778,6 +800,7 @@ export function registerInstallCommand(cli: Cli): void {
     )
     // === Misc ===
     .option("--with-tauri", "[Misc] Tauri desktop rule (csr-*/full)")
+    .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===
     .example("install --track tooling --with-uzys-harness")
     .example("install --track csr-supabase --cli claude --cli codex")

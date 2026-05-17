@@ -187,9 +187,10 @@ export async function runInteractive(
         targetSelections !== null
           ? [...targetSelections]
           : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
+      // v26.63.0 — 5-step 통합. step 3/5 (install targets).
       const result = await prompts.selectInstallTargets(
         initial,
-        { current: 3, total: 3 },
+        { current: 3, total: 5 },
         {
           tracks: tracks ?? [],
           cli: cli ?? ["claude"],
@@ -218,6 +219,8 @@ export async function runInteractive(
       }
       const userOverride =
         targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
+      // v26.63.0 — Step 4/5 (Confirm). summary 는 Step 3 의 install targets review 와 중복 안 되게
+      //   target + options + proceed 만. 자산 list 는 Step 3 에서 이미 표시.
       const summary = formatSummary({
         tracks: finalTracks,
         options,
@@ -225,7 +228,7 @@ export async function runInteractive(
         projectDir,
         ...(userOverride ? { userOverride } : {}),
       });
-      const confirmed = await prompts.confirmInstall(summary);
+      const confirmed = await prompts.confirmInstall(`Step 4/5 — Confirm\n${summary}`);
       if (confirmed === null) {
         step = "targets"; // silent back
         continue;
@@ -234,7 +237,8 @@ export async function runInteractive(
         prompts.outro("Cancelled by user.");
         return { ok: false, reason: "cancelled" };
       }
-      prompts.outro("Running install pipeline...");
+      // v26.63.0 — Step 5/5 시작 안내. install pipeline 출력이 sub-section 으로 이어짐.
+      prompts.outro("Step 5/5 — Installing...");
       return {
         ok: true,
         mode,
