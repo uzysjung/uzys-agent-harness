@@ -117,7 +117,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === data Track ===
   {
     id: "polars-K-Dense",
-    description: "Polars — Rust 기반 고속 DataFrame (pandas 대체, data 트랙)",
+    description: "Polars — fast Rust-based DataFrame (pandas alternative, data track)",
     category: "data",
     source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -126,7 +126,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "dask-K-Dense",
-    description: "Dask — 분산 처리 (대용량 DataFrame · cluster, data 트랙)",
+    description: "Dask — distributed processing (large DataFrames · cluster, data track)",
     category: "data",
     source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -134,7 +134,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-resource-management",
-    description: "Python 메모리·CPU 관리 패턴 (wshobson, data·csr-fastapi 트랙)",
+    description: "Python memory · CPU management patterns (wshobson, data · csr-fastapi tracks)",
     category: "data",
     source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -146,7 +146,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-performance-optimization",
-    description: "Python 성능 최적화 (profiling · vectorize, wshobson, data 트랙)",
+    description: "Python performance optimization (profiling · vectorize, wshobson, data track)",
     category: "data",
     source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -188,7 +188,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // marketplace github.com/anthropics/claude-plugins-official ("Official,
     // Anthropic-managed directory of high quality Claude Code Plugins").
     // source/marketplace 분리는 의도적 — source=저자, marketplace=registry.
-    description: "Superpowers — agentic skills framework (obra, Anthropic 공식 marketplace)",
+    description: "Superpowers — agentic skills framework (obra, Anthropic official marketplace)",
     category: "workflow",
     source: "obra",
     condition: { kind: "option", flag: "withSuperpowers" },
@@ -236,7 +236,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "supabase-cli",
-    description: "Supabase CLI (npm -g) — 'supabase login' 첫 실행 후 OAuth 필요",
+    description: "Supabase CLI (npm -g) — first 'supabase login' requires OAuth",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -246,7 +246,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === UI tracks (csr-*|ssr-*|full) ===
   {
     id: "impeccable",
-    description: "Impeccable — UI 디자인 가이드 + 시각적 일관성 검토 (pbakaus, single-skill repo)",
+    description:
+      "Impeccable — UI design guide + visual consistency review (pbakaus, single-skill repo)",
     category: "frontend",
     source: "pbakaus",
     condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
@@ -257,7 +258,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === dev tools (has_dev_track) ===
   {
     id: "playwright-skill",
-    description: "Playwright — 브라우저 자동화 E2E 테스트 작성 가이드 (testdino-hq)",
+    description: "Playwright — browser automation E2E test authoring guide (testdino-hq)",
     category: "dev-tools",
     source: "testdino-hq",
     condition: { kind: "has-dev-track" },
@@ -270,7 +271,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "find-skills",
-    description: "find-skills — 설치된 모든 skill 검색·랭킹 (vercel-labs, 모든 dev 트랙)",
+    description: "find-skills — search · rank all installed skills (vercel-labs, all dev tracks)",
     category: "dev-tools",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
@@ -279,7 +280,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "agent-browser",
     description:
-      "agent-browser — agent-friendly Playwright wrapper (스크린샷·DOM 검색 CLI, dev 트랙)",
+      "agent-browser — agent-friendly Playwright wrapper (screenshot · DOM search CLI, dev tracks)",
     category: "dev-tools",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
@@ -288,7 +289,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "architecture-decision-record",
     description:
-      "ADR — Architecture Decision Record 템플릿 + status 흐름 (orchestkit, 80+ skill 중)",
+      "ADR — Architecture Decision Record template + status flow (orchestkit, one of 80+ skills)",
     category: "dev-tools",
     source: "yonatangross",
     condition: { kind: "has-dev-track" },
@@ -302,7 +303,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Supabase agent-skills (csr-supabase|full) ===
   {
     id: "supabase-agent-skills",
-    description: "Supabase — RLS · auth · edge function · realtime 가이드 (csr-supabase·full 트랙)",
+    description:
+      "Supabase — RLS · auth · edge function · realtime guide (csr-supabase · full tracks)",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -314,7 +316,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "postgres-best-practices",
-    description: "Postgres best practices — schema · index · query 패턴 (csr-supabase·full 트랙)",
+    description:
+      "Postgres best practices — schema · index · query patterns (csr-supabase · full tracks)",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -331,7 +334,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "react-best-practices",
     description:
-      "React best practices — Vercel 의 hook · perf · component 패턴 (CSR·SSR·Next 트랙)",
+      "React best practices — Vercel's hook · perf · component patterns (CSR · SSR · Next tracks)",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -345,7 +348,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "shadcn-ui",
-    description: "shadcn/ui — Radix 기반 React 컴포넌트 카피 + Tailwind 테마 (shadcn 공식)",
+    description: "shadcn/ui — Radix-based React component copy + Tailwind theme (shadcn official)",
     category: "frontend",
     source: "shadcn-ui",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -355,7 +358,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "web-design-guidelines",
     description:
-      "Web design guidelines — Vercel 의 visual hierarchy · color · spacing (CSR·SSR·Next 트랙)",
+      "Web design guidelines — Vercel's visual hierarchy · color · spacing (CSR · SSR · Next tracks)",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -367,7 +370,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "next-skills",
-    description: "Next-skills — Next.js App Router · Server Action 패턴 (ssr-nextjs·full 트랙)",
+    description:
+      "Next-skills — Next.js App Router · Server Action patterns (ssr-nextjs · full tracks)",
     category: "backend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: ["ssr-nextjs", "full"] },
@@ -499,7 +503,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "research-summarizer",
-    description: "research-summarizer (시장 조사 요약)",
+    description: "research-summarizer (market research summarization)",
     category: "business",
     source: "alirezarezvani",
     condition: { kind: "any-track", tracks: ["growth-marketing"] },
@@ -554,7 +558,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "ecc-plugin",
-    description: "ECC — 60 agents · 230 skills · 75 commands. Affaan 종합 hackathon 패키지",
+    description: "ECC — 60 agents · 230 skills · 75 commands. Affaan's hackathon package",
     category: "ecc-suite",
     source: "affaan-m",
     condition: { kind: "option", flag: "withEcc" },
@@ -569,7 +573,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "ecc-prune",
-    description: "ECC prune (89 KEEP 외 제거 → .claude/local-plugins/ecc/로 복사)",
+    description:
+      "ECC prune (drop items beyond curated 89 KEEP → copy to .claude/local-plugins/ecc/)",
     category: "ecc-suite",
     source: "uzys",
     condition: { kind: "option", flag: "withPrune" },

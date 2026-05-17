@@ -86,7 +86,7 @@ describe("specFromOptions (v0.7.0 — CliTargets)", () => {
     const result = specFromOptions({ cli: alias, track: ["tooling"] });
     expect(result.ok).toBe(false);
     expect(result.message).toContain(`Invalid --cli value: ${alias}`);
-    expect(result.message).toContain(`v0.8.0에서 '${alias}' alias 제거`);
+    expect(result.message).toContain(`v0.8.0 removed '${alias}' alias`);
   });
 
   it("rejects an unknown --cli value with ok=false", () => {

@@ -87,14 +87,14 @@ export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [
   {
     key: "withTauri",
     category: "frontend",
-    source: "본 프로젝트",
+    source: "this project",
     label: "Tauri desktop rule (option)",
-    hint: "CSR / full tracks · manifest rule 매핑",
+    hint: "CSR / full tracks · manifest rule mapping",
   },
   {
     key: "withUzysHarness",
     category: "workflow",
-    source: "본 프로젝트",
+    source: "this project",
     label: "uzys-harness 6-Gate workflow (option)",
     hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship",
   },
