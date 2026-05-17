@@ -131,7 +131,8 @@ export const defaultPrompts: Prompts = {
     // v26.58.1 — maxItems 로 viewport scroll. cursor follow + ↕ ... indicator (clack limitOptions).
     // v26.63.0 — 5-step 통합 (1: tracks · 2: cli · 3: install targets · 4: confirm · 5: installing).
     const result = await multiselect({
-      message: "Step 1/5 — Select Track(s) (Space to toggle, Enter to confirm):",
+      // v26.63.2 — polish: clack 자체 footer 가 "Space toggle · Enter confirm" 안내 → message 중복 제거.
+      message: "Step 1/5 — Select Track(s)",
       options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
       ...(initial ? { initialValues: initial } : {}),
       maxItems: viewportItems(11),
@@ -145,7 +146,8 @@ export const defaultPrompts: Prompts = {
     // v26.63.0 — 5-step 통합.
     const initialValues: CliBase[] = initial && initial.length > 0 ? [...initial] : ["claude"];
     const result = await multiselect({
-      message: "Step 2/5 — Target CLI(s) (Space to toggle, Enter to confirm. ESC to go back):",
+      // v26.63.2 — polish: hint 중복 제거. clack footer 가 동일 안내.
+      message: "Step 2/5 — Target CLI(s)",
       options: [
         { value: "claude" as const, label: CLI_BASE_LABELS.claude },
         { value: "codex" as const, label: CLI_BASE_LABELS.codex },

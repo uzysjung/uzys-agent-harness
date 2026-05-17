@@ -2,7 +2,15 @@ import { resolve } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets, targetsInclude } from "../cli-targets.js";
-import { assetRow, c, infoRow, sectionHeader, status, unifiedSection } from "../design.js";
+import {
+  assetRow,
+  c,
+  infoRow,
+  padDisplay,
+  sectionHeader,
+  status,
+  unifiedSection,
+} from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
@@ -342,7 +350,8 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   // Update mode 단축 출력 — manifest copy / external 모두 skip
   if (report.updateMode) {
     log("");
-    log(sectionHeader("Summary"));
+    // v26.63.2 — Summary 도 unifiedSection 으로 통일 (━━ marker). Step 5 안 sub-section 들과 일관.
+    log(unifiedSection("Summary"));
     log("");
     log(infoRow("STATUS", c.green("Update complete")));
     log(infoRow("MODE", "update"));
@@ -437,8 +446,8 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     log("");
   }
 
-  // ━━━ Summary ━━━
-  log(sectionHeader("Summary"));
+  // v26.63.2 — Summary 도 unifiedSection 으로 통일 (━━ marker).
+  log(unifiedSection("Summary"));
   log("");
   log(infoRow("STATUS", c.green("Install complete")));
   log(infoRow("TRACKS", report.installedTracks.join(", ")));
@@ -533,8 +542,11 @@ function renderPhase1Rows(
   const cats = baseline.categories;
   if (cats) {
     // v26.63.0 — files 라인은 verbose 옵션 시만. 기본은 카운트 + use 1 줄.
+    // v26.63.2 — polish: label + count 칼럼 fixed-width 정렬 (28 char). spacing scale 일관.
     const phase1Row = (label: string, count: number, useText: string, files?: string[]) => {
-      log(`  ${c.green("✓")} ${c.bold(`${label}`)} ${c.dim(`(${count})`)}  ${c.dim(useText)}`);
+      const labelCol = `${c.bold(label)} ${c.dim(`(${count})`)}`;
+      const padded = padDisplay(labelCol, 28);
+      log(`  ${c.green("✓")} ${padded} ${c.dim(useText)}`);
       if (verbose && files && files.length > 0) {
         log(`      ${c.dim("└ files:")} ${c.dim(files.join(", "))}`);
       }
