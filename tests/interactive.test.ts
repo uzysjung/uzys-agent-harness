@@ -482,8 +482,8 @@ describe("formatSummary", () => {
       projectDir: "/p",
       userOverride: { forceInclude: ["railway-skills"], forceExclude: ["playwright-skill"] },
     });
-    expect(summary).toContain("+Assets: railway-skills");
-    expect(summary).toContain("-Assets: playwright-skill");
+    expect(summary).toContain("+User added: railway-skills");
+    expect(summary).toContain("-User removed: playwright-skill");
   });
 });
 

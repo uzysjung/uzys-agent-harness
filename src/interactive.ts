@@ -289,12 +289,38 @@ export function formatSummary(spec: InstallSpec): string {
     `CLI:       ${spec.cli.join(" · ")}`,
     `Target:    ${spec.projectDir}`,
   ];
+
+  // v26.62.3 — 실제 install 될 자산 list 명시. defaults 만으로는 사용자가
+  //   Step 3 에서 무엇을 confirm 했는지 알 수 없음. preset recommended +
+  //   userOverride 적용 후 최종 selected assets list 표시.
+  const recommended = new Set(recommendedExternalAssets(spec.tracks));
+  if (spec.userOverride) {
+    for (const id of spec.userOverride.forceExclude) recommended.delete(id);
+    for (const id of spec.userOverride.forceInclude) recommended.add(id);
+  }
+  const finalAssets = [...recommended].sort();
+  if (finalAssets.length > 0) {
+    lines.push(`Assets:    ${finalAssets.length} selected`);
+    // 가독성 위해 카테고리 별로 그룹화
+    const byCategory = new Map<string, string[]>();
+    for (const id of finalAssets) {
+      const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+      const cat = asset?.category ?? "other";
+      const list = byCategory.get(cat) ?? [];
+      list.push(id);
+      byCategory.set(cat, list);
+    }
+    for (const [cat, ids] of byCategory) {
+      lines.push(`  · ${cat}: ${ids.join(", ")}`);
+    }
+  }
+
   if (spec.userOverride) {
     if (spec.userOverride.forceInclude.length > 0) {
-      lines.push(`  +Assets: ${spec.userOverride.forceInclude.join(", ")}`);
+      lines.push(`  +User added: ${spec.userOverride.forceInclude.join(", ")}`);
     }
     if (spec.userOverride.forceExclude.length > 0) {
-      lines.push(`  -Assets: ${spec.userOverride.forceExclude.join(", ")}`);
+      lines.push(`  -User removed: ${spec.userOverride.forceExclude.join(", ")}`);
     }
   }
   return lines.join("\n");
