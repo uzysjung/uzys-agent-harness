@@ -513,7 +513,7 @@ function renderPhase1Rows(
       phase1Row(
         "agents",
         cats.agents.length,
-        "SOD reviewer (opus) + 3종. ECC 옵션 시 code/security-reviewer 등 4 추가",
+        "SOD reviewer (opus) + 3종. ECC plugin 미사용 시 code/security-reviewer 등 cherry-pick fallback (최대 4)",
         cats.agents,
       );
     }
@@ -526,13 +526,17 @@ function renderPhase1Rows(
       );
     }
     if (cats.commands > 0) {
-      phase1Row("commands", cats.commands, "uzys-harness 옵션: /uzys:* 7개 · ECC 옵션: /ecc:* 8개");
+      phase1Row(
+        "commands",
+        cats.commands,
+        "uzys-harness 옵션: /uzys:* 7개 · ECC plugin 미사용 시: /ecc:* cherry-pick fallback (3)",
+      );
     }
     if (cats.skills.length > 0) {
       phase1Row(
         "skills",
         cats.skills.length,
-        "north-star (4-gate) · gh-issue-workflow · ui-visual-review (ECC 옵션 시 9 추가)",
+        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified) · ECC plugin 미사용 시 cherry-pick fallback (최대 8)",
         cats.skills,
       );
     }

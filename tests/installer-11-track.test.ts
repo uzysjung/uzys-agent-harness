@@ -125,22 +125,23 @@ describe("track-specific skills routing", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("data + full route python-patterns / python-testing (withEcc)", () => {
-    // v26.55.0 — python-* skills 는 ECC cherry-pick. withEcc=true 필수. ADR-016.
-    const spec = buildSpec(["data"], projectDir);
-    spec.options = { ...spec.options, withEcc: true };
-    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
-  });
-
-  it("v26.55.0 — python-* NOT routed without withEcc", () => {
+  it("v26.58.0 — data routes python-* when withEcc=false (cherry-pick fallback). ADR-019", () => {
+    // C2 opt-out: plugin OFF + data track → cherry-pick install.
     runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: buildSpec(["data"], projectDir),
     });
+    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
+  });
+
+  it("v26.58.0 — python-* skipped when withEcc=true (plugin 으로 갈음). ADR-019", () => {
+    // C2 opt-out: plugin ON 시 cherry-pick skip.
+    const spec = buildSpec(["data"], projectDir);
+    spec.options = { ...spec.options, withEcc: true };
+    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
     expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(false);
   });
@@ -187,11 +188,14 @@ describe("track-specific skills routing", () => {
     expect(existsSync(join(projectDir, ".claude/skills/investor-materials"))).toBe(false);
   });
 
-  it("csr-fastapi routes python-patterns (csr-fastapi + data + full union, withEcc)", () => {
-    // v26.55.0 — python-* skills 는 ECC cherry-pick. withEcc=true 필수. ADR-016.
-    const spec = buildSpec(["csr-fastapi"], projectDir);
-    spec.options = { ...spec.options, withEcc: true };
-    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
+  it("v26.58.0 — csr-fastapi routes python-patterns when withEcc=false. ADR-019", () => {
+    // C2 opt-out: csr-fastapi + plugin OFF → cherry-pick install.
+    runInstall({
+      runExternal: NO_EXTERNAL,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: buildSpec(["csr-fastapi"], projectDir),
+    });
     expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
   });
 });
