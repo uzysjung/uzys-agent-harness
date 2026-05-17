@@ -117,15 +117,16 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === data Track ===
   {
     id: "polars-K-Dense",
-    description: "polars (K-Dense scientific-skills)",
+    description: "Polars — Rust 기반 고속 DataFrame (pandas 대체, data 트랙)",
     category: "data",
     source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
     method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "polars" },
+    // v26.56.0 — description 보강: 트랙 hint + 한 줄 의미
   },
   {
     id: "dask-K-Dense",
-    description: "dask (K-Dense, 분산처리)",
+    description: "Dask — 분산 처리 (대용량 DataFrame · cluster, data 트랙)",
     category: "data",
     source: "K-Dense-AI",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -133,7 +134,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-resource-management",
-    description: "python-resource-management (wshobson)",
+    description: "Python 메모리·CPU 관리 패턴 (wshobson, data·csr-fastapi 트랙)",
     category: "data",
     source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -145,7 +146,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-performance-optimization",
-    description: "python-performance-optimization (wshobson)",
+    description: "Python 성능 최적화 (profiling · vectorize, wshobson, data 트랙)",
     category: "data",
     source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -269,7 +270,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "find-skills",
-    description: "find-skills (vercel-labs) — Skill 검색",
+    description: "find-skills — 설치된 모든 skill 검색·랭킹 (vercel-labs, 모든 dev 트랙)",
     category: "dev-tools",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
@@ -277,7 +278,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "agent-browser",
-    description: "agent-browser (npm -g) — Playwright 래퍼",
+    description:
+      "agent-browser — agent-friendly Playwright wrapper (스크린샷·DOM 검색 CLI, dev 트랙)",
     category: "dev-tools",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
@@ -300,7 +302,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Supabase agent-skills (csr-supabase|full) ===
   {
     id: "supabase-agent-skills",
-    description: "Supabase agent-skills",
+    description: "Supabase — RLS · auth · edge function · realtime 가이드 (csr-supabase·full 트랙)",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -312,7 +314,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "postgres-best-practices",
-    description: "postgres-best-practices (Supabase 마켓 plugin)",
+    description: "Postgres best practices — schema · index · query 패턴 (csr-supabase·full 트랙)",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -328,7 +330,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // 사용자 확인 형식: `npx skills add https://github.com/vercel-labs/agent-skills --skill <name>`.
   {
     id: "react-best-practices",
-    description: "vercel-react-best-practices (vercel-labs/agent-skills)",
+    description:
+      "React best practices — Vercel 의 hook · perf · component 패턴 (CSR·SSR·Next 트랙)",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -351,7 +354,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "web-design-guidelines",
-    description: "web-design-guidelines (vercel-labs/agent-skills)",
+    description:
+      "Web design guidelines — Vercel 의 visual hierarchy · color · spacing (CSR·SSR·Next 트랙)",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -363,7 +367,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "next-skills",
-    description: "next-skills (vercel-labs)",
+    description: "Next-skills — Next.js App Router · Server Action 패턴 (ssr-nextjs·full 트랙)",
     category: "backend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: ["ssr-nextjs", "full"] },

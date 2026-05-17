@@ -796,7 +796,22 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
     expect(captured?.options.withCodexPrompts).toBe(false);
   });
 
-  it("cli=codex + 명시 없음 → withCodexPrompts=true (default ON, ADR-012)", () => {
+  it("v26.56.0 (ADR-017) — cli=codex + withUzysHarness 둘 다 → withCodexPrompts=true", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["codex"], track: ["tooling"], withUzysHarness: true, projectDir: "/p" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.options.withCodexPrompts).toBe(true);
+  });
+
+  it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     let captured: InstallSpec | undefined;
@@ -806,6 +821,27 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
     });
     installAction(
       { cli: ["codex"], track: ["tooling"], projectDir: "/p" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    // 기존 ADR-012 에서는 true 였음. ADR-017 BREAKING 으로 false.
+    expect(captured?.options.withCodexPrompts).toBe(false);
+  });
+
+  it("v26.56.0 — 사용자 명시 --with-codex-prompts 는 uzys-harness 없어도 작동 (legacy override)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      {
+        cli: ["codex"],
+        track: ["tooling"],
+        withCodexPrompts: true,
+        projectDir: "/p",
+      },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     expect(captured?.options.withCodexPrompts).toBe(true);

@@ -80,7 +80,9 @@ export function specFromOptions(options: InstallOptions): RunInstallResult {
       ok: false,
       cli: parsed.targets,
       warnings: parsed.warnings,
-      message: "At least one --track is required (e.g. --track tooling)",
+      // v26.56.0 (F6) — wizard 진입 안내. `install` subcommand 는 non-interactive.
+      message:
+        "At least one --track is required (e.g. --track tooling)\n       Interactive wizard 는 subcommand 없이 실행: `claude-harness` (install 단어 제거)",
     };
   }
   for (const t of trackInputs) {
@@ -189,12 +191,16 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
-      // v26.46.0 — cli=codex 시 default ON (ADR-012). --no-codex-prompts 명시 시 OFF.
-      // v26.51.0 bug fix — cac negation `--no-codex-prompts` 는 `codexPrompts: false` 로 set.
+      // v26.56.0 (ADR-017, BREAKING) — codexPrompts 자동 활성화 조건 변경.
+      //   기존 (ADR-012): cli=codex 단독 → 자동 ON
+      //   신규: cli=codex && withUzysHarness → 자동 ON
+      // 사용자 명시 `--with-codex-prompts` 는 여전히 강제 활성화 (legacy override).
+      // `--no-codex-prompts` 는 그대로 강제 OFF.
       withCodexPrompts:
         options.codexPrompts === false
           ? false
-          : options.withCodexPrompts === true || validated.cli.includes("codex"),
+          : options.withCodexPrompts === true ||
+            (validated.cli.includes("codex") && options.withUzysHarness === true),
       withAddyAgentSkills: options.withAddyAgentSkills === true,
       withUzysHarness: options.withUzysHarness === true,
       withSuperpowers: options.withSuperpowers === true,
@@ -428,31 +434,21 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
 }
 
 function formatAssetMeta(asset: import("../external-assets.js").ExternalAsset): string {
-  // v0.6.1 — kind + method + description 보강. install 시 무엇이 들어왔는지 명시적.
+  // v26.56.0 (F3) — description 제거. onAssetStart 의 → 라인이 이미 description 표시.
+  // result row 는 method + source 만 간결하게 → terminal 120 char 안 wrap 방지.
   const m = asset.method;
-  let methodPart: string;
   switch (m.kind) {
     case "skill":
-      methodPart = m.skill ? `skill · ${m.source} · ${m.skill}` : `skill · ${m.source}`;
-      break;
+      return m.skill ? `skill · ${m.source} · ${m.skill}` : `skill · ${m.source}`;
     case "plugin":
-      methodPart = `plugin · ${m.pluginId}`;
-      break;
+      return `plugin · ${m.pluginId}`;
     case "npm-global":
-      methodPart = `npm -g · ${m.pkg}`;
-      break;
+      return `npm -g · ${m.pkg}`;
     case "npx-run":
-      methodPart = `npx · ${m.cmd}`;
-      break;
+      return `npx · ${m.cmd}`;
     case "shell-script":
-      methodPart = `bash · ${m.script}`;
-      break;
+      return `bash · ${m.script}`;
   }
-  // description은 asset.description (예: "karpathy-coder (4 Python tool + reviewer + ...)")
-  // ID와 중복 prefix 제거
-  const desc = asset.description.replace(new RegExp(`^${asset.id}\\s*[—\\-]?\\s*`), "").trim();
-  const descPart = desc && desc !== asset.id ? ` — ${desc}` : "";
-  return `${methodPart}${descPart}`;
 }
 
 /**
@@ -492,22 +488,53 @@ function renderPhase1Rows(
   }
 
   // Fresh / add / reinstall — Phase 1 rows (v0.6.1: 카테고리별 분리 + names 일부 표시)
+  // v26.56.0 (F2) — 카테고리별 한 줄 설명 + names dim. visual hierarchy.
   const cats = baseline.categories;
   if (cats) {
     if (cats.rules.length > 0) {
-      log(assetRow("success", "rules", formatNamesWithCount(cats.rules)));
+      log(
+        assetRow(
+          "success",
+          `rules (${cats.rules.length})`,
+          "코딩·PR·테스트·디자인 정책 (공통 + 트랙별)",
+        ),
+      );
+      log(`    ${c.dim(cats.rules.join(", "))}`);
     }
     if (cats.agents.length > 0) {
-      log(assetRow("success", "agents", formatNamesWithCount(cats.agents)));
+      log(
+        assetRow("success", `agents (${cats.agents.length})`, "SOD 검증 + 데이터·전략·plan 검토"),
+      );
+      log(`    ${c.dim(cats.agents.join(", "))}`);
     }
     if (cats.hooks.length > 0) {
-      log(assetRow("success", "hooks", formatNamesWithCount(cats.hooks)));
+      log(
+        assetRow(
+          "success",
+          `hooks (${cats.hooks.length})`,
+          "session-start · gate-check · spec-drift 등 자동화",
+        ),
+      );
+      log(`    ${c.dim(cats.hooks.join(", "))}`);
     }
     if (cats.commands > 0) {
-      log(assetRow("success", "commands", `${cats.commands} entries (uzys + ecc)`));
+      log(
+        assetRow(
+          "success",
+          `commands (${cats.commands})`,
+          "/uzys:* + /ecc:* slash commands (옵션별)",
+        ),
+      );
     }
     if (cats.skills.length > 0) {
-      log(assetRow("success", "skills", formatNamesWithCount(cats.skills)));
+      log(
+        assetRow(
+          "success",
+          `skills (${cats.skills.length})`,
+          "north-star · gh-issue · UI review 등 보조 스킬",
+        ),
+      );
+      log(`    ${c.dim(cats.skills.join(", "))}`);
     }
   } else {
     // v0.6.0 backwards compat — categories 없는 fakeReport 등
@@ -551,15 +578,6 @@ function renderPhase1Rows(
     );
   }
   log("");
-}
-
-/**
- * Names 배열을 "name1, name2, ... (N)" 형식으로 표시. 전체 names 노출 (압축 없음).
- * 사용자 피드백 v0.6.2 — Phase 1 names 풀어서 다 보이게.
- */
-function formatNamesWithCount(names: ReadonlyArray<string>): string {
-  if (names.length === 0) return "0";
-  return `${names.join(", ")} (${names.length})`;
 }
 
 /**

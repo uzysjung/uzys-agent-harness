@@ -86,7 +86,25 @@ describe("runInteractive", () => {
     expect(prompts.outro).toHaveBeenCalledOnce();
   });
 
-  it("v26.46.0 — cli=codex auto-enables withCodexPrompts (ADR-012)", async () => {
+  it("v26.56.0 (ADR-017) — cli=codex + withUzysHarness 둘 다 → withCodexPrompts=true", async () => {
+    const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
+    // Step 3 에서 withUzysHarness 옵션 토글 → install-targets 에 "option:withUzysHarness" 포함
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
+      ...initial,
+      "option:withUzysHarness" as InstallTargetId,
+    ]);
+    const prompts = makePrompts({ selectCli, selectInstallTargets });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.spec?.options.withCodexPrompts).toBe(true);
+    expect(result.spec?.options.withUzysHarness).toBe(true);
+  });
+
+  it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", async () => {
     const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
     const prompts = makePrompts({ selectCli });
     const result = await runInteractive("/tmp/proj", {
@@ -95,8 +113,8 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.options.withCodexPrompts).toBe(true);
-    expect(result.spec?.cli).toEqual(["claude", "codex"]);
+    // 기존 ADR-012 에서는 true 였음. ADR-017 BREAKING 으로 false.
+    expect(result.spec?.options.withCodexPrompts).toBe(false);
   });
 
   it("v26.46.0 — cli without codex keeps withCodexPrompts=false", async () => {

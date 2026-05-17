@@ -161,6 +161,9 @@ export const defaultPrompts: Prompts = {
 
   selectInstallTargets: async (initialChecked, step) => {
     // v26.54.0 — Step 3 all-in-one. EXTERNAL_ASSETS + VISIBLE_OPTION_DEFS 카테고리 그룹화.
+    // v26.56.0 (F4) — 카테고리 헤더에 selected count [N/M ✓] 표시. viewport 외 selected 가시화.
+    //   clack 한계: dynamic count update X. 초기 selected count 만 표시 (가시성 ~80%).
+    const initialSet = new Set<string>(initialChecked);
     const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
     for (const cat of CATEGORY_ORDER) {
       const items: Array<{ value: string; label: string; hint?: string }> = [];
@@ -181,10 +184,12 @@ export const defaultPrompts: Prompts = {
         });
       }
       if (items.length === 0) continue;
-      groups[CATEGORY_TITLES[cat]] = items;
+      const selectedInCat = items.filter((it) => initialSet.has(it.value)).length;
+      const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
+      groups[header] = items;
     }
     const result = await groupMultiselect({
-      message: `Step ${step.current}/${step.total} — What will be installed (Space to toggle, Enter to confirm. ESC to go back. ✓ = preset 추천):`,
+      message: `Step ${step.current}/${step.total} — What will be installed (Space to toggle, Enter to confirm. ESC to go back. ✓ default = preset 추천):`,
       options: groups,
       initialValues: [...initialChecked],
       required: false,
