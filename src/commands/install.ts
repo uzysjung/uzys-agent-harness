@@ -278,12 +278,12 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     },
     externalDeps: {
       onAssetStart: (asset) => {
+        // v26.57.0 (F2) — 카테고리 헤더만 출력. 자산 시작 라인 (→) 제거 — ✓ 결과 한 라인으로 1 단위 명확화.
         if (asset.category !== currentCategory) {
           if (currentCategory !== null) log("");
           log(`  ${c.bold(`━━ ${CATEGORY_TITLES[asset.category]} ━━`)}`);
           currentCategory = asset.category;
         }
-        log(`    ${c.dim("→")} ${c.dim(asset.description)} ${c.dim("...")}`);
       },
       onAssetResult: (result) => {
         const meta = result.ok ? formatAssetMeta(result.asset) : (result.message ?? "failed");
@@ -496,14 +496,18 @@ function renderPhase1Rows(
         assetRow(
           "success",
           `rules (${cats.rules.length})`,
-          "코딩·PR·테스트·디자인 정책 (공통 + 트랙별)",
+          "코딩 컨벤션 · git/PR · 테스트 · ship checklist · MCP allowlist 등 정책. 트랙별 추가 (csr-* 의 shadcn / data 의 pyside6 등)",
         ),
       );
       log(`    ${c.dim(cats.rules.join(", "))}`);
     }
     if (cats.agents.length > 0) {
       log(
-        assetRow("success", `agents (${cats.agents.length})`, "SOD 검증 + 데이터·전략·plan 검토"),
+        assetRow(
+          "success",
+          `agents (${cats.agents.length})`,
+          "SOD 검증 reviewer (opus) + data-analyst · strategist · plan-checker. ECC 옵션 시 code/security-reviewer 등 4 추가",
+        ),
       );
       log(`    ${c.dim(cats.agents.join(", "))}`);
     }
@@ -512,7 +516,7 @@ function renderPhase1Rows(
         assetRow(
           "success",
           `hooks (${cats.hooks.length})`,
-          "session-start · gate-check · spec-drift 등 자동화",
+          "session-start · gate-check (6-Gate 순서 강제) · spec-drift-check · agentshield-gate (보안) · hito-counter (turn 카운트) · checkpoint-snapshot",
         ),
       );
       log(`    ${c.dim(cats.hooks.join(", "))}`);
@@ -522,7 +526,7 @@ function renderPhase1Rows(
         assetRow(
           "success",
           `commands (${cats.commands})`,
-          "/uzys:* + /ecc:* slash commands (옵션별)",
+          "uzys-harness 옵션 시 /uzys:spec~ship 7개 (6-Gate + auto) · ECC 옵션 시 /ecc:* 8 slash commands",
         ),
       );
     }
@@ -531,7 +535,7 @@ function renderPhase1Rows(
         assetRow(
           "success",
           `skills (${cats.skills.length})`,
-          "north-star · gh-issue · UI review 등 보조 스킬",
+          "north-star (4-gate decision) · gh-issue-workflow · ui-visual-review (Playwright baseline diff). ECC 옵션 시 9 cherry-pick 추가",
         ),
       );
       log(`    ${c.dim(cats.skills.join(", "))}`);

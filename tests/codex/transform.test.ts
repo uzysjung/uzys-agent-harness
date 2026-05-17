@@ -17,13 +17,16 @@ describe("runCodexTransform (E2E against templates/)", () => {
     rmSync(project, { recursive: true, force: true });
   });
 
-  it("produces AGENTS.md, .codex/config.toml, hooks, skills, prompts (v0.7.1)", () => {
-    const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+  it("v26.57.0 (ADR-018) — withUzysHarness=true → skills + prompts 6+6 생성", () => {
+    const report = runCodexTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: true,
+    });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.configTomlPath)).toBe(true);
     expect(report.hookFiles).toHaveLength(3);
     expect(report.skillFiles).toHaveLength(6);
-    // v0.7.1 — project-scoped .codex/prompts/ pre-positioning (글로벌 영향 0)
     expect(report.promptFiles).toHaveLength(6);
 
     const agents = readFileSync(report.agentsMdPath, "utf8");
@@ -32,7 +35,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
 
     const config = readFileSync(report.configTomlPath, "utf8");
     expect(config).toContain("[features]");
-    expect(config).toContain("[mcp_servers."); // .mcp.json injected at least 1 server
+    expect(config).toContain("[mcp_servers.");
 
     for (const hook of report.hookFiles) {
       expect(readFileSync(hook, "utf8")).not.toContain("CLAUDE_PROJECT_DIR");
@@ -44,17 +47,37 @@ describe("runCodexTransform (E2E against templates/)", () => {
       expect(body).toMatch(/name: uzys-(spec|plan|build|test|review|ship)/);
     }
 
-    // v0.7.1 — Codex project-scoped prompts (frontmatter description, slash rename)
     for (const promptFile of report.promptFiles) {
       const body = readFileSync(promptFile, "utf8");
       expect(body).toMatch(/^---/);
       expect(body).toContain("description:");
-      // /uzys: → /uzys- 변환 검증
       expect(body).not.toContain("/uzys:");
-      // 글로벌 영향 0 — path는 <project>/.codex/prompts/uzys-*.md
       expect(promptFile).toContain(".codex/prompts/uzys-");
-      expect(promptFile).not.toContain("/.codex/prompts/uzys-spec".replace(".codex", "_codex_"));
     }
+  });
+
+  it("v26.57.0 (ADR-018, BREAKING) — withUzysHarness=false → skills + prompts 0+0 (uzys 산출물 X)", () => {
+    const report = runCodexTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: false,
+    });
+    // AGENTS.md / config.toml / hooks 는 codex baseline 이라 그대로 생성
+    expect(existsSync(report.agentsMdPath)).toBe(true);
+    expect(existsSync(report.configTomlPath)).toBe(true);
+    expect(report.hookFiles).toHaveLength(3);
+    // uzys 산출물은 빠짐
+    expect(report.skillFiles).toEqual([]);
+    expect(report.promptFiles).toEqual([]);
+    // .codex/prompts/ 디렉토리도 만들지 않음
+    expect(existsSync(join(project, ".codex/prompts"))).toBe(false);
+    expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
+  });
+
+  it("default (param 누락) = withUzysHarness=false 동작 (안전한 default)", () => {
+    const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+    expect(report.skillFiles).toEqual([]);
+    expect(report.promptFiles).toEqual([]);
   });
 
   it("throws when required template missing", () => {

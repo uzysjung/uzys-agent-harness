@@ -31,6 +31,13 @@ import { renderSkill } from "./skills.js";
 export interface CodexTransformParams {
   harnessRoot: string;
   projectDir: string;
+  /**
+   * v26.57.0 (ADR-018) — uzys-* skill/prompt 생성 gating.
+   * Codex 의 `.agents/skills/uzys-{phase}/SKILL.md` 와 `.codex/prompts/uzys-{phase}.md`
+   * 는 본 harness 의 6-Gate 워크플로우 산출물. withUzysHarness=false 면 두 디렉토리에
+   * uzys-* 파일 생성 안 함. Claude 쪽 `.claude/commands/uzys/` 와 묶음 (ADR-017 의 확장).
+   */
+  withUzysHarness?: boolean;
 }
 
 export interface CodexTransformReport {
@@ -51,7 +58,7 @@ const HOOK_NAMES = ["session-start", "hito-counter", "gate-check"];
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir } = params;
+  const { harnessRoot, projectDir, withUzysHarness = false } = params;
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
@@ -94,41 +101,47 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   }
 
   // 4. .agents/skills/uzys-{phase}/SKILL.md (v0.6.4 — Codex 공식 repo-level skill scope)
+  // v26.57.0 (ADR-018) — withUzysHarness gating. uzys 슬래시 미사용 시 skill 디렉토리 생성 X.
   const skillFiles: string[] = [];
-  for (const phase of PHASES) {
-    const skillDir = join(projectDir, ".agents", "skills", `uzys-${phase}`);
-    ensureDir(skillDir);
-    const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
-    let source = "";
-    if (existsSync(cmdSrc)) {
-      source = readFileSync(cmdSrc, "utf8");
-    } else {
-      // Fallback: bundled stub from templates/codex/skills/<phase>/SKILL.md
-      const fallback = join(harnessRoot, "templates/codex/skills", `uzys-${phase}/SKILL.md`);
-      if (existsSync(fallback)) {
-        source = readFileSync(fallback, "utf8");
+  if (withUzysHarness) {
+    for (const phase of PHASES) {
+      const skillDir = join(projectDir, ".agents", "skills", `uzys-${phase}`);
+      ensureDir(skillDir);
+      const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
+      let source = "";
+      if (existsSync(cmdSrc)) {
+        source = readFileSync(cmdSrc, "utf8");
+      } else {
+        // Fallback: bundled stub from templates/codex/skills/<phase>/SKILL.md
+        const fallback = join(harnessRoot, "templates/codex/skills", `uzys-${phase}/SKILL.md`);
+        if (existsSync(fallback)) {
+          source = readFileSync(fallback, "utf8");
+        }
       }
+      const target = join(skillDir, "SKILL.md");
+      writeFileSync(target, renderSkill({ source, phase }));
+      skillFiles.push(target);
     }
-    const target = join(skillDir, "SKILL.md");
-    writeFileSync(target, renderSkill({ source, phase }));
-    skillFiles.push(target);
   }
 
   // 5. v0.7.1 — .codex/prompts/uzys-{phase}.md (project-scoped pre-positioning)
   // 글로벌 ~/.codex/prompts/ 영향 0. Codex upstream Issue #9848 지원 시 자동 작동.
   // 현재는 Codex가 project-scoped prompts 미지원 — pre-position만 (free upgrade 패턴).
-  const promptDir = join(projectDir, ".codex", "prompts");
-  ensureDir(promptDir);
+  // v26.57.0 (ADR-018) — withUzysHarness gating. uzys 슬래시 미사용 시 prompt 생성 X.
   const promptFiles: string[] = [];
-  for (const phase of PHASES) {
-    const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
-    if (!existsSync(cmdSrc)) {
-      continue;
+  if (withUzysHarness) {
+    const promptDir = join(projectDir, ".codex", "prompts");
+    ensureDir(promptDir);
+    for (const phase of PHASES) {
+      const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
+      if (!existsSync(cmdSrc)) {
+        continue;
+      }
+      const source = readFileSync(cmdSrc, "utf8");
+      const target = join(promptDir, `uzys-${phase}.md`);
+      writeFileSync(target, renderCodexPrompt({ source, phase }));
+      promptFiles.push(target);
     }
-    const source = readFileSync(cmdSrc, "utf8");
-    const target = join(promptDir, `uzys-${phase}.md`);
-    writeFileSync(target, renderCodexPrompt({ source, phase }));
-    promptFiles.push(target);
   }
 
   return { agentsMdPath, configTomlPath, hookFiles, skillFiles, promptFiles };
