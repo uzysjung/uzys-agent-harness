@@ -464,14 +464,14 @@ describe("formatSummary", () => {
     expect(summary).toContain("/proj");
   });
 
-  it("renders '(defaults only)' when no opts toggled", () => {
+  it("renders '(none added)' when no opts toggled", () => {
     const summary = formatSummary({
       tracks: ["tooling"],
       options: ALL_FALSE_OPTIONS,
       cli: ["claude"],
       projectDir: "/p",
     });
-    expect(summary).toContain("defaults only");
+    expect(summary).toContain("none added");
   });
 
   it("v26.54.0 — userOverride 표시 (forceInclude + forceExclude 각 라인)", () => {

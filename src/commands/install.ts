@@ -310,7 +310,7 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
-        renderPhase1Rows(log, event.baseline, deps.verbose === true);
+        renderPhase1Rows(log, event.baseline, deps.verbose === true, spec.options.withEcc === true);
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
@@ -487,7 +487,10 @@ function formatAssetMeta(
   const v = version ? ` ${c.dim(`v${version.replace(/^v/, "")}`)}` : "";
   switch (m.kind) {
     case "skill":
-      return m.skill ? `skill · ${m.source} · ${m.skill}` : `skill · ${m.source}`;
+      // v26.63.3 (clarify M1): skill name 이 asset id 와 동일하면 중복 segment 생략.
+      //   "skill · pbakaus/impeccable · impeccable" → "skill · pbakaus/impeccable"
+      if (m.skill && m.skill !== asset.id) return `skill · ${m.source} · ${m.skill}`;
+      return `skill · ${m.source}`;
     case "plugin":
       return `plugin · ${m.pluginId}${v}`;
     case "npm-global":
@@ -507,6 +510,7 @@ function renderPhase1Rows(
   log: (msg: string) => void,
   baseline: import("../installer.js").BaselineReport,
   verbose = false,
+  withEcc = false,
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
@@ -556,15 +560,17 @@ function renderPhase1Rows(
       phase1Row(
         "rules",
         cats.rules.length,
-        "coding · git/PR · tests · ship checklist · MCP policy (common + per-track)",
+        "coding · git/PR · tests · ship checklist · MCP policy",
         cats.rules,
       );
     }
     if (cats.agents.length > 0) {
+      // v26.63.3 (clarify H3): SOD jargon 보강 — independent verifier 명시.
+      // v26.63.3 (distill H2): "Without ECC plugin..." 반복 제거 — section footer 통합.
       phase1Row(
         "agents",
         cats.agents.length,
-        "SOD reviewer (opus) + 3 base. Without ECC plugin: code/security-reviewer cherry-pick fallback (up to 4)",
+        "SOD reviewer (opus, independent verifier) + 3 base",
         cats.agents,
       );
     }
@@ -572,22 +578,18 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · gate-check (6-Gate order) · spec-drift · agentshield (security) etc.",
+        "session-start · gate-check (6-Gate order) · spec-drift · agentshield (security)",
         cats.hooks,
       );
     }
     if (cats.commands > 0) {
-      phase1Row(
-        "commands",
-        cats.commands,
-        "uzys-harness option: /uzys:* (7) · Without ECC plugin: /ecc:* cherry-pick fallback (3)",
-      );
+      phase1Row("commands", cats.commands, "uzys-harness option: /uzys:* (7)");
     }
     if (cats.skills.length > 0) {
       phase1Row(
         "skills",
         cats.skills.length,
-        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified) · Without ECC plugin: cherry-pick fallback (up to 8)",
+        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)",
         cats.skills,
       );
     }
@@ -616,6 +618,15 @@ function renderPhase1Rows(
         `${baseline.envFiles.mcpAllowlist.length} servers (D35 opt-in gate)`,
       ),
     );
+  }
+  // v26.63.3 (distill H2): ECC fallback hint — Templates section 마지막에 통합 표시.
+  //   withEcc=true (ECC plugin opt-in) 사용자에게는 hint 미표시.
+  if (!withEcc && baseline.categories) {
+    log("");
+    log(
+      `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
+    );
+    log(`  ${c.dim("·")} ${c.dim("Use --with-ecc to install ECC plugin instead")}`);
   }
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));
@@ -682,7 +693,8 @@ function formatOptions(spec: InstallSpec): string {
   if (spec.options.withAddyAgentSkills) flags.push("addy-agent-skills");
   if (spec.options.withUzysHarness) flags.push("uzys-harness");
   if (spec.options.withSuperpowers) flags.push("superpowers");
-  return flags.length > 0 ? flags.join(", ") : c.dim("(defaults only)");
+  // v26.63.3 (clarify H1): "(defaults only)" 모호 → "(none added)" 명료.
+  return flags.length > 0 ? flags.join(", ") : c.dim("(none added)");
 }
 
 /**
