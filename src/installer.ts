@@ -320,7 +320,13 @@ export function runInstall(ctx: InstallContext): InstallReport {
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
   if (spec.cli.includes("codex")) {
-    codex = runCodexTransform({ harnessRoot, projectDir });
+    // v26.57.0 (ADR-018) — withUzysHarness gating 을 codex transform 에도 전달.
+    // .agents/skills/uzys-* + .codex/prompts/uzys-* 도 uzys-harness 없으면 생성 안 함.
+    codex = runCodexTransform({
+      harnessRoot,
+      projectDir,
+      withUzysHarness: spec.options.withUzysHarness,
+    });
     // Codex global opt-in (D16): only when user explicitly enabled at least one flag
     if (
       spec.options.withCodexSkills ||

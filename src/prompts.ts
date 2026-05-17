@@ -188,8 +188,12 @@ export const defaultPrompts: Prompts = {
       const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
       groups[header] = items;
     }
+    // v26.57.0 — viewport scroll 시 selected indicator 가 viewport 외 자산은 안 보임 (clack 한계).
+    // 카테고리 헤더 [N/M ✓ default] 카운트로 카테고리 단위 인지. 32+ 항목 다 보려면 터미널 height 30+ 권장.
+    const totalDefault = initialSet.size;
+    const totalItems = Object.values(groups).reduce((sum, list) => sum + list.length, 0);
     const result = await groupMultiselect({
-      message: `Step ${step.current}/${step.total} — What will be installed (Space to toggle, Enter to confirm. ESC to go back. ✓ default = preset 추천):`,
+      message: `Step ${step.current}/${step.total} — What will be installed  (default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back. 터미널 height 30+ 권장):`,
       options: groups,
       initialValues: [...initialChecked],
       required: false,

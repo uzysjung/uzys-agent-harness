@@ -241,17 +241,39 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("creates AGENTS.md + .codex/ alongside .claude/", () => {
+  it("creates AGENTS.md + .codex/ alongside .claude/ (uzys-harness 켰을 때 skill 6, v26.57.0 ADR-018)", () => {
+    const baseSpec = buildSpec(["tooling"], projectDir);
     const report = runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: { ...buildSpec(["tooling"], projectDir), cli: ["claude", "codex"] },
+      spec: {
+        ...baseSpec,
+        cli: ["claude", "codex"],
+        options: { ...baseSpec.options, withUzysHarness: true },
+      },
     });
     expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(report.codex).not.toBeNull();
     expect(report.codex?.skillFiles).toHaveLength(6);
+  });
+
+  it("v26.57.0 (ADR-018) — codex + withUzysHarness=false → skillFiles + promptFiles 0", () => {
+    const report = runInstall({
+      runExternal: NO_EXTERNAL,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: { ...buildSpec(["tooling"], projectDir), cli: ["claude", "codex"] },
+    });
+    // baseline 은 그대로 생성
+    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
+    // uzys 산출물은 빠짐
+    expect(report.codex?.skillFiles).toEqual([]);
+    expect(report.codex?.promptFiles).toEqual([]);
+    expect(existsSync(join(projectDir, ".codex/prompts"))).toBe(false);
+    expect(existsSync(join(projectDir, ".agents/skills/uzys-spec"))).toBe(false);
   });
 });
