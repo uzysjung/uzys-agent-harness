@@ -13,27 +13,46 @@
 ```bash
 # in your project directory:
 npx -y github:uzysjung/uzys-claude-harness
-# → interactive 5-step wizard (since v26.47.0):
-#     1. Track    (preset: csr-supabase, ssr-nextjs, ...)
-#     2. Options  (grouped by category + [source] labels; v26.45.0+)
-#     3. CLI      (claude / codex / opencode)
-#     4. Assets   (32+ external assets with preset-recommended ✓ pre-check; v26.47.0+)
-#     5. Confirm
-#   ESC at step 2-4 = back to previous (wizard back nav, v26.46.0+)
-#   For /uzys:* 6-gate slash commands, check 'uzys-harness 6-Gate workflow' in step 2
-#   (v26.44.0+ BREAKING — was auto-installed on dev tracks before).
+# → interactive 3-step wizard (since v26.54.0):
+#     1/3. Tracks   (preset: csr-supabase, ssr-nextjs, ...)
+#     2/3. CLI      (claude / codex / opencode)
+#     3/3. What will be installed  ← single all-in-one group multiselect
+#          ━━ Frontend / Backend / Data / Business / Dev Tools / Workflow / ECC ━━
+#          Category headers show [N/M ✓ default] count of preset-recommended assets
+#   ESC at step 2/3 = silent back to previous (no "Cancelled" strikethrough)
+#   ESC at step 1 = exit
+#
+# IMPORTANT (v26.55.0+, ADR-016 BREAKING):
+#   ECC cherry-pick (code-reviewer / security-reviewer / continuous-learning-v2 /
+#   eval-harness / python-* / commands/ecc / etc.) is now opt-in. Default install
+#   ships only first-party assets. Check `ecc-plugin` in step 3 to include them.
+#
+# IMPORTANT (v26.56.0+, ADR-017 BREAKING):
+#   Codex `~/.codex/prompts/uzys-*.md` global copy now requires BOTH
+#   `cli=codex` AND `withUzysHarness`. Previously cli=codex alone triggered it,
+#   which left Claude `.claude/commands/uzys/` missing → /uzys-spec asymmetry.
+#   Migration: check `uzys-harness 6-Gate workflow` in step 3, or pass
+#   `--with-codex-prompts` for legacy behavior.
 
-# Non-interactive (CI / scripted):
+# Non-interactive (CI / scripted) — use the `install` subcommand:
+#   npx -y github:uzysjung/uzys-claude-harness install --track <NAME>
 #   --with <asset-id>    : force-include external asset (repeatable)
 #   --without <asset-id> : force-exclude from preset recommendation (repeatable)
-#   --with-uzys-harness  : opt-in 6-Gate slash commands (v26.44.0+)
-#   --no-codex-prompts   : opt-out Codex global prompts (v26.46.0+, cli=codex default ON)
+#   --with-uzys-harness  : opt-in 6-Gate slash commands (v26.44.0+ BREAKING)
+#   --with-ecc           : opt-in ECC cherry-pick agents/skills/commands (v26.55.0+ BREAKING)
+#   --with-codex-prompts : legacy force-on Codex global prompts (v26.56.0+ override)
+#   --no-codex-prompts   : opt-out Codex global prompts
 
 # then start Claude Code:
 claude
 > /uzys:spec    # define what you're building
 > /uzys:auto    # run the full pipeline (Plan → Build → Test → Review → Ship)
 ```
+
+> **Wizard vs `install` subcommand**: the wizard is the no-subcommand path
+> (`claude-harness`). The `install` subcommand is **non-interactive only** and
+> requires `--track`. If you accidentally run `claude-harness install` without
+> `--track`, the error message points you back to the wizard form.
 
 Tracks available in the prompt: `csr-supabase`, `csr-fastify`, `csr-fastapi`, `ssr-nextjs`, `ssr-htmx`, `data`, `executive`, `tooling`, `full`, `project-management`, `growth-marketing` — see [Tracks](#tracks-full-reference).
 
@@ -191,24 +210,30 @@ npx -y github:uzysjung/uzys-claude-harness
 
 Use this when you know upfront you need multiple tracks. Faster than two separate runs.
 
-### Optional — install ECC plugin project-scoped
+### Optional — install ECC plugin + cherry-pick (v26.55.0+ BREAKING)
 
-In an **interactive terminal** (or `curl | bash` — works via `/dev/tty`), the installer asks:
+ECC is fully opt-in since v26.55.0 (ADR-016). Two layers:
 
-```
-[ECC] Install ECC plugin project-scoped (copy)? [y/N]
-[ECC] Prune unused items (keep 89 curated)? [y/N]
-```
+**Layer A — ECC marketplace plugin** (`ecc@ecc` from `affaan-m/everything-claude-code`). Check `ecc-plugin` in step 3, or `--with-ecc` for non-interactive.
 
-Answering `y` to both copies [Everything-Claude-Code](https://github.com/affaan-m/everything-claude-code) to `.claude/local-plugins/ecc/` and prunes ~228 unused items. Use it via:
+**Layer B — ECC cherry-pick** (agents/skills/commands curated into this repo's `templates/`). Same flag. When `withEcc=true`, the following ship to your `.claude/`:
+
+| Kind | Items |
+|---|---|
+| Agents | `code-reviewer`, `security-reviewer`, `silent-failure-hunter`, `build-error-resolver` |
+| Skills | `continuous-learning-v2`, `strategic-compact`, `deep-research`, `eval-harness`, `verification-loop`, `agent-introspection-debugging`, `e2e-testing`, `python-patterns`, `python-testing` |
+| Commands | `/ecc:*` |
+
+Without `--with-ecc` (default), only first-party agents/skills are installed: `reviewer`, `data-analyst`, `strategist`, `plan-checker`, `north-star`, `gh-issue-workflow`, `ui-visual-review`.
+
+For the project-scoped plugin install option:
 
 ```bash
 claude --plugin-dir .claude/local-plugins/ecc
-# or alias in ~/.zshrc:
-# alias claude-ecc='claude --plugin-dir .claude/local-plugins/ecc'
+# or alias: alias claude-ecc='claude --plugin-dir .claude/local-plugins/ecc'
 ```
 
-The global `~/.claude/` is never touched.
+The global `~/.claude/` is never touched (D16 — global protection).
 
 ### Interactive prompts — what asks, when, how to skip
 

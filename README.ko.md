@@ -13,27 +13,46 @@
 ```bash
 # 프로젝트 디렉토리에서:
 npx -y github:uzysjung/uzys-claude-harness
-# → 인터랙티브 5-step wizard (v26.47.0+):
-#     1. Track    (preset: csr-supabase, ssr-nextjs, ...)
-#     2. Options  (카테고리별 그룹 + [출처] 라벨, v26.45.0+)
-#     3. CLI      (claude / codex / opencode)
-#     4. Assets   (32+ external asset, preset 추천 ✓ 미리 체크; v26.47.0+)
-#     5. Confirm
-#   step 2-4 에서 ESC = 이전 단계로 (wizard back nav, v26.46.0+)
-#   /uzys:* 6-gate 슬래시는 step 2 에서 'uzys-harness 6-Gate workflow' 체크
-#   (v26.44.0+ BREAKING — 이전엔 dev 트랙 자동 설치).
+# → 인터랙티브 3-step wizard (v26.54.0+):
+#     1/3. Tracks   (preset: csr-supabase, ssr-nextjs, ...)
+#     2/3. CLI      (claude / codex / opencode)
+#     3/3. What will be installed  ← 한 화면 all-in-one group multiselect
+#          ━━ Frontend / Backend / Data / Business / Dev Tools / Workflow / ECC ━━
+#          카테고리 헤더에 [N/M ✓ default] 카운트 표시 (preset 추천 자산)
+#   step 2/3 ESC = silent 이전 단계 (메시지 없음)
+#   step 1 ESC = 종료
+#
+# 중요 (v26.55.0+, ADR-016 BREAKING):
+#   ECC cherry-pick (code-reviewer / security-reviewer / continuous-learning-v2 /
+#   eval-harness / python-* / commands/ecc 등) 가 opt-in. Default install 시 본
+#   프로젝트 자산만 포함. step 3 에서 `ecc-plugin` 체크 시 함께 설치.
+#
+# 중요 (v26.56.0+, ADR-017 BREAKING):
+#   Codex `~/.codex/prompts/uzys-*.md` 글로벌 복사는 이제 `cli=codex` + 
+#   `withUzysHarness` 둘 다 필요. 이전엔 cli=codex 만으로 자동 ON 이라
+#   Claude `.claude/commands/uzys/` 누락 시 /uzys-spec 불일치 발생.
+#   Migration: step 3 에서 `uzys-harness 6-Gate workflow` 체크, 또는 legacy
+#   동작 원하면 `--with-codex-prompts` 명시.
 
-# Non-interactive (CI / 스크립트):
+# Non-interactive (CI / 스크립트) — `install` subcommand:
+#   npx -y github:uzysjung/uzys-claude-harness install --track <NAME>
 #   --with <asset-id>    : external asset 강제 포함 (repeatable)
 #   --without <asset-id> : preset 추천에서 제외 (repeatable)
-#   --with-uzys-harness  : 6-Gate slash commands opt-in (v26.44.0+)
-#   --no-codex-prompts   : Codex 글로벌 prompts opt-out (v26.46.0+, cli=codex 시 default ON)
+#   --with-uzys-harness  : 6-Gate slash commands opt-in (v26.44.0+ BREAKING)
+#   --with-ecc           : ECC cherry-pick agents/skills/commands opt-in (v26.55.0+ BREAKING)
+#   --with-codex-prompts : Codex 글로벌 prompts 강제 ON (v26.56.0+ legacy override)
+#   --no-codex-prompts   : Codex 글로벌 prompts 강제 OFF
 
 # Claude Code 시작:
 claude
 > /uzys:spec    # 만들 것 정의
 > /uzys:auto    # 전체 파이프라인 (Plan → Build → Test → Review → Ship) 실행
 ```
+
+> **Wizard vs `install` subcommand**: wizard 는 subcommand 없는 경로
+> (`claude-harness`). `install` subcommand 는 **non-interactive 전용** —
+> `--track` 필수. `claude-harness install` 만 입력 시 에러 메시지에 wizard
+> 진입 안내가 함께 출력됩니다.
 
 프롬프트에서 선택 가능한 Track: `csr-supabase`, `csr-fastify`, `csr-fastapi`, `ssr-nextjs`, `ssr-htmx`, `data`, `executive`, `tooling`, `full`, `project-management`, `growth-marketing` — [Tracks](#tracks-) 참조.
 
@@ -187,25 +206,30 @@ npx -y github:uzysjung/uzys-claude-harness
 
 처음부터 여러 Track 필요한 걸 알면 이게 가장 빠름 (2회 setup보다 빠름).
 
-### Optional — ECC plugin 프로젝트 스코프 설치
+### Optional — ECC plugin + cherry-pick (v26.55.0+ BREAKING)
 
-**대화형 터미널** (또는 `curl | bash` — `/dev/tty`로 동작) 환경에서 인터랙티브 인스톨러가 묻는다:
+ECC 는 v26.55.0 부터 완전 opt-in (ADR-016). 두 layer:
 
-```
-[ECC] Plugin 프로젝트 스코프 설치 (선택사항)
-[ECC] 설치(copy) 진행? [y/N]
-[ECC] 불필요 항목 제거(prune)? [y/N]
-```
+**Layer A — ECC marketplace plugin** (`ecc@ecc` from `affaan-m/everything-claude-code`). Step 3 에서 `ecc-plugin` 체크, 또는 비대화형 `--with-ecc`.
 
-둘 다 `y`면 [Everything-Claude-Code](https://github.com/affaan-m/everything-claude-code)를 `.claude/local-plugins/ecc/`로 복사하고 ~228 항목 prune. 사용:
+**Layer B — ECC cherry-pick** (이 repo 의 `templates/` 에 큐레이트된 agents/skills/commands). 동일 플래그. `withEcc=true` 시 다음이 `.claude/` 에 설치:
+
+| 종류 | 항목 |
+|---|---|
+| Agents | `code-reviewer`, `security-reviewer`, `silent-failure-hunter`, `build-error-resolver` |
+| Skills | `continuous-learning-v2`, `strategic-compact`, `deep-research`, `eval-harness`, `verification-loop`, `agent-introspection-debugging`, `e2e-testing`, `python-patterns`, `python-testing` |
+| Commands | `/ecc:*` |
+
+`--with-ecc` 없이 default install 시: 본 프로젝트 자산만 (`reviewer`, `data-analyst`, `strategist`, `plan-checker`, `north-star`, `gh-issue-workflow`, `ui-visual-review`).
+
+프로젝트 스코프 plugin 설치 옵션 사용:
 
 ```bash
 claude --plugin-dir .claude/local-plugins/ecc
-# 또는 ~/.zshrc:
-# alias claude-ecc='claude --plugin-dir .claude/local-plugins/ecc'
+# 또는 alias: alias claude-ecc='claude --plugin-dir .claude/local-plugins/ecc'
 ```
 
-글로벌 `~/.claude/`는 절대 무영향.
+글로벌 `~/.claude/` 는 절대 무영향 (D16 — 글로벌 영역 보호).
 
 ### 인터랙티브 프롬프트 — 무엇을 묻고, 언제 뜨고, 어떻게 skip 하나
 
