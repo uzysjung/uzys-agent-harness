@@ -129,9 +129,9 @@ export const defaultPrompts: Prompts = {
 
   selectTracks: async (initial) => {
     // v26.58.1 — maxItems 로 viewport scroll. cursor follow + ↕ ... indicator (clack limitOptions).
-    // 단 11 tracks 라 width 30 미만 환경에서만 의미. 그래도 default 안전망.
+    // v26.63.0 — 5-step 통합 (1: tracks · 2: cli · 3: install targets · 4: confirm · 5: installing).
     const result = await multiselect({
-      message: "Step 1/3 — Select Track(s) (Space to toggle, Enter to confirm):",
+      message: "Step 1/5 — Select Track(s) (Space to toggle, Enter to confirm):",
       options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
       ...(initial ? { initialValues: initial } : {}),
       maxItems: viewportItems(11),
@@ -142,9 +142,10 @@ export const defaultPrompts: Prompts = {
 
   selectCli: async (initial) => {
     // v0.7.0 — multiselect (3 base 체크박스). default ["claude"]. required: true.
+    // v26.63.0 — 5-step 통합.
     const initialValues: CliBase[] = initial && initial.length > 0 ? [...initial] : ["claude"];
     const result = await multiselect({
-      message: "Step 2/3 — Target CLI(s) (Space to toggle, Enter to confirm. ESC to go back):",
+      message: "Step 2/5 — Target CLI(s) (Space to toggle, Enter to confirm. ESC to go back):",
       options: [
         { value: "claude" as const, label: CLI_BASE_LABELS.claude },
         { value: "codex" as const, label: CLI_BASE_LABELS.codex },
