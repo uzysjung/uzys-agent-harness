@@ -5,6 +5,7 @@ import { parseCliTargets, targetsInclude } from "../cli-targets.js";
 import { assetRow, c, infoRow, phaseHeader, sectionHeader, status } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
+import { recommendedExternalAssets } from "../preset-recommend.js";
 import { type CliTargets, type InstallSpec, isTrack, type Track } from "../types.js";
 
 export interface InstallOptions {
@@ -255,6 +256,15 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   log(infoRow("TRACKS", spec.tracks.join(", ")));
   log(infoRow("CLI", spec.cli.join(" · ")));
   log(infoRow("OPTIONS", formatOptions(spec)));
+  // v26.62.4 — install header 에 최종 자산 list 표시 (Step 3 의 wizard 결과 가시화).
+  //   userOverride 가 적용된 후 실제 install 될 자산 카운트 + 카테고리별 nested list.
+  const finalAssets = computeFinalAssets(spec);
+  if (finalAssets.length > 0) {
+    log(infoRow("ASSETS", `${finalAssets.length} selected`));
+    for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
+      log(`              ${c.dim(`· ${cat}:`)} ${ids.join(", ")}`);
+    }
+  }
   log("");
 
   // ━━━ Phase 1 — Templates (또는 Update Mode) ━━━
@@ -599,6 +609,32 @@ function normalizeRepeatable(value: string | string[] | undefined): string[] {
   if (!value) return [];
   const arr = Array.isArray(value) ? value : [value];
   return [...new Set(arr.map((s) => s.trim()).filter((s) => s.length > 0))];
+}
+
+/**
+ * v26.62.4 — preset recommended + userOverride 적용 후 최종 자산 id list.
+ * install header 의 ASSETS row 와 (향후) formatSummary 통합 위치.
+ */
+function computeFinalAssets(spec: InstallSpec): string[] {
+  const recommended = new Set(recommendedExternalAssets(spec.tracks));
+  if (spec.userOverride) {
+    for (const id of spec.userOverride.forceExclude) recommended.delete(id);
+    for (const id of spec.userOverride.forceInclude) recommended.add(id);
+  }
+  return [...recommended].sort();
+}
+
+/** v26.62.4 — 자산 id 를 카테고리별로 묶어 정렬된 entries 반환 (출력 hierarchy 용). */
+function groupAssetsByCategory(assetIds: ReadonlyArray<string>): Array<[string, string[]]> {
+  const map = new Map<string, string[]>();
+  for (const id of assetIds) {
+    const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+    const cat = asset?.category ?? "other";
+    const list = map.get(cat) ?? [];
+    list.push(id);
+    map.set(cat, list);
+  }
+  return [...map.entries()];
 }
 
 function formatOptions(spec: InstallSpec): string {
