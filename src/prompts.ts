@@ -44,10 +44,13 @@ export interface Prompts {
   /**
    * v26.54.0 — Step 3 (all-in-one). EXTERNAL_ASSETS + 표시-대상 OPTION_DEFS 를
    * 카테고리 그룹화. 추천 ✓ pre-check. ESC → null (silent back).
+   * v26.61.0 — recap (tracks/cli) 추가. alt screen 안에서 동작 — terminal scrollback
+   *   본질 차단 → wizard scroll 시 cursor highlight 항상 visible.
    */
   selectInstallTargets: (
     initialChecked: ReadonlyArray<InstallTargetId>,
     step: { current: number; total: number },
+    recap?: { tracks: ReadonlyArray<Track>; cli: CliTargets },
   ) => Promise<ReadonlyArray<InstallTargetId> | null>;
 }
 
@@ -175,7 +178,7 @@ export const defaultPrompts: Prompts = {
     return isCancel(result) ? null : result;
   },
 
-  selectInstallTargets: async (initialChecked, step) => {
+  selectInstallTargets: async (initialChecked, step, recap) => {
     // v26.54.0 — Step 3 all-in-one. EXTERNAL_ASSETS + VISIBLE_OPTION_DEFS 카테고리 그룹화.
     // v26.56.0 (F4) — 카테고리 헤더에 selected count [N/M ✓] 표시. viewport 외 selected 가시화.
     //   clack 한계: dynamic count update X. 초기 selected count 만 표시 (가시성 ~80%).
@@ -205,19 +208,34 @@ export const defaultPrompts: Prompts = {
       groups[header] = items;
     }
     // v26.58.1 — maxItems 로 viewport scroll fix. cursor 가 항상 visible viewport 안에 있도록
-    // clack 의 limitOptions 가 자동 follow + ↕ ... indicator. 이전 'height 30+ 권장' 한계 해제.
+    // clack 의 limitOptions 가 자동 follow + ↕ ... indicator.
     // Note: clack 1.3 type def 가 GroupMultiSelectOptions 에 maxItems 누락. runtime 은 정상
     //   (limitOptions 가 t.maxItems 참조). 향후 clack upgrade 시 cast 제거.
     const totalDefault = initialSet.size;
     const totalItems = Object.values(groups).reduce((sum, list) => sum + list.length, 0);
+    // v26.61.0 — recap (Step 1, 2 결과) message 안 한 줄 표시. alt screen 안에서 동작하므로
+    //   사용자가 wizard 중 이전 step 출력을 직접 못 봄. recap 으로 의사결정 컨텍스트 보강.
+    const recapLine = recap
+      ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}\n  `
+      : "";
     const groupOpts = {
-      message: `Step ${step.current}/${step.total} — What will be installed  (default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back):`,
+      message: `Step ${step.current}/${step.total} — What will be installed\n  ${recapLine}default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back`,
       options: groups,
       initialValues: [...initialChecked],
       maxItems: viewportItems(totalItems),
       required: false,
     } as Parameters<typeof groupMultiselect>[0];
-    const result = await groupMultiselect(groupOpts);
-    return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
+    // v26.61.0 — alternate screen buffer (vim/htop 패턴):
+    //   - 진입 시 별도 buffer → terminal scrollback 자체 차단 → 마우스 휠 scroll 영향 없음
+    //   - clack 의 viewport scroll (maxItems + limitOptions) 만 작동 → cursor 항상 visible
+    //   - 종료 시 원래 buffer 복원 → intro / Phase 0 / Step 1·2 결과 다시 보임
+    //   - try/finally 로 ESC/Cancel/Ctrl+C 시에도 cleanup 보장
+    process.stdout.write("\x1b[?1049h");
+    try {
+      const result = await groupMultiselect(groupOpts);
+      return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
+    } finally {
+      process.stdout.write("\x1b[?1049l");
+    }
   },
 };
