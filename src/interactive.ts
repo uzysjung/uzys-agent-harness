@@ -202,7 +202,11 @@ export async function runInteractive(
       const finalCli = cli!;
       const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
       const options = applyOptionRules(toOptionFlags(optionKeys));
-      if (finalCli.includes("codex")) {
+      // v26.56.0 (ADR-017, BREAKING) — codexPrompts 자동 활성화 조건 변경.
+      // 기존 (ADR-012): cli=codex → 자동 ON
+      // 신규: cli=codex && withUzysHarness → 자동 ON
+      // 이유: uzys-* 슬래시가 uzys-harness 의 일부. withUzysHarness=false 면 codex 글로벌 복사 의미 X.
+      if (finalCli.includes("codex") && options.withUzysHarness) {
         options.withCodexPrompts = true;
       }
       const userOverride =
