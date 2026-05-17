@@ -158,3 +158,11 @@ function visibleLength(s: string): number {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape stripping requires \x1b
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
+
+/**
+ * v26.63.2 — Pad to fixed display width (ANSI-aware). spacing scale 정렬 용.
+ */
+export function padDisplay(s: string, width: number): string {
+  const visible = visibleLength(s);
+  return visible >= width ? s : s + " ".repeat(width - visible);
+}
