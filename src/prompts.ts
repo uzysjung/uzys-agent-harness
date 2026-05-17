@@ -214,14 +214,15 @@ export const defaultPrompts: Prompts = {
         for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
           items.push({
             value: `option:${o.key}`,
-            label: `${o.label}  [${o.source}]`,
+            // v26.62.3 — group header 와 옵션 사이 시각 hierarchy 강화. label prefix 4 space.
+            label: `    ${o.label}  [${o.source}]`,
             hint: o.hint,
           });
         }
         for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
           items.push({
             value: `asset:${a.id}`,
-            label: `${a.id}  [${a.source}]`,
+            label: `    ${a.id}  [${a.source}]`,
             hint: a.description,
           });
         }
