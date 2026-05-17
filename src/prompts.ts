@@ -2,7 +2,16 @@
 // no transformation logic — interactive.ts owns the business rules. This file
 // is excluded from coverage in vitest.config.ts (justification at exclude line).
 
-import { cancel, confirm, intro, isCancel, multiselect, outro, select } from "@clack/prompts";
+import {
+  cancel,
+  confirm,
+  groupMultiselect,
+  intro,
+  isCancel,
+  multiselect,
+  outro,
+  select,
+} from "@clack/prompts";
 import { CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
@@ -170,13 +179,15 @@ export const defaultPrompts: Prompts = {
   },
 
   selectInstallTargets: async (initialChecked, step, recap) => {
-    // v26.62.0 — 3-page category paginate. 사유:
-    //   1. clack GroupMultiSelectOptions 에 maxItems 미지원 (옵션 type 정의 + class
-    //      implementation 모두 누락) → groupMultiselect 의 list 가 terminal 보다 길면
-    //      cursor highlight viewport 밖으로 빠지는 본질적 한계.
-    //   2. multiselect 는 maxItems 정상 지원 → page 안에서도 viewport scroll OK.
-    //   3. 한 page 당 ~10-20 옵션 묶음 (사용자 의도 "잘게 쪼개기 회피" — 3 page 만).
-    //   4. label prefix 로 카테고리 시각 구분 (group header 대체).
+    // v26.62.2 — groupMultiselect 복귀 + 3 page paginate.
+    //   v26.62.1 에서 multiselect + disabled separator 시도 → clack 가 disabled option 에
+    //   체크박스 강제 + dim/strikethrough 효과 → 카테고리 헤더가 "옵션 같지만 선택 불가"
+    //   처럼 보여 사용자 보고. groupMultiselect 의 group header 는 라이브러리에서 본래
+    //   설명 라인 형태로 자연 표시 → 시각 명료.
+    //
+    //   maxItems 한계 (GroupMultiSelectPrompt 미지원) 는 page 묶음으로 cover:
+    //   한 page 안 옵션 ≤ ~30 → 사용자 iTerm2 (30+ rows) 환경에서 fit. 매우 작은 terminal
+    //   (< 25 rows) 한계는 follow-up.
     //
     // 페이지 묶음:
     //   Page 1: Dev domain     — frontend + backend + dev-tools + data
@@ -195,77 +206,73 @@ export const defaultPrompts: Prompts = {
       { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
     ];
 
-    // v26.62.1 — 카테고리 별 disabled separator option 삽입. clack `disabled: true` 는
-    //   "visible but cannot be selected" + cursor navigation 시 skip → group header 시각 유지.
-    //   selectable items 만 cursor 가 자연스럽게 이동.
-    const buildPageOptions = (cats: ReadonlyArray<Category>) => {
-      const items: Array<{ value: string; label: string; hint?: string; disabled?: boolean }> = [];
+    const buildPageGroups = (cats: ReadonlyArray<Category>) => {
+      const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
+      const flatItems: Array<{ value: string; label: string; hint?: string }> = [];
       for (const cat of cats) {
-        const catItems: Array<{ value: string; label: string; hint?: string }> = [];
+        const items: Array<{ value: string; label: string; hint?: string }> = [];
         for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
-          catItems.push({
+          items.push({
             value: `option:${o.key}`,
-            label: `  ${o.label}  [${o.source}]`,
+            label: `${o.label}  [${o.source}]`,
             hint: o.hint,
           });
         }
         for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
-          catItems.push({
+          items.push({
             value: `asset:${a.id}`,
-            label: `  ${a.id}  [${a.source}]`,
+            label: `${a.id}  [${a.source}]`,
             hint: a.description,
           });
         }
-        if (catItems.length === 0) continue;
-        const selectedInCat = catItems.filter((it) => initialSet.has(it.value)).length;
-        items.push({
-          value: `__sep_${cat}`,
-          label: `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${catItems.length} ✓ default]`,
-          disabled: true,
-        });
-        items.push(...catItems);
+        if (items.length === 0) continue;
+        const selectedInCat = items.filter((it) => initialSet.has(it.value)).length;
+        const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
+        groups[header] = items;
+        flatItems.push(...items);
       }
-      return items;
+      return { groups, flatItems };
     };
 
     const recapLine = recap
       ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}`
       : "";
 
-    // v26.61.0 — alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
+    // alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
     process.stdout.write("\x1b[?1049h");
     try {
       let pageIdx = 0;
       while (pageIdx < pages.length) {
         const page = pages[pageIdx];
         if (!page) break;
-        const items = buildPageOptions(page.cats);
-        const selectedNow = items.filter((it) => collected.has(it.value)).map((it) => it.value);
-        const pageDefault = items.filter((it) => initialSet.has(it.value)).length;
+        const { groups, flatItems } = buildPageGroups(page.cats);
+        const selectedNow = flatItems.filter((it) => collected.has(it.value)).map((it) => it.value);
+        const pageDefault = flatItems.filter((it) => initialSet.has(it.value)).length;
         const totalSelected = collected.size;
         const message = [
           `Step ${step.current}/${step.total}  ·  Page ${pageIdx + 1}/${pages.length}  ·  ${page.label}`,
           recapLine ? `  ${recapLine}` : "",
-          `  Selected so far: ${totalSelected} items  ·  This page default ✓ ${pageDefault}/${items.length}`,
+          `  Selected so far: ${totalSelected} items  ·  This page default ✓ ${pageDefault}/${flatItems.length}`,
           "  Space toggle · Enter → next · ESC → prev",
         ]
           .filter(Boolean)
           .join("\n");
 
-        const result = await multiselect({
+        const groupOpts = {
           message,
-          options: items,
+          options: groups,
           initialValues: selectedNow,
-          maxItems: viewportItems(items.length),
           required: false,
-        });
+          selectableGroups: false,
+        } as Parameters<typeof groupMultiselect>[0];
+        const result = await groupMultiselect(groupOpts);
         if (isCancel(result)) {
           if (pageIdx === 0) return null; // first page ESC → Step 2 back
           pageIdx--; // prev page
           continue;
         }
         // update collected: remove page items + add the new selection
-        for (const it of items) collected.delete(it.value);
+        for (const it of flatItems) collected.delete(it.value);
         for (const v of result as ReadonlyArray<string>) collected.add(v);
         pageIdx++;
       }
