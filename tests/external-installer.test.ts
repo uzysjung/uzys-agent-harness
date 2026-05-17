@@ -115,7 +115,9 @@ describe("runExternalInstall — method dispatch", () => {
 
   // v26.39.5 — multi-CLI 콤마 구분 (사용자 보고 #3)
   // v26.39.6 — `claude` → `claude-code` 매핑 (skills CLI 1.5.5 valid name)
-  it("skill with multi-CLI passes mapped --agent <comma-list>", () => {
+  // v26.55.1 — skills cli 1.5.7 부터 repeatable `--agent` 만 지원 (comma 폐지).
+  //   "Invalid agents: claude-code,codex,opencode" exit 1 regression.
+  it("skill with multi-CLI passes repeatable --agent (v26.55.1)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       {
@@ -130,7 +132,11 @@ describe("runExternalInstall — method dispatch", () => {
       "add",
       "owner/repo",
       "--agent",
-      "claude-code,codex,opencode",
+      "claude-code",
+      "--agent",
+      "codex",
+      "--agent",
+      "opencode",
       "--yes",
     ]);
   });
