@@ -286,7 +286,8 @@ export function formatSummary(spec: InstallSpec): string {
   const opts = (Object.keys(spec.options) as Array<keyof OptionFlags>)
     .filter((k) => spec.options[k])
     .map((k) => k.replace(/^with/, "").toLowerCase());
-  const optsLabel = opts.length > 0 ? opts.join(", ") : "(defaults only)";
+  // v26.63.3 (clarify H1): "(defaults only)" 모호 → "(none added)" 명료.
+  const optsLabel = opts.length > 0 ? opts.join(", ") : "(none added)";
   const lines = [
     `Tracks:    ${spec.tracks.join(", ")}`,
     `Options:   ${optsLabel}`,
