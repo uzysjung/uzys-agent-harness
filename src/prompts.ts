@@ -195,23 +195,35 @@ export const defaultPrompts: Prompts = {
       { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
     ];
 
+    // v26.62.1 — 카테고리 별 disabled separator option 삽입. clack `disabled: true` 는
+    //   "visible but cannot be selected" + cursor navigation 시 skip → group header 시각 유지.
+    //   selectable items 만 cursor 가 자연스럽게 이동.
     const buildPageOptions = (cats: ReadonlyArray<Category>) => {
-      const items: Array<{ value: string; label: string; hint?: string }> = [];
+      const items: Array<{ value: string; label: string; hint?: string; disabled?: boolean }> = [];
       for (const cat of cats) {
+        const catItems: Array<{ value: string; label: string; hint?: string }> = [];
         for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
-          items.push({
+          catItems.push({
             value: `option:${o.key}`,
-            label: `${CATEGORY_TITLES[cat].split(" ")[0]} ${o.label}  [${o.source}]`,
+            label: `  ${o.label}  [${o.source}]`,
             hint: o.hint,
           });
         }
         for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
-          items.push({
+          catItems.push({
             value: `asset:${a.id}`,
-            label: `${CATEGORY_TITLES[cat].split(" ")[0]} ${a.id}  [${a.source}]`,
+            label: `  ${a.id}  [${a.source}]`,
             hint: a.description,
           });
         }
+        if (catItems.length === 0) continue;
+        const selectedInCat = catItems.filter((it) => initialSet.has(it.value)).length;
+        items.push({
+          value: `__sep_${cat}`,
+          label: `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${catItems.length} ✓ default]`,
+          disabled: true,
+        });
+        items.push(...catItems);
       }
       return items;
     };
