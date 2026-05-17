@@ -99,16 +99,18 @@
 
 ## 4. Agents (자체 + ECC cherry-pick)
 
-| 에이전트 | 모델 | 출처 | 용도 |
-|---------|:-:|------|------|
-| **reviewer** | opus | 자체 | SOD 검증 (5축 리뷰). context fork |
-| **data-analyst** | opus | 자체 | Python/DuckDB/Trino/ML/PySide6 |
-| **strategist** | opus | 자체 | 제안서/DD/PPT/경쟁분석 |
-| **code-reviewer** | sonnet | ECC | 일상 코드 리뷰 (CRITICAL→LOW) |
-| **security-reviewer** | sonnet | ECC | OWASP Top 10 + 시크릿 탐지 |
-| **silent-failure-hunter** | sonnet | ECC | swallowed error / bad fallback 탐지 |
-| **build-error-resolver** | sonnet | ECC | TS/build 에러 fix |
-| **plan-checker** | sonnet | 자체 | docs/plan.md ↔ todo.md ↔ SPEC.md 정합성 |
+> **v26.55.0 BREAKING (ADR-016)**: ECC cherry-pick agents 는 `--with-ecc` 또는 Step 3 의 `ecc-plugin` 토글 시에만 설치. Default install 시 본 프로젝트 자산만.
+
+| 에이전트 | 모델 | 출처 | gating | 용도 |
+|---------|:-:|------|:-:|------|
+| **reviewer** | opus | 자체 | always | SOD 검증 (5축 리뷰). context fork |
+| **data-analyst** | opus | 자체 | always | Python/DuckDB/Trino/ML/PySide6 |
+| **strategist** | opus | 자체 | always | 제안서/DD/PPT/경쟁분석 |
+| **plan-checker** | sonnet | 자체 | dev track | docs/plan.md ↔ todo.md ↔ SPEC.md 정합성 |
+| **code-reviewer** | sonnet | ECC | `--with-ecc` | 일상 코드 리뷰 (CRITICAL→LOW) |
+| **security-reviewer** | sonnet | ECC | `--with-ecc` | OWASP Top 10 + 시크릿 탐지 |
+| **silent-failure-hunter** | sonnet | ECC | `--with-ecc` + dev track | swallowed error / bad fallback 탐지 |
+| **build-error-resolver** | sonnet | ECC | `--with-ecc` + dev track | TS/build 에러 fix |
 
 ---
 

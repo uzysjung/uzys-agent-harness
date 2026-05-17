@@ -7,6 +7,108 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.56.0] — 2026-05-17 (feat: UX cycle — clarity + Codex Prompts uzys coupling, ⚠️ BREAKING)
+
+### BREAKING (ADR-017)
+- `withCodexPrompts` 자동 활성화 조건: `cli=codex` → `cli=codex && withUzysHarness` 둘 다 필요
+  - 이전 (ADR-012): `cli=codex` 만으로 자동 ON → uzys-harness 없으면 Claude `.claude/commands/uzys/` 누락 + Codex `~/.codex/prompts/uzys-*` 만 깔리는 불일치
+  - 신규: 양쪽 슬래시 일관성 보장. `--with-codex-prompts` legacy override 유지
+
+### Added (UX 보강 6 항목, F1~F6)
+- F1: 자산 description 보강 — 10+ 자산 (polars/dask/python-*/find-skills/agent-browser/supabase/postgres/react/web-design/next) + 트랙 hint
+- F2: Phase 1 Templates 카테고리별 한 줄 설명 + names dim (visual hierarchy)
+- F3: Phase 2 result row 간략화 — description 중복 제거, 120 char 안 단일 line
+- F4: Step 3 카테고리 헤더 `[N/M ✓ default]` selected count
+- F5: Codex Prompts ↔ uzys-harness 묶음 (위 BREAKING)
+- F6: `install` subcommand error 에 wizard 진입 안내 추가
+
+### Docs
+- SPEC: `docs/specs/v26-56-ux-cycle.md`
+- ADR-017: `docs/decisions/ADR-017-codex-prompts-uzys-coupling.md` (supersedes ADR-012 부분)
+
+### Test
+- 576 tests pass (3 신규)
+
+## [v26.55.1] — 2026-05-17 (fix: skills cli 1.5.7 multi-agent repeatable, NOT comma)
+
+### Fixed
+- `buildSkillArgs` 의 `--agent claude-code,codex` (comma) → `--agent claude-code --agent codex` (repeatable)
+- skills cli 1.5.7 부터 comma BREAKING (1.5.5 까지 지원) → "Invalid agents" exit 1
+- multi-cli (claude+codex 또는 +opencode) 사용 시 모든 skill 자산 (7개) 100% 실패 복구
+
+## [v26.55.0] — 2026-05-16 (feat: Phase 2 grouped UX + ECC opt-in gating + 자산 설명, ⚠️ BREAKING)
+
+### BREAKING (ADR-016)
+- ECC cherry-pick 16+ 항목을 `withEcc=true` 일 때만 install
+  - Agents: `code-reviewer`, `security-reviewer`, `silent-failure-hunter`, `build-error-resolver`
+  - Skills: `continuous-learning-v2`, `strategic-compact`, `deep-research`, `eval-harness`, `verification-loop`, `agent-introspection-debugging`, `e2e-testing`, `python-patterns`, `python-testing`
+  - Commands: `ecc/`
+  - 이전: default install 시 모두 포함 / 신규: `--with-ecc` 또는 Step 3 의 `ecc-plugin` 토글 시에만
+
+### Added
+- Phase 2 grouped progress UX — external-installer 가 카테고리 순서로 정렬 + install.ts callback 이 `━━ Frontend ━━` 헤더 출력
+- 5 자산 description 보강: impeccable, playwright-skill, ADR, shadcn-ui, ecc-plugin
+- `AssetSpec.withEcc` 필드 추가
+
+### Docs
+- SPEC: `docs/specs/v26-55-ux-and-ecc-removal.md`
+- ADR-016: `docs/decisions/ADR-016-ecc-cherry-pick-gating.md`
+
+### Test
+- 573 tests pass (1 신규 — withEcc 미설정 시 python-* / e2e-testing 제외 검증)
+
+## [v26.54.1] — 2026-05-16 (fix: install failures — skills cli 1.5.7 매핑 + ECC marketplace name)
+
+### Fixed
+- `impeccable`, `playwright-skill`, `shadcn-ui` — skills cli 1.5.7 부터 `--skill <name>` 명시 필수
+- `shadcn-ui`: source `shadcn/ui` 의 실제 skill 이름은 `shadcn` (자산 id 와 다름)
+- `ecc-plugin`: pluginId `everything-claude-code@everything-claude-code` → `ecc@ecc`
+
+## [v26.54.0] — 2026-05-16 (feat: all-in-one installer screen — 3-step wizard, ⚠️ BREAKING)
+
+### BREAKING (ADR-015)
+- 5-step → **3-step wizard** (tracks → cli → install-targets → confirm)
+  - Step 2 (Options) + Step 4 (2-tier asset navigator) → 1 화면 group multiselect 로 흡수
+  - VISIBLE_OPTION_DEFS 9 → 2 (`withTauri`, `withUzysHarness`). 나머지 7 옵션은 EXTERNAL_ASSETS 와 1:1 자산 매핑이라 자산 체크로 흡수
+- ESC = silent back (cancel 메시지 strikethrough 제거). Step 1 ESC 만 exit
+
+### Added
+- `InstallTargetId = option:<key> | asset:<id>` value scheme
+- `selectInstallTargets` 단일 groupMultiselect
+- `splitInstallTargets()` helper
+
+### Removed
+- 4 deprecated prompt 함수: `selectOptionKeys`, `selectExternalAssets`, `selectAssetCategory`, `selectAssetsInCategory`
+
+### Docs
+- SPEC: `docs/specs/v26-54-all-in-one-installer.md`
+- ADR-015: `docs/decisions/ADR-015-all-in-one-installer.md` (supersedes ADR-010 / ADR-013 / ADR-014 부분)
+
+### Test
+- 572 tests pass
+
+## [v26.53.0] — 2026-05-16 (chore: test mock-asset.ts format hotfix)
+
+## [v26.52.0] — 2026-05-16 (feat: Step 4 2-tier category navigator)
+
+### Added
+- Step 4 (External Assets) 2-tier — (a) navigator + (b) sub-prompt
+- `selectAssetCategory` + `selectAssetsInCategory` prompt 함수
+
+### Note
+- v26.54.0 에서 1 화면 통합으로 흡수됨
+
+## [v26.51.0] — 2026-05-16 (chore: CLI flag matrix grouping + --no-codex-prompts hidden bug fix)
+
+### Fixed
+- `--no-codex-prompts` (cac negation) hidden bug — `options.noCodexPrompts` 참조 → `options.codexPrompts: false` 참조
+
+## [v26.50.0] — 2026-05-16 (chore: preset change resets Step 4 + coverage 88 영구 복구)
+
+## [v26.49.0] — 2026-05-15 (fix: unknown asset id validation)
+
+## [v26.48.0] — 2026-05-15 (chore: branch coverage 86 → 87 부분 복구)
+
 ## [v26.47.0] — 2026-05-15 (feat: Phase C full — External Asset 직접 toggle + UserOverride)
 
 ### Added — Phase C 완전판 (Category-based installer)
