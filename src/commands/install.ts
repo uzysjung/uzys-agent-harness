@@ -286,7 +286,9 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
         }
       },
       onAssetResult: (result) => {
-        const meta = result.ok ? formatAssetMeta(result.asset, result.version) : (result.message ?? "failed");
+        const meta = result.ok
+          ? formatAssetMeta(result.asset, result.version)
+          : (result.message ?? "failed");
         log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
       },
     },
