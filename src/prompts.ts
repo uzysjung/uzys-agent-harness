@@ -242,6 +242,8 @@ export const defaultPrompts: Prompts = {
 
     // alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
     process.stdout.write("\x1b[?1049h");
+    let resultIds: ReadonlyArray<InstallTargetId> | null = null;
+    let aborted = false;
     try {
       let pageIdx = 0;
       while (pageIdx < pages.length) {
@@ -269,7 +271,10 @@ export const defaultPrompts: Prompts = {
         } as Parameters<typeof groupMultiselect>[0];
         const result = await groupMultiselect(groupOpts);
         if (isCancel(result)) {
-          if (pageIdx === 0) return null; // first page ESC → Step 2 back
+          if (pageIdx === 0) {
+            aborted = true; // first page ESC → Step 2 back
+            break;
+          }
           pageIdx--; // prev page
           continue;
         }
@@ -278,9 +283,20 @@ export const defaultPrompts: Prompts = {
         for (const v of result as ReadonlyArray<string>) collected.add(v);
         pageIdx++;
       }
-      return [...collected] as ReadonlyArray<InstallTargetId>;
+      if (!aborted) {
+        resultIds = [...collected] as ReadonlyArray<InstallTargetId>;
+      }
     } finally {
       process.stdout.write("\x1b[?1049l");
     }
+    // v26.63.1 — alt screen exit 후 main buffer 에 Step 3 완료 라인 출력. alt buffer
+    //   안 동작은 main 에 흔적 0 → Step 1·2·4 사이 Step 3 missing → 사용자 보고.
+    //   clack `◇` marker + `│` line 으로 다른 step 과 시각 일관성 유지.
+    if (resultIds !== null) {
+      process.stdout.write(
+        `◇  Step ${step.current}/${step.total} — Install targets  ·  ${resultIds.length} selected\n│\n`,
+      );
+    }
+    return resultIds;
   },
 };
