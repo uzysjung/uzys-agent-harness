@@ -206,15 +206,18 @@ export const defaultPrompts: Prompts = {
     }
     // v26.58.1 — maxItems 로 viewport scroll fix. cursor 가 항상 visible viewport 안에 있도록
     // clack 의 limitOptions 가 자동 follow + ↕ ... indicator. 이전 'height 30+ 권장' 한계 해제.
+    // Note: clack 1.3 type def 가 GroupMultiSelectOptions 에 maxItems 누락. runtime 은 정상
+    //   (limitOptions 가 t.maxItems 참조). 향후 clack upgrade 시 cast 제거.
     const totalDefault = initialSet.size;
     const totalItems = Object.values(groups).reduce((sum, list) => sum + list.length, 0);
-    const result = await groupMultiselect({
+    const groupOpts = {
       message: `Step ${step.current}/${step.total} — What will be installed  (default ✓ ${totalDefault}/${totalItems}. Space toggle · Enter confirm · ESC back):`,
       options: groups,
       initialValues: [...initialChecked],
       maxItems: viewportItems(totalItems),
       required: false,
-    });
+    } as Parameters<typeof groupMultiselect>[0];
+    const result = await groupMultiselect(groupOpts);
     return isCancel(result) ? null : (result as ReadonlyArray<InstallTargetId>);
   },
 };
