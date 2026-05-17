@@ -190,8 +190,13 @@ function buildSkillArgs(
     args.push("--skill", method.skill);
   }
   if (cli.length > 0) {
-    const mapped = cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
-    args.push("--agent", mapped.join(","));
+    // v26.55.1 — skills cli 1.5.7 부터 multi-agent 는 repeatable `--agent` 만 지원.
+    // comma-separated (`--agent claude-code,codex`) → "Invalid agents" exit 1.
+    // 1.5.5 까지는 comma 지원했음 (regression). 사용자 보고 (2026-05-17): multi-cli 시
+    // 모든 npx skills 자산 100% fail.
+    for (const c of cli) {
+      args.push("--agent", SKILLS_CLI_AGENT_MAP[c] ?? c);
+    }
   }
   args.push("--yes");
   return args;
