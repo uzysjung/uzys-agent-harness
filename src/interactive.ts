@@ -187,7 +187,14 @@ export async function runInteractive(
         targetSelections !== null
           ? [...targetSelections]
           : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
-      const result = await prompts.selectInstallTargets(initial, { current: 3, total: 3 });
+      const result = await prompts.selectInstallTargets(
+        initial,
+        { current: 3, total: 3 },
+        {
+          tracks: tracks ?? [],
+          cli: cli ?? ["claude"],
+        },
+      );
       if (result === null) {
         step = "cli"; // silent back
         continue;
