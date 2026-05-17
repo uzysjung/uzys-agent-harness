@@ -286,7 +286,9 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
         }
       },
       onAssetResult: (result) => {
-        const meta = result.ok ? formatAssetMeta(result.asset) : (result.message ?? "failed");
+        const meta = result.ok
+          ? formatAssetMeta(result.asset, result.version)
+          : (result.message ?? "failed");
         log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
       },
     },
@@ -433,17 +435,22 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   log("");
 }
 
-function formatAssetMeta(asset: import("../external-assets.js").ExternalAsset): string {
+function formatAssetMeta(
+  asset: import("../external-assets.js").ExternalAsset,
+  version?: string,
+): string {
   // v26.56.0 (F3) — description 제거. onAssetStart 의 → 라인이 이미 description 표시.
   // result row 는 method + source 만 간결하게 → terminal 120 char 안 wrap 방지.
+  // v26.59.0 — plugin / npm-global 에 한해 version 표시 (path 기반 추출).
   const m = asset.method;
+  const v = version ? ` ${c.dim(`v${version.replace(/^v/, "")}`)}` : "";
   switch (m.kind) {
     case "skill":
       return m.skill ? `skill · ${m.source} · ${m.skill}` : `skill · ${m.source}`;
     case "plugin":
-      return `plugin · ${m.pluginId}`;
+      return `plugin · ${m.pluginId}${v}`;
     case "npm-global":
-      return `npm -g · ${m.pkg}`;
+      return `npm -g · ${m.pkg}${v}`;
     case "npx-run":
       return `npx · ${m.cmd}`;
     case "shell-script":

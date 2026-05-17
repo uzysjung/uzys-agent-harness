@@ -11,10 +11,16 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
-import { EXTERNAL_ASSETS, type ExternalAsset, filterApplicableAssets } from "./external-assets.js";
+import {
+  EXTERNAL_ASSETS,
+  type ExternalAsset,
+  type ExternalAssetMethod,
+  filterApplicableAssets,
+} from "./external-assets.js";
 import type { CliTargets, OptionFlags, Track } from "./types.js";
 
 export interface ExternalInstallerDeps {
@@ -51,6 +57,13 @@ export interface AssetInstallResult {
   ok: boolean;
   /** ok=false 시 user-facing 메시지 */
   message?: string;
+  /**
+   * v26.59.0 — 설치된 자산 version. install 후 detectVersion 으로 path 기반 추출.
+   * plugin: ~/.claude/plugins/cache/<marketplace>/<plugin>/<VERSION>/ 디렉토리명
+   * npm-global: <npm root -g>/<pkg>/package.json 의 version
+   * 그 외 method (skill, npx-run, shell-script): 표준 metadata 없음 → undefined.
+   */
+  version?: string;
 }
 
 export interface ExternalInstallReport {
@@ -99,7 +112,12 @@ export function runExternalInstall(
   for (const asset of sorted) {
     deps.onAssetStart?.(asset);
     log(`  → ${asset.description}`);
-    const result = installOne(asset, { spawn, harnessRoot, cli });
+    const baseResult = installOne(asset, { spawn, harnessRoot, cli });
+    let result: AssetInstallResult = baseResult;
+    if (baseResult.ok) {
+      const v = detectVersion(asset.method, spawn);
+      if (v) result = { ...baseResult, version: v };
+    }
     deps.onAssetResult?.(result);
 
     if (!result.ok) {
@@ -251,6 +269,69 @@ function defaultSpawn(
   opts: SpawnOpts,
 ): SpawnSyncReturns<string> {
   return spawnSync(cmd, [...args], opts);
+}
+
+/**
+ * v26.59.0 — install 후 path 기반 version 추출.
+ *
+ * 안전 원칙: 실패 시 undefined 반환 (silent). install 성공 자체는 이미 검증됨.
+ *
+ * - plugin: ~/.claude/plugins/cache/<marketplace>/<plugin>/<VERSION>/ 디렉토리명 (semver-like 만)
+ * - npm-global: <npm root -g>/<pkg>/package.json 의 version
+ * - skill / npx-run / shell-script: 표준 metadata 위치 없음 → undefined
+ */
+function detectVersion(
+  method: ExternalAssetMethod,
+  spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
+): string | undefined {
+  try {
+    switch (method.kind) {
+      case "plugin": {
+        // pluginId = "<plugin>@<marketplace-short>". cache path:
+        // ~/.claude/plugins/cache/<marketplace-short>/<plugin>/<VERSION>/
+        // method.marketplace 는 GH `<user>/<repo>` (다른 값) 이라 path 에 사용 X.
+        const at = method.pluginId.lastIndexOf("@");
+        if (at <= 0) return undefined;
+        const plugin = method.pluginId.slice(0, at);
+        const marketplaceShort = method.pluginId.slice(at + 1);
+        const cacheBase = join(homedir(), ".claude/plugins/cache", marketplaceShort, plugin);
+        if (!existsSync(cacheBase)) return undefined;
+        const versions = readdirSync(cacheBase)
+          .filter((v) => /^\d/.test(v))
+          .sort();
+        return versions.at(-1);
+      }
+      case "npm-global": {
+        const npmRoot = getNpmGlobalRoot(spawn);
+        if (!npmRoot) return undefined;
+        const pkgJson = join(npmRoot, method.pkg, "package.json");
+        if (!existsSync(pkgJson)) return undefined;
+        const parsed = JSON.parse(readFileSync(pkgJson, "utf8")) as { version?: string };
+        return parsed.version;
+      }
+      default:
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+let npmGlobalRootCache: string | undefined;
+
+function getNpmGlobalRoot(spawn: NonNullable<ExternalInstallerDeps["spawn"]>): string | undefined {
+  if (npmGlobalRootCache !== undefined) return npmGlobalRootCache || undefined;
+  try {
+    const r = spawn("npm", ["root", "-g"], spawnOpts());
+    if ((r.status ?? 1) === 0) {
+      npmGlobalRootCache = (r.stdout ?? "").trim();
+      return npmGlobalRootCache || undefined;
+    }
+  } catch {
+    // fallthrough
+  }
+  npmGlobalRootCache = "";
+  return undefined;
 }
 
 /**
