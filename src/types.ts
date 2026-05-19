@@ -35,6 +35,31 @@ export function isCliBase(value: unknown): value is CliBase {
 /** Sorted readonly array of CliBase. install pipeline의 분기 input. */
 export type CliTargets = ReadonlyArray<CliBase>;
 
+/**
+ * v26.64.0 (ADR-020) — Installation scope.
+ *
+ * - "project" (default): claude plugin `--scope project`, npx skills (default), npm `--save-dev`,
+ *   codex/opencode → 프로젝트 dir (`.codex/`, `.opencode/`). 사용자 명시 동의 없이는 글로벌 미수정.
+ * - "global" (opt-in): claude plugin `--scope user`, npx skills `-g`, npm `-g`,
+ *   codex/opencode → `~/.codex/`, `~/.opencode/`. 사용자가 interactive 또는 `--scope global` 로 명시.
+ *
+ * NORTH_STAR.md D16 본질 — 사용자 무인지 글로벌 write 금지.
+ */
+export const INSTALL_SCOPES = ["project", "global"] as const;
+export type InstallScope = (typeof INSTALL_SCOPES)[number];
+
+export function isInstallScope(value: unknown): value is InstallScope {
+  return typeof value === "string" && (INSTALL_SCOPES as readonly string[]).includes(value);
+}
+
+/**
+ * v26.64.0 (ADR-020) — `InstallSpec.scope` 가 optional 이므로 사용 시 default "project" 로 normalize.
+ * 모든 분기 코드 (external-installer, codex/*, opencode/*) 는 이 함수로 scope 결정.
+ */
+export function resolveScope(scope: InstallScope | undefined): InstallScope {
+  return scope ?? "project";
+}
+
 /** Optional opt-in feature flags collected interactively. */
 export interface OptionFlags {
   withTauri: boolean;
@@ -102,6 +127,13 @@ export interface InstallSpec {
   /** v0.7.0 — sorted readonly array of CliBase (이전: single CliMode). */
   cli: CliTargets;
   projectDir: string;
+  /**
+   * v26.64.0 (ADR-020) — Installation scope. Default "project" — 사용자 무인지 글로벌 write 방지.
+   * Interactive prompt 또는 `--scope global` 명시 시에만 "global".
+   * Optional + default "project" — 명시 안 한 사용처 (기존 tests / wizard non-scope-aware) 안전한 fallback.
+   * 사용처는 `resolveScope(spec.scope)` 또는 `scope ?? "project"` 로 normalize.
+   */
+  scope?: InstallScope;
   /**
    * v26.47.0 — User-level override of preset/option condition (Phase C full).
    * `forceInclude`: condition 무관 강제 포함 / `forceExclude`: condition 무관 강제 제외.

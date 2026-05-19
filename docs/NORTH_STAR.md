@@ -58,7 +58,7 @@ vibe coding = "AI ↔ 사용자가 하네스 규칙(rules / hooks / skills / 6-g
 - **Public-first** — 처음 보는 사용자가 즉시 같은 어휘로 대화 시작 가능. 한 줄 설치 + 자동 컨텍스트 로드
 - **Deterministic Harness** — 게이트/규칙/순서는 hook으로 강제. LLM 판단 의존은 최후 수단
 - **Multi-Stack 동등성** — Python REST / Next.js / SSR / 데이터 / 임원 문서 / 순수 CLI 어디서나 같은 6-gate + 같은 `/uzys:*` 어휘
-- **Project-Scope 오염 금지** — 글로벌 `~/.claude/`, `~/.codex/`, `~/.opencode/` 절대 미수정 (D16)
+- **Project-Scope 오염 금지** — 글로벌 `~/.claude/`, `~/.codex/`, `~/.opencode/`, `npm -g` 는 사용자 명시 opt-in (`--scope global` 또는 interactive 에서 Global 선택) 없이는 미수정. Default install scope = Project. (D16, ADR-020)
 - **Transparent Defaults** — 설치 중 어떤 자산이 들어가는지 한 줄씩 명시. 숨김 동작 0건
 
 ### 3.2 Won't (의도적 비-방향)

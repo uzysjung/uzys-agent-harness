@@ -141,25 +141,96 @@ describe("runExternalInstall — method dispatch", () => {
     ]);
   });
 
-  it("plugin invokes marketplace add + plugin install (2 spawn calls)", () => {
+  // v26.64.0 (ADR-020) — scope=project (default) 시 claude plugin --scope project, marketplace add --scope project.
+  it("plugin invokes marketplace add --scope project + plugin install --scope project (scope=project default)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       { tracks: ["full"], options: DEFAULT_OPTIONS, cli: ["claude"] },
       { spawn, assets: [TEST_ASSETS[2] as ExternalAsset] },
     );
     expect(spawn).toHaveBeenCalledTimes(2);
-    expect(spawn.mock.calls[0]?.[1]).toEqual(["plugin", "marketplace", "add", "ms/foo"]);
-    expect(spawn.mock.calls[1]?.[1]).toEqual(["plugin", "install", "foo@ms-foo"]);
+    expect(spawn.mock.calls[0]?.[1]).toEqual([
+      "plugin",
+      "marketplace",
+      "add",
+      "--scope",
+      "project",
+      "ms/foo",
+    ]);
+    expect(spawn.mock.calls[1]?.[1]).toEqual([
+      "plugin",
+      "install",
+      "--scope",
+      "project",
+      "foo@ms-foo",
+    ]);
   });
 
-  it("npm-global produces npm install -g <pkg>", () => {
+  // v26.64.0 (ADR-020) — scope=global (opt-in) 시 claude plugin --scope user.
+  it("plugin invokes --scope user when scope=global (opt-in)", () => {
+    const spawn = makeSpawnMock(() => ok());
+    runExternalInstall(
+      { tracks: ["full"], options: DEFAULT_OPTIONS, cli: ["claude"], scope: "global" },
+      { spawn, assets: [TEST_ASSETS[2] as ExternalAsset] },
+    );
+    expect(spawn.mock.calls[0]?.[1]).toEqual([
+      "plugin",
+      "marketplace",
+      "add",
+      "--scope",
+      "user",
+      "ms/foo",
+    ]);
+    expect(spawn.mock.calls[1]?.[1]).toEqual([
+      "plugin",
+      "install",
+      "--scope",
+      "user",
+      "foo@ms-foo",
+    ]);
+  });
+
+  // v26.64.0 (ADR-020) — scope=project (default) → npm install --save-dev. -g 는 opt-in.
+  it("npm-global produces npm install --save-dev <pkg> when scope=project (default)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       { tracks: ["tooling"], options: { ...DEFAULT_OPTIONS, withEcc: true }, cli: ["claude"] },
       { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npm");
+    expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "--save-dev", "vercel"]);
+  });
+
+  it("npm-global produces npm install -g <pkg> when scope=global (opt-in)", () => {
+    const spawn = makeSpawnMock(() => ok());
+    runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS, withEcc: true },
+        cli: ["claude"],
+        scope: "global",
+      },
+      { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
+    );
+    expect(spawn.mock.calls[0]?.[0]).toBe("npm");
     expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "-g", "vercel"]);
+  });
+
+  // v26.64.0 (ADR-020) — scope=global 시 skills add -g flag 추가.
+  it("skill adds -g flag when scope=global (opt-in)", () => {
+    const spawn = makeSpawnMock(() => ok());
+    runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        scope: "global",
+      },
+      { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] },
+    );
+    const args = spawn.mock.calls[0]?.[1] as readonly string[];
+    expect(args).toContain("-g");
+    expect(args[args.length - 1]).toBe("--yes");
   });
 
   it("npx-run produces npx <cmd>", () => {

@@ -17,7 +17,14 @@ import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
-import { type CliBase, type CliTargets, type OptionFlags, TRACKS, type Track } from "./types.js";
+import {
+  type CliBase,
+  type CliTargets,
+  type InstallScope,
+  type OptionFlags,
+  TRACKS,
+  type Track,
+} from "./types.js";
 
 /**
  * v26.54.0 — All-in-one install-targets value scheme.
@@ -39,6 +46,11 @@ export interface Prompts {
   /** v0.7.0 — single select → multiselect (3 base 체크박스). default `["claude"]`. */
   selectCli: (initial?: CliTargets) => Promise<CliTargets | null>;
   selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
+  /**
+   * v26.64.0 (ADR-020) — Installation scope 선택. Default = "project" (pre-selected).
+   * Global 은 사용자 명시 opt-in. null = silent back.
+   */
+  selectScope: (initial?: InstallScope) => Promise<InstallScope | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
 
   /**
@@ -171,6 +183,30 @@ export const defaultPrompts: Prompts = {
       }),
     });
     return isCancel(result) ? null : (result as RouterAction);
+  },
+
+  /**
+   * v26.64.0 (ADR-020) — Installation scope select. Default Project (D16 — no global write).
+   * Global 은 사용자 명시 opt-in 시에만.
+   */
+  selectScope: async (initial = "project") => {
+    const result = await select({
+      message: "Installation scope",
+      initialValue: initial,
+      options: [
+        {
+          value: "project",
+          label: "Project",
+          hint: "Install in current directory (committed with your project)",
+        },
+        {
+          value: "global",
+          label: "Global",
+          hint: "Write to ~/.claude/, ~/.codex/, npm -g (shared across all projects)",
+        },
+      ],
+    });
+    return isCancel(result) ? null : (result as InstallScope);
   },
 
   confirmInstall: async (summary) => {

@@ -10,6 +10,29 @@
 
 **게이트 강제**: 각 단계는 Hook으로 프로그래밍적 차단. 이전 단계 미완료 시 다음 단계 실행 불가 (exit code 2).
 
+## Scope (v26.64.0+, ADR-020)
+
+Default = **Project**. 글로벌 영역 (`~/.claude/skills/`, `~/.codex/`, `~/.opencode/`, `npm -g`) 미수정.
+
+| Method | Project (default) | Global (opt-in) |
+|--------|---|---|
+| `claude plugin` | `--scope project` | `--scope user` |
+| `npx skills` | project node_modules | `-g` |
+| `npm` | `--save-dev` | `-g` |
+| Codex (prompts/skills/trust) | `.codex/` (project) | `~/.codex/` |
+
+`~/.claude/plugins/{cache,marketplaces,installed_plugins.json}` 만 claude CLI 자체가 두 모드 모두에서 fs write — 단 `installed_plugins.json` 의 `projectPath` 매칭으로 다른 프로젝트는 영향 받지 않음.
+
+Interactive wizard 의 step 4/6 에서 사용자가 선택. 비대화형은 `--scope <project|global>` flag (default project).
+
+## Uninstall (v26.64.0+)
+
+```bash
+npx -y github:uzysjung/uzys-claude-harness uninstall [--dry-run] [--keep-templates]
+```
+
+`.claude/.harness-install.json` (install 시 자동 생성) 의 자산 list 기반 reverse. Project-scope 자산은 자동 제거, global-scope 자산은 안내만 출력 (D16 — 글로벌 영역 자동 삭제 금지).
+
 ### 설치 시 npm warn (pnpm 사용자 환경)
 
 `npx -y github:uzysjung/uzys-claude-harness` 실행 시 사용자 `~/.npmrc` 또는 프로젝트 `.npmrc` 에 pnpm 설정이 있으면 다음 warning 출력 — **무시 안전, 설치 동작에 영향 없음**:
@@ -72,9 +95,18 @@ npx claude-harness install --track <track> --with-uzys-harness --with-addy-agent
 npx claude-harness install --track <track> --with-uzys-harness
 ```
 
-### Step 2 Interactive (v26.45.0+)
+### Interactive wizard (v26.64.0+ — 6-step)
 
-Interactive 모드의 옵션 multiselect 가 카테고리별로 그룹화되고 자산 출처가 라벨로 표시됨:
+```
+1/6  Tracks            (preset)
+2/6  CLI               (claude / codex / opencode)
+3/6  Install items     (category 별 group multiselect)
+4/6  Scope             (● Project / ○ Global)   ← v26.64.0 추가
+5/6  Confirm           (summary + SCOPE)
+6/6  Installing        (pipeline)
+```
+
+옵션 multiselect 가 카테고리별로 그룹화되고 자산 출처가 라벨로 표시됨:
 
 ```
 Optional features (Space to toggle, Enter to skip):

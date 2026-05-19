@@ -21,7 +21,13 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import type { CliTargets, OptionFlags, Track } from "./types.js";
+import {
+  type CliTargets,
+  type InstallScope,
+  type OptionFlags,
+  resolveScope,
+  type Track,
+} from "./types.js";
 
 export interface ExternalInstallerDeps {
   /** Override `spawnSync` for tests (mock으로 호출 횟수 + args 검증). */
@@ -89,6 +95,8 @@ export function runExternalInstall(
     cli: CliTargets;
     /** v26.47.0 — Phase C full user override (forceInclude/forceExclude). */
     userOverride?: { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> };
+    /** v26.64.0 (ADR-020) — Install scope. undefined → default "project". */
+    scope?: InstallScope;
   },
   deps: ExternalInstallerDeps = {},
 ): ExternalInstallReport {
@@ -108,11 +116,12 @@ export function runExternalInstall(
   });
   const attempted: AssetInstallResult[] = [];
   const cli = ctx.cli;
+  const scope = resolveScope(ctx.scope);
 
   for (const asset of sorted) {
     deps.onAssetStart?.(asset);
     log(`  → ${asset.description}`);
-    const baseResult = installOne(asset, { spawn, harnessRoot, cli });
+    const baseResult = installOne(asset, { spawn, harnessRoot, cli, scope });
     let result: AssetInstallResult = baseResult;
     if (baseResult.ok) {
       const v = detectVersion(asset.method, spawn);
@@ -153,16 +162,26 @@ function installOne(
     spawn: NonNullable<ExternalInstallerDeps["spawn"]>;
     harnessRoot: string;
     cli: CliTargets;
+    scope: InstallScope;
   },
 ): AssetInstallResult {
   const { method } = asset;
   switch (method.kind) {
     case "skill":
-      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli));
+      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope));
     case "plugin":
-      return installPlugin(asset, ctx.spawn, method);
+      return installPlugin(asset, ctx.spawn, method, ctx.scope);
     case "npm-global":
-      return runSpawn(asset, ctx.spawn, "npm", ["install", "-g", method.pkg]);
+      // v26.64.0 (ADR-020) — scope=project 시 devDep, scope=global 시 -g.
+      // method.kind 이름은 "npm-global" 유지 (별도 cycle 에서 rename) — 실 동작은 scope 분기.
+      return runSpawn(
+        asset,
+        ctx.spawn,
+        "npm",
+        ctx.scope === "global"
+          ? ["install", "-g", method.pkg]
+          : ["install", "--save-dev", method.pkg],
+      );
     case "npx-run":
       return runSpawn(asset, ctx.spawn, "npx", [method.cmd, ...(method.args ?? [])]);
     case "shell-script": {
@@ -202,6 +221,7 @@ const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
   cli: CliTargets,
+  scope: InstallScope,
 ): string[] {
   const args = ["skills", "add", method.source];
   if (method.skill) {
@@ -209,28 +229,46 @@ function buildSkillArgs(
   }
   if (cli.length > 0) {
     // v26.55.1 — skills cli 1.5.7 부터 multi-agent 는 repeatable `--agent` 만 지원.
-    // comma-separated (`--agent claude-code,codex`) → "Invalid agents" exit 1.
-    // 1.5.5 까지는 comma 지원했음 (regression). 사용자 보고 (2026-05-17): multi-cli 시
-    // 모든 npx skills 자산 100% fail.
     for (const c of cli) {
       args.push("--agent", SKILLS_CLI_AGENT_MAP[c] ?? c);
     }
+  }
+  // v26.64.0 (ADR-020) — global scope 시 -g. project 는 skills CLI default (project) 따름.
+  if (scope === "global") {
+    args.push("-g");
   }
   args.push("--yes");
   return args;
 }
 
 /**
- * Plugin은 marketplace add → install 두 단계. marketplace add 실패는 무시 (이미 등록 케이스).
+ * Plugin 은 marketplace add → install 두 단계. marketplace add 실패는 무시 (이미 등록 케이스).
+ *
+ * v26.64.0 (ADR-020) — `--scope <project|user>` 분기. claude CLI native:
+ *   - project: --scope project (현재 projectPath 격리, installed_plugins.json 메타 매칭)
+ *   - global:  --scope user (모든 projectPath 에서 활성)
+ * fs 적으로는 양쪽 모두 ~/.claude/plugins/cache/ + ~/.claude/plugins/marketplaces/ 에 write
+ * (claude CLI 자체 디자인). 격리는 메타데이터.
  */
 function installPlugin(
   asset: ExternalAsset,
   spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
   method: { kind: "plugin"; marketplace: string; pluginId: string },
+  scope: InstallScope,
 ): AssetInstallResult {
-  // marketplace add는 idempotent — 실패해도 install 시도 (이미 등록 케이스가 흔함)
-  spawn("claude", ["plugin", "marketplace", "add", method.marketplace], spawnOpts());
-  return runSpawn(asset, spawn, "claude", ["plugin", "install", method.pluginId]);
+  const claudeScope = scope === "global" ? "user" : "project";
+  spawn(
+    "claude",
+    ["plugin", "marketplace", "add", "--scope", claudeScope, method.marketplace],
+    spawnOpts(),
+  );
+  return runSpawn(asset, spawn, "claude", [
+    "plugin",
+    "install",
+    "--scope",
+    claudeScope,
+    method.pluginId,
+  ]);
 }
 
 function runSpawn(

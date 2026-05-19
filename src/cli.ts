@@ -1,5 +1,6 @@
 import { cac } from "cac";
 import { type ExecuteSpecDeps, executeSpec, registerInstallCommand } from "./commands/install.js";
+import { registerUninstallCommand } from "./commands/uninstall.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
 export const VERSION = "0.4.0";
@@ -59,6 +60,7 @@ export function buildCli(): Cli {
   cli.version(VERSION);
 
   registerInstallCommand(cli);
+  registerUninstallCommand(cli);
 
   cli
     .command("", "Interactive installer (state detection + prompts)")

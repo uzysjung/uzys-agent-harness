@@ -14,7 +14,14 @@ import {
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
-import { type CliTargets, type InstallSpec, isTrack, type Track } from "../types.js";
+import {
+  type CliTargets,
+  type InstallScope,
+  type InstallSpec,
+  isInstallScope,
+  isTrack,
+  type Track,
+} from "../types.js";
 
 export interface InstallOptions {
   track?: string[];
@@ -60,6 +67,11 @@ export interface InstallOptions {
    * cac repeatable. 예: `--without netlify-cli`.
    */
   without?: string | string[];
+  /**
+   * v26.64.0 (ADR-020) — Installation scope. `project` (default) | `global`.
+   * 명시 안 하면 wizard 의 scope prompt → 비대화형은 "project".
+   */
+  scope?: string;
 }
 
 export interface RunInstallResult {
@@ -202,22 +214,18 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
-      // v26.56.0 (ADR-017, BREAKING) — codexPrompts 자동 활성화 조건 변경.
-      //   기존 (ADR-012): cli=codex 단독 → 자동 ON
-      //   신규: cli=codex && withUzysHarness → 자동 ON
-      // 사용자 명시 `--with-codex-prompts` 는 여전히 강제 활성화 (legacy override).
-      // `--no-codex-prompts` 는 그대로 강제 OFF.
-      withCodexPrompts:
-        options.codexPrompts === false
-          ? false
-          : options.withCodexPrompts === true ||
-            (validated.cli.includes("codex") && options.withUzysHarness === true),
+      // v26.64.0 (ADR-020, BREAKING) — ADR-012/017 supersede. cli=codex 자동 default ON 폐기.
+      //   withCodexPrompts 는 사용자 명시 `--with-codex-prompts` 시에만 ON.
+      //   `--no-codex-prompts` 는 backward-compat noop (default 가 이미 false).
+      //   scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts 참조).
+      withCodexPrompts: options.withCodexPrompts === true && options.codexPrompts !== false,
       withAddyAgentSkills: options.withAddyAgentSkills === true,
       withUzysHarness: options.withUzysHarness === true,
       withSuperpowers: options.withSuperpowers === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
+    scope: resolveScopeOption(options.scope, err),
   };
 
   executeSpec(spec, {
@@ -286,6 +294,15 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     log(infoRow("TARGET", shortenPath(spec.projectDir)));
     log(infoRow("TRACKS", spec.tracks.join(", ")));
     log(infoRow("CLI", spec.cli.join(" · ")));
+    // v26.64.0 (ADR-020) — SCOPE row. 사용자가 매 install 시 어디에 write 되는지 인지 (D16).
+    {
+      const effectiveScope = spec.scope ?? "project";
+      const scopeMsg =
+        effectiveScope === "global"
+          ? "Global — writes to ~/.claude/, ~/.codex/, npm -g"
+          : "Project — current directory only (no global write)";
+      log(infoRow("SCOPE", scopeMsg));
+    }
     log(infoRow("OPTIONS", formatOptions(spec)));
     const finalAssets = computeFinalAssets(spec);
     if (finalAssets.length > 0) {
@@ -669,6 +686,19 @@ function renderPhase1Rows(
  * v26.47.0 — Normalize cac repeatable flag (string | string[] | undefined) → string[].
  * Trim 빈 문자열 + dedup.
  */
+/**
+ * v26.64.0 (ADR-020) — `--scope` flag 해석. invalid 값은 warn + "project" default.
+ * 비대화형 (--track 명시) 진입에서만 호출. wizard 는 별도 prompt.
+ */
+function resolveScopeOption(value: string | undefined, err: (msg: string) => void): InstallScope {
+  if (value === undefined) return "project";
+  if (isInstallScope(value)) return value;
+  err(
+    c.yellow(`[WARN] Unknown --scope value '${value}' (expected: project, global). Using project.`),
+  );
+  return "project";
+}
+
 function normalizeRepeatable(value: string | string[] | undefined): string[] {
   if (!value) return [];
   const arr = Array.isArray(value) ? value : [value];
@@ -792,6 +822,11 @@ export function registerInstallCommand(cli: Cli): void {
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })
+    .option(
+      "--scope <scope>",
+      "[Scope] Installation scope: project (default) | global. ADR-020 / NORTH_STAR D16",
+      { default: "project" },
+    )
     // === Asset selection (Phase C full, v26.47.0+) ===
     .option(
       "--with <asset-id>",

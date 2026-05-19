@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Mock skills CLI for Docker test env (v26.64.0).
+# 실 skills (npx skills add) 동작 stub. -g flag 분기 (ADR-020 검증용).
+
+set -euo pipefail
+
+action="${1:-}"
+if [[ "${action}" != "add" && "${action}" != "remove" ]]; then
+  echo "mock-skills: unsupported command: $*" >&2
+  exit 1
+fi
+shift
+
+scope="project"  # skills CLI default 가 project
+positional=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -g|--global) scope="global"; shift;;
+    --agent) shift 2;;
+    --skill) shift 2;;
+    --yes|-y) shift;;
+    --*) shift;;
+    -*) shift;;
+    *) positional+=("$1"); shift;;
+  esac
+done
+
+source="${positional[0]:-unknown}"
+id="${source##*/}"
+
+if [[ "${scope}" == "global" ]]; then
+  dest="${HOME}/.claude/skills/${id}"
+else
+  dest="$(pwd)/node_modules/.claude-skills/${id}"
+fi
+
+case "${action}" in
+  add)
+    mkdir -p "${dest}"
+    printf 'name: %s\nscope: %s\n' "${id}" "${scope}" > "${dest}/skill.yml"
+    echo "mock-skills: added ${source} scope=${scope} → ${dest}"
+    ;;
+  remove)
+    rm -rf "${dest}" 2>/dev/null || true
+    echo "mock-skills: removed ${source} scope=${scope}"
+    ;;
+esac

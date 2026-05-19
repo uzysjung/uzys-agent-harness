@@ -1,9 +1,10 @@
 # ADR-017: Codex Prompts 자동 활성화를 withUzysHarness 와 묶음
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-020 (2026-05-18, v26.64.0)
 - **Date**: 2026-05-17
 - **PR**: (pending v26.56.0)
 - **Supersedes**: ADR-012 (Codex Prompts default — 부분 정정)
+- **Superseded by**: ADR-020 — `cli=codex && withUzysHarness` coupling 도 폐기. 모든 install 자산 일관 Default=Project, Global 은 명시 opt-in.
 
 ## Context
 
