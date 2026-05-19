@@ -19,6 +19,8 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     selectTracks: vi.fn(async () => ["tooling"] as Track[]),
     selectCli: vi.fn(async () => ["claude"] as CliTargets),
     selectAction: vi.fn(async () => "add" as const),
+    // v26.64.0 (ADR-020) — default mock: scope=project (D16).
+    selectScope: vi.fn(async () => "project" as const),
     confirmInstall: vi.fn(async () => true),
     // v26.54.0 — default mock: 사용자가 추천 그대로 confirm. selectInstallTargets returns initial.
     selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial),
@@ -86,9 +88,10 @@ describe("runInteractive", () => {
     expect(prompts.outro).toHaveBeenCalledOnce();
   });
 
-  it("v26.56.0 (ADR-017) — cli=codex + withUzysHarness 둘 다 → withCodexPrompts=true", async () => {
+  // v26.64.0 (ADR-020 BREAKING) — ADR-017 supersede. cli=codex + withUzysHarness 자동 ON 폐기.
+  // withCodexPrompts 는 사용자 명시 install target 선택 시에만 활성.
+  it("v26.64.0 (ADR-020) — cli=codex + withUzysHarness 둘 다 켜져도 withCodexPrompts 자동 ON 안 함", async () => {
     const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
-    // Step 3 에서 withUzysHarness 옵션 토글 → install-targets 에 "option:withUzysHarness" 포함
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
       ...initial,
       "option:withUzysHarness" as InstallTargetId,
@@ -100,7 +103,7 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.options.withCodexPrompts).toBe(true);
+    expect(result.spec?.options.withCodexPrompts).toBe(false);
     expect(result.spec?.options.withUzysHarness).toBe(true);
   });
 
@@ -329,13 +332,16 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("v26.54.0 — ESC at confirm goes back to selectInstallTargets (silent back)", async () => {
+  // v26.64.0 (ADR-020) — Scope step 추가로 confirm 의 silent back 은 이제 selectScope 로.
+  // selectInstallTargets 는 1번만 호출됨 (scope 가 새 backstep).
+  it("v26.64.0 — ESC at confirm goes back to selectScope (silent back)", async () => {
     const confirmInstall = vi
       .fn<(summary: string) => Promise<boolean | null>>()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(true);
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
-    const prompts = makePrompts({ confirmInstall, selectInstallTargets });
+    const selectScope = vi.fn(async () => "project" as const);
+    const prompts = makePrompts({ confirmInstall, selectInstallTargets, selectScope });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
@@ -343,7 +349,8 @@ describe("runInteractive", () => {
     });
     expect(result.ok).toBe(true);
     expect(confirmInstall).toHaveBeenCalledTimes(2);
-    expect(selectInstallTargets).toHaveBeenCalledTimes(2);
+    expect(selectScope).toHaveBeenCalledTimes(2);
+    expect(selectInstallTargets).toHaveBeenCalledTimes(1);
   });
 
   it("v26.54.0 — Step 1 ESC emits cancel message (not silent)", async () => {

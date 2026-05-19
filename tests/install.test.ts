@@ -795,7 +795,9 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
     expect(captured?.options.withCodexPrompts).toBe(false);
   });
 
-  it("v26.56.0 (ADR-017) — cli=codex + withUzysHarness 둘 다 → withCodexPrompts=true", () => {
+  // v26.64.0 (ADR-020 BREAKING) — ADR-017 supersede. cli=codex + withUzysHarness 자동 ON 폐기.
+  // withCodexPrompts 는 명시 `--with-codex-prompts` 시에만 true.
+  it("v26.64.0 (ADR-020) — cli=codex + withUzysHarness 둘 다 켜져도 withCodexPrompts 자동 ON 안 함", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     let captured: InstallSpec | undefined;
@@ -807,7 +809,7 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
       { cli: ["codex"], track: ["tooling"], withUzysHarness: true, projectDir: "/p" },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    expect(captured?.options.withCodexPrompts).toBe(true);
+    expect(captured?.options.withCodexPrompts).toBe(false);
   });
 
   it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", () => {
@@ -858,6 +860,71 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
     expect(err).toHaveBeenCalledWith(
       expect.stringContaining("--no-codex-prompts has no effect without --cli codex"),
     );
+  });
+});
+
+// v26.64.0 (ADR-020) — --scope flag 검증.
+describe("v26.64.0 (ADR-020) — --scope flag", () => {
+  it("default (no --scope) → spec.scope === 'project'", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir: "/p" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.scope).toBe("project");
+  });
+
+  it("--scope project → spec.scope === 'project'", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir: "/p", scope: "project" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.scope).toBe("project");
+  });
+
+  it("--scope global → spec.scope === 'global'", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir: "/p", scope: "global" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.scope).toBe("global");
+  });
+
+  it("--scope invalid → warn + fallback to 'project' (D16 safe default)", () => {
+    const log = vi.fn();
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    let captured: InstallSpec | undefined;
+    const runPipeline = vi.fn((spec: InstallSpec) => {
+      captured = spec;
+      return fakeReport;
+    });
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir: "/p", scope: "nonsense" },
+      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(captured?.scope).toBe("project");
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown --scope value 'nonsense'"));
   });
 });
 

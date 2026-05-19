@@ -1,9 +1,10 @@
 # ADR-012: Codex slash prompts default for cli=codex
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-020 (2026-05-18, v26.64.0)
 - **Date**: 2026-05-15
 - **PR**: TBD (v26.46.0)
 - **Supersedes**: 없음
+- **Superseded by**: ADR-020 — `cli=codex` 시 자동 글로벌 default ON 동작 폐기. 모든 install Default=Project, Global 은 명시 opt-in.
 - **Related**: ADR-002 (D16 정신 명시 — codex hook gap), ADR-004 (opencode 글로벌 미수정 원칙), ADR-013 (Wizard back nav 같은 PR)
 
 ## Context

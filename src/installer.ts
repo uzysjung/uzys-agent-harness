@@ -22,12 +22,13 @@ import {
   runExternalInstall,
 } from "./external-installer.js";
 import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
+import { buildInstallLog, writeInstallLog } from "./install-log.js";
 import { buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { mergeProjectClaude } from "./project-claude-merge.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
-import type { InstallSpec, OptionFlags, Track } from "./types.js";
+import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
 /** karpathy-coder hook command — `.claude/settings.json` PreToolUse Write|Edit matcher entry. */
@@ -86,7 +87,9 @@ export type ProgressEvent =
   /** External install phase about to begin. */
   | { type: "external-start"; assetCount: number }
   /** External install phase finished (with report). */
-  | { type: "external-complete"; report: ExternalInstallReport };
+  | { type: "external-complete"; report: ExternalInstallReport }
+  /** v26.64.0 — install log write 실패 (non-fatal). */
+  | { type: "install-log-error"; message: string };
 
 /** karpathy-coder hook auto-wire 결과 (v0.6.0). */
 export interface KarpathyHookReport {
@@ -327,11 +330,13 @@ export function runInstall(ctx: InstallContext): InstallReport {
       projectDir,
       withUzysHarness: spec.options.withUzysHarness,
     });
-    // Codex global opt-in (D16): only when user explicitly enabled at least one flag
+    // v26.64.0 (ADR-020) — Codex global opt-in 은 scope=global 일 때만 의미.
+    // scope=project (default) 시 ~/.codex/ write skip — transform.ts 가 이미 `.codex/` (project)
+    // 에 write 함. withCodex* 옵션은 scope=global 시에만 ~/.codex/ 로 추가 복사.
+    const installScope = spec.scope ?? "project";
     if (
-      spec.options.withCodexSkills ||
-      spec.options.withCodexTrust ||
-      spec.options.withCodexPrompts
+      installScope === "global" &&
+      (spec.options.withCodexSkills || spec.options.withCodexTrust || spec.options.withCodexPrompts)
     ) {
       codexOptIn = runCodexOptIn({
         projectDir,
@@ -393,7 +398,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
     };
     const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
     ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
-    external = runExt({ ...filterCtx, cli: spec.cli }, externalDeps);
+    external = runExt(
+      { ...filterCtx, cli: spec.cli, ...(spec.scope ? { scope: spec.scope } : {}) },
+      externalDeps,
+    );
     ctx.onProgress?.({ type: "external-complete", report: external });
   }
 
@@ -401,6 +409,19 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // SPEC: docs/specs/karpathy-hook-autowire.md AC2 — opt-in 강제 + install 성공 후에만.
   // v0.8.0 — `.claude/settings.json` PreToolUse 의존이라 spec.cli에 "claude" 포함 시에만 와이어 가능.
   const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
+
+  // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
+  // `.claude/.harness-install.json` — 자산 list + scope + timestamp. uninstall command 의 source.
+  try {
+    const log = buildInstallLog(spec, external, resolveScope(spec.scope));
+    writeInstallLog(projectDir, log);
+  } catch (e) {
+    // log write 실패는 install 자체를 fail 시키지 않음 (D16 본질 = install 성공이 우선).
+    ctx.onProgress?.({
+      type: "install-log-error",
+      message: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   return { ...baseline, external, karpathyHook };
 }

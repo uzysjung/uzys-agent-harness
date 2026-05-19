@@ -154,11 +154,13 @@ export async function runInteractive(
     }
   }
 
-  type Step = "tracks" | "cli" | "targets" | "confirm";
+  // v26.64.0 (ADR-020) — scope step 추가. Default "project". Step 3.5 (targets 직후, confirm 직전).
+  type Step = "tracks" | "cli" | "targets" | "scope" | "confirm";
   let step: Step = "tracks";
   let tracks: Track[] | null = null;
   let cli: import("./types.js").CliTargets | null = null;
   let targetSelections: ReadonlyArray<InstallTargetId> | null = null;
+  let scope: import("./types.js").InstallScope = "project";
 
   while (true) {
     if (step === "tracks") {
@@ -187,10 +189,10 @@ export async function runInteractive(
         targetSelections !== null
           ? [...targetSelections]
           : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
-      // v26.63.0 — 5-step 통합. step 3/5 (install targets).
+      // v26.64.0 — 6-step (scope 추가). step 3/6 (install targets) → step 4/6 (scope) → step 5/6 (confirm).
       const result = await prompts.selectInstallTargets(
         initial,
-        { current: 3, total: 5 },
+        { current: 3, total: 6 },
         {
           tracks: tracks ?? [],
           cli: cli ?? ["claude"],
@@ -201,6 +203,15 @@ export async function runInteractive(
         continue;
       }
       targetSelections = result;
+      step = "scope";
+    } else if (step === "scope") {
+      // v26.64.0 (ADR-020) — Installation scope select. Default "project" (D16).
+      const result = await prompts.selectScope(scope);
+      if (result === null) {
+        step = "targets"; // silent back
+        continue;
+      }
+      scope = result;
       step = "confirm";
     } else {
       // confirm
@@ -210,35 +221,33 @@ export async function runInteractive(
       const finalCli = cli!;
       const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
       const options = applyOptionRules(toOptionFlags(optionKeys));
-      // v26.56.0 (ADR-017, BREAKING) — codexPrompts 자동 활성화 조건 변경.
-      // 기존 (ADR-012): cli=codex → 자동 ON
-      // 신규: cli=codex && withUzysHarness → 자동 ON
-      // 이유: uzys-* 슬래시가 uzys-harness 의 일부. withUzysHarness=false 면 codex 글로벌 복사 의미 X.
-      if (finalCli.includes("codex") && options.withUzysHarness) {
-        options.withCodexPrompts = true;
-      }
+      // v26.64.0 (ADR-020, BREAKING) — ADR-012/017 supersede. cli=codex 자동 default ON 폐기.
+      // withCodexPrompts 는 사용자 명시 install target (목록 체크) 시에만 활성. 자동 ON 안 함.
+      // scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts).
       const userOverride =
         targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
-      // v26.63.0 — Step 4/5 (Confirm). summary 는 Step 3 의 install targets review 와 중복 안 되게
-      //   target + options + proceed 만. 자산 list 는 Step 3 에서 이미 표시.
-      const summary = formatSummary({
+      // v26.64.0 (ADR-020) — Confirm summary 에 SCOPE 명시 (사용자 인지 + D16).
+      const scopeLabel =
+        scope === "global"
+          ? "Global (writes to ~/.claude/, ~/.codex/, npm -g)"
+          : "Project (current directory only)";
+      const summary = `${formatSummary({
         tracks: finalTracks,
         options,
         cli: finalCli,
         projectDir,
         ...(userOverride ? { userOverride } : {}),
-      });
-      const confirmed = await prompts.confirmInstall(`Step 4/5 — Confirm\n${summary}`);
+      })}\n  SCOPE     ${scopeLabel}`;
+      const confirmed = await prompts.confirmInstall(`Step 5/6 — Confirm\n${summary}`);
       if (confirmed === null) {
-        step = "targets"; // silent back
+        step = "scope"; // silent back
         continue;
       }
       if (!confirmed) {
         prompts.outro("Cancelled by user.");
         return { ok: false, reason: "cancelled" };
       }
-      // v26.63.0 — Step 5/5 시작 안내. install pipeline 출력이 sub-section 으로 이어짐.
-      prompts.outro("Step 5/5 — Installing...");
+      prompts.outro("Step 6/6 — Installing...");
       return {
         ok: true,
         mode,
@@ -247,6 +256,7 @@ export async function runInteractive(
           options,
           cli: finalCli,
           projectDir,
+          scope,
           ...(userOverride ? { userOverride } : {}),
         },
       };

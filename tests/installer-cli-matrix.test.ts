@@ -258,6 +258,41 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(report.codexOptIn).toBeNull();
   });
 
+  // v26.64.0 (ADR-020) — scope=project (default) 시 withCodex* 가 true 라도 글로벌 opt-in skip.
+  // ~/.codex/ write 는 scope=global 일 때만.
+  it("scope=project: withCodexPrompts=true 라도 codexOptIn skip (ADR-020 / D16)", () => {
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS, withCodexPrompts: true },
+        cli: ["codex"],
+        projectDir,
+        scope: "project",
+      },
+    });
+    expect(report.codexOptIn).toBeNull();
+  });
+
+  // v26.64.0 (ADR-020) — scope=global + withCodex* true → codexOptIn 호출됨.
+  it("scope=global + withCodexPrompts=true: codexOptIn 호출 (~/.codex/ write 활성)", () => {
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS, withCodexPrompts: true },
+        cli: ["codex"],
+        projectDir,
+        scope: "global",
+      },
+    });
+    expect(report.codexOptIn).not.toBeNull();
+  });
+
   // v0.8.0 HIGH-1 — withKarpathyHook + claude 미선택 시 silent skip (reason="claude-not-selected")
   it("[codex] + withKarpathyHook=true: hook 미와이어 + reason=claude-not-selected", () => {
     const report = runInstall({
