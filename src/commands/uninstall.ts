@@ -258,6 +258,7 @@ function formatTemplateList(log: InstallLog): string {
   return items.join(", ");
 }
 
+/* v8 ignore start — thin dep-inject defaults. tests 는 항상 mock 주입. */
 function defaultSpawn(cmd: string, args: ReadonlyArray<string>): SpawnSyncReturns<string> {
   return spawnSync(cmd, [...args], { encoding: "utf8", stdio: "pipe", timeout: 120_000 });
 }
@@ -267,6 +268,7 @@ function defaultRm(path: string): void {
     rmSync(path, { recursive: true, force: true });
   }
 }
+/* v8 ignore stop */
 
 export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
   cli
@@ -279,6 +281,7 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
       "--keep-templates",
       "[Mode] Keep `.claude/`, `.codex/`, `.opencode/` templates (remove only external assets)",
     )
+    /* v8 ignore next 3 — cac action callback. uninstallAction 자체는 별도 tests 로 검증. */
     .action((options: UninstallOptions) => {
       uninstallAction(options);
     });

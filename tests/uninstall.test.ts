@@ -76,6 +76,74 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("project-scope skill → npx skills remove 호출", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      assets: [
+        {
+          id: "playwright",
+          category: "dev-tools",
+          method: "skill",
+          scope: "project",
+          detail: { source: "anthropics/skills" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    const spawn = vi.fn(() => ok());
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn,
+        rm: vi.fn(),
+      },
+    );
+    expect(spawn).toHaveBeenCalledWith("npx", ["skills", "remove", "anthropics/skills", "--yes"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("detail.source / detail.pkg 없으면 asset.id 로 fallback", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      assets: [
+        {
+          id: "fallback-skill-id",
+          category: "dev-tools",
+          method: "skill",
+          scope: "project",
+          detail: {}, // source 없음
+        },
+        {
+          id: "fallback-pkg-id",
+          category: "dev-tools",
+          method: "npm-global",
+          scope: "project",
+          detail: {}, // pkg 없음
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    const spawn = vi.fn(() => ok());
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn,
+        rm: vi.fn(),
+      },
+    );
+    // skill: asset.id 로 fallback
+    expect(spawn).toHaveBeenCalledWith("npx", ["skills", "remove", "fallback-skill-id", "--yes"]);
+    // npm-global: asset.id 로 fallback
+    expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("project-scope npm-global → npm uninstall --save-dev 호출", () => {
     const log: InstallLog = {
       ...baseLog(),
@@ -166,11 +234,11 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("default 모드 → templates 폴더 rm 호출", () => {
+  it("default 모드 → templates 폴더 rm 호출 (claudeDir + codexDir + opencodeDir 모두)", () => {
     const log: InstallLog = {
       ...baseLog(),
       assets: [],
-      templates: { claudeDir: ".claude/", codexDir: ".codex/" },
+      templates: { claudeDir: ".claude/", codexDir: ".codex/", opencodeDir: ".opencode/" },
     };
     writeLog(tmpDir, log);
     const rm = vi.fn();
@@ -187,6 +255,7 @@ describe("uninstallAction", () => {
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
     expect(rmPaths).toContain(join(tmpDir, ".claude/"));
     expect(rmPaths).toContain(join(tmpDir, ".codex/"));
+    expect(rmPaths).toContain(join(tmpDir, ".opencode/"));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -309,6 +378,76 @@ describe("uninstallAction", () => {
     );
     // reverse step 없음 → spawn 호출 0 (npx-run / shell-script 의 reverse null)
     expect(spawn).not.toHaveBeenCalled();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("global npx-run / shell-script → advisory '(no standard reverse — manual)' 안내", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      scope: "global",
+      assets: [
+        {
+          id: "gsd",
+          category: "workflow",
+          method: "npx-run",
+          scope: "global",
+          detail: { cmd: "get-shit-done-cc@latest", args: "" },
+        },
+        {
+          id: "prune-ecc",
+          category: "ecc-suite",
+          method: "shell-script",
+          scope: "global",
+          detail: { script: "scripts/prune-ecc.sh", args: "" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(logFn.mock.calls.flat().join("\n")).toContain("no standard reverse");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--dry-run + global assets → DRY RUN + GLOBAL advisory 둘 다 출력", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      scope: "global",
+      assets: [
+        {
+          id: "p",
+          category: "frontend",
+          method: "plugin",
+          scope: "global",
+          detail: { marketplace: "mp", pluginId: "p@mp" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, dryRun: true },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    const out = logFn.mock.calls.flat().join("\n");
+    expect(out).toContain("DRY RUN");
+    expect(out).toContain("manual removal required");
+    expect(out).toContain("claude plugin uninstall --scope user p@mp");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

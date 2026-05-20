@@ -139,4 +139,13 @@ describe("buildInstallLog + write/read round-trip", () => {
     expect(result).toBeNull();
     rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("readInstallLog 가 invalid JSON 파일에 대해 null 반환 (corrupted log 안전)", async () => {
+    const fs = await import("node:fs");
+    const { join } = await import("node:path");
+    fs.writeFileSync(join(tmpDir, ".claude", ".harness-install.json"), "not-json{", "utf8");
+    const result = readInstallLog(tmpDir);
+    expect(result).toBeNull();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
 });
