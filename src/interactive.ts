@@ -9,6 +9,7 @@ import {
 } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
+import { stepLabel, WIZARD } from "./wizard-steps.js";
 
 /**
  * v26.54.0 — All-in-one 결과 → option keys + asset id list 분리.
@@ -164,7 +165,7 @@ export async function runInteractive(
 
   while (true) {
     if (step === "tracks") {
-      const result = await prompts.selectTracks(tracks ?? initialTracks);
+      const result = await prompts.selectTracks(tracks ?? initialTracks, WIZARD.TRACKS);
       if (result === null) {
         // Step 1 ESC = exit with cancel message (only step where ESC is "cancel")
         prompts.cancel("Cancelled.");
@@ -177,7 +178,7 @@ export async function runInteractive(
       tracks = result;
       step = "cli";
     } else if (step === "cli") {
-      const result = await prompts.selectCli(cli ?? ["claude"]);
+      const result = await prompts.selectCli(cli ?? ["claude"], WIZARD.CLI);
       if (result === null) {
         step = "tracks"; // silent back
         continue;
@@ -189,15 +190,11 @@ export async function runInteractive(
         targetSelections !== null
           ? [...targetSelections]
           : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
-      // v26.64.0 — 6-step (scope 추가). step 3/6 (install targets) → step 4/6 (scope) → step 5/6 (confirm).
-      const result = await prompts.selectInstallTargets(
-        initial,
-        { current: 3, total: 6 },
-        {
-          tracks: tracks ?? [],
-          cli: cli ?? ["claude"],
-        },
-      );
+      // v26.65.0 — step indicator SSOT (wizard-steps.ts). Phase: 3 targets → 4 scope → 5 confirm → 6 install.
+      const result = await prompts.selectInstallTargets(initial, WIZARD.TARGETS, {
+        tracks: tracks ?? [],
+        cli: cli ?? ["claude"],
+      });
       if (result === null) {
         step = "cli"; // silent back
         continue;
@@ -206,7 +203,7 @@ export async function runInteractive(
       step = "scope";
     } else if (step === "scope") {
       // v26.64.0 (ADR-020) — Installation scope select. Default "project" (D16).
-      const result = await prompts.selectScope(scope);
+      const result = await prompts.selectScope(scope, WIZARD.SCOPE);
       if (result === null) {
         step = "targets"; // silent back
         continue;
@@ -238,7 +235,9 @@ export async function runInteractive(
         projectDir,
         ...(userOverride ? { userOverride } : {}),
       })}\n  SCOPE     ${scopeLabel}`;
-      const confirmed = await prompts.confirmInstall(`Step 5/6 — Confirm\n${summary}`);
+      const confirmed = await prompts.confirmInstall(
+        `${stepLabel(WIZARD.CONFIRM, "Confirm")}\n${summary}`,
+      );
       if (confirmed === null) {
         step = "scope"; // silent back
         continue;
@@ -247,7 +246,7 @@ export async function runInteractive(
         prompts.outro("Cancelled by user.");
         return { ok: false, reason: "cancelled" };
       }
-      prompts.outro("Step 6/6 — Installing...");
+      prompts.outro(stepLabel(WIZARD.INSTALL, "Installing..."));
       return {
         ok: true,
         mode,

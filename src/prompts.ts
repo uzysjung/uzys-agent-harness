@@ -25,6 +25,7 @@ import {
   TRACKS,
   type Track,
 } from "./types.js";
+import { stepLabel, type WizardStep } from "./wizard-steps.js";
 
 /**
  * v26.54.0 — All-in-one install-targets value scheme.
@@ -42,15 +43,19 @@ export interface Prompts {
   outro: (msg: string) => void;
   cancel: (msg: string) => void;
 
-  selectTracks: (initial?: Track[]) => Promise<Track[] | null>;
+  /**
+   * v26.65.0 — step optional 두 번째 인자. 호출자가 `WIZARD.TRACKS` 전달 시 message 에
+   * "Step N/M — Select Track(s)" 형식 indicator 자동 삽입. 미전달 시 prefix 없이 raw label.
+   */
+  selectTracks: (initial?: Track[], step?: WizardStep) => Promise<Track[] | null>;
   /** v0.7.0 — single select → multiselect (3 base 체크박스). default `["claude"]`. */
-  selectCli: (initial?: CliTargets) => Promise<CliTargets | null>;
+  selectCli: (initial?: CliTargets, step?: WizardStep) => Promise<CliTargets | null>;
   selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
   /**
    * v26.64.0 (ADR-020) — Installation scope 선택. Default = "project" (pre-selected).
    * Global 은 사용자 명시 opt-in. null = silent back.
    */
-  selectScope: (initial?: InstallScope) => Promise<InstallScope | null>;
+  selectScope: (initial?: InstallScope, step?: WizardStep) => Promise<InstallScope | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
 
   /**
@@ -139,12 +144,10 @@ export const defaultPrompts: Prompts = {
   outro: (msg) => outro(msg),
   cancel: (msg) => cancel(msg),
 
-  selectTracks: async (initial) => {
-    // v26.58.1 — maxItems 로 viewport scroll. cursor follow + ↕ ... indicator (clack limitOptions).
-    // v26.63.0 — 5-step 통합 (1: tracks · 2: cli · 3: install targets · 4: confirm · 5: installing).
+  selectTracks: async (initial, step) => {
+    // v26.65.0 — step indicator SSOT (wizard-steps.ts). 6-step 통합 (1 tracks · 2 cli · 3 targets · 4 scope · 5 confirm · 6 installing).
     const result = await multiselect({
-      // v26.63.2 — polish: clack 자체 footer 가 "Space toggle · Enter confirm" 안내 → message 중복 제거.
-      message: "Step 1/5 — Select Track(s)",
+      message: stepLabel(step, "Select Track(s)"),
       options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
       ...(initial ? { initialValues: initial } : {}),
       maxItems: viewportItems(11),
@@ -153,13 +156,10 @@ export const defaultPrompts: Prompts = {
     return isCancel(result) ? null : (result as Track[]);
   },
 
-  selectCli: async (initial) => {
-    // v0.7.0 — multiselect (3 base 체크박스). default ["claude"]. required: true.
-    // v26.63.0 — 5-step 통합.
+  selectCli: async (initial, step) => {
     const initialValues: CliBase[] = initial && initial.length > 0 ? [...initial] : ["claude"];
     const result = await multiselect({
-      // v26.63.2 — polish: hint 중복 제거. clack footer 가 동일 안내.
-      message: "Step 2/5 — Target CLI(s)",
+      message: stepLabel(step, "Target CLI(s)"),
       options: [
         { value: "claude" as const, label: CLI_BASE_LABELS.claude },
         { value: "codex" as const, label: CLI_BASE_LABELS.codex },
@@ -189,9 +189,9 @@ export const defaultPrompts: Prompts = {
    * v26.64.0 (ADR-020) — Installation scope select. Default Project (D16 — no global write).
    * Global 은 사용자 명시 opt-in 시에만.
    */
-  selectScope: async (initial = "project") => {
+  selectScope: async (initial = "project", step) => {
     const result = await select({
-      message: "Installation scope",
+      message: stepLabel(step, "Installation scope"),
       initialValue: initial,
       options: [
         {
