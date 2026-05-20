@@ -255,7 +255,9 @@ describe("runInteractive", () => {
       detect: () => existingState,
       isTty: () => true,
     });
-    expect(selectTracks).toHaveBeenCalledWith(["tooling"]);
+    // v26.65.0 — 2번째 arg 는 step indicator. 본 test 는 첫 arg (initialTracks) 만 검증.
+    const calls = selectTracks.mock.calls as ReadonlyArray<ReadonlyArray<unknown>>;
+    expect(calls[0]?.[0]).toEqual(["tooling"]);
   });
 
   it("existing install: action=reinstall does not seed initialTracks", async () => {
@@ -269,7 +271,8 @@ describe("runInteractive", () => {
       detect: () => existingState,
       isTty: () => true,
     });
-    expect(selectTracks).toHaveBeenCalledWith(undefined);
+    const calls = selectTracks.mock.calls as ReadonlyArray<ReadonlyArray<unknown>>;
+    expect(calls[0]?.[0]).toBeUndefined();
   });
 
   it.each([
