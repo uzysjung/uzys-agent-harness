@@ -135,8 +135,9 @@ Each CLI gets its own dispatcher file:
 | CLI | Dispatcher | Notes |
 |---|---|---|
 | Claude Code | `.claude/` | First class. All hooks active |
-| Codex | `.codex/` + project `AGENTS.md` | `.codex/prompts/uzys-*` if `--with-codex-prompts` |
+| Codex | `.codex/` + project `AGENTS.md` + `.agents/skills/` | `.codex/prompts/uzys-*` if `--with-codex-prompts` |
 | OpenCode | `.opencode/` + project `AGENTS.md` | Skills + commands |
+| Antigravity | `.agents/skills/` + `.agents/workflows/` | Shares `.agents/skills/` with Codex. `/uzys:*` workflows via Antigravity native slash (v26.66.0+) |
 
 Multi-CLI dispatchers reference the same content via symlinks where possible — no duplication.
 
@@ -200,6 +201,19 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 - `AGENTS.md` — shared with Codex
 
 3 hooks map to OpenCode lifecycle events (session start / pre-edit / post-edit).
+
+---
+
+## Antigravity integration (v26.66.0+)
+
+Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-claude-harness writes:
+
+- `.agents/skills/uzys-{phase}/SKILL.md` — Anthropic-format skills (shared with Codex; one file serves both CLIs).
+- `.agents/workflows/uzys-{phase}.md` — Antigravity-native workflow files. Invoke as `/uzys:spec`, `/uzys:plan`, …, `/uzys:ship`.
+
+Both are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with-uzys-harness` on the CLI).
+
+Global write to `~/.gemini/antigravity/skills/` is **not supported in v26.66.0** (project scope only — Phase C is a separate cycle). To install Antigravity globally, see [antigravity.google/docs](https://antigravity.google/docs).
 
 ---
 

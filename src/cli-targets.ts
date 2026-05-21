@@ -18,11 +18,12 @@
 
 import { CLI_BASES, type CliBase, type CliTargets, isCliBase } from "./types.js";
 
-/** SSOT — claude → codex → opencode 정렬 순서. prompts.ts에서 import. */
+/** SSOT — claude → codex → opencode → antigravity 정렬 순서. prompts.ts에서 import. */
 export const CLI_BASE_SORT_ORDER: Record<CliBase, number> = {
   claude: 0,
   codex: 1,
   opencode: 2,
+  antigravity: 3,
 };
 
 export interface ParseCliTargetsResult {

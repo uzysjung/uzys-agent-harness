@@ -241,8 +241,9 @@ Flag:
 | CLI | 지원 |
 |---|---|
 | Claude Code | First class — 모든 자산 + hook |
-| Codex | Skills + slash commands; project-scope 시 `.codex/` 에 write |
+| Codex (OpenAI) | Skills + slash commands; project-scope 시 `.codex/` 에 write |
 | OpenCode | Skills + AGENTS.md 통합 |
+| Antigravity (Google) | Skills + `/uzys:*` workflows via `.agents/skills/` + `.agents/workflows/` (v26.66.0+) |
 
 Step 2 에서 1개 또는 multi 선택.
 

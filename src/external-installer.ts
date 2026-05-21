@@ -216,6 +216,8 @@ const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
   claude: "claude-code",
   codex: "codex",
   opencode: "opencode",
+  // v26.66.0 — Antigravity (Google) skills agent. `.agents/skills/` 표준 공유 (codex transform 산출과 동일).
+  antigravity: "antigravity",
 };
 
 function buildSkillArgs(
