@@ -301,6 +301,7 @@ function spawnOpts(): SpawnOpts {
   };
 }
 
+/* v8 ignore next 7 — thin dep-inject default. tests 는 항상 spawn 주입. */
 function defaultSpawn(
   cmd: string,
   args: ReadonlyArray<string>,
@@ -357,6 +358,7 @@ function detectVersion(
 
 let npmGlobalRootCache: string | undefined;
 
+/* v8 ignore start — npm CLI 실행 + cache. 실 시스템 의존. detectVersion (plugin 외 method) 가 본 함수 호출. */
 function getNpmGlobalRoot(spawn: NonNullable<ExternalInstallerDeps["spawn"]>): string | undefined {
   if (npmGlobalRootCache !== undefined) return npmGlobalRootCache || undefined;
   try {
@@ -371,6 +373,7 @@ function getNpmGlobalRoot(spawn: NonNullable<ExternalInstallerDeps["spawn"]>): s
   npmGlobalRootCache = "";
   return undefined;
 }
+/* v8 ignore stop */
 
 /**
  * 누락(skip) 자산 목록을 사용자 보고용 텍스트로 포맷.

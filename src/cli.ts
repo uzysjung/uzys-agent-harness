@@ -24,6 +24,7 @@ export interface DefaultActionDeps {
 export async function defaultAction(deps: DefaultActionDeps = {}): Promise<void> {
   const log = deps.log ?? console.log;
   const err = deps.err ?? console.error;
+  /* v8 ignore next — process.exit default. tests 는 exit 주입. */
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
   const run = deps.run ?? ((cwd: string) => runInteractive(cwd));
   const execute = deps.execute ?? executeSpec;
@@ -64,6 +65,7 @@ export function buildCli(): Cli {
 
   cli
     .command("", "Interactive installer (state detection + prompts)")
+    /* v8 ignore next — cac action callback. defaultAction 자체는 별도 tests 로 검증. */
     .action(() => defaultAction());
 
   return cli;
