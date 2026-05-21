@@ -786,6 +786,7 @@ export function formatCliPhaseTitle(targets: CliTargets): string {
   return "CLI artifacts";
 }
 
+/* v8 ignore start — thin dep-inject defaults. tests 는 항상 runPipeline / resolveHarnessRoot 주입. */
 function defaultRunPipeline(
   spec: InstallSpec,
   harnessRoot: string,
@@ -807,6 +808,8 @@ function defaultHarnessRoot(): string {
   // The bundled CLI lives at <root>/dist/index.js. import.meta.url + ../ resolves to <root>.
   return resolve(new URL(".", import.meta.url).pathname, "..");
 }
+
+/* v8 ignore stop */
 
 export { defaultHarnessRoot };
 
@@ -884,5 +887,6 @@ export function registerInstallCommand(cli: Cli): void {
     .example("install --track csr-supabase --cli claude --cli codex")
     .example("install --track csr-supabase --without netlify-cli --with railway-skills")
     .example("install --track full --no-codex-prompts")
+    /* v8 ignore next — cac action callback. installAction 자체는 별도 tests 로 검증. */
     .action((options: InstallOptions) => installAction(options));
 }

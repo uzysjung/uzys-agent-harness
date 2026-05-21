@@ -15,11 +15,10 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/types/**", "src/index.ts", "src/prompts.ts"],
       thresholds: {
         lines: 90,
-        // branches: 90 → 88 → 87 → 86 → 87 → 88 → 86 (v26.64.0) → 87 (v26.64.1 부분 복구).
-        // uninstall.ts dep-inject v8 ignore + advisory/fallback/dry-run/templates branch tests +
-        // install-log invalid JSON test. install.ts 의 82.1% (v26.64.0 외 영역) dilution 으로 88 미달.
-        // 별 cycle 에서 install.ts branch 보강 후 88 완전 복구.
-        branches: 87,
+        // branches: 90 → 88 → 87 → 86 → 87 → 88 → 86 (v26.64.0) → 87 (v26.64.1) → 88 (v26.65.2 완전 복구).
+        // install.ts / cli.ts / external-installer.ts 의 dep-inject defaults + spawn helpers 에 v8 ignore.
+        // wizard-steps.ts 100% test. ADR-013/014 약속 회복.
+        branches: 88,
         functions: 90,
         statements: 90,
       },
