@@ -241,8 +241,9 @@ Flags:
 | CLI | Status |
 |---|---|
 | Claude Code | First class — all assets and hooks |
-| Codex | Skills + slash commands; project-scope writes go to `.codex/` |
+| Codex (OpenAI) | Skills + slash commands; project-scope writes go to `.codex/` |
 | OpenCode | Skills + AGENTS.md integration |
+| Antigravity (Google) | Skills + `/uzys:*` workflows via `.agents/skills/` and `.agents/workflows/` (v26.66.0+) |
 
 Pick one or more at step 2.
 

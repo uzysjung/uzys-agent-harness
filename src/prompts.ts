@@ -124,6 +124,7 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
   claude: "Claude Code",
   codex: "Codex (OpenAI)",
   opencode: "OpenCode (anomalyco)",
+  antigravity: "Antigravity (Google)",
 };
 
 /**
@@ -164,6 +165,7 @@ export const defaultPrompts: Prompts = {
         { value: "claude" as const, label: CLI_BASE_LABELS.claude },
         { value: "codex" as const, label: CLI_BASE_LABELS.codex },
         { value: "opencode" as const, label: CLI_BASE_LABELS.opencode },
+        { value: "antigravity" as const, label: CLI_BASE_LABELS.antigravity },
       ],
       initialValues,
       required: true,

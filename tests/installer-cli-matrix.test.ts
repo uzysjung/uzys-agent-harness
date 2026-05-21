@@ -151,7 +151,7 @@ describe("Matrix invariants — cross-cutting", () => {
   });
 
   it("each combination is sorted (claude → codex → opencode order)", () => {
-    const order: Record<CliBase, number> = { claude: 0, codex: 1, opencode: 2 };
+    const order: Record<CliBase, number> = { claude: 0, codex: 1, opencode: 2, antigravity: 3 };
     for (const combo of COMBINATIONS) {
       const indices = combo.map((c) => order[c]);
       const sorted = [...indices].sort((a, b) => a - b);

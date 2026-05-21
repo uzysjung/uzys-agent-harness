@@ -7,6 +7,10 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import {
+  type AntigravityTransformReport,
+  runAntigravityTransform,
+} from "./antigravity/transform.js";
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
 import {
@@ -139,6 +143,8 @@ export interface BaselineReport {
   codex: CodexTransformReport | null;
   codexOptIn: CodexOptInReport | null;
   opencode: OpencodeTransformReport | null;
+  /** v26.66.0 — Present when spec.cli includes "antigravity". */
+  antigravity: AntigravityTransformReport | null;
   updateMode: UpdateModeReport | null;
   mode: InstallMode;
   envFiles: {
@@ -167,6 +173,8 @@ export interface InstallReport {
   codexOptIn: CodexOptInReport | null;
   /** Present when spec.cli includes "opencode". */
   opencode: OpencodeTransformReport | null;
+  /** v26.66.0 — Present when spec.cli includes "antigravity". */
+  antigravity: AntigravityTransformReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks 갱신 + orphan prune + stale hook). null when not update mode. */
@@ -230,6 +238,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
       codex: null,
       codexOptIn: null,
       opencode: null,
+      antigravity: null,
       updateMode: updateReport,
       mode,
       envFiles: {
@@ -354,6 +363,17 @@ export function runInstall(ctx: InstallContext): InstallReport {
     opencode = runOpencodeTransform({ harnessRoot, projectDir });
   }
 
+  // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
+  // `.agents/skills/` (codex 와 공유) + `.agents/workflows/` (신규). withUzysHarness 시만.
+  let antigravity: AntigravityTransformReport | null = null;
+  if (spec.cli.includes("antigravity")) {
+    antigravity = runAntigravityTransform({
+      harnessRoot,
+      projectDir,
+      withUzysHarness: spec.options.withUzysHarness,
+    });
+  }
+
   const baseline: BaselineReport = {
     filesCopied,
     dirsCopied,
@@ -364,6 +384,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     codex,
     codexOptIn,
     opencode,
+    antigravity,
     updateMode: null,
     mode,
     envFiles,
