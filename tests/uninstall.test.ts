@@ -119,7 +119,7 @@ describe("uninstallAction", () => {
         {
           id: "fallback-pkg-id",
           category: "dev-tools",
-          method: "npm-global",
+          method: "npm",
           scope: "project",
           detail: {}, // pkg 없음
         },
@@ -151,7 +151,7 @@ describe("uninstallAction", () => {
         {
           id: "vercel",
           category: "dev-tools",
-          method: "npm-global",
+          method: "npm",
           scope: "project",
           detail: { pkg: "vercel" },
         },
@@ -322,7 +322,7 @@ describe("uninstallAction", () => {
         {
           id: "vercel",
           category: "dev-tools",
-          method: "npm-global",
+          method: "npm",
           scope: "global",
           detail: { pkg: "vercel" },
         },

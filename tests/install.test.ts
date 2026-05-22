@@ -484,7 +484,7 @@ describe("executeSpec", () => {
               category: "dev-tools" as const,
               source: "uzys" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
-              method: { kind: "npm-global", pkg: "vercel" } as const,
+              method: { kind: "npm", pkg: "vercel" } as const,
             },
             ok: true,
           },

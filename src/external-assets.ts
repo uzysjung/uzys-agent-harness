@@ -18,7 +18,7 @@ export type ExternalAssetMethod =
   /** `claude plugin marketplace add <marketplace>` + `claude plugin install <pluginId>` */
   | { kind: "plugin"; marketplace: string; pluginId: string }
   /** `npm install -g <pkg>` */
-  | { kind: "npm-global"; pkg: string }
+  | { kind: "npm"; pkg: string }
   /** `npx <cmd>` — fire-and-forget 실행 (예: GSD orchestrator) */
   | { kind: "npx-run"; cmd: string; args?: string[] }
   /** `bash <script> <args...>` — 로컬 스크립트 (예: prune-ecc.sh) */
@@ -224,7 +224,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "vercel",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm-global", pkg: "vercel" },
+    method: { kind: "npm", pkg: "vercel" },
   },
   {
     id: "netlify-cli",
@@ -232,7 +232,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "netlify",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm-global", pkg: "netlify-cli" },
+    method: { kind: "npm", pkg: "netlify-cli" },
   },
   {
     id: "supabase-cli",
@@ -240,7 +240,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm-global", pkg: "supabase" },
+    method: { kind: "npm", pkg: "supabase" },
   },
 
   // === UI tracks (csr-*|ssr-*|full) ===
@@ -284,7 +284,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
-    method: { kind: "npm-global", pkg: "agent-browser" },
+    method: { kind: "npm", pkg: "agent-browser" },
   },
   {
     id: "architecture-decision-record",
