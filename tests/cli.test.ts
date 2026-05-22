@@ -71,6 +71,8 @@ describe("defaultAction", () => {
         withAddyAgentSkills: false,
         withUzysHarness: false,
         withSuperpowers: false,
+
+        withAntigravityGlobal: false,
       },
       cli: ["claude"] as const,
       projectDir: "/p",

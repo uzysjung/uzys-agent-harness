@@ -243,7 +243,7 @@ Flags:
 | Claude Code | First class — all assets and hooks |
 | Codex (OpenAI) | Skills + slash commands; project-scope writes go to `.codex/` |
 | OpenCode | Skills + AGENTS.md integration |
-| Antigravity (Google) | Skills + `/uzys:*` workflows via `.agents/skills/` and `.agents/workflows/` (v26.66.0+) |
+| Antigravity (Google) | Project: `.agents/skills/` + `.agents/workflows/`. Global (opt-in via `--with-antigravity-global` + `--scope global`): `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` (v26.67.0+) |
 
 Pick one or more at step 2.
 

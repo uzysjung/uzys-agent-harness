@@ -57,6 +57,11 @@ export interface InstallOptions {
   /** v26.44.0 — obra/superpowers opt-in. Anthropic 공식 marketplace 등록. */
   withSuperpowers?: boolean;
   /**
+   * v26.67.0 — Antigravity global opt-in. `~/.gemini/antigravity/skills/uzys-*` +
+   * `~/.gemini/antigravity/global_workflows/uzys-*.md`. scope=global + cli=antigravity 시만 의미.
+   */
+  withAntigravityGlobal?: boolean;
+  /**
    * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
    * cac repeatable. 예: `--with railway-skills --with impeccable`.
    * 옵션-키 flag (예: `--with-uzys-harness`) 와 별개 — External Asset id 만.
@@ -222,6 +227,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withAddyAgentSkills: options.withAddyAgentSkills === true,
       withUzysHarness: options.withUzysHarness === true,
       withSuperpowers: options.withSuperpowers === true,
+      withAntigravityGlobal: options.withAntigravityGlobal === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
@@ -868,6 +874,10 @@ export function registerInstallCommand(cli: Cli): void {
     .option(
       "--with-superpowers",
       "[Workflow] obra/superpowers (registered in Anthropic official marketplace)",
+    )
+    .option(
+      "--with-antigravity-global",
+      "[Workflow] Antigravity global opt-in: copy uzys-* to ~/.gemini/antigravity/{skills,global_workflows}/. Requires --cli antigravity + --scope global. (v26.67.0+)",
     )
     .option("--with-gsd", "[Workflow] GSD orchestrator (for large projects)")
     // === ECC Suite ===

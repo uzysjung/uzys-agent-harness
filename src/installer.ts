@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { type AntigravityOptInReport, runAntigravityOptIn } from "./antigravity/opt-in.js";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -145,6 +146,8 @@ export interface BaselineReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
+  /** v26.67.0 — Present when antigravity global opt-in fired (scope=global + withAntigravityGlobal). */
+  antigravityOptIn: AntigravityOptInReport | null;
   updateMode: UpdateModeReport | null;
   mode: InstallMode;
   envFiles: {
@@ -175,6 +178,8 @@ export interface InstallReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
+  /** v26.67.0 — Present when antigravity global opt-in fired. null otherwise. */
+  antigravityOptIn: AntigravityOptInReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks 갱신 + orphan prune + stale hook). null when not update mode. */
@@ -239,6 +244,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
       codexOptIn: null,
       opencode: null,
       antigravity: null,
+      antigravityOptIn: null,
       updateMode: updateReport,
       mode,
       envFiles: {
@@ -366,12 +372,23 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
   // `.agents/skills/` (codex 와 공유) + `.agents/workflows/` (신규). withUzysHarness 시만.
   let antigravity: AntigravityTransformReport | null = null;
+  let antigravityOptIn: AntigravityOptInReport | null = null;
   if (spec.cli.includes("antigravity")) {
     antigravity = runAntigravityTransform({
       harnessRoot,
       projectDir,
       withUzysHarness: spec.options.withUzysHarness,
     });
+    // v26.67.0 (Phase C) — Antigravity global opt-in. ADR-020 정합 —
+    // scope=global + withAntigravityGlobal=true 시에만 ~/.gemini/ 영역 write.
+    const installScope = spec.scope ?? "project";
+    if (installScope === "global" && spec.options.withAntigravityGlobal) {
+      antigravityOptIn = runAntigravityOptIn({
+        projectDir,
+        harnessRoot,
+        enabled: true,
+      });
+    }
   }
 
   const baseline: BaselineReport = {
@@ -385,6 +402,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     codexOptIn,
     opencode,
     antigravity,
+    antigravityOptIn,
     updateMode: null,
     mode,
     envFiles,
