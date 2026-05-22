@@ -517,7 +517,7 @@ function formatAssetMeta(
       return `skill · ${m.source}`;
     case "plugin":
       return `plugin · ${m.pluginId}${v}`;
-    case "npm-global":
+    case "npm":
       return `npm -g · ${m.pkg}${v}`;
     case "npx-run":
       return `npx · ${m.cmd}`;

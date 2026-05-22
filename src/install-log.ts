@@ -91,7 +91,7 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
       return { marketplace: method.marketplace, pluginId: method.pluginId };
     case "skill":
       return { source: method.source, ...(method.skill ? { skill: method.skill } : {}) };
-    case "npm-global":
+    case "npm":
       return { pkg: method.pkg };
     case "npx-run":
       return { cmd: method.cmd, args: (method.args ?? []).join(" ") };
@@ -137,7 +137,15 @@ export function readInstallLog(projectDir: string): InstallLog | null {
   const path = join(projectDir, ".claude", INSTALL_LOG_FILENAME);
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as InstallLog;
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as InstallLog;
+    // v26.68.0 — backward compat: method.kind "npm-global" → "npm" rename.
+    // v26.64.0 ~ v26.67.0 시점 install log 가 새 uninstall 에서 작동하도록 normalize.
+    if (Array.isArray(parsed.assets)) {
+      parsed.assets = parsed.assets.map((a) =>
+        (a.method as string) === "npm-global" ? { ...a, method: "npm" } : a,
+      );
+    }
+    return parsed;
   } catch {
     return null;
   }

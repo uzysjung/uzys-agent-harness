@@ -171,9 +171,9 @@ function installOne(
       return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope));
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope);
-    case "npm-global":
+    case "npm":
       // v26.64.0 (ADR-020) — scope=project 시 devDep, scope=global 시 -g.
-      // method.kind 이름은 "npm-global" 유지 (별도 cycle 에서 rename) — 실 동작은 scope 분기.
+      // v26.68.0 — method.kind "npm-global" → "npm" rename (scope 분기와 무관 의미).
       return runSpawn(
         asset,
         ctx.spawn,
@@ -342,7 +342,7 @@ function detectVersion(
           .sort();
         return versions.at(-1);
       }
-      case "npm-global": {
+      case "npm": {
         const npmRoot = getNpmGlobalRoot(spawn);
         if (!npmRoot) return undefined;
         const pkgJson = join(npmRoot, method.pkg, "package.json");

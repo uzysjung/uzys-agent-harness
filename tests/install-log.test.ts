@@ -68,7 +68,7 @@ describe("buildAssetEntries", () => {
     const asset = createMockAsset({
       id: "v",
       condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npm-global", pkg: "vercel" },
+      method: { kind: "npm", pkg: "vercel" },
     });
     const entries = buildAssetEntries(
       { attempted: [mkResult(asset)], succeeded: 1, skipped: 0 },
@@ -146,6 +146,35 @@ describe("buildInstallLog + write/read round-trip", () => {
     fs.writeFileSync(join(tmpDir, ".claude", ".harness-install.json"), "not-json{", "utf8");
     const result = readInstallLog(tmpDir);
     expect(result).toBeNull();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("v26.68.0 backward compat — legacy method 'npm-global' 을 'npm' 으로 normalize", async () => {
+    const fs = await import("node:fs");
+    const { join: pathJoin } = await import("node:path");
+    const legacyLog = {
+      schemaVersion: 1,
+      installedAt: "2026-05-19T00:00:00.000Z",
+      scope: "project" as const,
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude/" },
+      assets: [
+        {
+          id: "vercel",
+          category: "dev-tools",
+          method: "npm-global", // v26.64.0 ~ v26.67.0 시점 install log
+          scope: "project" as const,
+          detail: { pkg: "vercel" },
+        },
+      ],
+    };
+    fs.writeFileSync(
+      pathJoin(tmpDir, ".claude", ".harness-install.json"),
+      JSON.stringify(legacyLog),
+      "utf8",
+    );
+    const restored = readInstallLog(tmpDir);
+    expect(restored?.assets[0]?.method).toBe("npm");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });

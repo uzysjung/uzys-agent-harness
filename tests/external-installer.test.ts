@@ -66,7 +66,7 @@ const TEST_ASSETS: ExternalAsset[] = [
     id: "npm-asset",
     description: "npm install -g",
     condition: { kind: "option", flag: "withEcc" },
-    method: { kind: "npm-global", pkg: "vercel" },
+    method: { kind: "npm", pkg: "vercel" },
   }),
   createMockAsset({
     id: "npx-asset",
@@ -272,7 +272,7 @@ describe("runExternalInstall — failure modes", () => {
       id: "must-have",
       description: "abort if missing",
       condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npm-global", pkg: "critical-pkg" },
+      method: { kind: "npm", pkg: "critical-pkg" },
       failureMode: "abort",
     });
     const report = runExternalInstall(

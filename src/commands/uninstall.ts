@@ -206,7 +206,7 @@ function buildProjectReverseStep(
         },
       };
     }
-    case "npm-global": {
+    case "npm": {
       const pkg = asset.detail.pkg ?? asset.id;
       return {
         label: `npm uninstall --save-dev ${pkg}`,
@@ -235,7 +235,7 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
       const s = asset.detail.source ?? asset.id;
       return `npx skills remove -g ${s}`;
     }
-    case "npm-global": {
+    case "npm": {
       const pkg = asset.detail.pkg ?? asset.id;
       return `npm uninstall -g ${pkg}`;
     }
