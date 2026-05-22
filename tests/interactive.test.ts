@@ -55,6 +55,8 @@ const ALL_FALSE_OPTIONS: OptionFlags = {
   withAddyAgentSkills: false,
   withUzysHarness: false,
   withSuperpowers: false,
+
+  withAntigravityGlobal: false,
 };
 
 describe("runInteractive", () => {

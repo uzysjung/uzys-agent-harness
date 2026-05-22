@@ -213,7 +213,14 @@ Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-claude
 
 Both are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with-uzys-harness` on the CLI).
 
-Global write to `~/.gemini/antigravity/skills/` is **not supported in v26.66.0** (project scope only — Phase C is a separate cycle). To install Antigravity globally, see [antigravity.google/docs](https://antigravity.google/docs).
+### Global opt-in (v26.67.0+)
+
+`--with-antigravity-global` + `--scope global` 시:
+
+- `~/.gemini/antigravity/skills/uzys-{phase}/SKILL.md` — 모든 프로젝트에서 보이는 글로벌 skills
+- `~/.gemini/antigravity/global_workflows/uzys-{phase}.md` — Antigravity 글로벌 `/uzys:*` 워크플로우
+
+D16 정합 — scope=project 또는 `--with-antigravity-global` 없으면 `~/.gemini/` 미수정. Uninstall 시 글로벌 자산은 자동 제거 X (advisory 만).
 
 ---
 

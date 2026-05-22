@@ -103,6 +103,12 @@ export interface OptionFlags {
    * Workflow 카테고리. /spec /plan /build /test /review /ship slash (no namespace) 가 깔림.
    */
   withSuperpowers: boolean;
+  /**
+   * v26.67.0 — Antigravity global opt-in (~/.gemini/antigravity/skills/uzys-* +
+   * ~/.gemini/antigravity/global_workflows/uzys-*.md). D16 영역 — `scope=global` +
+   * `cli.includes("antigravity")` 시에만 실 write. 사용자 명시 opt-in 필수.
+   */
+  withAntigravityGlobal: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
@@ -118,6 +124,7 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withAddyAgentSkills: false,
   withUzysHarness: false,
   withSuperpowers: false,
+  withAntigravityGlobal: false,
 };
 
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */

@@ -37,6 +37,8 @@ describe("OpenCode install pipeline (integration)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["opencode"],
         projectDir,
@@ -102,6 +104,8 @@ describe("OpenCode install pipeline (integration)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude", "codex", "opencode"],
         projectDir,
@@ -140,6 +144,8 @@ describe("OpenCode install pipeline (integration)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -171,6 +177,8 @@ describe("OpenCode install pipeline (integration)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude", "codex"],
         projectDir,

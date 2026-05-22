@@ -37,6 +37,8 @@ describe("installer (integration with templates/)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -98,6 +100,8 @@ describe("installer (integration with templates/)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -129,6 +133,8 @@ describe("installer (integration with templates/)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -167,6 +173,8 @@ describe("installer (integration with templates/)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -192,6 +200,8 @@ describe("installer (integration with templates/)", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -222,6 +232,8 @@ describe("installer (integration with templates/)", () => {
             withAddyAgentSkills: false,
             withUzysHarness: false,
             withSuperpowers: false,
+
+            withAntigravityGlobal: false,
           },
           cli: ["claude"],
           projectDir,

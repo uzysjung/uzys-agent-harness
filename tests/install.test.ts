@@ -20,6 +20,7 @@ function pipelineFor(report: InstallReport) {
       codexOptIn: report.codexOptIn,
       opencode: report.opencode,
       antigravity: report.antigravity,
+      antigravityOptIn: report.antigravityOptIn,
       updateMode: report.updateMode,
       mode: report.mode,
       envFiles: report.envFiles,
@@ -52,6 +53,7 @@ const fakeReport: InstallReport = {
   codexOptIn: null,
   opencode: null,
   antigravity: null,
+  antigravityOptIn: null,
   external: null,
   updateMode: null,
   karpathyHook: null,
@@ -231,6 +233,8 @@ describe("executeSpec", () => {
       withAddyAgentSkills: false,
       withUzysHarness: false,
       withSuperpowers: false,
+
+      withAntigravityGlobal: false,
     },
     cli: ["claude"],
     projectDir: "/p",
@@ -427,6 +431,8 @@ describe("executeSpec", () => {
           withAddyAgentSkills: false,
           withUzysHarness: false,
           withSuperpowers: false,
+
+          withAntigravityGlobal: false,
         },
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },

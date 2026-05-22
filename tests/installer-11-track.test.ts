@@ -20,6 +20,8 @@ const NO_OPTS: OptionFlags = {
   withAddyAgentSkills: false,
   withUzysHarness: false,
   withSuperpowers: false,
+
+  withAntigravityGlobal: false,
 };
 
 function buildSpec(tracks: Track[], projectDir: string): InstallSpec {

@@ -39,6 +39,8 @@ function spec(withFlag: boolean, projectDir: string): InstallSpec {
       withAddyAgentSkills: false,
       withUzysHarness: false,
       withSuperpowers: false,
+
+      withAntigravityGlobal: false,
     },
     cli: ["claude"],
     projectDir,
