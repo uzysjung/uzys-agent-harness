@@ -31,15 +31,23 @@
 
 ## 열린 목표 (Phase 2 — Adoption Loop)
 
-> 출처: [`docs/phase-2-backlog.md`](phase-2-backlog.md) · [`docs/decisions/ADR-001`](decisions/ADR-001-phase2-entry-criteria.md)
-> NSM(North Star Metric): **HITO ≤ 3 prompts/feature** (현재 baseline ~20, 6.7× 초과 — Phase 2 본업)
+> 출처: [`docs/research/next-steps-2026-05-31.md`](research/next-steps-2026-05-31.md) (RICE 재정렬) · [`docs/phase-2-backlog.md`](phase-2-backlog.md) · [`docs/decisions/ADR-001`](decisions/ADR-001-phase2-entry-criteria.md)
+> NSM(North Star Metric): **HITO ≤ 3 prompts/feature** (현재 baseline ~20 = N=1·하네스 자체 빌드 측정 → 측정 대상 불일치. 외부/통제 dogfood 필요)
+> **2026-05-31 재정렬**: North Star Statement 재정립(설치 서비스 본질) 반영 → RICE 1위 **C2(설치 매트릭스)를 P2-01 앞에 배치**. 근거: 설치가 본질 + solo 측정 가능 + P2-01 선행 병목.
 
-- **P2-01 — 외부 사용자 첫 설치 성공** (pending, 최우선)
-  - clean install 1-shot + 첫 워크플로우 완주 + HITO ≤ 3 자가 측정 3+ 사례
-- **P2-02 — NSM per-feature 자동화 Step 2** (보류)
-  - 현재 session-level 집계까지 (`scripts/nsm-aggregate.sh`). feature 라벨링 수동 → 외부 baseline 후 재평가
-- **P2-04 — Dependency major bump** (pending)
+- **C2 — fresh-env 설치 매트릭스 CI** (next, 최우선 / RICE 600)
+  - Linux·macOS × Node 20/22 × npm/pnpm 매트릭스. First-Run Success ≥95% 직결. `/uzys:spec` 진입 대기
+- **B2+B1 — 4-CLI 실환경 검증** (pending / RICE 213+128)
+  - Codex `.codex/prompts/` 실 Codex 인식 + Antigravity 실환경 동작 검증. Promise=Implementation 봉합(F3)
+- **P2-01 (=C1) — fresh-dogfood HITO 실측** (pending / RICE 300)
+  - **방식 확정(2026-05-31): 자기 fresh-dogfood 프록시**. clean env에서 하네스로 새 throwaway 서비스 1건 완주 + 정직한 HITO/feature 첫 측정. 외부 사용자 실측은 Phase 3 신호로 이월
+- **A1 / A2 — 큐레이션 신선도·정직성** (pending / RICE 400·240)
+  - A1 Trust Tier star-drift CI(정적 라벨→자동 fetch) · A2 37 자산 설명 Promise audit
+- **P2-02 — NSM per-feature 자동화 Step 2** (보류 / RICE 16)
+  - session-level까지(`scripts/nsm-aggregate.sh`). per-feature 매핑은 **C1 외부 baseline 후** 재평가
+- **P2-04 — Dependency major bump** (pending / RICE 10)
   - Step 1 (@types/node + biome) → 2 (cac + @clack) → 3 (typescript 6) → 4 (vitest 4)
+- **재정의 필요**: E2 branch-protection (CI 태그-온리 전환으로 status-check 전제 소멸 → 의미 재정의 먼저)
 
 ---
 
