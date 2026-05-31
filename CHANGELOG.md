@@ -7,6 +7,81 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.70.3] — 2026-05-31 (ci)
+
+- GitHub Actions 를 push/PR 마다 → **릴리스 태그(`v*`) push 시에만** 실행. `concurrency(cancel-in-progress)` 추가. 로컬 `npm run ci` 가 1차 검증 게이트 (test-policy.md / ship-checklist.md 명문화).
+
+## [v26.70.2] — 2026-05-31 (refactor)
+
+- `cleanStaleHookRefs` (update-mode.ts) 단순화 — 객체 mutation 2곳 / non-null assertion / `as` cast 제거 → immutable map·filter 체인 + `keepHookRef` 헬퍼. branch coverage 82.5 → 90.24%.
+
+## [v26.70.1] — 2026-05-31 (fix: 코드리뷰 버그 9건)
+
+- **install log 누락 → uninstall 불가**: claude 미포함 CLI(codex/opencode/antigravity 단독·조합) 설치 시 `.claude/` 미생성으로 install log write 실패. `writeInstallLog` 가 디렉토리 보장하도록 수정.
+- **uninstall root CLAUDE.md**: install 원본 sha256 기록 후 비교 — 원본이면 삭제, 사용자 수정 시 보존.
+- antigravity global opt-in workflow `renameSlashes` 누락, clack `[disabled]` 옵션 실제 선택 가능, `session-start.sh` JSON injection 견고성, `CLI_BASES`/cli-targets 주석·prune-ecc 카운트·python-resource description 정정.
+- 631 → 637 tests. (ADR-020 install log 스키마에 `rootClaudeMd` sha256 추가)
+
+## [v26.70.0] — 2026-05-31 (fix)
+
+- **AGENTS.md 빈 섹션 버그 fix** — `renderAgentsMd` 의 section 추출이 실 CLAUDE.md(Rule 1~12)에서 빈 결과 → CLAUDE.md 전문 embed(`{PROJECT_RULES}`)로 전환. codex/opencode/antigravity 3 CLI 단일 렌더 수렴.
+
+## [v26.69.0] — 2026-05-31 (feat)
+
+- Antigravity workspace rules — `.agents/rules/uzys-harness.md` (CLAUDE.md 전문 embed, context 항상). `~/.gemini/` 미터치.
+
+## [v26.68.0] — 2026-05-23 (refactor)
+
+- install log `method.kind` `"npm-global"` → `"npm"` rename + backward-compat normalize (v26.64~67 시점 log 호환).
+
+## [v26.67.0] — 2026-05-23 (feat)
+
+- **Antigravity Phase C** — global opt-in. `scope=global` + `--with-antigravity-global` 시에만 `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` 복사 (D16 보호).
+
+## [v26.66.0] — 2026-05-21 (feat: Antigravity 지원)
+
+- **Antigravity (Google) 4번째 CliBase** Phase A+B. `.agents/skills/` (codex 공유) + `.agents/workflows/uzys-*` (신규, 파일명 기반 `/uzys-{phase}` dispatch).
+
+## [v26.65.3] — 2026-05-21 (docs)
+
+- USAGE.md 단순화 (883 → 288줄).
+
+## [v26.65.2] — 2026-05-21 (fix)
+
+- branches coverage 88 완전 복구 (ADR-013/014 반영).
+
+## [v26.65.1] — 2026-05-20 (docs)
+
+- README 재구성 (addyosmani 스타일, 트랙별 자산 매트릭스, 6-Gate opt-in 명확화).
+
+## [v26.65.0] — 2026-05-20 (refactor)
+
+- Wizard step indicator SSOT + Prompts API refactor.
+
+## [v26.64.1] — 2026-05-20 (fix)
+
+- branches coverage 86 → 87 부분 복구.
+
+## [v26.64.0] — 2026-05-20 (feat: Project-scope default, ⚠️ BREAKING, ADR-020)
+
+- **모든 install 자산 default = Project. Global 은 명시 opt-in** (interactive scope step 또는 `--scope global`).
+- `.claude/.harness-install.json` install log + `claude-harness uninstall` (project 자동 reverse / global 안내) 신규. 6-step wizard.
+- BREAKING: `cli=codex` 자동 `withCodexPrompts` 폐기 (`--with-codex-prompts` 명시 필요), npm 자산 default `--save-dev`.
+
+## [v26.63.0] — 2026-05-17~18 (feat: 5-step 통합 UX + polish)
+
+- 5-step 통합 wizard (install header 삭제, `phaseHeader` → `unifiedSection`, `--verbose` flag). Step 3 결과 main buffer 출력 (alt screen exit 후). v26.63.1~4: 라벨 들여쓰기 / Summary marker / spacing / ECC fallback 통합 / jargon 보강.
+
+## [v26.61.0] — 2026-05-17 (feat: Step 3 scroll 해결)
+
+- Install targets wizard scroll 본질 해결: alt screen buffer + recap. v26.62.0~4: 카테고리 3-page paginate, groupMultiselect 복귀(`selectableGroups:false`), 들여쓰기, ASSETS row. (clack `groupMultiselect` 의 `maxItems` 미지원 한계 → page 묶음으로 cover)
+
+## [v26.57.0] — 2026-05-17 (feat/fix: Codex 매핑 + gating + UX)
+
+- v26.57.0 (ADR-018 BREAKING): Codex uzys 매핑 4위치 모두 `withUzysHarness` gating + Templates 설명.
+- v26.58.0 (ADR-019 BREAKING): Cherry-pick × Plugin opt-out gating (`withEcc=true` → cherry-pick skip).
+- v26.59.0: install 후 path 기반 version 표시 (plugin + npm-global). v26.60.0: UI text 영어 통일. (+ Phase 1 multi-line layout, wizard scroll viewport fix)
+
 ## [v26.56.0] — 2026-05-17 (feat: UX cycle — clarity + Codex Prompts uzys coupling, ⚠️ BREAKING)
 
 ### BREAKING (ADR-017)

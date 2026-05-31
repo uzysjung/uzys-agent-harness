@@ -3,6 +3,8 @@
 > **Status**: Draft (2026-04-23)
 > **Predecessor**: `docs/archive/phase-4b/SPEC.md` (Ship 완료, v26.2.1)
 > **Trigger**: v27.0~v27.17 — 18개 버전이 SPEC 없이 진행됨. NORTH_STAR Phase 1 종료 + Phase 2 진입 조건 충족 필요.
+>
+> **📌 현행화 노트 (2026-05-31, 현재 v26.70.3)**: 본 SPEC 은 Foundation(v26.38) 시점의 Persistent Anchor 로 **의도적으로 보존**된다 (DO NOT CHANGE 본문). 이후 v26.39~v26.70.3 진행 내역은 ▸ 시계열 `CHANGELOG.md` ▸ feature 단위 `docs/PRD/` + `docs/specs/` ▸ 목표/방향 `docs/NORTH_STAR.md` ▸ 현재 상태/할 일 `docs/todo.md` 를 참조.
 
 ---
 

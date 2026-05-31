@@ -195,6 +195,7 @@ npx -y github:uzysjung/uzys-claude-harness uninstall
 `.claude/.harness-install.json` (install 시 생성) 을 읽어 자동 reverse.
 
 - Project-scope 자산: 자동 제거 (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup 등).
+- 프로젝트 루트 `CLAUDE.md`: install 시점과 내용이 동일할 때만 제거 (sha256). 설치 후 직접 수정했다면 안내와 함께 보존.
 - Global-scope 자산: advisory 만 출력 — 사용자가 직접 제거. uninstall 이 명시적 동의 없이 다른 프로젝트나 글로벌 설정을 절대 안 건드림.
 
 Flag:
