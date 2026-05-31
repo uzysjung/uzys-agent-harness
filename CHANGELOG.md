@@ -16,11 +16,10 @@ C2 (research next-steps RICE 1위, North Star Phase 2 First-Run Success ≥95%).
   - `install-matrix` — **OS{ubuntu,macos} × Node{20,22} × pm{npm 4 + pnpm subset 2} = 6 combo** (`fail-fast:false`). 타르볼 설치 → core 파일 단언(.claude/CLAUDE.md/.installed-tracks/.mcp.json) → `$GITHUB_STEP_SUMMARY` 표.
   - `multi-track` — tooling/executive/data core 설치 (cross-track).
   - `fail-loud` — unknown track → non-zero (게이트가 실패를 잡는지, Rule 12).
-  - `npx-github-smoke` — `npx -y github:...#<sha>` 문서 명령(clone+prepare 경로, npm pack 과 별개. AC5).
 - 범위: **core 설치** 검증. external 자산 실설치는 Docker E2E(`test/docker/`) 담당 (non-fatal).
-- **검증**: Phase 1 단일 combo 실 CI green(dispatch). 로컬+Docker. test-policy/ship-checklist 에 릴리스 게이트 등재.
-- 발견: 본 작업의 Docker 실설치가 v26.71.1 (experimental opt-in 누락) 버그를 노출. 또 `npx-github-smoke` 가 **`npx github:` 가 npm 10(Node 20)에서 실패**함을 노출(GitFetcher Arborist 회귀) — 매트릭스 CI 가치 2건 입증.
-- **dist 커밋 + prepare 제거** (npx-github 근본 fix): `dist/` git 커밋(.gitignore 해제) + `prepare` 제거 → `npx -y github:uzysjung/uzys-claude-harness` 가 빌드 없이 즉시 실행 → **npm 10 GitFetcher 버그 회피 + 전 npm 버전 작동 + clone 후 즉시 실행**. `test.yml` 에 dist-freshness 가드(build → `git diff --exit-status`, 빌드 결정적 확인). install-matrix `pack` 은 명시 `npm run build`.
+- **검증**: 전체 매트릭스 실 CI green(dispatch) — 6 combo + multi-track + fail-loud. 로컬+Docker. test-policy/ship-checklist 에 릴리스 게이트 등재.
+- **매트릭스가 잡은 버그 2건** (CI 가치 입증): ① Docker 실설치 → v26.71.1 experimental opt-in 누락. ② `npx -y github:uzysjung/uzys-claude-harness` 가 **npm 10(Node 20/22 LTS 기본)에서 실패** (`GitFetcher requires an Arborist constructor` — npm 이 git-dep pack 시 회귀, dist/prepare 무관. npm 11 정상).
+- **`npx github:` 후속**: 근본 해결 = **npm registry publish → `npx @uzysjung/claude-harness`** (git-dep pack 회피, 전 npm 작동). 별 CR(Promise=Impl). 그 전까지 `npx github:` smoke 는 매트릭스에서 제외(npm 10 영구 실패 회피), publish CR 에서 registry-install smoke 추가.
 
 ## [v26.71.1] — 2026-05-31 (fix: experimental opt-in 누락 — 비대화형 install 경로)
 
