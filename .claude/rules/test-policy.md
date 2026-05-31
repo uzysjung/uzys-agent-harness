@@ -13,6 +13,7 @@
 > 따라서 **로컬 `npm run ci` (typecheck + lint + test:coverage + build) 가 1차 검증 게이트**다. ship/PR 전 반드시 전체 실행.
 > `npm test` 만으로는 coverage gate 를 놓친다 (v26.70.1 fail — branches 87.94% < 88%). branches(88)가 가장 빡빡한 gate.
 > 태그 push 후 `gh run watch <run-id> --exit-status` 로 릴리스 CI green 확인.
+> **추가 릴리스 게이트 (v26.72.0)**: `install-matrix.yml` (별도 워크플로우, 태그 + `workflow_dispatch`) — fresh-env 설치 매트릭스 (OS{ubuntu,macos} × Node{20,22} × pm{npm 전체 + pnpm subset} + 멀티트랙 + fail-loud + npx github: smoke). First-Run Success 회귀 게이트. **머지 후 `gh workflow run install-matrix.yml --ref main` 로 검증** (dispatch 는 default 브랜치 워크플로우 필요).
 
 ## Test Types (All Required)
 

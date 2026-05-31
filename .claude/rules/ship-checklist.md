@@ -8,6 +8,7 @@
 - [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB — `/uzys:test` 단계에서 검증됨)
 - [ ] **커버리지 기준 충족**: test-policy.md의 Track별 threshold 확인 (이 repo: branches 88)
 - [ ] **태그 후 릴리스 CI 확인**: 태그 push 후 `gh run watch <run-id> --exit-status` 로 GitHub Actions green 확인 (fail 시 patch 태그로 수정)
+- [ ] **fresh-env 설치 매트릭스 확인 (v26.72.0)**: `install-matrix.yml` (태그 자동 또는 `gh workflow run install-matrix.yml --ref main`) green — OS×Node×pm 설치 + 멀티트랙 + npx github: smoke. First-Run Success 회귀 방지
 - [ ] **Security Scan 통과**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음
 - [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip audit` (Python) 실행. critical/high 취약점 없음
 - [ ] **SPEC/PRD 정합성**: `bash .claude/hooks/spec-drift-check.sh ship` (exit 2 시 차단)
