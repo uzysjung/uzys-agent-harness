@@ -22,7 +22,7 @@ A 6-step interactive wizard guides everything. No flags needed.
 
 ```
 Step 1/6  Tracks            ← pick your stack
-Step 2/6  CLI               ← claude / codex / opencode
+Step 2/6  CLI               ← claude / codex / opencode / antigravity
 Step 3/6  Install items     ← review pre-checked recommendations
 Step 4/6  Scope             ← Project (default) or Global
 Step 5/6  Confirm
@@ -178,7 +178,8 @@ Step 4 asks where the install writes.
 | `npx skills` | project `node_modules` | `-g` (user-level) |
 | `npm` | `--save-dev` (devDependency) | `-g` |
 | Codex (prompts / skills / config) | `.codex/` in your project | `~/.codex/` |
-| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `npm root -g` | **not touched** | written per asset |
+| Antigravity (skills / workflows) | `.agents/` in your project | `~/.gemini/antigravity/` |
+| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `~/.gemini/` · `npm root -g` | **not touched** | written per asset |
 
 Project scope keeps the install confined to your repo. Other projects on the same machine are unaffected.
 
