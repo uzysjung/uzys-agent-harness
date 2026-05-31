@@ -155,35 +155,37 @@ export function cleanStaleHookRefs(settingsPath: string, hooksDir: string): stri
   }
   const hookEvents = settings.hooks ?? {};
   const removed: string[] = [];
+  const cleanedHooks: Record<string, HookEntry[]> = {};
 
   for (const [eventName, eventEntries] of Object.entries(hookEvents)) {
-    if (!Array.isArray(eventEntries)) continue;
-    for (const entry of eventEntries) {
-      if (!entry || !Array.isArray(entry.hooks)) continue;
-      const filtered = entry.hooks.filter((hook) => {
-        const cmd = hook?.command ?? "";
-        const refMatch = cmd.match(/\/\.claude\/hooks\/([^"\s/]+\.sh)/);
-        if (!refMatch) return true; // not a hook script ref — preserve
-        const fname = refMatch[1];
-        if (!fname) return true;
-        const exists = existsSync(join(hooksDir, fname));
-        if (!exists && !removed.includes(fname)) {
-          removed.push(fname);
-        }
-        return exists;
-      });
-      entry.hooks = filtered;
+    if (!Array.isArray(eventEntries)) {
+      cleanedHooks[eventName] = eventEntries; // non-array event — 그대로 보존
+      continue;
     }
-    // Filter out entries with empty hooks
-    settings.hooks![eventName] = (eventEntries as HookEntry[]).filter(
-      (e) => Array.isArray(e?.hooks) && e.hooks.length > 0,
-    );
+    cleanedHooks[eventName] = eventEntries
+      .filter((entry) => Array.isArray(entry?.hooks))
+      .map((entry) => ({
+        ...entry,
+        hooks: entry.hooks.filter((hook) => keepHookRef(hook, hooksDir, removed)),
+      }))
+      .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
   }
 
   if (removed.length > 0) {
-    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+    const next: SettingsJson = { ...settings, hooks: cleanedHooks };
+    writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
   }
   return removed;
+}
+
+/** hook command 가 실존 `.sh` 참조면 true. stale(파일 부재) 이면 removed 에 fname 수집 후 false. */
+function keepHookRef(hook: HookCommand, hooksDir: string, removed: string[]): boolean {
+  const refMatch = (hook?.command ?? "").match(/\/\.claude\/hooks\/([^"\s/]+\.sh)/);
+  if (!refMatch?.[1]) return true; // hook script 참조 아님 — 보존
+  const fname = refMatch[1];
+  const exists = existsSync(join(hooksDir, fname));
+  if (!exists && !removed.includes(fname)) removed.push(fname);
+  return exists;
 }
 
 interface HookCommand {
