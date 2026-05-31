@@ -35,11 +35,13 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - name: npm pack (prepare build + files whitelist)
+      # v26.72.0 — prepare 스크립트 제거(dist 커밋) → npm pack 이 자동 빌드 안 함. 명시 build.
+      - name: build + npm pack (files whitelist)
         id: pack
         shell: bash
         run: |
           npm ci
+          npm run build
           tarball=$(npm pack --silent | tail -1)
           echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
           echo "packed: ${tarball}"

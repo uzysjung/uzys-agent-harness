@@ -39,6 +39,19 @@ jobs:
       - name: Run CI pipeline
         run: npm run ci
 
+      # v26.72.0 — dist 를 git 에 커밋(npx github: 즉시 실행). 커밋된 dist 가 src 와 drift 안 했는지 강제.
+      #   npm run ci 가 dist 를 빌드 → 커밋본과 다르면 재빌드/재커밋 누락 (빌드는 결정적).
+      - name: Verify committed dist is fresh (no drift)
+        shell: bash
+        run: |
+          # npm run ci 가 dist 를 빌드. 커밋본과 다르면 drift (빌드 결정적). --porcelain 으로 portable 검사.
+          if [ -n "$(git status --porcelain -- dist)" ]; then
+            echo "ERROR: 커밋된 dist 가 src 와 불일치. 로컬에서 'npm run build' 후 dist 를 재커밋하세요." >&2
+            git status --porcelain -- dist >&2
+            exit 1
+          fi
+          echo "OK: committed dist == fresh build (no drift)"
+
       - name: Smoke test (install --track tooling into temp dir)
         shell: bash
         run: |
