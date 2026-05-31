@@ -1,8 +1,8 @@
 # uzys-claude-harness
 
-**Claude Code · Codex · OpenCode 용 트랙 기반 에이전트 하네스.**
+**Claude Code · Codex · OpenCode · Antigravity 용 트랙 기반 에이전트 하네스.**
 
-스택 트랙 하나 고르면 스킬 · 플러그인 · 룰이 프로젝트에 자동 세팅된다. 디폴트 install 은 **project scope** — 명시적으로 선택하지 않는 한 글로벌 영역 미수정.
+스택 트랙 하나 고르면 **검증된** 스킬 · 플러그인 · 룰을 사용자가 직접 확인·선택해 프로젝트에 세팅한다. 디폴트 install 은 **project scope** — 명시적으로 선택하지 않는 한 글로벌 영역 미수정.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
