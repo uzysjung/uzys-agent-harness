@@ -255,7 +255,7 @@ Flag:
 | CLI | 지원 |
 |---|---|
 | Claude Code | First class — 모든 자산 + hook |
-| Codex (OpenAI) | Skills + slash commands; project-scope 시 `.codex/` 에 write |
+| Codex (OpenAI) | Skills + `AGENTS.md`. 슬래시 프롬프트 `/uzys-*` 는 global `~/.codex/prompts/`(opt-in)에서 작동; project `.codex/prompts/` 는 upstream [#9848](https://github.com/openai/codex/issues/9848) 대비 pre-position (아직 미작동) |
 | OpenCode | Skills + AGENTS.md 통합 |
 | Antigravity (Google) | Project: `.agents/rules/` (context, 항상) + `.agents/skills/` + `.agents/workflows/` (6-Gate opt-in). Global (opt-in `--with-antigravity-global` + `--scope global`): `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` (v26.66.0+) |
 

@@ -420,7 +420,7 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
           assetRow(
             "success",
             ".codex/prompts/uzys-*.md",
-            `${report.codex.promptFiles.length} prompts (upstream #9848 지원 시 /uzys-spec 자동 작동)`,
+            `${report.codex.promptFiles.length} prompts — pre-positioned for upstream #9848 (not active yet; use Global for working ~/.codex/prompts/)`,
           ),
         );
       }

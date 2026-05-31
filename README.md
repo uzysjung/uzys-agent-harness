@@ -255,7 +255,7 @@ Flags:
 | CLI | Status |
 |---|---|
 | Claude Code | First class — all assets and hooks |
-| Codex (OpenAI) | Skills + slash commands; project-scope writes go to `.codex/` |
+| Codex (OpenAI) | Skills + `AGENTS.md`. Slash prompts `/uzys-*` work via global `~/.codex/prompts/` (opt-in); project `.codex/prompts/` is pre-positioned for upstream [#9848](https://github.com/openai/codex/issues/9848) (not active yet) |
 | OpenCode | Skills + AGENTS.md integration |
 | Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` + `.agents/workflows/` (6-Gate opt-in). Global (opt-in via `--with-antigravity-global` + `--scope global`): `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` (v26.66.0+) |
 

@@ -79,19 +79,3 @@ Default to surfacing uncertainty, not hiding it.
 3. Non-Goals 침범 없음 확인
 4. 요청에 추적 불가한 변경 유무
 5. 열린 의사결정/후속 작업
-
-## Context Management
-
-- autocompact 활성화. 50% 도달 시 수동 /compact 고려.
-- SPEC/PRD는 매 세션 시작 시 재참조 (Persistent Anchor).
-- Phase 간 전환 시 구조화된 상태 핸드오프. SPEC/PRD/TODO 최신상태 업데이트
-
-## Agents
-
-| Agent | Model | 역할 |
-|-------|-------|------|
-| reviewer | opus | 검증 전용 (SOD). 코드/문서/UI/QA 관점 전환 |
-| data-analyst | opus | Python/DuckDB/Trino/ML/PySide6 |
-| strategist | opus | 제안서/DD/PPT/경쟁분석/재무모델 |
-| code-reviewer | sonnet | ECC. 일상적 코드 리뷰 (CRITICAL→LOW) |
-| security-reviewer | sonnet | ECC. OWASP Top 10, 보안 패턴 |

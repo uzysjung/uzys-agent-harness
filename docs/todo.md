@@ -39,8 +39,8 @@
   - npm pack 타르볼 OS{ubuntu,macos}×Node{20,22}×pm{npm 4+pnpm 2}=6 combo + multi-track + fail-loud. core 설치 검증. 매트릭스가 버그 2건 노출(v26.71.1 / npx-github npm10)
 - **P2-NPM — npm registry publish** (next, 최우선 / Promise=Impl)
   - `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 `GitFetcher` 버그로 실패(매트릭스 발견). 근본 해결 = npm publish → `npx @uzysjung/claude-harness`. publish 파이프라인 + 버전 정합(package.json 0.8.8 ↔ git tag) + registry-install smoke 추가
-- **B2+B1 — 4-CLI 실환경 검증** (pending / RICE 213+128)
-  - Codex `.codex/prompts/` 실 Codex 인식 + Antigravity 실환경 동작 검증. Promise=Implementation 봉합(F3)
+- **B2+B1 — 4-CLI 실환경 검증** ✅ 완료 (v26.73.0, `Dockerfile.realcli` + `run-realcli.sh`)
+  - 실 codex 0.125.0 + agy 1.0.3 Docker 검증. **B2**: Codex project `.codex/prompts/` 미인식 확정(소스 #9848) → 정직 표기(global active / project pre-position). **B1**: `.agents/` 구조 검증 PASS, 런타임 auth-gated(OAuth/TTY) → 정직 표기. evidence: `docs/research/realcli-verification-2026-05-31.md`
 - **P2-01 (=C1) — fresh-dogfood HITO 실측** (pending / RICE 300)
   - **방식 확정(2026-05-31): 자기 fresh-dogfood 프록시**. clean env에서 하네스로 새 throwaway 서비스 1건 완주 + 정직한 HITO/feature 첫 측정. 외부 사용자 실측은 Phase 3 신호로 이월
 - **A1 / A2 — 큐레이션 신선도·정직성** (pending / RICE 400·240)
