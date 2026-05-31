@@ -7,8 +7,9 @@
  * 글로벌 자산 (scope=global 또는 codexOptIn) 은 log 에 안내용으로만 기록 — uninstall 시 자동 삭제 X (D16).
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { ExternalAsset, ExternalAssetMethod } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
 import type { InstallScope, InstallSpec } from "./types.js";
@@ -49,6 +50,11 @@ export interface InstallLog {
     codexDir?: string;
     /** .opencode/ project local (cli=opencode 시) */
     opencodeDir?: string;
+    /**
+     * project root CLAUDE.md (cli=claude 시 생성).
+     * uninstall 시 sha256 이 install 시점과 동일할 때만 삭제 — 사용자가 수정했으면 보존.
+     */
+    rootClaudeMd?: { path: string; sha256: string };
   };
   /** external-installer 가 install 한 자산 (ok=true 만) */
   assets: ReadonlyArray<InstallLogAsset>;
@@ -104,6 +110,7 @@ export function buildInstallLog(
   spec: InstallSpec,
   external: ExternalInstallReport | null,
   scope: InstallScope,
+  rootClaudeMd?: { path: string; sha256: string } | null,
 ): InstallLog {
   const log: InstallLog = {
     schemaVersion: INSTALL_LOG_VERSION,
@@ -117,18 +124,28 @@ export function buildInstallLog(
       claudeDir: ".claude/",
       ...(spec.cli.includes("codex") ? { codexDir: ".codex/" } : {}),
       ...(spec.cli.includes("opencode") ? { opencodeDir: ".opencode/" } : {}),
+      ...(rootClaudeMd ? { rootClaudeMd } : {}),
     },
     assets: buildAssetEntries(external, scope),
   };
   return log;
 }
 
+/** install log + root CLAUDE.md 등 자산 무결성 비교용 sha256 (hex). */
+export function hashContent(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
 /**
  * install log write. 위치: `<projectDir>/.claude/.harness-install.json`.
- * `.claude/` 가 baseline phase 에서 생성되므로 본 write 시점에 이미 존재.
+ *
+ * `.claude/` 는 cli=claude 일 때 baseline phase 에서 생성되지만, codex/opencode/antigravity
+ * 단독(claude 미포함) 설치 시엔 생성되지 않는다. 그 경우에도 uninstall 이 본 log 를 읽을 수 있도록
+ * write 직전 디렉토리를 보장한다 (없으면 install log 누락 → uninstall 불가).
  */
 export function writeInstallLog(projectDir: string, log: InstallLog): string {
   const path = join(projectDir, ".claude", INSTALL_LOG_FILENAME);
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(log, null, 2)}\n`, "utf8");
   return path;
 }

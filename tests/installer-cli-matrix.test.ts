@@ -110,6 +110,10 @@ describe("11 Track × 7 CLI combination matrix (77 scenarios) — E2E install", 
         expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(exp.claudeBaseline);
         expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
 
+        // 1b. install log 는 모든 CLI 조합에서 생성돼야 한다 — claude 미포함(codex/opencode 단독)
+        //     이어도. 없으면 uninstall 이 "log not found" 로 영구 실패하기 때문. (regression: 버그 1)
+        expect(existsSync(join(projectDir, ".claude/.harness-install.json"))).toBe(true);
+
         // 2. installed-tracks meta
         expect(report.installedTracks).toEqual([track]);
 
@@ -206,8 +210,9 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
   });
 
-  // v0.8.0 — .claude/ 조건부 생성 검증 (Codex/OpenCode 단독 dead weight 제거)
-  it("[codex] only: .claude/ 디렉토리 자체 미생성", () => {
+  // v0.8.0 — .claude/ 의 claude 에셋(CLAUDE.md/settings/tracks)은 조건부 (단독 dead weight 제거).
+  // 단 install log(.harness-install.json)는 uninstall 위해 항상 생성 → .claude/ 디렉토리 자체는 존재 (버그 1).
+  it("[codex] only: .claude/ claude 에셋 미생성 (install log 만 예외)", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -217,6 +222,8 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/.installed-tracks"))).toBe(false);
+    // install log 는 uninstall 위해 생성 (claude 에셋 아님)
+    expect(existsSync(join(projectDir, ".claude/.harness-install.json"))).toBe(true);
     // Codex 산출물은 정상 생성
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
@@ -224,7 +231,7 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
   });
 
-  it("[opencode] only: .claude/ 미생성, opencode.json만", () => {
+  it("[opencode] only: claude 에셋 미생성, opencode.json만", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -235,7 +242,7 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
   });
 
-  it("[codex, opencode] (Claude 제외): .claude/ 미생성, Codex+OpenCode 둘 다 생성", () => {
+  it("[codex, opencode] (Claude 제외): claude 에셋 미생성, Codex+OpenCode 둘 다 생성", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,

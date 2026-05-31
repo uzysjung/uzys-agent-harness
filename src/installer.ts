@@ -27,7 +27,7 @@ import {
   runExternalInstall,
 } from "./external-installer.js";
 import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
-import { buildInstallLog, writeInstallLog } from "./install-log.js";
+import { buildInstallLog, hashContent, writeInstallLog } from "./install-log.js";
 import { buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
@@ -267,6 +267,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
   let dirsCopied = 0;
   let skipped = 0;
   let rootClaudeMd: { tracks: ReadonlyArray<Track> } | null = null;
+  // root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교).
+  let rootClaudeMdLog: { path: string; sha256: string } | null = null;
   const categories: BaselineCategoryCounts = {
     rules: [],
     agents: [],
@@ -318,8 +320,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
     // Project root CLAUDE.md — merge from fragments (single/multi/full).
     // Note: overwrites any user customization on re-install. Documented behavior.
-    writeRootClaudeMd(harnessRoot, projectDir, spec.tracks);
+    const rootClaudeMdContent = writeRootClaudeMd(harnessRoot, projectDir, spec.tracks);
     rootClaudeMd = { tracks: spec.tracks };
+    rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMdContent) };
   }
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
@@ -452,7 +455,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // `.claude/.harness-install.json` — 자산 list + scope + timestamp. uninstall command 의 source.
   try {
-    const log = buildInstallLog(spec, external, resolveScope(spec.scope));
+    const log = buildInstallLog(spec, external, resolveScope(spec.scope), rootClaudeMdLog);
     writeInstallLog(projectDir, log);
   } catch (e) {
     // log write 실패는 install 자체를 fail 시키지 않음 (D16 본질 = install 성공이 우선).
@@ -589,10 +592,11 @@ function writeRootClaudeMd(
   harnessRoot: string,
   projectDir: string,
   tracks: ReadonlyArray<Track>,
-): void {
+): string {
   const baseDir = join(harnessRoot, "templates/project-claude");
   const content = mergeProjectClaude(tracks, { baseDir });
   writeFileSync(join(projectDir, "CLAUDE.md"), content);
+  return content;
 }
 
 function chmodHooksSync(hookDir: string): void {

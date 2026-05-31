@@ -181,7 +181,13 @@ export const defaultPrompts: Prompts = {
       message: summarizeState(state),
       options: buildRouterChoices(state).map((c) => {
         const label = c.enabled ? c.label : `${c.label} [disabled]`;
-        return c.hint ? { value: c.value, label, hint: c.hint } : { value: c.value, label };
+        // disabled:true → clack 이 cursor skip + strikethrough (선택 자체 차단).
+        return {
+          value: c.value,
+          label,
+          ...(c.hint ? { hint: c.hint } : {}),
+          ...(c.enabled ? {} : { disabled: true }),
+        };
       }),
     });
     return isCancel(result) ? null : (result as RouterAction);

@@ -211,7 +211,8 @@ for k in $KEEP_ITEMS; do
   fi
 done
 if [ "${#NOT_FOUND[@]}" -eq 0 ]; then
-  info "모든 KEEP 89건 plugin에 존재"
+  # 카운트는 KEEP_ITEMS 에서 동적 산출 (하드코딩 시 89→92→98 처럼 drift 누적).
+  info "모든 KEEP $(echo "$KEEP_ITEMS" | wc -w | tr -d ' ')건 plugin에 존재"
 else
   warn "KEEP 누락 ${#NOT_FOUND[@]}건 (이름 변경/제거됐을 수 있음):"
   printf '    - %s\n' "${NOT_FOUND[@]}"

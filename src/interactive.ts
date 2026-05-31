@@ -120,7 +120,7 @@ export async function runInteractive(
       return { ok: false, reason: "exit" };
     }
     if (action === "remove") {
-      prompts.cancel("Track removal is not automated in v27 — manually edit `.claude/`. Aborting.");
+      prompts.cancel("Track removal is not automated — manually edit `.claude/`. Aborting.");
       return { ok: false, reason: "disabled-action" };
     }
     if (action === "update") {
