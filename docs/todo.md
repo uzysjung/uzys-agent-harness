@@ -35,8 +35,10 @@
 > NSM(North Star Metric): **HITO ≤ 3 prompts/feature** (현재 baseline ~20 = N=1·하네스 자체 빌드 측정 → 측정 대상 불일치. 외부/통제 dogfood 필요)
 > **2026-05-31 재정렬**: North Star Statement 재정립(설치 서비스 본질) 반영 → RICE 1위 **C2(설치 매트릭스)를 P2-01 앞에 배치**. 근거: 설치가 본질 + solo 측정 가능 + P2-01 선행 병목.
 
-- **C2 — fresh-env 설치 매트릭스 CI** (next, 최우선 / RICE 600)
-  - Linux·macOS × Node 20/22 × npm/pnpm 매트릭스. First-Run Success ≥95% 직결. `/uzys:spec` 진입 대기
+- **C2 — fresh-env 설치 매트릭스 CI** ✅ 구현 (v26.72.0, `install-matrix.yml`)
+  - npm pack 타르볼 OS{ubuntu,macos}×Node{20,22}×pm{npm 4+pnpm 2}=6 combo + multi-track + fail-loud. core 설치 검증. 매트릭스가 버그 2건 노출(v26.71.1 / npx-github npm10)
+- **P2-NPM — npm registry publish** (next, 최우선 / Promise=Impl)
+  - `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 `GitFetcher` 버그로 실패(매트릭스 발견). 근본 해결 = npm publish → `npx @uzysjung/claude-harness`. publish 파이프라인 + 버전 정합(package.json 0.8.8 ↔ git tag) + registry-install smoke 추가
 - **B2+B1 — 4-CLI 실환경 검증** (pending / RICE 213+128)
   - Codex `.codex/prompts/` 실 Codex 인식 + Antigravity 실환경 동작 검증. Promise=Implementation 봉합(F3)
 - **P2-01 (=C1) — fresh-dogfood HITO 실측** (pending / RICE 300)

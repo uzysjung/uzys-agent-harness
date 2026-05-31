@@ -1,7 +1,7 @@
 name: install-matrix
 
 # C2 (SPEC docs/specs/v26-72-install-matrix-ci.md) — fresh-env 설치 매트릭스.
-# 실제 배포 진입점(npm pack 타르볼 = files 화이트리스트 + prepare 빌드, 및 npx github: 문서 명령)을
+# 실제 배포 진입점(npm pack 타르볼 = files 화이트리스트 + prepare 빌드)을
 # fresh 러너에서 설치 검증 → First-Run Success >=95% 회귀 게이트.
 #
 # 정책: 기존 `ci`(test.yml)와 독립. 태그-온리(v*) + 수동 dispatch (test-policy.md 정합).
@@ -13,7 +13,10 @@ name: install-matrix
 #   install-matrix  — OS{ubuntu,macos} × Node{20,22} × pm{npm 전체 + pnpm subset}. 타르볼 설치 + core 단언.
 #   multi-track     — 1 env 에서 여러 track core 설치 단언 (cross-track).
 #   fail-loud       — unknown track → 비정상 종료 (Rule 12 — 게이트가 실패를 잡는지).
-#   npx-github-smoke— 문서 명령 `npx -y github:...#<sha>` (clone+prepare 경로, npm pack 과 별개).
+#
+# NOTE: `npx github:` 문서 명령 smoke 는 제거됨 — npm 10(Node 20/22 LTS)이 git-dep pack 시
+#   "GitFetcher requires an Arborist constructor" 로 실패(npm 버그, dist/prepare 무관). 근본 해결 =
+#   npm registry publish → `npx @uzysjung/claude-harness`. publish CR 에서 registry-install smoke 추가 예정.
 on:
   push:
     tags: ["v*"]
@@ -35,13 +38,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      # v26.72.0 — prepare 스크립트 제거(dist 커밋) → npm pack 이 자동 빌드 안 함. 명시 build.
-      - name: build + npm pack (files whitelist)
+      # npm pack 은 prepare(빌드) + files 화이트리스트 검증. dist 는 gitignore 라 prepare 가 빌드.
+      - name: npm pack (prepare build + files whitelist)
         id: pack
         shell: bash
         run: |
           npm ci
-          npm run build
           tarball=$(npm pack --silent | tail -1)
           echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
           echo "packed: ${tarball}"
@@ -158,21 +160,3 @@ jobs:
             exit 1
           fi
           echo "PASS: unknown track exits non-zero (fail-loud 확인)"
-
-  npx-github-smoke:
-    name: "npx github: smoke (documented command, AC5)"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: "npx -y github clone+prepare path → install --track tooling"
-        shell: bash
-        run: |
-          set -euo pipefail
-          proj="$(mktemp -d)"
-          npx -y "github:uzysjung/uzys-claude-harness#${{ github.sha }}" install --track tooling --project-dir "$proj"
-          for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
-            test -f "$proj/$f" || { echo "MISSING $f"; exit 1; }
-          done
-          echo "PASS: npx github: 문서 명령 동작 (README 정합)"
