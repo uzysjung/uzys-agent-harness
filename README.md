@@ -195,6 +195,7 @@ npx -y github:uzysjung/uzys-claude-harness uninstall
 Reads `.claude/.harness-install.json` (created during install) and reverses what was installed.
 
 - Project-scope assets: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
+- Project root `CLAUDE.md`: removed only if it still matches the installed version (sha256); kept with a notice if you've edited it since install.
 - Global-scope assets: listed as advisory only — you remove them yourself. Uninstall never touches another project or your global config without explicit action.
 
 Flags:
