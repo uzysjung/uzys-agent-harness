@@ -194,12 +194,14 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 
 ## Codex integration
 
-Codex slash commands are pre-positioned in two places:
+Codex slash commands live in two places:
 
-- **Project**: `.codex/prompts/uzys-{spec,plan,build,test,review,ship}.md` — always written when `--cli codex` and `--with-uzys-harness`.
-- **Global** (opt-in): `~/.codex/prompts/uzys-*.md` — only when `--with-codex-prompts` is explicitly set.
+- **Global** (opt-in — **active now**): `~/.codex/prompts/uzys-*.md` — written only when `--with-codex-prompts` is set (or Global at step 4). Codex reads custom prompts from `$CODEX_HOME/prompts/` (`~/.codex/prompts/`), so `/uzys-spec` … `/uzys-ship` work here.
+- **Project** (pre-positioned — **not active yet**): `.codex/prompts/uzys-{spec,plan,build,test,review,ship}.md` — always written when `--cli codex` and `--with-uzys-harness`. Codex currently loads custom prompts **only** from `$CODEX_HOME/prompts/`, so these project files are inert until upstream [openai/codex#9848](https://github.com/openai/codex/issues/9848) ships project-scoped prompts. They are pre-positioned so `/uzys-*` auto-activates the day it lands (no re-install needed).
 
-The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — merged from your track.
+> **Verified 2026-05-31** against real `codex-cli 0.125.0` in Docker (`test/docker/run-realcli.sh codex`): the project `.codex/prompts/` files are written correctly (Tier A) but **not discovered** by Codex (Tier B). Confirmed via OpenAI docs, source `codex-rs/core/src/custom_prompts.rs` (`default_prompts_dir()` returns only `$CODEX_HOME/prompts`), and open issues [#9848](https://github.com/openai/codex/issues/9848) / [#4734](https://github.com/openai/codex/issues/4734).
+
+The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — merged from your track. Project `.agents/skills/uzys-*/` are repo-level skills (shared with Antigravity).
 
 > v26.64.0 (ADR-020) BREAKING: `cli=codex` no longer auto-enables global prompt copy. Pass `--with-codex-prompts` explicitly, or choose Global at step 4.
 
@@ -226,6 +228,8 @@ Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-claude
 - `.agents/workflows/uzys-{phase}.md` — Antigravity-native workflow files. Invoke as `/uzys-spec`, `/uzys-plan`, …, `/uzys-ship` (filename-based slash).
 
 Skills + workflows are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with-uzys-harness` on the CLI). Rules are written regardless (foundational context).
+
+> **Verification status (2026-05-31)**: file layout is **structurally verified** against real `agy 1.0.3` in Docker (`test/docker/run-realcli.sh antigravity`) — `.agents/rules` + `.agents/skills/uzys-*/SKILL.md` (6) + `.agents/workflows/uzys-*.md` (6) all written correctly per Antigravity's documented workspace spec. **Runtime recognition** in a logged-in `agy` session (does `/uzys-spec` resolve, does a skill load) is **not yet automated** — `agy --print` is Google-OAuth-gated and TUI commands require a TTY. Manual confirmation in a logged-in session is recommended before relying on the slash workflows.
 
 ### Global opt-in (v26.67.0+)
 

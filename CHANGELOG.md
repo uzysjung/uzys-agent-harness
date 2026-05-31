@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.73.0] — 2026-05-31 (feat(test): 실 CLI Docker 검증 (B2 Codex + B1 Antigravity) + Promise=Implementation 정직 표기)
+
+B2+B1 (research next-steps RICE 213/128, North Star 세 기둥 ③ 4-CLI 동등성). 광고하나 실환경 미검증이던 Codex `.codex/prompts/` + Antigravity `.agents/` 를 **실 바이너리**로 검증. 상세 evidence: `docs/research/realcli-verification-2026-05-31.md`.
+
+- **신규 `test/docker/Dockerfile.realcli` + `run-realcli.sh` + scenario 2** — 기존 mock E2E와 분리. 실 `@openai/codex@0.125.0`(npm) + 실 `agy 1.0.3`(install.sh) 컨테이너 설치 → harness project-scope 자산 인식 검증. 호스트 글로벌 오염 0(컨테이너 격리).
+- **B2 Codex — project-scope 미인식 확정**: Tier A(파일 write) PASS. 단 Codex 는 custom prompt 를 `$CODEX_HOME/prompts/`(=`~/.codex/prompts/`)에서만 로드 — project `.codex/prompts/` 미지원(소스 `custom_prompts.rs` `default_prompts_dir()`, OpenAI docs, 오픈 이슈 [#9848](https://github.com/openai/codex/issues/9848)/[#4734](https://github.com/openai/codex/issues/4734)). 코드/install 출력은 이미 정직(pre-positioning 명시) — **갭은 README/USAGE 과소공개**.
+- **B1 Antigravity — 구조 검증·런타임 auth-gated**: Tier A(`.agents/rules`+skills6+workflows6) PASS. `agy --print`=Google OAuth 벽, TUI=TTY 필요 → 런타임 인식 자동 검증 불가.
+- **Promise=Implementation 정직 표기**: README/README.ko CLI 지원 행(codex: global active / project pre-position·#9848 명시) + USAGE Codex integration 재서술(+Docker 검증 note) + USAGE Antigravity integration "구조 검증/런타임 미자동화—수동 확인 권장". install.ts prompt note 한글→영어(v26.60.0 UI 통일).
+- **CLAUDE.md** (사용자): North Star statement + "실환경 검증 = Docker 격리, 호스트 글로벌 오염 금지" 원칙 명문화.
+- 교훈: **Docker 실 바이너리 검증이 docs/단위테스트 신뢰만으론 못 잡는 promise 갭 노출**(C2 매트릭스 계열). auth-gated CLI 의 Tier C 는 자동화 불가 → Tier A 자동 + Tier B/C 한계 정직 표기.
+
 ## [v26.72.1] — 2026-05-31 (feat: npm registry publish 셋업 + 버전 CalVer 정합)
 
 P2-NPM (Promise=Impl) — `npx github:` 의 npm 10 GitFetcher 버그(v26.72.0 매트릭스 발견) 근본 해결 준비.

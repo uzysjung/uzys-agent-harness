@@ -1,0 +1,51 @@
+# Real-CLI verification image — B2(Codex) + B1(Antigravity) Promise=Implementation 봉합.
+#
+# 기존 Dockerfile (mock claude/skills) 와 분리:
+#   - 기존: 빠른 fs 동작 E2E (mock 으로 외부 의존 stub)
+#   - 본 파일: 실 codex + agy 바이너리 설치 → harness 가 쓴 project-local 자산을
+#     실 CLI 가 native 로 인식(discovery)하는지 경험적 검증. 호스트 글로벌 미오염(컨테이너 격리).
+#
+# 검증 tier:
+#   A 구조: harness 가 .codex/prompts/, .agents/{rules,skills,workflows}/ 에 정확히 write
+#   B 탐색: 실 binary 가 startup 시 그 경로를 스캔/로드 (Promise=Implementation 핵심)
+#   C 실행: 슬래시 실제 실행 — auth-gated → 범위 외 (정직 표기)
+
+FROM node:20-bookworm-slim
+
+# curl/ca-certificates: agy install.sh. script/util-linux: pty 기반 TUI probe. jq: 검증.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash git jq curl ca-certificates util-linux \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash uzys
+
+# Mock claude/skills — harness install 자체는 실 codex/agy 불요(파일 write 만).
+# claude/skills 외부 의존만 stub (codex/agy 는 아래서 실 설치).
+COPY test/docker/mocks/claude /usr/local/bin/claude
+COPY test/docker/mocks/skills /usr/local/bin/skills
+RUN chmod +x /usr/local/bin/claude /usr/local/bin/skills
+
+# 실 Codex CLI (linux-x64). npm 글로벌 — 컨테이너 격리라 호스트 무관.
+# 버전 핀: 사용자 환경(0.125.0) 근접. 실패 시 build arg 로 조정.
+ARG CODEX_VERSION=0.125.0
+RUN npm install -g @openai/codex@${CODEX_VERSION} \
+  && (codex --version || echo "[warn] codex --version failed at build")
+
+# harness build + 글로벌 설치
+WORKDIR /work
+COPY . /work
+RUN npm ci --ignore-scripts \
+  && npm run build \
+  && npm install -g .
+
+# 실 Antigravity CLI (agy) — uzys 사용자 home 에 설치 (~/.local/bin/agy).
+# install.sh 는 실행 사용자 home 기준. root 빌드 후 uzys 로 설치하려면 USER 전환.
+USER uzys
+WORKDIR /home/uzys
+ENV PATH="/home/uzys/.local/bin:${PATH}"
+# install.sh 비대화형 시도. 실패해도 이미지 빌드는 진행(시나리오에서 fail-loud).
+RUN curl -fsSL https://antigravity.google/cli/install.sh -o /tmp/agy-install.sh \
+  && (bash /tmp/agy-install.sh </dev/null || echo "[warn] agy install failed at build — 시나리오에서 재시도/표기") \
+  && (agy --version 2>/dev/null || echo "[warn] agy not on PATH at build")
+
+ENTRYPOINT ["/bin/bash"]
