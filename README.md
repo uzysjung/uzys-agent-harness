@@ -1,8 +1,8 @@
 # uzys-claude-harness
 
-**Track-based agent harness for Claude Code, Codex, and OpenCode.**
+**Track-based agent harness for Claude Code, Codex, OpenCode, and Antigravity.**
 
-Pick a stack track. Get a curated set of skills, plugins, and rules wired into your project. Install at project scope by default — no global pollution unless you ask for it.
+Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules — you review and choose what installs — wired into your project. Project scope by default; no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
