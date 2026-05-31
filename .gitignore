@@ -32,7 +32,9 @@ docs/checkpoints/
 
 # CLI rewrite (Phase A+, npm/Node)
 node_modules/
-dist/
+# dist/ 는 git 에 커밋 (v26.72.0) — npx github: 가 prepare 빌드 없이 즉시 실행.
+#   npm 10 GitFetcher 버그(prepare 있는 git-dep pack 실패) 회피 + 모든 npm 버전 작동.
+#   freshness 는 test.yml 의 dist-freshness 스텝이 강제 (build → git diff).
 coverage/
 *.tsbuildinfo
 .vitest-cache/
