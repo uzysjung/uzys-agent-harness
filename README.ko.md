@@ -22,7 +22,7 @@ npx -y github:uzysjung/uzys-claude-harness
 
 ```
 Step 1/6  Tracks            ← 스택 선택
-Step 2/6  CLI               ← claude / codex / opencode
+Step 2/6  CLI               ← claude / codex / opencode / antigravity
 Step 3/6  Install items     ← 추천 항목 (pre-checked) 확인
 Step 4/6  Scope             ← Project (default) 또는 Global
 Step 5/6  Confirm
@@ -178,7 +178,8 @@ Step 4 에서 install write 위치 선택.
 | `npx skills` | project `node_modules` | `-g` (user-level) |
 | `npm` | `--save-dev` (devDependency) | `-g` |
 | Codex (prompts / skills / config) | 프로젝트 `.codex/` | `~/.codex/` |
-| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `npm root -g` | **미수정** | 자산별 write |
+| Antigravity (skills / workflows) | 프로젝트 `.agents/` | `~/.gemini/antigravity/` |
+| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `~/.gemini/` · `npm root -g` | **미수정** | 자산별 write |
 
 Project scope 는 install 을 본 레포에 가둠. 동일 머신의 다른 프로젝트는 영향 받지 않음.
 

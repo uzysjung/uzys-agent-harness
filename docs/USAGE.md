@@ -98,7 +98,7 @@ Common flags:
 | Flag | Effect |
 |---|---|
 | `--track <name>` (repeatable) | Required. Pick a track |
-| `--cli <claude\|codex\|opencode>` (repeatable) | Target CLI. Default `claude` |
+| `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
 | `--scope <project\|global>` | Default `project` |
 | `--with <asset-id>` (repeatable) | Force-include an external asset |
 | `--without <asset-id>` (repeatable) | Force-exclude from preset |
@@ -112,7 +112,7 @@ Full flag list: `claude-harness install --help`.
 
 ```
 1/6  Tracks            preset by stack
-2/6  CLI               claude / codex / opencode (multi-select)
+2/6  CLI               claude / codex / opencode / antigravity (multi-select)
 3/6  Install items     category-grouped multiselect (Frontend / Backend / Data / Business / Dev Tools / Workflow / ECC)
 4/6  Scope             Project (default) / Global
 5/6  Confirm           summary review
@@ -217,12 +217,12 @@ Skills + workflows are written only when **`uzys-harness 6-Gate workflow`** is c
 
 ### Global opt-in (v26.67.0+)
 
-`--with-antigravity-global` + `--scope global` 시:
+With `--with-antigravity-global` + `--scope global`:
 
-- `~/.gemini/antigravity/skills/uzys-{phase}/SKILL.md` — 모든 프로젝트에서 보이는 글로벌 skills
-- `~/.gemini/antigravity/global_workflows/uzys-{phase}.md` — Antigravity 글로벌 `/uzys:*` 워크플로우
+- `~/.gemini/antigravity/skills/uzys-{phase}/SKILL.md` — global skills visible across all projects
+- `~/.gemini/antigravity/global_workflows/uzys-{phase}.md` — Antigravity global `/uzys-*` workflows
 
-D16 정합 — scope=project 또는 `--with-antigravity-global` 없으면 `~/.gemini/` 미수정. Uninstall 시 글로벌 자산은 자동 제거 X (advisory 만).
+D16: `~/.gemini/` is untouched unless scope=global with `--with-antigravity-global`. On uninstall, global assets are advisory only (never auto-removed).
 
 ---
 

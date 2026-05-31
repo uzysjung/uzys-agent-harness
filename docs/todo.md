@@ -11,7 +11,7 @@
 
 ## 현재 상태 (2026-05-31)
 
-- **버전**: v26.70.3 (main). 50 release / 57 PR / 639 tests / branches 88.14%.
+- **버전**: v26.70.3 (main). 50 release / 57 PR (CLI rewrite era 누적 — `MEMORY` 추적값, gh 전체 총계와 별개) / 639 tests / branches 88.14%.
 - **활성 작업 사이클**: 없음 (idle). 다음 feature 착수 시 `/uzys:spec` → `/uzys:plan` 으로 재생성.
 - **CI 정책**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 (v26.70.3). 로컬 `npm run ci` 가 1차 게이트.
 
