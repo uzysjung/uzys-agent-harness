@@ -140,6 +140,54 @@ describe("cleanStaleHookRefs", () => {
     const removed = cleanStaleHookRefs(settingsPath, hooksDir);
     expect(removed).toEqual([]);
   });
+
+  // characterization — 리팩터 전 현재 동작 고정 (엣지케이스 회귀 방지)
+  it("entry 의 hooks 가 모두 stale 이면 entry 자체 제거, 다른 top-level 키는 보존", () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        statusLine: { type: "command", command: "npx powerline" },
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"' },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
+    expect(removed).toEqual(["dead.sh"]);
+    const after = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(after.hooks.PreToolUse).toEqual([]); // hooks 빈 entry 통째 제거
+    expect(after.statusLine).toEqual({ type: "command", command: "npx powerline" }); // 보존
+  });
+
+  it("non-array hook event 는 write 발생 시에도 그대로 보존", () => {
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [
+                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"' },
+              ],
+            },
+          ],
+          WeirdEvent: "not-an-array-value",
+        },
+      }),
+    );
+    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
+    expect(removed).toEqual(["dead.sh"]); // stale 제거로 write 트리거
+    const after = JSON.parse(readFileSync(settingsPath, "utf8"));
+    expect(after.hooks.WeirdEvent).toBe("not-an-array-value"); // non-array event 불변
+  });
 });
 
 describe("runUpdateMode (E2E with templates)", () => {
