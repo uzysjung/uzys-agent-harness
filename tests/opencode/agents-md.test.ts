@@ -1,35 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { extractSection, renameSlashes, renderAgentsMd } from "../../src/opencode/agents-md.js";
+import { renameSlashes, renderAgentsMd } from "../../src/opencode/agents-md.js";
 
-const SAMPLE_CLAUDE_MD = `# Project
+const SAMPLE_CLAUDE_MD = `# Project CLAUDE.md
 
-## Identity
+## Rule 1 — Think
+OpenCode-flavored harness. Use /uzys:spec to start.
 
-OpenCode-flavored harness.
-
-## Project Direction (중장기)
-
-Direction body.
-
-## Core Principles
-
-P1.
-P2.
-
-## Workflow Gates
-
-ignored
+## Rule 2 — Simplicity
+Keep it minimal.
 `;
-
-describe("opencode/agents-md extractSection", () => {
-  it("extracts a section's body until the next ## heading", () => {
-    expect(extractSection(SAMPLE_CLAUDE_MD, "Identity")).toBe("\nOpenCode-flavored harness.\n");
-  });
-
-  it("returns empty string when section not found", () => {
-    expect(extractSection(SAMPLE_CLAUDE_MD, "Nonexistent")).toBe("");
-  });
-});
 
 describe("opencode/agents-md renameSlashes", () => {
   it("rewrites all /uzys: to /uzys-", () => {
@@ -41,31 +20,29 @@ describe("opencode/agents-md renameSlashes", () => {
   });
 });
 
-describe("opencode/agents-md renderAgentsMd", () => {
-  const TEMPLATE = `# {PROJECT_NAME}
+describe("opencode/agents-md renderAgentsMd (v26.70.0 — full CLAUDE.md embed)", () => {
+  const TEMPLATE = `# {PROJECT_NAME} — OpenCode Agent Guide
 
-## Identity
-{IDENTITY_SECTION}
+## Project Rules
 
-## Project Direction
-{PROJECT_DIRECTION_SECTION}
-
-## Core Principles
-{CORE_PRINCIPLES_SECTION}
+{PROJECT_RULES}
 
 Run /uzys:spec to start.
 `;
 
-  it("substitutes placeholders + renames slashes", () => {
+  it("embeds full CLAUDE.md body + substitutes name + renames slashes + strips h1", () => {
     const out = renderAgentsMd({
       template: TEMPLATE,
       claudeMd: SAMPLE_CLAUDE_MD,
       projectName: "demo",
     });
-    expect(out).toContain("# demo");
+    expect(out).toContain("# demo — OpenCode Agent Guide");
+    expect(out).toContain("Rule 1 — Think");
     expect(out).toContain("OpenCode-flavored harness.");
+    expect(out).toContain("Rule 2 — Simplicity");
     expect(out).toContain("/uzys-spec");
-    expect(out).not.toContain("/uzys:");
-    expect(out).not.toContain("{IDENTITY_SECTION}");
+    expect(out).not.toContain("/uzys:spec");
+    expect(out).not.toContain("{PROJECT_RULES}");
+    expect(out).not.toContain("# Project CLAUDE.md");
   });
 });

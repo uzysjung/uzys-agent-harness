@@ -1,32 +1,11 @@
 /**
  * AGENTS.md transform — CLAUDE.md → AGENTS.md.
- * Mirrors the bash `claude-to-codex.sh` step 1 (lines 78-118).
+ *
+ * v26.70.0 — section 추출(Identity/Direction/Principles) → CLAUDE.md **전문 embed**.
+ *   실 `templates/CLAUDE.md` 가 Rule 1~12 구조라 Identity/Direction/Principles 헤딩이 없어
+ *   extractSection 이 빈 결과 → AGENTS.md 가 빈 섹션으로 shipping 되던 버그 fix.
+ *   `{PROJECT_RULES}` placeholder 에 CLAUDE.md 본문 전체를 삽입 (heading 구조 의존 0).
  */
-
-/** Extract a `## Heading` section's body (everything until the next `## ` or EOF). */
-export function extractSection(source: string, heading: string): string {
-  const lines = source.split(/\r?\n/);
-  const headingPattern = new RegExp(`^##\\s+${escapeRegExp(heading)}\\b`);
-  let inSection = false;
-  const out: string[] = [];
-  for (const line of lines) {
-    if (!inSection) {
-      if (headingPattern.test(line)) {
-        inSection = true;
-      }
-      continue;
-    }
-    if (/^##\s/.test(line)) {
-      break;
-    }
-    out.push(line);
-  }
-  return out.join("\n");
-}
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** Rename Claude slash conventions (`/uzys:foo`) to Codex (`/uzys-foo`). */
 export function renameSlashes(text: string): string {
@@ -40,25 +19,19 @@ export interface AgentsMdParams {
 }
 
 /**
- * Render the AGENTS.md output by substituting placeholders in the template
- * with extracted CLAUDE.md sections, then renaming slash conventions.
+ * Render AGENTS.md by embedding the full CLAUDE.md body into the template.
  *
- * Placeholders supported:
- *   - {PROJECT_NAME}
- *   - {IDENTITY_SECTION}
- *   - {PROJECT_DIRECTION_SECTION}
- *   - {CORE_PRINCIPLES_SECTION}
+ * Placeholders:
+ *   - {PROJECT_NAME} — basename of project dir
+ *   - {PROJECT_RULES} — full CLAUDE.md body (first h1 stripped; template provides its own h1)
+ *
+ * 마지막에 `/uzys:` → `/uzys-` rename (Codex/Antigravity 는 slash namespace 미지원).
  */
 export function renderAgentsMd(params: AgentsMdParams): string {
-  const identity = extractSection(params.claudeMd, "Identity");
-  const direction = extractSection(params.claudeMd, "Project Direction");
-  const principles = extractSection(params.claudeMd, "Core Principles");
-
+  // CLAUDE.md 의 첫 h1 (# title) 제거 — 템플릿이 자체 h1 보유.
+  const body = params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
-    .replaceAll("{IDENTITY_SECTION}", identity)
-    .replaceAll("{PROJECT_DIRECTION_SECTION}", direction)
-    .replaceAll("{CORE_PRINCIPLES_SECTION}", principles);
-
+    .replaceAll("{PROJECT_RULES}", body);
   return renameSlashes(replaced);
 }
