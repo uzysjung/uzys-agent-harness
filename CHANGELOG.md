@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.71.0] — 2026-05-31 (feat: 검증 Trust Tier + 적극 권장)
+
+North Star 세 기둥 ②(검증 자산 큐레이션 + 선택권). PRD v26-71.
+
+- **Trust Tier** (`external-assets.ts` `TRUST_TIER` 정적 라벨, 37 자산, 2026-05 GitHub star 확인): official / vetted / experimental. T2 기준 **star ≥ 1000** (D2). 미분류는 보수적으로 experimental.
+- 분포: T1 official 4 (anthropic-document/data, superpowers, ecc-prune) / T2 vetted 29 / T3 experimental 4 (next-skills 895 · railway 268 · playwright-skill 264 · ADR 179).
+- **wizard Step 3**: tier 우선 정렬 (official → vetted → experimental) + 배지 (★ official / ⚠ experimental). experimental 은 pre-check 제외 — opt-in (`recommendedExternalAssets`).
+- 라이선스 미표기/비-OSI (vercel-labs, trailofbits) 는 출처 신뢰로 vetted 유지 (사용자 결정).
+- README/USAGE 에 Trust tiers 섹션. 639 → 644 tests.
+
 ## [v26.70.3] — 2026-05-31 (ci)
 
 - GitHub Actions 를 push/PR 마다 → **릴리스 태그(`v*`) push 시에만** 실행. `concurrency(cancel-in-progress)` 추가. 로컬 `npm run ci` 가 1차 검증 게이트 (test-policy.md / ship-checklist.md 명문화).

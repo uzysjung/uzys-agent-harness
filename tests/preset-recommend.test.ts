@@ -6,6 +6,16 @@ describe("recommendedExternalAssets", () => {
     expect(recommendedExternalAssets([])).toEqual([]);
   });
 
+  it("experimental(T3) 자산은 pre-check 추천 제외, vetted 는 포함 (PRD v26-71 R6)", () => {
+    const rec = recommendedExternalAssets(["tooling"]);
+    // T3 (star < 1000) — 추천 제외 (opt-in)
+    expect(rec).not.toContain("playwright-skill");
+    expect(rec).not.toContain("architecture-decision-record");
+    // T2 vetted (star ≥ 1000) — track 적합 시 추천
+    expect(rec).toContain("find-skills");
+    expect(rec).toContain("karpathy-coder");
+  });
+
   it("csr-supabase preset includes supabase + vercel/netlify CLI + UI stack", () => {
     const ids = recommendedExternalAssets(["csr-supabase"]);
     expect(ids).toContain("supabase-agent-skills");

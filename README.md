@@ -147,6 +147,18 @@ External assets are recommended automatically based on your track selection. Ste
 
 ---
 
+## Trust tiers
+
+Every external asset carries a **trust tier**, shown as a badge in step 3:
+
+- **★ official** — Anthropic-official marketplaces + this harness's own assets.
+- **vetted** — community assets with ≥ 1000 GitHub stars and active maintenance. Pre-checked when they match your track.
+- **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), listed at the bottom of each category.
+
+Tiers **inform, never block** — you always review and choose what installs. Recommended assets (official/vetted matching your track) sort to the top.
+
+---
+
 ## 6-Gate workflow (only if you opt in)
 
 The 6-gate workflow is **off by default**. To enable it, check `uzys-harness 6-Gate workflow` at step 3 (or pass `--with-uzys-harness` for non-interactive install).

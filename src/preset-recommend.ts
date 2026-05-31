@@ -8,12 +8,13 @@
  * (uzys-harness, superpowers, addy-agent-skills, gsd-orchestrator, ECC suite 등).
  */
 
-import { EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";
+import { assetTrustTier, EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";
 import { DEFAULT_OPTIONS, type Track } from "./types.js";
 
 /**
  * preset 1개 또는 N개 선택 시 추천 ✓ 자산 id 의 안정 정렬 배열.
  * - DEFAULT_OPTIONS 로 호출 → option-gated 자산은 모두 false → 추천에서 제외.
+ * - v26.71.0 (PRD v26-71 R6) — experimental(T3) 자산은 pre-check 제외 (opt-in). official/vetted 만 추천.
  * - 결과는 자산 id 알파벳 정렬 (deterministic).
  */
 export function recommendedExternalAssets(presets: ReadonlyArray<Track>): ReadonlyArray<string> {
@@ -24,5 +25,8 @@ export function recommendedExternalAssets(presets: ReadonlyArray<Track>): Readon
     tracks: presets,
     options: DEFAULT_OPTIONS,
   });
-  return apps.map((a) => a.id).sort();
+  return apps
+    .filter((a) => assetTrustTier(a.id) !== "experimental")
+    .map((a) => a.id)
+    .sort();
 }

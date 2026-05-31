@@ -166,8 +166,9 @@ describe("runInteractive", () => {
   });
 
   it("v26.54.0 — asset unchecked from recommended → userOverride.forceExclude", async () => {
+    // v26.71.0 — playwright-skill 은 T3 라 추천 제외 → vetted 추천 자산(karpathy-coder)으로 uncheck 시나리오.
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
-      initial.filter((t) => t !== "asset:playwright-skill"),
+      initial.filter((t) => t !== "asset:karpathy-coder"),
     );
     const prompts = makePrompts({ selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
@@ -176,7 +177,7 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.userOverride?.forceExclude).toContain("playwright-skill");
+    expect(result.spec?.userOverride?.forceExclude).toContain("karpathy-coder");
   });
 
   it("existing install: action=exit returns reason=exit", async () => {
@@ -428,7 +429,8 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(true);
     expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
     const initialPassed = selectInstallTargets.mock.calls[0]?.[0] ?? [];
-    expect(initialPassed.some((t) => t === "asset:railway-skills")).toBe(true);
+    // v26.71.0 — railway-skills 는 T3(추천 제외) → csr-fastapi 의 vetted 추천(impeccable)로 검증.
+    expect(initialPassed.some((t) => t === "asset:impeccable")).toBe(true);
     expect(initialPassed.some((t) => t === "asset:vercel-cli")).toBe(false);
   });
 
@@ -556,38 +558,26 @@ describe("v26.54.0 — splitInstallTargets", () => {
 
 describe("computeUserOverride", () => {
   it("selections == recommended → undefined (no override)", () => {
-    const recommended = [
-      "agent-browser",
-      "architecture-decision-record",
-      "find-skills",
-      "karpathy-coder",
-      "playwright-skill",
-      "product-skills",
-    ];
+    // v26.71.0 — tooling 추천은 vetted 만 (T3 architecture-decision-record/playwright-skill 제외).
+    const recommended = ["agent-browser", "find-skills", "karpathy-coder", "product-skills"];
     expect(computeUserOverride(["tooling"] as Track[], recommended)).toBeUndefined();
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
-    const without = [
-      "agent-browser",
-      "architecture-decision-record",
-      "find-skills",
-      "karpathy-coder",
-      "product-skills",
-    ];
+    // v26.71.0 — 새 추천(vetted)에서 karpathy-coder 를 uncheck → forceExclude.
+    const without = ["agent-browser", "find-skills", "product-skills"];
     const result = computeUserOverride(["tooling"] as Track[], without);
     expect(result).toBeDefined();
-    expect(result?.forceExclude).toEqual(["playwright-skill"]);
+    expect(result?.forceExclude).toEqual(["karpathy-coder"]);
     expect(result?.forceInclude).toEqual([]);
   });
 
   it("forceInclude — 추천 외 추가 선택", () => {
+    // v26.71.0 — 새 추천(vetted) + railway-skills(T3, 추천 외) 추가 → forceInclude.
     const withRailway = [
       "agent-browser",
-      "architecture-decision-record",
       "find-skills",
       "karpathy-coder",
-      "playwright-skill",
       "product-skills",
       "railway-skills",
     ];

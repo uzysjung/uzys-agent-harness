@@ -14,7 +14,7 @@ import {
 } from "@clack/prompts";
 import { CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
-import { EXTERNAL_ASSETS } from "./external-assets.js";
+import { assetTrustTier, EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
 import {
@@ -266,10 +266,22 @@ export const defaultPrompts: Prompts = {
             hint: o.hint,
           });
         }
-        for (const a of EXTERNAL_ASSETS.filter((x) => x.category === cat)) {
+        // v26.71.0 (PRD v26-71) — tier 우선 정렬 (official → vetted → experimental) + 배지.
+        const tierOrder = { official: 0, vetted: 1, experimental: 2 } as const;
+        const catAssets = [...EXTERNAL_ASSETS.filter((x) => x.category === cat)].sort(
+          (a, b) => tierOrder[assetTrustTier(a.id)] - tierOrder[assetTrustTier(b.id)],
+        );
+        for (const a of catAssets) {
+          const tier = assetTrustTier(a.id);
+          const badge =
+            tier === "official"
+              ? "  ★ official"
+              : tier === "experimental"
+                ? "  ⚠ experimental (opt-in)"
+                : "";
           items.push({
             value: `asset:${a.id}`,
-            label: `    ${a.id}  [${a.source}]`,
+            label: `    ${a.id}  [${a.source}]${badge}`,
             hint: a.description,
           });
         }

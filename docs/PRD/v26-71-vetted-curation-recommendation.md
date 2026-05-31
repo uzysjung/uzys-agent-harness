@@ -1,7 +1,7 @@
 # PRD: 검증 자산 큐레이션 + 적극 권장 (Vetted Curation & Active Recommendation)
 
 > **Created**: 2026-05-31
-> **Status**: Accepted (2026-05-31 — Open Questions 해소. SPEC → Build 대기)
+> **Status**: Implemented (v26.71.0, 2026-05-31 — TRUST_TIER + wizard 배지/정렬 + experimental opt-in. 644 tests)
 > **North Star**: 세 기둥 ② "검증된 자산 큐레이션 + 사용자 선택권" 강화 ([`../NORTH_STAR.md`](../NORTH_STAR.md))
 > **Trigger**: 사용자 redirect (2026-05-31) — "검증된 플러그인/스킬을 사용자가 **이해·선택**해 설치, 권장은 **적극 어필**."
 

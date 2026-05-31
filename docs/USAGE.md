@@ -123,6 +123,18 @@ ESC at step 1 = exit with cancel. ESC at later steps = silent back.
 
 ---
 
+## Trust tiers (v26.71.0)
+
+External assets carry a trust tier, shown as a badge in step 3:
+
+- **★ official** — Anthropic-official marketplaces + this harness's own assets.
+- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Pre-checked on track match.
+- **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), sorted to the bottom of each category.
+
+Tiers inform; they never block — you choose what installs. Static labels (PRD v26-71), re-reviewed quarterly.
+
+---
+
 ## Multi-CLI install
 
 Pick more than one at step 2 (or pass `--cli` multiple times):
