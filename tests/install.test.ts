@@ -147,6 +147,36 @@ describe("installAction", () => {
     expect(runPipeline).toHaveBeenCalledOnce();
   });
 
+  it("non-interactive tooling install hints experimental opt-in via --with (v26.71.1 — Transparent Defaults)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir: "/p" },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    // WHY: T3 default 제외(R6)되더라도 사용자가 존재를 알도록 안내해야 함 (숨김 0건).
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("OPT-IN"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("playwright-skill"));
+  });
+
+  it("no opt-in hint when experimental already force-included via --with (v26.71.1)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["tooling"],
+        projectDir: "/p",
+        with: ["playwright-skill", "architecture-decision-record"],
+      },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    const optInCalls = log.mock.calls.filter((call) => String(call[0]).includes("OPT-IN"));
+    expect(optInCalls).toHaveLength(0);
+  });
+
   it("calls err + exit(1) on invalid --cli", () => {
     const log = vi.fn();
     const err = vi.fn();

@@ -5,6 +5,7 @@ import {
   DEV_TRACKS,
   EXECUTIVE_STYLE_TRACKS,
   EXTERNAL_ASSETS,
+  experimentalOptInCandidates,
   filterApplicableAssets,
   shouldInstallAsset,
   TRUST_TIER,
@@ -40,6 +41,61 @@ describe("Trust Tier (v26.71.0, PRD v26-71)", () => {
       "playwright-skill",
       "railway-skills",
     ]);
+  });
+});
+
+describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC4)", () => {
+  // WHY: R6 = "T3(Experimental) 는 경고 + opt-in (pre-check 안 함)". AC4 = opt-in only.
+  //   v26.71.0 은 recommendedExternalAssets(pre-check)에만 적용 → 비대화형 install 경로
+  //   (filterApplicableAssets→shouldInstallAsset)에 누락 → experimental 이 default 설치되던 버그.
+  //   이 describe 는 condition-only 미설치 + forceInclude 시 설치(선택권 유지)를 고정한다.
+  it("experimental(T3) 은 condition 매치만으론 미설치 (opt-in only)", () => {
+    const pw = EXTERNAL_ASSETS.find((a) => a.id === "playwright-skill");
+    if (!pw) throw new Error("playwright-skill missing");
+    expect(assetTrustTier("playwright-skill")).toBe("experimental");
+    // has-dev-track condition 은 tooling 매치하지만 T3 → default 제외.
+    expect(shouldInstallAsset(pw, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+  });
+
+  it("experimental 도 forceInclude(--with / interactive 체크) 시 설치 (강제 차단 아님 — AC4)", () => {
+    const pw = EXTERNAL_ASSETS.find((a) => a.id === "playwright-skill");
+    if (!pw) throw new Error("playwright-skill missing");
+    expect(
+      shouldInstallAsset(pw, {
+        tracks: ["tooling"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["playwright-skill"], forceExclude: [] },
+      }),
+    ).toBe(true);
+  });
+
+  it("filterApplicableAssets(tooling) 는 experimental 제외 + vetted 포함 (헤더 추천과 정합)", () => {
+    const ids = filterApplicableAssets(EXTERNAL_ASSETS, {
+      tracks: ["tooling"],
+      options: NO_OPTIONS,
+    }).map((a) => a.id);
+    expect(ids).not.toContain("playwright-skill"); // T3
+    expect(ids).not.toContain("architecture-decision-record"); // T3
+    expect(ids).toContain("find-skills"); // vetted
+    expect(ids).toContain("karpathy-coder"); // official/vetted
+  });
+
+  it("experimentalOptInCandidates(tooling) = 조건 매치 T3 (discoverability 힌트 대상)", () => {
+    const ids = experimentalOptInCandidates({ tracks: ["tooling"], options: NO_OPTIONS })
+      .map((a) => a.id)
+      .sort();
+    // tooling = has-dev-track → playwright-skill / ADR (T3) 매치. railway/next 는 csr/ssr 전용.
+    expect(ids).toEqual(["architecture-decision-record", "playwright-skill"]);
+  });
+
+  it("experimentalOptInCandidates 는 forceInclude(--with) 된 것 제외 (이미 설치되므로)", () => {
+    const ids = experimentalOptInCandidates({
+      tracks: ["tooling"],
+      options: NO_OPTIONS,
+      userOverride: { forceInclude: ["playwright-skill"], forceExclude: [] },
+    }).map((a) => a.id);
+    expect(ids).not.toContain("playwright-skill"); // 이미 opt-in → 힌트 불필요
+    expect(ids).toContain("architecture-decision-record"); // 여전히 미설치 → 힌트 대상
   });
 });
 
@@ -196,9 +252,9 @@ describe("filterApplicableAssets", () => {
     // 옵션 gated 4건은 제외 (ecc, prune, tob, gsd)
     expect(ids).not.toContain("ecc-plugin");
     expect(ids).not.toContain("trailofbits-skills");
-    // Track 매트릭스의 모든 다른 자산은 포함
+    // Track 매트릭스의 vetted/official 자산은 포함
     expect(ids).toContain("polars-K-Dense");
-    expect(ids).toContain("railway-skills");
+    expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 experimental opt-in only (PRD R6)
     expect(ids).toContain("vercel-cli");
     expect(ids).toContain("anthropic-document-skills");
   });
