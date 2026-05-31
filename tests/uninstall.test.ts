@@ -509,6 +509,86 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("--dry-run + rootClaudeMd 원본 → 'remove CLAUDE.md' 미리보기", () => {
+    const content = "# CLAUDE.md\nharness content\n";
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: hashContent(content) },
+      },
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), content, "utf8");
+    const logFn = vi.fn();
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, dryRun: true },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm).not.toHaveBeenCalled(); // dry-run → 실제 변경 없음
+    expect(logFn.mock.calls.flat().join("\n")).toContain("remove CLAUDE.md");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--dry-run + rootClaudeMd 수정됨 → 'keep CLAUDE.md' 미리보기", () => {
+    const original = "# CLAUDE.md\nharness content\n";
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: hashContent(original) },
+      },
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), `${original}# user edit\n`, "utf8");
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, dryRun: true },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(logFn.mock.calls.flat().join("\n")).toContain("keep CLAUDE.md (modified");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rootClaudeMd 기록됐으나 파일이 이미 없으면 graceful (kept 아님, rm no-op)", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: "0".repeat(64) },
+      },
+    };
+    writeLog(tmpDir, log);
+    // CLAUDE.md 파일 자체를 만들지 않음 (이미 삭제된 상태)
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    // 파일 부재 → modified=false → "kept" 안내 없이 정상 종료
+    expect(logFn.mock.calls.flat().join("\n")).not.toContain("CLAUDE.md kept");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("rootClaudeMd 없는 (구버전) log 는 CLAUDE.md 를 건드리지 않음 (backward compat)", () => {
     const log: InstallLog = { ...baseLog(), templates: { claudeDir: ".claude/" } };
     writeLog(tmpDir, log);
