@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.72.0] — 2026-05-31 (feat(ci): fresh-env 설치 매트릭스 — First-Run Success 게이트)
+
+C2 (research next-steps RICE 1위, North Star Phase 2 First-Run Success ≥95%). SPEC `docs/specs/v26-72-install-matrix-ci.md`.
+
+- **`install-matrix.yml`** (신규, `ci`와 독립. 태그 + `workflow_dispatch`, concurrency): 실제 배포 진입점을 fresh 러너에서 설치 검증.
+  - `pack` — `npm pack` 1회(prepare 빌드 + files 화이트리스트) → 타르볼 artifact (모든 install job 동일 surface).
+  - `install-matrix` — **OS{ubuntu,macos} × Node{20,22} × pm{npm 4 + pnpm subset 2} = 6 combo** (`fail-fast:false`). 타르볼 설치 → core 파일 단언(.claude/CLAUDE.md/.installed-tracks/.mcp.json) → `$GITHUB_STEP_SUMMARY` 표.
+  - `multi-track` — tooling/executive/data core 설치 (cross-track).
+  - `fail-loud` — unknown track → non-zero (게이트가 실패를 잡는지, Rule 12).
+  - `npx-github-smoke` — `npx -y github:...#<sha>` 문서 명령(clone+prepare 경로, npm pack 과 별개. AC5).
+- 범위: **core 설치** 검증. external 자산 실설치는 Docker E2E(`test/docker/`) 담당 (non-fatal).
+- **검증**: Phase 1 단일 combo 실 CI green(dispatch). 로컬+Docker. test-policy/ship-checklist 에 릴리스 게이트 등재.
+- 발견: 본 작업의 Docker 실설치가 v26.71.1 (experimental opt-in 누락) 버그를 노출 — 매트릭스 CI 가치 입증.
+
 ## [v26.71.1] — 2026-05-31 (fix: experimental opt-in 누락 — 비대화형 install 경로)
 
 v26.71.0 의 experimental(T3) opt-in 이 `recommendedExternalAssets`(pre-check)에만 적용되고 **실제 설치 경로(`shouldInstallAsset`/`filterApplicableAssets`)엔 누락** → 비대화형 `install --track` 과 interactive 미체크 시 experimental 이 default 설치되던 버그 (PRD v26-71 R6/AC4 위반). **Docker 실설치로 발견** (헤더 "4 selected" ↔ 실제 6 설치 불일치).

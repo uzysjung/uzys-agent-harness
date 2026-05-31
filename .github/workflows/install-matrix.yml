@@ -1,15 +1,19 @@
 name: install-matrix
 
 # C2 (SPEC docs/specs/v26-72-install-matrix-ci.md) — fresh-env 설치 매트릭스.
-# 실제 배포 진입점(npm pack 타르볼 = files 화이트리스트 + prepare 빌드)을 fresh 러너에서
-# 설치 검증 → First-Run Success >=95% 회귀 게이트.
+# 실제 배포 진입점(npm pack 타르볼 = files 화이트리스트 + prepare 빌드, 및 npx github: 문서 명령)을
+# fresh 러너에서 설치 검증 → First-Run Success >=95% 회귀 게이트.
 #
 # 정책: 기존 `ci`(test.yml)와 독립. 태그-온리(v*) + 수동 dispatch (test-policy.md 정합).
-# 범위: core 설치(templates/CLAUDE.md/.mcp.json) 단언. external 자산 실설치 매트릭스는
-#   Docker E2E(test/docker/) 담당 — 본 워크플로우는 external 비실패(non-fatal) 가정, core 만 단언.
+# 범위: core 설치(templates/CLAUDE.md/.installed-tracks/.mcp.json) 단언. external 자산 실설치
+#   매트릭스는 Docker E2E(test/docker/) 담당 — 본 워크플로우는 external 비실패(non-fatal) 가정.
 #
-# Phase 1 (현재): 단일 combo (ubuntu / node 20 / npm). Checkpoint 1 통과 후 Phase 2 에서
-#   os/node 매트릭스 fan-out, Phase 3 에서 pnpm 차원 추가.
+# 구조:
+#   pack            — npm pack 으로 타르볼 1회 빌드(prepare) → artifact (모든 install job 이 동일 surface).
+#   install-matrix  — OS{ubuntu,macos} × Node{20,22} × pm{npm 전체 + pnpm subset}. 타르볼 설치 + core 단언.
+#   multi-track     — 1 env 에서 여러 track core 설치 단언 (cross-track).
+#   fail-loud       — unknown track → 비정상 종료 (Rule 12 — 게이트가 실패를 잡는지).
+#   npx-github-smoke— 문서 명령 `npx -y github:...#<sha>` (clone+prepare 경로, npm pack 과 별개).
 on:
   push:
     tags: ["v*"]
@@ -20,22 +24,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pack-install:
-    name: pack+install (${{ matrix.os }} · node${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        node: [20]
+  pack:
+    name: pack (npm pack → tarball artifact)
+    runs-on: ubuntu-latest
+    outputs:
+      tarball: ${{ steps.pack.outputs.tarball }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-
-      # npm pack = prepare(빌드) + files 화이트리스트 검증. dist 는 gitignore 라 prepare 가 빌드.
+          node-version: 20
+          cache: npm
       - name: npm pack (prepare build + files whitelist)
         id: pack
         shell: bash
@@ -44,21 +43,134 @@ jobs:
           tarball=$(npm pack --silent | tail -1)
           echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
           echo "packed: ${tarball}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harness-tarball
+          path: ${{ steps.pack.outputs.tarball }}
+          retention-days: 1
+          if-no-files-found: error
 
-      # 실제 사용자처럼 타르볼을 fresh 프로젝트에 설치 후 bin 실행 → core 파일 단언 (AC1).
-      - name: install tarball into fresh project + assert core files (AC1)
+  install-matrix:
+    name: install (${{ matrix.os }} · node${{ matrix.node }} · ${{ matrix.pm }})
+    needs: pack
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 22]
+        pm: [npm]
+        # pnpm 은 대표 subset (러너 시간 절약, A2=진입점 검증 핵심만).
+        include:
+          - os: ubuntu-latest
+            node: 20
+            pm: pnpm
+          - os: macos-latest
+            node: 22
+            pm: pnpm
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: harness-tarball
+      - name: install via ${{ matrix.pm }} + assert core files (AC1/AC2/AC3)
         shell: bash
         run: |
           set -euo pipefail
-          runner_proj=$(mktemp -d)   # 타르볼을 dependency 로 설치할 임시 프로젝트
-          target=$(mktemp -d)        # claude-harness 가 자산을 설치할 대상 디렉토리
-          cd "$runner_proj"
-          npm init -y >/dev/null
-          npm install "${GITHUB_WORKSPACE}/${{ steps.pack.outputs.tarball }}"
-          # 비대화형 core 설치 (scope=project default → 글로벌 미오염). external 은 non-fatal.
-          npx claude-harness install --track tooling --project-dir "$target"
-          echo "--- assert core files (First-Run Success) ---"
-          test -f "$target/.claude/CLAUDE.md"      || { echo "MISSING .claude/CLAUDE.md"; exit 1; }
-          test -f "$target/.claude/.installed-tracks" || { echo "MISSING .claude/.installed-tracks"; exit 1; }
-          test -f "$target/.mcp.json"              || { echo "MISSING .mcp.json"; exit 1; }
-          echo "PASS: core files present (${{ matrix.os }} · node${{ matrix.node }})"
+          tarball="$(ls ./*.tgz | head -1)"
+          tarball="$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")"
+          proj="$(mktemp -d)"
+          work="$(mktemp -d)"
+          cd "$work"
+          if [ "${{ matrix.pm }}" = "pnpm" ]; then
+            corepack enable
+            corepack prepare pnpm@9 --activate
+            pnpm init >/dev/null 2>&1 || true
+            pnpm add "$tarball"
+            pnpm exec claude-harness install --track tooling --project-dir "$proj"
+          else
+            npm init -y >/dev/null
+            npm install "$tarball"
+            npx claude-harness install --track tooling --project-dir "$proj"
+          fi
+          echo "--- assert core files (First-Run Success — 수동 개입 0) ---"
+          for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
+            test -f "$proj/$f" || { echo "MISSING $f"; exit 1; }
+          done
+          echo "| ${{ matrix.os }} | node${{ matrix.node }} | ${{ matrix.pm }} | ✅ PASS |" >> "$GITHUB_STEP_SUMMARY"
+
+  multi-track:
+    name: multi-track core (ubuntu · node20 · npm)
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: harness-tarball
+      - name: install several tracks + assert core (cross-track)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="$(ls ./*.tgz | head -1)"
+          tarball="$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")"
+          work="$(mktemp -d)"; cd "$work"; npm init -y >/dev/null; npm install "$tarball"
+          {
+            echo "### multi-track core install"
+            echo "| track | core files |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for track in tooling executive data; do
+            proj="$(mktemp -d)"
+            npx claude-harness install --track "$track" --project-dir "$proj"
+            for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
+              test -f "$proj/$f" || { echo "MISSING $track:$f"; exit 1; }
+            done
+            echo "| $track | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  fail-loud:
+    name: fail-loud (unknown track → non-zero)
+    needs: pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: harness-tarball
+      - name: assert install fails loud on unknown track (Rule 12)
+        shell: bash
+        run: |
+          set -uo pipefail
+          tarball="$(ls ./*.tgz | head -1)"
+          tarball="$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")"
+          work="$(mktemp -d)"; cd "$work"; npm init -y >/dev/null; npm install "$tarball"
+          if npx claude-harness install --track NONEXISTENT-TRACK --project-dir "$(mktemp -d)"; then
+            echo "FAIL: unknown track should exit non-zero (게이트가 실패를 못 잡음)"
+            exit 1
+          fi
+          echo "PASS: unknown track exits non-zero (fail-loud 확인)"
+
+  npx-github-smoke:
+    name: "npx github: smoke (documented command, AC5)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: "npx -y github clone+prepare path → install --track tooling"
+        shell: bash
+        run: |
+          set -euo pipefail
+          proj="$(mktemp -d)"
+          npx -y "github:uzysjung/uzys-claude-harness#${{ github.sha }}" install --track tooling --project-dir "$proj"
+          for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
+            test -f "$proj/$f" || { echo "MISSING $f"; exit 1; }
+          done
+          echo "PASS: npx github: 문서 명령 동작 (README 정합)"
