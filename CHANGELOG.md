@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.72.1] — 2026-05-31 (feat: npm registry publish 셋업 + 버전 CalVer 정합)
+
+P2-NPM (Promise=Impl) — `npx github:` 의 npm 10 GitFetcher 버그(v26.72.0 매트릭스 발견) 근본 해결 준비.
+
+- **`publish.yml`** (신규, 태그 push 시): `npm publish --access public`, version 은 태그에서 파생(SSOT). `NPM_TOKEN` secret 미설정 시 graceful skip(태그 CI red 방지). 기존 ci/install-matrix 독립.
+- **버전 CalVer 정합**: cli `VERSION`(0.4.0) + `package.json`(0.8.8) → 둘 다 **26.72.1** (git tag 와 단일 버전). 3중 drift 해소.
+- `package.json` `publishConfig.access: public` (scoped 패키지 최초 publish).
+- **후속(사용자 액션)**: repo Secrets 에 `NPM_TOKEN` 추가 → 태그 시 첫 publish → `npx @uzysjung/claude-harness` 검증 → README/USAGE 갱신 + install-matrix 에 registry-install smoke 추가.
+
 ## [v26.72.0] — 2026-05-31 (feat(ci): fresh-env 설치 매트릭스 — First-Run Success 게이트)
 
 C2 (research next-steps RICE 1위, North Star Phase 2 First-Run Success ≥95%). SPEC `docs/specs/v26-72-install-matrix-ci.md`.
