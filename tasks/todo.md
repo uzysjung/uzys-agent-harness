@@ -3,10 +3,11 @@
 > Plan: [`tasks/plan.md`](plan.md) · 승인 후 위→아래 순. 각 Task 후 Checkpoint 에서 멈춰 검증 보고.
 
 ## Task 1 — 패키징 설치 smoke (단일 combo, A1 증명)
-- [ ] `.github/workflows/install-matrix.yml` 신규 — 1 job (ubuntu / Node 20 / npm)
-- [ ] step: `npm pack` → 타르볼 임시 설치 → `claude-harness install --track tooling --project-dir <tmp>`
-- [ ] 단언: exit 0 + `.claude/CLAUDE.md` + `.claude/.installed-tracks` + `.mcp.json` 존재
-- [ ] 로컬 1차 검증 (Node 25 한계 명시) + `workflow_dispatch` green
+- [x] `.github/workflows/install-matrix.yml` 신규 — 1 job (ubuntu / Node 20 / npm)
+- [x] step: `npm pack` → 타르볼 임시 설치 → `claude-harness install --track tooling --project-dir <tmp>`
+- [x] 단언: exit 0 + `.claude/CLAUDE.md` + `.claude/.installed-tracks` + `.mcp.json` 존재
+- [x] 로컬 1차: YAML OK(ruby) + 타르볼 설치/bin 작동(글로벌 오염 0) + Docker 실설치 core 확인 (로컬 Node 25, CI=20)
+- [ ] CI 1차: `workflow_dispatch` green (feat push 후 — CP1 승인 대기)
 - [ ] 🔲 **Checkpoint 1** — 패키징 경로 증명 보고 후 fan-out 승인
 
 ## Task 2 — OS × Node fan-out
