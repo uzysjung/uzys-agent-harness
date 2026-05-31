@@ -74,7 +74,7 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 ## Uninstall (v26.64.0+)
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness uninstall [--dry-run] [--keep-templates]
+npx -y @uzysjung/claude-harness uninstall [--dry-run] [--keep-templates]
 ```
 
 Reverses the install based on `.claude/.harness-install.json`.
@@ -90,7 +90,7 @@ Reverses the install based on `.claude/.harness-install.json`.
 For CI or scripted use:
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness install --track <name>
+npx -y @uzysjung/claude-harness install --track <name>
 ```
 
 Common flags:

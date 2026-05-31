@@ -15,7 +15,7 @@
 ## 설치
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness
+npx -y @uzysjung/claude-harness
 ```
 
 6-step interactive wizard 가 안내. flag 필요 없음.
@@ -202,7 +202,7 @@ Claude CLI 자체는 scope 와 무관하게 `~/.claude/plugins/cache/` 에 plugi
 ## Uninstall
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness uninstall
+npx -y @uzysjung/claude-harness uninstall
 ```
 
 `.claude/.harness-install.json` (install 시 생성) 을 읽어 자동 reverse.
