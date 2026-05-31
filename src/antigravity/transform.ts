@@ -21,7 +21,7 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { renameSlashes } from "../codex/agents-md.js";
+import { renameSlashes, renderAgentsMd } from "../codex/agents-md.js";
 import { renderSkill } from "../codex/skills.js";
 import { ensureDir } from "../fs-ops.js";
 
@@ -104,9 +104,8 @@ export function runAntigravityTransform(
  * v26.69.0 — `.agents/rules/uzys-harness.md` 작성. CLAUDE.md → Antigravity workspace rule.
  *
  * Source: templates/CLAUDE.md (전문) + templates/antigravity/AGENTS.md.template.
- * renderAgentsMd 의 section 추출(Identity/Direction/Principles)은 실 CLAUDE.md 가 Rule 1~12
- * 구조라 빈 결과 → 대신 CLAUDE.md **전문**을 `{PROJECT_RULES}` 에 embed (heading 구조 의존 0).
- * `/uzys:` → `/uzys-` rename (Antigravity 파일명 기반 호출 정합).
+ * v26.70.0 — renderAgentsMd 재사용 (codex/opencode 와 동일 전문 embed). `{PROJECT_RULES}` 에
+ * CLAUDE.md 본문 전체 삽입 + `/uzys:` → `/uzys-` rename.
  *
  * template 또는 CLAUDE.md 부재 시 null (graceful — install 진행).
  */
@@ -118,14 +117,9 @@ function writeRules(harnessRoot: string, projectDir: string): string | null {
   }
   const claudeMd = readFileSync(claudeMdPath, "utf8");
   const template = readFileSync(templatePath, "utf8");
-  // CLAUDE.md 의 첫 h1 (# title) 제거 — 템플릿이 자체 h1 보유. 나머지 본문만 embed.
-  const body = claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
-  const rendered = template
-    .replaceAll("{PROJECT_NAME}", basename(projectDir))
-    .replaceAll("{PROJECT_RULES}", renameSlashes(body));
   const rulesDir = join(projectDir, ".agents", "rules");
   ensureDir(rulesDir);
   const target = join(rulesDir, "uzys-harness.md");
-  writeFileSync(target, rendered);
+  writeFileSync(target, renderAgentsMd({ template, claudeMd, projectName: basename(projectDir) }));
   return target;
 }

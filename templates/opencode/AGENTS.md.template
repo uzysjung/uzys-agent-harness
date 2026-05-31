@@ -4,17 +4,9 @@
 > **OpenCode Version**: 0.x (anomalyco/opencode)
 > **Linked SPEC**: `docs/specs/opencode-compat.md`
 
-## Identity
+## Project Rules
 
-{IDENTITY_SECTION}
-
-## Project Direction
-
-{PROJECT_DIRECTION_SECTION}
-
-## Core Principles
-
-{CORE_PRINCIPLES_SECTION}
+{PROJECT_RULES}
 
 ## Workflow Gates
 

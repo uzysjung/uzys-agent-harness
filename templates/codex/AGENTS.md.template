@@ -4,17 +4,9 @@
 > **Codex Version**: 0.124.0+
 > **Linked SPEC**: `docs/specs/codex-compat.md`
 
-## Identity
+## Project Rules
 
-{IDENTITY_SECTION}
-
-## Project Direction
-
-{PROJECT_DIRECTION_SECTION}
-
-## Core Principles
-
-{CORE_PRINCIPLES_SECTION}
+{PROJECT_RULES}
 
 ## Workflow Gates
 

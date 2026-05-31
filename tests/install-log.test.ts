@@ -89,6 +89,53 @@ describe("buildAssetEntries", () => {
     );
     expect(entries[0]?.scope).toBe("global");
   });
+
+  // method.kind 별 detail (methodDetail switch 전 case 커버)
+  it("skill method → detail 에 source (+ skill name 있으면 포함)", () => {
+    const withName = createMockAsset({
+      id: "s1",
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "skill", source: "owner/repo", skill: "polars" },
+    });
+    const noName = createMockAsset({
+      id: "s2",
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "skill", source: "owner/repo" },
+    });
+    const e1 = buildAssetEntries(
+      { attempted: [mkResult(withName)], succeeded: 1, skipped: 0 },
+      "project",
+    );
+    const e2 = buildAssetEntries(
+      { attempted: [mkResult(noName)], succeeded: 1, skipped: 0 },
+      "project",
+    );
+    expect(e1[0]?.detail).toEqual({ source: "owner/repo", skill: "polars" });
+    expect(e2[0]?.detail).toEqual({ source: "owner/repo" });
+  });
+
+  it("npx-run / shell-script method → detail 에 cmd/script + args", () => {
+    const npxRun = createMockAsset({
+      id: "gsd",
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "npx-run", cmd: "get-shit-done-cc@latest", args: ["--init"] },
+    });
+    const shell = createMockAsset({
+      id: "prune",
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "shell-script", script: "scripts/prune-ecc.sh", args: ["--yes"] },
+    });
+    const e1 = buildAssetEntries(
+      { attempted: [mkResult(npxRun)], succeeded: 1, skipped: 0 },
+      "project",
+    );
+    const e2 = buildAssetEntries(
+      { attempted: [mkResult(shell)], succeeded: 1, skipped: 0 },
+      "project",
+    );
+    expect(e1[0]?.detail).toEqual({ cmd: "get-shit-done-cc@latest", args: "--init" });
+    expect(e2[0]?.detail).toEqual({ script: "scripts/prune-ecc.sh", args: "--yes" });
+  });
 });
 
 describe("buildInstallLog + write/read round-trip", () => {
