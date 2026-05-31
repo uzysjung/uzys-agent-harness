@@ -208,10 +208,11 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-claude-harness writes:
 
+- `.agents/rules/uzys-harness.md` — project context (full CLAUDE.md embedded, `/uzys:` → `/uzys-` renamed). **Always written** when `--cli antigravity` (the Antigravity equivalent of CLAUDE.md / AGENTS.md). v26.69.0+.
 - `.agents/skills/uzys-{phase}/SKILL.md` — Anthropic-format skills (shared with Codex; one file serves both CLIs).
-- `.agents/workflows/uzys-{phase}.md` — Antigravity-native workflow files. Invoke as `/uzys:spec`, `/uzys:plan`, …, `/uzys:ship`.
+- `.agents/workflows/uzys-{phase}.md` — Antigravity-native workflow files. Invoke as `/uzys-spec`, `/uzys-plan`, …, `/uzys-ship` (filename-based slash).
 
-Both are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with-uzys-harness` on the CLI).
+Skills + workflows are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with-uzys-harness` on the CLI). Rules are written regardless (foundational context).
 
 ### Global opt-in (v26.67.0+)
 

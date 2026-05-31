@@ -1,0 +1,58 @@
+# {PROJECT_NAME} — Antigravity Agent Guide
+
+> **Generated from**: `.claude/CLAUDE.md` via TS CLI `src/antigravity/transform.ts`
+> **Antigravity**: 2.0+ (`agy` CLI + desktop IDE)
+> **Location**: workspace rule — `.agents/rules/uzys-harness.md`
+
+## Project Rules
+
+{PROJECT_RULES}
+
+## Workflow Gates
+
+```
+Define(/uzys-spec) → Plan(/uzys-plan) → Build(/uzys-build) → Verify(/uzys-test) → Review(/uzys-review) → Ship(/uzys-ship)
+```
+
+각 단계 완료 없이 다음 진행 금지. 6-Gate workflow 는 `uzys-harness 6-Gate workflow` opt-in 시에만 `.agents/workflows/` 에 설치됨.
+
+**Hotfix 단축**: Build → Verify → Ship (긴급 수정에 한함)
+**Executive track**: 6단계 게이트 미적용. 자연어 요청 → strategist + document-skills → 산출물 → 검토.
+
+## Command Reference (Antigravity workflows)
+
+`.agents/workflows/uzys-{phase}.md` 파일은 `/` prefix 슬래시로 호출됨:
+
+| Slash | 용도 |
+|-------|------|
+| `/uzys-spec` | Define — 구조화된 스펙 작성 |
+| `/uzys-plan` | Plan — 검증 가능한 작은 단위로 분해 |
+| `/uzys-build` | Build — TDD 점진적 구현 |
+| `/uzys-test` | Verify — 테스트 실행 + 커버리지 |
+| `/uzys-review` | Review — 5축 리뷰 (correctness, readability, architecture, security, performance) |
+| `/uzys-ship` | Ship — 프리런치 체크리스트 + 배포 |
+
+Antigravity 는 워크플로우를 파일명 기반 `/` 슬래시로 호출 → `uzys-{phase}.md` = `/uzys-{phase}`. Claude Code 원본은 `/uzys:*` 유지.
+
+## Protected Files (DO NOT EDIT)
+
+- `.env*`, `**/credentials.json`
+- `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `uv.lock`
+- `.git/` 내부 파일 (커밋 메시지/hook 제외)
+- `~/.gemini/`, `~/.claude/`, `~/.codex/` 글로벌 (D16 보호)
+
+보호 영역 이슈 발견 시 **보고만**. 직접 수정 금지.
+
+## Scopes
+
+| Scope | 위치 | 비고 |
+|-------|------|------|
+| Workspace skills | `.agents/skills/` | 본 프로젝트 한정 (Codex 공유) |
+| Workspace workflows | `.agents/workflows/` | 본 프로젝트 한정 |
+| Workspace rules | `.agents/rules/` | 본 문서 |
+| Global rules | `~/.gemini/GEMINI.md` | 사용자 직접 관리 (harness 미터치) |
+| Global skills | `~/.gemini/antigravity/skills/` | `--with-antigravity-global` + `--scope global` opt-in 시만 |
+
+---
+
+*이 문서는 자동 생성됨. 수동 편집 시 harness 재설치가 덮어쓸 수 있음. 원본은 `.claude/CLAUDE.md` 또는 `templates/CLAUDE.md`.*
