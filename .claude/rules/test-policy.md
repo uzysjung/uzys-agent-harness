@@ -7,6 +7,12 @@
 | UI 컴포넌트 | 60% | csr-*, ssr-* |
 | API 엔드포인트 | 80% | csr-*, ssr-*, data |
 | 비즈니스 로직 | 90% | 전체 개발 Track |
+| **이 repo (tooling)** | lines·functions·statements 90 / **branches 88** | SSOT: `vitest.config.ts` |
+
+> **검증 게이트 (중요)**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 실행된다 — push/PR 마다 돌지 않는다.
+> 따라서 **로컬 `npm run ci` (typecheck + lint + test:coverage + build) 가 1차 검증 게이트**다. ship/PR 전 반드시 전체 실행.
+> `npm test` 만으로는 coverage gate 를 놓친다 (v26.70.1 fail — branches 87.94% < 88%). branches(88)가 가장 빡빡한 gate.
+> 태그 push 후 `gh run watch <run-id> --exit-status` 로 릴리스 CI green 확인.
 
 ## Test Types (All Required)
 
