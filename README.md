@@ -15,7 +15,7 @@ Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules â
 ## Install
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness
+npx -y @uzysjung/claude-harness
 ```
 
 A 6-step interactive wizard guides everything. No flags needed.
@@ -202,7 +202,7 @@ Claude CLI itself writes plugin cache under `~/.claude/plugins/cache/` regardles
 ## Uninstall
 
 ```bash
-npx -y github:uzysjung/uzys-claude-harness uninstall
+npx -y @uzysjung/claude-harness uninstall
 ```
 
 Reads `.claude/.harness-install.json` (created during install) and reverses what was installed.
