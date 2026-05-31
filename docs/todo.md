@@ -39,6 +39,7 @@
   - 현재 session-level 집계까지 (`scripts/nsm-aggregate.sh`). feature 라벨링 수동 → 외부 baseline 후 재평가
 - **P2-04 — Dependency major bump** (pending)
   - Step 1 (@types/node + biome) → 2 (cac + @clack) → 3 (typescript 6) → 4 (vitest 4)
+- **검증 큐레이션 + 적극 권장** ([`PRD v26-71`](PRD/v26-71-vetted-curation-recommendation.md) Accepted) — Trust Tier(T1/T2/T3, T2=star≥1000) 명문화 + Recommended 배지·우선정렬. North Star 세 기둥 ② 강화. → SPEC/Build 대기
 
 ---
 
