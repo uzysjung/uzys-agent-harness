@@ -678,6 +678,23 @@ export function shouldInstallAsset(
   // v26.47.0 — userOverride 우선순위: forceExclude > forceInclude > condition.
   if (ctx.userOverride?.forceExclude.includes(asset.id)) return false;
   if (ctx.userOverride?.forceInclude.includes(asset.id)) return true;
+  // v26.71.1 — experimental(T3) opt-in only (PRD v26-71 R6/AC4). condition 매치만으론 미설치.
+  //   --with <id> (forceInclude) 또는 interactive 체크(→forceInclude) 시에만 설치 — 선택권 유지(강제 차단 아님).
+  //   v26.71.0 은 recommendedExternalAssets(pre-check)에만 제외 적용 → 비대화형/미체크 install 경로 누락 버그 fix.
+  //   게이트는 명시 분류(TRUST_TIER[id])만 본다 — assetTrustTier()의 unknown→experimental default 는
+  //   DISPLAY(경고 배지)용이며 설치 게이트엔 미적용. 실 자산 전부 매핑은 "no-missing" 테스트가 강제(AC1).
+  if (TRUST_TIER[asset.id] === "experimental") return false;
+  return matchesCondition(asset, ctx);
+}
+
+/**
+ * Track/option condition 매치만 평가 (tier·override 무관). shouldInstallAsset 의 조건절 +
+ * experimentalOptInCandidates 의 "조건은 맞지만 T3" 판정에서 공유 (SSOT).
+ */
+function matchesCondition(
+  asset: ExternalAsset,
+  ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags },
+): boolean {
   const cond = asset.condition;
   switch (cond.kind) {
     case "any-track":
@@ -689,6 +706,24 @@ export function shouldInstallAsset(
     case "option":
       return ctx.options[cond.flag] === true;
   }
+}
+
+/**
+ * v26.71.1 — track/option condition 은 매치하지만 T3(experimental)라서 default 설치에서 제외된 자산.
+ * forceInclude(--with / interactive 체크)된 것은 이미 설치되므로 제외. 비대화형 install 의
+ * discoverability 힌트용 (Transparent Defaults — 숨김 0건. --with 로 opt-in 가능함을 사용자에게 알림).
+ */
+export function experimentalOptInCandidates(ctx: {
+  tracks: ReadonlyArray<Track>;
+  options: OptionFlags;
+  userOverride?: UserOverride;
+}): ReadonlyArray<ExternalAsset> {
+  return EXTERNAL_ASSETS.filter(
+    (a) =>
+      TRUST_TIER[a.id] === "experimental" &&
+      !ctx.userOverride?.forceInclude.includes(a.id) &&
+      matchesCondition(a, ctx),
+  );
 }
 
 /**

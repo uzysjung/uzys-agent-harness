@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.71.1] — 2026-05-31 (fix: experimental opt-in 누락 — 비대화형 install 경로)
+
+v26.71.0 의 experimental(T3) opt-in 이 `recommendedExternalAssets`(pre-check)에만 적용되고 **실제 설치 경로(`shouldInstallAsset`/`filterApplicableAssets`)엔 누락** → 비대화형 `install --track` 과 interactive 미체크 시 experimental 이 default 설치되던 버그 (PRD v26-71 R6/AC4 위반). **Docker 실설치로 발견** (헤더 "4 selected" ↔ 실제 6 설치 불일치).
+
+- **fix**: `shouldInstallAsset` 가 `TRUST_TIER[id] === "experimental"` 면 condition 매치만으론 미설치. `--with <id>`(forceInclude) 또는 interactive 체크 시에만 설치 — **선택권 유지(강제 차단 아님, AC4)**. 게이트는 명시 분류만 봄(unknown→experimental default 는 DISPLAY 전용).
+- **보존 확인**: 4개 experimental(playwright-skill/ADR/railway-skills/next-skills) 은 catalog·wizard(⚠ 배지)·`--with` 에 그대로 — **opt-in 옵션으로 유지** (삭제 0).
+- **discoverability 힌트** (Transparent Defaults — 숨김 0건): 비대화형 install Summary 에 `OPT-IN  N experimental available — add with --with <id>: ...` 추가. wizard 는 배지로 이미 노출하므로 skip.
+- `experimentalOptInCandidates` 헬퍼 + `matchesCondition` 추출. track-matrix 테스트 9건 의도 갱신(experimental default 제외 반영). 644 → 651 tests. branches 88.57%.
+
 ## [v26.71.0] — 2026-05-31 (feat: 검증 Trust Tier + 적극 권장)
 
 North Star 세 기둥 ②(검증 자산 큐레이션 + 선택권). PRD v26-71.

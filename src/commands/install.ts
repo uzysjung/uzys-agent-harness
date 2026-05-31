@@ -11,7 +11,7 @@ import {
   status,
   unifiedSection,
 } from "../design.js";
-import { EXTERNAL_ASSETS } from "../external-assets.js";
+import { EXTERNAL_ASSETS, experimentalOptInCandidates } from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
 import {
@@ -494,6 +494,23 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
         ),
       ),
     );
+  }
+  // v26.71.1 — experimental(T3) opt-in discoverability (Transparent Defaults — 숨김 0건).
+  //   비대화형(--track) 에서 condition 은 맞지만 T3 라 default 제외된 자산을 --with 안내.
+  //   wizard 모드는 이미 ⚠ 배지로 노출하므로 skip.
+  if (!deps.fromWizard) {
+    const optIn = experimentalOptInCandidates(spec);
+    if (optIn.length > 0) {
+      log("");
+      log(
+        infoRow(
+          "OPT-IN",
+          c.dim(
+            `${optIn.length} experimental available — add with --with <id>: ${optIn.map((a) => a.id).join(", ")}`,
+          ),
+        ),
+      );
+    }
   }
   log("");
   log(infoRow("NEXT", `${c.bold("claude")}  →  ${c.cyan("/uzys:spec")}`));
