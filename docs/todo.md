@@ -11,7 +11,7 @@
 
 ## 현재 상태 (2026-05-31)
 
-- **버전**: v26.70.3 (main). 50 release / 57 PR (CLI rewrite era 누적 — `MEMORY` 추적값, gh 전체 총계와 별개) / 639 tests / branches 88.14%.
+- **버전**: v26.71.0 (main). CLI rewrite era 누적 (gh 전체 총계와 별개) / 644 tests / branches 88.45%.
 - **활성 작업 사이클**: 없음 (idle). 다음 feature 착수 시 `/uzys:spec` → `/uzys:plan` 으로 재생성.
 - **CI 정책**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 (v26.70.3). 로컬 `npm run ci` 가 1차 게이트.
 
@@ -25,6 +25,7 @@
 - [x] **Project-scope default + Global opt-in (v26.64, ADR-020 BREAKING)** — 모든 자산 default project, global 명시 opt-in, install log + `claude-harness uninstall`.
 - [x] **Codex / OpenCode / Antigravity 호환 (~v26.70)** — 4번째 CliBase(Antigravity) 포함. AGENTS.md / `.agents/` / `~/.gemini/` 산출. 6-Gate workflow opt-in.
 - [x] **코드 품질 (v26.70.1~3)** — 코드리뷰 버그 9건 fix, cleanStaleHookRefs 단순화, GitHub Actions 태그 트리거 전환.
+- [x] **검증 Trust Tier + 적극 권장 (v26.71.0, PRD v26-71)** — Trust Tier(official/vetted/experimental, T2=star≥1000) 분류 + Recommended 배지·우선정렬 + experimental opt-in. North Star 세 기둥 ②.
 
 ---
 
@@ -39,7 +40,6 @@
   - 현재 session-level 집계까지 (`scripts/nsm-aggregate.sh`). feature 라벨링 수동 → 외부 baseline 후 재평가
 - **P2-04 — Dependency major bump** (pending)
   - Step 1 (@types/node + biome) → 2 (cac + @clack) → 3 (typescript 6) → 4 (vitest 4)
-- **검증 큐레이션 + 적극 권장** ([`PRD v26-71`](PRD/v26-71-vetted-curation-recommendation.md) Accepted) — Trust Tier(T1/T2/T3, T2=star≥1000) 명문화 + Recommended 배지·우선정렬. North Star 세 기둥 ② 강화. → SPEC/Build 대기
 
 ---
 

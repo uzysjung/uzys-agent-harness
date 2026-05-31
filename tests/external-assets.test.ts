@@ -1,15 +1,47 @@
 import { describe, expect, it } from "vitest";
 import {
+  assetTrustTier,
   DEV_PLUS_PM_TRACKS,
   DEV_TRACKS,
   EXECUTIVE_STYLE_TRACKS,
   EXTERNAL_ASSETS,
   filterApplicableAssets,
   shouldInstallAsset,
+  TRUST_TIER,
 } from "../src/external-assets.js";
 import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 const NO_OPTIONS: OptionFlags = { ...DEFAULT_OPTIONS };
+
+describe("Trust Tier (v26.71.0, PRD v26-71)", () => {
+  it("모든 EXTERNAL_ASSETS 에 trust tier 라벨 부여 (누락 0 — AC1)", () => {
+    const missing = EXTERNAL_ASSETS.filter((a) => !(a.id in TRUST_TIER)).map((a) => a.id);
+    expect(missing).toEqual([]);
+  });
+
+  it("assetTrustTier — official / vetted / experimental 분류", () => {
+    expect(assetTrustTier("anthropic-document-skills")).toBe("official"); // anthropics 공식
+    expect(assetTrustTier("ecc-prune")).toBe("official"); // 하네스 자체
+    expect(assetTrustTier("ecc-plugin")).toBe("vetted"); // affaan-m 199k
+    expect(assetTrustTier("playwright-skill")).toBe("experimental"); // 264 < 1000
+  });
+
+  it("미분류(맵 누락) 자산은 보수적으로 experimental (검증 안 된 것 취급)", () => {
+    expect(assetTrustTier("nonexistent-asset-xyz")).toBe("experimental");
+  });
+
+  it("T3 experimental 은 star<1000 4개 (next-skills/railway/playwright/ADR)", () => {
+    const t3 = EXTERNAL_ASSETS.filter((a) => assetTrustTier(a.id) === "experimental")
+      .map((a) => a.id)
+      .sort();
+    expect(t3).toEqual([
+      "architecture-decision-record",
+      "next-skills",
+      "playwright-skill",
+      "railway-skills",
+    ]);
+  });
+});
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
   it("contains 30 distinct asset ids (no duplicates)", () => {

@@ -47,6 +47,67 @@ export interface ExternalAsset {
   failureMode?: "abort" | "warn-skip";
 }
 
+/**
+ * v26.71.0 (PRD v26-71) — 검증 Trust Tier. North Star 세 기둥 ②.
+ *   - official: Anthropic 공식 marketplace + 본 하네스 자체.
+ *   - vetted: star ≥ 1000 + 활성 유지보수.
+ *   - experimental: star < 1000 — opt-in + 경고 (pre-check 제외).
+ */
+export type TrustTier = "official" | "vetted" | "experimental";
+
+/**
+ * 정적 검증 tier (결정 D1 정적 라벨). 2026-05 GitHub star/유지보수 1회 확인 → 분기 재검토.
+ * T2 기준 = star ≥ 1000 (D2). 라이선스 미표기/비-OSI 는 출처 신뢰로 vetted 유지 (D 라이선스).
+ * 누락(미분류) 자산은 `assetTrustTier` 가 보수적으로 experimental 처리 — 테스트가 누락 0 강제.
+ */
+export const TRUST_TIER: Record<string, TrustTier> = {
+  // T1 Official — Anthropic 공식 + 하네스 자체
+  "anthropic-data-plugin": "official", // anthropics/knowledge-work-plugins 18k
+  "anthropic-document-skills": "official", // anthropics/skills 144k
+  superpowers: "official", // anthropics/claude-plugins-official 공식 배포 (소스 obra 213k)
+  "ecc-prune": "official", // uzys 본 하네스 자체
+  // T3 Experimental — star < 1000 (2026-05)
+  "next-skills": "experimental", // vercel-labs/next-skills 895
+  "railway-skills": "experimental", // railwayapp/railway-skills 268
+  "playwright-skill": "experimental", // testdino-hq/playwright-skill 264
+  "architecture-decision-record": "experimental", // yonatangross/orchestkit 179
+  // T2 Vetted — star ≥ 1000 + 활성 (2026-05)
+  "polars-K-Dense": "vetted", // K-Dense-AI 26k
+  "dask-K-Dense": "vetted", // K-Dense-AI 26k
+  "python-resource-management": "vetted", // wshobson/agents 36k
+  "python-performance-optimization": "vetted", // wshobson/agents 36k
+  "addy-agent-skills": "vetted", // addyosmani 47k
+  "vercel-cli": "vetted", // vercel/vercel 15k
+  "netlify-cli": "vetted", // netlify/cli 1.9k
+  "supabase-cli": "vetted", // supabase 103k
+  impeccable: "vetted", // pbakaus 31k
+  "find-skills": "vetted", // vercel-labs/skills 20k (license none — 출처 신뢰)
+  "agent-browser": "vetted", // vercel-labs/agent-browser 34k
+  "supabase-agent-skills": "vetted", // supabase/agent-skills 2.2k
+  "postgres-best-practices": "vetted", // supabase/agent-skills 2.2k
+  "react-best-practices": "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
+  "shadcn-ui": "vetted", // shadcn-ui/ui 115k
+  "web-design-guidelines": "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
+  "c-level-skills": "vetted", // alirezarezvani 16k
+  "business-growth-skills": "vetted", // alirezarezvani 16k
+  "finance-skills": "vetted", // alirezarezvani 16k
+  "pm-skills": "vetted", // alirezarezvani 16k
+  "product-skills": "vetted", // alirezarezvani 16k
+  "marketing-skills": "vetted", // alirezarezvani 16k
+  "content-creator": "vetted", // alirezarezvani 16k
+  "demand-gen": "vetted", // alirezarezvani 16k
+  "research-summarizer": "vetted", // alirezarezvani 16k
+  "karpathy-coder": "vetted", // alirezarezvani 16k
+  "gsd-orchestrator": "vetted", // gsd-build/get-shit-done 63k
+  "trailofbits-skills": "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
+  "ecc-plugin": "vetted", // affaan-m/everything-claude-code 199k
+};
+
+/** 자산의 검증 tier. 미분류는 보수적으로 experimental (테스트가 누락 0 강제). */
+export function assetTrustTier(assetId: string): TrustTier {
+  return TRUST_TIER[assetId] ?? "experimental";
+}
+
 const ALL_CSR_SSR_FULL: Track[] = [
   "csr-supabase",
   "csr-fastify",

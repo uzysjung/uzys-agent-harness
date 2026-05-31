@@ -11,7 +11,7 @@
 | [`v26-58-cherry-pick-plugin-gating.md`](v26-58-cherry-pick-plugin-gating.md) | ECC cherry-pick 과 plugin 의 중복 설치 방지 — `withEcc` opt-out gating | ✅ 반영 (v26.58.0) | ADR-019 |
 | [`v26-64-project-scope-only.md`](v26-64-project-scope-only.md) | 모든 install 자산 default project scope, global 명시 opt-in. install log + uninstall | ✅ 반영 (v26.64.0) | ADR-020 |
 | [`v26-66-antigravity-cli-support.md`](v26-66-antigravity-cli-support.md) | Antigravity(Google) 를 4번째 CliBase 로 지원 — `.agents/` 산출 | ✅ 반영 (v26.66~70) | — |
-| [`v26-71-vetted-curation-recommendation.md`](v26-71-vetted-curation-recommendation.md) | 검증 Trust Tier(T1/T2/T3) 명문화 + 권장 자산 배지·우선정렬 (적극 어필) | 🔨 Accepted — SPEC/Build 대기 | NORTH_STAR 세 기둥 ② |
+| [`v26-71-vetted-curation-recommendation.md`](v26-71-vetted-curation-recommendation.md) | 검증 Trust Tier(T1/T2/T3) 명문화 + 권장 자산 배지·우선정렬 (적극 어필) | ✅ 반영 (v26.71.0) | NORTH_STAR 세 기둥 ② |
 
 ## 현재 목표 (Phase 2 — Adoption Loop)
 
