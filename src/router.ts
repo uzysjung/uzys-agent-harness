@@ -12,7 +12,7 @@ export interface RouterChoice {
 /**
  * 5-action menu for an existing install. Mirrors prompt_action_router (setup-harness.sh:255).
  *
- * "remove" is exposed but disabled — no reliable file-ownership mapping in v27 (would risk data loss).
+ * "remove" is exposed but disabled — no reliable file-ownership mapping yet (would risk data loss).
  */
 export function buildRouterChoices(state: DetectedInstall): RouterChoice[] {
   const detected = state.tracks.length > 0 ? state.tracks.join(", ") : "(none detected)";
@@ -31,7 +31,7 @@ export function buildRouterChoices(state: DetectedInstall): RouterChoice[] {
     },
     {
       value: "remove",
-      label: "Remove a Track (unsupported in v27)",
+      label: "Remove a Track (unsupported)",
       hint: "Manual edit of .claude/ required — not automated",
       enabled: false,
     },

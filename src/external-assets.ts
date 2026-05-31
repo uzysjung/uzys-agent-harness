@@ -134,7 +134,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-resource-management",
-    description: "Python memory · CPU management patterns (wshobson, data · csr-fastapi tracks)",
+    description: "Python memory · CPU management patterns (wshobson, data track)",
     category: "data",
     source: "wshobson",
     condition: { kind: "any-track", tracks: ["data", "full"] },

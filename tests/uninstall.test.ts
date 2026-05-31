@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { type InstallLog, installLogPath } from "../src/install-log.js";
+import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
 
 function ok(): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
@@ -448,6 +448,84 @@ describe("uninstallAction", () => {
     expect(out).toContain("DRY RUN");
     expect(out).toContain("manual removal required");
     expect(out).toContain("claude plugin uninstall --scope user p@mp");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  // 버그 2 — root CLAUDE.md 는 install 원본 그대로일 때만 삭제. 사용자 수정 시 데이터 보존.
+  it("root CLAUDE.md 가 install 원본 그대로면 삭제 (sha 일치)", () => {
+    const content = "# CLAUDE.md\nharness-generated content\n";
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: hashContent(content) },
+      },
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), content, "utf8");
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    const rmPaths = rm.mock.calls.map((c) => c[0] as string);
+    expect(rmPaths).toContain(join(tmpDir, "CLAUDE.md"));
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("root CLAUDE.md 가 사용자 수정됐으면 보존 + 안내 (sha 불일치)", () => {
+    const original = "# CLAUDE.md\nharness-generated content\n";
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: hashContent(original) },
+      },
+    };
+    writeLog(tmpDir, log);
+    // 사용자가 install 이후 직접 수정 → 현재 내용이 sha 와 불일치
+    writeFileSync(join(tmpDir, "CLAUDE.md"), `${original}\n# my own project rules\n`, "utf8");
+    const rm = vi.fn();
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    const rmPaths = rm.mock.calls.map((c) => c[0] as string);
+    expect(rmPaths).not.toContain(join(tmpDir, "CLAUDE.md")); // 보존
+    expect(logFn.mock.calls.flat().join("\n")).toContain("CLAUDE.md kept");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rootClaudeMd 없는 (구버전) log 는 CLAUDE.md 를 건드리지 않음 (backward compat)", () => {
+    const log: InstallLog = { ...baseLog(), templates: { claudeDir: ".claude/" } };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), "anything", "utf8");
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    const rmPaths = rm.mock.calls.map((c) => c[0] as string);
+    expect(rmPaths).not.toContain(join(tmpDir, "CLAUDE.md"));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

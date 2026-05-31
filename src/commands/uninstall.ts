@@ -19,10 +19,11 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { c, status } from "../design.js";
 import {
+  hashContent,
   type InstallLog,
   type InstallLogAsset,
   installLogPath,
@@ -93,6 +94,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     }
     if (!options.keepTemplates) {
       log(`  ○ remove templates: ${formatTemplateList(installLog)}`);
+      if (installLog.templates.rootClaudeMd) {
+        log(
+          rootClaudeMdModified(installLog, projectDir)
+            ? "  ○ keep CLAUDE.md (modified since install — preserved)"
+            : "  ○ remove CLAUDE.md",
+        );
+      }
     }
     if (globalAdvisories.length > 0) {
       log("");
@@ -125,8 +133,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   }
 
   if (!options.keepTemplates) {
-    removeTemplates(installLog, projectDir, rm);
+    const { rootClaudeMdKept } = removeTemplates(installLog, projectDir, rm);
     log(`  ${status.success("✓")} templates removed: ${formatTemplateList(installLog)}`);
+    if (rootClaudeMdKept) {
+      log(
+        `  ${c.yellow("⊘")} CLAUDE.md kept — modified since install. Remove manually if intended.`,
+      );
+    }
   }
 
   // install log 자체도 함께 제거 (templates 제거 시 .claude/ 통째 사라짐 → log 도 자동 사라짐.
@@ -245,10 +258,30 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
   }
 }
 
-function removeTemplates(log: InstallLog, projectDir: string, rm: (path: string) => void): void {
+function removeTemplates(
+  log: InstallLog,
+  projectDir: string,
+  rm: (path: string) => void,
+): { rootClaudeMdKept: boolean } {
   rm(join(projectDir, log.templates.claudeDir));
   if (log.templates.codexDir) rm(join(projectDir, log.templates.codexDir));
   if (log.templates.opencodeDir) rm(join(projectDir, log.templates.opencodeDir));
+  // root CLAUDE.md — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
+  const rootMd = log.templates.rootClaudeMd;
+  if (rootMd) {
+    if (rootClaudeMdModified(log, projectDir)) return { rootClaudeMdKept: true };
+    rm(join(projectDir, rootMd.path));
+  }
+  return { rootClaudeMdKept: false };
+}
+
+/** root CLAUDE.md 가 install 이후 수정됐는지. log 에 없거나 파일 부재 시 false (= 삭제 대상). */
+function rootClaudeMdModified(log: InstallLog, projectDir: string): boolean {
+  const rootMd = log.templates.rootClaudeMd;
+  if (!rootMd) return false;
+  const path = join(projectDir, rootMd.path);
+  if (!existsSync(path)) return false;
+  return hashContent(readFileSync(path, "utf8")) !== rootMd.sha256;
 }
 
 function formatTemplateList(log: InstallLog): string {

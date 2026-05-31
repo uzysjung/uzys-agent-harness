@@ -11,6 +11,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { renameSlashes } from "../codex/agents-md.js";
 
 const PHASES = ["spec", "plan", "build", "test", "review", "ship"];
 
@@ -77,7 +78,9 @@ export function runAntigravityOptIn(ctx: AntigravityOptInContext): AntigravityOp
     for (const phase of PHASES) {
       const src = join(ctx.harnessRoot, "templates/commands/uzys", `${phase}.md`);
       if (!existsSync(src)) continue;
-      const body = readFileSync(src, "utf8");
+      // Antigravity 파일명 기반 `/uzys-{phase}` dispatch → body 내 `/uzys:` cross-ref 도
+      // `/uzys-` 로 rename (project-scope transform.ts:94 와 동일 정합).
+      const body = renameSlashes(readFileSync(src, "utf8"));
       const dst = join(workflowsTarget, `uzys-${phase}.md`);
       writeFileSync(dst, body);
       workflowsCount++;

@@ -27,7 +27,11 @@ describe("runAntigravityOptIn (v26.67.0)", () => {
     const cmdDir = join(harnessRoot, "templates/commands/uzys");
     mkdirSync(cmdDir, { recursive: true });
     for (const phase of PHASES) {
-      writeFileSync(join(cmdDir, `${phase}.md`), `mock workflow ${phase}\n`);
+      // body 에 /uzys: cross-ref 포함 → rename 검증 가능하게 (Antigravity 파일명 dispatch 정합).
+      writeFileSync(
+        join(cmdDir, `${phase}.md`),
+        `mock workflow ${phase}\nsee /uzys:plan and /uzys:build\n`,
+      );
     }
   });
 
@@ -61,13 +65,17 @@ describe("runAntigravityOptIn (v26.67.0)", () => {
     rmSync(geminiHome, { recursive: true, force: true });
   });
 
-  it("workflow body 가 templates/commands/uzys/<phase>.md 그대로 보존", () => {
+  it("workflow body 의 /uzys: cross-ref 가 /uzys- 로 rename (파일명 dispatch 정합 — 버그 3)", () => {
     runAntigravityOptIn({ projectDir, harnessRoot, geminiHome, enabled: true });
     const content = readFileSync(
       join(geminiHome, "antigravity/global_workflows/uzys-spec.md"),
       "utf8",
     );
-    expect(content).toBe("mock workflow spec\n");
+    // Antigravity 는 파일명 기반 /uzys-{phase} 로 dispatch → body 의 /uzys: 도 /uzys- 여야 동작.
+    // project-scope transform.ts:94 와 동일 정합. (rename 누락 시 /uzys: 잔존 → 본 단언 실패)
+    expect(content).toContain("/uzys-plan");
+    expect(content).toContain("/uzys-build");
+    expect(content).not.toContain("/uzys:");
     rmSync(projectDir, { recursive: true, force: true });
     rmSync(harnessRoot, { recursive: true, force: true });
     rmSync(geminiHome, { recursive: true, force: true });

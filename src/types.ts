@@ -21,7 +21,7 @@ export function isTrack(value: unknown): value is Track {
 /**
  * CLI target — multi-select base × combination (v0.8.0 — alias 제거).
  *
- * Base CLI: claude / codex / opencode (3 base). 7 combinations possible (2^3 - 1, empty 제외).
+ * Base CLI: claude / codex / opencode / antigravity (4 base). 15 combinations possible (2^4 - 1, empty 제외).
  * Legacy `both` / `all` alias는 v0.7.0 deprecation 거쳐 v0.8.0에서 invalid input.
  * Migration: `--cli claude --cli codex` (repeatable) 또는 multiselect 인터랙티브.
  */

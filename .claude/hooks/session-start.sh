@@ -32,9 +32,18 @@ else
   MSG="Session started. Branch: ${BRANCH:-detached}. No SPEC found. Use /uzys:spec to begin workflow.${COMPACT_WARNING}"
 fi
 
-cat <<EOF
+# JSON-safe 출력 — branch/checkpoint 값에 " 또는 \ 가 섞여도 JSON 깨지지 않도록.
+# (git 은 따옴표 포함 branch name 을 허용 → 직접 보간 시 JSON injection/파손)
+if command -v jq >/dev/null 2>&1; then
+  jq -n --arg msg "$MSG" '{priority: "INFO", message: $msg}'
+else
+  # jq 미설치 폴백: 백슬래시 → 따옴표 순으로 이스케이프
+  MSG_ESC=${MSG//\\/\\\\}
+  MSG_ESC=${MSG_ESC//\"/\\\"}
+  cat <<EOF
 {
   "priority": "INFO",
-  "message": "$MSG"
+  "message": "$MSG_ESC"
 }
 EOF
+fi

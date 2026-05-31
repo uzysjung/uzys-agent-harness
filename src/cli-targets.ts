@@ -5,15 +5,15 @@
  *
  * Input shapes:
  *   - undefined / null / "" / [] → ["claude"] (default)
- *   - "claude" / "codex" / "opencode" → single-element array
+ *   - "claude" / "codex" / "opencode" / "antigravity" → single-element array
  *   - ["claude", "codex"] (cac repeatable) → sorted array
- *   - "both" (deprecated alias) → ["claude", "codex"] + warning
- *   - "all" (deprecated alias) → ["claude", "codex", "opencode"] + warning
- *   - "invalid" → throw error
+ *   - "both" / "all" (v0.8.0 제거된 legacy alias) → ok=false + 마이그레이션 안내 (throw 아님)
+ *   - "invalid" → ok=false + error (throw 아님)
  *
  * Output:
- *   - targets: sorted ReadonlyArray<CliBase> (claude → codex → opencode 순)
- *   - warnings: array of deprecation messages (alias 사용 시)
+ *   - ok: 유효하면 true, reject 시 false (+ error 메시지, targets=["claude"] default)
+ *   - targets: sorted ReadonlyArray<CliBase> (claude → codex → opencode → antigravity 순)
+ *   - warnings: 메시지 배열 (현재 reject-only 정책이라 비어 있음)
  */
 
 import { CLI_BASES, type CliBase, type CliTargets, isCliBase } from "./types.js";
