@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+### A1 — Trust Tier star-drift CI (no-tag, 큐레이션 신선도 / RICE 400)
+
+정적 `TRUST_TIER` 라벨(2026-05 수동 측정)이 실제 GitHub star 와 어긋났는지 **월 1회 자동 검출**. 큐레이션이 조용히 썩는 것 방지(North Star 세 기둥 ②).
+
+- **`src/trust-tier-drift.ts`** — 순수 로직: `classifyDrift`(vetted ≥1000★ / experimental <1000★), `repoForAsset`(method.source/marketplace authoritative + npm/npx-run override), `driftTargets`. official 은 star 무관 제외. tsup 2nd 엔트리.
+- **`tests/trust-tier-drift.test.ts`** (11) — drift 판정 + repo 도출. **"모든 star 기반 자산이 repo 해석"** 테스트가 신규 자산 추가 시 override 누락을 잡음(Rule 9).
+- **`scripts/trust-tier-drift.mjs`** + **`.github/workflows/trust-tier-drift.yml`**(cron 매월 1일 + dispatch) — live star fetch, drift 시 job fail + step summary 표. **로컬 실 실행 검증: 33 자산/20 repo, drift 0**(현재 라벨 전부 정합).
+
 ## [v26.73.0] — 2026-05-31 (feat(test): 실 CLI Docker 검증 (B2 Codex + B1 Antigravity) + Promise=Implementation 정직 표기)
 
 B2+B1 (research next-steps RICE 213/128, North Star 세 기둥 ③ 4-CLI 동등성). 광고하나 실환경 미검증이던 Codex `.codex/prompts/` + Antigravity `.agents/` 를 **실 바이너리**로 검증. 상세 evidence: `docs/research/realcli-verification-2026-05-31.md`.

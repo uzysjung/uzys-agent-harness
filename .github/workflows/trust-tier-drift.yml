@@ -1,0 +1,32 @@
+# A1 — Trust Tier star-drift 검사.
+# 정적 TRUST_TIER 라벨(수동 측정)이 실제 GitHub star 와 어긋났는지 월 1회 자동 검출.
+# drift 발견 시 job fail + step summary 표 → 사람이 src/external-assets.ts 갱신 검토.
+name: trust-tier-drift
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 매월 1일 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trust-tier-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Trust Tier star-drift check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/trust-tier-drift.mjs
