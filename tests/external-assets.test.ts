@@ -204,6 +204,50 @@ describe("shouldInstallAsset — track conditions", () => {
       }),
     ).toBe(true);
   });
+
+  it("workflow 큐레이션 확장 (v26.75.0, ADR-021) — 3 자산 옵션 gated + 검증 메서드/tier", () => {
+    const wshobson = EXTERNAL_ASSETS.find((a) => a.id === "wshobson-agents");
+    const openspec = EXTERNAL_ASSETS.find((a) => a.id === "openspec");
+    const bmad = EXTERNAL_ASSETS.find((a) => a.id === "bmad-method");
+    if (!wshobson || !openspec || !bmad) throw new Error("workflow 자산 누락");
+
+    // 전부 workflow 카테고리 + vetted, 기본 트랙엔 미포함 (옵션 gated — 무단 설치 금지)
+    for (const a of [wshobson, openspec, bmad]) {
+      expect(a.category).toBe("workflow");
+      expect(assetTrustTier(a.id)).toBe("vetted");
+      expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+    }
+
+    // 각 옵션 플래그로만 활성
+    expect(
+      shouldInstallAsset(wshobson, {
+        tracks: ["tooling"],
+        options: { ...NO_OPTIONS, withWshobsonAgents: true },
+      }),
+    ).toBe(true);
+    expect(
+      shouldInstallAsset(openspec, {
+        tracks: ["tooling"],
+        options: { ...NO_OPTIONS, withOpenspec: true },
+      }),
+    ).toBe(true);
+    expect(
+      shouldInstallAsset(bmad, { tracks: ["tooling"], options: { ...NO_OPTIONS, withBmad: true } }),
+    ).toBe(true);
+
+    // 검증된 설치 메서드 (Promise=Impl — 변조 시 회귀 fail)
+    expect(wshobson.method).toEqual({
+      kind: "plugin",
+      marketplace: "wshobson/agents",
+      pluginId: "full-stack-orchestration@claude-code-workflows",
+    });
+    expect(openspec.method).toEqual({ kind: "npm", pkg: "@fission-ai/openspec" });
+    expect(bmad.method).toEqual({
+      kind: "npx-run",
+      cmd: "bmad-method@latest",
+      args: ["install", "--tools", "claude-code", "--yes"],
+    });
+  });
 });
 
 describe("filterApplicableAssets", () => {

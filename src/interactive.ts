@@ -51,6 +51,9 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
     withAddyAgentSkills: picked.has("withAddyAgentSkills"),
     withUzysHarness: picked.has("withUzysHarness"),
     withSuperpowers: picked.has("withSuperpowers"),
+    withWshobsonAgents: picked.has("withWshobsonAgents"),
+    withOpenspec: picked.has("withOpenspec"),
+    withBmad: picked.has("withBmad"),
     withAntigravityGlobal: picked.has("withAntigravityGlobal"),
   };
 }

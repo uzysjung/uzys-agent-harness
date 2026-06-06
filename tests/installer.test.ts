@@ -38,6 +38,9 @@ describe("installer (integration with templates/)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -101,6 +104,9 @@ describe("installer (integration with templates/)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -134,6 +140,9 @@ describe("installer (integration with templates/)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -174,6 +183,9 @@ describe("installer (integration with templates/)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -201,6 +213,9 @@ describe("installer (integration with templates/)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -233,6 +248,9 @@ describe("installer (integration with templates/)", () => {
             withUzysHarness: false,
             withSuperpowers: false,
 
+            withWshobsonAgents: false,
+            withOpenspec: false,
+            withBmad: false,
             withAntigravityGlobal: false,
           },
           cli: ["claude"],

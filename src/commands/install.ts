@@ -56,6 +56,10 @@ export interface InstallOptions {
   withUzysHarness?: boolean;
   /** v26.44.0 — obra/superpowers opt-in. Anthropic 공식 marketplace 등록. */
   withSuperpowers?: boolean;
+  /** v26.75.0 (ADR-021) — workflow 큐레이션 확장 opt-in (wshobson/openspec/bmad). */
+  withWshobsonAgents?: boolean;
+  withOpenspec?: boolean;
+  withBmad?: boolean;
   /**
    * v26.67.0 — Antigravity global opt-in. `~/.gemini/antigravity/skills/uzys-*` +
    * `~/.gemini/antigravity/global_workflows/uzys-*.md`. scope=global + cli=antigravity 시만 의미.
@@ -227,6 +231,9 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       withAddyAgentSkills: options.withAddyAgentSkills === true,
       withUzysHarness: options.withUzysHarness === true,
       withSuperpowers: options.withSuperpowers === true,
+      withWshobsonAgents: options.withWshobsonAgents === true,
+      withOpenspec: options.withOpenspec === true,
+      withBmad: options.withBmad === true,
       withAntigravityGlobal: options.withAntigravityGlobal === true,
     },
     cli: validated.cli,
@@ -767,6 +774,9 @@ function formatOptions(spec: InstallSpec): string {
   if (spec.options.withAddyAgentSkills) flags.push("addy-agent-skills");
   if (spec.options.withUzysHarness) flags.push("uzys-harness");
   if (spec.options.withSuperpowers) flags.push("superpowers");
+  if (spec.options.withWshobsonAgents) flags.push("wshobson-agents");
+  if (spec.options.withOpenspec) flags.push("openspec");
+  if (spec.options.withBmad) flags.push("bmad-method");
   // v26.63.3 (clarify H1): "(defaults only)" 모호 → "(none added)" 명료.
   return flags.length > 0 ? flags.join(", ") : c.dim("(none added)");
 }

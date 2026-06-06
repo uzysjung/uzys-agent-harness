@@ -49,6 +49,8 @@ export const SOURCE_LABELS = {
   alirezarezvani: "alirezarezvani",
   "affaan-m": "affaan-m",
   "get-shit-done-cc": "get-shit-done-cc",
+  "fission-ai": "Fission-AI",
+  "bmad-code-org": "bmad-code-org",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

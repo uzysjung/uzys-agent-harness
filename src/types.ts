@@ -104,6 +104,14 @@ export interface OptionFlags {
    */
   withSuperpowers: boolean;
   /**
+   * v26.75.0 (ADR-021) — workflow 큐레이션 확장 opt-in. external-assets 1:1 자산 매핑
+   * (wshobson-agents plugin / openspec npm / bmad-method npx-run). Workflow 카테고리.
+   * 3-에이전트 시장 리서치 + 사용자 승인. 검증: docs/research/direction-research-2026-06-06.md.
+   */
+  withWshobsonAgents: boolean;
+  withOpenspec: boolean;
+  withBmad: boolean;
+  /**
    * v26.67.0 — Antigravity global opt-in (~/.gemini/antigravity/skills/uzys-* +
    * ~/.gemini/antigravity/global_workflows/uzys-*.md). D16 영역 — `scope=global` +
    * `cli.includes("antigravity")` 시에만 실 write. 사용자 명시 opt-in 필수.
@@ -124,6 +132,9 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withAddyAgentSkills: false,
   withUzysHarness: false,
   withSuperpowers: false,
+  withWshobsonAgents: false,
+  withOpenspec: false,
+  withBmad: false,
   withAntigravityGlobal: false,
 };
 
