@@ -4,7 +4,7 @@ import { registerUninstallCommand } from "./commands/uninstall.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
 // v26.72.1 — CalVer 정합 (cli --version / package.json / git tag 단일 버전). publish.yml 가 태그에서 파생.
-export const VERSION = "26.75.1";
+export const VERSION = "26.76.0";
 
 export type Cli = ReturnType<typeof cac>;
 

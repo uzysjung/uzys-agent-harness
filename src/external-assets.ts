@@ -94,8 +94,6 @@ export const TRUST_TIER: Record<string, TrustTier> = {
   "pm-skills": "vetted", // alirezarezvani 16k
   "product-skills": "vetted", // alirezarezvani 16k
   "marketing-skills": "vetted", // alirezarezvani 16k
-  "content-creator": "vetted", // alirezarezvani 16k
-  "demand-gen": "vetted", // alirezarezvani 16k
   "research-summarizer": "vetted", // alirezarezvani 16k
   "karpathy-coder": "vetted", // alirezarezvani 16k
   "gsd-orchestrator": "vetted", // gsd-build/get-shit-done 63k
@@ -580,30 +578,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "marketing-skills@claude-code-skills",
     },
   },
-  {
-    id: "content-creator",
-    description: "content-creator (SEO content + brand voice + frameworks)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["growth-marketing"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "content-creator@claude-code-skills",
-    },
-  },
-  {
-    id: "demand-gen",
-    description: "demand-gen (multi-channel demand gen + paid media + partnership)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["growth-marketing"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "demand-gen@claude-code-skills",
-    },
-  },
+  // v26.76.0 — content-creator / demand-gen 제거: alirezarezvani/claude-skills marketplace.json 에
+  // 해당 plugin 부재(Docker 실설치 검출, exit 1). 거짓 광고 0건 원칙(Promise=Implementation).
+  // growth-marketing 트랙은 business-growth-skills + marketing-skills + research-summarizer 유지.
   {
     id: "research-summarizer",
     description: "research-summarizer (market research summarization)",

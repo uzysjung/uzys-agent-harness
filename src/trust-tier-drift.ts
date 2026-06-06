@@ -15,6 +15,9 @@
  */
 import { EXTERNAL_ASSETS, type ExternalAsset, TRUST_TIER } from "./external-assets.js";
 
+// v26.76.0 — gen-compatibility.mjs 가 dist 에서 자산 카탈로그+tier 를 읽도록 re-export.
+export { EXTERNAL_ASSETS, TRUST_TIER } from "./external-assets.js";
+
 /** vetted 경계 (NORTH_STAR / PRD v26-71 D2). */
 export const STAR_THRESHOLD = 1000;
 

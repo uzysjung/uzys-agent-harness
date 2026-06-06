@@ -222,15 +222,9 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
     expect(ids).not.toContain("c-level-skills");
   });
 
-  it("growth-marketing: business-growth (재사용) + marketing/content/demand/research", () => {
+  it("growth-marketing: business-growth (재사용) + marketing/research (v26.76.0: content-creator/demand-gen 제거 — upstream 부재)", () => {
     const { ids } = runForTrack(["growth-marketing"]);
-    expect(ids).toEqual([
-      "business-growth-skills",
-      "marketing-skills",
-      "content-creator",
-      "demand-gen",
-      "research-summarizer",
-    ]);
+    expect(ids).toEqual(["business-growth-skills", "marketing-skills", "research-summarizer"]);
     // No has-dev-track assets
     expect(ids).not.toContain("karpathy-coder");
     expect(ids).not.toContain("product-skills");
@@ -244,9 +238,9 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
     expect(spawnCallCount).toBe(4);
   });
 
-  it("growth-marketing spawn calls: 10 (5 plugins × 2)", () => {
+  it("growth-marketing spawn calls: 6 (3 plugins × 2; v26.76.0 content-creator/demand-gen 제거)", () => {
     const { spawnCallCount } = runForTrack(["growth-marketing"]);
-    expect(spawnCallCount).toBe(10);
+    expect(spawnCallCount).toBe(6);
   });
 
   // P2-T4 회귀 검증 — business-growth-skills condition 합집합.
