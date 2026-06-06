@@ -10,6 +10,19 @@
 | `bmad-method` | npx-run | `npx bmad-method@latest install --directory . --tools claude-code --yes` | exit 0, `.claude`/`_bmad`/`_bmad-output` 생성 ✓ |
 | `wshobson-agents` | plugin | `claude plugin marketplace add wshobson/agents` + `claude plugin install full-stack-orchestration@claude-code-workflows` | 둘 다 exit 0, "Successfully installed plugin" ✓ |
 
+## 추가 검증 — 기존 워크플로 4 (2026-06-06, 매트릭스 확대)
+
+신규 3건에 이어 기존 워크플로 자산도 실 claude(2.1.167)/npx 로 검증 → **워크플로 7/8 🟢**. 모든 plugin `pluginId`/marketplace 정확성 확정.
+
+| 자산 | method | 결과 |
+|---|---|---|
+| `superpowers` | plugin | `marketplace add anthropics/claude-plugins-official` + `install superpowers@claude-plugins-official` → 둘 다 exit 0 ✓ |
+| `ecc-plugin` | plugin | `marketplace add affaan-m/everything-claude-code` + `install ecc@ecc` → 둘 다 exit 0 ✓ |
+| `addy-agent-skills` | plugin | `marketplace add addyosmani/agent-skills` + `install agent-skills@addy-agent-skills` → 둘 다 exit 0 ✓ |
+| `gsd-orchestrator` | npx-run | registry `get-shit-done-cc` 1.42.3 + `npx get-shit-done-cc@latest --help` exit 0 ✓ (EBADENGINE 경고는 비치명) |
+
+> uzys-harness(본 하네스 templates)는 install-matrix CI + install 테스트로 검증(외부 실설치 아님) → 🟡 유지.
+
 ## Docker가 잡은 버그 (v26.75.0 → .1)
 
 **BMAD 비대화형 hang**: v26.75.0 의 args `["install","--tools","claude-code","--yes"]` 는 `--yes` 에도 불구하고 **"Installation directory" 프롬프트에서 멈춤**(exit 0 이지만 _bmad 미생성 — 단위테스트로는 못 잡음). Docker 실행이 검출.
