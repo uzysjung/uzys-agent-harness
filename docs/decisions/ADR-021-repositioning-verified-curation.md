@@ -1,8 +1,8 @@
 # ADR-021: 검증+보안 큐레이션으로 재포지셔닝 (설치 = 전달 메커니즘)
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-06-06
-- PR: (이 PR)
+- PR: #142 (merged 2026-06-06)
 - Supersedes: (없음 — NORTH_STAR Statement는 유지, 차별화 축 emphasis만 격상)
 
 ## Context

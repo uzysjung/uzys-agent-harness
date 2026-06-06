@@ -130,12 +130,18 @@ External assets are recommended automatically based on your track selection. Ste
 
 ### Workflow (opt-in — pick one or more at step 3)
 
+> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 8 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
+
 | Asset | What | Activates |
 |---|---|---|
 | `uzys-harness 6-Gate workflow` | `/uzys:spec` → `/uzys:plan` → `/uzys:build` → `/uzys:test` → `/uzys:review` → `/uzys:ship` with hook-enforced gates | The 6-gate flow described below |
-| `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
 | `superpowers` | Agentic skills framework, Anthropic official marketplace | obra/superpowers |
+| `ecc-plugin` | 60 agents · 230 skills · 75 commands | affaan-m |
 | `gsd-orchestrator` | Orchestration for large projects | get-shit-done-cc |
+| `openspec` | Spec-driven brownfield delta workflow (propose → apply → archive) | Fission-AI |
+| `bmad-method` | Multi-agent agile workflow (PM/Architect/Dev, 12+ agents) | bmad-code-org |
+| `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
+| `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
 
 ### Security & ECC (opt-in)
 

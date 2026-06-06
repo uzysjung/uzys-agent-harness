@@ -38,6 +38,9 @@ describe("OpenCode install pipeline (integration)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["opencode"],
@@ -105,6 +108,9 @@ describe("OpenCode install pipeline (integration)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude", "codex", "opencode"],
@@ -145,6 +151,9 @@ describe("OpenCode install pipeline (integration)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude"],
@@ -178,6 +187,9 @@ describe("OpenCode install pipeline (integration)", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
         cli: ["claude", "codex"],

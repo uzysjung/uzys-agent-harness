@@ -264,6 +264,9 @@ describe("executeSpec", () => {
       withUzysHarness: false,
       withSuperpowers: false,
 
+      withWshobsonAgents: false,
+      withOpenspec: false,
+      withBmad: false,
       withAntigravityGlobal: false,
     },
     cli: ["claude"],
@@ -462,6 +465,9 @@ describe("executeSpec", () => {
           withUzysHarness: false,
           withSuperpowers: false,
 
+          withWshobsonAgents: false,
+          withOpenspec: false,
+          withBmad: false,
           withAntigravityGlobal: false,
         },
       },

@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.75.0] — 2026-06-06 (feat: 워크플로 큐레이션 확장 — OpenSpec · BMAD · wshobson)
+
+ADR-021 재포지셔닝(검증+보안 큐레이션)의 **C 단계**. Phase 2 자율 소진 후 3-에이전트 시장 리서치(`docs/research/direction-research-2026-06-06.md`)로 후보 25개 발굴 → vetted 바(★≥1000 + 활성 + Node-native 설치가능) 통과 3건 추가. 본질 = 멀티-워크플로 **큐레이터**.
+
+### 추가 워크플로 (3, 전부 vetted)
+
+- **`openspec`** (Fission-AI 53k, MIT) — spec-driven brownfield delta(propose→apply→archive). `npm i --save-dev @fission-ai/openspec` → `openspec init`.
+- **`bmad-method`** (bmad-code-org 48k, MIT) — 멀티-에이전트 애자일(PM/Architect/Dev, 12+ agents). 비대화형 `npx bmad-method@latest install --tools claude-code --yes`.
+- **`wshobson-agents`** (wshobson 36k, MIT) — 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI. plugin `full-stack-orchestration@claude-code-workflows`.
+
+전부 Workflow 카테고리 · 옵션 gated(무단 설치 금지) · TRUST_TIER vetted · drift 해석. 와이어링: `OptionFlags` 3 + `DEFAULT_OPTIONS` + `toOptionFlags` + install.ts(타입/매핑/표시) + `REPO_OVERRIDE` 2 + `SOURCE_LABELS` 2.
+
+### 큐레이션 가이드 (C 산출물)
+
+- **`docs/WORKFLOWS.md`** (신규) — 설치 가능 8개 비교 + 의사결정("어떤 걸 고르나") + Spec Kit/Kiro 정직 추천(자동설치 제외 사유 명시) + Ralph 기법 구분.
+
+### 제외 (정직 — Promise=Implementation)
+
+- **GitHub Spec Kit**(109k) — uv/Python 의존 + 대화형 `specify init` → Node-only·비대화형 모델 위반(NORTH_STAR 트레이드오프) → 자동설치 X, WORKFLOWS.md 추천만.
+- **Kiro**(AWS) — closed-source IDE, 설치 자산 아님.
+
+663 tests(신규 1) / branches 88.4. 설치 메서드는 upstream 문서 검증(추측 0). **남은 게이트: Docker realcli 실설치 native 인식 검증(ship/tag 전).**
+
 ## [v26.74.0] — 2026-06-02 (feat: A1 Trust Tier star-drift CI + A2 자산 Promise audit)
 
 큐레이션 신선도·정직성 (North Star 세 기둥 ②). research RICE 400(A1)·240(A2).

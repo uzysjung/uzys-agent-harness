@@ -101,6 +101,10 @@ export const TRUST_TIER: Record<string, TrustTier> = {
   "gsd-orchestrator": "vetted", // gsd-build/get-shit-done 63k
   "trailofbits-skills": "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
   "ecc-plugin": "vetted", // affaan-m/everything-claude-code 199k
+  // v26.75.0 (ADR-021) — workflow 큐레이션 확장 (3-에이전트 리서치 + 사용자 승인)
+  "wshobson-agents": "vetted", // wshobson/agents 36k
+  openspec: "vetted", // Fission-AI/OpenSpec 53k
+  "bmad-method": "vetted", // bmad-code-org/BMAD-METHOD 48k
 };
 
 /** 자산의 검증 tier. 미분류는 보수적으로 experimental (테스트가 누락 0 강제). */
@@ -257,6 +261,43 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       kind: "plugin",
       marketplace: "anthropics/claude-plugins-official",
       pluginId: "superpowers@claude-plugins-official",
+    },
+  },
+  {
+    // v26.75.0 (ADR-021) — wshobson/agents marketplace.json name = "claude-code-workflows"
+    // (84 plugins). 대표 = full-stack-orchestration. 다른 orchestrator(agent-orchestration/
+    // tdd-workflows/ship-mate 등): `claude plugin install <name>@claude-code-workflows`.
+    id: "wshobson-agents",
+    description: "wshobson agents — multi-agent orchestration workflows (full-stack/tdd/review)",
+    category: "workflow",
+    source: "wshobson",
+    condition: { kind: "option", flag: "withWshobsonAgents" },
+    method: {
+      kind: "plugin",
+      marketplace: "wshobson/agents",
+      pluginId: "full-stack-orchestration@claude-code-workflows",
+    },
+  },
+  {
+    // v26.75.0 (ADR-021) — `npm i --save-dev @fission-ai/openspec` 후 `openspec init` 로 슬래시 주입.
+    id: "openspec",
+    description: "OpenSpec — spec-driven brownfield delta workflow (propose → apply → archive)",
+    category: "workflow",
+    source: "fission-ai",
+    condition: { kind: "option", flag: "withOpenspec" },
+    method: { kind: "npm", pkg: "@fission-ai/openspec" },
+  },
+  {
+    // v26.75.0 (ADR-021) — 비대화형 `npx bmad-method install --tools claude-code --yes`.
+    id: "bmad-method",
+    description: "BMAD-METHOD — multi-agent agile workflow (PM/Architect/Dev, 12+ agents)",
+    category: "workflow",
+    source: "bmad-code-org",
+    condition: { kind: "option", flag: "withBmad" },
+    method: {
+      kind: "npx-run",
+      cmd: "bmad-method@latest",
+      args: ["install", "--tools", "claude-code", "--yes"],
     },
   },
 

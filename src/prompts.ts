@@ -33,7 +33,8 @@ import { stepLabel, type WizardStep } from "./wizard-steps.js";
  *   - `option:<key>` → OPTION_DEFS 의 manifest-영향 build option (현재: withTauri, withUzysHarness)
  *   - `asset:<id>` → EXTERNAL_ASSETS 의 외부 자산
  * 다른 OptionFlags 항목 (withGsd, withEcc, withPrune, withTob, withKarpathyHook,
- * withAddyAgentSkills, withSuperpowers) 은 EXTERNAL_ASSETS 에 1:1 자산이 있어
+ * withAddyAgentSkills, withSuperpowers, withWshobsonAgents, withOpenspec, withBmad) 은
+ * EXTERNAL_ASSETS 에 1:1 자산이 있어
  * 자산 체크 → userOverride.forceInclude 로 처리. UI 중복 표시 없음.
  */
 export type InstallTargetId = `option:${keyof OptionFlags}` | `asset:${string}`;
@@ -100,7 +101,7 @@ interface OptionDef {
  * - withTauri → manifest 의 tauri-desktop rule (자산 매핑 없음)
  * - withUzysHarness → manifest 의 uzys-* slash commands (자산 매핑 없음)
  * 제외: withGsd, withEcc, withPrune, withTob, withKarpathyHook, withAddyAgentSkills,
- *       withSuperpowers (자산 1:1 매핑 → 자산 체크로 갈음)
+ *       withSuperpowers, withWshobsonAgents, withOpenspec, withBmad (자산 1:1 매핑 → 자산 체크로 갈음)
  * 제외 (D16/자동): withCodexSkills, withCodexTrust, withCodexPrompts
  */
 export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [

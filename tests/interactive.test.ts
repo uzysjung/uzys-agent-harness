@@ -56,6 +56,9 @@ const ALL_FALSE_OPTIONS: OptionFlags = {
   withUzysHarness: false,
   withSuperpowers: false,
 
+  withWshobsonAgents: false,
+  withOpenspec: false,
+  withBmad: false,
   withAntigravityGlobal: false,
 };
 

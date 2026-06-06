@@ -31,6 +31,8 @@ const REPO_OVERRIDE: Record<string, string> = {
   "supabase-cli": "supabase/cli", // npm
   "agent-browser": "vercel-labs/agent-browser", // npm
   "gsd-orchestrator": "gsd-build/get-shit-done", // npx-run
+  openspec: "Fission-AI/OpenSpec", // npm (v26.75.0)
+  "bmad-method": "bmad-code-org/BMAD-METHOD", // npx-run (v26.75.0)
 };
 
 /** "https://github.com/owner/repo" 또는 "owner/repo[/...]" → "owner/repo". 실패 시 null. */
