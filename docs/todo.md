@@ -45,8 +45,10 @@
   - 키트는 완료(#138, `scripts/fresh-dogfood-setup.sh` + `docs/evals/fresh-dogfood-protocol.md` + mini-wc SPEC). **측정 RUN 보류** — 자기 프록시 N=1 실효성 한계 + 측정 부담. 외부 사용자 실측(Phase 3 신호) 확보 시 재개. 키트는 재사용 가능 상태로 보존
 - **A1 — Trust Tier star-drift CI** ✅ 완료 (no-tag, `trust-tier-drift.yml` + `src/trust-tier-drift.ts`)
   - 정적 라벨→GitHub star 자동 fetch+drift 감지(월 cron+dispatch). live 실행 33자산/20repo drift 0 검증. official 제외, repo=method authoritative+override
-- **A2 / A3 — 큐레이션 정직성·추천품질** (active / RICE 240·100)
-  - **A2** 37 자산 description Promise audit(설명↔실기능 일치) · **A3** 권장 수락률 측정(install log 기반 local, telemetry 無)
+- **A2 — 자산 description Promise audit** ✅ 완료 (v26.74.0, `docs/evals/asset-promise-audit-2026-06.md`)
+  - 23 repo 실 메타데이터 sweep: archived/404/tier-drift 0건. **F1 fix**: npm 자산 `(npm -g)` scope 거짓 표기(ADR-020 후 default project) → `(npm)` 정정 + formatAssetMeta 라벨 + 테스트. soft flag: ecc-plugin 카운트
+- **A3 — 권장 수락률 측정** ⏸ **보류 권장** (RICE 100, conf low)
+  - "수락률"은 다수 사용자 install 데이터 필요 → N=1 무의미. P2-01과 동일한 외부 사용자(Phase 3) 의존. 사용자 결정 대기
 - **P2-02 — NSM per-feature 자동화 Step 2** (보류 / RICE 16)
   - session-level까지(`scripts/nsm-aggregate.sh`). per-feature 매핑은 **C1 외부 baseline 후** 재평가
 - **P2-04 — Dependency major bump** (pending / RICE 10)

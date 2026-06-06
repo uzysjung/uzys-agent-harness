@@ -560,8 +560,8 @@ describe("executeSpec", () => {
     // formatAssetMeta covered each kind
     expect(log).toHaveBeenCalledWith(expect.stringContaining("owner/repo · react"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("foo@ms"));
-    // v0.6.1 — formatAssetMeta now prefixes with "npm -g · " / "npx · " etc.
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("npm -g · vercel"));
+    // A2 — npm 라벨은 scope-중립 "npm · " (ADR-020 후 default project; "-g" 거짓 표기 제거).
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("npm · vercel"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("npx · gsd@latest"));
     // failed asset shows error message
     expect(log).toHaveBeenCalledWith(expect.stringContaining("script missing"));
