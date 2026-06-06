@@ -535,7 +535,9 @@ function formatAssetMeta(
     case "plugin":
       return `plugin · ${m.pluginId}${v}`;
     case "npm":
-      return `npm -g · ${m.pkg}${v}`;
+      // A2 (Promise audit) — ADR-020 후 npm 자산 default 는 `--save-dev`(project), `-g` 는 global scope 만.
+      // 라벨에 "-g" 고정은 scope 거짓 표기 → scope-중립 "npm" 으로 정정.
+      return `npm · ${m.pkg}${v}`;
     case "npx-run":
       return `npx · ${m.cmd}`;
     case "shell-script":

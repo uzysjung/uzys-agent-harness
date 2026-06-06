@@ -7,13 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
-### A1 — Trust Tier star-drift CI (no-tag, 큐레이션 신선도 / RICE 400)
+## [v26.74.0] — 2026-06-02 (feat: A1 Trust Tier star-drift CI + A2 자산 Promise audit)
 
-정적 `TRUST_TIER` 라벨(2026-05 수동 측정)이 실제 GitHub star 와 어긋났는지 **월 1회 자동 검출**. 큐레이션이 조용히 썩는 것 방지(North Star 세 기둥 ②).
+큐레이션 신선도·정직성 (North Star 세 기둥 ②). research RICE 400(A1)·240(A2).
 
-- **`src/trust-tier-drift.ts`** — 순수 로직: `classifyDrift`(vetted ≥1000★ / experimental <1000★), `repoForAsset`(method.source/marketplace authoritative + npm/npx-run override), `driftTargets`. official 은 star 무관 제외. tsup 2nd 엔트리.
-- **`tests/trust-tier-drift.test.ts`** (11) — drift 판정 + repo 도출. **"모든 star 기반 자산이 repo 해석"** 테스트가 신규 자산 추가 시 override 누락을 잡음(Rule 9).
-- **`scripts/trust-tier-drift.mjs`** + **`.github/workflows/trust-tier-drift.yml`**(cron 매월 1일 + dispatch) — live star fetch, drift 시 job fail + step summary 표. **로컬 실 실행 검증: 33 자산/20 repo, drift 0**(현재 라벨 전부 정합).
+### A1 — Trust Tier star-drift CI
+
+정적 `TRUST_TIER` 라벨(2026-05 수동 측정)이 실제 GitHub star 와 어긋났는지 **월 1회 자동 검출**. 큐레이션이 조용히 썩는 것 방지.
+
+- **`src/trust-tier-drift.ts`** — `classifyDrift`(vetted ≥1000★ / experimental <1000★), `repoForAsset`(method.source/marketplace authoritative + npm/npx-run override), `driftTargets`. official 제외. tsup 2nd 엔트리.
+- **`tests/trust-tier-drift.test.ts`** (11) — drift 판정 + **"모든 star 기반 자산 repo 해석"**(신규 자산 override 누락 가드, Rule 9 — gsd-orchestrator 누락 실제 검출).
+- **`scripts/trust-tier-drift.mjs`** + **`.github/workflows/trust-tier-drift.yml`**(cron 매월 1일 + dispatch). 로컬+CI dispatch green. **실 실행: 33 자산/20 repo, drift 0**.
+
+### A2 — 자산 description Promise audit
+
+37 자산 설명·설치 라벨이 실제와 정직하게 일치하는지 audit. 23 고유 GitHub repo 실 메타데이터 sweep. 상세: `docs/evals/asset-promise-audit-2026-06.md`.
+
+- **결과**: archived/404/tier-drift **0건** — repo 전부 광고대로 존재·활성.
+- **F1 FIX — npm scope 거짓 표기**: vercel-cli/netlify-cli/supabase-cli 설명 `(npm -g)` + install 출력 `formatAssetMeta` `npm -g · ` 가 scope 거짓(ADR-020 후 default 는 `--save-dev` project). → scope-중립 `(npm)`/`npm · ` 정정 + 테스트 동기화.
+- **soft flag**: ecc-plugin `"60 agents·230 skills·75 commands"` 하드코딩 카운트 upstream drift 가능 — 후속.
 
 ## [v26.73.0] — 2026-05-31 (feat(test): 실 CLI Docker 검증 (B2 Codex + B1 Antigravity) + Promise=Implementation 정직 표기)
 

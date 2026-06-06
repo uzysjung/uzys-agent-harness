@@ -281,7 +281,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === csr-supabase|full CLI ===
   {
     id: "vercel-cli",
-    description: "Vercel CLI (npm -g)",
+    description: "Vercel CLI (npm)",
     category: "backend",
     source: "vercel",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -289,7 +289,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "netlify-cli",
-    description: "Netlify CLI (npm -g)",
+    description: "Netlify CLI (npm)",
     category: "backend",
     source: "netlify",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -297,7 +297,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "supabase-cli",
-    description: "Supabase CLI (npm -g) — first 'supabase login' requires OAuth",
+    description: "Supabase CLI (npm) — first 'supabase login' requires OAuth",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
