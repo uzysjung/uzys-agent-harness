@@ -245,7 +245,8 @@ describe("shouldInstallAsset — track conditions", () => {
     expect(bmad.method).toEqual({
       kind: "npx-run",
       cmd: "bmad-method@latest",
-      args: ["install", "--tools", "claude-code", "--yes"],
+      // v26.75.1 — --directory . 필수(없으면 비대화형 hang, Docker realcli 검출)
+      args: ["install", "--directory", ".", "--tools", "claude-code", "--yes"],
     });
   });
 });
