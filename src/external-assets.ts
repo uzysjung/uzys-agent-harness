@@ -288,7 +288,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "npm", pkg: "@fission-ai/openspec" },
   },
   {
-    // v26.75.0 (ADR-021) — 비대화형 `npx bmad-method install --tools claude-code --yes`.
+    // v26.75.0 (ADR-021) — 비대화형 install. v26.75.1: `--directory .` 누락 시 "Installation
+    // directory" 프롬프트에서 hang (Docker realcli 검출). cwd(=project) 기준 `.` 지정으로 봉합.
     id: "bmad-method",
     description: "BMAD-METHOD — multi-agent agile workflow (PM/Architect/Dev, 12+ agents)",
     category: "workflow",
@@ -297,7 +298,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: {
       kind: "npx-run",
       cmd: "bmad-method@latest",
-      args: ["install", "--tools", "claude-code", "--yes"],
+      args: ["install", "--directory", ".", "--tools", "claude-code", "--yes"],
     },
   },
 

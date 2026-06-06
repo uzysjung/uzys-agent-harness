@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.75.1] — 2026-06-06 (fix: BMAD 비대화형 --directory + Docker realcli 3/3 검증)
+
+v26.75.0 워크플로 3자산의 **Docker realcli 실설치 검증**(`docs/research/realcli-workflows-verification-2026-06-06.md`) — 3/3 PASS, BMAD 버그 1건 검출·봉합. CLAUDE.md 실환경 검증 게이트 충족(격리 컨테이너, 호스트 글로벌 write 0).
+
+### Fix — BMAD 비대화형 hang (Docker 검출)
+
+`bmad-method` args `["install","--tools","claude-code","--yes"]` 가 `--yes` 에도 "Installation directory" 프롬프트에서 멈춤(exit 0 이나 `_bmad` 미생성 — 단위테스트로는 못 잡음). **`--directory .` 추가**(cwd=project)로 봉합. `tests/external-assets.test.ts` args 단언 갱신.
+
+### Docker realcli 검증 (3/3 PASS)
+
+- **openspec**: `npm i --save-dev @fission-ai/openspec` → exit 0 + `npx openspec --version` 1.4.1 ✓
+- **bmad-method**: `install --directory . --tools claude-code --yes` → exit 0 + `.claude`/`_bmad`/`_bmad-output` 생성 ✓
+- **wshobson-agents**: `claude plugin marketplace add wshobson/agents` + `install full-stack-orchestration@claude-code-workflows` → 둘 다 exit 0, 설치됨 ✓ (실 claude 2.1.167; SSH→HTTPS 주의는 전 plugin 자산 공통)
+
 ## [v26.75.0] — 2026-06-06 (feat: 워크플로 큐레이션 확장 — OpenSpec · BMAD · wshobson)
 
 ADR-021 재포지셔닝(검증+보안 큐레이션)의 **C 단계**. Phase 2 자율 소진 후 3-에이전트 시장 리서치(`docs/research/direction-research-2026-06-06.md`)로 후보 25개 발굴 → vetted 바(★≥1000 + 활성 + Node-native 설치가능) 통과 3건 추가. 본질 = 멀티-워크플로 **큐레이터**.
