@@ -41,10 +41,12 @@
   - `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 `GitFetcher` 버그로 실패(매트릭스 발견). 근본 해결 = npm publish → `npx @uzysjung/claude-harness`. publish 파이프라인 + 버전 정합(package.json 0.8.8 ↔ git tag) + registry-install smoke 추가
 - **B2+B1 — 4-CLI 실환경 검증** ✅ 완료 (v26.73.0, `Dockerfile.realcli` + `run-realcli.sh`)
   - 실 codex 0.125.0 + agy 1.0.3 Docker 검증. **B2**: Codex project `.codex/prompts/` 미인식 확정(소스 #9848) → 정직 표기(global active / project pre-position). **B1**: `.agents/` 구조 검증 PASS, 런타임 auth-gated(OAuth/TTY) → 정직 표기. evidence: `docs/research/realcli-verification-2026-05-31.md`
-- **P2-01 (=C1) — fresh-dogfood HITO 실측** (pending / RICE 300)
-  - **방식 확정(2026-05-31): 자기 fresh-dogfood 프록시**. clean env에서 하네스로 새 throwaway 서비스 1건 완주 + 정직한 HITO/feature 첫 측정. 외부 사용자 실측은 Phase 3 신호로 이월
-- **A1 / A2 — 큐레이션 신선도·정직성** (pending / RICE 400·240)
-  - A1 Trust Tier star-drift CI(정적 라벨→자동 fetch) · A2 37 자산 설명 Promise audit
+- **P2-01 (=C1) — fresh-dogfood HITO 실측** ⏸ **보류** (2026-06-02 사용자 결정 / RICE 300)
+  - 키트는 완료(#138, `scripts/fresh-dogfood-setup.sh` + `docs/evals/fresh-dogfood-protocol.md` + mini-wc SPEC). **측정 RUN 보류** — 자기 프록시 N=1 실효성 한계 + 측정 부담. 외부 사용자 실측(Phase 3 신호) 확보 시 재개. 키트는 재사용 가능 상태로 보존
+- **A1 — Trust Tier star-drift CI** ✅ 완료 (no-tag, `trust-tier-drift.yml` + `src/trust-tier-drift.ts`)
+  - 정적 라벨→GitHub star 자동 fetch+drift 감지(월 cron+dispatch). live 실행 33자산/20repo drift 0 검증. official 제외, repo=method authoritative+override
+- **A2 / A3 — 큐레이션 정직성·추천품질** (active / RICE 240·100)
+  - **A2** 37 자산 description Promise audit(설명↔실기능 일치) · **A3** 권장 수락률 측정(install log 기반 local, telemetry 無)
 - **P2-02 — NSM per-feature 자동화 Step 2** (보류 / RICE 16)
   - session-level까지(`scripts/nsm-aggregate.sh`). per-feature 매핑은 **C1 외부 baseline 후** 재평가
 - **P2-04 — Dependency major bump** (pending / RICE 10)
