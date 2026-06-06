@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.76.0] — 2026-06-06 (feat: 카탈로그 전체 Docker 검증 + 매트릭스 자동생성 + 거짓광고 2건 제거)
+
+ADR-021 A wedge 강화 — 검증 커버리지를 워크플로 8개 → **전 카탈로그 38 자산**으로 확대. Docker가 거짓 광고 2건 추가 검출.
+
+### Fix — 없는 plugin 2건 제거 (Promise=Implementation)
+
+`content-creator`·`demand-gen` 이 `alirezarezvani/claude-skills` marketplace.json 에 **부재**(Docker 실설치 exit 1). growth-marketing 트랙 자동설치 자산이라 사용자 install 실패 유발. A2 audit(repo 단위)가 놓친 plugin 단위 거짓 광고 → 제거. growth-marketing 은 business-growth-skills + marketing-skills + research-summarizer 유지. (asset 40→38)
+
+### A-확대 — 전 카탈로그 Docker 실설치 검증 (37/38 🟢)
+
+격리 컨테이너 실 claude(2.1.167)/`npx skills`/`npm`: plugin 18 OK·skill 12 OK·npm 5 registry 실재·npx 2 OK. 모든 `pluginId`/skill 이름 정확성 확정. evidence: `docs/research/realcli-workflows-verification-2026-06-06.md`.
+
+### A-자동화 — COMPATIBILITY 매트릭스 자동 생성
+
+`scripts/gen-compatibility.mjs` + `npm run gen:compat` — `EXTERNAL_ASSETS`+`TRUST_TIER`(dist re-export)에서 카탈로그 매트릭스 자동 생성(`<!-- AUTO-GEN:CATALOG -->` 블록). 수동 drift 0. trust-tier-drift 패턴.
+
+### B — 표준 채택 audit (코드 변경 0, posture 확인)
+
+transform 이 AGENTS.md emit ✓ · skill 배포는 `npx skills add`(skills.sh 표준) 위임 ✓ · MCP `.mcp.json` 위임 ✓ · symlink/canonical 재구현 0(skills.sh 중복 없음). 하네스 자체 템플릿만 per-CLI write(설치기 본연).
+
+663 tests / branches 88.39 / npm run ci EXIT=0. Docker 검증=격리, 호스트 write 0.
+
 ## [v26.75.1] — 2026-06-06 (fix: BMAD 비대화형 --directory + Docker realcli 3/3 검증)
 
 v26.75.0 워크플로 3자산의 **Docker realcli 실설치 검증**(`docs/research/realcli-workflows-verification-2026-06-06.md`) — 3/3 PASS, BMAD 버그 1건 검출·봉합. CLAUDE.md 실환경 검증 게이트 충족(격리 컨테이너, 호스트 글로벌 write 0).

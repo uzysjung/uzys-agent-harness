@@ -23,6 +23,22 @@
 
 > uzys-harness(본 하네스 templates)는 install-matrix CI + install 테스트로 검증(외부 실설치 아님) → 🟡 유지.
 
+## 전체 카탈로그 배치 검증 (2026-06-06, A-확대)
+
+워크플로 8개를 넘어 **전 카탈로그(38 자산)**로 검증 확대. 격리 컨테이너 실 claude(2.1.167)/`npx skills`/`npm`.
+
+| method | 수 | 결과 |
+|---|---|---|
+| plugin | 20 | **18 OK**(실 claude marketplace add + install) / **2 제거**(content-creator·demand-gen — marketplace.json 부재, exit 1) |
+| skill | 12 | 12 OK(`npx skills add` — polars/python-rm/impeccable/playwright/find-skills/ADR/react/shadcn/web-design/next + dask·python-perf same-source) |
+| npm | 5 | 5 registry 실재(vercel 54.9.1·netlify-cli 26.1.0·supabase 2.105.0·agent-browser 0.27.1·openspec 1.4.1) |
+| npx-run | 2 | bmad·gsd OK |
+| shell-script | 1 | ecc-prune(로컬) |
+
+**Docker가 잡은 2번째 결함**: `content-creator`·`demand-gen` 이 `alirezarezvani/claude-skills` marketplace.json 에 **부재**(install exit 1). A2 audit(repo 단위)가 놓친 plugin 단위 거짓 광고 → **제거**(v26.76.0). 거짓 광고 0건.
+
+매트릭스 자동 생성: `npm run gen:compat`(`scripts/gen-compatibility.mjs`) → `docs/COMPATIBILITY.md` 37/38 🟢.
+
 ## Docker가 잡은 버그 (v26.75.0 → .1)
 
 **BMAD 비대화형 hang**: v26.75.0 의 args `["install","--tools","claude-code","--yes"]` 는 `--yes` 에도 불구하고 **"Installation directory" 프롬프트에서 멈춤**(exit 0 이지만 _bmad 미생성 — 단위테스트로는 못 잡음). Docker 실행이 검출.
