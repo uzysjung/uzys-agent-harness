@@ -163,6 +163,8 @@ Every external asset carries a **trust tier**, shown as a badge in step 3:
 
 Tiers **inform, never block** — you always review and choose what installs. Recommended assets (official/vetted matching your track) sort to the top.
 
+> **How is "verified" backed up?** See the [Compatibility & verification matrix](docs/COMPATIBILITY.md) — install methods are checked against real registries/marketplaces, and the core workflow set is verified by **real install in an isolated Docker container** (not a static table). Trust tiers are auto-monitored for star-drift monthly.
+
 ---
 
 ## 6-Gate workflow (only if you opt in)

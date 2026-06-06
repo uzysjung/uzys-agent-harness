@@ -43,10 +43,9 @@
 - **C-4** Show HN + r/ClaudeCode Showcase 글 초안 (에이전트 초안, 사용자 게시)
 - **C-측정** 설치 사용자 HITO 측정 — #138 fresh-dogfood 키트(`scripts/fresh-dogfood-setup.sh` + protocol) 연결
 
-### A — 보안·호환 매트릭스 공개 artifact (방어 wedge 빌드)
-- **A-1** agentshield 자산 스캔 — 33 외부 자산(skill/plugin)에 prompt-injection/보안 스캔 적용 (NSM: Asset Security Pass Rate 100%)
-- **A-2** 자산×CLI 호환 매트릭스 자동 생성 — Docker 실행 결과 기반 (정적 표 아닌 지속 테스트)
-- **A-3** `docs/COMPATIBILITY.md` 공개 + README 배지 자동 갱신
+### A — 보안·호환 매트릭스 공개 artifact (방어 wedge 빌드) ✅ (사용자 결정: 호환 매트릭스 우선 + Trust Tier 보안)
+- **A-1** ~~agentshield 자산 스캔~~ → **재구성**: agentshield 는 `.claude/` 설정 스캐너(외부 repo 스캔 불가). 보안 = **Trust Tier + upstream vetting + `.claude/` 산출물 게이트** 다층으로(COMPATIBILITY.md §보안 근거). 실 자산-소스 스캐너는 보류(novel 툴링)
+- **A-2/A-3** ✅ **`docs/COMPATIBILITY.md`** 공개 + README 포인터 + 검증 등급(🟢 Docker 실설치 / 🟡 install-matrix / ⚪ 메타데이터). 워크플로 3건 🟢. 정적 표 아닌 Docker 실행 근거. (전 자산 자동생성 CI = 점진 확대)
 
 ### B — 표준 채택 자세 (원칙, 산출물 적음)
 - path 번역 재구현 금지(=skills.sh 중복). AGENTS.md/SKILL.md native emit, tool 통합은 MCP(`.mcp.json`) 위임. 신규 CLI/자산 추가 시 적용.
