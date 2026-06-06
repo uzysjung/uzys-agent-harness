@@ -1,0 +1,32 @@
+# 카탈로그 실설치 검증 (A — Promise=Implementation 지속 테스트).
+#
+# COMPATIBILITY.md 의 "지속 테스트되는" 주장을 실제로 만드는 재현 가능 CI.
+# 실 claude CLI + npx skills + npm 으로 전 카탈로그 자산 설치 가능성 검증 →
+# plugin 삭제/rename·패키지 부재 등 drift 를 자동 검출(fail). 격리 러너(호스트 무관).
+#
+# 트리거: 월 1회 cron + 수동 dispatch (자산 변경 시).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 1 * *" # 매월 1일 07:00 UTC (trust-tier-drift 06:00 과 분리)
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: 실 claude CLI + git HTTPS 설정
+        run: |
+          npm i -g @anthropic-ai/claude-code
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: 카탈로그 실설치 검증
+        run: node scripts/verify-catalog.mjs
