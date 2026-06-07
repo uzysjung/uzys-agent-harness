@@ -904,6 +904,10 @@ export function registerInstallCommand(cli: Cli): void {
       "--with-superpowers",
       "[Workflow] obra/superpowers (registered in Anthropic official marketplace)",
     )
+    // v26.75.0 (ADR-021) workflow 큐레이션 확장. wizard 와 동일하게 비대화형에서도 opt-in 가능해야 함.
+    .option("--with-wshobson-agents", "[Workflow] wshobson/agents full-stack-orchestration plugin")
+    .option("--with-openspec", "[Workflow] Fission-AI OpenSpec (npm, project-scoped)")
+    .option("--with-bmad", "[Workflow] BMAD-METHOD (npx-run, installs to project dir)")
     .option(
       "--with-antigravity-global",
       "[Workflow] Antigravity global opt-in: copy uzys-* to ~/.gemini/antigravity/{skills,global_workflows}/. Requires --cli antigravity + --scope global. (v26.67.0+)",

@@ -56,6 +56,8 @@ interface SpawnOpts {
   encoding: "utf8";
   stdio: ("ignore" | "pipe")[] | "ignore" | "pipe";
   timeout?: number;
+  /** v26.77.0 — 작업 디렉토리. projectDir 로 고정해 자산이 올바른 프로젝트에 착지. */
+  cwd?: string;
 }
 
 export interface AssetInstallResult {
@@ -97,6 +99,14 @@ export function runExternalInstall(
     userOverride?: { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> };
     /** v26.64.0 (ADR-020) — Install scope. undefined → default "project". */
     scope?: InstallScope;
+    /**
+     * v26.77.0 — 외부 설치기 spawn 의 작업 디렉토리.
+     * 미지정 시 process.cwd(). 핵심: npm(--save-dev)·npx-run(bmad --directory .)·
+     * plugin(--scope project, claude 의 cwd 기반 project 탐지)·skill 이 모두 cwd 기준으로
+     * 착지하므로, --project-dir 가 cwd 와 다르면 cwd 를 projectDir 로 맞춰야 자산이 올바른
+     * 프로젝트에 떨어진다 (이 누락 = 2026-06-07 probe 가 repo 를 오염시킨 근본 원인).
+     */
+    projectDir?: string;
   },
   deps: ExternalInstallerDeps = {},
 ): ExternalInstallReport {
@@ -105,6 +115,7 @@ export function runExternalInstall(
   const spawn = deps.spawn ?? defaultSpawn;
   const assets = deps.assets ?? EXTERNAL_ASSETS;
   const harnessRoot = deps.harnessRoot ?? process.cwd();
+  const projectDir = ctx.projectDir ?? process.cwd();
 
   const applicable = filterApplicableAssets(assets, ctx);
   // v26.55.0 — Phase 2 grouped progress UX. 카테고리 순서로 정렬 → install.ts 의 onAssetStart
@@ -121,7 +132,7 @@ export function runExternalInstall(
   for (const asset of sorted) {
     deps.onAssetStart?.(asset);
     log(`  → ${asset.description}`);
-    const baseResult = installOne(asset, { spawn, harnessRoot, cli, scope });
+    const baseResult = installOne(asset, { spawn, harnessRoot, cli, scope, projectDir });
     let result: AssetInstallResult = baseResult;
     if (baseResult.ok) {
       const v = detectVersion(asset.method, spawn);
@@ -163,14 +174,17 @@ function installOne(
     harnessRoot: string;
     cli: CliTargets;
     scope: InstallScope;
+    /** v26.77.0 — spawn cwd. 자산이 올바른 프로젝트에 착지하도록 projectDir 로 고정. */
+    projectDir: string;
   },
 ): AssetInstallResult {
   const { method } = asset;
+  const cwd = ctx.projectDir;
   switch (method.kind) {
     case "skill":
-      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope));
+      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
     case "plugin":
-      return installPlugin(asset, ctx.spawn, method, ctx.scope);
+      return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
     case "npm":
       // v26.64.0 (ADR-020) — scope=project 시 devDep, scope=global 시 -g.
       // v26.68.0 — method.kind "npm-global" → "npm" rename (scope 분기와 무관 의미).
@@ -181,9 +195,10 @@ function installOne(
         ctx.scope === "global"
           ? ["install", "-g", method.pkg]
           : ["install", "--save-dev", method.pkg],
+        cwd,
       );
     case "npx-run":
-      return runSpawn(asset, ctx.spawn, "npx", [method.cmd, ...(method.args ?? [])]);
+      return runSpawn(asset, ctx.spawn, "npx", [method.cmd, ...(method.args ?? [])], cwd);
     case "shell-script": {
       const scriptPath = join(ctx.harnessRoot, method.script);
       if (!existsSync(scriptPath)) {
@@ -193,7 +208,7 @@ function installOne(
           message: `script not found: ${scriptPath}`,
         };
       }
-      return runSpawn(asset, ctx.spawn, "bash", [scriptPath, ...method.args]);
+      return runSpawn(asset, ctx.spawn, "bash", [scriptPath, ...method.args], cwd);
     }
   }
 }
@@ -257,20 +272,23 @@ function installPlugin(
   spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
   method: { kind: "plugin"; marketplace: string; pluginId: string },
   scope: InstallScope,
+  cwd: string,
 ): AssetInstallResult {
   const claudeScope = scope === "global" ? "user" : "project";
+  // v26.77.0 — cwd=projectDir: --scope project 시 claude 가 cwd 기준으로 프로젝트를 탐지하므로
+  // installed_plugins.json 의 projectPath 가 올바른 프로젝트로 기록된다.
   spawn(
     "claude",
     ["plugin", "marketplace", "add", "--scope", claudeScope, method.marketplace],
-    spawnOpts(),
+    spawnOpts(cwd),
   );
-  return runSpawn(asset, spawn, "claude", [
-    "plugin",
-    "install",
-    "--scope",
-    claudeScope,
-    method.pluginId,
-  ]);
+  return runSpawn(
+    asset,
+    spawn,
+    "claude",
+    ["plugin", "install", "--scope", claudeScope, method.pluginId],
+    cwd,
+  );
 }
 
 function runSpawn(
@@ -278,8 +296,9 @@ function runSpawn(
   spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
   cmd: string,
   args: ReadonlyArray<string>,
+  cwd?: string,
 ): AssetInstallResult {
-  const result = spawn(cmd, args, spawnOpts());
+  const result = spawn(cmd, args, spawnOpts(cwd));
   if (result.error) {
     return { asset, ok: false, message: result.error.message };
   }
@@ -295,11 +314,12 @@ function runSpawn(
   return { asset, ok: true };
 }
 
-function spawnOpts(): SpawnOpts {
+function spawnOpts(cwd?: string): SpawnOpts {
   return {
     encoding: "utf8",
     stdio: "pipe",
     timeout: DEFAULT_SPAWN_TIMEOUT_MS,
+    ...(cwd ? { cwd } : {}),
   };
 }
 

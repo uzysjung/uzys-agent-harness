@@ -76,6 +76,8 @@ describe("runInstall — external assets integration", () => {
     expect(ctx?.tracks).toEqual(["tooling"]);
     expect(ctx?.options.withEcc).toBe(true);
     expect(ctx?.options.withPrune).toBe(true);
+    // Bug B (2026-06-07): 외부 설치기가 올바른 프로젝트에 착지하도록 projectDir 가 전달돼야 함.
+    expect(ctx?.projectDir).toBe(projectDir);
   });
 
   it("skips external install when runExternal=null (test mode)", () => {
