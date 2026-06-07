@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.77.0] — 2026-06-07 (fix: 워크플로 설치 2버그 + Docker-only 강제룰)
+
+워크플로 project-scope 설치 실검증 중 발견한 Promise=Implementation 버그 2건 수정 + 호스트 오염 재발 방지 강제룰.
+
+### Fix — 워크플로 CLI 플래그 누락 (Bug A)
+
+- `--with-wshobson-agents` / `--with-openspec` / `--with-bmad` 가 CLI 에 미등록 → `claude-harness install --with-openspec` 가 CAC `Unknown option` 으로 **크래시**. v26.75.0 신규 워크플로 3종이 비대화형 CLI 로 설치 불가(wizard 로만 도달)했음. `.option()` 3개 추가 + 회귀 테스트(`cli.test.ts`).
+
+### Fix — 외부 설치기가 `--project-dir` 무시 (Bug B)
+
+- npm(`--save-dev`)·npx-run(bmad)·plugin·skill 설치기가 spawn cwd 를 고정하지 않아 `process.cwd()` 에 설치 → `--project-dir` 가 cwd 와 다르면 자산이 엉뚱한 프로젝트에 착지. `external-installer.ts` spawn 에 `cwd=projectDir` 주입 + 회귀 테스트 2건. (대화형 기본 사용은 cwd=프로젝트라 영향 없음.)
+
+### Add — 실 CLI 설치 Docker 격리 강제룰
+
+- `.claude/hooks/docker-only-realcli.sh` (PreToolUse·Bash) — 호스트에서 `claude-harness install` / `claude plugin install` / `skills add` / `bmad-method` / `verify-catalog.mjs` 차단(`docker run` 래핑·CI·`DOCKER_VERIFY_ALLOW=1` 만 통과). CLAUDE.md 실환경 검증 원칙(~/.claude 등 글로벌 write 금지) 자동 강제.
+- `test/docker/scenarios/scenario-workflow-scope.sh` — 워크플로 project-scope 착지 실검증 시나리오(throwaway 컨테이너, real claude).
+
 ## [v26.76.0] — 2026-06-06 (feat: 카탈로그 전체 Docker 검증 + 매트릭스 자동생성 + 거짓광고 2건 제거)
 
 ADR-021 A wedge 강화 — 검증 커버리지를 워크플로 8개 → **전 카탈로그 38 자산**으로 확대. Docker가 거짓 광고 2건 추가 검출.

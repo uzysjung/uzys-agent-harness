@@ -37,6 +37,18 @@ describe("buildCli", () => {
     );
   });
 
+  it("registers the v26.75.0 workflow curation flags so non-interactive opt-in works", () => {
+    // 회귀 가드 (Promise=Impl): 이 3 flag 미등록 시 `--with-openspec` 등이 CAC
+    // `Unknown option` 으로 CLI 전체 크래시. wizard(interactive.ts:54-56)·spec 매핑은
+    // 존재하는데 비대화형 CLI 경로만 막혀 "설치 가능" 광고가 거짓이 됐었음 (v26.76.0 회귀).
+    const cli = buildCli();
+    const installCmd = cli.commands.find((cmd) => cmd.name === "install");
+    const optionNames = installCmd?.options.map((o) => o.name) ?? [];
+    expect(optionNames).toEqual(
+      expect.arrayContaining(["withWshobsonAgents", "withOpenspec", "withBmad"]),
+    );
+  });
+
   it("registers an explicit empty default command (interactive placeholder)", () => {
     const cli = buildCli();
     const defaultCmd = cli.commands.find((cmd) => cmd.name === "");

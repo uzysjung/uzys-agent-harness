@@ -95,6 +95,23 @@ describe("runExternalInstall — method dispatch", () => {
     ]);
   });
 
+  it("threads projectDir into spawn cwd so assets land in the right project", () => {
+    // 회귀 가드 (Bug B, 2026-06-07): cwd 미고정 시 npm(--save-dev)/npx-run/plugin/skill 이
+    // process.cwd() 에 설치돼, --project-dir 가 cwd 와 다르면 자산이 엉뚱한 프로젝트(예: harness
+    // repo)에 떨어진다. probe 가 repo 의 package.json/_bmad/.claude 를 오염시킨 근본 원인.
+    const spawn = makeSpawnMock(() => ok());
+    runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        projectDir: "/tmp/target-proj",
+      },
+      { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] },
+    );
+    expect(spawn.mock.calls[0]?.[2]?.cwd).toBe("/tmp/target-proj");
+  });
+
   it("skill with --skill includes --skill flag", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(

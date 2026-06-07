@@ -72,7 +72,8 @@ export interface InstallContext {
    */
   runExternal?:
     | ((
-        ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags },
+        // v26.77.0 — projectDir: 외부 설치기 spawn cwd (자산 착지 위치). Bug B fix.
+        ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags; projectDir?: string },
         deps: ExternalInstallerDeps,
       ) => ExternalInstallReport)
     | null;
@@ -441,7 +442,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
     ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
     external = runExt(
-      { ...filterCtx, cli: spec.cli, ...(spec.scope ? { scope: spec.scope } : {}) },
+      { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
       externalDeps,
     );
     ctx.onProgress?.({ type: "external-complete", report: external });
