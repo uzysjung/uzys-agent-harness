@@ -34,6 +34,9 @@ const NO_OPTS: OptionFlags = {
   withWshobsonAgents: false,
   withOpenspec: false,
   withBmad: false,
+  withClaudeVideo: false,
+  withUnderstandAnything: false,
+  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 

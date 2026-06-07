@@ -37,6 +37,8 @@ const CLI_SCOPE = {
   "shell-script": "local",
 };
 
+// ⚠️ src/categories.ts CATEGORIES 와 동기화 필수 — 누락 시 해당 카테고리 자산이 표에서
+//    silent drop (헤더 카운트만 EXTERNAL_ASSETS.length 라 불일치). v26.78.0 understanding 추가.
 const CATEGORY_TITLE = {
   workflow: "🔄 Workflow",
   frontend: "🎨 Frontend",
@@ -44,9 +46,19 @@ const CATEGORY_TITLE = {
   data: "📊 Data",
   business: "💼 Business",
   "dev-tools": "🛡️ Dev Tools",
+  understanding: "🧠 Understanding",
   "ecc-suite": "📦 ECC Suite",
 };
-const CAT_ORDER = ["workflow", "frontend", "backend", "data", "business", "dev-tools", "ecc-suite"];
+const CAT_ORDER = [
+  "workflow",
+  "frontend",
+  "backend",
+  "data",
+  "business",
+  "dev-tools",
+  "understanding",
+  "ecc-suite",
+];
 
 function target(m) {
   if (m.kind === "plugin") return `\`${m.pluginId}\``;

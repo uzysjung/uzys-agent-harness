@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.78.0] — 2026-06-07 (feat: Understanding 카테고리 + 자산 3종)
+
+에이전트 **인지 증강** 자산 큐레이션 확장. 사용자 요청 + Promise=Impl 리서치(star/라이선스/설치법 실측) + Docker 실설치 검증.
+
+### Add — 🧠 Understanding 카테고리 (8번째)
+
+환경에 대한 **지각**(영상·웹·코드) + **기억**(memory) 도구. categories.ts 신규 카테고리 + 정렬.
+
+### Add — 자산 3종 (plugin, opt-in, vetted)
+
+- **claude-video** (bradautomates, 1.8k★, MIT) — `/watch` 로 영상 다운→프레임→전사, Claude 가 보고/들음. `--with-claude-video`
+- **understand-anything** (Lum1104, 53k★, MIT) — 코드베이스 인터랙티브 지식그래프. `--with-understand-anything`
+- **agentmemory** (rohitg00, 21k★, Apache-2.0) — 영속 메모리 런타임. 플러그인이 MCP(53 tools)+hooks+skills 자동 wiring. 런타임 서버 `npx @agentmemory/agentmemory` 별도. `--with-agentmemory`
+- 셋 다 **plugin 메서드** (agentmemory 는 npm-only 아닌 plugin 이 MCP wiring → 별도 mcp-asset 메서드 불요).
+
+### Change — agent-browser 재분류
+
+dev-tools → understanding (웹 지각 = 영상/코드 지각과 같은 축).
+
 ## [v26.77.0] — 2026-06-07 (fix: 워크플로 설치 2버그 + Docker-only 강제룰)
 
 워크플로 project-scope 설치 실검증 중 발견한 Promise=Implementation 버그 2건 수정 + 호스트 오염 재발 방지 강제룰.
