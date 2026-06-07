@@ -100,7 +100,7 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 30 distinct asset ids (no duplicates)", () => {
+  it("contains 41 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain("polars-K-Dense");
@@ -119,6 +119,41 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       expect(a.description).toBeTruthy();
       expect(a.condition).toBeDefined();
       expect(a.method).toBeDefined();
+    }
+  });
+
+  // v26.78.0 — Understanding 카테고리 (에이전트 인지 증강). Promise=Impl: 광고한 plugin 설치법
+  // 이 실제 정의대로인지 회귀 가드 (pluginId drift 시 fail).
+  it("Understanding category: 3 new plugins + agent-browser, exact methods", () => {
+    const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
+    const understanding = EXTERNAL_ASSETS.filter((a) => a.category === "understanding").map(
+      (a) => a.id,
+    );
+    expect(understanding.sort()).toEqual(
+      ["agent-browser", "agentmemory", "claude-video", "understand-anything"].sort(),
+    );
+    expect(byId("claude-video")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "bradautomates/claude-video",
+      pluginId: "watch@claude-video",
+    });
+    expect(byId("understand-anything")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "Lum1104/Understand-Anything",
+      pluginId: "understand-anything@understand-anything",
+    });
+    expect(byId("agentmemory")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "rohitg00/agentmemory",
+      pluginId: "agentmemory@agentmemory",
+    });
+    // 3종은 opt-in (option flag). 기본 설치 아님.
+    for (const id of ["claude-video", "understand-anything", "agentmemory"]) {
+      expect(byId(id)?.condition.kind).toBe("option");
+    }
+    // 전부 vetted (star≥1000).
+    for (const id of ["claude-video", "understand-anything", "agentmemory"]) {
+      expect(assetTrustTier(id)).toBe("vetted");
     }
   });
 });

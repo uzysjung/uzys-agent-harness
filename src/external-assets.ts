@@ -103,6 +103,10 @@ export const TRUST_TIER: Record<string, TrustTier> = {
   "wshobson-agents": "vetted", // wshobson/agents 36k
   openspec: "vetted", // Fission-AI/OpenSpec 53k
   "bmad-method": "vetted", // bmad-code-org/BMAD-METHOD 48k
+  // v26.78.0 — Understanding 카테고리 신규 3종 (plugin, 2026-06 star 실측)
+  "claude-video": "vetted", // bradautomates/claude-video 1.8k
+  "understand-anything": "vetted", // Lum1104/Understand-Anything 53k
+  agentmemory: "vetted", // rohitg00/agentmemory 21k
 };
 
 /** 자산의 검증 tier. 미분류는 보수적으로 experimental (테스트가 누락 0 강제). */
@@ -171,7 +175,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 32 외부 자산 매트릭스. bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 41 외부 자산 매트릭스 (v26.78.0 Understanding 3종 추가). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -382,10 +386,51 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "agent-browser",
     description:
       "agent-browser — agent-friendly Playwright wrapper (screenshot · DOM search CLI, dev tracks)",
-    category: "dev-tools",
+    // v26.78.0 — Understanding 으로 재분류: 웹 지각(screenshot·DOM). 영상/코드 지각과 같은 축.
+    category: "understanding",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
     method: { kind: "npm", pkg: "agent-browser" },
+  },
+  // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.
+  {
+    id: "claude-video",
+    description:
+      "Claude Video — /watch downloads any video, extracts frames + transcript so Claude can see + hear it (yt-dlp/ffmpeg auto on first run)",
+    category: "understanding",
+    source: "bradautomates",
+    condition: { kind: "option", flag: "withClaudeVideo" },
+    method: {
+      kind: "plugin",
+      marketplace: "bradautomates/claude-video",
+      pluginId: "watch@claude-video",
+    },
+  },
+  {
+    id: "understand-anything",
+    description:
+      "Understand Anything — multi-agent pipeline builds an interactive knowledge graph of your codebase (files/functions/deps) to explore + query",
+    category: "understanding",
+    source: "Lum1104",
+    condition: { kind: "option", flag: "withUnderstandAnything" },
+    method: {
+      kind: "plugin",
+      marketplace: "Lum1104/Understand-Anything",
+      pluginId: "understand-anything@understand-anything",
+    },
+  },
+  {
+    id: "agentmemory",
+    description:
+      "AgentMemory — persistent memory runtime; plugin auto-wires MCP (53 tools) + hooks + skills. Runtime server: npx @agentmemory/agentmemory",
+    category: "understanding",
+    source: "rohitg00",
+    condition: { kind: "option", flag: "withAgentmemory" },
+    method: {
+      kind: "plugin",
+      marketplace: "rohitg00/agentmemory",
+      pluginId: "agentmemory@agentmemory",
+    },
   },
   {
     id: "architecture-decision-record",

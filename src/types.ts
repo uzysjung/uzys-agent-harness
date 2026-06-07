@@ -112,6 +112,13 @@ export interface OptionFlags {
   withOpenspec: boolean;
   withBmad: boolean;
   /**
+   * v26.78.0 — Understanding 카테고리 opt-in (plugin). 에이전트 인지 증강:
+   * claude-video(영상 지각) / understand-anything(코드 지식그래프) / agentmemory(영속 메모리).
+   */
+  withClaudeVideo: boolean;
+  withUnderstandAnything: boolean;
+  withAgentmemory: boolean;
+  /**
    * v26.67.0 — Antigravity global opt-in (~/.gemini/antigravity/skills/uzys-* +
    * ~/.gemini/antigravity/global_workflows/uzys-*.md). D16 영역 — `scope=global` +
    * `cli.includes("antigravity")` 시에만 실 write. 사용자 명시 opt-in 필수.
@@ -135,6 +142,9 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withWshobsonAgents: false,
   withOpenspec: false,
   withBmad: false,
+  withClaudeVideo: false,
+  withUnderstandAnything: false,
+  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 

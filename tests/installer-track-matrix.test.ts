@@ -47,12 +47,14 @@ describe("Track matrix — assets called per track", () => {
     // v26.42.0 — addy-agent-skills moved to option-gated (withAddyAgentSkills).
     // v26.71.1 — playwright-skill / architecture-decision-record (T3 experimental) 는
     //   opt-in only (PRD R6) → 비대화형 default 설치에서 제외. vetted/official 만 남음.
-    expect(ids).toEqual(["find-skills", "agent-browser", "product-skills", "karpathy-coder"]);
+    // v26.78.0 — agent-browser 가 dev-tools → understanding 재분류 → 카테고리 정렬상 맨 뒤로.
+    expect(ids).toEqual(["find-skills", "product-skills", "karpathy-coder", "agent-browser"]);
   });
 
   it("data: 5 data-specific + dev baseline + dev-tools + v0.5.0 dev assets", () => {
     const { ids } = runForTrack(["data"]);
     // v26.71.1 — playwright-skill / architecture-decision-record (T3) opt-in only → 제외.
+    // v26.78.0 — agent-browser 가 understanding 재분류 → 카테고리 정렬상 맨 뒤로.
     expect(ids).toEqual([
       "polars-K-Dense",
       "dask-K-Dense",
@@ -60,9 +62,9 @@ describe("Track matrix — assets called per track", () => {
       "python-performance-optimization",
       "anthropic-data-plugin",
       "find-skills",
-      "agent-browser",
       "product-skills",
       "karpathy-coder",
+      "agent-browser",
     ]);
   });
 

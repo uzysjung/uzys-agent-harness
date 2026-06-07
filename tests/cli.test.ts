@@ -49,6 +49,16 @@ describe("buildCli", () => {
     );
   });
 
+  it("registers the v26.78.0 Understanding flags so non-interactive opt-in works", () => {
+    // 회귀 가드 (Bug A 교훈 재발 방지): claude-video/understand-anything/agentmemory CLI 플래그.
+    const cli = buildCli();
+    const installCmd = cli.commands.find((cmd) => cmd.name === "install");
+    const optionNames = installCmd?.options.map((o) => o.name) ?? [];
+    expect(optionNames).toEqual(
+      expect.arrayContaining(["withClaudeVideo", "withUnderstandAnything", "withAgentmemory"]),
+    );
+  });
+
   it("registers an explicit empty default command (interactive placeholder)", () => {
     const cli = buildCli();
     const defaultCmd = cli.commands.find((cmd) => cmd.name === "");
@@ -87,6 +97,9 @@ describe("defaultAction", () => {
         withWshobsonAgents: false,
         withOpenspec: false,
         withBmad: false,
+        withClaudeVideo: false,
+        withUnderstandAnything: false,
+        withAgentmemory: false,
         withAntigravityGlobal: false,
       },
       cli: ["claude"] as const,

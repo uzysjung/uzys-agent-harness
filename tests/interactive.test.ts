@@ -59,6 +59,9 @@ const ALL_FALSE_OPTIONS: OptionFlags = {
   withWshobsonAgents: false,
   withOpenspec: false,
   withBmad: false,
+  withClaudeVideo: false,
+  withUnderstandAnything: false,
+  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 

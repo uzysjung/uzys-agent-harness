@@ -54,6 +54,9 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
     withWshobsonAgents: picked.has("withWshobsonAgents"),
     withOpenspec: picked.has("withOpenspec"),
     withBmad: picked.has("withBmad"),
+    withClaudeVideo: picked.has("withClaudeVideo"),
+    withUnderstandAnything: picked.has("withUnderstandAnything"),
+    withAgentmemory: picked.has("withAgentmemory"),
     withAntigravityGlobal: picked.has("withAntigravityGlobal"),
   };
 }
