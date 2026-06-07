@@ -1,5 +1,4 @@
 # Uzys-claude-harness CLAUDE.md
-
 These rules apply to every task in this project unless explicitly overridden.
 Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
 
@@ -61,26 +60,27 @@ If you genuinely think a convention is harmful, surface it. Don't fork silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
 
-### 안티패턴 (금지)
-- "직관적으로 별로 같다" / "안 쓸 것 같다" → 추정
-- "고급 기능이라 저가치" → 기준 없는 단정
-- "일반적으로 필요함" → 검증 불가
-- "내 경험상" → 출처 없는 일반화
+## Anti-Patterns (Forbidden)
+"feels kind of weak intuitively" / "probably won't be used" → speculation
+"it's an advanced feature, so low value" → assertion with no criteria
+"generally needed" → unverifiable
+"in my experience" → unsourced generalization
 
-## 의사결정 및 컨펌 요청 시
-1. 이해가 쉽도록 전후 맥락과 함께 상세하게 설명
-2. 추천하는 제안과 그 이유를 설명
-3. UI/UX 형태로 이해할 수 있도록 설명
-4. ASIS TOBE 형태로 설명
+## When Requesting Decisions or Confirmation
+Explain in detail, with the surrounding before/after context, so it's easy to understand.
+State the recommended option and the reason for it.
+Explain it in a way that can be understood as UI/UX.
+Explain it in AS-IS / TO-BE form.
+Frame every choice from the user's perspective — the benefit gained vs. the cost incurred — and visualize the trade-off (e.g., a comparison table) instead of leaving it in prose.
 
-## Phase/작업 완료 시 Self-Audit 실행:
-1. AC 충족 여부 [항목별 Pass/Fail]
-2. DO NOT CHANGE 미변경 확인
-3. Non-Goals 침범 없음 확인
-4. 요청에 추적 불가한 변경 유무
-5. 열린 의사결정/후속 작업
+## Run Self-Audit on Phase/Task Completion
+Acceptance Criteria met [Pass/Fail per item]
+Confirm DO NOT CHANGE areas were not modified
+Confirm no Non-Goals were violated
+Any changes not traceable to the request
+Open decisions / follow-up work
 
 ## Context Management
-- autocompact 활성화. 50% 도달 시 수동 /compact 고려.
-- SPEC/PRD는 매 세션 시작 시 재참조 (Persistent Anchor).
-- Phase 간 전환 시 구조화된 상태 핸드오프. SPEC/PRD/TODO 최신상태 업데이트
+autocompact enabled. Consider manual /compact when reaching 50%.
+Re-reference SPEC/PRD at the start of every session (Persistent Anchor).
+On phase transitions, do a structured state handoff. Keep SPEC/PRD/TODO current.
