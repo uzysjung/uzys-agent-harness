@@ -15,6 +15,7 @@ import { EXTERNAL_ASSETS, experimentalOptInCandidates } from "../external-assets
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
 import {
+  type CliBase,
   type CliTargets,
   type InstallScope,
   type InstallSpec,
@@ -22,6 +23,18 @@ import {
   isTrack,
   type Track,
 } from "../types.js";
+
+/**
+ * v26.78.1 — Summary `CLI` 행 라벨 (SSOT). spec.cli 에서 derive → 헤더 line 316 과 일관.
+ * 이전 pairwise if-chain 은 codex/opencode 만 열거해 `--cli antigravity` 가 "Claude" 로
+ * 잘못 출력 (R2). 4 base 전부 매핑.
+ */
+const CLI_SUMMARY_LABELS: Record<CliBase, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  opencode: "OpenCode",
+  antigravity: "Antigravity",
+};
 
 export interface InstallOptions {
   track?: string[];
@@ -405,10 +418,13 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     log("");
   }
 
-  // v26.63.0 — Codex / OpenCode 산출물 sub-section. phaseHeader → unifiedSection.
+  // v26.63.0 — Codex / OpenCode / Antigravity 산출물 sub-section. phaseHeader → unifiedSection.
+  // v26.78.1 (R2): antigravity 추가 — `--cli antigravity` 시 산출물 invisible 이던 버그 fix.
   if (
-    (report.codex || report.opencode) &&
-    (targetsInclude(spec.cli, "codex") || targetsInclude(spec.cli, "opencode"))
+    (report.codex || report.opencode || report.antigravity) &&
+    (targetsInclude(spec.cli, "codex") ||
+      targetsInclude(spec.cli, "opencode") ||
+      targetsInclude(spec.cli, "antigravity"))
   ) {
     log(unifiedSection(formatCliPhaseTitle(spec.cli)));
     log("");
@@ -480,6 +496,52 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
       );
       log(assetRow("success", ".opencode/plugins/uzys-harness.ts", "self-contained plugin"));
     }
+    // v26.78.1 (R2) — Antigravity 산출물. rules 항상, skills/workflows 는 withUzysHarness 시만.
+    if (report.antigravity) {
+      if (report.antigravity.rulesFile) {
+        log(assetRow("success", ".agents/rules/uzys-harness.md", "from .claude/CLAUDE.md"));
+      }
+      if (report.antigravity.skillFiles.length > 0) {
+        log(
+          assetRow(
+            "success",
+            ".agents/skills/uzys-*/SKILL.md",
+            `${report.antigravity.skillFiles.length} skills`,
+          ),
+        );
+      }
+      if (report.antigravity.workflowFiles.length > 0) {
+        log(
+          assetRow(
+            "success",
+            ".agents/workflows/uzys-*.md",
+            `${report.antigravity.workflowFiles.length} workflows`,
+          ),
+        );
+      }
+      // Antigravity global opt-in (D16) — only when explicitly enabled.
+      if (report.antigravityOptIn) {
+        const opt = report.antigravityOptIn;
+        if (opt.skillsInstalled.enabled) {
+          log(
+            assetRow(
+              "success",
+              "~/.gemini/antigravity/skills/uzys-*",
+              `${opt.skillsInstalled.count} copied (global opt-in)`,
+            ),
+          );
+        }
+        if (opt.workflowsInstalled.enabled) {
+          log(
+            assetRow(
+              "success",
+              "~/.gemini/antigravity/global_workflows/uzys-*",
+              `${opt.workflowsInstalled.count} copied (global opt-in)`,
+            ),
+          );
+        }
+      }
+    }
     log("");
   }
 
@@ -489,14 +551,19 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   log(infoRow("STATUS", c.green("Install complete")));
   log(infoRow("TRACKS", report.installedTracks.join(", ")));
   // v26.63.4 (P3): install header `CLI` 와 Summary `CLIs` 라벨 불일치 → `CLI` 로 통일.
-  if (report.codex && report.opencode) {
-    log(infoRow("CLI", "Claude · Codex · OpenCode"));
-  } else if (report.codex) {
-    log(infoRow("CLI", "Claude · Codex"));
-  } else if (report.opencode) {
-    log(infoRow("CLI", "Claude · OpenCode"));
-  } else {
-    log(infoRow("CLI", "Claude"));
+  // v26.78.1 (R2): pairwise if-chain → spec.cli derive. antigravity 누락 + claude 무조건
+  //   prepend(claude 미선택 시에도 "Claude" 표기) 버그 fix. 헤더 line 316 과 동일 SSOT.
+  log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
+  // v26.78.1 (R1) — karpathy hook opt-in 결과 렌더. null = 미opt-in(표시 안 함).
+  //   이전엔 wired=false(plugin install 실패 등)여도 무음 → 사용자가 hook 안 깔린 걸
+  //   모른 채 "Install complete" 만 봄 (Rule 12 fail-loud 위반).
+  if (report.karpathyHook) {
+    const kh = report.karpathyHook;
+    if (kh.wired) {
+      log(infoRow("HOOK", c.green("karpathy-coder pre-commit hook wired")));
+    } else {
+      log(infoRow("HOOK", c.yellow(`karpathy hook skipped — ${kh.reason ?? "unknown"}`)));
+    }
   }
   if (report.external && report.external.skipped > 0) {
     log("");
@@ -823,12 +890,13 @@ export function shortenPath(p: string): string {
  * v26.48.0 — export for direct unit test (branch coverage 복구).
  */
 export function formatCliPhaseTitle(targets: CliTargets): string {
-  const hasCodex = targets.includes("codex");
-  const hasOpenCode = targets.includes("opencode");
-  if (hasCodex && hasOpenCode) return "Codex + OpenCode artifacts";
-  if (hasCodex) return "Codex artifacts";
-  if (hasOpenCode) return "OpenCode artifacts";
-  return "CLI artifacts";
+  // v26.78.1 (R2) — antigravity 추가. 누락 시 `--cli antigravity` 산출물 헤더가
+  //   "CLI artifacts" generic 으로만 떠 antigravity 가 invisible 했음.
+  const labels: string[] = [];
+  if (targets.includes("codex")) labels.push("Codex");
+  if (targets.includes("opencode")) labels.push("OpenCode");
+  if (targets.includes("antigravity")) labels.push("Antigravity");
+  return labels.length > 0 ? `${labels.join(" + ")} artifacts` : "CLI artifacts";
 }
 
 /* v8 ignore start — thin dep-inject defaults. tests 는 항상 runPipeline / resolveHarnessRoot 주입. */
@@ -863,10 +931,14 @@ export function registerInstallCommand(cli: Cli): void {
     .command("install", "Install harness assets into a project")
     // === Track / CLI / Project ===
     .option("--track <name>", "[Track] Track to install (repeatable)", { type: [String] })
-    .option("--cli <target>", "[CLI] Target CLI (repeatable): claude | codex | opencode", {
-      type: [String],
-      default: "claude",
-    })
+    .option(
+      "--cli <target>",
+      "[CLI] Target CLI (repeatable): claude | codex | opencode | antigravity",
+      {
+        type: [String],
+        default: "claude",
+      },
+    )
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })

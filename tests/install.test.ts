@@ -390,7 +390,10 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Claude · Codex"));
   });
 
-  it("renders 'Claude · OpenCode' line when only opencode present", () => {
+  it("renders 'OpenCode' (not 'Claude · OpenCode') when claude is NOT selected", () => {
+    // v26.78.1 (R2): Summary CLI 행은 spec.cli 에서 derive — claude 미선택 시 "Claude"
+    //   prepend 하지 않는다. WHY: claude baseline 은 spec.cli.includes("claude") 시에만
+    //   설치(installer.ts:265)되므로, claude 없이 "Claude" 표기는 거짓 (설치 안 된 CLI 광고).
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
@@ -406,7 +409,83 @@ describe("executeSpec", () => {
       { ...baseSpec, cli: ["opencode"] },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Claude · OpenCode"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("CLI"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("OpenCode"));
+    // claude 미선택 → Summary CLI 행에 "Claude" 가 없어야 한다.
+    const cliRow = log.mock.calls
+      .map((args) => String(args[0]))
+      .find((line) => line.includes("CLI") && line.includes("OpenCode"));
+    expect(cliRow).toBeDefined();
+    expect(cliRow).not.toContain("Claude");
+  });
+
+  // v26.78.1 (R2) — antigravity 가 Summary/산출물 양쪽에서 invisible 이던 회귀 가드.
+  //   WHY: `--cli antigravity` 시 Summary CLI 행이 "Claude" 로 잘못 떴고(claude 무조건
+  //   prepend) 산출물 섹션도 codex/opencode 게이트라 antigravity 자산이 화면에 0건 → 사용자가
+  //   설치 결과를 못 봄 (Transparent Defaults + no-false-ship 위반).
+  it("renders 'Antigravity' CLI row + .agents/ artifacts for cli=antigravity", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      antigravity: {
+        rulesFile: "/p/.agents/rules/uzys-harness.md",
+        skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
+        workflowFiles: ["/p/.agents/workflows/uzys-spec.md"],
+      },
+    });
+    executeSpec(
+      { ...baseSpec, cli: ["antigravity"] },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    const lines = log.mock.calls.map((args) => String(args[0]));
+    // Summary CLI 행 = "Antigravity" (claude prepend 없음).
+    const cliRow = lines.find((line) => line.includes("CLI") && line.includes("Antigravity"));
+    expect(cliRow).toBeDefined();
+    expect(cliRow).not.toContain("Claude");
+    // 산출물 섹션 헤더 + rules/skills/workflows 행.
+    expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
+    expect(lines.some((l) => l.includes(".agents/rules/uzys-harness.md"))).toBe(true);
+    expect(lines.some((l) => l.includes(".agents/skills/uzys-*/SKILL.md"))).toBe(true);
+    expect(lines.some((l) => l.includes(".agents/workflows/uzys-*.md"))).toBe(true);
+  });
+
+  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (Rule 12 fail-loud).
+  //   WHY: withKarpathyHook=true 인데 plugin install 실패(wired=false)면 사용자는 hook 이
+  //   안 깔린 걸 모른 채 "Install complete" 만 본다. 성공/실패 둘 다 1행 노출 강제.
+  it("renders a HOOK row when karpathy hook is wired", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      karpathyHook: { wired: true, settingsUpdated: true, hookScriptCopied: true },
+    });
+    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
+    const lines = log.mock.calls.map((args) => String(args[0]));
+    expect(lines.some((l) => l.includes("HOOK") && l.includes("wired"))).toBe(true);
+  });
+
+  it("renders a HOOK skip row WITH reason when karpathy hook fails (not silent)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      karpathyHook: { wired: false, reason: "plugin-install-failed" },
+    });
+    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
+    const lines = log.mock.calls.map((args) => String(args[0]));
+    const hookRow = lines.find((l) => l.includes("HOOK"));
+    expect(hookRow).toBeDefined();
+    expect(hookRow).toContain("plugin-install-failed");
+  });
+
+  it("renders NO HOOK row when user did not opt in (karpathyHook null)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({ ...fakeReport, karpathyHook: null });
+    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
+    const lines = log.mock.calls.map((args) => String(args[0]));
+    expect(lines.some((l) => l.includes("HOOK"))).toBe(false);
   });
 
   it("shortens long /private/tmp paths in TARGET row", () => {
@@ -1046,6 +1125,17 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
   it("formatCliPhaseTitle: codex + opencode → 'Codex + OpenCode artifacts'", async () => {
     const { formatCliPhaseTitle } = await import("../src/commands/install.js");
     expect(formatCliPhaseTitle(["codex", "opencode"])).toBe("Codex + OpenCode artifacts");
+  });
+
+  // v26.78.1 (R2) — antigravity 누락 시 "CLI artifacts" generic 으로만 떠 invisible 했음.
+  it("formatCliPhaseTitle: antigravity only → 'Antigravity artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["antigravity"])).toBe("Antigravity artifacts");
+  });
+
+  it("formatCliPhaseTitle: codex + antigravity → 'Codex + Antigravity artifacts'", async () => {
+    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    expect(formatCliPhaseTitle(["codex", "antigravity"])).toBe("Codex + Antigravity artifacts");
   });
 
   it("shortenPath: short path (≤50) returns as-is", async () => {

@@ -6,14 +6,15 @@
 
 ## Phase H — v26.78.1 hotfix (최우선, patch)
 
-- [ ] H-1a `src/prompts.ts` pages 에 `understanding` 추가 (페이지당 옵션 ≤ ~30 확인 후 배치)
-- [ ] H-1b pages cats 합집합 = CATEGORIES exhaustiveness 가드 (불일치 시 throw)
-- [ ] H-1c wizard-parity 단위 테스트 (8 카테고리 전부 정확히 1 페이지 등장)
-- [ ] H-2 `report.karpathyHook` Summary 렌더 (`✓ wired` / `⊘ skipped (<reason>)`)
-- [ ] H-3a Summary CLI 행을 `spec.cli` 배열 derive 로 (antigravity 포함)
-- [ ] H-3b antigravity 산출물 행 렌더 + `--cli` help 텍스트 수정
-- [ ] H-V `npm run ci` → Docker `--cli antigravity` 출력 확인 → PR → 머지 동의 → 태그 v26.78.1 → `gh run watch` green
-- [ ] H-D CHANGELOG + (사용자 노출 경로 검증 매트릭스를 PR 본문에 포함)
+- [x] H-1a `src/prompts.ts` pages 에 `understanding` 추가 (Page 1, 27개 ≤ 30) — 모듈 스코프 `INSTALL_TARGET_PAGES` 승격
+- [x] H-1b pages cats 합집합 = CATEGORIES exhaustiveness 가드 (`assertPagesCoverAllCategories`, 모듈 로드 시 throw)
+- [x] H-1c wizard-parity 단위 테스트 (`tests/wizard-page-parity.test.ts`, 4 tests — 카테고리·자산 전수 도달)
+- [x] H-2 `report.karpathyHook` Summary `HOOK` 행 렌더 (`wired` / `skipped — <reason>`)
+- [x] H-3a Summary CLI 행을 `spec.cli` derive (`CLI_SUMMARY_LABELS`, antigravity 포함, claude prepend 버그 fix)
+- [x] H-3b antigravity 산출물 행 렌더 + `formatCliPhaseTitle` antigravity + `--cli` help 텍스트 수정
+- [x] H-V `npm run ci` exit 0 (677 tests, branches 88.02) → Docker `scenario-antigravity-render` PASS → `--help` antigravity 노출
+- [ ] H-ship PR → 머지 동의 → 태그 v26.78.1 → `gh run watch` green
+- [x] H-D CHANGELOG v26.78.1 + Surface Parity 매트릭스 (PR 본문)
 
 ## Phase S — 카탈로그 SSOT (v26.79.0)
 
