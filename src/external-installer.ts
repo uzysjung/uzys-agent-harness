@@ -81,8 +81,6 @@ export interface ExternalInstallReport {
   succeeded: number;
   /** warn-skip 된 갯수 */
   skipped: number;
-  /** abort failureMode가 발화된 자산 (있으면 install 중단) */
-  aborted?: ExternalAsset;
 }
 
 const DEFAULT_SPAWN_TIMEOUT_MS = 120_000;
@@ -141,16 +139,8 @@ export function runExternalInstall(
     deps.onAssetResult?.(result);
 
     if (!result.ok) {
-      const failureMode = asset.failureMode ?? "warn-skip";
-      if (failureMode === "abort") {
-        attempted.push(result);
-        return {
-          attempted,
-          succeeded: attempted.filter((r) => r.ok).length,
-          skipped: attempted.filter((r) => !r.ok).length,
-          aborted: asset,
-        };
-      }
+      // v26.79.0 — 모든 실패는 warn-skip (abort 는 vibe killer 라 미채택). 죽은
+      //   failureMode/aborted 메커니즘 제거 (사용 자산 0 + 렌더러 미참조).
       warn(`    [warn-skip] ${asset.id}: ${result.message ?? "failed"}`);
     }
 

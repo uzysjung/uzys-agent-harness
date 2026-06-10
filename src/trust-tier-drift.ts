@@ -15,6 +15,8 @@
  */
 import { EXTERNAL_ASSETS, type ExternalAsset, TRUST_TIER } from "./external-assets.js";
 
+// v26.79.0 — gen-compatibility 의 카테고리 exhaustiveness 가드용 SSOT (하드코딩 drift 차단).
+export { CATEGORIES } from "./categories.js";
 // v26.76.0 — gen-compatibility.mjs 가 dist 에서 자산 카탈로그+tier 를 읽도록 re-export.
 export { EXTERNAL_ASSETS, TRUST_TIER } from "./external-assets.js";
 

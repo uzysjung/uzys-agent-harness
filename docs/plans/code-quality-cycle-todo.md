@@ -18,11 +18,13 @@
 
 ## Phase S — 카탈로그 SSOT (v26.79.0)
 
-- [ ] S-1 `ExternalAsset.tier` 필수 필드화 + `TRUST_TIER` derive 전환 (41 entries)
-- [ ] S-2 gen-compatibility 카테고리 하드코딩 → `trust-tier-drift.ts` re-export 순회 (기존 import 방식 확인 후)
-- [ ] S-3 죽은 `failureMode`/`aborted` 메커니즘 + 관련 테스트 삭제
-- [ ] S-4 (선택) EMPTY_USER_OVERRIDE / formatSkippedReport 정리, marketplace-add stderr 전파
-- [ ] S-V `npm run ci` + COMPATIBILITY.md 재생성 diff 무변화 검증 → PR → 태그
+- [x] S-1 `ExternalAsset.tier` 필수 필드화 + `TRUST_TIER` derive 전환 (41 entries, dist 권위값 일괄 주입). 누락=컴파일에러/stale=불가능. 누락테스트→id유일+derive정합 테스트
+- [x] S-2 gen-compatibility 카테고리 → `CATEGORIES` import + exhaustiveness 가드(throw). **계획 수정**: categories.ts 제목/순서 순회 대신 가드만(문서 짧은 제목/순서가 wizard 와 의도적 분리 → 출력 동일 AC 유지)
+- [x] S-3 죽은 `failureMode`/`aborted` 메커니즘 + abort 테스트 삭제 (모든 실패 warn-skip 수렴)
+- [x] S-4 (부분) EMPTY_USER_OVERRIDE 삭제. formatSkippedReport 는 public+테스트 보유라 보류, marketplace-add stderr 보류(저가치)
+- [x] S-V `npm run ci` exit 0 (678 tests, branches 88.07) + COMPATIBILITY.md diff 무변화 + 가드 스모크 PASS. version 탐지 테스트로 coverage 복구
+- [ ] S-ship PR → 머지 동의 → 태그 v26.79.0 → `gh run watch` green
+- 비고: external-assets.ts 802줄(cap 800 초과 유지) — 데이터/로직 분리는 별도 사이클. 헤더 cap 예외 주석
 
 ## Phase P — 버전 pinning (v26.80.0, 보안 wedge)
 

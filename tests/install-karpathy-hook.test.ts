@@ -58,6 +58,7 @@ const KARPATHY_ASSET: ExternalAsset = {
   description: "karpathy-coder mock",
   category: "dev-tools",
   source: "alirezarezvani",
+  tier: "vetted",
   condition: { kind: "has-dev-track" },
   method: {
     kind: "plugin",

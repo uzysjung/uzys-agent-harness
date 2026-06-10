@@ -277,29 +277,14 @@ describe("runExternalInstall — failure modes", () => {
         assets: [TEST_ASSETS[3] as ExternalAsset, TEST_ASSETS[4] as ExternalAsset],
       },
     );
-    expect(report.aborted).toBeUndefined();
     expect(report.succeeded).toBe(0);
     expect(report.skipped).toBe(2);
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it("abort failureMode stops install on first failure", () => {
-    const spawn = makeSpawnMock(() => fail());
-    const abortAsset = createMockAsset({
-      id: "must-have",
-      description: "abort if missing",
-      condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npm", pkg: "critical-pkg" },
-      failureMode: "abort",
-    });
-    const report = runExternalInstall(
-      { tracks: ["tooling"], options: DEFAULT_OPTIONS, cli: ["claude"] },
-      { spawn, assets: [abortAsset, TEST_ASSETS[0] as ExternalAsset] },
-    );
-    expect(report.aborted?.id).toBe("must-have");
-    // 두번째 자산은 시도조차 안 됨
-    expect(report.attempted).toHaveLength(1);
-  });
+  // v26.79.0 — abort failureMode 메커니즘 제거 (사용 자산 0 + 렌더러 미참조).
+  //   모든 실패는 warn-skip 로 수렴 (위 default 테스트가 보장). 이전의 "abort stops
+  //   install" 테스트는 죽은 코드 검증이라 삭제.
 
   it("skips assets that don't match the spec (dispatch never called)", () => {
     const spawn = makeSpawnMock(() => ok());

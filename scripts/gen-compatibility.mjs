@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { EXTERNAL_ASSETS, TRUST_TIER } from "../dist/trust-tier-drift.js";
+import { CATEGORIES, EXTERNAL_ASSETS, TRUST_TIER } from "../dist/trust-tier-drift.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOC = join(HERE, "..", "docs", "COMPATIBILITY.md");
@@ -37,8 +37,9 @@ const CLI_SCOPE = {
   "shell-script": "local",
 };
 
-// ⚠️ src/categories.ts CATEGORIES 와 동기화 필수 — 누락 시 해당 카테고리 자산이 표에서
-//    silent drop (헤더 카운트만 EXTERNAL_ASSETS.length 라 불일치). v26.78.0 understanding 추가.
+// 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
+//   와 의도적으로 다름 — 표 컨텍스트). 단, 카테고리 누락 시 해당 자산이 표에서 silent drop
+//   되던 drift (v26.78.0 understanding) 를 차단하기 위해 아래 가드가 CATEGORIES 전수 검증.
 const CATEGORY_TITLE = {
   workflow: "🔄 Workflow",
   frontend: "🎨 Frontend",
@@ -59,6 +60,22 @@ const CAT_ORDER = [
   "understanding",
   "ecc-suite",
 ];
+
+// v26.79.0 — drift 가드 (no-false-ship): src/categories.ts 의 CATEGORIES 가 SSOT.
+//   여기 CATEGORY_TITLE/CAT_ORDER 에 빠진 카테고리가 있으면 fail-loud (silent drop 금지).
+//   주석 경고가 2회 실패한 자리 → gen 단계에서 throw 로 강제.
+{
+  const missingTitle = CATEGORIES.filter((c) => !(c in CATEGORY_TITLE));
+  const missingOrder = CATEGORIES.filter((c) => !CAT_ORDER.includes(c));
+  const staleOrder = CAT_ORDER.filter((c) => !CATEGORIES.includes(c));
+  if (missingTitle.length || missingOrder.length || staleOrder.length) {
+    throw new Error(
+      `gen-compatibility 카테고리 drift vs src/categories.ts CATEGORIES — ` +
+        `missingTitle=[${missingTitle}] missingOrder=[${missingOrder}] staleOrder=[${staleOrder}]. ` +
+        `CATEGORY_TITLE/CAT_ORDER 에 신규 카테고리를 추가하라 (자산 표 silent drop 방지).`,
+    );
+  }
+}
 
 function target(m) {
   if (m.kind === "plugin") return `\`${m.pluginId}\``;

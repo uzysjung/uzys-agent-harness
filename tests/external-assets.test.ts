@@ -14,10 +14,22 @@ import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/ty
 
 const NO_OPTIONS: OptionFlags = { ...DEFAULT_OPTIONS };
 
-describe("Trust Tier (v26.71.0, PRD v26-71)", () => {
-  it("모든 EXTERNAL_ASSETS 에 trust tier 라벨 부여 (누락 0 — AC1)", () => {
-    const missing = EXTERNAL_ASSETS.filter((a) => !(a.id in TRUST_TIER)).map((a) => a.id);
-    expect(missing).toEqual([]);
+describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
+  // v26.79.0 — tier 는 이제 ExternalAsset.tier 필수 필드 (컴파일러가 누락 차단).
+  //   TRUST_TIER 는 거기서 derive. 따라서 검증해야 할 WHY 가 바뀌었다:
+  //   "라벨 누락"(컴파일 에러로 불가)이 아니라 → derive 가 lossless 한가 (중복 id 금지).
+  it("자산 id 는 유일 — 중복 시 TRUST_TIER derive(Object.fromEntries)가 tier 를 silent drop", () => {
+    const ids = EXTERNAL_ASSETS.map((a) => a.id);
+    const dups = ids.filter((id, i) => ids.indexOf(id) !== i);
+    expect(dups).toEqual([]);
+    // derive 가 전 자산을 1:1 반영 (key 수 === 자산 수).
+    expect(Object.keys(TRUST_TIER)).toHaveLength(EXTERNAL_ASSETS.length);
+  });
+
+  it("TRUST_TIER 는 각 자산의 tier 필드를 정확히 반영 (derive 정합)", () => {
+    for (const a of EXTERNAL_ASSETS) {
+      expect(TRUST_TIER[a.id]).toBe(a.tier);
+    }
   });
 
   it("assetTrustTier — official / vetted / experimental 분류", () => {

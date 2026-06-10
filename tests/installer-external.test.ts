@@ -103,6 +103,7 @@ describe("runInstall — external assets integration", () => {
             description: "test",
             category: "dev-tools",
             source: "uzys",
+            tier: "vetted",
             condition: { kind: "any-track", tracks: ["tooling"] },
             method: { kind: "skill", source: "owner/repo" },
           },

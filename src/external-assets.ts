@@ -6,6 +6,10 @@
  *
  * Track 또는 옵션 조건이 충족되면 install pipeline에서 method를 호출.
  * 실패는 "warn-skip" — 종료 시 누락 자산 보고 (OQ1 결정).
+ *
+ * code-style 800줄 cap 예외: 본 파일은 ~85% 가 큐레이션 자산 카탈로그(41 entry × ~13줄)
+ *   = 데이터. 로직(interface·condition 평가·shouldInstallAsset)은 소량. 데이터/로직 분리는
+ *   별도 사이클(Phase R) 후보 — 현재는 카탈로그 단일 SSOT 가독성 우선. (v26.79.0 기준 802줄)
  */
 
 import type { Category, Source } from "./categories.js";
@@ -43,76 +47,23 @@ export interface ExternalAsset {
   source: Source;
   condition: ExternalAssetCondition;
   method: ExternalAssetMethod;
-  /** 실패 시 동작 — 기본 warn-skip. abort는 vibe killer라 신중히 사용 */
-  failureMode?: "abort" | "warn-skip";
+  /**
+   * v26.79.0 — 검증 Trust Tier. 자산 entry 의 **필수 필드** (SSOT). 이전엔 별도 `TRUST_TIER`
+   * Record 였으나 누락(컴파일러 미검출) + stale(좀비 키, v26.76.0 content-creator 제거 전례)
+   * drift 가 가능했음 → entry 에 통합: **누락은 컴파일 에러, stale 은 구조적 불가능**.
+   * `TRUST_TIER` / `assetTrustTier` 는 이 필드에서 derive (EXTERNAL_ASSETS 정의 뒤).
+   * star snapshot(2026-05~06)은 각 entry tier 라인 주석. 실 drift 판정은 trust-tier-drift 가 live fetch.
+   */
+  tier: TrustTier;
 }
 
 /**
  * v26.71.0 (PRD v26-71) — 검증 Trust Tier. North Star 세 기둥 ②.
  *   - official: Anthropic 공식 marketplace + 본 하네스 자체.
- *   - vetted: star ≥ 1000 + 활성 유지보수.
+ *   - vetted: star ≥ 1000 + 활성 유지보수 (D2; 라이선스 미표기/비-OSI 는 출처 신뢰).
  *   - experimental: star < 1000 — opt-in + 경고 (pre-check 제외).
  */
 export type TrustTier = "official" | "vetted" | "experimental";
-
-/**
- * 정적 검증 tier (결정 D1 정적 라벨). 2026-05 GitHub star/유지보수 1회 확인 → 분기 재검토.
- * T2 기준 = star ≥ 1000 (D2). 라이선스 미표기/비-OSI 는 출처 신뢰로 vetted 유지 (D 라이선스).
- * 누락(미분류) 자산은 `assetTrustTier` 가 보수적으로 experimental 처리 — 테스트가 누락 0 강제.
- */
-export const TRUST_TIER: Record<string, TrustTier> = {
-  // T1 Official — Anthropic 공식 + 하네스 자체
-  "anthropic-data-plugin": "official", // anthropics/knowledge-work-plugins 18k
-  "anthropic-document-skills": "official", // anthropics/skills 144k
-  superpowers: "official", // anthropics/claude-plugins-official 공식 배포 (소스 obra 213k)
-  "ecc-prune": "official", // uzys 본 하네스 자체
-  // T3 Experimental — star < 1000 (2026-05)
-  "next-skills": "experimental", // vercel-labs/next-skills 895
-  "railway-skills": "experimental", // railwayapp/railway-skills 268
-  "playwright-skill": "experimental", // testdino-hq/playwright-skill 264
-  "architecture-decision-record": "experimental", // yonatangross/orchestkit 179
-  // T2 Vetted — star ≥ 1000 + 활성 (2026-05)
-  "polars-K-Dense": "vetted", // K-Dense-AI 26k
-  "dask-K-Dense": "vetted", // K-Dense-AI 26k
-  "python-resource-management": "vetted", // wshobson/agents 36k
-  "python-performance-optimization": "vetted", // wshobson/agents 36k
-  "addy-agent-skills": "vetted", // addyosmani 47k
-  "vercel-cli": "vetted", // vercel/vercel 15k
-  "netlify-cli": "vetted", // netlify/cli 1.9k
-  "supabase-cli": "vetted", // supabase 103k
-  impeccable: "vetted", // pbakaus 31k
-  "find-skills": "vetted", // vercel-labs/skills 20k (license none — 출처 신뢰)
-  "agent-browser": "vetted", // vercel-labs/agent-browser 34k
-  "supabase-agent-skills": "vetted", // supabase/agent-skills 2.2k
-  "postgres-best-practices": "vetted", // supabase/agent-skills 2.2k
-  "react-best-practices": "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
-  "shadcn-ui": "vetted", // shadcn-ui/ui 115k
-  "web-design-guidelines": "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
-  "c-level-skills": "vetted", // alirezarezvani 16k
-  "business-growth-skills": "vetted", // alirezarezvani 16k
-  "finance-skills": "vetted", // alirezarezvani 16k
-  "pm-skills": "vetted", // alirezarezvani 16k
-  "product-skills": "vetted", // alirezarezvani 16k
-  "marketing-skills": "vetted", // alirezarezvani 16k
-  "research-summarizer": "vetted", // alirezarezvani 16k
-  "karpathy-coder": "vetted", // alirezarezvani 16k
-  "gsd-orchestrator": "vetted", // gsd-build/get-shit-done 63k
-  "trailofbits-skills": "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
-  "ecc-plugin": "vetted", // affaan-m/everything-claude-code 199k
-  // v26.75.0 (ADR-021) — workflow 큐레이션 확장 (3-에이전트 리서치 + 사용자 승인)
-  "wshobson-agents": "vetted", // wshobson/agents 36k
-  openspec: "vetted", // Fission-AI/OpenSpec 53k
-  "bmad-method": "vetted", // bmad-code-org/BMAD-METHOD 48k
-  // v26.78.0 — Understanding 카테고리 신규 3종 (plugin, 2026-06 star 실측)
-  "claude-video": "vetted", // bradautomates/claude-video 1.8k
-  "understand-anything": "vetted", // Lum1104/Understand-Anything 53k
-  agentmemory: "vetted", // rohitg00/agentmemory 21k
-};
-
-/** 자산의 검증 tier. 미분류는 보수적으로 experimental (테스트가 누락 0 강제). */
-export function assetTrustTier(assetId: string): TrustTier {
-  return TRUST_TIER[assetId] ?? "experimental";
-}
 
 const ALL_CSR_SSR_FULL: Track[] = [
   "csr-supabase",
@@ -184,6 +135,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === data Track ===
   {
     id: "polars-K-Dense",
+    tier: "vetted", // K-Dense-AI 26k
     description: "Polars — fast Rust-based DataFrame (pandas alternative, data track)",
     category: "data",
     source: "K-Dense-AI",
@@ -193,6 +145,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "dask-K-Dense",
+    tier: "vetted", // K-Dense-AI 26k
     description: "Dask — distributed processing (large DataFrames · cluster, data track)",
     category: "data",
     source: "K-Dense-AI",
@@ -201,6 +154,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-resource-management",
+    tier: "vetted", // wshobson/agents 36k
     description: "Python memory · CPU management patterns (wshobson, data track)",
     category: "data",
     source: "wshobson",
@@ -213,6 +167,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "python-performance-optimization",
+    tier: "vetted", // wshobson/agents 36k
     description: "Python performance optimization (profiling · vectorize, wshobson, data track)",
     category: "data",
     source: "wshobson",
@@ -225,6 +180,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "anthropic-data-plugin",
+    tier: "official", // anthropics/knowledge-work-plugins 18k
     description: "Anthropic data plugin (visualization, SQL exploration)",
     category: "data",
     source: "anthropics",
@@ -239,6 +195,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
   {
     id: "addy-agent-skills",
+    tier: "vetted", // addyosmani 47k
     description: "addy agent-skills (general dev)",
     category: "workflow",
     source: "addyosmani",
@@ -251,6 +208,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "superpowers",
+    tier: "official", // anthropics/claude-plugins-official 공식 배포 (소스 obra 213k)
     // 저자 = obra (190k★ github.com/obra/superpowers). 호스팅 = Anthropic 공식
     // marketplace github.com/anthropics/claude-plugins-official ("Official,
     // Anthropic-managed directory of high quality Claude Code Plugins").
@@ -270,6 +228,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // (84 plugins). 대표 = full-stack-orchestration. 다른 orchestrator(agent-orchestration/
     // tdd-workflows/ship-mate 등): `claude plugin install <name>@claude-code-workflows`.
     id: "wshobson-agents",
+    tier: "vetted", // wshobson/agents 36k
     description: "wshobson agents — multi-agent orchestration workflows (full-stack/tdd/review)",
     category: "workflow",
     source: "wshobson",
@@ -283,6 +242,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     // v26.75.0 (ADR-021) — `npm i --save-dev @fission-ai/openspec` 후 `openspec init` 로 슬래시 주입.
     id: "openspec",
+    tier: "vetted", // Fission-AI/OpenSpec 53k
     description: "OpenSpec — spec-driven brownfield delta workflow (propose → apply → archive)",
     category: "workflow",
     source: "fission-ai",
@@ -293,6 +253,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // v26.75.0 (ADR-021) — 비대화형 install. v26.75.1: `--directory .` 누락 시 "Installation
     // directory" 프롬프트에서 hang (Docker realcli 검출). cwd(=project) 기준 `.` 지정으로 봉합.
     id: "bmad-method",
+    tier: "vetted", // bmad-code-org/BMAD-METHOD 48k
     description: "BMAD-METHOD — multi-agent agile workflow (PM/Architect/Dev, 12+ agents)",
     category: "workflow",
     source: "bmad-code-org",
@@ -311,6 +272,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // → 아래 railway-skills entry로 단일화.
   {
     id: "railway-skills",
+    tier: "experimental", // railwayapp/railway-skills 268
     description: "Railway agent-skills (deploy + project/service/env management)",
     category: "backend",
     source: "railwayapp",
@@ -325,6 +287,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === csr-supabase|full CLI ===
   {
     id: "vercel-cli",
+    tier: "vetted", // vercel/vercel 15k
     description: "Vercel CLI (npm)",
     category: "backend",
     source: "vercel",
@@ -333,6 +296,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "netlify-cli",
+    tier: "vetted", // netlify/cli 1.9k
     description: "Netlify CLI (npm)",
     category: "backend",
     source: "netlify",
@@ -341,6 +305,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "supabase-cli",
+    tier: "vetted", // supabase 103k
     description: "Supabase CLI (npm) — first 'supabase login' requires OAuth",
     category: "backend",
     source: "supabase",
@@ -351,6 +316,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === UI tracks (csr-*|ssr-*|full) ===
   {
     id: "impeccable",
+    tier: "vetted", // pbakaus 31k
     description:
       "Impeccable — UI design guide + visual consistency review (pbakaus, single-skill repo)",
     category: "frontend",
@@ -363,6 +329,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === dev tools (has_dev_track) ===
   {
     id: "playwright-skill",
+    tier: "experimental", // testdino-hq/playwright-skill 264
     description: "Playwright — browser automation E2E test authoring guide (testdino-hq)",
     category: "dev-tools",
     source: "testdino-hq",
@@ -376,6 +343,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "find-skills",
+    tier: "vetted", // vercel-labs/skills 20k (license none — 출처 신뢰)
     description: "find-skills — search · rank all installed skills (vercel-labs, all dev tracks)",
     category: "dev-tools",
     source: "vercel-labs",
@@ -384,6 +352,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "agent-browser",
+    tier: "vetted", // vercel-labs/agent-browser 34k
     description:
       "agent-browser — agent-friendly Playwright wrapper (screenshot · DOM search CLI, dev tracks)",
     // v26.78.0 — Understanding 으로 재분류: 웹 지각(screenshot·DOM). 영상/코드 지각과 같은 축.
@@ -395,6 +364,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.
   {
     id: "claude-video",
+    tier: "vetted", // bradautomates/claude-video 1.8k
     description:
       "Claude Video — /watch downloads any video, extracts frames + transcript so Claude can see + hear it (yt-dlp/ffmpeg auto on first run)",
     category: "understanding",
@@ -408,6 +378,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "understand-anything",
+    tier: "vetted", // Lum1104/Understand-Anything 53k
     description:
       "Understand Anything — multi-agent pipeline builds an interactive knowledge graph of your codebase (files/functions/deps) to explore + query",
     category: "understanding",
@@ -421,6 +392,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "agentmemory",
+    tier: "vetted", // rohitg00/agentmemory 21k
     description:
       "AgentMemory — persistent memory runtime; plugin auto-wires MCP (53 tools) + hooks + skills. Runtime server: npx @agentmemory/agentmemory",
     category: "understanding",
@@ -434,6 +406,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "architecture-decision-record",
+    tier: "experimental", // yonatangross/orchestkit 179
     description:
       "ADR — Architecture Decision Record template + status flow (orchestkit, one of 80+ skills)",
     category: "dev-tools",
@@ -449,6 +422,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Supabase agent-skills (csr-supabase|full) ===
   {
     id: "supabase-agent-skills",
+    tier: "vetted", // supabase/agent-skills 2.2k
     description:
       "Supabase — RLS · auth · edge function · realtime guide (csr-supabase · full tracks)",
     category: "backend",
@@ -462,6 +436,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "postgres-best-practices",
+    tier: "vetted", // supabase/agent-skills 2.2k
     description:
       "Postgres best practices — schema · index · query patterns (csr-supabase · full tracks)",
     category: "backend",
@@ -479,6 +454,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // 사용자 확인 형식: `npx skills add https://github.com/vercel-labs/agent-skills --skill <name>`.
   {
     id: "react-best-practices",
+    tier: "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
     description:
       "React best practices — Vercel's hook · perf · component patterns (CSR · SSR · Next tracks)",
     category: "frontend",
@@ -494,6 +470,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "shadcn-ui",
+    tier: "vetted", // shadcn-ui/ui 115k
     description: "shadcn/ui — Radix-based React component copy + Tailwind theme (shadcn official)",
     category: "frontend",
     source: "shadcn-ui",
@@ -503,6 +480,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "web-design-guidelines",
+    tier: "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
     description:
       "Web design guidelines — Vercel's visual hierarchy · color · spacing (CSR · SSR · Next tracks)",
     category: "frontend",
@@ -516,6 +494,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "next-skills",
+    tier: "experimental", // vercel-labs/next-skills 895
     description:
       "Next-skills — Next.js App Router · Server Action patterns (ssr-nextjs · full tracks)",
     category: "backend",
@@ -527,6 +506,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Executive tracks ===
   {
     id: "anthropic-document-skills",
+    tier: "official", // anthropics/skills 144k
     description: "Anthropic document-skills (pptx/docx/xlsx/pdf)",
     category: "business",
     source: "anthropics",
@@ -542,6 +522,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // → 통합된 alirezarezvani/claude-skills marketplace (claude-code-skills 이름)로 이동.
   {
     id: "c-level-skills",
+    tier: "vetted", // alirezarezvani 16k
     description: "c-level-skills (claude-code-skills, 28 advisory)",
     category: "business",
     source: "alirezarezvani",
@@ -554,6 +535,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "business-growth-skills",
+    tier: "vetted", // alirezarezvani 16k
     description: "business-growth-skills (4 — customer success, sales eng, revops, contract)",
     category: "business",
     source: "alirezarezvani",
@@ -567,6 +549,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "finance-skills",
+    tier: "vetted", // alirezarezvani 16k
     description: "finance-skills (3 — financial analyst, SaaS metrics, investment advisor)",
     category: "business",
     source: "alirezarezvani",
@@ -582,6 +565,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // SPEC docs/specs/new-tracks-pm-growth.md §3.5 — pm-skills 4/4.
   {
     id: "pm-skills",
+    tier: "vetted", // alirezarezvani 16k
     description:
       "pm-skills (6 — senior PM, scrum master, Jira/Confluence/Atlassian admin, template creator)",
     category: "business",
@@ -597,6 +581,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // v0.8.1 — DEV_PLUS_PM_TRACKS 상수로 SSOT 통일 (reviewer MEDIUM-3 fix).
   {
     id: "product-skills",
+    tier: "vetted", // alirezarezvani 16k
     description: "product-skills (15 — RICE, PRD, agile PO, UX research, SaaS scaffolder ...)",
     category: "dev-tools",
     source: "alirezarezvani",
@@ -612,6 +597,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // SPEC docs/specs/new-tracks-pm-growth.md §3.5 — 4 entries 모두 4/4.
   {
     id: "marketing-skills",
+    tier: "vetted", // alirezarezvani 16k
     description:
       "marketing-skills (44 — content/SEO/CRO/channels/growth/intelligence/sales/twitter)",
     category: "business",
@@ -628,6 +614,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // growth-marketing 트랙은 business-growth-skills + marketing-skills + research-summarizer 유지.
   {
     id: "research-summarizer",
+    tier: "vetted", // alirezarezvani 16k
     description: "research-summarizer (market research summarization)",
     category: "business",
     source: "alirezarezvani",
@@ -644,6 +631,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // 4 Python tools (stdlib only) + reviewer agent + /karpathy-check + pre-commit hook.
   {
     id: "karpathy-coder",
+    tier: "vetted", // alirezarezvani 16k
     description:
       "karpathy-coder (4 Python tool + reviewer agent + /karpathy-check + pre-commit hook)",
     category: "dev-tools",
@@ -659,6 +647,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Option-gated ===
   {
     id: "gsd-orchestrator",
+    tier: "vetted", // gsd-build/get-shit-done 63k
     description: "GSD orchestrator (npx get-shit-done-cc@latest)",
     category: "workflow",
     source: "get-shit-done-cc",
@@ -671,6 +660,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 단일 대표 plugin = `differential-review` (코드 변경 보안 리뷰, 가장 보편).
     // 추가 plugin 원하는 사용자는: `claude plugin install <name>@trailofbits` (예: audit-context-building)
     id: "trailofbits-skills",
+    tier: "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
     description: "Trail of Bits differential-review plugin (security-focused code review)",
     category: "dev-tools",
     source: "trailofbits",
@@ -683,6 +673,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "ecc-plugin",
+    tier: "vetted", // affaan-m/everything-claude-code 199k
     description: "ECC — 60 agents · 230 skills · 75 commands. Affaan's hackathon package",
     category: "ecc-suite",
     source: "affaan-m",
@@ -698,6 +689,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   {
     id: "ecc-prune",
+    tier: "official", // uzys 본 하네스 자체
     description:
       "ECC prune (drop items beyond curated 89 KEEP → copy to .claude/local-plugins/ecc/)",
     category: "ecc-suite",
@@ -712,6 +704,20 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
 ];
 
 /**
+ * v26.79.0 — `TRUST_TIER` 는 EXTERNAL_ASSETS.tier 에서 derive (단일 출처). 별도 Record 유지 시
+ * 누락/stale drift 가능 → 제거. 기존 소비자(prompts.ts·gen-compatibility·trust-tier-drift)는
+ * 이 derived map 을 그대로 import. id 키는 각 자산 id 와 1:1 (자산 추가 시 자동 반영).
+ */
+export const TRUST_TIER: Record<string, TrustTier> = Object.fromEntries(
+  EXTERNAL_ASSETS.map((a) => [a.id, a.tier]),
+);
+
+/** 자산의 검증 tier. 미분류(catalog 외 id)는 보수적으로 experimental. */
+export function assetTrustTier(assetId: string): TrustTier {
+  return TRUST_TIER[assetId] ?? "experimental";
+}
+
+/**
  * v26.47.0 — User override of preset/option condition (Phase C full, SPEC §3.1).
  * - `forceInclude`: condition 무관 강제 포함 (사용자가 명시 추가)
  * - `forceExclude`: condition 무관 강제 제외 (사용자가 추천 ✓ 풀음)
@@ -722,11 +728,6 @@ export interface UserOverride {
   forceInclude: ReadonlyArray<string>;
   forceExclude: ReadonlyArray<string>;
 }
-
-export const EMPTY_USER_OVERRIDE: UserOverride = {
-  forceInclude: [],
-  forceExclude: [],
-};
 
 /**
  * 조건 평가 — 주어진 spec(tracks + options + userOverride)에서 자산이 설치 대상인지 판정.
