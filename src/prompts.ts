@@ -12,7 +12,7 @@ import {
   outro,
   select,
 } from "@clack/prompts";
-import { CATEGORY_TITLES, type Category } from "./categories.js";
+import { CATEGORIES, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { assetTrustTier, EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
@@ -129,6 +129,57 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
 };
 
 /**
+ * v26.78.1 — Step 3 wizard page layout (SSOT). 카테고리를 페이지로 묶어 clack
+ * groupMultiselect 의 maxItems 한계(페이지당 옵션 ≤ ~30)를 우회.
+ *
+ * ⚠️ drift 가드 (no-false-ship): 모든 Category 는 정확히 한 페이지에 등장해야 한다.
+ * 누락 시 해당 카테고리 자산이 wizard 에서 선택 불가가 되어 "출하 거짓 광고"가 된다
+ * (v26.78.0 understanding 누락 회귀 — pages 가 selectInstallTargets 안에 하드코딩되어
+ * CATEGORIES 추가와 drift). 아래 assertPagesCoverAllCategories 가 모듈 로드 시점에
+ * 강제 — 신규 카테고리 미배치 시 즉시 throw. (tests/wizard-page-parity.test.ts 가 이중 가드)
+ *
+ * 페이지 묶음:
+ *   Page 1: Dev domain  — frontend + backend + dev-tools + data + understanding
+ *   Page 2: Business    — business (documents)
+ *   Page 3: Workflow/ECC — workflow + ecc-suite
+ */
+export interface InstallTargetPage {
+  label: string;
+  cats: ReadonlyArray<Category>;
+}
+
+export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
+  {
+    label: "Dev (Frontend · Backend · Dev Tools · Data · Understanding)",
+    cats: ["frontend", "backend", "dev-tools", "data", "understanding"],
+  },
+  { label: "Business (PM · Executive · Documents)", cats: ["business"] },
+  { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
+];
+
+/**
+ * 모든 Category 가 정확히 한 페이지에 등장하는지 모듈 로드 시 검증.
+ * 누락(미배치) 또는 중복(2개 페이지)이면 throw — 값싼 fail-loud pre-flight.
+ */
+function assertPagesCoverAllCategories(pages: ReadonlyArray<InstallTargetPage>): void {
+  const counts = new Map<Category, number>();
+  for (const page of pages) {
+    for (const cat of page.cats) counts.set(cat, (counts.get(cat) ?? 0) + 1);
+  }
+  const missing = CATEGORIES.filter((c) => !counts.has(c));
+  const duplicated = CATEGORIES.filter((c) => (counts.get(c) ?? 0) > 1);
+  if (missing.length > 0 || duplicated.length > 0) {
+    throw new Error(
+      `INSTALL_TARGET_PAGES drift vs CATEGORIES — missing=[${missing.join(", ")}] ` +
+        `duplicated=[${duplicated.join(", ")}]. 모든 카테고리는 정확히 한 페이지에 배치해야 한다 ` +
+        `(no-false-ship: wizard 미노출 = 거짓 광고).`,
+    );
+  }
+}
+
+assertPagesCoverAllCategories(INSTALL_TARGET_PAGES);
+
+/**
  * v26.58.1 — Wizard viewport size. clack 의 limitOptions 가 maxItems 안에서만
  * cursor follow + ↕ ... indicator. 미지정 시 Infinity → terminal height 초과 시
  * 위 항목이 scrollback 으로 밀려 selected indicator 안 보임 (사용자 보고된 문제).
@@ -227,7 +278,7 @@ export const defaultPrompts: Prompts = {
   },
 
   selectInstallTargets: async (initialChecked, step, recap) => {
-    // v26.62.2 — groupMultiselect 복귀 + 3 page paginate.
+    // v26.62.2 — groupMultiselect 복귀 + page paginate.
     //   v26.62.1 에서 multiselect + disabled separator 시도 → clack 가 disabled option 에
     //   체크박스 강제 + dim/strikethrough 효과 → 카테고리 헤더가 "옵션 같지만 선택 불가"
     //   처럼 보여 사용자 보고. groupMultiselect 의 group header 는 라이브러리에서 본래
@@ -237,22 +288,10 @@ export const defaultPrompts: Prompts = {
     //   한 page 안 옵션 ≤ ~30 → 사용자 iTerm2 (30+ rows) 환경에서 fit. 매우 작은 terminal
     //   (< 25 rows) 한계는 follow-up.
     //
-    // 페이지 묶음:
-    //   Page 1: Dev domain     — frontend + backend + dev-tools + data
-    //   Page 2: Business       — pm + executive + documents
-    //   Page 3: Workflow/ECC   — workflow + ecc-suite
+    // 페이지 정의 = 모듈 스코프 INSTALL_TARGET_PAGES (SSOT, 카테고리 전수 가드됨).
+    const pages = INSTALL_TARGET_PAGES;
     const initialSet = new Set<string>(initialChecked);
     const collected = new Set<string>(initialChecked);
-
-    type PageDef = { label: string; cats: ReadonlyArray<Category> };
-    const pages: ReadonlyArray<PageDef> = [
-      {
-        label: "Dev (Frontend · Backend · Dev Tools · Data)",
-        cats: ["frontend", "backend", "dev-tools", "data"],
-      },
-      { label: "Business (PM · Executive · Documents)", cats: ["business"] },
-      { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
-    ];
 
     const buildPageGroups = (cats: ReadonlyArray<Category>) => {
       const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};

@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.78.1] — 2026-06-11 (fix: Surface Parity — 출하 거짓 광고 3건 hotfix)
+
+5축 코드리뷰(`docs/plans/code-quality-cycle-plan.md` Phase H) 결과, **렌더/UI 레이어가 데이터 레이어 대비 drift** 한 출하 버그 3건 fix. 신규 룰 `.claude/rules/no-false-ship.md` 의 첫 적용 사이클.
+
+### Fix — C1: wizard `understanding` 카테고리 누락 (Critical, 거짓 광고)
+
+v26.78.0 의 wizard 페이지 목록(`prompts.ts`)이 7개 카테고리만 하드코딩 → 8번째 `understanding` 누락. 결과: 신규 자산 3종(claude-video/understand-anything/agentmemory)이 **wizard 에서 선택 불가**(`--with-*` 플래그만 작동), `agent-browser` 는 **화면에 안 보인 채 설치**(Transparent Defaults 위반). "Docker 3/3 PASS"는 flag 경로만의 증거였음.
+
+- `pages` 를 모듈 스코프 `INSTALL_TARGET_PAGES` (SSOT) 로 승격 + `understanding` 을 Page 1 에 배치.
+- **구조 가드**: `assertPagesCoverAllCategories` 가 모듈 로드 시 카테고리 전수 검증 → 미배치 시 즉시 throw (주석 경고로 2회 실패한 drift 클래스를 컴파일/로드 타임에 차단).
+- `tests/wizard-page-parity.test.ts` — 모든 카테고리·모든 자산이 페이지에서 도달 가능함을 단언 (이중 가드).
+
+### Fix — R1: `--with-karpathy-hook` 실패 무음 (Rule 12 fail-loud)
+
+`installer.ts` 가 `KarpathyHookReport`(실패 사유 포함)를 만드나 렌더러가 안 읽음 → plugin install 실패해도 "Install complete". Summary 에 `HOOK` 행 추가 (`wired` / `skipped — <reason>`).
+
+### Fix — R2: `--cli antigravity` 산출물·Summary invisible
+
+Summary CLI 행이 codex/opencode pairwise if-chain + claude 무조건 prepend → `--cli antigravity` 가 "Claude" 로 잘못 출력. 산출물 섹션도 codex/opencode 게이트라 antigravity 자산 0건 렌더.
+
+- Summary CLI 행을 `spec.cli` 에서 derive (헤더와 동일 SSOT). claude 미선택 시 "Claude" prepend 안 함 (baseline 미설치 정합).
+- 산출물 섹션에 antigravity(`.agents/rules`/skills/workflows + global opt-in) 렌더 + `formatCliPhaseTitle` antigravity 케이스.
+- `--cli` help 텍스트에 `antigravity` 추가.
+
 ## [v26.78.0] — 2026-06-07 (feat: Understanding 카테고리 + 자산 3종)
 
 에이전트 **인지 증강** 자산 큐레이션 확장. 사용자 요청 + Promise=Impl 리서치(star/라이선스/설치법 실측) + Docker 실설치 검증.
