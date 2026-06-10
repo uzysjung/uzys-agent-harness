@@ -18,11 +18,12 @@
 - 근거: 단위테스트가 못 잡는 실환경 경로 버그를 잡으면서도(예: experimental opt-in / npx-github npm10) silent drift(v26.58~63) 재발 방지. 컨테이너 격리 = 호스트 오염 0.
 - "Docker mock 검증 ≠ 실 CLI 검증" — Promise=Implementation 봉합 시 실 바이너리를 컨테이너에 설치해 native 인식까지 확인.
 
-## Active Rules (10개)
+## Active Rules (11개)
 
 | Rule | 적용 |
 |------|------|
 | git-policy | feature branch, push/PR 의무 |
+| **no-false-ship** | 거짓출하 금지 — 경로별(wizard/flag/docs/CLI) 검증 증거 의무, 미검증 명시 강제 |
 | change-management | CR 분류, Decision Log, DO NOT CHANGE |
 | commit-policy | 즉시 커밋 |
 | ship-checklist | 배포 전 체크 (security scan, 의존성 audit) |

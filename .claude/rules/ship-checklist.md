@@ -13,6 +13,7 @@
 - [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip audit` (Python) 실행. critical/high 취약점 없음
 - [ ] **SPEC/PRD 정합성**: `bash .claude/hooks/spec-drift-check.sh ship` (exit 2 시 차단)
 - [ ] **Review 게이트 통과**: `/uzys:review`에서 CRITICAL 이슈 없음 확인
+- [ ] **Surface Parity (거짓출하 방지)**: 신규/변경 자산·기능의 사용자 도달 경로 전부(wizard / CLI flag / 문서 표기 / 해당 CLI별) 실행 증거 확보. 미검증 경로는 ship 보고에 "미검증" 명시 — 한 경로 증거의 타 경로 전용 금지 (`no-false-ship.md`)
 
 ## Post-Ship Actions
 
