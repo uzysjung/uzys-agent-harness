@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.82.0] — 2026-06-11 (refactor: install 렌더 레이어 분리 + runInstall 블록 분해)
+
+코드품질 사이클 Phase R (마지막). 순수 리팩터 — **동작 변경 0** (673 tests 기대값 무수정 green). 사이클 배경: 지배적 결함 클래스가 "렌더/UI 레이어의 데이터 레이어 대비 drift" 였고, 그 온상이 비대해진 렌더 코드.
+
+### Change — `commands/install.ts` 979줄 → 오케스트레이션 430줄 + 렌더 `install-render.ts` 595줄
+
+- 자체 cap 800 의 repo 최대 위반(979줄) 해소. 신규 `commands/install-render.ts` 로 순수 이동: install header / Phase 1 rows / 스트리밍 콜백(`createInstallRenderer`) / CLI 산출물 / Summary / `shortenPath` / `formatCliPhaseTitle`.
+- `executeSpec` 의 CLI artifacts 게이트 if 는 `renderCliArtifacts` 내부로 이동 (출력 동일).
+
+### Change — S6 merge 중복 단일화 (`preset-recommend.ts`)
+
+- `install.ts computeFinalAssets` ↔ `interactive.ts formatSummary` 에 중복이던 recommended+userOverride merge → `finalSelectedAssets()` + `groupAssetsByCategory()` 단일 구현 (v26.62.4 주석이 지목한 통합 위치). wizard confirm 과 install header 가 같은 코드로 같은 목록 계산 — 두 표면 간 drift 구조적 차단.
+
+### Change — `installer.ts` `runInstall` 276줄 → 65줄 + 단계별 블록 함수
+
+- `runUpdateInstall`(update 단축) / `buildManifestSpec`(ADR-022 게이팅 판정) / `installClaudeBaseline`(manifest copy) / `writeEnvironmentFiles` / `runCliTransforms`(codex·opencode·antigravity) / `runExternalPhase` / `writeInstallLogSafe` 분해. backup nested 삼항 → `resolveBackupPath` early-return.
+
+### 검증
+
+- `npm run ci` exit 0 — 673 tests(개수·기대값 모두 무변화) / branches 88.77%(≥88, 개선) / typecheck·biome·build green.
+- 렌더 함수 직접 테스트(`shortenPath`/`formatCliPhaseTitle`)는 import 경로만 `install-render.js` 로 변경 (단언 무수정).
+
 ## [v26.81.0] — 2026-06-11 (feat!: 자산-결합 플래그 13종 삭제 + 내부 자산 모델, ADR-022)
 
 코드품질 사이클 Phase O. 사용자 결정(2026-06-11)으로 자산 opt-in 표면을 generic `--with <id>` 하나로 일원화.
