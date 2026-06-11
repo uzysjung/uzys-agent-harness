@@ -19,6 +19,7 @@ skills-lock.json
 
 # Session-specific artifacts (P0-3 checkpoint-snapshot)
 .claude/compact-warning.flag
+.claude/scheduled_tasks.lock
 Docs/checkpoints/
 docs/checkpoints/
 .claude/codebase-map.json
