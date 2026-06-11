@@ -28,7 +28,7 @@ import {
 } from "./external-installer.js";
 import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
 import { buildInstallLog, hashContent, writeInstallLog } from "./install-log.js";
-import { buildManifest } from "./manifest.js";
+import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { mergeProjectClaude } from "./project-claude-merge.js";
@@ -213,6 +213,8 @@ export interface InstallReport {
 
 /**
  * Run the installation pipeline. Pure function modulo filesystem side effects.
+ * v26.82.0 (Phase R) — 276줄 단일 함수를 단계별 블록 함수로 분해 (동작 변경 0):
+ *   update 단축 / claude baseline / CLI transforms / external / install log.
  */
 export function runInstall(ctx: InstallContext): InstallReport {
   const { harnessRoot, projectDir, spec } = ctx;
@@ -230,136 +232,225 @@ export function runInstall(ctx: InstallContext): InstallReport {
     throw new Error(`Update mode requires existing .claude/ at ${claudeDir}`);
   }
 
-  // Backup auto-on for update + reinstall (sourced from router action).
-  // Update: copy backup (preserve original .claude/ for in-place update).
-  // Reinstall + others: rename backup (move .claude/ aside, then full install).
-  const wantBackup = ctx.backup ?? (mode === "update" || mode === "reinstall");
-  const backupPath = wantBackup
-    ? mode === "update"
-      ? copyBackupDir(claudeDir)
-      : backupDir(claudeDir)
-    : null;
+  const backupPath = resolveBackupPath(ctx, mode, claudeDir);
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update") {
-    const updateReport = runUpdateMode(projectDir, templatesDir);
-    const baseline: BaselineReport = {
-      filesCopied: 0,
-      dirsCopied: 0,
-      skipped: 0,
-      backup: backupPath,
-      installedTracks: [...spec.tracks].sort(),
-      mcpServers: [],
-      codex: null,
-      codexOptIn: null,
-      opencode: null,
-      antigravity: null,
-      antigravityOptIn: null,
-      updateMode: updateReport,
-      mode,
-      envFiles: {
-        envExampleCreated: false,
-        gitignoreEnvAdded: false,
-        mcpAllowlist: null,
-        gitignoreNpxSkillsAdded: [],
-      },
-      rootClaudeMd: null,
-    };
-    ctx.onProgress?.({ type: "baseline-complete", baseline });
-    return { ...baseline, external: null, karpathyHook: null };
+    return runUpdateInstall(ctx, templatesDir, backupPath);
   }
 
-  // v26.81.0 (ADR-022) — 내부 자산 선택 판정. 이전 OptionFlags.withTauri/withUzysHarness/
-  // withEcc boolean 자리를 카탈로그 선택(wizard 체크 / --with <id> → forceInclude)으로 대체.
+  const manifestSpec = buildManifestSpec(spec);
+
+  // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
+  // Codex/OpenCode 단독 사용자는 dead weight 회피.
+  const base = spec.cli.includes("claude")
+    ? installClaudeBaseline(manifestSpec, harnessRoot, projectDir, templatesDir)
+    : emptyClaudeBaseline();
+
+  // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
+  const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
+
+  const baseline: BaselineReport = {
+    filesCopied: base.filesCopied,
+    dirsCopied: base.dirsCopied,
+    skipped: base.skipped,
+    backup: backupPath,
+    installedTracks: [...spec.tracks].sort(),
+    mcpServers: Object.keys(mcpResult.mcpServers).sort(),
+    ...runCliTransforms(spec, harnessRoot, projectDir, manifestSpec.withUzysHarness),
+    updateMode: null,
+    mode,
+    envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
+    categories: base.categories,
+    rootClaudeMd: base.rootClaudeMd,
+  };
+
+  // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
+  ctx.onProgress?.({ type: "baseline-complete", baseline });
+
+  // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
+  const external = runExternalPhase(ctx);
+
+  // ━━━ karpathy-coder hook auto-wire (v0.6.0) ━━━
+  // SPEC: docs/specs/karpathy-hook-autowire.md AC2 — opt-in 강제 + install 성공 후에만.
+  // v0.8.0 — `.claude/settings.json` PreToolUse 의존이라 spec.cli에 "claude" 포함 시에만 와이어 가능.
+  const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
+
+  // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
+  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog);
+
+  return { ...baseline, external, karpathyHook };
+}
+
+/**
+ * Backup auto-on for update + reinstall (sourced from router action).
+ * Update: copy backup (preserve original .claude/ for in-place update).
+ * Reinstall + others: rename backup (move .claude/ aside, then full install).
+ */
+function resolveBackupPath(
+  ctx: InstallContext,
+  mode: InstallMode,
+  claudeDir: string,
+): string | null {
+  const wantBackup = ctx.backup ?? (mode === "update" || mode === "reinstall");
+  if (!wantBackup) return null;
+  return mode === "update" ? copyBackupDir(claudeDir) : backupDir(claudeDir);
+}
+
+/** Update mode 단축 경로 — 정책 파일만 갱신 (manifest copy / external 모두 skip). */
+function runUpdateInstall(
+  ctx: InstallContext,
+  templatesDir: string,
+  backupPath: string | null,
+): InstallReport {
+  const updateReport = runUpdateMode(ctx.projectDir, templatesDir);
+  const baseline: BaselineReport = {
+    filesCopied: 0,
+    dirsCopied: 0,
+    skipped: 0,
+    backup: backupPath,
+    installedTracks: [...ctx.spec.tracks].sort(),
+    mcpServers: [],
+    codex: null,
+    codexOptIn: null,
+    opencode: null,
+    antigravity: null,
+    antigravityOptIn: null,
+    updateMode: updateReport,
+    mode: "update",
+    envFiles: {
+      envExampleCreated: false,
+      gitignoreEnvAdded: false,
+      mcpAllowlist: null,
+      gitignoreNpxSkillsAdded: [],
+    },
+    rootClaudeMd: null,
+  };
+  ctx.onProgress?.({ type: "baseline-complete", baseline });
+  return { ...baseline, external: null, karpathyHook: null };
+}
+
+/**
+ * v26.81.0 (ADR-022) — manifest 게이팅 입력. 내부 자산 선택 판정 — 이전
+ * OptionFlags.withTauri/withUzysHarness/withEcc boolean 자리를 카탈로그 선택
+ * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
+ */
+function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   const selectionCtx = {
     tracks: spec.tracks,
     options: spec.options,
     ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
   };
-  const tauriSelected = isAssetSelected("tauri-desktop", selectionCtx);
-  const uzysHarnessSelected = isAssetSelected("uzys-harness", selectionCtx);
-  // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
-  const eccSelected = isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune;
-
-  // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
-  // Codex/OpenCode 단독 사용자는 dead weight 회피.
-  const claudeBaselineEnabled = spec.cli.includes("claude");
-
-  let filesCopied = 0;
-  let dirsCopied = 0;
-  let skipped = 0;
-  let rootClaudeMd: { tracks: ReadonlyArray<Track> } | null = null;
-  // root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교).
-  let rootClaudeMdLog: { path: string; sha256: string } | null = null;
-  const categories: BaselineCategoryCounts = {
-    rules: [],
-    agents: [],
-    hooks: [],
-    commands: 0,
-    skills: [],
+  return {
+    tracks: spec.tracks,
+    withTauri: isAssetSelected("tauri-desktop", selectionCtx),
+    withUzysHarness: isAssetSelected("uzys-harness", selectionCtx),
+    // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
+    // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
+    withEcc: isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune,
   };
+}
 
-  if (claudeBaselineEnabled) {
-    ensureProjectSkeleton(projectDir);
+/** `.claude/` baseline (manifest copy) 결과. claude 미선택 시 emptyClaudeBaseline(). */
+interface ClaudeBaselineResult {
+  filesCopied: number;
+  dirsCopied: number;
+  skipped: number;
+  categories: BaselineCategoryCounts;
+  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
+  /** root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
+  rootClaudeMdLog: { path: string; sha256: string } | null;
+}
 
-    const manifestSpec = {
-      tracks: spec.tracks,
-      // v26.81.0 (ADR-022) — 게이팅 입력 = 카탈로그 자산 선택 (manifest 필드명은 유지).
-      withTauri: tauriSelected,
-      withUzysHarness: uzysHarnessSelected,
-      // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
-      withEcc: eccSelected,
-    };
-    const manifest = buildManifest(manifestSpec);
+function emptyClaudeBaseline(): ClaudeBaselineResult {
+  return {
+    filesCopied: 0,
+    dirsCopied: 0,
+    skipped: 0,
+    categories: { rules: [], agents: [], hooks: [], commands: 0, skills: [] },
+    rootClaudeMd: null,
+    rootClaudeMdLog: null,
+  };
+}
 
-    for (const entry of manifest) {
-      if (!entry.applies(manifestSpec)) {
-        continue;
-      }
-      const source = join(templatesDir, entry.source);
-      const target = join(projectDir, entry.target);
-      if (!existsSync(source)) {
-        skipped += 1;
-        continue;
-      }
-      if (entry.type === "file") {
-        copyFile(source, target);
-        filesCopied += 1;
-      } else {
-        copyDir(source, target);
-        dirsCopied += 1;
-      }
-      accumulateCategory(categories, entry);
+/** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */
+function installClaudeBaseline(
+  manifestSpec: Required<AssetSpec>,
+  harnessRoot: string,
+  projectDir: string,
+  templatesDir: string,
+): ClaudeBaselineResult {
+  ensureProjectSkeleton(projectDir);
+
+  const result = emptyClaudeBaseline();
+  const manifest = buildManifest(manifestSpec);
+
+  for (const entry of manifest) {
+    if (!entry.applies(manifestSpec)) {
+      continue;
     }
-
-    // chmod +x on hook scripts (cp does not preserve exec bit when source is non-exec)
-    const hookDir = join(projectDir, ".claude/hooks");
-    if (existsSync(hookDir)) {
-      chmodHooksSync(hookDir);
+    const source = join(templatesDir, entry.source);
+    const target = join(projectDir, entry.target);
+    if (!existsSync(source)) {
+      result.skipped += 1;
+      continue;
     }
-
-    // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
-    writeInstalledTracks(projectDir, spec.tracks);
-
-    // Project root CLAUDE.md — merge from fragments (single/multi/full).
-    // Note: overwrites any user customization on re-install. Documented behavior.
-    const rootClaudeMdContent = writeRootClaudeMd(harnessRoot, projectDir, spec.tracks);
-    rootClaudeMd = { tracks: spec.tracks };
-    rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMdContent) };
+    if (entry.type === "file") {
+      copyFile(source, target);
+      result.filesCopied += 1;
+    } else {
+      copyDir(source, target);
+      result.dirsCopied += 1;
+    }
+    accumulateCategory(result.categories, entry);
   }
 
-  // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
-  const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
+  // chmod +x on hook scripts (cp does not preserve exec bit when source is non-exec)
+  const hookDir = join(projectDir, ".claude/hooks");
+  if (existsSync(hookDir)) {
+    chmodHooksSync(hookDir);
+  }
 
-  // Environment files (F7/F8 — bash setup-harness.sh L880~890 + L954~996 등가)
-  const envFiles = {
-    envExampleCreated: writeEnvExample(projectDir, spec.tracks),
+  // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
+  writeInstalledTracks(projectDir, manifestSpec.tracks);
+
+  // Project root CLAUDE.md — merge from fragments (single/multi/full).
+  // Note: overwrites any user customization on re-install. Documented behavior.
+  const rootClaudeMdContent = writeRootClaudeMd(harnessRoot, projectDir, manifestSpec.tracks);
+  result.rootClaudeMd = { tracks: manifestSpec.tracks };
+  result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMdContent) };
+  return result;
+}
+
+/** Environment files (F7/F8 — bash setup-harness.sh L880~890 + L954~996 등가). */
+function writeEnvironmentFiles(
+  projectDir: string,
+  tracks: ReadonlyArray<Track>,
+): BaselineReport["envFiles"] {
+  return {
+    envExampleCreated: writeEnvExample(projectDir, tracks),
     gitignoreEnvAdded: addGitignoreEnv(projectDir),
     mcpAllowlist: writeMcpAllowlist(projectDir),
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3)
     gitignoreNpxSkillsAdded: addGitignoreNpxSkillsAgents(projectDir),
   };
+}
 
+/** Codex / OpenCode / Antigravity per-CLI transforms (+ scope=global opt-in) 결과. */
+interface CliTransformResults {
+  codex: CodexTransformReport | null;
+  codexOptIn: CodexOptInReport | null;
+  opencode: OpencodeTransformReport | null;
+  antigravity: AntigravityTransformReport | null;
+  antigravityOptIn: AntigravityOptInReport | null;
+}
+
+function runCliTransforms(
+  spec: InstallSpec,
+  harnessRoot: string,
+  projectDir: string,
+  uzysHarnessSelected: boolean,
+): CliTransformResults {
   // Codex transform when spec.cli includes "codex"
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
@@ -417,78 +508,64 @@ export function runInstall(ctx: InstallContext): InstallReport {
     }
   }
 
-  const baseline: BaselineReport = {
-    filesCopied,
-    dirsCopied,
-    skipped,
-    backup: backupPath,
-    installedTracks: [...spec.tracks].sort(),
-    mcpServers: Object.keys(mcpResult.mcpServers).sort(),
-    codex,
-    codexOptIn,
-    opencode,
-    antigravity,
-    antigravityOptIn,
-    updateMode: null,
-    mode,
-    envFiles,
-    categories,
-    rootClaudeMd,
-  };
+  return { codex, codexOptIn, opencode, antigravity, antigravityOptIn };
+}
 
-  // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
-  ctx.onProgress?.({ type: "baseline-complete", baseline });
-
-  // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
-  // Default = real runExternalInstall. Tests inject mock or `null` to skip.
-  // log/warn은 silent (renderer가 onAssetStart/Result로 스트리밍).
-  let external: ExternalInstallReport | null = null;
-  if (ctx.runExternal !== null) {
-    const runExt = ctx.runExternal ?? runExternalInstall;
-    const externalDeps: ExternalInstallerDeps = {
-      harnessRoot,
-      log: () => {},
-      warn: () => {},
-    };
-    if (ctx.externalDeps?.onAssetStart) {
-      externalDeps.onAssetStart = ctx.externalDeps.onAssetStart;
-    }
-    if (ctx.externalDeps?.onAssetResult) {
-      externalDeps.onAssetResult = ctx.externalDeps.onAssetResult;
-    }
-    const filterCtx = {
-      tracks: spec.tracks,
-      options: spec.options,
-      ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
-    };
-    const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
-    ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
-    external = runExt(
-      { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
-      externalDeps,
-    );
-    ctx.onProgress?.({ type: "external-complete", report: external });
+/**
+ * External assets (claude plugin / npm -g / npx skills) 설치 단계.
+ * Default = real runExternalInstall. Tests inject mock or `null` to skip.
+ * log/warn은 silent (renderer가 onAssetStart/Result로 스트리밍).
+ */
+function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
+  if (ctx.runExternal === null) {
+    return null;
   }
+  const { harnessRoot, projectDir, spec } = ctx;
+  const runExt = ctx.runExternal ?? runExternalInstall;
+  const externalDeps: ExternalInstallerDeps = {
+    harnessRoot,
+    log: () => {},
+    warn: () => {},
+  };
+  if (ctx.externalDeps?.onAssetStart) {
+    externalDeps.onAssetStart = ctx.externalDeps.onAssetStart;
+  }
+  if (ctx.externalDeps?.onAssetResult) {
+    externalDeps.onAssetResult = ctx.externalDeps.onAssetResult;
+  }
+  const filterCtx = {
+    tracks: spec.tracks,
+    options: spec.options,
+    ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+  };
+  const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
+  ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
+  const external = runExt(
+    { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
+    externalDeps,
+  );
+  ctx.onProgress?.({ type: "external-complete", report: external });
+  return external;
+}
 
-  // ━━━ karpathy-coder hook auto-wire (v0.6.0) ━━━
-  // SPEC: docs/specs/karpathy-hook-autowire.md AC2 — opt-in 강제 + install 성공 후에만.
-  // v0.8.0 — `.claude/settings.json` PreToolUse 의존이라 spec.cli에 "claude" 포함 시에만 와이어 가능.
-  const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
-
-  // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
-  // `.claude/.harness-install.json` — 자산 list + scope + timestamp. uninstall command 의 source.
+/**
+ * Install log write — `.claude/.harness-install.json` (자산 list + scope + timestamp,
+ * uninstall command 의 source). 실패는 install 자체를 fail 시키지 않음 (D16 — install 성공 우선).
+ */
+function writeInstallLogSafe(
+  ctx: InstallContext,
+  external: ExternalInstallReport | null,
+  rootClaudeMdLog: { path: string; sha256: string } | null,
+): void {
   try {
-    const log = buildInstallLog(spec, external, resolveScope(spec.scope), rootClaudeMdLog);
-    writeInstallLog(projectDir, log);
+    const log = buildInstallLog(ctx.spec, external, resolveScope(ctx.spec.scope), rootClaudeMdLog);
+    writeInstallLog(ctx.projectDir, log);
   } catch (e) {
-    // log write 실패는 install 자체를 fail 시키지 않음 (D16 본질 = install 성공이 우선).
     ctx.onProgress?.({
       type: "install-log-error",
       message: e instanceof Error ? e.message : String(e),
     });
   }
-
-  return { ...baseline, external, karpathyHook };
 }
 
 /**
