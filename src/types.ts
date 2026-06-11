@@ -60,13 +60,18 @@ export function resolveScope(scope: InstallScope | undefined): InstallScope {
   return scope ?? "project";
 }
 
-/** Optional opt-in feature flags collected interactively. */
+/**
+ * Optional opt-in feature flags collected interactively.
+ *
+ * v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종(withGsd/withEcc/withTob/
+ * withSuperpowers/withAddyAgentSkills/withWshobsonAgents/withOpenspec/withBmad/
+ * withClaudeVideo/withUnderstandAnything/withAgentmemory + withTauri/withUzysHarness)
+ * 완전 삭제. 자산 선택은 `userOverride.forceInclude`(wizard 체크 / `--with <id>`)로
+ * 일원화 — 자산 추가 시 플래그 코드 0곳. 잔존 6종 = 자산이 아닌 **설치 동작 옵션**만.
+ */
 export interface OptionFlags {
-  withTauri: boolean;
-  withGsd: boolean;
-  withEcc: boolean;
+  /** ecc-prune 실행 결합 — prune 은 ecc-plugin 선택을 전제 (installer.ts eccSelected 가 처리). */
   withPrune: boolean;
-  withTob: boolean;
   /** Codex global opt-in: ~/.codex/skills/uzys-* 복사. D16 — 사용자 명시 동의 필수. */
   withCodexSkills: boolean;
   /** Codex global opt-in: ~/.codex/config.toml [projects."..."] trust entry. D16 동일. */
@@ -75,49 +80,13 @@ export interface OptionFlags {
    * v0.6.0 — karpathy-coder pre-commit hook auto-wire (A 경로).
    * `.claude/settings.json` PreToolUse `Write|Edit` matcher에 hook entry 등록.
    * 활성화는 karpathy-coder plugin install 성공 후 + 사용자 명시 opt-in 시에만.
-   * upstream `enforcement-patterns.md` "manual configuration" 권장과 정합 — opt-in 강제.
    */
   withKarpathyHook: boolean;
   /**
-   * v0.7.0 — Codex slash 통일 opt-in.
-   * `~/.codex/prompts/uzys-{spec,plan,build,test,review,ship}.md` 6 markdown prompt 글로벌 복사.
-   * 활성화 시 Codex에서 `/uzys-spec` 등 Claude Code 컨벤션 slash 작동.
+   * v0.7.0 — Codex slash 통일 opt-in. `~/.codex/prompts/uzys-*.md` 글로벌 복사.
    * D16 보호 — 글로벌 영역 침범이라 opt-in 강제.
-   * 기존 .agents/skills/uzys-(phase) 디렉토리의 SKILL.md ($name mention 형식)도 병존.
    */
   withCodexPrompts: boolean;
-  /**
-   * v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install on dev tracks).
-   * Sibling option to withGsd. Same plugin install method (`addyosmani/agent-skills`
-   * marketplace + `agent-skills@addy-agent-skills`).
-   */
-  withAddyAgentSkills: boolean;
-  /**
-   * v26.44.0 — uzys-harness 6-Gate slash commands (/uzys:spec ... /uzys:ship) opt-in.
-   * BREAKING vs prior dev-track auto-install. Workflow 카테고리의 1 옵션.
-   * `templates/commands/uzys/*.md` 매핑을 gating. 다른 baseline(rules/agents/hooks)은 유지.
-   */
-  withUzysHarness: boolean;
-  /**
-   * v26.44.0 — obra/superpowers (anthropics/claude-plugins-official marketplace 등록) opt-in.
-   * Workflow 카테고리. /spec /plan /build /test /review /ship slash (no namespace) 가 깔림.
-   */
-  withSuperpowers: boolean;
-  /**
-   * v26.75.0 (ADR-021) — workflow 큐레이션 확장 opt-in. external-assets 1:1 자산 매핑
-   * (wshobson-agents plugin / openspec npm / bmad-method npx-run). Workflow 카테고리.
-   * 3-에이전트 시장 리서치 + 사용자 승인. 검증: docs/research/direction-research-2026-06-06.md.
-   */
-  withWshobsonAgents: boolean;
-  withOpenspec: boolean;
-  withBmad: boolean;
-  /**
-   * v26.78.0 — Understanding 카테고리 opt-in (plugin). 에이전트 인지 증강:
-   * claude-video(영상 지각) / understand-anything(코드 지식그래프) / agentmemory(영속 메모리).
-   */
-  withClaudeVideo: boolean;
-  withUnderstandAnything: boolean;
-  withAgentmemory: boolean;
   /**
    * v26.67.0 — Antigravity global opt-in (~/.gemini/antigravity/skills/uzys-* +
    * ~/.gemini/antigravity/global_workflows/uzys-*.md). D16 영역 — `scope=global` +
@@ -127,24 +96,11 @@ export interface OptionFlags {
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
-  withTauri: false,
-  withGsd: false,
-  withEcc: false,
   withPrune: false,
-  withTob: false,
   withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
-  withAddyAgentSkills: false,
-  withUzysHarness: false,
-  withSuperpowers: false,
-  withWshobsonAgents: false,
-  withOpenspec: false,
-  withBmad: false,
-  withClaudeVideo: false,
-  withUnderstandAnything: false,
-  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 

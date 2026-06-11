@@ -95,31 +95,13 @@ interface OptionDef {
 }
 
 /**
- * v26.54.0 — 표시 대상 OPTION_DEFS 축소.
- * EXTERNAL_ASSETS 에 1:1 자산이 있는 OptionFlags 는 UI 에서 자산 노출만 (중복 제거).
- * 본 list 의 옵션은 manifest 정책 파일 매핑에 직접 영향 (자산 X).
- * - withTauri → manifest 의 tauri-desktop rule (자산 매핑 없음)
- * - withUzysHarness → manifest 의 uzys-* slash commands (자산 매핑 없음)
- * 제외: withGsd, withEcc, withPrune, withTob, withKarpathyHook, withAddyAgentSkills,
- *       withSuperpowers, withWshobsonAgents, withOpenspec, withBmad (자산 1:1 매핑 → 자산 체크로 갈음)
- * 제외 (D16/자동): withCodexSkills, withCodexTrust, withCodexPrompts
+ * v26.54.0 — 표시 대상 OPTION_DEFS.
+ * v26.81.0 (ADR-022) — **빈 배열로 소멸**. 마지막 2개(withTauri/withUzysHarness)가 내부
+ * 자산(tauri-desktop/uzys-harness — EXTERNAL_ASSETS `kind:"internal"`)으로 흡수돼 wizard 의
+ * `option:` 특례가 사라짐. 자산 선택은 전부 `asset:<id>` 경로. 잔존 동작 옵션(D16 글로벌
+ * 4종/karpathy hook/prune)은 wizard 미노출 (CLI `--with-*` 동작 플래그 전용 — 기존과 동일).
  */
-export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [
-  {
-    key: "withTauri",
-    category: "frontend",
-    source: "this project",
-    label: "Tauri desktop rule (option)",
-    hint: "CSR / full tracks · manifest rule mapping",
-  },
-  {
-    key: "withUzysHarness",
-    category: "workflow",
-    source: "this project",
-    label: "uzys-harness 6-Gate workflow (option)",
-    hint: "/uzys:spec /uzys:plan /uzys:build /uzys:test /uzys:review /uzys:ship",
-  },
-];
+export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [];
 
 const CLI_BASE_LABELS: Record<CliBase, string> = {
   claude: "Claude Code",

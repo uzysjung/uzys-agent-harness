@@ -235,6 +235,9 @@ function buildProjectReverseStep(
     case "shell-script":
       // 로컬 script 호출 — 일반 reverse 없음 (script 별 별도 cleanup 필요).
       return null;
+    case "internal":
+      // v26.81.0 (ADR-022) — 내부 템플릿 — removeTemplates 가 .claude/ 전체로 처리.
+      return null;
   }
 }
 
@@ -254,6 +257,7 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
     }
     case "npx-run":
     case "shell-script":
+    case "internal":
       return "(no standard reverse — manual)";
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@uzysjung/claude-harness",
-  "version": "26.80.0",
+  "version": "26.81.0",
   "description": "TypeScript CLI for uzys-claude-harness — install, update, and manage Claude Code / Codex CLI assets",
   "type": "module",
   "publishConfig": {

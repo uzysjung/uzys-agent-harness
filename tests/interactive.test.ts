@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  applyOptionRules,
   computeUserOverride,
   formatSummary,
   runInteractive,
@@ -43,25 +42,11 @@ const existingState: DetectedInstall = {
 };
 
 const ALL_FALSE_OPTIONS: OptionFlags = {
-  withTauri: false,
-  withGsd: false,
-  withEcc: false,
   withPrune: false,
-  withTob: false,
   withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
-  withAddyAgentSkills: false,
-  withUzysHarness: false,
-  withSuperpowers: false,
-
-  withWshobsonAgents: false,
-  withOpenspec: false,
-  withBmad: false,
-  withClaudeVideo: false,
-  withUnderstandAnything: false,
-  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 
@@ -102,7 +87,7 @@ describe("runInteractive", () => {
     const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
       ...initial,
-      "option:withUzysHarness" as InstallTargetId,
+      "asset:uzys-harness" as InstallTargetId,
     ]);
     const prompts = makePrompts({ selectCli, selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
@@ -112,7 +97,8 @@ describe("runInteractive", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.spec?.options.withCodexPrompts).toBe(false);
-    expect(result.spec?.options.withUzysHarness).toBe(true);
+    // v26.81.0 (ADR-022) — uzys-harness 는 자산 체크 → forceInclude 로 전달.
+    expect(result.spec?.userOverride?.forceInclude).toContain("uzys-harness");
   });
 
   it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", async () => {
@@ -141,7 +127,7 @@ describe("runInteractive", () => {
   it("v26.54.0 — option:withTauri checked in install-targets sets OptionFlags.withTauri=true", async () => {
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
       ...initial,
-      "option:withTauri" as InstallTargetId,
+      "asset:tauri-desktop" as InstallTargetId,
     ]);
     const prompts = makePrompts({
       selectTracks: vi.fn(async () => ["csr-fastapi"] as Track[]),
@@ -153,7 +139,8 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.options.withTauri).toBe(true);
+    // v26.81.0 (ADR-022) — tauri 는 내부 자산 체크 → forceInclude.
+    expect(result.spec?.userOverride?.forceInclude).toContain("tauri-desktop");
   });
 
   it("v26.54.0 — asset addition outside recommended → userOverride.forceInclude", async () => {
@@ -471,15 +458,15 @@ describe("formatSummary", () => {
       tracks: ["tooling", "csr-fastapi"],
       options: {
         ...ALL_FALSE_OPTIONS,
-        withTauri: true,
-        withGsd: true,
-        withEcc: true,
+        withPrune: true,
+        withKarpathyHook: true,
       },
       cli: ["codex"],
       projectDir: "/proj",
     });
     expect(summary).toContain("tooling, csr-fastapi");
-    expect(summary).toContain("tauri, gsd, ecc");
+    // v26.81.0 (ADR-022) — Options 행은 잔존 동작 옵션만 표시.
+    expect(summary).toContain("prune, karpathyhook");
     expect(summary).toContain("CLI:       codex");
     expect(summary).toContain("/proj");
   });
@@ -513,40 +500,26 @@ describe("toOptionFlags", () => {
   });
 
   it("sets only the keys present in the array to true", () => {
-    expect(toOptionFlags(["withTauri", "withTob"])).toEqual({
+    expect(toOptionFlags(["withPrune", "withKarpathyHook"])).toEqual({
       ...ALL_FALSE_OPTIONS,
-      withTauri: true,
-      withTob: true,
+      withPrune: true,
+      withKarpathyHook: true,
     });
   });
 });
 
-describe("applyOptionRules", () => {
-  it("withPrune implies withEcc — sets withEcc=true if missing", () => {
-    const result = applyOptionRules({ ...ALL_FALSE_OPTIONS, withPrune: true });
-    expect(result.withEcc).toBe(true);
-    expect(result.withPrune).toBe(true);
-  });
-
-  it("leaves flags unchanged when withPrune=false", () => {
-    expect(applyOptionRules(ALL_FALSE_OPTIONS)).toEqual(ALL_FALSE_OPTIONS);
-  });
-
-  it("does nothing when withPrune+withEcc already both true", () => {
-    const flags: OptionFlags = { ...ALL_FALSE_OPTIONS, withEcc: true, withPrune: true };
-    expect(applyOptionRules(flags)).toEqual(flags);
-  });
-});
+// v26.81.0 (ADR-022) — applyOptionRules(withPrune→withEcc) 삭제. prune→ecc 결합은
+//   installer.ts eccSelected 로 이동 (tests/installer-11-track.test.ts 가 통합 검증).
 
 describe("v26.54.0 — splitInstallTargets", () => {
   it("split mixed list of option:* and asset:* prefixed ids", () => {
     const { optionKeys, assetIds } = splitInstallTargets([
-      "option:withTauri",
+      "option:withPrune",
       "asset:playwright-skill",
-      "option:withUzysHarness",
+      "option:withKarpathyHook",
       "asset:railway-skills",
     ]);
-    expect(optionKeys).toEqual(["withTauri", "withUzysHarness"]);
+    expect(optionKeys).toEqual(["withPrune", "withKarpathyHook"]);
     expect(assetIds).toEqual(["playwright-skill", "railway-skills"]);
   });
 

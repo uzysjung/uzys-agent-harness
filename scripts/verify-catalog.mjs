@@ -28,7 +28,11 @@ if (!process.env.CI && process.env.CATALOG_VERIFY_ALLOW !== "1") {
 const TIMEOUT = 120_000;
 function run(cmd, args) {
   const r = spawnSync(cmd, args, { encoding: "utf8", stdio: "pipe", timeout: TIMEOUT });
-  return { ok: r.status === 0, status: r.status, err: (r.stderr || r.stdout || "").trim().slice(-160) };
+  return {
+    ok: r.status === 0,
+    status: r.status,
+    err: (r.stderr || r.stdout || "").trim().slice(-160),
+  };
 }
 
 const seenMkt = new Set();
@@ -50,8 +54,11 @@ for (const a of EXTERNAL_ASSETS) {
   } else if (m.kind === "npm") {
     res = run("npm", ["view", m.pkg, "version"]); // registry 실재 (full 설치는 표준 npm i)
   } else if (m.kind === "npx-run") {
-    const pkg = m.cmd.replace(/@[^@]+$/, ""); // strip @latest
-    res = run("npm", ["view", pkg, "version"]);
+    // v26.80.0 — cmd 는 bare 이름 + version 별도 필드 (pinned 버전 실재 확인).
+    res = run("npm", ["view", `${m.cmd}@${m.version}`, "version"]);
+  } else if (m.kind === "internal") {
+    // v26.81.0 (ADR-022) — 내부 템플릿 자산: 설치 주체 = Phase 1 manifest (네트워크 무관).
+    res = { ok: true, status: 0, err: "(internal — skip)" };
   } else {
     res = { ok: true, status: 0, err: "(local — skip)" }; // shell-script
   }

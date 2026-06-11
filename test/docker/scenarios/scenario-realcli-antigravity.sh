@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # B1 — 실 Antigravity CLI(agy) 가 harness project-scope 자산을 인식하는가 (Promise=Implementation).
 #
-# Tier A (hard assert): harness install --cli antigravity --with-uzys-harness --scope project 가
+# Tier A (hard assert): harness install --cli antigravity --with uzys-harness --scope project 가
 #   .agents/rules/uzys-harness.md + .agents/skills/uzys-{phase}/SKILL.md + .agents/workflows/uzys-{phase}.md write.
 # Tier B (evidence): 실 agy 가 .agents/{skills,workflows,rules} 를 native 인식하는가.
 #   - 검증 대상 주장(opt-in.ts:61): "Antigravity 가 .agents/skills/ 를 native 인식".
@@ -32,7 +32,7 @@ echo ""
 
 # ── Tier A: harness project-scope write ──
 echo "── Tier A: harness project-scope write ──"
-claude-harness install --track tooling --cli antigravity --with-uzys-harness --scope project >/tmp/install-agy.log 2>&1 \
+claude-harness install --track tooling --cli antigravity --with uzys-harness --scope project >/tmp/install-agy.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-agy.log; exit 1; }
 
 missing=0

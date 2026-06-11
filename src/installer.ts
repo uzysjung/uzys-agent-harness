@@ -20,7 +20,7 @@ import {
   writeEnvExample,
   writeMcpAllowlist,
 } from "./env-files.js";
-import { EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";
+import { EXTERNAL_ASSETS, filterApplicableAssets, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
@@ -73,7 +73,16 @@ export interface InstallContext {
   runExternal?:
     | ((
         // v26.77.0 — projectDir: 외부 설치기 spawn cwd (자산 착지 위치). Bug B fix.
-        ctx: { tracks: ReadonlyArray<Track>; options: OptionFlags; projectDir?: string },
+        // v26.81.0 (ADR-022) — userOverride: 자산 opt-in(--with <id>) 전파 (flag 13종 대체).
+        ctx: {
+          tracks: ReadonlyArray<Track>;
+          options: OptionFlags;
+          projectDir?: string;
+          userOverride?: {
+            forceInclude: ReadonlyArray<string>;
+            forceExclude: ReadonlyArray<string>;
+          };
+        },
         deps: ExternalInstallerDeps,
       ) => ExternalInstallReport)
     | null;
@@ -260,6 +269,18 @@ export function runInstall(ctx: InstallContext): InstallReport {
     return { ...baseline, external: null, karpathyHook: null };
   }
 
+  // v26.81.0 (ADR-022) — 내부 자산 선택 판정. 이전 OptionFlags.withTauri/withUzysHarness/
+  // withEcc boolean 자리를 카탈로그 선택(wizard 체크 / --with <id> → forceInclude)으로 대체.
+  const selectionCtx = {
+    tracks: spec.tracks,
+    options: spec.options,
+    ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+  };
+  const tauriSelected = isAssetSelected("tauri-desktop", selectionCtx);
+  const uzysHarnessSelected = isAssetSelected("uzys-harness", selectionCtx);
+  // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
+  const eccSelected = isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune;
+
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
   // Codex/OpenCode 단독 사용자는 dead weight 회피.
   const claudeBaselineEnabled = spec.cli.includes("claude");
@@ -283,10 +304,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
     const manifestSpec = {
       tracks: spec.tracks,
-      withTauri: spec.options.withTauri,
-      withUzysHarness: spec.options.withUzysHarness,
+      // v26.81.0 (ADR-022) — 게이팅 입력 = 카탈로그 자산 선택 (manifest 필드명은 유지).
+      withTauri: tauriSelected,
+      withUzysHarness: uzysHarnessSelected,
       // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
-      withEcc: spec.options.withEcc,
+      withEcc: eccSelected,
     };
     const manifest = buildManifest(manifestSpec);
 
@@ -347,7 +369,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     codex = runCodexTransform({
       harnessRoot,
       projectDir,
-      withUzysHarness: spec.options.withUzysHarness,
+      withUzysHarness: uzysHarnessSelected,
     });
     // v26.64.0 (ADR-020) — Codex global opt-in 은 scope=global 일 때만 의미.
     // scope=project (default) 시 ~/.codex/ write skip — transform.ts 가 이미 `.codex/` (project)
@@ -381,7 +403,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     antigravity = runAntigravityTransform({
       harnessRoot,
       projectDir,
-      withUzysHarness: spec.options.withUzysHarness,
+      withUzysHarness: uzysHarnessSelected,
     });
     // v26.67.0 (Phase C) — Antigravity global opt-in. ADR-020 정합 —
     // scope=global + withAntigravityGlobal=true 시에만 ~/.gemini/ 영역 write.

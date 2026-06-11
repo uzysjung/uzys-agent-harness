@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.81.0] — 2026-06-11 (feat!: 자산-결합 플래그 13종 삭제 + 내부 자산 모델, ADR-022)
+
+코드품질 사이클 Phase O. 사용자 결정(2026-06-11)으로 자산 opt-in 표면을 generic `--with <id>` 하나로 일원화.
+
+### BREAKING CHANGE: 전용 `--with-*` 자산 플래그 13종 삭제 (alias 없음)
+
+`--with-gsd` `--with-ecc` `--with-tob` `--with-superpowers` `--with-addy-agent-skills` `--with-wshobson-agents` `--with-openspec` `--with-bmad` `--with-claude-video` `--with-understand-anything` `--with-agentmemory` `--with-tauri` `--with-uzys-harness` → **`--with <asset-id>`** 로 대체 (예: `--with bmad-method`, `--with uzys-harness`). 구 플래그는 `Unknown option` 으로 즉시 실패 (fail-loud — 침묵 오동작 없음). 근거: 자산 1개 추가 = 코드 8곳+테스트 10+파일 동기화 → 그 누락이 v26.76.0 거짓출하의 원인. README 실측상 전용 플래그 광고 1개뿐 + 외부 사용자 0 시기라 alias 생략.
+
+### Add — 내부 자산(Internal Asset) 모델
+
+- `kind: "internal"` method + 카탈로그 entry 2종: **`tauri-desktop`** / **`uzys-harness`** (official tier). wizard 에 일반 자산과 동일 노출 — `option:` 특례(VISIBLE_OPTION_DEFS) 소멸.
+- 설치 주체는 Phase 1 manifest/transform 그대로 — 게이팅이 `isAssetSelected(id)` (wizard 체크/`--with` → forceInclude) 로 전환. `withEcc` 의 cherry-pick 이중 역할도 동일 패턴 (`ecc-plugin` 선택 ∨ `withPrune`).
+
+### Change — OptionFlags 19 → 6
+
+잔존 = 진짜 동작 옵션만: `withPrune` · `withKarpathyHook` · D16 글로벌 동의 4종(`withCodexSkills`/`withCodexTrust`/`withCodexPrompts`/`withAntigravityGlobal`). 재발 방지 테스트: 자산-결합 `--with-*` 가 다시 등록되면 fail.
+
+### Docs — README 비대화형 설치 섹션 신설
+
+CI/스크립트/Docker 용 `--track`/`--cli`/`--scope`/`--with <id>` 안내 — 기존엔 README 에 비대화형 경로 안내가 전무 (사용자 지적 실측 확인). USAGE 자산 플래그 표기 전환, Docker 시나리오 5종 + fresh-dogfood 스크립트 동기 갱신.
+
+### 검증
+
+- Docker e2e 2종 PASS: `--with uzys-harness`(내부 자산 → antigravity transform 게이팅) + `--with openspec --with bmad-method`(opt-in 설치, pinned 버전 일치). 구 플래그 fail-loud 거동 확인.
+- 673 tests / branches 88.48% (flag 삭제로 개선) / typecheck·biome·build green.
+
 ## [v26.80.0] — 2026-06-11 (feat: 자산 버전 pinning — 보안 wedge 실체화)
 
 코드품질 사이클 Phase P. vetting 은 **시점 검증**인데 `@latest`/unpinned 는 **미래 코드 실행** — hijacked vetted repo 가 사용자에게 직행하는 supply-chain 구멍 (ADR-021 "지속 검증되는 큐레이션" 주장과 모순). 이를 봉합.

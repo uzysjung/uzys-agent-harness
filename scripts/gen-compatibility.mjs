@@ -9,8 +9,8 @@
 // COMPATIBILITY.md 의 <!-- AUTO-GEN:CATALOG:START --> ~ END 사이만 교체. 나머지 prose 보존.
 
 import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CATEGORIES, EXTERNAL_ASSETS, TRUST_TIER } from "../dist/trust-tier-drift.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -24,6 +24,7 @@ const LEVEL_BY_KIND = {
   "npx-run": `🟢 Docker ${VDATE}`, // npx 실행
   npm: `🟢 registry ${VDATE}`, // registry 실재 (openspec 는 아래 override 로 실설치)
   "shell-script": "🟡 local", // 로컬 스크립트 (네트워크 무관)
+  internal: "🟡 local", // v26.81.0 (ADR-022) — 내부 템플릿 (Phase 1 manifest, install-matrix 가 검증)
 };
 const LEVEL_OVERRIDE = {
   openspec: `🟢 Docker ${VDATE}`, // npm i + npx openspec --version 1.4.1
@@ -35,6 +36,7 @@ const CLI_SCOPE = {
   npm: "agnostic",
   "npx-run": "agnostic",
   "shell-script": "local",
+  internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
 };
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
@@ -79,11 +81,13 @@ const CAT_ORDER = [
 
 function target(m) {
   if (m.kind === "plugin") return `\`${m.pluginId}\``;
-  if (m.kind === "skill") return `\`${m.source.replace(/^https?:\/\/github\.com\//, "")}${m.skill ? " :: " + m.skill : ""}\``;
+  if (m.kind === "skill")
+    return `\`${m.source.replace(/^https?:\/\/github\.com\//, "")}${m.skill ? " :: " + m.skill : ""}\``;
   // v26.80.0 — pinned 버전 표기 (보안 wedge: 설치되는 정확한 버전 공개).
   if (m.kind === "npm") return `\`${m.pkg}@${m.version}\` (npm)`;
   if (m.kind === "npx-run") return `\`${m.cmd}@${m.version}\` (npx)`;
   if (m.kind === "shell-script") return `\`${m.script}\``;
+  if (m.kind === "internal") return `templates (\`--with ${m.key}\`)`;
   return "?";
 }
 
@@ -101,7 +105,9 @@ function rows() {
     for (const a of assets) {
       const tier = TRUST_TIER[a.id] ?? "experimental";
       const lvl = LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "⚪";
-      out.push(`| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE[a.method.kind]} | ${lvl} |`);
+      out.push(
+        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE[a.method.kind]} | ${lvl} |`,
+      );
     }
   }
   return out.join("\n");
@@ -110,8 +116,8 @@ function rows() {
 function summary() {
   const counts = { official: 0, vetted: 0, experimental: 0 };
   for (const a of EXTERNAL_ASSETS) counts[TRUST_TIER[a.id] ?? "experimental"]++;
-  const green = EXTERNAL_ASSETS.filter(
-    (a) => (LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "").startsWith("🟢"),
+  const green = EXTERNAL_ASSETS.filter((a) =>
+    (LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "").startsWith("🟢"),
   ).length;
   return `> **자동 생성** (\`scripts/gen-compatibility.mjs\`, ${VDATE}). 자산 **${EXTERNAL_ASSETS.length}** (official ${counts.official} / vetted ${counts.vetted} / experimental ${counts.experimental}) · 🟢 검증 **${green}/${EXTERNAL_ASSETS.length}**. tier SSOT=\`src/external-assets.ts\`, drift 감시=\`trust-tier-drift.yml\`.`;
 }

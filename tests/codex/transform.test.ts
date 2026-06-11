@@ -60,7 +60,6 @@ describe("runCodexTransform (E2E against templates/)", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: false,
     });
     // AGENTS.md / config.toml / hooks 는 codex baseline 이라 그대로 생성
     expect(existsSync(report.agentsMdPath)).toBe(true);

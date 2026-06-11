@@ -65,13 +65,13 @@ const TEST_ASSETS: ExternalAsset[] = [
   createMockAsset({
     id: "npm-asset",
     description: "npm install -g",
-    condition: { kind: "option", flag: "withEcc" },
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "vercel", version: "54.0.0" },
   }),
   createMockAsset({
     id: "npx-asset",
     description: "npx run",
-    condition: { kind: "option", flag: "withGsd" },
+    condition: { kind: "opt-in" },
     method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.0" },
   }),
 ];
@@ -211,7 +211,12 @@ describe("runExternalInstall — method dispatch", () => {
   it("npm-global produces npm install --save-dev <pkg> when scope=project (default)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
-      { tracks: ["tooling"], options: { ...DEFAULT_OPTIONS, withEcc: true }, cli: ["claude"] },
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        userOverride: { forceInclude: ["npm-asset"], forceExclude: [] },
+      },
       { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npm");
@@ -224,9 +229,10 @@ describe("runExternalInstall — method dispatch", () => {
     runExternalInstall(
       {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withEcc: true },
+        options: DEFAULT_OPTIONS,
         cli: ["claude"],
         scope: "global",
+        userOverride: { forceInclude: ["npm-asset"], forceExclude: [] },
       },
       { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
     );
@@ -254,7 +260,12 @@ describe("runExternalInstall — method dispatch", () => {
   it("npx-run produces npx <cmd>", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
-      { tracks: ["tooling"], options: { ...DEFAULT_OPTIONS, withGsd: true }, cli: ["claude"] },
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        userOverride: { forceInclude: ["npx-asset"], forceExclude: [] },
+      },
       { spawn, assets: [TEST_ASSETS[4] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npx");
@@ -269,7 +280,8 @@ describe("runExternalInstall — failure modes", () => {
     const report = runExternalInstall(
       {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withEcc: true, withGsd: true },
+        options: DEFAULT_OPTIONS,
+        userOverride: { forceInclude: ["npm-asset", "npx-asset"], forceExclude: [] },
         cli: ["claude"],
       },
       {

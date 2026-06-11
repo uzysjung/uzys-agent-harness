@@ -29,10 +29,17 @@ function makeMockSpawn(): SpawnFn & { mock: { calls: Array<Parameters<SpawnFn>> 
 function runForTrack(
   tracks: Track[],
   options: Partial<OptionFlags> = {},
+  // v26.81.0 (ADR-022) — 자산 opt-in 은 forceInclude(--with <id>) 로 전달.
+  forceInclude: string[] = [],
 ): { ids: string[]; spawnCallCount: number } {
   const spawn = makeMockSpawn();
   const report = runExternalInstall(
-    { tracks, options: { ...DEFAULT_OPTIONS, ...options }, cli: ["claude"] },
+    {
+      tracks,
+      options: { ...DEFAULT_OPTIONS, ...options },
+      cli: ["claude"],
+      ...(forceInclude.length > 0 ? { userOverride: { forceInclude, forceExclude: [] } } : {}),
+    },
     { spawn, log: () => {}, warn: () => {}, assets: EXTERNAL_ASSETS },
   );
   return {
@@ -163,15 +170,15 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("next-skills"); // v26.71.1 — T3 opt-in
   });
 
-  it("--with-addy-agent-skills adds addy-agent-skills plugin (v26.42.0)", () => {
-    const { ids } = runForTrack(["tooling"], { withAddyAgentSkills: true });
+  it("--with addy-agent-skills adds addy-agent-skills plugin (v26.81.0 ADR-022)", () => {
+    const { ids } = runForTrack(["tooling"], {}, ["addy-agent-skills"]);
     expect(ids).toContain("addy-agent-skills");
   });
 
-  it("--with-ecc adds ecc-plugin to attempt list (option-gated)", () => {
-    const { ids } = runForTrack(["tooling"], { withEcc: true });
+  it("--with ecc-plugin adds ecc-plugin to attempt list (opt-in)", () => {
+    const { ids } = runForTrack(["tooling"], {}, ["ecc-plugin"]);
     expect(ids).toContain("ecc-plugin");
-    expect(ids).not.toContain("ecc-prune"); // separate flag
+    expect(ids).not.toContain("ecc-prune"); // separate opt-in (withPrune behavior flag)
   });
 
   it("--with-prune adds ecc-prune (option-gated, independent of withEcc)", () => {
@@ -179,15 +186,15 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toContain("ecc-prune");
   });
 
-  it("--with-tob adds Trail of Bits (any track)", () => {
-    const { ids } = runForTrack(["tooling"], { withTob: true });
+  it("--with trailofbits-skills adds Trail of Bits (any track)", () => {
+    const { ids } = runForTrack(["tooling"], {}, ["trailofbits-skills"]);
     expect(ids).toContain("trailofbits-skills");
-    const { ids: idsExec } = runForTrack(["executive"], { withTob: true });
+    const { ids: idsExec } = runForTrack(["executive"], {}, ["trailofbits-skills"]);
     expect(idsExec).toContain("trailofbits-skills");
   });
 
-  it("--with-gsd adds GSD orchestrator", () => {
-    const { ids } = runForTrack(["executive"], { withGsd: true });
+  it("--with gsd-orchestrator adds GSD orchestrator", () => {
+    const { ids } = runForTrack(["executive"], {}, ["gsd-orchestrator"]);
     expect(ids).toContain("gsd-orchestrator");
   });
 });
@@ -206,7 +213,7 @@ describe("Track matrix — spawn call counts", () => {
 
   it("--with-gsd alone (executive base) adds 1 npx call", () => {
     const baseExec = runForTrack(["executive"]).spawnCallCount;
-    const withGsd = runForTrack(["executive"], { withGsd: true }).spawnCallCount;
+    const withGsd = runForTrack(["executive"], {}, ["gsd-orchestrator"]).spawnCallCount;
     expect(withGsd - baseExec).toBe(1);
   });
 });

@@ -103,6 +103,9 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
       return { cmd: method.cmd, args: (method.args ?? []).join(" ") };
     case "shell-script":
       return { script: method.script, args: method.args.join(" ") };
+    case "internal":
+      // v26.81.0 (ADR-022) — Phase 1 manifest 가 설치 주체. external 단계에선 미기록이 정상.
+      return { key: method.key };
   }
 }
 
