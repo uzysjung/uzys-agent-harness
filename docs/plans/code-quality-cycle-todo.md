@@ -34,12 +34,12 @@
 - [x] P-V Docker `scenario-pinned-versions`(신규, run.sh 등록) — 설치 버전 == pin 정확 일치 + _bmad 산출물 PASS. **계획 수정**: scenario-workflow-scope(real claude 필요) 대신 Phase P 변경 경로(npm/npx)만 검증하는 전용 경량 시나리오 — plugin/skill 은 코드 무변경
 - [ ] P-ship `npm run ci` → PR → 머지 동의 → 태그 v26.80.0 → `gh run watch` green
 
-## Phase O — OptionFlags 폐기 (ADR-022, 사용자 승인 게이트)
+## Phase O — 자산-결합 플래그 완전 삭제 (ADR-022, 2026-06-11 범위 확대)
 
-- [ ] O-1 규칙 발효: 신규 자산 OptionFlags 금지 (forceInclude + `--with <asset-id>`) — plan 머지로 즉시
-- [ ] O-2 ADR-022 작성 (Proposed) → **사용자 결정 대기**
-- [ ] O-3 (Accepted 시) 11 asset-flag → alias 전환 + deprecation window
-- [ ] O-S3 (독립) toOptionFlags / spec build / formatOptions 를 DEFAULT_OPTIONS 키 순회로 collapse
+- [x] O-1 규칙 발효: 신규 자산 OptionFlags 금지 — plan 머지(#153)로 즉시
+- [x] O-2 ADR-022 작성 (Proposed) — **완전 삭제**(alias 없음, 사용자 결정) + 내부 자산 모델(withTauri/withUzysHarness → `kind:"internal"` 카탈로그) + README 비대화형 섹션 신설. `docs/decisions/ADR-022-asset-flag-removal.md`
+- [ ] O-3 (ADR Accepted 시, v26.81.0 BREAKING) 구현: 전용 플래그 13 삭제 → generic `--with <id>` 일원화, OptionFlags 19→6, selectedAssets 게이팅, VISIBLE_OPTION_DEFS 특례 제거, Docker 시나리오/CI/USAGE 17곳/README 동기 갱신, 재발 방지 테스트
+- [ ] O-ship `npm run ci` + Docker 시나리오 재실행 → PR → 머지 동의 → 태그
 
 ## Phase R — 렌더 분리 (인접 minor 동승 가능)
 
