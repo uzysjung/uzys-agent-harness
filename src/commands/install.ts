@@ -11,7 +11,11 @@ import {
   status,
   unifiedSection,
 } from "../design.js";
-import { EXTERNAL_ASSETS, experimentalOptInCandidates } from "../external-assets.js";
+import {
+  EXTERNAL_ASSETS,
+  experimentalOptInCandidates,
+  isAssetSelected,
+} from "../external-assets.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import { recommendedExternalAssets } from "../preset-recommend.js";
 import {
@@ -21,6 +25,7 @@ import {
   type InstallSpec,
   isInstallScope,
   isTrack,
+  type OptionFlags,
   type Track,
 } from "../types.js";
 
@@ -43,11 +48,11 @@ export interface InstallOptions {
   /** v26.63.0 — Phase 1 templates 의 files 라인 표시 (default: counts only). */
   verbose?: boolean;
   projectDir?: string;
-  withTauri?: boolean;
-  withGsd?: boolean;
-  withEcc?: boolean;
+  // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종(withTauri/withGsd/withEcc/withTob/
+  //   withAddyAgentSkills/withUzysHarness/withSuperpowers/withWshobsonAgents/withOpenspec/
+  //   withBmad/withClaudeVideo/withUnderstandAnything/withAgentmemory) 완전 삭제.
+  //   자산 선택 = generic `--with <id>` / `--without <id>` 만. 아래는 동작 옵션.
   withPrune?: boolean;
-  withTob?: boolean;
   withCodexSkills?: boolean;
   withCodexTrust?: boolean;
   withKarpathyHook?: boolean;
@@ -63,20 +68,6 @@ export interface InstallOptions {
    * v26.51.0 — bug fix: 이전엔 `noCodexPrompts` field 참조 (cac 가 만들지 않음) → 동작 안 함.
    */
   codexPrompts?: boolean;
-  /** v26.42.0 — addyosmani/agent-skills opt-in (BREAKING vs prior auto-install). */
-  withAddyAgentSkills?: boolean;
-  /** v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING vs prior auto-install). */
-  withUzysHarness?: boolean;
-  /** v26.44.0 — obra/superpowers opt-in. Anthropic 공식 marketplace 등록. */
-  withSuperpowers?: boolean;
-  /** v26.75.0 (ADR-021) — workflow 큐레이션 확장 opt-in (wshobson/openspec/bmad). */
-  withWshobsonAgents?: boolean;
-  withOpenspec?: boolean;
-  withBmad?: boolean;
-  /** v26.78.0 — Understanding opt-in (claude-video/understand-anything/agentmemory). */
-  withClaudeVideo?: boolean;
-  withUnderstandAnything?: boolean;
-  withAgentmemory?: boolean;
   /**
    * v26.67.0 — Antigravity global opt-in. `~/.gemini/antigravity/skills/uzys-*` +
    * `~/.gemini/antigravity/global_workflows/uzys-*.md`. scope=global + cli=antigravity 시만 의미.
@@ -231,12 +222,10 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   const spec: InstallSpec = {
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
+    // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
+    //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션 6종만.
     options: {
-      withTauri: options.withTauri === true,
-      withGsd: options.withGsd === true,
-      withEcc: options.withEcc === true || options.withPrune === true,
       withPrune: options.withPrune === true,
-      withTob: options.withTob === true,
       withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
@@ -245,15 +234,6 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       //   `--no-codex-prompts` 는 backward-compat noop (default 가 이미 false).
       //   scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts 참조).
       withCodexPrompts: options.withCodexPrompts === true && options.codexPrompts !== false,
-      withAddyAgentSkills: options.withAddyAgentSkills === true,
-      withUzysHarness: options.withUzysHarness === true,
-      withSuperpowers: options.withSuperpowers === true,
-      withWshobsonAgents: options.withWshobsonAgents === true,
-      withOpenspec: options.withOpenspec === true,
-      withBmad: options.withBmad === true,
-      withClaudeVideo: options.withClaudeVideo === true,
-      withUnderstandAnything: options.withUnderstandAnything === true,
-      withAgentmemory: options.withAgentmemory === true,
       withAntigravityGlobal: options.withAntigravityGlobal === true,
     },
     cli: validated.cli,
@@ -360,7 +340,9 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
-        renderPhase1Rows(log, event.baseline, deps.verbose === true, spec.options.withEcc === true);
+        // v26.81.0 (ADR-022) — withEcc boolean 삭제 → ecc-plugin 자산 선택으로 판정 (hint 게이팅).
+        const eccSelected = isAssetSelected("ecc-plugin", spec) || spec.options.withPrune === true;
+        renderPhase1Rows(log, event.baseline, deps.verbose === true, eccSelected);
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
@@ -624,6 +606,9 @@ function formatAssetMeta(
       return `npx · ${m.cmd}@${m.version}`;
     case "shell-script":
       return `bash · ${m.script}`;
+    case "internal":
+      // v26.81.0 (ADR-022) — 내부 템플릿 자산 (Phase 1 manifest 가 설치 주체).
+      return `internal · templates (${m.key})`;
   }
 }
 
@@ -839,22 +824,15 @@ function groupAssetsByCategory(assetIds: ReadonlyArray<string>): Array<[string, 
 }
 
 function formatOptions(spec: InstallSpec): string {
-  const flags: string[] = [];
-  if (spec.options.withTauri) flags.push("tauri");
-  if (spec.options.withGsd) flags.push("gsd");
-  if (spec.options.withEcc) flags.push("ecc");
-  if (spec.options.withPrune) flags.push("prune");
-  if (spec.options.withTob) flags.push("tob");
-  if (spec.options.withKarpathyHook) flags.push("karpathy-hook");
-  if (spec.options.withAddyAgentSkills) flags.push("addy-agent-skills");
-  if (spec.options.withUzysHarness) flags.push("uzys-harness");
-  if (spec.options.withSuperpowers) flags.push("superpowers");
-  if (spec.options.withWshobsonAgents) flags.push("wshobson-agents");
-  if (spec.options.withOpenspec) flags.push("openspec");
-  if (spec.options.withBmad) flags.push("bmad-method");
-  if (spec.options.withClaudeVideo) flags.push("claude-video");
-  if (spec.options.withUnderstandAnything) flags.push("understand-anything");
-  if (spec.options.withAgentmemory) flags.push("agentmemory");
+  // v26.81.0 (ADR-022) — 자산 플래그 13종 삭제 후 동작 옵션만. 키 순회로 enumeration drift 차단.
+  const flags = (Object.keys(spec.options) as Array<keyof OptionFlags>)
+    .filter((k) => spec.options[k])
+    .map((k) =>
+      k
+        .replace(/^with/, "")
+        .replace(/([a-z])([A-Z])/g, "$1-$2")
+        .toLowerCase(),
+    );
   // v26.63.3 (clarify H1): "(defaults only)" 모호 → "(none added)" 명료.
   return flags.length > 0 ? flags.join(", ") : c.dim("(none added)");
 }
@@ -974,52 +952,25 @@ export function registerInstallCommand(cli: Cli): void {
       "--with-codex-trust",
       "[Codex] Codex global opt-in: register trust entry in ~/.codex/config.toml",
     )
-    // === Workflow opt-in (v26.42.0+) ===
-    .option(
-      "--with-uzys-harness",
-      "[Workflow] uzys-harness 6-Gate slash (/uzys:spec ... /uzys:ship). v26.44.0 BREAKING",
-    )
-    .option(
-      "--with-addy-agent-skills",
-      "[Workflow] addyosmani/agent-skills (/spec /plan /build slash). v26.42.0 BREAKING",
-    )
-    .option(
-      "--with-superpowers",
-      "[Workflow] obra/superpowers (registered in Anthropic official marketplace)",
-    )
-    // v26.75.0 (ADR-021) workflow 큐레이션 확장. wizard 와 동일하게 비대화형에서도 opt-in 가능해야 함.
-    .option("--with-wshobson-agents", "[Workflow] wshobson/agents full-stack-orchestration plugin")
-    .option("--with-openspec", "[Workflow] Fission-AI OpenSpec (npm, project-scoped)")
-    .option("--with-bmad", "[Workflow] BMAD-METHOD (npx-run, installs to project dir)")
-    // v26.78.0 — Understanding (plugin opt-in)
-    .option("--with-claude-video", "[Understanding] Claude Video /watch (bradautomates plugin)")
-    .option(
-      "--with-understand-anything",
-      "[Understanding] Understand Anything code graph (Lum1104 plugin)",
-    )
-    .option(
-      "--with-agentmemory",
-      "[Understanding] AgentMemory persistent memory (rohitg00 plugin + MCP)",
-    )
+    // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
+    //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.
+    //   아래는 자산이 아닌 설치 동작 옵션만.
     .option(
       "--with-antigravity-global",
-      "[Workflow] Antigravity global opt-in: copy uzys-* to ~/.gemini/antigravity/{skills,global_workflows}/. Requires --cli antigravity + --scope global. (v26.67.0+)",
+      "[Behavior] Antigravity global opt-in: copy uzys-* to ~/.gemini/antigravity/{skills,global_workflows}/. Requires --cli antigravity + --scope global. (v26.67.0+)",
     )
-    .option("--with-gsd", "[Workflow] GSD orchestrator (for large projects)")
-    // === ECC Suite ===
-    .option("--with-ecc", "[ECC] ECC plugin (project-scoped)")
-    .option("--with-prune", "[ECC] Prune ECC items beyond curated 89 (implies --with-ecc)")
-    // === Dev Tools ===
-    .option("--with-tob", "[Dev Tools] Trail of Bits differential security review")
+    .option(
+      "--with-prune",
+      "[Behavior] Prune ECC items beyond curated 89 (use with --with ecc-plugin)",
+    )
     .option(
       "--with-karpathy-hook",
-      "[Dev Tools] karpathy-coder pre-commit hook (.claude/settings.json PreToolUse Write|Edit)",
+      "[Behavior] karpathy-coder pre-commit hook (.claude/settings.json PreToolUse Write|Edit)",
     )
     // === Misc ===
-    .option("--with-tauri", "[Misc] Tauri desktop rule (csr-*/full)")
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===
-    .example("install --track tooling --with-uzys-harness")
+    .example("install --track tooling --with uzys-harness")
     .example("install --track csr-supabase --cli claude --cli codex")
     .example("install --track csr-supabase --without netlify-cli --with railway-skills")
     .example("install --track full --no-codex-prompts")

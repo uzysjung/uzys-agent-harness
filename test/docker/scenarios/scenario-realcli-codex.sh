@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # B2 — 실 Codex CLI 가 harness project-scope 자산을 인식하는가 (Promise=Implementation).
 #
-# Tier A (hard assert): harness install --cli codex --with-uzys-harness 가
+# Tier A (hard assert): harness install --cli codex --with uzys-harness 가
 #   <proj>/.codex/prompts/uzys-*.md 6 file 을 정확히 write.
 # Tier B (evidence): 실 codex 가 prompt 를 어디서 탐색하는지 경험적 수집.
 #   - codex custom prompt = TUI slash command, source = $CODEX_HOME/prompts/ (공식 docs).
@@ -22,7 +22,7 @@ failed=0
 
 # ── Tier A: harness 가 project .codex/prompts/ 에 write ──────────────────
 echo "── Tier A: harness project-scope write ──"
-claude-harness install --track tooling --cli codex --with-uzys-harness --scope project >/tmp/install-codex.log 2>&1 \
+claude-harness install --track tooling --cli codex --with uzys-harness --scope project >/tmp/install-codex.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-codex.log; exit 1; }
 
 PROMPTS_DIR="${PROJ}/.codex/prompts"

@@ -7,7 +7,7 @@
  * Track 또는 옵션 조건이 충족되면 install pipeline에서 method를 호출.
  * 실패는 "warn-skip" — 종료 시 누락 자산 보고 (OQ1 결정).
  *
- * code-style 800줄 cap 예외: 본 파일은 ~85% 가 큐레이션 자산 카탈로그(41 entry × ~13줄)
+ * code-style 800줄 cap 예외: 본 파일은 ~85% 가 큐레이션 자산 카탈로그(43 entry × ~13줄)
  *   = 데이터. 로직(interface·condition 평가·shouldInstallAsset)은 소량. 데이터/로직 분리는
  *   별도 사이클(Phase R) 후보 — 현재는 카탈로그 단일 SSOT 가독성 우선. (v26.79.0 기준 802줄)
  */
@@ -32,15 +32,27 @@ export type ExternalAssetMethod =
   /** `npx <cmd>@<version> [args...]` — fire-and-forget 실행. v26.80.0 — version 필수 (위와 동일 근거). */
   | { kind: "npx-run"; cmd: string; version: string; args?: string[] }
   /** `bash <script> <args...>` — 로컬 스크립트 (예: prune-ecc.sh) */
-  | { kind: "shell-script"; script: string; args: string[] };
+  | { kind: "shell-script"; script: string; args: string[] }
+  /**
+   * v26.81.0 (ADR-022) — 내부 템플릿 자산. external-installer 가 spawn 하지 않음 —
+   * installer Phase 1 의 manifest/transform 게이팅이 `isAssetSelected(key)` 로 읽는다.
+   * (이전 OptionFlags.withTauri/withUzysHarness 자리. wizard/CLI 표면은 일반 자산과 동일)
+   */
+  | { kind: "internal"; key: "tauri-desktop" | "uzys-harness" };
 
 export type ExternalAssetCondition =
   /** Track 중 1개 이상이 set와 일치 */
   | { kind: "any-track"; tracks: Track[] }
   /** dev track (executive 외 모두) */
   | { kind: "has-dev-track" }
-  /** OptionFlags 의 특정 플래그 true */
-  | { kind: "option"; flag: keyof OptionFlags };
+  /** OptionFlags 의 특정 플래그 true (잔존 동작 옵션용 — ADR-022 후 자산 토글엔 사용 금지) */
+  | { kind: "option"; flag: keyof OptionFlags }
+  /**
+   * v26.81.0 (ADR-022) — 순수 opt-in: condition 매치 항상 false. wizard 체크 또는
+   * `--with <id>` 의 forceInclude 로만 설치. 이전의 자산 1:1 OptionFlags(`withBmad` 등
+   * 13종)를 대체 — 자산 추가 시 플래그 코드 0곳.
+   */
+  | { kind: "opt-in" };
 
 export interface ExternalAsset {
   /** 안정 식별자 — 로깅 + 누락 보고 + 테스트에서 사용 */
@@ -132,7 +144,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 41 외부 자산 매트릭스 (v26.78.0 Understanding 3종 추가). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 43 자산 매트릭스 (v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -198,6 +210,27 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
 
+  // === Internal template assets (v26.81.0, ADR-022 — 이전 OptionFlags.withTauri/withUzysHarness) ===
+  {
+    id: "tauri-desktop",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description: "Tauri desktop rule template (CSR/full tracks — manifest rule mapping)",
+    category: "frontend",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "tauri-desktop" },
+  },
+  {
+    id: "uzys-harness",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "uzys-harness 6-Gate workflow — /uzys:spec /plan /build /test /review /ship slash commands (+ Codex/Antigravity skills·workflows)",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "uzys-harness" },
+  },
+
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
   {
     id: "addy-agent-skills",
@@ -205,7 +238,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "addy agent-skills (general dev)",
     category: "workflow",
     source: "addyosmani",
-    condition: { kind: "option", flag: "withAddyAgentSkills" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "addyosmani/agent-skills",
@@ -222,7 +255,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "Superpowers — agentic skills framework (obra, Anthropic official marketplace)",
     category: "workflow",
     source: "obra",
-    condition: { kind: "option", flag: "withSuperpowers" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "anthropics/claude-plugins-official",
@@ -238,7 +271,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "wshobson agents — multi-agent orchestration workflows (full-stack/tdd/review)",
     category: "workflow",
     source: "wshobson",
-    condition: { kind: "option", flag: "withWshobsonAgents" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "wshobson/agents",
@@ -252,7 +285,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "OpenSpec — spec-driven brownfield delta workflow (propose → apply → archive)",
     category: "workflow",
     source: "fission-ai",
-    condition: { kind: "option", flag: "withOpenspec" },
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "@fission-ai/openspec", version: "1.4.1" },
   },
   {
@@ -263,7 +296,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "BMAD-METHOD — multi-agent agile workflow (PM/Architect/Dev, 12+ agents)",
     category: "workflow",
     source: "bmad-code-org",
-    condition: { kind: "option", flag: "withBmad" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "npx-run",
       cmd: "bmad-method",
@@ -376,7 +409,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       "Claude Video — /watch downloads any video, extracts frames + transcript so Claude can see + hear it (yt-dlp/ffmpeg auto on first run)",
     category: "understanding",
     source: "bradautomates",
-    condition: { kind: "option", flag: "withClaudeVideo" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "bradautomates/claude-video",
@@ -390,7 +423,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       "Understand Anything — multi-agent pipeline builds an interactive knowledge graph of your codebase (files/functions/deps) to explore + query",
     category: "understanding",
     source: "Lum1104",
-    condition: { kind: "option", flag: "withUnderstandAnything" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "Lum1104/Understand-Anything",
@@ -404,7 +437,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       "AgentMemory — persistent memory runtime; plugin auto-wires MCP (53 tools) + hooks + skills. Runtime server: npx @agentmemory/agentmemory",
     category: "understanding",
     source: "rohitg00",
-    condition: { kind: "option", flag: "withAgentmemory" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "rohitg00/agentmemory",
@@ -658,7 +691,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "GSD orchestrator (npx get-shit-done-cc)",
     category: "workflow",
     source: "get-shit-done-cc",
-    condition: { kind: "option", flag: "withGsd" },
+    condition: { kind: "opt-in" },
     method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.3" },
   },
   {
@@ -671,7 +704,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "Trail of Bits differential-review plugin (security-focused code review)",
     category: "dev-tools",
     source: "trailofbits",
-    condition: { kind: "option", flag: "withTob" },
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "trailofbits/skills",
@@ -684,7 +717,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "ECC — 60 agents · 230 skills · 75 commands. Affaan's hackathon package",
     category: "ecc-suite",
     source: "affaan-m",
-    condition: { kind: "option", flag: "withEcc" },
+    condition: { kind: "opt-in" },
     // v26.54.1 — upstream marketplace.json 의 name 은 "ecc" (plugin name 도 "ecc").
     // 기존 매핑 `everything-claude-code@everything-claude-code` 는 marketplace 가
     // 그 이름으로 등록되던 옛 버전 기준. fresh install 에서는 "Plugin not found" 발생.
@@ -777,7 +810,29 @@ function matchesCondition(
       return hasDevTrack(ctx.tracks);
     case "option":
       return ctx.options[cond.flag] === true;
+    case "opt-in":
+      // v26.81.0 (ADR-022) — 순수 opt-in: condition 으론 절대 설치 안 됨.
+      //   forceInclude(wizard 체크 / --with <id>)가 shouldInstallAsset 상위에서 처리.
+      return false;
   }
+}
+
+/**
+ * v26.81.0 (ADR-022) — spec 에서 특정 자산의 선택 여부 판정.
+ * 내부 자산(tauri-desktop/uzys-harness)의 manifest/transform 게이팅이 이전
+ * `spec.options.withTauri` 등 boolean 자리를 대체해 호출. (wizard 체크/--with 는
+ * forceInclude 로 들어오므로 shouldInstallAsset 가 그대로 판정)
+ */
+export function isAssetSelected(
+  assetId: string,
+  ctx: {
+    tracks: ReadonlyArray<Track>;
+    options: OptionFlags;
+    userOverride?: UserOverride;
+  },
+): boolean {
+  const asset = EXTERNAL_ASSETS.find((a) => a.id === assetId);
+  return asset ? shouldInstallAsset(asset, ctx) : false;
 }
 
 /**

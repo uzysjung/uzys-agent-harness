@@ -8,25 +8,11 @@ import type { InstallSpec, OptionFlags, Track } from "../src/types.js";
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
-  withTauri: false,
-  withGsd: false,
-  withEcc: false,
   withPrune: false,
-  withTob: false,
   withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
-  withAddyAgentSkills: false,
-  withUzysHarness: false,
-  withSuperpowers: false,
-
-  withWshobsonAgents: false,
-  withOpenspec: false,
-  withBmad: false,
-  withClaudeVideo: false,
-  withUnderstandAnything: false,
-  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 
@@ -147,8 +133,9 @@ describe("track-specific skills routing", () => {
 
   it("v26.58.0 — python-* skipped when withEcc=true (plugin 으로 갈음). ADR-019", () => {
     // C2 opt-out: plugin ON 시 cherry-pick skip.
+    // v26.81.0 (ADR-022) — withEcc flag → ecc-plugin 자산 선택 (isAssetSelected 통합 검증).
     const spec = buildSpec(["data"], projectDir);
-    spec.options = { ...spec.options, withEcc: true };
+    spec.userOverride = { forceInclude: ["ecc-plugin"], forceExclude: [] };
     runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
     expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(false);
@@ -223,8 +210,10 @@ describe("--with-tauri option", () => {
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
+        // v26.81.0 (ADR-022) — withTauri flag → tauri-desktop 내부 자산 선택.
         ...buildSpec(["csr-supabase"], projectDir),
-        options: { ...NO_OPTS, withTauri: true },
+        options: NO_OPTS,
+        userOverride: { forceInclude: ["tauri-desktop"], forceExclude: [] },
       },
     });
     expect(existsSync(join(projectDir, ".claude/rules/tauri.md"))).toBe(true);
@@ -237,7 +226,8 @@ describe("--with-tauri option", () => {
       projectDir,
       spec: {
         ...buildSpec(["data"], projectDir),
-        options: { ...NO_OPTS, withTauri: true },
+        options: NO_OPTS,
+        userOverride: { forceInclude: ["tauri-desktop"], forceExclude: [] },
       },
     });
     expect(existsSync(join(projectDir, ".claude/rules/tauri.md"))).toBe(false);
@@ -260,9 +250,10 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
+        // v26.81.0 (ADR-022) — withUzysHarness flag → uzys-harness 내부 자산 선택.
         ...baseSpec,
         cli: ["claude", "codex"],
-        options: { ...baseSpec.options, withUzysHarness: true },
+        userOverride: { forceInclude: ["uzys-harness"], forceExclude: [] },
       },
     });
     expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);

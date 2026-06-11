@@ -115,7 +115,12 @@ export function runExternalInstall(
   const harnessRoot = deps.harnessRoot ?? process.cwd();
   const projectDir = ctx.projectDir ?? process.cwd();
 
-  const applicable = filterApplicableAssets(assets, ctx);
+  // v26.81.0 (ADR-022) — internal 자산(tauri-desktop/uzys-harness)은 Phase 1 의
+  //   manifest/transform 이 설치 주체 — external(spawn) 단계에서 제외. Phase 1 의
+  //   templates 행으로 사용자에게 이미 가시화됨 (중복 보고 방지).
+  const applicable = filterApplicableAssets(assets, ctx).filter(
+    (a) => a.method.kind !== "internal",
+  );
   // v26.55.0 — Phase 2 grouped progress UX. 카테고리 순서로 정렬 → install.ts 의 onAssetStart
   // callback 이 category 변경 감지로 헤더 출력 가능. ADR-016.
   const sorted = [...applicable].sort((a, b) => {
@@ -209,6 +214,10 @@ function installOne(
       }
       return runSpawn(asset, ctx.spawn, "bash", [scriptPath, ...method.args], cwd);
     }
+    case "internal":
+      // v26.81.0 (ADR-022) — 도달 불가 (runExternalInstall 이 사전 필터). exhaustive switch
+      //   + 방어: 도달해도 spawn 없이 ok (Phase 1 manifest 가 실 설치 주체).
+      return { asset, ok: true, message: "internal template (installed by Phase 1 manifest)" };
   }
 }
 

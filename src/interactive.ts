@@ -33,40 +33,20 @@ export function splitInstallTargets(targets: ReadonlyArray<InstallTargetId>): {
 }
 
 /**
- * v26.46.0 — `withCodexPrompts` 는 interactive 옵션 list 에서 제거됨. cli=codex 선택 시
- * `runInteractive` 에서 자동 ON. 본 함수는 default false 로 시작.
+ * v26.46.0 — `withCodexPrompts` 는 interactive 옵션 list 에서 제거됨 (CLI 전용 opt-in).
+ * v26.81.0 (ADR-022) — 자산 1:1 boolean 13종 삭제 후 잔존 동작 옵션만 매핑.
+ *   wizard 의 자산 선택은 전부 `asset:<id>` → userOverride.forceInclude 경로.
  */
 export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFlags {
   const picked = new Set<keyof OptionFlags>(keys);
   return {
-    withTauri: picked.has("withTauri"),
-    withGsd: picked.has("withGsd"),
-    withEcc: picked.has("withEcc"),
     withPrune: picked.has("withPrune"),
-    withTob: picked.has("withTob"),
     withCodexSkills: picked.has("withCodexSkills"),
     withCodexTrust: picked.has("withCodexTrust"),
     withKarpathyHook: picked.has("withKarpathyHook"),
     withCodexPrompts: false,
-    withAddyAgentSkills: picked.has("withAddyAgentSkills"),
-    withUzysHarness: picked.has("withUzysHarness"),
-    withSuperpowers: picked.has("withSuperpowers"),
-    withWshobsonAgents: picked.has("withWshobsonAgents"),
-    withOpenspec: picked.has("withOpenspec"),
-    withBmad: picked.has("withBmad"),
-    withClaudeVideo: picked.has("withClaudeVideo"),
-    withUnderstandAnything: picked.has("withUnderstandAnything"),
-    withAgentmemory: picked.has("withAgentmemory"),
     withAntigravityGlobal: picked.has("withAntigravityGlobal"),
   };
-}
-
-/** Apply business rules to a flags object (e.g. --with-prune implies --with-ecc). */
-export function applyOptionRules(flags: OptionFlags): OptionFlags {
-  if (flags.withPrune && !flags.withEcc) {
-    return { ...flags, withEcc: true };
-  }
-  return flags;
 }
 
 export interface InteractiveDeps {
@@ -133,7 +113,7 @@ export async function runInteractive(
       mode = "update";
       const summary = formatSummary({
         tracks: state.tracks,
-        options: applyOptionRules(toOptionFlags([])),
+        options: toOptionFlags([]),
         cli: ["claude"],
         projectDir,
       });
@@ -148,7 +128,7 @@ export async function runInteractive(
         mode: "update",
         spec: {
           tracks: state.tracks,
-          options: applyOptionRules(toOptionFlags([])),
+          options: toOptionFlags([]),
           cli: ["claude"],
           projectDir,
         },
@@ -224,7 +204,7 @@ export async function runInteractive(
       // biome-ignore lint/style/noNonNullAssertion: same as above
       const finalCli = cli!;
       const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
-      const options = applyOptionRules(toOptionFlags(optionKeys));
+      const options = toOptionFlags(optionKeys);
       // v26.64.0 (ADR-020, BREAKING) — ADR-012/017 supersede. cli=codex 자동 default ON 폐기.
       // withCodexPrompts 는 사용자 명시 install target (목록 체크) 시에만 활성. 자동 ON 안 함.
       // scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts).

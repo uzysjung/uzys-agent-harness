@@ -36,7 +36,7 @@ mkdir -p "$DIR"
 echo "▸ harness project-scope 설치 (npx @uzysjung/claude-harness)"
 echo "  (~/.claude 글로벌 자산 미오염 — project-scope)"
 ( cd "$DIR" && npx -y @uzysjung/claude-harness install \
-    --track tooling --cli claude --with-uzys-harness --scope project )
+    --track tooling --cli claude --with uzys-harness --scope project )
 
 echo ""
 echo "✓ 셋업 완료. HITO 측정 RUN (별도 fresh 세션):"

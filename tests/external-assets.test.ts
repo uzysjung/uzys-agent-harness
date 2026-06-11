@@ -174,9 +174,9 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       marketplace: "rohitg00/agentmemory",
       pluginId: "agentmemory@agentmemory",
     });
-    // 3종은 opt-in (option flag). 기본 설치 아님.
+    // 3종은 opt-in. 기본 설치 아님 (v26.81.0 ADR-022 — option flag → opt-in condition).
     for (const id of ["claude-video", "understand-anything", "agentmemory"]) {
-      expect(byId(id)?.condition.kind).toBe("option");
+      expect(byId(id)?.condition.kind).toBe("opt-in");
     }
     // 전부 vetted (star≥1000).
     for (const id of ["claude-video", "understand-anything", "agentmemory"]) {
@@ -206,14 +206,17 @@ describe("shouldInstallAsset — track conditions", () => {
     );
   });
 
-  it("option flag conditions match flag=true only", () => {
+  // v26.81.0 (ADR-022) — flag 게이팅 → opt-in(forceInclude) 게이팅으로 의미 전환.
+  //   WHY: condition 만으론 절대 미설치(무단 설치 금지), --with <id>/wizard 체크로만 활성.
+  it("opt-in conditions never match by themselves — forceInclude only", () => {
     const ecc = EXTERNAL_ASSETS.find((a) => a.id === "ecc-plugin");
     if (!ecc) throw new Error("ecc-plugin missing");
     expect(shouldInstallAsset(ecc, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     expect(
       shouldInstallAsset(ecc, {
         tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withEcc: true },
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
       }),
     ).toBe(true);
   });
@@ -230,14 +233,15 @@ describe("shouldInstallAsset — track conditions", () => {
     ).toBe(true);
   });
 
-  it("Trail of Bits is gated on --with-tob", () => {
+  it("Trail of Bits is gated on `--with trailofbits-skills` (opt-in)", () => {
     const tob = EXTERNAL_ASSETS.find((a) => a.id === "trailofbits-skills");
     if (!tob) throw new Error("trailofbits missing");
     expect(shouldInstallAsset(tob, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     expect(
       shouldInstallAsset(tob, {
         tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withTob: true },
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["trailofbits-skills"], forceExclude: [] },
       }),
     ).toBe(true);
   });
@@ -255,14 +259,15 @@ describe("shouldInstallAsset — track conditions", () => {
     expect(tob.method.pluginId).toBe("differential-review@trailofbits");
   });
 
-  it("GSD orchestrator is gated on --with-gsd", () => {
+  it("GSD orchestrator is gated on `--with gsd-orchestrator` (opt-in)", () => {
     const gsd = EXTERNAL_ASSETS.find((a) => a.id === "gsd-orchestrator");
     if (!gsd) throw new Error("gsd missing");
     expect(shouldInstallAsset(gsd, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     expect(
       shouldInstallAsset(gsd, {
         tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withGsd: true },
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["gsd-orchestrator"], forceExclude: [] },
       }),
     ).toBe(true);
   });
@@ -280,22 +285,16 @@ describe("shouldInstallAsset — track conditions", () => {
       expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     }
 
-    // 각 옵션 플래그로만 활성
-    expect(
-      shouldInstallAsset(wshobson, {
-        tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withWshobsonAgents: true },
-      }),
-    ).toBe(true);
-    expect(
-      shouldInstallAsset(openspec, {
-        tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withOpenspec: true },
-      }),
-    ).toBe(true);
-    expect(
-      shouldInstallAsset(bmad, { tracks: ["tooling"], options: { ...NO_OPTIONS, withBmad: true } }),
-    ).toBe(true);
+    // v26.81.0 (ADR-022) — `--with <id>` (forceInclude) 로만 활성
+    for (const a of [wshobson, openspec, bmad]) {
+      expect(
+        shouldInstallAsset(a, {
+          tracks: ["tooling"],
+          options: NO_OPTIONS,
+          userOverride: { forceInclude: [a.id], forceExclude: [] },
+        }),
+      ).toBe(true);
+    }
 
     // 검증된 설치 메서드 (Promise=Impl — 변조 시 회귀 fail)
     expect(wshobson.method).toEqual({
@@ -368,10 +367,15 @@ describe("filterApplicableAssets", () => {
     expect(ids).toContain("anthropic-document-skills");
   });
 
-  it("option flags add to base track set", () => {
+  it("forceInclude (--with <id>) adds opt-in assets to base track set", () => {
+    // v26.81.0 (ADR-022) — 옵션 플래그 → forceInclude 의미 전환 (동일 의도: 기본셋 + opt-in 추가).
     const apps = filterApplicableAssets(EXTERNAL_ASSETS, {
       tracks: ["tooling"] as Track[],
-      options: { ...NO_OPTIONS, withEcc: true, withTob: true, withGsd: true },
+      options: NO_OPTIONS,
+      userOverride: {
+        forceInclude: ["ecc-plugin", "trailofbits-skills", "gsd-orchestrator"],
+        forceExclude: [],
+      },
     });
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("ecc-plugin");

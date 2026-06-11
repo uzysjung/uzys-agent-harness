@@ -18,25 +18,11 @@ function makeMock(fn: RunExternalFn): RunExternalFn & {
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
-  withTauri: false,
-  withGsd: false,
-  withEcc: false,
   withPrune: false,
-  withTob: false,
   withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
   withCodexPrompts: false,
-  withAddyAgentSkills: false,
-  withUzysHarness: false,
-  withSuperpowers: false,
-
-  withWshobsonAgents: false,
-  withOpenspec: false,
-  withBmad: false,
-  withClaudeVideo: false,
-  withUnderstandAnything: false,
-  withAgentmemory: false,
   withAntigravityGlobal: false,
 };
 
@@ -72,13 +58,17 @@ describe("runInstall — external assets integration", () => {
       runExternal,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: spec(["tooling"], { withEcc: true, withPrune: true }, projectDir),
+      spec: {
+        ...spec(["tooling"], { withPrune: true }, projectDir),
+        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
+      },
     });
     expect(runExternal).toHaveBeenCalledOnce();
     const [ctx] = runExternal.mock.calls[0] ?? [];
     expect(ctx?.tracks).toEqual(["tooling"]);
-    expect(ctx?.options.withEcc).toBe(true);
     expect(ctx?.options.withPrune).toBe(true);
+    // v26.81.0 (ADR-022) — 자산 선택은 userOverride 로 전파.
+    expect(ctx?.userOverride?.forceInclude).toEqual(["ecc-plugin"]);
     // Bug B (2026-06-07): 외부 설치기가 올바른 프로젝트에 착지하도록 projectDir 가 전달돼야 함.
     expect(ctx?.projectDir).toBe(projectDir);
   });
@@ -123,41 +113,25 @@ describe("runInstall — external assets integration", () => {
     expect(report.external?.attempted[0]?.asset.id).toBe("test-skill");
   });
 
-  it("propagates --with-ecc through to external installer ctx", () => {
+  // v26.81.0 (ADR-022) — 자산 opt-in 전파는 flag 가 아니라 userOverride(--with <id>).
+  //   WHY: ctx 에 forceInclude 가 안 실리면 외부 설치기가 opt-in 자산을 설치하지 못한다.
+  it("propagates --with <id> (userOverride) through to external installer ctx", () => {
     const runExternal = makeMock(() => EMPTY_REPORT);
     runInstall({
       runExternal,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: spec(["tooling"], { withEcc: true }, projectDir),
+      spec: {
+        ...spec(["csr-fastapi"], {}, projectDir),
+        userOverride: {
+          forceInclude: ["trailofbits-skills", "gsd-orchestrator"],
+          forceExclude: ["netlify-cli"],
+        },
+      },
     });
-    expect(runExternal.mock.calls[0]?.[0]?.options.withEcc).toBe(true);
-  });
-
-  it("propagates --with-tob through", () => {
-    const runExternal = makeMock(() => EMPTY_REPORT);
-    runInstall({
-      runExternal,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec(
-        ["csr-fastapi"],
-        { withTob: true, withCodexSkills: false, withCodexTrust: false },
-        projectDir,
-      ),
-    });
-    expect(runExternal.mock.calls[0]?.[0]?.options.withTob).toBe(true);
-  });
-
-  it("propagates --with-gsd through", () => {
-    const runExternal = makeMock(() => EMPTY_REPORT);
-    runInstall({
-      runExternal,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec(["executive"], { withGsd: true }, projectDir),
-    });
-    expect(runExternal.mock.calls[0]?.[0]?.options.withGsd).toBe(true);
+    const ctx = runExternal.mock.calls[0]?.[0];
+    expect(ctx?.userOverride?.forceInclude).toEqual(["trailofbits-skills", "gsd-orchestrator"]);
+    expect(ctx?.userOverride?.forceExclude).toEqual(["netlify-cli"]);
   });
 });
 

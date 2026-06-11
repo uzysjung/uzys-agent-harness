@@ -36,6 +36,25 @@ claude
 > /uzys:spec    # only if you checked "uzys-harness 6-Gate workflow" in step 3
 ```
 
+### Non-interactive install (CI / scripts / Docker)
+
+The wizard needs a TTY. For CI pipelines, onboarding scripts, or containers, use flags — the same path our own verification CI runs on:
+
+```bash
+npx -y @uzysjung/claude-harness install \
+  --track tooling --cli claude --scope project \
+  --with uzys-harness --with bmad-method
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--track <name>` | Track to install (repeatable) |
+| `--cli <target>` | `claude` / `codex` / `opencode` / `antigravity` (repeatable) |
+| `--scope <s>` | `project` (default) or `global` |
+| `--with <asset-id>` / `--without <asset-id>` | Add / remove any catalog asset by id (repeatable) — ids in the [compatibility matrix](docs/COMPATIBILITY.md) |
+
+> v26.81.0 (ADR-022): per-asset flags like `--with-bmad` were removed — `--with <asset-id>` is the single opt-in surface. Behavior flags (`--with-karpathy-hook`, `--with-codex-prompts`, `--with-antigravity-global`, `--with-prune`, …) remain.
+
 ---
 
 ## Tracks
@@ -169,7 +188,7 @@ Tiers **inform, never block** — you always review and choose what installs. Re
 
 ## 6-Gate workflow (only if you opt in)
 
-The 6-gate workflow is **off by default**. To enable it, check `uzys-harness 6-Gate workflow` at step 3 (or pass `--with-uzys-harness` for non-interactive install).
+The 6-gate workflow is **off by default**. To enable it, check `uzys-harness 6-Gate workflow` at step 3 (or pass `--with uzys-harness` for non-interactive install).
 
 ```
 /uzys:spec → /uzys:plan → /uzys:build → /uzys:test → /uzys:review → /uzys:ship

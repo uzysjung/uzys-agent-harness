@@ -220,7 +220,8 @@ describe("installAction", () => {
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     expect(captured?.options.withPrune).toBe(true);
-    expect(captured?.options.withEcc).toBe(true);
+    // v26.81.0 (ADR-022) — withEcc boolean 삭제. prune→ecc 결합은 installer 내부
+    //   (eccSelected = isAssetSelected("ecc-plugin") || withPrune) 로 이동.
   });
 
   it("logs backup path when pipeline returns one", () => {
@@ -251,25 +252,11 @@ describe("executeSpec", () => {
   const baseSpec: InstallSpec = {
     tracks: ["tooling"],
     options: {
-      withTauri: false,
-      withGsd: false,
-      withEcc: false,
       withPrune: false,
-      withTob: false,
       withCodexSkills: false,
       withCodexTrust: false,
       withKarpathyHook: false,
       withCodexPrompts: false,
-      withAddyAgentSkills: false,
-      withUzysHarness: false,
-      withSuperpowers: false,
-
-      withWshobsonAgents: false,
-      withOpenspec: false,
-      withBmad: false,
-      withClaudeVideo: false,
-      withUnderstandAnything: false,
-      withAgentmemory: false,
       withAntigravityGlobal: false,
     },
     cli: ["claude"],
@@ -534,37 +521,22 @@ describe("executeSpec", () => {
       {
         ...baseSpec,
         options: {
-          withTauri: true,
-          withGsd: true,
-          withEcc: true,
           withPrune: true,
-          withTob: true,
           withCodexSkills: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
+          withKarpathyHook: true,
           withCodexPrompts: false,
-          withAddyAgentSkills: false,
-          withUzysHarness: false,
-          withSuperpowers: false,
-
-          withWshobsonAgents: false,
-          withOpenspec: false,
-          withBmad: false,
-          withClaudeVideo: false,
-          withUnderstandAnything: false,
-          withAgentmemory: false,
           withAntigravityGlobal: false,
         },
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    // OPTIONS row contains all flag labels
+    // v26.81.0 (ADR-022) — OPTIONS row 는 잔존 동작 옵션만 (자산 flag 13종 삭제됨).
     const optsCall = log.mock.calls.find((args) =>
       typeof args[0] === "string" ? args[0].includes("OPTIONS") : false,
     );
-    expect(optsCall?.[0]).toContain("tauri");
-    expect(optsCall?.[0]).toContain("ecc");
-    expect(optsCall?.[0]).toContain("tob");
+    expect(optsCall?.[0]).toContain("prune");
+    expect(optsCall?.[0]).toContain("karpathy-hook");
   });
 
   it("renders Phase 2 (External Assets) when report.external has attempted entries", () => {
@@ -942,7 +914,7 @@ describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", 
       return fakeReport;
     });
     installAction(
-      { cli: ["codex"], track: ["tooling"], withUzysHarness: true, projectDir: "/p" },
+      { cli: ["codex"], track: ["tooling"], with: ["uzys-harness"], projectDir: "/p" },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     expect(captured?.options.withCodexPrompts).toBe(false);

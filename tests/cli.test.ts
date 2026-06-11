@@ -28,35 +28,52 @@ describe("buildCli", () => {
     expect(optionNames).toEqual(expect.arrayContaining(["cli", "track", "projectDir"]));
   });
 
-  it("registers all 5 with-* boolean options on install", () => {
+  it("registers behavior option flags + generic --with/--without on install", () => {
     const cli = buildCli();
     const installCmd = cli.commands.find((cmd) => cmd.name === "install");
     const optionNames = installCmd?.options.map((o) => o.name) ?? [];
+    // v26.81.0 (ADR-022) — 잔존 = 동작 옵션 + generic 자산 선택만.
     expect(optionNames).toEqual(
-      expect.arrayContaining(["withTauri", "withGsd", "withEcc", "withPrune", "withTob"]),
+      expect.arrayContaining([
+        "with",
+        "without",
+        "withPrune",
+        "withKarpathyHook",
+        "withCodexSkills",
+        "withCodexTrust",
+        "withCodexPrompts",
+        "withAntigravityGlobal",
+      ]),
     );
   });
 
-  it("registers the v26.75.0 workflow curation flags so non-interactive opt-in works", () => {
-    // 회귀 가드 (Promise=Impl): 이 3 flag 미등록 시 `--with-openspec` 등이 CAC
-    // `Unknown option` 으로 CLI 전체 크래시. wizard(interactive.ts:54-56)·spec 매핑은
-    // 존재하는데 비대화형 CLI 경로만 막혀 "설치 가능" 광고가 거짓이 됐었음 (v26.76.0 회귀).
+  it("v26.81.0 (ADR-022) — asset-coupled --with-* flags are GONE (재발 방지 가드)", () => {
+    // WHY: 자산 1:1 플래그는 자산 추가마다 프로덕션 8곳+테스트 10+파일 동기화를 강제했고
+    //   그 누락이 v26.76.0 거짓출하(미등록 크래시)의 원인. 자산 opt-in 은 generic
+    //   `--with <id>` 만. 아래 플래그가 다시 등록되면 ADR-022 위반 — fail.
     const cli = buildCli();
     const installCmd = cli.commands.find((cmd) => cmd.name === "install");
     const optionNames = installCmd?.options.map((o) => o.name) ?? [];
-    expect(optionNames).toEqual(
-      expect.arrayContaining(["withWshobsonAgents", "withOpenspec", "withBmad"]),
-    );
-  });
-
-  it("registers the v26.78.0 Understanding flags so non-interactive opt-in works", () => {
-    // 회귀 가드 (Bug A 교훈 재발 방지): claude-video/understand-anything/agentmemory CLI 플래그.
-    const cli = buildCli();
-    const installCmd = cli.commands.find((cmd) => cmd.name === "install");
-    const optionNames = installCmd?.options.map((o) => o.name) ?? [];
-    expect(optionNames).toEqual(
-      expect.arrayContaining(["withClaudeVideo", "withUnderstandAnything", "withAgentmemory"]),
-    );
+    const banned = [
+      "withTauri",
+      "withGsd",
+      "withEcc",
+      "withTob",
+      "withSuperpowers",
+      "withAddyAgentSkills",
+      "withWshobsonAgents",
+      "withOpenspec",
+      "withBmad",
+      "withClaudeVideo",
+      "withUnderstandAnything",
+      "withAgentmemory",
+      "withUzysHarness",
+    ];
+    for (const flag of banned) {
+      expect(optionNames, `asset-coupled flag "${flag}" must not be registered`).not.toContain(
+        flag,
+      );
+    }
   });
 
   it("registers an explicit empty default command (interactive placeholder)", () => {
@@ -81,25 +98,11 @@ describe("defaultAction", () => {
     const spec = {
       tracks: ["tooling"] as const,
       options: {
-        withTauri: false,
-        withGsd: false,
-        withEcc: false,
         withPrune: false,
-        withTob: false,
         withCodexSkills: false,
         withCodexTrust: false,
         withKarpathyHook: false,
         withCodexPrompts: false,
-        withAddyAgentSkills: false,
-        withUzysHarness: false,
-        withSuperpowers: false,
-
-        withWshobsonAgents: false,
-        withOpenspec: false,
-        withBmad: false,
-        withClaudeVideo: false,
-        withUnderstandAnything: false,
-        withAgentmemory: false,
         withAntigravityGlobal: false,
       },
       cli: ["claude"] as const,

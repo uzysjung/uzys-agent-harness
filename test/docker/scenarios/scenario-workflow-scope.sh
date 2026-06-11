@@ -25,7 +25,7 @@ echo ""
 echo "▸ claude-harness install --project-dir ${PROJ} (cwd=${NEUTRAL}) + 4 workflow opt-in"
 claude-harness install \
   --track tooling --project-dir "${PROJ}" \
-  --with-openspec --with-bmad --with-superpowers --with-wshobson-agents \
+  --with openspec --with bmad-method --with superpowers --with wshobson-agents \
   --cli claude --scope project 2>&1 | tail -25
 
 echo ""
