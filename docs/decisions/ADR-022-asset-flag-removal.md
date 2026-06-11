@@ -1,8 +1,8 @@
 # ADR-022: 자산-결합 CLI 플래그 13종 완전 삭제 + 내부 자산 모델 (`--with <id>` 일원화)
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-06-11
-- PR: #(TBD)
+- PR: #158 (사용자 승인 2026-06-11)
 - Supersedes: (없음 — ADR-014 UserOverride 모델의 확장 적용, ADR-016/018의 게이팅 의미는 유지하되 전달 수단 변경)
 
 ## Context
