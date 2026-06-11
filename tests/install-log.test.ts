@@ -68,7 +68,7 @@ describe("buildAssetEntries", () => {
     const asset = createMockAsset({
       id: "v",
       condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npm", pkg: "vercel" },
+      method: { kind: "npm", pkg: "vercel", version: "54.0.0" },
     });
     const entries = buildAssetEntries(
       { attempted: [mkResult(asset)], succeeded: 1, skipped: 0 },
@@ -118,7 +118,8 @@ describe("buildAssetEntries", () => {
     const npxRun = createMockAsset({
       id: "gsd",
       condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npx-run", cmd: "get-shit-done-cc@latest", args: ["--init"] },
+      // v26.80.0 — cmd 는 bare 이름 (version 은 별도 필드). detail 의 cmd 도 bare 로 기록.
+      method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.0", args: ["--init"] },
     });
     const shell = createMockAsset({
       id: "prune",
@@ -133,7 +134,7 @@ describe("buildAssetEntries", () => {
       { attempted: [mkResult(shell)], succeeded: 1, skipped: 0 },
       "project",
     );
-    expect(e1[0]?.detail).toEqual({ cmd: "get-shit-done-cc@latest", args: "--init" });
+    expect(e1[0]?.detail).toEqual({ cmd: "get-shit-done-cc", args: "--init" });
     expect(e2[0]?.detail).toEqual({ script: "scripts/prune-ecc.sh", args: "--yes" });
   });
 });

@@ -7,6 +7,7 @@
 #   ./test/docker/run.sh smoke                # smoke 만
 #   ./test/docker/run.sh project              # scenario-project (Phase 2 후 작동)
 #   ./test/docker/run.sh antigravity-render   # v26.78.1 R2 — --cli antigravity 출력 렌더
+#   ./test/docker/run.sh pinned-versions      # v26.80.0 P — npm/npx pinned 버전 실설치
 #   ./test/docker/run.sh all                  # 모든 시나리오 (Phase 3 후)
 
 set -euo pipefail
@@ -32,7 +33,7 @@ case "${1:-smoke}" in
   smoke)
     run_scenario smoke
     ;;
-  project|global|uninstall|antigravity-render)
+  project|global|uninstall|antigravity-render|pinned-versions)
     run_scenario "$1"
     ;;
   all)
@@ -41,9 +42,10 @@ case "${1:-smoke}" in
     run_scenario global
     run_scenario uninstall
     run_scenario antigravity-render
+    run_scenario pinned-versions
     ;;
   *)
-    echo "usage: $0 [smoke|project|global|uninstall|antigravity-render|all]" >&2
+    echo "usage: $0 [smoke|project|global|uninstall|antigravity-render|pinned-versions|all]" >&2
     exit 1
     ;;
 esac

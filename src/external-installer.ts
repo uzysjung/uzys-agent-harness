@@ -175,20 +175,29 @@ function installOne(
       return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
-    case "npm":
+    case "npm": {
       // v26.64.0 (ADR-020) — scope=project 시 devDep, scope=global 시 -g.
       // v26.68.0 — method.kind "npm-global" → "npm" rename (scope 분기와 무관 의미).
+      // v26.80.0 — pinned 버전 설치 (`pkg@version`). vetting 시점의 코드만 실행 (보안 wedge).
+      const pinned = `${method.pkg}@${method.version}`;
       return runSpawn(
         asset,
         ctx.spawn,
         "npm",
-        ctx.scope === "global"
-          ? ["install", "-g", method.pkg]
-          : ["install", "--save-dev", method.pkg],
+        ctx.scope === "global" ? ["install", "-g", pinned] : ["install", "--save-dev", pinned],
         cwd,
       );
+    }
     case "npx-run":
-      return runSpawn(asset, ctx.spawn, "npx", [method.cmd, ...(method.args ?? [])], cwd);
+      // v26.80.0 — pinned 버전 실행 (`cmd@version`). 이전 `cmd` 에 "@latest" 인라인이던 것을
+      //   구조 필드로 분리 (cmd 는 bare 이름 — drift override/라벨이 이름 그대로 사용).
+      return runSpawn(
+        asset,
+        ctx.spawn,
+        "npx",
+        [`${method.cmd}@${method.version}`, ...(method.args ?? [])],
+        cwd,
+      );
     case "shell-script": {
       const scriptPath = join(ctx.harnessRoot, method.script);
       if (!existsSync(scriptPath)) {

@@ -49,7 +49,7 @@ describe("detectVersion — npm asset version (v26.59.0; v26.79.0 coverage)", ()
     const asset = createMockAsset({
       id: "fake-pkg",
       condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "npm", pkg: "fake-pkg" },
+      method: { kind: "npm", pkg: "fake-pkg", version: "9.9.9" },
     });
 
     const results: AssetInstallResult[] = [];

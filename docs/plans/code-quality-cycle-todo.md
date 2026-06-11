@@ -28,10 +28,11 @@
 
 ## Phase P — 버전 pinning (v26.80.0, 보안 wedge)
 
-- [ ] P-1 `@latest`/버전 미지정 npm·npx-run 자산 전수 pin (Docker 로 pinned 버전 설치 검증)
-- [ ] P-2 회귀 테스트: npm/npx-run method 에 unpinned 금지 단언
-- [ ] P-3 COMPATIBILITY.md pinned 버전 + bump 정책(A2 audit 연동) + 잔여 리스크 명시
-- [ ] P-V `npm run ci` + Docker scenario-workflow-scope 재실행 → PR → 태그
+- [x] P-1 npm 5 + npx-run 2 자산 전수 pin — method 에 `version` **필수 필드**(컴파일러 강제), 설치 `pkg@version`. 버전은 Docker 에서 latest 실측(openspec 1.4.1/bmad 6.8.0/gsd 1.42.3/vercel 54.11.1/netlify 26.1.0/supabase 2.105.0/agent-browser 0.27.2)
+- [x] P-2 회귀 테스트: 전 npm/npx-run 정확 semver + 이름 인라인(@latest/@버전) 금지 단언
+- [x] P-3 COMPATIBILITY.md 표 pinned 버전 자동 표기(gen-compat) + §보안 ⑤ pinning 정책 + 잔여 리스크(plugin/skill pin 불가) 명시. install 라벨도 pinned 노출
+- [x] P-V Docker `scenario-pinned-versions`(신규, run.sh 등록) — 설치 버전 == pin 정확 일치 + _bmad 산출물 PASS. **계획 수정**: scenario-workflow-scope(real claude 필요) 대신 Phase P 변경 경로(npm/npx)만 검증하는 전용 경량 시나리오 — plugin/skill 은 코드 무변경
+- [ ] P-ship `npm run ci` → PR → 머지 동의 → 태그 v26.80.0 → `gh run watch` green
 
 ## Phase O — OptionFlags 폐기 (ADR-022, 사용자 승인 게이트)
 

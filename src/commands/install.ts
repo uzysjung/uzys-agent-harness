@@ -618,9 +618,10 @@ function formatAssetMeta(
     case "npm":
       // A2 (Promise audit) — ADR-020 후 npm 자산 default 는 `--save-dev`(project), `-g` 는 global scope 만.
       // 라벨에 "-g" 고정은 scope 거짓 표기 → scope-중립 "npm" 으로 정정.
-      return `npm · ${m.pkg}${v}`;
+      // v26.80.0 — pinned 버전 표기 (Transparent Defaults: 실행되는 정확한 버전 노출).
+      return `npm · ${m.pkg}@${m.version}`;
     case "npx-run":
-      return `npx · ${m.cmd}`;
+      return `npx · ${m.cmd}@${m.version}`;
     case "shell-script":
       return `bash · ${m.script}`;
   }

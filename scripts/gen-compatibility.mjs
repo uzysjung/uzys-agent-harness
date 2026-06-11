@@ -80,8 +80,9 @@ const CAT_ORDER = [
 function target(m) {
   if (m.kind === "plugin") return `\`${m.pluginId}\``;
   if (m.kind === "skill") return `\`${m.source.replace(/^https?:\/\/github\.com\//, "")}${m.skill ? " :: " + m.skill : ""}\``;
-  if (m.kind === "npm") return `\`${m.pkg}\` (npm)`;
-  if (m.kind === "npx-run") return `\`${m.cmd}\` (npx)`;
+  // v26.80.0 — pinned 버전 표기 (보안 wedge: 설치되는 정확한 버전 공개).
+  if (m.kind === "npm") return `\`${m.pkg}@${m.version}\` (npm)`;
+  if (m.kind === "npx-run") return `\`${m.cmd}@${m.version}\` (npx)`;
   if (m.kind === "shell-script") return `\`${m.script}\``;
   return "?";
 }
