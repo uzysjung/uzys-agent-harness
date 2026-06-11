@@ -108,14 +108,16 @@ v26.78.0 전체 리뷰 결과, **데이터 레이어(자산 매트릭스·tier·
 
 ---
 
-## Phase O — OptionFlags 점진 폐기 (P2a, ADR-022 필요 — **사용자 승인 게이트**)
+## Phase O — 자산-결합 플래그 완전 삭제 (ADR-022, **2026-06-11 사용자 결정으로 범위 확대**)
 
-**현황**: 19 boolean 중 11개가 자산 id 와 1:1 (withGsd/withEcc/withTob/withSuperpowers/withAddyAgentSkills/withWshobsonAgents/withOpenspec/withBmad/withClaudeVideo/withUnderstandAnything/withAgentmemory). 자산 1개 추가 = 프로덕션 ~8곳 + 테스트 10+ 파일 수정. 대체 메커니즘(`userOverride.forceInclude`, v26.47.0)은 이미 존재·테스트됨.
+**현황**: 19 boolean 중 11개가 자산 id 와 1:1 + 2개(withTauri/withUzysHarness)가 내부 템플릿 게이팅. 자산 1개 추가 = 프로덕션 ~8곳 + 테스트 10+ 파일 수정 (v26.76.0 거짓출하의 직접 원인). 대체 메커니즘(`userOverride.forceInclude` + generic `--with <id>`, v26.47.0)은 이미 존재 — wizard 는 이미 그 방식.
 
-- **O-1**: **즉시 규칙 (코드 변경 0)** — "신규 자산에 OptionFlags 추가 금지, `forceInclude` + generic `--with <asset-id>` 사용". 본 plan 머지로 발효.
-- **O-2**: ADR-022 작성 (Proposed) — 기존 11 flag 를 forceInclude alias 로 전환 + deprecation window. CLI surface 영향 → **Major CR, 사용자 결정 필수.**
-- **O-3**: ADR Accepted 후 구현. 실 행동 flag (withTauri/withUzysHarness/withKarpathyHook/withCodex*/withAntigravityGlobal/withPrune) 는 OptionFlags 유지.
-- **(독립 소형)** S3 정리: `interactive.ts:39-62` toOptionFlags / `commands/install.ts:221-244` spec build / `:773-792` formatOptions 를 `DEFAULT_OPTIONS` 키 순회로 collapse — ADR 없이 가능, Phase S 에 동승 가능.
+**사용자 결정 (2026-06-11, 원안 대비 3개 확대)**: ① alias 전환이 아니라 **완전 삭제** (외부 사용자 0 시기 + README 실측상 전용 플래그 광고 1개뿐 — 깨질 Promise 없음) ② withTauri/withUzysHarness 까지 **내부 자산 모델**(`kind: "internal"`, 카탈로그 entry)로 1회에 흡수 ③ README 에 비대화형(CI/스크립트) 설치 섹션 신설 (현재 누락).
+
+- **O-1** ✅: 신규 자산 OptionFlags 금지 — plan 머지(#153)로 발효됨.
+- **O-2**: ADR-022 작성 (`docs/decisions/ADR-022-asset-flag-removal.md`) — 전용 13 플래그 삭제 + 내부 자산 모델 + 문서 정합. **Accepted 머지가 구현 게이트.**
+- **O-3**: 구현 (v26.81.0, BREAKING): OptionFlags 19→6 (잔존 = withKarpathyHook/withPrune/D16 글로벌 4종), `selectedAssets` 파생으로 manifest/transform 게이팅 전환, VISIBLE_OPTION_DEFS 특례 제거, Docker 시나리오·CI 워크플로·USAGE 17곳·README 동기 갱신, 자산-결합 `--with-*` 재발 방지 테스트.
+- **(독립 소형)** S3 정리: toOptionFlags / spec build / formatOptions 의 키 순회 collapse — O-3 에서 자연 해소.
 
 ---
 
