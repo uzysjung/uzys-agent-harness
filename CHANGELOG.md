@@ -7,6 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.79.0] — 2026-06-11 (refactor: 카탈로그 SSOT — tier drift 구조적 차단)
+
+코드품질 사이클 Phase S. 자산 카탈로그의 "N곳 수동 동기화"를 **컴파일러/derivation 강제**로 전환. drift 를 불가능하게.
+
+### Change — Trust Tier 를 자산 entry 필수 필드로 (SSOT)
+
+별도 `TRUST_TIER` Record(id→tier 병렬 맵)는 누락(컴파일러 미검출) + stale(좀비 키, v26.76.0 content-creator 제거 전례) drift 가 가능했음 → `ExternalAsset.tier` **필수 필드**로 통합.
+
+- **누락은 컴파일 에러** (required 필드), **stale 은 구조적 불가능** (`TRUST_TIER` 는 `EXTERNAL_ASSETS.tier` 에서 derive).
+- 일방향 누락 테스트 → "id 유일 + derive 정합" 테스트로 교체 (실제 깨질 수 있는 불변식: 중복 id 시 derive 가 tier silent drop).
+- star snapshot 주석은 각 entry tier 라인에 보존.
+
+### Change — gen-compatibility 카테고리 drift 가드
+
+`scripts/gen-compatibility.mjs` 의 `CATEGORY_TITLE`/`CAT_ORDER` 하드코딩(주석 경고만 있던, v26.78.0 에서 1회 실패한 방식)에 **exhaustiveness 가드** 추가. `src/categories.ts` 의 `CATEGORIES` 를 SSOT 로 import → 누락 카테고리 시 gen 단계에서 throw (silent drop 차단). 문서용 짧은 제목/순서는 의도적으로 wizard 와 분리 유지.
+
+### Remove — 죽은 코드
+
+- `ExternalAsset.failureMode` + `ExternalInstallReport.aborted` + abort 분기 — 사용 자산 0 + 렌더러 미참조 (모든 실패는 warn-skip 로 수렴).
+- `EMPTY_USER_OVERRIDE` dead export (참조 0).
+
+### Add — 테스트
+
+- `external-installer-version.test.ts` — npm 자산 version 탐지(v26.59.0 기능, 그동안 테스트 0) 회귀 가드.
+
+> 비고: external-assets.ts 는 802줄로 800 cap 초과 유지 (tier inline 이 줄 추가). 데이터/로직 분리는 별도 사이클 후보 — 헤더에 cap 예외 사유 명시.
+
 ## [v26.78.1] — 2026-06-11 (fix: Surface Parity — 출하 거짓 광고 3건 hotfix)
 
 5축 코드리뷰(`docs/plans/code-quality-cycle-plan.md` Phase H) 결과, **렌더/UI 레이어가 데이터 레이어 대비 drift** 한 출하 버그 3건 fix. 신규 룰 `.claude/rules/no-false-ship.md` 의 첫 적용 사이클.

@@ -15,6 +15,9 @@ export function createMockAsset(
     description: overrides.id,
     category: "dev-tools",
     source: "uzys",
+    // v26.79.0 — tier 는 mock 라우팅 검증에 무관한 placeholder. 실 tier 검증은
+    //   tests/external-assets.test.ts (catalog) 가 수행. overrides 로 덮어쓰기 가능.
+    tier: "vetted",
     ...overrides,
   };
 }
