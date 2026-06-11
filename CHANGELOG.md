@@ -7,6 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.80.0] — 2026-06-11 (feat: 자산 버전 pinning — 보안 wedge 실체화)
+
+코드품질 사이클 Phase P. vetting 은 **시점 검증**인데 `@latest`/unpinned 는 **미래 코드 실행** — hijacked vetted repo 가 사용자에게 직행하는 supply-chain 구멍 (ADR-021 "지속 검증되는 큐레이션" 주장과 모순). 이를 봉합.
+
+### Change — npm/npx-run method 에 `version` 필수 필드
+
+- `{ kind: "npm", pkg, version }` / `{ kind: "npx-run", cmd, version, args? }` — **컴파일러가 누락 차단** (Phase S 와 동일 구조 강제 패턴). 설치는 `pkg@version` / `npx cmd@version`.
+- 7개 자산 pin (2026-06-11 Docker 실측 latest): openspec 1.4.1 · bmad-method 6.8.0 · get-shit-done-cc 1.42.3 · vercel 54.11.1 · netlify-cli 26.1.0 · supabase 2.105.0 · agent-browser 0.27.2.
+- `cmd` 는 bare 이름 (기존 `bmad-method@latest` 인라인 제거 — detectVersion/REPO_OVERRIDE 가 이름 그대로 사용).
+- 회귀 테스트: 전 npm/npx-run 자산 정확 semver + 이름 인라인 금지 단언.
+
+### Change — Transparent Defaults: pinned 버전 노출
+
+- install 라벨 `npm · vercel@54.11.1` / `npx · bmad-method@6.8.0` (실행되는 정확한 버전).
+- COMPATIBILITY.md 표에 pinned 버전 자동 표기 + §보안 근거 ⑤ pinning 정책: bump = A2 audit 주기 + Docker 검증. **잔여 리스크 정직 표기**: plugin/skill 메서드는 설치 CLI 가 버전 지정 미지원이라 pin 불가 — Trust Tier + upstream vetting 의존.
+
+### 검증
+
+- Docker `scenario-pinned-versions` (신규, run.sh 등록) — 격리 컨테이너 실설치: openspec 설치 버전 == 1.4.1 정확 일치 + bmad-method@6.8.0 실행 산출물(`_bmad`) + 라벨 pinned 표기. PASS.
+
 ## [v26.79.0] — 2026-06-11 (refactor: 카탈로그 SSOT — tier drift 구조적 차단)
 
 코드품질 사이클 Phase S. 자산 카탈로그의 "N곳 수동 동기화"를 **컴파일러/derivation 강제**로 전환. drift 를 불가능하게.

@@ -66,13 +66,13 @@ const TEST_ASSETS: ExternalAsset[] = [
     id: "npm-asset",
     description: "npm install -g",
     condition: { kind: "option", flag: "withEcc" },
-    method: { kind: "npm", pkg: "vercel" },
+    method: { kind: "npm", pkg: "vercel", version: "54.0.0" },
   }),
   createMockAsset({
     id: "npx-asset",
     description: "npx run",
     condition: { kind: "option", flag: "withGsd" },
-    method: { kind: "npx-run", cmd: "get-shit-done-cc@latest" },
+    method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.0" },
   }),
 ];
 
@@ -215,7 +215,8 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npm");
-    expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "--save-dev", "vercel"]);
+    // v26.80.0 — pinned 설치 (pkg@version). unpinned 는 vetting 시점과 다른 미래 코드 실행.
+    expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "--save-dev", "vercel@54.0.0"]);
   });
 
   it("npm-global produces npm install -g <pkg> when scope=global (opt-in)", () => {
@@ -230,7 +231,7 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npm");
-    expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "-g", "vercel"]);
+    expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "-g", "vercel@54.0.0"]);
   });
 
   // v26.64.0 (ADR-020) — scope=global 시 skills add -g flag 추가.
@@ -257,7 +258,7 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[4] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[0]).toBe("npx");
-    expect(spawn.mock.calls[0]?.[1]).toEqual(["get-shit-done-cc@latest"]);
+    expect(spawn.mock.calls[0]?.[1]).toEqual(["get-shit-done-cc@1.42.0"]);
   });
 });
 

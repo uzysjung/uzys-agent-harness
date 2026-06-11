@@ -21,10 +21,16 @@ export type ExternalAssetMethod =
   | { kind: "skill"; source: string; skill?: string }
   /** `claude plugin marketplace add <marketplace>` + `claude plugin install <pluginId>` */
   | { kind: "plugin"; marketplace: string; pluginId: string }
-  /** `npm install -g <pkg>` */
-  | { kind: "npm"; pkg: string }
-  /** `npx <cmd>` — fire-and-forget 실행 (예: GSD orchestrator) */
-  | { kind: "npx-run"; cmd: string; args?: string[] }
+  /**
+   * `npm install --save-dev <pkg>@<version>` (global scope 시 `-g`).
+   * v26.80.0 — `version` 필수 (pinning). vetting 은 시점 검증인데 unpinned 는 미래 코드
+   * 실행 = hijacked vetted repo 직행 구멍 (ADR-021 "지속 검증" 주장과 모순). pkg 는 bare
+   * 이름 유지 (detectVersion 이 `<npm root>/<pkg>/package.json` 경로로 사용). bump 정책:
+   * A2 자산 audit 주기에 Docker 검증 후 갱신 (docs/COMPATIBILITY.md §pinning).
+   */
+  | { kind: "npm"; pkg: string; version: string }
+  /** `npx <cmd>@<version> [args...]` — fire-and-forget 실행. v26.80.0 — version 필수 (위와 동일 근거). */
+  | { kind: "npx-run"; cmd: string; version: string; args?: string[] }
   /** `bash <script> <args...>` — 로컬 스크립트 (예: prune-ecc.sh) */
   | { kind: "shell-script"; script: string; args: string[] };
 
@@ -247,7 +253,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "workflow",
     source: "fission-ai",
     condition: { kind: "option", flag: "withOpenspec" },
-    method: { kind: "npm", pkg: "@fission-ai/openspec" },
+    method: { kind: "npm", pkg: "@fission-ai/openspec", version: "1.4.1" },
   },
   {
     // v26.75.0 (ADR-021) — 비대화형 install. v26.75.1: `--directory .` 누락 시 "Installation
@@ -260,7 +266,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "option", flag: "withBmad" },
     method: {
       kind: "npx-run",
-      cmd: "bmad-method@latest",
+      cmd: "bmad-method",
+      version: "6.8.0",
       args: ["install", "--directory", ".", "--tools", "claude-code", "--yes"],
     },
   },
@@ -292,7 +299,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "vercel",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm", pkg: "vercel" },
+    method: { kind: "npm", pkg: "vercel", version: "54.11.1" },
   },
   {
     id: "netlify-cli",
@@ -301,7 +308,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "netlify",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm", pkg: "netlify-cli" },
+    method: { kind: "npm", pkg: "netlify-cli", version: "26.1.0" },
   },
   {
     id: "supabase-cli",
@@ -310,7 +317,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm", pkg: "supabase" },
+    method: { kind: "npm", pkg: "supabase", version: "2.105.0" },
   },
 
   // === UI tracks (csr-*|ssr-*|full) ===
@@ -359,7 +366,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "understanding",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
-    method: { kind: "npm", pkg: "agent-browser" },
+    method: { kind: "npm", pkg: "agent-browser", version: "0.27.2" },
   },
   // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.
   {
@@ -648,11 +655,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "gsd-orchestrator",
     tier: "vetted", // gsd-build/get-shit-done 63k
-    description: "GSD orchestrator (npx get-shit-done-cc@latest)",
+    description: "GSD orchestrator (npx get-shit-done-cc)",
     category: "workflow",
     source: "get-shit-done-cc",
     condition: { kind: "option", flag: "withGsd" },
-    method: { kind: "npx-run", cmd: "get-shit-done-cc@latest" },
+    method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.3" },
   },
   {
     // v26.39.2 fix — marketplace name = "trailofbits" (NOT "trailofbits-skills") +

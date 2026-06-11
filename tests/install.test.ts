@@ -608,7 +608,7 @@ describe("executeSpec", () => {
               source: "uzys" as const,
               tier: "vetted" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
-              method: { kind: "npm", pkg: "vercel" } as const,
+              method: { kind: "npm", pkg: "vercel", version: "54.0.0" } as const,
             },
             ok: true,
           },
@@ -620,7 +620,7 @@ describe("executeSpec", () => {
               source: "uzys" as const,
               tier: "vetted" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
-              method: { kind: "npx-run", cmd: "gsd@latest" } as const,
+              method: { kind: "npx-run", cmd: "gsd", version: "1.0.0" } as const,
             },
             ok: true,
           },
@@ -657,8 +657,9 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("owner/repo · react"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("foo@ms"));
     // A2 — npm 라벨은 scope-중립 "npm · " (ADR-020 후 default project; "-g" 거짓 표기 제거).
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("npm · vercel"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("npx · gsd@latest"));
+    // v26.80.0 — 라벨에 pinned 버전 노출 (사용자가 실행되는 정확한 버전을 봄).
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("npm · vercel@54.0.0"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("npx · gsd@1.0.0"));
     // failed asset shows error message
     expect(log).toHaveBeenCalledWith(expect.stringContaining("script missing"));
     // v26.63.0 — unifiedSection "━━ External assets (N) ━━" (Phase 카운터 제거)

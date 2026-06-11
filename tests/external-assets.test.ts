@@ -32,6 +32,21 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
     }
   });
 
+  // v26.80.0 (Phase P — 보안 wedge): npm/npx-run 자산은 전부 정확 semver pin.
+  //   WHY: vetting 은 시점 검증인데 @latest/unpinned 는 미래 코드 실행 — hijacked vetted
+  //   repo 가 사용자에게 직행하는 구멍 (ADR-021 "지속 검증되는 큐레이션" 주장과 모순).
+  //   bump 는 A2 자산 audit 주기에 Docker 검증 후 (COMPATIBILITY.md §pinning).
+  it("npm/npx-run 자산은 전부 정확 semver pinned — @latest/range/이름 인라인 금지", () => {
+    for (const a of EXTERNAL_ASSETS) {
+      const m = a.method;
+      if (m.kind !== "npm" && m.kind !== "npx-run") continue;
+      expect(m.version, `${a.id} version 은 정확 semver`).toMatch(/^\d+\.\d+\.\d+$/);
+      // pkg/cmd 는 bare 이름 — "@latest"/"@1.2.3" 인라인 재발 금지 (scoped @scope/ 는 허용).
+      const name = m.kind === "npm" ? m.pkg : m.cmd;
+      expect(name, `${a.id} 이름에 버전 인라인 금지`).not.toMatch(/@(latest|next|\d)/);
+    }
+  });
+
   it("assetTrustTier — official / vetted / experimental 분류", () => {
     expect(assetTrustTier("anthropic-document-skills")).toBe("official"); // anthropics 공식
     expect(assetTrustTier("ecc-prune")).toBe("official"); // 하네스 자체
@@ -288,10 +303,12 @@ describe("shouldInstallAsset — track conditions", () => {
       marketplace: "wshobson/agents",
       pluginId: "full-stack-orchestration@claude-code-workflows",
     });
-    expect(openspec.method).toEqual({ kind: "npm", pkg: "@fission-ai/openspec" });
+    // v26.80.0 — version pinned (vetting 시점 코드만 실행). bump 는 A2 audit 주기 + Docker 검증.
+    expect(openspec.method).toEqual({ kind: "npm", pkg: "@fission-ai/openspec", version: "1.4.1" });
     expect(bmad.method).toEqual({
       kind: "npx-run",
-      cmd: "bmad-method@latest",
+      cmd: "bmad-method",
+      version: "6.8.0",
       // v26.75.1 — --directory . 필수(없으면 비대화형 hang, Docker realcli 검출)
       args: ["install", "--directory", ".", "--tools", "claude-code", "--yes"],
     });
