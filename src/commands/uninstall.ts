@@ -68,7 +68,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const installLog = readInstallLog(projectDir);
   if (!installLog) {
     err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
-    err(c.dim("       Was this project installed by claude-harness? Nothing to uninstall."));
+    err(c.dim("       Was this project installed by agent-harness? Nothing to uninstall."));
     exit(1);
     return;
   }
@@ -76,7 +76,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { reverseSteps, globalAdvisories } = planReverse(installLog, spawn, rm, projectDir);
 
   log("");
-  log(c.bold("uzys-claude-harness · uninstall"));
+  log(c.bold("uzys-agent-harness · uninstall"));
   log("");
   log(c.dim(`  installed: ${installLog.installedAt}`));
   log(c.dim(`  scope:     ${installLog.scope}`));

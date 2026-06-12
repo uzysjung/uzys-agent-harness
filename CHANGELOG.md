@@ -1,11 +1,23 @@
 # Changelog
 
-All notable changes to **uzys-claude-harness**.
+All notable changes to **uzys-agent-harness** (≤ v26.82.1: uzys-claude-harness).
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
+
+## [v26.83.0] — 2026-06-13 (feat!: rename — `@uzysjung/agent-harness` / bin `agent-harness`)
+
+### BREAKING CHANGE: 패키지·bin·repo 명칭 변경
+
+`@uzysjung/claude-harness` → **`@uzysjung/agent-harness`** · bin `claude-harness` → **`agent-harness`** · repo `uzys-claude-harness` → **`uzys-agent-harness`** (GitHub 구 URL 자동 리다이렉트).
+
+**근거 (사용자 결정 2026-06-13)**: 포지셔닝(ADR-021 — 4-CLI 큐레이터: Claude Code·Codex·OpenCode·Antigravity)과 이름("claude-")의 모순 해소. 외부 사용자 0·채택 채널 제출 전 = rename 비용 평생 최저점. 'claude' 검색 노출은 topics/description 으로 보존.
+
+- 구 npm 패키지는 deprecate 안내 게시 예정 (`npm deprecate` — 신 패키지 안내).
+- 현행 표면 전수 치환 (src/tests/scripts/test/templates/CI/README/USAGE/NORTH_STAR/kit). 역사 기록(CHANGELOG 과거 항목·ADR·research/evals/dogfood)은 당시 명칭 유지.
+- docker-only hook: 구명 잔존 바이너리 대비 신구 양쪽 차단 (hook 테스트 21케이스).
 
 ## [v26.82.1] — 2026-06-13 (fix: `--version` 거짓 보고 — VERSION 을 package.json derive 로)
 

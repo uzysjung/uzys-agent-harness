@@ -1,14 +1,14 @@
-# uzys-claude-harness
+# uzys-agent-harness
 
 **Claude Code · Codex · OpenCode · Antigravity 용 트랙 기반 에이전트 하네스.**
 
 스택 트랙 하나 고르면 **검증된** 스킬 · 플러그인 · 룰을 사용자가 직접 확인·선택해 프로젝트에 세팅한다. 디폴트 install 은 **project scope** — 명시적으로 선택하지 않는 한 글로벌 영역 미수정.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
-[![CI](https://github.com/uzysjung/uzys-claude-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-claude-harness/actions)
+[![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
+[![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
-![claude-harness 데모 — 검증된 AI 코딩 워크플로 원커맨드 설치](https://raw.githubusercontent.com/uzysjung/uzys-claude-harness/main/docs/assets/claude-harness-demo.gif)
+![agent-harness 데모 — 검증된 AI 코딩 워크플로 원커맨드 설치](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
 🇺🇸 [English](./README.md)
 
@@ -17,7 +17,7 @@
 ## 설치
 
 ```bash
-npx -y @uzysjung/claude-harness
+npx -y @uzysjung/agent-harness
 ```
 
 6-step interactive wizard 가 안내. flag 필요 없음.
@@ -204,7 +204,7 @@ Claude CLI 자체는 scope 와 무관하게 `~/.claude/plugins/cache/` 에 plugi
 ## Uninstall
 
 ```bash
-npx -y @uzysjung/claude-harness uninstall
+npx -y @uzysjung/agent-harness uninstall
 ```
 
 `.claude/.harness-install.json` (install 시 생성) 을 읽어 자동 reverse.
@@ -226,7 +226,7 @@ Flag:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  npx claude-harness                                      │
+│  npx agent-harness                                      │
 │         │                                                │
 │         ▼                                                │
 │  ┌─ 6-step wizard ──────────────────────────────────┐    │

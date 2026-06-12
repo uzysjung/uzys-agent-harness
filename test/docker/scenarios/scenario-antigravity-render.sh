@@ -20,7 +20,7 @@ mkdir -p "${PROJ}"
 cd "${PROJ}" || { echo "FAIL: cd ${PROJ}"; exit 1; }
 
 LOG=/tmp/agy-render.log
-claude-harness install --track tooling --cli antigravity --with uzys-harness --scope project \
+agent-harness install --track tooling --cli antigravity --with uzys-harness --scope project \
   >"${LOG}" 2>&1 || { echo "FAIL: install 실패"; cat "${LOG}"; exit 1; }
 
 failed=0

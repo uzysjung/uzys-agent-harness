@@ -32,7 +32,7 @@ echo ""
 
 # ── Tier A: harness project-scope write ──
 echo "── Tier A: harness project-scope write ──"
-claude-harness install --track tooling --cli antigravity --with uzys-harness --scope project >/tmp/install-agy.log 2>&1 \
+agent-harness install --track tooling --cli antigravity --with uzys-harness --scope project >/tmp/install-agy.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-agy.log; exit 1; }
 
 missing=0

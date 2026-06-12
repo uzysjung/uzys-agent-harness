@@ -22,7 +22,7 @@ failed=0
 
 # ── Tier A: harness 가 project .codex/prompts/ 에 write ──────────────────
 echo "── Tier A: harness project-scope write ──"
-claude-harness install --track tooling --cli codex --with uzys-harness --scope project >/tmp/install-codex.log 2>&1 \
+agent-harness install --track tooling --cli codex --with uzys-harness --scope project >/tmp/install-codex.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-codex.log; exit 1; }
 
 PROMPTS_DIR="${PROJ}/.codex/prompts"

@@ -16,7 +16,7 @@ name: install-matrix
 #
 # NOTE: `npx github:` 문서 명령 smoke 는 제거됨 — npm 10(Node 20/22 LTS)이 git-dep pack 시
 #   "GitFetcher requires an Arborist constructor" 로 실패(npm 버그, dist/prepare 무관). 근본 해결 =
-#   npm registry publish → `npx @uzysjung/claude-harness`. publish CR 에서 registry-install smoke 추가 예정.
+#   npm registry publish → `npx @uzysjung/agent-harness`. publish CR 에서 registry-install smoke 추가 예정.
 on:
   push:
     tags: ["v*"]
@@ -93,11 +93,11 @@ jobs:
             corepack prepare pnpm@9 --activate
             pnpm init >/dev/null 2>&1 || true
             pnpm add "$tarball"
-            pnpm exec claude-harness install --track tooling --project-dir "$proj"
+            pnpm exec agent-harness install --track tooling --project-dir "$proj"
           else
             npm init -y >/dev/null
             npm install "$tarball"
-            npx claude-harness install --track tooling --project-dir "$proj"
+            npx agent-harness install --track tooling --project-dir "$proj"
           fi
           echo "--- assert core files (First-Run Success — 수동 개입 0) ---"
           for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
@@ -130,7 +130,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           for track in tooling executive data; do
             proj="$(mktemp -d)"
-            npx claude-harness install --track "$track" --project-dir "$proj"
+            npx agent-harness install --track "$track" --project-dir "$proj"
             for f in .claude/CLAUDE.md .claude/.installed-tracks .mcp.json; do
               test -f "$proj/$f" || { echo "MISSING $track:$f"; exit 1; }
             done
@@ -155,7 +155,7 @@ jobs:
           tarball="$(ls ./*.tgz | head -1)"
           tarball="$(cd "$(dirname "$tarball")" && pwd)/$(basename "$tarball")"
           work="$(mktemp -d)"; cd "$work"; npm init -y >/dev/null; npm install "$tarball"
-          if npx claude-harness install --track NONEXISTENT-TRACK --project-dir "$(mktemp -d)"; then
+          if npx agent-harness install --track NONEXISTENT-TRACK --project-dir "$(mktemp -d)"; then
             echo "FAIL: unknown track should exit non-zero (게이트가 실패를 못 잡음)"
             exit 1
           fi

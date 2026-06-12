@@ -1,14 +1,14 @@
-# uzys-claude-harness
+# uzys-agent-harness
 
 **Track-based agent harness for Claude Code, Codex, OpenCode, and Antigravity.**
 
 Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules — you review and choose what installs — wired into your project. Project scope by default; no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
-[![CI](https://github.com/uzysjung/uzys-claude-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-claude-harness/actions)
+[![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
+[![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
-![claude-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-claude-harness/main/docs/assets/claude-harness-demo.gif)
+![agent-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -17,7 +17,7 @@ Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules �
 ## Install
 
 ```bash
-npx -y @uzysjung/claude-harness
+npx -y @uzysjung/agent-harness
 ```
 
 A 6-step interactive wizard guides everything. No flags needed.
@@ -43,7 +43,7 @@ claude
 The wizard needs a TTY. For CI pipelines, onboarding scripts, or containers, use flags — the same path our own verification CI runs on:
 
 ```bash
-npx -y @uzysjung/claude-harness install \
+npx -y @uzysjung/agent-harness install \
   --track tooling --cli claude --scope project \
   --with uzys-harness --with bmad-method
 ```
@@ -231,7 +231,7 @@ Claude CLI itself writes plugin cache under `~/.claude/plugins/cache/` regardles
 ## Uninstall
 
 ```bash
-npx -y @uzysjung/claude-harness uninstall
+npx -y @uzysjung/agent-harness uninstall
 ```
 
 Reads `.claude/.harness-install.json` (created during install) and reverses what was installed.
@@ -253,7 +253,7 @@ Flags:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  npx claude-harness                                      │
+│  npx agent-harness                                      │
 │         │                                                │
 │         ▼                                                │
 │  ┌─ 6-step wizard ──────────────────────────────────┐    │

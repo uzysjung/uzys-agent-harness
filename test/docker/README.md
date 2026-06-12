@@ -1,6 +1,6 @@
 # Docker Test Environment — v26.64.0
 
-격리된 Docker 컨테이너에서 `claude-harness` 의 install 동작을 검증한다. **사용자 PC 글로벌 (`~/.claude/`, `~/.codex/`, `~/.opencode/`, npm -g) 미오염** — host filesystem mount 없음.
+격리된 Docker 컨테이너에서 `agent-harness` 의 install 동작을 검증한다. **사용자 PC 글로벌 (`~/.claude/`, `~/.codex/`, `~/.opencode/`, npm -g) 미오염** — host filesystem mount 없음.
 
 ## 용도
 
@@ -56,7 +56,7 @@ snap_take /tmp/after
 snap_diff /tmp/before /tmp/after  # exit 0 = no change, exit 1 = changed
 ```
 
-`claude-harness` 자기 자신은 npm-g snapshot 에서 제외 (image 안 항상 깔려있음).
+`agent-harness` 자기 자신은 npm-g snapshot 에서 제외 (image 안 항상 깔려있음).
 
 ## 관련
 

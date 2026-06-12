@@ -1,4 +1,4 @@
-# uzys-claude-harness — North Star
+# uzys-agent-harness — North Star
 
 > 장기 방향성. PRD/SPEC이 "무엇을 어떻게"를 다루면, 본 문서는 **왜·어디로**를 다룬다.
 > 의사결정이 모호할 때 본 문서를 기준으로 우선순위를 판정한다.
@@ -38,7 +38,7 @@
 
 | Metric | 정의 | 목표 |
 |--------|------|------|
-| **Time-to-first-Build** | `npx -y github:.../uzys-claude-harness` 실행부터 첫 `/uzys:build` 완료까지 | **≤ 30분 (p90)** |
+| **Time-to-first-Build** | `npx -y github:.../uzys-agent-harness` 실행부터 첫 `/uzys:build` 완료까지 | **≤ 30분 (p90)** |
 | **First-Run Success Rate** | 첫 설치 시도가 사용자 수동 개입 (에러 fix / 누락 파일 / 의존성 추가 install) **0건**으로 종료 | **≥ 95%** |
 | **Promise = Implementation** | README/USAGE/SPEC에서 광고된 모든 자산 (skill / plugin / MCP / hook)이 실제 설치·작동 | **100%** (거짓 광고 0건) |
 | **Cross-CLI Parity** | Claude Code / Codex / OpenCode / Antigravity 4 CLI 동일 어휘 동등 작동률 (slash 호출 + hook 발화 + skill 인식) | **≥ 95%** |

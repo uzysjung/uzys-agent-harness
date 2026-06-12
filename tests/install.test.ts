@@ -740,7 +740,7 @@ describe("executeSpec", () => {
       resolveHarnessRoot: () => "/h",
       mode: "add",
     });
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("uzys-claude-harness · add"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("uzys-agent-harness · add"));
 
     executeSpec(baseSpec, {
       log,
@@ -749,7 +749,7 @@ describe("executeSpec", () => {
       resolveHarnessRoot: () => "/h",
       mode: "reinstall",
     });
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("uzys-claude-harness · reinstall"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("uzys-agent-harness · reinstall"));
   });
 
   it("renders Codex opt-in rows when codexOptIn report has skills + trust", () => {

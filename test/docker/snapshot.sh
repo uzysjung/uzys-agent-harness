@@ -13,11 +13,11 @@ set -euo pipefail
 
 snap_take() {
   local out_prefix="$1"
-  # claude-harness 자신은 npm -g 에 깔려있음 → diff 에서 제외 (자기 자신 변동 X 가 정상)
+  # agent-harness 자신은 npm -g 에 깔려있음 → diff 에서 제외 (자기 자신 변동 X 가 정상)
   find "${HOME}/.claude" "${HOME}/.codex" "${HOME}/.opencode" 2>/dev/null \
     | sort > "${out_prefix}-fs.txt" || true
   npm ls -g --depth=0 --parseable 2>/dev/null \
-    | grep -v "@uzysjung/claude-harness" \
+    | grep -v "@uzysjung/agent-harness" \
     | sort > "${out_prefix}-npm.txt" || true
 }
 

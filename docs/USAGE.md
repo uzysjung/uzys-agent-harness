@@ -1,6 +1,6 @@
 # Usage Guide
 
-Quick reference for using `uzys-claude-harness` after install.
+Quick reference for using `uzys-agent-harness` after install.
 
 For install instructions, see [README.md](../README.md).
 
@@ -74,7 +74,7 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 ## Uninstall (v26.64.0+)
 
 ```bash
-npx -y @uzysjung/claude-harness uninstall [--dry-run] [--keep-templates]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates]
 ```
 
 Reverses the install based on `.claude/.harness-install.json`.
@@ -90,7 +90,7 @@ Reverses the install based on `.claude/.harness-install.json`.
 For CI or scripted use:
 
 ```bash
-npx -y @uzysjung/claude-harness install --track <name>
+npx -y @uzysjung/agent-harness install --track <name>
 ```
 
 Common flags:
@@ -106,7 +106,7 @@ Common flags:
 | `--with ecc-plugin` | Install ECC plugin + cherry-pick |
 | `--with-codex-prompts` | Install Codex slash globally (requires `--cli codex`) |
 
-Full flag list: `claude-harness install --help`.
+Full flag list: `agent-harness install --help`.
 
 ### Interactive wizard (6-step)
 
@@ -140,7 +140,7 @@ Tiers inform; they never block — you choose what installs. Static labels (PRD 
 Pick more than one at step 2 (or pass `--cli` multiple times):
 
 ```bash
-npx claude-harness install --track tooling --cli claude --cli codex --cli opencode
+npx agent-harness install --track tooling --cli claude --cli codex --cli opencode
 ```
 
 Each CLI gets its own dispatcher file:
@@ -221,7 +221,7 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 ## Antigravity integration (v26.66.0+)
 
-Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-claude-harness writes:
+Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-agent-harness writes:
 
 - `.agents/rules/uzys-harness.md` — project context (full CLAUDE.md embedded, `/uzys:` → `/uzys-` renamed). **Always written** when `--cli antigravity` (the Antigravity equivalent of CLAUDE.md / AGENTS.md). v26.69.0+.
 - `.agents/skills/uzys-{phase}/SKILL.md` — Anthropic-format skills (shared with Codex; one file serves both CLIs).
