@@ -8,6 +8,8 @@ Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules �
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-claude-harness?label=version)](https://github.com/uzysjung/uzys-claude-harness/releases)
 [![CI](https://github.com/uzysjung/uzys-claude-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-claude-harness/actions)
 
+![claude-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-claude-harness/main/docs/assets/claude-harness-demo.gif)
+
 🇰🇷 [한국어](./README.ko.md)
 
 ---
