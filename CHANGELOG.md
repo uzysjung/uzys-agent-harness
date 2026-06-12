@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.82.1] — 2026-06-13 (fix: `--version` 거짓 보고 — VERSION 을 package.json derive 로)
+
+### Fixed
+
+- **v26.82.0 의 `--version` 이 26.81.0 을 출력** (거짓 표기): v26.82.0 ship 때 package.json 만 bump 되고 `src/cli.ts` 의 하드코딩 `VERSION` 상수가 갱신 누락. 발견 경로: C-2 데모 준비 중 컨테이너에서 `npx @uzysjung/claude-harness@26.82.0 --version` 실측.
+- **구조 fix**: 하드코딩 → `package.json` import derive (esbuild 가 빌드 시 값 인라인). "단일 버전" 주석(v26.72.1)으로는 못 막는다는 본 repo 3번째 증명 — 동기화 자체를 소멸. 회귀 테스트 `VERSION == package.json version` 추가 (674 tests).
+- no-false-ship 사례 표에 v26.82.0 추가.
+
 ## [v26.82.0] — 2026-06-11 (refactor: install 렌더 레이어 분리 + runInstall 블록 분해)
 
 코드품질 사이클 Phase R (마지막). 순수 리팩터 — **동작 변경 0** (673 tests 기대값 무수정 green). 사이클 배경: 지배적 결함 클래스가 "렌더/UI 레이어의 데이터 레이어 대비 drift" 였고, 그 온상이 비대해진 렌더 코드.
