@@ -1,10 +1,14 @@
 import { cac } from "cac";
+import packageJson from "../package.json";
 import { type ExecuteSpecDeps, executeSpec, registerInstallCommand } from "./commands/install.js";
 import { registerUninstallCommand } from "./commands/uninstall.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
-// v26.72.1 — CalVer 정합 (cli --version / package.json / git tag 단일 버전). publish.yml 가 태그에서 파생.
-export const VERSION = "26.81.0";
+// v26.72.1 — CalVer 정합 (cli --version / package.json / git tag 단일 버전).
+// v26.82.1 — 하드코딩 → package.json derive. v26.82.0 ship 때 package.json 만 bump 되고
+//   본 상수(26.81.0)가 남아 npm 게시 패키지가 --version 을 거짓 보고 (수동 동기화 주석은
+//   못 막는다는 본 repo 3번째 증명) → 빌드 시 esbuild 가 값 인라인, 동기화 자체를 소멸.
+export const VERSION: string = packageJson.version;
 
 export type Cli = ReturnType<typeof cac>;
 

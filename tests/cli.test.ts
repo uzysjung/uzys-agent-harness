@@ -13,6 +13,14 @@ describe("buildCli", () => {
     expect(VERSION).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
   });
 
+  it("VERSION == package.json version (v26.82.1 — 하드코딩 drift 재발 방지)", async () => {
+    // WHY: v26.82.0 ship 때 package.json 만 bump 되고 하드코딩 VERSION(26.81.0)이 남아
+    //   npm 게시 패키지가 --version 을 거짓 보고 (no-false-ship 위반 클래스).
+    //   derive + 본 단언으로 두 값의 분리 자체가 불가능함을 고정.
+    const pkg = (await import("../package.json")).default;
+    expect(VERSION).toBe(pkg.version);
+  });
+
   it("registers the install subcommand", () => {
     const cli = buildCli();
     const installCmd = cli.commands.find((cmd) => cmd.name === "install");

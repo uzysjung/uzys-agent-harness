@@ -7,6 +7,7 @@
 | v26.58~63 | silent drift — 광고 자산이 조용히 미설치 |
 | v26.76.0 | `--with-openspec` 등 CLI 플래그 미등록 → 광고한 설치 명령이 크래시 |
 | v26.78.0 | Understanding 카테고리 wizard 페이지 누락 → "wizard에서 선택" 보고는 거짓, agent-browser 무인지 설치. Docker 검증은 flag 경로만 수행 |
+| v26.82.0 | `--version` 거짓 보고 — package.json 만 bump, `cli.ts` 하드코딩 VERSION(26.81.0) 잔존. npm 게시 패키지가 자기 버전을 틀리게 출력. v26.82.1 에서 package.json derive 로 동기화 자체 소멸 |
 
 ## 절대 원칙
 
