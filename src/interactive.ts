@@ -1,6 +1,10 @@
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import type { InstallMode } from "./installer.js";
-import { recommendedExternalAssets } from "./preset-recommend.js";
+import {
+  finalSelectedAssets,
+  groupAssetsByCategory,
+  recommendedExternalAssets,
+} from "./preset-recommend.js";
 import {
   defaultPrompts,
   type InstallTargetId,
@@ -294,24 +298,11 @@ export function formatSummary(spec: InstallSpec): string {
   // v26.62.3 — 실제 install 될 자산 list 명시. defaults 만으로는 사용자가
   //   Step 3 에서 무엇을 confirm 했는지 알 수 없음. preset recommended +
   //   userOverride 적용 후 최종 selected assets list 표시.
-  const recommended = new Set(recommendedExternalAssets(spec.tracks));
-  if (spec.userOverride) {
-    for (const id of spec.userOverride.forceExclude) recommended.delete(id);
-    for (const id of spec.userOverride.forceInclude) recommended.add(id);
-  }
-  const finalAssets = [...recommended].sort();
+  // v26.82.0 (Phase R, S6) — merge/그룹화는 preset-recommend.ts 단일 구현 사용 (중복 제거).
+  const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
   if (finalAssets.length > 0) {
     lines.push(`Assets:    ${finalAssets.length} selected`);
-    // 가독성 위해 카테고리 별로 그룹화
-    const byCategory = new Map<string, string[]>();
-    for (const id of finalAssets) {
-      const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
-      const cat = asset?.category ?? "other";
-      const list = byCategory.get(cat) ?? [];
-      list.push(id);
-      byCategory.set(cat, list);
-    }
-    for (const [cat, ids] of byCategory) {
+    for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
       lines.push(`  · ${cat}: ${ids.join(", ")}`);
     }
   }

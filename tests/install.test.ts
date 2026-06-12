@@ -1087,43 +1087,43 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
 
 describe("v26.48.0 — install helpers (coverage 복구)", () => {
   it("formatCliPhaseTitle: claude only → 'CLI artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["claude"])).toBe("CLI artifacts");
   });
 
   it("formatCliPhaseTitle: codex only → 'Codex artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["codex"])).toBe("Codex artifacts");
   });
 
   it("formatCliPhaseTitle: opencode only → 'OpenCode artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["opencode"])).toBe("OpenCode artifacts");
   });
 
   it("formatCliPhaseTitle: codex + opencode → 'Codex + OpenCode artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["codex", "opencode"])).toBe("Codex + OpenCode artifacts");
   });
 
   // v26.78.1 (R2) — antigravity 누락 시 "CLI artifacts" generic 으로만 떠 invisible 했음.
   it("formatCliPhaseTitle: antigravity only → 'Antigravity artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["antigravity"])).toBe("Antigravity artifacts");
   });
 
   it("formatCliPhaseTitle: codex + antigravity → 'Codex + Antigravity artifacts'", async () => {
-    const { formatCliPhaseTitle } = await import("../src/commands/install.js");
+    const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["codex", "antigravity"])).toBe("Codex + Antigravity artifacts");
   });
 
   it("shortenPath: short path (≤50) returns as-is", async () => {
-    const { shortenPath } = await import("../src/commands/install.js");
+    const { shortenPath } = await import("../src/commands/install-render.js");
     expect(shortenPath("/tmp/short")).toBe("/tmp/short");
   });
 
   it("shortenPath: HOME prefix → '~/...'", async () => {
-    const { shortenPath } = await import("../src/commands/install.js");
+    const { shortenPath } = await import("../src/commands/install-render.js");
     const home = process.env.HOME ?? "";
     if (home) {
       const long = `${home}/very/deep/nested/path/that/exceeds/50/characters/threshold`;
@@ -1132,13 +1132,13 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
   });
 
   it("shortenPath: /private/tmp/ → /tmp/", async () => {
-    const { shortenPath } = await import("../src/commands/install.js");
+    const { shortenPath } = await import("../src/commands/install-render.js");
     const long = "/private/tmp/very/deep/nested/path/that/exceeds/50/characters";
     expect(shortenPath(long).startsWith("/tmp/")).toBe(true);
   });
 
   it("shortenPath: long path without HOME match → '…/last3'", async () => {
-    const { shortenPath } = await import("../src/commands/install.js");
+    const { shortenPath } = await import("../src/commands/install-render.js");
     const origHome = process.env.HOME;
     process.env.HOME = "/nowhere-impossible-prefix-for-test";
     try {
@@ -1151,7 +1151,7 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
   });
 
   it("shortenPath: long but ≤3 segments → unchanged (fallback)", async () => {
-    const { shortenPath } = await import("../src/commands/install.js");
+    const { shortenPath } = await import("../src/commands/install-render.js");
     const origHome = process.env.HOME;
     process.env.HOME = "/nowhere-impossible-prefix-for-test";
     try {
