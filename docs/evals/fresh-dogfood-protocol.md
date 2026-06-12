@@ -38,7 +38,7 @@ bash scripts/fresh-dogfood-setup.sh        # /tmp/uzys-dogfood-<date> 생성 + p
 ```bash
 DIR=$(mktemp -d -t uzys-dogfood)
 cd "$DIR" && git init -q
-npx -y @uzysjung/agent-harness install --track tooling --cli claude --with-uzys-harness --scope project
+npx -y @uzysjung/agent-harness install --track tooling --cli claude --with uzys-harness --scope project
 # → .claude/{commands/uzys,hooks,settings.json(hito-counter wire)}, CLAUDE.md 등 project-scope 설치
 ```
 
