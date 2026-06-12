@@ -34,10 +34,25 @@ echo "$CMD" | grep -qE 'DOCKER_VERIFY_ALLOW=1|CATALOG_VERIFY_ALLOW=1' && exit 0
 # --- 안전: 조회성 플래그는 실 설치 안 함 ---
 echo "$CMD" | grep -qE -- '--help|--version|(^| )-h( |$)' && exit 0
 
-# --- 차단(block) 패턴: 실 설치 트리거 ---
-DANGER='(\bclaude-harness\b|dist/index\.js|dist/cli\.js)[^|;&]*\binstall\b|claude[[:space:]]+plugin[[:space:]]+(install|marketplace[[:space:]]+add)|\bskills[[:space:]]+add\b|\bbmad-method\b|\bget-shit-done-cc\b|verify-catalog\.mjs'
+# --- v2 정밀화 (2026-06-13): 명령 "텍스트 전체" 가 아니라 "실행되는 부분"만 검사 ---
+# 배경: bare-word 매칭이 커밋 메시지(-m "...bmad-method...") / PR 본문 heredoc /
+#   grep 인자의 단순 언급에도 발화 (코드품질 사이클 중 over-blocking 4회+ 실측)
+#   → 단어 변형·문자열 조립 우회를 강요해 가드 신뢰를 깎음.
+# fix: ① 첫 heredoc marker(<<) 라인 이후 본문 drop ② 따옴표 구간 strip.
+# 한계: bash 완전 파싱 아님 — 본 hook 은 에이전트 "실수" 방지 가드다. 의도적 격리
+#   실행은 어차피 DOCKER_VERIFY_ALLOW=1 경로가 정답이므로 우회 방어는 목표가 아님.
+SCAN=$(printf '%s\n' "$CMD" | awk '{print} index($0,"<<"){exit}' \
+  | sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g')
 
-if echo "$CMD" | grep -qE "$DANGER"; then
+# --- 차단(block) 패턴: 실 설치 트리거 ---
+# ① 구조적 실행 패턴 — 해당 토큰 + install 류 동사 조합 자체가 실행 의도
+DANGER_EXEC='(\bclaude-harness\b|dist/index\.js|dist/cli\.js)[^|;&]*\binstall\b|claude[[:space:]]+plugin[[:space:]]+(install|marketplace[[:space:]]+add)|\bskills[[:space:]]+add\b'
+# ② 패키지/스크립트 이름 — 실행 형태(npx·node 인자 또는 명령 위치)일 때만.
+#   bare 언급(grep 인자 등)은 ① strip 을 통과해도 여기 안 걸림.
+# shellcheck disable=SC2016  # 리터럴 ERE — `(` 와 백틱은 명령 구분자 문자 클래스
+DANGER_RUN='npx[[:space:]][^|;&]*(bmad-method|get-shit-done-cc)\b|(^|[|;&`(])[[:space:]]*(bmad-method|get-shit-done-cc)\b|node[[:space:]][^|;&]*verify-catalog\.mjs|(^|[|;&`(])[[:space:]]*[^[:space:]]*verify-catalog\.mjs'
+
+if echo "$SCAN" | grep -qE "$DANGER_EXEC|$DANGER_RUN"; then
   echo "차단: 실 CLI 설치/검증은 Docker 격리 컨테이너에서만 실행 (호스트 글로벌 오염 방지)." >&2
   echo "  근거: CLAUDE.md 실환경 검증 원칙 — ~/.claude, ~/.codex, ~/.opencode, ~/.gemini, npm -g write 금지." >&2
   echo "  통과법: test/docker/ 시나리오 사용 또는 'docker run …' 래핑." >&2
