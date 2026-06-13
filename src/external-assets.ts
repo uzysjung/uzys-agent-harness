@@ -144,7 +144,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 43 자산 매트릭스 (v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 48 자산 매트릭스 (v26.85.0 Visual & Media 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -443,6 +443,70 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       marketplace: "rohitg00/agentmemory",
       pluginId: "agentmemory@agentmemory",
     },
+  },
+
+  // === Visual & Media (v26.85.0) — 코드-퍼스트 제작 자산. 전부 opt-in. ===
+  // Docker 실설치 검증 PASS (실 claude 2.1.177): plugin install / npx skills add resolve 확인.
+  {
+    id: "frontend-slides",
+    tier: "vetted", // zarazhangrui/frontend-slides 21k
+    description:
+      "frontend-slides — dependency-free HTML slide decks (presets · templates · PPTX→HTML · PDF export)",
+    category: "visual-media",
+    source: "zarazhangrui",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "zarazhangrui/frontend-slides",
+      pluginId: "frontend-slides@frontend-slides",
+    },
+  },
+  {
+    id: "marp-slide",
+    tier: "vetted", // softaworks/agent-toolkit 2k
+    description: "marp-slide — Marp Markdown slides (7 themes · PPTX/PDF export)",
+    category: "visual-media",
+    source: "softaworks",
+    // softaworks plugin dir 는 plugin.json 부재 → skill 경로가 안전 (Docker 검증).
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "softaworks/agent-toolkit", skill: "marp-slide" },
+  },
+  {
+    id: "mermaid-diagrams",
+    tier: "vetted", // softaworks/agent-toolkit 2k
+    description:
+      "mermaid-diagrams — Mermaid flow/sequence/ER/state diagram authoring (code · docs)",
+    category: "visual-media",
+    source: "softaworks",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "softaworks/agent-toolkit", skill: "mermaid-diagrams" },
+  },
+  {
+    id: "gsap-skills",
+    tier: "vetted", // greensock/gsap-skills 9k (GSAP 본가 공식)
+    description:
+      "GSAP skills — official GreenSock motion/scroll animation guide (8 skills: timeline · scrolltrigger · react)",
+    category: "visual-media",
+    source: "greensock",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "greensock/gsap-skills",
+      pluginId: "gsap-skills@gsap-skills",
+    },
+  },
+  {
+    // remotion: star 3.6k → vetted (star 기반 tier SSOT + trust-tier-drift CI 정합, 사용자 결정 2026-06-13).
+    //   코어 BUSL(Business Source License) — opt-in + description 고지로 신중 취급 (경고 배지 대신).
+    //   --skill 값 = remotion-best-practices (dir `remotion` ≠ frontmatter name, Docker 실측 확정).
+    id: "remotion",
+    tier: "vetted", // remotion-dev/skills 3.6k (license none — 출처 신뢰; 코어 BUSL 고지)
+    description:
+      "Remotion — programmatic MP4 video from React components (data-driven). Core license = BUSL",
+    category: "visual-media",
+    source: "remotion-dev",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "remotion-dev/skills", skill: "remotion-best-practices" },
   },
   {
     id: "architecture-decision-record",
