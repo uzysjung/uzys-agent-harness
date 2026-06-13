@@ -12,6 +12,7 @@
 | **M2 — 게시 실행 (Launch, 신규 코드작업 0)** | M1 게이트 통과 직후, 반자동(폼채움=에이전트 / 제출클릭=사용자) 으로 Show HN + r/ClaudeCode 게시 → 며칠 후 awesome-list 2곳 | Show HN 글 + r/ClaudeCode 글 게시 완료(사용자 제출 클릭) + 각 글 첫 24h 댓글 모니터링·초안(에이전트)→승인 후 응답 라이브. awesome-list 는 bradAGI R |
 | **M3 — 게시 후 30일 (Trust Receipts + 신호 반영)** | 0★ cold-start 에서 '검증 인프라=신뢰 대체재'를 사용자에게 보이게 만들고(영수증/SHA 기록), 게시 신호(이슈·반례)를 우선 반영. drift 자동 | (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOW |
 | **M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)** | North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 | (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex  |
+| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(48 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 48 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
 
 **즉시 착수(immediateNext):** M1-A: 공급망 hijack 차단 — README.md:256 · README.ko.md:229 · docs/USAGE.md:143 의 bare `npx agent-harness` 를 `npx -y @uzysjung/agent-harness` 로 교체 (unscoped `agent-harness` = npm 의 제3자 quuu@0.0.1 실행). 동시에 `grep -rn 'npx \(-y \)\?agent-harness[^@]' README* docs/` 가드를 catalog-verify CI 에 추가. critical·effort S·게시 1순위 파일 2곳 포함이라 다른 무엇보다 먼저.
 
@@ -96,6 +97,23 @@
 | P2 | S | WORKFLOWS '전부 MIT' vs license-none 자산 3종(vercel-labs 계열) — '대부분 MIT, 일부 명시 라이선스 없음·upstream 직접 fetch' 정정 + license 를 external-assets 정식 필드로 승격 | META-4 (medium) |
 | P2 | S | package.json keywords 추가(claude-code·codex·opencode·antigravity·ai-coding·cli·installer·curator 등) — npm organic 발견성 0 인 무료 레버, repo topics 와 정렬. 다음 patch publish 에 포함 | PROMO-7 (medium; M1 hotfix publish 에 끼워도 무방) |
 | P2 | M | low/백로그 일괄: detectVersion plugin 사전식 sort(CODE-7), external-assets.ts 800줄 cap 초과 분리(CODE-8/SCALE-7), 테스트 '41 distinct'→43 stale(SCALE-8), --track 에러 유효목록 미제시(UX-9), CHANGELOG 'SemVer' 헤더 vs CalVer 모순(META-7), 채널 dev.to/X 확장(PROMO-10) | CODE-7·CODE-8·SCALE-7·SCALE-8·UX-9·META-7·PROMO-10 (low 묶음) |
+
+---
+## M5 — 카탈로그 큐레이션 재검토 (Curation Audit)
+
+> 트리거: 사용자 지시 2026-06-13. 동인 = 자산은 한번 넣으면 관성으로 남는다 — "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만, North Star 기둥①) 철학의 능동 재검증. A2 star-drift CI 보완: CI=star 만, M5=용도/중복/1st-party/철학 정합까지.
+
+**목표:** 카탈로그(현 48 자산)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(48 전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
+
+**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 48 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
+
+| P | E | 항목 | 출처 |
+|---|---|------|------|
+| P2 | M | **축A — Visual & Media 확장 리서치**: 모션(현 GSAP 1)·동영상(현 Remotion 1)이 vetted 1개씩 → 추가 후보 재탐색(neighborhood 변화·star 성장). 화면녹화 용도(현 0, 캡처라 제외) 코드-제작형 신규 등장 재검토. 슬라이드/다이어그램 1st-party 프레임워크(Slidev·reveal 본가) 등장 시 교체. Docker 통과분만 등재. | 사용자 2026-06-13 |
+| P2 | L | **축B — 전체 카탈로그(48) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·next-skills 895·ADR 179) 승격 or 제거. | 사용자 2026-06-13 |
+| P3 | S | drop 후보 = Major CR(도달경로 변경)→사용자 결정+ADR. 제거 자산은 uninstall reverse·문서(COMPATIBILITY/WORKFLOWS) 동기화까지. | 사용자 2026-06-13 |
+
+> "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 5종 자체도 재평가 대상.
 
 ---
 ## 부록 A — 확정 발견 29건 (evidence·proposedFix)
