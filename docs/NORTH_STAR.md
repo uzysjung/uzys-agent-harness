@@ -42,7 +42,7 @@
 | **First-Run Success Rate** | 첫 설치 시도가 사용자 수동 개입 (에러 fix / 누락 파일 / 의존성 추가 install) **0건**으로 종료 | **≥ 95%** |
 | **Promise = Implementation** | README/USAGE/SPEC에서 광고된 모든 자산 (skill / plugin / MCP / hook)이 실제 설치·작동 | **100%** (거짓 광고 0건) |
 | **Cross-CLI Parity** | Claude Code / Codex / OpenCode / Antigravity 4 CLI 동일 어휘 동등 작동률 (slash 호출 + hook 발화 + skill 인식) | **≥ 95%** |
-| **Asset Security Pass Rate** | 큐레이션 자산(skill/plugin)이 보안 스캔(agentshield / prompt-injection)에서 CRITICAL/HIGH **0건** 통과 (ADR-021 차별화 축) | **100%** |
+| **Generated-config Security Pass Rate** | 하네스가 *생성*하는 `.claude/` 산출물이 `agentshield` 게이트에서 CRITICAL/HIGH **0건** (COMPATIBILITY.md §보안). 자산 repo *콘텐츠* 스캔은 미실행 — trust-tier(★≥1000+활성) + Docker install-verification 으로 보완, prompt-injection 콘텐츠 스캔은 로드맵 (ADR-021 차별화 축) | **100% (산출물)** |
 
 ### 측정 방법
 
@@ -52,7 +52,7 @@
 - First-Run Success: GitHub Issues + Discord/email 보고 + dogfood log
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
-- Asset Security: `agentshield` 자산 스캔 + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
+- Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
 
 ---
 

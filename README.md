@@ -1,8 +1,8 @@
 # uzys-agent-harness
 
-**One command curates 8 vetted AI-coding workflows — version-pinned and install-verified in Docker — and wires them into your project across Claude Code, Codex, OpenCode & Antigravity.**
+**Install only the AI-coding workflows your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity.**
 
-Built for the moment AI-coding marketplaces went from 1 to 8 and comparing skills started costing more time than using them. Pick a stack track, review the pre-checked recommendations, install only what you choose. **Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
+Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context. And the awesome-lists have too many options to wade through. `agent-harness` curates by **tech stack**: of the vetted options, you install only what this project actually calls for. **Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
@@ -292,6 +292,20 @@ Flags:
 │  │  (drives `uninstall`)                            │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
+```
+
+After install, a `tooling` + Claude project looks like:
+
+```
+your-project/
+├── .claude/
+│   ├── rules/          # coding conventions for your stack
+│   ├── agents/         # subagent definitions
+│   ├── commands/uzys/  # /uzys:* commands (only if you opted into uzys-harness)
+│   ├── hooks/          # gate / pre-commit hooks
+│   └── settings.json   # your existing one is backed up first
+├── CLAUDE.md           # merged instructions (yours backed up if it differed)
+└── .mcp.json           # MCP servers, merged with yours
 ```
 
 ---
