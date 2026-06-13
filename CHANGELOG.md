@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.84.0] — 2026-06-13 (fix: 전체 서비스 감사 M1 — 게시 전 진실 게이트)
+
+ultracode 7차원 감사(87 에이전트, 확정 29건)의 critical/high 코드·문서 fix. SSOT: `docs/plans/service-audit-roadmap.md`.
+
+### Security
+
+- **공급망 hijack 차단** (SUPPLY-1/UX-1, critical): 안내 문서의 scope 없는 `npx agent-harness`(→ 제3자 패키지 quuu@0.0.1 실행)를 `npx -y @uzysjung/agent-harness` 로 통일 (README×2 + USAGE) + CI grep 가드 `tests/docs-supply-chain`.
+- **백업 없는 덮어쓰기 fix** (SEC-1 critical / CODE-2 high): add·fresh 설치가 기존 `.claude/settings.json`(hook/statusLine)·root `CLAUDE.md` 를 무백업 덮어써 데이터 손실 → `backupFileIfChanged` 로 `*.backup-<ts>` 보존 + Phase1 fail-loud 노출.
+- **npx skills CLI 고정** (CODE-4/D-1): 설치·uninstall·verify-catalog 3경로 unpinned → `skills@1.5.11` pin + drift 텍스트 가드.
+- **SECURITY.md 신설** (META-2): GitHub Security Advisories private 신고 채널 + 하네스코드 vs 큐레이션자산 scope + 'vetted≠보안감사'.
+
+### Fixed
+
+- **삭제된 `--with-ecc` 광고 제거** (CODE-1): ADR-022 잔재 → `--with ecc-plugin` + render-hint parity 가드.
+- **NEXT dead-end 제거** (UX-2): 무조건 `claude → /uzys:spec` → uzys-harness opt-in·설치 CLI 결과로 분기.
+- **rename drift** (META-3): install.sh·CONTRIBUTING 구 repo명 → uzys-agent-harness.
+
+### Docs
+
+- `--help` 폐기 표기(UX-4: --with-codex-prompts default-ON·--scope 내부코드) + WORKFLOWS/USAGE(UX-5: withUzysHarness→uzys-harness, Understanding 카테고리) 정리.
+- 감사 로드맵 SSOT `docs/plans/service-audit-roadmap.md` (M1~M4).
+
 ## [v26.83.0] — 2026-06-13 (feat!: rename — `@uzysjung/agent-harness` / bin `agent-harness`)
 
 ### BREAKING CHANGE: 패키지·bin·repo 명칭 변경
