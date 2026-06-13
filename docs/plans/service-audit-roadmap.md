@@ -79,6 +79,7 @@
 | P2 | S | 비대화형 경로 fail-loud: --strict opt-in(skipped>0→exit 3) 또는 비대화형 기본 non-zero, USAGE 에 exit code 표 (CI/스크립트 소비자가 자산 skip 을 exit0 으로만 봄, uninstall 과 비대칭) | CODE-10 (medium) |
 | P2 | S | update 모드 confirm 이 설치 안 될 'Assets: N selected' 표시 — formatSummary 에 includeAssets:false 옵션 추가 (confirm 단계 Promise=Implementation) | CODE-6 (medium) |
 | P2 | M | 데모 재녹화/GIF 변환 자동화 scripts/record-demo.sh + 'README 임베드 GIF 의 .cast brand == 현 패키지명' pre-publish 가드 (drift 재발 구조 차단) | DEMO-5 (medium) |
+| P1 | M | **install `--dry-run` / 변경 diff 미리보기**: 설치 전 '무엇을 쓸지'(선택 자산 + settings.json·CLAUDE.md diff) 출력 후 확인 진행. uninstall `--dry-run` 과 대칭 — '쓰기 전 보여줘'로 신뢰 확보. | 페르소나 재리뷰 2026-06-13 (Priya·Sam) |
 
 ## M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)
 
