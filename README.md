@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run, re-checked by CI ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run, re-checked by CI ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -22,7 +22,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 npx -y @uzysjung/agent-harness
 ```
 
-A 6-step interactive wizard guides everything. No flags needed.
+A 6-step interactive wizard guides everything. No flags needed. **Safe on an existing project** — it backs up your `settings.json` / `CLAUDE.md` before any change (details below); nothing is deleted.
 
 ```
 Step 1/6  Tracks            ← pick your stack
@@ -59,6 +59,17 @@ npx -y @uzysjung/agent-harness install \
 
 > v26.81.0 (ADR-022): per-asset flags like `--with-bmad` were removed — `--with <asset-id>` is the single opt-in surface. Behavior flags (`--with-karpathy-hook`, `--with-codex-prompts`, `--with-antigravity-global`, `--with-prune`, …) remain.
 
+### What a track actually installs (example)
+
+Curation, not a list to browse — pick `csr-supabase` and step 3 pre-checks exactly these, nothing else (uncheck any before install):
+
+| Track | Pre-checked assets |
+|---|---|
+| `csr-supabase` | react-best-practices · shadcn-ui · web-design-guidelines · supabase-agent-skills · postgres-best-practices · supabase-cli |
+| `data` | polars · dask · python-resource-management · python-performance-optimization · anthropic-data-plugin |
+
+[Full per-track matrix ↓](#what-gets-installed-per-track) · or the [compatibility matrix](docs/COMPATIBILITY.md).
+
 ---
 
 ## Installing into an existing project
@@ -78,7 +89,7 @@ npx -y @uzysjung/agent-harness install \
 
 ## Tracks
 
-Pick one or more at step 1. Each track determines which skills/plugins/rules are pre-checked in step 3.
+A **track** is a preset bundle for your stack. Pick one or more at step 1; each track determines which skills/plugins/rules are pre-checked in step 3.
 
 ### Dev tracks
 
@@ -315,7 +326,7 @@ your-project/
 | CLI | Status |
 |---|---|
 | Claude Code | First class — all assets and hooks |
-| Codex (OpenAI) | Skills + `AGENTS.md`. Slash prompts `/uzys-*` work via global `~/.codex/prompts/` (opt-in); project `.codex/prompts/` is pre-positioned for upstream [#9848](https://github.com/openai/codex/issues/9848) (not active yet) |
+| Codex (OpenAI) | Skills + `AGENTS.md` rules for your stack. Global `/uzys-*` slash prompts (opt-in via `~/.codex/prompts/`); project-level prompts await upstream support ([#9848](https://github.com/openai/codex/issues/9848)) |
 | OpenCode | Skills + AGENTS.md integration |
 | Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` + `.agents/workflows/` (6-Gate opt-in). Global (opt-in via `--with-antigravity-global` + `--scope global`): `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` (v26.66.0+) |
 
