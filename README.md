@@ -1,14 +1,16 @@
 # uzys-agent-harness
 
-**Track-based agent harness for Claude Code, Codex, OpenCode, and Antigravity.**
+**One command curates 8 vetted AI-coding workflows — version-pinned and install-verified in Docker — and wires them into your project across Claude Code, Codex, OpenCode & Antigravity.**
 
-Pick a stack track. Get a curated set of **vetted** skills, plugins, and rules — you review and choose what installs — wired into your project. Project scope by default; no global pollution unless you ask.
+Built for the moment AI-coding marketplaces went from 1 to 8 and comparing skills started costing more time than using them. Pick a stack track, review the pre-checked recommendations, install only what you choose. **Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
 [![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
 ![agent-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
+
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run, re-checked by CI ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -56,6 +58,21 @@ npx -y @uzysjung/agent-harness install \
 | `--with <asset-id>` / `--without <asset-id>` | Add / remove any catalog asset by id (repeatable) — ids in the [compatibility matrix](docs/COMPATIBILITY.md) |
 
 > v26.81.0 (ADR-022): per-asset flags like `--with-bmad` were removed — `--with <asset-id>` is the single opt-in surface. Behavior flags (`--with-karpathy-hook`, `--with-codex-prompts`, `--with-antigravity-global`, `--with-prune`, …) remain.
+
+---
+
+## Installing into an existing project
+
+`agent-harness` never silently overwrites your config. Before replacing an **editable** file whose contents differ, it writes a timestamped backup next to it — and every backup path is printed in the install summary (`backup` rows). Nothing is deleted.
+
+| You already have… | What happens |
+|---|---|
+| `.claude/settings.json` with your own hooks / statusLine | Backed up to `settings.json.backup-<ts>` before update |
+| Root `CLAUDE.md` (yours differs from the generated one) | Backed up to `CLAUDE.md.backup-<ts>` before the merge write |
+| `.claude/` on `--reinstall` / `update` mode | The whole directory is renamed to `.claude.backup-<ts>` first |
+| `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
+
+> Fresh project? None of this triggers — backups only protect pre-existing files.
 
 ---
 
