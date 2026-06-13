@@ -23,7 +23,7 @@ mkdir -p "${PROJ}"
 snap_take /tmp/proj-global-before
 
 cd "${PROJ}"
-claude-harness install --track tooling --scope global
+agent-harness install --track tooling --scope global
 
 snap_take /tmp/proj-global-after
 

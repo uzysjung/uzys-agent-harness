@@ -24,7 +24,7 @@ mkdir -p "${PROJ}"
 snap_take /tmp/proj-scope-before
 
 cd "${PROJ}"
-claude-harness install --track tooling --scope project
+agent-harness install --track tooling --scope project
 
 snap_take /tmp/proj-scope-after
 

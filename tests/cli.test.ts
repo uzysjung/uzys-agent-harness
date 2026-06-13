@@ -6,7 +6,7 @@ import { isCliBase } from "../src/types.js";
 describe("buildCli", () => {
   it("returns a cac instance with the expected name", () => {
     const cli = buildCli();
-    expect(cli.name).toBe("claude-harness");
+    expect(cli.name).toBe("agent-harness");
   });
 
   it("exposes the current version string in semver shape", () => {

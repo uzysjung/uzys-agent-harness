@@ -60,7 +60,7 @@ export async function defaultAction(deps: DefaultActionDeps = {}): Promise<void>
 }
 
 export function buildCli(): Cli {
-  const cli = cac("claude-harness");
+  const cli = cac("agent-harness");
 
   cli.help();
   cli.version(VERSION);

@@ -22,8 +22,8 @@ ls -A "${HOME}/.codex" 2>/dev/null | sort > /tmp/codex-before.txt || true
 ls -A "${HOME}/.opencode" 2>/dev/null | sort > /tmp/opencode-before.txt || true
 
 echo ""
-echo "▸ claude-harness install --project-dir ${PROJ} (cwd=${NEUTRAL}) + 4 workflow opt-in"
-claude-harness install \
+echo "▸ agent-harness install --project-dir ${PROJ} (cwd=${NEUTRAL}) + 4 workflow opt-in"
+agent-harness install \
   --track tooling --project-dir "${PROJ}" \
   --with openspec --with bmad-method --with superpowers --with wshobson-agents \
   --cli claude --scope project 2>&1 | tail -25

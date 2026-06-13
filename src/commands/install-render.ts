@@ -58,12 +58,12 @@ export function renderInstallHeader(
 ): void {
   const headerLabel =
     mode === "update"
-      ? "uzys-claude-harness · update"
+      ? "uzys-agent-harness · update"
       : mode === "add"
-        ? "uzys-claude-harness · add"
+        ? "uzys-agent-harness · add"
         : mode === "reinstall"
-          ? "uzys-claude-harness · reinstall"
-          : "uzys-claude-harness · install";
+          ? "uzys-agent-harness · reinstall"
+          : "uzys-agent-harness · install";
   log("");
   log(sectionHeader(headerLabel));
   log("");

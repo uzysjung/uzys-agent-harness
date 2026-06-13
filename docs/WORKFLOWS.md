@@ -2,7 +2,7 @@
 
 > **갱신**: 2026-06-06 (v26.75.0, ADR-021) · **anchor**: [`NORTH_STAR.md`](NORTH_STAR.md) · **근거**: [`research/direction-research-2026-06-06.md`](research/direction-research-2026-06-06.md)
 >
-> claude-harness 의 본질 = **검증된(+보안) 워크플로/자산 큐레이터**. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해주고 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 동등 설치한다. 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
+> agent-harness 의 본질 = **검증된(+보안) 워크플로/자산 큐레이터**. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해주고 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 동등 설치한다. 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
 >
 > 마켓플레이스가 1개(2025-12)→8개(2026 Q2)로 늘며 **"skill 찾기보다 비교에 시간을 더 쓰는"** 과부하가 생겼다. 이 가이드가 그 비교를 대신한다.
 
@@ -10,7 +10,7 @@
 
 ## 한눈에 — 설치 가능 워크플로 (8)
 
-설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `claude-harness install --track <t> --with <id>`.
+설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `agent-harness install --track <t> --with <id>`.
 
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|

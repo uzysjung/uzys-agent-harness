@@ -90,11 +90,11 @@ export async function runInteractive(
       ok: false,
       reason: "no-tty",
       message:
-        "Interactive mode requires a TTY. Use `claude-harness install --track <name>` for non-interactive use.",
+        "Interactive mode requires a TTY. Use `agent-harness install --track <name>` for non-interactive use.",
     };
   }
 
-  prompts.intro("uzys-claude-harness installer");
+  prompts.intro("uzys-agent-harness installer");
   const state = detect(projectDir);
 
   let initialTracks: Track[] | undefined;

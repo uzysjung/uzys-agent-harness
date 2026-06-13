@@ -33,9 +33,9 @@ echo "▸ throwaway 프로젝트: $DIR"
 mkdir -p "$DIR"
 ( cd "$DIR" && git init -q )
 
-echo "▸ harness project-scope 설치 (npx @uzysjung/claude-harness)"
+echo "▸ harness project-scope 설치 (npx @uzysjung/agent-harness)"
 echo "  (~/.claude 글로벌 자산 미오염 — project-scope)"
-( cd "$DIR" && npx -y @uzysjung/claude-harness install \
+( cd "$DIR" && npx -y @uzysjung/agent-harness install \
     --track tooling --cli claude --with uzys-harness --scope project )
 
 echo ""

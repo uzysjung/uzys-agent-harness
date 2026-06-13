@@ -41,7 +41,10 @@ expect_allow() { # $1=설명 $2=command
 }
 
 echo "━━ block: 실 설치 트리거 (호스트 오염 가드 유지) ━━"
-expect_block "claude-harness install 직접 실행" \
+expect_block "agent-harness install 직접 실행" \
+  'agent-harness install --track tooling'
+# v26.83.0 rename 이전 bin — 잔존 글로벌 바이너리 실행 대비 구명도 차단 유지
+expect_block "claude-harness(구명) install 직접 실행" \
   'claude-harness install --track tooling'
 expect_block "dist CLI install 실행" \
   'node dist/index.js install --track tooling --cli claude'

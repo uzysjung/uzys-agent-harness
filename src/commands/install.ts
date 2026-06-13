@@ -107,7 +107,7 @@ export function specFromOptions(options: InstallOptions): RunInstallResult {
       warnings: parsed.warnings,
       // v26.56.0 (F6) — wizard 진입 안내. `install` subcommand 는 non-interactive.
       message:
-        "At least one --track is required (e.g. --track tooling)\n       Interactive wizard: run without subcommand → `claude-harness` (drop the `install` word)",
+        "At least one --track is required (e.g. --track tooling)\n       Interactive wizard: run without subcommand → `agent-harness` (drop the `install` word)",
     };
   }
   for (const t of trackInputs) {

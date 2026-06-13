@@ -2,7 +2,7 @@ name: publish
 
 # npm registry publish (v26.72.1, P2-NPM) — 태그 push 시 자동 publish.
 #   목적: `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 GitFetcher 버그로 실패 → registry publish 로
-#   `npx @uzysjung/claude-harness` 가 전 npm 버전 작동 (git-dep pack 미경유).
+#   `npx @uzysjung/agent-harness` 가 전 npm 버전 작동 (git-dep pack 미경유).
 #   version 은 태그에서 파생 (단일 CalVer 정합). 기존 ci / install-matrix 와 독립.
 #
 # 사전 조건: repo Settings > Secrets > Actions 에 NPM_TOKEN (npm automation token).
@@ -13,7 +13,7 @@ on:
 
 jobs:
   publish:
-    name: npm publish (@uzysjung/claude-harness)
+    name: npm publish (@uzysjung/agent-harness)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -37,4 +37,4 @@ jobs:
             exit 0
           fi
           npm publish --access public
-          echo "published: @uzysjung/claude-harness@${GITHUB_REF_NAME#v}"
+          echo "published: @uzysjung/agent-harness@${GITHUB_REF_NAME#v}"

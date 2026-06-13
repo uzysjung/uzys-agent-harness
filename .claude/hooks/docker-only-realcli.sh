@@ -45,8 +45,9 @@ SCAN=$(printf '%s\n' "$CMD" | awk '{print} index($0,"<<"){exit}' \
   | sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g')
 
 # --- 차단(block) 패턴: 실 설치 트리거 ---
-# ① 구조적 실행 패턴 — 해당 토큰 + install 류 동사 조합 자체가 실행 의도
-DANGER_EXEC='(\bclaude-harness\b|dist/index\.js|dist/cli\.js)[^|;&]*\binstall\b|claude[[:space:]]+plugin[[:space:]]+(install|marketplace[[:space:]]+add)|\bskills[[:space:]]+add\b'
+# ① 구조적 실행 패턴 — 해당 토큰 + install 류 동사 조합 자체가 실행 의도.
+#   v26.83.0 rename: agent-harness 가 현 bin — 구명 claude-harness 도 잔존 바이너리 대비 양쪽 차단.
+DANGER_EXEC='(\b(claude|agent)-harness\b|dist/index\.js|dist/cli\.js)[^|;&]*\binstall\b|claude[[:space:]]+plugin[[:space:]]+(install|marketplace[[:space:]]+add)|\bskills[[:space:]]+add\b'
 # ② 패키지/스크립트 이름 — 실행 형태(npx·node 인자 또는 명령 위치)일 때만.
 #   bare 언급(grep 인자 등)은 ① strip 을 통과해도 여기 안 걸림.
 # shellcheck disable=SC2016  # 리터럴 ERE — `(` 와 백틱은 명령 구분자 문자 클래스

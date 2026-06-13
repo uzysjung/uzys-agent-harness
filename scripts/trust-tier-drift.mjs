@@ -18,7 +18,7 @@ async function fetchRepo(repo) {
   const res = await fetch(`https://api.github.com/repos/${repo}`, {
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "uzys-claude-harness-trust-drift",
+      "User-Agent": "uzys-agent-harness-trust-drift",
       ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
     },
   });

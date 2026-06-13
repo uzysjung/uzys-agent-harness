@@ -19,7 +19,7 @@ mkdir -p "${PROJ}"
 cd "${PROJ}" || { echo "FAIL: cd"; exit 1; }
 
 LOG=/tmp/pin-install.log
-claude-harness install --track tooling --project-dir "${PROJ}" \
+agent-harness install --track tooling --project-dir "${PROJ}" \
   --with openspec --with bmad-method --cli claude --scope project >"${LOG}" 2>&1
 INSTALL_EXIT=$?
 

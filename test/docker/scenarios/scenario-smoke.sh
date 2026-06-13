@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test — Docker image build 후 claude-harness 명령 동작 확인.
+# Smoke test — Docker image build 후 agent-harness 명령 동작 확인.
 # v26.64.0 Phase 0 검증용. Phase 2 (--scope flag 구현) 후 본 시나리오 외에 scenario-project / -global / -uninstall 추가.
 
 set -euo pipefail
@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 # shellcheck disable=SC1091
 source ./snapshot.sh
 
-echo "▸ Step 1: claude-harness CLI 동작 확인"
-claude-harness --version
-claude-harness --help | head -20
+echo "▸ Step 1: agent-harness CLI 동작 확인"
+agent-harness --version
+agent-harness --help | head -20
 
 echo ""
 echo "▸ Step 2: mock CLI 동작 확인"

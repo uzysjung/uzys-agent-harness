@@ -18,7 +18,7 @@ rm -rf "${PROJ}"
 mkdir -p "${PROJ}"
 
 cd "${PROJ}"
-claude-harness install --track tooling --scope project >/dev/null
+agent-harness install --track tooling --scope project >/dev/null
 
 LOG="${PROJ}/.claude/.harness-install.json"
 if [[ ! -f "${LOG}" ]]; then
@@ -28,7 +28,7 @@ fi
 echo "✓ install completed, log present"
 
 # --dry-run 동작 확인 (실제 변경 없음)
-claude-harness uninstall --dry-run >/dev/null
+agent-harness uninstall --dry-run >/dev/null
 
 if [[ ! -d "${PROJ}/.claude" ]]; then
   echo "FAIL: --dry-run 인데 .claude/ 사라짐"
@@ -37,7 +37,7 @@ fi
 echo "✓ --dry-run 후 .claude/ 보존"
 
 # 실 uninstall
-claude-harness uninstall >/dev/null
+agent-harness uninstall >/dev/null
 
 if [[ -d "${PROJ}/.claude" ]]; then
   echo "FAIL: uninstall 후에도 .claude/ 남아있음"

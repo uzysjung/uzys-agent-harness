@@ -1,7 +1,7 @@
 {
-  "name": "@uzysjung/claude-harness",
-  "version": "26.82.1",
-  "description": "TypeScript CLI for uzys-claude-harness — install, update, and manage Claude Code / Codex CLI assets",
+  "name": "@uzysjung/agent-harness",
+  "version": "26.83.0",
+  "description": "One-command installer & curator of vetted, Docker-verified AI-coding workflows across Claude Code, Codex, OpenCode & Antigravity",
   "type": "module",
   "publishConfig": {
     "access": "public"
@@ -10,7 +10,7 @@
     "node": ">=20.0.0"
   },
   "bin": {
-    "claude-harness": "./dist/index.js"
+    "agent-harness": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -48,6 +48,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uzysjung/uzys-claude-harness.git"
+    "url": "git+https://github.com/uzysjung/uzys-agent-harness.git"
   }
 }
