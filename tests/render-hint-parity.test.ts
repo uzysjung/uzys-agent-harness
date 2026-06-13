@@ -25,9 +25,8 @@ describe("렌더 힌트 parity (audit CODE-1)", () => {
     // install-render.ts:521 의 'Use --with ecc-plugin ...' 안내.
     const advertised = "ecc-plugin";
     const ids = new Set(EXTERNAL_ASSETS.map((a) => a.id));
-    expect(
-      ids.has(advertised),
-      `렌더가 안내하는 '${advertised}' 가 EXTERNAL_ASSETS 에 없음`,
-    ).toBe(true);
+    expect(ids.has(advertised), `렌더가 안내하는 '${advertised}' 가 EXTERNAL_ASSETS 에 없음`).toBe(
+      true,
+    );
   });
 });

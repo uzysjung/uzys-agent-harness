@@ -372,11 +372,9 @@ export function registerInstallCommand(cli: Cli): void {
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })
-    .option(
-      "--scope <scope>",
-      "[Scope] Installation scope: project (default) | global",
-      { default: "project" },
-    )
+    .option("--scope <scope>", "[Scope] Installation scope: project (default) | global", {
+      default: "project",
+    })
     // === Asset selection (Phase C full, v26.47.0+) ===
     .option(
       "--with <asset-id>",

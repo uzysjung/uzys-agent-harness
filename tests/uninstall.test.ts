@@ -102,7 +102,12 @@ describe("uninstallAction", () => {
         rm: vi.fn(),
       },
     );
-    expect(spawn).toHaveBeenCalledWith("npx", [skillsCliSpec(), "remove", "anthropics/skills", "--yes"]);
+    expect(spawn).toHaveBeenCalledWith("npx", [
+      skillsCliSpec(),
+      "remove",
+      "anthropics/skills",
+      "--yes",
+    ]);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -139,7 +144,12 @@ describe("uninstallAction", () => {
       },
     );
     // skill: asset.id 로 fallback
-    expect(spawn).toHaveBeenCalledWith("npx", [skillsCliSpec(), "remove", "fallback-skill-id", "--yes"]);
+    expect(spawn).toHaveBeenCalledWith("npx", [
+      skillsCliSpec(),
+      "remove",
+      "fallback-skill-id",
+      "--yes",
+    ]);
     // npm-global: asset.id 로 fallback
     expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"]);
     rmSync(tmpDir, { recursive: true, force: true });
