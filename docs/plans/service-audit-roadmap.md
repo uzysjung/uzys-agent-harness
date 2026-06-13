@@ -121,17 +121,17 @@
 
 > 트리거: 사용자 지시 2026-06-13. PoC = 본 세션에서 게시 글을 상황 맞춤 페르소나 5명(Sonnet)으로 병렬 리뷰한 것이 유효 → uzys-harness 커맨드로 일반화. 6-Gate 의 review 심화 (단일 리뷰 → 다관점 패널).
 
-**목표:** `/uzys:panel` (가칭) — 리뷰 대상(코드/PR/글/문서)을 받아 (a) 상황에 맞는 사용자 관점 페르소나 N명 **동적 생성** + (b) 이미 설치된 정적 리뷰어 에이전트(`.claude/agents/*.md` — 보안/성능/품질 등 고정 렌즈) **자동 혼합** → 병렬 다면 리뷰 → 종합 판정. 출력에 `(uzys-agent-harness)` brand. 4-CLI 대응(claude slash / codex·opencode·antigravity 는 skills·workflows, 6-Gate 패턴).
+**목표:** `/uzys:panel` (가칭) — uzys-harness **필수 커맨드**(6-Gate review gate 와 함께 기본 제공, opt-out 아님 — 사용자 지시 2026-06-13 "필수에 넣어줘"). 리뷰 대상(코드/PR/글/문서)을 받아 (a) 상황에 맞는 사용자 관점 페르소나 N명 **동적 생성** + (b) 이미 설치된 정적 리뷰어 에이전트(`.claude/agents/*.md` — 보안/성능/품질 등 고정 렌즈) **자동 혼합** → 병렬 다면 리뷰 → 종합 판정. 출력에 `(uzys-agent-harness)` brand. 4-CLI 대응(claude slash / codex·opencode·antigravity 는 skills·workflows, 6-Gate 패턴).
 
 **완료 판정:** (1) claude `/uzys:panel` slash command(templates/) + 비-claude CLI 등가물. (2) 페르소나 동적 생성 = 대상 분석 → 관련 관점 자동 도출(사용자 추가/제외 가능). (3) `.claude/agents/*.md` 자동 탐지·혼합(없으면 페르소나만). (4) 카탈로그/문서 등록 + surface parity(wizard/--with/COMPATIBILITY). (5) 출력 헤더 `(uzys-agent-harness)` 표시. (6) SPEC 선행 + 테스트(페르소나 생성·혼합·종합 단위).
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
-| P2 | L | `/uzys:panel` 설계+구현: 페르소나 동적생성 + agent.md 혼합 + 병렬 다면리뷰 + 종합. 4-CLI 대응. `(uzys-agent-harness)` brand. **SPEC 선행**. | 사용자 2026-06-13 |
+| **P1** | L | `/uzys:panel` 설계+구현 (**필수 커맨드** — opt-out 아님): 페르소나 동적생성 + agent.md 혼합 + 병렬 다면리뷰 + 종합. 4-CLI 대응. `(uzys-agent-harness)` brand. **SPEC 선행**. | 사용자 2026-06-13 (필수) |
 | P3 | M | 페르소나 라이브러리(재사용 관점 템플릿: 회의적시니어/타겟유저/입문자/보안/비주류CLI 등) + 대상별 자동 선택 휴리스틱 | 사용자 2026-06-13 |
 | P3 | S | OQ — `/uzys:review`(기존 review gate)와 관계: panel 을 review 의 모드로 통합 vs 독립 커맨드. 설계 시 결정 | 설계 OQ |
 
-> "꼭 넣어줘"(사용자 2026-06-13). 본 세션 페르소나 리뷰가 검증된 PoC. 구현 = SPEC 후 순차. 미결: 커맨드명(/uzys:panel 잠정)·review 통합 여부.
+> **필수**(사용자 2026-06-13 "필수에 넣어줘") — uzys-harness 핵심 구성, opt-out 아님. 본 세션 페르소나 리뷰가 검증된 PoC. 구현 = SPEC 후 **우선**(immediateNext 후보). 미결: 커맨드명(/uzys:panel 잠정)·`/uzys:review` 통합 여부.
 
 ---
 ## 부록 A — 확정 발견 29건 (evidence·proposedFix)
