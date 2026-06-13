@@ -374,7 +374,7 @@ export function registerInstallCommand(cli: Cli): void {
     })
     .option(
       "--scope <scope>",
-      "[Scope] Installation scope: project (default) | global. ADR-020 / NORTH_STAR D16",
+      "[Scope] Installation scope: project (default) | global",
       { default: "project" },
     )
     // === Asset selection (Phase C full, v26.47.0+) ===
@@ -389,11 +389,11 @@ export function registerInstallCommand(cli: Cli): void {
     // === Codex global (v26.46.0+) ===
     .option(
       "--with-codex-prompts",
-      "[Codex] Unify Codex slash (~/.codex/prompts/uzys-*.md). v26.46.0+ default ON when --cli codex",
+      "[Codex] Unify Codex slash (~/.codex/prompts/uzys-*.md). Requires --cli codex. (v26.46.0+)",
     )
     .option(
       "--no-codex-prompts",
-      "[Codex] Disable Codex slash default ON (skip global copy even with --cli codex)",
+      "[Codex] Backward-compat noop — Codex slash is opt-in via --with-codex-prompts (v26.64.0 ADR-020)",
     )
     .option(
       "--with-codex-skills",
