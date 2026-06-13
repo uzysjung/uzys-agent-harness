@@ -518,7 +518,7 @@ function renderPhase1Rows(
     log(
       `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
     );
-    log(`  ${c.dim("·")} ${c.dim("Use --with-ecc to install ECC plugin instead")}`);
+    log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
   }
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));
