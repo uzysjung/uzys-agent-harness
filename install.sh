@@ -6,10 +6,10 @@
 # delegates to the TypeScript CLI bundled at the same git ref.
 #
 # Recommended invocation:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/uzysjung/uzys-claude-harness/main/install.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/install.sh)
 #
 # CI / scripted use should call npx directly:
-#   npx -y github:uzysjung/uzys-claude-harness#main install --track <track>
+#   npx -y github:uzysjung/uzys-agent-harness#main install --track <track>
 
 set -euo pipefail
 
@@ -28,4 +28,4 @@ if [ "${NODE_MAJOR}" -lt "${REQUIRED_NODE_MAJOR}" ]; then
 fi
 
 REF="${UZYS_CH_REF:-main}"
-exec npx -y "github:uzysjung/uzys-claude-harness#${REF}" "$@"
+exec npx -y "github:uzysjung/uzys-agent-harness#${REF}" "$@"

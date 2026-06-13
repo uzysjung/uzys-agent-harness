@@ -1,18 +1,18 @@
-# Contributing to uzys-claude-harness
+# Contributing to uzys-agent-harness
 
 Thanks for your interest. This project follows a minimal contribution model — small, surgical changes preferred over big refactors.
 
 ## Before you start
 
 1. Read [README.md](./README.md) and [docs/REFERENCE.md](./docs/REFERENCE.md)
-2. Check existing [issues](https://github.com/uzysjung/uzys-claude-harness/issues) and [tags](https://github.com/uzysjung/uzys-claude-harness/tags)
+2. Check existing [issues](https://github.com/uzysjung/uzys-agent-harness/issues) and [tags](https://github.com/uzysjung/uzys-agent-harness/tags)
 3. For non-trivial changes: open an issue first to discuss scope
 
 ## Development setup
 
 ```bash
-git clone https://github.com/uzysjung/uzys-claude-harness.git
-cd uzys-claude-harness
+git clone https://github.com/uzysjung/uzys-agent-harness.git
+cd uzys-agent-harness
 
 # Install on this repo itself (dogfooding)
 bash scripts/setup-harness.sh --track tooling --project-dir .
