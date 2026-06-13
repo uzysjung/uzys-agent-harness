@@ -13,6 +13,7 @@
 | **M3 — 게시 후 30일 (Trust Receipts + 신호 반영)** | 0★ cold-start 에서 '검증 인프라=신뢰 대체재'를 사용자에게 보이게 만들고(영수증/SHA 기록), 게시 신호(이슈·반례)를 우선 반영. drift 자동 | (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOW |
 | **M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)** | North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 | (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex  |
 | **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(48 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 48 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
+| **M6 — 다면 페르소나 리뷰 커맨드 (`/uzys:panel`)** | 상황 맞춤 페르소나 동적생성 + 기존 리뷰어 에이전트(`.claude/agents/*.md`) 혼합 → 병렬 다면 리뷰. uzys-harness 6-Gate review 심화. PoC=본 세션 게시글 5-페르소나 리뷰. | (1) 4-CLI 커맨드(claude slash + 비-claude 등가) (2) 페르소나 동적생성+agent.md 자동혼합 (3) `(uzys-agent-harness)` brand + surface parity. SPEC 선행 |
 
 **즉시 착수(immediateNext):** M1-A: 공급망 hijack 차단 — README.md:256 · README.ko.md:229 · docs/USAGE.md:143 의 bare `npx agent-harness` 를 `npx -y @uzysjung/agent-harness` 로 교체 (unscoped `agent-harness` = npm 의 제3자 quuu@0.0.1 실행). 동시에 `grep -rn 'npx \(-y \)\?agent-harness[^@]' README* docs/` 가드를 catalog-verify CI 에 추가. critical·effort S·게시 1순위 파일 2곳 포함이라 다른 무엇보다 먼저.
 
@@ -114,6 +115,23 @@
 | P3 | S | drop 후보 = Major CR(도달경로 변경)→사용자 결정+ADR. 제거 자산은 uninstall reverse·문서(COMPATIBILITY/WORKFLOWS) 동기화까지. | 사용자 2026-06-13 |
 
 > "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 5종 자체도 재평가 대상.
+
+---
+## M6 — 다면 페르소나 리뷰 커맨드 (Multi-Perspective Review)
+
+> 트리거: 사용자 지시 2026-06-13. PoC = 본 세션에서 게시 글을 상황 맞춤 페르소나 5명(Sonnet)으로 병렬 리뷰한 것이 유효 → uzys-harness 커맨드로 일반화. 6-Gate 의 review 심화 (단일 리뷰 → 다관점 패널).
+
+**목표:** `/uzys:panel` (가칭) — 리뷰 대상(코드/PR/글/문서)을 받아 (a) 상황에 맞는 사용자 관점 페르소나 N명 **동적 생성** + (b) 이미 설치된 정적 리뷰어 에이전트(`.claude/agents/*.md` — 보안/성능/품질 등 고정 렌즈) **자동 혼합** → 병렬 다면 리뷰 → 종합 판정. 출력에 `(uzys-agent-harness)` brand. 4-CLI 대응(claude slash / codex·opencode·antigravity 는 skills·workflows, 6-Gate 패턴).
+
+**완료 판정:** (1) claude `/uzys:panel` slash command(templates/) + 비-claude CLI 등가물. (2) 페르소나 동적 생성 = 대상 분석 → 관련 관점 자동 도출(사용자 추가/제외 가능). (3) `.claude/agents/*.md` 자동 탐지·혼합(없으면 페르소나만). (4) 카탈로그/문서 등록 + surface parity(wizard/--with/COMPATIBILITY). (5) 출력 헤더 `(uzys-agent-harness)` 표시. (6) SPEC 선행 + 테스트(페르소나 생성·혼합·종합 단위).
+
+| P | E | 항목 | 출처 |
+|---|---|------|------|
+| P2 | L | `/uzys:panel` 설계+구현: 페르소나 동적생성 + agent.md 혼합 + 병렬 다면리뷰 + 종합. 4-CLI 대응. `(uzys-agent-harness)` brand. **SPEC 선행**. | 사용자 2026-06-13 |
+| P3 | M | 페르소나 라이브러리(재사용 관점 템플릿: 회의적시니어/타겟유저/입문자/보안/비주류CLI 등) + 대상별 자동 선택 휴리스틱 | 사용자 2026-06-13 |
+| P3 | S | OQ — `/uzys:review`(기존 review gate)와 관계: panel 을 review 의 모드로 통합 vs 독립 커맨드. 설계 시 결정 | 설계 OQ |
+
+> "꼭 넣어줘"(사용자 2026-06-13). 본 세션 페르소나 리뷰가 검증된 PoC. 구현 = SPEC 후 순차. 미결: 커맨드명(/uzys:panel 잠정)·review 통합 여부.
 
 ---
 ## 부록 A — 확정 발견 29건 (evidence·proposedFix)
