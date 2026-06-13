@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
+import { skillsCliSpec } from "../src/external-installer.js";
 import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
 
 function ok(): SpawnSyncReturns<string> {
@@ -101,7 +102,7 @@ describe("uninstallAction", () => {
         rm: vi.fn(),
       },
     );
-    expect(spawn).toHaveBeenCalledWith("npx", ["skills", "remove", "anthropics/skills", "--yes"]);
+    expect(spawn).toHaveBeenCalledWith("npx", [skillsCliSpec(), "remove", "anthropics/skills", "--yes"]);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -138,7 +139,7 @@ describe("uninstallAction", () => {
       },
     );
     // skill: asset.id 로 fallback
-    expect(spawn).toHaveBeenCalledWith("npx", ["skills", "remove", "fallback-skill-id", "--yes"]);
+    expect(spawn).toHaveBeenCalledWith("npx", [skillsCliSpec(), "remove", "fallback-skill-id", "--yes"]);
     // npm-global: asset.id 로 fallback
     expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"]);
     rmSync(tmpDir, { recursive: true, force: true });

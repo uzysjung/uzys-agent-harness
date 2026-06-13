@@ -243,12 +243,24 @@ const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
   antigravity: "antigravity",
 };
 
+/**
+ * `npx skills` CLI 고정 버전 — unpinned 면 upstream breaking 이 설치·검증을 동시에 깬다
+ * (1.5.5→1.5.7 multi-agent `--agent` 플래그 파손 전례). bump 시 Docker 시나리오 재검증 필수.
+ * audit CODE-4/D-1. scripts/verify-catalog.mjs 와 동일 값 유지 (drift 테스트 가드).
+ */
+export const SKILLS_CLI_VERSION = "1.5.11";
+
+/** `npx skills <subcommand>` 의 첫 인자 — 항상 버전 고정. */
+export function skillsCliSpec(): string {
+  return `skills@${SKILLS_CLI_VERSION}`;
+}
+
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
   cli: CliTargets,
   scope: InstallScope,
 ): string[] {
-  const args = ["skills", "add", method.source];
+  const args = [skillsCliSpec(), "add", method.source];
   if (method.skill) {
     args.push("--skill", method.skill);
   }

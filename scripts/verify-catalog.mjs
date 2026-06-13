@@ -16,6 +16,9 @@
 import { spawnSync } from "node:child_process";
 import { EXTERNAL_ASSETS } from "../dist/trust-tier-drift.js";
 
+// src/external-installer.ts SKILLS_CLI_VERSION 과 동기화 (tests/skills-cli-pin drift 가드).
+const SKILLS_CLI_VERSION = "1.5.11";
+
 if (!process.env.CI && process.env.CATALOG_VERIFY_ALLOW !== "1") {
   console.error(
     "거부: 실 설치(~/.claude / cwd write)라 격리 env 전용.\n" +
@@ -47,7 +50,7 @@ for (const a of EXTERNAL_ASSETS) {
     }
     res = run("claude", ["plugin", "install", m.pluginId]);
   } else if (m.kind === "skill") {
-    const args = ["-y", "skills", "add", m.source];
+    const args = ["-y", `skills@${SKILLS_CLI_VERSION}`, "add", m.source];
     if (m.skill) args.push("--skill", m.skill);
     args.push("--agent", "claude-code");
     res = run("npx", args);
