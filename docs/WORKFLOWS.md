@@ -15,15 +15,17 @@
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|
 | **uzys-harness** | `uzys-harness` | 본 하네스 | — | official | 내장 | 6-Gate `/uzys:spec…ship` + `/uzys:auto`(Ralph 루프). SPEC anchor·결정론 게이트 |
-| **Superpowers** | `superpowers` | obra → anthropics 공식 | 213k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
-| **ECC** | `ecc-plugin` | affaan-m | 199k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
-| **GSD** | `gsd-orchestrator` | gsd-build | 63k | vetted | npx | get-shit-done 오케스트레이터 |
-| **OpenSpec** | `openspec` | Fission-AI | 53k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
-| **BMAD-METHOD** | `bmad-method` | bmad-code-org | 48k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
-| **addy agent-skills** | `addy-agent-skills` | addyosmani | 47k | vetted | plugin | general dev `/spec /plan` (경량) |
-| **wshobson agents** | `wshobson-agents` | wshobson | 36k | vetted | plugin | 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI |
+| **Superpowers** | `superpowers` | obra → anthropics 공식 | 226k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
+| **ECC** | `ecc-plugin` | affaan-m | 214k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
+| **GSD** | `gsd-orchestrator` | gsd-build | 64k | vetted | npx | get-shit-done 오케스트레이터 |
+| **OpenSpec** | `openspec` | Fission-AI | 55k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
+| **BMAD-METHOD** | `bmad-method` | bmad-code-org | 49k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
+| **addy agent-skills** | `addy-agent-skills` | addyosmani | 57k | vetted | plugin | general dev `/spec /plan` (경량) |
+| **wshobson agents** | `wshobson-agents` | wshobson | 37k | vetted | plugin | 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI |
 
 > `v26.75.0` 추가(ADR-021): OpenSpec · BMAD · wshobson — 3-에이전트 시장 리서치로 발굴, vetted 바(★≥1000+활성+설치가능) 통과분.
+>
+> ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-13** (천 단위 반올림). 출처 repo: obra/superpowers · affaan-m/ECC · gsd-build/get-shit-done · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
 
 ---
 
@@ -48,8 +50,10 @@
 
 | 워크플로 | ★ | 왜 추천 | 왜 자동설치 안 하나 | 직접 설치 |
 |---|---|---|---|---|
-| **GitHub Spec Kit** | 109k | spec-driven 카테고리 **리더**, GitHub 공식, 20-30 에이전트 | **uv/Python 의존** + 대화형 `specify init` → Node-only·비대화형 모델 위반 (NORTH_STAR 트레이드오프) | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z` → `specify init` |
+| **GitHub Spec Kit** | 112k | spec-driven 카테고리 **리더**, GitHub 공식, 20-30 에이전트 | **uv/Python 의존** + 대화형 `specify init` → Node-only·비대화형 모델 위반 (NORTH_STAR 트레이드오프) | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z` → `specify init` |
 | **Kiro** | 3.8k | AWS 의 spec-driven **IDE/CLI** | **closed-source 제품** — 다른 CLI에 설치하는 자산이 아님 | [kiro.dev](https://kiro.dev) 다운로드 |
+
+> ★ 측정일 2026-06-13: Spec Kit = `github/spec-kit` 실측. Kiro 는 closed-source(공개 repo 없음)라 ★ 미확정 — 기존 표기 유지.
 
 ---
 
