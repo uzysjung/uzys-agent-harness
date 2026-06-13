@@ -50,6 +50,7 @@ const CATEGORY_TITLE = {
   business: "💼 Business",
   "dev-tools": "🛡️ Dev Tools",
   understanding: "🧠 Understanding",
+  "visual-media": "🎬 Visual & Media",
   "ecc-suite": "📦 ECC Suite",
 };
 const CAT_ORDER = [
@@ -60,6 +61,7 @@ const CAT_ORDER = [
   "business",
   "dev-tools",
   "understanding",
+  "visual-media",
   "ecc-suite",
 ];
 

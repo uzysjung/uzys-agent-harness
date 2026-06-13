@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.85.0] — 2026-06-13 (feat: Visual & Media 카테고리 — 코드-퍼스트 제작 스택)
+
+코드로 슬라이드·다이어그램·모션·동영상을 만드는 검증 자산 5종 + 9번째 카테고리. 전부 Docker 실설치 검증(실 claude 2.1.177) PASS. SSOT: `docs/research/video-stack-research.md`.
+
+### Added
+
+- **Visual & Media 카테고리** (9번째): wizard Step 3 독립 페이지. 자산 전부 opt-in (`--with <id>` 또는 wizard 체크).
+- **슬라이드**: `frontend-slides` (zarazhangrui 21k · plugin) · `marp-slide` (softaworks 2k · skill).
+- **다이어그램**: `mermaid-diagrams` (softaworks 2k · skill).
+- **모션**: `gsap-skills` (greensock 9k 공식 · plugin, 8 skill).
+- **동영상**: `remotion` (remotion-dev 3.6k · skill `remotion-best-practices`). 코어 BUSL — description 고지 + opt-in.
+
+### Verified
+
+- Docker 격리 실설치 **5/5 PASS** — `claude plugin install` / `npx skills add` resolve (실 claude 2.1.177, 호스트 오염 0).
+- remotion `--skill` 값 = `remotion-best-practices` (dir `remotion` ≠ frontmatter name, 실측 확정).
+- surface parity: `wizard-page-parity` 가드 + `--with` 단위 테스트 + COMPATIBILITY 자동표(48 자산).
+- 제외: excalidraw(MCP 런타임 의존) · presenton(Docker self-host) — skill/plugin method 부적합 (no-false-ship).
+
 ## [v26.84.0] — 2026-06-13 (fix: 전체 서비스 감사 M1 — 게시 전 진실 게이트)
 
 ultracode 7차원 감사(87 에이전트, 확정 29건)의 critical/high 코드·문서 fix. SSOT: `docs/plans/service-audit-roadmap.md`.

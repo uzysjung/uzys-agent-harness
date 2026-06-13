@@ -127,7 +127,7 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 41 distinct asset ids (no duplicates)", () => {
+  it("contains 48 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain("polars-K-Dense");
@@ -182,6 +182,59 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     for (const id of ["claude-video", "understand-anything", "agentmemory"]) {
       expect(assetTrustTier(id)).toBe("vetted");
     }
+  });
+
+  // v26.85.0 — Visual & Media 카테고리 (코드-퍼스트 제작). Promise=Impl: 광고한 설치법 = 정의.
+  //   좌표는 Docker 실설치 검증(실 claude 2.1.177) PASS 값 — drift(rename/삭제) 시 fail.
+  //   no-false-ship surface parity: opt-in(자동 미설치) + forceInclude(--with/wizard)로만 설치.
+  it("Visual & Media category: 5 assets, opt-in + forceInclude reachable, exact methods", () => {
+    const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
+    const vm = EXTERNAL_ASSETS.filter((a) => a.category === "visual-media").map((a) => a.id);
+    expect(vm.sort()).toEqual(
+      ["frontend-slides", "gsap-skills", "marp-slide", "mermaid-diagrams", "remotion"].sort(),
+    );
+    expect(byId("frontend-slides")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "zarazhangrui/frontend-slides",
+      pluginId: "frontend-slides@frontend-slides",
+    });
+    expect(byId("gsap-skills")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "greensock/gsap-skills",
+      pluginId: "gsap-skills@gsap-skills",
+    });
+    expect(byId("marp-slide")?.method).toEqual({
+      kind: "skill",
+      source: "softaworks/agent-toolkit",
+      skill: "marp-slide",
+    });
+    expect(byId("mermaid-diagrams")?.method).toEqual({
+      kind: "skill",
+      source: "softaworks/agent-toolkit",
+      skill: "mermaid-diagrams",
+    });
+    // remotion --skill = remotion-best-practices (Docker 실측 — dir `remotion` ≠ frontmatter name).
+    expect(byId("remotion")?.method).toEqual({
+      kind: "skill",
+      source: "remotion-dev/skills",
+      skill: "remotion-best-practices",
+    });
+    // 전부 opt-in (자동 미설치) + vetted (remotion 3.6k 포함, BUSL 은 description 고지).
+    for (const id of vm) {
+      expect(byId(id)?.condition.kind).toBe("opt-in");
+      expect(assetTrustTier(id)).toBe("vetted");
+    }
+    // surface parity — condition-only 미설치, forceInclude(--with / wizard 체크) 시 설치.
+    const fs = byId("frontend-slides");
+    if (!fs) throw new Error("frontend-slides missing");
+    expect(shouldInstallAsset(fs, { tracks: ["full"], options: NO_OPTIONS })).toBe(false);
+    expect(
+      shouldInstallAsset(fs, {
+        tracks: ["full"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["frontend-slides"], forceExclude: [] },
+      }),
+    ).toBe(true);
   });
 });
 

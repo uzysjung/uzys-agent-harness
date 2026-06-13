@@ -123,7 +123,8 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
  * 페이지 묶음:
  *   Page 1: Dev domain  — frontend + backend + dev-tools + data + understanding
  *   Page 2: Business    — business (documents)
- *   Page 3: Workflow/ECC — workflow + ecc-suite
+ *   Page 3: Visual&Media — visual-media (slides · diagrams · motion · video)
+ *   Page 4: Workflow/ECC — workflow + ecc-suite
  */
 export interface InstallTargetPage {
   label: string;
@@ -136,6 +137,8 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
     cats: ["frontend", "backend", "dev-tools", "data", "understanding"],
   },
   { label: "Business (PM · Executive · Documents)", cats: ["business"] },
+  // v26.85.0 — 코드-퍼스트 비주얼/미디어 제작 (용도별 섹션, 전부 opt-in).
+  { label: "Visual & Media (Slides · Diagrams · Motion · Video)", cats: ["visual-media"] },
   { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
 ];
 

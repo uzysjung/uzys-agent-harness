@@ -113,7 +113,7 @@ Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harne
 ```
 1/6  Tracks            preset by stack
 2/6  CLI               claude / codex / opencode / antigravity (multi-select)
-3/6  Install items     category-grouped multiselect (Frontend / Backend / Data / Business / Dev Tools / Understanding / Workflow / ECC)
+3/6  Install items     category-grouped multiselect (Frontend / Backend / Data / Business / Dev Tools / Understanding / Visual & Media / Workflow / ECC)
 4/6  Scope             Project (default) / Global
 5/6  Confirm           summary review
 6/6  Installing        pipeline
