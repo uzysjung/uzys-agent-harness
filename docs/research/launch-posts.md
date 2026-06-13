@@ -23,7 +23,7 @@ worth using. The awesome-lists have hundreds of entries — a directory you scro
 
 Meanwhile Claude Code and Codex keep getting stronger out of the box. I didn't want to bury
 that under skills and MCP servers (the extra tools an agent can call) I'd never use — each
-one just eats the context window.
+one just eats context and makes the agent slower and less focused.
 
 What I wanted: pick my stack and have the *vetted* options for it pre-selected — install only
 what this project needs instead of browsing a list. I couldn't find it, so I built it.
@@ -38,8 +38,9 @@ agent-harness:
   CI. It is NOT a security audit or a content scan — I say so in the README.
 - Beyond frontend/backend/data, there's a Visual & Media set — code-first slides, diagrams,
   motion, video. All opt-in; nothing installs that you didn't pick.
-- Installs across Claude Code (first-class), Codex, OpenCode, Antigravity. Project scope by
-  default — no global pollution unless you ask.
+- Claude Code is first-class; Codex, OpenCode, and Antigravity get the rules/skills layer, not the
+  full plugin set — I'd rather say so up front than oversell parity. Project scope by default —
+  no global pollution unless you ask.
 - npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD (can't be
   commit-pinned yet — documented). It backs up your existing .claude/settings.json and
   CLAUDE.md before touching them.
