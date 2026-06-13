@@ -10,7 +10,7 @@
 
 ## 한눈에 — 설치 가능 워크플로 (8)
 
-설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `agent-harness install --track <t> --with <id>`.
+설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `npx -y @uzysjung/agent-harness install --track <t> --with <id>`.
 
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|

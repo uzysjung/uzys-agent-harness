@@ -106,7 +106,7 @@ Common flags:
 | `--with ecc-plugin` | Install ECC plugin + cherry-pick |
 | `--with-codex-prompts` | Install Codex slash globally (requires `--cli codex`) |
 
-Full flag list: `agent-harness install --help`.
+Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harness install --help` after a global install).
 
 ### Interactive wizard (6-step)
 
@@ -140,7 +140,7 @@ Tiers inform; they never block — you choose what installs. Static labels (PRD 
 Pick more than one at step 2 (or pass `--cli` multiple times):
 
 ```bash
-npx agent-harness install --track tooling --cli claude --cli codex --cli opencode
+npx -y @uzysjung/agent-harness install --track tooling --cli claude --cli codex --cli opencode
 ```
 
 Each CLI gets its own dispatcher file:
