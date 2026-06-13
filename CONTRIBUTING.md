@@ -188,7 +188,8 @@ Scope:
   ```bash
   npx ecc-agentshield scan
   ```
-- Report security issues privately to the maintainer (see GitHub profile).
+- **Reporting a vulnerability:** see [SECURITY.md](SECURITY.md) — private reporting via GitHub
+  Security Advisories, supported versions, and the harness-code vs curated-asset scope.
 
 ## Code style
 
