@@ -2,7 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { backupDir, copyDir, copyFile, ensureProjectSkeleton } from "../src/fs-ops.js";
+import {
+  backupDir,
+  backupFileIfChanged,
+  copyDir,
+  copyFile,
+  ensureProjectSkeleton,
+} from "../src/fs-ops.js";
 
 describe("fs-ops", () => {
   let dir: string;
@@ -53,6 +59,26 @@ describe("fs-ops", () => {
     expect(existsSync(join(dir, "target"))).toBe(false);
     expect(existsSync(`${result}`)).toBe(true);
     expect(readFileSync(join(`${result}`, "keep.txt"), "utf8")).toBe("k");
+  });
+
+  // backupFileIfChanged — audit SEC-1/CODE-2: 사용자 settings.json·CLAUDE.md 를 덮어쓰기 전 보존.
+  it("backupFileIfChanged returns null when target missing (백업 불필요)", () => {
+    expect(backupFileIfChanged(join(dir, "absent.json"), "new")).toBeNull();
+  });
+
+  it("backupFileIfChanged returns null when content identical (idempotent 재설치 — 백업 안 함)", () => {
+    writeFileSync(join(dir, "settings.json"), "same");
+    expect(backupFileIfChanged(join(dir, "settings.json"), "same")).toBeNull();
+  });
+
+  it("backupFileIfChanged preserves existing file when content differs (데이터 손실 방지)", () => {
+    const target = join(dir, "settings.json");
+    writeFileSync(target, '{"hooks":"user-custom"}'); // 사용자가 손수 만든 설정
+    const fixed = new Date(Date.UTC(2026, 4, 25, 12, 34, 56));
+    const backup = backupFileIfChanged(target, '{"hooks":"template"}', fixed);
+    expect(backup).toMatch(/settings\.json\.backup-/);
+    // 백업본에 사용자 원본이 보존되어야 한다 (덮어쓰기 자체는 호출자 책임 — 헬퍼는 보존만).
+    expect(readFileSync(`${backup}`, "utf8")).toBe('{"hooks":"user-custom"}');
   });
 
   it("ensureProjectSkeleton creates the expected .claude/ subtree", () => {

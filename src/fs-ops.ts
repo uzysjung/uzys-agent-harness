@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, existsSync, mkdirSync, renameSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /** Ensure a directory exists, creating parents as needed. Idempotent. */
@@ -52,6 +52,28 @@ export function copyBackupDir(target: string, now: Date = new Date()): string | 
   }
   const backup = `${target}.backup-${formatStamp(now)}`;
   cpSync(target, backup, { recursive: true });
+  return backup;
+}
+
+/**
+ * 사용자 편집 가능 파일(settings.json·CLAUDE.md)을 덮어쓰기 전 보호.
+ * 기존 파일이 있고 새 내용과 다르면 timestamp 백업본을 만들고 그 경로를 반환한다.
+ * 부재하거나 내용이 동일하면(idempotent 재설치) null — 불필요한 백업을 만들지 않는다.
+ * audit SEC-1/CODE-2 — add 모드(.claude/ backup 없음)에서 통째 덮어쓰기로 인한 데이터 손실 방지.
+ */
+export function backupFileIfChanged(
+  target: string,
+  newContent: string,
+  now: Date = new Date(),
+): string | null {
+  if (!existsSync(target)) {
+    return null;
+  }
+  if (readFileSync(target, "utf-8") === newContent) {
+    return null;
+  }
+  const backup = `${target}.backup-${formatStamp(now)}`;
+  copyFileSync(target, backup);
   return backup;
 }
 

@@ -5,6 +5,7 @@ import {
   type ExternalInstallerDeps,
   formatSkippedReport,
   runExternalInstall,
+  skillsCliSpec,
 } from "../src/external-installer.js";
 import { DEFAULT_OPTIONS } from "../src/types.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
@@ -86,7 +87,7 @@ describe("runExternalInstall — method dispatch", () => {
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(spawn.mock.calls[0]?.[0]).toBe("npx");
     expect(spawn.mock.calls[0]?.[1]).toEqual([
-      "skills",
+      skillsCliSpec(),
       "add",
       "owner/repo",
       "--agent",
@@ -119,7 +120,7 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[1] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[1]).toEqual([
-      "skills",
+      skillsCliSpec(),
       "add",
       "owner/repo",
       "--skill",
@@ -145,7 +146,7 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] },
     );
     expect(spawn.mock.calls[0]?.[1]).toEqual([
-      "skills",
+      skillsCliSpec(),
       "add",
       "owner/repo",
       "--agent",

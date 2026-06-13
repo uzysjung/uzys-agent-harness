@@ -10,11 +10,11 @@
 
 ## 한눈에 — 설치 가능 워크플로 (8)
 
-설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `agent-harness install --track <t> --with <id>`.
+설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `npx -y @uzysjung/agent-harness install --track <t> --with <id>`.
 
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|
-| **uzys-harness** | `withUzysHarness` | 본 하네스 | — | official | 내장 | 6-Gate `/uzys:spec…ship` + `/uzys:auto`(Ralph 루프). SPEC anchor·결정론 게이트 |
+| **uzys-harness** | `uzys-harness` | 본 하네스 | — | official | 내장 | 6-Gate `/uzys:spec…ship` + `/uzys:auto`(Ralph 루프). SPEC anchor·결정론 게이트 |
 | **Superpowers** | `superpowers` | obra → anthropics 공식 | 213k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
 | **ECC** | `ecc-plugin` | affaan-m | 199k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
 | **GSD** | `gsd-orchestrator` | gsd-build | 63k | vetted | npx | get-shit-done 오케스트레이터 |

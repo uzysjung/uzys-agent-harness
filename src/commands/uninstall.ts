@@ -22,6 +22,7 @@ import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { c, status } from "../design.js";
+import { skillsCliSpec } from "../external-installer.js";
 import {
   hashContent,
   type InstallLog,
@@ -214,7 +215,7 @@ function buildProjectReverseStep(
       return {
         label: `npx skills remove ${source}`,
         execute: () => {
-          const r = spawn("npx", ["skills", "remove", source, "--yes"]);
+          const r = spawn("npx", [skillsCliSpec(), "remove", source, "--yes"]);
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
         },
       };

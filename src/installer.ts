@@ -26,7 +26,14 @@ import {
   type ExternalInstallReport,
   runExternalInstall,
 } from "./external-installer.js";
-import { backupDir, copyBackupDir, copyDir, copyFile, ensureProjectSkeleton } from "./fs-ops.js";
+import {
+  backupDir,
+  backupFileIfChanged,
+  copyBackupDir,
+  copyDir,
+  copyFile,
+  ensureProjectSkeleton,
+} from "./fs-ops.js";
 import { buildInstallLog, hashContent, writeInstallLog } from "./install-log.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
@@ -171,6 +178,8 @@ export interface BaselineReport {
   categories?: BaselineCategoryCounts;
   /** Root CLAUDE.md merged from project-claude fragments. null when claude baseline disabled. */
   rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
+  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
+  backups?: string[];
 }
 
 export interface InstallReport {
@@ -263,6 +272,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
     categories: base.categories,
     rootClaudeMd: base.rootClaudeMd,
+    backups: base.backups,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -360,6 +370,8 @@ interface ClaudeBaselineResult {
   rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
   /** root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
   rootClaudeMdLog: { path: string; sha256: string } | null;
+  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
+  backups: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -370,6 +382,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     categories: { rules: [], agents: [], hooks: [], commands: 0, skills: [] },
     rootClaudeMd: null,
     rootClaudeMdLog: null,
+    backups: [],
   };
 }
 
@@ -396,6 +409,13 @@ function installClaudeBaseline(
       continue;
     }
     if (entry.type === "file") {
+      // 사용자 편집 가능 파일은 덮어쓰기 전 백업 (audit SEC-1 — settings.json hook/statusLine 소실 방지).
+      if (entry.target === ".claude/settings.json") {
+        const backup = backupFileIfChanged(target, readFileSync(source, "utf-8"));
+        if (backup) {
+          result.backups.push(backup);
+        }
+      }
       copyFile(source, target);
       result.filesCopied += 1;
     } else {
@@ -416,9 +436,12 @@ function installClaudeBaseline(
 
   // Project root CLAUDE.md — merge from fragments (single/multi/full).
   // Note: overwrites any user customization on re-install. Documented behavior.
-  const rootClaudeMdContent = writeRootClaudeMd(harnessRoot, projectDir, manifestSpec.tracks);
+  const rootClaudeMd = writeRootClaudeMd(harnessRoot, projectDir, manifestSpec.tracks);
   result.rootClaudeMd = { tracks: manifestSpec.tracks };
-  result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMdContent) };
+  result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMd.content) };
+  if (rootClaudeMd.backup) {
+    result.backups.push(rootClaudeMd.backup);
+  }
   return result;
 }
 
@@ -692,11 +715,14 @@ function writeRootClaudeMd(
   harnessRoot: string,
   projectDir: string,
   tracks: ReadonlyArray<Track>,
-): string {
+): { content: string; backup: string | null } {
   const baseDir = join(harnessRoot, "templates/project-claude");
   const content = mergeProjectClaude(tracks, { baseDir });
-  writeFileSync(join(projectDir, "CLAUDE.md"), content);
-  return content;
+  const target = join(projectDir, "CLAUDE.md");
+  // 기존 사용자 CLAUDE.md 는 덮어쓰기 전 백업 (audit CODE-2 — 무백업 덮어쓰기 데이터 손실 방지).
+  const backup = backupFileIfChanged(target, content);
+  writeFileSync(target, content);
+  return { content, backup };
 }
 
 function chmodHooksSync(hookDir: string): void {

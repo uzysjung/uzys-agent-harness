@@ -343,7 +343,19 @@ export function renderFinalSummary(
     }
   }
   log("");
-  log(infoRow("NEXT", `${c.bold("claude")}  →  ${c.cyan("/uzys:spec")}`));
+  // v26.84.0 (audit UX-2): /uzys:* 슬래시 명령은 uzys-harness opt-in 시에만 설치된다.
+  //   기본 설치(uzys-harness 미선택)·codex/opencode 단독설치에서도 무조건
+  //   `claude → /uzys:spec` 를 안내하던 것은 존재하지 않는 명령으로 첫 가치를 유도하는
+  //   dead-end 였다 (no-false-ship "광고≠실동작"). 실제 설치 결과로 분기한다.
+  const hasUzysHarness = isAssetSelected("uzys-harness", spec);
+  const hasClaude = spec.cli.includes("claude");
+  if (hasUzysHarness && hasClaude) {
+    log(infoRow("NEXT", `${c.bold("claude")}  →  ${c.cyan("/uzys:spec")}`));
+  } else {
+    const primary = (hasClaude ? "claude" : spec.cli[0]) ?? "claude";
+    const label = CLI_SUMMARY_LABELS[primary];
+    log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
+  }
   log("");
 }
 
@@ -415,6 +427,12 @@ function renderPhase1Rows(
   }
 
   // Fresh / add / reinstall — Phase 1 rows
+  // audit SEC-1/CODE-2 — 기존 settings.json·CLAUDE.md 를 덮어쓰기 전 백업했으면 fail-loud 노출.
+  if (baseline.backups) {
+    for (const b of baseline.backups) {
+      log(assetRow("success", "backup", shortenPath(b)));
+    }
+  }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
   const cats = baseline.categories;
@@ -518,7 +536,7 @@ function renderPhase1Rows(
     log(
       `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
     );
-    log(`  ${c.dim("·")} ${c.dim("Use --with-ecc to install ECC plugin instead")}`);
+    log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
   }
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));

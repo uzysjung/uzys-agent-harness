@@ -1163,3 +1163,47 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
     }
   });
 });
+
+describe("renderFinalSummary NEXT row (audit UX-2)", () => {
+  // WHY: /uzys:* 슬래시 명령은 uzys-harness opt-in 시에만 설치된다. 기본 설치·
+  //   codex/opencode 단독설치에서도 무조건 `claude → /uzys:spec` 를 안내하던 것은
+  //   존재하지 않는 명령으로 첫 가치를 유도하는 dead-end 였다 (no-false-ship).
+  const toolingClaude: InstallSpec = {
+    tracks: ["tooling"],
+    options: {
+      withPrune: false,
+      withCodexSkills: false,
+      withCodexTrust: false,
+      withKarpathyHook: false,
+      withCodexPrompts: false,
+      withAntigravityGlobal: false,
+    },
+    cli: ["claude"],
+    projectDir: "/p",
+  };
+
+  async function nextRow(spec: InstallSpec): Promise<string> {
+    const { renderFinalSummary } = await import("../src/commands/install-render.js");
+    const lines: string[] = [];
+    renderFinalSummary((m) => lines.push(m), spec, fakeReport, false);
+    return lines.find((l) => l.includes("NEXT")) ?? "";
+  }
+
+  it("uzys-harness 미선택 기본설치 → /uzys:spec dead-end 안내 안 함", async () => {
+    expect(await nextRow(toolingClaude)).not.toContain("/uzys:spec");
+  });
+
+  it("uzys-harness opt-in + claude → /uzys:spec 안내", async () => {
+    const spec: InstallSpec = {
+      ...toolingClaude,
+      userOverride: { forceInclude: ["uzys-harness"], forceExclude: [] },
+    };
+    expect(await nextRow(spec)).toContain("/uzys:spec");
+  });
+
+  it("codex 단독설치 → claude 아닌 설치 CLI 안내 (/uzys:spec 없음)", async () => {
+    const row = await nextRow({ ...toolingClaude, cli: ["codex"] });
+    expect(row).not.toContain("/uzys:spec");
+    expect(row).toContain("Codex");
+  });
+});
