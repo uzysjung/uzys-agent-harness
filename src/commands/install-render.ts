@@ -352,8 +352,8 @@ export function renderFinalSummary(
   if (hasUzysHarness && hasClaude) {
     log(infoRow("NEXT", `${c.bold("claude")}  →  ${c.cyan("/uzys:spec")}`));
   } else {
-    const primary = hasClaude ? "claude" : spec.cli[0];
-    const label = CLI_SUMMARY_LABELS[primary] ?? primary;
+    const primary = (hasClaude ? "claude" : spec.cli[0]) ?? "claude";
+    const label = CLI_SUMMARY_LABELS[primary];
     log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
   }
   log("");
@@ -427,6 +427,12 @@ function renderPhase1Rows(
   }
 
   // Fresh / add / reinstall — Phase 1 rows
+  // audit SEC-1/CODE-2 — 기존 settings.json·CLAUDE.md 를 덮어쓰기 전 백업했으면 fail-loud 노출.
+  if (baseline.backups) {
+    for (const b of baseline.backups) {
+      log(assetRow("success", "backup", shortenPath(b)));
+    }
+  }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
   const cats = baseline.categories;
