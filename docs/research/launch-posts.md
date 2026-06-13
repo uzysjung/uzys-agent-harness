@@ -19,18 +19,25 @@
 
 ```
 I couldn't even tell what coding-agent workflows were out there, let alone which were
-worth using. The awesome-lists had hundreds of entries — that's a directory, not curation.
+worth using. The awesome-lists have hundreds of entries — a directory you scroll, not curation.
 
-Meanwhile Claude Code and Codex keep getting stronger out of the box. I didn't want to
-bury that under skills and MCP servers I'd never actually call — each one just eats context.
+Meanwhile Claude Code and Codex keep getting stronger out of the box. I didn't want to bury
+that under skills and MCP servers (the extra tools an agent can call) I'd never use — each
+one just eats the context window.
 
-What I wanted was curation by tech stack: of the vetted options, install only what *this*
-project needs. I couldn't find it, so I built it.
+What I wanted: pick my stack and have the *vetted* options for it pre-selected — install only
+what this project needs instead of browsing a list. I couldn't find it, so I built it.
+
+Concretely: pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase
+RLS guide, and shadcn — and nothing else. Uncheck anything you don't want.
 
 agent-harness:
-- Pick your stack (a "track"). It pre-checks a vetted set — you review and uncheck anything.
-- "Vetted" = >=1000 stars + active maintenance + a Docker install-verification run, re-checked
-  by CI. It is NOT a security audit or a content scan — I'm explicit about that in the README.
+- A "track" is a preset for your stack; it pre-checks a vetted set, you review and uncheck.
+- "Vetted" = >=1000 stars + active maintenance + a Docker run that actually installs each asset
+  with the real CLI and confirms it resolves (not just that the package exists), re-checked by
+  CI. It is NOT a security audit or a content scan — I say so in the README.
+- Beyond frontend/backend/data, there's a Visual & Media set — code-first slides, diagrams,
+  motion, video. All opt-in; nothing installs that you didn't pick.
 - Installs across Claude Code (first-class), Codex, OpenCode, Antigravity. Project scope by
   default — no global pollution unless you ask.
 - npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD (can't be
@@ -49,7 +56,26 @@ verified vs not. Feedback welcome, especially on the curation calls.
 
 **제목**: `A tech-stack-based curator for AI-coding workflows — install only what you need, not a kitchen sink`
 
-본문 = Show HN 동기 압축 + 아래 비교표 **직접 게재**(링크 유도형 광고 회피):
+본문(페르소나 P0+5 반영, Show HN 압축판) + 아래 비교표 **직접 게재**(링크 유도형 광고 회피):
+
+```
+I built agent-harness because I couldn't find curation by tech stack. The awesome-lists are
+directories you scroll (hundreds of entries), not curation — and piling on skills/MCP servers
+(extra tools the agent calls) I'll never use just eats my agent's context. I wanted: pick my
+stack, get only the vetted options for it.
+
+Concretely: pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase
+RLS guide, and shadcn — nothing else; uncheck what you don't want. A "track" is just a preset.
+
+"Vetted" = >=1000 stars + active maintenance + a Docker run that actually installs each asset
+with the real CLI and confirms it resolves (not just that the package exists), re-checked by CI
+— NOT a security audit. Categories span frontend/backend/data plus a Visual & Media set (slides,
+diagrams, motion, video). Installs across Claude Code (first-class), Codex, OpenCode, Antigravity.
+
+  npx -y @uzysjung/agent-harness
+
+How it compares (★ 2026-06-13):
+```
 
 | 워크플로 | ★ (2026-06-13) | 한 줄 정체 |
 |---|---|---|
