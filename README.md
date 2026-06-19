@@ -1,6 +1,6 @@
 # uzys-agent-harness
 
-**Install only the AI-coding workflows your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity.**
+**Install only the AI-coding skills & plugins your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity.**
 
 Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context. And the awesome-lists have too many options to wade through. `agent-harness` curates by **tech stack**: of the vetted options, you install only what this project actually calls for. **Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
 
@@ -8,9 +8,9 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
 [![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
-![agent-harness demo — one-command install of vetted AI-coding workflows](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
+![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run, re-checked by CI ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (45/48 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
