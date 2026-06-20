@@ -144,7 +144,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 48 자산 매트릭스 (v26.85.0 Visual & Media 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 52 자산 매트릭스 (v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -507,6 +507,48 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "remotion-dev",
     condition: { kind: "opt-in" },
     method: { kind: "skill", source: "remotion-dev/skills", skill: "remotion-best-practices" },
+  },
+  // Issue #176 — 프레젠테이션 생성 스택 4종 (Docker 실설치 4/4 PASS: skills@1.5.11 add <src> --agent claude-code --skill, 2026-06-20).
+  {
+    id: "ppt-master",
+    tier: "vetted", // hugohe3/ppt-master 29k
+    description:
+      "ppt-master — editable PowerPoint (.pptx) from any document (native shapes · speaker notes · custom .pptx template)",
+    category: "visual-media",
+    source: "hugohe3",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "hugohe3/ppt-master", skill: "ppt-master" },
+  },
+  {
+    // deer-flow 72k 거대 harness지만 --skill 로 ppt-generation 단일 skill만 설치 (skills/public/ 중첩, Docker 확인).
+    id: "ppt-generation",
+    tier: "vetted", // bytedance/deer-flow 72k
+    description:
+      "ppt-generation — PPTX by generating an image per slide and composing into PowerPoint (deer-flow skill)",
+    category: "visual-media",
+    source: "bytedance",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "bytedance/deer-flow", skill: "ppt-generation" },
+  },
+  {
+    id: "web-video-presentation",
+    tier: "vetted", // ConardLi/garden-skills 8.4k
+    description:
+      "web-video-presentation — click-driven 16:9 web decks that look like video (optional TTS narration; garden-skills)",
+    category: "visual-media",
+    source: "ConardLi",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "ConardLi/garden-skills", skill: "web-video-presentation" },
+  },
+  {
+    id: "revealjs",
+    tier: "experimental", // ryanbbrown/revealjs-skill 347 (<1000 → experimental, opt-in + 경고)
+    description:
+      "reveal.js — polished HTML presentations (themes · multi-column · code highlight · speaker notes, no build step)",
+    category: "visual-media",
+    source: "ryanbbrown",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "ryanbbrown/revealjs-skill", skill: "revealjs" },
   },
   {
     id: "architecture-decision-record",

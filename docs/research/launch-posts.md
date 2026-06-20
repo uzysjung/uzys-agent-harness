@@ -46,7 +46,7 @@ RLS guide, and shadcn — and nothing else. Uncheck anything you don't want.
 agent-harness:
 - A "track" is a preset for your stack; it pre-checks a vetted set, you review and uncheck.
 - "Vetted" = >=1000 stars + active maintenance + a one-off Docker run that actually installs the
-  assets (45/48 so far) with the real CLI and confirms they resolve (not just that the package
+  assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package
   exists), re-checked monthly by a CI cron. It is NOT a security audit or a content scan — I say so in the README.
 - Beyond frontend/backend/data, there's a Visual & Media set — code-first slides, diagrams,
   motion, video. All opt-in; nothing installs that you didn't pick.
@@ -81,7 +81,7 @@ Concretely: pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skil
 RLS guide, and shadcn — nothing else; uncheck what you don't want. A "track" is just a preset.
 
 "Vetted" = >=1000 stars + active maintenance + a one-off Docker run that actually installs the
-assets (45/48 so far) with the real CLI and confirms they resolve (not just that the package exists),
+assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package exists),
 re-checked monthly by a CI cron — NOT a security audit. Categories span frontend/backend/data plus a Visual & Media set (slides,
 diagrams, motion, video). Installs across Claude Code (first-class), Codex, OpenCode, Antigravity.
 
@@ -127,7 +127,7 @@ Pick my stack, get only the *vetted* options for it pre-selected — install wha
 ## How it works
 
 - A **track** is a preset for your stack. Pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase RLS guide, and shadcn — and nothing else. Review and uncheck anything you don't want.
-- **"Vetted"** = ≥1000 stars + active maintenance + a one-off Docker run that actually installs the assets (45/48 so far) with the real CLI and confirms they resolve (not just that the package exists), re-checked monthly by a CI cron. It is **not** a security audit or a content scan.
+- **"Vetted"** = ≥1000 stars + active maintenance + a one-off Docker run that actually installs the assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package exists), re-checked monthly by a CI cron. It is **not** a security audit or a content scan.
 - Beyond frontend/backend/data, there's a **Visual & Media** set — code-first slides, diagrams, motion, video. All opt-in; nothing installs that you didn't pick.
 - **Claude Code is first-class.** Codex, OpenCode, and Antigravity get the rules/skills layer, not the full plugin set — I'd rather say so up front than oversell parity.
 - Project scope by default — no global pollution unless you ask. npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD (not commit-pinned yet — documented). It backs up your existing `.claude/settings.json` and `CLAUDE.md` before touching them.

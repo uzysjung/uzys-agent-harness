@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.86.0] — 2026-06-20 (feat: Visual & Media 프레젠테이션 스택 4종 — Issue #176)
+
+PPTX·Reveal.js·video 프레젠테이션 생성 자산 4종. Issue #176(사용자 제안) 검증. 전부 Docker 실설치(skills@1.5.11) PASS. 자산 48→52.
+
+### Added
+
+- **프레젠테이션 (Visual & Media, opt-in 4종)**:
+  - `ppt-master` (hugohe3 29k · skill) — 문서 → 편집 가능 PPTX (native shapes · speaker notes · custom template).
+  - `ppt-generation` (bytedance/deer-flow 72k · skill) — 슬라이드별 이미지 생성 → PPTX 합성. 거대 harness지만 `--skill` 로 단일 skill만 설치.
+  - `web-video-presentation` (ConardLi/garden-skills 8.4k · skill) — 클릭 구동 16:9 웹 프레젠(영상풍 · TTS 내레이션 옵션).
+  - `revealjs` (ryanbbrown 347 · skill, **experimental**) — reveal.js HTML 프레젠. ★<1000 → experimental opt-in.
+- npm/repo description `workflows` → `skills & plugins` 재포지셔닝 동기화.
+
+### Verified
+
+- Docker 격리 실설치 **4/4 PASS** — `npx skills@1.5.11 add <src> --agent claude-code --skill <name> --yes --global` resolve (호스트 오염 0).
+- deer-flow `ppt-generation` 중첩 경로(`skills/public/`)도 `--skill` name 매칭으로 설치 확인.
+
 ## [v26.85.0] — 2026-06-13 (feat: Visual & Media 카테고리 — 코드-퍼스트 제작 스택)
 
 코드로 슬라이드·다이어그램·모션·동영상을 만드는 검증 자산 5종 + 9번째 카테고리. 전부 Docker 실설치 검증(실 claude 2.1.177) PASS. SSOT: `docs/research/video-stack-research.md`.

@@ -58,7 +58,7 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
     expect(assetTrustTier("nonexistent-asset-xyz")).toBe("experimental");
   });
 
-  it("T3 experimental 은 star<1000 4개 (next-skills/railway/playwright/ADR)", () => {
+  it("T3 experimental 은 star<1000 5개 (next-skills/railway/playwright/ADR/revealjs)", () => {
     const t3 = EXTERNAL_ASSETS.filter((a) => assetTrustTier(a.id) === "experimental")
       .map((a) => a.id)
       .sort();
@@ -67,6 +67,7 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
       "next-skills",
       "playwright-skill",
       "railway-skills",
+      "revealjs",
     ]);
   });
 });
@@ -127,7 +128,7 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 48 distinct asset ids (no duplicates)", () => {
+  it("contains 52 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toContain("polars-K-Dense");
@@ -187,11 +188,21 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.85.0 — Visual & Media 카테고리 (코드-퍼스트 제작). Promise=Impl: 광고한 설치법 = 정의.
   //   좌표는 Docker 실설치 검증(실 claude 2.1.177) PASS 값 — drift(rename/삭제) 시 fail.
   //   no-false-ship surface parity: opt-in(자동 미설치) + forceInclude(--with/wizard)로만 설치.
-  it("Visual & Media category: 5 assets, opt-in + forceInclude reachable, exact methods", () => {
+  it("Visual & Media category: 9 assets, opt-in + forceInclude reachable, exact methods", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const vm = EXTERNAL_ASSETS.filter((a) => a.category === "visual-media").map((a) => a.id);
     expect(vm.sort()).toEqual(
-      ["frontend-slides", "gsap-skills", "marp-slide", "mermaid-diagrams", "remotion"].sort(),
+      [
+        "frontend-slides",
+        "gsap-skills",
+        "marp-slide",
+        "mermaid-diagrams",
+        "remotion",
+        "ppt-master",
+        "ppt-generation",
+        "web-video-presentation",
+        "revealjs",
+      ].sort(),
     );
     expect(byId("frontend-slides")?.method).toEqual({
       kind: "plugin",
@@ -219,11 +230,35 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       source: "remotion-dev/skills",
       skill: "remotion-best-practices",
     });
-    // 전부 opt-in (자동 미설치) + vetted (remotion 3.6k 포함, BUSL 은 description 고지).
+    // Issue #176 프레젠테이션 4종 (Docker 4/4 PASS — skills@1.5.11 add <src> --agent claude-code --skill).
+    expect(byId("ppt-master")?.method).toEqual({
+      kind: "skill",
+      source: "hugohe3/ppt-master",
+      skill: "ppt-master",
+    });
+    expect(byId("ppt-generation")?.method).toEqual({
+      kind: "skill",
+      source: "bytedance/deer-flow",
+      skill: "ppt-generation",
+    });
+    expect(byId("web-video-presentation")?.method).toEqual({
+      kind: "skill",
+      source: "ConardLi/garden-skills",
+      skill: "web-video-presentation",
+    });
+    expect(byId("revealjs")?.method).toEqual({
+      kind: "skill",
+      source: "ryanbbrown/revealjs-skill",
+      skill: "revealjs",
+    });
+    // 전부 opt-in (자동 미설치). tier: vetted 8 + experimental 1 (revealjs ★347 <1000, opt-in).
     for (const id of vm) {
       expect(byId(id)?.condition.kind).toBe("opt-in");
+    }
+    for (const id of vm.filter((i) => i !== "revealjs")) {
       expect(assetTrustTier(id)).toBe("vetted");
     }
+    expect(assetTrustTier("revealjs")).toBe("experimental");
     // surface parity — condition-only 미설치, forceInclude(--with / wizard 체크) 시 설치.
     const fs = byId("frontend-slides");
     if (!fs) throw new Error("frontend-slides missing");
