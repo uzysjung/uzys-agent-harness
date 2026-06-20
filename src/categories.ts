@@ -66,6 +66,11 @@ export const SOURCE_LABELS = {
   greensock: "greensock",
   softaworks: "softaworks",
   "remotion-dev": "remotion-dev",
+  // v26.86.0 — Visual & Media 프레젠테이션 4종 (Issue #176, Docker 실설치 4/4 PASS).
+  hugohe3: "hugohe3",
+  bytedance: "bytedance",
+  ConardLi: "ConardLi",
+  ryanbbrown: "ryanbbrown",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;
