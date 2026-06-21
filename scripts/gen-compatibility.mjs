@@ -41,6 +41,18 @@ const CLI_SCOPE = {
   "shell-script": "local",
   internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
 };
+// v26.87.0 — per-asset CLI scope override (no-false-ship). internal "skill" 자산(dev-method 6종)은
+// Claude 전용: manifest 가 .claude/skills/ 로만 복사하고, codex/antigravity/opencode transform 은
+// 하드코딩된 uzys-6Gate 커맨드만 처리(임의 skill 미지원) → 일반 internal "4-CLI" 라벨 상속 금지.
+// uzys-harness 는 실제 4-CLI transform 보유 → 유지. tauri-desktop(rule)은 별도 검증 과제(미변경).
+const CLI_SCOPE_OVERRIDE = {
+  "multi-persona-review": "Claude Code",
+  "gap-analysis-e2e": "Claude Code",
+  "ultracode-service-audit": "Claude Code",
+  "asis-tobe-decision": "Claude Code",
+  "compaction-handoff": "Claude Code",
+  "northstar-roadmap": "Claude Code",
+};
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
 //   와 의도적으로 다름 — 표 컨텍스트). 단, 카테고리 누락 시 해당 자산이 표에서 silent drop
@@ -111,7 +123,7 @@ function rows() {
       const tier = TRUST_TIER[a.id] ?? "experimental";
       const lvl = LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "⚪";
       out.push(
-        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE[a.method.kind]} | ${lvl} |`,
+        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? CLI_SCOPE[a.method.kind]} | ${lvl} |`,
       );
     }
   }

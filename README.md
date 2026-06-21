@@ -176,6 +176,11 @@ External assets are recommended automatically based on your track selection. Ste
 | `architecture-decision-record` | ADR authoring | yonatangross |
 | `karpathy-coder` | Pre-commit quality gate hook | claude-code-skills |
 | `product-skills` | Product engineering | claude-code-skills |
+| `multi-persona-review` ★ | Critique one artifact via 3-5 parallel personas → P0/P1/P2 fixes | this project (core) |
+| `gap-analysis-e2e` ★ | Detect north-star / correctness / UX gaps, then benchmark how reference services solved each | this project (core) |
+| `ultracode-service-audit` ★ | Multi-agent, adversarially-verified full-service audit (7 dimensions) → milestone roadmap | this project (core) |
+
+> ★ **dev-method skills** — first-party (`official`) workflow methodology bundled with the harness. **Core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates — no external download.
 
 ### Workflow (opt-in — pick one or more at step 3)
 
@@ -191,6 +196,14 @@ External assets are recommended automatically based on your track selection. Ste
 | `bmad-method` | Multi-agent agile workflow (PM/Architect/Dev, 12+ agents) | bmad-code-org |
 | `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
 | `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
+
+**First-party dev-method skills** (`official`, **core on every dev track** — installed by default, uncheck at step 3 or `--without <id>` to skip; repo-bundled templates):
+
+| Asset | What | Source |
+|---|---|---|
+| `asis-tobe-decision` ★ | Present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast | this project (core) |
+| `compaction-handoff` ★ | Persist durable state + git snapshot + resume anchor before a context `/compact` | this project (core) |
+| `northstar-roadmap` ★ | Measure current state vs the vision doc → ranked feature backlog persisted to docs/plans + memory | this project (core) |
 
 ### Security & ECC (opt-in)
 

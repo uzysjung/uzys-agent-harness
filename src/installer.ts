@@ -20,7 +20,12 @@ import {
   writeEnvExample,
   writeMcpAllowlist,
 } from "./env-files.js";
-import { EXTERNAL_ASSETS, filterApplicableAssets, isAssetSelected } from "./external-assets.js";
+import {
+  DEV_METHOD_SKILL_IDS,
+  EXTERNAL_ASSETS,
+  filterApplicableAssets,
+  isAssetSelected,
+} from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
@@ -358,6 +363,9 @@ function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
     // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
     // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
     withEcc: isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune,
+    // v26.87.0 — dev-method skills (internal). has-dev-track 기본 + wizard uncheck /
+    // `--without <id>` (forceExclude) 반영 — manifest copy 가 이 목록만 게이팅.
+    selectedInternalSkills: DEV_METHOD_SKILL_IDS.filter((id) => isAssetSelected(id, selectionCtx)),
   };
 }
 
