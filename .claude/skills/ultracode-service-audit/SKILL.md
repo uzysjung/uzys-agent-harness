@@ -10,6 +10,8 @@ description: >-
   "다차원 서비스 감사", or in English "audit the whole service / full multi-dimensional service audit /
   find code, UX, scalability, planning, security, and marketing problems and prioritize fixes".
   The heavyweight superset audit — orchestrate it as a Workflow with fan-out finders and an adversarial verify pass.
+  NOT for a single-artifact prose/README review (use multi-persona-review) or a single-axis
+  gap-vs-benchmark loop (use gap-analysis-e2e) — those are the lighter siblings.
 ---
 
 # Ultracode Service Audit

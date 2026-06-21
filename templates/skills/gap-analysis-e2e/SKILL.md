@@ -10,7 +10,9 @@ description: >-
   어떻게 해결했는지", "갭분석", "레퍼런스 서비스랑 비교해서 부족한 점 찾아줘" — or the
   English equivalents: "gap analysis", "what are we missing vs the
   ideal/north-star", "benchmark against reference services". Fires for both
-  Korean and English phrasing.
+  Korean and English phrasing. NOT for a whole-codebase multi-dimension audit
+  (use ultracode-service-audit) or single-artifact prose review (use
+  multi-persona-review) — this is the narrower gap-vs-benchmark loop.
 ---
 
 # Gap Analysis E2E (reverse + competitive)

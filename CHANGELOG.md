@@ -7,6 +7,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.88.0] — 2026-06-21 (fix: 페르소나 다면감사 P0+P1 — 트리거 정직화·로드맵 동기화)
+
+dev-method 6종 + 로드맵을 5인 Sonnet 페르소나 패널(독립·병렬)로 다면감사 → P0+P1 8건 교정. 거짓양성 3건(arxiv `2605.29800` 실재·Nielsen URL HTTP 200·SEC-1 백업 이미 닫힘 `installer.ts:426-428`)은 curl/코드 직접 검증으로 기각(no-false-ship — 검증 안 했으면 작동 URL 파손).
+
+### Fixed
+- **리뷰류 3종 트리거 disambiguation (D1)**: `multi-persona-review`·`ultracode-service-audit`·`gap-analysis-e2e` description 에 sibling 배제문구(`NOT for … use X`) 추가 — "리뷰해줘"·"부족한 점 찾아줘" 흔한 발화에 ultracode(87-agent) 오발동 위험 차단. templates ↔ `.claude/skills` byte-identical 유지.
+- **COMPATIBILITY 정직화 (R5/D2)**: "37/38 🟢 ecc-prune만 🟡" stale 산문 → "49/58 🟢, 🟡 9 자산". dev-method 4-CLI 라벨의 검증 범위 명시 — 파일 배치(manifest copy)까지 검증, 실 Codex/OpenCode/Antigravity native 로드(slash 노출)는 vendor 계약이라 **미검증**.
+
+### Added
+- **비-Claude plugin 미도달 install 고지 (R6, audit SCALE-1)**: codex/opencode/antigravity 선택 시 plugin-kind 자산이 Claude Code 전용임을 install Summary `NOTE` 로 명시(큐레이션 절반 미도달 비대칭의 설치 시점 정직화). `tests/install.test.ts` 회귀 2건.
+- **ship-checklist 로드맵 SSOT 동기화 게이트 (R4)**: 자산/마일스톤 변경 시 `service-audit-roadmap.md` 현행화 강제 — 8 PR drift("48 vs 실측 58"·완료를 미완으로 박제) 재발 구조 차단.
+
+### Docs
+- **service-audit-roadmap 동기화 (R1/R2/R3)**: baseline `v26.83.0`→`v26.87.0`, M1 진척 상태 블록(완료 ✓ / 잔여 ◐), immediateNext 갱신(M1-A 완료→M2 준비), M5 자산수 48→58 + 축A 순서모순 명시, **M6 re-scope** — `multi-persona-review` 스킬을 `/uzys:review` 패널 모드로 통합 + 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거).
+
 ## [v26.87.0] — 2026-06-21 (feat: dev-method 1st-party skills 6종 — internal, core on dev tracks)
 
 하네스 작업 방법론 skill 6종을 **내부 자산(repo-bundled templates)**으로 출하. tier `official`, source `uzys`, condition `has-dev-track`, method `{ kind: "internal" }` — `tauri-desktop` / `uzys-harness` 전례와 동일. dev track 기본 설치(core), wizard 체크 해제 또는 `--without <id>` 로 제외 가능. **외부 github source 아님** (해당 repo 미존재 → 설치 크래시 회피, no-false-ship). 자산 52→58.

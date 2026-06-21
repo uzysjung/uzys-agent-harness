@@ -314,6 +314,41 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("OpenCode"));
   });
 
+  // WHY (audit SCALE-1 / 비-Claude 페르소나): plugin-kind 자산은 claude marketplace 전용이라
+  //   codex/opencode/antigravity 에 설치되지 않는다. 비-Claude CLI 사용자가 "Install complete"
+  //   만 보고 큐레이션 절반(plugin)을 못 받은 걸 모르면 "4-CLI" 가 거짓 인상이 된다.
+  //   이 NOTE 가 사라지면 그 비대칭이 다시 silent 가 되므로 본 테스트가 실패해야 한다.
+  it("renders plugin-Claude-only NOTE when a non-Claude CLI is selected with a plugin asset", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    executeSpec(
+      {
+        ...baseSpec,
+        cli: ["claude", "codex"],
+        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
+      },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("ecc-plugin"));
+  });
+
+  it("omits plugin-Claude-only NOTE for a Claude-only install (no non-Claude CLI)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    executeSpec(
+      {
+        ...baseSpec,
+        cli: ["claude"],
+        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
+      },
+      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
+  });
+
   it("logs warn when skipped > 0", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;

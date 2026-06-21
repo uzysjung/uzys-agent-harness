@@ -7,7 +7,9 @@ description: >-
   페르소나를 여러명 만들어서 (손넷 모델정도로) 피드백 받아바", "다면 리뷰 해볼까", "페르소나로 리뷰",
   "여러 관점으로 피드백", or in English "multi-persona review", "review this from different user
   perspectives", "get persona feedback on this post/README/doc", "panel review this artifact".
-  Lighter than a full service audit — point it at ONE artifact, not a whole codebase.
+  Lighter than a full service audit — point it at ONE artifact, not a whole codebase. NOT for a
+  whole-codebase multi-dimension audit (use ultracode-service-audit) or a single-axis
+  gap-vs-benchmark loop (use gap-analysis-e2e).
 ---
 
 # Multi-Persona Review (다면페르소나 워크플로우 리뷰)
