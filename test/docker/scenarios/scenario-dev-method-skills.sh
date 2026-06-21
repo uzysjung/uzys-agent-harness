@@ -70,7 +70,9 @@ assert_grep "^agent:" "${PROJ}/.opencode/commands/${SKILL_A}.md" "opencode ${SKI
 
 echo "── 독립 게이팅 (uzys-harness 미선택 → uzys-6Gate 산출물 부재) ──"
 assert_absent "${PROJ}/.agents/skills/uzys-spec" "uzys-6Gate skill 부재 (dev-method 와 독립)"
-assert_absent "${PROJ}/.claude/commands/uzys" "uzys 슬래시 커맨드 부재"
+# uzys 커맨드 *파일* 부재로 검증 (.claude/commands/uzys 빈 dir 는 uzys-harness 의 무해한 quirk —
+# withUzysHarness=false 면 gated copy 0건이라 파일이 안 들어옴. 디렉토리 존재 여부가 아닌 파일로 판정).
+assert_absent "${PROJ}/.claude/commands/uzys/spec.md" "uzys 슬래시 커맨드 파일 부재 (withUzysHarness 미선택)"
 
 # ── 2. 선택 제어 (--without <id> → 전 경로 drop) ──
 echo ""
