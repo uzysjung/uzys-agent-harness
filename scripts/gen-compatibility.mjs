@@ -15,19 +15,22 @@ import { CATEGORIES, EXTERNAL_ASSETS, TRUST_TIER } from "../dist/trust-tier-drif
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOC = join(HERE, "..", "docs", "COMPATIBILITY.md");
+// 검증 배치 기준일 (summary 헤더에 1회 표기). 표는 자산별 날짜를 박지 않는다 —
+// method 기반 검증이라 날짜는 "이 method 가 Docker/registry 로 검증된 배치 기준"이지
+// 자산별 실검증일이 아니다(후속 추가 자산은 각 PR 에서 검증 — CHANGELOG). no-false-ship.
 const VDATE = "2026-06-06";
 
-// 검증 등급 — method 기반 기본값 + 특이 override (Docker realcli 배치 근거).
+// 검증 등급 — method 기반 (Docker realcli / registry 실설치). 날짜 미표기(배치 기준 = 헤더 1회).
 const LEVEL_BY_KIND = {
-  plugin: `🟢 Docker ${VDATE}`, // real claude marketplace add + install
-  skill: `🟢 Docker ${VDATE}`, // npx skills add
-  "npx-run": `🟢 Docker ${VDATE}`, // npx 실행
-  npm: `🟢 registry ${VDATE}`, // registry 실재 (openspec 는 아래 override 로 실설치)
+  plugin: "🟢 Docker", // real claude marketplace add + install
+  skill: "🟢 Docker", // npx skills add
+  "npx-run": "🟢 Docker", // npx 실행
+  npm: "🟢 registry", // registry 실재 (openspec 는 아래 override 로 실설치)
   "shell-script": "🟡 local", // 로컬 스크립트 (네트워크 무관)
   internal: "🟡 local", // v26.81.0 (ADR-022) — 내부 템플릿 (Phase 1 manifest, install-matrix 가 검증)
 };
 const LEVEL_OVERRIDE = {
-  openspec: `🟢 Docker ${VDATE}`, // npm i + npx openspec --version 1.4.1
+  openspec: "🟢 Docker", // npm i + npx openspec --version 1.4.1
 };
 
 const CLI_SCOPE = {
@@ -121,7 +124,7 @@ function summary() {
   const green = EXTERNAL_ASSETS.filter((a) =>
     (LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "").startsWith("🟢"),
   ).length;
-  return `> **자동 생성** (\`scripts/gen-compatibility.mjs\`, ${VDATE}). 자산 **${EXTERNAL_ASSETS.length}** (official ${counts.official} / vetted ${counts.vetted} / experimental ${counts.experimental}) · 🟢 검증 **${green}/${EXTERNAL_ASSETS.length}**. tier SSOT=\`src/external-assets.ts\`, drift 감시=\`trust-tier-drift.yml\`.`;
+  return `> **자동 생성** (\`scripts/gen-compatibility.mjs\`). 자산 **${EXTERNAL_ASSETS.length}** (official ${counts.official} / vetted ${counts.vetted} / experimental ${counts.experimental}) · 🟢 검증 **${green}/${EXTERNAL_ASSETS.length}**. tier SSOT=\`src/external-assets.ts\`, drift 감시=\`trust-tier-drift.yml\`.\n>\n> **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 ${VDATE}). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).`;
 }
 
 const START = "<!-- AUTO-GEN:CATALOG:START -->";
