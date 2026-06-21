@@ -1,6 +1,6 @@
 # 전체 서비스 감사 → 차기 마일스톤 로드맵 (SSOT)
 
-> 작성 2026-06-13 · 기준 v26.83.0 · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
+> 작성 2026-06-13 · 기준 v26.83.0 (초판) · **최종 갱신 2026-06-21 / v26.87.0** (페르소나 감사 반영) · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
 > 규모: 87 에이전트 · 검증 **확정 29 / 미검증 0 / 기각 8**. 기존 `persona-feedback-improvements.md`(P0~P2)를 본 로드맵에 **병합**(중복은 합치고 모순은 근거 강한 쪽 채택).
 > **게시(M2)는 M1 게이트 통과 전 금지.** 본 문서가 개선 실행의 SSOT.
 
@@ -12,10 +12,10 @@
 | **M2 — 게시 실행 (Launch, 신규 코드작업 0)** | M1 게이트 통과 직후, 반자동(폼채움=에이전트 / 제출클릭=사용자) 으로 Show HN + r/ClaudeCode 게시 → 며칠 후 awesome-list 2곳 | Show HN 글 + r/ClaudeCode 글 게시 완료(사용자 제출 클릭) + 각 글 첫 24h 댓글 모니터링·초안(에이전트)→승인 후 응답 라이브. awesome-list 는 bradAGI R |
 | **M3 — 게시 후 30일 (Trust Receipts + 신호 반영)** | 0★ cold-start 에서 '검증 인프라=신뢰 대체재'를 사용자에게 보이게 만들고(영수증/SHA 기록), 게시 신호(이슈·반례)를 우선 반영. drift 자동 | (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOW |
 | **M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)** | North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 | (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex  |
-| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(48 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 48 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
-| **M6 — 다면 페르소나 리뷰 커맨드 (`/uzys:panel`)** | 상황 맞춤 페르소나 동적생성 + 기존 리뷰어 에이전트(`.claude/agents/*.md`) 혼합 → 병렬 다면 리뷰. uzys-harness 6-Gate review 심화. PoC=본 세션 게시글 5-페르소나 리뷰. | (1) 4-CLI 커맨드(claude slash + 비-claude 등가) (2) 페르소나 동적생성+agent.md 자동혼합 (3) `(uzys-agent-harness)` brand + surface parity. SPEC 선행 |
+| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(58 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 58 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
+| **M6 — 다면 리뷰 (`/uzys:review` 패널 모드, re-scope 2026-06-21)** | `multi-persona-review` 스킬(v26.87.0 출하)을 6-Gate `/uzys:review` 모드로 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합). 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거). | (1) `/uzys:review` 패널 모드(독립 커맨드 없음) (2) 동적 페르소나+agent.md 자동혼합 (3) surface parity. SPEC 선행 |
 
-**즉시 착수(immediateNext):** M1-A: 공급망 hijack 차단 — README.md:256 · README.ko.md:229 · docs/USAGE.md:143 의 bare `npx agent-harness` 를 `npx -y @uzysjung/agent-harness` 로 교체 (unscoped `agent-harness` = npm 의 제3자 quuu@0.0.1 실행). 동시에 `grep -rn 'npx \(-y \)\?agent-harness[^@]' README* docs/` 가드를 catalog-verify CI 에 추가. critical·effort S·게시 1순위 파일 2곳 포함이라 다른 무엇보다 먼저.
+**즉시 착수(immediateNext) — 2026-06-21 갱신:** ~~M1-A 공급망 hijack 차단~~ **완료**(bare npx → `npx -y @uzysjung/agent-harness`, grep 0건, #167 등). **다음 = M2 게시 준비**: M1 잔여 ◐ 항목(특히 홍보글 A-1~A-5 최종본·README 수술 B-1~B-5) 확인 → 반자동(폼=에이전트/제출=사용자) Show HN + r/ClaudeCode. 코드 신규작업 0.
 
 <details><summary>합성 논리(rationale)</summary>
 
@@ -27,6 +27,11 @@
 **목표:** 게시 직후 사용자가 0초~첫 설치~첫 명령에서 만나는 모든 '광고≠실동작'을 제거한다. no-false-ship 위반(공급망 실행경로·구브랜드 박제·백업없는 덮어쓰기·거짓 안내·삭제된 플래그 광고)을 0으로. P0 게이트(persona A~D)와 신규 critical/high 코드fix 를 병합 완료.
 
 **완료 판정:** (1) grep 으로 다음 4종이 추적파일(dist/templates 제외)에서 0건: bare `npx agent-harness`(scope 없는 것), `uzys-claude-harness`, 데모 .cast title/banner 의 `claude-harness`, README 임베드 GIF 의 구브랜드. (2) SECURITY.md 존재 + GitHub Security 탭 노출. (3) settings.json·CLAUDE.md 가 기존 프로젝트에서 백업 후에만 변경됨을 검증하는 RED→GREEN 테스트 통과. (4) `node dist/index.js install --help` 출력이 실동작과 일치(--with-codex-prompts·--scope). (5) `npm run ci` exit 0 + 신규 hotfix 태그(v26.84.x 류, CalVer 준수) npm publish green. (6) persona-feedback-improvements.md 의 P0 A/B/C/D 전 항목 체크 + 본 M1 신규항목 SSOT 반영.
+
+> **진척 상태 (2026-06-21 페르소나 감사 갱신 · #166~#182 반영) — 아래 표의 SSOT:**
+> **완료(✓ 검증):** 공급망 bare npx 교체(grep 0건) · 데모 재녹화(#179) · settings.json/CLAUDE.md 백업(`installer.ts:426-428`·`741` `backupFileIfChanged`) · SECURITY.md 신설(파일 존재) · install.sh/CONTRIBUTING 구 repo명(grep 0건) · NEXT 안내 spec 분기(`install-render.ts:352`) · `--with-ecc`→`--with ecc-plugin`(`install-render.ts:539`) · `npx skills` pin(`1.5.11`).
+> **잔여(◐ 미검증 — M2 게시 전 확인):** README 수술(B-1~B-5) · 홍보글 최종본(A-1~A-5) · WORKFLOWS star 실측(C-1) · 보안 wedge 문서모순(C-2) · WORKFLOWS `withUzysHarness`→`uzys-harness`(UX-5) · `install --help` 정리(UX-4) · todo.md 현행화(NSM-5).
+> *아래 표는 원안 발견 목록(historical) — 완료/미완 상태는 본 블록이 SSOT. 동기화는 ship-checklist 의 '로드맵 SSOT 동기화' 게이트로 유지.*
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
@@ -105,34 +110,37 @@
 
 > 트리거: 사용자 지시 2026-06-13. 동인 = 자산은 한번 넣으면 관성으로 남는다 — "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만, North Star 기둥①) 철학의 능동 재검증. A2 star-drift CI 보완: CI=star 만, M5=용도/중복/1st-party/철학 정합까지.
 
-**목표:** 카탈로그(현 48 자산)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(48 전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
+**목표:** 카탈로그(현 58 자산)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(58 전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
 
-**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 48 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
+**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 58 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
 | P2 | M | **축A — Visual & Media 확장 리서치**: 모션(현 GSAP 1)·동영상(현 Remotion 1)이 vetted 1개씩 → 추가 후보 재탐색(neighborhood 변화·star 성장). 화면녹화 용도(현 0, 캡처라 제외) 코드-제작형 신규 등장 재검토. 슬라이드/다이어그램 1st-party 프레임워크(Slidev·reveal 본가) 등장 시 교체. Docker 통과분만 등재. | 사용자 2026-06-13 |
-| P2 | L | **축B — 전체 카탈로그(48) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·next-skills 895·ADR 179) 승격 or 제거. | 사용자 2026-06-13 |
+| P2 | L | **축B — 전체 카탈로그(58) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·next-skills 895·ADR 179) 승격 or 제거. | 사용자 2026-06-13 |
 | P3 | S | drop 후보 = Major CR(도달경로 변경)→사용자 결정+ADR. 제거 자산은 uninstall reverse·문서(COMPATIBILITY/WORKFLOWS) 동기화까지. | 사용자 2026-06-13 |
 
-> "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 5종 자체도 재평가 대상.
+> "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 9종 자체도 재평가 대상.
+>
+> **상태 (2026-06-21 감사):** 자산 수 48→**58** 정정(실측 — `external-assets.ts`). 축A 'Visual & Media 확장'은 v26.85.0(#169 +5)·v26.86.0(#178 +4)로 **이미 9종 투입** — M5 착수(M2 게시 후) 전 실행이라 M5 가 경고한 '관성 쌓기'와 순서 모순. 처리: 9종에 Docker 실설치 증거 소급 등재 시 **축A 완료** 처리, **축B(58 전수 keep/drop)가 잔여**.
 
 ---
 ## M6 — 다면 페르소나 리뷰 커맨드 (Multi-Perspective Review)
 
 > 트리거: 사용자 지시 2026-06-13. PoC = 본 세션에서 게시 글을 상황 맞춤 페르소나 5명(Sonnet)으로 병렬 리뷰한 것이 유효 → uzys-harness 커맨드로 일반화. 6-Gate 의 review 심화 (단일 리뷰 → 다관점 패널).
 
-**목표:** `/uzys:panel` (가칭) — uzys-harness **필수 커맨드**(6-Gate review gate 와 함께 기본 제공, opt-out 아님 — 사용자 지시 2026-06-13 "필수에 넣어줘"). 리뷰 대상(코드/PR/글/문서)을 받아 (a) 상황에 맞는 사용자 관점 페르소나 N명 **동적 생성** + (b) 이미 설치된 정적 리뷰어 에이전트(`.claude/agents/*.md` — 보안/성능/품질 등 고정 렌즈) **자동 혼합** → 병렬 다면 리뷰 → 종합 판정. 출력에 `(uzys-agent-harness)` brand. 4-CLI 대응(claude slash / codex·opencode·antigravity 는 skills·workflows, 6-Gate 패턴).
+> **🔄 RE-SCOPE (2026-06-21 페르소나 감사 / 사용자 결정):** v26.87.0 이 `multi-persona-review` **스킬**을 출하 → 다면 페르소나 병렬 리뷰 + 종합(P0/P1/P2)은 **이미 스킬이 담당**. 독립 `/uzys:panel` 커맨드를 신설하면 진입점 2개(스킬+커맨드) = 이중 표면(거짓출하 구조). **결정: 독립 커맨드 삭제, 스킬을 `/uzys:review` 게이트에 통합 + 신규 delta 만 구현.** (아래 line 123 트리거는 historical 기록.)
 
-**완료 판정:** (1) claude `/uzys:panel` slash command(templates/) + 비-claude CLI 등가물. (2) 페르소나 동적 생성 = 대상 분석 → 관련 관점 자동 도출(사용자 추가/제외 가능). (3) `.claude/agents/*.md` 자동 탐지·혼합(없으면 페르소나만). (4) 카탈로그/문서 등록 + surface parity(wizard/--with/COMPATIBILITY). (5) 출력 헤더 `(uzys-agent-harness)` 표시. (6) SPEC 선행 + 테스트(페르소나 생성·혼합·종합 단위).
+**목표(재정의):** `multi-persona-review` 스킬을 uzys-harness **6-Gate 의 `/uzys:review` 모드**로 통합하고, 스킬이 아직 못 하는 **delta 만** 추가한다 — (a) 대상 분석 기반 **동적 페르소나 생성**, (b) 설치된 정적 리뷰어 `.claude/agents/*.md` **자동 탐지·혼합**. 패널 실행 방법론 자체는 스킬에 위임(재구축 금지). `(uzys-agent-harness)` brand. 4-CLI 대응은 스킬 범용성으로 이미 확보(비-Claude 는 command 폴백).
+
+**완료 판정:** (1) `/uzys:review` 가 `multi-persona-review` 스킬을 호출하는 패널 모드 보유(독립 `/uzys:panel` 커맨드 **없음**). (2) 동적 페르소나 생성 = 대상 분석 → 관련 관점 자동 도출(사용자 추가/제외 가능). (3) `.claude/agents/*.md` 자동 탐지·혼합(없으면 페르소나만). (4) 카탈로그/문서 surface parity. (5) SPEC 선행 + 테스트(동적생성·혼합·종합 단위).
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
-| **P1** | L | `/uzys:panel` 설계+구현 (**필수 커맨드** — opt-out 아님): 페르소나 동적생성 + agent.md 혼합 + 병렬 다면리뷰 + 종합. 4-CLI 대응. `(uzys-agent-harness)` brand. **SPEC 선행**. | 사용자 2026-06-13 (필수) |
+| P2 | M | `/uzys:review` 에 `multi-persona-review` 스킬 호출 패널 모드 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합) 구현. **독립 `/uzys:panel` 커맨드 삭제**. SPEC 선행. | 사용자 2026-06-21 (re-scope) |
 | P3 | M | 페르소나 라이브러리(재사용 관점 템플릿: 회의적시니어/타겟유저/입문자/보안/비주류CLI 등) + 대상별 자동 선택 휴리스틱 | 사용자 2026-06-13 |
-| P3 | S | OQ — `/uzys:review`(기존 review gate)와 관계: panel 을 review 의 모드로 통합 vs 독립 커맨드. 설계 시 결정 | 설계 OQ |
 
-> **필수**(사용자 2026-06-13 "필수에 넣어줘") — uzys-harness 핵심 구성, opt-out 아님. 본 세션 페르소나 리뷰가 검증된 PoC. 구현 = SPEC 후 **우선**(immediateNext 후보). 미결: 커맨드명(/uzys:panel 잠정)·`/uzys:review` 통합 여부.
+> **OQ 닫힘(2026-06-21):** "`/uzys:review` 통합 vs 독립 커맨드" → **review 모드로 통합** 확정(독립 커맨드 삭제). 우선순위 P1→**P2 강등**: 핵심(패널 리뷰)은 스킬로 이미 출하됐고, delta 는 게시(M2) 후 신호 확보 뒤 착수해도 늦지 않음. 본 세션 5-페르소나 리뷰(2026-06-21)가 재확인된 PoC.
 
 ---
 ## 부록 A — 확정 발견 29건 (evidence·proposedFix)

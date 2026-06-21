@@ -10,6 +10,7 @@ import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
 import { assetRow, c, infoRow, padDisplay, sectionHeader, unifiedSection } from "../design.js";
 import {
+  EXTERNAL_ASSETS,
   type ExternalAsset,
   experimentalOptInCandidates,
   isAssetSelected,
@@ -324,6 +325,29 @@ export function renderFinalSummary(
         ),
       ),
     );
+  }
+  // v26.88.0 (audit SCALE-1 / 비-Claude 페르소나) — plugin-kind 자산은 claude marketplace
+  //   전용이라 codex/opencode/antigravity 에는 설치되지 않는다. 비-Claude CLI 를 고른 사용자가
+  //   "Install complete" 만 보고 큐레이션의 plugin 절반을 못 받은 걸 모르던 비대칭을 설치
+  //   시점에 고지한다 (no-false-ship — "4-CLI" 가 자산별로 어디까지 도달하는지 정직화).
+  const nonClaudeCli = spec.cli.filter((b) => b !== "claude");
+  if (nonClaudeCli.length > 0) {
+    const claudeOnlyPlugins = EXTERNAL_ASSETS.filter(
+      (a) => a.method.kind === "plugin" && isAssetSelected(a.id, spec),
+    );
+    if (claudeOnlyPlugins.length > 0) {
+      log("");
+      log(
+        infoRow(
+          "NOTE",
+          c.dim(
+            `${claudeOnlyPlugins.length} plugin asset${claudeOnlyPlugins.length > 1 ? "s" : ""} are Claude Code-only — not installed for ${nonClaudeCli
+              .map((b) => CLI_SUMMARY_LABELS[b])
+              .join("/")}: ${claudeOnlyPlugins.map((a) => a.id).join(", ")}`,
+          ),
+        ),
+      );
+    }
   }
   // v26.71.1 — experimental(T3) opt-in discoverability (Transparent Defaults — 숨김 0건).
   //   비대화형(--track) 에서 condition 은 맞지만 T3 라 default 제외된 자산을 --with 안내.
