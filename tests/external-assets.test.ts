@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assetTrustTier,
+  DEV_METHOD_SKILL_IDS,
   DEV_PLUS_PM_TRACKS,
   DEV_TRACKS,
   EXECUTIVE_STYLE_TRACKS,
@@ -128,9 +129,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 52 distinct asset ids (no duplicates)", () => {
+  it("contains 58 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toHaveLength(58);
     expect(ids).toContain("polars-K-Dense");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");
@@ -139,6 +141,55 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).toContain("trailofbits-skills");
     expect(ids).toContain("gsd-orchestrator");
     expect(ids).toContain("business-growth-skills");
+    // v26.87.0 — dev-method skills (uzys 1st-party, internal).
+    for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
+  });
+
+  // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
+  //   official tier + has-dev-track condition + internal method = repo-bundled, core on
+  //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
+  it("dev-method skills: 6 internal/official/has-dev-track, dev-tools×3 + workflow×3", () => {
+    const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
+    const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
+      "multi-persona-review": "dev-tools",
+      "gap-analysis-e2e": "dev-tools",
+      "ultracode-service-audit": "dev-tools",
+      "asis-tobe-decision": "workflow",
+      "compaction-handoff": "workflow",
+      "northstar-roadmap": "workflow",
+    };
+    expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
+    for (const id of DEV_METHOD_SKILL_IDS) {
+      const a = byId(id);
+      if (!a) throw new Error(`${id} missing`);
+      expect(assetTrustTier(id)).toBe("official");
+      expect(a.source).toBe("uzys");
+      expect(a.condition.kind).toBe("has-dev-track");
+      // internal method (repo-bundled) — NOT a github skill source (would crash at install).
+      expect(a.method.kind).toBe("internal");
+      if (a.method.kind !== "internal") throw new Error("not internal");
+      expect(a.method.key).toBe(id);
+      expect(a.category).toBe(expectedCategory[id]);
+    }
+  });
+
+  // WHY core-on-dev-tracks: official tier (not experimental) + has-dev-track → installs by
+  //   default on any dev track, but forceExclude (wizard uncheck / --without) must drop it.
+  it("dev-method skills install by default on dev tracks, droppable via forceExclude", () => {
+    const audit = EXTERNAL_ASSETS.find((a) => a.id === "ultracode-service-audit");
+    if (!audit) throw new Error("ultracode-service-audit missing");
+    // tooling = dev track → default install.
+    expect(shouldInstallAsset(audit, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(true);
+    // executive (non-dev) → not installed.
+    expect(shouldInstallAsset(audit, { tracks: ["executive"], options: NO_OPTIONS })).toBe(false);
+    // dev track but user unchecks in wizard / --without → dropped.
+    expect(
+      shouldInstallAsset(audit, {
+        tracks: ["tooling"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: [], forceExclude: ["ultracode-service-audit"] },
+      }),
+    ).toBe(false);
   });
 
   it("every asset has description + condition + method", () => {

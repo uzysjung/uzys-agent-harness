@@ -26,7 +26,7 @@ import type { McpJson } from "../mcp-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
 import { renderCodexPrompt } from "./prompts.js";
-import { renderSkill } from "./skills.js";
+import { renderBundledSkill, renderSkill } from "./skills.js";
 
 export interface CodexTransformParams {
   harnessRoot: string;
@@ -38,6 +38,13 @@ export interface CodexTransformParams {
    * uzys-* 파일 생성 안 함. Claude 쪽 `.claude/commands/uzys/` 와 묶음 (ADR-017 의 확장).
    */
   withUzysHarness?: boolean;
+  /**
+   * v26.87.0 — dev-method skill ids 선택 목록 (installer 가 `DEV_METHOD_SKILL_IDS` 를
+   * `isAssetSelected` 로 필터). 각 id 의 `templates/skills/<id>/SKILL.md` 를 Codex native
+   * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력. withUzysHarness 와 **독립** —
+   * 사용자가 uzys-harness 없이 dev-method skill 만 고를 수 있음.
+   */
+  selectedInternalSkills?: ReadonlyArray<string>;
 }
 
 export interface CodexTransformReport {
@@ -58,7 +65,7 @@ const HOOK_NAMES = ["session-start", "hito-counter", "gate-check"];
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir, withUzysHarness = false } = params;
+  const { harnessRoot, projectDir, withUzysHarness = false, selectedInternalSkills = [] } = params;
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
@@ -122,6 +129,21 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
       writeFileSync(target, renderSkill({ source, phase }));
       skillFiles.push(target);
     }
+  }
+
+  // 4b. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
+  //   withUzysHarness 와 **독립** (별도 게이팅). renderSkill 사용 금지 (name: uzys-<id> 오염) —
+  //   renderBundledSkill 이 source frontmatter(name: <id>)를 그대로 보존하고 body 만 포팅.
+  for (const id of selectedInternalSkills) {
+    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
+    if (!existsSync(src)) {
+      continue;
+    }
+    const skillDir = join(projectDir, ".agents", "skills", id);
+    ensureDir(skillDir);
+    const target = join(skillDir, "SKILL.md");
+    writeFileSync(target, renderBundledSkill(readFileSync(src, "utf8")));
+    skillFiles.push(target);
   }
 
   // 5. v0.7.1 — .codex/prompts/uzys-{phase}.md (project-scoped pre-positioning)

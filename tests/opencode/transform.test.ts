@@ -93,6 +93,51 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     }
   });
 
+  // v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback, no native skill).
+  describe("dev-method skills (v26.87.0 — command fallback)", () => {
+    const DEV_METHOD = ["multi-persona-review", "asis-tobe-decision"];
+
+    it("selectedInternalSkills 주어지면 .opencode/commands/<id>.md 커맨드로 렌더", () => {
+      const report = runOpencodeTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: DEV_METHOD,
+      });
+      for (const id of DEV_METHOD) {
+        const target = join(project, ".opencode/commands", `${id}.md`);
+        expect(report.commandFiles).toContain(target);
+        const body = readFileSync(target, "utf8");
+        // command frontmatter: description(스킬에서 추출) + agent, body 포함.
+        expect(body.startsWith("---")).toBe(true);
+        expect(body).toMatch(/description:\s*".+"/);
+        expect(body).toMatch(/agent:\s*\w+/);
+        expect(body).not.toContain("/uzys:");
+      }
+      // dev-method 커맨드는 uzys 6 커맨드에 더해진다.
+      expect(report.commandFiles).toHaveLength(6 + DEV_METHOD.length);
+    });
+
+    it("multi-persona-review 의 description 이 skill frontmatter 에서 추출됨 (빈 stub 아님)", () => {
+      runOpencodeTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: ["multi-persona-review"],
+      });
+      const body = readFileSync(
+        join(project, ".opencode/commands/multi-persona-review.md"),
+        "utf8",
+      );
+      // 스킬 description 의 핵심 어구가 command description 으로 들어와야 한다 (folded block 파싱 검증).
+      expect(body).toMatch(/description:\s*".*panel-review skill.*"/i);
+    });
+
+    it("selectedInternalSkills 빈 배열(기본) → dev-method 커맨드 미생성 (uzys 6개만)", () => {
+      const report = runOpencodeTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+      expect(existsSync(join(project, ".opencode/commands/multi-persona-review.md"))).toBe(false);
+      expect(report.commandFiles).toHaveLength(6);
+    });
+  });
+
   it("creates plugin stub even when template plugin file missing", () => {
     const fakeRoot = mkdtempSync(join(tmpdir(), "ch-opencode-noplugin-"));
     try {

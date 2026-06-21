@@ -1,3 +1,4 @@
+import { DEV_METHOD_SKILL_IDS } from "./external-assets.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
@@ -37,6 +38,13 @@ export interface AssetSpec {
    * 분류 표 SSOT: docs/PRD/v26-58-cherry-pick-plugin-gating.md §6.
    */
   withEcc?: boolean;
+  /**
+   * v26.87.0 — 선택된 내부 dev-method skill id 집합 (uzys 1st-party, repo-bundled).
+   * installer 가 `DEV_METHOD_SKILL_IDS` 를 `isAssetSelected` 로 필터해 채운다 — 즉
+   * track(has-dev-track) 기본 + wizard uncheck / `--without <id>` (forceExclude) 반영.
+   * buildManifest 의 skill-dir copy 가 이 목록에 포함된 id 만 게이팅한다.
+   */
+  selectedInternalSkills?: ReadonlyArray<string>;
 }
 
 export interface AssetEntry {
@@ -276,6 +284,17 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     type: "dir",
     applies: onTracks("ssr-nextjs|full"),
   });
+  // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Gated on
+  // `selectedInternalSkills` (computed by installer via isAssetSelected) — NOT track
+  // alone — so a wizard uncheck / `--without <id>` (forceExclude) actually drops the copy.
+  for (const sd of DEV_METHOD_SKILL_IDS) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: (s) => (s.selectedInternalSkills ?? []).includes(sd),
+    });
+  }
   // v26.58.0 — python-* / DEV_SKILL_DIRS / UI_SKILL_DIRS 중 ECC 출처는 opt-out gating. ADR-019. C2.
   for (const sd of PYTHON_SKILL_DIRS_ECC) {
     m.push({

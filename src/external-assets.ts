@@ -38,7 +38,19 @@ export type ExternalAssetMethod =
    * installer Phase 1 의 manifest/transform 게이팅이 `isAssetSelected(key)` 로 읽는다.
    * (이전 OptionFlags.withTauri/withUzysHarness 자리. wizard/CLI 표면은 일반 자산과 동일)
    */
-  | { kind: "internal"; key: "tauri-desktop" | "uzys-harness" };
+  | {
+      kind: "internal";
+      key:
+        | "tauri-desktop"
+        | "uzys-harness"
+        // v26.87.0 — dev-method skills (uzys 1st-party, repo-bundled templates).
+        | "multi-persona-review"
+        | "gap-analysis-e2e"
+        | "ultracode-service-audit"
+        | "asis-tobe-decision"
+        | "compaction-handoff"
+        | "northstar-roadmap";
+    };
 
 export type ExternalAssetCondition =
   /** Track 중 1개 이상이 set와 일치 */
@@ -144,7 +156,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 52 자산 매트릭스 (v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 58 자산 매트릭스 (v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -229,6 +241,70 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "opt-in" },
     method: { kind: "internal", key: "uzys-harness" },
+  },
+
+  // === Dev-method skills (uzys 1st-party, v26.87.0) ===
+  // 본 하네스의 작업 방법론 skill 6종 (repo-bundled templates). tier official, core on dev tracks
+  // (has-dev-track → 기본 설치; wizard uncheck / --without <id> 로 제외 가능 — isAssetSelected 게이팅).
+  {
+    id: "multi-persona-review",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Multi-persona review — critique one artifact via 3-5 parallel user personas, then synthesize P0/P1/P2 fixes",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "multi-persona-review" },
+  },
+  {
+    id: "gap-analysis-e2e",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Gap analysis E2E — detect north-star / correctness / UX gaps, then benchmark how reference services solved each",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "gap-analysis-e2e" },
+  },
+  {
+    id: "ultracode-service-audit",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Ultracode service audit — multi-agent, adversarially-verified full-service audit across 7 dimensions → milestone roadmap",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "ultracode-service-audit" },
+  },
+  {
+    id: "asis-tobe-decision",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "ASIS→TOBE decision — present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "asis-tobe-decision" },
+  },
+  {
+    id: "compaction-handoff",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Compaction handoff — persist durable state + git snapshot + resume anchor before a context /compact so nothing is lost",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "compaction-handoff" },
+  },
+  {
+    id: "northstar-roadmap",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "North-star roadmap — measure current state vs the vision doc, then propose a ranked feature backlog persisted to docs/plans + memory",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "northstar-roadmap" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -847,6 +923,20 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       args: ["--apply", "--force"],
     },
   },
+];
+
+/**
+ * v26.87.0 — dev-method skill ids (uzys 1st-party, internal templates). installer 의
+ * `selectedInternalSkills` 계산 + manifest copy 게이팅 + 테스트가 공유하는 SSOT.
+ * 각 id 는 method.kind==="internal" 이며 `templates/skills/<id>/SKILL.md` 로 번들된다.
+ */
+export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
+  "multi-persona-review",
+  "gap-analysis-e2e",
+  "ultracode-service-audit",
+  "asis-tobe-decision",
+  "compaction-handoff",
+  "northstar-roadmap",
 ];
 
 /**

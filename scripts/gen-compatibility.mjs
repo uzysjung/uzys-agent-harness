@@ -41,6 +41,19 @@ const CLI_SCOPE = {
   "shell-script": "local",
   internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
 };
+// v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 6종은 이제 4-CLI 로
+// 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
+// frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
+// 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
+const DEV_METHOD_CLI_SCOPE = "Claude · Codex · Antigravity (skill) · OpenCode (cmd)";
+const CLI_SCOPE_OVERRIDE = {
+  "multi-persona-review": DEV_METHOD_CLI_SCOPE,
+  "gap-analysis-e2e": DEV_METHOD_CLI_SCOPE,
+  "ultracode-service-audit": DEV_METHOD_CLI_SCOPE,
+  "asis-tobe-decision": DEV_METHOD_CLI_SCOPE,
+  "compaction-handoff": DEV_METHOD_CLI_SCOPE,
+  "northstar-roadmap": DEV_METHOD_CLI_SCOPE,
+};
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
 //   와 의도적으로 다름 — 표 컨텍스트). 단, 카테고리 누락 시 해당 자산이 표에서 silent drop
@@ -111,7 +124,7 @@ function rows() {
       const tier = TRUST_TIER[a.id] ?? "experimental";
       const lvl = LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "⚪";
       out.push(
-        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE[a.method.kind]} | ${lvl} |`,
+        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? CLI_SCOPE[a.method.kind]} | ${lvl} |`,
       );
     }
   }

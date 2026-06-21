@@ -84,4 +84,61 @@ describe("runCodexTransform (E2E against templates/)", () => {
       /required source missing/,
     );
   });
+
+  // v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (native, frontmatter 보존).
+  describe("dev-method skills (v26.87.0 — multi-CLI routing)", () => {
+    const DEV_METHOD = ["multi-persona-review", "asis-tobe-decision"];
+
+    it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더", () => {
+      const report = runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: DEV_METHOD,
+      });
+      for (const id of DEV_METHOD) {
+        const target = join(project, ".agents/skills", id, "SKILL.md");
+        expect(report.skillFiles).toContain(target);
+        expect(existsSync(target)).toBe(true);
+      }
+    });
+
+    // PITFALL GUARD: dev-method SKILL.md 는 이미 완성된 skill — 자체 frontmatter(name: <id>)를
+    // 보존해야 한다. renderSkill 을 거치면 name: uzys-<id> 로 오염 + 이중 래핑. 이 테스트가
+    // 그 회귀를 잡는다 (business logic = "frontmatter 보존"이 깨지면 fail).
+    it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>) — renderSkill 미사용 가드", () => {
+      runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: ["multi-persona-review"],
+      });
+      const body = readFileSync(
+        join(project, ".agents/skills/multi-persona-review/SKILL.md"),
+        "utf8",
+      );
+      expect(body).toContain("name: multi-persona-review");
+      expect(body).not.toContain("name: uzys-multi-persona-review");
+      expect(body).not.toContain("name: uzys-");
+    });
+
+    it("selectedInternalSkills 빈 배열(기본) → dev-method skill 미생성", () => {
+      const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+      expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
+      // uzys-harness 미선택이므로 skillFiles 전체가 비어 있어야 한다.
+      expect(report.skillFiles).toEqual([]);
+    });
+
+    // dev-method skill 게이팅은 withUzysHarness 와 **독립** — uzys-harness 없이도 렌더된다.
+    it("withUzysHarness=false 여도 dev-method skill 은 독립적으로 렌더", () => {
+      const report = runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        withUzysHarness: false,
+        selectedInternalSkills: ["multi-persona-review"],
+      });
+      expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
+      // uzys-6Gate skill 은 빠지고 dev-method 1개만.
+      expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
+      expect(report.skillFiles).toHaveLength(1);
+    });
+  });
 });

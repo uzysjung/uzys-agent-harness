@@ -158,4 +158,29 @@ describe("buildManifest", () => {
     const mrData = data.find((e) => e.source === "skills/market-research");
     expect(mrData?.applies({ tracks: ["data"] })).toBe(false);
   });
+
+  // v26.87.0 — dev-method skills (uzys 1st-party, internal). no-false-ship invariant:
+  //   the copy is gated on selectedInternalSkills (computed by installer via isAssetSelected),
+  //   NOT on track alone — so a wizard uncheck / `--without <id>` actually drops the copy.
+  //   WHY a track-only gate would be wrong: it would ignore the user's deselection and still
+  //   ship the skill, contradicting the advertised "selectable" surface.
+  it("dev-method skill copies are gated by selectedInternalSkills (respect uncheck)", () => {
+    const m = buildManifest({ tracks: ["tooling"] });
+    const entry = m.find((e) => e.source === "skills/multi-persona-review");
+    // entry always present in manifest — applies() gates it (parity with uzys/* commands).
+    expect(entry).toBeDefined();
+    expect(entry?.target).toBe(".claude/skills/multi-persona-review");
+    // selected (installer included it) → copied.
+    expect(
+      entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["multi-persona-review"] }),
+    ).toBe(true);
+    // a dev track but NOT in the selected set (user unchecked / --without) → dropped,
+    //   even though another internal skill IS selected.
+    expect(
+      entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["gap-analysis-e2e"] }),
+    ).toBe(false);
+    // selectedInternalSkills omitted / empty → dropped (no track-only fallback).
+    expect(entry?.applies({ tracks: ["tooling"] })).toBe(false);
+    expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: [] })).toBe(false);
+  });
 });

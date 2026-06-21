@@ -536,15 +536,30 @@ describe("v26.54.0 — splitInstallTargets", () => {
 });
 
 describe("computeUserOverride", () => {
+  // v26.87.0 — dev-method skills (official, has-dev-track) 가 tooling 추천에 합류.
+  //   forceInclude/forceExclude diffing 의도는 동일 — recommended 기준선만 6종 늘어난다.
+  const TOOLING_RECOMMENDED = [
+    "agent-browser",
+    "find-skills",
+    "karpathy-coder",
+    "product-skills",
+    "multi-persona-review",
+    "gap-analysis-e2e",
+    "ultracode-service-audit",
+    "asis-tobe-decision",
+    "compaction-handoff",
+    "northstar-roadmap",
+  ];
+
   it("selections == recommended → undefined (no override)", () => {
     // v26.71.0 — tooling 추천은 vetted 만 (T3 architecture-decision-record/playwright-skill 제외).
-    const recommended = ["agent-browser", "find-skills", "karpathy-coder", "product-skills"];
-    expect(computeUserOverride(["tooling"] as Track[], recommended)).toBeUndefined();
+    // v26.87.0 — + dev-method skills 6종 (official).
+    expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
     // v26.71.0 — 새 추천(vetted)에서 karpathy-coder 를 uncheck → forceExclude.
-    const without = ["agent-browser", "find-skills", "product-skills"];
+    const without = TOOLING_RECOMMENDED.filter((id) => id !== "karpathy-coder");
     const result = computeUserOverride(["tooling"] as Track[], without);
     expect(result).toBeDefined();
     expect(result?.forceExclude).toEqual(["karpathy-coder"]);
@@ -553,13 +568,7 @@ describe("computeUserOverride", () => {
 
   it("forceInclude — 추천 외 추가 선택", () => {
     // v26.71.0 — 새 추천(vetted) + railway-skills(T3, 추천 외) 추가 → forceInclude.
-    const withRailway = [
-      "agent-browser",
-      "find-skills",
-      "karpathy-coder",
-      "product-skills",
-      "railway-skills",
-    ];
+    const withRailway = [...TOOLING_RECOMMENDED, "railway-skills"];
     const result = computeUserOverride(["tooling"] as Track[], withRailway);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
     expect(result?.forceExclude).toEqual([]);

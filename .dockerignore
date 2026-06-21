@@ -4,5 +4,4 @@ dist
 *.log
 coverage
 docs/assets
-test/docker
 .claude

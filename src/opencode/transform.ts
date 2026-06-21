@@ -21,12 +21,18 @@ import { basename, join } from "node:path";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
-import { renderCommand } from "./commands.js";
+import { renderCommand, renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
 
 export interface OpencodeTransformParams {
   harnessRoot: string;
   projectDir: string;
+  /**
+   * v26.87.0 — dev-method skill ids 선택 목록. OpenCode 는 native skill 개념이 없어 각 skill 을
+   * `.opencode/commands/<id>.md` 커맨드 fallback 으로 surface (description = skill frontmatter,
+   * body = skill 본문). withUzysHarness 와 독립 — installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
+   */
+  selectedInternalSkills?: ReadonlyArray<string>;
 }
 
 export interface OpencodeTransformReport {
@@ -39,7 +45,7 @@ export interface OpencodeTransformReport {
 const PHASES = ["spec", "plan", "build", "test", "review", "ship"];
 
 export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeTransformReport {
-  const { harnessRoot, projectDir } = params;
+  const { harnessRoot, projectDir, selectedInternalSkills = [] } = params;
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/opencode/AGENTS.md.template"));
@@ -79,6 +85,18 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     }
     const target = join(cmdDir, `uzys-${phase}.md`);
     writeFileSync(target, renderCommand({ source, phase }));
+    commandFiles.push(target);
+  }
+
+  // 3b. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
+  //   OpenCode 는 native skill 없음 → skill 을 커맨드로 surface. uzys-harness 와 독립.
+  for (const id of selectedInternalSkills) {
+    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
+    if (!existsSync(src)) {
+      continue;
+    }
+    const target = join(cmdDir, `${id}.md`);
+    writeFileSync(target, renderCommandFromSkill(readFileSync(src, "utf8"), id));
     commandFiles.push(target);
   }
 

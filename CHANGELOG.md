@@ -7,6 +7,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.87.0] — 2026-06-21 (feat: dev-method 1st-party skills 6종 — internal, core on dev tracks)
+
+하네스 작업 방법론 skill 6종을 **내부 자산(repo-bundled templates)**으로 출하. tier `official`, source `uzys`, condition `has-dev-track`, method `{ kind: "internal" }` — `tauri-desktop` / `uzys-harness` 전례와 동일. dev track 기본 설치(core), wizard 체크 해제 또는 `--without <id>` 로 제외 가능. **외부 github source 아님** (해당 repo 미존재 → 설치 크래시 회피, no-false-ship). 자산 52→58.
+
+### Added
+
+- **dev-method skills (internal, official, core on dev tracks)** — `templates/skills/<id>/SKILL.md` 번들:
+  - **Dev Tools** 카테고리 3종: `multi-persona-review` (한 산출물을 3-5 페르소나 병렬 비평 → P0/P1/P2 fix), `gap-analysis-e2e` (북극성·정합성·UX 갭 검출 → 벤치마크 서비스 해결법 조사), `ultracode-service-audit` (다중 에이전트 적대 검증 7차원 전체 감사 → 마일스톤 로드맵).
+  - **Workflow** 카테고리 3종: `asis-tobe-decision` (A-or-B/승인 순간을 맥락→추천→옵션표→ASIS/TOBE 형식으로 제시), `compaction-handoff` (`/compact` 직전 영속 상태 + git snapshot + resume anchor 핸드오프), `northstar-roadmap` (비전 문서 대비 현재 측정 → docs/plans+메모리에 우선순위 백로그 영속).
+- **generic internal-skill 게이팅** — `AssetSpec.selectedInternalSkills` (installer 가 `DEV_METHOD_SKILL_IDS` 를 `isAssetSelected` 로 필터해 채움). manifest copy 가 이 목록만 게이팅 → wizard uncheck / forceExclude 가 실제 설치를 제어. ADR-022 (자산 1:1 OptionFlags 금지) 회귀 방지 — 신규 OptionFlags 0종.
+
+### Honesty (no-false-ship)
+
+- **CLI scope = 4-CLI 라우팅 구현됨** — 6종이 이제 4개 CLI 로 라우팅된다: Claude(`.claude/skills/`) + Codex/Antigravity **native skill**(`.agents/skills/<id>/SKILL.md`, frontmatter `name:<id>` 보존) + OpenCode **command fallback**(`.opencode/commands/<id>.md`, OpenCode 는 native skill 개념 없음). COMPATIBILITY CLI 칼럼을 `Claude · Codex · Antigravity (skill) · OpenCode (cmd)` 로 정직 표기(`gen-compatibility.mjs` `CLI_SCOPE_OVERRIDE`). **구현 함정 회피**: dev-method SKILL.md 는 이미 완성된 skill(자체 frontmatter)이라 command→skill 변환기 `renderSkill`(name: uzys-* 하드코딩) 미사용 — frontmatter 보존 helper `renderBundledSkill` 신설. transform 단위테스트가 frontmatter `name:<id>` 보존 + 독립 게이팅(withUzysHarness 무관)을 가드. **미검증**: 실 CLI 의 native 인식(Codex/Antigravity `.agents/skills/` resolve, OpenCode `.opencode/commands/` 호출)은 호스트 hook 차단으로 Docker 격리 검증 미수행. `tauri-desktop`(rule) 라벨은 별도 검증 과제로 미변경.
+
+### Verified
+
+- `npm run ci` (typecheck + lint + test:coverage + build) — dev-method skills test (Promise=Impl: internal/official/has-dev-track + dev-tools×3/workflow×3), manifest 게이팅 test (selected → 복사, deselected → drop), wizard-page-parity, catalog count 58. **실 CLI 설치 미수행** (호스트 hook 차단; 테스트 mock).
+
 ## [v26.86.0] — 2026-06-20 (feat: Visual & Media 프레젠테이션 스택 4종 — Issue #176)
 
 PPTX·Reveal.js·video 프레젠테이션 생성 자산 4종. Issue #176(사용자 제안) 검증. 전부 Docker 실설치(skills@1.5.11) PASS. 자산 48→52.
