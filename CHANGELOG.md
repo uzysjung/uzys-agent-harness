@@ -20,7 +20,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### Honesty (no-false-ship)
 
-- **CLI scope = Claude Code 전용** — 6종은 `.claude/skills/` 로만 복사된다. codex/antigravity/opencode transform 은 하드코딩된 `uzys-{phase}` 6-Gate 커맨드만 처리(임의 skill 미지원) → COMPATIBILITY CLI 칼럼을 일반 internal `4-CLI` 가 아닌 `Claude Code` 로 정직 표기(`gen-compatibility.mjs` `CLI_SCOPE_OVERRIDE`). **4-CLI 도달은 후속 마일스톤**(transform 일반화). `tauri-desktop`(rule) 라벨은 별도 검증 과제로 미변경.
+- **CLI scope = 4-CLI 라우팅 구현됨** — 6종이 이제 4개 CLI 로 라우팅된다: Claude(`.claude/skills/`) + Codex/Antigravity **native skill**(`.agents/skills/<id>/SKILL.md`, frontmatter `name:<id>` 보존) + OpenCode **command fallback**(`.opencode/commands/<id>.md`, OpenCode 는 native skill 개념 없음). COMPATIBILITY CLI 칼럼을 `Claude · Codex · Antigravity (skill) · OpenCode (cmd)` 로 정직 표기(`gen-compatibility.mjs` `CLI_SCOPE_OVERRIDE`). **구현 함정 회피**: dev-method SKILL.md 는 이미 완성된 skill(자체 frontmatter)이라 command→skill 변환기 `renderSkill`(name: uzys-* 하드코딩) 미사용 — frontmatter 보존 helper `renderBundledSkill` 신설. transform 단위테스트가 frontmatter `name:<id>` 보존 + 독립 게이팅(withUzysHarness 무관)을 가드. **미검증**: 실 CLI 의 native 인식(Codex/Antigravity `.agents/skills/` resolve, OpenCode `.opencode/commands/` 호출)은 호스트 hook 차단으로 Docker 격리 검증 미수행. `tauri-desktop`(rule) 라벨은 별도 검증 과제로 미변경.
 
 ### Verified
 

@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { join, resolve } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runAntigravityTransform } from "../../src/antigravity/transform.js";
+
+const HARNESS_ROOT = resolve(__dirname, "../..");
 
 const PHASES = ["spec", "plan", "build", "test", "review", "ship"] as const;
 
@@ -135,5 +137,74 @@ describe("runAntigravityTransform (v26.66.0 skills/workflows + v26.69.0 rules)",
     expect(report.workflowFiles).toHaveLength(0);
     expect(report.skillFiles).toHaveLength(6);
     cleanup();
+  });
+});
+
+// v26.87.0 — dev-method skills against the REAL templates/skills/ (need actual SKILL.md source).
+describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI routing)", () => {
+  let project = "";
+  const DEV_METHOD = ["multi-persona-review", "asis-tobe-decision"];
+
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), "agy-devmethod-"));
+  });
+  afterEach(() => {
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더 (workflow 미생성)", () => {
+    const report = runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: false,
+      selectedInternalSkills: DEV_METHOD,
+    });
+    for (const id of DEV_METHOD) {
+      const target = join(project, ".agents/skills", id, "SKILL.md");
+      expect(report.skillFiles).toContain(target);
+      expect(existsSync(target)).toBe(true);
+    }
+    // dev-method skill 은 평행 workflow 를 만들지 않는다 (uzys 전례와 다름).
+    expect(report.workflowFiles).toHaveLength(0);
+    expect(existsSync(join(project, ".agents/workflows/multi-persona-review.md"))).toBe(false);
+  });
+
+  // PITFALL GUARD — frontmatter name: <id> 보존, renderSkill(name: uzys-<id>) 미사용.
+  it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>)", () => {
+    runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: false,
+      selectedInternalSkills: ["multi-persona-review"],
+    });
+    const body = readFileSync(
+      join(project, ".agents/skills/multi-persona-review/SKILL.md"),
+      "utf8",
+    );
+    expect(body).toContain("name: multi-persona-review");
+    expect(body).not.toContain("name: uzys-");
+  });
+
+  it("selectedInternalSkills 빈 배열 → dev-method skill 미생성", () => {
+    const report = runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: false,
+    });
+    expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
+    expect(report.skillFiles).toHaveLength(0);
+  });
+
+  // 독립 게이팅 — withUzysHarness=false 여도 dev-method skill 은 렌더된다.
+  it("withUzysHarness=false 여도 dev-method skill 은 독립 렌더 (uzys-6Gate skill 은 빠짐)", () => {
+    const report = runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      withUzysHarness: false,
+      selectedInternalSkills: ["multi-persona-review"],
+    });
+    expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
+    expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
+    expect(report.skillFiles).toHaveLength(1);
   });
 });

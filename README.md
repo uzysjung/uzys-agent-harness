@@ -180,7 +180,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `gap-analysis-e2e` ★ | Detect north-star / correctness / UX gaps, then benchmark how reference services solved each | this project (core) |
 | `ultracode-service-audit` ★ | Multi-agent, adversarially-verified full-service audit (7 dimensions) → milestone roadmap | this project (core) |
 
-> ★ **dev-method skills** — first-party (`official`) workflow methodology bundled with the harness. **Core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates — no external download.
+> ★ **dev-method skills** — first-party (`official`) workflow methodology bundled with the harness. **Core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates — no external download. **Installs across all 4 CLIs**: Claude (`.claude/skills/`) and Codex / Antigravity as native skills (`.agents/skills/<id>/SKILL.md`), plus OpenCode as a command fallback (`.opencode/commands/<id>.md`, since OpenCode has no native skill concept).
 
 ### Workflow (opt-in — pick one or more at step 3)
 
@@ -197,7 +197,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
 | `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
 
-**First-party dev-method skills** (`official`, **core on every dev track** — installed by default, uncheck at step 3 or `--without <id>` to skip; repo-bundled templates):
+**First-party dev-method skills** (`official`, **core on every dev track** — installed by default, uncheck at step 3 or `--without <id>` to skip; repo-bundled templates; install across all 4 CLIs — Claude + Codex/Antigravity native skills + OpenCode command fallback):
 
 | Asset | What | Source |
 |---|---|---|

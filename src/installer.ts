@@ -271,7 +271,13 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backup: backupPath,
     installedTracks: [...spec.tracks].sort(),
     mcpServers: Object.keys(mcpResult.mcpServers).sort(),
-    ...runCliTransforms(spec, harnessRoot, projectDir, manifestSpec.withUzysHarness),
+    ...runCliTransforms(
+      spec,
+      harnessRoot,
+      projectDir,
+      manifestSpec.withUzysHarness,
+      manifestSpec.selectedInternalSkills,
+    ),
     updateMode: null,
     mode,
     envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
@@ -481,6 +487,7 @@ function runCliTransforms(
   harnessRoot: string,
   projectDir: string,
   uzysHarnessSelected: boolean,
+  selectedInternalSkills: ReadonlyArray<string>,
 ): CliTransformResults {
   // Codex transform when spec.cli includes "codex"
   let codex: CodexTransformReport | null = null;
@@ -488,10 +495,12 @@ function runCliTransforms(
   if (spec.cli.includes("codex")) {
     // v26.57.0 (ADR-018) — withUzysHarness gating 을 codex transform 에도 전달.
     // .agents/skills/uzys-* + .codex/prompts/uzys-* 도 uzys-harness 없으면 생성 안 함.
+    // v26.87.0 — dev-method skills 는 selectedInternalSkills 로 독립 게이팅.
     codex = runCodexTransform({
       harnessRoot,
       projectDir,
       withUzysHarness: uzysHarnessSelected,
+      selectedInternalSkills,
     });
     // v26.64.0 (ADR-020) — Codex global opt-in 은 scope=global 일 때만 의미.
     // scope=project (default) 시 ~/.codex/ write skip — transform.ts 가 이미 `.codex/` (project)
@@ -514,7 +523,7 @@ function runCliTransforms(
   // OpenCode transform when spec.cli includes "opencode"
   let opencode: OpencodeTransformReport | null = null;
   if (spec.cli.includes("opencode")) {
-    opencode = runOpencodeTransform({ harnessRoot, projectDir });
+    opencode = runOpencodeTransform({ harnessRoot, projectDir, selectedInternalSkills });
   }
 
   // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
@@ -526,6 +535,7 @@ function runCliTransforms(
       harnessRoot,
       projectDir,
       withUzysHarness: uzysHarnessSelected,
+      selectedInternalSkills,
     });
     // v26.67.0 (Phase C) — Antigravity global opt-in. ADR-020 정합 —
     // scope=global + withAntigravityGlobal=true 시에만 ~/.gemini/ 영역 write.

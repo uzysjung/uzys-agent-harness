@@ -22,7 +22,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { renameSlashes, renderAgentsMd } from "../codex/agents-md.js";
-import { renderSkill } from "../codex/skills.js";
+import { renderBundledSkill, renderSkill } from "../codex/skills.js";
 import { ensureDir } from "../fs-ops.js";
 
 const PHASES = ["spec", "plan", "build", "test", "review", "ship"];
@@ -37,6 +37,14 @@ export interface AntigravityTransformParams {
    * uzys-harness 활성 시에만. rules (project context) 는 본 flag 무관 — 항상 작성.
    */
   withUzysHarness: boolean;
+  /**
+   * v26.87.0 — dev-method skill ids 선택 목록. 각 id 의 `templates/skills/<id>/SKILL.md` 를
+   * Antigravity native `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
+   * withUzysHarness 와 **독립**. workflow(.agents/workflows/<id>.md)는 미생성 — uzys 전례의
+   * workflow 는 슬래시 커맨드(`/uzys-{phase}`) 파생인데 dev-method skill 은 슬래시 네임스페이스가
+   * 없는 완성된 skill 이라 평행 workflow 가 부정합 (skill 만 native 매핑).
+   */
+  selectedInternalSkills?: ReadonlyArray<string>;
 }
 
 export interface AntigravityTransformReport {
@@ -56,13 +64,28 @@ export interface AntigravityTransformReport {
 export function runAntigravityTransform(
   params: AntigravityTransformParams,
 ): AntigravityTransformReport {
-  const { harnessRoot, projectDir, withUzysHarness } = params;
+  const { harnessRoot, projectDir, withUzysHarness, selectedInternalSkills = [] } = params;
 
   // 1. .agents/rules/uzys-harness.md — project context. withUzysHarness 무관 (항상).
   const rulesFile = writeRules(harnessRoot, projectDir);
 
   const skillFiles: string[] = [];
   const workflowFiles: string[] = [];
+
+  // 1b. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
+  //   withUzysHarness 와 **독립**. renderSkill 금지 (name: uzys-<id> 오염) — renderBundledSkill
+  //   이 source frontmatter(name: <id>)를 보존. workflow 는 미생성 (위 param 주석 참조).
+  for (const id of selectedInternalSkills) {
+    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
+    if (!existsSync(src)) {
+      continue;
+    }
+    const skillDir = join(projectDir, ".agents", "skills", id);
+    ensureDir(skillDir);
+    const target = join(skillDir, "SKILL.md");
+    writeFileSync(target, renderBundledSkill(readFileSync(src, "utf8")));
+    skillFiles.push(target);
+  }
 
   if (withUzysHarness) {
     for (const phase of PHASES) {

@@ -260,7 +260,10 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(report.codex).not.toBeNull();
-    expect(report.codex?.skillFiles).toHaveLength(6);
+    // ADR-018 — uzys-harness 켜짐 → uzys-{phase} 6-Gate skill 6종.
+    // v26.87.0 — skillFiles 에 dev-method skills(tooling=dev track)도 포함되므로 전체 length 대신
+    // uzys-* 6-Gate 만 6개임을 검증 (이 테스트의 본래 intent 보존).
+    expect(report.codex?.skillFiles?.filter((f) => f.includes("/uzys-"))).toHaveLength(6);
   });
 
   it("v26.57.0 (ADR-018) — codex + withUzysHarness=false → skillFiles + promptFiles 0", () => {
@@ -273,10 +276,14 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     // baseline 은 그대로 생성
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
-    // uzys 산출물은 빠짐
-    expect(report.codex?.skillFiles).toEqual([]);
+    // ADR-018 불변식: uzys-{phase} 6-Gate 산출물은 빠짐 (withUzysHarness=false).
+    // v26.87.0 — dev-method skills 는 dev track(tooling) 기본 설치라 skillFiles 에 존재(독립 게이팅).
+    // → skillFiles 전체가 [] 라는 옛 단정 대신, uzys-* 6-Gate 만 부재임을 검증.
+    expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
     expect(report.codex?.promptFiles).toEqual([]);
     expect(existsSync(join(projectDir, ".codex/prompts"))).toBe(false);
     expect(existsSync(join(projectDir, ".agents/skills/uzys-spec"))).toBe(false);
+    // dev-method skill 6종은 native 매핑되어 존재해야 한다 (tooling = dev track).
+    expect(existsSync(join(projectDir, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
   });
 });

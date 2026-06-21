@@ -41,17 +41,18 @@ const CLI_SCOPE = {
   "shell-script": "local",
   internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
 };
-// v26.87.0 — per-asset CLI scope override (no-false-ship). internal "skill" 자산(dev-method 6종)은
-// Claude 전용: manifest 가 .claude/skills/ 로만 복사하고, codex/antigravity/opencode transform 은
-// 하드코딩된 uzys-6Gate 커맨드만 처리(임의 skill 미지원) → 일반 internal "4-CLI" 라벨 상속 금지.
-// uzys-harness 는 실제 4-CLI transform 보유 → 유지. tauri-desktop(rule)은 별도 검증 과제(미변경).
+// v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 6종은 이제 4-CLI 로
+// 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
+// frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
+// 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
+const DEV_METHOD_CLI_SCOPE = "Claude · Codex · Antigravity (skill) · OpenCode (cmd)";
 const CLI_SCOPE_OVERRIDE = {
-  "multi-persona-review": "Claude Code",
-  "gap-analysis-e2e": "Claude Code",
-  "ultracode-service-audit": "Claude Code",
-  "asis-tobe-decision": "Claude Code",
-  "compaction-handoff": "Claude Code",
-  "northstar-roadmap": "Claude Code",
+  "multi-persona-review": DEV_METHOD_CLI_SCOPE,
+  "gap-analysis-e2e": DEV_METHOD_CLI_SCOPE,
+  "ultracode-service-audit": DEV_METHOD_CLI_SCOPE,
+  "asis-tobe-decision": DEV_METHOD_CLI_SCOPE,
+  "compaction-handoff": DEV_METHOD_CLI_SCOPE,
+  "northstar-roadmap": DEV_METHOD_CLI_SCOPE,
 };
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
