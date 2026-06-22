@@ -1,0 +1,20 @@
+# agent-harness
+
+> One-command installer and curator of vetted AI-coding skills, plugins, rules, and hooks by tech stack — across Claude Code (first-class), Codex, OpenCode, and Antigravity. Project-scoped by default; no global pollution. Install with `npx -y @uzysjung/agent-harness install`. MIT.
+
+agent-harness curates by tech stack: of the vetted options, you install only what your project actually needs, instead of piling on skills and MCPs that just bloat an agent's context. "Vetted" means every catalog asset is ≥1000 GitHub stars, actively maintained, and verified by a real install in an isolated Docker container (49/58 green today), re-checked monthly for star-drift. It is **not** a line-by-line security audit or a prompt-injection scan of asset contents; npm/npx assets are version-pinned, while plugin/skill assets resolve to upstream HEAD. Claude Code is first-class; Codex, OpenCode, and Antigravity receive the skills + rules layer (the compatibility matrix states exactly what reaches each CLI).
+
+## Docs
+
+- [README](https://github.com/uzysjung/uzys-agent-harness/blob/main/README.md): overview, install, trust tiers, and the file layout an install produces
+- [Compatibility matrix](https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/COMPATIBILITY.md): which assets reach each CLI, generated from real install runs rather than a hand-maintained table
+- [Usage](https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md): commands, flags, install scopes (project vs global)
+- [Workflows & catalog](https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md): curated workflow assets (Superpowers, ECC, BMAD, OpenSpec, …) with measured star counts
+- [Security policy](https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md): supported versions and how to report a vulnerability
+- [Changelog](https://github.com/uzysjung/uzys-agent-harness/blob/main/CHANGELOG.md): version history (CalVer)
+
+## Install
+
+- npm: run `npx -y @uzysjung/agent-harness install`
+- package page: https://www.npmjs.com/package/@uzysjung/agent-harness
+- source: https://github.com/uzysjung/uzys-agent-harness
