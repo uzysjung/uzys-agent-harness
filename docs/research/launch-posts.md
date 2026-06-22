@@ -93,13 +93,13 @@ welcome, especially on the curation calls.
 How it compares (★ 2026-06-13):
 ```
 
-| 프로젝트 | ★ (2026-06-13) | 한 줄 정체 |
+| 프로젝트 | ★ (2026-06-22) | 한 줄 정체 |
 |---|---|---|
-| Superpowers | 226k | agentic skills 프레임워크 |
-| ECC | 214k | 60 agents·230 skills 종합(kitchen-sink) |
+| Superpowers | 235k | agentic skills 프레임워크 |
+| ECC | 219k | 60 agents·230 skills 종합(kitchen-sink) |
 | GSD | 64k | get-shit-done 오케스트레이터 |
-| addy agent-skills | 57k | 경량 general dev |
-| OpenSpec | 55k | spec-driven brownfield delta |
+| addy agent-skills | 65k | 경량 general dev |
+| OpenSpec | 56k | spec-driven brownfield delta |
 | BMAD-METHOD | 49k | 멀티-에이전트 애자일 |
 | wshobson agents | 37k | 멀티-에이전트 오케스트레이션 |
 | uzys-harness | (내장) | 6-Gate `/uzys:spec…ship` |
