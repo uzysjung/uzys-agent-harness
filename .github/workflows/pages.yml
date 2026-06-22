@@ -9,6 +9,8 @@ on:
     paths:
       - "index.html"
       - "llms.txt"
+      - "robots.txt"
+      - "sitemap.xml"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -32,7 +34,7 @@ jobs:
       - name: Assemble site (landing + llms.txt only)
         run: |
           mkdir -p _site
-          cp index.html llms.txt _site/
+          cp index.html llms.txt robots.txt sitemap.xml _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
