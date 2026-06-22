@@ -1,0 +1,16 @@
+# agent-harness — AI agents and crawlers are explicitly welcome.
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://uzysjung.github.io/uzys-agent-harness/sitemap.xml
