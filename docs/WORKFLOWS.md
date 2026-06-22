@@ -15,17 +15,17 @@
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|
 | **uzys-harness** | `uzys-harness` | 본 하네스 | — | official | 내장 | 6-Gate `/uzys:spec…ship` + `/uzys:auto`(Ralph 루프). SPEC anchor·결정론 게이트 |
-| **Superpowers** | `superpowers` | obra → anthropics 공식 | 226k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
-| **ECC** | `ecc-plugin` | affaan-m | 214k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
+| **Superpowers** | `superpowers` | obra → anthropics 공식 | 235k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
+| **ECC** | `ecc-plugin` | affaan-m | 219k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
 | **GSD** | `gsd-orchestrator` | gsd-build | 64k | vetted | npx | get-shit-done 오케스트레이터 |
-| **OpenSpec** | `openspec` | Fission-AI | 55k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
+| **OpenSpec** | `openspec` | Fission-AI | 56k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
 | **BMAD-METHOD** | `bmad-method` | bmad-code-org | 49k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
-| **addy agent-skills** | `addy-agent-skills` | addyosmani | 57k | vetted | plugin | general dev `/spec /plan` (경량) |
+| **addy agent-skills** | `addy-agent-skills` | addyosmani | 65k | vetted | plugin | general dev `/spec /plan` (경량) |
 | **wshobson agents** | `wshobson-agents` | wshobson | 37k | vetted | plugin | 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI |
 
 > `v26.75.0` 추가(ADR-021): OpenSpec · BMAD · wshobson — 3-에이전트 시장 리서치로 발굴, vetted 바(★≥1000+활성+설치가능) 통과분.
 >
-> ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-13** (천 단위 반올림). 출처 repo: obra/superpowers · affaan-m/ECC · gsd-build/get-shit-done · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
+> ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-22** (천 단위 반올림; 이전 06-13 대비 refresh — addy 57→65k 등). 출처 repo: obra/superpowers · affaan-m/ECC · gsd-build/get-shit-done · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
 
 ---
 

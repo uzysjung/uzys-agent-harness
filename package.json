@@ -1,6 +1,6 @@
 {
   "name": "@uzysjung/agent-harness",
-  "version": "26.88.0",
+  "version": "26.88.1",
   "description": "Curate vetted AI-coding skills & plugins by your tech stack — install only what you need, across Claude Code, Codex, OpenCode & Antigravity",
   "type": "module",
   "publishConfig": {

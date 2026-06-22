@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.88.1] — 2026-06-22 (docs: M2 게시-prep 정직화 — star refresh·검증카운트·todo SSOT)
+
+M1 잔여 ◐ 7건 실검증 → **5건 이미 완료 확인**(UX-4 `--help` 깨끗·UX-5 withUzysHarness 0건·C-2 NSM 개명·README 수술 B·홍보글 A), **2건 교정**(C-1·NSM-5) + README 검증카운트 stale 발견·정정.
+
+### Docs
+- **C-1 star 실측 refresh (2026-06-22)**: WORKFLOWS.md + launch-posts.md 8종 비교표 GitHub `stargazers_count` 재측정 — Superpowers 226→235k · ECC 214→219k · addy **57→65k**(audit "21% 오차" 검증) · OpenSpec 55→56k (GSD/BMAD/wshobson 동일). 측정일 병기(거짓출하 아님 — drift 였음).
+- **README vetted 카운트 정정**: "49/52"→"49/58" (dev-method +6 미반영 stale → COMPATIBILITY auto-gen `49/58` 과 일치).
+- **NSM-5 todo.md 현행화**: `docs/todo.md` 버전 v26.74.0→v26.88.0 · `@uzysjung/claude-harness`→`agent-harness` · 전략 SSOT 포인터(`service-audit-roadmap.md` M1~M6, 'C→A→B→D' 는 historical) 추가.
+
 ## [v26.88.0] — 2026-06-21 (fix: 페르소나 다면감사 P0+P1 — 트리거 정직화·로드맵 동기화)
 
 dev-method 6종 + 로드맵을 5인 Sonnet 페르소나 패널(독립·병렬)로 다면감사 → P0+P1 8건 교정. 거짓양성 3건(arxiv `2605.29800` 실재·Nielsen URL HTTP 200·SEC-1 백업 이미 닫힘 `installer.ts:426-428`)은 curl/코드 직접 검증으로 기각(no-false-ship — 검증 안 했으면 작동 URL 파손).
