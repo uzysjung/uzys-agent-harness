@@ -1004,7 +1004,7 @@ function matchesCondition(
 
 /**
  * v26.81.0 (ADR-022) — spec 에서 특정 자산의 선택 여부 판정.
- * 내부 자산(tauri-desktop/uzys-harness)의 manifest/transform 게이팅이 이전
+ * 내부 자산(tauri-desktop)의 manifest/transform 게이팅이 이전
  * `spec.options.withTauri` 등 boolean 자리를 대체해 호출. (wizard 체크/--with 는
  * forceInclude 로 들어오므로 shouldInstallAsset 가 그대로 판정)
  */

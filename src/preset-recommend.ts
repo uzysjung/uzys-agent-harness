@@ -5,7 +5,7 @@
  * 의 id 를 반환한다. Step 2 multiselect 의 초기 체크 상태에 사용.
  *
  * Option-gated 자산은 추천에 포함 X — 사용자가 의식적으로 토글해야 함
- * (uzys-harness, superpowers, addy-agent-skills, gsd-orchestrator, ECC suite 등).
+ * (superpowers, addy-agent-skills, gsd-orchestrator, ECC suite 등).
  */
 
 import { assetTrustTier, EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";

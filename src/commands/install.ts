@@ -43,7 +43,7 @@ export interface InstallOptions {
   /**
    * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
    * cac repeatable. 예: `--with railway-skills --with impeccable`.
-   * 옵션-키 flag (예: `--with-uzys-harness`) 와 별개 — External Asset id 만.
+   * 옵션-키 동작 flag (예: `--with-prune`) 와 별개 — External Asset id 만.
    */
   with?: string | string[];
   /**
