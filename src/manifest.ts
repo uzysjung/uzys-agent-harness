@@ -21,12 +21,6 @@ export interface AssetSpec {
    */
   withTauri?: boolean;
   /**
-   * v26.44.0 — uzys-harness 6-Gate slash commands opt-in (BREAKING).
-   * Note: copied from `OptionFlags.withUzysHarness` by installer; keep both fields in sync.
-   * Track-independent: opt-in on ANY track installs `/uzys:*` commands. SPEC R7.
-   */
-  withUzysHarness?: boolean;
-  /**
    * v26.58.0 — withEcc opt-out gating (BREAKING vs v26.55.0). ADR-019 supersedes ADR-016 부분.
    * Note: copied from `OptionFlags.withEcc` by installer; keep both fields in sync.
    *
@@ -114,8 +108,6 @@ export function resolveRules(spec: AssetSpec): string[] {
   return [...set].sort();
 }
 
-const UZYS_COMMANDS = ["spec", "plan", "build", "test", "review", "ship", "auto"];
-
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 본 프로젝트 (always): reviewer, data-analyst, strategist
 // ECC cherry-pick C2 (plugin OFF 시 fallback — opt-out gating, !s.withEcc):
@@ -130,8 +122,6 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
 const ALWAYS_HOOKS = [
   "session-start.sh",
   "protect-files.sh",
-  "gate-check.sh",
-  "agentshield-gate.sh",
   "mcp-pre-exec.sh",
   "spec-drift-check.sh",
   "checkpoint-snapshot.sh",
@@ -165,17 +155,6 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/rules/${r}.md`,
       type: "file",
       applies: all,
-    });
-  }
-
-  // uzys: commands (v26.44.0 — opt-in; BREAKING vs prior dev-track auto-install).
-  // 본 harness 자체 6-Gate slash commands. Workflow 카테고리의 1 옵션.
-  for (const cmd of UZYS_COMMANDS) {
-    m.push({
-      source: `commands/uzys/${cmd}.md`,
-      target: `.claude/commands/uzys/${cmd}.md`,
-      type: "file",
-      applies: (s) => Boolean(s.withUzysHarness),
     });
   }
 

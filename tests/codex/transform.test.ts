@@ -17,66 +17,34 @@ describe("runCodexTransform (E2E against templates/)", () => {
     rmSync(project, { recursive: true, force: true });
   });
 
-  it("v26.57.0 (ADR-018) — withUzysHarness=true → skills + prompts 6+6 생성", () => {
+  it("produces Codex baseline — AGENTS.md + config.toml + ported hooks (slash + env rename)", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: true,
     });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.configTomlPath)).toBe(true);
-    expect(report.hookFiles).toHaveLength(3);
-    expect(report.skillFiles).toHaveLength(6);
-    expect(report.promptFiles).toHaveLength(6);
+    // HOOK_NAMES = [session-start, hito-counter] — both present in templates/hooks/.
+    expect(report.hookFiles).toHaveLength(2);
 
+    // Invariant: no Claude-namespace colon-slash (/uzys:) leaks into Codex output.
     const agents = readFileSync(report.agentsMdPath, "utf8");
     expect(agents).not.toContain("/uzys:");
-    expect(agents).toContain("/uzys-");
 
     const config = readFileSync(report.configTomlPath, "utf8");
     expect(config).toContain("[features]");
     expect(config).toContain("[mcp_servers.");
 
+    // Ported hooks rename CLAUDE_PROJECT_DIR → CODEX_PROJECT_DIR.
     for (const hook of report.hookFiles) {
       expect(readFileSync(hook, "utf8")).not.toContain("CLAUDE_PROJECT_DIR");
     }
-
-    for (const skill of report.skillFiles) {
-      const body = readFileSync(skill, "utf8");
-      expect(body.startsWith("---")).toBe(true);
-      expect(body).toMatch(/name: uzys-(spec|plan|build|test|review|ship)/);
-    }
-
-    for (const promptFile of report.promptFiles) {
-      const body = readFileSync(promptFile, "utf8");
-      expect(body).toMatch(/^---/);
-      expect(body).toContain("description:");
-      expect(body).not.toContain("/uzys:");
-      expect(promptFile).toContain(".codex/prompts/uzys-");
-    }
   });
 
-  it("v26.57.0 (ADR-018, BREAKING) — withUzysHarness=false → skills + prompts 0+0 (uzys 산출물 X)", () => {
-    const report = runCodexTransform({
-      harnessRoot: HARNESS_ROOT,
-      projectDir: project,
-    });
-    // AGENTS.md / config.toml / hooks 는 codex baseline 이라 그대로 생성
-    expect(existsSync(report.agentsMdPath)).toBe(true);
-    expect(existsSync(report.configTomlPath)).toBe(true);
-    expect(report.hookFiles).toHaveLength(3);
-    // uzys 산출물은 빠짐
-    expect(report.skillFiles).toEqual([]);
-    expect(report.promptFiles).toEqual([]);
-    // .codex/prompts/ 디렉토리도 만들지 않음
-    expect(existsSync(join(project, ".codex/prompts"))).toBe(false);
-    expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
-  });
-
-  it("default (param 누락) = withUzysHarness=false 동작 (안전한 default)", () => {
+  it("default (no selectedInternalSkills) → skillFiles empty, no .agents/skills written", () => {
     const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
     expect(report.skillFiles).toEqual([]);
-    expect(report.promptFiles).toEqual([]);
+    expect(existsSync(join(project, ".agents/skills"))).toBe(false);
   });
 
   it("throws when required template missing", () => {
@@ -103,9 +71,9 @@ describe("runCodexTransform (E2E against templates/)", () => {
     });
 
     // PITFALL GUARD: dev-method SKILL.md 는 이미 완성된 skill — 자체 frontmatter(name: <id>)를
-    // 보존해야 한다. renderSkill 을 거치면 name: uzys-<id> 로 오염 + 이중 래핑. 이 테스트가
-    // 그 회귀를 잡는다 (business logic = "frontmatter 보존"이 깨지면 fail).
-    it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>) — renderSkill 미사용 가드", () => {
+    // 보존해야 한다. renderBundledSkill 이 name 을 uzys-<id> 로 다시 래핑하면 오염 + 이중 래핑.
+    // 이 테스트가 그 회귀를 잡는다 (business logic = "frontmatter 보존"이 깨지면 fail).
+    it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>) — renderBundledSkill frontmatter 보존 가드", () => {
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
@@ -123,21 +91,19 @@ describe("runCodexTransform (E2E against templates/)", () => {
     it("selectedInternalSkills 빈 배열(기본) → dev-method skill 미생성", () => {
       const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
       expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
-      // uzys-harness 미선택이므로 skillFiles 전체가 비어 있어야 한다.
+      // 선택된 dev-method skill 이 없으므로 skillFiles 전체가 비어 있어야 한다.
       expect(report.skillFiles).toEqual([]);
     });
 
-    // dev-method skill 게이팅은 withUzysHarness 와 **독립** — uzys-harness 없이도 렌더된다.
-    it("withUzysHarness=false 여도 dev-method skill 은 독립적으로 렌더", () => {
+    it("selected dev-method skill 만 렌더 (선택 안 한 id 는 빠짐)", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
-        withUzysHarness: false,
         selectedInternalSkills: ["multi-persona-review"],
       });
       expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
-      // uzys-6Gate skill 은 빠지고 dev-method 1개만.
-      expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
+      // 선택하지 않은 skill 은 빠지고 dev-method 1개만.
+      expect(existsSync(join(project, ".agents/skills/asis-tobe-decision"))).toBe(false);
       expect(report.skillFiles).toHaveLength(1);
     });
   });

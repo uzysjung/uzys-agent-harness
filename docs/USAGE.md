@@ -6,31 +6,7 @@ For install instructions, see [README.md](../README.md).
 
 ---
 
-## Workflow (6-Gate, opt-in)
-
-Activate at step 3 of the wizard by checking `uzys-harness 6-Gate workflow`. Without it, the `/uzys:*` commands aren't installed and the gates aren't enforced — the rest of the track's assets still install.
-
-```
-/uzys:spec → /uzys:plan → /uzys:build → /uzys:test → /uzys:review → /uzys:ship
-```
-
-Each gate is enforced by a hook in `.claude/hooks/gate-check.sh`. Skipping a gate fails the next one (exit code 2). Run `/uzys:auto` to chain all six gates in one shot.
-
----
-
 ## Commands
-
-### `uzys:` namespace (6-Gate workflow)
-
-| Command | Purpose | Reads | Writes |
-|---|---|---|---|
-| `/uzys:spec` | Define what you're building before code | conversation | `docs/SPEC.md` |
-| `/uzys:plan` | Decompose spec into verifiable tasks | `docs/SPEC.md` | `docs/plan.md`, `docs/todo.md` |
-| `/uzys:build` | TDD implementation, one slice at a time | `docs/todo.md` | code + tests |
-| `/uzys:test` | Run tests, enforce coverage gate | tests | report |
-| `/uzys:review` | Multi-perspective review (code / security / UI / QA) | diff | review notes |
-| `/uzys:ship` | Pre-launch checklist + deploy | green review | release tag |
-| `/uzys:auto` | Chain all six gates end-to-end | `docs/SPEC.md` | full release |
 
 ### `ecc:` namespace (ECC plugin opt-in)
 
@@ -50,7 +26,7 @@ Activate via `--with ecc-plugin` or by checking ECC items at step 3.
 ### Other namespaces
 
 - **Impeccable** (`/polish`, `/critique`, `/audit`, `/clarify`, etc.) — UI design skills from `pbakaus/impeccable`. Direct call.
-- **addy** (`/spec`, `/plan`, `/build`, `/test`, `/review`, `/ship`, `/code-simplify`) — alternative workflow from `addyosmani/agent-skills`. Use either `uzys:*` or `addy:*` (not both).
+- **addy** (`/spec`, `/plan`, `/build`, `/test`, `/review`, `/ship`, `/code-simplify`) — spec-driven workflow skills from `addyosmani/agent-skills`. Direct call.
 
 ---
 
@@ -63,7 +39,7 @@ Default = **Project**. Global write only when you explicitly opt in.
 | `claude plugin` | `--scope project` | `--scope user` |
 | `npx skills` | project `node_modules` | `-g` |
 | `npm` | `--save-dev` | `-g` |
-| Codex (prompts / skills / config) | `.codex/` (project) | `~/.codex/` |
+| Codex (skills / config) | `.codex/` (project) | `~/.codex/` |
 
 `~/.claude/plugins/{cache,marketplaces,installed_plugins.json}` is written by claude CLI itself in both modes — the `installed_plugins.json` metadata isolates entries by `projectPath` so other projects aren't affected.
 
@@ -102,9 +78,7 @@ Common flags:
 | `--scope <project\|global>` | Default `project` |
 | `--with <asset-id>` (repeatable) | Force-include an external asset |
 | `--without <asset-id>` (repeatable) | Force-exclude from preset |
-| `--with uzys-harness` | Activate 6-Gate workflow (v26.81.0 ADR-022 — generic asset opt-in) |
 | `--with ecc-plugin` | Install ECC plugin + cherry-pick |
-| `--with-codex-prompts` | Install Codex slash globally (requires `--cli codex`) |
 
 Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harness install --help` after a global install).
 
@@ -148,9 +122,9 @@ Each CLI gets its own dispatcher file:
 | CLI | Dispatcher | Notes |
 |---|---|---|
 | Claude Code | `.claude/` | First class. All hooks active |
-| Codex | `.codex/` + project `AGENTS.md` + `.agents/skills/` | `.codex/prompts/uzys-*` if `--with-codex-prompts` |
+| Codex | `.codex/` + project `AGENTS.md` + `.agents/skills/` | Skills + `AGENTS.md` rules for your stack |
 | OpenCode | `.opencode/` + project `AGENTS.md` | Skills + commands |
-| Antigravity | `.agents/skills/` + `.agents/workflows/` | Shares `.agents/skills/` with Codex. `/uzys:*` workflows via Antigravity native slash (v26.66.0+) |
+| Antigravity | `.agents/rules/` + `.agents/skills/` | Shares `.agents/skills/` (dev-method skills) with Codex (v26.66.0+) |
 
 Multi-CLI dispatchers reference the same content via symlinks where possible — no duplication.
 
@@ -162,8 +136,7 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 |---|---|
 | `.claude/rules/*.md` | LLM-facing rules (code-style, git, tests) |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
-| `.claude/hooks/*.sh` | Programmatic guards (gate-check, agentshield, etc.) |
-| `.claude/commands/uzys/*.md` | `/uzys:*` slash commands (if uzys-harness opted in) |
+| `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.claude/.harness-install.json` | Install log (drives `uninstall`) |
@@ -182,11 +155,9 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 |---|---|---|
 | `session-start.sh` | session start | Load SPEC / Change Log context |
 | `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
-| `gate-check.sh` | gate transitions | Enforce 6-Gate order |
 | `spec-drift-check.sh` | post-edit | Detect SPEC vs code drift |
-| `agentshield-gate.sh` | session start | Security pattern scan |
 | `mcp-pre-exec.sh` | MCP exec | Allowlist gate (D35) |
-| `checkpoint-snapshot.sh` | gate completion | git tag savepoint (D25) |
+| `checkpoint-snapshot.sh` | PostToolUse (tool-count threshold) | Checkpoint savepoint + `/compact` nudge (D25) |
 | `hito-counter.sh` | session events | NSM telemetry (HITO baseline) |
 | `karpathy-gate.sh` | PreToolUse Write/Edit | Quality gate (only when `--with-karpathy-hook` + plugin install succeeded) |
 
@@ -194,16 +165,7 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 
 ## Codex integration
 
-Codex slash commands live in two places:
-
-- **Global** (opt-in — **active now**): `~/.codex/prompts/uzys-*.md` — written only when `--with-codex-prompts` is set (or Global at step 4). Codex reads custom prompts from `$CODEX_HOME/prompts/` (`~/.codex/prompts/`), so `/uzys-spec` … `/uzys-ship` work here.
-- **Project** (pre-positioned — **not active yet**): `.codex/prompts/uzys-{spec,plan,build,test,review,ship}.md` — always written when `--cli codex` and `--with uzys-harness`. Codex currently loads custom prompts **only** from `$CODEX_HOME/prompts/`, so these project files are inert until upstream [openai/codex#9848](https://github.com/openai/codex/issues/9848) ships project-scoped prompts. They are pre-positioned so `/uzys-*` auto-activates the day it lands (no re-install needed).
-
-> **Verified 2026-05-31** against real `codex-cli 0.125.0` in Docker (`test/docker/run-realcli.sh codex`): the project `.codex/prompts/` files are written correctly (Tier A) but **not discovered** by Codex (Tier B). Confirmed via OpenAI docs, source `codex-rs/core/src/custom_prompts.rs` (`default_prompts_dir()` returns only `$CODEX_HOME/prompts`), and open issues [#9848](https://github.com/openai/codex/issues/9848) / [#4734](https://github.com/openai/codex/issues/4734).
-
-The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — merged from your track. Project `.agents/skills/uzys-*/` are repo-level skills (shared with Antigravity).
-
-> v26.64.0 (ADR-020) BREAKING: `cli=codex` no longer auto-enables global prompt copy. Pass `--with-codex-prompts` explicitly, or choose Global at step 4.
+The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — merged from your track. Project `.agents/skills/` are dev-method skills shared with Antigravity (one file serves both CLIs).
 
 ---
 
@@ -211,7 +173,7 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 `.opencode/` carries:
 
-- `commands/` — `/uzys:*` slash bodies (if uzys-harness opted in)
+- `commands/` — dev-method skill command fallbacks (OpenCode has no native skill concept)
 - `opencode.json` — config
 - `AGENTS.md` — shared with Codex
 
@@ -223,22 +185,12 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-agent-harness writes:
 
-- `.agents/rules/uzys-harness.md` — project context (full CLAUDE.md embedded, `/uzys:` → `/uzys-` renamed). **Always written** when `--cli antigravity` (the Antigravity equivalent of CLAUDE.md / AGENTS.md). v26.69.0+.
-- `.agents/skills/uzys-{phase}/SKILL.md` — Anthropic-format skills (shared with Codex; one file serves both CLIs).
-- `.agents/workflows/uzys-{phase}.md` — Antigravity-native workflow files. Invoke as `/uzys-spec`, `/uzys-plan`, …, `/uzys-ship` (filename-based slash).
+- `.agents/rules/` — project context (full CLAUDE.md embedded). **Always written** when `--cli antigravity` (the Antigravity equivalent of CLAUDE.md / AGENTS.md). v26.69.0+.
+- `.agents/skills/<id>/SKILL.md` — dev-method skills in Anthropic format (shared with Codex; one file serves both CLIs).
 
-Skills + workflows are written only when **`uzys-harness 6-Gate workflow`** is checked at step 3 (or `--with uzys-harness` on the CLI). Rules are written regardless (foundational context).
+Rules are written regardless (foundational context); dev-method skills are core on dev tracks.
 
-> **Verification status (2026-05-31)**: file layout is **structurally verified** against real `agy 1.0.3` in Docker (`test/docker/run-realcli.sh antigravity`) — `.agents/rules` + `.agents/skills/uzys-*/SKILL.md` (6) + `.agents/workflows/uzys-*.md` (6) all written correctly per Antigravity's documented workspace spec. **Runtime recognition** in a logged-in `agy` session (does `/uzys-spec` resolve, does a skill load) is **not yet automated** — `agy --print` is Google-OAuth-gated and TUI commands require a TTY. Manual confirmation in a logged-in session is recommended before relying on the slash workflows.
-
-### Global opt-in (v26.67.0+)
-
-With `--with-antigravity-global` + `--scope global`:
-
-- `~/.gemini/antigravity/skills/uzys-{phase}/SKILL.md` — global skills visible across all projects
-- `~/.gemini/antigravity/global_workflows/uzys-{phase}.md` — Antigravity global `/uzys-*` workflows
-
-D16: `~/.gemini/` is untouched unless scope=global with `--with-antigravity-global`. On uninstall, global assets are advisory only (never auto-removed).
+> **Verification status (2026-05-31)**: file layout is **structurally verified** against real `agy 1.0.3` in Docker (`test/docker/run-realcli.sh antigravity`) — `.agents/rules` + `.agents/skills/<id>/SKILL.md` written correctly per Antigravity's documented workspace spec. **Runtime recognition** in a logged-in `agy` session (does a skill load) is **not yet automated** — `agy --print` is Google-OAuth-gated and TUI commands require a TTY. Manual confirmation in a logged-in session is recommended.
 
 ---
 
@@ -275,7 +227,7 @@ See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-
 
 ### Tooling
 
-Bash + Markdown meta-projects. No app stack. Same 6-Gate workflow works for CLI tools.
+Bash + Markdown meta-projects. No app stack. The same dev-method skills work for CLI tools.
 
 ---
 
@@ -284,12 +236,7 @@ Bash + Markdown meta-projects. No app stack. Same 6-Gate workflow works for CLI 
 ### v26.64.0 — Project-scope default (BREAKING)
 
 - All install assets now default to project scope. `~/.claude/skills/`, `~/.codex/`, `~/.opencode/`, `npm -g` untouched unless you opt in.
-- `cli=codex` no longer auto-enables `withCodexPrompts`. Pass `--with-codex-prompts` explicitly or pick Global at step 4.
 - `npm-global` assets (vercel / supabase / netlify-cli / agent-browser) now install as `--save-dev` by default.
-
-### v26.44.0 — uzys-harness opt-in (BREAKING)
-
-6-Gate workflow is no longer installed automatically on dev tracks. Check `uzys-harness 6-Gate workflow` at step 3 or pass `--with uzys-harness`.
 
 ### v26.42.0 — addy-agent-skills opt-in (BREAKING)
 
@@ -312,10 +259,6 @@ skills CLI ≥ 1.5.7 requires repeatable `--agent` (not comma-separated). The ha
 ### Plugin install fails (`marketplace not found`)
 
 Usually means the marketplace was already added and skipping silently. Plugin install retries regardless. If the plugin itself fails, check `~/.claude/plugins/installed_plugins.json` for stale entries.
-
-### Empty `/uzys:*` commands after install
-
-You didn't opt in to `uzys-harness 6-Gate workflow`. Re-run install and check the item at step 3, or pass `--with uzys-harness`.
 
 ---
 

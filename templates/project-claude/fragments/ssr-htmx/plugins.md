@@ -1,2 +1,2 @@
-- **agent-skills**: 6-gate 워크플로우 엔진
+- **agent-skills**: 개발 워크플로우 백본
 - **Railway**: 배포 자동화 (FastAPI 서비스 + PostgreSQL)

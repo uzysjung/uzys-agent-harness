@@ -1,4 +1,4 @@
-- **agent-skills**: 6단계 워크플로우 (필수)
+- **agent-skills**: 개발 워크플로우 백본 (필수)
 - **continuous-learning-v2**: 경험 축적 (선택, observer disabled by default)
 - **spec-scaling**: SPEC.md > 300줄 시 분할
 - **strategic-compact**: 장시간 세션 컨텍스트 압축

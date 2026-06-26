@@ -17,5 +17,3 @@ export SUPABASE_ACCESS_TOKEN=sbp_xxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 (영구 적용은 `~/.zshrc`/`~/.bashrc`에 export 추가, 또는 프로젝트 `.env`에 기록 — `.env`는 `.gitignore`됨.)
-
-이후 `/uzys:spec`에서 "Supabase 프로젝트 X 사용" 명시 → `/uzys:auto`가 MCP로 프로젝트 생성/스키마 적용/Edge Functions 배포 자동.

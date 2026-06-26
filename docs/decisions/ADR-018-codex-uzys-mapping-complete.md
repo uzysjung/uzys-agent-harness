@@ -1,6 +1,6 @@
 # ADR-018: Codex 매핑 전체 (skill/prompt/global) 를 withUzysHarness 와 묶음
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-023 (2026-06-26 — 6-Gate workflow removed entirely)
 - **Date**: 2026-05-17
 - **PR**: (pending v26.57.0)
 - **Extends**: ADR-017 (이전엔 global `~/.codex/prompts/uzys-*` 만 묶음)

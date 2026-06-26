@@ -26,11 +26,8 @@ describe("installer (integration with templates/)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -54,7 +51,7 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/hooks/session-start.sh"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/hooks/hito-counter.sh"))).toBe(true);
 
-    // uzys commands (v26.44.0 — opt-in. withUzysHarness=false 이므로 미설치)
+    // uzys/* 6-Gate commands removed — must never be emitted
     expect(existsSync(join(projectDir, ".claude/commands/uzys/spec.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/commands/uzys/auto.md"))).toBe(false);
 
@@ -81,11 +78,8 @@ describe("installer (integration with templates/)", () => {
         tracks: ["executive"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -106,11 +100,8 @@ describe("installer (integration with templates/)", () => {
         tracks: ["tooling", "data"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -138,11 +129,8 @@ describe("installer (integration with templates/)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -157,11 +145,8 @@ describe("installer (integration with templates/)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -181,11 +166,8 @@ describe("installer (integration with templates/)", () => {
           tracks: ["tooling"],
           options: {
             withPrune: false,
-            withCodexSkills: false,
             withCodexTrust: false,
             withKarpathyHook: false,
-            withCodexPrompts: false,
-            withAntigravityGlobal: false,
           },
           cli: ["claude"],
           projectDir,

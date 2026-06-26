@@ -10,7 +10,7 @@
  *   3. prune_orphans: templates에 없는데 target에 있는 파일 제거 (예: 폐기된 rule)
  *   4. clean_stale_hook_refs: settings.json hook 참조 중 실존 파일 없는 것 제거
  *
- * 보존: gate-status.json, .mcp.json (사용자 추가 항목), docs/SPEC.md, settings.local.json
+ * 보존: .mcp.json (사용자 추가 항목), docs/SPEC.md, settings.local.json
  */
 
 import {

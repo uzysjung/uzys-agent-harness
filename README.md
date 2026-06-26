@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/58 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/57 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -36,8 +36,7 @@ Step 6/6  Installing
 After install:
 
 ```bash
-claude
-> /uzys:spec    # only if you checked "uzys-harness 6-Gate workflow" in step 3
+claude    # launch your CLI — installed skills, rules, and hooks are now active
 ```
 
 ### Non-interactive install (CI / scripts / Docker)
@@ -47,7 +46,7 @@ The wizard needs a TTY. For CI pipelines, onboarding scripts, or containers, use
 ```bash
 npx -y @uzysjung/agent-harness install \
   --track tooling --cli claude --scope project \
-  --with uzys-harness --with bmad-method
+  --with bmad-method
 ```
 
 | Flag | Meaning |
@@ -57,7 +56,7 @@ npx -y @uzysjung/agent-harness install \
 | `--scope <s>` | `project` (default) or `global` |
 | `--with <asset-id>` / `--without <asset-id>` | Add / remove any catalog asset by id (repeatable) — ids in the [compatibility matrix](docs/COMPATIBILITY.md) |
 
-> v26.81.0 (ADR-022): per-asset flags like `--with-bmad` were removed — `--with <asset-id>` is the single opt-in surface. Behavior flags (`--with-karpathy-hook`, `--with-codex-prompts`, `--with-antigravity-global`, `--with-prune`, …) remain.
+> v26.81.0 (ADR-022): per-asset flags like `--with-bmad` were removed — `--with <asset-id>` is the single opt-in surface. Behavior flags (`--with-karpathy-hook`, `--with-codex-trust`, `--with-prune`, …) remain.
 
 ### What a track actually installs (example)
 
@@ -184,11 +183,10 @@ External assets are recommended automatically based on your track selection. Ste
 
 ### Workflow (opt-in — pick one or more at step 3)
 
-> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 8 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
+> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
 
 | Asset | What | Activates |
 |---|---|---|
-| `uzys-harness 6-Gate workflow` | `/uzys:spec` → `/uzys:plan` → `/uzys:build` → `/uzys:test` → `/uzys:review` → `/uzys:ship` with hook-enforced gates | The 6-gate flow described below |
 | `superpowers` | Agentic skills framework, Anthropic official marketplace | obra/superpowers |
 | `ecc-plugin` | 60 agents · 230 skills · 75 commands | affaan-m |
 | `gsd-orchestrator` | Orchestration for large projects | get-shit-done-cc |
@@ -226,27 +224,6 @@ Every external asset carries a **trust tier**, shown as a badge in step 3:
 Tiers **inform, never block** — you always review and choose what installs. Recommended assets (official/vetted matching your track) sort to the top.
 
 > **How is "verified" backed up?** See the [Compatibility & verification matrix](docs/COMPATIBILITY.md) — install methods are checked against real registries/marketplaces, and the core workflow set is verified by **real install in an isolated Docker container** (not a static table). Trust tiers are auto-monitored for star-drift monthly.
-
----
-
-## 6-Gate workflow (only if you opt in)
-
-The 6-gate workflow is **off by default**. To enable it, check `uzys-harness 6-Gate workflow` at step 3 (or pass `--with uzys-harness` for non-interactive install).
-
-```
-/uzys:spec → /uzys:plan → /uzys:build → /uzys:test → /uzys:review → /uzys:ship
-```
-
-| Gate | Purpose |
-|---|---|
-| `/uzys:spec` | Define what you're building before code |
-| `/uzys:plan` | Decompose the spec into small, verifiable tasks |
-| `/uzys:build` | Implement incrementally |
-| `/uzys:test` | Prove it works |
-| `/uzys:review` | Multi-perspective code/security review |
-| `/uzys:ship` | Pre-launch checklist + deploy |
-
-Gates are enforced by hooks installed under `.claude/hooks/`. Skipping a gate fails the next one (exit code 2). If you didn't opt in, `/uzys:*` commands aren't installed and the hooks aren't active — you get the rest of the track's assets without the gating.
 
 ---
 
@@ -325,8 +302,7 @@ your-project/
 ├── .claude/
 │   ├── rules/          # coding conventions for your stack
 │   ├── agents/         # subagent definitions
-│   ├── commands/uzys/  # /uzys:* commands (only if you opted into uzys-harness)
-│   ├── hooks/          # gate / pre-commit hooks
+│   ├── hooks/          # lifecycle / pre-commit hooks
 │   └── settings.json   # your existing one is backed up first
 ├── CLAUDE.md           # merged instructions (yours backed up if it differed)
 └── .mcp.json           # MCP servers, merged with yours
@@ -339,9 +315,9 @@ your-project/
 | CLI | Status |
 |---|---|
 | Claude Code | First class — all assets and hooks |
-| Codex (OpenAI) | Skills + `AGENTS.md` rules for your stack. Global `/uzys-*` slash prompts (opt-in via `~/.codex/prompts/`); project-level prompts await upstream support ([#9848](https://github.com/openai/codex/issues/9848)) |
+| Codex (OpenAI) | Skills + `AGENTS.md` rules for your stack |
 | OpenCode | Skills + AGENTS.md integration |
-| Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` + `.agents/workflows/` (6-Gate opt-in). Global (opt-in via `--with-antigravity-global` + `--scope global`): `~/.gemini/antigravity/{skills,global_workflows}/uzys-*` (v26.66.0+) |
+| Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` (dev-method skills) |
 
 Pick one or more at step 2.
 

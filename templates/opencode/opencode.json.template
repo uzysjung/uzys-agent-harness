@@ -33,9 +33,7 @@
       }
     }
   },
-  "plugin": [
-    "./.opencode/plugins/uzys-harness.ts"
-  ],
+  "plugin": [],
   "permission": {
     "question": "allow"
   }

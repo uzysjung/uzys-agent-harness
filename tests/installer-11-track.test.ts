@@ -9,11 +9,8 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
   withPrune: false,
-  withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
-  withCodexPrompts: false,
-  withAntigravityGlobal: false,
 };
 
 function buildSpec(tracks: Track[], projectDir: string): InstallSpec {
@@ -243,30 +240,22 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("creates AGENTS.md + .codex/ alongside .claude/ (uzys-harness 켰을 때 skill 6, v26.57.0 ADR-018)", () => {
-    const baseSpec = buildSpec(["tooling"], projectDir);
+  it("creates AGENTS.md + .codex/ alongside .claude/ (dev-method skills, no 6-Gate uzys-*)", () => {
     const report = runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: {
-        // v26.81.0 (ADR-022) — withUzysHarness flag → uzys-harness 내부 자산 선택.
-        ...baseSpec,
-        cli: ["claude", "codex"],
-        userOverride: { forceInclude: ["uzys-harness"], forceExclude: [] },
-      },
+      spec: { ...buildSpec(["tooling"], projectDir), cli: ["claude", "codex"] },
     });
     expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(report.codex).not.toBeNull();
-    // ADR-018 — uzys-harness 켜짐 → uzys-{phase} 6-Gate skill 6종.
-    // v26.87.0 — skillFiles 에 dev-method skills(tooling=dev track)도 포함되므로 전체 length 대신
-    // uzys-* 6-Gate 만 6개임을 검증 (이 테스트의 본래 intent 보존).
-    expect(report.codex?.skillFiles?.filter((f) => f.includes("/uzys-"))).toHaveLength(6);
+    // 6-Gate workflow removed — uzys-* skills must never be generated for Codex.
+    expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
   });
 
-  it("v26.57.0 (ADR-018) — codex + withUzysHarness=false → skillFiles + promptFiles 0", () => {
+  it("codex install never emits uzys-* 6-Gate artifacts (dev-method skills only)", () => {
     const report = runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
@@ -276,11 +265,8 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     // baseline 은 그대로 생성
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
-    // ADR-018 불변식: uzys-{phase} 6-Gate 산출물은 빠짐 (withUzysHarness=false).
-    // v26.87.0 — dev-method skills 는 dev track(tooling) 기본 설치라 skillFiles 에 존재(독립 게이팅).
-    // → skillFiles 전체가 [] 라는 옛 단정 대신, uzys-* 6-Gate 만 부재임을 검증.
+    // 6-Gate workflow removed — uzys-{phase} skills / prompts must be absent.
     expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
-    expect(report.codex?.promptFiles).toEqual([]);
     expect(existsSync(join(projectDir, ".codex/prompts"))).toBe(false);
     expect(existsSync(join(projectDir, ".agents/skills/uzys-spec"))).toBe(false);
     // dev-method skill 6종은 native 매핑되어 존재해야 한다 (tooling = dev track).

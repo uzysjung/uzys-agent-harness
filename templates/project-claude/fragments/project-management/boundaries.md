@@ -13,4 +13,3 @@
 - 검증되지 않은 우선순위 제시 ("그냥 중요해 보임")
 - 출처 없는 데이터로 RICE Reach/Impact 산정
 - Jira ticket 임의 closed/reopened
-- 6-gate 워크플로우 강제 적용 (이 트랙은 자연어 기반)

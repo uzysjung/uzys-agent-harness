@@ -58,16 +58,6 @@ type = "command"
 timeout = 5
 async = true    # non-blocking 측정
 
-# PreToolUse(Skill matcher): Phase 순서 강제 (exit 2로 차단)
-# 주의: Issue #16732 — Bash 툴에만 발화. ApplyPatch(파일 쓰기)에는 fire 안 함
-[[hooks.pre_tool_use]]
-name = "gate-check"
-command = ["{PROJECT_DIR}/.codex/hooks/gate-check.sh"]
-type = "command"
-timeout = 10
-matcher = "Skill"
-async = false
-
 # PostToolUse: 미커밋 파일 경고 (Bash 한정)
 [[hooks.post_tool_use]]
 name = "uncommitted-check"

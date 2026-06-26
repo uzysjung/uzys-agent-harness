@@ -43,11 +43,8 @@ const existingState: DetectedInstall = {
 
 const ALL_FALSE_OPTIONS: OptionFlags = {
   withPrune: false,
-  withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
-  withCodexPrompts: false,
-  withAntigravityGlobal: false,
 };
 
 describe("runInteractive", () => {
@@ -79,49 +76,6 @@ describe("runInteractive", () => {
     expect(prompts.selectAction).not.toHaveBeenCalled();
     expect(prompts.intro).toHaveBeenCalledOnce();
     expect(prompts.outro).toHaveBeenCalledOnce();
-  });
-
-  // v26.64.0 (ADR-020 BREAKING) — ADR-017 supersede. cli=codex + withUzysHarness 자동 ON 폐기.
-  // withCodexPrompts 는 사용자 명시 install target 선택 시에만 활성.
-  it("v26.64.0 (ADR-020) — cli=codex + withUzysHarness 둘 다 켜져도 withCodexPrompts 자동 ON 안 함", async () => {
-    const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
-    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
-      ...initial,
-      "asset:uzys-harness" as InstallTargetId,
-    ]);
-    const prompts = makePrompts({ selectCli, selectInstallTargets });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    expect(result.spec?.options.withCodexPrompts).toBe(false);
-    // v26.81.0 (ADR-022) — uzys-harness 는 자산 체크 → forceInclude 로 전달.
-    expect(result.spec?.userOverride?.forceInclude).toContain("uzys-harness");
-  });
-
-  it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", async () => {
-    const selectCli = vi.fn(async () => ["claude", "codex"] as CliTargets);
-    const prompts = makePrompts({ selectCli });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    // 기존 ADR-012 에서는 true 였음. ADR-017 BREAKING 으로 false.
-    expect(result.spec?.options.withCodexPrompts).toBe(false);
-  });
-
-  it("v26.46.0 — cli without codex keeps withCodexPrompts=false", async () => {
-    const prompts = makePrompts();
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => newState,
-      isTty: () => true,
-    });
-    expect(result.spec?.options.withCodexPrompts).toBe(false);
   });
 
   it("v26.54.0 — option:withTauri checked in install-targets sets OptionFlags.withTauri=true", async () => {

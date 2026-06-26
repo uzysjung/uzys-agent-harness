@@ -29,7 +29,7 @@ fi
 if [ "$SPEC_EXISTS" = "true" ]; then
   MSG="Session started. Branch: ${BRANCH:-detached}. SPEC exists — read docs/SPEC.md first (Persistent Anchor). Check Change Log and current Phase before starting work.${COMPACT_WARNING}"
 else
-  MSG="Session started. Branch: ${BRANCH:-detached}. No SPEC found. Use /uzys:spec to begin workflow.${COMPACT_WARNING}"
+  MSG="Session started. Branch: ${BRANCH:-detached}. No SPEC found. Create docs/SPEC.md to begin.${COMPACT_WARNING}"
 fi
 
 # JSON-safe 출력 — branch/checkpoint 값에 " 또는 \ 가 섞여도 JSON 깨지지 않도록.

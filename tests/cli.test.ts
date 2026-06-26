@@ -41,16 +41,14 @@ describe("buildCli", () => {
     const installCmd = cli.commands.find((cmd) => cmd.name === "install");
     const optionNames = installCmd?.options.map((o) => o.name) ?? [];
     // v26.81.0 (ADR-022) — 잔존 = 동작 옵션 + generic 자산 선택만.
+    // 6-Gate 제거 — withCodexSkills/withCodexPrompts/withAntigravityGlobal 삭제.
     expect(optionNames).toEqual(
       expect.arrayContaining([
         "with",
         "without",
         "withPrune",
         "withKarpathyHook",
-        "withCodexSkills",
         "withCodexTrust",
-        "withCodexPrompts",
-        "withAntigravityGlobal",
       ]),
     );
   });
@@ -107,11 +105,8 @@ describe("defaultAction", () => {
       tracks: ["tooling"] as const,
       options: {
         withPrune: false,
-        withCodexSkills: false,
         withCodexTrust: false,
         withKarpathyHook: false,
-        withCodexPrompts: false,
-        withAntigravityGlobal: false,
       },
       cli: ["claude"] as const,
       projectDir: "/p",

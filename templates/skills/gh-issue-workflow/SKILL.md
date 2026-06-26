@@ -19,11 +19,11 @@ dyld-vantage 프로젝트의 실제 운용 패턴(`#52~#55`)을 일반화. 1인 
 
 | 트리거 | 행동 |
 |--------|------|
-| `/uzys:spec` 시작 + GitHub remote 존재 | "epic issue 만들까?" 1회 권유 (선택) |
-| `/uzys:plan` 시작 | OPEN issue 목록 fetch → 우선순위 결정 후 todo.md로 이관 |
-| `/uzys:build` 중 사용자가 새 bug/req 발견 | "issue로 backlog?" 권유 |
-| `/uzys:build` commit | message에 `Refs #N` (작업 진행 기록) |
-| `/uzys:ship` PR 작성 | body에 `Closes #N` (자동 close) |
+| 프로젝트 착수 + GitHub remote 존재 | "epic issue 만들까?" 1회 권유 (선택) |
+| 작업 계획 시작 | OPEN issue 목록 fetch → 우선순위 결정 후 todo.md로 이관 |
+| 구현 중 사용자가 새 bug/req 발견 | "issue로 backlog?" 권유 |
+| 구현 commit | message에 `Refs #N` (작업 진행 기록) |
+| PR 작성 시 | body에 `Closes #N` (자동 close) |
 | 의사결정 갈림길 등장 | issue body에 `방향성 (OPEN)` 로 등록 → 사용자 대기 |
 
 ## Pre-conditions
@@ -113,9 +113,9 @@ GitHub Projects board를 칸반 형태 backlog로 활용 시:
 
 본 섹션은 GitHub Projects 활용을 강제하지 않음 — 사용자 선호에 따라.
 
-### 6. `/uzys:auto` 와의 결합
+### 6. 백로그 자동 처리 시퀀스
 
-`/uzys:auto` 사이클 시작 시 다음 시퀀스:
+작업 사이클 시작 시 다음 시퀀스:
 
 ```
 1. gh issue list --state open --json number,title,labels,body
@@ -124,7 +124,7 @@ GitHub Projects board를 칸반 형태 backlog로 활용 시:
    → 확정된 것만 작업 가능 후보
 3. 전제 미충족 issue 제외
 4. 우선순위 정렬 (label P0 > P1 > P2 > unlabeled)
-5. 상위 1-3개를 docs/todo.md로 이관 + Plan 단계 진입
+5. 상위 1-3개를 docs/todo.md로 이관 + 계획 단계 진입
 ```
 
 ### 7. Commit / PR 컨벤션

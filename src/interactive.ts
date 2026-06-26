@@ -37,7 +37,6 @@ export function splitInstallTargets(targets: ReadonlyArray<InstallTargetId>): {
 }
 
 /**
- * v26.46.0 — `withCodexPrompts` 는 interactive 옵션 list 에서 제거됨 (CLI 전용 opt-in).
  * v26.81.0 (ADR-022) — 자산 1:1 boolean 13종 삭제 후 잔존 동작 옵션만 매핑.
  *   wizard 의 자산 선택은 전부 `asset:<id>` → userOverride.forceInclude 경로.
  */
@@ -45,11 +44,8 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
   const picked = new Set<keyof OptionFlags>(keys);
   return {
     withPrune: picked.has("withPrune"),
-    withCodexSkills: picked.has("withCodexSkills"),
     withCodexTrust: picked.has("withCodexTrust"),
     withKarpathyHook: picked.has("withKarpathyHook"),
-    withCodexPrompts: false,
-    withAntigravityGlobal: picked.has("withAntigravityGlobal"),
   };
 }
 
@@ -209,9 +205,6 @@ export async function runInteractive(
       const finalCli = cli!;
       const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
       const options = toOptionFlags(optionKeys);
-      // v26.64.0 (ADR-020, BREAKING) — ADR-012/017 supersede. cli=codex 자동 default ON 폐기.
-      // withCodexPrompts 는 사용자 명시 install target (목록 체크) 시에만 활성. 자동 ON 안 함.
-      // scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts).
       const userOverride =
         targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
       // v26.64.0 (ADR-020) — Confirm summary 에 SCOPE 명시 (사용자 인지 + D16).

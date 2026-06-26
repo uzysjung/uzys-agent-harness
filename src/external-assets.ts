@@ -42,7 +42,6 @@ export type ExternalAssetMethod =
       kind: "internal";
       key:
         | "tauri-desktop"
-        | "uzys-harness"
         // v26.87.0 — dev-method skills (uzys 1st-party, repo-bundled templates).
         | "multi-persona-review"
         | "gap-analysis-e2e"
@@ -231,16 +230,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "opt-in" },
     method: { kind: "internal", key: "tauri-desktop" },
-  },
-  {
-    id: "uzys-harness",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "uzys-harness 6-Gate workflow — /uzys:spec /plan /build /test /review /ship slash commands (+ Codex/Antigravity skills·workflows)",
-    category: "workflow",
-    source: "uzys",
-    condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "uzys-harness" },
   },
 
   // === Dev-method skills (uzys 1st-party, v26.87.0) ===

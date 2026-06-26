@@ -28,11 +28,8 @@ function spec(withFlag: boolean, projectDir: string): InstallSpec {
     tracks: ["tooling"],
     options: {
       withPrune: false,
-      withCodexSkills: false,
       withCodexTrust: false,
       withKarpathyHook: withFlag,
-      withCodexPrompts: false,
-      withAntigravityGlobal: false,
     },
     cli: ["claude"],
     projectDir,

@@ -51,20 +51,6 @@ if command -v git &>/dev/null && [ -d "$PROJECT_DIR/.git" ]; then
   GIT_STATUS=$(cd "$PROJECT_DIR" && git status --short 2>/dev/null | head -20)
 fi
 
-# Gate status 수집
-GATE_SUMMARY="(no gate-status.json)"
-GATE_FILE="$PROJECT_DIR/.claude/gate-status.json"
-if [ -f "$GATE_FILE" ] && command -v jq &>/dev/null; then
-  GATE_SUMMARY=$(jq -r '
-    "define: \(.define.completed // false)\n" +
-    "plan: \(.plan.completed // false)\n" +
-    "build: \(.build.completed // false)\n" +
-    "verify: \(.verify.completed // false)\n" +
-    "review: \(.review.completed // false)\n" +
-    "ship: \(.ship.completed // false)"
-  ' "$GATE_FILE" 2>/dev/null || echo "(parse error)")
-fi
-
 # Checkpoint 파일 작성
 cat > "$CHECKPOINT_FILE" <<EOF
 # Checkpoint — $TS
@@ -82,12 +68,6 @@ cat > "$CHECKPOINT_FILE" <<EOF
 $GIT_STATUS
 \`\`\`
 
-## Gate Status
-
-\`\`\`
-$GATE_SUMMARY
-\`\`\`
-
 ## Session ID
 - \`$SESSION_ID\`
 - Tool count at snapshot: $count
@@ -97,8 +77,7 @@ $GATE_SUMMARY
 compact 후 다음을 확인:
 1. \`git status\` — 변경 사항 복원
 2. \`docs/SPEC.md\` + \`docs/todo.md\` — 현재 작업 컨텍스트
-3. 위 Gate Status — 어느 단계에 있었는지
-4. 최근 checkpoint: \`ls -t docs/checkpoints/ | head -5\`
+3. 최근 checkpoint: \`ls -t docs/checkpoints/ | head -5\`
 EOF
 
 # Counter 리셋

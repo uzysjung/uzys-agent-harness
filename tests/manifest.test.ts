@@ -50,17 +50,9 @@ describe("resolveRules", () => {
 });
 
 describe("buildManifest", () => {
-  it("includes uzys/* commands only when withUzysHarness=true (v26.44.0 BREAKING)", () => {
+  it("does not emit any uzys/* command entries (6-Gate workflow removed)", () => {
     const tooling = buildManifest({ tracks: ["tooling"] });
-    const entry = tooling.find((e) => e.target.endsWith("uzys/spec.md"));
-    // 자체 entry는 항상 manifest에 존재 — applies() 가 게이팅
-    expect(entry).toBeDefined();
-    // default: 미설치
-    expect(entry?.applies({ tracks: ["tooling"], withUzysHarness: false })).toBe(false);
-    // opt-in: 설치
-    expect(entry?.applies({ tracks: ["tooling"], withUzysHarness: true })).toBe(true);
-    // executive 도 동일 — withUzysHarness 만 매개. 트랙 무관
-    expect(entry?.applies({ tracks: ["executive"], withUzysHarness: true })).toBe(true);
+    expect(tooling.find((e) => e.target.includes("commands/uzys/"))).toBeUndefined();
   });
 
   it("does not include any project-root CLAUDE.md entry — merged via installer", () => {
@@ -143,7 +135,7 @@ describe("buildManifest", () => {
   it("includes hooks for all tracks", () => {
     const m = buildManifest({ tracks: ["executive"] });
     const hookEntries = m.filter((e) => e.target.startsWith(".claude/hooks/"));
-    expect(hookEntries.length).toBeGreaterThanOrEqual(8);
+    expect(hookEntries.length).toBeGreaterThanOrEqual(6);
     for (const h of hookEntries) {
       expect(h.applies({ tracks: ["executive"] })).toBe(true);
     }

@@ -8,8 +8,6 @@
 ```
 <project>/AGENTS.md                              ← AGENTS.md.template + CLAUDE.md
 <project>/opencode.json                          ← opencode.json.template + .mcp.json
-<project>/.opencode/commands/uzys-{spec,plan,build,test,review,ship}.md
-<project>/.opencode/plugins/uzys-harness.ts
 ```
 
 ## 구조
@@ -18,8 +16,6 @@
 |------|------|-------|
 | `AGENTS.md.template` | 프로젝트 root AGENTS.md 마스터 | B1 (현재) / C1 transform |
 | `opencode.json.template` | `opencode.json` 마스터 ($schema + mcp + command + agent + plugin + permission) | B3 |
-| `.opencode/commands/uzys-*.md` | 6 slash command stub. `{COMMAND_BODY_PLACEHOLDER}`가 transform 시 `.claude/commands/uzys/<n>.md` 본문으로 치환 | B1 stub / C2 |
-| `.opencode/plugins/uzys-harness.ts` | Plugin stub (3 hook 골격) | B1 stub / E1 본문 |
 
 ## 디자인 결정
 
