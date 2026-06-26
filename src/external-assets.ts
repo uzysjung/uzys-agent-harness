@@ -365,7 +365,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: {
       kind: "npx-run",
       cmd: "bmad-method",
-      version: "6.8.0",
+      version: "6.9.0",
       args: ["install", "--directory", ".", "--tools", "claude-code", "--yes"],
     },
   },
@@ -397,7 +397,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "vercel",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm", pkg: "vercel", version: "54.11.1" },
+    method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
   },
   {
     id: "netlify-cli",
@@ -415,7 +415,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
-    method: { kind: "npm", pkg: "supabase", version: "2.105.0" },
+    method: { kind: "npm", pkg: "supabase", version: "2.108.0" },
   },
 
   // === UI tracks (csr-*|ssr-*|full) ===
@@ -464,7 +464,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "understanding",
     source: "vercel-labs",
     condition: { kind: "has-dev-track" },
-    method: { kind: "npm", pkg: "agent-browser", version: "0.27.2" },
+    method: { kind: "npm", pkg: "agent-browser", version: "0.31.0" },
   },
   // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.
   {

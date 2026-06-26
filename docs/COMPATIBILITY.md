@@ -50,7 +50,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code | 🟢 Docker |
 | `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code | 🟢 Docker |
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | agnostic | 🟢 Docker |
-| `bmad-method` | vetted | `bmad-method@6.8.0` (npx) | agnostic | 🟢 Docker |
+| `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | agnostic | 🟢 Docker |
 | `gsd-orchestrator` | vetted | `get-shit-done-cc@1.42.3` (npx) | agnostic | 🟢 Docker |
 
 #### 🎨 Frontend (5)
@@ -67,9 +67,9 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `vercel-cli` | vetted | `vercel@54.11.1` (npm) | agnostic | 🟢 registry |
+| `vercel-cli` | vetted | `vercel@54.17.3` (npm) | agnostic | 🟢 registry |
 | `netlify-cli` | vetted | `netlify-cli@26.1.0` (npm) | agnostic | 🟢 registry |
-| `supabase-cli` | vetted | `supabase@2.105.0` (npm) | agnostic | 🟢 registry |
+| `supabase-cli` | vetted | `supabase@2.108.0` (npm) | agnostic | 🟢 registry |
 | `supabase-agent-skills` | vetted | `supabase@supabase-agent-skills` | Claude Code | 🟢 Docker |
 | `postgres-best-practices` | vetted | `postgres-best-practices@supabase-agent-skills` | Claude Code | 🟢 Docker |
 | `railway-skills` | experimental | `railway@railway-skills` | Claude Code | 🟢 Docker |
@@ -115,7 +115,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `agent-browser` | vetted | `agent-browser@0.27.2` (npm) | agnostic | 🟢 registry |
+| `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | agnostic | 🟢 registry |
 | `claude-video` | vetted | `watch@claude-video` | Claude Code | 🟢 Docker |
 | `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code | 🟢 Docker |
 | `agentmemory` | vetted | `agentmemory@agentmemory` | Claude Code | 🟢 Docker |
