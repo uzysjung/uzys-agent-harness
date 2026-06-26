@@ -115,7 +115,7 @@ export function runExternalInstall(
   const harnessRoot = deps.harnessRoot ?? process.cwd();
   const projectDir = ctx.projectDir ?? process.cwd();
 
-  // v26.81.0 (ADR-022) — internal 자산(tauri-desktop/uzys-harness)은 Phase 1 의
+  // v26.81.0 (ADR-022) — internal 자산(tauri-desktop)은 Phase 1 의
   //   manifest/transform 이 설치 주체 — external(spawn) 단계에서 제외. Phase 1 의
   //   templates 행으로 사용자에게 이미 가시화됨 (중복 보고 방지).
   const applicable = filterApplicableAssets(assets, ctx).filter(
