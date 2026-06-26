@@ -1,18 +1,18 @@
 # Ship Checklist
 
-`/uzys:ship` 실행 시 아래 모든 항목을 통과해야 배포 가능.
+배포(ship) 전 아래 모든 항목을 통과해야 한다.
 
 ## Pre-Ship Gates
 
 - [ ] **로컬 CI 전체 통과 (1차 게이트)**: `npm run ci` (typecheck + lint + test:coverage + build) exit 0. GitHub Actions 는 태그 push 시에만 돌므로 **로컬이 사실상 유일한 사전 게이트** — `npm test` 만으로는 coverage gate 누락 (test-policy.md 참조)
-- [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB — `/uzys:test` 단계에서 검증됨)
+- [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB)
 - [ ] **커버리지 기준 충족**: test-policy.md의 Track별 threshold 확인 (이 repo: branches 88)
 - [ ] **태그 후 릴리스 CI 확인**: 태그 push 후 `gh run watch <run-id> --exit-status` 로 GitHub Actions green 확인 (fail 시 patch 태그로 수정)
 - [ ] **fresh-env 설치 매트릭스 확인 (v26.72.0)**: `install-matrix.yml` (태그 자동 또는 `gh workflow run install-matrix.yml --ref main`) green — OS×Node×pm 설치 + 멀티트랙 + npx github: smoke. First-Run Success 회귀 방지
 - [ ] **Security Scan 통과**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음
 - [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip audit` (Python) 실행. critical/high 취약점 없음
 - [ ] **SPEC/PRD 정합성**: `bash .claude/hooks/spec-drift-check.sh ship` (exit 2 시 차단)
-- [ ] **Review 게이트 통과**: `/uzys:review`에서 CRITICAL 이슈 없음 확인
+- [ ] **Review 게이트 통과**: 코드 리뷰(reviewer 에이전트)에서 CRITICAL 이슈 없음 확인
 - [ ] **Surface Parity (거짓출하 방지)**: 신규/변경 자산·기능의 사용자 도달 경로 전부(wizard / CLI flag / 문서 표기 / 해당 CLI별) 실행 증거 확보. 미검증 경로는 ship 보고에 "미검증" 명시 — 한 경로 증거의 타 경로 전용 금지 (`no-false-ship.md`)
 - [ ] **로드맵 SSOT 동기화 (drift 차단)**: 자산 추가/제거·마일스톤 진척 시 `docs/plans/service-audit-roadmap.md` 의 ⓐ baseline 버전 헤더 ⓑ 완료 항목 상태 표기 ⓒ 자산 수치(M5 등) ⓓ immediateNext 를 현행화. 8 PR 동안 미갱신으로 "48 vs 실측 58"·"완료를 미완으로 박제" drift 발생한 전례(2026-06-21 페르소나 감사) — SSOT 가 부정확하면 no-false-ship 보고 자체가 오염된다 (change-management.md "SSOT 최신화")
 

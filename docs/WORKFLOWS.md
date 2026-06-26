@@ -8,13 +8,12 @@
 
 ---
 
-## 한눈에 — 설치 가능 워크플로 (8)
+## 한눈에 — 설치 가능 워크플로 (7)
 
 설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `npx -y @uzysjung/agent-harness install --track <t> --with <id>`.
 
 | 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
 |---|---|---|---|---|---|---|
-| **uzys-harness** | `uzys-harness` | 본 하네스 | — | official | 내장 | 6-Gate `/uzys:spec…ship` + `/uzys:auto`(Ralph 루프). SPEC anchor·결정론 게이트 |
 | **Superpowers** | `superpowers` | obra → anthropics 공식 | 235k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
 | **ECC** | `ecc-plugin` | affaan-m | 219k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
 | **GSD** | `gsd-orchestrator` | gsd-build | 64k | vetted | npx | get-shit-done 오케스트레이터 |
@@ -31,7 +30,6 @@
 
 ## 어떤 걸 골라야 하나 (의사결정)
 
-- **구조화된 규율 + SPEC 정합성 반복(Ralph)** 을 원한다 → **uzys-harness**. 6-Gate + `/uzys:auto` 가 SPEC 충족까지 반복 검증.
 - **스킬/하위에이전트 프레임워크**로 능력을 확장 → **Superpowers**(공식, 가장 안전).
 - **다 깔고 골라쓰기**(에이전트·스킬·커맨드 대량) → **ECC**. 단 무겁다.
 - **기존 코드베이스에 점진 변경(brownfield)** 을 spec-driven 으로 → **OpenSpec**(delta 기반).
@@ -40,7 +38,7 @@
 - **멀티-에이전트 오케스트레이션 + 다(多)CLI 일관성** → **wshobson agents**.
 - **빠른 오케스트레이션 1회성 실행** → **GSD**.
 
-> 택1+ 가능(상호 배타 아님). 단 슬래시 네임스페이스 충돌(`/spec` 등)은 의식할 것 — uzys 는 `/uzys:` 네임스페이스라 충돌 없음.
+> 택1+ 가능(상호 배타 아님). 단 슬래시 네임스페이스 충돌(`/spec` 등)은 의식할 것.
 
 ---
 
@@ -59,9 +57,9 @@
 
 ## 기법 (워크플로 아님) — Ralph loop
 
-**Ralph** 는 설치 가능한 워크플로가 아니라 *기법*이다: "신선한 에이전트를 루프로 돌려 목표 충족까지 eventual-consistency 로 수렴"(Geoffrey Huntley). 본 하네스의 **`/uzys:auto` 가 이 기법을 내장**(SPEC Compliance Check 반복).
+**Ralph** 는 설치 가능한 워크플로가 아니라 *기법*이다: "신선한 에이전트를 루프로 돌려 목표 충족까지 eventual-consistency 로 수렴"(Geoffrey Huntley).
 
-외부 설치형 Ralph 패키징도 존재한다 — `snarktank/ralph`(20k, MIT, CC 플러그인) · `mikeyobrien/ralph-orchestrator`(2.9k, 7-CLI). 단 uzys:auto 와 기능이 **부분 중복**이라 현재 큐레이션 세트엔 미포함(필요 시 사용자가 직접 추가). `ghuntley/loom` 은 proprietary("do not use") — 제외.
+외부 설치형 Ralph 패키징도 존재한다 — `snarktank/ralph`(20k, MIT, CC 플러그인) · `mikeyobrien/ralph-orchestrator`(2.9k, 7-CLI). 단 *기법*이라 설치형 워크플로 큐레이션 세트엔 미포함(필요 시 사용자가 직접 추가). `ghuntley/loom` 은 proprietary("do not use") — 제외.
 
 ---
 
@@ -69,7 +67,7 @@
 
 1. **검증(Trust Tier)** — official(Anthropic·본 하네스) / vetted(★≥1000+활성) / experimental(★<1000, opt-in). [`src/external-assets.ts`](../src/external-assets.ts) `TRUST_TIER` SSOT, 월 cron drift 감지(`trust-tier-drift.yml`).
 2. **설치 가능 + Node 모델 적합** — uv/Python 의존이나 대화형-전용은 자동설치 제외(추천만).
-3. **철학 차별 + 중복 회피** — 같은 엔진 re-wrapper, uzys:auto 와 기능 중복(claude-flow/oh-my-claudecode 등)은 제외.
+3. **철학 차별 + 중복 회피** — 같은 엔진 re-wrapper, 기존 큐레이션 자산과 기능 중복(claude-flow/oh-my-claudecode 등)은 제외.
 4. **라이선스** — permissive 우선. copyleft(GPL/AGPL)·Commons-Clause·proprietary 는 신중(현재 세트는 전부 MIT).
 5. **보안 vetting (ADR-021 wedge)** — Snyk "ToxicSkills" 가 skill 의 36%에서 prompt injection 발견. 자산 보안 스캔은 A 단계(`docs/COMPATIBILITY.md`)에서 공개 예정.
 

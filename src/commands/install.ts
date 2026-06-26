@@ -38,26 +38,8 @@ export interface InstallOptions {
   //   withBmad/withClaudeVideo/withUnderstandAnything/withAgentmemory) 완전 삭제.
   //   자산 선택 = generic `--with <id>` / `--without <id>` 만. 아래는 동작 옵션.
   withPrune?: boolean;
-  withCodexSkills?: boolean;
   withCodexTrust?: boolean;
   withKarpathyHook?: boolean;
-  /**
-   * v0.7.0 — Codex slash 통일 (~/.codex/prompts/uzys-*.md).
-   * v26.46.0 — `cli` 에 codex 포함 시 default ON (ADR-012). Opt-out 은 `--no-codex-prompts`.
-   * 명시 true: 사용자 explicit (legacy --with-codex-prompts 호환).
-   */
-  withCodexPrompts?: boolean;
-  /**
-   * v26.46.0 — Codex slash 통일 opt-out (cli=codex 일 때 default ON 해제).
-   * cac negation flag — `--no-codex-prompts` 명시 시 cac 가 `codexPrompts: false` 로 set.
-   * v26.51.0 — bug fix: 이전엔 `noCodexPrompts` field 참조 (cac 가 만들지 않음) → 동작 안 함.
-   */
-  codexPrompts?: boolean;
-  /**
-   * v26.67.0 — Antigravity global opt-in. `~/.gemini/antigravity/skills/uzys-*` +
-   * `~/.gemini/antigravity/global_workflows/uzys-*.md`. scope=global + cli=antigravity 시만 의미.
-   */
-  withAntigravityGlobal?: boolean;
   /**
    * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
    * cac repeatable. 예: `--with railway-skills --with impeccable`.
@@ -155,19 +137,6 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   for (const w of validated.warnings) {
     err(c.yellow(`[WARN] ${w}`));
   }
-  // v26.46.0 — Codex prompts default 화. cli=codex 시 자동. --with-codex-prompts 명시는 호환 유지.
-  if (validated.ok && options.withCodexPrompts === true && !validated.cli.includes("codex")) {
-    err(
-      c.yellow(
-        "[WARN] --with-codex-prompts requires --cli codex. Skipping (no Codex prompts will be installed).",
-      ),
-    );
-  }
-  if (validated.ok && options.codexPrompts === false && !validated.cli.includes("codex")) {
-    err(
-      c.yellow("[WARN] --no-codex-prompts has no effect without --cli codex (already excluded)."),
-    );
-  }
   if (!validated.ok) {
     err(status.failure(c.red(`ERROR: ${validated.message}`)));
     exit(1);
@@ -199,18 +168,11 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
-    //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션 6종만.
+    //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
     options: {
       withPrune: options.withPrune === true,
-      withCodexSkills: options.withCodexSkills === true,
       withCodexTrust: options.withCodexTrust === true,
       withKarpathyHook: options.withKarpathyHook === true,
-      // v26.64.0 (ADR-020, BREAKING) — ADR-012/017 supersede. cli=codex 자동 default ON 폐기.
-      //   withCodexPrompts 는 사용자 명시 `--with-codex-prompts` 시에만 ON.
-      //   `--no-codex-prompts` 는 backward-compat noop (default 가 이미 false).
-      //   scope=global 일 때만 ~/.codex/prompts/ 에 실 write (installer.ts 참조).
-      withCodexPrompts: options.withCodexPrompts === true && options.codexPrompts !== false,
-      withAntigravityGlobal: options.withAntigravityGlobal === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
@@ -386,28 +348,12 @@ export function registerInstallCommand(cli: Cli): void {
     )
     // === Codex global (v26.46.0+) ===
     .option(
-      "--with-codex-prompts",
-      "[Codex] Unify Codex slash (~/.codex/prompts/uzys-*.md). Requires --cli codex. (v26.46.0+)",
-    )
-    .option(
-      "--no-codex-prompts",
-      "[Codex] Backward-compat noop — Codex slash is opt-in via --with-codex-prompts (v26.64.0 ADR-020)",
-    )
-    .option(
-      "--with-codex-skills",
-      "[Codex] Codex global opt-in: copy uzys-* skills to ~/.codex/skills/",
-    )
-    .option(
       "--with-codex-trust",
       "[Codex] Codex global opt-in: register trust entry in ~/.codex/config.toml",
     )
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
     //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.
     //   아래는 자산이 아닌 설치 동작 옵션만.
-    .option(
-      "--with-antigravity-global",
-      "[Behavior] Antigravity global opt-in: copy uzys-* to ~/.gemini/antigravity/{skills,global_workflows}/. Requires --cli antigravity + --scope global. (v26.67.0+)",
-    )
     .option(
       "--with-prune",
       "[Behavior] Prune ECC items beyond curated 89 (use with --with ecc-plugin)",
@@ -419,10 +365,9 @@ export function registerInstallCommand(cli: Cli): void {
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===
-    .example("install --track tooling --with uzys-harness")
+    .example("install --track tooling --with karpathy-coder")
     .example("install --track csr-supabase --cli claude --cli codex")
     .example("install --track csr-supabase --without netlify-cli --with railway-skills")
-    .example("install --track full --no-codex-prompts")
     /* v8 ignore next — cac action callback. installAction 자체는 별도 tests 로 검증. */
     .action((options: InstallOptions) => installAction(options));
 }

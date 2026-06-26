@@ -7,7 +7,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { type AntigravityOptInReport, runAntigravityOptIn } from "./antigravity/opt-in.js";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -168,8 +167,6 @@ export interface BaselineReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
-  /** v26.67.0 — Present when antigravity global opt-in fired (scope=global + withAntigravityGlobal). */
-  antigravityOptIn: AntigravityOptInReport | null;
   updateMode: UpdateModeReport | null;
   mode: InstallMode;
   envFiles: {
@@ -202,8 +199,6 @@ export interface InstallReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
-  /** v26.67.0 — Present when antigravity global opt-in fired. null otherwise. */
-  antigravityOptIn: AntigravityOptInReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks 갱신 + orphan prune + stale hook). null when not update mode. */
@@ -271,13 +266,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backup: backupPath,
     installedTracks: [...spec.tracks].sort(),
     mcpServers: Object.keys(mcpResult.mcpServers).sort(),
-    ...runCliTransforms(
-      spec,
-      harnessRoot,
-      projectDir,
-      manifestSpec.withUzysHarness,
-      manifestSpec.selectedInternalSkills,
-    ),
+    ...runCliTransforms(spec, harnessRoot, projectDir, manifestSpec.selectedInternalSkills),
     updateMode: null,
     mode,
     envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
@@ -336,7 +325,6 @@ function runUpdateInstall(
     codexOptIn: null,
     opencode: null,
     antigravity: null,
-    antigravityOptIn: null,
     updateMode: updateReport,
     mode: "update",
     envFiles: {
@@ -365,7 +353,6 @@ function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   return {
     tracks: spec.tracks,
     withTauri: isAssetSelected("tauri-desktop", selectionCtx),
-    withUzysHarness: isAssetSelected("uzys-harness", selectionCtx),
     // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
     // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
     withEcc: isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune,
@@ -479,44 +466,29 @@ interface CliTransformResults {
   codexOptIn: CodexOptInReport | null;
   opencode: OpencodeTransformReport | null;
   antigravity: AntigravityTransformReport | null;
-  antigravityOptIn: AntigravityOptInReport | null;
 }
 
 function runCliTransforms(
   spec: InstallSpec,
   harnessRoot: string,
   projectDir: string,
-  uzysHarnessSelected: boolean,
   selectedInternalSkills: ReadonlyArray<string>,
 ): CliTransformResults {
   // Codex transform when spec.cli includes "codex"
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
   if (spec.cli.includes("codex")) {
-    // v26.57.0 (ADR-018) — withUzysHarness gating 을 codex transform 에도 전달.
-    // .agents/skills/uzys-* + .codex/prompts/uzys-* 도 uzys-harness 없으면 생성 안 함.
-    // v26.87.0 — dev-method skills 는 selectedInternalSkills 로 독립 게이팅.
+    // v26.87.0 — dev-method skills 는 selectedInternalSkills 로 게이팅.
     codex = runCodexTransform({
       harnessRoot,
       projectDir,
-      withUzysHarness: uzysHarnessSelected,
       selectedInternalSkills,
     });
-    // v26.64.0 (ADR-020) — Codex global opt-in 은 scope=global 일 때만 의미.
-    // scope=project (default) 시 ~/.codex/ write skip — transform.ts 가 이미 `.codex/` (project)
-    // 에 write 함. withCodex* 옵션은 scope=global 시에만 ~/.codex/ 로 추가 복사.
+    // v26.64.0 (ADR-020) — Codex global trust opt-in 은 scope=global 일 때만 의미.
+    // scope=project (default) 시 ~/.codex/ write skip (config.toml trust entry 만).
     const installScope = spec.scope ?? "project";
-    if (
-      installScope === "global" &&
-      (spec.options.withCodexSkills || spec.options.withCodexTrust || spec.options.withCodexPrompts)
-    ) {
-      codexOptIn = runCodexOptIn({
-        projectDir,
-        harnessRoot,
-        withCodexSkills: spec.options.withCodexSkills,
-        withCodexTrust: spec.options.withCodexTrust,
-        withCodexPrompts: spec.options.withCodexPrompts,
-      });
+    if (installScope === "global" && spec.options.withCodexTrust) {
+      codexOptIn = runCodexOptIn({ projectDir });
     }
   }
 
@@ -527,29 +499,17 @@ function runCliTransforms(
   }
 
   // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
-  // `.agents/skills/` (codex 와 공유) + `.agents/workflows/` (신규). withUzysHarness 시만.
+  // `.agents/rules/uzys-harness.md` (project context) + dev-method skills.
   let antigravity: AntigravityTransformReport | null = null;
-  let antigravityOptIn: AntigravityOptInReport | null = null;
   if (spec.cli.includes("antigravity")) {
     antigravity = runAntigravityTransform({
       harnessRoot,
       projectDir,
-      withUzysHarness: uzysHarnessSelected,
       selectedInternalSkills,
     });
-    // v26.67.0 (Phase C) — Antigravity global opt-in. ADR-020 정합 —
-    // scope=global + withAntigravityGlobal=true 시에만 ~/.gemini/ 영역 write.
-    const installScope = spec.scope ?? "project";
-    if (installScope === "global" && spec.options.withAntigravityGlobal) {
-      antigravityOptIn = runAntigravityOptIn({
-        projectDir,
-        harnessRoot,
-        enabled: true,
-      });
-    }
   }
 
-  return { codex, codexOptIn, opencode, antigravity, antigravityOptIn };
+  return { codex, codexOptIn, opencode, antigravity };
 }
 
 /**

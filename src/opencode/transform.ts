@@ -1,6 +1,6 @@
 /**
- * OpenCode transform orchestrator — SSOT (templates/CLAUDE.md, .mcp.json,
- * templates/commands/uzys/*.md) → OpenCode 자산 4종.
+ * OpenCode transform orchestrator — SSOT (templates/CLAUDE.md, .mcp.json) →
+ * OpenCode 자산.
  *
  * Inputs:
  *   - harnessRoot:  repository root (templates/ + .mcp.json)
@@ -9,19 +9,18 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - opencode.json
- *   - .opencode/commands/uzys-{phase}.md   (6 commands)
- *   - .opencode/plugins/uzys-harness.ts    (1 plugin stub, Phase E1에서 본문 작성)
+ *   - .opencode/commands/<id>.md   (dev-method skills as command fallback)
  *
  * SPEC: docs/specs/opencode-compat.md
  * Phase: C1 (transform orchestrator)
  */
 
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
-import { renderCommand, renderCommandFromSkill } from "./commands.js";
+import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
 
 export interface OpencodeTransformParams {
@@ -30,7 +29,7 @@ export interface OpencodeTransformParams {
   /**
    * v26.87.0 — dev-method skill ids 선택 목록. OpenCode 는 native skill 개념이 없어 각 skill 을
    * `.opencode/commands/<id>.md` 커맨드 fallback 으로 surface (description = skill frontmatter,
-   * body = skill 본문). withUzysHarness 와 독립 — installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
+   * body = skill 본문). installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
 }
@@ -39,10 +38,7 @@ export interface OpencodeTransformReport {
   agentsMdPath: string;
   opencodeJsonPath: string;
   commandFiles: string[];
-  pluginPath: string;
 }
-
-const PHASES = ["spec", "plan", "build", "test", "review", "ship"];
 
 export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeTransformReport {
   const { harnessRoot, projectDir, selectedInternalSkills = [] } = params;
@@ -64,32 +60,11 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   const opencodeJsonPath = join(projectDir, "opencode.json");
   writeFileSync(opencodeJsonPath, renderOpencodeJson({ template: opencodeTemplate, mcp }));
 
-  // 3. .opencode/commands/uzys-{phase}.md
+  // 3. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
+  //   OpenCode 는 native skill 개념이 없어 skill 을 커맨드로 surface.
   const cmdDir = join(projectDir, ".opencode/commands");
   ensureDir(cmdDir);
   const commandFiles: string[] = [];
-  for (const phase of PHASES) {
-    const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
-    let source = "";
-    if (existsSync(cmdSrc)) {
-      source = readFileSync(cmdSrc, "utf8");
-    } else {
-      const fallback = join(
-        harnessRoot,
-        "templates/opencode/.opencode/commands",
-        `uzys-${phase}.md`,
-      );
-      if (existsSync(fallback)) {
-        source = readFileSync(fallback, "utf8");
-      }
-    }
-    const target = join(cmdDir, `uzys-${phase}.md`);
-    writeFileSync(target, renderCommand({ source, phase }));
-    commandFiles.push(target);
-  }
-
-  // 3b. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
-  //   OpenCode 는 native skill 없음 → skill 을 커맨드로 surface. uzys-harness 와 독립.
   for (const id of selectedInternalSkills) {
     const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
     if (!existsSync(src)) {
@@ -100,18 +75,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     commandFiles.push(target);
   }
 
-  // 4. .opencode/plugins/uzys-harness.ts (static copy from template; Phase E1 fills body)
-  const pluginDir = join(projectDir, ".opencode/plugins");
-  ensureDir(pluginDir);
-  const pluginPath = join(pluginDir, "uzys-harness.ts");
-  const pluginSrc = join(harnessRoot, "templates/opencode/.opencode/plugins/uzys-harness.ts");
-  if (existsSync(pluginSrc)) {
-    copyFileSync(pluginSrc, pluginPath);
-  } else {
-    writeFileSync(pluginPath, "// uzys-harness plugin stub (template missing)\n");
-  }
-
-  return { agentsMdPath, opencodeJsonPath, commandFiles, pluginPath };
+  return { agentsMdPath, opencodeJsonPath, commandFiles };
 }
 
 function readRequired(path: string): string {

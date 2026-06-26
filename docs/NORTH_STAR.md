@@ -13,7 +13,7 @@
 
 ### 세 기둥
 
-1. **하네스 + 컨텍스트 엔지니어링** — rules / hooks / skills / 6-gate / Track / SPEC + CLAUDE.md persistence 가 AI ↔ 사용자의 공유 어휘이자 컨텍스트다. AI 단독 자동화가 아니라 **양쪽이 같은 의미로 해석하는 통신 프로토콜**의 풍부함·정확성이 핵심. 어휘가 정확할수록 동일 결과에 더 적은 왕복 + 더 적은 재설명.
+1. **하네스 + 컨텍스트 엔지니어링** — rules / hooks / skills / Track / SPEC + CLAUDE.md persistence 가 AI ↔ 사용자의 공유 어휘이자 컨텍스트다. AI 단독 자동화가 아니라 **양쪽이 같은 의미로 해석하는 통신 프로토콜**의 풍부함·정확성이 핵심. 어휘가 정확할수록 동일 결과에 더 적은 왕복 + 더 적은 재설명.
 2. **검증된 자산 큐레이션 + 사용자 선택권** — "무엇이든 설치"가 아니라 **검증된** 플러그인/스킬만 후보. 각 자산의 출처·역할을 한 줄씩 명시해 사용자가 **이해하고 선택**한다. 권장 자산은 pre-checked + 설명으로 **적극 어필**하되, 최종 결정은 사용자.
 3. **4-CLI 동등성** — Claude Code / Codex / OpenCode / Antigravity 어디서나 같은 어휘가 동등 작동. CLI 잠금(lock-in) 없음.
 
@@ -31,14 +31,14 @@
 
 | Metric | 정의 | 목표 |
 |--------|------|------|
-| **HITO per Feature** | feature 1개 완주(`/uzys:spec` → `/uzys:ship`)까지 사용자 명시 개입 (지시문/승인/수정 요청) 횟수 | **≤ 3** |
+| **HITO per Feature** | feature 1개 완주(요구 정의 → 배포)까지 사용자 명시 개입 (지시문/승인/수정 요청) 횟수 | **≤ 3** |
 | **Re-clarification Rate** | AI가 동일 context를 두 번 이상 묻거나, 사용자가 같은 결정을 두 번 이상 내리는 빈도 (sample 기반) | **≤ 5%** of total prompts |
 
 ### 2차 지표 — 속도 + 진입 + 신뢰
 
 | Metric | 정의 | 목표 |
 |--------|------|------|
-| **Time-to-first-Build** | `npx -y github:.../uzys-agent-harness` 실행부터 첫 `/uzys:build` 완료까지 | **≤ 30분 (p90)** |
+| **Time-to-first-Build** | `npx -y github:.../uzys-agent-harness` 실행부터 첫 feature build 완료까지 | **≤ 30분 (p90)** |
 | **First-Run Success Rate** | 첫 설치 시도가 사용자 수동 개입 (에러 fix / 누락 파일 / 의존성 추가 install) **0건**으로 종료 | **≥ 95%** |
 | **Promise = Implementation** | README/USAGE/SPEC에서 광고된 모든 자산 (skill / plugin / MCP / hook)이 실제 설치·작동 | **100%** (거짓 광고 0건) |
 | **Cross-CLI Parity** | Claude Code / Codex / OpenCode / Antigravity 4 CLI 동일 어휘 동등 작동률 (slash 호출 + hook 발화 + skill 인식) | **≥ 95%** |
@@ -61,11 +61,11 @@
 ### 3.1 Will (vibe coding 핵심)
 
 - **공통 어휘 풍부화** — Rule / Hook / Skill 추가 기준: "AI와 사용자가 같은 의미로 해석하는가". 모호하면 거절
-- **재설명 제거** — 같은 context를 두 번 묻게 만드는 모든 friction 제거 (CLAUDE.md persistence, gate-status, decision log, ADR)
+- **재설명 제거** — 같은 context를 두 번 묻게 만드는 모든 friction 제거 (CLAUDE.md persistence, decision log, ADR)
 - **Promise = Implementation** — README/USAGE/SPEC 광고는 100% 실제 동작. 거짓 광고는 vibe를 가장 빠르게 깨뜨림
 - **Public-first** — 처음 보는 사용자가 즉시 같은 어휘로 대화 시작 가능. 한 줄 설치 + 자동 컨텍스트 로드
 - **Deterministic Harness** — 게이트/규칙/순서는 hook으로 강제. LLM 판단 의존은 최후 수단
-- **Multi-Stack 동등성** — Python REST / Next.js / SSR / 데이터 / 임원 문서 / 순수 CLI 어디서나 같은 6-gate + 같은 `/uzys:*` 어휘
+- **Multi-Stack 동등성** — Python REST / Next.js / SSR / 데이터 / 임원 문서 / 순수 CLI 어디서나 같은 하네스 어휘(rules·hooks·skills)가 동등 작동
 - **Project-Scope 오염 금지** — 글로벌 `~/.claude/`, `~/.codex/`, `~/.opencode/`, `npm -g` 는 사용자 명시 opt-in (`--scope global` 또는 interactive 에서 Global 선택) 없이는 미수정. Default install scope = Project. (D16, ADR-020)
 - **Transparent Defaults** — 설치 중 어떤 자산이 들어가는지 한 줄씩 명시. 숨김 동작 0건
 - **검증된 자산 큐레이션 + 선택권** — 후보는 검증된 플러그인/스킬로 한정. 각 자산 출처·역할 명시 → 사용자가 이해하고 선택. "무엇이든 설치" 안 함
@@ -87,7 +87,6 @@ scope creep 1차 방어선. "X는 안 한다"를 명시.
 | 선택 | 포기한 것 | 근거 |
 |------|----------|------|
 | Rule 17 / Hook 6 slim-down | 범용 guide 두께 | 어휘는 정확성 > 분량. 린터 가능한 건 린터에. 분기 1회 재평가 |
-| `/uzys:auto` revision 자동 루프 | 매 단계 인간 승인 | 소통 왕복 최소화. revision 상한 + Escalation Gate로 폭주 방지 |
 | ECC cherry-pick + 외부 plugin install | 통합 플러그인 자체 관리 | 상위 커뮤니티 어휘에 위임. sync 자동 drift 감지 + 한 줄 설치로 어휘 자동 등록 |
 | `npx` + `prepare` 빌드 | bash + curl 1줄 | 의존성 0 가정 폐기. Node 20+ 전제로 단순화 + 결정론 향상 |
 | 11 Track 분리 | 단일 monolith | 어휘 맥락 분리. TSV + helper로 복잡도 관리 |

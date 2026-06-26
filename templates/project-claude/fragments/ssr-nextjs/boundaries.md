@@ -16,5 +16,4 @@
 - 시크릿 하드코딩
 - Server Component에서 useState/useEffect 사용
 - 프로덕션 DB 직접 조작
-- 게이트 건너뛰기 (Hotfix 예외)
 - DO NOT CHANGE 영역 수정

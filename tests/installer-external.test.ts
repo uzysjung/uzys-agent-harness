@@ -19,11 +19,8 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
   withPrune: false,
-  withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
-  withCodexPrompts: false,
-  withAntigravityGlobal: false,
 };
 
 function spec(tracks: Track[], options: Partial<OptionFlags>, projectDir: string): InstallSpec {

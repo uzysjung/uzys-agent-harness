@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Multi-perspective verification agent. Reviews code, documentation, UI, and QA from an independent evaluator perspective. Enforces Segregation of Duties (SOD) — implementation and verification must be separate. Use for all /uzys:review phases."
+description: "Multi-perspective verification agent. Reviews code, documentation, UI, and QA from an independent evaluator perspective. Enforces Segregation of Duties (SOD) — implementation and verification must be separate. Use for all review phases."
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 context: fork

@@ -8,18 +8,6 @@
 
 {PROJECT_RULES}
 
-## Workflow Gates
-
-```
-Define(/uzys-spec) → Plan(/uzys-plan) → Build(/uzys-build) → Verify(/uzys-test) → Review(/uzys-review) → Ship(/uzys-ship)
-```
-
-각 단계 완료 없이 다음 진행 금지. 건너뛰기 시도 시 `pre_tool_use` hook이 exit 2로 차단.
-
-**Hotfix 단축**: Build → Verify → Ship (긴급 수정에 한함)
-
-**Executive track**: 6단계 게이트 미적용. 자연어 요청 → strategist + document-skills → 산출물 → 검토.
-
 ## Session Start
 
 매 세션 시작 시:
@@ -47,19 +35,6 @@ Codex `sandbox_mode = "workspace-write"` + `approval_policy = "on-request"` 가 
 - `main` 직접 커밋 금지. feature branch 사용.
 - 세션 시작 시 `git pull` 필수.
 - Conventional Commits — `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci)
-
-## Command Reference (Codex slash)
-
-| Slash | 용도 |
-|-------|------|
-| `/uzys-spec` | Define — 구조화된 스펙 작성 |
-| `/uzys-plan` | Plan — 검증 가능한 작은 단위로 분해 |
-| `/uzys-build` | Build — TDD 점진적 구현 |
-| `/uzys-test` | Verify — 테스트 실행 + 커버리지 |
-| `/uzys-review` | Review — 5축 리뷰 (correctness, readability, architecture, security, performance) |
-| `/uzys-ship` | Ship — 프리런치 체크리스트 + 배포 |
-
-Codex는 slash namespace(`uzys:`)를 지원하지 않아 `uzys-*` 형식으로 rename됨. Claude Code 원본은 `/uzys:*` 유지.
 
 ## Agents (subagent, multi_agent stable)
 

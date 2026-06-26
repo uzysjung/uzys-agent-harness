@@ -6,9 +6,7 @@ import { runAntigravityTransform } from "../../src/antigravity/transform.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
 
-const PHASES = ["spec", "plan", "build", "test", "review", "ship"] as const;
-
-describe("runAntigravityTransform (v26.66.0 skills/workflows + v26.69.0 rules)", () => {
+describe("runAntigravityTransform — rules (v26.69.0, project context)", () => {
   let harnessRoot = "";
   let projectDir = "";
 
@@ -16,14 +14,8 @@ describe("runAntigravityTransform (v26.66.0 skills/workflows + v26.69.0 rules)",
     harnessRoot = mkdtempSync(join(tmpdir(), "agy-harness-"));
     projectDir = mkdtempSync(join(tmpdir(), "agy-proj-"));
 
-    // Mock templates/commands/uzys/<phase>.md (6 files) — body references a sibling slash
-    const cmdDir = join(harnessRoot, "templates/commands/uzys");
-    mkdirSync(cmdDir, { recursive: true });
-    for (const phase of PHASES) {
-      writeFileSync(join(cmdDir, `${phase}.md`), `mock ${phase} body — next: /uzys:plan\n`);
-    }
-
     // Mock templates/CLAUDE.md + templates/antigravity/AGENTS.md.template (rules source)
+    mkdirSync(join(harnessRoot, "templates"), { recursive: true });
     writeFileSync(
       join(harnessRoot, "templates/CLAUDE.md"),
       [
@@ -49,19 +41,17 @@ describe("runAntigravityTransform (v26.66.0 skills/workflows + v26.69.0 rules)",
     rmSync(projectDir, { recursive: true, force: true });
   }
 
-  // ── rules (v26.69.0) — always, not gated on withUzysHarness ──
-
-  it("withUzysHarness=false → rules 작성 + skill/workflow 0 (rules 는 항상)", () => {
-    const report = runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: false });
+  // rules (.agents/rules/uzys-harness.md) is ALWAYS written — project context, not gated.
+  it("writes .agents/rules/uzys-harness.md; no selected skills → skillFiles empty", () => {
+    const report = runAntigravityTransform({ harnessRoot, projectDir });
     expect(report.rulesFile).toBe(join(projectDir, ".agents/rules/uzys-harness.md"));
     expect(existsSync(report.rulesFile as string)).toBe(true);
     expect(report.skillFiles).toHaveLength(0);
-    expect(report.workflowFiles).toHaveLength(0);
     cleanup();
   });
 
   it("rules 가 CLAUDE.md 전문 embed + project name 치환 + 슬래시 rename + h1 strip", () => {
-    runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: false });
+    runAntigravityTransform({ harnessRoot, projectDir });
     const rules = readFileSync(join(projectDir, ".agents/rules/uzys-harness.md"), "utf8");
     // CLAUDE.md 전문 (Rule 1~2) embed
     expect(rules).toContain("rule one body");
@@ -76,66 +66,12 @@ describe("runAntigravityTransform (v26.66.0 skills/workflows + v26.69.0 rules)",
     cleanup();
   });
 
-  it("CLAUDE.md 또는 template 부재 시 rulesFile = null (graceful)", () => {
+  it("CLAUDE.md 또는 template 부재 시 rulesFile = null (graceful — install 진행)", () => {
     rmSync(join(harnessRoot, "templates/antigravity"), { recursive: true, force: true });
-    const report = runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
+    const report = runAntigravityTransform({ harnessRoot, projectDir });
     expect(report.rulesFile).toBeNull();
-    // skills/workflows 는 영향 X
-    expect(report.skillFiles).toHaveLength(6);
-    cleanup();
-  });
-
-  // ── skills + workflows (v26.66.0) — gated on withUzysHarness ──
-
-  it("withUzysHarness=true → rules + 6 skills + 6 workflows 생성", () => {
-    const report = runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
-    expect(report.rulesFile).not.toBeNull();
-    expect(report.skillFiles).toHaveLength(6);
-    expect(report.workflowFiles).toHaveLength(6);
-    for (const phase of PHASES) {
-      expect(report.skillFiles).toContain(
-        join(projectDir, ".agents/skills", `uzys-${phase}`, "SKILL.md"),
-      );
-      expect(report.workflowFiles).toContain(
-        join(projectDir, ".agents/workflows", `uzys-${phase}.md`),
-      );
-    }
-    cleanup();
-  });
-
-  it("workflow body 의 /uzys: 가 /uzys- 로 rename (Antigravity filename 호출 정합)", () => {
-    runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
-    const content = readFileSync(join(projectDir, ".agents/workflows/uzys-spec.md"), "utf8");
-    expect(content).toContain("/uzys-plan");
-    expect(content).not.toContain("/uzys:plan");
-    cleanup();
-  });
-
-  it("SKILL.md 가 YAML frontmatter 포함 (Anthropic skill format)", () => {
-    runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
-    const skill = readFileSync(join(projectDir, ".agents/skills/uzys-spec/SKILL.md"), "utf8");
-    expect(skill.startsWith("---\n")).toBe(true);
-    expect(skill).toContain("name:");
-    expect(skill).toContain("description:");
-    cleanup();
-  });
-
-  it("commands/uzys/ 부재 + codex/skills fallback 존재 → fallback 사용", () => {
-    rmSync(join(harnessRoot, "templates/commands/uzys"), { recursive: true, force: true });
-    const fallbackDir = join(harnessRoot, "templates/codex/skills/uzys-spec");
-    mkdirSync(fallbackDir, { recursive: true });
-    writeFileSync(join(fallbackDir, "SKILL.md"), "fallback stub body\n");
-    runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
-    const skill = readFileSync(join(projectDir, ".agents/skills/uzys-spec/SKILL.md"), "utf8");
-    expect(skill).toContain("fallback stub body");
-    cleanup();
-  });
-
-  it("commands/uzys/<phase>.md 없으면 workflow skip (skill 은 빈 stub)", () => {
-    rmSync(join(harnessRoot, "templates/commands/uzys"), { recursive: true, force: true });
-    const report = runAntigravityTransform({ harnessRoot, projectDir, withUzysHarness: true });
-    expect(report.workflowFiles).toHaveLength(0);
-    expect(report.skillFiles).toHaveLength(6);
+    // rules 부재여도 transform 자체는 끝까지 진행 (skills 는 selected 없으니 0).
+    expect(report.skillFiles).toHaveLength(0);
     cleanup();
   });
 });
@@ -156,7 +92,6 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     const report = runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: false,
       selectedInternalSkills: DEV_METHOD,
     });
     for (const id of DEV_METHOD) {
@@ -165,16 +100,15 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       expect(existsSync(target)).toBe(true);
     }
     // dev-method skill 은 평행 workflow 를 만들지 않는다 (uzys 전례와 다름).
-    expect(report.workflowFiles).toHaveLength(0);
     expect(existsSync(join(project, ".agents/workflows/multi-persona-review.md"))).toBe(false);
+    expect(existsSync(join(project, ".agents/workflows"))).toBe(false);
   });
 
-  // PITFALL GUARD — frontmatter name: <id> 보존, renderSkill(name: uzys-<id>) 미사용.
+  // PITFALL GUARD — frontmatter name: <id> 보존 (renderBundledSkill 이 name 을 재래핑하지 않는다).
   it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>)", () => {
     runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: false,
       selectedInternalSkills: ["multi-persona-review"],
     });
     const body = readFileSync(
@@ -189,22 +123,19 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     const report = runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: false,
     });
     expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
     expect(report.skillFiles).toHaveLength(0);
   });
 
-  // 독립 게이팅 — withUzysHarness=false 여도 dev-method skill 은 렌더된다.
-  it("withUzysHarness=false 여도 dev-method skill 은 독립 렌더 (uzys-6Gate skill 은 빠짐)", () => {
+  it("선택한 dev-method skill 만 렌더 (선택 안 한 id 는 빠짐)", () => {
     const report = runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      withUzysHarness: false,
       selectedInternalSkills: ["multi-persona-review"],
     });
     expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
-    expect(existsSync(join(project, ".agents/skills/uzys-spec"))).toBe(false);
+    expect(existsSync(join(project, ".agents/skills/asis-tobe-decision"))).toBe(false);
     expect(report.skillFiles).toHaveLength(1);
   });
 });

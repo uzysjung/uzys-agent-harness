@@ -30,7 +30,7 @@ import { stepLabel, type WizardStep } from "./wizard-steps.js";
 /**
  * v26.54.0 — All-in-one install-targets value scheme.
  * groupMultiselect 의 단일 string value 에 두 source 통합:
- *   - `option:<key>` → OPTION_DEFS 의 manifest-영향 build option (현재: withTauri, withUzysHarness)
+ *   - `option:<key>` → OPTION_DEFS 의 manifest-영향 build option (현재 빈 배열 — 아래 OPTION_DEFS 참조)
  *   - `asset:<id>` → EXTERNAL_ASSETS 의 외부 자산
  * 다른 OptionFlags 항목 (withGsd, withEcc, withPrune, withTob, withKarpathyHook,
  * withAddyAgentSkills, withSuperpowers, withWshobsonAgents, withOpenspec, withBmad) 은
@@ -96,8 +96,8 @@ interface OptionDef {
 
 /**
  * v26.54.0 — 표시 대상 OPTION_DEFS.
- * v26.81.0 (ADR-022) — **빈 배열로 소멸**. 마지막 2개(withTauri/withUzysHarness)가 내부
- * 자산(tauri-desktop/uzys-harness — EXTERNAL_ASSETS `kind:"internal"`)으로 흡수돼 wizard 의
+ * v26.81.0 (ADR-022) — **빈 배열로 소멸**. 마지막 항목(withTauri)이 내부
+ * 자산(tauri-desktop — EXTERNAL_ASSETS `kind:"internal"`)으로 흡수돼 wizard 의
  * `option:` 특례가 사라짐. 자산 선택은 전부 `asset:<id>` 경로. 잔존 동작 옵션(D16 글로벌
  * 4종/karpathy hook/prune)은 wizard 미노출 (CLI `--with-*` 동작 플래그 전용 — 기존과 동일).
  */

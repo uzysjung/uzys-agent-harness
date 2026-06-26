@@ -15,19 +15,11 @@ templates/codex/
 ├── README.md                        # 본 파일
 ├── AGENTS.md.template               # 프로젝트 AGENTS.md (CLAUDE.md에서 생성)
 ├── config.toml.template             # 프로젝트 .codex/config.toml (hooks + mcp + sandbox)
-├── hooks/                           # Shell 스크립트 (.claude/hooks/ 재사용 가능)
-│   ├── README.md                    # 포팅 상태 + Event 매핑
-│   ├── gate-check.sh                # pre_tool_use matcher="Skill"
-│   ├── hito-counter.sh              # user_prompt_submit
-│   ├── session-start.sh             # session_start
-│   └── uncommitted-check.sh         # post_tool_use (Bash 한정)
-└── skills/                          # 6 uzys skills (Codex skill 포맷)
-    ├── uzys-spec/SKILL.md
-    ├── uzys-plan/SKILL.md
-    ├── uzys-build/SKILL.md
-    ├── uzys-test/SKILL.md
-    ├── uzys-review/SKILL.md
-    └── uzys-ship/SKILL.md
+└── hooks/                           # Shell 스크립트 (.claude/hooks/ 재사용 가능)
+    ├── README.md                    # 포팅 상태 + Event 매핑
+    ├── hito-counter.sh              # user_prompt_submit
+    ├── session-start.sh             # session_start
+    └── uncommitted-check.sh         # post_tool_use (Bash 한정)
 ```
 
 ## 설치 대상 경로 (`setup-harness.sh --cli=codex` 실행 후)
@@ -37,7 +29,6 @@ templates/codex/
 | `AGENTS.md.template` | `<project>/AGENTS.md` |
 | `config.toml.template` | `<project>/.codex/config.toml` |
 | `hooks/*.sh` | `<project>/.codex/hooks/*.sh` |
-| `skills/uzys-*/` | `~/.codex/skills/uzys-*/` (공식 $CODEX_HOME/skills) |
 | 사용자 `~/.codex/config.toml`에 trust 등록 추가 | (D4 opt-in 확인) |
 
 ## Hook Event 매핑 (Claude → Codex)
@@ -57,7 +48,6 @@ stdin JSON 필드(`session_id`, `cwd`, `tool_name`, `tool_input`, `hook_event_na
 
 - `AGENTS.md.template` 본문 — CLAUDE.md에서 변환 (Phase C)
 - `hooks/*.sh` 본체 — `.claude/hooks/` 에서 포팅 (Phase C)
-- `skills/uzys-*/SKILL.md` 본문 — `.claude/commands/uzys/*.md`에서 포팅 + slash prefix rename (Phase C)
 - `setup-harness.sh --cli=codex` 경로 — Phase D
 - Trust entry 확인 프롬프트 — Phase D
 - `--cli=codex` dogfood 검증 — Phase F

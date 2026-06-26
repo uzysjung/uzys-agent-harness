@@ -17,7 +17,7 @@ describe("OpenCode install pipeline (integration)", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("tooling + --cli=opencode (no claude): AGENTS.md + opencode.json + .opencode/{commands,plugins}, NO .claude/ baseline (v0.8.0)", () => {
+  it("tooling + --cli=opencode (no claude): AGENTS.md + opencode.json, NO .claude/ baseline (v0.8.0)", () => {
     const report = runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -26,11 +26,8 @@ describe("OpenCode install pipeline (integration)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["opencode"],
         projectDir,
@@ -48,32 +45,17 @@ describe("OpenCode install pipeline (integration)", () => {
     // OpenCode artifacts
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-    expect(existsSync(join(projectDir, ".opencode/plugins/uzys-harness.ts"))).toBe(true);
-
-    // Plugin body verifies E1 hook implementations
-    const plugin = readFileSync(join(projectDir, ".opencode/plugins/uzys-harness.ts"), "utf8");
-    expect(plugin).toContain('"tool.execute.before"');
-    expect(plugin).toContain('"tool.execute.after"');
-    expect(plugin).toContain("messageCreated");
-    expect(plugin).toContain("PHASE_DEPENDENCY");
-    expect(plugin).toContain("hito-"); // HITO log naming
-
-    for (const phase of ["spec", "plan", "build", "test", "review", "ship"]) {
-      expect(existsSync(join(projectDir, ".opencode/commands", `uzys-${phase}.md`))).toBe(true);
-    }
 
     // opencode.json structure
     const opencode = JSON.parse(readFileSync(join(projectDir, "opencode.json"), "utf8"));
     expect(opencode.$schema).toBe("https://opencode.ai/config.json");
-    expect(opencode.plugin).toContain("./.opencode/plugins/uzys-harness.ts");
     // mcp populated from .mcp.json
     expect(Object.keys(opencode.mcp).length).toBeGreaterThan(0);
     expect(opencode.mcp.context7).toBeDefined();
 
-    // AGENTS.md slash-renamed
+    // AGENTS.md slash-renamed — invariant: no Claude-namespace colon-slash (/uzys:) leaks.
     const agents = readFileSync(join(projectDir, "AGENTS.md"), "utf8");
     expect(agents).not.toContain("/uzys:");
-    expect(agents).toContain("/uzys-");
   });
 
   it("tooling + --cli=all: writes Claude + Codex + OpenCode all 3", () => {
@@ -85,11 +67,8 @@ describe("OpenCode install pipeline (integration)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude", "codex", "opencode"],
         projectDir,
@@ -105,7 +84,6 @@ describe("OpenCode install pipeline (integration)", () => {
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     // OpenCode
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-    expect(existsSync(join(projectDir, ".opencode/plugins/uzys-harness.ts"))).toBe(true);
   });
 
   it("--cli=claude does NOT generate OpenCode artifacts", () => {
@@ -117,11 +95,8 @@ describe("OpenCode install pipeline (integration)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude"],
         projectDir,
@@ -142,11 +117,8 @@ describe("OpenCode install pipeline (integration)", () => {
         tracks: ["tooling"],
         options: {
           withPrune: false,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: false,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
         cli: ["claude", "codex"],
         projectDir,

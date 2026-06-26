@@ -6,8 +6,7 @@
 # 검출 항목:
 #  1. SPEC.md의 Verification Checklist에 unchecked 항목 존재
 #  2. todo.md의 unchecked 항목 존재
-#  3. SPEC.md Status가 "Define"인데 build/verify gate가 완료된 경우
-#  4. PRD.md Status가 In Progress인데 모든 Phase가 Complete인 경우
+#  3. PRD.md Status가 In Progress인데 모든 Phase가 Complete인 경우
 #
 # Exit codes:
 #  0: drift 없음
@@ -47,24 +46,7 @@ if [ -f "$DOCS_DIR/todo.md" ]; then
   fi
 fi
 
-# 3. SPEC.md Status 일관성 — gate-status.json과 대조
-GATE_FILE="$PROJECT_DIR/.claude/gate-status.json"
-if [ -f "$GATE_FILE" ] && [ -f "$DOCS_DIR/SPEC.md" ] && command -v jq &> /dev/null; then
-  BUILD_DONE=$(jq -r '.build.completed // false' "$GATE_FILE")
-  VERIFY_DONE=$(jq -r '.verify.completed // false' "$GATE_FILE")
-
-  # SPEC Status가 "Define"인지 확인 (frontmatter 형식만, 본문 파이프라인 설명 제외)
-  if grep -qE "^> \*\*Status\*\*:.*Define" "$DOCS_DIR/SPEC.md"; then
-    if [ "$BUILD_DONE" = "true" ] || [ "$VERIFY_DONE" = "true" ]; then
-      echo "DRIFT: SPEC.md Status='Define'인데 Build/Verify gate가 완료됨" >&2
-      DRIFT=$((DRIFT + 1))
-      # Ship 게이트에서는 차단 (Build 이후에도 SPEC이 Define이면 안 됨)
-      [ "$1" = "ship" ] && BLOCK=1
-    fi
-  fi
-fi
-
-# 4. Ship 단계에서는 모든 unchecked가 차단
+# 3. Ship 단계에서는 모든 unchecked가 차단
 if [ "$1" = "ship" ] && [ "$DRIFT" -gt 0 ]; then
   BLOCK=1
 fi

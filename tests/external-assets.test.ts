@@ -129,10 +129,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 58 distinct asset ids (no duplicates)", () => {
+  it("contains 57 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(58);
+    expect(ids).toHaveLength(57);
     expect(ids).toContain("polars-K-Dense");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");

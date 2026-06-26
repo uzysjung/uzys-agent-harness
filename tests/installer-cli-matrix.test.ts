@@ -185,7 +185,7 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".env.example"))).toBe(false);
   });
 
-  it("[opencode] only: opencode.json + commands/ + plugin", () => {
+  it("[opencode] only: opencode.json + commands/", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -194,7 +194,6 @@ describe("Matrix invariants — cross-cutting", () => {
     });
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
     expect(existsSync(join(projectDir, ".opencode/commands"))).toBe(true);
-    expect(existsSync(join(projectDir, ".opencode/plugins/uzys-harness.ts"))).toBe(true);
   });
 
   it("[claude, codex, opencode]: 3 CLI artifacts side-by-side", () => {
@@ -265,16 +264,16 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(report.codexOptIn).toBeNull();
   });
 
-  // v26.64.0 (ADR-020) — scope=project (default) 시 withCodex* 가 true 라도 글로벌 opt-in skip.
+  // v26.64.0 (ADR-020) — scope=project (default) 시 withCodexTrust 가 true 라도 글로벌 opt-in skip.
   // ~/.codex/ write 는 scope=global 일 때만.
-  it("scope=project: withCodexPrompts=true 라도 codexOptIn skip (ADR-020 / D16)", () => {
+  it("scope=project: withCodexTrust=true 라도 codexOptIn skip (ADR-020 / D16)", () => {
     const report = runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withCodexPrompts: true },
+        options: { ...DEFAULT_OPTIONS, withCodexTrust: true },
         cli: ["codex"],
         projectDir,
         scope: "project",
@@ -283,15 +282,15 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(report.codexOptIn).toBeNull();
   });
 
-  // v26.64.0 (ADR-020) — scope=global + withCodex* true → codexOptIn 호출됨.
-  it("scope=global + withCodexPrompts=true: codexOptIn 호출 (~/.codex/ write 활성)", () => {
+  // v26.64.0 (ADR-020) — scope=global + withCodexTrust true → codexOptIn 호출됨.
+  it("scope=global + withCodexTrust=true: codexOptIn 호출 (~/.codex/ write 활성)", () => {
     const report = runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withCodexPrompts: true },
+        options: { ...DEFAULT_OPTIONS, withCodexTrust: true },
         cli: ["codex"],
         projectDir,
         scope: "global",

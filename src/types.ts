@@ -72,9 +72,7 @@ export function resolveScope(scope: InstallScope | undefined): InstallScope {
 export interface OptionFlags {
   /** ecc-prune 실행 결합 — prune 은 ecc-plugin 선택을 전제 (installer.ts eccSelected 가 처리). */
   withPrune: boolean;
-  /** Codex global opt-in: ~/.codex/skills/uzys-* 복사. D16 — 사용자 명시 동의 필수. */
-  withCodexSkills: boolean;
-  /** Codex global opt-in: ~/.codex/config.toml [projects."..."] trust entry. D16 동일. */
+  /** Codex global opt-in: ~/.codex/config.toml [projects."..."] trust entry. D16 — 사용자 명시 동의 필수. */
   withCodexTrust: boolean;
   /**
    * v0.6.0 — karpathy-coder pre-commit hook auto-wire (A 경로).
@@ -82,26 +80,12 @@ export interface OptionFlags {
    * 활성화는 karpathy-coder plugin install 성공 후 + 사용자 명시 opt-in 시에만.
    */
   withKarpathyHook: boolean;
-  /**
-   * v0.7.0 — Codex slash 통일 opt-in. `~/.codex/prompts/uzys-*.md` 글로벌 복사.
-   * D16 보호 — 글로벌 영역 침범이라 opt-in 강제.
-   */
-  withCodexPrompts: boolean;
-  /**
-   * v26.67.0 — Antigravity global opt-in (~/.gemini/antigravity/skills/uzys-* +
-   * ~/.gemini/antigravity/global_workflows/uzys-*.md). D16 영역 — `scope=global` +
-   * `cli.includes("antigravity")` 시에만 실 write. 사용자 명시 opt-in 필수.
-   */
-  withAntigravityGlobal: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
   withPrune: false,
-  withCodexSkills: false,
   withCodexTrust: false,
   withKarpathyHook: false,
-  withCodexPrompts: false,
-  withAntigravityGlobal: false,
 };
 
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */

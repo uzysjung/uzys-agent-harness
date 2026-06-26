@@ -1,6 +1,6 @@
 ---
 name: plan-checker
-description: Outcome-driven verification of docs/plan.md + docs/todo.md against docs/SPEC.md goals. Catches plans that look complete but miss the objective. Invoked during /uzys:plan gate by the reviewer subagent.
+description: Outcome-driven verification of docs/plan.md + docs/todo.md against docs/SPEC.md goals. Catches plans that look complete but miss the objective. Invoked by the reviewer subagent during plan verification.
 tools: Read, Grep, Glob, Bash
 model: opus
 origin: self-authored (GSD gsd-plan-checker 사상 흡수, 100% 자체 작성)
@@ -12,14 +12,13 @@ origin: self-authored (GSD gsd-plan-checker 사상 흡수, 100% 자체 작성)
 
 ## 호출 조건
 
-`/uzys:plan` 게이트에서 `reviewer` subagent가 이 에이전트를 호출한다. 또는 수동으로 `Agent(subagent_type=plan-checker, ...)` 직접 호출.
+`reviewer` subagent가 plan 검증 시 이 에이전트를 호출한다. 또는 수동으로 `Agent(subagent_type=plan-checker, ...)` 직접 호출.
 
 ## 입력 (필수 파일)
 
 - `docs/SPEC.md` — 명세. 없으면 **BLOCKER**, 중단.
 - `docs/plan.md` — 분해된 계획. 없으면 **BLOCKER**.
 - `docs/todo.md` — 체크박스 기반 task 목록. 없으면 **WARNING**.
-- `.claude/gate-status.json` — 게이트 진행 상태. 있으면 참조.
 - `.claude/rules/gates-taxonomy.md` — Gates taxonomy 참조 (이 에이전트는 **Revision Gate** 패턴 구현).
 
 ## 검증 Dimensions (6개)
@@ -100,7 +99,7 @@ Recommendation: <있는 경우>
 ## Next Action
 (a) 사용자에게 escalate
 (b) 수정 후 재검증
-(c) 통과 — /uzys:plan gate mark completed 가능
+(c) 통과 — plan 검증 완료
 ```
 
 ## 핵심 원칙

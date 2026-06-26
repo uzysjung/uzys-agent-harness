@@ -61,7 +61,7 @@ describe("addPreToolUseHook", () => {
             hooks: [
               {
                 type: "command",
-                command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/gate-check.sh"',
+                command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
               },
             ],
           },

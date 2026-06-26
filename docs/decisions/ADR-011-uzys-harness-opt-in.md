@@ -1,6 +1,6 @@
 # ADR-011: uzys-harness 6-Gate workflow opt-in (BREAKING)
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-023 (2026-06-26 — 6-Gate workflow removed entirely)
 - **Date**: 2026-05-14
 - **PR**: #70 (v26.44.0)
 - **Supersedes**: 없음

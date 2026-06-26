@@ -10,12 +10,10 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - .codex/config.toml
- *   - .codex/hooks/*.sh                      (3 hooks ported from templates/hooks/)
- *   - .agents/skills/uzys-{phase}/SKILL.md   (6 skills, slash-renamed)
+ *   - .codex/hooks/*.sh              (hooks ported from templates/hooks/)
+ *   - .agents/skills/<id>/SKILL.md   (dev-method skills, frontmatter 보존)
  *
- * v0.6.4 — skill 출력 경로 수정 `.codex-skills/` → `.agents/skills/`.
- *   사유: Codex 공식 표준은 `.agents/skills/<name>/SKILL.md` (repo-level scope).
- *   `.codex-skills/`는 비표준 — Codex가 인식 안 함 → /uzys-* slash 동작 안 함.
+ * v0.6.4 — skill 출력 경로는 Codex 공식 표준 `.agents/skills/<name>/SKILL.md` (repo-level scope).
  *   참조: https://developers.openai.com/codex/skills
  */
 
@@ -25,24 +23,15 @@ import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
-import { renderCodexPrompt } from "./prompts.js";
-import { renderBundledSkill, renderSkill } from "./skills.js";
+import { renderBundledSkill } from "./skills.js";
 
 export interface CodexTransformParams {
   harnessRoot: string;
   projectDir: string;
   /**
-   * v26.57.0 (ADR-018) — uzys-* skill/prompt 생성 gating.
-   * Codex 의 `.agents/skills/uzys-{phase}/SKILL.md` 와 `.codex/prompts/uzys-{phase}.md`
-   * 는 본 harness 의 6-Gate 워크플로우 산출물. withUzysHarness=false 면 두 디렉토리에
-   * uzys-* 파일 생성 안 함. Claude 쪽 `.claude/commands/uzys/` 와 묶음 (ADR-017 의 확장).
-   */
-  withUzysHarness?: boolean;
-  /**
    * v26.87.0 — dev-method skill ids 선택 목록 (installer 가 `DEV_METHOD_SKILL_IDS` 를
    * `isAssetSelected` 로 필터). 각 id 의 `templates/skills/<id>/SKILL.md` 를 Codex native
-   * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력. withUzysHarness 와 **독립** —
-   * 사용자가 uzys-harness 없이 dev-method skill 만 고를 수 있음.
+   * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
 }
@@ -52,20 +41,14 @@ export interface CodexTransformReport {
   configTomlPath: string;
   hookFiles: string[];
   skillFiles: string[];
-  /**
-   * v0.7.1 — `<projectDir>/.codex/prompts/uzys-{phase}.md` 6 markdown.
-   * 글로벌 영향 0. upstream Codex Issue #9848 (project-scoped prompts) 지원 시 자동 작동.
-   */
-  promptFiles: string[];
 }
 
-const PHASES = ["spec", "plan", "build", "test", "review", "ship"];
-const HOOK_NAMES = ["session-start", "hito-counter", "gate-check"];
+const HOOK_NAMES = ["session-start", "hito-counter"];
 
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir, withUzysHarness = false, selectedInternalSkills = [] } = params;
+  const { harnessRoot, projectDir, selectedInternalSkills = [] } = params;
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
@@ -91,7 +74,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     }),
   );
 
-  // 3. .codex/hooks/{session-start,hito-counter,gate-check}.sh
+  // 3. .codex/hooks/{session-start,hito-counter}.sh
   const hookDir = join(projectDir, ".codex/hooks");
   ensureDir(hookDir);
   const hookFiles: string[] = [];
@@ -107,33 +90,9 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     hookFiles.push(target);
   }
 
-  // 4. .agents/skills/uzys-{phase}/SKILL.md (v0.6.4 — Codex 공식 repo-level skill scope)
-  // v26.57.0 (ADR-018) — withUzysHarness gating. uzys 슬래시 미사용 시 skill 디렉토리 생성 X.
-  const skillFiles: string[] = [];
-  if (withUzysHarness) {
-    for (const phase of PHASES) {
-      const skillDir = join(projectDir, ".agents", "skills", `uzys-${phase}`);
-      ensureDir(skillDir);
-      const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
-      let source = "";
-      if (existsSync(cmdSrc)) {
-        source = readFileSync(cmdSrc, "utf8");
-      } else {
-        // Fallback: bundled stub from templates/codex/skills/<phase>/SKILL.md
-        const fallback = join(harnessRoot, "templates/codex/skills", `uzys-${phase}/SKILL.md`);
-        if (existsSync(fallback)) {
-          source = readFileSync(fallback, "utf8");
-        }
-      }
-      const target = join(skillDir, "SKILL.md");
-      writeFileSync(target, renderSkill({ source, phase }));
-      skillFiles.push(target);
-    }
-  }
-
-  // 4b. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
-  //   withUzysHarness 와 **독립** (별도 게이팅). renderSkill 사용 금지 (name: uzys-<id> 오염) —
+  // 4. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 그대로 보존하고 body 만 포팅.
+  const skillFiles: string[] = [];
   for (const id of selectedInternalSkills) {
     const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
     if (!existsSync(src)) {
@@ -146,27 +105,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     skillFiles.push(target);
   }
 
-  // 5. v0.7.1 — .codex/prompts/uzys-{phase}.md (project-scoped pre-positioning)
-  // 글로벌 ~/.codex/prompts/ 영향 0. Codex upstream Issue #9848 지원 시 자동 작동.
-  // 현재는 Codex가 project-scoped prompts 미지원 — pre-position만 (free upgrade 패턴).
-  // v26.57.0 (ADR-018) — withUzysHarness gating. uzys 슬래시 미사용 시 prompt 생성 X.
-  const promptFiles: string[] = [];
-  if (withUzysHarness) {
-    const promptDir = join(projectDir, ".codex", "prompts");
-    ensureDir(promptDir);
-    for (const phase of PHASES) {
-      const cmdSrc = join(harnessRoot, "templates/commands/uzys", `${phase}.md`);
-      if (!existsSync(cmdSrc)) {
-        continue;
-      }
-      const source = readFileSync(cmdSrc, "utf8");
-      const target = join(promptDir, `uzys-${phase}.md`);
-      writeFileSync(target, renderCodexPrompt({ source, phase }));
-      promptFiles.push(target);
-    }
-  }
-
-  return { agentsMdPath, configTomlPath, hookFiles, skillFiles, promptFiles };
+  return { agentsMdPath, configTomlPath, hookFiles, skillFiles };
 }
 
 function readRequired(path: string): string {

@@ -40,7 +40,7 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 
 ship 보고 시 두 상태를 **반드시 분리**해서 보여줄 것:
 
-- **Local gate 상태**: build/verify/review checkbox completed (`.claude/gate-status.json`)
+- **Local gate 상태**: build/verify/review checkbox completed
 - **Remote 상태**: PR merged into main + tag pushed + release 게시
 
 gate ✓ 만 보고 ship 완료라 단정하지 않는다. open PR 1건이라도 있으면 cycle 미완.
@@ -48,7 +48,7 @@ gate ✓ 만 보고 ship 완료라 단정하지 않는다. open PR 1건이라도
 ### 보고 형식 예
 
 ```
-gate:  build ✓ / verify ✓ / review ✓ / ship ✓  (local gate-status)
+gate:  build ✓ / verify ✓ / review ✓ / ship ✓
 main:  PR #123 merged ✓ / tag v26.39.3 pushed ✓ / release ✓
        OR
        PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기

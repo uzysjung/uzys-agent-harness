@@ -20,7 +20,6 @@ function pipelineFor(report: InstallReport) {
       codexOptIn: report.codexOptIn,
       opencode: report.opencode,
       antigravity: report.antigravity,
-      antigravityOptIn: report.antigravityOptIn,
       updateMode: report.updateMode,
       mode: report.mode,
       envFiles: report.envFiles,
@@ -53,7 +52,6 @@ const fakeReport: InstallReport = {
   codexOptIn: null,
   opencode: null,
   antigravity: null,
-  antigravityOptIn: null,
   external: null,
   updateMode: null,
   karpathyHook: null,
@@ -253,11 +251,8 @@ describe("executeSpec", () => {
     tracks: ["tooling"],
     options: {
       withPrune: false,
-      withCodexSkills: false,
       withCodexTrust: false,
       withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAntigravityGlobal: false,
     },
     cli: ["claude"],
     projectDir: "/p",
@@ -285,7 +280,6 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: ["/p/.codex/hooks/a.sh", "/p/.codex/hooks/b.sh"],
         skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
-        promptFiles: [],
       },
     });
     executeSpec(
@@ -304,7 +298,6 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: Array.from({ length: 6 }, (_, i) => `/p/.opencode/commands/uzys-${i}.md`),
-        pluginPath: "/p/.opencode/plugins/uzys-harness.ts",
       },
     });
     executeSpec(
@@ -376,13 +369,11 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        pluginPath: "/p/.opencode/plugins/uzys-harness.ts",
       },
     });
     executeSpec(
@@ -402,7 +393,6 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
     });
     executeSpec(
@@ -424,7 +414,6 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        pluginPath: "/p/.opencode/plugins/uzys-harness.ts",
       },
     });
     executeSpec(
@@ -452,8 +441,7 @@ describe("executeSpec", () => {
       ...fakeReport,
       antigravity: {
         rulesFile: "/p/.agents/rules/uzys-harness.md",
-        skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
-        workflowFiles: ["/p/.agents/workflows/uzys-spec.md"],
+        skillFiles: ["/p/.agents/skills/multi-persona-review/SKILL.md"],
       },
     });
     executeSpec(
@@ -465,11 +453,10 @@ describe("executeSpec", () => {
     const cliRow = lines.find((line) => line.includes("CLI") && line.includes("Antigravity"));
     expect(cliRow).toBeDefined();
     expect(cliRow).not.toContain("Claude");
-    // 산출물 섹션 헤더 + rules/skills/workflows 행.
+    // 산출물 섹션 헤더 + rules/skills 행 (6-Gate workflows 제거 — project context rules + dev-method skills).
     expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
     expect(lines.some((l) => l.includes(".agents/rules/uzys-harness.md"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/skills/uzys-*/SKILL.md"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/workflows/uzys-*.md"))).toBe(true);
+    expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
   });
 
   // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (Rule 12 fail-loud).
@@ -557,11 +544,8 @@ describe("executeSpec", () => {
         ...baseSpec,
         options: {
           withPrune: true,
-          withCodexSkills: false,
           withCodexTrust: false,
           withKarpathyHook: true,
-          withCodexPrompts: false,
-          withAntigravityGlobal: false,
         },
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
@@ -703,7 +687,6 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
     });
     executeSpec(
@@ -787,7 +770,7 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("uzys-agent-harness · reinstall"));
   });
 
-  it("renders Codex opt-in rows when codexOptIn report has skills + trust", () => {
+  it("renders Codex opt-in trust row when codexOptIn trust entry is registered", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
@@ -797,20 +780,15 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
       codexOptIn: {
-        skillsInstalled: { enabled: true, count: 6, targetDir: "/Users/x/.codex/skills" },
         trustEntry: { enabled: true, status: "registered" as const },
-        promptsInstalled: { enabled: false, count: 0, targetDir: "/test/.codex/prompts" },
       },
     });
     executeSpec(
       { ...baseSpec, cli: ["codex"] },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("~/.codex/skills/uzys-*"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("6 copied"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("trust entry"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining('trust_level="trusted"'));
   });
@@ -825,12 +803,9 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
       codexOptIn: {
-        skillsInstalled: { enabled: false, count: 0, targetDir: "/Users/x/.codex/skills" },
         trustEntry: { enabled: true, status: "already-present" as const },
-        promptsInstalled: { enabled: false, count: 0, targetDir: "/test/.codex/prompts" },
       },
     });
     executeSpec(
@@ -850,12 +825,9 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        promptFiles: [],
       },
       codexOptIn: {
-        skillsInstalled: { enabled: false, count: 0, targetDir: "/Users/x/.codex/skills" },
         trustEntry: { enabled: true, status: "error" as const, message: "permission denied" },
-        promptsInstalled: { enabled: false, count: 0, targetDir: "/test/.codex/prompts" },
       },
     });
     executeSpec(
@@ -914,95 +886,6 @@ describe("executeSpec", () => {
     expect(err).toHaveBeenCalledWith(expect.stringContaining("install failed"));
     expect(err).toHaveBeenCalledWith(expect.stringContaining("disk full"));
     expect(exit).toHaveBeenCalledWith(1);
-  });
-});
-
-describe("v26.51.0 — --no-codex-prompts bug fix (cac negation field 매핑)", () => {
-  it("cli=codex + codexPrompts=false (cac negation) → withCodexPrompts=false (opt-out)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    let captured: InstallSpec | undefined;
-    const runPipeline = vi.fn((spec: InstallSpec) => {
-      captured = spec;
-      return fakeReport;
-    });
-    installAction(
-      {
-        cli: ["codex"],
-        track: ["tooling"],
-        codexPrompts: false, // cac --no-codex-prompts
-        projectDir: "/p",
-      },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(captured?.options.withCodexPrompts).toBe(false);
-  });
-
-  // v26.64.0 (ADR-020 BREAKING) — ADR-017 supersede. cli=codex + withUzysHarness 자동 ON 폐기.
-  // withCodexPrompts 는 명시 `--with-codex-prompts` 시에만 true.
-  it("v26.64.0 (ADR-020) — cli=codex + withUzysHarness 둘 다 켜져도 withCodexPrompts 자동 ON 안 함", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    let captured: InstallSpec | undefined;
-    const runPipeline = vi.fn((spec: InstallSpec) => {
-      captured = spec;
-      return fakeReport;
-    });
-    installAction(
-      { cli: ["codex"], track: ["tooling"], with: ["uzys-harness"], projectDir: "/p" },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(captured?.options.withCodexPrompts).toBe(false);
-  });
-
-  it("v26.56.0 (ADR-017 BREAKING) — cli=codex 단독 (uzys-harness 없음) → withCodexPrompts=false", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    let captured: InstallSpec | undefined;
-    const runPipeline = vi.fn((spec: InstallSpec) => {
-      captured = spec;
-      return fakeReport;
-    });
-    installAction(
-      { cli: ["codex"], track: ["tooling"], projectDir: "/p" },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    // 기존 ADR-012 에서는 true 였음. ADR-017 BREAKING 으로 false.
-    expect(captured?.options.withCodexPrompts).toBe(false);
-  });
-
-  it("v26.56.0 — 사용자 명시 --with-codex-prompts 는 uzys-harness 없어도 작동 (legacy override)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    let captured: InstallSpec | undefined;
-    const runPipeline = vi.fn((spec: InstallSpec) => {
-      captured = spec;
-      return fakeReport;
-    });
-    installAction(
-      {
-        cli: ["codex"],
-        track: ["tooling"],
-        withCodexPrompts: true,
-        projectDir: "/p",
-      },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(captured?.options.withCodexPrompts).toBe(true);
-  });
-
-  it("cli=claude + codexPrompts=false → warning (no effect)", () => {
-    const log = vi.fn();
-    const err = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor(fakeReport);
-    installAction(
-      { cli: ["claude"], track: ["tooling"], codexPrompts: false },
-      { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(err).toHaveBeenCalledWith(
-      expect.stringContaining("--no-codex-prompts has no effect without --cli codex"),
-    );
   });
 });
 
@@ -1200,18 +1083,14 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
 });
 
 describe("renderFinalSummary NEXT row (audit UX-2)", () => {
-  // WHY: /uzys:* 슬래시 명령은 uzys-harness opt-in 시에만 설치된다. 기본 설치·
-  //   codex/opencode 단독설치에서도 무조건 `claude → /uzys:spec` 를 안내하던 것은
-  //   존재하지 않는 명령으로 첫 가치를 유도하는 dead-end 였다 (no-false-ship).
+  // WHY: /uzys:* 6-Gate 슬래시 명령이 제거됐다. NEXT 행은 더 이상 존재하지 않는
+  //   `claude → /uzys:spec` 로 첫 가치를 유도하면 안 된다 (no-false-ship dead-end).
   const toolingClaude: InstallSpec = {
     tracks: ["tooling"],
     options: {
       withPrune: false,
-      withCodexSkills: false,
       withCodexTrust: false,
       withKarpathyHook: false,
-      withCodexPrompts: false,
-      withAntigravityGlobal: false,
     },
     cli: ["claude"],
     projectDir: "/p",
@@ -1224,16 +1103,14 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
     return lines.find((l) => l.includes("NEXT")) ?? "";
   }
 
-  it("uzys-harness 미선택 기본설치 → /uzys:spec dead-end 안내 안 함", async () => {
+  it("기본설치 NEXT 행은 /uzys:spec dead-end 를 안내하지 않는다", async () => {
     expect(await nextRow(toolingClaude)).not.toContain("/uzys:spec");
   });
 
-  it("uzys-harness opt-in + claude → /uzys:spec 안내", async () => {
-    const spec: InstallSpec = {
-      ...toolingClaude,
-      userOverride: { forceInclude: ["uzys-harness"], forceExclude: [] },
-    };
-    expect(await nextRow(spec)).toContain("/uzys:spec");
+  it("claude install → NEXT 행이 Claude 사용을 안내 (/uzys:spec 없음)", async () => {
+    const row = await nextRow(toolingClaude);
+    expect(row).not.toContain("/uzys:spec");
+    expect(row).toContain("Claude");
   });
 
   it("codex 단독설치 → claude 아닌 설치 CLI 안내 (/uzys:spec 없음)", async () => {

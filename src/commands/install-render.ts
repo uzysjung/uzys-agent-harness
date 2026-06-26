@@ -182,64 +182,33 @@ export function renderCliArtifacts(
   if (report.codex) {
     log(assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]"));
     log(assetRow("success", ".codex/hooks/", `${report.codex.hookFiles.length} files`));
-    log(
-      assetRow(
-        "success",
-        ".agents/skills/uzys-*/SKILL.md",
-        `${report.codex.skillFiles.length} skills ($uzys-spec mention)`,
-      ),
-    );
-    // v0.7.1 — project-scoped prompts pre-positioning (글로벌 영향 0)
-    if (report.codex.promptFiles.length > 0) {
+    if (report.codex.skillFiles.length > 0) {
       log(
         assetRow(
           "success",
-          ".codex/prompts/uzys-*.md",
-          `${report.codex.promptFiles.length} prompts — pre-positioned for upstream #9848 (not active yet; use Global for working ~/.codex/prompts/)`,
+          ".agents/skills/<id>/SKILL.md",
+          `${report.codex.skillFiles.length} skills`,
         ),
       );
     }
-    // Codex global opt-in (D16) — only when explicitly enabled
-    if (report.codexOptIn) {
-      if (report.codexOptIn.skillsInstalled.enabled) {
-        log(
-          assetRow(
-            "success",
-            "~/.codex/skills/uzys-*",
-            `${report.codexOptIn.skillsInstalled.count} copied (global opt-in)`,
-          ),
-        );
-      }
-      if (report.codexOptIn.trustEntry.enabled) {
-        const trust = report.codexOptIn.trustEntry;
-        const kind = trust.status === "error" ? "skip" : "success";
-        const meta =
-          trust.status === "registered"
-            ? '[projects."<dir>"] trust_level="trusted"'
-            : trust.status === "already-present"
-              ? "already present"
-              : (trust.message ?? "error");
-        log(assetRow(kind, "~/.codex/config.toml trust entry", meta));
-      }
-      // v0.7.0 — Codex prompts (slash 통일) opt-in 결과
-      if (report.codexOptIn.promptsInstalled.enabled) {
-        const count = report.codexOptIn.promptsInstalled.count;
-        log(
-          assetRow(
-            count > 0 ? "success" : "skip",
-            "~/.codex/prompts/uzys-*",
-            `${count} markdown copied (/uzys-spec slash 등록)`,
-          ),
-        );
-      }
+    // Codex global opt-in (D16) — config.toml trust entry, only when explicitly enabled.
+    if (report.codexOptIn?.trustEntry.enabled) {
+      const trust = report.codexOptIn.trustEntry;
+      const kind = trust.status === "error" ? "skip" : "success";
+      const meta =
+        trust.status === "registered"
+          ? '[projects."<dir>"] trust_level="trusted"'
+          : trust.status === "already-present"
+            ? "already present"
+            : (trust.message ?? "error");
+      log(assetRow(kind, "~/.codex/config.toml trust entry", meta));
     }
   }
   if (report.opencode) {
     log(assetRow("success", "opencode.json", "$schema + 5 keys"));
     log(assetRow("success", ".opencode/commands/", `${report.opencode.commandFiles.length} files`));
-    log(assetRow("success", ".opencode/plugins/uzys-harness.ts", "self-contained plugin"));
   }
-  // v26.78.1 (R2) — Antigravity 산출물. rules 항상, skills/workflows 는 uzys-harness 선택 시만.
+  // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
   if (report.antigravity) {
     if (report.antigravity.rulesFile) {
       log(assetRow("success", ".agents/rules/uzys-harness.md", "from .claude/CLAUDE.md"));
@@ -248,41 +217,10 @@ export function renderCliArtifacts(
       log(
         assetRow(
           "success",
-          ".agents/skills/uzys-*/SKILL.md",
+          ".agents/skills/<id>/SKILL.md",
           `${report.antigravity.skillFiles.length} skills`,
         ),
       );
-    }
-    if (report.antigravity.workflowFiles.length > 0) {
-      log(
-        assetRow(
-          "success",
-          ".agents/workflows/uzys-*.md",
-          `${report.antigravity.workflowFiles.length} workflows`,
-        ),
-      );
-    }
-    // Antigravity global opt-in (D16) — only when explicitly enabled.
-    if (report.antigravityOptIn) {
-      const opt = report.antigravityOptIn;
-      if (opt.skillsInstalled.enabled) {
-        log(
-          assetRow(
-            "success",
-            "~/.gemini/antigravity/skills/uzys-*",
-            `${opt.skillsInstalled.count} copied (global opt-in)`,
-          ),
-        );
-      }
-      if (opt.workflowsInstalled.enabled) {
-        log(
-          assetRow(
-            "success",
-            "~/.gemini/antigravity/global_workflows/uzys-*",
-            `${opt.workflowsInstalled.count} copied (global opt-in)`,
-          ),
-        );
-      }
     }
   }
   log("");
@@ -367,19 +305,9 @@ export function renderFinalSummary(
     }
   }
   log("");
-  // v26.84.0 (audit UX-2): /uzys:* 슬래시 명령은 uzys-harness opt-in 시에만 설치된다.
-  //   기본 설치(uzys-harness 미선택)·codex/opencode 단독설치에서도 무조건
-  //   `claude → /uzys:spec` 를 안내하던 것은 존재하지 않는 명령으로 첫 가치를 유도하는
-  //   dead-end 였다 (no-false-ship "광고≠실동작"). 실제 설치 결과로 분기한다.
-  const hasUzysHarness = isAssetSelected("uzys-harness", spec);
-  const hasClaude = spec.cli.includes("claude");
-  if (hasUzysHarness && hasClaude) {
-    log(infoRow("NEXT", `${c.bold("claude")}  →  ${c.cyan("/uzys:spec")}`));
-  } else {
-    const primary = (hasClaude ? "claude" : spec.cli[0]) ?? "claude";
-    const label = CLI_SUMMARY_LABELS[primary];
-    log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
-  }
+  const primary = (spec.cli.includes("claude") ? "claude" : spec.cli[0]) ?? "claude";
+  const label = CLI_SUMMARY_LABELS[primary];
+  log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
   log("");
 }
 
@@ -494,12 +422,12 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · gate-check (6-Gate order) · spec-drift · agentshield (security)",
+        "session-start · spec-drift · checkpoint · mcp-pre-exec (security)",
         cats.hooks,
       );
     }
     if (cats.commands > 0) {
-      phase1Row("commands", cats.commands, "uzys-harness option: /uzys:* (7)");
+      phase1Row("commands", cats.commands, "/ecc:* (ECC plugin OFF fallback)");
     }
     if (cats.skills.length > 0) {
       phase1Row(

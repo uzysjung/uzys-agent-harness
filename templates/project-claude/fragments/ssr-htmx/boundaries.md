@@ -16,5 +16,4 @@
 - 시크릿 하드코딩
 - Jinja2 autoescaping 비활성화
 - 프로덕션 DB 직접 조작
-- 게이트 건너뛰기 (Hotfix 예외)
 - DO NOT CHANGE 영역 수정
