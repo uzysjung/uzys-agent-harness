@@ -820,6 +820,26 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "marketing-skills@claude-code-skills",
     },
   },
+  // v26.91.0 — coreyhaines31/marketingskills (35k★, MIT, plugin v2.5.1). 위 alirezarezvani
+  //   marketing-skills(16k) 와 병존 — id 구분(marketingskills ≠ marketing-skills). opt-in =
+  //   growth-marketing 외 전 트랙에서도 wizard 토글 + `--with marketingskills` 로 설치 가능
+  //   ("SEO 는 일반 개발에도 활용" 충족: dev 트랙에서 본 번들 토글). 45 스킬 중 SEO 7종
+  //   (seo-audit/schema/ai-seo/site-architecture/programmatic-seo/content/aso)은 상호참조
+  //   (product-marketing 우선 + seo-audit↔schema↔ai-seo)라 부분 추출 시 포인터 깨짐 → 번들
+  //   통째 설치만 정합. repoForAsset = marketplace(coreyhaines31/marketingskills) → drift 라이브.
+  {
+    id: "marketingskills",
+    tier: "vetted", // coreyhaines31 35k
+    description: "marketingskills (45 — CRO/copywriting/SEO/AI-SEO/ads/growth, coreyhaines31 35k★)",
+    category: "business",
+    source: "coreyhaines31",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "coreyhaines31/marketingskills",
+      pluginId: "marketing-skills@marketingskills",
+    },
+  },
   // v26.76.0 — content-creator / demand-gen 제거: alirezarezvani/claude-skills marketplace.json 에
   // 해당 plugin 부재(Docker 실설치 검출, exit 1). 거짓 광고 0건 원칙(Promise=Implementation).
   // growth-marketing 트랙은 business-growth-skills + marketing-skills + research-summarizer 유지.

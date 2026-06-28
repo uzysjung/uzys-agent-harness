@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/57 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (50/58 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
