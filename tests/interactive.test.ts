@@ -495,6 +495,8 @@ describe("computeUserOverride", () => {
   const TOOLING_RECOMMENDED = [
     "agent-browser",
     "find-skills",
+    // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.
+    "frontend-design",
     "karpathy-coder",
     "product-skills",
     "multi-persona-review",

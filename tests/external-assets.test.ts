@@ -129,14 +129,16 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 58 distinct asset ids (no duplicates)", () => {
+  it("contains 59 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(58);
+    expect(ids).toHaveLength(59);
     // v26.91.0 — coreyhaines31/marketingskills (opt-in 번들). 기존 marketing-skills(alirezarezvani)
     //   와 동시 존재 — id 가 달라(하이픈 유무) 충돌 없음. 둘 다 카탈로그에 있어야 병존이 깨지지 않음.
     expect(ids).toContain("marketingskills");
     expect(ids).toContain("marketing-skills");
+    // v26.92.0 — frontend-design (Anthropic official, has-dev-track 기본추천). impeccable 보완재.
+    expect(ids).toContain("frontend-design");
     expect(ids).toContain("polars-K-Dense");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");

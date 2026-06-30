@@ -155,7 +155,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 58 자산 매트릭스 (v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 59 자산 매트릭스 (v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -429,6 +429,25 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
     // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수 (single-skill repo 도)
     method: { kind: "skill", source: "pbakaus/impeccable", skill: "impeccable" },
+  },
+  // v26.92.0 — frontend-design (Anthropic official, claude-plugins-official 984.5K installs).
+  //   impeccable(생성↔리뷰 짝)의 official 보완재 — frontend-design=distinctive UI 코드 생성,
+  //   impeccable=일관성 리뷰. 사용자 결정: has-dev-track 기본추천 (impeccable=UI 트랙보다
+  //   넓게 — 모든 개발 트랙, executive 제외). category=frontend (UI 자산, wizard 그룹).
+  //   repoForAsset=marketplace(anthropics/claude-plugins-official); official tier=drift 제외.
+  {
+    id: "frontend-design",
+    tier: "official", // anthropics/claude-plugins-official (Anthropic 저자, 984.5K installs)
+    description:
+      "frontend-design — distinctive production-grade UI generation (Anthropic official, avoids generic AI aesthetics)",
+    category: "frontend",
+    source: "anthropics",
+    condition: { kind: "has-dev-track" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "frontend-design@claude-plugins-official",
+    },
   },
 
   // === dev tools (has_dev_track) ===
