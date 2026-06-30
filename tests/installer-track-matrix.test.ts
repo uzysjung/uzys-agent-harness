@@ -55,14 +55,23 @@ describe("Track matrix — assets called per track", () => {
     // v26.71.1 — playwright-skill / architecture-decision-record (T3 experimental) 는
     //   opt-in only (PRD R6) → 비대화형 default 설치에서 제외. vetted/official 만 남음.
     // v26.78.0 — agent-browser 가 dev-tools → understanding 재분류 → 카테고리 정렬상 맨 뒤로.
-    expect(ids).toEqual(["find-skills", "product-skills", "karpathy-coder", "agent-browser"]);
+    // v26.92.0 — frontend-design (official, has-dev-track) 추가. category=frontend → 정렬상 맨 앞.
+    expect(ids).toEqual([
+      "frontend-design",
+      "find-skills",
+      "product-skills",
+      "karpathy-coder",
+      "agent-browser",
+    ]);
   });
 
   it("data: 5 data-specific + dev baseline + dev-tools + v0.5.0 dev assets", () => {
     const { ids } = runForTrack(["data"]);
     // v26.71.1 — playwright-skill / architecture-decision-record (T3) opt-in only → 제외.
     // v26.78.0 — agent-browser 가 understanding 재분류 → 카테고리 정렬상 맨 뒤로.
+    // v26.92.0 — frontend-design (official, has-dev-track) → category=frontend 정렬상 맨 앞.
     expect(ids).toEqual([
+      "frontend-design",
       "polars-K-Dense",
       "dask-K-Dense",
       "python-resource-management",
@@ -200,15 +209,15 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 6 spawn calls (v26.71.1 — playwright/ADR T3 opt-in 제외, -2)", () => {
-    // find-skills(1) + agent-browser(npm=1) + product-skills(plugin=2) + karpathy-coder(plugin=2) = 6
+  it("tooling: 8 spawn calls (v26.92.0 — +frontend-design plugin=2)", () => {
+    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm=1) + product-skills(plugin=2) + karpathy-coder(plugin=2) = 8
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(6);
+    expect(spawnCallCount).toBe(8);
   });
 
-  it("data: tooling baseline 6 + data 6 (4 skills + 1 plugin × 2) = 12 (v26.71.1 — T3 opt-in)", () => {
+  it("data: tooling baseline 8 + data 6 (4 skills + 1 plugin × 2) = 14 (v26.92.0 — +frontend-design)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(12);
+    expect(spawnCallCount).toBe(14);
   });
 
   it("--with-gsd alone (executive base) adds 1 npx call", () => {
