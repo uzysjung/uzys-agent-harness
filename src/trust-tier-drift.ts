@@ -18,7 +18,9 @@ import { EXTERNAL_ASSETS, type ExternalAsset, TRUST_TIER } from "./external-asse
 // v26.79.0 — gen-compatibility 의 카테고리 exhaustiveness 가드용 SSOT (하드코딩 drift 차단).
 export { CATEGORIES } from "./categories.js";
 // v26.76.0 — gen-compatibility.mjs 가 dist 에서 자산 카탈로그+tier 를 읽도록 re-export.
-export { EXTERNAL_ASSETS, TRUST_TIER } from "./external-assets.js";
+// v26.93.0 — DEV_METHOD_SKILL_IDS 추가: gen-compatibility 의 CLI scope override 를
+//   하드코딩 id 목록 대신 SSOT 에서 derive (no-false-ship drift 구조 차단).
+export { DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS, TRUST_TIER } from "./external-assets.js";
 
 /** vetted 경계 (NORTH_STAR / PRD v26-71 D2). */
 export const STAR_THRESHOLD = 1000;

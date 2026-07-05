@@ -129,10 +129,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 59 distinct asset ids (no duplicates)", () => {
+  it("contains 60 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(59);
+    expect(ids).toHaveLength(60);
     // v26.91.0 — coreyhaines31/marketingskills (opt-in 번들). 기존 marketing-skills(alirezarezvani)
     //   와 동시 존재 — id 가 달라(하이픈 유무) 충돌 없음. 둘 다 카탈로그에 있어야 병존이 깨지지 않음.
     expect(ids).toContain("marketingskills");
@@ -154,7 +154,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
-  it("dev-method skills: 6 internal/official/has-dev-track, dev-tools×3 + workflow×3", () => {
+  it("dev-method skills: 7 internal/official/has-dev-track, dev-tools×3 + workflow×4", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "multi-persona-review": "dev-tools",
@@ -163,6 +163,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "asis-tobe-decision": "workflow",
       "compaction-handoff": "workflow",
       "northstar-roadmap": "workflow",
+      // v26.93.0 — Orchestration & Model Policy (위임 시 모델 역할분담 + effort floor).
+      "model-orchestration": "workflow",
     };
     expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
     for (const id of DEV_METHOD_SKILL_IDS) {

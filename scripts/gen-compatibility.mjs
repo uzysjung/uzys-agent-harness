@@ -11,7 +11,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATEGORIES, EXTERNAL_ASSETS, TRUST_TIER } from "../dist/trust-tier-drift.js";
+import {
+  CATEGORIES,
+  DEV_METHOD_SKILL_IDS,
+  EXTERNAL_ASSETS,
+  TRUST_TIER,
+} from "../dist/trust-tier-drift.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DOC = join(HERE, "..", "docs", "COMPATIBILITY.md");
@@ -41,19 +46,16 @@ const CLI_SCOPE = {
   "shell-script": "local",
   internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
 };
-// v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 6종은 이제 4-CLI 로
+// v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 는 4-CLI 로
 // 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
 // frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
 // 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
+// v26.93.0 — 하드코딩 id 목록 → DEV_METHOD_SKILL_IDS derive (동일 목록 2곳 하드코딩 시
+// 신규 스킬이 이 override 에서 silent 누락되던 drift 차단 — model-orchestration 추가에서 실검출).
 const DEV_METHOD_CLI_SCOPE = "Claude · Codex · Antigravity (skill) · OpenCode (cmd)";
-const CLI_SCOPE_OVERRIDE = {
-  "multi-persona-review": DEV_METHOD_CLI_SCOPE,
-  "gap-analysis-e2e": DEV_METHOD_CLI_SCOPE,
-  "ultracode-service-audit": DEV_METHOD_CLI_SCOPE,
-  "asis-tobe-decision": DEV_METHOD_CLI_SCOPE,
-  "compaction-handoff": DEV_METHOD_CLI_SCOPE,
-  "northstar-roadmap": DEV_METHOD_CLI_SCOPE,
-};
+const CLI_SCOPE_OVERRIDE = Object.fromEntries(
+  DEV_METHOD_SKILL_IDS.map((id) => [id, DEV_METHOD_CLI_SCOPE]),
+);
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"
 //   와 의도적으로 다름 — 표 컨텍스트). 단, 카테고리 누락 시 해당 자산이 표에서 silent drop

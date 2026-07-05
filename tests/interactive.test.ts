@@ -505,6 +505,8 @@ describe("computeUserOverride", () => {
     "asis-tobe-decision",
     "compaction-handoff",
     "northstar-roadmap",
+    // v26.93.0 — dev-method 7번째 (model-orchestration).
+    "model-orchestration",
   ];
 
   it("selections == recommended → undefined (no override)", () => {
