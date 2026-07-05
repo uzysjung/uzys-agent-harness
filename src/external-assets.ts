@@ -48,7 +48,9 @@ export type ExternalAssetMethod =
         | "ultracode-service-audit"
         | "asis-tobe-decision"
         | "compaction-handoff"
-        | "northstar-roadmap";
+        | "northstar-roadmap"
+        // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
+        | "model-orchestration";
     };
 
 export type ExternalAssetCondition =
@@ -155,7 +157,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 59 자산 매트릭스 (v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 60 자산 매트릭스 (v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -294,6 +296,19 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "northstar-roadmap" },
+  },
+  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. 위임 시 모델
+  //   역할분담(orchestrator 직접: 기획·설계·문서 / opus@xhigh+: V&V·복잡 / sonnet@high+: 단순)
+  //   + effort floor 강제 3경로 + quota 핸드오프([[compaction-handoff]] 재사용).
+  {
+    id: "model-orchestration",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Model orchestration policy — role split (orchestrator plans directly · opus@xhigh+ verifies · sonnet@high+ simple coding) + effort floors + delegation spec + quota handoff",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "model-orchestration" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -965,6 +980,8 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "asis-tobe-decision",
   "compaction-handoff",
   "northstar-roadmap",
+  // v26.93.0 — Orchestration & Model Policy.
+  "model-orchestration",
 ];
 
 /**
