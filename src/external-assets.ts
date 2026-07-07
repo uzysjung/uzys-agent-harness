@@ -297,14 +297,15 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "northstar-roadmap" },
   },
-  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. 위임 시 모델
-  //   역할분담(orchestrator 직접: 기획·설계·문서 / opus@xhigh+: V&V·복잡 / sonnet@high+: 단순)
-  //   + effort floor 강제 3경로 + quota 핸드오프([[compaction-handoff]] 재사용).
+  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. v26.94.0 개정
+  //   (2026-07-07): 역할분담 재편 — orchestrator 직접: 방향성·스펙리뷰(multi-persona-review)·
+  //   기능개선·성능/보안 문제발굴 / opus@xhigh+: 문서작성·핵심구현·V&V(fresh instance) /
+  //   sonnet@high+: 반복구현·E2E. effort floor 강제 3경로 + quota 핸드오프는 유지.
   {
     id: "model-orchestration",
     tier: "official", // uzys 본 하네스 자체 템플릿
     description:
-      "Model orchestration policy — role split (orchestrator plans directly · opus@xhigh+ verifies · sonnet@high+ simple coding) + effort floors + delegation spec + quota handoff",
+      "Model orchestration policy — role split (orchestrator directs/reviews · opus@xhigh+ authors docs/core impl/V&V · sonnet@high+ repetitive impl/E2E) + effort floors + delegation spec + quota handoff",
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
