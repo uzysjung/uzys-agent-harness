@@ -2,10 +2,11 @@
 name: model-orchestration
 description: >-
   Apply the fixed model-role and thinking-effort policy whenever work is delegated to subagents
-  or a model/effort choice is made: the orchestrator (top-tier model) does planning, design,
-  documentation, and synthesis DIRECTLY; V&V and complex work go to Opus at xhigh or above;
-  simple bounded coding goes to Sonnet at high or above — never delegate below those effort
-  floors. Use whenever you are about to spawn an Agent/Task/Workflow worker, pick a model for a
+  or a model/effort choice is made: the orchestrator (top-tier model) DIRECTLY sets service
+  direction, reviews plan/spec documents (with multi-persona-review), improves shipped features,
+  and hunts performance/security problems; plan/spec/planning documents are AUTHORED by Opus,
+  which also owns core implementation and V&V, at xhigh or above; repetitive implementation and
+  E2E tests go to Sonnet at high or above — never delegate below those effort floors. Use whenever you are about to spawn an Agent/Task/Workflow worker, pick a model for a
   subtask, set a thinking/effort level, assign verification, or hand off orchestration because
   the current model's quota is exhausted. Trigger on "위임해", "에이전트로 돌려", "오케스트레이션",
   "모델 역할분담", "어떤 모델로", "effort 얼마로", "thinking level", "서브에이전트", or in English
@@ -16,7 +17,8 @@ description: >-
 
 # Model Orchestration Policy
 
-A fixed role split between model tiers, set by the user (2026-07-04). The premise is
+A fixed role split between model tiers, set by the user (2026-07-04, revised 2026-07-07). The
+premise is
 **quality-over-cost**: delegation floors are set at the effort levels Anthropic itself
 recommends for intelligence-sensitive work ("start with xhigh for coding and agentic use
 cases, high as the minimum for most intelligence-sensitive workloads" — official effort
@@ -25,42 +27,50 @@ cost instinct conflict, the policy wins; surface the cost, don't silently downgr
 
 ## Role split
 
-| Role | Who | Effort floor | Notes |
-|------|-----|--------------|-------|
-| **Orchestrator + Product Manager** | Top-tier session model (Fable) | session level | Directs everything. Does planning, design, and documents **itself** — see below |
-| **V&V (verification) + complex work** | `opus` | **xhigh** (or `max`) | Verification, review, architecture-heavy or ambiguous implementation |
-| **Simple, bounded coding** | `sonnet` | **high** (or above) | Mechanical edits, well-specified single-purpose implementations, research sweeps |
+| Role | Who | Effort floor | Duties |
+|------|-----|--------------|--------|
+| **Orchestrator + Product Manager** | Top-tier session model (Fable) | session level | Directs everything. Directly: 서비스 방향성 수립·논의, 기획/스펙문서 **리뷰**, 기개발 기능 **개선**, 문제점(성능·보안) 발굴 — see below |
+| **Doc author + core builder + V&V** | `opus` | **xhigh** (or `max`) | 기획/스펙/계획 문서 **작성·관리**, 핵심 구현(novel logic · architecture-touching · security surface), V&V |
+| **Repetitive implementation + E2E** | `sonnet` | **high** (or above) | 반복 구현(pattern-following, boilerplate, example-driven migrations), E2E 테스트 작성·실행, research sweeps |
 | **Orchestrator stand-in** (quota exhausted) | `opus` @ `max` | max | Takes over orchestration via a handoff — see "Orchestrator handoff" |
 
 The orchestrator assigns a thinking/effort level **per task** at delegation time. Delegating
 below a floor is a policy violation, not a tuning choice.
 
-## Never delegated: planning, design, documents
+## The orchestrator's own lane: direction, review, judgment
 
-기획(planning) · 설계(design) · 문서(documentation) are the orchestrator's own work — along
-with final synthesis and judgment calls. Why: these artifacts *are* the orchestration. A plan
-written by a worker model becomes a plan the orchestrator has to re-derive to trust; the
-context that shaped it (user intent, constraints, history) lives in the orchestrator's window
-and does not survive a delegation prompt. Delegate execution, not direction.
+The orchestrator authors **direction**, not documents. 서비스 방향성(where the product goes),
+스펙 리뷰(is this plan right?), 기능 개선(what should get better in what shipped?), and
+성능·보안 문제 발굴 stay in the orchestrator's window — that's where user intent, constraints,
+and history live, and judgment is the one thing a delegation prompt can't carry.
 
-## Routing test: simple vs complex
+Document *drafting* is delegated to Opus with a direction brief (intent, constraints, decided
+trade-offs). This buys an author≠reviewer split for documents themselves: **Opus writes, the
+orchestrator reviews** — a draft you review with fresh eyes gets scrutiny your own draft never
+would. For 기획/스펙문서 리뷰, run the [[multi-persona-review]] skill (3–5 disjoint persona
+reviewers, severity-ranked synthesis) instead of a single-pass read; the orchestrator arbitrates
+its findings rather than line-editing alone.
+
+## Routing test: repetitive vs core
 
 Before routing to any model: **deterministic transforms don't get a model at all.** A rename,
 a format sweep, a mechanical find-and-replace is `sed`/`grep`/script work — spending model
 tokens on what code answers deterministically fails the routing test at step zero.
 
-Route to **Sonnet** when ALL of these hold; otherwise it's Opus work:
+Route to **Sonnet** (반복 구현 · E2E) when ALL of these hold; otherwise it's Opus core work:
 
-- The task is **bounded and fully specified** — you can write its acceptance criteria in a few
-  lines without "use judgment" clauses.
-- It's **low-blast-radius**: mechanical edits, a well-scoped function, a research sweep, test
-  boilerplate. A wrong answer is cheap to detect and redo.
+- The task is **repetitive or example-driven** — a pattern already exists to follow (an
+  adjacent implementation, a spec with worked examples, a test suite to extend). Acceptance
+  criteria fit in a few lines without "use judgment" clauses.
+- It's **low-blast-radius**: boilerplate, N-th instance of an established shape, E2E test
+  authoring/execution, a research sweep. A wrong answer is cheap to detect and redo.
 - It needs **no architectural or cross-cutting decisions**. Actions carry implicit decisions;
   a worker making design choices in isolation silently diverges from the system (the classic
   parallel-agent failure).
 
-Anything with ambiguity, security surface, multi-file coupling, or verification duty routes to
-**Opus @ xhigh+**. When unsure, route up — the cost delta is smaller than a redo.
+**Core implementation** — novel logic, first-of-its-kind shapes, ambiguity, security surface,
+multi-file coupling — routes to **Opus @ xhigh+**, as does all verification duty. When unsure,
+route up — the cost delta is smaller than a redo.
 
 Parallelism rule of thumb (three independent sources converge on this): **parallel reads are
 safe, parallel writes are dangerous**. Fan out freely for research/search/review; keep writes
@@ -121,14 +131,20 @@ turn — delegate when the task's value justifies it, not by reflex.
 
 ## V&V separation
 
-The implementer never verifies its own work. Two mechanisms, use both when stakes allow:
+The implementer never verifies its own work — the *instance* that wrote something never judges
+it. How that plays out per lane:
 
-- **Fresh context**: a verifier that saw the implementation happen inherits the implementer's
+- **Sonnet implemented** (반복 구현/E2E) → **Opus @ xhigh verifies** (cross-model + fresh
+  context — catches classes of bugs same-model review does not).
+- **Opus implemented** (핵심 구현) → a **fresh Opus instance** verifies: a NEW agent with no
+  shared history. A verifier that watched the implementation happen inherits the implementer's
   mental model and anchors on it — same-session self-review reliably misses the same edge
-  cases the implementation missed. Spawn verification as a NEW agent with no shared history.
-- **Different model**: Sonnet implements → **Opus @ xhigh verifies**. If the orchestrator
-  implemented something directly, Opus still verifies. Cross-model review catches classes of
-  bugs same-model review does not.
+  cases the implementation missed. Instance separation is what makes "Opus builds AND Opus
+  verifies" coherent.
+- **Orchestrator layer on top**: the orchestrator hunts 성능·보안 문제점 in shipped features —
+  a second, higher-altitude pass that judges what a diff-level verifier doesn't (product fit,
+  systemic risk). Documents get the same split: Opus authors, the orchestrator reviews via
+  [[multi-persona-review]].
 
 This pairs with, not replaces, deterministic gates (tests, typecheck, CI) — the verifier
 judges what automation can't: spec fit, missed edge cases, design drift.
@@ -144,8 +160,9 @@ build on. Hand off manually:
    git snapshot (clean tree + open-PR check), emit the fixed-field resume anchor
    (current state / verified / what's left / next action).
 2. The successor session starts on `opus` at `max` (`/model opus` + `/effort max`), reads the
-   anchor, and continues as orchestrator under this same policy — including doing planning,
-   design, and documents itself.
+   anchor, and continues as orchestrator under this same policy — setting direction, reviewing,
+   and hunting problems itself (it can author documents directly too, since it already runs at
+   the Opus doc-author tier — no separate delegation needed while it stands in).
 3. When the top-tier model becomes available again, hand back the same way.
 
 ## Anti-patterns
@@ -153,8 +170,10 @@ build on. Hand off manually:
 | Anti-pattern | Why it's a violation |
 |---|---|
 | `Agent(model: "opus")` with session at default effort | Inherits `high` < xhigh floor — use a pinned agent role, Workflow opts, or raise session effort |
-| Delegating a plan, spec, or doc draft to a worker | Direction work is the orchestrator's own — delegation loses the shaping context |
-| Sonnet on an ambiguous / architectural / security task | Fails the routing test; route up to Opus |
+| Delegating 방향성 수립 or a final judgment call to a worker | Direction is the orchestrator's own — a delegation prompt can't carry the shaping context |
+| Accepting an Opus-authored spec/plan without orchestrator review | Author≠reviewer applies to documents too — run [[multi-persona-review]] before accepting |
+| Orchestrator hand-writing full spec/plan drafts itself | Authoring is Opus's lane — brief the direction, delegate the draft, review the result |
+| Sonnet on core work (novel / architectural / security) | Fails the routing test; route up to Opus |
 | Effort below floor "to save tokens" | The floors ARE the policy; surface cost concerns to the user instead |
 | Implementer verifying its own diff | Anchoring — verification needs fresh context, prefer a different model |
 | Two agents writing the same files in parallel | Conflicting implicit decisions; keep writes sequential or worktree-isolated |
@@ -164,9 +183,12 @@ build on. Hand off manually:
 ## Quick reference
 
 ```
-복잡한 구현 / 검증 / 리뷰      → opus  @ xhigh (또는 max)   — pinned role 또는 Workflow opts
-단순 코딩 / 리서치 스윕        → sonnet @ high 이상
+방향성 수립 / 스펙 리뷰(multi-persona-review) / 기능 개선 / 성능·보안 문제발굴
+                               → 오케스트레이터(Fable) 직접
+기획·스펙·계획 문서 작성·관리 / 핵심 구현 / V&V
+                               → opus  @ xhigh (또는 max)   — pinned role 또는 Workflow opts
+반복 구현 / E2E 테스트 / 리서치 스윕
+                               → sonnet @ high 이상
 결정적 변환 (rename·포맷)      → 모델 위임 금지 — sed/grep/스크립트 직접
-기획 · 설계 · 문서 · 종합      → 오케스트레이터 직접 (위임 금지)
 Fable 소진                     → compaction-handoff → opus @ max 가 오케스트레이터 대행
 ```
