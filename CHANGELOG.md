@@ -7,6 +7,70 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.95.0] — 2026-07-14 (feat: gemini-consult opt-in advisor — 4-CLI graceful)
+
+사용자가 user-scope 에 만든 `gemini-consult` 스킬을 하네스 opt-in 공통 도구로 배포. Gemini(Antigravity `agy` CLI)로 자연스러운 한국어 카피 + 다면 페르소나 second-opinion 리뷰 — Claude 약점 2영역의 독립 second model. (#195)
+
+### Added
+- **gemini-consult** (opt-in, official, dev-tools) — `--with gemini-consult` / wizard. 카탈로그 60→**61**. dev-method 스킬처럼 `templates/skills/` 번들이되 sidecar bash wrapper(`scripts/gemini-ask.sh`) 보유 + opt-in(기본설치 아님).
+- **4-CLI graceful degradation**: wrapper 는 Claude 스코프(디렉토리 복사)에만 실림 → SKILL.md 가 wrapper 없으면 `agy` 직접호출(temp cwd·flag order 가드레일 인라인)로 degrade. Codex/OpenCode/Antigravity 도 깨진 참조 없이 작동 (no-false-ship).
+
+### Changed
+- 신규 `INTERNAL_BUNDLED_SKILL_IDS = [...DEV_METHOD_SKILL_IDS, "gemini-consult"]` superset 도입 — 번들/렌더/gen-compat 소비자가 이 superset 를 iterate(설치 여부는 각 entry `condition` 게이팅). `DEV_METHOD_SKILL_IDS` 는 has-dev-track 방법론 7종 의미 그대로 보존.
+- user-scope 원본 대비 개선: 절대경로 `~/.claude/...` → 프로젝트스코프, `agy` prereq 일반화, wrapper macOS `timeout` 폴백(`command -v`).
+
+## [v26.94.0] — 2026-07-07 (feat: model-orchestration 역할분담 개정)
+
+model-orchestration 스킬의 모델 역할분담 재편 (사용자 지시). (#194)
+
+### Changed
+- **역할분담 재편**: 오케스트레이터(Fable)=서비스 방향성·스펙문서 **리뷰**(`multi-persona-review` 사용)·기능 **개선**·성능/보안 문제 **발굴** / `opus @ xhigh+`=기획/스펙/계획 문서 **작성·관리**+핵심 구현+V&V / `sonnet @ high+`=반복 구현+E2E. V&V 자기검증 충돌은 **fresh instance 분리**로 해소(Opus 구현 → 별개 fresh Opus 검증, 앵커링 방지). effort floor 3경로 강제 + delegation spec + quota 핸드오프 유지.
+
+## [v26.93.0] — 2026-07-05 (feat: model-orchestration dev-method skill 신설)
+
+사용자 확정(2026-07-04) Orchestration & Model Policy 를 7번째 dev-method 스킬로 스킬화. (#193)
+
+### Added
+- **model-orchestration** (7th dev-method skill, official, has-dev-track, workflow) — 모델 역할분담 + effort floor(Opus xhigh+/Sonnet high+) + 위임 3경로 강제 + delegation prompt spec + quota 소진 핸드오프. 자산 59→60.
+
+### Fixed
+- **gen-compatibility drift 차단**: dev-method id CLI-scope override 를 하드코딩 목록 → `DEV_METHOD_SKILL_IDS` derive 로 전환 (model-orchestration 추가 중 실검출 — 신규 스킬이 override 에서 silent 누락되던 구조). `trust-tier-drift.ts` re-export 경유.
+
+## [v26.92.0] — 2026-07-01 (feat: frontend-design 기본 자산 추가)
+
+Anthropic 공식 frontend-design 플러그인을 has-dev-track 기본설치 자산으로 추가. (#192)
+
+### Added
+- **frontend-design** (official, has-dev-track, frontend) — distinctive production-grade UI 생성 (Anthropic 공식 claude-plugins-official, generic AI 미학 회피). impeccable(일관성 리뷰)의 생성측 보완재. 모든 개발 트랙 기본설치.
+
+## [v26.91.0] — 2026-06-28 (feat: marketingskills opt-in 자산 추가)
+
+coreyhaines31/marketingskills(35k★)를 opt-in business 자산으로 추가. (#191)
+
+### Added
+- **marketingskills** (vetted, opt-in, business) — CRO/copywriting/SEO/AI-SEO/ads/growth 45 스킬 (coreyhaines31 35k★). 기존 `marketing-skills`(alirezarezvani 16k)와 **동명이물 병존**(id 하이픈 유무로 구분). SEO 부분추출은 상호참조 파손 위험으로 번들 통째 설치.
+
+## [v26.90.0] — 2026-06-26 (chore: pinned vetted 자산 버전 bump)
+
+version-pinned npm/npx 자산을 최신 stable 로 갱신 (A2 자산 audit 주기). (#190)
+
+### Changed
+- **pinned 자산 bump**: bmad-method 6.9.0, vercel/netlify/supabase CLI + agent-browser 등 latest stable 로 갱신 (Docker 실설치 검증 후).
+
+## [v26.89.0] — 2026-06-26 (refactor!: uzys 6-Gate workflow 제거 — BREAKING)
+
+uzys 6-Gate 워크플로우를 전면 제거하고, AI 크롤러/에이전트 발견성 자산(랜딩·llms.txt·robots·sitemap)을 추가. (#185–#189)
+
+### Removed
+- **BREAKING**: uzys 6-Gate workflow 전체 제거 (#189).
+
+### Added
+- **agent-readiness signals**: robots.txt(AI 크롤러 welcome) + sitemap.xml (#188), llms.txt(AI 에이전트/크롤러 발견성) (#185).
+- **GitHub Pages 랜딩**: static index.html + .nojekyll (#186).
+
+### CI
+- Actions 기반 Pages deploy — 정체된 legacy build queue 우회 (#187).
+
 ## [v26.88.1] — 2026-06-22 (docs: M2 게시-prep 정직화 — star refresh·검증카운트·todo SSOT)
 
 M1 잔여 ◐ 7건 실검증 → **5건 이미 완료 확인**(UX-4 `--help` 깨끗·UX-5 withUzysHarness 0건·C-2 NSM 개명·README 수술 B·홍보글 A), **2건 교정**(C-1·NSM-5) + README 검증카운트 stale 발견·정정.
