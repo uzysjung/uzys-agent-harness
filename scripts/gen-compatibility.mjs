@@ -13,8 +13,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CATEGORIES,
-  DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
 } from "../dist/trust-tier-drift.js";
 
@@ -50,11 +50,12 @@ const CLI_SCOPE = {
 // 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
 // frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
 // 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
-// v26.93.0 — 하드코딩 id 목록 → DEV_METHOD_SKILL_IDS derive (동일 목록 2곳 하드코딩 시
-// 신규 스킬이 이 override 에서 silent 누락되던 drift 차단 — model-orchestration 추가에서 실검출).
+// v26.93.0 — 하드코딩 id 목록 → SSOT derive (동일 목록 2곳 하드코딩 시 신규 스킬이 이 override
+// 에서 silent 누락되던 drift 차단 — model-orchestration 추가에서 실검출). v26.95.0 —
+// INTERNAL_BUNDLED_SKILL_IDS (dev-method + opt-in gemini-consult) 로 확장: 번들 스킬은 전부 4-CLI.
 const DEV_METHOD_CLI_SCOPE = "Claude · Codex · Antigravity (skill) · OpenCode (cmd)";
 const CLI_SCOPE_OVERRIDE = Object.fromEntries(
-  DEV_METHOD_SKILL_IDS.map((id) => [id, DEV_METHOD_CLI_SCOPE]),
+  INTERNAL_BUNDLED_SKILL_IDS.map((id) => [id, DEV_METHOD_CLI_SCOPE]),
 );
 
 // 문서 표용 짧은 제목 + 표시 순서 (wizard 의 CATEGORY_TITLES "🎨 Frontend (UI · Design)"

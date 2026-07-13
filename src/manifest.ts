@@ -1,4 +1,4 @@
-import { DEV_METHOD_SKILL_IDS } from "./external-assets.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
@@ -263,10 +263,11 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     type: "dir",
     applies: onTracks("ssr-nextjs|full"),
   });
-  // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Gated on
-  // `selectedInternalSkills` (computed by installer via isAssetSelected) — NOT track
-  // alone — so a wizard uncheck / `--without <id>` (forceExclude) actually drops the copy.
-  for (const sd of DEV_METHOD_SKILL_IDS) {
+  // v26.87.0 — internal bundled skills (uzys 1st-party templates: dev-method + opt-in advisors,
+  // v26.95.0). Whole-dir copy so sidecar files ship too (e.g. gemini-consult/scripts/gemini-ask.sh).
+  // Gated on `selectedInternalSkills` (installer computes it via isAssetSelected) — NOT track alone —
+  // so a wizard uncheck / `--without <id>` drops the copy, and opt-in ones copy only when selected.
+  for (const sd of INTERNAL_BUNDLED_SKILL_IDS) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,

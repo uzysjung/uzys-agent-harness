@@ -8,6 +8,7 @@ import {
   EXTERNAL_ASSETS,
   experimentalOptInCandidates,
   filterApplicableAssets,
+  INTERNAL_BUNDLED_SKILL_IDS,
   shouldInstallAsset,
   TRUST_TIER,
 } from "../src/external-assets.js";
@@ -129,10 +130,12 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 60 distinct asset ids (no duplicates)", () => {
+  it("contains 61 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(60);
+    expect(ids).toHaveLength(61);
+    // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
+    expect(ids).toContain("gemini-consult");
     // v26.91.0 — coreyhaines31/marketingskills (opt-in 번들). 기존 marketing-skills(alirezarezvani)
     //   와 동시 존재 — id 가 달라(하이픈 유무) 충돌 없음. 둘 다 카탈로그에 있어야 병존이 깨지지 않음.
     expect(ids).toContain("marketingskills");
@@ -198,6 +201,37 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         userOverride: { forceInclude: [], forceExclude: ["ultracode-service-audit"] },
       }),
     ).toBe(false);
+  });
+
+  // v26.95.0 — gemini-consult: opt-in internal bundled skill (advisor), NOT a dev-method skill.
+  //   Promise=Impl: it must be bundled (so it renders across 4 CLIs) yet opt-in (installs only on
+  //   explicit selection) — the exact combination that made the dev-method has-dev-track assumption
+  //   too narrow. Guards that INTERNAL_BUNDLED = dev-method + this, and that it stays opt-in.
+  it("gemini-consult: opt-in internal skill, bundled (4-CLI) but not dev-method", () => {
+    // Superset relationship: bundled ids = dev-method ids + gemini-consult, no overlap.
+    expect(DEV_METHOD_SKILL_IDS).not.toContain("gemini-consult");
+    expect(INTERNAL_BUNDLED_SKILL_IDS).toContain("gemini-consult");
+    expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual(
+      [...DEV_METHOD_SKILL_IDS, "gemini-consult"].sort(),
+    );
+    const a = EXTERNAL_ASSETS.find((x) => x.id === "gemini-consult");
+    if (!a) throw new Error("gemini-consult missing");
+    expect(assetTrustTier("gemini-consult")).toBe("official");
+    expect(a.source).toBe("uzys");
+    expect(a.category).toBe("dev-tools");
+    expect(a.condition.kind).toBe("opt-in");
+    expect(a.method.kind).toBe("internal");
+    if (a.method.kind !== "internal") throw new Error("not internal");
+    expect(a.method.key).toBe("gemini-consult");
+    // opt-in ⇒ NOT installed by track alone (even a dev track); only on forceInclude.
+    expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+    expect(
+      shouldInstallAsset(a, {
+        tracks: ["tooling"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["gemini-consult"], forceExclude: [] },
+      }),
+    ).toBe(true);
   });
 
   it("every asset has description + condition + method", () => {
