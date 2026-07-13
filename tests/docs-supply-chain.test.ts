@@ -36,3 +36,22 @@ describe("문서 공급망 안전 (audit SUPPLY-1)", () => {
     });
   }
 });
+
+// WHY: 릴리즈 커밋 관례가 `package.json` bump만 하고 CHANGELOG 를 갱신하지 않아 v26.88.1 이후
+//   7릴리즈(v26.89~95)가 미기록으로 drift 했다 (#196 에서 소급 backfill). 근본 차단은 구조적
+//   게이트여야 한다 — no-false-ship: "주석/체크리스트 경고는 차단 수단으로 인정하지 않는다".
+//   이 테스트는 현재 배포 버전(package.json)에 대응하는 CHANGELOG 항목이 없으면 `npm run ci` 를
+//   실패시킨다. 릴리즈 커밋이 버전을 bump 하는 순간 로컬 게이트가 CHANGELOG 항목을 강제 → drift
+//   재발이 구조적으로 불가능해진다. (`[Unreleased]` 는 항목이 아니므로 통과시키지 않는다.)
+describe("CHANGELOG 현행성 게이트 (drift 재발 차단)", () => {
+  it("package.json 현재 버전에 대응하는 CHANGELOG 항목이 존재한다", () => {
+    const version = (JSON.parse(readFileSync("package.json", "utf-8")) as { version: string })
+      .version;
+    const changelog = readFileSync("CHANGELOG.md", "utf-8");
+    const header = `## [v${version}]`;
+    expect(
+      changelog.includes(header),
+      `CHANGELOG.md 에 '${header}' 항목이 없음 — 릴리즈 전 이 버전의 변경 내역을 [Unreleased] 아래에 추가하거나 버전 헤더로 승격할 것 (릴리즈 커밋이 package.json 만 bump 하면 이 게이트가 막는다).`,
+    ).toBe(true);
+  });
+});
