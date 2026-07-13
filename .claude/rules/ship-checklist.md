@@ -15,6 +15,7 @@
 - [ ] **Review 게이트 통과**: 코드 리뷰(reviewer 에이전트)에서 CRITICAL 이슈 없음 확인
 - [ ] **Surface Parity (거짓출하 방지)**: 신규/변경 자산·기능의 사용자 도달 경로 전부(wizard / CLI flag / 문서 표기 / 해당 CLI별) 실행 증거 확보. 미검증 경로는 ship 보고에 "미검증" 명시 — 한 경로 증거의 타 경로 전용 금지 (`no-false-ship.md`)
 - [ ] **로드맵 SSOT 동기화 (drift 차단)**: 자산 추가/제거·마일스톤 진척 시 `docs/plans/service-audit-roadmap.md` 의 ⓐ baseline 버전 헤더 ⓑ 완료 항목 상태 표기 ⓒ 자산 수치(M5 등) ⓓ immediateNext 를 현행화. 8 PR 동안 미갱신으로 "48 vs 실측 58"·"완료를 미완으로 박제" drift 발생한 전례(2026-06-21 페르소나 감사) — SSOT 가 부정확하면 no-false-ship 보고 자체가 오염된다 (change-management.md "SSOT 최신화")
+- [ ] **CHANGELOG 현행화 (테스트 강제)**: 릴리즈에서 `package.json` 버전을 bump 하면 `CHANGELOG.md` 에 대응하는 `## [v<version>]` 항목을 **같은 릴리즈 커밋에** 추가한다. `tests/docs-supply-chain.test.ts` 의 "CHANGELOG 현행성 게이트" 가 미기록 시 `npm run ci` 를 실패시킨다 — 릴리즈 커밋이 package.json 만 bump 하던 관례로 v26.88.1~v26.95.0 이 7릴리즈 drift 했던 전례(#196 backfill) 재발을 구조적으로 차단 (no-false-ship "주석 경고 ≠ 차단 수단")
 
 ## Post-Ship Actions
 
