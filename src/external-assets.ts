@@ -50,7 +50,9 @@ export type ExternalAssetMethod =
         | "compaction-handoff"
         | "northstar-roadmap"
         // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
-        | "model-orchestration";
+        | "model-orchestration"
+        // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
+        | "gemini-consult";
     };
 
 export type ExternalAssetCondition =
@@ -157,7 +159,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 60 자산 매트릭스 (v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 61 자산 매트릭스 (v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -310,6 +312,25 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "model-orchestration" },
+  },
+
+  // === Opt-in internal bundled skill (v26.95.0 — NOT dev-method) ===
+  // gemini-consult: uzys 1st-party skill wrapping Antigravity's `agy` CLI for natural Korean
+  //   phrasing + multi-persona second-opinion review. Bundled like dev-method skills
+  //   (templates/skills/gemini-consult/) so it renders across all 4 CLIs, but opt-in (condition
+  //   opt-in) — installed only on wizard check / `--with gemini-consult`. Ships a bash wrapper
+  //   (scripts/gemini-ask.sh) to Claude scope via the dir copy; non-Claude CLIs get the SKILL.md
+  //   which degrades to a direct `agy` call (graceful — no broken wrapper reference). tier
+  //   official (repo template); runtime dep on the external `agy` binary is a prereq, not a source.
+  {
+    id: "gemini-consult",
+    tier: "official", // uzys 본 하네스 자체 템플릿 (런타임 의존 agy 는 사용자 prereq)
+    description:
+      "gemini-consult — consult Gemini (via Antigravity agy CLI) for natural Korean phrasing + multi-persona second-opinion review (opt-in; requires agy)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "gemini-consult" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -983,6 +1004,19 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "northstar-roadmap",
   // v26.93.0 — Orchestration & Model Policy.
   "model-orchestration",
+];
+
+/**
+ * v26.95.0 — ALL repo-bundled internal skill ids (dev-method + opt-in advisors). Bundling is
+ * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
+ * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
+ * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 7 has-dev-track methodology skills.
+ */
+export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
+  ...DEV_METHOD_SKILL_IDS,
+  // opt-in internal skills (NOT dev-method): bundled + 4-CLI rendered, installed only on opt-in.
+  "gemini-consult",
 ];
 
 /**
