@@ -178,7 +178,7 @@ export interface BaselineReport {
   };
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
-  /** Root CLAUDE.md merged from project-claude fragments. null when claude baseline disabled. */
+  /** Root CLAUDE.md fill-in scaffold (project name + active-track note + FILL sections). null when claude baseline disabled. */
   rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];

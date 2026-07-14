@@ -1009,6 +1009,24 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
     expect(formatCliPhaseTitle(["claude"])).toBe("CLI artifacts");
   });
 
+  // v26.96.0 (review Finding #1) — FILL 콘솔 안내가 실제 써진 파일만 지칭해야 한다.
+  //   기본 설치는 cli=["claude"] → CLAUDE.md 만 쓰고 AGENTS.md 는 안 쓴다. 안내가 AGENTS.md 를
+  //   지칭하면 no-false-ship "광고 ≠ 실산출" 위반(기본 경로).
+  it("scaffoldFilesForCli: claude only → ['CLAUDE.md'] (no AGENTS.md)", async () => {
+    const { scaffoldFilesForCli } = await import("../src/commands/install-render.js");
+    expect(scaffoldFilesForCli(["claude"])).toEqual(["CLAUDE.md"]);
+  });
+
+  it("scaffoldFilesForCli: codex only → ['AGENTS.md'] (no root CLAUDE.md)", async () => {
+    const { scaffoldFilesForCli } = await import("../src/commands/install-render.js");
+    expect(scaffoldFilesForCli(["codex"])).toEqual(["AGENTS.md"]);
+  });
+
+  it("scaffoldFilesForCli: claude + codex → both files", async () => {
+    const { scaffoldFilesForCli } = await import("../src/commands/install-render.js");
+    expect(scaffoldFilesForCli(["claude", "codex"])).toEqual(["CLAUDE.md", "AGENTS.md"]);
+  });
+
   it("formatCliPhaseTitle: codex only → 'Codex artifacts'", async () => {
     const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["codex"])).toBe("Codex artifacts");

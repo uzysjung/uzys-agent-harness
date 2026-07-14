@@ -308,13 +308,33 @@ export function renderFinalSummary(
   const primary = (spec.cli.includes("claude") ? "claude" : spec.cli[0]) ?? "claude";
   const label = CLI_SUMMARY_LABELS[primary];
   log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
-  log(
-    infoRow(
-      "FILL",
-      `${c.bold("CLAUDE.md")} · ${c.bold("AGENTS.md")} ship as a fill-in scaffold — open them and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor them to this project`,
-    ),
-  );
+  const scaffoldFiles = scaffoldFilesForCli(spec.cli);
+  if (scaffoldFiles.length > 0) {
+    log(
+      infoRow(
+        "FILL",
+        `${scaffoldFiles.map((f) => c.bold(f)).join(" · ")} — a fill-in scaffold. Open and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor it to this project`,
+      ),
+    );
+  }
   log("");
+}
+
+/**
+ * Which project-context scaffold files a given CLI selection actually writes:
+ * `CLAUDE.md` only for a claude install, `AGENTS.md` only for a non-claude CLI.
+ * The FILL hint must name only files that were written — advertising a file that
+ * a given `--cli` never produced is the no-false-ship "advertised ≠ real" trap.
+ */
+export function scaffoldFilesForCli(cli: ReadonlyArray<CliBase>): string[] {
+  const files: string[] = [];
+  if (cli.includes("claude")) {
+    files.push("CLAUDE.md");
+  }
+  if (cli.some((target) => target !== "claude")) {
+    files.push("AGENTS.md");
+  }
+  return files;
 }
 
 function formatAssetMeta(asset: ExternalAsset, version?: string): string {
@@ -457,7 +477,7 @@ function renderPhase1Rows(
       assetRow(
         "success",
         "CLAUDE.md (root)",
-        `merged from ${n} track${n > 1 ? "s" : ""}`,
+        `fill-in scaffold · ${n} track${n > 1 ? "s" : ""} noted`,
         TEMPLATES_COL,
       ),
     );

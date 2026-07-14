@@ -36,6 +36,6 @@
 
 - **긍정**: 출하 파일이 정직해진다(미검증은 placeholder·배너로 명시). 실 프로젝트 고유 컨텍스트를 사용자가 1스텝으로 자가 생성. 4-CLI 모두 동일 스캐폴드를 단일 소스에서 받음(parity). 신규 트랙 추가 시 fragment 디렉토리 불필요 → SCALE-6 마찰 감소. phantom 룰 드리프트가 generic 본문 폐기로 소멸.
 - **드리프트 차단(코드 게이트)**: `tests/agents-md-scaffold-parity.test.ts`가 `templates/*/AGENTS.md.template`을 디렉토리 스캔해 전부 `{PROJECT_CONTEXT}` 보유를 강제(미래 4번째 CLI 누락 차단). merge 테스트가 이름치환·배너·FILL 생존·6섹션 exhaustiveness를 강제. (no-false-ship: 주석 경고 ≠ 차단 수단.)
-- **부정/리스크**: (a) 재설치 시 채워진 CLAUDE.md 위에 스캐폴드 재주입 — 기존 `backupFileIfChanged`가 데이터 손실은 막으나 UX는 나쁨(후속 가드 후보). (b) AGENTS.md가 `{PROJECT_RULES}` + `{PROJECT_CONTEXT}` 둘 다 embed → codex/opencode 세션 토큰 증가(측정 후 필요 시 trim 변형). (c) 채우기는 사용자 실행 의존 — 안 하면 스캐폴드 상태 유지(정직하나 미완).
+- **부정/리스크**: (a) 재설치 시 채워진 CLAUDE.md/AGENTS.md 위에 스캐폴드 재주입 — `backupFileIfChanged`가 **CLAUDE.md와 3개 AGENTS.md 산출물 모두**에 적용되어 데이터 손실은 막으나(리뷰 Finding #2 반영, `.backup-<ts>` 생성) 콘솔에 backup 경로를 surface하는 건 CLAUDE.md 뿐이라 UX는 개선 여지(후속). (b) AGENTS.md가 `{PROJECT_RULES}` + `{PROJECT_CONTEXT}` 둘 다 embed → codex/opencode 세션 토큰 증가(측정 후 필요 시 trim 변형). (c) 채우기는 사용자 실행 의존 — 안 하면 스캐폴드 상태 유지(정직하나 미완).
 - **언어**: FILL 프롬프트·배너·콘솔 안내 = 영어(공개 npm 패키지, `templates/CLAUDE.md`·README·USAGE·콘솔 컨벤션 일치). 한국어 선호 시 `FILL_SPECS`/`SCAFFOLD_BANNER` 상수만 교체.
 - **문서 영향**: `docs/specs/project-claude-fragments.md`(Superseded 표기), CONTRIBUTING "Adding a Track" 항목(트랙별 템플릿 생성 스텝 제거), CHANGELOG v26.96.0.

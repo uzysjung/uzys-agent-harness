@@ -1,4 +1,4 @@
-import type { Track } from "./types.js";
+import { TRACKS, type Track } from "./types.js";
 
 /**
  * Project-context scaffold for the delivered CLAUDE.md / AGENTS.md.
@@ -28,19 +28,9 @@ export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
   "growth-marketing": "Growth Marketing",
 };
 
-/** Tracks expanded when 'full' is selected — every track except 'full' itself. */
-const FULL_EXPANSION: ReadonlyArray<Track> = [
-  "tooling",
-  "csr-fastapi",
-  "csr-fastify",
-  "csr-supabase",
-  "ssr-htmx",
-  "ssr-nextjs",
-  "data",
-  "executive",
-  "project-management",
-  "growth-marketing",
-];
+/** Tracks expanded when 'full' is selected — every track except 'full' itself.
+ * Derived from TRACKS so a future track can't be silently omitted from a 'full' install. */
+const FULL_EXPANSION: ReadonlyArray<Track> = TRACKS.filter((t) => t !== "full");
 
 /**
  * The MUST-HAVE project-context sections, from a harness perspective: the context
