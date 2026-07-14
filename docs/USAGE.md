@@ -210,7 +210,7 @@ See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-
 ### CSR / SSR
 
 - `csr-supabase` includes Supabase + Vercel + Netlify CLI. First `supabase login` requires OAuth (manual).
-- `ssr-nextjs` adds `next-skills` (App Router patterns).
+- `ssr-nextjs` adds the `nextjs` rule template (App Router patterns).
 - `ssr-htmx` keeps it server-side — no React assets.
 
 ### Data

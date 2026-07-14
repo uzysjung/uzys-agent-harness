@@ -8,7 +8,7 @@
 
 ---
 
-## 한눈에 — 설치 가능 워크플로 (7)
+## 한눈에 — 설치 가능 워크플로 (6)
 
 설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `npx -y @uzysjung/agent-harness install --track <t> --with <id>`.
 
@@ -16,7 +16,6 @@
 |---|---|---|---|---|---|---|
 | **Superpowers** | `superpowers` | obra → anthropics 공식 | 235k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
 | **ECC** | `ecc-plugin` | affaan-m | 219k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
-| **GSD** | `gsd-orchestrator` | gsd-build | 64k | vetted | npx | get-shit-done 오케스트레이터 |
 | **OpenSpec** | `openspec` | Fission-AI | 56k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
 | **BMAD-METHOD** | `bmad-method` | bmad-code-org | 49k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
 | **addy agent-skills** | `addy-agent-skills` | addyosmani | 65k | vetted | plugin | general dev `/spec /plan` (경량) |
@@ -24,7 +23,7 @@
 
 > `v26.75.0` 추가(ADR-021): OpenSpec · BMAD · wshobson — 3-에이전트 시장 리서치로 발굴, vetted 바(★≥1000+활성+설치가능) 통과분.
 >
-> ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-22** (천 단위 반올림; 이전 06-13 대비 refresh — addy 57→65k 등). 출처 repo: obra/superpowers · affaan-m/ECC · gsd-build/get-shit-done · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
+> ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-22** (천 단위 반올림; 이전 06-13 대비 refresh — addy 57→65k 등). 출처 repo: obra/superpowers · affaan-m/ECC · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
 
 ---
 
@@ -36,7 +35,6 @@
 - **애자일 팀 시뮬레이션**(PM→Architect→Dev 역할 분담) → **BMAD-METHOD**.
 - **가벼운 spec/plan 슬래시**만 → **addy agent-skills**.
 - **멀티-에이전트 오케스트레이션 + 다(多)CLI 일관성** → **wshobson agents**.
-- **빠른 오케스트레이션 1회성 실행** → **GSD**.
 
 > 택1+ 가능(상호 배타 아님). 단 슬래시 네임스페이스 충돌(`/spec` 등)은 의식할 것.
 

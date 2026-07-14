@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (51/61 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/59 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -130,7 +130,6 @@ External assets are recommended automatically based on your track selection. Ste
 | `shadcn-ui` | Radix-based component copy + Tailwind theme | shadcn (official) |
 | `web-design-guidelines` | UX/UI best practices | LokeshSakthivel |
 | `impeccable` | UI design, critique, and visual review skills | pbakaus |
-| `next-skills` (ssr-nextjs only) | Next.js App Router patterns | vercel-labs |
 
 ### Backend (csr-* / ssr-* / full)
 
@@ -183,13 +182,12 @@ External assets are recommended automatically based on your track selection. Ste
 
 ### Workflow (opt-in — pick one or more at step 3)
 
-> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
+> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 6 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
 
 | Asset | What | Activates |
 |---|---|---|
 | `superpowers` | Agentic skills framework, Anthropic official marketplace | obra/superpowers |
 | `ecc-plugin` | 60 agents · 230 skills · 75 commands | affaan-m |
-| `gsd-orchestrator` | Orchestration for large projects | get-shit-done-cc |
 | `openspec` | Spec-driven brownfield delta workflow (propose → apply → archive) | Fission-AI |
 | `bmad-method` | Multi-agent agile workflow (PM/Architect/Dev, 12+ agents) | bmad-code-org |
 | `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |

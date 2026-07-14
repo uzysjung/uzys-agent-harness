@@ -121,13 +121,13 @@ describe("runInstall — external assets integration", () => {
       spec: {
         ...spec(["csr-fastapi"], {}, projectDir),
         userOverride: {
-          forceInclude: ["trailofbits-skills", "gsd-orchestrator"],
+          forceInclude: ["trailofbits-skills", "addy-agent-skills"],
           forceExclude: ["netlify-cli"],
         },
       },
     });
     const ctx = runExternal.mock.calls[0]?.[0];
-    expect(ctx?.userOverride?.forceInclude).toEqual(["trailofbits-skills", "gsd-orchestrator"]);
+    expect(ctx?.userOverride?.forceInclude).toEqual(["trailofbits-skills", "addy-agent-skills"]);
     expect(ctx?.userOverride?.forceExclude).toEqual(["netlify-cli"]);
   });
 });

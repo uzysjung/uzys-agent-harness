@@ -83,7 +83,6 @@ Step 1 에서 1개 또는 multi 선택. 트랙 선택 결과로 Step 3 의 추�
 | `shadcn-ui` | Radix 기반 컴포넌트 카피 + Tailwind 테마 | shadcn (official) |
 | `web-design-guidelines` | UX/UI best practice | LokeshSakthivel |
 | `impeccable` | UI 디자인, critique, visual review | pbakaus |
-| `next-skills` (ssr-nextjs only) | Next.js App Router 패턴 | vercel-labs |
 
 ### Backend (csr-* / ssr-* / full)
 
@@ -135,7 +134,6 @@ Step 1 에서 1개 또는 multi 선택. 트랙 선택 결과로 Step 3 의 추�
 |---|---|---|
 | `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` | addyosmani 워크플로우 |
 | `superpowers` | Agentic skills 프레임워크 (Anthropic 공식 marketplace) | obra/superpowers |
-| `gsd-orchestrator` | 대형 프로젝트 오케스트레이션 | get-shit-done-cc |
 
 ### Security & ECC (opt-in)
 

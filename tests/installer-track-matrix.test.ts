@@ -96,7 +96,6 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toContain("shadcn-ui");
     expect(ids).toContain("web-design-guidelines");
     expect(ids).not.toContain("vercel-cli"); // csr-supabase only
-    expect(ids).not.toContain("next-skills"); // ssr-nextjs only
     expect(ids).not.toContain("polars-K-Dense"); // data only
   });
 
@@ -116,12 +115,11 @@ describe("Track matrix — assets called per track", () => {
       ]),
     );
     expect(ids).not.toContain("railway-plugin"); // not in csr-supabase per matrix
-    expect(ids).not.toContain("next-skills"); // ssr-nextjs only
   });
 
-  it("ssr-nextjs: React/Next stack (railway-skills/next-skills T3 opt-in)", () => {
+  it("ssr-nextjs: React/Next stack (railway-skills T3 opt-in)", () => {
     const { ids } = runForTrack(["ssr-nextjs"]);
-    // v26.71.1 — railway-skills / next-skills (T3 experimental) opt-in only (PRD R6) → default 제외.
+    // v26.71.1 — railway-skills (T3 experimental) opt-in only (PRD R6) → default 제외.
     expect(ids).toEqual(
       expect.arrayContaining([
         "react-best-practices",
@@ -131,7 +129,6 @@ describe("Track matrix — assets called per track", () => {
       ]),
     );
     expect(ids).not.toContain("railway-skills");
-    expect(ids).not.toContain("next-skills");
   });
 
   it("ssr-htmx: impeccable only (railway-skills T3 opt-in, no React stack)", () => {
@@ -140,7 +137,6 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("railway-skills");
     expect(ids).toContain("impeccable");
     expect(ids).not.toContain("react-best-practices");
-    expect(ids).not.toContain("next-skills");
   });
 
   it("executive: only Anthropic + finance/c-level (no dev tools)", () => {
@@ -160,7 +156,7 @@ describe("Track matrix — assets called per track", () => {
   it("full: all Track-conditional assets active", () => {
     const { ids } = runForTrack(["full"]);
     // data + csr-supabase + ui + react + executive + dev baseline
-    // v26.71.1 — railway-skills / next-skills (T3) opt-in only → default 제외.
+    // v26.71.1 — railway-skills (T3) opt-in only → default 제외.
     expect(ids).toEqual(
       expect.arrayContaining([
         "polars-K-Dense",
@@ -176,7 +172,6 @@ describe("Track matrix — assets called per track", () => {
     );
     expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 opt-in
-    expect(ids).not.toContain("next-skills"); // v26.71.1 — T3 opt-in
   });
 
   it("--with addy-agent-skills adds addy-agent-skills plugin (v26.81.0 ADR-022)", () => {
@@ -201,11 +196,6 @@ describe("Track matrix — assets called per track", () => {
     const { ids: idsExec } = runForTrack(["executive"], {}, ["trailofbits-skills"]);
     expect(idsExec).toContain("trailofbits-skills");
   });
-
-  it("--with gsd-orchestrator adds GSD orchestrator", () => {
-    const { ids } = runForTrack(["executive"], {}, ["gsd-orchestrator"]);
-    expect(ids).toContain("gsd-orchestrator");
-  });
 });
 
 describe("Track matrix — spawn call counts", () => {
@@ -220,10 +210,10 @@ describe("Track matrix — spawn call counts", () => {
     expect(spawnCallCount).toBe(14);
   });
 
-  it("--with-gsd alone (executive base) adds 1 npx call", () => {
+  it("--with openspec alone (executive base) adds 1 npm call", () => {
     const baseExec = runForTrack(["executive"]).spawnCallCount;
-    const withGsd = runForTrack(["executive"], {}, ["gsd-orchestrator"]).spawnCallCount;
-    expect(withGsd - baseExec).toBe(1);
+    const withOpenspec = runForTrack(["executive"], {}, ["openspec"]).spawnCallCount;
+    expect(withOpenspec - baseExec).toBe(1);
   });
 });
 

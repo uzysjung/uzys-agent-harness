@@ -759,17 +759,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       skill: "web-design-guidelines",
     },
   },
-  {
-    id: "next-skills",
-    tier: "experimental", // vercel-labs/next-skills 895
-    description:
-      "Next-skills — Next.js App Router · Server Action patterns (ssr-nextjs · full tracks)",
-    category: "backend",
-    source: "vercel-labs",
-    condition: { kind: "any-track", tracks: ["ssr-nextjs", "full"] },
-    method: { kind: "skill", source: "vercel-labs/next-skills" },
-  },
-
   // === Executive tracks ===
   {
     id: "anthropic-document-skills",
@@ -932,15 +921,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Option-gated ===
-  {
-    id: "gsd-orchestrator",
-    tier: "vetted", // gsd-build/get-shit-done 63k
-    description: "GSD orchestrator (npx get-shit-done-cc)",
-    category: "workflow",
-    source: "get-shit-done-cc",
-    condition: { kind: "opt-in" },
-    method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.3" },
-  },
   {
     // v26.39.2 fix — marketplace name = "trailofbits" (NOT "trailofbits-skills") +
     // "trailofbits-skills" plugin 자체가 존재하지 않음. marketplace 안에 14+ 개별 plugin.
