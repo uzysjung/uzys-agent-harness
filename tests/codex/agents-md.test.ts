@@ -23,6 +23,10 @@ describe("renameSlashes", () => {
 describe("renderAgentsMd (v26.70.0 — full CLAUDE.md embed)", () => {
   const TEMPLATE = `# {PROJECT_NAME} — Codex Agent Guide
 
+## Project Context
+
+{PROJECT_CONTEXT}
+
 ## Project Rules
 
 {PROJECT_RULES}
@@ -32,11 +36,14 @@ describe("renderAgentsMd (v26.70.0 — full CLAUDE.md embed)", () => {
 Use /uzys:spec to start.
 `;
 
+  const SAMPLE_CONTEXT = "<!-- FILL:stack — inspect the repo -->";
+
   it("embeds the full CLAUDE.md body + substitutes name + renames slashes", () => {
     const out = renderAgentsMd({
       template: TEMPLATE,
       claudeMd: SAMPLE_CLAUDE_MD,
       projectName: "demo",
+      projectContext: SAMPLE_CONTEXT,
     });
     expect(out).toContain("# demo — Codex Agent Guide");
     // 전체 Rule 본문 보존 (이전 section 추출 버그 — Rule 구조라 빈 결과였음)
@@ -50,11 +57,25 @@ Use /uzys:spec to start.
     expect(out).not.toContain("{PROJECT_RULES}");
   });
 
+  it("substitutes {PROJECT_CONTEXT} with the project-context scaffold", () => {
+    // Intent: AGENTS.md carries zero project context today; it must now receive the same
+    // fill scaffold as CLAUDE.md, and never ship the raw placeholder token.
+    const out = renderAgentsMd({
+      template: TEMPLATE,
+      claudeMd: SAMPLE_CLAUDE_MD,
+      projectName: "demo",
+      projectContext: SAMPLE_CONTEXT,
+    });
+    expect(out).toContain(SAMPLE_CONTEXT);
+    expect(out).not.toContain("{PROJECT_CONTEXT}");
+  });
+
   it("CLAUDE.md 의 첫 h1 은 strip (템플릿 자체 h1 만 유지)", () => {
     const out = renderAgentsMd({
       template: TEMPLATE,
       claudeMd: SAMPLE_CLAUDE_MD,
       projectName: "demo",
+      projectContext: SAMPLE_CONTEXT,
     });
     expect(out).not.toContain("# Project CLAUDE.md");
   });

@@ -36,7 +36,7 @@ Tracks are defined in `scripts/setup-harness.sh`. Adding `mytrack`:
    <mcp_name>	<track_pattern>	<command>	<args_json>
    my-mcp	mytrack|full	npx	["-y", "@org/my-mcp"]
    ```
-5. **Project CLAUDE template** — create `templates/project-claude/mytrack.md` with stack info
+5. **Project CLAUDE.md** — no per-track template needed. The delivered `CLAUDE.md`/`AGENTS.md` is a track-agnostic fill-in scaffold (`src/project-claude-merge.ts`); a new track only needs an entry in `TRACK_DISPLAY_NAMES` (compile-enforced — `Record<Track, …>`) for the `> Active track(s):` note. See ADR-025.
 6. **Expected count** — add case in `RULES_EXPECTED` switch (line ~807)
 7. **test-harness** — add `mytrack` to `T5_TRACKS` array (line ~178)
 8. Update [docs/REFERENCE.md](./docs/REFERENCE.md) and the Tracks table in README files

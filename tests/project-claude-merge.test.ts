@@ -1,93 +1,60 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mergeProjectClaude, TRACK_DISPLAY_NAMES } from "../src/project-claude-merge.js";
+import { describe, expect, it } from "vitest";
+import {
+  FILL_SECTIONS,
+  mergeProjectClaude,
+  renderFillScaffold,
+  SCAFFOLD_BANNER,
+  TRACK_DISPLAY_NAMES,
+} from "../src/project-claude-merge.js";
 
-const BASE_TEMPLATE = `# [Project Name]
-
-> 활성 Track(s): <!-- INSERT: track-list -->
->
-> <!-- INSERT: tagline -->
-
-<!-- INSERT: stack -->
-
-<!-- INSERT: workflow -->
-
-<!-- INSERT: active-rules -->
-
-<!-- INSERT: agents -->
-
-<!-- INSERT: skills -->
-
-<!-- INSERT: plugins -->
-
-<!-- INSERT: commands -->
-
-<!-- INSERT: boundaries -->
-`;
-
-let baseDir: string;
-
-beforeEach(() => {
-  baseDir = mkdtempSync(join(tmpdir(), "pcm-"));
-  writeFileSync(join(baseDir, "_base.md"), BASE_TEMPLATE);
-});
-
-afterEach(() => {
-  rmSync(baseDir, { recursive: true, force: true });
-});
-
-function addFragment(track: string, section: string, body: string): void {
-  const dir = join(baseDir, "fragments", track);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${section}.md`), body);
-}
-
-describe("mergeProjectClaude — single track", () => {
-  it("inserts tagline + section body verbatim under generated header", () => {
-    addFragment("tooling", "tagline", "Bash + CLI 도구");
-    addFragment("tooling", "stack", "- Shell: Bash\n- jq");
-    const out = mergeProjectClaude(["tooling"], { baseDir });
-    expect(out).toContain("활성 Track(s): Tooling");
-    expect(out).toContain("> Bash + CLI 도구");
-    expect(out).toContain("## Stack\n\n- Shell: Bash\n- jq");
+describe("renderFillScaffold — the shared project-context scaffold", () => {
+  it("emits every MUST-HAVE section as a self-contained FILL comment (exhaustive)", () => {
+    // Intent: a section without a FILL prompt would ship as an empty header — the exact
+    // "meaningless content" this redesign removes. Every id must carry an actionable prompt.
+    const out = renderFillScaffold();
+    for (const id of FILL_SECTIONS) {
+      expect(out).toContain(`<!-- FILL:${id} —`);
+    }
   });
 
-  it("omits sections with no fragment present (R4)", () => {
-    addFragment("tooling", "stack", "- Shell: Bash");
-    const out = mergeProjectClaude(["tooling"], { baseDir });
-    expect(out).toContain("## Stack");
-    expect(out).not.toContain("## Plugins");
-    expect(out).not.toContain("## Boundaries");
-    expect(out).not.toContain("<!-- INSERT:");
+  it("ships an honest placeholder for every section so an unfilled file states no false fact", () => {
+    // Intent: the old fragment shipped a Bash stack to every project — affirmatively wrong.
+    // An unfilled section must read as "not filled yet", never as a verified fact.
+    const out = renderFillScaffold();
+    const placeholders = out.match(/_\(not filled yet — /g) ?? [];
+    expect(placeholders).toHaveLength(FILL_SECTIONS.length);
+  });
+
+  it("leads with the visible SCAFFOLD banner (HTML FILL comments are invisible in a preview)", () => {
+    expect(renderFillScaffold().startsWith(SCAFFOLD_BANNER)).toBe(true);
+    expect(SCAFFOLD_BANNER).toContain("SCAFFOLD");
   });
 });
 
-describe("mergeProjectClaude — multi track", () => {
-  it("concats with track display-name subheaders (no dedup)", () => {
-    addFragment("tooling", "tagline", "Bash 도구");
-    addFragment("data", "tagline", "Python 데이터");
-    addFragment("tooling", "active-rules", "- rule A\n- rule B");
-    addFragment("data", "active-rules", "- rule A\n- rule C");
-    const out = mergeProjectClaude(["tooling", "data"], { baseDir });
-    expect(out).toContain("> Bash 도구 / Python 데이터");
-    expect(out).toMatch(
-      /## Active Rules[\s\S]*### Tooling[\s\S]*- rule A\n- rule B[\s\S]*### Data[\s\S]*- rule A\n- rule C/,
-    );
+describe("mergeProjectClaude — the delivered project-root CLAUDE.md", () => {
+  it("uses the real project name as the H1 (fixes the shipped `# [Project Name]` literal)", () => {
+    // Intent: this is the single most visible boilerplate bug — the literal placeholder title
+    // shipped verbatim to every project. It must be replaced with the real basename.
+    const out = mergeProjectClaude(["tooling"], { projectName: "my-real-app" });
+    expect(out.startsWith("# my-real-app\n")).toBe(true);
+    expect(out).not.toContain("[Project Name]");
+    expect(out).not.toContain("{PROJECT_NAME}");
   });
 
-  it("section with single contributing track is rendered without subheader", () => {
-    addFragment("tooling", "stack", "- Shell: Bash");
-    addFragment("data", "stack", "- Python 3");
-    addFragment("tooling", "plugins", "- only tooling plugin");
-    const out = mergeProjectClaude(["tooling", "data"], { baseDir });
-    expect(out).toMatch(/## Plugins\n\n- only tooling plugin/);
+  it("records the selected tracks as install metadata using display names", () => {
+    const out = mergeProjectClaude(["tooling", "data"], { projectName: "app" });
+    expect(out).toContain("> Active track(s): Tooling, Data");
   });
-});
 
-describe("mergeProjectClaude — full track expansion", () => {
-  it("expands 'full' to every non-full track (R2)", () => {
+  it("embeds the shared scaffold verbatim (single source of truth with AGENTS.md)", () => {
+    // Intent: CLAUDE.md and every AGENTS.md {PROJECT_CONTEXT} must come from one source so the
+    // FILL prompts are byte-identical across all 4 CLIs. Proven by containment of the exact body.
+    const out = mergeProjectClaude(["tooling"], { projectName: "app" });
+    expect(out).toContain(renderFillScaffold());
+  });
+
+  it("expands 'full' to every non-full track in the metadata note", () => {
+    const out = mergeProjectClaude(["full"], { projectName: "app" });
     for (const t of [
       "tooling",
       "csr-fastapi",
@@ -100,26 +67,9 @@ describe("mergeProjectClaude — full track expansion", () => {
       "project-management",
       "growth-marketing",
     ] as const) {
-      addFragment(t, "tagline", `${t} tagline`);
-      addFragment(t, "stack", `- ${t} stack`);
+      expect(out).toContain(TRACK_DISPLAY_NAMES[t]);
     }
-    const out = mergeProjectClaude(["full"], { baseDir });
-    for (const t of [
-      "tooling",
-      "csr-fastapi",
-      "csr-fastify",
-      "csr-supabase",
-      "ssr-htmx",
-      "ssr-nextjs",
-      "data",
-      "executive",
-      "project-management",
-      "growth-marketing",
-    ] as const) {
-      expect(out).toContain(`### ${TRACK_DISPLAY_NAMES[t]}`);
-      expect(out).toContain(`- ${t} stack`);
-    }
-    expect(out).not.toContain("### Full");
+    expect(out).not.toContain("Full");
   });
 });
 

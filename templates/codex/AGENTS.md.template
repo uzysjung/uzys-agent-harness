@@ -4,6 +4,10 @@
 > **Codex Version**: 0.124.0+
 > **Linked SPEC**: `docs/specs/codex-compat.md`
 
+## Project Context
+
+{PROJECT_CONTEXT}
+
 ## Project Rules
 
 {PROJECT_RULES}

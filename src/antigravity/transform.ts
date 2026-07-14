@@ -22,6 +22,7 @@ import { basename, join } from "node:path";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { renderBundledSkill } from "../codex/skills.js";
 import { ensureDir } from "../fs-ops.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 
 export interface AntigravityTransformParams {
   /** harness root (templates/CLAUDE.md source 위치). */
@@ -92,6 +93,14 @@ function writeRules(harnessRoot: string, projectDir: string): string | null {
   const rulesDir = join(projectDir, ".agents", "rules");
   ensureDir(rulesDir);
   const target = join(rulesDir, "uzys-harness.md");
-  writeFileSync(target, renderAgentsMd({ template, claudeMd, projectName: basename(projectDir) }));
+  writeFileSync(
+    target,
+    renderAgentsMd({
+      template,
+      claudeMd,
+      projectName: basename(projectDir),
+      projectContext: renderFillScaffold(),
+    }),
+  );
   return target;
 }

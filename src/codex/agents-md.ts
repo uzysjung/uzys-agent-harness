@@ -16,6 +16,8 @@ export interface AgentsMdParams {
   template: string;
   claudeMd: string;
   projectName: string;
+  /** Project-context fill scaffold — the same body shipped to the Claude Code CLAUDE.md. */
+  projectContext: string;
 }
 
 /**
@@ -24,6 +26,7 @@ export interface AgentsMdParams {
  * Placeholders:
  *   - {PROJECT_NAME} — basename of project dir
  *   - {PROJECT_RULES} — full CLAUDE.md body (first h1 stripped; template provides its own h1)
+ *   - {PROJECT_CONTEXT} — project-specific fill scaffold (renderFillScaffold())
  *
  * 마지막에 `/uzys:` → `/uzys-` rename (Codex/Antigravity 는 slash namespace 미지원).
  */
@@ -32,6 +35,7 @@ export function renderAgentsMd(params: AgentsMdParams): string {
   const body = params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
-    .replaceAll("{PROJECT_RULES}", body);
+    .replaceAll("{PROJECT_RULES}", body)
+    .replaceAll("{PROJECT_CONTEXT}", params.projectContext);
   return renameSlashes(replaced);
 }

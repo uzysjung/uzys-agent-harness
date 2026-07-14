@@ -210,7 +210,7 @@ Flag:
 │                     ▼                                    │
 │  ┌─ Phase 1: Templates ─────────────────────────────┐    │
 │  │  .claude/{rules,agents,hooks,commands,skills}    │    │
-│  │  CLAUDE.md (merged) · .mcp.json                  │    │
+│  │  CLAUDE.md (scaffold) · .mcp.json                │    │
 │  └──────────────────┬───────────────────────────────┘    │
 │                     ▼                                    │
 │  ┌─ Phase 2: External assets ───────────────────────┐    │

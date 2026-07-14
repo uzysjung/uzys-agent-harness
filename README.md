@@ -284,7 +284,7 @@ Flags:
 │                     ▼                                    │
 │  ┌─ Phase 1: Templates ─────────────────────────────┐    │
 │  │  .claude/{rules,agents,hooks,commands,skills}    │    │
-│  │  CLAUDE.md (merged) · .mcp.json                  │    │
+│  │  CLAUDE.md (scaffold) · .mcp.json                │    │
 │  └──────────────────┬───────────────────────────────┘    │
 │                     ▼                                    │
 │  ┌─ Phase 2: External assets ───────────────────────┐    │
@@ -308,7 +308,7 @@ your-project/
 │   ├── agents/         # subagent definitions
 │   ├── hooks/          # lifecycle / pre-commit hooks
 │   └── settings.json   # your existing one is backed up first
-├── CLAUDE.md           # merged instructions (yours backed up if it differed)
+├── CLAUDE.md           # fill-in scaffold (yours backed up if it differed)
 └── .mcp.json           # MCP servers, merged with yours
 ```
 

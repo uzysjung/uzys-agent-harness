@@ -140,7 +140,7 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.claude/.harness-install.json` | Install log (drives `uninstall`) |
-| `CLAUDE.md` | Project context, merged from track |
+| `CLAUDE.md` | Project context — fill-in scaffold |
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
 | `.opencode/` | OpenCode dispatcher (if `--cli opencode`) |
@@ -165,7 +165,7 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 
 ## Codex integration
 
-The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — merged from your track. Project `.agents/skills/` are dev-method skills shared with Antigravity (one file serves both CLIs).
+The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — a fill-in scaffold, same as `CLAUDE.md`. Project `.agents/skills/` are dev-method skills shared with Antigravity (one file serves both CLIs).
 
 ---
 

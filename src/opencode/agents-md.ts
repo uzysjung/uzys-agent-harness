@@ -16,6 +16,8 @@ export interface AgentsMdParams {
   template: string;
   claudeMd: string;
   projectName: string;
+  /** Project-context fill scaffold — the same body shipped to the Claude Code CLAUDE.md. */
+  projectContext: string;
 }
 
 /**
@@ -24,11 +26,13 @@ export interface AgentsMdParams {
  * Placeholders (matches templates/opencode/AGENTS.md.template):
  *   - {PROJECT_NAME} — basename of project dir
  *   - {PROJECT_RULES} — full CLAUDE.md body (first h1 stripped)
+ *   - {PROJECT_CONTEXT} — project-specific fill scaffold (renderFillScaffold())
  */
 export function renderAgentsMd(params: AgentsMdParams): string {
   const body = params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
-    .replaceAll("{PROJECT_RULES}", body);
+    .replaceAll("{PROJECT_RULES}", body)
+    .replaceAll("{PROJECT_CONTEXT}", params.projectContext);
   return renameSlashes(replaced);
 }

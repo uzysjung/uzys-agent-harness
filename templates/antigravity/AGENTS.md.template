@@ -4,6 +4,10 @@
 > **Antigravity**: 2.0+ (`agy` CLI + desktop IDE)
 > **Location**: workspace rule — `.agents/rules/uzys-harness.md`
 
+## Project Context
+
+{PROJECT_CONTEXT}
+
 ## Project Rules
 
 {PROJECT_RULES}

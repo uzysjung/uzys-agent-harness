@@ -1,5 +1,0 @@
-- **Shell**: Bash 5+ (macOS, Linux)
-- **Templates**: Markdown (`.md`) with YAML frontmatter
-- **JSON**: `jq` for parsing/transformation
-- **Optional**: Python 3 for CL-v2 scripts
-- **Testing**: shellcheck, bats

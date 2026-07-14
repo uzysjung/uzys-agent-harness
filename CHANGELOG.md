@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.96.0] — 2026-07-15 (feat: 프로젝트 CLAUDE.md/AGENTS.md = fill-in 스캐폴드)
+
+설치 시 딸려오던 프로젝트 `CLAUDE.md`(그리고 `AGENTS.md`)가 일반론 boilerplate라 "의미없다"는 지적 해소. 정적 트랙 fragment 병합을 폐기하고, harness 관점 필수 6섹션을 **embed된 `<!-- FILL: -->` 프롬프트 스캐폴드**로 출하. 인스톨러는 LLM을 돌리지 않으므로(순수 Node CLI) 채우기는 **post-install**: 설치 콘솔 안내 + 파일 내 주석 프롬프트를 사용자가 자기 CLI 에이전트에 복붙 실행(신규 커맨드 없음). 안 채워도 파일은 정직(placeholder)·유효. 설계 근거 ADR-025.
+
+### Added
+- **project-context fill 스캐폴드** — 6 MUST-HAVE 섹션(identity·stack·architecture·installed-assets·boundaries·verify). 각 섹션 = `## 제목` + 자기완결 `<!-- FILL:id — 무엇을 조사해 무엇을 적어라 -->` + 정직한 `_(not filled yet — …)_` placeholder. 렌더-마크다운에 보이는 SCAFFOLD 배너로 사람에게도 "미검증 템플릿"임을 고지.
+- `renderFillScaffold()` (`src/project-claude-merge.ts`) — 단일 소스. Claude Code 루트 `CLAUDE.md`와 codex/opencode/antigravity `AGENTS.md`의 `{PROJECT_CONTEXT}`에 **byte-identical** 주입(디스크 되읽기 없음 → 쓰기순서 커플링 0).
+- 설치 콘솔 `FILL` 안내 라인 + AGENTS.md 3종 템플릿에 `## Project Context` 블록.
+- 크로스-CLI 드리프트 게이트 — `tests/agents-md-scaffold-parity.test.ts`가 `templates/*/AGENTS.md.template`을 **디렉토리 스캔**해 전부 `{PROJECT_CONTEXT}` 보유 강제(미래 4번째 CLI 누락 차단). merge 테스트에 이름치환·배너·FILL 생존·6섹션 exhaustiveness 추가.
+
+### Changed
+- 루트 `CLAUDE.md` 제목 = **실제 폴더명** 치환 (기존 `# [Project Name]` 리터럴 그대로 출하 버그 해소).
+- `mergeProjectClaude(tracks, { projectName })` — 파일 I/O 제거·코드생성. 트랙은 `> Active track(s):` 메타 노트로 기록(스캐폴드 본문은 track-agnostic).
+- `renderAgentsMd`에 `projectContext` 파라미터 추가 → codex/opencode/antigravity transform이 `renderFillScaffold()` 주입. 오늘까지 프로젝트 컨텍스트 0이던 AGENTS.md에 스캐폴드 도달.
+
+### Removed
+- `templates/project-claude/` 전체(`_base.md` + fragments 82파일) — generic 트랙 본문(모든 프로젝트에 Bash/jq stack 단언·phantom 룰 `commit-policy`/`ecc-*` 등)이 fill 스캐폴드로 완전 교체. 신규 트랙 추가 시 fragment 디렉토리 불필요(SCALE-6 마찰 감소).
+
 ## [v26.95.0] — 2026-07-14 (feat: gemini-consult opt-in advisor — 4-CLI graceful)
 
 사용자가 user-scope 에 만든 `gemini-consult` 스킬을 하네스 opt-in 공통 도구로 배포. Gemini(Antigravity `agy` CLI)로 자연스러운 한국어 카피 + 다면 페르소나 second-opinion 리뷰 — Claude 약점 2영역의 독립 second model. (#195)

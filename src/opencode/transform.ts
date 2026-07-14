@@ -19,6 +19,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -54,7 +55,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 1. AGENTS.md
   ensureDir(projectDir);
   const agentsMdPath = join(projectDir, "AGENTS.md");
-  writeFileSync(agentsMdPath, renderAgentsMd({ template: agentsTemplate, claudeMd, projectName }));
+  writeFileSync(
+    agentsMdPath,
+    renderAgentsMd({
+      template: agentsTemplate,
+      claudeMd,
+      projectName,
+      projectContext: renderFillScaffold(),
+    }),
+  );
 
   // 2. opencode.json
   const opencodeJsonPath = join(projectDir, "opencode.json");

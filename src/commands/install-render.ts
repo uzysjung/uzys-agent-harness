@@ -308,6 +308,12 @@ export function renderFinalSummary(
   const primary = (spec.cli.includes("claude") ? "claude" : spec.cli[0]) ?? "claude";
   const label = CLI_SUMMARY_LABELS[primary];
   log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
+  log(
+    infoRow(
+      "FILL",
+      `${c.bold("CLAUDE.md")} · ${c.bold("AGENTS.md")} ship as a fill-in scaffold — open them and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor them to this project`,
+    ),
+  );
   log("");
 }
 
