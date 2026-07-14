@@ -18,17 +18,19 @@
 - 근거: 단위테스트가 못 잡는 실환경 경로 버그를 잡으면서도(예: experimental opt-in / npx-github npm10) silent drift(v26.58~63) 재발 방지. 컨테이너 격리 = 호스트 오염 0.
 - "Docker mock 검증 ≠ 실 CLI 검증" — Promise=Implementation 봉합 시 실 바이너리를 컨테이너에 설치해 native 인식까지 확인.
 
-## Active Rules (11개)
+## Active Rules (10개)
+
+> SSOT = `.claude/rules/*.md` (표는 실 파일 목록과 1:1). 갱신 시 실 파일과 대조.
 
 | Rule | 적용 |
 |------|------|
-| git-policy | feature branch, push/PR 의무 |
+| git-policy | feature branch, commit/push/PR, Conventional Commits, 즉시 커밋, CalVer |
 | **no-false-ship** | 거짓출하 금지 — 경로별(wizard/flag/docs/CLI) 검증 증거 의무, 미검증 명시 강제 |
-| change-management | CR 분류, Decision Log, DO NOT CHANGE |
-| commit-policy | 즉시 커밋 |
-| ship-checklist | 배포 전 체크 (security scan, 의존성 audit) |
-| code-style | shellcheck 기준, 명명 규칙 |
-| error-handling | exit code, stderr |
-| ecc-git-workflow | Conventional Commits |
-| ecc-testing | 80% 커버리지, TDD, AAA |
-| **cli-development** | Bash 스크립트 표준, cross-platform, hook 컨벤션 |
+| change-management | CR 분류, Decision Log(ADR), DO NOT CHANGE |
+| ship-checklist | 배포 전 체크 (CI·security scan·의존성 audit·SSOT 동기화) |
+| code-style | 불변성, 크기 상한(파일 800/함수 50), 하드코딩 금지 |
+| error-handling | exit code, stderr, 에러 응답 포맷 |
+| **cli-development** | Bash 표준, cross-platform(BSD/GNU), hook 컨벤션 |
+| gates-taxonomy | 게이트 4유형 (Pre-flight/Revision/Escalation/Abort) |
+| test-policy | 커버리지 threshold(branches 88), TDD RED-GREEN, AAA |
+| playwright-launch | 영속 profile 브라우저 launch (E2E/audit) |

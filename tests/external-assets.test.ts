@@ -60,13 +60,12 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
     expect(assetTrustTier("nonexistent-asset-xyz")).toBe("experimental");
   });
 
-  it("T3 experimental 은 star<1000 5개 (next-skills/railway/playwright/ADR/revealjs)", () => {
+  it("T3 experimental 은 star<1000 4개 (railway/playwright/ADR/revealjs)", () => {
     const t3 = EXTERNAL_ASSETS.filter((a) => assetTrustTier(a.id) === "experimental")
       .map((a) => a.id)
       .sort();
     expect(t3).toEqual([
       "architecture-decision-record",
-      "next-skills",
       "playwright-skill",
       "railway-skills",
       "revealjs",
@@ -130,10 +129,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 61 distinct asset ids (no duplicates)", () => {
+  it("contains 59 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(61);
+    expect(ids).toHaveLength(59);
     // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
     expect(ids).toContain("gemini-consult");
     // v26.91.0 — coreyhaines31/marketingskills (opt-in 번들). 기존 marketing-skills(alirezarezvani)
@@ -148,7 +147,6 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).toContain("ecc-plugin");
     expect(ids).toContain("ecc-prune");
     expect(ids).toContain("trailofbits-skills");
-    expect(ids).toContain("gsd-orchestrator");
     expect(ids).toContain("business-growth-skills");
     // v26.87.0 — dev-method skills (uzys 1st-party, internal).
     for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
@@ -440,19 +438,6 @@ describe("shouldInstallAsset — track conditions", () => {
     expect(tob.method.pluginId).toBe("differential-review@trailofbits");
   });
 
-  it("GSD orchestrator is gated on `--with gsd-orchestrator` (opt-in)", () => {
-    const gsd = EXTERNAL_ASSETS.find((a) => a.id === "gsd-orchestrator");
-    if (!gsd) throw new Error("gsd missing");
-    expect(shouldInstallAsset(gsd, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
-    expect(
-      shouldInstallAsset(gsd, {
-        tracks: ["tooling"],
-        options: NO_OPTIONS,
-        userOverride: { forceInclude: ["gsd-orchestrator"], forceExclude: [] },
-      }),
-    ).toBe(true);
-  });
-
   it("workflow 큐레이션 확장 (v26.75.0, ADR-021) — 3 자산 옵션 gated + 검증 메서드/tier", () => {
     const wshobson = EXTERNAL_ASSETS.find((a) => a.id === "wshobson-agents");
     const openspec = EXTERNAL_ASSETS.find((a) => a.id === "openspec");
@@ -501,12 +486,11 @@ describe("filterApplicableAssets", () => {
       tracks: ["executive"] as Track[],
       options: NO_OPTIONS,
     });
-    // executive 한정 자산만 — Anthropic document-skills + c-level + finance + GSD(GSD는 옵션 gated)
+    // executive 한정 자산만 — Anthropic document-skills + c-level + finance
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("anthropic-document-skills");
     expect(ids).toContain("c-level-skills");
     expect(ids).toContain("finance-skills");
-    expect(ids).not.toContain("gsd-orchestrator"); // option-gated
     expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
     expect(ids).not.toContain("polars-K-Dense"); // data|full
   });
@@ -538,7 +522,7 @@ describe("filterApplicableAssets", () => {
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
-    // 옵션 gated 4건은 제외 (ecc, prune, tob, gsd)
+    // 옵션 gated 는 제외 (ecc, tob 등)
     expect(ids).not.toContain("ecc-plugin");
     expect(ids).not.toContain("trailofbits-skills");
     // Track 매트릭스의 vetted/official 자산은 포함
@@ -554,14 +538,14 @@ describe("filterApplicableAssets", () => {
       tracks: ["tooling"] as Track[],
       options: NO_OPTIONS,
       userOverride: {
-        forceInclude: ["ecc-plugin", "trailofbits-skills", "gsd-orchestrator"],
+        forceInclude: ["ecc-plugin", "trailofbits-skills", "addy-agent-skills"],
         forceExclude: [],
       },
     });
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("ecc-plugin");
     expect(ids).toContain("trailofbits-skills");
-    expect(ids).toContain("gsd-orchestrator");
+    expect(ids).toContain("addy-agent-skills");
   });
 });
 

@@ -17,7 +17,7 @@
 2. **검증된 자산 큐레이션 + 사용자 선택권** — "무엇이든 설치"가 아니라 **검증된** 플러그인/스킬만 후보. 각 자산의 출처·역할을 한 줄씩 명시해 사용자가 **이해하고 선택**한다. 권장 자산은 pre-checked + 설명으로 **적극 어필**하되, 최종 결정은 사용자.
 3. **4-CLI 동등성** — Claude Code / Codex / OpenCode / Antigravity 어디서나 같은 어휘가 동등 작동. CLI 잠금(lock-in) 없음.
 
-**차별화 축 (2026-06 재포지셔닝 · ADR-021)**: 시장 리서치(`docs/research/direction-research-2026-06-06.md`, 3-에이전트 독립 수렴) 결과 **"설치(installer)" 자체는 commoditized** — Vercel skills.sh(70+ 에이전트)·rulesync·MS APM + Claude Code/Codex 1st-party 마켓플레이스가 이미 cross-CLI 설치를 제공한다. 따라서 **설치는 전달 메커니즘(table-stakes)**으로 재정의하고, 방어 가능한 차별화는 기둥 ②를 **"검증된 + 보안 감사된(security-vetted) 큐레이션"**으로 격상한 데 둔다. 근거: Snyk "ToxicSkills" — 테스트 skill의 36%에서 prompt injection. 보유 무기 = CLAUDE.md Docker 실-바이너리 검증 의무 → 경쟁사의 *정적* 호환표와 달리 *지속 테스트되는* 호환·보안 매트릭스(공개 artifact화 = Phase 3 산출물).
+**차별화 축 (2026-06 재포지셔닝 · ADR-021)**: 시장 리서치(`docs/research/direction-research-2026-06-06.md`, 3-에이전트 독립 수렴) 결과 **"설치(installer)" 자체는 commoditized** — Vercel skills.sh(70+ 에이전트)·rulesync·MS APM + Claude Code/Codex 1st-party 마켓플레이스가 이미 cross-CLI 설치를 제공한다. 따라서 **설치는 전달 메커니즘(table-stakes)**으로 재정의하고, 방어 가능한 차별화는 기둥 ②를 **"출처·설치 검증된(source/install-verified) 큐레이션"**으로 격상한 데 둔다 (실제 수단 = trust-tier ★≥1000+활성 + Docker 실설치 검증. **자산 콘텐츠 prompt-injection 스캔은 미실행 — 로드맵**이므로 "보안 감사(security-vetted)"로 표기하지 않는다). 시장 근거: Snyk "ToxicSkills" — 테스트 skill의 36%에서 prompt injection. 보유 무기 = CLAUDE.md Docker 실-바이너리 검증 의무 → 경쟁사의 *정적* 호환표와 달리 *지속 테스트되는* 호환·보안 매트릭스(공개 artifact화 = Phase 3 산출물).
 
 > **신속** = 적은 왕복 (HITO ≤ 3/feature). **정확** = Promise = Implementation (광고한 자산은 100% 실제 작동).
 

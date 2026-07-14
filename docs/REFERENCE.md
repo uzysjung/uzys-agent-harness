@@ -51,7 +51,6 @@
 |------|------|:-:|------|------|
 | **everything-claude-code (ECC)** | [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) | 🟢 | 설치 후 `[y/N]` 프롬프트 | 전체 ECC 번들 (글로벌). 이후 `scripts/prune-ecc.sh`로 project-local 정제 |
 | **trailofbits-skills** | [trailofbits/skills](https://github.com/trailofbits/skills) | 🟢 | dev track 인터랙티브 `[y/N]` | CodeQL + Semgrep 보안 정적 분석 |
-| **GSD (Get Shit Done)** | [npm get-shit-done-cc](https://www.npmjs.com/package/get-shit-done-cc) | 🟡 | `--gsd` 플래그 | 대형 프로젝트 오케스트레이션 |
 
 ---
 
@@ -66,7 +65,6 @@
 | **react-best-practices** | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | 🟢 | csr-*, ssr-nextjs, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices --yes` | React 패턴. v0.6.5 — skills.sh registry name `vercel-react-best-practices` (GitHub dir 이름과 다름, prefix 있음) |
 | **shadcn/ui** | [shadcn/ui](https://github.com/shadcn-ui/ui) | ✅ | csr-*, ssr-nextjs, full | `npx skills add shadcn/ui --yes` | shadcn 컴포넌트 |
 | **web-design-guidelines** | vercel-labs/agent-skills | 🟢 | csr-*, ssr-*, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines --yes` | 웹 UI 가이드라인. v0.6.3 — source URL을 full HTTPS로 수정 |
-| **next-skills** | [vercel-labs/next-skills](https://github.com/vercel-labs/next-skills) | 🟢 | ssr-nextjs, full | `npx skills add vercel-labs/next-skills --yes` | Next.js 패턴 |
 | **polars** | [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) | 🟢 | data, full | `npx skills add K-Dense-AI/scientific-agent-skills --skill polars --yes` | polars lazy/expression deep guide |
 | **dask** | K-Dense-AI/scientific-agent-skills | 🟢 | data, full | `npx skills add K-Dense-AI/scientific-agent-skills --skill dask --yes` | larger-than-RAM 분산 (선택) |
 | **python-resource-management** | [wshobson/agents](https://github.com/wshobson/agents) | 🟢 | data, full | `npx skills add https://github.com/wshobson/agents --skill python-resource-management --yes` | context manager / ExitStack / async cleanup |
@@ -155,8 +153,8 @@ spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph �
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-8 파일. 자동 등록 5 (session-start/protect-files/gate-check/agentshield-gate/mcp-pre-exec) + on-demand 3 (spec-drift-check/checkpoint-snapshot/codebase-map).
-*v26.16.1 기준. codebase-map은 v26.14.1에서 자동 등록 해제.*
+7 파일 (실측): session-start · protect-files · mcp-pre-exec · hito-counter · karpathy-gate · spec-drift-check · checkpoint-snapshot.
+*2026-07-14 현행화. 구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 삭제됨(ADR-023).*
 
 ### Scripts (자체 작성)
 - `scripts/prune-ecc.sh` — ECC plugin 프로젝트 스코프 복사 + 89 KEEP 외 제거
@@ -187,7 +185,7 @@ $ bash scripts/setup-harness.sh --track <track> --project-dir .
 [Track 조건부]
   - csr-*: react-best-practices + shadcn + tauri-aware rule + supabase(csr-supabase만)
   - ssr-htmx: htmx rule
-  - ssr-nextjs: next-skills + nextjs rule
+  - ssr-nextjs: nextjs rule
   - data: polars + dask + python-resource/performance + Anthropic data plugin
   - executive: c-level + business-growth + finance + document-skills (모두 alirezarezvani/claude-skills marketplace + Anthropic)
   - tooling: cli-development rule
