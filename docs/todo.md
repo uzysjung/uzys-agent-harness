@@ -1,6 +1,6 @@
 # Todo — 현재 목표 & 상태
 
-> **갱신**: 2026-06-22 (v26.88.0)
+> **갱신**: 2026-06-22 (v26.88.0) · ⚠ 이 파일은 6-Gate 활성경로용(historical) — 버전·전략 현행은 [`plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) + [`plans/harness-audit-2026-07-14.md`](plans/harness-audit-2026-07-14.md) 참조 (실 npm v26.95.0)
 > **전략 SSOT**: [`docs/plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) (M1~M6) — 아래 'C→A→B→D' 전략 내용은 이로 **대체됨(historical)**. 본 파일은 6-Gate 워크플로우 활성 경로(gate 파싱)로만 유지.
 > **목표 anchor**: [`docs/NORTH_STAR.md`](NORTH_STAR.md) (왜·어디로) · **이력**: [`CHANGELOG.md`](../CHANGELOG.md)
 > **Foundation(v26.38) 상세 완료 기록**: [`docs/archive/phase1-foundation/`](archive/phase1-foundation/)
@@ -12,7 +12,7 @@
 
 ## 현재 상태 (2026-06-06)
 
-- **버전**: v26.88.0 (main, npm `@uzysjung/agent-harness@26.88.0` 라이브).
+- **버전**: v26.95.0 (main, npm `@uzysjung/agent-harness@26.95.0` 라이브). *(헤더 스탬프는 6-Gate 경로 유지용 — 전략 SSOT = roadmap + harness-audit-2026-07-14)*
 - **활성 작업 사이클**: **재포지셔닝 로드맵 C→A→B→D** (deep-research `docs/research/direction-research-2026-06-06.md` + ADR-021). 아래 "열린 목표" 참조.
 - **CI 정책**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 (v26.70.3). 로컬 `npm run ci` 가 1차 게이트.
 

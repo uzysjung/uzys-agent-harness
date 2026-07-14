@@ -23,7 +23,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 1. **Trust Tier** — `official`(Anthropic 공식 + 본 하네스) / `vetted`(GitHub ★≥1000 + 활성) / `experimental`(★<1000, opt-in + 경고). 정적 라벨이 실 star 와 어긋나면 `trust-tier-drift.yml`(월 cron)이 자동 검출.
 2. **upstream vetting 위임** — 공식 마켓플레이스 자산(superpowers 등 anthropics/claude-plugins-official)은 Anthropic 의 품질·보안 스크리닝을 통과. plugin 자산은 각 upstream 의 검증에 의존.
 3. **Promise = Implementation** — 광고된 설치 명령은 실재(registry/marketplace 확인). 워크플로 핵심군은 Docker 실설치까지.
-4. **`.claude/` 산출물 게이트** — 하네스가 *생성*하는 설정은 ship 전 `agentshield-gate.sh`(PreToolUse hook)가 스캔(CRITICAL 차단).
+4. **`.claude/` 산출물 게이트** — 하네스가 *생성*하는 설정은 ship 전 `npx ecc-agentshield scan`(수동, ship-checklist 게이트)로 점검. *자동 PreToolUse 게이트(`agentshield-gate.sh`)는 6-Gate 제거(ADR-023) 시 삭제 — 현재 미배선.*
 5. **버전 pinning (v26.80.0)** — npm/npx-run 자산은 **정확 semver 로 고정** 설치 (`pkg@version`, 아래 표에 버전 명시). vetting 은 시점 검증이므로 `@latest` 는 vetting 안 된 미래 코드 실행 = supply-chain 구멍. 회귀 테스트가 unpinned 를 차단. **bump 정책**: 분기 자산 audit(A2) 주기에 새 버전을 Docker 실설치 검증 후 갱신.
    - *잔여 리스크 (정직 표기)*: `plugin`(claude marketplace) / `skill`(skills.sh) 메서드는 설치 CLI 가 버전 지정을 지원하지 않아 **pin 불가** — upstream HEAD 가 설치된다. 이 부분은 Trust Tier + upstream vetting(②)에 의존.
 

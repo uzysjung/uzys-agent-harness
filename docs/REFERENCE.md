@@ -155,8 +155,8 @@ spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph �
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-8 파일. 자동 등록 5 (session-start/protect-files/gate-check/agentshield-gate/mcp-pre-exec) + on-demand 3 (spec-drift-check/checkpoint-snapshot/codebase-map).
-*v26.16.1 기준. codebase-map은 v26.14.1에서 자동 등록 해제.*
+7 파일 (실측): session-start · protect-files · mcp-pre-exec · hito-counter · karpathy-gate · spec-drift-check · checkpoint-snapshot.
+*2026-07-14 현행화. 구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 삭제됨(ADR-023).*
 
 ### Scripts (자체 작성)
 - `scripts/prune-ecc.sh` — ECC plugin 프로젝트 스코프 복사 + 89 KEEP 외 제거

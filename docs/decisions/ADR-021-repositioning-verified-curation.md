@@ -21,6 +21,8 @@ Phase 2 자율 backlog 소진 후(`docs/todo.md`), "다음에 무엇을 만들�
 
 **헤드라인 차별화 축을 "설치 서비스"에서 "검증된 + 보안 감사된(security-vetted) 큐레이션 레이어"로 격상한다. 설치(installer)는 차별화가 아니라 전달 메커니즘(table-stakes)으로 재정의한다.**
 
+> **정정 (2026-07-14, harness-audit)**: 위 "보안 감사된(security-vetted)" 표현은 **과대표기**였다 — 실제 구현은 trust-tier(★≥1000+활성) + Docker 실설치 검증이며 **자산 콘텐츠 prompt-injection 스캔은 미실행**(로드맵). 정직 표기 = **"출처·설치 검증된(source/install-verified) 큐레이션"**. 또한 아래 line 26 의 NSM 명칭 "Asset Security Pass Rate"는 이후 **"Generated-config Security Pass Rate"**로 개명됨(#167, 181fc8d) — 자산 repo 콘텐츠가 아닌 하네스 *산출물* 스캔 범위. (근거: no-false-ship — 문서 광고=실동작)
+
 NORTH_STAR Statement 자체는 유지하되(세 기둥 구조 보존), 다음을 반영한다:
 - 기둥 ②("검증된 자산 큐레이션 + 사용자 선택권")를 **"검증 + 보안 감사 큐레이션"**으로 격상.
 - 2차 NSM에 **Asset Security Pass Rate**(자산 보안 스캔 CRITICAL/HIGH 0건 = 100%) 추가.
