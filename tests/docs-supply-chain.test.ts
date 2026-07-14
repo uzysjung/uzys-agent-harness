@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 
 // WHY: unscoped `agent-harness` 는 npm 에 실재하는 제3자 패키지다
 //   (`agent-harness@0.0.1`, maintainer quuu — 본 프로젝트와 무관, 2025-08 게시).
@@ -53,5 +54,49 @@ describe("CHANGELOG 현행성 게이트 (drift 재발 차단)", () => {
       changelog.includes(header),
       `CHANGELOG.md 에 '${header}' 항목이 없음 — 릴리즈 전 이 버전의 변경 내역을 [Unreleased] 아래에 추가하거나 버전 헤더로 승격할 것 (릴리즈 커밋이 package.json 만 bump 하면 이 게이트가 막는다).`,
     ).toBe(true);
+  });
+});
+
+// WHY: 2026-07-14 harness-audit 가 카탈로그 총계 drift 를 여러 표면에서 발견 —
+//   index.html "49/58"(실측 61), roadmap "58 자산", COMPATIBILITY "51/61". ship-checklist 의
+//   "SSOT 동기화" 체크박스는 8+ 릴리즈 동안 지켜지지 않아 drift 가 48→58→61 로 반복됐다.
+//   no-false-ship: "체크박스 경고 ≠ 차단 수단". 이 게이트는 사용자-도달 문서의 카탈로그 총계(분모)를
+//   EXTERNAL_ASSETS.length 에서 derive 해 대조한다 — 자산 추가/제거 후 문서(또는 gen:compat)를
+//   갱신하지 않으면 `npm run ci` 가 실패한다.
+describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift 차단)", () => {
+  const total = EXTERNAL_ASSETS.length;
+
+  it(`COMPATIBILITY.md 자동생성 블록이 '자산 ${total}' 반영 (gen:compat 최신)`, () => {
+    const text = readFileSync("docs/COMPATIBILITY.md", "utf-8");
+    expect(
+      text.includes(`자산 **${total}**`),
+      `docs/COMPATIBILITY.md 가 자산 ${total} 를 반영하지 않음 — 'npm run gen:compat' 재실행 필요`,
+    ).toBe(true);
+  });
+
+  it(`index.html trust-tier 카드의 카탈로그 총계 분모가 ${total}`, () => {
+    const text = readFileSync("index.html", "utf-8");
+    const m = text.match(/(\d+)\s*\/\s*(\d+)\s+green/);
+    expect(
+      m,
+      "index.html 'X/Y green' 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
+    ).not.toBeNull();
+    expect(
+      Number((m as RegExpMatchArray)[2]),
+      `index.html 카탈로그 총계 분모 ≠ EXTERNAL_ASSETS.length(${total})`,
+    ).toBe(total);
+  });
+});
+
+// WHY: adoption-c2-submission-kit 이 README 정정(51/61·plugin Claude-first)을 안 따라가
+//   "every install method ... verified by real install ... not a static table" 과장을 박제했다
+//   (2026-07-14 audit kit-overclaim). 게시 자료의 첫 문장이 곧 반례가 되지 않도록 grep 가드.
+describe("게시 kit 과장 차단 (audit 2026-07-14 kit-overclaim)", () => {
+  it("adoption kit: 'every install method ... verified by real install' 과장 0건", () => {
+    const text = readFileSync("docs/research/adoption-c2-submission-kit.md", "utf-8");
+    expect(
+      /every install method\s+(?:is\s+)?verified by real install/i.test(text),
+      "kit 에 'every install method verified by real install' 과장 잔존 — COMPATIBILITY 실측과 모순",
+    ).toBe(false);
   });
 });

@@ -30,8 +30,7 @@
 
 ## Consequences
 
-- **긍정**: catalog-verify·trust-tier-drift GREEN 복구. 카탈로그 59 전량이 "설치 가능 + 활성" 조건 충족(정직성 회복).
-- **후속 권장(본 커밋 미포함)**: "문서 자산수 == EXTERNAL_ASSETS.length" derive 테스트 게이트로 카운트 drift 를 구조적으로 차단하는 방안 — 이번 제거 커밋 범위 밖(사용자 지시 2026-07-14 "harness-only, 게이트 미진행"). 재발 시 재검토.
+- **긍정**: catalog-verify·trust-tier-drift GREEN 복구. 카탈로그 59 전량이 "설치 가능 + 활성" 조건 충족(정직성 회복). Batch 2 에서 **"문서 자산수 == EXTERNAL_ASSETS.length" derive 테스트 게이트**(`tests/docs-supply-chain.test.ts`)를 함께 추가해 카운트 drift(48→58→61 반복)를 구조적으로 차단(no-false-ship: 체크박스 ≠ 차단 수단).
 - **부정/리스크**: GSD(대형 프로젝트 오케스트레이션)·next-skills(Next.js 패턴) 용도 공백. 대체재 — 오케스트레이션은 BMAD/wshobson, Next.js는 react-best-practices/web-design-guidelines(vercel-labs, 유지). 향후 활성·설치가능 대체 자산 발견 시 재등재 가능.
 - **문서 영향**: COMPATIBILITY(자동생성 regen + 수동 카운트) · WORKFLOWS(설치 워크플로 7→6) · REFERENCE · README/README.ko · index.html · service-audit-roadmap(58→59) · external-assets.test.ts(61→59).
 - **범위 불변**: 역사적 GSD cherry-pick(gates-taxonomy rule 출처, `.dev-references/cherrypicks.lock`·PRD)은 카탈로그 자산과 무관하므로 유지.
