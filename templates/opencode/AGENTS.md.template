@@ -4,6 +4,10 @@
 > **OpenCode Version**: 0.x (anomalyco/opencode)
 > **Linked SPEC**: `docs/specs/opencode-compat.md`
 
+## Project Context
+
+{PROJECT_CONTEXT}
+
 ## Project Rules
 
 {PROJECT_RULES}

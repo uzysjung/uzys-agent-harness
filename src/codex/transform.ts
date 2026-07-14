@@ -19,8 +19,9 @@
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ensureDir } from "../fs-ops.js";
+import { backupFileIfChanged, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
 import { renderBundledSkill } from "./skills.js";
@@ -59,7 +60,15 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   // 1. AGENTS.md
   const agentsMdPath = join(projectDir, "AGENTS.md");
   ensureDir(projectDir);
-  writeFileSync(agentsMdPath, renderAgentsMd({ template: agentsTemplate, claudeMd, projectName }));
+  const agentsMdOut = renderAgentsMd({
+    template: agentsTemplate,
+    claudeMd,
+    projectName,
+    projectContext: renderFillScaffold(),
+  });
+  // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
+  backupFileIfChanged(agentsMdPath, agentsMdOut);
+  writeFileSync(agentsMdPath, agentsMdOut);
 
   // 2. .codex/config.toml
   const configTomlPath = join(projectDir, ".codex/config.toml");

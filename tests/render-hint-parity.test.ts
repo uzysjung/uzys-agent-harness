@@ -29,4 +29,11 @@ describe("렌더 힌트 parity (audit CODE-1)", () => {
       true,
     );
   });
+
+  it("FILL 스캐폴드 안내가 설치 출력에 존재 (채우기 트리거 = 콘솔 메시지)", () => {
+    // WHY: v26.96.0 fill 스캐폴드의 채우기 트리거는 커맨드가 아니라 '설치 콘솔 안내 + 주석 복붙'이다.
+    //   이 안내가 조용히 사라지면 스캐폴드를 발견/채우는 유일한 경로가 끊긴다 (no-false-ship).
+    expect(RENDER_SRC).toContain('"FILL"');
+    expect(RENDER_SRC).toMatch(/fill-in scaffold/i);
+  });
 });

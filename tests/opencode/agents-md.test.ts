@@ -23,6 +23,10 @@ describe("opencode/agents-md renameSlashes", () => {
 describe("opencode/agents-md renderAgentsMd (v26.70.0 — full CLAUDE.md embed)", () => {
   const TEMPLATE = `# {PROJECT_NAME} — OpenCode Agent Guide
 
+## Project Context
+
+{PROJECT_CONTEXT}
+
 ## Project Rules
 
 {PROJECT_RULES}
@@ -30,11 +34,14 @@ describe("opencode/agents-md renderAgentsMd (v26.70.0 — full CLAUDE.md embed)"
 Run /uzys:spec to start.
 `;
 
+  const SAMPLE_CONTEXT = "<!-- FILL:stack — inspect the repo -->";
+
   it("embeds full CLAUDE.md body + substitutes name + renames slashes + strips h1", () => {
     const out = renderAgentsMd({
       template: TEMPLATE,
       claudeMd: SAMPLE_CLAUDE_MD,
       projectName: "demo",
+      projectContext: SAMPLE_CONTEXT,
     });
     expect(out).toContain("# demo — OpenCode Agent Guide");
     expect(out).toContain("Rule 1 — Think");
@@ -44,5 +51,16 @@ Run /uzys:spec to start.
     expect(out).not.toContain("/uzys:spec");
     expect(out).not.toContain("{PROJECT_RULES}");
     expect(out).not.toContain("# Project CLAUDE.md");
+  });
+
+  it("substitutes {PROJECT_CONTEXT} with the project-context scaffold", () => {
+    const out = renderAgentsMd({
+      template: TEMPLATE,
+      claudeMd: SAMPLE_CLAUDE_MD,
+      projectName: "demo",
+      projectContext: SAMPLE_CONTEXT,
+    });
+    expect(out).toContain(SAMPLE_CONTEXT);
+    expect(out).not.toContain("{PROJECT_CONTEXT}");
   });
 });

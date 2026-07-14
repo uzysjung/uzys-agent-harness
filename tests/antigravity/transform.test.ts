@@ -30,9 +30,13 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
     mkdirSync(agTplDir, { recursive: true });
     writeFileSync(
       join(agTplDir, "AGENTS.md.template"),
-      ["# {PROJECT_NAME} — Antigravity Agent Guide", "## Project Rules", "{PROJECT_RULES}"].join(
-        "\n",
-      ),
+      [
+        "# {PROJECT_NAME} — Antigravity Agent Guide",
+        "## Project Context",
+        "{PROJECT_CONTEXT}",
+        "## Project Rules",
+        "{PROJECT_RULES}",
+      ].join("\n"),
     );
   });
 
@@ -63,6 +67,9 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
     // /uzys: → /uzys- rename (Antigravity filename 기반 호출 정합)
     expect(rules).toContain("/uzys-spec");
     expect(rules).not.toContain("/uzys:spec");
+    // project-context 스캐폴드 주입 ({PROJECT_CONTEXT} → renderFillScaffold())
+    expect(rules).toContain("<!-- FILL:stack —");
+    expect(rules).not.toContain("{PROJECT_CONTEXT}");
     cleanup();
   });
 

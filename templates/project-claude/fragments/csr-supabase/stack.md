@@ -1,6 +1,0 @@
-- **Backend**: Supabase (PostgreSQL + Auth + Storage + Realtime) + Edge Functions (Deno)
-- **Frontend**: React + TypeScript + Vite
-- **UI**: shadcn/ui + Tailwind CSS
-- **Desktop**: Tauri (Rust shell)
-- **Infra**: Supabase hosted / self-hosted
-- **MCP**: Supabase

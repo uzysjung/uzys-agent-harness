@@ -6,7 +6,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -178,7 +178,7 @@ export interface BaselineReport {
   };
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
-  /** Root CLAUDE.md merged from project-claude fragments. null when claude baseline disabled. */
+  /** Root CLAUDE.md fill-in scaffold (project name + active-track note + FILL sections). null when claude baseline disabled. */
   rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
@@ -253,7 +253,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
   // Codex/OpenCode 단독 사용자는 dead weight 회피.
   const base = spec.cli.includes("claude")
-    ? installClaudeBaseline(manifestSpec, harnessRoot, projectDir, templatesDir)
+    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir)
     : emptyClaudeBaseline();
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
@@ -394,7 +394,6 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
 /** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
-  harnessRoot: string,
   projectDir: string,
   templatesDir: string,
 ): ClaudeBaselineResult {
@@ -439,9 +438,9 @@ function installClaudeBaseline(
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
   writeInstalledTracks(projectDir, manifestSpec.tracks);
 
-  // Project root CLAUDE.md — merge from fragments (single/multi/full).
+  // Project root CLAUDE.md — an honest fill-in scaffold (project name + active tracks + FILL sections).
   // Note: overwrites any user customization on re-install. Documented behavior.
-  const rootClaudeMd = writeRootClaudeMd(harnessRoot, projectDir, manifestSpec.tracks);
+  const rootClaudeMd = writeRootClaudeMd(projectDir, manifestSpec.tracks);
   result.rootClaudeMd = { tracks: manifestSpec.tracks };
   result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMd.content) };
   if (rootClaudeMd.backup) {
@@ -694,12 +693,10 @@ function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>)
 }
 
 function writeRootClaudeMd(
-  harnessRoot: string,
   projectDir: string,
   tracks: ReadonlyArray<Track>,
 ): { content: string; backup: string | null } {
-  const baseDir = join(harnessRoot, "templates/project-claude");
-  const content = mergeProjectClaude(tracks, { baseDir });
+  const content = mergeProjectClaude(tracks, { projectName: basename(projectDir) });
   const target = join(projectDir, "CLAUDE.md");
   // 기존 사용자 CLAUDE.md 는 덮어쓰기 전 백업 (audit CODE-2 — 무백업 덮어쓰기 데이터 손실 방지).
   const backup = backupFileIfChanged(target, content);

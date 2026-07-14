@@ -1,6 +1,7 @@
 # SPEC: project-claude Section-Fragment 머지 구조
 
-> **Status**: Draft (2026-05-12)
+> **Status**: Superseded (2026-07-15) by **ADR-025** — 트랙 fragment 병합 폐기, 프로젝트 컨텍스트를 fill-in 스캐폴드(`renderFillScaffold`)로 전환. `templates/project-claude/` 삭제. 본 SPEC은 point-in-time 기록으로 보존.
+> **Status(원)**: Draft (2026-05-12)
 > **Trigger**: Multi-track 설치 시 root `CLAUDE.md` 미생성 (manifest.ts:261 가드). 11개 트랙 .md에 공통 섹션 헤더/안내문 중복. `full.md` 수동 동기화 부담.
 
 ---

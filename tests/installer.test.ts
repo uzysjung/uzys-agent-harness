@@ -110,13 +110,14 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/data-analysis.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/pyside6.md"))).toBe(true);
-    // multi-track now merges fragments into a single root CLAUDE.md
+    // Root CLAUDE.md is a fill-in scaffold: real project name + active-track note + FILL sections.
     const rootMd = join(projectDir, "CLAUDE.md");
     expect(existsSync(rootMd)).toBe(true);
     const content = readFileSync(rootMd, "utf8");
-    expect(content).toContain("활성 Track(s): Tooling, Data");
-    expect(content).toMatch(/### Tooling/);
-    expect(content).toMatch(/### Data/);
+    expect(content).toContain("Active track(s): Tooling, Data");
+    expect(content).toContain("SCAFFOLD");
+    expect(content).toContain("<!-- FILL:stack —");
+    expect(content).not.toContain("[Project Name]");
   });
 
   it("backup option moves existing .claude/ aside before install", () => {

@@ -21,7 +21,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { renderBundledSkill } from "../codex/skills.js";
-import { ensureDir } from "../fs-ops.js";
+import { backupFileIfChanged, ensureDir } from "../fs-ops.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 
 export interface AntigravityTransformParams {
   /** harness root (templates/CLAUDE.md source 위치). */
@@ -92,6 +93,14 @@ function writeRules(harnessRoot: string, projectDir: string): string | null {
   const rulesDir = join(projectDir, ".agents", "rules");
   ensureDir(rulesDir);
   const target = join(rulesDir, "uzys-harness.md");
-  writeFileSync(target, renderAgentsMd({ template, claudeMd, projectName: basename(projectDir) }));
+  const rulesOut = renderAgentsMd({
+    template,
+    claudeMd,
+    projectName: basename(projectDir),
+    projectContext: renderFillScaffold(),
+  });
+  // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
+  backupFileIfChanged(target, rulesOut);
+  writeFileSync(target, rulesOut);
   return target;
 }

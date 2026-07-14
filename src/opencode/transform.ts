@@ -17,8 +17,9 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ensureDir } from "../fs-ops.js";
+import { backupFileIfChanged, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -54,7 +55,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 1. AGENTS.md
   ensureDir(projectDir);
   const agentsMdPath = join(projectDir, "AGENTS.md");
-  writeFileSync(agentsMdPath, renderAgentsMd({ template: agentsTemplate, claudeMd, projectName }));
+  const agentsMdOut = renderAgentsMd({
+    template: agentsTemplate,
+    claudeMd,
+    projectName,
+    projectContext: renderFillScaffold(),
+  });
+  // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
+  backupFileIfChanged(agentsMdPath, agentsMdOut);
+  writeFileSync(agentsMdPath, agentsMdOut);
 
   // 2. opencode.json
   const opencodeJsonPath = join(projectDir, "opencode.json");
