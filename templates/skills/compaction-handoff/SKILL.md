@@ -1,178 +1,312 @@
 ---
 name: compaction-handoff
 description: >-
-  Execute a structured handoff right before a context compaction so no state is lost — persist
-  durable facts to memory, take an atomic git snapshot (clean tree + open-PR check), and emit a
-  fixed-field resume anchor (current state / verified / what's left / next action) plus a suggested
-  custom /compact summary line. Use when the user says "컴팩션 준비해줘", "컴팩션하고 이어서
-  진행할 수 있게 준비해줘", "핸드오프 준비해줘", or in English "prepare for compaction",
-  "get ready to compact and continue", "hand off before /compact", "checkpoint before compacting".
-  Also fire proactively when context is nearing the window limit and an auto-compact is imminent.
+  Create a compact, reconstructible checkpoint immediately before context compaction. Persist only
+  durable facts and decisions, overwrite one current resume anchor, verify Git and open-PR state,
+  and emit one concrete next action plus a short /compact line. Use for "컴팩션 준비해줘",
+  "컴팩션하고 이어서 진행할 수 있게 준비해줘", "핸드오프 준비해줘", or "prepare for
+  compaction", or equivalent. Repeated execution must be idempotent and must not grow state files
+  without bound.
 ---
 
 # Compaction Handoff Protocol
 
-A context window is about to be summarized and reinitialized. The model is stateless, so **only
-what you write out survives** — the new window starts from a lossy summary, not the live history.
-This skill runs the handoff deliberately so the resumed session can pick up without re-deriving
-lost state.
+Context compaction is lossy. Create a deliberate checkpoint that lets the next session resume from
+verified state without replaying the full conversation.
 
-> Sibling skill `strategic-compact` decides **WHEN** to compact (phase boundaries, token pressure).
-> This skill is the **HOW**: it executes the handoff at that moment. Run `strategic-compact`'s
-> decision first if you're unsure whether to compact at all; run this when the answer is "yes".
+This protocol is **snapshot-based, not append-based**:
 
-## When to use
+- `MEMORY.md`: durable facts and pointers only.
+- `docs/decisions/`: durable, load-bearing decisions only.
+- `.handoff/CURRENT.md`: current resumable state; overwrite on every handoff.
+- Git and PR state: authoritative implementation snapshot.
+- `/compact` line: short pointer to the anchor, not another summary.
 
-The user works in Korean and triggers this repeatedly. Treat any of these as a fire signal:
+> `strategic-compact` decides **when** to compact. This skill defines **how** to checkpoint.
 
-- **"컴팩션 준비해줘"** / **"컴팩션하고 이어서 진행할 수 있게 준비해줘"** / **"핸드오프 준비해줘"**
-- English equivalents: "prepare for compaction", "get ready to compact and continue", "hand off".
-- **Proactively, before the cliff.** Don't wait for auto-compact at 100%. Auto-compaction fires
-  near the window limit; a common practice is to trigger the handoff earlier (around ~80% of the
-  window) so there's still budget to write a clean anchor — a rushed handoff at the cliff is exactly
-  where load-bearing context gets dropped.
+## Goals
 
-Why proactive matters: auto-compact optimizes for *generic* continuity, not for THIS task's
-load-bearing facts (an open PR, a chosen-but-unwritten decision). If you skip the handoff because
-the task "looks finished," you risk silent information loss — the resumed agent assumes work
-shipped that did not.
+A valid handoff is:
 
-## The model: three legs of a checkpoint
+- **Recoverable:** the next session can start from one exact action.
+- **Atomic:** the anchor refers to one coherent repository state.
+- **Evidence-based:** verified results are distinct from claims and pending work.
+- **Compact:** only load-bearing information survives.
+- **Idempotent:** rerunning updates existing state instead of duplicating it.
+- **Bounded:** state files remain within fixed size limits.
 
-Treat the handoff as a deliberate checkpoint, not a passive summary. Three legs, each grounded in
-an established practice:
+## Trigger
 
-1. **Persist durable facts to external memory** *(before compacting, never after)*.
-   The window will be wiped; structured note-taking exists precisely because the summary alone
-   can't be trusted to carry everything. Route load-bearing *decisions* to ADRs (`docs/decisions/`)
-   so the *why* survives every future compaction, not just this one.
-2. **Take an atomic, reconstructible snapshot** — git clean (or a `savepoint` commit) plus an
-   **open-PR check**. A dirty/half-committed tree is a corrupt checkpoint; an open PR is itself
-   critical state that belongs in "what's left." This is the Checkpoint **Atomicity** and **State
-   Completeness** principles applied to the working tree.
-3. **Emit a fixed-field resume anchor** — current state / verified / what's left / next action —
-   framed *working backwards* from the next concrete step so a freshly-compacted agent re-orients
-   instantly instead of replaying history forward.
+Run on explicit compaction or handoff requests, or proactively before automatic compaction while
+there is still enough context to write a clean checkpoint.
 
-### Preserve-list, not a prose blob
+Do not run after compaction without first reconstructing the best available state.
 
-Use an explicit preserve-list rather than a free-form paragraph (Anthropic's stated preserve/discard
-split):
+## State and retention rules
 
-| Preserve (high-value) | Discard (low-value) |
+### `.handoff/CURRENT.md` — transient resume SSOT
+
+- Single source of truth for current resumable state.
+- Overwrite; never append old anchors.
+- No raw logs, full file contents, or conversation replay.
+- Reference commits, PRs, tests, files, and ADRs instead of copying them.
+- Target: **120 lines / 12 KB maximum**.
+- Write atomically through a temporary file when practical.
+- Historical archives are disabled by default. If explicitly required, keep them under
+  `.handoff/archive/`, apply a retention limit, and never auto-load them on resume.
+
+### `MEMORY.md` — durable facts only
+
+Keep:
+
+- stable purpose, scope, constraints, invariants, and operating principles;
+- durable repository or user preferences;
+- pointers to active ADRs and `.handoff/CURRENT.md`.
+
+Remove or exclude:
+
+- current branch, test failure, task progress, temporary blocker, raw output;
+- completed session history, old anchors, duplicated repository content.
+
+Update or replace existing entries; do not append near-duplicates. Remove superseded facts. Target:
+**200 lines / 20 KB maximum**, unless the repository defines another limit.
+
+### `docs/decisions/` — durable decisions only
+
+Create or update an ADR only for expensive-to-reverse decisions such as:
+
+- architecture or major dependency choices;
+- API, data-model, compatibility, or migration contracts;
+- security trust boundaries and control ownership;
+- deployment topology, operational responsibility, or deliberate breaking changes.
+
+Do not create ADRs for branch status, task order, temporary workarounds, test failures, or today's
+remaining work. Search existing ADRs first; update or supersede rather than duplicate.
+
+### Git and PR state — implementation authority
+
+Inspect:
+
+```bash
+git status --short
+git branch --show-current
+git rev-parse --short HEAD
+git log -1 --oneline
+```
+
+When GitHub CLI is available:
+
+```bash
+gh pr list --state open
+gh pr status
+```
+
+Never assume a PR is merged. Surface open PR number, CI/review status, and mergeability when
+available. Never merge or modify a PR unless separately requested.
+
+## Preserve versus discard
+
+| Preserve | Discard |
 |---|---|
-| Architectural decisions + their *why* (link ADR) | Redundant tool outputs, raw logs |
-| Unresolved bugs / blockers | Intermediate reasoning already acted on |
-| Processed-vs-remaining boundary | File contents you can re-read from disk |
-| Open PRs / unpushed branches | Tool-call counts and history |
-| Verified-vs-merely-claimed evidence | Restated CLAUDE.md / rules (already loaded) |
+| Current objective and processed/remaining boundary | Full conversation replay |
+| Durable decisions via ADR reference | Intermediate reasoning already acted on |
+| Unresolved blockers and exact impact | Raw logs and repetitive tool output |
+| Branch, commit, dirty state, open PRs | Re-readable file contents |
+| Test/build evidence | Unsupported "done" claims |
+| One exact next action | Broad speculative future work |
+
+When uncertain, preserve a concise reference rather than duplicated content.
 
 ## Workflow
 
-Run these in order. Each writes durable state *before* the window is touched.
+### 1. Inspect existing state
 
-**1. Memory — persist durable facts.**
-Update the auto-memory (`MEMORY.md`) and any session-summary entry with the preserve-list items.
-For a load-bearing decision (architecture, dependency, data model, breaking change), write or update
-an ADR in `docs/decisions/` — this is the one place "the why behind the constraint" survives lossy
-compaction. Don't rely on the `/compact` summary to carry a decision; it strips provenance.
-
-**2. Git — atomic snapshot + open-PR check.**
-Make the working tree reflect a consistent state. The `gh pr list` step is **not optional** — it is
-the git-policy **Session Cleanup** gate, which is mandatory before any `/clear` or `/compact`. Run it
-every handoff:
 ```bash
-git status --short                 # is the tree clean?
-# IF tree is dirty AND the work is worth keeping:
-git add -A && git commit -m "chore: savepoint before compaction handoff"
-gh pr list --state open            # list open PRs — each open PR is what's-left state to surface, not necessarily an anomaly
-git branch --show-current          # note unpushed branch state
-```
-This folds the git-policy **Session Cleanup** gate into the handoff. An open PR is not a
-loose end to hide — surface it in the anchor's "what's left" with its number, CI status, and
-mergeability, and let the user decide (no auto-merge).
-
-**3. Resume anchor — four fixed fields.**
-Emit the anchor. Keep "verified" distinct from "done": *done* is a claim, *verified* encodes the
-evidence (test PASS output, exit 0, a merged PR). The resumed agent re-trusts only what's verified.
-Make **next action** mandatory and singular — it's the entry point the resumed session executes
-first, so the anchor is self-serve (Recovery Automation), not a note to re-interpret.
-
-**4. Suggested /compact line.**
-Hand the user a one-line custom summary to pass to `/compact` (e.g.
-`/compact Resume: finish ADR-022 flag removal; PR #160 merged, branches drift test failing`). This
-is a pointer to the durable anchor, not a replacement for it.
-
-## Handoff report format
-
-Present a compact status table, then the anchor:
-
-```
-| Check          | Result                                  | Status |
-|----------------|-----------------------------------------|--------|
-| Memory         | MEMORY.md + ADR-022 updated             | ✓      |
-| Git            | tree clean, savepoint a1b2c3d           | ✓      |
-| Open PRs       | gh pr list → 0 open                      | ✓      |
-| Files          | resume anchor written, plan SSOT synced | ✓      |
+test -f MEMORY.md && sed -n '1,240p' MEMORY.md
+test -f .handoff/CURRENT.md && sed -n '1,180p' .handoff/CURRENT.md
+find docs/decisions -maxdepth 1 -type f 2>/dev/null | sort
 ```
 
-## Worked example
+Use existing files to update and prune. Never blindly append.
 
-**Input** (user, at ~78% context):
-> 컴팩션하고 이어서 진행할 수 있게 준비해줘
+### 2. Classify each item
 
-**Output:**
+Route each fact once:
 
-Handoff checks:
+1. durable fact → `MEMORY.md`;
+2. durable decision with rationale → ADR;
+3. transient resumable state → `.handoff/CURRENT.md`;
+4. reconstructible or low-value detail → discard.
 
-| Check    | Result                                          | Status |
-|----------|-------------------------------------------------|--------|
-| Memory   | MEMORY.md code-quality-cycle entry refreshed    | ✓      |
-| Git      | tree clean (no savepoint needed)                | ✓      |
-| Open PRs | `gh pr list` → **1 open: #165** CI pass, mergeable | ⚠ surfaced |
-| Files    | resume anchor below; persona-feedback SSOT synced | ✓      |
+A fact should not exist in multiple places unless one location contains only a pointer.
 
-**Resume anchor**
-- **Current state:** Persona P0 fixes in progress on branch `fix/persona-p0`. 2 of 4 fixes landed.
-- **Verified:** `npm run ci` exit 0 on current HEAD (typecheck + lint + coverage branches 88.4% + build). Docker scenario for `--with <id>` exit 0.
-- **What's left:** Fixes 3 & 4 (wizard copy + COMPATIBILITY honesty). **Open PR #165 is not merged** — publishing is blocked until P0 complete (per persona-feedback-improvements.md). Branch `fix/persona-p0` unpushed for the last 2 commits.
-- **Next action:** Implement fix 3 (wizard understanding-category copy), then re-run `npm run ci`.
+### 3. Update durable state
 
-**Suggested /compact line:**
-`/compact Resume fix/persona-p0: do fix 3 (wizard copy) next, then ci; PR #165 open & blocks publish until all 4 P0 done`
+For `MEMORY.md`:
 
-Notice what the anchor does deliberately: it leads with the **next action** (working-backwards), keeps
-the open PR visible in "what's left" instead of assuming it shipped, and separates the *verified* CI
-evidence from the *unverified* remaining fixes.
+- merge duplicates;
+- replace superseded facts;
+- remove completed transient state;
+- add only genuinely durable information;
+- keep a pointer to `.handoff/CURRENT.md`.
 
-## Pitfalls this guards against
+For ADRs:
 
-- **Lossy summary-stripping** — a headline-only handoff looks complete but is unrecoverable because
-  the evidence and reasoning chains are gone. Fix: preserve-list + ADR provenance, not a prose blob.
-- **Lost-in-the-Middle over-stuffing** — dumping full history into the new window doesn't help;
-  buried facts follow a U-shaped accuracy curve. The anchor stays short and structured.
-- **Telephone-game decay** — fidelity erodes across successive compactions. Routing load-bearing
-  facts to stable memory/ADRs breaks the degradation chain a chain of summaries can't.
-- **Non-atomic snapshot** — handing off with a half-committed tree reconstructs an inconsistent
-  state. The git leg forces a clean or savepoint-committed tree.
-- **Incomplete state save** — omitting the processed-vs-remaining boundary forces duplicate work or
-  silent re-execution of irreversible actions. The "what's left" field is mandatory.
+- confirm the decision is durable;
+- search for an equivalent ADR;
+- update or supersede when possible;
+- create a new ADR only when necessary.
+
+If there are no durable changes, leave these files unchanged.
+
+### 4. Make Git state reconstructible
+
+Preferred order:
+
+1. reuse the current meaningful commit if the tree is clean;
+2. make a normal semantic commit for a coherent completed unit when authorized;
+3. otherwise use a named stash when safe and authorized;
+4. use a temporary savepoint commit only as a last resort;
+5. if no safe write action is authorized, leave the tree unchanged and record dirty files and risk.
+
+Do not stage unrelated files. Do not create another savepoint when state has not materially changed.
+
+### 5. Overwrite `.handoff/CURRENT.md`
+
+Use this structure:
+
+```markdown
+# Compaction Resume Anchor
+
+- Updated: <ISO-8601 timestamp with timezone>
+- Repository: <name or path>
+- Branch: <branch or n/a>
+- Commit: <short SHA or n/a>
+- Working tree: <clean | concise dirty-file summary>
+- Open PRs: <none | concise status>
+
+## Current state
+<Active objective, completed work, and processed-vs-remaining boundary.>
+
+## Verified
+<Evidence only: command and exit status, reviewed diff, artifact, merged PR, or "not verified".>
+
+## What's left
+<Pending work, blockers, dirty or unpushed state, open PRs, and unresolved decisions.>
+
+## Next action
+<Exactly one executable next step, preferably naming the file, command, or decision target.>
 
 ## References
+- <Only directly useful plan/spec/ADR/PR/file references>
+```
 
-- Anthropic — *Effective context engineering for AI agents* (Compaction; Structured Note-Taking /
-  Agentic Memory): https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents
-- Hendricks.ai — Checkpoint patterns (State Completeness, Atomicity, Recovery Automation):
-  https://hendricks.ai/insights/checkpoint-patterns-long-running-ai-agent-tasks
-- XTrace — AI agent context handoff (Decisions / Artifacts / Preferences / Timeline; decision
-  provenance): https://xtrace.ai/blog/ai-agent-context-handoff
-- Architectural Decision Records (ADR) — append-only single-decision records; route load-bearing
-  decisions here so the *why* survives compaction.
-- Amazon *Working Backwards* — lead the anchor with the end state and the single next action.
+Requirements:
+
+- `Next action` is mandatory and singular.
+- `Verified` must name evidence; assumptions are not passes.
+- `What's left` must expose relevant uncommitted, unpushed, unmerged, failed, or blocked state.
+- Keep references minimal.
+
+Atomic write example:
+
+```bash
+mkdir -p .handoff
+cat > .handoff/CURRENT.md.tmp <<'ANCHOR'
+...
+ANCHOR
+mv .handoff/CURRENT.md.tmp .handoff/CURRENT.md
+```
+
+### 6. Validate
+
+```bash
+wc -l -c MEMORY.md .handoff/CURRENT.md 2>/dev/null
+git status --short
+git diff --check
+```
+
+Confirm:
+
+- anchor matches current branch and commit;
+- no old anchor was appended;
+- no transient state leaked into `MEMORY.md`;
+- no duplicate ADR was created;
+- open PR state is visible;
+- `Verified` is evidence-backed;
+- `Next action` is singular and executable.
+
+If size limits are exceeded, prune. Do not create another summary file to hide the problem.
+
+### 7. Report and suggest `/compact`
+
+```markdown
+| Check | Result | Status |
+|---|---|---|
+| Durable memory | unchanged / updated and pruned | ✓ / ⚠ |
+| ADRs | none / updated / created | ✓ / ⚠ |
+| Git snapshot | branch, commit, clean/dirty | ✓ / ⚠ |
+| Open PRs | none / concise status | ✓ / ⚠ |
+| Resume anchor | overwritten and validated | ✓ / ⚠ |
+```
+
+Then give the four resume fields in concise form and one short pointer:
+
+```text
+/compact Resume from .handoff/CURRENT.md; next: <single action>; <branch>@<sha>; <PR or dirty-state warning if material>
+```
+
+## Resume protocol
+
+After compaction, load only:
+
+1. repository instructions (`CLAUDE.md` or equivalent);
+2. `MEMORY.md`;
+3. `.handoff/CURRENT.md`;
+4. ADRs referenced by the anchor;
+5. current Git and open-PR state;
+6. source files required for the next action.
+
+Do not auto-load archives, old summaries, raw logs, or the full prior conversation. If Git conflicts
+with the anchor, Git wins; report the discrepancy before continuing.
+
+## Idempotency checks
+
+Every rerun must satisfy:
+
+- `CURRENT.md` replaced, not appended;
+- memory facts updated, not duplicated;
+- ADRs reused, updated, or superseded rather than cloned;
+- no new savepoint without material repository change;
+- one open PR represented once;
+- completed work removed from `What's left`;
+- file sizes remain stable.
+
+## Failure handling
+
+If tools or repository access are unavailable:
+
+- do not fabricate Git, PR, CI, or test status;
+- mark unavailable evidence as `not verified`;
+- create the best available anchor from known state;
+- identify missing verification as a blocker or next action when material;
+- do not claim an atomic checkpoint when repository state could not be inspected.
+
+If durable files cannot be written, do not claim that compaction is safe. Report the failure and emit
+a minimal manual resume anchor in the response.
+
+## Anti-patterns
+
+- Appending each handoff to `MEMORY.md`.
+- Keeping multiple active anchors.
+- Creating ADRs for routine task progress.
+- Copying complete logs into the anchor.
+- Loading all historical handoffs after compaction.
+- Creating a savepoint commit on every run.
+- Hiding dirty files, failed CI, unpushed commits, or open PRs.
+- Listing several possible next actions instead of one entry point.
 
 ## Related skills
 
-- **strategic-compact** — decides WHEN to compact (phase boundaries, token pressure). Pair with it:
-  it answers "compact now?", this skill executes the handoff when the answer is yes.
-- **git-policy Session Cleanup** — the open-PR check (leg 2) is the same gate; this skill folds it
-  into the pre-compaction moment.
+- **strategic-compact** — decides when to compact.
+- **git-policy Session Cleanup** — defines repository and PR cleanup expectations.
