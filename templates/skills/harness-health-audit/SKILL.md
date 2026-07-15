@@ -161,10 +161,11 @@ The loop is the cycle of reason → act → observe → verify. What makes it wo
   "Success is silent, failures are verbose. If typecheck passes, the agent hears nothing. If it fails,
   the error text gets injected into the loop and the agent self-corrects"
   ([Osmani](https://addyosmani.com/blog/agent-harness-engineering/)).
-- **Is generation separated from evaluation?** Anthropic's research, as reported by Osmani, finds
-  "separating generation from evaluation into distinct agents outperforms self-evaluation, because
-  agents reliably skew positive when grading their own work". A harness where the author is the only
-  reviewer has a known bias, not a check.
+- **Is generation separated from evaluation?** Osmani reports that Anthropic's long-running harness
+  work is explicit that "separating generation from evaluation into distinct agents outperforms
+  self-evaluation, because agents reliably skew positive when grading their own work"
+  ([Osmani](https://addyosmani.com/blog/agent-harness-engineering/)). A harness where the author is
+  the only reviewer has a known bias, not a check.
 - **Are there stopping conditions?** A loop must break on *no progress*, not only on completion.
 - **Is the checked proxy the real goal?** The canonical failure is an agent deleting a failing test to
   turn CI green — the gate passes, the objective is lost.
