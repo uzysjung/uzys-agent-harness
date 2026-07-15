@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.97.0] — 2026-07-15 (feat: compaction-handoff = 스냅샷 기반 재설계)
+
+출하 스킬 `compaction-handoff`(official, has-dev-track)를 **append 기반 → snapshot 기반**으로 재설계. 반복 실행 시 `MEMORY.md`가 작업 로그처럼 비대해지고 과거·현재 핸드오프가 섞여 "최신 상태 식별 실패 / lost-in-the-middle / 전화게임 변형"으로 컴팩션 품질이 되레 떨어지던 문제 해소. 상태·보존정책(retention)을 명시하고 idempotency를 계약으로 못박음. 설계 근거 ADR-026.
+
+### Changed
+- **단일 resume 앵커 = `.handoff/CURRENT.md` (매 핸드오프 덮어쓰기, append 금지)** — 4 고정필드(Current state / Verified / What's left / Next action) + 120줄/12KB 상한. 과거 앵커는 기본 비보존(`.handoff/archive/`는 opt-in, resume 시 자동 로드 금지).
+- **`MEMORY.md` = 로그 아님, 현재상태 인덱스** — durable fact + ADR/앵커 포인터만. 완료 이력·테스트 실패·raw output 제외, 200줄/20KB 상한. append-near-duplicate 대신 갱신·교체.
+- **ADR 생성 기준 엄격화** — 되돌리기 어려운 결정(아키텍처/데이터모델/호환성/보안경계/배포)만. 브랜치명·태스크 순서·임시 workaround·오늘 남은 작업은 ADR 금지(→ `.handoff/CURRENT.md`).
+- **Git savepoint = 조건부** — 의미단위 커밋 > named stash > (최후) savepoint 커밋. 변화 없으면 재savepoint 금지.
+- **Resume 시 과거 핸드오프 자동 재주입 금지** — CLAUDE.md/MEMORY.md/CURRENT.md/참조 ADR/현재 git·PR 상태/다음 액션에 필요한 소스만 로드.
+- **Idempotency 계약 + failure-handling** — 재실행이 상태파일을 무한 증식시키지 않음을 명세. 도구/저장소 접근 불가 시 상태 조작·거짓 주장 금지(no-false-ship 정합).
+
+### Added
+- `.gitignore`에 `.handoff/` 추가 — transient resume 앵커는 세션 스크래치(기존 `.claude/skills/`·checkpoint 아티팩트와 동일 컨벤션), main 오염 방지.
+
+> 참고: `.handoff/CURRENT.md`는 **사용자 프로젝트**에 생성되는 산출물이며, 커맨드·자동채움 없음(스킬 지시대로 에이전트가 작성/덮어쓰기). 카탈로그 자산 수·설치 경로(4-CLI)·광고 문구는 불변 — 스킬 본문(methodology)만 교체.
+
 ## [v26.96.0] — 2026-07-15 (feat: 프로젝트 CLAUDE.md/AGENTS.md = fill-in 스캐폴드)
 
 설치 시 딸려오던 프로젝트 `CLAUDE.md`(그리고 `AGENTS.md`)가 일반론 boilerplate라 "의미없다"는 지적 해소. 정적 트랙 fragment 병합을 폐기하고, harness 관점 필수 6섹션을 **embed된 `<!-- FILL: -->` 프롬프트 스캐폴드**로 출하. 인스톨러는 LLM을 돌리지 않으므로(순수 Node CLI) 채우기는 **post-install**: 설치 콘솔 안내 + 파일 내 주석 프롬프트를 사용자가 자기 CLI 에이전트에 복붙 실행(신규 커맨드 없음). 안 채워도 파일은 정직(placeholder)·유효. 설계 근거 ADR-025.
