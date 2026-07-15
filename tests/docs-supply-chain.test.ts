@@ -86,6 +86,42 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
       `index.html 카탈로그 총계 분모 ≠ EXTERNAL_ASSETS.length(${total})`,
     ).toBe(total);
   });
+
+  // WHY (v26.98.0): 위 2 게이트는 index.html·COMPATIBILITY 만 봤다. 그래서 harness-health-audit
+  //   추가(59→60) 시 README·로드맵·제출 kit 의 총계가 stale 로 남았는데도 `npm run ci` 가 green
+  //   이었다 — 게이트가 커버하지 않는 표면이 곧 drift 서식지. no-false-ship: "동일 목록이 2곳 이상
+  //   하드코딩되면 derive 단일화 또는 exhaustiveness 테스트 없이 머지 금지". 사용자 도달 문서
+  //   (README = 첫 인상, 제출 kit = 대외 홍보, 로드맵 = ship-checklist 가 SSOT 로 명시)까지 확장한다.
+  //   패턴 `N/M assets` · `카탈로그(M)` 형태의 분모가 EXTERNAL_ASSETS.length 와 어긋나면 fail.
+  it.each([
+    ["README.md", /(\d+)\s*\/\s*(\d+)\s+assets green/],
+    ["docs/research/adoption-c2-submission-kit.md", /(\d+)\s*\/\s*(\d+)\s+assets/],
+  ])(`%s 의 카탈로그 총계 분모가 ${total}`, (file, pattern) => {
+    const text = readFileSync(file, "utf-8");
+    const m = text.match(pattern as RegExp);
+    expect(m, `${file}: 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요`).not.toBeNull();
+    expect(
+      Number((m as RegExpMatchArray)[2]),
+      `${file} 카탈로그 총계 분모 ≠ EXTERNAL_ASSETS.length(${total}) — 자산 추가/제거 후 문서 미갱신`,
+    ).toBe(total);
+  });
+
+  it(`로드맵(ship-checklist SSOT)에 stale 카탈로그 총계 없음`, () => {
+    const text = readFileSync("docs/plans/service-audit-roadmap.md", "utf-8");
+    // 살아있는 작업 지칭에 쓰인 총계만 대상 — "카탈로그(N)" / "현 N 자산" / "N 전수".
+    const live = [...text.matchAll(/카탈로그\((\d+)\)|현 (\d+) 자산|(\d+) 자산 각각/g)];
+    expect(
+      live.length,
+      "로드맵 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
+    ).toBeGreaterThan(0);
+    for (const m of live) {
+      const n = Number(m[1] ?? m[2] ?? m[3]);
+      expect(
+        n,
+        `로드맵 stale 총계 "${m[0]}" ≠ ${total} — ship-checklist 의 로드맵 SSOT 동기화 누락`,
+      ).toBe(total);
+    }
+  });
 });
 
 // WHY: adoption-c2-submission-kit 이 README 정정(51/61·plugin Claude-first)을 안 따라가
