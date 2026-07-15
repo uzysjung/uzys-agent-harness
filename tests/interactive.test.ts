@@ -507,11 +507,13 @@ describe("computeUserOverride", () => {
     "northstar-roadmap",
     // v26.93.0 — dev-method 7번째 (model-orchestration).
     "model-orchestration",
+    // v26.98.0 — dev-method 8번째 (harness-health-audit).
+    "harness-health-audit",
   ];
 
   it("selections == recommended → undefined (no override)", () => {
     // v26.71.0 — tooling 추천은 vetted 만 (T3 architecture-decision-record/playwright-skill 제외).
-    // v26.87.0 — + dev-method skills 6종 (official).
+    // v26.87.0 — + dev-method skills (official). v26.98.0 기준 8종.
     expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });
 
