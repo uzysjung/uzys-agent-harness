@@ -123,7 +123,8 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
  * v26.99.0 — Dev 단일 페이지가 37행(옵션 32 + 헤더 5)으로 위 "≤ ~30" 제약을 스스로 위반하고
  * 있었다(실측). 터미널을 넘겨 스크롤이 생기는 것이 사용자가 보고한 "선택 row 가 너무 많다"의
  * 실제 메커니즘. → Dev 를 도메인(Core)과 도구(Tools)로 분할. 번들링(아래 DEV_METHOD_BUNDLE)만으론
- * 34행이라 부족했다 — Dev 32항목 중 dev-method 는 4개뿐이므로. ADR-028.
+ * 33행이라 부족했다 — Dev 32항목 중 dev-method 는 4개뿐이고, 번들 row 는 workflow 에 렌더되어
+ * Dev 페이지에 남지 않으므로 37-4=33. ADR-028.
  *
  * 페이지 묶음 (전 페이지 ≤ 30 행):
  *   Page 1: Dev Core     — frontend + backend + data                (20행)
@@ -168,8 +169,12 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
  */
 export const DEV_METHOD_BUNDLE_VALUE = "bundle:dev-method";
 
-/** 번들 row 가 렌더되는 카테고리 — 방법론 = 개발 사이클 도구라 workflow. */
-const DEV_METHOD_BUNDLE_CATEGORY: Category = "workflow";
+/**
+ * 번들 row 가 렌더되는 카테고리 — 방법론 = 개발 사이클 도구라 workflow.
+ * export = SSOT (테스트가 `"workflow"` 를 재차 하드코딩하면 번들 위치 변경 시 게이트 수식이
+ * 렌더와 조용히 갈린다 — no-false-ship "2곳 이상 하드코딩 금지").
+ */
+export const DEV_METHOD_BUNDLE_CATEGORY: Category = "workflow";
 
 const bundleMemberValues = (): ReadonlyArray<string> =>
   DEV_METHOD_SKILL_IDS.map((id) => `asset:${id}`);
@@ -186,6 +191,78 @@ export function collapseDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArr
 export function expandDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArray<string> {
   const rest = ids.filter((v) => v !== DEV_METHOD_BUNDLE_VALUE);
   return ids.includes(DEV_METHOD_BUNDLE_VALUE) ? [...rest, ...bundleMemberValues()] : rest;
+}
+
+export interface PageItem {
+  value: string;
+  label: string;
+  hint?: string;
+}
+
+/**
+ * v26.99.0 (ADR-028) — Step 3 한 페이지의 group/item 구성. clack 의존 0 인 순수 함수.
+ *
+ * `selectInstallTargets` 안의 클로저였으나 export 로 승격했다 (SOD 리뷰 Important #2):
+ * **이 함수가 dev-method 8종을 wizard 에서 도달 가능하게 만드는 유일한 코드**인데, 테스트가
+ * 하나도 닿지 않았다. `wizard-page-parity` 는 "자산의 **카테고리**가 페이지에 있다"만 보는데,
+ * 8종은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 8종에 대해
+ * 비논리(non sequitur)다 — 번들 row 블록을 지워도 parity 는 통과하고 CI 는 green 인 채
+ * 8종이 **어디서도 선택 불가**가 된다. v26.78.0 거짓출하의 정확한 재현이다.
+ * (`prompts.ts` 는 coverage 제외 대상이라 커버리지 수치도 이 코드에 대해 아무 보장을 못 준다.)
+ */
+export function buildPageGroups(
+  cats: ReadonlyArray<Category>,
+  initialSet: ReadonlySet<string>,
+): { groups: Record<string, PageItem[]>; flatItems: PageItem[] } {
+  const groups: Record<string, PageItem[]> = {};
+  const flatItems: PageItem[] = [];
+  for (const cat of cats) {
+    const items: PageItem[] = [];
+    for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
+      items.push({
+        value: `option:${o.key}`,
+        // v26.62.3 — group header 와 옵션 사이 시각 hierarchy 강화. label prefix 4 space.
+        label: `    ${o.label}  [${o.source}]`,
+        hint: o.hint,
+      });
+    }
+    // v26.99.0 (ADR-028) — 방법론 번들 row. 개별 8행 대신 1행. hint 에 구성원 id 를 전부
+    //   노출 — 접는 것이 "무엇이 설치되는지" 를 숨기면 안 된다.
+    if (cat === DEV_METHOD_BUNDLE_CATEGORY) {
+      items.push({
+        value: DEV_METHOD_BUNDLE_VALUE,
+        label: `    uzys 하네스 방법론 ${DEV_METHOD_SKILL_IDS.length}종  [uzys]  ★ official`,
+        hint: DEV_METHOD_SKILL_IDS.join(", "),
+      });
+    }
+    // v26.71.0 (PRD v26-71) — tier 우선 정렬 (official → vetted → experimental) + 배지.
+    const tierOrder = { official: 0, vetted: 1, experimental: 2 } as const;
+    const devMethod = new Set<string>(DEV_METHOD_SKILL_IDS);
+    const catAssets = [...EXTERNAL_ASSETS.filter((x) => x.category === cat)]
+      // 번들 구성원은 개별 row 로 렌더하지 않는다 (번들 1행이 대표).
+      .filter((x) => !devMethod.has(x.id))
+      .sort((a, b) => tierOrder[assetTrustTier(a.id)] - tierOrder[assetTrustTier(b.id)]);
+    for (const a of catAssets) {
+      const tier = assetTrustTier(a.id);
+      const badge =
+        tier === "official"
+          ? "  ★ official"
+          : tier === "experimental"
+            ? "  ⚠ experimental (opt-in)"
+            : "";
+      items.push({
+        value: `asset:${a.id}`,
+        label: `    ${a.id}  [${a.source}]${badge}`,
+        hint: a.description,
+      });
+    }
+    if (items.length === 0) continue;
+    const selectedInCat = items.filter((it) => initialSet.has(it.value)).length;
+    const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
+    groups[header] = items;
+    flatItems.push(...items);
+  }
+  return { groups, flatItems };
 }
 
 /**
@@ -327,59 +404,6 @@ export const defaultPrompts: Prompts = {
     const initialSet = new Set<string>(displayInitial);
     const collected = new Set<string>(displayInitial);
 
-    const buildPageGroups = (cats: ReadonlyArray<Category>) => {
-      const groups: Record<string, Array<{ value: string; label: string; hint?: string }>> = {};
-      const flatItems: Array<{ value: string; label: string; hint?: string }> = [];
-      for (const cat of cats) {
-        const items: Array<{ value: string; label: string; hint?: string }> = [];
-        for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
-          items.push({
-            value: `option:${o.key}`,
-            // v26.62.3 — group header 와 옵션 사이 시각 hierarchy 강화. label prefix 4 space.
-            label: `    ${o.label}  [${o.source}]`,
-            hint: o.hint,
-          });
-        }
-        // v26.99.0 (ADR-028) — 방법론 번들 row. 개별 8행 대신 1행. workflow 카테고리 선두에
-        //   (official 이므로 tier 정렬상으로도 맨 앞). hint 에 구성원 id 를 전부 노출 —
-        //   접는 것이 "무엇이 설치되는지" 를 숨기면 안 된다.
-        if (cat === DEV_METHOD_BUNDLE_CATEGORY) {
-          items.push({
-            value: DEV_METHOD_BUNDLE_VALUE,
-            label: `    uzys 하네스 방법론 ${DEV_METHOD_SKILL_IDS.length}종  [uzys]  ★ official`,
-            hint: DEV_METHOD_SKILL_IDS.join(", "),
-          });
-        }
-        // v26.71.0 (PRD v26-71) — tier 우선 정렬 (official → vetted → experimental) + 배지.
-        const tierOrder = { official: 0, vetted: 1, experimental: 2 } as const;
-        const devMethod = new Set<string>(DEV_METHOD_SKILL_IDS);
-        const catAssets = [...EXTERNAL_ASSETS.filter((x) => x.category === cat)]
-          // 번들 구성원은 개별 row 로 렌더하지 않는다 (번들 1행이 대표).
-          .filter((x) => !devMethod.has(x.id))
-          .sort((a, b) => tierOrder[assetTrustTier(a.id)] - tierOrder[assetTrustTier(b.id)]);
-        for (const a of catAssets) {
-          const tier = assetTrustTier(a.id);
-          const badge =
-            tier === "official"
-              ? "  ★ official"
-              : tier === "experimental"
-                ? "  ⚠ experimental (opt-in)"
-                : "";
-          items.push({
-            value: `asset:${a.id}`,
-            label: `    ${a.id}  [${a.source}]${badge}`,
-            hint: a.description,
-          });
-        }
-        if (items.length === 0) continue;
-        const selectedInCat = items.filter((it) => initialSet.has(it.value)).length;
-        const header = `${CATEGORY_TITLES[cat]}  [${selectedInCat}/${items.length} ✓ default]`;
-        groups[header] = items;
-        flatItems.push(...items);
-      }
-      return { groups, flatItems };
-    };
-
     const recapLine = recap
       ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}`
       : "";
@@ -393,7 +417,7 @@ export const defaultPrompts: Prompts = {
       while (pageIdx < pages.length) {
         const page = pages[pageIdx];
         if (!page) break;
-        const { groups, flatItems } = buildPageGroups(page.cats);
+        const { groups, flatItems } = buildPageGroups(page.cats, initialSet);
         const selectedNow = flatItems.filter((it) => collected.has(it.value)).map((it) => it.value);
         const pageDefault = flatItems.filter((it) => initialSet.has(it.value)).length;
         const totalSelected = collected.size;

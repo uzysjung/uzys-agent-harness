@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
+import type { Category } from "../src/categories.js";
 import { DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "../src/external-assets.js";
+import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import {
+  buildPageGroups,
   collapseDevMethodBundle,
+  DEV_METHOD_BUNDLE_CATEGORY,
   DEV_METHOD_BUNDLE_VALUE,
   expandDevMethodBundle,
   INSTALL_TARGET_PAGES,
 } from "../src/prompts.js";
+import type { Track } from "../src/types.js";
 
 const members = () => DEV_METHOD_SKILL_IDS.map((id) => `asset:${id}`);
 
@@ -54,21 +59,83 @@ describe("dev-method 번들 접기/펼치기 (ADR-028)", () => {
   });
 
   /**
-   * all-or-none 불변식. 접기는 "멤버가 하나라도 있으면 번들 체크"로 동작하므로, 8종이 서로 다른
-   * condition 을 갖게 되면 recommended 가 부분집합이 되고 → 접기가 나머지를 **조용히 추가**한다
-   * (사용자가 고르지 않은 자산 설치 = no-false-ship 위반). 조건이 같은 한 부분집합은 생기지 않는다.
-   * 이 테스트는 그 전제를 코드로 못박는다 — 누군가 dev-method 하나의 condition 을 바꾸면 즉시 실패.
+   * all-or-none 불변식 — 이 설계의 안전성 전체가 여기 걸려 있다.
+   *
+   * 접기는 "멤버가 하나라도 있으면 번들 체크"이므로, **부분집합이 접기에 도달하면** 펼치기가
+   * 나머지를 **조용히 추가**한다 = 사용자가 고르지 않은 자산 설치(no-false-ship 위반).
+   *
+   * v26.99.0 초안은 이를 `condition.kind` 가 전부 같은지로 단언했다 — **프록시였고 불충분했다**
+   * (SOD 리뷰 Important #1). `recommendedExternalAssets` 는 **2축**으로 거른다:
+   *   ① condition (`filterApplicableAssets`)  ② `tier !== "experimental"` (preset-recommend.ts:29)
+   * 그래서 `tier: experimental` + `has-dev-track` 인 dev-method 가 생기면 condition 단언은
+   * **통과**하면서 recommended 는 진부분집합이 되고 → 접기가 experimental 자산을 강제 설치한다
+   * (T3 opt-in 정책 우회 — PRD v26-71 R6/AC4).
+   *
+   * → 프록시 대신 **실제 생산자**를 단언한다: recommended ∩ members ∈ {∅, 전체}.
+   *   축이 몇 개든, 앞으로 필터가 추가되든 참인 진짜 속성.
    */
-  it("불변식: dev-method 8종은 모두 같은 condition(has-dev-track) — 부분선택 불가", () => {
-    const conds = DEV_METHOD_SKILL_IDS.map((id) => {
-      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
-      if (!a) throw new Error(`dev-method 자산 누락: ${id}`);
-      return a.condition.kind;
-    });
-    expect(
-      new Set(conds),
-      "dev-method condition 이 갈리면 번들 접기가 자산을 조용히 추가한다",
-    ).toEqual(new Set(["has-dev-track"]));
+  it("불변식: recommended ∩ 방법론멤버 ∈ {∅, 전체} — 부분집합이면 접기가 자산을 조용히 추가", () => {
+    const memberIds = new Set<string>(DEV_METHOD_SKILL_IDS);
+    // dev 트랙(방법론 추천됨) + non-dev 트랙(추천 안 됨) 양쪽에서 확인.
+    for (const tracks of [["tooling"], ["csr-supabase"], ["executive"], []] as Track[][]) {
+      const rec = recommendedExternalAssets(tracks).filter((id) => memberIds.has(id));
+      expect(
+        rec.length === 0 || rec.length === DEV_METHOD_SKILL_IDS.length,
+        `tracks=[${tracks.join(",")}] 에서 recommended 가 방법론 ${rec.length}/${DEV_METHOD_SKILL_IDS.length} 개 = 부분집합 → ` +
+          "접기(anyMember→체크) + 펼치기(→전체)가 사용자가 고르지 않은 자산을 설치한다. " +
+          "원인 후보: 멤버 간 condition 불일치, 또는 tier=experimental 멤버(preset-recommend 가 거름).",
+      ).toBe(true);
+    }
+  });
+});
+
+/**
+ * WHY (SOD 리뷰 Important #2): `buildPageGroups` 는 **dev-method 8종을 wizard 에서 도달 가능하게
+ * 만드는 유일한 코드**인데 테스트가 하나도 닿지 않았다. 8종은 자기 카테고리(dev-tools·workflow)에서
+ * 필터링되고 번들 row 로만 대표되므로, `wizard-page-parity`("자산의 카테고리가 페이지에 있다")는
+ * 이 8종에 대해 **더 이상 도달성을 증명하지 않는다**(비논리). 번들 row 블록을 지우면 8종이
+ * **어디서도 선택 불가**가 되는데 parity·행수·collapse/expand 테스트가 전부 통과하고 CI 는 green —
+ * v26.78.0 거짓출하("wizard 에서 선택 가능"이 거짓)의 정확한 재현. 그래서 렌더를 직접 단언한다.
+ */
+describe("wizard 렌더: 번들 row 도달성 (ADR-028)", () => {
+  const render = (cats: ReadonlyArray<Category>) => buildPageGroups(cats, new Set<string>());
+
+  it("번들 row 가 실제로 렌더된다 — 8종의 유일한 wizard 도달 경로", () => {
+    const { flatItems } = render([DEV_METHOD_BUNDLE_CATEGORY]);
+    const row = flatItems.find((i) => i.value === DEV_METHOD_BUNDLE_VALUE);
+    expect(row, "번들 row 미렌더 → 방법론 8종이 wizard 어디서도 선택 불가").toBeDefined();
+  });
+
+  it("번들 row 가 구성원 id 를 전부 노출한다 — 접기가 '무엇이 설치되는지'를 숨기지 않는다", () => {
+    const { flatItems } = render([DEV_METHOD_BUNDLE_CATEGORY]);
+    const row = flatItems.find((i) => i.value === DEV_METHOD_BUNDLE_VALUE);
+    for (const id of DEV_METHOD_SKILL_IDS) expect(row?.hint ?? "").toContain(id);
+  });
+
+  it("어느 페이지에서도 방법론 멤버가 개별 row 로 렌더되지 않는다 (= 8행 압축 성립)", () => {
+    for (const page of INSTALL_TARGET_PAGES) {
+      const { flatItems } = render(page.cats);
+      for (const id of DEV_METHOD_SKILL_IDS) {
+        expect(
+          flatItems.map((i) => i.value),
+          `${page.label} 에 개별 row \`asset:${id}\` 잔존 → 번들과 중복 표시`,
+        ).not.toContain(`asset:${id}`);
+      }
+    }
+  });
+
+  it("번들 구성원을 제외한 모든 자산은 여전히 개별 row 로 도달 가능 (누락 0)", () => {
+    const rendered = new Set(
+      INSTALL_TARGET_PAGES.flatMap((p) => render(p.cats).flatItems.map((i) => i.value)),
+    );
+    const members = new Set<string>(DEV_METHOD_SKILL_IDS);
+    for (const a of EXTERNAL_ASSETS) {
+      if (members.has(a.id)) continue;
+      expect(
+        rendered,
+        `자산 "${a.id}" 가 어떤 wizard 페이지에도 렌더되지 않음 → 선택 불가`,
+      ).toContain(`asset:${a.id}`);
+    }
   });
 });
 
@@ -84,15 +151,11 @@ describe("wizard 페이지 행수 상한 (ADR-028)", () => {
   it.each(
     INSTALL_TARGET_PAGES.map((p) => [p.label, p] as const),
   )(`%s: 표시 행수 ≤ ${MAX_ROWS}`, (_label, page) => {
-    let rows = 0;
-    for (const cat of page.cats) {
-      const devMethod = new Set<string>(DEV_METHOD_SKILL_IDS);
-      const assets = EXTERNAL_ASSETS.filter((a) => a.category === cat && !devMethod.has(a.id));
-      const bundleRow = cat === "workflow" ? 1 : 0;
-      const items = assets.length + bundleRow;
-      if (items === 0) continue;
-      rows += items + 1; // + 카테고리 헤더
-    }
+    // 렌더 수식을 재구현하지 않고 buildPageGroups 의 **실제 출력**을 센다 (SOD 리뷰 Nit #1).
+    //   초안은 `cat === "workflow" ? 1 : 0` 로 번들 위치를 재차 하드코딩했다 — 번들이 옮겨지면
+    //   게이트 수식이 렌더와 조용히 갈려 "≤30" 수치가 허구가 되면서도 green 을 유지한다.
+    const { groups } = buildPageGroups(page.cats, new Set<string>());
+    const rows = Object.values(groups).reduce((n, items) => n + items.length + 1, 0); // + 헤더
     expect(
       rows,
       `${page.label} 가 ${rows}행 — 상한 ${MAX_ROWS} 초과. 페이지를 더 쪼개거나 묶을 것 (터미널 스크롤 발생)`,
