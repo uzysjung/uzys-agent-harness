@@ -18,9 +18,12 @@ dev-method 스킬 8번째 신설(official, has-dev-track). 2026-07-14 3개 프�
 
 ### Changed
 - `DEV_METHOD_SKILL_IDS` 7 → **8**, `EXTERNAL_ASSETS` 59 → **60** (dev-tools×4 + workflow×4).
-- **stale count drift 3건 정정** (본 자산 추가 중 발견 — A4 검사가 잡는 바로 그 유형): `external-assets.ts` "방법론 skill 6종"→8종, `INTERNAL_BUNDLED_SKILL_IDS` 주석 "7"→8, `interactive.test.ts` "dev-method skills 6종"→8종. `docs/COMPATIBILITY.md`의 **수동** 요약줄(자동생성 블록 위) 49/59→49/60 · dev-method 7종→8종 · 나머지 10→11.
+- **stale count drift 9건 정정** (본 자산 추가 중 발견 — A4 검사가 잡는 바로 그 유형): `external-assets.ts` 헤더 주석 "61 자산"→60 · "방법론 skill 6종"→8종 ×2 · `INTERNAL_BUNDLED_SKILL_IDS` 주석 "7"→8, `interactive.test.ts` "dev-method skills 6종"→8종, `docs/COMPATIBILITY.md` **수동** 요약줄(자동생성 블록 위) 49/59→49/60 · 7종→8종 · 나머지 10→11, `README.md`·`docs/plans/service-audit-roadmap.md`·`adoption-c2-submission-kit.md` 총계 60, `package-lock.json` 구 패키지명(v26.83.0 RENAME 이후 4릴리즈 stale).
+- **총계 게이트 확장** (`tests/docs-supply-chain.test.ts`) — 기존엔 `index.html`·`COMPATIBILITY` 만 검사해 README·로드맵·kit·**소스 주석**의 stale 이 `npm run ci` green 을 통과했다. `EXTERNAL_ASSETS.length`·`DEV_METHOD_SKILL_IDS.length` 에서 derive 해 대조하도록 5표면으로 확장(+4 tests, RED 실증). 게이트가 커버하지 않는 표면이 곧 drift 서식지 — no-false-ship "2곳 이상 하드코딩 → derive 또는 exhaustiveness 테스트".
 
-> 정직 표기: 신규 자산은 `🟡 local` — **Docker 실설치 미검증**(내부 템플릿). 스킬 자체의 감사 실행 검증도 미수행 — 방법론 문서 자산이라 코드 게이트로 강제 불가(ADR-027 Consequences).
+> 정직 표기: 신규 자산은 `🟡 local` — **Docker 실설치 미검증**(내부 템플릿). 스킬 자체의 감사 실행 검증도 미수행 — 방법론 문서 자산이라 코드 게이트로 강제 불가(ADR-027 Consequences (a)).
+>
+> **알려진 갭 — 안전(SAFETY) 축 부재** (독립 SOD 리뷰가 지적): A/B/C 는 위험한 하네스를 통과시킨다 (unpinned `curl \| sh` 훅 = 정확+작동+한 줄 → clean). 완전성 단언을 철회하고 안전을 상시 렌즈로 명시 + 리포트에 `Safety concerns` 행 강제(빈 값 = "none seen — not a clean bill"). **4번째 축 신설은 후속** (ADR-027 Consequences (z)).
 
 ## [v26.97.0] — 2026-07-15 (feat: compaction-handoff = 스냅샷 기반 재설계)
 

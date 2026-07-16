@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { EXTERNAL_ASSETS } from "../src/external-assets.js";
+import { DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "../src/external-assets.js";
 
 // WHY: unscoped `agent-harness` 는 npm 에 실재하는 제3자 패키지다
 //   (`agent-harness@0.0.1`, maintainer quuu — 본 프로젝트와 무관, 2025-08 게시).
@@ -120,6 +120,43 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
         n,
         `로드맵 stale 총계 "${m[0]}" ≠ ${total} — ship-checklist 의 로드맵 SSOT 동기화 누락`,
       ).toBe(total);
+    }
+  });
+
+  // WHY (v26.98.0, SOD 리뷰 Important #1): 위 게이트들은 **문서만** 본다. 그래서
+  //   `external-assets.ts:164` 헤더 주석의 "61 자산 … dev-method skills 6종"이 살아남았다 —
+  //   78줄 아래 :242 의 동일 문자열은 고쳐졌는데도. 카탈로그를 정의하는 파일 자신의 주석이
+  //   카탈로그 수를 틀리게 말하는 상태이고, 하필 ADR-027 이 자기증명 근거로 삼는 파일이다.
+  //   소스 주석은 사용자에게 도달하진 않지만 **다음 기여자가 읽는 1차 정보**이므로 drift 원천.
+  //   no-false-ship: "동일 목록이 2곳 이상 하드코딩 → derive 또는 exhaustiveness 테스트".
+  it(`src/external-assets.ts 주석의 자산 총계·dev-method 수가 실제와 일치`, () => {
+    const text = readFileSync("src/external-assets.ts", "utf-8");
+    const devMethodCount = DEV_METHOD_SKILL_IDS.length;
+
+    // "N 자산 매트릭스" 헤더 — 카탈로그 총계 단언.
+    const totals = [...text.matchAll(/(\d+) 자산 매트릭스/g)];
+    const header = totals[0];
+    expect(
+      header,
+      "'N 자산 매트릭스' 헤더 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
+    ).toBeDefined();
+    expect(totals.length, "'N 자산 매트릭스' 헤더가 2곳 이상 — SSOT 위반").toBe(1);
+    expect(
+      Number((header as RegExpExecArray)[1]),
+      `external-assets.ts 주석 "${(header as RegExpExecArray)[0]}" ≠ EXTERNAL_ASSETS.length(${total})`,
+    ).toBe(total);
+
+    // "dev-method skills N종" / "방법론 skill N종" — dev-method 수 단언.
+    const dm = [...text.matchAll(/dev-method skills (\d+)종|방법론 skill (\d+)종/g)];
+    expect(
+      dm.length,
+      "dev-method 수 주석 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
+    ).toBeGreaterThan(0);
+    for (const m of dm) {
+      expect(
+        Number(m[1] ?? m[2]),
+        `external-assets.ts 주석 "${m[0]}" ≠ DEV_METHOD_SKILL_IDS.length(${devMethodCount})`,
+      ).toBe(devMethodCount);
     }
   });
 });

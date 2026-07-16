@@ -35,7 +35,7 @@ Harnesses fail in two different ways, and most audits only catch the first:
   the rules are too long to be followed, and the loop closes on the agent's own say-so instead of a
   real check. A perfectly accurate harness that nothing obeys is still a broken harness.
 
-This audit covers both.
+This audit targets both. It does not claim to catch everything — see the safety gap named below.
 
 ## Run the deterministic linter first
 
@@ -68,14 +68,25 @@ rewrite. A harness that still works must survive the audit almost untouched. Two
 
 ## The three questions
 
-Every check belongs to exactly one. Run them in this order: truth is cheapest, economy needs the
-whole picture.
+Run them in this order: truth is cheapest, economy needs the whole picture.
 
 | | Question | Failure it catches |
 |---|---|---|
 | **A** | **Is it TRUE?** | The harness asserts a world the repo left behind |
 | **B** | **Is it USED?** | The harness is accurate but inert — nothing triggers, nothing verifies |
 | **C** | **Is it AFFORDABLE?** | The harness is accurate and well-designed but too big to be followed |
+
+**These three are not exhaustive, and the gap that matters most is safety.** A harness can be TRUE,
+USED, and AFFORDABLE and still be dangerous: a hook that pipes an unpinned remote script straight
+into a shell, or a rule that tells the agent to skip permission prompts, is accurate (it describes
+what it does), live (it fires), and cheap (one line) — so all three questions pass it. The
+deterministic linters cover *form* safety (secrets, `.env` hygiene, action SHA-pinning); what they
+cannot judge is whether a live, accurate instruction is a bad idea.
+
+So: **when a check reveals something dangerous, report it — do not discard it because it fits no
+question.** Treat safety as a standing lens over A/B/C rather than a fourth pass, and say plainly in
+the report that safety was judged ad hoc, not systematically. A dedicated safety axis is a known gap
+in this skill, not a solved problem.
 
 ---
 
@@ -183,13 +194,15 @@ Presence is not obedience. HumanLayer states it directly: "Claude will ignore th
 `CLAUDE.md` if it decides that it is not relevant to its current task"
 ([HumanLayer](https://www.humanlayer.dev/blog/writing-a-good-claude-md)).
 
-**Measure:** where transcripts or recent work exist, pick a few load-bearing rules and check whether
-the work actually followed them. A rule that is routinely violated without consequence is either
-mis-placed (it should be a hook or linter, not a sentence) or dead.
-**Action:** **move** deterministic rules into deterministic enforcement; **flag** rules that are
-stated but never observed to bind.
-**Honest limit:** adherence cannot be measured from files alone. Without transcripts, report this
-check as **unverified** rather than guessing.
+**Run this check only when transcripts or recent work are available to read.** Adherence cannot be
+measured from files alone — without that evidence the check has nothing to say, so skip it and record
+it as **unverified** rather than manufacturing a verdict. (Its one file-visible residue — "a rule a
+program could enforce belongs in the program" — is C2's job; leave it there rather than duplicating
+the finding here.)
+
+**Measure:** pick a few load-bearing rules and check whether the work actually followed them. A rule
+routinely violated without consequence is either mis-placed or dead.
+**Action:** **flag** rules that are stated but never observed to bind. Route mis-placed ones to C2.
 
 ---
 
@@ -298,10 +311,13 @@ Deterministic linter: <tool + score, or "none available">
 
 **Unverified (could not measure):** <list, or "none">
 **Kept-and-flagged (not proven dead/wrong):** <list, or "none">
+**Safety concerns (ad-hoc lens, not a systematic pass):** <list, or "none seen — not a clean bill">
 ```
 
-Always print the *Unverified* and *Kept-and-flagged* rows even when empty. A clean table that hides a
-blind spot is itself a drift.
+Always print the *Unverified*, *Kept-and-flagged*, and *Safety* rows even when empty. A clean table
+that hides a blind spot is itself a drift. The safety row's empty value is "none seen", never "none"
+— the audit has no systematic safety pass, so silence there is absence of evidence, not evidence of
+absence.
 
 ## Anti-patterns
 
@@ -319,6 +335,10 @@ blind spot is itself a drift.
 
 ## Honest limitations
 
+- **No systematic safety pass.** A/B/C can all pass on a harness that is accurate, live, cheap, and
+  unsafe (an unpinned `curl | sh` hook; a rule waiving permission prompts). Safety is a lens applied
+  ad hoc, and the linters only cover form-level safety — so a clean audit is not a safety clearance.
+  Say so in the report.
 - **Presence ≠ adherence.** A correct rule can still be ignored; the model decides relevance. Only
   observation reveals whether a rule binds — files alone cannot.
 - **No published utilization metric.** There is no authoritative trigger-rate measure to cite; report
