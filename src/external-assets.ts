@@ -51,6 +51,8 @@ export type ExternalAssetMethod =
         | "northstar-roadmap"
         // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
         | "model-orchestration"
+        // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy 3질문). ADR-027.
+        | "harness-health-audit"
         // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
         | "gemini-consult";
     };
@@ -159,7 +161,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 61 자산 매트릭스 (v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 6종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 60 자산 매트릭스 (v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -237,7 +239,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Dev-method skills (uzys 1st-party, v26.87.0) ===
-  // 본 하네스의 작업 방법론 skill 6종 (repo-bundled templates). tier official, core on dev tracks
+  // 본 하네스의 작업 방법론 skill 8종 (repo-bundled templates). tier official, core on dev tracks
   // (has-dev-track → 기본 설치; wizard uncheck / --without <id> 로 제외 가능 — isAssetSelected 게이팅).
   {
     id: "multi-persona-review",
@@ -312,6 +314,23 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "model-orchestration" },
+  },
+  // v26.98.0 — 하네스 건강 감사 (ADR-027). 어제(2026-07-14) 3개 프로젝트 교차 하네스 교정
+  //   작업에서 추출한 방법론 + 리서치 근거(context rot·lost-in-the-middle·skill undertriggering·
+  //   Ratchet). 기존 5분류(드리프트=정확성만)에서 3질문(A truth / B efficacy / C economy)으로
+  //   재설계 — "맞는 말인데 아무것도 안 일어나는" 하네스와 "다 맞는데 너무 길어 안 지켜지는"
+  //   하네스를 잡는다. 결정적 경계: 결정론적 린터(AgentLint/cclint)가 할 수 있는 form 검사는
+  //   위임하고, 린터가 구조적으로 못 하는 판단(이 단언이 이 repo 의 진짜 스택인가 / 이 훅이
+  //   실제로 fire 하는가 / 이 스킬이 트리거되는가)만 모델이 한다 (CLAUDE.md Rule 5 정합).
+  {
+    id: "harness-health-audit",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 3 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · ECONOMY (inside the budget where rules are still followed)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "harness-health-audit" },
   },
 
   // === Opt-in internal bundled skill (v26.95.0 — NOT dev-method) ===
@@ -984,6 +1003,8 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "northstar-roadmap",
   // v26.93.0 — Orchestration & Model Policy.
   "model-orchestration",
+  // v26.98.0 — 하네스 건강 감사 (ADR-027).
+  "harness-health-audit",
 ];
 
 /**
@@ -991,7 +1012,7 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
- * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 7 has-dev-track methodology skills.
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 8 has-dev-track methodology skills.
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,

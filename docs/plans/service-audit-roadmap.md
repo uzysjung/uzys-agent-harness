@@ -12,7 +12,7 @@
 | **M2 — 게시 실행 (Launch, 신규 코드작업 0)** | M1 게이트 통과 직후, 반자동(폼채움=에이전트 / 제출클릭=사용자) 으로 Show HN + r/ClaudeCode 게시 → 며칠 후 awesome-list 2곳 | Show HN 글 + r/ClaudeCode 글 게시 완료(사용자 제출 클릭) + 각 글 첫 24h 댓글 모니터링·초안(에이전트)→승인 후 응답 라이브. awesome-list 는 bradAGI R |
 | **M3 — 게시 후 30일 (Trust Receipts + 신호 반영)** | 0★ cold-start 에서 '검증 인프라=신뢰 대체재'를 사용자에게 보이게 만들고(영수증/SHA 기록), 게시 신호(이슈·반례)를 우선 반영. drift 자동 | (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOW |
 | **M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)** | North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 | (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex  |
-| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(59 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 59 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
+| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(60 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 60 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
 | **M6 — 다면 리뷰 (`/uzys:review` 패널 모드, re-scope 2026-06-21)** | `multi-persona-review` 스킬(v26.87.0 출하)을 6-Gate `/uzys:review` 모드로 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합). 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거). | (1) `/uzys:review` 패널 모드(독립 커맨드 없음) (2) 동적 페르소나+agent.md 자동혼합 (3) surface parity. SPEC 선행 |
 
 **즉시 착수(immediateNext) — 2026-06-21 갱신:** ~~M1-A 공급망 hijack 차단~~ **완료**(bare npx → `npx -y @uzysjung/agent-harness`, grep 0건, #167 등). **다음 = M2 게시 준비**: M1 잔여 ◐ 항목(특히 홍보글 A-1~A-5 최종본·README 수술 B-1~B-5) 확인 → 반자동(폼=에이전트/제출=사용자) Show HN + r/ClaudeCode. 코드 신규작업 0.
@@ -80,6 +80,7 @@
 | P1 | M | WORKFLOWS/COMPATIBILITY 영어판 (영어 README→한국어 문서 동선 단절 — 민준+소피) + README.ko 를 영문판 기준 동기화(Workflow 8행·Non-interactive 섹션·링크) + 자산 id 집합 일치 CI 가드 | persona E-2 + UX-7(known) + UX-10 (medium README.ko drift) |
 | P2 | S | USAGE 내부코드 정리(E-3): ADR번호/D25/HITO/NSM → docs/decisions 링크 격리, 약어 첫등장 풀네임 + 한국어 혼입 문자열 4곳 영어화(uninstall.ts:87·codex/skills.ts:20·install-render.ts:231·external-installer formatSkippedReport) + 한글 유니코드 lint 테스트 1개 | persona E-3 + UX-6 (medium 한국어 혼입) |
 | P2 | S | wizard Step 3 상단 '추천 그대로 Enter 안전' 안내 + WORKFLOWS 첫 줄 기본 추천 1개 (소피 first-win) | persona E-4 |
+| P1 | M | **1st-party 자산 번들링 — wizard row 압축**: uzys 제작 자산 11개(dev-method 8 + gemini-consult + tauri-desktop + ecc-prune)가 카테고리별로 흩어져 서드파티와 섞임. 실측 wizard row = Dev 32 / Workflow&ECC 11 / Visual&Media 9 / Business 8. **dev-method 8개는 전부 `has-dev-track`=기본설치 → 사실상 선택이 아닌데 체크박스 8행을 점유**, 그 결과 진짜 선택(서드파티 큐레이션)이 묻힌다. 처방: ⓐ 기본설치 방법론 묶음을 **단일 번들 row**("uzys 하네스 방법론 N개")로 접고 개별 제어는 `--with`/`--without` + 펼치기로 유지 ⓑ opt-in 1st-party 는 용도 구분별 그룹핑 ⓒ 번들 구성원은 `DEV_METHOD_SKILL_IDS` 에서 **derive**(자산 추가 시 자동 반영, 하드코딩 금지 — no-false-ship) ⓓ 기본 unchecked 시 동작(전체 제외 vs 개별)을 ADR 로 확정. **주의: 번들 접기가 "무엇이 설치되는지"를 숨기면 안 됨** — 설치 산출보고엔 개별 id 전부 노출 유지 | 사용자 2026-07-16 (v26.98.0 harness-health-audit 이 8번째로 추가되며 문제 가중 — 원인 제공자가 본 항목 제기) |
 | P1 | S | CalVer 자동 가드: publish.yml 첫 step 에 태그 정규식(Major=year-2000) 검증 + 순수모듈로 빼 vitest RED/GREEN. 오타 태그 1개로 영구 오염(npm immutable) 방지 | META-1 (high; 게시 후 다음 ship 전까지 도입이면 충분) |
 | P2 | S | 비대화형 경로 fail-loud: --strict opt-in(skipped>0→exit 3) 또는 비대화형 기본 non-zero, USAGE 에 exit code 표 (CI/스크립트 소비자가 자산 skip 을 exit0 으로만 봄, uninstall 과 비대칭) | CODE-10 (medium) |
 | P2 | S | update 모드 confirm 이 설치 안 될 'Assets: N selected' 표시 — formatSummary 에 includeAssets:false 옵션 추가 (confirm 단계 Promise=Implementation) | CODE-6 (medium) |
@@ -110,19 +111,19 @@
 
 > 트리거: 사용자 지시 2026-06-13. 동인 = 자산은 한번 넣으면 관성으로 남는다 — "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만, North Star 기둥①) 철학의 능동 재검증. A2 star-drift CI 보완: CI=star 만, M5=용도/중복/1st-party/철학 정합까지.
 
-**목표:** 카탈로그(현 59 자산)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(59 전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
+**목표:** 카탈로그(현 60 자산)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(60 전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
 
-**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 59 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
+**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 60 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
 | P2 | M | **축A — Visual & Media 확장 리서치**: 모션(현 GSAP 1)·동영상(현 Remotion 1)이 vetted 1개씩 → 추가 후보 재탐색(neighborhood 변화·star 성장). 화면녹화 용도(현 0, 캡처라 제외) 코드-제작형 신규 등장 재검토. 슬라이드/다이어그램 1st-party 프레임워크(Slidev·reveal 본가) 등장 시 교체. Docker 통과분만 등재. | 사용자 2026-06-13 |
-| P2 | L | **축B — 전체 카탈로그(59) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·ADR 179·revealjs) 승격 or 제거. *(next-skills·gsd-orchestrator 는 2026-07-14 제거 — ADR-024)* | 사용자 2026-06-13 |
+| P2 | L | **축B — 전체 카탈로그(60) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·ADR 179·revealjs) 승격 or 제거. *(next-skills·gsd-orchestrator 는 2026-07-14 제거 — ADR-024)* | 사용자 2026-06-13 |
 | P3 | S | drop 후보 = Major CR(도달경로 변경)→사용자 결정+ADR. 제거 자산은 uninstall reverse·문서(COMPATIBILITY/WORKFLOWS) 동기화까지. | 사용자 2026-06-13 |
 
 > "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 9종 자체도 재평가 대상.
 >
-> **상태 (2026-06-21 감사):** 자산 수 48→**59** 정정(실측 — `external-assets.ts`). 축A 'Visual & Media 확장'은 v26.85.0(#169 +5)·v26.86.0(#178 +4)로 **이미 9종 투입** — M5 착수(M2 게시 후) 전 실행이라 M5 가 경고한 '관성 쌓기'와 순서 모순. 처리: 9종에 Docker 실설치 증거 소급 등재 시 **축A 완료** 처리, **축B(59 전수 keep/drop)가 잔여**.
+> **상태 (2026-06-21 감사):** 자산 수 48→**59** 정정(실측 — `external-assets.ts`). 축A 'Visual & Media 확장'은 v26.85.0(#169 +5)·v26.86.0(#178 +4)로 **이미 9종 투입** — M5 착수(M2 게시 후) 전 실행이라 M5 가 경고한 '관성 쌓기'와 순서 모순. 처리: 9종에 Docker 실설치 증거 소급 등재 시 **축A 완료** 처리, **축B(전수 keep/drop)가 잔여** — 대상은 현재 **60 자산** (v26.98.0 harness-health-audit 추가 기준. 위 "48→59"는 2026-06-21 감사 시점의 실측 기록).
 
 ---
 ## M6 — 다면 페르소나 리뷰 커맨드 (Multi-Perspective Review)

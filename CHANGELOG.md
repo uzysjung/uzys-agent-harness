@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.98.0] — 2026-07-15 (feat: harness-health-audit — 하네스 건강 감사 스킬)
+
+dev-method 스킬 8번째 신설(official, has-dev-track). 2026-07-14 3개 프로젝트 교차 하네스 교정 작업에서 추출한 방법론을 스킬화하되, 초안의 5분류(전부 "정확성=드리프트")를 **3질문**으로 재설계 — 하네스는 *틀려서*만이 아니라 **맞는 말인데 아무것도 안 일어나서**(스킬 미트리거·자기보고로 닫는 루프), 그리고 **다 맞는데 너무 길어 안 지켜져서**도 실패하기 때문. 설계 근거 ADR-027. 카탈로그 59 → **60**.
+
+### Added
+- **`harness-health-audit` 스킬** (`templates/skills/`, 4-CLI 번들, `--with harness-health-audit`) — 3질문 × 9검사: **A. TRUE**(A1 stale-stack · A2 stranded namespace refs · A3 dead ceremony · A4 false advertising) / **B. USED**(B1 스킬 활용도·트리거 · B2 루프 무결성 · B3 룰 준수) / **C. AFFORDABLE**(C1 지시 예산 · C2 린터 일을 LLM에 시키나).
+- **린터 경계 명시** — form 검사(길이·시크릿·gitignore·SHA-pin)는 결정론적 도구(AgentLint/cclint)에 위임하고, 스킬은 린터가 **구조적으로 못 하는 판단**만 수행(이 단언이 이 repo의 진짜 스택인가 / 이 훅이 실제 fire 하는가 / 이 스킬이 트리거되는가). CLAUDE.md Rule 5("코드가 답할 수 있으면 코드가 답한다") 정합.
+- **근거 인용** — context rot(Chroma 18 모델) · lost-in-the-middle U곡선(Liu et al., TACL) · 메타데이터 기반 스킬 트리거링(Anthropic) · 평가자 분리가 자기평가보다 우수 · Ratchet 원칙(Osmani).
+
+### Changed
+- `DEV_METHOD_SKILL_IDS` 7 → **8**, `EXTERNAL_ASSETS` 59 → **60** (dev-tools×4 + workflow×4).
+- **stale count drift 9건 정정** (본 자산 추가 중 발견 — A4 검사가 잡는 바로 그 유형): `external-assets.ts` 헤더 주석 "61 자산"→60 · "방법론 skill 6종"→8종 ×2 · `INTERNAL_BUNDLED_SKILL_IDS` 주석 "7"→8, `interactive.test.ts` "dev-method skills 6종"→8종, `docs/COMPATIBILITY.md` **수동** 요약줄(자동생성 블록 위) 49/59→49/60 · 7종→8종 · 나머지 10→11, `README.md`·`docs/plans/service-audit-roadmap.md`·`adoption-c2-submission-kit.md` 총계 60, `package-lock.json` 구 패키지명(v26.83.0 RENAME 이후 4릴리즈 stale).
+- **총계 게이트 확장** (`tests/docs-supply-chain.test.ts`) — 기존엔 `index.html`·`COMPATIBILITY` 만 검사해 README·로드맵·kit·**소스 주석**의 stale 이 `npm run ci` green 을 통과했다. `EXTERNAL_ASSETS.length`·`DEV_METHOD_SKILL_IDS.length` 에서 derive 해 대조하도록 5표면으로 확장(+4 tests, RED 실증). 게이트가 커버하지 않는 표면이 곧 drift 서식지 — no-false-ship "2곳 이상 하드코딩 → derive 또는 exhaustiveness 테스트".
+
+> 정직 표기: 신규 자산은 `🟡 local` — **Docker 실설치 미검증**(내부 템플릿). 스킬 자체의 감사 실행 검증도 미수행 — 방법론 문서 자산이라 코드 게이트로 강제 불가(ADR-027 Consequences (a)).
+>
+> **알려진 갭 — 안전(SAFETY) 축 부재** (독립 SOD 리뷰가 지적): A/B/C 는 위험한 하네스를 통과시킨다 (unpinned `curl \| sh` 훅 = 정확+작동+한 줄 → clean). 완전성 단언을 철회하고 안전을 상시 렌즈로 명시 + 리포트에 `Safety concerns` 행 강제(빈 값 = "none seen — not a clean bill"). **4번째 축 신설은 후속** (ADR-027 Consequences (z)).
+
 ## [v26.97.0] — 2026-07-15 (feat: compaction-handoff = 스냅샷 기반 재설계)
 
 출하 스킬 `compaction-handoff`(official, has-dev-track)를 **append 기반 → snapshot 기반**으로 재설계. 반복 실행 시 `MEMORY.md`가 작업 로그처럼 비대해지고 과거·현재 핸드오프가 섞여 "최신 상태 식별 실패 / lost-in-the-middle / 전화게임 변형"으로 컴팩션 품질이 되레 떨어지던 문제 해소. 상태·보존정책(retention)을 명시하고 idempotency를 계약으로 못박음. 설계 근거 ADR-026.
