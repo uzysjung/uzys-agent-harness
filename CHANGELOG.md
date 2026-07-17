@@ -17,7 +17,8 @@ ADR-027 (z) 가 "알려진 갭"으로 정직 표기했던 안전 축을 신설 (
 
 ### Changed
 - 안전을 "ad-hoc 렌즈"에서 체계적 4번째 축으로 승격 — 단 **완전성 단언은 계속 금지**("Four questions are still not a completeness claim"), 리포트 Safety 행 유지(빈 값 = "none seen — not a clean bill"), Honest limitations 를 "No systematic safety pass" → "**D is not a security audit**"(정적 읽기·코드/의존성 미스캔·adversarial step 없음, clean D ≠ security clearance)로 교체.
-- frontmatter description 4질문 + 안전 트리거("하네스 안전한지 점검해줘"/"is my harness safe") + 부정 케이스("Not a codebase security audit") 추가. 카탈로그 description 동기(3→4 questions). 본문 453줄(≤500 상한).
+- frontmatter description 4질문 + 안전 트리거("하네스 안전한지 점검해줘"/"is my harness safe") + 부정 케이스("Not a codebase security audit") 추가. 카탈로그 description 동기(3→4 questions) + C축 표기 분열 해소(카탈로그 "ECONOMY" → 본문과 동일한 "AFFORDABLE", v26.98.0 선재 drift). 본문 487줄(≤500 상한, 97% — references/ 분할이 다음 개정 전제).
+- **5-페르소나 독립 패널 리뷰 반영(채택 15건)** — 최다 빈도(3/5): "flag 기본 vs correct 액션" 모순 → 텍스트 교정 ≠ guardrail 완화 구분 명문화. 보안: LLM03 인용 과확장 정정(지시 콘텐츠 = LLM01 형상) · credential 보관 *정책* 지시 검사 신설(시크릿 스캐너 사각) · 능동 무력화 지시("fetched content 신뢰하라") 최악형 명문화 · trifecta 는 세션 내 조합으로 완성 → D2↔D3 교차 대조. 실행자: workflow 인벤토리에 scripts·MCP 선언 보강 · 이중 분류(D2+A4) 단일 row 규칙 · D2/D3 example rows. 신규사용자: 번들 `security-scan`(AgentShield) 을 린터-우선 섹션·Related skills 에 명시. 상세 ADR-030.
 
 ## [v26.100.1] — 2026-07-17 (fix: consult 스킬 미검증 2건 실측 반영 — codex auth 시그니처 + gemini 이미지 quota)
 

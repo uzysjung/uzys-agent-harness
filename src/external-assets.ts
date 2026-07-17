@@ -332,7 +332,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "harness-health-audit",
     tier: "official", // uzys 본 하네스 자체 템플릿
     description:
-      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 4 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · ECONOMY (inside the budget where rules are still followed) · SAFE (a live, accurate instruction can still be a bad idea)",
+      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 4 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · AFFORDABLE (inside the budget where rules are still followed) · SAFE (a live, accurate instruction can still be a bad idea)",
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },

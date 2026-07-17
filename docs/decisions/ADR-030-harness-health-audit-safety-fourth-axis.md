@@ -17,15 +17,22 @@ A/B/C 는 위험한 하네스를 통과시킨다 — permission prompt 를 건�
 
 1. **Claude Code 공식 문서** — `bypassPermissions` 는 "disables permission prompts and safety
    checks so tool calls execute immediately", "isolated environments like containers, VMs" 전용,
-   "offers no protection against prompt injection or unintended actions"
+   "offers no protection against prompt injection or unintended actions". 동일 문서가 blanket
+   bypass 의 협소 대안으로 classifier-gated `auto` mode 를 명시 권고
    (code.claude.com/docs/en/permission-modes).
-2. **Meta — Agents Rule of Two** — 에이전트는 ①untrustworthy inputs 처리 ②sensitive systems/private
-   data 접근 ③state 변경/외부 통신 중 "must satisfy no more than two" (ai.meta.com/blog/practical-ai-agent-security/).
-3. **OWASP LLM01:2025 Prompt Injection** — 간접 주입 = "an LLM accepts input from external sources,
-   such as websites or files"; 결과에 "executing arbitrary commands in connected systems" 포함.
-4. **OWASP LLM03:2025 Supply Chain** — 서드파티 모델/컴포넌트 무결성 리스크.
-5. **Willison — lethal trifecta** — private data 접근 + untrusted content 노출 + 외부 통신 능력의
-   결합; "avoid that lethal trifecta combination entirely" (simonwillison.net 2025-06-16).
+2. **Meta — Agents Rule of Two** — 에이전트는 3속성 중 "must satisfy no more than two". SKILL.md
+   가 직접 인용하는 fragment 전부 원문 verbatim 확인: "An agent can process untrustworthy inputs" /
+   "access to sensitive systems or private data" / "change state or communicate externally"
+   (ai.meta.com/blog/practical-ai-agent-security/).
+3. **OWASP LLM01:2025 Prompt Injection** — 간접 주입 = "when an LLM accepts input from external
+   sources, such as websites or files"; 결과에 "executing arbitrary commands in connected systems"
+   포함.
+4. **OWASP LLM03:2025 Supply Chain** — 실 스코프 = training data·모델·배포 플랫폼 무결성(서드파티
+   *모델/의존성*). **지시 콘텐츠(스킬/에이전트 본문)는 LLM03 스코프가 아니라 LLM01 의 external
+   sources 형상** — 패널 보안 리뷰가 초안의 과확장 인용을 잡아 본문을 이 구분대로 정정.
+5. **Willison — lethal trifecta** — SKILL.md 인용 fragment 전부 원문 verbatim 확인: "access to
+   your private data" / "exposure to untrusted content" / "the ability to externally communicate";
+   "avoid that lethal trifecta combination entirely" (simonwillison.net 2025-06-16).
 
 ## Decision
 
@@ -74,11 +81,31 @@ form 안전(시크릿 탐지·SHA-pinning·`.env` 위생)은 계속 위임하고
 - **부정/리스크**:
   - (a) **D 실행 품질은 미검증** — ADR-027 (a) 와 동일 한계: 방법론 문서 자산이라 사용자 repo 에서의
     감사 품질을 harness CI 가 검사할 수 없다. 계약은 본문 지시로만 성립.
-  - (b) **453줄** (기존 349 → +104). 500줄 상한 내이나 C1(예산)을 설파하는 스킬이 더 길어진 긴장
-    심화 — references/ 분할은 여전히 후속 여지(ADR-027 (e) 승계).
+  - (b) **487줄** (실측 기준선 370 → +117; ADR-027 (e) 의 "349줄" 표기는 작성 시점 stale — 실출하본
+    c3610aa 는 370줄. 구 ADR 은 수정하지 않고 여기에 드러냄, Rule 7). 500줄 상한 내이나 C1(예산)을
+    설파하는 스킬이 상한의 97%에 도달 — **references/ 분할이 다음 개정의 사실상 전제**(ADR-027 (e)
+    승계, 긴장 심화).
   - (c) **D 는 정적 읽기** — 훅의 런타임 행동 증명 불가. 본문 Honest limit 으로 명시했으나 실행
     에이전트가 무시하면 강제되지 않음(ADR-027 (b) 와 동일 구조).
   - (d) 인용 문서들은 2025~2026 시점 스냅샷 — vendor 문서(permission modes)는 개정될 수 있다.
     링크는 유지되나 인용문 drift 는 본 스킬의 A4 검사 대상 그 자체.
-- **문서 영향**: CHANGELOG v26.101.0, 카탈로그 description 3→4 questions (`src/external-assets.ts`),
-  dogfood 사본 `.claude/skills/harness-health-audit/SKILL.md` md5 동기. 자산 수 61 불변(신설 아님).
+- **다면 리뷰 반영 (2026-07-17, 5-페르소나 독립 패널: 실행자/보안/정직성/신규사용자/통합)**:
+  평결 FIX-THEN-SHIP ×4 + SHIP ×1, 초안 대비 채택 15건. 주요: ①"flag 기본 vs D2/D3 correct" 모순
+  (3/5 페르소나 독립 지적 — 최다 빈도) → 텍스트 교정 ≠ guardrail 완화 구분을 D 서두에 명문화
+  ②LLM03 인용 과확장(보안, 원문 fetch 반증) → 지시 콘텐츠 = LLM01 형상으로 정정 ③credential
+  *보관 정책* 지시가 린터·D 전체의 사각(보안) → D2 measure 에 신설 ④능동 무력화 지시("fetched
+  content 를 신뢰하라")가 최악형(보안) → D3 에 명문화 ⑤trifecta 는 단일 아티팩트가 아니라 세션 내
+  조합으로 완성(보안) → D2↔D3 교차 대조 지시 ⑥workflow 2단계 인벤토리에 scripts·MCP 선언 누락
+  (실행자) → 보강 ⑦"MCP tool outputs" 가 정적 한계와 모순(실행자) → 선언 config 기반으로 재서술
+  ⑧이중 분류(D2+A4) 리포트 규칙 부재(실행자) → 단일 row + Evidence 병기 규칙 ⑨번들
+  `security-scan`(AgentShield) 미언급(신규사용자 P0 주장 → 검증 결과 command 라 트리거 경쟁은
+  아님, P1 조정) → 린터-우선 섹션·Related skills 에 명시 ⑩카탈로그 "ECONOMY" ↔ 본문 "AFFORDABLE"
+  표기 분열(통합, v26.98.0 선재) → 카탈로그를 본문 기준으로 통일. **스킵 3건(사유)**: description
+  단락 밀도 재구성(신규사용자 P2 — YAML prose 제약, 트리거 회귀 리스크 > 이득) / 리포트 flag 어휘
+  세분화(보안 P2 — D2 example row 의 "correct text + flag reach" 로 부분 반영, 전면 어휘 확장은
+  복잡도 증가) / ADR-027 (e) 직접 수정(통합 P2 — 구 기록 무수정 원칙, 본 ADR (b) 에 드러냄).
+  패널의 인용 검증: SKILL.md 의 외부 인용 fragment 전수(11건)를 정직성·보안 페르소나가 라이브
+  원문 fetch 로 독립 재확인 — 전부 verbatim, 위조/오귀속 0.
+- **문서 영향**: CHANGELOG v26.101.0, 카탈로그 description 3→4 questions + AFFORDABLE 표기 통일
+  (`src/external-assets.ts`), dogfood 사본 `.claude/skills/harness-health-audit/SKILL.md` md5 동기.
+  자산 수 61 불변(신설 아님).
