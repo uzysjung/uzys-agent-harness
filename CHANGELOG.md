@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.104.0] — 2026-07-18 (feat: recurrence-prevention 스킬 — 재발방지 방법론, ADR-033 · Lean 큐 ⑤)
+
+사용자 지시(2026-07-17) 자산: "동일 이슈가 여러 번 발생하면 — 단순 실수면 기록하거나 룰을 강제 등록,
+복잡한 하네스 문제면 다면 페르소나로 해결책을 만드는 스킬". 본 repo 실무 관행(no-false-ship 3회
+재발 → rule 신설, CHANGELOG 7릴리즈 drift → 테스트 게이트, "주석 경고 ≠ 차단 수단")의 스킬화.
+
+### Added
+- **`recurrence-prevention` 스킬** (dev-method 9번째, `official` / has-dev-track 기본 설치, 카탈로그 61→62) —
+  핵심 재정의: **재발 = 이전 대책의 실패** — 작업 단위는 수정이 아니라 대책이며, 답은 같은 레벨의 더 강한 문구가 아니라 **한 레벨 위**.
+  - **재발 카운트 = 증거 작업**: 실패 서명(failure-mode class, 파일이 아니라 실수의 종류)을 먼저 정의하고
+    메모리·룰 사례표·git/CHANGELOG 이력에서 검증 — "느낌상 재발"(내 경험상) 카운트 금지.
+  - **분류**: 단순 실수(올바른 행동이 이미 합의됨, 안 지켜졌을 뿐) vs 복잡한 하네스 문제(대책 자체가
+    설계대로 작동했는데도 실패 — 실패 모델이 틀림).
+  - **에스컬레이션 사다리**: 1회 = 기록(Level 0) → 2회 = 룰 강제 등록(Level 1, 사례표 템플릿 포함) →
+    3회+ 또는 룰 위반 = 구조적 게이트(Level 2: 테스트/훅/derive — 프로즈 의존이면 레벨 1임). 카운트보다
+    높은 레벨 진입 금지(게이트 인플레이션 방지), Level 1/2 는 상주 비용이므로 사용자 컨펌 필수.
+  - **복잡 경로**: 다면 페르소나(실수 당사자·놓친 리뷰어·1년 뒤 유지보수자·적대자)로 대책 후보 설계 →
+    ASIS/TOBE 로 사용자 결정 → 선택안도 사다리에 착지.
+  - **Fires-verified 의무**: 게이트가 실제 발화하는지 증거(테스트 RED→GREEN, 훅 exit 2, grep 단일화) 없이
+    "보호됨" 보고 금지 — 룰(프로즈)은 "등록됨, 준수는 미검증"으로 정직 표기.
+- **Context Cost ratchet 예산 2,000 → 2,200 tokens** — 9번째 dev-method 스킬 추가에 따른 명시적 상향
+  (실측 2026-07-18: 9종 = ~2,096 tokens, 여유 ~5%). 트리거 중복 게이트(Jaccard>0.30) 는 기존 예산 내 통과.
+
+### Docs
+- README dev-method 표 + COMPATIBILITY(gen:compat) + 카탈로그 총계 62 동기화(index.html·제출 kit·로드맵). ADR-033.
+
 ## [v26.103.0] — 2026-07-17 (feat: Session-Start Context Cost NSM 계측 + 스킬 트리거 중복 게이트, ADR-032 Lean 큐 ①③)
 
 Lean 방향(ADR-032) 실행 큐의 코드 2건 — "간결"을 슬로건에서 **계측 대상**으로.

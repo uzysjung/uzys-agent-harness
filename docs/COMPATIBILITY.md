@@ -35,11 +35,11 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **61** (official 16 / vetted 41 / experimental 4) · 🟢 검증 **49/61**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
+> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **62** (official 17 / vetted 41 / experimental 4) · 🟢 검증 **49/62**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
 >
 > **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 2026-06-06). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (9)
+#### 🔄 Workflow (10)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
@@ -47,6 +47,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `northstar-roadmap` | official | templates (`--with northstar-roadmap`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code (plugin) | 🟢 Docker |

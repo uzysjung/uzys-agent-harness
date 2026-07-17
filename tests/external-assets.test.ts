@@ -129,10 +129,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 61 distinct asset ids (no duplicates)", () => {
+  it("contains 62 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(61);
+    expect(ids).toHaveLength(62);
     // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
     expect(ids).toContain("gemini-consult");
     // v26.100.0 — codex-consult (opt-in internal bundled skill, gemini-consult 의 형제).
@@ -157,7 +157,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
-  it("dev-method skills: 8 internal/official/has-dev-track, dev-tools×4 + workflow×4", () => {
+  it("dev-method skills: 9 internal/official/has-dev-track, dev-tools×4 + workflow×5", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "multi-persona-review": "dev-tools",
@@ -171,6 +171,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy). 감사 도구라 dev-tools
       //   (ultracode-service-audit 과 동일 계열 — workflow 가 아니라 tool-level audit).
       "harness-health-audit": "dev-tools",
+      // v26.104.0 — 재발방지 (ADR-033). 프로세스 스킬(사다리/분류/보고) — audit 도구가 아니라 workflow.
+      "recurrence-prevention": "workflow",
     };
     expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
     for (const id of DEV_METHOD_SKILL_IDS) {
