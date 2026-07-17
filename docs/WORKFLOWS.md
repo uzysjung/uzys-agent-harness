@@ -2,7 +2,7 @@
 
 > **갱신**: 2026-06-06 (v26.75.0, ADR-021) · **anchor**: [`NORTH_STAR.md`](NORTH_STAR.md) · **근거**: [`research/direction-research-2026-06-06.md`](research/direction-research-2026-06-06.md)
 >
-> agent-harness 의 본질 = **검증된 워크플로/자산 큐레이터**. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해준다. **skill·rule 자산은 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 동등 설치**되고, **plugin 계열(superpowers/ecc 등)은 Claude Code 우선**(비-Claude 3종은 일부만 미러 — `COMPATIBILITY.md` §비대칭 참조). 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
+> agent-harness 의 본질 = **검증된 워크플로/자산 큐레이터**. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해준다. **skill·rule 자산은 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 동등 설치**되고, **plugin 계열(superpowers/ecc 등)은 Claude Code 전용** — claude 를 선택하지 않은 설치에서는 시도되지 않고 `EXCLUDED` 로 고지된다(v26.102.0 ADR-031; 자산별 도달 범위는 `COMPATIBILITY.md` CLI 열 참조). 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
 >
 > 마켓플레이스가 1개(2025-12)→8개(2026 Q2)로 늘며 **"skill 찾기보다 비교에 시간을 더 쓰는"** 과부하가 생겼다. 이 가이드가 그 비교를 대신한다.
 

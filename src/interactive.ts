@@ -1,4 +1,4 @@
-import { EXTERNAL_ASSETS } from "./external-assets.js";
+import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import type { InstallMode } from "./installer.js";
 import {
   finalSelectedAssets,
@@ -294,7 +294,17 @@ export function formatSummary(spec: InstallSpec): string {
   // v26.82.0 (Phase R, S6) — merge/그룹화는 preset-recommend.ts 단일 구현 사용 (중복 제거).
   const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
   if (finalAssets.length > 0) {
-    lines.push(`Assets:    ${finalAssets.length} selected`);
+    // v26.102.0 (ADR-031) — confirm 화면의 약속 숫자에 CLI 도달 분해 병기 (SOD 리뷰 F3:
+    // "4 selected" 확정 후 0 설치이던 불일치 — 숨김 없이 고지만).
+    const unreachable = finalAssets.filter((id) => {
+      const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+      return asset ? !assetReachesCli(asset, spec.cli) : false;
+    });
+    lines.push(
+      unreachable.length > 0
+        ? `Assets:    ${finalAssets.length} selected (${unreachable.length} outside [${spec.cli.join(", ")}] reach — not installed)`
+        : `Assets:    ${finalAssets.length} selected`,
+    );
     for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
       lines.push(`  · ${cat}: ${ids.join(", ")}`);
     }

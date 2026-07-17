@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.102.0] — 2026-07-17 (fix: 4-CLI cliSupport 데이터축 — codex 단독 설치의 claude spawn 오염 차단, Batch3 P0)
+
+2026-07-14 하네스 감사 P0 2건([4cli-asymmetry-cluster]·[cli-external-path-untested], 둘 다 CONFIRMED) 해소 — 사용자 확정 스코프(2026-07-14): "데이터축(cliSupport) + 고지 = 정직화, 대칭 실현은 M4+". 설계 근거 ADR-031.
+
+### Fixed
+- **codex/opencode/antigravity 단독 설치가 `claude` CLI 를 spawn 하던 P0** — `installPlugin` 이 `claude plugin marketplace/install` 을 하드코딩하는데 어느 레이어도 `ctx.cli` 를 참조하지 않아, claude 를 선택하지 않은 설치에서도 claude 가 실행돼 `~/.claude/plugins` 를 오염(프로젝트 룰 "무동의 글로벌 write 금지" 위반). fix = **`assetCliSupport()` derive**(plugin·shell-script → claude 전용 / skill·npm·npx-run·internal → 전 CLI — 도달 범위의 SSOT 는 installOne 실동작이므로 method.kind 에서 derive) + **`selectExternalTargets()` 단일 selector** 가 선택 CLI 와 교집합 없는 자산을 **spawn 자체에서 배제**. kind 기본값이 자산에서 거짓인 예외는 entry `cliSupportOverride` — **bmad-method 가 그 예외**(`--tools claude-code` 하드코딩 → claude 전용, SOD 리뷰 Critical-1 이 초안의 "npx-run=전 CLI" 를 실측 반증). 부수 이득: uninstall 의 codex 단독 `claude plugin uninstall` spawn 경로도 소멸.
+- **침묵 제외 금지** — 배제분은 `ExternalInstallReport.excludedByCli`(신규 필수 필드)로 보고: ①Phase 2 에 `· N asset(s) not installed — requires claude, selected [codex]: …`(사유는 자산별 도달 범위에서 derive, "skipped"(실패)와 어휘 분리) ②Summary 에 `EXCLUDED` 행 ③wizard confirm·비대화형 헤더의 `ASSETS N selected` 에 도달 분해 병기(SOD F3: executive/codex 가 "4 selected" 약속 후 0 설치이던 불일치). **v26.88.0 의 NOTE 고지는 삭제** — excludedByCli 와 다른 계산식(plugin 만, shell-script 누락)으로 같은 화면에서 숫자가 어긋났고 claude 포함 설치에서도 "not installed" 를 찍던 거짓 출력(SOD F4).
+- **"External assets (N)" 헤더 과대 카운트** — 이전 카운트는 internal 자산(dev 트랙 기본 8종)을 포함해 **claude 기본 경로에서도** 과대였다("(13)" 표기 후 5행 스트리밍, v26.81.0 잔재 — SOD F1 실측). 헤더가 시도 목록과 같은 selector 를 쓰도록 정합 — **기본 설치의 헤더 숫자가 작아진 것은 회귀가 아니라 정정**.
+- **ecc 힌트의 거짓 안내** — codex 단독 설치에서 "Use `--with ecc-plugin`" 을 권하던 힌트(따라하면 no-op)를 claude 도달 시에만 출력 (SOD F2).
+- **COMPATIBILITY CLI 열 derive** — gen-compatibility 의 수동 `CLI_SCOPE` 맵(동일 사실 2번째 하드코딩, skill 을 "Claude Code (+skills.sh)" 로 과소 표기) 제거 → `assetCliSupport` 에서 도달 범위 derive("N-CLI" 의 N 도 `CLI_BASES.length` derive). claude 전용 26종(plugin 25 + shell-script 1) = "Claude Code", skill/npm/npx(bmad 제외) = 4-CLI 로 정직화. `docs/WORKFLOWS.md` 의 "일부만 미러" 서술도 실동작("배제 + 고지")으로 교체.
+
+### Added
+- `tests/cli-external-path.test.ts` (+15, RED 실증) — codex 단독 `claude` spawn 0 불변식 · excludedByCli 보고 · `cli:[]` 레거시 · `--agent codex` 과차단 방지 · derive 전수(+override·claude-토큰 가드: 신규 자산이 bmad 함정에 빠지면 fail) · selectExternalTargets 분할 무손실/시도 목록 일치 · **고지 렌더 실행 증거 4건**(not installed 문구·헤더 고아 방지·EXCLUDED 행·ecc 힌트 게이팅 — SOD F5 "고지 커버리지 0" 폐쇄).
+- `tests/docs-supply-chain.test.ts` — **COMPATIBILITY CLI 열 전수 derive 게이트**: 각 자산 행의 도달 라벨을 assetCliSupport 와 대조 (생성기만 커밋되고 재생성 문서가 빠지는 drift 차단 — SOD F6 실제 발생분).
+- `tests/installer-external.test.ts` — external-start 헤더 카운트 실측 게이트 (mock 이 값을 날조하던 유일 경로 대체 — SOD F1).
+
+> ④ SSOT 수치 derive 가드는 Batch2(#199) `docs-supply-chain.test.ts` 총계 게이트로 기충족. SOD 리뷰 2기(5축 코드 + 회귀 헌팅, 독립) 반영: Critical 1·Important/F 11·Nit 9 중 20건 채택 — 미채택: dead `formatSkippedReport` 제거(P2 dead-hooks 후속과 병합), docker 시나리오 stale `--with uzys-harness`(본 릴리즈 무관, 후속). 상세 ADR-031.
+
 ## [v26.101.0] — 2026-07-17 (feat: harness-health-audit 안전(SAFE) 4번째 축)
 
 ADR-027 (z) 가 "알려진 갭"으로 정직 표기했던 안전 축을 신설 (독립 SOD 리뷰 Important #3 후속, 사용자 승인 2026-07-17). 3질문(TRUE/USED/AFFORDABLE)은 위험한 하네스를 통과시킨다 — permission 우회 지시나 unpinned `curl | sh` 훅은 정확하고(TRUE)·작동하고(USED)·한 줄이라(AFFORDABLE) 전부 clean 이었다. 설계 근거 ADR-030. 카탈로그 61 유지(자산 신설 아님, 기존 자산 개정).

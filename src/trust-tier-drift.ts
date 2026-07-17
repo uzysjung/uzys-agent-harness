@@ -22,11 +22,15 @@ export { CATEGORIES } from "./categories.js";
 //   하드코딩 id 목록 대신 SSOT 에서 derive (no-false-ship drift 구조 차단).
 // v26.95.0 — INTERNAL_BUNDLED_SKILL_IDS (dev-method + opt-in gemini-consult) 로 CLI scope derive.
 export {
+  // v26.102.0 (ADR-031) — gen-compatibility 의 CLI 열이 도달 범위를 derive 하도록 re-export.
+  assetCliSupport,
   DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
 } from "./external-assets.js";
+// v26.102.0 (ADR-031) — 도달 라벨("N-CLI")의 N 을 derive 하기 위한 re-export (매직 넘버 금지).
+export { CLI_BASES } from "./types.js";
 
 /** vetted 경계 (NORTH_STAR / PRD v26-71 D2). */
 export const STAR_THRESHOLD = 1000;

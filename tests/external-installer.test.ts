@@ -317,6 +317,7 @@ describe("formatSkippedReport", () => {
         attempted: [{ asset: TEST_ASSETS[0] as ExternalAsset, ok: true }],
         succeeded: 1,
         skipped: 0,
+        excludedByCli: [],
       }),
     ).toBe("");
   });
@@ -329,6 +330,7 @@ describe("formatSkippedReport", () => {
       ],
       succeeded: 1,
       skipped: 1,
+      excludedByCli: [],
     });
     expect(text).toContain("npm-asset");
     expect(text).toContain("registry down");

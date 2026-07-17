@@ -55,6 +55,7 @@ function fakeExternal(karpathyOk: boolean): ExternalInstallReport {
     attempted: [{ asset: KARPATHY_ASSET, ok: karpathyOk }],
     succeeded: karpathyOk ? 1 : 0,
     skipped: karpathyOk ? 0 : 1,
+    excludedByCli: [],
   };
 }
 

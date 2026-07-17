@@ -12,7 +12,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  assetCliSupport,
   CATEGORIES,
+  CLI_BASES,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
@@ -38,14 +40,31 @@ const LEVEL_OVERRIDE = {
   openspec: "🟢 Docker", // npm i + npx openspec --version 1.4.1
 };
 
-const CLI_SCOPE = {
-  plugin: "Claude Code",
-  skill: "Claude Code (+skills.sh)",
-  npm: "agnostic",
-  "npx-run": "agnostic",
-  "shell-script": "local",
-  internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
+// v26.102.0 (ADR-031, Batch3) — CLI 열의 **도달 범위**는 assetCliSupport(method.kind derive)가
+// SSOT. 이전의 CLI_SCOPE 수동 맵은 동일 사실의 2번째 하드코딩(no-false-ship 위반 구조)이었고
+// skill 을 "Claude Code (+skills.sh)" 로 과소 표기하고 있었다(skills CLI 는 `--agent` 로 선택
+// CLI 전부 설치). 아래 KIND_FLAVOR 는 도달 범위가 아니라 설치 **메커니즘** 표기(표현 계층)만 담당.
+const KIND_FLAVOR = {
+  plugin: "plugin",
+  skill: "skills.sh --agent",
+  npm: "npm",
+  "npx-run": "npx",
+  "shell-script": "local script",
+  // tauri rule 은 .claude/rules/ 착지(claude 편중) — 라벨은 기존과 동일하게 유지하되
+  // 알려진 과대 표기임을 기록 (ADR-031 리스크 (a), 구 CLI_SCOPE 주석 승계).
+  internal: "templates",
 };
+function cliScopeLabel(asset) {
+  const support = assetCliSupport(asset);
+  // 도달 범위는 assetCliSupport(SSOT)에서 derive — N 하드코딩 금지 (CLI 추가 시 자동 추종).
+  const reach =
+    support.length === CLI_BASES.length
+      ? `${CLI_BASES.length}-CLI`
+      : support.length === 1 && support[0] === "claude"
+        ? "Claude Code"
+        : support.join("+");
+  return `${reach} (${KIND_FLAVOR[asset.method.kind] ?? asset.method.kind})`;
+}
 // v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 는 4-CLI 로
 // 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
 // frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
@@ -127,7 +146,7 @@ function rows() {
       const tier = TRUST_TIER[a.id] ?? "experimental";
       const lvl = LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "⚪";
       out.push(
-        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? CLI_SCOPE[a.method.kind]} | ${lvl} |`,
+        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? cliScopeLabel(a)} | ${lvl} |`,
       );
     }
   }

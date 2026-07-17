@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "../src/external-assets.js";
+import {
+  assetCliSupport,
+  DEV_METHOD_SKILL_IDS,
+  EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "../src/external-assets.js";
+import { CLI_BASES } from "../src/types.js";
 
 // WHY: unscoped `agent-harness` 는 npm 에 실재하는 제3자 패키지다
 //   (`agent-harness@0.0.1`, maintainer quuu — 본 프로젝트와 무관, 2025-08 게시).
@@ -72,6 +78,32 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
       text.includes(`자산 **${total}**`),
       `docs/COMPATIBILITY.md 가 자산 ${total} 를 반영하지 않음 — 'npm run gen:compat' 재실행 필요`,
     ).toBe(true);
+  });
+
+  // WHY (v26.102.0, ADR-031 / SOD 리뷰 F6): 총계 게이트는 CLI 열이 통째로 stale 해도 green
+  //   이었다 — 실제로 생성기만 커밋되고 재생성 문서가 빠진 채 "정직화 완료" 를 주장할 뻔했다.
+  //   각 자산 행의 CLI 도달 라벨을 assetCliSupport(코드 SSOT)에서 derive 해 문서와 전수 대조:
+  //   gen:compat 미재실행·수동 편집 어느 쪽의 drift 도 `npm run ci` 가 막는다.
+  it("COMPATIBILITY.md 각 자산 행의 CLI 도달 라벨이 assetCliSupport 와 전수 일치", () => {
+    const text = readFileSync("docs/COMPATIBILITY.md", "utf-8");
+    const bundledOverride = new Set<string>(INTERNAL_BUNDLED_SKILL_IDS);
+    for (const asset of EXTERNAL_ASSETS) {
+      // 번들 스킬은 전용 override 라벨(4-CLI 상세 표기) — 도달 검증은 transform 테스트 담당.
+      if (bundledOverride.has(asset.id)) continue;
+      const row = text.split("\n").find((l) => l.startsWith(`| \`${asset.id}\` |`));
+      expect(row, `COMPATIBILITY.md 에 자산 행 없음: ${asset.id}`).toBeDefined();
+      const support = assetCliSupport(asset);
+      const expectedReach =
+        support.length === CLI_BASES.length
+          ? `${CLI_BASES.length}-CLI`
+          : support.length === 1 && support[0] === "claude"
+            ? "Claude Code"
+            : support.join("+");
+      expect(
+        row as string,
+        `${asset.id}: CLI 열이 도달 범위(${expectedReach})와 불일치 — 'npm run gen:compat' 재실행 또는 derive 로직 확인`,
+      ).toContain(`| ${expectedReach} (`);
+    }
   });
 
   it(`index.html trust-tier 카드의 카탈로그 총계 분모가 ${total}`, () => {

@@ -19,16 +19,12 @@ import {
   writeEnvExample,
   writeMcpAllowlist,
 } from "./env-files.js";
-import {
-  EXTERNAL_ASSETS,
-  filterApplicableAssets,
-  INTERNAL_BUNDLED_SKILL_IDS,
-  isAssetSelected,
-} from "./external-assets.js";
+import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
   runExternalInstall,
+  selectExternalTargets,
 } from "./external-installer.js";
 import {
   backupDir,
@@ -542,7 +538,13 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
     options: spec.options,
     ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
   };
-  const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
+  // v26.102.0 (ADR-031) — 헤더 카운트 = 실제 시도될 자산 수. runExternalInstall 과 **같은
+  // selector** 를 호출해 "External assets (N)" 의 N 이 시도 목록과 구조적으로 일치
+  // (이전엔 internal 8종을 포함해 dev 트랙 전부에서 헤더가 과대였다 — SOD 리뷰 F1 실측).
+  const applicableCount = selectExternalTargets(EXTERNAL_ASSETS, {
+    ...filterCtx,
+    cli: spec.cli,
+  }).targets.length;
   ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
   const external = runExt(
     { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
