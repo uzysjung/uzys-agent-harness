@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/61 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/62 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -222,6 +222,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `northstar-roadmap` ★ | Measure current state vs the vision doc → ranked feature backlog persisted to docs/plans + memory | this project (core) |
 | `model-orchestration` ★ | Model orchestration policy — role split (orchestrator directs/reviews · strong model authors core/V&V · mid model does repetitive impl/E2E) + effort floors + quota handoff | this project (core) |
 | `harness-health-audit` ★ | Audit your CLAUDE.md/rules/skills/hooks on 4 questions a linter can't answer: TRUE · USED · AFFORDABLE · SAFE | this project (core) |
+| `recurrence-prevention` ★ | When the same defect happens again: verify the count with evidence, classify simple slip vs complex problem, escalate record → forced rule → structural gate | this project (core) |
 
 **First-party advisors** (`official`, **opt-in** — `--with gemini-consult` / `--with codex-consult`; repo-bundled, install across all 4 CLIs; each needs its external CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 

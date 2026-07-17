@@ -203,7 +203,7 @@ export interface PageItem {
  * v26.99.0 (ADR-028) — Step 3 한 페이지의 group/item 구성. clack 의존 0 인 순수 함수.
  *
  * `selectInstallTargets` 안의 클로저였으나 export 로 승격했다 (SOD 리뷰 Important #2):
- * **이 함수가 dev-method 8종을 wizard 에서 도달 가능하게 만드는 유일한 코드**인데, 테스트가
+ * **이 함수가 dev-method 스킬 전원을 wizard 에서 도달 가능하게 만드는 유일한 코드**인데, 테스트가
  * 하나도 닿지 않았다. `wizard-page-parity` 는 "자산의 **카테고리**가 페이지에 있다"만 보는데,
  * 8종은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 8종에 대해
  * 비논리(non sequitur)다 — 번들 row 블록을 지워도 parity 는 통과하고 CI 는 green 인 채
@@ -452,7 +452,7 @@ export const defaultPrompts: Prompts = {
         pageIdx++;
       }
       if (!aborted) {
-        // 번들 → 개별 asset id 로 펼쳐 반환. 설치·보고는 8종을 개별로 본다.
+        // 번들 → 개별 asset id 로 펼쳐 반환. 설치·보고는 멤버 전원을 개별로 본다.
         resultIds = expandDevMethodBundle([...collected]) as ReadonlyArray<InstallTargetId>;
       }
     } finally {

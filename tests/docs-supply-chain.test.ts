@@ -106,6 +106,34 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
     }
   });
 
+  // WHY (v26.104.0, SOD 리뷰 I-1): COMPATIBILITY.md **서문**(수기, AUTO-GEN 블록 밖)의
+  //   "49/61 🟢 · 12 자산 🟡 · dev-method 8종" 이 자산 추가 후에도 살아남았다 — 위 총계 게이트는
+  //   생성 블록의 `자산 **N**` 문자열만 봐서 서문이 사각지대였다. 분자(🟢 수)는 검증 상태 수치라
+  //   코드에서 derive 불가 — 분모·🟢+🟡 분해 합·dev-method 수만 코드 SSOT 와 대조한다.
+  it("COMPATIBILITY.md 서문(수기)의 분모·🟢+🟡 분해 합·dev-method 수가 SSOT 와 일치", () => {
+    const text = readFileSync("docs/COMPATIBILITY.md", "utf-8");
+    const m = text.match(
+      /전 카탈로그 (\d+)\/(\d+) 🟢[^\n]*?나머지 (\d+) 자산 🟡[^\n]*?dev-method (\d+)종/,
+    );
+    expect(
+      m,
+      "COMPATIBILITY.md 서문 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
+    ).not.toBeNull();
+    const green = Number((m as RegExpMatchArray)[1]);
+    const denom = Number((m as RegExpMatchArray)[2]);
+    const yellow = Number((m as RegExpMatchArray)[3]);
+    const dm = Number((m as RegExpMatchArray)[4]);
+    expect(denom, `서문 분모 ≠ EXTERNAL_ASSETS.length(${total})`).toBe(total);
+    expect(
+      green + yellow,
+      `서문 🟢(${green})+🟡(${yellow}) 분해 합 ≠ 카탈로그 총계(${total})`,
+    ).toBe(total);
+    expect(
+      dm,
+      `서문 dev-method 수 ≠ DEV_METHOD_SKILL_IDS.length(${DEV_METHOD_SKILL_IDS.length})`,
+    ).toBe(DEV_METHOD_SKILL_IDS.length);
+  });
+
   it(`index.html trust-tier 카드의 카탈로그 총계 분모가 ${total}`, () => {
     const text = readFileSync("index.html", "utf-8");
     const m = text.match(/(\d+)\s*\/\s*(\d+)\s+green/);

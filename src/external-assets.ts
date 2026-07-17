@@ -57,7 +57,9 @@ export type ExternalAssetMethod =
         // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
         | "gemini-consult"
         // v26.100.0 — codex-consult (opt-in, NOT dev-method): Codex advisor via OpenAI codex CLI.
-        | "codex-consult";
+        | "codex-consult"
+        // v26.104.0 — 재발방지 (recurrence prevention): 재발 검증→분류→대책 에스컬레이션. ADR-033.
+        | "recurrence-prevention";
     };
 
 export type ExternalAssetCondition =
@@ -171,7 +173,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 61 자산 매트릭스 (v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 62 자산 매트릭스 (v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 9종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -249,7 +251,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Dev-method skills (uzys 1st-party, v26.87.0) ===
-  // 본 하네스의 작업 방법론 skill 8종 (repo-bundled templates). tier official, core on dev tracks
+  // 본 하네스의 작업 방법론 skill 9종 (repo-bundled templates). tier official, core on dev tracks
   // (has-dev-track → 기본 설치; wizard uncheck / --without <id> 로 제외 가능 — isAssetSelected 게이팅).
   {
     id: "multi-persona-review",
@@ -344,6 +346,22 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "harness-health-audit" },
+  },
+  // v26.104.0 — 재발방지 (ADR-033, 사용자 지시 2026-07-17). 동일 이슈 재발 시: 재발을 증거로
+  //   검증(메모리·룰 사례표·git 이력 — "느낌상 재발" 금지) → 단순 실수 vs 복잡 하네스 문제 분류 →
+  //   단순 실수는 에스컬레이션 사다리(1회 기록 → 2회 룰 강제 등록 → 3회+ 구조적 게이트: 테스트/훅/
+  //   derive), 복잡 문제는 다면 페르소나로 대책 후보 설계. 본 repo 실무 관행(no-false-ship 3회
+  //   재발→rule 신설, CHANGELOG 7릴리즈 drift→테스트 게이트, "주석 경고 ≠ 차단 수단")의 스킬화.
+  //   대책이 실제 fire 하는지 검증(RED→GREEN/훅 exit 2) 없이 "보호됨" 보고 금지.
+  {
+    id: "recurrence-prevention",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Recurrence prevention — when the same defect happens again, verify the count with evidence, classify simple slip vs complex harness problem, then escalate the countermeasure: record → forced rule → structural gate (or multi-persona designed fix)",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "recurrence-prevention" },
   },
 
   // === Opt-in internal bundled skill (v26.95.0 — NOT dev-method) ===
@@ -1040,6 +1058,8 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "model-orchestration",
   // v26.98.0 — 하네스 건강 감사 (ADR-027).
   "harness-health-audit",
+  // v26.104.0 — 재발방지 (ADR-033).
+  "recurrence-prevention",
 ];
 
 /**
@@ -1047,7 +1067,7 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
- * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 8 has-dev-track methodology skills.
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 9 has-dev-track methodology skills.
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,

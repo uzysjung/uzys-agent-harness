@@ -509,6 +509,8 @@ describe("computeUserOverride", () => {
     "model-orchestration",
     // v26.98.0 — dev-method 8번째 (harness-health-audit).
     "harness-health-audit",
+    // v26.104.0 — dev-method 9번째 (recurrence-prevention, ADR-033).
+    "recurrence-prevention",
   ];
 
   it("selections == recommended → undefined (no override)", () => {
