@@ -45,6 +45,7 @@ describe("buildAssetEntries", () => {
       attempted: [mkResult(asset1, true), mkResult(asset2, false)],
       succeeded: 1,
       skipped: 1,
+      excludedByCli: [],
     };
     const entries = buildAssetEntries(report, "project");
     expect(entries).toHaveLength(1);
@@ -58,7 +59,7 @@ describe("buildAssetEntries", () => {
       method: { kind: "plugin", marketplace: "mp/foo", pluginId: "foo@mp" },
     });
     const entries = buildAssetEntries(
-      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     expect(entries[0]?.detail).toEqual({ marketplace: "mp/foo", pluginId: "foo@mp" });
@@ -71,7 +72,7 @@ describe("buildAssetEntries", () => {
       method: { kind: "npm", pkg: "vercel", version: "54.0.0" },
     });
     const entries = buildAssetEntries(
-      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     expect(entries[0]?.detail).toEqual({ pkg: "vercel" });
@@ -84,7 +85,7 @@ describe("buildAssetEntries", () => {
       method: { kind: "plugin", marketplace: "mp", pluginId: "p@mp" },
     });
     const entries = buildAssetEntries(
-      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "global",
     );
     expect(entries[0]?.scope).toBe("global");
@@ -103,11 +104,11 @@ describe("buildAssetEntries", () => {
       method: { kind: "skill", source: "owner/repo" },
     });
     const e1 = buildAssetEntries(
-      { attempted: [mkResult(withName)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(withName)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     const e2 = buildAssetEntries(
-      { attempted: [mkResult(noName)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(noName)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     expect(e1[0]?.detail).toEqual({ source: "owner/repo", skill: "polars" });
@@ -127,11 +128,11 @@ describe("buildAssetEntries", () => {
       method: { kind: "shell-script", script: "scripts/prune-ecc.sh", args: ["--yes"] },
     });
     const e1 = buildAssetEntries(
-      { attempted: [mkResult(npxRun)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(npxRun)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     const e2 = buildAssetEntries(
-      { attempted: [mkResult(shell)], succeeded: 1, skipped: 0 },
+      { attempted: [mkResult(shell)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
     expect(e1[0]?.detail).toEqual({ cmd: "get-shit-done-cc", args: "--init" });
@@ -168,6 +169,7 @@ describe("buildInstallLog + write/read round-trip", () => {
       attempted: [mkResult(asset)],
       succeeded: 1,
       skipped: 0,
+      excludedByCli: [],
     };
     const log = buildInstallLog(mkSpec(), report, "project");
     const path = writeInstallLog(tmpDir, log);

@@ -14,7 +14,7 @@
 
 import type { Category, Source } from "./categories.js";
 import { hasDevTrack } from "./track-match.js";
-import type { OptionFlags, Track } from "./types.js";
+import { CLI_BASES, type CliTargets, type OptionFlags, type Track } from "./types.js";
 
 export type ExternalAssetMethod =
   /** `npx skills add <source>[ --skill <name>] --yes` */
@@ -1159,6 +1159,42 @@ export function experimentalOptInCandidates(ctx: {
 /**
  * spec에 적용 가능한 자산 필터.
  */
+/**
+ * v26.102.0 (ADR-031, Batch3) — 자산의 CLI 도달 범위. 별도 필드가 아니라 method.kind 에서
+ * **derive** 한다: 도달 범위의 SSOT 는 installOne 의 실동작이며, 같은 사실을 entry 필드로
+ * 중복 기입하면 kind 와 필드가 어긋나는 drift 가 가능해진다 (no-false-ship "동일 목록 2곳
+ * 하드코딩 금지").
+ *  - plugin: installPlugin 이 `claude plugin marketplace/install` 을 spawn — 구조적 claude 전용
+ *  - shell-script: ecc-prune 이 `.claude/local-plugins/` 에 write — claude 전용
+ *  - skill: skills CLI 가 `--agent` 매핑(SKILLS_CLI_AGENT_MAP)으로 선택 CLI 전부에 설치
+ *  - npm/npx-run: 프로젝트 레벨 (CLI 무관)
+ *  - internal: Phase 1 manifest/transform 이 CLI 별 렌더 (external spawn 단계 미도달)
+ */
+export function assetCliSupport(asset: ExternalAsset): CliTargets {
+  switch (asset.method.kind) {
+    case "plugin":
+    case "shell-script":
+      return ["claude"];
+    case "skill":
+    case "npm":
+    case "npx-run":
+    case "internal":
+      return CLI_BASES;
+  }
+}
+
+/**
+ * 선택 CLI 와 자산 도달 범위의 교집합 여부. `cli` 가 빈 배열이면 레거시 관례
+ * (buildSkillArgs 등 "미지정 = 전체")를 따라 필터하지 않는다.
+ */
+export function assetReachesCli(asset: ExternalAsset, cli: CliTargets): boolean {
+  if (cli.length === 0) {
+    return true;
+  }
+  const support = assetCliSupport(asset);
+  return cli.some((c) => support.includes(c));
+}
+
 export function filterApplicableAssets(
   assets: ReadonlyArray<ExternalAsset>,
   ctx: {

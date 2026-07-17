@@ -20,6 +20,7 @@ import {
   writeMcpAllowlist,
 } from "./env-files.js";
 import {
+  assetReachesCli,
   EXTERNAL_ASSETS,
   filterApplicableAssets,
   INTERNAL_BUNDLED_SKILL_IDS,
@@ -542,7 +543,12 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
     options: spec.options,
     ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
   };
-  const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).length;
+  // v26.102.0 (ADR-031) — 헤더 카운트 = 실제 시도될 자산 수. runExternalInstall 과 동일하게
+  // internal(Phase 1 담당) + CLI 도달 불가 자산을 제외 — "External assets (N)" 의 N 이
+  // 시도 목록과 어긋나는 과대 고지 방지 (no-false-ship).
+  const applicableCount = filterApplicableAssets(EXTERNAL_ASSETS, filterCtx).filter(
+    (a) => a.method.kind !== "internal" && assetReachesCli(a, spec.cli),
+  ).length;
   ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
   const external = runExt(
     { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },

@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  assetCliSupport,
   CATEGORIES,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
@@ -38,14 +39,24 @@ const LEVEL_OVERRIDE = {
   openspec: "🟢 Docker", // npm i + npx openspec --version 1.4.1
 };
 
-const CLI_SCOPE = {
-  plugin: "Claude Code",
-  skill: "Claude Code (+skills.sh)",
-  npm: "agnostic",
-  "npx-run": "agnostic",
-  "shell-script": "local",
-  internal: "4-CLI (templates)", // tauri rule = claude / uzys-harness = claude+codex+antigravity transform
+// v26.102.0 (ADR-031, Batch3) — CLI 열의 **도달 범위**는 assetCliSupport(method.kind derive)가
+// SSOT. 이전의 CLI_SCOPE 수동 맵은 동일 사실의 2번째 하드코딩(no-false-ship 위반 구조)이었고
+// skill 을 "Claude Code (+skills.sh)" 로 과소 표기하고 있었다(skills CLI 는 `--agent` 로 선택
+// CLI 전부 설치). 아래 KIND_FLAVOR 는 도달 범위가 아니라 설치 **메커니즘** 표기(표현 계층)만 담당.
+const KIND_FLAVOR = {
+  plugin: "plugin",
+  skill: "skills.sh --agent",
+  npm: "npm, CLI-agnostic",
+  "npx-run": "npx, CLI-agnostic",
+  "shell-script": "local script",
+  internal: "templates",
 };
+function cliScopeLabel(asset) {
+  const support = assetCliSupport(asset);
+  const reach = support.length === 4 ? "4-CLI" : support.map((c) => c).join("+");
+  const label = reach === "claude" ? "Claude Code" : reach;
+  return `${label} (${KIND_FLAVOR[asset.method.kind] ?? asset.method.kind})`;
+}
 // v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 는 4-CLI 로
 // 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
 // frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
@@ -127,7 +138,7 @@ function rows() {
       const tier = TRUST_TIER[a.id] ?? "experimental";
       const lvl = LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "⚪";
       out.push(
-        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? CLI_SCOPE[a.method.kind]} | ${lvl} |`,
+        `| \`${a.id}\` | ${tier} | ${target(a.method)} | ${CLI_SCOPE_OVERRIDE[a.id] ?? cliScopeLabel(a)} | ${lvl} |`,
       );
     }
   }

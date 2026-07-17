@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.102.0] — 2026-07-17 (fix: 4-CLI cliSupport 데이터축 — codex 단독 설치의 claude spawn 오염 차단, Batch3 P0)
+
+2026-07-14 하네스 감사 P0 2건([4cli-asymmetry-cluster]·[cli-external-path-untested], 둘 다 CONFIRMED) 해소 — 사용자 확정 스코프(2026-07-14): "데이터축(cliSupport) + 고지 = 정직화, 대칭 실현은 M4+". 설계 근거 ADR-031.
+
+### Fixed
+- **codex/opencode/antigravity 단독 설치가 `claude` CLI 를 spawn 하던 P0** — `installPlugin` 이 `claude plugin marketplace/install` 을 하드코딩하는데 어느 레이어도 `ctx.cli` 를 참조하지 않아, claude 를 선택하지 않은 설치에서도 claude 가 실행돼 `~/.claude/plugins` 를 오염(프로젝트 룰 "무동의 글로벌 write 금지" 위반). fix = **`assetCliSupport()` derive**(plugin·shell-script → claude 전용 / skill·npm·npx-run·internal → 전 CLI — 도달 범위의 SSOT 는 installOne 실동작이므로 entry 필드가 아닌 method.kind 에서 derive, no-false-ship "동일 목록 2곳 하드코딩 금지") + `runExternalInstall` 이 선택 CLI 와 교집합 없는 자산을 **spawn 자체에서 배제**.
+- **침묵 제외 금지** — 배제분은 `ExternalInstallReport.excludedByCli`(신규 필수 필드)로 보고되고 render 가 `⊘ N claude-only asset(s) skipped for [codex]: …` 로 고지. "External assets (N)" 헤더 카운트도 실제 시도 목록과 일치하도록 정합(internal + 도달 불가 제외).
+- **COMPATIBILITY CLI 열 derive** — gen-compatibility 의 수동 `CLI_SCOPE` 맵(동일 사실 2번째 하드코딩, skill 을 "Claude Code (+skills.sh)" 로 과소 표기) 제거 → `assetCliSupport` 에서 도달 범위 derive + 표기는 메커니즘 flavor 만. plugin 26종 = "Claude Code (plugin)", skill/npm/npx = 4-CLI 로 정직화.
+
+### Added
+- `tests/cli-external-path.test.ts` (+7, RED 실증) — ①codex 단독 설치에서 `claude` spawn 0 불변식 ②plugin 자산 excludedByCli 보고 ③claude 포함 시 정상 시도 ④`cli: []` 레거시 무필터 ⑤skill 자산 `--agent codex` 도달(과차단 방지) ⑥⑦assetCliSupport derive 전수 검증. 감사가 지적한 "이 경로 테스트 0건" 폐쇄.
+
+> ④ SSOT 수치 derive 가드는 Batch2(#199) `docs-supply-chain.test.ts` 총계 게이트로 기충족 — 본 릴리즈 무변경.
+
 ## [v26.101.0] — 2026-07-17 (feat: harness-health-audit 안전(SAFE) 4번째 축)
 
 ADR-027 (z) 가 "알려진 갭"으로 정직 표기했던 안전 축을 신설 (독립 SOD 리뷰 Important #3 후속, 사용자 승인 2026-07-17). 3질문(TRUE/USED/AFFORDABLE)은 위험한 하네스를 통과시킨다 — permission 우회 지시나 unpinned `curl | sh` 훅은 정확하고(TRUE)·작동하고(USED)·한 줄이라(AFFORDABLE) 전부 clean 이었다. 설계 근거 ADR-030. 카탈로그 61 유지(자산 신설 아님, 기존 자산 개정).

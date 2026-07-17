@@ -22,6 +22,8 @@ export { CATEGORIES } from "./categories.js";
 //   하드코딩 id 목록 대신 SSOT 에서 derive (no-false-ship drift 구조 차단).
 // v26.95.0 — INTERNAL_BUNDLED_SKILL_IDS (dev-method + opt-in gemini-consult) 로 CLI scope derive.
 export {
+  // v26.102.0 (ADR-031) — gen-compatibility 의 CLI 열이 도달 범위를 derive 하도록 re-export.
+  assetCliSupport,
   DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,

@@ -36,6 +36,7 @@ const EMPTY_REPORT: ExternalInstallReport = {
   attempted: [],
   succeeded: 0,
   skipped: 0,
+  excludedByCli: [],
 };
 
 describe("runInstall — external assets integration", () => {
@@ -99,6 +100,7 @@ describe("runInstall — external assets integration", () => {
       ],
       succeeded: 1,
       skipped: 0,
+      excludedByCli: [],
     };
     const report = runInstall({
       runExternal: () => fakeExternal,

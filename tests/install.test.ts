@@ -635,6 +635,7 @@ describe("executeSpec", () => {
         ],
         succeeded: 4,
         skipped: 1,
+        excludedByCli: [],
       },
     });
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
@@ -681,6 +682,7 @@ describe("executeSpec", () => {
         ],
         succeeded: 1,
         skipped: 0,
+        excludedByCli: [],
       },
       codex: {
         agentsMdPath: "/p/AGENTS.md",

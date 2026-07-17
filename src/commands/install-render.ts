@@ -116,6 +116,18 @@ export function createInstallRenderer(
         log(unifiedSection(`External assets (${event.assetCount})`));
         log("");
         phase2HeaderPrinted = true;
+      } else if (event.type === "external-complete" && event.report) {
+        // v26.102.0 (ADR-031, Batch3) — CLI 도달 불가로 시도조차 안 한 자산 고지.
+        // 침묵 제외는 "4-CLI 지원" 광고와 실동작의 어긋남을 숨긴다 (no-false-ship).
+        const excluded = event.report.excludedByCli;
+        if (excluded.length > 0) {
+          const ids = excluded.map((a) => a.id).join(", ");
+          const clis = spec.cli.join(", ");
+          log("");
+          log(
+            `  ${c.dim(`⊘ ${excluded.length} claude-only asset(s) skipped for [${clis}]: ${ids}`)}`,
+          );
+        }
       }
     },
     externalDeps: {
