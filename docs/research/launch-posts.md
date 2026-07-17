@@ -1,8 +1,8 @@
 # 게시 글 초안 (M2 — 반자동 게시, 사용자 제출)
 
-> 작성 2026-06-13 · 1인칭 동기 = 사용자 실제 경험 입력 · SSOT: `docs/plans/service-audit-roadmap.md` M2
-> 정직성 원칙(전부 본문 명시): vetted ≠ 보안 감사 / 단일 메인테이너 / 4-CLI 비대칭(Claude first-class) / npm pin·plugin·skill HEAD 한계.
-> star 수치 = 2026-06-13 실측(`docs/WORKFLOWS.md` 동기화).
+> 작성 2026-06-13 · **전수 재검증 2026-07-17** (v26.102.0 기준 — 수치·주장 실측 갱신, 하단 재검증 노트) · 1인칭 동기 = 사용자 실제 경험 입력 · SSOT: `docs/plans/service-audit-roadmap.md` M2
+> 정직성 원칙(전부 본문 명시): vetted ≠ 보안 감사 / 단일 메인테이너 / 4-CLI 비대칭(Claude first-class, claude 전용 자산은 설치 시 명시 고지) / npm pin·plugin·skill HEAD 한계.
+> star 수치 = **2026-07-17 라이브 실측**(`gh api stargazers_count`).
 
 ## 포지셔닝 한 문장 (차별점)
 
@@ -40,19 +40,22 @@ one just eats context and makes the agent slower and less focused.
 What I wanted: pick my stack and have the *vetted* options for it pre-selected — install only
 what this project needs instead of browsing a list. I couldn't find it, so I built it.
 
-Concretely: pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase
-RLS guide, and shadcn — and nothing else. Uncheck anything you don't want.
+Concretely: pick "Next.js + Supabase" and it pre-checks ~25 of the 61-asset catalog that map to
+that stack — Vercel's React/Next skills, Supabase/Postgres best-practice guides, shadcn, plus a
+small set of methodology skills — and shows you the exact list to review and uncheck before
+anything installs.
 
 agent-harness:
 - A "track" is a preset for your stack; it pre-checks a vetted set, you review and uncheck.
 - "Vetted" = >=1000 stars + active maintenance + a one-off Docker run that actually installs the
-  assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package
+  assets (49/61 so far) with the real CLI and confirms they resolve (not just that the package
   exists), re-checked monthly by a CI cron. It is NOT a security audit or a content scan — I say so in the README.
 - Beyond frontend/backend/data, there's a Visual & Media set — code-first slides, diagrams,
   motion, video. All opt-in; nothing installs that you didn't pick.
 - Claude Code is first-class; Codex, OpenCode, and Antigravity get the rules/skills layer, not the
-  full plugin set — I'd rather say so up front than oversell parity. Project scope by default —
-  no global pollution unless you ask.
+  full plugin set — and rather than silently skipping, the installer now tells you exactly which
+  assets are Claude-only for your CLI selection. Project scope by default — no global pollution
+  unless you ask.
 - npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD (can't be
   commit-pinned yet — documented). It backs up your existing .claude/settings.json and
   CLAUDE.md before touching them.
@@ -77,34 +80,36 @@ directories you scroll (hundreds of entries), not curation — and piling on ski
 (extra tools the agent calls) I'll never use just eats my agent's context. I wanted: pick my
 stack, get only the vetted options for it.
 
-Concretely: pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase
-RLS guide, and shadcn — nothing else; uncheck what you don't want. A "track" is just a preset.
+Concretely: pick "Next.js + Supabase" and it pre-checks ~25 of the 61-asset catalog that map to
+that stack — Vercel's React/Next skills, Supabase/Postgres guides, shadcn, plus a small
+methodology-skill set — and shows the exact list to review/uncheck before anything installs.
+A "track" is just a preset.
 
 "Vetted" = >=1000 stars + active maintenance + a one-off Docker run that actually installs the
-assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package exists),
+assets (49/61 so far) with the real CLI and confirms they resolve (not just that the package exists),
 re-checked monthly by a CI cron — NOT a security audit. Categories span frontend/backend/data plus a Visual & Media set (slides,
-diagrams, motion, video). Installs across Claude Code (first-class), Codex, OpenCode, Antigravity.
+diagrams, motion, video). Installs across Claude Code (first-class), Codex, OpenCode, Antigravity —
+Claude-only assets are explicitly reported as excluded when you pick another CLI, not silently skipped.
 
   npx -y @uzysjung/agent-harness
 
 Solo project — if it saves you setup time, a star helps it reach more people. Feedback very
 welcome, especially on the curation calls.
 
-How it compares (★ 2026-06-13):
+How it compares (★ 2026-07-17):
 ```
 
-| 프로젝트 | ★ (2026-06-22) | 한 줄 정체 |
+| 프로젝트 | ★ (2026-07-17 실측) | 한 줄 정체 |
 |---|---|---|
-| Superpowers | 235k | agentic skills 프레임워크 |
-| ECC | 219k | 60 agents·230 skills 종합(kitchen-sink) |
-| GSD | 64k | get-shit-done 오케스트레이터 |
-| addy agent-skills | 65k | 경량 general dev |
-| OpenSpec | 56k | spec-driven brownfield delta |
-| BMAD-METHOD | 49k | 멀티-에이전트 애자일 |
-| wshobson agents | 37k | 멀티-에이전트 오케스트레이션 |
-| uzys-harness | (내장) | 6-Gate `/uzys:spec…ship` |
+| Superpowers | 256k | agentic skills 프레임워크 |
+| ECC | 231k | 60 agents·230 skills 종합(kitchen-sink) |
+| addy agent-skills | 79k | 경량 general dev |
+| OpenSpec | 61k | spec-driven brownfield delta |
+| BMAD-METHOD | 51k | 멀티-에이전트 애자일 |
+| wshobson agents | 38k | 멀티-에이전트 오케스트레이션 |
 
-> Claude Code first-class; Codex/OpenCode/Antigravity 는 skills+rules 수준. vetted ≠ 보안 감사. 단일 메인테이너. 피드백 환영.
+> GSD(64k)는 upstream archived(2026-07-17 확인)로 비교표·카탈로그 양쪽에서 제외(ADR-024). 구판의 "uzys 6-Gate" 행은 해당 기능 제거(ADR-023)로 삭제.
+> Claude Code first-class; Codex/OpenCode/Antigravity 는 skills+rules 수준(claude 전용 자산은 설치 시 EXCLUDED 고지). vetted ≠ 보안 감사. 단일 메인테이너. 피드백 환영.
 
 ---
 
@@ -126,10 +131,10 @@ Pick my stack, get only the *vetted* options for it pre-selected — install wha
 
 ## How it works
 
-- A **track** is a preset for your stack. Pick "Next.js + Supabase" and it pre-checks Vercel's React/Next skills, a Supabase RLS guide, and shadcn — and nothing else. Review and uncheck anything you don't want.
-- **"Vetted"** = ≥1000 stars + active maintenance + a one-off Docker run that actually installs the assets (49/52 so far) with the real CLI and confirms they resolve (not just that the package exists), re-checked monthly by a CI cron. It is **not** a security audit or a content scan.
+- A **track** is a preset for your stack. Pick "Next.js + Supabase" and it pre-checks ~25 of the 61-asset catalog that map to that stack — Vercel's React/Next skills, Supabase/Postgres best-practice guides, shadcn, plus a small methodology-skill set — and shows you the exact list to review and uncheck before anything installs.
+- **"Vetted"** = ≥1000 stars + active maintenance + a one-off Docker run that actually installs the assets (49/61 so far) with the real CLI and confirms they resolve (not just that the package exists), re-checked monthly by a CI cron. It is **not** a security audit or a content scan.
 - Beyond frontend/backend/data, there's a **Visual & Media** set — code-first slides, diagrams, motion, video. All opt-in; nothing installs that you didn't pick.
-- **Claude Code is first-class.** Codex, OpenCode, and Antigravity get the rules/skills layer, not the full plugin set — I'd rather say so up front than oversell parity.
+- **Claude Code is first-class.** Codex, OpenCode, and Antigravity get the rules/skills layer, not the full plugin set — and rather than silently skipping, the installer tells you exactly which assets are Claude-only for your CLI selection.
 - Project scope by default — no global pollution unless you ask. npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD (not commit-pinned yet — documented). It backs up your existing `.claude/settings.json` and `CLAUDE.md` before touching them.
 
 ## Try it
@@ -144,10 +149,23 @@ It's early and I'm a solo maintainer; the COMPATIBILITY matrix is honest about w
 ---
 
 ## 게시 순서 (M2)
-1. 데모 GIF README 반영 확인 (신 브랜드 ✓)
+1. 데모 GIF README 반영 확인 (신 브랜드 ✓ — 2026-07-17 재확인: gif 실재·구브랜드 grep 0건)
 2. Show HN + r/ClaudeCode (반자동: 폼 채움=에이전트 / 제출 클릭=사용자)
-3. 첫 24~48h 댓글 모니터링 + 응답 초안 → 사용자 승인 후 게시
+3. 첫 24~48h 댓글 모니터링 + **즉석 ad hoc 응답 초안** → 사용자 승인 후 게시 (batch 초안 금지 — astroturf 패턴)
 4. star 두 자리 후 awesome-list (bradAGI README PR + hesreallyhim issue form)
+
+## 재검증 노트 (2026-07-17, v26.102.0 기준 — 제출 직전 전수 실측)
+
+| 항목 | 구값 | 실측 | 반영 |
+|---|---|---|---|
+| 카탈로그 총계/green | "49/52" | **49/61** (COMPATIBILITY 자동생성 블록) | 3글 전부 교체 |
+| "nothing else" 예시 | 3자산만 pre-check 암시 | Next.js+Supabase = **25자산** pre-check (dev-method 8종 기본 포함) | "~25 of 61, 목록 리뷰/uncheck" 로 정직화 |
+| 비교표 ★ | 2026-06-22 스냅샷 | 2026-07-17 `gh api` 라이브: 256k/231k/79k/61k/51k/38k | 표 교체 |
+| GSD 행 | 64k 게재 | **archived=true** (카탈로그도 ADR-024 로 기제거) | 행 삭제 |
+| "uzys 6-Gate" 행 | 내장 기능으로 게재 | 기능 자체 제거됨 (ADR-023) | 행 삭제 |
+| 4-CLI 문구 | "not the full plugin set" 만 | v26.102.0: claude 전용 자산 **EXCLUDED 명시 고지** 출하 | 신뢰 영수증으로 1줄 추가 |
+| 데모 GIF | 재확인 필요 | README 참조 실재 + 구브랜드 문자열 0건 | ✓ |
+| cadence 문구 | "re-checked monthly by a CI cron" | catalog-verify = 월 1회 cron 유지 (M3 에서 격상 예정) | 유지 (정직) |
 
 ---
 
