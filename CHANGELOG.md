@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.100.0] — 2026-07-17 (feat: codex-consult 자산 + gemini-consult 이미지 모드 + OpenCode consult 실행 불능 fix)
+
+사용자 요청(2026-07-17): Codex 의 강점(간결·구조화·이미지 생성)을 살린 협업 스킬 + gemini-consult 에도 이미지 생성 활용. 5-페르소나 독립 패널 리뷰(실행자/보안/라우팅/크로스-CLI/비용) → 개선 → 출하. 설계 근거 ADR-029. 카탈로그 60 → **61**.
+
+### Added
+- **`codex-consult` 스킬** (opt-in internal, `--with codex-consult` / wizard Dev Tools) — OpenAI `codex exec` 위임 2모드: **A. 간결 재작성/구조화**(장황한 문서 압축·목차/표 재구성) / **B. 이미지 생성**(codex `image_generation` tool → 실 PNG, 실측 검증). gemini-consult 와 분업 양방향 명시(한국어 뉘앙스·페르소나 → gemini / 구조·간결·기본 이미지 → codex).
+- **gemini-consult Mode C — 이미지 생성** (`-g OUT_DIR`). headless agy 가 셸 저장 권한을 auto-deny 하는 제약을 **권한 우회 없이** 해결: 생성 도구 자체는 무권한 → 산출물이 agy brain 디렉토리에 남음 → 래퍼가 marker 기반 `find -newer` 로 수거. `--dangerously-skip-permissions` 금지를 스킬 본문에 명문화 (agy 는 OS 샌드박스가 없어 권한 시스템이 곧 샌드박스).
+- `tests/opencode-shell-agent.test.ts` (+5) — 아래 Fixed 의 구조적 게이트. RED 실증(derive 를 끄면 e2e fail).
+
+### Fixed
+- **OpenCode 에서 consult 스킬 실행 불능** (v26.95.0 gemini-consult 출하분 실버그, 크로스-CLI 페르소나 CONFIRMED) — `renderCommandFromSkill` 이 전 번들 스킬에 `agent: plan` 을 박는데 같은 설치가 쓰는 `opencode.json.template` 이 plan 에 `bash: false` → bash 전용 consult 커맨드가 no-op. **fix = scripts/ sidecar 존재로 셸 의존을 derive** 해 `agent: build` 렌더 (하드코딩 id 목록 없음 — no-false-ship "derive 단일화").
+- 두 SKILL.md 의 직접 호출 폴백(비-Claude CLI 의 유일 경로) 3결함 — ① 바이너리 해석 부재(`~/.local/bin` 미PATH 리눅스에서 불투명 실패) ② `cd` 가 세션 cwd 오염(subshell/trap 없음) ③ 이미지 모드 폴백 부재(repo cwd 에서 workspace-write 실행 위험). 해석+trap+이미지 스니펫 명시로 폐쇄.
+
+### Changed (패널 리뷰 반영 — 래퍼 v2 공통 하드닝)
+- **portable timeout**(GNU `timeout` 의존 제거 — stock macOS 에서 무한 대기이던 경로 소멸, exit 124) · **env 허용목록**(`env -i` — read-only 샌드박스는 *읽기*를 막지 않으므로 ambient 토큰 미전달) · **시크릿-형태 프롬프트 거부**(exit 4, AKIA/ghp_/sk-/xox/PRIVATE KEY) · **untrusted 출력 태그**(`<untrusted-*-output>`) · **후행 플래그 fail-loud**(silent wrong-mode 차단) · OUT_DIR clobber 가드 + `$HOME`/`/` 거부 · `## On failure` 섹션(blind-retry 금지).
+- codex `-i/--image` variadic 함정 실측 fix — `-i f.png PROMPT` 가 프롬프트를 삼킴 → `--image=` 등호형 + `--` 종결자.
+- "nothing leaks by default" 과장 주장 철회 — read-only = **쓰기** 제한이지 읽기/전송 차단이 아님을 정직 표기 (보안 페르소나 F1).
+- gemini-consult 한국어 우위 주장에 출처 표기(사용자 선호 판단, 벤치마크 아님 — 라우팅 페르소나 F1) · `multi-persona-review` 스킬과 트리거 충돌 해소(양방향 경계 문구).
+
+> 검증: 래퍼 전 경로 실측(text/stdin/`-g`/`-i`/`--`/secret-guard/extra-args/timeout-kill = exit 0/0/0/0/0/4/2/124) · shellcheck 2/2(docker) · 신규 게이트 RED 실증 · `npm run ci` green. 이미지 실물: codex rocket/sun/dot PNG, gemini moon/leaf(brain 수거) — 전부 육안 대조. **2차 검증 패스 반증 반영 후**: timeout real-kill 스텁 실증(고아 0), 심링크 OUT_DIR 거부, sk- FP/TP, exit 5 — 전부 재실측. 정직 표기: 최종 래퍼로의 gemini 실 이미지 재실행은 **Gemini 이미지 quota 429 로 차단**(세션 중 4장 생성) — 수거 루프는 스텁 brain 으로 결정론 재검증했고, exit 5 fail-loud 는 그 실 429 상황에서 오히려 실증됨.
+
 ## [v26.99.0] — 2026-07-17 (feat: wizard — 방법론 번들 단일 row + Dev 페이지 분할)
 
 사용자 지적(2026-07-16): *"쌓이다 보니 너무 많아서 선택 row 를 너무 많이 차지한다. 필수로 설치되어야 하는 것들은 묶어서 설치 패키지화 하고 선택도 구분에 따라 좀 묶자."* 실측 결과 **코드가 자기 제약을 위반 중**이었다 — `prompts.ts` 는 페이지 묶음 근거를 "페이지당 옵션 ≤ ~30"이라 명시하는데 **Dev 페이지가 37행**. 터미널을 넘겨 스크롤이 생기는 것이 그 증상의 실제 메커니즘. 설계 근거 ADR-028.

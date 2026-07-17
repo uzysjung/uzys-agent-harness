@@ -54,7 +54,9 @@ export type ExternalAssetMethod =
         // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy 3질문). ADR-027.
         | "harness-health-audit"
         // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
-        | "gemini-consult";
+        | "gemini-consult"
+        // v26.100.0 — codex-consult (opt-in, NOT dev-method): Codex advisor via OpenAI codex CLI.
+        | "codex-consult";
     };
 
 export type ExternalAssetCondition =
@@ -161,7 +163,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 60 자산 매트릭스 (v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 61 자산 매트릭스 (v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0 dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -345,11 +347,29 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "gemini-consult",
     tier: "official", // uzys 본 하네스 자체 템플릿 (런타임 의존 agy 는 사용자 prereq)
     description:
-      "gemini-consult — consult Gemini (via Antigravity agy CLI) for natural Korean phrasing + multi-persona second-opinion review (opt-in; requires agy)",
+      "gemini-consult — consult Gemini (via Antigravity agy CLI) for natural Korean phrasing + multi-persona second-opinion review + Gemini image generation (opt-in; requires agy)",
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "opt-in" },
     method: { kind: "internal", key: "gemini-consult" },
+  },
+
+  // codex-consult (v26.100.0): uzys 1st-party sibling of gemini-consult, wrapping the OpenAI
+  //   `codex` CLI (`codex exec`) for concise rewriting / document structuring + image generation
+  //   (codex `image_generation` tool → real PNG on disk). Same bundling shape: dir copy ships
+  //   scripts/codex-ask.sh to Claude scope; non-Claude CLIs get SKILL.md with a direct-call
+  //   fallback. Division of labor is encoded in both skills' descriptions (Korean nuance/persona
+  //   → gemini, concision/structure/default images → codex). Runtime dep on `codex` binary is a
+  //   user prereq, not a source.
+  {
+    id: "codex-consult",
+    tier: "official", // uzys 본 하네스 자체 템플릿 (런타임 의존 codex 는 사용자 prereq)
+    description:
+      "codex-consult — consult OpenAI Codex (codex exec) for concise/structured rewriting + image generation (opt-in; requires codex CLI)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "codex-consult" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -1018,6 +1038,8 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,
   // opt-in internal skills (NOT dev-method): bundled + 4-CLI rendered, installed only on opt-in.
   "gemini-consult",
+  // v26.100.0 — Codex advisor (concision/structure + image gen). ADR-029.
+  "codex-consult",
 ];
 
 /**

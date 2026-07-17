@@ -204,6 +204,10 @@ framing the rubric and synthesizing (steps 1, 4-6), where reasoning quality pays
 - `gap-analysis-e2e` — this skill feeds its UX/user-journey lens.
 - `critique` — design-specific persona critique with anti-pattern detection; reach for it when the
   artifact is a UI rather than prose/markdown.
+- `gemini-consult` — its persona mode also answers "다면 페르소나 / second opinion" phrasing, but
+  via ONE external Gemini call role-playing personas. Prefer THIS skill for a native, genuinely
+  independent parallel panel; reach for gemini-consult when an external non-Claude model's opinion
+  is specifically the point.
 
 > This SKILL.md is complete and self-contained — everything needed to run a panel is above. If the
 > method ever needs deeper appendices (full default rubrics per artifact type, persona prompt

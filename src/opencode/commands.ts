@@ -1,32 +1,49 @@
 /**
- * Bundled SKILL.md → OpenCode `.opencode/commands/<id>.md` command fallback (dev-method skills).
+ * Bundled SKILL.md → OpenCode `.opencode/commands/<id>.md` command fallback (bundled skills).
  *
  * OpenCode 는 native skill 개념이 없어 각 skill 을 커맨드로 surface:
  *   - 파일명 = 슬래시 커맨드명 → `<id>.md`
- *   - Frontmatter: `description` (skill frontmatter 에서) + `agent: plan`, `name` 필드 없음
+ *   - Frontmatter: `description` (skill frontmatter 에서) + `agent: plan|build`, `name` 필드 없음
  */
 import { renameSlashes } from "./agents-md.js";
 
 /**
- * v26.87.0 — render an OpenCode command from a bundled, already-complete SKILL.md
- * (dev-method skills). OpenCode has NO native skill concept, so each selected skill is
- * surfaced as a `.opencode/commands/<id>.md` command fallback: command frontmatter
- * (`description` from the skill's own frontmatter, `agent: plan`) + the skill body.
+ * v26.87.0 — render an OpenCode command from a bundled, already-complete SKILL.md.
+ * OpenCode has NO native skill concept, so each selected skill is surfaced as a
+ * `.opencode/commands/<id>.md` command fallback: command frontmatter (`description`
+ * from the skill's own frontmatter, `agent: …`) + the skill body.
  *
  * Unlike a uzys phase command, there is no slash phase — the id IS the command name
  * (filename). Body slashes are renamed (`/uzys:` → `/uzys-`) for consistency with the
- * other ports. `agent: plan` because these are review/analysis methodology skills
- * (read-heavy), mirroring renderCommand's plan-side phases (spec/plan/review).
+ * other ports.
+ *
+ * v26.100.0 — `agent` is no longer a blanket `plan`. Dev-method skills are read-heavy
+ * (plan is right), but shell-dependent consult skills (gemini-consult / codex-consult —
+ * they work ONLY by shelling out to an external CLI) were a no-op under plan, whose
+ * profile in templates/opencode/opencode.json.template denies bash. The caller derives
+ * `shellDependent` from the skill's bundled `scripts/` sidecar dir (structural signal,
+ * no hardcoded id list to drift) and such skills render `agent: build` (bash-capable).
  */
-export function renderCommandFromSkill(source: string, id: string): string {
+export function renderCommandFromSkill(
+  source: string,
+  id: string,
+  opts?: { shellDependent?: boolean },
+): string {
   const { description, body } = parseSkillFrontmatter(source);
   const finalDescription = description || `${id} (dev-method skill, OpenCode command fallback)`;
   const escapedDesc = finalDescription.replace(/"/g, '\\"');
   const renamedBody = renameSlashes(body).trimEnd();
+  const agent = opts?.shellDependent ? "build" : "plan";
 
-  return ["---", `description: "${escapedDesc}"`, "agent: plan", "---", "", renamedBody, ""].join(
-    "\n",
-  );
+  return [
+    "---",
+    `description: "${escapedDesc}"`,
+    `agent: ${agent}`,
+    "---",
+    "",
+    renamedBody,
+    "",
+  ].join("\n");
 }
 
 /**

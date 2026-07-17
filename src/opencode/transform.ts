@@ -80,7 +80,13 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
       continue;
     }
     const target = join(cmdDir, `${id}.md`);
-    writeFileSync(target, renderCommandFromSkill(readFileSync(src, "utf8"), id));
+    // scripts/ sidecar = the skill shells out to an external CLI → needs a
+    // bash-capable agent; plan (bash denied) made such commands a no-op.
+    const shellDependent = existsSync(join(harnessRoot, "templates/skills", id, "scripts"));
+    writeFileSync(
+      target,
+      renderCommandFromSkill(readFileSync(src, "utf8"), id, { shellDependent }),
+    );
     commandFiles.push(target);
   }
 
