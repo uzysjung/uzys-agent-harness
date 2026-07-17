@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.101.0] — 2026-07-17 (feat: harness-health-audit 안전(SAFE) 4번째 축)
+
+ADR-027 (z) 가 "알려진 갭"으로 정직 표기했던 안전 축을 신설 (독립 SOD 리뷰 Important #3 후속, 사용자 승인 2026-07-17). 3질문(TRUE/USED/AFFORDABLE)은 위험한 하네스를 통과시킨다 — permission 우회 지시나 unpinned `curl | sh` 훅은 정확하고(TRUE)·작동하고(USED)·한 줄이라(AFFORDABLE) 전부 clean 이었다. 설계 근거 ADR-030. 카탈로그 61 유지(자산 신설 아님, 기존 자산 개정).
+
+### Added
+- **D. Is it SAFE?** — 4번째 질문, 3검사: **D1 위험 활성 지시**(guardrail 제거 지시 — permission 우회·unpinned 원격 스크립트·파괴적 명령 자동승인, 근거: Claude Code 공식 문서 `bypassPermissions` 경고) / **D2 폭발 반경**(repo 밖 도달 경로 — 글로벌 설정 write·spawn 환경 credential·외부 전송, 근거: Meta Agents Rule of Two) / **D3 비신뢰 입력 취급**(외부 콘텐츠를 데이터가 아닌 지시로 취급, 근거: OWASP LLM01/LLM03:2025 + Willison lethal trifecta). 인용 5건 전부 원문 실검증(no-false-ship).
+- **D 기본 액션 = flag (fix 아님)** — bypass 는 샌드박스 환경의 의도적 트레이드오프일 수 있어 보안 태세 결정은 사용자 몫. 무단 "교정"을 안티패턴으로 명문화.
+
+### Changed
+- 안전을 "ad-hoc 렌즈"에서 체계적 4번째 축으로 승격 — 단 **완전성 단언은 계속 금지**("Four questions are still not a completeness claim"), 리포트 Safety 행 유지(빈 값 = "none seen — not a clean bill"), Honest limitations 를 "No systematic safety pass" → "**D is not a security audit**"(정적 읽기·코드/의존성 미스캔·adversarial step 없음, clean D ≠ security clearance)로 교체.
+- frontmatter description 4질문 + 안전 트리거("하네스 안전한지 점검해줘"/"is my harness safe") + 부정 케이스("Not a codebase security audit") 추가. 카탈로그 description 동기(3→4 questions). 본문 453줄(≤500 상한).
+
 ## [v26.100.1] — 2026-07-17 (fix: consult 스킬 미검증 2건 실측 반영 — codex auth 시그니처 + gemini 이미지 quota)
 
 v26.100.0 이 "미검증"으로 정직 표기했던 항목을 실측으로 폐쇄 (docs-only, 래퍼 무변경).
