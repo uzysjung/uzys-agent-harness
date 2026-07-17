@@ -93,6 +93,31 @@ export interface ExternalInstallReport {
 const DEFAULT_SPAWN_TIMEOUT_MS = 120_000;
 
 /**
+ * v26.102.0 (ADR-031) — external 단계의 대상/배제 판정 **단일 지점**. 규칙 = 조건 통과 ∧
+ * non-internal(Phase 1 담당) ∧ 선택 CLI 도달. runExternalInstall(시도 목록)과
+ * runExternalPhase(헤더 카운트)가 이 함수만 호출한다 — 같은 규칙을 두 파일에 각각 기술하면
+ * 3번째 조건이 생길 때 카운트만 조용히 어긋난다 (SOD 리뷰 Important-6, no-false-ship
+ * "동일 목록 2곳 하드코딩 금지").
+ */
+export function selectExternalTargets(
+  assets: ReadonlyArray<ExternalAsset>,
+  ctx: {
+    tracks: ReadonlyArray<Track>;
+    options: OptionFlags;
+    cli: CliTargets;
+    userOverride?: { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> };
+  },
+): { targets: ExternalAsset[]; excludedByCli: ExternalAsset[] } {
+  const conditionPassed = filterApplicableAssets(assets, ctx).filter(
+    (a) => a.method.kind !== "internal",
+  );
+  return {
+    targets: conditionPassed.filter((a) => assetReachesCli(a, ctx.cli)),
+    excludedByCli: conditionPassed.filter((a) => !assetReachesCli(a, ctx.cli)),
+  };
+}
+
+/**
  * spec에 적용 가능한 자산을 모두 시도. 실패는 warn-skip (기본).
  */
 export function runExternalInstall(
@@ -125,15 +150,11 @@ export function runExternalInstall(
   // v26.81.0 (ADR-022) — internal 자산(tauri-desktop)은 Phase 1 의
   //   manifest/transform 이 설치 주체 — external(spawn) 단계에서 제외. Phase 1 의
   //   templates 행으로 사용자에게 이미 가시화됨 (중복 보고 방지).
-  const conditionPassed = filterApplicableAssets(assets, ctx).filter(
-    (a) => a.method.kind !== "internal",
-  );
   // v26.102.0 (ADR-031, Batch3) — CLI 도달 범위 필터. 선택 CLI 와 교집합 없는 자산은
   // spawn 자체를 배제한다: codex 단독 설치가 claude 전용 plugin 을 `claude plugin ...` 으로
   // spawn 해 ~/.claude/plugins 를 오염시키던 P0 [4cli-asymmetry-cluster] 의 구조적 fix.
   // 제외분은 excludedByCli 로 보고 — 침묵 제외 금지 (no-false-ship).
-  const excludedByCli = conditionPassed.filter((a) => !assetReachesCli(a, ctx.cli));
-  const applicable = conditionPassed.filter((a) => assetReachesCli(a, ctx.cli));
+  const { targets: applicable, excludedByCli } = selectExternalTargets(assets, ctx);
   // v26.55.0 — Phase 2 grouped progress UX. 카테고리 순서로 정렬 → install.ts 의 onAssetStart
   // callback 이 category 변경 감지로 헤더 출력 가능. ADR-016.
   const sorted = [...applicable].sort((a, b) => {

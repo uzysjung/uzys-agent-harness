@@ -2,9 +2,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExternalInstallReport } from "../src/external-installer.js";
+import { EXTERNAL_ASSETS } from "../src/external-assets.js";
+import { type ExternalInstallReport, selectExternalTargets } from "../src/external-installer.js";
 import { type InstallContext, runInstall } from "../src/installer.js";
-import type { InstallSpec, OptionFlags, Track } from "../src/types.js";
+import type { CliTargets, InstallSpec, OptionFlags, Track } from "../src/types.js";
 
 type RunExternalFn = NonNullable<InstallContext["runExternal"]>;
 function makeMock(fn: RunExternalFn): RunExternalFn & {
@@ -69,6 +70,35 @@ describe("runInstall — external assets integration", () => {
     expect(ctx?.userOverride?.forceInclude).toEqual(["ecc-plugin"]);
     // Bug B (2026-06-07): 외부 설치기가 올바른 프로젝트에 착지하도록 projectDir 가 전달돼야 함.
     expect(ctx?.projectDir).toBe(projectDir);
+  });
+
+  it("external-start 헤더 카운트가 실 시도 대상 수와 일치하고 CLI 필터가 관통한다 (SOD F1)", () => {
+    // WHY: 이전 헤더 카운트는 internal 자산을 포함해 dev 트랙 전부에서 과대였고
+    // ("External assets (13)" 표기 후 5행 스트리밍), 그 값을 검증하는 테스트가 0건이라
+    // mock 이 값을 날조하는 경로만 존재했다. 실 runExternalPhase 를 태워 실측한다.
+    const capture = (cli: CliTargets): number => {
+      let announced = -1;
+      runInstall({
+        runExternal: makeMock(() => EMPTY_REPORT),
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: { ...spec(["tooling"], {}, projectDir), cli },
+        onProgress: (e) => {
+          if (e.type === "external-start") announced = e.assetCount;
+        },
+      });
+      return announced;
+    };
+    const claudeCount = capture(["claude"]);
+    const codexCount = capture(["codex"]);
+    const expectedCodex = selectExternalTargets(EXTERNAL_ASSETS, {
+      tracks: ["tooling"],
+      options: NO_OPTS,
+      cli: ["codex"],
+    }).targets.length;
+    expect(codexCount).toBe(expectedCodex);
+    // CLI 필터가 실 경로를 관통한다는 직접 증거 — tooling 트랙엔 claude 전용 plugin 이 있다.
+    expect(codexCount).toBeLessThan(claudeCount);
   });
 
   it("skips external install when runExternal=null (test mode)", () => {

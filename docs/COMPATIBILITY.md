@@ -47,56 +47,56 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `northstar-roadmap` | official | templates (`--with northstar-roadmap`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code | 🟢 Docker |
-| `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code | 🟢 Docker |
-| `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code | 🟢 Docker |
-| `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | agnostic | 🟢 Docker |
-| `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | agnostic | 🟢 Docker |
+| `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |
+| `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code (plugin) | 🟢 Docker |
+| `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
+| `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | Claude Code (npx) | 🟢 Docker |
 
 #### 🎨 Frontend (6)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
 | `tauri-desktop` | official | templates (`--with tauri-desktop`) | 4-CLI (templates) | 🟡 local |
-| `frontend-design` | official | `frontend-design@claude-plugins-official` | Claude Code | 🟢 Docker |
-| `impeccable` | vetted | `pbakaus/impeccable :: impeccable` | Claude Code (+skills.sh) | 🟢 Docker |
-| `react-best-practices` | vetted | `vercel-labs/agent-skills :: vercel-react-best-practices` | Claude Code (+skills.sh) | 🟢 Docker |
-| `shadcn-ui` | vetted | `shadcn/ui :: shadcn` | Claude Code (+skills.sh) | 🟢 Docker |
-| `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | Claude Code (+skills.sh) | 🟢 Docker |
+| `frontend-design` | official | `frontend-design@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `impeccable` | vetted | `pbakaus/impeccable :: impeccable` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `react-best-practices` | vetted | `vercel-labs/agent-skills :: vercel-react-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `shadcn-ui` | vetted | `shadcn/ui :: shadcn` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 🗄️ Backend (6)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `vercel-cli` | vetted | `vercel@54.17.3` (npm) | agnostic | 🟢 registry |
-| `netlify-cli` | vetted | `netlify-cli@26.1.0` (npm) | agnostic | 🟢 registry |
-| `supabase-cli` | vetted | `supabase@2.108.0` (npm) | agnostic | 🟢 registry |
-| `supabase-agent-skills` | vetted | `supabase@supabase-agent-skills` | Claude Code | 🟢 Docker |
-| `postgres-best-practices` | vetted | `postgres-best-practices@supabase-agent-skills` | Claude Code | 🟢 Docker |
-| `railway-skills` | experimental | `railway@railway-skills` | Claude Code | 🟢 Docker |
+| `vercel-cli` | vetted | `vercel@54.17.3` (npm) | 4-CLI (npm) | 🟢 registry |
+| `netlify-cli` | vetted | `netlify-cli@26.1.0` (npm) | 4-CLI (npm) | 🟢 registry |
+| `supabase-cli` | vetted | `supabase@2.108.0` (npm) | 4-CLI (npm) | 🟢 registry |
+| `supabase-agent-skills` | vetted | `supabase@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
+| `postgres-best-practices` | vetted | `postgres-best-practices@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
+| `railway-skills` | experimental | `railway@railway-skills` | Claude Code (plugin) | 🟢 Docker |
 
 #### 📊 Data (5)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `anthropic-data-plugin` | official | `data@knowledge-work-plugins` | Claude Code | 🟢 Docker |
-| `polars-K-Dense` | vetted | `K-Dense-AI/scientific-agent-skills :: polars` | Claude Code (+skills.sh) | 🟢 Docker |
-| `dask-K-Dense` | vetted | `K-Dense-AI/scientific-agent-skills :: dask` | Claude Code (+skills.sh) | 🟢 Docker |
-| `python-resource-management` | vetted | `wshobson/agents :: python-resource-management` | Claude Code (+skills.sh) | 🟢 Docker |
-| `python-performance-optimization` | vetted | `wshobson/agents :: python-performance-optimization` | Claude Code (+skills.sh) | 🟢 Docker |
+| `anthropic-data-plugin` | official | `data@knowledge-work-plugins` | Claude Code (plugin) | 🟢 Docker |
+| `polars-K-Dense` | vetted | `K-Dense-AI/scientific-agent-skills :: polars` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `dask-K-Dense` | vetted | `K-Dense-AI/scientific-agent-skills :: dask` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `python-resource-management` | vetted | `wshobson/agents :: python-resource-management` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `python-performance-optimization` | vetted | `wshobson/agents :: python-performance-optimization` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 💼 Business (8)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `anthropic-document-skills` | official | `document-skills@anthropic-agent-skills` | Claude Code | 🟢 Docker |
-| `c-level-skills` | vetted | `c-level-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `business-growth-skills` | vetted | `business-growth-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `pm-skills` | vetted | `pm-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `marketing-skills` | vetted | `marketing-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code | 🟢 Docker |
-| `research-summarizer` | vetted | `research-summarizer@claude-code-skills` | Claude Code | 🟢 Docker |
+| `anthropic-document-skills` | official | `document-skills@anthropic-agent-skills` | Claude Code (plugin) | 🟢 Docker |
+| `c-level-skills` | vetted | `c-level-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `business-growth-skills` | vetted | `business-growth-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `pm-skills` | vetted | `pm-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `marketing-skills` | vetted | `marketing-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
+| `research-summarizer` | vetted | `research-summarizer@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 
 #### 🛡️ Dev Tools (12)
 
@@ -108,42 +108,42 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `harness-health-audit` | official | templates (`--with harness-health-audit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `gemini-consult` | official | templates (`--with gemini-consult`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `codex-consult` | official | templates (`--with codex-consult`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `find-skills` | vetted | `vercel-labs/skills :: find-skills` | Claude Code (+skills.sh) | 🟢 Docker |
-| `product-skills` | vetted | `product-skills@claude-code-skills` | Claude Code | 🟢 Docker |
-| `karpathy-coder` | vetted | `karpathy-coder@claude-code-skills` | Claude Code | 🟢 Docker |
-| `trailofbits-skills` | vetted | `differential-review@trailofbits` | Claude Code | 🟢 Docker |
-| `playwright-skill` | experimental | `testdino-hq/playwright-skill :: playwright-skill` | Claude Code (+skills.sh) | 🟢 Docker |
-| `architecture-decision-record` | experimental | `yonatangross/orchestkit :: architecture-decision-record` | Claude Code (+skills.sh) | 🟢 Docker |
+| `find-skills` | vetted | `vercel-labs/skills :: find-skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `product-skills` | vetted | `product-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `karpathy-coder` | vetted | `karpathy-coder@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
+| `trailofbits-skills` | vetted | `differential-review@trailofbits` | Claude Code (plugin) | 🟢 Docker |
+| `playwright-skill` | experimental | `testdino-hq/playwright-skill :: playwright-skill` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `architecture-decision-record` | experimental | `yonatangross/orchestkit :: architecture-decision-record` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 🧠 Understanding (4)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | agnostic | 🟢 registry |
-| `claude-video` | vetted | `watch@claude-video` | Claude Code | 🟢 Docker |
-| `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code | 🟢 Docker |
-| `agentmemory` | vetted | `agentmemory@agentmemory` | Claude Code | 🟢 Docker |
+| `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | 4-CLI (npm) | 🟢 registry |
+| `claude-video` | vetted | `watch@claude-video` | Claude Code (plugin) | 🟢 Docker |
+| `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code (plugin) | 🟢 Docker |
+| `agentmemory` | vetted | `agentmemory@agentmemory` | Claude Code (plugin) | 🟢 Docker |
 
 #### 🎬 Visual & Media (9)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `frontend-slides` | vetted | `frontend-slides@frontend-slides` | Claude Code | 🟢 Docker |
-| `marp-slide` | vetted | `softaworks/agent-toolkit :: marp-slide` | Claude Code (+skills.sh) | 🟢 Docker |
-| `mermaid-diagrams` | vetted | `softaworks/agent-toolkit :: mermaid-diagrams` | Claude Code (+skills.sh) | 🟢 Docker |
-| `gsap-skills` | vetted | `gsap-skills@gsap-skills` | Claude Code | 🟢 Docker |
-| `remotion` | vetted | `remotion-dev/skills :: remotion-best-practices` | Claude Code (+skills.sh) | 🟢 Docker |
-| `ppt-master` | vetted | `hugohe3/ppt-master :: ppt-master` | Claude Code (+skills.sh) | 🟢 Docker |
-| `ppt-generation` | vetted | `bytedance/deer-flow :: ppt-generation` | Claude Code (+skills.sh) | 🟢 Docker |
-| `web-video-presentation` | vetted | `ConardLi/garden-skills :: web-video-presentation` | Claude Code (+skills.sh) | 🟢 Docker |
-| `revealjs` | experimental | `ryanbbrown/revealjs-skill :: revealjs` | Claude Code (+skills.sh) | 🟢 Docker |
+| `frontend-slides` | vetted | `frontend-slides@frontend-slides` | Claude Code (plugin) | 🟢 Docker |
+| `marp-slide` | vetted | `softaworks/agent-toolkit :: marp-slide` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `mermaid-diagrams` | vetted | `softaworks/agent-toolkit :: mermaid-diagrams` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `gsap-skills` | vetted | `gsap-skills@gsap-skills` | Claude Code (plugin) | 🟢 Docker |
+| `remotion` | vetted | `remotion-dev/skills :: remotion-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `ppt-master` | vetted | `hugohe3/ppt-master :: ppt-master` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `ppt-generation` | vetted | `bytedance/deer-flow :: ppt-generation` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `web-video-presentation` | vetted | `ConardLi/garden-skills :: web-video-presentation` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `revealjs` | experimental | `ryanbbrown/revealjs-skill :: revealjs` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 📦 ECC Suite (2)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
-| `ecc-prune` | official | `scripts/prune-ecc.sh` | local | 🟡 local |
-| `ecc-plugin` | vetted | `ecc@ecc` | Claude Code | 🟢 Docker |
+| `ecc-prune` | official | `scripts/prune-ecc.sh` | Claude Code (local script) | 🟡 local |
+| `ecc-plugin` | vetted | `ecc@ecc` | Claude Code (plugin) | 🟢 Docker |
 
 <!-- AUTO-GEN:CATALOG:END -->
 

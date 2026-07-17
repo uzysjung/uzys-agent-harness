@@ -10,6 +10,8 @@ import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
 import { assetRow, c, infoRow, padDisplay, sectionHeader, unifiedSection } from "../design.js";
 import {
+  assetCliSupport,
+  assetReachesCli,
   EXTERNAL_ASSETS,
   type ExternalAsset,
   experimentalOptInCandidates,
@@ -84,7 +86,18 @@ export function renderInstallHeader(
   // v26.82.0 (Phase R, S6) — merge 는 preset-recommend.ts 단일 구현 (이전 computeFinalAssets 중복).
   const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
   if (finalAssets.length > 0) {
-    log(infoRow("ASSETS", `${finalAssets.length} selected`));
+    // v26.102.0 (ADR-031) — 선택 수와 실제 설치 수의 어긋남을 약속 시점에 고지 (SOD 리뷰 F3:
+    // executive/codex 가 "4 selected" 약속 후 0 설치이던 불일치). 숨김 없이 분해만 병기.
+    // 미지 id(검증은 install.ts 담당)는 도달 가능으로 취급 — 여기서 이중 판정하지 않는다.
+    const unreachable = finalAssets.filter((id) => {
+      const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+      return asset ? !assetReachesCli(asset, spec.cli) : false;
+    });
+    const label =
+      unreachable.length > 0
+        ? `${finalAssets.length} selected (${unreachable.length} outside [${spec.cli.join(", ")}] reach — not installed)`
+        : `${finalAssets.length} selected`;
+    log(infoRow("ASSETS", label));
     for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
       log(`              ${c.dim(`· ${cat}:`)} ${ids.join(", ")}`);
     }
@@ -109,24 +122,41 @@ export function createInstallRenderer(
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
         // v26.81.0 (ADR-022) — withEcc boolean 삭제 → ecc-plugin 자산 선택으로 판정 (hint 게이팅).
-        const eccSelected = isAssetSelected("ecc-plugin", spec) || spec.options.withPrune === true;
-        renderPhase1Rows(log, event.baseline, verbose, eccSelected);
+        // v26.102.0 (ADR-031) — "선택 = 설치됨" 은 claude 도달 시에만 성립: codex 단독에선
+        // ecc-plugin 이 배제되므로 fallback 힌트가 계속 진실이어야 한다 (SOD 리뷰 F2).
+        const claudeSelected = targetsInclude(spec.cli, "claude");
+        const eccWillInstall =
+          claudeSelected &&
+          (isAssetSelected("ecc-plugin", spec) || spec.options.withPrune === true);
+        renderPhase1Rows(log, event.baseline, verbose, eccWillInstall, claudeSelected);
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
         log("");
         phase2HeaderPrinted = true;
-      } else if (event.type === "external-complete" && event.report) {
+      } else if (event.type === "external-complete") {
         // v26.102.0 (ADR-031, Batch3) — CLI 도달 불가로 시도조차 안 한 자산 고지.
         // 침묵 제외는 "4-CLI 지원" 광고와 실동작의 어긋남을 숨긴다 (no-false-ship).
+        // 어휘 주의: "skipped"(설치 실패)와 구분해 "not installed" 사용, 사유는 각 자산의
+        // 실 도달 범위에서 derive — "claude-only" 하드코딩 금지 (SOD 리뷰 F4/F7/Nit-4).
         const excluded = event.report.excludedByCli;
         if (excluded.length > 0) {
-          const ids = excluded.map((a) => a.id).join(", ");
-          const clis = spec.cli.join(", ");
+          if (!phase2HeaderPrinted) {
+            // attempted=0 인 트랙(executive 등)에서 고지가 헤더 없이 떠도는 것 방지 (F8).
+            log(unifiedSection("External assets (0)"));
+            phase2HeaderPrinted = true;
+          }
+          const bySupport = new Map<string, string[]>();
+          for (const a of excluded) {
+            const key = assetCliSupport(a).join("/");
+            bySupport.set(key, [...(bySupport.get(key) ?? []), a.id]);
+          }
           log("");
-          log(
-            `  ${c.dim(`⊘ ${excluded.length} claude-only asset(s) skipped for [${clis}]: ${ids}`)}`,
-          );
+          for (const [support, ids] of bySupport) {
+            log(
+              `  ${c.dim(`· ${ids.length} asset(s) not installed — requires ${support}, selected [${spec.cli.join(", ")}]: ${ids.join(", ")}`)}`,
+            );
+          }
         }
       }
     },
@@ -276,28 +306,21 @@ export function renderFinalSummary(
       ),
     );
   }
-  // v26.88.0 (audit SCALE-1 / 비-Claude 페르소나) — plugin-kind 자산은 claude marketplace
-  //   전용이라 codex/opencode/antigravity 에는 설치되지 않는다. 비-Claude CLI 를 고른 사용자가
-  //   "Install complete" 만 보고 큐레이션의 plugin 절반을 못 받은 걸 모르던 비대칭을 설치
-  //   시점에 고지한다 (no-false-ship — "4-CLI" 가 자산별로 어디까지 도달하는지 정직화).
-  const nonClaudeCli = spec.cli.filter((b) => b !== "claude");
-  if (nonClaudeCli.length > 0) {
-    const claudeOnlyPlugins = EXTERNAL_ASSETS.filter(
-      (a) => a.method.kind === "plugin" && isAssetSelected(a.id, spec),
-    );
-    if (claudeOnlyPlugins.length > 0) {
-      log("");
-      log(
-        infoRow(
-          "NOTE",
-          c.dim(
-            `${claudeOnlyPlugins.length} plugin asset${claudeOnlyPlugins.length > 1 ? "s" : ""} are Claude Code-only — not installed for ${nonClaudeCli
-              .map((b) => CLI_SUMMARY_LABELS[b])
-              .join("/")}: ${claudeOnlyPlugins.map((a) => a.id).join(", ")}`,
-          ),
+  // v26.102.0 (ADR-031) — v26.88.0 의 NOTE(plugin-kind 만 자체 재계산)를 대체: SSOT =
+  //   report.external.excludedByCli. 구 NOTE 는 ⊘ 고지와 다른 계산식(shell-script 누락)이라
+  //   같은 화면에서 숫자가 어긋났고, claude 를 함께 골라 실제 설치된 경우에도 "not installed"
+  //   를 찍었다 (SOD 리뷰 F4 — no-false-ship "동일 목록 2곳 하드코딩 금지").
+  if (report.external && report.external.excludedByCli.length > 0) {
+    const excluded = report.external.excludedByCli;
+    log("");
+    log(
+      infoRow(
+        "EXCLUDED",
+        c.dim(
+          `${excluded.length} asset${excluded.length > 1 ? "s" : ""} not installed — outside [${spec.cli.join(", ")}] reach: ${excluded.map((a) => a.id).join(", ")}`,
         ),
-      );
-    }
+      ),
+    );
   }
   // v26.71.1 — experimental(T3) opt-in discoverability (Transparent Defaults — 숨김 0건).
   //   비대화형(--track) 에서 condition 은 맞지만 T3 라 default 제외된 자산을 --with 안내.
@@ -387,6 +410,9 @@ function renderPhase1Rows(
   baseline: BaselineReport,
   verbose = false,
   withEcc = false,
+  // v26.102.0 (ADR-031) — ecc 힌트의 `--with ecc-plugin` 안내는 claude 도달 시에만 참
+  // (plugin 은 claude 전용 — codex 단독에선 그 명령이 no-op, SOD 리뷰 F2).
+  claudeSelected = true,
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
@@ -526,7 +552,9 @@ function renderPhase1Rows(
     log(
       `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
     );
-    log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
+    if (claudeSelected) {
+      log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
+    }
   }
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));

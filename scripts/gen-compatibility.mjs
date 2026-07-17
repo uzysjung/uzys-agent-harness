@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import {
   assetCliSupport,
   CATEGORIES,
+  CLI_BASES,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
@@ -46,16 +47,23 @@ const LEVEL_OVERRIDE = {
 const KIND_FLAVOR = {
   plugin: "plugin",
   skill: "skills.sh --agent",
-  npm: "npm, CLI-agnostic",
-  "npx-run": "npx, CLI-agnostic",
+  npm: "npm",
+  "npx-run": "npx",
   "shell-script": "local script",
+  // tauri rule 은 .claude/rules/ 착지(claude 편중) — 라벨은 기존과 동일하게 유지하되
+  // 알려진 과대 표기임을 기록 (ADR-031 리스크 (a), 구 CLI_SCOPE 주석 승계).
   internal: "templates",
 };
 function cliScopeLabel(asset) {
   const support = assetCliSupport(asset);
-  const reach = support.length === 4 ? "4-CLI" : support.map((c) => c).join("+");
-  const label = reach === "claude" ? "Claude Code" : reach;
-  return `${label} (${KIND_FLAVOR[asset.method.kind] ?? asset.method.kind})`;
+  // 도달 범위는 assetCliSupport(SSOT)에서 derive — N 하드코딩 금지 (CLI 추가 시 자동 추종).
+  const reach =
+    support.length === CLI_BASES.length
+      ? `${CLI_BASES.length}-CLI`
+      : support.length === 1 && support[0] === "claude"
+        ? "Claude Code"
+        : support.join("+");
+  return `${reach} (${KIND_FLAVOR[asset.method.kind] ?? asset.method.kind})`;
 }
 // v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 는 4-CLI 로
 // 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,

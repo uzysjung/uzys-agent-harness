@@ -311,7 +311,10 @@ describe("executeSpec", () => {
   //   codex/opencode/antigravity 에 설치되지 않는다. 비-Claude CLI 사용자가 "Install complete"
   //   만 보고 큐레이션 절반(plugin)을 못 받은 걸 모르면 "4-CLI" 가 거짓 인상이 된다.
   //   이 NOTE 가 사라지면 그 비대칭이 다시 silent 가 되므로 본 테스트가 실패해야 한다.
-  it("renders plugin-Claude-only NOTE when a non-Claude CLI is selected with a plugin asset", () => {
+  it("claude 포함 mixed CLI 에선 plugin 자산이 설치되므로 제외 고지가 없다 (ADR-031 — 구 NOTE 의 거짓 출력 소멸)", () => {
+    // WHY: v26.88.0 NOTE 는 claude 를 함께 골라 plugin 이 실제 설치되는 경우에도
+    // "not installed" 를 찍었다 (SOD 리뷰 F4). 신규 고지의 SSOT 는 report.external.excludedByCli
+    // — claude 포함이면 배제 0 이므로 어떤 제외 문구도 나와선 안 된다.
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor(fakeReport);
@@ -323,8 +326,8 @@ describe("executeSpec", () => {
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("ecc-plugin"));
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("EXCLUDED"));
   });
 
   it("omits plugin-Claude-only NOTE for a Claude-only install (no non-Claude CLI)", () => {

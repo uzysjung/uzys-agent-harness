@@ -93,6 +93,13 @@ export interface ExternalAsset {
    * star snapshot(2026-05~06)은 각 entry tier 라인 주석. 실 drift 판정은 trust-tier-drift 가 live fetch.
    */
   tier: TrustTier;
+  /**
+   * v26.102.0 (ADR-031) — kind 기본 도달 범위의 **개별 자산 예외**. 설정 시 assetCliSupport 가
+   * kind derive 대신 이 값을 쓴다. 사용 조건: method 인자/스크립트가 특정 CLI 전용 산출물을
+   * 만드는 경우만 (예: bmad `--tools claude-code`). 근거 주석 필수 — SOD 리뷰가 "예외 0" 가정을
+   * bmad 로 반증(Critical-1)해 도입.
+   */
+  cliSupportOverride?: CliTargets;
 }
 
 /**
@@ -442,6 +449,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "workflow",
     source: "bmad-code-org",
     condition: { kind: "opt-in" },
+    // v26.102.0 (ADR-031) — args 의 `--tools claude-code` 하드코딩이 claude 전용 산출물
+    // (.claude/ agent commands)을 생성 (Docker 실검증 realcli-workflows-2026-06-06).
+    // kind 기본값(npx-run=전 CLI)이 이 자산에선 거짓 → override. 대칭 실현(--tools derive)은 M4+.
+    cliSupportOverride: ["claude"],
     method: {
       kind: "npx-run",
       cmd: "bmad-method",
@@ -1171,6 +1182,11 @@ export function experimentalOptInCandidates(ctx: {
  *  - internal: Phase 1 manifest/transform 이 CLI 별 렌더 (external spawn 단계 미도달)
  */
 export function assetCliSupport(asset: ExternalAsset): CliTargets {
+  // v26.102.0 SOD 리뷰 Critical-1 — kind 기본값이 거짓인 자산(bmad `--tools claude-code`)은
+  // entry 의 cliSupportOverride 가 우선한다.
+  if (asset.cliSupportOverride) {
+    return [...asset.cliSupportOverride];
+  }
   switch (asset.method.kind) {
     case "plugin":
     case "shell-script":
@@ -1179,7 +1195,9 @@ export function assetCliSupport(asset: ExternalAsset): CliTargets {
     case "npm":
     case "npx-run":
     case "internal":
-      return CLI_BASES;
+      // 공유 배열 원본 대신 사본 반환 — 타입 없는 소비자(gen-compatibility.mjs)의
+      // in-place sort 가 CLI_BASES 를 전역 변형하는 사고 차단 (불변성 rule).
+      return [...CLI_BASES];
   }
 }
 
