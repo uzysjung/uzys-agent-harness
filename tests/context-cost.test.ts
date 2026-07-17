@@ -19,7 +19,7 @@ import type { InstallSpec } from "../src/types.js";
  * v26.103.0 (ADR-032) — Session-Start Context Cost ratchet.
  *
  * WHY: NORTH_STAR NSM "Session-Start Context Cost" — "간결"은 슬로건이 아니라 계측 대상.
- * dev 트랙 기본 설치(dev-method 8종)의 descriptor 비용이 조용히 불어나는 것을 차단한다.
+ * dev 트랙 기본 설치(dev-method 전 종)의 descriptor 비용이 조용히 불어나는 것을 차단한다.
  * 예산 상향은 금지가 아니라 **명시적 정당화**(PR 본문 + 이 상수 갱신)를 요구하는 ratchet.
  *
  * 실측 2026-07-17: dev-method 8종 = ~1,872 tokens. 예산 = 2,000 (여유 ~7%).

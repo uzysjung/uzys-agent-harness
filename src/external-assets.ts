@@ -1067,7 +1067,7 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
- * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 8 has-dev-track methodology skills.
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 9 has-dev-track methodology skills.
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,

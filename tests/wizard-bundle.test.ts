@@ -30,7 +30,7 @@ describe("dev-method 번들 접기/펼치기 (ADR-028)", () => {
     expect(new Set(restored)).toEqual(new Set(input));
   });
 
-  it("접기: 8종이 1개 번들 row 로 줄어든다 (비-멤버는 불변)", () => {
+  it("접기: dev-method 멤버 전원이 1개 번들 row 로 줄어든다 (비-멤버는 불변)", () => {
     const collapsed = collapseDevMethodBundle([...members(), "asset:karpathy-coder"]);
     expect(collapsed).toContain(DEV_METHOD_BUNDLE_VALUE);
     expect(collapsed).toContain("asset:karpathy-coder");
@@ -39,13 +39,13 @@ describe("dev-method 번들 접기/펼치기 (ADR-028)", () => {
     expect(collapsed).toHaveLength(2);
   });
 
-  it("펼치기: 번들 체크 → 8종 전부 설치 대상", () => {
+  it("펼치기: 번들 체크 → 멤버 전원 설치 대상", () => {
     const expanded = expandDevMethodBundle([DEV_METHOD_BUNDLE_VALUE, "asset:karpathy-coder"]);
     for (const m of members()) expect(expanded).toContain(m);
     expect(expanded).not.toContain(DEV_METHOD_BUNDLE_VALUE);
   });
 
-  it("해제 시맨틱: 번들 미체크 → 8종 전부 제외 (사용자 확정 2026-07-16)", () => {
+  it("해제 시맨틱: 번들 미체크 → 멤버 전원 제외 (사용자 확정 2026-07-16)", () => {
     // 체크박스 1개 = 의미 1개. 개별 예외는 --with/--without 로만.
     const expanded = expandDevMethodBundle(["asset:karpathy-coder"]);
     for (const m of members()) expect(expanded).not.toContain(m);
@@ -100,10 +100,10 @@ describe("dev-method 번들 접기/펼치기 (ADR-028)", () => {
 describe("wizard 렌더: 번들 row 도달성 (ADR-028)", () => {
   const render = (cats: ReadonlyArray<Category>) => buildPageGroups(cats, new Set<string>());
 
-  it("번들 row 가 실제로 렌더된다 — 8종의 유일한 wizard 도달 경로", () => {
+  it("번들 row 가 실제로 렌더된다 — dev-method 멤버의 유일한 wizard 도달 경로", () => {
     const { flatItems } = render([DEV_METHOD_BUNDLE_CATEGORY]);
     const row = flatItems.find((i) => i.value === DEV_METHOD_BUNDLE_VALUE);
-    expect(row, "번들 row 미렌더 → 방법론 8종이 wizard 어디서도 선택 불가").toBeDefined();
+    expect(row, "번들 row 미렌더 → 방법론 스킬이 wizard 어디서도 선택 불가").toBeDefined();
   });
 
   it("번들 row 가 구성원 id 를 전부 노출한다 — 접기가 '무엇이 설치되는지'를 숨기지 않는다", () => {

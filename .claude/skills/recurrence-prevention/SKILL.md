@@ -83,12 +83,14 @@ Two quick discriminators:
 
 Enter the ladder at the level matching the count. **Never enter above your count** — a gate for a
 first-time slip is gate inflation, and every gate is permanent maintenance + false-positive cost.
+(One exception, downward-honest: a **registered countermeasure that failed** counts that failure
+at its own level — a violated Level-1 rule at count 2 legitimately escalates to Level 2.)
 
 | Level | When | Countermeasure | Characteristic failure of this level |
 |---|---|---|---|
 | **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or a case-table row if a related rule already exists | Records don't steer — nothing re-reads them at the decision moment |
-| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule the agent loads every session: `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs), using the template below — one-line principle + case table | Prose can be skimmed, forgotten under context pressure, or rationalized around |
-| **2 구조적 게이트** | 3rd+ occurrence, **or** a rule existed and was violated | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a PreToolUse hook that blocks the action, or **derive-to-single-source** so the drift is structurally impossible | Gates that never demonstrably fire; gates so noisy they get bypassed |
+| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + case table. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps | Prose can be skimmed, forgotten under context pressure, or rationalized around |
+| **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible | Gates that never demonstrably fire; gates so noisy they get bypassed |
 
 Load-bearing principle at Level 2: **comment warnings and doc reminders are not a blocking
 mechanism.** If the countermeasure's effect depends on someone (human or model) reading prose at
@@ -143,7 +145,10 @@ for mechanics — run 3-5 personas in parallel, independently, then synthesize):
 Synthesize into 2-3 concrete countermeasure options with costs, and present them as a decision
 (recommendation first, ASIS→TOBE contrast — see `asis-tobe-decision` if bundled). The chosen
 option still lands on the ladder: it becomes a record, a rule, or a gate — the panel decides
-*what* the countermeasure is, the ladder decides *how hard* it is enforced.
+*what* the countermeasure is, the ladder decides *how hard* it is enforced. The
+never-above-your-count guard governs slips with no failed countermeasure; here, a prior
+countermeasure that fired as designed and still failed already justifies landing one level above
+it (a failed Level-1 rule → a Level-2 gate is escalation, not inflation).
 
 ## Step 4 — Verify the countermeasure fires
 
@@ -152,7 +157,8 @@ would be a false ship. Before closing:
 
 - **Test gate**: run it against the *old* (bad) behavior and show it RED, then GREEN on the fix.
 - **Hook**: invoke it once with a mocked payload (`echo '{...}' | bash hook.sh`; expect exit 2 on
-  the forbidden action, exit 0 otherwise).
+  the forbidden action, exit 0 otherwise). Hook support varies by CLI — where absent, prefer a
+  test gate or derive.
 - **Derive/single-source**: show the duplicated site is gone (grep returns one definition).
 - **Rule (prose)**: not mechanically verifiable — say so explicitly ("등록됨, 준수는 미검증").
   That honesty is what justifies escalating to Level 2 if it recurs anyway.
