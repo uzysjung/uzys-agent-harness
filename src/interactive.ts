@@ -1,3 +1,4 @@
+import { formatContextCostLine, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import type { InstallMode } from "./installer.js";
 import {
@@ -308,6 +309,9 @@ export function formatSummary(spec: InstallSpec): string {
     for (const [cat, ids] of groupAssetsByCategory(finalAssets)) {
       lines.push(`  · ${cat}: ${ids.join(", ")}`);
     }
+    // v26.103.0 (ADR-032) — header 와 동일 문구 (표면별 상이 문구 금지, v26.88.0 교훈).
+    const cost = formatContextCostLine(summarizeContextCost(finalAssets));
+    if (cost) lines.push(`  · ${cost}`);
   }
 
   if (spec.userOverride) {
