@@ -121,7 +121,7 @@
 
 - **Batch 1 (docs 정직화, no code, 저위험)**: 보안 문구 톤다운(NORTH_STAR:20·ADR-021:22 "보안 감사된"→"출처 검증된") · kit 과장 정정(adoption-c2-submission-kit) · meta-doc drift(CLAUDE.md Active Rules 표·REFERENCE.md:158 훅 목록 실측 재작성) · SSOT stale(roadmap ◐→해소 체크 + 버전헤더 v26.87→95) · agentshield-gate 문구 정정
 - **Batch 2 (계측 정직화, CI)**: catalog-verify RED → next-skills 제거/수정 + gen-compatibility 실설치 반영 배선 + gsd archived tier 재판정 + kit-overclaim grep 가드
-- **Batch 3 (4-CLI 데이터축, code)**: `ExternalAsset.cliSupport` + filterApplicable 교집합 + install-render 제외 고지 + runExternalPhase claude 가드 + cli-external-path 테스트(RED first) + SSOT 수치 derive 가드
+- **Batch 3 (4-CLI 데이터축, code) ✅ 완료 = v26.102.0** (2026-07-17, PR #208 `c95018a`, npm 라이브, ADR-031): 원안의 "cliSupport 필드"는 **derive 로 대체**(`assetCliSupport()` — method.kind 판정 + `cliSupportOverride` 예외: bmad `--tools claude-code`, SOD 리뷰 Critical-1 실측 반증) · 교집합/가드 = `selectExternalTargets()` 단일 selector (runExternalInstall spawn 배제 + 헤더 카운트 정합) · 제외 고지 = `excludedByCli` 필수 필드 → Phase 2·Summary EXCLUDED·ASSETS 분해 3표면 · `tests/cli-external-path.test.ts` RED 실증 +15 · SSOT 수치 derive 가드는 Batch2(#199) 기충족, COMPATIBILITY CLI 열 전수 게이트 추가
 - **→ M2 게시** (반자동: 폼=에이전트 / 제출=사용자)
 
 ## 7. 부록 — 차원 4 재감사 (문서/SSOT 전용, 2026-07-14 재실행)
