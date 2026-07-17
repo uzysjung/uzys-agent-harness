@@ -71,6 +71,26 @@ Curation, not a list to browse — pick `csr-supabase` and step 3 pre-checks exa
 
 ---
 
+## Curation philosophy — lean by default
+
+> Maintainer's direction statement (2026-07). The catalog itself is unchanged by this section — it describes how curation decisions are made going forward.
+
+Frontier coding agents (Opus 4.8 / GPT-5.6 class) keep absorbing what skill packs used to teach. Our working position: **a skill has to earn its context cost** — every installed skill occupies the agent's attention even when unused, so the default install stays minimal and "more skills" is treated as a cost, not a feature.
+
+What we believe still earns its place is the **insight layer**, not the knowledge layer:
+
+- **Orchestration know-how** — model/effort role splits (`model-orchestration`), multi-perspective verification (`multi-persona-review`), auditing your own harness (`harness-health-audit`).
+- **Cross-CLI leverage** — use each CLI for what it's best at: natural prose polish via Antigravity (`gemini-consult`), concise structuring + image generation via Codex (`codex-consult`).
+- **Operational facts** — CLI flags, auth flows, deploy steps (`supabase-cli`, `railway-skills`, …) drift with upstream releases no matter how smart models get. Generic pattern guides are the first to become redundant.
+
+Structured workflow bundles (superpowers, BMAD, OpenSpec, …) stay **opt-in and never pre-checked**. Our view: with strong models, an agile direction plus a firm git/PR policy beats enforced ceremony for solo/greenfield work — but multi-dev alignment, junior onboarding, and audit trails are human-side problems that no model upgrade solves, so the choice stays yours ([Workflow curation guide](docs/WORKFLOWS.md)).
+
+What stays fixed is small and deterministic: git/PR policy, verification gates, honest reporting. Within those rails the agent develops flexibly — including running several agents in parallel in one session (safety conventions for that, like worktree isolation and per-track context-cost display, are roadmap items, not shipped features).
+
+One honest note: this repository's *own* development harness is deliberately heavier than what it installs — it self-verifies an installer that writes into your project. Shipped defaults ≠ our dev rig.
+
+---
+
 ## Installing into an existing project
 
 `agent-harness` never silently overwrites your config. Before replacing an **editable** file whose contents differ, it writes a timestamped backup next to it — and every backup path is printed in the install summary (`backup` rows). Nothing is deleted.
@@ -200,12 +220,15 @@ External assets are recommended automatically based on your track selection. Ste
 | `asis-tobe-decision` ★ | Present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast | this project (core) |
 | `compaction-handoff` ★ | Persist durable state + git snapshot + resume anchor before a context `/compact` | this project (core) |
 | `northstar-roadmap` ★ | Measure current state vs the vision doc → ranked feature backlog persisted to docs/plans + memory | this project (core) |
+| `model-orchestration` ★ | Model orchestration policy — role split (orchestrator directs/reviews · strong model authors core/V&V · mid model does repetitive impl/E2E) + effort floors + quota handoff | this project (core) |
+| `harness-health-audit` ★ | Audit your CLAUDE.md/rules/skills/hooks on 4 questions a linter can't answer: TRUE · USED · AFFORDABLE · SAFE | this project (core) |
 
-**First-party advisor** (`official`, **opt-in** — `--with gemini-consult`; repo-bundled, installs across all 4 CLIs; needs the external Antigravity [`agy`](https://antigravity.google/cli) CLI at runtime):
+**First-party advisors** (`official`, **opt-in** — `--with gemini-consult` / `--with codex-consult`; repo-bundled, install across all 4 CLIs; each needs its external CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 
 | Asset | What | Source |
 |---|---|---|
-| `gemini-consult` | Consult Gemini (via `agy`) for natural **Korean** phrasing + **multi-persona** second-opinion review — an idiomatic, independent second model | this project |
+| `gemini-consult` | Consult Gemini (via `agy`) for natural **Korean** phrasing + **multi-persona** second-opinion review + image generation — an idiomatic, independent second model | this project |
+| `codex-consult` | Consult OpenAI Codex (`codex exec`) for **concise / structured** rewriting + **image generation** (real PNG on disk) — division of labor: nuance/persona → gemini, concision/structure/images → codex | this project |
 
 ### Security & ECC (opt-in)
 
