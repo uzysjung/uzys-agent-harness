@@ -11,7 +11,7 @@
 | 1 | 문서 게이트 | NORTH_STAR Major CR + ADR-032 + WORKFLOWS 조건표 + roadmap immediateNext 갱신 | ✅ PR #212 |
 | 2 | Session-Start Context Cost | 위저드 Step 3 / 비대화형 요약에 트랙별 descriptor 토큰 합계 표시. repo-bundled 템플릿 = frontmatter 실측, 외부 자산 = "미측정" 명시(no-false-ship). CI ratchet: 기본 dev 트랙 합계 증가 시 명시적 정당화 | 대기 |
 | 3 | 트리거 중복 탐지 CI | 자산 description 유사도 경고 게이트 — 개수 상한 대신 라우팅 혼란(잠식의 실체)에 대응 | 대기 |
-| 4 | 검증실패 12자산 판정 | catalog-verify RED 자산(49/61 기준 12종) 개별 판정: 고침/강등/제거 — **제거는 사용자 컨펌 필수**. 축소 착수점 | 대기 |
+| 4 | 자산 축 판정 (재정의 #213) | ~~검증실패 12자산 판정~~ **전제 오류로 소멸** — 12 비-🟢 = 🟡 1st-party 템플릿+ecc-prune(실패 아님), 2026-07-17 dispatch 재실행 결과 catalog-verify·trust-tier-drift **양쪽 green**(계측기 RED 방치 해소). 대체 작업: 카탈로그 61자산을 `pattern-guide`(모델 대체 가능성 높음 — 축소 후보) vs `operational-fact`(유지) 축으로 분류 → 축소 후보 목록 제안. **제거는 데이터(HITO A/B·설치 로그) + 사용자 컨펌 필수** | 대기 |
 
 ## 원칙 (패널 수렴 판정 — 실행 시 준수)
 

@@ -2,8 +2,18 @@
 
 - Status: Accepted
 - Date: 2026-07-17
-- PR: #212 (본 CR) · #211 (README 선반영 — 방향 서술 + disclaimer)
+- PR: #212 (본 CR) · #211 (README 선반영 — 방향 서술 + disclaimer) · #213 (정정)
 - Supersedes: 없음 (ADR-021 보완 — 대체 아님, 아래 Decision ①)
+
+> **정정 (2026-07-17, #213)**: Context ⓓ의 "12자산이 이미 RED"는 **오류** — 패널(경제성)의
+> README "49/61 green" 과잉 해석을 저자가 검증 없이 수용했다. 실제 12 비-🟢 자산은
+> COMPATIBILITY.md 기준 **🟡 등급**(1st-party 템플릿 dev-method 8종·gemini/codex-consult·
+> tauri-desktop + ecc-prune — install-matrix CI 로 파일 배치 검증, 범위 한계 정직 표기)이며
+> 실패가 아니다. 또한 catalog-verify·trust-tier-drift 2026-07-01 cron failure 는 Batch2(#199)
+> 수정 후 미재실행 상태였음 → 2026-07-17 dispatch 재실행 **양쪽 green 확인**(runs 29587567577 ·
+> 29587569814). 따라서 Decision 4의 "축소 착수점 = 검증실패 12자산 판정"은 **소멸** — 자산 축
+> 판정(pattern-guide vs operational-fact 분류)으로 대체한다. "축소론의 유일한 정량 근거"라는
+> 서술도 철회 — 현재 축소론의 근거는 가설(T2) + 컨텍스트 이코노미 원칙뿐이다.
 
 ## Context
 
