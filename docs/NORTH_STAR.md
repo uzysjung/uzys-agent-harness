@@ -19,6 +19,8 @@
 
 **차별화 축 (2026-06 재포지셔닝 · ADR-021)**: 시장 리서치(`docs/research/direction-research-2026-06-06.md`, 3-에이전트 독립 수렴) 결과 **"설치(installer)" 자체는 commoditized** — Vercel skills.sh(70+ 에이전트)·rulesync·MS APM + Claude Code/Codex 1st-party 마켓플레이스가 이미 cross-CLI 설치를 제공한다. 따라서 **설치는 전달 메커니즘(table-stakes)**으로 재정의하고, 방어 가능한 차별화는 기둥 ②를 **"출처·설치 검증된(source/install-verified) 큐레이션"**으로 격상한 데 둔다 (실제 수단 = trust-tier ★≥1000+활성 + Docker 실설치 검증. **자산 콘텐츠 prompt-injection 스캔은 미실행 — 로드맵**이므로 "보안 감사(security-vetted)"로 표기하지 않는다). 시장 근거: Snyk "ToxicSkills" — 테스트 skill의 36%에서 prompt injection. 보유 무기 = CLAUDE.md Docker 실-바이너리 검증 의무 → 경쟁사의 *정적* 호환표와 달리 *지속 테스트되는* 호환·보안 매트릭스(공개 artifact화 = Phase 3 산출물).
 
+**Lean 개정 (2026-07-17 · ADR-032)**: 프론티어 모델(Opus 4.8 / GPT-5.6급) 상향으로 스킬의 한계효용이 급감했다는 메인테이너 판단(**가설** — HITO A/B 실측은 로드맵)에 따라, 기둥①을 **"루프/하네스 엔지니어링 노하우"**로 전면화하고 기둥②는 **규모(quantity)를 줄이되 품질 기준(vetted + Docker 실설치 검증)은 유지**한다. 살아남는 자산 기준 = **인사이트 레이어**(오케스트레이션 노하우 · cross-CLI 활용 · 다중 페르소나 검증)와 **운영 사실**(CLI 플래그·인증 플로우 — 모델 지능과 무관하게 upstream drift). 범용 패턴 가이드류가 1순위 축소 후보. **자산 추가 = 컨텍스트 비용**으로 취급한다. 방법론 워크플로 번들은 opt-in 유지 — 제거 아님(WORKFLOWS.md "언제 방법론 워크플로가 필요 없는가" 조건표 참조).
+
 > **신속** = 적은 왕복 (HITO ≤ 3/feature). **정확** = Promise = Implementation (광고한 자산은 100% 실제 작동).
 
 **대상**: 퍼블릭 — 누구나 vibe coder. 시니어/주니어/멀티 역할 무관.
@@ -43,6 +45,7 @@
 | **Promise = Implementation** | README/USAGE/SPEC에서 광고된 모든 자산 (skill / plugin / MCP / hook)이 실제 설치·작동 | **100%** (거짓 광고 0건) |
 | **Cross-CLI Parity** | Claude Code / Codex / OpenCode / Antigravity 4 CLI 동일 어휘 동등 작동률 (slash 호출 + hook 발화 + skill 인식) | **≥ 95%** |
 | **Generated-config Security Pass Rate** | 하네스가 *생성*하는 `.claude/` 산출물이 `agentshield` 게이트에서 CRITICAL/HIGH **0건** (COMPATIBILITY.md §보안). 자산 repo *콘텐츠* 스캔은 미실행 — trust-tier(★≥1000+활성) + Docker install-verification 으로 보완, prompt-injection 콘텐츠 스캔은 로드맵 (ADR-021 차별화 축) | **100% (산출물)** |
+| **Session-Start Context Cost** (ADR-032) | 설치 자산이 세션 시작 시 상주시키는 descriptor(skill name + description frontmatter) 총 토큰 — 트랙별 합계 | **위저드/설치 요약에 표시 + CI ratchet** (기본 dev 트랙 합계 증가 시 명시적 정당화 필요). 절대 상한은 실측 후 설정 — 근거 없는 수치 고정 금지 |
 
 ### 측정 방법
 
@@ -53,6 +56,7 @@
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
 - Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
+- Session-Start Context Cost: repo-bundled 템플릿 자산 = frontmatter 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지)
 
 ---
 
@@ -70,6 +74,7 @@
 - **Transparent Defaults** — 설치 중 어떤 자산이 들어가는지 한 줄씩 명시. 숨김 동작 0건
 - **검증된 자산 큐레이션 + 선택권** — 후보는 검증된 플러그인/스킬로 한정. 각 자산 출처·역할 명시 → 사용자가 이해하고 선택. "무엇이든 설치" 안 함
 - **권장 적극 어필** — 권장 자산은 pre-checked + 설명으로 강하게 제안. 단 강제 아님 — 사용자가 토글로 최종 결정 (Promise=Implementation 유지: 권장 ≠ 거짓 광고)
+- **컨텍스트 이코노미 (2026-07-17 · ADR-032)** — 자산 추가 = 컨텍스트 비용. 신규 자산은 descriptor 비용을 의식하고, 기본 설치(pre-checked) 확대는 Session-Start Context Cost ratchet 게이트 통과 필요. "간결"은 슬로건이 아니라 계측 대상
 
 ### 3.2 Won't (의도적 비-방향)
 
@@ -91,6 +96,7 @@ scope creep 1차 방어선. "X는 안 한다"를 명시.
 | `npx` + `prepare` 빌드 | bash + curl 1줄 | 의존성 0 가정 폐기. Node 20+ 전제로 단순화 + 결정론 향상 |
 | 11 Track 분리 | 단일 monolith | 어휘 맥락 분리. TSV + helper로 복잡도 관리 |
 | 도메인 비종속 generic 템플릿 | 특정 도메인 맞춤 편의 | 누구나 fork. 특정 private repo 참조 제거 |
+| Lean 기본값 — 인사이트 스킬 중심, 방법론 번들 비(非)어필 (ADR-032) | 다인 팀 · 규제/감사 · 주니어 온보딩 사용자군에 대한 적극 어필 (opt-in 자가 선택에 위임) | 프론티어 모델 시대 스킬 한계효용 급감(가설) + 컨텍스트 잠식 방지. 해당 사용자군 경로는 WORKFLOWS.md 조건표로 보존 — 인간측 문제(합의·온보딩·감사 추적)는 모델 향상이 풀어주지 않음 |
 
 ---
 
@@ -164,6 +170,7 @@ scope creep 1차 방어선. "X는 안 한다"를 명시.
 
 ## 7. Changelog
 
+- **2026-07-17**: **Major CR — Lean 개정 (ADR-032)**. 사용자 방향 지시("루프/하네스 엔지니어링 관점 인스톨러, 간결하게 꼭 필요한 것만") + 5-페르소나 패널 검토 후 확정. 기둥① 전면화(루프/하네스 엔지니어링 노하우), 기둥② 규모 축소·품질 기준 유지. NSM에 Session-Start Context Cost 추가. Will에 컨텍스트 이코노미, Trade-offs에 Lean 기본값(포기 사용자군 명시) 등재. 방법론 번들 = **opt-in 유지 확정**(제거 기각 — 패널 4/5 수렴: 이미 opt-in이라 컨텍스트 잠식 0, 제거는 선택권·유입 경로만 상실). "모델 향상 → 스킬 불필요"는 **가설**로 취급 — 검증 경로 = HITO A/B(번들 有/無 동일 feature 비교). 실행 큐 = `docs/plans/lean-direction-2026-07-17.md`.
 - 2026-04-20: 초안 작성. 근거 — 사용자 본인 정의 Statement + v27.8~v26.30.1 7개 커밋의 4-gate 사후 검증 결과 + Phase 1 완료 상태(147 test-harness PASS).
 - **2026-04-25**: **Major CR — vibe coding 정의 정확화 + 퍼블릭 publishing 전제 명시**. Statement 변경(`AI와 사용자가 하네스 규칙을 공통 언어로 삼아…`). 1차 NSM에 Re-clarification Rate 추가. 2차 NSM에 First-Run Success Rate / Promise=Implementation / Cross-CLI Parity 추가. Strategic Boundaries 갱신 (Won't에서 1인 단독 가정 삭제). Phase Roadmap 재정의 (Phase 1 = 어휘 완전성 = bash 등가성 복원). Decision Heuristics 4-gate를 Vocabulary 중심으로 재정의. 근거: 사용자 redirect — "vibe coding = AI/사용자가 하네스 규칙으로 효율적 소통해 빨리 개발하는 것" + 리포 퍼블릭 publishing 전제 인지.
 - **2026-06-06**: **Major CR — 재포지셔닝 (검증+보안 큐레이션으로 차별화 축 격상, 설치 = 전달 메커니즘)**. 근거: Phase 2 자율 소진 후 deep-research(`docs/research/direction-research-2026-06-06.md`) 3-에이전트 독립 수렴 — cross-CLI 설치는 commoditized(skills.sh 21.5k★/70+에이전트·rulesync·MS APM·Claude/Codex native 마켓플레이스), 방어 wedge = 보안 vetting(Snyk ToxicSkills 36% prompt injection). 결정(ADR-021): 기둥 ②를 "검증 + 보안 감사 큐레이션"으로 격상, 2차 NSM에 Asset Security Pass Rate 추가, Phase 3 산출물에 공개 보안·호환 매트릭스 + 발견 채널 등재 추가. 로드맵 C→A→B→D(`docs/todo.md`). Statement 자체는 유지(세 기둥 보존, "설치 서비스" 표현은 전달 메커니즘으로 재해석).

@@ -15,7 +15,7 @@
 | **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(61 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 61 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
 | **M6 — 다면 리뷰 (`/uzys:review` 패널 모드, re-scope 2026-06-21)** | `multi-persona-review` 스킬(v26.87.0 출하)을 6-Gate `/uzys:review` 모드로 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합). 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거). | (1) `/uzys:review` 패널 모드(독립 커맨드 없음) (2) 동적 페르소나+agent.md 자동혼합 (3) surface parity. SPEC 선행 |
 
-**즉시 착수(immediateNext) — 2026-06-21 갱신:** ~~M1-A 공급망 hijack 차단~~ **완료**(bare npx → `npx -y @uzysjung/agent-harness`, grep 0건, #167 등). **다음 = M2 게시 준비**: M1 잔여 ◐ 항목(특히 홍보글 A-1~A-5 최종본·README 수술 B-1~B-5) 확인 → 반자동(폼=에이전트/제출=사용자) Show HN + r/ClaudeCode. 코드 신규작업 0.
+**즉시 착수(immediateNext) — 2026-07-17 갱신:** ~~M2 게시~~ **사용자 보류**(2026-07-17 — HN 티켓 미접수·레딧 접근 불가 보고. 카피 3글은 실측 재검증판 #210 으로 완성 대기, 재개 시 launch-posts.md 하단 33채널 카탈로그 활용). **다음 = Lean 방향 실행 큐**(ADR-032, SSOT `docs/plans/lean-direction-2026-07-17.md`): ① Session-Start Context Cost 표시 + CI ratchet ② 검증실패 12자산 개별 판정 ③ ~~WORKFLOWS 조건표~~ 완료(#212) ④ 트리거 중복 탐지 CI. 번들 6종 = opt-in 유지 확정.
 
 <details><summary>합성 논리(rationale)</summary>
 
