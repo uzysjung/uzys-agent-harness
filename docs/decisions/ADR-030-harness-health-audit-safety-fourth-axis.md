@@ -21,9 +21,9 @@ A/B/C 는 위험한 하네스를 통과시킨다 — permission prompt 를 건�
    bypass 의 협소 대안으로 classifier-gated `auto` mode 를 명시 권고
    (code.claude.com/docs/en/permission-modes).
 2. **Meta — Agents Rule of Two** — 에이전트는 3속성 중 "must satisfy no more than two". SKILL.md
-   가 직접 인용하는 fragment 전부 원문 verbatim 확인: "An agent can process untrustworthy inputs" /
-   "access to sensitive systems or private data" / "change state or communicate externally"
-   (ai.meta.com/blog/practical-ai-agent-security/).
+   가 인용·원용하는 fragment 원문 확인(뒤 2개는 직접 인용, untrustworthy inputs 는 패러프레이즈):
+   "An agent can process untrustworthy inputs" / "access to sensitive systems or private data" /
+   "change state or communicate externally" (ai.meta.com/blog/practical-ai-agent-security/).
 3. **OWASP LLM01:2025 Prompt Injection** — 간접 주입 = "when an LLM accepts input from external
    sources, such as websites or files"; 결과에 "executing arbitrary commands in connected systems"
    포함.
@@ -81,10 +81,10 @@ form 안전(시크릿 탐지·SHA-pinning·`.env` 위생)은 계속 위임하고
 - **부정/리스크**:
   - (a) **D 실행 품질은 미검증** — ADR-027 (a) 와 동일 한계: 방법론 문서 자산이라 사용자 repo 에서의
     감사 품질을 harness CI 가 검사할 수 없다. 계약은 본문 지시로만 성립.
-  - (b) **487줄** (실측 기준선 370 → +117; ADR-027 (e) 의 "349줄" 표기는 작성 시점 stale — 실출하본
-    c3610aa 는 370줄. 구 ADR 은 수정하지 않고 여기에 드러냄, Rule 7). 500줄 상한 내이나 C1(예산)을
-    설파하는 스킬이 상한의 97%에 도달 — **references/ 분할이 다음 개정의 사실상 전제**(ADR-027 (e)
-    승계, 긴장 심화).
+  - (b) **491줄** (실측 기준선 370 → +121, 2차 verifier 패스 반영 후 최종; ADR-027 (e) 의 "349줄"
+    표기는 작성 시점 stale — 실출하본 c3610aa 는 370줄. 구 ADR 은 수정하지 않고 여기에 드러냄,
+    Rule 7). 500줄 상한 내이나 C1(예산)을 설파하는 스킬이 상한의 98%에 도달 — **references/ 분할이
+    다음 개정의 사실상 전제**(ADR-027 (e) 승계, 긴장 심화).
   - (c) **D 는 정적 읽기** — 훅의 런타임 행동 증명 불가. 본문 Honest limit 으로 명시했으나 실행
     에이전트가 무시하면 강제되지 않음(ADR-027 (b) 와 동일 구조).
   - (d) 인용 문서들은 2025~2026 시점 스냅샷 — vendor 문서(permission modes)는 개정될 수 있다.
@@ -106,6 +106,15 @@ form 안전(시크릿 탐지·SHA-pinning·`.env` 위생)은 계속 위임하고
   복잡도 증가) / ADR-027 (e) 직접 수정(통합 P2 — 구 기록 무수정 원칙, 본 ADR (b) 에 드러냄).
   패널의 인용 검증: SKILL.md 의 외부 인용 fragment 전수(11건)를 정직성·보안 페르소나가 라이브
   원문 fetch 로 독립 재확인 — 전부 verbatim, 위조/오귀속 0.
+- **2차 verifier 패스 (fresh instance ×2)**: ①수정 검증 verifier — 채택 15건 전수 17항목
+  stated↔measured 재실측 **ALL-VERIFIED 17/17** (auto mode 권고·`bypassPermissions` 인용 3건도
+  라이브 페이지 재검증 verbatim) ②독립 fresh-eyes verifier — 수정 커밋이 만든 이음새 9건 발견
+  (P1×3: 린터-위임 문단이 AgentShield 탐지 범위와 미정합 → "스캐너는 flag 를 출력, D 는 정당성을
+  판단" 분업 명문화 / D2 Action "over removal" 이 신규 flag-기본 규칙 위반 잔존 → D1 과 동일하게
+  사용자 결정 조건 명시 / report row 8 이 8줄 아래 자기 규칙("also A4") 위반 — 양 verifier 독립
+  포착). P2 6건 중 5건 채택(D1–D3 스코프 정정·"third→remaining property"·mispointed 참조·긴 행
+  re-wrap·Honest limit 스코프 라벨·중복 문장 1건 삭제), 1건 부분 채택(compound Action 을 규칙
+  문장에 명문화). 최종 491줄.
 - **문서 영향**: CHANGELOG v26.101.0, 카탈로그 description 3→4 questions + AFFORDABLE 표기 통일
   (`src/external-assets.ts`), dogfood 사본 `.claude/skills/harness-health-audit/SKILL.md` md5 동기.
   자산 수 61 불변(신설 아님).

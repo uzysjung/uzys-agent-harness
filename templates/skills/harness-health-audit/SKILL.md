@@ -54,7 +54,7 @@ deterministic. Tools exist: [AgentLint](https://www.agentlint.app/) advertises 3
 dimensions (findability, instructions, workability, continuity, safety) across `CLAUDE.md`,
 `AGENTS.md`, `.cursor/rules`, `.github/copilot-instructions.md`, CI workflows, pre-commit hooks and
 `.gitignore`; AgentShield (`npx ecc-agentshield scan` — this harness bundles it as the
-`security-scan` command) deterministically scans `.claude/` for dangerous bypass flags, hardcoded
+`/ecc:security-scan` command) deterministically scans `.claude/` for dangerous bypass flags, hardcoded
 secrets, and injection patterns; `cclint` covers syntax. Run what is available, then start here —
 question D below assumes the deterministic security pass already ran.
 
@@ -92,8 +92,7 @@ evidence A and B already gathered — the wiring, what fires, what triggers — 
 | **D** | **Is it SAFE?** | The harness is accurate, live, and cheap — and instructs something dangerous |
 
 **Four questions are still not a completeness claim.** When a check reveals a problem that fits no
-question, report it — do not discard it. And D reads the steering layer, not the codebase: its
-honest limits are stated in its own section below.
+question, report it — do not discard it.
 
 ---
 
@@ -256,8 +255,10 @@ the judgment-level guidance only the model can use.
 A harness can pass every question above and still be dangerous: an instruction that waives
 permission prompts is accurate (it describes what it does), live (it fires), and cheap (one line) —
 A, B, and C all wave it through. The deterministic linters cover *form* safety (secret detection,
-`.env` hygiene, action SHA-pinning); what they structurally cannot judge is whether a live, accurate
-instruction is a bad idea. That judgment is this question.
+`.env` hygiene, action SHA-pinning) and will already have *found* artifacts like bypass flags and
+injection patterns; what they structurally cannot judge is whether a live, accurate instruction is
+a bad idea — the scanner prints the flag, D decides whether it is justified in this repo and what
+the narrower alternative is. That judgment is this question.
 
 **On the underlying risk, D findings default to flag, not fix.** A bypass can be a deliberate,
 informed trade-off (a sandboxed CI container, an isolated VM). The audit's job is to name the risk
@@ -271,7 +272,8 @@ or remove a guardrail — that decision is always the user's.
 The harness tells the agent to remove its own guardrails: waiving or bypassing permission prompts,
 piping unpinned remote scripts into a shell, auto-approving destructive command classes, disabling
 sandboxes, or auto-installing tools, plugins, or MCP servers without review. These are precisely
-the instructions the loop *will* obey, because they are live and accurate. The vendor documentation for the canonical example is unambiguous: Claude Code's
+the instructions the loop *will* obey, because they are live and accurate. The vendor documentation
+for the canonical example is unambiguous: Claude Code's
 `bypassPermissions` mode "disables permission prompts and safety checks so tool calls execute
 immediately", is for "isolated environments like containers, VMs" only, and "offers no protection
 against prompt injection or unintended actions"
@@ -294,7 +296,7 @@ here: an agent may combine at most two of — processing untrustworthy inputs, "
 systems or private data", and the ability to "change state or communicate externally"
 ([Meta — Agents Rule of Two](https://ai.meta.com/blog/practical-ai-agent-security/)). A harness
 component granting the last two already sits at that limit before any untrusted content enters —
-the third property is D3's territory.
+the remaining property, untrustworthy inputs, is D3's territory.
 **Measure:** for each hook, script, and command, trace what it can write outside the worktree and
 what it can send off the machine. Compare stated scope against measured reach — a wrapper advertised
 as "read-only" that exports the whole ambient environment to its subprocess is a D2 finding (and an
@@ -303,7 +305,8 @@ credentials in a plaintext note or committed file is invisible to secret scanner
 yet at read time) but is a standing order to create exposure — measure the instruction, not just
 the current files.
 **Action:** **correct** stated-scope text to the measured reach; **flag** reach that has no stated
-justification. Prefer narrowing — project scope, env allowlists, redaction — over removal.
+justification, naming a narrowing alternative (project scope, env allowlists, redaction) rather
+than removal — applied only on the user's explicit decision.
 
 ### D3 — Untrusted input posture
 Where does external content enter the loop, and is it treated as data or as instructions? Indirect
@@ -332,11 +335,11 @@ mechanisms acting in one session, not by a single artifact — cross-reference D
 (private data, external communication) against D3's ingestion points (untrusted content) even when
 no single hook, rule, or skill holds all three alone.
 **Action:** **correct** by adding untrusted-data framing where it is absent — a text label the
-agent can still ignore, not a runtime filter (see the honest limit below); **flag**
+agent can still ignore (presence ≠ adherence, B3's finding), not a runtime filter; **flag**
 trifecta-complete paths and unvetted upstreams — whether an upstream is trustworthy is the user's
 call, not the audit's.
 
-**Honest limit:** D is a static read of the steering layer. It cannot prove what a hook does at
+**Honest limit (all of D):** D is a static read of the steering layer. It cannot prove what a hook does at
 runtime, it does not scan the codebase, its dependencies, or CI beyond harness wiring, and it has no
 adversarial testing step. **A clean D is not a security clearance** — it means the steering text
 showed nothing dangerous to a careful reader, nothing more.
@@ -370,7 +373,7 @@ Route every finding through one decision:
 | **Correct** | Still used, stated value wrong | Use the measured value, never a guess |
 | **Remove** | Provably dead: no wiring, no callers, no fires, upstream gone | Proof required; name it |
 | **Move** | Right intent, wrong layer (a linter's job stated as prose) | Verify the new layer actually fires |
-| **Keep (flag)** | Looks stale or untraceable but not proven wrong/dead — or proven live and accurate, but the fix is a security-posture call only the user can make (D1) | Surface it; do not touch it |
+| **Keep (flag)** | Looks stale or untraceable but not proven wrong/dead — or proven live and accurate, but the fix is a security-posture call only the user can make (D1–D3) | Surface it; do not touch it |
 
 When torn between remove and keep, keep. A false "keep" costs a little noise; a false "remove"
 silently strips a live gate.
@@ -409,7 +412,7 @@ Deterministic linter: <tool + score, or "none available">
 | 5 | B | loop integrity | "verify before commit" | no verifier wired; self-report only | correct | hook wiring |
 | 6 | C | budget | root CLAUDE.md 700 lines | norm <300 | correct | wc -l |
 | 7 | D | dangerous instruction | hook: `curl -s URL \| sh` | unpinned remote exec, no checksum | keep (flag) | hook body |
-| 8 | D | blast radius | hook doc: "read-only lint" | also posts file contents to a webhook | correct text + flag reach | hook body |
+| 8 | D | blast radius | hook doc: "read-only lint" | also posts file contents to a webhook | correct text + flag reach | hook body; also A4 |
 | 9 | D | untrusted input | skill pastes fetched URL content into prompt | no framing; treated as instructions | correct | skill body |
 
 **Unverified (could not measure):** <list, or "none">
@@ -419,7 +422,8 @@ Deterministic linter: <tool + score, or "none available">
 
 A finding that satisfies two questions (a D2 reach that is also A4 false advertising) gets **one
 row**, under the question that produced it, with the secondary hit named in Evidence ("also A4") —
-never two rows on the same evidence.
+never two rows on the same evidence. Such a row's Action may be compound (row 8's "correct text +
+flag reach"): one decision per hit, text correction for the A4 side, flag for the reach.
 
 Always print the *Unverified*, *Kept-and-flagged*, and *Safety* rows even when empty. A clean table
 that hides a blind spot is itself a drift. The safety row's empty value is "none seen", never "none"
@@ -480,8 +484,8 @@ absence.
 
 ## Related skills
 
-- **security-scan (command)** — deterministic AgentShield pass over `.claude/`; run it before D,
-  which owns only the judgment calls a scanner cannot make.
+- **/ecc:security-scan (command)** — deterministic AgentShield pass over `.claude/`; run it before
+  D, which owns only the judgment calls a scanner cannot make.
 - **model-orchestration** — picks the model for the audit versus the corrections.
 - **compaction-handoff** — persists findings so a long audit survives a context boundary.
 - **no-false-ship (rule)** — check A4 is the same advertised-equals-actual discipline.
