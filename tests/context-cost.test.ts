@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderInstallHeader } from "../src/commands/install-render.js";
 import {
@@ -73,9 +76,29 @@ describe("session-start context cost ratchet (NSM, ADR-032)", () => {
   it("budget is honest — not pre-inflated far above actual cost", () => {
     // ratchet 이 의미를 가지려면 예산이 실측 근처여야 한다 (실측 ×1.25 이내).
     const s = summarizeContextCost([...DEV_METHOD_SKILL_IDS]);
-    expect(DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS).toBeLessThanOrEqual(
-      Math.ceil(s.measuredTokens * 1.25),
-    );
+    expect(
+      DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS,
+      `예산(${DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS})이 실측(~${s.measuredTokens})보다 25% 넘게 높다 — ` +
+        "descriptor 를 줄였다면 예산도 실측 근처로 낮춰 ratchet 을 다시 조여라 (ADR-032)",
+    ).toBeLessThanOrEqual(Math.ceil(s.measuredTokens * 1.25));
+  });
+});
+
+describe("path robustness + degraded frontmatter (SOD 리뷰 F1/F7 회귀 가드)", () => {
+  it("measures from a root containing spaces and Korean chars, with CRLF frontmatter", () => {
+    const root = mkdtempSync(join(tmpdir(), "agent harness 한글 "));
+    const dir = join(root, "templates", "skills", "multi-persona-review");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "SKILL.md"), "---\r\nname: x\r\ndescription: y\r\n---\r\nbody");
+    expect(assetDescriptorTokens("multi-persona-review", root) ?? 0).toBeGreaterThan(0);
+  });
+
+  it("degrades to null (unmeasured) when SKILL.md has no frontmatter", () => {
+    const root = mkdtempSync(join(tmpdir(), "agent-harness-nofm-"));
+    const dir = join(root, "templates", "skills", "multi-persona-review");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "SKILL.md"), "no frontmatter body");
+    expect(assetDescriptorTokens("multi-persona-review", root)).toBeNull();
   });
 });
 
@@ -92,6 +115,20 @@ describe("context cost display line", () => {
     expect(
       formatContextCostLine({ measuredTokens: 0, measuredCount: 0, unmeasuredCount: 0 }),
     ).toBeNull();
+  });
+
+  it("formats singular counts and omits the external clause when zero", () => {
+    expect(
+      formatContextCostLine({ measuredTokens: 120, measuredCount: 1, unmeasuredCount: 1 }),
+    ).toBe(
+      "session-start context cost: ~120 tokens (1 bundled skill measured · 1 external unmeasured)",
+    );
+    expect(
+      formatContextCostLine({ measuredTokens: 200, measuredCount: 2, unmeasuredCount: 0 }),
+    ).toBe("session-start context cost: ~200 tokens (2 bundled skills measured)");
+    expect(formatContextCostLine({ measuredTokens: 0, measuredCount: 0, unmeasuredCount: 1 })).toBe(
+      "session-start context cost: unmeasured (1 external asset)",
+    );
   });
 });
 

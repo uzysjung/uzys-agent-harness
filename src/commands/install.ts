@@ -4,6 +4,7 @@
  */
 
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
@@ -311,7 +312,9 @@ function defaultRunPipeline(
 
 function defaultHarnessRoot(): string {
   // The bundled CLI lives at <root>/dist/index.js. import.meta.url + ../ resolves to <root>.
-  return resolve(new URL(".", import.meta.url).pathname, "..");
+  // fileURLToPath 필수 — `.pathname` 은 공백/비ASCII 경로를 percent-encoded 로 남겨
+  // "Templates dir not found" 로 install 이 실패한다 (v26.103.0 SOD 리뷰 2기 독립 수렴).
+  return resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 }
 
 /* v8 ignore stop */

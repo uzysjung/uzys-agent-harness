@@ -16,6 +16,9 @@ Lean 방향(ADR-032) 실행 큐의 코드 2건 — "간결"을 슬로건에서 *
 - **Context Cost ratchet 게이트** (`tests/context-cost.test.ts`) — dev-method 기본 설치 descriptor 합계 ≤ **2,000 tokens** 예산. 초과 시 CI 실패 — 예산 상향은 금지가 아니라 PR 명시적 정당화 요구(ratchet). 예산 선-부풀리기 방지 양방향 가드(실측 ×1.25 이내) 포함. NORTH_STAR §2 NSM "Session-Start Context Cost" 의 계측 구현.
 - **스킬 트리거 중복 게이트** (`tests/skill-trigger-overlap.test.ts`) — 번들 스킬 10종의 트리거 description 쌍별 Jaccard 유사도가 **0.30** 초과하는 신규 쌍을 차단(사유 필수 ALLOWLIST 예외). 컨텍스트 잠식의 실체는 개수보다 **유사 스킬 간 라우팅 혼란** — 개수 상한 대신 경계 중복을 게이트. 실측 2026-07-17: 현재 최대 0.190(gemini↔codex-consult, 의도적 자매 스킬).
 
+### Fixed
+- **공백/비ASCII 경로에서 templates 해석 실패** — `defaultHarnessRoot`(선존재: install 이 "Templates dir not found" 로 실패)와 신규 `resolveBundleRoot`(context-cost 가 전량 unmeasured 강등) 둘 다 `URL.pathname` 이 percent-encoding 을 유지하는 문제 → `fileURLToPath` 로 교체. SOD 리뷰 2기가 **독립적으로 같은 결함에 수렴**(정확성 F1 + 회귀헌트 dist 실측 probe). 공백·한글 경로 회귀 가드 테스트 추가.
+
 ### Changed
 - README "Curation philosophy" — context-cost 표시를 roadmap 표기에서 **출하 상태로 현행화** (worktree 격리 관례는 roadmap 유지).
 

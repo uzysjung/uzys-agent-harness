@@ -24,3 +24,15 @@
 - wshobson-agents 는 T3 기준(오케스트레이션·cross-CLI) 부합 — 번들 일괄 취급 금지, 개별 판정.
 - "멀티에이전트 동시 개발" 광고 금지 — 안전장치(worktree 관례·파일 클레임 hook) 출하가 선행.
 - 이행 창 = M2 게시 전(외부 사용자 ~0 = 이행비용 0). M2 재개 결정 시 본 큐 진척을 먼저 확인.
+
+## 후속 (v26.103.0 SOD 리뷰 잔여 — Nit/기록)
+
+- **F6**: `defaultHarnessRoot`(install.ts:314)가 `.pathname` 사용 — 공백/한글 경로에서 설치가
+  "Templates dir not found" 로 **loud fail**. context-cost 는 fileURLToPath 로 고쳤으니(F1)
+  공용 헬퍼로 통일 필요. 수정 시 spaced-path Docker 시나리오로 검증.
+- **F5**: unmeasured 를 무조건 "external" 로 표기 — internal 해석 실패(패키징 드리프트) 시
+  범주 오표기. 카운터 분리 또는 중립 문구 검토.
+- **F9**: context-cost 의 dist 실행 증거 부재 — docker 시나리오에 `grep "session-start context
+  cost"` 1줄 또는 npm pack 패키징 테스트 추가.
+- **F8**(기록): Jaccard 게이트는 "장황하게 쓰기"로 회피 가능. gemini/codex-consult(최대 쌍)는
+  opt-in 이라 예산 반대 압력이 없음. 현재 0.190 vs 0.30 — 실해 없음.

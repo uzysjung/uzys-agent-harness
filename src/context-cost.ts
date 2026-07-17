@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 
 /**
@@ -21,16 +22,19 @@ export function estimateTokens(chars: number): number {
 
 /**
  * 패키지 루트(= `templates/` 가 있는 곳) 해석. 이 파일은 src/ 최상위(dev)와 dist/ 번들 출력
- * 양쪽에서 한 단계 위가 패키지 루트라 동일 식이 성립한다 — commands/ 하위의
- * `defaultHarnessRoot` 가 dist 전용(테스트 주입 필수)인 것과 다른 점.
+ * 양쪽에서 한 단계 위가 패키지 루트라 동일 식이 성립한다 — `defaultHarnessRoot` 와 식은 같지만
+ * 그쪽은 src/commands/ 아래라 dev 에선 틀려 테스트 주입이 필수인 것과 달리, 여기는 양쪽 유효.
+ * `fileURLToPath` 필수 — `.pathname` 은 공백/비ASCII 경로를 percent-encoded 로 남겨
+ * existsSync 가 전부 실패한다 (SOD 리뷰 F1).
  */
 export function resolveBundleRoot(): string {
-  return resolve(new URL(".", import.meta.url).pathname, "..");
+  return resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 }
 
 /** SKILL.md 선두의 frontmatter 블록(`---` ... `---`) 내용. 없으면 null. */
 export function extractFrontmatter(content: string): string | null {
-  const m = content.match(/^---\n([\s\S]*?)\n---/);
+  // BOM/CRLF 허용 — Windows 클론(core.autocrlf)에서 전량 unmeasured 강등 방지 (SOD 리뷰 F7).
+  const m = content.match(/^﻿?---\r?\n([\s\S]*?)\r?\n---/);
   return m?.[1] ?? null;
 }
 
