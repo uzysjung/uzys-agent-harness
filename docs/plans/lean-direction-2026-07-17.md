@@ -27,9 +27,9 @@
 
 ## 후속 (v26.103.0 SOD 리뷰 잔여 — Nit/기록)
 
-- **F6**: `defaultHarnessRoot`(install.ts:314)가 `.pathname` 사용 — 공백/한글 경로에서 설치가
-  "Templates dir not found" 로 **loud fail**. context-cost 는 fileURLToPath 로 고쳤으니(F1)
-  공용 헬퍼로 통일 필요. 수정 시 spaced-path Docker 시나리오로 검증.
+- ~~**F6**: `defaultHarnessRoot` `.pathname`~~ **v26.103.0 에서 수정 완료**(fileURLToPath, 리뷰
+  2기 수렴으로 릴리즈에 포함) — 잔여는 spaced-path **Docker 시나리오 검증**만(픽스처 테스트는
+  추가됨, 실 CLI 경로는 미검증).
 - **F5**: unmeasured 를 무조건 "external" 로 표기 — internal 해석 실패(패키징 드리프트) 시
   범주 오표기. 카운터 분리 또는 중립 문구 검토.
 - **F9**: context-cost 의 dist 실행 증거 부재 — docker 시나리오에 `grep "session-start context
