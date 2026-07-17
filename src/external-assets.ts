@@ -52,6 +52,7 @@ export type ExternalAssetMethod =
         // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
         | "model-orchestration"
         // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy 3질문). ADR-027.
+        // v26.101.0 — 안전(SAFE) 4번째 축(D1~D3) 추가 → 4질문. ADR-030.
         | "harness-health-audit"
         // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
         | "gemini-consult"
@@ -324,11 +325,14 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   //   하네스를 잡는다. 결정적 경계: 결정론적 린터(AgentLint/cclint)가 할 수 있는 form 검사는
   //   위임하고, 린터가 구조적으로 못 하는 판단(이 단언이 이 repo 의 진짜 스택인가 / 이 훅이
   //   실제로 fire 하는가 / 이 스킬이 트리거되는가)만 모델이 한다 (CLAUDE.md Rule 5 정합).
+  // v26.101.0 — 안전(SAFE) 4번째 축 신설 (ADR-030): ADR-027 (z) 알려진 갭 해소. D1 위험 활성
+  //   지시 · D2 폭발 반경 · D3 비신뢰 입력 취급. D 는 flag 기본(보안 태세 결정은 사용자 몫),
+  //   완전성 단언은 계속 금지, "clean D ≠ security clearance" 명시.
   {
     id: "harness-health-audit",
     tier: "official", // uzys 본 하네스 자체 템플릿
     description:
-      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 3 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · ECONOMY (inside the budget where rules are still followed)",
+      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 4 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · AFFORDABLE (inside the budget where rules are still followed) · SAFE (a live, accurate instruction can still be a bad idea)",
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },

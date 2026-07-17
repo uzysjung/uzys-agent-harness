@@ -2,17 +2,22 @@
 name: harness-health-audit
 description: >-
   Audit the health of an AI-coding harness — the CLAUDE.md / AGENTS.md files, rules, skills, agents,
-  hooks, and commands that steer an agent in a repository — across three questions a linter cannot
+  hooks, and commands that steer an agent in a repository — across four questions a linter cannot
   answer: is it TRUE (does it match the real code?), is it USED (do skills actually trigger and does
-  the loop actually verify?), and is it AFFORDABLE (is it inside the budget where instructions are
-  still followed?). Then surgically correct or remove only what is proven wrong or dead. Use whenever
-  the steering layer may have rotted or may not be working: "하네스 점검해줘", "하네스 드리프트 감사",
+  the loop actually verify?), is it AFFORDABLE (is it inside the budget where instructions are still
+  followed?), and is it SAFE (is a live, accurate instruction still a good idea — permission
+  bypasses, unpinned remote scripts, untrusted content flowing in as instructions? — safety findings
+  are flagged for the user's decision, never auto-removed). Then surgically correct or remove only
+  what is proven wrong or dead. Use whenever the steering layer may have
+  rotted or may not be working: "하네스 점검해줘", "하네스 드리프트 감사",
   "CLAUDE.md가 실제랑 맞는지 봐줘", "룰/스킬이 최신인지 확인해줘", "스킬이 제대로 활용되는지 봐줘",
-  "루프 엔지니어링 잘 되고 있는지 검토해줘", "죽은 훅/커맨드 정리해줘", "audit my harness",
-  "check the rules still match the real stack", "are my skills actually being used", "review the
-  agent loop", after a stack or tooling migration, or when onboarding a repo whose steering docs look
-  stale. Every finding must be backed by stated-versus-measured evidence; never guess the correct
-  value, and never remove a live path because it merely looks unused.
+  "루프 엔지니어링 잘 되고 있는지 검토해줘", "죽은 훅/커맨드 정리해줘", "하네스 안전한지 점검해줘",
+  "audit my harness", "check the rules still match the real stack", "are my skills actually being
+  used", "review the agent loop", "is my harness safe", after a stack or tooling migration, or when
+  onboarding a repo whose steering docs look stale. Not a codebase security audit — it reads the
+  steering layer, not application code. Every finding must be backed by stated-versus-measured
+  evidence; never guess the correct value, and never remove a live path because it merely looks
+  unused.
 ---
 
 # Harness Health Audit
@@ -26,7 +31,7 @@ configuration, and execution logic that isn't the model itself"
 stakes plainly: "A decent model with a great harness beats a great model with a bad harness"
 ([Osmani](https://addyosmani.com/blog/agent-harness-engineering/)).
 
-Harnesses fail in two different ways, and most audits only catch the first:
+Harnesses fail in three different ways, and most audits only catch the first:
 
 - **They rot.** The stack migrates, a command is renamed, a plugin disappears upstream, a ceremony is
   abandoned — but the steering text still asserts the old world. Nothing fails loudly, because the
@@ -34,8 +39,12 @@ Harnesses fail in two different ways, and most audits only catch the first:
 - **They stop working while still being true.** Every word is accurate, but the skills never trigger,
   the rules are too long to be followed, and the loop closes on the agent's own say-so instead of a
   real check. A perfectly accurate harness that nothing obeys is still a broken harness.
+- **They keep working while being dangerous.** Every instruction is accurate, live, and cheap — and
+  one of them tells the agent to pipe an unpinned remote script into a shell, or to skip the
+  permission prompts that are its last guardrail. Nothing about truth, efficacy, or economy will
+  ever flag it.
 
-This audit targets both. It does not claim to catch everything — see the safety gap named below.
+This audit targets all three. It does not claim to catch everything.
 
 ## Run the deterministic linter first
 
@@ -44,7 +53,10 @@ detection, `.env` gitignoring, action SHA-pinning, resolvable links, naming conv
 deterministic. Tools exist: [AgentLint](https://www.agentlint.app/) advertises 33 checks over five
 dimensions (findability, instructions, workability, continuity, safety) across `CLAUDE.md`,
 `AGENTS.md`, `.cursor/rules`, `.github/copilot-instructions.md`, CI workflows, pre-commit hooks and
-`.gitignore`; `cclint` covers syntax. Run what is available, then start here.
+`.gitignore`; AgentShield (`npx ecc-agentshield scan` — this harness bundles it as the
+`/ecc:security-scan` command) deterministically scans `.claude/` for dangerous bypass flags, hardcoded
+secrets, and injection patterns; `cclint` covers syntax. Run what is available, then start here —
+question D below assumes the deterministic security pass already ran.
 
 > "Never send an LLM to do a linter's job. LLMs are comparably expensive and *incredibly* slow
 > compared to traditional linters and formatters."
@@ -52,8 +64,9 @@ dimensions (findability, instructions, workability, continuity, safety) across `
 
 **This skill exists for what a linter structurally cannot decide.** A linter can measure that a rule
 is 40 lines long; it cannot know whether the stack it names is the stack this repo actually uses,
-whether the hook it wires still fires, or whether the skill it installs ever triggers. Those require
-reading the code and judging. That judgment — truth and efficacy — is this skill's whole job.
+whether the hook it wires still fires, whether the skill it installs ever triggers, or whether a
+live, accurate instruction is a bad idea. Those require reading the code and judging. That judgment
+is this skill's whole job.
 
 ## Governing principle
 
@@ -66,27 +79,20 @@ rewrite. A harness that still works must survive the audit almost untouched. Two
   Measure it. If you cannot prove it is dead, keep it and flag it — silently stripping a live gate is
   the one failure worse than drift.
 
-## The three questions
+## The four questions
 
-Run them in this order: truth is cheapest, economy needs the whole picture.
+Run them in this order: truth is cheapest; economy and safety need the whole picture. D reuses the
+evidence A and B already gathered — the wiring, what fires, what triggers — so it costs little extra.
 
 | | Question | Failure it catches |
 |---|---|---|
 | **A** | **Is it TRUE?** | The harness asserts a world the repo left behind |
 | **B** | **Is it USED?** | The harness is accurate but inert — nothing triggers, nothing verifies |
 | **C** | **Is it AFFORDABLE?** | The harness is accurate and well-designed but too big to be followed |
+| **D** | **Is it SAFE?** | The harness is accurate, live, and cheap — and instructs something dangerous |
 
-**These three are not exhaustive, and the gap that matters most is safety.** A harness can be TRUE,
-USED, and AFFORDABLE and still be dangerous: a hook that pipes an unpinned remote script straight
-into a shell, or a rule that tells the agent to skip permission prompts, is accurate (it describes
-what it does), live (it fires), and cheap (one line) — so all three questions pass it. The
-deterministic linters cover *form* safety (secrets, `.env` hygiene, action SHA-pinning); what they
-cannot judge is whether a live, accurate instruction is a bad idea.
-
-So: **when a check reveals something dangerous, report it — do not discard it because it fits no
-question.** Treat safety as a standing lens over A/B/C rather than a fourth pass, and say plainly in
-the report that safety was judged ad hoc, not systematically. A dedicated safety axis is a known gap
-in this skill, not a solved problem.
+**Four questions are still not a completeness claim.** When a check reveals a problem that fits no
+question, report it — do not discard it.
 
 ---
 
@@ -244,6 +250,102 @@ the judgment-level guidance only the model can use.
 
 ---
 
+## D. Is it SAFE? (safety)
+
+A harness can pass every question above and still be dangerous: an instruction that waives
+permission prompts is accurate (it describes what it does), live (it fires), and cheap (one line) —
+A, B, and C all wave it through. The deterministic linters cover *form* safety (secret detection,
+`.env` hygiene, action SHA-pinning) and will already have *found* artifacts like bypass flags and
+injection patterns; what they structurally cannot judge is whether a live, accurate instruction is
+a bad idea — the scanner prints the flag, D decides whether it is justified in this repo and what
+the narrower alternative is. That judgment is this question.
+
+**On the underlying risk, D findings default to flag, not fix.** A bypass can be a deliberate,
+informed trade-off (a sandboxed CI container, an isolated VM). The audit's job is to name the risk
+and the narrowest working alternative, then let the user decide — overriding a security posture
+unasked is the same sin as silently stripping a live gate. The one thing D corrects directly is
+**text**: a false scope description (D2) or missing untrusted-data framing (D3) changes what the
+harness *says*, never what an instruction is *allowed to do*. "Correct" must never widen, loosen,
+or remove a guardrail — that decision is always the user's.
+
+### D1 — Dangerous live instructions
+The harness tells the agent to remove its own guardrails: waiving or bypassing permission prompts,
+piping unpinned remote scripts into a shell, auto-approving destructive command classes, disabling
+sandboxes, or auto-installing tools, plugins, or MCP servers without review. These are precisely
+the instructions the loop *will* obey, because they are live and accurate. The vendor documentation
+for the canonical example is unambiguous: Claude Code's
+`bypassPermissions` mode "disables permission prompts and safety checks so tool calls execute
+immediately", is for "isolated environments like containers, VMs" only, and "offers no protection
+against prompt injection or unintended actions"
+([Claude Code docs](https://code.claude.com/docs/en/permission-modes)).
+**Measure:** read every rule, hook, and command body and ask what each one *widens* — what now runs
+without review that would have been stopped before? The baseline for "widened" is the target CLI's
+documented default permission/sandbox behavior (for Claude Code, the docs linked above) — look it
+up per CLI rather than substituting your own assumption. Quote the instruction; name the failure it
+enables.
+**Action:** **flag**, stating the concrete risk and the narrowest alternative (a scoped allow-rule —
+or, on Claude Code, the classifier-gated `auto` mode the same doc recommends over a blanket bypass;
+a pinned, checksummed script instead of `curl | sh`). Correct or remove only on the user's explicit
+decision.
+
+### D2 — Blast radius
+What can the harness reach beyond this repository? Hooks that write global config (home-directory
+dotfiles, package-manager globals), scripts that pass ambient credentials into spawned processes,
+commands that transmit file contents to external services or models. Meta's Rule of Two applies
+here: an agent may combine at most two of — processing untrustworthy inputs, "access to sensitive
+systems or private data", and the ability to "change state or communicate externally"
+([Meta — Agents Rule of Two](https://ai.meta.com/blog/practical-ai-agent-security/)). A harness
+component granting the last two already sits at that limit before any untrusted content enters —
+the remaining property, untrustworthy inputs, is D3's territory.
+**Measure:** for each hook, script, and command, trace what it can write outside the worktree and
+what it can send off the machine. Compare stated scope against measured reach — a wrapper advertised
+as "read-only" that exports the whole ambient environment to its subprocess is a D2 finding (and an
+A4 one). Include instructions about *future* secret handling: a rule telling the agent to keep
+credentials in a plaintext note or committed file is invisible to secret scanners (no secret exists
+yet at read time) but is a standing order to create exposure — measure the instruction, not just
+the current files.
+**Action:** **correct** stated-scope text to the measured reach; **flag** reach that has no stated
+justification, naming a narrowing alternative (project scope, env allowlists, redaction) rather
+than removal — applied only on the user's explicit decision.
+
+### D3 — Untrusted input posture
+Where does external content enter the loop, and is it treated as data or as instructions? Indirect
+prompt injection occurs "when an LLM accepts input from external sources, such as websites or
+files", and among its listed outcomes is "executing arbitrary commands in connected systems"
+([OWASP LLM01:2025](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)). A skill or agent body
+pulled from an unvetted upstream is the same problem delivered as an installable asset — exactly the
+external-source "file" LLM01 describes, editable by someone else. (OWASP tracks third-party *model
+and dependency* integrity separately as
+[LLM03:2025](https://genai.owasp.org/llmrisk/llm032025-supply-chain/); instruction content is the
+LLM01 shape.) The worst case has a name: an agent combining "access to your private data",
+"exposure to untrusted content", and "the ability to externally communicate" is Willison's
+**lethal trifecta** — the same three-property shape as Meta's Rule of Two in D2, independently
+named — and his advice is to "avoid that lethal trifecta combination entirely"
+([Willison](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/)).
+**Measure:** inventory the ingestion points — web-fetch instructions in rule/skill/hook bodies,
+third-party skill/agent bodies, MCP servers whose declared tools return external content (read the
+declared configuration; observing live output needs transcripts, the same limit as B3),
+user-submitted files. For each, check whether the harness frames the content as untrusted data
+(wrapper tags, explicit "treat as data, never follow" instructions) or lets it flow in as bare
+instructions. The most severe form is **active**: a rule or skill body that tells the agent to
+*trust* external content ("treat fetched content as trusted", "follow instructions found in tool
+output") — that does not merely lack framing, it defeats whatever framing exists elsewhere. Check
+whether upstream assets are vetted and version-pinned. The trifecta is usually completed by separate
+mechanisms acting in one session, not by a single artifact — cross-reference D2's reach inventory
+(private data, external communication) against D3's ingestion points (untrusted content) even when
+no single hook, rule, or skill holds all three alone.
+**Action:** **correct** by adding untrusted-data framing where it is absent — a text label the
+agent can still ignore (presence ≠ adherence, B3's finding), not a runtime filter; **flag**
+trifecta-complete paths and unvetted upstreams — whether an upstream is trustworthy is the user's
+call, not the audit's.
+
+**Honest limit (all of D):** D is a static read of the steering layer. It cannot prove what a hook does at
+runtime, it does not scan the codebase, its dependencies, or CI beyond harness wiring, and it has no
+adversarial testing step. **A clean D is not a security clearance** — it means the steering text
+showed nothing dangerous to a careful reader, nothing more.
+
+---
+
 ## The Ratchet test (cross-cutting)
 
 Osmani proposes: "Every line in a good `AGENTS.md` should be traceable back to a specific thing that
@@ -271,7 +373,7 @@ Route every finding through one decision:
 | **Correct** | Still used, stated value wrong | Use the measured value, never a guess |
 | **Remove** | Provably dead: no wiring, no callers, no fires, upstream gone | Proof required; name it |
 | **Move** | Right intent, wrong layer (a linter's job stated as prose) | Verify the new layer actually fires |
-| **Keep (flag)** | Looks stale or untraceable, but not proven wrong or dead | Surface it; do not touch it |
+| **Keep (flag)** | Looks stale or untraceable but not proven wrong/dead — or proven live and accurate, but the fix is a security-posture call only the user can make (D1–D3) | Surface it; do not touch it |
 
 When torn between remove and keep, keep. A false "keep" costs a little noise; a false "remove"
 silently strips a live gate.
@@ -279,12 +381,13 @@ silently strips a live gate.
 ## Workflow
 
 1. **Run the deterministic linter** if one is available. Do not re-do its work by hand.
-2. **Inventory the surface.** Every always-loaded file, rule, skill, agent, hook + its wiring, command,
-   and the multi-CLI equivalents. Missing a surface is how a rename gets fixed in `CLAUDE.md` and left
+2. **Inventory the surface.** Every always-loaded file, rule, skill, agent, hook + its wiring, the
+   scripts those hooks/skills/commands invoke, command, MCP server/tool declarations, and the
+   multi-CLI equivalents. Missing a surface is how a rename gets fixed in `CLAUDE.md` and left
    broken inside a skill body.
 3. **Measure ground truth.** Real stack (dependencies/lockfile), real commands (what resolves), real
    wiring (what fires), real assets (what exists upstream).
-4. **Run A → B → C.** For each check, produce stated/measured pairs. No pair, no finding.
+4. **Run A → B → C → D.** For each check, produce stated/measured pairs. No pair, no finding.
 5. **Classify** each finding: correct / remove / move / keep-flag. For every "remove", write the death
    evidence explicitly.
 6. **Apply surgically.** Only drifted lines. Do not "improve" adjacent, correct text. Match existing
@@ -308,15 +411,23 @@ Deterministic linter: <tool + score, or "none available">
 | 4 | B | utilization | skill desc: "when relevant" | no concrete trigger | correct | SKILL.md frontmatter |
 | 5 | B | loop integrity | "verify before commit" | no verifier wired; self-report only | correct | hook wiring |
 | 6 | C | budget | root CLAUDE.md 700 lines | norm <300 | correct | wc -l |
+| 7 | D | dangerous instruction | hook: `curl -s URL \| sh` | unpinned remote exec, no checksum | keep (flag) | hook body |
+| 8 | D | blast radius | hook doc: "read-only lint" | also posts file contents to a webhook | correct text + flag reach | hook body; also A4 |
+| 9 | D | untrusted input | skill pastes fetched URL content into prompt | no framing; treated as instructions | correct | skill body |
 
 **Unverified (could not measure):** <list, or "none">
 **Kept-and-flagged (not proven dead/wrong):** <list, or "none">
-**Safety concerns (ad-hoc lens, not a systematic pass):** <list, or "none seen — not a clean bill">
+**Safety (static read, not a security audit):** <safety findings that fit no D check, or "none seen — not a clean bill">
 ```
+
+A finding that satisfies two questions (a D2 reach that is also A4 false advertising) gets **one
+row**, under the question that produced it, with the secondary hit named in Evidence ("also A4") —
+never two rows on the same evidence. Such a row's Action may be compound (row 8's "correct text +
+flag reach"): one decision per hit, text correction for the A4 side, flag for the reach.
 
 Always print the *Unverified*, *Kept-and-flagged*, and *Safety* rows even when empty. A clean table
 that hides a blind spot is itself a drift. The safety row's empty value is "none seen", never "none"
-— the audit has no systematic safety pass, so silence there is absence of evidence, not evidence of
+— D reads the steering text statically, so silence there is absence of evidence, not evidence of
 absence.
 
 ## Anti-patterns
@@ -331,14 +442,17 @@ absence.
 - **Doing a linter's job by hand** — and leaving prose in the harness that should have been a hook.
 - **Adding gates because gates feel safe.** Every speculative gate is future dead ceremony (A3) paid
   for out of the budget (C1). Earn it with a real failure.
+- **Treating a clean D as a security clearance.** D reads steering text; it proves nothing about the
+  code, the dependencies, or runtime behavior.
+- **"Fixing" a security posture unasked.** A bypass may be a deliberate trade-off in a sandboxed
+  environment. D findings default to flag; the risk decision belongs to the user.
 - **One unreviewable diff.** Blending mechanical renames with semantic edits defeats verification.
 
 ## Honest limitations
 
-- **No systematic safety pass.** A/B/C can all pass on a harness that is accurate, live, cheap, and
-  unsafe (an unpinned `curl | sh` hook; a rule waiving permission prompts). Safety is a lens applied
-  ad hoc, and the linters only cover form-level safety — so a clean audit is not a safety clearance.
-  Say so in the report.
+- **D is not a security audit.** It reads the steering layer statically: it cannot prove runtime
+  behavior, does not scan the codebase or its dependencies, and has no adversarial step. A clean D
+  row is not a security clearance. Say so in the report.
 - **Presence ≠ adherence.** A correct rule can still be ignored; the model decides relevance. Only
   observation reveals whether a rule binds — files alone cannot.
 - **No published utilization metric.** There is no authoritative trigger-rate measure to cite; report
@@ -362,9 +476,16 @@ absence.
 - [Chroma — Context Rot](https://www.trychroma.com/research/context-rot) — 18 models; degradation with input length; distractor effects.
 - [Liu et al. — Lost in the Middle (TACL)](https://aclanthology.org/2024.tacl-1.9/) — U-shaped position curve.
 - [AgentLint](https://www.agentlint.app/) — deterministic harness linter; run it before this skill.
+- [Claude Code — permission modes](https://code.claude.com/docs/en/permission-modes) — what `bypassPermissions` disables; isolated-environments-only warning.
+- [Meta — Agents Rule of Two](https://ai.meta.com/blog/practical-ai-agent-security/) — untrusted inputs / sensitive data / external communication: satisfy no more than two.
+- [OWASP LLM01:2025 Prompt Injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) — direct vs indirect injection; arbitrary-command outcomes.
+- [OWASP LLM03:2025 Supply Chain](https://genai.owasp.org/llmrisk/llm032025-supply-chain/) — third-party model/component integrity risks.
+- [Simon Willison — The lethal trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/) — private data + untrusted content + external communication; avoid the combination entirely.
 
 ## Related skills
 
+- **/ecc:security-scan (command)** — deterministic AgentShield pass over `.claude/`; run it before
+  D, which owns only the judgment calls a scanner cannot make.
 - **model-orchestration** — picks the model for the audit versus the corrections.
 - **compaction-handoff** — persists findings so a long audit survives a context boundary.
 - **no-false-ship (rule)** — check A4 is the same advertised-equals-actual discipline.
