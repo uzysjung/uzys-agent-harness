@@ -7,6 +7,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.103.0] — 2026-07-17 (feat: Session-Start Context Cost NSM 계측 + 스킬 트리거 중복 게이트, ADR-032 Lean 큐 ①③)
+
+Lean 방향(ADR-032) 실행 큐의 코드 2건 — "간결"을 슬로건에서 **계측 대상**으로.
+
+### Added
+- **Session-Start Context Cost 표시** (`src/context-cost.ts` 신규) — 설치 선택이 세션 시작 시 상주시키는 descriptor(SKILL.md frontmatter: name+description) 토큰 추정치를 **wizard confirm 과 비대화형 install header 양쪽**에 동일 문구로 표시: `session-start context cost: ~N tokens (K bundled skills measured · M external unmeasured)`. 측정 범위 정직화(no-false-ship): repo-bundled internal 스킬만 frontmatter 실측(chars/4 근사, 항상 `~` 표기) — 외부 자산(plugin/skill/npm)은 설치 시점에 frontmatter 를 알 수 없어 **unmeasured 로 명시**, 추정치를 실측처럼 표기하지 않는다. 실측 2026-07-17: dev-method 8종 = ~1,872 tokens.
+- **Context Cost ratchet 게이트** (`tests/context-cost.test.ts`) — dev-method 기본 설치 descriptor 합계 ≤ **2,000 tokens** 예산. 초과 시 CI 실패 — 예산 상향은 금지가 아니라 PR 명시적 정당화 요구(ratchet). 예산 선-부풀리기 방지 양방향 가드(실측 ×1.25 이내) 포함. NORTH_STAR §2 NSM "Session-Start Context Cost" 의 계측 구현.
+- **스킬 트리거 중복 게이트** (`tests/skill-trigger-overlap.test.ts`) — 번들 스킬 10종의 트리거 description 쌍별 Jaccard 유사도가 **0.30** 초과하는 신규 쌍을 차단(사유 필수 ALLOWLIST 예외). 컨텍스트 잠식의 실체는 개수보다 **유사 스킬 간 라우팅 혼란** — 개수 상한 대신 경계 중복을 게이트. 실측 2026-07-17: 현재 최대 0.190(gemini↔codex-consult, 의도적 자매 스킬).
+
+### Fixed
+- **공백/비ASCII 경로에서 templates 해석 실패** — `defaultHarnessRoot`(선존재: install 이 "Templates dir not found" 로 실패)와 신규 `resolveBundleRoot`(context-cost 가 전량 unmeasured 강등) 둘 다 `URL.pathname` 이 percent-encoding 을 유지하는 문제 → `fileURLToPath` 로 교체. SOD 리뷰 2기가 **독립적으로 같은 결함에 수렴**(정확성 F1 + 회귀헌트 dist 실측 probe). 공백·한글 경로 회귀 가드 테스트 추가.
+
+### Changed
+- README "Curation philosophy" — context-cost 표시를 roadmap 표기에서 **출하 상태로 현행화** (worktree 격리 관례는 roadmap 유지).
+
 ## [v26.102.0] — 2026-07-17 (fix: 4-CLI cliSupport 데이터축 — codex 단독 설치의 claude spawn 오염 차단, Batch3 P0)
 
 2026-07-14 하네스 감사 P0 2건([4cli-asymmetry-cluster]·[cli-external-path-untested], 둘 다 CONFIRMED) 해소 — 사용자 확정 스코프(2026-07-14): "데이터축(cliSupport) + 고지 = 정직화, 대칭 실현은 M4+". 설계 근거 ADR-031.
