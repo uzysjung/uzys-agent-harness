@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.100.1] — 2026-07-17 (fix: consult 스킬 미검증 2건 실측 반영 — codex auth 시그니처 + gemini 이미지 quota)
+
+v26.100.0 이 "미검증"으로 정직 표기했던 항목을 실측으로 폐쇄 (docs-only, 래퍼 무변경).
+
+### Changed
+- **codex-consult auth 실패 시그니처 실측** — 빈 `CODEX_HOME` 으로 로그아웃 상태 비파괴 재현: nonzero exit + stderr `401 Unauthorized: Missing bearer or basic authentication` ("Reconnecting… n/5" 재시도 후). SKILL.md 의 "exact wording unverified" 를 검증된 시그니처로 교체.
+- **gemini-consult 이미지 quota 동작 명시** — 실측: 이미지 quota 는 모델 티어 공유·소량(세션 4장에서 소진), 초과 시 Gemini 가 정중히 거절 → 래퍼 exit 5 + 태그 내 사유. 관측된 리셋 지평 ~7일. quota 에러에 retry-loop 금지 + codex-consult 폴백 안내 추가.
+
+> gemini 실 이미지 e2e(최종 래퍼)는 quota 리셋(~7일)까지 외부 차단 유지 — 수거 메커니즘은 3중 검증(재작성 전 실 leaf 수거 · 스텁 brain 결정론 · 실 429 상황의 exit 5) 완료.
+
 ## [v26.100.0] — 2026-07-17 (feat: codex-consult 자산 + gemini-consult 이미지 모드 + OpenCode consult 실행 불능 fix)
 
 사용자 요청(2026-07-17): Codex 의 강점(간결·구조화·이미지 생성)을 살린 협업 스킬 + gemini-consult 에도 이미지 생성 활용. 5-페르소나 독립 패널 리뷰(실행자/보안/라우팅/크로스-CLI/비용) → 개선 → 출하. 설계 근거 ADR-029. 카탈로그 60 → **61**.

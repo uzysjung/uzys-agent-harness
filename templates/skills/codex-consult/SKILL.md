@@ -51,10 +51,12 @@ not bundled here. The wrapper resolves it at `$CODEX_BIN`, then `PATH`, then
 - **Not installed?** Ask the user to install it
   (`https://developers.openai.com/codex/cli`) and run `codex login` once.
   Don't attempt the install silently.
-- **Auth expired?** If a nonzero exit's stderr mentions login/authentication
-  (exact wording unverified — codex has not been exercised logged-out here),
-  **stop and ask the user to run `codex login`**. Never fabricate credentials,
-  never read/echo `.env*` or secrets.
+- **Auth expired?** Logged-out calls fail with a nonzero exit and stderr
+  containing `401 Unauthorized: Missing bearer or basic authentication`
+  (verified against codex 0.144.5 with an empty `CODEX_HOME`; codex retries
+  "Reconnecting… n/5" first, so it takes a few seconds to fail). On that
+  signature, **stop and ask the user to run `codex login`**. Never fabricate
+  credentials, never read/echo `.env*` or secrets.
 - **Calls block for a while.** The wrapper caps a call at 300s
   (`CODEX_CONSULT_TIMEOUT`); text runs ~20s, image generation ~60–90s. Raise
   your shell tool's own timeout (e.g. 300000ms+) for image calls — its default

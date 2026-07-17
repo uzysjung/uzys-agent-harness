@@ -222,6 +222,12 @@ Prompt like Mode B of codex-consult: subject, style, background, aspect, and
 session — iterate by editing the prompt, and remember every iteration is a
 full-cost regeneration.
 
+**Image quota is small and shared across model tiers.** A handful of
+generations can exhaust it; Gemini then answers (politely) that quota is
+exceeded — the wrapper surfaces that as exit 5 with the explanation inside the
+tags. Observed reset horizon: up to ~7 days. Don't retry-loop against a quota
+error; relay it and fall back to `codex-consult` for the image.
+
 ```
 이미지 생성 도구로 이미지를 하나 생성해줘:
 - 내용: <subject> · 스타일: <flat / watercolor / ...> · 배경: <white / ...>
