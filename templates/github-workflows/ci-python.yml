@@ -1,0 +1,54 @@
+# ci-python.yml — CI scaffold installed by @uzysjung/agent-harness (`--with ci-scaffold`).
+# Fill-in template: replace the FILL markers with your project's commands, then commit.
+# Re-installs never overwrite this file once it exists — it is yours after install.
+#
+# Gate philosophy (mirrors the harness test-policy rule):
+#   - Local checks (lint + typecheck + coverage) are the primary gate.
+#   - This workflow is the regression gate, triggered on release tags (v*) by
+#     default. Switch the trigger below if you want CI on every push/PR instead.
+#   - Coverage gate enforced via `--cov-fail-under` (test-policy: 90 for
+#     business logic — adjust to your track's threshold).
+name: ci-python
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+  # FILL (optional): run on every push/PR instead of tags only —
+  # push:
+  #   branches: [main]
+  # pull_request: {}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    # FILL (Dev-Prod parity): if production uses Postgres, test against real
+    # postgres here too — do NOT substitute SQLite in CI (test-policy).
+    # Uncomment and adjust:
+    # services:
+    #   postgres:
+    #     image: postgres:16
+    #     env:
+    #       POSTGRES_USER: test
+    #       POSTGRES_PASSWORD: test
+    #       POSTGRES_DB: app_test
+    #     ports: ["5432:5432"]
+    #     options: >-
+    #       --health-cmd "pg_isready -U test"
+    #       --health-interval 5s
+    #       --health-timeout 5s
+    #       --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # FILL: your Python version
+      - run: pip install -e ".[dev]" # FILL: or `pip install -r requirements-dev.txt`
+      # FILL: replace with your project's gate commands. Keep them fail-loud —
+      # a missing tool should fail the job, not silently skip (Rule 12).
+      - run: ruff check .
+      - run: mypy . # FILL: your typechecker (delete if unused)
+      - run: pytest --cov --cov-fail-under=90 # FILL: your coverage threshold
+        # FILL (if using the DB service above): pass the connection string —
+        # env:
+        #   DATABASE_URL: postgresql://test:test@localhost:5432/app_test

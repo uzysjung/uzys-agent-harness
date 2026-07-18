@@ -1,0 +1,56 @@
+# ci.yml — CI scaffold installed by @uzysjung/agent-harness (`--with ci-scaffold`).
+# Fill-in template: replace the FILL markers with your project's commands, then commit.
+# Re-installs never overwrite this file once it exists — it is yours after install.
+#
+# Gate philosophy (mirrors the harness test-policy rule):
+#   - Local checks (typecheck + lint + coverage + build) are the primary gate.
+#   - This workflow is the regression gate, triggered on release tags (v*) by
+#     default. Switch the trigger below if you want CI on every push/PR instead.
+#   - The coverage threshold lives in your test runner config (vitest/jest) —
+#     CI just runs it, so a threshold miss fails this job.
+name: ci
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+  # FILL (optional): run on every push/PR instead of tags only —
+  # push:
+  #   branches: [main]
+  # pull_request: {}
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    # FILL (Dev-Prod parity): if production uses Postgres, test against real
+    # postgres here too — do NOT substitute SQLite in CI (test-policy).
+    # Uncomment and adjust:
+    # services:
+    #   postgres:
+    #     image: postgres:16
+    #     env:
+    #       POSTGRES_USER: test
+    #       POSTGRES_PASSWORD: test
+    #       POSTGRES_DB: app_test
+    #     ports: ["5432:5432"]
+    #     options: >-
+    #       --health-cmd "pg_isready -U test"
+    #       --health-interval 5s
+    #       --health-timeout 5s
+    #       --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # FILL: your Node version
+          cache: npm
+      - run: npm ci
+      # FILL: replace with your project's gate commands. Keep them fail-loud —
+      # a missing script should fail the job, not silently skip (Rule 12).
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:coverage
+        # FILL (if using the DB service above): pass the connection string —
+        # env:
+        #   DATABASE_URL: postgresql://test:test@localhost:5432/app_test
+      - run: npm run build

@@ -1,0 +1,31 @@
+# e2e.yml — Playwright E2E scaffold installed by @uzysjung/agent-harness (`--with ci-scaffold`).
+# Fill-in template: replace the FILL markers with your project's setup, then commit.
+# Re-installs never overwrite this file once it exists — it is yours after install.
+#
+# Runs the browser-level user flows (BDD/E2E specs) that unit gates can't cover.
+# Triggered on release tags (v*) by default — same reasoning as ci.yml.
+name: e2e
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+  # FILL (optional): run on every push/PR instead of tags only —
+  # push:
+  #   branches: [main]
+  # pull_request: {}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # FILL: your Node version
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # FILL: build/start your app first, or configure `webServer` in
+      # playwright.config so `playwright test` boots it (then delete this note).
+      - run: npx playwright test
