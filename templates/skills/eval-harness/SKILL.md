@@ -112,7 +112,7 @@ stable ID — `C1..Cn` for capability, `R1..Rn` for regression — so the same i
 from definition to the post-implementation status line, and a reviewer can check them off one by
 one. Prose-only lists ("Can create new user account") can't be referenced or scored.
 
-```markdown
+````markdown
 # EVAL: <feature name> (<phase/PR>)
 
 **Feature**: <one line>
@@ -142,7 +142,7 @@ pytest tests/test_<area>.py -v -k "<selector>"
 - R1-Rn: PASS
 
 **Overall: pass@1 = <x>%**
-```
+````
 
 Two fields carry most of the weight. **Baseline commit** makes "regression" falsifiable — without
 it, R-evals are opinions about the past. **Test Command** makes the spec re-runnable by someone

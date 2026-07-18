@@ -1,7 +1,8 @@
 # Benchmark Parity (벤치마크 핵심 기능 완결성)
 
 레퍼런스 제품(벤치마크)을 실측해 핵심 기능을 도출하고, 자체 구현이 **올바르게 + 필요한 항목 전부**
-갖췄는지 반복 검토·발전시키는 워크플로우. 실서비스 운영(레퍼런스 audit 20회 내외 실행)에서 검증된
+갖췄는지 반복 검토·발전시키는 워크플로우. **기준선은 레퍼런스 또는 자기 배포본**(후자 = Dogfood
+pass) — 비교 대상이 다를 뿐 산출물(gap.md)과 규율은 같다. 실서비스 운영(레퍼런스 audit 20회 내외 실행)에서 검증된
 관행의 일반화. 목표는 **모방이 아니라 핵심 기능 완결성** — NORTH_STAR 핵심 경쟁력에 기여하지 않는
 단순 모방은 deferred (Will/Won't).
 
@@ -61,6 +62,8 @@ SSOT — 없으면 갭 판정 기준 자체가 없다.
   나열하면 "얼마나 나쁜가"가 안 보인다.
 - **재현 아티팩트 필수** — 이슈마다 스크린샷/영상 경로. 없으면 증거 없는 행과 같다.
 - **게이트**: CRITICAL 0 이어야 dogfood 통과. HIGH 는 사유를 적고 사용자 판단으로 넘긴다.
+  (아래 "자율 루프 완료조건"의 `CRITICAL/HIGH 전부 [x]` 와 다른 게이트다 — 이쪽은 **패스 통과**
+  기준, 저쪽은 **루프 종료** 기준. 루프를 끝내려면 HIGH 까지 닫아야 한다.)
 
 ## PR 의무 필드 (UI/UX 변경 PR)
 
@@ -68,7 +71,7 @@ UI/UX 에 영향하는 PR 의 description 에 다음 섹션 필수:
 
 ```markdown
 ## Fidelity (benchmark parity)
-- Benchmark: <벤치마크명>
+- Benchmark: <벤치마크명> (dogfood 발 PR 이면 `dogfood — 자기 배포본`)
 - Capture: docs/research/<area>_audit_<sprint>/<file>.png
 - 갭 매트릭스: docs/research/<area>_audit_<sprint>/gap.md §X
 ```

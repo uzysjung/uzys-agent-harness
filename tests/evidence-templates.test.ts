@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
@@ -105,6 +105,64 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     // 역방향 — 표만 C3 이고 코드는 C2 인 유령 행도 차단.
     for (const sd of c3InTable) {
       expect(MODIFIED_ECC_SKILL_DIRS, `코드가 ${sd} 를 C3 로 배선해야 한다`).toContain(sd);
+    }
+  });
+
+  it("배포 자산의 마크다운 펜스가 균형 — 중첩 코드블록이 바깥 블록을 조기 종료하지 않는다", () => {
+    // SOD F1 실증: eval-harness 템플릿 안에 ```bash 를 중첩했더니 그 닫는 펜스가 **바깥**
+    // ```markdown 을 닫아, 이후 산문과 기존 헤딩까지 코드로 렌더됐다. 계약 테스트는 전부
+    // toContain 이라 코드블록 안 텍스트로도 통과 — 형식 파손을 아무도 못 잡았다.
+    // 중첩 시 바깥 펜스는 백틱 4개 이상이어야 한다 (CommonMark: 닫는 펜스는 정보 문자열 없음).
+    for (const rel of [
+      "skills/eval-harness/SKILL.md",
+      "skills/deep-research/SKILL.md",
+      "rules/benchmark-parity.md",
+    ]) {
+      const lines = read(`../templates/${rel}`).split("\n");
+      let openFence: string | null = null;
+      for (const [idx, line] of lines.entries()) {
+        const m = /^\s*(`{3,})(.*)$/.exec(line);
+        if (!m) continue;
+        const [, fence, rest] = m as unknown as [string, string, string];
+        const info = rest.trim();
+        if (openFence === null) {
+          openFence = fence;
+          continue;
+        }
+        if (info === "") {
+          // 닫는 펜스 — 여는 펜스보다 짧으면 닫히지 않는다.
+          if (fence.length >= openFence.length) openFence = null;
+          continue;
+        }
+        // 정보 문자열이 있는 중첩 펜스: 바깥이 더 길어야 조기 종료를 피한다.
+        expect(
+          fence.length,
+          `${rel}:${idx + 1} 중첩 펜스 '${info}' 가 바깥 펜스와 길이가 같다 — 바깥을 4-backtick 으로`,
+        ).toBeLessThan(openFence.length);
+      }
+      expect(openFence, `${rel}: 닫히지 않은 코드블록`).toBeNull();
+    }
+  });
+
+  it("CLAUDE.md 의 Active Rules 표가 .claude/rules 실파일과 1:1 (자기 선언 SSOT)", () => {
+    // SOD F2 실증: 룰을 1개 추가했는데 헤더는 "(10개)" 로 남았다. 그 표는 스스로
+    // "SSOT = .claude/rules/*.md (표는 실 파일 목록과 1:1)" 이라 선언하므로, 어긋나면
+    // 자기 선언이 거짓이 된다. 수기 표 ↔ 실파일 대조를 글롭으로 강제한다.
+    const claudeMd = read("../CLAUDE.md");
+    const files = readdirSync(fileURLToPath(new URL("../.claude/rules", import.meta.url)))
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => f.replace(/\.md$/, ""));
+    const declared = /## Active Rules \((\d+)개\)/.exec(claudeMd);
+    expect(declared, "CLAUDE.md 에 'Active Rules (N개)' 헤더 없음").not.toBeNull();
+    expect(
+      Number((declared as RegExpExecArray)[1]),
+      `CLAUDE.md 선언 수 ≠ .claude/rules 실파일 수(${files.length})`,
+    ).toBe(files.length);
+    for (const name of files) {
+      // 표는 일부 룰명을 굵게 표기한다(`| **cli-development** |`) — 표기 변형 허용, 행 존재만 단언.
+      expect(claudeMd, `Active Rules 표에 ${name} 행이 없음`).toMatch(
+        new RegExp(`^\\|\\s*\\*{0,2}${name}\\*{0,2}\\s*\\|`, "m"),
+      );
     }
   });
 

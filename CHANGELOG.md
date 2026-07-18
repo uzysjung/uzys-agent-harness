@@ -39,6 +39,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   mutation 교훈). ADR-042.
 
 ### Fixed
+- **SOD 리뷰 반영 (blocking 2건)**: ⓐ `eval-harness` 주입이 ```` ```markdown ```` 블록 안에
+  ```` ```bash ```` 를 중첩해 **바깥 펜스가 조기 종료** — 이후 산문과 기존 헤딩까지 코드로
+  렌더되는 형식 파손(계약 테스트가 전부 `toContain` 이라 코드블록 안 텍스트로도 통과해 무탐지).
+  4-backtick 외곽 펜스로 수정 + **펜스 균형 가드** 신설. ⓑ 룰 1개(benchmark-parity) 추가로
+  `CLAUDE.md` 의 `Active Rules (10개)` 자기 선언이 거짓 — 수치·표 행 갱신 + **표 ↔ `.claude/rules`
+  실파일 1:1 대조 가드** 신설. 둘 다 mutation 으로 RED 확인.
+- **ADR-042 대안 보강**: 가장 가까운 경쟁 후보였던 `gap-analysis-e2e` DETECT 모드 기각 사유
+  명시(척도 분열·상시 로드 여부·gap.md 스키마 소유). 룰 문구 3건 정합(기준선=레퍼런스 또는
+  자기 배포본 / HIGH 의 두 게이트 구분 / dogfood 발 PR 의 Benchmark 필드 표기).
 - **분류표 stale 재발 차단 (구조화)**: ADR-019 는 분류가 "코드 주석 + ADR + PRD 표" 3중
   동기라고 규정만 하고 강제 수단이 없어, v26.113.0(SOD F2 가 차단)에 이어 이번에도 같은
   누락이 발생했다. **재발 = 이전 대책(주석 경고)의 실패** → 한 레벨 위로 에스컬레이션

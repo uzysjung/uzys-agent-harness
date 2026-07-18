@@ -32,6 +32,13 @@
     원인·증거·수정안·상태를 갖고, gap-analysis-e2e 는 severity 0-4 + repro 열을 갖는다. 세 번째
     스키마는 "중복 신설 금지" 원칙 정면 위반이며, 심각도 척도가 셋으로 갈라진다(Rule 7).
     dogfood 와 벤치마크 비교의 차이는 **기준선**(자기 배포본 vs 레퍼런스)뿐 산출물이 아니다.
+  - **dogfood 를 `gap-analysis-e2e` DETECT 모드에 주입** — 기각(가장 가까운 경쟁 후보였음,
+    SOD F4 지적으로 명시 추가). DETECT 는 이미 레퍼런스 없는 3-렌즈 전수 스캔 + severity +
+    repro 열을 갖춰 구조적으로 dogfood 와 겹친다. 그럼에도 기각한 이유는 ⓐ DETECT 의 척도가
+    Nielsen `Severity 0-4` 라 dogfood 산출물이 gap.md 의 `CRITICAL~LOW` 와 다른 축으로
+    기록된다(척도 분열은 이 결정이 피하려던 바로 그 문제) ⓑ 스킬은 호출돼야 뜨지만 룰은
+    상시 로드라, "배포본을 실제로 눌러봤나"는 상시 규율이 맞다 ⓒ 산출물이 실제로 gap.md
+    행이므로 그 스키마를 소유한 문서에 두는 편이 SSOT 에 가깝다.
   - **dogfood 를 `ui-visual-review` 에 주입** — 기각. 그 스킬은 baseline 대비 diff 기계
     (L1 해시→L2 pixelmatch→L3 시각검토)가 본체다. baseline 없는 전수 walkthrough 를 얹으면
     스킬의 축이 흐려진다.
