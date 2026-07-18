@@ -24,8 +24,8 @@ describe("runCodexTransform (E2E against templates/)", () => {
     });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.configTomlPath)).toBe(true);
-    // HOOK_NAMES = [session-start, hito-counter] — both present in templates/hooks/.
-    expect(report.hookFiles).toHaveLength(2);
+    // HOOK_NAMES = [session-start] — v26.115.0(ADR-043)에서 hito-counter 제거.
+    expect(report.hookFiles).toHaveLength(1);
 
     // Invariant: no Claude-namespace colon-slash (/uzys:) leaks into Codex output.
     const agents = readFileSync(report.agentsMdPath, "utf8");

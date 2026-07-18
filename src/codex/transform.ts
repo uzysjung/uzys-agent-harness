@@ -44,7 +44,7 @@ export interface CodexTransformReport {
   skillFiles: string[];
 }
 
-const HOOK_NAMES = ["session-start", "hito-counter"];
+const HOOK_NAMES = ["session-start"];
 
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
@@ -83,7 +83,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     }),
   );
 
-  // 3. .codex/hooks/{session-start,hito-counter}.sh
+  // 3. .codex/hooks/session-start.sh
   const hookDir = join(projectDir, ".codex/hooks");
   ensureDir(hookDir);
   const hookFiles: string[] = [];

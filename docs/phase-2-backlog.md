@@ -14,15 +14,14 @@
 **성공 기준 (AND)**:
 - (a) Clean install 성공 (`npx -y github:uzysjung/uzys-claude-harness` 1-shot)
 - (b) 첫 워크플로우 1건 완주 (`/uzys:spec` → `/uzys:ship` 또는 hotfix 단축)
-- (c) HITO ≤ 3 prompts/feature (NSM 1차 지표)
+- ~~(c) HITO ≤ 3 prompts/feature~~ — **폐기 (v26.115.0, ADR-043)**. hito-counter 훅 제거로 측정 수단 자체가 없어졌다
 
 **측정**:
-- 외부 사용자 환경 hito-counter.sh 로그 수집 (별도 동의 필수)
-- 또는 사용자 자가 보고 (작업 시간 + 멘탈 모델 수)
+- 사용자 자가 보고 (작업 시간 + 멘탈 모델 수)
 
-### P2-02 — NSM 자동화 (feature 단위 HITO 추정) ✅ Step 1 (2026-04-30)
+### P2-02 — ~~NSM 자동화 (feature 단위 HITO 추정)~~ **폐기 (v26.115.0, ADR-043)**
 
-**Status**: Step 1 completed (session 분할 + 집계). Step 2 (per-feature 자동 매핑) 보류
+**Status**: **폐기**. Step 1(session 분할 집계, `scripts/nsm-aggregate.sh`)은 2026-04-30 완료됐으나 이후 재사용 0회. Step 2(per-feature 자동 매핑)는 착수 전 폐기 — HITO 지표 자체가 NSM 에서 제거됐다. 아래 기록은 이력 보존용
 **Source**: `docs/evals/hito-baseline-2026-04-30.md` §5 한계
 **Output**: `scripts/nsm-aggregate.sh` (ADR-008 알고리즘 구현)
 

@@ -14,4 +14,4 @@
 
 ## 다음 방향 (Phase 2 — Adoption Loop)
 
-NORTH_STAR Metric(**HITO ≤ 3 prompts/feature**) 달성이 본업. 우선순위는 `docs/phase-2-backlog.md` (P2-01 외부 사용자 첫 설치 → P2-02 NSM 자동화 → P2-04 dependency bump) 참조.
+NORTH_STAR 1차 NSM(**Context Cost per Install + Justified Asset Ratio** — ADR-043) 달성이 본업. 우선순위는 `docs/phase-2-backlog.md` 참조. **HITO 는 v26.115.0 에서 폐기**(3개월 수집·1회 사용·수정 근거 0건) — 관련 백로그 항목(P2-01(c)·P2-02)도 함께 폐기.

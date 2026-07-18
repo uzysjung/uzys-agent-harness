@@ -5,6 +5,8 @@
 > **Trigger**: v27.0~v27.17 — 18개 버전이 SPEC 없이 진행됨. NORTH_STAR Phase 1 종료 + Phase 2 진입 조건 충족 필요.
 >
 > **📌 현행화 노트 (2026-05-31, 현재 v26.70.3)**: 본 SPEC 은 Foundation(v26.38) 시점의 Persistent Anchor 로 **의도적으로 보존**된다 (DO NOT CHANGE 본문). 이후 v26.39~v26.70.3 진행 내역은 ▸ 시계열 `CHANGELOG.md` ▸ feature 단위 `docs/PRD/` + `docs/specs/` ▸ 목표/방향 `docs/NORTH_STAR.md` ▸ 현재 상태/할 일 `docs/todo.md` 를 참조.
+>
+> **📌 추가 노트 (2026-07-18)**: 본문의 **HITO 관련 AC/F5/F6/Phase C·D 는 당시 실제로 완료된 이력**이며 그대로 보존한다. 다만 HITO 지표 자체는 v26.115.0(ADR-043)에서 **폐기**됐다 — 본문을 현행 목표로 읽지 말 것. 현행 NSM 은 `docs/NORTH_STAR.md` §2.
 
 ---
 

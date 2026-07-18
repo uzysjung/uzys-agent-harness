@@ -55,7 +55,6 @@ OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
 ## Experience Accumulation
 
 - 검증된 learning만 Rules 승격
-- HITO 로그: `.claude/evals/hito-YYYY-MM-DD.log`
 
 ## Context Management
 

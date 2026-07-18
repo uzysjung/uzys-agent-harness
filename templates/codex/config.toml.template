@@ -50,14 +50,6 @@ type = "command"
 timeout = 10
 async = false
 
-# UserPromptSubmit: HITO(Human-In-The-Loop Interrupts) 카운트
-[[hooks.user_prompt_submit]]
-name = "hito-counter"
-command = ["{PROJECT_DIR}/.codex/hooks/hito-counter.sh"]
-type = "command"
-timeout = 5
-async = true    # non-blocking 측정
-
 # PostToolUse: 미커밋 파일 경고 (Bash 한정)
 [[hooks.post_tool_use]]
 name = "uncommitted-check"

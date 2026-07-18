@@ -123,13 +123,12 @@ const DEV_AGENTS = ["plan-checker"];
 const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
 
 /** Hooks installed for every project (parity with setup-harness.sh L815-826). */
-const ALWAYS_HOOKS = [
+export const ALWAYS_HOOKS = [
   "session-start.sh",
   "protect-files.sh",
   "mcp-pre-exec.sh",
   "spec-drift-check.sh",
   "checkpoint-snapshot.sh",
-  "hito-counter.sh",
 ];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.

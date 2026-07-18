@@ -97,6 +97,16 @@ mechanism.** If the countermeasure's effect depends on someone (human or model) 
 the right moment, it is Level 1 no matter where the prose lives. Level 2 means the wrong action
 *cannot complete*: the test fails, the hook exits 2, the duplicated list no longer exists.
 
+**Write the gate as a sweep, not a list.** A Level-2 gate that enumerates the surfaces it covers
+has just made a second copy of the very list that drifted — and whatever is missing from that copy
+becomes the next habitat for the same defect. Prefer a glob, or a derive from a single source, that
+picks up new surfaces on its own; if someone has to remember to extend the gate, it is already
+failing at Level 1 wearing a Level-2 costume. Grant exemptions by marking the exempt item, never by
+curating an inclusion list — the **default must be checked**. This harness learned it the expensive
+way: five recurrences of one doc-fact drift, each answered by adding one more per-surface pattern,
+and a file named as a drift surface in the fourth postmortem still carried zero coverage at the
+fifth.
+
 **Confirm before adding standing cost.** A rule is read every session and a gate runs on every
 CI/tool call — both are permanent taxes on the harness. Levels 1 and 2 therefore need explicit
 user confirmation (a brief escalation: signature, count with evidence, proposed artifact, its

@@ -41,12 +41,12 @@
 - 5축 코드리뷰(기준 e0742b4) 결과 사용자 수용. **v26.78.1 hotfix 최우선** — v26.78.0 wizard 에 `understanding` 카테고리 미노출(출하 거짓 광고) + karpathyHook 실패 무음 + antigravity 출력 누락. 이후 카탈로그 SSOT → `@latest` pinning(보안 wedge) → OptionFlags 폐기(ADR-022) → 렌더 분리
 - 상세 plan/todo: [`docs/plans/code-quality-cycle-plan.md`](plans/code-quality-cycle-plan.md) · 재발 방지 rule: `.claude/rules/no-false-ship.md`
 
-### C — 발견 채널 등재 + HITO 실측 (지금, Phase 3 진입 — N=1 탈출)
+### C — 발견 채널 등재 (지금, Phase 3 진입 — N=1 탈출)
 - **C-1** Claude Code 마켓플레이스 등재 — `.claude-plugin/marketplace.json` + README 한 줄 소개·데모 자리 (에이전트 작성 → Docker 격리로 native 인식 검증)
 - **C-2** awesome-list 등재 PR 초안 ×3~4 — awesome-claude-code(46k★)/awesome-agent-skills/awesome-claude-skills/awesome-cursorrules (에이전트 diff·본문 초안, 사용자 제출)
 - **C-3** README 30초 데모(GIF/asciinema) + 한 줄 가치 소개
 - **C-4** Show HN + r/ClaudeCode Showcase 글 초안 (에이전트 초안, 사용자 게시)
-- **C-측정** 설치 사용자 HITO 측정 — #138 fresh-dogfood 키트(`scripts/fresh-dogfood-setup.sh` + protocol) 연결
+- ~~**C-측정** 설치 사용자 HITO 측정~~ — **폐기 (v26.115.0, ADR-043)**. 훅은 로컬 로그만 남겨 외부 사용자 측정이 구조적으로 불가했고, 자체 수집분도 3개월간 1회만 쓰였다. 대체 = Context Cost per Install(리포 내 결정론 계산)
 
 ### A — 보안·호환 매트릭스 공개 artifact (방어 wedge 빌드) ✅ (사용자 결정: 호환 매트릭스 우선 + Trust Tier 보안)
 - **A-1** ~~agentshield 자산 스캔~~ → **재구성**: agentshield 는 `.claude/` 설정 스캐너(외부 repo 스캔 불가). 보안 = **Trust Tier + upstream vetting + `.claude/` 산출물 게이트** 다층으로(COMPATIBILITY.md §보안 근거). 실 자산-소스 스캐너는 보류(novel 툴링)
@@ -59,8 +59,8 @@
 - 외부 사용자가 installer를 native/skills.sh와 중복으로 판단 시 → 큐레이션+보안 content 레이어 피벗 또는 upstream 기여.
 
 ### 보류/잔여 (Phase 3 의존 또는 저가치)
-- **P2-01**(fresh-dogfood HITO 키트 #138 보존) · **A3**(권장 수락률): C로 외부 사용자 확보 시 재개 (N=1 의존 해소)
-- **P2-02** Step2 (per-feature NSM, C 외부 baseline 후) · **E2** branch-protection 재정의 · **P2-04** dep bump(저가치)
+- **P2-01**(clean install + 첫 워크플로 완주. HITO 성공기준 (c)는 **폐기** — ADR-043) · **A3**(권장 수락률): C로 외부 사용자 확보 시 재개 (N=1 의존 해소)
+- ~~**P2-02** Step2 (per-feature HITO 자동 매핑)~~ **폐기 (ADR-043)** · **E2** branch-protection 재정의 · **P2-04** dep bump(저가치)
 
 ### 완료된 Phase 2 작업 (이력)
 - **C2** fresh-env 설치 매트릭스 CI ✅ (v26.72.0, `install-matrix.yml`) · **P2-NPM** npm publish ✅ (v26.72.1, `@uzysjung/claude-harness` 라이브)

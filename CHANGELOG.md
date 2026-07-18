@@ -7,6 +7,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.115.0] — 2026-07-19 (feat: 계측된 최소 하네스 — 차별화 축 격상 + HITO 폐기, ADR-043)
+
+북극성 **Major CR**. 차별화 주장을 "우리는 검증된 것을 준다"에서 **"우리는 재봤고, 남길 근거가
+있는 것만 준다"**로 전환하고, 그 첫 적용 대상으로 **우리 자신의 HITO 훅을 제거**했다.
+
+### Removed
+- **HITO 계측 전면 폐기** (ADR-043). 실측 근거: 로그 45개+(2026-04-23~07-18) 수집, 판정 사용
+  **1회**(Phase D 종료), 그때 목표 **6.7× 초과**, 그 수치로 고친 것 **0건**. 설계 결함 2가지 —
+  ⓐ 훅이 세는 것은 `prompt_submit` **총계**인데 지표 정의는 "feature 당"이라 매번 수기 구간
+  분할 필요 ⓑ 로그가 사용자 로컬에만 남아 **외부 사용자 측정이 구조적으로 불가**. 삭제 =
+  `templates/hooks/hito-counter.sh` · `templates/codex/hooks/hito-counter.sh` ·
+  `scripts/hito-aggregate.sh` · `scripts/nsm-aggregate.sh` + `templates/settings.json`
+  UserPromptSubmit 배선 · `templates/codex/config.toml.template` 배선 · `ALWAYS_HOOKS` ·
+  `HOOK_NAMES`. `Re-clarification Rate` 도 동반 폐기(분기 sampling 기록 0건).
+  **과거 기록은 보존** — `docs/evals/hito-baseline-2026-04-30.md` 등은 이 결정의 근거다.
+
+### Changed
+- **NORTH_STAR 1차 NSM 교체**: `Context Cost per Install`(양 = 상주 descriptor + 발화 body 토큰)
+  + `Justified Asset Ratio`(사후 품질 = 기본 설치 자산 중 근거 보유 비율, 목표 100%) 짝.
+  비용만 재면 굿하트로 붕괴(전부 빼면 0)하므로 근거율을 품질 짝으로 둔다. **body 토큰 계측과
+  Justified Asset Ratio 는 미구현** — 선언 ≠ 달성(문서에 명시).
+- **Pillar 2 재정의**: "검증된 자산 큐레이션" → **"계측된 최소 큐레이션"**. ADR-021 검증
+  큐레이션은 폐기가 아니라 하위 수단으로 존속(안전 ↔ 경제성은 다른 질문).
+- **NORTH_STAR 구조를 `north-star` 스킬 계약(8섹션)에 정합** (도그푸딩): §3 Pillars 승격(축별
+  정의/현재 위치/전방 목표/가설 + **모듈↔축 매핑표**, 미매핑 = scope creep 조기 신호) ·
+  §2 프록시 선언 명문화 · §6 을 4-Gate / **우선순위 순서**(기본→완성도→차별화)로 분리.
+- **`recurrence-prevention` 스킬 — Level 2 게이트 작성법 보강**: *"게이트는 열거가 아니라
+  훑기(글롭/derive)로 써라"*. 게이트가 표면을 열거하면 drift 한 목록의 **두 번째 사본**이 되고
+  그 밖이 다음 서식지가 된다. 면제는 표식으로, **기본값은 검사**. 근거 = 이 하네스의 5회 재발.
+- `tests/manifest.test.ts` 훅 검사를 `≥ 6` 하드코딩 → `ALWAYS_HOOKS` derive. 기존 형태는 훅을
+  **지울 때만 깨지고 늘릴 때는 아무것도 못 잡는** 게이트였다.
+- 이 리포가 배포하는 `doc-governance` 룰 · `north-star` 스킬을 **자기 `.claude/` 에도 채택**
+  (도그푸딩). CLAUDE.md Active Rules 11 → 12.
+
+### Added
+- `tests/recurrence-prevention-skill.test.ts` — 글롭 원칙 계약 + repo-local byte-동일 가드.
+- `test/docker/scenarios/scenario-project.sh` 에 **훅 설치 결과 검증** 추가: hito-counter 미설치 ·
+  잔존 훅 5종 설치 · settings.json 에 죽은 배선 없음. 단위 테스트는 manifest 배선까지만 보므로
+  "실제로 안 깔린다"는 실설치에서만 증명된다.
+
 ## [v26.114.0] — 2026-07-18 (feat: 증거 산출물 템플릿 3종 — 라이프사이클 자산화 ⑥, ADR-042)
 
 라이프사이클 큐 ⑥ = **마지막 항목** (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`

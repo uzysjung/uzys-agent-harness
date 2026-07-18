@@ -42,17 +42,6 @@
       }
     ],
     "PostToolUse": [],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/hito-counter.sh\"",
-            "async": true,
-            "timeout": 2
-          }
-        ]
-      }
-    ]
+    "UserPromptSubmit": []
   }
 }

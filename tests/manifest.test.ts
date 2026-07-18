@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
-import { buildManifest, resolveRules } from "../src/manifest.js";
+import { ALWAYS_HOOKS, buildManifest, resolveRules } from "../src/manifest.js";
 
 describe("resolveRules", () => {
   it("includes COMMON rules for any track", () => {
@@ -181,7 +181,11 @@ describe("buildManifest", () => {
   it("includes hooks for all tracks", () => {
     const m = buildManifest({ tracks: ["executive"] });
     const hookEntries = m.filter((e) => e.target.startsWith(".claude/hooks/"));
-    expect(hookEntries.length).toBeGreaterThanOrEqual(6);
+    // 수치 하드코딩(≥6)은 훅을 지울 때마다 깨지고, 늘릴 때는 아무것도 안 잡는다 → 목록에서 derive.
+    // v26.115.0(ADR-043) hito-counter 제거가 이 상수를 흔들면서 드러난 문제.
+    expect(hookEntries.map((e) => e.target.replace(".claude/hooks/", "")).sort()).toEqual(
+      [...ALWAYS_HOOKS].sort(),
+    );
     for (const h of hookEntries) {
       expect(h.applies({ tracks: ["executive"] })).toBe(true);
     }

@@ -89,6 +89,34 @@ else
   fi
 fi
 
+# v26.115.0 (ADR-043) — 훅 설치 결과 검증. HITO 폐기로 hito-counter.sh 는 설치되면 안 되고,
+# 나머지 훅은 그대로 있어야 한다 (제거가 이웃 훅을 함께 떨어뜨리지 않았는지). 단위 테스트는
+# manifest 배선까지만 보므로, "실제로 파일이 안 깔린다"는 실설치에서만 증명된다.
+HOOK_DIR="${PROJ}/.claude/hooks"
+if [[ -e "${HOOK_DIR}/hito-counter.sh" ]]; then
+  echo "FAIL: hito-counter.sh 가 설치됨 (ADR-043 에서 폐기된 훅)"
+  failed=1
+else
+  echo "✓ hito-counter.sh 미설치 (폐기 확인)"
+fi
+
+for h in session-start.sh protect-files.sh mcp-pre-exec.sh spec-drift-check.sh checkpoint-snapshot.sh; do
+  if [[ ! -f "${HOOK_DIR}/${h}" ]]; then
+    echo "FAIL: 잔존 훅 ${h} 미설치 — HITO 제거가 이웃 훅까지 떨어뜨렸다"
+    failed=1
+  fi
+done
+[[ "${failed}" -eq 0 ]] && echo "✓ 잔존 훅 5종 설치 확인"
+
+# settings.json 에 죽은 훅 참조가 남아 있으면 매 프롬프트마다 없는 파일을 실행한다.
+SETTINGS="${PROJ}/.claude/settings.json"
+if [[ -f "${SETTINGS}" ]] && grep -q "hito" "${SETTINGS}"; then
+  echo "FAIL: 설치된 settings.json 에 hito 배선 잔존"
+  failed=1
+else
+  echo "✓ settings.json 에 hito 배선 없음"
+fi
+
 echo ""
 if [[ "${failed}" -eq 0 ]]; then
   echo "━━━ PASS: scenario-project ━━━"

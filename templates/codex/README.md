@@ -17,7 +17,6 @@ templates/codex/
 ├── config.toml.template             # 프로젝트 .codex/config.toml (hooks + mcp + sandbox)
 └── hooks/                           # Shell 스크립트 (.claude/hooks/ 재사용 가능)
     ├── README.md                    # 포팅 상태 + Event 매핑
-    ├── hito-counter.sh              # user_prompt_submit
     ├── session-start.sh             # session_start
     └── uncommitted-check.sh         # post_tool_use (Bash 한정)
 ```
