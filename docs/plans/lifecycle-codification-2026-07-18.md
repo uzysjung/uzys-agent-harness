@@ -15,7 +15,7 @@
 | ① | **doc-governance 룰** + spec-drift 훅 보강 | SSOT 위계(NORTH_STAR▸SPEC▸PRD▸TODO▸README) + "한 사실 한 곳" + **merge = 코드+추적 동기화 의무** + 현행/archive 분리. COMMON_RULES(전 트랙). 훅에 gate-status 정합 검사 백포트 | GT `.claude/rules/doc-governance.md` (실운영 검증) + spec-drift-check.sh ship 게이트 | ✅ v26.107.0 |
 | ② | **CI 스캐폴드** | `.github/workflows` fill-in 템플릿 3종(ci.yml node / ci-python.yml / e2e.yml) — 실DB 서비스 컨테이너(test-policy Dev-Prod parity)·tag-only 트리거+로컬 검증 1차·E2E(playwright)·coverage 게이트. **opt-in 전용**(`--with ci-scaffold`) + 기존 파일 no-clobber + uninstall 미접촉 | GT ci.yml/e2e.yml (실Postgres·RLS 게이트) / dyld = **CI 0** 이 갭의 존재 증명 | ✅ v26.108.0 (ADR-037) |
 | ③ | **benchmark-parity 룰 + gap.md 스키마** | capture→core→completeness→improve 루프, 레퍼런스 N개, PR "## Fidelity" 섹션, gap.md 표(ID·Severity·근본원인·증거·수정안·상태) | GT `.claude/rules/benchmark-parity.md` + docs/research 19회 실행 | ✅ v26.109.0 (ADR-038) |
-| ④ | **north-star 스킬 보강** | metric-as-proxy(측정 불가 목표의 대리 지표 명시)·Pillars+모듈↔pillar 맵·Non-Goals | dyld NORTH_STAR.md 구조 + GT 4-gate 휴리스틱 (기존 스킬에 주입) | 대기 |
+| ④ | **north-star 스킬 보강** | metric-as-proxy(측정 불가 목표의 대리 지표 명시)·Pillars+모듈↔pillar 맵·Non-Goals | dyld NORTH_STAR.md 구조 + GT 4-gate 휴리스틱 (기존 스킬에 주입) | ✅ v26.112.0 (ADR-040) |
 | ⑤ | **V&V verdict 타입** | fresh-instance 검증의 판정 어휘 코드화: PASS / PASS_WITH_NITS / FAIL + CRITICAL~LOW. verification-loop·model-orchestration 에 주입 | dyld PRD 이력 (V&V 가 실회귀 검출한 기록 다수) | 대기 |
 | ⑥ | **템플릿류** | dogfood report(심각도표+재현)·리서치 원장("N confirmed·M killed"+기각 사유+caveat)·eval spec(Cn/Rn/pass@1) | dyld dogfood-output/report.md·ROADMAP §7·.claude/evals/ | 대기 |
 

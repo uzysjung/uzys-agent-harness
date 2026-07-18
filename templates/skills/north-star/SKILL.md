@@ -1,6 +1,6 @@
 ---
 name: north-star
-description: "Defines and enforces a project's long-term direction (North Star Statement, NSM, Will/Won't, 4-gate decision heuristic). Use when starting a new project, when scope creep is suspected, or when a non-obvious feature request needs prioritization. Sits one layer above SPEC/PRD — answers 'why and where to', not 'what and how'."
+description: "Defines and enforces a project's long-term direction (North Star Statement, metric-as-proxy NSM, strategic Pillars with a module↔pillar map, Will/Won't, 4-gate + priority-order decision heuristics). Use when starting a new project, when scope creep is suspected, or when a non-obvious feature request needs prioritization. Sits one layer above SPEC/PRD — answers 'why and where to', not 'what and how'."
 ---
 
 # North Star
@@ -32,22 +32,48 @@ CLAUDE.md의 P1(가정 금지) / P2(Simplicity First) / Decision Making 메타�
 **좋은 예**: 도메인 명사 + 사용자 + 측정 가능한 결과.
 **나쁜 예**: "최고의 X" / "사용자 만족" — 측정 불가.
 
-### 2. North Star Metric (NSM) 정의
+### 2. North Star Metric (NSM) 정의 — metric-as-proxy
 
 1차 지표 1개 + 2차 보조 지표 2-4개. 모두 단일 사용자 환경에서 자가 수집 가능해야 한다.
+
+**진짜 목표가 직접 측정 불가하면 프록시를 선언한다.** 많은 프로젝트의 실제 목표(사용자의
+투자 수익, 팀의 생산성, 학습 성과 등)는 외부적이거나 지연되어 직접 측정할 수 없다. 그때
+"측정 불가"로 방치하지 말고:
+
+1. **프록시 지표를 명시적으로 선언** — "진짜 목표 X 는 직접 측정 불가하므로 Y 를 프록시로
+   최적화한다"를 문서에 그대로 적는다. 왜 이 프록시인지 1줄 근거 필수.
+2. **양(1차) + 사후 품질(2차) 짝** — 프록시는 행동의 양(추적되는 의사결정 수 등)과 그 행동의
+   사후 품질(성과 추적이 양(+)인 비율 등)을 짝으로 잡는다. 양만 재면 굿하트 법칙으로 프록시
+   자체가 게임된다.
+3. **기능 평가 기준으로 사용** — "이 기능이 프록시 지표 둘 중 하나를 올리는가?" NO 면 북극성
+   이탈 신호.
 
 NSM 결정 기준:
 - Lagging (결과) vs Leading (원인) — Leading 권장
 - 단일 행동만 측정 (composite 금지)
 - 목표값 명시 ("≥ 40% by 2026")
 
-### 3. Will / Won't / Trade-offs
+### 3. Pillars (전략 축) + 모듈 ↔ 축 매핑
+
+North Star 로 가는 길을 3-5개 **전략 축**으로 분해한다. 각 축은 4요소로 정의:
+
+- **정의** — 이 축이 사용자에게 주는 것 1문장.
+- **현재 위치** — 이 축에 속한 기존 모듈/기능.
+- **전방 목표** — 다음에 쌓을 것.
+- **가설** — 이 축이 NSM 을 올린다고 믿는 이유 1줄.
+
+그리고 **모듈 ↔ 축 매핑 표**를 유지한다: 모든 모듈은 최소 1개 축에 속한다 (플랫폼 공통
+인프라는 "공통"으로 명시). **어떤 신규 모듈이 어느 축에도 매핑되지 않으면 착수 전에 북극성
+정렬을 재검토한다** — 매핑 실패 = scope creep 의 조기 신호. 로드맵 항목도 정기 리뷰 때 축에
+매핑해 "새 축·방향 변경이 필요한가"를 점검한다.
+
+### 4. Will / Won't / Trade-offs
 
 - **Will**: 집중 영역 4-6개. 동사로 시작 ("개인 사용 깊이 우선", "AI 친화 1급 시민").
 - **Won't**: 의도적 비-방향 5-8개. "X는 안 한다" 명시. 가장 중요한 섹션 — scope creep의 1차 방어선.
 - **Trade-offs**: "X 선택 → Y 포기 → 근거" 표. 의식적 결정의 추적 기록.
 
-### 4. 4-Gate Decision Heuristic
+### 5. 4-Gate Decision Heuristic — "할 것인가"
 
 신규 요청·제안이 들어왔을 때 다음 4개 게이트를 **모두** 통과해야 우선순위 진입:
 
@@ -60,7 +86,22 @@ NSM 결정 기준:
 
 게이트 명칭은 프로젝트마다 customize 가능하나 **4개 ALL True** 원칙은 유지.
 
-### 5. Versioning
+### 6. 우선순위 순서 게이트 — "언제 할 것인가"
+
+4-gate 는 "할 것인가"를 거른다. 통과한 것들 사이의 **순서**는 별도 규칙이다 — 무엇을 먼저
+할지 모호하면 이 순서로 판정한다:
+
+1. **기본 필수 기능** — 없으면 제품이 성립 안 되는 기본기 (예: 표준 로그인). "기본"이 빠진 채
+   화려함부터 쌓지 않는다.
+2. **기능 완성도** — 이미 shipped 된 기능이 사용자 관점 end-to-end 로 진짜 완결인가.
+   **단순 존재 ≠ 완결** (버튼이 동작하나, 링크가 목적지까지 가나, 빈/에러 상태가 처리되나).
+3. **차별화 깊이** — 핵심 경쟁력의 advanced 구현. **research/ADR 선행 필수** — advanced 부터
+   코드로 뛰어들지 않는다.
+
+**상위 순위에 미완이 있으면 하위로 건너뛰지 않는다** (긴급 hotfix·사용자 명시 지시 예외).
+Plan/Define 단계에서 "이 작업이 ①/②/③ 중 어디이고, 앞 순위가 남아있지 않나"를 먼저 점검.
+
+### 7. Versioning
 
 - 분기 1회 또는 NSM 도달/미달 시 갱신.
 - 주요 갱신: NSM 변경 / Phase 정의 변경 / Won't 변경 → Major CR 분류.
@@ -71,14 +112,15 @@ NSM 결정 기준:
 
 `docs/NORTH_STAR.md`에 다음 구조로 저장. 본 skill 디렉토리의 `NORTH_STAR.template.md`를 복사해 채운다.
 
-7 섹션:
+8 섹션:
 1. North Star Statement (1문장)
-2. North Star Metric (1차 + 2차)
-3. Strategic Boundaries (Will / Won't / Trade-offs)
-4. Phase Roadmap (장기 진화 단계)
-5. Decision Heuristics (4-gate)
-6. Versioning & Review
-7. Changelog
+2. North Star Metric (1차 + 2차, metric-as-proxy 선언)
+3. Pillars (전략 축) + 모듈 ↔ 축 매핑
+4. Strategic Boundaries (Will / Won't / Trade-offs)
+5. Phase Roadmap (장기 진화 단계)
+6. Decision Heuristics (4-gate + 우선순위 순서)
+7. Versioning & Review
+8. Changelog
 
 ## Integration with Workflow
 
@@ -89,15 +131,24 @@ NSM 결정 기준:
 ## Anti-Patterns
 
 - **NSM이 vanity metric** ("downloads", "stars") — 사용자 행동 측정 X
+- **측정 불가 목표를 프록시 선언 없이 방치** — "좋은 제품"류 목표만 있고 최적화 대상이 없음
+- **프록시가 양(量)만 측정** — 사후 품질 짝 없이는 굿하트 법칙으로 지표 자체가 게임됨
+- **축에 매핑되지 않는 모듈 방치** — 매핑 실패는 scope creep 의 조기 신호인데 무시
+- **기본 미완인데 advanced 착수** — 우선순위 순서 게이트 위반 (기본→완성도→차별화)
 - **Won't가 비어있음** — scope creep 방어선 부재
 - **4-gate 검증 없이 "유용해 보이니까" 추가** — Decision Making 메타원칙 위반
 - **NORTH_STAR.md를 작성만 하고 한 번도 참조 안 함** — 죽은 문서. 분기 리뷰로 살림
 
 ## Examples
 
-GoalTrack 프로젝트의 NORTH_STAR.md (참고 사례, 도메인 종속):
-- NSM: WAGI (Weekly AI-Initiated Goal Items) ≥ 40%
-- Won't: 팀 협업 도구 / 모바일 우선 / 게이미피케이션 / 외부 통합 폭발 / CRDT
-- 4-gate: Trend × Persona × MCP × Lean
+참고 사례 (도메인 종속 — 실운영 프로젝트 2종):
 
-본 skill은 그 패턴을 도메인 비종속으로 일반화한 것.
+- 프로젝트 A (목표 추적 SaaS): NSM = WAGI (Weekly AI-Initiated Goal Items) ≥ 40% ·
+  Won't: 팀 협업 도구 / 모바일 우선 / 게이미피케이션 / 외부 통합 폭발 / CRDT ·
+  4-gate: Trend × Persona × MCP × Lean · 우선순위 순서(기본→완성도→차별화) 실운영.
+- 프로젝트 B (투자 분석 서비스): 진짜 목표(사용자 투자 수익)가 외부·지연이라 직접 측정 불가 →
+  **프록시 선언** "추적되는 근거 기반 의사결정 수(양) + 사후 성과 양(+) 비율(품질)" ·
+  5 Pillars(각 정의/현재 위치/전방 목표/가설) + 전 모듈 ↔ 축 매핑 표 · 로드맵 항목의 축 매핑
+  정기 점검("새 축 불필요" 판정 기록).
+
+본 skill은 그 패턴들을 도메인 비종속으로 일반화한 것.
