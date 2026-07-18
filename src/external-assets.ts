@@ -59,7 +59,9 @@ export type ExternalAssetMethod =
         // v26.100.0 — codex-consult (opt-in, NOT dev-method): Codex advisor via OpenAI codex CLI.
         | "codex-consult"
         // v26.104.0 — 재발방지 (recurrence prevention): 재발 검증→분류→대책 에스컬레이션. ADR-033.
-        | "recurrence-prevention";
+        | "recurrence-prevention"
+        // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
+        | "ci-scaffold";
     };
 
 export type ExternalAssetCondition =
@@ -157,7 +159,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 61 자산 매트릭스 (v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 62 자산 매트릭스 (v26.108.0 ci-scaffold internal + v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -234,6 +236,21 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "opt-in" },
     method: { kind: "internal", key: "tauri-desktop" },
+  },
+  // v26.108.0 (ADR-037, 라이프사이클 자산화 ②) — CI 스캐폴드: `.github/workflows/` fill-in
+  //   워크플로(tag-트리거 CI + 실DB 서비스 컨테이너 + coverage 게이트 + Playwright E2E).
+  //   GoalTrack 실무 CI 패턴의 도메인 중립 일반화 (dyld_vantage CI 0 갭이 계기). `.claude/` 밖에
+  //   쓰는 첫 자산 — opt-in 전용 + 기존 워크플로 파일은 절대 덮어쓰지 않는다 (src/ci-scaffold.ts,
+  //   manifest 경유 아님 — CLI 선택과 무관하게 설치되는 CLI-agnostic 산출물).
+  {
+    id: "ci-scaffold",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "CI scaffold — .github/workflows fill-in templates (tag-triggered CI + real-DB service container + coverage gate + Playwright E2E); never overwrites existing workflow files (opt-in)",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "ci-scaffold" },
   },
 
   // === Dev-method skills (uzys 1st-party, v26.87.0) ===

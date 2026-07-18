@@ -127,10 +127,12 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 61 distinct asset ids (no duplicates)", () => {
+  it("contains 62 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(61);
+    expect(ids).toHaveLength(62);
+    // v26.108.0 (ADR-037) — ci-scaffold (opt-in internal, .github/workflows fill-in 템플릿).
+    expect(ids).toContain("ci-scaffold");
     // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
     expect(ids).toContain("gemini-consult");
     // v26.100.0 — codex-consult (opt-in internal bundled skill, gemini-consult 의 형제).
@@ -246,6 +248,32 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         }),
       ).toBe(true);
     }
+  });
+
+  // v26.108.0 (ADR-037, 라이프사이클 자산화 ②) — ci-scaffold: `.claude/` 밖(.github/)에 쓰는
+  //   첫 자산. Promise=Impl: opt-in 전용(무인지 설치 0)이어야 하고, 스킬이 아니므로
+  //   INTERNAL_BUNDLED_SKILL_IDS(스킬 dir copy + 4-CLI 렌더 대상)에 끼어들면 안 된다 —
+  //   끼면 존재하지 않는 templates/skills/ci-scaffold 를 복사하려다 silent skip 된다.
+  it("ci-scaffold: opt-in internal (uzys), NOT a bundled skill", () => {
+    const a = EXTERNAL_ASSETS.find((x) => x.id === "ci-scaffold");
+    if (!a) throw new Error("ci-scaffold missing");
+    expect(assetTrustTier("ci-scaffold")).toBe("official");
+    expect(a.source).toBe("uzys");
+    expect(a.category).toBe("workflow");
+    expect(a.condition.kind).toBe("opt-in");
+    expect(a.description).toContain("opt-in");
+    expect(a.method.kind).toBe("internal");
+    expect(INTERNAL_BUNDLED_SKILL_IDS).not.toContain("ci-scaffold");
+    expect(DEV_METHOD_SKILL_IDS).not.toContain("ci-scaffold");
+    // opt-in ⇒ 트랙만으론 절대 미설치 (dev 트랙 포함) — forceInclude 시에만.
+    expect(shouldInstallAsset(a, { tracks: ["full"], options: NO_OPTIONS })).toBe(false);
+    expect(
+      shouldInstallAsset(a, {
+        tracks: ["full"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["ci-scaffold"], forceExclude: [] },
+      }),
+    ).toBe(true);
   });
 
   it("every asset has description + condition + method", () => {

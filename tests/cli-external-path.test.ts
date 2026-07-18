@@ -235,6 +235,7 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
         codexOptIn: null,
         opencode: null,
         antigravity: null,
+        ciScaffold: null,
         external: { ...emptyExternal, excludedByCli: [PLUGIN_ASSET] },
         updateMode: null,
         karpathyHook: null,
@@ -269,6 +270,7 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
       codexOptIn: null,
       opencode: null,
       antigravity: null,
+      ciScaffold: null,
       updateMode: null,
       mode: "fresh" as const,
       envFiles: {

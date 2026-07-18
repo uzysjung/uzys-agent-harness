@@ -11,6 +11,7 @@ import {
   type AntigravityTransformReport,
   runAntigravityTransform,
 } from "./antigravity/transform.js";
+import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
 import {
@@ -172,6 +173,11 @@ export interface BaselineReport {
     /** v0.8.0 — `.gitignore`에 추가된 npx skills agent 디렉토리 패턴 (`.factory/`, `.goose/`). */
     gitignoreNpxSkillsAdded: string[];
   };
+  /**
+   * v26.108.0 (ADR-037) — CI 스캐폴드 결과. opt-in 미선택 시 null. `.github/workflows/`
+   * 는 CLI-agnostic 이라 claude baseline 밖의 전용 단계 (ci-scaffold.ts) 가 설치 주체.
+   */
+  ciScaffold: CiScaffoldReport | null;
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
   /** Root CLAUDE.md fill-in scaffold (project name + active-track note + FILL sections). null when claude baseline disabled. */
@@ -195,6 +201,8 @@ export interface InstallReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
+  /** v26.108.0 (ADR-037) — CI 스캐폴드 결과 (opt-in 미선택 시 null). */
+  ciScaffold: CiScaffoldReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks 갱신 + orphan prune + stale hook). null when not update mode. */
@@ -255,6 +263,16 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
   const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
 
+  // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in 전용). `.github/` 은 CLI-agnostic 이라
+  // claude baseline 조건 밖에서 설치. 기존 워크플로 파일은 절대 덮어쓰지 않는다.
+  const ciScaffold = isAssetSelected("ci-scaffold", {
+    tracks: spec.tracks,
+    options: spec.options,
+    ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+  })
+    ? installCiScaffold({ harnessRoot, projectDir, tracks: spec.tracks })
+    : null;
+
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
@@ -263,6 +281,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     installedTracks: [...spec.tracks].sort(),
     mcpServers: Object.keys(mcpResult.mcpServers).sort(),
     ...runCliTransforms(spec, harnessRoot, projectDir, manifestSpec.selectedInternalSkills),
+    ciScaffold,
     updateMode: null,
     mode,
     envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
@@ -321,6 +340,7 @@ function runUpdateInstall(
     codexOptIn: null,
     opencode: null,
     antigravity: null,
+    ciScaffold: null,
     updateMode: updateReport,
     mode: "update",
     envFiles: {

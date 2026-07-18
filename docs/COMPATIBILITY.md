@@ -14,7 +14,7 @@
 | **🟢 registry 실재** | npm registry 실재 확인 (full 설치는 표준 `npm i` — vercel/netlify/supabase/agent-browser CLI) | `npm view` |
 | **🟡 local / matrix** | 로컬 스크립트(ecc-prune) 또는 install-matrix CI (tauri-desktop·dev-method templates) | `install-matrix.yml` |
 
-> **전 카탈로그 48/61 🟢** (Docker 실설치 + registry 실재). 나머지 13 자산 🟡 = templates(tauri-desktop·dev-method 8종·model-orchestration·gemini-consult·codex-consult)·ecc-prune. ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
+> **전 카탈로그 48/62 🟢** (Docker 실설치 + registry 실재). 나머지 14 자산 🟡 = templates(tauri-desktop·ci-scaffold·dev-method 8종·model-orchestration·gemini-consult·codex-consult)·ecc-prune. ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
 
 ## 보안 근거 (Trust Tier + 출처 vetting)
 
@@ -35,14 +35,15 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **61** (official 17 / vetted 41 / experimental 3) · 🟢 검증 **48/61**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
+> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **62** (official 18 / vetted 41 / experimental 3) · 🟢 검증 **48/62**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
 >
 > **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 2026-06-06). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (10)
+#### 🔄 Workflow (11)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
+| `ci-scaffold` | official | templates (`--with ci-scaffold`) | 4-CLI (templates) | 🟡 local |
 | `asis-tobe-decision` | official | templates (`--with asis-tobe-decision`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `northstar-roadmap` | official | templates (`--with northstar-roadmap`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |

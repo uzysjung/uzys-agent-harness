@@ -7,6 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.108.0] — 2026-07-18 (feat: ci-scaffold 자산 — 라이프사이클 자산화 ②, ADR-037)
+
+라이프사이클 큐 ② (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): GoalTrack 실무 CI
+패턴(실DB 서비스 컨테이너·tag-only 트리거+로컬 검증 1차·Playwright E2E·coverage 게이트)의 도메인
+중립 일반화 — dyld_vantage 의 **CI 0** 이 갭의 존재 증명. 카탈로그 61 → **62**.
+
+### Added
+- **`ci-scaffold` 자산** (opt-in 전용 — `--with ci-scaffold` / wizard Workflow 페이지):
+  `.github/workflows/` fill-in 템플릿 3종을 트랙에 맞춰 설치 —
+  `ci.yml`(node: typecheck·lint·coverage·build + 실DB postgres 서비스 컨테이너 블록) /
+  `ci-python.yml`(ruff·mypy·pytest `--cov-fail-under`) / `e2e.yml`(Playwright, UI 트랙만).
+  트랙 매핑은 결정론: node 계열→ci.yml, python 계열(data·csr-fastapi·full)→ci-python.yml
+  (polyglot 은 양쪽), 매핑 밖 트랙의 명시 opt-in 은 node fallback (silent no-op 방지).
+- **안전 계약** (`.claude/` 밖에 쓰는 첫 자산): ① opt-in 전용 — 무인지 설치 없음 ② **기존
+  워크플로 파일 절대 덮어쓰지 않음** — skip 후 "exists — preserved" 로 정직 보고 ③ uninstall 은
+  `.github/` 를 건드리지 않음 (install-log 미기록 — 설치 후 사용자 소유물). ADR-037.
+- 설치 주체는 manifest 가 아닌 전용 단계(`src/ci-scaffold.ts`) — manifest copy 는 무조건
+  overwrite + claude CLI 선택 시에만 실행되는데, CI 산출물은 no-clobber + CLI-agnostic
+  (codex 단독 설치에서도 설치됨)이어야 하기 때문.
+
 ## [v26.107.0] — 2026-07-18 (feat: doc-governance 룰 — 라이프사이클 자산화 ①, ADR-036)
 
 사용자 지시(2026-07-18): "이 부분들(북극성→스펙→로드맵 현행화→V&V→CI)이 지켜지는 것이 하네스."

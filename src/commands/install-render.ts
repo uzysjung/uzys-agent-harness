@@ -525,6 +525,16 @@ function renderPhase1Rows(
       ),
     );
   }
+  // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in). no-clobber: 기존 파일 보존은 skip 행으로
+  //   정직 보고 (숨기면 "설치됨" 오인 — no-false-ship).
+  if (baseline.ciScaffold) {
+    for (const f of baseline.ciScaffold.written) {
+      log(assetRow("success", f, "CI scaffold (fill-in template)", TEMPLATES_COL));
+    }
+    for (const f of baseline.ciScaffold.skippedExisting) {
+      log(assetRow("skip", f, "exists — preserved (no overwrite)", TEMPLATES_COL));
+    }
+  }
   if (baseline.skipped > 0) {
     log(
       assetRow(
