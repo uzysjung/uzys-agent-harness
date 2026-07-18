@@ -91,8 +91,6 @@
 | finance-skills | alirezarezvani |
 | pm-skills | alirezarezvani |
 | marketing-skills | alirezarezvani |
-| content-creator | alirezarezvani |
-| demand-gen | alirezarezvani |
 | research-summarizer | alirezarezvani |
 
 #### 🛡️ Dev Tools (Security · Quality)
@@ -104,7 +102,6 @@
 | playwright-skill | testdino-hq |
 | find-skills | vercel-labs |
 | agent-browser | npm |
-| architecture-decision-record | yonatangross |
 
 #### 🔄 Workflow (Development Cycle) — 모두 opt-in
 | Asset ID | 출처 |
@@ -132,7 +129,7 @@
 | `ssr-nextjs` | shadcn-ui, frontend-design, react-best-practices, web-design-guidelines, impeccable, next-skills, railway-skills |
 | `data` | anthropic-data-plugin, python-patterns, python-testing, polars-K-Dense, dask-K-Dense, python-resource-management, python-performance-optimization |
 | `executive` | anthropic-document-skills, c-level-skills, business-growth-skills, finance-skills |
-| `tooling` | playwright-skill, find-skills, agent-browser, architecture-decision-record, product-skills, karpathy-coder |
+| `tooling` | playwright-skill, find-skills, agent-browser, karpathy-coder |
 | `full` | 위 7개 카테고리의 모든 default ON 자산 (uzys-harness/superpowers/addy/gsd/ECC 제외) |
 | `project-management` | anthropic-document-skills, (PM rule들) |
 | `growth-marketing` | anthropic-document-skills, (Growth rule들) |

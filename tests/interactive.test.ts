@@ -376,8 +376,9 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(true);
     expect(result.spec?.tracks).toEqual(["csr-fastapi"]);
     const initialPassed = selectInstallTargets.mock.calls[0]?.[0] ?? [];
-    // v26.71.0 — railway-skills 는 T3(추천 제외) → csr-fastapi 의 vetted 추천(impeccable)로 검증.
-    expect(initialPassed.some((t) => t === "asset:impeccable")).toBe(true);
+    // v26.71.0 — railway-skills 는 T3(추천 제외) → csr-fastapi 의 vetted 추천으로 검증.
+    // v26.106.0 (ADR-035) — impeccable 은 opt-in 강등 → react-best-practices 로 대체.
+    expect(initialPassed.some((t) => t === "asset:react-best-practices")).toBe(true);
     expect(initialPassed.some((t) => t === "asset:vercel-cli")).toBe(false);
   });
 
@@ -498,7 +499,7 @@ describe("computeUserOverride", () => {
     // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.
     "frontend-design",
     "karpathy-coder",
-    "product-skills",
+    // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 PM 트랙 한정으로 축소 → tooling 추천 제외.
     "multi-persona-review",
     "gap-analysis-e2e",
     "ultracode-service-audit",
@@ -513,7 +514,7 @@ describe("computeUserOverride", () => {
   ];
 
   it("selections == recommended → undefined (no override)", () => {
-    // v26.71.0 — tooling 추천은 vetted 만 (T3 architecture-decision-record/playwright-skill 제외).
+    // v26.71.0 — tooling 추천은 vetted 만 (T3 playwright-skill 제외; ADR 자산은 v26.106.0 카탈로그 제거).
     // v26.87.0 — + dev-method skills (official). v26.98.0 기준 8종.
     expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });

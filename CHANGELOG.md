@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.106.0] — 2026-07-18 (feat: 자산 축 판정 실행 — 강등 5종 + 제거 1종, ADR-035 · Lean 큐 ④)
+
+62자산 전수를 pattern-guide(모델 프리트레이닝이 커버 — T2 가설) vs operational-fact(모델 밖에서
+드리프트 — 큐레이션 가치 유지) 축으로 분류(독립 적대 검증 통과, `docs/plans/asset-axis-judgment-2026-07-18.md`)
+→ 사용자 컨펌 2026-07-18 전량 승인. **판정 원칙: opt-in 은 비용 0 이라 keep — 축소는 기본 설치
+발자국만** (제거 1종은 하드 근거 2개 예외).
+
+### Changed
+- **BREAKING: 기본 설치 강등 5종** (opt-in 이동 — `--with <id>`/wizard 로 계속 선택 가능, 기존 설치 파일 유지):
+  - `python-resource-management` · `python-performance-optimization` — 순수 pattern-guide (T2 가설 전제 명시). data 카테고리 기본 5→3
+  - `netlify-cli` — 배포 CLI 2종 동시 기본의 중복 해소. npm 실측 **10.11:1** (vercel 2.79M vs netlify 276k dl/주)
+  - `web-design-guidelines` · `impeccable` — taste 가이드 (frontend-design official 이 기본인 이상 opt-in 충분 — **impeccable 은 사용자 추가 결정**, v26.92.0 보완재 논리 기각)
+  - `product-skills` — **project-management 트랙 한정** (이전: dev 8트랙 + PM 기본). dev 트랙 기본에서 PM 스킬 15종 제외
+- **BREAKING: `architecture-decision-record` 카탈로그 제거** (62→61) — 하드 근거 2개: ① 최저 star(179 스냅샷)
+  ② **1st-party 대체재 실증** — `change-management` 룰이 COMMON_RULES 로 전 트랙 무조건 설치되며 ADR
+  템플릿+status flow 완비 (검증자 코드 확인 manifest.ts:59)
+- README 선존재 drift 정정: 제거된 `content-creator`/`demand-gen`(v26.76.0) 광고 잔존 삭제,
+  react-best-practices/web-design-guidelines 출처 오기(→vercel-labs), csr-supabase 예시 행 정확화
+
+### Docs
+- `docs/plans/asset-axis-judgment-2026-07-18.md` — 62 전수 판정표(러브릭·실측 근거·정직성 명시) + 결정 기록. ADR-035.
+
 ## [v26.105.0] — 2026-07-18 (feat: 방법론 코어 / 수단(권장) 계층 분리, ADR-034 · Lean 큐 ⑥)
 
 사용자 확정(2026-07-18): 하네스 엔지니어링 **방법론**(목표·스코프·논스코프 / ADR / 결함 보고 /

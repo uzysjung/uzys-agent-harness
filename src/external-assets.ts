@@ -112,15 +112,6 @@ export interface ExternalAsset {
  */
 export type TrustTier = "official" | "vetted" | "experimental";
 
-const ALL_CSR_SSR_FULL: Track[] = [
-  "csr-supabase",
-  "csr-fastify",
-  "csr-fastapi",
-  "ssr-htmx",
-  "ssr-nextjs",
-  "full",
-];
-
 /** csr-*|ssr-nextjs|full per bash setup-harness.sh L1041 (ssr-htmx 제외 — htmx는 React 미사용). */
 const CSR_SSR_NEXTJS_FULL: Track[] = [
   "csr-supabase",
@@ -166,14 +157,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * v0.8.1 — dev + project-management 합집합 (reviewer MEDIUM-3 fix).
- *
- * `product-skills` (PM 도메인까지 사용) 의 9-Track 인라인 배열을 SSOT 상수로 교체.
- */
-export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
-
-/**
- * 62 자산 매트릭스 (v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 61 자산 매트릭스 (v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -200,12 +184,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "dask" },
   },
   {
+    // v26.106.0 (ADR-035, 사용자 승인 A): 일반 Python 패턴 = 순수 pattern-guide → opt-in 강등 (T2 가설 전제).
     id: "python-resource-management",
     tier: "vetted", // wshobson/agents 36k
     description: "Python memory · CPU management patterns (wshobson, data track)",
     category: "data",
     source: "wshobson",
-    condition: { kind: "any-track", tracks: ["data", "full"] },
+    condition: { kind: "opt-in" },
     method: {
       kind: "skill",
       source: "https://github.com/wshobson/agents",
@@ -213,12 +198,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
   {
+    // v26.106.0 (ADR-035, 사용자 승인 A): 동일 — 순수 pattern-guide → opt-in 강등.
     id: "python-performance-optimization",
     tier: "vetted", // wshobson/agents 36k
     description: "Python performance optimization (profiling · vectorize, wshobson, data track)",
     category: "data",
     source: "wshobson",
-    condition: { kind: "any-track", tracks: ["data", "full"] },
+    condition: { kind: "opt-in" },
     method: {
       kind: "skill",
       source: "https://github.com/wshobson/agents",
@@ -516,12 +502,14 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
   },
   {
+    // v26.106.0 (ADR-035, 사용자 승인 B): 배포 CLI 2종 동시 기본의 중복 해소 — npm dl 실측 10.11:1
+    //   (vercel 2.79M vs netlify 276k /주, 2026-07-18) → vercel 만 기본, netlify 는 opt-in.
     id: "netlify-cli",
     tier: "vetted", // netlify/cli 1.9k
     description: "Netlify CLI (npm)",
     category: "backend",
     source: "netlify",
-    condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "netlify-cli", version: "26.1.0" },
   },
   {
@@ -536,13 +524,15 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
 
   // === UI tracks (csr-*|ssr-*|full) ===
   {
+    // v26.106.0 (ADR-035, 사용자 결정 2026-07-18): frontend-design(official)이 기본인 이상 taste
+    //   가이드류는 opt-in 으로 충분 — v26.92.0 의 "생성↔리뷰 보완재" 논리는 권고이지 결합이 아님.
     id: "impeccable",
     tier: "vetted", // pbakaus 31k
     description:
       "Impeccable — UI design guide + visual consistency review (pbakaus, single-skill repo)",
     category: "frontend",
     source: "pbakaus",
-    condition: { kind: "any-track", tracks: ALL_CSR_SSR_FULL },
+    condition: { kind: "opt-in" },
     // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수 (single-skill repo 도)
     method: { kind: "skill", source: "pbakaus/impeccable", skill: "impeccable" },
   },
@@ -750,20 +740,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "opt-in" },
     method: { kind: "skill", source: "ryanbbrown/revealjs-skill", skill: "revealjs" },
   },
-  {
-    id: "architecture-decision-record",
-    tier: "experimental", // yonatangross/orchestkit 179
-    description:
-      "ADR — Architecture Decision Record template + status flow (orchestkit, one of 80+ skills)",
-    category: "dev-tools",
-    source: "yonatangross",
-    condition: { kind: "has-dev-track" },
-    method: {
-      kind: "skill",
-      source: "yonatangross/orchestkit",
-      skill: "architecture-decision-record",
-    },
-  },
 
   // === Supabase agent-skills (csr-supabase|full) ===
   {
@@ -825,13 +801,15 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "skill", source: "shadcn/ui", skill: "shadcn" },
   },
   {
+    // v26.106.0 (ADR-035, 사용자 승인 D): 순수 pattern-guide(일반 디자인 가이드라인) → opt-in 강등
+    //   (T2 가설 전제 — taste 3종 중복 주장은 검증자 정정으로 기각, 근거는 P축 단독).
     id: "web-design-guidelines",
     tier: "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
     description:
       "Web design guidelines — Vercel's visual hierarchy · color · spacing (CSR · SSR · Next tracks)",
     category: "frontend",
     source: "vercel-labs",
-    condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
+    condition: { kind: "opt-in" },
     method: {
       kind: "skill",
       source: "https://github.com/vercel-labs/agent-skills",
@@ -913,14 +891,15 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
   // SPEC §3.5 — product-skills: has-dev-track + project-management 합집합 (executive/growth-marketing 제외).
-  // v0.8.1 — DEV_PLUS_PM_TRACKS 상수로 SSOT 통일 (reviewer MEDIUM-3 fix).
   {
     id: "product-skills",
     tier: "vetted", // alirezarezvani 16k
     description: "product-skills (15 — RICE, PRD, agile PO, UX research, SaaS scaffolder ...)",
     category: "dev-tools",
     source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: [...DEV_PLUS_PM_TRACKS] },
+    // v26.106.0 (ADR-035, 사용자 승인 C): dev 8트랙 기본에서 제외 — PM 스킬 15종은 PM 트랙 목적
+    //   자산. dev 트랙은 wizard 체크 / --with 로 opt-in.
+    condition: { kind: "any-track", tracks: ["project-management"] },
     method: {
       kind: "plugin",
       marketplace: "alirezarezvani/claude-skills",

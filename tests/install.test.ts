@@ -167,7 +167,7 @@ describe("installAction", () => {
         cli: ["claude"],
         track: ["tooling"],
         projectDir: "/p",
-        with: ["playwright-skill", "architecture-decision-record"],
+        with: ["playwright-skill", "railway-skills"],
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
