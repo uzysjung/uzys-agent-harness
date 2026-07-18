@@ -147,6 +147,24 @@ describe("buildManifest", () => {
     expect(clOff?.applies({ tracks: ["data"], withEcc: true })).toBe(true);
   });
 
+  it("verification-loop: C2→C3 재분류 (verdict 어휘 주입 = modified) → withEcc 무관 dev 트랙 install. v26.113.0 ADR-041", () => {
+    // verdict 어휘는 ECC plugin 판에 없으므로 plugin ON 이어도 cherry-pick 을 유지해야 한다.
+    // C2 로 남기면 withEcc 사용자에게 "verdict 코드화됨" 광고가 거짓이 된다 (no-false-ship).
+    const m = buildManifest({ tracks: ["tooling"] });
+    const vl = m.find((e) => e.source === "skills/verification-loop");
+    expect(vl).toBeDefined();
+    expect(vl?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(vl?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
+    expect(vl?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
+
+    // dev 트랙 조건은 유지 — executive 단독은 종전과 동일하게 미설치.
+    expect(vl?.applies({ tracks: ["executive"] })).toBe(false);
+
+    // 잔여 DEV_SKILL_DIRS_ECC (eval-harness) 는 C2 그대로 — 재분류 전파 방지.
+    const eh = m.find((e) => e.source === "skills/eval-harness");
+    expect(eh?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+  });
+
   it("python-* skills: C2 opt-out + track gating. v26.58.0 ADR-019", () => {
     const m = buildManifest({ tracks: ["data"] });
     const pp = m.find((e) => e.source === "skills/python-patterns");

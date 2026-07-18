@@ -140,7 +140,17 @@ const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "deep-research"];
 const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2"];
 
 const DEV_SKILL_DIRS: string[] = [];
-const DEV_SKILL_DIRS_ECC = ["eval-harness", "verification-loop", "agent-introspection-debugging"];
+const DEV_SKILL_DIRS_ECC = ["eval-harness", "agent-introspection-debugging"];
+// C3 (modified=true — v26.113.0 verdict 어휘 주입, ADR-041): plugin 으로 갈음 불가, dev 트랙 항상 install.
+const MODIFIED_DEV_SKILL_DIRS = ["verification-loop"];
+
+/**
+ * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).
+ * `.dev-references/cherrypicks.lock` 의 `modified: true` 와 1:1 이어야 한다 — lock 이
+ * false 로 남으면 `sync-cherrypicks.sh --apply` 의 rsync --delete 가 로컬 수정을 조용히
+ * 덮어쓴다. 정합은 tests/vnv-verdict.test.ts 가 강제한다. ADR-041.
+ */
+export const MODIFIED_ECC_SKILL_DIRS = [...MODIFIED_COMMON_SKILL_DIRS, ...MODIFIED_DEV_SKILL_DIRS];
 
 const UI_SKILL_DIRS = ["ui-visual-review"];
 const UI_SKILL_DIRS_ECC = ["e2e-testing"];
@@ -302,6 +312,15 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
+    });
+  }
+  // C3 (modified=true). plugin 으로 갈음 불가 — verdict 어휘는 ECC plugin 판에 없다. ADR-041.
+  for (const sd of MODIFIED_DEV_SKILL_DIRS) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: dev,
     });
   }
   for (const sd of UI_SKILL_DIRS) {

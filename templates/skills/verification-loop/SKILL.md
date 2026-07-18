@@ -1,6 +1,6 @@
 ---
 name: verification-loop
-description: "A comprehensive verification system for Claude Code sessions."
+description: "A comprehensive verification system for Claude Code sessions. Every run ends with a fixed verdict — PASS / PASS_WITH_NITS / FAIL — plus severity-labeled findings (CRITICAL/HIGH/MEDIUM/LOW)."
 origin: ECC
 ---
 
@@ -26,7 +26,9 @@ npm run build 2>&1 | tail -20
 pnpm build 2>&1 | tail -20
 ```
 
-If build fails, STOP and fix before continuing.
+If build fails, STOP and fix — then re-verify from Phase 1 in a fresh instance. Continuing
+through the remaining phases yourself would make you the verifier of code you just wrote,
+which the Verdict Contract below forbids.
 
 ### Phase 2: Type Check
 ```bash
@@ -100,12 +102,42 @@ Tests:     [PASS/FAIL] (X/Y passed, Z% coverage)
 Security:  [PASS/FAIL] (X issues)
 Diff:      [X files changed]
 
-Overall:   [READY/NOT READY] for PR
+Verdict:   PASS | PASS_WITH_NITS | FAIL
 
-Issues to Fix:
-1. ...
-2. ...
+Findings:
+| ID | Severity | Finding | Evidence (file:line / command output) |
+|----|----------|---------|---------------------------------------|
+| F1 | HIGH     | ...     | ...                                   |
 ```
+
+## Verdict Contract
+
+The report ends with exactly one verdict. Free-prose closings ("looks ready", "should be
+fine") are banned — they leave room to bury defects. A fixed vocabulary makes the report
+honest and machine-checkable.
+
+| Verdict | Meaning | Action |
+|---------|---------|--------|
+| **PASS** | All gates green, zero findings at any severity | Ship |
+| **PASS_WITH_NITS** | Ship-safe: only LOW/MEDIUM findings, each recorded with a follow-up | Ship + log follow-ups |
+| **FAIL** | Any gate red, or one or more CRITICAL/HIGH findings | Block → fix → **re-verify** |
+
+Every finding gets exactly one severity:
+
+- **CRITICAL** — data loss, security hole, or the change misbehaves in real use if shipped
+- **HIGH** — main-path defect or regression; users will hit it
+- **MEDIUM** — edge-case or quality defect; unlikely to block real use
+- **LOW** — nit: style, naming, doc wording
+
+Rules:
+- Severity is judged by impact evidence, not by how easy the fix is.
+- FAIL → fix → re-verify is one cycle. A fix alone never upgrades the verdict — the
+  re-verification must reproduce green.
+- A run that aborts early (Phase 1 build failure) still emits a report: verdict **FAIL**
+  with the failing gate as a CRITICAL finding. Stopping to fix is how you *reach* the next
+  verdict, not a reason to skip issuing this one — an unreported run reads as "not run".
+- The instance that wrote the change never issues its own verdict: verification runs in a
+  fresh instance (see the model-orchestration skill's V&V separation).
 
 ## Continuous Mode
 
