@@ -73,8 +73,8 @@ Sanity-check the metric before trusting it:
   north-star." Flag it instead of silently planning against a corrupt target.
 
 > In this repo the literal north-star is **GitHub stars** (per memory and the service-audit
-> roadmap), with the NORTH_STAR NSM (HITO ≤ 3/feature, low re-clarification) as the *value* the
-> stars are supposed to reward. Plan toward stars **via** the value inputs, not by gaming the count.
+> roadmap), with the NORTH_STAR NSM (context cost per install, justified-asset ratio) as the *value*
+> the stars are supposed to reward. Plan toward stars **via** the value inputs, not by gaming the count.
 
 ### 2. ASSESS current state against each Input — expose the gap
 
@@ -123,12 +123,13 @@ document** — both the metric and the priorities are expected to be revised as 
 
 > **1. Metric + Inputs** (from `docs/NORTH_STAR.md`)
 > North Star Metric: GitHub stars as the adoption signal that the harness delivers real value.
-> Inputs: (a) HITO ≤ 3 / feature, (b) Promise = Implementation (advertised assets 100% work),
-> (c) first-run install success, (d) vetted+security-audited asset count, (e) 4-CLI parity.
+> Inputs: (a) context cost per install (resident + fired tokens), (b) Promise = Implementation
+> (advertised assets 100% work), (c) first-run install success, (d) justified-asset ratio,
+> (e) 4-CLI parity.
 > *Leading-indicator check:* stars alone are gameable, so we plan against inputs (a)–(e), the value
 > the stars reward — not the raw count.
 >
-> **2. Gap** — (a) HITO unmeasured in fresh installs · (b) closed after no-false-ship work · (c)
+> **2. Gap** — (a) fired-body tokens unmeasured · (b) closed after no-false-ship work · (c)
 > install-matrix green but no post-publish telemetry · (e) plugins don't yet reach non-Claude CLIs.
 >
 > **3. Direction** — "Make the *first 60 seconds* prove the value before asking for a star."

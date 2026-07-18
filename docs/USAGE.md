@@ -163,7 +163,6 @@ Skills are **copied per CLI format, not symlinked** — each CLI needs its own v
 | `spec-drift-check.sh` | post-edit | Detect SPEC vs code drift |
 | `mcp-pre-exec.sh` | MCP exec | Allowlist gate (D35) |
 | `checkpoint-snapshot.sh` | PostToolUse (tool-count threshold) | Checkpoint savepoint + `/compact` nudge (D25) |
-| `hito-counter.sh` | session events | NSM telemetry (HITO baseline) |
 | `karpathy-gate.sh` | PreToolUse Write/Edit | Quality gate (only when `--with-karpathy-hook` + plugin install succeeded) |
 
 ---

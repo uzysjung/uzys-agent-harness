@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# fresh-dogfood-setup.sh — P2-01 HITO 측정용 clean-env 셋업.
+# fresh-dogfood-setup.sh — P2-01 First-Run Success 확인용 clean-env 셋업 (HITO 측정은 ADR-043 에서 폐기).
 #
 # host throwaway 디렉토리에 harness 를 project-scope 설치한다.
 # project-scope 라 host 글로벌 자산(~/.claude/skills 등)은 미오염
@@ -39,14 +39,15 @@ echo "  (~/.claude 글로벌 자산 미오염 — project-scope)"
     --track tooling --cli claude --with uzys-harness --scope project )
 
 echo ""
-echo "✓ 셋업 완료. HITO 측정 RUN (별도 fresh 세션):"
+echo "✓ 셋업 완료. First-Run Success 확인 RUN (별도 fresh 세션):"
 echo ""
 echo "    cd $DIR"
 echo "    claude"
 echo "    # 6-gate 로 mini-wc 완주 (SPEC: docs/evals/fresh-dogfood-protocol.md):"
 echo "    #   /uzys:spec → /uzys:plan → /uzys:build → /uzys:test → /uzys:review → /uzys:ship"
 echo ""
-echo "  완주 후 집계:"
-echo "    bash $(cd "$(dirname "$0")/.." && pwd)/scripts/hito-aggregate.sh --dir $DIR/.claude/evals --summary"
+echo "  판정 = First-Run Success Rate (NORTH_STAR 2차 지표): 설치~완주까지 사용자 수동 개입"
+echo "  (에러 fix / 누락 파일 / 추가 install) 0건이면 성공."
 echo ""
-echo "  결과를 docs/evals/fresh-dogfood-<date>.md 에 기록 (목표 HITO ≤ 3/feature)."
+echo "  결과를 docs/evals/fresh-dogfood-<date>.md 에 기록. 발견 이슈는 gap.md 스키마로"
+echo "  (benchmark-parity 룰 §Dogfood pass — 새 스키마 신설 금지)."

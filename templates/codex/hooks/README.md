@@ -8,7 +8,6 @@
 | Codex event (snake_case) | 스크립트 | 원본 (Claude) | 상태 |
 |--------------------------|----------|---------------|------|
 | `session_start` | `session-start.sh` | `.claude/hooks/session-start.sh` | Phase C 포팅 예정 |
-| `user_prompt_submit` | `hito-counter.sh` | `.claude/hooks/hito-counter.sh` | Phase C 포팅 예정 |
 | `post_tool_use` | `uncommitted-check.sh` | `.claude/hooks/uncommitted-check.sh` | Phase C 포팅 예정 |
 | ❌ (hook 사용 안 함) | ❌ | `.claude/hooks/protect-files.sh` | **Codex sandbox로 이관 (ADR-002 v2 D3)** |
 

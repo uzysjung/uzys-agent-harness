@@ -49,7 +49,8 @@ describe("installer (integration with templates/)", () => {
 
     // Hooks
     expect(existsSync(join(projectDir, ".claude/hooks/session-start.sh"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/hooks/hito-counter.sh"))).toBe(true);
+    // v26.115.0 (ADR-043) — hito-counter 제거. 상시 훅이 아무도 읽지 않는 로그를 쌓고 있었다.
+    expect(existsSync(join(projectDir, ".claude/hooks/hito-counter.sh"))).toBe(false);
 
     // uzys/* 6-Gate commands removed — must never be emitted
     expect(existsSync(join(projectDir, ".claude/commands/uzys/spec.md"))).toBe(false);
