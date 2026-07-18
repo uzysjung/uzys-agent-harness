@@ -506,9 +506,9 @@ describe("computeUserOverride", () => {
     "compaction-handoff",
     "northstar-roadmap",
     // v26.105.0 (ADR-034) — model-orchestration 은 수단(권장) opt-in 으로 이동 → 추천 기준선 제외.
-    // v26.98.0 — dev-method 8번째 (harness-health-audit).
+    // v26.98.0 — harness-health-audit 추가 (ADR-027).
     "harness-health-audit",
-    // v26.104.0 — dev-method 9번째 (recurrence-prevention, ADR-033).
+    // v26.104.0 — recurrence-prevention 추가 (ADR-033).
     "recurrence-prevention",
   ];
 
