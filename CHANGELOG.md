@@ -27,11 +27,16 @@ verdict 의식 + 본 repo SOD 리뷰 관행. 카탈로그 무변경 (manifest �
   cherry-pick 이 되어 ADR-019 분류상 C3 — `MODIFIED_DEV_SKILL_DIRS` 신설, withEcc 무관
   dev 트랙 항상 install (cl-v2 전례). C2 유지 시 plugin ON 사용자에게 "verdict 코드화됨"
   광고가 거짓이 되는 구멍 차단 (no-false-ship).
+- **`.dev-references/cherrypicks.lock`**: `ecc-verification-loop` → `modified: true`.
+  `false` 로 두면 `sync-cherrypicks.sh --apply` 의 `rsync -a --delete` 가 upstream 원본을
+  덮어써 verdict 주입이 조용히 소멸한다 (manifest 만 C3 로 바꾸면 반쪽 조치).
 
 ### Added
-- `tests/vnv-verdict.test.ts` — verdict 어휘 계약 5테스트 (섹션 슬라이스 앵커, ④ SOD
-  mutation 교훈 + repo-local 복사본 byte-동일 silent-drift 가드) + manifest C3 재분류
-  테스트 (잔여 C2 eval-harness 비전파 확인 포함). ADR-041.
+- `tests/vnv-verdict.test.ts` — verdict 어휘 계약 6테스트 (섹션 슬라이스 앵커, ④ SOD
+  mutation 교훈 + repo-local 복사본 byte-동일 가드 + **cherrypicks.lock `modified` 플래그
+  대조**) + manifest C3 재분류 테스트 (잔여 C2 eval-harness 비전파 확인 포함). ADR-041.
+- `MODIFIED_ECC_SKILL_DIRS` export (`src/manifest.ts`) — 두 C3 목록에서 derive. lock 정합
+  테스트의 단일 출처 (동일 목록 2곳 하드코딩 금지, no-false-ship "drift 구조 차단").
 
 ## [v26.112.0] — 2026-07-18 (feat: north-star 스킬 보강 — 라이프사이클 자산화 ④, ADR-040)
 

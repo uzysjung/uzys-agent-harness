@@ -111,8 +111,8 @@
       "src": ".agents/skills/verification-loop/",
       "dst": "templates/skills/verification-loop/",
       "type": "directory",
-      "modified": false,
-      "modification_note": "build → type → lint → test → security → diff 6단계 검증 사이클"
+      "modified": true,
+      "modification_note": "build → type → lint → test → security → diff 6단계 검증 사이클. v26.113.0 (ADR-041): 보고 종결을 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity(CRITICAL~LOW) 로 교체 + 'Verdict Contract' 절 신설 → modified=true (sync --apply 의 rsync --delete 로부터 보호, manifest C3 와 짝)"
     },
     {
       "id": "ecc-e2e-testing",

@@ -19,6 +19,11 @@
   3. **verification-loop C2 → C3 재분류** — 내용 수정으로 modified cherry-pick 이 되므로
      ADR-019 분류 체계상 C3 (plugin 무관 항상 install, `applies: dev`). cl-v2 전례 준용.
      `DEV_SKILL_DIRS_ECC` 에서 분리해 `MODIFIED_DEV_SKILL_DIRS` 신설.
+  4. **cherrypicks.lock `modified: true` 동반 갱신 + derive 가드** — 구현 중 발견: lock 의
+     `ecc-verification-loop` 이 `modified: false` 로 남으면 `sync-cherrypicks.sh --apply`
+     의 `rsync -a --delete` 가 upstream 원본으로 덮어써 verdict 주입이 **조용히 소멸**한다
+     (manifest 만 C3 로 바꾸면 반쪽). lock 갱신 + `MODIFIED_ECC_SKILL_DIRS`(두 C3 목록에서
+     derive) ↔ lock 플래그 대조 테스트로 구조 차단. mutation(`true`→`false`)으로 RED 실증.
 - Alternatives:
   - **C2 유지한 채 내용만 수정** — 기각. withEcc(plugin ON) 사용자는 ECC plugin 판(verdict
     없음)을 쓰게 되어 "verdict 코드화됨" 광고가 해당 사용자에게 거짓 (no-false-ship).

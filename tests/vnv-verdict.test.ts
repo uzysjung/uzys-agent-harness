@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
 
 // v26.113.0 (ADR-041, 라이프사이클 자산화 ⑤) — V&V verdict 어휘 코드화의 광고 계약 검증.
 // 주입 요소 = ① verification-loop: 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity
@@ -42,6 +43,20 @@ describe("V&V verdict 어휘 — 라이프사이클 ⑤ 계약", () => {
     expect(section).toContain("PASS_WITH_NITS");
     expect(section).toMatch(/`CRITICAL` \/ `HIGH` \/ `MEDIUM` \/ `LOW`/);
     expect(section).toContain("verification-loop");
+  });
+
+  it("C3 스킬은 cherrypicks.lock 에서 modified:true — sync --apply 의 덮어쓰기 방지", () => {
+    // `sync-cherrypicks.sh --apply` 는 modified:false 항목을 rsync -a --delete 로 upstream
+    // 원본에 맞춰 덮어쓴다. C3(수정본)인데 lock 이 false 로 남으면 verdict 주입이 조용히
+    // 사라지고 "코드화됨" 보고가 거짓이 된다. manifest C3 목록 ↔ lock 플래그를 derive 로 대조.
+    const lock = JSON.parse(read("../.dev-references/cherrypicks.lock")) as {
+      cherrypicks: Array<{ dst: string; modified: boolean }>;
+    };
+    for (const sd of MODIFIED_ECC_SKILL_DIRS) {
+      const entry = lock.cherrypicks.find((c) => c.dst === `templates/skills/${sd}/`);
+      expect(entry, `cherrypicks.lock entry missing for ${sd}`).toBeDefined();
+      expect(entry?.modified, `${sd} must be modified:true in cherrypicks.lock`).toBe(true);
+    }
   });
 
   it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
