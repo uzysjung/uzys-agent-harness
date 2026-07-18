@@ -220,14 +220,14 @@ External assets are recommended automatically based on your track selection. Ste
 | `asis-tobe-decision` ★ | Present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast | this project (core) |
 | `compaction-handoff` ★ | Persist durable state + git snapshot + resume anchor before a context `/compact` | this project (core) |
 | `northstar-roadmap` ★ | Measure current state vs the vision doc → ranked feature backlog persisted to docs/plans + memory | this project (core) |
-| `model-orchestration` ★ | Model orchestration policy — role split (orchestrator directs/reviews · strong model authors core/V&V · mid model does repetitive impl/E2E) + effort floors + quota handoff | this project (core) |
 | `harness-health-audit` ★ | Audit your CLAUDE.md/rules/skills/hooks on 4 questions a linter can't answer: TRUE · USED · AFFORDABLE · SAFE | this project (core) |
 | `recurrence-prevention` ★ | When the same defect happens again: verify the count with evidence, classify simple slip vs complex problem, escalate record → forced rule → structural gate | this project (core) |
 
-**First-party advisors** (`official`, **opt-in** — `--with gemini-consult` / `--with codex-consult`; repo-bundled, install across all 4 CLIs; each needs its external CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
+**First-party recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with gemini-consult` / `--with codex-consult`; repo-bundled, install across all 4 CLIs; the two advisors need their external CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 
 | Asset | What | Source |
 |---|---|---|
+| `model-orchestration` | Model orchestration policy — role split (orchestrator directs/reviews · strong model authors core/V&V · mid model does repetitive impl/E2E) + effort floors + quota handoff | this project |
 | `gemini-consult` | Consult Gemini (via `agy`) for natural **Korean** phrasing + **multi-persona** second-opinion review + image generation — an idiomatic, independent second model | this project |
 | `codex-consult` | Consult OpenAI Codex (`codex exec`) for **concise / structured** rewriting + **image generation** (real PNG on disk) — division of labor: nuance/persona → gemini, concision/structure/images → codex | this project |
 

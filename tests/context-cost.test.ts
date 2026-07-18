@@ -25,8 +25,10 @@ import type { InstallSpec } from "../src/types.js";
  * 실측 2026-07-17: dev-method 8종 = ~1,872 tokens. 예산 = 2,000 (여유 ~7%).
  * 실측 2026-07-18: + recurrence-prevention (9번째, ADR-033 사용자 지시 자산) = ~2,096 tokens.
  * 예산 = 2,200 (여유 ~5%) — 자산 1종 추가에 따른 명시적 상향. 설명 확장만으로 넘으면 줄여라.
+ * 실측 2026-07-18 (ADR-034): model-orchestration 이 수단(권장) opt-in 으로 이동 → 코어 8종 =
+ * ~1,809 tokens. 예산 = 1,900 으로 재조임 (ratchet — 줄었으면 예산도 낮춘다).
  */
-const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 2200;
+const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1900;
 
 describe("context-cost primitives", () => {
   it("estimates tokens at chars/4 rounded up", () => {

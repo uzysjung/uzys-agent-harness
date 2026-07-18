@@ -173,7 +173,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 export const DEV_PLUS_PM_TRACKS: ReadonlyArray<Track> = [...DEV_TRACKS, "project-management"];
 
 /**
- * 62 자산 매트릭스 (v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 9종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 62 자산 매트릭스 (v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -251,7 +251,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Dev-method skills (uzys 1st-party, v26.87.0) ===
-  // 본 하네스의 작업 방법론 skill 9종 (repo-bundled templates). tier official, core on dev tracks
+  // 본 하네스의 작업 방법론 skill 8종 (repo-bundled templates). tier official, core on dev tracks
   // (has-dev-track → 기본 설치; wizard uncheck / --without <id> 로 제외 가능 — isAssetSelected 게이팅).
   {
     id: "multi-persona-review",
@@ -313,20 +313,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "northstar-roadmap" },
   },
-  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. v26.94.0 개정
-  //   (2026-07-07): 역할분담 재편 — orchestrator 직접: 방향성·스펙리뷰(multi-persona-review)·
-  //   기능개선·성능/보안 문제발굴 / opus@xhigh+: 문서작성·핵심구현·V&V(fresh instance) /
-  //   sonnet@high+: 반복구현·E2E. effort floor 강제 3경로 + quota 핸드오프는 유지.
-  {
-    id: "model-orchestration",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "Model orchestration policy — role split (orchestrator directs/reviews · opus@xhigh+ authors docs/core impl/V&V · sonnet@high+ repetitive impl/E2E) + effort floors + delegation spec + quota handoff",
-    category: "workflow",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "model-orchestration" },
-  },
   // v26.98.0 — 하네스 건강 감사 (ADR-027). 어제(2026-07-14) 3개 프로젝트 교차 하네스 교정
   //   작업에서 추출한 방법론 + 리서치 근거(context rot·lost-in-the-middle·skill undertriggering·
   //   Ratchet). 기존 5분류(드리프트=정확성만)에서 3질문(A truth / B efficacy / C economy)으로
@@ -364,7 +350,28 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "internal", key: "recurrence-prevention" },
   },
 
-  // === Opt-in internal bundled skill (v26.95.0 — NOT dev-method) ===
+  // === Opt-in internal bundled skills — 수단(권장) 계층 (v26.105.0, ADR-034) ===
+  // 사용자 확정(2026-07-18): 방법론(목표·스코프/ADR/결함보고/재발방지 등) = 필수 코어(위 dev-method
+  // 8종, 기본 설치) / model-orchestration·gemini-consult·codex-consult = **수단** — 필수 아님,
+  // 단 **권장**(description 에 recommended 표기). 사용자: "agy, codex, model-policy는 수단인 것
+  // 같아. 하지만 난 권장."
+
+  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. v26.94.0 개정
+  //   (2026-07-07): 역할분담 재편 — orchestrator 직접: 방향성·스펙리뷰(multi-persona-review)·
+  //   기능개선·성능/보안 문제발굴 / opus@xhigh+: 문서작성·핵심구현·V&V(fresh instance) /
+  //   sonnet@high+: 반복구현·E2E. effort floor 강제 3경로 + quota 핸드오프는 유지.
+  // v26.105.0 (ADR-034) — has-dev-track 기본 → opt-in 권장으로 이동 (수단 계층).
+  {
+    id: "model-orchestration",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Model orchestration policy — role split (orchestrator directs/reviews · opus@xhigh+ authors docs/core impl/V&V · sonnet@high+ repetitive impl/E2E) + effort floors + delegation spec + quota handoff (opt-in — recommended)",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "model-orchestration" },
+  },
+
   // gemini-consult: uzys 1st-party skill wrapping Antigravity's `agy` CLI for natural Korean
   //   phrasing + multi-persona second-opinion review. Bundled like dev-method skills
   //   (templates/skills/gemini-consult/) so it renders across all 4 CLIs, but opt-in (condition
@@ -1054,12 +1061,11 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "asis-tobe-decision",
   "compaction-handoff",
   "northstar-roadmap",
-  // v26.93.0 — Orchestration & Model Policy.
-  "model-orchestration",
   // v26.98.0 — 하네스 건강 감사 (ADR-027).
   "harness-health-audit",
   // v26.104.0 — 재발방지 (ADR-033).
   "recurrence-prevention",
+  // v26.105.0 (ADR-034) — model-orchestration 은 '수단(권장)' 계층으로 이동 (opt-in internal).
 ];
 
 /**
@@ -1067,11 +1073,13 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
- * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 9 has-dev-track methodology skills.
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 8 has-dev-track methodology skills.
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,
   // opt-in internal skills (NOT dev-method): bundled + 4-CLI rendered, installed only on opt-in.
+  // v26.105.0 (ADR-034) — '수단(권장)' 계층: model-orchestration + advisors.
+  "model-orchestration",
   "gemini-consult",
   // v26.100.0 — Codex advisor (concision/structure + image gen). ADR-029.
   "codex-consult",

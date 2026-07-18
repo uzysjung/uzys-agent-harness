@@ -157,7 +157,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
-  it("dev-method skills: 9 internal/official/has-dev-track, dev-tools×4 + workflow×5", () => {
+  it("dev-method skills: 8 internal/official/has-dev-track, dev-tools×4 + workflow×4", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "multi-persona-review": "dev-tools",
@@ -166,8 +166,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "asis-tobe-decision": "workflow",
       "compaction-handoff": "workflow",
       "northstar-roadmap": "workflow",
-      // v26.93.0 — Orchestration & Model Policy (위임 시 모델 역할분담 + effort floor).
-      "model-orchestration": "workflow",
+      // v26.105.0 (ADR-034) — model-orchestration 은 '수단(권장)' 계층으로 이동 (아래 means 테스트).
       // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy). 감사 도구라 dev-tools
       //   (ultracode-service-audit 과 동일 계열 — workflow 가 아니라 tool-level audit).
       "harness-health-audit": "dev-tools",
@@ -212,21 +211,30 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   //   NOT dev-method skills. Promise=Impl: each must be bundled (so it renders across 4 CLIs) yet
   //   opt-in (installs only on explicit selection) — the exact combination that made the
   //   dev-method has-dev-track assumption too narrow. Guards that INTERNAL_BUNDLED = dev-method +
-  //   exactly these advisors, and that each stays opt-in.
-  it("consult advisors (gemini/codex): opt-in internal skills, bundled (4-CLI) but not dev-method", () => {
-    const advisors = ["gemini-consult", "codex-consult"];
-    // Superset relationship: bundled ids = dev-method ids + the advisors, no overlap.
+  //   exactly these means, and that each stays opt-in.
+  // v26.105.0 (ADR-034) — model-orchestration 합류: 사용자 확정(2026-07-18) 방법론(필수 코어) vs
+  //   수단(권장) 계층 분리. "agy, codex, model-policy는 수단. 하지만 난 권장" → 기본 설치에서
+  //   opt-in 권장으로 이동. description 에 "(opt-in — recommended)" 표기 의무.
+  it("수단(권장) 계층 (model-orchestration/gemini/codex): opt-in internal, bundled (4-CLI) but not dev-method", () => {
+    const means: Record<string, "dev-tools" | "workflow"> = {
+      "model-orchestration": "workflow",
+      "gemini-consult": "dev-tools",
+      "codex-consult": "dev-tools",
+    };
+    // Superset relationship: bundled ids = dev-method ids + the means tier, no overlap.
     expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual(
-      [...DEV_METHOD_SKILL_IDS, ...advisors].sort(),
+      [...DEV_METHOD_SKILL_IDS, ...Object.keys(means)].sort(),
     );
-    for (const id of advisors) {
+    for (const [id, category] of Object.entries(means)) {
       expect(DEV_METHOD_SKILL_IDS).not.toContain(id);
       const a = EXTERNAL_ASSETS.find((x) => x.id === id);
       if (!a) throw new Error(`${id} missing`);
       expect(assetTrustTier(id)).toBe("official");
       expect(a.source).toBe("uzys");
-      expect(a.category).toBe("dev-tools");
+      expect(a.category).toBe(category);
       expect(a.condition.kind).toBe("opt-in");
+      // 수단 계층은 wizard 라벨(description)에 opt-in 임이 드러나야 한다 — 기본 설치로 오인 방지.
+      expect(a.description).toContain("opt-in");
       expect(a.method.kind).toBe("internal");
       if (a.method.kind !== "internal") throw new Error("not internal");
       expect(a.method.key).toBe(id);
