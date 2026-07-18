@@ -45,3 +45,8 @@
     ⑥ 전체가 비-claude 미도달 — 기존 백로그 "비-internal 스킬 포팅 확장"에 귀속.
   - 계약 테스트 `tests/evidence-templates.test.ts`(섹션 슬라이스 양끝 앵커 + 재분류 비전파
     확인 + repo-local 복사본 byte-동일) 로 가드.
+  - **분류표 동기 의무를 구조화**: ADR-019 의 "코드 주석 + ADR + PRD 표 3중 동기"는 규정만
+    있고 강제 수단이 없어 v26.113.0(SOD 가 차단)·v26.114.0 두 릴리즈 연속으로 PRD 표가
+    stale 했다. 재발은 이전 대책의 실패이므로 한 레벨 위(테스트 게이트)로 올린다 —
+    PRD C3 행 ↔ `MODIFIED_ECC_SKILL_DIRS` **양방향** 대조. 이후 C2→C3 재분류는 표를 함께
+    고치지 않으면 `npm run ci` 가 실패한다.

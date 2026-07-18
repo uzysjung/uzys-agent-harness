@@ -32,10 +32,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   신규 2종을 자동 커버함을 mutation 으로 확인.
 
 ### Added
-- `tests/evidence-templates.test.ts` — 6테스트: 원장 3요소 · kill-0 오독 차단 문구 · eval spec
+- `tests/evidence-templates.test.ts` — 7테스트: 원장 3요소 · kill-0 오독 차단 문구 · eval spec
   5필드 + 존재 이유 · dogfood 의 gap.md 재사용(신규 스키마 금지 문구 포함) · C3 재분류 +
-  **잔여 C2(strategic-compact·agent-introspection-debugging) 비전파** · repo-local 복사본
-  byte-동일. 앵커는 섹션 슬라이스 양끝 (④⑤ mutation 교훈). ADR-042.
+  **잔여 C2(strategic-compact·agent-introspection-debugging) 비전파** · **PRD 분류표 ↔ 코드
+  C3 목록 양방향 대조** · repo-local 복사본 byte-동일. 앵커는 섹션 슬라이스 양끝 (④⑤
+  mutation 교훈). ADR-042.
+
+### Fixed
+- **분류표 stale 재발 차단 (구조화)**: ADR-019 는 분류가 "코드 주석 + ADR + PRD 표" 3중
+  동기라고 규정만 하고 강제 수단이 없어, v26.113.0(SOD F2 가 차단)에 이어 이번에도 같은
+  누락이 발생했다. **재발 = 이전 대책(주석 경고)의 실패** → 한 레벨 위로 에스컬레이션
+  (recurrence-prevention): PRD 표의 C3 행 ↔ `MODIFIED_ECC_SKILL_DIRS` 를 **양방향** 대조하는
+  테스트 신설(표만 C2 로 되돌리는 재발 시나리오·표만 C3 인 유령 행 둘 다 mutation 으로 RED
+  확인). 해당 릴리즈의 stale 행 2건(deep-research·eval-harness)도 동시 정정.
 
 ## [v26.113.0] — 2026-07-18 (feat: V&V verdict 어휘 코드화 — 라이프사이클 자산화 ⑤, ADR-041)
 

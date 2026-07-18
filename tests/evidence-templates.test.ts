@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildManifest } from "../src/manifest.js";
+import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
 
 // v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) — 증거 산출물 템플릿 3종의 광고 계약 검증.
 // ① deep-research: 리서치 원장(N confirmed·M killed + 기각 사유 + caveat)
@@ -82,6 +82,30 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
           withEcc: true,
         }),
     ).toBe(false);
+  });
+
+  it("PRD 분류표의 C3 행 ↔ 코드의 C3 목록 일치 (3중 동기 의무 구조화)", () => {
+    // ADR-019 는 분류가 "코드 주석 + ADR + PRD 표" 3중으로 동기돼야 한다고 규정하지만,
+    // 강제 수단이 없어 v26.113.0(SOD F2)·v26.114.0 두 릴리즈 연속으로 표가 stale 했다.
+    // 재발 = 이전 대책(주석 경고)의 실패 → 한 레벨 위로 에스컬레이션 (recurrence-prevention).
+    // 같은 목록 2곳 하드코딩은 derive 또는 대조 테스트 없이 머지 금지 (no-false-ship).
+    const prd = read("../docs/PRD/v26-58-cherry-pick-plugin-gating.md");
+    const table = slice(prd, "### 22개 분류 확정", "###");
+    const c3InTable = new Set(
+      [
+        ...table.matchAll(
+          /^\| ecc-[^|]*\| ecc\/(?:\.agents\/)?skills\/([^/]+)\/[^|]*\|(?:[^|]*\|){3}\s*\*\*C3\*\*/gm,
+        ),
+      ].map((m) => m[1] as string),
+    );
+    // 코드의 C3 = ECC 출처 스킬 전체. 표에 없는 것(karpathy hook 등 별개 source)은 대상 아님.
+    for (const sd of MODIFIED_ECC_SKILL_DIRS) {
+      expect(c3InTable, `PRD 분류표가 ${sd} 를 C3 로 표기해야 한다`).toContain(sd);
+    }
+    // 역방향 — 표만 C3 이고 코드는 C2 인 유령 행도 차단.
+    for (const sd of c3InTable) {
+      expect(MODIFIED_ECC_SKILL_DIRS, `코드가 ${sd} 를 C3 로 배선해야 한다`).toContain(sd);
+    }
   });
 
   it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
