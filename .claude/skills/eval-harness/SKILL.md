@@ -106,23 +106,50 @@ Risk Level: LOW/MEDIUM/HIGH
 ## Eval Workflow
 
 ### 1. Define (Before Coding)
-```markdown
-## EVAL DEFINITION: feature-xyz
 
-### Capability Evals
-1. Can create new user account
-2. Can validate email format
-3. Can hash password securely
+Write the spec to a file (`.claude/evals/<feature>.md`) before implementing. Give every eval a
+stable ID — `C1..Cn` for capability, `R1..Rn` for regression — so the same identifier carries
+from definition to the post-implementation status line, and a reviewer can check them off one by
+one. Prose-only lists ("Can create new user account") can't be referenced or scored.
 
-### Regression Evals
-1. Existing login still works
-2. Session management unchanged
-3. Logout flow intact
+````markdown
+# EVAL: <feature name> (<phase/PR>)
 
-### Success Metrics
-- pass@3 > 90% for capability evals
-- pass^3 = 100% for regression evals
+**Feature**: <one line>
+**Baseline**: commit <sha>          # what "regression" is measured against
+**Target**: pass@1 = 100% for capability evals
+
+## Capability Evals
+
+### C1: <name>
+- <concrete, checkable expectation — inputs → expected output>
+
+### C2: <name>
+- <expectation>
+
+## Regression Evals
+
+### R1: <existing behavior that must not move>
+- <expectation>
+
+## Test Command
+```bash
+pytest tests/test_<area>.py -v -k "<selector>"
 ```
+
+## Status (after implementation)
+- C1-Cn: PASS via <tests (N개) / route check / manual>
+- R1-Rn: PASS
+
+**Overall: pass@1 = <x>%**
+````
+
+Two fields carry most of the weight. **Baseline commit** makes "regression" falsifiable — without
+it, R-evals are opinions about the past. **Test Command** makes the spec re-runnable by someone
+who didn't write it; an eval nobody can re-run is documentation, not a gate.
+
+Fill the Status section *after* implementing, in the same file. A spec whose status is still empty
+at merge time means the evals were written and never used.
 
 ### 2. Implement
 Write code to pass the defined evals.
@@ -182,15 +209,58 @@ Runs current evals and reports status
 ```
 Generates full eval report
 
-## Eval Storage
+## Eval Storage (.md + .log Pair Format)
 
-Store evals in project:
+각 평가 항목은 **`<topic>.md` (설계) + `<topic>.log` (실행 결과)** 쌍으로 저장. 강제. 단독 .md만 있으면 재현 불가.
+
 ```
 .claude/
   evals/
-    feature-xyz.md      # Eval definition
-    feature-xyz.log     # Eval run history
-    baseline.json       # Regression baselines
+    feature-xyz.md        # Eval definition (Capability/Regression/Test 3섹션 필수)
+    feature-xyz.log       # Eval run history (실행 시각, grader, pass/fail)
+    session-YYYYMMDD.md   # 세션 단위 회고 + 차기 backlog
+    session-YYYYMMDD.log  # 동일 세션의 grader 출력
+    baseline.json         # Regression baselines (선택)
+```
+
+> Vantage 프로젝트의 `.claude/evals/*.{md,log}` 구조를 일반화한 것.
+
+### .md 파일 의무 섹션 (3개)
+
+```markdown
+# Eval: <topic>
+
+## Capability
+[새 능력 — Claude/agent가 무엇을 할 수 있는지]
+- AC: [측정 가능 기준]
+- Grader: code-based / model-based / human
+
+## Regression
+[기존 기능 보호 — 변경으로 깨지면 안 되는 baseline]
+- Baseline: <SHA or checkpoint>
+- Tests: [목록]
+
+## Test
+[실행 절차 — 누가 다시 돌려도 동일 결과 나와야 함]
+- Setup: [사전 조건]
+- Run: `bash run-eval.sh <topic>` 또는 명시적 명령
+- Expected: [기대 출력]
+```
+
+### .log 파일 형식
+
+각 실행마다 append. 시간순 누적.
+
+```
+=== 2026-04-19 14:32 (run #1) ===
+Capability: 3/3 PASS (pass@1)
+Regression: 5/5 PASS (pass^3)
+Status: SHIP READY
+
+=== 2026-04-20 09:15 (run #2 — after refactor) ===
+Capability: 3/3 PASS
+Regression: 4/5 PASS (login-flow regressed at SHA abc123)
+Status: BLOCKED — fix login-flow first
 ```
 
 ## Best Practices

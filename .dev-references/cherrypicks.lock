@@ -84,8 +84,8 @@
       "src": ".agents/skills/deep-research/",
       "dst": "templates/skills/deep-research/",
       "type": "directory",
-      "modified": false,
-      "modification_note": "Phase 4b A3에서 신규 추가. 전체 Track 공통 (executive 포함 — 제안서/DD/market 리서치에 유용)."
+      "modified": true,
+      "modification_note": "v26.114.0 (ADR-042): 리서치 원장(N confirmed·M killed + 기각 사유 표 + caveat 블록) 주입 → modified=true (sync --apply 의 rsync --delete 로부터 보호, manifest C3 와 짝)"
     },
     {
       "id": "ecc-market-research",
@@ -102,8 +102,8 @@
       "src": ".agents/skills/eval-harness/",
       "dst": "templates/skills/eval-harness/",
       "type": "directory",
-      "modified": false,
-      "modification_note": "Phase 4b D22 사용자 지적 후 추가. behavior-level testing — capability/regression evals + pass@k metrics + grader types"
+      "modified": true,
+      "modification_note": "v26.114.0 (ADR-042): eval spec 아티팩트 계약(C1..Cn/R1..Rn ID·Baseline commit·Test Command·Status after implementation) 주입 → modified=true (sync --apply 보호, manifest C3 와 짝)"
     },
     {
       "id": "ecc-verification-loop",

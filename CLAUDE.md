@@ -18,7 +18,7 @@
 - 근거: 단위테스트가 못 잡는 실환경 경로 버그를 잡으면서도(예: experimental opt-in / npx-github npm10) silent drift(v26.58~63) 재발 방지. 컨테이너 격리 = 호스트 오염 0.
 - "Docker mock 검증 ≠ 실 CLI 검증" — Promise=Implementation 봉합 시 실 바이너리를 컨테이너에 설치해 native 인식까지 확인.
 
-## Active Rules (10개)
+## Active Rules (11개)
 
 > SSOT = `.claude/rules/*.md` (표는 실 파일 목록과 1:1). 갱신 시 실 파일과 대조.
 
@@ -34,3 +34,4 @@
 | gates-taxonomy | 게이트 4유형 (Pre-flight/Revision/Escalation/Abort) |
 | test-policy | 커버리지 threshold(branches 88), TDD RED-GREEN, AAA |
 | playwright-launch | 영속 profile 브라우저 launch (E2E/audit) |
+| benchmark-parity | 벤치마크/dogfood 실측 루프, gap.md 스키마, PR "## Fidelity" |

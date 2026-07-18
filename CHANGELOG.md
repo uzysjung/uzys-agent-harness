@@ -7,6 +7,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.114.0] — 2026-07-18 (feat: 증거 산출물 템플릿 3종 — 라이프사이클 자산화 ⑥, ADR-042)
+
+라이프사이클 큐 ⑥ = **마지막 항목** (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`
+①~⑥ 전체 종결). 실무 증거 = dyld dogfood report · ROADMAP §7 리서치 출처 · `.claude/evals/`.
+전부 기존 자산 보강, 카탈로그 무변경.
+
+### Changed
+- **`deep-research` 스킬 — 리서치 원장**: 보고서 구조에 `## Research Ledger — N confirmed ·
+  M killed` + 기각 사유 표(무엇을·왜 기각·근거 출처) + `Caveats` 블록(벤더 자료·preprint·
+  verbatim 미검증분) 추가. "원장은 선택이 아니다" 근거 절 — 죽은 길 재조사 방지 + **kill 0 은
+  깨끗한 결과가 아니라 재검토 신호**(주장을 검증한 게 아니라 근거를 수집한 것).
+- **`eval-harness` 스킬 — eval spec 아티팩트 계약**: 산문 목록이던 EVAL DEFINITION 을 ID 부여
+  형식으로 교체 — `C1..Cn`/`R1..Rn` · `Baseline: commit <sha>` · `Test Command` ·
+  `Status (after implementation)` · `Overall: pass@1`. baseline 없으면 regression 은 과거에
+  대한 의견이고, Test Command 없으면 남이 재실행 못 해 게이트가 아니라 문서다.
+- **`benchmark-parity` 룰 — "Dogfood pass" 절**: 배포본 전수 walkthrough. **신규 스키마 없이
+  기존 gap.md 표 재사용** — 추가하는 것은 규율뿐(대상=배포본·범위 명시·심각도 롤업·이슈별
+  재현 아티팩트·CRITICAL 0 게이트). 전용 dogfood 템플릿 신설은 gap.md/gap-analysis 와 3중
+  중복이라 기각 (심각도 척도 분열 방지, Rule 7).
+- **deep-research·eval-harness C2 → C3 재분류** (`src/manifest.ts` + `cherrypicks.lock`
+  `modified: true`): 수정본이라 plugin 으로 갈음 불가. lock 짝 갱신은 ADR-041 이 세운 규칙 —
+  manifest 만 바꾸면 `sync --apply` 의 `rsync --delete` 가 주입을 덮어쓴다. 기존 derive 가드가
+  신규 2종을 자동 커버함을 mutation 으로 확인.
+
+### Added
+- `tests/evidence-templates.test.ts` — 7테스트: 원장 3요소 · kill-0 오독 차단 문구 · eval spec
+  5필드 + 존재 이유 · dogfood 의 gap.md 재사용(신규 스키마 금지 문구 포함) · C3 재분류 +
+  **잔여 C2(strategic-compact·agent-introspection-debugging) 비전파** · **PRD 분류표 ↔ 코드
+  C3 목록 양방향 대조** · repo-local 복사본 byte-동일. 앵커는 섹션 슬라이스 양끝 (④⑤
+  mutation 교훈). ADR-042.
+
+### Fixed
+- **SOD 리뷰 반영 (blocking 2건)**: ⓐ `eval-harness` 주입이 ```` ```markdown ```` 블록 안에
+  ```` ```bash ```` 를 중첩해 **바깥 펜스가 조기 종료** — 이후 산문과 기존 헤딩까지 코드로
+  렌더되는 형식 파손(계약 테스트가 전부 `toContain` 이라 코드블록 안 텍스트로도 통과해 무탐지).
+  4-backtick 외곽 펜스로 수정 + **펜스 균형 가드** 신설. ⓑ 룰 1개(benchmark-parity) 추가로
+  `CLAUDE.md` 의 `Active Rules (10개)` 자기 선언이 거짓 — 수치·표 행 갱신 + **표 ↔ `.claude/rules`
+  실파일 1:1 대조 가드** 신설. 둘 다 mutation 으로 RED 확인.
+- **ADR-042 대안 보강**: 가장 가까운 경쟁 후보였던 `gap-analysis-e2e` DETECT 모드 기각 사유
+  명시(척도 분열·상시 로드 여부·gap.md 스키마 소유). 룰 문구 3건 정합(기준선=레퍼런스 또는
+  자기 배포본 / HIGH 의 두 게이트 구분 / dogfood 발 PR 의 Benchmark 필드 표기).
+- **분류표 stale 재발 차단 (구조화)**: ADR-019 는 분류가 "코드 주석 + ADR + PRD 표" 3중
+  동기라고 규정만 하고 강제 수단이 없어, v26.113.0(SOD F2 가 차단)에 이어 이번에도 같은
+  누락이 발생했다. **재발 = 이전 대책(주석 경고)의 실패** → 한 레벨 위로 에스컬레이션
+  (recurrence-prevention): PRD 표의 C3 행 ↔ `MODIFIED_ECC_SKILL_DIRS` 를 **양방향** 대조하는
+  테스트 신설(표만 C2 로 되돌리는 재발 시나리오·표만 C3 인 유령 행 둘 다 mutation 으로 RED
+  확인). 해당 릴리즈의 stale 행 2건(deep-research·eval-harness)도 동시 정정.
+
 ## [v26.113.0] — 2026-07-18 (feat: V&V verdict 어휘 코드화 — 라이프사이클 자산화 ⑤, ADR-041)
 
 라이프사이클 큐 ⑤ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): fresh-instance
