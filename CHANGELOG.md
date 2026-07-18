@@ -7,6 +7,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.112.0] — 2026-07-18 (feat: north-star 스킬 보강 — 라이프사이클 자산화 ④, ADR-040)
+
+라이프사이클 큐 ④ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): 실운영 프로젝트
+2종의 North Star 관행을 기존 `north-star` 스킬(전 트랙 기본)에 주입 — 신설 아닌 보강 (중복
+신설 금지 원칙). 카탈로그 무변경 (north-star = COMMON_SKILL_DIRS manifest 자산).
+
+### Changed
+- **`north-star` 스킬 + NORTH_STAR.template.md 보강** (3요소 주입, 템플릿 7→8 섹션):
+  ① **metric-as-proxy** — 진짜 목표가 직접 측정 불가하면(외부·지연) 프록시를 명시 선언 +
+  근거 1줄, 양(1차)·사후 품질(2차) 짝 강제 (양만 재면 굿하트 게임), "기능은 프록시를
+  올리는가"로 평가 ② **Pillars(전략 축) + 모듈 ↔ 축 매핑 표** — 축마다 정의/현재 위치/전방
+  목표/가설 4요소, 미매핑 신규 모듈 = 착수 전 정렬 재검토 (scope creep 조기 신호), 로드맵
+  항목의 축 매핑 정기 점검 ③ **우선순위 순서 게이트** — 4-gate("할 것인가")와 직교하는
+  "언제"의 규칙: 기본 필수 → 기능 완성도(단순 존재 ≠ 완결) → 차별화 깊이(research/ADR 선행),
+  상위 미완 시 하위 건너뛰기 금지. Anti-patterns 4건·참고 사례 2종 동반 갱신.
+- 계약 테스트 신설 (`tests/north-star-skill.test.ts` 5건): 주입 3요소 마커 + 템플릿 fill-in
+  구조 + 도메인 중립(실프로젝트 지표·고유명 템플릿 유입 금지).
+
 ## [v26.111.1] — 2026-07-18 (docs: agy **Gemini** 재검수 반영 — 사용자 확인 후 쿼터 복구)
 
 v26.111.0 의 agy 검수는 Gemini 쿼터 소진으로 대체 모델 경유였다 — 사용자 확인 후 Gemini 3.1
