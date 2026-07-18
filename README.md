@@ -2,12 +2,12 @@
 
 **Install only the AI-coding skills & plugins your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity. Plus the project-lifecycle discipline that keeps an agent honest from idea to ship.**
 
-Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context. And the awesome-lists have too many options to wade through. `agent-harness` does two things:
+Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context window. And the awesome-lists have too many options to wade through. `agent-harness` does two things:
 
 1. **Lean curation by tech stack** — of the vetted options, you install only what this project actually calls for.
 2. **A discipline layer** — rules, hooks, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, benchmark-parity loops, recurrence prevention. That layer is what makes it a *harness*, not a skill pack ([details ↓](#the-discipline-layer--what-makes-it-a-harness)).
 
-**Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
+**Claude Code is fully supported (all assets, hooks, and plugins); Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
@@ -41,7 +41,8 @@ Step 6/6  Installing
 After install:
 
 ```bash
-claude    # launch your CLI — installed skills, rules, and hooks are now active
+claude    # or codex / opencode / agy — whichever CLI you installed for;
+          # skills, rules, and hooks are now active
 ```
 
 ### Non-interactive install (CI / scripts / Docker)
@@ -76,6 +77,24 @@ Curation, not a list to browse — pick `csr-supabase` and step 3 pre-checks exa
 
 ---
 
+## The discipline layer — what makes it a harness
+
+Curated assets are half the install. The other half is a **project-lifecycle discipline**: rules, hooks, and scaffolds proven in our own production projects, generalized to be domain-neutral. It covers the loop an agent actually runs — direction → docs → tests/CI → verification → real-browser checks → recurrence prevention:
+
+| Lifecycle stage | Installed as | What it enforces |
+|---|---|---|
+| **Direction** | `north-star` skill (all tracks) + `northstar-roadmap` ★ | vision doc → measured gaps → ranked backlog |
+| **Doc governance** | `doc-governance` rule (all tracks) + `spec-drift-check` hook | SSOT hierarchy, "merge = code **and** tracking sync", current-vs-archive split |
+| **Delivery** | `git-policy` · `change-management` · `gates-taxonomy` rules (all tracks) | conventional commits, ADRs for load-bearing decisions, 4 gate types |
+| **Tests → CI** | `test-policy` rule (dev tracks) + `ci-scaffold` (opt-in) | coverage thresholds, TDD, real-DB **parity** CI templates (fill-in) in `.github/workflows/` |
+| **Verification** | `reviewer` agent + `multi-persona-review` ★ | implementer ≠ verifier; multi-perspective review before ship |
+| **Real-browser verification** | `playwright-launch` + `benchmark-parity` rules (UI tracks) | persistent-profile capture, gap matrix (`gap.md`), PR `## Fidelity` evidence |
+| **Recurrence** | `recurrence-prevention` ★ (dev tracks) | repeat defect → escalate: record → forced rule → structural gate |
+
+Everything here is deterministic and small — fixed rails, flexible agent. ★ = first-party dev-method skill (see below).
+
+---
+
 ## Curation philosophy — lean by default
 
 > Maintainer's direction statement (2026-07). The catalog itself is unchanged by this section — it describes how curation decisions are made going forward.
@@ -93,24 +112,6 @@ Structured workflow bundles (superpowers, BMAD, OpenSpec, …) stay **opt-in and
 What stays fixed is small and deterministic: git/PR policy, verification gates, honest reporting. Within those rails the agent develops flexibly — including running several agents in parallel in one session (safety conventions for that, like worktree isolation, are roadmap items, not shipped features). Since v26.103.0 the installer shows the **session-start context cost** of your selection (bundled skills measured from frontmatter, external assets honestly marked unmeasured), and our test suite holds the bundled-skill descriptors of the default install under a token budget (external assets stay unmeasured).
 
 One honest note: this repository's *own* development harness is deliberately heavier than what it installs — it self-verifies an installer that writes into your project. Shipped defaults ≠ our dev rig.
-
----
-
-## The discipline layer — what makes it a harness
-
-Curated assets are half the install. The other half is a **project-lifecycle discipline**: rules, hooks, and scaffolds proven in our own production projects, generalized to be domain-neutral. It covers the loop an agent actually runs — direction → docs → tests/CI → verification → real-browser truth → recurrence prevention:
-
-| Lifecycle stage | Installed as | What it enforces |
-|---|---|---|
-| **Direction** | `north-star` skill (all tracks) + `northstar-roadmap` ★ | vision doc → measured gaps → ranked backlog |
-| **Doc governance** | `doc-governance` rule (all tracks) + `spec-drift-check` hook | SSOT hierarchy, "merge = code **and** tracking sync", current-vs-archive split |
-| **Delivery** | `git-policy` · `change-management` · `gates-taxonomy` rules (all tracks) | conventional commits, ADRs for load-bearing decisions, 4 gate types |
-| **Tests → CI** | `test-policy` rule (dev tracks) + `ci-scaffold` (opt-in) | coverage thresholds, TDD, real-DB **parity** CI templates (fill-in) in `.github/workflows/` |
-| **Verification** | `reviewer` agent + `multi-persona-review` ★ | implementer ≠ verifier; multi-perspective review before ship |
-| **Real-browser truth** | `playwright-launch` + `benchmark-parity` rules (UI tracks) | persistent-profile capture, gap matrix (`gap.md`), PR `## Fidelity` evidence |
-| **Recurrence** | `recurrence-prevention` ★ (dev tracks) | repeat defect → escalate: record → forced rule → structural gate |
-
-Everything here is deterministic and small — fixed rails, flexible agent. ★ = first-party dev-method skill (see below).
 
 ---
 
@@ -237,7 +238,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
 | `feature-dev` | Guided feature workflow — explore/architect/review agents | Anthropic official marketplace |
 
-**First-party dev-method skills** (`official`, **core on every dev track** — installed by default, uncheck at step 3 or `--without <id>` to skip; repo-bundled templates; install across all 4 CLIs — Claude + Codex/Antigravity native skills + OpenCode command fallback):
+**First-party dev-method skills** — `official`, **core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates that install across all 4 CLIs: Claude, Codex/Antigravity native skills, OpenCode command fallback.
 
 | Asset | What | Source |
 |---|---|---|

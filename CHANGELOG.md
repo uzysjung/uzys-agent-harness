@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.111.1] — 2026-07-18 (docs: agy **Gemini** 재검수 반영 — 사용자 확인 후 쿼터 복구)
+
+v26.111.0 의 agy 검수는 Gemini 쿼터 소진으로 대체 모델 경유였다 — 사용자 확인 후 Gemini 3.1
+Pro (High) 로 EN·KO 재검수 완료, 원래 의도("agy=Gemini 검수") 이행.
+
+### Changed
+- **README.md (Gemini EN 검수 6건)**: ① 섹션 순서 — What(discipline layer) 먼저, Why(curation
+  philosophy) 다음 (첫 방문자 스캔 순서) ② "first-class" → "fully supported (all assets, hooks,
+  and plugins)" 구체화 ③ 설치 후 명령을 multi-CLI 로 (claude or codex/opencode/agy) ④ 매핑표
+  "Real-browser truth" → "Real-browser verification" ⑤ "context" → "context window" ⑥ dev-method
+  스킬 서두의 밀집 괄호 문단 분리. **기각**: "keeps an agent honest" 교체 제안 — no-false-ship
+  문화의 브랜드 표현(관용구로도 성립)이라 유지.
+- **README.ko.md (Gemini KO 검수 8건, 평어체 번안 적용)**: 태그라인 "정직하게 붙잡아주는" →
+  "탈선하지 않게 잡아주는" · 무생물 주어 번역투("이 레이어가 이것을 …로 만든다") 해소 ·
+  "컨텍스트 비용을 스스로 정당화" → "비용 이상의 가치를 증명" · 도입부 문맥 연결 · "아니다"
+  퉁명 완화 · "결정론적이고 작다" → "가볍고 예측 가능하게 동작" · "사람 문제" → "조직의 문제" ·
+  "절대 안 건드린다" → "절대 변경하지 않는다". 검수안의 합니다체 전환은 기존 평어체 voice 유지
+  차원에서 번안만 수용.
+- 검증: wording-only 패치 — 사실 주장은 v26.111.0 SOD(매핑표 11/11 코드 대조)와 동일, 수치
+  불변(51/65·7종). 별도 SOD 생략, 로컬 `npm run ci` 게이트만.
+
 ## [v26.111.0] — 2026-07-18 (docs: README·USAGE 방향성 현행화 + README.ko 재작성, agy 검수)
 
 방향성 전환(ADR-032 Lean + 라이프사이클 자산화 ①~③) 반영 문서 현행화 (사용자 지시).
