@@ -87,9 +87,12 @@ Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harne
 ```
 1/6  Tracks            preset by stack
 2/6  CLI               claude / codex / opencode / antigravity (multi-select)
-3/6  Install items     category-grouped multiselect (Frontend / Backend / Data / Business / Dev Tools / Understanding / Visual & Media / Workflow / ECC)
+3/6  Install items     5 pages of category-grouped multiselects (v26.99.0):
+                       Dev Core (Frontend·Backend·Data) / Dev Tools (Security·Quality·Understanding)
+                       / Business / Visual & Media / Workflow & ECC.
+                       The 8 dev-method skills fold into a single "methodology bundle" row.
 4/6  Scope             Project (default) / Global
-5/6  Confirm           summary review
+5/6  Confirm           summary review (+ session-start context cost of your selection)
 6/6  Installing        pipeline
 ```
 
@@ -105,7 +108,7 @@ External assets carry a trust tier, shown as a badge in step 3:
 - **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Pre-checked on track match.
 - **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), sorted to the bottom of each category.
 
-Tiers inform; they never block — you choose what installs. Static labels (PRD v26-71), re-reviewed quarterly.
+Tiers inform; they never block — you choose what installs. Labels are static in the catalog but **auto-monitored monthly** for star-drift by CI (`trust-tier-drift.yml`); install-method availability is re-verified monthly too (`catalog-verify.yml`).
 
 ---
 
@@ -126,7 +129,7 @@ Each CLI gets its own dispatcher file:
 | OpenCode | `.opencode/` + project `AGENTS.md` | Skills + commands |
 | Antigravity | `.agents/rules/` + `.agents/skills/` | Shares `.agents/skills/` (dev-method skills) with Codex (v26.66.0+) |
 
-Multi-CLI dispatchers reference the same content via symlinks where possible — no duplication.
+Skills are **copied per CLI format, not symlinked** — each CLI needs its own variant (slash-command namespace and env-var renames differ), and Codex + Antigravity share one `.agents/skills/` file. All variants render from the same bundled source at install time, so there is no drift between them.
 
 ---
 
@@ -134,7 +137,7 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 
 | Path | Purpose |
 |---|---|
-| `.claude/rules/*.md` | LLM-facing rules (code-style, git, tests) |
+| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, test-policy; UI tracks add playwright-launch + benchmark-parity) plus stack rules (code-style, nextjs, …) |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
 | `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
@@ -144,6 +147,8 @@ Multi-CLI dispatchers reference the same content via symlinks where possible —
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
 | `.opencode/` | OpenCode dispatcher (if `--cli opencode`) |
+| `.agents/` | Codex + Antigravity shared skills/rules (if either CLI selected) |
+| `.github/workflows/` | CI fill-in templates — **only with `--with ci-scaffold`**; never overwrites existing files |
 
 ---
 
@@ -209,14 +214,14 @@ See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-
 
 ### CSR / SSR
 
-- `csr-supabase` includes Supabase + Vercel + Netlify CLI. First `supabase login` requires OAuth (manual).
+- `csr-supabase` includes Supabase + Vercel CLI (Netlify CLI is **opt-in** since v26.106.0 — deploy-CLI dedup). First `supabase login` requires OAuth (manual).
 - `ssr-nextjs` adds the `nextjs` rule template (App Router patterns).
 - `ssr-htmx` keeps it server-side — no React assets.
 
 ### Data
 
 - Polars + Dask via `K-Dense-AI/scientific-agent-skills`.
-- Python performance + resource management via `wshobson`.
+- Python performance + resource management (`wshobson`) is **opt-in** since v26.106.0.
 - `anthropic-data-plugin` for visualization + SQL.
 
 ### Executive

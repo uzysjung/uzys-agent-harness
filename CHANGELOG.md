@@ -7,6 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.111.0] — 2026-07-18 (docs: README·USAGE 방향성 현행화 + README.ko 재작성, agy 검수)
+
+방향성 전환(ADR-032 Lean + 라이프사이클 자산화 ①~③) 반영 문서 현행화 (사용자 지시).
+
+### Changed
+- **README.md**: ① 포지셔닝 개편 — "lean 큐레이션 + **규율 레이어(discipline layer)**" 2축 구조,
+  신설 섹션 "The discipline layer — what makes it a harness"(라이프사이클 7단계 ↔ 설치물 매핑표)
+  ② stale 정정 — `frontend-design`(기본 자산) Frontend 표 누락 보완, 신규 3종(code-review·
+  security-guidance opt-in) 표 반영, TTY 요구 명시, Scope 표 헤더 ③ 워크플로 7종 (v26.110.0 에서 선반영).
+- **docs/USAGE.md**: netlify-cli·python 2종 opt-in 강등(v26.106.0) 미반영 정정 · trust tier
+  "quarterly" → 월간 drift CI (README 와 모순 해소) · "symlinks where possible" 허위 서술 →
+  복사+변환(per-CLI variant) 사실 서술 · wizard 5-페이지 구조(v26.99.0) · `.agents/`·
+  `.github/workflows/`(ci-scaffold) 경로 행 · rules 행에 라이프사이클 룰 반영.
+- **README.ko.md 전면 재작성**: EN 최신판 미러 (구판 = 강등 미반영·출처 오기[react-best-practices
+  "LokeshSakthivel"]·워크플로 2행뿐·큐레이션 철학/규율 레이어 부재 — 30릴리즈급 stale 해소).
+- **agy 검수 (사용자 지시)**: EN+KO 각 1회 실행. Gemini 계열 개인 쿼터 소진(리셋 ~5.8일)으로
+  **agy 경유 GPT-OSS 120B** 로 대체 수행 — EN 유효 2건(TTY 명시·Scope 헤더) + KO 유효 4건
+  (태그라인 압축·"원커맨드"→한 번의 명령어·표 헤더·"advisory"→안내 메시지) 반영. 환각 1건
+  ("Antogravity" 오타 주장 — grep 0건 반증) 및 프로젝트 확정 용어 지적(lean 등)은 기각.
+
 ## [v26.110.0] — 2026-07-18 (feat: 오피셜 플러그인 큐레이션 — 3종 opt-in, ADR-039)
 
 사용자 제안(claude-plugins-official 고설치 6종 기본설치 검토)을 marketplace repo 실물 구성
