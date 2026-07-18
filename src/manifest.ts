@@ -60,7 +60,9 @@ const onTracks =
 //   추적 동기화" 의무. GoalTrack 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
 const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy", "doc-governance"];
 const DEV_RULES = ["test-policy", "ship-checklist", "code-style", "error-handling"];
-const UI_RULES = ["design-workflow", "playwright-launch"];
+// v26.109.0 (ADR-038, 라이프사이클 자산화 ③) — benchmark-parity: 레퍼런스 실측 → gap.md →
+//   완결성 루프. capture 수단의 SSOT 인 playwright-launch 와 짝으로만 성립하므로 UI 트랙 한정.
+const UI_RULES = ["design-workflow", "playwright-launch", "benchmark-parity"];
 
 const TRACK_RULES: Record<Track, string[]> = {
   "csr-supabase": ["shadcn", "api-contract"],

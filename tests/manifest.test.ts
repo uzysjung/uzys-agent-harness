@@ -34,6 +34,20 @@ describe("resolveRules", () => {
     expect(resolveRules({ tracks: ["full"] })).toContain("design-workflow");
   });
 
+  it("includes benchmark-parity only alongside playwright-launch (UI tracks)", () => {
+    // v26.109.0 (ADR-038) — 벤치마크 실측→gap.md 루프는 capture 수단을 규정하는
+    //   playwright-launch 와 짝일 때만 성립한다. 화면 없는 트랙에 깔리면 실행 불가능한
+    //   의무(capture 확보)만 부과하므로 UI 트랙 한정.
+    for (const track of ["ssr-nextjs", "csr-supabase", "full"] as const) {
+      const rules = resolveRules({ tracks: [track] });
+      expect(rules).toContain("benchmark-parity");
+      expect(rules).toContain("playwright-launch");
+    }
+    for (const track of ["tooling", "data", "executive", "project-management"] as const) {
+      expect(resolveRules({ tracks: [track] })).not.toContain("benchmark-parity");
+    }
+  });
+
   it("appends per-track rules union", () => {
     const rules = resolveRules({ tracks: ["csr-fastapi", "ssr-nextjs"] });
     expect(rules).toEqual(expect.arrayContaining(["shadcn", "api-contract", "database", "nextjs"]));
