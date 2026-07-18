@@ -36,5 +36,9 @@
   - 룰 강제력은 프로즈 수준 — reviewer cross-check 를 명시했지만 결정론 게이트(훅)는 없다. 규약이
     안 지켜지는 것이 확인되면 recurrence-prevention 에스컬레이션 사다리로 게이트화한다 (①의
     spec-drift 훅 짝과 같은 진화 경로).
-  - 벤치마크 정의 표·발동 경로 목록은 fill-in — 채우지 않은 설치본에서는 루프가 공회전한다. 이는
-    의도된 트레이드오프 (프로젝트 고유 정보를 하네스가 추정 기재하지 않는다).
+  - 벤치마크 정의 표는 fill-in — 채우지 않은 설치본에서는 루프가 공회전한다. 이는 의도된
+    트레이드오프 (프로젝트 고유 정보를 하네스가 추정 기재하지 않는다). 발동은 "UI/UX 에 영향하는
+    PR" 프로즈 기준 — GT 원본의 경로 패턴 목록은 프로젝트 고유라 일반화에서 제외했다.
+  - 도달 범위 = Claude Code 설치본 한정. codex/opencode/antigravity 는 rules 레이어가
+    AGENTS.md/`.agents/rules` 임베드(CLAUDE.md 본문)라 본 룰 미도달 — ① doc-governance 와 동일
+    조건. 비-claude rules 포팅은 별도 결정 사항 (본 ADR 범위 밖).

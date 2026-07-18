@@ -28,8 +28,8 @@ describe("benchmark-parity rule template", () => {
 
   it("restricts autonomous-loop exit conditions to machine-checkable proxies", () => {
     // 주관적 시각 동등 판정을 완료조건으로 쓰면 루프가 종료 불가/자기기만 — GT 실운영 교훈.
-    expect(tpl).toContain("기계");
-    expect(tpl).toContain("완료조건");
+    // 헤딩 앵커링: 낱말 매치("기계")는 무관 산문에도 걸린다 (SOD v26.109.0 N-2).
+    expect(tpl).toMatch(/## 자율 루프 완료조건 \(기계검증 프록시만\)/);
   });
 
   it("cross-references playwright-launch instead of duplicating capture mechanics", () => {
@@ -41,7 +41,7 @@ describe("benchmark-parity rule template", () => {
   it("stays domain-neutral — project-specific names appear only as examples", () => {
     // 원칙: 프로젝트 고유명(GoalTrack 등)은 예시로도 남기지 않는다. 레퍼런스 SaaS 명은
     // "(예: ...)" fill-in 예시로만 허용.
-    expect(tpl).not.toContain("GoalTrack");
-    expect(tpl).not.toContain("르몽");
+    expect(tpl).not.toMatch(/goaltrack/i);
+    expect(tpl).not.toMatch(/르몽/);
   });
 });

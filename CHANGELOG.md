@@ -23,6 +23,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   ⑤ 임의 구현 안티패턴 (capture ref 없는 동등 가정·native dialog·근거 없는 threshold).
 - 배선: `UI_RULES` — capture 수단의 SSOT 인 playwright-launch 룰과 항상 짝으로 설치 (수단 재규정
   없음, 중복 신설 금지 원칙). 벤치마크 정의 표는 프로젝트별 fill-in (레퍼런스명은 예시로만).
+- 도달 범위: **Claude Code 설치본 한정** (`.claude/rules/` — rules 파일 복사는 claude baseline
+  에서만 실행). codex/opencode/antigravity 는 rules 레이어를 AGENTS.md/`.agents/rules` 의
+  CLAUDE.md 본문 임베드로만 받으므로 본 룰 **미도달** — ① doc-governance(v26.107.0)와 동일 조건
+  (SOD I-1 반영, no-false-ship "대상 CLI별" 축).
 
 ### Changed
 - **model-orchestration 스킬: "Worker lifecycle — 다 쓴 에이전트는 닫는다" 섹션 추가** (사용자
