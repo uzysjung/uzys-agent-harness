@@ -14,7 +14,7 @@
 | **🟢 registry 실재** | npm registry 실재 확인 (full 설치는 표준 `npm i` — vercel/netlify/supabase/agent-browser CLI) | `npm view` |
 | **🟡 local / matrix** | 로컬 스크립트(ecc-prune) 또는 install-matrix CI (tauri-desktop·dev-method templates) | `install-matrix.yml` |
 
-> **전 카탈로그 48/62 🟢** (Docker 실설치 + registry 실재). 나머지 14 자산 🟡 = templates(tauri-desktop·ci-scaffold·dev-method 8종·model-orchestration·gemini-consult·codex-consult)·ecc-prune. ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. ci-scaffold 는 manifest 미경유 전용 단계라 install-matrix 에도 포함되지 않는다 — 검증 = 로컬 unit 테스트(`tests/ci-scaffold.test.ts`: 트랙 매핑·no-clobber·CLI-무관)와 YAML 파싱까지, 실 GitHub Actions 실행은 사용자 repo 에서만 가능(미검증). 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
+> **전 카탈로그 51/65 🟢** (Docker 실설치 + registry 실재). 나머지 14 자산 🟡 = templates(tauri-desktop·ci-scaffold·dev-method 8종·model-orchestration·gemini-consult·codex-consult)·ecc-prune. 오피셜 플러그인 신규 3종(v26.110.0 — code-review·feature-dev·security-guidance)은 **Docker 실 claude 2.1.214 로 marketplace add + plugin install 3/3 exit 0 실증**(2026-07-18, throwaway 컨테이너 — 호스트 오염 0). ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. ci-scaffold 는 manifest 미경유 전용 단계라 install-matrix 에도 포함되지 않는다 — 검증 = 로컬 unit 테스트(`tests/ci-scaffold.test.ts`: 트랙 매핑·no-clobber·CLI-무관)와 YAML 파싱까지, 실 GitHub Actions 실행은 사용자 repo 에서만 가능(미검증). 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
 
 ## 보안 근거 (Trust Tier + 출처 vetting)
 
@@ -35,11 +35,11 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **62** (official 18 / vetted 41 / experimental 3) · 🟢 검증 **48/62**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
+> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **65** (official 21 / vetted 41 / experimental 3) · 🟢 검증 **51/65**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
 >
 > **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 2026-06-06). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (11)
+#### 🔄 Workflow (12)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
@@ -50,6 +50,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `feature-dev` | official | `feature-dev@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code (plugin) | 🟢 Docker |
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
@@ -100,7 +101,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 | `research-summarizer` | vetted | `research-summarizer@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (11)
+#### 🛡️ Dev Tools (13)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
@@ -110,6 +111,8 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `harness-health-audit` | official | templates (`--with harness-health-audit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `gemini-consult` | official | templates (`--with gemini-consult`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `codex-consult` | official | templates (`--with codex-consult`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `code-review` | official | `code-review@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `find-skills` | vetted | `vercel-labs/skills :: find-skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `product-skills` | vetted | `product-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `karpathy-coder` | vetted | `karpathy-coder@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |

@@ -7,6 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.110.0] — 2026-07-18 (feat: 오피셜 플러그인 큐레이션 — 3종 opt-in, ADR-039)
+
+사용자 제안(claude-plugins-official 고설치 6종 기본설치 검토)을 marketplace repo 실물 구성
+기준으로 판정 — "오피셜(tier) ≠ 기본설치 근거", 기본설치 축은 **갭 충족 + 상시 비용 정당**
+(ADR-032/035). 카탈로그 62 → **65**.
+
+### Added (전부 opt-in — `--with <id>` / wizard)
+- **`code-review` (official)**: 다중 에이전트 confidence 스코어링 PR 리뷰 커맨드 —
+  기본 리뷰 스택 3종과 표면 중복 + 네이티브 `/code-review` 충돌 소지로 opt-in.
+- **`feature-dev` (official)**: 탐색→설계→구현 워크플로우 + 전용 에이전트 3종 —
+  방법론류(ADR-032 "워크플로우 강제 구조 기본 불필요"), superpowers 동급 opt-in.
+- **`security-guidance` (official)**: 매 편집 패턴 경고 + LLM diff 리뷰(훅 12파일,
+  Python·Agent SDK 의존) — 상시 훅 비용 실측 전 기본설치 금지(Context Cost NSM), 실측 후 승격 재검토.
+
+### Not added (카탈로그 미등록 — ADR-039, 부재가 결정)
+- **context7**: 검토 중 정정 — `templates/mcp.json`·codex `config.toml.template`·opencode 설정이
+  이미 `@upstash/context7-mcp` 를 **기본 wiring** (claude+codex+opencode 3-CLI). 플러그인 추가 =
+  동일 서버 중복 등록이고 도달 범위도 더 좁다(plugin=claude-only). "문서 조회 기본 제공"은 기충족.
+- **claude-md-management**: ADR-025 fill-in 스캐폴드("자동채움 없음"은 의도된 결정)·
+  continuous-learning-v2(세션 학습 캡처)·harness-health-audit(CLAUDE.md 품질 감사)와 3중 충돌.
+  필요 시 marketplace 직접 설치는 가능 — 하네스가 배포하지 않을 뿐.
+
+### Verification
+- 신규 3종 **Docker 실 claude 2.1.214 실증**: throwaway 컨테이너에서 marketplace add +
+  `claude plugin install` 3/3 exit 0 (2026-07-18, 호스트 오염 0) → 🟢 51/65. 실 플러그인
+  **런타임 동작**(커맨드 실행·훅 발화)은 미검증 — 설치 가능성까지가 본 검증 범위.
+
 ## [v26.109.0] — 2026-07-18 (feat: benchmark-parity 룰 — 라이프사이클 자산화 ③, ADR-038)
 
 라이프사이클 큐 ③ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): GoalTrack 실무의

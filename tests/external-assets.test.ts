@@ -127,10 +127,16 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 62 distinct asset ids (no duplicates)", () => {
+  it("contains 65 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(62);
+    expect(ids).toHaveLength(65);
+    // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
+    expect(ids).toContain("code-review");
+    expect(ids).toContain("feature-dev");
+    expect(ids).toContain("security-guidance");
+    // context7 플러그인 = 미등록 (mcp.json/codex config 템플릿이 이미 기본 wiring — 중복 등록 방지).
+    expect(ids).not.toContain("context7");
     // v26.108.0 (ADR-037) — ci-scaffold (opt-in internal, .github/workflows fill-in 템플릿).
     expect(ids).toContain("ci-scaffold");
     // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
@@ -274,6 +280,34 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         userOverride: { forceInclude: ["ci-scaffold"], forceExclude: [] },
       }),
     ).toBe(true);
+  });
+
+  it("official plugins curation batch (v26.110.0, ADR-039): 조건·마켓플레이스 계약", () => {
+    // 사용자 승인 + 검증 정정 (2026-07-18): code-review·feature-dev·security-guidance opt-in /
+    //   context7 = 미등록(mcp.json 템플릿 기본 wiring 기충족 — 중복) / claude-md-management 기각.
+    //   "오피셜 = 기본설치"가 아니라 "갭 충족 + 상시 비용 정당"이 기본설치 축 (ADR-032/035).
+    const batch = {
+      "code-review": { category: "dev-tools" },
+      "feature-dev": { category: "workflow" },
+      "security-guidance": { category: "dev-tools" },
+    } as const;
+    for (const [id, want] of Object.entries(batch)) {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      if (!a) throw new Error(`${id} missing`);
+      expect(assetTrustTier(id), id).toBe("official");
+      expect(a.condition.kind, id).toBe("opt-in");
+      expect(a.category, id).toBe(want.category);
+      expect(a.method.kind, id).toBe("plugin");
+      if (a.method.kind === "plugin") {
+        expect(a.method.marketplace, id).toBe("anthropics/claude-plugins-official");
+        expect(a.method.pluginId, id).toBe(`${id}@claude-plugins-official`);
+      }
+      // opt-in ⇒ 트랙만으론 절대 미설치 (리뷰 표면 중복·방법론류·상시 훅 비용 — ADR-039).
+      expect(shouldInstallAsset(a, { tracks: ["full"], options: NO_OPTIONS }), id).toBe(false);
+    }
+    // 기각/미등록 2종: 카탈로그 부재가 결정 자체다 (근거 = ADR-039).
+    expect(EXTERNAL_ASSETS.find((x) => x.id === "claude-md-management")).toBeUndefined();
+    expect(EXTERNAL_ASSETS.find((x) => x.id === "context7")).toBeUndefined();
   });
 
   it("every asset has description + condition + method", () => {

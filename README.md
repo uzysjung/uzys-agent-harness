@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (48/62 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (51/65 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -200,7 +200,7 @@ External assets are recommended automatically based on your track selection. Ste
 
 ### Workflow (opt-in — pick one or more at step 3)
 
-> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 6 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
+> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
 
 | Asset | What | Activates |
 |---|---|---|
@@ -210,6 +210,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `bmad-method` | Multi-agent agile workflow (PM/Architect/Dev, 12+ agents) | bmad-code-org |
 | `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
 | `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
+| `feature-dev` | Guided feature workflow — explore/architect/review agents | Anthropic official marketplace |
 
 **First-party dev-method skills** (`official`, **core on every dev track** — installed by default, uncheck at step 3 or `--without <id>` to skip; repo-bundled templates; install across all 4 CLIs — Claude + Codex/Antigravity native skills + OpenCode command fallback):
 
