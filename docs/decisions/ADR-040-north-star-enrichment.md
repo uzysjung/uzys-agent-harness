@@ -32,6 +32,7 @@
     프로젝트(대부분의 실서비스)가 "좋은 제품" 류 목표에서 멈추지 않고 최적화 대상을 선언하게
     된다.
   - 기존 설치본은 재설치 전까지 구판 유지 (스킬 dir copy — update 모드에서 갱신).
-  - 도달 범위 = 4-CLI (north-star 는 COMMON_SKILL_DIRS 로 claude 설치, codex/antigravity/
-    opencode 는 dev-method 만 포팅되므로 **비-claude 는 미도달** — ① doc-governance 와 동일
-    조건의 skills 판. 비-internal 스킬 포팅 커버리지 확장은 별도 백로그).
+  - 도달 범위(4-CLI 관점) = **claude 전용** — north-star 는 COMMON_SKILL_DIRS(manifest)로
+    claude 에만 설치되고, codex/antigravity/opencode 포팅은 internal bundled(dev-method 등)
+    한정이라 비-claude 는 미도달 (① doc-governance 와 동일 조건의 skills 판. 비-internal 스킬
+    포팅 커버리지 확장은 별도 백로그).

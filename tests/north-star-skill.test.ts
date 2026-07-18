@@ -18,9 +18,13 @@ const tpl = readFileSync(
 
 describe("north-star skill — 라이프사이클 ④ 보강 계약", () => {
   it("SKILL.md: metric-as-proxy — 측정 불가 목표의 대리 지표 선언을 가르친다", () => {
-    expect(skill).toMatch(/프록시|proxy/i);
-    // 프록시의 짝 구조(양 + 사후 품질)와 굿하트 경계 중 최소한 품질 짝은 명시.
-    expect(skill).toContain("품질");
+    // §2 본문에 앵커 — 무앵커 토큰 검사는 Anti-Patterns/Examples 의 동일 낱말로도 통과해
+    //   §2 삭제 mutation 이 생존했다 (SOD v26.112.0 I-1 실증).
+    const proxySection =
+      (skill.split("### 3. Pillars")[0] ?? "").split("### 2. North Star Metric")[1] ?? "";
+    expect(proxySection).toContain("프록시 지표를 명시적으로 선언");
+    expect(proxySection).toContain("양(1차) + 사후 품질(2차) 짝");
+    expect(proxySection).toContain("굿하트");
   });
 
   it("SKILL.md: Pillars + 모듈↔축 매핑 — 미매핑 모듈은 착수 전 재검토", () => {
@@ -44,6 +48,10 @@ describe("north-star skill — 라이프사이클 ④ 보강 계약", () => {
 
   it("도메인 중립 — 실프로젝트 고유명은 Examples 참고 사례로만", () => {
     // Process/템플릿 본문에 특정 도메인 지표가 규범으로 박히면 일반화 실패.
-    expect(tpl).not.toMatch(/ROI|WAGI|GoalTrack|Vantage/);
+    // /i + SKILL 본문(Examples 이전) 확장 — 소문자 유입·Process 유입 mutation 4종 중 3종이
+    //   생존했던 구멍을 봉합 (SOD v26.112.0 I-2 실증).
+    const LEAK = /ROI|WAGI|GoalTrack|Vantage/i;
+    expect(tpl).not.toMatch(LEAK);
+    expect(skill.split("## Examples")[0]).not.toMatch(LEAK);
   });
 });
