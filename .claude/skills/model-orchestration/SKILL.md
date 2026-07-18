@@ -174,8 +174,8 @@ skill's Verdict Contract). Two consequences for orchestration:
   (worker lifecycle) — otherwise spawn a fresh verifier.
 - **PASS_WITH_NITS is not silent PASS.** Its LOW/MEDIUM findings come back to the
   orchestrator as recorded follow-ups, not as buried prose — deciding their fate is an
-  orchestrator judgment call, never the verifier's. (The verdict name is historical: it
-  covers MEDIUM too, not only the LOW "nit" tier.)
+  orchestrator judgment call, never the verifier's. (The name says nits, but the tier it
+  covers is LOW **and** MEDIUM.)
 
 ## Orchestrator handoff (quota exhaustion)
 

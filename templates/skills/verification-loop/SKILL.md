@@ -26,7 +26,9 @@ npm run build 2>&1 | tail -20
 pnpm build 2>&1 | tail -20
 ```
 
-If build fails, STOP and fix before continuing.
+If build fails, STOP and fix — then re-verify from Phase 1 in a fresh instance. Continuing
+through the remaining phases yourself would make you the verifier of code you just wrote,
+which the Verdict Contract below forbids.
 
 ### Phase 2: Type Check
 ```bash

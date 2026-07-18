@@ -41,7 +41,10 @@ describe("V&V verdict 어휘 — 라이프사이클 ⑤ 계약", () => {
   it("광고된 부수 표면도 가드 — mo quick reference 줄 + vl description 트리거 텍스트", () => {
     // ADR/CHANGELOG 가 명시적으로 광고하는 두 줄인데 무가드였다 (SOD F4/F5, mutation M9/M10
     // 생존). description 은 스킬 발견 표면이라 소실 시 트리거 자체가 퇴행한다.
-    const qr = mo.split("## Quick reference")[1] ?? "";
+    // 끝 앵커 필수 — quick reference 가 현재 파일 마지막 절이라 무앵커 슬라이스는 이후에
+    // 추가되는 절까지 삼킨다. 이 파일은 실제로 절이 늘어난다(v26.109.0 worker-lifecycle).
+    // 무앵커 상태에서 "줄 삭제 + 뒤에 같은 낱말 포함 절 추가" mutation 이 생존했다 (SOD R3-N1).
+    const qr = (mo.split("## Quick reference")[1] ?? "").split("\n## ")[0];
     expect(qr).toContain("PASS_WITH_NITS");
     const frontmatter = vl.split("---")[1] ?? "";
     expect(frontmatter).toContain("PASS_WITH_NITS");

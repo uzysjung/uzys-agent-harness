@@ -39,9 +39,10 @@
   - 도달 범위는 **두 자산이 다르다** (한 문장으로 뭉뚱그리면 비-claude 표면 점검을 건너뛰게
     된다 — SOD F1): **verification-loop = claude 설치본 한정** (ECC cherry-pick 은 codex/agy
     포팅 커버리지 밖 — 기존 백로그 "비-internal 스킬 포팅 확장"에 귀속, ①③④와 동일 조건) /
-    **model-orchestration = 4-CLI** (`INTERNAL_BUNDLED_SKILL_IDS` 소속 → codex `.agents/skills/`,
-    opencode `.opencode/commands/`, antigravity 로 복사+변환 렌더). 즉 verdict 어휘의 오케스트
-    레이션 절반은 4-CLI 에 도달하고, 검증 절차 절반만 claude 전용이다.
+    **model-orchestration = 4-CLI (단, opt-in 선택 시)** — `INTERNAL_BUNDLED_SKILL_IDS` 소속이라
+    codex `.agents/skills/`, opencode `.opencode/commands/`, antigravity 로 복사+변환 렌더되지만
+    `condition: opt-in` 이므로 이는 **도달 상한**이지 기본 설치분이 아니다. 즉 verdict 어휘의
+    오케스트레이션 절반은 (선택 시) 4-CLI 에 도달하고, 검증 절차 절반만 claude 전용이다.
   - 계약 테스트 `tests/vnv-verdict.test.ts` (섹션 슬라이스 앵커, ④ mutation 교훈) +
     manifest C3 테스트가 어휘·재분류를 가드. repo-local `.claude/skills` 복사본 byte-동일
     가드 포함.
