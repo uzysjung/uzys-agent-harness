@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.116.0] — 2026-07-19 (feat: 발화(body) 비용 계측 + 자산별 순위표 — ADR-043 후속 ①)
+
+1차 NSM `Context Cost per Install` 의 **큰 쪽**을 채운다. v26.115.0 까지는 상주(descriptor)만
+쟀고, 스킬이 실제 트리거될 때 들어오는 body 는 미계측이었다 — "얼마나 잡아먹나"의 답이 절반뿐이었다.
+
+### Added
+- `assetBodyTokens()` — SKILL.md body(frontmatter 제외) 토큰. 외부 자산은 `null`(unmeasured).
+- `assetCostRows()` — 자산별 `{상주, 발화}` 행을 **발화 내림차순**으로. "무엇부터 검토할
+  것인가"의 순서 (ADR-043 1단계: 값싼 전수 계측으로 순위 → 비싼 eval 은 상위에만).
+- `npm run cost:report` (`scripts/context-cost-report.mjs`) — 순위표 + 합계 출력.
+
+### 실측 (2026-07-19)
+- 기본 설치 8종: 상주 **~1,809** · 전부 발화 시 **~26,810** tokens.
+- 번들 전체 11종: 상주 ~2,753 · 전부 발화 시 ~35,624.
+- 최상위 = `harness-health-audit` **~8,009**(2위의 2.5배). 491줄 단일 파일 — `references/` 분할
+  후보로 이미 열려 있던 백로그가 수치로 확인됐다.
+- **참고(합계 미포함)**: 룰 파일 전체 ~6,705 tokens — **상시 로드**지만 현행 NSM 정의 밖.
+  룰을 NSM 에 넣을지는 열린 결정. 외부 자산 52종 = unmeasured.
+
+### 설계 노트
+- 상주와 발화는 **단위가 다르다** — 전자는 설치한 전원이 매 세션, 후자는 트리거될 때만. 근거 없는
+  가중 합산("총 비용")을 만들지 않고 두 열을 따로 둔다.
+- `Justified Asset Ratio`(편익 축)는 **여전히 미구현** — 선언 ≠ 달성.
+
 ## [v26.115.0] — 2026-07-19 (feat: 계측된 최소 하네스 — 차별화 축 격상 + HITO 폐기, ADR-043)
 
 북극성 **Major CR**. 차별화 주장을 "우리는 검증된 것을 준다"에서 **"우리는 재봤고, 남길 근거가

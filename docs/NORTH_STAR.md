@@ -37,8 +37,10 @@
 | **Context Cost per Install** | 트랙별 **기본 설치** 자산이 물리는 토큰 = 상주(skill descriptor) + 발화(SKILL.md body) | 트랙별 baseline 대비 **비증가 ratchet** (증가 시 명시적 정당화). 절대 상한은 실측 후 — 근거 없는 수치 고정 금지 |
 | **Justified Asset Ratio** | 기본 설치 자산 중 편익 근거(with/without eval 델타 또는 `operational-fact` 분류)를 **문서로 보유**한 비율 | **100%** (기본 설치 한정 — opt-in 자산은 미요구) |
 
-> **현재 상태 (2026-07-18)**: 상주분만 계측 중(`src/context-cost.ts` = frontmatter). **발화(body)
-> 토큰과 Justified Asset Ratio 는 미구현·미측정** — 지표 선언 ≠ 달성. 후속 큐는 ADR-043 참조.
+> **현재 상태 (2026-07-19)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report` 로 자산별
+> 순위표 산출(`src/context-cost.ts`). 실측: 기본 설치 8종 = 상주 ~1,809 · 전부 발화 시 ~26,810
+> tokens. **`Justified Asset Ratio` 는 여전히 미구현·미측정** (2단계 eval 미실행) — 지표 선언 ≠
+> 달성. 상주/발화는 **단위가 다르므로**(전원이 매 세션 vs 트리거 시) 가중 합산하지 않는다.
 
 ### 2차 지표 — 속도 · 진입 · 신뢰
 
@@ -69,8 +71,7 @@
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
 - Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
-- Session-Start Context Cost: repo-bundled 템플릿 자산 = frontmatter 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지)
-- Context Cost per Install: 위 상주분 + SKILL.md body 토큰 (**body 계측 미구현**). 값싼 결정론 계측이므로 **전수** 적용 → 비용 순위표 산출
+- Context Cost per Install: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
 - Justified Asset Ratio: 비용 순위 **상위 자산에 한해** with/without eval(`eval-harness` + `skill-creator` baseline 패턴)로 편익 델타 측정. 나머지는 `operational-fact` 분류(모델이 알 수 없는 upstream 사실)로 근거 성립. **미구현**
 
 ---
@@ -96,7 +97,7 @@
 
 - **정의**: "무엇이든 설치"도 "많이 설치"도 아니다. **재보고, 남길 근거가 있는 것만** 준다. 자산마다 비용(상주+발화 토큰)과 편익(eval 델타 또는 `operational-fact` 분류)이 붙고, 설명되지 않으면 drop 또는 opt-in 강등. 출처·역할은 한 줄씩 명시해 사용자가 **이해하고 선택**하며, 권장은 pre-checked 로 어필하되 최종 결정은 사용자.
 - **현재 위치**: `src/external-assets.ts`(카탈로그 + trust-tier) · `src/context-cost.ts`(상주 비용 계측) · `src/external-installer.ts` · `src/interactive.ts`·`src/wizard-steps.ts`(선택 UI) · `src/preset-recommend.ts` · `test/docker/`(실설치 검증) · `src/trust-tier-drift.ts` · v26.106.0 전수 축 판정(ADR-035).
-- **전방 목표**: ① body 토큰 계측 → 비용 순위표 ② 상위 비용 자산 with/without eval ③ 재판정 반영(keep/drop/강등) ④ 자산 콘텐츠 prompt-injection 스캔(ADR-021, **미실행**).
+- **전방 목표**: ~~① body 토큰 계측 → 비용 순위표~~ ✅ v26.116.0 · ② 상위 비용 자산 with/without eval ③ 재판정 반영(keep/drop/강등) ④ 자산 콘텐츠 prompt-injection 스캔(ADR-021, **미실행**).
 - **가설**(미검증): "더 많이"가 표준인 시장에서 **"재보고 줄였다"**가 방어 가능한 대비를 만든다. 검증 경로 = Phase 3 외부 채택 신호. 하위 가설(검증·선택권 → 신뢰)은 trust-tier·Docker 검증으로 실행 중.
 
 ### Pillar 3 — 4-CLI 동등성
