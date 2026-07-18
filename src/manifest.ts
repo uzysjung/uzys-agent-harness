@@ -56,7 +56,9 @@ const onTracks =
   (s: AssetSpec): boolean =>
     anyTrack(s.tracks, pattern);
 
-const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy"];
+// v26.107.0 (ADR-036, 라이프사이클 자산화 ①) — doc-governance: SSOT 위계 + "merge = 코드 +
+//   추적 동기화" 의무. GoalTrack 실무(700+ 커밋 검증)의 일반화. 문서 규약은 전 트랙 공통.
+const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy", "doc-governance"];
 const DEV_RULES = ["test-policy", "ship-checklist", "code-style", "error-handling"];
 const UI_RULES = ["design-workflow", "playwright-launch"];
 

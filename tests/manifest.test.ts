@@ -3,9 +3,17 @@ import { buildManifest, resolveRules } from "../src/manifest.js";
 
 describe("resolveRules", () => {
   it("includes COMMON rules for any track", () => {
+    // v26.107.0 (ADR-036) — doc-governance: SSOT 위계 + merge=코드+추적 동기화. 전 트랙 공통 —
+    //   executive 트랙에서도 문서 규약은 적용된다 (거짓 상태 방지는 코드 유무와 무관).
     expect(resolveRules({ tracks: ["executive"] })).toEqual(
-      expect.arrayContaining(["change-management", "gates-taxonomy", "git-policy"]),
+      expect.arrayContaining([
+        "change-management",
+        "gates-taxonomy",
+        "git-policy",
+        "doc-governance",
+      ]),
     );
+    expect(resolveRules({ tracks: ["tooling"] })).toContain("doc-governance");
   });
 
   it("does not include DEV rules for executive-only", () => {

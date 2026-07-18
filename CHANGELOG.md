@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.107.0] — 2026-07-18 (feat: doc-governance 룰 — 라이프사이클 자산화 ①, ADR-036)
+
+사용자 지시(2026-07-18): "이 부분들(북극성→스펙→로드맵 현행화→V&V→CI)이 지켜지는 것이 하네스."
+GoalTrack·dyld_vantage 읽기 전용 실무 감사(쓰기 0)로 실제 굴러가는 관행을 추출 →
+`docs/plans/lifecycle-codification-2026-07-18.md` 실행 큐 ①~⑥ 등재, 본 릴리즈 = ①.
+
+### Added
+- **`doc-governance` 룰** (COMMON_RULES — **전 트랙 기본 설치**): SSOT 위계(NORTH_STAR▸SPEC▸PRD▸
+  TODO▸README + decisions/) · "한 사실은 한 곳" · spec-first · **"merge = 코드 + 추적 동기화"
+  의무**(머지 직후 같은 작업 단위로 TODO `[x]`+PR# / SPEC Change Log / README 현재 상태 — 빠지면
+  추적 SSOT 가 거짓 상태 → 다음 세션이 완료분을 backlog 로 오인) · 현행 vs archive 분리 · 작성
+  원칙. GoalTrack 에서 700+ 커밋 동안 검증된 관행의 도메인 중립 일반화.
+- 라이프사이클 실행 큐 SSOT: `docs/plans/lifecycle-codification-2026-07-18.md` (감사 교차 결론 포함).
+
+### Changed
+- **`spec-drift-check.sh` 훅 보강** (기배포, 전 트랙): GT 검증판의 검사 #3 백포트 — SPEC Status
+  "Define" ↔ gate-status.json build/verify 완료 불일치 검출 (`.claude/gate-status.json` 존재 +
+  jq 가용 시만, 없으면 skip — First-Run 무영향). ship 단계에서 차단(exit 2).
+- 미검증 명시: shellcheck 정적 분석은 호스트 미설치로 미실행 (스모크 실행 exit 0, 추가 블록은
+  GT 운영판 원문 이식).
+
 ## [v26.106.0] — 2026-07-18 (feat: 자산 축 판정 실행 — 강등 5종 + 제거 1종, ADR-035 · Lean 큐 ④)
 
 62자산 전수를 pattern-guide(모델 프리트레이닝이 커버 — T2 가설) vs operational-fact(모델 밖에서
