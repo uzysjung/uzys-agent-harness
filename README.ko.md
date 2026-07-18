@@ -1,13 +1,13 @@
 # uzys-agent-harness
 
-**기술 스택에 실제로 필요한 AI 코딩 스킬·플러그인만 골라, 한 번의 명령어로 Claude Code · Codex · OpenCode · Antigravity 에 세팅한다 — 아이디어→출하까지 에이전트를 정직하게 붙잡아주는 라이프사이클 규율과 함께.**
+**기술 스택에 실제로 필요한 AI 코딩 스킬·플러그인만 골라, 한 번의 명령어로 Claude Code · Codex · OpenCode · Antigravity 에 세팅한다 — 아이디어부터 출시까지 에이전트가 탈선하지 않게 잡아주는 라이프사이클 규율과 함께.**
 
-코딩 에이전트는 기본기가 계속 강해지고 있다 — 안 쓸 스킬과 MCP 를 쌓는 것은 컨텍스트만 부풀린다. awesome-list 는 고르기엔 너무 많다. `agent-harness` 는 두 가지를 한다:
+코딩 에이전트는 기본기가 계속 강해지고 있다 — 안 쓸 스킬과 MCP 를 쌓으면 컨텍스트 창만 부풀고, awesome-list 는 내 프로젝트에 맞는 것을 일일이 고르기엔 선택지가 너무 많다. `agent-harness` 는 두 가지를 한다:
 
 1. **스택 기반 lean 큐레이션** — 검증된 옵션 중에서, 이 프로젝트에 실제로 필요한 것만 설치.
-2. **규율 레이어(discipline layer)** — 실제 프로덕션 프로젝트를 에이전트로 운영하며 증명된 룰·훅·CI 스캐폴드: 문서 거버넌스, 검증 게이트, 벤치마크 패리티 루프, 재발 방지. 이 레이어가 이것을 스킬 팩이 아니라 *하네스*로 만든다 ([상세 ↓](#규율-레이어--무엇이-하네스인가)).
+2. **규율 레이어(discipline layer)** — 실제 프로덕션 프로젝트를 에이전트로 운영하며 증명된 룰·훅·CI 스캐폴드: 문서 거버넌스, 검증 게이트, 벤치마크 패리티 루프, 재발 방지. 이 규율 레이어 덕분에 이 도구는 단순한 스킬 모음이 아니라 *하네스*가 된다 ([상세 ↓](#규율-레이어--무엇이-하네스인가)).
 
-**Claude Code 가 first-class; Codex / OpenCode / Antigravity 는 skills + rules 레이어를 받는다.** 디폴트는 project scope — 명시적으로 선택하지 않는 한 글로벌 영역 미수정.
+**Claude Code 는 전체 지원(모든 자산·훅·플러그인); Codex / OpenCode / Antigravity 는 skills + rules 레이어를 받는다.** 디폴트는 project scope — 명시적으로 선택하지 않는 한 글로벌 영역 미수정.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
@@ -15,7 +15,7 @@
 
 ![agent-harness 데모 — 검증된 AI 코딩 스킬·플러그인 원커맨드 설치](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **"vetted(검증됨)"의 의미** — GitHub star ≥ 1000 + 활성 유지보수 + Docker 격리 실설치 검증(현재 51/65 자산 green), 월간 CI cron 재검증([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). 자산 내용의 라인 단위 보안 감사나 prompt-injection 스캔은 **아니다**. npm/npx 자산은 버전 고정; **plugin/skill 자산은 upstream HEAD 로 설치(commit-pin 아직 없음)**. 설치 자산은 서드파티 의존성처럼 취급할 것 — [SECURITY.md](SECURITY.md) 참고.
+> **"vetted(검증됨)"의 의미** — GitHub star ≥ 1000 + 활성 유지보수 + Docker 격리 실설치 검증(현재 51/65 자산 green), 월간 CI cron 재검증([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). 자산 코드의 라인 단위 보안 감사나 prompt-injection 스캔까지 보장하는 것은 **아니다**. npm/npx 자산은 버전 고정; **plugin/skill 자산은 upstream HEAD 로 설치(commit-pin 아직 없음)**. 설치 자산은 서드파티 의존성처럼 취급할 것 — [SECURITY.md](SECURITY.md) 참고.
 
 🇺🇸 [English](./README.md)
 
@@ -65,7 +65,7 @@ npx -y @uzysjung/agent-harness install \
 
 ## 큐레이션 철학 — lean by default
 
-프론티어 코딩 모델은 스킬 팩이 가르치던 것을 계속 흡수하고 있다. 우리의 입장: **스킬은 자기 컨텍스트 비용을 스스로 정당화해야 한다** — 설치된 스킬은 안 쓰일 때도 에이전트의 어텐션을 점유하므로, 기본 설치는 최소로 유지하고 "스킬이 많음"은 기능이 아니라 비용으로 취급한다.
+프론티어 코딩 모델은 스킬 팩이 가르치던 것을 계속 흡수하고 있다. 우리의 입장: **스킬은 자신이 차지하는 컨텍스트 비용 이상의 가치를 증명해야 한다** — 설치된 스킬은 안 쓰일 때도 에이전트의 어텐션을 점유하므로, 기본 설치는 최소로 유지하고 "스킬이 많음"은 기능이 아니라 비용으로 취급한다.
 
 여전히 가치 있다고 믿는 것은 지식 레이어가 아니라 **인사이트 레이어**다:
 
@@ -73,7 +73,7 @@ npx -y @uzysjung/agent-harness install \
 - **크로스-CLI 레버리지** — CLI 별 강점 활용: 자연스러운 산문은 Antigravity(`gemini-consult`), 간결한 구조화 + 이미지 생성은 Codex(`codex-consult`).
 - **운영 사실(operational facts)** — CLI flag·인증 흐름·배포 절차(`supabase-cli`, `railway-skills`, …)는 모델이 아무리 똑똑해져도 upstream 릴리즈와 함께 drift 한다. 범용 패턴 가이드가 가장 먼저 불필요해진다.
 
-구조화 워크플로 번들(superpowers, BMAD, OpenSpec, …)은 **opt-in 유지, pre-check 안 함**. 우리 관점: 강한 모델에는 애자일한 방향 + 확고한 git/PR 정책이 강제된 절차보다 낫다(솔로/그린필드 기준) — 단 다수 개발자 정렬·주니어 온보딩·감사 추적은 모델 업그레이드로 해결 안 되는 사람 문제라 선택은 사용자의 몫이다([워크플로 큐레이션 가이드](docs/WORKFLOWS.md)).
+구조화 워크플로 번들(superpowers, BMAD, OpenSpec, …)은 **opt-in 유지, pre-check 안 함**. 우리 관점: 강한 모델에는 애자일한 방향 + 확고한 git/PR 정책이 강제된 절차보다 낫다(솔로/그린필드 기준) — 단 다수 개발자 간 의견 정렬·주니어 온보딩·감사 추적은 모델 업그레이드로는 해결되지 않는 조직의 문제라, 선택은 사용자의 몫으로 열어둔다([워크플로 큐레이션 가이드](docs/WORKFLOWS.md)).
 
 v26.103.0 부터 설치기는 선택 항목의 **세션 시작 컨텍스트 비용**을 표시한다(번들 스킬은 실측, 외부 자산은 정직하게 unmeasured 표기).
 
@@ -90,10 +90,10 @@ v26.103.0 부터 설치기는 선택 항목의 **세션 시작 컨텍스트 비�
 | **딜리버리** | `git-policy` · `change-management` · `gates-taxonomy` 룰 (전 트랙) | conventional commits, 핵심 결정의 ADR 화, 게이트 4유형 |
 | **테스트 → CI** | `test-policy` 룰 (dev 트랙) + `ci-scaffold` (opt-in) | 커버리지 threshold, TDD, 실DB CI 템플릿(`.github/workflows/`) |
 | **검증** | `reviewer` 에이전트 + `multi-persona-review` ★ | 구현자 ≠ 검증자; 출하 전 다관점 리뷰 |
-| **실브라우저 진실** | `playwright-launch` + `benchmark-parity` 룰 (UI 트랙) | 영속 profile capture, 갭 매트릭스(`gap.md`), PR `## Fidelity` 증거 |
+| **실브라우저 검증** | `playwright-launch` + `benchmark-parity` 룰 (UI 트랙) | 영속 profile capture, 갭 매트릭스(`gap.md`), PR `## Fidelity` 증거 |
 | **재발 방지** | `recurrence-prevention` ★ (dev 트랙) | 반복 결함 → 에스컬레이션: 기록 → 강제 룰 → 구조적 게이트 |
 
-전부 결정론적이고 작다 — 고정된 레일, 유연한 에이전트. ★ = 1st-party dev-method 스킬.
+전부 가볍고 예측 가능하게 동작한다 — 레일은 고정하되 그 안에서 에이전트는 유연하게 움직인다. ★ = 1st-party dev-method 스킬.
 
 ---
 
@@ -200,7 +200,7 @@ npx -y @uzysjung/agent-harness uninstall
 
 - Project-scope 자산: 자동 제거 (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup 등).
 - 프로젝트 루트 `CLAUDE.md`: install 시점과 내용이 동일할 때만 제거 (sha256). 설치 후 직접 수정했다면 안내와 함께 보존.
-- Global-scope 자산: 안내 메시지만 출력 — 사용자가 직접 제거. uninstall 이 명시적 동의 없이 다른 프로젝트나 글로벌 설정을 절대 안 건드린다.
+- Global-scope 자산: 안내 메시지만 출력 — 사용자가 직접 제거. uninstall 은 명시적 동의 없이는 다른 프로젝트나 글로벌 설정을 절대 변경하지 않는다.
 
 | Flag | What |
 |---|---|
