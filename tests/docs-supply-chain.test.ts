@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -134,53 +135,74 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
     ).toBe(DEV_METHOD_SKILL_IDS.length);
   });
 
-  it(`index.html trust-tier 카드의 카탈로그 총계 분모가 ${total}`, () => {
-    const text = readFileSync("index.html", "utf-8");
-    const m = text.match(/(\d+)\s*\/\s*(\d+)\s+green/);
-    expect(
-      m,
-      "index.html 'X/Y green' 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
-    ).not.toBeNull();
-    expect(
-      Number((m as RegExpMatchArray)[2]),
-      `index.html 카탈로그 총계 분모 ≠ EXTERNAL_ASSETS.length(${total})`,
-    ).toBe(total);
-  });
+  // WHY (v26.115.0, 재발방지 패널): 위 방식은 "표면을 하나 놓칠 때마다 그 표면 전용 regex 를
+  //   하나 추가"였고, 그래서 llms.txt 는 v26.110.0 사후분석에서 drift 표면으로 지목되고도
+  //   게이트가 0건인 채로 남았다 — 5회 재발의 구조적 원인(패널 4인 중 3인이 독립 수렴).
+  //   열거(enumeration)를 글롭(glob)으로 대체한다: 현행 사용자 도달 문서 전체를 훑어
+  //   "N/M green|assets" 형태의 **살아있는 카탈로그 주장**을 찾고 분모를 SSOT 와 대조.
+  //   새 문서가 생겨도 게이트 수정이 필요 없다 — 놓친 표면이 구조적으로 생길 수 없다.
+  //   과거 기록(CHANGELOG·ADR·archive·plans 등)은 대상에서 제외하고, 현행 문서 안의 의도적
+  //   과거 수치는 같은 줄에 `<!-- catalog-total:frozen -->` 를 달아 면제한다.
+  it(`현행 사용자 도달 문서 전체(글롭)의 카탈로그 총계 분모가 ${total}`, () => {
+    // tracked + 아직 add 안 된 신규 문서(untracked·non-ignored)를 모두 본다.
+    //   `git ls-files` 만 쓰면 새 문서는 `git add` 전까지 게이트에 보이지 않아,
+    //   "신규 표면이 stale 총계를 들고 등장" 시나리오가 통과한다 (mutation 으로 실증).
+    const ls = (args: string[]): string[] =>
+      execFileSync("git", ["ls-files", ...args, "*.md", "*.html", "*.txt"], {
+        encoding: "utf-8",
+      })
+        .split("\n")
+        .filter(Boolean);
+    const files = [...new Set([...ls([]), ...ls(["--others", "--exclude-standard"])])]
+      // 과거 기록·템플릿·테스트 자산은 현행 주장이 아니다. 단, 아래 두 문서는 과거 기록
+      //   디렉토리에 살지만 **현행 주장**이다 (로드맵 = ship-checklist 가 SSOT 로 지정,
+      //   제출 kit = 대외 홍보물). 히스토리 디렉토리를 통째로 포함하면 "49/58 green"
+      //   (harness-audit 실측 기록) 같은 과거 수치가 대량 오탐이 되므로 이 둘만 되돌린다.
+      .filter(
+        (f) =>
+          !/^(CHANGELOG|docs\/(decisions|archive|PRD|specs|plans|research|dev|dogfood|evals)\/|templates\/|test\/|\.github\/|\.claude\/|tasks\/)/.test(
+            f,
+          ),
+      )
+      .concat([
+        "docs/plans/service-audit-roadmap.md",
+        "docs/research/adoption-c2-submission-kit.md",
+      ]);
+    expect(files.length, "글롭이 문서를 하나도 못 찾음 — 경로 필터 오류").toBeGreaterThan(3);
 
-  // WHY (v26.98.0): 위 2 게이트는 index.html·COMPATIBILITY 만 봤다. 그래서 harness-health-audit
-  //   추가(59→60) 시 README·로드맵·제출 kit 의 총계가 stale 로 남았는데도 `npm run ci` 가 green
-  //   이었다 — 게이트가 커버하지 않는 표면이 곧 drift 서식지. no-false-ship: "동일 목록이 2곳 이상
-  //   하드코딩되면 derive 단일화 또는 exhaustiveness 테스트 없이 머지 금지". 사용자 도달 문서
-  //   (README = 첫 인상, 제출 kit = 대외 홍보, 로드맵 = ship-checklist 가 SSOT 로 명시)까지 확장한다.
-  //   패턴 `N/M assets` · `카탈로그(M)` 형태의 분모가 EXTERNAL_ASSETS.length 와 어긋나면 fail.
-  it.each([
-    ["README.md", /(\d+)\s*\/\s*(\d+)\s+assets green/],
-    ["docs/research/adoption-c2-submission-kit.md", /(\d+)\s*\/\s*(\d+)\s+assets/],
-  ])(`%s 의 카탈로그 총계 분모가 ${total}`, (file, pattern) => {
-    const text = readFileSync(file, "utf-8");
-    const m = text.match(pattern as RegExp);
-    expect(m, `${file}: 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요`).not.toBeNull();
-    expect(
-      Number((m as RegExpMatchArray)[2]),
-      `${file} 카탈로그 총계 분모 ≠ EXTERNAL_ASSETS.length(${total}) — 자산 추가/제거 후 문서 미갱신`,
-    ).toBe(total);
-  });
-
-  it(`로드맵(ship-checklist SSOT)에 stale 카탈로그 총계 없음`, () => {
-    const text = readFileSync("docs/plans/service-audit-roadmap.md", "utf-8");
-    // 살아있는 작업 지칭에 쓰인 총계만 대상 — "카탈로그(N)" / "현 N 자산" / "N 전수".
-    const live = [...text.matchAll(/카탈로그\((\d+)\)|현 (\d+) 자산|(\d+) 자산 각각/g)];
-    expect(
-      live.length,
-      "로드맵 총계 패턴 미발견 — 포맷 변경 시 본 게이트 갱신 필요",
-    ).toBeGreaterThan(0);
-    for (const m of live) {
-      const n = Number(m[1] ?? m[2] ?? m[3]);
-      expect(
-        n,
-        `로드맵 stale 총계 "${m[0]}" ≠ ${total} — ship-checklist 의 로드맵 SSOT 동기화 누락`,
-      ).toBe(total);
+    // 라이브 주장 형태 실측(5표면): "51/65 assets green" · "51/65 자산 green" · "51/65 green"
+    //   · "카탈로그 51/65 🟢" · "🟢 검증 **51/65**". 검증/green/🟢/assets/자산 중 하나가
+    //   분수 앞뒤 좁은 창에 있으면 카탈로그 주장으로 본다 (147/147 테스트 수 등은 제외).
+    const claim =
+      /(?:(?:green|assets|자산|카탈로그|검증)\W{0,4})(\d+)\s*\/\s*(\d+)|(\d+)\s*\/\s*(\d+)\**\W{0,3}(?:green|assets|자산|🟢)/g;
+    const hits: string[] = [];
+    for (const f of files) {
+      const text = readFileSync(f, "utf-8");
+      for (const line of text.split("\n")) {
+        if (line.includes("catalog-total:frozen")) continue;
+        // 형태 B — 로드맵/기획 문서의 "카탈로그(N)" · "현 N 자산" 계열 주장.
+        for (const m of line.matchAll(/카탈로그\((\d+)\)|현 (\d+) 자산/g)) {
+          hits.push(`${f}: ${m[0]}`);
+          expect(
+            Number(m[1] ?? m[2]),
+            `${f} 의 카탈로그 총계 "${m[0]}" ≠ EXTERNAL_ASSETS.length(${total}) — SSOT 동기화 누락`,
+          ).toBe(total);
+        }
+        for (const m of line.matchAll(claim)) {
+          const denom = Number(m[2] ?? m[4]);
+          hits.push(`${f}: ${m[0]}`);
+          expect(
+            denom,
+            `${f} 의 카탈로그 총계 분모 "${m[0]}" ≠ EXTERNAL_ASSETS.length(${total}) — 자산 추가/제거 후 문서 미갱신 (의도적 과거 수치면 같은 줄에 <!-- catalog-total:frozen -->)`,
+          ).toBe(total);
+        }
+      }
     }
+    // 게이트 theater 방지: 주장이 0건이면 패턴이 죽은 것이다 (harness-health-audit A3).
+    expect(
+      hits.length,
+      "카탈로그 총계 주장을 한 건도 못 찾음 — 문서 포맷이 바뀌어 게이트가 무력화됐다",
+    ).toBeGreaterThanOrEqual(4);
   });
 
   // WHY (v26.98.0, SOD 리뷰 Important #1): 위 게이트들은 **문서만** 본다. 그래서
