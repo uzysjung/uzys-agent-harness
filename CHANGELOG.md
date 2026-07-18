@@ -7,6 +7,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.109.0] — 2026-07-18 (feat: benchmark-parity 룰 — 라이프사이클 자산화 ③, ADR-038)
+
+라이프사이클 큐 ③ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): GoalTrack 실무의
+벤치마크 실측→갭 추적 루프(`.claude/rules/benchmark-parity.md` + `docs/research/` audit 20회 내외)
+의 도메인 중립 일반화. 카탈로그 수 무변경 — 룰은 manifest 자산 (① doc-governance 전례와 동일).
+
+### Added
+- **`benchmark-parity` 룰** (UI 트랙 — csr-*/ssr-*/full — 자동 설치): 레퍼런스 제품을 실측해
+  핵심 기능을 도출하고 완결성을 반복 검토하는 워크플로우 의무화 —
+  ① capture→핵심 기능→완결성→발전 루프 (목표 = 모방이 아닌 핵심 기능 완결성, "단순 존재 ≠ 완결")
+  ② **gap.md 표 스키마** (ID·항목·Severity·근본원인·증거·수정안·상태 — 근본원인은 코드 수준까지,
+  증거 없는 행 기재 금지) ③ UI/UX 변경 PR 의 **"## Fidelity" 의무 섹션** + CRITICAL/임의-HIGH 갭
+  잔존 시 머지 차단 ④ 자율 루프 완료조건 = 기계검증 프록시만 (주관적 시각 동등 판정 금지)
+  ⑤ 임의 구현 안티패턴 (capture ref 없는 동등 가정·native dialog·근거 없는 threshold).
+- 배선: `UI_RULES` — capture 수단의 SSOT 인 playwright-launch 룰과 항상 짝으로 설치 (수단 재규정
+  없음, 중복 신설 금지 원칙). 벤치마크 정의 표는 프로젝트별 fill-in (레퍼런스명은 예시로만).
+- 도달 범위: **Claude Code 설치본 한정** (`.claude/rules/` — rules 파일 복사는 claude baseline
+  에서만 실행). codex/opencode/antigravity 는 rules 레이어를 AGENTS.md/`.agents/rules` 의
+  CLAUDE.md 본문 임베드로만 받으므로 본 룰 **미도달** — ① doc-governance(v26.107.0)와 동일 조건
+  (SOD I-1 반영, no-false-ship "대상 CLI별" 축).
+
+### Changed
+- **model-orchestration 스킬: "Worker lifecycle — 다 쓴 에이전트는 닫는다" 섹션 추가** (사용자
+  지시 2026-07-18): 위임 결과 수거와 동시에 TaskStop 이 기본 — 완료된 에이전트를 열어두면
+  split-terminal 환경(iTerm2 등)에서 서브에이전트 창이 누적되고 idle ping 이 세션을 오염.
+  SendMessage 재사용 예정일 때만 "유지"를 선언하고 열어둔다. 안티패턴 표·quick reference 동반 갱신.
+
 ## [v26.108.0] — 2026-07-18 (feat: ci-scaffold 자산 — 라이프사이클 자산화 ②, ADR-037)
 
 라이프사이클 큐 ② (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): GoalTrack 실무 CI

@@ -1,4 +1,8 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { buildManifest, resolveRules } from "../src/manifest.js";
 
 describe("resolveRules", () => {
@@ -32,6 +36,20 @@ describe("resolveRules", () => {
     expect(resolveRules({ tracks: ["data"] })).not.toContain("design-workflow");
     expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("design-workflow");
     expect(resolveRules({ tracks: ["full"] })).toContain("design-workflow");
+  });
+
+  it("includes benchmark-parity only alongside playwright-launch (UI tracks)", () => {
+    // v26.109.0 (ADR-038) — 벤치마크 실측→gap.md 루프는 capture 수단을 규정하는
+    //   playwright-launch 와 짝일 때만 성립한다. 화면 없는 트랙에 깔리면 실행 불가능한
+    //   의무(capture 확보)만 부과하므로 UI 트랙 한정.
+    for (const track of ["ssr-nextjs", "csr-supabase", "full"] as const) {
+      const rules = resolveRules({ tracks: [track] });
+      expect(rules).toContain("benchmark-parity");
+      expect(rules).toContain("playwright-launch");
+    }
+    for (const track of ["tooling", "data", "executive", "project-management"] as const) {
+      expect(resolveRules({ tracks: [track] })).not.toContain("benchmark-parity");
+    }
   });
 
   it("appends per-track rules union", () => {
@@ -182,5 +200,34 @@ describe("buildManifest", () => {
     // selectedInternalSkills omitted / empty → dropped (no track-only fallback).
     expect(entry?.applies({ tracks: ["tooling"] })).toBe(false);
     expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: [] })).toBe(false);
+  });
+
+  it("every manifest source exists under templates/ (silent-skip guard)", () => {
+    // installer 는 source 부재 시 예외 없이 skip 후 진행 — 룰/스킬명 오타가 "설치됨" 보고 +
+    //   무설치(silent drift, v26.58~63 형태)가 되는 것을 구조 차단 (SOD v26.109.0 N-4).
+    const templatesRoot = fileURLToPath(new URL("../templates", import.meta.url));
+    const spec = {
+      tracks: [
+        "csr-supabase",
+        "csr-fastify",
+        "csr-fastapi",
+        "ssr-htmx",
+        "ssr-nextjs",
+        "data",
+        "executive",
+        "tooling",
+        "full",
+        "project-management",
+        "growth-marketing",
+      ] as const,
+      withTauri: true,
+      selectedInternalSkills: [...INTERNAL_BUNDLED_SKILL_IDS],
+    };
+    for (const entry of buildManifest(spec)) {
+      expect(
+        existsSync(join(templatesRoot, entry.source)),
+        `missing template: ${entry.source}`,
+      ).toBe(true);
+    }
   });
 });

@@ -129,6 +129,21 @@ all (do it directly); bounded question → one agent; genuinely independent axes
 axis. Over-spawning is a documented failure mode, and multi-agent runs cost ~15× a plain chat
 turn — delegate when the task's value justifies it, not by reflex.
 
+## Worker lifecycle — 다 쓴 에이전트는 닫는다
+
+Delegation is not finished when the result arrives — it is finished when the worker is closed.
+A completed agent left running stays resident: in split-terminal setups (iTerm2 subagent panes
+등) every leftover worker keeps a window open, and idle agents keep pinging the session long
+after their job ended. The clutter compounds per delegation.
+
+- **Consume the result → stop the agent** (TaskStop or the harness's stop mechanism) as one
+  motion. Close-after-use is the default, not a cleanup chore for later.
+- Keep a worker alive ONLY when you will genuinely continue it via SendMessage (e.g. a reviewer
+  that must re-verify after fixes land) — and state that intent when you decide it, so every
+  still-open agent is a declared decision, not a leak.
+- **Sweep at checkpoints**: at phase end and during [[compaction-handoff]], list running agents
+  and stop every finished one before moving on.
+
 ## V&V separation
 
 The implementer never verifies its own work — the *instance* that wrote something never judges
@@ -179,6 +194,7 @@ build on. Hand off manually:
 | Two agents writing the same files in parallel | Conflicting implicit decisions; keep writes sequential or worktree-isolated |
 | Spawning an agent for what one direct tool call answers | 15× token multiplier for zero value — do trivial work directly |
 | Relying on plan-level auto-fallback for continuity | Undocumented behavior; use the manual handoff protocol |
+| Finished worker left running after its result is consumed | Subagent panes/windows accumulate (iTerm2 등) and idle pings pollute the session — TaskStop as one motion with consuming the result |
 
 ## Quick reference
 
@@ -190,5 +206,6 @@ build on. Hand off manually:
 반복 구현 / E2E 테스트 / 리서치 스윕
                                → sonnet @ high 이상
 결정적 변환 (rename·포맷)      → 모델 위임 금지 — sed/grep/스크립트 직접
+위임 완료                      → 결과 수거와 동시에 TaskStop (SendMessage 재사용 예정 시만 유지 선언)
 Fable 소진                     → compaction-handoff → opus @ max 가 오케스트레이터 대행
 ```
