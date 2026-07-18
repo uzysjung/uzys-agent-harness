@@ -12,7 +12,7 @@
 | **M2 — 게시 실행 (Launch, 신규 코드작업 0)** | M1 게이트 통과 직후, 반자동(폼채움=에이전트 / 제출클릭=사용자) 으로 Show HN + r/ClaudeCode 게시 → 며칠 후 awesome-list 2곳 | Show HN 글 + r/ClaudeCode 글 게시 완료(사용자 제출 클릭) + 각 글 첫 24h 댓글 모니터링·초안(에이전트)→승인 후 응답 라이브. awesome-list 는 bradAGI R |
 | **M3 — 게시 후 30일 (Trust Receipts + 신호 반영)** | 0★ cold-start 에서 '검증 인프라=신뢰 대체재'를 사용자에게 보이게 만들고(영수증/SHA 기록), 게시 신호(이슈·반례)를 우선 반영. drift 자동 | (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOW |
 | **M4+ — 구조/확장성 (게시 후 신호 확보 이후, 1인 capacity 초과 항목)** | North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 | (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex  |
-| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(65 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 62 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
+| **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(65 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 65 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
 | **M6 — 다면 리뷰 (`/uzys:review` 패널 모드, re-scope 2026-06-21)** | `multi-persona-review` 스킬(v26.87.0 출하)을 6-Gate `/uzys:review` 모드로 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합). 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거). | (1) `/uzys:review` 패널 모드(독립 커맨드 없음) (2) 동적 페르소나+agent.md 자동혼합 (3) surface parity. SPEC 선행 |
 
 **즉시 착수(immediateNext) — 2026-07-17 갱신:** ~~M2 게시~~ **사용자 보류**(2026-07-17 — HN 티켓 미접수·레딧 접근 불가 보고. 카피 3글은 실측 재검증판 #210 으로 완성 대기, 재개 시 launch-posts.md 하단 33채널 카탈로그 활용). **다음 = Lean 방향 실행 큐**(ADR-032, SSOT `docs/plans/lean-direction-2026-07-17.md`): ① ~~Session-Start Context Cost 표시 + CI ratchet~~ 완료(v26.103.0) ② ~~자산 축 판정~~ 완료(v26.106.0 ADR-035 — 62 전수 판정+사용자 컨펌, 강등 5·트랙축소 1·제거 1, **Lean 큐 전체 종결**) ③ ~~WORKFLOWS 조건표~~ 완료(#212) ④ ~~트리거 중복 탐지 CI~~ 완료(v26.103.0) ⑤ ~~재발방지 스킬(단순 실수→룰 등록 / 복잡 문제→다면 페르소나)~~ 완료(v26.104.0 `recurrence-prevention`, ADR-033) ⑥ ~~방법론 코어 재편(목표·스코프·ADR·결함보고·재발방지 = 필수 / consult·model-policy = 수단·권장)~~ 완료(v26.105.0, ADR-034 — 코어 8 기본 / 수단 3 opt-in 권장). 번들 6종 = opt-in 유지 확정. **잔여 = ② 자산 축 판정**.
@@ -123,7 +123,7 @@
 
 > "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 9종 자체도 재평가 대상.
 >
-> **상태 (2026-06-21 감사):** 자산 수 48→**59** 정정(실측 — `external-assets.ts`). 축A 'Visual & Media 확장'은 v26.85.0(#169 +5)·v26.86.0(#178 +4)로 **이미 9종 투입** — M5 착수(M2 게시 후) 전 실행이라 M5 가 경고한 '관성 쌓기'와 순서 모순. 처리: 9종에 Docker 실설치 증거 소급 등재 시 **축A 완료** 처리, **축B(전수 keep/drop)가 잔여** — 대상은 현재 **65 자산** (v26.110.0 오피셜 플러그인 4종 추가 기준. 위 "48→59"는 2026-06-21 감사 시점의 실측 기록).
+> **상태 (2026-06-21 감사):** 자산 수 48→**59** 정정(실측 — `external-assets.ts`). 축A 'Visual & Media 확장'은 v26.85.0(#169 +5)·v26.86.0(#178 +4)로 **이미 9종 투입** — M5 착수(M2 게시 후) 전 실행이라 M5 가 경고한 '관성 쌓기'와 순서 모순. 처리: 9종에 Docker 실설치 증거 소급 등재 시 **축A 완료** 처리, **축B(전수 keep/drop)가 잔여** — 대상은 현재 **65 자산** (v26.110.0 오피셜 플러그인 3종 추가 기준. 위 "48→59"는 2026-06-21 감사 시점의 실측 기록).
 
 ---
 ## M6 — 다면 페르소나 리뷰 커맨드 (Multi-Perspective Review)

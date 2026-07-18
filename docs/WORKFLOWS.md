@@ -8,7 +8,7 @@
 
 ---
 
-## 한눈에 — 설치 가능 워크플로 (6)
+## 한눈에 — 설치 가능 워크플로 (7)
 
 설치 = 인터랙티브 위저드의 **Workflow 카테고리**에서 선택, 또는 `npx -y @uzysjung/agent-harness install --track <t> --with <id>`.
 
@@ -20,8 +20,10 @@
 | **BMAD-METHOD** | `bmad-method` | bmad-code-org | 49k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
 | **addy agent-skills** | `addy-agent-skills` | addyosmani | 65k | vetted | plugin | general dev `/spec /plan` (경량) |
 | **wshobson agents** | `wshobson-agents` | wshobson | 37k | vetted | plugin | 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI |
+| **feature-dev** | `feature-dev` | anthropics 공식 | — | official | plugin | 가이드된 단일 기능 개발 루프(탐색→설계→구현) + 전용 에이전트 3종(architect/explorer/reviewer) |
 
 > `v26.75.0` 추가(ADR-021): OpenSpec · BMAD · wshobson — 3-에이전트 시장 리서치로 발굴, vetted 바(★≥1000+활성+설치가능) 통과분.
+> `v26.110.0` 추가(ADR-039): feature-dev — 오피셜 마켓플레이스 큐레이션 배치. ★는 마켓플레이스 모노레포 소속이라 비적용(—).
 >
 > ★ 수치 = GitHub `stargazers_count` 실측, **측정일 2026-06-22** (천 단위 반올림; 이전 06-13 대비 refresh — addy 57→65k 등). 출처 repo: obra/superpowers · affaan-m/ECC · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
 
@@ -35,6 +37,7 @@
 - **애자일 팀 시뮬레이션**(PM→Architect→Dev 역할 분담) → **BMAD-METHOD**.
 - **가벼운 spec/plan 슬래시**만 → **addy agent-skills**.
 - **멀티-에이전트 오케스트레이션 + 다(多)CLI 일관성** → **wshobson agents**.
+- **가이드된 단일 기능 개발 루프**(탐색→설계→리뷰, 공식·경량) → **feature-dev**.
 
 > 택1+ 가능(상호 배타 아님). 단 슬래시 네임스페이스 충돌(`/spec` 등)은 의식할 것.
 
