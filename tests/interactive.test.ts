@@ -514,7 +514,7 @@ describe("computeUserOverride", () => {
   ];
 
   it("selections == recommended → undefined (no override)", () => {
-    // v26.71.0 — tooling 추천은 vetted 만 (T3 architecture-decision-record/playwright-skill 제외).
+    // v26.71.0 — tooling 추천은 vetted 만 (T3 playwright-skill 제외; ADR 자산은 v26.106.0 카탈로그 제거).
     // v26.87.0 — + dev-method skills (official). v26.98.0 기준 8종.
     expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });

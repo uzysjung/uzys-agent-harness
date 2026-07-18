@@ -512,7 +512,7 @@ function renderPhase1Rows(
     log(assetRow("success", "skeleton", `${baseline.dirsCopied} dirs`));
   }
   // v26.63.4 (P3): Templates section 의 assetRow 호출 labelWidth=28 명시 → phase1Row 와 column 정렬.
-  //   default 40 은 External assets 의 긴 asset id (architecture-decision-record 등) 용 — 별개.
+  //   default 40 은 External assets 의 긴 asset id (python-performance-optimization 등) 용 — 별개.
   const TEMPLATES_COL = 28;
   if (baseline.rootClaudeMd) {
     const n = baseline.rootClaudeMd.tracks.length;

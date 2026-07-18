@@ -41,7 +41,6 @@ Jay의 멀티 역할(CEO/CTO/CISO/CPO/CSO/데이터 사이언티스트)과 멀�
 | MCP | Context7 | `claude mcp add context7 -- npx -y @upstash/context7-mcp@latest` |
 | MCP | GitHub | `claude mcp add github -- npx -y @modelcontextprotocol/server-github` |
 | 스킬 | postgres-best-practices | `npx skills add supabase/postgres-best-practices` |
-| 스킬 | architecture-decision-record | `npx skills add yonatangross/orchestkit` |
 | **상태표시줄** | **claude-code-statusline** | **`git clone https://github.com/kcchien/claude-code-statusline.git && cd claude-code-statusline && ./install.sh`** (jq 필요) |
 | 에이전트 | reviewer.md | 자체 작성 (context: fork, model: opus) |
 | 글로벌 | ~/.claude/CLAUDE.md | 자체 작성 |

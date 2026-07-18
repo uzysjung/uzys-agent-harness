@@ -36,3 +36,7 @@
   cost"` 1줄 또는 npm pack 패키징 테스트 추가.
 - **F8**(기록): Jaccard 게이트는 "장황하게 쓰기"로 회피 가능. gemini/codex-consult(최대 쌍)는
   opt-in 이라 예산 반대 압력이 없음. 현재 0.190 vs 0.30 — 실해 없음.
+- **F10** (v26.106.0 SOD I-1): README.ko·docs/REFERENCE.md·dev/REQUIREMENTS·specs/category-installer 의
+  수기 카탈로그 표가 미가드 — 제거 자산(content-creator/demand-gen, 30릴리즈)이 광고로 잔존했었고
+  ADR 자산 제거가 1건 추가할 뻔함(스윕으로 정리 완료). 구조 차단 = 표를 EXTERNAL_ASSETS derive 로
+  생성하거나 "카탈로그 외 id 광고 금지" 게이트 테스트 — no-false-ship "Drift 구조 차단" 후속.

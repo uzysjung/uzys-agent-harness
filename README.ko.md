@@ -115,7 +115,7 @@ Step 1 에서 1개 또는 multi 선택. 트랙 선택 결과로 Step 3 의 추�
 | `finance-skills` | 재무 모델 | claude-code-skills | executive · full |
 | `pm-skills` | PM 워크플로우 | claude-code-skills | project-management |
 | `product-skills` | Product discovery + delivery | claude-code-skills | dev + PM |
-| `marketing-skills` / `content-creator` / `demand-gen` / `research-summarizer` | 마케팅 플레이북 | claude-code-skills | growth-marketing |
+| `marketing-skills` / `research-summarizer` | 마케팅 플레이북 | claude-code-skills | growth-marketing |
 
 ### Dev Tools (모든 dev tracks)
 
@@ -124,7 +124,6 @@ Step 1 에서 1개 또는 multi 선택. 트랙 선택 결과로 Step 3 의 추�
 | `playwright-skill` | Playwright E2E 테스트 작성 | testdino-hq |
 | `find-skills` | 설치된 skills 검색 · ranking | vercel-labs |
 | `agent-browser` | 에이전트용 브라우저 자동화 CLI | npm |
-| `architecture-decision-record` | ADR 작성 | yonatangross |
 | `karpathy-coder` | Pre-commit quality gate hook | claude-code-skills |
 | `product-skills` | Product engineering | claude-code-skills |
 
