@@ -23,7 +23,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **README.ko.md 전면 재작성**: EN 최신판 미러 (구판 = 강등 미반영·출처 오기[react-best-practices
   "LokeshSakthivel"]·워크플로 2행뿐·큐레이션 철학/규율 레이어 부재 — 30릴리즈급 stale 해소).
 - **agy 검수 (사용자 지시)**: EN+KO 각 1회 실행. Gemini 계열 개인 쿼터 소진(리셋 ~5.8일)으로
-  **agy 경유 GPT-OSS 120B** 로 대체 수행 — EN 유효 2건(TTY 명시·Scope 헤더) + KO 유효 4건
+  **agy 대체 모델 경유**(GPT-OSS 120B 지정 호출 — 응답 산출물에 모델 식별 필드는 없어 지정값
+  기준) 수행 — EN 유효 2건(TTY 명시·Scope 헤더) + KO 유효 4건
   (태그라인 압축·"원커맨드"→한 번의 명령어·표 헤더·"advisory"→안내 메시지) 반영. 환각 1건
   ("Antogravity" 오타 주장 — grep 0건 반증) 및 프로젝트 확정 용어 지적(lean 등)은 기각.
 

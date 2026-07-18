@@ -105,7 +105,7 @@ Curated assets are half the install. The other half is a **project-lifecycle dis
 | **Direction** | `north-star` skill (all tracks) + `northstar-roadmap` ★ | vision doc → measured gaps → ranked backlog |
 | **Doc governance** | `doc-governance` rule (all tracks) + `spec-drift-check` hook | SSOT hierarchy, "merge = code **and** tracking sync", current-vs-archive split |
 | **Delivery** | `git-policy` · `change-management` · `gates-taxonomy` rules (all tracks) | conventional commits, ADRs for load-bearing decisions, 4 gate types |
-| **Tests → CI** | `test-policy` rule (dev tracks) + `ci-scaffold` (opt-in) | coverage thresholds, TDD, real-DB CI templates in `.github/workflows/` |
+| **Tests → CI** | `test-policy` rule (dev tracks) + `ci-scaffold` (opt-in) | coverage thresholds, TDD, real-DB **parity** CI templates (fill-in) in `.github/workflows/` |
 | **Verification** | `reviewer` agent + `multi-persona-review` ★ | implementer ≠ verifier; multi-perspective review before ship |
 | **Real-browser truth** | `playwright-launch` + `benchmark-parity` rules (UI tracks) | persistent-profile capture, gap matrix (`gap.md`), PR `## Fidelity` evidence |
 | **Recurrence** | `recurrence-prevention` ★ (dev tracks) | repeat defect → escalate: record → forced rule → structural gate |
