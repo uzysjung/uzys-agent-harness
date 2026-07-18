@@ -7,6 +7,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.117.0] — 2026-07-19 (fix: 상주 비용 = 설치가 상시 컨텍스트에 올리는 전부 — ADR-044)
+
+`Context Cost per Install` 의 상주 항이 **스킬 descriptor 만** 세고 있었다. 실측하니 그건 실제
+상주 비용의 **10%** 였고, 그 값이 위저드·설치 헤더에 `session-start context cost: ~N tokens` 로
+사용자에게 그대로 표시되고 있었다 — 실제의 9분의 1을 전부인 양 보여주는 것은 계측이 아니라 오보다.
+
+### 실측 (tooling 트랙, 실제 설치 계획 기준)
+
+| 상주 표면 | 토큰 | 비중 |
+|---|---|---|
+| rules | ~3,094 | **60%** |
+| CLAUDE.md 스캐폴드 | ~938 | 18% |
+| agent descriptors | ~615 | 12% |
+| skill descriptors | ~547 | 10% |
+| **합계** | **~5,194** | |
+
+**룰이 최대 비용 항목**이라는 사실이 처음 드러났다.
+
+### Changed
+- **상주 정의 정정**: "스킬 descriptor" → **"설치가 상시 컨텍스트에 올리는 전부"**(rules 전문 ·
+  CLAUDE.md · skill/agent descriptor). 판정은 **표면 열거가 아니라 상주/발화 구분** — 새 표면이
+  생겨도 기준이 그대로다. hooks 는 실행될 뿐 컨텍스트에 안 올라가므로 비용 대상 아님.
+- **표시 교체**: `formatResidentCostLine` — 총합 + 내역(rules/CLAUDE.md/skills/agents). 총합만
+  보이면 60%를 차지하는 룰이 계속 안 보인다. 위저드 confirm·비대화형 헤더 동일 문구.
+- 계측은 **설치 계획(manifest)에서** — `applies` 로 걸러진 엔트리 기준이라 트랙별 실제 설치분이
+  반영된다 (`templates/` 전체 합계 같은 부풀린 수치 아님).
+
+### 왜 (기각 사유가 결정적)
+스킬 한정 정의는 **굿하트로 뚫린다**: SKILL.md 산문을 룰 파일로 옮기면 *발화 시에만 내던 비용이
+매 세션 상주로 바뀌어 사용자에겐 악화*인데 지표는 개선으로 표시된다. **사용자를 나쁘게 만드는
+리팩터링을 보상하는 지표는 없느니만 못하다.** 계약 테스트("스킬 body → 룰 이동 시 상주 증가")로
+이 구멍을 봉했다.
+
+### 주의
+공표 수치가 ~547 → ~5,194 로 커지는 것은 악화가 아니라 **그동안 안 보이던 비용이 드러난 것**이다.
+`Justified Asset Ratio`(편익 축)는 여전히 **미구현**.
+
 ## [v26.116.0] — 2026-07-19 (feat: 발화(body) 비용 계측 + 자산별 순위표 — ADR-043 후속 ①)
 
 1차 NSM `Context Cost per Install` 의 **큰 쪽**을 채운다. v26.115.0 까지는 상주(descriptor)만

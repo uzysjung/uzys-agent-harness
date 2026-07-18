@@ -10,6 +10,8 @@ import {
   estimateTokens,
   extractFrontmatter,
   formatContextCostLine,
+  formatResidentCostLine,
+  residentCost,
   resolveBundleRoot,
   summarizeContextCost,
 } from "../src/context-cost.js";
@@ -153,11 +155,14 @@ describe("context cost surfaces", () => {
     renderInstallHeader((m) => lines.push(m), spec);
     const joined = lines.join("\n");
     expect(joined).toContain("session-start context cost:");
+    // v26.117.0 — 총합만 보이면 "스킬 descriptor 만 세던" 10% 과소표기로 조용히 되돌아간다.
+    expect(joined).toContain("rules ~");
   });
 
   it("wizard confirm summary prints the same context cost line", () => {
     const summary = formatSummary(spec);
     expect(summary).toContain("session-start context cost:");
+    expect(summary).toContain("rules ~");
   });
 });
 
@@ -228,5 +233,93 @@ describe("비용 순위표", () => {
     const rows = assetCostRows(["superpowers", ...INTERNAL_BUNDLED_SKILL_IDS]);
     expect(rows[rows.length - 1]?.id).toBe("superpowers");
     expect(rows[rows.length - 1]?.bodyTokens).toBeNull();
+  });
+});
+
+/**
+ * v26.117.0 (ADR-044) — 상주 비용의 표면 전체.
+ *
+ * WHY: v26.116.0 까지 상주 = "스킬 descriptor" 였는데, 실측하니 tooling 트랙 상주 ~5,194 중
+ * 스킬 descriptor 는 ~547(10%)뿐이었다. rules 가 ~3,094(60%)로 지배항인데 계측 밖이었고,
+ * 그 정의는 **굿하트로 뚫린다**: SKILL.md 산문을 룰로 옮기면 발화-시-비용이 매 세션 상주로
+ * 바뀌어 실제로는 악화되는데 지표는 개선으로 표시된다. 아래 "이동" 테스트가 그 구멍을 막는다.
+ */
+describe("상주 비용 — 표면 전체 (ADR-044)", () => {
+  const seed = (): string => {
+    const root = mkdtempSync(join(tmpdir(), "resident-"));
+    mkdirSync(join(root, "templates", "rules"), { recursive: true });
+    mkdirSync(join(root, "templates", "skills", "s1"), { recursive: true });
+    mkdirSync(join(root, "templates", "agents"), { recursive: true });
+    writeFileSync(join(root, "templates", "CLAUDE.md"), "C".repeat(40));
+    writeFileSync(join(root, "templates", "rules", "r1.md"), "R".repeat(400));
+    writeFileSync(
+      join(root, "templates", "skills", "s1", "SKILL.md"),
+      `---\nname: s1\ndescription: ${"D".repeat(36)}\n---\n\n${"B".repeat(4000)}\n`,
+    );
+    writeFileSync(
+      join(root, "templates", "agents", "a1.md"),
+      `---\nname: a1\ndescription: ${"E".repeat(36)}\n---\n\n${"F".repeat(2000)}\n`,
+    );
+    return root;
+  };
+  const entries = [
+    { source: "rules/r1.md", target: ".claude/rules/r1.md" },
+    { source: "skills/s1", target: ".claude/skills/s1" },
+    { source: "agents/a1.md", target: ".claude/agents/a1.md" },
+  ];
+
+  it("rules 는 전문이, skills/agents 는 descriptor 만 상주로 계상된다", () => {
+    const r = residentCost(entries, seed());
+    expect(r.rules).toBe(estimateTokens(400)); // 룰은 통째로 상시 로드
+    expect(r.skillDescriptors).toBeLessThan(estimateTokens(4000)); // body 는 상주 아님
+    expect(r.agentDescriptors).toBeLessThan(estimateTokens(2000));
+    expect(r.projectClaudeMd).toBe(estimateTokens(40));
+    expect(r.total).toBe(r.rules + r.projectClaudeMd + r.skillDescriptors + r.agentDescriptors);
+  });
+
+  it("스킬 body → 룰로 '이동'하면 상주 비용이 늘어난다 — 굿하트 구멍 차단", () => {
+    // 이 단언이 뒤집히면(이동해도 그대로/감소) 지표가 사용자를 나쁘게 만드는 리팩터링을
+    // 보상하게 된다. ADR-044 가 존재하는 이유 그 자체.
+    const before = residentCost(entries, seed());
+    const moved = seed();
+    // 같은 산문을 스킬 body 에서 빼서 룰에 붙인 상태.
+    writeFileSync(
+      join(moved, "templates", "skills", "s1", "SKILL.md"),
+      `---\nname: s1\ndescription: ${"D".repeat(36)}\n---\n\nshort\n`,
+    );
+    writeFileSync(join(moved, "templates", "rules", "r1.md"), "R".repeat(400) + "B".repeat(4000));
+    expect(residentCost(entries, moved).total).toBeGreaterThan(before.total);
+  });
+
+  it("hooks 는 상주 비용이 아니다 — 실행될 뿐 컨텍스트에 안 올라간다", () => {
+    const root = seed();
+    const withHook = [...entries, { source: "hooks/h.sh", target: ".claude/hooks/h.sh" }];
+    expect(residentCost(withHook, root).total).toBe(residentCost(entries, root).total);
+  });
+
+  it("표시 라인이 내역을 드러낸다 — 총합만 보이면 어디가 비싼지 모른다", () => {
+    const line = formatResidentCostLine(
+      {
+        rules: 3094,
+        projectClaudeMd: 938,
+        skillDescriptors: 547,
+        agentDescriptors: 615,
+        total: 5194,
+      },
+      52,
+    );
+    expect(line).toContain("~5194 tokens/session");
+    expect(line).toContain("rules ~3094");
+    expect(line).toContain("skills ~547");
+    expect(line).toContain("52 external assets unmeasured");
+  });
+
+  it("자산이 없으면 null", () => {
+    expect(
+      formatResidentCostLine(
+        { rules: 0, projectClaudeMd: 0, skillDescriptors: 0, agentDescriptors: 0, total: 0 },
+        0,
+      ),
+    ).toBeNull();
   });
 });
