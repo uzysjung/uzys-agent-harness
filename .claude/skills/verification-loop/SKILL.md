@@ -116,7 +116,7 @@ honest and machine-checkable.
 
 | Verdict | Meaning | Action |
 |---------|---------|--------|
-| **PASS** | All gates green, no findings worth recording | Ship |
+| **PASS** | All gates green, zero findings at any severity | Ship |
 | **PASS_WITH_NITS** | Ship-safe: only LOW/MEDIUM findings, each recorded with a follow-up | Ship + log follow-ups |
 | **FAIL** | Any gate red, or one or more CRITICAL/HIGH findings | Block → fix → **re-verify** |
 
@@ -131,6 +131,9 @@ Rules:
 - Severity is judged by impact evidence, not by how easy the fix is.
 - FAIL → fix → re-verify is one cycle. A fix alone never upgrades the verdict — the
   re-verification must reproduce green.
+- A run that aborts early (Phase 1 build failure) still emits a report: verdict **FAIL**
+  with the failing gate as a CRITICAL finding. Stopping to fix is how you *reach* the next
+  verdict, not a reason to skip issuing this one — an unreported run reads as "not run".
 - The instance that wrote the change never issues its own verdict: verification runs in a
   fresh instance (see the model-orchestration skill's V&V separation).
 

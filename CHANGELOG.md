@@ -32,11 +32,24 @@ verdict 의식 + 본 repo SOD 리뷰 관행. 카탈로그 무변경 (manifest �
   덮어써 verdict 주입이 조용히 소멸한다 (manifest 만 C3 로 바꾸면 반쪽 조치).
 
 ### Added
-- `tests/vnv-verdict.test.ts` — verdict 어휘 계약 6테스트 (섹션 슬라이스 앵커, ④ SOD
+- `tests/vnv-verdict.test.ts` — verdict 어휘 계약 7테스트 (섹션 슬라이스 앵커, ④ SOD
   mutation 교훈 + repo-local 복사본 byte-동일 가드 + **cherrypicks.lock `modified` 플래그
   대조**) + manifest C3 재분류 테스트 (잔여 C2 eval-harness 비전파 확인 포함). ADR-041.
 - `MODIFIED_ECC_SKILL_DIRS` export (`src/manifest.ts`) — 두 C3 목록에서 derive. lock 정합
   테스트의 단일 출처 (동일 목록 2곳 하드코딩 금지, no-false-ship "drift 구조 차단").
+
+### Fixed (SOD 리뷰 반영)
+- **분류 SSOT drift**: `docs/PRD/v26-58-cherry-pick-plugin-gating.md` 분류표의
+  `ecc-verification-loop` 이 C2 로 남아 코드와 모순 → `(MODIFIED) … C3` 로 동기 (ADR-019 가
+  요구하는 "코드 주석 + ADR + PRD 표" 3중 동기).
+- **ADR-041 도달 범위 정정**: "claude 전용" 은 절반만 참 — `model-orchestration` 은
+  `INTERNAL_BUNDLED_SKILL_IDS` 소속이라 codex/opencode/antigravity 로 렌더된다. 자산별로
+  분리 기술 (뭉뚱그리면 비-claude 표면 점검을 건너뛰게 됨).
+- **광고했으나 무가드였던 2줄** (mutation 생존 실증): mo quick reference 의 verdict 줄 +
+  vl `description` 트리거 텍스트 → 테스트 추가 후 재mutation CAUGHT 확인.
+- **계약 문구 정합**: PASS 정의에서 "findings worth recording"(재량 여지) → "zero findings at
+  any severity" / PASS_WITH_NITS 의 "nits" 용어 충돌 해소(LOW 전용 라벨 vs LOW+MEDIUM 포괄) /
+  Phase 1 조기 중단 시의 판정 명시(FAIL + CRITICAL — 미보고 = "미실행"으로 읽힘).
 
 ## [v26.112.0] — 2026-07-18 (feat: north-star 스킬 보강 — 라이프사이클 자산화 ④, ADR-040)
 

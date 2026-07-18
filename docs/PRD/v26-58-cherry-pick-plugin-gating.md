@@ -258,7 +258,7 @@ Phase 1 출력에 명확히:
 | ecc-deep-research | ecc/.agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | **C2** |
 | ecc-market-research | ecc/.agents/skills/market-research/ | ✓ | 중간 | executive | **C2** |
 | ecc-eval-harness | ecc/.agents/skills/eval-harness/ | ✓ | 중간 | dev | **C2** |
-| ecc-verification-loop | ecc/.agents/skills/verification-loop/ | ✓ | 중간 | dev | **C2** |
+| ecc-verification-loop (MODIFIED) | ecc/.agents/skills/verification-loop/ | ✓ | 중간 | dev | **C3** (modified=true, v26.113.0 ADR-041 재분류 — verdict 어휘 주입) |
 | ecc-e2e-testing | ecc/.agents/skills/e2e-testing/ | ✗ (KEEP=`e2e`/`e2e-runner`) | 높음 | ui | **C2** |
 | ecc-agent-introspection-debugging | ecc/.agents/skills/agent-introspection-debugging/ | ✗ | 낮음 | dev | **C2** |
 | ecc-python-patterns | ecc/skills/python-patterns/ | ✓ | 중간 | data/csr-fastapi | **C2** |

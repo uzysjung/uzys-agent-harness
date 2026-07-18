@@ -172,9 +172,10 @@ skill's Verdict Contract). Two consequences for orchestration:
 - **FAIL closes only on re-verification.** Fix → re-verify is one cycle; if the same
   reviewer will re-verify, keep it alive via SendMessage and *declare* that intent
   (worker lifecycle) — otherwise spawn a fresh verifier.
-- **PASS_WITH_NITS is not silent PASS.** The nits (LOW/MEDIUM) come back to the
+- **PASS_WITH_NITS is not silent PASS.** Its LOW/MEDIUM findings come back to the
   orchestrator as recorded follow-ups, not as buried prose — deciding their fate is an
-  orchestrator judgment call, never the verifier's.
+  orchestrator judgment call, never the verifier's. (The verdict name is historical: it
+  covers MEDIUM too, not only the LOW "nit" tier.)
 
 ## Orchestrator handoff (quota exhaustion)
 

@@ -38,6 +38,15 @@ describe("V&V verdict 어휘 — 라이프사이클 ⑤ 계약", () => {
     expect(section).not.toContain("READY");
   });
 
+  it("광고된 부수 표면도 가드 — mo quick reference 줄 + vl description 트리거 텍스트", () => {
+    // ADR/CHANGELOG 가 명시적으로 광고하는 두 줄인데 무가드였다 (SOD F4/F5, mutation M9/M10
+    // 생존). description 은 스킬 발견 표면이라 소실 시 트리거 자체가 퇴행한다.
+    const qr = mo.split("## Quick reference")[1] ?? "";
+    expect(qr).toContain("PASS_WITH_NITS");
+    const frontmatter = vl.split("---")[1] ?? "";
+    expect(frontmatter).toContain("PASS_WITH_NITS");
+  });
+
   it("model-orchestration: V&V separation 절에 동일 verdict 어휘 + verification-loop 계약 참조", () => {
     const section = (mo.split("## V&V separation")[1] ?? "").split("## Orchestrator handoff")[0];
     expect(section).toContain("PASS_WITH_NITS");
