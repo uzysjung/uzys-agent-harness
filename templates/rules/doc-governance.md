@@ -1,7 +1,7 @@
 # Document Governance
 
 문서 작성 + 작업 완료 시 추적 동기화 규칙. 프로젝트 문서가 "거짓 상태"가 되는 것을 막는 SSOT 규약 —
-실서비스에서 700+ 커밋 동안 검증된 관행의 일반화.
+실서비스 운영에서 검증된 관행의 일반화.
 
 ## SSOT 위계 (한 사실은 한 곳)
 
@@ -54,6 +54,9 @@ PR 머지로 작업이 끝난 게 아니다. **머지 직후 같은 작업 단�
 
 `.claude/hooks/spec-drift-check.sh` 가 SPEC/TODO 의 unchecked 잔존·Status 불일치를 검출한다 —
 verify 단계에서 경고(exit 1), **ship 단계(`spec-drift-check.sh ship`)에서는 차단(exit 2)**.
+탐지 경로: SPEC 은 `docs/SPEC.md` → `SPEC.md`(루트) 중 첫 존재 파일, TODO 는 `docs/todo.md` →
+`docs/TODO.md` → `todo.md` → `TODO.md` → `tasks/todo.md` 중 첫 존재 파일 — **이 목록 밖 레이아웃은
+게이트가 못 본다** (그 경우 본 규약은 프로즈로만 작동한다고 알라). dev 트랙 설치 시
 ship-checklist.md 의 "SPEC/PRD 정합성" 게이트가 이 스크립트를 호출한다. 프로즈 규약(본 문서)과
 결정론 게이트(훅)는 짝이다 — 규약만으로 안 지켜지는 것이 확인되면 게이트를 넓혀라
-(recurrence-prevention 스킬의 에스컬레이션 사다리).
+(dev 트랙 설치 시 recurrence-prevention 스킬의 에스컬레이션 사다리 참조).

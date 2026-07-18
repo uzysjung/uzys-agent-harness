@@ -18,7 +18,7 @@ GoalTrack·dyld_vantage 읽기 전용 실무 감사(쓰기 0)로 실제 굴러�
   TODO▸README + decisions/) · "한 사실은 한 곳" · spec-first · **"merge = 코드 + 추적 동기화"
   의무**(머지 직후 같은 작업 단위로 TODO `[x]`+PR# / SPEC Change Log / README 현재 상태 — 빠지면
   추적 SSOT 가 거짓 상태 → 다음 세션이 완료분을 backlog 로 오인) · 현행 vs archive 분리 · 작성
-  원칙. GoalTrack 에서 700+ 커밋 동안 검증된 관행의 도메인 중립 일반화.
+  원칙. GoalTrack 실운영에서 검증된 관행의 도메인 중립 일반화.
 - 라이프사이클 실행 큐 SSOT: `docs/plans/lifecycle-codification-2026-07-18.md` (감사 교차 결론 포함).
 
 ### Changed

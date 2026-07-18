@@ -8,7 +8,7 @@
   하며 "이 부분들이 **지켜지는 것**이 하네스". 두 프로젝트 읽기 전용 감사 결과, 하네스의 최대
   공백 중 하나 = **로드맵/TODO 현행화의 강제 구조** — 조각(spec-drift 훅·ship-checklist)은
   배포되지만 이를 규정하는 문서 규약(SSOT 위계·동기화 의무)이 없었다. GoalTrack 의
-  `doc-governance.md` 가 700+ 커밋 동안 이 문제를 실전 해결(머지 = 코드+추적 동기화, 위반 시
+  `doc-governance.md` 가 이 문제를 실전 해결(머지 = 코드+추적 동기화, 위반 시
   spec-drift-check.sh 가 ship 차단).
 - Decision:
   1. **`templates/rules/doc-governance.md` 신설, COMMON_RULES 합류** (전 트랙 기본 — 문서 규약은
