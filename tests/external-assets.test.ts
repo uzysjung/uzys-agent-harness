@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   assetTrustTier,
   DEV_METHOD_SKILL_IDS,
-  DEV_PLUS_PM_TRACKS,
   DEV_TRACKS,
   EXECUTIVE_STYLE_TRACKS,
   EXTERNAL_ASSETS,
@@ -60,16 +59,13 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
     expect(assetTrustTier("nonexistent-asset-xyz")).toBe("experimental");
   });
 
-  it("T3 experimental 은 star<1000 4개 (railway/playwright/ADR/revealjs)", () => {
+  it("T3 experimental 은 star<1000 3개 (railway/playwright/revealjs)", () => {
+    // v26.106.0 (ADR-035) — architecture-decision-record 제거: 최저 star(179 스냅샷) +
+    //   1st-party 대체재(change-management 룰이 전 트랙 무조건 설치, ADR 템플릿+status flow 완비).
     const t3 = EXTERNAL_ASSETS.filter((a) => assetTrustTier(a.id) === "experimental")
       .map((a) => a.id)
       .sort();
-    expect(t3).toEqual([
-      "architecture-decision-record",
-      "playwright-skill",
-      "railway-skills",
-      "revealjs",
-    ]);
+    expect(t3).toEqual(["playwright-skill", "railway-skills", "revealjs"]);
   });
 });
 
@@ -113,26 +109,28 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
     const ids = experimentalOptInCandidates({ tracks: ["tooling"], options: NO_OPTIONS })
       .map((a) => a.id)
       .sort();
-    // tooling = has-dev-track → playwright-skill / ADR (T3) 매치. railway/next 는 csr/ssr 전용.
-    expect(ids).toEqual(["architecture-decision-record", "playwright-skill"]);
+    // tooling = has-dev-track → playwright-skill (T3) 매치. railway/next 는 csr/ssr 전용.
+    expect(ids).toEqual(["playwright-skill"]);
   });
 
   it("experimentalOptInCandidates 는 forceInclude(--with) 된 것 제외 (이미 설치되므로)", () => {
+    // v26.106.0 — ADR 자산 제거 후 tooling 매치 T3 는 playwright-skill 뿐 → csr 트랙으로 검증
+    //   (railway-skills 매치, playwright-skill forceInclude 시 제외되는지).
     const ids = experimentalOptInCandidates({
-      tracks: ["tooling"],
+      tracks: ["csr-fastify"],
       options: NO_OPTIONS,
       userOverride: { forceInclude: ["playwright-skill"], forceExclude: [] },
     }).map((a) => a.id);
     expect(ids).not.toContain("playwright-skill"); // 이미 opt-in → 힌트 불필요
-    expect(ids).toContain("architecture-decision-record"); // 여전히 미설치 → 힌트 대상
+    expect(ids).toContain("railway-skills"); // 여전히 미설치 → 힌트 대상
   });
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 62 distinct asset ids (no duplicates)", () => {
+  it("contains 61 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(62);
+    expect(ids).toHaveLength(61);
     // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
     expect(ids).toContain("gemini-consult");
     // v26.100.0 — codex-consult (opt-in internal bundled skill, gemini-consult 의 형제).
@@ -513,7 +511,7 @@ describe("filterApplicableAssets", () => {
     expect(ids).not.toContain("polars-K-Dense"); // data|full
   });
 
-  it("data track gets 5 data-specific assets + dev baselines", () => {
+  it("data track gets 3 data-specific assets + dev baselines (v26.106.0 ADR-035)", () => {
     const apps = filterApplicableAssets(EXTERNAL_ASSETS, {
       tracks: ["data"] as Track[],
       options: NO_OPTIONS,
@@ -523,13 +521,14 @@ describe("filterApplicableAssets", () => {
       expect.arrayContaining([
         "polars-K-Dense",
         "dask-K-Dense",
-        "python-resource-management",
-        "python-performance-optimization",
         "anthropic-data-plugin",
         "find-skills",
         "agent-browser",
       ]),
     );
+    // v26.106.0 (ADR-035 사용자 승인 A) — 일반 Python 패턴 2종은 opt-in 강등 (순수 pattern-guide).
+    expect(ids).not.toContain("python-resource-management");
+    expect(ids).not.toContain("python-performance-optimization");
     expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
     expect(ids).not.toContain("railway-skills"); // not in data
   });
@@ -580,18 +579,12 @@ describe("Track partition invariants — v0.8.1 SSOT", () => {
     for (const t of TRACKS) expect(union.has(t)).toBe(true);
   });
 
-  it("DEV_PLUS_PM_TRACKS = DEV_TRACKS + project-management (8 + 1 = 9)", () => {
-    expect(DEV_PLUS_PM_TRACKS.length).toBe(DEV_TRACKS.length + 1);
-    expect(DEV_PLUS_PM_TRACKS).toContain("project-management");
-    for (const t of DEV_TRACKS) expect(DEV_PLUS_PM_TRACKS).toContain(t);
-  });
-
-  it("product-skills condition uses DEV_PLUS_PM_TRACKS (no inline duplication)", () => {
+  it("product-skills condition = project-management 한정 (v26.106.0 ADR-035 사용자 승인 C)", () => {
     const ps = EXTERNAL_ASSETS.find((a) => a.id === "product-skills");
     if (!ps) throw new Error("product-skills missing");
     expect(ps.condition.kind).toBe("any-track");
     if (ps.condition.kind !== "any-track") throw new Error("not any-track");
-    expect([...ps.condition.tracks].sort()).toEqual([...DEV_PLUS_PM_TRACKS].sort());
+    expect([...ps.condition.tracks]).toEqual(["project-management"]);
   });
 });
 

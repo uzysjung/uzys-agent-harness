@@ -49,94 +49,87 @@ function runForTrack(
 }
 
 describe("Track matrix — assets called per track", () => {
-  it("tooling: dev baseline + dev-tools + v0.5.0 dev assets (product-skills + karpathy-coder)", () => {
+  it("tooling: dev baseline + dev-tools (v26.106.0 ADR-035 — product-skills 는 PM 트랙 한정)", () => {
     const { ids } = runForTrack(["tooling"]);
     // v26.42.0 — addy-agent-skills moved to option-gated (withAddyAgentSkills).
-    // v26.71.1 — playwright-skill / architecture-decision-record (T3 experimental) 는
-    //   opt-in only (PRD R6) → 비대화형 default 설치에서 제외. vetted/official 만 남음.
+    // v26.71.1 — playwright-skill (T3 experimental) 는 opt-in only (PRD R6) → default 제외.
     // v26.78.0 — agent-browser 가 dev-tools → understanding 재분류 → 카테고리 정렬상 맨 뒤로.
     // v26.92.0 — frontend-design (official, has-dev-track) 추가. category=frontend → 정렬상 맨 앞.
-    expect(ids).toEqual([
-      "frontend-design",
-      "find-skills",
-      "product-skills",
-      "karpathy-coder",
-      "agent-browser",
-    ]);
+    // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 project-management 한정 → dev 트랙 제외.
+    expect(ids).toEqual(["frontend-design", "find-skills", "karpathy-coder", "agent-browser"]);
+    expect(ids).not.toContain("product-skills");
   });
 
-  it("data: 5 data-specific + dev baseline + dev-tools + v0.5.0 dev assets", () => {
+  it("data: 3 data-specific + dev baseline + dev-tools (v26.106.0 ADR-035)", () => {
     const { ids } = runForTrack(["data"]);
-    // v26.71.1 — playwright-skill / architecture-decision-record (T3) opt-in only → 제외.
+    // v26.71.1 — playwright-skill (T3) opt-in only → 제외.
     // v26.78.0 — agent-browser 가 understanding 재분류 → 카테고리 정렬상 맨 뒤로.
     // v26.92.0 — frontend-design (official, has-dev-track) → category=frontend 정렬상 맨 앞.
+    // v26.106.0 (ADR-035 승인 A·C) — 일반 Python 패턴 2종 opt-in 강등 + product-skills PM 한정.
     expect(ids).toEqual([
       "frontend-design",
       "polars-K-Dense",
       "dask-K-Dense",
-      "python-resource-management",
-      "python-performance-optimization",
       "anthropic-data-plugin",
       "find-skills",
-      "product-skills",
       "karpathy-coder",
       "agent-browser",
     ]);
   });
 
-  it("csr-fastapi: dev baseline + Railway + UI(react+shadcn+web-design) + impeccable", () => {
+  it("csr-fastapi: dev baseline + UI(react+shadcn) — taste 가이드는 opt-in (v26.106.0 ADR-035)", () => {
     const { ids } = runForTrack(["csr-fastapi"]);
     // v0.6.3 — railway-plugin entry 제거. v26.71.1 — railway-skills(T3) opt-in only → default 제외.
     expect(ids).not.toContain("railway-skills");
     expect(ids).not.toContain("railway-plugin");
     expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
-    expect(ids).toContain("impeccable");
-    // csr-* matches CSR_SSR_NEXTJS_FULL set → react/shadcn/web-design applies
+    // csr-* matches CSR_SSR_NEXTJS_FULL set → react/shadcn applies
     expect(ids).toContain("react-best-practices");
     expect(ids).toContain("shadcn-ui");
-    expect(ids).toContain("web-design-guidelines");
+    // v26.106.0 (ADR-035 승인 D + 사용자 결정) — taste 가이드 2종 opt-in 강등 (frontend-design 이 기본).
+    expect(ids).not.toContain("impeccable");
+    expect(ids).not.toContain("web-design-guidelines");
     expect(ids).not.toContain("vercel-cli"); // csr-supabase only
     expect(ids).not.toContain("polars-K-Dense"); // data only
   });
 
-  it("csr-supabase: Vercel/Netlify/Supabase CLI + supabase-skills + UI", () => {
+  it("csr-supabase: Vercel/Supabase CLI + supabase-skills + UI (v26.106.0 ADR-035)", () => {
     const { ids } = runForTrack(["csr-supabase"]);
     expect(ids).toEqual(
       expect.arrayContaining([
         "vercel-cli",
-        "netlify-cli",
         "supabase-cli",
         "supabase-agent-skills",
         "postgres-best-practices",
         "react-best-practices",
         "shadcn-ui",
-        "web-design-guidelines",
-        "impeccable",
       ]),
     );
+    // v26.106.0 (ADR-035 승인 B·D) — netlify-cli(배포 CLI 중복, dl 10:1 실측) + taste 가이드 2종 opt-in.
+    expect(ids).not.toContain("netlify-cli");
+    expect(ids).not.toContain("web-design-guidelines");
+    expect(ids).not.toContain("impeccable");
     expect(ids).not.toContain("railway-plugin"); // not in csr-supabase per matrix
   });
 
-  it("ssr-nextjs: React/Next stack (railway-skills T3 opt-in)", () => {
+  it("ssr-nextjs: React/Next stack (railway-skills T3 opt-in, taste 가이드 opt-in)", () => {
     const { ids } = runForTrack(["ssr-nextjs"]);
     // v26.71.1 — railway-skills (T3 experimental) opt-in only (PRD R6) → default 제외.
-    expect(ids).toEqual(
-      expect.arrayContaining([
-        "react-best-practices",
-        "shadcn-ui",
-        "web-design-guidelines",
-        "impeccable",
-      ]),
-    );
+    expect(ids).toEqual(expect.arrayContaining(["react-best-practices", "shadcn-ui"]));
+    // v26.106.0 (ADR-035) — taste 가이드 2종 opt-in 강등.
+    expect(ids).not.toContain("web-design-guidelines");
+    expect(ids).not.toContain("impeccable");
     expect(ids).not.toContain("railway-skills");
   });
 
-  it("ssr-htmx: impeccable only (railway-skills T3 opt-in, no React stack)", () => {
+  it("ssr-htmx: 트랙 조건 자산 없음 — dev baseline 만 (v26.106.0 ADR-035, impeccable opt-in)", () => {
     const { ids } = runForTrack(["ssr-htmx"]);
     // v26.71.1 — railway-skills(T3) opt-in only → default 제외.
     expect(ids).not.toContain("railway-skills");
-    expect(ids).toContain("impeccable");
+    // v26.106.0 (ADR-035 사용자 결정) — impeccable opt-in 강등: htmx 트랙 조건 자산은 dev baseline 뿐.
+    expect(ids).not.toContain("impeccable");
     expect(ids).not.toContain("react-best-practices");
+    expect(ids).toContain("frontend-design"); // has-dev-track baseline 은 유지
   });
 
   it("executive: only Anthropic + finance/c-level (no dev tools)", () => {
@@ -161,7 +154,6 @@ describe("Track matrix — assets called per track", () => {
       expect.arrayContaining([
         "polars-K-Dense",
         "vercel-cli",
-        "impeccable",
         "supabase-agent-skills",
         "react-best-practices",
         "anthropic-document-skills",
@@ -172,6 +164,7 @@ describe("Track matrix — assets called per track", () => {
     );
     expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 opt-in
+    expect(ids).not.toContain("impeccable"); // v26.106.0 — ADR-035 opt-in 강등
   });
 
   it("--with addy-agent-skills adds addy-agent-skills plugin (v26.81.0 ADR-022)", () => {
@@ -199,15 +192,15 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 8 spawn calls (v26.92.0 — +frontend-design plugin=2)", () => {
-    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm=1) + product-skills(plugin=2) + karpathy-coder(plugin=2) = 8
+  it("tooling: 6 spawn calls (v26.106.0 ADR-035 — product-skills PM 한정)", () => {
+    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm=1) + karpathy-coder(plugin=2) = 6
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(8);
+    expect(spawnCallCount).toBe(6);
   });
 
-  it("data: tooling baseline 8 + data 6 (4 skills + 1 plugin × 2) = 14 (v26.92.0 — +frontend-design)", () => {
+  it("data: tooling baseline 6 + data 4 (2 skills + 1 plugin × 2) = 10 (v26.106.0 ADR-035)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(14);
+    expect(spawnCallCount).toBe(10);
   });
 
   it("--with openspec alone (executive base) adds 1 npm call", () => {

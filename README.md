@@ -10,7 +10,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 
 ![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
-> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (49/62 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
+> **What "vetted" means** — ≥ 1000 GitHub stars + active maintenance + a Docker install-verification run (48/61 assets green today), re-checked monthly by a CI cron ([catalog-verify](docs/COMPATIBILITY.md), [trust-tier-drift](.github/workflows/)). It is **not** a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; **plugin/skill assets resolve to upstream HEAD (not commit-pinned yet)**. Treat installed assets like any third-party dependency — see [SECURITY.md](SECURITY.md).
 
 🇰🇷 [한국어](./README.ko.md)
 
@@ -64,8 +64,8 @@ Curation, not a list to browse — pick `csr-supabase` and step 3 pre-checks exa
 
 | Track | Pre-checked assets |
 |---|---|
-| `csr-supabase` | react-best-practices · shadcn-ui · web-design-guidelines · supabase-agent-skills · postgres-best-practices · supabase-cli |
-| `data` | polars · dask · python-resource-management · python-performance-optimization · anthropic-data-plugin |
+| `csr-supabase` | react-best-practices · shadcn-ui · supabase-agent-skills · postgres-best-practices · supabase-cli · vercel-cli |
+| `data` | polars · dask · anthropic-data-plugin |
 
 [Full per-track matrix ↓](#what-gets-installed-per-track) · or the [compatibility matrix](docs/COMPATIBILITY.md).
 
@@ -146,10 +146,10 @@ External assets are recommended automatically based on your track selection. Ste
 
 | Asset | What | Source |
 |---|---|---|
-| `react-best-practices` | React patterns and component guidelines | LokeshSakthivel |
+| `react-best-practices` | React patterns and component guidelines | vercel-labs |
 | `shadcn-ui` | Radix-based component copy + Tailwind theme | shadcn (official) |
-| `web-design-guidelines` | UX/UI best practices | LokeshSakthivel |
-| `impeccable` | UI design, critique, and visual review skills | pbakaus |
+| `web-design-guidelines` | UX/UI best practices — **opt-in** since v26.106.0 (`frontend-design` covers the default) | vercel-labs |
+| `impeccable` | UI design, critique, and visual review skills — **opt-in** since v26.106.0 | pbakaus |
 
 ### Backend (csr-* / ssr-* / full)
 
@@ -160,7 +160,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `postgres-best-practices` (csr-supabase) | Postgres patterns | Supabase official |
 | `supabase-cli` (csr-supabase) | Supabase CLI (`supabase login` for OAuth) | npm |
 | `vercel-cli` (csr-supabase) | Vercel CLI | npm |
-| `netlify-cli` (csr-supabase) | Netlify CLI | npm |
+| `netlify-cli` | Netlify CLI — **opt-in** since v26.106.0 (deploy-CLI dedup; `vercel-cli` stays default at 10:1 weekly downloads) | npm |
 
 ### Data (data / full)
 
@@ -168,8 +168,8 @@ External assets are recommended automatically based on your track selection. Ste
 |---|---|---|
 | `polars-K-Dense` | Polars — fast Rust DataFrame (pandas alternative) | K-Dense-AI |
 | `dask-K-Dense` | Dask — distributed processing | K-Dense-AI |
-| `python-resource-management` | Memory / CPU management patterns | wshobson |
-| `python-performance-optimization` | Profiling + vectorization | wshobson |
+| `python-resource-management` | Memory / CPU management patterns — **opt-in** since v26.106.0 | wshobson |
+| `python-performance-optimization` | Profiling + vectorization — **opt-in** since v26.106.0 | wshobson |
 | `anthropic-data-plugin` | Visualization + SQL exploration | Anthropic official |
 
 ### Business (executive / project-management / growth-marketing)
@@ -181,8 +181,8 @@ External assets are recommended automatically based on your track selection. Ste
 | `business-growth-skills` | Growth, finance, marketing playbooks | claude-code-skills | executive · full · growth-marketing |
 | `finance-skills` | Financial models | claude-code-skills | executive · full |
 | `pm-skills` | PM workflows | claude-code-skills | project-management |
-| `product-skills` | Product discovery + delivery | claude-code-skills | dev + PM |
-| `marketing-skills` / `content-creator` / `demand-gen` / `research-summarizer` | Marketing playbooks | claude-code-skills | growth-marketing |
+| `product-skills` | Product discovery + delivery | claude-code-skills | project-management (dev tracks: opt-in since v26.106.0) |
+| `marketing-skills` / `research-summarizer` | Marketing playbooks | claude-code-skills | growth-marketing |
 
 ### Dev Tools (all dev tracks)
 
@@ -191,9 +191,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `playwright-skill` | E2E test authoring with Playwright | testdino-hq |
 | `find-skills` | Search and rank installed skills | vercel-labs |
 | `agent-browser` | Browser automation CLI for agents | npm |
-| `architecture-decision-record` | ADR authoring | yonatangross |
 | `karpathy-coder` | Pre-commit quality gate hook | claude-code-skills |
-| `product-skills` | Product engineering | claude-code-skills |
 | `multi-persona-review` ★ | Critique one artifact via 3-5 parallel personas → P0/P1/P2 fixes | this project (core) |
 | `gap-analysis-e2e` ★ | Detect north-star / correctness / UX gaps, then benchmark how reference services solved each | this project (core) |
 | `ultracode-service-audit` ★ | Multi-agent, adversarially-verified full-service audit (7 dimensions) → milestone roadmap | this project (core) |

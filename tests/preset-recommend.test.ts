@@ -16,16 +16,18 @@ describe("recommendedExternalAssets", () => {
     expect(rec).toContain("karpathy-coder");
   });
 
-  it("csr-supabase preset includes supabase + vercel/netlify CLI + UI stack", () => {
+  it("csr-supabase preset includes supabase + vercel CLI + UI stack (v26.106.0 ADR-035)", () => {
     const ids = recommendedExternalAssets(["csr-supabase"]);
     expect(ids).toContain("supabase-agent-skills");
     expect(ids).toContain("supabase-cli");
     expect(ids).toContain("vercel-cli");
-    expect(ids).toContain("netlify-cli");
     expect(ids).toContain("postgres-best-practices");
     expect(ids).toContain("shadcn-ui");
-    expect(ids).toContain("web-design-guidelines");
-    expect(ids).toContain("impeccable");
+    // v26.106.0 (ADR-035) — 강등 3종은 추천 제외: netlify-cli(중복 10:1 실측),
+    //   web-design-guidelines·impeccable(taste 가이드 opt-in, frontend-design official 이 기본).
+    expect(ids).not.toContain("netlify-cli");
+    expect(ids).not.toContain("web-design-guidelines");
+    expect(ids).not.toContain("impeccable");
   });
 
   it("does NOT include option-gated assets (addy/superpowers/ecc/tob)", () => {
