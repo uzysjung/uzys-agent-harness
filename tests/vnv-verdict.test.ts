@@ -52,6 +52,12 @@ describe("V&V verdict 어휘 — 라이프사이클 ⑤ 계약", () => {
     const lock = JSON.parse(read("../.dev-references/cherrypicks.lock")) as {
       cherrypicks: Array<{ dst: string; modified: boolean }>;
     };
+    // derive 원본이 비거나 한쪽(COMMON/DEV)을 잃으면 아래 루프가 0회 돌아 공허하게 통과한다
+    // — mutation 으로 실증된 구멍(M13/M14). 알려진 C3 2종의 존재를 먼저 못 박는다.
+    // 신규 C3 추가는 이 단언을 건드리지 않고 lock 플래그만 요구한다(제거만 차단).
+    expect(MODIFIED_ECC_SKILL_DIRS).toContain("continuous-learning-v2");
+    expect(MODIFIED_ECC_SKILL_DIRS).toContain("verification-loop");
+
     for (const sd of MODIFIED_ECC_SKILL_DIRS) {
       const entry = lock.cherrypicks.find((c) => c.dst === `templates/skills/${sd}/`);
       expect(entry, `cherrypicks.lock entry missing for ${sd}`).toBeDefined();
