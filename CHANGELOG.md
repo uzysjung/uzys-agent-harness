@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.105.0] — 2026-07-18 (feat: 방법론 코어 / 수단(권장) 계층 분리, ADR-034 · Lean 큐 ⑥)
+
+사용자 확정(2026-07-18): 하네스 엔지니어링 **방법론**(목표·스코프·논스코프 / ADR / 결함 보고 /
+재발방지)은 **필수 코어**로 제공하고, model-orchestration·gemini-consult·codex-consult 는
+**수단** — 필수가 아니라 **권장** 계층으로 구분한다. "agy, codex, model-policy는 수단인 것 같아.
+하지만 난 권장."
+
+### Changed
+- **BREAKING: `model-orchestration` 이 기본 설치(dev-method has-dev-track)에서 제외** → 수단(권장)
+  opt-in 으로 이동 (`--with model-orchestration` 또는 wizard 체크로 설치, description 에
+  "(opt-in — recommended)" 표기). 기존 설치본의 파일은 삭제되지 않는다 — 재설치/업데이트 시
+  기본 선택에서 빠질 뿐이다. dev-method 코어 = **8종**(방법론만): multi-persona-review ·
+  gap-analysis-e2e · ultracode-service-audit · asis-tobe-decision · compaction-handoff ·
+  northstar-roadmap · harness-health-audit · recurrence-prevention.
+- **수단(권장) 계층 신설** — model-orchestration + gemini-consult + codex-consult (전부 opt-in
+  internal, 4-CLI 번들 렌더 유지). README 표를 "First-party recommended means" 로 재편.
+- **Context Cost ratchet 2,200 → 1,900 tokens 재조임** — 코어 8종 실측 ~1,809 (기본 설치 상주
+  비용 −287 tokens). ADR-032 ratchet 원칙("줄었으면 예산도 낮춘다")의 첫 하향 사용례.
+- 수단 계층 가드 테스트: INTERNAL_BUNDLED = 코어 8 + 수단 3 정확 일치, 각 수단은 opt-in +
+  description 에 opt-in 표기 의무.
+
 ## [v26.104.0] — 2026-07-18 (feat: recurrence-prevention 스킬 — 재발방지 방법론, ADR-033 · Lean 큐 ⑤)
 
 사용자 지시(2026-07-17) 자산: "동일 이슈가 여러 번 발생하면 — 단순 실수면 기록하거나 룰을 강제 등록,
