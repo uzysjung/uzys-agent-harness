@@ -56,6 +56,7 @@ describe("Track matrix — assets called per track", () => {
     // v26.78.0 — agent-browser 가 dev-tools → understanding 재분류 → 카테고리 정렬상 맨 뒤로.
     // v26.92.0 — frontend-design (official, has-dev-track) 추가. category=frontend → 정렬상 맨 앞.
     // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 project-management 한정 → dev 트랙 제외.
+    // v26.110.0 (ADR-039) — 신규 3종은 전부 opt-in → 기본 집합 불변 (context7 plugin 은 미등록).
     expect(ids).toEqual(["frontend-design", "find-skills", "karpathy-coder", "agent-browser"]);
     expect(ids).not.toContain("product-skills");
   });

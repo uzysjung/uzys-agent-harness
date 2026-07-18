@@ -159,7 +159,8 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 62 자산 매트릭스 (v26.108.0 ci-scaffold internal + v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 65 자산 매트릭스 (v26.110.0 ADR-039 오피셜 플러그인 큐레이션: code-review·feature-dev·
+ * security-guidance opt-in [context7 = mcp.json 기본 wiring 기충족으로 미등록, claude-md-management 기각] + v26.108.0 ci-scaffold internal + v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
@@ -442,6 +443,24 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "superpowers@claude-plugins-official",
     },
   },
+  // v26.110.0 (ADR-039, 오피셜 플러그인 큐레이션) — feature-dev: 탐색→설계→구현 워크플로우 +
+  //   전용 에이전트 3종(code-architect/code-explorer/code-reviewer). 방법론류 — ADR-032
+  //   "워크플로우 강제 구조는 기본 불필요" + 자체 code-reviewer 가 기본 리뷰 에이전트와 중복
+  //   → superpowers 와 동급 opt-in.
+  {
+    id: "feature-dev",
+    tier: "official", // anthropics/claude-plugins-official (242.5K installs, 사용자 관측 2026-07-18)
+    description:
+      "feature-dev — guided feature workflow with explore/architect/review agents (Anthropic official)",
+    category: "workflow",
+    source: "anthropics",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "feature-dev@claude-plugins-official",
+    },
+  },
   {
     // v26.75.0 (ADR-021) — wshobson/agents marketplace.json name = "claude-code-workflows"
     // (84 plugins). 대표 = full-stack-orchestration. 다른 orchestrator(agent-orchestration/
@@ -574,6 +593,39 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === dev tools (has_dev_track) ===
+  // v26.110.0 (ADR-039) — code-review: /code-review 커맨드 1개 (다중 에이전트 confidence
+  //   스코어링 PR 리뷰). 기본 리뷰 스택(reviewer·code-reviewer·security-reviewer)과 표면 중복
+  //   + 최신 Claude Code 네이티브 /code-review 와 충돌 소지 → opt-in.
+  {
+    id: "code-review",
+    tier: "official", // anthropics/claude-plugins-official (404.3K installs, 사용자 관측 2026-07-18)
+    description: "code-review — multi-agent PR review with confidence scoring (Anthropic official)",
+    category: "dev-tools",
+    source: "anthropics",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "code-review@claude-plugins-official",
+    },
+  },
+  // v26.110.0 (ADR-039) — security-guidance: 매 편집 패턴 경고 + LLM diff 리뷰 (훅 12파일,
+  //   Python + Agent SDK 의존). 상시 훅 = 매 편집 비용 + 폭발 반경 — 실측 전 기본설치 금지
+  //   (Context Cost NSM) → opt-in. security-reviewer 에이전트·agentshield ship 게이트와 보완.
+  {
+    id: "security-guidance",
+    tier: "official", // anthropics/claude-plugins-official (220.8K installs, 사용자 관측 2026-07-18)
+    description:
+      "security-guidance — pattern-based security warnings on edits + LLM diff review (Anthropic official)",
+    category: "dev-tools",
+    source: "anthropics",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "security-guidance@claude-plugins-official",
+    },
+  },
   {
     id: "playwright-skill",
     tier: "experimental", // testdino-hq/playwright-skill 264
@@ -597,6 +649,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "has-dev-track" },
     method: { kind: "skill", source: "vercel-labs/skills", skill: "find-skills" },
   },
+  // v26.110.0 (ADR-039) — context7 플러그인은 **미등록** (검토 후 철회): templates/mcp.json ·
+  //   codex config.toml.template · opencode 설정이 이미 @upstash/context7-mcp 를 기본 wiring —
+  //   플러그인 추가 = 동일 서버 중복 등록이고 도달 범위도 더 좁다(plugin=claude-only vs
+  //   템플릿=claude+codex+opencode). "문서 조회 기본 제공" 요구는 기충족.
   {
     id: "agent-browser",
     tier: "vetted", // vercel-labs/agent-browser 34k
