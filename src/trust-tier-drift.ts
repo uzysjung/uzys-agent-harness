@@ -18,7 +18,7 @@ import { EXTERNAL_ASSETS, type ExternalAsset, TRUST_TIER } from "./external-asse
 // v26.79.0 — gen-compatibility 의 카테고리 exhaustiveness 가드용 SSOT (하드코딩 drift 차단).
 export { CATEGORIES } from "./categories.js";
 // v26.116.0 (ADR-043) — context-cost-report.mjs 가 dist 에서 비용 계측기를 읽도록 re-export.
-export { assetCostRows, estimateTokens, resolveBundleRoot } from "./context-cost.js";
+export { assetCostRows, estimateTokens, residentCost, resolveBundleRoot } from "./context-cost.js";
 // v26.76.0 — gen-compatibility.mjs 가 dist 에서 자산 카탈로그+tier 를 읽도록 re-export.
 // v26.93.0 — DEV_METHOD_SKILL_IDS 추가: gen-compatibility 의 CLI scope override 를
 //   하드코딩 id 목록 대신 SSOT 에서 derive (no-false-ship drift 구조 차단).
@@ -31,6 +31,7 @@ export {
   INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
 } from "./external-assets.js";
+export { buildManifest } from "./manifest.js";
 // v26.102.0 (ADR-031) — 도달 라벨("N-CLI")의 N 을 derive 하기 위한 re-export (매직 넘버 금지).
 export { CLI_BASES } from "./types.js";
 

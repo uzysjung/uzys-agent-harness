@@ -102,6 +102,69 @@ export function assetCostRows(
     .sort((a, b) => (b.bodyTokens ?? -1) - (a.bodyTokens ?? -1));
 }
 
+/**
+ * v26.117.0 (ADR-044) — 상주 비용의 **표면 전체**.
+ *
+ * v26.116.0 까지는 스킬 descriptor 만 셌다. 그 정의에는 굿하트 구멍이 있다: SKILL.md 산문을
+ * 룰 파일로 옮기면 **발화 시에만 내던 비용이 매 세션 상주로 바뀌어 실제로는 악화**되는데 지표는
+ * 개선으로 표시된다. 사용자를 나쁘게 만드는 리팩터링을 보상하는 지표는 없느니만 못하다.
+ *
+ * 판정 기준은 **표면 열거가 아니라 "상주인가 발화인가"** — 새 표면이 생겨도 기준이 그대로다.
+ * - 상주: rules(전문) · CLAUDE.md(전문) · skills/agents 의 descriptor
+ * - 발화: skills/agents 의 body — 트리거될 때만
+ * - 비대상: hooks(실행될 뿐 컨텍스트에 안 올라감)
+ */
+export interface ResidentCost {
+  rules: number;
+  projectClaudeMd: number;
+  skillDescriptors: number;
+  agentDescriptors: number;
+  total: number;
+}
+
+/** 파일 1개의 토큰. 없으면 0 (합계를 오염시키지 않되 throw 하지 않는다). */
+function fileTokens(path: string): number {
+  return existsSync(path) ? estimateTokens(readFileSync(path, "utf8").trim().length) : 0;
+}
+
+/** descriptor(frontmatter)만. frontmatter 가 없으면 0 — 상주 비용이 아니다. */
+function descriptorTokens(path: string): number {
+  if (!existsSync(path)) return 0;
+  const fm = extractFrontmatter(readFileSync(path, "utf8"));
+  return fm === null ? 0 : estimateTokens(fm.length);
+}
+
+/**
+ * 설치 계획(manifest 엔트리)에서 상주 비용을 실측. `applies` 로 이미 걸러진 엔트리를 받으므로
+ * **트랙별 실제 설치분**이 반영된다 (templates/ 전체 합계 같은 부풀린 수치가 아니다).
+ */
+export function residentCost(
+  entries: ReadonlyArray<{ source: string; target: string }>,
+  root: string = resolveBundleRoot(),
+): ResidentCost {
+  const tpl = (source: string): string => join(root, "templates", source);
+  let rules = 0;
+  let skillDescriptors = 0;
+  let agentDescriptors = 0;
+  for (const e of entries) {
+    if (e.target.startsWith(".claude/rules/")) rules += fileTokens(tpl(e.source));
+    else if (e.target.startsWith(".claude/agents/"))
+      agentDescriptors += descriptorTokens(tpl(e.source));
+    else if (e.target.startsWith(".claude/skills/")) {
+      // skills 엔트리는 디렉토리 — SKILL.md 가 descriptor 를 담는다.
+      skillDescriptors += descriptorTokens(join(tpl(e.source), "SKILL.md"));
+    }
+  }
+  const projectClaudeMd = fileTokens(join(root, "templates", "CLAUDE.md"));
+  return {
+    rules,
+    projectClaudeMd,
+    skillDescriptors,
+    agentDescriptors,
+    total: rules + projectClaudeMd + skillDescriptors + agentDescriptors,
+  };
+}
+
 export interface ContextCostSummary {
   /** 실측된 스킬들의 토큰 합 (추정치). */
   measuredTokens: number;
@@ -139,4 +202,27 @@ export function formatContextCostLine(s: ContextCostSummary): string | null {
   const skills = `${s.measuredCount} bundled skill${s.measuredCount === 1 ? "" : "s"} measured`;
   const external = s.unmeasuredCount > 0 ? ` · ${s.unmeasuredCount} external unmeasured` : "";
   return `session-start context cost: ~${s.measuredTokens} tokens (${skills}${external})`;
+}
+
+/**
+ * v26.117.0 (ADR-044) — 설치 요약에 표시하는 상주 비용 라인.
+ *
+ * 이전 라인(`formatContextCostLine`)은 **스킬 descriptor 만** 세면서 "session-start context
+ * cost" 라고 표기해, 실측상 상주 비용의 ~10% 를 전부인 양 보여주고 있었다 (tooling 트랙 실측:
+ * 스킬 descriptor ~547 vs 상주 합계 ~5,194). 표시 숫자가 실제의 9분의 1이면 그것은 계측이
+ * 아니라 오보다 (no-false-ship). 내역을 함께 보여 어디에 비용이 있는지 드러낸다.
+ */
+export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number): string | null {
+  if (r.total === 0) return null;
+  const parts = [
+    `rules ~${r.rules}`,
+    `CLAUDE.md ~${r.projectClaudeMd}`,
+    `skills ~${r.skillDescriptors}`,
+    `agents ~${r.agentDescriptors}`,
+  ].join(" · ");
+  const external =
+    unmeasuredCount > 0
+      ? ` · ${unmeasuredCount} external asset${unmeasuredCount === 1 ? "" : "s"} unmeasured`
+      : "";
+  return `session-start context cost: ~${r.total} tokens/session (${parts}${external})`;
 }

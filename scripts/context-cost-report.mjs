@@ -11,15 +11,15 @@
 //   - 발화(fired)    = SKILL.md body. 그 스킬이 트리거될 때만 무는 비용.
 // 근거 없는 가중 합산("총 비용")은 만들지 않는다 — 두 값을 따로 보고 판단한다.
 
-import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assetCostRows,
+  buildManifest,
   DEV_METHOD_SKILL_IDS,
-  estimateTokens,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
+  residentCost,
 } from "../dist/trust-tier-drift.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,17 +43,23 @@ console.log("\n▸ 합계\n");
 console.log(`  기본 설치 ${String(base.length).padStart(2)}종  상주 ~${sum(base, "descriptorTokens")}  ·  전부 발화 시 ~${sum(base, "bodyTokens")}`);
 console.log(`  번들 전체 ${String(rows.length).padStart(2)}종  상주 ~${sum(rows, "descriptorTokens")}  ·  전부 발화 시 ~${sum(rows, "bodyTokens")}`);
 
-// 참고: 룰은 상시 로드라 상주 비용이지만 현행 NSM 정의(스킬 descriptor + body)에 **미포함**이다.
-// 수치를 보여주되 합계에는 섞지 않는다 — 정의 변경은 ADR 결정 사항이지 스크립트가 할 일이 아니다.
-const ruleDir = join(ROOT, "templates", "rules");
-const ruleTokens = readdirSync(ruleDir)
-  .filter((f) => f.endsWith(".md"))
-  .reduce((a, f) => a + estimateTokens(readFileSync(join(ruleDir, f), "utf8").length), 0);
+// v26.117.0 (ADR-044) — 상주 비용은 스킬 descriptor 만이 아니다. 트랙별 실제 설치 계획에서
+// 상주 표면 전체를 실측한다 (판정 기준 = 표면 열거가 아니라 "상주인가 발화인가").
+const TRACK = process.argv[2] ?? "tooling";
+const spec = { tracks: [TRACK], cli: ["claude"], options: {} };
+const entries = buildManifest(spec).filter((e) => e.applies(spec));
+const res = residentCost(entries, ROOT);
+
+console.log(`\n▸ 상주 비용 — 설치가 매 세션 물리는 것 (track=${TRACK})\n`);
+console.log(`  rules              ~${res.rules}`);
+console.log(`  CLAUDE.md 스캐폴드  ~${res.projectClaudeMd}`);
+console.log(`  skill descriptors  ~${res.skillDescriptors}`);
+console.log(`  agent descriptors  ~${res.agentDescriptors}`);
+console.log(`  ─────────────────────────`);
+console.log(`  상주 합계          ~${res.total} tokens/세션`);
 
 const external = EXTERNAL_ASSETS.filter((a) => a.method.kind !== "internal").length;
-
-console.log("\n▸ 미포함 (참고)\n");
-console.log(`  룰 파일 전체            ~${ruleTokens} tokens — **상시 로드**지만 현행 NSM 정의 밖.`);
-console.log("                          트랙별 실제 설치분은 이 값의 부분집합.");
-console.log(`  외부 자산 ${String(external).padStart(2)}종          unmeasured — 설치 시점에 콘텐츠를 알 수 없다.`);
-console.log("\n  두 항목은 합계에 섞지 않았다. 룰을 NSM 에 넣을지는 열린 결정 (ADR-043 후속).\n");
+console.log("\n▸ 미계측\n");
+console.log(`  외부 자산 ${String(external).padStart(2)}종   설치 시점에 콘텐츠를 알 수 없다 (no-false-ship — 추정치 금지).`);
+console.log("  MCP tool schema   서버가 제공 — 템플릿에서 계산 불가.");
+console.log("  hooks             컨텍스트에 안 올라감 (실행될 뿐) — 비용 대상 아님.\n");

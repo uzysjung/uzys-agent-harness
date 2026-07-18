@@ -8,7 +8,7 @@
 
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
-import { formatContextCostLine, summarizeContextCost } from "../context-cost.js";
+import { formatResidentCostLine, residentCost, summarizeContextCost } from "../context-cost.js";
 import { assetRow, c, infoRow, padDisplay, sectionHeader, unifiedSection } from "../design.js";
 import {
   assetCliSupport,
@@ -20,6 +20,7 @@ import {
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
 import type { BaselineReport, InstallMode, InstallReport, ProgressEvent } from "../installer.js";
+import { buildManifest } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
@@ -104,7 +105,10 @@ export function renderInstallHeader(
     }
     // v26.103.0 (ADR-032) — Session-Start Context Cost NSM. 번들 스킬 = frontmatter 실측(~),
     // 외부 자산 = unmeasured 명시 (추정치를 실측처럼 표기 금지).
-    const cost = formatContextCostLine(summarizeContextCost(finalAssets));
+    const cost = formatResidentCostLine(
+      residentCost(buildManifest(spec).filter((e) => e.applies(spec))),
+      summarizeContextCost(finalAssets).unmeasuredCount,
+    );
     if (cost) log(`              ${c.dim(`· ${cost}`)}`);
   }
   log("");

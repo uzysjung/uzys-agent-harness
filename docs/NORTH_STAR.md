@@ -34,13 +34,16 @@
 
 | Metric | 정의 | 목표 |
 |--------|------|------|
-| **Context Cost per Install** | 트랙별 **기본 설치** 자산이 물리는 토큰 = 상주(skill descriptor) + 발화(SKILL.md body) | 트랙별 baseline 대비 **비증가 ratchet** (증가 시 명시적 정당화). 절대 상한은 실측 후 — 근거 없는 수치 고정 금지 |
+| **Context Cost per Install** | 트랙별 **기본 설치**가 물리는 토큰. **상주** = 설치가 상시 컨텍스트에 올리는 전부(rules 전문 · CLAUDE.md · skill/agent descriptor) + **발화** = 트리거 시 들어오는 body. 판정은 표면 열거가 아니라 *상주인가 발화인가* (ADR-044) | 트랙별 baseline 대비 **비증가 ratchet** (증가 시 명시적 정당화). 절대 상한은 실측 후 — 근거 없는 수치 고정 금지 |
 | **Justified Asset Ratio** | 기본 설치 자산 중 편익 근거(with/without eval 델타 또는 `operational-fact` 분류)를 **문서로 보유**한 비율 | **100%** (기본 설치 한정 — opt-in 자산은 미요구) |
 
-> **현재 상태 (2026-07-19)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report` 로 자산별
-> 순위표 산출(`src/context-cost.ts`). 실측: 기본 설치 8종 = 상주 ~1,809 · 전부 발화 시 ~26,810
-> tokens. **`Justified Asset Ratio` 는 여전히 미구현·미측정** (2단계 eval 미실행) — 지표 선언 ≠
-> 달성. 상주/발화는 **단위가 다르므로**(전원이 매 세션 vs 트리거 시) 가중 합산하지 않는다.
+> **현재 상태 (2026-07-19)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
+> 실측(tooling 트랙): **상주 ~5,194 tokens/세션** = rules ~3,094(**60%**) · CLAUDE.md ~938 ·
+> agent descriptors ~615 · skill descriptors ~547(10%). 발화 = 번들 스킬 전부 트리거 시 ~26,810.
+> **룰이 최대 비용 항목**이라는 사실은 ADR-044 의 범위 정정으로 처음 드러났다 — 그전 정의는
+> 상주의 10%만 재고 있었다. **`Justified Asset Ratio` 는 여전히 미구현·미측정**(2단계 eval
+> 미실행) — 지표 선언 ≠ 달성. 상주/발화는 **단위가 다르므로** 가중 합산하지 않는다.
+> 미계측: 외부 자산 · MCP tool schema. 비대상: hooks(컨텍스트 미탑재).
 
 ### 2차 지표 — 속도 · 진입 · 신뢰
 
@@ -254,6 +257,7 @@ Plan/Define 단계에서 "이 작업이 ①/②/③ 중 어디이고, 앞 순위
 
 ## 8. Changelog
 
+- **2026-07-19**: **Major CR — 상주 비용 범위 정정 (ADR-044)**. 사용자 위임 결정("A부터 정해"). `Context Cost per Install` 의 상주 항을 "스킬 descriptor"에서 **"설치가 상시 컨텍스트에 올리는 전부"**로 정정 — rules(전문)·CLAUDE.md·skill/agent descriptor. 판정은 **표면 열거가 아니라 상주/발화 구분**이라 새 표면이 생겨도 기준 불변. 기각 사유가 결정적: 스킬 한정 정의는 **굿하트로 뚫린다** — SKILL.md 산문을 룰로 옮기면 발화-시-비용이 매 세션 상주로 바뀌어 사용자에겐 악화인데 지표는 개선으로 표시된다(계약 테스트로 봉함). 실측 결과 기존 정의는 상주의 **10%만** 재고 있었고 그 값이 위저드에 그대로 표시되고 있었다 → 표시도 내역 포함으로 교체. 발견: **룰이 최대 비용 항목(60%)**.
 - **2026-07-18**: **Major CR — 차별화 축 = 계측된 최소 하네스 (ADR-043)**. 사용자 방향 지시("카탈로그 전수 재판정이나 스킬별로 컨텍스트 얼마나 잡아먹는지, 정말 필요한 것인지 검토해서 꼭 필요한 것만 남겨 최적화된 하네스를 제공하는 것이 차별화 같아") + HITO A/B 기각. ⓐ **1차 NSM 교체** — `Context Cost per Install`(양) + `Justified Asset Ratio`(사후 품질) 짝. **HITO / Re-clarification Rate 는 폐기**(최초 판단은 "2차 강등"이었으나, 실사용 실측 결과 HITO 는 3개월 수집·1회 사용·수정 근거 0건, Re-clarification 은 sampling 기록 0건 — 강등이 아니라 제거가 맞다고 재판단). `hito-counter.sh`(claude·codex)·`hito-aggregate.sh`·`nsm-aggregate.sh`·기본 훅 배선 전부 제거. "신속=적은 왕복"은 Statement 정의로 존속. ⓑ Pillar 2 를 "검증된 자산 큐레이션"에서 **"계측된 최소 큐레이션"**으로 재정의. ⓒ ADR-021 검증 큐레이션은 하위 수단으로 존속(안전 ↔ 경제성, 다른 질문). ⓓ 판정 근거 2단계 확정 — 전수 비용 계측(값싼 결정론) → 상위 비용만 with/without eval(`eval-harness`·`skill-creator` baseline 재사용). **주의: body 토큰 계측과 Justified Asset Ratio 는 현재 미구현** — 선언 ≠ 달성.
 - **2026-07-18**: **Clarification — north-star 스킬 계약(8섹션)에 구조 정합**. 내용 변경 없음(NSM 수치·Phase 정의·Won't 불변 → Major CR 아님). ⓐ §1 안에 있던 "세 기둥"을 **§3 Pillars** 로 승격 — 축마다 정의/현재 위치/전방 목표/가설 4요소 + **모듈 ↔ 축 매핑 표**(미매핑 모듈 = scope creep 조기 신호) 신설. ⓑ §2 에 **프록시 선언** 명문화 — 진짜 목표(사용자 프로젝트의 성과)는 지연·외부라 직접 측정 불가 → HITO(양) + Re-clarification(사후 품질) 짝으로 최적화, 굿하트 방지 근거 기재. ⓒ §6 을 6.1 4-Gate / **6.2 우선순위 순서**(기본→완성도→차별화)로 분리. ⓓ 재포지셔닝(ADR-021)·Lean 개정(ADR-032) 서술은 축 논의이므로 §1 → §3 서두로 이동. 계기: 이 리포가 배포하는 `north-star` 스킬을 자기 문서에도 적용(도그푸딩).
 - **2026-07-17**: **Major CR — Lean 개정 (ADR-032)**. 사용자 방향 지시("루프/하네스 엔지니어링 관점 인스톨러, 간결하게 꼭 필요한 것만") + 5-페르소나 패널 검토 후 확정. 기둥① 전면화(루프/하네스 엔지니어링 노하우), 기둥② 규모 축소·품질 기준 유지. NSM에 Session-Start Context Cost 추가. Will에 컨텍스트 이코노미, Trade-offs에 Lean 기본값(포기 사용자군 명시) 등재. 방법론 번들 = **opt-in 유지 확정**(제거 기각 — 패널 4/5 수렴: 이미 opt-in이라 컨텍스트 잠식 0, 제거는 선택권·유입 경로만 상실). "모델 향상 → 스킬 불필요"는 **가설**로 취급 — 검증 경로 = HITO A/B(번들 有/無 동일 feature 비교). 실행 큐 = `docs/plans/lean-direction-2026-07-17.md`.
