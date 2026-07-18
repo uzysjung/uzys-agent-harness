@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.113.0] — 2026-07-18 (feat: V&V verdict 어휘 코드화 — 라이프사이클 자산화 ⑤, ADR-041)
+
+라이프사이클 큐 ⑤ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): fresh-instance
+검증의 판정 어휘를 기존 자산 2곳에 주입 — 신설 아닌 보강. 실무 증거 = dyld fresh-opus
+verdict 의식 + 본 repo SOD 리뷰 관행. 카탈로그 무변경 (manifest 자산).
+
+### Changed
+- **`verification-loop` 스킬**: 보고 종결을 "Overall: READY/NOT READY" 자유 서술에서 고정
+  verdict `PASS` / `PASS_WITH_NITS` / `FAIL` 로 교체 + Findings 표(severity `CRITICAL` /
+  `HIGH` / `MEDIUM` / `LOW` 의무) + 신설 "Verdict Contract" 절 — severity 는 영향 증거로
+  판정, FAIL 은 재검증 재현까지 한 사이클, 구현 인스턴스의 자기 verdict 금지(fresh
+  instance, model-orchestration V&V separation 연결).
+- **`model-orchestration` 스킬**: V&V separation 절에 동일 verdict 어휘 + 오케스트레이션
+  귀결 2건(FAIL 재검증 리뷰어의 SendMessage 유지 선언 / PASS_WITH_NITS ≠ silent PASS —
+  nit 처분은 오케스트레이터 판단) + quick reference 1줄. repo-local `.claude/skills`
+  복사본 동기.
+- **verification-loop C2 → C3 재분류** (`src/manifest.ts`): verdict 주입으로 modified
+  cherry-pick 이 되어 ADR-019 분류상 C3 — `MODIFIED_DEV_SKILL_DIRS` 신설, withEcc 무관
+  dev 트랙 항상 install (cl-v2 전례). C2 유지 시 plugin ON 사용자에게 "verdict 코드화됨"
+  광고가 거짓이 되는 구멍 차단 (no-false-ship).
+
+### Added
+- `tests/vnv-verdict.test.ts` — verdict 어휘 계약 5테스트 (섹션 슬라이스 앵커, ④ SOD
+  mutation 교훈 + repo-local 복사본 byte-동일 silent-drift 가드) + manifest C3 재분류
+  테스트 (잔여 C2 eval-harness 비전파 확인 포함). ADR-041.
+
 ## [v26.112.0] — 2026-07-18 (feat: north-star 스킬 보강 — 라이프사이클 자산화 ④, ADR-040)
 
 라이프사이클 큐 ④ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`): 실운영 프로젝트

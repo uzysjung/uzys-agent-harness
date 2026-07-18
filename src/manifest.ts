@@ -140,7 +140,9 @@ const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "deep-research"];
 const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2"];
 
 const DEV_SKILL_DIRS: string[] = [];
-const DEV_SKILL_DIRS_ECC = ["eval-harness", "verification-loop", "agent-introspection-debugging"];
+const DEV_SKILL_DIRS_ECC = ["eval-harness", "agent-introspection-debugging"];
+// C3 (modified=true — v26.113.0 verdict 어휘 주입, ADR-041): plugin 으로 갈음 불가, dev 트랙 항상 install.
+const MODIFIED_DEV_SKILL_DIRS = ["verification-loop"];
 
 const UI_SKILL_DIRS = ["ui-visual-review"];
 const UI_SKILL_DIRS_ECC = ["e2e-testing"];
@@ -302,6 +304,15 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
+    });
+  }
+  // C3 (modified=true). plugin 으로 갈음 불가 — verdict 어휘는 ECC plugin 판에 없다. ADR-041.
+  for (const sd of MODIFIED_DEV_SKILL_DIRS) {
+    m.push({
+      source: `skills/${sd}`,
+      target: `.claude/skills/${sd}`,
+      type: "dir",
+      applies: dev,
     });
   }
   for (const sd of UI_SKILL_DIRS) {

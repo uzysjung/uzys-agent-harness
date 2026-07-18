@@ -164,6 +164,18 @@ it. How that plays out per lane:
 This pairs with, not replaces, deterministic gates (tests, typecheck, CI) — the verifier
 judges what automation can't: spec fit, missed edge cases, design drift.
 
+**Verdict vocabulary (fixed).** A verifier's report never ends in free prose — it ends with
+exactly one verdict, `PASS` / `PASS_WITH_NITS` / `FAIL`, and every finding carries one
+severity label, `CRITICAL` / `HIGH` / `MEDIUM` / `LOW` (full contract: the verification-loop
+skill's Verdict Contract). Two consequences for orchestration:
+
+- **FAIL closes only on re-verification.** Fix → re-verify is one cycle; if the same
+  reviewer will re-verify, keep it alive via SendMessage and *declare* that intent
+  (worker lifecycle) — otherwise spawn a fresh verifier.
+- **PASS_WITH_NITS is not silent PASS.** The nits (LOW/MEDIUM) come back to the
+  orchestrator as recorded follow-ups, not as buried prose — deciding their fate is an
+  orchestrator judgment call, never the verifier's.
+
 ## Orchestrator handoff (quota exhaustion)
 
 When the top-tier orchestrator's quota runs out mid-project, **Opus @ `max` takes over
@@ -203,6 +215,7 @@ build on. Hand off manually:
                                → 오케스트레이터(Fable) 직접
 기획·스펙·계획 문서 작성·관리 / 핵심 구현 / V&V
                                → opus  @ xhigh (또는 max)   — pinned role 또는 Workflow opts
+V&V 판정                       → PASS | PASS_WITH_NITS | FAIL + CRITICAL~LOW (verification-loop 계약)
 반복 구현 / E2E 테스트 / 리서치 스윕
                                → sonnet @ high 이상
 결정적 변환 (rename·포맷)      → 모델 위임 금지 — sed/grep/스크립트 직접
