@@ -1,8 +1,13 @@
 # uzys-agent-harness
 
-**Install only the AI-coding skills & plugins your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity.**
+**Install only the AI-coding skills & plugins your tech stack actually needs — vetted, curated, and set up with one command across Claude Code, Codex, OpenCode & Antigravity. Plus the project-lifecycle discipline that keeps an agent honest from idea to ship.**
 
-Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context. And the awesome-lists have too many options to wade through. `agent-harness` curates by **tech stack**: of the vetted options, you install only what this project actually calls for. **Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
+Coding agents keep getting stronger out of the box — piling on skills and MCPs you'll never use just bloats their context. And the awesome-lists have too many options to wade through. `agent-harness` does two things:
+
+1. **Lean curation by tech stack** — of the vetted options, you install only what this project actually calls for.
+2. **A discipline layer** — rules, hooks, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, benchmark-parity loops, recurrence prevention. That layer is what makes it a *harness*, not a skill pack ([details ↓](#the-discipline-layer--what-makes-it-a-harness)).
+
+**Claude Code is first-class; Codex / OpenCode / Antigravity get the skills + rules layer.** Project scope by default — no global pollution unless you ask.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/releases)
@@ -22,7 +27,7 @@ Coding agents keep getting stronger out of the box — piling on skills and MCPs
 npx -y @uzysjung/agent-harness
 ```
 
-A 6-step interactive wizard guides everything. No flags needed. **Safe on an existing project** — it backs up your `settings.json` / `CLAUDE.md` before any change (details below); nothing is deleted.
+A 6-step interactive wizard guides everything — no flags needed (requires an interactive terminal; for CI/Docker use the [flag-based mode](#non-interactive-install-ci--scripts--docker) below). **Safe on an existing project** — it backs up your `settings.json` / `CLAUDE.md` before any change (details below); nothing is deleted.
 
 ```
 Step 1/6  Tracks            ← pick your stack
@@ -91,6 +96,24 @@ One honest note: this repository's *own* development harness is deliberately hea
 
 ---
 
+## The discipline layer — what makes it a harness
+
+Curated assets are half the install. The other half is a **project-lifecycle discipline**: rules, hooks, and scaffolds proven in our own production projects, generalized to be domain-neutral. It covers the loop an agent actually runs — direction → docs → tests/CI → verification → real-browser truth → recurrence prevention:
+
+| Lifecycle stage | Installed as | What it enforces |
+|---|---|---|
+| **Direction** | `north-star` skill (all tracks) + `northstar-roadmap` ★ | vision doc → measured gaps → ranked backlog |
+| **Doc governance** | `doc-governance` rule (all tracks) + `spec-drift-check` hook | SSOT hierarchy, "merge = code **and** tracking sync", current-vs-archive split |
+| **Delivery** | `git-policy` · `change-management` · `gates-taxonomy` rules (all tracks) | conventional commits, ADRs for load-bearing decisions, 4 gate types |
+| **Tests → CI** | `test-policy` rule (dev tracks) + `ci-scaffold` (opt-in) | coverage thresholds, TDD, real-DB **parity** CI templates (fill-in) in `.github/workflows/` |
+| **Verification** | `reviewer` agent + `multi-persona-review` ★ | implementer ≠ verifier; multi-perspective review before ship |
+| **Real-browser truth** | `playwright-launch` + `benchmark-parity` rules (UI tracks) | persistent-profile capture, gap matrix (`gap.md`), PR `## Fidelity` evidence |
+| **Recurrence** | `recurrence-prevention` ★ (dev tracks) | repeat defect → escalate: record → forced rule → structural gate |
+
+Everything here is deterministic and small — fixed rails, flexible agent. ★ = first-party dev-method skill (see below).
+
+---
+
 ## Installing into an existing project
 
 `agent-harness` never silently overwrites your config. Before replacing an **editable** file whose contents differ, it writes a timestamped backup next to it — and every backup path is printed in the install summary (`backup` rows). Nothing is deleted.
@@ -146,6 +169,7 @@ External assets are recommended automatically based on your track selection. Ste
 
 | Asset | What | Source |
 |---|---|---|
+| `frontend-design` | Distinctive production-grade UI generation — **default on all dev tracks** | Anthropic official |
 | `react-best-practices` | React patterns and component guidelines | vercel-labs |
 | `shadcn-ui` | Radix-based component copy + Tailwind theme | shadcn (official) |
 | `web-design-guidelines` | UX/UI best practices — **opt-in** since v26.106.0 (`frontend-design` covers the default) | vercel-labs |
@@ -192,6 +216,7 @@ External assets are recommended automatically based on your track selection. Ste
 | `find-skills` | Search and rank installed skills | vercel-labs |
 | `agent-browser` | Browser automation CLI for agents | npm |
 | `karpathy-coder` | Pre-commit quality gate hook | claude-code-skills |
+| `code-review` | Multi-agent PR review with confidence scoring — **opt-in** (overlaps the default review agents) | Anthropic official |
 | `multi-persona-review` ★ | Critique one artifact via 3-5 parallel personas → P0/P1/P2 fixes | this project (core) |
 | `gap-analysis-e2e` ★ | Detect north-star / correctness / UX gaps, then benchmark how reference services solved each | this project (core) |
 | `ultracode-service-audit` ★ | Multi-agent, adversarially-verified full-service audit (7 dimensions) → milestone roadmap | this project (core) |
@@ -236,6 +261,7 @@ External assets are recommended automatically based on your track selection. Ste
 
 | Asset | What | Source |
 |---|---|---|
+| `security-guidance` | Pattern-based security warnings on every edit + LLM diff review (needs Python + Agent SDK at runtime) | Anthropic official |
 | `trailofbits-skills` | Differential security review | Trail of Bits |
 | `ecc-plugin` | ECC plugin (project-scoped via `prune-ecc.sh`) | affaan-m |
 | `ecc-prune` | Trim ECC down to a curated set (4 agents + 8 skills + 3 commands) | this project |
@@ -260,7 +286,7 @@ Tiers **inform, never block** — you always review and choose what installs. Re
 
 Step 4 asks where the install writes.
 
-| | Project (default) | Global (opt-in) |
+| Write target | Project (default) | Global (opt-in) |
 |---|---|---|
 | `claude plugin` | `--scope project` (entries isolated by `projectPath` in `installed_plugins.json`) | `--scope user` |
 | `npx skills` | project `node_modules` | `-g` (user-level) |
