@@ -106,23 +106,50 @@ Risk Level: LOW/MEDIUM/HIGH
 ## Eval Workflow
 
 ### 1. Define (Before Coding)
+
+Write the spec to a file (`.claude/evals/<feature>.md`) before implementing. Give every eval a
+stable ID — `C1..Cn` for capability, `R1..Rn` for regression — so the same identifier carries
+from definition to the post-implementation status line, and a reviewer can check them off one by
+one. Prose-only lists ("Can create new user account") can't be referenced or scored.
+
 ```markdown
-## EVAL DEFINITION: feature-xyz
+# EVAL: <feature name> (<phase/PR>)
 
-### Capability Evals
-1. Can create new user account
-2. Can validate email format
-3. Can hash password securely
+**Feature**: <one line>
+**Baseline**: commit <sha>          # what "regression" is measured against
+**Target**: pass@1 = 100% for capability evals
 
-### Regression Evals
-1. Existing login still works
-2. Session management unchanged
-3. Logout flow intact
+## Capability Evals
 
-### Success Metrics
-- pass@3 > 90% for capability evals
-- pass^3 = 100% for regression evals
+### C1: <name>
+- <concrete, checkable expectation — inputs → expected output>
+
+### C2: <name>
+- <expectation>
+
+## Regression Evals
+
+### R1: <existing behavior that must not move>
+- <expectation>
+
+## Test Command
+```bash
+pytest tests/test_<area>.py -v -k "<selector>"
 ```
+
+## Status (after implementation)
+- C1-Cn: PASS via <tests (N개) / route check / manual>
+- R1-Rn: PASS
+
+**Overall: pass@1 = <x>%**
+```
+
+Two fields carry most of the weight. **Baseline commit** makes "regression" falsifiable — without
+it, R-evals are opinions about the past. **Test Command** makes the spec re-runnable by someone
+who didn't write it; an eval nobody can re-run is documentation, not a gate.
+
+Fill the Status section *after* implementing, in the same file. A spec whose status is still empty
+at merge time means the evals were written and never used.
 
 ### 2. Implement
 Write code to pass the defined evals.

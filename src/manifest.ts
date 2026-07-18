@@ -134,15 +134,18 @@ const ALWAYS_HOOKS = [
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
-// C2 (plugin OFF fallback, opt-out): strategic-compact, deep-research.
-const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "deep-research"];
-// C3 (modified=true — plugin 으로 갈음 불가, 항상 install): continuous-learning-v2.
-const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2"];
+// C2 (plugin OFF fallback, opt-out): strategic-compact.
+const COMMON_SKILL_DIRS_ECC = ["strategic-compact"];
+// C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
+// 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
+const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2", "deep-research"];
 
 const DEV_SKILL_DIRS: string[] = [];
-const DEV_SKILL_DIRS_ECC = ["eval-harness", "agent-introspection-debugging"];
-// C3 (modified=true — v26.113.0 verdict 어휘 주입, ADR-041): plugin 으로 갈음 불가, dev 트랙 항상 install.
-const MODIFIED_DEV_SKILL_DIRS = ["verification-loop"];
+const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];
+// C3 (modified=true): plugin 으로 갈음 불가, dev 트랙 항상 install.
+// verification-loop = v26.113.0 verdict 어휘(ADR-041) / eval-harness = v26.114.0 eval spec
+// 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
+const MODIFIED_DEV_SKILL_DIRS = ["verification-loop", "eval-harness"];
 
 /**
  * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).

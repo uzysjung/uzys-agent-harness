@@ -112,10 +112,34 @@ Structure the report:
 1. [Title](url) — [one-line summary]
 2. ...
 
+## Research Ledger — [N] confirmed · [M] killed
+
+| Killed claim/direction | Why rejected | Source that killed it |
+|---|---|---|
+| [what you looked into] | [contradicting evidence / legal or licensing block / vendor-only claim] | [url] |
+
+> **Caveats**: [which numbers are vendor-promotional or self-reported, which sources are
+> preprints, which claims you could not verify verbatim and are therefore follow-up work]
+
 ## Methodology
 Searched [N] queries across web and news. Analyzed [M] sources.
 Sub-questions investigated: [list]
 ```
+
+### The ledger is not optional
+
+A report that lists only what survived hides the most reusable part of the work. Record it as
+`N confirmed · M killed`, and for each killed item write **why** — contradicting evidence, a
+legal block, or a claim that turned out to be vendor-promotional. Two things follow:
+
+- **Nobody re-researches a dead end.** Next quarter the same idea resurfaces; the ledger answers
+  it in one line instead of another research cycle.
+- **A kill count is evidence of rigor.** `22 confirmed · 0 killed` means you were collecting
+  support, not testing claims. Zero kills is a signal to re-examine, not a clean result.
+
+The caveat block does the same job for what survived but is *weakly* sourced: vendor numbers with
+no independent verification, preprints whose self-reported performance you cite architecture from
+but not results, beta APIs. Naming them keeps a soft source from hardening into a fact downstream.
 
 ### Step 6: Deliver
 

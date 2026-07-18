@@ -160,9 +160,11 @@ describe("buildManifest", () => {
     // dev 트랙 조건은 유지 — executive 단독은 종전과 동일하게 미설치.
     expect(vl?.applies({ tracks: ["executive"] })).toBe(false);
 
-    // 잔여 DEV_SKILL_DIRS_ECC (eval-harness) 는 C2 그대로 — 재분류 전파 방지.
-    const eh = m.find((e) => e.source === "skills/eval-harness");
-    expect(eh?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    // 잔여 DEV_SKILL_DIRS_ECC 는 C2 그대로 — 재분류 전파 방지.
+    // v26.114.0 (ADR-042): eval-harness 도 수정본이 되어 C3 로 이동 — 이 단언의 대상을
+    // 미수정 상태인 agent-introspection-debugging 으로 교체 (전파 방지 의도는 동일).
+    const aid = m.find((e) => e.source === "skills/agent-introspection-debugging");
+    expect(aid?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
   });
 
   it("python-* skills: C2 opt-out + track gating. v26.58.0 ADR-019", () => {
