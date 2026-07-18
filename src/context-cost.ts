@@ -55,6 +55,53 @@ export function assetDescriptorTokens(
   return fm === null ? null : estimateTokens(fm.length);
 }
 
+/**
+ * v26.116.0 (ADR-043) — 발화(fired) 비용. 스킬이 실제로 트리거되면 body 전체가 컨텍스트에 들어온다.
+ * descriptor 는 전원이 매 세션 무는 상주 비용이고 body 는 트리거될 때만 무는 비용이라 **단위가
+ * 다르다** — 두 값을 더한 "총합"은 만들지 않는다 (근거 없는 가중 합산 금지).
+ */
+export function assetBodyTokens(
+  assetId: string,
+  root: string = resolveBundleRoot(),
+): number | null {
+  const asset = EXTERNAL_ASSETS.find((a) => a.id === assetId);
+  if (!asset || asset.method.kind !== "internal") return null;
+  const skillMd = join(root, "templates", "skills", asset.method.key, "SKILL.md");
+  if (!existsSync(skillMd)) return null;
+  const content = readFileSync(skillMd, "utf8");
+  const fm = extractFrontmatter(content);
+  // frontmatter 가 없으면 파일 전체가 body. 있으면 닫는 `---` 이후만.
+  if (fm === null) return estimateTokens(content.length);
+  const close = content.indexOf("\n---", content.indexOf(fm) + fm.length);
+  const body = close === -1 ? "" : content.slice(close + "\n---".length);
+  return estimateTokens(body.trim().length);
+}
+
+export interface AssetCostRow {
+  id: string;
+  /** 상주 — 설치한 전원이 매 세션 무는 비용. */
+  descriptorTokens: number | null;
+  /** 발화 — 스킬이 트리거될 때만 무는 비용. */
+  bodyTokens: number | null;
+}
+
+/**
+ * 자산별 비용 행. **발화 비용 내림차순** 정렬 — "무엇부터 검토할 것인가"의 순서다 (ADR-043
+ * 1단계: 값싼 전수 계측으로 순위를 세우고, 비싼 eval 은 상위에만). unmeasured(외부 자산)는 뒤로.
+ */
+export function assetCostRows(
+  assetIds: ReadonlyArray<string>,
+  root: string = resolveBundleRoot(),
+): AssetCostRow[] {
+  return assetIds
+    .map((id) => ({
+      id,
+      descriptorTokens: assetDescriptorTokens(id, root),
+      bodyTokens: assetBodyTokens(id, root),
+    }))
+    .sort((a, b) => (b.bodyTokens ?? -1) - (a.bodyTokens ?? -1));
+}
+
 export interface ContextCostSummary {
   /** 실측된 스킬들의 토큰 합 (추정치). */
   measuredTokens: number;

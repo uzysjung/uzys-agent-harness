@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderInstallHeader } from "../src/commands/install-render.js";
 import {
+  assetBodyTokens,
+  assetCostRows,
   assetDescriptorTokens,
   estimateTokens,
   extractFrontmatter,
@@ -156,5 +158,75 @@ describe("context cost surfaces", () => {
   it("wizard confirm summary prints the same context cost line", () => {
     const summary = formatSummary(spec);
     expect(summary).toContain("session-start context cost:");
+  });
+});
+
+/**
+ * v26.116.0 (ADR-043 후속 ①) — 발화(fired) 비용 계측 + 순위표.
+ *
+ * WHY: 1차 NSM `Context Cost per Install` 은 상주(descriptor) + 발화(body) 두 축인데 v26.115.0
+ * 시점엔 상주만 계측됐다. 발화 비용이 상주의 10배 이상이라 "얼마나 잡아먹나"의 큰 쪽이 공백이었다.
+ * 이 계측이 없으면 keep/drop 판정이 다시 취향으로 돌아간다 (ADR-043 이 막으려는 바로 그것).
+ */
+describe("fired(body) 비용 계측", () => {
+  it("body 토큰은 frontmatter 를 제외한다 — descriptor 와 이중 계상되면 안 된다", () => {
+    const root = mkdtempSync(join(tmpdir(), "cost-body-"));
+    mkdirSync(join(root, "templates", "skills", "multi-persona-review"), { recursive: true });
+    // description 에 긴 문자열을 넣어도 body 값이 오염되지 않아야 한다.
+    writeFileSync(
+      join(root, "templates", "skills", "multi-persona-review", "SKILL.md"),
+      `---\nname: x\ndescription: ${"D".repeat(400)}\n---\n\n${"B".repeat(80)}\n`,
+    );
+    expect(assetBodyTokens("multi-persona-review", root)).toBe(estimateTokens(80));
+    expect(assetDescriptorTokens("multi-persona-review", root)).toBeGreaterThan(100);
+  });
+
+  it("frontmatter 가 없으면 파일 전체가 body", () => {
+    const root = mkdtempSync(join(tmpdir(), "cost-nofm-"));
+    mkdirSync(join(root, "templates", "skills", "multi-persona-review"), { recursive: true });
+    writeFileSync(
+      join(root, "templates", "skills", "multi-persona-review", "SKILL.md"),
+      "# no frontmatter",
+    );
+    expect(assetBodyTokens("multi-persona-review", root)).toBe(
+      estimateTokens("# no frontmatter".length),
+    );
+  });
+
+  it("외부 자산·미존재 자산은 unmeasured(null) — 추정치를 만들어내지 않는다", () => {
+    expect(assetBodyTokens("superpowers")).toBeNull();
+    expect(assetBodyTokens("no-such-asset")).toBeNull();
+  });
+
+  it("실제 번들 스킬은 body 가 descriptor 보다 크다 — 발화 비용이 지배항이라는 전제", () => {
+    // 이 전제가 깨지면(예: body 가 더 작아짐) 순위표를 body 로 정렬하는 근거 자체가 흔들린다.
+    for (const id of INTERNAL_BUNDLED_SKILL_IDS) {
+      const body = assetBodyTokens(id);
+      const desc = assetDescriptorTokens(id);
+      expect(body, `${id} body`).not.toBeNull();
+      expect(body as number, `${id}: body(${body}) > descriptor(${desc})`).toBeGreaterThan(
+        desc as number,
+      );
+    }
+  });
+});
+
+describe("비용 순위표", () => {
+  it("발화 비용 내림차순 — '무엇부터 검토할 것인가'의 순서", () => {
+    const rows = assetCostRows(INTERNAL_BUNDLED_SKILL_IDS);
+    expect(rows).toHaveLength(INTERNAL_BUNDLED_SKILL_IDS.length);
+    const bodies = rows.map((r) => r.bodyTokens ?? -1);
+    expect([...bodies].sort((a, b) => b - a)).toEqual(bodies);
+  });
+
+  it("입력 자산을 하나도 빠뜨리지 않는다 — 누락은 순위표를 조용히 거짓으로 만든다", () => {
+    const rows = assetCostRows(INTERNAL_BUNDLED_SKILL_IDS);
+    expect(new Set(rows.map((r) => r.id))).toEqual(new Set(INTERNAL_BUNDLED_SKILL_IDS));
+  });
+
+  it("unmeasured(외부 자산)는 뒤로 밀린다 — 0 으로 취급해 상위에 섞이면 안 된다", () => {
+    const rows = assetCostRows(["superpowers", ...INTERNAL_BUNDLED_SKILL_IDS]);
+    expect(rows[rows.length - 1]?.id).toBe("superpowers");
+    expect(rows[rows.length - 1]?.bodyTokens).toBeNull();
   });
 });
