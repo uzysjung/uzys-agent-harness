@@ -29,9 +29,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   - `--only` 는 자산 범위 작업이라 이 안내를 내지 않는다. v26.123.0 이하 로그는 `rootFiles` 가
     없으므로 섹션 자체가 없다(구 로그 호환).
 
+### 조사 — 커버리지 flake 정정 (F-2)
+v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 threshold 근처에서 flaky**"라고 적었다.
+동일 트리 8회 재측정으로 **흔들림은 확인했으나 그 진단은 과장이었다** — 정정한다.
+
+- **원인**: v8 provider 는 branch map 을 소스가 아니라 **실행에서 유도한다.** 그 실행에서 호출되지
+  않은 함수의 분기는 리포트에 아예 안 실린다. 분모가 1370/1371/1373 으로 갈렸고, 갈리는 파일은
+  `env-files.ts` · `fs-ops.ts` · `installer.ts` — 파일시스템 상태로 경로가 갈리는 모듈들이다.
+- **정정 ①**: 진폭은 **0.023%p** (89.562 / 89.570 / 89.585). 분자·분모가 같이 움직여 비율이 거의
+  안 변한다. 현재 여유 1.56%p = 진폭의 **68배**라 게이트를 뒤집을 수 없다. v26.70.1 의 87.94%
+  미달은 flake 가 아니라 진짜 미달이었다.
+- **정정 ②**: "수치 3회 오기"의 원인도 flake 가 아니었다. 3건 중 flake 로 설명되는 건 1건뿐이고
+  (89.12↔89.13), 나머지 2건은 **측정 전에 적었다 / 적고 나서 코드를 더 고쳤다**. 절차 실패를
+  도구 탓으로 돌린 셈이라 교훈이 어긋나 있었다 — 실제 교훈은 **"커밋 직전에 재측정한다"**.
+- **결정**: istanbul provider 교체 **안 함**. 의존성이 늘고 모든 threshold 재기준선이 필요한데
+  대가가 0.023%p 다. 유효숫자 한 자리 관행만 유지.
+
 ### 검증
 - `npm run ci` **exit 0** — 65 files / **873 tests** / branches **89.6** (gate 88 통과).
-  branch % 는 실행마다 흔들리므로 유효숫자를 줄여 적는다 (F-2).
 - **mutation 4종 사살**: ⓐ `collectRootFiles` 무기록 → e2e 3 fail ⓑ uninstall 안내 제거 → 4 fail
   ⓒ list 의 실재 검사 제거 → 1 fail ⓓ note 합집합 → 이번 것만 → 1 fail.
 - **CLI 실행 실증**(빌드본 `node dist/index.js`): `list` 의 **Root files** 섹션과 `uninstall
