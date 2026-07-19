@@ -174,11 +174,12 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 - [x] **F-1e 항목별 추가 install 이 로그에 등록** (✅ v26.123.0) —
       `tests/install-inventory-e2e.test.ts` 가 AC 전 구간을 한 줄기로 검증.
 
-- [ ] **F-3 (사용자 요청 2026-07-19) — README 에 `list` / `uninstall` 설명 추가.** 현재 README 는
-      설치만 안내하고 **깐 것을 보거나 빼는 방법이 없다** (`grep uninstall README.md` = 링크 한 줄).
-      USAGE 에는 v26.123.0 에서 추가했으나 README 진입점에는 도달 경로가 없다. README 구조 실측
-      결론(v26.118.0, 393→102줄)을 깨지 않는 선에서 최소 분량으로 — 기능 나열 표를 만들지 말 것.
-      README.ko.md 도 함께. 도달 경로 = README · README.ko · (해당 시) llms.txt.
+- [x] **F-3 — README 에 `list`/`uninstall` 설명이 없다.** (✅ v26.124.0) README/README.ko 의
+      설치 절 끝에 명령 2줄 + 설명 1문단 추가. **기능 나열 표를 만들지 않았고** 새 H2 섹션도
+      만들지 않았다 — v26.118.0 README 구조 실측 결론(393→102줄)을 지키기 위해 설치 절 안에
+      붙였다. 102 → 111줄(양쪽 동일). llms.txt 는 USAGE 를 "commands, flags" 로 가리키고 있어
+      수정 불요(명령을 열거하지 않는 파일).
+
 - [x] **F-2 — branch coverage 가 실행마다 흔들린다.** (✅ v26.124.0 — 원인 규명, 코드 변경 없음.
       **직전 판정 일부를 정정한다.**) 재현됨: 동일 트리 8회에서 분모가 1370/1371/1373 으로
       갈렸다. 원인 = **v8 provider 는 branch map 을 소스가 아니라 실행에서 유도한다** — 그 실행에서

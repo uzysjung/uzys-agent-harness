@@ -41,6 +41,15 @@ claude    # or codex / opencode / agy
 
 The wizard needs a TTY. For CI, containers, or onboarding scripts there is a flag-based mode — see the [usage guide](docs/USAGE.md#non-interactive-install).
 
+What it installed is recorded, so you can review it and take it back out:
+
+```bash
+npx -y @uzysjung/agent-harness list                    # what this project got
+npx -y @uzysjung/agent-harness uninstall --only <id>   # remove one; drop --only for all
+```
+
+Uninstall reverses what it safely can and *prints* the rest — global assets, hook registrations, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. See [uninstall](docs/USAGE.md#uninstall-v26640).
+
 ## Why
 
 Coding agents keep getting stronger on their own. But every skill and MCP you install sits in the context window each session whether you use it or not, and the awesome-lists carry hundreds of options with no way to tell which ones your stack actually calls for. So you either install everything and pay for it every session, or read through the lists yourself each time you start a project.
