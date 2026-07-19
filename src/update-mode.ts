@@ -16,12 +16,21 @@
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { backupFile, listFilesRecursive } from "./fs-ops.js";
+import {
+  collectSkillHashes,
+  hashContent,
+  type InstallLog,
+  readInstallLog,
+  writeInstallLog,
+} from "./install-log.js";
 
 export interface UpdateModeReport {
   /** 덮어쓰기된 파일 갯수 (디렉토리별). */
@@ -32,6 +41,11 @@ export interface UpdateModeReport {
   staleHookRefs: string[];
   /** 갱신된 CLAUDE.md (true if updated). */
   claudeMdUpdated: boolean;
+  /**
+   * v26.126.0 (R-3a) — 사용자가 고쳐서 백업본을 남긴 스킬 파일 (`.claude/skills/` 상대경로).
+   * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
+   */
+  skillsBackedUp: string[];
 }
 
 /**
@@ -47,6 +61,7 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
     pruned: {},
     staleHookRefs: [],
     claudeMdUpdated: false,
+    skillsBackedUp: [],
   };
 
   // 1) update_dir × 4 (rules/agents/commands/uzys/hooks)
@@ -82,6 +97,17 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
     report.pruned[t.label] = pruneOrphans(t.target, t.source, t.pattern);
   }
 
+  // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
+  // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
+  const skillSync = syncSkills(
+    join(claudeDir, "skills"),
+    join(templatesDir, "skills"),
+    skillBaseline(projectDir),
+  );
+  report.updated[".claude/skills"] = skillSync.updated;
+  report.skillsBackedUp = skillSync.backedUp;
+  refreshSkillBaseline(projectDir);
+
   // 2) .claude/CLAUDE.md
   const claudeMd = join(claudeDir, "CLAUDE.md");
   const templateMd = join(templatesDir, "CLAUDE.md");
@@ -116,6 +142,94 @@ export function updateDir(target: string, source: string, ext: string): number {
     }
   }
   return count;
+}
+
+/**
+ * `.claude/skills/` 를 templates 기준으로 갱신한다 (v26.126.0 · R-3a · ADR-046).
+ *
+ * **설치된 스킬만 손댄다** — templates 에 있어도 target 에 그 스킬 디렉터리가 없으면 건너뛴다.
+ * 스킬은 트랙/opt-in 으로 게이팅돼 설치되므로(`installer.ts` selectedInternalSkills), 전부
+ * 복사하면 사용자가 고르지 않은 스킬이 딸려 들어간다 (`updateDir` 의 "Track 혼입 방지"와 같은 취지).
+ *
+ * 파일 단위 판정:
+ * | 디스크 vs 기준선 | 뜻 | 처리 |
+ * |---|---|---|
+ * | 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
+ * | 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 덮어쓴다 |
+ * | 기준선 기록 없음 | 판정 불가 | 보수적으로 백업 (레거시 설치의 첫 update 1회) |
+ *
+ * **orphan prune 은 하지 않는다** — 스킬 디렉터리 안에는 사용자가 자기 참고 파일을 넣을 수 있고,
+ * templates 에 없다는 이유로 지우면 그게 곧 사용자 파일 삭제다 (ADR-046 "지우지 않는다").
+ */
+export function syncSkills(
+  targetDir: string,
+  sourceDir: string,
+  baseline: ReadonlyMap<string, string>,
+  now: Date = new Date(),
+): { updated: number; backedUp: string[] } {
+  if (!existsSync(targetDir) || !existsSync(sourceDir)) return { updated: 0, backedUp: [] };
+  let updated = 0;
+  const backedUp: string[] = [];
+
+  for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
+    if (!skill.isDirectory()) continue;
+    const targetSkill = join(targetDir, skill.name);
+    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
+
+    for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
+      const targetFile = join(targetSkill, rel);
+      const next = readFileSync(join(sourceDir, skill.name, rel), "utf8");
+
+      if (!existsSync(targetFile)) {
+        // 스킬 안에 새로 생긴 파일 (예: references/ 추가) — 스킬 자체는 이미 설치돼 있다.
+        mkdirSync(dirname(targetFile), { recursive: true });
+        writeFileSync(targetFile, next);
+        updated++;
+        continue;
+      }
+
+      const current = readFileSync(targetFile, "utf8");
+      if (current === next) continue; // 이미 최신 — 백업도 갱신도 불필요
+
+      const recorded = baseline.get(`${skill.name}/${rel}`);
+      if (recorded === undefined || hashContent(current) !== recorded) {
+        backupFile(targetFile, now);
+        backedUp.push(`${skill.name}/${rel}`);
+      }
+      writeFileSync(targetFile, next);
+      updated++;
+    }
+  }
+  return { updated, backedUp };
+}
+
+/** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */
+function skillBaseline(projectDir: string): ReadonlyMap<string, string> {
+  const log = readInstallLog(projectDir);
+  return new Map((log?.skillFiles ?? []).map((f) => [f.path, f.sha256]));
+}
+
+/**
+ * 갱신 직후 기준선을 다시 찍는다.
+ *
+ * 이걸 빼면 다음 update 가 **방금 자기가 덮어쓴 파일**을 전부 "사용자가 고쳤다"로 오판해
+ * 백업본을 매번 새로 쌓는다. update 는 install log 를 안 쓰는 단축 경로라
+ * (`installer.ts` runUpdateInstall) 여기서 안 하면 아무도 안 한다.
+ *
+ * 로그가 없으면 **만들지 않는다** — update 가 설치 기록을 날조하면 uninstall 이 그걸 믿는다.
+ */
+function refreshSkillBaseline(projectDir: string): void {
+  const log = readInstallLog(projectDir);
+  if (!log) return;
+  const skillFiles = collectSkillHashes(projectDir);
+  const next: InstallLog = { ...log };
+  if (skillFiles.length > 0) next.skillFiles = skillFiles;
+  else delete next.skillFiles;
+  try {
+    writeInstallLog(projectDir, next);
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다 (D16 — 설치/갱신 성공 우선과 같은 방침).
+  }
 }
 
 /**

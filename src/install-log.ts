@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExternalAsset, ExternalAssetMethod } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
+import { listFilesRecursive } from "./fs-ops.js";
 import type { InstallScope, InstallSpec } from "./types.js";
 
 export const INSTALL_LOG_FILENAME = ".harness-install.json";
@@ -49,6 +50,19 @@ export interface InstallLogRootFile {
   notes: string[];
 }
 
+/**
+ * v26.126.0 (R-3a · ADR-046) — `.claude/skills/` 안 파일 하나의 **설치 시점 기준선**.
+ *
+ * update 는 이 해시로 "사용자가 고쳤는가"를 판정한다. 기록이 없으면 판정이 불가능하고,
+ * 그때는 내용 비교로 폴백해 보수적으로 백업한다 (ADR-046 파생규칙 3).
+ */
+export interface InstallLogSkillFile {
+  /** `.claude/skills/` 기준 상대 경로 (예: `multi-persona-review/SKILL.md`) */
+  path: string;
+  /** 하네스가 그 자리에 놓아둔 내용의 sha256. 지금 디스크가 이것과 다르면 = 사용자가 고쳤다. */
+  sha256: string;
+}
+
 export interface InstallLog {
   /** schema version — backward compat 검출용 */
   schemaVersion: number;
@@ -82,6 +96,11 @@ export interface InstallLog {
    * (v26.123.0 이하 로그도 이 상태 — 읽는 쪽은 부재를 정상으로 다뤄야 한다).
    */
   rootFiles?: ReadonlyArray<InstallLogRootFile>;
+  /**
+   * v26.126.0 (R-3a · ADR-046) — 스킬 파일 기준선 해시. 스킬을 안 깔았으면 필드 자체가 없다
+   * (v26.125.0 이하 로그도 이 상태 — 읽는 쪽은 부재를 정상으로 다뤄야 한다).
+   */
+  skillFiles?: ReadonlyArray<InstallLogSkillFile>;
 }
 
 /**
@@ -261,6 +280,24 @@ function mergeAssets(
 /** install log + root CLAUDE.md 등 자산 무결성 비교용 sha256 (hex). */
 export function hashContent(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+/**
+ * `.claude/skills/` 전체를 훑어 파일별 sha256 스냅샷을 만든다 (v26.126.0 · ADR-046).
+ *
+ * **복사가 끝난 뒤에 호출해야 한다.** 이 값이 "하네스가 놓아둔 내용"의 기준선이 되고, 다음
+ * update 는 디스크가 이것과 다른지로 사용자 편집을 판정한다. 복사 **전에** 부르면 옛 내용이
+ * 기준선이 돼 다음 update 가 멀쩡한 파일을 전부 "사용자가 고쳤다"로 오판한다.
+ *
+ * 누적하지 않고 **매번 통째로 교체**한다 (`rootFiles` 와 반대다) — 이건 이력이 아니라 현재
+ * 디스크 상태의 스냅샷이고, 지워진 파일의 해시가 남으면 그 자체로 거짓 기록이 된다.
+ */
+export function collectSkillHashes(projectDir: string): InstallLogSkillFile[] {
+  const skillsDir = join(projectDir, ".claude/skills");
+  return listFilesRecursive(skillsDir).map((rel) => ({
+    path: rel,
+    sha256: hashContent(readFileSync(join(skillsDir, rel), "utf8")),
+  }));
 }
 
 /**
