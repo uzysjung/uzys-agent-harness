@@ -1083,3 +1083,156 @@ describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리"
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.123.0 — dry-run 과 실행 경로가 **같은 조건**으로 수기 안내를 낸다.
+ * 판정 기준은 "`--only` 인가"가 아니라 "`.claude/` 가 남는가"다: `--keep-templates` 만 줘도
+ * settings.json 은 살아남으므로 훅 등록 안내가 필요하다. 두 경로가 갈리면 미리보기가 거짓이 된다.
+ */
+describe("uninstallAction — 수기 안내 조건은 templates 보존 여부", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-advisory-"));
+  });
+
+  function setup(): void {
+    writeLog(tmpDir, {
+      ...baseLog(),
+      assets: [
+        {
+          id: "karpathy-coder",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "k@mp" },
+        },
+      ],
+    });
+    writeFileSync(
+      join(tmpDir, ".claude", "settings.json"),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Write|Edit",
+              hooks: [
+                {
+                  type: "command",
+                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      "utf8",
+    );
+  }
+
+  function run(options: Parameters<typeof uninstallAction>[0]): string {
+    const logFn = vi.fn();
+    uninstallAction(options, {
+      log: logFn,
+      err: vi.fn(),
+      exit: vi.fn() as unknown as (code: number) => never,
+      spawn: vi.fn(() => ok()),
+      rm: vi.fn(),
+    });
+    return logFn.mock.calls.flat().join("\n");
+  }
+
+  it("--keep-templates 만 줘도 안내한다 (.claude/ 가 남으므로 훅 등록이 살아 있다)", () => {
+    setup();
+    expect(run({ projectDir: tmpDir, keepTemplates: true })).toContain("[MANUAL]");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("같은 옵션의 dry-run 과 실행이 안내 여부에서 일치한다", () => {
+    setup();
+    const dry = run({ projectDir: tmpDir, keepTemplates: true, dryRun: true }).includes("[MANUAL]");
+    setup();
+    const real = run({ projectDir: tmpDir, keepTemplates: true }).includes("[MANUAL]");
+    expect(dry).toBe(real);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * v26.123.0 2차 검증 반영 (SOD F4) — C1 수정이 과하게 휘둘러 `--keep-templates` 전량 uninstall
+ * 까지 exit 1 로 묶었다. 자산이 전부 global 인 설치(= `--scope global` 사용자 전부)에서 자동
+ * 제거 0건은 D16 설계대로의 정상이고, 그 실행은 install log 를 지우는 실제 작업을 한다.
+ * 게다가 재시도하면 로그가 없어 더 나빠져 exit 0 을 영원히 못 받는다.
+ */
+describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (SOD F4)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-nothingdone-"));
+  });
+
+  const GLOBAL_ONLY: InstallLog["assets"] = [
+    {
+      id: "g1",
+      category: "dev-tools",
+      method: "plugin",
+      scope: "global",
+      detail: { marketplace: "mp", pluginId: "g1@mp" },
+    },
+  ];
+
+  it("--keep-templates + global 자산뿐이어도 exit 0 (로그 제거라는 실제 작업을 한다)", () => {
+    writeLog(tmpDir, { ...baseLog(), assets: GLOBAL_ONLY });
+    const rm = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, keepTemplates: true },
+      { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm },
+    );
+    expect(rm).toHaveBeenCalledWith(installLogPath(tmpDir));
+    expect(logFn.mock.calls.flat().join("\n")).not.toContain("아무것도 자동 제거되지 않았다");
+    expect(exit).toHaveBeenCalledWith(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("같은 로그를 --only 로 지정하면 여전히 exit 1 (C1 이 잡으려던 경로)", () => {
+    // 경계 확인 — F4 수정이 C1 을 되돌리지 않았는지.
+    writeLog(tmpDir, { ...baseLog(), assets: GLOBAL_ONLY });
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "g1" },
+      { log: vi.fn(), err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm: vi.fn() },
+    );
+    expect(exit).toHaveBeenCalledWith(1);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("전량 uninstall 은 '기록 유지'라고 말하지 않는다 — 로그도 함께 지우므로 (SOD F6)", () => {
+    writeLog(tmpDir, {
+      ...baseLog(),
+      assets: [
+        {
+          id: "bmad",
+          category: "dev-tools",
+          method: "npx-run",
+          scope: "project",
+          detail: { cmd: "bmad-method", args: "install" },
+        },
+      ],
+    });
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    const output = logFn.mock.calls.flat().join("\n");
+    expect(output).toContain("자동 되돌리기 경로 없음");
+    expect(output).not.toContain("기록 유지");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});

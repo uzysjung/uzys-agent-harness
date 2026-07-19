@@ -7,6 +7,7 @@ import type { AssetInstallResult, ExternalInstallReport } from "../src/external-
 import {
   buildAssetEntries,
   buildInstallLog,
+  type InstallLog,
   installLogPath,
   readInstallLog,
   writeInstallLog,
@@ -299,5 +300,59 @@ describe("buildInstallLog — 이전 로그 누적 (F-1a)", () => {
     const second = buildInstallLog(mkSpec({ tracks: ["data"] }), null, "project", null, first);
 
     expect(second.spec.tracks).toEqual(["data"]);
+  });
+});
+
+/**
+ * v26.123.0 2차 검증 반영 (SOD F2) — `npx-run`(bmad-method)은 `--tools claude-code` 로
+ * `.claude/` 안에 agent command 를 만든다. "npx-run 은 프로젝트 밖"이라는 가정이 틀렸고,
+ * 그 가정 때문에 reinstall 후 로그가 없는 자산을 있다고 보고했다.
+ */
+describe("survivesClaudeDirRename — .claude/ 를 밀어낸 설치의 누적 제외 (F2)", () => {
+  function withMethod(
+    id: string,
+    method: ExternalAsset["method"],
+    scope: "project" | "global" = "project",
+  ): InstallLog {
+    const asset = createMockAsset({
+      id,
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method,
+    });
+    return buildInstallLog(
+      mkSpec(),
+      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0, excludedByCli: [] },
+      scope,
+    );
+  }
+
+  function survivorsAfterRename(previous: InstallLog): string[] {
+    return buildInstallLog(mkSpec(), null, "project", null, previous, true).assets.map((a) => a.id);
+  }
+
+  it("npx-run 은 `.claude/` 산출물이 사라지므로 누적에서 빠진다", () => {
+    const prev = withMethod("bmad", { kind: "npx-run", cmd: "bmad-method", version: "6.9.0" });
+    expect(survivorsAfterRename(prev)).toEqual([]);
+  });
+
+  it("skill / shell-script 도 `.claude/` 안이라 빠진다", () => {
+    expect(survivorsAfterRename(withMethod("sk", { kind: "skill", source: "o/r" }))).toEqual([]);
+    expect(
+      survivorsAfterRename(withMethod("sh", { kind: "shell-script", script: "s.sh", args: [] })),
+    ).toEqual([]);
+  });
+
+  it("plugin / npm 은 프로젝트 밖이라 남는다", () => {
+    expect(
+      survivorsAfterRename(withMethod("pl", { kind: "plugin", marketplace: "m", pluginId: "p@m" })),
+    ).toEqual(["pl"]);
+    expect(
+      survivorsAfterRename(withMethod("np", { kind: "npm", pkg: "vercel", version: "1.0.0" })),
+    ).toEqual(["np"]);
+  });
+
+  it("global scope 자산은 method 와 무관하게 남는다 (install 이 글로벌을 건드리지 않는다)", () => {
+    const prev = withMethod("gskill", { kind: "skill", source: "o/r" }, "global");
+    expect(survivorsAfterRename(prev)).toEqual(["gskill"]);
   });
 });

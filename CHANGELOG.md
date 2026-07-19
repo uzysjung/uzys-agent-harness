@@ -41,14 +41,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### 리뷰 반영 (독립 SOD 리뷰 — CRITICAL 1 · IMPORTANT 7)
 - **CRITICAL: `--only` 가 아무것도 못 되돌렸는데 `✓ uninstall complete` + exit 0** 이었다.
-  `npx-run`/`shell-script`/`internal` 자산과 **모든 global scope 자산**은 reverse step 이 없어
-  `0 === 0` 이 성공 판정을 통과했다. → 되돌릴 수 없으면 그렇다고 출력하고, 성공으로 보고하지 않고,
-  exit 1. 이 침묵은 F-1a 가 없애려던 "로그가 거짓" 을 반대편에서 되살리는 것이었다.
-- **reinstall 이 이전 `skill` 자산을 과대보고하던 것** — `spec` 을 누적에서 뺀 근거(`.claude/` 가
-  backup 으로 밀린다)가 `assets` 에도 똑같이 적용되는데 적용하지 않았다. `npx skills add` 는
-  project scope 에서 `.claude/skills/` 에 설치되므로 rename 과 함께 사라진다. → `.claude/` 를
-  밀어낸 설치에선 `skill`·`shell-script` 이전 항목을 누적에서 제외. plugin/npm 은 프로젝트 밖에
-  살아남으므로 유지. 첫 테스트가 하필 `plugin` 을 써서 이 경우를 비껴갔다는 지적도 함께 반영.
+  `npx-run`/`shell-script` 자산과 **모든 global scope 자산**은 reverse step 이 없어 `0 === 0` 이
+  성공 판정을 통과했다. → 되돌릴 수 없으면 그렇다고 출력하고, 성공으로 보고하지 않고, exit 1.
+  이 침묵은 F-1a 가 없애려던 "로그가 거짓" 을 반대편에서 되살리는 것이었다.
+- **`.claude/` 를 밀어낸 설치가 이전 자산을 과대보고하던 것** — `spec` 을 누적에서 뺀 근거
+  (`.claude/` 가 backup 으로 rename 된다)가 `assets` 에도 똑같이 적용되는데 적용하지 않았다.
+  → 산출물이 `.claude/` 안인 자산(`skill` = `.claude/skills/`, `shell-script` =
+  `.claude/local-plugins/`, `npx-run` = bmad 의 `--tools claude-code` agent command)은 누적에서
+  제외하고, 프로젝트 밖인 `plugin`/`npm` 은 유지한다. 판정은 **exhaustive switch** 라 method 가
+  늘면 빌드가 깨진다 — `!==` 목록이면 새 method 가 조용히 "살아남음"으로 분류된다.
 - `--only` 로그 재기록의 **필드 보존이 무테스트**였다(mutation 생존) → 전 필드 왕복 단언 추가.
 - 로그 재기록 실패가 **되돌리기 완료 후** 스택트레이스로 죽던 것 → 무엇이 실제로 제거됐는지
   알리고 exit 1. 주입 가능한 writer 로 실패 경로를 테스트.
@@ -57,8 +58,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   이미 단일화해놓고 이것만 빠뜨렸다).
 - USAGE 의 과대 서술(단일 자산 특수처리를 일반 정책처럼 기술) → 구현 범위대로 정정 + F-1f 명시.
 
+### 2차 검증 반영 (신선한 verifier — 1차 수정이 낸 회귀 3건)
+수정이 새 문제를 만들지 않았는지 별도 검증자가 확인했고, **만들었다**:
+- **수기 안내 조건을 `--only` 인가로 잡아 `--keep-templates` 단독 실행에서 안내가 사라졌다.**
+  `.claude/` 가 남으면 훅 등록도 남으므로 안내 대상인데, dry-run 은 내보내고 실행은 안 내보내
+  1차에서 고친 것과 정확히 대칭인 불일치가 됐다. → 판정 기준을 "`.claude/` 가 남는가"로 통일.
+- **`nothingDone` 이 과하게 휘둘러 `--keep-templates` 전량 uninstall 까지 exit 1** 이 됐다.
+  자산이 전부 global 인 설치(= `--scope global` 사용자 전부)에서 자동 제거 0건은 D16 설계대로의
+  정상이고, 그 실행은 install log 를 지우는 실제 작업을 한다. 게다가 재시도하면 로그가 없어
+  더 나빠져 exit 0 을 영원히 못 받는다. → `--only` 경로에만 적용.
+- **`npx-run` 을 "프로젝트 밖"으로 분류**해 위 누적 제외에서 빠뜨렸다. bmad 는 `.claude/` 안에
+  agent command 를 만든다(카탈로그 자체 주석 + Docker 실증). → 제외 대상에 포함 + exhaustive
+  switch 로 재발 차단.
+- `기록 유지` 를 로그가 곧 지워지는 전량 uninstall 에서도 출력하던 것 → 보존 시에만.
+- `internal` 은 애초에 로그에 실리지 않는다(사전 필터) — 위 CRITICAL 영향 범위에서 제외 표기.
+
 ### 검증
-- `npm run ci` exit 0 — 65 files / **843 tests** / branches 88.82 (gate 88).
+- `npm run ci` exit 0 — 65 files / **852 tests** / branches 89.01 (gate 88).
+  (이 줄의 수치는 두 번 틀렸다 — 측정 전에 적었고, 적은 뒤 코드가 또 바뀌었다. 지금 값은
+  최종 트리에서 실행한 출력 그대로다.)
 - mutation 3종 전건 사살: 누적 무시 / `templates` 이전값 폐기 / 기존 로그 읽기를 backup 뒤로 이동.
   (독립 리뷰어가 3종 모두 재현·사살 확인.)
 - CLI 실행 실증: `--help` 에 `list` 노출, `uninstall --help` 에 `--only`, `list` 실출력,

@@ -73,6 +73,12 @@ interface GlobalAdvisory {
   command: string;
 }
 
+/**
+ * 크기 예외 사유 (code-style 50줄 상한): 본 함수는 CLI action 의 **선형 orchestration** 이고
+ * 각 단계는 이미 이름 있는 함수로 빠져 있다 (`planReverse` → `headerLines` → `dryRunLines` |
+ * `executeReverse` → `removeTemplates` → `settleLog` → `advisoryLines` → `summarize`).
+ * 더 쪼개면 호출 순서라는 유일한 정보가 흩어진다 — 순서 자체가 이 함수의 내용이다.
+ */
 export function uninstallAction(options: UninstallOptions, deps: UninstallActionDeps = {}): void {
   const log = deps.log ?? console.log;
   const err = deps.err ?? console.error;
@@ -115,7 +121,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  const { succeeded, failed, removedIds } = executeReverse(plan, log);
+  const { succeeded, failed, removedIds } = executeReverse(plan, log, keepTemplates);
 
   if (!keepTemplates) {
     const { rootClaudeMdKept } = removeTemplates(installLog, projectDir, rm);
@@ -132,7 +138,9 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     { log, err, rm, writeLog },
   );
 
-  for (const line of advisoryLines(plan, targetAssets, projectDir, Boolean(selectedIds))) {
+  // 판정 기준은 "`--only` 인가"가 아니라 "`.claude/` 가 남는가"다 — `--keep-templates` 만 줘도
+  // settings.json 은 살아남으므로 안내 대상이다. dry-run 과 같은 값을 넘겨야 미리보기가 맞는다.
+  for (const line of advisoryLines(plan, targetAssets, projectDir, keepTemplates)) {
     log(line);
   }
 
@@ -140,8 +148,12 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     succeeded,
     failed,
     logWriteFailed,
-    // 아무것도 못 되돌렸는데 templates 도 안 지웠으면 "complete" 가 아니다.
-    nothingDone: succeeded === 0 && keepTemplates && targetAssets.length > 0,
+    // `--only` 로 하나 빼달라 했는데 하나도 못 뺐으면 "complete" 가 아니다.
+    // **`--only` 경로에만 적용한다** — `--keep-templates` 전량 uninstall 은 자산이 전부
+    // global 이라 자동 제거가 0건이어도 install log 를 지우는 실제 작업을 했고, 그건
+    // D16 설계대로의 정상 종료다. 여기까지 exit 1 로 묶으면 global scope 사용자는
+    // 영원히 exit 0 을 못 받는다 (재시도하면 로그가 없어 더 나빠진다).
+    nothingDone: selectedIds !== null && succeeded === 0 && targetAssets.length > 0,
   });
   log("");
   log(outcome.line);
@@ -199,6 +211,7 @@ function headerLines(
 function executeReverse(
   plan: ReversePlan,
   log: (msg: string) => void,
+  keepTemplates: boolean,
 ): { succeeded: number; failed: number; removedIds: string[] } {
   let succeeded = 0;
   let failed = 0;
@@ -216,8 +229,10 @@ function executeReverse(
   }
   // 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가
   // 아무것도 안 한 실행에 붙어 거짓 보고가 된다 (no-false-ship).
+  // "기록 유지"는 로그가 남을 때만 참이다 — 전량 uninstall 은 `.claude/` 와 함께 로그도 지운다.
+  const tail = keepTemplates ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
   for (const asset of plan.noReversePath) {
-    log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — 자동 되돌리기 경로 없음, 기록 유지`);
+    log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`);
   }
   return { succeeded, failed, removedIds };
 }

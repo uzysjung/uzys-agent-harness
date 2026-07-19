@@ -60,8 +60,10 @@ dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only
 shows are the input to `uninstall --only`.
 
 Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
-still knows about everything from the earlier run. (`--mode reinstall` is the exception — it moves
-`.claude/` aside and rebuilds it, so assets that lived inside it are dropped from the record too.)
+still knows about everything from the earlier run. The exception is an install that **moves
+`.claude/` aside and rebuilds it** (`--mode reinstall`, or any install run with `--backup`): assets
+whose files lived inside `.claude/` are genuinely gone, so they're dropped from the record too.
+Assets that live outside the project (`plugin`, `npm`) are kept.
 
 ## Uninstall (v26.64.0+)
 

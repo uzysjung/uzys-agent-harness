@@ -159,10 +159,34 @@ export function buildInstallLog(
   return log;
 }
 
-/** `.claude/` 가 backup 으로 밀려도 살아남는 자산인가 — 산출물이 프로젝트 `.claude/` 밖인가. */
+/**
+ * `.claude/` 가 backup 으로 밀려도 살아남는 자산인가 — 산출물이 프로젝트 `.claude/` 밖인가.
+ *
+ * **exhaustive switch 로 쓴다(default 없음).** method 종류가 늘면 빌드가 깨져서 이 판단을
+ * 강제로 하게 만든다 — `!==` 목록이면 새 method 가 조용히 "살아남음"으로 분류되고, 그건
+ * 곧 없는 걸 있다고 기록하는 것이다 (`no-false-ship` §Drift 구조 차단: 하드코딩 목록에는
+ * exhaustiveness 가드 없이 머지 금지, 기본값은 면제가 아니라 검사).
+ */
 function survivesClaudeDirRename(asset: InstallLogAsset): boolean {
   if (asset.scope === "global") return true; // 글로벌 영역은 install 이 건드리지 않는다
-  return asset.method !== "skill" && asset.method !== "shell-script";
+  switch (asset.method) {
+    case "plugin":
+      return true; // `~/.claude/plugins/cache` — 프로젝트 밖
+    case "npm":
+      return true; // `node_modules/`
+    case "skill":
+      return false; // `npx skills add` project scope → `.claude/skills/`
+    case "shell-script":
+      return false; // ecc-prune → `.claude/local-plugins/`
+    case "npx-run":
+      // bmad-method 는 `--tools claude-code` 로 `.claude/` 안에 agent command 를 만든다
+      // (external-assets.ts 의 cliSupportOverride 주석 + Docker 실증 realcli-workflows-2026-06-06).
+      // `_bmad/` 는 루트에 남지만, `.claude/` 산출물이 사라진 이상 "그대로 설치됨"이 아니다.
+      return false;
+    case "internal":
+      // 실제로는 로그에 실리지 않는다(external-installer 가 사전 제외). 그래도 기본값은 검사.
+      return false;
+  }
 }
 
 /** id 기준 합집합 — 같은 id 는 이번 설치분이 이긴다 (version/scope 가 최신). 순서는 안정적. */
