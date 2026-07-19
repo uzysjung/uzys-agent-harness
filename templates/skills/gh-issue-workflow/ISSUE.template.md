@@ -1,5 +1,5 @@
 <!--
-GitHub Issue body 템플릿 (gh-issue-workflow skill v26.34.0)
+GitHub Issue body 템플릿 (gh-issue-workflow skill)
 - 5섹션 모두 채울 필요는 없으나, 비어있으면 그 줄을 지운다 (placeholder 남기지 말 것).
 - BDD 매핑: 전제(Given) → 적용 대상(When) → AC(Then).
 - 방향성 상태로 작업 가능 여부가 결정된다 (OPEN = 작업 차단, "YYYY-MM-DD 확정" = 작업 가능).

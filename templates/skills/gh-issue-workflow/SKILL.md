@@ -13,7 +13,7 @@ description: "Treats GitHub Issues as the async backlog + decision channel betwe
 - 의사결정이 필요한 갈림길 → issue body에 옵션 정리 → 사용자가 비동기로 결정 → AI agent가 fetch해서 작업
 - 모든 결정의 영구 검색 가능 기록 (cross-link `#N`, label, milestone 활용)
 
-dyld-vantage 프로젝트의 실제 운용 패턴(`#52~#55`)을 일반화. 1인 시나리오에 최적화 (팀 assign / reviewer 자동화 같은 건 안 함).
+1인 시나리오에 최적화 (팀 assign / reviewer 자동화 같은 건 안 함).
 
 ## When to Invoke
 
@@ -94,7 +94,7 @@ label 부착은 **hook 차원 강제 X** — skill 가이드. 사용자 또는 P
 GitHub Projects board를 칸반 형태 backlog로 활용 시:
 
 **Pre-condition**:
-- `docs/SPEC.md`에 `github_project: <URL>` 명시 (예: `https://github.com/users/uzysjung/projects/3`)
+- `docs/SPEC.md`에 `github_project: <URL>` 명시 (예: `https://github.com/users/<you>/projects/<n>`)
 - 사용자가 Project 미리 생성 + status field 정의 (Backlog / Ready / In Progress / Done)
 
 **자동 동작**:
@@ -159,26 +159,23 @@ GitHub Projects board를 칸반 형태 backlog로 활용 시:
 
 ## Examples
 
-### dyld-vantage 실제 패턴 (참고)
+### 후속 이슈 body (선행 작업에 의존하는 경우)
 
 ```markdown
 ## 배경
-Issue #52에서 Feature Flag 재편(16→18) + Blur gate 인프라 구축 완료.
-이 이슈는 페이지별 blur 적용 + API 수량 제한의 후속 작업.
+선행 이슈 #N 에서 <완료된 것>. 이 이슈는 그 위에 <남은 범위>를 얹는다.
 
 ## 전제 (Given)
-- [x] Issue #52 완료 (Feature Flag 인프라)
-- [x] Blur gate 컴포넌트 사용 가능
+- [x] #N 완료 (<그 이슈가 만든 것>)
 
-## 방향성 (2026-04-22 확정)
-- 메뉴 접근은 유지 (사이드바 풀 노출, 401/403 없음)
-- 페이지 단위 blur: outer max-w-* mx-auto 안쪽에 blur_gate 1개만
-- 개별 블록별 blur 금지 (복잡도 대비 가치 낮음)
+## 방향성 (확정)
+- <채택한 방침 1 — 대안 대신 이걸 고른 이유 한 줄>
+- <하지 않기로 한 것 + 왜> ← 안 하기로 한 것을 적어야 나중에 다시 논의되지 않는다
 
 ## 적용 대상 / AC
-- [ ] 모든 _content.html에 blur_gate 적용 (When Free user 방문 → Then blur 노출)
-- [ ] API 수량 제한 미들웨어 (When tier 미충족 요청 → Then 403)
+- [ ] <When 조건 → Then 관측 가능한 결과> 형태로 쓴다
+- [ ] ...
 
 ## 후속 작업
-- [ ] Issue #56로 분리: Pricing 페이지 CTA 디자인
+- [ ] #M 으로 분리: <이 이슈에서 뺀 것>
 ```

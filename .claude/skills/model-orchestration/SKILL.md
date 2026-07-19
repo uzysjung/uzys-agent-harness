@@ -17,8 +17,7 @@ description: >-
 
 # Model Orchestration Policy
 
-A fixed role split between model tiers, set by the user (2026-07-04, revised 2026-07-07). The
-premise is
+A fixed role split between model tiers, set by the user. The premise is
 **quality-over-cost**: delegation floors are set at the effort levels Anthropic itself
 recommends for intelligence-sensitive work ("start with xhigh for coding and agentic use
 cases, high as the minimum for most intelligence-sensitive workloads" — official effort

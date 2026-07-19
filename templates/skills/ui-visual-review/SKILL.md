@@ -1,6 +1,6 @@
 ---
 name: ui-visual-review
-description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Use after E2E tests pass on a UI track (csr-*, ssr-*, full). Adapts the GoalTrack screenshot-review pattern into a repeatable workflow."
+description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
 ---
 
 # UI Visual Review
@@ -14,7 +14,7 @@ E2E 테스트가 PASS 했어도 시각적 회귀(layout shift, 색상/간격 변
 3. 에이전트가 명백한 regression 1차 판정
 4. 사용자가 최종 승인 → 새 baseline 채택 또는 수정 요청
 
-GoalTrack의 `docs/screenshots/` 수동 패턴(mvp-home / v3-search / v4-wiki 등)을 자동화한 형태.
+수동으로 스크린샷을 모아 눈으로 비교하던 패턴을 자동화 + diff + 에이전트 사전 판정으로 옮긴 형태.
 
 ## When to Invoke
 
@@ -146,9 +146,7 @@ L2/L3 fail이거나 차이가 임계 이상이면 에이전트가 다음 휴리�
 
 ## Examples
 
-GoalTrack 프로젝트의 수동 패턴 (참고):
-- `docs/screenshots/mvp-home-empty.png`, `mvp-home-list.png` — 같은 화면 다른 상태
-- `crypto-365d-after-fix.png`, `crypto-365d-round2.png` — 수정 round별 보존
-- `shared_portfolio.png`, `shared_simulation.png` — 기능별 핵심 화면
-
-본 skill은 그 패턴을 자동화 + diff + 에이전트 사전 판정 추가.
+파일명이 곧 비교 단위다 — 무엇을 무엇과 견줄지가 이름에서 보여야 한다:
+- `<화면>-empty.png` / `<화면>-list.png` — 같은 화면의 다른 상태
+- `<화면>-after-fix.png` / `<화면>-round2.png` — 수정 round 별 보존
+- `<기능>.png` — 기능별 핵심 화면 1장

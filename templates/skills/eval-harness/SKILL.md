@@ -223,7 +223,7 @@ Generates full eval report
     baseline.json         # Regression baselines (선택)
 ```
 
-> Vantage 프로젝트의 `.claude/evals/*.{md,log}` 구조를 일반화한 것.
+> eval 산출물은 `docs/evals/*.{md,log}` 로 모은다 — 실행 로그와 판정을 같은 자리에 둔다.
 
 ### .md 파일 의무 섹션 (3개)
 
