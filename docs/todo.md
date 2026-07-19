@@ -174,6 +174,11 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 - [x] **F-1e 항목별 추가 install 이 로그에 등록** (✅ v26.123.0) —
       `tests/install-inventory-e2e.test.ts` 가 AC 전 구간을 한 줄기로 검증.
 
+- [ ] **F-3 (사용자 요청 2026-07-19) — README 에 `list` / `uninstall` 설명 추가.** 현재 README 는
+      설치만 안내하고 **깐 것을 보거나 빼는 방법이 없다** (`grep uninstall README.md` = 링크 한 줄).
+      USAGE 에는 v26.123.0 에서 추가했으나 README 진입점에는 도달 경로가 없다. README 구조 실측
+      결론(v26.118.0, 393→102줄)을 깨지 않는 선에서 최소 분량으로 — 기능 나열 표를 만들지 말 것.
+      README.ko.md 도 함께. 도달 경로 = README · README.ko · (해당 시) llms.txt.
 - [ ] **F-2 (신규, v26.123.0 중 발견) — branch coverage 가 실행마다 흔들린다.** 동일 커밋
       3회 실측 = 89.13 / 89.12 / 89.13. 소스 변경 없이 값이 바뀌므로 **커버리지 게이트가
       threshold 근처에서 flaky** 해진다 (현재 gate 88, 여유 ~1.1%p 라 아직 안 터졌을 뿐).
