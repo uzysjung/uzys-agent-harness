@@ -76,7 +76,7 @@ Reverses the install based on `.claude/.harness-install.json`.
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
 - **Global-scope assets**: listed as advisory only. You run the removal yourself.
-- **Assets with no automated reverse** (`npx-run`, `shell-script`): reported as such and left in the record — a full uninstall removes `.claude/` around them, but `--only` cannot undo them.
+- **Assets with no automated reverse** (`npx-run`, `shell-script`): reported as such and left in the record — a full uninstall removes `.claude/` around them, but `--only` cannot undo them. Anything they wrote outside `.claude/` (e.g. BMAD's `_bmad/`, `_bmad-output/`) stays and is yours to delete.
 
 | Flag | What |
 |---|---|

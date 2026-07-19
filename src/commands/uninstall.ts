@@ -74,10 +74,11 @@ interface GlobalAdvisory {
 }
 
 /**
- * 크기 예외 사유 (code-style 50줄 상한): 본 함수는 CLI action 의 **선형 orchestration** 이고
+ * 크기 예외 사유 (code-style 50줄 상한): 본 함수의 내용은 **단계의 순서와 전제조건 분기**이고,
  * 각 단계는 이미 이름 있는 함수로 빠져 있다 (`planReverse` → `headerLines` → `dryRunLines` |
  * `executeReverse` → `removeTemplates` → `settleLog` → `advisoryLines` → `summarize`).
- * 더 쪼개면 호출 순서라는 유일한 정보가 흩어진다 — 순서 자체가 이 함수의 내용이다.
+ * 남은 것은 early return 3개(로그 없음 / 모르는 id / dry-run)와 호출 순서뿐 — 더 쪼개면
+ * 그 순서가 흩어진다.
  */
 export function uninstallAction(options: UninstallOptions, deps: UninstallActionDeps = {}): void {
   const log = deps.log ?? console.log;
