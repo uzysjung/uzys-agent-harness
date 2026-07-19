@@ -39,6 +39,7 @@ import {
   buildInstallLog,
   hashContent,
   type InstallLog,
+  type InstallLogRootFile,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
@@ -319,7 +320,14 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // backupPath 가 있으면 `.claude/` 를 rename 으로 밀어냈다는 뜻 — 그 안에 살던 이전 자산은
   // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
-  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog, previousLog, backupPath !== null);
+  writeInstallLogSafe(
+    ctx,
+    external,
+    base.rootClaudeMdLog,
+    previousLog,
+    backupPath !== null,
+    collectRootFiles(baseline.envFiles, ciScaffold, mcpResult.created),
+  );
 
   return { ...baseline, external, karpathyHook };
 }
@@ -601,6 +609,7 @@ function writeInstallLogSafe(
   rootClaudeMdLog: { path: string; sha256: string } | null,
   previousLog: InstallLog | null,
   claudeDirMovedAside: boolean,
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): void {
   try {
     const log = buildInstallLog(
@@ -610,6 +619,7 @@ function writeInstallLogSafe(
       rootClaudeMdLog,
       previousLog,
       claudeDirMovedAside,
+      rootFiles,
     );
     writeInstallLog(ctx.projectDir, log);
   } catch (e) {
@@ -695,8 +705,10 @@ function composeAndWriteMcp(
   harnessRoot: string,
   projectDir: string,
   spec: InstallSpec,
-): { mcpServers: Record<string, unknown> } {
+): { mcpServers: Record<string, unknown>; created: boolean } {
   const mcpPath = join(projectDir, ".mcp.json");
+  // 쓰기 전에 본다 — 쓰고 나면 "우리가 만든 것"과 "사용자 것에 병합한 것"을 구분할 수 없다.
+  const created = !existsSync(mcpPath);
   const composed = composeMcpJson({
     templateMcpPath: join(harnessRoot, "templates/mcp.json"),
     trackMapPath: join(harnessRoot, "templates/track-mcp-map.tsv"),
@@ -704,7 +716,57 @@ function composeAndWriteMcp(
     tracks: spec.tracks,
   });
   writeMcpJson(mcpPath, composed);
-  return composed;
+  return { ...composed, created };
+}
+
+/**
+ * v26.124.0 (F-1f) — 이번 설치가 `.claude/` **밖**에 만들거나 고친 루트 파일 목록.
+ *
+ * uninstall 은 이걸 지우지 않고 **안내만** 한다 (사용자 내용이 섞임). 그러려면 무엇을 건드렸는지
+ * 기록이 있어야 하는데 v26.123.0 까지 아무 기록이 없어서 안내조차 못 했다.
+ *
+ * **이번 설치가 실제로 바꾼 것만 넣는다** — idempotent skip(이미 있어서 안 건드림)은 넣지 않는다.
+ * 이전 설치분은 install-log 의 누적(mergeRootFiles)이 살려 준다.
+ */
+function collectRootFiles(
+  envFiles: BaselineReport["envFiles"],
+  ciScaffold: CiScaffoldReport | null,
+  mcpCreated: boolean,
+): InstallLogRootFile[] {
+  const files: InstallLogRootFile[] = [
+    {
+      path: ".mcp.json",
+      change: mcpCreated ? "created" : "modified",
+      notes: [mcpCreated ? "MCP 서버 정의 생성" : "MCP 서버 정의 병합 (기존 항목 보존)"],
+    },
+  ];
+  if (envFiles.envExampleCreated) {
+    files.push({ path: ".env.example", change: "created", notes: ["Supabase 토큰 가이드"] });
+  }
+  // `mcpAllowlist` 는 세 값이 다 다르다: null=skip · []=**서버가 없어 안 씀** · 비어있지 않음=씀.
+  // 길이를 안 보면 안 만든 파일을 만들었다고 기록한다 (env-files.ts writeMcpAllowlist).
+  if (envFiles.mcpAllowlist && envFiles.mcpAllowlist.length > 0) {
+    files.push({
+      path: ".mcp-allowlist",
+      change: "created",
+      notes: [`MCP allowlist (${envFiles.mcpAllowlist.length} server)`],
+    });
+  }
+  const gitignoreAdded = [
+    ...(envFiles.gitignoreEnvAdded ? [".env"] : []),
+    ...envFiles.gitignoreNpxSkillsAdded,
+  ];
+  if (gitignoreAdded.length > 0) {
+    files.push({
+      path: ".gitignore",
+      change: "modified",
+      notes: [`추가된 줄: ${gitignoreAdded.join(", ")}`],
+    });
+  }
+  for (const workflow of ciScaffold?.written ?? []) {
+    files.push({ path: workflow, change: "created", notes: ["CI 워크플로 스캐폴드"] });
+  }
+  return files;
 }
 
 /**

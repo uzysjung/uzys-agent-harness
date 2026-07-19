@@ -138,3 +138,45 @@ describe("listAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.124.0 (F-1f) — `.claude/` 밖 루트 파일. 인벤토리가 `.claude/` 안만 보여주면
+ * "무엇이 설치됐는가"의 답이 반쪽이다 — uninstall 이 남기는 것들이 여기서도 안 보인다.
+ */
+describe("listAction — 루트 파일 (F-1f)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-list-root-"));
+  });
+
+  function run(): string {
+    const log = vi.fn();
+    listAction(
+      { projectDir: tmpDir },
+      { log, err: vi.fn(), exit: vi.fn() as unknown as (code: number) => never },
+    );
+    return log.mock.calls.flat().join("\n");
+  }
+
+  it("루트 파일을 실재하는 것만 보여준다", () => {
+    writeLog(tmpDir, {
+      ...baseLog(),
+      rootFiles: [
+        { path: ".mcp.json", change: "modified", notes: ["MCP 서버 정의 병합"] },
+        { path: ".env.example", change: "created", notes: ["Supabase 가이드"] },
+      ],
+    });
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8"); // .env.example 은 없다
+
+    const out = run();
+    expect(out).toContain(".mcp.json");
+    expect(out).not.toContain(".env.example");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rootFiles 없는 구 로그는 섹션이 없다", () => {
+    writeLog(tmpDir, baseLog());
+    expect(run()).not.toContain("Root files");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});

@@ -7,6 +7,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.124.0] — 2026-07-19 (feat: uninstall 이 `.claude/` 밖 수정분을 안내한다)
+
+### 추가
+- **루트 파일 기록 + 안내 (F-1f).** install 은 `.claude/` **밖**에도 쓴다 — `.mcp.json`(병합) ·
+  `.gitignore`(추가줄) · `.env.example` · `.mcp-allowlist` · `.github/workflows/`(ci-scaffold).
+  그런데 로그에 아무 기록이 없어 **uninstall 이 안내조차 못 했다**: `.claude/` 를 통째로 지우고
+  나면 밖에 남은 것들은 사용자가 존재조차 모른다.
+
+  install 이 `rootFiles` 로 기록하고(경로 · created/modified · 무엇을 했는지), `uninstall` 과
+  `list` 가 그걸 읽어 보여준다. **지우지는 않는다** — `.mcp.json`/`.gitignore` 에는 사용자 내용이
+  섞이고 `.github/workflows/` 는 설치 후 사용자 소유물이다(ci-scaffold 안전 계약 2). F-1d 와 같은
+  반자동 안내 방침.
+
+  - `created`(하네스가 만든 파일 = 손 안 댔으면 삭제해도 안전) 와 `modified`(사용자 파일에 병합
+    = 직접 확인 필요)를 구분해 출력한다. 처리 방법이 다르므로 뭉치면 안내가 무용해진다.
+  - **디스크에 실재하는 것만** 출력한다 — 없는 파일을 손보라고 시키지 않는다 (F-1d 와 같은 규율).
+  - 재설치 시 note 는 **합집합으로 누적**한다. 1회차가 `.gitignore` 에 `.env` 를, 2회차가
+    `.factory/` 를 추가했으면 둘 다 디스크에 남아 있으므로 둘 다 알려야 한다. `change` 는 한 번이라도
+    `created` 면 `created` 로 남긴다(낮추면 지워도 될 것을 못 지운다).
+  - `--only` 는 자산 범위 작업이라 이 안내를 내지 않는다. v26.123.0 이하 로그는 `rootFiles` 가
+    없으므로 섹션 자체가 없다(구 로그 호환).
+
+### 검증
+- `npm run ci` **exit 0** — 65 files / **873 tests** / branches **89.6** (gate 88 통과).
+  branch % 는 실행마다 흔들리므로 유효숫자를 줄여 적는다 (F-2).
+- **mutation 4종 사살**: ⓐ `collectRootFiles` 무기록 → e2e 3 fail ⓑ uninstall 안내 제거 → 4 fail
+  ⓒ list 의 실재 검사 제거 → 1 fail ⓓ note 합집합 → 이번 것만 → 1 fail.
+- **CLI 실행 실증**(빌드본 `node dist/index.js`): `list` 의 **Root files** 섹션과 `uninstall
+  --dry-run` 의 **[ROOT]** 섹션이 실제 렌더됨. 로그에 있으나 디스크에 없는 `.env.example` 이
+  양쪽 모두에서 정상 제외됨.
+- **미검증**: Docker 실설치 · 4-CLI 렌더 · npm tarball.
+
+### 문서
+- `docs/USAGE.md` — Uninstall 절에 "Files outside `.claude/`" 신설. 직전 판본의 "get no advisory
+  yet" 서술을 실동작으로 교체.
+- `.claude/skills/multi-persona-review/SKILL.md` (+ `templates/` 사본) — 패널 워커를 **결과 수거와
+  동시에 닫도록** 명시(사용자 보고: 에이전트가 남는다). 3~5개를 한 번에 띄우는 최대 fan-out 지점이라
+  누수가 가장 빨리 쌓인다. 2차 패스는 **신선한 에이전트**로 — 이어쓴 리뷰어는 자기 1차 소견에
+  앵커링되며, 그건 이 방법론이 막으려는 실패 그 자체다. SSOT 는 `model-orchestration` "Worker
+  lifecycle", 본 스킬은 그 규칙의 패널 스케일 적용.
+
 ## [v26.123.0] — 2026-07-19 (feat: 설치 내역 조회 · 항목별 제거 — 그리고 추가 설치가 기록을 덮어쓰던 결함)
 
 설치 기록(`.claude/.harness-install.json`)은 v26.64.0(ADR-020)부터 있었지만, **사용자가 그것을

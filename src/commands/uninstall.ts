@@ -30,6 +30,7 @@ import {
   hashContent,
   type InstallLog,
   type InstallLogAsset,
+  type InstallLogRootFile,
   installLogPath,
   readInstallLog,
   writeInstallLog,
@@ -119,11 +120,22 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // `--only` 는 자산만 건드린다 — templates 를 지우면 "하나만 빼기"가 아니게 된다.
   const keepTemplates = options.keepTemplates || selectedIds !== null;
 
+  // v26.124.0 (F-1f) — `.claude/` 밖 루트 파일 안내. `--only` 는 특정 자산만 건드리는 작업이라
+  // 설치 전반이 만든 루트 파일은 대상이 아니다. 구 로그(rootFiles 부재)는 빈 배열 = 안내 없음.
+  const rootFiles = selectedIds ? [] : (installLog.rootFiles ?? []);
+
   const plan = planReverse(targetAssets, spawn);
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
-    for (const line of dryRunLines(plan, installLog, projectDir, keepTemplates, targetAssets)) {
+    for (const line of dryRunLines(
+      plan,
+      installLog,
+      projectDir,
+      keepTemplates,
+      targetAssets,
+      rootFiles,
+    )) {
       log(line);
     }
     exit(0);
@@ -154,7 +166,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
 
   // 판정 기준은 "`--only` 인가"가 아니라 "`.claude/` 가 남는가"다 — `--keep-templates` 만 줘도
   // settings.json 은 살아남으므로 안내 대상이다. dry-run 과 같은 값을 넘겨야 미리보기가 맞는다.
-  for (const line of advisoryLines(plan, targetAssets, projectDir, keepTemplates)) {
+  for (const line of advisoryLines(plan, targetAssets, projectDir, keepTemplates, rootFiles)) {
     log(line);
   }
 
@@ -300,6 +312,7 @@ function dryRunLines(
   projectDir: string,
   keepTemplates: boolean,
   targetAssets: ReadonlyArray<InstallLogAsset>,
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): string[] {
   const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
   if (plan.reverseSteps.length === 0) {
@@ -323,16 +336,17 @@ function dryRunLines(
   }
   // keepTemplates=false 면 실제 실행은 `.claude/` 를 통째로 지운다 → 수기 안내 대상 자체가
   // 사라지므로 미리보기에서도 안내하지 않는다. 안 그러면 곧 삭제될 파일을 손보라고 시킨다.
-  lines.push(...advisoryLines(plan, targetAssets, projectDir, keepTemplates), "");
+  lines.push(...advisoryLines(plan, targetAssets, projectDir, keepTemplates, rootFiles), "");
   return lines;
 }
 
-/** global(D16) + 수기 표면 안내. dry-run 과 실행 경로가 같은 함수를 쓴다. */
+/** global(D16) + 수기 표면 + 루트 파일 안내. dry-run 과 실행 경로가 같은 함수를 쓴다. */
 function advisoryLines(
   plan: ReversePlan,
   targetAssets: ReadonlyArray<InstallLogAsset>,
   projectDir: string,
   templatesKept: boolean,
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): string[] {
   const lines: string[] = [];
   if (plan.globalAdvisories.length > 0) {
@@ -347,7 +361,39 @@ function advisoryLines(
     }
   }
   if (templatesKept) lines.push(...manualAdvisoryLines(targetAssets, projectDir));
+  // templatesKept 와 무관하다 — `.claude/` 를 통째로 지우는 경로야말로 밖에 남는 것을
+  // 사용자가 존재조차 모르게 되는 경우다. 그게 F-1f 가 잡는 구멍이다.
+  lines.push(...rootFileAdvisoryLines(rootFiles, projectDir));
   return lines;
+}
+
+/**
+ * v26.124.0 (F-1f) — `.claude/` 밖에 남는 것 안내. **지우지 않는다**:
+ * `.mcp.json`/`.gitignore` 는 사용자 내용이 섞이고, `.github/workflows/` 는 설치 후 사용자
+ * 소유물이다 (ci-scaffold.ts 안전 계약 2). 기계적 되돌리기는 손실 위험이라 안내로 넘긴다.
+ *
+ * manualAdvisoryLines 와 같은 규율 — **예측이 아니라 현재 파일 상태를 읽어** 실재하는 것만 낸다.
+ */
+function rootFileAdvisoryLines(
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
+  projectDir: string,
+): string[] {
+  const present = rootFiles.filter((f) => existsSync(join(projectDir, f.path)));
+  if (present.length === 0) return [];
+  return [
+    "",
+    c.yellow("[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):"),
+    ...present.flatMap((f) => [
+      c.dim(
+        `  · ${f.path} — ${
+          f.change === "created"
+            ? "하네스가 생성 (수정한 적 없으면 삭제해도 안전)"
+            : "기존 사용자 파일에 병합 (직접 확인 필요)"
+        }`,
+      ),
+      c.dim(`      ${f.notes.join(" / ")}`),
+    ]),
+  ];
 }
 
 interface ReversePlan {

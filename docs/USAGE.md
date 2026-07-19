@@ -90,9 +90,21 @@ says so and exits non-zero rather than reporting success.
 
 When `--only` leaves `.claude/` in place, a hook registration in `.claude/settings.json` that
 referenced the removed asset is **printed for you to delete** rather than edited automatically
-(currently implemented for `karpathy-coder`). Other root-level files the installer touches —
-`.mcp.json`, `.gitignore`, `.env.example`, `.mcp-allowlist`, `.github/workflows/` — get no advisory
-yet and are never removed.
+(currently implemented for `karpathy-coder`).
+
+### Files outside `.claude/` (v26.124.0+)
+
+Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
+`.env.example`, `.mcp-allowlist`, and `.github/workflows/` when `ci-scaffold` is selected. A full
+uninstall **lists these and removes none of them** — your own content is mixed into `.mcp.json` and
+`.gitignore`, and the workflow files are yours once installed. Each is labelled by how it got there:
+
+- **created** — the harness made the file; if you haven't edited it, deleting it is safe.
+- **merged** — it already existed and the harness added to it; check it by hand.
+
+Only files still present on disk are listed, and `list` shows the same set under **Root files**.
+`--only` doesn't print this section: it targets specific assets, not the install as a whole.
+Logs written before v26.124.0 have no record of these files, so an older install shows nothing here.
 
 ---
 

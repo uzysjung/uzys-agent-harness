@@ -356,3 +356,53 @@ describe("survivesClaudeDirRename — .claude/ 를 밀어낸 설치의 누적 �
     expect(survivorsAfterRename(prev)).toEqual(["gskill"]);
   });
 });
+
+/**
+ * v26.124.0 (F-1f) — install 은 `.claude/` **밖**에도 쓴다(`.mcp.json` 병합 · `.gitignore` 추가줄 ·
+ * `.env.example` · `.mcp-allowlist` · `.github/workflows/`). 그런데 로그에 아무 기록이 없어
+ * uninstall 이 **안내조차 못 했다**. 기록이 없으면 안내도 없다 — 그래서 install 이 먼저 적는다.
+ */
+describe("buildInstallLog — 루트 파일 기록 (F-1f)", () => {
+  const mcpCreated = { path: ".mcp.json", change: "created" as const, notes: ["MCP 서버 정의"] };
+  const mcpMerged = { path: ".mcp.json", change: "modified" as const, notes: ["MCP 서버 병합"] };
+
+  it("루트 파일이 없으면 필드 자체가 없다 (구 로그와 같은 모양 — 구독자가 늘 배열을 가정하지 않게)", () => {
+    expect(buildInstallLog(mkSpec(), null, "project").rootFiles).toBeUndefined();
+  });
+
+  it("이번 설치가 건드린 루트 파일이 기록된다", () => {
+    const log = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    expect(log.rootFiles).toEqual([mcpCreated]);
+  });
+
+  it("추가 설치해도 1회차 루트 파일이 남는다 — 디스크에 그대로 있으므로", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [
+      { path: ".env.example", change: "created", notes: ["Supabase 가이드"] },
+    ]);
+    expect(second.rootFiles?.map((f) => f.path)).toEqual([".mcp.json", ".env.example"]);
+  });
+
+  it("같은 파일을 두 번 건드리면 note 가 합쳐진다 — 이번 것만 남기면 1회차 추가분을 안 알려준다", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [
+      { path: ".gitignore", change: "modified", notes: [".env"] },
+    ]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [
+      { path: ".gitignore", change: "modified", notes: [".factory/", ".goose/"] },
+    ]);
+    expect(second.rootFiles).toHaveLength(1);
+    expect(second.rootFiles?.[0]?.notes).toEqual([".env", ".factory/", ".goose/"]);
+  });
+
+  it("한 번이라도 하네스가 만든 파일이면 created 로 남는다 (전량 하네스 소유 = 삭제해도 안전)", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [mcpMerged]);
+    expect(second.rootFiles?.[0]?.change).toBe("created");
+  });
+
+  it("`.claude/` 를 밀어낸 설치여도 루트 파일은 남는다 — 밖에 있으므로 사라지지 않는다", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, true, []);
+    expect(second.rootFiles?.map((f) => f.path)).toEqual([".mcp.json"]);
+  });
+});

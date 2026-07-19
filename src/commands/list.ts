@@ -15,6 +15,7 @@ import {
   hashContent,
   type InstallLog,
   type InstallLogAsset,
+  type InstallLogRootFile,
   installLogPath,
   readInstallLog,
 } from "../install-log.js";
@@ -66,6 +67,14 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
     log(line);
   }
 
+  const rootRows = formatRootFileRows(installLog.rootFiles ?? [], projectDir);
+  if (rootRows.length > 0) {
+    log("");
+    log(c.bold("  Root files"));
+    log(c.dim("    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)"));
+    for (const line of rootRows) log(line);
+  }
+
   log("");
   log(c.dim("  remove one:  agent-harness uninstall --only <id>"));
   log(c.dim("  remove all:  agent-harness uninstall"));
@@ -102,6 +111,22 @@ function formatTemplateRows(log: InstallLog, projectDir: string): string[] {
     );
   }
   return rows;
+}
+
+/**
+ * v26.124.0 (F-1f) — `.claude/` 밖 루트 파일 행. uninstall 안내와 같은 규율로
+ * **실재하는 것만** 낸다 (사용자가 이미 지운 파일을 인벤토리에 남기면 그게 거짓 기록이다).
+ */
+function formatRootFileRows(
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
+  projectDir: string,
+): string[] {
+  const present = rootFiles.filter((f) => existsSync(join(projectDir, f.path)));
+  const width = Math.max(0, ...present.map((f) => f.path.length));
+  return present.map(
+    (f) =>
+      `    ${c.dim(padDisplay(f.path, width))}  ${c.dim(f.change === "created" ? "생성" : "병합")}  ${c.dim(f.notes.join(" / "))}`,
+  );
 }
 
 export function registerListCommand(cli: import("../cli.js").Cli): void {

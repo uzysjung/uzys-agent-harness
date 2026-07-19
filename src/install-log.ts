@@ -30,6 +30,25 @@ export interface InstallLogAsset {
   version?: string;
 }
 
+/**
+ * v26.124.0 (F-1f) — install 이 `.claude/` **밖**에 만들거나 고친 프로젝트 루트 파일.
+ *
+ * uninstall 은 이 목록을 **안내만 하고 지우지 않는다**. `.mcp.json`/`.gitignore` 에는 사용자
+ * 내용이 섞이고, `.github/workflows/` 는 설치 후 사용자 소유물이기 때문 (ci-scaffold.ts 안전
+ * 계약 2 · F-1d 와 같은 방침). 기록이 없으면 안내도 없다 — 그래서 install 이 적어 둔다.
+ */
+export interface InstallLogRootFile {
+  /** project-relative 경로 (예: `.mcp.json`, `.github/workflows/ci.yml`) */
+  path: string;
+  /**
+   * created = 하네스가 없던 파일을 만들었다 (내용 전부 하네스 것 → 손 안 댔으면 지워도 안전).
+   * modified = 이미 있던 사용자 파일에 병합/추가했다 (직접 확인이 필요하다).
+   */
+  change: "created" | "modified";
+  /** 무엇을 했는지 — uninstall 안내에 그대로 나온다. 재설치 시 합집합으로 누적된다. */
+  notes: string[];
+}
+
 export interface InstallLog {
   /** schema version — backward compat 검출용 */
   schemaVersion: number;
@@ -58,6 +77,11 @@ export interface InstallLog {
   };
   /** external-installer 가 install 한 자산 (ok=true 만) */
   assets: ReadonlyArray<InstallLogAsset>;
+  /**
+   * v26.124.0 (F-1f) — `.claude/` 밖 루트 파일. 건드린 게 없으면 필드 자체가 없다
+   * (v26.123.0 이하 로그도 이 상태 — 읽는 쪽은 부재를 정상으로 다뤄야 한다).
+   */
+  rootFiles?: ReadonlyArray<InstallLogRootFile>;
 }
 
 /**
@@ -133,6 +157,7 @@ export function buildInstallLog(
   rootClaudeMd?: { path: string; sha256: string } | null,
   previous?: InstallLog | null,
   claudeDirMovedAside = false,
+  rootFiles: ReadonlyArray<InstallLogRootFile> = [],
 ): InstallLog {
   const templates: InstallLog["templates"] = {
     claudeDir: ".claude/",
@@ -156,7 +181,37 @@ export function buildInstallLog(
       buildAssetEntries(external, scope),
     ),
   };
+  // 루트 파일은 `.claude/` 밖이라 backup rename 과 무관하게 살아남는다 → 무조건 누적.
+  const mergedRootFiles = mergeRootFiles(previous?.rootFiles, rootFiles);
+  if (mergedRootFiles.length > 0) log.rootFiles = mergedRootFiles;
   return log;
+}
+
+/**
+ * 경로 기준 합집합. 자산과 달리 **이번 설치분이 이전 것을 덮지 않고 합친다** — `.gitignore` 에
+ * 1회차는 `.env`, 2회차는 `.factory/` 를 추가하면 둘 다 디스크에 남아 있으므로 둘 다 알려야 한다.
+ * `change` 는 한 번이라도 created 면 created — 하네스가 만든 파일에 나중에 병합한 것뿐이고,
+ * 사용자에게는 "전부 하네스 것"이 여전히 참이다 (modified 로 낮추면 지워도 될 것을 못 지운다).
+ */
+function mergeRootFiles(
+  previous: ReadonlyArray<InstallLogRootFile> | undefined,
+  current: ReadonlyArray<InstallLogRootFile>,
+): InstallLogRootFile[] {
+  const byPath = new Map<string, InstallLogRootFile>();
+  for (const file of [...(previous ?? []), ...current]) {
+    const prior = byPath.get(file.path);
+    byPath.set(
+      file.path,
+      prior
+        ? {
+            path: file.path,
+            change: prior.change === "created" ? "created" : file.change,
+            notes: [...new Set([...prior.notes, ...file.notes])],
+          }
+        : file,
+    );
+  }
+  return [...byPath.values()];
 }
 
 /**

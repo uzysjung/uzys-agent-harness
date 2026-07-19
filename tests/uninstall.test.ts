@@ -1350,3 +1350,93 @@ describe("uninstallAction — keepTemplates 와 log 생존은 다른 사실이�
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.124.0 (F-1f) — install 은 `.claude/` 밖에도 쓰는데(`.mcp.json` 병합 · `.gitignore` 추가줄 ·
+ * `.github/workflows/`) uninstall 이 **안내조차 하지 않았다**. `.claude/` 를 통째로 지우고 나면
+ * 남은 것들은 사용자가 존재조차 모른다. 지우지는 않되(사용자 내용이 섞인다) 반드시 말한다.
+ */
+describe("uninstallAction — 루트 파일 안내 (F-1f)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-uninstall-root-"));
+  });
+
+  function logWithRootFiles(): InstallLog {
+    return {
+      ...baseLog(),
+      rootFiles: [
+        { path: ".mcp.json", change: "modified", notes: ["MCP 서버 정의 병합 (기존 항목 보존)"] },
+        { path: ".github/workflows/ci.yml", change: "created", notes: ["CI 워크플로 스캐폴드"] },
+      ],
+    };
+  }
+
+  function run(opts: { only?: string; dryRun?: boolean } = {}): string {
+    const log = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, ...opts },
+      {
+        log,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+        writeLog: vi.fn(),
+      },
+    );
+    return log.mock.calls.flat().join("\n");
+  }
+
+  it("전량 uninstall 시 `.claude/` 밖에 남는 파일을 알려준다", () => {
+    writeLog(tmpDir, logWithRootFiles());
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8");
+    mkdirSync(join(tmpDir, ".github/workflows"), { recursive: true });
+    writeFileSync(join(tmpDir, ".github/workflows/ci.yml"), "on: push\n", "utf8");
+
+    const out = run();
+    expect(out).toContain(".mcp.json");
+    expect(out).toContain(".github/workflows/ci.yml");
+    // 병합 파일은 "직접 확인", 하네스 생성 파일은 "삭제해도 안전" — 처리 방법이 다르므로 구분한다.
+    expect(out).toMatch(/\.mcp\.json[\s\S]*병합/);
+    expect(out).toMatch(/ci\.yml[\s\S]*안전/);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("로그에 있어도 디스크에 없으면 안내하지 않는다 — 없는 파일을 손보라고 시키지 않는다", () => {
+    writeLog(tmpDir, logWithRootFiles());
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8"); // ci.yml 은 만들지 않는다
+
+    const out = run();
+    expect(out).toContain(".mcp.json");
+    expect(out).not.toContain("ci.yml");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("`--only` 는 자산 범위 작업이라 루트 파일을 안내하지 않는다", () => {
+    writeLog(tmpDir, {
+      ...logWithRootFiles(),
+      assets: [{ id: "p", category: "frontend", method: "plugin", scope: "project", detail: {} }],
+    });
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8");
+
+    expect(run({ only: "p" })).not.toContain(".mcp.json");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("dry-run 도 같은 안내를 낸다 — 미리보기가 실제와 다르면 미리보기가 아니다", () => {
+    writeLog(tmpDir, logWithRootFiles());
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8");
+
+    expect(run({ dryRun: true })).toContain(".mcp.json");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("rootFiles 없는 구 로그(v26.123.0 이하)는 안내 섹션 자체가 없다", () => {
+    writeLog(tmpDir, baseLog());
+    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8");
+
+    expect(run()).not.toContain("[ROOT]");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});

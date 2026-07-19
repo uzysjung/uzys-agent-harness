@@ -185,12 +185,12 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       부수 피해: CHANGELOG 에 소수점 둘째 자리를 적는 관행이 구조적으로 거짓 주장을 만든다
       (이번 릴리즈에서 3회 오기). 원인 후보 = 환경 의존 분기(`command -v` 류)·테스트 순서·
       v8 provider. 재현: `npx vitest run --coverage` 3회 비교.
-- [ ] **F-1f (신규, 이번 작업 중 발견) — uninstall 이 프로젝트 루트 수정분을 모른다.** install 은
-      `.claude/` 밖에도 쓴다: `.mcp.json`(병합) · `.gitignore`(추가줄) · `.env.example` ·
-      `.mcp-allowlist` · `.github/workflows/*`(ci-scaffold). uninstall 은 이 중 **어느 것도
-      안내조차 하지 않는다** — `.mcp.json`/`.gitignore` 는 사용자 내용이 섞이므로 자동 삭제도
-      부적절하다. F-1d 와 같은 반자동 안내가 필요하나 **무엇을 건드렸는지 로그에 없다** →
-      install 시 기록 후 안내. 근거: `env-files.ts:62,75,103,128,132` · `ci-scaffold.ts:71`.
+- [x] **F-1f — uninstall 이 프로젝트 루트 수정분을 모른다.** (✅ v26.124.0) install 은 `.claude/`
+      밖에도 쓴다: `.mcp.json`(병합) · `.gitignore`(추가줄) · `.env.example` · `.mcp-allowlist` ·
+      `.github/workflows/*`(ci-scaffold). uninstall 이 **어느 것도 안내조차 하지 않았다**.
+      install 이 `rootFiles` 로 기록 → `uninstall`/`list` 가 안내한다. 자동 삭제는 하지 않는다
+      (사용자 내용이 섞임 — F-1d 와 같은 방침). 근거였던 위치: `env-files.ts:62,75,103,128,132` ·
+      `ci-scaffold.ts:71`.
 
 <!-- ship-gate:ignore-end -->
 
