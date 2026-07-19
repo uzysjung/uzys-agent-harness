@@ -7,6 +7,59 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.121.0] — 2026-07-19 (fix+feat: 죽어 있던 drift 탐지기 수리 · 관측→감사 연결 · 재발방지 3건)
+
+외부 카탈로그(ECC) 도입 검토로 출발했으나 **신규 도입은 0건**이고, 대신 우리 쪽 결함이 나왔다.
+스킬 278 + 에이전트 67 전수 스캔에서 생존한 후보 1개마저 검증에서 결함 4건으로 보류됐다.
+플러그인 경로는 `plugin.json` 이 스킬 디렉터리를 통째로 잡아 개별 선택이 불가능하고, 그 경우
+descriptor 만 **~20,852 tokens/세션**(우리 하네스 전체의 3.4배)이라 채택 대상이 아니다.
+
+### 수정
+- **`scripts/sync-cherrypicks.sh` 3중 결함 수리 — 도입(2026-04-14) 이래 한 번도 작동한 적 없다.**
+  ⓐ `SCRIPT_DIR` 을 repo 루트로 써서 lock 파일을 못 찾음(항상 exit 1) ⓑ 고쳐도 BSD 가
+  `realpath -m` 을 지원하지 않아 전 항목이 skip 되어 `Changed: 0 / exit 0` **거짓 green**
+  ⓒ 그걸 잡는 단언이 없었다. 그런데 CONTRIBUTING 4곳·REFERENCE 2곳이 사용법을 안내하고
+  **NORTH_STAR 는 이 스크립트를 차별화 근거로 인용**한다. 수리 후 22건 중 **19건 drift 검출**(3개월치).
+  **exit 2 = "검사 못 함"을 exit 0 = "이상 없음"과 분리** — 0건 비교를 in-sync 로 보고하던 것이
+  거짓 green 의 본체였다.
+- **거짓 광고 4건 정정** — 상주 수치·훅 배선 안내·CL-v2 설명·`.claude` 사본 drift.
+- **NORTH_STAR 상주 수치 재정정 + `tests/north-star-cost-figures.test.ts` 신설** — 직전 커밋이
+  수치를 고치면서 같은 커밋에서 설명문을 늘려 **스스로 stale 을 만들었다**. 이제 문서의 수치를
+  `residentCost()` 에서 derive 해 전수 대조한다.
+
+### 추가
+- **관측 로그를 감사 입력으로** — `harness-health-audit/scripts/observation-digest.mjs` 신설.
+  `~/.claude/homunculus/**/observations.jsonl` 을 읽기 전용으로 집계해 B1 이 스스로 적어둔
+  "observational, not measured" 한계를 실측으로 채운다. **집계는 코드·판정은 모델**(Rule 5) —
+  ECC 원본의 백그라운드 데몬(주기적 `claude --model haiku` 호출) 대신 온디맨드 집계다.
+  **1차 판본 폐기 교훈**: output 에 "error" 가 있는지로 실패를 세면 Edit 이 쓰는 *파일 내용*까지
+  잡혀 9.7% vs 실제 0.5% — 20배 부풀림. 관측 레코드에 **exit code 가 없어 실패율은 원리적으로
+  측정 불가**이며, 스크립트는 그 계산을 거부하고 "미측정"으로 보고한다.
+- **재발방지 ①: 세션 정리 유출** — `templates/hooks/session-start.sh` 가 이전 세션의 고아
+  프로세스를 탐지(**탐지만, 죽이지 않음**). 종료 훅이 아니라 **시작** 시점인 이유는 종료 시
+  출력이 유실될 수 있어서다. `templates/rules/git-policy.md` §Session Cleanup 0번 신설.
+  실측 근거: 백그라운드/서브에이전트를 쓴 30세션 중 **20건(66%)이 정리 흔적 0**.
+- **재발방지 ②: 검증 명령의 조용한 실패** — `templates/rules/cli-development.md` 에 BSD/GNU 표
+  3행(`realpath -m`·`find -newermt`·`stat`) + "빈 결과는 부재의 증거가 아니다" 원칙 3개.
+  한 세션에서 **3회** 밟았고 3회차는 `2>/dev/null` 이 에러를 삼켜 "호스트 오염 없음"이라는
+  **거짓 보고**가 됐다(실제로는 파일을 만들어 둔 상태였다).
+- **재발방지 ③: `no-false-ship` 룰 배포본 승격** — 그동안 이 repo 안에만 있던 규칙을
+  `templates/rules/` 로 올려 **11개 트랙 전부**에 설치한다. 사례 표는 로컬 사본에 남기고
+  배포본은 일반화된 원칙만 싣는다.
+
+### 변경
+- **CL-v2 재분류 C3 → C2 + upstream 온전판 복원.** 기존 C3 근거("우리가 수정해서 plugin 으로
+  갈음 불가")가 **거꾸로**였다 — 우리 수정의 내용이 upstream `agents/`(관측→instinct 분석기)
+  **제거**였고, 즉 우리 판본은 upstream 의 진부분집합이었다. upstream 754b8dd 전체 복원 →
+  lock `modified:false` → **자동 동기화 복귀** → C2(`!withEcc`)로 강등해 plugin 사용자의 중복 해소.
+  데몬은 upstream 기본값대로 꺼짐(`observer.enabled:false`).
+- `ecc-strategic-compact` lock `modified: false → true` — **거짓 선언이었다.** 우리
+  `suggest-compact.sh` 가 `rsync -a --delete` 에 지워질 수 있었다.
+
+### 비용 (역행 고지)
+상주 **5,194 → 6,075 tokens/세션 (+17%)**, 전부 룰 증분이다. 각 증분은 측정된 실패에 근거하지만
+방향은 ratchet 역행이므로 NORTH_STAR 에 그대로 적었다. ADR-043 2단계 eval 1순위 = 룰 계층.
+
 ## [v26.120.0] — 2026-07-19 (feat: 서브에이전트 결과 수거 = 파일 핸드오프 — 3회 재발 후 게이트화)
 
 긴 최종 메시지는 전달 중 유실되고 **그 실패가 조용하다** — 워커가 "아무것도 안 냈다"로 보여서

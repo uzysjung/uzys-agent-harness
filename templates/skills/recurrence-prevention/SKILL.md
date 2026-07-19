@@ -56,6 +56,10 @@ count basis — an unsourced generalization inflates counts and produces rule bl
    - durable memory (project memory entries, lessons/feedback notes)
    - existing rule files and their case tables (a matching case-table row = confirmed prior)
    - `git log --grep`, CHANGELOG entries, ADRs, postmortem docs
+   - recorded observations, if the project has them — `harness-health-audit`'s
+     `scripts/observation-digest.mjs` lists commands and files repeated across sessions. Narrow but
+     real: it turns "I kept redoing this" into a count. It cannot confirm a *failure* signature
+     (the records carry no exit code), so it corroborates repetition, never failure.
    - the current conversation (the user saying "저번에도" is a claim — try to find the artifact)
 3. **Count = confirmed prior occurrences + this one.** If you find no prior evidence, this is
    occurrence #1 even if it "feels" familiar — record it well (Level 0) so the *next* count has

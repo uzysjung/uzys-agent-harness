@@ -58,7 +58,15 @@ const onTracks =
 
 // v26.107.0 (ADR-036, 라이프사이클 자산화 ①) — doc-governance: SSOT 위계 + "merge = 코드 +
 //   추적 동기화" 의무. GoalTrack 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
-const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy", "doc-governance"];
+// v26.121.0 — no-false-ship 은 이 저장소 로컬 룰이었고 배포되지 않았다(사용자 결정으로 배송).
+// COMMON 인 이유: "검증한 것만 주장한다"는 코드를 출하할 때만이 아니라 모든 보고에 걸린다.
+const COMMON_RULES = [
+  "git-policy",
+  "change-management",
+  "gates-taxonomy",
+  "doc-governance",
+  "no-false-ship",
+];
 const DEV_RULES = ["test-policy", "ship-checklist", "code-style", "error-handling"];
 // v26.109.0 (ADR-038, 라이프사이클 자산화 ③) — benchmark-parity: 레퍼런스 실측 → gap.md →
 //   완결성 루프. capture 수단의 SSOT 인 playwright-launch 와 짝으로만 성립하므로 UI 트랙 한정.
@@ -134,10 +142,15 @@ export const ALWAYS_HOOKS = [
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
 // C2 (plugin OFF fallback, opt-out): strategic-compact.
-const COMMON_SKILL_DIRS_ECC = ["strategic-compact"];
+// v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
+// instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
+// 뒤집혀 있었다 — 갈음 불가의 내용이 기능 제거였다. upstream 전체를 복원해 동일해졌으므로
+// (lock modified:false) plugin ON 이면 비켜서는 것이 맞다. 데몬은 upstream 기본값대로 꺼져 있다
+// (config.json observer.enabled=false) — 켜면 백그라운드에서 claude 를 주기 호출하므로 사용자 선택.
+const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "continuous-learning-v2"];
 // C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
 // 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
-const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2", "deep-research"];
+const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
 
 const DEV_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];

@@ -67,7 +67,9 @@ describe("V&V verdict 어휘 — 라이프사이클 ⑤ 계약", () => {
     // derive 원본이 비거나 한쪽(COMMON/DEV)을 잃으면 아래 루프가 0회 돌아 공허하게 통과한다
     // — mutation 으로 실증된 구멍(M13/M14). 알려진 C3 2종의 존재를 먼저 못 박는다.
     // 신규 C3 추가는 이 단언을 건드리지 않고 lock 플래그만 요구한다(제거만 차단).
-    expect(MODIFIED_ECC_SKILL_DIRS).toContain("continuous-learning-v2");
+    // v26.121.0 — 앵커였던 continuous-learning-v2 가 C2 로 내려갔다(upstream 전체 복원 →
+    // lock modified:false). 앵커 자체는 유지해야 루프가 공허해지지 않으므로 현재 C3 2종으로 교체.
+    expect(MODIFIED_ECC_SKILL_DIRS).toContain("deep-research");
     expect(MODIFIED_ECC_SKILL_DIRS).toContain("verification-loop");
 
     for (const sd of MODIFIED_ECC_SKILL_DIRS) {

@@ -158,6 +158,13 @@ when they'd be useful".
   head" ([Osmani](https://addyosmani.com/blog/agent-harness-engineering/)).
 - **Sprawl** — count installed skills/tools. Every one spends startup context on metadata forever.
 - **Observed use** — where session transcripts exist, did the skill fire on tasks it should own?
+- **Measured use** — if the project has recorded observations, run
+  `node .claude/skills/harness-health-audit/scripts/observation-digest.mjs` (add `--all` for every
+  project, `--days N` to window it). It reports tool-call counts per tool, session count, the
+  observation window, and files edited repeatedly. That converts "which parts of the harness
+  actually get exercised" from a guess into a count. Exit 3 means no observations exist — then say
+  B1 is unmeasured rather than estimating. Observations come from `continuous-learning-v2`'s hook;
+  a project without it simply has none, which is not a finding.
 
 **Action:** **correct** vague descriptions toward concrete triggers and explicit negative cases
 ("not for X, use Y"); **de-conflict** overlapping claims; flag sprawl for the user's decision — do not
@@ -165,8 +172,13 @@ delete someone's skills to reduce a count.
 
 **Honest limit:** Anthropic's guidance offers no quantitative trigger metric — it recommends running
 agents "on representative tasks and observing where they struggle" and monitoring "how Claude uses
-your skill in real scenarios". So utilization findings are **observational, not measured**. Say so;
-do not invent a trigger rate.
+your skill in real scenarios". The observation digest narrows this but does not close it: it counts
+**tool** calls, and a skill firing is not a tool call, so it tells you which capabilities got
+exercised, not which skills triggered. Records carry no exit code either, so **failure rate is not
+measurable from this data** — an early draft of the digest counted the word "error" anywhere in a
+tool's output and reported 9.7% "failures" where the real stderr-bearing figure was 0.5%, because
+editing a file *about* error handling matches too. Report what was counted; do not promote a proxy
+into a rate.
 
 ### B2 — Loop integrity
 The loop is the cycle of reason → act → observe → verify. What makes it work is not the model but the

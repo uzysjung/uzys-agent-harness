@@ -16,7 +16,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { renderCommandFromSkill } from "../src/opencode/commands.js";
 import { runOpencodeTransform } from "../src/opencode/transform.js";
 
@@ -35,16 +35,20 @@ describe("renderCommandFromSkill agent derivation", () => {
   });
 });
 
-describe("shell-dependence is derived from the scripts/ sidecar (no list to drift)", () => {
-  const hasScripts = (id: string) =>
-    existsSync(join(HARNESS_ROOT, "templates/skills", id, "scripts"));
+/** 구현(src/opencode/transform.ts)이 쓰는 것과 동일한 구조 신호. 두 describe 가 공유한다. */
+const hasScripts = (id: string) =>
+  existsSync(join(HARNESS_ROOT, "templates/skills", id, "scripts"));
 
-  it("consult advisors ship scripts/; dev-method skills don't", () => {
+describe("shell-dependence is derived from the scripts/ sidecar (no list to drift)", () => {
+  it("skills that shell out ship scripts/", () => {
+    // 상담 어드바이저는 외부 CLI 를 실행하는 것이 존재 이유다.
     expect(hasScripts("gemini-consult")).toBe(true);
     expect(hasScripts("codex-consult")).toBe(true);
-    for (const id of DEV_METHOD_SKILL_IDS) {
-      expect(hasScripts(id), `${id} unexpectedly grew a scripts/ sidecar`).toBe(false);
-    }
+    // harness-health-audit 은 "## Run the deterministic linter first" 로 시작한다 —
+    // npx ecc-agentshield scan · AgentLint · cclint. 처음부터 bash 가 필요했는데
+    // scripts/ 가 없어 OpenCode 에서 agent: plan(bash 차단)으로 렌더됐고, 그래서 첫 지시부터
+    // 실행 불가였다. v26.121.0 에서 observation-digest.mjs 가 들어오며 해소됐다.
+    expect(hasScripts("harness-health-audit")).toBe(true);
   });
 
   it("template premise holds: plan denies bash, build allows it", () => {
@@ -69,10 +73,17 @@ describe("runOpencodeTransform end-to-end agent stamping", () => {
       projectDir,
       selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
     });
+    // 기대값을 구현과 **같은 구조 신호**에서 derive 한다. 이 파일 서문이 "no hardcoded id
+    // list to drift" 라고 선언해 놓고도 여기서 consult 두 개를 이름으로 박아 뒀었고, 그래서
+    // harness-health-audit 이 scripts/ 를 갖게 되자 계약이 아니라 목록이 깨졌다 (v26.121.0).
+    let sawBuild = 0;
     for (const id of INTERNAL_BUNDLED_SKILL_IDS) {
       const cmd = readFileSync(join(projectDir, ".opencode/commands", `${id}.md`), "utf8");
-      const expected = id === "gemini-consult" || id === "codex-consult" ? "build" : "plan";
+      const expected = hasScripts(id) ? "build" : "plan";
+      if (expected === "build") sawBuild++;
       expect(cmd, `${id} should carry agent: ${expected}`).toContain(`agent: ${expected}`);
     }
+    // 시어터 방지 — 전부 plan 이면 위 루프는 아무것도 증명하지 않는다.
+    expect(sawBuild).toBeGreaterThan(0);
   });
 });
