@@ -89,9 +89,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   --only global=1 · 전량=0 · `--only ,`=1(templates 보존). mutation 3종 사살.
 
 ### 검증
-- `npm run ci` exit 0 — 65 files / **857 tests** / branches 89.13 (gate 88).
-  (이 줄은 두 번 틀렸었다 — 측정 전에 적었고, 적은 뒤 코드가 또 바뀌었다. 지금 값은 최종
-  트리에서 실행한 출력 그대로다.)
+- `npm run ci` exit 0 — 65 files / **857 tests** / branches **89.1** (gate 88 통과).
+  이 한 줄을 세 번 틀리고 나서야 원인을 봤다: **branch % 는 같은 트리에서도 실행마다 흔들린다**
+  (동일 커밋 3회 실측 = 89.13 / 89.12 / 89.13). 그래서 소수점 둘째 자리를 적는 관행 자체가
+  틀린 주장을 만든다 — 여기서는 유효숫자를 줄이고, 원인 추적은 백로그(F-2)로 뺐다.
 - mutation 3종 전건 사살: 누적 무시 / `templates` 이전값 폐기 / 기존 로그 읽기를 backup 뒤로 이동.
   (독립 리뷰어가 3종 모두 재현·사살 확인.)
 - CLI 실행 실증: `--help` 에 `list` 노출, `uninstall --help` 에 `--only`, `list` 실출력,

@@ -174,6 +174,12 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 - [x] **F-1e 항목별 추가 install 이 로그에 등록** (✅ v26.123.0) —
       `tests/install-inventory-e2e.test.ts` 가 AC 전 구간을 한 줄기로 검증.
 
+- [ ] **F-2 (신규, v26.123.0 중 발견) — branch coverage 가 실행마다 흔들린다.** 동일 커밋
+      3회 실측 = 89.13 / 89.12 / 89.13. 소스 변경 없이 값이 바뀌므로 **커버리지 게이트가
+      threshold 근처에서 flaky** 해진다 (현재 gate 88, 여유 ~1.1%p 라 아직 안 터졌을 뿐).
+      부수 피해: CHANGELOG 에 소수점 둘째 자리를 적는 관행이 구조적으로 거짓 주장을 만든다
+      (이번 릴리즈에서 3회 오기). 원인 후보 = 환경 의존 분기(`command -v` 류)·테스트 순서·
+      v8 provider. 재현: `npx vitest run --coverage` 3회 비교.
 - [ ] **F-1f (신규, 이번 작업 중 발견) — uninstall 이 프로젝트 루트 수정분을 모른다.** install 은
       `.claude/` 밖에도 쓴다: `.mcp.json`(병합) · `.gitignore`(추가줄) · `.env.example` ·
       `.mcp-allowlist` · `.github/workflows/*`(ci-scaffold). uninstall 은 이 중 **어느 것도
