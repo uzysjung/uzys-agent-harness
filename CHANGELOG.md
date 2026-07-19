@@ -31,11 +31,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   잡아냈다). **기능을 그 기능이 적용되는 파일 안에서 문서화할 수 없으면 쓸 수 없는 기능이다.**
 
 ### 수정
-- **`docs/todo.md` 의 6-Gate 유물 제거** (사용자 지적) — 헤더가 `gate-check.sh` 존재 확인과
-  `/uzys:plan` 재생성을 이 파일의 역할로 적어뒀으나, **둘 다 ADR-023(2026-06-26)에서 삭제된**
-  6-Gate 워크플로의 잔재다. 이 파일을 읽는 기계는 `spec-drift-check.sh` 하나뿐이다.
-  버전 스탬프(v26.95.0 stale)도 현행화.
-- 같은 파일 §완료 조건의 우회 지시문 제거.
+- **6-Gate 유물 문서 정리** (사용자 지적) — ADR-023(2026-06-26)이 워크플로를 삭제했는데
+  **문서 5곳이 그것을 계속 지시**하고 있었다. `gate-check.sh` · `agentshield-gate.sh` ·
+  `/uzys:*` 커맨드 · `.claude/gate-status.json` 은 실물이 전부 없음을 실측 확인했다
+  (`gate-status.json` 은 읽는 코드만 남고 만드는 코드가 없다).
+
+  | 파일 | 무엇이 거짓이었나 |
+  |------|-------------------|
+  | `docs/todo.md` 헤더 | 이 파일의 역할을 `gate-check.sh` 존재 확인 + `/uzys:plan` 재생성이라 적음. 실제로 이 파일을 읽는 기계는 `spec-drift-check.sh` 하나뿐. 버전 스탬프(v26.95.0)도 stale |
+  | `CONTRIBUTING.md` | "`/uzys:*` 커맨드 추가법" 절 전체 — 없는 커맨드를 만드는 법. 훅 추가 절차도 실존하지 않는 `scripts/setup-harness.sh` · `test-harness.sh` 를 지시 → `src/manifest.ts` 기준으로 교체 |
+  | `docs/REFERENCE.md:207` | "`gate-check.sh` 가 `--no-verify` 차단" — **같은 문서 §7 이 '삭제됨'이라 적고 있어 자기모순.** 실제로는 `git-policy.md` 프로즈 규약뿐이고 강제 훅은 없다 |
+  | `docs/plan.md:13` | "`/uzys:spec` → `/uzys:plan` 이 plan/todo 를 재생성한다" — 갱신은 수동이다 |
+  | `tasks/plan.md:88~90` | **이중 stale** — 6-Gate 를 활성 경로로 적고, 게다가 이번 릴리즈가 없앤 "비체크박스 유지" 우회를 근거로 삼고 있었다 |
+  | `docs/phase-2-backlog.md:16` | 성공 기준 (b)가 실행 불가능한 명령 완주였다 → **결과** 기준으로 재작성 |
+
+  **제외**: `docs/SPEC.md:84` 는 `DO NOT CHANGE` 로 명시 보존된 Persistent Anchor 이고 헤더에
+  "현행 목표로 읽지 말 것" 노트가 이미 있다 (change-management). `docs/COMPATIBILITY.md:26` 은
+  이미 "ADR-023 시 삭제 — 현재 미배선"이라 정확하다. 날짜 박힌 기록물(dogfood·evals·과거
+  plan/spec/PRD 33개)도 대상 아님 — 기록에 남는 것이 정상이다.
+
+  **게이트는 만들지 않았다.** "제거된 것의 광고"를 구조로 막는 일은 `no-false-ship.md` 의 F10
+  미해결 항목이고, 단순 "언급 금지" 규칙은 위 정정 노트("~는 삭제됐다")에 그대로 걸린다 —
+  광고와 부고를 구분해야 한다. 급조 대신 `docs/todo.md` R-3g 에 근거와 유력안(문서가 참조하는
+  훅/커맨드의 실존 여부를 파일시스템에서 derive — 열거 아님)을 적어 남겼다.
 
 ### 추가
 - **`tests/spec-drift-backlog-exemption.test.ts`** (16 tests, 두 훅 사본 각각 검증) —

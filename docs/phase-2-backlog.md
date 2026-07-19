@@ -13,7 +13,8 @@
 
 **성공 기준 (AND)**:
 - (a) Clean install 성공 (`npx -y github:uzysjung/uzys-claude-harness` 1-shot)
-- (b) 첫 워크플로우 1건 완주 (`/uzys:spec` → `/uzys:ship` 또는 hotfix 단축)
+- (b) 설치 후 첫 작업 1건 완주 — 설치된 rule/skill 을 실제로 태워 feature 하나를 ship
+  *(v26.122.0 정정: 원문은 `/uzys:spec` → `/uzys:ship` 완주였으나 그 6-Gate 커맨드는 ADR-023 에서 삭제됐다. 기준을 워크플로 명령 실행이 아니라 **결과**로 바꿔 적는다.)*
 - ~~(c) HITO ≤ 3 prompts/feature~~ — **폐기 (v26.115.0, ADR-043)**. hito-counter 훅 제거로 측정 수단 자체가 없어졌다
 
 **측정**:

@@ -204,7 +204,9 @@ $ bash scripts/setup-harness.sh --track <track> --project-dir .
 - **MCP allowlist**: `.mcp-allowlist` 파일에 화이트리스트 작성 시 `mcp-pre-exec.sh` 훅이 차단 강제. 미작성 시 모든 MCP 호출 통과.
 - **글로벌 ~/.claude/ 보호**: `setup-harness.sh --project-dir`이 `~/.claude/*`/`/etc/*` 등 시스템 경로 차단 (D16).
 - **`.env` / credentials 수정 차단**: `protect-files.sh` 훅이 `.env`, lock 파일, 인증서 경로 차단.
-- **`--no-verify` 차단**: gate-check.sh가 `--no-verify`/`--force` 플래그 사용 시 경고 (`git-policy.md`).
+- **`--no-verify` / `--force` 금지**: `git-policy.md` §Safety 의 **프로즈 규약**이다 — 강제하는 훅은
+  없다. (v26.122.0 정정: 이 줄은 `gate-check.sh` 가 차단한다고 적고 있었으나 그 훅은 ADR-023 에서
+  삭제됐다. 같은 문서 §7 이 이미 "삭제됨"이라 적고 있어 자기모순이었다.)
 
 ---
 

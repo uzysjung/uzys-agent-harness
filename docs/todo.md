@@ -132,9 +132,47 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       인용 블록에만 있다. change-management 상 "아키텍처/의존성 결정"에 해당하므로 정식 ADR 대상.
 - [ ] R-3e `package-lock.json` 이 **26.114.0 에서 stale**(릴리즈 7건 미갱신). npm publish 는
       `package.json` 을 쓰므로 기능 영향 없음 — 정합성 정리 항목.
+- [ ] R-3g **F10(제거된 것의 광고를 구조로 차단) 재점화 근거 축적.** `no-false-ship.md` 가 F10 을
+      "아직 미해결"로 달아둔 채 v26.106.0 이후 방치돼 있다. 2026-07-19 에 또 나왔다 — ADR-023
+      (2026-06-26)이 6-Gate 를 지웠는데 **13개월치 문서가 그걸 계속 시키고** 있었다(CONTRIBUTING
+      의 "`/uzys:*` 커맨드 추가법", REFERENCE 의 자기모순, plan.md 재생성 안내 등 5곳, v26.122.0
+      수기 정리). **설계 주의**: 단순 "언급 금지" 게이트는 정정 노트("~는 삭제됐다")에 걸린다 —
+      광고와 부고를 구분해야 하고, 그래서 급조하지 않았다. 유력안 = 문서가 참조하는
+      훅/커맨드 파일의 **실존 여부를 파일시스템에서 derive** (열거 아님).
 - [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
       `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.
+
+### F-1 설치 내역 관리 — 조회 · 항목별 제거 · 추가설치 누적 (사용자 요청 2026-07-19)
+
+목표: 설치 후 **무엇이 깔렸는지 알 수 있고**, 항목 단위로 **빼고 더할 수 있고**, 추가로 깐 것이
+**기록에 남는** 것. rule/hook/`settings.json`/CLAUDE.md 처럼 되돌리기가 위험한 표면은 자동 제거
+대신 **정확한 안내(반자동)** 로 처리한다 — 사용자 명시 방침.
+
+**baseline 대조 (2026-07-19, 착수 전 실측)** — 절반은 이미 있다. 재구현 금지:
+
+| 기구현 | 근거 |
+|--------|------|
+| 설치 기록 파일 `.claude/.harness-install.json` | `src/install-log.ts` (v26.64.0 · ADR-020) — 자산 id/category/method/scope/detail/version + tracks/cli + templates 경로 |
+| 로그 기반 uninstall + `--dry-run` / `--keep-templates` | `src/commands/uninstall.ts:61` |
+| 글로벌 자산은 자동 삭제 금지 → 안내만 | 같은 파일 `buildGlobalAdvisoryCmd:245` (D16) |
+| CLAUDE.md 사용자 수정 감지 후 보존 | `install-log.ts:57` sha256 + `uninstall.ts:284` |
+
+- [ ] **F-1a 추가설치가 기록을 덮어쓴다 (결함, 최우선).** `installer.ts:581 writeInstallLogSafe`
+      → `buildInstallLog(...)` 이 **기존 로그를 읽지 않고 새로 만들어** `writeInstallLog` 이
+      덮어쓴다(`install-log.ts:112,149`). 즉 나중에 `install --with <id>` 하면 **이전 설치 자산이
+      기록에서 사라지고 uninstall 이 못 찾는다.** 병합(append/dedupe by id)으로 전환.
+      회귀 테스트 필수 — 2회 설치 후 1회차 자산이 로그에 남아 있는지.
+- [ ] **F-1b 설치 내역 조회 커맨드가 없다.** 로그는 있는데 사용자가 볼 수단이 없다
+      (`src/commands/` = install · install-render · uninstall 3개뿐). `harness list`(가칭) —
+      자산·scope·설치시각·수정여부 표시.
+- [ ] **F-1c 항목별 uninstall.** `UninstallOptions`(`uninstall.ts:34`)에 대상 선택이 없어 전량
+      제거만 된다. `--only <id...>` 추가. 남은 자산은 로그에 유지.
+- [ ] **F-1d 되돌리기 위험 표면의 안내(반자동).** `settings.json` 훅 등록·rule 파일·CLAUDE.md
+      는 사용자 수정이 섞이므로 자동 삭제하지 않는다 — **무엇을 지우면 되는지 정확히 출력**한다.
+      현재 로그의 `templates` 필드에 `settings.json` 병합분의 역연산 정보가 **없다**(확인 필요).
+- [ ] **F-1e 항목별 추가 install 이 로그에 등록** — F-1a 병합이 되면 자연히 충족되나, 별도
+      AC 로 검증(설치→추가설치→`list` 에 둘 다 보임→`--only` 로 하나만 제거→나머지 유지).
 
 <!-- ship-gate:ignore-end -->
 
