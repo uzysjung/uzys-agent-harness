@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 import { type ExternalInstallReport, selectExternalTargets } from "../src/external-installer.js";
+import { readInstallLog } from "../src/install-log.js";
 import { type InstallContext, runInstall } from "../src/installer.js";
 import type { CliTargets, InstallSpec, OptionFlags, Track } from "../src/types.js";
 
@@ -254,5 +255,135 @@ describe("runInstall — mode dispatch", () => {
     });
     expect(report.mode).toBe("fresh");
     expect(report.backup).toBeNull();
+  });
+
+  /**
+   * v26.123.0 (F-1a) 회귀 — 추가 설치가 이전 설치 기록을 지우던 결함.
+   * install 은 이전 자산을 제거하지 않는데 로그만 덮어썼으므로, `install --with <id>` 한 번에
+   * 1회차 자산이 기록에서 사라지고 uninstall 이 그걸 못 찾아 프로젝트에 남겼다.
+   */
+  it("추가 설치 후에도 1회차 자산이 install log 에 남는다 (uninstall 의 유일한 source)", () => {
+    const installWith = (id: string): void => {
+      runInstall({
+        runExternal: makeMock(() => ({
+          attempted: [
+            {
+              asset: {
+                id,
+                description: id,
+                category: "dev-tools",
+                source: "uzys",
+                tier: "vetted",
+                condition: { kind: "any-track", tracks: ["tooling"] },
+                method: { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` },
+              },
+              ok: true,
+            },
+          ],
+          succeeded: 1,
+          skipped: 0,
+          excludedByCli: [],
+        })),
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: spec(["tooling"], {}, projectDir),
+        mode: "add",
+      });
+    };
+
+    installWith("first-asset");
+    installWith("second-asset");
+
+    const log = readInstallLog(projectDir);
+    expect(log?.assets.map((a) => a.id)).toEqual(["first-asset", "second-asset"]);
+  });
+
+  /**
+   * reinstall 은 `.claude/` 를 backup 으로 rename 한다. 그래서 이전 자산 중
+   * **`.claude/` 밖에 사는 것만** 기록에 남아야 맞다 — 안쪽에 살던 건 실제로 사라졌으므로
+   * 남기면 "있지도 않은 걸 있다고" 기록하게 된다(F-1a 를 반대 방향으로 재현).
+   */
+  const withAsset = (id: string, method: "plugin" | "skill"): RunExternalFn =>
+    makeMock(() => ({
+      attempted: [
+        {
+          asset: {
+            id,
+            description: id,
+            category: "dev-tools",
+            source: "uzys",
+            tier: "vetted",
+            condition: { kind: "any-track", tracks: ["tooling"] },
+            method:
+              method === "plugin"
+                ? { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` }
+                : { kind: "skill", source: `owner/${id}` },
+          },
+          ok: true,
+        },
+      ],
+      succeeded: 1,
+      skipped: 0,
+      excludedByCli: [],
+    }));
+
+  it("reinstall 후에도 `.claude/` 밖 자산(plugin)의 기록은 살아남는다", () => {
+    // plugin 은 ~/.claude/plugins/ 에 살아서 프로젝트 `.claude/` rename 과 무관하다.
+    // 기존 로그를 backup **전에** 읽지 않으면 이것마저 사라진다.
+    runInstall({
+      runExternal: withAsset("before-reinstall", "plugin"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+    });
+    runInstall({
+      runExternal: withAsset("after-reinstall", "plugin"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+      mode: "reinstall",
+    });
+
+    const log = readInstallLog(projectDir);
+    expect(log?.assets.map((a) => a.id)).toEqual(["before-reinstall", "after-reinstall"]);
+  });
+
+  it("reinstall 은 `.claude/skills/` 에 살던 skill 자산 기록을 버린다 (실제로 사라졌으므로)", () => {
+    // `npx skills add` project scope = `.claude/skills/` → rename 과 함께 소멸.
+    // 남겨두면 list 가 과대보고하고 uninstall 이 없는 걸 지우려 든다.
+    runInstall({
+      runExternal: withAsset("old-skill", "skill"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+    });
+    runInstall({
+      runExternal: withAsset("new-skill", "skill"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+      mode: "reinstall",
+    });
+
+    expect(readInstallLog(projectDir)?.assets.map((a) => a.id)).toEqual(["new-skill"]);
+  });
+
+  it("backup 없는 추가 설치(add)에서는 skill 자산도 그대로 유지된다", () => {
+    // 경계 확인 — 버리는 기준은 method 가 아니라 `.claude/` 를 밀어냈는가다.
+    runInstall({
+      runExternal: withAsset("skill-one", "skill"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+    });
+    runInstall({
+      runExternal: withAsset("skill-two", "skill"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+      mode: "add",
+    });
+
+    expect(readInstallLog(projectDir)?.assets.map((a) => a.id)).toEqual(["skill-one", "skill-two"]);
   });
 });

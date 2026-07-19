@@ -121,6 +121,19 @@ https://loopio.com/blog/red-team-review/
 
 ### 4. Synthesize: dedupe, but preserve minority findings (orchestrator, main model)
 
+**Close every panel worker as you collect it.** A panel is the highest fan-out this repo runs —
+3-5 workers spawned in one breath — so it is also where leftovers accumulate fastest: a finished
+agent keeps its pane/window open and keeps pinging the session, and after two or three panels the
+clutter is the session. Read the persona's report file, then stop that agent in the same motion
+(TaskStop or the harness's stop mechanism); do not defer it to "cleanup later". By the time you
+start deduping, zero panel agents should still be running. The general rule and its rationale live
+in [[model-orchestration]] "Worker lifecycle" — this is that rule at panel scale.
+
+Do **not** keep the panel alive for the step-6 second pass. Re-verification wants a *fresh* agent
+reading the fixed artifact from disk, not a resumed one carrying its own first-pass findings —
+a resumed reviewer grades against its memory of what it already said, which is the anchoring
+failure this method exists to avoid.
+
 Collapse overlapping findings into one entry, noting *how many personas raised it* (frequency is a
 prioritization signal). **But never drop a single-persona finding** — heuristic-evaluation data
 says the hardest, most valuable issues are often raised by only one reviewer. Majority-vote /
@@ -202,6 +215,9 @@ framing the rubric and synthesizing (steps 1, 4-6), where reasoning quality pays
 - **Anchoring** — letting personas see each other's output before judging collapses the panel.
 - **Opaque P0/P1/P2** — ranking by vibe or loudest wording is unauditable. Show the score.
 - **Over-claiming coverage** — report it as candidate findings, never "found everything."
+- **Leaving the panel running** — the panel dies when you stop it, not when it answers. N finished
+  agents left open per review is the fastest way to a session full of idle workers; stop each one
+  as you read its report (step 4).
 
 ## Cross-references
 

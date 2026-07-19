@@ -35,7 +35,14 @@ import {
   copyFile,
   ensureProjectSkeleton,
 } from "./fs-ops.js";
-import { buildInstallLog, hashContent, writeInstallLog } from "./install-log.js";
+import {
+  buildInstallLog,
+  hashContent,
+  type InstallLog,
+  type InstallLogRootFile,
+  readInstallLog,
+  writeInstallLog,
+} from "./install-log.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
@@ -44,8 +51,13 @@ import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
-/** karpathy-coder hook command — `.claude/settings.json` PreToolUse Write|Edit matcher entry. */
-const KARPATHY_HOOK_COMMAND = 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"';
+/**
+ * karpathy-coder hook 상수 — install 이 쓰고 uninstall 의 수기 안내가 읽는다.
+ * v26.123.0 — 두 곳이 같은 값을 봐야 해서 export. 파일명이 바뀌면 안내가 조용히 멈추므로
+ * 경로도 여기서 파생시킨다 (`no-false-ship`: 같은 값이 2곳에 하드코딩되면 derive 로 단일화).
+ */
+export const KARPATHY_HOOK_RELPATH = ".claude/hooks/karpathy-gate.sh";
+export const KARPATHY_HOOK_COMMAND = `bash "$CLAUDE_PROJECT_DIR/${KARPATHY_HOOK_RELPATH}"`;
 
 /**
  * Install mode — Router action 매핑.
@@ -132,7 +144,7 @@ export interface KarpathyHookReport {
 }
 
 /** karpathy-coder asset ID — SSOT (external-assets.ts entry id와 일치 강제). */
-const KARPATHY_ASSET_ID = "karpathy-coder";
+export const KARPATHY_ASSET_ID = "karpathy-coder";
 
 /**
  * v0.6.1 — Phase 1 output 카테고리별 분류. install renderer가 각 카테고리별로 row를 출력한다.
@@ -245,6 +257,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
     throw new Error(`Update mode requires existing .claude/ at ${claudeDir}`);
   }
 
+  // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
+  // reinstall 은 바로 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
+  const previousLog = readInstallLog(projectDir);
+
   const backupPath = resolveBackupPath(ctx, mode, claudeDir);
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
@@ -302,7 +318,16 @@ export function runInstall(ctx: InstallContext): InstallReport {
   const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
-  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog);
+  // backupPath 가 있으면 `.claude/` 를 rename 으로 밀어냈다는 뜻 — 그 안에 살던 이전 자산은
+  // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
+  writeInstallLogSafe(
+    ctx,
+    external,
+    base.rootClaudeMdLog,
+    previousLog,
+    backupPath !== null,
+    collectRootFiles(baseline.envFiles, ciScaffold, mcpResult.created),
+  );
 
   return { ...baseline, external, karpathyHook };
 }
@@ -582,9 +607,20 @@ function writeInstallLogSafe(
   ctx: InstallContext,
   external: ExternalInstallReport | null,
   rootClaudeMdLog: { path: string; sha256: string } | null,
+  previousLog: InstallLog | null,
+  claudeDirMovedAside: boolean,
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): void {
   try {
-    const log = buildInstallLog(ctx.spec, external, resolveScope(ctx.spec.scope), rootClaudeMdLog);
+    const log = buildInstallLog(
+      ctx.spec,
+      external,
+      resolveScope(ctx.spec.scope),
+      rootClaudeMdLog,
+      previousLog,
+      claudeDirMovedAside,
+      rootFiles,
+    );
     writeInstallLog(ctx.projectDir, log);
   } catch (e) {
     ctx.onProgress?.({
@@ -629,7 +665,7 @@ function wireKarpathyHook(
 
   // Hook script 복사 (manifest에 없는 v0.6.0 신규 — opt-in 시에만)
   const sourceHook = join(harnessRoot, "templates/hooks/karpathy-gate.sh");
-  const targetHook = join(projectDir, ".claude/hooks/karpathy-gate.sh");
+  const targetHook = join(projectDir, KARPATHY_HOOK_RELPATH);
   let hookScriptCopied = false;
   if (existsSync(sourceHook)) {
     copyFile(sourceHook, targetHook);
@@ -669,8 +705,10 @@ function composeAndWriteMcp(
   harnessRoot: string,
   projectDir: string,
   spec: InstallSpec,
-): { mcpServers: Record<string, unknown> } {
+): { mcpServers: Record<string, unknown>; created: boolean } {
   const mcpPath = join(projectDir, ".mcp.json");
+  // 쓰기 전에 본다 — 쓰고 나면 "우리가 만든 것"과 "사용자 것에 병합한 것"을 구분할 수 없다.
+  const created = !existsSync(mcpPath);
   const composed = composeMcpJson({
     templateMcpPath: join(harnessRoot, "templates/mcp.json"),
     trackMapPath: join(harnessRoot, "templates/track-mcp-map.tsv"),
@@ -678,7 +716,57 @@ function composeAndWriteMcp(
     tracks: spec.tracks,
   });
   writeMcpJson(mcpPath, composed);
-  return composed;
+  return { ...composed, created };
+}
+
+/**
+ * v26.124.0 (F-1f) — 이번 설치가 `.claude/` **밖**에 만들거나 고친 루트 파일 목록.
+ *
+ * uninstall 은 이걸 지우지 않고 **안내만** 한다 (사용자 내용이 섞임). 그러려면 무엇을 건드렸는지
+ * 기록이 있어야 하는데 v26.123.0 까지 아무 기록이 없어서 안내조차 못 했다.
+ *
+ * **이번 설치가 실제로 바꾼 것만 넣는다** — idempotent skip(이미 있어서 안 건드림)은 넣지 않는다.
+ * 이전 설치분은 install-log 의 누적(mergeRootFiles)이 살려 준다.
+ */
+function collectRootFiles(
+  envFiles: BaselineReport["envFiles"],
+  ciScaffold: CiScaffoldReport | null,
+  mcpCreated: boolean,
+): InstallLogRootFile[] {
+  const files: InstallLogRootFile[] = [
+    {
+      path: ".mcp.json",
+      change: mcpCreated ? "created" : "modified",
+      notes: [mcpCreated ? "MCP 서버 정의 생성" : "MCP 서버 정의 병합 (기존 항목 보존)"],
+    },
+  ];
+  if (envFiles.envExampleCreated) {
+    files.push({ path: ".env.example", change: "created", notes: ["Supabase 토큰 가이드"] });
+  }
+  // `mcpAllowlist` 는 세 값이 다 다르다: null=skip · []=**서버가 없어 안 씀** · 비어있지 않음=씀.
+  // 길이를 안 보면 안 만든 파일을 만들었다고 기록한다 (env-files.ts writeMcpAllowlist).
+  if (envFiles.mcpAllowlist && envFiles.mcpAllowlist.length > 0) {
+    files.push({
+      path: ".mcp-allowlist",
+      change: "created",
+      notes: [`MCP allowlist (${envFiles.mcpAllowlist.length} server)`],
+    });
+  }
+  const gitignoreAdded = [
+    ...(envFiles.gitignoreEnvAdded ? [".env"] : []),
+    ...envFiles.gitignoreNpxSkillsAdded,
+  ];
+  if (gitignoreAdded.length > 0) {
+    files.push({
+      path: ".gitignore",
+      change: "modified",
+      notes: [`추가된 줄: ${gitignoreAdded.join(", ")}`],
+    });
+  }
+  for (const workflow of ciScaffold?.written ?? []) {
+    files.push({ path: workflow, change: "created", notes: ["CI 워크플로 스캐폴드"] });
+  }
+  return files;
 }
 
 /**

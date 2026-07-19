@@ -49,22 +49,77 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 
 ---
 
+## What's installed (v26.125.0+)
+
+```bash
+npx -y @uzysjung/agent-harness list
+```
+
+Reads `.claude/.harness-install.json` and prints the assets, their scope and version, the template
+dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only. The asset ids it
+shows are the input to `uninstall --only`.
+
+The install wizard reads the same record (v26.125.0+): assets already installed are marked
+`● installed` at step 3, and project-scope ones start checked. The marker is display only —
+**unchecking never removes anything.** Removal happens only in `uninstall`, so a misclick in the
+installer cannot delete your assets.
+
+Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
+still knows about everything from the earlier run. The exception is the interactive **Reinstall**
+action (the wizard's "Reinstall (backs up current `.claude/` first)"), which moves `.claude/` aside
+and rebuilds it: assets whose files lived inside `.claude/` are genuinely gone, so they're dropped
+from the record too. Assets that live outside the project (`plugin`, `npm`) are kept.
+
 ## Uninstall (v26.64.0+)
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
 ```
 
 Reverses the install based on `.claude/.harness-install.json`.
 
+**Run it with no flags in a terminal and it asks what to remove (v26.125.0+).** First a mode —
+*pick items* (templates stay) or *remove everything* (assets **and** `.claude/`) — then, for the
+first mode, a checklist of the installed assets. Each row states what removing it will actually do,
+including the ones that have no automated reverse. Nothing happens until you confirm, and selecting
+nothing is not a full uninstall — it exits without changes.
+
+The picker is skipped when you have already said what you want: `--only`, `--dry-run`, `--yes`, or
+no TTY (CI, pipes). Those paths behave exactly as before, so scripts are unaffected.
+
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
 - **Global-scope assets**: listed as advisory only. You run the removal yourself.
+- **Assets with no automated reverse** (`npx-run`, `shell-script`): reported as such and left in the record — a full uninstall removes `.claude/` around them, but `--only` cannot undo them. Anything they wrote outside `.claude/` (e.g. BMAD's `_bmad/`, `_bmad-output/`) stays and is yours to delete.
 
 | Flag | What |
 |---|---|
 | `--dry-run` | List the reverse steps, change nothing |
 | `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
+| `--only <ids>` | Remove just these assets (comma-separated, from `list`). Templates untouched; the log is rewritten with what remains, so the rest stays removable |
+| `--yes` | Skip the picker and remove everything (for scripts on a TTY) |
+
+Only assets whose reverse actually succeeded are dropped from the log — a failed removal stays
+listed rather than being recorded as gone. If nothing could be removed automatically, the command
+says so and exits non-zero rather than reporting success.
+
+When `--only` leaves `.claude/` in place, a hook registration in `.claude/settings.json` that
+referenced the removed asset is **printed for you to delete** rather than edited automatically
+(currently implemented for `karpathy-coder`).
+
+### Files outside `.claude/` (v26.125.0+)
+
+Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
+`.env.example`, `.mcp-allowlist`, and `.github/workflows/` when `ci-scaffold` is selected. A full
+uninstall **lists these and removes none of them** — your own content is mixed into `.mcp.json` and
+`.gitignore`, and the workflow files are yours once installed. Each is labelled by how it got there:
+
+- **created** — the harness made the file; if you haven't edited it, deleting it is safe.
+- **merged** — it already existed and the harness added to it; check it by hand.
+
+Only files still present on disk are listed, and `list` shows the same set under **Root files**.
+`--only` doesn't print this section: it targets specific assets, not the install as a whole.
+Logs written before v26.125.0 have no record of these files, so an older install shows nothing here.
 
 ---
 
@@ -222,7 +277,7 @@ Pick one or more at step 2.
 | `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
-| `.claude/.harness-install.json` | Install log (drives `uninstall`) |
+| `.claude/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall` |
 | `CLAUDE.md` | Project context — fill-in scaffold |
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |

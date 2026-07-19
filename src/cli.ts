@@ -1,6 +1,7 @@
 import { cac } from "cac";
 import packageJson from "../package.json";
 import { type ExecuteSpecDeps, executeSpec, registerInstallCommand } from "./commands/install.js";
+import { registerListCommand } from "./commands/list.js";
 import { registerUninstallCommand } from "./commands/uninstall.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
@@ -66,6 +67,7 @@ export function buildCli(): Cli {
   cli.version(VERSION);
 
   registerInstallCommand(cli);
+  registerListCommand(cli);
   registerUninstallCommand(cli);
 
   cli

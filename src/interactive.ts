@@ -1,5 +1,6 @@
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
+import { readInstallLog } from "./install-log.js";
 import type { InstallMode } from "./installer.js";
 import { buildManifest } from "./manifest.js";
 import {
@@ -55,6 +56,47 @@ export interface InteractiveDeps {
   prompts?: Prompts;
   detect?: (projectDir: string) => DetectedInstall;
   isTty?: () => boolean;
+  /** v26.125.0 — 설치 상태 주입 (테스트용). 미주입 시 install log 를 읽는다. */
+  readInstalled?: (projectDir: string) => InstalledTargetState;
+}
+
+/**
+ * v26.125.0 — wizard 가 참조하는 설치 상태.
+ *
+ * `installed` 와 `projectScoped` 를 나누는 이유: global scope 자산까지 사전 체크하면
+ * step 4 에서 project 를 고른 순간 **같은 자산이 project 에 한 벌 더 깔린다**. 그래서
+ * 표시(마커)는 전부 하고, 사전 체크는 project scope 만 한다.
+ */
+export interface InstalledTargetState {
+  /** 마커를 붙일 자산 id — scope 무관 (설치돼 있다는 사실 자체는 참) */
+  installed: ReadonlyArray<string>;
+  /** 사전 체크할 자산 id — project scope 만 */
+  projectScoped: ReadonlyArray<string>;
+}
+
+/** install log → wizard 표시용 설치 상태. 로그가 없으면(최초 설치) 빈 상태. */
+export function installedTargetState(projectDir: string): InstalledTargetState {
+  const log = readInstallLog(projectDir);
+  if (!log) return { installed: [], projectScoped: [] };
+  return {
+    installed: log.assets.map((a) => a.id),
+    projectScoped: log.assets.filter((a) => a.scope !== "global").map((a) => a.id),
+  };
+}
+
+/**
+ * step 3 의 초기 체크 = **트랙 추천 ∪ 이미 설치된 project 자산**.
+ *
+ * 추천만 쓰면 추천 밖의 설치된 자산이 빈칸으로 보여, 사용자가 "안 깔렸다"고 읽는다.
+ * 합집합이므로 중복은 생기지 않는다 (헤더의 `n/m ✓` 카운트가 거짓이 되지 않아야 한다).
+ */
+export function initialTargetSelection(
+  tracks: ReadonlyArray<Track>,
+  installedProjectAssetIds: ReadonlyArray<string>,
+): InstallTargetId[] {
+  const ids = new Set<string>(recommendedExternalAssets(tracks));
+  for (const id of installedProjectAssetIds) ids.add(id);
+  return [...ids].map((id) => `asset:${id}` as InstallTargetId);
 }
 
 export interface InteractiveResult {
@@ -94,6 +136,10 @@ export async function runInteractive(
 
   prompts.intro("uzys-agent-harness installer");
   const state = detect(projectDir);
+  // v26.125.0 — 위저드가 설치 상태를 읽는다. 이전에는 step 3 의 체크가 트랙 추천에서만 나와
+  // **이미 깔린 자산이 빈칸으로 보였다** — 사용자가 그 체크박스를 설치 상태로 읽으므로 화면이
+  // 거짓을 말한 셈이다. 마커는 표시 전용이고 체크를 풀어도 제거되지 않는다 (제거 = `uninstall`).
+  const installed = (deps.readInstalled ?? installedTargetState)(projectDir);
 
   let initialTracks: Track[] | undefined;
   let mode: InstallMode = "fresh";
@@ -178,11 +224,12 @@ export async function runInteractive(
       const initial: InstallTargetId[] =
         targetSelections !== null
           ? [...targetSelections]
-          : recommendedExternalAssets(tracks ?? []).map((id) => `asset:${id}` as InstallTargetId);
+          : initialTargetSelection(tracks ?? [], installed.projectScoped);
       // v26.65.0 — step indicator SSOT (wizard-steps.ts). Phase: 3 targets → 4 scope → 5 confirm → 6 install.
       const result = await prompts.selectInstallTargets(initial, WIZARD.TARGETS, {
         tracks: tracks ?? [],
         cli: cli ?? ["claude"],
+        installed: installed.installed.map((id) => `asset:${id}`),
       });
       if (result === null) {
         step = "cli"; // silent back

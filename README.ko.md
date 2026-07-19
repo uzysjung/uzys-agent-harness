@@ -41,6 +41,18 @@ claude    # 또는 codex / opencode / agy
 
 위저드는 TTY 가 필요하다. CI·컨테이너·온보딩 스크립트용 flag 모드는 [사용 가이드](docs/USAGE.md#non-interactive-install)를 참고한다.
 
+무엇을 설치했는지 기록으로 남는다. 그래서 나중에 확인하고 되돌릴 수 있다:
+
+```bash
+npx -y @uzysjung/agent-harness list        # 이 프로젝트에 깔린 것
+npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
+```
+
+터미널에서 실행하면 `uninstall` 이 무엇을 뺄지 묻는다 — 항목별로, 또는 전부. 안전하게 되돌릴 수
+있는 것만 되돌리고 나머지는 *출력한다* — 글로벌 자산, 훅 등록, `.mcp.json` 같은 `.claude/` 밖 파일.
+사용자 내용이 섞인 파일을 기계적으로 고치지 않는다. 설치 화면에서 체크를 풀어도 제거되지 않는다 —
+제거는 여기서만 일어난다. 자세한 내용은 [uninstall](docs/USAGE.md#uninstall-v26640) 참고.
+
 ## 왜
 
 코딩 에이전트의 기능은 계속 고도화되고 있다. 하지만 한 번 설치한 skill 과 MCP 는 실제 사용 여부와 상관없이 매 세션 context window 를 차지한다. awesome-list 에 수백 개의 선택지가 있어도 내 기술 스택에 어떤 항목이 맞는지까지는 알려주지 않는다. 결국 모든 항목을 설치해 매 세션 불필요한 비용을 치르거나, 프로젝트를 시작할 때마다 직접 목록을 읽고 골라야 한다.

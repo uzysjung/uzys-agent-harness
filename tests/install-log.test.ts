@@ -7,6 +7,7 @@ import type { AssetInstallResult, ExternalInstallReport } from "../src/external-
 import {
   buildAssetEntries,
   buildInstallLog,
+  type InstallLog,
   installLogPath,
   readInstallLog,
   writeInstallLog,
@@ -226,5 +227,182 @@ describe("buildInstallLog + write/read round-trip", () => {
     const restored = readInstallLog(tmpDir);
     expect(restored?.assets[0]?.method).toBe("npm");
     rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * v26.123.0 (F-1a) — 로그가 이전 설치를 잊으면 uninstall 이 그 자산을 못 찾아 남긴다.
+ * install 은 이전 설치분을 제거하지 않으므로, 로그가 잊는 순간 "디스크엔 있는데 기록엔 없는"
+ * 거짓 상태가 된다. 아래 테스트들은 그 거짓이 다시 생기면 깨진다.
+ */
+describe("buildInstallLog — 이전 로그 누적 (F-1a)", () => {
+  function reportOf(id: string, version?: string): ExternalInstallReport {
+    const asset = createMockAsset({
+      id,
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` },
+    });
+    return {
+      attempted: [{ asset, ok: true, ...(version ? { version } : {}) }],
+      succeeded: 1,
+      skipped: 0,
+      excludedByCli: [],
+    };
+  }
+
+  it("추가 설치해도 1회차 자산이 로그에 남는다 (uninstall 이 찾을 수 있어야 하므로)", () => {
+    const first = buildInstallLog(mkSpec(), reportOf("first"), "project");
+    const second = buildInstallLog(mkSpec(), reportOf("second"), "project", null, first);
+
+    expect(second.assets.map((a) => a.id)).toEqual(["first", "second"]);
+  });
+
+  it("같은 자산을 재설치하면 중복되지 않고 이번 설치분(최신 version)이 이긴다", () => {
+    const first = buildInstallLog(mkSpec(), reportOf("dup", "1.0.0"), "project");
+    const second = buildInstallLog(mkSpec(), reportOf("dup", "2.0.0"), "project", null, first);
+
+    expect(second.assets).toHaveLength(1);
+    expect(second.assets[0]?.version).toBe("2.0.0");
+  });
+
+  it("previous 없으면(최초 설치) 이번 자산만 — 누적 로직이 기존 동작을 바꾸지 않는다", () => {
+    const log = buildInstallLog(mkSpec(), reportOf("only"), "project", null, null);
+    expect(log.assets.map((a) => a.id)).toEqual(["only"]);
+  });
+
+  it("claude 로 깔고 codex 만 추가 설치해도 rootClaudeMd 기록이 살아남는다", () => {
+    // 안 살아남으면 uninstall 이 root CLAUDE.md 를 지우지도, 보존 판정하지도 못한다.
+    const first = buildInstallLog(mkSpec({ cli: ["claude"] }), null, "project", {
+      path: "CLAUDE.md",
+      sha256: "abc",
+    });
+    const second = buildInstallLog(mkSpec({ cli: ["codex"] }), null, "project", null, first);
+
+    expect(second.templates.rootClaudeMd).toEqual({ path: "CLAUDE.md", sha256: "abc" });
+    expect(second.templates.codexDir).toBe(".codex/");
+  });
+
+  it("이번 설치가 CLAUDE.md 를 다시 쓰면 새 sha256 이 이긴다 (수정 감지가 최신 원본 기준)", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", { path: "CLAUDE.md", sha256: "old" });
+    const second = buildInstallLog(
+      mkSpec(),
+      null,
+      "project",
+      { path: "CLAUDE.md", sha256: "new" },
+      first,
+    );
+
+    expect(second.templates.rootClaudeMd?.sha256).toBe("new");
+  });
+
+  it("spec(tracks/cli)은 누적하지 않는다 — reinstall 이 이전 트랙 파일을 실제로 지우므로", () => {
+    const first = buildInstallLog(mkSpec({ tracks: ["tooling"] }), null, "project");
+    const second = buildInstallLog(mkSpec({ tracks: ["data"] }), null, "project", null, first);
+
+    expect(second.spec.tracks).toEqual(["data"]);
+  });
+});
+
+/**
+ * v26.123.0 2차 검증 반영 (SOD F2) — `npx-run`(bmad-method)은 `--tools claude-code` 로
+ * `.claude/` 안에 agent command 를 만든다. "npx-run 은 프로젝트 밖"이라는 가정이 틀렸고,
+ * 그 가정 때문에 reinstall 후 로그가 없는 자산을 있다고 보고했다.
+ */
+describe("survivesClaudeDirRename — .claude/ 를 밀어낸 설치의 누적 제외 (F2)", () => {
+  function withMethod(
+    id: string,
+    method: ExternalAsset["method"],
+    scope: "project" | "global" = "project",
+  ): InstallLog {
+    const asset = createMockAsset({
+      id,
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method,
+    });
+    return buildInstallLog(
+      mkSpec(),
+      { attempted: [mkResult(asset)], succeeded: 1, skipped: 0, excludedByCli: [] },
+      scope,
+    );
+  }
+
+  function survivorsAfterRename(previous: InstallLog): string[] {
+    return buildInstallLog(mkSpec(), null, "project", null, previous, true).assets.map((a) => a.id);
+  }
+
+  it("npx-run 은 `.claude/` 산출물이 사라지므로 누적에서 빠진다", () => {
+    const prev = withMethod("bmad", { kind: "npx-run", cmd: "bmad-method", version: "6.9.0" });
+    expect(survivorsAfterRename(prev)).toEqual([]);
+  });
+
+  it("skill / shell-script 도 `.claude/` 안이라 빠진다", () => {
+    expect(survivorsAfterRename(withMethod("sk", { kind: "skill", source: "o/r" }))).toEqual([]);
+    expect(
+      survivorsAfterRename(withMethod("sh", { kind: "shell-script", script: "s.sh", args: [] })),
+    ).toEqual([]);
+  });
+
+  it("plugin / npm 은 프로젝트 밖이라 남는다", () => {
+    expect(
+      survivorsAfterRename(withMethod("pl", { kind: "plugin", marketplace: "m", pluginId: "p@m" })),
+    ).toEqual(["pl"]);
+    expect(
+      survivorsAfterRename(withMethod("np", { kind: "npm", pkg: "vercel", version: "1.0.0" })),
+    ).toEqual(["np"]);
+  });
+
+  it("global scope 자산은 method 와 무관하게 남는다 (install 이 글로벌을 건드리지 않는다)", () => {
+    const prev = withMethod("gskill", { kind: "skill", source: "o/r" }, "global");
+    expect(survivorsAfterRename(prev)).toEqual(["gskill"]);
+  });
+});
+
+/**
+ * v26.124.0 (F-1f) — install 은 `.claude/` **밖**에도 쓴다(`.mcp.json` 병합 · `.gitignore` 추가줄 ·
+ * `.env.example` · `.mcp-allowlist` · `.github/workflows/`). 그런데 로그에 아무 기록이 없어
+ * uninstall 이 **안내조차 못 했다**. 기록이 없으면 안내도 없다 — 그래서 install 이 먼저 적는다.
+ */
+describe("buildInstallLog — 루트 파일 기록 (F-1f)", () => {
+  const mcpCreated = { path: ".mcp.json", change: "created" as const, notes: ["MCP 서버 정의"] };
+  const mcpMerged = { path: ".mcp.json", change: "modified" as const, notes: ["MCP 서버 병합"] };
+
+  it("루트 파일이 없으면 필드 자체가 없다 (구 로그와 같은 모양 — 구독자가 늘 배열을 가정하지 않게)", () => {
+    expect(buildInstallLog(mkSpec(), null, "project").rootFiles).toBeUndefined();
+  });
+
+  it("이번 설치가 건드린 루트 파일이 기록된다", () => {
+    const log = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    expect(log.rootFiles).toEqual([mcpCreated]);
+  });
+
+  it("추가 설치해도 1회차 루트 파일이 남는다 — 디스크에 그대로 있으므로", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [
+      { path: ".env.example", change: "created", notes: ["Supabase 가이드"] },
+    ]);
+    expect(second.rootFiles?.map((f) => f.path)).toEqual([".mcp.json", ".env.example"]);
+  });
+
+  it("같은 파일을 두 번 건드리면 note 가 합쳐진다 — 이번 것만 남기면 1회차 추가분을 안 알려준다", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [
+      { path: ".gitignore", change: "modified", notes: [".env"] },
+    ]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [
+      { path: ".gitignore", change: "modified", notes: [".factory/", ".goose/"] },
+    ]);
+    expect(second.rootFiles).toHaveLength(1);
+    expect(second.rootFiles?.[0]?.notes).toEqual([".env", ".factory/", ".goose/"]);
+  });
+
+  it("한 번이라도 하네스가 만든 파일이면 created 로 남는다 (전량 하네스 소유 = 삭제해도 안전)", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, false, [mcpMerged]);
+    expect(second.rootFiles?.[0]?.change).toBe("created");
+  });
+
+  it("`.claude/` 를 밀어낸 설치여도 루트 파일은 남는다 — 밖에 있으므로 사라지지 않는다", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
+    const second = buildInstallLog(mkSpec(), null, "project", null, first, true, []);
+    expect(second.rootFiles?.map((f) => f.path)).toEqual([".mcp.json"]);
   });
 });

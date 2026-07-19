@@ -68,7 +68,15 @@ export interface Prompts {
   selectInstallTargets: (
     initialChecked: ReadonlyArray<InstallTargetId>,
     step: { current: number; total: number },
-    recap?: { tracks: ReadonlyArray<Track>; cli: CliTargets },
+    recap?: {
+      tracks: ReadonlyArray<Track>;
+      cli: CliTargets;
+      /**
+       * v26.125.0 — 이미 설치된 target id (표시 전용 마커). 체크를 풀어도 제거되지 않는다 —
+       * 제거는 `agent-harness uninstall` 을 따로 실행한다 (사용자 결정 2026-07-19).
+       */
+      installed?: ReadonlyArray<string>;
+    },
   ) => Promise<ReadonlyArray<InstallTargetId> | null>;
 }
 
@@ -213,7 +221,14 @@ export interface PageItem {
 export function buildPageGroups(
   cats: ReadonlyArray<Category>,
   initialSet: ReadonlySet<string>,
+  /**
+   * v26.125.0 — 이미 설치된 target id. 라벨에 `● installed` 마커만 붙인다.
+   * **체크 상태와 별개다** — 체크는 "이번에 설치할 것", 마커는 "이미 있는 것"이고,
+   * 체크를 풀어도 제거되지 않는다(제거는 `uninstall` 을 따로 실행).
+   */
+  installedSet: ReadonlySet<string> = new Set(),
 ): { groups: Record<string, PageItem[]>; flatItems: PageItem[] } {
+  const installedMark = (value: string): string => (installedSet.has(value) ? "  ● installed" : "");
   const groups: Record<string, PageItem[]> = {};
   const flatItems: PageItem[] = [];
   for (const cat of cats) {
@@ -222,7 +237,7 @@ export function buildPageGroups(
       items.push({
         value: `option:${o.key}`,
         // v26.62.3 — group header 와 옵션 사이 시각 hierarchy 강화. label prefix 4 space.
-        label: `    ${o.label}  [${o.source}]`,
+        label: `    ${o.label}  [${o.source}]${installedMark(`option:${o.key}`)}`,
         hint: o.hint,
       });
     }
@@ -231,7 +246,7 @@ export function buildPageGroups(
     if (cat === DEV_METHOD_BUNDLE_CATEGORY) {
       items.push({
         value: DEV_METHOD_BUNDLE_VALUE,
-        label: `    uzys 하네스 방법론 ${DEV_METHOD_SKILL_IDS.length}종  [uzys]  ★ official`,
+        label: `    uzys 하네스 방법론 ${DEV_METHOD_SKILL_IDS.length}종  [uzys]  ★ official${installedMark(DEV_METHOD_BUNDLE_VALUE)}`,
         hint: DEV_METHOD_SKILL_IDS.join(", "),
       });
     }
@@ -252,7 +267,7 @@ export function buildPageGroups(
             : "";
       items.push({
         value: `asset:${a.id}`,
-        label: `    ${a.id}  [${a.source}]${badge}`,
+        label: `    ${a.id}  [${a.source}]${badge}${installedMark(`asset:${a.id}`)}`,
         hint: a.description,
       });
     }
@@ -407,6 +422,10 @@ export const defaultPrompts: Prompts = {
     const recapLine = recap
       ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}`
       : "";
+    // v26.125.0 — 마커 전용. 체크 상태와 별개이며, 체크를 풀어도 제거되지 않는다.
+    const installedSet = new Set<string>(
+      collapseDevMethodBundle((recap?.installed ?? []) as ReadonlyArray<InstallTargetId>),
+    );
 
     // alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
     process.stdout.write("\x1b[?1049h");
@@ -417,7 +436,7 @@ export const defaultPrompts: Prompts = {
       while (pageIdx < pages.length) {
         const page = pages[pageIdx];
         if (!page) break;
-        const { groups, flatItems } = buildPageGroups(page.cats, initialSet);
+        const { groups, flatItems } = buildPageGroups(page.cats, initialSet, installedSet);
         const selectedNow = flatItems.filter((it) => collected.has(it.value)).map((it) => it.value);
         const pageDefault = flatItems.filter((it) => initialSet.has(it.value)).length;
         const totalSelected = collected.size;
@@ -425,6 +444,11 @@ export const defaultPrompts: Prompts = {
           `Step ${step.current}/${step.total}  ·  Page ${pageIdx + 1}/${pages.length}  ·  ${page.label}`,
           recapLine ? `  ${recapLine}` : "",
           `  Selected so far: ${totalSelected} items  ·  This page default ✓ ${pageDefault}/${flatItems.length}`,
+          // 마커의 뜻을 화면에서 바로 알려준다 — 체크 해제를 제거로 오해하는 것이 이 화면의
+          // 원래 문제였으므로, 마커가 보일 때는 제거 경로를 같은 자리에서 말한다.
+          installedSet.size > 0
+            ? "  ● installed = 이미 설치됨 · 체크 해제해도 제거되지 않는다 (제거: agent-harness uninstall)"
+            : "",
           "  Space toggle · Enter → next · ESC → prev",
         ]
           .filter(Boolean)

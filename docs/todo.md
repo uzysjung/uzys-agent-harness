@@ -158,21 +158,50 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 | 글로벌 자산은 자동 삭제 금지 → 안내만 | 같은 파일 `buildGlobalAdvisoryCmd:245` (D16) |
 | CLAUDE.md 사용자 수정 감지 후 보존 | `install-log.ts:57` sha256 + `uninstall.ts:284` |
 
-- [ ] **F-1a 추가설치가 기록을 덮어쓴다 (결함, 최우선).** `installer.ts:581 writeInstallLogSafe`
-      → `buildInstallLog(...)` 이 **기존 로그를 읽지 않고 새로 만들어** `writeInstallLog` 이
-      덮어쓴다(`install-log.ts:112,149`). 즉 나중에 `install --with <id>` 하면 **이전 설치 자산이
-      기록에서 사라지고 uninstall 이 못 찾는다.** 병합(append/dedupe by id)으로 전환.
-      회귀 테스트 필수 — 2회 설치 후 1회차 자산이 로그에 남아 있는지.
-- [ ] **F-1b 설치 내역 조회 커맨드가 없다.** 로그는 있는데 사용자가 볼 수단이 없다
-      (`src/commands/` = install · install-render · uninstall 3개뿐). `harness list`(가칭) —
-      자산·scope·설치시각·수정여부 표시.
-- [ ] **F-1c 항목별 uninstall.** `UninstallOptions`(`uninstall.ts:34`)에 대상 선택이 없어 전량
-      제거만 된다. `--only <id...>` 추가. 남은 자산은 로그에 유지.
-- [ ] **F-1d 되돌리기 위험 표면의 안내(반자동).** `settings.json` 훅 등록·rule 파일·CLAUDE.md
-      는 사용자 수정이 섞이므로 자동 삭제하지 않는다 — **무엇을 지우면 되는지 정확히 출력**한다.
-      현재 로그의 `templates` 필드에 `settings.json` 병합분의 역연산 정보가 **없다**(확인 필요).
-- [ ] **F-1e 항목별 추가 install 이 로그에 등록** — F-1a 병합이 되면 자연히 충족되나, 별도
-      AC 로 검증(설치→추가설치→`list` 에 둘 다 보임→`--only` 로 하나만 제거→나머지 유지).
+- [x] **F-1a 추가설치가 기록을 덮어쓴다 (결함, 최우선).** (✅ v26.123.0) `buildInstallLog` 이
+      `previous` 를 받아 누적. 누적 대상은 uninstall 이 실제로 읽는 `assets`(id 합집합) +
+      `templates`(이번에 안 만든 항목은 이전 값 유지)뿐 — `spec` 은 reinstall 에서 거짓이 되므로
+      제외. 기존 로그는 backup 직전에 읽는다. mutation 3종 사살.
+- [x] **F-1b 설치 내역 조회 커맨드가 없다.** (✅ v26.123.0) `agent-harness list` —
+      `src/commands/list.ts`. 자산 id/method/scope/version + templates + CLAUDE.md 수정 여부.
+      읽기 전용.
+- [x] **F-1c 항목별 uninstall.** (✅ v26.123.0) `--only <ids>`. templates 미변경, 로그는
+      **남은 자산으로 재기록**(삭제 아님), 성공분만 제외, 모르는 id 는 실행 전 차단.
+- [x] **F-1d 되돌리기 위험 표면의 안내(반자동).** (✅ v26.123.0) 착수 시 가설("`templates` 에
+      `settings.json` 역연산 정보 없음")은 **부분적으로 틀렸다** — `.claude/settings.json` 은
+      `.claude/` 통째 제거로 처리되므로 전량 uninstall 엔 공백이 없다. 진짜 공백은 `--only` 경로:
+      자산만 빼면 훅 등록이 남는다. 현재 파일을 **파싱해** 실제 잔존분만 안내한다.
+- [x] **F-1e 항목별 추가 install 이 로그에 등록** (✅ v26.123.0) —
+      `tests/install-inventory-e2e.test.ts` 가 AC 전 구간을 한 줄기로 검증.
+
+- [x] **F-3 — README 에 `list`/`uninstall` 설명이 없다.** (✅ v26.124.0) README/README.ko 의
+      설치 절 끝에 명령 2줄 + 설명 1문단 추가. **기능 나열 표를 만들지 않았고** 새 H2 섹션도
+      만들지 않았다 — v26.118.0 README 구조 실측 결론(393→102줄)을 지키기 위해 설치 절 안에
+      붙였다. 102 → 111줄(양쪽 동일). llms.txt 는 USAGE 를 "commands, flags" 로 가리키고 있어
+      수정 불요(명령을 열거하지 않는 파일).
+
+- [x] **F-2 — branch coverage 가 실행마다 흔들린다.** (✅ v26.124.0 — 원인 규명, 코드 변경 없음.
+      **직전 판정 일부를 정정한다.**) 재현됨: 동일 트리 8회에서 분모가 1370/1371/1373 으로
+      갈렸다. 원인 = **v8 provider 는 branch map 을 소스가 아니라 실행에서 유도한다** — 그 실행에서
+      호출되지 않은 함수의 분기는 리포트에 아예 안 실린다. 갈리는 파일은 `env-files.ts` ·
+      `fs-ops.ts` · `installer.ts` (파일시스템 상태에 따라 경로가 갈리는 모듈들).
+
+      **정정 ①**: "게이트가 threshold 근처에서 flaky" 는 과장이었다. 실측 진폭은
+      **0.023%p** (89.562 / 89.570 / 89.585) — 분자·분모가 같이 움직여 비율이 거의 안 변한다.
+      현재 여유 1.56%p = 진폭의 **68배**. v26.70.1 의 87.94% 미달은 flake 가 아니라 진짜 미달이었다.
+
+      **정정 ②**: "3회 오기"의 원인도 flake 가 아니었다. 3건 중 flake 로 설명되는 건 1건뿐이고
+      (89.12↔89.13), 나머지 2건은 **측정 전에 적었다 / 적고 나서 코드를 더 고쳤다** — 절차 실패다.
+      교훈은 "flake 때문에 못 믿는다"가 아니라 **"커밋 직전에 재측정한다"** 이다.
+
+      **결정**: istanbul provider 로 교체하지 않는다 — 의존성이 늘고 모든 threshold 재기준선이
+      필요한데, 대가가 0.023%p 다. 유효숫자를 줄여 적는 관행은 유지 (한 자리).
+- [x] **F-1f — uninstall 이 프로젝트 루트 수정분을 모른다.** (✅ v26.124.0) install 은 `.claude/`
+      밖에도 쓴다: `.mcp.json`(병합) · `.gitignore`(추가줄) · `.env.example` · `.mcp-allowlist` ·
+      `.github/workflows/*`(ci-scaffold). uninstall 이 **어느 것도 안내조차 하지 않았다**.
+      install 이 `rootFiles` 로 기록 → `uninstall`/`list` 가 안내한다. 자동 삭제는 하지 않는다
+      (사용자 내용이 섞임 — F-1d 와 같은 방침). 근거였던 위치: `env-files.ts:62,75,103,128,132` ·
+      `ci-scaffold.ts:71`.
 
 <!-- ship-gate:ignore-end -->
 
