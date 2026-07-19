@@ -267,7 +267,7 @@ function installOne(
  *
  * v26.39.6 fix — skills CLI agent name 매핑.
  * skills CLI 1.5.5 valid agent 이름은 `claude-code` 인데 우리 CliBase 는 `claude`.
- * 매핑 누락 시 `Invalid agents: claude` 로 exit 1 → 외부 사용자 (DYLD-GoalTrack
+ * 매핑 누락 시 `Invalid agents: claude` 로 exit 1 → 외부 사용자 (실사용 리포
  * reproduce 2026-05-06) 환경에서 7건 skill 자산 100% skip.
  */
 const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {

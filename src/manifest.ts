@@ -57,7 +57,7 @@ const onTracks =
     anyTrack(s.tracks, pattern);
 
 // v26.107.0 (ADR-036, 라이프사이클 자산화 ①) — doc-governance: SSOT 위계 + "merge = 코드 +
-//   추적 동기화" 의무. GoalTrack 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
+//   추적 동기화" 의무. 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
 // v26.121.0 — no-false-ship 은 이 저장소 로컬 룰이었고 배포되지 않았다(사용자 결정으로 배송).
 // COMMON 인 이유: "검증한 것만 주장한다"는 코드를 출하할 때만이 아니라 모든 보고에 걸린다.
 const COMMON_RULES = [

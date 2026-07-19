@@ -1,8 +1,8 @@
 /**
  * CI scaffold (v26.108.0, 라이프사이클 자산화 ② — ADR-037) — `.github/workflows/` fill-in
- * 워크플로 템플릿 설치. GoalTrack 실무 CI 패턴(실DB 서비스 컨테이너 · tag-only 트리거 +
+ * 워크플로 템플릿 설치. 실무 CI 패턴(실DB 서비스 컨테이너 · tag-only 트리거 +
  * 로컬 검증 1차 게이트 · Playwright E2E · coverage 게이트)의 도메인 중립 일반화
- * (docs/plans/lifecycle-codification-2026-07-18.md ② — dyld_vantage 의 CI 0 이 갭의 존재 증명).
+ * (docs/plans/lifecycle-codification-2026-07-18.md ② — CI 0 인 실프로젝트가 갭의 존재 증명).
  *
  * 본 하네스가 `.claude/` 밖에 쓰는 첫 자산 — 안전 계약 2가지:
  *   1. opt-in 전용 (`--with ci-scaffold` / wizard 체크) — 무인지 설치 없음.

@@ -110,24 +110,98 @@ describe("배포되는 templates 의 위생", () => {
    * CI 에서는 못 도므로 조용히 통과시키지 않고 로그로 남긴다(`no-false-ship`: 미검증은 미검증).
    */
   it("워크스페이스 형제 프로젝트 이름이 새지 않는다 (로컬 한정)", () => {
-    const workspace = resolve(__dirname, "../..");
-    let siblings: string[] = [];
-    try {
-      siblings = readdirSync(workspace, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => d.name)
-        // 영어 단어에 부분일치하는 짧은 이름(`temp` ⊂ `template`)은 오탐만 낳는다 → 6자 이상.
-        .filter((n) => !n.startsWith(".") && n !== "uzysClaudeUniversalEnv" && n.length >= 6);
-    } catch {
-      console.warn("[배포 위생] 워크스페이스를 못 읽었다 — 이 검사 미수행.");
-      return;
-    }
-    if (siblings.length === 0) {
-      console.warn("[배포 위생] 형제 프로젝트 0개(CI 환경으로 보임) — 이 검사 미수행.");
-      return;
-    }
-    const escaped = siblings.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    const hits = scan(new RegExp(`\\b(${escaped.join("|")})\\b`, "i"));
+    const siblings = workspaceSiblings();
+    if (siblings === null) return;
+    const hits = scan(siblingPattern(siblings));
     expect(hits, `다른 프로젝트 이름이 배포물에 있다:\n${hits.join("\n")}`).toEqual([]);
   });
+
+  /**
+   * **범위가 `templates/` 만이 아니다.** 처음 이 게이트를 만들 때 templates 만 훑었는데,
+   * 실제로는 `dist/` 에도 사설 프로젝트 이름이 번들돼 게시되고 있었다 (소스 주석이 그대로
+   * 컴파일된 것). "다 고쳤다"고 말할 뻔한 지점이다.
+   *
+   * 그래서 검사 대상을 **`package.json` 의 `files` 에서 derive** 한다 — 게시 계약 자체가
+   * SSOT 이므로 나중에 새 경로를 게시 목록에 넣어도 게이트를 고칠 필요가 없다.
+   * `dist` 는 생성물이라 원본인 `src` 를 대신 본다 (고치는 자리가 거기다).
+   */
+  it("게시되는 전 표면에 다른 프로젝트 이름이 없다 (로컬 한정)", () => {
+    const siblings = workspaceSiblings();
+    if (siblings === null) return;
+
+    const repoRoot = resolve(__dirname, "..");
+    const published = (
+      JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).files as string[]
+    ).map((f) => (f === "dist" ? "src" : f)); // 생성물 → 원본
+
+    const pattern = siblingPattern(siblings);
+    const hits: string[] = [];
+    for (const entry of published) {
+      const abs = join(repoRoot, entry);
+      if (!existsSync(abs)) continue;
+      const files = statSync(abs).isDirectory()
+        ? listFilesRecursive(abs).map((r) => join(entry, r))
+        : [entry];
+      for (const rel of files) {
+        if (!/\.(md|sh|ya?ml|toml|ts|js|json)$/.test(rel)) continue;
+        readFileSync(join(repoRoot, rel), "utf8")
+          .split("\n")
+          .forEach((line, i) => {
+            if (pattern.test(line)) hits.push(`${rel}:${i + 1}  ${line.trim().slice(0, 110)}`);
+          });
+      }
+    }
+    expect(
+      hits,
+      `게시 대상에 다른 프로젝트 이름이 있다 (package.json files 기준):\n${hits.join("\n")}`,
+    ).toEqual([]);
+  });
 });
+
+/** 워크스페이스 형제 = 사용자의 다른 프로젝트들. 못 읽으면 null (CI) — 조용히 통과시키지 않고 알린다. */
+function workspaceSiblings(): string[] | null {
+  try {
+    const workspace = resolve(__dirname, "../..");
+    const names = readdirSync(workspace, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      // 영어 단어에 부분일치하는 짧은 이름(`temp` ⊂ `template`)은 오탐만 낳는다 → 6자 이상.
+      .filter((n) => !n.startsWith(".") && n !== "uzysClaudeUniversalEnv" && n.length >= 6)
+      // git worktree 는 **별도 프로젝트가 아니라 브랜치**다. 디렉터리명에 브랜치명이 섞여
+      // (`ea-wt-evidence`) 흔한 영어 단어를 후보로 만들어 오탐만 낳는다. 본체는 부모
+      // 디렉터리 이름으로 이미 커버된다. 판별: worktree 의 `.git` 은 디렉터리가 아니라 파일.
+      .filter((n) => {
+        const dotGit = join(workspace, n, ".git");
+        return !existsSync(dotGit) || statSync(dotGit).isDirectory();
+      });
+    if (names.length === 0) {
+      console.warn("[배포 위생] 형제 프로젝트 0개(CI 환경으로 보임) — 이 검사 미수행.");
+      return null;
+    }
+    return names;
+  } catch {
+    console.warn("[배포 위생] 워크스페이스를 못 읽었다 — 이 검사 미수행.");
+    return null;
+  }
+}
+
+/**
+ * 디렉터리 이름 **그대로만** 찾으면 못 잡는다 — 실제 유출은 짧은 형태로 나타났다:
+ * 형제가 `DYLD-GoalTrack` 인데 문서에는 `GoalTrack`, `dyld_vantage` 인데 `Vantage` 였다.
+ * 그래서 구분자로 쪼갠 **조각**까지 후보에 넣는다. 5자 미만 조각은 흔한 영어 단어에
+ * 부분일치해 오탐만 낳으므로 버린다(`dyld`·`WIKI` 등).
+ *
+ * 이 함수는 음성 대조에서 **살아남은 뒤** 고친 것이다 — 원래 정확일치만 해서
+ * `GoalTrack` 주입을 통과시켰다. 초록불이 무는지 확인하지 않았으면 그대로 실렸다.
+ */
+function siblingPattern(siblings: ReadonlyArray<string>): RegExp {
+  const candidates = new Set<string>();
+  for (const name of siblings) {
+    candidates.add(name);
+    for (const frag of name.split(/[-_.]/)) {
+      if (frag.length >= 5) candidates.add(frag);
+    }
+  }
+  const escaped = [...candidates].map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`\\b(${escaped.join("|")})\\b`, "i");
+}

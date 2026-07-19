@@ -240,7 +240,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   // v26.108.0 (ADR-037, 라이프사이클 자산화 ②) — CI 스캐폴드: `.github/workflows/` fill-in
   //   워크플로(tag-트리거 CI + 실DB 서비스 컨테이너 + coverage 게이트 + Playwright E2E).
-  //   GoalTrack 실무 CI 패턴의 도메인 중립 일반화 (dyld_vantage CI 0 갭이 계기). `.claude/` 밖에
+  //   실무 CI 패턴의 도메인 중립 일반화 (CI 부재 프로젝트의 갭이 계기). `.claude/` 밖에
   //   쓰는 첫 자산 — opt-in 전용 + 기존 워크플로 파일은 절대 덮어쓰지 않는다 (src/ci-scaffold.ts,
   //   manifest 경유 아님 — CLI 선택과 무관하게 설치되는 CLI-agnostic 산출물).
   {
