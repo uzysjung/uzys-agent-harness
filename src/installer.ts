@@ -51,10 +51,12 @@ import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
 /**
- * karpathy-coder hook command — `.claude/settings.json` PreToolUse Write|Edit matcher entry.
- * v26.123.0 — uninstall 의 수기 안내가 같은 문자열을 봐야 해서 export (SSOT 유지).
+ * karpathy-coder hook 상수 — install 이 쓰고 uninstall 의 수기 안내가 읽는다.
+ * v26.123.0 — 두 곳이 같은 값을 봐야 해서 export. 파일명이 바뀌면 안내가 조용히 멈추므로
+ * 경로도 여기서 파생시킨다 (`no-false-ship`: 같은 값이 2곳에 하드코딩되면 derive 로 단일화).
  */
-export const KARPATHY_HOOK_COMMAND = 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"';
+export const KARPATHY_HOOK_RELPATH = ".claude/hooks/karpathy-gate.sh";
+export const KARPATHY_HOOK_COMMAND = `bash "$CLAUDE_PROJECT_DIR/${KARPATHY_HOOK_RELPATH}"`;
 
 /**
  * Install mode — Router action 매핑.
@@ -315,7 +317,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
   const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
-  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog, previousLog);
+  // backupPath 가 있으면 `.claude/` 를 rename 으로 밀어냈다는 뜻 — 그 안에 살던 이전 자산은
+  // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
+  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog, previousLog, backupPath !== null);
 
   return { ...baseline, external, karpathyHook };
 }
@@ -596,6 +600,7 @@ function writeInstallLogSafe(
   external: ExternalInstallReport | null,
   rootClaudeMdLog: { path: string; sha256: string } | null,
   previousLog: InstallLog | null,
+  claudeDirMovedAside: boolean,
 ): void {
   try {
     const log = buildInstallLog(
@@ -604,6 +609,7 @@ function writeInstallLogSafe(
       resolveScope(ctx.spec.scope),
       rootClaudeMdLog,
       previousLog,
+      claudeDirMovedAside,
     );
     writeInstallLog(ctx.projectDir, log);
   } catch (e) {
@@ -649,7 +655,7 @@ function wireKarpathyHook(
 
   // Hook script 복사 (manifest에 없는 v0.6.0 신규 — opt-in 시에만)
   const sourceHook = join(harnessRoot, "templates/hooks/karpathy-gate.sh");
-  const targetHook = join(projectDir, ".claude/hooks/karpathy-gate.sh");
+  const targetHook = join(projectDir, KARPATHY_HOOK_RELPATH);
   let hookScriptCopied = false;
   if (existsSync(sourceHook)) {
     copyFile(sourceHook, targetHook);

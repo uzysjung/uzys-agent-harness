@@ -60,7 +60,8 @@ dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only
 shows are the input to `uninstall --only`.
 
 Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
-still knows about everything from the earlier run.
+still knows about everything from the earlier run. (`--mode reinstall` is the exception — it moves
+`.claude/` aside and rebuilds it, so assets that lived inside it are dropped from the record too.)
 
 ## Uninstall (v26.64.0+)
 
@@ -73,7 +74,7 @@ Reverses the install based on `.claude/.harness-install.json`.
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
 - **Global-scope assets**: listed as advisory only. You run the removal yourself.
-- **Surfaces with your edits mixed in** (`.claude/settings.json` hook registrations): never edited automatically — the exact entry to delete is printed instead.
+- **Assets with no automated reverse** (`npx-run`, `shell-script`): reported as such and left in the record — a full uninstall removes `.claude/` around them, but `--only` cannot undo them.
 
 | Flag | What |
 |---|---|
@@ -82,7 +83,14 @@ Reverses the install based on `.claude/.harness-install.json`.
 | `--only <ids>` | Remove just these assets (comma-separated, from `list`). Templates untouched; the log is rewritten with what remains, so the rest stays removable |
 
 Only assets whose reverse actually succeeded are dropped from the log — a failed removal stays
-listed rather than being recorded as gone.
+listed rather than being recorded as gone. If nothing could be removed automatically, the command
+says so and exits non-zero rather than reporting success.
+
+When `--only` leaves `.claude/` in place, a hook registration in `.claude/settings.json` that
+referenced the removed asset is **printed for you to delete** rather than edited automatically
+(currently implemented for `karpathy-coder`). Other root-level files the installer touches —
+`.mcp.json`, `.gitignore`, `.env.example`, `.mcp-allowlist`, `.github/workflows/` — get no advisory
+yet and are never removed.
 
 ---
 

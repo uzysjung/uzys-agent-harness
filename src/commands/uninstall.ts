@@ -12,10 +12,13 @@
  * 옵션:
  *   --dry-run        실제 변경 없이 reverse list 만 출력.
  *   --keep-templates `.claude/`, `.codex/`, `.opencode/` 보존.
+ *   --only <ids>     v26.123.0 (F-1c) — 항목별 제거. templates 미변경 + 로그는 남은 자산으로 재기록.
  *
  * 안전:
  *   - log 없으면 명확 에러 + early exit.
  *   - scope=global 자산은 절대 자동 삭제 X (D16).
+ *   - 되돌리기에 성공한 것만 로그에서 뺀다. 자동 경로가 없거나 실패한 자산은 기록에 남기고,
+ *     아무것도 못 되돌렸으면 성공으로 보고하지 않는다 (no-false-ship).
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
@@ -31,7 +34,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "../install-log.js";
-import { KARPATHY_ASSET_ID, KARPATHY_HOOK_COMMAND } from "../installer.js";
+import { KARPATHY_ASSET_ID, KARPATHY_HOOK_COMMAND, KARPATHY_HOOK_RELPATH } from "../installer.js";
 import type { ClaudeSettings } from "../settings-merge.js";
 
 export interface UninstallOptions {
@@ -51,6 +54,8 @@ export interface UninstallActionDeps {
   exit?: (code: number) => never;
   spawn?: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
   rm?: (path: string) => void;
+  /** `--only` 후 로그 재기록. 실패 경로를 테스트에서 재현하기 위해 주입 가능. */
+  writeLog?: (projectDir: string, log: InstallLog) => void;
 }
 
 interface ReverseStep {
@@ -74,6 +79,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
   const spawn = deps.spawn ?? defaultSpawn;
   const rm = deps.rm ?? defaultRm;
+  const writeLog = deps.writeLog ?? writeInstallLog;
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
   const installLog = readInstallLog(projectDir);
@@ -84,18 +90,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  // v26.123.0 (F-1c) — `--only <id,...>` 항목별 제거. 오타로 엉뚱한 자산이 남는 일이 없도록
-  // 알 수 없는 id 는 아무것도 실행하기 전에 차단한다 (Pre-flight — 부분 작업 없음).
   const selectedIds = parseOnly(options.only);
-  if (selectedIds) {
-    const known = new Set(installLog.assets.map((a) => a.id));
-    const unknown = selectedIds.filter((id) => !known.has(id));
-    if (unknown.length > 0) {
-      err(status.failure(c.red(`ERROR: not in install log: ${unknown.join(", ")}`)));
-      err(c.dim(`       installed: ${[...known].join(", ") || "(none)"}`));
-      exit(1);
-      return;
-    }
+  const unknown = selectedIds ? unknownIds(installLog, selectedIds) : [];
+  if (unknown.length > 0) {
+    err(status.failure(c.red(`ERROR: not in install log: ${unknown.join(", ")}`)));
+    err(c.dim(`       installed: ${installLog.assets.map((a) => a.id).join(", ") || "(none)"}`));
+    exit(1);
+    return;
   }
   const targetAssets = selectedIds
     ? installLog.assets.filter((a) => selectedIds.includes(a.id))
@@ -103,79 +104,22 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // `--only` 는 자산만 건드린다 — templates 를 지우면 "하나만 빼기"가 아니게 된다.
   const keepTemplates = options.keepTemplates || selectedIds !== null;
 
-  const { reverseSteps, globalAdvisories } = planReverse(targetAssets, spawn, rm, projectDir);
-
-  log("");
-  log(c.bold("uzys-agent-harness · uninstall"));
-  log("");
-  log(c.dim(`  installed: ${installLog.installedAt}`));
-  log(c.dim(`  scope:     ${installLog.scope}`));
-  log(
-    c.dim(
-      selectedIds
-        ? `  assets:    ${targetAssets.length} selected of ${installLog.assets.length} (--only)`
-        : `  assets:    ${installLog.assets.length}`,
-    ),
-  );
-  log("");
+  const plan = planReverse(targetAssets, spawn);
+  for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
-    log(c.yellow("[DRY RUN] reverse list (실제 변경 없음):"));
-    log("");
-    if (reverseSteps.length === 0) {
-      log(c.dim("  (no project-scope assets to reverse)"));
-    }
-    for (const step of reverseSteps) {
-      log(`  ○ ${step.label}`);
-    }
-    if (!keepTemplates) {
-      log(`  ○ remove templates: ${formatTemplateList(installLog)}`);
-      if (installLog.templates.rootClaudeMd) {
-        log(
-          rootClaudeMdModified(installLog, projectDir)
-            ? "  ○ keep CLAUDE.md (modified since install — preserved)"
-            : "  ○ remove CLAUDE.md",
-        );
-      }
-    }
-    if (globalAdvisories.length > 0) {
-      log("");
-      log(
-        c.yellow(
-          `[GLOBAL] ${globalAdvisories.length} asset(s) at scope=global — manual removal required (D16):`,
-        ),
-      );
-      for (const adv of globalAdvisories) {
-        log(c.dim(`  · ${adv.asset.id} (${adv.asset.method})  →  ${adv.command}`));
-      }
-    }
-    for (const line of manualAdvisoryLines(targetAssets, projectDir)) {
+    for (const line of dryRunLines(plan, installLog, projectDir, keepTemplates, targetAssets)) {
       log(line);
     }
-    log("");
     exit(0);
     return;
   }
 
-  // Execute reverse steps
-  let succeeded = 0;
-  let failed = 0;
-  const removedIds: string[] = [];
-  for (const step of reverseSteps) {
-    const result = step.execute();
-    if (result.ok) {
-      log(`  ${status.success("✓")} ${step.label}`);
-      removedIds.push(step.assetId);
-      succeeded++;
-    } else {
-      log(`  ${c.yellow("⊘")} ${step.label}  (${result.message ?? "failed"})`);
-      failed++;
-    }
-  }
+  const { succeeded, failed, removedIds } = executeReverse(plan, log);
 
   if (!keepTemplates) {
     const { rootClaudeMdKept } = removeTemplates(installLog, projectDir, rm);
-    log(`  ${status.success("✓")} templates removed: ${formatTemplateList(installLog)}`);
+    log(`  ${status.success(`templates removed: ${formatTemplateList(installLog)}`)}`);
     if (rootClaudeMdKept) {
       log(
         `  ${c.yellow("⊘")} CLAUDE.md kept — modified since install. Remove manually if intended.`,
@@ -183,53 +127,215 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     }
   }
 
+  const logWriteFailed = settleLog(
+    { installLog, projectDir, selectedIds, keepTemplates, removedIds },
+    { log, err, rm, writeLog },
+  );
+
+  for (const line of advisoryLines(plan, targetAssets, projectDir, Boolean(selectedIds))) {
+    log(line);
+  }
+
+  const outcome = summarize({
+    succeeded,
+    failed,
+    logWriteFailed,
+    // 아무것도 못 되돌렸는데 templates 도 안 지웠으면 "complete" 가 아니다.
+    nothingDone: succeeded === 0 && keepTemplates && targetAssets.length > 0,
+  });
+  log("");
+  log(outcome.line);
+  exit(outcome.code);
+}
+
+/**
+ * 종료 보고 — **한 일이 없으면 성공이라 하지 않는다.** 이전 판본은 reverse step 이 0개일 때
+ * `0 === 0` 이 성공 판정을 통과해 `✓ uninstall complete` + exit 0 을 찍었다 (SOD CRITICAL).
+ */
+function summarize(r: {
+  succeeded: number;
+  failed: number;
+  nothingDone: boolean;
+  logWriteFailed: boolean;
+}): { line: string; code: number } {
+  if (r.failed > 0)
+    return {
+      line: c.yellow(`uninstall finished with ${r.failed} skip(s) (${r.succeeded} ok)`),
+      code: 1,
+    };
+  if (r.nothingDone)
+    return {
+      line: c.yellow("아무것도 자동 제거되지 않았다 — 위 안내를 따라 직접 처리해야 한다"),
+      code: 1,
+    };
+  if (r.logWriteFailed)
+    return {
+      line: c.yellow("자산은 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)"),
+      code: 1,
+    };
+  return { line: status.success(c.green(`uninstall complete (${r.succeeded} asset(s))`)), code: 0 };
+}
+
+function headerLines(
+  installLog: InstallLog,
+  selectedIds: string[] | null,
+  targetCount: number,
+): string[] {
+  return [
+    "",
+    c.bold("uzys-agent-harness · uninstall"),
+    "",
+    c.dim(`  installed: ${installLog.installedAt}`),
+    c.dim(`  scope:     ${installLog.scope}`),
+    c.dim(
+      selectedIds
+        ? `  assets:    ${targetCount} selected of ${installLog.assets.length} (--only)`
+        : `  assets:    ${installLog.assets.length}`,
+    ),
+    "",
+  ];
+}
+
+function executeReverse(
+  plan: ReversePlan,
+  log: (msg: string) => void,
+): { succeeded: number; failed: number; removedIds: string[] } {
+  let succeeded = 0;
+  let failed = 0;
+  const removedIds: string[] = [];
+  for (const step of plan.reverseSteps) {
+    const result = step.execute();
+    if (result.ok) {
+      log(`  ${status.success(step.label)}`);
+      removedIds.push(step.assetId);
+      succeeded++;
+    } else {
+      log(`  ${c.yellow("⊘")} ${step.label}  (${result.message ?? "failed"})`);
+      failed++;
+    }
+  }
+  // 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가
+  // 아무것도 안 한 실행에 붙어 거짓 보고가 된다 (no-false-ship).
+  for (const asset of plan.noReversePath) {
+    log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — 자동 되돌리기 경로 없음, 기록 유지`);
+  }
+  return { succeeded, failed, removedIds };
+}
+
+/** 제거 후 로그 처리. @returns 재기록에 실패했는가 (실패해도 uninstall 을 죽이지 않는다). */
+function settleLog(
+  ctx: {
+    installLog: InstallLog;
+    projectDir: string;
+    selectedIds: string[] | null;
+    keepTemplates: boolean;
+    removedIds: string[];
+  },
+  io: {
+    log: (msg: string) => void;
+    err: (msg: string) => void;
+    rm: (path: string) => void;
+    writeLog: (projectDir: string, log: InstallLog) => void;
+  },
+): boolean {
+  const { installLog, projectDir, selectedIds, keepTemplates, removedIds } = ctx;
   if (selectedIds) {
     // v26.123.0 (F-1c) — 로그를 지우는 게 아니라 **되돌린 것만 빼고 다시 쓴다**.
     // 실패한 항목은 남긴다 — 실제로 안 지워진 걸 기록에서 지우면 그게 곧 거짓 기록이다.
     const remaining = installLog.assets.filter((a) => !removedIds.includes(a.id));
-    writeInstallLog(projectDir, { ...installLog, assets: remaining });
-    log(`  ${status.success("✓")} install log updated (${remaining.length} asset(s) remain)`);
+    try {
+      io.writeLog(projectDir, { ...installLog, assets: remaining });
+      io.log(`  ${status.success(`install log updated (${remaining.length} asset(s) remain)`)}`);
+    } catch (e) {
+      // 되돌리기는 이미 끝난 뒤다 — 스택트레이스로 죽으면 무엇이 지워졌는지도 사라진다.
+      io.err(status.failure(c.red(`ERROR: install log 갱신 실패 — ${installLogPath(projectDir)}`)));
+      io.err(c.dim(`       ${e instanceof Error ? e.message : String(e)}`));
+      io.err(c.dim(`       실제로 제거된 자산: ${removedIds.join(", ") || "(없음)"}`));
+      return true;
+    }
   } else if (keepTemplates) {
     // install log 자체도 함께 제거 (templates 제거 시 .claude/ 통째 사라짐 → log 도 자동 사라짐.
     // keepTemplates 시 .claude/ 유지 → log 만 명시 제거).
-    rm(installLogPath(projectDir));
-    log(`  ${status.success("✓")} install log removed (templates kept)`);
+    io.rm(installLogPath(projectDir));
+    io.log(`  ${status.success("install log removed (templates kept)")}`);
   }
+  return false;
+}
 
-  if (globalAdvisories.length > 0) {
-    log("");
-    log(
-      c.yellow(
-        `[GLOBAL] ${globalAdvisories.length} asset(s) at scope=global — manual removal required (D16):`,
-      ),
-    );
-    for (const adv of globalAdvisories) {
-      log(c.dim(`  · ${adv.asset.id} (${adv.asset.method})`));
-      log(c.dim(`      ${adv.command}`));
+/** dry-run 미리보기 — 실행 경로와 같은 판정을 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
+function dryRunLines(
+  plan: ReversePlan,
+  installLog: InstallLog,
+  projectDir: string,
+  keepTemplates: boolean,
+  targetAssets: ReadonlyArray<InstallLogAsset>,
+): string[] {
+  const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
+  if (plan.reverseSteps.length === 0) {
+    lines.push(c.dim("  (no project-scope assets to reverse)"));
+  }
+  lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
+  lines.push(
+    ...plan.noReversePath.map((a) =>
+      c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
+    ),
+  );
+  if (!keepTemplates) {
+    lines.push(`  ○ remove templates: ${formatTemplateList(installLog)}`);
+    if (installLog.templates.rootClaudeMd) {
+      lines.push(
+        rootClaudeMdModified(installLog, projectDir)
+          ? "  ○ keep CLAUDE.md (modified since install — preserved)"
+          : "  ○ remove CLAUDE.md",
+      );
     }
   }
+  // keepTemplates=false 면 실제 실행은 `.claude/` 를 통째로 지운다 → 수기 안내 대상 자체가
+  // 사라지므로 미리보기에서도 안내하지 않는다. 안 그러면 곧 삭제될 파일을 손보라고 시킨다.
+  lines.push(...advisoryLines(plan, targetAssets, projectDir, keepTemplates), "");
+  return lines;
+}
 
-  for (const line of manualAdvisoryLines(targetAssets, projectDir)) {
-    log(line);
+/** global(D16) + 수기 표면 안내. dry-run 과 실행 경로가 같은 함수를 쓴다. */
+function advisoryLines(
+  plan: ReversePlan,
+  targetAssets: ReadonlyArray<InstallLogAsset>,
+  projectDir: string,
+  templatesKept: boolean,
+): string[] {
+  const lines: string[] = [];
+  if (plan.globalAdvisories.length > 0) {
+    lines.push(
+      "",
+      c.yellow(
+        `[GLOBAL] ${plan.globalAdvisories.length} asset(s) at scope=global — manual removal required (D16):`,
+      ),
+    );
+    for (const adv of plan.globalAdvisories) {
+      lines.push(c.dim(`  · ${adv.asset.id} (${adv.asset.method})`), c.dim(`      ${adv.command}`));
+    }
   }
+  if (templatesKept) lines.push(...manualAdvisoryLines(targetAssets, projectDir));
+  return lines;
+}
 
-  log("");
-  log(
-    succeeded === reverseSteps.length && failed === 0
-      ? status.success(c.green(`uninstall complete (${succeeded} asset(s))`))
-      : c.yellow(`uninstall finished with ${failed} skip(s) (${succeeded} ok)`),
-  );
-  exit(failed === 0 ? 0 : 1);
+interface ReversePlan {
+  reverseSteps: ReverseStep[];
+  globalAdvisories: GlobalAdvisory[];
+  /**
+   * 자동 되돌리기 경로가 없는 자산 (npx-run / shell-script / internal). 전량 uninstall 에선
+   * `.claude/` 통째 제거가 덮지만, `--only` 에선 **아무 일도 안 일어난다** — 그래서 따로 센다.
+   */
+  noReversePath: InstallLogAsset[];
 }
 
 function planReverse(
   assets: ReadonlyArray<InstallLogAsset>,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
-  _rm: (path: string) => void,
-  _projectDir: string,
-): { reverseSteps: ReverseStep[]; globalAdvisories: GlobalAdvisory[] } {
+): ReversePlan {
   const reverseSteps: ReverseStep[] = [];
   const globalAdvisories: GlobalAdvisory[] = [];
+  const noReversePath: InstallLogAsset[] = [];
 
   for (const asset of assets) {
     if (asset.scope === "global") {
@@ -238,9 +344,10 @@ function planReverse(
     }
     const step = buildProjectReverseStep(asset, spawn);
     if (step) reverseSteps.push(step);
+    else noReversePath.push(asset);
   }
 
-  return { reverseSteps, globalAdvisories };
+  return { reverseSteps, globalAdvisories, noReversePath };
 }
 
 function buildProjectReverseStep(
@@ -312,6 +419,15 @@ function settingsHasHookCommand(projectDir: string, command: string): boolean {
   }
 }
 
+/**
+ * 로그에 없는 `--only` id — 오타로 엉뚱한 자산이 남지 않도록 **아무것도 실행하기 전에** 본다
+ * (gates-taxonomy Pre-flight: 전제조건 미충족 시 차단, 부분 작업 없음).
+ */
+function unknownIds(installLog: InstallLog, selectedIds: ReadonlyArray<string>): string[] {
+  const known = new Set(installLog.assets.map((a) => a.id));
+  return selectedIds.filter((id) => !known.has(id));
+}
+
 /** `--only <a,b>` → ["a","b"]. 미지정이면 null (= 전량 제거, 기존 동작). */
 function parseOnly(only: string | undefined): string[] | null {
   if (!only) return null;
@@ -340,8 +456,8 @@ function manualAdvisoryLines(
     items.push(
       `.claude/settings.json — hooks.PreToolUse 에서 다음 command 항목 삭제:\n      ${KARPATHY_HOOK_COMMAND}`,
     );
-  const hookPath = join(projectDir, ".claude", "hooks", "karpathy-gate.sh");
-  if (existsSync(hookPath)) items.push("`.claude/hooks/karpathy-gate.sh` — 삭제");
+  if (existsSync(join(projectDir, KARPATHY_HOOK_RELPATH)))
+    items.push(`\`${KARPATHY_HOOK_RELPATH}\` — 삭제`);
 
   if (items.length === 0) return [];
   return [

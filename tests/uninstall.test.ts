@@ -862,3 +862,224 @@ describe("uninstallAction — --only (항목별 제거)", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.123.0 리뷰 반영 (SOD C1) — `--only` 가 아무것도 못 되돌렸는데 초록 "complete" 를 찍고
+ * exit 0 하던 것. `npx-run`/`shell-script`/`internal` 자산과 **모든 global scope 자산**이 해당.
+ * 그 침묵은 F-1a 가 없애려던 "로그가 거짓이 되는 상태"를 반대편에서 되살린다.
+ */
+describe("uninstallAction — 되돌릴 수 없는 자산 (SOD C1)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-noreverse-"));
+  });
+
+  function logWith(asset: InstallLog["assets"][number]): InstallLog {
+    return { ...baseLog(), assets: [asset] };
+  }
+
+  const NPX_RUN_ASSET = {
+    id: "bmad",
+    category: "dev-tools",
+    method: "npx-run" as const,
+    scope: "project" as const,
+    detail: { cmd: "bmad-method", args: "install" },
+  };
+
+  it("자동 경로가 없으면 그렇다고 말하고 성공으로 보고하지 않는다 (exit 1)", () => {
+    writeLog(tmpDir, logWith(NPX_RUN_ASSET));
+    const logFn = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "bmad" },
+      { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm: vi.fn() },
+    );
+    const output = logFn.mock.calls.flat().join("\n");
+    expect(output).toContain("자동 되돌리기 경로 없음");
+    expect(output).not.toContain("uninstall complete");
+    expect(exit).toHaveBeenCalledWith(1);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("되돌리지 못한 자산은 기록에 남는다 (지웠다고 적으면 그게 거짓 기록)", () => {
+    writeLog(tmpDir, logWith(NPX_RUN_ASSET));
+    uninstallAction(
+      { projectDir: tmpDir, only: "bmad" },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;
+    expect(after.assets.map((a) => a.id)).toEqual(["bmad"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("global scope 자산도 --only 로는 자동 제거되지 않으므로 성공으로 보고하지 않는다", () => {
+    writeLog(
+      tmpDir,
+      logWith({
+        id: "glob",
+        category: "dev-tools",
+        method: "plugin",
+        scope: "global",
+        detail: { marketplace: "mp", pluginId: "g@mp" },
+      }),
+    );
+    const logFn = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "glob" },
+      { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm: vi.fn() },
+    );
+    const output = logFn.mock.calls.flat().join("\n");
+    expect(output).toContain("[GLOBAL]");
+    expect(output).not.toContain("uninstall complete");
+    expect(exit).toHaveBeenCalledWith(1);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("전량 uninstall 은 자산이 0개여도 templates 를 지우므로 성공이다 (오탐 방지)", () => {
+    writeLog(tmpDir, baseLog());
+    const logFn = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir },
+      { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm: vi.fn() },
+    );
+    expect(logFn.mock.calls.flat().join("\n")).toContain("uninstall complete");
+    expect(exit).toHaveBeenCalledWith(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+/** v26.123.0 리뷰 반영 (SOD I2/I3/I5). */
+describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-uninstall-edge-"));
+  });
+
+  function richLog(): InstallLog {
+    return {
+      ...baseLog(),
+      spec: { tracks: ["tooling"], cli: ["claude", "codex"] },
+      templates: {
+        claudeDir: ".claude/",
+        codexDir: ".codex/",
+        opencodeDir: ".opencode/",
+        rootClaudeMd: { path: "CLAUDE.md", sha256: hashContent("x") },
+      },
+      assets: [
+        {
+          id: "a",
+          category: "frontend",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "a@mp" },
+        },
+        {
+          id: "b",
+          category: "frontend",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "b@mp" },
+        },
+      ],
+    };
+  }
+
+  it("--only 재기록이 assets 외 필드를 전부 그대로 보존한다 (I2)", () => {
+    // 여기가 새면 다음 전량 uninstall 이 .codex/·.opencode/·CLAUDE.md 를 기록 없이 남긴다.
+    writeLog(tmpDir, richLog());
+    uninstallAction(
+      { projectDir: tmpDir, only: "a" },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;
+    expect({ ...after, assets: [] }).toEqual({ ...richLog(), assets: [] });
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--only 없는 dry-run 은 수기 안내를 하지 않는다 — 실제 실행은 그 파일을 지운다 (I3)", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      assets: [
+        {
+          id: "karpathy-coder",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "k@mp" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(
+      join(tmpDir, ".claude", "settings.json"),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Write|Edit",
+              hooks: [
+                {
+                  type: "command",
+                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      "utf8",
+    );
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, dryRun: true },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(logFn.mock.calls.flat().join("\n")).not.toContain("[MANUAL]");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("로그 재기록이 실패하면 무엇이 실제로 제거됐는지 알리고 exit 1 (I5)", () => {
+    // 되돌리기는 이미 끝난 뒤라 스택트레이스로 죽으면 그 정보가 사라진다.
+    writeLog(tmpDir, richLog());
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "a" },
+      {
+        log: vi.fn(),
+        err,
+        exit,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+        writeLog: () => {
+          throw new Error("EROFS: read-only file system");
+        },
+      },
+    );
+    const errors = err.mock.calls.flat().join("\n");
+    expect(errors).toContain("install log 갱신 실패");
+    expect(errors).toContain("a");
+    expect(exit).toHaveBeenCalledWith(1);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});

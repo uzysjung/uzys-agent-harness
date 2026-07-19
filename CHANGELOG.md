@@ -32,14 +32,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   아니라 **남은 자산으로 다시 쓴다**(로그를 통째 지우면 남은 자산의 제거 경로가 영구히 사라진다).
   **되돌리기에 성공한 것만** 로그에서 빠진다 — 실패분을 지웠다고 기록하면 그게 다음 거짓의 씨앗이다.
   모르는 id 는 아무것도 실행하기 전에 차단한다(Pre-flight — 부분 작업 없음).
-- **위험 표면은 반자동 안내 (F-1d, 사용자 방침)** — `.claude/settings.json` 의 훅 등록처럼 사용자
-  편집이 섞이는 곳은 자동으로 고치지 않고 **무엇을 지우면 되는지 정확히 출력**한다. 예측이 아니라
-  현재 파일을 **파싱해서** 실제로 남아 있는 것만 알린다(원문 substring 매치는 JSON 이스케이프
-  때문에 실제 등록된 훅을 놓친다 — 도입 시 테스트가 잡은 실패다).
+- **`--only` 가 위험 표면을 건드릴 때의 반자동 안내 (F-1d, 사용자 방침)** — `--only` 는 `.claude/`
+  를 남기므로, 제거한 자산의 훅 등록이 `.claude/settings.json` 에 남는다. 자동으로 고치지 않고
+  **무엇을 지우면 되는지 정확히 출력**한다(현재 구현 대상 = `karpathy-coder`). 예측이 아니라 현재
+  파일을 **파싱해서** 실제 잔존분만 알린다 — 원문 substring 매치는 JSON 이스케이프 때문에 실제
+  등록된 훅을 놓친다(도입 시 테스트가 잡은 실패). 전량 uninstall 은 `.claude/` 통째 제거라 이
+  안내가 필요 없고, 그래서 하지 않는다.
+
+### 리뷰 반영 (독립 SOD 리뷰 — CRITICAL 1 · IMPORTANT 7)
+- **CRITICAL: `--only` 가 아무것도 못 되돌렸는데 `✓ uninstall complete` + exit 0** 이었다.
+  `npx-run`/`shell-script`/`internal` 자산과 **모든 global scope 자산**은 reverse step 이 없어
+  `0 === 0` 이 성공 판정을 통과했다. → 되돌릴 수 없으면 그렇다고 출력하고, 성공으로 보고하지 않고,
+  exit 1. 이 침묵은 F-1a 가 없애려던 "로그가 거짓" 을 반대편에서 되살리는 것이었다.
+- **reinstall 이 이전 `skill` 자산을 과대보고하던 것** — `spec` 을 누적에서 뺀 근거(`.claude/` 가
+  backup 으로 밀린다)가 `assets` 에도 똑같이 적용되는데 적용하지 않았다. `npx skills add` 는
+  project scope 에서 `.claude/skills/` 에 설치되므로 rename 과 함께 사라진다. → `.claude/` 를
+  밀어낸 설치에선 `skill`·`shell-script` 이전 항목을 누적에서 제외. plugin/npm 은 프로젝트 밖에
+  살아남으므로 유지. 첫 테스트가 하필 `plugin` 을 써서 이 경우를 비껴갔다는 지적도 함께 반영.
+- `--only` 로그 재기록의 **필드 보존이 무테스트**였다(mutation 생존) → 전 필드 왕복 단언 추가.
+- 로그 재기록 실패가 **되돌리기 완료 후** 스택트레이스로 죽던 것 → 무엇이 실제로 제거됐는지
+  알리고 exit 1. 주입 가능한 writer 로 실패 경로를 테스트.
+- `--dry-run`(전량)이 **곧 삭제될 파일**을 손보라고 안내하던 것 → 템플릿 보존 시에만 안내.
+- 훅 경로가 두 곳에 하드코딩 → `KARPATHY_HOOK_RELPATH` 로 단일화(같은 커밋에서 다른 두 상수는
+  이미 단일화해놓고 이것만 빠뜨렸다).
+- USAGE 의 과대 서술(단일 자산 특수처리를 일반 정책처럼 기술) → 구현 범위대로 정정 + F-1f 명시.
 
 ### 검증
-- `npm run ci` exit 0 — 65 files / **834 tests** / branches 88.79 (gate 88).
+- `npm run ci` exit 0 — 65 files / **843 tests** / branches 88.82 (gate 88).
 - mutation 3종 전건 사살: 누적 무시 / `templates` 이전값 폐기 / 기존 로그 읽기를 backup 뒤로 이동.
+  (독립 리뷰어가 3종 모두 재현·사살 확인.)
 - CLI 실행 실증: `--help` 에 `list` 노출, `uninstall --help` 에 `--only`, `list` 실출력,
   `--only` 오타 차단(exit 1) + `--dry-run`.
 - E2E 계약 테스트(F-1e): 설치 → 추가 설치 → `list` 에 둘 다 → `--only` 로 하나 제거 → 나머지 유지.

@@ -116,10 +116,15 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
  * 나중에 `install --with <id>` 를 한 번만 해도 1회차 자산이 기록에서 사라지고 **uninstall 이
  * 그걸 못 찾아 남긴다**. 디스크에는 남아 있는데 기록에는 없는 = 로그가 거짓이 되는 상태.
  *
- * 누적 대상은 uninstall 이 실제로 읽는 두 필드뿐이다 (`assets` · `templates`) — 둘 다 install 이
- * 제거하지 않는 것들이라 이전 값이 여전히 참이다. `spec`(tracks/cli)은 누적하지 않는다:
- * reinstall 은 `.claude/` 를 backup 으로 옮기고 다시 깔아서 이전 트랙 파일이 실제로 사라지므로
- * 합집합이 거짓이 된다. 게다가 uninstall 은 `spec` 을 읽지 않는다 (표시용).
+ * 누적 대상은 uninstall 이 실제로 읽는 두 필드뿐이다 (`assets` · `templates`). `spec`(tracks/cli)은
+ * 누적하지 않는다: `.claude/` 가 backup 으로 밀리는 설치(reinstall)에선 이전 트랙 파일이 실제로
+ * 사라져 합집합이 거짓이 된다. 게다가 uninstall 은 `spec` 을 읽지 않는다 (표시용).
+ *
+ * `claudeDirMovedAside` = 이번 설치가 `.claude/` 를 backup 으로 rename 했는가. 그 경우
+ * **`.claude/` 안에 살던 이전 자산은 실제로 사라졌으므로 누적에서 뺀다** — 안 빼면 F-1a 를
+ * 반대 방향으로 재현한다(있지도 않은 걸 있다고 기록). 해당: project scope 의 `skill`
+ * (`npx skills add` 가 `.claude/skills/` 에 설치) 와 `shell-script`(ecc-prune →
+ * `.claude/local-plugins/`). plugin/npm 은 프로젝트 밖에 살아 남으므로 유지한다.
  */
 export function buildInstallLog(
   spec: InstallSpec,
@@ -127,6 +132,7 @@ export function buildInstallLog(
   scope: InstallScope,
   rootClaudeMd?: { path: string; sha256: string } | null,
   previous?: InstallLog | null,
+  claudeDirMovedAside = false,
 ): InstallLog {
   const templates: InstallLog["templates"] = {
     claudeDir: ".claude/",
@@ -145,9 +151,18 @@ export function buildInstallLog(
     // 이번 설치가 만든 항목이 이기고, 이번에 안 만든 항목은 이전 값을 그대로 둔다.
     // (예: claude 로 깔고 나중에 codex 만 추가 설치해도 root CLAUDE.md 기록이 살아남는다)
     templates: { ...previous?.templates, ...templates },
-    assets: mergeAssets(previous?.assets, buildAssetEntries(external, scope)),
+    assets: mergeAssets(
+      claudeDirMovedAside ? previous?.assets?.filter(survivesClaudeDirRename) : previous?.assets,
+      buildAssetEntries(external, scope),
+    ),
   };
   return log;
+}
+
+/** `.claude/` 가 backup 으로 밀려도 살아남는 자산인가 — 산출물이 프로젝트 `.claude/` 밖인가. */
+function survivesClaudeDirRename(asset: InstallLogAsset): boolean {
+  if (asset.scope === "global") return true; // 글로벌 영역은 install 이 건드리지 않는다
+  return asset.method !== "skill" && asset.method !== "shell-script";
 }
 
 /** id 기준 합집합 — 같은 id 는 이번 설치분이 이긴다 (version/scope 가 최신). 순서는 안정적. */
