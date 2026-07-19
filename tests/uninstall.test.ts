@@ -1,5 +1,5 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -640,6 +640,225 @@ describe("uninstallAction", () => {
     uninstallAction({ projectDir: tmpDir }, { log: logFn, err: vi.fn(), exit, spawn, rm: vi.fn() });
     expect(exit).toHaveBeenCalledWith(1);
     expect(logFn.mock.calls.flat().join("\n")).toContain("plugin not found");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * v26.123.0 (F-1c) — 항목별 제거. 전량 제거만 되던 것을 자산 단위로 좁힌다.
+ * 핵심 계약: 대상 외 자산은 손대지 않고, 로그는 **지우는 게 아니라 남은 것으로 다시 쓴다**.
+ */
+describe("uninstallAction — --only (항목별 제거)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-uninstall-only-"));
+  });
+
+  function twoAssetLog(): InstallLog {
+    return {
+      ...baseLog(),
+      assets: [
+        {
+          id: "keep-me",
+          category: "frontend",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "keep@mp" },
+        },
+        {
+          id: "drop-me",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "drop@mp" },
+        },
+      ],
+    };
+  }
+
+  function readLog(dir: string): InstallLog {
+    return JSON.parse(readFileSync(installLogPath(dir), "utf8")) as InstallLog;
+  }
+
+  it("지정한 자산만 reverse 하고 나머지는 건드리지 않는다", () => {
+    writeLog(tmpDir, twoAssetLog());
+    const spawn = vi.fn(() => ok());
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "drop-me" },
+      { log: vi.fn(), err: vi.fn(), exit, spawn, rm: vi.fn() },
+    );
+    expect(spawn).toHaveBeenCalledOnce();
+    expect(spawn).toHaveBeenCalledWith("claude", [
+      "plugin",
+      "uninstall",
+      "--scope",
+      "project",
+      "drop@mp",
+    ]);
+    expect(exit).toHaveBeenCalledWith(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("제거한 자산만 로그에서 빠지고 나머지는 남는다 (로그 삭제 아님)", () => {
+    // 로그를 통째로 지우면 남은 자산의 uninstall 경로가 영구히 사라진다.
+    writeLog(tmpDir, twoAssetLog());
+    uninstallAction(
+      { projectDir: tmpDir, only: "drop-me" },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(readLog(tmpDir).assets.map((a) => a.id)).toEqual(["keep-me"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("reverse 실패한 자산은 로그에 남는다 (안 지워진 걸 지웠다고 기록하지 않는다)", () => {
+    writeLog(tmpDir, twoAssetLog());
+    uninstallAction(
+      { projectDir: tmpDir, only: "drop-me" },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => fail("plugin not found")),
+        rm: vi.fn(),
+      },
+    );
+    expect(readLog(tmpDir).assets.map((a) => a.id)).toEqual(["keep-me", "drop-me"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("templates 를 지우지 않는다 — 하나만 빼려는데 .claude/ 가 날아가면 안 된다", () => {
+    writeLog(tmpDir, twoAssetLog());
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, only: "drop-me" },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm).not.toHaveBeenCalled();
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("모르는 id 는 아무것도 실행하기 전에 차단한다 (Pre-flight — 부분 작업 없음)", () => {
+    writeLog(tmpDir, twoAssetLog());
+    const spawn = vi.fn(() => ok());
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "drop-me,typo-id" },
+      { log: vi.fn(), err, exit, spawn, rm: vi.fn() },
+    );
+    expect(spawn).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(err.mock.calls.flat().join("\n")).toContain("typo-id");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--only 없이는 기존대로 전량 제거 + templates 삭제 (기본 동작 불변)", () => {
+    writeLog(tmpDir, twoAssetLog());
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm).toHaveBeenCalledWith(join(tmpDir, ".claude/"));
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("karpathy 훅이 settings.json 에 남아 있으면 수기 제거 안내를 출력한다 (F-1d)", () => {
+    // 자동으로 안 고치는 이유는 사용자 편집이 섞이기 때문 — 대신 정확히 무엇을 지울지 알려준다.
+    const log: InstallLog = {
+      ...baseLog(),
+      assets: [
+        {
+          id: "karpathy-coder",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "k@mp" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(
+      join(tmpDir, ".claude", "settings.json"),
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Write|Edit",
+              hooks: [
+                {
+                  type: "command",
+                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      "utf8",
+    );
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, only: "karpathy-coder" },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    const output = logFn.mock.calls.flat().join("\n");
+    expect(output).toContain("[MANUAL]");
+    expect(output).toContain(".claude/settings.json");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("훅 흔적이 없으면 수기 안내를 출력하지 않는다 (예측 아니라 실제 상태를 읽는다)", () => {
+    const log: InstallLog = {
+      ...baseLog(),
+      assets: [
+        {
+          id: "karpathy-coder",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "mp", pluginId: "k@mp" },
+        },
+      ],
+    };
+    writeLog(tmpDir, log);
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir, only: "karpathy-coder" },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(logFn.mock.calls.flat().join("\n")).not.toContain("[MANUAL]");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });

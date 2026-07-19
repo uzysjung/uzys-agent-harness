@@ -7,6 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.123.0] — 2026-07-19 (feat: 설치 내역 조회 · 항목별 제거 — 그리고 추가 설치가 기록을 덮어쓰던 결함)
+
+설치 기록(`.claude/.harness-install.json`)은 v26.64.0(ADR-020)부터 있었지만, **사용자가 그것을
+볼 수단도 항목 단위로 쓸 수단도 없었다.** 게다가 기록 자체가 새는 결함이 있었다.
+
+### 수정
+- **추가 설치가 이전 설치 기록을 덮어쓰던 것 (F-1a).** `buildInstallLog()` 이 기존 로그를 읽지
+  않고 새로 만들었고 `writeInstallLog()` 이 덮어썼다. install 은 이전에 깐 것을 **지우지 않으므로**,
+  `install --with <id>` 한 번에 1회차 자산이 기록에서 사라지고 **uninstall 이 그걸 못 찾아
+  프로젝트에 남겼다** — 디스크엔 있는데 기록엔 없는, 로그가 거짓이 되는 상태.
+
+  누적 대상은 uninstall 이 실제로 읽는 두 필드로 한정한다. `assets` 는 id 기준 합집합(같은 id 는
+  이번 설치분이 이긴다), `templates` 는 이번에 안 만든 항목만 이전 값 유지(claude 로 깔고 codex 를
+  추가해도 root `CLAUDE.md` 기록이 살아남는다). **`spec`(tracks/cli)은 누적하지 않는다** —
+  reinstall 이 `.claude/` 를 backup 으로 옮기고 다시 깔아 이전 트랙 파일이 실제로 사라지므로
+  합집합이 거짓이 된다. 기존 로그는 **backup 직전에** 읽는다(그 뒤엔 `.claude/` 와 함께 사라진다).
+
+### 추가
+- **`agent-harness list` (F-1b)** — 무엇이 깔렸는지 보여준다: 자산 id/method/scope/version,
+  템플릿 디렉토리, root `CLAUDE.md` 수정 여부(=uninstall 이 보존할지 여부와 **같은 sha256 판정**).
+  읽기 전용. 여기 보이는 id 가 곧 `--only` 의 입력값이다.
+- **`uninstall --only <ids>` (F-1c)** — 항목별 제거. templates 는 건드리지 않고, 로그는 지우는 게
+  아니라 **남은 자산으로 다시 쓴다**(로그를 통째 지우면 남은 자산의 제거 경로가 영구히 사라진다).
+  **되돌리기에 성공한 것만** 로그에서 빠진다 — 실패분을 지웠다고 기록하면 그게 다음 거짓의 씨앗이다.
+  모르는 id 는 아무것도 실행하기 전에 차단한다(Pre-flight — 부분 작업 없음).
+- **위험 표면은 반자동 안내 (F-1d, 사용자 방침)** — `.claude/settings.json` 의 훅 등록처럼 사용자
+  편집이 섞이는 곳은 자동으로 고치지 않고 **무엇을 지우면 되는지 정확히 출력**한다. 예측이 아니라
+  현재 파일을 **파싱해서** 실제로 남아 있는 것만 알린다(원문 substring 매치는 JSON 이스케이프
+  때문에 실제 등록된 훅을 놓친다 — 도입 시 테스트가 잡은 실패다).
+
+### 검증
+- `npm run ci` exit 0 — 65 files / **834 tests** / branches 88.79 (gate 88).
+- mutation 3종 전건 사살: 누적 무시 / `templates` 이전값 폐기 / 기존 로그 읽기를 backup 뒤로 이동.
+- CLI 실행 실증: `--help` 에 `list` 노출, `uninstall --help` 에 `--only`, `list` 실출력,
+  `--only` 오타 차단(exit 1) + `--dry-run`.
+- E2E 계약 테스트(F-1e): 설치 → 추가 설치 → `list` 에 둘 다 → `--only` 로 하나 제거 → 나머지 유지.
+- **미검증**: Docker 실설치 · 4-CLI 렌더 · npm tarball.
+
 ## [v26.122.0] — 2026-07-19 (fix: ship 게이트가 백로그를 drift 로 오인해 상시 차단하던 것 — 우회가 관행이 되어 게이트가 죽어 있었다)
 
 `spec-drift-check.sh` 는 todo 파일의 `[ ]` 개수만 세고 **내용을 보지 않았다.** 그래서 "이번

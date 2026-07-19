@@ -50,8 +50,11 @@ import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
-/** karpathy-coder hook command — `.claude/settings.json` PreToolUse Write|Edit matcher entry. */
-const KARPATHY_HOOK_COMMAND = 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"';
+/**
+ * karpathy-coder hook command — `.claude/settings.json` PreToolUse Write|Edit matcher entry.
+ * v26.123.0 — uninstall 의 수기 안내가 같은 문자열을 봐야 해서 export (SSOT 유지).
+ */
+export const KARPATHY_HOOK_COMMAND = 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"';
 
 /**
  * Install mode — Router action 매핑.
@@ -138,7 +141,7 @@ export interface KarpathyHookReport {
 }
 
 /** karpathy-coder asset ID — SSOT (external-assets.ts entry id와 일치 강제). */
-const KARPATHY_ASSET_ID = "karpathy-coder";
+export const KARPATHY_ASSET_ID = "karpathy-coder";
 
 /**
  * v0.6.1 — Phase 1 output 카테고리별 분류. install renderer가 각 카테고리별로 row를 출력한다.

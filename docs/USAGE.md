@@ -49,10 +49,23 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 
 ---
 
+## What's installed (v26.123.0+)
+
+```bash
+npx -y @uzysjung/agent-harness list
+```
+
+Reads `.claude/.harness-install.json` and prints the assets, their scope and version, the template
+dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only. The asset ids it
+shows are the input to `uninstall --only`.
+
+Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
+still knows about everything from the earlier run.
+
 ## Uninstall (v26.64.0+)
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>]
 ```
 
 Reverses the install based on `.claude/.harness-install.json`.
@@ -60,11 +73,16 @@ Reverses the install based on `.claude/.harness-install.json`.
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
 - **Global-scope assets**: listed as advisory only. You run the removal yourself.
+- **Surfaces with your edits mixed in** (`.claude/settings.json` hook registrations): never edited automatically — the exact entry to delete is printed instead.
 
 | Flag | What |
 |---|---|
 | `--dry-run` | List the reverse steps, change nothing |
 | `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
+| `--only <ids>` | Remove just these assets (comma-separated, from `list`). Templates untouched; the log is rewritten with what remains, so the rest stays removable |
+
+Only assets whose reverse actually succeeded are dropped from the log — a failed removal stays
+listed rather than being recorded as gone.
 
 ---
 
@@ -222,7 +240,7 @@ Pick one or more at step 2.
 | `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
-| `.claude/.harness-install.json` | Install log (drives `uninstall`) |
+| `.claude/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall` |
 | `CLAUDE.md` | Project context — fill-in scaffold |
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |

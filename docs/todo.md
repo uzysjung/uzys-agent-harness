@@ -158,21 +158,28 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 | 글로벌 자산은 자동 삭제 금지 → 안내만 | 같은 파일 `buildGlobalAdvisoryCmd:245` (D16) |
 | CLAUDE.md 사용자 수정 감지 후 보존 | `install-log.ts:57` sha256 + `uninstall.ts:284` |
 
-- [ ] **F-1a 추가설치가 기록을 덮어쓴다 (결함, 최우선).** `installer.ts:581 writeInstallLogSafe`
-      → `buildInstallLog(...)` 이 **기존 로그를 읽지 않고 새로 만들어** `writeInstallLog` 이
-      덮어쓴다(`install-log.ts:112,149`). 즉 나중에 `install --with <id>` 하면 **이전 설치 자산이
-      기록에서 사라지고 uninstall 이 못 찾는다.** 병합(append/dedupe by id)으로 전환.
-      회귀 테스트 필수 — 2회 설치 후 1회차 자산이 로그에 남아 있는지.
-- [ ] **F-1b 설치 내역 조회 커맨드가 없다.** 로그는 있는데 사용자가 볼 수단이 없다
-      (`src/commands/` = install · install-render · uninstall 3개뿐). `harness list`(가칭) —
-      자산·scope·설치시각·수정여부 표시.
-- [ ] **F-1c 항목별 uninstall.** `UninstallOptions`(`uninstall.ts:34`)에 대상 선택이 없어 전량
-      제거만 된다. `--only <id...>` 추가. 남은 자산은 로그에 유지.
-- [ ] **F-1d 되돌리기 위험 표면의 안내(반자동).** `settings.json` 훅 등록·rule 파일·CLAUDE.md
-      는 사용자 수정이 섞이므로 자동 삭제하지 않는다 — **무엇을 지우면 되는지 정확히 출력**한다.
-      현재 로그의 `templates` 필드에 `settings.json` 병합분의 역연산 정보가 **없다**(확인 필요).
-- [ ] **F-1e 항목별 추가 install 이 로그에 등록** — F-1a 병합이 되면 자연히 충족되나, 별도
-      AC 로 검증(설치→추가설치→`list` 에 둘 다 보임→`--only` 로 하나만 제거→나머지 유지).
+- [x] **F-1a 추가설치가 기록을 덮어쓴다 (결함, 최우선).** (✅ v26.123.0) `buildInstallLog` 이
+      `previous` 를 받아 누적. 누적 대상은 uninstall 이 실제로 읽는 `assets`(id 합집합) +
+      `templates`(이번에 안 만든 항목은 이전 값 유지)뿐 — `spec` 은 reinstall 에서 거짓이 되므로
+      제외. 기존 로그는 backup 직전에 읽는다. mutation 3종 사살.
+- [x] **F-1b 설치 내역 조회 커맨드가 없다.** (✅ v26.123.0) `agent-harness list` —
+      `src/commands/list.ts`. 자산 id/method/scope/version + templates + CLAUDE.md 수정 여부.
+      읽기 전용.
+- [x] **F-1c 항목별 uninstall.** (✅ v26.123.0) `--only <ids>`. templates 미변경, 로그는
+      **남은 자산으로 재기록**(삭제 아님), 성공분만 제외, 모르는 id 는 실행 전 차단.
+- [x] **F-1d 되돌리기 위험 표면의 안내(반자동).** (✅ v26.123.0) 착수 시 가설("`templates` 에
+      `settings.json` 역연산 정보 없음")은 **부분적으로 틀렸다** — `.claude/settings.json` 은
+      `.claude/` 통째 제거로 처리되므로 전량 uninstall 엔 공백이 없다. 진짜 공백은 `--only` 경로:
+      자산만 빼면 훅 등록이 남는다. 현재 파일을 **파싱해** 실제 잔존분만 안내한다.
+- [x] **F-1e 항목별 추가 install 이 로그에 등록** (✅ v26.123.0) —
+      `tests/install-inventory-e2e.test.ts` 가 AC 전 구간을 한 줄기로 검증.
+
+- [ ] **F-1f (신규, 이번 작업 중 발견) — uninstall 이 프로젝트 루트 수정분을 모른다.** install 은
+      `.claude/` 밖에도 쓴다: `.mcp.json`(병합) · `.gitignore`(추가줄) · `.env.example` ·
+      `.mcp-allowlist` · `.github/workflows/*`(ci-scaffold). uninstall 은 이 중 **어느 것도
+      안내조차 하지 않는다** — `.mcp.json`/`.gitignore` 는 사용자 내용이 섞이므로 자동 삭제도
+      부적절하다. F-1d 와 같은 반자동 안내가 필요하나 **무엇을 건드렸는지 로그에 없다** →
+      install 시 기록 후 안내. 근거: `env-files.ts:62,75,103,128,132` · `ci-scaffold.ts:71`.
 
 <!-- ship-gate:ignore-end -->
 
