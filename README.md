@@ -44,11 +44,11 @@ The wizard needs a TTY. For CI, containers, or onboarding scripts there is a fla
 What it installed is recorded, so you can review it and take it back out:
 
 ```bash
-npx -y @uzysjung/agent-harness list                    # what this project got
-npx -y @uzysjung/agent-harness uninstall --only <id>   # remove one; drop --only for all
+npx -y @uzysjung/agent-harness list        # what this project got
+npx -y @uzysjung/agent-harness uninstall   # pick what to remove
 ```
 
-Uninstall reverses what it safely can and *prints* the rest — global assets, hook registrations, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. See [uninstall](docs/USAGE.md#uninstall-v26640).
+Run in a terminal, `uninstall` asks what to take out — item by item, or everything. It reverses what it safely can and *prints* the rest — global assets, hook registrations, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. Unchecking something in the installer never removes it; removal only happens here. See [uninstall](docs/USAGE.md#uninstall-v26640).
 
 ## Why
 

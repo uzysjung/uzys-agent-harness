@@ -44,13 +44,14 @@ claude    # 또는 codex / opencode / agy
 무엇을 설치했는지 기록으로 남는다. 그래서 나중에 확인하고 되돌릴 수 있다:
 
 ```bash
-npx -y @uzysjung/agent-harness list                    # 이 프로젝트에 깔린 것
-npx -y @uzysjung/agent-harness uninstall --only <id>   # 하나만 제거, --only 를 빼면 전부
+npx -y @uzysjung/agent-harness list        # 이 프로젝트에 깔린 것
+npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 ```
 
-uninstall 은 안전하게 되돌릴 수 있는 것만 되돌리고 나머지는 *출력한다* — 글로벌 자산, 훅 등록,
-`.mcp.json` 같은 `.claude/` 밖 파일. 사용자 내용이 섞인 파일을 기계적으로 고치지 않는다.
-자세한 내용은 [uninstall](docs/USAGE.md#uninstall-v26640) 참고.
+터미널에서 실행하면 `uninstall` 이 무엇을 뺄지 묻는다 — 항목별로, 또는 전부. 안전하게 되돌릴 수
+있는 것만 되돌리고 나머지는 *출력한다* — 글로벌 자산, 훅 등록, `.mcp.json` 같은 `.claude/` 밖 파일.
+사용자 내용이 섞인 파일을 기계적으로 고치지 않는다. 설치 화면에서 체크를 풀어도 제거되지 않는다 —
+제거는 여기서만 일어난다. 자세한 내용은 [uninstall](docs/USAGE.md#uninstall-v26640) 참고.
 
 ## 왜
 

@@ -37,6 +37,7 @@ import {
 } from "../install-log.js";
 import { KARPATHY_ASSET_ID, KARPATHY_HOOK_COMMAND, KARPATHY_HOOK_RELPATH } from "../installer.js";
 import type { ClaudeSettings } from "../settings-merge.js";
+import { runInteractiveUninstall } from "../uninstall-interactive.js";
 
 export interface UninstallOptions {
   projectDir?: string;
@@ -47,6 +48,8 @@ export interface UninstallOptions {
    * 지정 시 templates(`.claude/` 등)는 건드리지 않고, 로그도 지우지 않고 **남은 자산으로 다시 쓴다**.
    */
   only?: string;
+  /** v26.125.0 — 대화형 선택 화면을 건너뛰고 전량 제거 (비대화형 스크립트용). */
+  yes?: boolean;
 }
 
 export interface UninstallActionDeps {
@@ -625,8 +628,46 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
       "--only <ids>",
       "[Scope] Remove only these assets (comma-separated ids from `agent-harness list`). Templates untouched",
     )
-    /* v8 ignore next 3 — cac action callback. uninstallAction 자체는 별도 tests 로 검증. */
-    .action((options: UninstallOptions) => {
-      uninstallAction(options);
+    .option("--yes", "[Mode] Skip the interactive picker and remove everything (non-interactive)")
+    /* v8 ignore next 3 — cac action callback. 분기 판정은 shouldRunInteractive 가 갖고 tests 로 검증. */
+    .action(async (options: UninstallOptions) => {
+      await dispatchUninstall(options);
     });
 }
+
+/**
+ * v26.125.0 — 대화형 선택 화면으로 들어갈 것인가.
+ *
+ * 들어가지 **않는** 조건은 전부 "사용자가 이미 무엇을 원하는지 말한 경우"다:
+ *   `--only` = 뺄 대상을 지정함 · `--dry-run` = 미리보기 · `--yes` = 묻지 말라는 명시.
+ * 그 외 TTY 라면 화면으로 들어간다 — 플래그 없는 `uninstall` 이 즉시 전량 삭제하던 것이
+ * 이 명령에서 가장 위험한 기본값이었다. TTY 가 아니면(CI·파이프) 기존 동작 그대로다.
+ */
+export function shouldRunInteractive(options: UninstallOptions, isTty: boolean): boolean {
+  if (!isTty) return false;
+  if (options.yes || options.dryRun) return false;
+  return options.only === undefined;
+}
+
+/* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
+async function dispatchUninstall(options: UninstallOptions): Promise<void> {
+  if (!shouldRunInteractive(options, Boolean(process.stdin.isTTY))) {
+    uninstallAction(options);
+    return;
+  }
+  const projectDir = resolve(options.projectDir ?? process.cwd());
+  const picked = await runInteractiveUninstall(projectDir);
+  if (!picked.ok || !picked.options) {
+    if (picked.reason === "no-log") {
+      console.error(
+        status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)),
+      );
+      console.error(c.dim("       Nothing installed here by agent-harness."));
+      process.exit(1);
+    }
+    // no-tty 는 위 분기에서 이미 걸러졌고, 나머지(cancelled/nothing-selected)는 정상 종료다.
+    return;
+  }
+  uninstallAction(picked.options);
+}
+/* v8 ignore stop */

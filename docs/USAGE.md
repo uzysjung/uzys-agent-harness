@@ -59,6 +59,11 @@ Reads `.claude/.harness-install.json` and prints the assets, their scope and ver
 dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only. The asset ids it
 shows are the input to `uninstall --only`.
 
+The install wizard reads the same record (v26.125.0+): assets already installed are marked
+`● installed` at step 3, and project-scope ones start checked. The marker is display only —
+**unchecking never removes anything.** Removal happens only in `uninstall`, so a misclick in the
+installer cannot delete your assets.
+
 Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
 still knows about everything from the earlier run. The exception is the interactive **Reinstall**
 action (the wizard's "Reinstall (backs up current `.claude/` first)"), which moves `.claude/` aside
@@ -68,10 +73,19 @@ from the record too. Assets that live outside the project (`plugin`, `npm`) are 
 ## Uninstall (v26.64.0+)
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
 ```
 
 Reverses the install based on `.claude/.harness-install.json`.
+
+**Run it with no flags in a terminal and it asks what to remove (v26.125.0+).** First a mode —
+*pick items* (templates stay) or *remove everything* (assets **and** `.claude/`) — then, for the
+first mode, a checklist of the installed assets. Each row states what removing it will actually do,
+including the ones that have no automated reverse. Nothing happens until you confirm, and selecting
+nothing is not a full uninstall — it exits without changes.
+
+The picker is skipped when you have already said what you want: `--only`, `--dry-run`, `--yes`, or
+no TTY (CI, pipes). Those paths behave exactly as before, so scripts are unaffected.
 
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
@@ -83,6 +97,7 @@ Reverses the install based on `.claude/.harness-install.json`.
 | `--dry-run` | List the reverse steps, change nothing |
 | `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
 | `--only <ids>` | Remove just these assets (comma-separated, from `list`). Templates untouched; the log is rewritten with what remains, so the rest stays removable |
+| `--yes` | Skip the picker and remove everything (for scripts on a TTY) |
 
 Only assets whose reverse actually succeeded are dropped from the log — a failed removal stays
 listed rather than being recorded as gone. If nothing could be removed automatically, the command
