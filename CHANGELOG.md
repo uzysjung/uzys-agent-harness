@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.126.1] — 2026-07-19 (fix: update 위저드 문구가 skills 를 빠뜨렸다)
+
+v26.126.0 이 skills 를 갱신하기 시작했는데 **그걸 알리는 문구를 안 고쳤다.** 위저드 라우터의
+update 항목은 여전히 `"Refresh rules / agents / commands / hooks"` 였다.
+
+`install` 커맨드는 `mode` 를 넘기지 않으므로 **update 는 위저드로만 도달한다** — 즉 이 hint 가
+update 동작의 **유일한 광고 표면**이다. 거짓 주장은 아니지만(하는 일을 덜 말한 쪽), 사용자는
+자기가 고친 스킬이 백업되는 걸 예고 없이 겪게 된다. R-3a 를 만든 것과 같은 종류의 침묵이다.
+
+- 문구 정정: `"Refresh rules / agents / commands / hooks / skills — your edits are backed up"`
+- 계약 테스트 2건 추가 (`tests/router.test.ts`) — hint 에 `skills` 와 백업 고지가 있는지.
+- 912 tests / branches 89.54.
+
+> **관찰(수정 아님)**: update 에 비대화형 진입점이 없다. CI·스크립트 사용자는 스킬 갱신을
+> 자동화할 수 없다. 별건 백로그.
+
 ## [v26.126.0] — 2026-07-19 (feat: update 가 `.claude/skills` 를 갱신한다 — 배달 통로 개통)
 
 ### 무엇이 문제였나

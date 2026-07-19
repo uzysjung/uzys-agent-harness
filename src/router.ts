@@ -26,7 +26,9 @@ export function buildRouterChoices(state: DetectedInstall): RouterChoice[] {
     {
       value: "update",
       label: "Update policy files (auto-backup)",
-      hint: "Refresh rules / agents / commands / hooks from latest templates",
+      // v26.126.0 (R-3a) — skills 가 목록에 들어왔다. 이 문구가 곧 update 의 광고이고
+      // (update 는 위저드로만 도달한다) 실동작과 어긋나면 그 자체로 거짓출하다.
+      hint: "Refresh rules / agents / commands / hooks / skills — your edits are backed up",
       enabled: true,
     },
     {
