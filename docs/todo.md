@@ -119,9 +119,11 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 
 <!-- ship-gate:ignore-start -->
 
-- [ ] R-3a **`update-mode.ts` 가 `.claude/skills` 를 갱신하지 않는다**(`src/update-mode.ts:53-78`).
-      파급 최대 — v26.121.0 의 정정이 **기존 사용자에게 하나도 도달하지 않는다.** 덮어쓰기 방지
-      (사용자 수정분 보존) 설계가 선행돼야 한다. 별건이자 최우선.
+- [x] R-3a **`update-mode.ts` 가 `.claude/skills` 를 갱신하지 않는다** (✅ v26.126.0, ADR-046).
+      착수 시 서술 정정: "정정이 **하나도** 도달하지 않는다"는 과장이었다 — CLI 기능은
+      `npx @uzysjung/agent-harness@latest` 로 도달하고, 도달 못 하는 것은 `.claude/skills/`
+      **본문**이다. 덮어쓰기 정책(사용자 결정): 안 고쳤으면 덮어쓰고, 고쳤으면 `.backup-<stamp>`
+      남기고 최신판을 자리에 둔다. 판정은 설치 시점 sha256 대조.
 - [ ] R-3b **CL-v2 훅 배선 + 설치 시 1회 고지.** 사용자 결정 완료 — `~/.claude/homunculus/`
       write 는 허용, 무인설치 허용, 차단하지 않고 고지만. 조건부 배선 선례 = karpathy-gate
       (`src/installer.ts:606~`). `settings-merge.ts` 의 `addPreToolUseHook` 은 PreToolUse

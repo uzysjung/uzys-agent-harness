@@ -439,6 +439,17 @@ function renderPhase1Rows(
     if (baseline.updateMode.claudeMdUpdated) {
       log(assetRow("success", ".claude/CLAUDE.md", "refreshed from template"));
     }
+    // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
+    // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
+    if (baseline.updateMode.skillsBackedUp.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          ".claude/skills edited files",
+          `${baseline.updateMode.skillsBackedUp.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
     if (baseline.updateMode.staleHookRefs.length > 0) {
       log(
         assetRow(

@@ -1,12 +1,12 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listAction } from "../src/commands/list.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import type { ExternalAsset } from "../src/external-assets.js";
-import { readInstallLog } from "../src/install-log.js";
+import { hashContent, readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
@@ -155,5 +155,52 @@ describe("루트 파일 기록 end-to-end (F-1f)", () => {
       { log, err: vi.fn(), exit: vi.fn() as never, spawn: vi.fn(() => okSpawn()), rm: vi.fn() },
     );
     expect(log.mock.calls.flat().join("\n")).toContain(".gitignore");
+  });
+});
+
+/**
+ * v26.126.0 (R-3a) — 실제 `runInstall` 이 스킬 기준선 해시를 적는가.
+ *
+ * 이 테스트가 없으면 지난 사이클(F-1f)과 **같은 함정**에 빠진다: update 쪽 단위 테스트는
+ * install log 를 전부 손으로 만들어 넣는다. install 이 애초에 안 적으면 그 판정 로직은
+ * 현실에서 한 번도 "안 고쳤다" 경로를 타지 못하고, 사용자는 매 update 마다 백업본을 받는다.
+ */
+describe("스킬 기준선 기록 end-to-end (R-3a)", () => {
+  let projectDir = "";
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "harness-skillbase-"));
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("install 이 설치한 스킬 파일마다 sha256 을 남긴다", () => {
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+        cli: ["claude"],
+        projectDir,
+      },
+      mode: "add",
+      runExternal: () => ({ attempted: [], succeeded: 0, skipped: 0, excludedByCli: [] }),
+    });
+
+    const skillsDir = join(projectDir, ".claude/skills");
+    const installedSkills = existsSync(skillsDir) ? readdirSync(skillsDir) : [];
+    // 전제: tooling 트랙이 스킬을 실제로 깐다. 안 깔리면 이 테스트가 아무것도 검증하지 못한다.
+    expect(installedSkills.length).toBeGreaterThan(0);
+
+    const recorded = readInstallLog(projectDir)?.skillFiles ?? [];
+    expect(recorded.length).toBeGreaterThan(0);
+
+    // 기록된 해시가 **디스크의 실제 내용**과 맞아야 한다 — 안 맞으면 update 가 전부 오판한다.
+    for (const entry of recorded) {
+      const onDisk = readFileSync(join(skillsDir, entry.path), "utf8");
+      expect(entry.sha256).toBe(hashContent(onDisk));
+    }
   });
 });

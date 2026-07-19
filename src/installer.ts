@@ -37,6 +37,7 @@ import {
 } from "./fs-ops.js";
 import {
   buildInstallLog,
+  collectSkillHashes,
   hashContent,
   type InstallLog,
   type InstallLogRootFile,
@@ -621,7 +622,10 @@ function writeInstallLogSafe(
       claudeDirMovedAside,
       rootFiles,
     );
-    writeInstallLog(ctx.projectDir, log);
+    // v26.126.0 (ADR-046) — 스킬 기준선은 **이력이 아니라 스냅샷**이라 buildInstallLog 의 누적
+    // 경로를 타지 않는다. manifest copy 가 끝난 뒤 디스크를 읽어야 값이 맞다.
+    const skillFiles = collectSkillHashes(ctx.projectDir);
+    writeInstallLog(ctx.projectDir, skillFiles.length > 0 ? { ...log, skillFiles } : log);
   } catch (e) {
     ctx.onProgress?.({
       type: "install-log-error",

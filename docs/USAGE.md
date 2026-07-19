@@ -205,8 +205,21 @@ Skills are **copied per CLI format, not symlinked** — each CLI needs its own v
 | Root `CLAUDE.md` (yours differs from the generated one) | Backed up to `CLAUDE.md.backup-<ts>` before the merge write |
 | `.claude/` on `--reinstall` / `update` mode | The whole directory is renamed to `.claude.backup-<ts>` first |
 | `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
+| A skill under `.claude/skills/` **you edited** | Your version is copied to `<file>.backup-<ts>`, the newer one takes its place (v26.126.0+) |
 
 > Fresh project? None of this triggers — backups only protect pre-existing files.
+
+### Updating skills (v26.126.0+)
+
+Before v26.126.0, `update` refreshed rules, agents, commands, and hooks — but **not** `.claude/skills/`. Skills stayed frozen at whatever version you first installed, and nothing on screen said so. That is fixed: `update` now syncs skills too, and prints how many were updated.
+
+Your edits are not lost. The harness records a checksum of every skill file it writes, so on the next `update` it can tell an untouched file from one you changed:
+
+- **You never touched it** → replaced with the newer version, silently.
+- **You edited it** → your version is saved as `<file>.backup-<ts>` and the newer version takes its place. The summary shows the count.
+- **Installed before v26.126.0** → no checksum exists yet, so anything that differs is backed up to be safe. This happens once; later updates are precise.
+
+Two things `update` will *not* do: install a skill you never chose, and delete a file you added inside a skill directory.
 
 ---
 

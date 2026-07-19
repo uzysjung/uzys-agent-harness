@@ -736,6 +736,7 @@ describe("executeSpec", () => {
         pruned: { ".claude/rules": ["orphan.md"], ".claude/hooks": [] },
         staleHookRefs: ["dead.sh"],
         claudeMdUpdated: true,
+        skillsBackedUp: [],
       },
     });
     executeSpec(baseSpec, {
@@ -752,6 +753,40 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".claude/CLAUDE.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
+  });
+
+  /**
+   * v26.126.0 (R-3a) — 스킬 행이 화면에 뜨는가.
+   *
+   * R-3a 의 본질은 "update 가 스킬을 안 건드린다"보다 **사용자가 그 사실을 알 방법이 0이었다**는
+   * 것이다. 렌더는 `updated` 를 순회하므로 키가 없으면 행 자체가 안 나온다. 백업 행도 마찬가지 —
+   * 안 보이면 사용자는 자기 편집분이 어디 갔는지 모른다. 두 행 다 이 테스트가 지킨다.
+   */
+  it("스킬 갱신/백업 건수를 화면에 노출한다 — 침묵이 R-3a 를 만들었다", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      mode: "update",
+      updateMode: {
+        updated: { ".claude/skills": 7 },
+        pruned: {},
+        staleHookRefs: [],
+        claudeMdUpdated: false,
+        skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
+      },
+    });
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline,
+      resolveHarnessRoot: () => "/h",
+      mode: "update",
+    });
+    const out = log.mock.calls.flat().join("\n");
+    expect(out).toContain(".claude/skills");
+    expect(out).toContain("7 files updated");
+    expect(out).toContain("2 backed up");
   });
 
   it("renders 'add' / 'reinstall' header label for those modes", () => {
