@@ -1,6 +1,6 @@
 ---
 name: continuous-learning-v2
-description: Instinct-based learning system that observes sessions via hooks, creates atomic instincts with confidence scoring, and evolves them into skills/commands/agents. v2.1 adds project-scoped instincts to prevent cross-project contamination.
+description: Continuous-learning toolkit for instincts — a CLI to inspect, evolve, promote, export and prune instinct files, plus a session-observation hook. Use when working with instincts or continuous learning. Read "What this build actually does" first: this build ships no observer agent, so recorded observations do NOT become instincts on their own.
 origin: ECC
 version: 2.1.0
 ---
@@ -9,6 +9,26 @@ version: 2.1.0
 -Based Architecture
 
 An advanced learning system that turns your Claude Code sessions into reusable knowledge through atomic "instincts" - small learned behaviors with confidence scoring.
+
+## What this build actually does
+
+Read this before trusting the rest of the document — the sections below describe upstream ECC in
+full, and this harness ships a deliberate subset.
+
+| Stage | Upstream ECC | This build |
+|---|---|---|
+| Record tool calls to `observations.jsonl` | observation hook | **ships** `hooks/observe.sh`, but nothing registers it — you wire it yourself |
+| Turn observations into instincts | observer agent (`agents/`) | **not shipped** — this is the gap that matters |
+| Inspect / evolve / promote / export / prune instincts | `instinct-cli.py` | **ships**, works on instinct files that already exist |
+
+So out of the box this build changes nothing on its own. It gives you the CLI for curating instincts
+and the hook script if you want observation; it does **not** learn in the background. If you want the
+full automatic pipeline, install upstream ECC's plugin — it wires its own Node observer and does not
+use the bash hook here.
+
+Why the subset: the observer agent runs a background analysis process writing to `~/.claude/`, which
+this harness does not install on a user's behalf. Shipping the analyzer without that wiring would be
+a promise the install can't keep.
 
 **v2.1** adds **project-scoped instincts** — React patterns stay in your React project, Python conventions stay in your Python project, and universal patterns (like "always validate input") are shared globally.
 

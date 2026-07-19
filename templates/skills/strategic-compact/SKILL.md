@@ -30,7 +30,7 @@ Strategic compaction at logical boundaries:
 
 ## How It Works
 
-The `suggest-compact.js` script runs on PreToolUse (Edit/Write) and:
+The `suggest-compact.sh` script runs on PreToolUse (Write|Edit) and:
 
 1. **Tracks tool calls** — Counts tool invocations in session
 2. **Threshold detection** — Suggests at configurable threshold (default: 50 calls)
@@ -38,24 +38,35 @@ The `suggest-compact.js` script runs on PreToolUse (Edit/Write) and:
 
 ## Hook Setup
 
-Add to your `~/.claude/settings.json`:
+**The harness wires this for you** — installing this skill also writes the hook into the project's
+`.claude/settings.json`. Do not paste the block below on top of that; two registrations mean the
+counter advances twice per tool call and the suggestion fires at half the threshold.
+
+What the installer writes, for reference (project scope, alongside `protect-files.sh` on the same
+matcher):
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Edit",
-        "hooks": [{ "type": "command", "command": "node ~/.claude/skills/strategic-compact/suggest-compact.js" }]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [{ "type": "command", "command": "node ~/.claude/skills/strategic-compact/suggest-compact.js" }]
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh\"",
+            "async": true,
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
 }
 ```
+
+Copy it only if you are wiring the skill by hand outside the installer — and check the file for an
+existing entry first.
 
 ## Configuration
 
@@ -99,7 +110,7 @@ Understanding what persists helps you compact with confidence:
 ## Token Optimization Patterns
 
 ### Trigger-Table Lazy Loading
-Instead of loading full skill content at session start, use a trigger table that maps keywords to skill paths. Skills load only when triggered, reducing baseline context by 50%+:
+Instead of loading full skill content at session start, use a trigger table that maps keywords to skill paths. Skills then cost their descriptor while resident and their body only when triggered. How much that saves depends entirely on which skills you have installed — measure yours with `npm run cost:report` rather than assuming a ratio:
 
 | Trigger | Skill | Load When |
 |---------|-------|-----------|
@@ -121,11 +132,14 @@ Common sources of duplicate context:
 - Multiple skills covering overlapping domains
 
 ### Context Optimization Tools
-- `token-optimizer` MCP — Automated 95%+ token reduction via content deduplication
-- `context-mode` — Context virtualization (315KB to 5.4KB demonstrated)
+- `token-optimizer` MCP — content deduplication
+- `context-mode` — context virtualization
+
+Both are third-party tools this harness does not ship, measure, or vouch for. Their vendors publish
+dramatic reduction figures; treat those as marketing until you have measured your own workload.
 
 ## Related
 
 - [The Longform Guide](https://x.com/affaanmustafa/status/2014040193557471352) — Token optimization section
 - Memory persistence hooks — For state that survives compaction
-- `continuous-learning` skill — Extracts patterns before session ends
+- `continuous-learning-v2` skill — observes sessions into instincts (v1 was deprecated upstream)

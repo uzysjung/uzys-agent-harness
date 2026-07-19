@@ -38,8 +38,8 @@
 | **Justified Asset Ratio** | 기본 설치 자산 중 편익 근거(with/without eval 델타 또는 `operational-fact` 분류)를 **문서로 보유**한 비율 | **100%** (기본 설치 한정 — opt-in 자산은 미요구) |
 
 > **현재 상태 (2026-07-19)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 ~5,194 tokens/세션** = rules ~3,094(**60%**) · CLAUDE.md ~938 ·
-> agent descriptors ~615 · skill descriptors ~547(10%). 발화 = 번들 스킬 전부 트리거 시 ~26,810.
+> 실측(tooling 트랙): **상주 ~5,440 tokens/세션** = rules ~3,340(**61%**) · CLAUDE.md ~938 ·
+> agent descriptors ~615 · skill descriptors ~547(10%). 발화 = 기본 설치 8종 전부 트리거 시 ~26,930.
 > **룰이 최대 비용 항목**이라는 사실은 ADR-044 의 범위 정정으로 처음 드러났다 — 그전 정의는
 > 상주의 10%만 재고 있었다. **`Justified Asset Ratio` 는 여전히 미구현·미측정**(2단계 eval
 > 미실행) — 지표 선언 ≠ 달성. 상주/발화는 **단위가 다르므로** 가중 합산하지 않는다.
