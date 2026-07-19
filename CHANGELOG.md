@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.118.0] — 2026-07-19 (docs: README/USAGE 구조 재설계 — 리서치 기반)
+
+README 가 393줄/3,346단어로 불어나 "산만하다"는 사용자 지적. 원인을 문장이 아니라 **구조**에서
+찾기 위해 경쟁 리포 6개(skills.sh·rulesync·MS APM·claude-code·superpowers·skills-manager)와
+star 1만+ 개발자 도구 11개(uv·ruff·ripgrep·fzf·bun·pnpm·nvm·gh·deno·biome·zod)의 README 를 실측했다.
+
+### 진단 (실측 근거)
+1. **자산 목록 107줄(전체의 27%)이 README 안에 표로** — 우수 리포 11개 중 **기능을 표로 나열한
+   사례 0개**. 표는 벤치마크/설치 매트릭스 전용이고, 지배 형식은 볼드 리드 불릿(7/11).
+   `gh`(119줄)는 매트릭스를 `docs/install_*.md` 로 뺐고, 안 뺀 `nvm` 은 1,208줄이 됐다.
+2. **README ↔ USAGE 근접-복붙 중복 5건** — Trust tiers · Scope · Uninstall · Non-interactive ·
+   6-step wizard. 이 리포가 배포하는 `doc-governance` 룰("같은 사실을 두 곳에 쓰지 않는다")을
+   자기 문서가 어기고 있었다.
+3. **설치 명령 앞에 5줄 면책 블록** — 설치보다 앞에 올 수 있는 블록은 소개·뱃지·데모·TOC 넷뿐
+   (11/11, 실질 예외 1건). 정직성 문구는 유지하되 위치가 틀렸다.
+
+### Changed
+- **README 393 → 102줄**, H2 12 → 7개. 순서: Install → Why → What you get → Vetting → Tracks →
+  Docs → License. `## Why` 는 pnpm `## Background` 방식의 **구체 시나리오 한 문단**(추상 형용사 없음).
+- **README.ko.md 267 → 100줄** — EN 과 동일 구조(H2 7개 일치). 한국어 문안은 `gemini-consult`
+  (Gemini 3.1 Pro) 후보 6종 중 채택, 평어체 유지. 원문에 없던 표현("실행 하네스")은 제거.
+- **USAGE.md 가 운영 SSOT** — 중복 5건이 USAGE 단일 소스로 정리되고, README 는 링크만 건다.
+  README 에서 뺀 "기존 프로젝트 설치(백업 표)" · "동작 방식(다이어그램)" · "CLI 지원 표"를 흡수.
+  Scope 표에 Antigravity 행과 "not touched" 행 보강, Uninstall 에 flag 표 추가.
+
+### Added
+- **`docs/TRACKS.md`** (147줄) — README 에 있던 트랙 표 + 트랙별 자산 매트릭스 이관.
+
+### 검증
+- 트랙 목록을 코드(`src/types.ts` `TRACKS`)와 대조: codex 초안이 `project-management` ·
+  `growth-marketing` 2종을 누락 → 실제 11종으로 정정. 그대로 냈으면 거짓 광고였다.
+- 중복 재검사 5/5 해소 · EN·KO 링크 전수 해석 확인 · `npm run ci` exit 0.
+
 ## [v26.117.0] — 2026-07-19 (fix: 상주 비용 = 설치가 상시 컨텍스트에 올리는 전부 — ADR-044)
 
 `Context Cost per Install` 의 상주 항이 **스킬 descriptor 만** 세고 있었다. 실측하니 그건 실제

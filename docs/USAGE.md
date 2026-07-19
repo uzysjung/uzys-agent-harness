@@ -40,6 +40,8 @@ Default = **Project**. Global write only when you explicitly opt in.
 | `npx skills` | project `node_modules` | `-g` |
 | `npm` | `--save-dev` | `-g` |
 | Codex (skills / config) | `.codex/` (project) | `~/.codex/` |
+| Antigravity (skills / workflows) | `.agents/` (project) | `~/.gemini/antigravity/` |
+| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `~/.gemini/` · `npm root -g` | **not touched** | written per asset |
 
 `~/.claude/plugins/{cache,marketplaces,installed_plugins.json}` is written by claude CLI itself in both modes — the `installed_plugins.json` metadata isolates entries by `projectPath` so other projects aren't affected.
 
@@ -58,6 +60,11 @@ Reverses the install based on `.claude/.harness-install.json`.
 - **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
 - **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
 - **Global-scope assets**: listed as advisory only. You run the removal yourself.
+
+| Flag | What |
+|---|---|
+| `--dry-run` | List the reverse steps, change nothing |
+| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
 
 ---
 
@@ -130,6 +137,79 @@ Each CLI gets its own dispatcher file:
 | Antigravity | `.agents/rules/` + `.agents/skills/` | Shares `.agents/skills/` (dev-method skills) with Codex (v26.66.0+) |
 
 Skills are **copied per CLI format, not symlinked** — each CLI needs its own variant (slash-command namespace and env-var renames differ), and Codex + Antigravity share one `.agents/skills/` file. All variants render from the same bundled source at install time, so there is no drift between them.
+
+---
+
+## Installing into an existing project
+
+`agent-harness` never silently overwrites your config. Before replacing an **editable** file whose contents differ, it writes a timestamped backup next to it — and every backup path is printed in the install summary (`backup` rows). Nothing is deleted.
+
+| You already have… | What happens |
+|---|---|
+| `.claude/settings.json` with your own hooks / statusLine | Backed up to `settings.json.backup-<ts>` before update |
+| Root `CLAUDE.md` (yours differs from the generated one) | Backed up to `CLAUDE.md.backup-<ts>` before the merge write |
+| `.claude/` on `--reinstall` / `update` mode | The whole directory is renamed to `.claude.backup-<ts>` first |
+| `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
+
+> Fresh project? None of this triggers — backups only protect pre-existing files.
+
+---
+
+## How it works
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  npx -y @uzysjung/agent-harness                         │
+│         │                                                │
+│         ▼                                                │
+│  ┌─ 6-step wizard ──────────────────────────────────┐    │
+│  │  Track(s) → CLI(s) → Items → Scope → Confirm    │    │
+│  └──────────────────┬───────────────────────────────┘    │
+│                     ▼                                    │
+│  ┌─ Phase 1: Templates ─────────────────────────────┐    │
+│  │  .claude/{rules,agents,hooks,commands,skills}    │    │
+│  │  CLAUDE.md (scaffold) · .mcp.json                │    │
+│  └──────────────────┬───────────────────────────────┘    │
+│                     ▼                                    │
+│  ┌─ Phase 2: External assets ───────────────────────┐    │
+│  │  claude plugin / npx skills / npm / shell-script │    │
+│  │  Honors the scope chosen at step 4               │    │
+│  └──────────────────┬───────────────────────────────┘    │
+│                     ▼                                    │
+│  ┌─ Phase 3: install log ───────────────────────────┐    │
+│  │  .claude/.harness-install.json                   │    │
+│  │  (drives `uninstall`)                            │    │
+│  └──────────────────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────┘
+```
+
+After install, a `tooling` + Claude project looks like:
+
+```
+your-project/
+├── .claude/
+│   ├── rules/          # coding conventions for your stack
+│   ├── agents/         # subagent definitions
+│   ├── hooks/          # lifecycle / pre-commit hooks
+│   └── settings.json   # your existing one is backed up first
+├── CLAUDE.md           # fill-in scaffold (yours backed up if it differed)
+└── .mcp.json           # MCP servers, merged with yours
+```
+
+---
+
+## CLI support
+
+| CLI | Status |
+|---|---|
+| Claude Code | First class — all assets and hooks |
+| Codex (OpenAI) | Skills + `AGENTS.md` rules for your stack |
+| OpenCode | Skills + AGENTS.md integration |
+| Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` (dev-method skills) |
+
+Pick one or more at step 2.
+
+---
 
 ---
 
