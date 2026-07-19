@@ -109,12 +109,31 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
   }
 }
 
+/**
+ * install log 생성. `previous` 가 있으면 **누적**한다 (v26.123.0 — F-1a).
+ *
+ * install 은 이전에 설치한 것을 지우지 않는다. 그런데 로그는 매번 새로 만들어 덮어썼으므로,
+ * 나중에 `install --with <id>` 를 한 번만 해도 1회차 자산이 기록에서 사라지고 **uninstall 이
+ * 그걸 못 찾아 남긴다**. 디스크에는 남아 있는데 기록에는 없는 = 로그가 거짓이 되는 상태.
+ *
+ * 누적 대상은 uninstall 이 실제로 읽는 두 필드뿐이다 (`assets` · `templates`) — 둘 다 install 이
+ * 제거하지 않는 것들이라 이전 값이 여전히 참이다. `spec`(tracks/cli)은 누적하지 않는다:
+ * reinstall 은 `.claude/` 를 backup 으로 옮기고 다시 깔아서 이전 트랙 파일이 실제로 사라지므로
+ * 합집합이 거짓이 된다. 게다가 uninstall 은 `spec` 을 읽지 않는다 (표시용).
+ */
 export function buildInstallLog(
   spec: InstallSpec,
   external: ExternalInstallReport | null,
   scope: InstallScope,
   rootClaudeMd?: { path: string; sha256: string } | null,
+  previous?: InstallLog | null,
 ): InstallLog {
+  const templates: InstallLog["templates"] = {
+    claudeDir: ".claude/",
+    ...(spec.cli.includes("codex") ? { codexDir: ".codex/" } : {}),
+    ...(spec.cli.includes("opencode") ? { opencodeDir: ".opencode/" } : {}),
+    ...(rootClaudeMd ? { rootClaudeMd } : {}),
+  };
   const log: InstallLog = {
     schemaVersion: INSTALL_LOG_VERSION,
     installedAt: new Date().toISOString(),
@@ -123,15 +142,26 @@ export function buildInstallLog(
       tracks: spec.tracks,
       cli: spec.cli,
     },
-    templates: {
-      claudeDir: ".claude/",
-      ...(spec.cli.includes("codex") ? { codexDir: ".codex/" } : {}),
-      ...(spec.cli.includes("opencode") ? { opencodeDir: ".opencode/" } : {}),
-      ...(rootClaudeMd ? { rootClaudeMd } : {}),
-    },
-    assets: buildAssetEntries(external, scope),
+    // 이번 설치가 만든 항목이 이기고, 이번에 안 만든 항목은 이전 값을 그대로 둔다.
+    // (예: claude 로 깔고 나중에 codex 만 추가 설치해도 root CLAUDE.md 기록이 살아남는다)
+    templates: { ...previous?.templates, ...templates },
+    assets: mergeAssets(previous?.assets, buildAssetEntries(external, scope)),
   };
   return log;
+}
+
+/** id 기준 합집합 — 같은 id 는 이번 설치분이 이긴다 (version/scope 가 최신). 순서는 안정적. */
+function mergeAssets(
+  previous: ReadonlyArray<InstallLogAsset> | undefined,
+  current: ReadonlyArray<InstallLogAsset>,
+): InstallLogAsset[] {
+  if (!previous || previous.length === 0) return [...current];
+  const currentById = new Map(current.map((a) => [a.id, a]));
+  const previousIds = new Set(previous.map((a) => a.id));
+  return [
+    ...previous.map((a) => currentById.get(a.id) ?? a),
+    ...current.filter((a) => !previousIds.has(a.id)),
+  ];
 }
 
 /** install log + root CLAUDE.md 등 자산 무결성 비교용 sha256 (hex). */

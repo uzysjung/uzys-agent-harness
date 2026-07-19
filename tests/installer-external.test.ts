@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 import { type ExternalInstallReport, selectExternalTargets } from "../src/external-installer.js";
+import { readInstallLog } from "../src/install-log.js";
 import { type InstallContext, runInstall } from "../src/installer.js";
 import type { CliTargets, InstallSpec, OptionFlags, Track } from "../src/types.js";
 
@@ -254,5 +255,88 @@ describe("runInstall — mode dispatch", () => {
     });
     expect(report.mode).toBe("fresh");
     expect(report.backup).toBeNull();
+  });
+
+  /**
+   * v26.123.0 (F-1a) 회귀 — 추가 설치가 이전 설치 기록을 지우던 결함.
+   * install 은 이전 자산을 제거하지 않는데 로그만 덮어썼으므로, `install --with <id>` 한 번에
+   * 1회차 자산이 기록에서 사라지고 uninstall 이 그걸 못 찾아 프로젝트에 남겼다.
+   */
+  it("추가 설치 후에도 1회차 자산이 install log 에 남는다 (uninstall 의 유일한 source)", () => {
+    const installWith = (id: string): void => {
+      runInstall({
+        runExternal: makeMock(() => ({
+          attempted: [
+            {
+              asset: {
+                id,
+                description: id,
+                category: "dev-tools",
+                source: "uzys",
+                tier: "vetted",
+                condition: { kind: "any-track", tracks: ["tooling"] },
+                method: { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` },
+              },
+              ok: true,
+            },
+          ],
+          succeeded: 1,
+          skipped: 0,
+          excludedByCli: [],
+        })),
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: spec(["tooling"], {}, projectDir),
+        mode: "add",
+      });
+    };
+
+    installWith("first-asset");
+    installWith("second-asset");
+
+    const log = readInstallLog(projectDir);
+    expect(log?.assets.map((a) => a.id)).toEqual(["first-asset", "second-asset"]);
+  });
+
+  it("reinstall 이 `.claude/` 를 backup 으로 옮겨도 이전 자산 기록이 살아남는다", () => {
+    // 기존 로그는 backup 전에 읽어야 한다 — 그 뒤엔 `.claude/` 와 함께 사라진다.
+    // reinstall 은 외부 자산(글로벌 plugin / npm)을 지우지 않으므로 기록도 남아야 맞다.
+    const withAsset = (id: string): RunExternalFn =>
+      makeMock(() => ({
+        attempted: [
+          {
+            asset: {
+              id,
+              description: id,
+              category: "dev-tools",
+              source: "uzys",
+              tier: "vetted",
+              condition: { kind: "any-track", tracks: ["tooling"] },
+              method: { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` },
+            },
+            ok: true,
+          },
+        ],
+        succeeded: 1,
+        skipped: 0,
+        excludedByCli: [],
+      }));
+
+    runInstall({
+      runExternal: withAsset("before-reinstall"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+    });
+    runInstall({
+      runExternal: withAsset("after-reinstall"),
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["tooling"], {}, projectDir),
+      mode: "reinstall",
+    });
+
+    const log = readInstallLog(projectDir);
+    expect(log?.assets.map((a) => a.id)).toEqual(["before-reinstall", "after-reinstall"]);
   });
 });

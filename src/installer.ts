@@ -35,7 +35,13 @@ import {
   copyFile,
   ensureProjectSkeleton,
 } from "./fs-ops.js";
-import { buildInstallLog, hashContent, writeInstallLog } from "./install-log.js";
+import {
+  buildInstallLog,
+  hashContent,
+  type InstallLog,
+  readInstallLog,
+  writeInstallLog,
+} from "./install-log.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
@@ -245,6 +251,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
     throw new Error(`Update mode requires existing .claude/ at ${claudeDir}`);
   }
 
+  // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
+  // reinstall 은 바로 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
+  const previousLog = readInstallLog(projectDir);
+
   const backupPath = resolveBackupPath(ctx, mode, claudeDir);
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
@@ -302,7 +312,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
-  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog);
+  writeInstallLogSafe(ctx, external, base.rootClaudeMdLog, previousLog);
 
   return { ...baseline, external, karpathyHook };
 }
@@ -582,9 +592,16 @@ function writeInstallLogSafe(
   ctx: InstallContext,
   external: ExternalInstallReport | null,
   rootClaudeMdLog: { path: string; sha256: string } | null,
+  previousLog: InstallLog | null,
 ): void {
   try {
-    const log = buildInstallLog(ctx.spec, external, resolveScope(ctx.spec.scope), rootClaudeMdLog);
+    const log = buildInstallLog(
+      ctx.spec,
+      external,
+      resolveScope(ctx.spec.scope),
+      rootClaudeMdLog,
+      previousLog,
+    );
     writeInstallLog(ctx.projectDir, log);
   } catch (e) {
     ctx.onProgress?.({

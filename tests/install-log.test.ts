@@ -228,3 +228,76 @@ describe("buildInstallLog + write/read round-trip", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.123.0 (F-1a) — 로그가 이전 설치를 잊으면 uninstall 이 그 자산을 못 찾아 남긴다.
+ * install 은 이전 설치분을 제거하지 않으므로, 로그가 잊는 순간 "디스크엔 있는데 기록엔 없는"
+ * 거짓 상태가 된다. 아래 테스트들은 그 거짓이 다시 생기면 깨진다.
+ */
+describe("buildInstallLog — 이전 로그 누적 (F-1a)", () => {
+  function reportOf(id: string, version?: string): ExternalInstallReport {
+    const asset = createMockAsset({
+      id,
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "plugin", marketplace: "mp", pluginId: `${id}@mp` },
+    });
+    return {
+      attempted: [{ asset, ok: true, ...(version ? { version } : {}) }],
+      succeeded: 1,
+      skipped: 0,
+      excludedByCli: [],
+    };
+  }
+
+  it("추가 설치해도 1회차 자산이 로그에 남는다 (uninstall 이 찾을 수 있어야 하므로)", () => {
+    const first = buildInstallLog(mkSpec(), reportOf("first"), "project");
+    const second = buildInstallLog(mkSpec(), reportOf("second"), "project", null, first);
+
+    expect(second.assets.map((a) => a.id)).toEqual(["first", "second"]);
+  });
+
+  it("같은 자산을 재설치하면 중복되지 않고 이번 설치분(최신 version)이 이긴다", () => {
+    const first = buildInstallLog(mkSpec(), reportOf("dup", "1.0.0"), "project");
+    const second = buildInstallLog(mkSpec(), reportOf("dup", "2.0.0"), "project", null, first);
+
+    expect(second.assets).toHaveLength(1);
+    expect(second.assets[0]?.version).toBe("2.0.0");
+  });
+
+  it("previous 없으면(최초 설치) 이번 자산만 — 누적 로직이 기존 동작을 바꾸지 않는다", () => {
+    const log = buildInstallLog(mkSpec(), reportOf("only"), "project", null, null);
+    expect(log.assets.map((a) => a.id)).toEqual(["only"]);
+  });
+
+  it("claude 로 깔고 codex 만 추가 설치해도 rootClaudeMd 기록이 살아남는다", () => {
+    // 안 살아남으면 uninstall 이 root CLAUDE.md 를 지우지도, 보존 판정하지도 못한다.
+    const first = buildInstallLog(mkSpec({ cli: ["claude"] }), null, "project", {
+      path: "CLAUDE.md",
+      sha256: "abc",
+    });
+    const second = buildInstallLog(mkSpec({ cli: ["codex"] }), null, "project", null, first);
+
+    expect(second.templates.rootClaudeMd).toEqual({ path: "CLAUDE.md", sha256: "abc" });
+    expect(second.templates.codexDir).toBe(".codex/");
+  });
+
+  it("이번 설치가 CLAUDE.md 를 다시 쓰면 새 sha256 이 이긴다 (수정 감지가 최신 원본 기준)", () => {
+    const first = buildInstallLog(mkSpec(), null, "project", { path: "CLAUDE.md", sha256: "old" });
+    const second = buildInstallLog(
+      mkSpec(),
+      null,
+      "project",
+      { path: "CLAUDE.md", sha256: "new" },
+      first,
+    );
+
+    expect(second.templates.rootClaudeMd?.sha256).toBe("new");
+  });
+
+  it("spec(tracks/cli)은 누적하지 않는다 — reinstall 이 이전 트랙 파일을 실제로 지우므로", () => {
+    const first = buildInstallLog(mkSpec({ tracks: ["tooling"] }), null, "project");
+    const second = buildInstallLog(mkSpec({ tracks: ["data"] }), null, "project", null, first);
+
+    expect(second.spec.tracks).toEqual(["data"]);
+  });
+});
