@@ -77,12 +77,14 @@ recurrence-prevention 사다리상 구조 게이트 단계.
   직접 관측: 고아 `agent-browser` 3개(`ppid=1`, 2개는 18시간 경과) + 자식 Chrome 36개.
 - 선재 프로즈: `model-orchestration` "Worker lifecycle"(다 쓴 에이전트는 닫는다, v26.109.0) —
   있는데 안 지켜졌다. 백그라운드 **프로세스**는 소유자가 아예 없다.
-- [ ] R-1a `session-start.sh` 에 이전 세션 잔존 탐지 — 세션 **시작** 시점이 유일하게 출력이
-      보장되는 자리다(종료 훅은 출력이 유실될 수 있다). 탐지만, 차단 없음.
-- [ ] R-1b 백그라운드 프로세스 소유자 지정 — `model-orchestration` 이 에이전트를 이미 소유하므로
-      같은 절에 프로세스를 넣을지, `git-policy` Session Cleanup(세션 종료 체크리스트 소유자)을
-      넓힐지 결정. **양쪽에 쓰지 말 것** (재서술 = drift 씨앗).
-- [ ] R-1c 계약 테스트 + mutation
+- [x] R-1a `session-start.sh` 에 이전 세션 잔존 탐지 (✅ #235) — 세션 **시작** 시점이 유일하게
+      출력이 보장되는 자리다(종료 훅은 출력이 유실될 수 있다). 탐지만, 차단 없음.
+      `ALWAYS_HOOKS` 라 전 사용자 도달.
+- [x] R-1b 백그라운드 프로세스 소유자 지정 (✅ #235) — **`git-policy` Session Cleanup 0번으로
+      결정.** `model-orchestration` 은 "다 쓴 에이전트"를 소유하고, 이쪽은 세션 종료 체크리스트
+      전체를 소유하므로 프로세스가 들어갈 자리다. 양쪽 기재 안 함.
+- [x] R-1c 계약 테스트 + mutation (✅ #235) — `tests/session-cleanup-gate.test.ts` 12 tests,
+      실제 고아를 만들어 정리까지 검증하는 live 테스트 포함. mutation 2종 실패 확인.
 
 ### R-2 검증 명령의 조용한 실패 → 거짓 결론
 - 실측: 2026-07-19 한 세션에서 **3회** — `realpath -m`(BSD 미지원) · 파이프 뒤 `$?` ·
@@ -91,10 +93,32 @@ recurrence-prevention 사다리상 구조 게이트 단계.
   디렉터리를 만들었다). 같은 세션에서 ECC 코드의 동일 패턴(`>/dev/null 2>&1`)을 89줄 걷어내면서 그랬다.
 - 선재 프로즈: `cli-development.md` §Cross-Platform BSD/GNU 표 — 있는데 어겼다. 단 그 룰은
   **배포하는 스크립트** 대상이고, 이번 위반은 **검증용 임시 명령**이었다. 그 표면은 무주공산이다.
-- [ ] R-2a 일반 원칙의 소유자 = `no-false-ship.md`. 이미 "증거 = 실제 실행 산출물만"을 소유하므로
-      "실패한 명령은 산출물을 내지 않는다 — 빈 결과는 부재의 증거가 아니다"를 같은 문장 계열로 확장.
-- [ ] R-2b 명령별 BSD/GNU 목록은 `cli-development.md` 표가 소유 — `realpath -m` · `find -newermt` 행 추가.
-- [ ] R-2c 계약 테스트 + mutation
+- [x] R-2a 일반 원칙 (✅ #235) — **계획 이탈: 소유자를 `no-false-ship.md` 대신
+      `cli-development.md` §"검증 명령은 실패해도 조용하다" 로 했다.** 사유 = 세 위반이 전부
+      셸 명령의 BSD/GNU 거동이라 R-2b 표와 같은 덩어리이고, 두 룰에 나눠 쓰면 doc-governance
+      "한 사실은 한 곳"을 어긴다. 대가: `no-false-ship` 만 읽는 독자에게는 이 원칙이 안 보인다 —
+      그 룰의 "증거 = 실제 실행 산출물만" 문장이 여전히 상위 원칙이므로 수용 가능하다고 판단.
+- [x] R-2b BSD/GNU 표 행 추가 (✅ #235) — `realpath -m` · `find -newermt` · `stat` 포맷 3행.
+- [x] R-2c 계약 테스트 + mutation (✅ #235) — `tests/session-cleanup-gate.test.ts` 가 겸함.
+
+### R-3 ECC 검토 잔여 (#235 에서 범위 밖으로 남긴 것들)
+
+`fix/ecc-review-drift` → #235 머지(v26.121.0)로 R-1·R-2 는 닫혔다. 아래는 같은 세션에서
+발견했으나 의도적으로 분리한 것들 — **순서가 의미를 가진다**(3번을 먼저 걸면 신호가 죽는다).
+
+- [ ] R-3a **`update-mode.ts` 가 `.claude/skills` 를 갱신하지 않는다**(`src/update-mode.ts:53-78`).
+      파급 최대 — v26.121.0 의 정정이 **기존 사용자에게 하나도 도달하지 않는다.** 덮어쓰기 방지
+      (사용자 수정분 보존) 설계가 선행돼야 한다. 별건이자 최우선.
+- [ ] R-3b **CL-v2 훅 배선 + 설치 시 1회 고지.** 사용자 결정 완료 — `~/.claude/homunculus/`
+      write 는 허용, 무인설치 허용, 차단하지 않고 고지만. 조건부 배선 선례 = karpathy-gate
+      (`src/installer.ts:606~`). `settings-merge.ts` 의 `addPreToolUseHook` 은 PreToolUse
+      전용이라 이벤트 일반화가 필요하다.
+- [ ] R-3c **drift 18건 정리 → 정기 cron 배선.** 반드시 정리가 먼저 — 지금 cron 을 걸면 첫날부터
+      red 라 경보가 무의미해진다. 선례 = `catalog-verify.yml`(월 1회), 새 워크플로는 08:00 UTC 로 분리.
+- [ ] R-3d **ADR 작성** — CL-v2 C3→C2 재분류. 현재 사유가 `docs/PRD/v26-58-cherry-pick-plugin-gating.md`
+      인용 블록에만 있다. change-management 상 "아키텍처/의존성 결정"에 해당하므로 정식 ADR 대상.
+- [ ] R-3e `package-lock.json` 이 **26.114.0 에서 stale**(릴리즈 7건 미갱신). npm publish 는
+      `package.json` 을 쓰므로 기능 영향 없음 — 정합성 정리 항목.
 
 ---
 
