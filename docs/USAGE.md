@@ -49,7 +49,7 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 
 ---
 
-## What's installed (v26.123.0+)
+## What's installed (v26.125.0+)
 
 ```bash
 npx -y @uzysjung/agent-harness list
@@ -107,7 +107,7 @@ When `--only` leaves `.claude/` in place, a hook registration in `.claude/settin
 referenced the removed asset is **printed for you to delete** rather than edited automatically
 (currently implemented for `karpathy-coder`).
 
-### Files outside `.claude/` (v26.124.0+)
+### Files outside `.claude/` (v26.125.0+)
 
 Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
 `.env.example`, `.mcp-allowlist`, and `.github/workflows/` when `ci-scaffold` is selected. A full
@@ -119,7 +119,7 @@ uninstall **lists these and removes none of them** — your own content is mixed
 
 Only files still present on disk are listed, and `list` shows the same set under **Root files**.
 `--only` doesn't print this section: it targets specific assets, not the install as a whole.
-Logs written before v26.124.0 have no record of these files, so an older install shows nothing here.
+Logs written before v26.125.0 have no record of these files, so an older install shows nothing here.
 
 ---
 

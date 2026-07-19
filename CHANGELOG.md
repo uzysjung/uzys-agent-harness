@@ -7,12 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
-## [v26.125.0] — 2026-07-19 (feat: 위저드가 설치 상태를 읽는다 + uninstall 대화형 선택)
+## [v26.125.0] — 2026-07-19 (feat: 설치 내역 관리 — 조회 · 항목별 제거 · 대화형 uninstall)
+
+> **단일 릴리즈로 게시한다.** v26.121.0~v26.124.0 은 태그 없이 이 릴리즈에 포함된 개발 단계이며,
+> **그 버전으로 게시된 적이 없다** — 사용자가 설치할 수 있는 최초 버전은 v26.125.0 이다.
+> 각 단계의 이력은 아래 소제목으로 보존한다. 직전 게시 태그 = v26.120.0.
+
+### 개발 단계 v26.125.0 — feat: 위저드가 설치 상태를 읽는다 + uninstall 대화형 선택
 
 사용자 질문에서 시작했다 — "인터랙티브 설치로 들어가서 셀렉트 언셀렉트 하면 언인스톨되나?"
 **아니었다.** 그리고 코드를 보니 문제가 하나 더 있었다.
 
-### 수정
+#### 수정
 - **위저드 step 3 의 체크가 설치 상태와 무관했다.** 사전 체크는 트랙 추천
   (`recommendedExternalAssets`)에서만 나왔고, **위저드 경로 전체에서 `readInstallLog` 호출이
   0건**이었다 — 위저드는 무엇이 깔려 있는지 아예 몰랐다. 그래서 이미 설치된 자산이 추천 밖이면
@@ -24,7 +30,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   에서 project 를 고른 순간 같은 자산이 한 벌 더 깔린다. 마커가 보일 때는 같은 화면에
   "체크 해제해도 제거되지 않는다 (제거: agent-harness uninstall)" 를 출력한다.
 
-### 추가
+#### 추가
 - **`uninstall` 대화형 선택 화면.** TTY 에서 플래그 없이 실행하면 무엇을 뺄지 고르는 화면으로
   들어간다. 모드 선택(항목 선택 / 전부) → 체크리스트 → 확인. 각 행이 **고르면 실제로 무슨 일이
   일어나는지**를 말한다 — `global scope — 자동 삭제 안 함`, `자동 되돌리기 경로 없음` 처럼.
@@ -39,7 +45,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
     `--dry-run` · **신규 `--yes`** · 비 TTY(CI·파이프). **스크립트 동작은 그대로다.**
   - 부수 효과로, 플래그 없는 `uninstall` 이 **확인 없이 즉시 전량 삭제**하던 기본값이 사라졌다.
 
-### 검증
+#### 검증
 - `npm run ci` **exit 0** — 67 files / **898 tests** / branches **89.4** (gate 88 통과).
 - **mutation 6종 사살**: ⓐ 빈 선택 가드 제거(전량 제거로 새는 경로) ⓑ 비 TTY 게이트 제거
   ⓒ `--only` 인데 화면 진입 ⓓ global 도 사전 체크 ⓔ 마커를 전부에 부착 ⓕ 설치분을 초기 선택에서 누락.
@@ -49,9 +55,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **미검증**: 대화형 화면의 **전체 시각 walkthrough** (pty 캡처가 바이트 단위로 깨져 판독 불가 —
   행 내용·게이트는 tests + 위 실렌더로 대신함) · Docker 실설치 · 4-CLI 렌더 · npm tarball.
 
-## [v26.124.0] — 2026-07-19 (feat: uninstall 이 `.claude/` 밖 수정분을 안내한다)
+### 개발 단계 v26.124.0 — feat: uninstall 이 `.claude/` 밖 수정분을 안내한다
 
-### 추가
+#### 추가
 - **루트 파일 기록 + 안내 (F-1f).** install 은 `.claude/` **밖**에도 쓴다 — `.mcp.json`(병합) ·
   `.gitignore`(추가줄) · `.env.example` · `.mcp-allowlist` · `.github/workflows/`(ci-scaffold).
   그런데 로그에 아무 기록이 없어 **uninstall 이 안내조차 못 했다**: `.claude/` 를 통째로 지우고
@@ -71,7 +77,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   - `--only` 는 자산 범위 작업이라 이 안내를 내지 않는다. v26.123.0 이하 로그는 `rootFiles` 가
     없으므로 섹션 자체가 없다(구 로그 호환).
 
-### 조사 — 커버리지 flake 정정 (F-2)
+#### 조사 — 커버리지 flake 정정 (F-2)
 v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 threshold 근처에서 flaky**"라고 적었다.
 동일 트리 8회 재측정으로 **흔들림은 확인했으나 그 진단은 과장이었다** — 정정한다.
 
@@ -87,7 +93,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
 - **결정**: istanbul provider 교체 **안 함**. 의존성이 늘고 모든 threshold 재기준선이 필요한데
   대가가 0.023%p 다. 유효숫자 한 자리 관행만 유지.
 
-### 검증
+#### 검증
 - `npm run ci` **exit 0** — 65 files / **873 tests** / branches **89.6** (gate 88 통과).
 - **mutation 4종 사살**: ⓐ `collectRootFiles` 무기록 → e2e 3 fail ⓑ uninstall 안내 제거 → 4 fail
   ⓒ list 의 실재 검사 제거 → 1 fail ⓓ note 합집합 → 이번 것만 → 1 fail.
@@ -96,7 +102,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   양쪽 모두에서 정상 제외됨.
 - **미검증**: Docker 실설치 · 4-CLI 렌더 · npm tarball.
 
-### 문서
+#### 문서
 - `docs/USAGE.md` — Uninstall 절에 "Files outside `.claude/`" 신설. 직전 판본의 "get no advisory
   yet" 서술을 실동작으로 교체.
 - `.claude/skills/multi-persona-review/SKILL.md` (+ `templates/` 사본) — 패널 워커를 **결과 수거와
@@ -105,12 +111,12 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   앵커링되며, 그건 이 방법론이 막으려는 실패 그 자체다. SSOT 는 `model-orchestration` "Worker
   lifecycle", 본 스킬은 그 규칙의 패널 스케일 적용.
 
-## [v26.123.0] — 2026-07-19 (feat: 설치 내역 조회 · 항목별 제거 — 그리고 추가 설치가 기록을 덮어쓰던 결함)
+### 개발 단계 v26.123.0 — feat: 설치 내역 조회 · 항목별 제거 — 그리고 추가 설치가 기록을 덮어쓰던 결함
 
 설치 기록(`.claude/.harness-install.json`)은 v26.64.0(ADR-020)부터 있었지만, **사용자가 그것을
 볼 수단도 항목 단위로 쓸 수단도 없었다.** 게다가 기록 자체가 새는 결함이 있었다.
 
-### 수정
+#### 수정
 - **추가 설치가 이전 설치 기록을 덮어쓰던 것 (F-1a).** `buildInstallLog()` 이 기존 로그를 읽지
   않고 새로 만들었고 `writeInstallLog()` 이 덮어썼다. install 은 이전에 깐 것을 **지우지 않으므로**,
   `install --with <id>` 한 번에 1회차 자산이 기록에서 사라지고 **uninstall 이 그걸 못 찾아
@@ -122,7 +128,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   reinstall 이 `.claude/` 를 backup 으로 옮기고 다시 깔아 이전 트랙 파일이 실제로 사라지므로
   합집합이 거짓이 된다. 기존 로그는 **backup 직전에** 읽는다(그 뒤엔 `.claude/` 와 함께 사라진다).
 
-### 추가
+#### 추가
 - **`agent-harness list` (F-1b)** — 무엇이 깔렸는지 보여준다: 자산 id/method/scope/version,
   템플릿 디렉토리, root `CLAUDE.md` 수정 여부(=uninstall 이 보존할지 여부와 **같은 sha256 판정**).
   읽기 전용. 여기 보이는 id 가 곧 `--only` 의 입력값이다.
@@ -137,7 +143,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   등록된 훅을 놓친다(도입 시 테스트가 잡은 실패). 전량 uninstall 은 `.claude/` 통째 제거라 이
   안내가 필요 없고, 그래서 하지 않는다.
 
-### 리뷰 반영 (독립 SOD 리뷰 — CRITICAL 1 · IMPORTANT 7)
+#### 리뷰 반영 (독립 SOD 리뷰 — CRITICAL 1 · IMPORTANT 7)
 - **CRITICAL: `--only` 가 아무것도 못 되돌렸는데 `✓ uninstall complete` + exit 0** 이었다.
   `npx-run`/`shell-script` 자산과 **모든 global scope 자산**은 reverse step 이 없어 `0 === 0` 이
   성공 판정을 통과했다. → 되돌릴 수 없으면 그렇다고 출력하고, 성공으로 보고하지 않고, exit 1.
@@ -156,7 +162,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   이미 단일화해놓고 이것만 빠뜨렸다).
 - USAGE 의 과대 서술(단일 자산 특수처리를 일반 정책처럼 기술) → 구현 범위대로 정정 + F-1f 명시.
 
-### 2차 검증 반영 (신선한 verifier — 1차 수정이 낸 회귀 3건)
+#### 2차 검증 반영 (신선한 verifier — 1차 수정이 낸 회귀 3건)
 수정이 새 문제를 만들지 않았는지 별도 검증자가 확인했고, **만들었다**:
 - **수기 안내 조건을 `--only` 인가로 잡아 `--keep-templates` 단독 실행에서 안내가 사라졌다.**
   `.claude/` 가 남으면 훅 등록도 남으므로 안내 대상인데, dry-run 은 내보내고 실행은 안 내보내
@@ -170,7 +176,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   switch 로 재발 차단.
 - `internal` 은 애초에 로그에 실리지 않는다(사전 필터) — 위 CRITICAL 영향 범위에서 제외 표기.
 
-### 3차 검증 반영 — 세 사실을 하나로 묶은 것이 회귀의 공통 원인이었다
+#### 3차 검증 반영 — 세 사실을 하나로 묶은 것이 회귀의 공통 원인이었다
 2차 수정도 회귀를 냈다(3라운드 연속). 검증자가 공통 근본원인을 짚었다: `keepTemplates` 를
 "install log 가 남는가"의 대용으로 쓰고 있었다. **둘은 다른 사실이다** —
 `--keep-templates` 는 `.claude/` 를 남기면서 로그는 지운다.
@@ -186,7 +192,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
 - 실측 exit code 6종: keep-templates+무경로=1 · keep-templates+global=0 · --only 무경로=1 ·
   --only global=1 · 전량=0 · `--only ,`=1(templates 보존). mutation 3종 사살.
 
-### 검증
+#### 검증
 - `npm run ci` exit 0 — 65 files / **857 tests** / branches **89.1** (gate 88 통과).
   이 한 줄을 세 번 틀리고 나서야 원인을 봤다: **branch % 는 같은 트리에서도 실행마다 흔들린다**
   (동일 커밋 3회 실측 = 89.13 / 89.12 / 89.13). 그래서 소수점 둘째 자리를 적는 관행 자체가
@@ -198,7 +204,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
 - E2E 계약 테스트(F-1e): 설치 → 추가 설치 → `list` 에 둘 다 → `--only` 로 하나 제거 → 나머지 유지.
 - **미검증**: Docker 실설치 · 4-CLI 렌더 · npm tarball.
 
-## [v26.122.0] — 2026-07-19 (fix: ship 게이트가 백로그를 drift 로 오인해 상시 차단하던 것 — 우회가 관행이 되어 게이트가 죽어 있었다)
+### 개발 단계 v26.122.0 — fix: ship 게이트가 백로그를 drift 로 오인해 상시 차단하던 것 — 우회가 관행이 되어 게이트가 죽어 있었다
 
 `spec-drift-check.sh` 는 todo 파일의 `[ ]` 개수만 세고 **내용을 보지 않았다.** 그래서 "이번
 사이클에 하기로 해놓고 안 한 것"(진짜 drift)과 "언젠가 할 일"(정상적인 백로그)을 구분하지
@@ -209,7 +215,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
 잡지 못한다. `no-false-ship` 의 *"주석 경고 ≠ 차단 수단"* 과 같은 실패이며, 게이트가 살아 있다고
 믿는 쪽이 더 위험하다.
 
-### 변경
+#### 변경
 - **`count_unchecked()` 에 면제 구간 도입** — `<!-- ship-gate:ignore-start -->` ~
   `<!-- ship-gate:ignore-end -->` 사이는 세지 않는다. `.claude/hooks/` · `templates/hooks/`
   **양쪽 사본에 동일 적용**(한쪽만 고치면 도그푸드와 배포본이 갈리고 그 drift 는 조용하다).
@@ -221,7 +227,7 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   헤더에 사용법을 백틱으로 인용했더니 그 산문이 진짜 표식으로 잡혀 짝이 깨졌다(fail-closed 가
   잡아냈다). **기능을 그 기능이 적용되는 파일 안에서 문서화할 수 없으면 쓸 수 없는 기능이다.**
 
-### 수정
+#### 수정
 - **6-Gate 유물 문서 정리** (사용자 지적) — ADR-023(2026-06-26)이 워크플로를 삭제했는데
   **문서 5곳이 그것을 계속 지시**하고 있었다. `gate-check.sh` · `agentshield-gate.sh` ·
   `/uzys:*` 커맨드 · `.claude/gate-status.json` 은 실물이 전부 없음을 실측 확인했다
@@ -246,26 +252,26 @@ v26.123.0 이 "branch coverage 가 실행마다 흔들려 **게이트가 thresho
   광고와 부고를 구분해야 한다. 급조 대신 `docs/todo.md` R-3g 에 근거와 유력안(문서가 참조하는
   훅/커맨드의 실존 여부를 파일시스템에서 derive — 열거 아님)을 적어 남겼다.
 
-### 추가
+#### 추가
 - **`tests/spec-drift-backlog-exemption.test.ts`** (16 tests, 두 훅 사본 각각 검증) —
   면제 동작 · 면제 밖 차단 유지 · fail-closed · 산문 인용 비인정 · 표식 없는 문서 종전 동작 ·
   사본 drift · 우회 문구 부재 · **실 저장소에서 실제로 통과하는지**(문서 상태 검사만으로는
   훅과 계산이 갈릴 수 있어 추가). **mutation 4종 전건 사살** — 면제 로직 제거(3 fail) ·
   fail-closed→fail-open(2) · 단독줄 앵커 제거(3) · todo.md 표식 제거(2).
 
-### 알려진 잔여
+#### 알려진 잔여
 `spec-drift-check.sh` 두 사본은 `count_unchecked` 외에는 여전히 갈려 있다 — `.claude/` 에만
 `SHIP_SUBSPEC`, `templates/` 에만 `first_existing` · `gate-status.json` 검사(후자는 ADR-023 이
 삭제한 파일을 본다 = 죽은 코드). 이번 변경은 양쪽 공통 함수만 수술했다. `docs/todo.md` R-3f.
 
-## [v26.121.0] — 2026-07-19 (fix+feat: 죽어 있던 drift 탐지기 수리 · 관측→감사 연결 · 재발방지 3건)
+### 개발 단계 v26.121.0 — fix+feat: 죽어 있던 drift 탐지기 수리 · 관측→감사 연결 · 재발방지 3건
 
 외부 카탈로그(ECC) 도입 검토로 출발했으나 **신규 도입은 0건**이고, 대신 우리 쪽 결함이 나왔다.
 스킬 278 + 에이전트 67 전수 스캔에서 생존한 후보 1개마저 검증에서 결함 4건으로 보류됐다.
 플러그인 경로는 `plugin.json` 이 스킬 디렉터리를 통째로 잡아 개별 선택이 불가능하고, 그 경우
 descriptor 만 **~20,852 tokens/세션**(우리 하네스 전체의 3.4배)이라 채택 대상이 아니다.
 
-### 수정
+#### 수정
 - **`scripts/sync-cherrypicks.sh` 3중 결함 수리 — 도입(2026-04-14) 이래 한 번도 작동한 적 없다.**
   ⓐ `SCRIPT_DIR` 을 repo 루트로 써서 lock 파일을 못 찾음(항상 exit 1) ⓑ 고쳐도 BSD 가
   `realpath -m` 을 지원하지 않아 전 항목이 skip 되어 `Changed: 0 / exit 0` **거짓 green**
@@ -278,7 +284,7 @@ descriptor 만 **~20,852 tokens/세션**(우리 하네스 전체의 3.4배)이�
   수치를 고치면서 같은 커밋에서 설명문을 늘려 **스스로 stale 을 만들었다**. 이제 문서의 수치를
   `residentCost()` 에서 derive 해 전수 대조한다.
 
-### 추가
+#### 추가
 - **관측 로그를 감사 입력으로** — `harness-health-audit/scripts/observation-digest.mjs` 신설.
   `~/.claude/homunculus/**/observations.jsonl` 을 읽기 전용으로 집계해 B1 이 스스로 적어둔
   "observational, not measured" 한계를 실측으로 채운다. **집계는 코드·판정은 모델**(Rule 5) —
@@ -298,7 +304,7 @@ descriptor 만 **~20,852 tokens/세션**(우리 하네스 전체의 3.4배)이�
   `templates/rules/` 로 올려 **11개 트랙 전부**에 설치한다. 사례 표는 로컬 사본에 남기고
   배포본은 일반화된 원칙만 싣는다.
 
-### 변경
+#### 변경
 - **CL-v2 재분류 C3 → C2 + upstream 온전판 복원.** 기존 C3 근거("우리가 수정해서 plugin 으로
   갈음 불가")가 **거꾸로**였다 — 우리 수정의 내용이 upstream `agents/`(관측→instinct 분석기)
   **제거**였고, 즉 우리 판본은 upstream 의 진부분집합이었다. upstream 754b8dd 전체 복원 →
@@ -307,7 +313,7 @@ descriptor 만 **~20,852 tokens/세션**(우리 하네스 전체의 3.4배)이�
 - `ecc-strategic-compact` lock `modified: false → true` — **거짓 선언이었다.** 우리
   `suggest-compact.sh` 가 `rsync -a --delete` 에 지워질 수 있었다.
 
-### 비용 (역행 고지)
+#### 비용 (역행 고지)
 상주 **5,194 → 6,075 tokens/세션 (+17%)**, 전부 룰 증분이다. 각 증분은 측정된 실패에 근거하지만
 방향은 ratchet 역행이므로 NORTH_STAR 에 그대로 적었다. ADR-043 2단계 eval 1순위 = 룰 계층.
 
