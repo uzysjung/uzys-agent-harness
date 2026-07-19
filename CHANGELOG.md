@@ -7,6 +7,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.126.1] — 2026-07-19 (fix: update 위저드 문구가 skills 를 빠뜨렸다)
+
+v26.126.0 이 skills 를 갱신하기 시작했는데 **그걸 알리는 문구를 안 고쳤다.** 위저드 라우터의
+update 항목은 여전히 `"Refresh rules / agents / commands / hooks"` 였다.
+
+`install` 커맨드는 `mode` 를 넘기지 않으므로 **update 는 위저드로만 도달한다** — 즉 이 hint 가
+update 동작의 **유일한 광고 표면**이다. 거짓 주장은 아니지만(하는 일을 덜 말한 쪽), 사용자는
+자기가 고친 스킬이 백업되는 걸 예고 없이 겪게 된다. R-3a 를 만든 것과 같은 종류의 침묵이다.
+
+- 문구 정정: `"Refresh rules / agents / commands / hooks / skills — your edits are backed up"`
+- 계약 테스트 2건 추가 (`tests/router.test.ts`) — hint 에 `skills` 와 백업 고지가 있는지.
+- 912 tests / branches 89.54.
+
+### Docker 실환경 검증 추가 (`scenario-update-skills`)
+
+v26.126.0 출하 시 "update 에 비대화형 진입점이 없어 Docker 검증 불가"라고 적었으나 **과장이었다**.
+막힌 것은 "기존 시나리오 러너로는 안 된다"였고, `script(1)` 로 pty 를 붙여 위저드를 구동하면 된다.
+키 입력 사이에 **지연이 필요**하다 — 한 번에 흘리면 clack 이 프롬프트를 그리기 전에 입력이 지나가
+라우터 선택 자체가 실패하고, 그러고도 조용히 끝난다(그래서 시나리오에 "Update complete" 확인을
+먼저 넣었다 — 없으면 update 를 안 돌리고도 green 이 된다).
+
+실환경 결과: 스킬 18개 설치 · 기준선 36건 기록 · 편집분 백업 생성 및 내용 보존 · 최신판이 자리 차지 ·
+요약에 `.claude/skills` 행 노출 · 재실행 시 백업 미증가. **음성 대조**로 헛통과 아님을 확인
+(`syncSkills` 를 무동작으로 되돌리면 typecheck·빌드는 통과하면서 시나리오만 exit 1).
+
+> **관찰(수정 아님)**: update 에 비대화형 진입점이 없다는 사실 자체는 유효하다 — CI·스크립트
+> 사용자는 스킬 갱신을 자동화할 수 없다. 별건 백로그.
+
 ## [v26.126.0] — 2026-07-19 (feat: update 가 `.claude/skills` 를 갱신한다 — 배달 통로 개통)
 
 ### 무엇이 문제였나

@@ -218,7 +218,7 @@ export interface InstallReport {
   ciScaffold: CiScaffoldReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
   external: ExternalInstallReport | null;
-  /** Update-mode report (rules/agents/commands/hooks 갱신 + orphan prune + stale hook). null when not update mode. */
+  /** Update-mode report (rules/agents/commands/hooks/skills 갱신 + orphan prune + stale hook). null when not update mode. */
   updateMode: UpdateModeReport | null;
   /** karpathy-coder hook auto-wire 결과 (v0.6.0). null when withKarpathyHook=false. */
   karpathyHook: KarpathyHookReport | null;
