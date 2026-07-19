@@ -70,13 +70,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **`npx-run` 을 "프로젝트 밖"으로 분류**해 위 누적 제외에서 빠뜨렸다. bmad 는 `.claude/` 안에
   agent command 를 만든다(카탈로그 자체 주석 + Docker 실증). → 제외 대상에 포함 + exhaustive
   switch 로 재발 차단.
-- `기록 유지` 를 로그가 곧 지워지는 전량 uninstall 에서도 출력하던 것 → 보존 시에만.
 - `internal` 은 애초에 로그에 실리지 않는다(사전 필터) — 위 CRITICAL 영향 범위에서 제외 표기.
 
+### 3차 검증 반영 — 세 사실을 하나로 묶은 것이 회귀의 공통 원인이었다
+2차 수정도 회귀를 냈다(3라운드 연속). 검증자가 공통 근본원인을 짚었다: `keepTemplates` 를
+"install log 가 남는가"의 대용으로 쓰고 있었다. **둘은 다른 사실이다** —
+`--keep-templates` 는 `.claude/` 를 남기면서 로그는 지운다.
+- **CRITICAL 재발**: `--keep-templates` + 되돌릴 수 없는 project 자산(bmad·ecc-prune)에서
+  아무것도 제거 안 하고 **로그만 지운 뒤 `✓ uninstall complete` exit 0**. F-1a 가 없애려던
+  "디스크엔 있고 기록엔 없는" 상태를 의도적으로 만들고 성공이라 보고한 셈. 재시도로 복구 불가.
+- 판정을 분리했다: `logSurvives = --only 인가` / `keepTemplates = .claude/ 가 남는가`.
+  실패 조건 = 제거 0건 + templates 유지 + (`--only` 요청이었거나 **안내할 명령조차 없는**
+  자산이 남음). global 전용은 정확한 수기 명령을 출력하므로 성공 — 네 판정 모두 실측 고정.
+- `기록 유지` 문구도 같은 분리로 정정(로그가 남을 때만).
+- `--only ,` 처럼 값은 있는데 id 가 없으면 **전량 제거로 흘러가 templates 까지 지우던 것** 차단.
+- USAGE 가 존재하지 않는 `--backup` 플래그를 안내하던 것 → 실제 도달 경로(wizard Reinstall)로 정정.
+- 실측 exit code 6종: keep-templates+무경로=1 · keep-templates+global=0 · --only 무경로=1 ·
+  --only global=1 · 전량=0 · `--only ,`=1(templates 보존). mutation 3종 사살.
+
 ### 검증
-- `npm run ci` exit 0 — 65 files / **852 tests** / branches 89.01 (gate 88).
-  (이 줄의 수치는 두 번 틀렸다 — 측정 전에 적었고, 적은 뒤 코드가 또 바뀌었다. 지금 값은
-  최종 트리에서 실행한 출력 그대로다.)
+- `npm run ci` exit 0 — 65 files / **857 tests** / branches 89.13 (gate 88).
+  (이 줄은 두 번 틀렸었다 — 측정 전에 적었고, 적은 뒤 코드가 또 바뀌었다. 지금 값은 최종
+  트리에서 실행한 출력 그대로다.)
 - mutation 3종 전건 사살: 누적 무시 / `templates` 이전값 폐기 / 기존 로그 읽기를 backup 뒤로 이동.
   (독립 리뷰어가 3종 모두 재현·사살 확인.)
 - CLI 실행 실증: `--help` 에 `list` 노출, `uninstall --help` 에 `--only`, `list` 실출력,

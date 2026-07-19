@@ -97,6 +97,14 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   }
 
   const selectedIds = parseOnly(options.only);
+  // `--only ,` 처럼 값이 있는데 id 가 하나도 안 나오면 **전량 제거로 흘려보내지 않는다** —
+  // 하나만 빼려던 사용자가 templates 까지 잃는다. 무응답보다 명시적 거절이 안전하다.
+  if (options.only !== undefined && selectedIds === null) {
+    err(status.failure(c.red("ERROR: --only 에 자산 id 가 없다")));
+    err(c.dim("       예: --only code-review  (id 는 `agent-harness list` 에서 확인)"));
+    exit(1);
+    return;
+  }
   const unknown = selectedIds ? unknownIds(installLog, selectedIds) : [];
   if (unknown.length > 0) {
     err(status.failure(c.red(`ERROR: not in install log: ${unknown.join(", ")}`)));
@@ -121,7 +129,12 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  const { succeeded, failed, removedIds } = executeReverse(plan, log, keepTemplates);
+  // 두 사실을 분리해서 쓴다 — 셋을 하나로 묶다 리뷰 3라운드 내리 회귀가 났다.
+  //   `.claude/` 가 남는가  = keepTemplates   (수기 안내 대상 여부)
+  //   install log 가 남는가 = `--only` 인가    (settleLog: --only 만 재기록, 나머지는 삭제)
+  const logSurvives = selectedIds !== null;
+
+  const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
 
   if (!keepTemplates) {
     const { rootClaudeMdKept } = removeTemplates(installLog, projectDir, rm);
@@ -148,12 +161,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     succeeded,
     failed,
     logWriteFailed,
-    // `--only` 로 하나 빼달라 했는데 하나도 못 뺐으면 "complete" 가 아니다.
-    // **`--only` 경로에만 적용한다** — `--keep-templates` 전량 uninstall 은 자산이 전부
-    // global 이라 자동 제거가 0건이어도 install log 를 지우는 실제 작업을 했고, 그건
-    // D16 설계대로의 정상 종료다. 여기까지 exit 1 로 묶으면 global scope 사용자는
-    // 영원히 exit 0 을 못 받는다 (재시도하면 로그가 없어 더 나빠진다).
-    nothingDone: selectedIds !== null && succeeded === 0 && targetAssets.length > 0,
+    // 제거된 것도 없고 templates 도 안 지웠는데, 사용자에게 줄 방법조차 없을 때만 실패다.
+    //   ① `--only` = "이걸 빼라"는 특정 요청 — 하나도 못 뺐으면 요청 불이행 (C1).
+    //   ② 자동 경로가 없는 자산이 남았으면 — 안내할 명령조차 없다 (R1).
+    //   ③ 반면 global 자산만 남은 경우는 **정확한 수기 명령을 출력했으므로** 성공이다.
+    //      D16 설계대로의 정상이고, 여기까지 묶으면 global scope 사용자는 exit 0 을 영원히
+    //      못 받는다 (로그가 지워져 재시도하면 더 나빠진다).
+    nothingDone: succeeded === 0 && keepTemplates && (logSurvives || plan.noReversePath.length > 0),
   });
   log("");
   log(outcome.line);
@@ -211,7 +225,7 @@ function headerLines(
 function executeReverse(
   plan: ReversePlan,
   log: (msg: string) => void,
-  keepTemplates: boolean,
+  logSurvives: boolean,
 ): { succeeded: number; failed: number; removedIds: string[] } {
   let succeeded = 0;
   let failed = 0;
@@ -229,8 +243,9 @@ function executeReverse(
   }
   // 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가
   // 아무것도 안 한 실행에 붙어 거짓 보고가 된다 (no-false-ship).
-  // "기록 유지"는 로그가 남을 때만 참이다 — 전량 uninstall 은 `.claude/` 와 함께 로그도 지운다.
-  const tail = keepTemplates ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
+  // "기록 유지"는 **로그가 남을 때만** 참이다. `--keep-templates` 는 `.claude/` 를 남기면서도
+  // 로그는 지우므로(settleLog), templates 보존 여부로 판단하면 지워질 기록을 유지한다고 말한다.
+  const tail = logSurvives ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
   for (const asset of plan.noReversePath) {
     log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`);
   }

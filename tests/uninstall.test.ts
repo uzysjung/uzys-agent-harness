@@ -1236,3 +1236,117 @@ describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * v26.123.0 3차 검증 반영 (SOD R1/R2) — 세 사실을 하나로 묶다 3라운드 내리 회귀가 났다.
+ * 분리해서 고정한다:
+ *   `.claude/` 가 남는가  = keepTemplates  (수기 안내 대상 여부)
+ *   install log 가 남는가 = `--only` 인가   (--only 만 재기록, 나머지는 삭제)
+ * 특히 `--keep-templates` 는 `.claude/` 를 남기면서 로그는 지운다 — 그 조합이 매번 새는 자리였다.
+ */
+describe("uninstallAction — keepTemplates 와 log 생존은 다른 사실이다 (SOD R1/R2)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-logsurvives-"));
+  });
+
+  const NO_REVERSE_PROJECT_ASSET: InstallLog["assets"] = [
+    {
+      id: "bmad",
+      category: "dev-tools",
+      method: "npx-run",
+      scope: "project",
+      detail: { cmd: "bmad-method", args: "install" },
+    },
+  ];
+
+  function run(options: Parameters<typeof uninstallAction>[0]): {
+    output: string;
+    code: number | undefined;
+    rm: ReturnType<typeof vi.fn>;
+  } {
+    const logFn = vi.fn();
+    const rm = vi.fn();
+    let code: number | undefined;
+    uninstallAction(options, {
+      log: logFn,
+      err: vi.fn(),
+      exit: ((c: number) => {
+        code = c;
+      }) as unknown as (code: number) => never,
+      spawn: vi.fn(() => ok()),
+      rm,
+    });
+    return { output: logFn.mock.calls.flat().join("\n"), code, rm };
+  }
+
+  it("--keep-templates 로 되돌릴 수 없는 project 자산만 남으면 성공이라 하지 않는다", () => {
+    // 여기서 로그가 지워지므로 재시도로 복구할 수 없다 — 성공으로 보고하면 사용자는
+    // 디스크에 남은 자산을 기록 없이 떠안는다 (F-1a 가 없애려던 바로 그 상태).
+    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
+    const { output, code } = run({ projectDir: tmpDir, keepTemplates: true });
+    expect(output).not.toContain("uninstall complete");
+    expect(code).toBe(1);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--keep-templates 로 로그가 지워질 때 '기록 유지'라고 말하지 않는다", () => {
+    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
+    const { output, rm } = run({ projectDir: tmpDir, keepTemplates: true });
+    expect(rm).toHaveBeenCalledWith(installLogPath(tmpDir));
+    expect(output).toContain("자동 되돌리기 경로 없음");
+    expect(output).not.toContain("기록 유지");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--only 로 같은 자산을 지정하면 로그가 남으므로 '기록 유지'가 참이다", () => {
+    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
+    const { output } = run({ projectDir: tmpDir, only: "bmad" });
+    expect(output).toContain("기록 유지");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--keep-templates + global 자산뿐이면 성공이다 — 정확한 수기 명령을 줬으므로", () => {
+    // 경계: R1 수정이 F4 를 되돌리지 않았는지. global 은 안내할 명령이 있고 D16 설계대로다.
+    writeLog(tmpDir, {
+      ...baseLog(),
+      assets: [
+        {
+          id: "g1",
+          category: "dev-tools",
+          method: "plugin",
+          scope: "global",
+          detail: { marketplace: "mp", pluginId: "g1@mp" },
+        },
+      ],
+    });
+    const { output, code } = run({ projectDir: tmpDir, keepTemplates: true });
+    expect(output).toContain("[GLOBAL]");
+    expect(code).toBe(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--only 에 id 가 없으면(`--only ,`) 전량 제거로 흘려보내지 않고 차단한다", () => {
+    // 하나만 빼려던 사용자가 templates 까지 잃는 경로였다.
+    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
+    const rm = vi.fn();
+    const err = vi.fn();
+    let code: number | undefined;
+    uninstallAction(
+      { projectDir: tmpDir, only: "," },
+      {
+        log: vi.fn(),
+        err,
+        exit: ((c: number) => {
+          code = c;
+        }) as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm).not.toHaveBeenCalled();
+    expect(code).toBe(1);
+    expect(err.mock.calls.flat().join("\n")).toContain("--only");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
