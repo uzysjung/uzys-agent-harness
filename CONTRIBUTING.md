@@ -73,19 +73,8 @@ Hooks live in `templates/hooks/*.sh`. Two types:
 - Not registered in `settings.json`
 
 After adding:
-- Add to `scripts/setup-harness.sh` install list
-- Update `HOOKS_EXP` count
-- Add to `scripts/test-harness.sh` T2 syntax check list
-- Add unit test in T3 (positive + negative)
-
-## Adding a `/uzys:*` command
-
-Commands live in `templates/commands/uzys/*.md`.
-
-1. Create the command file with frontmatter (model, description)
-2. Update `gate-check.sh` if it should be gated by previous phases
-3. Add to `scripts/setup-harness.sh` install loop
-4. Add gate-check unit test in T11 (workflow E2E smoke)
+- Register it in `src/manifest.ts` (`ALWAYS_HOOKS` for every install, or the relevant opt-in list)
+- Add a unit test covering both the pass and the block path
 
 ## Updating cherry-picked content
 

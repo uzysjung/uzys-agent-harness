@@ -10,7 +10,9 @@
 
 활성 작업 사이클이 없다. Foundation(v26.38) 이후 v26.70.3 까지의 진행은 feature 단위로 `docs/specs/`, `docs/PRD/`, `docs/decisions/` 에 분산 기록되어 있으며, 시계열 요약은 `CHANGELOG.md` 에 있다.
 
-새 feature 착수 시 `/uzys:spec` → `/uzys:plan` 이 본 파일(`docs/plan.md`)과 `docs/todo.md` 를 해당 사이클 내용으로 재생성한다. (또는 sub-SPEC 모드에서 `docs/plans/<name>-plan.md`)
+새 feature 착수 시 본 파일과 `docs/todo.md` 를 해당 사이클 내용으로 **직접 갱신**한다. 규모가 커지면 `docs/plans/<name>-plan.md` 로 분리한다 (`spec-scaling` 스킬).
+
+> v26.122.0 정정: 이 자리에 `/uzys:spec` → `/uzys:plan` 이 두 파일을 자동 재생성한다고 적혀 있었으나, 그 커맨드들은 ADR-023(2026-06-26)에서 삭제됐다. 갱신은 수동이다.
 
 ## 다음 방향 (Phase 2 — Adoption Loop)
 

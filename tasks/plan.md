@@ -85,6 +85,7 @@ Task 5 (트리거 분리 + 문서 현행화: test-policy/ship-checklist)
 ## 8. 컨벤션 충돌 표면화 (Rule 7 / Rule 11)
 
 - 본 계획은 `/agent-skills:plan` 스킬 지시대로 **`tasks/plan.md` + `tasks/todo.md`** 에 저장.
-- 단 본 repo 의 6-Gate 활성 경로는 **`docs/plan.md` + `docs/todo.md`** (`gate-check.sh`/`spec-drift-check.sh`). `tasks/` 는 게이트가 보지 않음.
-- **의도된 분리**: `tasks/todo.md` 의 체크박스 작업목록을 게이트-활성 `docs/todo.md` 에 넣으면 unchecked 항목이 **ship gate 를 차단**한다(spec-drift-check). 작업용 체크리스트는 `tasks/` 에 격리하고, `docs/todo.md` 는 비체크박스 백로그 유지가 양쪽 정합.
-- **대안**: 풀 6-Gate 강제를 원하면 `/uzys:spec` 으로 C2 SPEC 정식화 후 `/uzys:plan` 이 `docs/todo.md` 재생성. → 사용자 결정.
+- 단 본 repo 에서 게이트가 실제로 읽는 파일은 **`docs/todo.md`** 하나다 (`spec-drift-check.sh`). `tasks/` 는 게이트가 보지 않음.
+- **분리 사유는 v26.122.0 에 소멸했다.** 당시엔 unchecked 항목이 전부 ship gate 를 차단해서 작업 체크리스트를 `tasks/` 로 격리하고 `docs/todo.md` 는 비체크박스로 두는 우회가 필요했다. 이제 게이트가 백로그를 면제하므로(`ship-gate:ignore` 구간) **`docs/todo.md` 에 체크박스를 그대로 쓸 수 있다.** `tasks/` 잔존분은 정리 대상.
+
+> v26.122.0 정정: 이 절은 `gate-check.sh` 를 활성 경로로, `/uzys:spec`/`/uzys:plan` 을 대안으로 적고 있었다. 셋 다 ADR-023(2026-06-26)에서 삭제된 6-Gate 워크플로의 잔재다.
