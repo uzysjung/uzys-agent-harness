@@ -253,8 +253,17 @@ Phase 1 출력에 명확히:
 | ecc-security-reviewer | ecc/agents/security-reviewer.md | ✗ (KEEP=`security-review`) | 높음 | 모든 dev | **C2** |
 | ecc-silent-failure-hunter | ecc/agents/silent-failure-hunter.md | ✗ | 중간 | dev | **C2** |
 | ecc-build-error-resolver | ecc/agents/build-error-resolver.md | ✗ | 중간 | dev | **C2** |
-| ecc-cl-v2 (MODIFIED) | ecc/skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C3** (modified=true) |
+| ecc-cl-v2 | ecc/skills/continuous-learning-v2/ | ✓ | 높음 | 모든 | **C2** (v26.121.0 재분류 — 아래) |
 | ecc-strategic-compact | ecc/skills/strategic-compact/ | ✓ | 높음 | 모든 | **C2** |
+
+> **v26.121.0 — `ecc-cl-v2` C3 → C2 재분류.** C3 의 근거는 "우리가 수정한 판본이라 plugin 으로
+> 갈음 불가"였는데, 그 수정의 내용이 upstream `agents/`(관측을 instinct 로 바꾸는 분석기) **제거**
+> 였다. 즉 우리 사본은 상위집합이 아니라 **진부분집합**이었고, 갈음 불가가 아니라 갈음당해야 맞는
+> 쪽이었다. 실사용 영향: plugin 을 켠 사용자는 동작하는 plugin 판본과 동작하지 않는 우리 사본을
+> 둘 다 갖고 있었다. upstream 전체를 복원해 동일해졌으므로(lock `modified:false`) C2 로 내리고
+> `!withEcc` 게이트를 적용한다. 관측 데몬은 upstream 기본값대로 꺼져 있다
+> (`config.json` `observer.enabled:false`) — 켜면 백그라운드에서 `claude` 를 주기 호출하므로
+> 사용자가 명시적으로 선택할 일이다.
 | ecc-deep-research (MODIFIED) | ecc/.agents/skills/deep-research/ | ✓ | 높음 | 모든 (executive 포함) | **C3** (modified=true, v26.114.0 ADR-042 재분류 — 리서치 원장 주입) |
 | ecc-market-research | ecc/.agents/skills/market-research/ | ✓ | 중간 | executive | **C2** |
 | ecc-eval-harness (MODIFIED) | ecc/.agents/skills/eval-harness/ | ✓ | 중간 | dev | **C3** (modified=true, v26.114.0 ADR-042 재분류 — eval spec 아티팩트 계약 주입) |

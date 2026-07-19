@@ -1,7 +1,8 @@
 ---
 name: continuous-learning-v2
-description: Continuous-learning toolkit for instincts — a CLI to inspect, evolve, promote, export and prune instinct files, plus a session-observation hook. Use when working with instincts or continuous learning. Read "What this build actually does" first: this build ships no observer agent, so recorded observations do NOT become instincts on their own.
-origin: ECC
+description: Instinct-based learning system that observes sessions via hooks, creates atomic instincts with confidence scoring, and evolves them into skills/commands/agents. v2.1 adds project-scoped instincts to prevent cross-project contamination.
+metadata:
+  origin: ECC
 version: 2.1.0
 ---
 
@@ -9,26 +10,6 @@ version: 2.1.0
 -Based Architecture
 
 An advanced learning system that turns your Claude Code sessions into reusable knowledge through atomic "instincts" - small learned behaviors with confidence scoring.
-
-## What this build actually does
-
-Read this before trusting the rest of the document — the sections below describe upstream ECC in
-full, and this harness ships a deliberate subset.
-
-| Stage | Upstream ECC | This build |
-|---|---|---|
-| Record tool calls to `observations.jsonl` | observation hook | **ships** `hooks/observe.sh`, but nothing registers it — you wire it yourself |
-| Turn observations into instincts | observer agent (`agents/`) | **not shipped** — this is the gap that matters |
-| Inspect / evolve / promote / export / prune instincts | `instinct-cli.py` | **ships**, works on instinct files that already exist |
-
-So out of the box this build changes nothing on its own. It gives you the CLI for curating instincts
-and the hook script if you want observation; it does **not** learn in the background. If you want the
-full automatic pipeline, install upstream ECC's plugin — it wires its own Node observer and does not
-use the bash hook here.
-
-Why the subset: the observer agent runs a background analysis process writing to `~/.claude/`, which
-this harness does not install on a user's behalf. Shipping the analyzer without that wiring would be
-a promise the install can't keep.
 
 **v2.1** adds **project-scoped instincts** — React patterns stay in your React project, Python conventions stay in your Python project, and universal patterns (like "always validate input") are shared globally.
 
@@ -46,7 +27,7 @@ a promise the install can't keep.
 
 | Feature | v2.0 | v2.1 |
 |---------|------|------|
-| Storage | Global (~/.claude/homunculus/) | Project-scoped (projects/<hash>/) |
+| Storage | Global (`~/.claude/homunculus/`) | Project-scoped (`${XDG_DATA_HOME:-~/.local/share}/ecc-homunculus/projects/<hash>/`) |
 | Scope | All instincts apply everywhere | Project-scoped + global |
 | Detection | None | git remote URL / repo path |
 | Promotion | N/A | Project → global when seen in 2+ projects |
@@ -152,38 +133,33 @@ The system automatically detects your current project:
 3. **`git rev-parse --show-toplevel`** -- fallback using repo path (machine-specific)
 4. **Global fallback** -- if no project is detected, instincts go to global scope
 
-Each project gets a 12-character hash ID (e.g., `a1b2c3d4e5f6`). A registry file at `~/.claude/homunculus/projects.json` maps IDs to human-readable names.
+Each project gets a 12-character hash ID (e.g., `a1b2c3d4e5f6`). A registry file at `${XDG_DATA_HOME:-~/.local/share}/ecc-homunculus/projects.json` maps IDs to human-readable names.
+
+### Data Directory
+
+Continuous-learning-v2 stores observer data outside `~/.claude` so Claude Code's sensitive-path guard does not block background instinct writes:
+
+1. `CLV2_HOMUNCULUS_DIR` when set to an absolute path
+2. `$XDG_DATA_HOME/ecc-homunculus`
+3. `$HOME/.local/share/ecc-homunculus`
+
+Existing users with data at `~/.claude/homunculus` can migrate once:
+
+```bash
+bash skills/continuous-learning-v2/scripts/migrate-homunculus.sh
+```
 
 ## Quick Start
 
 ### 1. Enable Observation Hooks
 
-Add to your `~/.claude/settings.json`.
-
 **If installed as a plugin** (recommended):
 
-```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/skills/continuous-learning-v2/hooks/observe.sh"
-      }]
-    }],
-    "PostToolUse": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "${CLAUDE_PLUGIN_ROOT}/skills/continuous-learning-v2/hooks/observe.sh"
-      }]
-    }]
-  }
-}
-```
+No extra `settings.json` hook block is required. Claude Code v2.1+ auto-loads the plugin `hooks/hooks.json`, and `observe.sh` is already registered there.
 
-**If installed manually** to `~/.claude/skills`:
+If you previously copied `observe.sh` into `~/.claude/settings.json`, remove that duplicate `PreToolUse` / `PostToolUse` block. Duplicating the plugin hook causes double execution and `${CLAUDE_PLUGIN_ROOT}` resolution errors because that variable is only available inside plugin-managed `hooks/hooks.json` entries.
+
+**If installed manually** to `~/.claude/skills`, add this to your `~/.claude/settings.json`:
 
 ```json
 {
@@ -212,7 +188,7 @@ The system creates directories automatically on first use, but you can also crea
 
 ```bash
 # Global directories
-mkdir -p ~/.claude/homunculus/{instincts/{personal,inherited},evolved/{agents,skills,commands},projects}
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/ecc-homunculus"/{instincts/{personal,inherited},evolved/{agents,skills,commands},projects}
 
 # Project directories are auto-created when the hook first runs in a git repo
 ```
@@ -265,7 +241,7 @@ Other behavior (observation capture, instinct thresholds, project scoping, promo
 ## File Structure
 
 ```
-~/.claude/homunculus/
+${XDG_DATA_HOME:-~/.local/share}/ecc-homunculus/
 +-- identity.json           # Your profile, technical level
 +-- projects.json           # Registry: project hash -> name/path/remote
 +-- observations.jsonl      # Global observations (fallback)
@@ -361,7 +337,7 @@ Hooks fire **100% of the time**, deterministically. This means:
 ## Backward Compatibility
 
 v2.1 is fully compatible with v2.0 and v1:
-- Existing global instincts in `~/.claude/homunculus/instincts/` still work as global instincts
+- Existing global instincts can be migrated from `~/.claude/homunculus/instincts/` with `scripts/migrate-homunculus.sh`
 - Existing `~/.claude/skills/learned/` skills from v1 still work
 - Stop hook still runs (but now also feeds into v2)
 - Gradual migration: run both in parallel

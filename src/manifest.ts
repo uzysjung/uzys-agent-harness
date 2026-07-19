@@ -134,10 +134,15 @@ export const ALWAYS_HOOKS = [
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
 // C2 (plugin OFF fallback, opt-out): strategic-compact.
-const COMMON_SKILL_DIRS_ECC = ["strategic-compact"];
+// v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
+// instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
+// 뒤집혀 있었다 — 갈음 불가의 내용이 기능 제거였다. upstream 전체를 복원해 동일해졌으므로
+// (lock modified:false) plugin ON 이면 비켜서는 것이 맞다. 데몬은 upstream 기본값대로 꺼져 있다
+// (config.json observer.enabled=false) — 켜면 백그라운드에서 claude 를 주기 호출하므로 사용자 선택.
+const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "continuous-learning-v2"];
 // C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
 // 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
-const MODIFIED_COMMON_SKILL_DIRS = ["continuous-learning-v2", "deep-research"];
+const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
 
 const DEV_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];

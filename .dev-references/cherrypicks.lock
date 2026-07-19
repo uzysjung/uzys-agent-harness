@@ -6,7 +6,7 @@
     "ecc": {
       "url": "https://github.com/affaan-m/everything-claude-code",
       "local_path": ".dev-references/ecc",
-      "commit": "125d5e619905",
+      "commit": "754b8dd",
       "note": "원본 ECC. cherry-pick 출처."
     },
     "agent-skills": {
@@ -65,9 +65,8 @@
       "src": "skills/continuous-learning-v2/",
       "dst": "templates/skills/continuous-learning-v2/",
       "type": "directory",
-      "modified": true,
-      "sync_verified_at": "2026-04-16",
-      "modification_note": "agents/ 디렉토리 (4개 파일) + scripts/test_parse_instinct.py 제거 (D-C). 핵심 5개 파일만 유지: SKILL.md, config.json, hooks/observe.sh, scripts/detect-project.sh, scripts/instinct-cli.py. Sync 2026-04-16 검증: 원본 대비 차이는 의도된 제외 상태 유지 (파일 내용 변경 없음, 단지 제외된 파일이 원본에 존재)"
+      "modified": false,
+      "modification_note": null
     },
     {
       "id": "ecc-strategic-compact",
@@ -75,8 +74,8 @@
       "src": "skills/strategic-compact/",
       "dst": "templates/skills/strategic-compact/",
       "type": "directory",
-      "modified": false,
-      "modification_note": null
+      "modified": true,
+      "modification_note": "우리 배포는 suggest-compact.sh(bash)를 유지 — upstream 은 812d4d0 에서 스크립트를 삭제하고 SKILL.md 만 남겼다. SKILL.md 도 설치기 자동배선 안내로 재작성(v26.121.0). sync --apply 가 훅 스크립트를 지우지 않도록 modified 유지 필수."
     },
     {
       "id": "ecc-deep-research",
