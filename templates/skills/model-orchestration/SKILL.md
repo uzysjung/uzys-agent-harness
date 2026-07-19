@@ -143,6 +143,13 @@ after their job ended. The clutter compounds per delegation.
   still-open agent is a declared decision, not a leak.
 - **Sweep at checkpoints**: at phase end and during [[compaction-handoff]], list running agents
   and stop every finished one before moving on.
+- **Collect the result as a file, not as a return message.** A long final message can be dropped
+  in transit, and the failure is silent — it reads as "the worker produced nothing", not "the
+  transport lost it", so you retry the work instead of the delivery. Name a scratchpad path in the
+  spawn prompt, have the worker write there (an early partial, overwritten as it refines), then
+  read the file. This is a **spawn-time** decision: retrofitting costs a re-request per worker, and
+  one that has already ended may not reproduce what it had. Inline returns are for short answers
+  you can afford to lose.
 
 ## V&V separation
 

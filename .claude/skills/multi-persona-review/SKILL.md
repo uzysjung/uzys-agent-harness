@@ -102,6 +102,12 @@ one gets the artifact + goal + audience + the *same* rubric, and **must not see 
 output** — independence is the precondition that makes aggregation add information. Anchoring on a
 peer collapses the panel toward one effective vote.
 
+**Have each persona write its findings to a file, not return them inline** — a panel report is
+exactly the long payload that gets dropped in transit, and the loss is silent. Losing one persona's
+report does not merely cost that report: it quietly shrinks the panel, which is the one variable
+the whole method depends on (see "Nine Judges, Two Effective Votes" above). Name the path when you
+spawn, not after — see [[model-orchestration]] "Worker lifecycle" for the general rule.
+
 Prefer pinning the persona sub-agents to a cheaper tier (Sonnet) — see the cost-tier note. But this
 degrades gracefully: if the harness can't pin sub-agents to a specific model, just run the panel on
 the default sub-agent model and note in the step-6 coverage caveat that the panel ran at the
