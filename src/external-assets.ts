@@ -47,6 +47,8 @@ export type ExternalAssetMethod =
         | "gap-analysis-e2e"
         | "ultracode-service-audit"
         | "asis-tobe-decision"
+        // v26.130.0 — 설명이 안 통할 때의 진단(지시대상 → 한 문장 → 근거). 사용자 요청.
+        | "explain-plainly"
         | "compaction-handoff"
         | "northstar-roadmap"
         // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
@@ -159,7 +161,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 65 자산 매트릭스 (v26.110.0 ADR-039 오피셜 플러그인 큐레이션: code-review·feature-dev·
+ * 66 자산 매트릭스 (v26.110.0 ADR-039 오피셜 플러그인 큐레이션: code-review·feature-dev·
  * security-guidance opt-in [context7 = mcp.json 기본 wiring 기충족으로 미등록, claude-md-management 기각] + v26.108.0 ci-scaffold internal + v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
@@ -296,6 +298,16 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "asis-tobe-decision" },
+  },
+  {
+    id: "explain-plainly",
+    tier: "official", // uzys 본 하네스 자체 템플릿
+    description:
+      "Explain plainly (opt-in — recommended) — fix the referent first, lead with who is affected and what changes, then show evidence; run it when the reader says they don't follow",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "explain-plainly" },
   },
   {
     id: "compaction-handoff",
@@ -1135,6 +1147,10 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "gemini-consult",
   // v26.100.0 — Codex advisor (concision/structure + image gen). ADR-029.
   "codex-consult",
+  // v26.130.0 — 설명 진단(지시대상 → 한 문장 → 근거). asis-tobe-decision 의 형제지만
+  // **opt-in** 이다: 기본 설치 descriptor 예산(ADR-032 ratchet)을 33 토큰 넘겼고, 아직
+  // 이 리포 밖에서 가치가 입증되지 않은 자산에 그 상향을 요구하지 않는다.
+  "explain-plainly",
 ];
 
 /**

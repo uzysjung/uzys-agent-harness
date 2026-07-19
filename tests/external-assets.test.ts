@@ -127,10 +127,10 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 65 distinct asset ids (no duplicates)", () => {
+  it("contains 66 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(65);
+    expect(ids).toHaveLength(66);
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
     expect(ids).toContain("code-review");
     expect(ids).toContain("feature-dev");
@@ -226,6 +226,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "model-orchestration": "workflow",
       "gemini-consult": "dev-tools",
       "codex-consult": "dev-tools",
+      // v26.130.0 — 설명 진단. dev-method 예산(ADR-032 ratchet)을 33 토큰 넘겨 opt-in 으로 편입.
+      "explain-plainly": "workflow",
     };
     // Superset relationship: bundled ids = dev-method ids + the means tier, no overlap.
     expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual(
