@@ -50,8 +50,8 @@ count_unchecked() {
   ' "$file"
 }
 
-# 후보 목록 중 첫 존재 파일 (없으면 빈 문자열). v26.107.0 — docs/ 고정이던 탐지를
-# 실제 워크플로 산출 레이아웃(root SPEC.md·tasks/todo.md 등)까지 확장 (SOD 리뷰 I-3).
+# 후보 목록 중 첫 존재 파일 (없으면 빈 문자열). docs/ 고정이 아니라 실제 워크플로
+# 산출 레이아웃(root SPEC.md·tasks/todo.md 등)까지 훑는다.
 first_existing() {
   local f
   for f in "$@"; do

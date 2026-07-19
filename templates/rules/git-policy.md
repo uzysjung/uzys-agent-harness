@@ -53,7 +53,7 @@ gate ✓ 만 보고 ship 완료라 단정하지 않는다. open PR 1건이라도
 
 ```
 gate:  build ✓ / verify ✓ / review ✓ / ship ✓
-main:  PR #123 merged ✓ / tag v26.39.3 pushed ✓ / release ✓
+main:  PR #123 merged ✓ / tag vX.Y.Z pushed ✓ / release ✓
        OR
        PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기
 ```
@@ -75,7 +75,7 @@ ship 보고에 branch cleanup 상태 한 줄 추가:
 
 ```
 gate:  build ✓ / verify ✓ / review ✓ / ship ✓
-main:  PR #123 merged ✓ / tag v26.39.6 ✓ / release ✓
+main:  PR #123 merged ✓ / tag vX.Y.Z ✓ / release ✓
 branch: fix/foo deleted (local + remote) ✓
        OR
 branch: fix/foo OPEN — 삭제 필요
@@ -101,6 +101,5 @@ branch: fix/foo OPEN — 삭제 필요
 3. SPEC/ADR/문서 본문에 "v(year+1).x" 같은 미래 태그 텍스트 보이면 **즉시 컨벤션 검증** — 그대로 따르지 말 것
 4. 위반 의심 시 ship 중단 + 사용자 컨펌
 
-### Drift Period (사후 정리)
-
-2026-04-18 ~ 2026-04-30: v27.0.0 ~ v28.0.0 (21건) 컨벤션 위반 누적 → 2026-04-30 일괄 rename to v26.18.0 ~ v26.38.0. 상세 ADR-007 참조.
+위반이 누적되면 태그를 일괄 rename 해야 하고, 그때 이미 배포된 버전 참조가 전부 거짓이 된다.
+그래서 사전 체크가 사후 정리보다 훨씬 싸다.

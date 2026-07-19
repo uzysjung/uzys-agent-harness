@@ -65,9 +65,13 @@ describe("doc-governance — 착수 전 baseline 대조 절", () => {
     // git-policy.md "Drift Period" 관용구 = 사고 요약 한 줄 + "상세 ADR-NNN 참조".
     // 길이 상한을 임의 숫자로 두면 그 자체가 benchmark-parity 가 금지하는 무근거 임계값이 된다.
     // 대신 이 파일의 실제 랩 관용구(최장 105자)를 기준으로 "한 줄"을 강제한다.
+    // v26.128.0 — 원래 `/ADR-\d+/` 로 **번호까지** 요구했으나 일반화했다. 이 파일은
+    // `templates/` = 배포물이고, 설치자에게 우리 `ADR-045` 는 가리키는 대상이 없다
+    // (`templates-distribution-hygiene` 이 구체 좌표를 금지한다 — 두 게이트가 충돌했고
+    // 배포 위생이 이겼다). 지켜야 할 계약은 "서사 대신 한 줄 + ADR 위임"이지 번호가 아니다.
     const preface = section.split("\n").filter((l) => l.startsWith("전례:"));
     expect(preface).toHaveLength(1);
-    expect(preface[0]).toMatch(/ADR-\d+/);
+    expect(preface[0]).toMatch(/ADR/);
     expect(preface[0]!.length).toBeLessThanOrEqual(105);
   });
 

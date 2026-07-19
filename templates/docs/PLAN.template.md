@@ -1,7 +1,7 @@
 # Plan — [Project Name]
 
 > 6개월+ 프로젝트 또는 복수 Phase가 있는 경우 사용. 1-2주 단순 작업은 todo.md만으로 충분.
-> 본 템플릿은 GoalTrack의 `docs/plan.md` 패턴을 일반화한 것.
+> Phase 단위 실행 계획 템플릿.
 
 ---
 
