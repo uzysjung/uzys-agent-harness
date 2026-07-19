@@ -39,9 +39,32 @@ fi
 DRIFT=0
 BLOCK=0
 
+# unchecked 항목을 센다. 단 `ship-gate:ignore` 구간은 제외한다 — 게이트가 잡으려는 것은 "이번
+# 사이클에 하기로 해놓고 안 한 것"이지 "언젠가 할 일(백로그)"이 아니다. 백로그는 정상적으로 항상
+# 존재하므로 구분 없이 세면 게이트가 상시 차단이 되고, 그러면 사람들은 체크박스를 안 쓰는 쪽으로
+# 우회한다 → 셀 게 없어 게이트가 죽는다.
+#
+# 기본값은 검사다. 면제는 표식이 있는 쪽이어야 한다. 표식이 짝이 안 맞으면 면제를 통째로
+# 무시한다(fail-closed) — 표식 하나 잘못 써서 게이트가 통째로 꺼지는 경로를 만들지 않는다.
+#
+# 표식은 **단독 줄**일 때만 인정한다(앞뒤 공백만 허용). 그래야 이 기능을 설명하는 산문이
+# — 예: 백틱으로 인용한 사용법 — 파서에 진짜 표식으로 잡히지 않는다. 기능을 그 기능이
+# 적용되는 파일 안에서 문서화할 수 없으면 안 된다. (실제로 그 함정을 밟고 추가한 규칙이다.)
 count_unchecked() {
   local file="$1"
-  grep -c "^- \[ \]\|^  - \[ \]" "$file" 2>/dev/null | tail -1 | tr -d ' \n'
+  awk '
+    /^[ \t]*<!--[ ]*ship-gate:ignore-start[ ]*-->[ \t]*$/ { skip = 1; opened++; next }
+    /^[ \t]*<!--[ ]*ship-gate:ignore-end[ ]*-->[ \t]*$/   { skip = 0; closed++; next }
+    /^- \[ \]|^  - \[ \]/                                 { total++; if (!skip) counted++ }
+    END {
+      if (opened != closed) {
+        printf "spec-drift-check: ship-gate:ignore 표식 불일치 (start %d / end %d) — 면제를 무시한다\n", opened, closed > "/dev/stderr"
+        print total + 0
+      } else {
+        print counted + 0
+      }
+    }
+  ' "$file"
 }
 
 # 1. SPEC unchecked 검사 (sub-SPEC 모드 시 docs/specs/<name>.md)
