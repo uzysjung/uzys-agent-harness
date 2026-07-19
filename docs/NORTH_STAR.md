@@ -38,7 +38,7 @@
 | **Justified Asset Ratio** | 기본 설치 자산 중 편익 근거(with/without eval 델타 또는 `operational-fact` 분류)를 **문서로 보유**한 비율 | **100%** (기본 설치 한정 — opt-in 자산은 미요구) |
 
 > **현재 상태 (2026-07-19)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 ~5,443 tokens/세션** = rules ~3,340 · CLAUDE.md ~938 ·
+> 실측(tooling 트랙): **상주 ~5,666 tokens/세션** = rules ~3,563 · CLAUDE.md ~938 ·
 > agent descriptors ~615 · skill descriptors ~550. 발화 = 기본 설치 8종 전부 트리거 시 ~26,930.
 > (이 4개 수치는 `tests/north-star-cost-figures.test.ts` 가 `npm run cost:report` 산출과 정확히
 > 대조한다 — 수기 갱신을 잊으면 CI 가 막는다.)

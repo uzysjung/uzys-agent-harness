@@ -30,6 +30,10 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 
 세션 종료 / `/clear` / `/compact` **직전** 다음 절차 강제:
 
+0. **띄운 것을 닫는다** — 이 세션의 백그라운드 프로세스·서브에이전트를 종료한다. 세션이 끝나도
+   프로세스는 안 끝난다: 부모만 죽고 `ppid=1` 로 재부모화돼 메모리·포트·파일락을 계속 쥔다.
+   `ps -eo pid,ppid,etime,command | grep "$(pwd)"` 로 확인, 알아보는 것만.
+   **다른 프로젝트의 프로세스는 건드리지 않는다.**
 1. `gh pr list --state open` 실행 — open PR 잔존 여부 확인
 2. 잔존 PR 발견 시:
    - 자동 머지 금지 — **사용자 명시 합의 필수**

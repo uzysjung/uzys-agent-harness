@@ -66,6 +66,36 @@
 - **C2** fresh-env 설치 매트릭스 CI ✅ (v26.72.0, `install-matrix.yml`) · **P2-NPM** npm publish ✅ (v26.72.1, `@uzysjung/claude-harness` 라이브)
 - **B2+B1** 4-CLI 실환경 Docker 검증 ✅ (v26.73.0) · **A1** Trust Tier star-drift CI ✅ (`trust-tier-drift.yml`) · **A2** 자산 Promise audit ✅ (v26.74.0)
 
+## 재발방지 큐 (2026-07-19 실측 발) — 순서대로
+
+증거는 추정이 아니라 실측이다. 두 건 모두 프로즈 규약이 **이미 있는데도** 반복됐다 —
+recurrence-prevention 사다리상 구조 게이트 단계.
+
+### R-1 세션 정리 유출 (백그라운드 프로세스 · 서브에이전트)
+- 실측: 최근 30일 3,661 세션 스캔 → 백그라운드/에이전트 사용 30건 중 **20건(66%)이 정리 흔적 0**
+  (백그라운드 띄우고 kill 0회 19 · 에이전트 띄우고 TaskStop 0회 3, 최악 표본은 에이전트 23개/정지 0).
+  직접 관측: 고아 `agent-browser` 3개(`ppid=1`, 2개는 18시간 경과) + 자식 Chrome 36개.
+- 선재 프로즈: `model-orchestration` "Worker lifecycle"(다 쓴 에이전트는 닫는다, v26.109.0) —
+  있는데 안 지켜졌다. 백그라운드 **프로세스**는 소유자가 아예 없다.
+- [ ] R-1a `session-start.sh` 에 이전 세션 잔존 탐지 — 세션 **시작** 시점이 유일하게 출력이
+      보장되는 자리다(종료 훅은 출력이 유실될 수 있다). 탐지만, 차단 없음.
+- [ ] R-1b 백그라운드 프로세스 소유자 지정 — `model-orchestration` 이 에이전트를 이미 소유하므로
+      같은 절에 프로세스를 넣을지, `git-policy` Session Cleanup(세션 종료 체크리스트 소유자)을
+      넓힐지 결정. **양쪽에 쓰지 말 것** (재서술 = drift 씨앗).
+- [ ] R-1c 계약 테스트 + mutation
+
+### R-2 검증 명령의 조용한 실패 → 거짓 결론
+- 실측: 2026-07-19 한 세션에서 **3회** — `realpath -m`(BSD 미지원) · 파이프 뒤 `$?` ·
+  `find -newermt`(BSD 미지원). 셋 다 `2>/dev/null` 로 에러를 삼켜 **빈 결과를 "이상 없음"으로 오독**.
+  3회차는 "호스트 오염 없음"이라는 **거짓 보고**가 됐다(실제로는 `~/.claude/homunculus/` 에
+  디렉터리를 만들었다). 같은 세션에서 ECC 코드의 동일 패턴(`>/dev/null 2>&1`)을 89줄 걷어내면서 그랬다.
+- 선재 프로즈: `cli-development.md` §Cross-Platform BSD/GNU 표 — 있는데 어겼다. 단 그 룰은
+  **배포하는 스크립트** 대상이고, 이번 위반은 **검증용 임시 명령**이었다. 그 표면은 무주공산이다.
+- [ ] R-2a 일반 원칙의 소유자 = `no-false-ship.md`. 이미 "증거 = 실제 실행 산출물만"을 소유하므로
+      "실패한 명령은 산출물을 내지 않는다 — 빈 결과는 부재의 증거가 아니다"를 같은 문장 계열로 확장.
+- [ ] R-2b 명령별 BSD/GNU 목록은 `cli-development.md` 표가 소유 — `realpath -m` · `find -newermt` 행 추가.
+- [ ] R-2c 계약 테스트 + mutation
+
 ---
 
 ## 완료 조건 (현 사이클)
