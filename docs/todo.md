@@ -1,18 +1,26 @@
 # Todo — 현재 목표 & 상태
 
-> **갱신**: 2026-06-22 (v26.88.0) · ⚠ 이 파일은 6-Gate 활성경로용(historical) — 버전·전략 현행은 [`plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) + [`plans/harness-audit-2026-07-14.md`](plans/harness-audit-2026-07-14.md) 참조 (실 npm v26.95.0)
-> **전략 SSOT**: [`docs/plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) (M1~M6) — 아래 'C→A→B→D' 전략 내용은 이로 **대체됨(historical)**. 본 파일은 6-Gate 워크플로우 활성 경로(gate 파싱)로만 유지.
+> **갱신**: 2026-07-19 (v26.122.0) · **역할**: 작업 추적 SSOT (doc-governance 위계의 TODO).
+> **전략 SSOT**: [`docs/plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) (M1~M6) — 아래 'C→A→B→D' 전략 내용은 이로 **대체됨(historical)**.
 > **목표 anchor**: [`docs/NORTH_STAR.md`](NORTH_STAR.md) (왜·어디로) · **이력**: [`CHANGELOG.md`](../CHANGELOG.md)
 > **Foundation(v26.38) 상세 완료 기록**: [`docs/archive/phase1-foundation/`](archive/phase1-foundation/)
 >
-> 본 파일은 6-Gate 워크플로우 활성 경로 (`gate-check.sh` 존재 확인 + `spec-drift-check.sh` unchecked 파싱).
-> `/uzys:plan` 실행 시 새 사이클 내용으로 덮어써진다. 열린 목표는 ship gate drift 를 피하려 비체크박스로 둔다.
+> **이 파일을 읽는 기계 = `spec-drift-check.sh` 하나뿐이다** (unchecked 항목 파싱).
+> 과거 헤더는 `gate-check.sh` 존재 확인과 `/uzys:plan` 재생성을 함께 적어뒀으나, 둘 다
+> **ADR-023(2026-06-26)에서 삭제된 6-Gate 워크플로의 유물**이라 v26.122.0 에 걷어냈다.
+> 이 파일은 사람이 직접 갱신한다.
+>
+> **ship 게이트가 세는 것 = 이번 사이클 항목만.** 백로그(언젠가 할 일)는
+> `<!-- ship-gate:ignore-start -->` ~ `<!-- ship-gate:ignore-end -->` 로 감싸면 세지 않는다.
+> v26.122.0 이전에는 게이트가 파일 전체를 세는 바람에 열린 목표에서 체크박스를 빼는 우회가
+> 관행이었다 — 셀 게 없으니 게이트가 아무것도 못 잡았다. **체크박스를 그냥 쓰고, 백로그면 감싼다.**
+> 표식이 짝이 안 맞으면 면제는 무시된다(fail-closed).
 
 ---
 
 ## 현재 상태 (2026-06-06)
 
-- **버전**: v26.95.0 (main, npm `@uzysjung/agent-harness@26.95.0` 라이브). *(헤더 스탬프는 6-Gate 경로 유지용 — 전략 SSOT = roadmap + harness-audit-2026-07-14)*
+- **버전**: main = v26.121.0 (#235). npm 게시본은 별개 — 전략 SSOT = roadmap + harness-audit-2026-07-14.
 - **활성 작업 사이클**: **재포지셔닝 로드맵 C→A→B→D** (deep-research `docs/research/direction-research-2026-06-06.md` + ADR-021). 아래 "열린 목표" 참조.
 - **CI 정책**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 (v26.70.3). 로컬 `npm run ci` 가 1차 게이트.
 
@@ -106,6 +114,11 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 `fix/ecc-review-drift` → #235 머지(v26.121.0)로 R-1·R-2 는 닫혔다. 아래는 같은 세션에서
 발견했으나 의도적으로 분리한 것들 — **순서가 의미를 가진다**(3번을 먼저 걸면 신호가 죽는다).
 
+**백로그다** — 이번 사이클에 하기로 한 것이 아니므로 ship 게이트에서 면제한다. 착수를 결정하면
+표식 밖으로 옮긴다(그 순간부터 미완이면 ship 이 막힌다 = 원래 의도).
+
+<!-- ship-gate:ignore-start -->
+
 - [ ] R-3a **`update-mode.ts` 가 `.claude/skills` 를 갱신하지 않는다**(`src/update-mode.ts:53-78`).
       파급 최대 — v26.121.0 의 정정이 **기존 사용자에게 하나도 도달하지 않는다.** 덮어쓰기 방지
       (사용자 수정분 보존) 설계가 선행돼야 한다. 별건이자 최우선.
@@ -119,9 +132,15 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       인용 블록에만 있다. change-management 상 "아키텍처/의존성 결정"에 해당하므로 정식 ADR 대상.
 - [ ] R-3e `package-lock.json` 이 **26.114.0 에서 stale**(릴리즈 7건 미갱신). npm publish 는
       `package.json` 을 쓰므로 기능 영향 없음 — 정합성 정리 항목.
+- [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
+      `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
+      이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.
+
+<!-- ship-gate:ignore-end -->
 
 ---
 
 ## 완료 조건 (현 사이클)
 
-재포지셔닝 로드맵은 비체크박스(ship gate drift 회피). C-1 부터 순차 착수. 각 단계 완료 시 본 파일 갱신.
+C-1 부터 순차 착수. 각 단계 완료 시 본 파일 갱신. 아직 착수하지 않은 구간은 체크박스를 쓰되
+`ship-gate:ignore` 구간으로 감싼다 (헤더 참조).

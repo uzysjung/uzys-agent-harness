@@ -7,6 +7,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.122.0] — 2026-07-19 (fix: ship 게이트가 백로그를 drift 로 오인해 상시 차단하던 것 — 우회가 관행이 되어 게이트가 죽어 있었다)
+
+`spec-drift-check.sh` 는 todo 파일의 `[ ]` 개수만 세고 **내용을 보지 않았다.** 그래서 "이번
+사이클에 하기로 해놓고 안 한 것"(진짜 drift)과 "언젠가 할 일"(정상적인 백로그)을 구분하지
+못했고, 백로그는 항상 존재하므로 ship 게이트가 **사실상 상시 차단**이었다.
+
+그 결과가 이번 수정의 진짜 이유다 — `docs/todo.md` 가 **"열린 목표는 ship gate drift 를 피하려
+비체크박스로 둔다"** 는 우회를 **관행으로 성문화**해 두고 있었다. 셀 게 없으니 게이트는 아무것도
+잡지 못한다. `no-false-ship` 의 *"주석 경고 ≠ 차단 수단"* 과 같은 실패이며, 게이트가 살아 있다고
+믿는 쪽이 더 위험하다.
+
+### 변경
+- **`count_unchecked()` 에 면제 구간 도입** — `<!-- ship-gate:ignore-start -->` ~
+  `<!-- ship-gate:ignore-end -->` 사이는 세지 않는다. `.claude/hooks/` · `templates/hooks/`
+  **양쪽 사본에 동일 적용**(한쪽만 고치면 도그푸드와 배포본이 갈리고 그 drift 는 조용하다).
+- **기본값은 검사, 면제는 표식이 있는 쪽** (`no-false-ship`: "면제는 표식이 있는 쪽이어야 한다").
+  표식 없는 기존 문서는 종전과 동일하게 전부 검사된다.
+- **표식 짝이 안 맞으면 면제를 통째로 무시한다(fail-closed).** 표식 하나 잘못 써서 게이트가
+  통째로 꺼지는 경로를 만들지 않는다 — 그건 우회를 코드로 옮기는 것이다.
+- **표식은 단독 줄일 때만 인정한다.** 도입 커밋에서 실제로 밟은 함정이라 규칙이 됐다: todo.md
+  헤더에 사용법을 백틱으로 인용했더니 그 산문이 진짜 표식으로 잡혀 짝이 깨졌다(fail-closed 가
+  잡아냈다). **기능을 그 기능이 적용되는 파일 안에서 문서화할 수 없으면 쓸 수 없는 기능이다.**
+
+### 수정
+- **`docs/todo.md` 의 6-Gate 유물 제거** (사용자 지적) — 헤더가 `gate-check.sh` 존재 확인과
+  `/uzys:plan` 재생성을 이 파일의 역할로 적어뒀으나, **둘 다 ADR-023(2026-06-26)에서 삭제된**
+  6-Gate 워크플로의 잔재다. 이 파일을 읽는 기계는 `spec-drift-check.sh` 하나뿐이다.
+  버전 스탬프(v26.95.0 stale)도 현행화.
+- 같은 파일 §완료 조건의 우회 지시문 제거.
+
+### 추가
+- **`tests/spec-drift-backlog-exemption.test.ts`** (16 tests, 두 훅 사본 각각 검증) —
+  면제 동작 · 면제 밖 차단 유지 · fail-closed · 산문 인용 비인정 · 표식 없는 문서 종전 동작 ·
+  사본 drift · 우회 문구 부재 · **실 저장소에서 실제로 통과하는지**(문서 상태 검사만으로는
+  훅과 계산이 갈릴 수 있어 추가). **mutation 4종 전건 사살** — 면제 로직 제거(3 fail) ·
+  fail-closed→fail-open(2) · 단독줄 앵커 제거(3) · todo.md 표식 제거(2).
+
+### 알려진 잔여
+`spec-drift-check.sh` 두 사본은 `count_unchecked` 외에는 여전히 갈려 있다 — `.claude/` 에만
+`SHIP_SUBSPEC`, `templates/` 에만 `first_existing` · `gate-status.json` 검사(후자는 ADR-023 이
+삭제한 파일을 본다 = 죽은 코드). 이번 변경은 양쪽 공통 함수만 수술했다. `docs/todo.md` R-3f.
+
 ## [v26.121.0] — 2026-07-19 (fix+feat: 죽어 있던 drift 탐지기 수리 · 관측→감사 연결 · 재발방지 3건)
 
 외부 카탈로그(ECC) 도입 검토로 출발했으나 **신규 도입은 0건**이고, 대신 우리 쪽 결함이 나왔다.
