@@ -218,18 +218,20 @@ Skills are **copied per CLI format, not symlinked** — each CLI needs its own v
 npx -y @uzysjung/agent-harness update [--project-dir <path>]
 ```
 
-Refreshes the policy files already in `.claude/` — rules, agents, commands, hooks, and skills — to
-the versions in the release you invoke. It does not add tracks, install assets, or ask anything, so
-it is safe to run from CI or a script. The whole `.claude/` directory is copied to
-`.claude.backup-<ts>` first. Run it with no install present and it exits `1` rather than doing
-nothing quietly.
+Refreshes the files already installed — rules, agents, commands, hooks, and skills under `.claude/`,
+plus everything written for Codex, OpenCode, and Antigravity (`AGENTS.md`, `.codex/`,
+`opencode.json`, `.opencode/commands/`, `.agents/`) — to the versions in the release you invoke
+(v26.134.0+). It does not add tracks, install assets, or ask anything, so it is safe to run from CI
+or a script. The whole `.claude/` directory is copied to `.claude.backup-<ts>` first. Run it with no
+install present and it exits `1` rather than doing nothing quietly.
 
 The same thing is reachable from the wizard (run with no arguments → **Update policy files**);
 both entry points build the identical spec. Adding a track is a different operation — that is
 `install --track <name>` on top of the existing install.
 
-> Scope: `update` refreshes `.claude/` only. `.codex/` and `.opencode/` templates are not synced by
-> it — re-run `install` for those.
+> Scope: `update` only refreshes files that are **already there**. It never installs a CLI you did
+> not choose or a skill you did not select, so a Claude-only project stays Claude-only. The flip
+> side: artifacts a newer release *adds* arrive on `install`, not on `update`.
 
 ### What happens to files you edited
 

@@ -23,12 +23,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
   collectSkillHashes,
   hashContent,
   type InstallLog,
+  isHarnessOwned as isOwnedByBaseline,
+  mergeExternalFiles,
   POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
@@ -55,6 +59,16 @@ export interface UpdateModeReport {
    * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
    */
   policyBackedUp: string[];
+  /**
+   * v26.134.0 (R-3j-A · ADR-049) — 갱신된 외부 CLI 산출물 수
+   * (`.codex/` · `.opencode/` · `.agents/` · `AGENTS.md` · `opencode.json`).
+   *
+   * 그전까지 update 는 `.claude/` 만 갱신했다. codex/opencode 사용자는 install 이 개선한 룰을
+   * `update` 로는 영영 못 받았고, 그 비대칭이 **문서 어디에도 안 적혀 있었다**.
+   */
+  externalUpdated: number;
+  /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
+  externalBackedUp: string[];
 }
 
 /**
@@ -79,8 +93,17 @@ export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>
  *
  * @param projectDir 대상 프로젝트 root
  * @param templatesDir templates/ 디렉토리 (sync source)
+ * @param harnessRoot harness repo root — 외부 CLI transform 의 렌더 소스.
+ *
+ *   `templatesDir` 에서 파생시킬 수도 있지만 **required 인자로 받는다**: 옵셔널이면 안 넘긴
+ *   호출부만 조용히 외부 CLI 갱신을 건너뛰고, 그건 지금 고치고 있는 바로 그 버그다
+ *   (ADR-048 의 `baseline` 을 required 로 둔 것과 같은 이유).
  */
-export function runUpdateMode(projectDir: string, templatesDir: string): UpdateModeReport {
+export function runUpdateMode(
+  projectDir: string,
+  templatesDir: string,
+  harnessRoot: string,
+): UpdateModeReport {
   const claudeDir = join(projectDir, ".claude");
   const report: UpdateModeReport = {
     updated: {},
@@ -89,6 +112,8 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
     claudeMdUpdated: false,
     skillsBackedUp: [],
     policyBackedUp: [],
+    externalUpdated: 0,
+    externalBackedUp: [],
   };
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
@@ -131,7 +156,58 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, join(claudeDir, "hooks"));
   }
 
+  // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
+  // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
+  // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
+  const external = refreshExternalCli(projectDir, harnessRoot);
+  report.externalUpdated = external.externalUpdated;
+  report.externalBackedUp = external.externalBackedUp;
+
   return report;
+}
+
+/**
+ * 외부 CLI 산출물 갱신 + 기준선 재기록 (v26.134.0 · ADR-049).
+ *
+ * **어느 CLI 가 설치돼 있는지 판정하지 않는다.** `refreshOnly` 가 "디스크에 이미 있는 파일만"
+ * 으로 걸러 주므로, 안 깐 CLI 는 대상 파일이 없어 자연히 아무것도 안 쓴다. 선택 스킬도 같다 —
+ * 전체 목록을 넘겨도 안 깔린 스킬은 파일이 없어 건너뛴다. 그래서 update 쪽에 CLI 목록이나
+ * 스킬 선택 상태의 **사본이 생기지 않는다** (이 repo 가 반복해서 당한 열거-사본 실패 모드).
+ */
+function refreshExternalCli(
+  projectDir: string,
+  harnessRoot: string,
+): { externalUpdated: number; externalBackedUp: string[] } {
+  const log = readInstallLog(projectDir);
+  const result = runCliTransforms({
+    harnessRoot,
+    projectDir,
+    cli: ALL_CLI_TARGETS,
+    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
+    previousExternal: log?.externalFiles ?? [],
+    refreshOnly: true,
+  });
+
+  // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금
+  // 자기가 덮어쓴 파일을 "사용자가 고쳤다"로 오판해 백업을 매번 쌓는다.
+  // 이번에 안 건드린 산출물의 기록은 `mergeExternalFiles` 가 유지한다 (지우면 그 파일들이
+  // 다음 실행에서 판정 불가로 떨어진다). 로그가 없으면 만들지 않는다 — 설치 기록 날조 금지.
+  if (log) {
+    const merged = mergeExternalFiles(projectDir, log.externalFiles, result.externalFiles);
+    const next: InstallLog = { ...log };
+    if (merged.length > 0) next.externalFiles = merged;
+    else delete next.externalFiles;
+    try {
+      writeInstallLog(projectDir, next);
+    } catch {
+      // 기록 실패가 update 자체를 실패시키지는 않는다 (D16 과 같은 방침).
+    }
+  }
+
+  return {
+    externalUpdated: result.externalUpdated,
+    externalBackedUp: result.externalBackedUp,
+  };
 }
 
 /**
@@ -146,10 +222,15 @@ export interface PolicySyncCtx {
   baseline: ReadonlyMap<string, string>;
 }
 
-/** 디스크 내용이 하네스가 놓아둔 것 그대로인가. 기록이 없으면 **주장할 수 없다** → false. */
+/**
+ * 디스크 내용이 하네스가 놓아둔 것 그대로인가.
+ *
+ * v26.134.0 — 판정식 자체는 `install-log.ts` 의 `isHarnessOwned` **하나뿐**이고 여기서는
+ * 키 조립(`<prefix>/<rel>`)만 한다. ADR-048 이 "술어는 한 곳에"라고 적고도 이 파일에 사본이
+ * 남아 있었다 — 소유 판정은 사용자 파일 삭제 여부를 가르므로 두 벌이 갈리면 피해가 크다.
+ */
 function isHarnessOwned(ctx: PolicySyncCtx, rel: string, current: string): boolean {
-  const recorded = ctx.baseline.get(`${ctx.prefix}/${rel}`);
-  return recorded !== undefined && recorded === hashContent(current);
+  return isOwnedByBaseline(ctx.baseline, `${ctx.prefix}/${rel}`, current);
 }
 
 /**

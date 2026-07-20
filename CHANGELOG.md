@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.134.0] — 2026-07-20 (feat: `update` 가 외부 CLI 산출물도 갱신 — R-3j-A, ADR-049)
+
+`update` 는 `.claude/` 만 갱신했다. codex/opencode/antigravity 사용자는 하네스가 개선한
+프롬프트·훅·config 를 **`update` 로는 영영 못 받았고**, 받으려면 재설치해야 했다. 4-CLI 를
+표방하면서 갱신은 1-CLI 인 비대칭이다. v26.133.0(ADR-048)이 선행조건이었다 — 소유자 판정 없이
+붙였다면 재설치 때만 밀리던 편집분이 릴리즈마다 밀렸을 것이다.
+
+**해법의 핵심은 "어느 CLI 가 설치돼 있나"를 판정하지 않은 것.** 판정하려면 install log 의
+`spec.cli`(표시용이라 마지막 설치만 반영) 나 디스크 마커 목록이 필요하고, 어느 쪽이든 CLI 목록의
+두 번째 사본이 된다. 대신 writer 에 **refresh 모드**(디스크에 이미 있는 파일만 쓴다)를 넣었다 —
+안 깐 CLI 는 대상 파일이 없어 자연히 제외되고, 안 고른 스킬도 마찬가지다. `.claude/` 쪽
+`updateDir` 이 "target 에 이미 있는 파일만"으로 지켜 온 규율(Track 혼입 방지)과 같은 규칙이다.
+
+### Changed
+- `update` 가 `AGENTS.md` · `.codex/` · `opencode.json` · `.opencode/commands/` · `.agents/` 를
+  갱신한다. 소유자 판정은 ADR-048 그대로 — 편집분은 `.backup-<stamp>`, 최신판이 자리에.
+- `runCliTransforms` 를 `installer.ts` → **`src/cli-transforms.ts`** 로 이동. install 과 update 가
+  **한 도구**를 공유한다 (각자 부르면 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046→047→048 을
+  세 번 반복하게 만든 구조다).
+- update 화면에 `external CLI artifacts` / `edited external CLI files` 행 추가.
+- `runUpdateMode` 에 `harnessRoot` **required** 추가, `OwnedWriter.write` 가 `boolean` 반환.
+
+### Fixed
+- `update-mode.ts` 에 남아 있던 `isHarnessOwned` **사본 제거**. ADR-048 이 "술어는 한 곳에"라고
+  적고도 실제로는 2벌이었다 — 소유 판정은 사용자 파일 삭제 여부를 가르므로 갈리면 피해가 크다.
+
+### Notes
+- **새 산출물은 `update` 로 안 깔린다** (파일이 없으므로). 새 훅·새 스킬은 `install` 로 받는다.
+  안 고른 것이 딸려 들어올 위험을 안 받은 개선보다 크게 봤다 — ADR-049 §적용 범위에 명시.
+- 부수 발견 (**이번 릴리즈가 만든 게 아니고 고치지도 않았다**): 같은 초에 `update` 를 두 번 돌리면
+  `.claude.backup-<stamp>` 이름이 충돌하고, `.claude/skills/<id>` 가 외부 설치기가 만든 심볼릭
+  링크일 때 `cpSync` 가 EINVAL 로 죽는다. v26.133.0 게시본에서도 동일 재현. 추적 = todo R-3m.
+
 ## [v26.133.0] — 2026-07-20 (fix: 재설치가 codex/opencode/antigravity 산출물을 덮치던 것 — ADR-048)
 
 R-3j 조사 중 드러났다. ADR-047 이 `.claude/` 에 붙인 소유자 판정이 **외부 CLI 산출물에는

@@ -29,6 +29,12 @@ export interface OwnedWriteResult {
   backedUp: string[];
   /** 생성된 백업 파일의 절대경로 — 설치 화면의 `backup` 행이 이걸 쓴다. */
   backupPaths: string[];
+  /**
+   * 실제로 디스크가 바뀐 파일 수 (신규 + 내용이 달라 덮어쓴 것). 이미 최신이라 아무것도 안 한
+   * 파일은 세지 않는다 — update 화면이 "N files updated" 로 쓰므로, 안 한 일을 셌다가는
+   * 매번 같은 숫자가 떠서 갱신이 일어난 것처럼 보인다.
+   */
+  updated: number;
 }
 
 export interface OwnedWriter {
@@ -37,15 +43,35 @@ export interface OwnedWriter {
    *
    * | 디스크 vs 기준선 | 뜻 | 처리 |
    * |---|---|---|
-   * | 파일 없음 | 신규 | 그냥 쓴다 |
+   * | 파일 없음 | 신규 | 그냥 쓴다 (refresh 모드에서는 **건너뛴다**) |
    * | 내용 동일 | 이미 최신 | 아무것도 안 한다 (백업도 쓰기도) |
    * | 기준선과 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
    * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
    * | 기록 없음 | 판정 불가 | 보수적으로 백업 |
+   *
+   * @returns 이 경로를 이번에 담당했는가. **refresh 모드에서 건너뛴 경우만 false** 다 —
+   *   호출자가 쓰기 성공을 전제로 하는 후속 동작(예: `chmod`)을 그때 건너뛰게 하려는 것이고,
+   *   반환을 무시해도 되는 호출부는 무시해도 안전하다. `void` 로 두면 건너뛴 경로에
+   *   `chmodSync` 가 걸려 ENOENT 로 터진다.
    */
-  write(absPath: string, content: string): void;
+  write(absPath: string, content: string): boolean;
   /** 이번 실행의 소유권 결과 — transform 이 그대로 report 에 실어 반환한다. */
   result(): OwnedWriteResult;
+}
+
+/**
+ * @param now 백업 파일명 stamp — 테스트가 고정값을 주입한다.
+ * @param refreshOnly 이미 있는 파일만 갱신하고 **없는 파일은 만들지 않는다** (v26.134.0 · ADR-049).
+ *
+ * `update` 가 쓰는 모드다. update 는 사용자가 고르지 않은 것을 새로 깔면 안 된다 —
+ * `.claude/` 쪽 `updateDir` 이 "target 에 이미 있는 파일만"으로 오래 지켜 온 규율(Track 혼입
+ * 방지)과 같은 것이고, 외부 CLI 에 그대로 적용하면 **"어느 CLI 가 설치돼 있나"를 판정할 필요
+ * 자체가 없어진다** — 안 깔린 CLI 는 대상 파일이 하나도 없어 자연히 아무것도 안 쓴다.
+ * 판정을 안 하니 CLI 목록·스킬 목록의 열거 사본도 생기지 않는다.
+ */
+export interface OwnedWriterOptions {
+  now?: Date;
+  refreshOnly?: boolean;
 }
 
 /**
@@ -61,11 +87,13 @@ export interface OwnedWriter {
 export function createOwnedWriter(
   projectDir: string,
   baseline: ReadonlyMap<string, string>,
-  now: Date = new Date(),
+  options: OwnedWriterOptions = {},
 ): OwnedWriter {
+  const { now = new Date(), refreshOnly = false } = options;
   const written = new Map<string, string>();
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
+  let updated = 0;
 
   return {
     write(absPath, content) {
@@ -73,8 +101,12 @@ export function createOwnedWriter(
       const digest = hashContent(content);
 
       if (!existsSync(absPath)) {
+        // refresh 모드: 없는 파일은 사용자가 안 고른 것 → 새로 깔지 않는다.
+        // 기준선에도 넣지 않는다 — 디스크에 없는 파일의 해시를 기록하면 그게 곧 거짓 기록이다.
+        if (refreshOnly) return false;
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, content);
+        updated++;
       } else {
         const current = readFileSync(absPath, "utf8");
         if (current !== content) {
@@ -83,16 +115,19 @@ export function createOwnedWriter(
             backedUp.push(rel);
           }
           writeFileSync(absPath, content);
+          updated++;
         }
       }
 
       written.set(rel, digest);
+      return true;
     },
     result() {
       return {
         files: [...written].map(([path, sha256]) => ({ path, sha256 })),
         backedUp: [...backedUp],
         backupPaths: [...backupPaths],
+        updated,
       };
     },
   };
