@@ -140,8 +140,11 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       red 라 경보가 무의미해진다. 선례 = `catalog-verify.yml`(월 1회), 새 워크플로는 08:00 UTC 로 분리.
 - [ ] R-3d **ADR 작성** — CL-v2 C3→C2 재분류. 현재 사유가 `docs/PRD/v26-58-cherry-pick-plugin-gating.md`
       인용 블록에만 있다. change-management 상 "아키텍처/의존성 결정"에 해당하므로 정식 ADR 대상.
-- [ ] R-3e `package-lock.json` 이 **26.114.0 에서 stale**(릴리즈 7건 미갱신). npm publish 는
-      `package.json` 을 쓰므로 기능 영향 없음 — 정합성 정리 항목.
+- [x] R-3e `package-lock.json` stale 동기화 (✅ 26.132.0). **착수 시 서술 정정**: 항목은
+      "26.114.0 에서 stale(7건 미갱신)"이라고 적혀 있었는데 실측은 26.131.1 이었다 — 그 사이
+      릴리즈들이 lock 을 갱신했고 마지막 1건만 밀려 있었다. 항목을 쓴 시점의 사실이 그대로
+      박제된 것. `npm install --package-lock-only` 로 동기화(버전 필드 2줄만 변경, 의존성 해석
+      변동 0). npm publish 는 `package.json` 을 쓰므로 기능 영향은 없었다.
 - [ ] R-3g **F10(제거된 것의 광고를 구조로 차단) 재점화 근거 축적.** `no-false-ship.md` 가 F10 을
       "아직 미해결"로 달아둔 채 v26.106.0 이후 방치돼 있다. 2026-07-19 에 또 나왔다 — ADR-023
       (2026-06-26)이 6-Gate 를 지웠는데 **13개월치 문서가 그걸 계속 시키고** 있었다(CONTRIBUTING
@@ -166,6 +169,12 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 - [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
       `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.
+- [ ] R-3l **`docs/specs/` 9개가 출하 후에도 `Status: Draft` 로 남아 있다** — 2026-07-20 에
+      `v26-72-install-matrix-ci.md` 의 Plan ref 를 고치다 헤더에서 발견했다(그 기능은 v26.72.0
+      으로 출하돼 태그마다 매트릭스가 돈다). 어휘는 이미 있다(`Accepted`/`Superseded` 사용 전례).
+      **9건을 일괄로 바꾸지 않았다** — 각각 실제 출하 여부를 확인해야 하고, 확인 없이 바꾸면
+      doc-governance 가 막으려는 바로 그 "거짓 상태"를 반대 방향으로 만든다. 구조 차단 후보 =
+      SPEC 의 Status 와 CHANGELOG/태그 존재를 대조하는 게이트(열거 아님 — `docs/specs/*.md` 글롭).
 
 ### F-1 설치 내역 관리 — 조회 · 항목별 제거 · 추가설치 누적 (사용자 요청 2026-07-19)
 
