@@ -3,7 +3,7 @@
 > **Status**: Draft (2026-05-31)
 > **Predecessor**: v26.71.0 (검증 Trust Tier)
 > **Trigger**: `docs/research/next-steps-2026-05-31.md` C2 (RICE 600, 1위). North Star Phase 2 — First-Run Success ≥95% 측정·회귀방지 게이트.
-> **Plan ref**: `tasks/plan.md` (수직 슬라이스 Task 1~5) · `tasks/todo.md`
+> **Plan ref**: `docs/archive/c2-install-matrix/plan.md` (수직 슬라이스 Task 1~5) · `todo.md` (완료 후 archive 격리)
 
 ---
 
