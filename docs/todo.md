@@ -141,6 +141,20 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       수기 정리). **설계 주의**: 단순 "언급 금지" 게이트는 정정 노트("~는 삭제됐다")에 걸린다 —
       광고와 부고를 구분해야 하고, 그래서 급조하지 않았다. 유력안 = 문서가 참조하는
       훅/커맨드 파일의 **실존 여부를 파일시스템에서 derive** (열거 아님).
+- [x] R-3h **`update` 에 비대화형 진입점이 없다** (✅ v26.131.0). `install`·`list`·`uninstall` 은
+      전부 플래그로 도는데 `update` 만 위저드 전용이었다 — **CI 로 깔 수는 있는데 갱신할 수는
+      없다.** 착수 계기의 정정: 처음에 이걸 "요청받은 적 없는 추정 수요"로 분류해 강등했는데,
+      사용자 지적대로 **수요 문제가 아니라 계열 비대칭**이다. 입증 책임은 빠진 쪽에 있다
+      (메모리 `feedback_surface_symmetry`). 재발 차단 = `MODE_ENTRY_POINT`
+      (`Record<InstallMode, …>` 라 mode 추가 시 분류 전에는 컴파일 실패) + 등록 명령에서 derive
+      하는 `--project-dir` 대칭 테스트.
+- [ ] R-3i **`reinstall` 도 비대화형 진입점이 없다** — R-3h 착수 중 계열 전수 확인에서 나왔다
+      (`add` 는 `install --track` 이 동작상 동일해 커버됨). `.claude/` 를 통째로 **옮기는**
+      파괴적 경로라 비대화형 노출 여부는 별도 판단이 필요해 열어둔다. 지금은
+      `MODE_ENTRY_POINT.reinstall = null` + 테스트가 그 목록을 고정해 **침묵으로 빠지지는 않는다.**
+- [ ] R-3j **`update` 가 `.codex/` · `.opencode/` 템플릿은 갱신하지 않는다** — `.claude/` 전용
+      (`src/update-mode.ts` 에 codex/opencode 참조 0건, `check-absence.sh` 로 확인). 4-CLI 를
+      표방하는데 갱신은 1-CLI 라는 비대칭. 현재는 USAGE 에 한계로 명시만 해뒀다.
 - [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
       `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.

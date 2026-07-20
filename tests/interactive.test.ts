@@ -9,6 +9,7 @@ import {
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
 import type { DetectedInstall } from "../src/state.js";
 import type { CliTargets, OptionFlags, Track } from "../src/types.js";
+import { buildUpdateSpec } from "../src/update-mode.js";
 
 function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
   return {
@@ -165,6 +166,9 @@ describe("runInteractive", () => {
     expect(result.mode).toBe("update");
     expect(result.spec?.tracks).toEqual(existingState.tracks);
     expect(prompts.selectTracks).not.toHaveBeenCalled();
+    // 위저드가 자체 spec 리터럴로 되돌아가면 비대화형 `update` 명령과 조용히 갈린다 —
+    // 두 진입점이 같은 것을 설치한다는 보장이 여기서 끊긴다.
+    expect(result.spec).toEqual(buildUpdateSpec("/tmp/proj", existingState.tracks));
   });
 
   it("existing install: action=update + user declines confirm returns cancelled", async () => {

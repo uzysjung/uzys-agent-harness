@@ -16,6 +16,7 @@ import {
 } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
+import { buildUpdateSpec } from "./update-mode.js";
 import { stepLabel, WIZARD } from "./wizard-steps.js";
 
 /**
@@ -159,28 +160,17 @@ export async function runInteractive(
     }
     if (action === "update") {
       mode = "update";
-      const summary = formatSummary({
-        tracks: state.tracks,
-        options: toOptionFlags([]),
-        cli: ["claude"],
-        projectDir,
-      });
-      const confirmed = await prompts.confirmInstall(`UPDATE policy files only:\n${summary}`);
+      // spec 은 `buildUpdateSpec` 단일 출처 — 비대화형 `update` 명령과 같은 것을 쓴다.
+      const spec = buildUpdateSpec(projectDir, state.tracks);
+      const confirmed = await prompts.confirmInstall(
+        `UPDATE policy files only:\n${formatSummary(spec)}`,
+      );
       if (!confirmed) {
         prompts.outro("Cancelled.");
         return { ok: false, reason: "cancelled" };
       }
       prompts.outro("Running update mode...");
-      return {
-        ok: true,
-        mode: "update",
-        spec: {
-          tracks: state.tracks,
-          options: toOptionFlags([]),
-          cli: ["claude"],
-          projectDir,
-        },
-      };
+      return { ok: true, mode: "update", spec };
     }
     if (action === "add") {
       mode = "add";

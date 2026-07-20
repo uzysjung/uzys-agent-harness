@@ -7,6 +7,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.131.0] — 2026-07-20 (feat: `update` 비대화형 진입점 — 명령 계열 비대칭 해소)
+
+사용자 지적으로 착수: **"CI로 하네스 설치는 지원하는데 업데이트를 지원 안 하는 것은 논리가 없다."**
+`install`·`list`·`uninstall` 은 전부 플래그로 도는데 `update` 만 위저드 전용이라, 컨테이너나 스크립트
+사용자는 깔 수는 있어도 갱신할 수 없었다.
+
+기록해 둘 것: 이 항목을 직전 턴에 "요청받은 적 없는 추정 수요"로 분류해 **강등했었다.** 프레임이
+틀렸다 — 신규 기능의 수요 문제가 아니라 이미 있는 명령 계열의 비대칭이고, 그러면 입증 책임은
+**빠진 쪽**에 있다.
+
+### Added
+
+- `agent-harness update [--project-dir <path>]` — 설치된 정책 파일(rules / agents / commands /
+  hooks / skills)을 현재 릴리스판으로 갱신. TTY 불필요, 질문 없음, `.claude/` 전체를
+  `.claude.backup-<ts>` 로 복사한 뒤 제자리 갱신. 설치가 없으면 **exit 1 + 다음 행동 안내**
+  (조용한 성공 금지).
+- `MODE_ENTRY_POINT` (`src/installer.ts`) — 각 `InstallMode` 의 비대화형 진입 명령을 고정한 표.
+  `Record<InstallMode, …>` 라 **mode 를 추가하면 분류하기 전에는 컴파일이 안 된다.** 위저드
+  전용으로 남기는 것도 허용하지만 그 순간 명시적 선언이 되고 테스트가 목록을 고정한다.
+- `test/docker/scenarios/scenario-update-noninteractive.sh` — **non-TTY 조건**에서의 검증.
+  기존 `scenario-update-skills` 는 pty 로 위저드를 구동하므로 CI 사용 가능성의 증거가 되지 못한다
+  (한 경로의 증거를 다른 경로에 전용하지 않는다).
+
+### Changed
+
+- 위저드와 `update` 명령이 `buildUpdateSpec()` 하나를 공유한다. 각자 spec 리터럴을 들고 있으면
+  한쪽만 바뀔 때 조용히 갈린다 — 이 저장소가 반복해 당한 실패 모드라 처음부터 단일 출처로 뒀다.
+- 명령 계열 대칭 테스트: 등록된 명령에서 **derive** 해 전부 `--project-dir` 를 받는지 확인
+  (명령 이름 열거 아님 — 새 명령이 생겨도 게이트를 고칠 필요가 없다).
+
+### Fixed
+
+- `docs/USAGE.md` 백업 서술 정정 — update 와 reinstall 을 한 줄로 묶어 "renamed" 라고 적어놨으나,
+  update 는 `cpSync`(**복사**, 원본 유지)이고 rename 은 reinstall 뿐이다.
+
+### Known gaps (미해결, 열어둠)
+
+- `reinstall` 에도 비대화형 진입점이 없다 (R-3i). `.claude/` 를 옮기는 파괴적 경로라 별도 판단 대상.
+- `update` 는 `.claude/` 만 갱신한다 — `.codex/` · `.opencode/` 는 대상 밖 (R-3j). USAGE 에 명시.
+
 ## [v26.130.0] — 2026-07-20 (feat: `explain-plainly` 스킬 — 설명이 안 통할 때의 진단)
 
 사용자 요청. 계기는 이 저장소의 실패다 — R-3a 를 설명하면서 **ASIS/TOBE 포맷을 썼는데도

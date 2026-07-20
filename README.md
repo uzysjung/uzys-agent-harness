@@ -45,6 +45,7 @@ What it installed is recorded, so you can review it and take it back out:
 
 ```bash
 npx -y @uzysjung/agent-harness list        # what this project got
+npx -y @uzysjung/agent-harness update      # refresh it to the current release
 npx -y @uzysjung/agent-harness uninstall   # pick what to remove
 ```
 

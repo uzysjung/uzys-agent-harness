@@ -203,11 +203,31 @@ Skills are **copied per CLI format, not symlinked** — each CLI needs its own v
 |---|---|
 | `.claude/settings.json` with your own hooks / statusLine | Backed up to `settings.json.backup-<ts>` before update |
 | Root `CLAUDE.md` (yours differs from the generated one) | Backed up to `CLAUDE.md.backup-<ts>` before the merge write |
-| `.claude/` on `--reinstall` / `update` mode | The whole directory is renamed to `.claude.backup-<ts>` first |
+| `.claude/` on `update` | The whole directory is **copied** to `.claude.backup-<ts>`; the original stays and is updated in place |
+| `.claude/` on the wizard's **Reinstall** action | The whole directory is **renamed** to `.claude.backup-<ts>`, then rebuilt from scratch |
 | `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
 | A skill under `.claude/skills/` **you edited** | Your version is copied to `<file>.backup-<ts>`, the newer one takes its place (v26.126.0+) |
 
 > Fresh project? None of this triggers — backups only protect pre-existing files.
+
+### Updating an install
+
+```bash
+npx -y @uzysjung/agent-harness update [--project-dir <path>]
+```
+
+Refreshes the policy files already in `.claude/` — rules, agents, commands, hooks, and skills — to
+the versions in the release you invoke. It does not add tracks, install assets, or ask anything, so
+it is safe to run from CI or a script. The whole `.claude/` directory is copied to
+`.claude.backup-<ts>` first. Run it with no install present and it exits `1` rather than doing
+nothing quietly.
+
+The same thing is reachable from the wizard (run with no arguments → **Update policy files**);
+both entry points build the identical spec. Adding a track is a different operation — that is
+`install --track <name>` on top of the existing install.
+
+> Scope: `update` refreshes `.claude/` only. `.codex/` and `.opencode/` templates are not synced by
+> it — re-run `install` for those.
 
 ### Updating skills (v26.126.0+)
 
