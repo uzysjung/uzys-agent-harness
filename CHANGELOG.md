@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.134.1] — 2026-07-20 (chore(security): devDependency 취약점 정리 — vitest 2 → 4)
+
+`npm audit` 이 **critical 2 · high 2 · moderate 3** 을 보고했다. 전부 `vitest`/`@vitest/coverage-v8`
+트리 하나에 있었고(esbuild 개발서버 취약점 · vite path traversal · brace-expansion DoS), 근본
+해소는 vitest major 업그레이드 하나였다.
+
+**게시본에는 영향이 없다.** 전부 devDependency 이고, 게시 계약(`package.json` `files` =
+dist · templates · scripts · README · LICENSE)에 `node_modules` 는 들어가지 않는다. 런타임
+dependency(`@clack/prompts` · `cac`)는 무변경 — 사용자가 `npm install` 로 받는 산출물은
+v26.134.0 과 **byte-identical** 이다. 이 릴리즈는 개발/CI 환경의 공급망만 정리한다.
+
+### Changed
+- `vitest` · `@vitest/coverage-v8` `^2.1.0` → `^4.1.10`. 전체 CI(980 tests) green, 커버리지
+  게이트 통과. vitest 4 의 v8 커버리지가 AST 기반 재매핑으로 더 정확해져 branches 가
+  89.74 → 88.34 로 내려갔다(게이트 88 통과, 결정론적 — 2 run 동일). **게이트는 낮추지 않았다.**
+
+### Security
+- `npm audit`: critical 2 · high 2 · moderate 3 → **critical/high/moderate 0**.
+- **잔여 low 1건**: esbuild 0.27.7 (Windows 개발서버 임의 파일 읽기, GHSA-g7r4-m6w7-qqqr).
+  vitest 4 가 요구하는 vite 7 이 이 esbuild 를 핀해 더 못 내린다. dev-only 이고 우리는
+  esbuild/vite **개발서버를 띄우지 않으므로**(빌드=tsup one-shot · 테스트=vitest) 도달 경로가
+  없다. 게시본에도 없다.
+
 ## [v26.134.0] — 2026-07-20 (feat: `update` 가 외부 CLI 산출물도 갱신 — R-3j-A, ADR-049)
 
 `update` 는 `.claude/` 만 갱신했다. codex/opencode/antigravity 사용자는 하네스가 개선한
