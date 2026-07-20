@@ -1,6 +1,6 @@
 {
   "name": "@uzysjung/agent-harness",
-  "version": "26.134.0",
+  "version": "26.134.1",
   "description": "Curate vetted AI-coding skills & plugins by your tech stack — install only what you need, across Claude Code, Codex, OpenCode & Antigravity",
   "type": "module",
   "publishConfig": {
@@ -41,10 +41,10 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
     "@types/node": "^25.6.0",
-    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.10"
   },
   "license": "MIT",
   "repository": {
