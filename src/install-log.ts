@@ -125,6 +125,16 @@ export interface InstallLog {
    * 없으므로 아무것도 지우지 않는다 (v26.131.x 이하 로그가 이 상태).
    */
   policyFiles?: ReadonlyArray<InstallLogSkillFile>;
+  /**
+   * v26.133.0 (ADR-048) — 외부 CLI 산출물 기준선. 경로는 **projectDir 상대**
+   * (`AGENTS.md` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/SKILL.md` ·
+   * `opencode.json` · `.opencode/commands/<id>.md`).
+   *
+   * `policyFiles` 와 달리 prune 판정에는 쓰지 않는다 — 외부 CLI 쪽은 삭제 경로 자체가 없다.
+   * 덮어쓰기 전 "사용자가 고쳤는가" 하나만 판정한다. codex/opencode 를 안 깔았으면 필드가
+   * 없다 (v26.132.x 이하 로그도 이 상태 — 부재는 정상이고, 그때는 보수적 백업으로 떨어진다).
+   */
+  externalFiles?: ReadonlyArray<InstallLogSkillFile>;
 }
 
 /**
@@ -304,6 +314,42 @@ function mergeAssets(
 /** install log + root CLAUDE.md 등 자산 무결성 비교용 sha256 (hex). */
 export function hashContent(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+/**
+ * 디스크 내용이 하네스가 놓아둔 것 그대로인가 (v26.133.0 · ADR-048).
+ *
+ * **기록이 없으면 소유를 주장할 수 없다 → false.** 이 기본값이 뒤집히면 사용자 파일을
+ * 하네스 것으로 오인해 백업 없이 밀거나 지운다.
+ *
+ * 판정식이 세 곳(install · update · 외부 CLI transform)에서 각자 살면 한 곳만 고쳐졌을 때
+ * 조용히 갈린다 — 소유 판정은 사용자 파일 삭제 여부를 가르므로 갈리면 피해가 크다.
+ * 그래서 술어는 여기 하나만 둔다 (`no-false-ship.md` §Drift 구조 차단).
+ */
+export function isHarnessOwned(
+  baseline: ReadonlyMap<string, string>,
+  key: string,
+  current: string,
+): boolean {
+  const recorded = baseline.get(key);
+  return recorded !== undefined && recorded === hashContent(current);
+}
+
+/**
+ * 외부 CLI 기준선 누적 (v26.133.0 · ADR-048).
+ *
+ * 이번 실행이 안 건드린 산출물(예: 지난번엔 opencode 도 깔았는데 이번엔 codex 만)은 디스크에
+ * 그대로 있으므로 **이전 기록을 유지한다** — 지우면 다음 실행이 판정 불가로 떨어져 멀쩡한
+ * 파일을 백업한다. 대신 디스크에서 사라진 항목은 뺀다. 기준선은 이력이 아니라 현재 상태다.
+ */
+export function mergeExternalFiles(
+  projectDir: string,
+  previous: ReadonlyArray<InstallLogSkillFile> | undefined,
+  current: ReadonlyArray<InstallLogSkillFile>,
+): InstallLogSkillFile[] {
+  const byPath = new Map<string, InstallLogSkillFile>();
+  for (const file of [...(previous ?? []), ...current]) byPath.set(file.path, file);
+  return [...byPath.values()].filter((f) => existsSync(join(projectDir, f.path)));
 }
 
 /**

@@ -282,6 +282,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: ["/p/.codex/hooks/a.sh", "/p/.codex/hooks/b.sh"],
         skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -300,6 +301,7 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: Array.from({ length: 6 }, (_, i) => `/p/.opencode/commands/uzys-${i}.md`),
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -374,11 +376,13 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -398,6 +402,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -419,6 +424,7 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -447,6 +453,7 @@ describe("executeSpec", () => {
       antigravity: {
         rulesFile: "/p/.agents/rules/uzys-harness.md",
         skillFiles: ["/p/.agents/skills/multi-persona-review/SKILL.md"],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -694,6 +701,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
     });
     executeSpec(
@@ -824,6 +832,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "registered" as const },
@@ -847,6 +856,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "already-present" as const },
@@ -869,6 +879,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
+        ownership: { files: [], backedUp: [], backupPaths: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "error" as const, message: "permission denied" },

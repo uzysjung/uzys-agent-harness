@@ -47,7 +47,7 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
 
   // rules (.agents/rules/uzys-harness.md) is ALWAYS written — project context, not gated.
   it("writes .agents/rules/uzys-harness.md; no selected skills → skillFiles empty", () => {
-    const report = runAntigravityTransform({ harnessRoot, projectDir });
+    const report = runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
     expect(report.rulesFile).toBe(join(projectDir, ".agents/rules/uzys-harness.md"));
     expect(existsSync(report.rulesFile as string)).toBe(true);
     expect(report.skillFiles).toHaveLength(0);
@@ -55,7 +55,7 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
   });
 
   it("rules 가 CLAUDE.md 전문 embed + project name 치환 + 슬래시 rename + h1 strip", () => {
-    runAntigravityTransform({ harnessRoot, projectDir });
+    runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
     const rules = readFileSync(join(projectDir, ".agents/rules/uzys-harness.md"), "utf8");
     // CLAUDE.md 전문 (Rule 1~2) embed
     expect(rules).toContain("rule one body");
@@ -75,7 +75,7 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
 
   it("CLAUDE.md 또는 template 부재 시 rulesFile = null (graceful — install 진행)", () => {
     rmSync(join(harnessRoot, "templates/antigravity"), { recursive: true, force: true });
-    const report = runAntigravityTransform({ harnessRoot, projectDir });
+    const report = runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
     expect(report.rulesFile).toBeNull();
     // rules 부재여도 transform 자체는 끝까지 진행 (skills 는 selected 없으니 0).
     expect(report.skillFiles).toHaveLength(0);
@@ -100,6 +100,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
       selectedInternalSkills: DEV_METHOD,
+      baseline: new Map(),
     });
     for (const id of DEV_METHOD) {
       const target = join(project, ".agents/skills", id, "SKILL.md");
@@ -117,6 +118,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
       selectedInternalSkills: ["multi-persona-review"],
+      baseline: new Map(),
     });
     const body = readFileSync(
       join(project, ".agents/skills/multi-persona-review/SKILL.md"),
@@ -130,6 +132,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     const report = runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
+      baseline: new Map(),
     });
     expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
     expect(report.skillFiles).toHaveLength(0);
@@ -140,6 +143,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
       selectedInternalSkills: ["multi-persona-review"],
+      baseline: new Map(),
     });
     expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
     expect(existsSync(join(project, ".agents/skills/asis-tobe-decision"))).toBe(false);

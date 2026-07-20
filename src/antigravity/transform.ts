@@ -17,11 +17,11 @@
  * SAFETY: `~/.gemini/` 글로벌 write 없음.
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { renderBundledSkill } from "../codex/skills.js";
-import { backupFileIfChanged, ensureDir } from "../fs-ops.js";
+import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 
 export interface AntigravityTransformParams {
@@ -34,6 +34,11 @@ export interface AntigravityTransformParams {
    * Antigravity native `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+  /**
+   * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
+   * codex/opencode 와 같은 이유로 **required**. 레거시는 빈 Map 을 명시적으로 넘긴다.
+   */
+  baseline: ReadonlyMap<string, string>;
 }
 
 export interface AntigravityTransformReport {
@@ -41,6 +46,8 @@ export interface AntigravityTransformReport {
   rulesFile: string | null;
   /** 작성된 SKILL.md 경로 list (.agents/skills/<id>/SKILL.md). */
   skillFiles: ReadonlyArray<string>;
+  /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
+  ownership: OwnedWriteResult;
 }
 
 /**
@@ -49,10 +56,11 @@ export interface AntigravityTransformReport {
 export function runAntigravityTransform(
   params: AntigravityTransformParams,
 ): AntigravityTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [] } = params;
+  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline } = params;
+  const writer = createOwnedWriter(projectDir, baseline);
 
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  const rulesFile = writeRules(harnessRoot, projectDir);
+  const rulesFile = writeRules(harnessRoot, projectDir, writer);
 
   const skillFiles: string[] = [];
 
@@ -63,14 +71,16 @@ export function runAntigravityTransform(
     if (!existsSync(src)) {
       continue;
     }
-    const skillDir = join(projectDir, ".agents", "skills", id);
-    ensureDir(skillDir);
-    const target = join(skillDir, "SKILL.md");
-    writeFileSync(target, renderBundledSkill(readFileSync(src, "utf8")));
+    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
+    writer.write(target, renderBundledSkill(readFileSync(src, "utf8")));
     skillFiles.push(target);
   }
 
-  return { rulesFile, skillFiles };
+  return {
+    rulesFile,
+    skillFiles,
+    ownership: writer.result(),
+  };
 }
 
 /**
@@ -82,7 +92,7 @@ export function runAntigravityTransform(
  *
  * template 또는 CLAUDE.md 부재 시 null (graceful — install 진행).
  */
-function writeRules(harnessRoot: string, projectDir: string): string | null {
+function writeRules(harnessRoot: string, projectDir: string, writer: OwnedWriter): string | null {
   const claudeMdPath = join(harnessRoot, "templates/CLAUDE.md");
   const templatePath = join(harnessRoot, "templates/antigravity/AGENTS.md.template");
   if (!existsSync(claudeMdPath) || !existsSync(templatePath)) {
@@ -90,9 +100,7 @@ function writeRules(harnessRoot: string, projectDir: string): string | null {
   }
   const claudeMd = readFileSync(claudeMdPath, "utf8");
   const template = readFileSync(templatePath, "utf8");
-  const rulesDir = join(projectDir, ".agents", "rules");
-  ensureDir(rulesDir);
-  const target = join(rulesDir, "uzys-harness.md");
+  const target = join(projectDir, ".agents", "rules", "uzys-harness.md");
   const rulesOut = renderAgentsMd({
     template,
     claudeMd,
@@ -100,7 +108,7 @@ function writeRules(harnessRoot: string, projectDir: string): string | null {
     projectContext: renderFillScaffold(),
   });
   // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-  backupFileIfChanged(target, rulesOut);
-  writeFileSync(target, rulesOut);
+  // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).
+  writer.write(target, rulesOut);
   return target;
 }

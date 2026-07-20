@@ -235,7 +235,8 @@ both entry points build the identical spec. Adding a track is a different operat
 
 The harness records a checksum of every file it writes, so it can tell an untouched file from one
 you changed. That check runs on `install` **and** `update`, and covers rules, agents, commands,
-hooks, and skills alike:
+hooks, and skills alike — plus everything written for Codex, OpenCode, and Antigravity
+(`AGENTS.md`, `.codex/`, `opencode.json`, `.opencode/commands/`, `.agents/`):
 
 - **You never touched it** → replaced with the newer version, silently. No backup noise just because
   the harness improved the file.
@@ -251,8 +252,9 @@ rule *you* wrote. If there is no record to prove ownership, nothing is deleted.
 Two things `update` will *not* do: install a skill you never chose, and delete a file you added
 inside a skill directory.
 
-> History: skills were not refreshed at all before v26.126.0, and rules/hooks were overwritten with
-> no backup — and user-written rules deleted — before v26.132.0.
+> History: skills were not refreshed at all before v26.126.0; rules and hooks were overwritten with
+> no backup — and user-written rules deleted — before v26.132.0; Codex/OpenCode/Antigravity output
+> was overwritten with no backup before v26.133.0.
 
 ---
 

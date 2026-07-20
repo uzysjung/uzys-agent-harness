@@ -18,7 +18,11 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
   });
 
   it("produces AGENTS.md + opencode.json (no dev-method skills → no commands)", () => {
-    const report = runOpencodeTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+    const report = runOpencodeTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      baseline: new Map(),
+    });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.opencodeJsonPath)).toBe(true);
     // Commands are only emitted from selectedInternalSkills; none here → empty.
@@ -37,7 +41,11 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
 
   it("throws when required template missing", () => {
     expect(() =>
-      runOpencodeTransform({ harnessRoot: "/no/such/root", projectDir: project }),
+      runOpencodeTransform({
+        harnessRoot: "/no/such/root",
+        projectDir: project,
+        baseline: new Map(),
+      }),
     ).toThrow(/required source missing/);
   });
 
@@ -50,6 +58,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: DEV_METHOD,
+        baseline: new Map(),
       });
       for (const id of DEV_METHOD) {
         const target = join(project, ".opencode/commands", `${id}.md`);
@@ -70,6 +79,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: ["multi-persona-review"],
+        baseline: new Map(),
       });
       const body = readFileSync(
         join(project, ".opencode/commands/multi-persona-review.md"),
@@ -80,7 +90,11 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     });
 
     it("selectedInternalSkills 빈 배열(기본) → dev-method 커맨드 미생성 (커맨드 0개)", () => {
-      const report = runOpencodeTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+      const report = runOpencodeTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        baseline: new Map(),
+      });
       expect(existsSync(join(project, ".opencode/commands/multi-persona-review.md"))).toBe(false);
       expect(report.commandFiles).toHaveLength(0);
     });

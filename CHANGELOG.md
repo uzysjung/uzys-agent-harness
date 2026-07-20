@@ -7,6 +7,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.133.0] — 2026-07-20 (fix: 재설치가 codex/opencode/antigravity 산출물을 덮치던 것 — ADR-048)
+
+R-3j 조사 중 드러났다. ADR-047 이 `.claude/` 에 붙인 소유자 판정이 **외부 CLI 산출물에는
+없었다** — ADR-046(스킬) · ADR-047(정책 파일)에 이어 같은 결정이 세 번째로 자기 앞의 자산
+종류에만 걸린 것이다.
+
+실측(transform 2회 실행 사이에 사용자 편집): `.codex/hooks/*.sh` · `.codex/config.toml` ·
+`.agents/skills/<id>/SKILL.md` · `.agents/rules/uzys-harness.md` · `opencode.json` ·
+`.opencode/commands/<id>.md` **전부 편집분 소실, 백업 0**. `AGENTS.md` 만 내용 비교로
+보호받았는데 그건 ADR-047 이 "릴리즈마다 전 사용자에게 백업이 쌓인다"로 기각한 방식이다.
+
+- **소유자 판정을 외부 CLI 산출물 전체로 확장** — 기준선은 install log `externalFiles`.
+  안 고쳤으면 조용히 덮어쓰고, 고쳤으면 `.backup-<stamp>` 남기고 최신판을 자리에.
+- **기준선은 쓰는 쪽이 만든다** — 렌더 결과라 사후에 디스크를 훑어서는 하네스 것을 알 수 없다.
+  덕분에 경로 열거 사본이 생기지 않는다.
+- **판정식 단일화** — `isHarnessOwned`(`install-log.ts`) 하나를 install · update · 외부 CLI 가
+  공유한다. 세 벌로 갈리면 사용자 파일 삭제 여부가 갈린다.
+- **기준선을 transform 사이로 전달** — codex/opencode 가 공유하는 `AGENTS.md`, codex/antigravity
+  가 공유하는 `.agents/skills/` 에서 매 설치 백업이 생기던 것을 차단.
+- **적용 범위를 ADR 에 명시** — `update` 의 외부 CLI 미갱신(R-3j A)은 **미해결로 남는다**.
+  범위를 안 적어서 같은 실수가 두 번 났으므로 이번엔 적었다.
+
+검증: 13 케이스(transform 계약 + installer 배선 분리) · Docker `scenario-external-preserve`
+실 CLI 재설치 3회 · 음성 대조 6종(전부 타입체크 통과 확인 후 측정) + Docker 별도 변이.
+
 ## [v26.132.0] — 2026-07-20 (fix: 재설치·update 가 사용자가 고친 룰·훅을 덮치던 것 — ADR-047)
 
 **사용자 보고로 드러난 결함.** "재설치하면 rules, hooks 를 그냥 덮치는 것 같다" — 맞았고,

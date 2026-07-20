@@ -43,6 +43,8 @@ import {
   hashContent,
   type InstallLog,
   type InstallLogRootFile,
+  type InstallLogSkillFile,
+  mergeExternalFiles,
   POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
@@ -50,6 +52,7 @@ import {
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
+import type { OwnedWriteResult } from "./owned-write.js";
 import { mergeProjectClaude } from "./project-claude-merge.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
@@ -319,6 +322,17 @@ export function runInstall(ctx: InstallContext): InstallReport {
     ? installCiScaffold({ harnessRoot, projectDir, tracks: spec.tracks })
     : null;
 
+  // v26.133.0 (ADR-048) — 외부 CLI transform 도 소유자 판정을 받는다. 기준선은 `.claude/` 와
+  // 별도 필드(`externalFiles`)다: 저기는 templates 복사라 사후에 디스크를 훑어 만들지만
+  // (`collectPolicyHashes`), 여기는 **렌더 결과**라 훑어서는 무엇이 하네스 것인지 알 수 없다.
+  const { externalFiles, externalBackups, ...cliTransforms } = runCliTransforms(
+    spec,
+    harnessRoot,
+    projectDir,
+    manifestSpec.selectedInternalSkills,
+    previousLog?.externalFiles ?? [],
+  );
+
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
@@ -326,14 +340,16 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backup: backupPath,
     installedTracks: [...spec.tracks].sort(),
     mcpServers: Object.keys(mcpResult.mcpServers).sort(),
-    ...runCliTransforms(spec, harnessRoot, projectDir, manifestSpec.selectedInternalSkills),
+    ...cliTransforms,
     ciScaffold,
     updateMode: null,
     mode,
     envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
     categories: base.categories,
     rootClaudeMd: base.rootClaudeMd,
-    backups: base.backups,
+    // 외부 CLI 백업도 같은 줄에 노출한다 — 백업이 화면에 안 보이면 사용자는 자기 편집분이
+    // 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다 (ADR-046/047 과 같은 이유).
+    backups: [...base.backups, ...externalBackups],
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -352,6 +368,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
   writeInstallLogSafe(
     ctx,
+    externalFiles,
     external,
     base.rootClaudeMdLog,
     previousLog,
@@ -577,6 +594,10 @@ interface CliTransformResults {
   codexOptIn: CodexOptInReport | null;
   opencode: OpencodeTransformReport | null;
   antigravity: AntigravityTransformReport | null;
+  /** v26.133.0 (ADR-048) — 세 transform 이 쓴 산출물의 기준선 (install log `externalFiles`). */
+  externalFiles: InstallLogSkillFile[];
+  /** v26.133.0 (ADR-048) — 사용자 편집분이라 만든 백업 파일 경로. 설치 화면에 노출한다. */
+  externalBackups: string[];
 }
 
 function runCliTransforms(
@@ -584,7 +605,22 @@ function runCliTransforms(
   harnessRoot: string,
   projectDir: string,
   selectedInternalSkills: ReadonlyArray<string>,
+  previousExternal: ReadonlyArray<InstallLogSkillFile>,
 ): CliTransformResults {
+  // v26.133.0 (ADR-048) — 기준선을 transform 사이로 **이어준다**. codex 와 opencode 는 같은
+  // `AGENTS.md` 를, codex 와 antigravity 는 같은 `.agents/skills/<id>/SKILL.md` 를 쓴다.
+  // 안 이어주면 뒤 단계가 앞 단계의 산출물을 '사용자 편집'으로 오판해 **설치할 때마다**
+  // 백업이 생긴다 — 백업 노이즈는 진짜 백업을 눈에 안 띄게 만들어 보호 자체를 무력화한다.
+  const baseline = new Map(previousExternal.map((f) => [f.path, f.sha256]));
+  const externalFiles: InstallLogSkillFile[] = [];
+  const externalBackups: string[] = [];
+  const absorb = (report: { ownership: OwnedWriteResult }): void => {
+    for (const f of report.ownership.files) {
+      baseline.set(f.path, f.sha256);
+      externalFiles.push(f);
+    }
+    externalBackups.push(...report.ownership.backupPaths);
+  };
   // Codex transform when spec.cli includes "codex"
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
@@ -594,7 +630,9 @@ function runCliTransforms(
       harnessRoot,
       projectDir,
       selectedInternalSkills,
+      baseline,
     });
+    absorb(codex);
     // v26.64.0 (ADR-020) — Codex global trust opt-in 은 scope=global 일 때만 의미.
     // scope=project (default) 시 ~/.codex/ write skip (config.toml trust entry 만).
     const installScope = spec.scope ?? "project";
@@ -606,7 +644,8 @@ function runCliTransforms(
   // OpenCode transform when spec.cli includes "opencode"
   let opencode: OpencodeTransformReport | null = null;
   if (spec.cli.includes("opencode")) {
-    opencode = runOpencodeTransform({ harnessRoot, projectDir, selectedInternalSkills });
+    opencode = runOpencodeTransform({ harnessRoot, projectDir, selectedInternalSkills, baseline });
+    absorb(opencode);
   }
 
   // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
@@ -617,10 +656,12 @@ function runCliTransforms(
       harnessRoot,
       projectDir,
       selectedInternalSkills,
+      baseline,
     });
+    absorb(antigravity);
   }
 
-  return { codex, codexOptIn, opencode, antigravity };
+  return { codex, codexOptIn, opencode, antigravity, externalFiles, externalBackups };
 }
 
 /**
@@ -672,6 +713,7 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
  */
 function writeInstallLogSafe(
   ctx: InstallContext,
+  externalFiles: ReadonlyArray<InstallLogSkillFile>,
   external: ExternalInstallReport | null,
   rootClaudeMdLog: { path: string; sha256: string } | null,
   previousLog: InstallLog | null,
@@ -694,10 +736,15 @@ function writeInstallLogSafe(
     // v26.132.0 (ADR-047) — 정책 파일 기준선도 같은 이유로 여기서 찍는다. 이게 없으면
     // 다음 update 가 소유를 판정하지 못해 ⓐ 멀쩡한 파일을 전부 백업하고 ⓑ 폐기 룰을 회수 못 한다.
     const policyFiles = collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));
+    // v26.133.0 (ADR-048) — 외부 CLI 기준선은 transform 이 **쓰면서 만든 값**이라 여기서 다시
+    // 훑지 않는다. 이번에 안 건드린 산출물의 기록은 유지하고(다음 실행이 판정 불가로 떨어지지
+    // 않게), 디스크에서 사라진 항목만 뺀다.
+    const merged = mergeExternalFiles(ctx.projectDir, previousLog?.externalFiles, externalFiles);
     writeInstallLog(ctx.projectDir, {
       ...log,
       ...(skillFiles.length > 0 ? { skillFiles } : {}),
       ...(policyFiles.length > 0 ? { policyFiles } : {}),
+      ...(merged.length > 0 ? { externalFiles: merged } : {}),
     });
   } catch (e) {
     ctx.onProgress?.({
