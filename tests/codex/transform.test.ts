@@ -21,6 +21,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
+      baseline: new Map(),
     });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.configTomlPath)).toBe(true);
@@ -42,15 +43,19 @@ describe("runCodexTransform (E2E against templates/)", () => {
   });
 
   it("default (no selectedInternalSkills) → skillFiles empty, no .agents/skills written", () => {
-    const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+    const report = runCodexTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      baseline: new Map(),
+    });
     expect(report.skillFiles).toEqual([]);
     expect(existsSync(join(project, ".agents/skills"))).toBe(false);
   });
 
   it("throws when required template missing", () => {
-    expect(() => runCodexTransform({ harnessRoot: "/no/such/root", projectDir: project })).toThrow(
-      /required source missing/,
-    );
+    expect(() =>
+      runCodexTransform({ harnessRoot: "/no/such/root", projectDir: project, baseline: new Map() }),
+    ).toThrow(/required source missing/);
   });
 
   // v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (native, frontmatter 보존).
@@ -62,6 +67,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: DEV_METHOD,
+        baseline: new Map(),
       });
       for (const id of DEV_METHOD) {
         const target = join(project, ".agents/skills", id, "SKILL.md");
@@ -78,6 +84,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: ["multi-persona-review"],
+        baseline: new Map(),
       });
       const body = readFileSync(
         join(project, ".agents/skills/multi-persona-review/SKILL.md"),
@@ -89,7 +96,11 @@ describe("runCodexTransform (E2E against templates/)", () => {
     });
 
     it("selectedInternalSkills 빈 배열(기본) → dev-method skill 미생성", () => {
-      const report = runCodexTransform({ harnessRoot: HARNESS_ROOT, projectDir: project });
+      const report = runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        baseline: new Map(),
+      });
       expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
       // 선택된 dev-method skill 이 없으므로 skillFiles 전체가 비어 있어야 한다.
       expect(report.skillFiles).toEqual([]);
@@ -100,6 +111,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: ["multi-persona-review"],
+        baseline: new Map(),
       });
       expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
       // 선택하지 않은 skill 은 빠지고 dev-method 1개만.

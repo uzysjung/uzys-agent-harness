@@ -17,10 +17,11 @@
  *   참조: https://developers.openai.com/codex/skills
  */
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { backupFileIfChanged, ensureDir } from "../fs-ops.js";
+import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
+import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
@@ -35,6 +36,14 @@ export interface CodexTransformParams {
    * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+  /**
+   * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
+   *
+   * **required 로 둔다.** 옵셔널이면 호출부 하나가 안 넘겨도 컴파일이 통과하고, 그 경로만
+   * 조용히 판정 불가로 떨어져 사용자에게 매 설치마다 백업이 쌓인다. 기준선이 없는 상황
+   * (레거시 설치)은 빈 Map 을 **명시적으로** 넘겨서 표현한다.
+   */
+  baseline: ReadonlyMap<string, string>;
 }
 
 export interface CodexTransformReport {
@@ -42,6 +51,8 @@ export interface CodexTransformReport {
   configTomlPath: string;
   hookFiles: string[];
   skillFiles: string[];
+  /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
+  ownership: OwnedWriteResult;
 }
 
 const HOOK_NAMES = ["session-start"];
@@ -49,7 +60,8 @@ const HOOK_NAMES = ["session-start"];
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [] } = params;
+  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline } = params;
+  const writer = createOwnedWriter(projectDir, baseline);
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
@@ -67,13 +79,13 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     projectContext: renderFillScaffold(),
   });
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-  backupFileIfChanged(agentsMdPath, agentsMdOut);
-  writeFileSync(agentsMdPath, agentsMdOut);
+  // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용
+  // 비교는 하네스가 템플릿을 고친 릴리즈마다 전 사용자에게 백업을 쌓는다 (ADR-047 기각 사유).
+  writer.write(agentsMdPath, agentsMdOut);
 
   // 2. .codex/config.toml
   const configTomlPath = join(projectDir, ".codex/config.toml");
-  ensureDir(join(projectDir, ".codex"));
-  writeFileSync(
+  writer.write(
     configTomlPath,
     renderConfigToml({
       template: configTemplate,
@@ -85,7 +97,6 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
 
   // 3. .codex/hooks/session-start.sh
   const hookDir = join(projectDir, ".codex/hooks");
-  ensureDir(hookDir);
   const hookFiles: string[] = [];
   for (const hook of HOOK_NAMES) {
     const src = join(harnessRoot, "templates/hooks", `${hook}.sh`);
@@ -94,7 +105,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     }
     const ported = readFileSync(src, "utf8").replace(ENV_VAR_RENAME, "CODEX_PROJECT_DIR");
     const target = join(hookDir, `${hook}.sh`);
-    writeFileSync(target, ported);
+    writer.write(target, ported);
     chmodSync(target, 0o755);
     hookFiles.push(target);
   }
@@ -107,14 +118,18 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     if (!existsSync(src)) {
       continue;
     }
-    const skillDir = join(projectDir, ".agents", "skills", id);
-    ensureDir(skillDir);
-    const target = join(skillDir, "SKILL.md");
-    writeFileSync(target, renderBundledSkill(readFileSync(src, "utf8")));
+    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
+    writer.write(target, renderBundledSkill(readFileSync(src, "utf8")));
     skillFiles.push(target);
   }
 
-  return { agentsMdPath, configTomlPath, hookFiles, skillFiles };
+  return {
+    agentsMdPath,
+    configTomlPath,
+    hookFiles,
+    skillFiles,
+    ownership: writer.result(),
+  };
 }
 
 function readRequired(path: string): string {

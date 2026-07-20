@@ -72,6 +72,7 @@ describe("runOpencodeTransform end-to-end agent stamping", () => {
       harnessRoot: HARNESS_ROOT,
       projectDir,
       selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
+      baseline: new Map(),
     });
     // 기대값을 구현과 **같은 구조 신호**에서 derive 한다. 이 파일 서문이 "no hardcoded id
     // list to drift" 라고 선언해 놓고도 여기서 consult 두 개를 이름으로 박아 뒀었고, 그래서

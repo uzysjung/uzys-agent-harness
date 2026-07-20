@@ -163,9 +163,18 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       (`add` 는 `install --track` 이 동작상 동일해 커버됨). `.claude/` 를 통째로 **옮기는**
       파괴적 경로라 비대화형 노출 여부는 별도 판단이 필요해 열어둔다. 지금은
       `MODE_ENTRY_POINT.reinstall = null` + 테스트가 그 목록을 고정해 **침묵으로 빠지지는 않는다.**
-- [ ] R-3j **`update` 가 `.codex/` · `.opencode/` 템플릿은 갱신하지 않는다** — `.claude/` 전용
+- [x] R-3j-B **외부 CLI 산출물에 소유자 판정이 없었다** (✅ v26.133.0, ADR-048) — R-3j 착수 중
+      조사에서 나왔고, 등재된 것(A)보다 이쪽이 급했다. ADR-047 이 `.claude/` 에 붙인 판정이
+      `.codex/`·`.opencode/`·`.agents/` 에는 없어서 **재설치할 때마다** 사용자가 고친 훅·커맨드·
+      config 가 백업 없이 사라졌다. 실측으로 6개 산출물 전부 편집분 소실·백업 0 확인.
+      `AGENTS.md` 만 내용 비교로 보호받았는데 그건 ADR-047 이 기각한 방식(릴리즈마다 백업 축적).
+      ADR-046 → 047 → 048 로 **같은 결정이 세 번 자기 앞 자산에만 걸린 것** — 그래서 ADR-048 은
+      적용 범위를 본문에 명시했다.
+- [ ] R-3j-A **`update` 가 `.codex/` · `.opencode/` 템플릿은 갱신하지 않는다** — `.claude/` 전용
       (`src/update-mode.ts` 에 codex/opencode 참조 0건, `check-absence.sh` 로 확인). 4-CLI 를
       표방하는데 갱신은 1-CLI 라는 비대칭. 현재는 USAGE 에 한계로 명시만 해뒀다.
+      **B 가 선행조건이었다** — 소유자 판정 없이 update 에 외부 CLI 를 붙이면 지금은 재설치할
+      때만 밀리던 것이 릴리즈마다 밀리게 된다. 그 전제가 v26.133.0 으로 갖춰졌다.
 - [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
       `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.
