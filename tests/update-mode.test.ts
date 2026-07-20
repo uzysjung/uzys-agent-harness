@@ -19,6 +19,17 @@ import {
   updateDir,
 } from "../src/update-mode.js";
 
+/**
+ * 디스크 내용이 "하네스가 놓아둔 그대로"인 기준선을 만든다 (ADR-047).
+ * 소유가 증명된 상태 = 백업 없이 덮어쓰고, prune 대상이 될 수 있는 상태.
+ */
+function ownedCtx(prefix: string, files: Record<string, string>) {
+  return {
+    prefix,
+    baseline: new Map(Object.entries(files).map(([n, c]) => [`${prefix}/${n}`, hashContent(c)])),
+  };
+}
+
 describe("updateDir", () => {
   let dir: string;
   beforeEach(() => {
@@ -37,15 +48,16 @@ describe("updateDir", () => {
     writeFileSync(join(dir, "source", "b.md"), "new-b");
     writeFileSync(join(dir, "source", "c.md"), "new-c"); // c.md not in target
 
-    const count = updateDir(join(dir, "target"), join(dir, "source"), ".md");
-    expect(count).toBe(2);
+    const ctx = ownedCtx("rules", { "a.md": "old-a", "b.md": "old-b" });
+    const { updated } = updateDir(join(dir, "target"), join(dir, "source"), ".md", ctx);
+    expect(updated).toBe(2);
     expect(readFileSync(join(dir, "target", "a.md"), "utf8")).toBe("new-a");
     expect(readFileSync(join(dir, "target", "b.md"), "utf8")).toBe("new-b");
     expect(existsSync(join(dir, "target", "c.md"))).toBe(false); // c.md NOT added
   });
 
   it("returns 0 when target/source missing", () => {
-    expect(updateDir("/nonexistent", "/also-nope", ".md")).toBe(0);
+    expect(updateDir("/nonexistent", "/also-nope", ".md", ownedCtx("rules", {})).updated).toBe(0);
   });
 
   it("filters by extension", () => {
@@ -53,7 +65,8 @@ describe("updateDir", () => {
     writeFileSync(join(dir, "target", "y.txt"), "");
     writeFileSync(join(dir, "source", "x.md"), "x");
     writeFileSync(join(dir, "source", "y.txt"), "y");
-    expect(updateDir(join(dir, "target"), join(dir, "source"), ".md")).toBe(1);
+    const ctx = ownedCtx("rules", { "x.md": "", "y.txt": "" });
+    expect(updateDir(join(dir, "target"), join(dir, "source"), ".md", ctx).updated).toBe(1);
   });
 });
 
@@ -68,12 +81,14 @@ describe("pruneOrphans", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("removes files in target that don't exist in source", () => {
+  it("removes harness-owned files in target that don't exist in source", () => {
     writeFileSync(join(dir, "target", "alive.md"), "");
     writeFileSync(join(dir, "target", "orphan.md"), "");
     writeFileSync(join(dir, "source", "alive.md"), "");
 
-    const removed = pruneOrphans(join(dir, "target"), join(dir, "source"), ".md");
+    // v26.132.0 (ADR-047) — 기준선이 소유를 증명해야 지운다. 이 목록에 없으면 사용자 파일이다.
+    const ctx = ownedCtx("rules", { "alive.md": "", "orphan.md": "" });
+    const removed = pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx);
     expect(removed).toEqual(["orphan.md"]);
     expect(existsSync(join(dir, "target", "alive.md"))).toBe(true);
     expect(existsSync(join(dir, "target", "orphan.md"))).toBe(false);
@@ -82,12 +97,14 @@ describe("pruneOrphans", () => {
   it("returns empty when nothing to prune", () => {
     writeFileSync(join(dir, "target", "x.md"), "");
     writeFileSync(join(dir, "source", "x.md"), "");
-    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md")).toEqual([]);
+    const ctx = ownedCtx("rules", { "x.md": "" });
+    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx)).toEqual([]);
   });
 
   it("ignores files with different extension", () => {
     writeFileSync(join(dir, "target", "stale.txt"), "");
-    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md")).toEqual([]);
+    const ctx = ownedCtx("rules", { "stale.txt": "" });
+    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx)).toEqual([]);
     expect(existsSync(join(dir, "target", "stale.txt"))).toBe(true);
   });
 });
@@ -229,14 +246,40 @@ describe("runUpdateMode (E2E with templates)", () => {
     rmSync(templatesDir, { recursive: true, force: true });
   });
 
-  it("updates files + prunes orphans + refreshes CLAUDE.md", () => {
+  it("updates files + refreshes CLAUDE.md", () => {
     const report = runUpdateMode(projectDir, templatesDir);
     expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v2\n");
-    expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(false);
     expect(readFileSync(join(projectDir, ".claude/CLAUDE.md"), "utf8")).toBe("template-CLAUDE\n");
     expect(report.updated[".claude/rules"]).toBe(1);
-    expect(report.pruned[".claude/rules"]).toEqual(["orphan-rule.md"]);
     expect(report.claudeMdUpdated).toBe(true);
+  });
+
+  /**
+   * v26.132.0 (ADR-047) 로 바뀐 계약. 그 전까지는 install log 유무와 무관하게 "templates 에
+   * 없으면 삭제"였고, 그래서 사용자가 직접 쓴 룰이 update 한 번에 사라졌다. 이제 소유를
+   * 증명할 수 있을 때만 지운다.
+   */
+  it("설치 기록이 없으면 orphan 을 지우지 않는다 (사용자 파일일 수 있다)", () => {
+    const report = runUpdateMode(projectDir, templatesDir);
+    expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(true);
+    expect(report.pruned[".claude/rules"]).toEqual([]);
+  });
+
+  it("설치 기록이 하네스 소유를 증명하면 orphan 을 지운다 (폐기 룰 회수)", () => {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      policyFiles: [{ path: "rules/orphan-rule.md", sha256: hashContent("stale\n") }],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir);
+
+    expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(false);
+    expect(report.pruned[".claude/rules"]).toEqual(["orphan-rule.md"]);
   });
 });
 

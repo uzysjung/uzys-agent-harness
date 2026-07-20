@@ -29,6 +29,7 @@ import {
 } from "./external-installer.js";
 import {
   backupDir,
+  backupFile,
   backupFileIfChanged,
   copyBackupDir,
   copyDir,
@@ -37,10 +38,12 @@ import {
 } from "./fs-ops.js";
 import {
   buildInstallLog,
+  collectPolicyHashes,
   collectSkillHashes,
   hashContent,
   type InstallLog,
   type InstallLogRootFile,
+  POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
@@ -295,8 +298,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
   // Codex/OpenCode 단독 사용자는 dead weight 회피.
+  // ADR-047 — 덮어쓰기 전 소유 판정에 쓸 기준선. `.claude/` 를 옮겨낸 뒤(reinstall)엔 대조할
+  // 대상이 없으므로 previousLog 를 그대로 쓰되, 그 경우 아래 existsSync 가 자연히 걸러낸다.
+  const policyBase = new Map((previousLog?.policyFiles ?? []).map((f) => [f.path, f.sha256]));
+
   const base = spec.cli.includes("claude")
-    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir)
+    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase)
     : emptyClaudeBaseline();
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
@@ -456,10 +463,39 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
 }
 
 /** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */
+/**
+ * 정책 파일(rules/agents/commands/hooks)을 덮어쓰기 전 사용자 편집분 보호 (v26.132.0 · ADR-047).
+ *
+ * 판정은 update 와 **같은 기준선**(install log `policyFiles`)을 쓴다 — 두 명령이 서로 다른
+ * 기준으로 "사용자가 고쳤다"를 판정하면 한쪽이 백업한 걸 다른 쪽이 조용히 밀 수 있다.
+ *
+ * @returns 백업 경로. 백업이 불필요했으면 null.
+ */
+function backupEditedPolicyFile(
+  entryTarget: string,
+  target: string,
+  source: string,
+  baseline: ReadonlyMap<string, string>,
+): string | null {
+  const prefix = ".claude/";
+  if (!entryTarget.startsWith(prefix)) return null;
+  const rel = entryTarget.slice(prefix.length);
+  if (!POLICY_DIRS.some(({ dir, ext }) => rel.startsWith(`${dir}/`) && rel.endsWith(ext))) {
+    return null;
+  }
+  if (!existsSync(target)) return null;
+  const current = readFileSync(target, "utf-8");
+  if (current === readFileSync(source, "utf-8")) return null; // 이미 최신 — 백업 불필요
+  const recorded = baseline.get(rel);
+  if (recorded !== undefined && recorded === hashContent(current)) return null; // 하네스가 놓아둔 그대로
+  return backupFile(target);
+}
+
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
   templatesDir: string,
+  policyBase: ReadonlyMap<string, string>,
 ): ClaudeBaselineResult {
   ensureProjectSkeleton(projectDir);
 
@@ -480,6 +516,14 @@ function installClaudeBaseline(
       // 사용자 편집 가능 파일은 덮어쓰기 전 백업 (audit SEC-1 — settings.json hook/statusLine 소실 방지).
       if (entry.target === ".claude/settings.json") {
         const backup = backupFileIfChanged(target, readFileSync(source, "utf-8"));
+        if (backup) {
+          result.backups.push(backup);
+        }
+      } else {
+        // v26.132.0 (ADR-047) — 룰·훅·에이전트도 같은 보호를 받는다. 그 전까지 install 이
+        // 백업한 건 settings.json 하나뿐이라, 기존 설치 위 `install` 이 사용자가 고친 룰을
+        // 흔적 없이 밀었다 (add 모드는 `.claude/` 통짜 백업도 없다 — resolveBackupPath).
+        const backup = backupEditedPolicyFile(entry.target, target, source, policyBase);
         if (backup) {
           result.backups.push(backup);
         }
@@ -647,7 +691,14 @@ function writeInstallLogSafe(
     // v26.126.0 (ADR-046) — 스킬 기준선은 **이력이 아니라 스냅샷**이라 buildInstallLog 의 누적
     // 경로를 타지 않는다. manifest copy 가 끝난 뒤 디스크를 읽어야 값이 맞다.
     const skillFiles = collectSkillHashes(ctx.projectDir);
-    writeInstallLog(ctx.projectDir, skillFiles.length > 0 ? { ...log, skillFiles } : log);
+    // v26.132.0 (ADR-047) — 정책 파일 기준선도 같은 이유로 여기서 찍는다. 이게 없으면
+    // 다음 update 가 소유를 판정하지 못해 ⓐ 멀쩡한 파일을 전부 백업하고 ⓑ 폐기 룰을 회수 못 한다.
+    const policyFiles = collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));
+    writeInstallLog(ctx.projectDir, {
+      ...log,
+      ...(skillFiles.length > 0 ? { skillFiles } : {}),
+      ...(policyFiles.length > 0 ? { policyFiles } : {}),
+    });
   } catch (e) {
     ctx.onProgress?.({
       type: "install-log-error",

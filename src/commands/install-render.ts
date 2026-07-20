@@ -450,6 +450,17 @@ function renderPhase1Rows(
         ),
       );
     }
+    // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
+    // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
+    if (baseline.updateMode.policyBackedUp.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "edited policy files",
+          `${baseline.updateMode.policyBackedUp.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
     if (baseline.updateMode.staleHookRefs.length > 0) {
       log(
         assetRow(

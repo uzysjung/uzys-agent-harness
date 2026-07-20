@@ -207,6 +207,8 @@ Skills are **copied per CLI format, not symlinked** — each CLI needs its own v
 | `.claude/` on the wizard's **Reinstall** action | The whole directory is **renamed** to `.claude.backup-<ts>`, then rebuilt from scratch |
 | `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
 | A skill under `.claude/skills/` **you edited** | Your version is copied to `<file>.backup-<ts>`, the newer one takes its place (v26.126.0+) |
+| A rule / agent / command / hook **you edited** | Same treatment — `<file>.backup-<ts>`, newer version takes its place (v26.132.0+) |
+| A rule or hook **you wrote yourself** | Left alone. `update` only removes files the harness installed (v26.132.0+) |
 
 > Fresh project? None of this triggers — backups only protect pre-existing files.
 
@@ -229,17 +231,28 @@ both entry points build the identical spec. Adding a track is a different operat
 > Scope: `update` refreshes `.claude/` only. `.codex/` and `.opencode/` templates are not synced by
 > it — re-run `install` for those.
 
-### Updating skills (v26.126.0+)
+### What happens to files you edited
 
-Before v26.126.0, `update` refreshed rules, agents, commands, and hooks — but **not** `.claude/skills/`. Skills stayed frozen at whatever version you first installed, and nothing on screen said so. That is fixed: `update` now syncs skills too, and prints how many were updated.
+The harness records a checksum of every file it writes, so it can tell an untouched file from one
+you changed. That check runs on `install` **and** `update`, and covers rules, agents, commands,
+hooks, and skills alike:
 
-Your edits are not lost. The harness records a checksum of every skill file it writes, so on the next `update` it can tell an untouched file from one you changed:
+- **You never touched it** → replaced with the newer version, silently. No backup noise just because
+  the harness improved the file.
+- **You edited it** → your version is saved as `<file>.backup-<ts>` and the newer version takes its
+  place. The summary shows the count.
+- **No checksum on record** (installed before the feature landed) → anything that differs is backed
+  up to be safe. This happens once; later runs are precise.
 
-- **You never touched it** → replaced with the newer version, silently.
-- **You edited it** → your version is saved as `<file>.backup-<ts>` and the newer version takes its place. The summary shows the count.
-- **Installed before v26.126.0** → no checksum exists yet, so anything that differs is backed up to be safe. This happens once; later updates are precise.
+Deletion is narrower than replacement. `update` removes a policy file only when the checksum record
+proves the harness installed it — that is how a retired rule gets cleaned up without touching the
+rule *you* wrote. If there is no record to prove ownership, nothing is deleted.
 
-Two things `update` will *not* do: install a skill you never chose, and delete a file you added inside a skill directory.
+Two things `update` will *not* do: install a skill you never chose, and delete a file you added
+inside a skill directory.
+
+> History: skills were not refreshed at all before v26.126.0, and rules/hooks were overwritten with
+> no backup — and user-written rules deleted — before v26.132.0.
 
 ---
 

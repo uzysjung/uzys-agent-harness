@@ -25,9 +25,11 @@ import {
 import { dirname, join } from "node:path";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
+  collectPolicyHashes,
   collectSkillHashes,
   hashContent,
   type InstallLog,
+  POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
@@ -47,6 +49,12 @@ export interface UpdateModeReport {
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
    */
   skillsBackedUp: string[];
+  /**
+   * v26.132.0 (ADR-047) — 사용자가 고쳐서 백업본을 남긴 정책 파일 (`.claude/` 상대경로).
+   * `skillsBackedUp` 과 같은 이유로 화면에 노출한다 — 안 보이면 사용자는 자기 편집분이
+   * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
+   */
+  policyBackedUp: string[];
 }
 
 /**
@@ -80,40 +88,23 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
     staleHookRefs: [],
     claudeMdUpdated: false,
     skillsBackedUp: [],
+    policyBackedUp: [],
   };
 
-  // 1) update_dir × 4 (rules/agents/commands/uzys/hooks)
-  const targets = [
-    {
-      target: join(claudeDir, "rules"),
-      source: join(templatesDir, "rules"),
-      pattern: ".md",
-      label: ".claude/rules",
-    },
-    {
-      target: join(claudeDir, "agents"),
-      source: join(templatesDir, "agents"),
-      pattern: ".md",
-      label: ".claude/agents",
-    },
-    {
-      target: join(claudeDir, "commands/uzys"),
-      source: join(templatesDir, "commands/uzys"),
-      pattern: ".md",
-      label: ".claude/commands/uzys",
-    },
-    {
-      target: join(claudeDir, "hooks"),
-      source: join(templatesDir, "hooks"),
-      pattern: ".sh",
-      label: ".claude/hooks",
-    },
-  ];
-
-  for (const t of targets) {
-    report.updated[t.label] = updateDir(t.target, t.source, t.pattern);
-    report.pruned[t.label] = pruneOrphans(t.target, t.source, t.pattern);
+  // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
+  // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
+  const policyBase = policyBaseline(projectDir);
+  for (const { dir, ext } of POLICY_DIRS) {
+    const target = join(claudeDir, dir);
+    const source = join(templatesDir, dir);
+    const label = `.claude/${dir}`;
+    const ctx = { prefix: dir, baseline: policyBase };
+    const synced = updateDir(target, source, ext, ctx);
+    report.updated[label] = synced.updated;
+    report.policyBackedUp.push(...synced.backedUp);
+    report.pruned[label] = pruneOrphans(target, source, ext, ctx);
   }
+  refreshPolicyBaseline(projectDir, templatesDir);
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
@@ -144,22 +135,67 @@ export function runUpdateMode(projectDir: string, templatesDir: string): UpdateM
 }
 
 /**
- * `target`에 이미 존재하는 파일 중 `source`에 동일 이름 있는 것만 덮어쓰기.
- * Track 혼입 방지 (새 파일 추가 X) — bash update_dir 등가.
+ * 정책 디렉터리 하나에 대한 소유 판정 컨텍스트 (v26.132.0 · ADR-047).
+ *
+ * `prefix` 는 `.claude/` 기준 디렉터리명(`rules` 등) — install log 의 `policyFiles` 키가
+ * 그 형식이라 baseline 조회에 필요하다.
  */
-export function updateDir(target: string, source: string, ext: string): number {
-  if (!existsSync(target) || !existsSync(source)) return 0;
-  let count = 0;
+export interface PolicySyncCtx {
+  prefix: string;
+  /** 설치 시점 기준선 (`.claude/` 상대경로 → sha256). 빈 Map = 판정 불가. */
+  baseline: ReadonlyMap<string, string>;
+}
+
+/** 디스크 내용이 하네스가 놓아둔 것 그대로인가. 기록이 없으면 **주장할 수 없다** → false. */
+function isHarnessOwned(ctx: PolicySyncCtx, rel: string, current: string): boolean {
+  const recorded = ctx.baseline.get(`${ctx.prefix}/${rel}`);
+  return recorded !== undefined && recorded === hashContent(current);
+}
+
+/**
+ * target 에 이미 있는 파일만 templates 기준으로 갱신한다 (Track 혼입 방지).
+ *
+ * v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 그 전까지는 `copyFileSync` 로 무조건
+ * 덮어써서, 같은 update 실행 안에서 스킬은 백업을 받고 룰·훅은 조용히 밀렸다.
+ *
+ * | 디스크 vs 기준선 | 뜻 | 처리 |
+ * |---|---|---|
+ * | 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
+ * | 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
+ * | 기록 없음 | 판정 불가 | 보수적으로 백업 (레거시 설치의 첫 update 1회) |
+ *
+ * 내용 비교로 대신할 수 없다: 하네스가 개선해서 달라진 파일도 "다르다"로 잡혀 릴리즈마다
+ * 전 사용자에게 백업본이 쌓인다 (`fs-ops.ts` backupFile 주석과 같은 이유).
+ */
+export function updateDir(
+  target: string,
+  source: string,
+  ext: string,
+  ctx: PolicySyncCtx,
+  now: Date = new Date(),
+): { updated: number; backedUp: string[] } {
+  if (!existsSync(target) || !existsSync(source)) return { updated: 0, backedUp: [] };
+  let updated = 0;
+  const backedUp: string[] = [];
+
   for (const file of readdirSync(target)) {
     if (!file.endsWith(ext)) continue;
     const targetFile = join(target, file);
     const sourceFile = join(source, file);
-    if (existsSync(sourceFile)) {
-      copyFileSync(sourceFile, targetFile);
-      count++;
+    if (!existsSync(sourceFile)) continue;
+
+    const next = readFileSync(sourceFile, "utf8");
+    const current = readFileSync(targetFile, "utf8");
+    if (current === next) continue; // 이미 최신 — 백업도 쓰기도 불필요
+
+    if (!isHarnessOwned(ctx, file, current)) {
+      backupFile(targetFile, now);
+      backedUp.push(`${ctx.prefix}/${file}`);
     }
+    writeFileSync(targetFile, next);
+    updated++;
   }
-  return count;
+  return { updated, backedUp };
 }
 
 /**
@@ -227,6 +263,32 @@ function skillBaseline(projectDir: string): ReadonlyMap<string, string> {
   return new Map((log?.skillFiles ?? []).map((f) => [f.path, f.sha256]));
 }
 
+/** 정책 파일 기준선 (v26.132.0 · ADR-047). 빈 Map = 덮어쓰기는 보수적 백업, prune 은 전면 중단. */
+function policyBaseline(projectDir: string): ReadonlyMap<string, string> {
+  const log = readInstallLog(projectDir);
+  return new Map((log?.policyFiles ?? []).map((f) => [f.path, f.sha256]));
+}
+
+/**
+ * 정책 파일 기준선을 갱신한다 — `refreshSkillBaseline` 과 같은 이유로 필수다.
+ * 이걸 빼면 다음 update 가 방금 자기가 덮어쓴 파일을 "사용자가 고쳤다"로 오판해 백업을 매번 쌓는다.
+ *
+ * 로그가 없으면 만들지 않는다 (설치 기록 날조 금지 — uninstall 이 그걸 믿는다).
+ */
+function refreshPolicyBaseline(projectDir: string, templatesDir: string): void {
+  const log = readInstallLog(projectDir);
+  if (!log) return;
+  const policyFiles = collectPolicyHashes(projectDir, templatesDir);
+  const next: InstallLog = { ...log };
+  if (policyFiles.length > 0) next.policyFiles = policyFiles;
+  else delete next.policyFiles;
+  try {
+    writeInstallLog(projectDir, next);
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다 (D16 과 같은 방침).
+  }
+}
+
 /**
  * 갱신 직후 기준선을 다시 찍는다.
  *
@@ -251,9 +313,25 @@ function refreshSkillBaseline(projectDir: string): void {
 }
 
 /**
- * Templates에 없는데 target에 있는 파일 제거 (orphan prune) — bash prune_orphans 등가.
+ * Templates 에 없는데 target 에 있는 파일 제거 — **하네스가 깔았던 것만** (v26.132.0 · ADR-047).
+ *
+ * 그 전까지는 "templates 에 없다"만으로 지웠다. 그러면 사용자가 직접 만든 커스텀 룰·훅이
+ * 백업도 없이 사라진다 — templates 에 없는 건 폐기된 하네스 룰도, 사용자가 쓴 팀 규칙도
+ * 똑같이 "없음"이기 때문이다. 소유는 install log 기준선으로만 주장할 수 있다.
+ *
+ * 기록이 없으면(레거시 로그·로그 부재) **아무것도 지우지 않는다.** 폐기 룰이 남는 비용보다
+ * 사용자 파일을 지우는 비용이 크다. 그쪽은 다음 install 이 기준선을 채우면 자연히 회수된다.
+ *
+ * 지우기 전 사용자가 고친 흔적이 있으면 백업을 남긴다 — 하네스가 깔았더라도 그 위에 쓴 내용은
+ * 사용자 것이다.
  */
-export function pruneOrphans(target: string, source: string, ext: string): string[] {
+export function pruneOrphans(
+  target: string,
+  source: string,
+  ext: string,
+  ctx: PolicySyncCtx,
+  now: Date = new Date(),
+): string[] {
   if (!existsSync(target) || !existsSync(source)) return [];
   const removed: string[] = [];
   for (const file of readdirSync(target)) {
@@ -261,7 +339,11 @@ export function pruneOrphans(target: string, source: string, ext: string): strin
     const sourceFile = join(source, file);
     if (!existsSync(sourceFile)) {
       const targetFile = join(target, file);
+      // 소유를 주장할 수 있는 것만 지운다. 기준선에 없으면 사용자가 만든 파일이다.
+      if (!ctx.baseline.has(`${ctx.prefix}/${file}`)) continue;
       try {
+        const current = readFileSync(targetFile, "utf8");
+        if (!isHarnessOwned(ctx, file, current)) backupFile(targetFile, now);
         unlinkSync(targetFile);
         removed.push(file);
       } catch {

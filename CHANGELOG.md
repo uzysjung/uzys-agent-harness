@@ -7,6 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.132.0] — 2026-07-20 (fix: 재설치·update 가 사용자가 고친 룰·훅을 덮치던 것 — ADR-047)
+
+**사용자 보고로 드러난 결함.** "재설치하면 rules, hooks 를 그냥 덮치는 것 같다" — 맞았고,
+조사해 보니 보고보다 넓었다.
+
+| 경로 | 이전 동작 |
+|------|-----------|
+| `install` (fresh/add) | 룰·훅·에이전트를 **백업 없이** 덮어씀. 보호받은 건 `settings.json` 하나 |
+| `install` (add) | `.claude/` 통짜 백업도 없음 (`resolveBackupPath` 가 update/reinstall 에만 적용) |
+| `update` | 룰·훅·에이전트·커맨드를 `copyFileSync` 로 **무조건** 덮어씀 |
+| `update` (prune) | templates 에 없는 파일을 **백업 없이 삭제** — 사용자가 직접 만든 커스텀 룰 포함 |
+| `update` (skills) | ADR-046 소유자 판정 적용 ✅ — **여기만** 보호받고 있었다 |
+
+근본 원인은 ADR-046 의 결정("사용자가 쓴 것은 잃지 않는다")이 자산 종류와 무관한데 구현은
+그때 눈앞에 있던 `.claude/skills/` 에만 적용된 것이다. `feedback_surface_symmetry` 와 같은 계열
+— 한 축이 일부에만 있으면 **빠진 쪽이 입증 책임을 진다.**
+
+### Changed
+- 소유자 판정을 정책 파일 전체(rules · agents · commands/uzys · hooks)로 확장. 기준선은 install
+  log 의 신규 `policyFiles`(경로 → 설치 시점 sha256). `install` 과 `update` 가 **같은 기준선**을 쓴다.
+- 안 고쳤으면 조용히 덮어쓰고, 고쳤으면 `.backup-<stamp>` 남기고 최신판을 자리에 (ADR-046 승계).
+  내용 비교가 아니라 기준선 대조라, 하네스가 개선한 파일에 백업 노이즈가 쌓이지 않는다.
+- **orphan prune 은 소유가 증명될 때만 삭제한다.** 기준선에 없는 파일 = 사용자가 만든 것 → 유지.
+  기록이 없는 레거시 설치에서는 prune 이 1 사이클 쉬어간다 (사용자 파일 삭제 위험 0 과의 교환).
+- 정책 디렉터리 목록을 `POLICY_DIRS` 하나로 단일화 — 동기화 대상과 기준선 범위가 갈리면 기준선
+  없는 디렉터리가 생기고 그 안이 전부 "판정 불가"로 떨어진다.
+- update 요약에 `edited policy files` 행 추가 — 백업했는데 안 보이면 없는 것과 같다.
+
+### Verification
+- `tests/policy-file-ownership.test.ts` 16 케이스 — install 경로와 update 경로를 **따로** 검증.
+- `test/docker/scenarios/scenario-policy-preserve.sh` — 실 CLI 로 보고 증상 재현·검증 (신규).
+- 음성 대조 5종, 전부 타입체크 통과 확인 후 측정. Docker 시나리오는 변이 시 exit 1 로 증상 재현.
+
 ## [v26.131.1] — 2026-07-20 (fix: 배포 위생 게이트가 CI 를 4릴리즈 red 로 만들고 있었다)
 
 **정정 보고.** `ship-checklist.md` 는 태그 push 후 릴리즈 CI green 확인을 의무로 두는데,

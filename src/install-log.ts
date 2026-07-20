@@ -63,6 +63,21 @@ export interface InstallLogSkillFile {
   sha256: string;
 }
 
+/**
+ * v26.132.0 (ADR-047) — update 가 동기화하는 정책 디렉터리. **이 목록이 SSOT 다.**
+ *
+ * `runUpdateMode` 의 동기화 대상과 `collectPolicyHashes` 의 기준선 범위가 같은 목록에서
+ * 나와야 한다. 두 곳에 따로 적으면 한쪽에만 디렉터리가 추가됐을 때 조용히 갈리고, 그러면
+ * **기준선 없는 디렉터리가 생겨 그 안의 파일이 전부 "판정 불가"로 떨어진다** — 이 repo 가
+ * 반복해서 당한 "열거 사본" 실패 모드다 (`no-false-ship.md` "게이트는 열거하지 말고 훑어라").
+ */
+export const POLICY_DIRS = [
+  { dir: "rules", ext: ".md" },
+  { dir: "agents", ext: ".md" },
+  { dir: "commands/uzys", ext: ".md" },
+  { dir: "hooks", ext: ".sh" },
+] as const;
+
 export interface InstallLog {
   /** schema version — backward compat 검출용 */
   schemaVersion: number;
@@ -101,6 +116,15 @@ export interface InstallLog {
    * (v26.125.0 이하 로그도 이 상태 — 읽는 쪽은 부재를 정상으로 다뤄야 한다).
    */
   skillFiles?: ReadonlyArray<InstallLogSkillFile>;
+  /**
+   * v26.132.0 (ADR-047) — 정책 파일(rules/agents/commands/hooks) 기준선 해시.
+   * 경로는 `.claude/` 상대 (예: `rules/git-policy.md`).
+   *
+   * 두 가지를 판정한다: ⓐ 덮어쓰기 전 "사용자가 고쳤는가" ⓑ prune 시 "하네스가 깔았던 것인가".
+   * ⓑ 때문에 **부재를 "전부 하네스 것"으로 읽으면 안 된다** — 기록이 없으면 소유를 주장할 수
+   * 없으므로 아무것도 지우지 않는다 (v26.131.x 이하 로그가 이 상태).
+   */
+  policyFiles?: ReadonlyArray<InstallLogSkillFile>;
 }
 
 /**
@@ -298,6 +322,34 @@ export function collectSkillHashes(projectDir: string): InstallLogSkillFile[] {
     path: rel,
     sha256: hashContent(readFileSync(join(skillsDir, rel), "utf8")),
   }));
+}
+
+/**
+ * 정책 파일 기준선 스냅샷 (v26.132.0 · ADR-047). `collectSkillHashes` 와 같은 규율:
+ * **복사가 끝난 뒤** 호출해야 이 값이 "하네스가 놓아둔 내용"의 기준선이 된다.
+ *
+ * 소유 판정은 **templates 에 그 파일이 있는가**로 한다. 디스크에만 있는 파일은 사용자가
+ * 만든 것이므로 기준선에 넣지 않는다 — 넣으면 다음 update 의 prune 이 그걸 "하네스가 깔았던
+ * 것"으로 읽고 지운다. 즉 이 필터가 사용자 파일 삭제를 막는 마지막 문이다.
+ */
+export function collectPolicyHashes(
+  projectDir: string,
+  templatesDir: string,
+): InstallLogSkillFile[] {
+  const out: InstallLogSkillFile[] = [];
+  for (const { dir, ext } of POLICY_DIRS) {
+    const targetDir = join(projectDir, ".claude", dir);
+    const sourceDir = join(templatesDir, dir);
+    for (const rel of listFilesRecursive(targetDir)) {
+      if (!rel.endsWith(ext)) continue;
+      if (!existsSync(join(sourceDir, rel))) continue; // 사용자가 만든 파일 — 소유 주장 안 함
+      out.push({
+        path: `${dir}/${rel}`,
+        sha256: hashContent(readFileSync(join(targetDir, rel), "utf8")),
+      });
+    }
+  }
+  return out;
 }
 
 /**

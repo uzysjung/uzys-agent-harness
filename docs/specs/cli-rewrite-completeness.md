@@ -162,3 +162,15 @@ NORTH_STAR §5 4-gate (Vocabulary / Persona / Capability / Promise=Implementatio
 ## Changelog
 
 - 2026-04-25: 초안 작성. 근거 — Reviewer 전수 조사 보고서 + 사용자 실측 누락 발견 + NORTH_STAR.md vibe coding 정의 갱신.
+- 2026-07-20 (v26.132.0, ADR-047): **F5·F6 동작 수정** — 사용자 보고("재설치가 rules·hooks 를 덮친다")로
+  드러난 결함 반영.
+  - **F5**: "backup 자동 생성 (reinstall + update)" 는 `.claude/` **통짜** 백업만 가리켰고,
+    `add` 모드(기존 설치 위 `install`)에는 그것조차 없었다. 이제 정책 파일
+    (rules/agents/commands/hooks)은 **모드와 무관하게** 파일 단위 소유자 판정을 받는다 —
+    사용자가 고쳤으면 `.backup-<stamp>`, 안 고쳤으면 조용히 덮어쓴다. 판정 기준선은
+    install log 의 `policyFiles`(설치 시점 sha256).
+  - **F6**: "orphan prune" 이 무조건 삭제였다 → **소유가 증명될 때만** 삭제한다. 기준선에 없는
+    파일은 사용자가 만든 것이므로 유지한다. 기록이 없는 레거시 설치에서는 prune 이 1 사이클
+    쉬어간다 (사용자 파일 삭제 위험 0 과의 트레이드오프).
+  - 근본 원인: ADR-046 의 결정이 자산 종류와 무관한데 구현은 `.claude/skills/` 에만 적용됐다.
+    상세·대안·검증은 `docs/decisions/ADR-047-policy-file-ownership.md`.
