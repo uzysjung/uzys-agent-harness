@@ -69,6 +69,28 @@ export const KARPATHY_HOOK_COMMAND = `bash "$CLAUDE_PROJECT_DIR/${KARPATHY_HOOK_
  */
 export type InstallMode = "fresh" | "add" | "update" | "reinstall";
 
+/**
+ * 각 mode 를 **비대화형으로 도달하는 CLI 명령** (없으면 null = 위저드 전용).
+ *
+ * 왜 코드로 두나: `install` 은 플래그로 되는데 `update` 는 위저드로만 되던 상태가 오래
+ * 방치됐다. "CI 로 깔 수는 있는데 갱신할 수는 없다"는 수요 문제가 아니라 계열 비대칭이고,
+ * 사람이 매번 계열 전체를 기억해서 대조해야 하면 그 규약은 이미 실패한 것이다.
+ *
+ * `Record<InstallMode, ...>` 라서 **mode 를 추가하면 여기 분류하기 전에는 컴파일이 안 된다.**
+ * null 을 고르는 건 허용하지만 그 순간 "위저드 전용"이 명시적 선언이 되고, 아래 테스트가
+ * 그 목록을 화면에 내보낸다 — 침묵으로 빠지는 경로가 없다.
+ */
+export const MODE_ENTRY_POINT: Record<InstallMode, string | null> = {
+  fresh: "install",
+  // 기존 설치 위에 `install --track <new>` = add. mode 는 헤더 라벨만 다르고 동작은 fresh 와 같다
+  // (backup 없음 · manifest copy 동일) — 별도 명령이 필요 없다.
+  add: "install",
+  update: "update",
+  // 미제공 — `.claude/` 를 통째로 backup 으로 **옮기는** 파괴적 경로다. 비대화형 진입점을
+  // 붙일지는 별도 판단 사항이라 열어둔다 (열어둔 것 자체가 이 표에 보인다).
+  reinstall: null,
+};
+
 export interface InstallContext {
   /** Path to the harness repo (where `templates/` lives). */
   harnessRoot: string;

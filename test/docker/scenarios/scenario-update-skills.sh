@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # v26.126.0 (R-3a · ADR-046) — scenario-update-skills: update 가 `.claude/skills` 를 갱신하는가.
 #
-# 왜 pty 를 쓰나: update 는 **위저드로만 도달한다** (`install` 커맨드는 mode 를 넘기지 않는다).
-# 위저드는 TTY 없으면 거부하므로 `script` 로 pty 를 붙이고 키 입력 2개를 흘려 넣는다:
+# 왜 pty 를 쓰나: 이 시나리오가 검증하는 것은 **위저드 경로**의 update 다. 위저드는 TTY 없이는
+# 거부하므로 `script` 로 pty 를 붙이고 키 입력 2개를 흘려 넣는다.
+# (v26.131.0 부터 비대화형 `agent-harness update` 도 있다 — 그쪽은 scenario-update-noninteractive
+#  가 non-TTY 조건에서 따로 검증한다. 두 경로는 서로의 증거가 되지 않는다.)
 #   ① 라우터에서 "update" 선택 (2번째 항목 → ↓ + Enter)  ② 확인 프롬프트 Enter
 #
 # 검증:

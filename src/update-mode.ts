@@ -31,6 +31,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "./types.js";
 
 export interface UpdateModeReport {
   /** 덮어쓰기된 파일 갯수 (디렉토리별). */
@@ -46,6 +47,23 @@ export interface UpdateModeReport {
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
    */
   skillsBackedUp: string[];
+}
+
+/**
+ * Update 진입점이 쓰는 InstallSpec — **위저드와 `update` 명령이 공유한다.**
+ *
+ * update 는 `.claude/` 만 건드리므로 spec 에서 실제로 소비되는 건 `projectDir` 와
+ * (보고용) `tracks` 뿐이다. `cli`/`options` 는 타입을 채우기 위한 값이라 어느 진입점이든
+ * 같아야 하고, 두 곳에서 각자 리터럴로 쓰면 한쪽만 바뀌었을 때 조용히 갈린다 — 이 repo 가
+ * 반복해서 당한 실패 모드라 처음부터 한 곳에 둔다.
+ */
+export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>): InstallSpec {
+  return {
+    tracks: [...tracks],
+    options: DEFAULT_OPTIONS,
+    cli: ["claude"],
+    projectDir,
+  };
 }
 
 /**

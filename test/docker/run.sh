@@ -33,7 +33,7 @@ case "${1:-smoke}" in
   smoke)
     run_scenario smoke
     ;;
-  project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills)
+  project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills|update-noninteractive)
     run_scenario "$1"
     ;;
   all)
@@ -45,9 +45,10 @@ case "${1:-smoke}" in
     run_scenario pinned-versions
     run_scenario dev-method-skills
     run_scenario update-skills
+    run_scenario update-noninteractive
     ;;
   *)
-    echo "usage: $0 [smoke|project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills|all]" >&2
+    echo "usage: $0 [smoke|project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills|update-noninteractive|all]" >&2
     exit 1
     ;;
 esac

@@ -3,6 +3,7 @@ import packageJson from "../package.json";
 import { type ExecuteSpecDeps, executeSpec, registerInstallCommand } from "./commands/install.js";
 import { registerListCommand } from "./commands/list.js";
 import { registerUninstallCommand } from "./commands/uninstall.js";
+import { registerUpdateCommand } from "./commands/update.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
 // v26.72.1 — CalVer 정합 (cli --version / package.json / git tag 단일 버전).
@@ -67,6 +68,7 @@ export function buildCli(): Cli {
   cli.version(VERSION);
 
   registerInstallCommand(cli);
+  registerUpdateCommand(cli);
   registerListCommand(cli);
   registerUninstallCommand(cli);
 
