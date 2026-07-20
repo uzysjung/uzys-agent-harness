@@ -1,5 +1,14 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { listFilesRecursive } from "../src/fs-ops.js";
@@ -158,15 +167,70 @@ describe("배포되는 templates 의 위생", () => {
   });
 });
 
-/** 워크스페이스 형제 = 사용자의 다른 프로젝트들. 못 읽으면 null (CI) — 조용히 통과시키지 않고 알린다. */
-function workspaceSiblings(): string[] | null {
+/**
+ * 위 두 검사는 **로컬에서만** 돈다. 그 "로컬에서만"을 결정하는 것이 `workspaceSiblings` 인데,
+ * 이 함수 자체는 테스트된 적이 없어서 CI 를 네 릴리스 동안 red 로 만들었다 — 검사가 로컬
+ * 한정이라 그 판정 로직도 검증 안 해도 된다고 여긴 것이 착각이었다.
+ *
+ * 그래서 여기서는 **CI 레이아웃을 로컬에 재현**해 판정 자체를 검증한다.
+ */
+describe("workspaceSiblings — 어떤 환경을 '형제 없음'으로 볼 것인가", () => {
+  it("체크아웃 하나뿐인 부모 디렉터리(=CI)면 null — 자기 자신은 형제가 아니다", () => {
+    const root = mkdtempSync(join(tmpdir(), "ws-ci-"));
+    try {
+      // CI: /home/runner/work/<repo>/<repo> — 부모에 체크아웃 디렉터리 하나뿐이다.
+      mkdirSync(join(root, "uzys-agent-harness"));
+      expect(workspaceSiblings(root, "uzys-agent-harness")).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("자기 이름이 달라도 자기 제외가 된다 — 리터럴이면 여기서 깨진다", () => {
+    const root = mkdtempSync(join(tmpdir(), "ws-name-"));
+    try {
+      mkdirSync(join(root, "uzysClaudeUniversalEnv")); // 로컬 이름
+      mkdirSync(join(root, "uzys-agent-harness")); // CI 이름
+      // 어느 쪽이 자기이든 나머지 하나만 형제로 남아야 한다.
+      expect(workspaceSiblings(root, "uzysClaudeUniversalEnv")).toEqual(["uzys-agent-harness"]);
+      expect(workspaceSiblings(root, "uzys-agent-harness")).toEqual(["uzysClaudeUniversalEnv"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("실제 형제가 있으면 목록을 준다 — null 로 도망가지 않는다", () => {
+    const root = mkdtempSync(join(tmpdir(), "ws-sib-"));
+    try {
+      mkdirSync(join(root, "self-repo-dir"));
+      mkdirSync(join(root, "SomeOtherProject"));
+      expect(workspaceSiblings(root, "self-repo-dir")).toEqual(["SomeOtherProject"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * 워크스페이스 형제 = 사용자의 다른 프로젝트들. 못 읽거나 0개면 null (CI) — 조용히 통과시키지
+ * 않고 알린다.
+ *
+ * **자기 제외는 derive 한다.** v26.128.0~131.0 네 릴리스 동안 CI 가 red 였던 원인이 여기다:
+ * 자기 이름을 `"uzysClaudeUniversalEnv"` 리터럴로 박아뒀는데, CI 체크아웃 디렉터리는 리포명
+ * (`uzys-agent-harness`)이라 **자기 자신이 형제로 잡혔다.** 그러면 `harness`·`agent` 같은
+ * 자기 단어가 유출 패턴이 되어 전 파일이 매치된다. 열거 대신 derive 하라는 이 게이트의 원칙을
+ * 게이트 자신이 어긴 것이다.
+ */
+function workspaceSiblings(
+  workspace: string = resolve(__dirname, "../.."),
+  selfName: string = basename(resolve(__dirname, "..")),
+): string[] | null {
   try {
-    const workspace = resolve(__dirname, "../..");
     const names = readdirSync(workspace, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
       // 영어 단어에 부분일치하는 짧은 이름(`temp` ⊂ `template`)은 오탐만 낳는다 → 6자 이상.
-      .filter((n) => !n.startsWith(".") && n !== "uzysClaudeUniversalEnv" && n.length >= 6)
+      .filter((n) => !n.startsWith(".") && n !== selfName && n.length >= 6)
       // git worktree 는 **별도 프로젝트가 아니라 브랜치**다. 디렉터리명에 브랜치명이 섞여
       // (`ea-wt-evidence`) 흔한 영어 단어를 후보로 만들어 오탐만 낳는다. 본체는 부모
       // 디렉터리 이름으로 이미 커버된다. 판별: worktree 의 `.git` 은 디렉터리가 아니라 파일.
