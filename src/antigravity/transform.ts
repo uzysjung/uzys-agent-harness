@@ -39,6 +39,11 @@ export interface AntigravityTransformParams {
    * codex/opencode 와 같은 이유로 **required**. 레거시는 빈 Map 을 명시적으로 넘긴다.
    */
   baseline: ReadonlyMap<string, string>;
+  /**
+   * v26.134.0 (ADR-049) — `update` 경로. 이미 있는 산출물만 갱신하고 없는 것은 만들지 않는다.
+   * antigravity 를 안 깐 프로젝트에서 돌려도 `.agents/rules/` 가 생기지 않는다.
+   */
+  refreshOnly?: boolean;
 }
 
 export interface AntigravityTransformReport {
@@ -56,8 +61,8 @@ export interface AntigravityTransformReport {
 export function runAntigravityTransform(
   params: AntigravityTransformParams,
 ): AntigravityTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline } = params;
-  const writer = createOwnedWriter(projectDir, baseline);
+  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
   const rulesFile = writeRules(harnessRoot, projectDir, writer);
@@ -72,7 +77,8 @@ export function runAntigravityTransform(
       continue;
     }
     const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
-    writer.write(target, renderBundledSkill(readFileSync(src, "utf8")));
+    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
+    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
     skillFiles.push(target);
   }
 
@@ -109,6 +115,6 @@ function writeRules(harnessRoot: string, projectDir: string, writer: OwnedWriter
   });
   // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).
-  writer.write(target, rulesOut);
-  return target;
+  // refresh 모드가 건너뛰면 null — 안 만든 파일을 만들었다고 보고하지 않는다.
+  return writer.write(target, rulesOut) ? target : null;
 }

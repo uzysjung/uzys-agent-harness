@@ -40,6 +40,11 @@ export interface OpencodeTransformParams {
    * 그 경로만 매 설치마다 백업이 쌓인다. 레거시는 빈 Map 을 명시적으로 넘긴다.
    */
   baseline: ReadonlyMap<string, string>;
+  /**
+   * v26.134.0 (ADR-049) — `update` 경로. 이미 있는 산출물만 갱신하고 없는 것은 만들지 않는다.
+   * opencode 를 안 깐 프로젝트에서 돌려도 `opencode.json`/`.opencode/` 가 생기지 않는다.
+   */
+  refreshOnly?: boolean;
 }
 
 export interface OpencodeTransformReport {
@@ -51,8 +56,8 @@ export interface OpencodeTransformReport {
 }
 
 export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline } = params;
-  const writer = createOwnedWriter(projectDir, baseline);
+  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/opencode/AGENTS.md.template"));
@@ -83,7 +88,11 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 3. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
   //   OpenCode 는 native skill 개념이 없어 skill 을 커맨드로 surface.
   const cmdDir = join(projectDir, ".opencode/commands");
-  ensureDir(cmdDir);
+  // refresh 는 없던 디렉터리를 만들지 않는다 — 만들면 opencode 를 안 쓰는 프로젝트에
+  // 빈 `.opencode/commands/` 가 남아 "설치됨"처럼 보인다. 신규 설치 경로에서는 writer 가
+  // 파일별로 mkdir 하므로 이 줄이 없어도 되지만, 선택 스킬이 0개인 설치의 기존 동작
+  // (빈 디렉터리 생성)을 바꾸지 않으려고 남겨 둔다.
+  if (!refreshOnly) ensureDir(cmdDir);
   const commandFiles: string[] = [];
   for (const id of selectedInternalSkills) {
     const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
@@ -94,7 +103,12 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     // scripts/ sidecar = the skill shells out to an external CLI → needs a
     // bash-capable agent; plan (bash denied) made such commands a no-op.
     const shellDependent = existsSync(join(harnessRoot, "templates/skills", id, "scripts"));
-    writer.write(target, renderCommandFromSkill(readFileSync(src, "utf8"), id, { shellDependent }));
+    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
+    const wrote = writer.write(
+      target,
+      renderCommandFromSkill(readFileSync(src, "utf8"), id, { shellDependent }),
+    );
+    if (!wrote) continue;
     commandFiles.push(target);
   }
 

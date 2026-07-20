@@ -20,6 +20,14 @@ import {
 } from "../src/update-mode.js";
 
 /**
+ * 실 repo root — `runUpdateMode` 가 외부 CLI transform 의 렌더 소스로 쓴다 (v26.134.0).
+ * 이 테스트들의 `templatesDir` 은 합성 temp dir 이지만 harnessRoot 는 실물이어야 한다
+ * (transform 이 `templates/codex/AGENTS.md.template` 등을 required 로 읽는다).
+ * 대상 projectDir 에 외부 CLI 산출물이 없으므로 refresh 모드는 아무것도 쓰지 않는다.
+ */
+const HARNESS_ROOT = join(__dirname, "..");
+
+/**
  * 디스크 내용이 "하네스가 놓아둔 그대로"인 기준선을 만든다 (ADR-047).
  * 소유가 증명된 상태 = 백업 없이 덮어쓰고, prune 대상이 될 수 있는 상태.
  */
@@ -247,7 +255,7 @@ describe("runUpdateMode (E2E with templates)", () => {
   });
 
   it("updates files + refreshes CLAUDE.md", () => {
-    const report = runUpdateMode(projectDir, templatesDir);
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v2\n");
     expect(readFileSync(join(projectDir, ".claude/CLAUDE.md"), "utf8")).toBe("template-CLAUDE\n");
     expect(report.updated[".claude/rules"]).toBe(1);
@@ -260,7 +268,7 @@ describe("runUpdateMode (E2E with templates)", () => {
    * 증명할 수 있을 때만 지운다.
    */
   it("설치 기록이 없으면 orphan 을 지우지 않는다 (사용자 파일일 수 있다)", () => {
-    const report = runUpdateMode(projectDir, templatesDir);
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(true);
     expect(report.pruned[".claude/rules"]).toEqual([]);
   });
@@ -276,7 +284,7 @@ describe("runUpdateMode (E2E with templates)", () => {
       policyFiles: [{ path: "rules/orphan-rule.md", sha256: hashContent("stale\n") }],
     });
 
-    const report = runUpdateMode(projectDir, templatesDir);
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(false);
     expect(report.pruned[".claude/rules"]).toEqual(["orphan-rule.md"]);
@@ -443,12 +451,12 @@ describe("스킬 기준선 갱신 (R-3a)", () => {
     writeLog();
 
     writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "v2\n");
-    const first = runUpdateMode(projectDir, templatesDir);
+    const first = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(first.skillsBackedUp).toEqual([]);
 
     // 두 번째 릴리즈. 기준선이 v2 로 갱신됐어야 "사용자가 안 고쳤다"로 올바르게 판정된다.
     writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "v3\n");
-    const second = runUpdateMode(projectDir, templatesDir);
+    const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(second.skillsBackedUp).toEqual([]);
     expect(backupCount()).toBe(0);
@@ -461,12 +469,12 @@ describe("스킬 기준선 갱신 (R-3a)", () => {
   it("사용자가 중간에 고치면 그때는 백업한다 — 갱신이 판정을 무디게 만들면 안 된다", () => {
     writeLog();
     writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "v2\n");
-    runUpdateMode(projectDir, templatesDir);
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     // 사용자가 v2 를 자기 것으로 고친다
     writeFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "my-edit\n");
     writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "v3\n");
-    const report = runUpdateMode(projectDir, templatesDir);
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(report.skillsBackedUp).toEqual(["demo/SKILL.md"]);
     expect(backupCount()).toBe(1);
@@ -475,7 +483,7 @@ describe("스킬 기준선 갱신 (R-3a)", () => {
   it("install log 가 없으면 만들지 않는다 — update 가 설치 기록을 날조하면 uninstall 이 그걸 믿는다", () => {
     writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "v2\n");
 
-    runUpdateMode(projectDir, templatesDir);
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(readInstallLog(projectDir)).toBeNull();
   });

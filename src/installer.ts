@@ -7,13 +7,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import {
-  type AntigravityTransformReport,
-  runAntigravityTransform,
-} from "./antigravity/transform.js";
+import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
-import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
-import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
+import { runCliTransforms } from "./cli-transforms.js";
+import type { CodexOptInReport } from "./codex/opt-in.js";
+import type { CodexTransformReport } from "./codex/transform.js";
 import {
   addGitignoreEnv,
   addGitignoreNpxSkillsAgents,
@@ -51,8 +49,7 @@ import {
 } from "./install-log.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
-import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
-import type { OwnedWriteResult } from "./owned-write.js";
+import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeProjectClaude } from "./project-claude-merge.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
@@ -325,13 +322,20 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // v26.133.0 (ADR-048) — 외부 CLI transform 도 소유자 판정을 받는다. 기준선은 `.claude/` 와
   // 별도 필드(`externalFiles`)다: 저기는 templates 복사라 사후에 디스크를 훑어 만들지만
   // (`collectPolicyHashes`), 여기는 **렌더 결과**라 훑어서는 무엇이 하네스 것인지 알 수 없다.
-  const { externalFiles, externalBackups, ...cliTransforms } = runCliTransforms(
-    spec,
+  const {
+    externalFiles,
+    externalBackups,
+    externalUpdated: _externalUpdated,
+    externalBackedUp: _externalBackedUp,
+    ...cliTransforms
+  } = runCliTransforms({
     harnessRoot,
     projectDir,
-    manifestSpec.selectedInternalSkills,
-    previousLog?.externalFiles ?? [],
-  );
+    cli: spec.cli,
+    selectedInternalSkills: manifestSpec.selectedInternalSkills,
+    previousExternal: previousLog?.externalFiles ?? [],
+    codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
+  });
 
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
@@ -400,7 +404,7 @@ function runUpdateInstall(
   templatesDir: string,
   backupPath: string | null,
 ): InstallReport {
-  const updateReport = runUpdateMode(ctx.projectDir, templatesDir);
+  const updateReport = runUpdateMode(ctx.projectDir, templatesDir, ctx.harnessRoot);
   const baseline: BaselineReport = {
     filesCopied: 0,
     dirsCopied: 0,
@@ -586,82 +590,6 @@ function writeEnvironmentFiles(
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3)
     gitignoreNpxSkillsAdded: addGitignoreNpxSkillsAgents(projectDir),
   };
-}
-
-/** Codex / OpenCode / Antigravity per-CLI transforms (+ scope=global opt-in) 결과. */
-interface CliTransformResults {
-  codex: CodexTransformReport | null;
-  codexOptIn: CodexOptInReport | null;
-  opencode: OpencodeTransformReport | null;
-  antigravity: AntigravityTransformReport | null;
-  /** v26.133.0 (ADR-048) — 세 transform 이 쓴 산출물의 기준선 (install log `externalFiles`). */
-  externalFiles: InstallLogSkillFile[];
-  /** v26.133.0 (ADR-048) — 사용자 편집분이라 만든 백업 파일 경로. 설치 화면에 노출한다. */
-  externalBackups: string[];
-}
-
-function runCliTransforms(
-  spec: InstallSpec,
-  harnessRoot: string,
-  projectDir: string,
-  selectedInternalSkills: ReadonlyArray<string>,
-  previousExternal: ReadonlyArray<InstallLogSkillFile>,
-): CliTransformResults {
-  // v26.133.0 (ADR-048) — 기준선을 transform 사이로 **이어준다**. codex 와 opencode 는 같은
-  // `AGENTS.md` 를, codex 와 antigravity 는 같은 `.agents/skills/<id>/SKILL.md` 를 쓴다.
-  // 안 이어주면 뒤 단계가 앞 단계의 산출물을 '사용자 편집'으로 오판해 **설치할 때마다**
-  // 백업이 생긴다 — 백업 노이즈는 진짜 백업을 눈에 안 띄게 만들어 보호 자체를 무력화한다.
-  const baseline = new Map(previousExternal.map((f) => [f.path, f.sha256]));
-  const externalFiles: InstallLogSkillFile[] = [];
-  const externalBackups: string[] = [];
-  const absorb = (report: { ownership: OwnedWriteResult }): void => {
-    for (const f of report.ownership.files) {
-      baseline.set(f.path, f.sha256);
-      externalFiles.push(f);
-    }
-    externalBackups.push(...report.ownership.backupPaths);
-  };
-  // Codex transform when spec.cli includes "codex"
-  let codex: CodexTransformReport | null = null;
-  let codexOptIn: CodexOptInReport | null = null;
-  if (spec.cli.includes("codex")) {
-    // v26.87.0 — dev-method skills 는 selectedInternalSkills 로 게이팅.
-    codex = runCodexTransform({
-      harnessRoot,
-      projectDir,
-      selectedInternalSkills,
-      baseline,
-    });
-    absorb(codex);
-    // v26.64.0 (ADR-020) — Codex global trust opt-in 은 scope=global 일 때만 의미.
-    // scope=project (default) 시 ~/.codex/ write skip (config.toml trust entry 만).
-    const installScope = spec.scope ?? "project";
-    if (installScope === "global" && spec.options.withCodexTrust) {
-      codexOptIn = runCodexOptIn({ projectDir });
-    }
-  }
-
-  // OpenCode transform when spec.cli includes "opencode"
-  let opencode: OpencodeTransformReport | null = null;
-  if (spec.cli.includes("opencode")) {
-    opencode = runOpencodeTransform({ harnessRoot, projectDir, selectedInternalSkills, baseline });
-    absorb(opencode);
-  }
-
-  // v26.66.0 — Antigravity transform when spec.cli includes "antigravity".
-  // `.agents/rules/uzys-harness.md` (project context) + dev-method skills.
-  let antigravity: AntigravityTransformReport | null = null;
-  if (spec.cli.includes("antigravity")) {
-    antigravity = runAntigravityTransform({
-      harnessRoot,
-      projectDir,
-      selectedInternalSkills,
-      baseline,
-    });
-    absorb(antigravity);
-  }
-
-  return { codex, codexOptIn, opencode, antigravity, externalFiles, externalBackups };
 }
 
 /**

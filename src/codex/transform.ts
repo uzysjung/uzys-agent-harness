@@ -44,6 +44,11 @@ export interface CodexTransformParams {
    * (레거시 설치)은 빈 Map 을 **명시적으로** 넘겨서 표현한다.
    */
   baseline: ReadonlyMap<string, string>;
+  /**
+   * v26.134.0 (ADR-049) — `update` 경로. 이미 있는 산출물만 갱신하고 없는 것은 만들지 않는다.
+   * 그래서 codex 를 안 깐 프로젝트에서 이 transform 을 돌려도 `.codex/` 가 생기지 않는다.
+   */
+  refreshOnly?: boolean;
 }
 
 export interface CodexTransformReport {
@@ -60,8 +65,8 @@ const HOOK_NAMES = ["session-start"];
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline } = params;
-  const writer = createOwnedWriter(projectDir, baseline);
+  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
@@ -105,7 +110,8 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     }
     const ported = readFileSync(src, "utf8").replace(ENV_VAR_RENAME, "CODEX_PROJECT_DIR");
     const target = join(hookDir, `${hook}.sh`);
-    writer.write(target, ported);
+    // refresh 모드가 건너뛴 경로에는 파일이 없다 — chmod 를 무조건 걸면 ENOENT 로 터진다.
+    if (!writer.write(target, ported)) continue;
     chmodSync(target, 0o755);
     hookFiles.push(target);
   }
@@ -119,7 +125,8 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
       continue;
     }
     const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
-    writer.write(target, renderBundledSkill(readFileSync(src, "utf8")));
+    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
+    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
     skillFiles.push(target);
   }
 

@@ -170,11 +170,23 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       `AGENTS.md` 만 내용 비교로 보호받았는데 그건 ADR-047 이 기각한 방식(릴리즈마다 백업 축적).
       ADR-046 → 047 → 048 로 **같은 결정이 세 번 자기 앞 자산에만 걸린 것** — 그래서 ADR-048 은
       적용 범위를 본문에 명시했다.
-- [ ] R-3j-A **`update` 가 `.codex/` · `.opencode/` 템플릿은 갱신하지 않는다** — `.claude/` 전용
-      (`src/update-mode.ts` 에 codex/opencode 참조 0건, `check-absence.sh` 로 확인). 4-CLI 를
-      표방하는데 갱신은 1-CLI 라는 비대칭. 현재는 USAGE 에 한계로 명시만 해뒀다.
-      **B 가 선행조건이었다** — 소유자 판정 없이 update 에 외부 CLI 를 붙이면 지금은 재설치할
-      때만 밀리던 것이 릴리즈마다 밀리게 된다. 그 전제가 v26.133.0 으로 갖춰졌다.
+- [x] R-3j-A **`update` 가 `.codex/` · `.opencode/` 템플릿은 갱신하지 않는다** (✅ v26.134.0,
+      ADR-049) — `.claude/` 전용이라 4-CLI 를 표방하면서 갱신은 1-CLI 인 비대칭이었다.
+      **B 가 선행조건이었고** (소유자 판정 없이 붙이면 재설치 때만 밀리던 것이 릴리즈마다
+      밀린다) v26.133.0 으로 갖춰졌다. 해법의 핵심은 "어느 CLI 가 설치돼 있나"를 **판정하지
+      않은 것** — writer 에 refresh 모드(디스크에 이미 있는 파일만)를 넣으니 안 깐 CLI 는
+      대상 파일이 없어 자연히 제외됐고, 그래서 CLI·스킬 목록의 열거 사본이 안 생겼다.
+      부수로 `runCliTransforms` 를 `src/cli-transforms.ts` 로 빼 install/update 가 **한 도구**를
+      공유하게 했고, `update-mode.ts` 에 남아 있던 `isHarnessOwned` 사본을 지웠다
+      (ADR-048 이 "술어는 한 곳에"라 적고도 2벌이던 상태).
+- [ ] R-3m **같은 초에 `update` 를 두 번 돌리면 백업 경로가 충돌해 크래시** — `.claude.backup-<stamp>`
+      의 stamp 가 초 단위라 이름이 겹치고, `.claude/skills/<id>` 가 외부 설치기(`npx skills add`)가
+      만든 **심볼릭 링크**일 때 `cpSync` 가 EINVAL(`cannot copy ... to a subdirectory of self`)로
+      죽는다. 2026-07-20 R-3j-A 의 Docker 시나리오를 쓰다 발견했고, **v26.133.0 게시본에서도
+      동일 재현**(HEAD worktree 로 별도 이미지를 빌드해 대조) — 이번 릴리즈가 만든 문제가 아니라
+      그전부터 있던 것이다. 비대화형 update 가 생긴 뒤(v26.131.0) CI 에서 실제로 밟을 수 있는
+      경로가 됐다. 지금은 시나리오가 `sleep 2` 로 우회 중 — 우회는 수정이 아니다.
+      수정안: 백업 경로가 이미 있으면 접미사를 붙여 유일하게 만든다(`fs-ops.ts`).
 - [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
       `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.

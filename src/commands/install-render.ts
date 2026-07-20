@@ -470,6 +470,27 @@ function renderPhase1Rows(
         ),
       );
     }
+    // v26.134.0 (R-3j-A · ADR-049) — 외부 CLI 산출물도 갱신 대상이 됐다. 화면에 안 보이면
+    // codex/opencode 사용자는 update 가 자기 CLI 를 건드렸는지 알 수 없고, 그 침묵이 곧
+    // "update 는 .claude/ 만 한다"는 오해를 유지시킨다.
+    if (baseline.updateMode.externalUpdated > 0) {
+      log(
+        assetRow(
+          "success",
+          "external CLI artifacts",
+          `${baseline.updateMode.externalUpdated} files updated`,
+        ),
+      );
+    }
+    if (baseline.updateMode.externalBackedUp.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "edited external CLI files",
+          `${baseline.updateMode.externalBackedUp.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
     return;
   }
 

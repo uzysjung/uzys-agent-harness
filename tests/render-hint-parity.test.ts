@@ -14,6 +14,8 @@ import { runUpdateMode } from "../src/update-mode.js";
 //   렌더 소스에 ① 하이픈형 자산 플래그 재등장 ② 카탈로그에 없는 자산 id 안내 를 차단.
 
 const RENDER_SRC = readFileSync("src/commands/install-render.ts", "utf-8");
+/** 외부 CLI transform 의 렌더 소스 (v26.134.0) — templatesDir 과 달리 실물이어야 한다. */
+const HARNESS_ROOT = join(__dirname, "..");
 
 describe("렌더 힌트 parity (audit CODE-1)", () => {
   it("삭제된 하이픈형 자산 플래그 '--with-<id>' 재등장 0건 (공백형 '--with <id>' 만 허용)", () => {
@@ -76,7 +78,7 @@ describe("update hint 가 실제 갱신 대상을 광고한다 (derive)", () => 
       writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "new");
       writeFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "old");
 
-      const report = runUpdateMode(projectDir, templatesDir);
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
       const touched = Object.entries(report.updated)
         .filter(([, count]) => count > 0)
         .map(([dir]) => dir);
