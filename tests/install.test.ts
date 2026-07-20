@@ -737,6 +737,7 @@ describe("executeSpec", () => {
         staleHookRefs: ["dead.sh"],
         claudeMdUpdated: true,
         skillsBackedUp: [],
+        policyBackedUp: [],
       },
     });
     executeSpec(baseSpec, {
@@ -774,6 +775,7 @@ describe("executeSpec", () => {
         staleHookRefs: [],
         claudeMdUpdated: false,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
+        policyBackedUp: [],
       },
     });
     executeSpec(baseSpec, {

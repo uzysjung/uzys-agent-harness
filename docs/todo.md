@@ -124,6 +124,14 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       `npx @uzysjung/agent-harness@latest` 로 도달하고, 도달 못 하는 것은 `.claude/skills/`
       **본문**이다. 덮어쓰기 정책(사용자 결정): 안 고쳤으면 덮어쓰고, 고쳤으면 `.backup-<stamp>`
       남기고 최신판을 자리에 둔다. 판정은 설치 시점 sha256 대조.
+- [x] R-3k **소유자 판정이 `.claude/skills` 에만 걸려 있었다** (✅ v26.132.0, ADR-047) — 사용자
+      보고("재설치하면 rules·hooks 를 그냥 덮친다")로 드러났다. R-3a 가 ADR-046 의 결정을
+      **스킬에만** 구현해서, 같은 update 실행 안에서 스킬은 백업을 받고 룰·훅은 `copyFileSync`
+      로 조용히 밀렸다. `install` 은 `settings.json` 하나만 보호했고 `add` 모드는 통짜 백업도
+      없었다. 추가로 `pruneOrphans` 가 **사용자가 직접 만든 커스텀 룰·훅을 백업 없이 삭제**했다
+      (폐기된 하네스 룰과 사용자 파일이 templates 기준으로는 똑같이 "없음"이라서).
+      해결: 기준선을 `policyFiles` 로 확장, 삭제는 소유가 증명될 때만. 계열 교훈은
+      `feedback_surface_symmetry` 와 같다 — 한 축이 일부에만 있으면 빠진 쪽이 입증 책임을 진다.
 - [ ] R-3b **CL-v2 훅 배선 + 설치 시 1회 고지.** 사용자 결정 완료 — `~/.claude/homunculus/`
       write 는 허용, 무인설치 허용, 차단하지 않고 고지만. 조건부 배선 선례 = karpathy-gate
       (`src/installer.ts:606~`). `settings-merge.ts` 의 `addPreToolUseHook` 은 PreToolUse
