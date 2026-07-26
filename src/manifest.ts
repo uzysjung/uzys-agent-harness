@@ -127,7 +127,10 @@ export function resolveRules(spec: AssetSpec): string[] {
 const CORE_AGENTS = ["reviewer", "data-analyst", "strategist"];
 const CORE_AGENTS_ECC = ["code-reviewer", "security-reviewer"];
 
-const DEV_AGENTS = ["plan-checker"];
+// v26.138.0 — implementer: 구현 레인. 기존 에이전트 8종이 전부 검토·검증·도메인 특화라
+//   설치자는 "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다. 근거 = 두 코퍼스 실측 대조에서
+//   서브에이전트 코드 Edit 433 vs 3 — 규율 차이가 아니라 **레인 부재**였다.
+const DEV_AGENTS = ["plan-checker", "implementer"];
 const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
 
 /** Hooks installed for every project (parity with setup-harness.sh L815-826). */

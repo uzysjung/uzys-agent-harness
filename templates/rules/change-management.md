@@ -1,41 +1,32 @@
 # Change Management
 
-## Change Request (CR) Classification
+## Change Request (CR) 분류
 
-구현 중 SPEC/PRD 변경이 필요한 경우:
+구현 중 SPEC/PRD 변경이 필요해지면 셋 중 하나로 분류한다:
 
 | 유형 | 기준 | 처리 |
 |------|------|------|
-| **Clarification** | 이미 합의된 내용의 구체화 | 에이전트가 즉시 반영 + Change Log 기록 |
-| **Minor** | 현재 Phase 내부에 국한 | 에이전트가 제안 → **인간 승인** → Change Log |
-| **Major** | AC/Phase/Non-Goals/DO NOT CHANGE 영향 | **인간 결정 필수** → Change Log + 영향 분석 |
+| **Clarification** | 이미 합의된 내용의 구체화 | 즉시 반영 + Change Log |
+| **Minor** | 현재 Phase 내부에 국한 | 제안 → **인간 승인** → Change Log |
+| **Major** | AC 의 Pass/Fail · 다른 Phase 의 입출력 · Non-Goals 경계 · DO NOT CHANGE 중 **하나라도** 건드림 | **인간 결정 필수** → Change Log + 영향 분석 |
 
-## Classification Rules
+## DO NOT CHANGE
 
-```
-IF AC의 Pass/Fail에 영향           → Major
-IF 다른 Phase의 입력/산출물에 영향  → Major
-IF DO NOT CHANGE 영역에 영향        → Major
-IF Non-Goals 경계에 영향            → Major
-IF 현재 Phase 내부에 국한           → Minor
-IF 합의 내용의 구체화               → Clarification
-```
-
-## DO NOT CHANGE Protection
-
-- SPEC/PRD의 DO NOT CHANGE 영역은 **절대 수정 금지**.
-- 수정이 불가피한 경우: Major CR 작성 → 인간 결정 대기.
-- 안정적으로 보이는 영역도 수정 전 확인: "이 부분도 수정 범위입니까?"
+SPEC/PRD 의 DO NOT CHANGE 영역은 **수정 금지**다. 불가피하면 Major CR 을 쓰고 인간 결정을
+기다린다. 안정적으로 보이는 영역도 손대기 전에 묻는다 — "이 부분도 수정 범위입니까?"
 
 ## Decision Log (ADR)
 
-구현 중 SPEC에 명시되지 않은 의사결정은 `docs/decisions/` 에 ADR로 기록:
+SPEC 에 없던 의사결정은 `docs/decisions/` 에 기록한다.
+
+- **대상**: 아키텍처 변경 · 외부 의존성 도입/제거 · 데이터 모델 변경 · 보안 정책 · breaking API
+- **비대상**: 한 함수의 구현 디테일 · 임시 워크어라운드 · 명백한 버그 fix
 
 ```markdown
 # ADR-NNN: [결정 제목]
 - Status: Proposed | Accepted | Superseded | Deprecated
 - Date: YYYY-MM-DD
-- PR: #123 (제안/승인 PR 링크)
+- PR: #123
 - Supersedes: ADR-MMM (있으면)
 - Context: [왜 결정이 필요했는가]
 - Decision: [무엇을 결정했는가]
@@ -43,38 +34,26 @@ IF 합의 내용의 구체화               → Clarification
 - Consequences: [이 결정의 영향]
 ```
 
-### ADR Status 흐름
+| Status | 의미 | 다음 |
+|--------|------|------|
+| **Proposed** | 초안 PR 검토 중, 아직 미적용 | Accepted / 기각 |
+| **Accepted** | 머지됨. 이 결정에 따라 코드·문서를 쓴다 | Superseded / Deprecated |
+| **Superseded** | 다른 ADR 이 대체 (terminal) | — |
+| **Deprecated** | 무효이나 대체 ADR 없음 (terminal — **사유를 PR/본문에 남긴다**) | — |
 
-```
-Proposed → Accepted → (Superseded by ADR-N | Deprecated)
-   ↓
- (Rejected — 별도 ADR 안 만듦, PR comment에 사유 기록)
-```
+PR review 에서 `Alternatives` 와 `Consequences` 를 검증하고, 머지 직전에 Status 를
+Accepted 로 바꾸고 PR 번호를 채운다. 기각은 **별도 ADR 을 만들지 않고**
+PR comment 에 사유를 남긴다. 결정을 바꿀 때는 새 ADR 에 `Supersedes:` 를 쓰고 기존 ADR 의 Status
+도 함께 갱신한다 — 한쪽만 고치면 어느 것이 현행인지 알 수 없다.
 
-| Status | 의미 | 다음 가능 transition |
-|--------|------|-------------------|
-| **Proposed** | PR 작성 + 검토 중. 아직 적용 X | Accepted, (Rejected) |
-| **Accepted** | 머지됨. 본 결정에 따라 코드/문서 작성 | Superseded, Deprecated |
-| **Superseded** | 다른 ADR이 본 결정을 대체 | (terminal — `Supersedes:` 필드로 link) |
-| **Deprecated** | 더 이상 유효하지 않으나 대체 ADR 없음 | (terminal — 사유 PR/section 기록) |
+## Savepoint
 
-### 채택 프로세스
-
-1. **Proposed**: 의사결정 필요 시 ADR 초안 PR 생성. Status: Proposed.
-2. **검토**: PR review에서 Alternatives + Consequences 검증.
-3. **Accepted**: 머지 직전 Status: Accepted, PR 번호 채움.
-4. **변경**: 새 ADR로 Supersedes/Deprecates 명시. 기존 ADR Status 갱신.
-
-### 어떤 결정이 ADR 대상인가
-
-- **대상**: 아키텍처 변경, 외부 의존성 도입/제거, 데이터 모델 변경, 보안 정책, breaking API
-- **비대상**: 한 함수의 구현 디테일, 임시 워크어라운드, 명백한 버그 fix
-
-## Savepoint Protocol
-
-Major CR 적용 전, 또는 주요 변경점에서 savepoint 생성:
+Major CR 적용 전, 또는 되돌리기 어려운 변경 직전에 커밋으로 지점을 남긴다:
 
 ```bash
-git add -A && git commit -m "chore: savepoint before [변경 설명]"
+git commit -a -m "chore: savepoint before [변경 설명]"
 ```
 
+**`git add -A` 를 쓰지 않는다.** 설치 직후처럼 `.gitignore` 가 아직 시크릿을 덮지 못한 상태에서는
+그 한 줄이 `.env` 를 그대로 커밋한다 — 같은 하네스의 `git-policy` 가 금지하는 것을 savepoint 가
+수행하게 된다. 추적 중인 변경만 담고, 새 파일이 꼭 필요하면 경로를 하나씩 지정해 추가한다.
