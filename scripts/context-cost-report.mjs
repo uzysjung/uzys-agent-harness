@@ -18,6 +18,7 @@ import {
   buildManifest,
   DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
+  formatResidentCostBlock,
   INTERNAL_BUNDLED_SKILL_IDS,
   residentCost,
 } from "../dist/trust-tier-drift.js";
@@ -50,13 +51,15 @@ const spec = { tracks: [TRACK], cli: ["claude"], options: {} };
 const entries = buildManifest(spec).filter((e) => e.applies(spec));
 const res = residentCost(entries, ROOT);
 
+// v26.140.0 — 양(quantity) 축은 **항목 수**다. 토큰은 부수 표시값으로 남긴다: 실측상 토큰의
+// 금전 비용은 무의미했고(ADR-051), 실제로 아픈 비용(교차참조·모순·drift·유지보수)은 항목 수에
+// 비례한다. 개수를 왼쪽(1차), 토큰을 오른쪽(부수)에 둔다 — 읽는 순서가 곧 우선순위다.
+//
+// 표 문자열을 **여기서 조립하지 않는다** — `formatResidentCostBlock` 이 유일한 출처다.
+// 스크립트가 자기 표를 들고 있던 동안 개수 열이 이 리포트에만 붙고 설치 헤더·wizard confirm 에는
+// 없었다. 계약은 tests/context-cost-display-parity.test.ts 가 글롭으로 강제한다.
 console.log(`\n▸ 상주 비용 — 설치가 매 세션 물리는 것 (track=${TRACK})\n`);
-console.log(`  rules              ~${res.rules}`);
-console.log(`  CLAUDE.md 스캐폴드  ~${res.projectClaudeMd}`);
-console.log(`  skill descriptors  ~${res.skillDescriptors}`);
-console.log(`  agent descriptors  ~${res.agentDescriptors}`);
-console.log(`  ─────────────────────────`);
-console.log(`  상주 합계          ~${res.total} tokens/세션`);
+for (const line of formatResidentCostBlock(res)) console.log(line);
 
 const external = EXTERNAL_ASSETS.filter((a) => a.method.kind !== "internal").length;
 console.log("\n▸ 미계측\n");
