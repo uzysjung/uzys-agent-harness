@@ -71,6 +71,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 ---
 
 ## [v26.138.0] — 2026-07-26 (feat: 설치본에 구현 레인 — 코드를 쓸 사람이 0명이었다)
+<!-- release-tag:none 태그·게시 없음 — 변경분은 v26.139.0 에 포함되어 출하됨 (2026-07-26 적발, no-false-ship 사례 표 참조) -->
 
 같은 모델·같은 CLI 인데 어떤 프로젝트가 더 잘 굴러가는 이유를 20에이전트 포렌식(84세션 트랜스크립트)
 으로 실측했다. **12개 가설 중 9개가 반증**됐고 — 죽은 것들은 전부 도메인 차이를 하네스 차이로 오독한
@@ -2010,6 +2011,7 @@ v26.75.0 워크플로 3자산의 **Docker realcli 실설치 검증**(`docs/resea
 - **wshobson-agents**: `claude plugin marketplace add wshobson/agents` + `install full-stack-orchestration@claude-code-workflows` → 둘 다 exit 0, 설치됨 ✓ (실 claude 2.1.167; SSH→HTTPS 주의는 전 plugin 자산 공통)
 
 ## [v26.75.0] — 2026-06-06 (feat: 워크플로 큐레이션 확장 — OpenSpec · BMAD · wshobson)
+<!-- release-tag:none 태그 없음 — v26.75.1 로 대체 게시됨 -->
 
 ADR-021 재포지셔닝(검증+보안 큐레이션)의 **C 단계**. Phase 2 자율 소진 후 3-에이전트 시장 리서치(`docs/research/direction-research-2026-06-06.md`)로 후보 25개 발굴 → vetted 바(★≥1000 + 활성 + Node-native 설치가능) 통과 3건 추가. 본질 = 멀티-워크플로 **큐레이터**.
 
@@ -2377,6 +2379,7 @@ North Star 세 기둥 ②(검증 자산 큐레이션 + 선택권). PRD v26-71.
 - 11 legacy `templates/project-claude/<track>.md` + `full.md`
 
 ## [v0.8.8] — 2026-05-06 (fix: skills CLI agent name 매핑 `claude` → `claude-code`)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Fixed — 외부 사용자 skill 자산 100% skip (P0 prod-blocker)
 
@@ -2415,6 +2418,7 @@ npx skills add <pkg> --agent claude-code --yes
 - skills CLI 가 valid agent name 변경 시 본 매핑도 갱신 필요. 현재 1.5.5 기준 hardcoded. 향후 1.6+ 출시 시 valid list re-verify.
 
 ## [v0.8.7] — 2026-05-03 (fix: npx skills --agent 명시 — universal install 차단)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Fixed — `.factory/`/`.goose/` 디렉토리 자동 생성 (사용자 보고 #3 진짜 fix)
 
@@ -2466,6 +2470,7 @@ npx skills add <pkg> --skill <name> --agent claude --yes
 - v0.8.0 ignore 패턴 fix: `src/env-files.ts` `addGitignoreNpxSkillsAgents`
 
 ## [v0.8.6] — 2026-05-03 (fix: CL-v2 observer hook 중복 제거)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Fixed — CL-v2 observer 중복 fire (사용자 보고 #6)
 
@@ -2509,6 +2514,7 @@ Fix: 프로젝트 settings.json 의 CL-v2 entry 제거. ECC plugin 의 단일 �
 - year 26 유지
 
 ## [v0.8.5] — 2026-05-03 (fix: gate reset + session cleanup rule)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Fixed — SPEC 재정의 시 후속 게이트 리셋 누락 (gate bypass 차단)
 
@@ -2547,6 +2553,7 @@ Fix: 프로젝트 settings.json 의 CL-v2 entry 제거. ECC plugin 의 단일 �
 - 사용자 요청: "세션 종료 직전 `gh pr list --state open` 정리 + gate ✓ ≠ main 반영 분리"
 
 ## [v0.8.4] — 2026-05-03 (fix: trailofbits + docs warn)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Fixed — `--with-tob` 설치 실패 (사용자 보고 #4)
 
@@ -2587,6 +2594,7 @@ npm warn Unknown project config "shamefully-hoist". ...
 - marketplace.json: https://github.com/trailofbits/skills/blob/main/.claude-plugin/marketplace.json
 
 ## [v0.8.3] — 2026-04-30 (chore: deps)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Bumped — P2-04 Step 2 (medium-risk dependencies)
 
@@ -2610,6 +2618,7 @@ npm warn Unknown project config "shamefully-hoist". ...
 - Phase 2 backlog P2-04: `docs/phase-2-backlog.md`
 
 ## [v0.8.2] — 2026-04-30 (chore: deps)
+<!-- release-tag:none 태그 없음 — npm 첫 게시(v26.72.1) 이전 시기. 게시 이력 없음 -->
 
 ### Bumped — P2-04 Step 1 (low-risk dependencies)
 
@@ -3522,12 +3531,14 @@ npx -y github:uzysjung/uzys-claude-harness install --track tooling --project-dir
 - `UZYS_HARNESS_REPO` 환경변수로 install.sh의 리포 URL 오버라이드 가능 (fork/mirror 지원)
 
 ## [v26.25.0] — 2026-04-19
+<!-- release-tag:none 태그 없음 — ADR-007 버전 일괄 rename 구간. 게시 이력 없음 -->
 
 ### Added
 - `csr-supabase` Track 설치 시 `.env.example` 자동 생성 (Supabase Management API Token, Project Ref, DB Password, Public URL/Key, AI API key 주석 포함)
 - `.gitignore`에 `.env` 자동 추가 (시크릿 커밋 사고 방지)
 
 ## [v26.24.0] — 2026-04-19
+<!-- release-tag:none 태그 없음 — ADR-007 버전 일괄 rename 구간. 게시 이력 없음 -->
 
 ### Added
 - `csr-supabase` Track 설치 시 Supabase CLI(`npm install -g supabase`) 자동 설치 — OAuth login 1회로 프로젝트 관리
@@ -3543,6 +3554,7 @@ npx -y github:uzysjung/uzys-claude-harness install --track tooling --project-dir
 - README.md / README.ko.md에 "Interactive prompts — what asks, when, how to skip" 섹션 신규: 4개 프롬프트(Track/GSD/ToB/ECC+prune) × 환경(local/`curl\|bash`/CI) 매트릭스, `--add-track`/`--update` SKIP 동작 명시
 
 ## [v26.22.0] — 2026-04-19
+<!-- release-tag:none 태그 없음 — ADR-007 버전 일괄 rename 구간. 게시 이력 없음 -->
 
 ### Changed
 - `csr-supabase` Track에서 Railway 자동 설치 제거 (Supabase가 자체 backend, redundant)

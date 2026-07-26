@@ -21,7 +21,13 @@ jobs:
         os: [ubuntu-latest, macos-latest]
       fail-fast: false
     steps:
+      # fetch-depth: 0 = 전체 히스토리 + **태그**. 기본값(1) 이면 체크아웃한 태그 1개만 보여
+      # tests/docs-supply-chain.test.ts 의 "CHANGELOG → 태그 역방향 게이트" 가 태그를 못 읽는다
+      # (그 상태는 통과가 아니라 '신뢰 불가' 실패로 잡힌다). depth 를 되돌릴 일이 생기면
+      # `fetch-tags: true` 를 함께 넣을 것.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:

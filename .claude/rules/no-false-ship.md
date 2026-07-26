@@ -8,6 +8,7 @@
 | v26.76.0 | `--with-openspec` 등 CLI 플래그 미등록 → 광고한 설치 명령이 크래시 |
 | v26.78.0 | Understanding 카테고리 wizard 페이지 누락 → "wizard에서 선택" 보고는 거짓, agent-browser 무인지 설치. Docker 검증은 flag 경로만 수행 |
 | v26.82.0 | `--version` 거짓 보고 — package.json 만 bump, `cli.ts` 하드코딩 VERSION(26.81.0) 잔존. npm 게시 패키지가 자기 버전을 틀리게 출력. v26.82.1 에서 package.json derive 로 동기화 자체 소멸 |
+| v26.138.0 | **없는 릴리즈를 "배포 완료 · npm 라이브 · 3워크플로 green" 으로 보고.** PR #257 이 `package.json` 을 26.138.0 으로 bump 하고 CHANGELOG 항목까지 넣었으나 **태그를 안 밀어** 릴리즈 워크플로가 아예 안 돌았고 npm 게시도 없었다(137 → 139 건너뜀). 코드는 v26.139.0 에 포함돼 살아 있으니 **기능은 나갔고 그 버전 라벨의 릴리즈가 없었던 것** — 그래서 "동작한다"는 참인데 "배포됐다"가 거짓인, 구분이 어려운 형태였다. 기존 CHANGELOG 게이트가 **한 방향만** 봤다(`package.json → CHANGELOG` 는 검사, `CHANGELOG → 태그 → npm` 은 미검사). 적발 = 지표 재설계 중 돌린 적대적 검증 에이전트. **자기 릴리즈를 자기가 못 본 두 번째 사례**(첫째는 아래 v26.128.0~131.0) |
 | v26.128.0~131.0 | **릴리즈 CI 를 3릴리즈 동안 확인하지 않음.** 보고한 "CI exit 0"은 전부 로컬 `npm run ci` 였고 그 자체는 참이지만, GitHub Actions `ci` 는 **4연속 red** 였다(`publish` 는 별개 워크플로라 성공 → "npm 라이브"는 참). 원인은 v26.128.0 에서 재발방지로 넣은 위생 게이트 자신 — 형제 프로젝트에서 자기를 빼는 이름을 `"uzysClaudeUniversalEnv"` 리터럴로 박았는데 CI 체크아웃 디렉터리는 리포명(`uzys-agent-harness`)이라 **자기가 형제로 잡혔다**. v26.131.1 에서 derive 로 수정 |
 
 ## 절대 원칙
