@@ -32,8 +32,13 @@
 
 - 트랙 목록은 `TRACKS` 에서 **derive** — 게이트가 커버 목록을 따로 들지 않는다.
 - baseline 이 실측보다 10% 넘게 높으면 실패 — 여유를 미리 잡아 게이트를 무력화하는 것 차단.
-- 정기 점검은 `harness-health-audit` §C1(economy)이 **rate(증가율)** 을 보도록 연결. 새
-  워크플로를 만들지 않는다.
+- `harness-health-audit` §C1(economy)이 **rate(증가율)** 을 보도록 연결. 새 워크플로를 만들지 않는다.
+
+> **정정 (v26.137.0)**: 위 문장을 처음 쓸 때 "정기 점검"이라고 적었는데 **거짓이었다** —
+> economy 축은 **사람이 그 스킬을 부를 때만** 돈다. 자동 진입점은 0건이다(탐지기 canary 검증
+> 완료). 연결한 것은 사실이고 주기는 없다. 겸사겸사 전제 하나도 틀렸다: "ratchet 은 per-PR"이
+> 아니다 — `test.yml` 은 `on: push: tags` 뿐이라 **PR 에는 CI 가 안 돈다**. 실제 발동은
+> per-release(강제) + 로컬 `npm run ci`(자발)다.
 
 ### 2. 룰 착지 전 pre-flight (`recurrence-prevention`)
 

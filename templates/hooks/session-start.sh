@@ -7,7 +7,8 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 
 # 1. git pull (branch가 있고 detached HEAD가 아닐 때)
 if [ -n "$BRANCH" ] && [ "$BRANCH" != "HEAD" ]; then
-  git pull --rebase 2>/dev/null || true
+  # stdout 도 버린다 — 여기 출력이 아래 JSON 앞에 붙으면 계약이 깨진다 (실측 21%).
+  git pull --rebase >/dev/null 2>&1 || true
 fi
 
 # 2. SPEC 존재 여부 확인
@@ -47,15 +48,27 @@ if [ "${ORPHANS:-0}" -gt 0 ]; then
 fi
 
 # 5. 세션 컨텍스트 출력
+#
+# **스키마가 계약이다.** CLI 가 읽는 필드가 아니면 **유효 JSON 인 채로 조용히 버려진다** —
+# 훅은 돌고 exit 0 이고 로그에도 남지만 모델은 아무것도 못 본다. 실패가 아무 증상을 안 내므로
+# 사람이 알아채지 못한다. SessionStart 가 읽는 것은
+# `hookSpecificOutput.{additionalContext|initialUserMessage}` 다.
+# 조용히 버려지는 출력은 컨텍스트 비용이 0 인 대신 기능도 0 이다.
 if [ "$SPEC_EXISTS" = "true" ]; then
   MSG="Session started. Branch: ${BRANCH:-detached}. SPEC exists — read docs/SPEC.md first (Persistent Anchor). Check Change Log and current Phase before starting work.${COMPACT_WARNING}${ORPHAN_NOTE}"
 else
   MSG="Session started. Branch: ${BRANCH:-detached}. No SPEC found.${COMPACT_WARNING}${ORPHAN_NOTE}"
 fi
 
+# JSON 문자열 이스케이프 — 백슬래시 먼저, 그 다음 따옴표(순서를 바꾸면 이중 이스케이프된다).
+# `jq` 를 쓰지 않는 이유: 훅은 jq 미설치 환경에서도 돌아야 한다 (cli-development.md).
+ESCAPED=$(printf '%s' "$MSG" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+
 cat <<EOF
 {
-  "priority": "INFO",
-  "message": "$MSG"
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "$ESCAPED"
+  }
 }
 EOF
