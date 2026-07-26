@@ -9,8 +9,8 @@
 | `NORTH_STAR.md` | 왜·어디로 (비전 · 지표 · Non-Goals) | 방향 전환 시만 |
 | `SPEC.md` (+ `specs/`) | 무엇 (제품/기능 스펙) | 기능 정의/변경 |
 | `PRD.md` | 문제 · 솔루션 · 요구사항 | 제품 방향 변경 |
-| `TODO.md` | 다음 할 일 · 진행/완료 추적 | 작업 시작/완료 |
-| `README.md` | 진입점 · 현재 상태 | 현재 상태 변동 |
+| `TODO.md` (또는 `tasks/todo.md`·`docs/todo.md`) | 다음 할 일 · 진행/완료 추적 | 작업 시작/완료 |
+| `README.md` | 진입점 · 현재 상태 (shipped/stack/배포) | 현재 상태 변동 |
 | `docs/decisions/` | ADR (아키텍처·의존성·데이터모델·보안) | change-management 분류 따름 |
 
 - 파일 위치는 프로젝트 레이아웃을 따르되(루트 또는 `docs/`) **역할·위계·동기화 의무는 불변**.
@@ -63,18 +63,18 @@
 ## 현행 vs archive
 
 현행 SSOT 만 루트/`docs/` 에 둔다 — 위 위계 문서 + `specs/` + `decisions/`. 히스토리(옛 버전, 폐기
-sub-spec, 완료된 audit 산출물)는 `docs/archive/` 로 격리하고 지도 파일 하나로 찾게 한다. 현행
+sub-spec, 완료된 audit 산출물)는 `docs/archive/` 로 격리하고 지도 파일(`archive/README.md`) 하나로 찾게 한다. 현행
 문서에 히스토리가 쌓이면 "지금 무엇이 맞는지" 읽는 비용이 히스토리에 비례해 커진다. 이력이 길어진
 문서는 이력만 빼고 본문엔 최근분만 남긴다.
 
 ## 작성 원칙
 
 **why 중심으로 쓴다** — what 은 코드와 diff 가 보여준다. SPEC 이 800줄을 넘으면 기능별로 분리한다
-(`spec-scaling` 스킬). 추정·임의 단정 금지는 `no-false-ship` 이 소유한다.
+(`spec-scaling` 스킬). 추정·임의 단정 금지는 `CLAUDE.md` 의 Anti-Patterns 가 소유한다.
 
 ## 검증 게이트
 
-dev 트랙 설치 시 `.claude/hooks/spec-drift-check.sh` 가 SPEC/TODO 의 미완 잔존·Status 불일치를
+`.claude/hooks/spec-drift-check.sh`(전 트랙 설치)가 SPEC/TODO 의 미완 잔존·Status 불일치를
 검출한다 — verify 는 경고, ship 은 차단.
 
 **한계를 알고 써라**: 탐지 경로 밖의 문서 레이아웃은 게이트가 못 본다. 그 경우 본 규약은 프로즈로만

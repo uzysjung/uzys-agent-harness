@@ -39,9 +39,10 @@ SPEC 에 없던 의사결정은 `docs/decisions/` 에 기록한다.
 | **Proposed** | 초안 PR 검토 중, 아직 미적용 | Accepted / 기각 |
 | **Accepted** | 머지됨. 이 결정에 따라 코드·문서를 쓴다 | Superseded / Deprecated |
 | **Superseded** | 다른 ADR 이 대체 (terminal) | — |
-| **Deprecated** | 무효이나 대체 ADR 없음 (terminal) | — |
+| **Deprecated** | 무효이나 대체 ADR 없음 (terminal — **사유를 PR/본문에 남긴다**) | — |
 
-머지 직전에 Status 를 Accepted 로 바꾸고 PR 번호를 채운다. 기각은 **별도 ADR 을 만들지 않고**
+PR review 에서 `Alternatives` 와 `Consequences` 를 검증하고, 머지 직전에 Status 를
+Accepted 로 바꾸고 PR 번호를 채운다. 기각은 **별도 ADR 을 만들지 않고**
 PR comment 에 사유를 남긴다. 결정을 바꿀 때는 새 ADR 에 `Supersedes:` 를 쓰고 기존 ADR 의 Status
 도 함께 갱신한다 — 한쪽만 고치면 어느 것이 현행인지 알 수 없다.
 

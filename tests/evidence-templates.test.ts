@@ -14,10 +14,7 @@ const read = (rel: string): string =>
 
 const dr = read("../templates/skills/deep-research/SKILL.md");
 const eh = read("../templates/skills/eval-harness/SKILL.md");
-// v26.138.0 — dogfood 절차는 룰에서 gap-analysis-e2e 스킬로 이동했다(상주 → 발화). 계약은
-// 그대로이고 소유자만 바뀌었으므로, 검사 대상 파일도 같이 옮긴다. 룰 쪽에 남은 게이트 문장은
-// `benchmark-parity-rule.test.ts` 가 본다.
-const bp = read("../templates/skills/gap-analysis-e2e/SKILL.md");
+const bp = read("../templates/rules/benchmark-parity.md");
 
 const slice = (text: string, start: string, end: string): string =>
   (text.split(start)[1] ?? "").split(end)[0] ?? "";
@@ -49,7 +46,7 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
   });
 
   it("benchmark-parity: dogfood 는 신규 스키마 없이 gap.md 를 재사용한다", () => {
-    const dogfood = slice(bp, "### Dogfood pass", "### PR 에 붙이는 형식");
+    const dogfood = slice(bp, "## Dogfood pass", "## PR 의무 필드");
     expect(dogfood).toContain("gap.md");
     expect(dogfood).toContain("새 스키마를 만들지 말고");
     expect(dogfood).toContain("배포본");

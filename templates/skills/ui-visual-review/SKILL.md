@@ -27,7 +27,7 @@ E2E 테스트가 PASS 했어도 시각적 회귀(layout shift, 색상/간격 변
 
 ## Pre-conditions
 
-- Playwright 사용 가능 (UI Track 설치 시 기본 포함)
+- Playwright 또는 chrome-devtools MCP 사용 가능 (UI Track 설치 시 기본 포함)
 - 앱이 로컬에서 기동 가능 (예: `pnpm dev`, `docker-compose up`)
 - 핵심 화면 URL 리스트가 정의됨 (없으면 본 skill 첫 실행 시 사용자 질의)
 
@@ -73,8 +73,10 @@ await page.reload({ waitUntil: 'networkidle' });
 2. **자동 capture (fidelity·audit)** — 같은 `launchPersistentContext` 로 시나리오를 자동 click 하고
    산출물을 `docs/research/<area>_audit_<sprint>/iter_<N>/` 에 남긴다.
 
-> chrome-devtools MCP 는 **위 launcher 가 띄운 Chrome for Testing 에 대해서만** 쓴다. 사용자의
-> 활성 Chrome 에 붙이는 것은 룰이 금지한다 — 입력 latency 로 사용자가 먼저 알아챈다.
+> **이 launcher 로 띄운 창은 Playwright API 로 캡처한다**(`page.screenshot({ fullPage: true })`,
+> 콘솔은 `page.on('console')`). 아래 §2·§4 의 chrome-devtools MCP 예시는 launcher 없이 MCP 로
+> 작업하는 경우다 — Playwright 는 CDP 를 파이프로 물어 외부 프로세스가 붙을 엔드포인트를 열지
+> 않으므로, 이 둘을 한 세션에서 섞으려 하면 붙을 대상이 없다. **하나를 고르고 끝까지 그걸로 간다.**
 
 ## Process
 
