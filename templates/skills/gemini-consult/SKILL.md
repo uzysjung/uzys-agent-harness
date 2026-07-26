@@ -176,11 +176,10 @@ policy below:
   typed from memory gets rejected outright (`invalid model selection`, exit 1),
   and "the newer one" is not a property you can infer from the tier name.
 - **The Gemini quota is one pool per account; Claude models sit outside it.**
-  Measured: every gemini tier refused with `Individual quota reached … Resets
-  in <hours>` (~7 days out) while a `claude` call in the same minute answered
-  Measured: a Gemini call refused with `Individual quota reached … Resets in <hours>`
-  (~7 days out) while a `claude` call in the same minute answered normally. When the
-  Gemini quota is spent, `-t claude` is the only tier still answering.
+  Measured 2026-07-26: `gemini-3.1-pro-high`, `gemini-3.1-pro-low` and a flash
+  model all refused with the *identical* `Individual quota reached … Resets in
+  166h` while a `claude` call in the same minute answered normally. Lowering the
+  tier does not dodge it — there is nothing below to fall back to.
 
 **Every Gemini call this skill makes uses `pro`.** The reason is what the skill is for: it exists because a second model's *judgment* is worth an external round-trip — natural Korean that doesn't read translated, personas that stay distinct, critique that finds what you missed. Those are the calls where a cheaper tier costs you the thing you came for, and a round-trip you have to redo is more expensive than the one you did right. If a call is routine enough that a fast tier would do, it probably shouldn't be an external call at all.
 
@@ -197,6 +196,15 @@ policy below:
 
 Not for **Mode A**. This skill exists because Claude's Korean reads translated —
 routing Korean copy back to a Claude model defeats the premise.
+
+**So when the Gemini pool is empty, Mode A waits.** Do not quietly reroute Korean
+copy to `-t claude` to have *something* to show: the output would carry exactly
+the quality this skill was created to avoid, and the user would have no way to
+tell it apart from a Gemini answer. Report the refusal and the reset time, say
+that Korean phrasing is unavailable until then, and let the user decide — write
+it themselves, wait, or raise the subscription. An answer the user cannot trust
+is worth less than a clearly stated gap. (Modes B and C have no such premise:
+`-t claude` is a legitimate substitute there.)
 
 ## Mode A — natural Korean phrasing / copy
 
