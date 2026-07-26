@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { hashContent, readInstallLog, writeInstallLog } from "../src/install-log.js";
 import {
   cleanStaleHookRefs,
+  keepHookRef,
   pruneOrphans,
   runUpdateMode,
   syncSkills,
@@ -117,49 +118,85 @@ describe("pruneOrphans", () => {
   });
 });
 
+/**
+ * settings.json 이 가리키는 **없는 스크립트**를 지우는 런타임 치유기.
+ *
+ * M-1 — 탐지 범위를 `.claude/hooks/` 한 층에서 **`.claude/` 이하 전체**로 넓힌다.
+ *
+ * 왜 지금 넓히나: `templates/settings.json` 의 PreToolUse(`Write|Edit`) 훅이
+ * `.claude/skills/strategic-compact/suggest-compact.sh` 를 **무조건** 참조하는데, 그 스킬은
+ * `withEcc=true`(ECC plugin 선택) 에서 설치되지 않는다(`src/manifest.ts` `COMMON_SKILL_DIRS_ECC`
+ * → `applies: (s) => !s.withEcc`). settings.json 자신은 `applies: all` 이라 항상 깔린다 —
+ * 즉 plugin 을 켠 설치자는 **없는 파일을 가리키는 훅**을 Write/Edit 마다 실행한다(bash exit 127).
+ * 치유기는 이미 있었지만 참조 추출 regex 가 `hooks/` 한 층으로 좁아 이 부류를 **한 번도 물지
+ * 못했다**. 로컬 도그푸드가 `withEcc=false` 라 그 파일이 우연히 존재해서 영원히 안 보였다.
+ *
+ * 그래서 계약이 두 곳 바뀐다:
+ *   ① 두 번째 인자가 `.claude/hooks/` → **`.claude/` 자신**. 존재 확인이 hooks 밖으로 나가야 한다.
+ *   ② `removed` 원소가 파일명 → **`.claude/` 기준 상대경로**. 렌더가 이 값을 그대로 사용자에게
+ *      보여주는데(`src/commands/install-render.ts` "stale hook refs · N removed"),
+ *      `suggest-compact.sh` 만 찍히면 어느 것이 지워졌는지 못 찾는다.
+ *
+ * 넓히지 **않는** 경계: `.claude/` 밖 참조는 부재여도 보존한다. 사용자 자기 스크립트를 치유기가
+ * 지우면 그건 치유가 아니라 파손이다.
+ */
 describe("cleanStaleHookRefs", () => {
   let dir: string;
-  let hooksDir: string;
+  let claudeDir: string;
   let settingsPath: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "ch-st-"));
-    hooksDir = join(dir, "hooks");
-    settingsPath = join(dir, "settings.json");
-    mkdirSync(hooksDir);
+    claudeDir = join(dir, ".claude");
+    settingsPath = join(claudeDir, "settings.json");
+    mkdirSync(join(claudeDir, "hooks"), { recursive: true });
   });
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("removes hook refs whose script file is missing", () => {
-    writeFileSync(join(hooksDir, "alive.sh"), "");
+  /** 템플릿과 **같은 형태**의 훅 command 문자열. 인용부호까지 같아야 추출 regex 를 실제로 민다. */
+  function ref(relToClaudeDir: string): string {
+    return `bash "$CLAUDE_PROJECT_DIR/.claude/${relToClaudeDir}"`;
+  }
+
+  /** PreToolUse 한 entry 에 command 들을 담은 settings.json 을 쓴다. */
+  function writeSettings(commands: string[]): void {
     writeFileSync(
       settingsPath,
       JSON.stringify({
         hooks: {
           PreToolUse: [
             {
-              matcher: "Bash",
-              hooks: [
-                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/alive.sh"' },
-                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"' },
-              ],
+              matcher: "Write|Edit",
+              hooks: commands.map((command) => ({ type: "command", command })),
             },
           ],
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
-    expect(removed).toEqual(["dead.sh"]);
+  }
+
+  /** 정리 후 남은 command 목록. */
+  function remainingCommands(): string[] {
     const after = JSON.parse(readFileSync(settingsPath, "utf8"));
-    const cmds = after.hooks.PreToolUse[0].hooks.map((h: { command: string }) => h.command);
+    return (after.hooks.PreToolUse[0]?.hooks ?? []).map((h: { command: string }) => h.command);
+  }
+
+  it("removes hook refs whose script file is missing", () => {
+    writeFileSync(join(claudeDir, "hooks/alive.sh"), "");
+    writeSettings([ref("hooks/alive.sh"), ref("hooks/dead.sh")]);
+
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+    expect(removed).toEqual(["hooks/dead.sh"]);
+    const cmds = remainingCommands();
     expect(cmds.some((c: string) => c.includes("alive.sh"))).toBe(true);
     expect(cmds.some((c: string) => c.includes("dead.sh"))).toBe(false);
   });
 
   it("returns empty when settings.json malformed", () => {
     writeFileSync(settingsPath, "{ not json");
-    expect(cleanStaleHookRefs(settingsPath, hooksDir)).toEqual([]);
+    expect(cleanStaleHookRefs(settingsPath, claudeDir)).toEqual([]);
   });
 
   it("preserves non-hook commands (e.g. statusLine)", () => {
@@ -177,7 +214,7 @@ describe("cleanStaleHookRefs", () => {
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
     expect(removed).toEqual([]);
   });
 
@@ -191,16 +228,14 @@ describe("cleanStaleHookRefs", () => {
           PreToolUse: [
             {
               matcher: "Bash",
-              hooks: [
-                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"' },
-              ],
+              hooks: [{ type: "command", command: ref("hooks/dead.sh") }],
             },
           ],
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
-    expect(removed).toEqual(["dead.sh"]);
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    expect(removed).toEqual(["hooks/dead.sh"]);
     const after = JSON.parse(readFileSync(settingsPath, "utf8"));
     expect(after.hooks.PreToolUse).toEqual([]); // hooks 빈 entry 통째 제거
     expect(after.statusLine).toEqual({ type: "command", command: "npx powerline" }); // 보존
@@ -214,19 +249,423 @@ describe("cleanStaleHookRefs", () => {
           PreToolUse: [
             {
               matcher: "Bash",
-              hooks: [
-                { type: "command", command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"' },
-              ],
+              hooks: [{ type: "command", command: ref("hooks/dead.sh") }],
             },
           ],
           WeirdEvent: "not-an-array-value",
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, hooksDir);
-    expect(removed).toEqual(["dead.sh"]); // stale 제거로 write 트리거
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    expect(removed).toEqual(["hooks/dead.sh"]); // stale 제거로 write 트리거
     const after = JSON.parse(readFileSync(settingsPath, "utf8"));
     expect(after.hooks.WeirdEvent).toBe("not-an-array-value"); // non-array event 불변
+  });
+
+  // ── M-1: `hooks/` 밖 `.claude/**` 참조 ────────────────────────────────────────
+  // 이 4건이 이 결함의 본체다. 위 5건은 넓힌 술어가 **기존 동작을 회귀시키지 않는지**를 지킨다.
+
+  it("스킬 디렉터리 안의 스크립트 참조도 부재면 제거한다 (settings.json 이 스킬보다 넓게 깔린다)", () => {
+    // withEcc=true 설치가 정확히 이 상태다: settings.json 은 있고 스킬 디렉터리는 없다.
+    writeSettings([ref("skills/strategic-compact/suggest-compact.sh")]);
+
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+    expect(removed).toEqual(["skills/strategic-compact/suggest-compact.sh"]);
+    expect(remainingCommands()).toEqual([]);
+  });
+
+  it("같은 참조라도 파일이 실재하면 보존한다 (치유기가 멀쩡한 훅을 뜯으면 안 된다)", () => {
+    // withEcc=false 설치. 스킬이 깔려 있으므로 훅은 살아 있어야 한다.
+    mkdirSync(join(claudeDir, "skills/strategic-compact"), { recursive: true });
+    writeFileSync(join(claudeDir, "skills/strategic-compact/suggest-compact.sh"), "#!/bin/bash\n");
+    writeSettings([ref("skills/strategic-compact/suggest-compact.sh")]);
+
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+    expect(removed).toEqual([]);
+    expect(remainingCommands()).toHaveLength(1);
+  });
+
+  it("`.claude/` 밖 참조는 부재여도 보존한다 — 사용자 자기 스크립트다 (경계를 넓히지 않는다)", () => {
+    // 넓힌 술어가 여기까지 새면 치유기가 사용자 파일을 지우는 도구가 된다.
+    const outside = [
+      'bash "$CLAUDE_PROJECT_DIR/scripts/my-own-hook.sh"',
+      'bash "$CLAUDE_PROJECT_DIR/.husky/pre-commit.sh"',
+      "bash /usr/local/bin/some-global.sh",
+    ];
+    writeSettings(outside);
+
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+    expect(removed).toEqual([]);
+    expect(remainingCommands()).toEqual(outside);
+  });
+
+  it("제거 보고가 어느 파일인지 식별시킨다 — 같은 파일명이 두 디렉터리에 있을 수 있다", () => {
+    // 파일명만 보고하면(`dup.sh`) 사용자는 살아 있는 쪽과 지워진 쪽을 구분할 수 없고,
+    // 파일명 기준 중복 제거 로직이 있으면 **살아 있는 쪽 이름 때문에 죽은 쪽이 안 찍힌다.**
+    writeFileSync(join(claudeDir, "hooks/dup.sh"), "");
+    writeSettings([ref("hooks/dup.sh"), ref("skills/demo/dup.sh")]);
+
+    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+    expect(removed).toEqual(["skills/demo/dup.sh"]);
+    expect(remainingCommands()).toEqual([ref("hooks/dup.sh")]);
+  });
+
+  // ── H-2: `.claude/` 라는 이름이 가리키는 대상이 **둘**이다 ────────────────────
+  //
+  // ⓐ 프로젝트 `<projectDir>/.claude/` — 하네스가 깔았다. 치유 대상.
+  // ⓑ 홈      `~/.claude/`             — 사용자 전역 설정. **하네스 소유가 아니다.**
+  //
+  // 판정이 경로 세그먼트 `/.claude/` 만 보면 이 둘이 같은 문자열로 보인다. 그러면 치유기는
+  // 사용자가 `settings.json` 에 직접 적어 넣은 `$HOME/.claude/hooks/*.sh` 를 프로젝트 기준으로
+  // 존재 확인하고, 프로젝트에 그 파일이 없다는 이유로 **남의 훅을 지운다.** 그건 치유가 아니라
+  // 파손이고, ADR-057 Decision 2 가 선언한 경계(*".claude/ 밖 참조는 무조건 보존"*)와 정면으로
+  // 어긋난다 — 홈 `.claude/` 는 프로젝트 `.claude/` 밖이다.
+  //
+  // 폭발반경이 이번에 커졌다: 탐지 깊이가 무제한이 되면서 플러그인 훅이 실제로 사는
+  // `~/.claude/plugins/**` 와 `~/.claude/skills/**` 가 새로 사정권에 들어왔고, install 경로에도
+  // 치유기가 붙어 `update` 를 한 번도 안 돌린 사용자까지 노출된다.
+  //
+  // 그래서 계약은 **앵커**로 쓴다 — 참조가 이 프로젝트에 앵커될 때만 판정 대상이다.
+  // 열거식 예외 목록(`$HOME` 을 빼고, `~` 를 빼고, …)이 아니다. 예외를 열거하면 다음에 나올
+  // 표기 하나가 곧 다음 서식지가 된다.
+  describe("H-2 — 프로젝트 앵커가 있는 참조만 판정한다 (홈 `~/.claude/` 는 남의 것)", () => {
+    // 아래 두 표의 `${...}` 는 JS 템플릿 리터럴이 아니라 **훅 command 원문**이다 — Claude Code /
+    // 셸이 확장하는 표기라 형태를 바꾸면 테스트 대상 자체가 바뀐다.
+    // biome-ignore-start lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
+    /**
+     * 이 프로젝트에 앵커된 참조 = 판정 대상. 부재면 제거되어야 한다.
+     *
+     * command 를 **함수로** 담는다: `it.each` 의 표는 수집 시점에 평가되는데 `claudeDir` 은
+     * `beforeEach` 에서 만들어지는 temp dir 이라, 문자열로 담으면 `undefined/...` 가 박힌다.
+     */
+    const anchored: Array<[label: string, build: (claudeDir: string) => string, relPath: string]> =
+      [
+        [
+          "$CLAUDE_PROJECT_DIR 확장",
+          () => 'bash "$CLAUDE_PROJECT_DIR/.claude/skills/x/y.sh"',
+          "skills/x/y.sh",
+        ],
+        [
+          "${CLAUDE_PROJECT_DIR} 중괄호 표기",
+          () => 'bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/dead.sh"',
+          "hooks/dead.sh",
+        ],
+        [
+          // 레거시 설치는 `$CLAUDE_PROJECT_DIR` 이전에 절대경로를 그대로 박아 넣었다.
+          // 가리키는 곳이 같은 프로젝트이므로 표기가 다르다고 면제할 이유가 없다.
+          "실 projectDir 절대경로 (레거시 설치)",
+          (cd: string) => `bash "${cd}/hooks/legacy-abs.sh"`,
+          "hooks/legacy-abs.sh",
+        ],
+      ];
+
+    /**
+     * 앵커가 없는 참조 = **판정 대상 자체가 아니다.** 부재여도 보존한다.
+     *
+     * 케이스를 낱개로 도는 이유: 한쪽만 막는 구현이 나온다. `$HOME` 은 걸러내면서 `~` 는
+     * 그대로 두는 식이면 표를 하나로 묶었을 때 "어느 표기가 샜는지"가 실패 출력에서 사라진다.
+     */
+    const notAnchored: Array<[string, string]> = [
+      ["$HOME 확장", 'bash "$HOME/.claude/hooks/my-global.sh"'],
+      ["${HOME} 중괄호 표기", 'bash "${HOME}/.claude/hooks/my-global.sh"'],
+      ["~ 틸데 확장", 'bash "~/.claude/hooks/my-global.sh"'],
+      // 플러그인 훅이 실제로 사는 곳 — 이번 깊이 확장이 새로 사정권에 넣은 자리다.
+      ["$HOME 아래 플러그인 훅", 'bash "$HOME/.claude/plugins/foo/hooks/bar.sh"'],
+      ["CLAUDE_CONFIG_DIR", 'bash "${CLAUDE_CONFIG_DIR}/.claude/scripts/x.sh"'],
+      ["프로젝트 밖 절대경로", 'bash "/Users/someone/.claude/skills/mine/run.sh"'],
+      // 기존 경계 — 여기까지 회귀하지 않는지 같은 표에서 함께 본다.
+      ["$CLAUDE_PLUGIN_ROOT", 'bash "$CLAUDE_PLUGIN_ROOT/scripts/p.sh"'],
+    ];
+    // biome-ignore-end lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
+
+    // ── 진입점 1: `keepHookRef` 직접 호출 ────────────────────────────────────
+    // 파리티 게이트(`tests/settings-reference-parity.test.ts`)가 면제 판정에 **이 함수를 직접**
+    // 부른다. 두 진입점의 판정이 갈리면 그 게이트가 거짓 면제를 내주므로 양쪽 다 고정한다.
+
+    it.each(
+      anchored,
+    )("keepHookRef: 프로젝트 앵커 + 파일 부재 → 제거 (%s)", (_label, build, relPath) => {
+      const removed: string[] = [];
+      expect(keepHookRef({ command: build(claudeDir) }, claudeDir, removed)).toBe(false);
+      expect(removed).toEqual([relPath]);
+    });
+
+    it.each(notAnchored)("keepHookRef: 앵커 없음 → 파일이 없어도 보존 (%s)", (_label, command) => {
+      const removed: string[] = [];
+      expect(
+        keepHookRef({ command }, claudeDir, removed),
+        `${command} 를 프로젝트 \`.claude/\` 참조로 오인했다 — 사용자 전역 설정을 지운다`,
+      ).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
+
+    it("cleanStaleHookRefs: 앵커된 것만 지우고 나머지 command 는 그대로 남긴다", () => {
+      const preserved = notAnchored.map(([, command]) => command);
+      writeSettings([...anchored.map(([, build]) => build(claudeDir)), ...preserved]);
+
+      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+      expect(removed).toEqual(anchored.map(([, , relPath]) => relPath));
+      // 보존 대상은 **원문 그대로** 남아야 한다. 하나라도 빠지면 사용자 훅이 사라진 것이다.
+      expect(remainingCommands()).toEqual(preserved);
+    });
+  });
+
+  // ── H-3: `.sh` 는 **더 긴 확장자의 접두사**가 될 수 있다 ──────────────────────
+  //
+  // 참조 추출이 `[^"\s]+\.sh` 로 **끝을 고정하지 않으면**, `.sh` 로 시작할 뿐인 다른 확장자를
+  // 만났을 때 정규식이 뒷부분을 버리고 앞부분만 캡처한다:
+  //
+  //   `.claude/hooks/run.shell`  → 캡처 `hooks/run.sh`   (디스크의 `run.shell` 은 멀쩡히 실존)
+  //   `.claude/hooks/x.sh.bak`   → 캡처 `hooks/x.sh`     (디스크의 `x.sh.bak` 은 실존)
+  //
+  // 캡처한 `hooks/run.sh` 는 디스크에 없으므로 치유기는 그 훅을 **stale 로 판정하고 지운다.**
+  // 결과는 치유가 아니라 *사용자 설정의 조용한 손실* — 멀쩡히 동작하던 훅이 settings.json 에서
+  // 사라지고, 사용자에게는 있지도 않은 `hooks/run.sh` 가 제거됐다고 보고된다.
+  //
+  // 부류 자체는 옛 regex 에도 있었지만(같은 백트래킹), M-1 이 탐지 범위를 `.claude/hooks/` 한
+  // 층에서 `.claude/**` 임의 깊이로 넓히고 install 경로까지 붙이면서 **폭발반경이 커졌다.**
+  //
+  // 그래서 계약은 **참조의 끝을 고정한다**: `.sh` 가 경로 토큰의 끝일 때만 hook script 참조다.
+  // 끝 = 따옴표 · 공백 · 문자열 끝 셋 다. 따옴표 하나로만 짜면 인용부호 없는 형태가 그대로 샌다.
+  describe("H-3 — `.sh` 는 더 긴 확장자의 접두사일 수 있다 (참조 끝을 고정한다)", () => {
+    /** `.sh` 로 시작하는 **다른** 확장자 — 판정 대상이 아니다. 실존하면 무조건 보존. */
+    const prefixTraps: Array<[label: string, command: string, onDisk: string]> = [
+      [
+        "`.shell` — 따옴표 형태",
+        'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/run.shell"',
+        "hooks/run.shell",
+      ],
+      [
+        "`.sh.bak` — `.sh` 뒤에 확장자가 더 붙는다",
+        'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/x.sh.bak"',
+        "hooks/x.sh.bak",
+      ],
+      // 아래 둘이 "끝 고정을 `\"` 하나로만 짜는" 구현을 통과시키지 않는다.
+      [
+        "`.shell` — 따옴표 없이 문자열 끝",
+        "bash $CLAUDE_PROJECT_DIR/.claude/hooks/run.shell",
+        "hooks/run.shell",
+      ],
+      [
+        "`.shell` — 따옴표 없이 뒤에 인자",
+        "bash $CLAUDE_PROJECT_DIR/.claude/hooks/run.shell --verbose",
+        "hooks/run.shell",
+      ],
+    ];
+
+    it.each(
+      prefixTraps,
+    )("keepHookRef: %s → 실존하므로 보존하고 removed 에 아무것도 담지 않는다", (_label, command, onDisk) => {
+      writeFileSync(join(claudeDir, onDisk), "#!/bin/bash\n");
+      const removed: string[] = [];
+
+      expect(
+        keepHookRef({ command }, claudeDir, removed),
+        `${command} 의 참조 끝을 고정하지 않아 앞부분만 캡처했다 — 실존하는 훅을 지운다`,
+      ).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    it("keepHookRef: `.shell` 이 부재여도 `hooks/run.sh` 라는 거짓 항목을 보고하지 않는다", () => {
+      // 여기서 보존/제거 어느 쪽이든 우리 판정 대상이 아니다 — 고정하는 것은 **보고의 정직성**이다.
+      // 사용자 settings.json 에 적힌 적도 없는 경로가 "제거됨"으로 찍히면 그 보고는 거짓이다.
+      const removed: string[] = [];
+
+      keepHookRef(
+        { command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/run.shell"' },
+        claudeDir,
+        removed,
+      );
+
+      expect(removed, "command 에 없는 경로를 제거 보고에 담았다").not.toContain("hooks/run.sh");
+    });
+
+    // 끝 고정이 반대로 **너무 조여** 진짜 `.sh` 참조를 놓치면 치유기가 통째로 죽는다.
+    // `$` 하나로 끝을 박는 구현이 정확히 그 형태다 (뒤에 `"` 나 인자가 오면 매치 실패).
+    it.each([
+      ["따옴표 형태", 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"'],
+      ["따옴표 없이 문자열 끝", "bash $CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"],
+      ["따옴표 없이 뒤에 인자", "bash $CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh --verbose"],
+    ])("keepHookRef: 진짜 `.sh` 참조는 끝 고정 뒤에도 여전히 문다 (%s)", (_label, command) => {
+      const removed: string[] = [];
+      expect(keepHookRef({ command }, claudeDir, removed)).toBe(false);
+      expect(removed).toEqual(["hooks/dead.sh"]);
+    });
+
+    it("keepHookRef: 실존하는 `.sh` 는 보존한다 (회귀 방지)", () => {
+      writeFileSync(join(claudeDir, "hooks/alive.sh"), "");
+      const removed: string[] = [];
+      expect(keepHookRef({ command: ref("hooks/alive.sh") }, claudeDir, removed)).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
+    it("cleanStaleHookRefs: 접두사 함정 참조를 보존하면서 진짜 죽은 참조만 지운다", () => {
+      writeFileSync(join(claudeDir, "hooks/run.shell"), "");
+      writeFileSync(join(claudeDir, "hooks/x.sh.bak"), "");
+      writeFileSync(join(claudeDir, "hooks/alive.sh"), "");
+      const preserved = [ref("hooks/run.shell"), ref("hooks/x.sh.bak"), ref("hooks/alive.sh")];
+      writeSettings([...preserved, ref("hooks/dead.sh")]);
+
+      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+      expect(removed).toEqual(["hooks/dead.sh"]);
+      // 보존 대상은 **원문 그대로** — 하나라도 빠지면 동작하던 훅이 사용자 설정에서 사라진 것이다.
+      expect(remainingCommands()).toEqual(preserved);
+    });
+  });
+
+  // ── H-4: 끝은 고정했는데 **시작을 안 고정했다** ─────────────────────────────────
+  //
+  // 앵커 판정이 `command.indexOf(anchor)` 다 — **부분문자열 매치**다. 부분문자열은 앵커가 아니다:
+  // 앵커라는 말은 "이 참조가 이 프로젝트의 `.claude/` 에서 **시작한다**"는 주장인데, indexOf 는
+  // 그 문자열이 command 어딘가에 **박혀 있기만** 하면 참이라고 답한다. 그래서 실경로가 전혀 다른
+  // 참조가 "이 프로젝트에 앵커됐다"로 오판되고, 그 뒤 존재 확인은 참조가 실제로 가리키는 곳이
+  // 아니라 **프로젝트 쪽**에서 일어난다:
+  //
+  //   claudeDir(판정 기준)   = <tmp>/.claude
+  //   command 이 가리키는 곳 = <tmp>/mnt/host<tmp>/.claude/hooks/x.sh   ← 실존
+  //   판정 기준으로 본 경로  = <tmp>/.claude/hooks/x.sh                  ← 부재
+  //   ⇒ keep=false — **실존하는 남의 훅을 제거한다.**
+  //
+  // 트리거는 가상의 것이 아니다: 도커 바인드마운트(`-v`), 백업/스냅샷 트리, macOS 의 `/private`
+  // 접두(`/var` ↔ `/private/var`) 셋 다 "실경로는 다른데 문자열상 claudeDir 을 품는" 형태다.
+  // 피해는 ADR-057 Decision 2 가 막으려던 것과 **정확히 같다** — 사용자 자기 스크립트를 지우면
+  // 그건 치유가 아니라 파손이다.
+  //
+  // H-3 에서 참조의 **끝**을 토큰 경계로 고정했다. 시작도 대칭이어야 한다:
+  // **앵커는 command 의 맨 앞이거나, 바로 앞 문자가 공백 또는 따옴표일 때만 유효하다.**
+  // 문자열 접두사로 같은 곳이라고 주장할 수 없으면 기본값은 보존이다 (안전한 쪽).
+  describe("H-4 — 앵커는 토큰 시작에서만 유효하다 (부분문자열 매치는 앵커가 아니다)", () => {
+    // 아래 표의 `${...}` 는 JS 템플릿 리터럴이 아니라 **훅 command 원문**이다 (셸 변수 표기).
+    // biome-ignore-start lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
+
+    /**
+     * 앵커가 **토큰 시작**에 있는 형태 = 판정 대상. 부재면 제거되어야 한다.
+     *
+     * 시작 경계를 조이는 구현이 반대로 **너무 조여** 진짜 참조를 놓치면 치유기가 통째로 죽는다.
+     * 인용부호 뒤 · 공백 뒤 · command 맨 앞 셋을 다 세워 그 회귀를 막는다.
+     *
+     * command 를 함수로 담는 이유는 위 H-2 표와 같다 — `claudeDir` 은 `beforeEach` 산물이라
+     * 문자열로 담으면 수집 시점에 `undefined/...` 가 박힌다.
+     */
+    const atTokenStart: Array<[label: string, build: (claudeDir: string) => string, rel: string]> =
+      [
+        [
+          "레거시 절대경로 — 여는 따옴표 뒤",
+          (cd: string) => `bash "${cd}/hooks/dead.sh"`,
+          "hooks/dead.sh",
+        ],
+        [
+          "레거시 절대경로 — 공백 뒤 (따옴표 없음)",
+          (cd: string) => `bash ${cd}/hooks/dead.sh`,
+          "hooks/dead.sh",
+        ],
+        ["레거시 절대경로 — command 맨 앞", (cd: string) => `${cd}/hooks/dead.sh`, "hooks/dead.sh"],
+        [
+          "셸 변수 앵커 — 여는 따옴표 뒤",
+          () => 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/dead.sh"',
+          "hooks/dead.sh",
+        ],
+      ];
+
+    /**
+     * 앵커 문자열이 **토큰 중간**에 박힌 형태 = 앵커가 아니다. 부재여도 보존한다.
+     *
+     * 셸 변수 앵커(1·2)를 같은 표에 세우는 것이 핵심이다 — 레거시 절대경로 앵커(3)만 고치고
+     * 1·2 를 놔두는 구현이 여기를 통과하지 못한다. 경계 규칙은 **앵커 목록 전체**에 걸려야 한다
+     * (한 축이 계열 일부에만 있으면 빠진 쪽이 다음 서식지다).
+     */
+    const midToken: Array<[label: string, build: (claudeDir: string) => string]> = [
+      [
+        // macOS 는 같은 곳을 `/var/...` 로도 `/private/var/...` 로도 부른다. 접두사가 붙은 순간
+        // 그건 **다른 문자열**이고, 문자열 접두사 비교로는 같은 곳이라고 주장할 수 없다.
+        // 주장할 수 없으면 보존이 기본값이다 — 지우고 나서 틀린 것이 그 반대보다 훨씬 비싸다.
+        "macOS `/private` 접두",
+        (cd: string) => `bash "/private${cd}/hooks/ghost.sh"`,
+      ],
+      ["셸 변수 앵커 1 이 토큰 중간", () => 'bash "/x$CLAUDE_PROJECT_DIR/.claude/hooks/ghost.sh"'],
+      [
+        "셸 변수 앵커 2 가 토큰 중간",
+        () => 'bash "/x${CLAUDE_PROJECT_DIR}/.claude/hooks/ghost.sh"',
+      ],
+    ];
+    // biome-ignore-end lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
+
+    /**
+     * 바인드마운트가 만드는 경로를 **실제로** 깐다 — `<dir>/mnt/host` + `<claudeDir>`.
+     *
+     * `claudeDir` 문자열을 그대로 이어붙인다. 여기서 `realpath` 로 정규화하면 macOS 의
+     * `/var` ↔ `/private/var` 때문에 판정에 넘기는 기준 문자열과 command 가 갈리고, 그러면
+     * 이 테스트가 재는 것이 앵커 경계가 아니라 심볼릭 링크 표기가 된다 (앞선 레인이 여기서
+     * 헛빨간불을 한 번 봤다).
+     */
+    function mountedHookScript(): string {
+      const mountedClaudeDir = `${join(dir, "mnt", "host")}${claudeDir}`;
+      mkdirSync(join(mountedClaudeDir, "hooks"), { recursive: true });
+      const script = join(mountedClaudeDir, "hooks", "x.sh");
+      writeFileSync(script, "#!/bin/bash\n");
+      return script;
+    }
+
+    // ── 진입점 1: `keepHookRef` 직접 호출 ────────────────────────────────────
+
+    it.each(
+      atTokenStart,
+    )("keepHookRef: 앵커가 토큰 시작 + 파일 부재 → 제거 (%s)", (_label, build, rel) => {
+      const removed: string[] = [];
+      expect(
+        keepHookRef({ command: build(claudeDir) }, claudeDir, removed),
+        `${build(claudeDir)} 를 앵커로 못 물었다 — 시작 경계를 너무 조이면 치유기가 죽는다`,
+      ).toBe(false);
+      expect(removed).toEqual([rel]);
+    });
+
+    it.each(midToken)("keepHookRef: 앵커가 토큰 중간 → 부재여도 보존 (%s)", (_label, build) => {
+      const removed: string[] = [];
+      expect(
+        keepHookRef({ command: build(claudeDir) }, claudeDir, removed),
+        `${build(claudeDir)} 를 이 프로젝트 앵커로 오인했다 — 실경로가 다른 남의 훅을 지운다`,
+      ).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    it("keepHookRef: 바인드마운트 경로 — 그 실경로에 실존하는 훅을 제거하지 않는다", () => {
+      const script = mountedHookScript();
+      // 전제 확인 — "실존한다"가 참이어야 이 케이스가 재려는 피해가 성립한다.
+      expect(existsSync(script), "마운트 쪽 훅 파일을 못 만들었다").toBe(true);
+      expect(existsSync(join(claudeDir, "hooks/x.sh")), "프로젝트 쪽엔 없어야 한다").toBe(false);
+
+      const removed: string[] = [];
+      expect(
+        keepHookRef({ command: `bash "${script}"` }, claudeDir, removed),
+        `${script} 는 실존한다 — 문자열상 claudeDir 을 품었다는 이유로 지우면 파손이다`,
+      ).toBe(true);
+      expect(removed).toEqual([]);
+    });
+
+    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
+
+    it("cleanStaleHookRefs: 토큰 중간 앵커는 보존하고 진짜 죽은 참조만 지운다", () => {
+      const preserved = [
+        `bash "${mountedHookScript()}"`,
+        ...midToken.map(([, build]) => build(claudeDir)),
+      ];
+      writeSettings([...preserved, `bash "${claudeDir}/hooks/dead.sh"`]);
+
+      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+
+      expect(removed).toEqual(["hooks/dead.sh"]);
+      // 보존 대상은 **원문 그대로** — 하나라도 빠지면 사용자 훅이 조용히 사라진 것이다.
+      expect(remainingCommands()).toEqual(preserved);
+    });
   });
 });
 

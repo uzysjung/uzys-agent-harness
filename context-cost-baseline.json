@@ -1,17 +1,53 @@
 {
   "$comment": "상주 컨텍스트 비용 상한(ratchet). 값을 올리려면 그 증가를 정당화하는 커밋에서 함께 올린다 — 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
-  "unit": "tokens/session (chars/4 근사 — 실측이 아니라 규약값)",
+  "units": {
+    "items": "상주 항목 수 (rules + skills + agents + CLAUDE.md 스캐폴드) — 1차 축",
+    "tokens": "tokens/session (chars/4 근사 — 실측이 아니라 규약값) — 부수 표시값"
+  },
   "tracks": {
-    "tooling": 5975,
-    "csr-supabase": 7338,
-    "csr-fastify": 7528,
-    "csr-fastapi": 7616,
-    "ssr-htmx": 7257,
-    "ssr-nextjs": 7409,
-    "data": 6276,
-    "executive": 4512,
-    "full": 9456,
-    "project-management": 4258,
-    "growth-marketing": 4258
+    "tooling": {
+      "items": 29,
+      "tokens": 6551
+    },
+    "csr-supabase": {
+      "items": 35,
+      "tokens": 7913
+    },
+    "csr-fastify": {
+      "items": 36,
+      "tokens": 8103
+    },
+    "csr-fastapi": {
+      "items": 38,
+      "tokens": 8191
+    },
+    "ssr-htmx": {
+      "items": 34,
+      "tokens": 7832
+    },
+    "ssr-nextjs": {
+      "items": 36,
+      "tokens": 7984
+    },
+    "data": {
+      "items": 32,
+      "tokens": 6852
+    },
+    "executive": {
+      "items": 20,
+      "tokens": 4870
+    },
+    "full": {
+      "items": 47,
+      "tokens": 10031
+    },
+    "project-management": {
+      "items": 17,
+      "tokens": 4616
+    },
+    "growth-marketing": {
+      "items": 17,
+      "tokens": 4616
+    }
   }
 }

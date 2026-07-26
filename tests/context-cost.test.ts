@@ -17,7 +17,8 @@ import {
 } from "../src/context-cost.js";
 import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { formatSummary } from "../src/interactive.js";
-import type { InstallSpec } from "../src/types.js";
+import { buildManifest } from "../src/manifest.js";
+import { type InstallSpec, TRACKS } from "../src/types.js";
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost ratchet.
@@ -150,19 +151,46 @@ describe("context cost surfaces", () => {
     scope: "project",
   } as unknown as InstallSpec;
 
+  /**
+   * 표면이 보여야 하는 문자열을 여기서 다시 조립하지 않는다 — 포맷 함수를 그대로 호출해
+   * 얻는다. 기대값을 손으로 적으면 그 문자열이 세 번째 사본이 되고, 표면이 자체 조립으로
+   * 새는 것을 잡으려는 이 테스트가 정작 같은 잘못을 저지르게 된다.
+   */
+  const expectedLine = (): string => {
+    const entries = buildManifest(spec).filter((e) => e.applies(spec));
+    const line = formatResidentCostLine(residentCost(entries), 0);
+    // unmeasured 절은 자산 선택에 따라 달라지므로 그 앞부분(개수·토큰·내역)만 비교한다.
+    return (line ?? "").split(" · 0 external")[0]?.replace(/\)$/, "") ?? "";
+  };
+
   it("non-interactive install header prints the context cost line", () => {
     const lines: string[] = [];
     renderInstallHeader((m) => lines.push(m), spec);
     const joined = lines.join("\n");
     expect(joined).toContain("session-start context cost:");
     // v26.117.0 — 총합만 보이면 "스킬 descriptor 만 세던" 10% 과소표기로 조용히 되돌아간다.
-    expect(joined).toContain("rules ~");
+    // v26.140.0 — 개수까지 같은 라인으로 도달하는지 (표면 대칭). 포맷 함수 산출물과 대조.
+    expect(joined).toContain(expectedLine());
+    expect(joined).toContain("items resident");
   });
 
   it("wizard confirm summary prints the same context cost line", () => {
     const summary = formatSummary(spec);
     expect(summary).toContain("session-start context cost:");
-    expect(summary).toContain("rules ~");
+    expect(summary).toContain(expectedLine());
+    expect(summary).toContain("items resident");
+  });
+
+  it("두 표면이 **같은** 라인을 보여준다 — 표면별 상이 문구 금지", () => {
+    // v26.88.0 이중 고지 사고의 교훈이 개수 축에도 그대로 걸린다.
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    const fromHeader = lines.join("\n").match(/session-start context cost: [^\n]*/)?.[0];
+    const fromWizard = formatSummary(spec).match(/session-start context cost: [^\n]*/)?.[0];
+    expect(fromHeader).toBeDefined();
+    // 헤더는 dim 이스케이프가 붙으므로 wizard 라인이 헤더 라인에 포함되는지로 본다.
+    expect(fromHeader).toContain(expectedLine());
+    expect(fromWizard).toContain(expectedLine());
   });
 });
 
@@ -277,6 +305,23 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
     expect(r.total).toBe(r.rules + r.projectClaudeMd + r.skillDescriptors + r.agentDescriptors);
   });
 
+  it("개수는 토큰과 **같은 대상**을 센다 — 표면당 1, CLAUDE.md 포함", () => {
+    // 두 축이 다른 대상을 세기 시작하면 나란히 놓은 의미가 없다. seed() 는 표면마다 1개씩.
+    const r = residentCost(entries, seed());
+    expect(r.items).toEqual({ rules: 1, skills: 1, agents: 1, claudeMd: 1, total: 4 });
+  });
+
+  it("스캐폴드가 없으면 CLAUDE.md 는 항목 0 — 토큰 0 과 같은 판정", () => {
+    // 한쪽 축만 0 으로 떨어지면 그 자체가 drift다 (개수는 세는데 토큰은 0, 또는 그 반대).
+    const root = mkdtempSync(join(tmpdir(), "resident-noclaude-"));
+    mkdirSync(join(root, "templates", "rules"), { recursive: true });
+    writeFileSync(join(root, "templates", "rules", "r1.md"), "R".repeat(400));
+    const r = residentCost([{ source: "rules/r1.md", target: ".claude/rules/r1.md" }], root);
+    expect(r.projectClaudeMd).toBe(0);
+    expect(r.items.claudeMd).toBe(0);
+    expect(r.items.total).toBe(1);
+  });
+
   it("스킬 body → 룰로 '이동'하면 상주 비용이 늘어난다 — 굿하트 구멍 차단", () => {
     // 이 단언이 뒤집히면(이동해도 그대로/감소) 지표가 사용자를 나쁘게 만드는 리팩터링을
     // 보상하게 된다. ADR-044 가 존재하는 이유 그 자체.
@@ -295,6 +340,8 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
     const root = seed();
     const withHook = [...entries, { source: "hooks/h.sh", target: ".claude/hooks/h.sh" }];
     expect(residentCost(withHook, root).total).toBe(residentCost(entries, root).total);
+    // 개수 축에서도 마찬가지 — 훅이 늘었다고 상주 항목이 늘면 지표가 엉뚱한 것을 센다.
+    expect(residentCost(withHook, root).items.total).toBe(residentCost(entries, root).items.total);
   });
 
   it("표시 라인이 내역을 드러낸다 — 총합만 보이면 어디가 비싼지 모른다", () => {
@@ -305,21 +352,76 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
         skillDescriptors: 547,
         agentDescriptors: 615,
         total: 5194,
+        items: { rules: 10, skills: 9, agents: 9, claudeMd: 1, total: 29 },
       },
       52,
     );
     expect(line).toContain("~5194 tokens/session");
-    expect(line).toContain("rules ~3094");
-    expect(line).toContain("skills ~547");
+    expect(line).toContain("rules 10 ~3094");
+    expect(line).toContain("skills 9 ~547");
     expect(line).toContain("52 external assets unmeasured");
+    // v26.140.0 — 개수가 **먼저**. 표면마다 순서가 다르면 그 자체가 혼선이다.
+    expect(line).toContain("29 items resident");
+    expect((line ?? "").indexOf("items resident")).toBeLessThan(
+      (line ?? "").indexOf("tokens/session"),
+    );
   });
 
   it("자산이 없으면 null", () => {
     expect(
       formatResidentCostLine(
-        { rules: 0, projectClaudeMd: 0, skillDescriptors: 0, agentDescriptors: 0, total: 0 },
+        {
+          rules: 0,
+          projectClaudeMd: 0,
+          skillDescriptors: 0,
+          agentDescriptors: 0,
+          total: 0,
+          items: { rules: 0, skills: 0, agents: 0, claudeMd: 0, total: 0 },
+        },
         0,
       ),
     ).toBeNull();
+  });
+});
+
+/**
+ * v26.140.0 — 상주 비용의 **양(quantity) 축 = 항목 수**.
+ *
+ * WHY: 1차 NSM 의 양 축을 토큰에서 개수로 바꿨다. ADR-051 실측에서 토큰의 금전 비용은
+ * 무의미했지만($2.94/1k요청 · 컨텍스트 0.59%) 실제로 아픈 비용 — 교차참조, 서로 모순되는 지시,
+ * 문서 drift, 유지보수 — 는 항목 수에 비례한다. "잘 동작한다"고 판정된 레퍼런스가 15개인데
+ * 우리 tooling 이 29개라는 사실은 토큰 수치로는 절대 보이지 않았다.
+ *
+ * 아래는 상수표를 읽는 게 아니라 **실제 manifest + applies 필터**로 센다 — cost:report ·
+ * baseline · ratchet 이 쓰는 것과 같은 경로다. 계측 경로가 갈리면 수치가 갈린다.
+ */
+describe("상주 항목 수 (quantity 축)", () => {
+  const count = (track: string): ReturnType<typeof residentCost>["items"] => {
+    const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as InstallSpec;
+    return residentCost(buildManifest(spec).filter((e) => e.applies(spec))).items;
+  };
+
+  // 최소(executive) · 중간(tooling) · 최대(full). 값이 바뀌면 그 자체가 검토 대상이다 —
+  // 늘었으면 정당화를, 줄었으면 여기와 baseline 을 함께 낮춰라.
+  it.each([
+    ["executive", { rules: 5, skills: 9, agents: 5, claudeMd: 1, total: 20 }],
+    ["tooling", { rules: 10, skills: 9, agents: 9, claudeMd: 1, total: 29 }],
+    ["full", { rules: 20, skills: 17, agents: 9, claudeMd: 1, total: 47 }],
+  ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
+    expect(count(track)).toEqual(expected);
+  });
+
+  it("합계는 표면 4개의 합이다 — 어느 표면이 빠져도 합계가 조용히 맞으면 안 된다", () => {
+    for (const track of TRACKS) {
+      const c = count(track);
+      expect(c.total, `track=${track}`).toBe(c.rules + c.skills + c.agents + c.claudeMd);
+      expect(c.total, `track=${track} 상주 항목이 0 이면 계측이 죽은 것이다`).toBeGreaterThan(0);
+    }
+  });
+
+  it("트랙마다 항목 수가 다르다 — 트랙 무관 상수를 세고 있지 않다는 대조", () => {
+    // count() 가 manifest 대신 고정 목록을 세면 모든 트랙이 같은 값이 되고, 위 표는 여전히
+    // 통과할 수 있다(한 트랙만 맞으면 되는 게 아니라 셋 다 맞아야 하지만 상수 세 개면 그만).
+    expect(new Set(TRACKS.map((t) => count(t).total)).size).toBeGreaterThan(1);
   });
 });

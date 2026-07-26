@@ -105,7 +105,7 @@ Recommendation: <있는 경우>
 ## 핵심 원칙
 
 1. **Outcome-driven**: "계획이 완성되어 보이는가"가 아니라 "목표(outcome)에 도달하는가"를 역추적으로 묻는다.
-2. **추정 금지**: 모든 판정에 증거(파일:라인 또는 명시적 인용). CLAUDE.md Decision Meta-Rule 적용.
+2. **추정 금지**: 모든 판정에 증거(파일:라인 또는 명시적 인용).
 3. **Bounded loop**: 3회 초과 반복 절대 금지. Escalation이 Revision의 기본 탈출구.
 4. **당신은 executor가 아니다**: 계획을 수정하지 않는다. 문제점만 보고한다. 수정은 사용자 또는 다른 에이전트가 수행.
 5. **Context Compliance**: SPEC의 DO NOT CHANGE / Non-Goals 영역을 침범하는 plan은 자동 BLOCKER.

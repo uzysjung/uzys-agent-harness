@@ -22,10 +22,16 @@ describe("doc-governance — 착수 전 baseline 대조 절", () => {
     expect(tpl.indexOf("## 작업 완료 처리")).toBeLessThan(tpl.indexOf("## 착수 전 baseline 대조"));
   });
 
-  it("CLAUDE.md Rule 8 과의 경계를 선언한다", () => {
-    // Rule 8("read before you write")은 이미 매 세션 상주한다. 관계를 밝히지 않으면 이 절은
+  it("앵커의 상주 원칙과의 경계를 선언한다", () => {
+    // 그 원칙("읽고 나서 쓴다")은 이미 매 세션 상주한다. 관계를 밝히지 않으면 이 절은
     // doc-governance 자신의 "같은 사실을 두 곳에 쓰지 않는다"를 어기는 순수 중복이 된다.
-    expect(section).toContain("Rule 8");
+    //
+    // v26.141.0 (ADR-055) — 기대값이 `Rule 8` 이었다 (rule-ref:frozen). 앵커가 6원칙으로 교체되면서
+    // 그 번호가 사라졌고, **게이트가 없어진 이름을 리터럴로 물고 있던 것**이다(E7-1 스윕이 본문을
+    // `원칙 1` 로 재지목했고 테스트의 의도 — 경계 선언 — 는 그대로 충족된다). 죽은 이름을 병기 (rule-ref:frozen)
+    // 하지 않는 이유: 병기하면 죽은 참조가 영구히 허용값으로 남고, 그것을 잡으려고 만든
+    // `resident-rule-reference-liveness` 게이트와 정면으로 어긋난다.
+    expect(section).toContain("원칙 1");
   });
 
   it("발동 조건이 기계로 확인 가능하다 — 무근거 임계값 금지", () => {

@@ -2,7 +2,7 @@
  * AGENTS.md transform — CLAUDE.md → AGENTS.md.
  *
  * v26.70.0 — section 추출(Identity/Direction/Principles) → CLAUDE.md **전문 embed**.
- *   실 `templates/CLAUDE.md` 가 Rule 1~12 구조라 Identity/Direction/Principles 헤딩이 없어
+ *   실 `templates/CLAUDE.md` 에 Identity/Direction/Principles 헤딩이 없어
  *   extractSection 이 빈 결과 → AGENTS.md 가 빈 섹션으로 shipping 되던 버그 fix.
  *   `{PROJECT_RULES}` placeholder 에 CLAUDE.md 본문 전체를 삽입 (heading 구조 의존 0).
  */

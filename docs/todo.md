@@ -74,6 +74,16 @@
 - **C2** fresh-env 설치 매트릭스 CI ✅ (v26.72.0, `install-matrix.yml`) · **P2-NPM** npm publish ✅ (v26.72.1, `@uzysjung/claude-harness` 라이브)
 - **B2+B1** 4-CLI 실환경 Docker 검증 ✅ (v26.73.0) · **A1** Trust Tier star-drift CI ✅ (`trust-tier-drift.yml`) · **A2** 자산 Promise audit ✅ (v26.74.0)
 
+## 상주 감축 사이클 (2026-07-26 발 · ADR-053) — 진행 중
+
+> **추적은 `docs/plans/resident-reduction-2026-07-26-todo.md`.** 진행 중 사이클을 이 파일에
+> 두지 않는 것은 이 리포의 sub-SPEC 관행이다(선례 7건) — 그래야 main 이 항상 출하 가능한
+> 상태로 남고 ship 게이트가 진행 중 작업 때문에 상시 차단되지 않는다.
+> 게이트에 태우려면 `SHIP_SUBSPEC=resident-reduction-2026-07-26`.
+
+방향: 자산의 기본값을 추가 → **제거**로 반전. 남기려는 쪽이 입증 책임을 진다.
+기준선 = `~/.claude/CLAUDE.md` 6원칙 최종본. 결정 = [ADR-053](decisions/ADR-053-resident-item-count.md).
+
 ## 재발방지 큐 (2026-07-19 실측 발) — 순서대로
 
 증거는 추정이 아니라 실측이다. 두 건 모두 프로즈 규약이 **이미 있는데도** 반복됐다 —

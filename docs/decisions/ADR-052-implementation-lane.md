@@ -1,8 +1,15 @@
 # ADR-052: 설치본에 구현 레인을 신설한다
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-07-26
 - PR: (이 브랜치)
+- Superseded-by: ADR-054 (상위 원칙 "만든 레인은 자기 산출물을 판정하지 않는다")
+
+> **자산·배선은 폐기되지 않았다.** `templates/agents/implementer.md` · `DEV_AGENTS` 배선 · 모델
+> 선택 · 종료 조건 계약은 **유효하며 ADR-054 가 그 현행 소유자**다. 본 ADR 에서 폐기된 것은 위임
+> 문안 3점뿐이다 — ⓐ 누가 종료 테스트를 쓰는지 미규정 ⓑ "Keep the Deciding" 이 설계와 검증을 같은
+> 액터에 남김 ⓒ *"dev tracks ship an `implementer` agent"* 가 임베드를 타고 non-claude 앵커에
+> 거짓으로 배송됨. 상세는 ADR-054 `## Decision`.
 
 ## Context
 

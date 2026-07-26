@@ -21,7 +21,13 @@ jobs:
         os: [ubuntu-latest, macos-latest]
       fail-fast: false
     steps:
+      # fetch-depth: 0 = 전체 히스토리 + **태그**. 기본값(1) 이면 체크아웃한 태그 1개만 보여
+      # tests/docs-supply-chain.test.ts 의 "CHANGELOG → 태그 역방향 게이트" 가 태그를 못 읽는다
+      # (그 상태는 통과가 아니라 '신뢰 불가' 실패로 잡힌다). depth 를 되돌릴 일이 생기면
+      # `fetch-tags: true` 를 함께 넣을 것.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -48,3 +54,45 @@ jobs:
           test -f "$tmp/.claude/.installed-tracks"
           test -f "$tmp/.mcp.json"
           rm -rf "$tmp"
+
+  # npm registry publish (v26.72.1, P2-NPM) — 태그 push 시 자동 publish.
+  #   목적: `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 GitFetcher 버그로 실패 → registry publish 로
+  #   `npx @uzysjung/agent-harness` 가 전 npm 버전 작동 (git-dep pack 미경유).
+  #   version 은 태그에서 파생 (단일 CalVer 정합).
+  #
+  #   **이 job 이 여기 있는 이유 = `needs: ci`**. 별개 워크플로였을 때는 `ci` 가 red 여도
+  #   게시가 독립으로 성공했다 — v26.128.0~131.0 에서 `ci` 4연속 red 인 채 npm 이 나갔고 3릴리즈 동안
+  #   아무도 못 봤다. `needs:` 는 같은 워크플로 안에서만 성립하므로 job 을 옮기는 것이 배선 조건이다.
+  #   install-matrix 는 여전히 별개 워크플로(게시를 막지 않는 fresh-env 회귀 신호).
+  #
+  # 사전 조건: repo Settings > Secrets > Actions 에 NPM_TOKEN (npm automation token).
+  #   미설정 시 publish 단계는 graceful skip (태그 CI 를 red 로 만들지 않음).
+  publish:
+    name: npm publish (@uzysjung/agent-harness)
+    needs: ci
+    # 태그 push 에서만 게시. 이 가드가 없으면 workflow_dispatch 수동 CI 실행이 게시를 딸려 돌린다.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      # version = 태그 (v 제거). package.json 커밋본과 무관하게 태그가 SSOT.
+      - name: set version from tag
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+      - run: npm run build
+      - name: npm publish (skip if NPM_TOKEN absent)
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::warning::NPM_TOKEN 미설정 — publish 건너뜀. repo Settings>Secrets 에 NPM_TOKEN 추가 후 재태그."
+            exit 0
+          fi
+          npm publish --access public
+          echo "published: @uzysjung/agent-harness@${GITHUB_REF_NAME#v}"

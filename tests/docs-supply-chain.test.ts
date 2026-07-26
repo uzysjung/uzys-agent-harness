@@ -64,6 +64,144 @@ describe("CHANGELOG 현행성 게이트 (drift 재발 차단)", () => {
   });
 });
 
+// WHY (v26.138.0 거짓출하): 위 게이트는 `package.json → CHANGELOG` **한 방향만** 본다. 그래서
+//   PR #257 이 package.json 을 26.138.0 으로 bump 하고 CHANGELOG 항목까지 넣었지만 **태그를 안 밀어**
+//   릴리즈 워크플로가 아예 안 돈 상태가 green 으로 통과했다 — npm 게시도 없이 "배포 완료 · npm 라이브"
+//   로 보고됐다(코드는 v26.139.0 에 포함돼 살아 있으니 "동작한다"는 참, "배포됐다"가 거짓).
+//   빠진 축은 반대 방향이다: **CHANGELOG 항목 → 태그 실재**. 계열 일부에만 있는 축은 빠진 쪽이
+//   입증 책임을 진다(feedback_surface_symmetry, 4회차).
+//   면제는 **표식이 있는 쪽** (no-false-ship: "기본값 = 검사"). 표식은 헤딩 **바로 다음 줄**에
+//   단독으로 있어야 하고 사유가 비면 무효 — 산문에 같은 문자열이 섞여도 면제되지 않는다.
+const RELEASE_HEADING = /^## \[(v\d+\.\d+\.\d+)\]/;
+const NO_TAG_MARKER = /^<!--\s*release-tag:none\s+(\S.*?)\s*-->$/;
+
+interface ChangelogTagAudit {
+  readonly headings: readonly string[];
+  readonly exempted: readonly string[];
+  readonly matched: readonly string[];
+  readonly missing: readonly string[];
+  readonly tagCount: number;
+}
+
+function auditChangelogTags(changelog: string, tags: readonly string[]): ChangelogTagAudit {
+  const tagSet = new Set(tags);
+  const lines = changelog.split("\n");
+  const headings: string[] = [];
+  const exempted: string[] = [];
+  const matched: string[] = [];
+  const missing: string[] = [];
+  for (const [i, line] of lines.entries()) {
+    const version = RELEASE_HEADING.exec(line)?.[1];
+    if (!version) continue;
+    headings.push(version);
+    if (tagSet.has(version)) {
+      matched.push(version);
+    } else if (NO_TAG_MARKER.test((lines[i + 1] ?? "").trim())) {
+      exempted.push(version);
+    } else {
+      missing.push(version);
+    }
+  }
+  return { headings, exempted, matched, missing, tagCount: tags.length };
+}
+
+// 탐지기 자기검증 — "빈 결과는 부재의 증거가 아니다" (cli-development.md).
+//   GitHub Actions 기본 체크아웃은 `fetch-depth: 1` 이라 태그가 없거나(0개) 체크아웃한 태그
+//   하나만 있다. 그 상태에서 위 audit 은 "전 릴리즈 미태그" 라는 **엉뚱한 결론**을 낸다.
+//   판정 경계는 튜닝값이 아니라 두 모집단의 구분선이다: 정상 클론이면 헤딩의 90%+ 가 태그와
+//   매칭되고(실측 164 중 152), 얕은 클론이면 0~1 건이다. 절반은 그 사이 어디에 둬도 같은
+//   결론이 나오는 자리 — 실제 drift 로 절반이 깨지려면 릴리즈 80여 건이 통째로 미태그여야 한다.
+function tagReadFailure(audit: ChangelogTagAudit): string | null {
+  if (audit.headings.length === 0) {
+    return "CHANGELOG.md 에서 '## [vX.Y.Z]' 릴리즈 헤딩을 한 건도 못 찾음 — 헤딩 포맷이 바뀌어 이 게이트가 지금 아무것도 보지 않는다";
+  }
+  if (audit.tagCount === 0) {
+    return "git 태그를 0개 읽었다 — 태그 조회 실패 또는 얕은 클론. 이 검사는 지금 아무것도 보지 않는다";
+  }
+  if (audit.matched.length * 2 < audit.headings.length) {
+    return `git 태그(${audit.tagCount}개)가 CHANGELOG 릴리즈 헤딩 ${audit.headings.length} 건 중 ${audit.matched.length} 건만 설명한다 — 태그 목록을 제대로 못 읽었다고 본다. 이 검사는 지금 아무것도 보지 않는다`;
+  }
+  return null;
+}
+
+function readGitTags(): string[] {
+  try {
+    return execFileSync("git", ["tag", "-l"], { encoding: "utf-8" }).split("\n").filter(Boolean);
+  } catch {
+    // 조회 실패 = 빈 목록. 아래 tagReadFailure 가 "신뢰 불가" 로 **실패**시킨다 (통과 아님).
+    return [];
+  }
+}
+
+const SHALLOW_CLONE_FIX =
+  "얕은 클론이면 워크플로 체크아웃에 `fetch-depth: 0` (필요 시 `fetch-tags: true`) 이 필요하다.";
+
+describe("CHANGELOG → 태그 역방향 게이트 (v26.138.0 거짓출하 차단)", () => {
+  const changelog = readFileSync("CHANGELOG.md", "utf-8");
+
+  it("모든 릴리즈 헤딩에 대응하는 git 태그가 실재한다 (미게시는 표식으로만 면제)", () => {
+    const audit = auditChangelogTags(changelog, readGitTags());
+    expect(tagReadFailure(audit), `탐지기 자기검증 실패 — ${SHALLOW_CLONE_FIX}`).toBeNull();
+    expect(
+      audit.missing,
+      `CHANGELOG.md 에 항목이 있으나 git 태그가 없는 릴리즈: ${JSON.stringify(audit.missing)} — 태그를 안 밀면 릴리즈 워크플로가 돌지 않아 npm 게시가 없다(v26.138.0 전례). 태그를 밀거나, 게시되지 않은 버전이면 헤딩 **바로 다음 줄**에 단독으로 '<!-- release-tag:none <사유> -->' 를 넣을 것.`,
+    ).toEqual([]);
+  });
+
+  // 음성 대조를 상시 테스트로 고정 — 태그를 못 읽는 상태가 '통과' 로 새면 게이트가 죽는다.
+  it("태그 목록이 신뢰 불가면 통과가 아니라 실패로 판정한다 (얕은 클론)", () => {
+    // null(=이상 없음) 을 그대로 두면 실패 메시지가 "null 은 toContain 불가" 로 나와 무엇이
+    //   깨졌는지 안 보인다. 통과 판정을 명시 문자열로 바꿔 실패 이유가 화면에 남게 한다.
+    const verdict = (audit: ChangelogTagAudit): string =>
+      tagReadFailure(audit) ?? "(신뢰 가능 판정 — 게이트가 이 상태를 green 으로 흘린다)";
+
+    expect(verdict(auditChangelogTags(changelog, [])), "태그 0개").toContain(
+      "아무것도 보지 않는다",
+    );
+    // fetch-depth: 1 로 태그 ref 를 체크아웃한 상태 = 태그 1개만 보임.
+    expect(verdict(auditChangelogTags(changelog, ["v26.139.0"])), "태그 1개(얕은 클론)").toContain(
+      "아무것도 보지 않는다",
+    );
+    // 헤딩 포맷이 바뀌어 파서가 죽은 경우도 '깨끗함' 이 아니다.
+    expect(
+      verdict(auditChangelogTags("# 변경 이력\n\n## 26.139.0\n", ["v26.139.0"])),
+      "릴리즈 헤딩 0건",
+    ).toContain("아무것도 보지 않는다");
+  });
+
+  it("면제 표식은 헤딩 직후 단독 줄 + 사유 있음일 때만 유효", () => {
+    const withNextLine = (marker: string): ChangelogTagAudit =>
+      auditChangelogTags(`## [v9.9.9] — 사유 없는 예시\n${marker}\n`, ["v1.0.0"]);
+
+    expect(
+      withNextLine("<!-- release-tag:none 태그·npm 게시 없음 -->").exempted,
+      "정상 표식이 면제되지 않음",
+    ).toEqual(["v9.9.9"]);
+    // 산문 안에 표식 문자열이 섞인 줄 — 면제 아님.
+    expect(
+      withNextLine("이 버전은 `<!-- release-tag:none 사유 -->` 표식으로 면제한다").missing,
+      "산문 속 표식 문자열이 면제로 인정됨 — 가드가 느슨하다",
+    ).toEqual(["v9.9.9"]);
+    // 사유 없는 빈 표식 — 면제 아님 ("미검증에도 근거가 필요하다", no-false-ship).
+    expect(
+      withNextLine("<!-- release-tag:none -->").missing,
+      "사유 없는 표식이 면제로 인정됨",
+    ).toEqual(["v9.9.9"]);
+    // 헤딩 직후가 아닌 위치(본문 한참 아래) — 면제 아님.
+    expect(
+      auditChangelogTags("## [v9.9.9] — 예시\n\n### 변경\n<!-- release-tag:none 사유 -->\n", [
+        "v1.0.0",
+      ]).missing,
+      "헤딩 직후가 아닌 표식이 면제로 인정됨",
+    ).toEqual(["v9.9.9"]);
+    // 태그가 실재하면 표식이 있어도 면제 경로를 타지 않는다 (매칭이 우선).
+    expect(
+      auditChangelogTags("## [v9.9.9] — 예시\n<!-- release-tag:none 사유 -->\n", ["v9.9.9"]),
+      "태그 실재분이 면제로 분류됨",
+    ).toMatchObject({ matched: ["v9.9.9"], exempted: [] });
+  });
+});
+
 // WHY: 2026-07-14 harness-audit 가 카탈로그 총계 drift 를 여러 표면에서 발견 —
 //   index.html "49/58"(실측 61), roadmap "58 자산", COMPATIBILITY "51/61". ship-checklist 의
 //   "SSOT 동기화" 체크박스는 8+ 릴리즈 동안 지켜지지 않아 drift 가 48→58→61 로 반복됐다.

@@ -78,7 +78,7 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
   "installed-assets": {
     title: "Installed Harness Assets",
     prompt:
-      "List the harness assets installed in this project (rules / skills / agents / commands) and add one line each on when to reach for it here. Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent) and list ONLY assets whose file exists on disk — do not invent any. Do NOT restate the universal Rule 1-12 (they live in the rules layer) — cross-reference them instead. Delete this comment when done.",
+      "List the harness assets installed in this project (rules / skills / agents / commands) and add one line each on when to reach for it here. Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent) and list ONLY assets whose file exists on disk — do not invent any. Do NOT restate the harness's working principles (they live in this project's harness anchor and rules layer) — cross-reference them instead. Delete this comment when done.",
     placeholder: "the installed rules/skills/agents/commands and when to use each",
   },
   boundaries: {
@@ -100,7 +100,7 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
 export const SCAFFOLD_BANNER = [
   "> ⚙️ **SCAFFOLD — not filled in yet.** The sections below are a fill-in template for THIS project, not verified facts.",
   "> To fill: open this file and paste each `<!-- FILL: … -->` comment's instruction into your coding agent (e.g. Claude Code) — it will inspect the real repo and write the section. You can also fill them by hand; the comments are the instructions.",
-  "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.",
+  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
 ].join("\n");
 
 /**

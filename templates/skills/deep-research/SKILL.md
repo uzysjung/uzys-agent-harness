@@ -16,13 +16,13 @@ Produce thorough, cited research reports from multiple web sources using firecra
 - Any question requiring synthesis from multiple sources
 - User says "research", "deep dive", "investigate", or "what's the current state of"
 
-## MCP Requirements
+## Web access
 
-At least one of:
-- **firecrawl** — `firecrawl_search`, `firecrawl_scrape`, `firecrawl_crawl`
-- **exa** — `web_search_exa`, `web_search_advanced_exa`, `crawling_exa`
-
-Both together give the best coverage. Configure in `~/.claude.json` or `~/.codex/config.toml`.
+Use the firecrawl / exa MCP tools when they are configured — they give the best recall. **The
+harness does not install either**, so check what you actually have first: without them, run the same
+workflow on your CLI's built-in web search and fetch tools (in Claude Code, `WebSearch` /
+`WebFetch`). With no web access at all, say so instead of writing a report from memory — an uncited
+report is the failure mode this skill exists to prevent.
 
 ## Workflow
 

@@ -173,7 +173,7 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
  * all-or-none 불변식: 8종이 **같은 condition(`has-dev-track`)** 을 공유하므로
  * `recommendedExternalAssets` 는 8개를 전부 넣거나 전부 뺀다 → 부분 선택 상태가 생기지 않는다.
  * 이 불변식이 깨지면 접기가 자산을 조용히 추가/삭제할 수 있으므로
- * `tests/wizard-bundle.test.ts` 가 강제한다 (Rule 12 fail loud).
+ * `tests/wizard-bundle.test.ts` 가 강제한다 (원칙 5 — 증거를 보고한다).
  */
 export const DEV_METHOD_BUNDLE_VALUE = "bundle:dev-method";
 

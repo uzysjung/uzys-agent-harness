@@ -120,8 +120,25 @@ function referenceRegex(id: string): RegExp {
  * "성의 없는 면제 문구"를 잡지 못한다.
  */
 const ACK_WINDOW = 160;
+/**
+ * v26.141.0 (ADR-055) — **간격 허용 대안 `where[^.]{0,60}installed` 추가.**
+ *
+ * 왜: 기존 목록은 전부 **인접 리터럴**이라 `where installed` 처럼 두 낱말이 붙어 있어야만 물었다.
+ * 그런데 부재를 의미상 정확히 명시하는 문장이 그 사이에 목적어를 끼운다 —
+ * *"Where the `asis-tobe-decision` and `explain-plainly` skills **are** installed, use them for this."*
+ * 조건절 자체가 ack 인데 게이트는 **의미 대신 낱말의 인접 배열**을 세고 있었다. 그래서 배포 앵커가
+ * 3개 트랙에서 위반으로 잡혔다. 처분은 문안이 아니라 게이트 — 사용자 승인 문안을 게이트에 맞춰
+ * 비틀지 않는다.
+ *
+ * **완화가 아닌 이유**: ack 를 아예 지우면 여전히 빨간불이다(음성 대조로 확인). 늘어난 것은
+ * "조건절 안에 목적어가 들어갈 자리"뿐이다.
+ *
+ * 상한 60자 · `[^.]`(마침표 불포함)의 근거: 문장을 넘어가면 `where` 와 `installed` 가 **다른 주장**에
+ * 속한다. 무제한(`[\s\S]*`)으로 두면 문서 어딘가의 `where` 와 저 멀리의 `installed` 가 짝지어져
+ * ±`ACK_WINDOW` 안의 모든 지목이 사면된다 — 그건 게이트를 죽이는 것이다.
+ */
 const ABSENCE_ACK =
-  /없으면|없어|없는 트랙|미설치|설치돼 있으면|설치되어 있으면|트랙이면|트랙에만|트랙 한정|without it|if (?:it (?:is|'s) )?(?:not )?(?:installed|present|available)|if absent|if unavailable|where installed|falls? back to/i;
+  /없으면|없어|없는 트랙|미설치|설치돼 있으면|설치되어 있으면|트랙이면|트랙에만|트랙 한정|without it|if (?:it (?:is|'s) )?(?:not )?(?:installed|present|available)|if absent|if unavailable|where installed|where[^.]{0,60}installed|falls? back to/i;
 
 interface Violation {
   doc: string;

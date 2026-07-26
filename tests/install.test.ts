@@ -57,6 +57,7 @@ const fakeReport: InstallReport = {
   external: null,
   updateMode: null,
   karpathyHook: null,
+  staleHookRefs: [],
   mode: "fresh",
   envFiles: {
     envExampleCreated: false,
@@ -471,7 +472,7 @@ describe("executeSpec", () => {
     expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
   });
 
-  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (Rule 12 fail-loud).
+  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (원칙 5 — 무음 실패 금지).
   //   WHY: withKarpathyHook=true 인데 plugin install 실패(wired=false)면 사용자는 hook 이
   //   안 깔린 걸 모른 채 "Install complete" 만 본다. 성공/실패 둘 다 1행 노출 강제.
   it("renders a HOOK row when karpathy hook is wired", () => {
@@ -507,6 +508,42 @@ describe("executeSpec", () => {
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
     const lines = log.mock.calls.map((args) => String(args[0]));
     expect(lines.some((l) => l.includes("HOOK"))).toBe(false);
+  });
+
+  /**
+   * M-1 — fresh/add/reinstall 분기의 stale hook ref 보고.
+   *
+   * WHY: 치유기를 install 경로에서도 부르기로 한 처방(A′)의 **채택 조건이 소리를 내는 것**이었다.
+   * 경쟁안이던 "훅 커맨드가 스스로 파일 존재를 확인하고 조용히 넘어간다"(B)는
+   * *지금 유일한 파손 신호(bash exit 127)를 지우면서 아무 말도 안 한다* 는 이유로 기각됐다.
+   * 즉 **렌더가 빠지면 채택안이 기각안으로 퇴화한다** — 이 테스트가 그 퇴화를 막는다.
+   * update 분기는 위 `"renders Update Mode summary…"` 가 이미 지킨다.
+   *
+   * **라벨만 단언하지 않는다.** 경로 나열이 빠지면 사용자는 "2 removed" 만 보고 *무엇이*
+   * 지워졌는지 모르며, 그 상태로는 자기 훅이 사라진 이유를 추적할 방법이 없다. 그래서
+   * 건수와 경로를 **둘 다** 단언하고, 참조를 2건 넣어 나열이 잘리지 않는지까지 본다.
+   */
+  it("fresh 분기가 제거된 stale hook ref 를 라벨·건수·경로로 노출한다 (무음 금지)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      staleHookRefs: ["skills/strategic-compact/suggest-compact.sh", "hooks/legacy-thing.sh"],
+    });
+    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
+
+    const row = log.mock.calls
+      .map((args) => String(args[0]))
+      .find((l) => l.includes("stale hook refs"));
+    expect(
+      row,
+      "fresh 분기에 stale hook ref 행이 없다 — install 이 사용자의 settings.json 에서 훅을 " +
+        "지우면서 아무 말도 안 한다. 무음 no-op 은 이 처방의 기각 사유였다.",
+    ).toBeDefined();
+    expect(row).toContain("2 removed");
+    // 경로 나열 — 하나라도 빠지면 사용자가 그 파일을 못 찾는다 (건수만으로는 추적 불가).
+    expect(row).toContain("skills/strategic-compact/suggest-compact.sh");
+    expect(row).toContain("hooks/legacy-thing.sh");
   });
 
   it("shortens long /private/tmp paths in TARGET row", () => {
@@ -764,6 +801,59 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".claude/CLAUDE.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
+  });
+
+  /**
+   * M-1 (표면 대칭) — update 분기도 **어느 파일이 지워졌는지** 보여준다.
+   *
+   * fresh 분기는 이미 경로를 나열한다(위 `"fresh 분기가 …"`). 그 테스트가 경로 나열을 요구하며
+   * 든 논거가 *"건수만으로는 사용자가 자기 훅이 사라진 이유를 추적할 방법이 없다"* 인데,
+   * **그 논거는 update 에 더 강하게 적용된다** — install 은 `settings.json` 을 템플릿으로
+   * 덮어써서 치유기가 보는 것이 우리 템플릿 내용뿐이지만, update 는 사용자가 손댄
+   * `settings.json` 을 **제자리에서** 고치는 유일한 경로다. 즉 사용자 자신이 적어 넣은 훅이
+   * 실제로 사라질 수 있는 쪽은 update 다.
+   *
+   * `feedback_surface_symmetry`: 한 축이 계열 일부에만 있으면 **빠진 쪽이 입증 책임**을 진다.
+   *
+   * 참조를 **2건** 넣는다 — 1건이면 `slice(0, 1)` 같은 절단을 통과시킨다.
+   */
+  it("update 분기도 제거된 stale hook ref 를 경로까지 노출한다 (fresh 와 같은 정보량)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      mode: "update",
+      updateMode: {
+        updated: {},
+        pruned: {},
+        staleHookRefs: ["skills/strategic-compact/suggest-compact.sh", "hooks/legacy-thing.sh"],
+        claudeMdUpdated: false,
+        skillsBackedUp: [],
+        policyBackedUp: [],
+        externalUpdated: 0,
+        externalBackedUp: [],
+      },
+    });
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline,
+      resolveHarnessRoot: () => "/h",
+      mode: "update",
+    });
+
+    const row = log.mock.calls
+      .map((args) => String(args[0]))
+      .find((l) => l.includes("stale hook refs"));
+    expect(row, "update 분기에 stale hook ref 행이 없다").toBeDefined();
+    expect(row).toContain("2 removed");
+    // 경로 나열 — 건수만 찍으면 사용자는 자기 훅이 왜 사라졌는지 추적할 수 없다.
+    expect(
+      row,
+      "update 행이 건수만 찍고 경로를 안 보여준다 — 사용자가 제자리에서 고쳐진 자기 " +
+        "settings.json 에서 무엇이 사라졌는지 알 방법이 없다 (fresh 분기는 이미 보여준다).",
+    ).toContain("skills/strategic-compact/suggest-compact.sh");
+    expect(row).toContain("hooks/legacy-thing.sh");
   });
 
   /**
