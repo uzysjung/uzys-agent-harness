@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: write # 실패를 이슈로 알린다 (아래 "실패 시 이슈로 알림" 스텝)
 
 jobs:
   verify:
@@ -30,3 +31,35 @@ jobs:
           git config --global url."https://github.com/".insteadOf "git@github.com:"
       - name: 카탈로그 실설치 검증
         run: node scripts/verify-catalog.mjs
+
+      # cron 실패는 아무도 보러 오지 않는다 — 2026-07-01 발동분이 설계된 drift 신호로 실패했는데
+      # 알림 경로가 0 이라 사람에게 도달하지 않았다. 실패를 이슈로 밀어낸다.
+      # 중복 방지: 같은 제목의 열린 이슈가 있으면 새로 만들지 않고 코멘트만 붙인다.
+      # (실행마다 이슈가 쌓이면 알림이 아니라 소음이 되고, 소음은 다시 무시된다.)
+      - name: 실패 시 이슈로 알림
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }} # checkout 이 실패해도 gh 가 리포를 안다
+          ISSUE_TITLE: "cron 실패: catalog-verify"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --state open --limit 200 --json number,title \
+            | jq -r --arg t "$ISSUE_TITLE" 'map(select(.title == $t)) | first | .number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "재발 — run: $RUN_URL (attempt ${GITHUB_RUN_ATTEMPT})"
+            exit 0
+          fi
+          body=$(printf '%s\n' \
+            "정기 실행(cron)이 실패했다." \
+            "" \
+            "- 워크플로: \`.github/workflows/catalog-verify.yml\` (매월 1일 07:00 UTC)" \
+            "- 실패한 run: $RUN_URL" \
+            "- attempt: ${GITHUB_RUN_ATTEMPT}" \
+            "" \
+            "이 검사의 실패는 인프라 오류가 아니라 **카탈로그 drift**(plugin 삭제/rename · 패키지 부재)일 수 있다 —" \
+            "run 로그를 보고 \`src/external-assets.ts\` · COMPATIBILITY 갱신 여부를 판단할 것." \
+            "" \
+            "다음 실패는 이 이슈에 코멘트로 붙는다. **처리 후 닫아야** 그 다음 실패가 새 이슈로 보인다.")
+          gh issue create --title "$ISSUE_TITLE" --body "$body"
