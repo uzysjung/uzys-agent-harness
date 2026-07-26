@@ -247,6 +247,12 @@ The evidence:
 **Measure:** length of each always-loaded file; how many discrete instructions the harness asserts in
 total across every always-loaded layer (global + project + directory); how much is irrelevant to a
 typical task (those are the distractors).
+**Also measure the *rate*, not just the level.** Always-loaded surfaces only ever grow — every
+incident adds prose and nothing removes it — so a snapshot always looks defensible while the
+trajectory does not. Compare today's total against a recorded earlier total (a committed baseline,
+or `git show <older-ref>:<file> | wc -c` if there is none). A surface that gained more this month
+than last is already failing, even when no single addition looks unreasonable. If the project keeps
+a resident-cost baseline, this axis reads it instead of re-deriving the numbers.
 **Action:** **correct** by moving detail behind pointers — state what is true every session, link the
 rest. Prefer removing duplication over shortening prose.
 **Honest limit:** Chroma publishes performance *curves*, not a percentage-per-token figure. Do not

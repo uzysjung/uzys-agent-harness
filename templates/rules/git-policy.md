@@ -1,6 +1,6 @@
 # Git Policy
 
-CLAUDE.md Git Policy의 프로젝트 레벨 확장. 중복 내용 제거.
+프로젝트 레벨 git 규약. 버전 체계는 프로젝트가 정한다 — 여기서 강제하지 않는다.
 
 ## Commit 메시지
 
@@ -49,15 +49,6 @@ ship 보고 시 두 상태를 **반드시 분리**해서 보여줄 것:
 
 gate ✓ 만 보고 ship 완료라 단정하지 않는다. open PR 1건이라도 있으면 cycle 미완.
 
-### 보고 형식 예
-
-```
-gate:  build ✓ / verify ✓ / review ✓ / ship ✓
-main:  PR #123 merged ✓ / tag vX.Y.Z pushed ✓ / release ✓
-       OR
-       PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기
-```
-
 ## Post-Merge Cleanup (필수)
 
 PR 머지 직후 stale branch 누적 방지. Session Cleanup 의 "open PR 점검" 과 보완 관계.
@@ -69,37 +60,12 @@ PR 머지 직후 stale branch 누적 방지. Session Cleanup 의 "open PR 점검
    - squash merge 후엔 git 가 "unmerged" 경고 → 같은 변경 내용 확인 후 `-D` 사용 가능
 4. **정기 stale 점검** (선택) — `git branch --merged main | grep -v '^\*\| main$'` 으로 잔존 확인
 
-### 보고 형식 보강
-
-ship 보고에 branch cleanup 상태 한 줄 추가:
+### 보고 형식 (ship 보고 공통)
 
 ```
-gate:  build ✓ / verify ✓ / review ✓ / ship ✓
-main:  PR #123 merged ✓ / tag vX.Y.Z ✓ / release ✓
+gate:   build ✓ / verify ✓ / review ✓ / ship ✓
+main:   PR #123 merged ✓ / tag vX.Y.Z pushed ✓ / release ✓
 branch: fix/foo deleted (local + remote) ✓
-       OR
-branch: fix/foo OPEN — 삭제 필요
+        OR
+main:   PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기
 ```
-
-## Versioning Convention (절대 위반 금지)
-
-**형식**: `vMAJOR.MINOR.PATCH`
-
-- **Major = `year - 2000`** (CalVer-like)
-  - 2025 = `v25.x.x`
-  - **2026 = `v26.x.x`**
-  - 2027 = `v27.x.x`
-- **Minor**: feature bump (BREAKING change여도 같은 year 내에서는 Minor만 bump)
-- **Patch**: bug fix only
-
-**Year 변경 시점에만 Major bump**. SemVer-식 BREAKING → Major 적용 **금지**.
-
-### Pre-tag checklist (모든 ship 전)
-
-1. `git tag -l | sort -V | tail -5` 마지막 정상 태그 확인
-2. 당해년도 매핑 검증 — `date +%Y` % 100 = 다음 Major
-3. SPEC/ADR/문서 본문에 "v(year+1).x" 같은 미래 태그 텍스트 보이면 **즉시 컨벤션 검증** — 그대로 따르지 말 것
-4. 위반 의심 시 ship 중단 + 사용자 컨펌
-
-위반이 누적되면 태그를 일괄 rename 해야 하고, 그때 이미 배포된 버전 참조가 전부 거짓이 된다.
-그래서 사전 체크가 사후 정리보다 훨씬 싸다.

@@ -87,8 +87,11 @@ Two quick discriminators:
 
 Enter the ladder at the level matching the count. **Never enter above your count** — a gate for a
 first-time slip is gate inflation, and every gate is permanent maintenance + false-positive cost.
-(One exception, downward-honest: a **registered countermeasure that failed** counts that failure
-at its own level — a violated Level-1 rule at count 2 legitimately escalates to Level 2.)
+(Two exceptions. Downward-honest: a **registered countermeasure that failed** counts that failure
+at its own level — a violated Level-1 rule at count 2 legitimately escalates to Level 2. And
+cost-driven: the Level 1 pre-flight below sends a count-2 slip straight to Level 2 when the wrong
+action is deterministically detectable, because a gate is the *cheaper* artifact, not the stronger
+one.)
 
 | Level | When | Countermeasure | Characteristic failure of this level |
 |---|---|---|---|
@@ -111,10 +114,32 @@ way: five recurrences of one doc-fact drift, each answered by adding one more pe
 and a file named as a drift surface in the fourth postmortem still carried zero coverage at the
 fifth.
 
-**Confirm before adding standing cost.** A rule is read every session and a gate runs on every
-CI/tool call — both are permanent taxes on the harness. Levels 1 and 2 therefore need explicit
-user confirmation (a brief escalation: signature, count with evidence, proposed artifact, its
-standing cost). Level 0 needs none — recording a fact is free and always right.
+**Level 1 pre-flight — a 2nd occurrence does not automatically earn a rule.** Per unit of
+enforcement a rule is the most expensive artifact on the ladder: it is read **every session, by
+every install, forever**, while a gate costs CI time and **zero** standing context. Answer three
+questions in order and stop at the first that decides:
+
+1. **Can the wrong action be detected deterministically?** — a failing test, a hook that exits
+   non-zero, a derive that deletes the duplicated list. If yes, **write the gate instead, even at
+   count 2.** This is the one sanctioned way to enter above your count, and it is not gate
+   inflation: you are not buying stronger enforcement than the count justifies, you are picking
+   the cheaper artifact for the same enforcement. Code answers what code can answer.
+2. **Would the rule change behaviour that would otherwise be wrong?** If the corrective principle
+   is something a competent agent does anyway, or it restates a rule that already exists, it buys
+   nothing and bills every session. Stay at Level 0.
+3. **Is it general, or is it this project's circumstance?** A project's own incidents belong on
+   that project's steering surface — never in a rule set that strangers install.
+
+Only what survives all three — **a judgement call no deterministic check can express, that
+changes behaviour, and that generalises** — is a rule candidate. That is the bar for "serious
+enough to be worth permanent context".
+
+**Confirm before adding standing cost.** Levels 1 and 2 need explicit user confirmation. For a
+rule the escalation must state, in one block: signature · count with evidence · the proposed text ·
+**its standing cost in tokens and the resulting total** · which of the three questions it survived
+and why the deterministic alternative does not work. **Do not guess the cost — measure the draft**
+(if the project reports context cost, run that report). Level 0 needs no confirmation — recording
+a fact is free and always right.
 
 ### Rule registration template (Level 1)
 
@@ -186,6 +211,8 @@ would be a false ship. Before closing:
 - Classification: 단순 실수 | 복잡한 하네스 문제 (+ the discriminator that decided it)
 - Countermeasure: Level 0 기록 | Level 1 룰 | Level 2 게이트 | 페르소나 설계 → <chosen option>
 - Artifact: <path of memory entry / rule file / test or hook>
+- Standing cost: <rule 이면 측정치 ~N tokens/session + 갱신된 총합 | gate·record 면 0>
+- Pre-flight: <Level 1 3질문 통과 근거 — 결정론 불가 사유 · 행동 변화 · 일반성>
 - Fires-verified: <RED→GREEN output, hook exit code, grep proof — or "룰 프로즈: 미검증" honestly>
 - User confirmation: <obtained for Level 1/2 | not needed (Level 0)>
 ```
@@ -198,8 +225,10 @@ would be a false ship. Before closing:
   If the one-line corrective principle wouldn't have prevented *both* occurrences as stated,
   the signature is too broad.
 - **Rule bloat** — every rule is standing context; a harness drowning in rules follows none of
-  them. That is why Level 0 exists, why Levels 1-2 need user confirmation, and why entering the
-  ladder above your count is forbidden.
+  them. That is why Level 0 exists, why Levels 1-2 need user confirmation, and why the Level 1
+  pre-flight routes anything deterministic to a gate instead. Watch the *rate*, not just the
+  count: rules only ever grow, so a steering surface that gained more prose this month than last
+  is already on the failing trajectory even if no single rule looks unreasonable.
 - **Gate theater** — a gate that was never seen to fire may be checking nothing (wrong matcher,
   wrong path, dead config). Step 4 is mandatory, not optional polish.
 - **Same-level retry** — responding to a recurrence by rewriting the same rule more emphatically

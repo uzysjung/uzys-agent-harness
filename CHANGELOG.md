@@ -7,6 +7,51 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.136.0] — 2026-07-26 (feat: 상주 컨텍스트 비용 ratchet + 룰 착지 pre-flight, 배포 룰 −279 tok)
+
+사용자 요청 4건(룰 컨펌 게이트 · 토큰 추적 · 배포 룰 재검증/제거 · Opus 5 비용대비 효과).
+**착수 전 실측이 전제를 뒤집어 순서를 바꿨다** — 상세 = ADR-051,
+`docs/research/context_cost_audit_2026-07/`.
+
+달러는 제약이 아니었다: 룰은 안정 prefix 라 cache read(0.1×)로 청구돼 tooling 상주 ~5,877
+토큰이 1,000 요청에 **$2.94**, 컨텍스트 점유는 1M 중 **0.59%**. 남는 비용 축인 **지시 준수율
+희석은 이 리포에서 측정된 적이 없다**(`Justified Asset Ratio` 미구현). 그래서 "제거"를 먼저
+하면 근거 없는 추정이 된다 — 측정을 앞으로 당겼다.
+
+그런데 상주 비용은 실제로 커지고 있었다(`.claude/rules` 도입 이후 2.7배). 기존 게이트 둘은
+**정확성만** 지켜서, 늘어난 만큼 문서를 고치면 양쪽 다 초록불이었다.
+
+### Added
+- **상주 비용 ratchet** — `context-cost-baseline.json` + `tests/context-cost-ratchet.test.ts`.
+  트랙별 상주가 baseline 을 넘으면 CI 실패. 올리려면 `npm run cost:baseline` 로 **같은 커밋에**
+  증가를 담아야 한다. 트랙 목록은 `TRACKS` 에서 derive — 게이트가 커버 목록을 따로 들지 않는다.
+  baseline 이 실측보다 10% 넘게 높아도 실패(여유 확보로 무력화 차단).
+- `npm run cost:baseline` 스크립트.
+
+### Changed
+- **`recurrence-prevention` — 룰 착지 전 pre-flight 3질문.** 2회 재발이 자동으로 룰이 되던 것을
+  막는다: ⓐ 결정론 검출 가능하면 **count 2 에서도 게이트로** ⓑ 행동이 안 달라지면 Level 0
+  ⓒ 프로젝트 사정이면 배포 금지. 컨펌 시 **측정된 토큰 수와 갱신될 총합을 함께 제시**(추정 금지).
+- `harness-health-audit` §C1(economy)이 수준뿐 아니라 **증가율(rate)** 을 보도록.
+- **배포 룰 감축 −279 tokens/세션 (전 트랙 동일)**. 필요성 판단이 아니라 **틀린 것**만 잘랐다:
+  - 배포판 `git-policy` 의 CalVer 강제 절 삭제 — 이 리포 규약을 "절대 위반 금지"로 배포하면
+    설치자의 SemVer 프로젝트에서 에이전트가 버전 체계를 바꾸려 든다. `.claude/` 사본엔 유지.
+  - dangling 참조 정리(배포판 `CLAUDE.md` 에 없는 Git 절을 가리키던 서두, 11 트랙 중 5개엔
+    없는 UI 전용 룰에 판정 기준을 의존하던 문장) · 중복된 ship 보고 형식 블록 통합.
+
+### Verified
+- `npm run ci` exit 0 — 1,012 tests, branches 88.37%.
+- **음성 대조 3/3 사살**(ratchet): 룰 산문 추가 → 11 실패 · baseline 트랙 누락 → 실패 ·
+  baseline 1.5배 부풀림 → 실패.
+- **기존 게이트가 이 작업을 3회 반증했다** — NORTH_STAR 수치 정합 · doc-governance MECE 위임
+  (감축 방법이 틀렸다: 지울 것은 참조가 아니라 *의존*) · 절 크기 상한(두 번). 발견 1건은
+  **기각**했다(gap.md H-3). 자기 판단만으로 굴러갔으면 둘 다 그대로 실렸다.
+
+### 미해결 (정직하게 남김)
+- 훅 stdout 의 컨텍스트 비용 **미측정** — 훅 파일은 상주 0이 맞지만 그 출력은 대화에 들어간다.
+  "훅이 토큰을 낭비한다"는 전제는 **절반만 맞고**, 그 절반을 아직 안 쟀다.
+- `Justified Asset Ratio` 미구현 · chars/4 근사의 실제 오차 미검증 · `MEMORY.md` ratchet 밖.
+
 ## [v26.135.0] — 2026-07-26 (fix: 설치 로그를 `.claude/` 밖으로 — 오픈코드 단독 설치가 남의 CLI 디렉터리를 만들던 것)
 
 사용자 보고 [#253]: **오픈코드로만 설치했는데 `{prj}/.claude/.harness-install.json` 이 생겼다.
