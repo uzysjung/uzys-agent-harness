@@ -304,6 +304,23 @@ export function renderFinalSummary(
       log(infoRow("HOOK", c.yellow(`karpathy hook skipped — ${kh.reason ?? "unknown"}`)));
     }
   }
+  // M-1 — settings.json 이 가리키던 없는 스크립트를 지웠으면 **소리를 낸다.** 무음 no-op 은
+  //   이 처방을 채택할 때 명시적 기각 사유였다: 지금 유일한 파손 신호(bash exit 127)를 지우면서
+  //   아무 말도 안 하면, 다음에 참조가 깨져도 아무도 모른다 (`no-false-ship` 원칙 5).
+  //   update 분기(아래 renderPhase1Rows — renderUpdateSummary 는 STATUS/BACKUP 만 찍는다)와
+  //   **같은 라벨·같은 정보량**을 쓰고, 어느 파일이 지워졌는지
+  //   `.claude/` 기준 상대경로로 함께 보여준다 — 파일명만으로는 사용자가 못 찾는다.
+  if (report.staleHookRefs.length > 0) {
+    log(
+      infoRow(
+        "HOOK",
+        c.yellow(
+          `settings.json stale hook refs · ${report.staleHookRefs.length} removed ` +
+            `(${report.staleHookRefs.join(", ")})`,
+        ),
+      ),
+    );
+  }
   if (report.external && report.external.skipped > 0) {
     log("");
     log(
@@ -461,12 +478,18 @@ function renderPhase1Rows(
         ),
       );
     }
-    if (baseline.updateMode.staleHookRefs.length > 0) {
+    // M-1 (표면 대칭) — fresh 분기(`renderFinalSummary`)와 **같은 정보량**으로 어느 파일이
+    // 지워졌는지 나열한다. 논거는 update 쪽이 더 강하다: install 은 settings.json 을 템플릿으로
+    // 덮어쓰지만 update 는 사용자가 손댄 settings.json 을 **제자리에서** 고치는 유일한 경로라,
+    // 사용자 자신이 적어 넣은 훅이 실제로 사라질 수 있는 쪽이다. 건수만 찍으면 그 사용자는
+    // 자기 훅이 왜 없어졌는지 추적할 방법이 없다.
+    const staleRefs = baseline.updateMode.staleHookRefs;
+    if (staleRefs.length > 0) {
       log(
         assetRow(
           "skip",
           "settings.json stale hook refs",
-          `${baseline.updateMode.staleHookRefs.length} removed`,
+          `${staleRefs.length} removed (${staleRefs.join(", ")})`,
         ),
       );
     }

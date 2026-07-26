@@ -239,6 +239,7 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
         external: { ...emptyExternal, excludedByCli: [PLUGIN_ASSET] },
         updateMode: null,
         karpathyHook: null,
+        staleHookRefs: [],
         mode: "fresh",
         envFiles: {
           envExampleCreated: false,

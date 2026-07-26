@@ -4,8 +4,9 @@
 
 ## Pre-Ship Gates
 
-- [ ] **로컬 CI 전체 통과 (1차 게이트)**: `npm run ci` (typecheck + lint + test:coverage + build) exit 0. GitHub Actions 는 태그 push 시에만 돌므로 **로컬이 사실상 유일한 사전 게이트** — `npm test` 만으로는 coverage gate 누락 (test-policy.md 참조).
-  **full 을 요구하는 지점은 여기다** — 작업 중·리뷰에는 타깃 실행으로 충분하고, 커밋 직전 1회는 검증 레인이 돈다 (3단 티어는 `test-policy.md` 가 SSOT)
+- [ ] **로컬 CI 전체 통과 (1차 게이트)**: `npm run ci` (typecheck + lint + test:coverage + build) exit 0. `npm test` 만으로는 coverage gate 누락 (test-policy.md 참조).
+  **full 을 요구하는 지점은 여기다** — 커밋에는 테스트가 없고 머지에는 영향 범위만 돈다 (시점별 정책은 `test-policy.md` 가 SSOT)
+- [ ] **CI green 이 배포의 전제로 배선돼 있는지**: 릴리스 워크플로가 CI job 에 `needs:` 로 묶여 있어 **CI red 면 게시 자체가 안 일어나야** 한다. 확인 없이 태그를 밀지 않는다 — v26.128.0~131.0 에서 `ci` 4연속 red 인데 `publish` 는 별개 워크플로라 성공했고, 그 사실을 3릴리즈 동안 아무도 못 봤다
 - [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB)
 - [ ] **커버리지 기준 충족**: test-policy.md의 Track별 threshold 확인 (이 repo: branches 88)
 - [ ] **태그 후 릴리스 CI 확인**: 태그 push 후 `gh run watch <run-id> --exit-status` 로 GitHub Actions green 확인 (fail 시 patch 태그로 수정)

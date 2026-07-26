@@ -81,7 +81,7 @@
 | P2 | S | USAGE 내부코드 정리(E-3): ADR번호/D25/HITO/NSM → docs/decisions 링크 격리, 약어 첫등장 풀네임 + 한국어 혼입 문자열 4곳 영어화(uninstall.ts:87·codex/skills.ts:20·install-render.ts:231·external-installer formatSkippedReport) + 한글 유니코드 lint 테스트 1개 | persona E-3 + UX-6 (medium 한국어 혼입) |
 | P2 | S | wizard Step 3 상단 '추천 그대로 Enter 안전' 안내 + WORKFLOWS 첫 줄 기본 추천 1개 (소피 first-win) | persona E-4 |
 | ~~P1~~ ✅ | M | ~~**1st-party 자산 번들링 — wizard row 압축**~~ → **v26.99.0 완료 (ADR-028)**. 실측이 사용자 가설을 부분 반박: Dev 페이지 **37행**이 `prompts.ts` 자신이 명시한 "옵션 ≤ ~30" 제약 위반 중이었고(터미널 넘침 = 증상의 실제 메커니즘), Dev 32항목 중 dev-method 는 4개뿐이라 **번들링만으론 34행으로 여전히 초과**. 사용자 결정(2026-07-16) = **번들 + Dev 분할**. 결과: ⓐ 방법론 8종 → 단일 번들 row(표현 계층만; 제출 시 개별 id 로 펼쳐 downstream·설치보고 불변 = "무엇이 설치되는지" 미은닉) ⓑ 구성원 `DEV_METHOD_SKILL_IDS` derive ⓒ 해제 = 8종 전부 제외(체크박스 1개 = 의미 1개, 개별은 `--with`/`--without`) ⓓ Dev → Dev Core + Dev Tools 분할, wizard 4→5페이지. **실측 렌더 20/13/9/10/10 — 전 페이지 ≤30 달성**(총 69→62행). 행수 상한·all-or-none 불변식을 게이트로 못박음(RED 실증). **잔여: opt-in 1st-party 용도별 그룹핑(ⓑ 원안)은 미실행** — gemini-consult 1개뿐이라 현재 실익 없음, 누적 시 재검토 | 사용자 2026-07-16 (v26.98.0 harness-health-audit 이 8번째로 추가되며 초과 가중 — 원인 제공 릴리즈가 수정) |
-| P1 | S | CalVer 자동 가드: publish.yml 첫 step 에 태그 정규식(Major=year-2000) 검증 + 순수모듈로 빼 vitest RED/GREEN. 오타 태그 1개로 영구 오염(npm immutable) 방지 | META-1 (high; 게시 후 다음 ship 전까지 도입이면 충분) |
+| P1 | S | CalVer 자동 가드: `test.yml` 의 `publish` job 첫 step 에 태그 정규식(Major=year-2000) 검증 + 순수모듈로 빼 vitest RED/GREEN. 오타 태그 1개로 영구 오염(npm immutable) 방지 | META-1 (high; 게시 후 다음 ship 전까지 도입이면 충분) |
 | P2 | S | 비대화형 경로 fail-loud: --strict opt-in(skipped>0→exit 3) 또는 비대화형 기본 non-zero, USAGE 에 exit code 표 (CI/스크립트 소비자가 자산 skip 을 exit0 으로만 봄, uninstall 과 비대칭) | CODE-10 (medium) |
 | P2 | S | update 모드 confirm 이 설치 안 될 'Assets: N selected' 표시 — formatSummary 에 includeAssets:false 옵션 추가 (confirm 단계 Promise=Implementation) | CODE-6 (medium) |
 | P2 | M | 데모 재녹화/GIF 변환 자동화 scripts/record-demo.sh + 'README 임베드 GIF 의 .cast brand == 현 패키지명' pre-publish 가드 (drift 재발 구조 차단) | DEMO-5 (medium) |
@@ -208,9 +208,9 @@
 
 ### META-1 · HIGH·S · 태그→npm publish 경로에 CalVer(Major=year-2000) 자동 가드 0 — 오타 1개로 잘못된 버전 영구 게시
 - **dimension:** meta
-- **evidence:** .github/workflows/publish.yml:28 `npm pkg set version="${GITHUB_REF_NAME#v}"` → :39 `npm publish` (사이 검증 없음); .claude/rules/git-policy.md 'Pre-tag checklist'/'Drift Period' = 수동 절차만
-- **detail:** publish.yml 은 푸시된 태그 문자열에서 v 만 떼어 그대로 package.json version 으로 박고 npm publish 한다. 정규식·연도 매핑·범위 검증이 전무하다. git-policy.md 가 명시하듯 2026-04-18~30 에 v27.0.0~v28.0.0 21건이 컨벤션을 위반해 누적된 전례(ADR-007)가 있는데도, 그 재발을 막을 자동 게이트는 코드화되지 않았다. npm 은 동일 버전 재게시를 금지하므로(immutable) 오타 태그(예 `v27.0.0`, `v2.6.83`)가 한 번 publish 되면 영구 오염이고 unpublish 24h 제약·복구 비용이 크다. no-false-ship.md 의 v26.82.0 사례(--version 거짓 보고)와 같은 '버전 SSOT 신뢰' 카테고리 리스크.
-- **proposedFix:** publish.yml(및 install-matrix/ci) 의 첫 step 으로 태그 가드 추가: `[[ "${GITHUB_REF_NAME}" =~ ^v$(( $(date +%Y) - 2000 ))\.[0-9]+\.[0-9]+$ ]] || { echo '::error::CalVer 위반: Major 는 year-2000'; exit 1; }`. 동일 정규식을 scripts/ 의 순수 모듈로 빼 vitest 로 RED/GREEN 테스트(test-policy TDD). publish job 의 `needs:` 에 이 guard job 을 걸어 publish 전 차단.
+- **evidence:** .github/workflows/test.yml 의 `publish` job — `npm pkg set version="${GITHUB_REF_NAME#v}"` → `npm publish` (사이 검증 없음); .claude/rules/git-policy.md 'Pre-tag checklist'/'Drift Period' = 수동 절차만
+- **detail:** `publish` job 은 푸시된 태그 문자열에서 v 만 떼어 그대로 package.json version 으로 박고 npm publish 한다. 정규식·연도 매핑·범위 검증이 전무하다. git-policy.md 가 명시하듯 2026-04-18~30 에 v27.0.0~v28.0.0 21건이 컨벤션을 위반해 누적된 전례(ADR-007)가 있는데도, 그 재발을 막을 자동 게이트는 코드화되지 않았다. npm 은 동일 버전 재게시를 금지하므로(immutable) 오타 태그(예 `v27.0.0`, `v2.6.83`)가 한 번 publish 되면 영구 오염이고 unpublish 24h 제약·복구 비용이 크다. no-false-ship.md 의 v26.82.0 사례(--version 거짓 보고)와 같은 '버전 SSOT 신뢰' 카테고리 리스크.
+- **proposedFix:** `test.yml` 의 `publish` job(및 install-matrix/ci) 첫 step 으로 태그 가드 추가: `[[ "${GITHUB_REF_NAME}" =~ ^v$(( $(date +%Y) - 2000 ))\.[0-9]+\.[0-9]+$ ]] || { echo '::error::CalVer 위반: Major 는 year-2000'; exit 1; }`. 동일 정규식을 scripts/ 의 순수 모듈로 빼 vitest 로 RED/GREEN 테스트(test-policy TDD). publish job 의 `needs:` 에 이 guard job 을 걸어 publish 전 차단 — `publish` 가 `test.yml` 로 이식되며 이미 `needs: ci` 를 갖고 있으므로 guard job 을 같은 워크플로에 추가해 `needs: [ci, guard]` 로 늘리기만 하면 된다.
 
 ### META-2 · HIGH·S · 보안 큐레이션이 차별화 wedge 인데 SECURITY.md(취약점 신고 채널) 부재
 - **dimension:** meta

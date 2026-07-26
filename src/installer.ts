@@ -53,7 +53,7 @@ import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeProjectClaude } from "./project-claude-merge.js";
 import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
-import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
+import { cleanStaleHookRefs, runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
 /**
  * karpathy-coder hook 상수 — install 이 쓰고 uninstall 의 수기 안내가 읽는다.
@@ -247,6 +247,12 @@ export interface InstallReport {
   updateMode: UpdateModeReport | null;
   /** karpathy-coder hook auto-wire 결과 (v0.6.0). null when withKarpathyHook=false. */
   karpathyHook: KarpathyHookReport | null;
+  /**
+   * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로).
+   * install 은 settings.json 을 매번 템플릿으로 덮어쓰므로 치유도 매번 다시 해야 한다.
+   * claude 미선택 시 `.claude/settings.json` 자체가 없어 항상 `[]`.
+   */
+  staleHookRefs: string[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -367,6 +373,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // v0.8.0 — `.claude/settings.json` PreToolUse 의존이라 spec.cli에 "claude" 포함 시에만 와이어 가능.
   const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
 
+  // ━━━ M-1 — settings.json stale hook ref 치유 (baseline·external·karpathy 뒤 1회) ━━━
+  // 여기서 부르는 이유: 앞 단계들이 settings.json 과 참조 대상(스킬/훅 파일)을 모두 확정한
+  // 뒤여야 "무엇이 없는가"가 답이 된다. 판정하지 않고 **디스크가 답하게 한다** — 설치자에
+  // withEcc 사본이 생기지 않는다 (ADR-049 와 같은 형태).
+  const staleHookRefs = healStaleHookRefs(spec, projectDir);
+
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // backupPath 가 있으면 `.claude/` 를 rename 으로 밀어냈다는 뜻 — 그 안에 살던 이전 자산은
   // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
@@ -380,7 +392,22 @@ export function runInstall(ctx: InstallContext): InstallReport {
     collectRootFiles(baseline.envFiles, ciScaffold, mcpResult.created),
   );
 
-  return { ...baseline, external, karpathyHook };
+  return { ...baseline, external, karpathyHook, staleHookRefs };
+}
+
+/**
+ * M-1 — settings.json 이 참조하는 없는 `.claude/**` 스크립트를 제거한다.
+ *
+ * update 쪽 치유기(`cleanStaleHookRefs`)를 그대로 재사용한다. install 이 settings.json 을
+ * 매번 템플릿으로 덮어쓰므로(`copyFile`) 치유는 설치마다 다시 필요하고, 같은 술어를 두 벌
+ * 두면 그 사본이 다음 drift 서식지가 된다.
+ */
+function healStaleHookRefs(spec: InstallSpec, projectDir: string): string[] {
+  // karpathy 와 같은 가드 — claude 미선택이면 `.claude/settings.json` 자체가 없다.
+  if (!spec.cli.includes("claude")) return [];
+  const settingsPath = join(projectDir, ".claude/settings.json");
+  if (!existsSync(settingsPath)) return [];
+  return cleanStaleHookRefs(settingsPath, join(projectDir, ".claude"));
 }
 
 /**
@@ -428,7 +455,9 @@ function runUpdateInstall(
     rootClaudeMd: null,
   };
   ctx.onProgress?.({ type: "baseline-complete", baseline });
-  return { ...baseline, external: null, karpathyHook: null };
+  // update 경로의 치유 결과는 `updateMode.staleHookRefs` 가 이미 싣는다 — 여기서 다시 담으면
+  // 같은 사실이 두 필드가 되고 렌더가 중복 보고한다.
+  return { ...baseline, external: null, karpathyHook: null, staleHookRefs: [] };
 }
 
 /**

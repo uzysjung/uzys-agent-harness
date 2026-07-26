@@ -53,7 +53,7 @@
 > 표기하면 no-false-ship 위반이다.
 
 > **현재 상태 (2026-07-26)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 29개 항목 · ~6,439 tokens/세션** = rules 10개 ~3,732 ·
+> 실측(tooling 트랙): **상주 29개 항목 · ~6,551 tokens/세션** = rules 10개 ~3,844 ·
 > CLAUDE.md 1개 ~1,433 · agent descriptors 9개 ~724 · skill descriptors 9개 ~550.
 > 발화 = 기본 설치 8종 전부 트리거 시 ~28,285.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고
