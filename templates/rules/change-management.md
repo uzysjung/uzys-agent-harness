@@ -51,5 +51,9 @@ PR comment 에 사유를 남긴다. 결정을 바꿀 때는 새 ADR 에 `Superse
 Major CR 적용 전, 또는 되돌리기 어려운 변경 직전에 커밋으로 지점을 남긴다:
 
 ```bash
-git add -A && git commit -m "chore: savepoint before [변경 설명]"
+git commit -a -m "chore: savepoint before [변경 설명]"
 ```
+
+**`git add -A` 를 쓰지 않는다.** 설치 직후처럼 `.gitignore` 가 아직 시크릿을 덮지 못한 상태에서는
+그 한 줄이 `.env` 를 그대로 커밋한다 — 같은 하네스의 `git-policy` 가 금지하는 것을 savepoint 가
+수행하게 된다. 추적 중인 변경만 담고, 새 파일이 꼭 필요하면 경로를 하나씩 지정해 추가한다.

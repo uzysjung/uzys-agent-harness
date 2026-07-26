@@ -1,6 +1,6 @@
 ---
 name: ui-visual-review
-description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
+description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Also owns the browser-launch procedure the `playwright-launch` rule delegates here: use it whenever a browser must be opened for a human to drive or for automated capture — manual E2E checks, UX/fidelity comparison against a reference product, or a one-time OAuth login. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
 ---
 
 # UI Visual Review
@@ -67,6 +67,9 @@ await page.reload({ waitUntil: 'networkidle' });
 
 **두 가지 사용 형태**
 
+0. **기존 launcher 를 먼저 정리한다** — `pkill -f "playwright|Chrome for Testing"`. 같은 profile
+   dir 을 잡고 있는 창이 살아 있으면 `launchPersistentContext` 가 기동하지 못한다. 첫 실행은 되고
+   **2회차부터** 실패하기 때문에 프로필 잠금이 아니라 스크립트 버그로 오진하기 쉽다.
 1. **사용자가 직접 보는 경우** — `node scripts/<project>-launch.mjs` 를 포그라운드로 띄우고
    "URL / 로그인됨 / 직접 쓰세요"를 보고한 뒤, 추가 navigation·evaluate 를 **하지 않는다**.
    사용자 입력과 충돌한다.

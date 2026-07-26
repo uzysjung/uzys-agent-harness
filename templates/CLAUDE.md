@@ -60,6 +60,13 @@ If you genuinely think a convention is harmful, surface it. Don't fork silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
 
+## Delegate the Building, Keep the Deciding
+When work turns from deciding to building, delegate it — the main thread holds scope and sequencing,
+not the edits. Dev tracks ship an `implementer` agent; without it use a general-purpose subagent on
+the same contract: **done = a test that fails without the change**. Split before handing off — one
+item per independently testable change, naming its files and its constraint. Review and verification
+belong to a lane other than the one that wrote the code.
+
 ## Anti-Patterns (Forbidden)
 "feels kind of weak intuitively" / "probably won't be used" → speculation
 "it's an advanced feature, so low value" → assertion with no criteria
