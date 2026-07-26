@@ -7,6 +7,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.135.0] — 2026-07-26 (fix: 설치 로그를 `.claude/` 밖으로 — 오픈코드 단독 설치가 남의 CLI 디렉터리를 만들던 것)
+
+사용자 보고 [#253]: **오픈코드로만 설치했는데 `{prj}/.claude/.harness-install.json` 이 생겼다.
+논리적이지 않다.**
+
+설치 로그는 CLI 중립인데(어떤 CLI 를 골랐든 한 벌만 누적) 위치가 `.claude/` 로 하드코딩돼 있었고,
+`writeInstallLog` 이 **없으면 만들어서라도** 거기에 썼다. 그래서 claude 를 안 고른 설치도
+`.claude/` 를 얻었고 그 안엔 로그 하나뿐이었다. 코드베이스는 이걸 알고 있었다 —
+`installer-cli-matrix.test.ts` 에 `(버그 1)` 로 주석돼 **통과하는 테스트로 박제**돼 있었다.
+
+증상은 하나지만 결함은 둘이다. `detectInstallState` 가 `.claude/` 존재만으로 "설치됨"을
+판정했기 때문에, opencode 단독 사용자는 그 빈 `.claude/` 때문에 `tracks: []` 로 잡혀 위저드가
+잘못된 분기로 갔다. 위치만 고치면 같은 사용자가 이번엔 "미설치"로 잡혀 **반대 방향으로** 틀린다 —
+그래서 둘을 같이 고쳤다. 상세 = ADR-050.
+
+### Changed
+- 설치 로그 위치: `.claude/.harness-install.json` → **`.uzys-agent-harness/.harness-install.json`**
+  (디렉터리 이름은 사용자 결정). opencode/codex 단독 설치는 이제 `.claude/` 를 만들지 않는다.
+- `detectInstallState` 가 `.claude/` 부재 시 설치 로그를 본다 (`source: "install-log"`).
+  `hasClaudeDir` 는 이제 문자 그대로 `.claude/` 존재만 뜻한다 — 설치 여부가 아니다.
+- `update` 전제조건이 `.claude/` 존재 → **설치 여부**로. v26.134.0(ADR-049)부터 `update` 는
+  외부 CLI 산출물도 갱신하므로, `.claude/` 없는 opencode 단독 설치도 정당한 갱신 대상인데
+  거절당하고 있었다.
+- `uninstall` 이 `.uzys-agent-harness/` 를 **명시 삭제**한다. 예전엔 `.claude/` 통째 삭제에
+  딸려 갔다 — 그 경로가 없어졌으므로 `--keep-templates` 여부와 무관하게 여기서 지운다.
+
+### Migration
+게시본 사용자는 할 일이 없다. 구 위치(`.claude/`)를 여전히 **읽고**, 다음
+`install`/`update`/`uninstall --only` 가 파일을 옮기며 구 사본을 지운다. 이관을 install 경로에만
+두지 않은 이유: 로그를 쓰는 다른 경로가 구 파일을 남긴 채 새 파일을 만들면 **한 프로젝트에
+로그가 2벌** 남는다. 로그 때문에만 있던 `.claude/` 는 빈 채 남는데 그건 이 릴리즈가 만든 게
+아니라 이미 있던 잔재다 — 지우면 된다.
+
+### Verified
+- 로컬 `npm run ci` exit 0 — 989 tests, branches 88.37% (게이트 88).
+- **음성 대조 7/7 사살**, 변이가 타입체크를 통과하는 것까지 확인. M2/M6 의 첫 변이는 타입체크를
+  깨서(미사용 심볼) **무효 처리하고 다시 쳤다** — 빌드가 깨져서 난 실패는 게이트가 잡은 게 아니다.
+- Docker 6 시나리오 PASS (uninstall · project · global · policy-preserve · update-skills ·
+  external-preserve · update-external). `scenario-uninstall` 에 `.uzys-agent-harness/` 잔존
+  검사를 추가했다.
+
+[#253]: https://github.com/uzysjung/uzys-agent-harness/issues/253
+
 ## [v26.134.1] — 2026-07-20 (chore(security): devDependency 취약점 정리 — vitest 2 → 4)
 
 `npm audit` 이 **critical 2 · high 2 · moderate 3** 을 보고했다. 전부 `vitest`/`@vitest/coverage-v8`

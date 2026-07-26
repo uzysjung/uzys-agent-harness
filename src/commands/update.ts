@@ -43,14 +43,17 @@ export function updateAction(options: UpdateOptions = {}, deps: UpdateActionDeps
 
   // Pre-flight: 갱신할 대상이 없으면 조용히 성공하지 않는다. 파이프라인도 같은 조건에서
   // throw 하지만, 그건 "install failed" 로 렌더돼 원인이 안 보인다.
-  if (!state.hasClaudeDir) {
-    err(status.failure(c.red(`No harness install found at ${projectDir}/.claude`)));
+  // v26.135.0 (#253) — 판정 기준이 `.claude/` 존재에서 **설치 여부**로 바뀌었다. update 는
+  // v26.134.0(ADR-049)부터 외부 CLI 산출물도 갱신하므로, `.claude/` 없는 opencode/codex 단독
+  // 설치도 정당한 update 대상이다. `.claude/` 로 막으면 갱신할 게 있는데 거절한다.
+  if (state.state === "new") {
+    err(status.failure(c.red(`No harness install found at ${projectDir}`)));
     err(c.dim("  Run `agent-harness install --track <name>` first."));
     exit(1);
     return;
   }
 
-  log(c.dim(`Updating policy files in ${projectDir}/.claude`));
+  log(c.dim(`Updating installed harness files in ${projectDir}`));
   execute(buildUpdateSpec(projectDir, state.tracks), { log, err, exit, mode: "update" });
 }
 

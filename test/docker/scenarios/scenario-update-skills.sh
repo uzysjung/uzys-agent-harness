@@ -25,7 +25,7 @@ cd "${PROJ}"
 agent-harness install --track tooling --scope project >/dev/null
 
 SKILLS="${PROJ}/.claude/skills"
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 
 if [[ ! -d "${SKILLS}" ]]; then
   echo "FAIL: install 이 .claude/skills/ 를 안 만들었다 — 이 시나리오가 검증할 대상이 없다"

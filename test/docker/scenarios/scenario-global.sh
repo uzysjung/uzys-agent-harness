@@ -35,7 +35,7 @@ fs_changed=$(diff /tmp/proj-global-before-fs.txt /tmp/proj-global-after-fs.txt 2
 
 failed=0
 
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 if [[ ! -f "${LOG}" ]]; then
   echo "FAIL: install log missing"
   failed=1

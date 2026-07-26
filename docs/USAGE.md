@@ -55,7 +55,7 @@ At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive:
 npx -y @uzysjung/agent-harness list
 ```
 
-Reads `.claude/.harness-install.json` and prints the assets, their scope and version, the template
+Reads `.uzys-agent-harness/.harness-install.json` and prints the assets, their scope and version, the template
 dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only. The asset ids it
 shows are the input to `uninstall --only`.
 
@@ -76,7 +76,7 @@ from the record too. Assets that live outside the project (`plugin`, `npm`) are 
 npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
 ```
 
-Reverses the install based on `.claude/.harness-install.json`.
+Reverses the install based on `.uzys-agent-harness/.harness-install.json`.
 
 **Run it with no flags in a terminal and it asks what to remove (v26.125.0+).** First a mode —
 *pick items* (templates stay) or *remove everything* (assets **and** `.claude/`) — then, for the
@@ -282,7 +282,7 @@ inside a skill directory.
 │  └──────────────────┬───────────────────────────────┘    │
 │                     ▼                                    │
 │  ┌─ Phase 3: install log ───────────────────────────┐    │
-│  │  .claude/.harness-install.json                   │    │
+│  │  .uzys-agent-harness/.harness-install.json       │    │
 │  │  (drives `uninstall`)                            │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
@@ -327,7 +327,7 @@ Pick one or more at step 2.
 | `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
-| `.claude/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall` |
+| `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
 | `CLAUDE.md` | Project context — fill-in scaffold |
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
@@ -421,6 +421,19 @@ Bash + Markdown meta-projects. No app stack. The same dev-method skills work for
 ---
 
 ## Migration notes
+
+### v26.135.0 — Install log moved out of `.claude/`
+
+The install log now lives at `.uzys-agent-harness/.harness-install.json`. It records what the
+harness installed for **every** CLI, so keeping it under `.claude/` meant an OpenCode-only or
+Codex-only install created a `.claude/` directory containing nothing but that one file ([#253]).
+
+Nothing to do on your side: the old location is still read, and the next `install` / `update` /
+`uninstall --only` moves the file and removes the old copy. `uninstall` removes the new directory
+too. If you had a `.claude/` that existed *only* because of the log, it disappears on the next
+install — that directory was the bug.
+
+[#253]: https://github.com/uzysjung/uzys-agent-harness/issues/253
 
 ### v26.64.0 — Project-scope default (BREAKING)
 

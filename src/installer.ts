@@ -636,7 +636,7 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
 }
 
 /**
- * Install log write — `.claude/.harness-install.json` (자산 list + scope + timestamp,
+ * Install log write — `.uzys-agent-harness/.harness-install.json` (자산 list + scope + timestamp,
  * uninstall command 의 source). 실패는 install 자체를 fail 시키지 않음 (D16 — install 성공 우선).
  */
 function writeInstallLogSafe(

@@ -28,7 +28,7 @@ cd "${PROJ}"
 agent-harness install --track tooling --cli codex --cli opencode --scope project >/dev/null
 echo "✓ install 완료 (cli=codex,opencode)"
 
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 
 # ① 기준선이 기록됐는가 — 없으면 아래 판정이 전부 "판정 불가"로 떨어진다.
 BASE_COUNT=$(jq '(.externalFiles // []) | length' "${LOG}")

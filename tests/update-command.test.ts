@@ -82,6 +82,26 @@ describe("update 명령 — 비대화형 진입점", () => {
     expect(errs.join("\n")).toContain("agent-harness install");
   });
 
+  // v26.135.0 (#253) — update 는 v26.134.0(ADR-049)부터 외부 CLI 산출물도 갱신한다.
+  // `.claude/` 유무로 막으면 opencode/codex 단독 설치는 갱신할 게 있는데도 거절당한다.
+  it("`.claude/` 가 없어도 설치돼 있으면 갱신한다 (opencode/codex 단독)", () => {
+    const execute = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    updateAction(
+      { projectDir: dir },
+      {
+        log: () => {},
+        err: () => {},
+        exit,
+        detect: () => fakeState({ hasClaudeDir: false, state: "existing", tracks: ["tooling"] }),
+        execute,
+      },
+    );
+
+    expect(execute).toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalledWith(1);
+  });
+
   it("--project-dir 를 절대경로로 정규화해 감지한다", () => {
     const seen: string[] = [];
     updateAction(

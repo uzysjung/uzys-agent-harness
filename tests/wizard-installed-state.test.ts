@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
 import { initialTargetSelection, installedTargetState } from "../src/interactive.js";
@@ -13,7 +13,7 @@ import { buildPageGroups } from "../src/prompts.js";
  * 말한 것이다. 체크 해제가 제거로 이어지지 않는다는 사실보다 이쪽이 더 나쁘다.
  */
 function writeLog(projectDir: string, assets: InstallLog["assets"]): void {
-  mkdirSync(join(projectDir, ".claude"), { recursive: true });
+  mkdirSync(dirname(installLogPath(projectDir)), { recursive: true });
   const log: InstallLog = {
     schemaVersion: 1,
     installedAt: "2026-07-19T00:00:00.000Z",

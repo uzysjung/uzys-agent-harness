@@ -1,7 +1,7 @@
 /**
  * List command — v26.123.0 (F-1b).
  *
- * `.claude/.harness-install.json` 을 사람이 읽는 표로 출력한다. 기록은 v26.64.0(ADR-020)부터
+ * `.uzys-agent-harness/.harness-install.json` 을 사람이 읽는 표로 출력한다. 기록은 v26.64.0(ADR-020)부터
  * 있었지만 **사용자가 볼 수단이 없었다** — 무엇이 깔렸는지 알 수 없으면 항목별 제거(`--only`)의
  * 입력값도 알 수 없다. 본 커맨드가 그 입력값(자산 id)을 보여주는 곳이다.
  *
