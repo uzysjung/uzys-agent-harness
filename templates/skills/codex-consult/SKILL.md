@@ -84,9 +84,16 @@ EOF
 bash .claude/skills/codex-consult/scripts/codex-ask.sh -g ./scratch "PROMPT"
 # attach input image(s) (screenshot to describe, reference for a redraw):
 bash .claude/skills/codex-consult/scripts/codex-ask.sh -i shot.png "PROMPT"
-# override model (default = codex's configured default):
-bash .claude/skills/codex-consult/scripts/codex-ask.sh -m gpt-5.2-codex "PROMPT"
+# override model — only when the USER names one (default = codex's own default):
+bash .claude/skills/codex-consult/scripts/codex-ask.sh -m MODEL_ID "PROMPT"
 ```
+
+**Leave `-m` off by default.** With no `-m` the wrapper passes no model flag at
+all, so codex uses whatever the user's own config selects — that tracks model
+upgrades for free, while a model id written down here (or remembered from a
+previous session) goes stale and pins the user to a retired model. Codex has no
+`models` subcommand to enumerate against; the model codex actually used is
+printed on **stderr** (`model: …`) — read it back if it matters.
 
 Output contract: **stdout** carries only codex's final message, wrapped in
 `<untrusted-codex-output>` tags; progress noise and — with `-g` — the list of

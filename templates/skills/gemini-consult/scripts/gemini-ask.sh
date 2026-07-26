@@ -4,14 +4,22 @@
 # on stdout, wrapped in <untrusted-gemini-output> tags; progress → stderr.
 #
 # Usage:
-#   gemini-ask.sh [-m "MODEL"] "PROMPT"           # text (Korean polish / persona review)
-#   gemini-ask.sh [-m "MODEL"] <<'EOF'            # multi-line prompt via stdin
+#   gemini-ask.sh [-t TIER] [-m MODEL] "PROMPT"     # text (Korean polish / persona review)
+#   gemini-ask.sh [-t TIER] [-m MODEL] <<'EOF'      # multi-line prompt via stdin
 #   ...multi-line prompt...
 #   EOF
-#   gemini-ask.sh -g OUT_DIR [-m "MODEL"] "PROMPT"  # image gen: files copied to OUT_DIR
-#   gemini-ask.sh -- "-leading-dash prompt"       # `--` ends option parsing
+#   gemini-ask.sh -g OUT_DIR [-t TIER] "PROMPT"     # image gen: files copied to OUT_DIR
+#   gemini-ask.sh -- "-leading-dash prompt"         # `--` ends option parsing
 #
-# Exit codes: 2 usage · 3 agy missing · 4 secret-shaped prompt refused ·
+# TIER (default: pro) selects a model FAMILY; the concrete model is resolved
+# from `agy models` at call time, so no version string is pinned in here:
+#   pro    — gemini-*-pro-*   : every Gemini call this skill makes
+#   claude — claude-*         : a non-Gemini reply, or the Gemini quota is spent
+# `-m SLUG` skips tier resolution entirely — pass an exact slug from
+# `agy models`, or a custom model configured in agy's settings.
+#
+# Exit codes: 2 usage · 3 agy missing / no model matches TIER ·
+#             4 secret-shaped prompt refused ·
 #             5 image mode produced no files · 124 timed out ·
 #             otherwise agy's own exit code.
 #
@@ -25,20 +33,22 @@
 set -euo pipefail
 
 AGY="${AGY_BIN:-$(command -v agy || echo "$HOME/.local/bin/agy")}"
-# The "gemini 3.1 pro" the user asked for. Override with -m or GEMINI_CONSULT_MODEL.
-# See `agy models` for the full list (e.g. "Gemini 3.1 Pro (Low)" is faster).
-MODEL="${GEMINI_CONSULT_MODEL:-Gemini 3.1 Pro (High)}"
+# Pick a FAMILY (see resolution below), never a version. Empty MODEL means
+# "resolve TIER against `agy models`"; a non-empty one is used verbatim.
+TIER="${GEMINI_CONSULT_TIER:-pro}"
+MODEL="${GEMINI_CONSULT_MODEL:-}"
 TIMEOUT_S="${GEMINI_CONSULT_TIMEOUT:-300}"
 # Where agy drops generated artifacts (images land here, not in cwd, because
 # headless mode denies the shell "command" permission a cwd-save would need).
 BRAIN_DIR="${GEMINI_CONSULT_BRAIN:-$HOME/.gemini/antigravity-cli/brain}"
 OUTDIR=""
 
-while getopts "m:g:" opt; do
+while getopts "m:g:t:" opt; do
   case "$opt" in
     m) MODEL="$OPTARG" ;;
     g) OUTDIR="$OPTARG" ;;
-    *) echo 'usage: gemini-ask.sh [-m "MODEL"] [-g OUT_DIR] "PROMPT"' >&2; exit 2 ;;
+    t) TIER="$OPTARG" ;;
+    *) echo 'usage: gemini-ask.sh [-t pro|claude] [-m MODEL] [-g OUT_DIR] "PROMPT"' >&2; exit 2 ;;
   esac
 done
 shift $((OPTIND - 1))
@@ -99,8 +109,61 @@ fi
 # Neutral cwd → agy won't pull the current repo into its workspace context.
 WORKDIR="$(mktemp -d)"
 MSGFILE="$(mktemp)"
-trap 'rm -rf "$WORKDIR" "$MSGFILE" ${MARKER:+"$MARKER"}' EXIT
+MODELS_ERR=""
+trap 'rm -rf "$WORKDIR" "$MSGFILE" ${MARKER:+"$MARKER"} ${MODELS_ERR:+"$MODELS_ERR"}' EXIT
 cd "$WORKDIR"
+
+# Tier → concrete model, resolved from `agy models` on every call. Pinning a
+# version here rots: agy retires slugs (an unknown one dies with "invalid model
+# selection", exit 1), and the families do NOT share a version line — measured
+# 2026-07-26, a flash line was 3.6 while pro was still 3.1 — so neither "newest" nor
+# "best" can be spelled as a constant.
+if [ -z "$MODEL" ]; then
+  case "$TIER" in
+    pro) TIER_RE='^gemini-.*-pro(-|$)' ;;
+    claude) TIER_RE='^claude-' ;;
+    *) echo "gemini-ask.sh: unknown tier '$TIER' (expected pro | claude; use -m for an exact slug)" >&2; exit 2 ;;
+  esac
+  MODELS_ERR="$(mktemp)"
+  MODELS="$(env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" "$AGY" models 2>"$MODELS_ERR")" || MODELS=""
+  # Rank candidates: version desc, then capability (opus > sonnet), then effort
+  # (high/thinking > medium > low). Digits are read positionally so both slug
+  # shapes rank alike — `gemini-3.1-pro-high` and `claude-opus-4-6-thinking`.
+  # Fixed-width keys mean a plain `sort -r` suffices (BSD sort has no -V), and
+  # `awk NR==1` (not `head -1`) avoids a SIGPIPE under `set -o pipefail`.
+  MODEL="$(printf '%s\n' "$MODELS" | grep -E "$TIER_RE" | awk -F- '
+    {
+      maj = 0; min = 0; qual = 0; eff = 0
+      for (i = 1; i <= NF; i++) {
+        if ($i ~ /^[0-9]+(\.[0-9]+)?$/) {
+          if (maj == 0) { split($i, v, "."); maj = v[1] + 0; min = v[2] + 0 }
+          else if (min == 0) { min = $i + 0 }
+        }
+        if ($i == "opus") qual = 2
+        else if ($i == "sonnet") qual = 1
+        if ($i == "high" || $i == "thinking") eff = 3
+        else if ($i == "medium") eff = 2
+        else if ($i == "low") eff = 1
+      }
+      printf "%03d%03d%d%d %s\n", maj, min, qual, eff, $0
+    }' | sort -r | awk 'NR == 1 { print $2 }')" || MODEL=""
+  if [ -z "$MODEL" ]; then
+    # Never silently fall back to some other tier: the caller asked for this
+    # family for a reason, and a wrong-family answer looks like a right one.
+    echo "gemini-ask.sh: no '$TIER' model offered by \`agy models\` — available:" >&2
+    printf '%s\n' "$MODELS" | sed 's/^/  /' >&2
+    if [ -s "$MODELS_ERR" ]; then
+      # Surface agy's own stderr — an auth/network failure here looks exactly
+      # like "tier not offered" if you only see the empty list.
+      echo "gemini-ask.sh: \`agy models\` stderr:" >&2
+      cat "$MODELS_ERR" >&2
+    fi
+    exit 3
+  fi
+  echo "gemini-ask.sh: tier '$TIER' → model '$MODEL'" >&2
+else
+  echo "gemini-ask.sh: model '$MODEL' (explicit)" >&2
+fi
 
 # Env allowlist: don't hand agy ambient tokens (GH_TOKEN, AWS_*, ...). HOME
 # stays so agy auth (~/.gemini) keeps working.

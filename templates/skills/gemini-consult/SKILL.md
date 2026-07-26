@@ -1,8 +1,7 @@
 ---
 name: gemini-consult
 description: >-
-  Consult Google Gemini (via the local Antigravity `agy` CLI, model Gemini 3.1
-  Pro) for three things: (1) natural, native-sounding KOREAN phrasing — copy,
+  Consult Google Gemini (via the local Antigravity `agy` CLI, Pro tier) for three things: (1) natural, native-sounding KOREAN phrasing — copy,
   UI microcopy, marketing/brochure text, toasts, user-facing messages,
   translations, rewrites — (2) a MULTI-PERSONA / second-opinion review of a
   design, plan, spec, PR, or piece of writing, and (3) IMAGE GENERATION via
@@ -70,11 +69,11 @@ not bundled here. The wrapper resolves it at `$AGY_BIN` or `~/.local/bin/agy`.
 ## How to call it
 
 Prefer the **bundled wrapper** — it encodes every guardrail in one place
-(neutral cwd so the repo is NOT pulled into agy's workspace, model pin, env
-allowlist, secret-shaped-prompt refusal, portable timeout, correct flag order,
-artifact collection for image mode). It ships next to this skill when the
-harness installs the skill directory. Run it via `bash` (no execute-bit
-assumption):
+(neutral cwd so the repo is NOT pulled into agy's workspace, tier→model
+resolution, env allowlist, secret-shaped-prompt refusal, portable timeout,
+correct flag order, artifact collection for image mode). It ships next to this
+skill when the harness installs the skill directory. Run it via `bash` (no
+execute-bit assumption):
 
 ```bash
 # Claude Code, project scope (harness default):
@@ -87,14 +86,19 @@ bash .claude/skills/gemini-consult/scripts/gemini-ask.sh <<'EOF'
 EOF
 # image generation — files land in OUT_DIR (see Mode C):
 bash .claude/skills/gemini-consult/scripts/gemini-ask.sh -g ./scratch "PROMPT"
-# override model (default = "Gemini 3.1 Pro (High)"; see `agy models`):
-bash .claude/skills/gemini-consult/scripts/gemini-ask.sh -m "Gemini 3.1 Pro (Low)" "PROMPT"
+# pro is the default; -t claude switches vendor (see "Which tier" below):
+bash .claude/skills/gemini-consult/scripts/gemini-ask.sh -t claude "PROMPT"
+# exact model, skipping tier resolution — read the slug out of `agy models`,
+# don't type one from memory (agy rejects a retired model outright):
+bash .claude/skills/gemini-consult/scripts/gemini-ask.sh -m SLUG "PROMPT"
 ```
 
 Output contract: **stdout** carries only Gemini's reply, wrapped in
-`<untrusted-gemini-output>` tags; progress and — with `-g` — the list of
-collected files go to **stderr**. Flags must come *before* the prompt
-(trailing flags fail loud), and a prompt starting with `-` needs a `--`
+`<untrusted-gemini-output>` tags; progress, the resolved model line
+(`tier 'pro' → model '…'`) and — with `-g` — the list of collected files go
+to **stderr**. Read that model line back to the user when the tier mattered:
+which model answered is part of the answer. Flags must come *before* the
+prompt (trailing flags fail loud), and a prompt starting with `-` needs a `--`
 separator first, or use the stdin form.
 
 Calls block synchronously — the wrapper caps a call at 300s
@@ -120,10 +124,16 @@ they can't leak into your session:
 (
   AGY="${AGY_BIN:-$(command -v agy || echo "$HOME/.local/bin/agy")}"
   [ -x "$AGY" ] || { echo "agy not found — ask the user to install it" >&2; exit 3; }
+  "$AGY" models   # → read the list, pick a slug for the tier you want:
+                  #   gemini-*-pro-* · claude-*
   D="$(mktemp -d)"; trap 'rm -rf "$D"' EXIT
-  cd "$D" && "$AGY" --model="Gemini 3.1 Pro (High)" -p "PROMPT"
+  cd "$D" && "$AGY" --model="<slug>" -p "PROMPT"
 )
 ```
+
+Read the slug out of `agy models` rather than typing one from memory — agy
+rejects a retired model outright (`invalid model selection`, exit 1), so a
+remembered name fails the whole call.
 
 The `( )` subshell matters: in an interactive terminal a bare `cd` persists
 after the block and silently relocates every later command.
@@ -153,6 +163,40 @@ between `-p` and the prompt makes agy ignore the prompt.
   tokens). Batch related strings into ONE call — number them in the prompt
   (`1. … 2. … 3. …`) and ask for the same numbering back, instead of one call
   per string.
+
+## Which tier — `pro` / `claude`
+
+`-t` picks a model **family**; the concrete model is resolved from `agy models`
+on every call, so nothing here pins a version. Two measured facts shape the
+policy below:
+
+- **A tier name tells you nothing about recency.** The families do not share a
+  version line — measured on 2026-07-26, the fast family was two generations
+  ahead of pro. That is exactly why nothing here pins a version string: a slug
+  typed from memory gets rejected outright (`invalid model selection`, exit 1),
+  and "the newer one" is not a property you can infer from the tier name.
+- **The Gemini quota is one pool per account; Claude models sit outside it.**
+  Measured: every gemini tier refused with `Individual quota reached … Resets
+  in <hours>` (~7 days out) while a `claude` call in the same minute answered
+  Measured: a Gemini call refused with `Individual quota reached … Resets in <hours>`
+  (~7 days out) while a `claude` call in the same minute answered normally. When the
+  Gemini quota is spent, `-t claude` is the only tier still answering.
+
+**Every Gemini call this skill makes uses `pro`.** The reason is what the skill is for: it exists because a second model's *judgment* is worth an external round-trip — natural Korean that doesn't read translated, personas that stay distinct, critique that finds what you missed. Those are the calls where a cheaper tier costs you the thing you came for, and a round-trip you have to redo is more expensive than the one you did right. If a call is routine enough that a fast tier would do, it probably shouldn't be an external call at all.
+
+**`-t claude`** — agy also serves Claude models. Reach for it when:
+
+- The Gemini quota is spent and the work can't wait for the reset; it is the
+  only tier still answering.
+- You want a **fresh, uncontaminated read** — the call carries no repo, no
+  conversation history, and none of the framing you already committed to. When
+  you suspect your own framing is the problem, that is worth more than a
+  different vendor.
+- You are running **on Antigravity**, where you already are Gemini: there the
+  Claude tier is the outside opinion and the Gemini tiers are the circular one.
+
+Not for **Mode A**. This skill exists because Claude's Korean reads translated —
+routing Korean copy back to a Claude model defeats the premise.
 
 ## Mode A — natural Korean phrasing / copy
 
@@ -225,8 +269,11 @@ full-cost regeneration.
 **Image quota is small and shared across model tiers.** A handful of
 generations can exhaust it; Gemini then answers (politely) that quota is
 exceeded — the wrapper surfaces that as exit 5 with the explanation inside the
-tags. Observed reset horizon: up to ~7 days. Don't retry-loop against a quota
-error; relay it and fall back to `codex-consult` for the image.
+tags. Once the whole Gemini pool is spent the call doesn't even reach the tool:
+agy fails with `Individual quota reached` and its own nonzero exit. Observed
+reset horizon: up to ~7 days. **Another Gemini tier would not help** — one
+pool per account; only `-t claude` sits outside it. Don't retry-loop against a quota error; relay it and fall
+back to `codex-consult` for the image.
 
 ```
 이미지 생성 도구로 이미지를 하나 생성해줘:
@@ -243,7 +290,7 @@ inline:
   [ -x "$AGY" ] || { echo "agy not found — ask the user to install it" >&2; exit 3; }
   BRAIN="$HOME/.gemini/antigravity-cli/brain"
   M="$(mktemp)"; D="$(mktemp -d)"; trap 'rm -rf "$D" "$M"' EXIT
-  cd "$D" && "$AGY" --model="Gemini 3.1 Pro (High)" -p "PROMPT — 생성만 하고 셸 저장은 시도하지 마"
+  cd "$D" && "$AGY" --model="<slug from agy models>" -p "PROMPT — 생성만 하고 셸 저장은 시도하지 마"
   find "$BRAIN" -type f \( -name '*.png' -o -name '*.jpg' \) -newer "$M"   # → report/copy these
 )
 ```
@@ -256,11 +303,15 @@ candidates, the clustered findings, or the file paths — not raw CLI noise.
 
 ## On failure
 
-- exit `2` usage · `3` agy missing (Prerequisite) · `4` secret-shaped prompt
-  refused · `5` image mode produced no artifacts (read the tagged message for
-  why) · `124` timed out (`GEMINI_CONSULT_TIMEOUT`, default 300s) — do NOT
-  blindly re-run the same prompt.
+- exit `2` usage (includes an unknown `-t` tier) · `3` agy missing
+  (Prerequisite) **or `agy models` offers nothing for the tier** — stderr lists
+  what it does offer; pick one with `-m`, never assume a substitute tier ·
+  `4` secret-shaped prompt refused · `5` image mode produced no artifacts (read
+  the tagged message for why) · `124` timed out (`GEMINI_CONSULT_TIMEOUT`,
+  default 300s) — do NOT blindly re-run the same prompt.
 - Any other nonzero exit is agy's own failure — read stderr, report it.
+  `Individual quota reached` = the Gemini pool is spent (~7 day reset); retry
+  with `-t claude`, not with another Gemini tier.
 - `Authentication required. Please visit the URL ...` → stop; the user runs
   `agy` interactively once (Prerequisite).
 - `a tool required the "command" permission ...` → the prompt induced a shell

@@ -3,14 +3,14 @@
   "unit": "tokens/session (chars/4 근사 — 실측이 아니라 규약값)",
   "tracks": {
     "tooling": 5975,
-    "csr-supabase": 7319,
-    "csr-fastify": 7509,
-    "csr-fastapi": 7597,
-    "ssr-htmx": 7238,
-    "ssr-nextjs": 7390,
+    "csr-supabase": 7338,
+    "csr-fastify": 7528,
+    "csr-fastapi": 7616,
+    "ssr-htmx": 7257,
+    "ssr-nextjs": 7409,
     "data": 6276,
     "executive": 4512,
-    "full": 9437,
+    "full": 9456,
     "project-management": 4258,
     "growth-marketing": 4258
   }

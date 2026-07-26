@@ -17,8 +17,9 @@ SSOT — 없으면 갭 판정 기준 자체가 없다.
 | (예: 문서/위키) | (예: Confluence) | Playwright capture | `~/.<ref>-audit-profile` |
 | (예: 리포트) | (예: 내부 확보한 정적 HTML/PDF) | 정적 자료 | `docs/raw/` |
 
-- 실측 수단(영속 profile, reference SaaS 측 조작 제한 등)은 **playwright-launch.md 가 SSOT** —
-  본 rule 은 수단을 재규정하지 않는다.
+- 실측 수단은 둘로 나뉜다 — **금지**(활성 Chrome attach · 일회성 context 등)는 `playwright-launch`
+  룰이, **절차**(영속 profile launcher · capture 형태)는 `ui-visual-review` 스킬이 SSOT.
+  본 rule 은 어느 쪽도 재규정하지 않는다.
 
 ## 반복 루프 (capture → 핵심 기능 → 완결성 → 발전)
 
