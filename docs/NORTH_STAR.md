@@ -38,7 +38,7 @@
 | **Justified Asset Ratio** | 기본 설치 자산 중 편익 근거(with/without eval 델타 또는 `operational-fact` 분류)를 **문서로 보유**한 비율 | **100%** (기본 설치 한정 — opt-in 자산은 미요구) |
 
 > **현재 상태 (2026-07-26)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 ~5,877 tokens/세션** = rules ~3,774 · CLAUDE.md ~938 ·
+> 실측(tooling 트랙): **상주 ~5,650 tokens/세션** = rules ~3,547 · CLAUDE.md ~938 ·
 > agent descriptors ~615 · skill descriptors ~550. 발화 = 기본 설치 8종 전부 트리거 시 ~26,930.
 > **ratchet 이 v26.136.0 부터 게이트다** — `context-cost-baseline.json` + `cost:baseline`.
 > 그전까지는 "비증가"가 선언이었을 뿐이고, 실제로는 2026-07-19 하루에 5,194 → 6,156(+18%) 처럼

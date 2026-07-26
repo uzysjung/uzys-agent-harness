@@ -27,9 +27,54 @@ E2E 테스트가 PASS 했어도 시각적 회귀(layout shift, 색상/간격 변
 
 ## Pre-conditions
 
-- Playwright 또는 chrome-devtools MCP 사용 가능 (UI Track 설치 시 기본 포함)
+- Playwright 사용 가능 (UI Track 설치 시 기본 포함)
 - 앱이 로컬에서 기동 가능 (예: `pnpm dev`, `docker-compose up`)
 - 핵심 화면 URL 리스트가 정의됨 (없으면 본 skill 첫 실행 시 사용자 질의)
+
+## 브라우저를 띄우는 법 (영속 profile)
+
+`playwright-launch` 룰이 **금지**를 소유하고, 여기가 **절차**를 소유한다. 금지문은 상주해야
+하지만(위반은 작업 도중에 일어난다) 아래 절차는 실제로 브라우저를 띄울 때만 필요하다.
+
+핵심은 셋이다. ⓐ **영속 profile dir** — 프로젝트별로 분리해 매 iteration 재사용한다. cookie ·
+IndexedDB · Service Worker 가 보존돼야 재로그인이 사라진다. ⓑ **Chrome for Testing 별도 binary**
+(`npx playwright install chromium`) — 사용자의 일반 Chrome 과 완전히 분리한다. ⓒ **사용자가 키를
+입력하는 동안 자동화 layer 0** — main session 은 창을 띄우기만 하고, capture·검증은 입력이 끝난 뒤
+별도 process 에서 돈다.
+
+```js
+import { chromium } from 'playwright';
+
+const PROFILE_DIR = process.env.PROJECT_PROFILE_DIR || `${process.env.HOME}/.<project>-audit-profile`;
+const TARGET = process.env.PROJECT_URL || 'http://localhost:<port>';
+
+const ctx = await chromium.launchPersistentContext(PROFILE_DIR, {
+  headless: false,
+  viewport: { width: 1440, height: 900 },
+  args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check'],
+});
+const page = ctx.pages()[0] ?? (await ctx.newPage());
+
+// (선택) dev bypass auth — OAuth 의 webdriver 차단을 피한다. same-origin cookie 로 저장된다.
+await page.goto(`${TARGET}/`, { waitUntil: 'domcontentloaded' });
+await ctx.request.post(`${TARGET}/api/v1/_dev/test-login`, {
+  data: { key: process.env.E2E_TEST_KEY ?? 'e2e-dev-key', email: 'e2e@example.local' },
+});
+await page.reload({ waitUntil: 'networkidle' });
+
+// 창을 띄운 채 자동화는 detach — 사용자가 직접 쓴다. ctx.close() 를 부르지 않는다.
+```
+
+**두 가지 사용 형태**
+
+1. **사용자가 직접 보는 경우** — `node scripts/<project>-launch.mjs` 를 포그라운드로 띄우고
+   "URL / 로그인됨 / 직접 쓰세요"를 보고한 뒤, 추가 navigation·evaluate 를 **하지 않는다**.
+   사용자 입력과 충돌한다.
+2. **자동 capture (fidelity·audit)** — 같은 `launchPersistentContext` 로 시나리오를 자동 click 하고
+   산출물을 `docs/research/<area>_audit_<sprint>/iter_<N>/` 에 남긴다.
+
+> chrome-devtools MCP 는 **위 launcher 가 띄운 Chrome for Testing 에 대해서만** 쓴다. 사용자의
+> 활성 Chrome 에 붙이는 것은 룰이 금지한다 — 입력 latency 로 사용자가 먼저 알아챈다.
 
 ## Process
 

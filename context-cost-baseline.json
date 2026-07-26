@@ -2,16 +2,16 @@
   "$comment": "상주 컨텍스트 비용 상한(ratchet). 값을 올리려면 그 증가를 정당화하는 커밋에서 함께 올린다 — 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
   "unit": "tokens/session (chars/4 근사 — 실측이 아니라 규약값)",
   "tracks": {
-    "tooling": 5877,
-    "csr-supabase": 7671,
-    "csr-fastify": 7861,
-    "csr-fastapi": 7949,
-    "ssr-htmx": 7590,
-    "ssr-nextjs": 7742,
-    "data": 6178,
-    "executive": 4523,
-    "full": 9789,
-    "project-management": 4269,
-    "growth-marketing": 4269
+    "tooling": 5650,
+    "csr-supabase": 6255,
+    "csr-fastify": 6445,
+    "csr-fastapi": 6533,
+    "ssr-htmx": 6174,
+    "ssr-nextjs": 6326,
+    "data": 5951,
+    "executive": 4296,
+    "full": 8373,
+    "project-management": 4042,
+    "growth-marketing": 4042
   }
 }
