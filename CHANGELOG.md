@@ -7,6 +7,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.137.0] — 2026-07-26 (fix: SessionStart 훅이 뱉는 스키마를 CLI 가 읽지 않아 경고가 한 번도 도달하지 않았다)
+
+`dyld_vantage` 대조 분석(사용자 요청) 중 U-1(훅 stdout 비용)을 실측하다 나왔다. **답은 "비용이
+거의 0"이었는데, 0인 이유가 절약이 아니라 기능 부재였다.**
+
+`session-start.sh` 는 `{"priority","message"}` 를 출력했다. CLI 가 읽는 필드가 아니라서
+**유효 JSON 인 채로 조용히 폐기**된다. 실측: hook attachment 40건 중 모델이 보는 `content` 가
+채워진 것은 **1건**이고, 그 1건조차 훅 안의 `git pull` 출력이 앞에 붙어 JSON 이 **깨진** 덕분이었다.
+즉 `feedback_session_process_cleanup` 으로 만든 고아 프로세스 경고도, "SPEC 먼저 읽어라" 앵커도
+**의도대로 도달한 적이 없다.** 그리고 이 훅은 `templates/` 로 설치자에게 나간다.
+
+훅이 돌고 exit 0 이고 로그에도 남는데 모델만 못 본다 — 실패가 아무 증상을 안 내는 종류라서
+프로즈로는 영원히 안 잡힌다.
+
+### Fixed
+- `session-start.sh` (배포판 + 설치본) 출력을
+  `hookSpecificOutput.{hookEventName,additionalContext}` 로 교체. JSON 이스케이프 추가(`jq` 비의존).
+- 같은 파일의 `git pull --rebase` 가 **stdout 을 그대로 흘리던 것** 차단 — 그 출력이 JSON 앞에
+  붙어 계약을 깨뜨리고 있었다(실측 21%).
+
+### Added
+- `tests/hook-context-schema.test.ts` — SessionStart 배선 훅의 stdout 이 CLI 가 읽는 스키마인지
+  검사. **대상은 `templates/settings.json` 배선에서 derive**(훅 이름 하드코딩 금지). 테스트는
+  `git` 스텁으로 **stdout 오염을 일부러 만들어** 그 조건에서도 계약이 지켜지는지 본다.
+  배포판·설치본 **양쪽을 실행**한다.
+
+### Changed
+- `src/context-cost.ts` — 훅을 계측 비대상으로 두는 **근거를 교체**. "실행될 뿐 컨텍스트에 안
+  올라감"은 **틀렸다**: stdout 은 `content` 로 진입하고, 그 필드는 훅이 인식되는 스키마를 쓰거나
+  stdout 이 비-JSON 일 때 채워진다. 지금은 ~19 tok/세션이라 빼지만 **조건부 제외이지 구조적
+  제외가 아니다**. 외부 플러그인 훅은 여기 안 잡힌다 — 올바른 스키마를 쓰는 플러그인 훅 하나가
+  실측상 **+2,222 tok/세션(+37.8%)** 을 아무 고지 없이 얹을 수 있었다.
+- ADR-051 **정정**: "정기 점검"은 거짓이었다(자동 진입점 0건). 부수로 "ratchet 은 per-PR" 전제도
+  정정 — `test.yml` 은 `on: push: tags` 뿐이라 PR 에는 CI 가 안 돈다.
+
+### Verified
+- `npm run ci` exit 0 — 1,016 tests, branches 88.37%.
+- **음성 대조 4/4 사살**: 옛 스키마 원복 · `git pull` stdout 누출 재현 · 배선 derive 무력화(게이트
+  자멸 확인) · 설치본만 갈라놓기(도그푸딩 갈림).
+- 판별 규율: 트랜스크립트 grep 이 57/57 세션에서 히트했으나 위치가 `.attachment.stdout`(로그
+  필드)이었다 — **히트도 원문을 보기 전엔 증거가 아니다.** `content` 필드로 재판정해 뒤집었다.
+
 ## [v26.136.0] — 2026-07-26 (feat: 상주 컨텍스트 비용 ratchet + 룰 착지 pre-flight, 배포 룰 −279 tok)
 
 사용자 요청 4건(룰 컨펌 게이트 · 토큰 추적 · 배포 룰 재검증/제거 · Opus 5 비용대비 효과).

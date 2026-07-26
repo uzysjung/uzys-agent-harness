@@ -112,7 +112,13 @@ export function assetCostRows(
  * 판정 기준은 **표면 열거가 아니라 "상주인가 발화인가"** — 새 표면이 생겨도 기준이 그대로다.
  * - 상주: rules(전문) · CLAUDE.md(전문) · skills/agents 의 descriptor
  * - 발화: skills/agents 의 body — 트리거될 때만
- * - 비대상: hooks(실행될 뿐 컨텍스트에 안 올라감)
+ * - 비대상: hooks — **단, 근거는 "실행될 뿐"이 아니다** (v26.137.0 정정). 훅 stdout 은 CLI 의
+ *   `content` 필드로만 컨텍스트에 진입하고, 그 필드는 훅이
+ *   `hookSpecificOutput.{additionalContext|initialUserMessage}` 를 쓰거나 stdout 이 **비-JSON 일 때만**
+ *   채워진다. 우리 SessionStart 훅은 전자를 쓰므로 진입하되 양이 ~19 tok/세션(실측)이라 계측
+ *   대상에서 뺀다 — **조건부 제외이지 구조적 제외가 아니다.** 훅이 늘거나 출력이 길어지면
+ *   상주에 얹힌다. 외부 플러그인 훅은 여기 안 잡힌다: 올바른 스키마를 쓰는 플러그인 훅 하나가
+ *   실측상 +2,222 tok/세션(+37.8%)을 아무 고지 없이 얹을 수 있었다.
  */
 export interface ResidentCost {
   rules: number;
