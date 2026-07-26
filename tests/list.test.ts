@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listAction } from "../src/commands/list.js";
 import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
@@ -11,7 +11,7 @@ import { hashContent, type InstallLog, installLogPath } from "../src/install-log
  * 하나라도 안 보이면 그 자산은 사용자 입장에서 제거할 방법이 없다.
  */
 function writeLog(projectDir: string, log: InstallLog): void {
-  mkdirSync(join(projectDir, ".claude"), { recursive: true });
+  mkdirSync(dirname(installLogPath(projectDir)), { recursive: true });
   writeFileSync(installLogPath(projectDir), JSON.stringify(log), "utf8");
 }
 

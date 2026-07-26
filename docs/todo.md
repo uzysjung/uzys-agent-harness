@@ -207,7 +207,7 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 
 | 기구현 | 근거 |
 |--------|------|
-| 설치 기록 파일 `.claude/.harness-install.json` | `src/install-log.ts` (v26.64.0 · ADR-020) — 자산 id/category/method/scope/detail/version + tracks/cli + templates 경로 |
+| 설치 기록 파일 `.uzys-agent-harness/.harness-install.json` | `src/install-log.ts` (v26.64.0 · ADR-020, 위치는 v26.135.0 · ADR-050 에서 `.claude/` 밖으로) — 자산 id/category/method/scope/detail/version + tracks/cli + templates 경로 |
 | 로그 기반 uninstall + `--dry-run` / `--keep-templates` | `src/commands/uninstall.ts:61` |
 | 글로벌 자산은 자동 삭제 금지 → 안내만 | 같은 파일 `buildGlobalAdvisoryCmd:245` (D16) |
 | CLAUDE.md 사용자 수정 감지 후 보존 | `install-log.ts:57` sha256 + `uninstall.ts:284` |

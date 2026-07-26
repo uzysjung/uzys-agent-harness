@@ -41,7 +41,7 @@ check() { # desc, path
 }
 check "openspec npm devDep (project node_modules)" "${PROJ}/node_modules/@fission-ai/openspec"
 check "bmad (project _bmad)"                        "${PROJ}/_bmad"
-check "core track (project .claude)"               "${PROJ}/.claude/.harness-install.json"
+check "install log (project, CLI 중립 위치)"        "${PROJ}/.uzys-agent-harness/.harness-install.json"
 check "plugin scope 메타 (project .claude/settings.json)" "${PROJ}/.claude/settings.json"
 
 echo ""

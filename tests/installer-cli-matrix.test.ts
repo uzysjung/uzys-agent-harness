@@ -27,6 +27,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { installLogPath } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import {
   type CliBase,
@@ -112,7 +113,10 @@ describe("11 Track × 7 CLI combination matrix (77 scenarios) — E2E install", 
 
         // 1b. install log 는 모든 CLI 조합에서 생성돼야 한다 — claude 미포함(codex/opencode 단독)
         //     이어도. 없으면 uninstall 이 "log not found" 로 영구 실패하기 때문. (regression: 버그 1)
-        expect(existsSync(join(projectDir, ".claude/.harness-install.json"))).toBe(true);
+        expect(existsSync(installLogPath(projectDir))).toBe(true);
+        // v26.135.0 (#253) — 로그는 CLI 중립 위치다. `.claude/` 안에 두면 opencode 단독
+        // 설치가 고르지도 않은 CLI 의 디렉터리를 만든다.
+        expect(existsSync(join(projectDir, ".claude/.harness-install.json"))).toBe(false);
 
         // 2. installed-tracks meta
         expect(report.installedTracks).toEqual([track]);
@@ -210,8 +214,9 @@ describe("Matrix invariants — cross-cutting", () => {
   });
 
   // v0.8.0 — .claude/ 의 claude 에셋(CLAUDE.md/settings/tracks)은 조건부 (단독 dead weight 제거).
-  // 단 install log(.harness-install.json)는 uninstall 위해 항상 생성 → .claude/ 디렉토리 자체는 존재 (버그 1).
-  it("[codex] only: .claude/ claude 에셋 미생성 (install log 만 예외)", () => {
+  // v26.135.0 (#253) — install log 도 `.claude/` 를 떠났다. 이제 codex 단독 설치는 `.claude/`
+  // 디렉터리 자체를 만들지 않는다 (예전엔 로그 하나 때문에 생겨서 "버그 1"로 적혀 있었다).
+  it("[codex] only: .claude/ 디렉터리 자체를 만들지 않는다", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -221,8 +226,9 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/.installed-tracks"))).toBe(false);
-    // install log 는 uninstall 위해 생성 (claude 에셋 아님)
-    expect(existsSync(join(projectDir, ".claude/.harness-install.json"))).toBe(true);
+    // install log 는 uninstall 위해 생성되지만 `.claude/` 밖이다 (#253)
+    expect(existsSync(installLogPath(projectDir))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude"))).toBe(false);
     // Codex 산출물은 정상 생성
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);

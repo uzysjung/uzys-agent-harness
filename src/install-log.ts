@@ -1,5 +1,5 @@
 /**
- * Install log — `.claude/.harness-install.json`.
+ * Install log — `.uzys-agent-harness/.harness-install.json`.
  *
  * v26.64.0 (ADR-020) — install 종료 시 자산 list + scope + timestamp 기록.
  * uninstall command 가 본 log 를 읽어 정확한 reverse 수행.
@@ -8,7 +8,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExternalAsset, ExternalAssetMethod } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
@@ -16,6 +16,15 @@ import { listFilesRecursive } from "./fs-ops.js";
 import type { InstallScope, InstallSpec } from "./types.js";
 
 export const INSTALL_LOG_FILENAME = ".harness-install.json";
+/**
+ * v26.135.0 (#253 · ADR-050) — 설치 로그 디렉터리. **CLI 중립이라 CLI 디렉터리 밖에 둔다.**
+ *
+ * v26.134.1 까지는 `.claude/` 에 뒀는데, opencode/codex 단독 설치에서도 로그를 쓰려고
+ * `.claude/` 를 만들어 버렸다 — 고르지 않은 CLI 의 디렉터리가 생기고, 그 안엔 로그 하나뿐이다.
+ */
+export const INSTALL_LOG_DIR = ".uzys-agent-harness";
+/** v26.64.0 ~ v26.134.1 의 위치. 읽기 폴백 + 다음 write 때 1회 이관 대상. */
+export const LEGACY_INSTALL_LOG_DIR = ".claude";
 export const INSTALL_LOG_VERSION = 1;
 
 export interface InstallLogAsset {
@@ -399,22 +408,47 @@ export function collectPolicyHashes(
 }
 
 /**
- * install log write. 위치: `<projectDir>/.claude/.harness-install.json`.
+ * install log write. 위치: `<projectDir>/.uzys-agent-harness/.harness-install.json`.
  *
- * `.claude/` 는 cli=claude 일 때 baseline phase 에서 생성되지만, codex/opencode/antigravity
- * 단독(claude 미포함) 설치 시엔 생성되지 않는다. 그 경우에도 uninstall 이 본 log 를 읽을 수 있도록
- * write 직전 디렉토리를 보장한다 (없으면 install log 누락 → uninstall 불가).
+ * 디렉터리는 write 직전에 보장한다 — 하네스 전용이라 다른 어떤 phase 도 만들지 않는다.
+ *
+ * v26.135.0 (#253) — 구 위치(`.claude/`)에 파일이 있으면 **여기서 이관이 끝난다**: 새 위치에
+ * 쓴 뒤 구 파일을 지운다. 이관을 별도 명령이나 install 경로에만 두면, 로그를 쓰는 다른 경로
+ * (`update` 의 refreshExternalCli, `uninstall --only` 의 로그 갱신)가 구 파일을 남긴 채
+ * 새 파일을 만들어 **같은 프로젝트에 로그가 2벌** 남는다.
  */
 export function writeInstallLog(projectDir: string, log: InstallLog): string {
-  const path = join(projectDir, ".claude", INSTALL_LOG_FILENAME);
+  const path = installLogPath(projectDir);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(log, null, 2)}\n`, "utf8");
+  migrateAwayLegacyLog(projectDir);
   return path;
 }
 
+/**
+ * 구 위치 파일 제거. 실패해도 **install 을 죽이지 않는다** — 읽기는 새 위치가 우선이라
+ * 남은 구 파일은 더 이상 아무것도 결정하지 않는다(무해한 잔재). 반대로 여기서 throw 하면
+ * 정상 완료된 설치가 "실패"로 보고된다. 조용한 성공이 아니라 **의도된 비치명 처리**다.
+ */
+function migrateAwayLegacyLog(projectDir: string): void {
+  const legacy = legacyInstallLogPath(projectDir);
+  if (!existsSync(legacy)) return;
+  try {
+    rmSync(legacy);
+  } catch {
+    /* 위 주석 참조 — 새 위치가 이미 SSOT */
+  }
+}
+
+/**
+ * 새 위치 → 구 위치 순으로 찾는다. 구 위치 폴백이 없으면 v26.134.1 이하로 설치한 사용자의
+ * `list` / `uninstall` / `update` 가 전부 "install log not found" 로 죽는다.
+ */
 export function readInstallLog(projectDir: string): InstallLog | null {
-  const path = join(projectDir, ".claude", INSTALL_LOG_FILENAME);
-  if (!existsSync(path)) return null;
+  const path = [installLogPath(projectDir), legacyInstallLogPath(projectDir)].find((p) =>
+    existsSync(p),
+  );
+  if (!path) return null;
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as InstallLog;
     // v26.68.0 — backward compat: method.kind "npm-global" → "npm" rename.
@@ -431,5 +465,10 @@ export function readInstallLog(projectDir: string): InstallLog | null {
 }
 
 export function installLogPath(projectDir: string): string {
-  return join(projectDir, ".claude", INSTALL_LOG_FILENAME);
+  return join(projectDir, INSTALL_LOG_DIR, INSTALL_LOG_FILENAME);
+}
+
+/** v26.134.1 이하가 쓰던 위치. 읽기 폴백과 이관에만 쓴다 — 새로 쓰는 곳은 없다. */
+export function legacyInstallLogPath(projectDir: string): string {
+  return join(projectDir, LEGACY_INSTALL_LOG_DIR, INSTALL_LOG_FILENAME);
 }

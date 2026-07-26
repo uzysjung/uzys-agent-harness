@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ExternalAsset } from "../src/external-assets.js";
 import type { AssetInstallResult, ExternalInstallReport } from "../src/external-installer.js";
 import {
@@ -404,5 +404,72 @@ describe("buildInstallLog — 루트 파일 기록 (F-1f)", () => {
     const first = buildInstallLog(mkSpec(), null, "project", null, null, false, [mcpCreated]);
     const second = buildInstallLog(mkSpec(), null, "project", null, first, true, []);
     expect(second.rootFiles?.map((f) => f.path)).toEqual([".mcp.json"]);
+  });
+});
+
+/**
+ * v26.135.0 (#253) — 로그 위치가 `.claude/` → `.uzys-agent-harness/` 로 바뀌었다.
+ *
+ * 여기서 지키는 건 "경로가 바뀌었다"가 아니라 **게시본으로 설치한 사용자가 버려지지 않는다**는
+ * 것이다. 폴백이 없으면 v26.134.1 이하로 깐 프로젝트의 `list`/`uninstall`/`update` 가 전부
+ * "install log not found" 로 죽고, 이관이 없으면 같은 프로젝트에 로그가 2벌 남아 어느 쪽이
+ * 참인지 알 수 없게 된다.
+ */
+describe("install log 위치 이관 (#253)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-log-move-"));
+  });
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  const sample = (): InstallLog => ({
+    schemaVersion: 1,
+    installedAt: "2026-07-26T00:00:00.000Z",
+    scope: "project",
+    spec: { tracks: ["tooling"], cli: ["opencode"] },
+    templates: { claudeDir: ".claude/" },
+    assets: [],
+  });
+
+  it("write 는 `.uzys-agent-harness/` 에 쓴다 — 안 고른 CLI 의 디렉터리를 만들지 않는다", () => {
+    writeInstallLog(tmpDir, sample());
+    expect(existsSync(join(tmpDir, ".uzys-agent-harness", ".harness-install.json"))).toBe(true);
+    expect(existsSync(join(tmpDir, ".claude"))).toBe(false);
+  });
+
+  it("구 위치(.claude/)에만 있어도 읽는다 — v26.134.1 이하 설치본이 버려지지 않는다", () => {
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, ".claude", ".harness-install.json"),
+      JSON.stringify({ ...sample(), scope: "global" }),
+      "utf8",
+    );
+    expect(readInstallLog(tmpDir)?.scope).toBe("global");
+  });
+
+  it("다음 write 가 구 파일을 치운다 — 로그가 2벌 남으면 어느 쪽이 참인지 알 수 없다", () => {
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, ".claude", ".harness-install.json"),
+      JSON.stringify(sample()),
+      "utf8",
+    );
+    writeInstallLog(tmpDir, sample());
+    expect(existsSync(join(tmpDir, ".claude", ".harness-install.json"))).toBe(false);
+    expect(existsSync(installLogPath(tmpDir))).toBe(true);
+  });
+
+  it("새 위치가 구 위치를 이긴다 — 이관 직후 잔재가 남아도 최신 기록을 읽는다", () => {
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, ".claude", ".harness-install.json"),
+      JSON.stringify({ ...sample(), installedAt: "2020-01-01T00:00:00.000Z" }),
+      "utf8",
+    );
+    mkdirSync(join(tmpDir, ".uzys-agent-harness"), { recursive: true });
+    writeFileSync(installLogPath(tmpDir), JSON.stringify(sample()), "utf8");
+    expect(readInstallLog(tmpDir)?.installedAt).toBe("2026-07-26T00:00:00.000Z");
   });
 });

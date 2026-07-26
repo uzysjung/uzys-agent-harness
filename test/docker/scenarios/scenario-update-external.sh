@@ -26,7 +26,7 @@ cd "${PROJ}"
 
 agent-harness install --track tooling --scope project --cli claude --cli codex --cli opencode >/dev/null
 
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 CONFIG="${PROJ}/.codex/config.toml"
 HOOK="${PROJ}/.codex/hooks/session-start.sh"
 

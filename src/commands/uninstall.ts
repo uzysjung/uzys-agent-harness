@@ -2,7 +2,7 @@
  * Uninstall command — v26.64.0 (ADR-020).
  *
  * 동작:
- *   1. `.claude/.harness-install.json` 읽기.
+ *   1. `.uzys-agent-harness/.harness-install.json` 읽기 (구 위치 `.claude/` 폴백).
  *   2. assets[] 별 reverse:
  *      - scope=project: 실제 reverse (`claude plugin uninstall --scope project`, `npm uninstall`, fs rm).
  *      - scope=global: 안내만 (D16 — 글로벌 영역 자동 삭제 금지). 사용자가 직접 명령 실행.
@@ -28,10 +28,12 @@ import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
 import {
   hashContent,
+  INSTALL_LOG_DIR,
   type InstallLog,
   type InstallLogAsset,
   type InstallLogRootFile,
   installLogPath,
+  legacyInstallLogPath,
   readInstallLog,
   writeInstallLog,
 } from "../install-log.js";
@@ -163,7 +165,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   }
 
   const logWriteFailed = settleLog(
-    { installLog, projectDir, selectedIds, keepTemplates, removedIds },
+    { installLog, projectDir, selectedIds, removedIds },
     { log, err, rm, writeLog },
   );
 
@@ -274,7 +276,6 @@ function settleLog(
     installLog: InstallLog;
     projectDir: string;
     selectedIds: string[] | null;
-    keepTemplates: boolean;
     removedIds: string[];
   },
   io: {
@@ -284,7 +285,7 @@ function settleLog(
     writeLog: (projectDir: string, log: InstallLog) => void;
   },
 ): boolean {
-  const { installLog, projectDir, selectedIds, keepTemplates, removedIds } = ctx;
+  const { installLog, projectDir, selectedIds, removedIds } = ctx;
   if (selectedIds) {
     // v26.123.0 (F-1c) — 로그를 지우는 게 아니라 **되돌린 것만 빼고 다시 쓴다**.
     // 실패한 항목은 남긴다 — 실제로 안 지워진 걸 기록에서 지우면 그게 곧 거짓 기록이다.
@@ -299,11 +300,16 @@ function settleLog(
       io.err(c.dim(`       실제로 제거된 자산: ${removedIds.join(", ") || "(없음)"}`));
       return true;
     }
-  } else if (keepTemplates) {
-    // install log 자체도 함께 제거 (templates 제거 시 .claude/ 통째 사라짐 → log 도 자동 사라짐.
-    // keepTemplates 시 .claude/ 유지 → log 만 명시 제거).
-    io.rm(installLogPath(projectDir));
-    io.log(`  ${status.success("install log removed (templates kept)")}`);
+  } else {
+    // v26.135.0 (#253) — 로그가 `.claude/` 밖으로 나왔다. 예전엔 templates 제거가 `.claude/` 를
+    // 통째로 지우며 로그도 딸려 갔지만 이제 그 경로가 없다 — **templates 보존 여부와 무관하게**
+    // 여기서 지운다. 디렉터리째 지우는 이유: `.uzys-agent-harness/` 는 하네스 전용이라
+    // 파일만 지우면 빈 디렉터리가 남고, 그러면 "전부 지웠다"가 거짓이 된다.
+    io.rm(join(projectDir, INSTALL_LOG_DIR));
+    // v26.134.1 이하로 설치한 프로젝트의 잔재. keepTemplates 면 `.claude/` 가 살아남으므로
+    // 여기서 안 지우면 다음 실행이 그 구 파일을 읽어 **이미 지운 자산을 다시 보고**한다.
+    io.rm(legacyInstallLogPath(projectDir));
+    io.log(`  ${status.success("install log removed")}`);
   }
   return false;
 }

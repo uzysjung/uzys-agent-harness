@@ -27,7 +27,7 @@ echo "✓ install 완료"
 
 RULES="${PROJ}/.claude/rules"
 HOOKS="${PROJ}/.claude/hooks"
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 
 # ⑤ 기준선이 기록됐는가 — 이게 없으면 아래 판정이 전부 "판정 불가"로 떨어진다.
 BASE_COUNT=$(jq '(.policyFiles // []) | length' "${LOG}")

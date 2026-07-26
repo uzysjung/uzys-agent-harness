@@ -1,11 +1,16 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { skillsCliSpec } from "../src/external-installer.js";
-import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
+import {
+  hashContent,
+  INSTALL_LOG_DIR,
+  type InstallLog,
+  installLogPath,
+} from "../src/install-log.js";
 
 function ok(): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
@@ -16,7 +21,7 @@ function fail(stderr = "boom"): SpawnSyncReturns<string> {
 }
 
 function writeLog(projectDir: string, log: InstallLog): void {
-  mkdirSync(join(projectDir, ".claude"), { recursive: true });
+  mkdirSync(dirname(installLogPath(projectDir)), { recursive: true });
   writeFileSync(installLogPath(projectDir), JSON.stringify(log), "utf8");
 }
 
@@ -265,6 +270,10 @@ describe("uninstallAction", () => {
     );
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
     expect(rmPaths).toContain(join(tmpDir, ".claude/"));
+    // v26.135.0 (#253) — 로그는 이제 `.claude/` 밖이라 templates 제거에 딸려가지 않는다.
+    // 여기서 명시적으로 지우지 않으면 uninstall 후 `.uzys-agent-harness/` 가 남아
+    // "전부 지웠다"가 거짓이 되고, 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다.
+    expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
     expect(rmPaths).toContain(join(tmpDir, ".codex/"));
     expect(rmPaths).toContain(join(tmpDir, ".opencode/"));
     rmSync(tmpDir, { recursive: true, force: true });
@@ -291,7 +300,7 @@ describe("uninstallAction", () => {
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
     expect(rmPaths).not.toContain(join(tmpDir, ".claude/"));
     expect(rmPaths).not.toContain(join(tmpDir, ".codex/"));
-    expect(rmPaths).toContain(installLogPath(tmpDir));
+    expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -797,6 +806,7 @@ describe("uninstallAction — --only (항목별 제거)", () => {
       ],
     };
     writeLog(tmpDir, log);
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
     writeFileSync(
       join(tmpDir, ".claude", "settings.json"),
       JSON.stringify({
@@ -1024,6 +1034,7 @@ describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리"
       ],
     };
     writeLog(tmpDir, log);
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
     writeFileSync(
       join(tmpDir, ".claude", "settings.json"),
       JSON.stringify({
@@ -1108,6 +1119,7 @@ describe("uninstallAction — 수기 안내 조건은 templates 보존 여부", 
         },
       ],
     });
+    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
     writeFileSync(
       join(tmpDir, ".claude", "settings.json"),
       JSON.stringify({
@@ -1188,7 +1200,7 @@ describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (
       { projectDir: tmpDir, keepTemplates: true },
       { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm },
     );
-    expect(rm).toHaveBeenCalledWith(installLogPath(tmpDir));
+    expect(rm).toHaveBeenCalledWith(join(tmpDir, INSTALL_LOG_DIR));
     expect(logFn.mock.calls.flat().join("\n")).not.toContain("아무것도 자동 제거되지 않았다");
     expect(exit).toHaveBeenCalledWith(0);
     rmSync(tmpDir, { recursive: true, force: true });
@@ -1293,7 +1305,7 @@ describe("uninstallAction — keepTemplates 와 log 생존은 다른 사실이�
   it("--keep-templates 로 로그가 지워질 때 '기록 유지'라고 말하지 않는다", () => {
     writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
     const { output, rm } = run({ projectDir: tmpDir, keepTemplates: true });
-    expect(rm).toHaveBeenCalledWith(installLogPath(tmpDir));
+    expect(rm).toHaveBeenCalledWith(join(tmpDir, INSTALL_LOG_DIR));
     expect(output).toContain("자동 되돌리기 경로 없음");
     expect(output).not.toContain("기록 유지");
     rmSync(tmpDir, { recursive: true, force: true });

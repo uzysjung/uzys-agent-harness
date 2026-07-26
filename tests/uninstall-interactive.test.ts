@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { shouldRunInteractive } from "../src/commands/uninstall.js";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
@@ -16,7 +16,7 @@ import {
  * (사용자 결정: "B는 install 에서 체크해제고 uninstall 을 별도로 실행해서 들어가도록").
  */
 function writeLog(dir: string, assets: InstallLog["assets"]): void {
-  mkdirSync(join(dir, ".claude"), { recursive: true });
+  mkdirSync(dirname(installLogPath(dir)), { recursive: true });
   const log: InstallLog = {
     schemaVersion: 1,
     installedAt: "2026-07-19T00:00:00.000Z",

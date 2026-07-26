@@ -67,6 +67,20 @@ describe("summarizeState", () => {
     expect(summarizeState(legacyState)).toContain("no tracks resolved");
   });
 
+  // v26.135.0 (#253) — 위저드가 이 문장을 그대로 찍는다. opencode 단독 설치는 `.claude/` 가
+  // 없어 트랙 출처가 설치 로그뿐인데, 라벨이 없으면 "via no source" 로 떨어져 화면이
+  // "설치는 됐는데 출처 없음"이라는 거짓을 말한다.
+  it("describes an install detected from the install log (no .claude/)", () => {
+    const logState: DetectedInstall = {
+      state: "existing",
+      tracks: ["tooling"],
+      source: "install-log",
+      hasClaudeDir: false,
+    };
+    expect(summarizeState(logState)).toContain(".uzys-agent-harness/");
+    expect(summarizeState(logState)).toContain("tooling");
+  });
+
   it("describes a none-source existing install path", () => {
     const noneState: DetectedInstall = {
       state: "existing",

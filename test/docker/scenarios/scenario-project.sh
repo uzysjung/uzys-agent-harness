@@ -5,7 +5,7 @@
 #   - ~/.claude/skills/, ~/.codex/, ~/.opencode/, npm -g diff = 0
 #   - ~/.claude/plugins/cache/ 는 write 발생 가능 (claude CLI 자체 디자인). 단 mock 사용 시
 #     mock 이 cache 에 stub 생성하는 것 검증.
-#   - .claude/.harness-install.json 의 scope = "project"
+#   - .uzys-agent-harness/.harness-install.json 의 scope = "project"
 #   - log.assets[].scope 가 모두 "project"
 
 set -euo pipefail
@@ -65,7 +65,7 @@ else
   echo "✓ ${PROJ}/.claude/ 생성"
 fi
 
-LOG="${PROJ}/.claude/.harness-install.json"
+LOG="${PROJ}/.uzys-agent-harness/.harness-install.json"
 if [[ ! -f "${LOG}" ]]; then
   echo "FAIL: install log missing at ${LOG}"
   failed=1

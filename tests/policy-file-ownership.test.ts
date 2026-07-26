@@ -15,7 +15,12 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { listFilesRecursive } from "../src/fs-ops.js";
-import { collectPolicyHashes, hashContent, POLICY_DIRS } from "../src/install-log.js";
+import {
+  collectPolicyHashes,
+  hashContent,
+  installLogPath,
+  POLICY_DIRS,
+} from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { pruneOrphans, updateDir } from "../src/update-mode.js";
 
@@ -223,7 +228,7 @@ describe("install 재설치 시 정책 파일 보호 (ADR-047)", () => {
 
   it("설치가 정책 파일 기준선을 기록한다 (다음 재설치·update 의 판정 근거)", () => {
     install();
-    const log = JSON.parse(readFileSync(join(projectDir, ".claude/.harness-install.json"), "utf8"));
+    const log = JSON.parse(readFileSync(installLogPath(projectDir), "utf8"));
     expect(log.policyFiles?.length ?? 0).toBeGreaterThan(0);
     expect(log.policyFiles.map((f: { path: string }) => f.path)).toContain("rules/git-policy.md");
   });

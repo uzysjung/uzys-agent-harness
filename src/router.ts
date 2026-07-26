@@ -61,6 +61,8 @@ export function summarizeState(state: DetectedInstall): string {
       ? "via .claude/.installed-tracks"
       : state.source === "legacy"
         ? "via legacy rules/*.md heuristic"
-        : "via no source";
+        : state.source === "install-log"
+          ? "via .uzys-agent-harness/ install log"
+          : "via no source";
   return `Existing install detected ${sourceLabel}. Tracks: ${trackList}.`;
 }
