@@ -1,6 +1,6 @@
 # Gates Taxonomy
 
-워크플로우 검증 체크포인트가 매핑되는 4가지 게이트 유형. CLAUDE.md P9(Circuit Breakers)와 함께 적용.
+워크플로우 검증 체크포인트가 매핑되는 4가지 게이트 유형.
 
 ## 유형
 

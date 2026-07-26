@@ -335,7 +335,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   //   재설계 — "맞는 말인데 아무것도 안 일어나는" 하네스와 "다 맞는데 너무 길어 안 지켜지는"
   //   하네스를 잡는다. 결정적 경계: 결정론적 린터(AgentLint/cclint)가 할 수 있는 form 검사는
   //   위임하고, 린터가 구조적으로 못 하는 판단(이 단언이 이 repo 의 진짜 스택인가 / 이 훅이
-  //   실제로 fire 하는가 / 이 스킬이 트리거되는가)만 모델이 한다 (CLAUDE.md Rule 5 정합).
+  //   실제로 fire 하는가 / 이 스킬이 트리거되는가)만 모델이 한다 (판단만 모델 몫).
   // v26.101.0 — 안전(SAFE) 4번째 축 신설 (ADR-030): ADR-027 (z) 알려진 갭 해소. D1 위험 활성
   //   지시 · D2 폭발 반경 · D3 비신뢰 입력 취급. D 는 flag 기본(보안 태세 결정은 사용자 몫),
   //   완전성 단언은 계속 금지, "clean D ≠ security clearance" 명시.

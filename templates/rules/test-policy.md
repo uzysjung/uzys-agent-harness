@@ -8,6 +8,16 @@
 | API 엔드포인트 | 80% | csr-*, ssr-*, data |
 | 비즈니스 로직 | 90% | 전체 개발 Track |
 
+> **검증 게이트 — 3단 티어**: 리뷰와 테스트는 다르다 — 모든 레인이 매번 전체를 돌 필요는 없다.
+>
+> | 시점 | 무엇을 돌리나 |
+> |---|---|
+> | 작업 중 · 리뷰 | 소스 변경 → 변경 파일로 고른 테스트만(`vitest related <파일>` 등) · **문서/자산 변경 → 관련 게이트를 이름으로 지정**. full 금지 |
+> | **작업 단위 종료 (커밋 직전)** | **전체 CI 1회 — 검증 레인만** |
+> | 배포 전 | 전체 CI + `ship-checklist` 전항 |
+>
+> 부분 실행으로는 coverage gate 가 평가되지 않고, 변경 파일로 테스트를 고르는 도구는 **문서·자산 변경에 0건을 고른다**.
+
 ## Test Types (All Required)
 
 1. **Unit Tests** — 개별 함수, 유틸리티, 컴포넌트
@@ -16,7 +26,7 @@
 
 ## Dev-Prod Parity (필수)
 
-개발/테스트 DB 엔진은 Prod와 **동일**해야 한다. Prod가 Postgres면 테스트도 Postgres (testcontainer 또는 docker-compose). SQLite 대체 금지 — CI 속도/편의는 근거가 아니다. 구체적 설정은 test-driven-development 스킬 참조.
+개발/테스트 DB 엔진은 Prod와 **동일**해야 한다. Prod가 Postgres면 테스트도 Postgres (testcontainer 또는 docker-compose). SQLite 대체 금지 — CI 속도/편의는 근거가 아니다.
 
 ## TDD Workflow (Mandatory)
 

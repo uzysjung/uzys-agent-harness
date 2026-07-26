@@ -1,71 +1,30 @@
 # Uzys-agent-harness
 
-These rules apply to every task in this project unless explicitly overridden.
-Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
+전역 `~/.claude/CLAUDE.md` 의 **6원칙이 기준선**이다 — 여기 복제하지 않는다(같은 사실을 두 곳에
+두면 한쪽이 썩는다). 이 파일은 그 위에 얹는 **이 리포 고유분**만 담는다.
 
-## Rule 1 — Think Before Coding
-State assumptions explicitly. If uncertain, ask rather than guess.
-Present multiple interpretations when ambiguity exists.
-Push back when a simpler approach exists.
-Stop when confused. Name what's unclear.
+## 대원칙 — 만든 레인은 자기 산출물을 판정하지 않는다
 
-## Rule 2 — Simplicity First
-Minimum code that solves the problem. Nothing speculative.
-No features beyond what was asked. No abstractions for single-use code.
-Test: would a senior engineer say this is overcomplicated? If yes, simplify.
+6원칙 중 **원칙 4 의 위임 리뷰**를 이 리포의 레인 구성으로 구체화한다 — 누가 만들고 누가
+판정하는가. 설계는 무엇이 완료인지 정하고, 착수 전에 **작성자가 아닌 레인**이 그
+기획서·SPEC·계획을 읽는다. 완료 기준을 실행 가능한 형태로 만든 **테스트는 구현이 아닌 레인이 쓴다**
+— 구현자가 자기 종료 테스트를 쓰면 그 테스트는 "코드가 하는 일"을 적고 "해야 할 일"은 안 적는다.
+**구현**은 그 테스트를 green 으로 만든다 — 구현은 `implementer` 에이전트에 위임하고, 없으면 범용
+서브에이전트에 같은 계약으로 넘긴다. **검증**은 코드를 쓰지 않은 레인이 구현 보고를 읽는 대신 직접
+다시 돌려 증거를 얻는다. 구현 중 드러난 경계 때문에 구현자가 테스트를 추가할 때는 검증 레인이 음성
+대조로 그것이 무는지 증명한다(`no-false-ship` §초록불이 무는지부터 확인한다).
 
-## Rule 3 — Surgical Changes
-Touch only what you must. Clean up only your own mess.
-Don't "improve" adjacent code, comments, or formatting.
-Don't refactor what isn't broken. Match existing style.
+판정이 갈리거나 **확신이 없을 때**는 **틀렸을 때의 비용**으로 가른다. `change-management` 의
+**Major CR**(AC 의 Pass/Fail · 다른 Phase 의 입출력 · Non-Goals 경계 · DO NOT CHANGE) · 보안 경계 ·
+공유 상태를 건드리는 결정이면 독립 리뷰어들의 **적대적 다면 리뷰**로 결론을 낸다. 그 밖에는 증거가
+더 좋은 쪽을 골라 넘어간다 — **사소한 것에 패널을 돌리면 비용이 판단의 가치를 넘는다.**
+("npm 게시 여부"는 이 리포에서 **상수**라 판별자로 쓰지 않는다 — 산출물이 전량 배송 계약이다.)
 
-## Rule 4 — Goal-Driven Execution
-Define success criteria. Loop until verified.
-Don't follow steps. Define success and iterate.
-Strong success criteria let you loop independently.
-
-## Rule 5 — Use the model only for judgment calls
-Use me for: classification, drafting, summarization, extraction.
-Do NOT use me for: routing, retries, deterministic transforms.
-If code can answer, code answers.
-
-## Rule 6 — Token budgets are not advisory
-Per-task: 4,000 tokens. Per-session: 30,000 tokens.
-If approaching budget, summarize and start fresh.
-Surface the breach. Do not silently overrun.
-
-## Rule 7 — Surface conflicts, don't average them
-If two patterns contradict, pick one (more recent / more tested).
-Explain why. Flag the other for cleanup.
-Don't blend conflicting patterns.
-
-## Rule 8 — Read before you write
-Before adding code, read exports, immediate callers, shared utilities.
-"Looks orthogonal" is dangerous. If unsure why code is structured a way, ask.
-
-## Rule 9 — Tests verify intent, not just behavior
-Tests must encode WHY behavior matters, not just WHAT it does.
-A test that can't fail when business logic changes is wrong.
-
-## Rule 10 — Checkpoint after every significant step
-Summarize what was done, what's verified, what's left.
-Don't continue from a state you can't describe back.
-If you lose track, stop and restate.
-
-## Rule 11 — Match the codebase's conventions, even if you disagree
-Conformance > taste inside the codebase.
-If you genuinely think a convention is harmful, surface it. Don't fork silently.
-
-## Rule 12 — Fail loud
-"Completed" is wrong if anything was skipped silently.
-"Tests pass" is wrong if any were skipped.
-Default to surfacing uncertainty, not hiding it.
-
-### 안티패턴 (금지)
-- "직관적으로 별로 같다" / "안 쓸 것 같다" → 추정
-- "고급 기능이라 저가치" → 기준 없는 단정
-- "일반적으로 필요함" → 검증 불가
-- "내 경험상" → 출처 없는 일반화
+전례 — 아래가 그 형태다. v26.138.0 거짓출하는 적대적 검증 에이전트가 잡았고 구현자 자신은 못 봤다.
+v26.128.0~131.0 은 릴리즈 CI 4연속 red 를 3릴리즈 동안 못 봤고 그때 보고한 "CI exit 0"은 전부
+로컬이었다. v26.127.0 에서는 게이트를 만들며 같은 실수를 3회 했고 셋 다 음성 대조가 잡았다.
+설계 쪽도 같다 — 같은 표를 3번 고치며 결론의 부호가 매번 뒤집혔고(ADR-053 §정정 이력), 자기 설계를
+자기가 검토해서는 잡히지 않았다.
 
 ## 의사결정 및 컨펌 요청 시
 1. 이해가 쉽도록 전후 맥락과 함께 상세하게 설명
@@ -73,9 +32,10 @@ Default to surfacing uncertainty, not hiding it.
 3. UI/UX 형태로 이해할 수 있도록 설명
 4. ASIS TOBE 형태로 설명
 
-## Phase/작업 완료 시 Self-Audit 실행:
-1. AC 충족 여부 [항목별 Pass/Fail]
-2. DO NOT CHANGE 미변경 확인
-3. Non-Goals 침범 없음 확인
-4. 요청에 추적 불가한 변경 유무
-5. 열린 의사결정/후속 작업
+`asis-tobe-decision` · `explain-plainly` 스킬을 쓴다 — 둘 다 이 리포에 설치돼 있다.
+(배포판 앵커(`## Decisions and explanations`)가 **같은 5요소를 전부** 싣는다 — ADR-055.
+이 절은 그 한국어 판이자 이 리포의 표현이다.)
+
+## Phase/작업 완료 시
+- **Non-Goals 침범 없음 확인** — 6원칙이 안 덮는 축이라 남긴다(원칙 5 는 *미검증 보고*를 덮지만
+  *범위 침범*은 다른 축이고, SPEC 에 Non-Goals 절이 실재한다). 판정 보류 중 — ADR-055 Consequences.

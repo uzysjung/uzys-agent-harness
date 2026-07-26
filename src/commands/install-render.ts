@@ -295,7 +295,7 @@ export function renderFinalSummary(
   log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
   // v26.78.1 (R1) — karpathy hook opt-in 결과 렌더. null = 미opt-in(표시 안 함).
   //   이전엔 wired=false(plugin install 실패 등)여도 무음 → 사용자가 hook 안 깔린 걸
-  //   모른 채 "Install complete" 만 봄 (Rule 12 fail-loud 위반).
+  //   모른 채 "Install complete" 만 봄 (원칙 5 "증거를 보고한다" 위반).
   if (report.karpathyHook) {
     const kh = report.karpathyHook;
     if (kh.wired) {

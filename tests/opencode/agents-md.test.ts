@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { renameSlashes, renderAgentsMd } from "../../src/opencode/agents-md.js";
 
+// rule-ref:frozen-file — 아래 SAMPLE_CLAUDE_MD 의 `Rule N` 은 임베드 렌더를 시험하는 **합성
+// fixture** 다(앵커 지목이 아니다). 줄 단위 표식을 쓰면 표식이 템플릿 리터럴 안으로 들어가
+// fixture 내용을 바꿔 버려 같은 fixture 를 쓰는 단언이 다른 것을 재게 된다.
+
 const SAMPLE_CLAUDE_MD = `# Project CLAUDE.md
 
 ## Rule 1 — Think

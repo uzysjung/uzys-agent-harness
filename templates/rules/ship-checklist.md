@@ -5,9 +5,9 @@ ship 단계 실행 시 아래 모든 항목을 통과해야 배포 가능.
 ## Pre-Ship Gates
 
 - [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB — test 단계에서 검증됨)
-- [ ] **커버리지 기준 충족**: test-policy.md의 Track별 threshold 확인
+- [ ] **커버리지 기준 충족**: test-policy.md의 Track별 threshold 확인. **전체 실행(full)을 요구하는 지점은 여기다** — 작업 중·리뷰에는 타깃 실행으로 충분하다 (3단 티어는 test-policy.md 가 SSOT)
 - [ ] **Security Scan 통과**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음
-- [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip audit` (Python) 실행. critical/high 취약점 없음
+- [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip-audit` (Python) 실행. critical/high 취약점 없음
 - [ ] **SPEC/PRD 정합성**: `bash .claude/hooks/spec-drift-check.sh ship` (exit 2 시 차단)
 - [ ] **Review 게이트 통과**: review 단계에서 CRITICAL 이슈 없음 확인
 

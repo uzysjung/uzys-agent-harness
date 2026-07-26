@@ -45,7 +45,7 @@ jobs:
           python-version: "3.12" # FILL: your Python version
       - run: pip install -e ".[dev]" # FILL: or `pip install -r requirements-dev.txt`
       # FILL: replace with your project's gate commands. Keep them fail-loud —
-      # a missing tool should fail the job, not silently skip (Rule 12).
+      # a missing tool should fail the job, not silently skip (principle 5 — report evidence).
       - run: ruff check .
       - run: mypy . # FILL: your typechecker (delete if unused)
       - run: pytest --cov --cov-fail-under=90 # FILL: your coverage threshold

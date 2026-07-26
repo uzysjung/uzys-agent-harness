@@ -28,7 +28,8 @@ describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () 
   const run = (tracks: Track[]) =>
     installCiScaffold({ harnessRoot: HARNESS_ROOT, projectDir, tracks });
 
-  // WHY: track → variant 매핑이 결정론이어야 사용자가 받는 파일을 사전에 알 수 있다 (Rule 5).
+  // WHY: track → variant 매핑이 결정론이어야 사용자가 받는 파일을 사전에 알 수 있다
+  //   (결정론 변환에 모델을 쓰지 않는다 — 코드가 답할 수 있으면 코드가 답한다).
   it("node 트랙(ssr-nextjs): ci.yml + e2e.yml 설치, python 변형 없음", () => {
     const report = run(["ssr-nextjs"]);
     expect(report.written.sort()).toEqual([

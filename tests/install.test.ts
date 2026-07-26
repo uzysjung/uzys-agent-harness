@@ -471,7 +471,7 @@ describe("executeSpec", () => {
     expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
   });
 
-  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (Rule 12 fail-loud).
+  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (원칙 5 — 무음 실패 금지).
   //   WHY: withKarpathyHook=true 인데 plugin install 실패(wired=false)면 사용자는 hook 이
   //   안 깔린 걸 모른 채 "Install complete" 만 본다. 성공/실패 둘 다 1행 노출 강제.
   it("renders a HOOK row when karpathy hook is wired", () => {

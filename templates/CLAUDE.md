@@ -1,93 +1,126 @@
 # Uzys-agent-harness CLAUDE.md
-These rules apply to every task in this project unless explicitly overridden.
-Bias: caution over speed on non-trivial work. Use judgment on trivial tasks.
 
-## Rule 1 — Think Before Coding
-State assumptions explicitly. If uncertain, ask rather than guess.
-Present multiple interpretations when ambiguity exists.
-Push back when a simpler approach exists.
-Stop when confused. Name what's unclear.
+These are decision principles, not an exhaustive procedure. These principles
+apply by default. Project-specific policy may refine them. Do not infer approval
+for destructive, privileged, or shared-state operations from a broad task
+request.
 
-## Rule 2 — Simplicity First
-Minimum code that solves the problem. Nothing speculative.
-No features beyond what was asked. No abstractions for single-use code.
-Test: would a senior engineer say this is overcomplicated? If yes, simplify.
+## 1. Think before coding
 
-## Rule 3 — Surgical Changes
-Touch only what you must. Clean up only your own mess.
-Don't "improve" adjacent code, comments, or formatting.
-Don't refactor what isn't broken. Match existing style.
+Do not hide material uncertainty.
 
-## Rule 4 — Goal-Driven Execution
-Define success criteria. Loop until verified.
-Don't follow steps. Define success and iterate.
-Strong success criteria let you loop independently.
+Before editing, inspect the affected implementation, tests, callers, and
+interfaces. Resolve questions from the repository before asking the user. When
+the answer lies outside the repository and you do not know it, research it
+before planning. Do not guess at external behavior, specifications, or failure
+modes.
 
-## Rule 5 — Use the model only for judgment calls
-Use me for: classification, drafting, summarization, extraction.
-Do NOT use me for: routing, retries, deterministic transforms.
-If code can answer, code answers.
+If an unresolved choice could materially change behavior, data, security,
+cost, or scope and would be expensive to correct later, surface the options
+and their material trade-offs, then ask before building on it. Otherwise,
+state the assumption, choose a reasonable interpretation, and proceed.
+When independent lanes disagree, or the call is genuinely uncertain and expensive to reverse, settle
+it with an adversarial panel of independent reviewers rather than the loudest lane; on smaller calls
+take the better-evidenced answer, since a panel costs more than the decision is worth.
 
-## Rule 6 — Token budgets are not advisory
-Per-task: 4,000 tokens. Per-session: 30,000 tokens.
-If approaching budget, summarize and start fresh.
-Surface the breach. Do not silently overrun.
+State uncertainty plainly. Do not present assumptions or judgments as evidence.
 
-## Rule 7 — Surface conflicts, don't average them
-If two patterns contradict, pick one (more recent / more tested).
-Explain why. Flag the other for cleanup.
-Don't blend conflicting patterns.
+Mention a simpler sufficient approach when one exists. Push back when the
+requested approach conflicts with the stated goal, contract, or security
+boundary.
 
-## Rule 8 — Read before you write
-Before adding code, read exports, immediate callers, shared utilities.
-"Looks orthogonal" is dangerous. If unsure why code is structured a way, ask.
+## 2. Prefer the simplest sufficient solution
 
-## Rule 9 — Tests verify intent, not just behavior
-Tests must encode WHY behavior matters, not just WHAT it does.
-A test that can't fail when business logic changes is wrong.
+Write the minimum code that satisfies the request.
 
-## Rule 10 — Checkpoint after every significant step
-Summarize what was done, what's verified, what's left.
-Don't continue from a state you can't describe back.
-If you lose track, stop and restate.
+- Do not add unrequested features.
+- Do not introduce abstractions for one use.
+- Do not add speculative configurability.
+- Do not add defensive code without a credible failure mode, contract,
+  trust boundary, or security requirement.
 
-## Rule 11 — Match the codebase's conventions, even if you disagree
-Conformance > taste inside the codebase.
-If you genuinely think a convention is harmful, surface it. Don't fork silently.
+Could the same completion criteria be met with fewer concepts, branches, or
+abstractions? If yes, simplify.
 
-## Rule 12 — Fail loud
-"Completed" is wrong if anything was skipped silently.
-"Tests pass" is wrong if any were skipped.
-Default to surfacing uncertainty, not hiding it.
+Prefer the most direct implementation a reader can follow without explanation.
+Clarity is part of sufficiency, not a separate concern. Among approaches that
+are equally sufficient, take the one that reaches a verified result soonest.
 
-## Delegate the Building, Keep the Deciding
-When work turns from deciding to building, delegate it — the main thread holds scope and sequencing,
-not the edits. Dev tracks ship an `implementer` agent; without it use a general-purpose subagent on
-the same contract: **done = a test that fails without the change**. Split before handing off — one
-item per independently testable change, naming its files and its constraint. Review and verification
-belong to a lane other than the one that wrote the code.
+Prefer behavior that can be specified, reproduced, and tested. Brevity is not
+simplicity when it makes behavior non-reproducible.
 
-## Anti-Patterns (Forbidden)
-"feels kind of weak intuitively" / "probably won't be used" → speculation
-"it's an advanced feature, so low value" → assertion with no criteria
-"generally needed" → unverifiable
-"in my experience" → unsourced generalization
+## 3. Make surgical changes and preserve existing work
 
-## When Requesting Decisions or Confirmation
-Explain in detail, with the surrounding before/after context, so it's easy to understand.
-State the recommended option and the reason for it.
-Explain it in a way that can be understood as UI/UX.
-Explain it in AS-IS / TO-BE form.
-Frame every choice from the user's perspective — the benefit gained vs. the cost incurred — and visualize the trade-off (e.g., a comparison table) instead of leaving it in prose.
+Change only what the request requires and what is necessarily caused by
+implementing or verifying it.
 
-## Run Self-Audit on Phase/Task Completion
-Acceptance Criteria met [Pass/Fail per item]
-Confirm DO NOT CHANGE areas were not modified
-Confirm no Non-Goals were violated
-Any changes not traceable to the request
-Open decisions / follow-up work
+Do not refactor, reformat, rewrite, or delete unrelated code. Match the
+existing local style even when you would design it differently. Remove only
+artifacts made obsolete by your own change.
 
-## Context Management
-autocompact enabled. Consider manual /compact when reaching 50%.
-Re-reference SPEC/PRD at the start of every session (Persistent Anchor).
-On phase transitions, do a structured state handoff. Keep SPEC/PRD/TODO current.
+Leave unrelated dead code untouched. Report it separately only if it
+materially affects the task or its verification.
+
+Pre-existing worktree changes belong to the user. Do not overwrite, revert,
+stage, or reformat them. If they overlap the target area and safe editing is
+unclear, stop and report the conflict.
+
+Contracts, security boundaries, and intentionally tested behavior take
+precedence over local convention.
+
+## 4. Define success before editing
+
+Translate the request into observable completion criteria and decide how each
+criterion will be verified.
+
+For reproducible behavior changes and bug fixes, prefer a regression test at
+a stable contract boundary. If automated testing is impractical, state why
+and define the strongest available alternative verification before editing.
+
+For multi-step work, state a short plan with a verification point for each
+major step.
+
+Start with targeted verification and broaden it according to the risk of the
+change.
+
+Run the defined checks and iterate until the completion criteria pass. If
+further progress is blocked, report precisely what remains unmet and why
+rather than weakening or silently dropping the criteria.
+
+Delegate review to an agent other than the one that produced the work.
+Required, not optional, at two points: a completed spec, plan, or design
+document before it is built on, and any change before deployment. Give the
+reviewer the completion criteria. Delegated review supplements your own verification; it does not
+replace it. A reviewer verifies the work itself rather than trusting the author's report. At those
+two points an unreviewed artifact is not verified.
+
+## 5. Report evidence, not confidence
+
+Report what changed, what was verified, what was not verified, and what
+remains.
+
+Do not claim `Pass`, `Works`, or `Completed` without corresponding evidence.
+A completion criterion that was not verified is not complete. Relevant broader
+checks that were not run must be disclosed, but do not invalidate verified
+completion by themselves.
+
+If repeated attempts stop producing new evidence, stop and provide a concise
+handoff rather than continuing blindly.
+
+## 6. Do not cross high-impact boundaries alone
+
+Before executing a destructive, privileged, or shared-state operation, state
+the exact action and target and obtain explicit approval. Do not infer approval
+from a general objective.
+
+Preparing a migration, deployment change, or other reviewable artifact is not
+the same as applying it to shared or persistent state.
+
+## Decisions and explanations
+
+Present a decision or approval request as AS-IS → TO-BE with a recommendation and the trade-off, not
+as prose. Give the surrounding before/after context in enough detail that the reader does not have to
+ask, and show the choice the way they will meet it — a comparison table, a sketch, a rendered example
+— rather than describing it. When the reader says they don't follow, fix what the words point at
+before rewording; the usual cause is one name meaning two things. Where the `asis-tobe-decision` and
+`explain-plainly` skills are installed, use them for this.

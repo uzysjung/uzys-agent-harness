@@ -142,6 +142,9 @@ gate 를 놓친다"는 **다른** 실패를 이미 기록하고 있다 — 스�
 
 ### ① 제품 진실 상주 — **템플릿 제공 + `@import` 배선**
 
+> **문서 위치 절은 여기서 쓴다** — ②-c(ADR-055)가 앵커에서 문서 위치를 뺐고, 그 소유자는
+> 이 항목의 `@import` 배선이다.
+
 **사용자 지정 형태**: *"PRD(+SPEC), BACKLOG(TODO)을 작성해야 하고 템플릿은 제공하면 되지 않을까?
 PRD가 너무 커지면 FEATURE 별로 분리하는 것이고."*
 
@@ -166,12 +169,91 @@ PRD가 너무 커지면 FEATURE 별로 분리하는 것이고."*
 
 ### ② 죽은 참조 정리 — **먼저 착수** (싸고 판단이 필요 없다)
 
-- [ ] 8건 확인 후 삭제 또는 수정. **확인 상태를 정직하게 구분해 둔다**:
-      제가 직접 확인 3건(`gates-taxonomy`→CLAUDE.md 의 "P9" 0건 · `test-policy`→
-      `test-driven-development` 스킬 부재 · `templates/CLAUDE.md`→SPEC/PRD 부재),
-      에이전트 보고이나 **미재확인 5건**(`ship-checklist` · `plan-checker` ·
-      `build-error-resolver` · `design-workflow` · `deep-research`).
-      착수 = 각 건을 검증하는 일이므로 그때 해소된다
+- [x] 착수 목록 8건 재확인 (2026-07-26) — **6 확정 · 1 기각 · 1 은 ① 로 이관** + 재확인 중
+      신규 1건(`pip-audit`) = **처리 7건**. 착수 전 목록은
+      이전 세션 에이전트 보고였고 **그중 1건이 실제로 틀렸다** → 목록을 그대로 믿지 않은 것이 맞았다
+
+| # | 지점 | 죽은 참조 | 부재 증거 | 처리 |
+|---|---|---|---|---|
+| 1 | `{.claude,templates}/rules/gates-taxonomy.md:3` | "CLAUDE.md P9(Circuit Breakers)와 함께 적용" | CLAUDE.md 는 Rule 1~12 구조 — P9·Circuit Breaker 0건 | 절 삭제 |
+| 2 | `{.claude,templates}/rules/test-policy.md` | "구체적 설정은 test-driven-development 스킬 참조" | 그 스킬은 양쪽 `skills/` 에 없고 **opt-in 플러그인 `addy-agent-skills` 안에만** 존재 → 기본 설치에서 도달 불가 | 문장 삭제 |
+| 3 | `{.claude,templates}/agents/plan-checker.md:108` | "CLAUDE.md Decision Meta-Rule 적용" | CLAUDE.md 에 해당 절 0건 (개념은 "안티패턴" 절로 이동) | 문구 삭제 |
+| 4 | `{.claude,templates}/agents/build-error-resolver.md:106-110` | `refactor-cleaner`·`architect`·`planner`·`tdd-guide` **4개 부재 에이전트** | harness 설치분(`agents/`·`skills/`) 0건. `planner`·`tdd-guide` 는 ECC 플러그인 `agents/` 에 **에이전트 파일로 실재**(`architect`·`refactor-cleaner` 는 그 로스터에도 없고 `.kiro/`·번역 문서 사본에만) — 단 플러그인 ON 이면 `build-error-resolver` 자체가 플러그인 판본이라 **이 파일이 도달하지 않음** (`!withEcc` 게이팅, `src/manifest.ts:134,242`) | 실존 `implementer` 로 재지정 + 테스트 실패는 범위 밖 명시 |
+| 5 | `templates/rules/design-workflow.md:9` | "`/teach` 로 컨텍스트 설정 먼저" | `commands/` 에 `ecc` 뿐 — `/teach` 0건. `$impeccable teach` 는 **없는 문법**이었다(upstream 은 `/impeccable teach`). 그래서 도구명을 아예 뺐다 — 조건부 안내는 룰이 아니라 그 자산이 소유한다 | 문구 교체 |
+| 6 | `{.claude,templates}/skills/deep-research/SKILL.md:20-26` | 전제로 요구하는 firecrawl/exa MCP | `src/` 배선 **0건** — 하네스가 설치하지 않는다. 오늘 실제로 WebSearch 로 대체 수행(실증) | `MCP Requirements` 절을 `Web access` 절로 **교체** — 설정돼 있으면 쓰고, 없으면 CLI 내장 웹 도구, 그것도 없으면 멈춘다 |
+| 7 | `{.claude,templates}/rules/ship-checklist.md` (nit) | `pip audit` | pip 서브커맨드로 존재하지 않음 (도구명 = `pip-audit`) | 표기 수정 |
+| — | `{.claude,templates}/rules/ship-checklist.md:12` | ~~`npx ecc-agentshield scan`~~ | **기각** — `npm view ecc-agentshield version` = **1.4.0 실재**. 리포에 배선이 없는 것은 수기 실행 명령이라 정상 | 변경 없음 |
+| — | `templates/CLAUDE.md` 마지막 절 | "Re-reference SPEC/PRD at the start of every session" — 문서 0개 + `@import` 0건 | 확인됨 | **① 로 이관** (① 이 배선하므로 지금 지우면 되돌아온다) |
+
+- 부수 사실: **`.claude/CLAUDE.md` 에 검증 분리(SOD) 절이 없다** — `templates/CLAUDE.md` 는
+      "Review and verification belong to a lane other than the one that wrote the code" 를 배송하는데
+      이 리포 앵커에는 0건이고 기계 강제도 0건이다. 배포판이 남에게 지시하는 것을 자기는 상주로
+      안 받는 비대칭(`feedback_surface_symmetry`) → 처리 방침은 사용자 확인 대기
+- 검증 위임: 구현(나)과 분리된 2레인에 넘김 — `reviewer`(사실 재확인 + **글롭 훑기로 놓친 죽은 참조
+      탐색**) · 다면 페르소나 적대적 리뷰(판단이 갈리는 부분). 산출물은 scratchpad 파일로 수거
+
+### ②-b 레인 원칙 상주 — **② 다음, ① 앞** (ADR-054)
+
+착수 시점의 확정 실행순서(② → ① → ③)에 이 항목의 자리가 없었다. 사용자 지시 5건(구현 검증 분리 ·
+적대적 다면 리뷰를 **중요한 결정에만** · 설계·구현·검증 독립 · **기획서와 그 리뷰도** 분리 ·
+**테스트 생성도** 독립 + 상위원칙으로 통합)에서 나온 신규 단위라 **② 다음 ① 앞**에 넣는다.
+② 를 **먼저 커밋**한 뒤 이 단위의 baseline·문서 갱신을 한다 — 안 그러면 두 단위의 델타가 한 숫자에
+합산돼 "무엇이 얼마를 늘렸나"가 복원 불가능해진다.
+
+- [x] **D1** `templates/CLAUDE.md` — 옛 `## Delegate the Building, Keep the Deciding` 절 삭제 +
+      `## The Lane Principle` 을 `## Rule 1` **앞**에 삽입 (상위 원칙은 룰 목록의 n번째가 아니다)
+- [x] **D2** `templates/{codex,opencode,antigravity}/AGENTS.md.template` **무변경** — `{PROJECT_RULES}`
+      임베드(`src/codex/agents-md.ts`)가 CLAUDE.md 본문 전체를 넣으므로 **한 곳을 고치면 4앵커가 동시
+      갱신**된다. 템플릿에 또 쓰면 원칙이 2벌 상주(doc-governance 위반). *"여기 없네" 하고 다시 넣지
+      마라* — 이건 **안 하기로 한 결정**이다
+- [x] **D3** `.claude/CLAUDE.md` **맨 끝**에 대원칙 + 전례 (번호 없음 — `Rule 13` 은 12룰 정리가
+      번호를 흔든다). ② 의 "부수 사실"이 지적한 **SOD 절 부재 비대칭이 이걸로 닫힌다**
+- [ ] **D4** 게이트 `tests/lane-principle-anchor-parity.test.ts` — **테스트 작성 레인 소관**
+      (구현 레인은 자기 종료 테스트를 쓰지 않는다). 렌더 산출물 대상 · 앵커 집합 derive · 2성분 판정
+- [x] **D5** 비용 — **보류 해소**(2026-07-26). 보류 사유였던 CLAUDE.md 재구성이 **②-c** 로
+      끝나 그 시점에 한 번만 쟀다. 앞 단위 순증 **+217**. 3값 표 = ADR-055 Consequences 1.
+- [x] **D6** `ADR-054` 신설 + **ADR-052 → Superseded**(양방향 링크). 자산·배선·계약은 **승계**
+- [x] **D10** `NORTH_STAR` §3 감산 문안 정정 — 기준은 방향이 아니라 **필요성**
+
+**정당화 2줄** (`Resident Justification Rate` — 상주시키려는 쪽의 입증 책임):
+1. **막는 구체적 실패**: 판정이 생산과 같은 레인이라 샌 사고가 실재한다 — v26.138.0 거짓출하(적대적
+   검증 에이전트가 적발) · v26.128.0~131.0 릴리즈 CI 4연속 red 미인지 · ADR-053 §정정 이력(같은 표
+   3회 수정, 결론 부호가 매번 뒤집힘) · 이번 세션 3건(§② 죽은 참조 목록의 거짓 1건 · 설계 v2 실측
+   오류를 설계 리뷰가 NO-GO · 이 항목 자체). 배포판 기준은 **손상 비대칭**으로 충족 — 판정 누수는
+   되돌릴 수 없는 형태로 배포된다(npm 26.83.0~26.127.0 유출은 unpublish 불가로 종결).
+2. **이미 결정론 게이트가 덮는가 → 아니다.** 레인 분리를 강제하는 게이트가 0건이다. `no-false-ship`
+   은 *증거의 형태*를 규정하지 **누가 그 증거를 만드는지**는 규정하지 않는다. D4 가 앵커 문안 존재만
+   덮고, **준수율 자체는 미계측**(ADR-054 Consequences).
+
+### ②-c CLAUDE.md 개편 — 앵커 2파일 역할 분리 (ADR-055)
+
+**②-b 다음, ① 앞.** 사용자 결정 A1 = **앵커에는 원칙만** — 기술스택·스킬 라우팅·agents·필수 스킬·
+문서 위치는 앵커에서 뺀다(리뷰 실측: 그 5항목 중 앵커가 **유일 소유자인 것 0개**).
+
+- [x] **E1** `templates/CLAUDE.md` 전면 교체 — 사용자 기준선 **6원칙 본문 그대로** + 삽입 3문장
+      (패널 문턱 / 리뷰어의 자기 증거 / AS-IS→TO-BE + 설명 진단). `Rule 1~12`·안티패턴·Self-Audit·
+      Context Management 삭제, 이관처는 ADR-055 Consequences 2 의 표
+- [x] **E2** 루트 `CLAUDE.md` 배너 죽은 참조 정정(`src/project-claude-merge.ts`) — `Rule 1–12` →
+      **CLI 중립 문안**. 루트는 무조건 생성되나 `.claude/` 는 claude 선택 시만이라, `.claude/CLAUDE.md`
+      만 가리키면 codex/opencode/antigravity 단독 설치에서 거짓이 된다. **FILL 6섹션 무변경**
+- [x] **E3** 리포 `.claude/CLAUDE.md` = 리포 고유분만 — 6원칙 **복제 0**(전역 파일이 SSOT).
+      대원칙(레인) + 구현 위임 + **의사결정 4줄 그대로**(리포 고유 표현이라 압축 금지 — 배포판은
+      삽입 3 이 같은 5요소를 전부 싣는다) + Non-Goals 한 줄
+- [x] **E4** 비용 — **순감이 아니라 순증 `+151`**(개수 축 불변). 6원칙 원문(1,189)이 옛 12룰 구조
+      (1,064)보다 길고, 삽입 3 이 옛 5요소를 전부 옮긴다. 3값 = ADR-055 Consequences 1
+- [x] **E5** ADR-055 신설(`## 적용 범위` + Consequences 6항) + ADR-054 재배치 한 줄 + 본 항목 등재
+- [ ] **E6** 게이트 개정 — **테스트 작성 레인 소관**(문단 스코프 채점 · 축2 제거 · 어휘 확장 ·
+      앵커별 축 표 · 음성 대조 전면 재실행). **현재 `resident-doc-asset-reachability` 1건 빨간불** —
+      삽입 3 의 `Where … are installed` 가 `ABSENCE_ACK` 의 인접 리터럴 `where installed` 와 안 맞는다.
+      **문안이 아니라 게이트를 고친다**(사용자 승인 문안을 게이트에 맞춰 비틀지 않는다)
+- [x] **E7-1** `Rule N` 참조 글롭 스윕 — 상주 문서·배송 표면(`templates/**`·`src/**`) **0건 확인**.
+      `docs/**` 의 ADR·plans·specs·archive·research 는 **과거 기록으로 동결**
+- [ ] **E7-2** `Rule N` 죽은 참조 게이트 신설 — 테스트 작성 레인 소관
+
+**옛 Rule 5 는 재지목하지 않았다** — "코드가 답할 수 있으면 코드가 답한다"는 6원칙에 명시가 없어
+**미판정**이다(위 §최종본 매핑 표). 그래서 그것을 지목하던 주석 3곳은 새 번호로 옮기지 않고
+**죽은 포인터만 제거하고 취지를 프로즈로 보존**했다.
+
 
 ### ③ 검증 방법론 자산 — `test-policy` 룰은 버리고 **방법론을 쓴다**
 
