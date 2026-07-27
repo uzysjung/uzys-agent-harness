@@ -1,9 +1,4 @@
 {
-  "_comment": "프로젝트 .claude/settings.json 템플릿. $CLAUDE_PROJECT_DIR 사용으로 절대 경로 제거. committable. 글로벌 ~/.claude/settings.json은 절대 건드리지 않음.",
-  "statusLine": {
-    "type": "command",
-    "command": "npx -y @owloops/claude-powerline@latest --style=tui"
-  },
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
@@ -38,8 +33,8 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh\"",
-            "async": true,
-            "timeout": 5
+            "timeout": 5,
+            "async": true
           }
         ]
       },
@@ -54,17 +49,14 @@
       }
     ],
     "PostToolUse": [],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/hito-counter.sh\"",
-            "async": true,
-            "timeout": 2
-          }
-        ]
-      }
-    ]
+    "UserPromptSubmit": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y @owloops/claude-powerline@latest --style=tui"
+  },
+  "_comment": "프로젝트 .claude/settings.json 템플릿. $CLAUDE_PROJECT_DIR 사용으로 절대 경로 제거. committable. 글로벌 ~/.claude/settings.json은 절대 건드리지 않음.",
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
   }
 }

@@ -144,25 +144,49 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     }
   });
 
-  it("CLAUDE.md 의 Active Rules 표가 .claude/rules 실파일과 1:1 (자기 선언 SSOT)", () => {
-    // SOD F2 실증: 룰을 1개 추가했는데 헤더는 "(10개)" 로 남았다. 그 표는 스스로
-    // "SSOT = .claude/rules/*.md (표는 실 파일 목록과 1:1)" 이라 선언하므로, 어긋나면
-    // 자기 선언이 거짓이 된다. 수기 표 ↔ 실파일 대조를 글롭으로 강제한다.
+  // SOD F2 실증: 룰을 1개 추가했는데 헤더는 "(10개)" 로 남았다. 그 표는 스스로
+  //   "SSOT = .claude/rules/*.md (표는 실 파일 목록과 1:1)" 이라 선언하므로, 어긋나면
+  //   자기 선언이 거짓이 된다. 수기 표 ↔ 실파일 대조를 글롭으로 강제한다.
+  // 2026-07-27 계약 조정 — **선언을 선택으로 바꾼다.** 인벤토리는 사람이 쓰는 순간 두 번째
+  //   사본이 되고 사본은 갈린다. 실제로 이 파일에 룰 목록이 20줄 간격으로 **두 개** 있었고
+  //   뒤엣것("15개 904줄", 나열은 16항목)이 실측(12개 729줄)과 어긋난 채 살아 있었다 — 앞엣것만
+  //   이 게이트가 봤기 때문이다. 룰은 `paths:` 가 없으면 전부 자동 로드되므로 목록이 없어도
+  //   내용은 이미 컨텍스트에 있다. **선언하지 않으면 거짓 선언도 없다.**
+  //   **커버 범위를 정확히 적는다(독립 검증 지적, 2026-07-27).** 이 게이트가 검출하는 것은
+  //   **표 행 첫 셀에 룰명이 평문으로 오는 형태**(`| git-policy |`, 굵게 표기 허용) 하나뿐이고,
+  //   한 건만 있어도 실패한다. **검출하지 못하는 우회**: 백틱 표(`` | `git-policy` | ``) ·
+  //   불릿 목록 · 산문 나열 · 2번째 열 배치. 즉 "다른 형태로 나열하는 우회를 막는다"고 쓰면
+  //   거짓이다 — 옛 표 형태의 재출현만 막는다.
+  //   넓히지 않고 좁게 두는 이유: 여기서 형태를 열거하기 시작하면 그 목록이 두 번째 하드코딩
+  //   사본이 되고 목록 밖 표기가 다음 서식지가 된다(`no-false-ship` §게이트는 열거하지 말고
+  //   훑어라, 6회 재발분). 인벤토리 전반의 진위는 ADR-058 의 1차 축(무게이트 주장 수) 추출기가
+  //   맡을 자리이고, 그것은 **아직 미구현**이다. 그때까지 이 구멍은 열려 있다.
+  //   경로 참조 한두 건(`.claude/rules/ship-checklist.md §…`)은 인벤토리가 아니므로 통과한다.
+  const ruleInventoryRow = (name: string) =>
+    new RegExp(`^\\|\\s*\\*{0,2}${name}\\*{0,2}\\s*\\|`, "m");
+
+  it("CLAUDE.md 가 룰 인벤토리를 실으면 .claude/rules 실파일과 1:1 (자기 선언 SSOT)", () => {
     const claudeMd = read("../CLAUDE.md");
     const files = readdirSync(fileURLToPath(new URL("../.claude/rules", import.meta.url)))
       .filter((f) => f.endsWith(".md"))
       .map((f) => f.replace(/\.md$/, ""));
+    const rowNames = files.filter((name) => ruleInventoryRow(name).test(claudeMd));
     const declared = /## Active Rules \((\d+)개\)/.exec(claudeMd);
-    expect(declared, "CLAUDE.md 에 'Active Rules (N개)' 헤더 없음").not.toBeNull();
+
+    if (declared === null) {
+      expect(
+        rowNames,
+        "'Active Rules (N개)' 헤더가 없는데 룰 이름이 표 행으로 실려 있다 — 헤더만 지우고 목록을 남기면 이 게이트가 못 보는 두 번째 사본이 된다",
+      ).toHaveLength(0);
+      return;
+    }
     expect(
-      Number((declared as RegExpExecArray)[1]),
+      Number(declared[1]),
       `CLAUDE.md 선언 수 ≠ .claude/rules 실파일 수(${files.length})`,
     ).toBe(files.length);
     for (const name of files) {
       // 표는 일부 룰명을 굵게 표기한다(`| **cli-development** |`) — 표기 변형 허용, 행 존재만 단언.
-      expect(claudeMd, `Active Rules 표에 ${name} 행이 없음`).toMatch(
-        new RegExp(`^\\|\\s*\\*{0,2}${name}\\*{0,2}\\s*\\|`, "m"),
-      );
+      expect(claudeMd, `Active Rules 표에 ${name} 행이 없음`).toMatch(ruleInventoryRow(name));
     }
   });
 
