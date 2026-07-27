@@ -18,7 +18,7 @@
 > | **머지** | typecheck(전체) + 영향 범위 테스트 + **변경 파일** lint·format · 새 가드 도입 시 변이 테스트 | **독립 에이전트 리뷰 필수** |
 > | **배포(tag)** | 풀 테스트 + E2E + `ship-checklist` 전항 · **CI green 이 배포의 전제(`needs:`)** | **필수** |
 >
-> **"영향 범위"를 도구나 grep 으로 도출하지 마라 — 두 번 틀렸다.** ⓐ `npx vitest related <문서·자산 파일>` 은 **0건을 고른다**(스위트 83개 중 46개가 `readFileSync`/`readdirSync` 로 읽어 import 그래프 밖). 실측: `templates/CLAUDE.md` 한 곳을 고치자 **건드리지 않은 테스트 2개**가 깨졌다. ⓑ 룰 변경 후 `grep -rln "rules/" tests/` 로 고른 14개는 전부 green 이었는데 `tests/north-star-cost-figures.test.ts` 가 red 였다(그 파일엔 `rules/` 문자열이 없다). → **문서·자산 변경의 영향 범위 = 파일을 경로로 읽는 게이트 전체.** 고르기가 애매해지면 전체를 돌려라 — 판단 비용이 실행 비용을 넘는 지점이 있다.
+> **"영향 범위"를 도구나 grep 으로 도출하지 마라 — 두 번 틀렸다.** ⓐ `npx vitest related <문서·자산 파일>` 은 **0건을 고른다**(스위트 85개 중 48개가 `readFileSync`/`readdirSync` 로 읽어 import 그래프 밖). 실측: `templates/CLAUDE.md` 한 곳을 고치자 **건드리지 않은 테스트 2개**가 깨졌다. ⓑ 룰 변경 후 `grep -rln "rules/" tests/` 로 고른 14개는 전부 green 이었는데 `tests/north-star-cost-figures.test.ts` 가 red 였다(그 파일엔 `rules/` 문자열이 없다). → **문서·자산 변경의 영향 범위 = 파일을 경로로 읽는 게이트 전체.** 고르기가 애매해지면 전체를 돌려라 — 판단 비용이 실행 비용을 넘는 지점이 있다.
 >
 > **`변이 테스트` = 입력 변이** (이 리포 확정 어휘). 새 가드를 넣었으면 **그 가드가 읽는 입력**을 일부러 위반 상태로 만들어 빨간불을 눈으로 본다. 가드의 검사 대상이 소스 코드면 그 소스를 되돌리는 **음성 대조**가 같은 자리를 맡고, 그때 되돌린 코드가 typecheck 를 통과하는지까지 확인한다(빌드 파손으로 난 FAIL 은 증거가 아니다 — `no-false-ship`).
 >

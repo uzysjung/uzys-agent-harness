@@ -54,7 +54,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 바꾼다. 사용자 목적은 ⓐ 개발 속도 ⓑ 높은 품질의 안전한 딜리버리 둘이고, 이 저장소에서 그 둘을
 > 동시에 깎는 **단일 원인이 "앵커·룰에 적힌 사실이 틀린 것"** 이기 때문이다. 속도 쪽 — 에이전트가
 > 앵커를 믿고 바로 일하려면 그 사실이 참이어야 한다(2026-07-27 실측: 워킹트리 앵커의 거짓 9건이
-> 없는 훅·없는 명령·없는 룰을 가리켰고, **1,185개 테스트 중 0건이 물지 않았다**). 품질 쪽 — 이
+> 없는 훅·없는 명령·없는 룰을 가리켰고, **1,190개 테스트 중 0건이 물지 않았다**). 품질 쪽 — 이
 > 리포가 다친 형태가 전부 같다(v26.58~63 광고 자산 미설치 · v26.76.0 미등록 플래그 · v26.82.0
 > 거짓 버전 · v26.138.0 없는 릴리즈를 "배포 완료"로 보고). 전부 **"적혀 있는데 실제와 다름"** 이다.
 >
@@ -132,8 +132,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > (이 4개 수치는 `tests/north-star-cost-figures.test.ts` 가 `npm run cost:report` 산출과 정확히
 > 대조한다 — 수기 갱신을 잊으면 CI 가 막는다.)
 > **룰이 최대 비용 항목**이라는 사실은 ADR-044 의 범위 정정으로 처음 드러났다 — 그전 정의는
-> 상주의 10%만 재고 있었다. **`Justified Asset Ratio` 는 여전히 미구현·미측정**(2단계 eval
-> 미실행) — 지표 선언 ≠ 달성. 상주/발화는 **단위가 다르므로** 가중 합산하지 않는다.
+> 상주의 10%만 재고 있었다. **옛 품질 축(`Justified Asset Ratio` → `Resident Justification Rate`)은 표에서 내려갔다** —
+> ADR-058 의 sunset 3필드가 그 자리를 맡는다(archive 참조). 지표 선언 ≠ 달성. 상주/발화는 **단위가 다르므로** 가중 합산하지 않는다.
 > 미계측: 외부 자산 · MCP tool schema. 비대상: hooks(컨텍스트 미탑재).
 
 ### 2차 지표 — 속도 · 진입 · 신뢰
@@ -155,8 +155,9 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 | **Cross-CLI Parity** | Claude Code / Codex / OpenCode / Antigravity 4 CLI 동일 어휘 동등 작동률 (slash 호출 + hook 발화 + skill 인식) | **≥ 95%** |
 | **Generated-config Security Pass Rate** | 하네스가 *생성*하는 `.claude/` 산출물이 `agentshield` 게이트에서 CRITICAL/HIGH **0건** (COMPATIBILITY.md §보안). 자산 repo *콘텐츠* 스캔은 미실행 — trust-tier(★≥1000+활성) + Docker install-verification 으로 보완, prompt-injection 콘텐츠 스캔은 로드맵 (ADR-021 차별화 축) | **100% (산출물)** |
 
-> `Session-Start Context Cost`(ADR-032)는 2026-07-18 **1차 `Context Cost per Install` 로 흡수**됐다
-> (상주분 = 그 지표의 절반). 같은 사실을 두 곳에 두지 않는다 — doc-governance.
+> `Session-Start Context Cost`(ADR-032)는 2026-07-18 에 상주 비용 축으로 흡수됐고, 그 축은
+> ADR-058 로 **부수 축**(`Resident Item Count`/`Resident Token Cost`)이 됐다. 같은 사실을 두 곳에
+> 두지 않는다 — doc-governance.
 
 ### 측정 방법
 
@@ -165,8 +166,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
 - Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
-- Context Cost per Install: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
-- Justified Asset Ratio: 비용 순위 **상위 자산에 한해** with/without eval(`eval-harness` + `skill-creator` baseline 패턴)로 편익 델타 측정. 나머지는 `operational-fact` 분류(모델이 알 수 없는 upstream 사실)로 근거 성립. **미구현**
+- Resident Item Count / Token Cost *(부수 축)*: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
+- 무게이트 주장 수 / 게이트에 물린 사실 수 / 미파싱 토큰 수 *(1차 축)*: 하네스 산출물에서 주장을 추출해 `npm run ci` 대조. **추출기 미구현 — 현재 값은 미측정**(ADR-058 Consequences 2)
 
 ---
 
@@ -238,7 +239,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 - **재설명 제거** — 같은 context를 두 번 묻게 만드는 모든 friction 제거 (CLAUDE.md persistence, decision log, ADR)
 - **Promise = Implementation** — README/USAGE/SPEC 광고는 100% 실제 동작. 거짓 광고는 vibe를 가장 빠르게 깨뜨림
 - **Public-first** — 처음 보는 사용자가 즉시 같은 어휘로 대화 시작 가능. 한 줄 설치 + 자동 컨텍스트 로드
-- **Deterministic Harness — 단, 차단(exit 2)은 비가역 손상에만** (2026-07-27 · ADR-058) — 규칙이 낡았는지는 게이트가 판정하고, **작업을 멈춰 세우는 것은 되돌릴 수 없는 것에만** 쓴다. 되돌릴 수 있는 것(문서 동기화·조회·설정 파일 한 줄)은 **exit 1 경고**다. 근거: 과차단의 대가가 실측됐다 — ship 게이트 상시 차단이 우회를 관행으로 만들어 게이트가 죽었고(#237), bare-word 오발화 4회+가 가드 신뢰를 깎았다. 반대로 비가역 3종(main 직접 커밋 · `push --force` · 시크릿 커밋)은 **현재 차단 0건**이다. *(구 문안 "게이트/규칙/순서는 hook 으로 강제"는 옛 1차 지표의 굿하트 탈출구를 상시 명령했다 — 룰을 훅으로 옮기면 개수·토큰 축이 동시에 초록이 되면서 하네스는 더 차단적이 됐다.)*
+- **Deterministic Harness — 단, 차단(exit 2)은 비가역 손상에만** (2026-07-27 · ADR-058) — 규칙이 낡았는지는 게이트가 판정하고, **작업을 멈춰 세우는 것은 되돌릴 수 없는 것에만** 쓴다. 되돌릴 수 있는 것(문서 동기화·조회·설정 파일 한 줄)은 **exit 1 경고**다. 근거: 과차단의 대가가 실측됐다 — ship 게이트 상시 차단이 우회를 관행으로 만들어 게이트가 죽었고(#237), bare-word 오발화 4회+가 가드 신뢰를 깎았다. 반대로 비가역 4종(main 직접 커밋 · `push --force` · `reset --hard` · 시크릿 커밋)은 **현재 차단 0건**이다. *(구 문안 "게이트/규칙/순서는 hook 으로 강제"는 옛 1차 지표의 굿하트 탈출구를 상시 명령했다 — 룰을 훅으로 옮기면 개수·토큰 축이 동시에 초록이 되면서 하네스는 더 차단적이 됐다.)*
 - **Multi-Stack 동등성** — Python REST / Next.js / SSR / 데이터 / 임원 문서 / 순수 CLI 어디서나 같은 하네스 어휘(rules·hooks·skills)가 동등 작동
 - **Project-Scope 오염 금지** — 글로벌 `~/.claude/`, `~/.codex/`, `~/.opencode/`, `npm -g` 는 사용자 명시 opt-in (`--scope global` 또는 interactive 에서 Global 선택) 없이는 미수정. Default install scope = Project. (D16, ADR-020)
 - **Transparent Defaults** — 설치 중 어떤 자산이 들어가는지 한 줄씩 명시. 숨김 동작 0건

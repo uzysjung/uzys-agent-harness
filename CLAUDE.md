@@ -20,7 +20,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 | 목적 | 명령 |
 |---|---|
-| 전체 게이트 | `npm run ci` = typecheck + lint + test:coverage + build. **12.7초** |
+| 전체 게이트 | `npm run ci` = typecheck + lint + test:coverage + build. **약 14초** |
 | 테스트만 | `npm test` — **coverage gate 를 놓친다**(branches 88 미달이 안 잡힌다) |
 | 상주 비용 | `npm run cost:report [track]` · baseline 갱신 `npm run cost:baseline` |
 | 실환경 검증 | `bash test/docker/run.sh <시나리오>` — 호스트에서 실 CLI 설치·실행은 ✅ 차단된다 |
@@ -29,7 +29,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Layout
 
-`src/` 76파일 — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 / **`manifest.ts` = 무엇을
+`src/` 46파일 — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 / **`manifest.ts` = 무엇을
 어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 / `codex`·`opencode`·`antigravity` CLI별 변환 /
 `external-assets.ts` 카탈로그.
 
@@ -42,7 +42,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 |---|---|---|
 | 커밋 | 없음 | 차단 없음 |
 | 머지(PR) | 에이전트 자신(로컬 `npm run ci`) + **독립 리뷰 에이전트** | ⬜ **PR 에는 CI 가 없다** — 프로즈가 유일한 방어 |
-| 배포(tag `v*`) | 🧪 GitHub Actions `ci` → `publish` 가 `needs: ci` | CI red 면 게시가 안 일어난다(v26.140.0 실전 확인) |
+| 배포(tag `v*`) | 🧪 GitHub Actions `ci` → `publish` 가 `needs: ci` | 배선 확인(v26.140.0) · **red→미게시 발화는 미관측** |
 
 **릴리즈 커밋 후 태그 전 구간의 로컬 CI 는 구조적으로 red 다** — CHANGELOG→태그 역방향 게이트
 때문이고, 순서는 `.claude/rules/ship-checklist.md` §릴리즈 커밋과 태그의 순서. red 를 보고 게이트를
@@ -68,12 +68,13 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 2. **훅이 차단 로그를 남기지 않는다**(실측 0줄). 무엇이 실제로 막고 있는지 판정할 데이터가 없어
    "옥죈다"가 느낌 대 느낌으로 남는다.
 3. **`spec-drift-check.sh` 는 미배선이고 지금 물지도 않는다** — 미완 체크박스 309개 앞에서 `ship`
-   모드가 exit 0 이다. 그런데 문서 3곳이 이것을 자동 게이트로 적는다.
+   모드가 exit 0 이다. 그런데 현행 룰 4개 사본(`doc-governance`·`ship-checklist` × 이 리포/배포판)이 이것을 차단
+   게이트로 적는다.
 4. **룰 33개 중 `paths:` frontmatter 0개** — 전부 무조건 상주한다. 지연 로드로 바꾸면 내용을 한 줄도
    안 지우고 상주가 줄어든다.
-5. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 46개가
+5. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 48개가
    `readFileSync` 로 경로를 읽어 import 그래프 밖이다. 애매하면 전체를 돌린다.
-6. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 6릴리즈 drift 중이다(게시 계약 밖이라
+6. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(이후 태그 5개 · 태그 없이 넘어간 v26.138.0 포함 6버전)(게시 계약 밖이라
    무해하나 버전 확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 45릴리즈 미생성이다 —
    태그·npm 은 정상이고 release 페이지만 없다.
 
