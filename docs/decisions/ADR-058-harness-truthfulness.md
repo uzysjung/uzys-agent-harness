@@ -41,8 +41,25 @@
 Anthropic 공식 목표는 *"target under 200 lines per CLAUDE.md file"* 인데, `paths:` frontmatter 가
 없는 룰은 같은 우선순위로 상주하므로 예산은 사실상 합계에 걸린다 — 우리 실측 **855줄**(루트 앵커 85 + `.claude/CLAUDE.md` 41 + `.claude/rules` 729), 목표의 4.3배.
 야생 오픈소스 18개의 중앙값은 162줄이고, **우리 루트 `CLAUDE.md` 85줄은 정상**이다. 벗어난 것은
-룰 계층이며 그중 **43%(310줄)가 프로세스 거버넌스**인데, 실측한 14개 리포에 그 범주는 grafana 의
-3문장을 빼면 존재하지 않는다.
+룰 계층이며 그중 **43%(310줄)가 프로세스 거버넌스**다.
+
+> **정정 (2026-07-27, 같은 날 후속 deep-research).** 이 문단의 초판은 *"실측한 14개 리포에
+> 프로세스 거버넌스는 grafana 의 3문장을 빼면 존재하지 않는다"* 라고 적었다. **거짓이었다** —
+> 14개는 "파일이 있을 법한 곳을 추측한" 편의표본이고, GitHub code search 로 모집단을 재면
+> `"Architecture Decision Record" filename:AGENTS.md` **2,352건** ·
+> `"Non-Goals" filename:CLAUDE.md` **1,452건**이다. 거버넌스를 쓰는 리포는 대량으로 실재한다.
+> 실제 차이는 **유무가 아니라 위치**였다 — IBM Carbon(75줄)은 ADR 거버넌스를 한 줄로 둔다:
+> *"Project decisions are recorded through Architecture Decision Records (ADRs) in
+> `docs/decisions/`"*. 규약 자체가 아니라 **어디에 있는지**만 상주시킨다. 그러므로 압축의
+> 정당화는 "남들은 안 쓴다"가 아니라 **"남들도 쓰지만 다른 자리에 둔다"** 여야 한다.
+>
+> **두 번째 정정 — "길면 안 지켜진다"는 근거가 갈린다.** Anthropic 문서는 *"Longer files …
+> reduce adherence"* 라 하지만, Claude Code 1,650세션 요인설계 실험은 파일 크기(50→500줄)
+> 효과를 **긍정적 귀무로 기각**했다(BF10 0.05~0.10, arXiv:2605.10039). 지켜지는 축은 줄 수가
+> 아니라 **동시에 걸린 독립 의무의 개수와 순서**다(IFScale: 500지시에서 68% + 선행 지시 편향 /
+> AgentIF: 평균 11.9제약에서 완전 준수 30% 미만). **그래서 이 ADR 은 "줄 수를 줄이면 준수율이
+> 오른다"고 주장하지 않는다** — 방어 가능한 주장은 ⓐ 상주 비용 절감(측정 가능) ⓑ 의무 개수
+> 감축뿐이다. 참고로 `ship-checklist` 하나가 체크박스 13개로 AgentIF 평균을 이미 넘는다.
 
 ## Decision
 
