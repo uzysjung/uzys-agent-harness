@@ -108,8 +108,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-07-26)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 29개 항목 · ~6,551 tokens/세션** = rules 10개 ~3,844 ·
+> **현재 상태 (2026-07-28)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
+> 실측(tooling 트랙): **상주 29개 항목 · ~6,572 tokens/세션** = rules 10개 ~3,865 ·
 > CLAUDE.md 1개 ~1,433 · agent descriptors 9개 ~724 · skill descriptors 9개 ~550.
 > 발화 = 기본 설치 8종 전부 트리거 시 ~28,285.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고

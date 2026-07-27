@@ -136,7 +136,7 @@
 ### Templates (templates/docs/)
 
 - **PLAN.template.md** (v26.30.0) — Sprint Contract / Phase Overview / **Milestone × Dependency Graph** (직렬/병렬/강한 의존 표기) + **Critical Path** / Per-Milestone AC / Risk / Open Questions / Changelog 8섹션
-- **skills/north-star/NORTH_STAR.template.md** (v26.28.0) — NSM / Will-Won't / Phase Roadmap / Decision Heuristics 7섹션
+- **skills/north-star/NORTH_STAR.template.md** — NSM / Pillars / Will-Won't / Decision Heuristics 6섹션. **로드맵(시간축)과 이력은 담지 않는다** — 각각 로드맵 문서와 버전 관리 이력 소관이고, 템플릿 §5·§8 은 그 사실을 적은 스텁이다
 
 ### Commands (templates/commands/uzys/)
 spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph 루프 진입.

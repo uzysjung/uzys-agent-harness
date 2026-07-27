@@ -20,7 +20,7 @@ CLAUDE.md의 P1(가정 금지) / P2(Simplicity First) / Decision Making 메타�
 |--------|------|
 | 신규 프로젝트 시작 | `docs/NORTH_STAR.md` 부재 시 작성 제안 |
 | Major CR / scope 확대 의심 | 4-gate 통과 여부 점검 |
-| 분기 1회 정기 리뷰 | NSM 변경, Phase 정의 변경, Won't 변경 검토 |
+| 분기 1회 정기 리뷰 | NSM 변경, Pillar 변경, Won't 변경 검토 |
 | 신규 기능 요청 진입 시 | 4-gate 통과 시만 우선순위 진입 |
 
 ## Process
@@ -83,7 +83,7 @@ North Star 로 가는 길을 3-5개 **전략 축**으로 분해한다. 각 축�
 | **Trend** | 프로젝트의 핵심 트렌드/원칙 중 1개 이상에 매핑되는가? | YES |
 | **Persona** | Primary persona에게 직접 가치를 주는가? Anti-persona 위주는 거절 | YES |
 | **Capability** | 현재 시스템이 이 기능을 동등하게 노출 가능한가? (UI 한정 기능은 -1) | YES |
-| **Lean** | 정의된 Phase 범위 내에 있는가? 외부면 Open Question으로 적재 후 분기 1회 재평가 | YES |
+| **Lean** | 선언된 Will 범위 내에 있는가? 외부면 Open Question으로 적재 후 분기 1회 재평가 | YES |
 
 게이트 명칭은 프로젝트마다 customize 가능하나 **4개 ALL True** 원칙은 유지.
 
@@ -107,23 +107,22 @@ Plan/Define 단계에서 "이 작업이 ①/②/③ 중 어디이고, 앞 순위
 ### 7. Versioning
 
 - 분기 1회 또는 NSM 도달/미달 시 갱신.
-- 주요 갱신: NSM 변경 / Phase 정의 변경 / Won't 변경 → Major CR 분류.
+- 주요 갱신: NSM 변경 / Pillar 변경 / Won't 변경 → Major CR 분류.
 - 가벼운 갱신: Trade-off 추가, 트렌드 매핑 보강 → Clarification.
-- 갱신 시 Changelog 1줄 (날짜 + 사유).
+- 갱신 사유는 커밋 메시지에 남긴다 — 문서 본문에 이력을 쌓지 않는다.
 
 ## Output Template
 
 `docs/NORTH_STAR.md`에 다음 구조로 저장. 본 skill 디렉토리의 `NORTH_STAR.template.md`를 복사해 채운다.
 
-8 섹션:
+6 섹션 (번호는 템플릿에 맞춘다 — §5 로드맵과 §8 이력은 비워 둔 자리다. 시간축은 TODO/로드맵
+문서가, 이력은 버전 관리 이력이 소유한다):
 1. North Star Statement (1문장)
 2. North Star Metric (1차 + 2차, metric-as-proxy 선언)
 3. Pillars (전략 축) + 모듈 ↔ 축 매핑
 4. Strategic Boundaries (Will / Won't / Trade-offs)
-5. Phase Roadmap (장기 진화 단계)
 6. Decision Heuristics (4-gate + 우선순위 순서)
 7. Versioning & Review
-8. Changelog
 
 ## Integration with Workflow
 
