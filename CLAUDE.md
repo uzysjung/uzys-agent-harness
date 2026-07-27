@@ -1,38 +1,85 @@
-# uzys-Claude-Harness 
-> **"하네스 + 컨텍스트 엔지니어링으로, Claude Code · Codex · OpenCode · Antigravity 에서 사용자가 신속·정확하게 원하는 서비스를 만들 수 있는 환경을 설치해주는 서비스."**
+# uzys-agent-harness
 
-본 프로젝트의 본질 = **설치 서비스 (installer + curator)**. 4개 AI 코딩 CLI 어디서나, 검증된 플러그인·스킬·룰·hook 을 사용자가 **이해하고 선택**해서 한 번에 설치하고, 그 위에서 AI와 사용자가 공유 어휘(하네스 규칙)로 적은 왕복에 빠르게 개발한다. 자세한 사항은 ./docs/NORTH_STAR.md 참고
+> 4개 AI 코딩 CLI(Claude Code · Codex · OpenCode · Antigravity)에 검증된 룰·훅·스킬을 설치하는 CLI.
+> **왜·어디로** = `docs/NORTH_STAR.md`. 이 파일은 **이 저장소를 안 읽으면 모를 사실**만 담는다 —
+> 모델이 이미 아는 것과 코드에서 유도되는 것은 빼고, 남긴 줄에는 강제 기호와 측정일을 붙인다.
 
-## Context Management
+**강제 기호**: ✅ 훅이 차단 · 🧪 테스트가 차단 · ⬜ 프로즈뿐(아무도 안 막는다)
 
-- autocompact 활성화. 50% 도달 시 수동 /compact 고려.
-- SPEC/PRD는 매 세션 시작 시 재참조 (Persistent Anchor).
-- Phase 간 전환 시 구조화된 상태 핸드오프. SPEC/PRD/TODO 최신상태 업데이트
+## 세션 재앵커 (순서대로)
 
-## 실환경 검증 (Real-Env Verification)
+1. `docs/SPEC.md` — 현재 범위·AC. SessionStart 훅이 이것만 안내한다
+2. `docs/plans/*-todo.md` — 진행 중 사이클. `docs/todo.md` 는 쉬는 상태 추적기다(main 을 항상 출하
+   가능하게 두려고 열린 사이클을 plans 로 분리한다 — 🧪 `spec-drift-backlog-exemption`)
+3. 최신 ADR — `docs/decisions/` (번호는 디렉터리에서 확인)
+4. `.claude/CLAUDE.md` — 레인 원칙. 누가 만들고 누가 판정하는가
 
-**실환경 검증(4-CLI native 인식, 실설치, First-Run 등)은 반드시 Docker 격리 컨테이너에서 한다.**
+## Stack & 명령 (실측 2026-07-27)
 
-- 호스트 글로벌 설정에 **write 금지**: `~/.claude/`, `~/.codex/`, `~/.opencode/`, `~/.gemini/`, `npm -g`. mktemp/UX 검증이라도 트리거 금지.
-- 검증은 throwaway 컨테이너 안에서만 — 실 CLI(codex 등) 설치·실행·prompt 인식 확인은 `test/docker/` 시나리오로 격리 수행.
-- 근거: 단위테스트가 못 잡는 실환경 경로 버그를 잡으면서도(예: experimental opt-in / npx-github npm10) silent drift(v26.58~63) 재발 방지. 컨테이너 격리 = 호스트 오염 0.
-- "Docker mock 검증 ≠ 실 CLI 검증" — Promise=Implementation 봉합 시 실 바이너리를 컨테이너에 설치해 native 인식까지 확인.
+TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung/agent-harness`(CalVer).
 
-## Active Rules (12개)
+| 목적 | 명령 |
+|---|---|
+| 전체 게이트 | `npm run ci` = typecheck + lint + test:coverage + build. **12.7초** |
+| 테스트만 | `npm test` — **coverage gate 를 놓친다**(branches 88 미달이 안 잡힌다) |
+| 상주 비용 | `npm run cost:report [track]` · baseline 갱신 `npm run cost:baseline` |
+| 실환경 검증 | `bash test/docker/run.sh <시나리오>` — 호스트에서 실 CLI 설치·실행은 ✅ 차단된다 |
 
-> SSOT = `.claude/rules/*.md` (표는 실 파일 목록과 1:1). 갱신 시 실 파일과 대조.
+`lint` 는 `src tests` 만 본다. `dist/` 는 생성물이라 직접 고치지 않는다(원본은 `src/`).
 
-| Rule | 적용 |
-|------|------|
-| git-policy | feature branch, commit/push/PR, Conventional Commits, 즉시 커밋, CalVer |
-| **no-false-ship** | 거짓출하 금지 — 경로별(wizard/flag/docs/CLI) 검증 증거 의무, 미검증 명시 강제 |
-| change-management | CR 분류, Decision Log(ADR), DO NOT CHANGE |
-| doc-governance | 문서 SSOT 위계, spec-first, 머지 = 코드+추적 동기화, 현행/archive |
-| ship-checklist | 배포 전 체크 (CI·security scan·의존성 audit·SSOT 동기화) |
-| code-style | 불변성, 크기 상한(파일 800/함수 50), 하드코딩 금지 |
-| error-handling | exit code, stderr, 에러 응답 포맷 |
-| **cli-development** | Bash 표준, cross-platform(BSD/GNU), hook 컨벤션 |
-| gates-taxonomy | 게이트 4유형 (Pre-flight/Revision/Escalation/Abort) |
-| test-policy | 커버리지 threshold(branches 88), TDD RED-GREEN, AAA |
-| playwright-launch | 영속 profile 브라우저 launch (E2E/audit) |
-| benchmark-parity | 벤치마크/dogfood 실측 루프, gap.md 스키마, PR "## Fidelity" |
+## Layout
+
+`src/` 76파일 — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 / **`manifest.ts` = 무엇을
+어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 / `codex`·`opencode`·`antigravity` CLI별 변환 /
+`external-assets.ts` 카탈로그.
+
+**`templates/` 는 npm 으로 낯선 사람 프로젝트에 나가는 배포물이고 `.claude/` 는 우리 개발용이다.**
+같은 이름의 파일이 양쪽에 있고 내용이 다르다 — 하나를 보고 다른 하나를 말하지 않는다.
+
+## 검증 게이트 — 무엇이 무는가 (실측 2026-07-27)
+
+| 시점 | 판정 주체(누가 막나) | 미충족 시 |
+|---|---|---|
+| 커밋 | 없음 | 차단 없음 |
+| 머지(PR) | 에이전트 자신(로컬 `npm run ci`) + **독립 리뷰 에이전트** | ⬜ **PR 에는 CI 가 없다** — 프로즈가 유일한 방어 |
+| 배포(tag `v*`) | 🧪 GitHub Actions `ci` → `publish` 가 `needs: ci` | CI red 면 게시가 안 일어난다(v26.140.0 실전 확인) |
+
+**릴리즈 커밋 후 태그 전 구간의 로컬 CI 는 구조적으로 red 다** — CHANGELOG→태그 역방향 게이트
+때문이고, 순서는 `.claude/rules/ship-checklist.md` §릴리즈 커밋과 태그의 순서. red 를 보고 게이트를
+고치지 마라.
+
+## Boundaries
+
+**Always (✅ 훅 자동, 실측 2026-07-27)**: SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서)
+편집 차단 · MCP allowlist · 호스트 실 CLI 실행 차단.
+
+**Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
+**커밋·push·PR 생성은 승인 불요** — 되돌리기 비싼 지점은 main 반영이다.
+
+**Never (⬜ 막는 훅이 없다)**: main 직접 커밋 · `push --force` · `reset --hard` · 시크릿 커밋.
+→ 아래 미해결 1번. 프로즈로만 지켜지고 있다.
+
+## 미해결 · 함정 (착수 전 확인, 2026-07-27)
+
+1. **비가역 차단이 0건이다.** `permissions.defaultMode = bypassPermissions` 이고 `deny`/`ask` 규칙
+   0건이며, Bash 매처 훅은 `docker-only-realcli` 하나뿐이다. force push·main 직접 커밋·시크릿
+   커밋을 막는 것이 아무것도 없다. 반대로 되돌릴 수 있는 것(문서 동기화·MCP 조회·`.env` 편집)은
+   막는다 — **방향이 거꾸로다.**
+2. **훅이 차단 로그를 남기지 않는다**(실측 0줄). 무엇이 실제로 막고 있는지 판정할 데이터가 없어
+   "옥죈다"가 느낌 대 느낌으로 남는다.
+3. **`spec-drift-check.sh` 는 미배선이고 지금 물지도 않는다** — 미완 체크박스 309개 앞에서 `ship`
+   모드가 exit 0 이다. 그런데 문서 3곳이 이것을 자동 게이트로 적는다.
+4. **룰 33개 중 `paths:` frontmatter 0개** — 전부 무조건 상주한다. 지연 로드로 바꾸면 내용을 한 줄도
+   안 지우고 상주가 줄어든다.
+5. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 46개가
+   `readFileSync` 로 경로를 읽어 import 그래프 밖이다. 애매하면 전체를 돌린다.
+6. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 6릴리즈 drift 중이다(게시 계약 밖이라
+   무해하나 버전 확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 45릴리즈 미생성이다 —
+   태그·npm 은 정상이고 release 페이지만 없다.
+
+## 보고·의사결정 형식
+
+사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는 초안은 그 자체가
+다시 쓰라는 신호다. 승인 요청은 **추천과 이유를 먼저**(BLUF), 대비는 ASIS→TOBE 표로, 수치는
+before → after 로 쓴다("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
+실행 형식·예시 = `explain-plainly` · `asis-tobe-decision` 스킬.
