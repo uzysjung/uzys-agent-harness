@@ -42,7 +42,7 @@ enabled = true
 # Event 이벤트 매핑: ADR-002 v2 D2 / templates/codex/README.md
 # ============================================================
 
-# SessionStart: git pull + SPEC 재참조 안내
+# SessionStart: 세션 컨텍스트 + SPEC 재참조 안내 (git pull 없음 — Phase C 포팅 전까지는 placeholder no-op)
 [[hooks.session_start]]
 name = "session-start"
 command = ["{PROJECT_DIR}/.codex/hooks/session-start.sh"]

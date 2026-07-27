@@ -56,6 +56,22 @@ describe("세션 시작 시 이전 세션 고아 프로세스 감지", () => {
   });
 });
 
+describe("무승인 git pull 을 실행하지 않는다 (D3ⓐ, ADR-058)", () => {
+  // 이전에는 브랜치가 있고 detached HEAD 가 아니면 매 세션마다 승인 없이 `git pull --rebase`
+  // 를 조용히(`>/dev/null 2>&1`) 돌렸다 — 로컬 커밋을 다시 쓰는 조작인데 무슨 일이 일어났는지도
+  // 안 보였다. 배포판·설치본 양쪽에서 제거됐는지를 본다(한쪽만 고치면 파는 것과 쓰는 것이 갈린다).
+  it.each([
+    "templates/hooks/session-start.sh",
+    ".claude/hooks/session-start.sh",
+  ])("%s 가 git pull 을 호출하지 않는다", (path) => {
+    const code = read(path)
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("#"))
+      .join("\n");
+    expect(code).not.toMatch(/git\s+pull/);
+  });
+});
+
 describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () => {
   let dir = "";
   afterEach(() => {
@@ -63,7 +79,7 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
     dir = "";
   });
 
-  /** 훅을 임의 cwd 에서 돌린다. git pull 은 그 디렉터리가 repo 가 아니라 no-op 이 된다. */
+  /** 훅을 임의 cwd 에서 돌린다. 훅은 `git rev-parse` 만 쓰고 그 디렉터리가 repo 가 아니면 빈 문자열로 폴백한다. */
   const runHook = (cwd: string) =>
     execFileSync("bash", [join(ROOT, "templates/hooks/session-start.sh")], {
       cwd,
