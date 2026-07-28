@@ -108,9 +108,12 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-07-28)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 29개 항목 · ~6,572 tokens/세션** = rules 10개 ~3,865 ·
-> CLAUDE.md 1개 ~1,433 · agent descriptors 9개 ~724 · skill descriptors 9개 ~550.
+> **현재 상태 (2026-07-29)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
+> 실측(tooling 트랙): **상주 30개 항목 · ~7,526 tokens/세션** = rules 10개 ~3,865 ·
+> CLAUDE.md 2개 ~2,387 · agent descriptors 9개 ~724 · skill descriptors 9개 ~550.
+> CLAUDE.md 가 2개인 것은 설치가 **하네스 앵커(`.claude/CLAUDE.md`)와 프로젝트 스캐폴드(루트
+> `CLAUDE.md`)를 둘 다** 놓기 때문이다. v26.140.0 까지는 앵커만 재면서 라벨은 "스캐폴드"였고,
+> 그래서 스캐폴드 ~954 tok/세션이 계측 밖에 있었다(당시 표기 29개·~6,572 은 그만큼 과소).
 > 발화 = 기본 설치 8종 전부 트리거 시 ~28,285.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고
 > `npm run cost:report <track>` 이 현재값을 낸다. 같은 사실을 두 곳에 두면 한쪽이 썩는다

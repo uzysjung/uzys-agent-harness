@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
+import { renderFillScaffold } from "./project-claude-merge.js";
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost.
@@ -139,7 +140,7 @@ export interface ResidentCost {
  * 때와 룰 20개일 때는 같은 비용이 아니다.
  *
  * 세는 대상은 토큰을 재는 대상과 **정확히 같다** (한쪽만 늘어나는 drift 방지):
- * rules 1파일 = 1 · skills 1디렉터리 = 1 · agents 1파일 = 1 · CLAUDE.md 스캐폴드 = 1.
+ * rules 1파일 = 1 · skills 1디렉터리 = 1 · agents 1파일 = 1 · CLAUDE.md **2**(앵커 + 스캐폴드).
  * hooks 는 여기서도 비대상 — 상주 표면이 아니다.
  */
 export interface ResidentItemCount {
@@ -191,9 +192,19 @@ export function residentCost(
       skillItems += 1;
     }
   }
-  const projectClaudeMd = fileTokens(join(root, "templates", "CLAUDE.md"));
-  // 스캐폴드가 없으면 상주 항목도 없다 (토큰 0 과 같은 판정 — 한쪽만 세면 그게 곧 drift).
-  const claudeMdItems = projectClaudeMd > 0 ? 1 : 0;
+  // 설치가 상주시키는 CLAUDE.md 는 **둘**이다. v26.140.0 까지는 앵커만 재면서 라벨은
+  // "스캐폴드"였다 — 이름과 실측 대상이 다르면 그 지표로는 before/after 를 판정할 수 없다.
+  //  ① 하네스 앵커 `.claude/CLAUDE.md` — manifest `applies: all` 이라 항상 깔린다(파일).
+  //  ② 프로젝트 스캐폴드 루트 `CLAUDE.md` — manifest 밖에서 `writeRootClaudeMd()` 가 무조건
+  //     쓴다. **파일이 아니라 생성물**이라 `fileTokens` 로는 영원히 0 이었다.
+  // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 2줄(프로젝트명·트랙)은
+  // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
+  const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));
+  const projectScaffold = estimateTokens(renderFillScaffold().trim().length);
+  const projectClaudeMd = harnessAnchor + projectScaffold;
+  // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
+  // 스캐폴드는 코드 생성물이라 부재할 수 없다.
+  const claudeMdItems = (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
   return {
     rules,
     projectClaudeMd,
@@ -292,8 +303,10 @@ const RESIDENT_ROWS: ReadonlyArray<{
 }> = [
   { label: "rules", gap: 14, count: (r) => r.items.rules, tokens: (r) => r.rules },
   {
-    label: "CLAUDE.md 스캐폴드",
-    gap: 2,
+    // 한 행에 두 파일(앵커 + 스캐폴드). 개수 열이 2 를 뱉어 그 사실을 드러낸다 — 라벨로
+    // 하나만 이름 붙이면 v26.140.0 이전과 같은 거짓 라벨이 된다.
+    label: "CLAUDE.md",
+    gap: 11,
     count: (r) => r.items.claudeMd,
     tokens: (r) => r.projectClaudeMd,
   },

@@ -1,53 +1,53 @@
 {
   "$comment": "상주 컨텍스트 비용 상한(ratchet). 값을 올리려면 그 증가를 정당화하는 커밋에서 함께 올린다 — 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
   "units": {
-    "items": "상주 항목 수 (rules + skills + agents + CLAUDE.md 스캐폴드) — 1차 축",
+    "items": "상주 항목 수 (rules + skills + agents + CLAUDE.md 2종: 하네스 앵커 `.claude/CLAUDE.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`) — 1차 축",
     "tokens": "tokens/session (chars/4 근사 — 실측이 아니라 규약값) — 부수 표시값"
   },
   "tracks": {
     "tooling": {
-      "items": 29,
-      "tokens": 6572
+      "items": 30,
+      "tokens": 7526
     },
     "csr-supabase": {
-      "items": 35,
-      "tokens": 7934
+      "items": 36,
+      "tokens": 8888
     },
     "csr-fastify": {
-      "items": 36,
-      "tokens": 8124
+      "items": 37,
+      "tokens": 9078
     },
     "csr-fastapi": {
-      "items": 38,
-      "tokens": 8212
+      "items": 39,
+      "tokens": 9166
     },
     "ssr-htmx": {
-      "items": 34,
-      "tokens": 7853
+      "items": 35,
+      "tokens": 8807
     },
     "ssr-nextjs": {
-      "items": 36,
-      "tokens": 8005
+      "items": 37,
+      "tokens": 8959
     },
     "data": {
-      "items": 32,
-      "tokens": 6873
+      "items": 33,
+      "tokens": 7827
     },
     "executive": {
-      "items": 20,
-      "tokens": 4891
+      "items": 21,
+      "tokens": 5845
     },
     "full": {
-      "items": 47,
-      "tokens": 10052
+      "items": 48,
+      "tokens": 11006
     },
     "project-management": {
-      "items": 17,
-      "tokens": 4637
+      "items": 18,
+      "tokens": 5591
     },
     "growth-marketing": {
-      "items": 17,
-      "tokens": 4637
+      "items": 18,
+      "tokens": 5591
     }
   }
 }
