@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.142.0] — 2026-08-03 (audit-harness-fit — 상주 조종층 밥값 감사 스킬)
+
+번들 스킬 57번째 자산으로 `audit-harness-fit` 이 **전 트랙 기본** 추가된다. 공식 문서의
+축적 루프("실수할 때마다 CLAUDE.md 에 추가하라")에는 감량 루프 짝이 없어 상주층이 자라기만
+한다 — 이 스킬이 그 역방향이다.
+
+- **5단계**: INVENTORY(상주 표면·토큰 실측) → EVIDENCE(차단 로그·정정 이력 — 로그 0줄 ≠ 무죄)
+  → VERDICT(절 단위 keep/rewrite/relocate/delete/unjudged) → RELOCATE(절차→스킬 · 강제→훅/
+  permissions · 사실→코드) → APPLY(제안까지 기본, 적용은 승인 후).
+- **판정 근거는 3종뿐** — 공식 문서 인용(원문 60블록을 references/ 로 동봉) · 차단 로그 ·
+  계측. "이 룰이 중요해 보인다"는 증거가 아니다.
+- **세대 린트**: 최신 모델에서 역효과가 문서화된 패턴(명시적 검증 지시·재확인 지시·부정문
+  다발·심각도 억제 지시)을 이름으로 찾아 플래그한다.
+- 동봉 인용은 리서치 원장과의 전량 대조 게이트로 잠갔고(예외 0), 출하 전 dogfood 첫 실행이
+  실결함 3건(오탐 차단 2·죽은 배선 1)을 발견해 절차 유효성을 실증했다.
+
 ## [v26.141.1] — 2026-08-02 (patch: 릴리즈 CI 스모크의 구 앵커 경로 단언 수정)
 
 **v26.141.0 은 npm 에 게시되지 않았다** — 태그 CI 의 스모크 테스트가 실패했고 `needs: ci`
