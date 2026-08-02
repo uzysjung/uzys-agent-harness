@@ -17,13 +17,14 @@ describe("recommendedExternalAssets", () => {
     expect(rec).toContain("frontend-design");
   });
 
-  it("csr-supabase preset includes supabase + vercel CLI + UI stack (v26.106.0 ADR-035)", () => {
+  it("csr-supabase preset includes supabase skills + UI stack (CLI 2종은 ADR-063 opt-in)", () => {
     const ids = recommendedExternalAssets(["csr-supabase"]);
     expect(ids).toContain("supabase-agent-skills");
-    expect(ids).toContain("supabase-cli");
-    expect(ids).toContain("vercel-cli");
     expect(ids).toContain("postgres-best-practices");
     expect(ids).toContain("shadcn-ui");
+    // 2026-08-02 사용자 결정 (ADR-063) — 전역 CLI 2종은 pre-check 대상에서 빠진다.
+    expect(ids).not.toContain("supabase-cli");
+    expect(ids).not.toContain("vercel-cli");
     // v26.106.0 (ADR-035) — 강등 3종은 추천 제외: netlify-cli(중복 10:1 실측),
     //   web-design-guidelines·impeccable(taste 가이드 opt-in, frontend-design official 이 기본).
     expect(ids).not.toContain("netlify-cli");
@@ -39,10 +40,11 @@ describe("recommendedExternalAssets", () => {
     expect(ids).not.toContain("trailofbits-skills");
   });
 
-  it("executive preset → Anthropic business + finance pack + 전 트랙 상주 스킬", () => {
+  it("executive preset → Anthropic business + 전 트랙 상주 스킬 (finance 는 ADR-063 opt-in)", () => {
     const ids = recommendedExternalAssets(["executive"]);
     expect(ids).toContain("anthropic-document-skills");
-    expect(ids).toContain("finance-skills");
+    // 2026-08-02 사용자 결정 (ADR-063) — finance-skills 는 pre-check 대상에서 빠진다.
+    expect(ids).not.toContain("finance-skills");
     // 2026-08-02 정비 (ADR-060) — alirezarezvani 자문 번들 2종(c-level·business-growth) 제거.
     expect(ids).not.toContain("c-level-skills");
     expect(ids).not.toContain("business-growth-skills");
