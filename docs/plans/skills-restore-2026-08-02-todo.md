@@ -120,9 +120,9 @@ P2 게이트를 green 으로 만든다.
 
 - [x] 감사 + 판정 · PR #268 머지(main `b3fc187`) · 브랜치 생성
 - [x] P1 계획 리뷰(P0 6·P1 5) → 본 개정판 · 사용자 결정 2건 반영
-- [ ] P2 게이트 부활 (assertion red)
-- [ ] P3-A/B/C 구현
-- [ ] P3-D task-brief 스킬+훅 신설 (AC9 — P3-C 후)
-- [ ] P4 V&V
-- [ ] P5 README·연결 문서 현행화 + gemini 카피 (AC8)
-- [ ] ADR-062 + 커밋 + PR
+- [x] P2 게이트 부활 (4종 assertion red 21건 출생 — 오케스트레이터 직접 재확인)
+- [x] P3-A/B/C 구현 (9종 복원·배선·링크 가드 — ci 89/1,225 green)
+- [x] P3-D task-brief 스킬+훅 신설 (ci 90/1,242 green, 분모 56 스윕)
+- [x] P4 V&V (fresh opus — 보존 계약 104/104 · 지적 4건 전건 정정)
+- [x] P5 사실 현행화(전 스위트 green) + gemini 카피 10블록 + 최종 ci exit 0
+- [x] ADR-062(Accepted) + 커밋 `d3de3d0` + **PR #269 — 머지는 사용자 승인 대기**

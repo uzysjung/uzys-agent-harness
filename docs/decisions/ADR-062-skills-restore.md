@@ -1,8 +1,8 @@
 # ADR-062: 스킬 외부화 번복 — 이관 실패 판정에 따른 번들 복원·개선
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-02
-- PR: (PR 생성 후 기입)
+- PR: #269
 - Supersedes: ADR-060 (결정 1 「uzys 자작 스킬 SSOT 외부화」 한정 — 결정 2~5 는 유효)
 - Context: ADR-060 은 uzys 자작 스킬의 SSOT 를 uzysjung/uzys-agent-skills 리포로 옮기고
   카탈로그를 `npx skills add` 엔트리로 대체했다. 사용자가 이관본의 품질을 의심해
