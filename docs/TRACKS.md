@@ -118,6 +118,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
 | `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
 | `task-brief` | Normalize a request — and every delegation prompt — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. Ships with the `task-brief-nudge` hook, which adds one line of stdout when a long prompt arrives without a brief |
+| `audit-harness-fit` | Audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context — measured, judged against published criteria and block logs, then relocated: procedures to skills, must-hold guarantees to hooks and permission rules, derivable facts back to code |
 
 **Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 
@@ -126,7 +127,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
 | `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
 
-> Nine of these eleven were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle.
+> Nine of these twelve were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, and `audit-harness-fit` (ADR-064) is new after it.
 
 ### Not driven by track selection (opt-in on any track)
 

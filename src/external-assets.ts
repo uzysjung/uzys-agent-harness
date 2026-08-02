@@ -57,6 +57,8 @@ export type ExternalAssetMethod =
         | "external-model-consult"
         // 위임·요청을 canonical 브리프 형태로 정규화 (UserPromptSubmit 넛지 훅과 한 벌).
         | "task-brief"
+        // 설치된 상주 조종층(앵커·룰·훅·permissions·descriptor)의 밥값 감사 — 자기유지 루프.
+        | "audit-harness-fit"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -154,7 +156,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 56 자산 매트릭스 (2026-08-02 복원분 + task-brief 신설. 그 전 정비: 모델이 이미 아는
+ * 57 자산 매트릭스 (2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -339,6 +341,20 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },
     method: { kind: "internal", key: "task-brief" },
+  },
+  {
+    // task-brief 와 같은 신설이다 — 이관 이력이 없다.
+    // 전 트랙인 이유: 이 하네스는 **모든 트랙에** 앵커·룰·훅을 깐다. 그 상주층이 밥값을 하는지
+    // 되묻는 루프만 개발 트랙에 두면, 상주 비용은 전원이 무는데 감사는 일부만 갖는 비대칭이
+    // 된다. 감사 대상이 개발 산출물이 아니라 **설치본 자신**이라 트랙 술어와 무관하다.
+    id: "audit-harness-fit",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Audit harness fit — audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context, judged by published criteria, block logs, and measurement; relocate procedures to skills, guarantees to hooks/permissions, derivable facts to code",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "any-track", tracks: [...TRACKS] },
+    method: { kind: "internal", key: "audit-harness-fit" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -1001,6 +1017,7 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "north-star",
   "gh-issue-workflow",
   "task-brief",
+  "audit-harness-fit",
   "model-orchestration",
   "external-model-consult",
 ];

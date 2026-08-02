@@ -144,13 +144,15 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 56 distinct asset ids (no duplicates)", () => {
+  it("contains 57 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
     //   + 9(이관 uzys npx) + 3(frontend) = 55. + 1(task-brief 신설, ADR-062 AC9) = 56.
-    expect(ids).toHaveLength(56);
+    //   + 1(audit-harness-fit 신설, ADR-064) = 57.
+    expect(ids).toHaveLength(57);
     expect(ids).toContain("task-brief");
+    expect(ids).toContain("audit-harness-fit");
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
     expect(ids).toContain("code-review");
     expect(ids).toContain("feature-dev");
@@ -323,13 +325,15 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     for (const id of DEV_METHOD_SKILL_IDS) {
       expect(INTERNAL_BUNDLED_SKILL_IDS, `${id}: dev-method 인데 번들 목록에 없다`).toContain(id);
     }
-    // 두 상수의 차집합 = 전 트랙 3종 + opt-in 2종. 여기 늘어나면 멤버십 결정이 문서화 없이
+    // 두 상수의 차집합 = 전 트랙 4종 + opt-in 2종. 여기 늘어나면 멤버십 결정이 문서화 없이
     //   바뀐 것이므로 목록을 고정한다 (DEV_METHOD 의 has-dev-track 불변식이 그 이유).
     const bundledOnly = INTERNAL_BUNDLED_SKILL_IDS.filter(
       (id) => !DEV_METHOD_SKILL_IDS.includes(id),
     );
     expect([...bundledOnly].sort()).toEqual(
       [
+        // ADR-064 신설. any-track 이라 DEV_METHOD 의 has-dev-track 불변식에 들어갈 수 없다.
+        "audit-harness-fit",
         "external-model-consult",
         "gh-issue-workflow",
         "model-orchestration",
