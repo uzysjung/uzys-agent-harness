@@ -18,7 +18,11 @@ import {
 import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildManifest } from "../src/manifest.js";
+import { renderFillScaffold } from "../src/project-claude-merge.js";
 import { type InstallSpec, TRACKS } from "../src/types.js";
+
+/** 상주 CLAUDE.md 중 스캐폴드 몫. 파일이 아니라 생성물이라 어떤 root 에서도 같다. */
+const scaffoldTokens = (): number => estimateTokens(renderFillScaffold().trim().length);
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost ratchet.
@@ -301,25 +305,30 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
     expect(r.rules).toBe(estimateTokens(400)); // 룰은 통째로 상시 로드
     expect(r.skillDescriptors).toBeLessThan(estimateTokens(4000)); // body 는 상주 아님
     expect(r.agentDescriptors).toBeLessThan(estimateTokens(2000));
-    expect(r.projectClaudeMd).toBe(estimateTokens(40));
+    // 앵커(파일 40자) + 스캐폴드(코드 생성물). 스캐폴드분을 상수로 박으면 스캐폴드가 바뀔 때
+    // 이 테스트가 조용히 거짓이 된다 — 같은 함수에서 파생시킨다.
+    expect(r.projectClaudeMd).toBe(estimateTokens(40) + scaffoldTokens());
     expect(r.total).toBe(r.rules + r.projectClaudeMd + r.skillDescriptors + r.agentDescriptors);
   });
 
-  it("개수는 토큰과 **같은 대상**을 센다 — 표면당 1, CLAUDE.md 포함", () => {
-    // 두 축이 다른 대상을 세기 시작하면 나란히 놓은 의미가 없다. seed() 는 표면마다 1개씩.
+  it("개수는 토큰과 **같은 대상**을 센다 — 표면당 1, CLAUDE.md 는 2 (앵커+스캐폴드)", () => {
+    // 두 축이 다른 대상을 세기 시작하면 나란히 놓은 의미가 없다. seed() 는 표면마다 1개씩이고
+    // CLAUDE.md 만 2 다 — 설치가 앵커(`.claude/CLAUDE.md`)와 스캐폴드(루트)를 둘 다 놓는다.
     const r = residentCost(entries, seed());
-    expect(r.items).toEqual({ rules: 1, skills: 1, agents: 1, claudeMd: 1, total: 4 });
+    expect(r.items).toEqual({ rules: 1, skills: 1, agents: 1, claudeMd: 2, total: 5 });
   });
 
-  it("스캐폴드가 없으면 CLAUDE.md 는 항목 0 — 토큰 0 과 같은 판정", () => {
+  it("앵커가 없으면 그 몫만 빠진다 — 스캐폴드는 코드 생성물이라 빠질 수 없다", () => {
     // 한쪽 축만 0 으로 떨어지면 그 자체가 drift다 (개수는 세는데 토큰은 0, 또는 그 반대).
+    // v26.140.0 까지 이 자리는 앵커만 재면서 라벨은 "스캐폴드"였고, 그래서 스캐폴드는
+    // 있으나 없으나 0 이었다. 두 몫을 분리해 각각의 부재를 따로 판정한다.
     const root = mkdtempSync(join(tmpdir(), "resident-noclaude-"));
     mkdirSync(join(root, "templates", "rules"), { recursive: true });
     writeFileSync(join(root, "templates", "rules", "r1.md"), "R".repeat(400));
     const r = residentCost([{ source: "rules/r1.md", target: ".claude/rules/r1.md" }], root);
-    expect(r.projectClaudeMd).toBe(0);
-    expect(r.items.claudeMd).toBe(0);
-    expect(r.items.total).toBe(1);
+    expect(r.projectClaudeMd).toBe(scaffoldTokens());
+    expect(r.items.claudeMd).toBe(1);
+    expect(r.items.total).toBe(2);
   });
 
   it("스킬 body → 룰로 '이동'하면 상주 비용이 늘어난다 — 굿하트 구멍 차단", () => {
@@ -404,9 +413,9 @@ describe("상주 항목 수 (quantity 축)", () => {
   // 최소(executive) · 중간(tooling) · 최대(full). 값이 바뀌면 그 자체가 검토 대상이다 —
   // 늘었으면 정당화를, 줄었으면 여기와 baseline 을 함께 낮춰라.
   it.each([
-    ["executive", { rules: 5, skills: 9, agents: 5, claudeMd: 1, total: 20 }],
-    ["tooling", { rules: 10, skills: 9, agents: 9, claudeMd: 1, total: 29 }],
-    ["full", { rules: 20, skills: 17, agents: 9, claudeMd: 1, total: 47 }],
+    ["executive", { rules: 5, skills: 9, agents: 5, claudeMd: 2, total: 21 }],
+    ["tooling", { rules: 10, skills: 9, agents: 9, claudeMd: 2, total: 30 }],
+    ["full", { rules: 20, skills: 17, agents: 9, claudeMd: 2, total: 48 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

@@ -136,7 +136,7 @@
 ### Templates (templates/docs/)
 
 - **PLAN.template.md** (v26.30.0) — Sprint Contract / Phase Overview / **Milestone × Dependency Graph** (직렬/병렬/강한 의존 표기) + **Critical Path** / Per-Milestone AC / Risk / Open Questions / Changelog 8섹션
-- **skills/north-star/NORTH_STAR.template.md** (v26.28.0) — NSM / Will-Won't / Phase Roadmap / Decision Heuristics 7섹션
+- **skills/north-star/NORTH_STAR.template.md** — NSM / Pillars / Will-Won't / Decision Heuristics 6섹션. **로드맵(시간축)과 이력은 담지 않는다** — 각각 로드맵 문서와 버전 관리 이력 소관이고, 템플릿 §5·§8 은 그 사실을 적은 스텁이다
 
 ### Commands (templates/commands/uzys/)
 spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph 루프 진입.
@@ -146,7 +146,8 @@ spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph �
 - **review** Process step 5에 visual-review 결과 흡수 + **REGRESSION 1건이라도 있으면 Review Gate 차단** (CRITICAL 동급)
 
 ### Rules (templates/rules/)
-17 파일. CLAUDE.md와 짝. `docs/SPEC.md`에서 트랙별 적용 조건 정의.
+21 파일(실측 2026-07-29). CLAUDE.md와 짝. **트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
+(`COMMON_RULES`·`DEV_RULES`·`UI_RULES`·`TRACK_RULES` → `resolveRules()`)다 — SPEC 이 아니다.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)

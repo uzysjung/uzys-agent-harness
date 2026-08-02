@@ -39,4 +39,16 @@ describe("AGENTS.md project-context parity (cross-CLI drift gate)", () => {
       expect(scaffold).toContain(`<!-- FILL:${id} —`);
     }
   });
+
+  it("no AGENTS.md template instructs an unapproved session-start git pull (D3ⓐ, same policy as the Claude hook)", () => {
+    // Rewriting local commits without approval is the same policy violation whether a script
+    // does it (Claude Code hook) or a text instruction tells the agent to do it (Codex/OpenCode
+    // AGENTS.md). Scanned by glob, not by a hardcoded CLI list — a future 5th CLI template must
+    // be caught here without editing this test.
+    const paths = agentsTemplatePaths();
+    expect(paths.length).toBeGreaterThanOrEqual(3);
+    for (const p of paths) {
+      expect(readFileSync(p, "utf8"), p).not.toMatch(/git\s+pull/);
+    }
+  });
 });

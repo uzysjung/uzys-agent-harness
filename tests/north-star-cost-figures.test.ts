@@ -96,6 +96,8 @@ describe("NORTH_STAR 상주 비용 수치 ↔ 실측", () => {
     expect(r.items.rules).toBeGreaterThan(0);
     expect(r.items.skills).toBeGreaterThan(0);
     expect(r.items.agents).toBeGreaterThan(0);
-    expect(r.items.claudeMd).toBe(1);
+    // 설치는 CLAUDE.md 를 **둘** 놓는다 — 앵커 `.claude/CLAUDE.md` + 스캐폴드 루트 `CLAUDE.md`.
+    // 1 이 나오면 한쪽이 계측에서 빠진 것이고, 그게 v26.140.0 까지의 상태였다.
+    expect(r.items.claudeMd).toBe(2);
   });
 });

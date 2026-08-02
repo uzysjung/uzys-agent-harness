@@ -15,9 +15,8 @@
 ## Session Start
 
 매 세션 시작 시:
-1. `git pull --rebase`
-2. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
-3. `docs/todo.md` 현재 Phase 확인
+1. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
+2. `docs/todo.md` 현재 Phase 확인
 
 `session_start` hook이 자동 수행. Hook 실패 시 수동 수행.
 
@@ -37,7 +36,6 @@ Codex `sandbox_mode = "workspace-write"` + `approval_policy = "on-request"` 가 
 
 - 코드/문서 변경 시 **즉시 commit**. "나중에 한꺼번에" 금지.
 - `main` 직접 커밋 금지. feature branch 사용.
-- 세션 시작 시 `git pull` 필수.
 - Conventional Commits — `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci)
 
 ## Agents (subagent, multi_agent stable)

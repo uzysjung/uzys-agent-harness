@@ -94,26 +94,9 @@ scope creep의 1차 방어선. "X는 안 한다"를 명시.
 
 ---
 
-## 5. Phase Roadmap (장기 진화 단계)
+## 5. Roadmap — 여기 두지 않는다
 
-### Phase 1 — [이름] (현재)
-- 목표: [한 문장]
-- 성공 조건: [측정 가능 기준]
-- 핵심 산출물: [3-5개]
-
-### Phase 2 — [이름]
-- 목표: [한 문장]
-- 진입 조건: [Phase 1 무엇이 충족되면]
-- 핵심 산출물: [3-5개]
-
-### Phase 3 — [이름]
-- 목표: [한 문장]
-- 진입 조건: [Phase 2 무엇이 충족되면]
-
-### Phase 4 (탐색) — [이름]
-- 가설: [무엇을 검증]
-- 진입 조건: [Phase 3 안정화 + NSM 도달]
-- 결정 사항: 본 문서 정기 갱신 시 검토
+> 시간축(단계 · 마일스톤 · 일정)은 TODO/로드맵 문서 소관. 본 문서는 방향만 담는다.
 
 ---
 
@@ -128,7 +111,7 @@ scope creep의 1차 방어선. "X는 안 한다"를 명시.
 | **1. Trend** | 본 프로젝트의 핵심 트렌드/원칙(섹션 X 참조) 1개 이상에 매핑되는가? | 매핑 명시 = Pass |
 | **2. Persona** | Primary persona([이름])에게 직접 가치를 주는가? Anti-persona 위주면 거절 | YES = Pass |
 | **3. Capability** | [도메인 특수 능력 — 예: MCP 노출 / API 제공 / 키보드 단축키]가 동등하게 가능한가? | YES = Pass (UI-only면 -1) |
-| **4. Lean** | Phase 1/2/3 정의 내에 있는가? 외부면 Open Question으로 적재 | YES = Pass |
+| **4. Lean** | 4.1 Will 범위 내에 있는가? 외부면 Open Question으로 적재 | YES = Pass |
 
 4개 모두 Pass = 우선순위 진입. 1개라도 Fail = 보류 또는 거절.
 
@@ -146,13 +129,12 @@ scope creep의 1차 방어선. "X는 안 한다"를 명시.
 ## 7. Versioning & Review
 
 - 본 문서는 **분기 1회** 또는 **NSM 도달/미달** 시 갱신.
-- 주요 갱신 (Major CR): NSM 변경 / Phase 정의 변경 / Won't 변경.
+- 주요 갱신 (Major CR): NSM 변경 / Pillar 변경 / Won't 변경.
 - 가벼운 갱신 (Clarification): Trade-off 추가, 트렌드 매핑 보강.
-- 갱신 시 사유 + 날짜 1줄을 Changelog에 기록.
+- 갱신 사유는 커밋 메시지에 남긴다 — 본문에 이력을 쌓지 않는다.
 
 ---
 
-## 8. Changelog
+## 8. Changelog — 여기 두지 않는다
 
-- YYYY-MM-DD: 초안 작성. 참조: [관련 ideation/raw 문서].
-- (이후 갱신 기록)
+> 갱신 이력은 버전 관리 이력 소관. 본문에는 현행만 남긴다.

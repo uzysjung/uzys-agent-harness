@@ -15,9 +15,8 @@
 ## Session Start
 
 매 세션 시작 시:
-1. `git pull --rebase`
-2. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
-3. `docs/todo.md` 또는 `docs/plans/*-todo.md` 현재 Phase 확인
+1. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
+2. `docs/todo.md` 또는 `docs/plans/*-todo.md` 현재 Phase 확인
 
 위 절차를 세션 시작 시 수행한다.
 
@@ -37,7 +36,6 @@ OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
 
 - 코드/문서 변경 시 **즉시 commit**. "나중에 한꺼번에" 금지.
 - `main` 직접 커밋 금지. feature branch 사용.
-- 세션 시작 시 `git pull` 필수.
 - Conventional Commits — `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci)
 
 ## Agents (subagent)
