@@ -322,12 +322,13 @@ Pick one or more at step 2.
 
 | Path | Purpose |
 |---|---|
-| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, test-policy; UI tracks add playwright-launch + benchmark-parity) plus stack rules (code-style, nextjs, …) |
+| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, test-policy, change-management, ship-checklist, cli-development; UI tracks add playwright-launch + benchmark-parity) |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
-| `.claude/hooks/*.sh` | Programmatic guards (protect-files, spec-drift, etc.) |
+| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, mcp-pre-exec) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
+| `.uzys-agent-harness/hook-blocks.log` | Written at runtime, not at install: one line per hook block. The installer adds `.uzys-agent-harness/` to `.gitignore`, so it never enters your history |
 | `CLAUDE.md` | Project context — fill-in scaffold |
 | `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
@@ -346,7 +347,11 @@ Pick one or more at step 2.
 | `session-start.sh` | session start | Load SPEC / Change Log context |
 | `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
 | `mcp-pre-exec.sh` | MCP exec | Allowlist gate (D35) |
-| `checkpoint-snapshot.sh` | PostToolUse (tool-count threshold) | Checkpoint savepoint + `/compact` nudge (D25) |
+
+Blocking hooks (`protect-files.sh`, `mcp-pre-exec.sh`) append one tab-separated line — `date · hook · target` — to
+`.uzys-agent-harness/hook-blocks.log` every time they exit 2 (`mcp-pre-exec` annotates the
+target with the block reason). A failed write never
+changes the block itself. `uninstall` removes that directory, so the log goes with it.
 
 ---
 

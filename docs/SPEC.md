@@ -34,7 +34,12 @@
 
 ## Non-Goals
 
-- **룰 33개의 내용 감축** — 판정 기준이 이 사이클 산출물에서 나오므로 순서상 뒤다(H 사이클, 이슈 #261).
+- **상주 룰의 내용 감축** — 판정 기준이 이 사이클 산출물에서 나오므로 순서상 뒤다(H 사이클,
+  이슈 #261). **그 H 사이클은 2026-08-02 에 별도로 착수됐다** — 범위·AC·진행은
+  `docs/plans/rules-hooks-diet-2026-08-02-todo.md` 와 ADR-061 이 SSOT 이고, 이 SPEC 의 Non-Goal
+  경계는 그대로다(F 사이클은 여전히 룰 본문을 건드리지 않는다). 옛 문안의 "33개"는 착수 시점
+  수치라 지웠다 — 룰 개수의 SSOT 는 `src/manifest.ts` 의 `resolveRules()` 이고 실측 표기는
+  `docs/REFERENCE.md` §Rules 다.
 - **기본 설치 항목 재정의 · 스킬 통합** — G 사이클(이슈 #262).
 - **비가역 조작 차단의 방향 뒤집기** — A 사이클. 설계는 있으나 `.git/hooks` 기본 설치 여부가 사용자 결정 대기.
 - **문서 전수 개명** — 참조 실측 119건이고 ADR 은 append-only 다. 새 문서부터 게이트로, 기존은 archive 갈 때 자연 소멸.
@@ -54,3 +59,12 @@ AC 가 전부 `[x]` 가 되면 이 파일을 `docs/archive/` 로 옮기고 다�
 
 > 설계·검토 산출물 = `docs/plans/doc-template-standard.md` + `-review.md`.
 > 진행 추적 = `docs/plans/doc-system-cycle-todo.md`.
+
+## Change Log
+
+> AC·Non-Goals·DO NOT CHANGE 가 움직인 이력만 한 줄씩. 진행 상태는 여기 담지 않는다
+> (`docs/plans/*-todo.md` 소관).
+
+| 날짜 | 유형 | 변경 |
+|---|---|---|
+| 2026-08-02 | Clarification | Non-Goals "룰 내용 감축" 줄 현행화 — 착수 시점 수치 "33개" 삭제, 그 H 사이클이 별도로 실행 중임을 `docs/plans/rules-hooks-diet-2026-08-02-todo.md`·ADR-061 로 위임. **경계는 불변**(F 사이클은 룰 본문 미변경) |

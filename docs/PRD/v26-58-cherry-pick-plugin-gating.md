@@ -278,7 +278,7 @@ Phase 1 출력에 명확히:
 | ecc-cmd-e2e | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | **C2** |
 | ecc-cmd-eval | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | **C2** |
 | ecc-cmd-harness-audit | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | **C2** |
-| gsd-gates-taxonomy | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 (COMMON_RULES) | **C3** (별개 source) |
+| ~~gsd-gates-taxonomy~~ | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 (COMMON_RULES) | ~~**C3**~~ — 2026-08-02 ADR-061 로 자산 삭제·계약 해체 |
 | alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | **C3** (modified=true, 별개 source) |
 
 ### 합계

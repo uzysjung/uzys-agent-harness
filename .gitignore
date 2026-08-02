@@ -17,14 +17,17 @@ skills-lock.json
 .env.local
 .env.*.local
 
-# Session-specific artifacts (P0-3 checkpoint-snapshot)
-.claude/compact-warning.flag
+# Session-specific artifacts
 .claude/scheduled_tasks.lock
 # compaction-handoff transient resume anchor (snapshot, overwritten each handoff — ADR-026)
 .handoff/
 Docs/checkpoints/
 docs/checkpoints/
 .claude/codebase-map.json
+
+# 하네스 런타임 산출물 — 설치 로그 + 훅 차단 로그(hook-blocks.log).
+# 이 리포도 자기 하네스를 쓰므로 차단이 일어나면 여기에 쌓인다.
+.uzys-agent-harness/
 
 # npx skills 다운로드 캐시 (자동 생성, git 추적 제외)
 .factory/

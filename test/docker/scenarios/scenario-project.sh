@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+# 컨테이너 안의 리포 루트(/work). 아래 훅 검사가 배포물에서 목록을 derive 하는 데 쓴다 —
+# cd 로 떠나기 전에 잡아 둔다.
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+
 cd "$(dirname "$0")/.."
 # shellcheck disable=SC1091
 source ./snapshot.sh
@@ -100,13 +104,28 @@ else
   echo "✓ hito-counter.sh 미설치 (폐기 확인)"
 fi
 
-for h in session-start.sh protect-files.sh mcp-pre-exec.sh spec-drift-check.sh checkpoint-snapshot.sh; do
+# 기대 훅 목록은 배포물(`templates/hooks/*.sh`)에서 derive 한다. 여기 이름을 열거하면 그것이
+# 두 번째 사본이 되고, 지운 훅이 이 파일에 살아남아 시나리오가 거짓말한다 — 실제로
+# `spec-drift-check.sh` 가 그렇게 남아 이 검사는 무조건 FAIL 인 채 죽어 있었다.
+# (run.sh 의 scenario_names() 와 같은 관례.)
+hook_total=0
+hook_missing=0
+for f in "${REPO_ROOT}"/templates/hooks/*.sh; do
+  [[ -e "${f}" ]] || continue # 글롭 미매치 방어
+  hook_total=$((hook_total + 1))
+  h="$(basename "${f}")"
   if [[ ! -f "${HOOK_DIR}/${h}" ]]; then
-    echo "FAIL: 잔존 훅 ${h} 미설치 — HITO 제거가 이웃 훅까지 떨어뜨렸다"
+    echo "FAIL: 배포 훅 ${h} 미설치 — 훅 제거가 이웃 훅까지 떨어뜨렸다"
     failed=1
+    hook_missing=1
   fi
 done
-[[ "${failed}" -eq 0 ]] && echo "✓ 잔존 훅 5종 설치 확인"
+if [[ "${hook_total}" -eq 0 ]]; then
+  echo "FAIL: ${REPO_ROOT}/templates/hooks/*.sh 0건 — 이 검사가 아무것도 안 본다"
+  failed=1
+elif [[ "${hook_missing}" -eq 0 ]]; then
+  echo "✓ 배포 훅 ${hook_total}종 설치 확인"
+fi
 
 # settings.json 에 죽은 훅 참조가 남아 있으면 매 프롬프트마다 없는 파일을 실행한다.
 SETTINGS="${PROJ}/.claude/settings.json"

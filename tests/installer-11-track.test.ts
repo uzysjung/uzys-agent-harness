@@ -88,7 +88,7 @@ describe("11-track install (E2E vs templates/)", () => {
     expect(existsSync(join(projectDir, "CLAUDE.md"))).toBe(true);
 
     // Common rules always present
-    for (const rule of ["git-policy", "change-management", "gates-taxonomy"]) {
+    for (const rule of ["git-policy", "change-management", "doc-governance"]) {
       expect(existsSync(join(projectDir, `.claude/rules/${rule}.md`))).toBe(true);
     }
 

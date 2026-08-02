@@ -50,8 +50,10 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Boundaries
 
-**Always (✅ 훅 자동, 실측 2026-07-27)**: SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서)
-편집 차단 · MCP allowlist · 호스트 실 CLI 실행 차단.
+**Always (✅ 훅 자동, 실측 2026-08-02)**: 개발 사본 훅 4개 — SessionStart SPEC 안내 ·
+보호 파일(`.env*`·lock·인증서) 편집 차단 · MCP allowlist · 호스트 실 CLI 실행 차단.
+(배포판 `templates/hooks/` 는 3개 — `docker-only-realcli` 는 이 리포 전용이다.)
+**차단하는 훅 3개는 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에 1줄 남긴다**(ADR-061).
 
 **Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
 **커밋·push·PR 생성은 승인 불요** — 되돌리기 비싼 지점은 main 반영이다.
@@ -61,7 +63,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 안 생긴다. `reset --hard` 와 브랜치 작업은 **⬜ 여전히 프로즈뿐** — 서버가 볼 수 없는 영역이다.
 적용·재확인 = `bash templates/scripts/protect-branch.sh --dry-run`.
 
-## 미해결 · 함정 (착수 전 확인, 2026-07-27)
+## 미해결 · 함정 (착수 전 확인, 2026-08-02)
 
 1. **~~비가역 차단이 0건이다~~ → main 은 2026-08-02 부터 서버 규칙으로 잠겼다.** 남은 문제는
    방향의 나머지 절반이다 — `permissions.defaultMode = bypassPermissions` 이고 `deny`/`ask` 규칙
@@ -69,12 +71,16 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    조회·`.env` 편집)은 여전히 로컬에서 막는다. 되돌릴 수 없는 쪽은 서버가 맡았으니 **로컬에
    훅을 더 얹지 말고 강등할 것이 남았다**(백로그 A2). 로컬 가드 신설(옛 A1/A3)은 **기각** —
    명령마다 검사하고 `--no`+`verify` 로 넘어가고 클론마다 재설치해야 한다.
-2. **훅이 차단 로그를 남기지 않는다**(실측 0줄). 무엇이 실제로 막고 있는지 판정할 데이터가 없어
-   "옥죈다"가 느낌 대 느낌으로 남는다.
-3. **룰은 9종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
+2. **~~훅이 차단 로그를 남기지 않는다~~ → 2026-08-02 부터 남긴다**(ADR-061). 차단하는 훅
+   전부(`protect-files`·`mcp-pre-exec`·`docker-only-realcli`)가 `.uzys-agent-harness/hook-blocks.log`
+   에 탭 구분 `날짜·훅·대상` 1줄을 append 한다(`mcp-pre-exec` 만 대상 뒤에 사유 병기). **남은 문제는 표본이다** — 로그는 이번
+   사이클에 태어나 아직 누적치가 없다. 다음 감사까지 쌓인 줄이 "무엇이 실제로 막는가"의
+   첫 데이터가 되고, 그때까지 "옥죈다"는 여전히 느낌이다. `uninstall` 은 `.uzys-agent-harness/`
+   를 통째로 지워 이 로그도 함께 없앤다(감수).
+3. **룰은 8종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
    **확인됨**(2026-08-02, memory 문서) — 프로젝트 고유 사실이 담긴 룰이 다시 커지면 그때 쓴다.
-4. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 82개 중 45개가
-   `readFileSync` 로 경로를 읽어 import 그래프 밖이다. 애매하면 전체를 돌린다.
+4. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 48개가
+   `readFileSync` 로 경로를 읽어 import 그래프 밖이다(실측 2026-08-02). 애매하면 전체를 돌린다.
 5. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(게시 계약 밖이라 무해하나 버전
    확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 미생성 — 태그·npm 은 정상이다.
 6. **uzys 자작 스킬의 SSOT 는 `uzysjung/uzys-agent-skills` 리포다** (ADR-060). 이 리포의 번들

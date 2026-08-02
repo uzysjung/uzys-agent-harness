@@ -13,8 +13,8 @@ import { runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import {
+  addGitignoreAgentArtifacts,
   addGitignoreEnv,
-  addGitignoreNpxSkillsAgents,
   writeEnvExample,
   writeMcpAllowlist,
 } from "./env-files.js";
@@ -179,7 +179,11 @@ export interface BaselineReport {
     envExampleCreated: boolean;
     gitignoreEnvAdded: boolean;
     mcpAllowlist: string[] | null;
-    /** v0.8.0 — `.gitignore`에 추가된 npx skills agent 디렉토리 패턴 (`.factory/`, `.goose/`). */
+    /**
+     * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
+     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
+     */
     gitignoreNpxSkillsAdded: string[];
   };
   /**
@@ -237,7 +241,11 @@ export interface InstallReport {
     gitignoreEnvAdded: boolean;
     /** Server names written to .mcp-allowlist; null if skipped. */
     mcpAllowlist: string[] | null;
-    /** v0.8.0 — `.gitignore`에 추가된 npx skills agent 디렉토리 패턴 (`.factory/`, `.goose/`). */
+    /**
+     * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
+     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
+     */
     gitignoreNpxSkillsAdded: string[];
   };
 }
@@ -591,8 +599,9 @@ function writeEnvironmentFiles(
     envExampleCreated: writeEnvExample(projectDir, tracks),
     gitignoreEnvAdded: addGitignoreEnv(projectDir),
     mcpAllowlist: writeMcpAllowlist(projectDir),
-    // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3)
-    gitignoreNpxSkillsAdded: addGitignoreNpxSkillsAgents(projectDir),
+    // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3).
+    // 2026-08-02 — `.uzys-agent-harness/` 합류 (설치 로그 + 훅 차단 로그).
+    gitignoreNpxSkillsAdded: addGitignoreAgentArtifacts(projectDir),
   };
 }
 

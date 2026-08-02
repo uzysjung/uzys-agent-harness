@@ -665,7 +665,7 @@ function renderPhase1Rows(
       assetRow(
         "success",
         ".gitignore",
-        `+ ${baseline.envFiles.gitignoreNpxSkillsAdded.join(" ")} (npx skills universal install)`,
+        `+ ${baseline.envFiles.gitignoreNpxSkillsAdded.join(" ")} (agent CLI / harness artifacts)`,
       ),
     );
   }
