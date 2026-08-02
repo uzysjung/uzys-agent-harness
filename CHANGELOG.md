@@ -7,7 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
-## [v26.141.0] — 2026-08-02 (룰·훅 다이어트 + 1st-party 스킬 복원 + 기본 설치 축소)
+## [v26.141.1] — 2026-08-02 (patch: 릴리즈 CI 스모크의 구 앵커 경로 단언 수정)
+
+**v26.141.0 은 npm 에 게시되지 않았다** — 태그 CI 의 스모크 테스트가 실패했고 `needs: ci`
+배선이 설계대로 게시를 막았다(태그는 기록으로 남는다). 원인은 코드가 아니라 **워크플로의
+단언**이다: 앵커가 `.claude/CLAUDE.md` → 루트 `CLAUDE-uzys-harness.md` 로 옮겨간 뒤에도
+스모크와 install-matrix 가 옛 경로를 `test -f` 로 확인하고 있었다. 워크플로는 태그에서만
+돌기 때문에 PR 단계에서 이걸 잡을 게이트가 없었다.
+
+- `test.yml` 스모크·`install-matrix.yml` core 단언을 현행 계약(루트 앵커 + 루트 스캐폴드 +
+  `.installed-tracks` + `.mcp.json`)으로 교체. 실환경 검증 = docker `scenario-anchor` PASS.
+- 설치 요약이 삭제된 `checkpoint` 훅을 계속 표기하던 라벨을 현행 4종으로 정정.
+
+## [v26.141.0] — 2026-08-02 (룰·훅 다이어트 + 1st-party 스킬 복원 + 기본 설치 축소 · 미게시 — 코드는 v26.141.1 로 게시)
 
 세 PR(#268 · #269 · #270)의 통합 릴리즈. 공통 주제는 하나다 — **상주 지시문과 기본 설치의
 존폐를 느낌이 아니라 데이터와 판정 기준으로 가른다.**

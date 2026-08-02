@@ -582,7 +582,7 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · protect-files · checkpoint · mcp-pre-exec (security)",
+        "session-start · protect-files · mcp-pre-exec (security) · task-brief-nudge",
         cats.hooks,
       );
     }

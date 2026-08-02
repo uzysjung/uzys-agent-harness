@@ -50,7 +50,8 @@ jobs:
         run: |
           tmp=$(mktemp -d)
           node dist/index.js install --track tooling --project-dir "$tmp"
-          test -f "$tmp/.claude/CLAUDE.md"
+          test -f "$tmp/CLAUDE-uzys-harness.md"
+          test -f "$tmp/CLAUDE.md"
           test -f "$tmp/.claude/.installed-tracks"
           test -f "$tmp/.mcp.json"
           rm -rf "$tmp"
