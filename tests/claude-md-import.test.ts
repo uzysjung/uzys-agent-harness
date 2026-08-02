@@ -51,4 +51,18 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     expect(importCount(out)).toBe(1); // 펜스 밖 관리 줄 1개 (펜스 안 줄은 trim 매치 안 됨 — "(예시)" 접미)
     expect(out).toContain("```\n@CLAUDE-uzys-harness.md (예시)\n```");
   });
+
+  it("펜스 안의 **순수** import 줄은 기존 import 로 인정하지 않는다 — 펜스 밖에 실줄을 추가한다", () => {
+    // 최종 리뷰 MEDIUM-1: 위 케이스는 "(예시)" 접미 때문에 trim 매치가 어차피 실패해
+    // `!inFence` 가드를 지워도 초록이었다(가드가 장식이던 상태). 이 케이스가 그 가드를 문다 —
+    // 펜스 안에 접미사 없는 진짜 import 줄을 두면, 가드 없이는 "이미 있다"로 오판해
+    // 실 import 를 추가하지 않고, Claude Code 는 펜스 안을 무시하므로 하네스가 로드되지 않는다.
+    const user = "# p\n\n```\n@CLAUDE-uzys-harness.md\n```\n";
+    const out = upsertHarnessImport(user, { projectName: "p", tracks: ["tooling"] });
+    // 파일 전체 실줄 = 펜스 안 1 + 펜스 밖 관리 1 = 2. 관리 대상은 펜스 밖 1줄이다.
+    expect(importCount(out)).toBe(2);
+    expect(out).toContain("```\n@CLAUDE-uzys-harness.md\n```");
+    // idempotent 재실행에도 펜스 밖 줄이 또 늘면 안 된다.
+    expect(upsertHarnessImport(out, { projectName: "p", tracks: ["tooling"] })).toBe(out);
+  });
 });

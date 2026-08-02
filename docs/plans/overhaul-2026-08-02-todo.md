@@ -69,7 +69,7 @@ research-summarizer · playwright-skill · karpathy-coder
 
 | id | tier | method | 설명(명료화) |
 |---|---|---|---|
-| better-interface-skills (jakubkrehel/skills) | vetted ★2.6k | skill | 인터페이스 품질 7종 세트 — UI 디테일·타이포·OKLCH 색·접근성·레이아웃·UX 라이팅을 각각 별도 스킬로 리뷰·개선 |
+| jakubkrehel-skills (구명 better-interface-skills — 구현서 리포명 기준 id 채택) | vetted ★2.6k | skill | 인터페이스 품질 7종 세트 — UI 디테일·타이포·OKLCH 색·접근성·레이아웃·UX 라이팅을 각각 별도 스킬로 리뷰·개선 |
 | taste-skill (Leonxlnx) | vetted ★70k | skill | 안티-슬롭 프론트엔드 디자인 — AI 생성 UI 의 보일러플레이트 느낌을 제거, 디자인 언어 추론 + VARIANCE/MOTION/DENSITY 조절, 미니멀·브루탈리스트 등 스타일 변형 포함 |
 | gsap-skills (greensock) | **기존 엔트리 유지** ★12.8k | plugin | 설명 현행 충분 — 검증만 |
 | scroll-world (oso95) | vetted ★6.8k | skill | 브랜드를 스크롤 연동 3D 월드 랜딩페이지로 — 장면 인터뷰→AI 자산 생성→연속 카메라 비행 스크롤 엔진 구성 |

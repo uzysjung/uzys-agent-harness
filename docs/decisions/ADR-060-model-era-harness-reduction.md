@@ -57,6 +57,9 @@
 - Consequences:
   - 상주 배포물이 줄어 설치 프로젝트의 컨텍스트 비용 감소(수치는 baseline 재생성으로 확정).
   - 스킬 개선 사이클이 이관 리포에서 독립 진행 — 이 리포 릴리즈와 분리된다.
+  - **스킬 본문 재발방지 게이트 4종이 함께 사라졌다** (subagent-file-handoff ·
+    north-star-skill · recurrence-prevention-skill · consult-model-tier — 검사 대상이
+    이관돼 논리적 귀결). 이관 리포에 대응 게이트가 생기기 전까지 그 본문 계약은 아무도 안 본다.
   - `npx skills add` 가 이관 리포의 `.agents/skills/` 레이아웃을 발견하는지는 Docker 스모크로
     검증한다(AC8). 실패 시 해당 9 엔트리는 미검증 표기로 출하 보류 판단.
   - 탐지기 하한 2건(`docTracks>10`·`references>4`)을 모수 축소에 맞춰 하향 — 커버리지
