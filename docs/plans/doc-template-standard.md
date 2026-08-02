@@ -149,7 +149,8 @@ Status 존재/enum/한 토큰(3) · AC 는 `- [ ]` 체크박스 줄(1) · AC 마
 
 | 변경 | 이유 |
 |---|---|
-| **AC 를 표 → 체크박스 리스트** | 드리프트 헌터 CRITICAL-2 를 재현 확인했다. `.claude/hooks/spec-drift-check.sh` 의 `count_unchecked` awk 는 `/^- \[ \]\|^  - \[ \]/` 만 센다 — 표 행 `\| AC1 \| … \| [ ] \|` 는 `\|` 로 시작해 **안 걸린다.** 살아 있는 ship 게이트(`ship-checklist.md` 가 exit 2 차단으로 적고 `tests/spec-drift-backlog-exemption.test.ts` 가 지키는)가 빨간불 없이 0건으로 죽는다. 리스트로 쓰면 **신규 코드 0으로 기존 게이트가 그대로 문다** |
+| ~~**AC 를 표 → 체크박스 리스트**~~ → **이 리포에서는 기각.** **[착수정정 2026-08-02]** 실행해 보니 이 리포에는 *main 을 항상 출하 가능하게* 두는 계약이 이미 있다 — `tests/spec-drift-backlog-exemption.test.ts` 가 **실 저장소의 ship 게이트 통과를 단언**한다. SPEC 에 미완 체크박스를 넣자 그 테스트가 red 가 됐다(미완 7건 → ship exit 2). **열린 항목은 SPEC 이 아니라 `docs/plans/*-todo.md` 에 둔다**가 이 리포의 기존 결정이고(#237 이 없앤 우회 관행의 재발 방지), `doc-governance` 위계표의 *SPEC=무엇 / TODO=진행 추적* 과도 같다. → **AC 정의는 표(판정 주체 열 포함)로 SPEC 에, 진행 체크박스는 사이클 plan 에.** 아래 원안 근거는 *SPEC 이 진행을 담는 프로젝트* 에 대해서는 그대로 유효하다 |
+| ~~(원안 근거)~~ | 드리프트 헌터 CRITICAL-2 를 재현 확인했다. `.claude/hooks/spec-drift-check.sh` 의 `count_unchecked` awk 는 `/^- \[ \]\|^  - \[ \]/` 만 센다 — 표 행 `\| AC1 \| … \| [ ] \|` 는 `\|` 로 시작해 **안 걸린다.** 살아 있는 ship 게이트(`ship-checklist.md` 가 exit 2 차단으로 적고 `tests/spec-drift-backlog-exemption.test.ts` 가 지키는)가 빨간불 없이 0건으로 죽는다. 리스트로 쓰면 **신규 코드 0으로 기존 게이트가 그대로 문다** |
 | `Roadmap:` 헤더 **삭제** · North Star Check **선택** | 낯선 설치자 HIGH. 배포하지 않기로 했어도 이 리포 SPEC 에서 로드맵 경로를 헤더에 박으면 로드맵 파일명이 바뀔 때 거짓이 된다. 근거는 본문에서 링크로 |
 | `Tag:` **삭제** | 드리프트 헌터 HIGH. `status: shipped` + `tag: v26.138.0`(없는 태그)이 게이트를 통과하면 **방금 막은 v26.138.0 형태가 새 필드에서 되살아난다.** 태그 사실의 SSOT 는 CHANGELOG↔태그 양방향 게이트(`tests/docs-supply-chain.test.ts`)이고 여기서 두 번째 사본을 만들지 않는다 |
 | `Cycle:` 삭제 | 사이클 날짜가 SPEC 과 plan 두 곳에 생기고 대조 장치가 없다(드리프트 헌터 HIGH-7 의 같은 형태) |
