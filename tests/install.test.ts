@@ -758,6 +758,9 @@ describe("executeSpec", () => {
         pruned: { ".claude/rules": ["orphan.md"], ".claude/hooks": [] },
         staleHookRefs: ["dead.sh"],
         claudeMdUpdated: true,
+        anchorCreated: false,
+        rootImportAdded: false,
+        legacyAnchor: null,
         skillsBackedUp: [],
         policyBackedUp: [],
         externalUpdated: 0,
@@ -805,6 +808,9 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: ["skills/strategic-compact/suggest-compact.sh", "hooks/legacy-thing.sh"],
         claudeMdUpdated: false,
+        anchorCreated: false,
+        rootImportAdded: false,
+        legacyAnchor: null,
         skillsBackedUp: [],
         policyBackedUp: [],
         externalUpdated: 0,
@@ -851,6 +857,9 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: [],
         claudeMdUpdated: false,
+        anchorCreated: false,
+        rootImportAdded: false,
+        legacyAnchor: null,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
         policyBackedUp: [],
         externalUpdated: 0,
@@ -868,6 +877,56 @@ describe("executeSpec", () => {
     expect(out).toContain(".claude/skills");
     expect(out).toContain("7 files updated");
     expect(out).toContain("2 backed up");
+  });
+
+  /**
+   * P5 이행 (ADR-060) — 레거시 설치본에서 update 가 앵커를 만들고 사용자 CLAUDE.md 에 import 를
+   * 얹은 사실, 그리고 구 앵커가 이제 죽은 사본이라는 사실을 **화면이 말하는가**.
+   *
+   * 이 셋이 침묵하면 사용자는 ⓐ 앵커 계약이 바뀐 줄 모르고 ⓑ 자기 CLAUDE.md 가 한 줄 늘어난
+   * 것도 모르고 ⓒ `.claude/CLAUDE.md` 를 여전히 살아 있는 설정으로 읽는다.
+   */
+  it("앵커 이행 3사실(생성·import 부착·구 앵커 안내)을 화면에 노출한다", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      mode: "update",
+      updateMode: {
+        updated: {},
+        pruned: {},
+        staleHookRefs: [],
+        claudeMdUpdated: false,
+        anchorCreated: true,
+        rootImportAdded: true,
+        legacyAnchor: ".claude/CLAUDE.md",
+        skillsBackedUp: [],
+        policyBackedUp: [],
+        externalUpdated: 0,
+        externalBackedUp: [],
+      },
+    });
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline,
+      resolveHarnessRoot: () => "/h",
+      mode: "update",
+    });
+
+    const rows = log.mock.calls.map((args) => String(args[0]));
+    expect(
+      rows.find((l) => l.includes("CLAUDE-uzys-harness.md") && l.includes("created")),
+      "앵커를 새로 만들었는데 화면에 아무 말이 없다",
+    ).toBeDefined();
+    expect(
+      rows.find((l) => l.includes("import added")),
+      "사용자 CLAUDE.md 를 고쳤는데 화면에 아무 말이 없다",
+    ).toBeDefined();
+    const legacy = rows.find((l) => l.includes(".claude/CLAUDE.md"));
+    expect(legacy, "구 앵커 안내 행이 없다 — 죽은 사본이 살아 있는 설정으로 읽힌다").toBeDefined();
+    expect(legacy).toContain("no longer updated");
+    expect(legacy).toContain("delete");
   });
 
   it("renders 'add' / 'reinstall' header label for those modes", () => {

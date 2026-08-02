@@ -22,7 +22,7 @@ import type { AssetInstallResult } from "../external-installer.js";
 import type { BaselineReport, InstallMode, InstallReport, ProgressEvent } from "../installer.js";
 import { buildManifest } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
-import { HARNESS_ANCHOR_FILE } from "../project-claude-merge.js";
+import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
 /**
@@ -445,6 +445,25 @@ function renderPhase1Rows(
     }
     if (baseline.updateMode.claudeMdUpdated) {
       log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
+    }
+    // P5 이행 (ADR-060) — v26.140.0 이전 설치본은 앵커가 `.claude/CLAUDE.md` 라 루트에 없다.
+    // 이번 update 가 만든 앵커와 사용자 `CLAUDE.md` 에 얹은 import 줄을 **화면에 남긴다**:
+    // 조용히 하면 앵커 계약이 바뀐 사실도, 자기 CLAUDE.md 가 한 줄 늘었다는 사실도 모른다.
+    if (baseline.updateMode.anchorCreated) {
+      log(assetRow("success", HARNESS_ANCHOR_FILE, "created from template (anchor migration)"));
+    }
+    if (baseline.updateMode.rootImportAdded) {
+      log(assetRow("success", "CLAUDE.md", `${HARNESS_IMPORT_LINE} import added`));
+    }
+    // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
+    if (baseline.updateMode.legacyAnchor) {
+      log(
+        assetRow(
+          "skip",
+          baseline.updateMode.legacyAnchor,
+          `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`,
+        ),
+      );
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.

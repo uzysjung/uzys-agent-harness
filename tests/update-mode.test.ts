@@ -702,6 +702,10 @@ describe("runUpdateMode (E2E with templates)", () => {
     );
     expect(report.updated[".claude/rules"]).toBe(1);
     expect(report.claudeMdUpdated).toBe(true);
+    // 이미 이행된 설치본 — 이행 분기로 새지 않는다 (갱신과 생성은 배타적).
+    expect(report.anchorCreated).toBe(false);
+    expect(report.rootImportAdded).toBe(false);
+    expect(report.legacyAnchor).toBeNull();
   });
 
   /**
@@ -730,6 +734,129 @@ describe("runUpdateMode (E2E with templates)", () => {
 
     expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(false);
     expect(report.pruned[".claude/rules"]).toEqual(["orphan-rule.md"]);
+  });
+});
+
+/**
+ * 레거시 설치본 앵커 이행 (P5 · ADR-060).
+ *
+ * v26.140.0 이전 설치본의 하네스 앵커는 `.claude/CLAUDE.md` 다. 루트 앵커
+ * (`CLAUDE-uzys-harness.md`)는 아예 없으므로, update 가 "이미 있을 때만 갱신"하면 그 사용자는
+ * update 를 몇 번 돌려도 앵커가 옛 버전에 **영구 동결**되고 화면에도 아무 말이 안 뜬다.
+ * ADR-060 「적용 범위」는 이 이행을 단언하는데 코드에는 없었다 — 이 describe 가 그 자리를 문다.
+ */
+describe("레거시 설치본 앵커 이행 (P5 · ADR-060)", () => {
+  /** 사용자가 직접 쓴 루트 CLAUDE.md — 이행이 한 글자도 건드리면 안 되는 본문. */
+  const USER_ROOT = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
+  const IMPORT_LINE = "@CLAUDE-uzys-harness.md";
+  let projectDir = "";
+  let templatesDir = "";
+
+  const anchorPath = () => join(projectDir, "CLAUDE-uzys-harness.md");
+  const rootPath = () => join(projectDir, "CLAUDE.md");
+  const importCount = (s: string): number =>
+    s.split("\n").filter((l) => l.trim() === IMPORT_LINE).length;
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "ch-mig-p-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-mig-t-"));
+    for (const d of ["rules", "agents", "commands/uzys", "hooks"]) {
+      mkdirSync(join(templatesDir, d), { recursive: true });
+      mkdirSync(join(projectDir, ".claude", d), { recursive: true });
+    }
+    writeFileSync(join(templatesDir, "CLAUDE.md"), "anchor-v2\n");
+    // 레거시 상태: 앵커가 `.claude/` 안에 있고 루트 앵커는 없다.
+    writeFileSync(join(projectDir, ".claude/CLAUDE.md"), "legacy-anchor-v1\n");
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
+  });
+
+  it("루트 앵커가 없으면 만들고 사용자 CLAUDE.md 에 import 를 얹는다", () => {
+    writeFileSync(rootPath(), USER_ROOT);
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(existsSync(anchorPath()), "루트 앵커가 안 생겼다 — 이행이 일어나지 않았다").toBe(true);
+    expect(readFileSync(anchorPath(), "utf8")).toBe("anchor-v2\n");
+    expect(report.anchorCreated).toBe(true);
+    expect(report.claudeMdUpdated).toBe(false);
+    expect(report.rootImportAdded).toBe(true);
+
+    const root = readFileSync(rootPath(), "utf8");
+    expect(importCount(root), "import 줄이 없거나 중복이다").toBe(1);
+    // 사용자 본문 무손실 — 이행이 덮어쓰기로 퇴화하면 이 줄들이 사라진다.
+    for (const line of USER_ROOT.trimEnd().split("\n")) {
+      expect(root).toContain(line);
+    }
+  });
+
+  it("구 앵커는 지우지 않고 안내만 한다 — 사용자가 고쳤는지 update 는 판정할 수 없다", () => {
+    writeFileSync(rootPath(), USER_ROOT);
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
+    expect(readFileSync(join(projectDir, ".claude/CLAUDE.md"), "utf8")).toBe("legacy-anchor-v1\n");
+    expect(report.legacyAnchor, "구 앵커가 남았는데 안내 표면이 비어 있다").toBe(
+      ".claude/CLAUDE.md",
+    );
+  });
+
+  it("루트 CLAUDE.md 가 아예 없으면 스캐폴드 + import 로 만든다 (install 과 같은 계약)", () => {
+    expect(existsSync(rootPath())).toBe(false);
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    const root = readFileSync(rootPath(), "utf8");
+    expect(importCount(root)).toBe(1);
+    expect(root).toContain("SCAFFOLD"); // fill-in 스캐폴드 배너
+    expect(report.rootImportAdded).toBe(true);
+  });
+
+  it("이행한 앵커를 install log 에 기록한다 — uninstall 이 회수를 주장할 근거가 그것뿐이다", () => {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(readInstallLog(projectDir)?.templates.rootClaudeMd).toEqual({
+      path: "CLAUDE-uzys-harness.md",
+      sha256: hashContent("anchor-v2\n"),
+    });
+  });
+
+  it("import 가 이미 있으면 루트 CLAUDE.md 를 만지지 않는다 (앵커만 복구)", () => {
+    // 사용자가 앵커 파일만 지운 상태. import 줄은 자기 손으로 적어 뒀다.
+    const root = `${USER_ROOT}\n${IMPORT_LINE}\n`;
+    writeFileSync(rootPath(), root);
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.anchorCreated).toBe(true);
+    expect(report.rootImportAdded, "이미 있는 import 를 또 얹었다").toBe(false);
+    expect(readFileSync(rootPath(), "utf8"), "사용자 파일을 건드렸다").toBe(root);
+  });
+
+  it("이행은 1회 — 두 번째 update 는 갱신 경로로 떨어지고 import 는 1줄 그대로다", () => {
+    writeFileSync(rootPath(), USER_ROOT);
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    writeFileSync(join(templatesDir, "CLAUDE.md"), "anchor-v3\n");
+    const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(second.anchorCreated).toBe(false);
+    expect(second.claudeMdUpdated).toBe(true);
+    expect(second.rootImportAdded).toBe(false);
+    expect(readFileSync(anchorPath(), "utf8")).toBe("anchor-v3\n");
+    expect(importCount(readFileSync(rootPath(), "utf8"))).toBe(1);
   });
 });
 

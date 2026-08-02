@@ -50,8 +50,11 @@ describe("REFERENCE.md 의 설치 명령은 전부 현행 카탈로그에 실재
     expect(
       missing,
       missing
-        .map((m) => `REFERENCE.md:${m.line} 의 ${m.kind} "${m.ident}" 가 카탈로그에 없다 — ` +
-          "삭제된 자산의 광고 잔존이거나 문서 오타다")
+        .map(
+          (m) =>
+            `REFERENCE.md:${m.line} 의 ${m.kind} "${m.ident}" 가 카탈로그에 없다 — ` +
+            "삭제된 자산의 광고 잔존이거나 문서 오타다",
+        )
         .join("\n"),
     ).toEqual([]);
   });
