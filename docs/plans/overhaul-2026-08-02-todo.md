@@ -155,23 +155,16 @@ category=frontend (impeccable 과 동일 그룹), condition=opt-in. multi-skill 
 
 ## AC (완료 기준) — 판정 술어 명시 (리뷰 P2-2)
 
-- [ ] AC1 카탈로그 총계 **55** (66 − 12 카탈로그 − 11 internal + 9 uzys + 3 frontend) —
-      `tests/external-assets.test.ts` 총계 단언 green + `EXTERNAL_ASSETS` 에 신규 12 id 존재
-- [ ] AC2 templates/skills **14 dir 부재**(ls) · manifest·installer 의 **기능 참조 0**
-      (import·경로·배열·단언·사용자 표시 문자열 — 역사 서술 주석은 제외, 리뷰 P2-5) —
-      `scripts/check-absence.sh --canary compaction-handoff` 로 부재 검증
-- [ ] AC3 templates/rules **9개**·hooks **4개**(ls 개수) + 삭제 룰·훅명이 유지 룰/설치 표면에
-      기능 참조 0
-- [ ] AC4 신규 게이트 3종(tests/claude-md-import.test.ts) green — import 1줄 · idempotent ·
-      기존 본문 무손실
-- [ ] AC5 `npm run ci` exit 0 (coverage·ratchet·docs-supply-chain 포함)
-- [ ] AC6 ADR-060 존재 (BREAKING 적용 범위 절: `--with-karpathy-hook` 플래그 삭제 포함, 리뷰 P2-4)
-      + `npm run gen:compat` 재생성 + baseline 재생성 + REFERENCE 총계 = 55
-- [ ] AC7 PR 생성 — 확정 3건(3룰 포함 커밋·감사 2종 폐기·ui-visual-review 유지) +
-      spec-drift-check 훅 제거 + ECC 귀속 안내 명시. **머지는 사용자 승인**
-- [ ] AC8 **Docker 실설치 스모크**: `npx skills add uzysjung/uzys-agent-skills --skill <1종>` 이
-      `.agents/skills/` 레이아웃을 실제로 발견·설치하는지 (리뷰 P1-4 — 레지스트리명 ≠ dir 명
-      함정 전례). 실패 시 9 엔트리는 "미검증" 표기로 PR 에 명시
+- [x] AC1 카탈로그 총계 **55** ✓ (레인 A — `tests/external-assets.test.ts` 39 green, 산술 66−12−11+9+3 실측 일치)
+- [x] AC2 templates/skills **14 dir 부재** ✓ · 기능 참조 0 (레인 A grep + 레인 B `check-absence.sh` canary 스윕)
+- [x] AC3 rules **9** · hooks **4** ✓ (레인 B — 음성 대조 2건으로 manifest silent-skip guard 가 무는 것 확인)
+- [x] AC4 `tests/claude-md-import.test.ts` **4/4 green** ✓ (레인 C — born-red da55d55 → ea1ef6f 에서 green.
+      음성 대조 4변이, M1 은 안 물려서 무는 테스트를 세운 뒤 재확인)
+- [x] AC5 `npm run ci` **exit 0** ✓ — 82 files / 1,151 tests (b93aa83 시점, 로그 /tmp/claude-502/ci-final-overhaul.log)
+- [x] AC6 ADR-060 ✓ (적용 범위 절 포함) + gen:compat(55) + baseline 재생성(tooling 24개/6,552tok) + REFERENCE=55
+- [ ] AC7 PR 생성 — 확정 3건 + spec-drift-check 제거 + ECC 귀속 안내 명시. **머지는 사용자 승인**
+- [x] AC8 Docker 실설치 스모크 **3/3 exit 0** ✓ — uzys `--skill north-star`(`.agents/skills/` 레이아웃 발견) ·
+      jakubkrehel `--skill` 생략(7종 전부 설치 — 레인 A 판단 실증) · taste-skill
 
 gsap-skills description 은 현행 유지 — 근거: 공식 출처·8스킬 구성·영역(timeline·scrolltrigger·react)이
 이미 명시돼 있어 사용자 지시 "명료한 description" 을 충족 (리뷰 P2-3).
