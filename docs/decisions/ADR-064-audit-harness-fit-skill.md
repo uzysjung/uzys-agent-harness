@@ -1,8 +1,8 @@
 # ADR-064: audit-harness-fit — 상주 조종층 밥값 감사 스킬 신설
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-02
-- PR: (머지 시 기입)
+- PR: #273
 - Context: 사용자 제안(2026-08-02) — "공식 문서 2편(prompting-claude-opus-5 ·
   claude-code-power-user-tips)의 CLAUDE.md·rule·hook 관점을 기반으로 하네스 정리 스킬".
   두 문서는 반대 방향의 루프 한 쌍이다: power-user-tips 는 축적 루프(실수→CLAUDE.md 추가,
