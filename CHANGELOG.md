@@ -7,6 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.141.0] — 2026-08-02 (룰·훅 다이어트 + 1st-party 스킬 복원 + 기본 설치 축소)
+
+세 PR(#268 · #269 · #270)의 통합 릴리즈. 공통 주제는 하나다 — **상주 지시문과 기본 설치의
+존폐를 느낌이 아니라 데이터와 판정 기준으로 가른다.**
+
+### 변경·제거 — 룰·훅이 밥값을 하는지 공식 문서 기준으로 판정했다 (#268)
+
+- **죽은 훅 삭제**: `checkpoint-snapshot.sh` 는 설치만 되고 settings 배선이 없어 **한 번도
+  실행된 적 없는** 훅이었다. 지우고, 같은 형태가 다시 생기지 않도록 설치되는 훅 전부가
+  배선돼 있어야 통과하는 게이트(`hook-wiring-parity`)를 신설했다.
+- **룰 감량**: `gates-taxonomy.md` 삭제(프로젝트 고유 사실 0 인 일반 분류표) + 잔여 8종을
+  절 단위로 감량, 총 1,100줄 → 535줄. 남긴 것 = 실제 사고가 났던 함정 · 고유 규약 · 게이트
+  사용설명서 · 계약 스키마. 지운 것 = 모델이 이미 아는 교본과 절차 상세.
+- **차단 계측 도입**: 차단하는 훅이 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에
+  1줄 남긴다. "이 훅이 실제로 무엇을 막는가"가 처음으로 데이터가 된다 — 다음 감사부터
+  존폐 판정의 근거다.
+
+### 추가·변경 — 1st-party 스킬 복원 + task-brief 신설 (#269)
+
+- **번들 스킬 11종 복귀**: 외부 스킬 리포로의 이관본이 감사에서 실패 판정을 받았다 — 결정
+  규칙·워크드 예시·실측 전례가 대량 소실(104건). 원본 전문을 이 리포 번들로 되살리고, 이관
+  리포의 구조 개선(references/ 분리·평가 계약)만 역수입했다. 스킬 본문이 다시 뭉개지면
+  게이트가 잡는다.
+- **task-brief 신설**: 사용자가 쓴 프롬프트를 objective/inputs/invariants/success_criteria/
+  boundaries/autonomy/verification 구조의 위임 브리프로 바꾸는 스킬 + 짧은 프롬프트에
+  구조화를 권하는 UserPromptSubmit 넛지 훅. 카탈로그 55→56.
+- **model-orchestration v3**: 설계·기획·문서 리뷰 / 핵심 구현·검증 / 반복 구현의 모델 티어
+  분담을 사용자 개정판으로 교체.
+- **update 안전장치**: `syncSkills` 가 심볼릭 링크를 만나면 실사본을 덮어쓰지 않도록 가드
+  (변이로 실덮어쓰기를 재현한 뒤 차단을 실증).
+
+### 변경 — 기본 설치 축소: 5자산 opt-in (#270)
+
+- `railway-skills` · `vercel-cli` · `supabase-cli` · `finance-skills` · `product-skills` 가
+  트랙 기본 추천에서 빠지고 opt-in 이 된다. **삭제가 아니라 강등** — wizard 토글과
+  `--with <id>` 는 그대로다. 트랙만으론 설치되지 않고 `--with` 로는 설치된다는 구분을
+  테스트가 문다.
+
 ## [v26.140.0] — 2026-07-27 (fix: 설치가 자기가 안 깐 파일을 실행하라고 시켰다)
 
 ### 수정 — ecc 를 켜고 설치하면 매 Write/Edit 마다 훅이 죽었다
