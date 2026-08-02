@@ -27,15 +27,13 @@ describe("resolveRules", () => {
 
   it("includes DEV rules when any dev track present", () => {
     const rules = resolveRules({ tracks: ["tooling"] });
-    expect(rules).toEqual(
-      expect.arrayContaining(["test-policy", "ship-checklist", "code-style", "error-handling"]),
-    );
+    expect(rules).toEqual(expect.arrayContaining(["test-policy", "ship-checklist"]));
   });
 
   it("includes UI rules only for csr/ssr/full", () => {
-    expect(resolveRules({ tracks: ["data"] })).not.toContain("design-workflow");
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("design-workflow");
-    expect(resolveRules({ tracks: ["full"] })).toContain("design-workflow");
+    expect(resolveRules({ tracks: ["data"] })).not.toContain("playwright-launch");
+    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("playwright-launch");
+    expect(resolveRules({ tracks: ["full"] })).toContain("playwright-launch");
   });
 
   it("includes benchmark-parity only alongside playwright-launch (UI tracks)", () => {
@@ -52,20 +50,15 @@ describe("resolveRules", () => {
     }
   });
 
+  // 2026-08-02 정비 — 기술스택 상세 룰 8종(shadcn·nextjs·htmx·pyside6·database·api-contract·
+  //   data-analysis·tauri)이 배포에서 빠져 트랙 매핑에 남은 것은 `cli-development` 하나다.
+  //   그래도 union 축은 계속 물어야 한다: 트랙을 섞었을 때 한쪽 트랙의 룰이 빠지면 그건
+  //   매핑이 아니라 덮어쓰기다.
   it("appends per-track rules union", () => {
-    const rules = resolveRules({ tracks: ["csr-fastapi", "ssr-nextjs"] });
-    expect(rules).toEqual(expect.arrayContaining(["shadcn", "api-contract", "database", "nextjs"]));
-  });
+    const mixed = resolveRules({ tracks: ["tooling", "executive"] });
+    expect(mixed).toContain("cli-development");
 
-  it("--with-tauri adds tauri rule only on csr-*|full", () => {
-    const csrFlag = resolveRules({ tracks: ["csr-supabase"], withTauri: true });
-    expect(csrFlag).toContain("tauri");
-
-    const dataFlag = resolveRules({ tracks: ["data"], withTauri: true });
-    expect(dataFlag).not.toContain("tauri");
-
-    const csrNoFlag = resolveRules({ tracks: ["csr-supabase"], withTauri: false });
-    expect(csrNoFlag).not.toContain("tauri");
+    expect(resolveRules({ tracks: ["executive"] })).not.toContain("cli-development");
   });
 
   it("returns sorted, deduplicated names", () => {

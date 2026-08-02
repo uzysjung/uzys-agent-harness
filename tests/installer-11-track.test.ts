@@ -39,17 +39,24 @@ const TRACKS: ReadonlyArray<Track> = [
   "growth-marketing",
 ];
 
-/** Per-track expected files (subset — proves Track-pattern routing in manifest.ts). */
+/**
+ * Per-track expected files (subset — proves Track-pattern routing in manifest.ts).
+ *
+ * 2026-08-02 정비 — 기술스택 상세 룰 8종이 배포에서 빠졌다. 트랙 구분이 남아 있는 축은
+ * UI 룰(playwright-launch·benchmark-parity = csr/ssr/full 한정) · dev 룰(test-policy·
+ * ship-checklist) · tooling 의 cli-development 셋이므로 그 축으로 기대치를 다시 잡는다.
+ * 전 트랙 공통 룰만 적으면 이 표가 라우팅을 더 이상 증명하지 못한다.
+ */
 const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
   tooling: { rules: ["cli-development", "test-policy"] },
-  "csr-supabase": { rules: ["shadcn", "api-contract", "design-workflow"], mcp: ["supabase"] },
-  "csr-fastify": { rules: ["shadcn", "api-contract", "database"] },
-  "csr-fastapi": { rules: ["shadcn", "api-contract", "database"] },
-  "ssr-htmx": { rules: ["htmx", "design-workflow"] },
-  "ssr-nextjs": { rules: ["nextjs", "shadcn", "design-workflow"] },
-  data: { rules: ["pyside6", "data-analysis"] },
+  "csr-supabase": { rules: ["playwright-launch", "benchmark-parity"], mcp: ["supabase"] },
+  "csr-fastify": { rules: ["playwright-launch", "ship-checklist"] },
+  "csr-fastapi": { rules: ["playwright-launch", "ship-checklist"] },
+  "ssr-htmx": { rules: ["playwright-launch", "benchmark-parity"] },
+  "ssr-nextjs": { rules: ["playwright-launch", "benchmark-parity"] },
+  data: { rules: ["test-policy", "ship-checklist"] },
   executive: { rules: ["git-policy"] },
-  full: { rules: ["nextjs", "htmx", "data-analysis", "design-workflow"] },
+  full: { rules: ["cli-development", "playwright-launch", "benchmark-parity"] },
   // v0.5.0 — executive-style baselines (common rules only).
   "project-management": { rules: ["git-policy", "change-management"] },
   "growth-marketing": { rules: ["git-policy", "change-management"] },
@@ -192,44 +199,9 @@ describe("track-specific skills routing", () => {
   });
 });
 
-describe("--with-tauri option", () => {
-  let projectDir: string;
-  beforeEach(() => {
-    projectDir = mkdtempSync(join(tmpdir(), "ch-tauri-"));
-  });
-  afterEach(() => {
-    rmSync(projectDir, { recursive: true, force: true });
-  });
-
-  it("adds tauri rule when csr-* + withTauri", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        // v26.81.0 (ADR-022) — withTauri flag → tauri-desktop 내부 자산 선택.
-        ...buildSpec(["csr-supabase"], projectDir),
-        options: NO_OPTS,
-        userOverride: { forceInclude: ["tauri-desktop"], forceExclude: [] },
-      },
-    });
-    expect(existsSync(join(projectDir, ".claude/rules/tauri.md"))).toBe(true);
-  });
-
-  it("does NOT add tauri rule when data + withTauri (no CSR)", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        ...buildSpec(["data"], projectDir),
-        options: NO_OPTS,
-        userOverride: { forceInclude: ["tauri-desktop"], forceExclude: [] },
-      },
-    });
-    expect(existsSync(join(projectDir, ".claude/rules/tauri.md"))).toBe(false);
-  });
-});
+// 2026-08-02 정비 — `--with-tauri` 룰 설치 describe 블록 삭제. `templates/rules/tauri.md` 가
+//   배포에서 빠져 검사할 산출물 자체가 없다. `tauri-desktop` **자산** 선택 경로는 그대로이고
+//   그쪽 커버리지는 `installer-track-matrix` / `external-assets` 가 맡는다.
 
 describe("--cli=both produces both Claude and Codex outputs", () => {
   let projectDir: string;

@@ -183,15 +183,19 @@ function findViolations(): { violations: Violation[]; references: number } {
 describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
   it("지목을 실제로 찾아낸다 (헛통과 차단)", () => {
     // 참조 탐지가 깨지면 아래 단언이 전부 공허하게 통과한다. 초록불이 무는지부터 확인한다.
+    // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
+    // 2026-08-02 정비)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    expect(references).toBeGreaterThan(4);
+    expect(references).toBeGreaterThan(2);
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
     // 색인이 비면 "위반 0"이 참이 아니라 무의미해진다.
     const { assetTracks, docTracks } = buildIndexes();
     expect(assetTracks.size).toBeGreaterThan(20);
-    expect(docTracks.size).toBeGreaterThan(10);
+    // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
+    // 21(룰 20 + 앵커)에서 10(룰 9 + 앵커)으로 줄었다(2026-08-02 정비).
+    expect(docTracks.size).toBeGreaterThan(5);
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
   });

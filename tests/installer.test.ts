@@ -108,9 +108,11 @@ describe("installer (integration with templates/)", () => {
         projectDir,
       },
     });
+    // 2026-08-02 정비 — data 트랙 전용 룰(data-analysis·pyside6)이 배포에서 빠졌다. union 축은
+    //   tooling 만 내는 cli-development + 두 트랙이 함께 무는 dev 룰로 계속 확인한다.
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/rules/data-analysis.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/rules/pyside6.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/rules/test-policy.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/rules/ship-checklist.md"))).toBe(true);
     // Root CLAUDE.md is a fill-in scaffold: real project name + active-track note + FILL sections.
     const rootMd = join(projectDir, "CLAUDE.md");
     expect(existsSync(rootMd)).toBe(true);
