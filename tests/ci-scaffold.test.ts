@@ -11,7 +11,6 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 const NO_OPTS: OptionFlags = {
   withPrune: false,
   withCodexTrust: false,
-  withKarpathyHook: false,
 };
 
 describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () => {

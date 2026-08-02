@@ -48,7 +48,7 @@ describe("설치 내역 관리 end-to-end (F-1e)", () => {
   function install(assetId: string): void {
     const spec: InstallSpec = {
       tracks: ["tooling"],
-      options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+      options: { withPrune: false, withCodexTrust: false },
       cli: ["claude"],
       projectDir,
     };
@@ -119,7 +119,7 @@ describe("루트 파일 기록 end-to-end (F-1f)", () => {
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+        options: { withPrune: false, withCodexTrust: false },
         cli: ["claude"],
         projectDir,
       },
@@ -181,7 +181,7 @@ describe("스킬 기준선 기록 end-to-end (R-3a)", () => {
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+        options: { withPrune: false, withCodexTrust: false },
         cli: ["claude"],
         projectDir,
       },

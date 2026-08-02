@@ -293,17 +293,6 @@ export function renderFinalSummary(
   // v26.78.1 (R2): pairwise if-chain → spec.cli derive. antigravity 누락 + claude 무조건
   //   prepend(claude 미선택 시에도 "Claude" 표기) 버그 fix. 헤더와 동일 SSOT.
   log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
-  // v26.78.1 (R1) — karpathy hook opt-in 결과 렌더. null = 미opt-in(표시 안 함).
-  //   이전엔 wired=false(plugin install 실패 등)여도 무음 → 사용자가 hook 안 깔린 걸
-  //   모른 채 "Install complete" 만 봄 (원칙 5 "증거를 보고한다" 위반).
-  if (report.karpathyHook) {
-    const kh = report.karpathyHook;
-    if (kh.wired) {
-      log(infoRow("HOOK", c.green("karpathy-coder pre-commit hook wired")));
-    } else {
-      log(infoRow("HOOK", c.yellow(`karpathy hook skipped — ${kh.reason ?? "unknown"}`)));
-    }
-  }
   // M-1 — settings.json 이 가리키던 없는 스크립트를 지웠으면 **소리를 낸다.** 무음 no-op 은
   //   이 처방을 채택할 때 명시적 기각 사유였다: 지금 유일한 파손 신호(bash exit 127)를 지우면서
   //   아무 말도 안 하면, 다음에 참조가 깨져도 아무도 모른다 (`no-false-ship` 원칙 5).
@@ -561,7 +550,7 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · spec-drift · checkpoint · mcp-pre-exec (security)",
+        "session-start · protect-files · checkpoint · mcp-pre-exec (security)",
         cats.hooks,
       );
     }
@@ -572,7 +561,7 @@ function renderPhase1Rows(
       phase1Row(
         "skills",
         cats.skills.length,
-        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)",
+        "spec-scaling · deep-research · ui-visual-review · eval-harness (modified)",
         cats.skills,
       );
     }

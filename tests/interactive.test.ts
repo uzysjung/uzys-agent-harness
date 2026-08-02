@@ -45,7 +45,6 @@ const existingState: DetectedInstall = {
 const ALL_FALSE_OPTIONS: OptionFlags = {
   withPrune: false,
   withCodexTrust: false,
-  withKarpathyHook: false,
 };
 
 describe("runInteractive", () => {
@@ -114,9 +113,9 @@ describe("runInteractive", () => {
   });
 
   it("v26.54.0 — asset unchecked from recommended → userOverride.forceExclude", async () => {
-    // v26.71.0 — playwright-skill 은 T3 라 추천 제외 → vetted 추천 자산(karpathy-coder)으로 uncheck 시나리오.
+    // T3 는 추천에서 빠지므로 uncheck 시나리오는 vetted 추천 자산(find-skills)으로 만든다.
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
-      initial.filter((t) => t !== "asset:karpathy-coder"),
+      initial.filter((t) => t !== "asset:find-skills"),
     );
     const prompts = makePrompts({ selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
@@ -125,7 +124,7 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.userOverride?.forceExclude).toContain("karpathy-coder");
+    expect(result.spec?.userOverride?.forceExclude).toContain("find-skills");
   });
 
   it("existing install: action=exit returns reason=exit", async () => {
@@ -418,14 +417,14 @@ describe("formatSummary", () => {
       options: {
         ...ALL_FALSE_OPTIONS,
         withPrune: true,
-        withKarpathyHook: true,
+        withCodexTrust: true,
       },
       cli: ["codex"],
       projectDir: "/proj",
     });
     expect(summary).toContain("tooling, csr-fastapi");
     // v26.81.0 (ADR-022) — Options 행은 잔존 동작 옵션만 표시.
-    expect(summary).toContain("prune, karpathyhook");
+    expect(summary).toContain("prune, codextrust");
     expect(summary).toContain("CLI:       codex");
     expect(summary).toContain("/proj");
   });
@@ -459,10 +458,10 @@ describe("toOptionFlags", () => {
   });
 
   it("sets only the keys present in the array to true", () => {
-    expect(toOptionFlags(["withPrune", "withKarpathyHook"])).toEqual({
+    expect(toOptionFlags(["withPrune", "withCodexTrust"])).toEqual({
       ...ALL_FALSE_OPTIONS,
       withPrune: true,
-      withKarpathyHook: true,
+      withCodexTrust: true,
     });
   });
 });
@@ -474,12 +473,12 @@ describe("v26.54.0 — splitInstallTargets", () => {
   it("split mixed list of option:* and asset:* prefixed ids", () => {
     const { optionKeys, assetIds } = splitInstallTargets([
       "option:withPrune",
-      "asset:playwright-skill",
-      "option:withKarpathyHook",
+      "asset:find-skills",
+      "option:withCodexTrust",
       "asset:railway-skills",
     ]);
-    expect(optionKeys).toEqual(["withPrune", "withKarpathyHook"]);
-    expect(assetIds).toEqual(["playwright-skill", "railway-skills"]);
+    expect(optionKeys).toEqual(["withPrune", "withCodexTrust"]);
+    expect(assetIds).toEqual(["find-skills", "railway-skills"]);
   });
 
   it("empty input → empty arrays", () => {
@@ -497,38 +496,37 @@ describe("v26.54.0 — splitInstallTargets", () => {
 describe("computeUserOverride", () => {
   // v26.87.0 — dev-method skills (official, has-dev-track) 가 tooling 추천에 합류.
   //   forceInclude/forceExclude diffing 의도는 동일 — recommended 기준선만 6종 늘어난다.
+  // 2026-08-02 정비 (ADR-060) — 이관 스킬이 internal → `kind:"skill"` 로 바뀌었을 뿐 추천
+  //   집합에 남는다(condition 보존). 전 트랙 상주분(north-star·gh-issue-workflow)도 dev
+  //   트랙에서 당연히 추천된다.
   const TOOLING_RECOMMENDED = [
     "agent-browser",
+    "audit-service-gaps",
+    "clear-korean-communication",
+    "compaction-handoff",
     "find-skills",
     // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.
     "frontend-design",
-    "karpathy-coder",
+    "gh-issue-workflow",
     // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 PM 트랙 한정으로 축소 → tooling 추천 제외.
     "multi-persona-review",
-    "gap-analysis-e2e",
-    "ultracode-service-audit",
-    "asis-tobe-decision",
-    "compaction-handoff",
-    "northstar-roadmap",
+    "north-star",
     // v26.105.0 (ADR-034) — model-orchestration 은 수단(권장) opt-in 으로 이동 → 추천 기준선 제외.
-    // v26.98.0 — harness-health-audit 추가 (ADR-027).
-    "harness-health-audit",
-    // v26.104.0 — recurrence-prevention 추가 (ADR-033).
     "recurrence-prevention",
+    "verification-loop",
   ];
 
   it("selections == recommended → undefined (no override)", () => {
-    // v26.71.0 — tooling 추천은 vetted 만 (T3 playwright-skill 제외; ADR 자산은 v26.106.0 카탈로그 제거).
-    // v26.87.0 — + dev-method skills (official). v26.98.0 기준 8종.
+    // v26.71.0 — tooling 추천은 vetted/official 만 (T3 제외).
     expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
-    // v26.71.0 — 새 추천(vetted)에서 karpathy-coder 를 uncheck → forceExclude.
-    const without = TOOLING_RECOMMENDED.filter((id) => id !== "karpathy-coder");
+    // 추천 집합에서 find-skills 를 uncheck → forceExclude.
+    const without = TOOLING_RECOMMENDED.filter((id) => id !== "find-skills");
     const result = computeUserOverride(["tooling"] as Track[], without);
     expect(result).toBeDefined();
-    expect(result?.forceExclude).toEqual(["karpathy-coder"]);
+    expect(result?.forceExclude).toEqual(["find-skills"]);
     expect(result?.forceInclude).toEqual([]);
   });
 

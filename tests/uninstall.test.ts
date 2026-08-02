@@ -791,86 +791,9 @@ describe("uninstallAction — --only (항목별 제거)", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("karpathy 훅이 settings.json 에 남아 있으면 수기 제거 안내를 출력한다 (F-1d)", () => {
-    // 자동으로 안 고치는 이유는 사용자 편집이 섞이기 때문 — 대신 정확히 무엇을 지울지 알려준다.
-    const log: InstallLog = {
-      ...baseLog(),
-      assets: [
-        {
-          id: "karpathy-coder",
-          category: "dev-tools",
-          method: "plugin",
-          scope: "project",
-          detail: { marketplace: "mp", pluginId: "k@mp" },
-        },
-      ],
-    };
-    writeLog(tmpDir, log);
-    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
-    writeFileSync(
-      join(tmpDir, ".claude", "settings.json"),
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Write|Edit",
-              hooks: [
-                {
-                  type: "command",
-                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      "utf8",
-    );
-    const logFn = vi.fn();
-    uninstallAction(
-      { projectDir: tmpDir, only: "karpathy-coder" },
-      {
-        log: logFn,
-        err: vi.fn(),
-        exit: vi.fn() as unknown as (code: number) => never,
-        spawn: vi.fn(() => ok()),
-        rm: vi.fn(),
-      },
-    );
-    const output = logFn.mock.calls.flat().join("\n");
-    expect(output).toContain("[MANUAL]");
-    expect(output).toContain(".claude/settings.json");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it("훅 흔적이 없으면 수기 안내를 출력하지 않는다 (예측 아니라 실제 상태를 읽는다)", () => {
-    const log: InstallLog = {
-      ...baseLog(),
-      assets: [
-        {
-          id: "karpathy-coder",
-          category: "dev-tools",
-          method: "plugin",
-          scope: "project",
-          detail: { marketplace: "mp", pluginId: "k@mp" },
-        },
-      ],
-    };
-    writeLog(tmpDir, log);
-    const logFn = vi.fn();
-    uninstallAction(
-      { projectDir: tmpDir, only: "karpathy-coder" },
-      {
-        log: logFn,
-        err: vi.fn(),
-        exit: vi.fn() as unknown as (code: number) => never,
-        spawn: vi.fn(() => ok()),
-        rm: vi.fn(),
-      },
-    );
-    expect(logFn.mock.calls.flat().join("\n")).not.toContain("[MANUAL]");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
+  // v26.123.0 (F-1d) — [MANUAL] 수기 안내는 karpathy-coder 훅 하나만을 위한 것이었다.
+  //   2026-08-02 정비 (ADR-060)가 그 자산·훅·배선을 삭제해 안내할 표면이 남지 않았다.
+  //   `.claude/` 밖에 남는 것의 안내([ROOT], F-1f)는 아래 별도 describe 가 계속 지킨다.
 });
 
 /**
@@ -1095,79 +1018,10 @@ describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리"
   });
 });
 
-/**
- * v26.123.0 — dry-run 과 실행 경로가 **같은 조건**으로 수기 안내를 낸다.
- * 판정 기준은 "`--only` 인가"가 아니라 "`.claude/` 가 남는가"다: `--keep-templates` 만 줘도
- * settings.json 은 살아남으므로 훅 등록 안내가 필요하다. 두 경로가 갈리면 미리보기가 거짓이 된다.
- */
-describe("uninstallAction — 수기 안내 조건은 templates 보존 여부", () => {
-  let tmpDir = "";
-  beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), "harness-advisory-"));
-  });
-
-  function setup(): void {
-    writeLog(tmpDir, {
-      ...baseLog(),
-      assets: [
-        {
-          id: "karpathy-coder",
-          category: "dev-tools",
-          method: "plugin",
-          scope: "project",
-          detail: { marketplace: "mp", pluginId: "k@mp" },
-        },
-      ],
-    });
-    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
-    writeFileSync(
-      join(tmpDir, ".claude", "settings.json"),
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Write|Edit",
-              hooks: [
-                {
-                  type: "command",
-                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      "utf8",
-    );
-  }
-
-  function run(options: Parameters<typeof uninstallAction>[0]): string {
-    const logFn = vi.fn();
-    uninstallAction(options, {
-      log: logFn,
-      err: vi.fn(),
-      exit: vi.fn() as unknown as (code: number) => never,
-      spawn: vi.fn(() => ok()),
-      rm: vi.fn(),
-    });
-    return logFn.mock.calls.flat().join("\n");
-  }
-
-  it("--keep-templates 만 줘도 안내한다 (.claude/ 가 남으므로 훅 등록이 살아 있다)", () => {
-    setup();
-    expect(run({ projectDir: tmpDir, keepTemplates: true })).toContain("[MANUAL]");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it("같은 옵션의 dry-run 과 실행이 안내 여부에서 일치한다", () => {
-    setup();
-    const dry = run({ projectDir: tmpDir, keepTemplates: true, dryRun: true }).includes("[MANUAL]");
-    setup();
-    const real = run({ projectDir: tmpDir, keepTemplates: true }).includes("[MANUAL]");
-    expect(dry).toBe(real);
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-});
+// v26.123.0 — dry-run 과 실행 경로가 같은 조건으로 안내를 낸다는 계약을 [MANUAL] 안내로
+//   검증하던 describe 가 여기 있었다. 2026-08-02 정비 (ADR-060)가 그 안내의 유일한 대상
+//   (karpathy 훅)을 삭제했다. **같은 계약은 [ROOT] 안내 쪽에 살아 있다** —
+//   아래 "dry-run 도 같은 안내를 낸다 — 미리보기가 실제와 다르면 미리보기가 아니다".
 
 /**
  * v26.123.0 2차 검증 반영 (SOD F4) — C1 수정이 과하게 휘둘러 `--keep-templates` 전량 uninstall

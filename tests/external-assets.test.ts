@@ -52,20 +52,21 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
     expect(assetTrustTier("anthropic-document-skills")).toBe("official"); // anthropics 공식
     expect(assetTrustTier("ecc-prune")).toBe("official"); // 하네스 자체
     expect(assetTrustTier("ecc-plugin")).toBe("vetted"); // affaan-m 199k
-    expect(assetTrustTier("playwright-skill")).toBe("experimental"); // 264 < 1000
+    expect(assetTrustTier("railway-skills")).toBe("experimental"); // 268 < 1000
   });
 
   it("미분류(맵 누락) 자산은 보수적으로 experimental (검증 안 된 것 취급)", () => {
     expect(assetTrustTier("nonexistent-asset-xyz")).toBe("experimental");
   });
 
-  it("T3 experimental 은 star<1000 3개 (railway/playwright/revealjs)", () => {
+  it("T3 experimental 은 star<1000 2개 (railway/revealjs)", () => {
     // v26.106.0 (ADR-035) — architecture-decision-record 제거: 최저 star(179 스냅샷) +
     //   1st-party 대체재(change-management 룰이 전 트랙 무조건 설치, ADR 템플릿+status flow 완비).
+    // 2026-08-02 정비 (ADR-060) — playwright-skill 제거 (E2E 작성 가이드 = 모델이 이미 아는 것).
     const t3 = EXTERNAL_ASSETS.filter((a) => assetTrustTier(a.id) === "experimental")
       .map((a) => a.id)
       .sort();
-    expect(t3).toEqual(["playwright-skill", "railway-skills", "revealjs"]);
+    expect(t3).toEqual(["railway-skills", "revealjs"]);
   });
 });
 
@@ -75,62 +76,62 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
   //   (filterApplicableAssets→shouldInstallAsset)에 누락 → experimental 이 default 설치되던 버그.
   //   이 describe 는 condition-only 미설치 + forceInclude 시 설치(선택권 유지)를 고정한다.
   it("experimental(T3) 은 condition 매치만으론 미설치 (opt-in only)", () => {
-    const pw = EXTERNAL_ASSETS.find((a) => a.id === "playwright-skill");
-    if (!pw) throw new Error("playwright-skill missing");
-    expect(assetTrustTier("playwright-skill")).toBe("experimental");
-    // has-dev-track condition 은 tooling 매치하지만 T3 → default 제외.
-    expect(shouldInstallAsset(pw, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+    const rw = EXTERNAL_ASSETS.find((a) => a.id === "railway-skills");
+    if (!rw) throw new Error("railway-skills missing");
+    expect(assetTrustTier("railway-skills")).toBe("experimental");
+    // any-track condition 은 csr-fastify 매치하지만 T3 → default 제외.
+    expect(shouldInstallAsset(rw, { tracks: ["csr-fastify"], options: NO_OPTIONS })).toBe(false);
   });
 
   it("experimental 도 forceInclude(--with / interactive 체크) 시 설치 (강제 차단 아님 — AC4)", () => {
-    const pw = EXTERNAL_ASSETS.find((a) => a.id === "playwright-skill");
-    if (!pw) throw new Error("playwright-skill missing");
+    const rw = EXTERNAL_ASSETS.find((a) => a.id === "railway-skills");
+    if (!rw) throw new Error("railway-skills missing");
     expect(
-      shouldInstallAsset(pw, {
-        tracks: ["tooling"],
+      shouldInstallAsset(rw, {
+        tracks: ["csr-fastify"],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: ["playwright-skill"], forceExclude: [] },
+        userOverride: { forceInclude: ["railway-skills"], forceExclude: [] },
       }),
     ).toBe(true);
   });
 
-  it("filterApplicableAssets(tooling) 는 experimental 제외 + vetted 포함 (헤더 추천과 정합)", () => {
+  it("filterApplicableAssets(csr-fastify) 는 experimental 제외 + vetted 포함 (헤더 추천과 정합)", () => {
     const ids = filterApplicableAssets(EXTERNAL_ASSETS, {
-      tracks: ["tooling"],
+      tracks: ["csr-fastify"],
       options: NO_OPTIONS,
     }).map((a) => a.id);
-    expect(ids).not.toContain("playwright-skill"); // T3
+    expect(ids).not.toContain("railway-skills"); // T3
     expect(ids).not.toContain("architecture-decision-record"); // T3
     expect(ids).toContain("find-skills"); // vetted
-    expect(ids).toContain("karpathy-coder"); // official/vetted
+    expect(ids).toContain("frontend-design"); // official
   });
 
-  it("experimentalOptInCandidates(tooling) = 조건 매치 T3 (discoverability 힌트 대상)", () => {
-    const ids = experimentalOptInCandidates({ tracks: ["tooling"], options: NO_OPTIONS })
+  it("experimentalOptInCandidates(csr-fastify) = 조건 매치 T3 (discoverability 힌트 대상)", () => {
+    const ids = experimentalOptInCandidates({ tracks: ["csr-fastify"], options: NO_OPTIONS })
       .map((a) => a.id)
       .sort();
-    // tooling = has-dev-track → playwright-skill (T3) 매치. railway/next 는 csr/ssr 전용.
-    expect(ids).toEqual(["playwright-skill"]);
+    // 2026-08-02 정비 (ADR-060) — playwright-skill 제거 후 조건 매치 T3 는 railway-skills 뿐.
+    //   revealjs 는 opt-in 이라 condition 이 절대 매치하지 않는다.
+    expect(ids).toEqual(["railway-skills"]);
   });
 
   it("experimentalOptInCandidates 는 forceInclude(--with) 된 것 제외 (이미 설치되므로)", () => {
-    // v26.106.0 — ADR 자산 제거 후 tooling 매치 T3 는 playwright-skill 뿐 → csr 트랙으로 검증
-    //   (railway-skills 매치, playwright-skill forceInclude 시 제외되는지).
     const ids = experimentalOptInCandidates({
       tracks: ["csr-fastify"],
       options: NO_OPTIONS,
-      userOverride: { forceInclude: ["playwright-skill"], forceExclude: [] },
+      userOverride: { forceInclude: ["railway-skills"], forceExclude: [] },
     }).map((a) => a.id);
-    expect(ids).not.toContain("playwright-skill"); // 이미 opt-in → 힌트 불필요
-    expect(ids).toContain("railway-skills"); // 여전히 미설치 → 힌트 대상
+    expect(ids).not.toContain("railway-skills"); // 이미 opt-in → 힌트 불필요
   });
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 66 distinct asset ids (no duplicates)", () => {
+  it("contains 55 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(66);
+    // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
+    //   + 9(이관 uzys npx) + 3(frontend) = 55.
+    expect(ids).toHaveLength(55);
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
     expect(ids).toContain("code-review");
     expect(ids).toContain("feature-dev");
@@ -139,45 +140,133 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).not.toContain("context7");
     // v26.108.0 (ADR-037) — ci-scaffold (opt-in internal, .github/workflows fill-in 템플릿).
     expect(ids).toContain("ci-scaffold");
-    // v26.95.0 — gemini-consult (opt-in internal bundled skill, NOT dev-method).
-    expect(ids).toContain("gemini-consult");
-    // v26.100.0 — codex-consult (opt-in internal bundled skill, gemini-consult 의 형제).
-    expect(ids).toContain("codex-consult");
-    // v26.91.0 — coreyhaines31/marketingskills (opt-in 번들). 기존 marketing-skills(alirezarezvani)
-    //   와 동시 존재 — id 가 달라(하이픈 유무) 충돌 없음. 둘 다 카탈로그에 있어야 병존이 깨지지 않음.
+    // 2026-08-02 정비 — 삭제 12종은 카탈로그에 없어야 한다. 부재가 곧 결정이다 (ADR-060).
+    for (const removed of [
+      "impeccable",
+      "polars-K-Dense",
+      "dask-K-Dense",
+      "python-resource-management",
+      "python-performance-optimization",
+      "c-level-skills",
+      "business-growth-skills",
+      "pm-skills",
+      "marketing-skills",
+      "research-summarizer",
+      "playwright-skill",
+      "karpathy-coder",
+    ]) {
+      expect(ids, `${removed} 는 제거 대상`).not.toContain(removed);
+    }
+    // 동명이물(marketing-skills)이 사라져도 coreyhaines31 번들은 유지 — 삭제 대상이 아니었다.
     expect(ids).toContain("marketingskills");
-    expect(ids).toContain("marketing-skills");
-    // v26.92.0 — frontend-design (Anthropic official, has-dev-track 기본추천). impeccable 보완재.
+    // v26.92.0 — frontend-design (Anthropic official, has-dev-track 기본추천).
     expect(ids).toContain("frontend-design");
-    expect(ids).toContain("polars-K-Dense");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");
     expect(ids).toContain("ecc-plugin");
     expect(ids).toContain("ecc-prune");
     expect(ids).toContain("trailofbits-skills");
-    expect(ids).toContain("business-growth-skills");
-    // v26.87.0 — dev-method skills (uzys 1st-party, internal).
+    // v26.87.0 — 번들 internal skills (uzys 1st-party).
     for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
+  });
+
+  // 2026-08-02 정비 (ADR-060) — uzys 방법론 스킬 9종의 이관. Promise=Impl: 이 리포에 더는
+  //   templates/skills/<id>/ 가 없으므로 method 는 반드시 이관 리포를 가리키는 `kind:"skill"`
+  //   이어야 한다. internal 로 남으면 존재하지 않는 dir 을 복사하려다 silent skip 된다
+  //   (ci-scaffold 테스트가 잡는 것과 같은 함정).
+  it("이관 uzys 스킬 9종: kind:skill · uzysjung/uzys-agent-skills · tier official · 전신 condition", () => {
+    const expected: Record<string, { category: string; condition: string }> = {
+      "clear-korean-communication": { category: "workflow", condition: "has-dev-track" },
+      // north-star · gh-issue-workflow 는 이관 전 COMMON_SKILL_DIRS(전 트랙 상주)였다 —
+      //   강등 금지. any-track 전 트랙 나열이 그 도달 범위의 표현이다.
+      "north-star": { category: "workflow", condition: "any-track" },
+      "gh-issue-workflow": { category: "workflow", condition: "any-track" },
+      "audit-service-gaps": { category: "dev-tools", condition: "has-dev-track" },
+      "verification-loop": { category: "dev-tools", condition: "has-dev-track" },
+      "multi-persona-review": { category: "dev-tools", condition: "has-dev-track" },
+      "recurrence-prevention": { category: "workflow", condition: "has-dev-track" },
+      "model-orchestration": { category: "workflow", condition: "opt-in" },
+      "external-model-consult": { category: "dev-tools", condition: "opt-in" },
+    };
+    for (const [id, want] of Object.entries(expected)) {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      if (!a) throw new Error(`${id} missing`);
+      expect(assetTrustTier(id), id).toBe("official");
+      expect(a.source, id).toBe("uzys");
+      expect(a.category, id).toBe(want.category);
+      expect(a.condition.kind, id).toBe(want.condition);
+      expect(a.method.kind, id).toBe("skill");
+      if (a.method.kind !== "skill") throw new Error("not skill");
+      expect(a.method.source, id).toBe("uzysjung/uzys-agent-skills");
+      expect(a.method.skill, id).toBe(id);
+      // 번들 목록에 남으면 없는 templates/skills/<id> 를 복사하려 든다.
+      expect(INTERNAL_BUNDLED_SKILL_IDS, id).not.toContain(id);
+    }
+    // 전 트랙 보존의 실동작 확인 — executive(비-dev)에서도 설치된다.
+    for (const id of ["north-star", "gh-issue-workflow"]) {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      if (!a) throw new Error(`${id} missing`);
+      for (const t of TRACKS) {
+        expect(shouldInstallAsset(a, { tracks: [t], options: NO_OPTIONS }), `${id}/${t}`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  // 2026-08-02 정비 — 프론트엔드 3종. Promise=Impl: 광고한 설치 좌표 = 정의 (drift 시 fail).
+  //   star 실측 2026-08-02 `gh api` → 전부 vetted(≥1000). 전부 opt-in (무단 설치 0).
+  it("frontend 신규 3종: opt-in · vetted · 정확한 skill 좌표", () => {
+    const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
+    expect(byId("jakubkrehel-skills")?.method).toEqual({
+      kind: "skill",
+      // 7 스킬 세트 전부 설치 — description 이 "7 skills" 를 광고하므로 `--skill` 로
+      //   하나만 고르면 그 문구가 곧 거짓이 된다.
+      source: "jakubkrehel/skills",
+    });
+    expect(byId("taste-skill")?.method).toEqual({
+      kind: "skill",
+      source: "Leonxlnx/taste-skill",
+      skill: "taste-skill",
+    });
+    expect(byId("scroll-world")?.method).toEqual({
+      kind: "skill",
+      source: "oso95/scroll-world",
+      skill: "scroll-world",
+    });
+    for (const id of ["jakubkrehel-skills", "taste-skill", "scroll-world"]) {
+      const a = byId(id);
+      if (!a) throw new Error(`${id} missing`);
+      expect(a.category, id).toBe("frontend");
+      expect(a.condition.kind, id).toBe("opt-in");
+      expect(assetTrustTier(id), id).toBe("vetted");
+      // opt-in ⇒ 트랙만으론 절대 미설치, forceInclude 로만 설치.
+      expect(shouldInstallAsset(a, { tracks: ["full"], options: NO_OPTIONS }), id).toBe(false);
+      expect(
+        shouldInstallAsset(a, {
+          tracks: ["full"],
+          options: NO_OPTIONS,
+          userOverride: { forceInclude: [id], forceExclude: [] },
+        }),
+        id,
+      ).toBe(true);
+    }
+    // gsap-skills 는 무변경 — 같은 사이클에서 건드리지 않았음을 고정한다.
+    expect(byId("gsap-skills")?.method).toEqual({
+      kind: "plugin",
+      marketplace: "greensock/gsap-skills",
+      pluginId: "gsap-skills@gsap-skills",
+    });
   });
 
   // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
-  it("dev-method skills: 8 internal/official/has-dev-track, dev-tools×4 + workflow×4", () => {
+  // 2026-08-02 정비 (ADR-060) — 8종 중 7종 이관 → 잔존 1종. 술어는 그대로다.
+  it("dev-method skills: internal/official/has-dev-track, 잔존 = compaction-handoff", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
-      "multi-persona-review": "dev-tools",
-      "gap-analysis-e2e": "dev-tools",
-      "ultracode-service-audit": "dev-tools",
-      "asis-tobe-decision": "workflow",
       "compaction-handoff": "workflow",
-      "northstar-roadmap": "workflow",
-      // v26.105.0 (ADR-034) — model-orchestration 은 '수단(권장)' 계층으로 이동 (아래 means 테스트).
-      // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy). 감사 도구라 dev-tools
-      //   (ultracode-service-audit 과 동일 계열 — workflow 가 아니라 tool-level audit).
-      "harness-health-audit": "dev-tools",
-      // v26.104.0 — 재발방지 (ADR-033). 프로세스 스킬(사다리/분류/보고) — audit 도구가 아니라 workflow.
-      "recurrence-prevention": "workflow",
     };
     expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
     for (const id of DEV_METHOD_SKILL_IDS) {
@@ -192,68 +281,49 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       expect(a.method.key).toBe(id);
       expect(a.category).toBe(expectedCategory[id]);
     }
+    // 번들 목록의 모든 id 는 실제로 templates/skills/<id> 로 존재해야 한다 — 없으면 복사가
+    //   silent skip 된다. 이관 사이클이 목록만 지우고 dir 을 남기거나 그 반대를 하면 여기서 문다.
+    expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual([...DEV_METHOD_SKILL_IDS].sort());
   });
 
   // WHY core-on-dev-tracks: official tier (not experimental) + has-dev-track → installs by
   //   default on any dev track, but forceExclude (wizard uncheck / --without) must drop it.
   it("dev-method skills install by default on dev tracks, droppable via forceExclude", () => {
-    const audit = EXTERNAL_ASSETS.find((a) => a.id === "ultracode-service-audit");
-    if (!audit) throw new Error("ultracode-service-audit missing");
+    const handoff = EXTERNAL_ASSETS.find((a) => a.id === "compaction-handoff");
+    if (!handoff) throw new Error("compaction-handoff missing");
     // tooling = dev track → default install.
-    expect(shouldInstallAsset(audit, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(true);
+    expect(shouldInstallAsset(handoff, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(true);
     // executive (non-dev) → not installed.
-    expect(shouldInstallAsset(audit, { tracks: ["executive"], options: NO_OPTIONS })).toBe(false);
+    expect(shouldInstallAsset(handoff, { tracks: ["executive"], options: NO_OPTIONS })).toBe(false);
     // dev track but user unchecks in wizard / --without → dropped.
     expect(
-      shouldInstallAsset(audit, {
+      shouldInstallAsset(handoff, {
         tracks: ["tooling"],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: [], forceExclude: ["ultracode-service-audit"] },
+        userOverride: { forceInclude: [], forceExclude: ["compaction-handoff"] },
       }),
     ).toBe(false);
   });
 
-  // v26.95.0 gemini-consult + v26.100.0 codex-consult: opt-in internal bundled skills (advisors),
-  //   NOT dev-method skills. Promise=Impl: each must be bundled (so it renders across 4 CLIs) yet
-  //   opt-in (installs only on explicit selection) — the exact combination that made the
-  //   dev-method has-dev-track assumption too narrow. Guards that INTERNAL_BUNDLED = dev-method +
-  //   exactly these means, and that each stays opt-in.
-  // v26.105.0 (ADR-034) — model-orchestration 합류: 사용자 확정(2026-07-18) 방법론(필수 코어) vs
-  //   수단(권장) 계층 분리. "agy, codex, model-policy는 수단. 하지만 난 권장" → 기본 설치에서
-  //   opt-in 권장으로 이동. description 에 "(opt-in — recommended)" 표기 의무.
-  it("수단(권장) 계층 (model-orchestration/gemini/codex): opt-in internal, bundled (4-CLI) but not dev-method", () => {
-    const means: Record<string, "dev-tools" | "workflow"> = {
-      "model-orchestration": "workflow",
-      "gemini-consult": "dev-tools",
-      "codex-consult": "dev-tools",
-      // v26.130.0 — 설명 진단. dev-method 예산(ADR-032 ratchet)을 33 토큰 넘겨 opt-in 으로 편입.
-      "explain-plainly": "workflow",
-    };
-    // Superset relationship: bundled ids = dev-method ids + the means tier, no overlap.
-    expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual(
-      [...DEV_METHOD_SKILL_IDS, ...Object.keys(means)].sort(),
-    );
-    for (const [id, category] of Object.entries(means)) {
-      expect(DEV_METHOD_SKILL_IDS).not.toContain(id);
+  // v26.105.0 (ADR-034) — '수단(권장)' 계층: 필수 아님 + 권장(description 에 opt-in 표기).
+  //   2026-08-02 정비 (ADR-060) 이후 이 계층은 전부 이관 리포 스킬이다 — 번들이 아니어도
+  //   "opt-in 인데 권장" 이라는 표시 의무는 그대로 남는다 (기본 설치로 오인 방지).
+  it("수단(권장) 계층 (model-orchestration/external-model-consult): opt-in + description 에 opt-in 표기", () => {
+    for (const id of ["model-orchestration", "external-model-consult"]) {
       const a = EXTERNAL_ASSETS.find((x) => x.id === id);
       if (!a) throw new Error(`${id} missing`);
-      expect(assetTrustTier(id)).toBe("official");
-      expect(a.source).toBe("uzys");
-      expect(a.category).toBe(category);
-      expect(a.condition.kind).toBe("opt-in");
-      // 수단 계층은 wizard 라벨(description)에 opt-in 임이 드러나야 한다 — 기본 설치로 오인 방지.
-      expect(a.description).toContain("opt-in");
-      expect(a.method.kind).toBe("internal");
-      if (a.method.kind !== "internal") throw new Error("not internal");
-      expect(a.method.key).toBe(id);
+      expect(DEV_METHOD_SKILL_IDS, id).not.toContain(id);
+      expect(a.condition.kind, id).toBe("opt-in");
+      expect(a.description, id).toContain("opt-in");
       // opt-in ⇒ NOT installed by track alone (even a dev track); only on forceInclude.
-      expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+      expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS }), id).toBe(false);
       expect(
         shouldInstallAsset(a, {
           tracks: ["tooling"],
           options: NO_OPTIONS,
           userOverride: { forceInclude: [id], forceExclude: [] },
         }),
+        id,
       ).toBe(true);
     }
   });
@@ -446,11 +516,13 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
 
 describe("shouldInstallAsset — track conditions", () => {
   it("any-track condition matches when at least one track is in the set", () => {
-    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
-    if (!polars) throw new Error("polars asset missing");
-    expect(shouldInstallAsset(polars, { tracks: ["data"], options: NO_OPTIONS })).toBe(true);
-    expect(shouldInstallAsset(polars, { tracks: ["full"], options: NO_OPTIONS })).toBe(true);
-    expect(shouldInstallAsset(polars, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+    const dataPlugin = EXTERNAL_ASSETS.find((a) => a.id === "anthropic-data-plugin");
+    if (!dataPlugin) throw new Error("anthropic-data-plugin missing");
+    expect(shouldInstallAsset(dataPlugin, { tracks: ["data"], options: NO_OPTIONS })).toBe(true);
+    expect(shouldInstallAsset(dataPlugin, { tracks: ["full"], options: NO_OPTIONS })).toBe(true);
+    expect(shouldInstallAsset(dataPlugin, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(
+      false,
+    );
   });
 
   it("has-dev-track matches any non-executive track", () => {
@@ -566,31 +638,27 @@ describe("filterApplicableAssets", () => {
       tracks: ["executive"] as Track[],
       options: NO_OPTIONS,
     });
-    // executive 한정 자산만 — Anthropic document-skills + c-level + finance
+    // executive 한정 자산 + 전 트랙 상주 이관 스킬 (north-star · gh-issue-workflow).
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("anthropic-document-skills");
-    expect(ids).toContain("c-level-skills");
     expect(ids).toContain("finance-skills");
+    expect(ids).toContain("north-star");
+    expect(ids).toContain("gh-issue-workflow");
     expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
-    expect(ids).not.toContain("polars-K-Dense"); // data|full
+    expect(ids).not.toContain("anthropic-data-plugin"); // data|full
   });
 
-  it("data track gets 3 data-specific assets + dev baselines (v26.106.0 ADR-035)", () => {
+  it("data track gets data-specific assets + dev baselines (v26.106.0 ADR-035)", () => {
     const apps = filterApplicableAssets(EXTERNAL_ASSETS, {
       tracks: ["data"] as Track[],
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
     expect(ids).toEqual(
-      expect.arrayContaining([
-        "polars-K-Dense",
-        "dask-K-Dense",
-        "anthropic-data-plugin",
-        "find-skills",
-        "agent-browser",
-      ]),
+      expect.arrayContaining(["anthropic-data-plugin", "find-skills", "agent-browser"]),
     );
-    // v26.106.0 (ADR-035 사용자 승인 A) — 일반 Python 패턴 2종은 opt-in 강등 (순수 pattern-guide).
+    // 2026-08-02 정비 (ADR-060) — data 스킬 4종(polars·dask·python 2종)은 카탈로그에서 제거.
+    expect(ids).not.toContain("polars-K-Dense");
     expect(ids).not.toContain("python-resource-management");
     expect(ids).not.toContain("python-performance-optimization");
     expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
@@ -607,7 +675,7 @@ describe("filterApplicableAssets", () => {
     expect(ids).not.toContain("ecc-plugin");
     expect(ids).not.toContain("trailofbits-skills");
     // Track 매트릭스의 vetted/official 자산은 포함
-    expect(ids).toContain("polars-K-Dense");
+    expect(ids).toContain("anthropic-data-plugin");
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 experimental opt-in only (PRD R6)
     expect(ids).toContain("vercel-cli");
     expect(ids).toContain("anthropic-document-skills");
@@ -653,52 +721,52 @@ describe("Track partition invariants — v0.8.1 SSOT", () => {
 });
 
 describe("v26.47.0 — shouldInstallAsset userOverride (Phase C full)", () => {
+  // 2026-08-02 정비 — 표본 자산이 polars-K-Dense(제거)에서 anthropic-data-plugin 으로 바뀌었다.
+  //   조건은 같다: `any-track ["data","full"]` + vetted/official.
+  const dataPlugin = () => {
+    const a = EXTERNAL_ASSETS.find((x) => x.id === "anthropic-data-plugin");
+    if (!a) throw new Error("anthropic-data-plugin missing");
+    return a;
+  };
+
   it("forceExclude > condition: 매칭 자산도 강제 제외", () => {
-    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
-    if (!polars) throw new Error("polars missing");
     // data track 에서 추천이지만 사용자가 unchecked
     expect(
-      shouldInstallAsset(polars, {
+      shouldInstallAsset(dataPlugin(), {
         tracks: ["data"] as Track[],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: [], forceExclude: ["polars-K-Dense"] },
+        userOverride: { forceInclude: [], forceExclude: ["anthropic-data-plugin"] },
       }),
     ).toBe(false);
   });
 
   it("forceInclude > condition: 미매칭 자산도 강제 포함", () => {
-    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
-    if (!polars) throw new Error("polars missing");
-    // tooling track 은 폴라스 추천 X — 사용자가 명시 추가
+    // tooling track 은 추천 X — 사용자가 명시 추가
     expect(
-      shouldInstallAsset(polars, {
+      shouldInstallAsset(dataPlugin(), {
         tracks: ["tooling"] as Track[],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: ["polars-K-Dense"], forceExclude: [] },
+        userOverride: { forceInclude: ["anthropic-data-plugin"], forceExclude: [] },
       }),
     ).toBe(true);
   });
 
   it("forceExclude > forceInclude (동시 명시 시 exclude 우선)", () => {
-    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
-    if (!polars) throw new Error("polars missing");
     expect(
-      shouldInstallAsset(polars, {
+      shouldInstallAsset(dataPlugin(), {
         tracks: ["data"] as Track[],
         options: NO_OPTIONS,
         userOverride: {
-          forceInclude: ["polars-K-Dense"],
-          forceExclude: ["polars-K-Dense"],
+          forceInclude: ["anthropic-data-plugin"],
+          forceExclude: ["anthropic-data-plugin"],
         },
       }),
     ).toBe(false);
   });
 
   it("userOverride 미제공 시 기존 condition 만 평가 (backward compat)", () => {
-    const polars = EXTERNAL_ASSETS.find((a) => a.id === "polars-K-Dense");
-    if (!polars) throw new Error("polars missing");
-    expect(shouldInstallAsset(polars, { tracks: ["data"] as Track[], options: NO_OPTIONS })).toBe(
-      true,
-    );
+    expect(
+      shouldInstallAsset(dataPlugin(), { tracks: ["data"] as Track[], options: NO_OPTIONS }),
+    ).toBe(true);
   });
 });

@@ -128,7 +128,7 @@ describe("update — 같은 초에 두 번 돌려도 첫 스냅샷이 살아남�
   function spec(): InstallSpec {
     return {
       tracks: ["tooling"],
-      options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+      options: { withPrune: false, withCodexTrust: false },
       cli: ["claude"],
       projectDir,
     };

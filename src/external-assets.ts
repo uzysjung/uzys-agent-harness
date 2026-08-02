@@ -14,7 +14,7 @@
 
 import type { Category, Source } from "./categories.js";
 import { hasDevTrack } from "./track-match.js";
-import { CLI_BASES, type CliTargets, type OptionFlags, type Track } from "./types.js";
+import { CLI_BASES, type CliTargets, type OptionFlags, TRACKS, type Track } from "./types.js";
 
 export type ExternalAssetMethod =
   /** `npx skills add <source>[ --skill <name>] --yes` */
@@ -43,25 +43,9 @@ export type ExternalAssetMethod =
       key:
         | "tauri-desktop"
         // v26.87.0 — dev-method skills (uzys 1st-party, repo-bundled templates).
-        | "multi-persona-review"
-        | "gap-analysis-e2e"
-        | "ultracode-service-audit"
-        | "asis-tobe-decision"
-        // v26.130.0 — 설명이 안 통할 때의 진단(지시대상 → 한 문장 → 근거). 사용자 요청.
-        | "explain-plainly"
+        // 2026-08-02 정비 — 방법론 스킬 대부분이 uzysjung/uzys-agent-skills 로 이관돼
+        //   `kind: "skill"` (npx skills add) 로 대체됐다. 번들로 남는 것은 compaction-handoff 하나.
         | "compaction-handoff"
-        | "northstar-roadmap"
-        // v26.93.0 — Orchestration & Model Policy (사용자 확정 2026-07-04) 스킬화.
-        | "model-orchestration"
-        // v26.98.0 — 하네스 건강 감사 (truth/efficacy/economy 3질문). ADR-027.
-        // v26.101.0 — 안전(SAFE) 4번째 축(D1~D3) 추가 → 4질문. ADR-030.
-        | "harness-health-audit"
-        // v26.95.0 — gemini-consult (opt-in, NOT dev-method): Gemini advisor via Antigravity agy.
-        | "gemini-consult"
-        // v26.100.0 — codex-consult (opt-in, NOT dev-method): Codex advisor via OpenAI codex CLI.
-        | "codex-consult"
-        // v26.104.0 — 재발방지 (recurrence prevention): 재발 검증→분류→대책 에스컬레이션. ADR-033.
-        | "recurrence-prevention"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -161,61 +145,20 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 66 자산 매트릭스 (v26.110.0 ADR-039 오피셜 플러그인 큐레이션: code-review·feature-dev·
- * security-guidance opt-in [context7 = mcp.json 기본 wiring 기충족으로 미등록, claude-md-management 기각] + v26.108.0 ci-scaffold internal + v26.106.0 ADR-035 축 판정: architecture-decision-record 제거·강등 5종 opt-in + v26.104.0 recurrence-prevention internal + v26.100.0 codex-consult opt-in internal + v26.98.0 harness-health-audit internal + v26.95.0 gemini-consult opt-in internal + v26.93.0 model-orchestration internal + v26.92.0 frontend-design official + v26.91.0 marketingskills opt-in + v26.87.0~ dev-method skills 8종 internal + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 + v26.81.0 internal 2종 — ADR-022. 61→59 = ADR-024 제거분). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 55 자산 매트릭스 (2026-08-02 정비: 모델이 이미 아는 pattern-guide·중복 번들 12종 제거
+ * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
+ * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
+ * + 프론트엔드 3종 신규 — ADR-060. 이전: v26.110.0 ADR-039 오피셜 플러그인 큐레이션 3종 opt-in
+ * [context7 = mcp.json 기본 wiring 기충족으로 미등록, claude-md-management 기각] + v26.108.0
+ * ci-scaffold internal + v26.106.0 ADR-035 축 판정 + v26.92.0 frontend-design official +
+ * v26.91.0 marketingskills opt-in + v26.86.0 Visual & Media 프레젠테이션 4종 + v26.85.0 5종 +
+ * v26.81.0 internal 2종 — ADR-022). bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
- * 호출 순서: data → dev-baseline → railway → supabase-cli → impeccable → dev-tools →
+ * 호출 순서: data → dev-baseline → railway → supabase-cli → dev-tools →
  * supabase-skills → react/ui → next → executive → GSD → ToB → ECC.
  */
 export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === data Track ===
-  {
-    id: "polars-K-Dense",
-    tier: "vetted", // K-Dense-AI 26k
-    description: "Polars — fast Rust-based DataFrame (pandas alternative, data track)",
-    category: "data",
-    source: "K-Dense-AI",
-    condition: { kind: "any-track", tracks: ["data", "full"] },
-    method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "polars" },
-    // v26.56.0 — description 보강: 트랙 hint + 한 줄 의미
-  },
-  {
-    id: "dask-K-Dense",
-    tier: "vetted", // K-Dense-AI 26k
-    description: "Dask — distributed processing (large DataFrames · cluster, data track)",
-    category: "data",
-    source: "K-Dense-AI",
-    condition: { kind: "any-track", tracks: ["data", "full"] },
-    method: { kind: "skill", source: "K-Dense-AI/scientific-agent-skills", skill: "dask" },
-  },
-  {
-    // v26.106.0 (ADR-035, 사용자 승인 A): 일반 Python 패턴 = 순수 pattern-guide → opt-in 강등 (T2 가설 전제).
-    id: "python-resource-management",
-    tier: "vetted", // wshobson/agents 36k
-    description: "Python memory · CPU management patterns (wshobson, data track)",
-    category: "data",
-    source: "wshobson",
-    condition: { kind: "opt-in" },
-    method: {
-      kind: "skill",
-      source: "https://github.com/wshobson/agents",
-      skill: "python-resource-management",
-    },
-  },
-  {
-    // v26.106.0 (ADR-035, 사용자 승인 A): 동일 — 순수 pattern-guide → opt-in 강등.
-    id: "python-performance-optimization",
-    tier: "vetted", // wshobson/agents 36k
-    description: "Python performance optimization (profiling · vectorize, wshobson, data track)",
-    category: "data",
-    source: "wshobson",
-    condition: { kind: "opt-in" },
-    method: {
-      kind: "skill",
-      source: "https://github.com/wshobson/agents",
-      skill: "python-performance-optimization",
-    },
-  },
   {
     id: "anthropic-data-plugin",
     tier: "official", // anthropics/knowledge-work-plugins 18k
@@ -256,59 +199,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "internal", key: "ci-scaffold" },
   },
 
-  // === Dev-method skills (uzys 1st-party, v26.87.0) ===
-  // 본 하네스의 작업 방법론 skill 8종 (repo-bundled templates). tier official, core on dev tracks
-  // (has-dev-track → 기본 설치; wizard uncheck / --without <id> 로 제외 가능 — isAssetSelected 게이팅).
-  {
-    id: "multi-persona-review",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "Multi-persona review — critique one artifact via 3-5 parallel user personas, then synthesize P0/P1/P2 fixes",
-    category: "dev-tools",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "multi-persona-review" },
-  },
-  {
-    id: "gap-analysis-e2e",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "Gap analysis E2E — detect north-star / correctness / UX gaps, then benchmark how reference services solved each",
-    category: "dev-tools",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "gap-analysis-e2e" },
-  },
-  {
-    id: "ultracode-service-audit",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "Ultracode service audit — multi-agent, adversarially-verified full-service audit across 7 dimensions → milestone roadmap",
-    category: "dev-tools",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "ultracode-service-audit" },
-  },
-  {
-    id: "asis-tobe-decision",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "ASIS→TOBE decision — present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast",
-    category: "workflow",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "asis-tobe-decision" },
-  },
-  {
-    id: "explain-plainly",
-    tier: "official", // uzys 본 하네스 자체 템플릿
-    description:
-      "Explain plainly (opt-in — recommended) — fix the referent first, lead with who is affected and what changes, then show evidence; run it when the reader says they don't follow",
-    category: "workflow",
-    source: "uzys",
-    condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "explain-plainly" },
-  },
+  // === Repo-bundled internal skill (uzys 1st-party, v26.87.0) ===
+  // 2026-08-02 정비 이후 유일하게 번들로 남는 방법론 스킬. 나머지는 아래 uzys-agent-skills
+  // (npx) 로 이관됐다 — 이 하나는 하네스 자체의 설치/재개 흐름에 묶여 이관 대상이 아니었다.
   {
     id: "compaction-handoff",
     tier: "official", // uzys 본 하네스 자체 템플릿
@@ -319,109 +212,114 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "compaction-handoff" },
   },
+
+  // === uzys 방법론 스킬 — 이관 리포 (2026-08-02 정비, ADR-060) ===
+  // ASIS: templates/skills/<id>/ 로 번들 → 설치 시 dir copy (`kind: "internal"`).
+  // TOBE: uzysjung/uzys-agent-skills 단일 리포에서 `npx skills add … --skill <id>`.
+  //   같은 스킬을 이 리포와 이관 리포 양쪽에서 관리하면 한쪽이 반드시 썩는다 — 배포 경로를
+  //   하나로 모으고, 하네스는 "무엇을 설치할지"만 안다. tier official = 자사(star 무관 —
+  //   trust-tier-drift 가 official 을 건너뛴다). condition 은 전신(前身)을 그대로 보존한다.
   {
-    id: "northstar-roadmap",
-    tier: "official", // uzys 본 하네스 자체 템플릿
+    id: "clear-korean-communication",
+    tier: "official", // uzys 자사 스킬 리포
     description:
-      "North-star roadmap — measure current state vs the vision doc, then propose a ranked feature backlog persisted to docs/plans + memory",
+      "Clear Korean communication — restate technical facts from the reader's position (impact and cause first, then evidence) instead of translation-ese; covers decisions, approval requests, and AS-IS/TO-BE contrasts",
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "northstar-roadmap" },
+    method: {
+      kind: "skill",
+      source: "uzysjung/uzys-agent-skills",
+      skill: "clear-korean-communication",
+    },
   },
-  // v26.98.0 — 하네스 건강 감사 (ADR-027). 어제(2026-07-14) 3개 프로젝트 교차 하네스 교정
-  //   작업에서 추출한 방법론 + 리서치 근거(context rot·lost-in-the-middle·skill undertriggering·
-  //   Ratchet). 기존 5분류(드리프트=정확성만)에서 3질문(A truth / B efficacy / C economy)으로
-  //   재설계 — "맞는 말인데 아무것도 안 일어나는" 하네스와 "다 맞는데 너무 길어 안 지켜지는"
-  //   하네스를 잡는다. 결정적 경계: 결정론적 린터(AgentLint/cclint)가 할 수 있는 form 검사는
-  //   위임하고, 린터가 구조적으로 못 하는 판단(이 단언이 이 repo 의 진짜 스택인가 / 이 훅이
-  //   실제로 fire 하는가 / 이 스킬이 트리거되는가)만 모델이 한다 (판단만 모델 몫).
-  // v26.101.0 — 안전(SAFE) 4번째 축 신설 (ADR-030): ADR-027 (z) 알려진 갭 해소. D1 위험 활성
-  //   지시 · D2 폭발 반경 · D3 비신뢰 입력 취급. D 는 flag 기본(보안 태세 결정은 사용자 몫),
-  //   완전성 단언은 계속 금지, "clean D ≠ security clearance" 명시.
   {
-    id: "harness-health-audit",
-    tier: "official", // uzys 본 하네스 자체 템플릿
+    id: "north-star",
+    tier: "official", // uzys 자사 스킬 리포
     description:
-      "Harness health audit — audit the CLAUDE.md/rules/skills/hooks steering layer on 4 questions a linter can't answer: TRUE (matches real code) · USED (skills trigger, loop verifies) · AFFORDABLE (inside the budget where rules are still followed) · SAFE (a live, accurate instruction can still be a bad idea)",
+      "North Star — create or safely update the project direction baseline and its revision-linked roadmap, then analyze the impact on audits, verification criteria, issues, and work in progress",
+    category: "workflow",
+    source: "uzys",
+    // 전 트랙 상주 보존 — 이관 전에는 manifest COMMON_SKILL_DIRS(조건 없는 전 트랙 설치)였다.
+    // 이 카탈로그에 "always" kind 가 없어 전 트랙 나열로 같은 도달 범위를 표현한다.
+    condition: { kind: "any-track", tracks: [...TRACKS] },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "north-star" },
+  },
+  {
+    id: "audit-service-gaps",
+    tier: "official", // uzys 자사 스킬 리포
+    description:
+      "Audit service gaps — audit observable gaps between the service's current state and an explicit North Star baseline (reverse · defect · experience · benchmark · verify · change-impact · drift modes)",
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "harness-health-audit" },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "audit-service-gaps" },
   },
-  // v26.104.0 — 재발방지 (ADR-033, 사용자 지시 2026-07-17). 동일 이슈 재발 시: 재발을 증거로
-  //   검증(메모리·룰 사례표·git 이력 — "느낌상 재발" 금지) → 단순 실수 vs 복잡 하네스 문제 분류 →
-  //   단순 실수는 에스컬레이션 사다리(1회 기록 → 2회 룰 강제 등록 → 3회+ 구조적 게이트: 테스트/훅/
-  //   derive), 복잡 문제는 다면 페르소나로 대책 후보 설계. 본 repo 실무 관행(no-false-ship 3회
-  //   재발→rule 신설, CHANGELOG 7릴리즈 drift→테스트 게이트, "주석 경고 ≠ 차단 수단")의 스킬화.
-  //   대책이 실제 fire 하는지 검증(RED→GREEN/훅 exit 2) 없이 "보호됨" 보고 금지.
+  {
+    id: "verification-loop",
+    tier: "official", // uzys 자사 스킬 리포
+    description:
+      "Verification loop — run proportional verification tracks (UI · API · CLI · library · docs · real user flow) and end with evidence plus a fixed verdict; a green build is not proof of user-visible completion",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "verification-loop" },
+  },
+  {
+    id: "multi-persona-review",
+    tier: "official", // uzys 자사 스킬 리포
+    description:
+      "Multi-persona review — review one artifact through independent stakeholder and failure lenses, then synthesize evidence-backed, severity-ranked findings without discarding minority views",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "multi-persona-review" },
+  },
   {
     id: "recurrence-prevention",
-    tier: "official", // uzys 본 하네스 자체 템플릿
+    tier: "official", // uzys 자사 스킬 리포
     description:
-      "Recurrence prevention — when the same defect happens again, verify the count with evidence, classify simple slip vs complex harness problem, then escalate the countermeasure: record → forced rule → structural gate (or multi-persona designed fix)",
+      "Recurrence prevention — reconstruct a repeated defect's failure signature and timeline, then pick the least costly countermeasure (code · regression test · rule · hook · derivation · gate)",
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "recurrence-prevention" },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "recurrence-prevention" },
   },
-
-  // === Opt-in internal bundled skills — 수단(권장) 계층 (v26.105.0, ADR-034) ===
-  // 사용자 확정(2026-07-18): 방법론(목표·스코프/ADR/결함보고/재발방지 등) = 필수 코어(위 dev-method
-  // 8종, 기본 설치) / model-orchestration·gemini-consult·codex-consult = **수단** — 필수 아님,
-  // 단 **권장**(description 에 recommended 표기). 사용자: "agy, codex, model-policy는 수단인 것
-  // 같아. 하지만 난 권장."
-
-  // v26.93.0 — 사용자 확정(2026-07-04) Orchestration & Model Policy 스킬화. v26.94.0 개정
-  //   (2026-07-07): 역할분담 재편 — orchestrator 직접: 방향성·스펙리뷰(multi-persona-review)·
-  //   기능개선·성능/보안 문제발굴 / opus@xhigh+: 문서작성·핵심구현·V&V(fresh instance) /
-  //   sonnet@high+: 반복구현·E2E. effort floor 강제 3경로 + quota 핸드오프는 유지.
-  // v26.105.0 (ADR-034) — has-dev-track 기본 → opt-in 권장으로 이동 (수단 계층).
+  {
+    id: "gh-issue-workflow",
+    tier: "official", // uzys 자사 스킬 리포
+    description:
+      "GitHub issue workflow — investigate, draft, create, implement, verify, and close issue-backed work while keeping read-only, draft, external-write, and status stages distinct",
+    category: "workflow",
+    source: "uzys",
+    // 전 트랙 상주 보존 — north-star 와 같은 이유 (이관 전 COMMON_SKILL_DIRS).
+    condition: { kind: "any-track", tracks: [...TRACKS] },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "gh-issue-workflow" },
+  },
   {
     id: "model-orchestration",
-    tier: "official", // uzys 본 하네스 자체 템플릿
+    tier: "official", // uzys 자사 스킬 리포
     description:
-      "Model orchestration policy — role split (orchestrator directs/reviews · opus@xhigh+ authors docs/core impl/V&V · sonnet@high+ repetitive impl/E2E) + effort floors + delegation spec + quota handoff (opt-in — recommended)",
+      "Model orchestration — decompose work by capability and route independent, bounded tasks to available agents while preserving ownership, permissions, and verification (opt-in — recommended)",
     category: "workflow",
     source: "uzys",
     condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "model-orchestration" },
+    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "model-orchestration" },
   },
-
-  // gemini-consult: uzys 1st-party skill wrapping Antigravity's `agy` CLI for natural Korean
-  //   phrasing + multi-persona second-opinion review. Bundled like dev-method skills
-  //   (templates/skills/gemini-consult/) so it renders across all 4 CLIs, but opt-in (condition
-  //   opt-in) — installed only on wizard check / `--with gemini-consult`. Ships a bash wrapper
-  //   (scripts/gemini-ask.sh) to Claude scope via the dir copy; non-Claude CLIs get the SKILL.md
-  //   which degrades to a direct `agy` call (graceful — no broken wrapper reference). tier
-  //   official (repo template); runtime dep on the external `agy` binary is a prereq, not a source.
   {
-    id: "gemini-consult",
-    tier: "official", // uzys 본 하네스 자체 템플릿 (런타임 의존 agy 는 사용자 prereq)
+    // 전신 = gemini-consult + codex-consult. 이관 리포에서 provider 중립 한 스킬로 통합됐다.
+    id: "external-model-consult",
+    tier: "official", // uzys 자사 스킬 리포
     description:
-      "gemini-consult — consult Gemini (via Antigravity agy CLI) for natural Korean phrasing + multi-persona second-opinion review + Gemini image generation (opt-in; requires agy)",
+      "External model consult — ask an available external model/provider for an independent draft, critique, or provider-only output such as image generation (opt-in — recommended; requires that provider's CLI)",
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "gemini-consult" },
-  },
-
-  // codex-consult (v26.100.0): uzys 1st-party sibling of gemini-consult, wrapping the OpenAI
-  //   `codex` CLI (`codex exec`) for concise rewriting / document structuring + image generation
-  //   (codex `image_generation` tool → real PNG on disk). Same bundling shape: dir copy ships
-  //   scripts/codex-ask.sh to Claude scope; non-Claude CLIs get SKILL.md with a direct-call
-  //   fallback. Division of labor is encoded in both skills' descriptions (Korean nuance/persona
-  //   → gemini, concision/structure/default images → codex). Runtime dep on `codex` binary is a
-  //   user prereq, not a source.
-  {
-    id: "codex-consult",
-    tier: "official", // uzys 본 하네스 자체 템플릿 (런타임 의존 codex 는 사용자 prereq)
-    description:
-      "codex-consult — consult OpenAI Codex (codex exec) for concise/structured rewriting + image generation (opt-in; requires codex CLI)",
-    category: "dev-tools",
-    source: "uzys",
-    condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "codex-consult" },
+    method: {
+      kind: "skill",
+      source: "uzysjung/uzys-agent-skills",
+      skill: "external-model-consult",
+    },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -571,23 +469,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === UI tracks (csr-*|ssr-*|full) ===
-  {
-    // v26.106.0 (ADR-035, 사용자 결정 2026-07-18): frontend-design(official)이 기본인 이상 taste
-    //   가이드류는 opt-in 으로 충분 — v26.92.0 의 "생성↔리뷰 보완재" 논리는 권고이지 결합이 아님.
-    id: "impeccable",
-    tier: "vetted", // pbakaus 31k
-    description:
-      "Impeccable — UI design guide + visual consistency review (pbakaus, single-skill repo)",
-    category: "frontend",
-    source: "pbakaus",
-    condition: { kind: "opt-in" },
-    // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수 (single-skill repo 도)
-    method: { kind: "skill", source: "pbakaus/impeccable", skill: "impeccable" },
-  },
   // v26.92.0 — frontend-design (Anthropic official, claude-plugins-official 984.5K installs).
-  //   impeccable(생성↔리뷰 짝)의 official 보완재 — frontend-design=distinctive UI 코드 생성,
-  //   impeccable=일관성 리뷰. 사용자 결정: has-dev-track 기본추천 (impeccable=UI 트랙보다
-  //   넓게 — 모든 개발 트랙, executive 제외). category=frontend (UI 자산, wizard 그룹).
+  //   사용자 결정: has-dev-track 기본추천 (모든 개발 트랙, executive 제외).
+  //   category=frontend (UI 자산, wizard 그룹).
   //   repoForAsset=marketplace(anthropics/claude-plugins-official); official tier=drift 제외.
   {
     id: "frontend-design",
@@ -602,6 +486,44 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       marketplace: "anthropics/claude-plugins-official",
       pluginId: "frontend-design@claude-plugins-official",
     },
+  },
+  // 2026-08-02 정비 — 프론트엔드 품질 3종 (사용자 지시). 전부 opt-in: frontend-design 이 기본
+  //   생성기이고 이 셋은 그 위의 취향·디테일 층이라 상시 비용을 물릴 근거가 없다 (ADR-032/035
+  //   와 같은 축). star 는 각 tier 라인 주석 = 2026-08-02 `gh api` 실측.
+  {
+    id: "jakubkrehel-skills",
+    tier: "vetted", // jakubkrehel/skills 2,602 (2026-08-02)
+    description:
+      "Better-* interface suite — 7 skills reviewing/improving UI detail, typography, OKLCH color, accessibility, layout, and UX writing, one concern per skill",
+    category: "frontend",
+    source: "jakubkrehel",
+    condition: { kind: "opt-in" },
+    // `--skill` 미지정 = 리포의 7 스킬 전부 설치. 다른 multi-skill 출처(K-Dense·softaworks)는
+    // 한 자산 = 한 스킬이라 `--skill` 을 썼지만, 여기 광고 문구가 "7 skills" 세트다 —
+    // 한 개만 깔면 description 이 곧 거짓이 된다. 실호출 형태는 Docker 실설치(AC8)로 확인한다.
+    method: { kind: "skill", source: "jakubkrehel/skills" },
+  },
+  {
+    id: "taste-skill",
+    tier: "vetted", // Leonxlnx/taste-skill 70,078 (2026-08-02)
+    description:
+      "Anti-slop frontend design — removes the boilerplate look of AI-generated UI; infers a design language and tunes VARIANCE/MOTION/DENSITY, with minimalist/brutalist/high-end style variants",
+    category: "frontend",
+    source: "Leonxlnx",
+    condition: { kind: "opt-in" },
+    // 리포에 스킬 14종(brandkit·brutalist·minimalist 등)이 있고 본체가 `taste-skill` —
+    // 스타일 변형은 그 안에서 고른다. 다른 단일 대표 자산(remotion)과 같은 형태.
+    method: { kind: "skill", source: "Leonxlnx/taste-skill", skill: "taste-skill" },
+  },
+  {
+    id: "scroll-world",
+    tier: "vetted", // oso95/scroll-world 6,863 (2026-08-02)
+    description:
+      "Scroll-driven 3D world landing pages — interviews for brand/scene direction, generates AI assets, then builds a continuous camera-flight scroll engine",
+    category: "frontend",
+    source: "oso95",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "oso95/scroll-world", skill: "scroll-world" },
   },
 
   // === dev tools (has_dev_track) ===
@@ -636,20 +558,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       kind: "plugin",
       marketplace: "anthropics/claude-plugins-official",
       pluginId: "security-guidance@claude-plugins-official",
-    },
-  },
-  {
-    id: "playwright-skill",
-    tier: "experimental", // testdino-hq/playwright-skill 264
-    description: "Playwright — browser automation E2E test authoring guide (testdino-hq)",
-    category: "dev-tools",
-    source: "testdino-hq",
-    condition: { kind: "has-dev-track" },
-    // v26.54.1 — skills cli 1.5.7 부터 `--skill <name>` 명시 필수
-    method: {
-      kind: "skill",
-      source: "testdino-hq/playwright-skill",
-      skill: "playwright-skill",
     },
   },
   {
@@ -919,33 +827,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // 기존 alirezarezvani/c-level-skills + alirezarezvani/finance-skills 별도 marketplace
   // → 통합된 alirezarezvani/claude-skills marketplace (claude-code-skills 이름)로 이동.
   {
-    id: "c-level-skills",
-    tier: "vetted", // alirezarezvani 16k
-    description: "c-level-skills (claude-code-skills, 28 advisory)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["executive", "full"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "c-level-skills@claude-code-skills",
-    },
-  },
-  {
-    id: "business-growth-skills",
-    tier: "vetted", // alirezarezvani 16k
-    description: "business-growth-skills (4 — customer success, sales eng, revops, contract)",
-    category: "business",
-    source: "alirezarezvani",
-    // v0.5.0 — growth-marketing Track에서도 재사용. 합집합 조건.
-    condition: { kind: "any-track", tracks: ["executive", "full", "growth-marketing"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "business-growth-skills@claude-code-skills",
-    },
-  },
-  {
     id: "finance-skills",
     tier: "vetted", // alirezarezvani 16k
     description: "finance-skills (3 — financial analyst, SaaS metrics, investment advisor)",
@@ -960,21 +841,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Project Management Track (v0.5.0) ===
-  // SPEC docs/specs/new-tracks-pm-growth.md §3.5 — pm-skills 4/4.
-  {
-    id: "pm-skills",
-    tier: "vetted", // alirezarezvani 16k
-    description:
-      "pm-skills (6 — senior PM, scrum master, Jira/Confluence/Atlassian admin, template creator)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["project-management"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "pm-skills@claude-code-skills",
-    },
-  },
   // SPEC §3.5 — product-skills: has-dev-track + project-management 합집합 (executive/growth-marketing 제외).
   {
     id: "product-skills",
@@ -993,23 +859,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === Growth Marketing Track (v0.5.0) ===
-  // SPEC docs/specs/new-tracks-pm-growth.md §3.5 — 4 entries 모두 4/4.
-  {
-    id: "marketing-skills",
-    tier: "vetted", // alirezarezvani 16k
-    description:
-      "marketing-skills (44 — content/SEO/CRO/channels/growth/intelligence/sales/twitter)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["growth-marketing"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "marketing-skills@claude-code-skills",
-    },
-  },
-  // v26.91.0 — coreyhaines31/marketingskills (35k★, MIT, plugin v2.5.1). 위 alirezarezvani
-  //   marketing-skills(16k) 와 병존 — id 구분(marketingskills ≠ marketing-skills). opt-in =
+  // 2026-08-02 정비 — alirezarezvani 번들 4종(c-level·business-growth·pm·marketing) +
+  //   research-summarizer 제거. 남는 마케팅 번들은 아래 coreyhaines31/marketingskills 하나로,
+  //   동명이물(marketing-skills ≠ marketingskills) 병존도 이로써 해소된다.
+  // v26.91.0 — coreyhaines31/marketingskills (35k★, MIT, plugin v2.5.1). opt-in =
   //   growth-marketing 외 전 트랙에서도 wizard 토글 + `--with marketingskills` 로 설치 가능
   //   ("SEO 는 일반 개발에도 활용" 충족: dev 트랙에서 본 번들 토글). 45 스킬 중 SEO 7종
   //   (seo-audit/schema/ai-seo/site-architecture/programmatic-seo/content/aso)은 상호참조
@@ -1030,38 +883,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   // v26.76.0 — content-creator / demand-gen 제거: alirezarezvani/claude-skills marketplace.json 에
   // 해당 plugin 부재(Docker 실설치 검출, exit 1). 거짓 광고 0건 원칙(Promise=Implementation).
-  // growth-marketing 트랙은 business-growth-skills + marketing-skills + research-summarizer 유지.
-  {
-    id: "research-summarizer",
-    tier: "vetted", // alirezarezvani 16k
-    description: "research-summarizer (market research summarization)",
-    category: "business",
-    source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["growth-marketing"] },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "research-summarizer@claude-code-skills",
-    },
-  },
 
-  // === Code-quality enforcement (has-dev-track, v0.5.0) ===
-  // SPEC §3.5 — karpathy-coder 4/4. CLAUDE.md P1-P4 선언적 원칙의 검출 도구 layer.
-  // 4 Python tools (stdlib only) + reviewer agent + /karpathy-check + pre-commit hook.
-  {
-    id: "karpathy-coder",
-    tier: "vetted", // alirezarezvani 16k
-    description:
-      "karpathy-coder (4 Python tool + reviewer agent + /karpathy-check + pre-commit hook)",
-    category: "dev-tools",
-    source: "alirezarezvani",
-    condition: { kind: "has-dev-track" },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "karpathy-coder@claude-code-skills",
-    },
-  },
+  // 2026-08-02 정비 — karpathy-coder 제거. Write|Edit 마다 Python complexity 검사를 돌리는
+  //   상시 훅이었고, 그 검사는 현행 모델이 이미 하는 일이다 (Opus 5 가이드의 "legacy harness
+  //   scaffolding"에 정확히 해당). 딸린 배선(`--with-karpathy-hook` 플래그 · templates/hooks/
+  //   karpathy-gate.sh · settings.json PreToolUse auto-wire)도 함께 삭제 — BREAKING, ADR-060.
 
   // === Option-gated ===
   {
@@ -1117,41 +943,26 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
  * v26.87.0 — dev-method skill ids (uzys 1st-party, internal templates). installer 의
  * `selectedInternalSkills` 계산 + manifest copy 게이팅 + 테스트가 공유하는 SSOT.
  * 각 id 는 method.kind==="internal" 이며 `templates/skills/<id>/SKILL.md` 로 번들된다.
+ *
+ * 2026-08-02 정비 (ADR-060) — 8종 중 7종이 uzysjung/uzys-agent-skills 로 이관돼
+ * `kind: "skill"` 카탈로그 엔트리가 됐다. 상수는 **유지**한다: "번들이라 dir-copy 대상"이라는
+ * 술어 자체는 남아 있고, 앞으로 번들 스킬이 다시 늘어도 소비자(manifest·4-CLI transform·
+ * gen-compatibility)는 이 목록만 보면 된다. 현재 번들 방법론 skill 1종 (compaction-handoff).
  */
-export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
-  "multi-persona-review",
-  "gap-analysis-e2e",
-  "ultracode-service-audit",
-  "asis-tobe-decision",
-  "compaction-handoff",
-  "northstar-roadmap",
-  // v26.98.0 — 하네스 건강 감사 (ADR-027).
-  "harness-health-audit",
-  // v26.104.0 — 재발방지 (ADR-033).
-  "recurrence-prevention",
-  // v26.105.0 (ADR-034) — model-orchestration 은 '수단(권장)' 계층으로 이동 (opt-in internal).
-];
+export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = ["compaction-handoff"];
 
 /**
  * v26.95.0 — ALL repo-bundled internal skill ids (dev-method + opt-in advisors). Bundling is
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
- * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the 8 has-dev-track methodology skills.
+ * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the has-dev-track methodology skills.
+ *
+ * 2026-08-02 정비 (ADR-060) — opt-in 번들 advisors(model-orchestration·gemini/codex-consult·
+ * explain-plainly)가 전부 이관돼 현재 superset = dev-method 와 같다. 두 상수를 합치지 않는
+ * 이유는 위와 같다 — 술어가 다르고, 갈라지는 순간 소비자가 고를 것이 없어진다.
  */
-export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
-  ...DEV_METHOD_SKILL_IDS,
-  // opt-in internal skills (NOT dev-method): bundled + 4-CLI rendered, installed only on opt-in.
-  // v26.105.0 (ADR-034) — '수단(권장)' 계층: model-orchestration + advisors.
-  "model-orchestration",
-  "gemini-consult",
-  // v26.100.0 — Codex advisor (concision/structure + image gen). ADR-029.
-  "codex-consult",
-  // v26.130.0 — 설명 진단(지시대상 → 한 문장 → 근거). asis-tobe-decision 의 형제지만
-  // **opt-in** 이다: 기본 설치 descriptor 예산(ADR-032 ratchet)을 33 토큰 넘겼고, 아직
-  // 이 리포 밖에서 가치가 입증되지 않은 자산에 그 상향을 요구하지 않는다.
-  "explain-plainly",
-];
+export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [...DEV_METHOD_SKILL_IDS];
 
 /**
  * v26.79.0 — `TRUST_TIER` 는 EXTERNAL_ASSETS.tier 에서 derive (단일 출처). 별도 Record 유지 시

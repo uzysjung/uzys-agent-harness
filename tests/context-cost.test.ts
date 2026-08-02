@@ -36,8 +36,11 @@ const scaffoldTokens = (): number => estimateTokens(renderFillScaffold().trim().
  * 예산 = 2,200 (여유 ~5%) — 자산 1종 추가에 따른 명시적 상향. 설명 확장만으로 넘으면 줄여라.
  * 실측 2026-07-18 (ADR-034): model-orchestration 이 수단(권장) opt-in 으로 이동 → 코어 8종 =
  * ~1,809 tokens. 예산 = 1,900 으로 재조임 (ratchet — 줄었으면 예산도 낮춘다).
+ * 실측 2026-08-02 (ADR-060): 방법론 7종이 uzysjung/uzys-agent-skills 로 이관돼 번들 코어는
+ * compaction-handoff 1종 = ~124 tokens. 예산 = 150 으로 재조임 (같은 ratchet 규칙 —
+ * 아래 "budget is honest" 가 실측 ×1.25 를 넘는 예산을 거절한다).
  */
-const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1900;
+const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 150;
 
 describe("context-cost primitives", () => {
   it("estimates tokens at chars/4 rounded up", () => {
@@ -71,7 +74,7 @@ describe("context-cost primitives", () => {
 
   it("resolves bundle root to a directory containing templates/skills", () => {
     const root = resolveBundleRoot();
-    expect(assetDescriptorTokens("multi-persona-review", root)).not.toBeNull();
+    expect(assetDescriptorTokens("compaction-handoff", root)).not.toBeNull();
   });
 });
 
@@ -100,18 +103,18 @@ describe("session-start context cost ratchet (NSM, ADR-032)", () => {
 describe("path robustness + degraded frontmatter (SOD 리뷰 F1/F7 회귀 가드)", () => {
   it("measures from a root containing spaces and Korean chars, with CRLF frontmatter", () => {
     const root = mkdtempSync(join(tmpdir(), "agent harness 한글 "));
-    const dir = join(root, "templates", "skills", "multi-persona-review");
+    const dir = join(root, "templates", "skills", "compaction-handoff");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "SKILL.md"), "---\r\nname: x\r\ndescription: y\r\n---\r\nbody");
-    expect(assetDescriptorTokens("multi-persona-review", root) ?? 0).toBeGreaterThan(0);
+    expect(assetDescriptorTokens("compaction-handoff", root) ?? 0).toBeGreaterThan(0);
   });
 
   it("degrades to null (unmeasured) when SKILL.md has no frontmatter", () => {
     const root = mkdtempSync(join(tmpdir(), "agent-harness-nofm-"));
-    const dir = join(root, "templates", "skills", "multi-persona-review");
+    const dir = join(root, "templates", "skills", "compaction-handoff");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "SKILL.md"), "no frontmatter body");
-    expect(assetDescriptorTokens("multi-persona-review", root)).toBeNull();
+    expect(assetDescriptorTokens("compaction-handoff", root)).toBeNull();
   });
 });
 
@@ -208,24 +211,24 @@ describe("context cost surfaces", () => {
 describe("fired(body) 비용 계측", () => {
   it("body 토큰은 frontmatter 를 제외한다 — descriptor 와 이중 계상되면 안 된다", () => {
     const root = mkdtempSync(join(tmpdir(), "cost-body-"));
-    mkdirSync(join(root, "templates", "skills", "multi-persona-review"), { recursive: true });
+    mkdirSync(join(root, "templates", "skills", "compaction-handoff"), { recursive: true });
     // description 에 긴 문자열을 넣어도 body 값이 오염되지 않아야 한다.
     writeFileSync(
-      join(root, "templates", "skills", "multi-persona-review", "SKILL.md"),
+      join(root, "templates", "skills", "compaction-handoff", "SKILL.md"),
       `---\nname: x\ndescription: ${"D".repeat(400)}\n---\n\n${"B".repeat(80)}\n`,
     );
-    expect(assetBodyTokens("multi-persona-review", root)).toBe(estimateTokens(80));
-    expect(assetDescriptorTokens("multi-persona-review", root)).toBeGreaterThan(100);
+    expect(assetBodyTokens("compaction-handoff", root)).toBe(estimateTokens(80));
+    expect(assetDescriptorTokens("compaction-handoff", root)).toBeGreaterThan(100);
   });
 
   it("frontmatter 가 없으면 파일 전체가 body", () => {
     const root = mkdtempSync(join(tmpdir(), "cost-nofm-"));
-    mkdirSync(join(root, "templates", "skills", "multi-persona-review"), { recursive: true });
+    mkdirSync(join(root, "templates", "skills", "compaction-handoff"), { recursive: true });
     writeFileSync(
-      join(root, "templates", "skills", "multi-persona-review", "SKILL.md"),
+      join(root, "templates", "skills", "compaction-handoff", "SKILL.md"),
       "# no frontmatter",
     );
-    expect(assetBodyTokens("multi-persona-review", root)).toBe(
+    expect(assetBodyTokens("compaction-handoff", root)).toBe(
       estimateTokens("# no frontmatter".length),
     );
   });
@@ -412,10 +415,13 @@ describe("상주 항목 수 (quantity 축)", () => {
 
   // 최소(executive) · 중간(tooling) · 최대(full). 값이 바뀌면 그 자체가 검토 대상이다 —
   // 늘었으면 정당화를, 줄었으면 여기와 baseline 을 함께 낮춰라.
+  // 2026-08-02 정비 (ADR-060) — 스킬 축이 줄었다: 방법론 스킬 이관으로 번들 dir 이 14개
+  //   사라졌고(전 트랙 상주였던 north-star·gh-issue-workflow 포함) 그만큼 상주 항목이 빠진다.
+  //   설치 자체가 없어진 게 아니라 `.claude/skills/` 상주에서 npx 설치로 **경로가 바뀐 것**이다.
   it.each([
-    ["executive", { rules: 5, skills: 9, agents: 5, claudeMd: 2, total: 21 }],
-    ["tooling", { rules: 10, skills: 9, agents: 9, claudeMd: 2, total: 30 }],
-    ["full", { rules: 20, skills: 17, agents: 9, claudeMd: 2, total: 48 }],
+    ["executive", { rules: 5, skills: 7, agents: 5, claudeMd: 2, total: 19 }],
+    ["tooling", { rules: 10, skills: 6, agents: 9, claudeMd: 2, total: 27 }],
+    ["full", { rules: 20, skills: 14, agents: 9, claudeMd: 2, total: 45 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

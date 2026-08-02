@@ -27,7 +27,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -80,7 +79,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -102,7 +100,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -134,7 +131,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -150,7 +146,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -171,7 +166,6 @@ describe("installer (integration with templates/)", () => {
           options: {
             withPrune: false,
             withCodexTrust: false,
-            withKarpathyHook: false,
           },
           cli: ["claude"],
           projectDir,
@@ -209,7 +203,7 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  const baseOptions = { withPrune: false, withCodexTrust: false, withKarpathyHook: false };
+  const baseOptions = { withPrune: false, withCodexTrust: false };
 
   /**
    * `withEcc` 는 spec 의 boolean 이 아니라 **자산 선택**에서 파생된다

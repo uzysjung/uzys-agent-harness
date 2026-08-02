@@ -37,8 +37,6 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "../install-log.js";
-import { KARPATHY_ASSET_ID, KARPATHY_HOOK_COMMAND, KARPATHY_HOOK_RELPATH } from "../installer.js";
-import type { ClaudeSettings } from "../settings-merge.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
 
 export interface UninstallOptions {
@@ -133,14 +131,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
-    for (const line of dryRunLines(
-      plan,
-      installLog,
-      projectDir,
-      keepTemplates,
-      targetAssets,
-      rootFiles,
-    )) {
+    for (const line of dryRunLines(plan, installLog, projectDir, keepTemplates, rootFiles)) {
       log(line);
     }
     exit(0);
@@ -169,9 +160,8 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     { log, err, rm, writeLog },
   );
 
-  // 판정 기준은 "`--only` 인가"가 아니라 "`.claude/` 가 남는가"다 — `--keep-templates` 만 줘도
-  // settings.json 은 살아남으므로 안내 대상이다. dry-run 과 같은 값을 넘겨야 미리보기가 맞는다.
-  for (const line of advisoryLines(plan, targetAssets, projectDir, keepTemplates, rootFiles)) {
+  // dry-run 과 같은 인자를 넘겨야 미리보기가 실행 결과와 맞는다.
+  for (const line of advisoryLines(plan, projectDir, rootFiles)) {
     log(line);
   }
 
@@ -320,7 +310,6 @@ function dryRunLines(
   installLog: InstallLog,
   projectDir: string,
   keepTemplates: boolean,
-  targetAssets: ReadonlyArray<InstallLogAsset>,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): string[] {
   const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
@@ -343,18 +332,14 @@ function dryRunLines(
       );
     }
   }
-  // keepTemplates=false 면 실제 실행은 `.claude/` 를 통째로 지운다 → 수기 안내 대상 자체가
-  // 사라지므로 미리보기에서도 안내하지 않는다. 안 그러면 곧 삭제될 파일을 손보라고 시킨다.
-  lines.push(...advisoryLines(plan, targetAssets, projectDir, keepTemplates, rootFiles), "");
+  lines.push(...advisoryLines(plan, projectDir, rootFiles), "");
   return lines;
 }
 
-/** global(D16) + 수기 표면 + 루트 파일 안내. dry-run 과 실행 경로가 같은 함수를 쓴다. */
+/** global(D16) + 루트 파일 안내. dry-run 과 실행 경로가 같은 함수를 쓴다. */
 function advisoryLines(
   plan: ReversePlan,
-  targetAssets: ReadonlyArray<InstallLogAsset>,
   projectDir: string,
-  templatesKept: boolean,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): string[] {
   const lines: string[] = [];
@@ -369,7 +354,6 @@ function advisoryLines(
       lines.push(c.dim(`  · ${adv.asset.id} (${adv.asset.method})`), c.dim(`      ${adv.command}`));
     }
   }
-  if (templatesKept) lines.push(...manualAdvisoryLines(targetAssets, projectDir));
   // templatesKept 와 무관하다 — `.claude/` 를 통째로 지우는 경로야말로 밖에 남는 것을
   // 사용자가 존재조차 모르게 되는 경우다. 그게 F-1f 가 잡는 구멍이다.
   lines.push(...rootFileAdvisoryLines(rootFiles, projectDir));
@@ -381,7 +365,7 @@ function advisoryLines(
  * `.mcp.json`/`.gitignore` 는 사용자 내용이 섞이고, `.github/workflows/` 는 설치 후 사용자
  * 소유물이다 (ci-scaffold.ts 안전 계약 2). 기계적 되돌리기는 손실 위험이라 안내로 넘긴다.
  *
- * manualAdvisoryLines 와 같은 규율 — **예측이 아니라 현재 파일 상태를 읽어** 실재하는 것만 낸다.
+ * 규율: **예측이 아니라 현재 파일 상태를 읽어** 실재하는 것만 낸다.
  */
 function rootFileAdvisoryLines(
   rootFiles: ReadonlyArray<InstallLogRootFile>,
@@ -489,23 +473,6 @@ function buildProjectReverseStep(
 }
 
 /**
- * `.claude/settings.json` 의 hook command 존재 여부. **파싱해서** 본다 — 원문 substring 매치는
- * JSON 이스케이프(`\"`) 때문에 실제로 등록된 훅을 놓친다 (도입 시 테스트가 잡은 실패).
- */
-function settingsHasHookCommand(projectDir: string, command: string): boolean {
-  const path = join(projectDir, ".claude", "settings.json");
-  if (!existsSync(path)) return false;
-  try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as ClaudeSettings;
-    return Object.values(parsed.hooks ?? {}).some((matchers) =>
-      matchers.some((m) => m.hooks?.some((h) => h.command === command)),
-    );
-  } catch {
-    return false; // 깨진 settings.json — 안내를 못 만들 뿐, uninstall 을 막지는 않는다.
-  }
-}
-
-/**
  * 로그에 없는 `--only` id — 오타로 엉뚱한 자산이 남지 않도록 **아무것도 실행하기 전에** 본다
  * (gates-taxonomy Pre-flight: 전제조건 미충족 시 차단, 부분 작업 없음).
  */
@@ -524,34 +491,9 @@ function parseOnly(only: string | undefined): string[] | null {
   return ids.length > 0 ? ids : null;
 }
 
-/**
- * v26.123.0 (F-1d) — 자산 제거로 **끊어진 참조가 남는 표면**을 알려준다. 자동으로 안 고치는 이유:
- * `.claude/settings.json` 과 hook 파일에는 사용자 편집이 섞이므로 기계적 되돌리기가 손실 위험이다
- * (사용자 방침 — 위험한 표면은 반자동 안내).
- *
- * 예측이 아니라 **현재 파일 상태를 읽어** 실제로 남아 있는 것만 출력한다.
- */
-function manualAdvisoryLines(
-  targetAssets: ReadonlyArray<InstallLogAsset>,
-  projectDir: string,
-): string[] {
-  if (!targetAssets.some((a) => a.id === KARPATHY_ASSET_ID)) return [];
-
-  const items: string[] = [];
-  if (settingsHasHookCommand(projectDir, KARPATHY_HOOK_COMMAND))
-    items.push(
-      `.claude/settings.json — hooks.PreToolUse 에서 다음 command 항목 삭제:\n      ${KARPATHY_HOOK_COMMAND}`,
-    );
-  if (existsSync(join(projectDir, KARPATHY_HOOK_RELPATH)))
-    items.push(`\`${KARPATHY_HOOK_RELPATH}\` — 삭제`);
-
-  if (items.length === 0) return [];
-  return [
-    "",
-    c.yellow("[MANUAL] 자동으로 되돌리지 않은 것 (사용자 편집이 섞이는 표면):"),
-    ...items.map((i) => c.dim(`  · ${i}`)),
-  ];
-}
+// 2026-08-02 정비 (ADR-060) — [MANUAL] 안내(`manualAdvisoryLines`)는 karpathy-coder 훅
+// 하나만을 위한 것이었고 그 자산과 함께 삭제됐다. `.claude/` 밖에 남는 것은 아래
+// `rootFileAdvisoryLines` 가 계속 안내한다.
 
 function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
   switch (asset.method) {

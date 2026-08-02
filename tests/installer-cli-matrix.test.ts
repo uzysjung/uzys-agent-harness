@@ -305,43 +305,38 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(report.codexOptIn).not.toBeNull();
   });
 
-  // v0.8.0 HIGH-1 — withKarpathyHook + claude 미선택 시 silent skip (reason="claude-not-selected")
-  it("[codex] + withKarpathyHook=true: hook 미와이어 + reason=claude-not-selected", () => {
-    const report = runInstall({
+  // v0.8.0 HIGH-1 — claude 미선택 시 `.claude/settings.json` 이 아예 안 생긴다는 계약.
+  //   원래는 withKarpathyHook 경로로 검증했으나 2026-08-02 정비(ADR-060)가 그 배선을 지웠다.
+  //   계약 자체는 남아 있으므로(다른 CLI 단독 설치가 `.claude/` 를 오염시키면 안 된다) 훅과
+  //   무관한 형태로 유지한다.
+  it("[codex] 단독: `.claude/settings.json` 미생성", () => {
+    runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withKarpathyHook: true },
+        options: { ...DEFAULT_OPTIONS },
         cli: ["codex"],
         projectDir,
       },
     });
-    expect(report.karpathyHook).toEqual({
-      wired: false,
-      reason: "claude-not-selected",
-    });
-    // .claude/settings.json 자체가 없어야 (cli=codex 단독)
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
   });
 
-  it("[opencode] + withKarpathyHook=true: hook 미와이어 + reason=claude-not-selected", () => {
-    const report = runInstall({
+  it("[opencode] 단독: `.claude/settings.json` 미생성", () => {
+    runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withKarpathyHook: true },
+        options: { ...DEFAULT_OPTIONS },
         cli: ["opencode"],
         projectDir,
       },
     });
-    expect(report.karpathyHook).toEqual({
-      wired: false,
-      reason: "claude-not-selected",
-    });
+    expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
   });
 
   // v0.7.0 신규 조합 검증 (이전 5 mode에 없던 조합)

@@ -137,7 +137,10 @@ export const ALWAYS_HOOKS = [
 ];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
-const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
+// 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로
+// 이관돼 카탈로그 엔트리(`kind: "skill"`)가 됐다. 전 트랙 도달 범위는 그 엔트리의
+// `any-track: 전 트랙` condition 이 이어받는다 (강등 아님).
+const COMMON_SKILL_DIRS: string[] = [];
 // C2 (plugin OFF fallback, opt-out): strategic-compact.
 // v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
 // instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
@@ -152,9 +155,11 @@ const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
 const DEV_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];
 // C3 (modified=true): plugin 으로 갈음 불가, dev 트랙 항상 install.
-// verification-loop = v26.113.0 verdict 어휘(ADR-041) / eval-harness = v26.114.0 eval spec
-// 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
-const MODIFIED_DEV_SKILL_DIRS = ["verification-loop", "eval-harness"];
+// eval-harness = v26.114.0 eval spec 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
+// 2026-08-02 정비 (ADR-060) — verification-loop 은 C3 계약을 해체했다: 우리 판본이
+// uzysjung/uzys-agent-skills 로 이관돼 더는 ECC 파생 번들이 아니다. cherrypicks.lock 의
+// `ecc-verification-loop` 행도 함께 제거 — lock 과 이 목록은 1:1 이어야 한다(아래 주석).
+const MODIFIED_DEV_SKILL_DIRS = ["eval-harness"];
 
 /**
  * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).

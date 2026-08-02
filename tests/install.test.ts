@@ -56,7 +56,6 @@ const fakeReport: InstallReport = {
   ciScaffold: null,
   external: null,
   updateMode: null,
-  karpathyHook: null,
   staleHookRefs: [],
   mode: "fresh",
   envFiles: {
@@ -153,12 +152,14 @@ describe("installAction", () => {
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor(fakeReport);
     installAction(
-      { cli: ["claude"], track: ["tooling"], projectDir: "/p" },
+      // 2026-08-02 정비 (ADR-060) — playwright-skill 제거로 tooling 에는 조건 매치 T3 가 없다.
+      //   csr-fastify 는 railway-skills(T3)가 매치하므로 힌트 표면이 살아 있는 트랙이다.
+      { cli: ["claude"], track: ["csr-fastify"], projectDir: "/p" },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     // WHY: T3 default 제외(R6)되더라도 사용자가 존재를 알도록 안내해야 함 (숨김 0건).
     expect(log).toHaveBeenCalledWith(expect.stringContaining("OPT-IN"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("playwright-skill"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("railway-skills"));
   });
 
   it("no opt-in hint when experimental already force-included via --with (v26.71.1)", () => {
@@ -168,9 +169,11 @@ describe("installAction", () => {
     installAction(
       {
         cli: ["claude"],
-        track: ["tooling"],
+        // 위 테스트와 같은 트랙이어야 대조가 성립한다 — tooling 은 T3 매치가 0이라
+        //   `--with` 없이도 힌트가 안 떠서 이 테스트가 공허하게 통과했다 (2026-08-02 발견).
+        track: ["csr-fastify"],
         projectDir: "/p",
-        with: ["playwright-skill", "railway-skills"],
+        with: ["railway-skills"],
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
@@ -255,7 +258,6 @@ describe("executeSpec", () => {
     options: {
       withPrune: false,
       withCodexTrust: false,
-      withKarpathyHook: false,
     },
     cli: ["claude"],
     projectDir: "/p",
@@ -453,7 +455,7 @@ describe("executeSpec", () => {
       ...fakeReport,
       antigravity: {
         rulesFile: "/p/.agents/rules/uzys-harness.md",
-        skillFiles: ["/p/.agents/skills/multi-persona-review/SKILL.md"],
+        skillFiles: ["/p/.agents/skills/compaction-handoff/SKILL.md"],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
       },
     });
@@ -472,39 +474,14 @@ describe("executeSpec", () => {
     expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
   });
 
-  // v26.78.1 (R1) — karpathy hook opt-in 실패가 무음이던 회귀 가드 (원칙 5 — 무음 실패 금지).
-  //   WHY: withKarpathyHook=true 인데 plugin install 실패(wired=false)면 사용자는 hook 이
-  //   안 깔린 걸 모른 채 "Install complete" 만 본다. 성공/실패 둘 다 1행 노출 강제.
-  it("renders a HOOK row when karpathy hook is wired", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({
-      ...fakeReport,
-      karpathyHook: { wired: true, settingsUpdated: true, hookScriptCopied: true },
-    });
-    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
-    const lines = log.mock.calls.map((args) => String(args[0]));
-    expect(lines.some((l) => l.includes("HOOK") && l.includes("wired"))).toBe(true);
-  });
-
-  it("renders a HOOK skip row WITH reason when karpathy hook fails (not silent)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({
-      ...fakeReport,
-      karpathyHook: { wired: false, reason: "plugin-install-failed" },
-    });
-    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
-    const lines = log.mock.calls.map((args) => String(args[0]));
-    const hookRow = lines.find((l) => l.includes("HOOK"));
-    expect(hookRow).toBeDefined();
-    expect(hookRow).toContain("plugin-install-failed");
-  });
+  // v26.78.1 (R1) — karpathy hook 결과 렌더의 무음 실패 가드였다. 2026-08-02 정비(ADR-060)로
+  //   karpathy 자산·훅·`--with-karpathy-hook` 배선이 전부 삭제돼 렌더할 HOOK 행 자체가 없다.
+  //   같은 계열의 "무음 금지" 가드는 아래 STALE-HOOK 행(M-1)이 계속 지킨다.
 
   it("renders NO HOOK row when user did not opt in (karpathyHook null)", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({ ...fakeReport, karpathyHook: null });
+    const runPipeline = pipelineFor({ ...fakeReport });
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
     const lines = log.mock.calls.map((args) => String(args[0]));
     expect(lines.some((l) => l.includes("HOOK"))).toBe(false);
@@ -594,7 +571,6 @@ describe("executeSpec", () => {
         options: {
           withPrune: true,
           withCodexTrust: false,
-          withKarpathyHook: true,
         },
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
@@ -604,7 +580,8 @@ describe("executeSpec", () => {
       typeof args[0] === "string" ? args[0].includes("OPTIONS") : false,
     );
     expect(optsCall?.[0]).toContain("prune");
-    expect(optsCall?.[0]).toContain("karpathy-hook");
+    // 2026-08-02 정비 (ADR-060) — karpathy-hook 플래그 삭제. 잔존 동작 옵션은 prune·codex-trust.
+    expect(optsCall?.[0]).not.toContain("karpathy");
   });
 
   it("renders Phase 2 (External Assets) when report.external has attempted entries", () => {
@@ -1257,7 +1234,6 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
     options: {
       withPrune: false,
       withCodexTrust: false,
-      withKarpathyHook: false,
     },
     cli: ["claude"],
     projectDir: "/p",
