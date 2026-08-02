@@ -43,9 +43,20 @@ export type ExternalAssetMethod =
       key:
         | "tauri-desktop"
         // v26.87.0 — dev-method skills (uzys 1st-party, repo-bundled templates).
-        // 2026-08-02 정비 — 방법론 스킬 대부분이 uzysjung/uzys-agent-skills 로 이관돼
-        //   `kind: "skill"` (npx skills add) 로 대체됐다. 번들로 남는 것은 compaction-handoff 하나.
+        // 2026-08-02 복원 (ADR-062) — 이관(ADR-060)이 본문을 열화시켜 이 리포 번들로 되돌렸다.
+        //   9종 전부 `templates/skills/<id>/` 로 다시 번들된다.
         | "compaction-handoff"
+        | "clear-korean-communication"
+        | "north-star"
+        | "audit-service-gaps"
+        | "verification-loop"
+        | "multi-persona-review"
+        | "recurrence-prevention"
+        | "gh-issue-workflow"
+        | "model-orchestration"
+        | "external-model-consult"
+        // 위임·요청을 canonical 브리프 형태로 정규화 (UserPromptSubmit 넛지 훅과 한 벌).
+        | "task-brief"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -145,7 +156,8 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 55 자산 매트릭스 (2026-08-02 정비: 모델이 이미 아는 pattern-guide·중복 번들 12종 제거
+ * 56 자산 매트릭스 (2026-08-02 복원분 + task-brief 신설. 그 전 정비: 모델이 이미 아는
+ * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
  * + 프론트엔드 3종 신규 — ADR-060. 이전: v26.110.0 ADR-039 오피셜 플러그인 큐레이션 3종 opt-in
@@ -199,9 +211,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "internal", key: "ci-scaffold" },
   },
 
-  // === Repo-bundled internal skill (uzys 1st-party, v26.87.0) ===
-  // 2026-08-02 정비 이후 유일하게 번들로 남는 방법론 스킬. 나머지는 아래 uzys-agent-skills
-  // (npx) 로 이관됐다 — 이 하나는 하네스 자체의 설치/재개 흐름에 묶여 이관 대상이 아니었다.
+  // === Repo-bundled internal skills (uzys 1st-party, v26.87.0) ===
+  // 2026-08-02 복원 (ADR-062) — 이관(ADR-060) 후 감사에서 본문 열화 104건(dropped 76 ·
+  //   damaged 28)이 확인돼 9종을 이 리포 번들로 되돌렸다. 아래 10종 전부 `kind: "internal"`.
   {
     id: "compaction-handoff",
     tier: "official", // uzys 본 하네스 자체 템플릿
@@ -213,12 +225,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "internal", key: "compaction-handoff" },
   },
 
-  // === uzys 방법론 스킬 — 이관 리포 (2026-08-02 정비, ADR-060) ===
-  // ASIS: templates/skills/<id>/ 로 번들 → 설치 시 dir copy (`kind: "internal"`).
-  // TOBE: uzysjung/uzys-agent-skills 단일 리포에서 `npx skills add … --skill <id>`.
-  //   같은 스킬을 이 리포와 이관 리포 양쪽에서 관리하면 한쪽이 반드시 썩는다 — 배포 경로를
-  //   하나로 모으고, 하네스는 "무엇을 설치할지"만 안다. tier official = 자사(star 무관 —
-  //   trust-tier-drift 가 official 을 건너뛴다). condition 은 전신(前身)을 그대로 보존한다.
+  // === uzys 방법론 스킬 — 이 리포 번들 (2026-08-02 복원, ADR-062) ===
+  // ASIS(ADR-060): `kind: "skill"` — uzysjung/uzys-agent-skills 에서 `npx skills add`.
+  // TOBE: templates/skills/<id>/ 번들 → 설치 시 dir copy (`kind: "internal"`).
+  //   이관본이 판정 기준·수치·워크드 예시를 잃어(감사 실측 104건) 스킬이 무엇을 하라는지가
+  //   남고 무엇으로 판정하는지가 사라졌다. 배포 경로를 하나로 모으는 이득보다 본문 보존이
+  //   앞선다 — 본문 게이트(테스트)가 이 리포에만 있기 때문이다. tier official = 자사
+  //   (star 무관 — trust-tier-drift 가 official 을 건너뛴다). condition 은 이관 전 도달 범위 유지.
   {
     id: "clear-korean-communication",
     tier: "official", // uzys 자사 스킬 리포
@@ -227,11 +240,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: {
-      kind: "skill",
-      source: "uzysjung/uzys-agent-skills",
-      skill: "clear-korean-communication",
-    },
+    method: { kind: "internal", key: "clear-korean-communication" },
   },
   {
     id: "north-star",
@@ -243,7 +252,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 전 트랙 상주 보존 — 이관 전에는 manifest COMMON_SKILL_DIRS(조건 없는 전 트랙 설치)였다.
     // 이 카탈로그에 "always" kind 가 없어 전 트랙 나열로 같은 도달 범위를 표현한다.
     condition: { kind: "any-track", tracks: [...TRACKS] },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "north-star" },
+    method: { kind: "internal", key: "north-star" },
   },
   {
     id: "audit-service-gaps",
@@ -253,7 +262,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "audit-service-gaps" },
+    method: { kind: "internal", key: "audit-service-gaps" },
   },
   {
     id: "verification-loop",
@@ -263,7 +272,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "verification-loop" },
+    method: { kind: "internal", key: "verification-loop" },
   },
   {
     id: "multi-persona-review",
@@ -273,7 +282,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "multi-persona-review" },
+    method: { kind: "internal", key: "multi-persona-review" },
   },
   {
     id: "recurrence-prevention",
@@ -283,7 +292,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "recurrence-prevention" },
+    method: { kind: "internal", key: "recurrence-prevention" },
   },
   {
     id: "gh-issue-workflow",
@@ -294,7 +303,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     // 전 트랙 상주 보존 — north-star 와 같은 이유 (이관 전 COMMON_SKILL_DIRS).
     condition: { kind: "any-track", tracks: [...TRACKS] },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "gh-issue-workflow" },
+    method: { kind: "internal", key: "gh-issue-workflow" },
   },
   {
     id: "model-orchestration",
@@ -304,10 +313,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "workflow",
     source: "uzys",
     condition: { kind: "opt-in" },
-    method: { kind: "skill", source: "uzysjung/uzys-agent-skills", skill: "model-orchestration" },
+    method: { kind: "internal", key: "model-orchestration" },
   },
   {
-    // 전신 = gemini-consult + codex-consult. 이관 리포에서 provider 중립 한 스킬로 통합됐다.
+    // 전신 = gemini-consult + codex-consult. provider 중립 한 스킬로 통합됐다(통합은 유지 —
+    //   되돌린 것은 배포 경로이지 통합이 아니다).
     id: "external-model-consult",
     tier: "official", // uzys 자사 스킬 리포
     description:
@@ -315,11 +325,22 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "dev-tools",
     source: "uzys",
     condition: { kind: "opt-in" },
-    method: {
-      kind: "skill",
-      source: "uzysjung/uzys-agent-skills",
-      skill: "external-model-consult",
-    },
+    method: { kind: "internal", key: "external-model-consult" },
+  },
+  {
+    // 복원 9종이 아니라 신설이다 — 이관 이력이 없다.
+    // 전 트랙인 이유: 위임과 요청 정규화는 개발 트랙의 행위가 아니라 **전 트랙의 행위**다.
+    // executive 트랙도 서브에이전트에 일을 넘기고, 그때 브리프가 없으면 완료 판정 기준 없이
+    // 넘긴다. 짝인 `task-brief-nudge.sh` 훅이 `ALWAYS_HOOKS`(전 설치본)라 스킬만 좁게 깔면
+    // 넛지가 없는 스킬을 가리킨다 — 훅과 스킬의 도달 범위는 같아야 한다.
+    id: "task-brief",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Task brief — normalize an incoming request into the canonical brief (objective · inputs · invariants · success criteria · boundaries · autonomy · verification) and write every delegation prompt in that same shape",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "any-track", tracks: [...TRACKS] },
+    method: { kind: "internal", key: "task-brief" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -944,12 +965,21 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
  * `selectedInternalSkills` 계산 + manifest copy 게이팅 + 테스트가 공유하는 SSOT.
  * 각 id 는 method.kind==="internal" 이며 `templates/skills/<id>/SKILL.md` 로 번들된다.
  *
- * 2026-08-02 정비 (ADR-060) — 8종 중 7종이 uzysjung/uzys-agent-skills 로 이관돼
- * `kind: "skill"` 카탈로그 엔트리가 됐다. 상수는 **유지**한다: "번들이라 dir-copy 대상"이라는
- * 술어 자체는 남아 있고, 앞으로 번들 스킬이 다시 늘어도 소비자(manifest·4-CLI transform·
- * gen-compatibility)는 이 목록만 보면 된다. 현재 번들 방법론 skill 1종 (compaction-handoff).
+ * 2026-08-02 복원 (ADR-062) — 이관(ADR-060)으로 1종까지 줄었던 목록이 6종으로 돌아왔다.
+ * 멤버십 기준은 **`condition.kind === "has-dev-track"` 인 번들 방법론 스킬**이다 (그 불변식을
+ * `tests/external-assets.test.ts` 가 단언한다). 전 트랙(any-track)·opt-in 번들 스킬은 여기
+ * 들어오지 않는다 — 조건이 섞이면 wizard 번들이 부분집합이 되어 사용자가 안 고른 자산을
+ * 설치한다 (`tests/wizard-bundle.test.ts` 의 recommended ∩ members ∈ {∅, 전체}).
+ * 현재 dev-method skills 6종.
  */
-export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = ["compaction-handoff"];
+export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
+  "compaction-handoff",
+  "clear-korean-communication",
+  "audit-service-gaps",
+  "multi-persona-review",
+  "recurrence-prevention",
+  "verification-loop",
+];
 
 /**
  * v26.95.0 — ALL repo-bundled internal skill ids (dev-method + opt-in advisors). Bundling is
@@ -958,11 +988,19 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = ["compaction-handoff"
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
  * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the has-dev-track methodology skills.
  *
- * 2026-08-02 정비 (ADR-060) — opt-in 번들 advisors(model-orchestration·gemini/codex-consult·
- * explain-plainly)가 전부 이관돼 현재 superset = dev-method 와 같다. 두 상수를 합치지 않는
- * 이유는 위와 같다 — 술어가 다르고, 갈라지는 순간 소비자가 고를 것이 없어진다.
+ * 2026-08-02 복원 (ADR-062) — superset 이 다시 진부분집합이 됐다. dev-method 6종에 더해
+ * 전 트랙 2종(north-star·gh-issue-workflow)과 opt-in 2종(model-orchestration·
+ * external-model-consult)이 번들이다. 이 4종은 `DEV_METHOD_SKILL_IDS` 의 has-dev-track
+ * 불변식을 깨거나(전자) wizard 번들을 부분집합으로 만들기(후자) 때문에 여기에만 있다.
  */
-export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [...DEV_METHOD_SKILL_IDS];
+export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
+  ...DEV_METHOD_SKILL_IDS,
+  "north-star",
+  "gh-issue-workflow",
+  "task-brief",
+  "model-orchestration",
+  "external-model-consult",
+];
 
 /**
  * v26.79.0 — `TRUST_TIER` 는 EXTERNAL_ASSETS.tier 에서 derive (단일 출처). 별도 Record 유지 시

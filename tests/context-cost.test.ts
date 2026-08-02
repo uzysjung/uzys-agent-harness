@@ -39,8 +39,15 @@ const scaffoldTokens = (): number => estimateTokens(renderFillScaffold().trim().
  * 실측 2026-08-02 (ADR-060): 방법론 7종이 uzysjung/uzys-agent-skills 로 이관돼 번들 코어는
  * compaction-handoff 1종 = ~124 tokens. 예산 = 150 으로 재조임 (같은 ratchet 규칙 —
  * 아래 "budget is honest" 가 실측 ×1.25 를 넘는 예산을 거절한다).
+ * 실측 2026-08-02 (ADR-062, 복원): 이관이 되돌려져 코어 6종 = ~1,415 tokens
+ * (compaction-handoff 124 · clear-korean-communication 362 · audit-service-gaps 298 ·
+ * multi-persona-review 217 · recurrence-prevention 243 · verification-loop 171).
+ * 예산 = 1,500 (여유 ~6%). **명시적 상향의 근거**: 자산 1종 → 6종이라는 도달 범위 변화이지
+ * 설명 확장이 아니다. 종당 평균 ~236 은 이관 전 8종 시절(~226/종, v26.103.0 실측 1,809/8)과
+ * 같은 자릿수다 — description 이 원본 verbatim 트리거 발화를 되찾았는데도 종당 비용은
+ * 안 불었다는 뜻이라 이 상향은 "스킬이 늘어난 만큼"에 그친다.
  */
-const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 150;
+const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1500;
 
 describe("context-cost primitives", () => {
   it("estimates tokens at chars/4 rounded up", () => {

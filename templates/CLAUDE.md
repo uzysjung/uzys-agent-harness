@@ -122,5 +122,5 @@ Present a decision or approval request as AS-IS → TO-BE with a recommendation 
 as prose. Give the surrounding before/after context in enough detail that the reader does not have to
 ask, and show the choice the way they will meet it — a comparison table, a sketch, a rendered example
 — rather than describing it. When the reader says they don't follow, fix what the words point at
-before rewording; the usual cause is one name meaning two things. Where the `asis-tobe-decision` and
-`explain-plainly` skills are installed, use them for this.
+before rewording; the usual cause is one name meaning two things. Where the
+`clear-korean-communication` skill is installed, use it for this.

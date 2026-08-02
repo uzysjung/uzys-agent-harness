@@ -476,6 +476,18 @@ function renderPhase1Rows(
         ),
       );
     }
+    // 2026-08-02 (ADR-062) — 다른 도구(`npx skills add`)가 소유한 자리는 건너뛴다. 그 사실을
+    // 안 보이면 사용자는 "이 스킬만 왜 안 갱신되지"를 추적할 방법이 없고, 반대로 조용히
+    // 덮어썼다면 자기 저장소가 바뀐 줄도 모른다. 둘 다 침묵이 문제라 건수가 아니라 이름을 낸다.
+    if (baseline.updateMode.skillsSkippedLinks.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          ".claude/skills linked",
+          `${baseline.updateMode.skillsSkippedLinks.join(", ")} · owned by another tool (symlink) — not updated`,
+        ),
+      );
+    }
     // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
     // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
     if (baseline.updateMode.policyBackedUp.length > 0) {

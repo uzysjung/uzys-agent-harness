@@ -109,8 +109,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 
 > **현재 상태 (2026-08-02, ADR-061 룰·훅 다이어트 후)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 23개 항목 · ~5,719 tokens/세션** = rules 6개 ~2,308 ·
-> CLAUDE.md 2개 ~2,395 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> 실측(tooling 트랙): **상주 23개 항목 · ~5,715 tokens/세션** = rules 6개 ~2,308 ·
+> CLAUDE.md 2개 ~2,391 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
 > 직전(ADR-060 정비 직후 24개 ~6,552) 대비 −1개 · −833 tok — `gates-taxonomy` 삭제(룰 9종→8종)와
 > 잔여 8종의 절 단위 감량(양 사본 합계 1,100 → 535줄)의 결과다. 그 앞(30개 ~7,570)부터 세면
 > −7개 · 약 −1,850 tok. **개수는 1 만 줄었는데 토큰이 833 줄어든 것이 이 사이클의 형태다** —
@@ -119,6 +119,13 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > CLAUDE.md 가 2개인 것은 설치가 **하네스 앵커(루트 `CLAUDE-uzys-harness.md`)와 프로젝트
 > 스캐폴드+import(루트 `CLAUDE.md`)를 둘 다** 놓기 때문이다. v26.140.0 까지는 앵커만 재면서
 > 라벨은 "스캐폴드"였고, 그래서 스캐폴드 ~954 tok/세션이 계측 밖에 있었다.
+> ⚠ **이 23개에 번들 스킬은 안 들어 있다** (실측 2026-08-02, ADR-062 복원 시 확인). 상주 계측의
+> 측정 spec 이 `selectedInternalSkills` 를 넘기지 않아 `templates/skills/` 번들은 전부 항목 0 ·
+> 토큰 0 으로 계산된다 — 그래서 스킬 9종을 되돌려도 이 표와 `context-cost-baseline.json` 이
+> **한 자리도 안 움직였다**(재생성 후 diff 무차이로 확인). 같은 실행의 자산별 리포트는 번들
+> 11종 상주 ~3,059 를 낸다. 즉 **두 수치의 모집단이 다르다.** 1차 NSM 이 "상주 항목 수"인 이상
+> 이 사각은 결함이다 — 고치면 ratchet 의 전 트랙 baseline 이 동시에 움직이므로 별도 항목으로
+> 이월했다(`docs/todo.md`). 그때까지 위 23개는 **"룰·CLAUDE.md·agent descriptor 기준"** 으로 읽는다.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고
 > `npm run cost:report <track>` 이 현재값을 낸다. 같은 사실을 두 곳에 두면 한쪽이 썩는다
 > (doc-governance). 위 tooling 수치만 문서에 두는 이유는 그것이 게이트로 대조되기 때문이다.

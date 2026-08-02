@@ -5,6 +5,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -967,6 +968,74 @@ describe("syncSkills (R-3a)", () => {
     syncSkills(target, source, new Map([["demo/SKILL.md", hashContent("old\n")]]));
 
     expect(readFileSync(join(target, "demo/my-notes.md"), "utf8")).toBe("mine\n");
+  });
+
+  /**
+   * 회귀 가드 (2026-08-02 · ADR-062 · 계획 리뷰 P0-6).
+   *
+   * `npx skills add` 의 프로젝트 스코프 설치처가 `.claude/skills/<id>` 이고 그 실체는 사용자의
+   * skills 저장소로 가는 **링크**다. 위 판정은 `existsSync(targetSkill)` 하나였는데 그 함수는
+   * 링크를 따라가므로, "우리가 깐 디렉터리"와 "남의 저장소를 가리키는 링크"가 같은 값을 준다.
+   * 그 상태로 쓰면 하네스가 `.claude/` **밖**에 있는 사용자 저장소 본문을 덮어쓴다 — 백업이
+   * 남아도 사용자가 찾아갈 자리가 아니다.
+   *
+   * 그래서 단언은 "건너뛰었다"가 아니라 **링크 대상 파일이 한 바이트도 안 변했다**로 쓴다.
+   * 반환값만 보면 건너뛰었다고 보고하면서 실제로는 쓰는 구현이 통과한다.
+   */
+  it("target 스킬이 심볼릭 링크면 건너뛴다 — 링크 대상(남의 저장소)을 덮어쓰지 않는다", () => {
+    // 링크가 가리킬 "사용자의 skills 저장소".
+    const foreignRepo = mkdtempSync(join(tmpdir(), "ch-sk-foreign-"));
+    try {
+      const foreignSkill = join(foreignRepo, "demo");
+      mkdirSync(foreignSkill, { recursive: true });
+      writeFileSync(join(foreignSkill, "SKILL.md"), "their-body\n");
+
+      // templates 쪽엔 같은 이름의 우리 판본이 있다.
+      mkdirSync(join(source, "demo"), { recursive: true });
+      writeFileSync(join(source, "demo", "SKILL.md"), "our-body\n");
+
+      // 프로젝트의 .claude/skills/demo 는 그 저장소로 가는 링크다.
+      symlinkSync(foreignSkill, join(target, "demo"), "dir");
+
+      const result = syncSkills(target, source, new Map());
+
+      // 핵심 단언 — 링크 대상 본문 무변경.
+      expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");
+      // 백업 파일도 만들지 않는다 (남의 저장소에 우리 부산물을 남기지 않는다).
+      expect(readdirSync(foreignSkill)).toEqual(["SKILL.md"]);
+      expect(result.updated).toBe(0);
+      // 침묵 금지 — 건너뛴 사실을 보고한다.
+      expect(result.skippedLinks).toEqual(["demo"]);
+    } finally {
+      rmSync(foreignRepo, { recursive: true, force: true });
+    }
+  });
+
+  it("링크가 아닌 스킬은 같은 실행에서 정상 갱신된다 — 가드가 전체를 멈추지 않는다", () => {
+    const foreignRepo = mkdtempSync(join(tmpdir(), "ch-sk-foreign2-"));
+    try {
+      const foreignSkill = join(foreignRepo, "linked");
+      mkdirSync(foreignSkill, { recursive: true });
+      writeFileSync(join(foreignSkill, "SKILL.md"), "their-body\n");
+      mkdirSync(join(source, "linked"), { recursive: true });
+      writeFileSync(join(source, "linked", "SKILL.md"), "our-body\n");
+      symlinkSync(foreignSkill, join(target, "linked"), "dir");
+
+      seed("owned", "SKILL.md", "new\n", "old\n");
+
+      const result = syncSkills(
+        target,
+        source,
+        new Map([["owned/SKILL.md", hashContent("old\n")]]),
+      );
+
+      expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");
+      expect(readFileSync(join(target, "owned/SKILL.md"), "utf8")).toBe("new\n");
+      expect(result.updated).toBe(1);
+      expect(result.skippedLinks).toEqual(["linked"]);
+    } finally {
+      rmSync(foreignRepo, { recursive: true, force: true });
+    }
   });
 });
 

@@ -109,16 +109,35 @@ ADR-061 에서 gates-taxonomy 행 해체). ECC에서 발췌해 `templates/`에 �
 | Agents (templates/agents/) | code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver |
 | Commands (templates/commands/ecc/) | e2e, eval, harness-audit |
 
+**`verification-loop` 은 이 목록에 없다** — ECC 파생이지만 lock 밖이다(ADR-060 이 행을 해체했고
+ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포하며 출처는 SKILL.md 본문의 MIT 귀속
+1줄이 진다. lock 에 되돌리면 `sync-cherrypicks.sh --apply` 의 rsync 가 우리 본문을 덮어쓴다.
+
 ---
 
 ## 6. 자체 작성 자산
 
 ### Skills (templates/skills/)
 
-| Skill | Track | 용도 | 버전 |
-|-------|------|------|------|
+번들 = 13종. 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
+uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
+워크드 예시를 잃었고(감사 실측 104건), 그 본문을 무는 게이트는 이 리포에만 있다.
+설치 조건의 SSOT 는 `src/external-assets.ts` 의 각 엔트리 `condition` 이다.
+
+| Skill | 설치 조건 | 용도 | 비고 |
+|-------|----------|------|------|
+| **north-star** | 전 track | NSM(metric-as-proxy)·Pillars·Will/Won't·4-gate + 우선순위 순서 게이트. `NORTH_STAR.template.md` 동반 | ADR-062 복원 (구 north-star + northstar-roadmap 통합) |
+| **gh-issue-workflow** | 전 track | 이슈를 비동기 백로그·결정 채널로. 5섹션 body 템플릿(`ISSUE.template.md`) + 읽기/초안/원격쓰기 단계 분리 | ADR-062 복원 |
+| **task-brief** | 전 track | 요청·위임 프롬프트를 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. `task-brief-nudge.sh` 훅과 한 벌 | ADR-062 AC9 신설 (복원 아님) |
+| **clear-korean-communication** | 전 dev track | 독자 위치에서 시작하는 설명 + 승인 요청 4요소(맥락→추천→UI/UX→ASIS/TOBE) | ADR-062 복원 (구 asis-tobe-decision + explain-plainly 통합) |
+| **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
+| **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |
+| **recurrence-prevention** | 전 dev track | 재발 검증 → 단순/복합 분류 → 대책 사다리 1단 상향(기록→룰→구조 게이트) | ADR-062 복원 |
+| **verification-loop** | 전 dev track | 표면별 검증 트랙 + 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity 4단 | ADR-062 복원 · ECC 파생(MIT, lock 밖 — §5 참조) |
+| **model-orchestration** | opt-in | 역할·effort 라우팅 정책, 위임 브리프 규격, 워커 수거·종료 계약 | ADR-062 복원 |
+| **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
+| **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
 | **spec-scaling** | 전 dev track | SPEC.md/PRD.md 300줄 초과 시 기능별 or 영역별 분리 제안 (docs/specs/ or docs/PRD/) | v26.30.0 확장 |
-| **north-star** | 전 track | 4-gate decision heuristic (Trend/Persona/Capability/Lean) + NORTH_STAR.md template. Plan 전 scope 필터 | v26.28.0 신규 |
 | **ui-visual-review** | csr-*/ssr-*/full | Playwright/chrome-devtools 스크린샷 캡처 → baseline diff → 에이전트 REGRESSION 분류 → Review Gate 차단 | v26.29.0 신규 |
 
 ### Templates (templates/docs/)
@@ -141,9 +160,12 @@ CLAUDE.md와 짝.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-3 파일 (실측 2026-08-02): session-start · protect-files · mcp-pre-exec.
+4 파일 (실측 2026-08-02): session-start · protect-files · mcp-pre-exec · task-brief-nudge.
 차단하는 둘(protect-files · mcp-pre-exec)은 exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
 `날짜 · 훅 · 대상 · 사유` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
+**task-brief-nudge 는 차단하지 않는다** — UserPromptSubmit 에서 "400자 이상 && `<objective>` 부재"
+라는 결정적 두 조건만 보고 stdout 1줄을 덧붙인다(그 밖엔 무출력 exit 0). 차단 경로가 없어
+차단 로그도 남기지 않는다. 브리프 변환 자체는 판단이 필요하므로 `task-brief` 스킬 몫이다.
 *구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 ADR-023, karpathy-gate·spec-drift-check
 는 ADR-060, checkpoint-snapshot 은 ADR-061 에서 삭제됨(검증 스캐폴딩·무동작 실측 — 마지막 것은
 `settings.json` 의 `"PostToolUse": []` 로 설치만 되고 실행 0이었다).*

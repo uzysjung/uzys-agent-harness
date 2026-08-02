@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
-import { ALWAYS_HOOKS, buildManifest, resolveRules } from "../src/manifest.js";
+import {
+  ALWAYS_HOOKS,
+  buildManifest,
+  MODIFIED_ECC_SKILL_DIRS,
+  resolveRules,
+} from "../src/manifest.js";
 
 describe("resolveRules", () => {
   it("includes COMMON rules for any track", () => {
@@ -155,8 +160,25 @@ describe("buildManifest", () => {
     // dev 트랙 조건은 유지 — executive 단독은 종전과 동일하게 미설치.
     expect(eh?.applies({ tracks: ["executive"] })).toBe(false);
 
-    // 이관으로 사라진 쪽은 manifest 에서도 사라져야 한다 — 남으면 없는 dir 을 복사하려 든다.
-    expect(m.find((e) => e.source === "skills/verification-loop")).toBeUndefined();
+    // 2026-08-02 복원 (ADR-062) — verification-loop 이 번들로 돌아왔다. 여기서 지키는 것은
+    // "존재/부재"가 아니라 **어느 축으로 들어오는가**다: ECC C3(withEcc 무관 dev 트랙)가 아니라
+    // internal 번들(selectedInternalSkills 게이팅)이어야 한다. C3 로 다시 붙으면
+    // cherrypicks.lock 과 1:1 이 깨져 `sync-cherrypicks.sh --apply` 가 본문을 덮어쓴다.
+    const vl = m.find((e) => e.source === "skills/verification-loop");
+    expect(vl, "verification-loop 이 번들 목록에 없다").toBeDefined();
+    expect(vl?.applies({ tracks: ["tooling"] })).toBe(false); // 선택 안 하면 안 깔린다
+    expect(
+      vl?.applies({ tracks: ["tooling"], selectedInternalSkills: ["verification-loop"] }),
+    ).toBe(true);
+    // withEcc 로는 갈리지 않는다 — C3 축이 아님을 실동작으로 고정.
+    expect(
+      vl?.applies({
+        tracks: ["tooling"],
+        withEcc: true,
+        selectedInternalSkills: ["verification-loop"],
+      }),
+    ).toBe(true);
+    expect(MODIFIED_ECC_SKILL_DIRS).not.toContain("verification-loop");
 
     // 잔여 DEV_SKILL_DIRS_ECC 는 C2 그대로 — 재분류 전파 방지.
     const aid = m.find((e) => e.source === "skills/agent-introspection-debugging");

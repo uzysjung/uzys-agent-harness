@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   assetTrustTier,
@@ -14,6 +17,7 @@ import {
 import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 const NO_OPTIONS: OptionFlags = { ...DEFAULT_OPTIONS };
+const REPO_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 
 describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
   // v26.79.0 — tier 는 이제 ExternalAsset.tier 필수 필드 (컴파일러가 누락 차단).
@@ -126,12 +130,13 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 55 distinct asset ids (no duplicates)", () => {
+  it("contains 56 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
-    //   + 9(이관 uzys npx) + 3(frontend) = 55.
-    expect(ids).toHaveLength(55);
+    //   + 9(이관 uzys npx) + 3(frontend) = 55. + 1(task-brief 신설, ADR-062 AC9) = 56.
+    expect(ids).toHaveLength(56);
+    expect(ids).toContain("task-brief");
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
     expect(ids).toContain("code-review");
     expect(ids).toContain("feature-dev");
@@ -170,11 +175,11 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
   });
 
-  // 2026-08-02 정비 (ADR-060) — uzys 방법론 스킬 9종의 이관. Promise=Impl: 이 리포에 더는
-  //   templates/skills/<id>/ 가 없으므로 method 는 반드시 이관 리포를 가리키는 `kind:"skill"`
-  //   이어야 한다. internal 로 남으면 존재하지 않는 dir 을 복사하려다 silent skip 된다
-  //   (ci-scaffold 테스트가 잡는 것과 같은 함정).
-  it("이관 uzys 스킬 9종: kind:skill · uzysjung/uzys-agent-skills · tier official · 전신 condition", () => {
+  // 2026-08-02 복원 (ADR-062) — ADR-060 이 이관했던 uzys 방법론 스킬 9종이 이 리포 번들로
+  //   돌아왔다. Promise=Impl: 이제 method 는 반드시 `kind:"internal"` 이고 key 는 id 와 같아야
+  //   한다 — `kind:"skill"` 로 남으면 설치 시 존재하지 않는 이관 리포에서 npx 로 받으려 든다.
+  //   condition 은 이관 전 도달 범위 그대로다(강등·승격 둘 다 금지).
+  it("복원 uzys 스킬 9종: kind:internal · key=id · tier official · 이관 전 condition", () => {
     const expected: Record<string, { category: string; condition: string }> = {
       "clear-korean-communication": { category: "workflow", condition: "has-dev-track" },
       // north-star · gh-issue-workflow 는 이관 전 COMMON_SKILL_DIRS(전 트랙 상주)였다 —
@@ -195,12 +200,12 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       expect(a.source, id).toBe("uzys");
       expect(a.category, id).toBe(want.category);
       expect(a.condition.kind, id).toBe(want.condition);
-      expect(a.method.kind, id).toBe("skill");
-      if (a.method.kind !== "skill") throw new Error("not skill");
-      expect(a.method.source, id).toBe("uzysjung/uzys-agent-skills");
-      expect(a.method.skill, id).toBe(id);
-      // 번들 목록에 남으면 없는 templates/skills/<id> 를 복사하려 든다.
-      expect(INTERNAL_BUNDLED_SKILL_IDS, id).not.toContain(id);
+      expect(a.method.kind, id).toBe("internal");
+      if (a.method.kind !== "internal") throw new Error("not internal");
+      expect(a.method.key, id).toBe(id);
+      // 번들 목록에서 빠지면 manifest·4-CLI transform·gen:compat 어느 경로에도 안 잡힌다 —
+      //   자산은 카탈로그에 보이는데 파일이 안 깔리는 거짓출하가 된다.
+      expect(INTERNAL_BUNDLED_SKILL_IDS, id).toContain(id);
     }
     // 전 트랙 보존의 실동작 확인 — executive(비-dev)에서도 설치된다.
     for (const id of ["north-star", "gh-issue-workflow"]) {
@@ -262,11 +267,16 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.87.0 — dev-method skills (uzys 1st-party, internal templates). Promise=Impl:
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
-  // 2026-08-02 정비 (ADR-060) — 8종 중 7종 이관 → 잔존 1종. 술어는 그대로다.
-  it("dev-method skills: internal/official/has-dev-track, 잔존 = compaction-handoff", () => {
+  // 2026-08-02 복원 (ADR-062) — 이관 8→1 이 되돌려져 6종. 술어는 그대로다.
+  it("dev-method skills: internal/official/has-dev-track, 6종", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "compaction-handoff": "workflow",
+      "clear-korean-communication": "workflow",
+      "audit-service-gaps": "dev-tools",
+      "multi-persona-review": "dev-tools",
+      "recurrence-prevention": "workflow",
+      "verification-loop": "dev-tools",
     };
     expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
     for (const id of DEV_METHOD_SKILL_IDS) {
@@ -281,9 +291,38 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       expect(a.method.key).toBe(id);
       expect(a.category).toBe(expectedCategory[id]);
     }
-    // 번들 목록의 모든 id 는 실제로 templates/skills/<id> 로 존재해야 한다 — 없으면 복사가
-    //   silent skip 된다. 이관 사이클이 목록만 지우고 dir 을 남기거나 그 반대를 하면 여기서 문다.
-    expect([...INTERNAL_BUNDLED_SKILL_IDS].sort()).toEqual([...DEV_METHOD_SKILL_IDS].sort());
+  });
+
+  // 2026-08-02 복원 (ADR-062) — 여기 있던 `INTERNAL_BUNDLED == DEV_METHOD` 집합 등식을 교체했다.
+  //   그 등식은 두 상수가 같던 시절에만 성립하는 **프록시**였고, 주석이 밝힌 진짜 의도는
+  //   "번들 목록의 모든 id 가 실제로 templates/skills/<id> 로 존재"였다. 복원으로 superset 이
+  //   진부분집합이 되는 순간(전 트랙 2종·opt-in 2종 합류) 등식은 의도와 무관하게 깨진다 —
+  //   그래서 프록시를 실제 속성 둘로 바꾼다: ⓐ 디렉터리 실재 ⓑ 포함관계.
+  //   (같은 교훈이 `tests/wizard-bundle.test.ts` 에 이미 기록돼 있다.)
+  it("번들 스킬 목록 ⓐ 전 id 가 templates/skills/<id>/SKILL.md 로 실재 ⓑ DEV_METHOD ⊆ INTERNAL_BUNDLED", () => {
+    // ⓐ 없으면 manifest dir copy 가 silent skip 되어 "카탈로그엔 있는데 안 깔린다"가 된다.
+    for (const id of INTERNAL_BUNDLED_SKILL_IDS) {
+      const skillMd = join(REPO_ROOT, "templates", "skills", id, "SKILL.md");
+      expect(existsSync(skillMd), `${id}: templates/skills/${id}/SKILL.md 부재`).toBe(true);
+    }
+    // ⓑ dev-method 는 번들의 부분집합이다 — 빠지면 dir copy 대상에서 누락된 채 wizard 에만 뜬다.
+    for (const id of DEV_METHOD_SKILL_IDS) {
+      expect(INTERNAL_BUNDLED_SKILL_IDS, `${id}: dev-method 인데 번들 목록에 없다`).toContain(id);
+    }
+    // 두 상수의 차집합 = 전 트랙 3종 + opt-in 2종. 여기 늘어나면 멤버십 결정이 문서화 없이
+    //   바뀐 것이므로 목록을 고정한다 (DEV_METHOD 의 has-dev-track 불변식이 그 이유).
+    const bundledOnly = INTERNAL_BUNDLED_SKILL_IDS.filter(
+      (id) => !DEV_METHOD_SKILL_IDS.includes(id),
+    );
+    expect([...bundledOnly].sort()).toEqual(
+      [
+        "external-model-consult",
+        "gh-issue-workflow",
+        "model-orchestration",
+        "north-star",
+        "task-brief",
+      ].sort(),
+    );
   });
 
   // WHY core-on-dev-tracks: official tier (not experimental) + has-dev-track → installs by
