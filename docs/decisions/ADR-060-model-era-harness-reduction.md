@@ -1,8 +1,8 @@
 # ADR-060: 모델 발전 전제의 하네스 감량 — 스킬 외부화 · 카탈로그 정리 · @import 앵커
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-02
-- PR: #TBD
+- PR: #267
 - Context: 사용자 지시 5항목(2026-08-02) + 이슈 #261(룰)·#262(스킬). 근거 문서 3편을 실측
   인용해 판단했다. ⓐ Opus 5 프롬프팅 가이드 — "explicit verification instructions … cause
   over-verification", "Avoid instructing re-checks it already performs", legacy harness
