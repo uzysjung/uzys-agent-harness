@@ -1,6 +1,6 @@
 # {PROJECT_NAME} — OpenCode Agent Guide
 
-> **Generated from**: `.claude/CLAUDE.md` via TS CLI `src/opencode/transform.ts` (Phase C)
+> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via TS CLI `src/opencode/transform.ts` (Phase C)
 > **OpenCode Version**: 0.x (anomalyco/opencode)
 > **Linked SPEC**: `docs/specs/opencode-compat.md`
 
@@ -61,4 +61,4 @@ OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
 
 ---
 
-*이 문서는 자동 생성됨. 수동 편집 시 transform 재실행이 덮어쓸 수 있음. 원본은 `.claude/CLAUDE.md` 또는 `templates/CLAUDE.md`.*
+*이 문서는 자동 생성됨. 수동 편집 시 transform 재실행이 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*

@@ -12,7 +12,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 import { type ExternalInstallerDeps, runExternalInstall } from "../src/external-installer.js";
-import { DEFAULT_OPTIONS, type OptionFlags, type Track, TRACKS } from "../src/types.js";
+import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 type SpawnFn = NonNullable<ExternalInstallerDeps["spawn"]>;
 
