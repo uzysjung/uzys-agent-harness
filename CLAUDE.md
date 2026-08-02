@@ -56,15 +56,19 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 **Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
 **커밋·push·PR 생성은 승인 불요** — 되돌리기 비싼 지점은 main 반영이다.
 
-**Never (⬜ 막는 훅이 없다)**: main 직접 커밋 · `push --force` · `reset --hard` · 시크릿 커밋.
-→ 아래 미해결 1번. 프로즈로만 지켜지고 있다.
+**Never**: main 강제 푸시 · 리뷰 없는 main 직접 푸시 · main 삭제 · 시크릿 포함 푸시
+→ **✅ GitHub 룰셋이 서버에서 거절**(실측 2026-08-02, `GH013` 음성 대조 확인). 로컬엔 아무것도
+안 생긴다. `reset --hard` 와 브랜치 작업은 **⬜ 여전히 프로즈뿐** — 서버가 볼 수 없는 영역이다.
+적용·재확인 = `bash templates/scripts/protect-branch.sh --dry-run`.
 
 ## 미해결 · 함정 (착수 전 확인, 2026-07-27)
 
-1. **비가역 차단이 0건이다.** `permissions.defaultMode = bypassPermissions` 이고 `deny`/`ask` 규칙
-   0건이며, Bash 매처 훅은 `docker-only-realcli` 하나뿐이다. force push·main 직접 커밋·시크릿
-   커밋을 막는 것이 아무것도 없다. 반대로 되돌릴 수 있는 것(문서 동기화·MCP 조회·`.env` 편집)은
-   막는다 — **방향이 거꾸로다.**
+1. **~~비가역 차단이 0건이다~~ → main 은 2026-08-02 부터 서버 규칙으로 잠겼다.** 남은 문제는
+   방향의 나머지 절반이다 — `permissions.defaultMode = bypassPermissions` 이고 `deny`/`ask` 규칙
+   0건, Bash 매처 훅은 `docker-only-realcli` 하나뿐인데, **되돌릴 수 있는 것**(문서 동기화·MCP
+   조회·`.env` 편집)은 여전히 로컬에서 막는다. 되돌릴 수 없는 쪽은 서버가 맡았으니 **로컬에
+   훅을 더 얹지 말고 강등할 것이 남았다**(백로그 A2). 로컬 가드 신설(옛 A1/A3)은 **기각** —
+   명령마다 검사하고 `--no`+`verify` 로 넘어가고 클론마다 재설치해야 한다.
 2. **훅이 차단 로그를 남기지 않는다**(실측 0줄). 무엇이 실제로 막고 있는지 판정할 데이터가 없어
    "옥죈다"가 느낌 대 느낌으로 남는다.
 3. **`spec-drift-check.sh` 는 미배선이고 지금 물지도 않는다** — 미완 체크박스 309개 앞에서 `ship`

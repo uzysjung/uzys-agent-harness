@@ -108,8 +108,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-07-29)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 30개 항목 · ~7,526 tokens/세션** = rules 10개 ~3,865 ·
+> **현재 상태 (2026-08-02)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
+> 실측(tooling 트랙): **상주 30개 항목 · ~7,570 tokens/세션** = rules 10개 ~3,909 ·
 > CLAUDE.md 2개 ~2,387 · agent descriptors 9개 ~724 · skill descriptors 9개 ~550.
 > CLAUDE.md 가 2개인 것은 설치가 **하네스 앵커(`.claude/CLAUDE.md`)와 프로젝트 스캐폴드(루트
 > `CLAUDE.md`)를 둘 다** 놓기 때문이다. v26.140.0 까지는 앵커만 재면서 라벨은 "스캐폴드"였고,
