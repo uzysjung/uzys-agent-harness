@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  addGitignoreAgentArtifacts,
   addGitignoreEnv,
-  addGitignoreNpxSkillsAgents,
   writeEnvExample,
   writeMcpAllowlist,
 } from "../src/env-files.js";
@@ -136,7 +136,7 @@ describe("writeMcpAllowlist", () => {
   });
 });
 
-describe("addGitignoreNpxSkillsAgents (v0.8.0)", () => {
+describe("addGitignoreAgentArtifacts (v0.8.0)", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "ch-gi-skl-"));
@@ -146,28 +146,39 @@ describe("addGitignoreNpxSkillsAgents (v0.8.0)", () => {
   });
 
   it("no .gitignore → returns []", () => {
-    expect(addGitignoreNpxSkillsAgents(dir)).toEqual([]);
+    expect(addGitignoreAgentArtifacts(dir)).toEqual([]);
   });
 
-  it("empty .gitignore → adds both .factory/ and .goose/", () => {
+  it("empty .gitignore → adds .factory/, .goose/, .uzys-agent-harness/", () => {
     writeFileSync(join(dir, ".gitignore"), "");
-    const added = addGitignoreNpxSkillsAgents(dir);
-    expect(added).toEqual([".factory/", ".goose/"]);
+    const added = addGitignoreAgentArtifacts(dir);
+    expect(added).toEqual([".factory/", ".goose/", ".uzys-agent-harness/"]);
     const content = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(content).toContain(".factory/");
     expect(content).toContain(".goose/");
-    expect(content).toContain("npx skills add multi-CLI cache");
+    expect(content).toContain(".uzys-agent-harness/");
+    expect(content).toContain("auto-added by agent-harness");
   });
 
   it("idempotent — second call returns []", () => {
     writeFileSync(join(dir, ".gitignore"), "");
-    addGitignoreNpxSkillsAgents(dir);
-    expect(addGitignoreNpxSkillsAgents(dir)).toEqual([]);
+    addGitignoreAgentArtifacts(dir);
+    expect(addGitignoreAgentArtifacts(dir)).toEqual([]);
   });
 
-  it("partial — .factory/ already present, only .goose/ added", () => {
+  it("partial — .factory/ already present, 나머지만 추가", () => {
     writeFileSync(join(dir, ".gitignore"), ".factory/\n");
-    const added = addGitignoreNpxSkillsAgents(dir);
-    expect(added).toEqual([".goose/"]);
+    const added = addGitignoreAgentArtifacts(dir);
+    expect(added).toEqual([".goose/", ".uzys-agent-harness/"]);
+  });
+
+  /**
+   * 2026-08-02 — 훅 차단 로그(`.uzys-agent-harness/hook-blocks.log`)가 설치 사용자 리포에서
+   * 추적되면, 차단이 일어날 때마다 남의 저장소에 커밋 대상이 늘어난다. 계측이 사용자에게
+   * 비용을 떠넘기는 형태라 패턴 누락을 여기서 단독으로 문다.
+   */
+  it("차단 로그 디렉터리가 반드시 포함된다 (계측이 사용자 리포를 더럽히지 않는다)", () => {
+    writeFileSync(join(dir, ".gitignore"), ".factory/\n.goose/\n");
+    expect(addGitignoreAgentArtifacts(dir)).toEqual([".uzys-agent-harness/"]);
   });
 });

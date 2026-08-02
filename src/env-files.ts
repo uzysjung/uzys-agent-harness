@@ -86,9 +86,9 @@ export function addGitignoreEnv(projectDir: string): boolean {
   return true;
 }
 
-const NPX_SKILLS_AGENT_DIRS = [".factory/", ".goose/"];
-const GITIGNORE_NPX_SKILLS_HEADER =
-  "# npx skills add multi-CLI cache (auto-added by agent-harness)";
+const AGENT_ARTIFACT_DIRS = [".factory/", ".goose/", ".uzys-agent-harness/"];
+const GITIGNORE_AGENT_ARTIFACT_HEADER =
+  "# agent CLI / harness 자동 생성물 (auto-added by agent-harness)";
 
 /**
  * v0.8.0 — `.gitignore`에 `.factory/`, `.goose/` 패턴 추가 (사용자 보고 #3).
@@ -96,16 +96,20 @@ const GITIGNORE_NPX_SKILLS_HEADER =
  * `npx skills add`가 multi-CLI universal install 동작 — Codex 사용자 환경에서
  * `.factory/skills/`, `.goose/skills/` 자동 생성. 사용자 git noise 회피용 ignore.
  *
+ * 2026-08-02 — `.uzys-agent-harness/` 추가. 설치 로그가 살던 자리에 훅 **차단 로그**
+ * (`hook-blocks.log`)가 합류하면서, 차단이 일어날 때마다 사용자 리포에 추적되는 파일이
+ * 늘어나게 됐다. 계측이 남의 저장소를 더럽히면 안 된다.
+ *
  * idempotent — 이미 있으면 skip.
  * @returns added pattern list (empty if all already present or no .gitignore)
  */
-export function addGitignoreNpxSkillsAgents(projectDir: string): string[] {
+export function addGitignoreAgentArtifacts(projectDir: string): string[] {
   const path = join(projectDir, ".gitignore");
   if (!existsSync(path)) {
     return [];
   }
   const content = readFileSync(path, "utf8");
-  const missing = NPX_SKILLS_AGENT_DIRS.filter((pattern) => {
+  const missing = AGENT_ARTIFACT_DIRS.filter((pattern) => {
     // exact line match (이스케이프 후 줄 단위 비교 — 단순화: 문자열 포함)
     const lineRegex = new RegExp(`^${pattern.replace(/\./g, "\\.").replace(/\//g, "/")}\\s*$`, "m");
     return !lineRegex.test(content);
@@ -114,7 +118,7 @@ export function addGitignoreNpxSkillsAgents(projectDir: string): string[] {
     return [];
   }
   const sep = content.endsWith("\n") ? "" : "\n";
-  const block = [GITIGNORE_NPX_SKILLS_HEADER, ...missing].join("\n");
+  const block = [GITIGNORE_AGENT_ARTIFACT_HEADER, ...missing].join("\n");
   appendFileSync(path, `${sep}\n${block}\n`);
   return [...missing];
 }

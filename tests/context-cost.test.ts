@@ -419,10 +419,12 @@ describe("상주 항목 수 (quantity 축)", () => {
   // 2026-08-02 정비 (ADR-060) — 스킬 축이 줄었다: 방법론 스킬 이관으로 번들 dir 이 14개
   //   사라졌고(전 트랙 상주였던 north-star·gh-issue-workflow 포함) 그만큼 상주 항목이 빠진다.
   //   설치 자체가 없어진 게 아니라 `.claude/skills/` 상주에서 npx 설치로 **경로가 바뀐 것**이다.
+  //   2026-08-02 룰·훅 다이어트 — 룰 축이 전 트랙 1 줄었다: `gates-taxonomy` 를 COMMON_RULES 에서
+  //   뺐다(게이트 4유형 어휘표 = 모델 기지식). 훅은 상주가 아니라 이 표에 영향이 없다.
   it.each([
-    ["executive", { rules: 4, skills: 7, agents: 5, claudeMd: 2, total: 18 }],
-    ["tooling", { rules: 7, skills: 6, agents: 9, claudeMd: 2, total: 24 }],
-    ["full", { rules: 9, skills: 14, agents: 9, claudeMd: 2, total: 34 }],
+    ["executive", { rules: 3, skills: 7, agents: 5, claudeMd: 2, total: 17 }],
+    ["tooling", { rules: 6, skills: 6, agents: 9, claudeMd: 2, total: 23 }],
+    ["full", { rules: 8, skills: 14, agents: 9, claudeMd: 2, total: 33 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

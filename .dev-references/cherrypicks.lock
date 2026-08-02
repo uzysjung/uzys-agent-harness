@@ -31,7 +31,7 @@
       "url": "https://github.com/gsd-build/get-shit-done",
       "local_path": ".dev-references/gsd",
       "commit": "unknown",
-      "note": "GSD(Get Shit Done). 사상만 흡수(PRD D6)였으나 Phase 5 P1-6에서 gates-taxonomy + planner-antipatterns 부분 cherry-pick. 실제 clone origin은 get-shit-done.git (이전 기록의 gsd-2는 오기)."
+      "note": "GSD(Get Shit Done). 사상만 흡수(PRD D6)였으나 Phase 5 P1-6에서 planner-antipatterns 부분 cherry-pick. 실제 clone origin은 get-shit-done.git (이전 기록의 gsd-2는 오기)."
     },
     "alirezarezvani-claude-skills": {
       "url": "https://github.com/alirezarezvani/claude-skills",
@@ -157,15 +157,6 @@
       "type": "file",
       "modified": false,
       "modification_note": "P1-5 from harness-engineering-audit-2026-04 (A16). zero tolerance for silent failures 에이전트. dev Track 한정 설치"
-    },
-    {
-      "id": "gsd-gates-taxonomy",
-      "source": "gsd",
-      "src": "get-shit-done/references/gates.md",
-      "dst": "templates/rules/gates-taxonomy.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "P1-6 from harness-engineering-audit-2026-04 (B6). 4 canonical gate types (pre-flight/revision/escalation/abort) + phase matrix. 공통 rule (COMMON_RULES). GSD D6 '사상만 흡수' 부분 완화"
     },
     {
       "id": "ecc-build-error-resolver",

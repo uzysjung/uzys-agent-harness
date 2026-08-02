@@ -63,7 +63,9 @@ const onTracks =
 
 // v26.107.0 (ADR-036, 라이프사이클 자산화 ①) — doc-governance: SSOT 위계 + "merge = 코드 +
 //   추적 동기화" 의무. 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
-const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy", "doc-governance"];
+// 2026-08-02 정비 ② — `gates-taxonomy` 제거. 게이트 4유형(Pre-flight/Revision/Escalation/Abort)은
+//   모델이 이미 아는 분류였고, 설치자가 받아 가는 것은 판정이 아니라 어휘표였다.
+const COMMON_RULES = ["git-policy", "change-management", "doc-governance"];
 const DEV_RULES = ["test-policy", "ship-checklist"];
 // v26.109.0 (ADR-038, 라이프사이클 자산화 ③) — benchmark-parity: 레퍼런스 실측 → gap.md →
 //   완결성 루프. capture 수단의 SSOT 인 playwright-launch 와 짝으로만 성립하므로 UI 트랙 한정.
@@ -129,13 +131,12 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
  * 차단 게이트로 적었지만 실제로는 어디에도 배선돼 있지 않았고(`templates/settings.json` 미참조),
  * 미완 체크박스가 쌓인 상태에서도 `ship` 모드가 exit 0 이었다 — 즉 설치자가 매 프로젝트에서
  * 받아 가는 것은 게이트가 아니라 게이트라는 **이름**이었다.
+ *
+ * 2026-08-02 정비 ② — `checkpoint-snapshot.sh` 제거. 같은 형태의 다른 결말이다: 배선이 없어
+ * (`"PostToolUse": []`) 설치는 되고 **실행은 0** 이었다. 안 도는 훅은 실패 증상이 없어 프로즈로는
+ * 못 잡는다 — 재발은 `tests/hook-wiring-parity.test.ts` 가 양방향으로 문다.
  */
-export const ALWAYS_HOOKS = [
-  "session-start.sh",
-  "protect-files.sh",
-  "mcp-pre-exec.sh",
-  "checkpoint-snapshot.sh",
-];
+export const ALWAYS_HOOKS = ["session-start.sh", "protect-files.sh", "mcp-pre-exec.sh"];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로

@@ -10,6 +10,22 @@
 # 동작: 위험 명령이 docker 래핑·CI·명시 허용 없이 들어오면 exit 2 (차단) + stderr 사유.
 #   통과 조건: `docker run|exec|build` 포함 / CI / DOCKER_VERIFY_ALLOW=1·CATALOG_VERIFY_ALLOW=1 / 컨테이너 내부.
 # 의존: jq 있으면 사용, 없으면 grep 폴백 (jq 미설치 환경 대응).
+#
+# 차단 로그: $CLAUDE_PROJECT_DIR/.uzys-agent-harness/hook-blocks.log — 차단 시에만 1줄.
+
+# 차단 계측 — 차단 경로에서만 1줄 append. 통과를 기록하면 로그가 차단 계측으로 못 쓰인다.
+# 실패 허용은 이 함수 안에서만 선언한다 (cli-development.md §set 플래그): 로그를 못 쓰는
+# 상태여도 차단 판정은 그대로여야 한다 — 계측이 방어를 깨면 안 된다. stderr 를 버리는 것은
+# 이 훅의 stderr 가 사용자에게 보이는 차단 사유이기 때문이다.
+log_block() {
+  local dir="${CLAUDE_PROJECT_DIR:-.}/.uzys-agent-harness"
+  {
+    mkdir -p "$dir" &&
+      printf '%s\tdocker-only-realcli\t%s\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(printf '%s' "$1" | tr '\n\r' '  ')" \
+        >>"$dir/hook-blocks.log"
+  } 2>/dev/null || return 0
+}
 
 INPUT_JSON=$(cat)
 
@@ -54,6 +70,7 @@ DANGER_EXEC='(\b(claude|agent)-harness\b|dist/index\.js|dist/cli\.js)[^|;&]*\bin
 DANGER_RUN='npx[[:space:]][^|;&]*(bmad-method|get-shit-done-cc)\b|(^|[|;&`(])[[:space:]]*(bmad-method|get-shit-done-cc)\b|node[[:space:]][^|;&]*verify-catalog\.mjs|(^|[|;&`(])[[:space:]]*[^[:space:]]*verify-catalog\.mjs'
 
 if echo "$SCAN" | grep -qE "$DANGER_EXEC|$DANGER_RUN"; then
+  log_block "$CMD"
   echo "차단: 실 CLI 설치/검증은 Docker 격리 컨테이너에서만 실행 (호스트 글로벌 오염 방지)." >&2
   echo "  근거: CLAUDE.md 실환경 검증 원칙 — ~/.claude, ~/.codex, ~/.opencode, ~/.gemini, npm -g write 금지." >&2
   echo "  통과법: test/docker/ 시나리오 사용 또는 'docker run …' 래핑." >&2

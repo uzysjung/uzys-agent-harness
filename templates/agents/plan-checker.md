@@ -19,7 +19,6 @@ origin: self-authored (GSD gsd-plan-checker 사상 흡수, 100% 자체 작성)
 - `docs/SPEC.md` — 명세. 없으면 **BLOCKER**, 중단.
 - `docs/plan.md` — 분해된 계획. 없으면 **BLOCKER**.
 - `docs/todo.md` — 체크박스 기반 task 목록. 없으면 **WARNING**.
-- `.claude/rules/gates-taxonomy.md` — Gates taxonomy 참조 (이 에이전트는 **Revision Gate** 패턴 구현).
 
 ## 검증 Dimensions (6개)
 
@@ -56,7 +55,7 @@ origin: self-authored (GSD gsd-plan-checker 사상 흡수, 100% 자체 작성)
 
 ## Revision Gate 패턴
 
-이 에이전트는 Revision Gate로 동작한다 (`@.claude/rules/gates-taxonomy.md` 참조):
+검증 체크포인트는 네 유형이다 — **Pre-flight**(전제조건 미충족 시 착수 차단) · **Revision**(산출물 품질 불만족 시 수정 루프, 반복 상한 필수) · **Escalation**(자동 해결 불가 → 옵션 제시 후 사용자 입력 대기) · **Abort**(계속하면 손상/낭비 → 즉시 중단·상태 보존·사유 보고). 이 에이전트는 그중 **Revision Gate** 로 동작한다:
 
 - **반복 상한 3회**: 같은 plan에 대해 3번 검증 + 수정 요청 후에도 BLOCKER가 남으면 **Escalation Gate**로 전환 (사용자 개입 요청).
 - **Stall detection**: 연속 2회 반복에서 issue 수가 감소하지 않으면 즉시 Escalation.

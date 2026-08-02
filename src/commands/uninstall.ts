@@ -481,7 +481,7 @@ function buildProjectReverseStep(
 
 /**
  * 로그에 없는 `--only` id — 오타로 엉뚱한 자산이 남지 않도록 **아무것도 실행하기 전에** 본다
- * (gates-taxonomy Pre-flight: 전제조건 미충족 시 차단, 부분 작업 없음).
+ * (Pre-flight: 전제조건 미충족 시 차단, 부분 작업 없음).
  */
 function unknownIds(installLog: InstallLog, selectedIds: ReadonlyArray<string>): string[] {
   const known = new Set(installLog.assets.map((a) => a.id));
