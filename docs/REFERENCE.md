@@ -119,7 +119,7 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 
 ### Skills (templates/skills/)
 
-번들 = 13종. 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
+번들 = 14종. 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
 uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
 워크드 예시를 잃었고(감사 실측 104건), 그 본문을 무는 게이트는 이 리포에만 있다.
 설치 조건의 SSOT 는 `src/external-assets.ts` 의 각 엔트리 `condition` 이다.
@@ -129,6 +129,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **north-star** | 전 track | NSM(metric-as-proxy)·Pillars·Will/Won't·4-gate + 우선순위 순서 게이트. `NORTH_STAR.template.md` 동반 | ADR-062 복원 (구 north-star + northstar-roadmap 통합) |
 | **gh-issue-workflow** | 전 track | 이슈를 비동기 백로그·결정 채널로. 5섹션 body 템플릿(`ISSUE.template.md`) + 읽기/초안/원격쓰기 단계 분리 | ADR-062 복원 |
 | **task-brief** | 전 track | 요청·위임 프롬프트를 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. `task-brief-nudge.sh` 훅과 한 벌 | ADR-062 AC9 신설 (복원 아님) |
+| **audit-harness-fit** | 전 track | 상주 조종층(앵커·룰·훅·permissions·descriptor)이 밥값을 하는지 5단계 감사(INVENTORY→EVIDENCE→VERDICT→RELOCATE→APPLY). 판정 근거는 공식 문서 인용·차단 로그·계측 3종뿐 | ADR-064 신설 (복원 아님) |
 | **clear-korean-communication** | 전 dev track | 독자 위치에서 시작하는 설명 + 승인 요청 4요소(맥락→추천→UI/UX→ASIS/TOBE) | ADR-062 복원 (구 asis-tobe-decision + explain-plainly 통합) |
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
 | **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |

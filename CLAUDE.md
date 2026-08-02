@@ -31,7 +31,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 `src/` 45파일 (실측 2026-08-02) — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 /
 **`manifest.ts` = 무엇을 어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 /
-`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(56 자산).
+`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(57 자산).
 
 **`templates/` 는 npm 으로 낯선 사람 프로젝트에 나가는 배포물이고 `.claude/` 는 우리 개발용이다.**
 같은 이름의 파일이 양쪽에 있고 내용이 다르다 — 하나를 보고 다른 하나를 말하지 않는다.
@@ -50,9 +50,11 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Boundaries
 
-**Always (✅ 훅 자동, 실측 2026-08-02)**: 개발 사본 훅 4개 — SessionStart SPEC 안내 ·
-보호 파일(`.env*`·lock·인증서) 편집 차단 · MCP allowlist · 호스트 실 CLI 실행 차단.
-(배포판 `templates/hooks/` 는 3개 — `docker-only-realcli` 는 이 리포 전용이다.)
+**Always (✅ 훅 자동, 실측 2026-08-03)**: `.claude/settings.json` 에 등록된 훅 명령은 **5개**다 —
+`.claude/hooks/` 의 설치 훅 4개(SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서) 편집 차단 ·
+MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 얹은 1개**
+(`.claude/skills/strategic-compact/suggest-compact.sh`, Write|Edit async). "훅 4개"로만 세면
+스킬발 훅이 계측에서 빠진다. (배포판 `templates/hooks/` 는 3개 — `docker-only-realcli` 는 이 리포 전용이다.)
 **차단하는 훅 3개는 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에 1줄 남긴다**(ADR-061).
 
 **Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
@@ -73,10 +75,12 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    명령마다 검사하고 `--no`+`verify` 로 넘어가고 클론마다 재설치해야 한다.
 2. **~~훅이 차단 로그를 남기지 않는다~~ → 2026-08-02 부터 남긴다**(ADR-061). 차단하는 훅
    전부(`protect-files`·`mcp-pre-exec`·`docker-only-realcli`)가 `.uzys-agent-harness/hook-blocks.log`
-   에 탭 구분 `날짜·훅·대상` 1줄을 append 한다(`mcp-pre-exec` 만 대상 뒤에 사유 병기). **남은 문제는 표본이다** — 로그는 이번
-   사이클에 태어나 아직 누적치가 없다. 다음 감사까지 쌓인 줄이 "무엇이 실제로 막는가"의
-   첫 데이터가 되고, 그때까지 "옥죈다"는 여전히 느낌이다. `uninstall` 은 `.uzys-agent-harness/`
-   를 통째로 지워 이 로그도 함께 없앤다(감수).
+   에 탭 구분 `날짜·훅·대상` 1줄을 append 한다(`mcp-pre-exec` 만 대상 뒤에 사유 병기). **남은 문제는 표본이다** — 첫
+   3줄이 쌓였고(실측 2026-08-03) **그중 2건이 오탐 후보**다: `docker-only-realcli` 가 문서 파싱
+   1회성 `node -e` 와 `mktemp` 스코프 설치 스모크를 막았다(설치·호스트 오염 0). 진짜 차단은
+   `mcp-pre-exec` 의 allowlist 밖 조회 1건뿐이다. **차단 1줄은 발화의 증거이지 옳음의 증거가
+   아니다** — 3줄은 표본이라기엔 얇으니 다음 감사까지 더 쌓고, 그때까지 "옥죈다"는 여전히
+   느낌이다. `uninstall` 은 `.uzys-agent-harness/` 를 통째로 지워 이 로그도 함께 없앤다(감수).
 3. **룰은 8종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
    **확인됨**(2026-08-02, memory 문서) — 프로젝트 고유 사실이 담긴 룰이 다시 커지면 그때 쓴다.
 4. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 48개가

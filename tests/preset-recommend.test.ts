@@ -53,6 +53,8 @@ describe("recommendedExternalAssets", () => {
     expect(ids).toContain("gh-issue-workflow");
     // 2026-08-02 AC9 — 신설 전 트랙 스킬. 위임은 개발 트랙만의 행위가 아니다.
     expect(ids).toContain("task-brief");
+    // ADR-064 — 상주층은 전 트랙에 깔린다. 그것을 되묻는 감사도 전 트랙이다.
+    expect(ids).toContain("audit-harness-fit");
   });
 
   it("data preset includes data plugin (v26.106.0 ADR-035 · 2026-08-02 정비)", () => {
