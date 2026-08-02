@@ -100,4 +100,4 @@ benchmark-parity 스킬화(이관 리포 소관— 제안만) · permissions den
 - [x] P3-A / P3-B 구현 (훅 4→3+차단로그 / 룰 1,100→535줄, byte-잠금 2종 유지)
 - [x] P4 수치 동기화 (상주 24개/6,552 → 23개/5,719tok · 문서 6종 · npm run ci exit 0)
 - [x] P5 독립 검증 (fresh opus@xhigh — AC 8/8 PASS · CRITICAL/HIGH 0 · 변이 2/2 red · 권고 4건 반영)
-- [ ] ADR-061 + 커밋 + PR (PR 번호는 생성 후 기입)
+- [x] ADR-061(Accepted) + 커밋 `9d1b61f` + **PR #268 — 머지는 사용자 승인 대기**
