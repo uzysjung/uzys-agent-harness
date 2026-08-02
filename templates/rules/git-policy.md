@@ -26,6 +26,10 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 - git config 수정 금지
 - `.env`, credentials, lock 파일 커밋 금지
 
+**위 세 줄은 프로즈다 — 아무도 안 막는다.** 되돌릴 수 없는 것은 로컬 훅 말고 **호스트 규칙**으로
+건다(우회·재설치가 없다): `bash .uzys-agent-harness/protect-branch.sh --dry-run` 로 먼저 보고
+적용한다. 무엇을 걸고 무엇을 못 덮는지는 스크립트가 출력한다.
+
 ## Session Cleanup (필수)
 
 세션 종료 / `/clear` / `/compact` **직전** 다음 절차 강제:

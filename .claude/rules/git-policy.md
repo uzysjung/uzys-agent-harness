@@ -26,6 +26,10 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 - git config 수정 금지
 - `.env`, credentials, lock 파일 커밋 금지
 
+**이 리포의 main 은 서버 규칙으로 잠겨 있다** (실측 2026-08-02, `GH013` 음성 대조). 강제 푸시 ·
+리뷰 없는 직접 푸시 · 삭제 · 시크릿 푸시가 GitHub 에서 거절된다. `reset --hard` 와 브랜치 작업은
+여전히 프로즈뿐이다. 재확인 = `bash templates/scripts/protect-branch.sh --dry-run`.
+
 ## Session Cleanup (필수)
 
 세션 종료 / `/clear` / `/compact` **직전** 다음 절차 강제:

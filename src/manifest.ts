@@ -207,6 +207,16 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: all,
   });
 
+  // Server-side git guards. Target is CLI-neutral on purpose — a repository rule protects the
+  // default branch for every CLI and every human at once, so it does not belong under `.claude/`.
+  // Same directory as the install log (ADR-050), which is already the CLI-agnostic slot.
+  m.push({
+    source: "scripts/protect-branch.sh",
+    target: ".uzys-agent-harness/protect-branch.sh",
+    type: "file",
+    applies: all,
+  });
+
   // Agents (본 프로젝트)
   for (const a of CORE_AGENTS) {
     m.push({
