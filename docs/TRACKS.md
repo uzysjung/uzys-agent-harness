@@ -19,8 +19,8 @@ verification status in the [compatibility matrix](COMPATIBILITY.md).
 | `csr-fastify` | Vite + React + Fastify |
 | `csr-fastapi` | Vite + React + FastAPI |
 | `ssr-nextjs` | Next.js (App Router) |
-| `ssr-htmx` | HTMX + server-side |
-| `data` | DuckDB + Polars + PySide6 |
+| `ssr-htmx` | htmx + FastAPI |
+| `data` | Python data + DuckDB + PySide6 |
 | `full` | union of all dev tracks |
 
 ### Business tracks
@@ -41,69 +41,98 @@ verification status in the [compatibility matrix](COMPATIBILITY.md).
 
 ## What gets installed per track
 
-External assets are recommended automatically based on your track selection. Step 3 shows them pre-checked; you can toggle anything before install.
+External assets are recommended automatically based on your track selection. Step 3 shows them pre-checked; you can toggle anything before install. Rows marked **opt-in** are never pre-checked — you add them at step 3 or with `--with <id>`. That includes every ⚠ experimental asset, whatever track it matches.
+
+Per-asset install method and verification status live in the [compatibility matrix](COMPATIBILITY.md). That page is generated from the catalog; this one is written by hand, so the matrix wins if the two ever disagree.
 
 ### Frontend (csr-* / ssr-nextjs / full)
 
 | Asset | What | Source |
 |---|---|---|
 | `frontend-design` | Distinctive production-grade UI generation — **default on all dev tracks** | Anthropic official |
-| `react-best-practices` | React patterns and component guidelines | vercel-labs |
+| `react-best-practices` | React hook, perf, and component patterns | vercel-labs |
 | `shadcn-ui` | Radix-based component copy + Tailwind theme | shadcn (official) |
-| `web-design-guidelines` | UX/UI best practices — **opt-in** since v26.106.0 (`frontend-design` covers the default) | vercel-labs |
-| `impeccable` | UI design, critique, and visual review skills — **opt-in** since v26.106.0 | pbakaus |
+| `web-design-guidelines` | Visual hierarchy, color, spacing — **opt-in** since v26.106.0 (`frontend-design` covers the default) | vercel-labs |
+| `taste-skill` | Anti-slop frontend design — infers a design language, then tunes variance / motion / density — **opt-in** | Leonxlnx |
+| `jakubkrehel-skills` | Better-* interface suite — typography, OKLCH color, accessibility, layout, UX writing, one concern per skill — **opt-in** | jakubkrehel |
+| `scroll-world` | Scroll-driven 3D world landing pages — **opt-in** | oso95 |
+| `tauri-desktop` | Tauri desktop rule template — **opt-in** | this project |
 
 ### Backend (csr-* / ssr-* / full)
 
 | Asset | What | Source |
 |---|---|---|
-| `railway-skills` | Railway deploy + project/service/env management | Railway official |
-| `supabase-agent-skills` (csr-supabase) | Supabase agent skills | Supabase official |
-| `postgres-best-practices` (csr-supabase) | Postgres patterns | Supabase official |
-| `supabase-cli` (csr-supabase) | Supabase CLI (`supabase login` for OAuth) | npm |
-| `vercel-cli` (csr-supabase) | Vercel CLI | npm |
+| `railway-skills` | Railway deploy + project/service/env management — **opt-in** (⚠ experimental tier, so it is never pre-checked even on the tracks it matches: csr-fastify · csr-fastapi · ssr-* · full) | Railway official |
+| `supabase-agent-skills` (csr-supabase · full) | RLS, auth, edge function, and realtime guidance | Supabase official |
+| `postgres-best-practices` (csr-supabase · full) | Schema, index, and query patterns | Supabase official |
+| `supabase-cli` (csr-supabase · full) | Supabase CLI (`supabase login` for OAuth) | npm |
+| `vercel-cli` (csr-supabase · full) | Vercel CLI | npm |
 | `netlify-cli` | Netlify CLI — **opt-in** since v26.106.0 (deploy-CLI dedup; `vercel-cli` stays default at 10:1 weekly downloads) | npm |
 
 ### Data (data / full)
 
 | Asset | What | Source |
 |---|---|---|
-| `polars-K-Dense` | Polars — fast Rust DataFrame (pandas alternative) | K-Dense-AI |
-| `dask-K-Dense` | Dask — distributed processing | K-Dense-AI |
-| `python-resource-management` | Memory / CPU management patterns — **opt-in** since v26.106.0 | wshobson |
-| `python-performance-optimization` | Profiling + vectorization — **opt-in** since v26.106.0 | wshobson |
 | `anthropic-data-plugin` | Visualization + SQL exploration | Anthropic official |
 
 ### Business (executive / project-management / growth-marketing)
 
 | Asset | What | Source | Tracks |
 |---|---|---|---|
-| `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring | Anthropic | executive · full |
-| `c-level-skills` | 28 advisory skills (CEO/CFO/COO) | claude-code-skills | executive · full |
-| `business-growth-skills` | Growth, finance, marketing playbooks | claude-code-skills | executive · full · growth-marketing |
-| `finance-skills` | Financial models | claude-code-skills | executive · full |
-| `pm-skills` | PM workflows | claude-code-skills | project-management |
-| `product-skills` | Product discovery + delivery | claude-code-skills | project-management (dev tracks: opt-in since v26.106.0) |
-| `marketing-skills` / `research-summarizer` | Marketing playbooks | claude-code-skills | growth-marketing |
+| `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring | Anthropic official | executive · full |
+| `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) | alirezarezvani | executive · full |
+| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) | alirezarezvani | project-management |
+| `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) — **opt-in** | coreyhaines31 | any track |
+
+`growth-marketing` pre-checks no business-specific asset of its own — it gets the all-track first-party skills below, and `marketingskills` is the opt-in to add at step 3.
 
 ### Dev Tools (all dev tracks)
 
 | Asset | What | Source |
 |---|---|---|
-| `playwright-skill` | E2E test authoring with Playwright | testdino-hq |
 | `find-skills` | Search and rank installed skills | vercel-labs |
-| `agent-browser` | Browser automation CLI for agents | npm |
-| `karpathy-coder` | Pre-commit quality gate hook | claude-code-skills |
+| `agent-browser` | Agent-friendly Playwright wrapper — screenshot and DOM-search CLI | vercel-labs (npm) |
 | `code-review` | Multi-agent PR review with confidence scoring — **opt-in** (overlaps the default review agents) | Anthropic official |
-| `multi-persona-review` ★ | Critique one artifact via 3-5 parallel personas → P0/P1/P2 fixes | this project (core) |
-| `gap-analysis-e2e` ★ | Detect north-star / correctness / UX gaps, then benchmark how reference services solved each | this project (core) |
-| `ultracode-service-audit` ★ | Multi-agent, adversarially-verified full-service audit (7 dimensions) → milestone roadmap | this project (core) |
 
-> ★ **dev-method skills** — first-party (`official`) workflow methodology bundled with the harness. **Core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates — no external download. **Installs across all 4 CLIs**: Claude (`.claude/skills/`) and Codex / Antigravity as native skills (`.agents/skills/<id>/SKILL.md`), plus OpenCode as a command fallback (`.opencode/commands/<id>.md`, since OpenCode has no native skill concept).
+### First-party method skills
+
+Written and maintained in this repo (`official` tier) and bundled as templates — no external download. **Installs across all 4 CLIs**: Claude (`.claude/skills/`) and Codex / Antigravity as native skills (`.agents/skills/<id>/SKILL.md`), plus OpenCode as a command fallback (`.opencode/commands/<id>.md`, since OpenCode has no native skill concept).
+
+**Core on every dev track** — installed by default; uncheck at step 3 or `--without <id>` to skip.
+
+| Asset | What |
+|---|---|
+| `clear-korean-communication` | Explain from the reader's position, and put an approval moment in context → recommendation → option table → AS-IS/TO-BE form |
+| `audit-service-gaps` | Enumerate gaps against the north-star baseline through three lenses, then check how a reference service closed each one before proposing a fix |
+| `multi-persona-review` | Review one artifact through independent personas in parallel → deduped, severity-ranked findings |
+| `recurrence-prevention` | When the same defect returns: verify the count against prior evidence, classify slip vs harness problem, escalate record → rule → structural gate |
+| `verification-loop` | Proportional verification tracks per surface, ending in a fixed verdict (PASS / PASS_WITH_NITS / FAIL) plus the evidence each finding rests on |
+| `compaction-handoff` | Persist durable state, a git snapshot, and one resume anchor before a context `/compact` |
+
+**On every track**, dev or not.
+
+| Asset | What |
+|---|---|
+| `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
+| `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
+| `task-brief` | Normalize a request — and every delegation prompt — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. Ships with the `task-brief-nudge` hook, which adds one line of stdout when a long prompt arrives without a brief |
+
+**Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
+
+| Asset | What |
+|---|---|
+| `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
+| `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
+
+> Nine of these eleven were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle.
+
+### Not driven by track selection (opt-in on any track)
+
+Understanding — `claude-video` · `understand-anything` · `agentmemory`. Visual & media — `frontend-slides` · `marp-slide` · `mermaid-diagrams` · `gsap-skills` · `remotion` · `ppt-master` · `ppt-generation` · `web-video-presentation` · `revealjs`. Pick them at step 3 or pass `--with <id>`; the full catalog is in the [compatibility matrix](COMPATIBILITY.md).
 
 ### Workflow (opt-in — pick one or more at step 3)
 
-> **Which one?** See the [Workflow curation guide](docs/WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
+> **Which one?** See the [Workflow curation guide](WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
 
 | Asset | What | Activates |
 |---|---|---|
@@ -115,24 +144,6 @@ External assets are recommended automatically based on your track selection. Ste
 | `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
 | `feature-dev` | Guided feature workflow — explore/architect/review agents | Anthropic official marketplace |
 
-**First-party dev-method skills** — `official`, **core on every dev track** (installed by default; uncheck at step 3 or `--without <id>` to skip). Repo-bundled templates that install across all 4 CLIs: Claude, Codex/Antigravity native skills, OpenCode command fallback.
-
-| Asset | What | Source |
-|---|---|---|
-| `asis-tobe-decision` ★ | Present an A-or-B / approval moment as context → recommendation → option table → AS-IS/TO-BE contrast | this project (core) |
-| `compaction-handoff` ★ | Persist durable state + git snapshot + resume anchor before a context `/compact` | this project (core) |
-| `northstar-roadmap` ★ | Measure current state vs the vision doc → ranked feature backlog persisted to docs/plans + memory | this project (core) |
-| `harness-health-audit` ★ | Audit your CLAUDE.md/rules/skills/hooks on 4 questions a linter can't answer: TRUE · USED · AFFORDABLE · SAFE | this project (core) |
-| `recurrence-prevention` ★ | When the same defect happens again: verify the count with evidence, classify simple slip vs complex problem, escalate record → forced rule → structural gate | this project (core) |
-
-**First-party recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with gemini-consult` / `--with codex-consult`; repo-bundled, install across all 4 CLIs; the two advisors need their external CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
-
-| Asset | What | Source |
-|---|---|---|
-| `model-orchestration` | Model orchestration policy — role split (orchestrator directs/reviews · strong model authors core/V&V · mid model does repetitive impl/E2E) + effort floors + quota handoff | this project |
-| `gemini-consult` | Consult Gemini (via `agy`) for natural **Korean** phrasing + **multi-persona** second-opinion review + image generation — an idiomatic, independent second model | this project |
-| `codex-consult` | Consult OpenAI Codex (`codex exec`) for **concise / structured** rewriting + **image generation** (real PNG on disk) — division of labor: nuance/persona → gemini, concision/structure/images → codex | this project |
-
 **First-party CI scaffold** (`official`, **opt-in** — `--with ci-scaffold`): `.github/workflows/` fill-in templates — tag-triggered CI + real-DB service container block + coverage gate + Playwright E2E — variant-matched to your tracks (node / python / both; E2E on UI tracks). The only asset that writes outside `.claude/`, so it **never overwrites existing workflow files** (they're reported as preserved), and uninstall leaves `.github/` untouched.
 
 ### Security & ECC (opt-in)
@@ -142,6 +153,6 @@ External assets are recommended automatically based on your track selection. Ste
 | `security-guidance` | Pattern-based security warnings on every edit + LLM diff review (needs Python + Agent SDK at runtime) | Anthropic official |
 | `trailofbits-skills` | Differential security review | Trail of Bits |
 | `ecc-plugin` | ECC plugin (project-scoped via `prune-ecc.sh`) | affaan-m |
-| `ecc-prune` | Trim ECC down to a curated set (4 agents + 8 skills + 3 commands) | this project |
+| `ecc-prune` | Trim ECC down to the curated KEEP set (`prune-ecc.sh` derives the count — no second copy of it here) | this project |
 
 ---

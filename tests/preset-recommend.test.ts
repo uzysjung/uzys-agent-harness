@@ -49,6 +49,8 @@ describe("recommendedExternalAssets", () => {
     // 이관 스킬 중 전 트랙 상주분은 비-dev 트랙에서도 추천돼야 한다 (강등 금지).
     expect(ids).toContain("north-star");
     expect(ids).toContain("gh-issue-workflow");
+    // 2026-08-02 AC9 — 신설 전 트랙 스킬. 위임은 개발 트랙만의 행위가 아니다.
+    expect(ids).toContain("task-brief");
   });
 
   it("data preset includes data plugin (v26.106.0 ADR-035 · 2026-08-02 정비)", () => {

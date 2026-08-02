@@ -16,7 +16,6 @@ import { fileURLToPath } from "node:url";
 import {
   assetCostRows,
   buildManifest,
-  DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
   formatResidentCostBlock,
   INTERNAL_BUNDLED_SKILL_IDS,
@@ -26,7 +25,15 @@ import {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fmt = (n) => (n === null ? "     —" : `~${String(n).padStart(5)}`);
 
-const defaults = new Set(DEV_METHOD_SKILL_IDS);
+// "기본" = 카탈로그 condition 이 opt-in 이 아닌 자산 (has-dev-track · any-track 공통 —
+// opt-in 도 condition: {kind:"opt-in"} 으로 표현되므로 존재 여부가 아니라 kind 로 가른다).
+// DEV_METHOD 열거를 쓰면 any-track 3종이 opt-in 으로 오표기된다 (P4 M-4).
+const bundledIds = new Set(INTERNAL_BUNDLED_SKILL_IDS);
+const defaults = new Set(
+  EXTERNAL_ASSETS.filter(
+    (a) => bundledIds.has(a.id) && a.condition && a.condition.kind !== "opt-in",
+  ).map((a) => a.id),
+);
 const rows = assetCostRows(INTERNAL_BUNDLED_SKILL_IDS, ROOT);
 
 console.log("\n▸ 자산별 컨텍스트 비용 (repo-bundled 스킬, 발화 비용 내림차순)\n");

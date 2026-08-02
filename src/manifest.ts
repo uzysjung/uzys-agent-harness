@@ -136,7 +136,15 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
  * (`"PostToolUse": []`) 설치는 되고 **실행은 0** 이었다. 안 도는 훅은 실패 증상이 없어 프로즈로는
  * 못 잡는다 — 재발은 `tests/hook-wiring-parity.test.ts` 가 양방향으로 문다.
  */
-export const ALWAYS_HOOKS = ["session-start.sh", "protect-files.sh", "mcp-pre-exec.sh"];
+export const ALWAYS_HOOKS = [
+  "session-start.sh",
+  "protect-files.sh",
+  "mcp-pre-exec.sh",
+  // UserPromptSubmit 넛지. 차단하지 않는 유일한 훅 — 판정은 결정적 두 조건뿐이고(길이 ·
+  // `<objective>` 표식 부재) 변환 자체는 `task-brief` 스킬 몫이다. `templates/settings.json`
+  // 배선과 한 벌 (hook-wiring-parity 가 한쪽만 있는 상태를 문다).
+  "task-brief-nudge.sh",
+];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로

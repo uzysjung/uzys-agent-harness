@@ -513,6 +513,8 @@ describe("computeUserOverride", () => {
     "north-star",
     // v26.105.0 (ADR-034) — model-orchestration 은 수단(권장) opt-in 으로 이동 → 추천 기준선 제외.
     "recurrence-prevention",
+    // 2026-08-02 AC9 — task-brief (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
+    "task-brief",
     "verification-loop",
   ];
 

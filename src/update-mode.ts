@@ -16,6 +16,7 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -78,6 +79,12 @@ export interface UpdateModeReport {
    */
   skillsBackedUp: string[];
   /**
+   * 2026-08-02 (ADR-062) — `.claude/skills/<id>` 가 심볼릭 링크라 건너뛴 스킬 id.
+   * 그 자리는 `npx skills add` 등 **다른 도구가 소유**하므로 하네스가 쓰지 않는다.
+   * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
+   */
+  skillsSkippedLinks: string[];
+  /**
    * v26.132.0 (ADR-047) — 사용자가 고쳐서 백업본을 남긴 정책 파일 (`.claude/` 상대경로).
    * `skillsBackedUp` 과 같은 이유로 화면에 노출한다 — 안 보이면 사용자는 자기 편집분이
    * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
@@ -138,6 +145,7 @@ export function runUpdateMode(
     rootImportAdded: false,
     legacyAnchor: null,
     skillsBackedUp: [],
+    skillsSkippedLinks: [],
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
@@ -167,6 +175,7 @@ export function runUpdateMode(
   );
   report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
+  report.skillsSkippedLinks = skillSync.skippedLinks;
   refreshSkillBaseline(projectDir);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
@@ -414,21 +423,35 @@ export function updateDir(
  *
  * **orphan prune 은 하지 않는다** — 스킬 디렉터리 안에는 사용자가 자기 참고 파일을 넣을 수 있고,
  * templates 에 없다는 이유로 지우면 그게 곧 사용자 파일 삭제다 (ADR-046 "지우지 않는다").
+ *
+ * **심볼릭 링크는 건너뛴다** (2026-08-02 · ADR-062). `existsSync` 는 링크를 따라가므로 그것만
+ * 보면 "설치돼 있다"와 "다른 저장소를 가리키는 링크가 있다"가 구분되지 않는다. `npx skills add`
+ * 로 받은 스킬의 프로젝트 스코프 설치처가 바로 `.claude/skills/<id>` 이고 그 실체는 skills
+ * 저장소로의 링크다 — 그대로 쓰면 하네스가 **사용자의 다른 저장소 본문을 우리 판본으로
+ * 덮어쓴다**. 쓰기 대상이 `.claude/` 밖이라 백업이 남아도 사용자가 찾을 자리가 아니다.
+ * 소유자가 우리가 아닌 것은 손대지 않고 건너뛴 사실을 보고한다(침묵 금지).
  */
 export function syncSkills(
   targetDir: string,
   sourceDir: string,
   baseline: ReadonlyMap<string, string>,
   now: Date = new Date(),
-): { updated: number; backedUp: string[] } {
-  if (!existsSync(targetDir) || !existsSync(sourceDir)) return { updated: 0, backedUp: [] };
+): { updated: number; backedUp: string[]; skippedLinks: string[] } {
+  if (!existsSync(targetDir) || !existsSync(sourceDir))
+    return { updated: 0, backedUp: [], skippedLinks: [] };
   let updated = 0;
   const backedUp: string[] = [];
+  const skippedLinks: string[] = [];
 
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
     const targetSkill = join(targetDir, skill.name);
     if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
+    // lstat 은 링크를 따라가지 않는다 — 위 existsSync 가 못 하는 판정이 정확히 이것이다.
+    if (lstatSync(targetSkill).isSymbolicLink()) {
+      skippedLinks.push(skill.name);
+      continue;
+    }
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
       const targetFile = join(targetSkill, rel);
@@ -454,7 +477,7 @@ export function syncSkills(
       updated++;
     }
   }
-  return { updated, backedUp };
+  return { updated, backedUp, skippedLinks };
 }
 
 /** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */

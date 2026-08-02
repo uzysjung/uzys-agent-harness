@@ -10,8 +10,14 @@
  */
 import type { SpawnSyncReturns } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
-import { EXTERNAL_ASSETS } from "../src/external-assets.js";
+import {
+  EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+  isAssetSelected,
+} from "../src/external-assets.js";
 import { type ExternalInstallerDeps, runExternalInstall } from "../src/external-installer.js";
+import { buildManifest } from "../src/manifest.js";
+import { hasDevTrack } from "../src/track-match.js";
 import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 type SpawnFn = NonNullable<ExternalInstallerDeps["spawn"]>;
@@ -58,18 +64,10 @@ describe("Track matrix — assets called per track", () => {
     // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 project-management 한정 → dev 트랙 제외.
     // v26.110.0 (ADR-039) — 신규 3종은 전부 opt-in → 기본 집합 불변 (context7 plugin 은 미등록).
     // 2026-08-02 (ADR-060) — karpathy-coder 삭제 · uzys 이관 스킬 7종이 kind:skill 로 합류.
-    expect(ids).toEqual([
-      "frontend-design",
-      "audit-service-gaps",
-      "verification-loop",
-      "multi-persona-review",
-      "find-skills",
-      "agent-browser",
-      "clear-korean-communication",
-      "north-star",
-      "recurrence-prevention",
-      "gh-issue-workflow",
-    ]);
+    // 2026-08-02 (ADR-062 복원) — 그 9종이 `kind:"internal"` 로 돌아가 **이 목록에서 빠진다**.
+    //   external-installer.ts:112 가 internal 을 걸러내기 때문이다 — 사라진 게 아니라 Phase 1
+    //   (manifest dir copy)이 맡는다. 도달 범위는 아래 "번들 9종은 …" 테스트가 그 표면에서 문다.
+    expect(ids).toEqual(["frontend-design", "find-skills", "agent-browser"]);
     expect(ids).not.toContain("product-skills");
   });
 
@@ -80,18 +78,12 @@ describe("Track matrix — assets called per track", () => {
     // v26.92.0 — frontend-design (official, has-dev-track) → category=frontend 정렬상 맨 앞.
     // v26.106.0 (ADR-035 승인 A·C) — 일반 Python 패턴 2종 opt-in 강등 + product-skills PM 한정.
     // 2026-08-02 (ADR-060) — polars/dask/karpathy 삭제 · uzys 이관 7종 합류.
+    // 2026-08-02 (ADR-062 복원) — uzys 9종은 internal 로 복귀 → external 시도 목록에서 빠진다.
     expect(ids).toEqual([
       "frontend-design",
       "anthropic-data-plugin",
-      "audit-service-gaps",
-      "verification-loop",
-      "multi-persona-review",
       "find-skills",
       "agent-browser",
-      "clear-korean-communication",
-      "north-star",
-      "recurrence-prevention",
-      "gh-issue-workflow",
     ]);
   });
 
@@ -150,14 +142,11 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toContain("frontend-design"); // has-dev-track baseline 은 유지
   });
 
-  it("executive: Anthropic + finance + 전 트랙 상주 2종 (c-level·business-growth 는 ADR-060 삭제)", () => {
+  it("executive: Anthropic + finance (c-level·business-growth 는 ADR-060 삭제)", () => {
     const { ids } = runForTrack(["executive"]);
-    expect(ids).toEqual([
-      "anthropic-document-skills",
-      "finance-skills",
-      "north-star",
-      "gh-issue-workflow",
-    ]);
+    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종(north-star·gh-issue-workflow)은 internal 로
+    //   돌아가 Phase 1 이 맡는다. 전 트랙 도달은 아래 전용 테스트가 manifest 표면에서 검증한다.
+    expect(ids).toEqual(["anthropic-document-skills", "finance-skills"]);
     // No dev-track assets
     expect(ids).not.toContain("addy-agent-skills");
     expect(ids).not.toContain("polars-K-Dense");
@@ -169,6 +158,7 @@ describe("Track matrix — assets called per track", () => {
     // data + csr-supabase + ui + react + executive + dev baseline
     // v26.71.1 — railway-skills (T3) opt-in only → default 제외.
     // 2026-08-02 (ADR-060) — polars/c-level/business-growth 삭제 · uzys 이관 스킬 합류.
+    // 2026-08-02 (ADR-062 복원) — uzys 스킬은 internal 로 복귀해 external 목록에 없다.
     expect(ids).toEqual(
       expect.arrayContaining([
         "vercel-cli",
@@ -176,10 +166,6 @@ describe("Track matrix — assets called per track", () => {
         "react-best-practices",
         "anthropic-document-skills",
         "finance-skills",
-        "audit-service-gaps",
-        "clear-korean-communication",
-        "north-star",
-        "gh-issue-workflow",
       ]),
     );
     expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
@@ -212,17 +198,18 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 11 spawn calls (2026-08-02 정비 ADR-060 — 이관 스킬 7종이 kind:skill 로 합류)", () => {
-    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm install=1) + uzys 이관 7종(각 1) = 11.
+  it("tooling: 4 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0)", () => {
+    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm install=1) = 4.
+    // internal 자산은 프로세스를 띄우지 않는다 — Phase 1 manifest 가 dir 을 복사할 뿐이다.
     // agent-browser 의 `npm root -g` 조회는 모듈 캐시라 이 파일의 선행 테스트가 이미 소비했다 —
-    // 단독 실행 시엔 +1 (파일 단위 순서 의존, 신규 파일 프로브 실측 12).
+    // 단독 실행 시엔 +1 (파일 단위 순서 의존).
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(11);
+    expect(spawnCallCount).toBe(4);
   });
 
-  it("data: tooling baseline 12 + anthropic-data-plugin(×1) = 13 (2026-08-02 정비 ADR-060)", () => {
+  it("data: tooling baseline 4 + anthropic-data-plugin(×2) = 6 (2026-08-02 복원 ADR-062)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(13);
+    expect(spawnCallCount).toBe(6);
   });
 
   it("--with openspec alone (executive base) adds 1 npm call", () => {
@@ -234,41 +221,84 @@ describe("Track matrix — spawn call counts", () => {
 
 // === v0.5.0 — 신규 Track 매핑 검증 (P2-T4 합집합 회귀 + P3-T2 신규 Track) ===
 describe("Track matrix — v0.5.0 신규 Track", () => {
-  it("project-management: product-skills + 전 트랙 상주 2종 (pm-skills 는 2026-08-02 정비로 삭제)", () => {
+  it("project-management: product-skills 만 (pm-skills 는 2026-08-02 정비로 삭제)", () => {
     const { ids } = runForTrack(["project-management"]);
-    expect(ids).toEqual(["product-skills", "north-star", "gh-issue-workflow"]);
+    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종은 internal 로 복귀 → external 목록 밖.
+    expect(ids).toEqual(["product-skills"]);
     // No has-dev-track assets
     expect(ids).not.toContain("addy-agent-skills");
     // No executive assets
     expect(ids).not.toContain("anthropic-document-skills");
   });
 
-  it("growth-marketing: 전 트랙 상주 2종만 (business-growth·marketing-skills·research-summarizer 는 2026-08-02 정비로 삭제)", () => {
+  it("growth-marketing: external 자산 0 (business-growth·marketing-skills·research-summarizer 는 2026-08-02 정비로 삭제)", () => {
     const { ids } = runForTrack(["growth-marketing"]);
-    expect(ids).toEqual(["north-star", "gh-issue-workflow"]);
+    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종이 internal 로 복귀해 external 은 비었다.
+    //   "비었다"가 "안 깔린다"가 아님은 아래 전 트랙 도달 테스트가 증명한다.
+    expect(ids).toEqual([]);
     expect(ids).not.toContain("product-skills");
     // finance-skills excluded (executive/full only)
     expect(ids).not.toContain("finance-skills");
   });
 
-  it("project-management spawn calls: 4 (2 plugins × 2)", () => {
+  it("project-management spawn calls: 2 (product-skills plugin × 2)", () => {
     const { spawnCallCount } = runForTrack(["project-management"]);
-    expect(spawnCallCount).toBe(4);
+    expect(spawnCallCount).toBe(2);
   });
 
-  it("growth-marketing spawn calls: 2 (전 트랙 상주 스킬 2종 × 1; 2026-08-02 정비 ADR-060)", () => {
+  it("growth-marketing spawn calls: 0 (2026-08-02 복원 ADR-062 — internal 은 spawn 하지 않는다)", () => {
     const { spawnCallCount } = runForTrack(["growth-marketing"]);
-    expect(spawnCallCount).toBe(2);
+    expect(spawnCallCount).toBe(0);
   });
 
   // 2026-08-02 정비(ADR-060) 회귀 — north-star·gh-issue-workflow 는 COMMON_SKILL_DIRS(전 트랙
   // 무조건 설치)에서 카탈로그로 옮겼다. 조건 표현이 트랙 하나라도 빠뜨리면 그 트랙 설치자는
   // 조용히 잃는다 (리뷰 P1-3 이 지적한 강등 금지 — 이 테스트가 그 결정을 지킨다).
-  it("north-star·gh-issue-workflow 는 전 트랙에 도달한다 (전 트랙 상주 보존, TRACKS derive)", () => {
+  //
+  // 2026-08-02 복원(ADR-062) — **같은 결정을 지키되 표면을 옮겼다.** 두 스킬이 internal 로
+  // 돌아가면서 `runExternalInstall` 의 시도 목록에서 빠졌고, 그 목록으로 계속 재면 "전 트랙
+  // 도달"이 아니라 "전 트랙 미도달"만 확인하게 된다. 실제로 파일을 깔지 정하는 곳은 두 군데다:
+  // installer 의 `selectedInternalSkills` 계산(isAssetSelected)과 manifest 항목의 `applies`.
+  // 둘 다 트랙별로 돌린다 — 하나만 보면 선택은 됐는데 복사가 안 되는 경우를 놓친다.
+  // 2026-08-02 AC9 — `task-brief` 신설분을 같은 단언에 넣는다. 신설이라 "이관 전 범위 유지"는
+  // 해당 없지만 **검사해야 할 성질은 같다**: 카탈로그 condition 이 any-track 인데 어느 트랙에서
+  // 선택되지 않거나 선택만 되고 복사가 안 되면 그 트랙 설치자는 조용히 잃는다. 목록을 나누면
+  // 신설 자산만 이 검사를 빠져나가는 두 번째 경로가 생긴다.
+  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 3종 · dev 트랙 6종 · opt-in 2종", () => {
+    const allTrack = ["north-star", "gh-issue-workflow", "task-brief"];
+    const devOnly = [
+      "clear-korean-communication",
+      "audit-service-gaps",
+      "multi-persona-review",
+      "recurrence-prevention",
+      "verification-loop",
+      "compaction-handoff",
+    ];
+    const optIn = ["model-orchestration", "external-model-consult"];
     for (const t of TRACKS) {
-      const { ids } = runForTrack([t]);
-      expect(ids, `${t} 에 north-star 가 안 깔린다`).toContain("north-star");
-      expect(ids, `${t} 에 gh-issue-workflow 가 안 깔린다`).toContain("gh-issue-workflow");
+      const ctx = { tracks: [t], options: { ...DEFAULT_OPTIONS } };
+      // installer.ts 의 selectedInternalSkills 와 같은 계산.
+      const selected = INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, ctx));
+      const manifest = buildManifest({ tracks: [t], selectedInternalSkills: selected });
+      const copied = (id: string) =>
+        manifest
+          .find((e) => e.source === `skills/${id}`)
+          ?.applies({ tracks: [t], selectedInternalSkills: selected }) === true;
+
+      for (const id of allTrack) {
+        expect(selected, `${t}: ${id} 가 선택되지 않는다`).toContain(id);
+        expect(copied(id), `${t}: ${id} 가 선택됐는데 manifest 가 복사하지 않는다`).toBe(true);
+      }
+      const isDev = hasDevTrack([t]);
+      for (const id of devOnly) {
+        expect(selected.includes(id), `${t}: ${id} dev-track 게이팅 불일치`).toBe(isDev);
+        expect(copied(id), `${t}: ${id} 복사 여부가 선택과 불일치`).toBe(isDev);
+      }
+      // opt-in 은 트랙만으론 절대 안 깔린다 — 되면 사용자가 안 고른 자산을 설치하는 것이다.
+      for (const id of optIn) {
+        expect(selected, `${t}: opt-in ${id} 가 트랙만으로 설치된다`).not.toContain(id);
+        expect(copied(id), `${t}: opt-in ${id} 가 트랙만으로 복사된다`).toBe(false);
+      }
     }
   });
 });

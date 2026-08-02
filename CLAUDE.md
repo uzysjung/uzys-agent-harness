@@ -31,7 +31,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 `src/` 45파일 (실측 2026-08-02) — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 /
 **`manifest.ts` = 무엇을 어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 /
-`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(55 자산).
+`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(56 자산).
 
 **`templates/` 는 npm 으로 낯선 사람 프로젝트에 나가는 배포물이고 `.claude/` 는 우리 개발용이다.**
 같은 이름의 파일이 양쪽에 있고 내용이 다르다 — 하나를 보고 다른 하나를 말하지 않는다.
@@ -83,14 +83,17 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `readFileSync` 로 경로를 읽어 import 그래프 밖이다(실측 2026-08-02). 애매하면 전체를 돌린다.
 5. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(게시 계약 밖이라 무해하나 버전
    확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 미생성 — 태그·npm 은 정상이다.
-6. **uzys 자작 스킬의 SSOT 는 `uzysjung/uzys-agent-skills` 리포다** (ADR-060). 이 리포의 번들
-   스킬은 `compaction-handoff`·`ui-visual-review` 등 잔존분뿐 — 스킬 본문 게이트도 이관 리포
-   소관이며, 그쪽에 게이트가 없으면 지금은 아무도 안 본다.
+6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다** (ADR-062 — ADR-060 의
+   이관 결정을 부분 Supersede). 이관본이 판정 기준·수치·워크드 예시를 잃어(감사 실측: dropped
+   76 · damaged 28) 9종을 되돌렸다. **되돌린 이유가 곧 여기 남는 이유다 — 스킬 본문을 무는
+   게이트가 이 리포에만 있다**(`north-star-skill`·`recurrence-prevention-skill`·
+   `subagent-file-handoff`·`consult-model-tier` 4종). 배선 SSOT 는
+   `src/external-assets.ts` 의 `INTERNAL_BUNDLED_SKILL_IDS`(11) / `DEV_METHOD_SKILL_IDS`(6).
 
 ## 보고·의사결정 형식
 
 사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는 초안은 그 자체가
 다시 쓰라는 신호다. 승인 요청은 **추천과 이유를 먼저**(BLUF), 대비는 ASIS→TOBE 표로, 수치는
 before → after 로 쓴다("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
-실행 형식·예시 = `clear-korean-communication` 스킬(uzys-agent-skills — 미설치면
-`npx skills add uzysjung/uzys-agent-skills` 는 **사용자가 직접** 실행한다. 호스트 실 CLI 는 훅이 차단).
+실행 형식·예시 = `clear-korean-communication` 스킬 — 이 리포 번들이라
+`templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
