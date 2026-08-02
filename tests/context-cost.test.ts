@@ -316,7 +316,8 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
 
   it("개수는 토큰과 **같은 대상**을 센다 — 표면당 1, CLAUDE.md 는 2 (앵커+스캐폴드)", () => {
     // 두 축이 다른 대상을 세기 시작하면 나란히 놓은 의미가 없다. seed() 는 표면마다 1개씩이고
-    // CLAUDE.md 만 2 다 — 설치가 앵커(`.claude/CLAUDE.md`)와 스캐폴드(루트)를 둘 다 놓는다.
+    // CLAUDE.md 만 2 다 — 설치가 앵커(루트 `CLAUDE-uzys-harness.md`)와 스캐폴드(루트
+    // `CLAUDE.md`)를 둘 다 놓는다. 원본은 어느 쪽이든 `templates/CLAUDE.md` 하나다.
     const r = residentCost(entries, seed());
     expect(r.items).toEqual({ rules: 1, skills: 1, agents: 1, claudeMd: 2, total: 5 });
   });

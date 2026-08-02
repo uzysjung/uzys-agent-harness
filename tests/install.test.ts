@@ -775,7 +775,7 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Update complete"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("5 files updated"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining(".claude/CLAUDE.md"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("CLAUDE-uzys-harness.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
   });

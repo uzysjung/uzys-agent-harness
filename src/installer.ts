@@ -50,7 +50,7 @@ import {
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
-import { mergeProjectClaude } from "./project-claude-merge.js";
+import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { cleanStaleHookRefs, runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
@@ -189,8 +189,13 @@ export interface BaselineReport {
   ciScaffold: CiScaffoldReport | null;
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
-  /** Root CLAUDE.md fill-in scaffold (project name + active-track note + FILL sections). null when claude baseline disabled. */
-  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
+  /**
+   * Root CLAUDE.md 처리 결과. null when claude baseline disabled.
+   * `created` = 없던 파일을 fill-in 스캐폴드로 만들었다. false 면 기존 사용자 파일에 앵커
+   * import 한 줄만 얹었다는 뜻 — 두 경우의 보고 문구가 달라야 한다 (스캐폴드를 쓰지도 않고
+   * "fill-in scaffold" 라고 보고하면 그게 거짓 보고다).
+   */
+  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -457,8 +462,8 @@ interface ClaudeBaselineResult {
   dirsCopied: number;
   skipped: number;
   categories: BaselineCategoryCounts;
-  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
-  /** root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
+  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
+  /** 하네스 앵커 파일 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
   rootClaudeMdLog: { path: string; sha256: string } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
   backups: string[];
@@ -560,15 +565,21 @@ function installClaudeBaseline(
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
   writeInstalledTracks(projectDir, manifestSpec.tracks);
 
-  // Project root CLAUDE.md — an honest fill-in scaffold (project name + active tracks + FILL sections).
-  // Note: overwrites any user customization on re-install. Documented behavior.
+  // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
   const rootClaudeMd = writeRootClaudeMd(projectDir, manifestSpec.tracks);
-  result.rootClaudeMd = { tracks: manifestSpec.tracks };
-  result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMd.content) };
-  if (rootClaudeMd.backup) {
-    result.backups.push(rootClaudeMd.backup);
-  }
+  result.rootClaudeMd = { tracks: manifestSpec.tracks, created: rootClaudeMd.created };
+  // 무결성 기록의 대상은 **하네스 앵커 파일**이다 (루트 CLAUDE.md 가 아니다) — uninstall 이
+  // 회수하는 것도, update 가 갱신하는 것도 그 파일뿐이라 소유를 주장할 수 있는 것도 그것뿐이다.
+  // 방금 manifest copy 가 놓아둔 디스크 내용을 읽는다: 렌더를 다시 하면 기준선이 두 벌이 된다.
+  result.rootClaudeMdLog = harnessAnchorLog(projectDir);
   return result;
+}
+
+/** 앵커 파일의 설치 시점 sha. manifest 에서 빠졌거나 source 부재로 skip 됐으면 null (정직 기록). */
+function harnessAnchorLog(projectDir: string): { path: string; sha256: string } | null {
+  const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
+  if (!existsSync(anchor)) return null;
+  return { path: HARNESS_ANCHOR_FILE, sha256: hashContent(readFileSync(anchor, "utf-8")) };
 }
 
 /** Environment files (F7/F8 — bash setup-harness.sh L880~890 + L954~996 등가). */
@@ -776,16 +787,23 @@ function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>)
   writeFileSync(path, `${sorted}\n`);
 }
 
-function writeRootClaudeMd(
-  projectDir: string,
-  tracks: ReadonlyArray<Track>,
-): { content: string; backup: string | null } {
-  const content = mergeProjectClaude(tracks, { projectName: basename(projectDir) });
+/**
+ * 루트 `CLAUDE.md` — **덮어쓰지 않는다** (P5 · ADR-060). 하네스 내용은 앵커 파일
+ * (`HARNESS_ANCHOR_FILE`)로 따로 나가고, 여기엔 그것을 끌어오는 마커 import 한 줄만 얹는다.
+ *
+ * 그래서 백업도 사라졌다 — 백업은 "덮어쓰기 전 원본 보존"의 대응물인데 이제 덮어쓰기가 없다.
+ * 사용자 본문은 그대로 남고 우리 블록만 추가되며, uninstall 이 그 블록만 도로 걷어간다.
+ * (`.mcp.json`·`.gitignore` 처럼 사용자 파일에 병합하는 다른 산출물과 같은 방침이다.)
+ */
+function writeRootClaudeMd(projectDir: string, tracks: ReadonlyArray<Track>): { created: boolean } {
   const target = join(projectDir, "CLAUDE.md");
-  // 기존 사용자 CLAUDE.md 는 덮어쓰기 전 백업 (audit CODE-2 — 무백업 덮어쓰기 데이터 손실 방지).
-  const backup = backupFileIfChanged(target, content);
-  writeFileSync(target, content);
-  return { content, backup };
+  const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
+  const content = upsertHarnessImport(existing, { projectName: basename(projectDir), tracks });
+  // 이미 import 가 있으면 upsert 가 입력을 그대로 돌려준다 — 그때는 파일을 만지지 않는다.
+  if (content !== existing) {
+    writeFileSync(target, content);
+  }
+  return { created: existing === null };
 }
 
 function chmodHooksSync(hookDir: string): void {

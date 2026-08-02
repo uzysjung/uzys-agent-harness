@@ -14,6 +14,27 @@ import { TRACKS, type Track } from "./types.js";
  * all 4 CLIs, with no disk read-back coupling.
  */
 
+/**
+ * 하네스 앵커의 **설치 파일명** (프로젝트 루트). manifest target · 루트 CLAUDE.md 의 `@import`
+ * 줄 · update 갱신 · uninstall 회수가 전부 이 상수를 쓴다.
+ *
+ * 이름이 여러 곳에 리터럴로 살면 한 곳만 바뀌었을 때 조용히 갈리고, 그때 생기는 것은 아무도
+ * 갱신·회수하지 않는 고아 파일이다 (`no-false-ship.md` §Drift 구조 차단).
+ */
+export const HARNESS_ANCHOR_FILE = "CLAUDE-uzys-harness.md";
+
+/** 루트 CLAUDE.md 가 앵커를 끌어오는 Claude Code memory import 줄. */
+export const HARNESS_IMPORT_LINE = `@${HARNESS_ANCHOR_FILE}`;
+
+/**
+ * 관리 마커 — **하네스가 넣은 줄과 사용자가 쓴 줄을 가르는 유일한 표식**이다.
+ * 재실행 시 중복 추가를 막고(idempotent), uninstall 이 사용자 본문을 건드리지 않고
+ * 이 블록만 도려낼 수 있게 한다.
+ */
+const IMPORT_MARKER_START = "<!-- uzys-harness:import:start -->";
+const IMPORT_MARKER_END = "<!-- uzys-harness:import:end -->";
+const IMPORT_BLOCK = `${IMPORT_MARKER_START}\n${HARNESS_IMPORT_LINE}\n${IMPORT_MARKER_END}`;
+
 export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
   tooling: "Tooling",
   "csr-supabase": "CSR Supabase",
@@ -100,7 +121,7 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
 export const SCAFFOLD_BANNER = [
   "> ⚙️ **SCAFFOLD — not filled in yet.** The sections below are a fill-in template for THIS project, not verified facts.",
   "> To fill: open this file and paste each `<!-- FILL: … -->` comment's instruction into your coding agent (e.g. Claude Code) — it will inspect the real repo and write the section. You can also fill them by hand; the comments are the instructions.",
-  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+  `> The working principles live in this project's harness anchor — \`${HARNESS_ANCHOR_FILE}\` (Claude Code, imported from this file), \`AGENTS.md\` (Codex/OpenCode), or \`.agents/rules/uzys-harness.md\` (Antigravity). This file is **project-specific context only**.`,
 ].join("\n");
 
 /**
@@ -120,6 +141,8 @@ export function renderFillScaffold(): string {
 export interface MergeOptions {
   /** Project directory basename → the H1 title (fixes the shipped `# [Project Name]` literal). */
   projectName: string;
+  /** Selected tracks → the active-track note (genuine install metadata). */
+  tracks: ReadonlyArray<Track>;
 }
 
 /**
@@ -128,11 +151,72 @@ export interface MergeOptions {
  * tracks are recorded in the note; the installed-assets section is filled from real files at
  * fill time rather than from static per-track prose.
  */
-export function mergeProjectClaude(tracks: ReadonlyArray<Track>, opts: MergeOptions): string {
-  const expanded = expandTracks(tracks);
+export function mergeProjectClaude(opts: MergeOptions): string {
+  const expanded = expandTracks(opts.tracks);
   const trackList = expanded.map((t) => TRACK_DISPLAY_NAMES[t]).join(", ");
   const header = `# ${opts.projectName}\n\n> Active track(s): ${trackList}`;
   return `${header}\n\n${renderFillScaffold()}\n`;
+}
+
+/**
+ * 루트 `CLAUDE.md` 에 하네스 앵커 import 를 **비파괴로** 얹는다 (P5 · ADR-060).
+ *
+ * v26.140.0 까지 설치는 이 파일을 `mergeProjectClaude()` 결과로 **통째 덮어썼다** — 백업은
+ * 남겼지만, 사용자가 채워 넣은 프로젝트 맥락이 매 재설치마다 스캐폴드로 되돌아갔다. 하네스
+ * 내용은 `HARNESS_ANCHOR_FILE` 로 따로 나가므로, 루트 CLAUDE.md 에는 그것을 끌어오는 한 줄만
+ * 있으면 된다. 그래서 소유가 갈린다: 앵커 파일 = 하네스 소유(갱신·회수 가능), 루트 CLAUDE.md
+ * = 사용자 소유(우리는 마커 블록만 책임진다).
+ *
+ * @param existing 디스크의 현재 내용. 파일이 없으면 `null`.
+ * @returns 기록할 내용. 이미 import 가 있으면 **입력과 바이트 동일**(= 쓰지 않아도 된다).
+ */
+export function upsertHarnessImport(existing: string | null, opts: MergeOptions): string {
+  if (existing === null) {
+    return `${mergeProjectClaude(opts)}\n${IMPORT_BLOCK}\n`;
+  }
+  if (hasHarnessImport(existing)) {
+    return existing;
+  }
+  const body = existing.endsWith("\n") ? existing : `${existing}\n`;
+  return `${body}\n${IMPORT_BLOCK}\n`;
+}
+
+/**
+ * 마커 블록만 도려낸다 — uninstall 이 사용자 본문을 지우지 않고 하네스 몫만 회수하는 경로.
+ *
+ * 블록 앞뒤로 우리가 넣었던 빈 줄까지 되돌리므로, 설치 전 내용이 그대로였다면 결과는
+ * **설치 전과 바이트 동일**해진다.
+ *
+ * @returns 회수 후 내용. 마커가 없으면 `null` (= 우리가 건드린 적 없다 → 파일을 만지지 않는다).
+ */
+export function stripHarnessImport(text: string): string | null {
+  const start = text.indexOf(IMPORT_MARKER_START);
+  if (start === -1) return null;
+  const endAt = text.indexOf(IMPORT_MARKER_END, start);
+  if (endAt === -1) return null;
+  const before = text.slice(0, start).replace(/\n+$/, "\n");
+  const after = text.slice(endAt + IMPORT_MARKER_END.length).replace(/^\n+/, "");
+  return `${before}${after}`;
+}
+
+/**
+ * import 가 이미 사는가 — 마커 블록이거나, 사용자가 손으로 적은 실제 import 줄이거나.
+ *
+ * **코드펜스 안은 세지 않는다.** Claude Code 는 펜스 안의 `@path` 를 import 로 읽지 않으므로,
+ * 문서에서 이 파일명을 예시로 인용한 것을 import 로 오인하면 진짜 import 를 영영 안 넣는다
+ * (= 앵커가 조용히 안 실린다).
+ */
+function hasHarnessImport(text: string): boolean {
+  if (text.includes(IMPORT_MARKER_START)) return true;
+  let inFence = false;
+  for (const line of text.split("\n")) {
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence && line.trim() === HARNESS_IMPORT_LINE) return true;
+  }
+  return false;
 }
 
 function expandTracks(tracks: ReadonlyArray<Track>): ReadonlyArray<Track> {

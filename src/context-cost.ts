@@ -194,9 +194,12 @@ export function residentCost(
   }
   // 설치가 상주시키는 CLAUDE.md 는 **둘**이다. v26.140.0 까지는 앵커만 재면서 라벨은
   // "스캐폴드"였다 — 이름과 실측 대상이 다르면 그 지표로는 before/after 를 판정할 수 없다.
-  //  ① 하네스 앵커 `.claude/CLAUDE.md` — manifest `applies: all` 이라 항상 깔린다(파일).
-  //  ② 프로젝트 스캐폴드 루트 `CLAUDE.md` — manifest 밖에서 `writeRootClaudeMd()` 가 무조건
-  //     쓴다. **파일이 아니라 생성물**이라 `fileTokens` 로는 영원히 0 이었다.
+  //  ① 하네스 앵커 `CLAUDE-uzys-harness.md` (루트) — manifest `applies: all` 이라 항상 깔린다.
+  //     v26.140.0 까지는 `.claude/CLAUDE.md` 였다 (P5 · ADR-060 에서 루트로 이동). 어느 쪽이든
+  //     **원본은 `templates/CLAUDE.md` 하나**라 여기서 재는 값은 이동과 무관하다.
+  //  ② 프로젝트 스캐폴드 루트 `CLAUDE.md` — manifest 밖에서 `writeRootClaudeMd()` 가 쓴다
+  //     (없으면 스캐폴드 생성, 있으면 앵커 import 한 줄 추가). **파일이 아니라 생성물**이라
+  //     `fileTokens` 로는 영원히 0 이었다.
   // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 2줄(프로젝트명·트랙)은
   // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
   const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));

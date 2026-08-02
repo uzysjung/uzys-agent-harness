@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "../src/external-assets.js";
 import { type AssetSpec, buildManifest } from "../src/manifest.js";
+import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
 /**
@@ -53,9 +54,12 @@ function assetIdOf(target: string): string | null {
   return id.length >= 4 ? id : null;
 }
 
-/** 상주 = 전문이 매 세션 들어오는 표면. `context-cost.ts` 의 상주/발화 구분과 같은 기준. */
+/**
+ * 상주 = 전문이 매 세션 들어오는 표면. `context-cost.ts` 의 상주/발화 구분과 같은 기준.
+ * 앵커 target 은 리터럴이 아니라 SSOT 상수에서 온다 (P5 · ADR-060 으로 경로가 옮겨졌다).
+ */
 function isResidentDoc(target: string): boolean {
-  return target === ".claude/CLAUDE.md" || /^\.claude\/rules\/[^/]+\.md$/.test(target);
+  return target === HARNESS_ANCHOR_FILE || /^\.claude\/rules\/[^/]+\.md$/.test(target);
 }
 
 /** 트랙별 실제 설치분에서 derive 한 두 색인: 자산 id → 트랙들, 상주 문서 source → 트랙들. */

@@ -11,6 +11,7 @@ import {
   type InstallLog,
   installLogPath,
 } from "../src/install-log.js";
+import { upsertHarnessImport } from "../src/project-claude-merge.js";
 
 function ok(): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
@@ -626,6 +627,94 @@ describe("uninstallAction", () => {
     );
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
     expect(rmPaths).not.toContain(join(tmpDir, "CLAUDE.md"));
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  /**
+   * P5 (ADR-060) — 앵커가 `.claude/` 밖 루트 파일이 되면서 회수 경로가 갈렸다:
+   *   ⓐ `CLAUDE-uzys-harness.md` = 하네스 소유 → sha 일치 시 삭제 (위 CLAUDE.md 계약 그대로 승계)
+   *   ⓑ 루트 `CLAUDE.md` = 사용자 소유 → **삭제하지 않고** 마커 import 블록만 회수
+   * ⓑ 가 없으면 앵커를 지운 뒤 없는 파일을 가리키는 import 가 매 세션 남는다. ⓐ 가 없으면
+   * 하네스 파일이 고아로 남는다 (리뷰 P1-5 가 지목한 바로 그 구멍).
+   */
+  it("하네스 앵커 파일(CLAUDE-uzys-harness.md)이 원본 그대로면 삭제된다 — 고아 방지", () => {
+    const content = "# harness anchor\n원칙 본문\n";
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: hashContent(content) },
+      },
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE-uzys-harness.md"), content, "utf8");
+    const rm = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: vi.fn(),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm.mock.calls.map((c) => c[0] as string)).toContain(
+      join(tmpDir, "CLAUDE-uzys-harness.md"),
+    );
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("루트 CLAUDE.md 는 지우지 않고 import 블록만 회수 — 사용자 본문 무손실", () => {
+    const userBody = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
+    const installed = upsertHarnessImport(userBody, { projectName: "p", tracks: ["tooling"] });
+    const log: InstallLog = {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: hashContent("anchor") },
+      },
+    };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), installed, "utf8");
+    writeFileSync(join(tmpDir, "CLAUDE-uzys-harness.md"), "anchor", "utf8");
+    const rm = vi.fn();
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm.mock.calls.map((c) => c[0] as string)).not.toContain(join(tmpDir, "CLAUDE.md"));
+    // 설치 전 내용으로 정확히 되돌아온다 — 우리가 넣은 빈 줄까지 포함해서.
+    expect(readFileSync(join(tmpDir, "CLAUDE.md"), "utf8")).toBe(userBody);
+    expect(logFn.mock.calls.flat().join("\n")).toContain("harness @import removed");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("import 를 안 넣은 CLAUDE.md 는 uninstall 이 아예 만지지 않는다", () => {
+    const userOnly = "# 내 프로젝트\n\n하네스와 무관한 내용\n";
+    const log: InstallLog = { ...baseLog(), templates: { claudeDir: ".claude/" } };
+    writeLog(tmpDir, log);
+    writeFileSync(join(tmpDir, "CLAUDE.md"), userOnly, "utf8");
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm: vi.fn(),
+      },
+    );
+    expect(readFileSync(join(tmpDir, "CLAUDE.md"), "utf8")).toBe(userOnly);
+    expect(logFn.mock.calls.flat().join("\n")).not.toContain("harness @import removed");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

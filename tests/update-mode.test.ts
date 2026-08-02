@@ -681,7 +681,8 @@ describe("runUpdateMode (E2E with templates)", () => {
       mkdirSync(join(projectDir, ".claude", d), { recursive: true });
     }
     writeFileSync(join(templatesDir, "CLAUDE.md"), "template-CLAUDE\n");
-    writeFileSync(join(projectDir, ".claude/CLAUDE.md"), "old-CLAUDE\n");
+    // 앵커는 프로젝트 루트다 (P5 · ADR-060). update 는 **이미 있는 것만** 갱신한다.
+    writeFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "old-CLAUDE\n");
     writeFileSync(join(templatesDir, "rules/git-policy.md"), "v2\n");
     writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "v1\n");
     writeFileSync(join(projectDir, ".claude/rules/orphan-rule.md"), "stale\n"); // not in template
@@ -696,7 +697,9 @@ describe("runUpdateMode (E2E with templates)", () => {
   it("updates files + refreshes CLAUDE.md", () => {
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v2\n");
-    expect(readFileSync(join(projectDir, ".claude/CLAUDE.md"), "utf8")).toBe("template-CLAUDE\n");
+    expect(readFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "utf8")).toBe(
+      "template-CLAUDE\n",
+    );
     expect(report.updated[".claude/rules"]).toBe(1);
     expect(report.claudeMdUpdated).toBe(true);
   });

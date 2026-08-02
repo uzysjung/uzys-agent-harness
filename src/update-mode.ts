@@ -37,6 +37,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "./types.js";
 
 export interface UpdateModeReport {
@@ -142,8 +143,10 @@ export function runUpdateMode(
   report.skillsBackedUp = skillSync.backedUp;
   refreshSkillBaseline(projectDir);
 
-  // 2) .claude/CLAUDE.md
-  const claudeMd = join(claudeDir, "CLAUDE.md");
+  // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
+  // 루트 `CLAUDE.md` 는 **건드리지 않는다**: 그건 사용자 소유이고, 우리 몫은 그 안의 import
+  // 한 줄뿐이라 갱신할 내용이 없다. 갱신 대상은 하네스가 통째로 소유한 이 파일이다.
+  const claudeMd = join(projectDir, HARNESS_ANCHOR_FILE);
   const templateMd = join(templatesDir, "CLAUDE.md");
   if (existsSync(claudeMd) && existsSync(templateMd)) {
     copyFileSync(templateMd, claudeMd);

@@ -22,7 +22,7 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
@@ -37,6 +37,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "../install-log.js";
+import { stripHarnessImport } from "../project-claude-merge.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
 
 export interface UninstallOptions {
@@ -146,12 +147,14 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
 
   if (!keepTemplates) {
-    const { rootClaudeMdKept } = removeTemplates(installLog, projectDir, rm);
+    const { rootClaudeMdKept, importStripped } = removeTemplates(installLog, projectDir, rm);
     log(`  ${status.success(`templates removed: ${formatTemplateList(installLog)}`)}`);
+    if (importStripped) {
+      log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
+    }
     if (rootClaudeMdKept) {
-      log(
-        `  ${c.yellow("⊘")} CLAUDE.md kept — modified since install. Remove manually if intended.`,
-      );
+      const kept = installLog.templates.rootClaudeMd?.path ?? "CLAUDE.md";
+      log(`  ${c.yellow("⊘")} ${kept} kept — modified since install. Remove manually if intended.`);
     }
   }
 
@@ -324,12 +327,16 @@ function dryRunLines(
   );
   if (!keepTemplates) {
     lines.push(`  ○ remove templates: ${formatTemplateList(installLog)}`);
-    if (installLog.templates.rootClaudeMd) {
+    const rootMd = installLog.templates.rootClaudeMd;
+    if (rootMd) {
       lines.push(
         rootClaudeMdModified(installLog, projectDir)
-          ? "  ○ keep CLAUDE.md (modified since install — preserved)"
-          : "  ○ remove CLAUDE.md",
+          ? `  ○ keep ${rootMd.path} (modified since install — preserved)`
+          : `  ○ remove ${rootMd.path}`,
       );
+    }
+    if (hasRootImport(projectDir)) {
+      lines.push("  ○ strip harness @import from CLAUDE.md (본문 보존)");
     }
   }
   lines.push(...advisoryLines(plan, projectDir, rootFiles), "");
@@ -520,20 +527,58 @@ function removeTemplates(
   log: InstallLog,
   projectDir: string,
   rm: (path: string) => void,
-): { rootClaudeMdKept: boolean } {
+): { rootClaudeMdKept: boolean; importStripped: boolean } {
   rm(join(projectDir, log.templates.claudeDir));
   if (log.templates.codexDir) rm(join(projectDir, log.templates.codexDir));
   if (log.templates.opencodeDir) rm(join(projectDir, log.templates.opencodeDir));
-  // root CLAUDE.md — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
+  // 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스가 넣은 마커
+  // import 블록만 도로 걷어낸다. 안 걷으면 앵커 파일을 지운 뒤 없는 파일을 가리키는 import 가
+  // 남아 매 세션 끊긴 참조가 로드된다.
+  const importStripped = stripRootImport(projectDir);
+  // 하네스 앵커 파일 — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
   const rootMd = log.templates.rootClaudeMd;
   if (rootMd) {
-    if (rootClaudeMdModified(log, projectDir)) return { rootClaudeMdKept: true };
+    if (rootClaudeMdModified(log, projectDir)) return { rootClaudeMdKept: true, importStripped };
     rm(join(projectDir, rootMd.path));
   }
-  return { rootClaudeMdKept: false };
+  return { rootClaudeMdKept: false, importStripped };
 }
 
-/** root CLAUDE.md 가 install 이후 수정됐는지. log 에 없거나 파일 부재 시 false (= 삭제 대상). */
+/**
+ * 루트 `CLAUDE.md` 에서 하네스 import 블록만 제거. 마커가 없으면 아무것도 쓰지 않는다.
+ *
+ * 실패해도 uninstall 을 죽이지 않는다 — 여기서 throw 하면 자산은 이미 다 지운 상태에서
+ * 명령이 실패로 끝나고, 사용자는 무엇이 남았는지 알 수 없게 된다 (D16 과 같은 방침).
+ */
+function stripRootImport(projectDir: string): boolean {
+  const current = readRootClaudeMd(projectDir);
+  const stripped = current === null ? null : stripHarnessImport(current);
+  if (stripped === null) return false;
+  try {
+    writeFileSync(join(projectDir, "CLAUDE.md"), stripped, "utf8");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 미리보기용 — 실행 경로와 **같은 술어**를 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
+function hasRootImport(projectDir: string): boolean {
+  const current = readRootClaudeMd(projectDir);
+  return current !== null && stripHarnessImport(current) !== null;
+}
+
+function readRootClaudeMd(projectDir: string): string | null {
+  const path = join(projectDir, "CLAUDE.md");
+  if (!existsSync(path)) return null;
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** 하네스 앵커 파일이 install 이후 수정됐는지. log 에 없거나 파일 부재 시 false (= 삭제 대상). */
 function rootClaudeMdModified(log: InstallLog, projectDir: string): boolean {
   const rootMd = log.templates.rootClaudeMd;
   if (!rootMd) return false;

@@ -14,7 +14,7 @@
  *
  * 검증 항목 (per scenario):
  *   1. runInstall 예외 없음 (exit 0)
- *   2. .claude/CLAUDE.md + skeleton 생성 (baseline은 항상)
+ *   2. CLAUDE-uzys-harness.md(루트 앵커) + skeleton 생성 (baseline은 항상)
  *   3. .mcp.json 생성 + Track별 MCP 포함
  *   4. CLI combination별 추가 산출물:
  *      - codex 포함 시: AGENTS.md + .codex/{config.toml, hooks/} + .agents/skills/uzys-*
@@ -107,7 +107,7 @@ describe("11 Track × 7 CLI combination matrix (77 scenarios) — E2E install", 
 
         // 1. baseline: .claude/ 조건부 (v0.8.0 — claude 포함 시만), .mcp.json 항상
         const exp = expectedFor(cli);
-        expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(exp.claudeBaseline);
+        expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(exp.claudeBaseline);
         expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(exp.claudeBaseline);
         expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
 
@@ -207,7 +207,7 @@ describe("Matrix invariants — cross-cutting", () => {
       projectDir,
       spec: spec("tooling", ["claude", "codex", "opencode"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
@@ -223,7 +223,7 @@ describe("Matrix invariants — cross-cutting", () => {
       projectDir,
       spec: spec("tooling", ["codex"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/.installed-tracks"))).toBe(false);
     // install log 는 uninstall 위해 생성되지만 `.claude/` 밖이다 (#253)
@@ -243,7 +243,7 @@ describe("Matrix invariants — cross-cutting", () => {
       projectDir,
       spec: spec("tooling", ["opencode"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
   });
 
@@ -254,7 +254,7 @@ describe("Matrix invariants — cross-cutting", () => {
       projectDir,
       spec: spec("tooling", ["codex", "opencode"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
@@ -347,7 +347,7 @@ describe("Matrix invariants — cross-cutting", () => {
       projectDir,
       spec: spec("tooling", ["claude", "opencode"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(false);

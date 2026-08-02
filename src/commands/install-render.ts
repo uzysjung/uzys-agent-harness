@@ -22,6 +22,7 @@ import type { AssetInstallResult } from "../external-installer.js";
 import type { BaselineReport, InstallMode, InstallReport, ProgressEvent } from "../installer.js";
 import { buildManifest } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
+import { HARNESS_ANCHOR_FILE } from "../project-claude-merge.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
 /**
@@ -228,7 +229,7 @@ export function renderCliArtifacts(
   if (report.codex && report.opencode) {
     log(assetRow("success", "AGENTS.md", "shared (Codex + OpenCode)"));
   } else if (report.codex || report.opencode) {
-    log(assetRow("success", "AGENTS.md", "from .claude/CLAUDE.md"));
+    log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}`));
   }
   if (report.codex) {
     log(assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]"));
@@ -262,7 +263,7 @@ export function renderCliArtifacts(
   // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
   if (report.antigravity) {
     if (report.antigravity.rulesFile) {
-      log(assetRow("success", ".agents/rules/uzys-harness.md", "from .claude/CLAUDE.md"));
+      log(assetRow("success", ".agents/rules/uzys-harness.md", `from ${HARNESS_ANCHOR_FILE}`));
     }
     if (report.antigravity.skillFiles.length > 0) {
       log(
@@ -443,7 +444,7 @@ function renderPhase1Rows(
       }
     }
     if (baseline.updateMode.claudeMdUpdated) {
-      log(assetRow("success", ".claude/CLAUDE.md", "refreshed from template"));
+      log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
@@ -575,11 +576,15 @@ function renderPhase1Rows(
   const TEMPLATES_COL = 28;
   if (baseline.rootClaudeMd) {
     const n = baseline.rootClaudeMd.tracks.length;
+    // 기존 사용자 파일에는 스캐폴드를 쓰지 않는다 — 두 경우를 같은 문구로 보고하면 그게 곧
+    // 거짓 보고다 (P5 · ADR-060: 루트 CLAUDE.md 는 더 이상 덮어쓰지 않는다).
     log(
       assetRow(
         "success",
         "CLAUDE.md (root)",
-        `fill-in scaffold · ${n} track${n > 1 ? "s" : ""} noted`,
+        baseline.rootClaudeMd.created
+          ? `fill-in scaffold + @import · ${n} track${n > 1 ? "s" : ""} noted`
+          : `@import ${HARNESS_ANCHOR_FILE} (body preserved)`,
         TEMPLATES_COL,
       ),
     );

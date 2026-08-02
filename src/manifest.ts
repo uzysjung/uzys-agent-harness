@@ -1,4 +1,5 @@
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
@@ -198,10 +199,12 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: (s) => !s.withEcc,
   });
 
-  // Project meta CLAUDE.md
+  // 하네스 앵커 — **프로젝트 루트**에 하네스 소유 파일로 나간다 (P5 · ADR-060).
+  // 루트 `CLAUDE.md` 는 사용자 것이고, 거기엔 이 파일을 끌어오는 `@import` 한 줄만 들어간다
+  // (`project-claude-merge.ts` upsertHarnessImport). 파일명은 그 모듈이 SSOT.
   m.push({
     source: "CLAUDE.md",
-    target: ".claude/CLAUDE.md",
+    target: HARNESS_ANCHOR_FILE,
     type: "file",
     applies: all,
   });
