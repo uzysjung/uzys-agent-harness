@@ -17,7 +17,8 @@
 ## AC — 무엇이 완료인가
 
 > **정의만 여기 있고 진행 표시는 없다.** 이 리포는 *main 을 항상 출하 가능하게* 두려고 열린 항목을
-> `docs/plans/*-todo.md` 로 분리한다(🧪 `tests/spec-drift-backlog-exemption.test.ts`). SPEC 에
+> `docs/plans/*-todo.md` 로 분리한다(🧪 `tests/spec-drift-backlog-exemption.test.ts` —
+> 강제 범위는 `docs/todo.md` 의 우회 문구 부재·면제 표식 축이고, SPEC 축은 ⬜ 관행이다). SPEC 에
 > 미완 체크박스를 두면 사이클 내내 ship 이 막히고, 그 상태가 길어지면 우회가 관행이 된다 — #237 이
 > 없앤 바로 그 형태다. 진행 추적 = `docs/plans/doc-system-cycle-todo.md`.
 

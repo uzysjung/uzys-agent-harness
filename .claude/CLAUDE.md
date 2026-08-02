@@ -32,7 +32,8 @@ v26.128.0~131.0 은 릴리즈 CI 4연속 red 를 3릴리즈 동안 못 봤고 �
 3. UI/UX 형태로 이해할 수 있도록 설명
 4. ASIS TOBE 형태로 설명
 
-`asis-tobe-decision` · `explain-plainly` 스킬을 쓴다 — 둘 다 이 리포에 설치돼 있다.
+`clear-korean-communication` 스킬(두 스킬의 통합 후신, uzys-agent-skills 리포)을 쓴다 —
+이 리포에 미설치면 형식만이라도 위 4요소를 따른다.
 (배포판 앵커(`## Decisions and explanations`)가 **같은 5요소를 전부** 싣는다 — ADR-055.
 이 절은 그 한국어 판이자 이 리포의 표현이다.)
 

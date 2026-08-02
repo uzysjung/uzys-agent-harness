@@ -5,7 +5,8 @@
 > **목표 anchor**: [`docs/NORTH_STAR.md`](NORTH_STAR.md) (왜·어디로) · **이력**: [`CHANGELOG.md`](../CHANGELOG.md)
 > **Foundation(v26.38) 상세 완료 기록**: [`docs/archive/phase1-foundation/`](archive/phase1-foundation/)
 >
-> **이 파일을 읽는 기계 = `spec-drift-check.sh` 하나뿐이다** (unchecked 항목 파싱).
+> **이 파일을 읽는 기계 = `tests/spec-drift-backlog-exemption.test.ts` 하나뿐이다**
+> (우회 문구 부재 + 백로그 면제 표식 검사. 구 `spec-drift-check.sh` 훅은 ADR-060 에서 삭제).
 > 과거 헤더는 `gate-check.sh` 존재 확인과 `/uzys:plan` 재생성을 함께 적어뒀으나, 둘 다
 > **ADR-023(2026-06-26)에서 삭제된 6-Gate 워크플로의 유물**이라 v26.122.0 에 걷어냈다.
 > 이 파일은 사람이 직접 갱신한다.
@@ -197,8 +198,8 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       그전부터 있던 것이다. 비대화형 update 가 생긴 뒤(v26.131.0) CI 에서 실제로 밟을 수 있는
       경로가 됐다. 지금은 시나리오가 `sleep 2` 로 우회 중 — 우회는 수정이 아니다.
       수정안: 백업 경로가 이미 있으면 접미사를 붙여 유일하게 만든다(`fs-ops.ts`).
-- [ ] R-3f `spec-drift-check.sh` 두 사본 정합 — `.claude/` 에만 `SHIP_SUBSPEC` 모드가 있고
-      `templates/` 에만 `first_existing` · `gate-status.json` 검사가 있다(v26.107.0 이후 갈림).
+- [x] ~~R-3f `spec-drift-check.sh` 두 사본 정합~~ (2026-08-02 소멸 — ADR-060 이 훅 자체를
+      양판 삭제. 정합할 대상이 없어졌다)
       이번 v26.122.0 은 양쪽에 동일한 `count_unchecked` 만 수술했고 나머지 갈림은 그대로다.
 - [ ] R-3l **`docs/specs/` 9개가 출하 후에도 `Status: Draft` 로 남아 있다** — 2026-07-20 에
       `v26-72-install-matrix-ci.md` 의 Plan ref 를 고치다 헤더에서 발견했다(그 기능은 v26.72.0

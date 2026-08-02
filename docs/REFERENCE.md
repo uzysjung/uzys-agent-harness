@@ -146,13 +146,15 @@ spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph �
 - **review** Process step 5에 visual-review 결과 흡수 + **REGRESSION 1건이라도 있으면 Review Gate 차단** (CRITICAL 동급)
 
 ### Rules (templates/rules/)
-21 파일(실측 2026-07-29). CLAUDE.md와 짝. **트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
+9 파일(실측 2026-08-02 — ADR-060 정비로 기술스택 상세 룰 12종 삭제). CLAUDE.md와 짝.
+**트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
 (`COMMON_RULES`·`DEV_RULES`·`UI_RULES`·`TRACK_RULES` → `resolveRules()`)다 — SPEC 이 아니다.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-7 파일 (실측): session-start · protect-files · mcp-pre-exec · hito-counter · karpathy-gate · spec-drift-check · checkpoint-snapshot.
-*2026-07-14 현행화. 구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 삭제됨(ADR-023).*
+4 파일 (실측 2026-08-02): session-start · protect-files · mcp-pre-exec · checkpoint-snapshot.
+*구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 ADR-023, karpathy-gate·spec-drift-check
+는 ADR-060 에서 삭제됨(검증 스캐폴딩·무동작 실측).*
 
 ### Scripts (자체 작성)
 - `scripts/prune-ecc.sh` — ECC plugin 프로젝트 스코프 복사 + 89 KEEP 외 제거
