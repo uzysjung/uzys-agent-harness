@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "../src/external-assets.js";
 import { type AssetSpec, buildManifest } from "../src/manifest.js";
+import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
 /**
@@ -53,9 +54,12 @@ function assetIdOf(target: string): string | null {
   return id.length >= 4 ? id : null;
 }
 
-/** 상주 = 전문이 매 세션 들어오는 표면. `context-cost.ts` 의 상주/발화 구분과 같은 기준. */
+/**
+ * 상주 = 전문이 매 세션 들어오는 표면. `context-cost.ts` 의 상주/발화 구분과 같은 기준.
+ * 앵커 target 은 리터럴이 아니라 SSOT 상수에서 온다 (P5 · ADR-060 으로 경로가 옮겨졌다).
+ */
 function isResidentDoc(target: string): boolean {
-  return target === ".claude/CLAUDE.md" || /^\.claude\/rules\/[^/]+\.md$/.test(target);
+  return target === HARNESS_ANCHOR_FILE || /^\.claude\/rules\/[^/]+\.md$/.test(target);
 }
 
 /** 트랙별 실제 설치분에서 derive 한 두 색인: 자산 id → 트랙들, 상주 문서 source → 트랙들. */
@@ -183,15 +187,19 @@ function findViolations(): { violations: Violation[]; references: number } {
 describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
   it("지목을 실제로 찾아낸다 (헛통과 차단)", () => {
     // 참조 탐지가 깨지면 아래 단언이 전부 공허하게 통과한다. 초록불이 무는지부터 확인한다.
+    // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
+    // 2026-08-02 정비)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    expect(references).toBeGreaterThan(4);
+    expect(references).toBeGreaterThan(3); // 실측 4 — 동일 취지로 실측 근처로 조임
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
     // 색인이 비면 "위반 0"이 참이 아니라 무의미해진다.
     const { assetTracks, docTracks } = buildIndexes();
     expect(assetTracks.size).toBeGreaterThan(20);
-    expect(docTracks.size).toBeGreaterThan(10);
+    // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
+    // 21(룰 20 + 앵커)에서 10(룰 9 + 앵커)으로 줄었다(2026-08-02 정비).
+    expect(docTracks.size).toBeGreaterThan(8); // 모수 10 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
   });

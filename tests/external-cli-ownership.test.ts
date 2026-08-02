@@ -30,7 +30,8 @@ import { runOpencodeTransform } from "../src/opencode/transform.js";
 import type { InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = join(__dirname, "..");
-const SKILLS = ["verification-loop"];
+// 2026-08-02 정비 (ADR-060) — 표본이 이관된 verification-loop 에서 잔존 번들 스킬로 바뀌었다.
+const SKILLS = ["compaction-handoff"];
 
 let projectDir: string;
 
@@ -122,12 +123,12 @@ describe("codex transform — 소유자 판정", () => {
   it("사용자가 고친 config.toml 과 스킬도 같은 보호를 받는다", () => {
     const first = codex(new Map());
     edit(join(projectDir, ".codex/config.toml"), "# 사용자 config\n");
-    edit(join(projectDir, ".agents/skills/verification-loop/SKILL.md"), "# 사용자 스킬\n");
+    edit(join(projectDir, ".agents/skills/compaction-handoff/SKILL.md"), "# 사용자 스킬\n");
 
     const second = codex(baselineOf(first.ownership.files));
 
     expect(second.ownership.backedUp).toContain(".codex/config.toml");
-    expect(second.ownership.backedUp).toContain(".agents/skills/verification-loop/SKILL.md");
+    expect(second.ownership.backedUp).toContain(".agents/skills/compaction-handoff/SKILL.md");
   });
 
   it("기준선은 하네스가 방금 쓴 내용과 일치한다 — 다음 실행이 자기 산출물을 오판하면 안 된다", () => {
@@ -145,12 +146,12 @@ describe("opencode transform — 소유자 판정", () => {
   it("사용자가 고친 커맨드와 opencode.json 이 백업된다", () => {
     const first = opencode(new Map());
     edit(join(projectDir, "opencode.json"), '{"mine":true}\n');
-    edit(join(projectDir, ".opencode/commands/verification-loop.md"), "# 사용자 커맨드\n");
+    edit(join(projectDir, ".opencode/commands/compaction-handoff.md"), "# 사용자 커맨드\n");
 
     const second = opencode(baselineOf(first.ownership.files));
 
     expect(second.ownership.backedUp).toContain("opencode.json");
-    expect(second.ownership.backedUp).toContain(".opencode/commands/verification-loop.md");
+    expect(second.ownership.backedUp).toContain(".opencode/commands/compaction-handoff.md");
     expect(backupsIn(join(projectDir, ".opencode/commands"))).toHaveLength(1);
   });
 
@@ -195,7 +196,7 @@ describe("installer 배선 — 기준선이 install log 를 왕복하는가", ()
   function install(): void {
     const spec: InstallSpec = {
       tracks: ["tooling"],
-      options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+      options: { withPrune: false, withCodexTrust: false },
       cli: ["codex", "opencode"],
       projectDir,
     };

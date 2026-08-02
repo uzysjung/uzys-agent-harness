@@ -153,7 +153,7 @@ type KeepHookRef = (hook: { command?: string }, claudeDir: string, removed: stri
 
 /**
  * 위 헤더 §"구현 레인 전제" 참조. export 가 생기면 이 캐스트는 정적 import 로 바꿔도 된다.
- * 캐스트 사유를 한 줄로 남기는 이유는 `code-style` §타입 강도.
+ * 캐스트에는 사유를 한 줄로 남긴다.
  */
 async function loadKeepHookRef(): Promise<KeepHookRef | null> {
   const mod = (await import("../src/update-mode.js")) as unknown as {

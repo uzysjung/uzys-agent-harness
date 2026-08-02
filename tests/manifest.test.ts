@@ -27,15 +27,13 @@ describe("resolveRules", () => {
 
   it("includes DEV rules when any dev track present", () => {
     const rules = resolveRules({ tracks: ["tooling"] });
-    expect(rules).toEqual(
-      expect.arrayContaining(["test-policy", "ship-checklist", "code-style", "error-handling"]),
-    );
+    expect(rules).toEqual(expect.arrayContaining(["test-policy", "ship-checklist"]));
   });
 
   it("includes UI rules only for csr/ssr/full", () => {
-    expect(resolveRules({ tracks: ["data"] })).not.toContain("design-workflow");
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("design-workflow");
-    expect(resolveRules({ tracks: ["full"] })).toContain("design-workflow");
+    expect(resolveRules({ tracks: ["data"] })).not.toContain("playwright-launch");
+    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("playwright-launch");
+    expect(resolveRules({ tracks: ["full"] })).toContain("playwright-launch");
   });
 
   it("includes benchmark-parity only alongside playwright-launch (UI tracks)", () => {
@@ -52,20 +50,15 @@ describe("resolveRules", () => {
     }
   });
 
+  // 2026-08-02 정비 — 기술스택 상세 룰 8종(shadcn·nextjs·htmx·pyside6·database·api-contract·
+  //   data-analysis·tauri)이 배포에서 빠져 트랙 매핑에 남은 것은 `cli-development` 하나다.
+  //   그래도 union 축은 계속 물어야 한다: 트랙을 섞었을 때 한쪽 트랙의 룰이 빠지면 그건
+  //   매핑이 아니라 덮어쓰기다.
   it("appends per-track rules union", () => {
-    const rules = resolveRules({ tracks: ["csr-fastapi", "ssr-nextjs"] });
-    expect(rules).toEqual(expect.arrayContaining(["shadcn", "api-contract", "database", "nextjs"]));
-  });
+    const mixed = resolveRules({ tracks: ["tooling", "executive"] });
+    expect(mixed).toContain("cli-development");
 
-  it("--with-tauri adds tauri rule only on csr-*|full", () => {
-    const csrFlag = resolveRules({ tracks: ["csr-supabase"], withTauri: true });
-    expect(csrFlag).toContain("tauri");
-
-    const dataFlag = resolveRules({ tracks: ["data"], withTauri: true });
-    expect(dataFlag).not.toContain("tauri");
-
-    const csrNoFlag = resolveRules({ tracks: ["csr-supabase"], withTauri: false });
-    expect(csrNoFlag).not.toContain("tauri");
+    expect(resolveRules({ tracks: ["executive"] })).not.toContain("cli-development");
   });
 
   it("returns sorted, deduplicated names", () => {
@@ -152,22 +145,25 @@ describe("buildManifest", () => {
     expect(cl?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
   });
 
-  it("verification-loop: C2→C3 재분류 (verdict 어휘 주입 = modified) → withEcc 무관 dev 트랙 install. v26.113.0 ADR-041", () => {
-    // verdict 어휘는 ECC plugin 판에 없으므로 plugin ON 이어도 cherry-pick 을 유지해야 한다.
-    // C2 로 남기면 withEcc 사용자에게 "verdict 코드화됨" 광고가 거짓이 된다 (no-false-ship).
+  it("eval-harness: C3 (아티팩트 계약 주입 = modified) → withEcc 무관 dev 트랙 install. v26.114.0 ADR-042", () => {
+    // 주입한 계약은 ECC plugin 판에 없으므로 plugin ON 이어도 cherry-pick 을 유지해야 한다.
+    // C2 로 남기면 withEcc 사용자에게 "계약 코드화됨" 광고가 거짓이 된다 (no-false-ship).
+    // 2026-08-02 정비 (ADR-060) — 이 자리의 앵커였던 verification-loop 이 이관돼 C3 계약이
+    // 해체됐다. 남은 DEV 축 C3 는 eval-harness 하나이고, 검증하는 술어는 그대로다.
     const m = buildManifest({ tracks: ["tooling"] });
-    const vl = m.find((e) => e.source === "skills/verification-loop");
-    expect(vl).toBeDefined();
-    expect(vl?.applies({ tracks: ["tooling"] })).toBe(true);
-    expect(vl?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
-    expect(vl?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
+    const eh = m.find((e) => e.source === "skills/eval-harness");
+    expect(eh).toBeDefined();
+    expect(eh?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(eh?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
+    expect(eh?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
 
     // dev 트랙 조건은 유지 — executive 단독은 종전과 동일하게 미설치.
-    expect(vl?.applies({ tracks: ["executive"] })).toBe(false);
+    expect(eh?.applies({ tracks: ["executive"] })).toBe(false);
+
+    // 이관으로 사라진 쪽은 manifest 에서도 사라져야 한다 — 남으면 없는 dir 을 복사하려 든다.
+    expect(m.find((e) => e.source === "skills/verification-loop")).toBeUndefined();
 
     // 잔여 DEV_SKILL_DIRS_ECC 는 C2 그대로 — 재분류 전파 방지.
-    // v26.114.0 (ADR-042): eval-harness 도 수정본이 되어 C3 로 이동 — 이 단언의 대상을
-    // 미수정 상태인 agent-introspection-debugging 으로 교체 (전파 방지 의도는 동일).
     const aid = m.find((e) => e.source === "skills/agent-introspection-debugging");
     expect(aid?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
   });
@@ -212,20 +208,22 @@ describe("buildManifest", () => {
   //   WHY a track-only gate would be wrong: it would ignore the user's deselection and still
   //   ship the skill, contradicting the advertised "selectable" surface.
   it("dev-method skill copies are gated by selectedInternalSkills (respect uncheck)", () => {
+    // 2026-08-02 정비 (ADR-060) — 표본이 multi-persona-review(이관)에서 compaction-handoff
+    //   (잔존 유일 번들)로 바뀌었다. 검증하는 술어는 그대로다.
     const m = buildManifest({ tracks: ["tooling"] });
-    const entry = m.find((e) => e.source === "skills/multi-persona-review");
+    const entry = m.find((e) => e.source === "skills/compaction-handoff");
     // entry always present in manifest — applies() gates it (parity with uzys/* commands).
     expect(entry).toBeDefined();
-    expect(entry?.target).toBe(".claude/skills/multi-persona-review");
+    expect(entry?.target).toBe(".claude/skills/compaction-handoff");
     // selected (installer included it) → copied.
     expect(
-      entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["multi-persona-review"] }),
+      entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["compaction-handoff"] }),
     ).toBe(true);
     // a dev track but NOT in the selected set (user unchecked / --without) → dropped,
     //   even though another internal skill IS selected.
-    expect(
-      entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["gap-analysis-e2e"] }),
-    ).toBe(false);
+    expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["other-skill"] })).toBe(
+      false,
+    );
     // selectedInternalSkills omitted / empty → dropped (no track-only fallback).
     expect(entry?.applies({ tracks: ["tooling"] })).toBe(false);
     expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: [] })).toBe(false);

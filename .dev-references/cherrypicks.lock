@@ -105,15 +105,6 @@
       "modification_note": "v26.114.0 (ADR-042): eval spec 아티팩트 계약(C1..Cn/R1..Rn ID·Baseline commit·Test Command·Status after implementation) 주입 → modified=true (sync --apply 보호, manifest C3 와 짝)"
     },
     {
-      "id": "ecc-verification-loop",
-      "source": "ecc",
-      "src": ".agents/skills/verification-loop/",
-      "dst": "templates/skills/verification-loop/",
-      "type": "directory",
-      "modified": true,
-      "modification_note": "build → type → lint → test → security → diff 6단계 검증 사이클. v26.113.0 (ADR-041): 보고 종결을 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity(CRITICAL~LOW) 로 교체 + 'Verdict Contract' 절 신설 → modified=true (sync --apply 의 rsync --delete 로부터 보호, manifest C3 와 짝)"
-    },
-    {
       "id": "ecc-e2e-testing",
       "source": "ecc",
       "src": ".agents/skills/e2e-testing/",
@@ -234,16 +225,6 @@
       "modified": false,
       "sync_verified_at": "2026-04-17",
       "modification_note": "v26.10.0 — executive Track용 펀드레이징 follow-up"
-    },
-    {
-      "id": "alirezarezvani-karpathy-gate-hook",
-      "source": "alirezarezvani-claude-skills",
-      "src": "engineering/karpathy-coder/hooks/karpathy-gate.sh",
-      "dst": "templates/hooks/karpathy-gate.sh",
-      "type": "file",
-      "modified": true,
-      "sync_verified_at": "2026-04-26",
-      "modification_note": "v0.6.0 — karpathy-coder hook auto-wire (A 경로). Adapt for Claude Code PreToolUse Write|Edit matcher: stdin tool_input JSON에서 file_path 추출 + Python 3 부재 시 graceful exit + ${CLAUDE_PLUGIN_ROOT} 사용. upstream은 git pre-commit context 가정이라 그대로 못 씀. License: MIT."
     }
   ],
   "removals": [

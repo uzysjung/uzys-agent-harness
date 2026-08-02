@@ -42,15 +42,11 @@ describe("buildCli", () => {
     const optionNames = installCmd?.options.map((o) => o.name) ?? [];
     // v26.81.0 (ADR-022) — 잔존 = 동작 옵션 + generic 자산 선택만.
     // 6-Gate 제거 — withCodexSkills/withCodexPrompts/withAntigravityGlobal 삭제.
+    // 2026-08-02 정비 (ADR-060, BREAKING) — `--with-karpathy-hook` 삭제.
     expect(optionNames).toEqual(
-      expect.arrayContaining([
-        "with",
-        "without",
-        "withPrune",
-        "withKarpathyHook",
-        "withCodexTrust",
-      ]),
+      expect.arrayContaining(["with", "without", "withPrune", "withCodexTrust"]),
     );
+    expect(optionNames).not.toContain("withKarpathyHook");
   });
 
   it("v26.81.0 (ADR-022) — asset-coupled --with-* flags are GONE (재발 방지 가드)", () => {

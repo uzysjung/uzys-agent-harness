@@ -161,9 +161,9 @@ function embedProbe(claudeMd: string): string {
 }
 
 /**
- * CLI 유래 앵커. claude 는 렌더를 거치지 않는다 — `templates/CLAUDE.md` 가 그대로
- * `.claude/CLAUDE.md` 로 설치된다(`src/manifest.ts` CLAUDE.md 항목). 나머지는 그 본문을
- * `{PROJECT_RULES}` 로 임베드한 **렌더 산출물**이다.
+ * CLI 유래 앵커. claude 는 렌더를 거치지 않는다 — `templates/CLAUDE.md` 가 그대로 프로젝트
+ * 루트 `CLAUDE-uzys-harness.md` 로 설치된다(`src/manifest.ts` CLAUDE.md 항목 · P5 · ADR-060).
+ * 나머지는 그 본문을 `{PROJECT_RULES}` 로 임베드한 **렌더 산출물**이다.
  */
 function cliAnchors(): Anchor[] {
   const claudeMd = readFileSync(join(TEMPLATES, "CLAUDE.md"), "utf8");
@@ -172,7 +172,7 @@ function cliAnchors(): Anchor[] {
     if (cli === "claude") {
       anchors.push({
         id: cli,
-        label: "templates/CLAUDE.md (설치 시 .claude/CLAUDE.md)",
+        label: "templates/CLAUDE.md (설치 시 루트 CLAUDE-uzys-harness.md)",
         origin: "shipped",
         text: claudeMd,
       });

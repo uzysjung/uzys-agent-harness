@@ -345,10 +345,8 @@ Pick one or more at step 2.
 |---|---|---|
 | `session-start.sh` | session start | Load SPEC / Change Log context |
 | `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
-| `spec-drift-check.sh` | post-edit | Detect SPEC vs code drift |
 | `mcp-pre-exec.sh` | MCP exec | Allowlist gate (D35) |
 | `checkpoint-snapshot.sh` | PostToolUse (tool-count threshold) | Checkpoint savepoint + `/compact` nudge (D25) |
-| `karpathy-gate.sh` | PreToolUse Write/Edit | Quality gate (only when `--with-karpathy-hook` + plugin install succeeded) |
 
 ---
 

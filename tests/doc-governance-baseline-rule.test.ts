@@ -78,7 +78,7 @@ describe("doc-governance — 착수 전 baseline 대조 절", () => {
     const preface = section.split("\n").filter((l) => l.startsWith("전례:"));
     expect(preface).toHaveLength(1);
     expect(preface[0]).toMatch(/ADR/);
-    expect(preface[0]!.length).toBeLessThanOrEqual(105);
+    expect(preface[0]?.length ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(105);
   });
 
   it("절 크기가 ADR-045 가 공표한 비용 안에 머문다", () => {

@@ -40,7 +40,6 @@ export interface InstallOptions {
   //   자산 선택 = generic `--with <id>` / `--without <id>` 만. 아래는 동작 옵션.
   withPrune?: boolean;
   withCodexTrust?: boolean;
-  withKarpathyHook?: boolean;
   /**
    * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
    * cac repeatable. 예: `--with railway-skills --with impeccable`.
@@ -173,7 +172,6 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     options: {
       withPrune: options.withPrune === true,
       withCodexTrust: options.withCodexTrust === true,
-      withKarpathyHook: options.withKarpathyHook === true,
     },
     cli: validated.cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
@@ -361,14 +359,10 @@ export function registerInstallCommand(cli: Cli): void {
       "--with-prune",
       "[Behavior] Prune ECC items beyond curated 89 (use with --with ecc-plugin)",
     )
-    .option(
-      "--with-karpathy-hook",
-      "[Behavior] karpathy-coder pre-commit hook (.claude/settings.json PreToolUse Write|Edit)",
-    )
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===
-    .example("install --track tooling --with karpathy-coder")
+    .example("install --track tooling --with marketingskills")
     .example("install --track csr-supabase --cli claude --cli codex")
     .example("install --track csr-supabase --without netlify-cli --with railway-skills")
     /* v8 ignore next — cac action callback. installAction 자체는 별도 tests 로 검증. */

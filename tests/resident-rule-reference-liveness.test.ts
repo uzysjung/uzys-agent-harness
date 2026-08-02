@@ -3,6 +3,7 @@ import { basename, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "../src/external-assets.js";
 import { type AssetSpec, buildManifest } from "../src/manifest.js";
+import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
 /**
@@ -107,9 +108,15 @@ function findDeadRefs(
   return out;
 }
 
-/** 상주 = 전문이 매 세션 들어오는 표면 (`resident-doc-asset-reachability` 와 같은 기준). */
+/**
+ * 상주 = 전문이 매 세션 들어오는 표면 (`resident-doc-asset-reachability` 와 같은 기준).
+ *
+ * 앵커 target 은 **리터럴로 적지 않는다** — P5(ADR-060)가 `.claude/CLAUDE.md` 에서 루트
+ * `CLAUDE-uzys-harness.md` 로 옮겼을 때, 리터럴이면 이 게이트가 앵커를 조용히 놓쳤다
+ * (실제로 아래 0-match canary 가 그 상태를 잡았다).
+ */
 function isResidentTarget(target: string): boolean {
-  return target === ".claude/CLAUDE.md" || /^\.claude\/rules\/[^/]+\.md$/.test(target);
+  return target === HARNESS_ANCHOR_FILE || /^\.claude\/rules\/[^/]+\.md$/.test(target);
 }
 
 function specFor(track: Track): AssetSpec {

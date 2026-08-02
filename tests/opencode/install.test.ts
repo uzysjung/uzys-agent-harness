@@ -27,7 +27,6 @@ describe("OpenCode install pipeline (integration)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["opencode"],
         projectDir,
@@ -37,8 +36,9 @@ describe("OpenCode install pipeline (integration)", () => {
     expect(report.opencode).not.toBeNull();
     expect(report.codex).toBeNull();
 
-    // v0.8.0 — claude 미포함이라 .claude/ baseline 미생성 (dead weight 제거)
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
+    // v0.8.0 — claude 미포함이라 claude baseline 미생성 (dead weight 제거).
+    // 앵커는 루트 파일이라 `.claude/` 부재만 봐서는 못 잡는다 — 파일 자체를 본다 (P5 · ADR-060).
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
     // .mcp.json은 OpenCode도 사용 (cli 무관 항상)
     expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
 
@@ -68,7 +68,6 @@ describe("OpenCode install pipeline (integration)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude", "codex", "opencode"],
         projectDir,
@@ -79,7 +78,7 @@ describe("OpenCode install pipeline (integration)", () => {
     expect(report.opencode).not.toBeNull();
 
     // Baseline
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
     // Codex
     expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
     // OpenCode
@@ -96,7 +95,6 @@ describe("OpenCode install pipeline (integration)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -118,7 +116,6 @@ describe("OpenCode install pipeline (integration)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude", "codex"],
         projectDir,

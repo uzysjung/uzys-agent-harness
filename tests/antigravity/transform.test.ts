@@ -90,7 +90,9 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
 // v26.87.0 — dev-method skills against the REAL templates/skills/ (need actual SKILL.md source).
 describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI routing)", () => {
   let project = "";
-  const DEV_METHOD = ["multi-persona-review", "asis-tobe-decision"];
+  // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
+  //   검증 대상은 **라우팅**(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
+  const DEV_METHOD = ["compaction-handoff", "eval-harness"];
 
   beforeEach(() => {
     project = mkdtempSync(join(tmpdir(), "agy-devmethod-"));
@@ -112,7 +114,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       expect(existsSync(target)).toBe(true);
     }
     // dev-method skill 은 평행 workflow 를 만들지 않는다 (uzys 전례와 다름).
-    expect(existsSync(join(project, ".agents/workflows/multi-persona-review.md"))).toBe(false);
+    expect(existsSync(join(project, ".agents/workflows/compaction-handoff.md"))).toBe(false);
     expect(existsSync(join(project, ".agents/workflows"))).toBe(false);
   });
 
@@ -121,14 +123,11 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      selectedInternalSkills: ["multi-persona-review"],
+      selectedInternalSkills: ["compaction-handoff"],
       baseline: new Map(),
     });
-    const body = readFileSync(
-      join(project, ".agents/skills/multi-persona-review/SKILL.md"),
-      "utf8",
-    );
-    expect(body).toContain("name: multi-persona-review");
+    const body = readFileSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"), "utf8");
+    expect(body).toContain("name: compaction-handoff");
     expect(body).not.toContain("name: uzys-");
   });
 
@@ -138,7 +137,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       projectDir: project,
       baseline: new Map(),
     });
-    expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
+    expect(existsSync(join(project, ".agents/skills/compaction-handoff"))).toBe(false);
     expect(report.skillFiles).toHaveLength(0);
   });
 
@@ -146,11 +145,11 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     const report = runAntigravityTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
-      selectedInternalSkills: ["multi-persona-review"],
+      selectedInternalSkills: ["compaction-handoff"],
       baseline: new Map(),
     });
-    expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
-    expect(existsSync(join(project, ".agents/skills/asis-tobe-decision"))).toBe(false);
+    expect(existsSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
+    expect(existsSync(join(project, ".agents/skills/eval-harness"))).toBe(false);
     expect(report.skillFiles).toHaveLength(1);
   });
 });

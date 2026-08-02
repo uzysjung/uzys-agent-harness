@@ -73,6 +73,10 @@ export const SOURCE_LABELS = {
   ryanbbrown: "ryanbbrown",
   // v26.91.0 — Business 카테고리 마케팅 번들 (coreyhaines31/marketingskills 35k★, MIT).
   coreyhaines31: "coreyhaines31",
+  // 2026-08-02 정비 — Frontend 카테고리 신규 출처 (star 실측 2026-08-02, gh api).
+  jakubkrehel: "jakubkrehel",
+  Leonxlnx: "Leonxlnx",
+  oso95: "oso95",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

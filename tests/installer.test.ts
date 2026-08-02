@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -27,7 +27,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -37,8 +36,10 @@ describe("installer (integration with templates/)", () => {
     expect(report.installedTracks).toEqual(["tooling"]);
     expect(report.filesCopied).toBeGreaterThan(10);
 
-    // Project skeleton exists
-    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(true);
+    // Project skeleton exists. 하네스 앵커는 v26.141.0(P5 · ADR-060)부터 **프로젝트 루트**다 —
+    // `.claude/CLAUDE.md` 는 더 이상 설치되지 않는다.
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/CLAUDE.md"))).toBe(false);
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(true);
 
     // Common rules
@@ -80,7 +81,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -102,15 +102,16 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
       },
     });
+    // 2026-08-02 정비 — data 트랙 전용 룰(data-analysis·pyside6)이 배포에서 빠졌다. union 축은
+    //   tooling 만 내는 cli-development + 두 트랙이 함께 무는 dev 룰로 계속 확인한다.
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/rules/data-analysis.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/rules/pyside6.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/rules/test-policy.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/rules/ship-checklist.md"))).toBe(true);
     // Root CLAUDE.md is a fill-in scaffold: real project name + active-track note + FILL sections.
     const rootMd = join(projectDir, "CLAUDE.md");
     expect(existsSync(rootMd)).toBe(true);
@@ -119,6 +120,48 @@ describe("installer (integration with templates/)", () => {
     expect(content).toContain("SCAFFOLD");
     expect(content).toContain("<!-- FILL:stack —");
     expect(content).not.toContain("[Project Name]");
+    // 앵커 본문은 여기 없다 — 루트 CLAUDE.md 는 그것을 @import 로 끌어올 뿐이다 (P5 · ADR-060).
+    expect(content).toContain("@CLAUDE-uzys-harness.md");
+  });
+
+  /**
+   * P5 (ADR-060) 의 계약이 **설치 경로에서** 지켜지는가. 순수 함수 게이트
+   * (`tests/claude-md-import.test.ts`)와 별개로 무는 이유: 그 증거는 `upsertHarnessImport` 의
+   * 것이지 `runInstall` 의 것이 아니다 — 한 경로의 증거를 다른 경로에 전용하지 않는다
+   * (`no-false-ship`). v26.140.0 까지 이 자리는 사용자 파일을 **통째로 덮어썼다**.
+   */
+  it("기존 사용자 CLAUDE.md 를 덮어쓰지 않는다 — 본문 보존 + import 1줄, 재실행 무변화", () => {
+    const rootMd = join(projectDir, "CLAUDE.md");
+    const userBody = "# 우리 서비스\n\n팀 규칙:\n- 배포는 화요일에만\n";
+    writeFileSync(rootMd, userBody, "utf8");
+
+    const install = (): void => {
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: {
+          tracks: ["tooling"],
+          options: { withPrune: false, withCodexTrust: false },
+          cli: ["claude"],
+          projectDir,
+        },
+      });
+    };
+    install();
+
+    const afterFirst = readFileSync(rootMd, "utf8");
+    for (const line of userBody.trimEnd().split("\n")) {
+      expect(afterFirst).toContain(line);
+    }
+    expect(afterFirst).not.toContain("SCAFFOLD"); // 스캐폴드로 대체되지 않았다
+    expect(
+      afterFirst.split("\n").filter((l) => l.trim() === "@CLAUDE-uzys-harness.md"),
+    ).toHaveLength(1);
+
+    // 재설치가 import 를 또 붙이면 매 설치마다 파일이 자란다.
+    install();
+    expect(readFileSync(rootMd, "utf8")).toBe(afterFirst);
   });
 
   it("backup option moves existing .claude/ aside before install", () => {
@@ -132,7 +175,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -148,7 +190,6 @@ describe("installer (integration with templates/)", () => {
         options: {
           withPrune: false,
           withCodexTrust: false,
-          withKarpathyHook: false,
         },
         cli: ["claude"],
         projectDir,
@@ -169,7 +210,6 @@ describe("installer (integration with templates/)", () => {
           options: {
             withPrune: false,
             withCodexTrust: false,
-            withKarpathyHook: false,
           },
           cli: ["claude"],
           projectDir,
@@ -207,7 +247,7 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  const baseOptions = { withPrune: false, withCodexTrust: false, withKarpathyHook: false };
+  const baseOptions = { withPrune: false, withCodexTrust: false };
 
   /**
    * `withEcc` 는 spec 의 boolean 이 아니라 **자산 선택**에서 파생된다

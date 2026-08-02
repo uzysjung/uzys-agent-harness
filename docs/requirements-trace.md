@@ -1,5 +1,8 @@
 # Requirements Traceability Matrix
 
+> ⚠ **2026-04-12 시점 스냅샷** — 이후 정비로 본문이 지목하는 파일 일부가 삭제됐다
+> (`spec-drift-check.sh`·`karpathy-gate.sh` 등, 2026-08-02 ADR-060). 현행 판정은 본 문서가
+> 아니라 코드·테스트를 보라.
 > **Generated**: 2026-04-12 (audit date)
 > **Sources**: `Docs/dev/RAW-REQUIREMENTS.md` (S1-S19), `Docs/dev/REQUIREMENTS.md` (V1-V18), `Docs/dev/PRD.md` (D1-D22, R1-R6)
 > **Scope**: Verify each requirement against actual files in the repo (`setup-harness.sh`, `templates/`, `.claude/`, `Docs/SPEC.md`, `Docs/plan.md`, `Docs/todo.md`, git log)

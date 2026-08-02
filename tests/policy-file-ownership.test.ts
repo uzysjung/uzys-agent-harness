@@ -212,7 +212,7 @@ describe("install 재설치 시 정책 파일 보호 (ADR-047)", () => {
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { withPrune: false, withCodexTrust: false, withKarpathyHook: false },
+        options: { withPrune: false, withCodexTrust: false },
         cli: ["claude"],
         projectDir,
       },

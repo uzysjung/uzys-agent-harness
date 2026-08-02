@@ -22,7 +22,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
@@ -37,7 +37,15 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "./types.js";
+import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
+import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
+
+/**
+ * v26.140.0 **이전** 설치본의 앵커 위치 (P5 · ADR-060 이행 대상).
+ *
+ * 이행 안내에만 쓴다 — 하네스는 더 이상 이 경로에 아무것도 쓰지 않는다.
+ */
+const LEGACY_ANCHOR_FILE = ".claude/CLAUDE.md";
 
 export interface UpdateModeReport {
   /** 덮어쓰기된 파일 갯수 (디렉토리별). */
@@ -48,6 +56,22 @@ export interface UpdateModeReport {
   staleHookRefs: string[];
   /** 갱신된 CLAUDE.md (true if updated). */
   claudeMdUpdated: boolean;
+  /**
+   * P5 · ADR-060 이행 — 루트 앵커가 **없어서 이번에 만들었다** (v26.140.0 이전 설치본).
+   *
+   * `claudeMdUpdated` 와 배타적이다: 갱신은 이미 있던 파일, 생성은 이번에 생긴 파일.
+   */
+  anchorCreated: boolean;
+  /** 이행 중 루트 `CLAUDE.md` 에 앵커 import 줄을 새로 얹었나 (이미 있었으면 false). */
+  rootImportAdded: boolean;
+  /**
+   * 디스크에 아직 남아 있는 구 앵커 경로(`.claude/CLAUDE.md`). 없으면 null.
+   *
+   * **지우지 않는다** — 사용자가 그 파일을 고쳤는지 update 시점엔 판정할 수 없다. 대신 화면에
+   * "이제 갱신되지 않는다"를 알린다. 침묵하면 옛 하네스 내용이 담긴 사본이 계속 상주하는데
+   * 사용자는 그게 죽은 사본인 줄 모른다.
+   */
+  legacyAnchor: string | null;
   /**
    * v26.126.0 (R-3a) — 사용자가 고쳐서 백업본을 남긴 스킬 파일 (`.claude/skills/` 상대경로).
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
@@ -110,6 +134,9 @@ export function runUpdateMode(
     pruned: {},
     staleHookRefs: [],
     claudeMdUpdated: false,
+    anchorCreated: false,
+    rootImportAdded: false,
+    legacyAnchor: null,
     skillsBackedUp: [],
     policyBackedUp: [],
     externalUpdated: 0,
@@ -142,13 +169,8 @@ export function runUpdateMode(
   report.skillsBackedUp = skillSync.backedUp;
   refreshSkillBaseline(projectDir);
 
-  // 2) .claude/CLAUDE.md
-  const claudeMd = join(claudeDir, "CLAUDE.md");
-  const templateMd = join(templatesDir, "CLAUDE.md");
-  if (existsSync(claudeMd) && existsSync(templateMd)) {
-    copyFileSync(templateMd, claudeMd);
-    report.claudeMdUpdated = true;
-  }
+  // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
+  syncHarnessAnchor(projectDir, templatesDir, report);
 
   // 3) settings.json stale hook ref cleanup
   const settingsPath = join(claudeDir, "settings.json");
@@ -164,6 +186,103 @@ export function runUpdateMode(
   report.externalBackedUp = external.externalBackedUp;
 
   return report;
+}
+
+/**
+ * 하네스 앵커 동기화 + 레거시 설치본 이행 (P5 · ADR-060).
+ *
+ * 루트 `CLAUDE.md` 는 **덮어쓰지 않는다** — 그건 사용자 소유이고 우리 몫은 그 안의 import 한
+ * 줄뿐이다. 갱신 대상은 하네스가 통째로 소유한 앵커 파일이다.
+ *
+ * | 루트 앵커 | 처리 |
+ * |---|---|
+ * | 있다 | 템플릿으로 갱신 (`claudeMdUpdated`) |
+ * | 없다 | **만들고** 루트 CLAUDE.md 에 import 를 얹는다 (`anchorCreated` · `rootImportAdded`) |
+ *
+ * 아랫줄이 이번에 생겼다. v26.140.0 이전 설치본의 앵커는 `.claude/CLAUDE.md` 라 루트엔 아무것도
+ * 없고, "있을 때만 갱신"으로 두면 그 사용자는 update 를 몇 번을 돌려도 ⓐ 새 앵커가 안 생기고
+ * ⓑ import 줄도 안 붙고 ⓒ 구 앵커가 옛 내용 그대로 굳는데 **화면엔 아무 말도 안 뜬다**.
+ * ADR-060 「적용 범위」가 단언한 이행이 코드에 없던 자리다.
+ */
+function syncHarnessAnchor(
+  projectDir: string,
+  templatesDir: string,
+  report: UpdateModeReport,
+): void {
+  // 구 앵커는 **지우지 않고 알린다** — 사용자가 고쳤는지 판정할 근거가 update 에는 없다.
+  // 이행이 끝난 뒤에도 파일이 남아 있는 한 계속 알린다 (지워야 없어지는 안내).
+  if (existsSync(join(projectDir, LEGACY_ANCHOR_FILE))) {
+    report.legacyAnchor = LEGACY_ANCHOR_FILE;
+  }
+
+  const templateMd = join(templatesDir, "CLAUDE.md");
+  if (!existsSync(templateMd)) return;
+
+  const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
+  const existed = existsSync(anchor);
+  copyFileSync(templateMd, anchor);
+  if (existed) {
+    report.claudeMdUpdated = true;
+    return;
+  }
+
+  report.anchorCreated = true;
+  report.rootImportAdded = upsertRootImport(projectDir);
+  // 이번에 만든 앵커는 install log 에 남긴다 — uninstall 이 회수를 주장하는 근거가 그 기록
+  // 하나뿐이라(`commands/uninstall.ts` templates.rootClaudeMd), 빼면 아무도 못 지우는 파일을
+  // 새로 만들어 놓는 셈이 된다. 로그가 없으면 만들지 않는다 (설치 기록 날조 금지 — 다른
+  // 기준선 갱신과 같은 방침).
+  recordAnchorBaseline(projectDir, anchor);
+}
+
+/**
+ * 루트 `CLAUDE.md` 에 앵커 import 를 얹는다 — install 과 **같은 함수·같은 계약**
+ * (`installer.ts` writeRootClaudeMd). 파일이 없으면 fill-in 스캐폴드로 만든다.
+ *
+ * @returns 실제로 파일을 고쳤으면 true. 이미 import 가 살아 있으면 upsert 가 입력을 그대로
+ *   돌려주고, 그때는 파일을 만지지 않는다.
+ */
+function upsertRootImport(projectDir: string): boolean {
+  const target = join(projectDir, "CLAUDE.md");
+  const existing = existsSync(target) ? readFileSync(target, "utf8") : null;
+  const next = upsertHarnessImport(existing, {
+    projectName: basename(projectDir),
+    tracks: installedTracks(projectDir),
+  });
+  if (next === existing) return false;
+  writeFileSync(target, next);
+  return true;
+}
+
+/**
+ * 스캐폴드가 적는 "Active track(s)" — **설치 기록이 SSOT** 다. update 는 트랙을 인자로 받지
+ * 않으므로 여기서 따로 추론하면 그 추론이 두 번째 사본이 된다. 기록이 없거나 지금 어휘에 없는
+ * 트랙이면 빼고 쓴다 — 모르는 것을 지어내지 않는다.
+ */
+function installedTracks(projectDir: string): ReadonlyArray<Track> {
+  const recorded = readInstallLog(projectDir)?.spec.tracks ?? [];
+  return recorded.filter((t): t is Track => (TRACKS as ReadonlyArray<string>).includes(t));
+}
+
+/** 이행으로 만든 앵커의 설치 시점 sha 를 install log 에 기록 (uninstall 회수 근거). */
+function recordAnchorBaseline(projectDir: string, anchor: string): void {
+  const log = readInstallLog(projectDir);
+  if (!log) return;
+  const next: InstallLog = {
+    ...log,
+    templates: {
+      ...log.templates,
+      rootClaudeMd: {
+        path: HARNESS_ANCHOR_FILE,
+        sha256: hashContent(readFileSync(anchor, "utf8")),
+      },
+    },
+  };
+  try {
+    writeInstallLog(projectDir, next);
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다 (D16 과 같은 방침).
+  }
 }
 
 /**

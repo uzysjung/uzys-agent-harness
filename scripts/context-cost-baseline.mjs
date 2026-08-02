@@ -40,7 +40,7 @@ writeFileSync(
         "상주 컨텍스트 비용 상한(ratchet). 값을 올리려면 그 증가를 정당화하는 커밋에서 함께 올린다 — 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
       units: {
         items:
-          "상주 항목 수 (rules + skills + agents + CLAUDE.md 2종: 하네스 앵커 `.claude/CLAUDE.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`) — 1차 축",
+          "상주 항목 수 (rules + skills + agents + CLAUDE.md 2종: 하네스 앵커 루트 `CLAUDE-uzys-harness.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`) — 1차 축",
         tokens: "tokens/session (chars/4 근사 — 실측이 아니라 규약값) — 부수 표시값",
       },
       tracks,

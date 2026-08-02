@@ -9,7 +9,7 @@ ship 단계 실행 시 아래 모든 항목을 통과해야 배포 가능.
 - [ ] **CI green 이 배포의 전제로 배선됐는지**: 릴리스가 CI job 에 `needs:` 로 묶여 **CI red 면 게시가 안 일어나야** 한다. 게시가 CI 와 별개 워크플로면 red 를 통과해 나간다
 - [ ] **Security Scan 통과**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음
 - [ ] **의존성 감사 통과**: `npm audit` (Node.js) 또는 `pip-audit` (Python) 실행. critical/high 취약점 없음
-- [ ] **SPEC/PRD 정합성**: `bash .claude/hooks/spec-drift-check.sh ship` (exit 2 시 차단)
+- [ ] **SPEC/PRD 정합성**: 이번 사이클에 하기로 한 항목이 미완으로 남아 있지 않은가 (doc-governance.md "작업 완료 처리")
 - [ ] **Review 게이트 통과**: review 단계에서 CRITICAL 이슈 없음 확인
 
 ## Post-Ship Actions

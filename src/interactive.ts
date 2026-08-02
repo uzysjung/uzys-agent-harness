@@ -49,7 +49,6 @@ export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFla
   return {
     withPrune: picked.has("withPrune"),
     withCodexTrust: picked.has("withCodexTrust"),
-    withKarpathyHook: picked.has("withKarpathyHook"),
   };
 }
 

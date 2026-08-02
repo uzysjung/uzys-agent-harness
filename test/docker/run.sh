@@ -29,29 +29,23 @@ run_scenario() {
     "/work/test/docker/scenarios/scenario-${name}.sh"
 }
 
-case "${1:-smoke}" in
-  smoke)
-    run_scenario smoke
-    ;;
-  project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills|update-noninteractive|policy-preserve|external-preserve|update-external)
-    run_scenario "$1"
-    ;;
-  all)
-    run_scenario smoke
-    run_scenario project
-    run_scenario global
-    run_scenario uninstall
-    run_scenario antigravity-render
-    run_scenario pinned-versions
-    run_scenario dev-method-skills
-    run_scenario update-skills
-    run_scenario update-noninteractive
-    run_scenario policy-preserve
-    run_scenario external-preserve
-    run_scenario update-external
-    ;;
-  *)
-    echo "usage: $0 [smoke|project|global|uninstall|antigravity-render|pinned-versions|dev-method-skills|update-skills|update-noninteractive|policy-preserve|external-preserve|update-external|all]" >&2
-    exit 1
-    ;;
-esac
+# 시나리오 목록은 scenarios/ 디렉터리에서 derive 한다 — 열거 사본을 여기 두면 신규 시나리오가
+# 조용히 거부된다 (2026-08-02 scenario-anchor 가 실제로 그렇게 튕겼다. realcli-* 는 별도 러너).
+scenario_names() {
+  for f in "$(dirname "$0")"/scenarios/scenario-*.sh; do
+    b="$(basename "$f" .sh)"; b="${b#scenario-}"
+    case "$b" in realcli-*) ;; *) echo "$b" ;; esac
+  done
+}
+
+NAME="${1:-smoke}"
+if [ "$NAME" = "all" ]; then
+  for s in $(scenario_names); do
+    run_scenario "$s"
+  done
+elif [ -f "$(dirname "$0")/scenarios/scenario-${NAME}.sh" ]; then
+  run_scenario "$NAME"
+else
+  echo "usage: $0 [$(scenario_names | tr '\n' '|' | sed 's/|$//')|all]" >&2
+  exit 1
+fi

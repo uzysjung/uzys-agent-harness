@@ -1,4 +1,5 @@
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
@@ -18,6 +19,10 @@ export interface AssetSpec {
    * Optional opt-in: --with-tauri.
    * Note: copied from `OptionFlags.withTauri` by installer; keep both fields in sync
    * when adding new opt-in flags that affect manifest gating.
+   *
+   * 2026-08-02 정비 — `tauri` **룰**이 배포에서 빠져 이 필드를 읽는 게이팅은 현재 없다.
+   * 필드를 남긴 이유는 `tauri-desktop` 자산 선택 자체는 살아 있고(installer 가 여전히 채운다)
+   * 트랙×opt-in 곱을 도는 게이트들이 이 축을 그대로 쓰기 때문이다.
    */
   withTauri?: boolean;
   /**
@@ -58,39 +63,26 @@ const onTracks =
 
 // v26.107.0 (ADR-036, 라이프사이클 자산화 ①) — doc-governance: SSOT 위계 + "merge = 코드 +
 //   추적 동기화" 의무. 실무 관행의 일반화. 문서 규약은 전 트랙 공통.
-// v26.121.0 — no-false-ship 은 이 저장소 로컬 룰이었고 배포되지 않았다(사용자 결정으로 배송).
-// COMMON 인 이유: "검증한 것만 주장한다"는 코드를 출하할 때만이 아니라 모든 보고에 걸린다.
-const COMMON_RULES = [
-  "git-policy",
-  "change-management",
-  "gates-taxonomy",
-  "doc-governance",
-  "no-false-ship",
-];
-const DEV_RULES = ["test-policy", "ship-checklist", "code-style", "error-handling"];
+const COMMON_RULES = ["git-policy", "change-management", "gates-taxonomy", "doc-governance"];
+const DEV_RULES = ["test-policy", "ship-checklist"];
 // v26.109.0 (ADR-038, 라이프사이클 자산화 ③) — benchmark-parity: 레퍼런스 실측 → gap.md →
 //   완결성 루프. capture 수단의 SSOT 인 playwright-launch 와 짝으로만 성립하므로 UI 트랙 한정.
-const UI_RULES = ["design-workflow", "playwright-launch", "benchmark-parity"];
+const UI_RULES = ["playwright-launch", "benchmark-parity"];
 
+// 2026-08-02 정비 — 기술스택 상세 룰(shadcn·nextjs·htmx·pyside6·database·api-contract·
+//   data-analysis·tauri)을 배포에서 뺐다. 모델이 이미 아는 것을 상주로 부담시키던 자리다.
+//   남은 트랙 매핑은 `cli-development` 하나뿐 — 그래도 표를 유지하는 이유는 트랙별 룰이라는
+//   축 자체는 살아 있고, 배열을 없애면 다음에 트랙 룰을 넣을 자리가 사라지기 때문이다.
 const TRACK_RULES: Record<Track, string[]> = {
-  "csr-supabase": ["shadcn", "api-contract"],
-  "csr-fastify": ["shadcn", "api-contract", "database"],
-  "csr-fastapi": ["shadcn", "api-contract", "database"],
-  "ssr-htmx": ["htmx"],
-  "ssr-nextjs": ["nextjs", "shadcn"],
-  data: ["pyside6", "data-analysis"],
+  "csr-supabase": [],
+  "csr-fastify": [],
+  "csr-fastapi": [],
+  "ssr-htmx": [],
+  "ssr-nextjs": [],
+  data: [],
   executive: [],
   tooling: ["cli-development"],
-  full: [
-    "shadcn",
-    "api-contract",
-    "database",
-    "htmx",
-    "nextjs",
-    "pyside6",
-    "data-analysis",
-    "cli-development",
-  ],
+  full: ["cli-development"],
   // v0.5.0 — executive-style baselines (no dev rules; common rules only).
   "project-management": [],
   "growth-marketing": [],
@@ -103,9 +95,6 @@ export function resolveRules(spec: AssetSpec): string[] {
     for (const r of DEV_RULES) {
       set.add(r);
     }
-  }
-  if (spec.withTauri && anyTrack(spec.tracks, "csr-*|full")) {
-    set.add("tauri");
   }
   if (hasUiTrack(spec.tracks)) {
     for (const r of UI_RULES) {
@@ -133,17 +122,26 @@ const CORE_AGENTS_ECC = ["code-reviewer", "security-reviewer"];
 const DEV_AGENTS = ["plan-checker", "implementer"];
 const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
 
-/** Hooks installed for every project (parity with setup-harness.sh L815-826). */
+/**
+ * Hooks installed for every project (parity with setup-harness.sh L815-826).
+ *
+ * 2026-08-02 정비 — `spec-drift-check.sh` 제거. 산문(doc-governance·ship-checklist)은 이것을
+ * 차단 게이트로 적었지만 실제로는 어디에도 배선돼 있지 않았고(`templates/settings.json` 미참조),
+ * 미완 체크박스가 쌓인 상태에서도 `ship` 모드가 exit 0 이었다 — 즉 설치자가 매 프로젝트에서
+ * 받아 가는 것은 게이트가 아니라 게이트라는 **이름**이었다.
+ */
 export const ALWAYS_HOOKS = [
   "session-start.sh",
   "protect-files.sh",
   "mcp-pre-exec.sh",
-  "spec-drift-check.sh",
   "checkpoint-snapshot.sh",
 ];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
-const COMMON_SKILL_DIRS = ["north-star", "gh-issue-workflow"];
+// 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로
+// 이관돼 카탈로그 엔트리(`kind: "skill"`)가 됐다. 전 트랙 도달 범위는 그 엔트리의
+// `any-track: 전 트랙` condition 이 이어받는다 (강등 아님).
+const COMMON_SKILL_DIRS: string[] = [];
 // C2 (plugin OFF fallback, opt-out): strategic-compact.
 // v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
 // instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
@@ -158,9 +156,11 @@ const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
 const DEV_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];
 // C3 (modified=true): plugin 으로 갈음 불가, dev 트랙 항상 install.
-// verification-loop = v26.113.0 verdict 어휘(ADR-041) / eval-harness = v26.114.0 eval spec
-// 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
-const MODIFIED_DEV_SKILL_DIRS = ["verification-loop", "eval-harness"];
+// eval-harness = v26.114.0 eval spec 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
+// 2026-08-02 정비 (ADR-060) — verification-loop 은 C3 계약을 해체했다: 우리 판본이
+// uzysjung/uzys-agent-skills 로 이관돼 더는 ECC 파생 번들이 아니다. cherrypicks.lock 의
+// `ecc-verification-loop` 행도 함께 제거 — lock 과 이 목록은 1:1 이어야 한다(아래 주석).
+const MODIFIED_DEV_SKILL_DIRS = ["eval-harness"];
 
 /**
  * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).
@@ -199,10 +199,12 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: (s) => !s.withEcc,
   });
 
-  // Project meta CLAUDE.md
+  // 하네스 앵커 — **프로젝트 루트**에 하네스 소유 파일로 나간다 (P5 · ADR-060).
+  // 루트 `CLAUDE.md` 는 사용자 것이고, 거기엔 이 파일을 끌어오는 `@import` 한 줄만 들어간다
+  // (`project-claude-merge.ts` upsertHarnessImport). 파일명은 그 모듈이 SSOT.
   m.push({
     source: "CLAUDE.md",
-    target: ".claude/CLAUDE.md",
+    target: HARNESS_ANCHOR_FILE,
     type: "file",
     applies: all,
   });

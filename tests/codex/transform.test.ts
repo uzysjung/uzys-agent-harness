@@ -60,7 +60,9 @@ describe("runCodexTransform (E2E against templates/)", () => {
 
   // v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (native, frontmatter 보존).
   describe("dev-method skills (v26.87.0 — multi-CLI routing)", () => {
-    const DEV_METHOD = ["multi-persona-review", "asis-tobe-decision"];
+    // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
+    //   검증 대상은 라우팅(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
+    const DEV_METHOD = ["compaction-handoff", "eval-harness"];
 
     it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더", () => {
       const report = runCodexTransform({
@@ -83,15 +85,15 @@ describe("runCodexTransform (E2E against templates/)", () => {
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
-        selectedInternalSkills: ["multi-persona-review"],
+        selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
       });
       const body = readFileSync(
-        join(project, ".agents/skills/multi-persona-review/SKILL.md"),
+        join(project, ".agents/skills/compaction-handoff/SKILL.md"),
         "utf8",
       );
-      expect(body).toContain("name: multi-persona-review");
-      expect(body).not.toContain("name: uzys-multi-persona-review");
+      expect(body).toContain("name: compaction-handoff");
+      expect(body).not.toContain("name: uzys-compaction-handoff");
       expect(body).not.toContain("name: uzys-");
     });
 
@@ -101,7 +103,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
         projectDir: project,
         baseline: new Map(),
       });
-      expect(existsSync(join(project, ".agents/skills/multi-persona-review"))).toBe(false);
+      expect(existsSync(join(project, ".agents/skills/compaction-handoff"))).toBe(false);
       // 선택된 dev-method skill 이 없으므로 skillFiles 전체가 비어 있어야 한다.
       expect(report.skillFiles).toEqual([]);
     });
@@ -110,12 +112,12 @@ describe("runCodexTransform (E2E against templates/)", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
-        selectedInternalSkills: ["multi-persona-review"],
+        selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
       });
-      expect(existsSync(join(project, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
+      expect(existsSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
       // 선택하지 않은 skill 은 빠지고 dev-method 1개만.
-      expect(existsSync(join(project, ".agents/skills/asis-tobe-decision"))).toBe(false);
+      expect(existsSync(join(project, ".agents/skills/eval-harness"))).toBe(false);
       expect(report.skillFiles).toHaveLength(1);
     });
   });

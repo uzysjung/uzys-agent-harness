@@ -1,6 +1,6 @@
 # {PROJECT_NAME} — Antigravity Agent Guide
 
-> **Generated from**: `.claude/CLAUDE.md` via TS CLI `src/antigravity/transform.ts`
+> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via TS CLI `src/antigravity/transform.ts`
 > **Antigravity**: 2.0+ (`agy` CLI + desktop IDE)
 > **Location**: workspace rule — `.agents/rules/uzys-harness.md`
 
@@ -31,4 +31,4 @@
 
 ---
 
-*이 문서는 자동 생성됨. 수동 편집 시 harness 재설치가 덮어쓸 수 있음. 원본은 `.claude/CLAUDE.md` 또는 `templates/CLAUDE.md`.*
+*이 문서는 자동 생성됨. 수동 편집 시 harness 재설치가 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*

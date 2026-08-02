@@ -22,6 +22,7 @@ import type { AssetInstallResult } from "../external-installer.js";
 import type { BaselineReport, InstallMode, InstallReport, ProgressEvent } from "../installer.js";
 import { buildManifest } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
+import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
 /**
@@ -228,7 +229,7 @@ export function renderCliArtifacts(
   if (report.codex && report.opencode) {
     log(assetRow("success", "AGENTS.md", "shared (Codex + OpenCode)"));
   } else if (report.codex || report.opencode) {
-    log(assetRow("success", "AGENTS.md", "from .claude/CLAUDE.md"));
+    log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}`));
   }
   if (report.codex) {
     log(assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]"));
@@ -262,7 +263,7 @@ export function renderCliArtifacts(
   // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
   if (report.antigravity) {
     if (report.antigravity.rulesFile) {
-      log(assetRow("success", ".agents/rules/uzys-harness.md", "from .claude/CLAUDE.md"));
+      log(assetRow("success", ".agents/rules/uzys-harness.md", `from ${HARNESS_ANCHOR_FILE}`));
     }
     if (report.antigravity.skillFiles.length > 0) {
       log(
@@ -293,17 +294,6 @@ export function renderFinalSummary(
   // v26.78.1 (R2): pairwise if-chain → spec.cli derive. antigravity 누락 + claude 무조건
   //   prepend(claude 미선택 시에도 "Claude" 표기) 버그 fix. 헤더와 동일 SSOT.
   log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
-  // v26.78.1 (R1) — karpathy hook opt-in 결과 렌더. null = 미opt-in(표시 안 함).
-  //   이전엔 wired=false(plugin install 실패 등)여도 무음 → 사용자가 hook 안 깔린 걸
-  //   모른 채 "Install complete" 만 봄 (원칙 5 "증거를 보고한다" 위반).
-  if (report.karpathyHook) {
-    const kh = report.karpathyHook;
-    if (kh.wired) {
-      log(infoRow("HOOK", c.green("karpathy-coder pre-commit hook wired")));
-    } else {
-      log(infoRow("HOOK", c.yellow(`karpathy hook skipped — ${kh.reason ?? "unknown"}`)));
-    }
-  }
   // M-1 — settings.json 이 가리키던 없는 스크립트를 지웠으면 **소리를 낸다.** 무음 no-op 은
   //   이 처방을 채택할 때 명시적 기각 사유였다: 지금 유일한 파손 신호(bash exit 127)를 지우면서
   //   아무 말도 안 하면, 다음에 참조가 깨져도 아무도 모른다 (`no-false-ship` 원칙 5).
@@ -454,7 +444,26 @@ function renderPhase1Rows(
       }
     }
     if (baseline.updateMode.claudeMdUpdated) {
-      log(assetRow("success", ".claude/CLAUDE.md", "refreshed from template"));
+      log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
+    }
+    // P5 이행 (ADR-060) — v26.140.0 이전 설치본은 앵커가 `.claude/CLAUDE.md` 라 루트에 없다.
+    // 이번 update 가 만든 앵커와 사용자 `CLAUDE.md` 에 얹은 import 줄을 **화면에 남긴다**:
+    // 조용히 하면 앵커 계약이 바뀐 사실도, 자기 CLAUDE.md 가 한 줄 늘었다는 사실도 모른다.
+    if (baseline.updateMode.anchorCreated) {
+      log(assetRow("success", HARNESS_ANCHOR_FILE, "created from template (anchor migration)"));
+    }
+    if (baseline.updateMode.rootImportAdded) {
+      log(assetRow("success", "CLAUDE.md", `${HARNESS_IMPORT_LINE} import added`));
+    }
+    // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
+    if (baseline.updateMode.legacyAnchor) {
+      log(
+        assetRow(
+          "skip",
+          baseline.updateMode.legacyAnchor,
+          `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`,
+        ),
+      );
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
@@ -561,7 +570,7 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · spec-drift · checkpoint · mcp-pre-exec (security)",
+        "session-start · protect-files · checkpoint · mcp-pre-exec (security)",
         cats.hooks,
       );
     }
@@ -572,7 +581,7 @@ function renderPhase1Rows(
       phase1Row(
         "skills",
         cats.skills.length,
-        "north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)",
+        "spec-scaling · deep-research · ui-visual-review · eval-harness (modified)",
         cats.skills,
       );
     }
@@ -586,11 +595,15 @@ function renderPhase1Rows(
   const TEMPLATES_COL = 28;
   if (baseline.rootClaudeMd) {
     const n = baseline.rootClaudeMd.tracks.length;
+    // 기존 사용자 파일에는 스캐폴드를 쓰지 않는다 — 두 경우를 같은 문구로 보고하면 그게 곧
+    // 거짓 보고다 (P5 · ADR-060: 루트 CLAUDE.md 는 더 이상 덮어쓰지 않는다).
     log(
       assetRow(
         "success",
         "CLAUDE.md (root)",
-        `fill-in scaffold · ${n} track${n > 1 ? "s" : ""} noted`,
+        baseline.rootClaudeMd.created
+          ? `fill-in scaffold + @import · ${n} track${n > 1 ? "s" : ""} noted`
+          : `@import ${HARNESS_ANCHOR_FILE} (body preserved)`,
         TEMPLATES_COL,
       ),
     );

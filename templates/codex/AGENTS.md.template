@@ -1,6 +1,6 @@
 # {PROJECT_NAME} — Codex Agent Guide
 
-> **Generated from**: `.claude/CLAUDE.md` via `scripts/claude-to-codex.sh` (Phase C)
+> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via `scripts/claude-to-codex.sh` (Phase C)
 > **Codex Version**: 0.124.0+
 > **Linked SPEC**: `docs/specs/codex-compat.md`
 
@@ -68,4 +68,4 @@ subagent 호출은 `spawn_agent / wait_agent / close_agent` 툴. 부모 컨텍�
 
 ---
 
-*이 문서는 자동 생성됨. 수동 편집 시 `scripts/claude-to-codex.sh` 재실행이 덮어쓸 수 있음. 원본은 `.claude/CLAUDE.md` 또는 `templates/CLAUDE.md`.*
+*이 문서는 자동 생성됨. 수동 편집 시 `scripts/claude-to-codex.sh` 재실행이 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*

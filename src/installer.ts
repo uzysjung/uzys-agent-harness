@@ -50,18 +50,9 @@ import {
 import { type AssetSpec, buildManifest } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
-import { mergeProjectClaude } from "./project-claude-merge.js";
-import { addPreToolUseHook, type ClaudeSettings } from "./settings-merge.js";
+import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { cleanStaleHookRefs, runUpdateMode, type UpdateModeReport } from "./update-mode.js";
-
-/**
- * karpathy-coder hook 상수 — install 이 쓰고 uninstall 의 수기 안내가 읽는다.
- * v26.123.0 — 두 곳이 같은 값을 봐야 해서 export. 파일명이 바뀌면 안내가 조용히 멈추므로
- * 경로도 여기서 파생시킨다 (`no-false-ship`: 같은 값이 2곳에 하드코딩되면 derive 로 단일화).
- */
-export const KARPATHY_HOOK_RELPATH = ".claude/hooks/karpathy-gate.sh";
-export const KARPATHY_HOOK_COMMAND = `bash "$CLAUDE_PROJECT_DIR/${KARPATHY_HOOK_RELPATH}"`;
 
 /**
  * Install mode — Router action 매핑.
@@ -152,26 +143,6 @@ export type ProgressEvent =
   /** v26.64.0 — install log write 실패 (non-fatal). */
   | { type: "install-log-error"; message: string };
 
-/** karpathy-coder hook auto-wire 결과 (v0.6.0). */
-export interface KarpathyHookReport {
-  /** withKarpathyHook=true && karpathy-coder install 성공 시 true. */
-  wired: boolean;
-  /** wired=false 시 사유. */
-  reason?:
-    | "opt-out"
-    | "plugin-install-failed"
-    | "external-skipped"
-    | "settings-parse-error"
-    | "claude-not-selected";
-  /** wired=true 시 settings.json 갱신 여부 (idempotent skip 시 false). */
-  settingsUpdated?: boolean;
-  /** wired=true 시 hook script 복사 여부. */
-  hookScriptCopied?: boolean;
-}
-
-/** karpathy-coder asset ID — SSOT (external-assets.ts entry id와 일치 강제). */
-export const KARPATHY_ASSET_ID = "karpathy-coder";
-
 /**
  * v0.6.1 — Phase 1 output 카테고리별 분류. install renderer가 각 카테고리별로 row를 출력한다.
  * Names는 description용 (display only); 빈 배열이면 row 출력 skip.
@@ -218,8 +189,13 @@ export interface BaselineReport {
   ciScaffold: CiScaffoldReport | null;
   /** v0.6.1 — Phase 1 카테고리별 카운트 + names. Update mode에서는 빈 객체. */
   categories?: BaselineCategoryCounts;
-  /** Root CLAUDE.md fill-in scaffold (project name + active-track note + FILL sections). null when claude baseline disabled. */
-  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
+  /**
+   * Root CLAUDE.md 처리 결과. null when claude baseline disabled.
+   * `created` = 없던 파일을 fill-in 스캐폴드로 만들었다. false 면 기존 사용자 파일에 앵커
+   * import 한 줄만 얹었다는 뜻 — 두 경우의 보고 문구가 달라야 한다 (스캐폴드를 쓰지도 않고
+   * "fill-in scaffold" 라고 보고하면 그게 거짓 보고다).
+   */
+  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -245,8 +221,6 @@ export interface InstallReport {
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks/skills 갱신 + orphan prune + stale hook). null when not update mode. */
   updateMode: UpdateModeReport | null;
-  /** karpathy-coder hook auto-wire 결과 (v0.6.0). null when withKarpathyHook=false. */
-  karpathyHook: KarpathyHookReport | null;
   /**
    * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로).
    * install 은 settings.json 을 매번 템플릿으로 덮어쓰므로 치유도 매번 다시 해야 한다.
@@ -368,12 +342,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
   const external = runExternalPhase(ctx);
 
-  // ━━━ karpathy-coder hook auto-wire (v0.6.0) ━━━
-  // SPEC: docs/specs/karpathy-hook-autowire.md AC2 — opt-in 강제 + install 성공 후에만.
-  // v0.8.0 — `.claude/settings.json` PreToolUse 의존이라 spec.cli에 "claude" 포함 시에만 와이어 가능.
-  const karpathyHook = wireKarpathyHook(spec, external, harnessRoot, projectDir);
-
-  // ━━━ M-1 — settings.json stale hook ref 치유 (baseline·external·karpathy 뒤 1회) ━━━
+  // ━━━ M-1 — settings.json stale hook ref 치유 (baseline·external 뒤 1회) ━━━
   // 여기서 부르는 이유: 앞 단계들이 settings.json 과 참조 대상(스킬/훅 파일)을 모두 확정한
   // 뒤여야 "무엇이 없는가"가 답이 된다. 판정하지 않고 **디스크가 답하게 한다** — 설치자에
   // withEcc 사본이 생기지 않는다 (ADR-049 와 같은 형태).
@@ -392,7 +361,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     collectRootFiles(baseline.envFiles, ciScaffold, mcpResult.created),
   );
 
-  return { ...baseline, external, karpathyHook, staleHookRefs };
+  return { ...baseline, external, staleHookRefs };
 }
 
 /**
@@ -403,7 +372,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
  * 두면 그 사본이 다음 drift 서식지가 된다.
  */
 function healStaleHookRefs(spec: InstallSpec, projectDir: string): string[] {
-  // karpathy 와 같은 가드 — claude 미선택이면 `.claude/settings.json` 자체가 없다.
+  // claude 미선택이면 `.claude/settings.json` 자체가 없다.
   if (!spec.cli.includes("claude")) return [];
   const settingsPath = join(projectDir, ".claude/settings.json");
   if (!existsSync(settingsPath)) return [];
@@ -457,7 +426,7 @@ function runUpdateInstall(
   ctx.onProgress?.({ type: "baseline-complete", baseline });
   // update 경로의 치유 결과는 `updateMode.staleHookRefs` 가 이미 싣는다 — 여기서 다시 담으면
   // 같은 사실이 두 필드가 되고 렌더가 중복 보고한다.
-  return { ...baseline, external: null, karpathyHook: null, staleHookRefs: [] };
+  return { ...baseline, external: null, staleHookRefs: [] };
 }
 
 /**
@@ -493,8 +462,8 @@ interface ClaudeBaselineResult {
   dirsCopied: number;
   skipped: number;
   categories: BaselineCategoryCounts;
-  rootClaudeMd: { tracks: ReadonlyArray<Track> } | null;
-  /** root CLAUDE.md 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
+  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
+  /** 하네스 앵커 파일 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
   rootClaudeMdLog: { path: string; sha256: string } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
   backups: string[];
@@ -596,15 +565,21 @@ function installClaudeBaseline(
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
   writeInstalledTracks(projectDir, manifestSpec.tracks);
 
-  // Project root CLAUDE.md — an honest fill-in scaffold (project name + active tracks + FILL sections).
-  // Note: overwrites any user customization on re-install. Documented behavior.
+  // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
   const rootClaudeMd = writeRootClaudeMd(projectDir, manifestSpec.tracks);
-  result.rootClaudeMd = { tracks: manifestSpec.tracks };
-  result.rootClaudeMdLog = { path: "CLAUDE.md", sha256: hashContent(rootClaudeMd.content) };
-  if (rootClaudeMd.backup) {
-    result.backups.push(rootClaudeMd.backup);
-  }
+  result.rootClaudeMd = { tracks: manifestSpec.tracks, created: rootClaudeMd.created };
+  // 무결성 기록의 대상은 **하네스 앵커 파일**이다 (루트 CLAUDE.md 가 아니다) — uninstall 이
+  // 회수하는 것도, update 가 갱신하는 것도 그 파일뿐이라 소유를 주장할 수 있는 것도 그것뿐이다.
+  // 방금 manifest copy 가 놓아둔 디스크 내용을 읽는다: 렌더를 다시 하면 기준선이 두 벌이 된다.
+  result.rootClaudeMdLog = harnessAnchorLog(projectDir);
   return result;
+}
+
+/** 앵커 파일의 설치 시점 sha. manifest 에서 빠졌거나 source 부재로 skip 됐으면 null (정직 기록). */
+function harnessAnchorLog(projectDir: string): { path: string; sha256: string } | null {
+  const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
+  if (!existsSync(anchor)) return null;
+  return { path: HARNESS_ANCHOR_FILE, sha256: hashContent(readFileSync(anchor, "utf-8")) };
 }
 
 /** Environment files (F7/F8 — bash setup-harness.sh L880~890 + L954~996 등가). */
@@ -711,77 +686,6 @@ function writeInstallLogSafe(
   }
 }
 
-/**
- * karpathy-coder pre-commit hook auto-wire (v0.6.0).
- *
- * 활성화 조건 (AND):
- *   1. spec.options.withKarpathyHook === true (opt-in 강제)
- *   2. spec.cli 에 "claude" 포함 (v0.8.0 — `.claude/settings.json` 미생성 시 와이어 불가)
- *   3. external.attempted에 karpathy-coder ok=true (plugin install 성공)
- *
- * 동작:
- *   - templates/hooks/karpathy-gate.sh → <projectDir>/.claude/hooks/karpathy-gate.sh 복사
- *   - .claude/settings.json PreToolUse Write|Edit matcher에 hook entry 추가 (idempotent)
- */
-function wireKarpathyHook(
-  spec: InstallSpec,
-  external: ExternalInstallReport | null,
-  harnessRoot: string,
-  projectDir: string,
-): KarpathyHookReport | null {
-  if (!spec.options.withKarpathyHook) {
-    return null;
-  }
-  // v0.8.0 가드 — `.claude/` baseline 미생성 시 hook 와이어 불가 (silent partial state 방지).
-  if (!spec.cli.includes("claude")) {
-    return { wired: false, reason: "claude-not-selected" };
-  }
-  if (external === null) {
-    return { wired: false, reason: "external-skipped" };
-  }
-  const karpathyResult = external.attempted.find((r) => r.asset.id === KARPATHY_ASSET_ID);
-  if (!karpathyResult?.ok) {
-    return { wired: false, reason: "plugin-install-failed" };
-  }
-
-  // Hook script 복사 (manifest에 없는 v0.6.0 신규 — opt-in 시에만)
-  const sourceHook = join(harnessRoot, "templates/hooks/karpathy-gate.sh");
-  const targetHook = join(projectDir, KARPATHY_HOOK_RELPATH);
-  let hookScriptCopied = false;
-  if (existsSync(sourceHook)) {
-    copyFile(sourceHook, targetHook);
-    try {
-      chmodSync(targetHook, 0o755);
-    } catch {
-      // best-effort
-    }
-    hookScriptCopied = true;
-  }
-
-  // settings.json PreToolUse Write|Edit entry 추가 (idempotent)
-  // HIGH-2 fix: JSON.parse try/catch — add mode에서 사용자 손상 settings.json 시 install 중단 방지
-  const settingsPath = join(projectDir, ".claude/settings.json");
-  let settingsUpdated = false;
-  if (existsSync(settingsPath)) {
-    const raw = readFileSync(settingsPath, "utf8");
-    let before: ClaudeSettings;
-    try {
-      before = JSON.parse(raw);
-    } catch {
-      return { wired: false, reason: "settings-parse-error", hookScriptCopied };
-    }
-    const after = addPreToolUseHook(before, "Write|Edit", KARPATHY_HOOK_COMMAND);
-    const beforeStr = JSON.stringify(before);
-    const afterStr = JSON.stringify(after);
-    if (beforeStr !== afterStr) {
-      writeFileSync(settingsPath, `${JSON.stringify(after, null, 2)}\n`);
-      settingsUpdated = true;
-    }
-  }
-
-  return { wired: true, settingsUpdated, hookScriptCopied };
-}
-
 function composeAndWriteMcp(
   harnessRoot: string,
   projectDir: string,
@@ -883,16 +787,23 @@ function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>)
   writeFileSync(path, `${sorted}\n`);
 }
 
-function writeRootClaudeMd(
-  projectDir: string,
-  tracks: ReadonlyArray<Track>,
-): { content: string; backup: string | null } {
-  const content = mergeProjectClaude(tracks, { projectName: basename(projectDir) });
+/**
+ * 루트 `CLAUDE.md` — **덮어쓰지 않는다** (P5 · ADR-060). 하네스 내용은 앵커 파일
+ * (`HARNESS_ANCHOR_FILE`)로 따로 나가고, 여기엔 그것을 끌어오는 마커 import 한 줄만 얹는다.
+ *
+ * 그래서 백업도 사라졌다 — 백업은 "덮어쓰기 전 원본 보존"의 대응물인데 이제 덮어쓰기가 없다.
+ * 사용자 본문은 그대로 남고 우리 블록만 추가되며, uninstall 이 그 블록만 도로 걷어간다.
+ * (`.mcp.json`·`.gitignore` 처럼 사용자 파일에 병합하는 다른 산출물과 같은 방침이다.)
+ */
+function writeRootClaudeMd(projectDir: string, tracks: ReadonlyArray<Track>): { created: boolean } {
   const target = join(projectDir, "CLAUDE.md");
-  // 기존 사용자 CLAUDE.md 는 덮어쓰기 전 백업 (audit CODE-2 — 무백업 덮어쓰기 데이터 손실 방지).
-  const backup = backupFileIfChanged(target, content);
-  writeFileSync(target, content);
-  return { content, backup };
+  const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
+  const content = upsertHarnessImport(existing, { projectName: basename(projectDir), tracks });
+  // 이미 import 가 있으면 upsert 가 입력을 그대로 돌려준다 — 그때는 파일을 만지지 않는다.
+  if (content !== existing) {
+    writeFileSync(target, content);
+  }
+  return { created: existing === null };
 }
 
 function chmodHooksSync(hookDir: string): void {

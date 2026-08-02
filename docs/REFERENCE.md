@@ -33,14 +33,8 @@
 | **supabase agent-skills** | [supabase/agent-skills](https://github.com/supabase/agent-skills) | ✅ | csr-supabase, full | `claude plugin install supabase@supabase-agent-skills` | Auth/Realtime/Storage/RLS |
 | **postgres-best-practices** | supabase/agent-skills | ✅ | csr-supabase, full | `claude plugin install postgres-best-practices@supabase-agent-skills` | Postgres 쿼리 최적화 |
 | **document-skills** | [anthropics/skills](https://github.com/anthropics/skills) | ✅ | executive, full | `claude plugin install document-skills@anthropic-agent-skills` | docx/pptx/xlsx/pdf/canvas-design 등 |
-| **c-level-skills** | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 🟡 | executive, full | `claude plugin install c-level-skills@claude-code-skills` | 28 C-level advisory: virtual board (CEO/CTO/COO/CPO/CMO/CFO/CRO/CISO/CHRO), executive mentor, board deck builder, scenario war room, M&A playbook |
-| **business-growth-skills** | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 🟡 | executive, full, **growth-marketing** (v0.5.0) | `claude plugin install business-growth-skills@claude-code-skills` | 4 customer success / sales engineer / revenue operations / contract & proposal writer |
 | **finance-skills** | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 🟡 | executive, full | `claude plugin install finance-skills@claude-code-skills` | 3 financial analyst (DCF/ratio), SaaS metrics coach (ARR/MRR/CAC/LTV), business investment advisor |
-| **pm-skills** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | project-management | `claude plugin install pm-skills@claude-code-skills` | 6 — senior PM, scrum master, Jira expert, Confluence expert, Atlassian admin, template creator |
 | **product-skills** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | dev tracks + project-management | `claude plugin install product-skills@claude-code-skills` | 15 — RICE, PRD, agile PO, UX research, UI design system, competitive teardown, landing page, SaaS scaffolder, product analytics, experiment, product discovery, roadmap communicator, code-to-prd, research summarizer, apple-hig-expert |
-| **marketing-skills** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | growth-marketing | `claude plugin install marketing-skills@claude-code-skills` | 44 — content/SEO/CRO/channels/growth/intelligence/sales/twitter |
-| **research-summarizer** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | growth-marketing | `claude plugin install research-summarizer@claude-code-skills` | 시장 조사 요약 |
-| **karpathy-coder** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | dev tracks (has-dev-track) | `claude plugin install karpathy-coder@claude-code-skills` | 4 Python tool (`complexity_checker`, `diff_surgeon`, `assumption_linter`, `goal_verifier`) + reviewer agent + `/karpathy-check` slash + pre-commit hook — CLAUDE.md P1-P4 enforcement layer |
 | **data plugin** | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | ✅ | data, full | `claude plugin install data@knowledge-work-plugins` | SQL 탐색 + matplotlib/seaborn/plotly visualization |
 
 ### Optional Plugins (대화형 프롬프트)
@@ -56,16 +50,10 @@
 
 | 이름 | 출처 | Tier | Track | 설치 명령 | 용도 |
 |------|------|:-:|------|---------|------|
-| **impeccable** | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | 🟡 | csr-*, ssr-*, full | `npx skills add pbakaus/impeccable --yes` | 디자인 워크플로우 (`/teach`, `/shape`, `/polish` 등) |
-| **playwright-skill** | [testdino-hq/playwright-skill](https://github.com/testdino-hq/playwright-skill) | 🟡 | dev tracks | `npx skills add testdino-hq/playwright-skill --yes` | Playwright E2E 테스트 |
 | **find-skills** | [vercel-labs/skills](https://github.com/vercel-labs/skills) | 🟢 | dev tracks | `npx skills add vercel-labs/skills --skill find-skills --yes` | 적합한 스킬 검색/추천 |
 | **react-best-practices** | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | 🟢 | csr-*, ssr-nextjs, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices --yes` | React 패턴. v0.6.5 — skills.sh registry name `vercel-react-best-practices` (GitHub dir 이름과 다름, prefix 있음) |
 | **shadcn/ui** | [shadcn/ui](https://github.com/shadcn-ui/ui) | ✅ | csr-*, ssr-nextjs, full | `npx skills add shadcn/ui --yes` | shadcn 컴포넌트 |
 | **web-design-guidelines** | vercel-labs/agent-skills | 🟢 | csr-*, ssr-*, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines --yes` | 웹 UI 가이드라인. v0.6.3 — source URL을 full HTTPS로 수정 |
-| **polars** | [K-Dense-AI/scientific-agent-skills](https://github.com/K-Dense-AI/scientific-agent-skills) | 🟢 | data, full | `npx skills add K-Dense-AI/scientific-agent-skills --skill polars --yes` | polars lazy/expression deep guide |
-| **dask** | K-Dense-AI/scientific-agent-skills | 🟢 | data, full | `npx skills add K-Dense-AI/scientific-agent-skills --skill dask --yes` | larger-than-RAM 분산 (선택) |
-| **python-resource-management** | [wshobson/agents](https://github.com/wshobson/agents) | 🟢 | data, full | `npx skills add https://github.com/wshobson/agents --skill python-resource-management --yes` | context manager / ExitStack / async cleanup |
-| **python-performance-optimization** | wshobson/agents | 🟢 | data, full | `npx skills add https://github.com/wshobson/agents --skill python-performance-optimization --yes` | cProfile / line_profiler / memory_profiler / py-spy |
 
 ---
 
@@ -111,12 +99,12 @@
 
 ## 5. Cherry-picked Sources
 
-`.dev-references/cherrypicks.lock` (21건). ECC + GSD에서 발췌해 `templates/`에 복사.
+`.dev-references/cherrypicks.lock` (20건 — 2026-08-02 ADR-060 에서 verification-loop·karpathy-gate 행 해체). ECC + GSD에서 발췌해 `templates/`에 복사.
 `scripts/sync-cherrypicks.sh`로 upstream drift 감지.
 
 | 카테고리 | 항목 |
 |---------|------|
-| Skills (templates/skills/) | continuous-learning-v2, strategic-compact, deep-research, market-research, eval-harness, verification-loop, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
+| Skills (templates/skills/) | continuous-learning-v2, strategic-compact, deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
 | Agents (templates/agents/) | code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver |
 | Commands (templates/commands/ecc/) | e2e, eval, harness-audit |
 | Rules (templates/rules/) | gates-taxonomy (← GSD) |
@@ -146,13 +134,15 @@ spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph �
 - **review** Process step 5에 visual-review 결과 흡수 + **REGRESSION 1건이라도 있으면 Review Gate 차단** (CRITICAL 동급)
 
 ### Rules (templates/rules/)
-21 파일(실측 2026-07-29). CLAUDE.md와 짝. **트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
+9 파일(실측 2026-08-02 — ADR-060 정비로 기술스택 상세 룰 12종 삭제). CLAUDE.md와 짝.
+**트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
 (`COMMON_RULES`·`DEV_RULES`·`UI_RULES`·`TRACK_RULES` → `resolveRules()`)다 — SPEC 이 아니다.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-7 파일 (실측): session-start · protect-files · mcp-pre-exec · hito-counter · karpathy-gate · spec-drift-check · checkpoint-snapshot.
-*2026-07-14 현행화. 구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 삭제됨(ADR-023).*
+4 파일 (실측 2026-08-02): session-start · protect-files · mcp-pre-exec · checkpoint-snapshot.
+*구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 ADR-023, karpathy-gate·spec-drift-check
+는 ADR-060 에서 삭제됨(검증 스캐폴딩·무동작 실측).*
 
 ### Scripts (자체 작성)
 - `scripts/prune-ecc.sh` — ECC plugin 프로젝트 스코프 복사 + 89 KEEP 외 제거

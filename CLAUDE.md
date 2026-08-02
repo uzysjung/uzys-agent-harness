@@ -29,9 +29,9 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Layout
 
-`src/` 46파일 — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 / **`manifest.ts` = 무엇을
-어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 / `codex`·`opencode`·`antigravity` CLI별 변환 /
-`external-assets.ts` 카탈로그.
+`src/` 45파일 (실측 2026-08-02) — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 /
+**`manifest.ts` = 무엇을 어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 /
+`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(55 자산).
 
 **`templates/` 는 npm 으로 낯선 사람 프로젝트에 나가는 배포물이고 `.claude/` 는 우리 개발용이다.**
 같은 이름의 파일이 양쪽에 있고 내용이 다르다 — 하나를 보고 다른 하나를 말하지 않는다.
@@ -71,20 +71,20 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    명령마다 검사하고 `--no`+`verify` 로 넘어가고 클론마다 재설치해야 한다.
 2. **훅이 차단 로그를 남기지 않는다**(실측 0줄). 무엇이 실제로 막고 있는지 판정할 데이터가 없어
    "옥죈다"가 느낌 대 느낌으로 남는다.
-3. **`spec-drift-check.sh` 는 미배선이고 지금 물지도 않는다** — 미완 체크박스 309개 앞에서 `ship`
-   모드가 exit 0 이다. 그런데 현행 룰 4개 사본(`doc-governance`·`ship-checklist` × 이 리포/배포판)이 이것을 차단
-   게이트로 적는다.
-4. **룰 33개 중 `paths:` frontmatter 0개** — 전부 무조건 상주한다. 지연 로드로 바꾸면 내용을 한 줄도
-   안 지우고 상주가 줄어든다.
-5. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 48개가
+3. **룰은 9종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
+   **확인됨**(2026-08-02, memory 문서) — 프로젝트 고유 사실이 담긴 룰이 다시 커지면 그때 쓴다.
+4. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 82개 중 45개가
    `readFileSync` 로 경로를 읽어 import 그래프 밖이다. 애매하면 전체를 돌린다.
-6. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(이후 태그 5개 · 태그 없이 넘어간 v26.138.0 포함 6버전)(게시 계약 밖이라
-   무해하나 버전 확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 45릴리즈 미생성이다 —
-   태그·npm 은 정상이고 release 페이지만 없다.
+5. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(게시 계약 밖이라 무해하나 버전
+   확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 미생성 — 태그·npm 은 정상이다.
+6. **uzys 자작 스킬의 SSOT 는 `uzysjung/uzys-agent-skills` 리포다** (ADR-060). 이 리포의 번들
+   스킬은 `compaction-handoff`·`ui-visual-review` 등 잔존분뿐 — 스킬 본문 게이트도 이관 리포
+   소관이며, 그쪽에 게이트가 없으면 지금은 아무도 안 본다.
 
 ## 보고·의사결정 형식
 
 사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는 초안은 그 자체가
 다시 쓰라는 신호다. 승인 요청은 **추천과 이유를 먼저**(BLUF), 대비는 ASIS→TOBE 표로, 수치는
 before → after 로 쓴다("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
-실행 형식·예시 = `explain-plainly` · `asis-tobe-decision` 스킬.
+실행 형식·예시 = `clear-korean-communication` 스킬(uzys-agent-skills — 미설치면
+`npx skills add uzysjung/uzys-agent-skills` 는 **사용자가 직접** 실행한다. 호스트 실 CLI 는 훅이 차단).

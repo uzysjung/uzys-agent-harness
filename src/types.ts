@@ -74,18 +74,11 @@ export interface OptionFlags {
   withPrune: boolean;
   /** Codex global opt-in: ~/.codex/config.toml [projects."..."] trust entry. D16 — 사용자 명시 동의 필수. */
   withCodexTrust: boolean;
-  /**
-   * v0.6.0 — karpathy-coder pre-commit hook auto-wire (A 경로).
-   * `.claude/settings.json` PreToolUse `Write|Edit` matcher에 hook entry 등록.
-   * 활성화는 karpathy-coder plugin install 성공 후 + 사용자 명시 opt-in 시에만.
-   */
-  withKarpathyHook: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
   withPrune: false,
   withCodexTrust: false,
-  withKarpathyHook: false,
 };
 
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */
