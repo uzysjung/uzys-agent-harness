@@ -240,7 +240,8 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
     expect(existsSync(join(projectDir, ".codex/prompts"))).toBe(false);
     expect(existsSync(join(projectDir, ".agents/skills/uzys-spec"))).toBe(false);
-    // dev-method skill 6종은 native 매핑되어 존재해야 한다 (tooling = dev track).
-    expect(existsSync(join(projectDir, ".agents/skills/multi-persona-review/SKILL.md"))).toBe(true);
+    // 잔존 유일 번들 dev-method skill 은 native 매핑되어 존재해야 한다 (tooling = dev track).
+    // 2026-08-02 정비(ADR-060)로 multi-persona-review 등은 npx 설치로 이관 — 번들 검증 표본 교체.
+    expect(existsSync(join(projectDir, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
   });
 });

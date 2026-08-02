@@ -419,9 +419,9 @@ describe("상주 항목 수 (quantity 축)", () => {
   //   사라졌고(전 트랙 상주였던 north-star·gh-issue-workflow 포함) 그만큼 상주 항목이 빠진다.
   //   설치 자체가 없어진 게 아니라 `.claude/skills/` 상주에서 npx 설치로 **경로가 바뀐 것**이다.
   it.each([
-    ["executive", { rules: 5, skills: 7, agents: 5, claudeMd: 2, total: 19 }],
-    ["tooling", { rules: 10, skills: 6, agents: 9, claudeMd: 2, total: 27 }],
-    ["full", { rules: 20, skills: 14, agents: 9, claudeMd: 2, total: 45 }],
+    ["executive", { rules: 4, skills: 7, agents: 5, claudeMd: 2, total: 18 }],
+    ["tooling", { rules: 7, skills: 6, agents: 9, claudeMd: 2, total: 24 }],
+    ["full", { rules: 9, skills: 14, agents: 9, claudeMd: 2, total: 34 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });
