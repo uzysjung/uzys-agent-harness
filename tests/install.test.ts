@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
+import { experimentalOptInCandidates } from "../src/external-assets.js";
 import type { BaselineReport, InstallReport } from "../src/installer.js";
-import type { InstallSpec, Track } from "../src/types.js";
+import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "../src/types.js";
 
 /**
  * Build a mock runPipeline that fires onProgress events from the supplied
@@ -147,19 +148,30 @@ describe("installAction", () => {
     expect(runPipeline).toHaveBeenCalledOnce();
   });
 
-  it("non-interactive tooling install hints experimental opt-in via --with (v26.71.1 — Transparent Defaults)", () => {
+  // 2026-08-02 사용자 결정 (ADR-063) — railway-skills 가 opt-in condition 이 되면서 카탈로그에
+  //   "condition 은 매치하는데 T3 라서 빠진" 자산이 하나도 없다 → OPT-IN 힌트 줄은 어떤 트랙에서도
+  //   뜨지 않는다. 그래서 positive 단언을 유지할 실 데이터가 없다.
+  //   이 테스트는 그 전제(후보 0)를 먼저 못 박고, 전제가 깨지면(=트랙 조건부 T3 자산이 다시
+  //   생기면) 실패해서 **positive 단언 복원을 강제**한다. 조용히 통과하는 공허한 테스트로
+  //   남기지 않기 위한 배선이다 (v26.71.1 Transparent Defaults 의 현재 상태 기록).
+  it("non-interactive install: 조건 매치 T3 가 0 이라 OPT-IN 힌트가 뜨지 않는다 (ADR-063)", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor(fakeReport);
+    // 전제: 어떤 트랙에서도 힌트 후보가 없다. 하나라도 생기면 아래 negative 단언은 거짓이 되고
+    //   이 테스트가 먼저 그 사실을 알린다.
+    for (const t of TRACKS) {
+      expect(
+        experimentalOptInCandidates({ tracks: [t], options: { ...DEFAULT_OPTIONS } }),
+        `${t}: 조건 매치 T3 가 생겼다 — OPT-IN 힌트의 positive 단언을 복원할 것`,
+      ).toEqual([]);
+    }
     installAction(
-      // 2026-08-02 정비 (ADR-060) — playwright-skill 제거로 tooling 에는 조건 매치 T3 가 없다.
-      //   csr-fastify 는 railway-skills(T3)가 매치하므로 힌트 표면이 살아 있는 트랙이다.
       { cli: ["claude"], track: ["csr-fastify"], projectDir: "/p" },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    // WHY: T3 default 제외(R6)되더라도 사용자가 존재를 알도록 안내해야 함 (숨김 0건).
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("OPT-IN"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("railway-skills"));
+    const optInCalls = log.mock.calls.filter((call) => String(call[0]).includes("OPT-IN"));
+    expect(optInCalls).toHaveLength(0);
   });
 
   it("no opt-in hint when experimental already force-included via --with (v26.71.1)", () => {

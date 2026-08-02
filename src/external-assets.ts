@@ -120,8 +120,6 @@ const CSR_SSR_NEXTJS_FULL: Track[] = [
   "full",
 ];
 
-const RAILWAY_TRACKS: Track[] = ["csr-fastify", "csr-fastapi", "ssr-htmx", "ssr-nextjs", "full"];
-
 /**
  * v0.8.1 — executive-style Track SSOT (reviewer MEDIUM-3 fix).
  *
@@ -450,7 +448,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "Railway agent-skills (deploy + project/service/env management)",
     category: "backend",
     source: "railwayapp",
-    condition: { kind: "any-track", tracks: RAILWAY_TRACKS },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "railwayapp/railway-skills",
@@ -465,7 +464,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "Vercel CLI (npm)",
     category: "backend",
     source: "vercel",
-    condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
   },
   {
@@ -485,7 +485,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "Supabase CLI (npm) — first 'supabase login' requires OAuth",
     category: "backend",
     source: "supabase",
-    condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "supabase", version: "2.108.0" },
   },
 
@@ -853,7 +854,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "finance-skills (3 — financial analyst, SaaS metrics, investment advisor)",
     category: "business",
     source: "alirezarezvani",
-    condition: { kind: "any-track", tracks: ["executive", "full"] },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "alirezarezvani/claude-skills",
@@ -871,7 +873,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "alirezarezvani",
     // v26.106.0 (ADR-035, 사용자 승인 C): dev 8트랙 기본에서 제외 — PM 스킬 15종은 PM 트랙 목적
     //   자산. dev 트랙은 wizard 체크 / --with 로 opt-in.
-    condition: { kind: "any-track", tracks: ["project-management"] },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
+    condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
       marketplace: "alirezarezvani/claude-skills",

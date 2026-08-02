@@ -8,6 +8,7 @@ import {
   DEV_TRACKS,
   EXECUTIVE_STYLE_TRACKS,
   EXTERNAL_ASSETS,
+  type ExternalAsset,
   experimentalOptInCandidates,
   filterApplicableAssets,
   INTERNAL_BUNDLED_SKILL_IDS,
@@ -83,7 +84,18 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
     const rw = EXTERNAL_ASSETS.find((a) => a.id === "railway-skills");
     if (!rw) throw new Error("railway-skills missing");
     expect(assetTrustTier("railway-skills")).toBe("experimental");
-    // any-track condition 은 csr-fastify 매치하지만 T3 → default 제외.
+    // 2026-08-02 사용자 결정 (ADR-063) — railway-skills 가 opt-in 이 되면서 카탈로그에
+    //   "condition 은 매치하는데 T3" 인 자산이 0개가 됐다. 실 entry 로 재면 condition 이
+    //   false 라서 통과하고 T3 게이트는 아무것도 안 문다 → condition 만 되돌린 사본으로
+    //   게이트 자체를 계속 고정한다 (id 유지 = TRUST_TIER 조회가 여전히 experimental).
+    const trackConditioned: ExternalAsset = {
+      ...rw,
+      condition: { kind: "any-track", tracks: ["csr-fastify"] },
+    };
+    expect(
+      shouldInstallAsset(trackConditioned, { tracks: ["csr-fastify"], options: NO_OPTIONS }),
+    ).toBe(false);
+    // 실 entry 도 물론 미설치 — 다만 사유가 tier 가 아니라 opt-in condition 이다.
     expect(shouldInstallAsset(rw, { tracks: ["csr-fastify"], options: NO_OPTIONS })).toBe(false);
   });
 
@@ -114,9 +126,11 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
     const ids = experimentalOptInCandidates({ tracks: ["csr-fastify"], options: NO_OPTIONS })
       .map((a) => a.id)
       .sort();
-    // 2026-08-02 정비 (ADR-060) — playwright-skill 제거 후 조건 매치 T3 는 railway-skills 뿐.
-    //   revealjs 는 opt-in 이라 condition 이 절대 매치하지 않는다.
-    expect(ids).toEqual(["railway-skills"]);
+    // 2026-08-02 정비 (ADR-060) — playwright-skill 제거 후 조건 매치 T3 는 railway-skills 뿐이었다.
+    // 2026-08-02 사용자 결정 (ADR-063) — 그 railway-skills 도 opt-in 이 됐다. 남은 T3 는
+    //   revealjs 뿐이고 그 역시 opt-in 이라 condition 이 절대 매치하지 않는다 → 힌트 대상 0.
+    //   힌트 표면(install-render.ts 의 OPT-IN 줄)은 살아 있지만 지금 카탈로그엔 대상이 없다.
+    expect(ids).toEqual([]);
   });
 
   it("experimentalOptInCandidates 는 forceInclude(--with) 된 것 제외 (이미 설치되므로)", () => {
@@ -680,7 +694,8 @@ describe("filterApplicableAssets", () => {
     // executive 한정 자산 + 전 트랙 상주 이관 스킬 (north-star · gh-issue-workflow).
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("anthropic-document-skills");
-    expect(ids).toContain("finance-skills");
+    // 2026-08-02 사용자 결정 (ADR-063) — finance-skills 는 executive 기본에서 opt-in 으로.
+    expect(ids).not.toContain("finance-skills");
     expect(ids).toContain("north-star");
     expect(ids).toContain("gh-issue-workflow");
     expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
@@ -716,7 +731,11 @@ describe("filterApplicableAssets", () => {
     // Track 매트릭스의 vetted/official 자산은 포함
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 experimental opt-in only (PRD R6)
-    expect(ids).toContain("vercel-cli");
+    // 2026-08-02 사용자 결정 (ADR-063) — 배포/DB CLI 2종 + 업무 번들 2종은 opt-in 으로 이동.
+    expect(ids).not.toContain("vercel-cli");
+    expect(ids).not.toContain("supabase-cli");
+    expect(ids).not.toContain("finance-skills");
+    expect(ids).not.toContain("product-skills");
     expect(ids).toContain("anthropic-document-skills");
   });
 
@@ -750,12 +769,39 @@ describe("Track partition invariants — v0.8.1 SSOT", () => {
     for (const t of TRACKS) expect(union.has(t)).toBe(true);
   });
 
-  it("product-skills condition = project-management 한정 (v26.106.0 ADR-035 사용자 승인 C)", () => {
-    const ps = EXTERNAL_ASSETS.find((a) => a.id === "product-skills");
-    if (!ps) throw new Error("product-skills missing");
-    expect(ps.condition.kind).toBe("any-track");
-    if (ps.condition.kind !== "any-track") throw new Error("not any-track");
-    expect([...ps.condition.tracks]).toEqual(["project-management"]);
+  // 2026-08-02 사용자 결정 (ADR-063) — 5자산이 트랙 기본에서 opt-in 으로 내려갔다.
+  //   이전 판(v26.106.0 ADR-035 사용자 승인 C)은 product-skills 가 project-management
+  //   한정임을 고정했다. 결정이 바뀌었으니 고정 대상도 바뀐다: **어떤 트랙 조합으로도
+  //   자동 설치되지 않고, --with(=forceInclude)로는 여전히 설치된다.** 뒤쪽 절반이 없으면
+  //   "카탈로그에서 삭제"와 구분되지 않는다.
+  it("ADR-063 5자산: 트랙만으론 어느 트랙에서도 미설치 · --with 로는 설치", () => {
+    const optedOut = [
+      "railway-skills",
+      "vercel-cli",
+      "supabase-cli",
+      "finance-skills",
+      "product-skills",
+    ];
+    for (const id of optedOut) {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      if (!a) throw new Error(`${id} missing`); // 삭제가 아니라 강등이다 — 카탈로그에 남아야 한다
+      expect(a.condition.kind, id).toBe("opt-in");
+      for (const t of TRACKS) {
+        expect(shouldInstallAsset(a, { tracks: [t], options: NO_OPTIONS }), `${id}/${t}`).toBe(
+          false,
+        );
+      }
+      // 전 트랙 동시 선택(= full 포함 최대 집합)에서도 안 깔린다.
+      expect(shouldInstallAsset(a, { tracks: [...TRACKS], options: NO_OPTIONS }), id).toBe(false);
+      expect(
+        shouldInstallAsset(a, {
+          tracks: ["tooling"],
+          options: NO_OPTIONS,
+          userOverride: { forceInclude: [id], forceExclude: [] },
+        }),
+        `${id} 는 --with 로 설치 가능해야 한다`,
+      ).toBe(true);
+    }
   });
 });
 

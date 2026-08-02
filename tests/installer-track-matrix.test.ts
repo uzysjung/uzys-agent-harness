@@ -103,18 +103,20 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("polars-K-Dense"); // data only
   });
 
-  it("csr-supabase: Vercel/Supabase CLI + supabase-skills + UI (v26.106.0 ADR-035)", () => {
+  it("csr-supabase: supabase-skills + UI (배포/DB CLI 2종은 2026-08-02 opt-in 강등)", () => {
     const { ids } = runForTrack(["csr-supabase"]);
     expect(ids).toEqual(
       expect.arrayContaining([
-        "vercel-cli",
-        "supabase-cli",
         "supabase-agent-skills",
         "postgres-best-practices",
         "react-best-practices",
         "shadcn-ui",
       ]),
     );
+    // 2026-08-02 사용자 결정 (ADR-063) — vercel-cli·supabase-cli 는 트랙 기본에서 opt-in 으로.
+    //   전역 CLI 설치는 사용자가 고르는 것이지 트랙이 정하는 것이 아니다.
+    expect(ids).not.toContain("vercel-cli");
+    expect(ids).not.toContain("supabase-cli");
     // v26.106.0 (ADR-035 승인 B·D) — netlify-cli(배포 CLI 중복, dl 10:1 실측) + taste 가이드 2종 opt-in.
     expect(ids).not.toContain("netlify-cli");
     expect(ids).not.toContain("web-design-guidelines");
@@ -142,11 +144,13 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toContain("frontend-design"); // has-dev-track baseline 은 유지
   });
 
-  it("executive: Anthropic + finance (c-level·business-growth 는 ADR-060 삭제)", () => {
+  it("executive: Anthropic 만 (finance-skills 는 2026-08-02 opt-in 강등)", () => {
     const { ids } = runForTrack(["executive"]);
     // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종(north-star·gh-issue-workflow)은 internal 로
     //   돌아가 Phase 1 이 맡는다. 전 트랙 도달은 아래 전용 테스트가 manifest 표면에서 검증한다.
-    expect(ids).toEqual(["anthropic-document-skills", "finance-skills"]);
+    // 2026-08-02 사용자 결정 (ADR-063) — finance-skills 는 executive 기본에서 opt-in 으로.
+    expect(ids).toEqual(["anthropic-document-skills"]);
+    expect(ids).not.toContain("finance-skills");
     // No dev-track assets
     expect(ids).not.toContain("addy-agent-skills");
     expect(ids).not.toContain("polars-K-Dense");
@@ -161,15 +165,17 @@ describe("Track matrix — assets called per track", () => {
     // 2026-08-02 (ADR-062 복원) — uzys 스킬은 internal 로 복귀해 external 목록에 없다.
     expect(ids).toEqual(
       expect.arrayContaining([
-        "vercel-cli",
         "supabase-agent-skills",
         "react-best-practices",
         "anthropic-document-skills",
-        "finance-skills",
       ]),
     );
     expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 opt-in
+    // 2026-08-02 사용자 결정 (ADR-063) — full 은 "전 트랙 합집합"이지 "전 자산"이 아니다.
+    expect(ids).not.toContain("vercel-cli");
+    expect(ids).not.toContain("supabase-cli");
+    expect(ids).not.toContain("finance-skills");
     expect(ids).not.toContain("impeccable"); // v26.106.0 — ADR-035 opt-in 강등
   });
 
@@ -221,14 +227,22 @@ describe("Track matrix — spawn call counts", () => {
 
 // === v0.5.0 — 신규 Track 매핑 검증 (P2-T4 합집합 회귀 + P3-T2 신규 Track) ===
 describe("Track matrix — v0.5.0 신규 Track", () => {
-  it("project-management: product-skills 만 (pm-skills 는 2026-08-02 정비로 삭제)", () => {
+  it("project-management: external 자산 0 (product-skills 는 2026-08-02 opt-in 강등)", () => {
     const { ids } = runForTrack(["project-management"]);
     // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종은 internal 로 복귀 → external 목록 밖.
-    expect(ids).toEqual(["product-skills"]);
+    // 2026-08-02 사용자 결정 (ADR-063) — product-skills 가 opt-in 이 되면서 이 트랙의 external
+    //   기본 집합은 비었다. "비었다"가 "안 깔린다"는 아니다 — 아래 전 트랙 도달 테스트 참조.
+    expect(ids).toEqual([]);
+    expect(ids).not.toContain("product-skills");
     // No has-dev-track assets
     expect(ids).not.toContain("addy-agent-skills");
     // No executive assets
     expect(ids).not.toContain("anthropic-document-skills");
+  });
+
+  it("--with product-skills 는 여전히 설치 (강등이지 삭제가 아니다 — ADR-063)", () => {
+    const { ids } = runForTrack(["project-management"], {}, ["product-skills"]);
+    expect(ids).toContain("product-skills");
   });
 
   it("growth-marketing: external 자산 0 (business-growth·marketing-skills·research-summarizer 는 2026-08-02 정비로 삭제)", () => {
@@ -241,9 +255,11 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
     expect(ids).not.toContain("finance-skills");
   });
 
-  it("project-management spawn calls: 2 (product-skills plugin × 2)", () => {
+  it("project-management spawn calls: 0 (2026-08-02 ADR-063 — product-skills opt-in 강등)", () => {
     const { spawnCallCount } = runForTrack(["project-management"]);
-    expect(spawnCallCount).toBe(2);
+    expect(spawnCallCount).toBe(0);
+    // 대조 — --with 로 고르면 그 순간 plugin 2회(marketplace add + install)가 다시 돈다.
+    expect(runForTrack(["project-management"], {}, ["product-skills"]).spawnCallCount).toBe(2);
   });
 
   it("growth-marketing spawn calls: 0 (2026-08-02 복원 ADR-062 — internal 은 spawn 하지 않는다)", () => {

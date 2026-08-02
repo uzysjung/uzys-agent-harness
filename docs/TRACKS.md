@@ -62,12 +62,14 @@ Per-asset install method and verification status live in the [compatibility matr
 
 | Asset | What | Source |
 |---|---|---|
-| `railway-skills` | Railway deploy + project/service/env management — **opt-in** (⚠ experimental tier, so it is never pre-checked even on the tracks it matches: csr-fastify · csr-fastapi · ssr-* · full) | Railway official |
+| `railway-skills` | Railway deploy + project/service/env management — **opt-in** (also ⚠ experimental tier, which alone already keeps it out of every pre-check) | Railway official |
 | `supabase-agent-skills` (csr-supabase · full) | RLS, auth, edge function, and realtime guidance | Supabase official |
 | `postgres-best-practices` (csr-supabase · full) | Schema, index, and query patterns | Supabase official |
-| `supabase-cli` (csr-supabase · full) | Supabase CLI (`supabase login` for OAuth) | npm |
-| `vercel-cli` (csr-supabase · full) | Vercel CLI | npm |
-| `netlify-cli` | Netlify CLI — **opt-in** since v26.106.0 (deploy-CLI dedup; `vercel-cli` stays default at 10:1 weekly downloads) | npm |
+| `supabase-cli` | Supabase CLI (`supabase login` for OAuth) — **opt-in** | npm |
+| `vercel-cli` | Vercel CLI — **opt-in** | npm |
+| `netlify-cli` | Netlify CLI — **opt-in** | npm |
+
+The three CLIs above install a global binary, so none of them is pre-checked by a track any more — pick the one your project deploys to at step 3 or with `--with <id>`.
 
 ### Data (data / full)
 
@@ -80,11 +82,11 @@ Per-asset install method and verification status live in the [compatibility matr
 | Asset | What | Source | Tracks |
 |---|---|---|---|
 | `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring | Anthropic official | executive · full |
-| `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) | alirezarezvani | executive · full |
-| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) | alirezarezvani | project-management |
+| `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) — **opt-in** | alirezarezvani | any track |
+| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) — **opt-in** | alirezarezvani | any track |
 | `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) — **opt-in** | coreyhaines31 | any track |
 
-`growth-marketing` pre-checks no business-specific asset of its own — it gets the all-track first-party skills below, and `marketingskills` is the opt-in to add at step 3.
+Only `executive` pre-checks a business asset of its own (`anthropic-document-skills`). `project-management` and `growth-marketing` pre-check none — they get the all-track first-party skills below, and `product-skills` / `marketingskills` are the opt-ins to add at step 3.
 
 ### Dev Tools (all dev tracks)
 
