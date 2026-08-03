@@ -228,6 +228,18 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: all,
   });
 
+  // SPEC/TODO drift 탐지기. **훅이 아니라 명시 호출 스크립트다** — 자동 발화 경로가 없는 것이
+  // 정직한 상태이고(옛 훅 판본이 죽은 이유가 배선 없는 훅 라벨이었다), 호출 지점은 배포판 룰
+  // 둘이 적는다: ship-checklist 의 SPEC/PRD 정합성 항목(exit 2 = 차단) · doc-governance 검증
+  // 게이트 절. 타깃은 protect-branch 와 같은 CLI 중립 슬롯 — 문서 drift 는 4개 CLI 와 사람이
+  // 함께 보는 관심사라 `.claude/` 아래가 아니다.
+  m.push({
+    source: "scripts/spec-drift-check.sh",
+    target: ".uzys-agent-harness/spec-drift-check.sh",
+    type: "file",
+    applies: all,
+  });
+
   // Agents (본 프로젝트)
   for (const a of CORE_AGENTS) {
     m.push({
