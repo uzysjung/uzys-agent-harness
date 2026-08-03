@@ -1,8 +1,8 @@
 # ADR-066: audit-harness-fit 판정 루브릭을 공식 체크리스트 우선으로 재정렬
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-03
-- PR: #TBD
+- PR: #279
 - Supersedes: ADR-064 의 판정 프레임("3근거가 판정 기준") 부분 — 스킬 존재·5단계·전 트랙
   기본 결정은 현행 유지
 
