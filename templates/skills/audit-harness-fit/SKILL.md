@@ -1,19 +1,18 @@
 ---
 name: audit-harness-fit
 description: >-
-  Audits whether a project's resident steering layer still earns the context it costs — the
-  CLAUDE.md/AGENTS.md anchor and its `@import` chain, `.claude/rules/`, hooks, permission rules,
-  and the skill descriptors preloaded every session. INVENTORY measures what actually loads;
-  EVIDENCE gathers block logs and correction history; VERDICT rules each section keep / rewrite /
-  relocate / delete against published authoring guidance instead of taste; RELOCATE moves
-  procedures into skills, must-hold guarantees into hooks and permission rules, and derivable
-  facts back into code or tests; APPLY proposes the edit and waits for approval. Use when the
-  user says any of "하네스 정리", "룰·훅이 밥값을 하는지", "CLAUDE.md 다이어트", "상주 컨텍스트
-  정리", "룰이 너무 많아", "훅이 실제로 뭘 막고 있는지" — or the English equivalents "harness
-  audit", "trim my CLAUDE.md", "are my rules earning their keep", "prune the steering layer",
-  "why does Claude ignore my rules". Fires for both Korean and English phrasing. Do NOT use it to
-  escalate a countermeasure after a defect came back (that is recurrence-prevention), and not for
-  drift between the product's own docs and its code (that is audit-service-gaps DRIFT).
+  Audits the resident steering layer — CLAUDE.md/AGENTS.md and its `@import` chain,
+  `.claude/rules/`, hooks, permission rules, and the skill descriptors preloaded every session —
+  against the published authoring checklist. INVENTORY measures what loads; EVIDENCE gathers block
+  logs and correction history; VERDICT maps each section to the documented include categories and
+  exclude list, then rules keep / rewrite / relocate / delete; RELOCATE moves procedures to skills,
+  must-hold guarantees to hooks and permission rules, derivable facts back to code; APPLY proposes
+  and waits for approval. Use when the user says any of "하네스 정리", "룰·훅이 밥값을 하는지",
+  "CLAUDE.md 다이어트", "상주 컨텍스트 정리", "룰이 너무 많아", "훅이 실제로 뭘 막고 있는지" — or
+  "harness audit", "trim my CLAUDE.md", "are my rules earning their keep", "prune the steering
+  layer", "why does Claude ignore my rules". Do NOT use it after a specific defect recurred (that is
+  recurrence-prevention), or for drift between the product's docs and its code (that is
+  audit-service-gaps DRIFT).
 ---
 
 # Audit Harness Fit (상주 조종층 감사)
@@ -29,13 +28,18 @@ noise."*
 This skill is the reverse pass. It takes the resident layer as it is today, measures it, and rules
 on each part with **three kinds of evidence only**:
 
-1. **Published criteria** — what the vendor documentation says belongs resident, what belongs
-   on-demand, and what is not an enforcement layer at all. Quotes and sources:
+1. **Published criteria** — the documented include categories, exclude list, size target, and
+   pruning question. Quotes and sources:
    [references/official-criteria.md](references/official-criteria.md).
 2. **Block and correction logs** — what the enforcement layer actually stopped, and what the
    human actually had to correct.
-3. **Measurement** — item counts and token estimates per surface, taken the same way twice so
-   before and after are comparable.
+3. **Measurement** — item counts and byte sizes per surface, taken the same way twice so before
+   and after are comparable.
+
+The three are collection channels, not equals. **The published checklist ranks first**: it is the
+only one that does not depend on this project's local sample, so a section that the checklist
+already answers is not re-argued from logs or counts. Logs and measurement decide what the
+checklist leaves open.
 
 **Opinion is not one of the three.** "This rule feels important" and "this rule feels like bloat"
 are the same evidence class, and a verdict that pits one against the other is a coin flip wearing
@@ -136,23 +140,100 @@ The same asymmetry runs the other way: a log line proves the hook fired, not tha
 *correct*. Read the blocked targets. A block on a path the maintainer intended to edit is a false
 positive, and false positives are the cost side of the enforcement ledger.
 
-## Stage 3 — VERDICT (rule on each section, one at a time)
+## Stage 3 — VERDICT (rule each section against the published checklist)
 
 The unit is the **section**, not the file. Files are usually mixed — one paragraph carrying a real
 project fact, three carrying things any competent model already does.
 
-The primary question comes straight from the published guidance: **"Would removing this cause
-Claude to make mistakes?"** If not, cut it. Two corollaries decide most sections without argument:
+Work through four steps in order and stop at the first one that answers. Steps 1 and 2 are
+checklist lookups rather than judgment calls, and they settle most sections:
 
-- Anything derivable from the codebase (directory layouts, dependency lists, file-by-file
-  descriptions, API documentation) is derivable *by the model, on demand*. It does not need to be
-  resident.
-- Anything the model does correctly without the instruction is a no-op that still costs adherence
-  from the rules around it.
+1. **Include categories** — does the section map to one of the five documented categories?
+2. **Exclude list** — is it one of the four things documented as not worth including?
+3. **Form** — right content, wrong wording: specificity and consistency.
+4. **Pruning question** — for whatever steps 1–3 leave open.
 
-Then run the **generation lint**. Recent guidance names prompt patterns that were useful for older
-models and now actively cost tokens or quality — they survive in steering layers as legacy
-scaffolding, so look for them by name:
+Record the category (or the exclusion) beside each section, so a reader can re-derive the verdict
+without re-reading the section.
+
+### Step 1 — map every section to an include category
+
+| Category | Published wording | What lands here |
+|---|---|---|
+| Commands | *"Commands — how to build, test, lint, and run locally"* | invocations the model cannot guess from the repo |
+| Conventions | *"Conventions — naming, error handling, file layout, and 'we use X, not Y'"* | choices that differ from the language default |
+| Architecture | *"Architecture in three sentences — what the major pieces are"* | the shape of the system, not a tour of it |
+| Hard constraints | *"Hard constraints — for example, 'never write to the production database'"* | what must never happen |
+| Known gotchas | *"Known gotchas — the issues every new engineer trips on"* | non-obvious behavior that already cost someone a day |
+
+A section mapping to none of the five goes to step 2, not straight to `delete`. A section mapping to
+two is usually two sections. Note the tension the same source states about the third row: the
+vendor's own trim heuristic *"cuts content Claude can derive from the codebase, such as directory
+layouts, dependency lists, and architecture overviews"* — three sentences of shape belong resident,
+an architecture overview does not.
+
+The include/exclude table states the same split from the other side, and its exclude column does
+most of the cutting: *"Anything Claude can figure out by reading code"*, *"Standard language
+conventions Claude already knows"*, *"Detailed API documentation (link to docs instead)"*,
+*"Information that changes frequently"*, *"Long explanations or tutorials"*, *"File-by-file
+descriptions of the codebase"*, *"Self-evident practices like "write clean code""*.
+
+### Step 2 — check the four named exclusions
+
+Four things are named as not worth including. Each has a mechanical check, so this step produces a
+count rather than an opinion:
+
+| Exclusion (published wording) | Where it hides |
+|---|---|
+| *"Changelogs or history"* | dated lines, version tags, "as of", "used to", migration notes |
+| *"Full API documentation (Claude can read the code directly)"* + *"Anything that is already obvious from the file tree"* | directory trees, file-by-file lists, exported-symbol lists |
+| *"Information that changes frequently"* | counts, versions, "currently N of M" — anything one release invalidates |
+| *"Aspirational rules the team does not actually follow"* | check the repository's own history: does it obey the rule? |
+
+A hit on this list is a `delete` or a `relocate`, never a `keep`. Derivable content in particular is
+derivable *by the model, on demand* — it does not need to be resident.
+
+### Step 3 — form: specificity and consistency
+
+Right content in the wrong form is a `rewrite`, not a `delete`:
+
+> "**Specificity**: write instructions that are concrete enough to verify. For example:
+>
+> * "Use 2-space indentation" instead of "Format code properly"
+> * "Run `npm test` before committing" instead of "Test your changes"
+> * "API handlers live in `src/api/handlers/`" instead of "Keep files organized""
+
+> "**Consistency**: if two rules contradict each other, Claude may pick one arbitrarily. Review
+> your CLAUDE.md files, nested CLAUDE.md files in subdirectories, and [`.claude/rules/`]
+> periodically to remove outdated or conflicting instructions."
+
+Conflicts deserve their own sweep across every anchor and rule file at once: two sections that
+contradict each other are worse than either alone, because the model may follow either one on any
+given session.
+
+### Step 4 — size, and the pruning question
+
+For whatever steps 1–3 leave open, the published question decides:
+
+> "Keep it concise. For each line, ask: *"Would removing this cause Claude to make mistakes?"* If
+> not, cut it. Bloated CLAUDE.md files cause Claude to ignore your actual instructions!"
+
+Anything the model does correctly without the instruction is a no-op that still costs adherence
+from the rules around it — that is a `delete` even when nothing else flagged it.
+
+The published size figure is **200 lines per CLAUDE.md file**: *"Longer files consume more context
+and reduce adherence."* Two things it does not mean:
+
+- It is not a hard cut-off — *"CLAUDE.md files are loaded in full regardless of length, though
+  shorter files produce better adherence."* Report the overage as a number, not as a failure.
+- There is **no published budget for the number of rule files, and none for hooks.** Reporting
+  "too many rules" as a criterion is inventing one. Rule each file on the same checklist and report
+  the total in bytes.
+
+### The generation lint
+
+Recent guidance names prompt patterns that were useful for older models and now actively cost
+tokens or quality — they survive in steering layers as legacy scaffolding, so look for them by name:
 
 | Pattern to flag | Why it is now a cost |
 |---|---|
@@ -165,18 +246,16 @@ scaffolding, so look for them by name:
 
 A flag is a candidate, not a verdict. Confirm it against the section's evidence before ruling.
 
-Assign exactly one verdict per section:
+### Assign exactly one verdict per section
 
-- **keep** — evidence of a real mistake it prevents, and it belongs resident.
+- **keep** — maps to an include category, is off the exclude list, and belongs resident.
 - **rewrite** — right content, wrong form: vague where it should be concrete ("format properly" →
-  "use 2-space indentation"), or contradicting another section (conflicting instructions get picked
-  between arbitrarily).
+  "use 2-space indentation"), or contradicting another section.
 - **relocate** — right content, wrong layer. Stage 4 decides where.
-- **delete** — no evidence, derivable, already-known, or dead wiring.
-- **unjudged** — none of the three evidence kinds applies. Leave it alone and say so.
-
-Conflicts deserve their own sweep: two sections that contradict each other are worse than either
-alone, because the model may follow either one on any given session.
+- **delete** — on the exclude list, derivable, already-known, generation lint confirmed, or dead
+  wiring.
+- **unjudged** — the checklist does not reach it and none of the three evidence kinds applies.
+  Leave it alone and say so.
 
 ## Stage 4 — RELOCATE (right content, wrong layer)
 
@@ -204,8 +283,8 @@ skill adds a descriptor to every session. Say what the move costs, not only what
 
 ## Stage 5 — APPLY (propose; the human decides)
 
-Default output is a **proposal**, not an edit. Present it as one table — section, verdict,
-evidence, destination — with before/after measurements from Stage 1, then stop.
+Default output is a **proposal**, not an edit. Present it as one table — section, category or
+exclusion, verdict, evidence, destination — with before/after measurements from Stage 1, then stop.
 
 Apply only what was approved, and keep the applied change checkable:
 
@@ -220,6 +299,39 @@ Apply only what was approved, and keep the applied change checkable:
 
 Never widen the audit into a rewrite of the project's conventions. This skill decides what loads,
 not what the team believes.
+
+## Success criteria for a finished audit
+
+A run is finished when all five hold. Each is settled by a command or by counting rows — "the layer
+reads tighter now" is not on the list:
+
+| # | Criterion | How it is checked |
+|---|---|---|
+| 1 | Every resident section appears exactly once in the Stage 3 table, carrying a category or an exclusion | heading count equals mapping rows: `grep -c '^#' <each resident file>` |
+| 2 | Zero exclude-list hits survive in the applied result | the four greps below return nothing, or each survivor has a written reason |
+| 3 | Size is reported before → after in the Stage 1 unit | rerun the Stage 1 commands; report bytes and lines, both totals and per surface |
+| 4 | Every gate that reads a steering file by path still passes | run the project's own test and lint commands, not a subset chosen by guesswork |
+| 5 | Every surviving line is a present-tense project fact or rule | grep ⓐ returns nothing outside the measurement notes |
+
+```bash
+files="CLAUDE.md .claude/CLAUDE.md .claude/rules"
+
+# ⓐ history and changelogs, and anything stamped with a date or version
+grep -rniE '(changelog|release notes|as of [0-9])|[0-9]+\.[0-9]+\.[0-9]+|20[0-9]{2}-[0-9]{2}' $files
+
+# ⓑ derivable — directory trees and file-by-file lists
+grep -rnE '^[[:space:]]*[├└│]|^[[:space:]]*[-*] *`[^`]+/`' $files
+
+# ⓒ frequently-changing — counts a single release invalidates
+grep -rniE '(currently|at present|현재|총) .*[0-9]|[0-9]+ *(files|rules|hooks|assets|개)\b' $files
+
+# ⓓ aspirational modality — rules nobody is held to
+grep -rniE "should ideally|we (should|will) (eventually|try)|가능하면|되도록" $files
+```
+
+Extend the patterns to the language the steering layer is actually written in; the set above covers
+English and Korean only. And a `0` from a pattern that was never shown to match anything is not
+evidence — run each one against a line you know violates it before trusting the zero.
 
 ---
 
@@ -238,11 +350,14 @@ times; one turns out to have a matcher that cannot match any event name the CLI 
 wiring**), the other has genuinely never been triggered (**no sample** — reported as unknown, not
 as safe).
 
-**VERDICT** — 9 rules → 8 (one file restated the anchor's own principles: `delete`). Within the
-survivors, section-level cuts land on: a verification-step instruction and two "double-check
-before responding" clauses (generation lint), a directory-layout listing (derivable), and a
-"report only blocking issues" clause in the review rule (severity suppression). Resident prose
-1,100 → 535 lines. The four rules with incident citations: `keep`, untouched.
+**VERDICT** — 47 sections mapped: 29 land in an include category (13 Conventions, 7 Commands,
+5 Hard constraints, 3 Known gotchas, 1 Architecture), 12 hit the exclude list (4 history, 5
+derivable, 2 frequently-changing, 1 aspirational), 4 are open after steps 1–3 and go to the pruning
+question, 2 come back `unjudged`. Applied: one rule file restated the anchor's own principles
+(`delete`), 8 remain; section-level cuts land on a directory-layout listing, a verification-step
+instruction and two "double-check before responding" clauses (generation lint), and a "report only
+blocking issues" clause. Resident prose 1,100 → 535 lines. The four rules with incident citations:
+`keep`, untouched.
 
 **RELOCATE** — the release checklist (11 steps, invoked a few times per month) → skill. The
 "never edit `.env`" line stays as prose *and* keeps its hook, since prose alone is not a boundary.
@@ -250,14 +365,15 @@ The dead-wired hook is deleted; the never-fired one is left in place with its st
 unknown, because deleting on absence of evidence is the mistake this stage exists to avoid.
 
 **APPLY** — proposal table presented; maintainer approves the deletions, defers the skill
-extraction. Reported as: −565 resident lines, 1 dead hook removed, 1 false-positive block
-identified; **behavioral effect unverified** until the next few sessions are observed.
+extraction. Reported as: −565 resident lines, exclude-list greps ⓐ–ⓓ clean, project test and lint
+commands green, 1 dead hook removed, 1 false-positive block identified; **behavioral effect
+unverified** until the next few sessions are observed.
 
 ## Output, side effects, and stop conditions
 
 - **Output** — the inventory with its measurement method, the evidence table (including `no
-  sample` entries), one verdict per section with its evidence kind, the relocation plan with
-  costs, and the before/after numbers.
+  sample` entries), one row per section with its category-or-exclusion and verdict, the relocation
+  plan with costs, the before/after numbers, and the five success criteria with their check results.
 - **Side effects** — this skill proposes; it edits only what was approved. Never touch
   `permissions` or hook configuration without explicit approval: those change what the agent is
   allowed to do, not merely what it reads.

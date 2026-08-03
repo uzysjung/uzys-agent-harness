@@ -35,6 +35,24 @@ const body = tpl.slice(tpl.indexOf("\n# "));
  */
 const flat = (s: string): string => s.replace(/^\s*>\s?/gm, " ").replace(/\s+/g, " ");
 
+/**
+ * frontmatter 의 folded scalar(`description: >-`) 본문만 떼어 **접은 뒤** 돌려준다.
+ * YAML 은 folded scalar 의 줄바꿈을 공백 하나로 접어 넘기므로, 원문 길이로 상한을 재면 줄 수만큼
+ * 과대계상된다 — 상한 판정은 모델이 실제로 받는 형태로 해야 한다.
+ * 들여쓰기가 끊기는 첫 줄에서 멈춘다: 뒤에 다른 최상위 키가 생겨도 description 에 딸려오지 않는다.
+ */
+const descriptionBlock = (): string => {
+  const lines = frontmatter.split("\n");
+  const at = lines.findIndex((l) => /^description:\s*>-?\s*$/.test(l));
+  if (at === -1) return "";
+  const out: string[] = [];
+  for (const line of lines.slice(at + 1)) {
+    if (line.trim() !== "" && !/^\s/.test(line)) break;
+    out.push(line);
+  }
+  return flat(out.join("\n")).trim();
+};
+
 describe("audit-harness-fit — 트리거 계약 (descriptor 가 실제로 발화하는가)", () => {
   it("frontmatter 슬라이스가 비어 있지 않다 (헛통과 차단)", () => {
     expect(frontmatter).toMatch(/name:\s*audit-harness-fit/);
@@ -58,6 +76,18 @@ describe("audit-harness-fit — 트리거 계약 (descriptor 가 실제로 발�
     "earning their keep",
   ])("영어 트리거 %s 를 싣는다", (phrase) => {
     expect(flat(frontmatter).toLowerCase()).toContain(phrase.toLowerCase());
+  });
+
+  // ADR-066 ④ — descriptor 는 매 세션 상주분이고 공식 상한은 **1,024자**다. 초과분은 그대로
+  //   상주 비용이면서, 이 스킬이 감사하는 대상("설명이 길어 지시가 묻힌다")을 스스로 어기는 것이다.
+  it("description 이 공식 상한 1,024자 안에 든다 (접은 뒤 기준)", () => {
+    const description = descriptionBlock();
+    // 추출이 깨져 빈 문자열이 되면 상한 단언은 저절로 통과한다 — 하한부터 잠근다.
+    expect(description.length, "description 블록 추출 실패").toBeGreaterThan(800);
+    expect(
+      description.length,
+      `description 이 상한 초과: ${description.length}자`,
+    ).toBeLessThanOrEqual(1024);
   });
 
   // 경계가 없으면 인접 스킬 둘과 라우팅이 흔들린다 (재발 대응 · 제품 문서↔코드 drift).
@@ -87,6 +117,58 @@ describe("audit-harness-fit — 5단계와 판정 근거", () => {
     expect(body).toMatch(/Opinion is not one of the three/);
     // 근거가 없을 때의 처분까지 있어야 실행 가능하다 — 없으면 "근거 없음"이 삭제로 흐른다.
     expect(body).toMatch(/unjudged/);
+  });
+
+  // ADR-066 ① — Stage 3 의 **1차 루브릭은 공식 체크리스트**다. 포함 5범주와 제외 4목록이 문자
+  //   그대로 있어야 다른 사람이 같은 절을 같은 판정으로 재현한다. 한 줄이 빠지면 그 자리에서
+  //   판정이 취향으로 돌아가고, 그게 폐기된 전신 스킬이 실패한 지점이다.
+  it("Stage 3 이 공식 체크리스트를 1차 루브릭으로 싣는다 (포함 5범주 · 제외 4목록)", () => {
+    const stage3 = (body.split("## Stage 3 — VERDICT")[1] ?? "").split("## Stage 4")[0] ?? "";
+    expect(stage3, "Stage 3 슬라이스가 비었다").not.toBe("");
+    const step1 = flat((stage3.split("### Step 1")[1] ?? "").split("### Step 2")[0] ?? "");
+    const step2 = flat((stage3.split("### Step 2")[1] ?? "").split("### Step 3")[0] ?? "");
+    expect(step1, "Step 1(포함 범주) 슬라이스가 비었다").not.toBe("");
+    expect(step2, "Step 2(제외 목록) 슬라이스가 비었다").not.toBe("");
+
+    for (const category of [
+      "Commands — how to build, test, lint, and run locally",
+      "Conventions — naming, error handling, file layout, and 'we use X, not Y'",
+      "Architecture in three sentences — what the major pieces are",
+      "Hard constraints — for example, 'never write to the production database'",
+      "Known gotchas — the issues every new engineer trips on",
+    ]) {
+      expect(step1, `포함 범주 누락: ${category}`).toContain(category);
+    }
+    for (const exclusion of [
+      "Changelogs or history",
+      "Full API documentation (Claude can read the code directly)",
+      "Information that changes frequently",
+      "Aspirational rules the team does not actually follow",
+    ]) {
+      expect(step2, `제외 목록 누락: ${exclusion}`).toContain(exclusion);
+    }
+    // 순서가 곧 서열이다 — 프루닝 질문이 체크리스트보다 앞서면 "1차 루브릭"이 아니라 보조 항목이다.
+    expect(stage3.indexOf("Include categories"), "포함 범주 단계 부재").toBeGreaterThan(-1);
+    expect(stage3.indexOf("Include categories")).toBeLessThan(stage3.indexOf("Pruning question"));
+  });
+
+  // ADR-066 ② — 감사가 언제 끝났는지를 명령으로 답해야 산출물이 "판정표"가 아니라 실측이 된다.
+  //   표만 있으면 확인 방법이 없고, grep 만 있으면 무엇이 충족인지가 없다 — 둘 다 있어야 성립한다.
+  it("성공 기준 절이 기계 확인 형태다 (기준 5행 표 + grep 블록)", () => {
+    const success =
+      (body.split("## Success criteria for a finished audit")[1] ?? "").split(
+        "## Worked example",
+      )[0] ?? "";
+    expect(success, "성공 기준 절이 없다").not.toBe("");
+    expect(success.match(/^\| *[1-5] *\|/gm) ?? [], "기준 행이 5개가 아니다").toHaveLength(5);
+
+    const block = success.match(/```bash\n([\s\S]*?)```/)?.[1] ?? "";
+    expect(block, "성공 기준 절에 실행 가능한 grep 블록이 없다").not.toBe("");
+    expect(block.match(/grep -rn/g) ?? [], "제외 목록 4종의 grep 이 갖춰지지 않았다").toHaveLength(
+      4,
+    );
+    // 0 은 무죄가 아니다 — Stage 2 의 가드가 성공 기준에도 걸려 있어야 "grep 0건 = 통과"로 안 읽힌다.
+    expect(flat(success)).toMatch(/never shown to match anything is not evidence/);
   });
 
   // 이 리포의 차단 로그는 이번 사이클에 태어나 누적 표본이 없다. "0줄 = 안전"으로 읽으면
