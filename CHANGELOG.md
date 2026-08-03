@@ -7,6 +7,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.143.0] — 2026-08-03 (spec-drift-check 를 배포판 스크립트로 복원)
+
+이슈 #275 재론으로 ADR-060 의 삭제 결정을 부분 재검토했다(ADR-065). 훅 축 제거 판정(어느
+settings.json 에도 배선된 적 없는 무동작 라벨)은 유지하되, 그때 **설치받는 프로젝트의 유일한
+실행형 문서 drift 탐지기**가 함께 사라졌던 손실을 스크립트로 되산다.
+
+- `.uzys-agent-harness/spec-drift-check.sh` 로 전 트랙 설치 — protect-branch 와 같은 CLI 중립
+  슬롯. settings.json 미등록이 정직한 상태이고, 호출은 ship-checklist(`ship` 인자 exit 2 차단)와
+  doc-governance 검증 게이트 절이 지시한다.
+- 행동은 제거 직전 원본과 동일: `ship-gate:ignore` 면제 구간 · 단독 줄 표식 · fail-closed 무변경.
+- 도달 경로는 manifest derive 대조 24케이스로 잠금. 독립 검증의 음성 대조가 **변이 생존 1건**
+  (awk 후행 `$` 앵커 — 표식 뒤 산문이 면제를 조용히 여는 축)을 적발해 픽스처로 봉합했다.
+- 상주 +122 tok(룰 2종의 실행 지시 문안) — 게이트 없는 프로즈를 실행 게이트로 바꾼 대가로
+  NORTH_STAR 에 명시.
+
 ## [v26.142.0] — 2026-08-03 (audit-harness-fit — 상주 조종층 밥값 감사 스킬)
 
 번들 스킬 57번째 자산으로 `audit-harness-fit` 이 **전 트랙 기본** 추가된다. 공식 문서의
