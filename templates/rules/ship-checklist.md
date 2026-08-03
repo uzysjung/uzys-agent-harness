@@ -8,7 +8,7 @@ ship 단계 실행 시 아래 모든 항목을 통과해야 배포 가능.
 - [ ] **커버리지 기준 충족**: `test-policy.md` 의 Track 별 threshold 확인. **전체 실행(full)을 요구하는 지점은 여기다** — 커밋에는 테스트가 없고 머지에는 영향 범위만 돈다(시점별 정책은 `test-policy.md` 가 SSOT)
 - [ ] **CI green 이 배포의 전제로 배선됐는지**: 릴리스가 CI job 에 `needs:` 로 묶여 **CI red 면 게시가 안 일어나야** 한다. 게시가 CI 와 별개 워크플로면 red 를 통과해 나간다
 - [ ] **Security Scan · 의존성 감사**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음 · `npm audit`(Node.js) 또는 `pip-audit`(Python) critical/high 취약점 없음
-- [ ] **SPEC/PRD 정합성**: 이번 사이클에 하기로 한 항목이 미완으로 남아 있지 않은가 (`doc-governance.md` "작업 완료 처리")
+- [ ] **SPEC/PRD 정합성**: 이번 사이클에 하기로 한 항목이 미완으로 남아 있지 않은가 (`doc-governance.md` "작업 완료 처리"). 실행 확인 = `bash .uzys-agent-harness/spec-drift-check.sh ship` — **exit 2 면 차단**(동기화 후 재시도), exit 1 은 경고, 0 이 통과. 백로그는 `ship-gate:ignore` 구간으로 감싸 면제한다(표식이 안 닫히면 면제를 통째로 무시)
 - [ ] **Review 게이트 통과**: review 단계에서 CRITICAL 이슈 없음 확인
 
 ## Post-Ship
