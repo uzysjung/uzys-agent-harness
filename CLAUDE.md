@@ -24,6 +24,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 | 테스트만 | `npm test` — **coverage gate 를 놓친다**(branches 88 미달이 안 잡힌다) |
 | 상주 비용 | `npm run cost:report [track]` · baseline 갱신 `npm run cost:baseline` |
 | 실환경 검증 | `bash test/docker/run.sh <시나리오>` — 호스트에서 실 CLI 설치·실행은 ✅ 차단된다 |
+| 문서 drift 확인 | `bash templates/scripts/spec-drift-check.sh ship` — 룰이 가리키는 `.uzys-agent-harness/` 경로는 설치받은 프로젝트 전용이다(이 리포는 자기 자신에 미설치) |
 
 `lint` 는 `src tests` 만 본다. `dist/` 는 생성물이라 직접 고치지 않는다(원본은 `src/`).
 
@@ -96,8 +97,15 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
 
 ## 보고·의사결정 형식
 
-사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는 초안은 그 자체가
-다시 쓰라는 신호다. 승인 요청은 **추천과 이유를 먼저**(BLUF), 대비는 ASIS→TOBE 표로, 수치는
-before → after 로 쓴다("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
+**모든 답변**을 `clear-korean-communication` 규율로 쓴다 — 승인 요청 순간만이 아니다(사용자 확정
+2026-08-03). 사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는
+초안은 그 자체가 다시 쓰라는 신호다. 승인 요청은 **추천과 이유를 먼저**(BLUF), 대비는 ASIS→TOBE
+표로, 수치는 before → after 로 쓴다("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
 실행 형식·예시 = `clear-korean-communication` 스킬 — 이 리포 번들이라
 `templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
+
+**작업 요청은 착수 전에 `task-brief` 로 정규화해 보여준다**(사용자 확정 2026-08-03) — 사용자가
+채우지 않은 필드(objective 의 판정 기준·success_criteria·boundaries·verification 등)를 대화
+맥락으로 채운 **완성 브리프를 응답에 제시해 사용자가 그대로 프롬프트로 가져갈 수 있게** 한다.
+채운 값은 가정임을 표시하고, 정규화는 형태를 입히는 것이지 범위를 늘리는 것이 아니다. 한 줄
+질문·단순 조회는 제외(스킬의 Do-NOT). 템플릿 = `templates/skills/task-brief/`(이 리포 번들).
