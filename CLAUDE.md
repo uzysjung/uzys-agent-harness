@@ -30,9 +30,9 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Layout
 
-`src/` 45파일 (실측 2026-08-02) — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 /
+`src/` — 진입 `index.ts`·`cli.ts` / `installer.ts` 설치 파이프라인 /
 **`manifest.ts` = 무엇을 어디에 깔지 정하는 배선 SSOT** / `commands/` 명령별 /
-`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그(57 자산).
+`codex`·`opencode`·`antigravity` CLI별 변환 / `external-assets.ts` 카탈로그.
 
 **`templates/` 는 npm 으로 낯선 사람 프로젝트에 나가는 배포물이고 `.claude/` 는 우리 개발용이다.**
 같은 이름의 파일이 양쪽에 있고 내용이 다르다 — 하나를 보고 다른 하나를 말하지 않는다.
@@ -66,34 +66,27 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
 안 생긴다. `reset --hard` 와 브랜치 작업은 **⬜ 여전히 프로즈뿐** — 서버가 볼 수 없는 영역이다.
 적용·재확인 = `bash templates/scripts/protect-branch.sh --dry-run`.
 
-## 미해결 · 함정 (착수 전 확인, 2026-08-02)
+## 함정 (착수 전 확인 — 원칙형)
 
-1. **~~비가역 차단이 0건이다~~ → main 은 2026-08-02 부터 서버 규칙으로 잠겼다.** 남은 문제는
-   방향의 나머지 절반이다 — `permissions.defaultMode = bypassPermissions` 이고 `deny`/`ask` 규칙
-   0건, Bash 매처 훅은 `docker-only-realcli` 하나뿐인데, **되돌릴 수 있는 것**(문서 동기화·MCP
-   조회·`.env` 편집)은 여전히 로컬에서 막는다. 되돌릴 수 없는 쪽은 서버가 맡았으니 **로컬에
-   훅을 더 얹지 말고 강등할 것이 남았다**(백로그 A2). 로컬 가드 신설(옛 A1/A3)은 **기각** —
-   명령마다 검사하고 `--no`+`verify` 로 넘어가고 클론마다 재설치해야 한다.
-2. **~~훅이 차단 로그를 남기지 않는다~~ → 2026-08-02 부터 남긴다**(ADR-061). 차단하는 훅
-   전부(`protect-files`·`mcp-pre-exec`·`docker-only-realcli`)가 `.uzys-agent-harness/hook-blocks.log`
-   에 탭 구분 `날짜·훅·대상` 1줄을 append 한다(`mcp-pre-exec` 만 대상 뒤에 사유 병기). **남은 문제는 표본이다** — 첫
-   3줄이 쌓였고(실측 2026-08-03) **그중 2건이 오탐 후보**다: `docker-only-realcli` 가 문서 파싱
-   1회성 `node -e` 와 `mktemp` 스코프 설치 스모크를 막았다(설치·호스트 오염 0). 진짜 차단은
-   `mcp-pre-exec` 의 allowlist 밖 조회 1건뿐이다. **차단 1줄은 발화의 증거이지 옳음의 증거가
-   아니다** — 3줄은 표본이라기엔 얇으니 다음 감사까지 더 쌓고, 그때까지 "옥죈다"는 여전히
-   느낌이다. `uninstall` 은 `.uzys-agent-harness/` 를 통째로 지워 이 로그도 함께 없앤다(감수).
+1. **로컬에 차단 훅을 더 얹지 마라.** 되돌릴 수 없는 것(main 보호)은 GitHub 룰셋이 서버에서
+   맡는다(§Boundaries). 로컬 가드 신설은 기각 — 명령마다 검사하고 우회 플래그로 새고 클론마다
+   재설치해야 한다. 남은 방향은 반대쪽이다: **되돌릴 수 있는 것을 막는 로컬 차단**(문서 동기화·
+   MCP 조회·`.env` 편집)의 강등이 백로그다(A2). `permissions` 는 `bypassPermissions` · deny/ask 0.
+2. **차단 로그는 발화의 증거이지 옳음의 증거가 아니다.** 차단하는 훅 3개가
+   `.uzys-agent-harness/hook-blocks.log` 에 탭 구분 `날짜·훅·대상` 1줄을 남긴다(ADR-061). 감사
+   때는 차단 수가 아니라 **오탐부터** 대조한다 — 표본 현황·판정은 최신 감사 문서
+   (`docs/plans/harness-fit-audit-2026-08-03.md`). `uninstall` 은 이 로그를 함께 지운다(감수).
 3. **룰은 8종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
    **확인됨**(2026-08-02, memory 문서) — 프로젝트 고유 사실이 담긴 룰이 다시 커지면 그때 쓴다.
-4. **문서·자산 변경의 영향 범위를 도구로 고르면 0건이 나온다** — 스위트 85개 중 48개가
-   `readFileSync` 로 경로를 읽어 import 그래프 밖이다(실측 2026-08-02). 애매하면 전체를 돌린다.
-5. `package-lock.json` 의 version 이 `26.134.1` 에 멈춰 있다(게시 계약 밖이라 무해하나 버전
-   확인 시 착각을 부른다). GitHub release 는 v26.95.0 이후 미생성 — 태그·npm 은 정상이다.
-6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다** (ADR-062 — ADR-060 의
-   이관 결정을 부분 Supersede). 이관본이 판정 기준·수치·워크드 예시를 잃어(감사 실측: dropped
-   76 · damaged 28) 9종을 되돌렸다. **되돌린 이유가 곧 여기 남는 이유다 — 스킬 본문을 무는
-   게이트가 이 리포에만 있다**(`north-star-skill`·`recurrence-prevention-skill`·
-   `subagent-file-handoff`·`consult-model-tier` 4종). 배선 SSOT 는
-   `src/external-assets.ts` 의 `INTERNAL_BUNDLED_SKILL_IDS`(11) / `DEV_METHOD_SKILL_IDS`(6).
+4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
+   근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
+5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
+   오래 멈춰 있어 착각을 부른다. GitHub release 는 만들지 않는다 — 태그·npm 이 SSOT 다.
+6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다**(ADR-062) — 이관은
+   본문 소실로 판정 번복됐고, **스킬 본문을 무는 게이트 4종이 이 리포에만 있다**
+   (`north-star-skill`·`recurrence-prevention-skill`·`subagent-file-handoff`·
+   `consult-model-tier`). 배선 SSOT = `src/external-assets.ts` 의
+   `INTERNAL_BUNDLED_SKILL_IDS` / `DEV_METHOD_SKILL_IDS`(개수는 코드가 SSOT).
 
 ## 보고·의사결정 형식
 
