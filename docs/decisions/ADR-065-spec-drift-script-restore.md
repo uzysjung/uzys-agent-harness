@@ -1,8 +1,8 @@
 # ADR-065: spec-drift-check 를 훅이 아니라 스크립트로 복원
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-03
-- PR: #TBD
+- PR: #276
 - Supersedes: ADR-060 의 **spec-drift-check 삭제 결정만** (부분 — 정비의 나머지 결정은 현행 유지)
 
 ## Context
