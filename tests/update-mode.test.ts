@@ -806,6 +806,39 @@ describe("신규 자산 설치 (#283)", () => {
     );
   });
 
+  it("`.claude/` 자산은 claude 를 고른 설치본에만 들어간다 — codex 전용에 들이면 오염이다", () => {
+    // install 은 `spec.cli` 에 claude 가 있을 때만 `.claude/` baseline 을 만든다
+    // (codex/opencode 단독 사용자의 dead weight 회피). update 에 그 술어가 없으면 codex 로 깐
+    // 프로젝트에 `.claude/` 하네스가 통째로 들어간다 — 고른 적 없는 CLI 의 설정이다.
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["codex"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude/agents/reviewer.md"))).toBe(false);
+    // CLI 중립 자산은 그대로 들어간다 — 그게 #283 이 신고한 바로 그 파일이다.
+    expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+  });
+
+  it("훅은 깔지 않고 재설치를 안내한다 — 배선 없는 훅은 파일만 늘고 실행은 0이다", () => {
+    // update 는 `.claude/settings.json` 을 동기화하지 않는다(죽은 참조 제거만 한다). 그래서
+    // 훅 파일만 놓으면 영영 안 도는데 화면은 "추가됨"이라 적는다 — 거짓출하 형태다.
+    writeFileSync(join(templatesDir, "hooks/session-start.sh"), "echo hook\n");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(existsSync(join(projectDir, ".claude/hooks/session-start.sh"))).toBe(false);
+    expect(report.installedNew).not.toContain(".claude/hooks/session-start.sh");
+    expect(report.needsReinstall).toContain(".claude/hooks/session-start.sh");
+  });
+
   it("opt-in 에 달린 자산은 들이지 않는다 — update 는 그 선택을 복원할 수 없다", () => {
     // code-reviewer 는 `!withEcc` 게이팅(ECC plugin OFF 시의 fallback)이다. plugin 을 켠
     // 설치자에게 이걸 깔면 그가 끄기로 한 자산을 update 가 되살리는 셈이 된다.
@@ -813,6 +846,9 @@ describe("신규 자산 설치 (#283)", () => {
 
     expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(false);
     expect(report.installedNew).not.toContain(".claude/agents/code-reviewer.md");
+    // 0건 함정 방지 — 기능 자체가 꺼지면 위 두 단언은 공허하게 통과한다. 같은 실행에서
+    // **걸러지지 않아야 할 것**이 실제로 깔렸는지 함께 본다.
+    expect(report.installedNew).toContain(".claude/agents/reviewer.md");
   });
 
   it("이미 있는 파일은 덮어쓰지 않는다 — 갱신은 편집분 판정을 하는 경로의 몫이다", () => {
@@ -825,6 +861,9 @@ describe("신규 자산 설치 (#283)", () => {
       "내가 고친 것\n",
     );
     expect(report.installedNew).not.toContain(".uzys-agent-harness/protect-branch.sh");
+    // 0건 함정 방지 — 기능이 꺼져도 위 단언은 통과한다. 같은 실행에서 **없던 것**은
+    // 실제로 깔렸는지 함께 본다.
+    expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
   });
 
   it("새로 깐 정책 파일이 기준선에 들어간다 — 다음 update 가 사용자 파일로 오판하면 안 된다", () => {

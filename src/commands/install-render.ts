@@ -440,12 +440,18 @@ function renderPhase1Rows(
     }
     // #283 — 릴리즈로 새로 생긴 자산. 갱신 건수에 합치지 않고 따로 낸다: 사용자가 안 만든
     // 파일이 늘어난 것이므로 "몇 개 갱신"과는 다른 사실이고, 조용하면 자기 것으로 오인한다.
-    if (baseline.updateMode.installedNew.length > 0) {
+    // 한 줄에 이어 붙이지 않는다 — 레거시 설치본에서는 십수 개가 한 번에 나온다.
+    for (const path of baseline.updateMode.installedNew) {
+      log(assetRow("success", path, "added by this release"));
+    }
+    // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
+    // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
+    if (baseline.updateMode.needsReinstall.length > 0) {
       log(
         assetRow(
-          "success",
-          "new assets",
-          `${baseline.updateMode.installedNew.join(", ")} · added by this release`,
+          "skip",
+          "needs reinstall",
+          `${baseline.updateMode.needsReinstall.join(", ")} · new in this release but update cannot wire them — run \`agent-harness install\` to get them`,
         ),
       );
     }

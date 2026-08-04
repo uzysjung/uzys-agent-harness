@@ -69,5 +69,15 @@ regardless of what Claude decides, use a PreToolUse hook instead."
 - `cli-development` 이 path-scoped 가 되면서 `.sh` 를 안 만지는 세션에서는 로드되지 않는다.
   이 저장소의 `paths:` 사용 0개 원칙이 여기서 깨진다 — 지연 로드는 공식 지원이고, 이 룰은
   "관련 파일을 다룰 때만 필요"라는 조건에 실제로 부합한다.
+  **다만 그 절감은 Claude Code 한정이다.** OpenCode 를 함께 깐 설치본은 `opencode.json` 의
+  `instructions` 가 `.claude/rules/*.md` 를 글롭으로 무조건 병합하므로 이 룰이 여전히 매 세션
+  상주하고, frontmatter 3줄이 지시문 본문에 섞인다. codex·antigravity 는 앵커만 인라인해서
+  룰 자체가 안 들어가므로 무관하다. 독립 검증이 지적한 지점이고, 코드 변경 없이 사실로 남긴다.
+- **`update` 는 훅과 `settings.json` 을 새로 깔지 않는다.** 훅은 `settings.json` 의 배선이 있어야
+  발화하는데 update 는 그 파일을 동기화하지 않으므로, 파일만 놓으면 "설치됐는데 한 번도 안 도는"
+  상태가 된다. 대신 재설치가 필요하다고 보고한다(`needsReinstall`). 신규 훅을 받으려면
+  `agent-harness install` 재실행이 필요하다.
+- **`.uzys-agent-harness/*.sh` 는 설치만 되고 갱신되지 않는다.** `POLICY_DIRS` 밖이라 갱신 경로가
+  없다. 다음 릴리즈에서 스크립트 내용이 바뀌면 기존 설치본은 옛 판본을 계속 쓴다 — 후속 과제.
 - **효과는 미검증이다.** 줄어든 토큰 수는 그 자체로 층이 나아졌다는 증거가 아니다. 실제 판정은
   행동 관측이고, 이 릴리스 시점에 그 관측은 없다.

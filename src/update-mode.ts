@@ -109,6 +109,14 @@ export interface UpdateModeReport {
    * 늘어난 파일은 사용자가 자기 것으로 오인한다.
    */
   installedNew: string[];
+  /**
+   * 이 릴리즈에 새로 생겼지만 **update 가 깔 수 없는** 자산 (projectDir 상대경로).
+   *
+   * 훅과 `settings.json` 이 그쪽이다 — 훅은 `settings.json` 의 배선이 있어야 발화하는데 update 는
+   * 그 파일을 동기화하지 않는다(죽은 참조를 지울 뿐이다). 파일만 놓고 "추가됨"이라 보고하면
+   * 안 도는 기능을 받았다고 읽히므로(거짓출하), 깔지 않고 **재설치가 필요하다는 사실을 낸다.**
+   */
+  needsReinstall: string[];
 }
 
 /**
@@ -159,12 +167,15 @@ export function runUpdateMode(
     externalUpdated: 0,
     externalBackedUp: [],
     installedNew: [],
+    needsReinstall: [],
   };
 
   // 0) 릴리즈로 **새로 생긴** 자산 설치 (#283). 정책 동기화보다 먼저 도는 이유는
   // `refreshPolicyBaseline` 이 아래에서 기준선을 다시 찍기 때문이다 — 순서를 뒤집으면 방금 깐
   // 파일이 기준선에 없어 다음 update 가 "사용자가 만든 파일"로 오판한다.
-  report.installedNew = installNewAssets(projectDir, templatesDir);
+  const fresh = installNewAssets(projectDir, templatesDir);
+  report.installedNew = fresh.installed;
+  report.needsReinstall = fresh.needsReinstall;
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
@@ -226,23 +237,53 @@ export function runUpdateMode(
  *
  * **이미 있는 파일은 건드리지 않는다** — 갱신은 `updateDir`·`syncSkills` 의 몫이고 그쪽은
  * 사용자 편집분 판정과 백업을 한다. 여기서 덮어쓰면 그 판정을 우회하게 된다.
+ *
+ * **`.claude/` 는 claude 를 고른 설치본에만 넣는다.** install 은 `spec.cli` 에 claude 가 있을 때만
+ * 그 baseline 을 만든다(`installer.ts` — codex/opencode 단독 사용자의 dead weight 회피). update 에
+ * 그 술어가 없으면 codex 전용 설치본에 `.claude/` 하네스가 통째로 들어가고, 그중 `settings.json`
+ * 은 훅 배선과 외부 실행까지 딸려 온다 — 고른 적 없는 CLI 의 설정이다.
+ *
+ * **훅과 settings.json 은 대상이 아니다.** 훅은 파일만으로는 안 돈다: `settings.json` 의 배선이
+ * 있어야 발화하는데 update 는 그 파일을 동기화하지 않는다(`cleanStaleHookRefs` 로 죽은 참조를
+ * 지울 뿐이다). 깔아 놓고 "추가됨"이라 보고하면 사용자는 안 도는 기능을 받았다고 읽는다 —
+ * `hook-wiring-parity` 가 templates 쪽에서 막는 바로 그 상태를 update 가 만드는 셈이다.
+ * 대신 **재설치가 필요하다고 알린다**(`needsReinstall`).
  */
-function installNewAssets(projectDir: string, templatesDir: string): string[] {
-  const written: string[] = [];
+function installNewAssets(
+  projectDir: string,
+  templatesDir: string,
+): { installed: string[]; needsReinstall: string[] } {
+  const installed: string[] = [];
+  const needsReinstall: string[] = [];
+  // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
+  // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
+  const claudeSelected = readInstallLog(projectDir)?.spec.cli.includes("claude") ?? false;
+
   for (const entry of trackOnlyFileAssets(installedTracks(projectDir))) {
     // 하네스 앵커는 제외 — `syncHarnessAnchor` 가 **이행 로직과 함께** 소유한다. 여기서 먼저
     // 만들면 그쪽이 "이미 있었다"로 보고 루트 `CLAUDE.md` 의 import 줄을 얹지 않아, ADR-060
     // 이행이 조용히 반쪽이 된다.
     if (entry.target === HARNESS_ANCHOR_FILE) continue;
+
     const target = join(projectDir, entry.target);
     if (existsSync(target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
+
+    if (entry.target.startsWith(".claude/")) {
+      if (!claudeSelected) continue;
+      // 배선이 있어야 사는 자산 — 파일만 놓으면 침묵하는 거짓 설치가 된다.
+      if (entry.target.startsWith(".claude/hooks/") || entry.target === ".claude/settings.json") {
+        needsReinstall.push(entry.target);
+        continue;
+      }
+    }
+
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(source, target);
-    written.push(entry.target);
+    installed.push(entry.target);
   }
-  return written;
+  return { installed, needsReinstall };
 }
 
 /**
