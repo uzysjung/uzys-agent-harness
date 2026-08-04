@@ -188,9 +188,9 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
   it("지목을 실제로 찾아낸다 (헛통과 차단)", () => {
     // 참조 탐지가 깨지면 아래 단언이 전부 공허하게 통과한다. 초록불이 무는지부터 확인한다.
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
-    // 2026-08-02 정비)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
+    // 2026-08-02 정비 → 7, 2026-08-04 #284)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    expect(references).toBeGreaterThan(3); // 실측 4 — 동일 취지로 실측 근처로 조임
+    expect(references).toBeGreaterThan(2); // 실측 3 — 동일 취지로 실측 근처로 조임
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
@@ -198,8 +198,8 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     const { assetTracks, docTracks } = buildIndexes();
     expect(assetTracks.size).toBeGreaterThan(20);
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
-    // 21(룰 20 + 앵커)에서 9(룰 8 + 앵커)로 줄었다(2026-08-02 정비 + 다이어트).
-    expect(docTracks.size).toBeGreaterThan(8); // 모수 9 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
+    // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284 로 benchmark-parity 제거)로 줄었다.
+    expect(docTracks.size).toBeGreaterThan(7); // 모수 8 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
   });

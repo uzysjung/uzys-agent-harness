@@ -2,90 +2,46 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// v26.119.0 (ADR-045) — doc-governance "착수 전 baseline 대조" 절의 계약 검증.
-// 이 절이 신설된 사유 = 출구 동기화("작업 완료 처리")가 "모두가 매번 지켰다"를 전제하는데 그
-// 전제가 깨진 사례가 3개 프로젝트에서 관측됐다는 것. 아래 마커들은 장식이 아니라, 5인 페르소나
-// 패널이 1차 초안에서 찾아낸 **자기 규약 위반 4건**을 봉합한 지점이다 — 하나라도 풀리면 그
-// 결함이 그대로 되살아난다.
+// v26.119.0 (ADR-045) — doc-governance "착수 전 baseline 대조" 계약의 검증.
+//
+// 2026-08-04 (#284) — 계약이 **절 구조에서 원칙 문장으로** 축소됐다. ADR-045 가 봉합한 결함은
+// "출구 동기화가 '모두가 매번 지켰다'를 전제하는데 그 전제가 3개 프로젝트에서 깨졌다"이고,
+// 그걸 막는 것은 **행동을 바꾸는 문장**이지 발동 조건표·3분류표·MECE 위임 참조가 아니다.
+// 후자는 그 작업을 할 때만 필요한 절차인데 매 세션 상주했다.
+//
+// 그래서 이 게이트가 무는 대상도 좁아졌다. 지금 무는 것은 **잃으면 결함이 되살아나는 것**뿐이다:
+//   ⓐ 미완 표기를 "안 된 것"으로 읽지 않는다 (= 재구현 유발)
+//   ⓑ 심볼 존재를 완료 증거로 쓰지 않는다 (= 거짓 완료)
+//   ⓒ 판정 불가일 때의 기본값 (= 실행자가 멈추거나 임의로 채우는 것 방지)
+//   ⓓ 무근거 임계값 금지 (= 에이전트가 발동 여부를 스스로 판정 못 하는 상태 방지)
+// 빠진 것: 절 헤딩과 그 순서 · 앵커 원칙 번호 참조 · author/커밋 발동조건 · 3분류 표 ·
+// benchmark-parity/change-management 위임 참조(전자는 #284 로 삭제됨) · 게이트 부재 자인 문구 ·
+// 전례 한 줄 · 246 토큰 상한. 전부 절 구조에 딸린 것이고, 절이 없어지면 검사할 대상도 없다.
 
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
 const tpl = read("../templates/rules/doc-governance.md");
 
-// 양끝 앵커링: 낱말 매치는 무관 산문에도 걸린다. 반드시 이 절 안에서만 판정한다.
-const section =
-  (tpl.split("## 착수 전 baseline 대조")[1] ?? "").split("## 현행 vs archive")[0] ?? "";
-
-describe("doc-governance — 착수 전 baseline 대조 절", () => {
-  it("절이 존재하고 출구 동기화 절 뒤에 온다", () => {
-    // 순서가 뒤집히면 "출구의 짝"이라는 독해가 깨진다.
-    expect(section).not.toBe("");
-    expect(tpl.indexOf("## 작업 완료 처리")).toBeLessThan(tpl.indexOf("## 착수 전 baseline 대조"));
+describe("doc-governance — 착수 전 baseline 대조 계약", () => {
+  it("미완 표기를 '모르는 것'으로 읽으라고 말한다 — 재구현을 막는 문장이다", () => {
+    expect(tpl).toMatch(/미완 표기는 "안 된 것"이 아니라/);
+    expect(tpl).toMatch(/모르는 것/);
   });
 
-  it("앵커의 상주 원칙과의 경계를 선언한다", () => {
-    // 그 원칙("읽고 나서 쓴다")은 이미 매 세션 상주한다. 관계를 밝히지 않으면 이 절은
-    // doc-governance 자신의 "같은 사실을 두 곳에 쓰지 않는다"를 어기는 순수 중복이 된다.
-    //
-    // v26.141.0 (ADR-055) — 기대값이 `Rule 8` 이었다 (rule-ref:frozen). 앵커가 6원칙으로 교체되면서
-    // 그 번호가 사라졌고, **게이트가 없어진 이름을 리터럴로 물고 있던 것**이다(E7-1 스윕이 본문을
-    // `원칙 1` 로 재지목했고 테스트의 의도 — 경계 선언 — 는 그대로 충족된다). 죽은 이름을 병기 (rule-ref:frozen)
-    // 하지 않는 이유: 병기하면 죽은 참조가 영구히 허용값으로 남고, 그것을 잡으려고 만든
-    // `resident-rule-reference-liveness` 게이트와 정면으로 어긋난다.
-    expect(section).toContain("원칙 1");
+  it("심볼 존재를 완료 증거로 쓰지 말라고 말한다 — 거짓 완료를 막는 문장이다", () => {
+    expect(tpl).toMatch(/심볼이 있다는 것만으로 완료로 읽지 않는다/);
   });
 
-  it("발동 조건이 기계로 확인 가능하다 — 무근거 임계값 금지", () => {
-    // benchmark-parity.md 는 heuristic threshold("30일","50%")를 근거 없이 단정하는 것을 금지한다.
-    // 1차 초안의 "문서와 코드가 며칠 이상 떨어져 있던" 이 정확히 그 위반이었고, 그 상태로는
-    // 에이전트가 발동 여부를 스스로 판정할 수 없어 절 전체가 무시된다.
-    expect(section).not.toMatch(/며칠|\d+일 이상|\d+% 이상/);
-    expect(section).toContain("author");
-    expect(section).toMatch(/커밋/);
-    // 착수 단위가 없으면 항목마다 재대조해 비용이 수십 배로 튄다.
-    expect(section).toMatch(/백로그 전체에 1회/);
+  it("판정 불가 시의 기본값이 있다 — 없으면 실행자가 멈추거나 임의로 채운다", () => {
+    expect(tpl).toMatch(/못 찾았다고 착수를 보류하지는? 않는다/);
   });
 
-  it("3분류 표에 판정 불가 시의 기본값이 있다", () => {
-    // 기본값이 없으면 실행자가 "완전 구현인지 모르겠다"에서 멈추거나 임의로 채운다.
-    for (const state of ["완전 구현", "부분 구현", "판정 불가"]) {
-      expect(section).toContain(state);
-    }
-    expect(section).toMatch(/못 찾았다고 착수를 보류하지 않는다/);
+  it("무근거 임계값을 쓰지 않는다 — 에이전트가 발동을 스스로 판정할 수 있어야 한다", () => {
+    expect(tpl).not.toMatch(/며칠|\d+일 이상|\d+% 이상/);
   });
 
-  it("엄격도와 승인범위를 재서술하지 않고 소유 자산에 위임한다 (MECE)", () => {
-    // 재서술하면 두 곳이 어긋나는 drift 가 시작된다 — 참조로 유지해야 한다.
-    expect(section).toContain("benchmark-parity.md");
-    expect(section).toContain("단순 존재 ≠ 완결");
-    expect(section).toContain("change-management.md");
-  });
-
-  it("게이트 부재를 자인한다", () => {
-    // 프로즈 규약이 게이트인 척하면 no-false-ship 위반. recurrence-prevention 사다리상 첫
-    // 도입이라 프로즈로 시작하되, 그 한계를 독자가 알아야 한다.
-    expect(section).toMatch(/게이트가 없다/);
-    expect(section).toMatch(/게이트로 승격/);
-  });
-
-  it("사고 서사를 인라인으로 늘어놓지 않고 ADR 로 위임한다", () => {
-    // git-policy.md "Drift Period" 관용구 = 사고 요약 한 줄 + "상세 ADR-NNN 참조".
-    // 길이 상한을 임의 숫자로 두면 그 자체가 benchmark-parity 가 금지하는 무근거 임계값이 된다.
-    // 대신 이 파일의 실제 랩 관용구(최장 105자)를 기준으로 "한 줄"을 강제한다.
-    // v26.128.0 — 원래 `/ADR-\d+/` 로 **번호까지** 요구했으나 일반화했다. 이 파일은
-    // `templates/` = 배포물이고, 설치자에게 우리 `ADR-045` 는 가리키는 대상이 없다
-    // (`templates-distribution-hygiene` 이 구체 좌표를 금지한다 — 두 게이트가 충돌했고
-    // 배포 위생이 이겼다). 지켜야 할 계약은 "서사 대신 한 줄 + ADR 위임"이지 번호가 아니다.
-    const preface = section.split("\n").filter((l) => l.startsWith("전례:"));
-    expect(preface).toHaveLength(1);
-    expect(preface[0]).toMatch(/ADR/);
-    expect(preface[0]?.length ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(105);
-  });
-
-  it("절 크기가 ADR-045 가 공표한 비용 안에 머문다", () => {
-    // ADR-045 는 이 절을 ~246 토큰으로 공표한다. 서사가 슬금슬금 되돌아오면 그 공표가 거짓이
-    // 되고, 상주 비용 지표(ADR-043/044)도 같이 오염된다. 상한은 임의값이 아니라 공표치 기준이다.
-    const advertised = 246;
-    expect(Math.ceil(section.length / 4)).toBeLessThanOrEqual(advertised);
+  it("사고 서사를 인라인으로 늘어놓지 않는다 — 상주 비용을 내는 것은 행동을 바꾸는 문장뿐", () => {
+    expect(tpl).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(tpl).not.toMatch(/^전례:/m);
   });
 
   it("templates 와 설치본(.claude) 이 1:1 이다", () => {

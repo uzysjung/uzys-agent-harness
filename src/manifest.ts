@@ -67,9 +67,11 @@ const onTracks =
 //   모델이 이미 아는 분류였고, 설치자가 받아 가는 것은 판정이 아니라 어휘표였다.
 const COMMON_RULES = ["git-policy", "change-management", "doc-governance"];
 const DEV_RULES = ["test-policy", "ship-checklist"];
-// v26.109.0 (ADR-038, 라이프사이클 자산화 ③) — benchmark-parity: 레퍼런스 실측 → gap.md →
-//   완결성 루프. capture 수단의 SSOT 인 playwright-launch 와 짝으로만 성립하므로 UI 트랙 한정.
-const UI_RULES = ["playwright-launch", "benchmark-parity"];
+// 2026-08-04 (#284) — `benchmark-parity` 제거. 그 룰이 담고 있던 것은 gap.md 표 스키마 · PR
+//   의무 필드 · dogfood walkthrough 절차였다. 전부 **그 작업을 할 때만** 필요한 절차인데 매
+//   세션 상주했고, 같은 일을 `audit-service-gaps` 스킬이 온디맨드로 이미 담당한다. 남는 것은
+//   capture 금지문뿐이고 그건 playwright-launch 가 소유한다.
+const UI_RULES = ["playwright-launch"];
 
 // 2026-08-02 정비 — 기술스택 상세 룰(shadcn·nextjs·htmx·pyside6·database·api-contract·
 //   data-analysis·tauri)을 배포에서 뺐다. 모델이 이미 아는 것을 상주로 부담시키던 자리다.
