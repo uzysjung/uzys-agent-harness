@@ -122,5 +122,21 @@ Present a decision or approval request as AS-IS → TO-BE with a recommendation 
 as prose. Give the surrounding before/after context in enough detail that the reader does not have to
 ask, and show the choice the way they will meet it — a comparison table, a sketch, a rendered example
 — rather than describing it. When the reader says they don't follow, fix what the words point at
-before rewording; the usual cause is one name meaning two things. Where the
-`clear-korean-communication` skill is installed, use it for this.
+before rewording; the usual cause is one name meaning two things.
+
+## Skills that apply continuously
+
+A skill loads when it looks relevant to the prompt. That is enough for task-shaped skills and not
+enough for these, which apply to every response or every delegation — so each one is named here.
+Each is selected individually at install time, hence the condition on every line.
+
+- `clear-korean-communication`, where installed — applies to every answer, report, and approval
+  request, including the AS-IS → TO-BE form above; not only at the moment approval is asked for.
+- `task-brief`, where installed — normalize an incoming work request into the brief shape before
+  starting, filling the fields the request left open from context, and show the filled-in brief so
+  the user can carry it straight into a prompt. Marking which values were assumed is part of it.
+- `model-orchestration`, where installed — when work is delegated, it decides which model and which
+  effort each lane gets.
+
+Unless this repository defines otherwise, a merge is gated on regression tests covering what
+changed, and a release additionally runs the full suite and the end-to-end flows.

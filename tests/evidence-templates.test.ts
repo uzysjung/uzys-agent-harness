@@ -6,7 +6,6 @@ import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
 // v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) — 증거 산출물 템플릿 3종의 광고 계약 검증.
 // ① deep-research: 리서치 원장(N confirmed·M killed + 기각 사유 + caveat)
 // ② eval-harness: eval spec 아티팩트 계약(C·R ID·Baseline·Test Command·Status)
-// ③ benchmark-parity: dogfood pass — **신규 스키마 없이** 기존 gap.md 재사용 (중복 금지 원칙)
 // 앵커는 섹션 슬라이스 양끝 — 무앵커는 다른 절의 동일 낱말로 통과한다 (④⑤ SOD mutation 실증).
 
 const read = (rel: string): string =>
@@ -14,7 +13,6 @@ const read = (rel: string): string =>
 
 const dr = read("../templates/skills/deep-research/SKILL.md");
 const eh = read("../templates/skills/eval-harness/SKILL.md");
-const bp = read("../templates/rules/benchmark-parity.md");
 
 const slice = (text: string, start: string, end: string): string =>
   (text.split(start)[1] ?? "").split(end)[0] ?? "";
@@ -45,13 +43,10 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     expect(define).toContain("falsifiable");
   });
 
-  it("benchmark-parity: dogfood 는 신규 스키마 없이 gap.md 를 재사용한다", () => {
-    const dogfood = slice(bp, "## Dogfood pass", "## PR 의무 필드");
-    expect(dogfood).toContain("gap.md");
-    expect(dogfood).toContain("새 스키마를 만들지 말고");
-    expect(dogfood).toContain("배포본");
-    expect(dogfood).toMatch(/CRITICAL 0/);
-  });
+  // 2026-08-04 (#284) — `benchmark-parity` 룰의 dogfood 계약 검증이 여기 있었다. 룰이 배포에서
+  // 빠지면서 함께 제거됐다: 그 룰이 담던 gap.md 표 스키마·PR 의무 필드·walkthrough 절차는 그
+  // 작업을 할 때만 필요한데 매 세션 상주했고, 같은 일을 `audit-service-gaps` 스킬이 담당한다.
+  // 룰이 되살아나면 `tests/manifest.test.ts` 가 잡는다 (상주로 되돌아가는 것이 회귀다).
 
   it("C2→C3 재분류: deep-research·eval-harness 는 withEcc 무관 install (수정본)", () => {
     // 수정본을 C2 로 두면 plugin ON 사용자는 원장/eval 계약이 없는 ECC 판만 받는다
@@ -113,11 +108,7 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     // ```markdown 을 닫아, 이후 산문과 기존 헤딩까지 코드로 렌더됐다. 계약 테스트는 전부
     // toContain 이라 코드블록 안 텍스트로도 통과 — 형식 파손을 아무도 못 잡았다.
     // 중첩 시 바깥 펜스는 백틱 4개 이상이어야 한다 (CommonMark: 닫는 펜스는 정보 문자열 없음).
-    for (const rel of [
-      "skills/eval-harness/SKILL.md",
-      "skills/deep-research/SKILL.md",
-      "rules/benchmark-parity.md",
-    ]) {
+    for (const rel of ["skills/eval-harness/SKILL.md", "skills/deep-research/SKILL.md"]) {
       const lines = read(`../templates/${rel}`).split("\n");
       let openFence: string | null = null;
       for (const [idx, line] of lines.entries()) {
@@ -191,11 +182,7 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
   });
 
   it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
-    for (const rel of [
-      "skills/deep-research/SKILL.md",
-      "skills/eval-harness/SKILL.md",
-      "rules/benchmark-parity.md",
-    ]) {
+    for (const rel of ["skills/deep-research/SKILL.md", "skills/eval-harness/SKILL.md"]) {
       expect(read(`../.claude/${rel}`), rel).toBe(read(`../templates/${rel}`));
     }
   });

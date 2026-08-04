@@ -246,6 +246,34 @@ tokens or quality — they survive in steering layers as legacy scaffolding, so 
 
 A flag is a candidate, not a verdict. Confirm it against the section's evidence before ruling.
 
+### When the model underneath changes — ablate, then re-earn
+
+A steering layer accumulates corrections aimed at whichever model was current when each line was
+written. Those lines do not expire on their own. After the project moves to a newer model they keep
+charging adherence to correct mistakes it no longer makes, and the layer reads as a record of past
+model weaknesses rather than of this project.
+
+The reset is deliberate rather than gradual: **take the accumulated instructions out, do the work,
+and add back only what an observed, repeated mistake demands.** A line earns its place by a failure
+someone watched happen on the model in use — never by having been true of an older one. This is the
+same bar the vendor sets for writing a steering line at all, applied at the moment the model
+underneath changes.
+
+The same reasoning bounds how much method to specify. Instructions that dictate *how* a capable
+model reaches a result cap the result at the author's plan, because the model has to follow them
+literally even when it sees further. State the goal, the constraints that genuinely must hold, and
+how the work will be judged — then leave the method open. Pin down a specific method only where one
+is actually required: an external contract, a boundary that must not be crossed, or a tool the model
+cannot discover on its own (a script this harness installed, for instance).
+
+| Pattern | Why it costs |
+|---|---|
+| Instruction carried over from an older model, with no observed failure on the current one | Pure adherence tax — it dilutes the lines that do matter |
+| Step-by-step scaffolding for work the model can plan itself | Caps the outcome at the author's plan and hides better approaches |
+| Method pinned down where only the outcome matters | Same cost, and it goes stale when the tooling changes |
+
+Both patterns rule `delete` when nothing in Stage 2's evidence names a failure they prevented.
+
 ### Assign exactly one verdict per section
 
 - **keep** — maps to an include category, is off the exclude list, and belongs resident.
@@ -280,6 +308,26 @@ the model attempts, so pair it with one of the two real mechanisms rather than s
 
 Relocation is not free either. A hook adds a shell dependency and an administrative surface; a
 skill adds a descriptor to every session. Say what the move costs, not only what it saves.
+
+### The reverse move — a skill that never fires
+
+Moving a procedure into a skill only pays off if the skill actually loads. Skills load when the model
+judges them relevant to the prompt, which is enough for task-shaped skills ("review this UI") and
+not enough for skills meant to apply to *every* answer or *every* delegation. Those need one resident
+line saying when they apply; without it the skill is installed, costs a descriptor every session, and
+never runs.
+
+Write the line only for skills this project actually has — a pointer to an uninstalled skill is a
+dead reference, and this audit exists to remove those, not to add them. Check the install first:
+
+| Skill, where installed | The resident line it needs |
+|---|---|
+| `clear-korean-communication` | It applies to every answer, report, and approval request — not only at the moment approval is asked for |
+| `task-brief` | Incoming work requests are normalized into the brief shape before work starts, and the filled-in brief is shown to the user |
+| `model-orchestration` | Delegation follows it — which model and which effort each lane gets is its call, not an ad-hoc pick |
+
+One line each. The skill body holds the procedure; the resident line carries only *when it applies*,
+which is the part the model cannot infer from a descriptor.
 
 ## Stage 5 — APPLY (propose; the human decides)
 

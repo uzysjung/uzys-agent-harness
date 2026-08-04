@@ -431,7 +431,7 @@ describe("상주 항목 수 (quantity 축)", () => {
   it.each([
     ["executive", { rules: 3, skills: 7, agents: 5, claudeMd: 2, total: 17 }],
     ["tooling", { rules: 6, skills: 6, agents: 9, claudeMd: 2, total: 23 }],
-    ["full", { rules: 8, skills: 14, agents: 9, claudeMd: 2, total: 33 }],
+    ["full", { rules: 7, skills: 14, agents: 9, claudeMd: 2, total: 32 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

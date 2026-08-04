@@ -9,6 +9,7 @@ import {
   MODIFIED_ECC_SKILL_DIRS,
   resolveRules,
 } from "../src/manifest.js";
+import { TRACKS } from "../src/types.js";
 
 describe("resolveRules", () => {
   it("includes COMMON rules for any track", () => {
@@ -36,18 +37,16 @@ describe("resolveRules", () => {
     expect(resolveRules({ tracks: ["full"] })).toContain("playwright-launch");
   });
 
-  it("includes benchmark-parity only alongside playwright-launch (UI tracks)", () => {
-    // v26.109.0 (ADR-038) — 벤치마크 실측→gap.md 루프는 capture 수단을 규정하는
-    //   playwright-launch 와 짝일 때만 성립한다. 화면 없는 트랙에 깔리면 실행 불가능한
-    //   의무(capture 확보)만 부과하므로 UI 트랙 한정.
-    for (const track of ["ssr-nextjs", "csr-supabase", "full"] as const) {
-      const rules = resolveRules({ tracks: [track] });
-      expect(rules).toContain("benchmark-parity");
-      expect(rules).toContain("playwright-launch");
-    }
-    for (const track of ["tooling", "data", "executive", "project-management"] as const) {
+  it("benchmark-parity 는 어느 트랙에도 깔리지 않는다 (#284 — 스킬이 대신한다)", () => {
+    // v26.109.0 (ADR-038) 이 UI 트랙 한정으로 넣었던 룰이다. 2026-08-04 (#284) 에 빠졌다:
+    // 그 룰이 담고 있던 것은 gap.md 표 스키마 · PR 의무 필드 · dogfood walkthrough 절차이고,
+    // 전부 **그 작업을 할 때만** 필요한데 매 세션 상주했다. 같은 일을 `audit-service-gaps`
+    // 스킬이 온디맨드로 담당한다. 되살아나면(= 상주로 되돌아가면) 여기서 잡는다.
+    for (const track of TRACKS) {
       expect(resolveRules({ tracks: [track] })).not.toContain("benchmark-parity");
     }
+    // 0건 함정 방지 — 룰 해석 자체가 죽으면 위 단언이 공허하게 통과한다.
+    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("playwright-launch");
   });
 
   // 2026-08-02 정비 — 기술스택 상세 룰 8종(shadcn·nextjs·htmx·pyside6·database·api-contract·

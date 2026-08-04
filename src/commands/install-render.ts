@@ -438,6 +438,17 @@ function renderPhase1Rows(
     for (const [dir, count] of Object.entries(baseline.updateMode.updated)) {
       if (count > 0) log(assetRow("success", dir, `${count} files updated`));
     }
+    // #283 — 릴리즈로 새로 생긴 자산. 갱신 건수에 합치지 않고 따로 낸다: 사용자가 안 만든
+    // 파일이 늘어난 것이므로 "몇 개 갱신"과는 다른 사실이고, 조용하면 자기 것으로 오인한다.
+    if (baseline.updateMode.installedNew.length > 0) {
+      log(
+        assetRow(
+          "success",
+          "new assets",
+          `${baseline.updateMode.installedNew.join(", ")} · added by this release`,
+        ),
+      );
+    }
     for (const [dir, removed] of Object.entries(baseline.updateMode.pruned)) {
       if (removed.length > 0) {
         log(assetRow("skip", `${dir} orphan prune`, `${removed.length} removed`));

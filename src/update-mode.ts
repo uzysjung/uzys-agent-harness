@@ -38,6 +38,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import { type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
 
@@ -100,6 +101,14 @@ export interface UpdateModeReport {
   externalUpdated: number;
   /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
   externalBackedUp: string[];
+  /**
+   * 이번 update 가 **새로 깔아 준** 자산 (projectDir 상대경로) — #283.
+   *
+   * 갱신(`updated`)과 배타적이다: 갱신은 이미 있던 파일, 이쪽은 릴리즈로 새로 생겨서
+   * 이 설치본에 아직 없던 파일이다. 화면에 남기는 이유는 `anchorCreated` 와 같다 — 조용히
+   * 늘어난 파일은 사용자가 자기 것으로 오인한다.
+   */
+  installedNew: string[];
 }
 
 /**
@@ -149,7 +158,13 @@ export function runUpdateMode(
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
+    installedNew: [],
   };
+
+  // 0) 릴리즈로 **새로 생긴** 자산 설치 (#283). 정책 동기화보다 먼저 도는 이유는
+  // `refreshPolicyBaseline` 이 아래에서 기준선을 다시 찍기 때문이다 — 순서를 뒤집으면 방금 깐
+  // 파일이 기준선에 없어 다음 update 가 "사용자가 만든 파일"로 오판한다.
+  report.installedNew = installNewAssets(projectDir, templatesDir);
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
@@ -195,6 +210,67 @@ export function runUpdateMode(
   report.externalBackedUp = external.externalBackedUp;
 
   return report;
+}
+
+/**
+ * 릴리즈로 **새로 생긴** 자산을 설치한다 (#283).
+ *
+ * update 의 기본 규율은 "이미 있는 것만 갱신"이고(`updateDir` Track 혼입 방지), 그 규율에는
+ * 반대편 구멍이 있었다: 릴리즈가 자산을 **추가하면** 기존 설치본은 update 를 몇 번 돌려도 그
+ * 파일을 영영 못 받는다. 실제로 `.uzys-agent-harness/` 의 두 스크립트가 그 자리였고, 배포판
+ * 룰(`ship-checklist`·`doc-governance`)이 그 경로를 호출하라고 적는 동안 파일은 없었다 —
+ * 훅·에이전트·룰도 같은 경로로 새로 추가되므로 증상은 스크립트에만 있는 것이 아니다.
+ *
+ * **무엇을 깔지는 manifest 가 SSOT** 다. 여기에 파일 목록을 적으면 그게 두 번째 사본이 되어
+ * 다음에 추가되는 자산이 똑같이 빠진다 (이 repo 가 반복해서 당한 열거-사본 실패 모드).
+ *
+ * **이미 있는 파일은 건드리지 않는다** — 갱신은 `updateDir`·`syncSkills` 의 몫이고 그쪽은
+ * 사용자 편집분 판정과 백업을 한다. 여기서 덮어쓰면 그 판정을 우회하게 된다.
+ */
+function installNewAssets(projectDir: string, templatesDir: string): string[] {
+  const written: string[] = [];
+  for (const entry of trackOnlyFileAssets(installedTracks(projectDir))) {
+    // 하네스 앵커는 제외 — `syncHarnessAnchor` 가 **이행 로직과 함께** 소유한다. 여기서 먼저
+    // 만들면 그쪽이 "이미 있었다"로 보고 루트 `CLAUDE.md` 의 import 줄을 얹지 않아, ADR-060
+    // 이행이 조용히 반쪽이 된다.
+    if (entry.target === HARNESS_ANCHOR_FILE) continue;
+    const target = join(projectDir, entry.target);
+    if (existsSync(target)) continue;
+    const source = join(templatesDir, entry.source);
+    if (!existsSync(source)) continue;
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(source, target);
+    written.push(entry.target);
+  }
+  return written;
+}
+
+/**
+ * opt-in 선택과 무관하게 이 트랙 구성이 받아야 하는 **파일** 자산.
+ *
+ * update 는 사용자가 어떤 opt-in 을 골랐는지 모른다 — install log 의 spec 은 tracks·cli 뿐이다.
+ * 그래서 opt-in 축을 **양극단으로 평가해 교집합**을 취한다: 어느 쪽에서도 설치 대상이면 선택과
+ * 무관한 자산이고, 한쪽에서만 대상이면 선택에 달린 자산이라 update 가 임의로 들일 수 없다
+ * (plugin 을 켠 사용자에게 ECC fallback 에이전트를 깔면 그게 곧 원치 않는 자산이다).
+ * 축 이름을 열거하지 않는 이유는 늘 같다 — 열거는 곧 두 번째 사본이고, 다음에 늘어나는 축이
+ * 여기서 빠진다.
+ *
+ * `type: "dir"` 은 제외한다. 그쪽은 스킬 디렉터리이고 설치 여부를 `selectedInternalSkills` 가
+ * 가르는데 update 는 그 선택을 복원할 수 없다 (`syncSkills` 가 "이미 깔린 것만" 다루는 것과
+ * 같은 이유).
+ *
+ * 트랙 기록이 없으면 빈 배열이 들어와 `applies: all` 자산만 남는다 — 모르는 트랙의 자산을
+ * 들이지 않으면서 전 트랙 공통분은 복구된다.
+ */
+function trackOnlyFileAssets(tracks: ReadonlyArray<Track>): AssetEntry[] {
+  const base = { tracks, selectedInternalSkills: [] as ReadonlyArray<string> };
+  const optedOut: AssetSpec = { ...base, withEcc: false, withTauri: false };
+  const optedIn: AssetSpec = { ...base, withEcc: true, withTauri: true };
+  // `buildManifest` 는 목록만 만들고 게이팅은 하지 않는다 — 거르는 것은 각 엔트리의 `applies`
+  // 술어이고, 그건 호출자가 평가한다 (`installer.ts` 의 manifest 루프와 같은 계약).
+  return buildManifest(optedOut).filter(
+    (e) => e.type === "file" && e.applies(optedOut) && e.applies(optedIn),
+  );
 }
 
 /**
