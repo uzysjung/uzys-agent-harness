@@ -16,6 +16,8 @@
 #   ③ 룰 파일이 없으면 update 가 설치한다 (트랙이 요구하는 것만)
 #   ④ 사용자가 고친 파일은 덮어쓰지 않는다 (신규 설치 경로가 갱신 경로를 침범하지 않는다)
 #   ⑤ 트랙 밖 룰은 들이지 않는다 (Track 혼입 방지)
+#   ⑥ codex 전용 설치본에 `.claude/` 를 들이지 않는다 (독립 리뷰 HIGH-1)
+#   ⑦ 배선할 수 없는 훅은 깔지 않고 재설치를 안내한다 (독립 리뷰 HIGH-2)
 
 set -euo pipefail
 
@@ -72,12 +74,18 @@ done
 echo "✓ ① 없던 스크립트 2종을 update 가 설치"
 
 # 화면에 남는가 — 조용히 늘어난 파일은 사용자가 자기 것으로 오인한다.
-if ! grep -q "new assets" /tmp/new-assets.txt; then
+# 경로마다 한 줄로 나온다(다수일 때 한 줄에 이어 붙이면 화면이 무너진다).
+if ! grep -q "added by this release" /tmp/new-assets.txt; then
   echo "FAIL: 신규 설치가 화면에 안 뜬다 — 사용자는 파일이 늘어난 걸 모른다"
   tail -30 /tmp/new-assets.txt
   exit 1
 fi
-echo "✓ ① 신규 설치를 화면에 보고"
+if ! grep -q "spec-drift-check.sh.*added by this release" /tmp/new-assets.txt; then
+  echo "FAIL: 어느 파일이 늘었는지가 안 보인다 — 건수만으로는 추적할 수 없다"
+  tail -30 /tmp/new-assets.txt
+  exit 1
+fi
+echo "✓ ① 신규 설치를 파일 이름과 함께 보고"
 
 # --- ② 설치된 스크립트가 실제로 도는가 ---
 # 파일이 있다는 것과 쓸 수 있다는 것은 다르다. 배포판 룰은 이걸 `ship` 인자로 부르라고 적는다.
@@ -146,5 +154,53 @@ if [[ -f "${PROJ}/.claude/rules/playwright-launch.md" ]]; then
 fi
 echo "✓ ⑤ 트랙 밖 룰 미설치 (Track 혼입 없음)"
 
+# --- ⑥ codex 전용 설치본에 `.claude/` 를 들이지 않는다 (독립 리뷰 HIGH-1) ---
+# install 은 claude 를 고른 설치본에만 `.claude/` 를 만든다. update 에 그 술어가 없으면
+# codex 로 깐 프로젝트에 고른 적 없는 CLI 의 하네스가 통째로 들어간다.
+CODEX_PROJ=/tmp/proj-update-codex
+rm -rf "${CODEX_PROJ}"; mkdir -p "${CODEX_PROJ}"; cd "${CODEX_PROJ}"
+agent-harness install --track tooling --scope project --cli codex >/dev/null 2>&1
+
+# 이 사용자는 Claude Code 도 쓴다 — 자기 `.claude/` 가 있다(그 상태가 도달 조건이다).
+mkdir -p "${CODEX_PROJ}/.claude/agents"
+printf 'my own agent\n' > "${CODEX_PROJ}/.claude/agents/my-own.md"
+
+agent-harness update >/tmp/codex-update.txt 2>&1 || true
+
+if [[ -f "${CODEX_PROJ}/.claude/settings.json" ]]; then
+  echo "FAIL: codex 전용 설치본에 .claude/settings.json 이 생겼다 — 훅 배선과 외부 실행이 딸려 온다"
+  exit 1
+fi
+if [[ -f "${CODEX_PROJ}/.claude/rules/git-policy.md" ]]; then
+  echo "FAIL: codex 전용 설치본에 .claude/rules 가 생겼다 — 고른 적 없는 CLI 의 자산이다"
+  exit 1
+fi
+if [[ ! -f "${CODEX_PROJ}/.claude/agents/my-own.md" ]]; then
+  echo "FAIL: 사용자 자기 파일이 사라졌다"
+  exit 1
+fi
+echo "✓ ⑥ codex 전용 설치본에 .claude/ 미유입 (사용자 자기 파일은 보존)"
+
+# --- ⑦ 배선할 수 없는 훅은 깔지 않고 재설치를 안내한다 (독립 리뷰 HIGH-2) ---
+cd "${PROJ}"
+HOOK="${PROJ}/.claude/hooks/session-start.sh"
+if [[ ! -f "${HOOK}" ]]; then
+  echo "FAIL: 전제 실패 — install 이 훅을 안 깔았다"
+  exit 1
+fi
+rm -f "${HOOK}"
+agent-harness update >/tmp/hook-update.txt 2>&1
+
+if [[ -f "${HOOK}" ]]; then
+  echo "FAIL: update 가 훅 파일을 깔았다 — settings.json 배선이 없어 영영 안 도는 상태다"
+  exit 1
+fi
+if ! grep -q "needs reinstall" /tmp/hook-update.txt; then
+  echo "FAIL: 재설치 안내가 없다 — 사용자는 최신 상태라고 믿는다"
+  tail -30 /tmp/hook-update.txt
+  exit 1
+fi
+echo "✓ ⑦ 배선 불가 훅은 미설치 + 재설치 안내"
+
 echo ""
-echo "PASS: scenario-update-new-assets"
+echo "PASS: scenario-update-new-assets (전항 ①~⑦)"
