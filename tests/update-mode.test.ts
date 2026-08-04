@@ -739,6 +739,122 @@ describe("runUpdateMode (E2E with templates)", () => {
 });
 
 /**
+ * 릴리즈로 **새로 생긴** 자산의 설치 (#283).
+ *
+ * update 는 "이미 있는 것만 갱신"이라, 릴리즈가 자산을 추가하면 기존 설치본은 update 를 몇 번
+ * 돌려도 그 파일을 못 받았다. 실제 증상은 `.uzys-agent-harness/` 의 두 스크립트였다 — 배포판
+ * 룰이 그 경로를 호출하라고 적는 동안 파일이 없었다. 훅·에이전트·룰도 같은 경로로 추가되므로
+ * 이 describe 는 스크립트만이 아니라 **자산 종류별로** 문다.
+ */
+describe("신규 자산 설치 (#283)", () => {
+  let projectDir: string;
+  let templatesDir: string;
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "ch-um-new-proj-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-um-new-tpl-"));
+    for (const d of ["rules", "agents", "commands/uzys", "hooks", "scripts"]) {
+      mkdirSync(join(templatesDir, d), { recursive: true });
+    }
+    for (const d of ["rules", "agents", "commands/uzys", "hooks"]) {
+      mkdirSync(join(projectDir, ".claude", d), { recursive: true });
+    }
+    // 배포판이 가진 것. 프로젝트에는 git-policy 하나만 깔려 있다 = 나머지가 "새로 생긴 자산".
+    writeFileSync(join(templatesDir, "scripts/spec-drift-check.sh"), "echo drift\n");
+    writeFileSync(join(templatesDir, "scripts/protect-branch.sh"), "echo protect\n");
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "git v2\n");
+    writeFileSync(join(templatesDir, "rules/cli-development.md"), "cli v1\n");
+    writeFileSync(join(templatesDir, "agents/reviewer.md"), "core agent\n");
+    writeFileSync(join(templatesDir, "agents/code-reviewer.md"), "ecc fallback agent\n");
+    writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "git v1\n");
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+  });
+
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
+  });
+
+  it("`.uzys-agent-harness/` 스크립트를 설치한다 — 배포판 룰이 호출하라고 적는 파일이다", () => {
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(readFileSync(join(projectDir, ".uzys-agent-harness/spec-drift-check.sh"), "utf8")).toBe(
+      "echo drift\n",
+    );
+    expect(readFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "utf8")).toBe(
+      "echo protect\n",
+    );
+    expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+    expect(report.installedNew).toContain(".uzys-agent-harness/protect-branch.sh");
+  });
+
+  it("트랙이 요구하는 신규 룰·에이전트를 설치한다 (cli-development = tooling)", () => {
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(readFileSync(join(projectDir, ".claude/rules/cli-development.md"), "utf8")).toBe(
+      "cli v1\n",
+    );
+    expect(readFileSync(join(projectDir, ".claude/agents/reviewer.md"), "utf8")).toBe(
+      "core agent\n",
+    );
+  });
+
+  it("opt-in 에 달린 자산은 들이지 않는다 — update 는 그 선택을 복원할 수 없다", () => {
+    // code-reviewer 는 `!withEcc` 게이팅(ECC plugin OFF 시의 fallback)이다. plugin 을 켠
+    // 설치자에게 이걸 깔면 그가 끄기로 한 자산을 update 가 되살리는 셈이 된다.
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(false);
+    expect(report.installedNew).not.toContain(".claude/agents/code-reviewer.md");
+  });
+
+  it("이미 있는 파일은 덮어쓰지 않는다 — 갱신은 편집분 판정을 하는 경로의 몫이다", () => {
+    mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+    writeFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "내가 고친 것\n");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(readFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "utf8")).toBe(
+      "내가 고친 것\n",
+    );
+    expect(report.installedNew).not.toContain(".uzys-agent-harness/protect-branch.sh");
+  });
+
+  it("새로 깐 정책 파일이 기준선에 들어간다 — 다음 update 가 사용자 파일로 오판하면 안 된다", () => {
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    const recorded = readInstallLog(projectDir)?.policyFiles ?? [];
+    expect(recorded.map((f) => f.path)).toContain("rules/cli-development.md");
+  });
+
+  it("트랙 기록이 없으면 전 트랙 공통분만 깐다 — 모르는 트랙의 자산을 들이지 않는다", () => {
+    rmSync(join(projectDir, ".uzys-agent-harness"), { recursive: true, force: true });
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: [], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    // `applies: all` — 트랙과 무관하게 모든 설치본이 받는다.
+    expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+    // tooling 트랙 전용 룰 — 트랙을 모르는 상태에서 들이면 Track 혼입이다.
+    expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(false);
+  });
+});
+
+/**
  * 레거시 설치본 앵커 이행 (P5 · ADR-060).
  *
  * v26.140.0 이전 설치본의 하네스 앵커는 `.claude/CLAUDE.md` 다. 루트 앵커
