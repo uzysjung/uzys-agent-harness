@@ -16,6 +16,11 @@ import { describe, expect, it } from "vitest";
 //    (`subagent-file-handoff.test.ts:27-29`). 끝을 안 막으면 뒷 절의 동일 낱말로도 통과한다.
 //  ⓑ **한 단언 안의 조건은 AND 로 묶는다.** OR 로 묶으면 한쪽만 남아도 통과해 가드가 아니라
 //    장식이 된다 — 같은 파일 :41-50 이 이미 한 번 낸 구멍이다.
+//  ⓒ **AND 는 같은 문장 안에서 센다.** 절 슬라이스 전체를 훑으면 의도한 문장을 통째로 지워도
+//    같은 낱말이 그 절 다른 줄에 남아 있는 한 계속 충족된다 — 독립 검증이 실측으로 앵커 34개 중
+//    9개가 그렇다고 밝혔고, 문장 세 개(P5 의 셸 조건 · A4 의 설치·인증 금지 · A3 의 핵심 문장)를
+//    지워도 초록이었다. 그래서 함께 참이어야 하는 앵커는 `together` 태그로 묶어 **한 단위**
+//    안에서 센다(`units()`).
 //
 // 그리고 이 파일의 탐지기(절 슬라이서 · 모델 슬러그 · 재서술 표식)는 **자기 자신도 검증한다** —
 // 맨 아래 "탐지기 자기검증" 블록이 합성 입력을 변이시켜 앵커 하나하나가 실제로 무는지 보인다
@@ -57,57 +62,98 @@ function section(body: string, heading: string): string {
 }
 
 /**
+ * 검사 **단위** — 블록(빈 줄 · 표 행 · 목록 항목 경계) 안의 **한 문장**.
+ *
+ * 절 슬라이스는 AND 를 세기에 너무 넓다: 한 문장을 통째로 지워도 같은 낱말이 그 절 다른 줄에
+ * 남아 있으면 앵커가 계속 충족된다. 단위를 문장으로 좁히면 "지운 자리"와 "다른 자리"가 구분된다.
+ *
+ * 줄바꿈은 단위 안에서 공백으로 접는다 — 계약은 문장이 말하는 것이지 어디서 줄이 접혔는가가
+ * 아니다. 접지 않으면 손으로 감싼 마크다운을 다시 감기만 해도 앵커가 빗나간다.
+ */
+function units(text: string): string[] {
+  return text
+    .split(/\n(?=[ \t]*(?:[-*+|>#]|\d+\.[ \t]))|\n[ \t]*\n/)
+    .flatMap((block) => block.split(/(?<=[.?!][*_"'”’)\]]{0,4})\s+/))
+    .map((unit) => unit.replace(/\s+/g, " ").trim())
+    .filter((unit) => unit !== "");
+}
+
+/**
  * **두 레인이 공유하는 계약표.** 설계 §2·§3·§4 가 고정한 필수 어구를 한 곳에 모은다 —
  * 여기 없는 것은 계약이 아니고, 여기 있는 것은 전부 AND 다.
  *
  * `id` 앞자리가 설계 §5.2 의 단언 번호이고, 그 접두사로 묶어 검사한다.
+ *
+ * `together` 를 공유하는 앵커들은 **한 단위 안에서 함께** 참이어야 한다 — 그 술어가 한 문장으로
+ * 적혀 있다는 것 자체가 계약이기 때문이다(P5 는 "다른 CLI **이면서** 셸을 쓸 수 있다", A4 의
+ * 대행 금지는 "설치·로그인·교체" 셋이 한 문장). 태그가 없는 앵커는 절 슬라이스 전체에서 찾는다.
  */
-type Anchor = { id: string; why: string; re: RegExp };
+type Anchor = { id: string; why: string; re: RegExp; together?: string };
 
 const ANCHORS: ReadonlyArray<Anchor> = [
   // ── A1: 다섯 술어. 라벨과 내용을 따로 문다 — 라벨만 세면 빈 줄 다섯 개로도 통과한다.
-  { id: "A1·P1-라벨", why: "술어 표지 P1", re: /\bP1\b/ },
+  //        술어 하나는 **한 표 행**이 소유하므로 라벨과 내용을 같은 단위에서 센다: 라벨이
+  //        살아 있는 채로 내용 반쪽만 지우는 변이(P5 의 셸 조건)가 절 스코프에서는 샜다.
+  { id: "A1·P1-라벨", why: "술어 표지 P1", re: /\bP1\b/, together: "A1/P1" },
   {
     id: "A1·P1-질문",
     why: "판단 잔여 0 = 기존 라우팅 질문 「새 판단이 남아 있는가」 그대로. 새 판별자를 만들지 않는다",
     re: /새 판단이 남아 있는가/,
+    together: "A1/P1",
   },
-  { id: "A1·P2-라벨", why: "술어 표지 P2", re: /\bP2\b/ },
+  { id: "A1·P2-라벨", why: "술어 표지 P2", re: /\bP2\b/, together: "A1/P2" },
   {
     id: "A1·P2-합격명령",
     why: "합격이 기계로 판정된다 = 합격 명령(pass/acceptance command)을 지금 한 줄로 적을 수 있는가",
     re: /(?:pass|acceptance|합격)[^\n]{0,40}(?:command|명령)/i,
+    together: "A1/P2",
   },
-  { id: "A1·P3-라벨", why: "술어 표지 P3", re: /\bP3\b/ },
+  { id: "A1·P3-라벨", why: "술어 표지 P3", re: /\bP3\b/, together: "A1/P3" },
   {
     id: "A1·P3-교차검증",
     why: "in-harness 교차검증(cross-verification) 전까지는 아무것도 게이트하지 않는다",
     re: /cross-verif/i,
+    together: "A1/P3",
   },
-  { id: "A1·P3-게이트", why: "...무엇도 게이트하지 못한다는 말", re: /gate/i },
-  { id: "A1·P4-라벨", why: "술어 표지 P4", re: /\bP4\b/ },
+  { id: "A1·P3-게이트", why: "...무엇도 게이트하지 못한다는 말", re: /gate/i, together: "A1/P3" },
+  { id: "A1·P4-라벨", why: "술어 표지 P4", re: /\bP4\b/, together: "A1/P4" },
   {
     id: "A1·P4-승인범위",
     why: "최초 확인이 끝났고 이번 파일 집합이 그 승인(approval) 범위 안인가",
     re: /approv/i,
+    together: "A1/P4",
   },
-  { id: "A1·P5-라벨", why: "술어 표지 P5", re: /\bP5\b/ },
+  { id: "A1·P5-라벨", why: "술어 표지 P5", re: /\bP5\b/, together: "A1/P5" },
   // P5 는 두 조건의 AND 다. 후반부가 없으면 셸을 못 쓰는 설치본(OpenCode `agent: plan`)에서
   // 이 레인이 조용한 no-op 이 된다 — 설계 §6.4 가 A1 에 두 조각을 모두 요구하는 근거.
   {
     id: "A1·P5-다른CLI",
     why: "그 도구가 **당신이 돌고 있는 CLI 가 아니어야** 한다 (자기 위임은 왕복이 아니다)",
     re: /running on|돌고 있는/i,
+    together: "A1/P5",
   },
   {
     id: "A1·P5-셸",
     why: "셸을 쓸 수 없으면 이 레인은 당신에게 없는 것이다 (설계 §6.4)",
     re: /shell|셸/i,
+    together: "A1/P5",
   },
 
   // ── A2: 저장소 코드가 제3자에 처음 도달하기 전의 확인. 1회 · 프로젝트 단위 · 경계 이동 시 재확인.
-  { id: "A2·최초사용", why: "최초 사용(first use)이라는 조건", re: /first use/i },
-  { id: "A2·사용자결정", why: "누구의 결정인지 — the user's call", re: /user's call/i },
+  //        「최초 사용은 사용자 결정」은 한 문장이 지는 약속이라 함께 센다. 나머지 둘은 각각
+  //        다른 문장(말하고 기다린다 / 경계가 움직이면 재확인)이 지므로 절 스코프로 둔다.
+  {
+    id: "A2·최초사용",
+    why: "최초 사용(first use)이라는 조건",
+    re: /first use/i,
+    together: "A2/확인",
+  },
+  {
+    id: "A2·사용자결정",
+    why: "누구의 결정인지 — the user's call",
+    re: /user's call/i,
+    together: "A2/확인",
+  },
   { id: "A2·기다린다", why: "말하고 **기다린다** — then wait", re: /\bwait\b/i },
   {
     id: "A2·경계이동",
@@ -117,22 +163,44 @@ const ANCHORS: ReadonlyArray<Anchor> = [
 
   // ── A3: 용량이지 품질이 아니다. 빠지면 다음 세션이 "더 좋아서" 외부로 보내고,
   //        그 순간 이 정책의 quality-over-cost 전제가 뒤집힌다.
-  { id: "A3·용량", why: "capacity/용량 — 이 레인이 사는 것", re: /capacity|용량/i },
-  { id: "A3·품질", why: "quality/품질 — 사지 않는 것", re: /quality|품질/i },
+  //        **대비가 곧 계약**이라 한 문장에서 센다 — 절 안에는 "capacity 를 먹는다"·"quality 를
+  //        명령이 판정한다" 같은 다른 용법이 따로 있어서, 넓게 세면 이 문장이 사라져도 초록이었다.
+  {
+    id: "A3·용량",
+    why: "capacity/용량 — 이 레인이 사는 것",
+    re: /capacity|용량/i,
+    together: "A3/전제",
+  },
+  {
+    id: "A3·품질",
+    why: "quality/품질 — 사지 않는 것",
+    re: /quality|품질/i,
+    together: "A3/전제",
+  },
 
   // ── A4: 부재·인증 만료 시의 경로. 네 조각 전부 AND.
+  //        두 문장이 각각 지는 약속이라 두 단위로 나눠 센다 — 「내리고 보고한다」와
+  //        「대신 설치·로그인·교체하지 않는다」. 후자를 절 스코프로 두면 절 안 다른 곳의
+  //        `installed`·`auth` 가 대신 만족시켜 금지문을 통째로 지워도 초록이었다.
   {
     id: "A4·레인하향",
     why: "레인을 하나 내린다",
     re: /(?:down|lower|drop|back)[^\n]{0,24}lane|lane[^\n]{0,24}(?:down|back)|레인을[^\n]{0,8}내리/i,
+    together: "A4/하향",
   },
-  { id: "A4·보고", why: "무엇을 못 썼는지 보고한다", re: /report/i },
-  { id: "A4·설치금지", why: "대신 설치하지 않는다", re: /install/i },
-  { id: "A4·인증금지", why: "대신 인증/로그인하지 않는다", re: /auth|log ?in/i },
+  { id: "A4·보고", why: "무엇을 못 썼는지 보고한다", re: /report/i, together: "A4/하향" },
+  { id: "A4·설치금지", why: "대신 설치하지 않는다", re: /install/i, together: "A4/대행금지" },
+  {
+    id: "A4·인증금지",
+    why: "대신 인증/로그인하지 않는다",
+    re: /auth|log ?in/i,
+    together: "A4/대행금지",
+  },
   {
     id: "A4·교체금지",
     why: "조용히 다른 제공자로 갈아타지 않는다 — 사용자는 A 가 답한 줄 안다",
     re: /substitut|swap|reroute|갈아타/i,
+    together: "A4/대행금지",
   },
 
   // ── C1: 복수 도구 패널은 **돌기 전에** 사용자 결정.
@@ -140,19 +208,41 @@ const ANCHORS: ReadonlyArray<Anchor> = [
     id: "C1·복수도구",
     why: "복수 도구에 걸치는 패널이라는 조건",
     re: /more than one tool|multiple tools|복수 도구|여러 도구/i,
+    together: "C1/사전확인",
   },
-  { id: "C1·사용자결정", why: "the user's call before it runs", re: /user's call/i },
+  {
+    id: "C1·사용자결정",
+    why: "the user's call before it runs",
+    re: /user's call/i,
+    together: "C1/사전확인",
+  },
   { id: "C1·기다린다", why: "말하고 **기다린다** — then wait", re: /\bwait\b/i },
 
   // ── C2: 좌석을 못 채울 때. 같은 렌즈로 조용히 대체하면 수는 지키고 독립성을 잃는다 —
   //        독립성이 이 방법의 가치를 이루는 유일한 변수다.
-  { id: "C2·네이티브", why: "네이티브(native) 좌석으로의 처리", re: /native/i },
-  { id: "C2·독립성", why: "잃는 것이 독립성(independence)이라는 진술", re: /independen/i },
-  { id: "C2·고지위치", why: "기록 위치 = step-6 coverage caveat", re: /coverage caveat/i },
+  {
+    id: "C2·네이티브",
+    why: "네이티브(native) 좌석으로의 처리",
+    re: /native/i,
+    together: "C2/대체금지",
+  },
+  {
+    id: "C2·독립성",
+    why: "잃는 것이 독립성(independence)이라는 진술",
+    re: /independen/i,
+    together: "C2/대체금지",
+  },
+  {
+    id: "C2·고지위치",
+    why: "기록 위치 = step-6 coverage caveat",
+    re: /coverage caveat/i,
+    together: "C2/출처",
+  },
   {
     id: "C2·출처기록",
     why: "어느 좌석에 어느 모델이 답했는지(which model answered) 기록",
     re: /model answered/i,
+    together: "C2/출처",
   },
 
   // ── C3(양성 반쪽): 가리키기. 음성 반쪽(재서술 금지)은 WRAPPER_MECHANICS 가 맡는다.
@@ -163,11 +253,18 @@ const ANCHORS: ReadonlyArray<Anchor> = [
   },
 
   // ── D1: 실행 위임은 external-model-consult 의 일이 아니다.
-  { id: "D1·구현위임", why: "실제 구현(implementation) 위임", re: /implementation/i },
+  //        「구현 위임 = 실행기 = 이 스킬 약속의 정반대」가 한 문장이라 함께 센다.
+  {
+    id: "D1·구현위임",
+    why: "실제 구현(implementation) 위임",
+    re: /implementation/i,
+    together: "D1/경계",
+  },
   {
     id: "D1·실행기",
     why: "실행기(executor)는 저장소 미노출 약속의 정반대를 요구한다",
     re: /executor/i,
+    together: "D1/경계",
   },
   {
     id: "D1·소유이관",
@@ -176,11 +273,26 @@ const ANCHORS: ReadonlyArray<Anchor> = [
   },
 ];
 
-/** 그룹(A1·A2·…)의 앵커 중 `text` 가 못 만족시킨 것들. 빈 배열 = 전부 충족. */
+/**
+ * 그룹(A1·A2·…)의 앵커 중 `text` 가 못 만족시킨 것들. 빈 배열 = 전부 충족.
+ *
+ * `together` 가 없는 앵커는 절 슬라이스 전체에서 찾고, 태그를 공유하는 앵커들은 **한 단위 안에서
+ * 함께** 참이어야 한다. 태그가 깨지면 그 태그의 앵커를 **전부** 적는다 — 낱말 하나가 어느 문장에
+ * 남아 있는지 추측해 지목하면 엉뚱한 문장을 고치게 된다. 계약의 단위는 문장이지 낱말이 아니다.
+ */
 function unmet(group: string, text: string): string[] {
-  return ANCHORS.filter((a) => a.id.startsWith(`${group}·`) && !a.re.test(text)).map(
-    (a) => `${a.id} — ${a.why}`,
-  );
+  const ours = ANCHORS.filter((a) => a.id.startsWith(`${group}·`));
+  const missing = ours
+    .filter((a) => !a.together && !a.re.test(text))
+    .map((a) => `${a.id} — ${a.why}`);
+
+  const slices = units(text);
+  for (const tag of new Set(ours.flatMap((a) => (a.together ? [a.together] : [])))) {
+    const tagged = ours.filter((a) => a.together === tag);
+    if (slices.some((slice) => tagged.every((a) => a.re.test(slice)))) continue;
+    missing.push(...tagged.map((a) => `${a.id} — ${a.why}  [「${tag}」 = 한 문장이 함께 진다]`));
+  }
+  return missing;
 }
 
 /**
@@ -536,5 +648,29 @@ describe("탐지기 자기검증 — 앵커가 실제로 무는가 (입력 변�
     expect(section(body, "### Nested")).not.toContain("gamma");
     // 없는 헤딩은 빈 문자열 — 그래야 "슬라이스가 비면 먼저 실패" 가 성립한다.
     expect(section(body, "## Missing")).toBe("");
+  });
+
+  it("검사 단위 — 표 행·문장에서 끊고, 손으로 감싼 줄바꿈은 접는다", () => {
+    // 표 행은 서로 다른 단위다. 한 행에서 지운 조각을 옆 행이 대신 만족시키면 A1 이 장식이 된다.
+    expect(
+      units("| **P5** | not the CLI you are running on, and it can use a shell |\n| **P4** | ok |"),
+    ).toEqual([
+      "| **P5** | not the CLI you are running on, and it can use a shell |",
+      "| **P4** | ok |",
+    ]);
+    // 종결부호 뒤에 붙은 마크업(`.**`)·따옴표까지 넘겨서 끊는다 — 안 그러면 강조된 문장이
+    // 뒤 문장과 한 단위로 붙어 A3 가 다시 샌다.
+    expect(
+      units("This lane buys **capacity, not quality.** Work whose quality a command decides."),
+    ).toEqual([
+      "This lane buys **capacity, not quality.**",
+      "Work whose quality a command decides.",
+    ]);
+    // 한 문장이 두 줄에 걸쳐도 한 단위다. 계약은 문장이 말하는 것이지 줄바꿈 위치가 아니다.
+    expect(units("never log in for them, and never\nquietly substitute a provider.")).toEqual([
+      "never log in for them, and never quietly substitute a provider.",
+    ]);
+    // 빈 줄로 갈린 문단도 서로 다른 단위다.
+    expect(units("alpha holds.\n\nbeta holds.")).toEqual(["alpha holds.", "beta holds."]);
   });
 });

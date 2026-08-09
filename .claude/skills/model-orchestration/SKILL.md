@@ -266,7 +266,7 @@ build on. Hand off manually:
 | Spawning an agent for what one direct tool call answers | 15× token multiplier for zero value — do trivial work directly |
 | Relying on plan-level auto-fallback for continuity | Undocumented behavior; use the manual handoff protocol |
 | Finished worker left running after its result is consumed | Subagent panes/windows accumulate (iTerm2 등) and idle pings pollute the session — TaskStop as one motion with consuming the result |
-| 외부 실행기에 **테스트 작성·검증**·핵심 구현을 넘김 | 이 레인은 판단 잔여 0 인 일만 받는다 — 무엇을 단언할지 정하는 일을 밖으로 내보내면 외부 산출물을 검사할 기준 자체가 밖에 있게 된다 |
+| 외부 실행기에 **테스트 작성·검증**·핵심 구현을 넘김 | 이 레인은 판단 잔여 0 인 일만 받는다 — 무엇을 단언할지 정하는 일을 밖으로 내보내면 외부 산출물을 검사할 기준 자체가 밖에 있게 된다. 형태가 이미 고정된 표에 케이스 한 줄을 복제하는 일은 무엇을 단언할지 정하지 않으므로 여기 해당하지 않는다 |
 | 도구가 없어서 조용히 다른 제공자로 갈아타 실행 | 사용자는 어느 도구가 답했는지 알고 있다 — 대체는 보고 대상이지 판단 대상이 아니다 |
 | 외부 실행기를 "품질이 더 낫다"는 이유로 고름 | 이 레인이 사는 것은 용량이다. 품질을 근거로 들면 이 정책의 quality-over-cost 전제를 뒤집는 것이다 |
 

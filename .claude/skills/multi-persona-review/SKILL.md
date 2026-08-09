@@ -147,7 +147,6 @@ or the provider refused — do **not** quietly replace it with another native re
 shape; that keeps the count and loses the independence, which is the only variable this method's
 value is made of. Fill it with a lens that fears a different failure, and record in the step-6
 coverage caveat which seats were native and which were external, and which model answered each.
-A panel's claim rests on how its members fail; a reader who cannot see who answered cannot audit it.
 
 ### 4. Synthesize: dedupe, but preserve minority findings (orchestrator, main model)
 
@@ -241,10 +240,9 @@ in the coverage caveat — the tier is an economy, not a prerequisite.
   agents left open per review is the fastest way to a session full of idle workers; stop each one
   as you read its report (step 4).
 - **Buying tools instead of lenses** — the same lens seated twice with a different model behind it
-  is still one reviewer with two names. A second vendor lowers correlation only between lenses that
-  already differ; it is never a substitute for designing them.
-- **Unlabelled provenance** — if the caveat doesn't say which seats answered from outside, the
-  coverage claim can't be audited and the panel can't be reproduced.
+  is still one reviewer with two names
+  ([references/reviewer-design.md](references/reviewer-design.md), "Define independence").
+- **Unlabelled provenance** — a coverage caveat that doesn't say where each seat came from (step 6).
 
 ## Cross-references
 
