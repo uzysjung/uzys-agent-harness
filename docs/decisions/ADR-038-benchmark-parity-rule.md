@@ -1,6 +1,6 @@
 # ADR-038: benchmark-parity 룰 — 레퍼런스 실측→gap.md→완결성 루프 (라이프사이클 자산화 ③)
 
-- Status: Accepted
+- Status: Superseded (ADR-067 — 배포 룰에서 제거, 2026-08-04)
 - Date: 2026-07-18
 - PR: #222
 - Context: 라이프사이클 자산화 큐 ③ (SSOT `docs/plans/lifecycle-codification-2026-07-18.md`).

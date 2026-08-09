@@ -438,6 +438,29 @@ function renderPhase1Rows(
     for (const [dir, count] of Object.entries(baseline.updateMode.updated)) {
       if (count > 0) log(assetRow("success", dir, `${count} files updated`));
     }
+    // #283 — 릴리즈로 새로 생긴 자산. 갱신 건수에 합치지 않고 따로 낸다: 사용자가 안 만든
+    // 파일이 늘어난 것이므로 "몇 개 갱신"과는 다른 사실이고, 조용하면 자기 것으로 오인한다.
+    // 한 줄에 이어 붙이지 않는다 — 레거시 설치본에서는 십수 개가 한 번에 나온다.
+    for (const path of baseline.updateMode.installedNew) {
+      log(assetRow("success", path, "added by this release"));
+    }
+    // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
+    // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
+    // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.
+    for (const path of baseline.updateMode.restored) {
+      log(assetRow("success", path, "was missing — reinstalled (delete it again if intentional)"));
+    }
+    // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
+    // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
+    if (baseline.updateMode.needsReinstall.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "needs reinstall",
+          `${baseline.updateMode.needsReinstall.join(", ")} · new in this release but update cannot wire them — run \`agent-harness install\` to get them`,
+        ),
+      );
+    }
     for (const [dir, removed] of Object.entries(baseline.updateMode.pruned)) {
       if (removed.length > 0) {
         log(assetRow("skip", `${dir} orphan prune`, `${removed.length} removed`));

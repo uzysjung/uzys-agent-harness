@@ -42,20 +42,20 @@ const TRACKS: ReadonlyArray<Track> = [
  * Per-track expected files (subset — proves Track-pattern routing in manifest.ts).
  *
  * 2026-08-02 정비 — 기술스택 상세 룰 8종이 배포에서 빠졌다. 트랙 구분이 남아 있는 축은
- * UI 룰(playwright-launch·benchmark-parity = csr/ssr/full 한정) · dev 룰(test-policy·
+ * UI 룰(playwright-launch = csr/ssr/full 한정) · dev 룰(test-policy·
  * ship-checklist) · tooling 의 cli-development 셋이므로 그 축으로 기대치를 다시 잡는다.
  * 전 트랙 공통 룰만 적으면 이 표가 라우팅을 더 이상 증명하지 못한다.
  */
 const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
   tooling: { rules: ["cli-development", "test-policy"] },
-  "csr-supabase": { rules: ["playwright-launch", "benchmark-parity"], mcp: ["supabase"] },
+  "csr-supabase": { rules: ["playwright-launch"], mcp: ["supabase"] },
   "csr-fastify": { rules: ["playwright-launch", "ship-checklist"] },
   "csr-fastapi": { rules: ["playwright-launch", "ship-checklist"] },
-  "ssr-htmx": { rules: ["playwright-launch", "benchmark-parity"] },
-  "ssr-nextjs": { rules: ["playwright-launch", "benchmark-parity"] },
+  "ssr-htmx": { rules: ["playwright-launch"] },
+  "ssr-nextjs": { rules: ["playwright-launch"] },
   data: { rules: ["test-policy", "ship-checklist"] },
   executive: { rules: ["git-policy"] },
-  full: { rules: ["cli-development", "playwright-launch", "benchmark-parity"] },
+  full: { rules: ["cli-development", "playwright-launch"] },
   // v0.5.0 — executive-style baselines (common rules only).
   "project-management": { rules: ["git-policy", "change-management"] },
   "growth-marketing": { rules: ["git-policy", "change-management"] },

@@ -778,6 +778,9 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
       },
     });
     executeSpec(baseSpec, {
@@ -829,6 +832,9 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
       },
     });
     executeSpec(baseSpec, {
@@ -879,6 +885,9 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
       },
     });
     executeSpec(baseSpec, {
@@ -920,6 +929,9 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
       },
     });
     executeSpec(baseSpec, {

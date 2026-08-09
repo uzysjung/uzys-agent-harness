@@ -76,8 +76,10 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
    `.uzys-agent-harness/hook-blocks.log` 에 탭 구분 `날짜·훅·대상` 1줄을 남긴다(ADR-061). 감사
    때는 차단 수가 아니라 **오탐부터** 대조한다 — 표본 현황·판정은 최신 감사 문서
    (`docs/plans/harness-fit-audit-2026-08-03.md`). `uninstall` 은 이 로그를 함께 지운다(감수).
-3. **룰은 8종×2사본 전부 무조건 상주** — `paths:` frontmatter 0개. 지연 로드는 공식 지원이
-   **확인됨**(2026-08-02, memory 문서) — 프로젝트 고유 사실이 담긴 룰이 다시 커지면 그때 쓴다.
+3. **룰 7종. 배포판만 `paths:` 하나를 쓴다**(`cli-development` = `**/*.sh`, #284) — 개발 사본
+   `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
+   설치본에 OpenCode 가 섞여 있으면 `opencode.json` 의 `instructions` 글롭이 `.claude/rules/*.md`
+   를 무조건 병합해 그 룰이 다시 매 세션 상주한다.
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라

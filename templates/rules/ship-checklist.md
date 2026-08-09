@@ -1,16 +1,10 @@
-# Ship Checklist
+# Delivery
 
-ship 단계 실행 시 아래 모든 항목을 통과해야 배포 가능.
+무엇으로 검증할지는 이 저장소가 정한다. 아래는 그 선택과 무관하게 지켜야 하는 것들이다.
 
-## Pre-Ship Gates
-
-- [ ] **E2E 테스트 통과**: 핵심 사용자 흐름 E2E 테스트 전부 PASS (인증/결제/DB — test 단계에서 검증됨)
-- [ ] **커버리지 기준 충족**: `test-policy.md` 의 Track 별 threshold 확인. **전체 실행(full)을 요구하는 지점은 여기다** — 커밋에는 테스트가 없고 머지에는 영향 범위만 돈다(시점별 정책은 `test-policy.md` 가 SSOT)
-- [ ] **CI green 이 배포의 전제로 배선됐는지**: 릴리스가 CI job 에 `needs:` 로 묶여 **CI red 면 게시가 안 일어나야** 한다. 게시가 CI 와 별개 워크플로면 red 를 통과해 나간다
-- [ ] **Security Scan · 의존성 감사**: `npx ecc-agentshield scan` 결과 CRITICAL/HIGH 없음 · `npm audit`(Node.js) 또는 `pip-audit`(Python) critical/high 취약점 없음
-- [ ] **SPEC/PRD 정합성**: 이번 사이클에 하기로 한 항목이 미완으로 남아 있지 않은가 (`doc-governance.md` "작업 완료 처리"). 실행 확인 = `bash .uzys-agent-harness/spec-drift-check.sh ship` — **exit 2 면 차단**(동기화 후 재시도), exit 1 은 경고, 0 이 통과. 백로그는 `ship-gate:ignore` 구간으로 감싸 면제한다(표식이 안 닫히면 면제를 통째로 무시)
-- [ ] **Review 게이트 통과**: review 단계에서 CRITICAL 이슈 없음 확인
-
-## Post-Ship
-
-SPEC/PRD 와 불일치 발견 시 갱신 → 커밋 · 아키텍처 결정은 `docs/decisions/` 에 ADR 기록 · Change Log 최종 확정. 배포 대상이 있으면 배포 가능 상태 확인 → health check 응답 확인 → smoke test 실행.
+- **머지는 그 변경을 만들지 않은 레인의 리뷰를 거친다.** 만든 쪽이 자기 산출물을 판정하면 그건 검증이 아니다. 배포 직전이 아니라 **머지 시점**이다 — 리뷰 없이 쌓인 변경은 배포 때 형식만 채워진다.
+- 배포 전에 이 저장소가 정의한 검증을 **실행하고 결과를 확인한다.** 실행하지 않은 검사는 통과가 아니다.
+- 게시·배포는 그 검증 통과에 **의존하도록 배선한다.** 검증과 별개 경로로 게시되면 red 를 통과해 나간다.
+- 변경분이 사용자에게 닿는 경로가 여럿이면 **경로마다 실행 증거를 따로** 확보한다. 한 경로의 증거를 다른 경로에 전용하지 않는다.
+- 의존성과 코드의 **알려진 취약점을 확인하고 나간다.** 무엇으로 확인할지는 이 저장소가 정한다.
+- 추적 문서가 코드와 어긋난 채로 나가지 않게 한다. **이 하네스가 설치해 둔 검사기**를 쓴다(스스로는 존재를 알 수 없으므로 여기 적는다): `bash .uzys-agent-harness/spec-drift-check.sh ship` — **exit 2 면 차단**(동기화 후 재시도), 1 은 경고, 0 이 통과. 백로그는 `ship-gate:ignore` 구간으로 감싸 면제한다(표식이 안 닫히면 면제를 통째로 무시한다).
