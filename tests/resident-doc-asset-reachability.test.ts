@@ -44,32 +44,28 @@ function specFor(track: Track): AssetSpec {
 }
 
 /**
- * 검사 **모집단**을 뽑기 위한 입력 — 선택 가능한 것을 전부 켠 manifest.
+ * 검사 **모집단**을 넓히기 위한 두 번째 manifest 입력 — 번들 스킬을 전부 선택한 상태.
  *
  * WHY (#290, 변이 생존으로 발견): 모집단을 `specFor` 의 기본 설치분에서만 뽑으면 **어느 트랙에도
  * 기본 설치되지 않는 자산이 색인에 아예 없어** 아래 루프가 검사조차 하지 않는다. 자산이 더 많이
  * 부재할수록 게이트가 덜 신경 쓰는 역전이고, 가장 위험한 쪽 — 상주 문서가 이름을 부르는데 평범한
  * 설치에는 하나도 안 깔리는 자산 — 이 정확히 사각이었다.
  *
- * 여기서도 자산 id 를 열거하지 않는다(위 "게이트는 열거하지 말고 훑어라"). 선택 축을 켠 manifest 를
- * 돌려 모집단을 derive 하므로, 새 opt-in 자산이 생겨도 게이트를 고칠 필요가 없다.
+ * 여기서도 자산 id 를 열거하지 않는다(위 "게이트는 열거하지 말고 훑어라"). `INTERNAL_BUNDLED_SKILL_IDS`
+ * 를 통째로 넘겨 derive 하므로 새 번들 스킬이 생겨도 게이트를 고칠 필요가 없다.
  *
  * 이 스펙이 주는 것은 **자리(빈 트랙 집합)뿐**이다 — 설치 트랙은 여전히 `specFor` 의 기본 설치분에서만
  * 채워지므로 opt-in 전용 자산은 `installedOn = ∅` 이 되어 상주 문서의 전 트랙이 미설치로 잡힌다.
  * 판정 기준선이 "평범하게 깔았을 때"라는 위 원칙은 그대로다.
  *
- * `withEcc` 는 **opt-out** 축이라 여기서 켜면 오히려 C2 fallback 자산(`code-reviewer` 등)이 빠진다
- * (ADR-019 — 플러그인이 켜지면 그쪽이 제공한다). 손실이 아닌 이유: 그 자산들은 기본 설치 루프가 이미
- * 실제 트랙과 함께 담았고 아래 보강 루프는 **색인에 없는 id 만** 추가한다. 두 루프를 합쳐 opt-out 축의
- * 양쪽이 모두 모집단에 들어온다.
+ * **`withTauri`·`withEcc` 를 켜지 않는 이유**(독립 검증이 지적 — 켠 채로 두면 이름과 반대로 돌았다):
+ * `withTauri` 는 이 필드를 읽는 게이팅이 배포에 하나도 없어 무동작이고(`manifest.ts` 의 필드 주석),
+ * `withEcc` 는 **opt-out** 축이라 켜면 오히려 C2 fallback 자산 10종이 빠진다(ADR-019 — 플러그인이
+ * 켜지면 그쪽이 제공한다). 두 축 다 켜서 **얻는 자산이 0**이므로 켜지 않는다. `s.withEcc` 를 양의
+ * 방향으로 읽는 게이팅이 생기면 그때 극성을 하나 더 돌면 된다 — 지금 없는 것을 위해 축을 늘리지 않는다.
  */
-function maximalSpecFor(track: Track): AssetSpec {
-  return {
-    tracks: [track],
-    withTauri: true,
-    withEcc: true,
-    selectedInternalSkills: [...INTERNAL_BUNDLED_SKILL_IDS],
-  };
+function populationSpecFor(track: Track): AssetSpec {
+  return { tracks: [track], selectedInternalSkills: [...INTERNAL_BUNDLED_SKILL_IDS] };
 }
 
 /**
@@ -118,8 +114,8 @@ function buildIndexes(): {
     }
     // 모집단 보강 — 선택하면 깔릴 수 있는 자산에 **자리만** 만든다(트랙 집합은 비운 채로).
     // 위 루프가 이미 담은 id 는 건드리지 않으므로 실제 설치 트랙은 그대로다.
-    const maximal = maximalSpecFor(track);
-    for (const e of buildManifest(maximal).filter((x) => x.applies(maximal))) {
+    const population = populationSpecFor(track);
+    for (const e of buildManifest(population).filter((x) => x.applies(population))) {
       const id = assetIdOf(e.target);
       if (id && !assetTracks.has(id)) assetTracks.set(id, new Set<Track>());
     }
@@ -226,7 +222,9 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
     // 2026-08-02 정비 → 7, 2026-08-04 #284)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    expect(references).toBeGreaterThan(2); // 실측 3 — 동일 취지로 실측 근처로 조임
+    // 실측 5 (#290 의 모집단 보강으로 4 → 5). 하한을 실측 바로 아래로 조인다 — 아래 `docTracks`
+    // 하한과 같은 기준이다: 한 건만 소실돼도 무는 하한이라야 canary 다.
+    expect(references).toBeGreaterThan(4);
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
