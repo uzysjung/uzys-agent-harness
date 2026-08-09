@@ -99,6 +99,10 @@ they're not independent — replace one. The mechanical version of that test, mo
 artifact type, and the fixed field list each reviewer returns are in
 [references/reviewer-design.md](references/reviewer-design.md).
 
+Model provenance is a **correlation control, not a lens** — designing lenses comes first, choosing
+which seat an outside model fills comes second. The mechanics are in
+[references/reviewer-design.md](references/reviewer-design.md).
+
 ### 3. Review in parallel, independently (Sonnet-tier panel)
 
 Spawn one sub-agent per persona via the **Task tool** (or the harness's sub-agent mechanism). Each
@@ -122,6 +126,27 @@ every finding to be specific and actionable: **quote the offending passage and p
 fix.** Ban vague "needs work" notes — that's the classic red-team failure mode (briefing +
 structured findings + independence are the load-bearing parts, not the critical attitude).
 https://loopio.com/blog/red-team-review/
+
+#### Seats an outside tool can fill
+
+**A panel that spans more than one tool is the user's call before it runs, not after.** Name the
+tools that will answer, how many external round-trips that is, and what text leaves the machine;
+then wait. Native reviewers are the default — one outside seat is a considered upgrade, several are
+a bill the user has not seen yet.
+
+Spend that seat where a miss costs the most: a judgment that is expensive to reverse, a surface like
+UI/UX where one model's default taste becomes the answer, or a panel you already ran and suspect
+every member missed the same thing in. Otherwise native is the default.
+
+The outside seat goes out through `external-model-consult` where installed — the call itself, its
+guardrails, and its failure handling are that skill's and are not repeated here. Where it isn't
+installed the seat doesn't exist, and the panel runs native.
+
+If the seat cannot be filled — the consult skill is not installed, its CLI is missing, auth expired,
+or the provider refused — do **not** quietly replace it with another native reviewer of the same
+shape; that keeps the count and loses the independence, which is the only variable this method's
+value is made of. Fill it with a lens that fears a different failure, and record in the step-6
+coverage caveat which seats were native and which were external, and which model answered each.
 
 ### 4. Synthesize: dedupe, but preserve minority findings (orchestrator, main model)
 
@@ -167,6 +192,10 @@ personas both miss embodied issues and invent non-issues. End with an honest cov
 panel never finds every issue and offers no systematic fix generation (Nielsen's own caveat).
 Claiming exhaustiveness here would be a false-ship.
 
+**Say where each seat came from**, not only which tier it ran at: how many reviewers were native,
+how many external, and which model answered each. A caveat that reports the tier alone turns false
+the moment the panel spans tools, and provenance a reader can't see is a panel they can't reproduce.
+
 **Second pass (the "1-2 passes"):** run the same panel again *after fixes land* to confirm the P0s
 are actually closed and that the edits didn't introduce new issues. **One pass to find, one to
 verify — a third rarely pays off.** Use a *fresh* agent per persona, never a resumed one, for the
@@ -210,6 +239,10 @@ in the coverage caveat — the tier is an economy, not a prerequisite.
 - **Leaving the panel running** — the panel dies when you stop it, not when it answers. N finished
   agents left open per review is the fastest way to a session full of idle workers; stop each one
   as you read its report (step 4).
+- **Buying tools instead of lenses** — the same lens seated twice with a different model behind it
+  is still one reviewer with two names
+  ([references/reviewer-design.md](references/reviewer-design.md), "Define independence").
+- **Unlabelled provenance** — a coverage caveat that doesn't say where each seat came from (step 6).
 
 ## Cross-references
 
@@ -223,6 +256,8 @@ in the coverage caveat — the tier is an economy, not a prerequisite.
 - `external-model-consult` — its persona mode also answers "다면 페르소나 / second opinion"
   phrasing, but through ONE external model call role-playing several personas. Prefer THIS skill
   for a native, genuinely independent parallel panel; reach for the external consult when a
-  non-Claude model's opinion is specifically the point.
+  non-Claude model's opinion is specifically the point. A third shape now exists — a native panel
+  with one seat filled from outside — and the confirmation before running it belongs here
+  ("Seats an outside tool can fill"), not there.
 - A UI artifact wants design-specific critique with anti-pattern detection rather than prose
   review — use whichever design-critique skill the project installs, not this one.

@@ -6,8 +6,9 @@ import {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
@@ -126,6 +127,32 @@ describe("배포되는 templates 의 위생", () => {
   });
 
   /**
+   * **이 머신의 CLI 설정에만 있는 모델 id** 가 배포물에 새지 않는다 (ADR-069 / 설계 §5.2 F).
+   *
+   * WHY: 외부 실행기 레인을 여는 이슈가 예로 든 모델 중 일부는 **작성자 머신에도 없었다.**
+   * 그런데도 본문에 그대로 옮겨질 위험은 실재한다 — 배포 본문은 모델을 고르지 않고, 그 CLI 가
+   * 자기 설정으로 고른 것을 쓴다. 버전이 박힌 슬러그는 시간이 지나면 거짓이 되고 설치자를
+   * 은퇴한 모델에 묶는다.
+   *
+   * **열거가 아니라 파생이다.** 로컬 OpenCode 설정에서 모델 id 를 읽어 그 토큰이 배포 대상에
+   * 없는지 본다 — 설정이 바뀌어도 게이트를 고칠 필요가 없다. 형제 프로젝트 검사와 같은 성질:
+   * **CI 에는 그 설정이 없으므로 로컬에서만 돈다.** CI 에서 상시 무는 것은 슬라이스 기반
+   * 슬러그 검사(`external-tool-routing.test.ts` 의 E) 쪽이고, 둘 다 구멍이 있어서 둘 다 둔다.
+   *
+   * 한계 두 개를 그대로 적는다: ⓐ 검사 범위는 `distributedFiles()`(배포되는 `templates/`)이지
+   * `src/` 가 아니다 ⓑ 설정에 없는 모델명은 못 잡는다.
+   */
+  it("로컬 CLI 설정의 모델 id 가 배포물에 새지 않는다 (로컬 한정)", () => {
+    const ids = localModelIds();
+    if (ids === null) return;
+    const hits = scan(modelIdPattern(ids));
+    expect(
+      hits,
+      `이 머신 설정에만 있는 모델 id 가 배포물에 있다 (${ids.join(", ")}):\n${hits.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  /**
    * **범위가 `templates/` 만이 아니다.** 처음 이 게이트를 만들 때 templates 만 훑었는데,
    * 실제로는 `dist/` 에도 사설 프로젝트 이름이 번들돼 게시되고 있었다 (소스 주석이 그대로
    * 컴파일된 것). "다 고쳤다"고 말할 뻔한 지점이다.
@@ -210,6 +237,153 @@ describe("workspaceSiblings — 어떤 환경을 '형제 없음'으로 볼 것�
     }
   });
 });
+
+/**
+ * `localModelIds` 도 **로컬에서만** 도는 판정이다. `workspaceSiblings` 가 검증 없이 네 릴리스를
+ * red 로 만든 전례가 바로 위에 있으므로, 같은 실수를 반복하지 않도록 설정 레이아웃을 임시
+ * 디렉터리에 재현해 파생 자체를 검증한다.
+ */
+describe("localModelIds — 로컬 설정에서 모델 id 를 어떻게 파생하는가", () => {
+  const writeConfig = (dir: string, name: string, body: string) => {
+    mkdirSync(join(dir, "opencode"), { recursive: true });
+    writeFileSync(join(dir, "opencode", name), body, "utf8");
+  };
+
+  it("설정 디렉터리가 없으면 null — 조용히 통과시키지 않는다", () => {
+    const root = mkdtempSync(join(tmpdir(), "oc-none-"));
+    try {
+      expect(localModelIds(join(root, "opencode"))).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("설정은 있는데 모델 id 가 0개여도 null — 빈 결과를 부재의 증거로 쓰지 않는다", () => {
+    const root = mkdtempSync(join(tmpdir(), "oc-empty-"));
+    try {
+      writeConfig(root, "opencode.json", JSON.stringify({ plugin: [] }));
+      expect(localModelIds(join(root, "opencode"))).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('`provider.<id>.models.<id>` 키와 `model: "prov/id"` 값 둘 다에서 파생한다', () => {
+    const root = mkdtempSync(join(tmpdir(), "oc-derive-"));
+    try {
+      writeConfig(
+        root,
+        "opencode.jsonc",
+        // 실제 설정과 같은 모양: 스키마 URL(`//` 포함)이 있어도 깨지지 않아야 한다.
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          provider: { "some-plan": { models: { "zz-9.9": { name: "ZZ-9.9" } } } },
+        }),
+      );
+      writeConfig(
+        root,
+        "agents.json",
+        JSON.stringify({ agent: { build: { model: "vendor/yy-8.8-turbo", temperature: 0.1 } } }),
+      );
+      // npm 파일이 같은 디렉터리에 있어도 `node_modules/...` 를 모델로 오인하지 않는다.
+      writeConfig(
+        root,
+        "package.json",
+        JSON.stringify({ dependencies: { "node-fetch": "1.0.0" } }),
+      );
+
+      expect(localModelIds(join(root, "opencode"))?.sort()).toEqual(["yy-8.8-turbo", "zz-9.9"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("파생한 토큰이 실제로 문다 — 알려진 양성 먼저, 그 다음 음성", () => {
+    const pattern = modelIdPattern(["zz-9.9", "yy-8.8-turbo"]);
+    expect(pattern.test("route this to `ZZ-9.9` by default")).toBe(true); // 대소문자 무관
+    expect(pattern.test("pin the worker to yy-8.8-turbo")).toBe(true);
+    // 경계가 있어야 오탐이 안 난다: 다른 버전·더 긴 토큰은 남의 것이다.
+    expect(pattern.test("zz-9.90 is a different model")).toBe(false);
+    expect(pattern.test("the CLI picks the model from the user's own config")).toBe(false);
+  });
+});
+
+/**
+ * 로컬 CLI 설정에서 **모델 id 를 파생**한다 — 열거하지 않는다. 열거하면 설정이 바뀔 때마다
+ * 게이트를 고쳐야 하고, 그 목록 자체가 "이 머신에만 있는 모델명"의 두 번째 사본이 된다.
+ *
+ * 읽는 곳은 OpenCode 설정 디렉터리(`$XDG_CONFIG_HOME/opencode`, 기본 `~/.config/opencode`)의
+ * **최상위** `*.json` / `*.jsonc` 뿐이다(재귀 안 함 → `node_modules` 는 애초에 안 본다).
+ * 뽑는 것은 스키마상 모델이 오는 두 자리:
+ *   ⓐ `model` / `small_model` **값** (`provider/model-id` → 뒤쪽만)
+ *   ⓑ `models` 객체의 **키** (`provider.<id>.models.<model-id>`)
+ *
+ * 못 읽거나 0개면 null — 조용히 통과시키지 않고 알린다.
+ */
+function localModelIds(
+  dir: string = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "opencode"),
+): string[] | null {
+  if (!existsSync(dir)) {
+    console.warn(`[배포 위생] 로컬 CLI 설정(${dir}) 이 없다 — 이 검사 미수행.`);
+    return null;
+  }
+  const found = new Set<string>();
+  try {
+    for (const name of readdirSync(dir)) {
+      if (!/\.jsonc?$/.test(name)) continue;
+      const raw = readFileSync(join(dir, name), "utf8");
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        // jsonc: 줄 앞 주석만 걷어낸다 — `"https://…"` 의 `//` 를 지우면 설정이 깨진다.
+        try {
+          parsed = JSON.parse(raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, ""));
+        } catch {
+          continue;
+        }
+      }
+      collectModelIds(parsed, "", found);
+    }
+  } catch {
+    console.warn("[배포 위생] 로컬 CLI 설정을 못 읽었다 — 이 검사 미수행.");
+    return null;
+  }
+
+  // 모델 id 의 형태(알파벳으로 시작 + 구분자 + 숫자 포함)만 남긴다. 5자 미만·숫자 없는 토큰은
+  // 흔한 영어 낱말에 부분일치해 오탐만 낳는다 — `siblingPattern` 과 같은 판단이다.
+  const ids = [...found].filter(
+    (s) => s.length >= 5 && /\d/.test(s) && /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/i.test(s),
+  );
+  if (ids.length === 0) {
+    console.warn(`[배포 위생] ${dir} 에서 모델 id 를 못 찾았다 — 이 검사 미수행.`);
+    return null;
+  }
+  return ids;
+}
+
+function collectModelIds(node: unknown, parentKey: string, out: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectModelIds(item, parentKey, out);
+    return;
+  }
+  if (node !== null && typeof node === "object") {
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      if (parentKey === "models") out.add(key); // ⓑ `models` 객체의 키가 모델 id 다
+      collectModelIds(value, key, out);
+    }
+    return;
+  }
+  // ⓐ `model` / `small_model` 값은 `provider/model-id` 형태 — 뒤쪽만 쓴다.
+  if (typeof node === "string" && (parentKey === "model" || parentKey === "small_model")) {
+    out.add(node.slice(node.lastIndexOf("/") + 1));
+  }
+}
+
+function modelIdPattern(ids: ReadonlyArray<string>): RegExp {
+  const escaped = ids.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`\\b(${escaped.join("|")})\\b`, "i");
+}
 
 /**
  * 워크스페이스 형제 = 사용자의 다른 프로젝트들. 못 읽거나 0개면 null (CI) — 조용히 통과시키지

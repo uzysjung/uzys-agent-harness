@@ -72,6 +72,15 @@ Past that gate (2026-08-02 사용자 결정):
   **Sonnet @ high+**, and its output gets Opus cross-verification before it gates anything.
   The routing question is *"새 판단이 남아 있는가?"* — 남아 있으면 핵심(Opus), 없으면 반복(Sonnet).
 - **Read-only assists** (research sweeps) may also go to Sonnet; tests and verification never do.
+- **Judgment-free implementation whose pass condition is a command** — the repetitive lane above
+  stays the default; only when every predicate in the next section holds may that work go to an
+  external executor instead.
+- **Korean the user will read** · **shorter and better structured** — an external advisory
+  round-trip. Which provider takes which is `external-model-consult`'s provider table; that table
+  is the SSOT and is not copied here.
+- **A judgment that needs several perspectives** → [[multi-persona-review]] (native panel). **One
+  non-Claude perspective** → `external-model-consult` persona mode. A panel that mixes both asks
+  the user before it runs, and that gate belongs to [[multi-persona-review]].
 - 설계·기획·분배·리뷰 decisions never route down at all — they are the orchestrator's own
   (see above).
 
@@ -79,6 +88,51 @@ Parallelism rule of thumb (three independent sources converge on this): **parall
 safe, parallel writes are dangerous**. Fan out freely for research/search/review; keep writes
 sequential or isolated (worktree) so two workers never make conflicting implicit decisions in
 the same files.
+
+## External executors — the lane outside the harness
+
+This lane buys **capacity, not quality.** It is not a fourth rank below Sonnet — the ranking above
+is by judgment, and an outside CLI has not earned a place in it. What it can hold is work whose
+**quality a command decides**, the only case where "cheaper" doesn't also mean "worse." Choosing it
+because some other vendor is supposedly better inverts this policy's quality-over-cost premise.
+
+**All five predicates must hold; any one false closes the lane.** Each is a question you can answer
+right now, not a "use it if it helps."
+
+| # | Predicate | How you answer it now |
+|---|---|---|
+| **P1** | No judgment is left | The routing question above, unchanged — *"새 판단이 남아 있는가?"* 남아 있으면 닫힌다 |
+| **P2** | Passing is machine-decided | Write the pass command on one line, right now. Can't? Closed |
+| **P3** | The output gates nothing | It gates no merge, no release, no decision until in-harness cross-verification clears it |
+| **P4** | The repo may go to that provider | The first-use approval below is done, and this file set is inside what was approved |
+| **P5** | It is **not the CLI you are running on**, and it can use a shell | Delegating to yourself is not a round trip; with no shell, this lane doesn't exist for you |
+
+Even with all five true, **the in-harness repetitive lane is still the default.** Go outside when
+mechanical work is eating capacity a judgment lane needs — and reach for the fewest tools that
+answer the task, not every tool installed.
+
+**First use in a repository is the user's call, not yours.** Routing implementation to an external
+CLI puts this repository's code into another vendor's session — a disclosure none of the in-harness
+lanes make. Before the first such delegation in a project, say which tool, which provider its own
+config resolves to, which files the worker may touch, and what comes back; then wait. After that one
+approval, routing inside the predicates above is yours. Ask again when the boundary moves — a
+different tool, or files outside what was approved.
+
+**Tool missing, auth expired, provider refused → step down a lane and report what you could not
+use.** Never install it, never log in for them, and never quietly substitute a different provider:
+the user knows which tool answered, so a silent swap makes your report false. Recognizing each
+failure — and the exact wording for it — belongs to [[external-model-consult]]; where that skill
+isn't installed, only the conclusion survives: stop and ask.
+
+**This lane does not choose models.** The tool runs whatever its own config resolves to, and you
+report what answered. A model id written down here goes stale and pins the user to a retired model.
+
+**Call the tool's non-interactive mode from the shell.** Read the subcommand off `--help` rather
+than typing one from memory, and stop and report if it isn't there. Writes stay isolated (worktree
+or equivalent) — the parallel-write rule above holds for outside workers too.
+
+The delegation prompt spec and the file-handoff contract below apply here unchanged: an outside
+worker is still a worker.
 
 ## Effort floors — and the inheritance gotcha
 
@@ -212,6 +266,9 @@ build on. Hand off manually:
 | Spawning an agent for what one direct tool call answers | 15× token multiplier for zero value — do trivial work directly |
 | Relying on plan-level auto-fallback for continuity | Undocumented behavior; use the manual handoff protocol |
 | Finished worker left running after its result is consumed | Subagent panes/windows accumulate (iTerm2 등) and idle pings pollute the session — TaskStop as one motion with consuming the result |
+| 외부 실행기에 **테스트 작성·검증**·핵심 구현을 넘김 | 이 레인은 판단 잔여 0 인 일만 받는다 — 무엇을 단언할지 정하는 일을 밖으로 내보내면 외부 산출물을 검사할 기준 자체가 밖에 있게 된다. 형태가 이미 고정된 표에 케이스 한 줄을 복제하는 일은 무엇을 단언할지 정하지 않으므로 여기 해당하지 않는다 |
+| 도구가 없어서 조용히 다른 제공자로 갈아타 실행 | 사용자는 어느 도구가 답했는지 알고 있다 — 대체는 보고 대상이지 판단 대상이 아니다 |
+| 외부 실행기를 "품질이 더 낫다"는 이유로 고름 | 이 레인이 사는 것은 용량이다. 품질을 근거로 들면 이 정책의 quality-over-cost 전제를 뒤집는 것이다 |
 
 ## Quick reference
 
@@ -223,6 +280,9 @@ build on. Hand off manually:
 반복·단순 구현(확립 패턴 적용) / 리서치 스윕
                                → sonnet @ high 이상 — 테스트·검증 투입 금지, 산출물은 Opus 교차검증
 결정적 변환 (rename·포맷)      → 모델 위임 금지 — sed/grep/스크립트 직접
+판단 잔여 0 + 합격을 명령 하나로 판정
+                               → sonnet 기본 / 다섯 술어 충족 시 외부 실행기 — 최초 1회 사용자 확인, 산출물은 in-harness 교차검증
+도구 부재·인증 만료            → 레인을 내리고 무엇을 못 썼는지 보고 — 대신 설치/로그인 금지, 조용한 제공자 교체 금지
 위임 완료                      → 결과 수거와 동시에 TaskStop (SendMessage 재사용 예정 시만 유지 선언)
 Fable 소진                     → compaction-handoff → opus @ max 가 오케스트레이터 대행
 ```

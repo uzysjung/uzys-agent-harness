@@ -67,6 +67,11 @@ the source of truth and the user makes the final call.
 This skill shells out to CLIs that are **not bundled here**. The wrappers resolve
 them at `$AGY_BIN` / `$CODEX_BIN`, then `PATH`, then `~/.local/bin/`.
 
+This is the rule for any external CLI the harness routes to, not only the two
+below: **the tool's installation and login are the user's action.** You report
+what is missing; you never install, authenticate, or substitute another provider
+on their behalf.
+
 - **Not installed?** Ask the user to install (`https://antigravity.google/cli` ·
   `https://developers.openai.com/codex/cli`) and log in once. Don't attempt the
   install silently.
@@ -75,8 +80,8 @@ them at `$AGY_BIN` / `$CODEX_BIN`, then `PATH`, then `~/.local/bin/`.
   paste the callback code, then `/quit`). The token persists to disk, so later
   headless `agy -p` calls reuse it.
 - **codex auth expired?** Logged-out calls fail nonzero with stderr containing
-  `401 Unauthorized: Missing bearer or basic authentication` (verified against
-  codex 0.144.5 with an empty `CODEX_HOME`; codex retries "Reconnecting… n/5"
+  `401 Unauthorized: Missing bearer or basic authentication` (verified against a
+  logged-out codex with an empty `CODEX_HOME`; codex retries "Reconnecting… n/5"
   first, so it takes a few seconds to fail). On that signature, **stop and ask the
   user to run `codex login`.**
 - Never fabricate a token, never read/echo `.env*` or secrets. Auth is the user's action.
@@ -225,7 +230,9 @@ Full prompt templates and worked examples:
   **named** personas, each producing concrete findings rather than vibes. Cluster
   overlapping findings for the user; don't silently adopt them. For a native
   parallel-subagent panel with severity ranking, prefer `multi-persona-review`
-  where installed — use this mode when a **non-Claude** opinion is the point.
+  where installed — use this mode when a **non-Claude** opinion is the point. It
+  can also be called for a **single seat** on that native panel; the confirmation
+  a tool-spanning panel needs is owned there, not here.
 - **Mode S — 간결화·재구조화 (Codex).** Worth delegating for paragraph-plus prose or
   real restructuring. State what "done" looks like: target length, target shape
   (outline / table / sections), and what must be preserved. For structure-only work
@@ -279,6 +286,10 @@ without telling the user why.**
 - A native parallel-persona panel — `multi-persona-review` where installed.
 - Reviewing this repo's code — the repo never enters the provider's workspace
   through this skill; use the normal review flow.
+- Handing an external CLI actual implementation work in your repo — the guarantee
+  that makes this skill safe is that the repo never enters the provider's
+  workspace, and an executor needs the opposite. That lane, its predicates, and
+  its one-time user approval belong to `model-orchestration` where installed.
 - Anything needing repo secrets, or when the user explicitly wants *your* answer.
 
 ## References
