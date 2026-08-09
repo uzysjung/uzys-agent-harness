@@ -93,7 +93,8 @@ report exactly what remains unmet and why.
 
 Independent review by an agent or person other than the one that produced the
 work is required at two points: for a completed specification, plan, or design
-before it is built on, and for any completed change before deployment.
+before it is built on, and for any completed change before it is merged into
+shared work.
 
 Give the reviewer the completion criteria and relevant constraints. A reviewer
 verifies the work itself rather than trusting the author's report, so

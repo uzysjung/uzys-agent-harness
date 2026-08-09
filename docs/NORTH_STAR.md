@@ -109,10 +109,10 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 
 > **현재 상태 (2026-08-10, 배포 앵커 7원칙 재편 후)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 23개 항목 · ~4,963 tokens/세션** = rules 6개 ~1,092 ·
-> CLAUDE.md 2개 ~2,855 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
-> 직전(2026-08-04, 23개 ~4,755) 대비 **+208 tok, 개수는 그대로** — 증가분은 **전부 배포 앵커
-> 한 파일**에서 났다(`templates/CLAUDE.md` 1,685 → 1,893. 스캐폴드 962 는 불변).
+> 실측(tooling 트랙): **상주 23개 항목 · ~4,968 tokens/세션** = rules 6개 ~1,092 ·
+> CLAUDE.md 2개 ~2,860 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> 직전(2026-08-04, 23개 ~4,755) 대비 **+213 tok, 개수는 그대로** — 증가분은 **전부 배포 앵커
+> 한 파일**에서 났다(`templates/CLAUDE.md` 1,685 → 1,898. 스캐폴드 962 는 불변).
 > 앵커를 7원칙 구조로 바꾸면서 **게이트가 무는 문장 3개를 복원하고**(적대적 패널의 문턱 ·
 > 만든 레인이 아닌 쪽의 리뷰 · 리뷰어의 직접 검증), **원안이 판별자 없이 두면 위험한 곳 3군데에
 > 조건을 붙인** 값이다.
@@ -122,10 +122,10 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > `stack` 절에), 사용자가 이를 적발해 걷어냈다 — 13,018자 → 7,561자. **한 층의 공백을 재려면
 > 나머지 층을 먼저 grep 해야 한다**(`doc-governance` 의 "한 사실은 한 곳에"). 판정과 근거는
 > `docs/plans/anchor-principles-2026-08-09.md` — 여기 옮겨 적지 않는다.
-> 그 앞으로 세면 30개 ~7,570 → 23개 ~4,963, 즉 **−7개 · 약 −2,607 tok**.
+> 그 앞으로 세면 30개 ~7,570 → 23개 ~4,968, 즉 **−7개 · 약 −2,602 tok**.
 > **개수가 그대로인데 토큰이 오르면 그 자리를 의심해야 한다** — 이번엔 그 의심이 실제로
 > 중복 6건을 찾아냈다(부수 축 둘이 서로의 굿하트를 막는다는 아래 설계가 갈라 보인 사례).
-> 남은 +208 은 ratchet 의 토큰 축을 red 로 만들었고, 게이트가 규정한 정당화 절차대로
+> 남은 +213 은 ratchet 의 토큰 축을 red 로 만들었고, 게이트가 규정한 정당화 절차대로
 > `npm run cost:baseline` 을 같은 커밋에 담아 baseline 을 올렸다 — **증가 승인은 사용자 결정**이다.
 > CLAUDE.md 가 2개인 것은 설치가 **하네스 앵커(루트 `CLAUDE-uzys-harness.md`)와 프로젝트
 > 스캐폴드+import(루트 `CLAUDE.md`)를 둘 다** 놓기 때문이다. v26.140.0 까지는 앵커만 재면서
