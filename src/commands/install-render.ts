@@ -444,6 +444,12 @@ function renderPhase1Rows(
     for (const path of baseline.updateMode.installedNew) {
       log(assetRow("success", path, "added by this release"));
     }
+    // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
+    // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
+    // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.
+    for (const path of baseline.updateMode.restored) {
+      log(assetRow("success", path, "was missing — reinstalled (delete it again if intentional)"));
+    }
     // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
     // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
     if (baseline.updateMode.needsReinstall.length > 0) {

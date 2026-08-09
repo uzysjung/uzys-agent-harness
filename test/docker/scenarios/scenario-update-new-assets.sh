@@ -135,7 +135,19 @@ if [[ ! -f "${RULE}" ]]; then
   tail -20 /tmp/new-rule.txt
   exit 1
 fi
-echo "✓ ③ 없던 룰을 update 가 설치"
+# 존재만 보면 빈 파일·손상본도 PASS 된다 — 내용까지 본다.
+if [[ ! -s "${RULE}" ]] || ! grep -q "Git Safety" "${RULE}"; then
+  echo "FAIL: 복구된 룰이 비었거나 내용이 다르다 — 파일 존재는 도달의 증거가 아니다"
+  head -5 "${RULE}"
+  exit 1
+fi
+# 전에 깔아 준 파일이므로 '신규'가 아니라 '복구'로 보고돼야 한다.
+if ! grep -q "was missing — reinstalled" /tmp/new-rule.txt; then
+  echo "FAIL: 사용자가 지운 파일을 '이번 릴리즈 추가'로 보고한다 — 오귀인이다"
+  tail -20 /tmp/new-rule.txt
+  exit 1
+fi
+echo "✓ ③ 없던 룰을 내용까지 복구 + '복구'로 정확히 보고"
 
 # --- ④ 사용자가 고친 파일은 덮어쓰지 않는다 ---
 printf '# MY OWN SCRIPT\n' > "${DRIFT}"

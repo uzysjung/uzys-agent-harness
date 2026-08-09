@@ -866,6 +866,28 @@ describe("신규 자산 설치 (#283)", () => {
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
   });
 
+  it("전에 깔아 준 파일이 없어졌으면 '신규'가 아니라 '복구'로 보고한다", () => {
+    // 디스크만 보면 "이번 릴리즈 신규"와 "사용자가 지웠다"가 같아 보인다. 둘을 한 문구로
+    // 보고하면 지운 사용자에게는 거짓말이 되고, 자기 파일이 왜 돌아왔는지 추적할 단서가 없다.
+    // 판별 신호는 install log 의 policyFiles 기준선 — 거기 있으면 전에 우리가 깔아 준 것이다.
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      policyFiles: [{ path: "rules/cli-development.md", sha256: hashContent("cli v1\n") }],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.restored).toContain(".claude/rules/cli-development.md");
+    expect(report.installedNew).not.toContain(".claude/rules/cli-development.md");
+    // 기준선에 없던 것은 그대로 신규다 — 두 목록이 같은 실행에서 갈리는지 함께 본다.
+    expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+  });
+
   it("새로 깐 정책 파일이 기준선에 들어간다 — 다음 update 가 사용자 파일로 오판하면 안 된다", () => {
     runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 

@@ -779,6 +779,7 @@ describe("executeSpec", () => {
         externalUpdated: 0,
         externalBackedUp: [],
         installedNew: [],
+        restored: [],
         needsReinstall: [],
       },
     });
@@ -832,6 +833,7 @@ describe("executeSpec", () => {
         externalUpdated: 0,
         externalBackedUp: [],
         installedNew: [],
+        restored: [],
         needsReinstall: [],
       },
     });
@@ -884,6 +886,7 @@ describe("executeSpec", () => {
         externalUpdated: 0,
         externalBackedUp: [],
         installedNew: [],
+        restored: [],
         needsReinstall: [],
       },
     });
@@ -927,6 +930,7 @@ describe("executeSpec", () => {
         externalUpdated: 0,
         externalBackedUp: [],
         installedNew: [],
+        restored: [],
         needsReinstall: [],
       },
     });

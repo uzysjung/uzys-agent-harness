@@ -110,6 +110,14 @@ export interface UpdateModeReport {
    */
   installedNew: string[];
   /**
+   * **전에 깔아 줬는데 디스크에 없어서 다시 깐** 자산 (projectDir 상대경로).
+   *
+   * `installedNew` 와 가르는 이유는 원인이 다르기 때문이다 — 이쪽은 사용자가 지웠거나 유실된
+   * 것이다. 둘을 한 문구("이번 릴리즈에 추가됨")로 보고하면 한쪽에는 거짓이 되고, 자기가 지운
+   * 파일이 왜 돌아왔는지 추적할 수 없다. 판별 신호는 install log 의 `policyFiles` 기준선이다.
+   */
+  restored: string[];
+  /**
    * 이 릴리즈에 새로 생겼지만 **update 가 깔 수 없는** 자산 (projectDir 상대경로).
    *
    * 훅과 `settings.json` 이 그쪽이다 — 훅은 `settings.json` 의 배선이 있어야 발화하는데 update 는
@@ -167,6 +175,7 @@ export function runUpdateMode(
     externalUpdated: 0,
     externalBackedUp: [],
     installedNew: [],
+    restored: [],
     needsReinstall: [],
   };
 
@@ -175,6 +184,7 @@ export function runUpdateMode(
   // 파일이 기준선에 없어 다음 update 가 "사용자가 만든 파일"로 오판한다.
   const fresh = installNewAssets(projectDir, templatesDir);
   report.installedNew = fresh.installed;
+  report.restored = fresh.restored;
   report.needsReinstall = fresh.needsReinstall;
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
@@ -252,12 +262,16 @@ export function runUpdateMode(
 function installNewAssets(
   projectDir: string,
   templatesDir: string,
-): { installed: string[]; needsReinstall: string[] } {
+): { installed: string[]; restored: string[]; needsReinstall: string[] } {
   const installed: string[] = [];
+  const restored: string[] = [];
   const needsReinstall: string[] = [];
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
   const claudeSelected = readInstallLog(projectDir)?.spec.cli.includes("claude") ?? false;
+  // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
+  // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
+  const priorBaseline = policyBaseline(projectDir);
 
   for (const entry of trackOnlyFileAssets(installedTracks(projectDir))) {
     // 하네스 앵커는 제외 — `syncHarnessAnchor` 가 **이행 로직과 함께** 소유한다. 여기서 먼저
@@ -281,9 +295,12 @@ function installNewAssets(
 
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(source, target);
-    installed.push(entry.target);
+    // `policyFiles` 키는 `.claude/` 상대다 (`rules/git-policy.md`).
+    const recordedAs = entry.target.startsWith(".claude/") ? entry.target.slice(8) : entry.target;
+    if (priorBaseline.has(recordedAs)) restored.push(entry.target);
+    else installed.push(entry.target);
   }
-  return { installed, needsReinstall };
+  return { installed, restored, needsReinstall };
 }
 
 /**
