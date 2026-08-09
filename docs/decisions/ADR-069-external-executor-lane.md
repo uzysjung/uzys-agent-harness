@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-10
-- PR: #289
+- PR: #291
 - 관련: ADR-068(배포 앵커 7원칙) · 이슈 #286
 
 ## Context
