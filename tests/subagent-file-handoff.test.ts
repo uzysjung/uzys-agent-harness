@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
 const mo = read("../templates/skills/model-orchestration/SKILL.md");
 const mpr = read("../templates/skills/multi-persona-review/SKILL.md");
+const emc = read("../templates/skills/external-model-consult/SKILL.md");
 
 const HANDOFF_HEADING = "### Collect results as a file, not as a return message";
 
@@ -65,5 +66,8 @@ describe("서브에이전트 결과 수거 = 파일 핸드오프", () => {
   it("설치본(.claude) 사본이 1:1 이다", () => {
     expect(read("../.claude/skills/model-orchestration/SKILL.md")).toBe(mo);
     expect(read("../.claude/skills/multi-persona-review/SKILL.md")).toBe(mpr);
+    // ADR-069 — 외부 실행기 레인은 세 스킬을 **같은 사이클에** 고친다. 이 스킬만 게이트 밖에
+    // 있으면 한쪽 사본만 고쳐지는 drift 가 실제 위험이다(설계 §5.1).
+    expect(read("../.claude/skills/external-model-consult/SKILL.md")).toBe(emc);
   });
 });
