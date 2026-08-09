@@ -18,6 +18,14 @@ read the same section, fear the same failure, and accept the same evidence are o
 two names — and the panel's whole value is the count of *independent* failures, not the count of
 labels ("Nine Judges, Two Effective Votes").
 
+**Model provenance is a correlation control, not a sixth criterion.** Two reviewers with the same
+lens stay one reviewer whichever models run them — the five tests above still decide independence.
+What a second vendor buys is different: two reviewers whose lenses already differ fail *together*
+less often when they do not share a model family, and that joint-failure rate is the quantity
+"Nine Judges, Two Effective Votes" says a panel's information content is made of. So spend an
+outside seat on the lens whose miss would cost the most, not on the panel at large, and write down
+which model answered each seat — a panel whose provenance is unrecorded cannot be replicated.
+
 ## Useful lens patterns
 
 | Artifact | Distinct lenses |
