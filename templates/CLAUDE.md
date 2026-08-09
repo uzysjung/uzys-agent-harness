@@ -154,4 +154,4 @@ the condition on every line.
   show the filled-in brief so the user can carry it straight into a prompt,
   marking which values were assumed.
 - `model-orchestration`, where installed — when work is delegated, it decides
-  which model and which effort level each lane gets.
+  which lane takes the work and how that lane is run.
