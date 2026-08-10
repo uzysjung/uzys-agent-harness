@@ -44,6 +44,31 @@ function specFor(track: Track): AssetSpec {
 }
 
 /**
+ * 검사 **모집단**을 넓히기 위한 두 번째 manifest 입력 — 번들 스킬을 전부 선택한 상태.
+ *
+ * WHY (#290, 변이 생존으로 발견): 모집단을 `specFor` 의 기본 설치분에서만 뽑으면 **어느 트랙에도
+ * 기본 설치되지 않는 자산이 색인에 아예 없어** 아래 루프가 검사조차 하지 않는다. 자산이 더 많이
+ * 부재할수록 게이트가 덜 신경 쓰는 역전이고, 가장 위험한 쪽 — 상주 문서가 이름을 부르는데 평범한
+ * 설치에는 하나도 안 깔리는 자산 — 이 정확히 사각이었다.
+ *
+ * 여기서도 자산 id 를 열거하지 않는다(위 "게이트는 열거하지 말고 훑어라"). `INTERNAL_BUNDLED_SKILL_IDS`
+ * 를 통째로 넘겨 derive 하므로 새 번들 스킬이 생겨도 게이트를 고칠 필요가 없다.
+ *
+ * 이 스펙이 주는 것은 **자리(빈 트랙 집합)뿐**이다 — 설치 트랙은 여전히 `specFor` 의 기본 설치분에서만
+ * 채워지므로 opt-in 전용 자산은 `installedOn = ∅` 이 되어 상주 문서의 전 트랙이 미설치로 잡힌다.
+ * 판정 기준선이 "평범하게 깔았을 때"라는 위 원칙은 그대로다.
+ *
+ * **`withTauri`·`withEcc` 를 켜지 않는 이유**(독립 검증이 지적 — 켠 채로 두면 이름과 반대로 돌았다):
+ * `withTauri` 는 이 필드를 읽는 게이팅이 배포에 하나도 없어 무동작이고(`manifest.ts` 의 필드 주석),
+ * `withEcc` 는 **opt-out** 축이라 켜면 오히려 C2 fallback 자산 10종이 빠진다(ADR-019 — 플러그인이
+ * 켜지면 그쪽이 제공한다). 두 축 다 켜서 **얻는 자산이 0**이므로 켜지 않는다. `s.withEcc` 를 양의
+ * 방향으로 읽는 게이팅이 생기면 그때 극성을 하나 더 돌면 된다 — 지금 없는 것을 위해 축을 늘리지 않는다.
+ */
+function populationSpecFor(track: Track): AssetSpec {
+  return { tracks: [track], selectedInternalSkills: [...INTERNAL_BUNDLED_SKILL_IDS] };
+}
+
+/**
  * 설치 target → 자산 id. 문서가 실제로 이름으로 부르는 단위와 맞춘다
  * (`.claude/skills/x/SKILL.md` → `x`). 3자 이하 id(`ecc`)는 산문 오탐만 낳아 제외.
  */
@@ -86,6 +111,13 @@ function buildIndexes(): {
         docTracks.set(e.source, set);
         docTarget.set(e.source, e.target);
       }
+    }
+    // 모집단 보강 — 선택하면 깔릴 수 있는 자산에 **자리만** 만든다(트랙 집합은 비운 채로).
+    // 위 루프가 이미 담은 id 는 건드리지 않으므로 실제 설치 트랙은 그대로다.
+    const population = populationSpecFor(track);
+    for (const e of buildManifest(population).filter((x) => x.applies(population))) {
+      const id = assetIdOf(e.target);
+      if (id && !assetTracks.has(id)) assetTracks.set(id, new Set<Track>());
     }
   }
   return { assetTracks, docTracks, docTarget };
@@ -190,13 +222,24 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
     // 2026-08-02 정비 → 7, 2026-08-04 #284)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    expect(references).toBeGreaterThan(2); // 실측 3 — 동일 취지로 실측 근처로 조임
+    // 실측 5 (#290 의 모집단 보강으로 4 → 5). 하한을 실측 바로 아래로 조인다 — 아래 `docTracks`
+    // 하한과 같은 기준이다: 한 건만 소실돼도 무는 하한이라야 canary 다.
+    expect(references).toBeGreaterThan(4);
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
     // 색인이 비면 "위반 0"이 참이 아니라 무의미해진다.
     const { assetTracks, docTracks } = buildIndexes();
     expect(assetTracks.size).toBeGreaterThan(20);
+    // #290 canary — **어느 트랙에도 기본 설치되지 않는 자산**이 색인 안에 자리를 갖고 있어야 한다.
+    // 이 자리가 비면 모집단이 다시 "실제 설치분"으로 좁아진 것이고, 그 순간 게이트는 가장 위험한
+    // 부류(평범하게 깔았을 때 전 트랙 부재)를 통째로 검사하지 않는다 — 변이가 살아났던 상태다.
+    const zeroTrack = [...assetTracks].filter(([, ts]) => ts.size === 0).map(([id]) => id);
+    expect(
+      zeroTrack.length,
+      "기본 설치 트랙이 0인 자산이 색인에 하나도 없다 — 모집단이 실제 설치분으로 좁아졌다는 뜻이고,\n" +
+        "그러면 상주 문서가 그런 자산을 이름으로 불러도 이 게이트는 검사조차 하지 않는다 (#290).",
+    ).toBeGreaterThan(0);
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
     // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284 로 benchmark-parity 제거)로 줄었다.
     expect(docTracks.size).toBeGreaterThan(7); // 모수 8 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
