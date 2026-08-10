@@ -151,8 +151,9 @@ function referenceRegex(id: string): RegExp {
  *
  * **두 제약을 함께 거는 이유**(#293, 변이 생존으로 발견). 창만으로는 **다른 항목의 조건절**이
  * 새어 들어와 면제로 쓰인다 — 실측: 앵커의 상주 스킬 목록에서 미설치 3트랙짜리 지목을 절 끝에
- * 한 줄 덧붙이면 121자 앞의 다른 항목이 가진 `where installed` 가 그것까지 덮어 통과했다
- * (같은 줄을 46줄 뒤에 넣으면 물었다 — 차이는 위치뿐이었다). 조건절이 촘촘한 구역일수록 통째로
+ * 한 줄 덧붙이면 다른 항목이 가진 `where installed` 가 그것까지 덮어 통과했다(그 조건절 끝에서
+ * 새 지목까지 **122자** — 창 160 안이다. 같은 줄을 46줄 뒤에 넣으면 물었다: 차이는 위치뿐이었다).
+ * 조건절이 촘촘한 구역일수록 통째로
  * 무면허가 되는 역전이라, 지목이 **자기 블록 안에서** 부재를 밝히도록 좁힌다.
  *
  * 반대로 블록만으로는 좁힐 수 없다: 마크다운 문단 하나가 길면 창보다 넓어진다. 그래서 창을
@@ -236,15 +237,27 @@ interface Violation {
   missing: Track[];
 }
 
-function findViolations(): { violations: Violation[]; references: number } {
-  const { assetTracks, docTracks } = buildIndexes();
+/**
+ * `inject` = 판정 직전에 문서 본문을 갈아끼우는 훅. **테스트 전용**이며 기본은 없다.
+ *
+ * WHY: 면제 범위를 `ackScope` 로 옮겼는데, 아래 호출부를 옛 창 방식으로 되돌리면 `ackScope` 는
+ * 정의만 남아 어떤 게이트도 물지 않았다(독립 검증 T0 — vitest·biome·tsc 전부 초록). 헬퍼를
+ * 단언하는 것과 **게이트가 그 헬퍼를 실제로 쓰는지**를 단언하는 것은 다른 일이다. 합성 본문을
+ * 이 경로에 태워야 호출부까지 잠긴다.
+ */
+function findViolations(inject?: (target: string, text: string) => string): {
+  violations: Violation[];
+  references: number;
+} {
+  const { assetTracks, docTracks, docTarget } = buildIndexes();
   const violations: Violation[] = [];
   let references = 0;
 
   for (const [source, tracks] of docTracks) {
     const abs = join(TEMPLATES, source);
     if (!existsSync(abs)) continue;
-    const text = readFileSync(abs, "utf8");
+    const raw = readFileSync(abs, "utf8");
+    const text = inject ? inject(docTarget.get(source) ?? "", raw) : raw;
     const selfId = source.replace(/^rules\//, "").replace(/\.md$/, "");
 
     for (const [asset, installedOn] of assetTracks) {
@@ -316,6 +329,22 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 항목이 여러 줄이면 이어지는 줄의 조건절도 같은 블록이다 — 마크다운 구조를 존중한다.
     const wrapped = "- `gamma` — 설명이 길어 줄을 넘긴다.\n  없으면 범용 서브에이전트를 쓴다.";
     expect(inScope(wrapped, "`gamma`"), "같은 항목의 이어지는 줄은 자기 블록이다").toBe(true);
+  });
+
+  it("게이트가 그 좁은 범위를 실제로 쓴다 (판정 경로 전체)", () => {
+    // 위 테스트는 `ackScope` 만 잠근다. 호출부를 옛 창 방식으로 되돌리면 헬퍼는 정의만 남아
+    // 아무도 안 문다(독립 검증 T0 — vitest·biome·tsc 전부 초록이었다). 그래서 #293 의 원 재현을
+    // **판정 경로 전체**에 태운다: 앵커 끝에 조건절 없는 지목을 한 줄 덧붙이면 위반이어야 한다.
+    // 옛 창이면 122자 앞 항목의 `where installed` 가 이 줄까지 덮어 통과한다.
+    const { violations } = findViolations((target, text) =>
+      target === HARNESS_ANCHOR_FILE
+        ? `${text}\n- Hand implementation to the \`implementer\` agent.\n`
+        : text,
+    );
+    expect(
+      violations.map((v) => v.asset),
+      "앵커 끝에 덧붙인 지목이 이웃 항목의 조건절로 면제됐다 — 게이트가 좁은 범위를 안 쓰고 있다",
+    ).toContain("implementer");
   });
 
   it("지목 대상이 없는 트랙이 있으면 문서가 그 부재를 명시한다", () => {
