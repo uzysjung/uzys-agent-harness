@@ -143,14 +143,21 @@ function referenceRegex(id: string): RegExp {
 /**
  * 부재를 명시했는가 — **면제 판정**.
  *
- * 기준: 지목 지점 주변 ±`ACK_WINDOW` 자 안에 "없을 수 있음 + 그때 무엇을 할지"를 뜻하는
- * 조건/대안 표현이 있을 것. 근거는 두 사례의 실제 해결 문구다 —
+ * 기준: 지목이 **속한 블록** 안, 그리고 지목에서 ±`ACK_WINDOW` 자 안에 "없을 수 있음 + 그때
+ * 무엇을 할지"를 뜻하는 조건/대안 표현이 있을 것. 근거는 두 사례의 실제 해결 문구다 —
  *   "Dev tracks ship an `implementer` agent; **without it** use a general-purpose subagent",
  *   "(UI **트랙이면** `benchmark-parity.md` … 다른 트랙엔 그 파일이 **없어** 이 한 줄이 SSOT)".
  * 즉 문서가 설치자에게 "없을 수도 있다"를 알려주면 지시가 허공을 가리키지 않는다.
  *
- * 범위를 문단이 아니라 좁은 창으로 잡는 이유: `없으면` 은 한국어 산문에 흔해서
- * (`증거가 없으면`) 멀리 떨어진 무관한 표현이 면제로 오인된다.
+ * **두 제약을 함께 거는 이유**(#293, 변이 생존으로 발견). 창만으로는 **다른 항목의 조건절**이
+ * 새어 들어와 면제로 쓰인다 — 실측: 앵커의 상주 스킬 목록에서 미설치 3트랙짜리 지목을 절 끝에
+ * 한 줄 덧붙이면 121자 앞의 다른 항목이 가진 `where installed` 가 그것까지 덮어 통과했다
+ * (같은 줄을 46줄 뒤에 넣으면 물었다 — 차이는 위치뿐이었다). 조건절이 촘촘한 구역일수록 통째로
+ * 무면허가 되는 역전이라, 지목이 **자기 블록 안에서** 부재를 밝히도록 좁힌다.
+ *
+ * 반대로 블록만으로는 좁힐 수 없다: 마크다운 문단 하나가 길면 창보다 넓어진다. 그래서 창을
+ * 없애지 않고 **교집합**을 쓴다 — 기존보다 넓어지는 경우가 없다. `없으면` 이 한국어 산문에
+ * 흔하다는 원래 사유(`증거가 없으면`)는 그대로 유효하다.
  *
  * 한계는 정직하게 — 어휘 매칭이라 우회 가능하다. 이 게이트는 **말없이 지목하는 것**을 잡지
  * "성의 없는 면제 문구"를 잡지 못한다.
@@ -175,6 +182,52 @@ const ACK_WINDOW = 160;
  */
 const ABSENCE_ACK =
   /없으면|없어|없는 트랙|미설치|설치돼 있으면|설치되어 있으면|트랙이면|트랙에만|트랙 한정|without it|if (?:it (?:is|'s) )?(?:not )?(?:installed|present|available)|if absent|if unavailable|where installed|where[^.]{0,60}installed|falls? back to/i;
+
+/** 블록 경계로 쓰는 줄 — 빈 줄 · 헤딩 · 새 리스트 항목 머리. */
+const BLOCK_START = /^\s*(?:[-*+]|\d+\.)\s/;
+const BLOCK_BREAK = /^\s*$|^#{1,6}\s/;
+
+/**
+ * ack 를 찾을 범위 — 지목이 속한 **마크다운 블록** ∩ 지목 ±`ACK_WINDOW`.
+ *
+ * 블록 = 리스트 항목 하나(이어지는 들여쓴 줄 포함) 또는 문단 하나. 경계는 빈 줄 · 헤딩 ·
+ * 다음 리스트 항목 머리다. 이웃 항목의 조건절을 빌려 쓰지 못하게 하는 것이 목적이므로
+ * 항목 단위가 최소 단위다 — 문단으로 자르면 앵커의 상주 스킬 목록처럼 빈 줄 없이 이어진
+ * 항목들이 한 덩어리가 되어 지금과 똑같이 샌다.
+ */
+function ackScope(text: string, at: number, len: number): string {
+  const lines = text.split("\n");
+  const offset: number[] = [];
+  for (let i = 0, o = 0; i < lines.length; i++) {
+    offset.push(o);
+    o += (lines[i] ?? "").length + 1;
+  }
+  const lineAt = (pos: number): number => {
+    let i = 0;
+    while (i + 1 < offset.length && (offset[i + 1] ?? 0) <= pos) i++;
+    return i;
+  };
+
+  let s = lineAt(at);
+  while (s > 0 && !BLOCK_START.test(lines[s] ?? "")) {
+    const prev = lines[s - 1] ?? "";
+    if (BLOCK_BREAK.test(prev)) break;
+    s--;
+  }
+  let e = lineAt(at + len);
+  while (e + 1 < lines.length) {
+    const next = lines[e + 1] ?? "";
+    if (BLOCK_BREAK.test(next) || BLOCK_START.test(next)) break;
+    e++;
+  }
+
+  const blockStart = offset[s] ?? 0;
+  const blockEnd = (offset[e] ?? 0) + (lines[e] ?? "").length;
+  return text.slice(
+    Math.max(blockStart, at - ACK_WINDOW),
+    Math.min(blockEnd, at + len + ACK_WINDOW),
+  );
+}
 
 interface Violation {
   doc: string;
@@ -202,8 +255,7 @@ function findViolations(): { violations: Violation[]; references: number } {
         const missing = [...tracks].filter((t) => !installedOn.has(t));
         if (missing.length === 0) continue;
         const at = m.index ?? 0;
-        const around = text.slice(Math.max(0, at - ACK_WINDOW), at + m[0].length + ACK_WINDOW);
-        if (ABSENCE_ACK.test(around)) continue;
+        if (ABSENCE_ACK.test(ackScope(text, at, m[0].length))) continue;
         violations.push({
           doc: source,
           line: text.slice(0, at).split("\n").length,
@@ -245,6 +297,25 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     expect(docTracks.size).toBeGreaterThan(7); // 모수 8 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
+  });
+
+  it("면제 판정이 이웃 블록의 조건절로 새지 않는다", () => {
+    // #293 — 창만 쓰던 시절에는 **다른 항목의** 조건절이 면제로 쓰였다(실측: 121자 떨어진
+    // 이웃 항목의 `where installed` 가 새 지목을 덮었다). 합성 입력으로 계약을 고정한다.
+    const list = [
+      "- `alpha`, where installed — 첫 항목은 자기 조건절을 갖는다.",
+      "  이어지는 들여쓴 줄도 같은 항목이다.",
+      "- `beta` — 두 번째 항목은 조건절을 적지 않았다.",
+    ].join("\n");
+    const inScope = (text: string, needle: string) =>
+      ABSENCE_ACK.test(ackScope(text, text.indexOf(needle), needle.length));
+
+    expect(inScope(list, "`alpha`"), "자기 블록의 조건절은 면제로 인정한다").toBe(true);
+    expect(inScope(list, "`beta`"), "이웃 항목의 조건절을 빌려 쓰지 못한다").toBe(false);
+
+    // 항목이 여러 줄이면 이어지는 줄의 조건절도 같은 블록이다 — 마크다운 구조를 존중한다.
+    const wrapped = "- `gamma` — 설명이 길어 줄을 넘긴다.\n  없으면 범용 서브에이전트를 쓴다.";
+    expect(inScope(wrapped, "`gamma`"), "같은 항목의 이어지는 줄은 자기 블록이다").toBe(true);
   });
 
   it("지목 대상이 없는 트랙이 있으면 문서가 그 부재를 명시한다", () => {
