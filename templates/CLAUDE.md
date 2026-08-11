@@ -120,7 +120,7 @@ a sentence here.
 ## 7. Report Evidence
 
 Report what changed, what was verified and how, what independent review found,
-what was not verified, and what remains.
+what was not verified, what remains, and the risk that remains.
 
 Do not claim `Pass`, `Works`, or `Completed` without evidence. An unverified
 criterion is incomplete. Disclose relevant broader checks not run; their

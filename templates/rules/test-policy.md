@@ -9,7 +9,6 @@
 - Use production-compatible dependencies when behavioral differences could affect validity.
   Otherwise, use explicit test doubles or contract tests.
 - Never use unauthorized production personal data, credentials, or secrets in tests.
-- Run the relevant checks and inspect their results.
 - Do not hide failures by weakening assertions, deleting or skipping tests, excluding coverage, or
   adding indiscriminate retries. Change tests only when the intended behavior has changed.
 - Treat coverage as a signal for untested risk, not as a quality target. Follow the

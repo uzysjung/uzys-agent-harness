@@ -7,47 +7,47 @@
   "tracks": {
     "tooling": {
       "items": 23,
-      "tokens": 4908
+      "tokens": 4872
     },
     "csr-supabase": {
       "items": 25,
-      "tokens": 5157
+      "tokens": 5121
     },
     "csr-fastify": {
       "items": 25,
-      "tokens": 5157
+      "tokens": 5121
     },
     "csr-fastapi": {
       "items": 27,
-      "tokens": 5245
+      "tokens": 5209
     },
     "ssr-htmx": {
       "items": 25,
-      "tokens": 5157
+      "tokens": 5121
     },
     "ssr-nextjs": {
       "items": 26,
-      "tokens": 5197
+      "tokens": 5161
     },
     "data": {
       "items": 24,
-      "tokens": 4840
+      "tokens": 4804
     },
     "executive": {
       "items": 17,
-      "tokens": 4117
+      "tokens": 4116
     },
     "full": {
       "items": 32,
-      "tokens": 5695
+      "tokens": 5659
     },
     "project-management": {
       "items": 14,
-      "tokens": 3863
+      "tokens": 3862
     },
     "growth-marketing": {
       "items": 14,
-      "tokens": 3863
+      "tokens": 3862
     }
   }
 }
