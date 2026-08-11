@@ -45,6 +45,18 @@ jobs:
       - name: Run CI pipeline
         run: npm run ci
 
+      # 보안 게이트 — **이 job 안에 있는 것이 배선 조건이다.** `publish` 가 `needs: ci` 라
+      # 여기서 실패하면 게시가 안 일어난다. 별도 워크플로로 빼면 v26.128.0~131.0 과 같은
+      # 형태(검증 red 인데 게시 성공)가 재현된다.
+      #
+      # 조건이 "critical/high 0" 이 아니라 **baseline 대비 신규 0** 인 이유: 이 저장소가 파는
+      # 에이전트는 Bash 를 갖고 훅은 백그라운드 프로세스를 띄운다 — 설계상 high 로 잡히므로
+      # 절대 0 은 영원히 성립하지 않는다. 통과할 수 없는 게이트는 아무도 안 돌린다(#237 과
+      # 같은 형태로 실제로 한 번 건너뛰었다). audit 도 `--omit=dev` 로 **게시되는 것**만 본다 —
+      # 빌드 도구의 취약점은 설치자에게 도달하지 않는다.
+      - name: Security gate (baseline regression + shipped deps)
+        run: npm run security
+
       - name: Smoke test (install --track tooling into temp dir)
         shell: bash
         run: |
