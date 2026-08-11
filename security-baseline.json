@@ -1,0 +1,1688 @@
+{
+  "version": 1,
+  "timestamp": "2026-08-11T21:58:47.056Z",
+  "score": {
+    "grade": "D",
+    "numericScore": 45,
+    "breakdown": {
+      "secrets": 100,
+      "permissions": 34,
+      "hooks": 0,
+      "mcp": 90,
+      "agents": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "permissions-permissive-Bash(rm -rf node_modules)",
+      "severity": "high",
+      "category": "permissions",
+      "title": "Overly permissive allow rule: Bash(rm -rf node_modules)",
+      "file": "settings.local.json",
+      "evidence": "Bash(rm -rf node_modules)",
+      "fingerprint": "permissions-permissive-Bash(rm -rf node_modules)::settings.local.json::Bash(rm -rf node_modules)"
+    },
+    {
+      "id": "permissions-permissive-Bash(rm -rf ~/Development/phase4-experiment)",
+      "severity": "high",
+      "category": "permissions",
+      "title": "Overly permissive allow rule: Bash(rm -rf ~/Development/phase4-experiment)",
+      "file": "settings.local.json",
+      "evidence": "Bash(rm -rf ~/Development/phase4-experiment)",
+      "fingerprint": "permissions-permissive-Bash(rm -rf ~/Development/phase4-experiment)::settings.local.json::Bash(rm -rf ~/Development/phase4-experiment)"
+    },
+    {
+      "id": "permissions-permissive-Bash(rm -f /tmp_stderr.log)",
+      "severity": "high",
+      "category": "permissions",
+      "title": "Overly permissive allow rule: Bash(rm -f /tmp_stderr.log)",
+      "file": "settings.local.json",
+      "evidence": "Bash(rm -f /tmp_stderr.log)",
+      "fingerprint": "permissions-permissive-Bash(rm -f /tmp_stderr.log)::settings.local.json::Bash(rm -f /tmp_stderr.log)"
+    },
+    {
+      "id": "permissions-no-deny-list",
+      "severity": "high",
+      "category": "permissions",
+      "title": "No deny list configured",
+      "file": "settings.local.json",
+      "fingerprint": "permissions-no-deny-list::settings.local.json::"
+    },
+    {
+      "id": "permissions-env-access-0",
+      "severity": "high",
+      "category": "permissions",
+      "title": "Allow rule grants env access: Bash(export PATH=\"$HOME/.cargo/bin:$HOME/.bun/bin:$PATH\")",
+      "file": "settings.local.json",
+      "evidence": "Bash(export PATH=\"$HOME/.cargo/bin:$HOME/.bun/bin:$PATH\")",
+      "fingerprint": "permissions-env-access-0::settings.local.json::Bash(export PATH=\"$HOME/.cargo/bin:$HOME/.bun/bin:$PATH\")"
+    },
+    {
+      "id": "hooks-bg-process-1048",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "hooks/docker-only-realcli.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-1048::hooks/docker-only-realcli.sh::&"
+    },
+    {
+      "id": "hooks-bg-process-1330",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "hooks/mcp-pre-exec.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-1330::hooks/mcp-pre-exec.sh::&"
+    },
+    {
+      "id": "hooks-bg-process-661",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "hooks/protect-files.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-661::hooks/protect-files.sh::&"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/harness-optimizer.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/harness-optimizer.md",
+      "file": "local-plugins/ecc/agents/harness-optimizer.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/harness-optimizer.md::local-plugins/ecc/agents/harness-optimizer.md::"
+    },
+    {
+      "id": "agents-escalation-chain-local-plugins/ecc/agents/harness-optimizer.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has full escalation chain: local-plugins/ecc/agents/harness-optimizer.md",
+      "file": "local-plugins/ecc/agents/harness-optimizer.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Edit + Bash",
+      "fingerprint": "agents-escalation-chain-local-plugins/ecc/agents/harness-optimizer.md::local-plugins/ecc/agents/harness-optimizer.md::Discovery: Grep, Glob + Read + Write: Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/loop-operator.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/loop-operator.md",
+      "file": "local-plugins/ecc/agents/loop-operator.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/loop-operator.md::local-plugins/ecc/agents/loop-operator.md::"
+    },
+    {
+      "id": "agents-escalation-chain-local-plugins/ecc/agents/loop-operator.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has full escalation chain: local-plugins/ecc/agents/loop-operator.md",
+      "file": "local-plugins/ecc/agents/loop-operator.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Edit + Bash",
+      "fingerprint": "agents-escalation-chain-local-plugins/ecc/agents/loop-operator.md::local-plugins/ecc/agents/loop-operator.md::Discovery: Grep, Glob + Read + Write: Edit + Bash"
+    },
+    {
+      "id": "hooks-bg-process-12220",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-12220::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-bg-process-12939",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-12939::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-bg-process-13572",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-13572::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-bg-process-12289",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-12289::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::&"
+    },
+    {
+      "id": "hooks-bg-process-13008",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-13008::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::&"
+    },
+    {
+      "id": "hooks-bg-process-13641",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook spawns background process: &",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "&",
+      "fingerprint": "hooks-bg-process-13641::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::&"
+    },
+    {
+      "id": "hooks-file-delete-10326",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook deletes files: rm -f",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "rm -f",
+      "fingerprint": "hooks-file-delete-10326::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::rm -f"
+    },
+    {
+      "id": "hooks-file-delete-10520",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook deletes files: rm -f",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "rm -f",
+      "fingerprint": "hooks-file-delete-10520::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::rm -f"
+    },
+    {
+      "id": "hooks-file-delete-12559",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook deletes files: rm -f",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "rm -f",
+      "fingerprint": "hooks-file-delete-12559::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::rm -f"
+    },
+    {
+      "id": "hooks-file-delete-13033",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook deletes files: rm -f",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "rm -f",
+      "fingerprint": "hooks-file-delete-13033::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::rm -f"
+    },
+    {
+      "id": "hooks-file-delete-14861",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook deletes files: rm -f",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "rm -f",
+      "fingerprint": "hooks-file-delete-14861::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::rm -f"
+    },
+    {
+      "id": "hooks-logging-disabled-12273",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook disables logging: >/dev/null 2>&1",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": ">/dev/null 2>&1",
+      "fingerprint": "hooks-logging-disabled-12273::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::>/dev/null 2>&1"
+    },
+    {
+      "id": "hooks-logging-disabled-12992",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook disables logging: >/dev/null 2>&1",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": ">/dev/null 2>&1",
+      "fingerprint": "hooks-logging-disabled-12992::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::>/dev/null 2>&1"
+    },
+    {
+      "id": "hooks-logging-disabled-13625",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook disables logging: >/dev/null 2>&1",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": ">/dev/null 2>&1",
+      "fingerprint": "hooks-logging-disabled-13625::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::>/dev/null 2>&1"
+    },
+    {
+      "id": "hooks-bg-process-12220",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook starts background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-12220::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-bg-process-12939",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook starts background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-12939::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-bg-process-13572",
+      "severity": "high",
+      "category": "hooks",
+      "title": "Hook starts background process: nohup",
+      "file": "local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh",
+      "evidence": "nohup",
+      "fingerprint": "hooks-bg-process-13572::local-plugins/ecc/skills/continuous-learning-v2/hooks/observe.sh::nohup"
+    },
+    {
+      "id": "hooks-no-pretooluse",
+      "severity": "medium",
+      "category": "misconfiguration",
+      "title": "No PreToolUse security hooks configured",
+      "file": "settings.local.json",
+      "fingerprint": "hooks-no-pretooluse::settings.local.json::"
+    },
+    {
+      "id": "agents-bash-access-agents/build-error-resolver.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/build-error-resolver.md",
+      "file": "agents/build-error-resolver.md",
+      "fingerprint": "agents-bash-access-agents/build-error-resolver.md::agents/build-error-resolver.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/build-error-resolver.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/build-error-resolver.md",
+      "file": "agents/build-error-resolver.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-agents/build-error-resolver.md::agents/build-error-resolver.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-agents/code-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/code-reviewer.md",
+      "file": "agents/code-reviewer.md",
+      "fingerprint": "agents-bash-access-agents/code-reviewer.md::agents/code-reviewer.md::"
+    },
+    {
+      "id": "agents-oversized-prompt-agents/code-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent definition effective size is 6296 characters (>5000 threshold)",
+      "file": "agents/code-reviewer.md",
+      "evidence": "6296 effective characters (8747 raw)",
+      "fingerprint": "agents-oversized-prompt-agents/code-reviewer.md::agents/code-reviewer.md::6296 effective characters (8747 raw)"
+    },
+    {
+      "id": "agents-bash-access-agents/data-analyst.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/data-analyst.md",
+      "file": "agents/data-analyst.md",
+      "fingerprint": "agents-bash-access-agents/data-analyst.md::agents/data-analyst.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/data-analyst.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/data-analyst.md",
+      "file": "agents/data-analyst.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-agents/data-analyst.md::agents/data-analyst.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-agents/implementer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/implementer.md",
+      "file": "agents/implementer.md",
+      "fingerprint": "agents-bash-access-agents/implementer.md::agents/implementer.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/implementer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/implementer.md",
+      "file": "agents/implementer.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-agents/implementer.md::agents/implementer.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-agents/reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/reviewer.md",
+      "file": "agents/reviewer.md",
+      "fingerprint": "agents-bash-access-agents/reviewer.md::agents/reviewer.md::"
+    },
+    {
+      "id": "agents-bash-access-agents/security-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/security-reviewer.md",
+      "file": "agents/security-reviewer.md",
+      "fingerprint": "agents-bash-access-agents/security-reviewer.md::agents/security-reviewer.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/security-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/security-reviewer.md",
+      "file": "agents/security-reviewer.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-agents/security-reviewer.md::agents/security-reviewer.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-agents/silent-failure-hunter.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/silent-failure-hunter.md",
+      "file": "agents/silent-failure-hunter.md",
+      "fingerprint": "agents-bash-access-agents/silent-failure-hunter.md::agents/silent-failure-hunter.md::"
+    },
+    {
+      "id": "agents-bash-access-agents/strategist.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/strategist.md",
+      "file": "agents/strategist.md",
+      "fingerprint": "agents-bash-access-agents/strategist.md::agents/strategist.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/strategist.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/strategist.md",
+      "file": "agents/strategist.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-agents/strategist.md::agents/strategist.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/code-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/code-reviewer.md",
+      "file": "local-plugins/ecc/agents/code-reviewer.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/code-reviewer.md::local-plugins/ecc/agents/code-reviewer.md::"
+    },
+    {
+      "id": "agents-oversized-prompt-local-plugins/ecc/agents/code-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent definition effective size is 6296 characters (>5000 threshold)",
+      "file": "local-plugins/ecc/agents/code-reviewer.md",
+      "evidence": "6296 effective characters (8747 raw)",
+      "fingerprint": "agents-oversized-prompt-local-plugins/ecc/agents/code-reviewer.md::local-plugins/ecc/agents/code-reviewer.md::6296 effective characters (8747 raw)"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/database-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/database-reviewer.md",
+      "file": "local-plugins/ecc/agents/database-reviewer.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/database-reviewer.md::local-plugins/ecc/agents/database-reviewer.md::"
+    },
+    {
+      "id": "agents-escalation-chain-local-plugins/ecc/agents/database-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: local-plugins/ecc/agents/database-reviewer.md",
+      "file": "local-plugins/ecc/agents/database-reviewer.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-local-plugins/ecc/agents/database-reviewer.md::local-plugins/ecc/agents/database-reviewer.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/e2e-runner.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/e2e-runner.md",
+      "file": "local-plugins/ecc/agents/e2e-runner.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/e2e-runner.md::local-plugins/ecc/agents/e2e-runner.md::"
+    },
+    {
+      "id": "agents-escalation-chain-local-plugins/ecc/agents/e2e-runner.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: local-plugins/ecc/agents/e2e-runner.md",
+      "file": "local-plugins/ecc/agents/e2e-runner.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-local-plugins/ecc/agents/e2e-runner.md::local-plugins/ecc/agents/e2e-runner.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/python-reviewer.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/python-reviewer.md",
+      "file": "local-plugins/ecc/agents/python-reviewer.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/python-reviewer.md::local-plugins/ecc/agents/python-reviewer.md::"
+    },
+    {
+      "id": "agents-bash-access-local-plugins/ecc/agents/tdd-guide.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has Bash access: local-plugins/ecc/agents/tdd-guide.md",
+      "file": "local-plugins/ecc/agents/tdd-guide.md",
+      "fingerprint": "agents-bash-access-local-plugins/ecc/agents/tdd-guide.md::local-plugins/ecc/agents/tdd-guide.md::"
+    },
+    {
+      "id": "agents-escalation-chain-local-plugins/ecc/agents/tdd-guide.md",
+      "severity": "medium",
+      "category": "agents",
+      "title": "Agent has full escalation chain: local-plugins/ecc/agents/tdd-guide.md",
+      "file": "local-plugins/ecc/agents/tdd-guide.md",
+      "evidence": "Discovery: Grep + Read + Write: Write, Edit + Bash",
+      "fingerprint": "agents-escalation-chain-local-plugins/ecc/agents/tdd-guide.md::local-plugins/ecc/agents/tdd-guide.md::Discovery: Grep + Read + Write: Write, Edit + Bash"
+    },
+    {
+      "id": "mcp-risky-filesystem",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template defines risky MCP server: filesystem",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-risky-filesystem::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-risky-playwright",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template defines risky MCP server: playwright",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-risky-playwright::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-risky-browserbase",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template defines risky MCP server: browserbase",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-risky-browserbase::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-risky-browser-use",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template defines risky MCP server: browser-use",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-risky-browser-use::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-url-transport-vercel",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"vercel\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://mcp.vercel.com",
+      "fingerprint": "mcp-url-transport-vercel::local-plugins/ecc/mcp-configs/mcp-servers.json::https://mcp.vercel.com"
+    },
+    {
+      "id": "mcp-url-transport-cloudflare-docs",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"cloudflare-docs\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://docs.mcp.cloudflare.com/mcp",
+      "fingerprint": "mcp-url-transport-cloudflare-docs::local-plugins/ecc/mcp-configs/mcp-servers.json::https://docs.mcp.cloudflare.com/mcp"
+    },
+    {
+      "id": "mcp-url-transport-cloudflare-workers-builds",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"cloudflare-workers-builds\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://builds.mcp.cloudflare.com/mcp",
+      "fingerprint": "mcp-url-transport-cloudflare-workers-builds::local-plugins/ecc/mcp-configs/mcp-servers.json::https://builds.mcp.cloudflare.com/mcp"
+    },
+    {
+      "id": "mcp-url-transport-cloudflare-workers-bindings",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"cloudflare-workers-bindings\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://bindings.mcp.cloudflare.com/mcp",
+      "fingerprint": "mcp-url-transport-cloudflare-workers-bindings::local-plugins/ecc/mcp-configs/mcp-servers.json::https://bindings.mcp.cloudflare.com/mcp"
+    },
+    {
+      "id": "mcp-url-transport-cloudflare-observability",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"cloudflare-observability\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://observability.mcp.cloudflare.com/mcp",
+      "fingerprint": "mcp-url-transport-cloudflare-observability::local-plugins/ecc/mcp-configs/mcp-servers.json::https://observability.mcp.cloudflare.com/mcp"
+    },
+    {
+      "id": "mcp-url-transport-clickhouse",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"clickhouse\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://mcp.clickhouse.cloud/mcp",
+      "fingerprint": "mcp-url-transport-clickhouse::local-plugins/ecc/mcp-configs/mcp-servers.json::https://mcp.clickhouse.cloud/mcp"
+    },
+    {
+      "id": "mcp-url-transport-browser-use",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"browser-use\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://api.browser-use.com/mcp",
+      "fingerprint": "mcp-url-transport-browser-use::local-plugins/ecc/mcp-configs/mcp-servers.json::https://api.browser-use.com/mcp"
+    },
+    {
+      "id": "mcp-url-transport-laraplugins",
+      "severity": "medium",
+      "category": "mcp",
+      "title": "Template MCP server \"laraplugins\" connects to external URL",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "https://laraplugins.io/mcp/plugins",
+      "fingerprint": "mcp-url-transport-laraplugins::local-plugins/ecc/mcp-configs/mcp-servers.json::https://laraplugins.io/mcp/plugins"
+    },
+    {
+      "id": "hooks-no-stop-hooks",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "No Stop hooks for session-end verification",
+      "file": "settings.json",
+      "fingerprint": "hooks-no-stop-hooks::settings.json::"
+    },
+    {
+      "id": "agents-expensive-readonly-local-plugins/ecc/agents/planner.md",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "Read-only agent uses expensive model \"opus\": local-plugins/ecc/agents/planner.md",
+      "file": "local-plugins/ecc/agents/planner.md",
+      "fingerprint": "agents-expensive-readonly-local-plugins/ecc/agents/planner.md::local-plugins/ecc/agents/planner.md::"
+    },
+    {
+      "id": "mcp-npx-y-github",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"github\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-github::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-firecrawl",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"firecrawl\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-firecrawl::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-supabase",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"supabase\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-supabase::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-memory",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"memory\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-memory::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-sequential-thinking",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"sequential-thinking\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-sequential-thinking::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-railway",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"railway\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-railway::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-exa-web-search",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"exa-web-search\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-exa-web-search::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-context7",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"context7\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-context7::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-magic",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"magic\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-magic::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-filesystem",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"filesystem\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-filesystem::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-playwright",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"playwright\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-playwright::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-fal-ai",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"fal-ai\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-fal-ai::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-browserbase",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"browserbase\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-browserbase::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-token-optimizer",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"token-optimizer\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-token-optimizer::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-npx-y-confluence",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"confluence\" uses npx -y (auto-install)",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-npx-y-confluence::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-no-version-github",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"github\" uses unversioned package: @modelcontextprotocol/server-github",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @modelcontextprotocol/server-github",
+      "fingerprint": "mcp-no-version-github::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @modelcontextprotocol/server-github"
+    },
+    {
+      "id": "mcp-no-version-supabase",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"supabase\" uses unversioned package: @supabase/mcp-server-supabase@latest",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @supabase/mcp-server-supabase@latest",
+      "fingerprint": "mcp-no-version-supabase::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @supabase/mcp-server-supabase@latest"
+    },
+    {
+      "id": "mcp-no-version-memory",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"memory\" uses unversioned package: @modelcontextprotocol/server-memory",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @modelcontextprotocol/server-memory",
+      "fingerprint": "mcp-no-version-memory::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @modelcontextprotocol/server-memory"
+    },
+    {
+      "id": "mcp-no-version-sequential-thinking",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"sequential-thinking\" uses unversioned package: @modelcontextprotocol/server-sequential-thinking",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @modelcontextprotocol/server-sequential-thinking",
+      "fingerprint": "mcp-no-version-sequential-thinking::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @modelcontextprotocol/server-sequential-thinking"
+    },
+    {
+      "id": "mcp-no-version-railway",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"railway\" uses unversioned package: @railway/mcp-server",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @railway/mcp-server",
+      "fingerprint": "mcp-no-version-railway::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @railway/mcp-server"
+    },
+    {
+      "id": "mcp-no-version-context7",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"context7\" uses unversioned package: @upstash/context7-mcp@latest",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @upstash/context7-mcp@latest",
+      "fingerprint": "mcp-no-version-context7::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @upstash/context7-mcp@latest"
+    },
+    {
+      "id": "mcp-no-version-magic",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"magic\" uses unversioned package: @magicuidesign/mcp@latest",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @magicuidesign/mcp@latest",
+      "fingerprint": "mcp-no-version-magic::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @magicuidesign/mcp@latest"
+    },
+    {
+      "id": "mcp-no-version-filesystem",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"filesystem\" uses unversioned package: @modelcontextprotocol/server-filesystem",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @modelcontextprotocol/server-filesystem",
+      "fingerprint": "mcp-no-version-filesystem::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @modelcontextprotocol/server-filesystem"
+    },
+    {
+      "id": "mcp-no-version-playwright",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"playwright\" uses unversioned package: @playwright/mcp",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @playwright/mcp",
+      "fingerprint": "mcp-no-version-playwright::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @playwright/mcp"
+    },
+    {
+      "id": "mcp-no-version-browserbase",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"browserbase\" uses unversioned package: @browserbasehq/mcp-server-browserbase",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "command: npx, package: @browserbasehq/mcp-server-browserbase",
+      "fingerprint": "mcp-no-version-browserbase::local-plugins/ecc/mcp-configs/mcp-servers.json::command: npx, package: @browserbasehq/mcp-server-browserbase"
+    },
+    {
+      "id": "mcp-excessive-servers",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP config: 27 MCP servers configured — large attack surface",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "fingerprint": "mcp-excessive-servers::local-plugins/ecc/mcp-configs/mcp-servers.json::"
+    },
+    {
+      "id": "mcp-env-inherit-supabase",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"supabase\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"supabase\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-supabase::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"supabase\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-memory",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"memory\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"memory\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-memory::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"memory\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-omega-memory",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"omega-memory\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"omega-memory\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-omega-memory::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"omega-memory\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-sequential-thinking",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"sequential-thinking\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"sequential-thinking\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-sequential-thinking::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"sequential-thinking\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-railway",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"railway\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"railway\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-railway::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"railway\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-context7",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"context7\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"context7\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-context7::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"context7\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-magic",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"magic\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"magic\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-magic::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"magic\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-filesystem",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"filesystem\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"filesystem\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-filesystem::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"filesystem\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-playwright",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"playwright\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"playwright\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-playwright::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"playwright\" has command but no env block"
+    },
+    {
+      "id": "mcp-env-inherit-token-optimizer",
+      "severity": "low",
+      "category": "mcp",
+      "title": "Template MCP server \"token-optimizer\" inherits full parent environment",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"token-optimizer\" has command but no env block",
+      "fingerprint": "mcp-env-inherit-token-optimizer::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"token-optimizer\" has command but no env block"
+    },
+    {
+      "id": "mcp-no-timeout-filesystem",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "Template high-risk MCP server \"filesystem\" has no timeout",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"filesystem\" has no timeout, requestTimeout, or connectionTimeout",
+      "fingerprint": "mcp-no-timeout-filesystem::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"filesystem\" has no timeout, requestTimeout, or connectionTimeout"
+    },
+    {
+      "id": "mcp-no-timeout-playwright",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "Template high-risk MCP server \"playwright\" has no timeout",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"playwright\" has no timeout, requestTimeout, or connectionTimeout",
+      "fingerprint": "mcp-no-timeout-playwright::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"playwright\" has no timeout, requestTimeout, or connectionTimeout"
+    },
+    {
+      "id": "mcp-no-timeout-browserbase",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "Template high-risk MCP server \"browserbase\" has no timeout",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"browserbase\" has no timeout, requestTimeout, or connectionTimeout",
+      "fingerprint": "mcp-no-timeout-browserbase::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"browserbase\" has no timeout, requestTimeout, or connectionTimeout"
+    },
+    {
+      "id": "mcp-no-timeout-browser-use",
+      "severity": "low",
+      "category": "misconfiguration",
+      "title": "Template high-risk MCP server \"browser-use\" has no timeout",
+      "file": "local-plugins/ecc/mcp-configs/mcp-servers.json",
+      "evidence": "Server \"browser-use\" has no timeout, requestTimeout, or connectionTimeout",
+      "fingerprint": "mcp-no-timeout-browser-use::local-plugins/ecc/mcp-configs/mcp-servers.json::Server \"browser-use\" has no timeout, requestTimeout, or connectionTimeout"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/aside.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/aside.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/aside.md::local-plugins/ecc/commands/aside.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/aside.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/aside.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/aside.md::local-plugins/ecc/commands/aside.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/build-fix.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/build-fix.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/build-fix.md::local-plugins/ecc/commands/build-fix.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/build-fix.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/build-fix.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/build-fix.md::local-plugins/ecc/commands/build-fix.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/checkpoint.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/checkpoint.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/checkpoint.md::local-plugins/ecc/commands/checkpoint.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/checkpoint.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/checkpoint.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/checkpoint.md::local-plugins/ecc/commands/checkpoint.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/claw.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/claw.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/claw.md::local-plugins/ecc/commands/claw.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/claw.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/claw.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/claw.md::local-plugins/ecc/commands/claw.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/code-review.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/code-review.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/code-review.md::local-plugins/ecc/commands/code-review.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/code-review.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/code-review.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/code-review.md::local-plugins/ecc/commands/code-review.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/e2e.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/e2e.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/e2e.md::local-plugins/ecc/commands/e2e.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/e2e.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/e2e.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/e2e.md::local-plugins/ecc/commands/e2e.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/eval.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/eval.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/eval.md::local-plugins/ecc/commands/eval.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/eval.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/eval.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/eval.md::local-plugins/ecc/commands/eval.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/evolve.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/evolve.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/evolve.md::local-plugins/ecc/commands/evolve.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/evolve.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/evolve.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/evolve.md::local-plugins/ecc/commands/evolve.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/harness-audit.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/harness-audit.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/harness-audit.md::local-plugins/ecc/commands/harness-audit.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/harness-audit.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/harness-audit.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/harness-audit.md::local-plugins/ecc/commands/harness-audit.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-export.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/instinct-export.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-export.md::local-plugins/ecc/commands/instinct-export.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/instinct-export.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/instinct-export.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/instinct-export.md::local-plugins/ecc/commands/instinct-export.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-import.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/instinct-import.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-import.md::local-plugins/ecc/commands/instinct-import.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/instinct-import.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/instinct-import.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/instinct-import.md::local-plugins/ecc/commands/instinct-import.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-status.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/instinct-status.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/instinct-status.md::local-plugins/ecc/commands/instinct-status.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/instinct-status.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/instinct-status.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/instinct-status.md::local-plugins/ecc/commands/instinct-status.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/learn-eval.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/learn-eval.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/learn-eval.md::local-plugins/ecc/commands/learn-eval.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/learn-eval.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/learn-eval.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/learn-eval.md::local-plugins/ecc/commands/learn-eval.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/learn.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/learn.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/learn.md::local-plugins/ecc/commands/learn.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/learn.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/learn.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/learn.md::local-plugins/ecc/commands/learn.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/loop-start.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/loop-start.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/loop-start.md::local-plugins/ecc/commands/loop-start.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/loop-start.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/loop-start.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/loop-start.md::local-plugins/ecc/commands/loop-start.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/loop-status.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/loop-status.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/loop-status.md::local-plugins/ecc/commands/loop-status.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/loop-status.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/loop-status.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/loop-status.md::local-plugins/ecc/commands/loop-status.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/model-route.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/model-route.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/model-route.md::local-plugins/ecc/commands/model-route.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/model-route.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/model-route.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/model-route.md::local-plugins/ecc/commands/model-route.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/multi-backend.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/multi-backend.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/multi-backend.md::local-plugins/ecc/commands/multi-backend.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/multi-backend.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/multi-backend.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/multi-backend.md::local-plugins/ecc/commands/multi-backend.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/multi-execute.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/multi-execute.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/multi-execute.md::local-plugins/ecc/commands/multi-execute.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/multi-execute.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/multi-execute.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/multi-execute.md::local-plugins/ecc/commands/multi-execute.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/multi-frontend.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/multi-frontend.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/multi-frontend.md::local-plugins/ecc/commands/multi-frontend.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/multi-frontend.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/multi-frontend.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/multi-frontend.md::local-plugins/ecc/commands/multi-frontend.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/multi-plan.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/multi-plan.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/multi-plan.md::local-plugins/ecc/commands/multi-plan.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/multi-plan.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/multi-plan.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/multi-plan.md::local-plugins/ecc/commands/multi-plan.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/multi-workflow.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/multi-workflow.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/multi-workflow.md::local-plugins/ecc/commands/multi-workflow.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/multi-workflow.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/multi-workflow.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/multi-workflow.md::local-plugins/ecc/commands/multi-workflow.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/orchestrate.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/orchestrate.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/orchestrate.md::local-plugins/ecc/commands/orchestrate.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/orchestrate.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/orchestrate.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/orchestrate.md::local-plugins/ecc/commands/orchestrate.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/plan.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/plan.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/plan.md::local-plugins/ecc/commands/plan.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/plan.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/plan.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/plan.md::local-plugins/ecc/commands/plan.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/projects.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/projects.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/projects.md::local-plugins/ecc/commands/projects.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/projects.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/projects.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/projects.md::local-plugins/ecc/commands/projects.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/promote.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/promote.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/promote.md::local-plugins/ecc/commands/promote.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/promote.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/promote.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/promote.md::local-plugins/ecc/commands/promote.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/prompt-optimize.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/prompt-optimize.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/prompt-optimize.md::local-plugins/ecc/commands/prompt-optimize.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/prompt-optimize.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/prompt-optimize.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/prompt-optimize.md::local-plugins/ecc/commands/prompt-optimize.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/python-review.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/python-review.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/python-review.md::local-plugins/ecc/commands/python-review.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/python-review.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/python-review.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/python-review.md::local-plugins/ecc/commands/python-review.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/quality-gate.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/quality-gate.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/quality-gate.md::local-plugins/ecc/commands/quality-gate.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/quality-gate.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/quality-gate.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/quality-gate.md::local-plugins/ecc/commands/quality-gate.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/refactor-clean.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/refactor-clean.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/refactor-clean.md::local-plugins/ecc/commands/refactor-clean.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/refactor-clean.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/refactor-clean.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/refactor-clean.md::local-plugins/ecc/commands/refactor-clean.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/resume-session.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/resume-session.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/resume-session.md::local-plugins/ecc/commands/resume-session.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/resume-session.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/resume-session.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/resume-session.md::local-plugins/ecc/commands/resume-session.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/save-session.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/save-session.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/save-session.md::local-plugins/ecc/commands/save-session.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/save-session.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/save-session.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/save-session.md::local-plugins/ecc/commands/save-session.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/sessions.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/sessions.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/sessions.md::local-plugins/ecc/commands/sessions.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/sessions.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/sessions.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/sessions.md::local-plugins/ecc/commands/sessions.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/setup-pm.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/setup-pm.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/setup-pm.md::local-plugins/ecc/commands/setup-pm.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/setup-pm.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/setup-pm.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/setup-pm.md::local-plugins/ecc/commands/setup-pm.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/skill-create.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/skill-create.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/skill-create.md::local-plugins/ecc/commands/skill-create.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/skill-create.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/skill-create.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/skill-create.md::local-plugins/ecc/commands/skill-create.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/tdd.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/tdd.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/tdd.md::local-plugins/ecc/commands/tdd.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/tdd.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/tdd.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/tdd.md::local-plugins/ecc/commands/tdd.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/test-coverage.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/test-coverage.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/test-coverage.md::local-plugins/ecc/commands/test-coverage.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/test-coverage.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/test-coverage.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/test-coverage.md::local-plugins/ecc/commands/test-coverage.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/update-codemaps.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/update-codemaps.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/update-codemaps.md::local-plugins/ecc/commands/update-codemaps.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/update-codemaps.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/update-codemaps.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/update-codemaps.md::local-plugins/ecc/commands/update-codemaps.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/update-docs.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/update-docs.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/update-docs.md::local-plugins/ecc/commands/update-docs.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/update-docs.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/update-docs.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/update-docs.md::local-plugins/ecc/commands/update-docs.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "skills-missing-telemetry-local-plugins/ecc/commands/verify.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing observation hooks and feedback hooks",
+      "file": "local-plugins/ecc/commands/verify.md",
+      "evidence": "observation hooks and feedback hooks",
+      "fingerprint": "skills-missing-telemetry-local-plugins/ecc/commands/verify.md::local-plugins/ecc/commands/verify.md::observation hooks and feedback hooks"
+    },
+    {
+      "id": "skills-missing-governance-local-plugins/ecc/commands/verify.md",
+      "severity": "low",
+      "category": "skills",
+      "title": "Example config: Skill is missing version metadata and rollback metadata",
+      "file": "local-plugins/ecc/commands/verify.md",
+      "evidence": "version metadata and rollback metadata",
+      "fingerprint": "skills-missing-governance-local-plugins/ecc/commands/verify.md::local-plugins/ecc/commands/verify.md::version metadata and rollback metadata"
+    },
+    {
+      "id": "hooks-code-transcript-access-80",
+      "severity": "info",
+      "category": "hooks",
+      "title": "Hook code reads Claude transcript input",
+      "file": "local-plugins/ecc/scripts/hooks/gateguard-fact-force.js",
+      "evidence": "const transcriptPath = (data && (data.transcript_path || data.transcriptPath)) || process.env.CLAUDE_TRANSCRIPT_PATH;",
+      "fingerprint": "hooks-code-transcript-access-80::local-plugins/ecc/scripts/hooks/gateguard-fact-force.js::const transcriptPath = (data && (data.transcript_path || data.transcriptPath)) || process.env.CLAUDE_TRANSCRIPT_PATH;"
+    },
+    {
+      "id": "hooks-code-transcript-access-185",
+      "severity": "info",
+      "category": "hooks",
+      "title": "Hook code reads Claude transcript input",
+      "file": "local-plugins/ecc/scripts/hooks/session-end.js",
+      "evidence": "transcriptPath = input.transcript_path;",
+      "fingerprint": "hooks-code-transcript-access-185::local-plugins/ecc/scripts/hooks/session-end.js::transcriptPath = input.transcript_path;"
+    },
+    {
+      "id": "hooks-code-transcript-access-49",
+      "severity": "info",
+      "category": "hooks",
+      "title": "Hook code reads Claude transcript input",
+      "file": "local-plugins/ecc/scripts/hooks/evaluate-session.js",
+      "evidence": "transcriptPath = input.transcript_path;",
+      "fingerprint": "hooks-code-transcript-access-49::local-plugins/ecc/scripts/hooks/evaluate-session.js::transcriptPath = input.transcript_path;"
+    }
+  ]
+}
