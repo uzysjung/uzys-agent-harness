@@ -135,6 +135,36 @@ update 4경로 전부 유지). 대신 내 수정이 회귀를 하나 만들었�
 걸려 있다**(글롭을 지웠으므로). 공식 문서 + 이 저장소 호환 실측이 일치하지만 실 CLI 확인은 미검증
 — Docker 격리 검증 1건이 가장 값어치 크다.
 
+## Docker 실환경 검증 (2026-08-12, 머지 전)
+
+**신규 시나리오 `realcli-opencode`** — ADR-071 의 단일 지지대(OpenCode 가 프로젝트 루트
+`AGENTS.md` 를 읽는다)를 실 바이너리로 확인한다. 실 CLI 시나리오에 codex·antigravity 는 있는데
+opencode 가 없었다.
+
+- **Tier A(hard)**: `--cli opencode` 설치가 `AGENTS.md` 에 §Harness Rules + 룰 canary 6종을 쓰고,
+  `opencode.json` 에 룰 글롭이 남지 않는다 → **PASS**
+- **Tier B(증거)**: 실 `opencode-ai` **1.18.17** 패키지 본문이 `AGENTS.md` 를 프로젝트 컨텍스트
+  소스로 다룬다 — 지시문 어휘와 함께 나오는 문맥 **24건**. 바이너리 자체 프롬프트에
+  *"Markdown files named `AGENTS.md` usually contain the background, structure, coding styles,
+  user preferences…"* · *"`AGENTS.md` files may exist at different locations in the project"* 가
+  실재한다. **탐지기 자기검증 포함**(알려진 양성 `opencode.json` 2건이 먼저 잡혔다)
+- **Tier C**: 실제 세션 로드는 인증 필요 → 범위 외, **미검증으로 표기**
+- **음성 대조 2/2 red**: §Harness Rules 제거 → FAIL · 룰 글롭 부활 → FAIL
+
+**기존 스위트 15종** — 개별 실행(`run.sh all` 은 첫 실패에서 멈춘다):
+
+| 결과 | 시나리오 |
+|---|---|
+| PASS 12 | anchor · project · global · smoke · uninstall · policy-preserve · external-preserve · update-external · update-new-assets · update-noninteractive · update-skills · workflow-scope |
+| **FAIL 3 — 전부 선재** | `antigravity-render`·`dev-method-skills`(사라진 id 를 하드코딩: `--with uzys-harness` · `asis-tobe-decision`) · `pinned-versions`(bmad pinned 라벨) |
+
+선재 판정은 **추정이 아니라 `main` 대조**다 — `git worktree add --detach main` 으로 별도 트리를
+빌드해 `pinned-versions` 가 동일하게 실패함을 확인했고, 나머지 둘은 하드코딩된 id 가 `main`
+카탈로그에도 없음을 확인했다(내 브랜치는 해당 파일 미변경). `policy-preserve` 는 1회차에
+Docker 레지스트리 타임아웃으로 실패했고 재시도에서 PASS.
+
+**이월**: 스테일 시나리오 3종 수리 — 이번 PR 범위 밖(사라진 자산 id·스킬명을 따라가는 작업).
+
 ## Phase 2b — 훅 배선 (다음 PR)
 
 ### 조사 (2026-08-12) — 이벤트 모델이 CLI 마다 다르다
