@@ -92,22 +92,66 @@
 - [x] `playwright-launch` → `ui-visual-review` 스킬 흡수. 금지문 소실은
       `tests/browser-prohibitions-owner.test.ts` 가 막는다(음성 대조 4/4 red)
 - [x] `cli-development` 의 훅 차단 계약을 4 CLI 전부로 — 그 한 줄이 3 CLI 에서 거짓이었다
-- [x] 룰 6종 → Antigravity `.agents/rules/` · OpenCode `.opencode/rules/` · Codex `AGENTS.md` embed
-- [x] `opencode.json` `instructions` 글롭이 실재하는 디렉터리를 가리킨다 (#300 본체)
-- [x] 도달 회귀 게이트 `tests/resident-reach-4cli.test.ts` (14 tests, 음성 대조 5/5 red)
+- [x] 룰 6종 → Antigravity `.agents/rules/` · **Codex·OpenCode 는 공유 `AGENTS.md` embed**
+- [x] `opencode.json` `instructions` 가 없는 경로를 가리키지 않는다 (#300 본체)
+- [x] 도달 회귀 게이트 `tests/resident-reach-4cli.test.ts` — 단독 4 + 조합 3 + update 4
+- [x] **독립 리뷰 반영** (CRITICAL 2 · HIGH 3 · MEDIUM/LOW 일부). 아래 §리뷰 결과
 - [x] ADR-071 신설 · ADR-070 Superseded · NORTH_STAR 수치 + cost baseline 동기화
-- [x] `npm run ci` exit 0 — 95 files · 1,362 tests
+- [x] `npm run ci` exit 0 — 96 files · 1,381 tests
 
-**실측 변화**: 룰 도달 codex/opencode/antigravity **0/5 → 5/5**. Claude Code 설치자 상주
+**실측 변화**: 룰 도달 codex/opencode/antigravity **0/6 → 6/6**. Claude Code 설치자 상주
 ~4,944 → **~4,968 tok**(+24, 전부 훅 계약 네 벌 명시).
+
+## 리뷰 결과 (독립 검증, 2026-08-12)
+
+리뷰 전문 = 세션 스크래치패드 `review-reach-4cli.md`. 잡힌 것 중 **내 게이트가 못 본 것**만:
+
+| 등급 | 지적 | 처리 |
+|---|---|---|
+| CRITICAL | `codex+opencode` 조합에서 Codex 룰 0종 — 같은 `AGENTS.md` 를 덮어썼다 | 두 렌더러가 같은 본문을 넣도록 통일. 조합 설치 3종을 게이트에 추가 |
+| CRITICAL | `update` 가 룰을 지우고 · 기존 설치자는 새 룰을 영영 못 받고 · 비 Claude 단독은 update 자체가 throw | 셋 다 수정. update 경로 4종을 게이트에 추가 |
+| HIGH | 금지문 게이트 4개 중 **3개가 장식**(needle 이 흔한 토큰) | needle 을 고유 문장으로 + "문서 전체에서 1회" 자기검증. 음성 대조 4/4 red |
+| HIGH | 도달 게이트가 **위치를 안 본다** — CLI 가 읽지 않는 자리로 내보내도 green | CLI 별 목적지 판정 추가. 변이 red 확인 |
+| MEDIUM | Codex 32 KiB 는 **합계** 예산인데 한 파일만 쟀다 | 비증가 ratchet 으로 재정의 + 실측 68% 명시 |
+| LOW | `stripClaudeFrontmatter`·h1→h2 에 게이트 0 | `tests/rules-port.test.ts` 신설 |
+
+**리뷰가 "문제 없음"으로 확인한 것**: 하한 완화(5→3, 8→7)는 `main` 대조로 정당 · 금지문 본문
+손실 0 · 룰 4/4(단독) · 도구 4/4 · `.claude/` 미생성 계약 유지 · 수치 정합.
 
 ## Phase 2b — 훅 배선 (다음 PR)
 
+### 조사 (2026-08-12) — 이벤트 모델이 CLI 마다 다르다
+
+훅은 룰과 달리 **파일을 옮기는 것으로 끝나지 않는다.** 차단 계약과 이벤트 이름이 다 다르다.
+
+| | Claude Code | Codex | OpenCode | Antigravity |
+|---|---|---|---|---|
+| 배선 | `.claude/settings.json` | `.codex/config.toml` `[[hooks.*]]` | `.opencode/plugins/*.js` | `.agents/hooks.json` |
+| 입력 | stdin JSON | stdin JSON (거의 1:1, ADR-002) | 훅 함수 인자 `(input, output)` | stdin JSON — `toolCall.name` · `toolCall.args` |
+| 차단 | `exit 2` + stderr | `exit 2` + stderr | `throw new Error()` | stdout JSON `{"decision":"deny","reason":…}` (**exit code 무관**) |
+| 도구 이름 | `Write`·`Edit`·`Bash` | Claude 와 유사 | `write`·`edit`·`bash` | `write_to_file`·`run_command` |
+
+**그래서 bash 스크립트를 그대로 복사할 수 있는 것은 Codex 뿐이다.** OpenCode 는 JS 플러그인이
+스크립트를 실행하고 종료 코드를 `throw` 로 옮기는 어댑터가 필요하고, Antigravity 는 `exit 2` 를
+`{"decision":"deny"}` 로 옮기는 어댑터가 필요하다.
+
+**이벤트 자체가 없는 조합이 있다.** Antigravity 의 훅 이벤트는 PreToolUse · PostToolUse ·
+PreInvocation · PostInvocation · Stop 다섯이다 — **SessionStart 도 UserPromptSubmit 도 없다.**
+즉 `session-start` 와 `task-brief-nudge` 는 Antigravity 에 **대응 이벤트가 없다**(PreInvocation 은
+매 모델 호출마다 발화해 세션 1회 안내로 쓸 수 없다). 사용자 결정은 "task-brief-nudge 를 4 CLI
+배선"이었는데 이 조합은 **CLI 능력 밖**이므로, 추정으로 배선하지 않고 미지원으로 보고한다.
+
+정리하면 4/4 가 되는 것은 **차단하는 훅 2종**(`protect-files` · `mcp-pre-exec`)이고, 이것이 마침
+사용자 기준의 "결정론적으로 반드시 강제할 것"과 일치한다. 컨텍스트 주입 훅 2종은 도달 상한이
+CLI 능력에 걸린다.
+
+### 할 일
+
 - [ ] Codex 죽은 배선 수정 — `config.toml` 이 `uncommitted-check.sh` 를 선언하는데 transform 이
-      깔지 않는다(`HOOK_NAMES` 하드코딩 1개)
-- [ ] 남긴 훅 4종을 4 CLI 네이티브 배선으로: Codex `[[hooks.*]]` · OpenCode
-      `.opencode/plugins/*.js`(훅에서 `throw`) · Antigravity `.agents/hooks.json`(`decision: "deny"`)
-- [ ] 훅 도달 회귀 게이트
+      깔지 않는다(`HOOK_NAMES` 하드코딩 1개). 지금 나가고 있는 결함
+- [ ] 차단 훅 2종을 Codex · OpenCode · Antigravity 에 배선(어댑터 포함)
+- [ ] 주입 훅 2종은 가능한 CLI 까지만 배선하고 **미지원을 사유와 함께 명시**
+- [ ] 훅 도달 회귀 게이트 — 배선이 가리키는 스크립트가 **실재하는지**까지 (죽은 배선 재발 차단)
 
 ## 이월
 

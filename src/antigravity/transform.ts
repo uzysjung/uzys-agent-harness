@@ -83,10 +83,18 @@ export function runAntigravityTransform(
   //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
   //   상한 — 배포 룰은 전부 그 아래다). 위 `uzys-harness.md` 는 이름과 달리 **앵커**라서,
   //   그것만으로는 룰이 도달하지 않았다.
+  //
+  //   `createInRefresh` 를 켜는 근거는 **바로 위 줄의 반환값**이다. 앵커를 담당했다는 것은
+  //   이 프로젝트에 Antigravity 가 설치돼 있다는 뜻이고(refresh 모드에서 앵커가 없으면
+  //   `rulesFile === null`), 그때만 새 룰 파일을 만든다. 이 예외가 없으면 기존 설치자는
+  //   update 를 아무리 돌려도 룰을 못 받는다 — 없는 파일은 refresh 가 건너뛰기 때문이다.
+  const antigravityInstalled = rulesFile !== null;
   const harnessRuleFiles: string[] = [];
   for (const rule of portRules(harnessRoot, rules)) {
     const target = join(projectDir, ".agents", "rules", `${rule.name}.md`);
-    if (!writer.write(target, `${rule.body}\n`)) continue;
+    if (!writer.write(target, `${rule.body}\n`, { createInRefresh: antigravityInstalled })) {
+      continue;
+    }
     harnessRuleFiles.push(target);
   }
 

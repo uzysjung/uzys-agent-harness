@@ -17,17 +17,38 @@ import { describe, expect, it } from "vitest";
 const ROOT = resolve(__dirname, "..");
 const SKILL = join(ROOT, "templates/skills/ui-visual-review/SKILL.md");
 
-/** 룰이 담고 있던 금지 4종. 표현이 아니라 **금지 대상**을 고른다 — 문면은 다듬을 수 있다. */
+/**
+ * 룰이 담고 있던 금지 4종.
+ *
+ * needle 은 **그 금지문에만 있는 문자열**이어야 한다. 첫 판은 `chrome-devtools`·`입력`·
+ * `page.goto` 를 썼는데 셋 다 스킬 본문 다른 곳(런처 예제·절차 설명)에 이미 있어서, 금지문을
+ * 통째로 지워도 4개 중 3개가 **green 이었다**(독립 검증 H-1 이 변이로 실증). 흔한 토큰을 고르면
+ * 게이트가 장식이 된다 — 아래 `자기검증` 테스트가 그 조건을 매번 다시 확인한다.
+ */
 const PROHIBITIONS = [
-  { label: "활성 Chrome attach", needle: "chrome-devtools" },
-  { label: "일회성 context", needle: "newContext" },
-  { label: "사용자 입력 중 자동화 동시 실행", needle: "입력" },
-  { label: "reference SaaS 측 이동", needle: "page.goto" },
+  { label: "활성 Chrome attach", needle: "사용자 활성 Chrome 에 attach" },
+  { label: "일회성 context", needle: "일회성 browser context" },
+  { label: "사용자 입력 중 자동화 동시 실행", needle: "키를 입력하는 동안 자동화 process" },
+  { label: "reference SaaS 측 이동", needle: "reference SaaS" },
 ];
 
 describe("브라우저 금지문의 소유자", () => {
   it("룰은 사라졌다 — 되살아나면 상주 층이 다시 늘어난다", () => {
     expect(existsSync(join(ROOT, "templates/rules/playwright-launch.md"))).toBe(false);
+  });
+
+  it("탐지기 자기검증 — needle 이 금지문 줄에만 있다 (장식 게이트 방지)", () => {
+    // 금지 절 밖에서도 잡히는 needle 은 그 금지문을 지워도 green 이다. 한 번 그렇게 새서
+    // 4개 중 3개가 장식이었다(H-1). 매번 다시 잰다: 각 needle 이 문서 전체에서 **1회**만 나오고,
+    // 그 1회가 금지 목록 블록 안이어야 한다.
+    const body = readFileSync(SKILL, "utf8");
+    const block = body.split(/##+\s*절대 금지/)[1]?.split(/\n##+\s/)[0] ?? "";
+    expect(block, "금지 블록을 못 잘랐다 — 아래 단언이 공허해진다").not.toHaveLength(0);
+    for (const { label, needle } of PROHIBITIONS) {
+      const hits = body.split(needle).length - 1;
+      expect(hits, `${label}: needle '${needle}' 이 문서에 ${hits}회 — 1회여야 한다`).toBe(1);
+      expect(block, `${label}: needle 이 금지 블록 밖에 있다`).toContain(needle);
+    }
   });
 
   it("금지 4종이 스킬 본문에 살아 있다", () => {

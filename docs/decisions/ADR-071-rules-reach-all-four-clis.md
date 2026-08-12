@@ -53,8 +53,15 @@ CLI 마다 읽는 자리가 정해져 있고, 우리가 고른 자리를 읽어 
 
 - Claude Code → `.claude/rules/<name>.md` (기존)
 - Antigravity → `.agents/rules/<name>.md` (앵커 `uzys-harness.md` 와 형제)
-- OpenCode → `.opencode/rules/<name>.md` + `instructions` 글롭이 그곳을 가리킨다
-- Codex → `AGENTS.md` §Harness Rules 본문 embed
+- Codex · OpenCode → **프로젝트 루트 `AGENTS.md` §Harness Rules 본문 embed**
+
+Codex 는 룰 디렉터리가 없어 `AGENTS.md` 계층이 유일한 경로이고, OpenCode 는 그 `AGENTS.md` 를
+**자동으로 읽는다**(opencode.ai/docs/rules). 둘은 **같은 파일을 공유**하므로 두 렌더러가 같은
+본문을 넣어야 한다 — 초안은 OpenCode 만 `.opencode/rules/` 로 보내고 `instructions` 글롭으로
+읽게 했는데, 그러면 `codex+opencode` 를 함께 고른 설치에서 나중에 도는 transform 이 앞선 것을
+덮어써 **Codex 룰이 0종**이 됐다(독립 검증 C-1 이 실설치로 적발. 위저드 2단계가 다중 선택이라
+조합은 예외가 아니라 기본 시나리오다). 한 파일을 공유하는 CLI 쌍이 있으면 목적지를 갈라서는
+안 된다.
 
 **룰 목록의 SSOT 는 하나다** — `resolveRules(spec)`. 네 CLI 가 같은 결과를 받는다. 어디에 놓을지만
 각 transform 이 정한다.
@@ -94,6 +101,14 @@ ADR-070 에서 살아남는 규칙(내용 기준이라 도달과 무관하다):
   frontmatter 문법을 공개하지 않는다. 추측해서 쓰지 않는다(원칙 1). 비 Claude CLI 에는 `paths:`
   를 벗겨 상시 룰로 보내고, 문법이 확인되면 후속에서 조인다.
 
+- **`update` 도 같은 계약을 지킨다.** 도달은 fresh 설치에서만 성립하면 안 된다. 세 가지를 함께
+  고쳤다(전부 독립 검증이 실측으로 적발): ⓐ 위의 공유 `AGENTS.md` 문제가 update 에서도 같은
+  형태로 재현됐고, ⓑ 이 릴리즈 **이전 설치자**는 새 룰 파일을 영원히 못 받았다(`refreshOnly` 가
+  없는 파일을 건너뛴다) — 그 CLI 의 설치 증거를 잡았을 때만 새로 만드는 예외(`createInRefresh`)를
+  뒀다, ⓒ **비 Claude 단독 설치는 `update` 자체가 throw** 했다. 판정 기준을 `.claude/` 존재에서
+  **설치 존재**(install log)로 바꿨다 — 명령 계층은 이미 그렇게 판정하고 있었고 파이프라인만
+  거절하고 있었다.
+
 ## 적용 범위
 
 - **대상**: 배포되는 룰 `templates/rules/*.md` 와 그 배선(`src/manifest.ts` · 3개 transform ·
@@ -114,6 +129,21 @@ ADR-070 에서 살아남는 규칙(내용 기준이라 도달과 무관하다):
   (사용자 결정). 룰이 상주했던 유일한 이유("위반은 작업 도중 일어나 스킬 발화를 기다리면 늦다")는
   스킬 description 의 "브라우저를 여는 어떤 방법이든 그 전에 읽어라" 트리거가 흡수한다. 금지문
   소실은 `tests/browser-prohibitions-owner.test.ts` 가 막는다.
-- 도달은 **문서가 아니라 실설치 산출물**로 판정된다 — `tests/resident-reach-4cli.test.ts` 가 4 CLI
-  단독 설치를 실제로 돌려 룰 본문 canary·도구 파일·글롭 매치 수·Codex 32 KiB 상한을 확인한다.
-  음성 대조 5종 전부 red 확인.
+- 도달은 **문서가 아니라 실설치 산출물**로 판정된다 — `tests/resident-reach-4cli.test.ts` 가
+  단독 4종 + 조합 3종 + update 4종을 실제로 돌려 **그 CLI 가 읽는 자리에** 룰 본문 canary 가
+  있는지 확인한다. "트리 어딘가에 있다"로 재면 CLI 가 읽지 않는 자리에 내보내도 통과한다
+  (독립 검증 H-3 이 변이로 실증). 음성 대조 5종 전부 red 확인.
+
+**남은 한계 (측정했고 이번 범위에서 안 고쳤다)**
+
+- **Codex `AGENTS.md` 가 22,233 B — 32 KiB 합계 예산의 68%.** 그 상한은 전역·루트·하위 파일의
+  **합계**이고 닿으면 뒤가 조용히 빠진다. 사용자 몫이 ~10 KB 뿐이다. 게이트는 안전 마진이 아니라
+  **비증가 ratchet** 으로 뒀다 — 줄이는 것은 별건이다.
+- **`uninstall` 이 `.agents/` 를 회수하지 않는다.** 이번에 룰 6종이 그 고아 집합에 더해졌다
+  (스킬 10종·앵커는 이전부터 그랬다). 파괴적 명령의 삭제 범위를 넓히는 것은 별도 판단이라
+  이 PR 에서 하지 않았다.
+- **브라우저 금지문의 도달은 1/4 이다.** `playwright-launch` 를 흡수한 `ui-visual-review` 는
+  비 Claude 로 포팅되는 스킬 목록에 없다. 이 ADR 이 "도달은 어느 층이든 4/4" 를 세웠으므로
+  그 원칙과 어긋나는 자리이고, 흡수 결정 자체는 사용자 판단이었다.
+- **`.opencode/rules/`·`.agents/rules/` 에는 prune 경로가 없다.** 다음에 룰을 없애면 Claude
+  사용자는 update 로 지워지고 나머지는 폐기된 룰을 계속 상주시킨다. 현재 무증상.

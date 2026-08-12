@@ -316,7 +316,6 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: Array.from({ length: 6 }, (_, i) => `/p/.opencode/commands/uzys-${i}.md`),
-        ruleFiles: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
       },
     });
@@ -398,7 +397,6 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        ruleFiles: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
       },
     });
@@ -441,7 +439,6 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        ruleFiles: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
       },
     });

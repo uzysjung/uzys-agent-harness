@@ -9,7 +9,6 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - opencode.json
- *   - .opencode/rules/<name>.md    (배포 룰 — `instructions` 글롭이 읽는다)
  *   - .opencode/commands/<id>.md   (dev-method skills as command fallback)
  *
  * SPEC: docs/specs/opencode-compat.md
@@ -22,7 +21,7 @@ import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
-import { portRules } from "../rules-port.js";
+import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -36,7 +35,7 @@ export interface OpencodeTransformParams {
    * body = skill 본문). installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
-  /** 2026-08-12 — 이 설치의 배포 룰 이름들. `.opencode/rules/<name>.md` 로 나간다. */
+  /** 2026-08-12 — 이 설치의 배포 룰 이름들. codex 와 공유하는 `AGENTS.md` 본문에 embed 된다. */
   rules?: ReadonlyArray<string>;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
@@ -55,8 +54,6 @@ export interface OpencodeTransformReport {
   agentsMdPath: string;
   opencodeJsonPath: string;
   commandFiles: string[];
-  /** 2026-08-12 — 작성된 배포 룰 경로 (.opencode/rules/<name>.md). `instructions` 글롭의 대상. */
-  ruleFiles: string[];
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
 }
@@ -88,6 +85,10 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     claudeMd,
     projectName,
     projectContext: renderFillScaffold(),
+    // codex 와 **같은 파일**(프로젝트 루트 `AGENTS.md`)이다. 두 transform 이 서로 다른 본문을
+    // 쓰면 나중에 도는 쪽이 앞선 쪽을 덮어써, codex+opencode 조합에서 룰이 통째로 사라진다
+    // (독립 검증 C-1 실측). 같은 내용을 쓰면 순서가 결과를 바꾸지 않는다.
+    harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로. codex 가 같은 install 안에서 이미
@@ -97,17 +98,6 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 2. opencode.json
   const opencodeJsonPath = join(projectDir, "opencode.json");
   writer.write(opencodeJsonPath, renderOpencodeJson({ template: opencodeTemplate, mcp }));
-
-  // 2a. 2026-08-12 — 배포 룰 → `.opencode/rules/<name>.md`.
-  //   `opencode.json` 의 `instructions` 글롭이 이 디렉터리를 가리킨다. 전에는 그 글롭이
-  //   `.claude/rules/*.md` 였는데 그 디렉터리는 claude 를 함께 골랐을 때만 생긴다 — OpenCode
-  //   단독 설치자에게는 **매치하는 파일이 0개**인 글롭을 두고 "자동 병합된다"고 안내했다(#300).
-  const ruleFiles: string[] = [];
-  for (const rule of portRules(harnessRoot, rules)) {
-    const target = join(projectDir, ".opencode/rules", `${rule.name}.md`);
-    if (!writer.write(target, `${rule.body}\n`)) continue;
-    ruleFiles.push(target);
-  }
 
   // 3. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
   //   OpenCode 는 native skill 개념이 없어 skill 을 커맨드로 surface.
@@ -140,7 +130,6 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     agentsMdPath,
     opencodeJsonPath,
     commandFiles,
-    ruleFiles,
     ownership: writer.result(),
   };
 }

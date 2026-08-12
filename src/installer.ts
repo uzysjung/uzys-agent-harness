@@ -266,14 +266,21 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   const claudeDir = join(projectDir, ".claude");
 
-  // Update mode pre-flight: existing .claude/ 필수. backup 전에 검증.
-  if (mode === "update" && !existsSync(claudeDir)) {
-    throw new Error(`Update mode requires existing .claude/ at ${claudeDir}`);
-  }
-
   // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
-  // reinstall 은 바로 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
+  // reinstall 은 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
   const previousLog = readInstallLog(projectDir);
+
+  // Update mode pre-flight — 갱신할 **설치**가 있어야 한다. backup 전에 검증.
+  //
+  // 판정 기준은 `.claude/` 가 아니다. update 는 v26.134.0(ADR-049)부터 외부 CLI 산출물도
+  // 갱신하므로 `.claude/` 가 없는 codex/opencode/antigravity 단독 설치도 정당한 대상이고,
+  // `src/commands/update.ts` 의 pre-flight 는 이미 그렇게 판정한다(#253). **파이프라인만
+  // `.claude/` 를 요구해 그 사용자를 거절하고 있었다** — 명령은 통과시키고 파이프라인이
+  // throw 하니, 비 Claude 단독 사용자는 새 자산을 받을 길이 재설치뿐이었다(독립 검증 C-2c).
+  // 설치의 CLI 중립 증거는 install log 다.
+  if (mode === "update" && !existsSync(claudeDir) && previousLog === null) {
+    throw new Error(`Update mode requires an existing install at ${projectDir}`);
+  }
 
   const backupPath = resolveBackupPath(ctx, mode, claudeDir);
 

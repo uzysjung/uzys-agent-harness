@@ -54,7 +54,7 @@ export interface OwnedWriter {
    *   반환을 무시해도 되는 호출부는 무시해도 안전하다. `void` 로 두면 건너뛴 경로에
    *   `chmodSync` 가 걸려 ENOENT 로 터진다.
    */
-  write(absPath: string, content: string): boolean;
+  write(absPath: string, content: string, opts?: WriteOptions): boolean;
   /** 이번 실행의 소유권 결과 — transform 이 그대로 report 에 실어 반환한다. */
   result(): OwnedWriteResult;
 }
@@ -69,6 +69,23 @@ export interface OwnedWriter {
  * 자체가 없어진다** — 안 깔린 CLI 는 대상 파일이 하나도 없어 자연히 아무것도 안 쓴다.
  * 판정을 안 하니 CLI 목록·스킬 목록의 열거 사본도 생기지 않는다.
  */
+/** 개별 write 의 refresh 정책 예외. */
+export interface WriteOptions {
+  /**
+   * refresh 모드에서도 **없으면 만든다**.
+   *
+   * `refreshOnly` 의 규율은 "사용자가 안 고른 CLI 의 자산을 새로 깔지 않는다"이고, 그 판정을
+   * 파일 존재로 대신해 왔다. 그런데 **이미 설치된 CLI 에 하네스가 새 자산을 추가한 경우**엔
+   * 그 판정이 반대로 작동한다 — 파일이 없는 이유가 "안 골라서"가 아니라 "그때는 없던
+   * 자산이라서"인데, update 가 영원히 건너뛴다(독립 검증 C-2 실측: 기존 설치자는 새 룰을
+   * 재설치 전에는 못 받는다).
+   *
+   * 그래서 호출부가 **그 CLI 가 설치돼 있다는 별도 증거**를 잡았을 때만 이 예외를 쓴다.
+   * 증거 없이 쓰면 안 깐 CLI 에 디렉터리가 생겨 `refreshOnly` 자체가 무의미해진다.
+   */
+  createInRefresh?: boolean;
+}
+
 export interface OwnedWriterOptions {
   now?: Date;
   refreshOnly?: boolean;
@@ -96,14 +113,15 @@ export function createOwnedWriter(
   let updated = 0;
 
   return {
-    write(absPath, content) {
+    write(absPath, content, opts) {
       const rel = relative(projectDir, absPath).split(sep).join("/");
       const digest = hashContent(content);
 
       if (!existsSync(absPath)) {
         // refresh 모드: 없는 파일은 사용자가 안 고른 것 → 새로 깔지 않는다.
         // 기준선에도 넣지 않는다 — 디스크에 없는 파일의 해시를 기록하면 그게 곧 거짓 기록이다.
-        if (refreshOnly) return false;
+        // 예외 = `createInRefresh` (호출부가 그 CLI 의 설치 증거를 이미 잡은 경우).
+        if (refreshOnly && !opts?.createInRefresh) return false;
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, content);
         updated++;
