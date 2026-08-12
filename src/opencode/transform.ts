@@ -9,6 +9,7 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - opencode.json
+ *   - .opencode/rules/<name>.md    (배포 룰 — `instructions` 글롭이 읽는다)
  *   - .opencode/commands/<id>.md   (dev-method skills as command fallback)
  *
  * SPEC: docs/specs/opencode-compat.md
@@ -21,6 +22,7 @@ import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
+import { portRules } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -34,6 +36,8 @@ export interface OpencodeTransformParams {
    * body = skill 본문). installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+  /** 2026-08-12 — 이 설치의 배포 룰 이름들. `.opencode/rules/<name>.md` 로 나간다. */
+  rules?: ReadonlyArray<string>;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
    * codex 쪽과 같은 이유로 **required** 다 — 안 넘긴 호출부가 조용히 판정 불가로 떨어지면
@@ -51,12 +55,21 @@ export interface OpencodeTransformReport {
   agentsMdPath: string;
   opencodeJsonPath: string;
   commandFiles: string[];
+  /** 2026-08-12 — 작성된 배포 룰 경로 (.opencode/rules/<name>.md). `instructions` 글롭의 대상. */
+  ruleFiles: string[];
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
 }
 
 export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const {
+    harnessRoot,
+    projectDir,
+    selectedInternalSkills = [],
+    rules = [],
+    baseline,
+    refreshOnly,
+  } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
@@ -84,6 +97,17 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 2. opencode.json
   const opencodeJsonPath = join(projectDir, "opencode.json");
   writer.write(opencodeJsonPath, renderOpencodeJson({ template: opencodeTemplate, mcp }));
+
+  // 2a. 2026-08-12 — 배포 룰 → `.opencode/rules/<name>.md`.
+  //   `opencode.json` 의 `instructions` 글롭이 이 디렉터리를 가리킨다. 전에는 그 글롭이
+  //   `.claude/rules/*.md` 였는데 그 디렉터리는 claude 를 함께 골랐을 때만 생긴다 — OpenCode
+  //   단독 설치자에게는 **매치하는 파일이 0개**인 글롭을 두고 "자동 병합된다"고 안내했다(#300).
+  const ruleFiles: string[] = [];
+  for (const rule of portRules(harnessRoot, rules)) {
+    const target = join(projectDir, ".opencode/rules", `${rule.name}.md`);
+    if (!writer.write(target, `${rule.body}\n`)) continue;
+    ruleFiles.push(target);
+  }
 
   // 3. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
   //   OpenCode 는 native skill 개념이 없어 skill 을 커맨드로 surface.
@@ -116,6 +140,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     agentsMdPath,
     opencodeJsonPath,
     commandFiles,
+    ruleFiles,
     ownership: writer.result(),
   };
 }

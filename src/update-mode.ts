@@ -38,7 +38,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
+import { ALL_RULES, type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
 
@@ -446,6 +446,8 @@ function refreshExternalCli(
     projectDir,
     cli: ALL_CLI_TARGETS,
     selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
+    // 스킬과 같은 이유로 **전부** 넘긴다 — 안 깔린 룰은 대상 파일이 없어 refreshOnly 가 건너뛴다.
+    rules: ALL_RULES,
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
   });

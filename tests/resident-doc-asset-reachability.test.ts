@@ -287,9 +287,10 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 모수(상주 룰 21→10,
     // 2026-08-02 정비 → 7, 2026-08-04 #284)가 줄면 지목 수도 함께 줄므로 하한도 같이 내린다.
     const { references } = findViolations();
-    // 실측 5 (#290 의 모집단 보강으로 4 → 5). 하한을 실측 바로 아래로 조인다 — 아래 `docTracks`
+    // 실측 3 (2026-08-12 — `playwright-launch` 가 스킬로 흡수되며 그 룰이 갖고 있던 지목 2건이
+    // 함께 빠졌다. #290 보강 직후는 5였다). 하한을 실측 바로 아래로 조인다 — 아래 `docTracks`
     // 하한과 같은 기준이다: 한 건만 소실돼도 무는 하한이라야 canary 다.
-    expect(references).toBeGreaterThan(4);
+    expect(references).toBeGreaterThan(2);
   });
 
   it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
@@ -306,8 +307,9 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
         "그러면 상주 문서가 그런 자산을 이름으로 불러도 이 게이트는 검사조차 하지 않는다 (#290).",
     ).toBeGreaterThan(0);
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
-    // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284 로 benchmark-parity 제거)로 줄었다.
-    expect(docTracks.size).toBeGreaterThan(7); // 모수 8 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
+    // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284) → 7(룰 6 + 앵커, 2026-08-12 에
+    // `playwright-launch` 가 스킬로 이동)로 줄었다.
+    expect(docTracks.size).toBeGreaterThan(6); // 모수 7 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
   });

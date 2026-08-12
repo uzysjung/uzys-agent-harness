@@ -12,6 +12,14 @@
 
 {PROJECT_RULES}
 
+## Harness Rules
+
+> Codex 는 룰 디렉터리가 없고 `AGENTS.md` 계층만 읽는다. 그래서 하네스가 설치한 룰이 여기 본문으로
+> 들어온다. 이 프로젝트에서만 지킬 규칙을 세우면 이 문서에 이어 쓰거나, 하위 디렉터리에
+> `AGENTS.md` 를 두면 그 범위에서 더 구체적인 규칙이 된다.
+
+{HARNESS_RULES}
+
 ## Session Start
 
 매 세션 시작 시:

@@ -57,7 +57,7 @@ OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
 ## Context Management
 
 - SPEC/PRD 매 세션 시작 시 재참조 (Persistent Anchor)
-- `instructions` 키 (`opencode.json`)로 `.claude/rules/*.md` glob 자동 merge
+- `instructions` 키 (`opencode.json`)가 `.opencode/rules/*.md` 를 매 세션 병합한다 — 하네스가 깐 룰이 여기 있고, 이 프로젝트에서만 지킬 규칙을 세우면 같은 디렉터리에 파일로 더한다
 
 ---
 

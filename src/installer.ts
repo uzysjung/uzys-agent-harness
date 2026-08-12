@@ -47,7 +47,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { type AssetSpec, buildManifest } from "./manifest.js";
+import { type AssetSpec, buildManifest, isCliNeutralTarget, resolveRules } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
@@ -292,7 +292,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   const base = spec.cli.includes("claude")
     ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase)
-    : emptyClaudeBaseline();
+    : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
+      // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
+      // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
+      installCliNeutralAssets(manifestSpec, projectDir, templatesDir);
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
   const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
@@ -321,6 +324,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     projectDir,
     cli: spec.cli,
     selectedInternalSkills: manifestSpec.selectedInternalSkills,
+    // 룰 목록의 SSOT 는 하나다 — `.claude/rules/` 를 채우는 것과 같은 `resolveRules` 결과가
+    // 나머지 세 CLI 로도 간다. 여기서 다시 고르면 CLI 마다 다른 룰이 깔린다.
+    rules: resolveRules(manifestSpec),
     previousExternal: previousLog?.externalFiles ?? [],
     codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
   });
@@ -487,6 +493,36 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     rootClaudeMdLog: null,
     backups: [],
   };
+}
+
+/**
+ * CLI 중립 자산(`.uzys-agent-harness/`)만 설치한다 — claude 를 고르지 않은 설치용.
+ *
+ * manifest 는 통째로 `.claude/` baseline 안에서만 돌았고, 그래서 `protect-branch.sh` ·
+ * `spec-drift-check.sh` 는 두 entry 의 주석이 "CLI 중립 슬롯"이라 적어 두었음에도 claude
+ * 설치에만 도달했다. 배포 룰 본문이 이 스크립트들을 호출 지점으로 지목하므로, 도달하지 않으면
+ * 룰이 **없는 도구를 있다고 안내**하게 된다 (#300 과 같은 형태).
+ *
+ * `.claude/` 를 만들지 않는 것이 이 함수의 존재 이유다 — 스켈레톤·훅 chmod·루트 CLAUDE.md
+ * 병합은 전부 claude 전용이라 여기서 하지 않는다.
+ */
+function installCliNeutralAssets(
+  manifestSpec: Required<AssetSpec>,
+  projectDir: string,
+  templatesDir: string,
+): ClaudeBaselineResult {
+  const result = emptyClaudeBaseline();
+  for (const entry of buildManifest(manifestSpec)) {
+    if (!isCliNeutralTarget(entry.target) || !entry.applies(manifestSpec)) continue;
+    const source = join(templatesDir, entry.source);
+    if (!existsSync(source)) {
+      result.skipped += 1;
+      continue;
+    }
+    copyFile(source, join(projectDir, entry.target));
+    result.filesCopied += 1;
+  }
+  return result;
 }
 
 /** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */

@@ -1,6 +1,7 @@
 # ADR-070: 상주 층의 소유권은 도달 범위가 정한다
 
-- Status: Accepted
+- Status: Superseded
+- Superseded-by: ADR-071 (룰이 4 CLI 전부에 도달하게 되어 '도달 범위' 판별자가 소멸. 내용 기준 규칙 2·3·4 는 ADR-071 이 이어받는다)
 - Date: 2026-08-11
 - PR: #299
 - 관련: ADR-067(룰 최소 판단) · ADR-068(앵커 7원칙) · 이슈 #289

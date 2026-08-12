@@ -41,6 +41,12 @@ export interface CliTransformParams {
   /** 대상 CLI. install 은 `spec.cli`, update 는 전부(`CLI_BASES`) — 아래 refreshOnly 주석 참조. */
   cli: ReadonlyArray<CliBase>;
   selectedInternalSkills: ReadonlyArray<string>;
+  /**
+   * 2026-08-12 — 이 설치에 깔릴 룰 이름들(`resolveRules`). 룰이 `.claude/rules/` 하나로만
+   * 나가던 탓에 비 Claude 단독 설치는 룰을 한 종도 못 받았다. `selectedInternalSkills` 와 같은
+   * 형태다 — 무엇을 깔지는 installer 가 정하고, 어디에 놓을지는 각 transform 이 정한다.
+   */
+  rules: ReadonlyArray<string>;
   /** install log 의 `externalFiles`. 없으면 빈 배열 = 판정 불가 → 보수적 백업. */
   previousExternal: ReadonlyArray<InstallLogSkillFile>;
   /**
@@ -68,6 +74,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     projectDir,
     cli,
     selectedInternalSkills,
+    rules,
     previousExternal,
     refreshOnly = false,
     codexTrust = false,
@@ -100,6 +107,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       harnessRoot,
       projectDir,
       selectedInternalSkills,
+      rules,
       baseline,
       refreshOnly,
     });
@@ -117,6 +125,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       harnessRoot,
       projectDir,
       selectedInternalSkills,
+      rules,
       baseline,
       refreshOnly,
     });
@@ -130,6 +139,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       harnessRoot,
       projectDir,
       selectedInternalSkills,
+      rules,
       baseline,
       refreshOnly,
     });

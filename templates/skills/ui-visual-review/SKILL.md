@@ -1,6 +1,6 @@
 ---
 name: ui-visual-review
-description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Also owns the browser-launch procedure the `playwright-launch` rule delegates here: use it whenever a browser must be opened for a human to drive or for automated capture — manual E2E checks, UX/fidelity comparison against a reference product, or a one-time OAuth login. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
+description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Also owns the browser-launch rules AND procedure — read it BEFORE opening a browser by any means (Playwright, chrome-devtools MCP, a launcher script), not after something feels slow: the prohibitions here exist because attaching to the user's live Chrome or using a throwaway context degrades the session in ways that are expensive to undo. Fire it for manual E2E checks, UX/fidelity comparison against a reference product, a one-time OAuth login, automated capture, and whenever the user reports the browser is laggy. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
 ---
 
 # UI Visual Review
@@ -33,8 +33,22 @@ E2E 테스트가 PASS 했어도 시각적 회귀(layout shift, 색상/간격 변
 
 ## 브라우저를 띄우는 법 (영속 profile)
 
-`playwright-launch` 룰이 **금지**를 소유하고, 여기가 **절차**를 소유한다. 금지문은 상주해야
-하지만(위반은 작업 도중에 일어난다) 아래 절차는 실제로 브라우저를 띄울 때만 필요하다.
+브라우저를 띄워 **사람이 직접 쓰는** 모든 상황(E2E 수동 확인, UX 비교, fidelity audit, OAuth
+로그인)에 적용한다. **브라우저를 여는 어떤 방법이든 그 전에** 이 절을 읽는다 — 아래 금지는 어기고
+나서 되돌리는 비용이 크다(재로그인·세션 소실·사용자 입력 지연).
+
+### 절대 금지
+
+- **사용자 활성 Chrome 에 attach** (`mcp__chrome-devtools__*`) — 사용자 입력이 느려진다.
+- **일회성 browser context** (Playwright MCP, `browser.newContext()`) — 영속 profile dir 이 없어
+  cookie · IndexedDB · Service Worker 가 휘발한다. 매 launch 재로그인 + 버벅임.
+- **사용자가 키를 입력하는 동안 자동화 process 동시 실행** — CDP latency.
+- **reference SaaS(Linear/Notion/Jira 등) 측 `page.goto()` · `page.reload()`** — sidebar click only.
+
+일회성 context 나 devtools attach 를 발견하면 즉시 닫고 아래 영속 profile launcher 로 재기동한다.
+**사용자가 "버벅인다"고 하면 이 절의 위반 확인이 1순위다.**
+
+### 절차
 
 핵심은 셋이다. ⓐ **영속 profile dir** — 프로젝트별로 분리해 매 iteration 재사용한다. cookie ·
 IndexedDB · Service Worker 가 보존돼야 재로그인이 사라진다. ⓑ **Chrome for Testing 별도 binary**

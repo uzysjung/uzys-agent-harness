@@ -38,7 +38,7 @@ const PYTHON_TRACKS = "data|csr-fastapi|full";
  *  - node CI: node 계열 트랙, 또는 python 계열이 전혀 없을 때의 fallback — 명시 opt-in 이
  *    트랙 매핑 밖(예: PM 단독)이라고 무설치가 되면 silent no-op (no-false-ship 위반).
  *  - python CI: python 계열 트랙. csr-fastapi·full 은 polyglot — node 와 양쪽 설치.
- *  - e2e(Playwright): UI 트랙만 (playwright-launch 룰과 동일 게이팅).
+ *  - e2e(Playwright): UI 트랙만 (`hasUiTrack` = csr-*|ssr-*|full).
  */
 const VARIANTS: ReadonlyArray<WorkflowVariant> = [
   {
