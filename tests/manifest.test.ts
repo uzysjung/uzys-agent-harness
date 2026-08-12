@@ -31,10 +31,16 @@ describe("resolveRules", () => {
     expect(rules).toEqual(expect.arrayContaining(["test-policy", "ship-checklist"]));
   });
 
-  it("includes UI rules only for csr/ssr/full", () => {
-    expect(resolveRules({ tracks: ["data"] })).not.toContain("playwright-launch");
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("playwright-launch");
-    expect(resolveRules({ tracks: ["full"] })).toContain("playwright-launch");
+  it("playwright-launch 는 어느 트랙에도 깔리지 않는다 (2026-08-12 — 스킬이 흡수했다)", () => {
+    // UI 트랙 전용 룰이었다. 남아 있던 것은 브라우저 금지문인데, 그 룰 본문이 스스로 "절차는
+    // `ui-visual-review` 스킬이 SSOT" 라고 적고 있었다 — 금지와 절차를 한 자리로 합쳤다.
+    // 되살아나면(= 상주 룰로 되돌아가면) 여기서 잡는다. 금지문 자체가 소실됐는지는
+    // tests/browser-prohibitions-owner.test.ts 가 따로 문다.
+    for (const track of TRACKS) {
+      expect(resolveRules({ tracks: [track] })).not.toContain("playwright-launch");
+    }
+    // 0건 함정 방지 — 룰 해석 자체가 죽으면 위 단언이 공허하게 통과한다.
+    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("git-policy");
   });
 
   it("benchmark-parity 는 어느 트랙에도 깔리지 않는다 (#284 — 스킬이 대신한다)", () => {
@@ -46,7 +52,7 @@ describe("resolveRules", () => {
       expect(resolveRules({ tracks: [track] })).not.toContain("benchmark-parity");
     }
     // 0건 함정 방지 — 룰 해석 자체가 죽으면 위 단언이 공허하게 통과한다.
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("playwright-launch");
+    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("doc-governance");
   });
 
   // 2026-08-02 정비 — 기술스택 상세 룰 8종(shadcn·nextjs·htmx·pyside6·database·api-contract·

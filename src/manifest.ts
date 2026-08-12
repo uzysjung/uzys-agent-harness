@@ -1,7 +1,8 @@
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { INSTALL_LOG_DIR } from "./install-log.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
-import type { Track } from "./types.js";
+import { TRACKS, type Track } from "./types.js";
 
 /**
  * Source-relative paths under `templates/` map to project-relative targets under
@@ -69,9 +70,12 @@ const COMMON_RULES = ["git-policy", "change-management", "doc-governance"];
 const DEV_RULES = ["test-policy", "ship-checklist"];
 // 2026-08-04 (#284) — `benchmark-parity` 제거. 그 룰이 담고 있던 것은 gap.md 표 스키마 · PR
 //   의무 필드 · dogfood walkthrough 절차였다. 전부 **그 작업을 할 때만** 필요한 절차인데 매
-//   세션 상주했고, 같은 일을 `audit-service-gaps` 스킬이 온디맨드로 이미 담당한다. 남는 것은
-//   capture 금지문뿐이고 그건 playwright-launch 가 소유한다.
-const UI_RULES = ["playwright-launch"];
+//   세션 상주했다.
+// 2026-08-12 — `playwright-launch` 제거(사용자 결정). 남은 것은 브라우저 금지문이었는데,
+//   그 룰 본문이 스스로 "절차는 `ui-visual-review` 스킬이 SSOT" 라고 적고 있었다. 금지와 절차가
+//   한 자리에 있는 편이 낫다고 판단해 스킬로 합쳤고, 발화가 늦는 위험은 스킬 description 이
+//   "브라우저를 여는 어떤 방법이든 그 전에 읽어라"로 흡수한다. UI 트랙 전용 룰은 이제 없다.
+const UI_RULES: string[] = [];
 
 // 2026-08-02 정비 — 기술스택 상세 룰(shadcn·nextjs·htmx·pyside6·database·api-contract·
 //   data-analysis·tauri)을 배포에서 뺐다. 모델이 이미 아는 것을 상주로 부담시키던 자리다.
@@ -112,6 +116,13 @@ export function resolveRules(spec: AssetSpec): string[] {
   }
   return [...set].sort();
 }
+
+/**
+ * 모든 트랙의 룰 union — `update` 가 쓴다. 전부 넘기고 "이 프로젝트에 뭐가 깔렸나"는
+ * `refreshOnly` 가 디스크로 대신 판정한다 (`ALL_CLI_TARGETS` · `INTERNAL_BUNDLED_SKILL_IDS` 와
+ * 같은 형태). `resolveRules` 에서 파생하므로 룰이 늘거나 줄어도 여기를 고칠 필요가 없다.
+ */
+export const ALL_RULES: ReadonlyArray<string> = resolveRules({ tracks: [...TRACKS] });
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 본 프로젝트 (always): reviewer, data-analyst, strategist
@@ -186,6 +197,17 @@ const UI_SKILL_DIRS_ECC = ["e2e-testing"];
 
 // python-* skills (data|csr-fastapi|full) — C2 (plugin OFF fallback).
 const PYTHON_SKILL_DIRS_ECC = ["python-patterns", "python-testing"];
+
+/**
+ * CLI 중립 자산인가 — `.uzys-agent-harness/` 아래는 4개 CLI 와 사람이 함께 쓰는 슬롯이다
+ * (install log 와 같은 디렉터리, ADR-050). claude 를 고르지 않은 설치에도 이 자산들은 깔린다.
+ *
+ * 접두사에서 derive 하는 이유: 대상 목록을 두 번 적으면 그 사본이 다음 drift 서식지가 된다.
+ * 아래 두 entry 의 주석이 이미 "CLI 중립 슬롯"이라 적고 있었는데 배선만 그러지 못했다.
+ */
+export function isCliNeutralTarget(target: string): boolean {
+  return target.startsWith(`${INSTALL_LOG_DIR}/`);
+}
 
 /** Build the full asset manifest for the given spec. */
 export function buildManifest(spec: AssetSpec): AssetEntry[] {

@@ -18,6 +18,11 @@ export interface AgentsMdParams {
   projectName: string;
   /** Project-context fill scaffold — the same body shipped to the Claude Code CLAUDE.md. */
   projectContext: string;
+  /**
+   * 2026-08-12 — 배포 룰 본문. **codex 와 같은 파일**(프로젝트 루트 `AGENTS.md`)을 쓰므로 두
+   * 렌더러가 같은 값을 넣어야 한다 — 한쪽만 넣으면 나중에 도는 transform 이 룰을 지운다.
+   */
+  harnessRules?: string;
 }
 
 /**
@@ -33,6 +38,7 @@ export function renderAgentsMd(params: AgentsMdParams): string {
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
     .replaceAll("{PROJECT_RULES}", body)
-    .replaceAll("{PROJECT_CONTEXT}", params.projectContext);
+    .replaceAll("{PROJECT_CONTEXT}", params.projectContext)
+    .replaceAll("{HARNESS_RULES}", params.harnessRules ?? "");
   return renameSlashes(replaced);
 }

@@ -23,6 +23,7 @@ import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
+import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
 import { renderBundledSkill } from "./skills.js";
@@ -36,6 +37,8 @@ export interface CodexTransformParams {
    * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+  /** 2026-08-12 — 이 설치의 배포 룰 이름들. Codex 는 룰 디렉터리가 없어 AGENTS.md 본문에 embed 한다. */
+  rules?: ReadonlyArray<string>;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
    *
@@ -65,7 +68,14 @@ const HOOK_NAMES = ["session-start"];
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const {
+    harnessRoot,
+    projectDir,
+    selectedInternalSkills = [],
+    rules = [],
+    baseline,
+    refreshOnly,
+  } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
@@ -82,6 +92,8 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     claudeMd,
     projectName,
     projectContext: renderFillScaffold(),
+    // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
+    harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용

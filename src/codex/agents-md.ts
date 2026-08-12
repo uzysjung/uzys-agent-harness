@@ -18,6 +18,12 @@ export interface AgentsMdParams {
   projectName: string;
   /** Project-context fill scaffold — the same body shipped to the Claude Code CLAUDE.md. */
   projectContext: string;
+  /**
+   * 2026-08-12 — 배포 룰 본문(이어 붙인 한 덩어리). **Codex 전용**이다: Codex 는 룰 디렉터리가
+   * 없고 `AGENTS.md` 계층만 읽으므로 룰이 본문에 들어가야 도달한다. OpenCode · Antigravity 는
+   * 각자 룰 디렉터리를 쓰므로 이 값을 넘기지 않고, 그 템플릿에는 placeholder 도 없다.
+   */
+  harnessRules?: string;
 }
 
 /**
@@ -36,6 +42,7 @@ export function renderAgentsMd(params: AgentsMdParams): string {
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
     .replaceAll("{PROJECT_RULES}", body)
-    .replaceAll("{PROJECT_CONTEXT}", params.projectContext);
+    .replaceAll("{PROJECT_CONTEXT}", params.projectContext)
+    .replaceAll("{HARNESS_RULES}", params.harnessRules ?? "");
   return renameSlashes(replaced);
 }

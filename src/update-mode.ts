@@ -38,7 +38,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
+import { ALL_RULES, type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
 
@@ -215,7 +215,24 @@ export function runUpdateMode(
   refreshSkillBaseline(projectDir);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
-  syncHarnessAnchor(projectDir, templatesDir, report);
+  //
+  //    **claude 를 고른 설치에서만** 돈다. 앵커 파일과 루트 `CLAUDE.md` 의 `@import` 한 줄은
+  //    Claude Code 전용 로딩 경로이고, 다른 CLI 사용자는 같은 내용을 `AGENTS.md` ·
+  //    `.agents/rules/` 로 이미 받는다 — 만들면 중복이고, 루트 `CLAUDE.md` 는 **사용자 소유
+  //    이름**이라 고른 적 없는 CLI 때문에 사용자 파일이 수정된다. install 은 이 조건을 이미
+  //    지키는데(`.claude/` baseline 게이트) update 만 무조건 돌고 있었다 — 비 Claude 단독
+  //    설치가 update 에 도달할 수 있게 되면서 드러난 비대칭이다(독립 재검증 HIGH-1).
+  //
+  //    증거는 **둘을 함께** 본다. `.claude/` 존재만으로 판정하면 비 Claude 설치에 어떤 이유로든
+  //    `.claude/` 가 있을 때 같은 증상이 돌아오고(사용자가 만든 디렉터리 · 이전 설치의 잔재),
+  //    install log 만으로 판정하면 **로그가 없는 레거시 설치본**이 claude 미설치로 오판돼 앵커
+  //    이행 자체가 죽는다(그 이행이 이 함수의 원래 목적이다 — 로그 단독 판정은 update-mode
+  //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
+  //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
+  const installLog = readInstallLog(projectDir);
+  if (existsSync(claudeDir) && (installLog === null || installLog.spec.cli.includes("claude"))) {
+    syncHarnessAnchor(projectDir, templatesDir, report);
+  }
 
   // 3) settings.json stale hook ref cleanup
   const settingsPath = join(claudeDir, "settings.json");
@@ -446,6 +463,8 @@ function refreshExternalCli(
     projectDir,
     cli: ALL_CLI_TARGETS,
     selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
+    // 스킬과 같은 이유로 **전부** 넘긴다 — 안 깔린 룰은 대상 파일이 없어 refreshOnly 가 건너뛴다.
+    rules: ALL_RULES,
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
   });

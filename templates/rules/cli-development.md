@@ -11,4 +11,4 @@ paths:
 - 처음 쓰는 플래그로 "이상 없음"을 결론내지 마라. 알려진 값이 잡히는지로 탐지기를 먼저 검증한 뒤에 빈 결과를 신뢰한다.
 - macOS(BSD)와 Linux(GNU)는 `sed -i` · `date` · `readlink -f` · `realpath -m` · `find -newermt` · `stat` 포맷이 호환되지 않는다. 양쪽에서 도는 형태를 쓰거나 `command -v` 로 분기한다.
 
-Claude Code 훅으로 쓸 스크립트의 계약: **차단 = `exit 2` + stderr 에 사유 · 통과 = `exit 0`(출력 없음).** 다른 코드는 "비차단 오류"로 흘러가 조용히 무시된다.
+훅으로 쓸 스크립트의 **차단 계약은 실행기마다 다르다** — Claude Code · Codex 는 `exit 2` + stderr 에 사유(통과 = `exit 0`, 출력 없음) · OpenCode 플러그인은 훅 함수에서 `throw` · Antigravity 는 JSON 으로 `decision: "deny"`. 계약 밖의 형태는 "비차단 오류"로 흘러가 조용히 무시된다.

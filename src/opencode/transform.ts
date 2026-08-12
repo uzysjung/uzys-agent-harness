@@ -21,6 +21,7 @@ import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
+import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -34,6 +35,8 @@ export interface OpencodeTransformParams {
    * body = skill 본문). installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+  /** 2026-08-12 — 이 설치의 배포 룰 이름들. codex 와 공유하는 `AGENTS.md` 본문에 embed 된다. */
+  rules?: ReadonlyArray<string>;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
    * codex 쪽과 같은 이유로 **required** 다 — 안 넘긴 호출부가 조용히 판정 불가로 떨어지면
@@ -56,7 +59,14 @@ export interface OpencodeTransformReport {
 }
 
 export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeTransformReport {
-  const { harnessRoot, projectDir, selectedInternalSkills = [], baseline, refreshOnly } = params;
+  const {
+    harnessRoot,
+    projectDir,
+    selectedInternalSkills = [],
+    rules = [],
+    baseline,
+    refreshOnly,
+  } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
@@ -75,6 +85,10 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     claudeMd,
     projectName,
     projectContext: renderFillScaffold(),
+    // codex 와 **같은 파일**(프로젝트 루트 `AGENTS.md`)이다. 두 transform 이 서로 다른 본문을
+    // 쓰면 나중에 도는 쪽이 앞선 쪽을 덮어써, codex+opencode 조합에서 룰이 통째로 사라진다
+    // (독립 검증 C-1 실측). 같은 내용을 쓰면 순서가 결과를 바꾸지 않는다.
+    harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로. codex 가 같은 install 안에서 이미

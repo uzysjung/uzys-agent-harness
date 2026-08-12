@@ -322,7 +322,7 @@ Pick one or more at step 2.
 
 | Path | Purpose |
 |---|---|
-| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, test-policy, change-management, ship-checklist, cli-development; UI tracks add playwright-launch + benchmark-parity) |
+| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
 | `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, mcp-pre-exec) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |

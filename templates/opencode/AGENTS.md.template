@@ -12,6 +12,13 @@
 
 {PROJECT_RULES}
 
+## Harness Rules
+
+> 하네스가 설치한 룰이 여기 본문으로 들어온다. 이 프로젝트에서만 지킬 규칙을 세우면 이 문서에
+> 이어 쓰거나, 하위 디렉터리에 `AGENTS.md` 를 두면 그 범위에서 더 구체적인 규칙이 된다.
+
+{HARNESS_RULES}
+
 ## Session Start
 
 매 세션 시작 시:
@@ -57,7 +64,7 @@ OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
 ## Context Management
 
 - SPEC/PRD 매 세션 시작 시 재참조 (Persistent Anchor)
-- `instructions` 키 (`opencode.json`)로 `.claude/rules/*.md` glob 자동 merge
+- 이 `AGENTS.md` 는 OpenCode 가 프로젝트 루트에서 **자동으로** 읽는다 — §Harness Rules 가 그래서 여기 있다. `opencode.json` 의 `instructions` 키는 그 위에 SPEC 문서를 더 얹는다
 
 ---
 

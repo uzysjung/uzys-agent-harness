@@ -41,21 +41,22 @@ const TRACKS: ReadonlyArray<Track> = [
 /**
  * Per-track expected files (subset — proves Track-pattern routing in manifest.ts).
  *
- * 2026-08-02 정비 — 기술스택 상세 룰 8종이 배포에서 빠졌다. 트랙 구분이 남아 있는 축은
- * UI 룰(playwright-launch = csr/ssr/full 한정) · dev 룰(test-policy·
- * ship-checklist) · tooling 의 cli-development 셋이므로 그 축으로 기대치를 다시 잡는다.
+ * 2026-08-02 정비 — 기술스택 상세 룰 8종이 배포에서 빠졌다.
+ * 2026-08-12 — `playwright-launch` 가 스킬로 흡수돼 **UI 트랙 전용 룰 축이 없어졌다.** 남은
+ * 라우팅 축은 dev 룰(test-policy·ship-checklist = executive 제외) · tooling/full 의
+ * cli-development · MCP 매핑 셋이다. UI 트랙 행은 그래서 dev 룰 + MCP 로 구분을 증명한다 —
  * 전 트랙 공통 룰만 적으면 이 표가 라우팅을 더 이상 증명하지 못한다.
  */
 const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
   tooling: { rules: ["cli-development", "test-policy"] },
-  "csr-supabase": { rules: ["playwright-launch"], mcp: ["supabase"] },
-  "csr-fastify": { rules: ["playwright-launch", "ship-checklist"] },
-  "csr-fastapi": { rules: ["playwright-launch", "ship-checklist"] },
-  "ssr-htmx": { rules: ["playwright-launch"] },
-  "ssr-nextjs": { rules: ["playwright-launch"] },
+  "csr-supabase": { rules: ["test-policy"], mcp: ["supabase"] },
+  "csr-fastify": { rules: ["test-policy", "ship-checklist"] },
+  "csr-fastapi": { rules: ["test-policy", "ship-checklist"] },
+  "ssr-htmx": { rules: ["test-policy"] },
+  "ssr-nextjs": { rules: ["ship-checklist"] },
   data: { rules: ["test-policy", "ship-checklist"] },
   executive: { rules: ["git-policy"] },
-  full: { rules: ["cli-development", "playwright-launch"] },
+  full: { rules: ["cli-development", "test-policy"] },
   // v0.5.0 — executive-style baselines (common rules only).
   "project-management": { rules: ["git-policy", "change-management"] },
   "growth-marketing": { rules: ["git-policy", "change-management"] },

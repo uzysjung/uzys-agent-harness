@@ -431,7 +431,9 @@ describe("상주 항목 수 (quantity 축)", () => {
   it.each([
     ["executive", { rules: 3, skills: 7, agents: 5, claudeMd: 2, total: 17 }],
     ["tooling", { rules: 6, skills: 6, agents: 9, claudeMd: 2, total: 23 }],
-    ["full", { rules: 7, skills: 14, agents: 9, claudeMd: 2, total: 32 }],
+    // 2026-08-12 — `playwright-launch` 가 `ui-visual-review` 스킬로 흡수돼 UI 트랙 룰이 0이 됐다.
+    // full 의 룰이 7 → 6 이고 총합도 하나 준다 (스킬 수는 그대로 — 흡수된 곳이 이미 있던 스킬이다).
+    ["full", { rules: 6, skills: 14, agents: 9, claudeMd: 2, total: 31 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

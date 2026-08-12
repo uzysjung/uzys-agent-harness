@@ -467,6 +467,7 @@ describe("executeSpec", () => {
       ...fakeReport,
       antigravity: {
         rulesFile: "/p/.agents/rules/uzys-harness.md",
+        harnessRuleFiles: [],
         skillFiles: ["/p/.agents/skills/compaction-handoff/SKILL.md"],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
       },

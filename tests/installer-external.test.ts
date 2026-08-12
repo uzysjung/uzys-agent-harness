@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -196,7 +196,12 @@ describe("runInstall — mode dispatch", () => {
     expect(report.envFiles.envExampleCreated).toBe(false);
   });
 
-  it("mode=update without existing .claude/ throws", () => {
+  it("mode=update 는 **설치가 없을 때** throw 한다 (`.claude/` 유무가 아니다)", () => {
+    // 2026-08-12 — 판정 기준이 `.claude/` 존재에서 **설치 존재**로 바뀌었다. update 는
+    // v26.134.0(ADR-049)부터 외부 CLI 산출물도 갱신하므로 `.claude/` 없는 codex/opencode/
+    // antigravity 단독 설치도 정당한 대상이고, `src/commands/update.ts` 의 pre-flight 는 이미
+    // 그렇게 판정한다(#253). 파이프라인만 `.claude/` 를 요구해 그 사용자를 거절하고 있었다 —
+    // 그 결과 비 Claude 단독 사용자는 새 자산을 재설치 전에는 못 받았다(독립 검증 C-2c).
     expect(() =>
       runInstall({
         runExternal: null,
@@ -205,7 +210,26 @@ describe("runInstall — mode dispatch", () => {
         spec: spec(["tooling"], {}, projectDir),
         mode: "update",
       }),
-    ).toThrow(/Update mode requires existing/);
+    ).toThrow(/Update mode requires an existing install/);
+  });
+
+  it("mode=update 는 `.claude/` 가 없어도 설치가 있으면 돈다 (codex 단독)", () => {
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: { ...spec(["tooling"], {}, projectDir), cli: ["codex"] },
+    });
+    expect(existsSync(join(projectDir, ".claude"))).toBe(false);
+    expect(() =>
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: { ...spec(["tooling"], {}, projectDir), cli: ["codex"] },
+        mode: "update",
+      }),
+    ).not.toThrow();
   });
 
   it("mode=reinstall auto-creates backup", () => {

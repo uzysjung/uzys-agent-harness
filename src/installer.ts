@@ -47,7 +47,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { type AssetSpec, buildManifest } from "./manifest.js";
+import { type AssetSpec, buildManifest, isCliNeutralTarget, resolveRules } from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
@@ -266,14 +266,33 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   const claudeDir = join(projectDir, ".claude");
 
-  // Update mode pre-flight: existing .claude/ 필수. backup 전에 검증.
-  if (mode === "update" && !existsSync(claudeDir)) {
-    throw new Error(`Update mode requires existing .claude/ at ${claudeDir}`);
-  }
-
   // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
-  // reinstall 은 바로 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
+  // reinstall 은 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
   const previousLog = readInstallLog(projectDir);
+
+  // Update mode pre-flight — 갱신할 **설치**가 있어야 한다. backup 전에 검증.
+  //
+  // 판정 기준은 `.claude/` 가 아니다. update 는 v26.134.0(ADR-049)부터 외부 CLI 산출물도
+  // 갱신하므로 `.claude/` 가 없는 codex/opencode/antigravity 단독 설치도 정당한 대상이고,
+  // `src/commands/update.ts` 의 pre-flight 는 이미 그렇게 판정한다(#253). **파이프라인만
+  // `.claude/` 를 요구해 그 사용자를 거절하고 있었다** — 명령은 통과시키고 파이프라인이
+  // throw 하니, 비 Claude 단독 사용자는 새 자산을 받을 길이 재설치뿐이었다(독립 검증 C-2c).
+  // 설치의 CLI 중립 증거는 install log 다.
+  //
+  // 단, **claude 를 고른 설치인데 `.claude/` 가 없으면** 그건 정상 상태가 아니라 깨진 설치다 —
+  // 그대로 진행하면 룰만 복원되고 `settings.json`·훅이 없는 반쪽 `.claude/` 가 만들어진다
+  // (독립 재검증 M-R2). 그 경우는 예전처럼 막고 재설치로 보낸다.
+  const claudeWasSelected = previousLog?.spec.cli.includes("claude") ?? false;
+  if (mode === "update" && !existsSync(claudeDir) && (previousLog === null || claudeWasSelected)) {
+    // 두 상황을 같은 문장으로 말하지 않는다 — 하나는 "깔린 게 없다", 다른 하나는 "깔렸는데
+    // 일부가 사라졌다"이고, 사용자가 할 일이 다르다. 후자를 "설치가 없다"고 하면 로그를 눈으로
+    // 본 사람은 도구가 틀렸다고 생각한다.
+    throw new Error(
+      claudeWasSelected
+        ? `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`
+        : `Update mode requires an existing install at ${projectDir}`,
+    );
+  }
 
   const backupPath = resolveBackupPath(ctx, mode, claudeDir);
 
@@ -292,7 +311,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   const base = spec.cli.includes("claude")
     ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase)
-    : emptyClaudeBaseline();
+    : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
+      // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
+      // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
+      installCliNeutralAssets(manifestSpec, projectDir, templatesDir);
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
   const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
@@ -321,6 +343,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     projectDir,
     cli: spec.cli,
     selectedInternalSkills: manifestSpec.selectedInternalSkills,
+    // 룰 목록의 SSOT 는 하나다 — `.claude/rules/` 를 채우는 것과 같은 `resolveRules` 결과가
+    // 나머지 세 CLI 로도 간다. 여기서 다시 고르면 CLI 마다 다른 룰이 깔린다.
+    rules: resolveRules(manifestSpec),
     previousExternal: previousLog?.externalFiles ?? [],
     codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
   });
@@ -487,6 +512,36 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     rootClaudeMdLog: null,
     backups: [],
   };
+}
+
+/**
+ * CLI 중립 자산(`.uzys-agent-harness/`)만 설치한다 — claude 를 고르지 않은 설치용.
+ *
+ * manifest 는 통째로 `.claude/` baseline 안에서만 돌았고, 그래서 `protect-branch.sh` ·
+ * `spec-drift-check.sh` 는 두 entry 의 주석이 "CLI 중립 슬롯"이라 적어 두었음에도 claude
+ * 설치에만 도달했다. 배포 룰 본문이 이 스크립트들을 호출 지점으로 지목하므로, 도달하지 않으면
+ * 룰이 **없는 도구를 있다고 안내**하게 된다 (#300 과 같은 형태).
+ *
+ * `.claude/` 를 만들지 않는 것이 이 함수의 존재 이유다 — 스켈레톤·훅 chmod·루트 CLAUDE.md
+ * 병합은 전부 claude 전용이라 여기서 하지 않는다.
+ */
+function installCliNeutralAssets(
+  manifestSpec: Required<AssetSpec>,
+  projectDir: string,
+  templatesDir: string,
+): ClaudeBaselineResult {
+  const result = emptyClaudeBaseline();
+  for (const entry of buildManifest(manifestSpec)) {
+    if (!isCliNeutralTarget(entry.target) || !entry.applies(manifestSpec)) continue;
+    const source = join(templatesDir, entry.source);
+    if (!existsSync(source)) {
+      result.skipped += 1;
+      continue;
+    }
+    copyFile(source, join(projectDir, entry.target));
+    result.filesCopied += 1;
+  }
+  return result;
 }
 
 /** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */
