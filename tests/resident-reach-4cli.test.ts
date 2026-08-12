@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -318,7 +326,24 @@ describe("update 를 돌려도 룰이 남는다 / 없던 룰은 새로 받는다
     // templates 쪽에서 금지하는 바로 그 상태다. update 로 그걸 만들 수 있으면 안 된다(M-R2).
     const fresh = install(["claude"], "upd-broken");
     rmSync(join(fresh.dir, ".claude"), { recursive: true, force: true });
-    expect(() => update(fresh.dir)).toThrow(/requires an existing install/);
+    // 메시지도 상황을 짚어야 한다 — "설치가 없다"고 하면 로그를 눈으로 본 사람은 도구가
+    // 틀렸다고 생각한다(재검증 LOW-R1).
+    expect(() => update(fresh.dir)).toThrow(/broken install/);
+  });
+
+  it("비 Claude 설치에 `.claude/` 가 있어도 Claude 전용 파일을 만들지 않는다", () => {
+    // 사용자가 만든 디렉터리든 이전 설치의 잔재든, `.claude/` 존재만으로 판정하면 고른 적 없는
+    // CLI 때문에 루트에 Claude 전용 파일이 생긴다(재검증 MEDIUM-R3). 로그가 claude 를 말하지
+    // 않으면 안 만든다 — 로그가 아예 없는 레거시 설치본은 예외로 남긴다(앵커 이행이 그 목적).
+    const fresh = install(["codex"], "upd-strayclaude");
+    mkdirSync(join(fresh.dir, ".claude"), { recursive: true });
+    writeFileSync(join(fresh.dir, ".claude/notes.md"), "사용자 메모\n");
+    const before = new Set(walk(fresh.dir));
+    const after = update(fresh.dir);
+    const created = after.files.filter((f) => !before.has(f) && !f.includes(".backup-"));
+    expect(created, "고른 적 없는 CLI 때문에 파일이 생겼다").toEqual([]);
+    // 사용자 파일은 제자리에 남는다.
+    expect(existsSync(join(fresh.dir, ".claude/notes.md"))).toBe(true);
   });
 
   it("설치되지 않은 CLI 의 룰 디렉터리를 update 가 만들지 않는다 (`createInRefresh` 누수)", () => {

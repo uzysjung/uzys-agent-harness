@@ -223,10 +223,14 @@ export function runUpdateMode(
   //    지키는데(`.claude/` baseline 게이트) update 만 무조건 돌고 있었다 — 비 Claude 단독
   //    설치가 update 에 도달할 수 있게 되면서 드러난 비대칭이다(독립 재검증 HIGH-1).
   //
-  //    증거는 install log 가 아니라 **`.claude/` 존재**다. 로그는 v26.64.0 이후 설치에만 있어서,
-  //    로그로 판정하면 레거시 설치본이 claude 미설치로 오판돼 앵커 이행 자체가 죽는다
-  //    (그 이행이 이 함수의 원래 목적이다). `.claude/` 는 claude 를 고른 설치에만 생긴다.
-  if (existsSync(claudeDir)) {
+  //    증거는 **둘을 함께** 본다. `.claude/` 존재만으로 판정하면 비 Claude 설치에 어떤 이유로든
+  //    `.claude/` 가 있을 때 같은 증상이 돌아오고(사용자가 만든 디렉터리 · 이전 설치의 잔재),
+  //    install log 만으로 판정하면 **로그가 없는 레거시 설치본**이 claude 미설치로 오판돼 앵커
+  //    이행 자체가 죽는다(그 이행이 이 함수의 원래 목적이다 — 로그 단독 판정은 update-mode
+  //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
+  //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
+  const installLog = readInstallLog(projectDir);
+  if (existsSync(claudeDir) && (installLog === null || installLog.spec.cli.includes("claude"))) {
     syncHarnessAnchor(projectDir, templatesDir, report);
   }
 

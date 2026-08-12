@@ -284,7 +284,14 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // (독립 재검증 M-R2). 그 경우는 예전처럼 막고 재설치로 보낸다.
   const claudeWasSelected = previousLog?.spec.cli.includes("claude") ?? false;
   if (mode === "update" && !existsSync(claudeDir) && (previousLog === null || claudeWasSelected)) {
-    throw new Error(`Update mode requires an existing install at ${projectDir}`);
+    // 두 상황을 같은 문장으로 말하지 않는다 — 하나는 "깔린 게 없다", 다른 하나는 "깔렸는데
+    // 일부가 사라졌다"이고, 사용자가 할 일이 다르다. 후자를 "설치가 없다"고 하면 로그를 눈으로
+    // 본 사람은 도구가 틀렸다고 생각한다.
+    throw new Error(
+      claudeWasSelected
+        ? `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`
+        : `Update mode requires an existing install at ${projectDir}`,
+    );
   }
 
   const backupPath = resolveBackupPath(ctx, mode, claudeDir);
