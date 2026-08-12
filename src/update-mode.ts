@@ -215,7 +215,20 @@ export function runUpdateMode(
   refreshSkillBaseline(projectDir);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
-  syncHarnessAnchor(projectDir, templatesDir, report);
+  //
+  //    **claude 를 고른 설치에서만** 돈다. 앵커 파일과 루트 `CLAUDE.md` 의 `@import` 한 줄은
+  //    Claude Code 전용 로딩 경로이고, 다른 CLI 사용자는 같은 내용을 `AGENTS.md` ·
+  //    `.agents/rules/` 로 이미 받는다 — 만들면 중복이고, 루트 `CLAUDE.md` 는 **사용자 소유
+  //    이름**이라 고른 적 없는 CLI 때문에 사용자 파일이 수정된다. install 은 이 조건을 이미
+  //    지키는데(`.claude/` baseline 게이트) update 만 무조건 돌고 있었다 — 비 Claude 단독
+  //    설치가 update 에 도달할 수 있게 되면서 드러난 비대칭이다(독립 재검증 HIGH-1).
+  //
+  //    증거는 install log 가 아니라 **`.claude/` 존재**다. 로그는 v26.64.0 이후 설치에만 있어서,
+  //    로그로 판정하면 레거시 설치본이 claude 미설치로 오판돼 앵커 이행 자체가 죽는다
+  //    (그 이행이 이 함수의 원래 목적이다). `.claude/` 는 claude 를 고른 설치에만 생긴다.
+  if (existsSync(claudeDir)) {
+    syncHarnessAnchor(projectDir, templatesDir, report);
+  }
 
   // 3) settings.json stale hook ref cleanup
   const settingsPath = join(claudeDir, "settings.json");

@@ -278,7 +278,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // `.claude/` 를 요구해 그 사용자를 거절하고 있었다** — 명령은 통과시키고 파이프라인이
   // throw 하니, 비 Claude 단독 사용자는 새 자산을 받을 길이 재설치뿐이었다(독립 검증 C-2c).
   // 설치의 CLI 중립 증거는 install log 다.
-  if (mode === "update" && !existsSync(claudeDir) && previousLog === null) {
+  //
+  // 단, **claude 를 고른 설치인데 `.claude/` 가 없으면** 그건 정상 상태가 아니라 깨진 설치다 —
+  // 그대로 진행하면 룰만 복원되고 `settings.json`·훅이 없는 반쪽 `.claude/` 가 만들어진다
+  // (독립 재검증 M-R2). 그 경우는 예전처럼 막고 재설치로 보낸다.
+  const claudeWasSelected = previousLog?.spec.cli.includes("claude") ?? false;
+  if (mode === "update" && !existsSync(claudeDir) && (previousLog === null || claudeWasSelected)) {
     throw new Error(`Update mode requires an existing install at ${projectDir}`);
   }
 

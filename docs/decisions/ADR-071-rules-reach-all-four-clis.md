@@ -56,7 +56,11 @@ CLI 마다 읽는 자리가 정해져 있고, 우리가 고른 자리를 읽어 
 - Codex · OpenCode → **프로젝트 루트 `AGENTS.md` §Harness Rules 본문 embed**
 
 Codex 는 룰 디렉터리가 없어 `AGENTS.md` 계층이 유일한 경로이고, OpenCode 는 그 `AGENTS.md` 를
-**자동으로 읽는다**(opencode.ai/docs/rules). 둘은 **같은 파일을 공유**하므로 두 렌더러가 같은
+**자동으로 읽는다** — 공식 문서(opencode.ai/docs/rules: 현재 디렉터리에서 위로 올라가며
+`AGENTS.md`·`CLAUDE.md` 를 찾고, `instructions` 항목은 "그 위에 더한다")와 이 저장소의 호환 실측
+(`docs/research/opencode-compat-matrix-2026-04-25.md`)이 같은 말을 한다. **이 전제가 이 결정의
+단일 지지대다** — 틀리면 글롭을 지웠으므로 OpenCode 룰이 0종이 된다. 실 CLI 확인은 미검증이고
+Docker 격리 검증 1건이 이 사이클에서 가장 값어치 큰 후속이다. 둘은 **같은 파일을 공유**하므로 두 렌더러가 같은
 본문을 넣어야 한다 — 초안은 OpenCode 만 `.opencode/rules/` 로 보내고 `instructions` 글롭으로
 읽게 했는데, 그러면 `codex+opencode` 를 함께 고른 설치에서 나중에 도는 transform 이 앞선 것을
 덮어써 **Codex 룰이 0종**이 됐다(독립 검증 C-1 이 실설치로 적발. 위저드 2단계가 다중 선택이라
@@ -133,6 +137,14 @@ ADR-070 에서 살아남는 규칙(내용 기준이라 도달과 무관하다):
   단독 4종 + 조합 3종 + update 4종을 실제로 돌려 **그 CLI 가 읽는 자리에** 룰 본문 canary 가
   있는지 확인한다. "트리 어딘가에 있다"로 재면 CLI 가 읽지 않는 자리에 내보내도 통과한다
   (독립 검증 H-3 이 변이로 실증). 음성 대조 5종 전부 red 확인.
+
+- **`update` 의 pre-flight 를 푸는 데는 대가가 있었다.** 비 Claude 단독 설치가 `runUpdateMode` 에
+  **처음 도달**하면서, 무조건 돌던 앵커 동기화가 그 사용자에게 `CLAUDE-uzys-harness.md` 와 루트
+  `CLAUDE.md` 를 만들었다(독립 재검증 HIGH-1 — install 은 절대 안 하는 일을 update 가 했다).
+  앵커 동기화를 `.claude/` 존재로 게이팅했다. 판정 증거를 install log 가 아니라 디렉터리로 둔
+  이유는, 로그가 v26.64.0 이후 설치에만 있어 레거시 설치본의 앵커 이행이 죽기 때문이다.
+  같은 이유로 **claude 설치인데 `.claude/` 가 사라진 상태**는 여전히 막는다 — 그대로 진행하면
+  룰만 복원되고 `settings.json`·훅이 없는 반쪽 `.claude/` 가 남는다(M-R2).
 
 **남은 한계 (측정했고 이번 범위에서 안 고쳤다)**
 

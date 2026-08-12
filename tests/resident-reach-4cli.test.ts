@@ -298,10 +298,38 @@ describe("update 를 돌려도 룰이 남는다 / 없던 룰은 새로 받는다
     }
   });
 
-  it("비 Claude 단독 설치도 update 가 돈다 (`.claude/` 를 요구하지 않는다)", () => {
-    const fresh = install(["codex"], "upd-solo");
-    expect(existsSync(join(fresh.dir, ".claude"))).toBe(false);
-    expect(() => update(fresh.dir)).not.toThrow();
+  it("비 Claude 단독 설치도 update 가 돈다 — 그리고 Claude 전용 파일을 만들지 않는다", () => {
+    // `not.toThrow()` 만 보면 **무엇이 생겼는지**를 안 본다. pre-flight 를 푼 대가로 비 Claude
+    // 단독 설치가 update 경로에 처음 도달했고, 그 경로가 앵커 동기화를 무조건 돌려
+    // `CLAUDE-uzys-harness.md` 와 루트 `CLAUDE.md` 를 만들었다(독립 재검증 HIGH-1). 둘 다
+    // Claude Code 전용 로딩 경로이고, 루트 `CLAUDE.md` 는 사용자 소유 이름이다.
+    for (const cli of ["codex", "opencode", "antigravity"] as const) {
+      const fresh = install([cli], `upd-solo-${cli}`);
+      expect(existsSync(join(fresh.dir, ".claude"))).toBe(false);
+      const before = new Set(fresh.files);
+      expect(() => update(fresh.dir)).not.toThrow();
+      const created = walk(fresh.dir).filter((f) => !before.has(f));
+      expect(created, `${cli} update 가 Claude 전용 파일을 만들었다`).toEqual([]);
+    }
+  });
+
+  it("claude 설치인데 `.claude/` 가 사라졌으면 막는다 — 반쪽 복원보다 재설치가 낫다", () => {
+    // 룰만 복원되고 `settings.json`·훅이 없는 `.claude/` 는 이 저장소의 hook-wiring-parity 가
+    // templates 쪽에서 금지하는 바로 그 상태다. update 로 그걸 만들 수 있으면 안 된다(M-R2).
+    const fresh = install(["claude"], "upd-broken");
+    rmSync(join(fresh.dir, ".claude"), { recursive: true, force: true });
+    expect(() => update(fresh.dir)).toThrow(/requires an existing install/);
+  });
+
+  it("설치되지 않은 CLI 의 룰 디렉터리를 update 가 만들지 않는다 (`createInRefresh` 누수)", () => {
+    // `createInRefresh` 는 refreshOnly 규율의 예외라, 조건이 뒤집히면 안 깐 CLI 에 디렉터리가
+    // 생긴다. 그 불변식을 지키는 것이 코드 한 줄뿐이었고 아무도 안 물었다(독립 재검증 M-R1).
+    for (const cli of [["claude"], ["claude", "codex"]] as const) {
+      const fresh = install([...cli], `upd-leak-${cli.join("-")}`);
+      const after = update(fresh.dir);
+      const agentsRules = after.files.filter((f) => f.startsWith(".agents/rules/"));
+      expect(agentsRules, `${cli.join("+")} 에 antigravity 룰이 생겼다`).toEqual([]);
+    }
   });
 });
 
