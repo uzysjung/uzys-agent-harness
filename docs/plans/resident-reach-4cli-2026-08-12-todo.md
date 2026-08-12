@@ -85,7 +85,7 @@
 2. `task-brief-nudge` 훅은 **남기고 4 CLI 배선**한다.
 3. `playwright-launch` 는 **스킬로 흡수**한다.
 
-## Phase 2a — 룰 배선 (완료, PR 1)
+## Phase 2a — 룰 배선 (완료, PR #304)
 
 - [x] `.uzys-agent-harness/` 검사 도구 2종을 CLI 무관 설치로 — 룰이 가리키는 도구가 룰보다 먼저
       도달해야 한다(안 그러면 룰 확산이 거짓 안내를 함께 확산시킨다)
