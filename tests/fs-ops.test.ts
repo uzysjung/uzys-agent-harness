@@ -85,7 +85,6 @@ describe("fs-ops", () => {
     ensureProjectSkeleton(dir);
     for (const sub of [
       ".claude/commands/uzys",
-      ".claude/commands/ecc",
       ".claude/rules",
       ".claude/skills",
       ".claude/agents",

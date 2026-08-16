@@ -122,14 +122,27 @@ describe("buildManifest", () => {
     expect(secOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
   });
 
-  it("ecc commands dir: C2 opt-out gating. v26.58.0 ADR-019", () => {
+  // 2026-08-16 (ADR-073) — 판정을 뒤집었다. ADR-019 는 ECC 플러그인을 **안 고른** 사람에게
+  // 폴백 명령 8종을 깔았는데, 그중 5개가 안 고른 자산(ECC 에이전트 · CL-v2 스크립트)을 가리켜
+  // 폴백이 자립하지 못했다. 이제 어떤 조합에서도 명령이 깔리지 않는다.
+  //
+  // 두 조합을 **함께** 본다: withEcc 한쪽만 보면 "플러그인 ON 이라 건너뛴 것"과 "자산이 아예
+  // 없는 것"이 구분되지 않는다.
+  it("ecc commands: 어떤 조합에서도 안 깔린다 (ADR-073)", () => {
+    for (const withEcc of [false, true]) {
+      const m = buildManifest({ tracks: ["tooling"], withEcc });
+      expect(
+        m.find((e) => e.source === "commands/ecc"),
+        `withEcc=${withEcc} 에서 commands/ecc 엔트리가 살아 있다`,
+      ).toBeUndefined();
+    }
+  });
+
+  it("전제 확인 — 같은 조회 방식으로 실재하는 엔트리는 찾힌다 (게이트 자기검증)", () => {
+    // 위 테스트는 `find(...)` 가 undefined 임을 단언한다. 조회 방식 자체가 고장 나면(source 필드
+    // 개명 등) 무엇을 넣어도 undefined 라 저 게이트가 조용히 죽는다. 알려진 양성으로 대조한다.
     const m = buildManifest({ tracks: ["tooling"] });
-    const eccCmd = m.find((e) => e.source === "commands/ecc");
-    expect(eccCmd).toBeDefined();
-    // plugin OFF → cherry-pick fallback
-    expect(eccCmd?.applies({ tracks: ["tooling"] })).toBe(true);
-    // plugin ON → skip
-    expect(eccCmd?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    expect(m.find((e) => e.source === "hooks/protect-files.sh")).toBeDefined();
   });
 
   it("continuous-learning-v2: C2 — plugin ON 이면 비켜선다. v26.121.0", () => {
