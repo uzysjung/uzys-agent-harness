@@ -1,3 +1,4 @@
+import { BASELINE_PREFIX, listBaselineTargets } from "./baseline-targets.js";
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import { readInstallLog } from "./install-log.js";
@@ -27,17 +28,37 @@ import { stepLabel, WIZARD } from "./wizard-steps.js";
 export function splitInstallTargets(targets: ReadonlyArray<InstallTargetId>): {
   optionKeys: Array<keyof OptionFlags>;
   assetIds: Array<string>;
+  /** 2026-08-16 — 사용자가 **체크한 채로 둔** baseline id. 제외는 이것의 여집합으로 낸다. */
+  baselineIds: Array<string>;
 } {
   const optionKeys: Array<keyof OptionFlags> = [];
   const assetIds: Array<string> = [];
+  const baselineIds: Array<string> = [];
   for (const t of targets) {
     if (t.startsWith("option:")) {
       optionKeys.push(t.slice("option:".length) as keyof OptionFlags);
     } else if (t.startsWith("asset:")) {
       assetIds.push(t.slice("asset:".length));
+    } else if (t.startsWith(BASELINE_PREFIX)) {
+      baselineIds.push(t);
     }
   }
-  return { optionKeys, assetIds };
+  return { optionKeys, assetIds, baselineIds };
+}
+
+/**
+ * 체크 결과 → **제외 목록**. 화면은 "설치할 것"을 체크로 보여주는데 spec 이 받는 것은
+ * "빼는 것"이라, 이 뒤집기를 한 곳에 둔다.
+ *
+ * 전부 체크된 기본 상태에서는 빈 배열이 나온다 — 즉 아무것도 안 고른 사용자의 설치 결과는
+ * 이 기능이 생기기 전과 **바이트 단위로 같다**.
+ */
+export function baselineExcludeFrom(
+  offered: ReadonlyArray<{ id: string }>,
+  checked: ReadonlyArray<string>,
+): string[] {
+  const keep = new Set(checked);
+  return offered.filter((t) => !keep.has(t.id)).map((t) => t.id);
 }
 
 /**
@@ -96,7 +117,11 @@ export function initialTargetSelection(
 ): InstallTargetId[] {
   const ids = new Set<string>(recommendedExternalAssets(tracks));
   for (const id of installedProjectAssetIds) ids.add(id);
-  return [...ids].map((id) => `asset:${id}` as InstallTargetId);
+  const assets = [...ids].map((id) => `asset:${id}` as InstallTargetId);
+  // 트랙이 고르는 자산은 **전부 체크된 채로** 시작한다. 기본값을 바꾸는 것이 아니라 기본값을
+  // 보이게 하는 것이 목적이다 — 아무것도 안 건드리면 설치 결과는 이전과 같다.
+  const baseline = listBaselineTargets({ tracks }).map((t) => t.id as InstallTargetId);
+  return [...assets, ...baseline];
 }
 
 export interface InteractiveResult {
@@ -241,10 +266,16 @@ export async function runInteractive(
       const finalTracks = tracks!;
       // biome-ignore lint/style/noNonNullAssertion: same as above
       const finalCli = cli!;
-      const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
+      const { optionKeys, assetIds, baselineIds } = splitInstallTargets(targetSelections ?? []);
       const options = toOptionFlags(optionKeys);
       const userOverride =
         targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
+      // 제외는 "화면에 낸 것" 대비로 낸다. 화면에 안 낸 자산(`settings.json` 등)은 후보가
+      // 아니므로 어떤 조작으로도 빠지지 않는다.
+      const baselineExclude =
+        targetSelections === null
+          ? []
+          : baselineExcludeFrom(listBaselineTargets({ tracks: finalTracks }), baselineIds);
       // v26.64.0 (ADR-020) — Confirm summary 에 SCOPE 명시 (사용자 인지 + D16).
       const scopeLabel =
         scope === "global"
@@ -279,6 +310,7 @@ export async function runInteractive(
           projectDir,
           scope,
           ...(userOverride ? { userOverride } : {}),
+          ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
         },
       };
     }

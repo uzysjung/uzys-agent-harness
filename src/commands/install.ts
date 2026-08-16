@@ -5,6 +5,7 @@
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BASELINE_PREFIX, listBaselineTargets } from "../baseline-targets.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
@@ -146,16 +147,27 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
+  // 2026-08-16 — `--without` 는 두 목록을 받는다: 외부 자산 id 와 트랙 baseline id
+  // (`baseline:<kind>/<name>`). 위저드에서 체크를 풀 수 있는 것을 플래그로는 못 뺀다면 같은
+  // 기능이 진입점마다 다른 것이고, 이 리포가 세 번 적발당한 표면 비대칭이다.
+  const baselineIds = new Set(
+    listBaselineTargets({ tracks: (options.track as Track[]) ?? [] }).map((t) => t.id),
+  );
+  const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
+
   // v26.49.0 — unknown asset id validation (silent ignore 방지).
   const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
   for (const id of [...forceInclude, ...forceExclude]) {
-    if (!validIds.has(id)) {
-      err(
-        c.yellow(
-          `[WARN] Unknown asset id '${id}' (--with/--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
-        ),
-      );
-    }
+    if (validIds.has(id) || baselineIds.has(id)) continue;
+    // baseline id 처럼 생겼는데 이 트랙에 없는 것은 사유가 다르다 — 오타가 아니라 트랙 밖이다.
+    // 한 문구로 뭉뚱그리면 사용자는 철자를 고치며 헤맨다.
+    err(
+      c.yellow(
+        id.startsWith(BASELINE_PREFIX)
+          ? `[WARN] '${id}' is not installed by the selected track(s) — nothing to exclude. Available: ${[...baselineIds].sort().join(", ")}`
+          : `[WARN] Unknown asset id '${id}' (--with/--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+      ),
+    );
   }
   const filteredInclude = forceInclude.filter((id) => validIds.has(id));
   const filteredExclude = forceExclude.filter((id) => validIds.has(id));
@@ -167,6 +179,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   const spec: InstallSpec = {
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
+    ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
     //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
     options: {

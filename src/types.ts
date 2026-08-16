@@ -105,4 +105,15 @@ export interface InstallSpec {
     forceInclude: ReadonlyArray<string>;
     forceExclude: ReadonlyArray<string>;
   };
+  /**
+   * 2026-08-16 — 사용자가 **해제한** baseline 자산 id (`baseline:<kind>/<name>`).
+   *
+   * `userOverride.forceExclude` 와 나눈 이유는 대상이 다른 목록이기 때문이다: 저쪽은
+   * `EXTERNAL_ASSETS` 의 id 를 보고, 이쪽은 `manifest.ts` 가 트랙에서 유도하는 설치 대상을 본다.
+   * 한 필드에 섞으면 오타 하나가 어느 목록의 미스인지 판별할 수 없고, 조용히 아무것도 안 하는
+   * 제외 지시가 생긴다.
+   *
+   * 비어 있거나 없으면 트랙이 고른 것을 전부 깐다 — 즉 **기본 동작은 그대로**다.
+   */
+  baselineExclude?: ReadonlyArray<string>;
 }

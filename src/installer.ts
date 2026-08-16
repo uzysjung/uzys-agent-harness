@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
+import { isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
@@ -194,6 +195,13 @@ export interface BaselineReport {
    * "fill-in scaffold" 라고 보고하면 그게 거짓 보고다).
    */
   rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
+  /**
+   * 2026-08-16 — 사용자가 위저드에서 체크를 푼 트랙 자산의 대상 경로.
+   *
+   * 화면에 내는 이유는 설치 화면이 **무엇이 깔렸는가**만 말하면 해제가 먹혔는지 확인할 길이
+   * 없기 때문이다. 0건이면 아무것도 안 뜬다.
+   */
+  baselineExcluded: string[];
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -225,6 +233,14 @@ export interface InstallReport {
    * claude 미선택 시 `.claude/settings.json` 자체가 없어 항상 `[]`.
    */
   staleHookRefs: string[];
+  /**
+   * 2026-08-16 — 사용자가 위저드 3단계에서 **체크를 푼** 트랙 자산의 대상 경로.
+   *
+   * `BaselineReport` 와 같은 필드를 여기 다시 선언하는 이유는 두 타입이 별개이기 때문이다
+   * (런타임은 `{...baseline}` 로 이미 흐른다). 타입에만 없으면 호출자가 결과를 못 읽고,
+   * 그러면 "해제가 먹혔는지" 를 프로그램으로 확인할 방법이 사라진다.
+   */
+  baselineExcluded: string[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -301,8 +317,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 대상이 없으므로 previousLog 를 그대로 쓰되, 그 경우 아래 existsSync 가 자연히 걸러낸다.
   const policyBase = new Map((previousLog?.policyFiles ?? []).map((f) => [f.path, f.sha256]));
 
+  // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
+  const baselineExcluded = new Set(spec.baselineExclude ?? []);
+
   const base = spec.cli.includes("claude")
-    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase)
+    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase, baselineExcluded)
     : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
       // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
       // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
@@ -337,7 +356,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     selectedInternalSkills: manifestSpec.selectedInternalSkills,
     // 룰 목록의 SSOT 는 하나다 — `.claude/rules/` 를 채우는 것과 같은 `resolveRules` 결과가
     // 나머지 세 CLI 로도 간다. 여기서 다시 고르면 CLI 마다 다른 룰이 깔린다.
-    rules: resolveRules(manifestSpec),
+    rules: resolveRules(manifestSpec).filter(
+      (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
+    ),
     previousExternal: previousLog?.externalFiles ?? [],
     codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
   });
@@ -359,6 +380,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     // 외부 CLI 백업도 같은 줄에 노출한다 — 백업이 화면에 안 보이면 사용자는 자기 편집분이
     // 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다 (ADR-046/047 과 같은 이유).
     backups: [...base.backups, ...externalBackups],
+    baselineExcluded: base.excluded,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -430,6 +452,7 @@ function runUpdateInstall(
     filesCopied: 0,
     dirsCopied: 0,
     skipped: 0,
+    baselineExcluded: [],
     backup: backupPath,
     installedTracks: [...ctx.spec.tracks].sort(),
     mcpServers: [],
@@ -491,6 +514,13 @@ interface ClaudeBaselineResult {
   rootClaudeMdLog: { path: string; sha256: string } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
   backups: string[];
+  /**
+   * 2026-08-16 — 사용자가 위저드에서 **체크를 푼** 자산의 대상 경로.
+   *
+   * `skipped` 와 나눈다: 저건 "원본이 없어서 못 깔았다"는 결함 신호이고 이건 정상 선택이다.
+   * 한 숫자에 담으면 설치 화면이 사용자의 선택을 결함으로 보고한다.
+   */
+  excluded: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -502,6 +532,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     rootClaudeMd: null,
     rootClaudeMdLog: null,
     backups: [],
+    excluded: [],
   };
 }
 
@@ -569,6 +600,7 @@ function installClaudeBaseline(
   projectDir: string,
   templatesDir: string,
   policyBase: ReadonlyMap<string, string>,
+  baselineExcluded: ReadonlySet<string>,
 ): ClaudeBaselineResult {
   ensureProjectSkeleton(projectDir);
 
@@ -577,6 +609,13 @@ function installClaudeBaseline(
 
   for (const entry of manifest) {
     if (!entry.applies(manifestSpec)) {
+      continue;
+    }
+    // 사용자가 3단계에서 체크를 푼 자산. `skipped` 로 세지 않는다 — 저 카운터는 "원본이 없어서
+    // 못 깔았다"는 결함 신호이고, 이쪽은 사용자가 그러라고 한 것이다. 둘을 한 숫자에 담으면
+    // 설치 화면이 정상 선택을 결함으로 보고한다.
+    if (isBaselineExcluded(entry.target, baselineExcluded)) {
+      result.excluded.push(entry.target);
       continue;
     }
     const source = join(templatesDir, entry.source);
