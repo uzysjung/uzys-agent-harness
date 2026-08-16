@@ -61,6 +61,20 @@ export interface Prompts {
   confirmInstall: (summary: string) => Promise<boolean | null>;
 
   /**
+   * 2026-08-17 (ADR-075) — 이번 선택이 밀어냈는데 디스크에 남아 있는 자산을 지울지 묻는다.
+   *
+   * **후보가 있을 때만 호출한다.** 0건이면 화면을 하나 더 띄우지 않는다 — 대부분의 설치는
+   * 0건이고, 매번 뜨는 확인은 읽히지 않는다.
+   *
+   * 반환: true 정리 · false 그대로 둠 · **null 은 뒤로**(확인 단계로 돌아간다). 삭제를 묻는
+   * 화면에서 ESC 를 "예"로 읽으면 안 되므로 null 과 false 를 나눈다.
+   */
+  confirmSupersededCleanup: (
+    items: ReadonlyArray<{ id: string; target: string }>,
+    context: { by: ReadonlyArray<string>; tokens: number },
+  ) => Promise<boolean | null>;
+
+  /**
    * v26.54.0 — Step 3 (all-in-one). EXTERNAL_ASSETS + 표시-대상 OPTION_DEFS 를
    * 카테고리 그룹화. 추천 ✓ pre-check. ESC → null (silent back).
    * v26.61.0 — recap (tracks/cli) 추가. alt screen 안에서 동작 — terminal scrollback
@@ -439,6 +453,26 @@ export const defaultPrompts: Prompts = {
   confirmInstall: async (summary) => {
     const result = await confirm({
       message: `${summary}\n\nProceed?`,
+      initialValue: true,
+    });
+    return isCancel(result) ? null : result;
+  },
+
+  confirmSupersededCleanup: async (items, context) => {
+    // 무엇을·왜·얼마나를 한 화면에 다 낸다. 파일을 지우자는 제안이므로 대상 이름을 전부
+    // 적는다 — 건수만 찍으면 무엇이 사라지는지 모르는 채 Enter 를 치게 된다.
+    const names = items.map((i) => i.target.replace(/^\.claude\//, "")).join("\n      ");
+    const result = await confirm({
+      message: [
+        `${context.by.join(" · ")} 을(를) 골라서 아래 ${items.length}개가 설치 대상에서 빠졌습니다.`,
+        "그런데 이전 설치본이 디스크에 그대로 남아 있습니다:",
+        `      ${names}`,
+        "",
+        `그대로 두면 같은 일을 하는 에이전트가 두 벌이고, 매 세션 ~${context.tokens} tok 를 계속 뭅니다.`,
+        "(하네스가 깔았고 수정되지 않은 파일만 대상입니다 — 직접 고친 파일은 건드리지 않습니다)",
+        "",
+        "정리할까요?",
+      ].join("\n"),
       initialValue: true,
     });
     return isCancel(result) ? null : result;

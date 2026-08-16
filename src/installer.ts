@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -47,6 +48,7 @@ import { type AssetSpec, buildManifest, isCliNeutralTarget, resolveRules } from 
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
+import { findSuperseded, type SupersededAsset } from "./superseded.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { cleanStaleHookRefs, runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
@@ -204,6 +206,14 @@ export interface BaselineReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
   baselineExcludedOnDisk: string[];
+  /**
+   * 2026-08-17 (ADR-075) — 이번 선택이 밀어냈는데 디스크에 남아 있던 자산.
+   *
+   * `removed` 는 실제로 지운 것, `kept` 는 찾았지만 사용자가 정리를 원하지 않아 둔 것이다.
+   * **둘 다 화면에 낸다** — 지운 것을 안 알리면 사용자가 사라진 파일을 못 쫓고, 둔 것을 안
+   * 알리면 같은 일을 하는 에이전트가 두 벌이라는 사실이 계속 안 보인다.
+   */
+  superseded: { removed: string[]; kept: string[] };
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -245,6 +255,8 @@ export interface InstallReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineExcludedOnDisk: string[];
+  /** 이번 선택이 밀어낸 자산의 처리 결과. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  superseded: { removed: string[]; kept: string[] };
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -324,6 +336,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
   const baselineExcluded = new Set(spec.baselineExclude ?? []);
 
+  // 2026-08-17 (ADR-075) — 이번 선택이 밀어낸 자산. **복사 전에** 찾는다: 판정 근거가
+  // `previousLog` 의 해시라 install log 가 갱신되기 전이어야 하고, 실제 삭제는 아래 복사가
+  // 끝난 뒤에 한다(`applySupersededCleanup`).
+  const supersededFound = findSuperseded(projectDir, manifestSpec, previousLog);
+
   const base = spec.cli.includes("claude")
     ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase, baselineExcluded)
     : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
@@ -386,6 +403,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backups: [...base.backups, ...externalBackups],
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
+    // 밀려난 자산 정리는 **manifest 복사가 끝난 뒤**에 한다. 앞에서 지우면 이번 설치가 다시
+    // 깔 수도 있는 파일을 지웠다 되돌리는 셈이라, 무엇이 최종 상태인지 보고가 흐려진다.
+    superseded: applySupersededCleanup(spec, projectDir, supersededFound),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -414,6 +434,38 @@ export function runInstall(ctx: InstallContext): InstallReport {
   );
 
   return { ...baseline, external, staleHookRefs };
+}
+
+/**
+ * 밀려난 자산을 실제로 지운다 — **사용자가 그러라고 했을 때만** (ADR-075).
+ *
+ * `spec.cleanSuperseded` 가 참이 아니면 아무것도 안 지우고 찾은 것만 `kept` 로 보고한다.
+ * 비대화형(`--track` 플래그) 설치가 그 경로다: 물어볼 사람이 없는 자리에서 파일을 지우면
+ * 그건 승인 없이 넘은 경계다(전역 원칙 6).
+ *
+ * 삭제 실패는 삼킨다(read-only 등) — 정리는 설치의 목적이 아니라 뒷정리라, 여기서 던지면
+ * 성공한 설치가 실패로 보고된다. 대신 못 지운 것은 `kept` 로 내려가 화면에 남는다.
+ * 백업은 남기지 않는다: 후보 판정이 이미 **해시 일치(= 사용자가 안 고침)** 를 요구하므로
+ * 지우는 내용은 `templates/` 에 그대로 있고, `--without ecc-plugin` 재설치로 돌아온다.
+ */
+function applySupersededCleanup(
+  spec: InstallSpec,
+  projectDir: string,
+  found: ReadonlyArray<SupersededAsset>,
+): { removed: string[]; kept: string[] } {
+  if (found.length === 0) return { removed: [], kept: [] };
+  if (!spec.cleanSuperseded) return { removed: [], kept: found.map((f) => f.target) };
+  const removed: string[] = [];
+  const kept: string[] = [];
+  for (const asset of found) {
+    try {
+      unlinkSync(join(projectDir, asset.target));
+      removed.push(asset.target);
+    } catch {
+      kept.push(asset.target); // 못 지웠으면 남았다고 말한다 — 조용한 성공 금지
+    }
+  }
+  return { removed, kept };
 }
 
 /**
@@ -459,6 +511,9 @@ function runUpdateInstall(
     skipped: 0,
     baselineExcluded: [],
     baselineExcludedOnDisk: [],
+    // update 는 밀려난 자산을 다루지 않는다 — 그 판정은 사용자가 옵션을 고르는 설치 경로의
+    // 것이고, update 는 무엇을 골랐는지 다시 묻지 않는다.
+    superseded: { removed: [], kept: [] },
     backup: backupPath,
     installedTracks: [...ctx.spec.tracks].sort(),
     mcpServers: [],
@@ -487,7 +542,7 @@ function runUpdateInstall(
  * OptionFlags.withTauri/withUzysHarness/withEcc boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
-function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
+export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   const selectionCtx = {
     tracks: spec.tracks,
     options: spec.options,

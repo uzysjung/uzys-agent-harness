@@ -661,6 +661,31 @@ function renderPhase1Rows(
       ),
     );
   }
+  // 2026-08-17 (ADR-075) — 이번 선택이 밀어낸 자산. **지운 것과 남긴 것을 나눠 낸다**: 지운 것을
+  // 안 알리면 사용자가 사라진 파일을 못 쫓고, 남긴 것을 안 알리면 같은 일을 하는 에이전트가 두
+  // 벌이라는 사실이 계속 안 보인다. 비대화형 설치는 항상 후자로 떨어진다(물어볼 사람이 없다).
+  if (baseline.superseded.removed.length > 0) {
+    log(
+      assetRow(
+        "success",
+        "superseded — cleaned",
+        `${baseline.superseded.removed.length} — ${baseline.superseded.removed
+          .map((t) => t.replace(/^\.claude\//, ""))
+          .join(", ")} · 되돌리려면 그 자산 없이 재설치`,
+      ),
+    );
+  }
+  if (baseline.superseded.kept.length > 0) {
+    log(
+      assetRow(
+        "skip",
+        "superseded — kept",
+        `${baseline.superseded.kept.length} — ${baseline.superseded.kept
+          .map((t) => t.replace(/^\.claude\//, ""))
+          .join(", ")} · 이번 선택이 대체했지만 지우지 않았다 (제거: agent-harness uninstall)`,
+      ),
+    );
+  }
   // v26.63.4 (P3): Templates section 의 assetRow 호출 labelWidth=28 명시 → phase1Row 와 column 정렬.
   //   default 40 은 External assets 의 긴 asset id (python-performance-optimization 등) 용 — 별개.
   const TEMPLATES_COL = 28;
