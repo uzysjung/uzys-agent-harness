@@ -148,11 +148,16 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
  * 2026-08-02 정비 ② — `checkpoint-snapshot.sh` 제거. 같은 형태의 다른 결말이다: 배선이 없어
  * (`"PostToolUse": []`) 설치는 되고 **실행은 0** 이었다. 안 도는 훅은 실패 증상이 없어 프로즈로는
  * 못 잡는다 — 재발은 `tests/hook-wiring-parity.test.ts` 가 양방향으로 문다.
+ *
+ * 2026-08-16 정비 ③ — `mcp-pre-exec.sh` 제거(ADR-072). 앞의 둘과 달리 이건 **돌고 있었고 잘
+ * 돌았다** — 지운 이유가 배선이 아니라 목적이다. 이 하네스가 파는 것은 "사용자가 AI 코딩 도구로
+ * 개발을 잘하게 만드는 것"인데, MCP 서버를 새로 붙이는 순간 차단하는 훅은 그 반대로 작동한다
+ * (판정 기준 = 루트 `CLAUDE.md` §판정은 목적에서 시작한다). 결정론적으로 구현됐다는 사실은
+ * 목적 적합성의 증거가 아니다.
  */
 export const ALWAYS_HOOKS = [
   "session-start.sh",
   "protect-files.sh",
-  "mcp-pre-exec.sh",
   // UserPromptSubmit 넛지. 차단하지 않는 유일한 훅 — 판정은 결정적 두 조건뿐이고(길이 ·
   // `<objective>` 표식 부재) 변환 자체는 `task-brief` 스킬 몫이다. `templates/settings.json`
   // 배선과 한 벌 (hook-wiring-parity 가 한쪽만 있는 상태를 문다).

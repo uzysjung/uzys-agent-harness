@@ -50,24 +50,19 @@ interface HookCase {
 }
 
 /**
- * 대상 훅. `protect-files`·`mcp-pre-exec` 는 배포판과 설치본 **양쪽** — 이 리포는 자기
- * 배포물을 도그푸딩하므로 한쪽만 고치면 파는 것과 쓰는 것이 갈린다.
- * `docker-only-realcli` 는 dev 전용이라 `.claude/` 사본만 있다.
+ * 대상 훅. `protect-files` 는 배포판과 설치본 **양쪽** — 이 리포는 자기 배포물을 도그푸딩하므로
+ * 한쪽만 고치면 파는 것과 쓰는 것이 갈린다. `docker-only-realcli` 는 dev 전용이라 `.claude/`
+ * 사본만 있다.
+ *
+ * 2026-08-16 (ADR-072) — `mcp-pre-exec` 케이스 삭제(훅이 없어졌다). 그래서 **차단하는 훅은
+ * 배포판에 하나뿐이다** — 이 목록이 짧아진 것은 커버리지 후퇴가 아니라 차단면 자체가 줄어든
+ * 결과다. 훅이 되살아나면 이 목록에 다시 넣어야 로그 계약이 걸린다.
  */
 const HOOKS: HookCase[] = [
   ...["templates", ".claude"].map((copy) => ({
     path: `${copy}/hooks/protect-files.sh`,
     block: { tool_name: "Edit", tool_input: { file_path: "/proj/.env" } },
     pass: { tool_name: "Edit", tool_input: { file_path: "/proj/src/index.ts" } },
-  })),
-  ...["templates", ".claude"].map((copy) => ({
-    path: `${copy}/hooks/mcp-pre-exec.sh`,
-    // allowlist 가 있어야 opt-in 이 활성된다 — 파일이 없으면 훅은 전부 통과시킨다.
-    setup: (projectDir: string) => {
-      writeFileSync(join(projectDir, ".mcp-allowlist"), "# 테스트용\ncontext7\n", "utf8");
-    },
-    block: { tool_name: "mcp__evil__run", tool_input: { arg: "x" } },
-    pass: { tool_name: "mcp__context7__query-docs", tool_input: { query: "vitest" } },
   })),
   {
     path: ".claude/hooks/docker-only-realcli.sh",

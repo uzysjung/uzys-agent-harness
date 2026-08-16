@@ -125,6 +125,16 @@ export interface UpdateModeReport {
    * 안 도는 기능을 받았다고 읽히므로(거짓출하), 깔지 않고 **재설치가 필요하다는 사실을 낸다.**
    */
   needsReinstall: string[];
+  /**
+   * 2026-08-16 (ADR-072) — 이번 update 가 물러낸 `.mcp-allowlist` 의 **백업 경로**. 없었으면 null.
+   *
+   * 이 파일은 `.claude/` 밖(프로젝트 루트)이라 `pruneOrphans` 의 사정거리에 없다. 읽던 훅
+   * (`mcp-pre-exec.sh`)은 `hooks` 가 `POLICY_DIRS` 에 있어 자동으로 물러나는데, 이쪽만 남으면
+   * **아무도 안 읽는 파일이 사용자 저장소에 영구히 남는다.** 지우기 전에 백업하는 이유는
+   * 자동 생성물이라도 사용자가 서버를 주석 처리해 자기 정책을 적어 넣는 파일이었기 때문이다
+   * — 그건 사용자 것이다.
+   */
+  mcpAllowlistRetired: string | null;
 }
 
 /**
@@ -177,6 +187,7 @@ export function runUpdateMode(
     installedNew: [],
     restored: [],
     needsReinstall: [],
+    mcpAllowlistRetired: null,
   };
 
   // 0) 릴리즈로 **새로 생긴** 자산 설치 (#283). 정책 동기화보다 먼저 도는 이유는
@@ -239,6 +250,10 @@ export function runUpdateMode(
   if (existsSync(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
   }
+
+  // 3.5) `.mcp-allowlist` 회수 (ADR-072). 3) 바로 뒤인 이유는 같은 은퇴의 나머지 절반이기
+  //      때문이다 — 위가 배선을 지우고 여기가 그 배선이 읽던 데이터를 지운다.
+  report.mcpAllowlistRetired = retireMcpAllowlist(projectDir);
 
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
@@ -728,6 +743,31 @@ export function pruneOrphans(
     }
   }
   return removed;
+}
+
+/**
+ * 프로젝트 루트의 `.mcp-allowlist` 를 백업 후 제거한다 (ADR-072). 없었으면 null.
+ *
+ * `pruneOrphans` 로 못 덮는 이유는 대상이 `.claude/` 밖이고 디렉터리 단위 동기화의 짝이 없기
+ * 때문이다. 그래서 소유 판정도 다르게 한다 — 저쪽은 install log 기준선으로 "우리가 깔았나"를
+ * 묻지만, 이 파일은 **경로 하나가 곧 소유 증거다**(하네스 말고 이 이름을 쓰는 것이 없다).
+ *
+ * 백업은 무조건 남긴다. 자동 생성물이지만 사용자가 서버 줄을 주석 처리해 정책을 적어 넣는
+ * 파일이었고, 그 편집분을 우리가 판정할 수단이 없다 — 판정할 수 없으면 지우기 전에 남긴다.
+ *
+ * 실패는 삼킨다(read-only 디렉터리 등). 이 정리는 update 의 목적이 아니라 뒷정리라, 여기서
+ * 던지면 갱신 전체가 실패한다.
+ */
+export function retireMcpAllowlist(projectDir: string, now: Date = new Date()): string | null {
+  const target = join(projectDir, ".mcp-allowlist");
+  if (!existsSync(target)) return null;
+  try {
+    const backup = backupFile(target, now);
+    unlinkSync(target);
+    return backup;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -2,12 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  addGitignoreAgentArtifacts,
-  addGitignoreEnv,
-  writeEnvExample,
-  writeMcpAllowlist,
-} from "../src/env-files.js";
+import { addGitignoreAgentArtifacts, addGitignoreEnv, writeEnvExample } from "../src/env-files.js";
 import type { Track } from "../src/types.js";
 
 describe("writeEnvExample", () => {
@@ -87,54 +82,9 @@ describe("addGitignoreEnv", () => {
   });
 });
 
-describe("writeMcpAllowlist", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-mcpal-"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("returns null when .mcp.json missing", () => {
-    expect(writeMcpAllowlist(dir)).toBeNull();
-  });
-
-  it("returns null when .mcp-allowlist already exists (idempotent)", () => {
-    writeFileSync(join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { x: {} } }));
-    writeFileSync(join(dir, ".mcp-allowlist"), "existing");
-    expect(writeMcpAllowlist(dir)).toBeNull();
-  });
-
-  it("writes server names from .mcp.json keys (sorted)", () => {
-    writeFileSync(
-      join(dir, ".mcp.json"),
-      JSON.stringify({
-        mcpServers: {
-          github: { command: "x" },
-          context7: { command: "y" },
-          railway: { command: "z" },
-        },
-      }),
-    );
-    const names = writeMcpAllowlist(dir);
-    expect(names).toEqual(["context7", "github", "railway"]);
-    const body = readFileSync(join(dir, ".mcp-allowlist"), "utf8");
-    expect(body).toContain("context7\ngithub\nrailway");
-    expect(body).toContain("# MCP Server Allowlist");
-  });
-
-  it("returns [] when .mcp.json has no mcpServers", () => {
-    writeFileSync(join(dir, ".mcp.json"), JSON.stringify({}));
-    const names = writeMcpAllowlist(dir);
-    expect(names).toEqual([]);
-  });
-
-  it("returns null on malformed .mcp.json", () => {
-    writeFileSync(join(dir, ".mcp.json"), "{ not json");
-    expect(writeMcpAllowlist(dir)).toBeNull();
-  });
-});
+// 2026-08-16 (ADR-072) — `writeMcpAllowlist` describe 삭제. 함수가 없어졌다: 그 파일을 읽던
+// `mcp-pre-exec.sh` 훅이 목적 부적합으로 빠지면서 생성기만 남으면 아무도 안 보는 파일을 남의
+// 저장소에 계속 만들게 된다. 은퇴 경로(기존 설치본 정리)는 `tests/update-mode.test.ts` 가 문다.
 
 describe("addGitignoreAgentArtifacts (v0.8.0)", () => {
   let dir: string;

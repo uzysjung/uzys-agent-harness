@@ -161,9 +161,11 @@ CLAUDE.md와 짝.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-4 파일 (실측 2026-08-02): session-start · protect-files · mcp-pre-exec · task-brief-nudge.
-차단하는 둘(protect-files · mcp-pre-exec)은 exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
-`날짜 · 훅 · 대상 · 사유` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
+3 파일 (실측 2026-08-16): session-start · protect-files · task-brief-nudge.
+차단하는 훅은 `protect-files` **하나뿐**이고, exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
+`날짜 · 훅 · 대상` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
+*`mcp-pre-exec` 은 ADR-072 로 제거됐다 — 배선이 아니라 목적이 이유다. MCP 서버를 새로 붙이는
+순간 차단하는 훅은 "사용자가 AI 코딩 도구로 개발을 잘하게 만든다"는 방향과 반대로 작동한다.*
 **task-brief-nudge 는 차단하지 않는다** — UserPromptSubmit 에서 "400자 이상 && `<objective>` 부재"
 라는 결정적 두 조건만 보고 stdout 1줄을 덧붙인다(그 밖엔 무출력 exit 0). 차단 경로가 없어
 차단 로그도 남기지 않는다. 브리프 변환 자체는 판단이 필요하므로 `task-brief` 스킬 몫이다.
@@ -219,7 +221,7 @@ $ bash scripts/setup-harness.sh --track <track> --project-dir .
 
 ## 8. 보안 / 신뢰 정책
 
-- **MCP allowlist**: `.mcp-allowlist` 파일에 화이트리스트 작성 시 `mcp-pre-exec.sh` 훅이 차단 강제. 미작성 시 모든 MCP 호출 통과.
+- **MCP allowlist**: 없다 (ADR-072 로 제거). MCP 호출은 하네스가 막지 않는다 — 승인은 각 CLI 자신의 권한 체계가 한다. 기존 설치본의 `.mcp-allowlist` 는 `update` 가 백업 후 회수한다.
 - **글로벌 ~/.claude/ 보호**: `setup-harness.sh --project-dir`이 `~/.claude/*`/`/etc/*` 등 시스템 경로 차단 (D16).
 - **`.env` / credentials 수정 차단**: `protect-files.sh` 훅이 `.env`, lock 파일, 인증서 경로 차단.
 - **`--no-verify` / `--force` 금지**: `git-policy.md` §Safety 의 **프로즈 규약**이다 — 강제하는 훅은

@@ -244,7 +244,6 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
           envExampleCreated: false,
           gitignoreEnvAdded: false,
           gitignoreNpxSkillsAdded: [],
-          mcpAllowlist: null,
         },
       },
       false,
@@ -277,7 +276,6 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
         envExampleCreated: false,
         gitignoreEnvAdded: false,
         gitignoreNpxSkillsAdded: [],
-        mcpAllowlist: null,
       },
       rootClaudeMd: null,
     };

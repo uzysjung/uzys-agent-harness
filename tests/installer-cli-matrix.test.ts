@@ -135,9 +135,12 @@ describe("11 Track × 7 CLI combination matrix (77 scenarios) — E2E install", 
         // 6. external skipped (runExternal=null)
         expect(report.external).toBeNull();
 
-        // 7. envFiles always present (even null mcpAllowlist when no .mcp.json yet — but here generated)
+        // 7. envFiles always present. 2026-08-16 (ADR-072) — `mcpAllowlist` 단언 삭제(필드가
+        //    없어졌다). 남은 필드로 술어를 바꾼다: `.gitignore` 자동 생성물 항목은 트랙과
+        //    무관하게 항상 붙으므로, 빈 객체가 통과하던 `toBeDefined()` 만 남기면 이 줄이
+        //    아무것도 안 무는 상태가 된다.
         expect(report.envFiles).toBeDefined();
-        expect(report.envFiles.mcpAllowlist).not.toBeNull();
+        expect(report.envFiles.gitignoreNpxSkillsAdded).toBeInstanceOf(Array);
       });
     }
   }
