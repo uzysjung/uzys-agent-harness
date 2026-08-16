@@ -38,7 +38,12 @@ const ROOT = resolve(import.meta.dirname, "..");
  */
 const RULE_CANARIES: ReadonlyArray<readonly [string, string]> = [
   ["git-policy", "공유 이력을 바꾸거나"],
-  ["test-policy", "Select the test level and technique"],
+  // 2026-08-16 — canary 를 압축한 줄에서 **보존하기로 판정된 줄**로 옮겼다. 전수 조사
+  // (`docs/plans/rules-hooks-audit-2026-08-16.md`)가 "모델이 이미 아는 줄"을 압축 대상으로
+  // 골랐고, canary 가 거기 얹혀 있으면 룰을 다듬을 때마다 도달 게이트가 같이 빨간불이 된다 —
+  // 실제로 이번에 그랬다. 이 줄은 고위험 변경의 커버 범위라 정책이고, 바뀌면 그때는 게이트가
+  // 우는 것이 맞다.
+  ["test-policy", "omitting one only when failure on it is not plausible"],
   ["ship-checklist", "무엇으로 검증할지는 이 저장소가 정한다"],
   ["doc-governance", "한 사실의 기준 문서는 하나다"],
   ["change-management", "합의된 범위와 완료 기준 안에서는"],
