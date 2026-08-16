@@ -108,9 +108,13 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-08-16, 결정 제시에 "누구 입장" 축을 넣은 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,072 tokens/세션** =
-> rules 6개 ~1,086 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> **현재 상태 (2026-08-16, 룰 전수 조사 뒤)**: **상주 + 발화 양축 계측 완료**
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,036 tokens/세션** =
+> rules 6개 ~1,050 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> 룰 6종을 한 줄씩 판정해 **모델이 이미 아는 3줄만 압축**했다(`test-policy`, −139 B / −36 tok).
+> 나머지는 안 건드렸다 — 대부분이 이 저장소가 실제로 당한 사고에서 역산돼 쓰인 문장이고,
+> 승인·보안 경계는 명시가 곧 계약이라 조이면 계약이 흐려진다. 판정표 =
+> `docs/plans/rules-hooks-audit-2026-08-16.md`.
 > 직전(2026-08-12, 23개 ~4,968) 대비 **+104 tok, 개수는 그대로** — 전부 배포 앵커의
 > §Presenting a decision 이다. 그 절이 `AS-IS → TO-BE` 형식을 요구하면서 **누구 입장에서 쓰라는
 > 말은 한 번도 안 했고**, 그래서 판정표가 코드 관점(`installer.ts` 가 어떻게 바뀐다)으로 채워졌다.
@@ -168,7 +172,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > `stack` 절에), 사용자가 이를 적발해 걷어냈다 — 13,018자 → 7,561자. **한 층의 공백을 재려면
 > 나머지 층을 먼저 grep 해야 한다**(`doc-governance` 의 "한 사실은 한 곳에"). 판정과 근거는
 > `docs/plans/anchor-principles-2026-08-09.md` — 여기 옮겨 적지 않는다.
-> 그 앞으로 세면 30개 ~7,570 → 23개 ~5,072, 즉 **−7개 · 약 −2,498 tok**.
+> 그 앞으로 세면 30개 ~7,570 → 23개 ~5,036, 즉 **−7개 · 약 −2,534 tok**.
 > **개수가 그대로인데 토큰이 오르면 그 자리를 의심해야 한다** — 이번엔 그 의심이 실제로
 > 중복 6건을 찾아냈다(부수 축 둘이 서로의 굿하트를 막는다는 아래 설계가 갈라 보인 사례).
 > 남은 +213 은 ratchet 의 토큰 축을 red 로 만들었고, 게이트가 규정한 정당화 절차대로
