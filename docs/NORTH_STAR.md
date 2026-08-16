@@ -108,10 +108,16 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-08-12, 룰을 4 CLI 로 넓힌 뒤)**: **상주 + 발화 양축 계측 완료** — `npm run cost:report`.
-> 실측(tooling 트랙): **상주 23개 항목 · ~4,968 tokens/세션** = rules 6개 ~1,086 ·
-> CLAUDE.md 2개 ~2,866 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
-> 직전(2026-08-11, 23개 ~4,944) 대비 **+24 tok** — 전부 `cli-development` 한 줄이다. 훅 차단
+> **현재 상태 (2026-08-16, 결정 제시에 "누구 입장" 축을 넣은 뒤)**: **상주 + 발화 양축 계측 완료**
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,072 tokens/세션** =
+> rules 6개 ~1,086 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> 직전(2026-08-12, 23개 ~4,968) 대비 **+104 tok, 개수는 그대로** — 전부 배포 앵커의
+> §Presenting a decision 이다. 그 절이 `AS-IS → TO-BE` 형식을 요구하면서 **누구 입장에서 쓰라는
+> 말은 한 번도 안 했고**, 그래서 판정표가 코드 관점(`installer.ts` 가 어떻게 바뀐다)으로 채워졌다.
+> 게이트로 내릴 수 없는 종류다 — "누구 자리에서 쓰였나"는 기계로 판정할 수 없어 앵커가 맞는
+> 자리다. 초안은 +179 tok 였고 같은 내용을 유지한 채 104 로 줄였다.
+>
+> 그 앞(2026-08-11, 23개 ~4,944) 대비로는 +24 tok 이 `cli-development` 한 줄이었다. 훅 차단
 > 계약이 Claude Code 것만 적혀 있어 나머지 3 CLI 에서 거짓이었고(각각 `throw` · JSON `decision`),
 > 룰이 그 세 CLI 로 나가기 시작하면서 **거짓인 채로 확산되는 것을 막으려면** 네 계약을 다 적는
 > 수밖에 없었다. 개수는 그대로다. 같은 사이클에서 `playwright-launch` 가 스킬로 흡수돼 UI 트랙의
@@ -162,7 +168,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > `stack` 절에), 사용자가 이를 적발해 걷어냈다 — 13,018자 → 7,561자. **한 층의 공백을 재려면
 > 나머지 층을 먼저 grep 해야 한다**(`doc-governance` 의 "한 사실은 한 곳에"). 판정과 근거는
 > `docs/plans/anchor-principles-2026-08-09.md` — 여기 옮겨 적지 않는다.
-> 그 앞으로 세면 30개 ~7,570 → 23개 ~4,968, 즉 **−7개 · 약 −2,602 tok**.
+> 그 앞으로 세면 30개 ~7,570 → 23개 ~5,072, 즉 **−7개 · 약 −2,498 tok**.
 > **개수가 그대로인데 토큰이 오르면 그 자리를 의심해야 한다** — 이번엔 그 의심이 실제로
 > 중복 6건을 찾아냈다(부수 축 둘이 서로의 굿하트를 막는다는 아래 설계가 갈라 보인 사례).
 > 남은 +213 은 ratchet 의 토큰 축을 red 로 만들었고, 게이트가 규정한 정당화 절차대로

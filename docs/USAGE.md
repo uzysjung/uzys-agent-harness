@@ -109,6 +109,11 @@ referenced the removed asset is **printed for you to delete** rather than edited
 
 ### Files outside `.claude/` (v26.125.0+)
 
+> **Which file is yours and which is the harness's?** `CLAUDE.md`, `CLAUDE-uzys-harness.md`,
+> `AGENTS.md`, and `.agents/rules/` all hold context, and they have different owners and different
+> update rules. [CONTEXT-FILES.md](CONTEXT-FILES.md) explains the split — read it before editing any
+> of them, so your project notes don't land in a file that `update` overwrites.
+
 Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
 `.env.example`, and `.github/workflows/` when `ci-scaffold` is selected. A full
 uninstall **lists these and removes none of them** — your own content is mixed into `.mcp.json` and
