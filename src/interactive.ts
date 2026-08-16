@@ -1,3 +1,4 @@
+import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import { readInstallLog } from "./install-log.js";
@@ -27,17 +28,37 @@ import { stepLabel, WIZARD } from "./wizard-steps.js";
 export function splitInstallTargets(targets: ReadonlyArray<InstallTargetId>): {
   optionKeys: Array<keyof OptionFlags>;
   assetIds: Array<string>;
+  /** 2026-08-16 — 사용자가 **체크한 채로 둔** baseline id. 제외는 이것의 여집합으로 낸다. */
+  baselineIds: Array<string>;
 } {
   const optionKeys: Array<keyof OptionFlags> = [];
   const assetIds: Array<string> = [];
+  const baselineIds: Array<string> = [];
   for (const t of targets) {
     if (t.startsWith("option:")) {
       optionKeys.push(t.slice("option:".length) as keyof OptionFlags);
     } else if (t.startsWith("asset:")) {
       assetIds.push(t.slice("asset:".length));
+    } else if (t.startsWith(BASELINE_PREFIX)) {
+      baselineIds.push(t);
     }
   }
-  return { optionKeys, assetIds };
+  return { optionKeys, assetIds, baselineIds };
+}
+
+/**
+ * 체크 결과 → **제외 목록**. 화면은 "설치할 것"을 체크로 보여주는데 spec 이 받는 것은
+ * "빼는 것"이라, 이 뒤집기를 한 곳에 둔다.
+ *
+ * 전부 체크된 기본 상태에서는 빈 배열이 나온다 — 즉 아무것도 안 고른 사용자의 설치 결과는
+ * 이 기능이 생기기 전과 **바이트 단위로 같다**.
+ */
+export function baselineExcludeFrom(
+  offered: ReadonlyArray<{ id: string }>,
+  checked: ReadonlyArray<string>,
+): string[] {
+  const keep = new Set(checked);
+  return offered.filter((t) => !keep.has(t.id)).map((t) => t.id);
 }
 
 /**
@@ -96,7 +117,11 @@ export function initialTargetSelection(
 ): InstallTargetId[] {
   const ids = new Set<string>(recommendedExternalAssets(tracks));
   for (const id of installedProjectAssetIds) ids.add(id);
-  return [...ids].map((id) => `asset:${id}` as InstallTargetId);
+  const assets = [...ids].map((id) => `asset:${id}` as InstallTargetId);
+  // 트랙이 고르는 자산은 **전부 체크된 채로** 시작한다. 기본값을 바꾸는 것이 아니라 기본값을
+  // 보이게 하는 것이 목적이다 — 아무것도 안 건드리면 설치 결과는 이전과 같다.
+  const baseline = listBaselineTargets({ tracks }).map((t) => t.id as InstallTargetId);
+  return [...assets, ...baseline];
 }
 
 export interface InteractiveResult {
@@ -241,10 +266,16 @@ export async function runInteractive(
       const finalTracks = tracks!;
       // biome-ignore lint/style/noNonNullAssertion: same as above
       const finalCli = cli!;
-      const { optionKeys, assetIds } = splitInstallTargets(targetSelections ?? []);
+      const { optionKeys, assetIds, baselineIds } = splitInstallTargets(targetSelections ?? []);
       const options = toOptionFlags(optionKeys);
       const userOverride =
         targetSelections === null ? undefined : computeUserOverride(finalTracks, assetIds);
+      // 제외는 "화면에 낸 것" 대비로 낸다. 화면에 안 낸 자산(`settings.json` 등)은 후보가
+      // 아니므로 어떤 조작으로도 빠지지 않는다.
+      const baselineExclude =
+        targetSelections === null
+          ? []
+          : baselineExcludeFrom(listBaselineTargets({ tracks: finalTracks }), baselineIds);
       // v26.64.0 (ADR-020) — Confirm summary 에 SCOPE 명시 (사용자 인지 + D16).
       const scopeLabel =
         scope === "global"
@@ -256,6 +287,10 @@ export async function runInteractive(
         cli: finalCli,
         projectDir,
         ...(userOverride ? { userOverride } : {}),
+        // 해제 목록을 안 넘기면 이 화면이 **제외 유무와 문자열이 완전히 같아진다** — 같은 화면이
+        // 외부 자산 제거는 `-User removed:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
+        // 읽힌다. 상주 비용을 줄이려고 20개를 푼 사용자가 그대로인 숫자를 보게 된다.
+        ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
       })}\n  SCOPE     ${scopeLabel}`;
       const confirmed = await prompts.confirmInstall(
         `${stepLabel(WIZARD.CONFIRM, "Confirm")}\n${summary}`,
@@ -279,6 +314,7 @@ export async function runInteractive(
           projectDir,
           scope,
           ...(userOverride ? { userOverride } : {}),
+          ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
         },
       };
     }
@@ -314,6 +350,7 @@ export function computeUserOverride(
 }
 
 export function formatSummary(spec: InstallSpec): string {
+  const baselineExcluded = new Set(spec.baselineExclude ?? []);
   const opts = (Object.keys(spec.options) as Array<keyof OptionFlags>)
     .filter((k) => spec.options[k])
     .map((k) => k.replace(/^with/, "").toLowerCase());
@@ -347,8 +384,14 @@ export function formatSummary(spec: InstallSpec): string {
       lines.push(`  · ${cat}: ${ids.join(", ")}`);
     }
     // v26.103.0 (ADR-032) — header 와 동일 문구 (표면별 상이 문구 금지, v26.88.0 교훈).
+    // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
+    // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
     const cost = formatResidentCostLine(
-      residentCost(buildManifest(spec).filter((e) => e.applies(spec))),
+      residentCost(
+        buildManifest(spec).filter(
+          (e) => e.applies(spec) && !isBaselineExcluded(e.target, baselineExcluded),
+        ),
+      ),
       summarizeContextCost(finalAssets).unmeasuredCount,
     );
     if (cost) lines.push(`  · ${cost}`);
@@ -361,6 +404,15 @@ export function formatSummary(spec: InstallSpec): string {
     if (spec.userOverride.forceExclude.length > 0) {
       lines.push(`  -User removed: ${spec.userOverride.forceExclude.join(", ")}`);
     }
+  }
+  // 트랙 baseline 해제분. 설치 화면과 **같은 문구**를 쓴다 (표면별 상이 문구 금지) — 다르면
+  // 사용자가 확인 화면과 설치 결과를 대조할 수 없다.
+  if (baselineExcluded.size > 0) {
+    lines.push(
+      `  -Excluded by you: ${baselineExcluded.size} — ${[...baselineExcluded]
+        .map((id) => id.replace(BASELINE_PREFIX, ""))
+        .join(", ")}`,
+    );
   }
   return lines.join("\n");
 }

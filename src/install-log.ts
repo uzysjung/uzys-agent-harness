@@ -98,6 +98,19 @@ export interface InstallLog {
   spec: {
     tracks: ReadonlyArray<string>;
     cli: ReadonlyArray<string>;
+    /**
+     * 2026-08-16 (ADR-074) — 사용자가 위저드/`--without` 로 **해제한** 트랙 baseline 자산 id
+     * (`baseline:<kind>/<name>`). 아무것도 안 뺐으면 필드 자체가 없다(기존 로그도 이 상태).
+     *
+     * **`update` 가 이걸 읽어야 해제가 유지된다.** 안 남기면 update 는 트랙에서 manifest 를
+     * 다시 유도할 뿐이라 사용자가 뺀 룰·에이전트를 되살리고, 화면엔 *"added by this release"*
+     * 라고 적는다 — 같은 릴리즈에서 방금 설치한 파일인데도. 독립 리뷰가 실측으로 잡았다.
+     *
+     * `tracks`·`cli` 와 같이 **누적하지 않는다**: install 은 매번 이 목록대로 다시 거르므로
+     * 로그는 마지막 설치가 실제로 한 일이어야 한다. 제외 없이 다시 깔면 파일이 돌아오고,
+     * 그때 기록이 남아 있으면 로그가 디스크와 다른 말을 한다.
+     */
+    baselineExclude?: ReadonlyArray<string>;
   };
   /** templates 출처 — uninstall 시 templates 제거 위치 */
   templates: {
@@ -234,6 +247,9 @@ export function buildInstallLog(
     spec: {
       tracks: spec.tracks,
       cli: spec.cli,
+      ...(spec.baselineExclude && spec.baselineExclude.length > 0
+        ? { baselineExclude: spec.baselineExclude }
+        : {}),
     },
     // 이번 설치가 만든 항목이 이기고, 이번에 안 만든 항목은 이전 값을 그대로 둔다.
     // (예: claude 로 깔고 나중에 codex 만 추가 설치해도 root CLAUDE.md 기록이 살아남는다)

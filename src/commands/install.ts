@@ -5,6 +5,7 @@
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BASELINE_PREFIX, listBaselineTargets } from "../baseline-targets.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
@@ -146,16 +147,42 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
+  // 2026-08-16 — `--without` 는 두 목록을 받는다: 외부 자산 id 와 트랙 baseline id
+  // (`baseline:<kind>/<name>`). 위저드에서 체크를 풀 수 있는 것을 플래그로는 못 뺀다면 같은
+  // 기능이 진입점마다 다른 것이고, 이 리포가 세 번 적발당한 표면 비대칭이다.
+  const baselineIds = new Set(
+    listBaselineTargets({ tracks: (options.track as Track[]) ?? [] }).map((t) => t.id),
+  );
+  const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
+
   // v26.49.0 — unknown asset id validation (silent ignore 방지).
   const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
-  for (const id of [...forceInclude, ...forceExclude]) {
-    if (!validIds.has(id)) {
-      err(
-        c.yellow(
-          `[WARN] Unknown asset id '${id}' (--with/--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
-        ),
-      );
-    }
+  // `--with` 는 baseline id 를 받지 않는다 — 트랙 baseline 은 이미 기본 설치라 "추가"할 것이
+  // 없다. 그런데 두 플래그를 한 루프에서 검사하던 탓에 `--with baseline:<id>` 가 경고 없이
+  // 통과하고 아무 일도 안 했다: **조용히 no-op 하는 지시**는 ADR-074 가 두 목록을 안 섞은
+  // 바로 그 이유다.
+  for (const id of forceInclude) {
+    if (validIds.has(id)) continue;
+    err(
+      c.yellow(
+        id.startsWith(BASELINE_PREFIX)
+          ? `[WARN] '${id}' cannot be used with --with — track baseline assets install by default. Use --without to drop one.`
+          : `[WARN] Unknown asset id '${id}' (--with). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+      ),
+    );
+  }
+  for (const id of forceExclude) {
+    if (validIds.has(id) || baselineIds.has(id)) continue;
+    // 갈림은 **id 의 생김새**로 한다(사유가 아니다 — 오타와 트랙 밖은 여기서 구분되지 않는다).
+    // `baseline:` 꼴이면 이 트랙의 후보 전체를 함께 보여 주는 편이 카탈로그 전체를 쏟는 것보다
+    // 낫다. 반대로 카탈로그 id 오타에 baseline 목록을 보이면 엉뚱한 곳을 뒤지게 된다.
+    err(
+      c.yellow(
+        id.startsWith(BASELINE_PREFIX)
+          ? `[WARN] '${id}' is not installed by the selected track(s) — nothing to exclude. Available: ${[...baselineIds].sort().join(", ")}`
+          : `[WARN] Unknown asset id '${id}' (--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+      ),
+    );
   }
   const filteredInclude = forceInclude.filter((id) => validIds.has(id));
   const filteredExclude = forceExclude.filter((id) => validIds.has(id));
@@ -167,6 +194,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
   const spec: InstallSpec = {
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
+    ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
     //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
     options: {

@@ -12,6 +12,7 @@ import {
   outro,
   select,
 } from "@clack/prompts";
+import { type BaselineKind, type BaselineTarget, listBaselineTargets } from "./baseline-targets.js";
 import { CATEGORIES, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { assetTrustTier, DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "./external-assets.js";
@@ -144,9 +145,28 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
 export interface InstallTargetPage {
   label: string;
   cats: ReadonlyArray<Category>;
+  /**
+   * 2026-08-16 — 이 페이지가 렌더하는 **트랙 baseline** 종류. 외부 자산 카테고리와 별도 축이다:
+   * `cats` 는 `EXTERNAL_ASSETS` 를 보고, 이쪽은 `manifest.ts` 가 트랙에서 유도하는 설치 대상을
+   * 본다. 한 축에 섞으면 `assertPagesCoverAllCategories` 의 전수 가드가 baseline 을 미배치
+   * 카테고리로 오인한다.
+   */
+  baseline?: ReadonlyArray<BaselineKind>;
 }
 
 export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
+  // 2026-08-16 — 트랙이 고르는 자산을 **맨 앞에서** 전부 보여준다. 그전까지 이 항목들은 화면에
+  // 한 번도 안 나온 채 깔렸고, 사용자는 설치가 끝난 뒤 요약에서 처음 봤다.
+  //
+  // 2페이지로 나눈 근거는 실측이다: 최대 트랙(`full`)이 32항목(rules 6 · agents 9 · hooks 3 ·
+  // skills 14)이라 clack groupMultiselect 의 "페이지당 ≤ ~30행" 제약을 한 페이지로는 못 지킨다.
+  // 가르는 축은 역할이다 — 정책·가드가 한쪽, 실행 능력이 다른 쪽.
+  { label: "Track baseline — Rules & Hooks (정책·가드)", cats: [], baseline: ["rules", "hooks"] },
+  {
+    label: "Track baseline — Agents & Skills (에이전트·스킬)",
+    cats: [],
+    baseline: ["agents", "skills"],
+  },
   { label: "Dev Core (Frontend · Backend · Data)", cats: ["frontend", "backend", "data"] },
   { label: "Dev Tools (Security · Quality · Understanding)", cats: ["dev-tools", "understanding"] },
   { label: "Business (PM · Executive · Documents)", cats: ["business"] },
@@ -218,6 +238,13 @@ export interface PageItem {
  * 8종이 **어디서도 선택 불가**가 된다. v26.78.0 거짓출하의 정확한 재현이다.
  * (`prompts.ts` 는 coverage 제외 대상이라 커버리지 수치도 이 코드에 대해 아무 보장을 못 준다.)
  */
+const BASELINE_TITLES: Record<BaselineKind, string> = {
+  rules: "Rules — 상시 상주하는 대원칙 (4 CLI 전부에 설치)",
+  hooks: "Hooks — 결정론적 가드 (해제하면 settings.json 배선도 함께 빠진다)",
+  agents: "Agents — 독립 레인 (리뷰·검증)",
+  skills: "Skills — 필요할 때 열리는 작업 절차",
+};
+
 export function buildPageGroups(
   cats: ReadonlyArray<Category>,
   initialSet: ReadonlySet<string>,
@@ -227,10 +254,27 @@ export function buildPageGroups(
    * 체크를 풀어도 제거되지 않는다(제거는 `uninstall` 을 따로 실행).
    */
   installedSet: ReadonlySet<string> = new Set(),
+  /**
+   * 2026-08-16 — 이 페이지에 렌더할 트랙 baseline. 호출자가 트랙에서 유도해 넘긴다 —
+   * 여기서 다시 고르면 화면과 설치가 서로 다른 목록을 보게 된다.
+   */
+  baselineKinds: ReadonlyArray<BaselineKind> = [],
+  baselineTargets: ReadonlyArray<BaselineTarget> = [],
 ): { groups: Record<string, PageItem[]>; flatItems: PageItem[] } {
   const installedMark = (value: string): string => (installedSet.has(value) ? "  ● installed" : "");
   const groups: Record<string, PageItem[]> = {};
   const flatItems: PageItem[] = [];
+  for (const kind of baselineKinds) {
+    const items: PageItem[] = baselineTargets
+      .filter((t) => t.kind === kind)
+      .map((t) => ({
+        value: t.id,
+        label: `    ${t.name}${installedMark(t.id)}`,
+      }));
+    if (items.length === 0) continue;
+    groups[BASELINE_TITLES[kind]] = items;
+    flatItems.push(...items);
+  }
   for (const cat of cats) {
     const items: PageItem[] = [];
     for (const o of VISIBLE_OPTION_DEFS.filter((d) => d.category === cat)) {
@@ -413,6 +457,8 @@ export const defaultPrompts: Prompts = {
     //
     // 페이지 정의 = 모듈 스코프 INSTALL_TARGET_PAGES (SSOT, 카테고리 전수 가드됨).
     const pages = INSTALL_TARGET_PAGES;
+    // 트랙에서 유도한다 — 화면과 설치가 같은 목록을 보게 하는 유일한 방법이다.
+    const baselineTargets = listBaselineTargets({ tracks: recap?.tracks ?? [] });
     // v26.99.0 (ADR-028) — 표현 계층에서만 번들로 접는다. 제출 시 다시 펼쳐 돌려주므로
     //   downstream 계약(개별 asset id)은 불변.
     const displayInitial = collapseDevMethodBundle(initialChecked);
@@ -433,10 +479,36 @@ export const defaultPrompts: Prompts = {
     let aborted = false;
     try {
       let pageIdx = 0;
+      // 이동 방향. 빈 페이지 건너뛰기가 이걸 따라간다 — 아래 주석 참조.
+      let dir: 1 | -1 = 1;
       while (pageIdx < pages.length) {
         const page = pages[pageIdx];
         if (!page) break;
-        const { groups, flatItems } = buildPageGroups(page.cats, initialSet, installedSet);
+        const { groups, flatItems } = buildPageGroups(
+          page.cats,
+          initialSet,
+          installedSet,
+          page.baseline ?? [],
+          baselineTargets,
+        );
+        // 항목이 0개인 페이지는 건너뛴다 — 빈 화면에서 Enter 를 치게 만들 이유가 없다.
+        //
+        // **오늘 이 분기는 도달하지 않는다**(독립 리뷰 실측). `listBaselineTargets` 는 `tracks`
+        // 만 보고 `spec.cli` 를 아예 안 받으므로 "CLI 조합 때문에 비는 페이지"는 없다 — codex
+        // 단독 설치도 24행을 다 렌더한다. 실제 하한은 구조적이다: `COMMON_RULES`(3)·
+        // `ALWAYS_HOOKS`(3)가 `applies: all` 이라 페이지 0 은 어떤 트랙에서도 6항목 아래로
+        // 안 내려가고, 페이지 1 도 전 트랙 최소 9항목이다. 트랙이 자산을 다 잃으면 살아난다.
+        //
+        // **이동 방향을 따라간다.** 앞으로만 건너뛰면 빈 페이지가 일방통행 문이 된다 — 뒤에서
+        // ESC 로 돌아온 사용자를 다시 앞으로 밀어내 Step 2 로 나갈 길이 사라진다.
+        if (flatItems.length === 0) {
+          pageIdx += dir;
+          if (pageIdx < 0) {
+            aborted = true; // 뒤로 건너뛰다 첫 페이지를 지났다 = Step 2 로
+            break;
+          }
+          continue;
+        }
         const selectedNow = flatItems.filter((it) => collected.has(it.value)).map((it) => it.value);
         const pageDefault = flatItems.filter((it) => initialSet.has(it.value)).length;
         const totalSelected = collected.size;
@@ -467,12 +539,14 @@ export const defaultPrompts: Prompts = {
             aborted = true; // first page ESC → Step 2 back
             break;
           }
+          dir = -1;
           pageIdx--; // prev page
           continue;
         }
         // update collected: remove page items + add the new selection
         for (const it of flatItems) collected.delete(it.value);
         for (const v of result as ReadonlyArray<string>) collected.add(v);
+        dir = 1;
         pageIdx++;
       }
       if (!aborted) {

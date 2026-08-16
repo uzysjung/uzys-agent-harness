@@ -24,6 +24,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
@@ -290,6 +291,12 @@ export function runUpdateMode(
  * 지울 뿐이다). 깔아 놓고 "추가됨"이라 보고하면 사용자는 안 도는 기능을 받았다고 읽는다 —
  * `hook-wiring-parity` 가 templates 쪽에서 막는 바로 그 상태를 update 가 만드는 셈이다.
  * 대신 **재설치가 필요하다고 알린다**(`needsReinstall`).
+ *
+ * **사용자가 해제한 자산은 다시 깔지 않는다** (ADR-074). 이 목록을 안 보면 이 함수가 곧
+ * 해제의 취소 장치가 된다 — 트랙에서 manifest 를 다시 유도할 뿐이라 뺀 룰·에이전트가 돌아오고,
+ * 화면은 그것을 *"added by this release"* 로 보고한다(같은 릴리즈에서 방금 설치한 파일인데도).
+ * 게다가 되살아나는 종류가 룰·에이전트뿐이라(스킬은 `dir` 엔트리, 훅은 `needsReinstall`)
+ * 사용자는 "해제"가 무슨 뜻인지 모델을 세울 수조차 없다.
  */
 function installNewAssets(
   projectDir: string,
@@ -298,9 +305,11 @@ function installNewAssets(
   const installed: string[] = [];
   const restored: string[] = [];
   const needsReinstall: string[] = [];
+  const log = readInstallLog(projectDir);
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
-  const claudeSelected = readInstallLog(projectDir)?.spec.cli.includes("claude") ?? false;
+  const claudeSelected = log?.spec.cli.includes("claude") ?? false;
+  const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
   // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
   const priorBaseline = policyBaseline(projectDir);
@@ -310,6 +319,8 @@ function installNewAssets(
     // 만들면 그쪽이 "이미 있었다"로 보고 루트 `CLAUDE.md` 의 import 줄을 얹지 않아, ADR-060
     // 이행이 조용히 반쪽이 된다.
     if (entry.target === HARNESS_ANCHOR_FILE) continue;
+    // 설치 때 해제한 자산 — 없는 것이 사용자가 원한 상태다. 여기서 깔면 해제가 취소된다.
+    if (isBaselineExcluded(entry.target, baselineExcluded)) continue;
 
     const target = join(projectDir, entry.target);
     if (existsSync(target)) continue;
@@ -467,19 +478,25 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  * 으로 걸러 주므로, 안 깐 CLI 는 대상 파일이 없어 자연히 아무것도 안 쓴다. 선택 스킬도 같다 —
  * 전체 목록을 넘겨도 안 깔린 스킬은 파일이 없어 건너뛴다. 그래서 update 쪽에 CLI 목록이나
  * 스킬 선택 상태의 **사본이 생기지 않는다** (이 repo 가 반복해서 당한 열거-사본 실패 모드).
+ *
+ * **룰만 예외로 거른다** (ADR-074). `AGENTS.md` 는 룰을 파일 하나에 **합쳐 렌더**하므로
+ * refreshOnly 의 "디스크에 있는 것만" 규칙이 룰 단위로는 작동하지 않는다 — 파일이 있으니
+ * 통째로 다시 써지고, 그 안에 사용자가 뺀 룰이 되돌아온다. 여기가 `.claude/` 밖으로 룰이
+ * 나가는 유일한 경로다.
  */
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
 ): { externalUpdated: number; externalBackedUp: string[] } {
   const log = readInstallLog(projectDir);
+  const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
     cli: ALL_CLI_TARGETS,
     selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
-    // 스킬과 같은 이유로 **전부** 넘긴다 — 안 깔린 룰은 대상 파일이 없어 refreshOnly 가 건너뛴다.
-    rules: ALL_RULES,
+    // 스킬은 **전부** 넘긴다 — 안 깔린 스킬은 대상 파일이 없어 refreshOnly 가 건너뛴다.
+    rules: ALL_RULES.filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
   });

@@ -144,7 +144,8 @@ Common flags:
 | `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
 | `--scope <project\|global>` | Default `project` |
 | `--with <asset-id>` (repeatable) | Force-include an external asset |
-| `--without <asset-id>` (repeatable) | Force-exclude from preset |
+| `--without <asset-id>` (repeatable) | Force-exclude an external asset from the preset |
+| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline asset — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items the wizard shows on its first two pages |
 | `--with ecc-plugin` | Install ECC plugin + cherry-pick |
 
 Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harness install --help` after a global install).
@@ -154,9 +155,11 @@ Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harne
 ```
 1/6  Tracks            preset by stack
 2/6  CLI               claude / codex / opencode / antigravity (multi-select)
-3/6  Install items     5 pages of category-grouped multiselects (v26.99.0):
-                       Dev Core (Frontend·Backend·Data) / Dev Tools (Security·Quality·Understanding)
-                       / Business / Visual & Media / Workflow & ECC.
+3/6  Install items     7 pages of grouped multiselects:
+                       Track baseline — Rules & Hooks / Track baseline — Agents & Skills
+                       (everything your track installs, pre-checked; uncheck to drop it)
+                       then Dev Core (Frontend·Backend·Data) / Dev Tools (Security·Quality·
+                       Understanding) / Business / Visual & Media / Workflow & ECC.
                        The 8 dev-method skills fold into a single "methodology bundle" row.
 4/6  Scope             Project (default) / Global
 5/6  Confirm           summary review (+ session-start context cost of your selection)
