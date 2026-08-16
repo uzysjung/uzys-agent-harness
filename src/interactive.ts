@@ -1,8 +1,8 @@
 import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
-import { readInstallLog } from "./install-log.js";
-import type { InstallMode } from "./installer.js";
+import { type InstallLog, readInstallLog } from "./install-log.js";
+import { buildManifestSpec, type InstallMode } from "./installer.js";
 import { buildManifest } from "./manifest.js";
 import {
   finalSelectedAssets,
@@ -16,6 +16,7 @@ import {
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
+import { findSuperseded, type SupersededAsset } from "./superseded.js";
 import type { InstallSpec, OptionFlags, Track } from "./types.js";
 import { buildUpdateSpec } from "./update-mode.js";
 import { stepLabel, WIZARD } from "./wizard-steps.js";
@@ -303,22 +304,86 @@ export async function runInteractive(
         prompts.outro("Cancelled by user.");
         return { ok: false, reason: "cancelled" };
       }
+
+      const spec: InstallSpec = {
+        tracks: finalTracks,
+        options,
+        cli: finalCli,
+        projectDir,
+        scope,
+        ...(userOverride ? { userOverride } : {}),
+        ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
+      };
+
+      // 2026-08-17 (ADR-075) — 이번 선택이 밀어냈는데 디스크에 남아 있는 자산. **후보가 있을
+      // 때만** 묻는다: 대부분의 설치는 0건이고, 매번 뜨는 확인은 읽히지 않는다.
+      const superseded = findSuperseded(
+        projectDir,
+        buildManifestSpec(spec),
+        readInstallLog(projectDir),
+      );
+      let cleanSuperseded = false;
+      if (superseded.length > 0) {
+        const cause = supersededCause(projectDir, spec, readInstallLog(projectDir), superseded);
+        const answer = await prompts.confirmSupersededCleanup(superseded, {
+          by: cause.length > 0 ? cause : ["이번 선택"],
+          tokens: supersededTokens(superseded),
+        });
+        if (answer === null) {
+          step = "confirm"; // ESC 는 "예"가 아니다 — 확인 화면으로 되돌린다
+          continue;
+        }
+        cleanSuperseded = answer;
+      }
+
       prompts.outro(stepLabel(WIZARD.INSTALL, "Installing..."));
       return {
         ok: true,
         mode,
-        spec: {
-          tracks: finalTracks,
-          options,
-          cli: finalCli,
-          projectDir,
-          scope,
-          ...(userOverride ? { userOverride } : {}),
-          ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
-        },
+        spec: { ...spec, ...(cleanSuperseded ? { cleanSuperseded } : {}) },
       };
     }
   }
+}
+
+/**
+ * 밀려난 자산의 상주 비용 — **기존 계측기로** 잰다 (ADR-075).
+ *
+ * 여기서 토큰을 따로 세면 그 계산이 두 번째 사본이 되어 `cost:report` 와 조용히 갈린다.
+ * `residentCost.total` 을 쓰지 않는 이유는 그쪽이 CLAUDE.md 2종을 무조건 더하기 때문이다 —
+ * 부분집합에 쓰면 있지도 않은 비용을 얹는다.
+ */
+function supersededTokens(items: ReadonlyArray<SupersededAsset>): number {
+  const r = residentCost(items.map((i) => ({ source: i.source, target: i.target })));
+  return r.rules + r.agentDescriptors + r.skillDescriptors;
+}
+
+/**
+ * **무엇을 골라서** 밀려났는가 — 삭제를 묻는 화면은 원인을 말할 수 있어야 한다.
+ *
+ * 이름을 열거하지 않고 **반사실로 판정한다**: 고른 자산을 하나씩 빼 보고, 뺐더니 밀려남이
+ * 줄어들면 그 자산이 원인이다. `ecc-plugin` 을 여기 적으면 그게 두 번째 하드코딩 사본이 되고,
+ * 다음에 같은 형태(플러그인 ↔ 폴백)가 생기면 화면만 옛 이름을 계속 부른다.
+ *
+ * 아무것도 안 짚이면 빈 배열을 낸다 — 지어내지 않는다. 호출부가 일반 문구로 떨어진다.
+ */
+function supersededCause(
+  projectDir: string,
+  spec: InstallSpec,
+  log: InstallLog | null,
+  found: ReadonlyArray<SupersededAsset>,
+): string[] {
+  const selected = spec.userOverride?.forceInclude ?? [];
+  return selected.filter((id) => {
+    const without: InstallSpec = {
+      ...spec,
+      userOverride: {
+        forceInclude: selected.filter((x) => x !== id),
+        forceExclude: [...(spec.userOverride?.forceExclude ?? []), id],
+      },
+    };
+    return findSuperseded(projectDir, buildManifestSpec(without), log).length < found.length;
+  });
 }
 
 /**
