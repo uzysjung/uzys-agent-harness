@@ -202,6 +202,8 @@ export interface BaselineReport {
    * 없기 때문이다. 0건이면 아무것도 안 뜬다.
    */
   baselineExcluded: string[];
+  /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
+  baselineExcludedOnDisk: string[];
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -241,6 +243,8 @@ export interface InstallReport {
    * 그러면 "해제가 먹혔는지" 를 프로그램으로 확인할 방법이 사라진다.
    */
   baselineExcluded: string[];
+  /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  baselineExcludedOnDisk: string[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -325,7 +329,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
       // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
       // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
-      installCliNeutralAssets(manifestSpec, projectDir, templatesDir);
+      installCliNeutralAssets(manifestSpec, projectDir, templatesDir, baselineExcluded);
 
   // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
   const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
@@ -381,6 +385,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     // 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다 (ADR-046/047 과 같은 이유).
     backups: [...base.backups, ...externalBackups],
     baselineExcluded: base.excluded,
+    baselineExcludedOnDisk: base.excludedOnDisk,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -453,6 +458,7 @@ function runUpdateInstall(
     dirsCopied: 0,
     skipped: 0,
     baselineExcluded: [],
+    baselineExcludedOnDisk: [],
     backup: backupPath,
     installedTracks: [...ctx.spec.tracks].sort(),
     mcpServers: [],
@@ -521,6 +527,14 @@ interface ClaudeBaselineResult {
    * 한 숫자에 담으면 설치 화면이 사용자의 선택을 결함으로 보고한다.
    */
   excluded: string[];
+  /**
+   * 해제했는데 **디스크에 그대로 남아 있는** 대상 (`excluded` 의 부분집합).
+   *
+   * `add`·`reinstall` 은 이전 설치본을 지우지 않으므로 "제외됨"만 찍으면 화면이 디스크와 다른
+   * 말을 한다 — 사용자는 파일이 사라진 줄 알고, 실제로는 그 룰이 계속 상주한다. 체크 해제는
+   * 제거가 아니라는 기존 규약(v26.125.0 `● installed` 마커)을 baseline 항목에도 적용한다.
+   */
+  excludedOnDisk: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -533,6 +547,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     rootClaudeMdLog: null,
     backups: [],
     excluded: [],
+    excludedOnDisk: [],
   };
 }
 
@@ -546,15 +561,30 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
  *
  * `.claude/` 를 만들지 않는 것이 이 함수의 존재 이유다 — 스켈레톤·훅 chmod·루트 CLAUDE.md
  * 병합은 전부 claude 전용이라 여기서 하지 않는다.
+ *
+ * **해제한 룰은 여기서도 보고한다** (ADR-074). 이 경로에서도 제외는 실제로 작동한다 —
+ * `runCliTransforms` 로 가는 `rules` 가 걸러지므로 `AGENTS.md`·`.agents/rules/` 에서 빠진다.
+ * 그런데 보고가 없으면 **제외가 가장 안 보이는 곳에서 화면도 침묵한다**: 눈으로 확인할
+ * `.claude/rules/` 디렉터리조차 없는 설치다. 룰만 세는 이유는 룰이 `.claude/` 밖으로 나가는
+ * 유일한 baseline 종류이기 때문이다(에이전트·훅·트랙 스킬은 비 Claude 표면이 없다).
  */
 function installCliNeutralAssets(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
   templatesDir: string,
+  baselineExcluded: ReadonlySet<string>,
 ): ClaudeBaselineResult {
   const result = emptyClaudeBaseline();
   for (const entry of buildManifest(manifestSpec)) {
-    if (!isCliNeutralTarget(entry.target) || !entry.applies(manifestSpec)) continue;
+    if (!entry.applies(manifestSpec)) continue;
+    if (
+      entry.target.startsWith(".claude/rules/") &&
+      isBaselineExcluded(entry.target, baselineExcluded)
+    ) {
+      result.excluded.push(entry.target);
+      continue;
+    }
+    if (!isCliNeutralTarget(entry.target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) {
       result.skipped += 1;
@@ -611,15 +641,19 @@ function installClaudeBaseline(
     if (!entry.applies(manifestSpec)) {
       continue;
     }
+    const target = join(projectDir, entry.target);
     // 사용자가 3단계에서 체크를 푼 자산. `skipped` 로 세지 않는다 — 저 카운터는 "원본이 없어서
     // 못 깔았다"는 결함 신호이고, 이쪽은 사용자가 그러라고 한 것이다. 둘을 한 숫자에 담으면
     // 설치 화면이 정상 선택을 결함으로 보고한다.
     if (isBaselineExcluded(entry.target, baselineExcluded)) {
       result.excluded.push(entry.target);
+      // 이미 있던 파일은 지우지 않는다(체크 해제 ≠ 제거). 그 사실을 여기서 잡아 두지 않으면
+      // `add`·`reinstall` 화면이 "제외됨"이라 적고 파일은 그대로 남는다 — 화면이 디스크와
+      // 다른 말을 하는 것이고, 그게 이 PR 이 없애려던 상태다.
+      if (existsSync(target)) result.excludedOnDisk.push(entry.target);
       continue;
     }
     const source = join(templatesDir, entry.source);
-    const target = join(projectDir, entry.target);
     if (!existsSync(source)) {
       result.skipped += 1;
       continue;

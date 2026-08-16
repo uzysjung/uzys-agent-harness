@@ -644,13 +644,20 @@ function renderPhase1Rows(
   // 말하므로, 이 줄이 없으면 해제가 실제로 먹혔는지 화면에서 확인할 길이 없다. 0건이면 안 뜬다.
   // 이름을 전부 낸다 — 건수만 찍으면 어느 것이 빠졌는지 추적할 수 없다.
   if (baseline.baselineExcluded.length > 0) {
+    // 디스크에 남은 것은 이름 옆에 표시한다. `add`·`reinstall` 은 이전 설치본을 지우지 않으므로
+    // 표시가 없으면 화면이 "빠졌다"고 말하는 동안 그 룰은 계속 상주한다 (체크 해제 ≠ 제거).
+    const onDisk = new Set(baseline.baselineExcludedOnDisk);
+    const names = baseline.baselineExcluded.map((t) => {
+      const name = t.replace(/^\.claude\//, "");
+      return onDisk.has(t) ? `${name} (still on disk)` : name;
+    });
     log(
       assetRow(
         "skip",
         "excluded by you",
-        `${baseline.baselineExcluded.length} — ${baseline.baselineExcluded
-          .map((t) => t.replace(/^\.claude\//, ""))
-          .join(", ")}`,
+        onDisk.size > 0
+          ? `${names.length} — ${names.join(", ")} · "still on disk" = 이전 설치본이라 지우지 않는다 (제거: agent-harness uninstall)`
+          : `${names.length} — ${names.join(", ")}`,
       ),
     );
   }

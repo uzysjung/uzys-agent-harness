@@ -157,15 +157,30 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
 
   // v26.49.0 — unknown asset id validation (silent ignore 방지).
   const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
-  for (const id of [...forceInclude, ...forceExclude]) {
+  // `--with` 는 baseline id 를 받지 않는다 — 트랙 baseline 은 이미 기본 설치라 "추가"할 것이
+  // 없다. 그런데 두 플래그를 한 루프에서 검사하던 탓에 `--with baseline:<id>` 가 경고 없이
+  // 통과하고 아무 일도 안 했다: **조용히 no-op 하는 지시**는 ADR-074 가 두 목록을 안 섞은
+  // 바로 그 이유다.
+  for (const id of forceInclude) {
+    if (validIds.has(id)) continue;
+    err(
+      c.yellow(
+        id.startsWith(BASELINE_PREFIX)
+          ? `[WARN] '${id}' cannot be used with --with — track baseline assets install by default. Use --without to drop one.`
+          : `[WARN] Unknown asset id '${id}' (--with). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+      ),
+    );
+  }
+  for (const id of forceExclude) {
     if (validIds.has(id) || baselineIds.has(id)) continue;
-    // baseline id 처럼 생겼는데 이 트랙에 없는 것은 사유가 다르다 — 오타가 아니라 트랙 밖이다.
-    // 한 문구로 뭉뚱그리면 사용자는 철자를 고치며 헤맨다.
+    // 갈림은 **id 의 생김새**로 한다(사유가 아니다 — 오타와 트랙 밖은 여기서 구분되지 않는다).
+    // `baseline:` 꼴이면 이 트랙의 후보 전체를 함께 보여 주는 편이 카탈로그 전체를 쏟는 것보다
+    // 낫다. 반대로 카탈로그 id 오타에 baseline 목록을 보이면 엉뚱한 곳을 뒤지게 된다.
     err(
       c.yellow(
         id.startsWith(BASELINE_PREFIX)
           ? `[WARN] '${id}' is not installed by the selected track(s) — nothing to exclude. Available: ${[...baselineIds].sort().join(", ")}`
-          : `[WARN] Unknown asset id '${id}' (--with/--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
+          : `[WARN] Unknown asset id '${id}' (--without). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
       ),
     );
   }

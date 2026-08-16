@@ -479,6 +479,8 @@ export const defaultPrompts: Prompts = {
     let aborted = false;
     try {
       let pageIdx = 0;
+      // 이동 방향. 빈 페이지 건너뛰기가 이걸 따라간다 — 아래 주석 참조.
+      let dir: 1 | -1 = 1;
       while (pageIdx < pages.length) {
         const page = pages[pageIdx];
         if (!page) break;
@@ -489,10 +491,22 @@ export const defaultPrompts: Prompts = {
           page.baseline ?? [],
           baselineTargets,
         );
-        // baseline 페이지인데 항목이 0개면 건너뛴다 — 빈 화면에서 Enter 를 치게 만들 이유가 없다
-        // (예: `.claude/` 를 안 만드는 CLI 조합, 훅이 없는 트랙).
+        // 항목이 0개인 페이지는 건너뛴다 — 빈 화면에서 Enter 를 치게 만들 이유가 없다.
+        //
+        // **오늘 이 분기는 도달하지 않는다**(독립 리뷰 실측). `listBaselineTargets` 는 `tracks`
+        // 만 보고 `spec.cli` 를 아예 안 받으므로 "CLI 조합 때문에 비는 페이지"는 없다 — codex
+        // 단독 설치도 24행을 다 렌더한다. 실제 하한은 구조적이다: `COMMON_RULES`(3)·
+        // `ALWAYS_HOOKS`(3)가 `applies: all` 이라 페이지 0 은 어떤 트랙에서도 6항목 아래로
+        // 안 내려가고, 페이지 1 도 전 트랙 최소 9항목이다. 트랙이 자산을 다 잃으면 살아난다.
+        //
+        // **이동 방향을 따라간다.** 앞으로만 건너뛰면 빈 페이지가 일방통행 문이 된다 — 뒤에서
+        // ESC 로 돌아온 사용자를 다시 앞으로 밀어내 Step 2 로 나갈 길이 사라진다.
         if (flatItems.length === 0) {
-          pageIdx += 1;
+          pageIdx += dir;
+          if (pageIdx < 0) {
+            aborted = true; // 뒤로 건너뛰다 첫 페이지를 지났다 = Step 2 로
+            break;
+          }
           continue;
         }
         const selectedNow = flatItems.filter((it) => collected.has(it.value)).map((it) => it.value);
@@ -525,12 +539,14 @@ export const defaultPrompts: Prompts = {
             aborted = true; // first page ESC → Step 2 back
             break;
           }
+          dir = -1;
           pageIdx--; // prev page
           continue;
         }
         // update collected: remove page items + add the new selection
         for (const it of flatItems) collected.delete(it.value);
         for (const v of result as ReadonlyArray<string>) collected.add(v);
+        dir = 1;
         pageIdx++;
       }
       if (!aborted) {

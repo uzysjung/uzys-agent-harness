@@ -15,6 +15,7 @@ function pipelineFor(report: InstallReport) {
       dirsCopied: report.dirsCopied,
       skipped: report.skipped,
       baselineExcluded: [],
+      baselineExcludedOnDisk: [],
       backup: report.backup,
       installedTracks: report.installedTracks,
       mcpServers: report.mcpServers,
@@ -49,6 +50,7 @@ const fakeReport: InstallReport = {
   dirsCopied: 2,
   skipped: 0,
   baselineExcluded: [],
+  baselineExcludedOnDisk: [],
   backup: null,
   installedTracks: ["tooling"],
   mcpServers: ["context7"],
@@ -1219,6 +1221,51 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
       { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown asset id 'fake-id'"));
+  });
+
+  /**
+   * 2026-08-16 (독립 리뷰 F7) — `--with baseline:<id>` 는 경고 없이 통과하고 아무 일도 안 했다.
+   * 두 플래그를 한 루프에서 검사하면서 `baselineIds.has(id)` 가 `--with` 에도 걸렸기 때문이다.
+   * **조용히 no-op 하는 지시**는 ADR-074 가 두 목록을 안 섞은 바로 그 이유다.
+   */
+  it("--with baseline:<id> → 경고 (조용한 no-op 금지)", () => {
+    const err = vi.fn();
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["tooling"],
+        with: "baseline:rules/git-policy",
+        projectDir: "/tmp/p",
+      },
+      {
+        log: vi.fn(),
+        err,
+        exit: vi.fn() as unknown as (code: number) => never,
+        runPipeline: pipelineFor(fakeReport),
+        resolveHarnessRoot: () => "/h",
+      },
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("cannot be used with --with"));
+  });
+
+  it("--without baseline:<id> 는 그대로 통과한다 (음성 대조 — 위 경고가 과잉이 아님)", () => {
+    const err = vi.fn();
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["tooling"],
+        without: "baseline:rules/git-policy",
+        projectDir: "/tmp/p",
+      },
+      {
+        log: vi.fn(),
+        err,
+        exit: vi.fn() as unknown as (code: number) => never,
+        runPipeline: pipelineFor(fakeReport),
+        resolveHarnessRoot: () => "/h",
+      },
+    );
+    expect(err).not.toHaveBeenCalled();
   });
 });
 

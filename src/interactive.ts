@@ -1,4 +1,4 @@
-import { BASELINE_PREFIX, listBaselineTargets } from "./baseline-targets.js";
+import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import { readInstallLog } from "./install-log.js";
@@ -287,6 +287,10 @@ export async function runInteractive(
         cli: finalCli,
         projectDir,
         ...(userOverride ? { userOverride } : {}),
+        // 해제 목록을 안 넘기면 이 화면이 **제외 유무와 문자열이 완전히 같아진다** — 같은 화면이
+        // 외부 자산 제거는 `-User removed:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
+        // 읽힌다. 상주 비용을 줄이려고 20개를 푼 사용자가 그대로인 숫자를 보게 된다.
+        ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
       })}\n  SCOPE     ${scopeLabel}`;
       const confirmed = await prompts.confirmInstall(
         `${stepLabel(WIZARD.CONFIRM, "Confirm")}\n${summary}`,
@@ -346,6 +350,7 @@ export function computeUserOverride(
 }
 
 export function formatSummary(spec: InstallSpec): string {
+  const baselineExcluded = new Set(spec.baselineExclude ?? []);
   const opts = (Object.keys(spec.options) as Array<keyof OptionFlags>)
     .filter((k) => spec.options[k])
     .map((k) => k.replace(/^with/, "").toLowerCase());
@@ -379,8 +384,14 @@ export function formatSummary(spec: InstallSpec): string {
       lines.push(`  · ${cat}: ${ids.join(", ")}`);
     }
     // v26.103.0 (ADR-032) — header 와 동일 문구 (표면별 상이 문구 금지, v26.88.0 교훈).
+    // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
+    // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
     const cost = formatResidentCostLine(
-      residentCost(buildManifest(spec).filter((e) => e.applies(spec))),
+      residentCost(
+        buildManifest(spec).filter(
+          (e) => e.applies(spec) && !isBaselineExcluded(e.target, baselineExcluded),
+        ),
+      ),
       summarizeContextCost(finalAssets).unmeasuredCount,
     );
     if (cost) lines.push(`  · ${cost}`);
@@ -393,6 +404,15 @@ export function formatSummary(spec: InstallSpec): string {
     if (spec.userOverride.forceExclude.length > 0) {
       lines.push(`  -User removed: ${spec.userOverride.forceExclude.join(", ")}`);
     }
+  }
+  // 트랙 baseline 해제분. 설치 화면과 **같은 문구**를 쓴다 (표면별 상이 문구 금지) — 다르면
+  // 사용자가 확인 화면과 설치 결과를 대조할 수 없다.
+  if (baselineExcluded.size > 0) {
+    lines.push(
+      `  -Excluded by you: ${baselineExcluded.size} — ${[...baselineExcluded]
+        .map((id) => id.replace(BASELINE_PREFIX, ""))
+        .join(", ")}`,
+    );
   }
   return lines.join("\n");
 }

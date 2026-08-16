@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { BASELINE_KINDS } from "../src/baseline-targets.js";
 import { CATEGORIES, type Category } from "../src/categories.js";
@@ -95,5 +98,33 @@ describe("트랙 baseline 페이지 parity (ADR-074)", () => {
     expect(
       INSTALL_TARGET_PAGES.filter((p) => (p.baseline ?? []).length > 0).length,
     ).toBeGreaterThan(0);
+  });
+
+  /**
+   * 문서가 말하는 페이지 수 = 코드의 페이지 수 (독립 리뷰 F6).
+   *
+   * `docs/USAGE.md` 는 이 PR 이 페이지를 5→7 로 늘린 뒤에도 "5 pages" 라고 적고 있었고,
+   * **아무 테스트도 그걸 안 물었다** — 위 세 가드는 전부 코드끼리만 대조한다. `ship-checklist`
+   * 의 Surface Parity 는 "문서 표기"를 도달 경로로 세므로, 여기가 그 경로의 게이트다.
+   */
+  it("USAGE.md 의 페이지 수가 INSTALL_TARGET_PAGES 와 같다", () => {
+    const usage = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../docs/USAGE.md"),
+      "utf8",
+    );
+    const stated = usage.match(/Install items\s+(\d+) pages/)?.[1];
+    expect(stated, "USAGE.md 의 `Install items  <N> pages` 표기를 못 찾았다").toBeDefined();
+    expect(Number(stated)).toBe(INSTALL_TARGET_PAGES.length);
+  });
+
+  it("USAGE.md 가 `--without baseline:` 를 적는다 (플래그 표면 parity)", () => {
+    // ADR-074 결정 4 — 위저드에서 되는 것이 플래그로 안 되면 표면 비대칭이다. 플래그가 있는데
+    // 문서에 없으면 사용자에게는 없는 것과 같으므로, 같은 자리에서 함께 문다.
+    const usage = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../docs/USAGE.md"),
+      "utf8",
+    );
+    expect(usage).toContain("--without baseline:");
+    for (const kind of BASELINE_KINDS) expect(usage).toContain(`\`${kind}\``);
   });
 });

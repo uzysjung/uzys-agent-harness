@@ -66,6 +66,19 @@ export function classifyBaselineTarget(target: string): BaselineTarget | null {
  *
  * `applies()` 를 여기서 평가한다 — 안 깔릴 것을 화면에 내면 사용자는 해제할 수 없는 항목을
  * 보게 되고, 그건 투명성이 아니라 소음이다.
+ *
+ * **알려진 한계: `withEcc` 는 이 시점에 모른다** (독립 리뷰 F5). `ecc-plugin` 은 같은 3단계의
+ * **뒤쪽 페이지**에서 고르는데 baseline 페이지가 앞에 있어, 여기서는 `withEcc` 가 undefined 다.
+ * 결과는 **한 방향으로만 틀린다**: `!s.withEcc` 폴백 에이전트 4종(`build-error-resolver` ·
+ * `code-reviewer` · `security-reviewer` · `silent-failure-hunter`)이 화면에 뜨는데 `ecc-plugin`
+ * 을 고르면 안 깔린다. 그 반대(안 보여 준 것이 깔리는 것)는 일어나지 않으므로 **조용한 설치는
+ * 생기지 않고**, 체크를 남겨 둔 항목은 제외 목록에도 안 들어가 오제외도 없다.
+ *
+ * 고치려면 baseline 페이지를 자산 페이지 **뒤로** 옮겨야 한다 — 사용자가 확정한 "맨 앞에서 전부
+ * 보여준다"를 뒤집는 결정이라 여기서 임의로 하지 않는다 (ADR-074 Consequences).
+ *
+ * `selectedInternalSkills` 는 한계가 아니다. 그 12종은 전부 `EXTERNAL_ASSETS` 항목이라 자산
+ * 페이지에서 이미 개별 선택되고, 여기 또 내면 **한 스킬에 체크박스가 둘** 생긴다.
  */
 export function listBaselineTargets(spec: AssetSpec): BaselineTarget[] {
   const byId = new Map<string, BaselineTarget>();
