@@ -621,8 +621,11 @@ function renderPhase1Rows(
         cats.hooks,
       );
     }
+    // 2026-08-16 (ADR-073) — 라벨에서 `/ecc:*` 를 뺐다. 명령 템플릿이 하나도 남지 않아 이 행은
+    // 지금 뜨지 않지만, 분류기(`.claude/commands/` 접두)는 일반형이라 명령이 다시 생기면 그대로
+    // 센다. 그때 화면이 없어진 자산의 이름을 부르지 않도록 라벨을 자산 중립으로 둔다.
     if (cats.commands > 0) {
-      phase1Row("commands", cats.commands, "/ecc:* (ECC plugin OFF fallback)");
+      phase1Row("commands", cats.commands, "slash commands");
     }
     if (cats.skills.length > 0) {
       phase1Row(

@@ -107,7 +107,6 @@ ADR-061 에서 gates-taxonomy 행 해체). ECC에서 발췌해 `templates/`에 �
 |---------|------|
 | Skills (templates/skills/) | continuous-learning-v2, strategic-compact, deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
 | Agents (templates/agents/) | code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver |
-| Commands (templates/commands/ecc/) | e2e, eval, harness-audit |
 
 **`verification-loop` 은 이 목록에 없다** — ECC 파생이지만 lock 밖이다(ADR-060 이 행을 해체했고
 ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포하며 출처는 SKILL.md 본문의 MIT 귀속

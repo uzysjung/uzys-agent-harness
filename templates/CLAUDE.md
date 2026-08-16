@@ -132,11 +132,20 @@ handoff.
 ## Presenting a decision
 
 Present a decision or approval request as AS-IS → TO-BE with a recommendation
-and the trade-off, not as prose. Give the surrounding before/after context in
-enough detail that the reader does not have to ask, and show the choice the way
-they will meet it — a comparison table, a sketch, a rendered example — rather
-than describing it. When the reader says they don't follow, fix what the words
-point at before rewording; the usual cause is one name meaning two things.
+and the trade-off, not as prose.
+
+**Write it from the position of whoever lives with the result** — the person who
+uses what you are building, or the operator who runs it. Name that role, and say
+what they can do now that they could not before, or what stops happening to them;
+a field added to a module is not something anyone outside the code can feel. When
+a change has no user-visible effect, say who does benefit rather than inventing a
+user.
+
+Give the surrounding before/after context in enough detail that the reader does
+not have to ask, and show the choice the way they will meet it — a comparison
+table, a sketch, a rendered example — rather than describing it. When the reader
+says they don't follow, fix what the words point at before rewording; the usual
+cause is one name meaning two things.
 
 ## Skills that apply continuously
 

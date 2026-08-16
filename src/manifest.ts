@@ -228,14 +228,16 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     });
   }
 
-  // ecc: commands — v26.58.0 opt-out gating (BREAKING vs v26.55.0). ADR-019.
-  // C2 — plugin OFF 시만 cherry-pick (plugin ON 이면 ecc plugin 의 /ecc:e2e, /ecc:eval, /ecc:harness-audit 사용).
-  m.push({
-    source: "commands/ecc",
-    target: ".claude/commands/ecc",
-    type: "dir",
-    applies: (s) => !s.withEcc,
-  });
+  // 2026-08-16 — `commands/ecc` 8종 삭제 (ADR-073). ADR-019 는 이것을 "ECC 플러그인을 안 고른
+  // 사람도 같은 명령을 쓰게" 하는 opt-out 폴백으로 넣었는데, 폴백이 자립하지 못했다: 8개 중
+  // **5개가 안 고른 자산을 가리킨다** — `eval`·`e2e` 는 frontmatter 가 없다고 가정한 플러그인의
+  // 에이전트(`everything-claude-code:build`)를 부르고, `evolve`·`instinct-status`·`promote` 는
+  // 별도 opt-in 스킬의 `continuous-learning-v2/scripts/instinct-cli.py` 를 부른다. ECC 를 고르지
+  // **않았다는 이유로** 깔리는데 ECC 가 있어야 도는 명령이었다. ECC 는 `--with ecc-plugin` 으로
+  // 따로 설치할 수 있으므로 폴백을 기본값에 둘 이유가 없다.
+  //
+  // `ecc-prune` 은 남는다 — 그쪽은 ECC 를 **고른 사람**의 설치를 최적화하는 opt-in 이라 방향이
+  // 반대다(사용자 확정 2026-08-16).
 
   // 하네스 앵커 — **프로젝트 루트**에 하네스 소유 파일로 나간다 (P5 · ADR-060).
   // 루트 `CLAUDE.md` 는 사용자 것이고, 거기엔 이 파일을 끌어오는 `@import` 한 줄만 들어간다
