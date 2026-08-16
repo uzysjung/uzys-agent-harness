@@ -110,7 +110,7 @@ referenced the removed asset is **printed for you to delete** rather than edited
 ### Files outside `.claude/` (v26.125.0+)
 
 Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
-`.env.example`, `.mcp-allowlist`, and `.github/workflows/` when `ci-scaffold` is selected. A full
+`.env.example`, and `.github/workflows/` when `ci-scaffold` is selected. A full
 uninstall **lists these and removes none of them** — your own content is mixed into `.mcp.json` and
 `.gitignore`, and the workflow files are yours once installed. Each is labelled by how it got there:
 
@@ -324,7 +324,7 @@ Pick one or more at step 2.
 |---|---|
 | `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
-| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, mcp-pre-exec) |
+| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, task-brief-nudge) |
 | `.claude/skills/*` | Anthropic skills (north-star, etc.) |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
@@ -346,12 +346,15 @@ Pick one or more at step 2.
 |---|---|---|
 | `session-start.sh` | session start | Load SPEC / Change Log context |
 | `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
-| `mcp-pre-exec.sh` | MCP exec | Allowlist gate (D35) |
+| `task-brief-nudge.sh` | UserPromptSubmit | Suggest structuring a long, unstructured request — never blocks |
 
-Blocking hooks (`protect-files.sh`, `mcp-pre-exec.sh`) append one tab-separated line — `date · hook · target` — to
-`.uzys-agent-harness/hook-blocks.log` every time they exit 2 (`mcp-pre-exec` annotates the
-target with the block reason). A failed write never
-changes the block itself. `uninstall` removes that directory, so the log goes with it.
+`protect-files.sh` is the only hook that blocks, and it appends one tab-separated line —
+`date · hook · target` — to `.uzys-agent-harness/hook-blocks.log` every time it exits 2. A failed
+write never changes the block itself. `uninstall` removes that directory, so the log goes with it.
+
+An MCP allowlist hook shipped until v26.146.1 and was removed in ADR-072: gating every MCP call
+works against the point of the harness, which is to help you build with these tools rather than
+to stand between you and them. If you had one, `update` backs up and retires `.mcp-allowlist`.
 
 ---
 

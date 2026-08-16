@@ -16,6 +16,7 @@ import {
   cleanStaleHookRefs,
   keepHookRef,
   pruneOrphans,
+  retireMcpAllowlist,
   runUpdateMode,
   syncSkills,
   updateDir,
@@ -141,6 +142,72 @@ describe("pruneOrphans", () => {
  * 넓히지 **않는** 경계: `.claude/` 밖 참조는 부재여도 보존한다. 사용자 자기 스크립트를 치유기가
  * 지우면 그건 치유가 아니라 파손이다.
  */
+/**
+ * `.mcp-allowlist` 은퇴 (ADR-072).
+ *
+ * 이 파일은 `.claude/` 밖이라 `pruneOrphans` 가 못 본다 — 읽던 훅만 물러나고 데이터가 남으면
+ * 사용자 저장소에 **아무도 안 읽는 파일이 영구히** 남는다. 그래서 별도 경로이고, 별도로 문다.
+ *
+ * 백업 단언이 핵심이다. 지우기만 하는 구현도 "파일이 없다"는 단언은 통과시키므로, 그 단언만
+ * 두면 사용자 편집분을 조용히 날리는 구현이 초록으로 산다.
+ */
+describe("retireMcpAllowlist (ADR-072)", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "ch-mcpret-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("파일이 없으면 null — 아무것도 만들지 않는다", () => {
+    expect(retireMcpAllowlist(dir)).toBeNull();
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("있으면 지우고, 지우기 전 내용을 백업에 보존한다", () => {
+    const target = join(dir, ".mcp-allowlist");
+    // 사용자가 서버 한 줄을 주석 처리해 자기 정책을 적어 넣은 상태 — 이게 보존 대상이다.
+    const body = "# context7\ngithub\n";
+    writeFileSync(target, body, "utf8");
+
+    const backup = retireMcpAllowlist(dir);
+
+    expect(backup).not.toBeNull();
+    expect(existsSync(target)).toBe(false);
+    expect(existsSync(backup as string)).toBe(true);
+    expect(readFileSync(backup as string, "utf8")).toBe(body);
+  });
+
+  it("같은 초에 두 번 불려도 첫 백업을 덮어쓰지 않는다", () => {
+    const target = join(dir, ".mcp-allowlist");
+    const now = new Date("2026-08-16T00:00:00Z");
+    writeFileSync(target, "first\n", "utf8");
+    const first = retireMcpAllowlist(dir, now) as string;
+
+    writeFileSync(target, "second\n", "utf8");
+    const second = retireMcpAllowlist(dir, now) as string;
+
+    expect(second).not.toBe(first);
+    expect(readFileSync(first, "utf8")).toBe("first\n");
+    expect(readFileSync(second, "utf8")).toBe("second\n");
+  });
+
+  it("runUpdateMode 가 이 정리를 실제로 수행하고 보고한다 (배선 확인)", () => {
+    // 배선을 안 물면 함수는 맞는데 아무도 안 부르는 상태가 초록으로 산다 — 이 리포가
+    // `checkpoint-snapshot.sh` 로 한 번 당한 형태다.
+    const templatesDir = mkdtempSync(join(tmpdir(), "ch-mcpret-tpl-"));
+    mkdirSync(join(dir, ".claude"), { recursive: true });
+    writeFileSync(join(dir, ".mcp-allowlist"), "context7\n", "utf8");
+
+    const report = runUpdateMode(dir, templatesDir, HARNESS_ROOT);
+
+    expect(report.mcpAllowlistRetired).not.toBeNull();
+    expect(existsSync(join(dir, ".mcp-allowlist"))).toBe(false);
+    rmSync(templatesDir, { recursive: true, force: true });
+  });
+});
+
 describe("cleanStaleHookRefs", () => {
   let dir: string;
   let claudeDir: string;

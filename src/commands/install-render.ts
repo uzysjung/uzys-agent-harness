@@ -511,6 +511,18 @@ function renderPhase1Rows(
         ),
       );
     }
+    // 2026-08-16 (ADR-072) — `.mcp-allowlist` 은퇴. 이 줄이 없으면 사용자는 자기 저장소에서
+    // 파일 하나가 사라진 것만 보고 이유를 못 찾는다. 백업 경로를 함께 내는 이유는 그게
+    // "되돌릴 수 있다"의 유일한 증거이기 때문이다 — 경로 없이 "백업했다"는 안내는 검증 불가다.
+    if (baseline.updateMode.mcpAllowlistRetired) {
+      log(
+        assetRow(
+          "skip",
+          ".mcp-allowlist",
+          `retired · the hook that read it is gone — backed up as ${shortenPath(baseline.updateMode.mcpAllowlistRetired)}`,
+        ),
+      );
+    }
     // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
     // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
     if (baseline.updateMode.policyBackedUp.length > 0) {
@@ -605,7 +617,7 @@ function renderPhase1Rows(
       phase1Row(
         "hooks",
         cats.hooks.length,
-        "session-start · protect-files · mcp-pre-exec (security) · task-brief-nudge",
+        "session-start · protect-files · task-brief-nudge",
         cats.hooks,
       );
     }
@@ -668,16 +680,6 @@ function renderPhase1Rows(
   }
   const mcpList = baseline.mcpServers.join(", ") || "(none)";
   log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
-  if (baseline.envFiles.mcpAllowlist) {
-    log(
-      assetRow(
-        "success",
-        ".mcp-allowlist",
-        `${baseline.envFiles.mcpAllowlist.length} servers (D35 opt-in gate)`,
-        TEMPLATES_COL,
-      ),
-    );
-  }
   // v26.63.3 (distill H2): ECC fallback hint — Templates section 마지막에 통합 표시.
   //   withEcc=true (ECC plugin opt-in) 사용자에게는 hint 미표시.
   if (!withEcc && baseline.categories) {

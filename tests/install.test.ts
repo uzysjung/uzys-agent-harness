@@ -62,7 +62,6 @@ const fakeReport: InstallReport = {
   envFiles: {
     envExampleCreated: false,
     gitignoreEnvAdded: false,
-    mcpAllowlist: null,
     gitignoreNpxSkillsAdded: [],
   },
 };
@@ -740,7 +739,10 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Codex"));
   });
 
-  it("renders .env.example + .gitignore + .mcp-allowlist rows when envFiles flags set", () => {
+  // 2026-08-16 (ADR-072) — `.mcp-allowlist` 행 단언 삭제. 그 파일을 만들지 않으므로 렌더할
+  // 행 자체가 없다. 같은 블록의 나머지 두 행은 남는다 — 이 테스트가 무는 것은 "envFiles 플래그가
+  // 화면에 도달하는가"이고, 그 술어는 자산 하나가 빠져도 여전히 유효하다.
+  it("renders .env.example + .gitignore rows when envFiles flags set", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
@@ -748,15 +750,12 @@ describe("executeSpec", () => {
       envFiles: {
         envExampleCreated: true,
         gitignoreEnvAdded: true,
-        mcpAllowlist: ["context7", "github", "supabase"],
         gitignoreNpxSkillsAdded: [],
       },
     });
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".env.example"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".gitignore"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining(".mcp-allowlist"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("3 servers"));
   });
 
   it("renders Update Mode summary when report.updateMode is present", () => {
@@ -782,6 +781,7 @@ describe("executeSpec", () => {
         installedNew: [],
         restored: [],
         needsReinstall: [],
+        mcpAllowlistRetired: null,
       },
     });
     executeSpec(baseSpec, {
@@ -836,6 +836,7 @@ describe("executeSpec", () => {
         installedNew: [],
         restored: [],
         needsReinstall: [],
+        mcpAllowlistRetired: null,
       },
     });
     executeSpec(baseSpec, {
@@ -889,6 +890,7 @@ describe("executeSpec", () => {
         installedNew: [],
         restored: [],
         needsReinstall: [],
+        mcpAllowlistRetired: null,
       },
     });
     executeSpec(baseSpec, {
@@ -933,6 +935,7 @@ describe("executeSpec", () => {
         installedNew: [],
         restored: [],
         needsReinstall: [],
+        mcpAllowlistRetired: null,
       },
     });
     executeSpec(baseSpec, {

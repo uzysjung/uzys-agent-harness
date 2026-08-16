@@ -276,7 +276,7 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
   }
 
   /** 정상 참조 = 항상 깔리는 훅(`ALWAYS_HOOKS`) 중 settings.json 이 실제로 부르는 것들. */
-  const LIVE_HOOK_REFS = ["session-start.sh", "protect-files.sh", "mcp-pre-exec.sh"];
+  const LIVE_HOOK_REFS = ["session-start.sh", "protect-files.sh", "task-brief-nudge.sh"];
 
   it("전제 확인 — 두 설치가 스킬 유무에서 실제로 갈린다 (헛통과 차단)", () => {
     // 여기가 안 갈리면 아래 두 케이스는 같은 상황을 두 번 보는 것이고, 초록불이 무의미해진다.

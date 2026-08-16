@@ -12,12 +12,7 @@ import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
-import {
-  addGitignoreAgentArtifacts,
-  addGitignoreEnv,
-  writeEnvExample,
-  writeMcpAllowlist,
-} from "./env-files.js";
+import { addGitignoreAgentArtifacts, addGitignoreEnv, writeEnvExample } from "./env-files.js";
 import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -178,7 +173,6 @@ export interface BaselineReport {
   envFiles: {
     envExampleCreated: boolean;
     gitignoreEnvAdded: boolean;
-    mcpAllowlist: string[] | null;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
      * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
@@ -239,8 +233,6 @@ export interface InstallReport {
     envExampleCreated: boolean;
     /** true if .gitignore got `.env` line appended. */
     gitignoreEnvAdded: boolean;
-    /** Server names written to .mcp-allowlist; null if skipped. */
-    mcpAllowlist: string[] | null;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
      * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
@@ -451,7 +443,6 @@ function runUpdateInstall(
     envFiles: {
       envExampleCreated: false,
       gitignoreEnvAdded: false,
-      mcpAllowlist: null,
       gitignoreNpxSkillsAdded: [],
     },
     rootClaudeMd: null,
@@ -653,7 +644,6 @@ function writeEnvironmentFiles(
   return {
     envExampleCreated: writeEnvExample(projectDir, tracks),
     gitignoreEnvAdded: addGitignoreEnv(projectDir),
-    mcpAllowlist: writeMcpAllowlist(projectDir),
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3).
     // 2026-08-02 — `.uzys-agent-harness/` 합류 (설치 로그 + 훅 차단 로그).
     gitignoreNpxSkillsAdded: addGitignoreAgentArtifacts(projectDir),
@@ -791,15 +781,6 @@ function collectRootFiles(
   ];
   if (envFiles.envExampleCreated) {
     files.push({ path: ".env.example", change: "created", notes: ["Supabase 토큰 가이드"] });
-  }
-  // `mcpAllowlist` 는 세 값이 다 다르다: null=skip · []=**서버가 없어 안 씀** · 비어있지 않음=씀.
-  // 길이를 안 보면 안 만든 파일을 만들었다고 기록한다 (env-files.ts writeMcpAllowlist).
-  if (envFiles.mcpAllowlist && envFiles.mcpAllowlist.length > 0) {
-    files.push({
-      path: ".mcp-allowlist",
-      change: "created",
-      notes: [`MCP allowlist (${envFiles.mcpAllowlist.length} server)`],
-    });
   }
   const gitignoreAdded = [
     ...(envFiles.gitignoreEnvAdded ? [".env"] : []),
