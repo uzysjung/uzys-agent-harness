@@ -156,7 +156,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 57 자산 매트릭스 (2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 58 자산 매트릭스 (2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -562,6 +562,27 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "oso95",
     condition: { kind: "opt-in" },
     method: { kind: "skill", source: "oso95/scroll-world", skill: "scroll-world" },
+  },
+  // 2026-08-16 — Preline 은 Tailwind 컴포넌트 킷이지만 **프레임워크에 매이지 않는다**: htmx·
+  // vanilla 에도 붙는다(사용자 확인). 그래서 `frontend` 이면서 React/Vue 트랙 전용이 아니다.
+  //
+  // 리포 안에 스킬은 `skills/theme-generator/` **하나**다 — 공식 문서는 이것을
+  // "preline-theme-generator" 라 부르지만 실제 디렉터리명은 `theme-generator` 이고,
+  // `npx skills add` 가 보는 것은 디렉터리명이다(실측 2026-08-16). 문서 표기를 그대로 옮겼다면
+  // 설치가 조용히 빗나갔다.
+  //
+  // 같은 날 조사한 flowbite 는 **넣지 않는다**: 에이전트용 제공물이 MCP 서버뿐인데, 이 저장소의
+  // `.mcp.json` 조립은 트랙 조건만 읽어 opt-in 경로가 없다 — 넣으면 해당 트랙 전원에게 항상
+  // 켜진다. 안 쓰는 사람에게 MCP 툴 스키마만큼의 상주 비용을 물리는 형태라 기각(사용자 확정).
+  {
+    id: "preline",
+    tier: "vetted", // htmlstreamofficial/preline 6,386 (2026-08-16)
+    description:
+      "Preline theme generator — turns a brand description into a Preline UI Tailwind theme (tokens, dark mode, component overrides); framework-agnostic, works with plain HTML and htmx",
+    category: "frontend",
+    source: "htmlstreamofficial",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "htmlstreamofficial/preline", skill: "theme-generator" },
   },
 
   // === dev tools (has_dev_track) ===
