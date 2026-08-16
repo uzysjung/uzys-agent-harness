@@ -108,9 +108,9 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-08-16, 룰 전수 조사 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,036 tokens/세션** =
-> rules 6개 ~1,050 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~724 · skill descriptors 6개 ~292.
+> **현재 상태 (2026-08-17, implementer frontmatter 수정 뒤)**: **상주 + 발화 양축 계측 완료**
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,037 tokens/세션** =
+> rules 6개 ~1,050 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
 > 룰 6종을 한 줄씩 판정해 **모델이 이미 아는 3줄만 압축**했다(`test-policy`, −139 B / −36 tok).
 > 나머지는 안 건드렸다 — 대부분이 이 저장소가 실제로 당한 사고에서 역산돼 쓰인 문장이고,
 > 승인·보안 경계는 명시가 곧 계약이라 조이면 계약이 흐려진다. 판정표 =

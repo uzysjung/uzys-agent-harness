@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implementation lane — writes code for a scoped change and closes it with a test that fails without the change. Use whenever work moves from deciding to building: a feature, a bug fix, a refactor, a migration step. Prefer this over implementing on the main thread. Korean triggers: 구현해 · 고쳐 · 만들어 · 적용해 · 리팩터 · 위임.
+description: "Implementation lane — writes code for a scoped change and closes it with a test that fails without the change. Use whenever work moves from deciding to building: a feature, a bug fix, a refactor, a migration step. Prefer this over implementing on the main thread. Korean triggers: 구현해 · 고쳐 · 만들어 · 적용해 · 리팩터 · 위임."
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: opus
 origin: self-authored
