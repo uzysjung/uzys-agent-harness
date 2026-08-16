@@ -54,7 +54,7 @@ gh repo edit uzysjung/uzys-agent-harness \
 ### bradAGI 엔트리 (그들 포맷에 맞춤 — 그대로 복붙)
 
 ```markdown
-- **[agent-harness](https://github.com/uzysjung/uzys-agent-harness)** `⭐ 0` — One-command installer/curator that sets up vetted skills, plugins, rules, hooks, and agent workflows (ECC, BMAD, OpenSpec, Superpowers, wshobson, …) across Claude Code, Codex, OpenCode, and Antigravity. Trust-tier curation with monthly star-drift monitoring; most install methods are verified by real install in an isolated Docker container (43/58 assets; the rest verified by CI file-placement matrix), not a hand-maintained table. `npx @uzysjung/agent-harness`. MIT.
+- **[agent-harness](https://github.com/uzysjung/uzys-agent-harness)** `⭐ 0` — One-command installer/curator that sets up vetted skills, plugins, rules, hooks, and agent workflows (ECC, BMAD, OpenSpec, Superpowers, wshobson, …) across Claude Code, Codex, OpenCode, and Antigravity. Trust-tier curation with monthly star-drift monitoring; most install methods are verified by real install in an isolated Docker container (44/59 assets; the rest verified by CI file-placement matrix), not a hand-maintained table. `npx @uzysjung/agent-harness`. MIT.
 ```
 
 ### hesreallyhim issue form 입력값
@@ -73,7 +73,7 @@ agent-harness — One command to install vetted skills, plugins, rules, hooks & 
 
 - **제목**: `Show HN: agent-harness – install vetted AI-coding workflows across 4 CLIs`
 - **본문**:
-  > Picking an AI-coding workflow means comparing Superpowers vs ECC vs Spec Kit vs BMAD vs OpenSpec vs… across Claude Code, Codex, OpenCode, and Antigravity — each with a different install path. agent-harness curates the vetted ones (trust-tier, star-drift-monitored monthly) and installs them across the 4 CLIs in one command — skills & rules reach all four; plugins are Claude-first. Most install methods are verified by real install in an isolated Docker container (43/58 assets; templates via CI file-placement matrix), not a hand-maintained table — and it's honest about what each CLI actually supports (e.g. Codex project-local prompts, BMAD's non-interactive flags). There's a comparison guide so you don't have to evaluate 8 workflows yourself.
+  > Picking an AI-coding workflow means comparing Superpowers vs ECC vs Spec Kit vs BMAD vs OpenSpec vs… across Claude Code, Codex, OpenCode, and Antigravity — each with a different install path. agent-harness curates the vetted ones (trust-tier, star-drift-monitored monthly) and installs them across the 4 CLIs in one command — skills & rules reach all four; plugins are Claude-first. Most install methods are verified by real install in an isolated Docker container (44/59 assets; templates via CI file-placement matrix), not a hand-maintained table — and it's honest about what each CLI actually supports (e.g. Codex project-local prompts, BMAD's non-interactive flags). There's a comparison guide so you don't have to evaluate 8 workflows yourself.
 - **링크**: repo + `docs/WORKFLOWS.md`(비교) + `docs/COMPATIBILITY.md`(검증)
 - **운영**: README + 30초 데모(GIF/asciinema) 준비 후 1회. 게시 후 3시간 내 댓글 응대.
 

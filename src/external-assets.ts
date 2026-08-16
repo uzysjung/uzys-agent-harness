@@ -156,7 +156,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 58 자산 매트릭스 (2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 59 자산 매트릭스 (2026-08-17 game-engine 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -866,6 +866,25 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       kind: "skill",
       source: "https://github.com/vercel-labs/agent-skills",
       skill: "web-design-guidelines",
+    },
+  },
+  {
+    // 2026-08-17 (사용자 지정) — 웹 게임 개발. **웹 전용이다**: 스킬 본문 frontmatter 가
+    //   "HTML5, Canvas, WebGL, and JavaScript" 로 스스로 범위를 적고 있고 프레임워크도
+    //   Phaser · Three.js · Babylon.js · A-Frame 이다. Unity/Unreal/Godot 은 안 덮으므로
+    //   description 에 "web" 을 남긴다 — 엔진 이름을 지우면 네이티브 엔진까지 되는 것처럼 읽힌다.
+    // opt-in 인 이유: frontend 트랙 사용자 대부분은 게임을 만들지 않는다. 게임 트랙은 아직 없다.
+    id: "game-engine",
+    tier: "vetted", // github/awesome-copilot 37,909★ (MIT, 2026-08-17 `gh api` 실측 · GitHub 공식 조직)
+    description:
+      "Game engine — web game development with HTML5 Canvas · WebGL (Phaser · Three.js · Babylon.js): game loop, physics, collision, sprites, tilemaps, gamepad input, WebRTC multiplayer",
+    category: "frontend",
+    source: "github",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "skill",
+      source: "https://github.com/github/awesome-copilot",
+      skill: "game-engine",
     },
   },
   // === Executive tracks ===

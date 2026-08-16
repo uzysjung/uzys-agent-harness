@@ -111,14 +111,14 @@
 
 > 트리거: 사용자 지시 2026-06-13. 동인 = 자산은 한번 넣으면 관성으로 남는다 — "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만, North Star 기둥①) 철학의 능동 재검증. A2 star-drift CI 보완: CI=star 만, M5=용도/중복/1st-party/철학 정합까지.
 
-**목표:** 카탈로그(현 58 자산 — 2026-08-16 preline 추가. 그 전 2026-08-02 ADR-060 정비에서 축B 의 큰 몫이 실행됨: 12종 제거. 함께 갔던 uzys 스킬 외부화는 같은 날 ADR-062 가 이관 실패 판정으로 번복·번들 복원)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
+**목표:** 카탈로그(현 59 자산 — 2026-08-17 game-engine 추가. 그 전 2026-08-16 preline 추가. 그 전 2026-08-02 ADR-060 정비에서 축B 의 큰 몫이 실행됨: 12종 제거. 함께 갔던 uzys 스킬 외부화는 같은 날 ADR-062 가 이관 실패 판정으로 번복·번들 복원)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
 
 **완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 65 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
 | P2 | M | **축A — Visual & Media 확장 리서치**: 모션(현 GSAP 1)·동영상(현 Remotion 1)이 vetted 1개씩 → 추가 후보 재탐색(neighborhood 변화·star 성장). 화면녹화 용도(현 0, 캡처라 제외) 코드-제작형 신규 등장 재검토. 슬라이드/다이어그램 1st-party 프레임워크(Slidev·reveal 본가) 등장 시 교체. Docker 통과분만 등재. | 사용자 2026-06-13 |
-| P2 | L | **축B — 전체 카탈로그(58) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·revealjs 347 — ADR 179는 v26.106.0 ADR-035로 제거됨) 승격 or 제거. *(next-skills·gsd-orchestrator 는 2026-07-14 제거 — ADR-024)* | 사용자 2026-06-13 |
+| P2 | L | **축B — 전체 카탈로그(59) 유지가치 재검토**: 자산별 keep/demote/drop. 판정축 ① star/활성 drift(trust-tier-drift 실측) ② 용도 중복(같은 일 2자산) ③ 1st-party 대체재 등장 ④ 사용 신호(있으면). experimental 잔류(railway 268·playwright 264·revealjs 347 — ADR 179는 v26.106.0 ADR-035로 제거됨) 승격 or 제거. *(next-skills·gsd-orchestrator 는 2026-07-14 제거 — ADR-024)* | 사용자 2026-06-13 |
 | P3 | S | drop 후보 = Major CR(도달경로 변경)→사용자 결정+ADR. 제거 자산은 uninstall reverse·문서(COMPATIBILITY/WORKFLOWS) 동기화까지. | 사용자 2026-06-13 |
 
 > "플랜에만"(사용자 2026-06-13): 정의만 추가, 착수는 순차(M2 게시 후). 정기성 = M3 신호 확보 뒤 1회 + 분기 권장. 차기 사이클에 Visual & Media 9종 자체도 재평가 대상.
