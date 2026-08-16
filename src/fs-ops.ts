@@ -181,11 +181,10 @@ function formatStamp(now: Date): string {
     .slice(0, 15);
 }
 
-/** Create a project skeleton: <project>/.claude/{commands/{uzys,ecc},rules,skills,agents,hooks}. */
+/** Create a project skeleton: <project>/.claude/{commands/uzys,rules,skills,agents,hooks}. */
 export function ensureProjectSkeleton(projectDir: string): void {
   const dirs = [
     ".claude/commands/uzys",
-    ".claude/commands/ecc",
     ".claude/rules",
     ".claude/skills",
     ".claude/agents",

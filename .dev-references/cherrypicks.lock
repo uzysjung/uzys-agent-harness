@@ -123,33 +123,6 @@
       "modification_note": "looping/hanging 워크플로우 복구. Failure → Diagnosis → Recovery → Report 4단계"
     },
     {
-      "id": "ecc-cmd-e2e",
-      "source": "ecc",
-      "src": ".opencode/commands/e2e.md",
-      "dst": "templates/commands/ecc/e2e.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "/ecc:e2e — Playwright E2E 테스트 생성/실행"
-    },
-    {
-      "id": "ecc-cmd-eval",
-      "source": "ecc",
-      "src": ".opencode/commands/eval.md",
-      "dst": "templates/commands/ecc/eval.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "/ecc:eval — acceptance criteria 기반 평가 실행"
-    },
-    {
-      "id": "ecc-cmd-harness-audit",
-      "source": "ecc",
-      "src": ".opencode/commands/harness-audit.md",
-      "dst": "templates/commands/ecc/harness-audit.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "/ecc:harness-audit — 7카테고리 deterministic 점수 (P10 분기 검토용)"
-    },
-    {
       "id": "ecc-silent-failure-hunter",
       "source": "ecc",
       "src": "agents/silent-failure-hunter.md",
