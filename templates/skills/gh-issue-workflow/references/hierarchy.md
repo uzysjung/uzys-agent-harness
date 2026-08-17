@@ -186,3 +186,47 @@ gh label create "in-progress"      --color 1D76DB --description "PR 열림"   # 
 ```
 
 축은 셋으로 충분하다. 라벨을 늘리면 필터가 아니라 장식이 된다.
+
+## 8. wiki 미러 (조건 충족 시에만)
+
+`gh` 에 **wiki 서브커맨드가 없다** — 전부 git 으로 한다. wiki 는 별도 git 리포다.
+
+```bash
+# ① 조건 판정. 둘 다 참이어야 한다
+gh api repos/:owner/:repo --jq .has_wiki                  # true 여야 한다
+WIKI="$(gh repo view --json url --jq .url).wiki.git"
+git ls-remote "$WIKI" >/dev/null; echo "wiki: $?"          # 0 이면 실재
+
+# ② 대조군 — 위가 실패했을 때 "없다"와 "내 인증이 틀렸다"를 가른다
+git ls-remote "$(gh repo view --json url --jq .url).git" >/dev/null; echo "본체: $?"
+```
+
+`wiki: 128` + `본체: 0` = **리포가 없다**(첫 페이지 미생성). 둘 다 실패면 인증·네트워크 문제이므로
+wiki 부재로 결론내지 않는다.
+
+`128` 이면 여기서 멈추고 사용자에게 넘긴다 — 첫 페이지는 **웹 UI 에서 사람이** 만든다
+(리포 → Wiki 탭 → Create the first page). 에이전트가 할 수 있는 경로가 없다.
+
+```bash
+# ③ 미러 (조건 충족 시). 임시 디렉터리에서 — 고정 경로 금지
+D="$(mktemp -d)"
+git clone "$WIKI" "$D"   # 여기부터 WRITE — 승인 없이 push 하지 않는다
+```
+
+페이지 파일명은 **제목이 곧 파일명**이다(`Home.md` · `North-Star.md` — 공백은 `-`).
+사이드바를 두려면 `_Sidebar.md`.
+
+각 미러 페이지의 **첫 두 줄**에 배너를 둔다. 이게 없으면 다음 사람이 wiki 를 원본으로 편집한다:
+
+```markdown
+> 이 페이지는 `docs/NORTH_STAR.md` 의 사본이다. **편집은 저장소에서** 하고 여기는 미러만 한다.
+> 미러한 커밋: `abc1234` · 미러한 날짜: YYYY-MM-DD
+
+<원본 본문>
+```
+
+커밋 해시는 `git rev-parse --short HEAD` 로 **미러 시점의 본체 HEAD** 를 쓴다. 날짜만 적으면
+어느 상태의 사본인지 알 수 없다.
+
+미러 대상은 **목표층뿐**이다 — 움직이는 것(계획·백로그·ADR)을 미러하면 미러가 항상 틀린다.
+계획이 바뀐 사유는 이슈나 ADR 에 있고, wiki 는 그 번호를 가리킨다.

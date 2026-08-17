@@ -7,9 +7,11 @@ description: >-
   decisions out of comments into the issue body so they survive. Enforces the body template
   (배경/문제/근거/레퍼런스/제안/전제/방향성/AC/후속) so issues become reusable agent context, and
   keeps read-only, draft, remote-write, implement, verify, and status stages distinct. Use whenever
-  a request will outlive the chat turn, whenever work needs an order the user can review, or when
-  the user names issues ("이슈로 등록해줘", "에픽으로 묶어줘", "이슈 정리해줘", "#42 작업해줘",
-  "우선순위 다시 잡자", "backlog this", "break this into sub-issues", "implement issue #N").
+  a request will outlive the chat turn — including a request that arrives mid-work, which gets an
+  issue draft appended to the reply instead of interrupting what is running — whenever work needs an
+  order the user can review, or when the user names issues ("이슈로 등록해줘", "에픽으로 묶어줘",
+  "이슈 정리해줘", "#42 작업해줘", "우선순위 다시 잡자", "backlog this",
+  "break this into sub-issues", "implement issue #N").
   Read-only stages make no remote change; never create, edit, label, comment on, close, or
   re-parent a remote issue, and never touch a project board, without the user asking for that
   change.
@@ -66,6 +68,27 @@ description: >-
 단계·모드와 무관한 상시 요구다. 재조정은 본질적으로 다건 일괄 변경이라(§8) 여기가 가장 중요하다.
 
 MCP `mcp__github__*` 를 쓸 수 있으면 셸 `gh` 보다 우선한다 — 같은 승인 규칙이 그대로 적용된다.
+
+## 중간 요청 접수 — 멈추지 않고 받는다
+
+사용자는 작업 **중간에** 요청을 던진다. 그 요청이 진행 중인 턴에 흡수되면 무엇이 접수됐고
+무엇이 누락됐는지 셀 자리가 없다 — 사용자에게도, 컨텍스트가 끊긴 다음 세션에게도.
+
+**문턱은 하나다: 이번 턴에 끝나는가.**
+
+| 판정 | 행동 |
+|---|---|
+| 이번 턴에 끝난다 | **그냥 한다.** 이슈를 만들지 않고 결과를 보고한다 |
+| 이번 턴을 넘는다 · 판단이 안 선다 | 진행을 멈추지 않고, **응답 끝에 이슈 초안**(제목 + 5칸 요약)을 붙인다 |
+| 한 줄 질문 · 단순 조회 | 아무것도 안 한다 |
+
+승인을 받으면 등록하고 **응답에 번호를 회신한다**(`#N 으로 접수했습니다`). 승인 전에는 등록하지
+않는다 — 원격 쓰기 규칙은 여기서도 그대로다(`WRITE`).
+
+**이슈는 제품 백로그다.** 그 세션의 환경·도구·에이전트 문제는 여기 들어오지 않는다 — 저장소가
+고칠 대상이 아니면 이슈가 아니라 그 자리에서 처리할 일이다.
+
+부모(에픽)를 **자동으로 판정하지 않는다.** 어디에 붙일지는 사람이 안다 — 초안에 후보를 적고 묻는다.
 
 ## 계층 — Project · Milestone · Epic · Task
 
@@ -268,6 +291,12 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
 - **없는 라벨·타입·프로젝트를 쓰려다 실패** — 쓰기 전에 존재를 잰다.
 - **인증 스코프를 대신 고치기** — `gh auth refresh` 는 사용자 행동이다.
 - **remote 가 있다는 이유만으로 이슈·라벨·코멘트·보드를 만든다** — 읽기는 자유, 쓰기는 요청이 조건.
+- **중간 요청을 자동으로 이슈 등록** — 승인 없는 원격 쓰기이고, 한 줄 질문까지 이슈가 되면 목록이
+  신뢰를 잃는다. 초안을 보여주고 승인을 받는다.
+- **중간 요청을 받느라 하던 일을 멈춘다** — 접수는 진행을 막지 않는다. 초안은 응답 끝에 붙인다.
+- **세션·환경 문제를 이슈로 올린다** — 이슈는 제품 백로그다. 저장소가 고칠 대상이 아니면 아니다.
+- **wiki 를 원본처럼 편집** — 두 원본이 생겨 한쪽이 썩는다. 원본은 `docs/`, wiki 는 배너 달린 사본.
+- **wiki 부재를 에러로 처리** — 첫 페이지 생성은 사용자만 할 수 있다. 없으면 조용히 건너뛴다.
 - **커밋 하나나 초록 빌드만 보고 close** — AC 증거가 close 조건이다.
 - **팀 기능 도입** (assignee 자동, code owner 자동 review) — 본 스킬 범위 밖.
 
@@ -278,6 +307,8 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
   머문다.** 등록·계층화는 제안만 하고 실행하지 않는다
 - private repo 권한 없음 → fetch 실패를 사용자에게 보고
 - 조직 전용 기능(issue type)·스코프 부족(Projects) → 대체 축으로 우회하고 그 사실을 보고
+- `has_wiki=false` 또는 `.wiki.git` 부재 → wiki 절은 **아무것도 하지 않는다** (에러 아님).
+  첫 페이지 생성은 사용자 행동이라 대신 하지 않는다
 
 ## 층 — 무엇이 고정이고 무엇이 움직이나
 
@@ -289,6 +320,38 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
   묶음의 경계, `blocked-by` 는 사실이다.
 
 3층 표(목표/이슈/묶음)와 근거 수치는 `references/operating-model.md` §P1·§P4.
+
+## wiki 미러 — 저장소가 wiki 를 쓸 때만
+
+목표층 문서(북극성 · SPEC · 마일스톤 방향)는 저장소를 클론하지 않는 사람에게 안 보인다. wiki 가
+그 자리를 채운다 — **미러로만.**
+
+**조건 둘이 다 참일 때만 동작하고, 아니면 조용히 건너뛴다**(에러 아님):
+
+```bash
+gh api repos/:owner/:repo --jq .has_wiki                          # ① 기능이 켜져 있는가
+git ls-remote "$(gh repo view --json url --jq .url).wiki.git" >/dev/null 2>&1; echo $?
+                                                                   # ② 리포가 실재하는가 (0 이면 있다)
+```
+
+②가 실패해도 "wiki 를 못 쓴다"로 결론내기 전에 **본 저장소로 대조**한다 — 같은 명령이 본 리포에서도
+실패하면 인증·네트워크 문제이지 wiki 부재가 아니다.
+
+**첫 페이지는 에이전트가 만들 수 없다.** `has_wiki=true` 여도 웹 UI 에서 페이지를 하나 만들기
+전까지 `.wiki.git` 은 존재하지 않고, `gh` 에는 wiki 서브커맨드가 없다. 그건 **사용자 행동**이다 —
+없으면 안내만 하고 넘어간다.
+
+지켜야 할 것 넷:
+
+- **원본은 `docs/` 다.** wiki 페이지는 생성물이라 머리에 배너를 단다 — 원본 경로 + 미러한 커밋
+  해시. 이게 없으면 두 원본이 생겨 한쪽이 썩는다.
+- **대상은 목표층뿐.** 룰 · ADR · 계획 · 백로그는 저장소에 둔다. 움직이는 것을 미러하면 미러가
+  항상 틀린다.
+- **사유는 wiki 에 쓰지 않는다.** 계획이 왜 바뀌었는지는 이슈나 ADR 에 있고 wiki 는 **가리킨다.**
+- **동기는 절차이지 자동화가 아니다.** 방향성 문서를 고친 사이클에서 미러도 같이 갱신하고, 무엇을
+  올렸는지 보고한다. 푸시는 `WRITE` 다 — 승인 없이 하지 않는다.
+
+명령면(clone · 페이지 파일명 규칙 · 배너 형식)은 `references/hierarchy.md` §8.
 
 ## References
 
