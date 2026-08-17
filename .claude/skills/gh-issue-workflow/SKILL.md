@@ -7,11 +7,9 @@ description: >-
   decisions out of comments into the issue body so they survive. Enforces the body template
   (배경/문제/근거/레퍼런스/제안/전제/방향성/AC/후속) so issues become reusable agent context, and
   keeps read-only, draft, remote-write, implement, verify, and status stages distinct. Use whenever
-  a request will outlive the chat turn — including a request that arrives mid-work, which gets an
-  issue draft appended to the reply instead of interrupting what is running — whenever work needs an
-  order the user can review, or when the user names issues ("이슈로 등록해줘", "에픽으로 묶어줘",
-  "이슈 정리해줘", "#42 작업해줘", "우선순위 다시 잡자", "backlog this",
-  "break this into sub-issues", "implement issue #N").
+  a request will outlive the chat turn, whenever work needs an order the user can review, or when
+  the user names issues ("이슈로 등록해줘", "에픽으로 묶어줘", "이슈 정리해줘", "#42 작업해줘",
+  "우선순위 다시 잡자", "backlog this", "break this into sub-issues", "implement issue #N").
   Read-only stages make no remote change; never create, edit, label, comment on, close, or
   re-parent a remote issue, and never touch a project board, without the user asking for that
   change.
@@ -74,13 +72,17 @@ MCP `mcp__github__*` 를 쓸 수 있으면 셸 `gh` 보다 우선한다 — 같�
 사용자는 작업 **중간에** 요청을 던진다. 그 요청이 진행 중인 턴에 흡수되면 무엇이 접수됐고
 무엇이 누락됐는지 셀 자리가 없다 — 사용자에게도, 컨텍스트가 끊긴 다음 세션에게도.
 
+**활성 조건이 읽기 이상일 때**(§활성 조건 — 비활성이면 이 절도 아무것도 하지 않는다)
 **문턱은 하나다: 이번 턴에 끝나는가.**
 
 | 판정 | 행동 |
 |---|---|
 | 이번 턴에 끝난다 | **그냥 한다.** 이슈를 만들지 않고 결과를 보고한다 |
-| 이번 턴을 넘는다 · 판단이 안 선다 | 진행을 멈추지 않고, **응답 끝에 이슈 초안**(제목 + 5칸 요약)을 붙인다 |
+| 이번 턴을 넘는다 · 판단이 안 선다 | 진행을 멈추지 않고, **응답 끝에 이슈 초안**을 붙인다 |
 | 한 줄 질문 · 단순 조회 | 아무것도 안 한다 |
+
+초안은 제목 + **`ISSUE.template.md` 의 배경 · 문제 · 제안 · AC · 후속** 다섯 칸이다(§2 의 9칸 중
+이 다섯). 접수 시점에는 근거·레퍼런스·전제를 아직 모르는 게 정상이라 등록 후 채운다.
 
 승인을 받으면 등록하고 **응답에 번호를 회신한다**(`#N 으로 접수했습니다`). 승인 전에는 등록하지
 않는다 — 원격 쓰기 규칙은 여기서도 그대로다(`WRITE`).
@@ -307,8 +309,6 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
   머문다.** 등록·계층화는 제안만 하고 실행하지 않는다
 - private repo 권한 없음 → fetch 실패를 사용자에게 보고
 - 조직 전용 기능(issue type)·스코프 부족(Projects) → 대체 축으로 우회하고 그 사실을 보고
-- `has_wiki=false` 또는 `.wiki.git` 부재 → wiki 절은 **아무것도 하지 않는다** (에러 아님).
-  첫 페이지 생성은 사용자 행동이라 대신 하지 않는다
 
 ## 층 — 무엇이 고정이고 무엇이 움직이나
 
@@ -326,19 +326,26 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
 목표층 문서(북극성 · SPEC · 마일스톤 방향)는 저장소를 클론하지 않는 사람에게 안 보인다. wiki 가
 그 자리를 채운다 — **미러로만.**
 
-**조건 둘이 다 참일 때만 동작하고, 아니면 조용히 건너뛴다**(에러 아님):
+**`has_wiki` 가 참이고 wiki 리포가 실재할 때만 동작하고, 아니면 조용히 건너뛴다**(에러 아님).
+
+**리포 실재는 대조군으로 판정한다.** `git ls-remote` 의 exit **128 은 "리포 없음"과 "인증·네트워크
+실패"에 똑같이 나오므로** 그 코드만으로는 가를 수 없다. 이 하네스가 배포한 도구가 그 대조를
+강제한다(`doc-governance` 가 지목하는 것과 같은 도구):
 
 ```bash
-gh api repos/:owner/:repo --jq .has_wiki                          # ① 기능이 켜져 있는가
-git ls-remote "$(gh repo view --json url --jq .url).wiki.git" >/dev/null 2>&1; echo $?
-                                                                   # ② 리포가 실재하는가 (0 이면 있다)
+gh api repos/:owner/:repo --jq .has_wiki       # 먼저 기능이 켜져 있는지
+URL="$(gh repo view --json url --jq .url)"
+bash .uzys-agent-harness/check-absence.sh \
+  --control "git ls-remote ${URL}.git" \
+  --subject "git ls-remote ${URL}.wiki.git"
+# 도구 exit: 1 = wiki 있음 · 0 = wiki 없음 · 2 = 판정 불가(대조군도 실패)
 ```
 
-②가 실패해도 "wiki 를 못 쓴다"로 결론내기 전에 **본 저장소로 대조**한다 — 같은 명령이 본 리포에서도
-실패하면 인증·네트워크 문제이지 wiki 부재가 아니다.
+**2 를 "없음"으로 읽지 마라** — 그건 내 인증·네트워크가 의심된다는 뜻이다. 도구가 없는 환경이면
+같은 두 명령을 직접 돌리되 **stderr 를 버리지 않는다**(진단 문자열이 원인을 가르는 유일한 재료다).
 
 **첫 페이지는 에이전트가 만들 수 없다.** `has_wiki=true` 여도 웹 UI 에서 페이지를 하나 만들기
-전까지 `.wiki.git` 은 존재하지 않고, `gh` 에는 wiki 서브커맨드가 없다. 그건 **사용자 행동**이다 —
+전까지 wiki 리포는 존재하지 않고, `gh` 에는 wiki 서브커맨드가 없다. 그건 **사용자 행동**이다 —
 없으면 안내만 하고 넘어간다.
 
 지켜야 할 것 넷:

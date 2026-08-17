@@ -189,6 +189,50 @@ function bashSyntaxError(script: string): string | null {
   return (run.stderr ?? "").trim() || `bash -n exit ${run.status}`;
 }
 
+/**
+ * 여러 스니펫을 **bash 프로세스 한 번**으로 검사한다. 스니펫마다 `spawnSync` 를 부르면 69회가 되고,
+ * 전체 스위트 병렬 실행에서 개별 테스트 5초 제한을 넘나든다(실측 3.7~10초). **경계에서 흔들리는
+ * 게이트는 아무도 안 본다** — 그래서 spawn 을 1회로 묶었다. 안쪽 `bash -n` 은 같은 프로세스의
+ * fork 라 훨씬 싸다.
+ *
+ * 반환: 인덱스 → 오류 메시지. 통과한 것은 키가 없다.
+ */
+function bashSyntaxErrors(sources: readonly string[]): Map<number, string> {
+  const out = new Map<number, string>();
+  if (sources.length === 0) return out;
+  const dir = mkdtempSync(join(tmpdir(), "shipped-shell-"));
+  try {
+    const files = sources.map((src, i) => {
+      const f = join(dir, `s${i}.sh`);
+      writeFileSync(f, src);
+      return f;
+    });
+    // 실패한 것만 `@@@<index>@@@` 표식과 함께 stdout 으로 낸다.
+    // 표식은 **여는 쪽 하나뿐**이어야 한다. `@@@i@@@` 처럼 양쪽에 두면 같은 표식으로 split 했을 때
+    // 인덱스와 본문이 다른 블록으로 갈린다(실제로 그렇게 틀렸다).
+    const loop =
+      'i=0; for f in "$@"; do ' +
+      'if ! err="$(bash -n "$f" 2>&1)"; then printf "@@@%s\\n%s\\n" "$i" "$err"; fi; ' +
+      "i=$((i+1)); done";
+    const run = spawnSync("bash", ["-c", loop, "_", ...files], {
+      encoding: "utf8",
+      timeout: 120_000,
+    });
+    if (run.error) throw new Error(`bash 실행 실패 — 이 게이트는 신뢰 불가: ${run.error.message}`);
+    if (run.status !== 0)
+      throw new Error(`검사 루프가 exit ${run.status} — 신뢰 불가: ${run.stderr}`);
+    for (const block of (run.stdout ?? "").split("@@@").slice(1)) {
+      const m = /^(\d+)\n([\s\S]*)$/.exec(block);
+      if (m === null) throw new Error(`검사 출력 파싱 실패 — 신뢰 불가: ${block.slice(0, 80)}`);
+      // 메시지의 임시 파일 경로는 원문 좌표가 아니므로 `bash` 로 정규화한다.
+      out.set(Number(m[1]), (m[2] ?? "").trim().replaceAll(`${dir}/s${m[1]}.sh`, "bash"));
+    }
+    return out;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 /** `bash: line 7: ...` 의 상대 행 번호를 원문 절대 행 번호로 되돌린다. */
 function reanchorLines(stderr: string, startLine: number): string {
   return stderr.replace(/line (\d+):/g, (_all, n: string) => `line ${Number(n) + startLine - 1}:`);
@@ -222,6 +266,22 @@ describe("배포물 셸 건전성 (#327)", () => {
 
     // ①이 ②를 대신하지 못한다는 사실 자체를 못박는다 — 이게 검사가 둘인 유일한 이유다.
     expect(bashSyntaxError('gh api x \\  # WRITE\n  -f due_on="Z"\n')).toBeNull();
+  });
+
+  it("일괄 검사기가 인덱스·메시지를 옳게 되돌린다", () => {
+    // **초록일 때는 이 기제의 결함이 안 보인다** — 통과하면 출력이 비어 파서를 거치지 않는다.
+    // 실제로 표식을 `@@@i@@@` 로 만들어 인덱스와 본문이 갈렸는데, 그 버그는 변이를 넣은 뒤에야
+    // 드러났고 그때 exit 1 은 **탐지가 아니라 파싱 크래시**였다. 그래서 여기서 직접 고정한다.
+    const batch = bashSyntaxErrors(["echo ok\n", "if true; then\n", "echo fine\n", "cat 'x\n"]);
+    expect(
+      [...batch.keys()].sort((a, b) => a - b),
+      "실패한 것만, 그 인덱스로",
+    ).toEqual([1, 3]);
+    expect(batch.get(1)).toMatch(/unexpected end of file/);
+    expect(batch.get(3)).toMatch(/unexpected EOF|unexpected end of file/);
+    // 임시 파일 경로가 메시지에 새면 좌표가 원문이 아닌 곳을 가리킨다.
+    expect(batch.get(1)).not.toContain("/s1.sh");
+    expect(bashSyntaxErrors([])).toEqual(new Map());
   });
 
   it("플레이스홀더 치환 — 오탐은 없애고, 삼키는 한계는 박제한다", () => {
@@ -331,19 +391,20 @@ describe("배포물 셸 건전성 (#327)", () => {
   });
 
   it(`배포되는 셸 스크립트 ${SCRIPTS.length}개가 bash 문법을 통과한다`, () => {
-    const failures = SCRIPTS.flatMap((s) => {
-      const err = bashSyntaxError(s.source);
-      return err === null ? [] : [`${s.file}\n    ${reanchorLines(err, s.startLine)}`];
-    });
+    const errs = bashSyntaxErrors(SCRIPTS.map((s) => s.source));
+    const failures = [...errs].map(
+      ([i, err]) => `${SCRIPTS[i]?.file}\n    ${reanchorLines(err, SCRIPTS[i]?.startLine ?? 1)}`,
+    );
     expect(failures, `문법 오류 ${failures.length}건 / 검사 ${SCRIPTS.length}개`).toEqual([]);
   });
 
   it(`셸로 표시된 코드펜스 ${SHELL_FENCES.length}개가 bash 문법을 통과한다`, () => {
-    const failures = SHELL_FENCES.flatMap((s) => {
-      const err = bashSyntaxError(s.source.replace(DOC_PLACEHOLDER, "PLACEHOLDER"));
-      return err === null
-        ? []
-        : [`${s.file}:${s.startLine}\n    ${reanchorLines(err, s.startLine)}`];
+    const errs = bashSyntaxErrors(
+      SHELL_FENCES.map((s) => s.source.replace(DOC_PLACEHOLDER, "PLACEHOLDER")),
+    );
+    const failures = [...errs].map(([i, err]) => {
+      const s = SHELL_FENCES[i];
+      return `${s?.file}:${s?.startLine}\n    ${reanchorLines(err, s?.startLine ?? 1)}`;
     });
     expect(failures, `문법 오류 ${failures.length}건 / 검사 ${SHELL_FENCES.length}개`).toEqual([]);
   });
