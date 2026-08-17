@@ -37,13 +37,13 @@ gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title)"'
 
 ```bash
 # 부모를 지정해 새로 만든다
-gh issue create --title "<제목>" --body-file <초안.md> --parent <EPIC> --label "<label>"
+gh issue create --title "<제목>" --body-file <초안.md> --parent <EPIC> --label "<label>"   # WRITE
 
 # 이미 있는 이슈를 하위로 붙인다 (여러 개 한 번에)
-gh issue edit <EPIC> --add-sub-issue 101,102,103
+gh issue edit <EPIC> --add-sub-issue 101,102,103   # WRITE
 
 # 뗀다 — 이슈는 지워지지 않는다
-gh issue edit <EPIC> --remove-sub-issue 102
+gh issue edit <EPIC> --remove-sub-issue 102        # WRITE
 ```
 
 ### Epic (부모 이슈)
@@ -53,8 +53,8 @@ gh issue edit <EPIC> --remove-sub-issue 102
 
 ```bash
 gh issue view <EPIC> --json subIssues,subIssuesSummary
-gh issue edit <N> --parent <EPIC>          # 자식 쪽에서 붙이기
-gh issue edit <N> --remove-parent
+gh issue edit <N> --parent <EPIC>          # WRITE — 자식 쪽에서 붙이기
+gh issue edit <N> --remove-parent          # WRITE
 ```
 
 ### Milestone
@@ -74,11 +74,13 @@ gh issue list --milestone "<이름>" --state all
 
 ```bash
 gh project list --owner <owner>
-gh project item-add <번호> --owner <owner> --url <issue-url>
+gh project item-add <번호> --owner <owner> --url <issue-url>   # WRITE — 보드 지정이 선행돼야 한다
 gh project item-list <번호> --owner <owner> --format json
 ```
 
-스코프가 없으면 여기서 멈추고 사용자에게 넘긴다. **`gh auth refresh` 를 대신 실행하지 않는다** —
+**어느 보드를 쓸지 사용자가 지정하기 전에는 보드를 건드리지 않는다** — `docs/SPEC.md` 의
+`github_project: <URL>` 또는 그 세션의 명시 지정이 선행 조건이다. 스코프가 없으면 여기서 멈추고
+사용자에게 넘긴다. **`gh auth refresh` 를 대신 실행하지 않는다** —
 토큰 권한 확대는 사용자의 결정이다.
 
 ### Issue type (조직 리포만)
@@ -98,8 +100,8 @@ gh issue edit <N> --remove-type
 부모-자식은 *구성*이고, blocked-by 는 *순서*다.
 
 ```bash
-gh issue create --blocked-by 101 --blocking 105 ...
-gh issue edit <N> --add-blocked-by 101
+gh issue create --blocked-by 101 --blocking 105 ...   # WRITE
+gh issue edit <N> --add-blocked-by 101      # WRITE
 gh issue edit <N> --remove-blocked-by 101
 gh issue edit <N> --add-blocking 105
 ```
@@ -118,14 +120,25 @@ gh issue view <N> --json number,title,body,comments,labels,milestone,\
 parent,subIssues,subIssuesSummary,blockedBy,blocking,issueType,state
 ```
 
-착수 후보 정렬 한 줄 예 (막힌 것 제외 → 우선순위 라벨 순):
+착수 후보 정렬 (막힌 것 제외 → `P0 > P1 > P2 > 무라벨`):
 
 ```bash
 gh issue list --state open --json number,title,labels,blockedBy \
-  --jq '[.[] | select(.blockedBy.totalCount == 0)]
-        | sort_by([.labels[].name] | index("P0") // 9)
+  --jq '[.[] | select((.blockedBy.totalCount // 0) == 0)]
+        | sort_by([.labels[].name] as $l
+                  | if   $l|index("P0") then 0
+                    elif $l|index("P1") then 1
+                    elif $l|index("P2") then 2
+                    else 3 end)
         | .[] | "\(.number)\t\(.title)"'
 ```
+
+**세 값을 다 다뤄야 한다.** `index("P0") // 9` 한 줄로 쓰면 P1·P2·무라벨이 전부 같은 키가 돼
+입력 순서만 남는다 — 광고한 우선순위 정렬이 아니다. `index()` 는 **위치**를 반환하므로
+`// 9` 형태는 라벨이 많을 때 P0 가 무라벨과 동률이 되는 문제도 있다.
+
+`// 0` 을 붙인 이유: **`blockedBy` 는 GitHub Enterprise Server 3.19 미만에서 null 이다.**
+null 이면 `select` 가 전건을 조용히 버려 "착수 가능한 이슈 0건"이 된다 — 부재로 오독되는 자리다.
 
 ## 5. GitHub 쪽 한계 (문서 값)
 
@@ -147,7 +160,7 @@ gh issue list --milestone "<이번 묶음>" --state all --json number,title,stat
 # ② 뺄 것: 마일스톤·부모만 떼고 이슈는 OPEN 으로 남긴다
 gh issue edit <N> --remove-milestone
 gh issue edit <EPIC> --remove-sub-issue <N>
-gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 열어 둔다."
+gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 열어 둔다."   # WRITE
 
 # ③ 다시 셌는지 확인: 뺀 수 + 남은 수 = ① 의 수
 ```
