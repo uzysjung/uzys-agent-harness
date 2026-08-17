@@ -134,13 +134,16 @@ function buildVocabulary(): Map<string, string> {
   for (const withEcc of [false, true]) {
     for (const e of buildManifest({ tracks: [...TRACKS], withEcc, withTauri: true })) {
       const rest = e.target.replace(/^\.claude\//, "");
-      for (const seg of rest.split("/")) add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
+      for (const seg of rest.split("/"))
+        add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
     }
   }
 
   // MCP 서버 이름 — `.mcp.json` 의 기본 3종과 트랙 조건부 행. 문서가 이름으로 안내하는 대상이라
   // 자산과 같은 축이다. 두 출처를 다 읽는 이유: 기본은 템플릿, 조건부는 tsv 가 SSOT 다.
-  const mcpTemplate = JSON.parse(readFileSync(join(REPO_ROOT, "templates", "mcp.json"), "utf8")) as {
+  const mcpTemplate = JSON.parse(
+    readFileSync(join(REPO_ROOT, "templates", "mcp.json"), "utf8"),
+  ) as {
     mcpServers?: Record<string, unknown>;
   };
   for (const n of Object.keys(mcpTemplate.mcpServers ?? {})) add(n, "기본 MCP 서버");
@@ -173,7 +176,10 @@ function buildVocabulary(): Map<string, string> {
     devDependencies?: Record<string, string>;
   };
   // 툴체인 이름(vitest·biome·tsup…)도 문서가 명령과 함께 부른다.
-  for (const d of [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})])
+  for (const d of [
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+  ])
     add(d.split("/").pop(), "의존성");
   add(pkg.name.split("/").pop(), "패키지명");
   // 저장소 이름은 `repository.url` 에서 뽑는다 — 작업 디렉터리 이름은 클론마다 달라 근거가 못 된다.
@@ -209,9 +215,64 @@ function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
   return { shaped, slashed, exempted };
 }
 
+/**
+ * 광고된 **설치 명령**에서 카탈로그가 알아야 하는 식별자를 뽑는다.
+ *
+ * 2026-08-17 — `tests/reference-catalog-rows.test.ts` 를 여기로 흡수했다(#338). 그 게이트는
+ * REFERENCE.md **한 문서만** 봤고, 그 문서가 자산별 설치 명령 표를 버리자 모집단이 0 이 되어
+ * 자기 liveness 단언(`> 5`)에 걸렸다. 계약을 잃지 않으려면 넓히는 것이 답이다 — 같은 추출기를
+ * 안내 문서 7종 전체에 돌린다. 인라인 코드만 보는 위쪽 판정과 달리 **줄 전체**를 보므로 펜스
+ * 안의 명령도 잡힌다.
+ *
+ * 대조 방식은 원래 게이트의 핵심을 그대로 가져왔다: `includes(이름)` 이 아니라 **필드 문법**으로
+ * 좁힌다. 삭제된 자산 이름은 주석·이력 서술에 남아 있어서, 부분 문자열로 대조하면 공허하게
+ * 통과한다(그 게이트의 1차 변이가 실제로 그렇게 살아남았다).
+ */
+const INSTALL_CMD_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; field: string }> = [
+  { kind: "skill", re: /npx skills add\s+\S+\s+--skill\s+([\w-]+)/, field: "skill" },
+  { kind: "source", re: /npx skills add\s+([\w.-]+\/[\w.-]+)/, field: "source" },
+  { kind: "plugin", re: /claude plugin install\s+([\w-]+@[\w-]+)/, field: "pluginId" },
+];
+
+interface InstallRef {
+  file: string;
+  line: number;
+  kind: string;
+  ident: string;
+  field: string;
+}
+
+function extractInstallRefs(
+  files: ReadonlyArray<string>,
+  read: (f: string) => string,
+): InstallRef[] {
+  const found: InstallRef[] = [];
+  for (const file of files) {
+    read(file)
+      .split(/\r?\n/)
+      .forEach((l, i) => {
+        // 이력 서술은 광고가 아니다. 취소선·`삭제`·줄 단위 표식 셋 다 인정한다.
+        if (l.includes("~~") || l.includes("삭제") || l.includes(HISTORICAL_MARKER)) return;
+        let matchedSkill = false;
+        for (const { kind, re, field } of INSTALL_CMD_PATTERNS) {
+          // `--skill` 형태가 잡히면 같은 줄의 bare `source` 는 중복이므로 건너뛴다.
+          if (kind === "source" && matchedSkill) continue;
+          const m = l.match(re);
+          if (!m?.[1]) continue;
+          if (kind === "skill") matchedSkill = true;
+          found.push({ file, line: i + 1, kind, ident: m[1], field });
+        }
+      });
+  }
+  return found;
+}
+
 const VOCAB = buildVocabulary();
 const { shaped: SHAPED_REFS, slashed: SLASHED_REFS, exempted: EXEMPTED_LINES } = collectRefs();
 const CATALOG_SOURCE = readFileSync(join(REPO_ROOT, "src", "external-assets.ts"), "utf8");
+const INSTALL_REFS = extractInstallRefs(GUIDE_DOCS, (f) =>
+  readFileSync(join(REPO_ROOT, f), "utf8"),
+);
 
 describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
   it("모집단이 살아 있다 — 문서 실재 · 어휘 · 참조 수 하한", () => {
@@ -261,6 +322,36 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       [...new Set(dead)].sort(),
       "카탈로그에 없는 upstream 저장소이거나, 실재하지 않는 저장소 내 경로다",
     ).toEqual([]);
+  });
+
+  it("광고된 설치 명령의 식별자가 카탈로그의 해당 필드로 실재한다", () => {
+    const missing = INSTALL_REFS.filter(
+      (r) => !CATALOG_SOURCE.includes(`${r.field}: "${r.ident}"`),
+    ).map(
+      (r) =>
+        `${r.file}:${r.line} 의 ${r.kind} "${r.ident}" 가 카탈로그에 없다 — ` +
+        "삭제된 자산의 광고 잔존이거나 문서 오타다",
+    );
+    expect(missing.sort(), missing.join("\n")).toEqual([]);
+  });
+
+  it("설치 명령 추출기 자체가 문다 — 모집단 크기에 기대지 않는 자기검증", () => {
+    // 원래 게이트는 "추출 0건이면 공허 통과"를 **모집단 하한**으로 막았고, 문서가 정당하게
+    // 줄어들자 그 하한에 걸렸다. 하한 대신 합성 입력으로 추출기의 양성·음성을 직접 본다 —
+    // 이러면 광고가 0건이어도 게이트가 살아 있음이 증명된다.
+    const fake = new Map([
+      ["pos.md", "| x | `claude plugin install foo@bar` |\n`npx skills add o/r --skill zap --yes`"],
+      ["neg.md", "설치 명령이 없는 줄과 `foo-bar` 같은 이름만 있는 줄"],
+      ["hist.md", `- ~~\`claude plugin install gone@dead\`~~ 는 삭제됐다 ${HISTORICAL_MARKER}`],
+    ]);
+    const read = (f: string): string => fake.get(f) ?? "";
+    const pos = extractInstallRefs(["pos.md"], read);
+    expect(
+      pos.map((r) => `${r.field}:${r.ident}`).sort(),
+      "추출기가 알려진 설치 명령을 못 잡는다 — 이 상태의 '위반 0건'은 무측정이다",
+    ).toEqual(["pluginId:foo@bar", "skill:zap"]);
+    expect(extractInstallRefs(["neg.md"], read), "명령이 없는 줄에서 오탐").toEqual([]);
+    expect(extractInstallRefs(["hist.md"], read), "이력 서술을 광고로 오인").toEqual([]);
   });
 
   it("자산 안내 문서 누락 감지 — 목록 밖 문서가 자산 id 를 쓰고 있지 않다", () => {
