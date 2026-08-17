@@ -20,6 +20,8 @@ import { listFilesRecursive } from "../src/fs-ops.js";
  *      형태였으므로 ②가 없으면 이 게이트는 장식이다. ②는 파서가 필요 없으므로 **언어 표시와
  *      무관하게 모든 코드펜스**에 건다 — 게이트 범위가 *작성자가 붙인 라벨*에 걸려 있으면
  *      라벨을 빠뜨린 사람이 곧 실수한 사람이라 사고 원형이 그대로 빠져나간다.
+ *      (이 범위는 아래 "비-셸 펜스도 모집단에 있다" 단언이 고정한다. 그게 없으면 다음 사람이
+ *      셸 전용으로 좁혀도 전 스위트가 초록으로 살아남는다 — 실제로 변이가 생존했다.)
  *
  * 대상은 **글롭으로 모은다**(열거 금지 — 열거는 두 번째 하드코딩 사본이 되어 썩는다):
  * `templates/**` 의 셸 스크립트 전부 + 마크다운 코드펜스 전부. 파일이 늘면 게이트를 고치지
@@ -27,17 +29,28 @@ import { listFilesRecursive } from "../src/fs-ops.js";
  *
  * **알려진 한계**(정직하게 — 이 줄들이 없으면 다음 사람이 덮인다고 오해한다):
  *   - `bash -n` 은 **문법**만 본다. 명령이 옳은 일을 하는지, 플래그가 실재하는지는 못 본다.
- *   - 플레이스홀더 치환은 `<a> ... <b>` 처럼 **한 줄 안에서 짝이 맞는 꺾쇠**를 한 토큰으로
- *     만든다. 그 구간 안에 있던 진짜 문법 파손은 함께 삼켜진다(아래 테스트로 박제).
- *   - 줄이음 검사는 줄 단위라 **인용 heredoc(`<<'EOF'`) 안의 리터럴**이 `\` + 공백으로 끝나면
- *     오탐한다. 현재 코퍼스엔 없다. red 를 만나면 게이트 파손이 아니라 이 한계다.
+ *   - 플레이스홀더 치환은 `<a>` 처럼 **공백 없이 짝이 맞는 꺾쇠**를 한 토큰으로 만든다. 그 구간
+ *     안에 있던 진짜 문법 파손은 함께 삼켜진다(아래 테스트로 박제). 더 좁히면 실제
+ *     플레이스홀더 오탐이 부활해 여기서 멈췄다.
+ *   - 줄이음 검사는 줄 단위라 **리터럴 본문**이 `\` + 공백으로 끝나면 오탐한다 — 인용
+ *     heredoc(`<<'EOF'`) 안, 또는 ```text 펜스의 LaTeX 줄바꿈(`\\  `) 같은 것. 코퍼스엔 없다.
+ *     red 를 만나면 게이트 파손이 아니라 이 한계다.
+ *   - 다른 펜스 **안에 중첩된** 펜스는 마크다운 리터럴 예시로 보고 세지 않는다(CommonMark).
+ *     실제로 1건 있다(`skills/eval-harness/SKILL.md` 의 4-백틱 블록 안 `bash`) — 그 명령은
+ *     `bash -n` 밖이다. 줄이음은 바깥 펜스 본문으로 계속 검사된다.
  *   - 개발 사본(`.claude/`)은 대상이 아니다 — 배포되는 것은 `templates/` 뿐이라 여기를 문다.
  *   - `bash -n` 은 **로컬 bash 버전**을 따른다(macOS 기본은 3.2). bash 4+ 전용 문법은 Linux 에서
  *     통과하고 macOS 에서 red 다. 릴리즈 CI 가 ubuntu + macos 양쪽을 돌아 태그 시점에 갈린다.
  */
 
 const TEMPLATES = resolve(__dirname, "../templates");
-const SHELL_LANGS = new Set(["bash", "sh", "shell", "zsh"]);
+
+/**
+ * `bash -n` 으로 검사할 언어 표시. **`bash -n` 이 실제로 파싱할 수 있는 것만** 넣는다 —
+ * 예컨대 `zsh` 는 `for f (a b) echo $f` 처럼 bash 가 거부하는 문법이 정상이라, 넣으면
+ * 쓰는 데도 없이 오탐 경로만 생긴다.
+ */
+const SHELL_LANGS = new Set(["bash", "sh", "shell"]);
 
 /**
  * `<이름>` 같은 **문서 플레이스홀더**는 bash 문법이 아니다 — 치환하지 않으면 정상 스니펫이
@@ -69,14 +82,28 @@ interface Snippet {
   readonly source: string;
 }
 
+interface Scan {
+  readonly fences: Snippet[];
+  /**
+   * 닫히지 않은 펜스. **조용히 버리면 그 뒤의 스니펫까지 통째로 사라진다** — 닫는 걸 깜빡한
+   * ```text 하나가 뒤따르는 정상 `bash` 펜스를 본문으로 흡수해 게이트를 초록으로 만든다.
+   * 그래서 버리지 않고 모아 실패로 낸다.
+   */
+  readonly unclosed: string[];
+}
+
 /**
  * 코드펜스를 **줄 단위 상태머신**으로 모은다. 정규식 한 방으로 뽑으면 중첩 펜스(4-백틱 안의
  * 3-백틱)와 `~~~`·info string 을 틀리게 센다 — 커버리지가 그 오차만큼 새는 자리다.
  * 닫는 펜스 규칙(CommonMark): 여는 것과 **같은 문자 · 길이 이상 · info string 없음**.
+ *
+ * 줄 분해에 `\r?\n` 을 쓴다. `\n` 으로만 쪼개면 CRLF 파일의 모든 줄 끝에 `\r` 이 남아
+ * 여는 펜스부터 매치되지 않고 **파일 전체가 게이트에서 조용히 사라진다**(실제로 그랬다).
  */
-function collectFences(file: string, md: string): Snippet[] {
-  const out: Snippet[] = [];
-  const lines = md.split("\n");
+function scanFences(file: string, md: string): Scan {
+  const fences: Snippet[] = [];
+  const unclosed: string[] = [];
+  const lines = md.split(/\r?\n/);
   let open: { indent: string; marker: string; lang: string; bodyStart: number } | null = null;
 
   for (let i = 0; i < lines.length; i++) {
@@ -93,25 +120,27 @@ function collectFences(file: string, md: string): Snippet[] {
       open = { indent: m[1] ?? "", marker, lang, bodyStart: i + 1 };
       continue;
     }
-    const closing = new RegExp(
-      `^[ \\t]*${open.marker[0] === "`" ? "`" : "~"}{${open.marker.length},}[ \\t]*$`,
-    );
+    const fenceChar = open.marker.startsWith("`") ? "`" : "~";
+    const closing = new RegExp(`^[ \\t]*${fenceChar}{${open.marker.length},}[ \\t]*$`);
     if (!closing.test(line)) continue;
-    const body = lines
-      .slice(open.bodyStart, i)
-      .map((l) => (l.startsWith(open?.indent ?? "") ? l.slice((open?.indent ?? "").length) : l))
-      .join("\n");
-    out.push({
+    const indent = open.indent;
+    fences.push({
       file,
       kind: "fence",
       startLine: open.bodyStart + 1,
       isShell: SHELL_LANGS.has(open.lang),
-      source: body,
+      source: lines
+        .slice(open.bodyStart, i)
+        .map((l) => (l.startsWith(indent) ? l.slice(indent.length) : l))
+        .join("\n"),
     });
     open = null;
   }
-  return out;
+  if (open !== null) unclosed.push(`${file}:${open.bodyStart}`);
+  return { fences, unclosed };
 }
+
+const UNCLOSED: string[] = [];
 
 function collectSnippets(): Snippet[] {
   const out: Snippet[] = [];
@@ -128,7 +157,9 @@ function collectSnippets(): Snippet[] {
       continue;
     }
     if (rel.endsWith(".md")) {
-      out.push(...collectFences(`templates/${rel}`, readFileSync(abs, "utf8")));
+      const scan = scanFences(`templates/${rel}`, readFileSync(abs, "utf8"));
+      out.push(...scan.fences);
+      UNCLOSED.push(...scan.unclosed);
     }
   }
   return out;
@@ -201,18 +232,64 @@ describe("배포물 셸 건전성 (#327)", () => {
     expect(bashSyntaxError("cat < in.txt >".replace(DOC_PLACEHOLDER, "P"))).not.toBeNull();
 
     // **알려진 한계**: 공백 없이 짝이 맞는 꺾쇠는 여전히 한 토큰이 된다. 그 안의 파손은 삼켜진다.
-    // 좁힐수록 플레이스홀더 오탐이 부활하므로 여기서 멈추고, 대신 사실을 박제한다.
     expect(bashSyntaxError("cat <in.txt>")).not.toBeNull();
     expect(bashSyntaxError("cat <in.txt>".replace(DOC_PLACEHOLDER, "P"))).toBeNull();
   });
 
+  it("펜스 수집기가 합성 입력에서 맞게 동작한다", () => {
+    const scan = (md: string): Scan => scanFences("synthetic.md", md);
+
+    // CRLF. `\n` 으로만 쪼개면 파일 전체가 사라진다 — 실제로 그렇게 회귀했다.
+    const crlf = scan("```bash\r\nif true; then\r\n```\r\n");
+    expect(crlf.fences).toHaveLength(1);
+    expect(crlf.fences[0]?.isShell).toBe(true);
+    expect(crlf.fences[0]?.source).toBe("if true; then");
+
+    // 닫히지 않은 펜스는 버리지 않고 보고한다. 버리면 그 뒤 스니펫까지 함께 사라진다.
+    // 좌표는 **여는 펜스의 행**이다 — 작성자가 찾아가야 할 자리가 거기다.
+    const never = scan("intro\n\n```text\nnot closed\n");
+    expect(never.fences).toHaveLength(0);
+    expect(never.unclosed).toEqual(["synthetic.md:3"]);
+
+    // 닫는 걸 깜빡한 펜스가 **뒤따르는 셸 펜스를 본문으로 흡수**하는 형태. CommonMark 상
+    // 코드블록 하나가 맞으므로 스캐너 결함이 아니다. `bash -n` 은 잃지만(비-셸로 잡히므로)
+    // 줄이음은 흡수된 본문에서 계속 검사된다 — 사고 형태(#327)는 이 경우에도 덮인다.
+    const swallowed = scan("```text\nswallowing\n\n```bash\ngh api x \\  # WRITE\n```\n");
+    expect(swallowed.unclosed).toEqual([]);
+    expect(swallowed.fences).toHaveLength(1);
+    expect(swallowed.fences[0]?.isShell).toBe(false);
+    expect(danglingContinuations(swallowed.fences[0] as Snippet)).toHaveLength(1);
+
+    // 닫는 펜스는 여는 것보다 **길어도** 닫는다(CommonMark). 짧으면 못 닫는다.
+    expect(scan("```bash\nx\n`````\n").fences).toHaveLength(1);
+    expect(scan("````bash\nx\n```\n").unclosed).toEqual(["synthetic.md:1"]);
+
+    // 중첩은 바깥 펜스 하나로만 센다 — 안쪽은 마크다운 리터럴 예시다.
+    const nested = scan("````markdown\n```bash\nif true; then\n```\n````\n");
+    expect(nested.fences).toHaveLength(1);
+    expect(nested.fences[0]?.isShell).toBe(false);
+
+    // info string 의 첫 토큰이 언어. 대문자·부가 속성이 붙어도 셸로 인식해야 한다.
+    expect(scan('```Bash title="x"\nx\n```\n').fences[0]?.isShell).toBe(true);
+    expect(scan("~~~sh\nx\n~~~\n").fences[0]?.isShell).toBe(true);
+    expect(scan("```python\nx\n```\n").fences[0]?.isShell).toBe(false);
+
+    // 들여쓴 펜스(리스트 안)도 잡고, 본문에서 그 들여쓰기를 걷어낸다.
+    expect(scan("- 예:\n\n  ```bash\n  echo hi\n  ```\n").fences[0]?.source).toBe("echo hi");
+  });
+
   it("수집기가 살아 있다 — 0건 통과 방지", () => {
-    // 하한은 수집기 회귀(펜스 스캐너 파손 → 0건 수집 → 전부 통과)를 잡기 위한 것이지
-    // 현재 개수의 사본이 아니다. 실측 2026-08-17: 스크립트 18 · 펜스 217(그중 셸 48).
+    // 하한은 수집기 회귀(스캐너 파손 → 0건 수집 → 전부 통과)를 잡기 위한 것이지 현재 개수의
+    // 사본이 아니다. 실측 2026-08-17: 스크립트 18 · 펜스 217(그중 셸 48).
+    // 실측의 ~80% 로 둔다 — 자산이 줄어 red 가 나면 "커버리지가 줄었다"는 신호로 읽어야 한다.
     // 검사한 **실제 개수**는 아래 테스트들의 이름에 실려 매 실행 출력에 남는다.
-    expect(SCRIPTS.length).toBeGreaterThanOrEqual(10);
-    expect(FENCES.length).toBeGreaterThanOrEqual(100);
-    expect(SHELL_FENCES.length).toBeGreaterThanOrEqual(30);
+    expect(SCRIPTS.length).toBeGreaterThanOrEqual(15);
+    expect(FENCES.length).toBeGreaterThanOrEqual(175);
+    expect(SHELL_FENCES.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("닫히지 않은 코드펜스가 없다 — 있으면 그 뒤 스니펫이 통째로 검사 밖이다", () => {
+    expect(UNCLOSED).toEqual([]);
   });
 
   it(`배포되는 셸 스크립트 ${SCRIPTS.length}개가 bash 문법을 통과한다`, () => {
@@ -234,9 +311,16 @@ describe("배포물 셸 건전성 (#327)", () => {
   });
 
   it(`줄이음(\\) 뒤에 아무것도 오지 않는다 — 스크립트 ${SCRIPTS.length} + 펜스 ${FENCES.length}`, () => {
-    // 언어 표시와 **무관하게** 전 펜스에 건다. 태그를 빠뜨린 펜스가 사고의 은신처가 되면
-    // 게이트가 라벨에 종속된다. 파서가 필요 없는 검사라 비용도 없다(비-셸 오탐 실측 0건).
-    const failures = SNIPPETS.flatMap(danglingContinuations);
-    expect(failures, `끊긴 줄이음 ${failures.length}건 / 검사 ${SNIPPETS.length}개`).toEqual([]);
+    const population = SNIPPETS;
+    // 이 모집단이 **셸로 좁혀지지 않았음**을 먼저 못박는다. 이게 없으면 다음 사람이
+    // `[...SCRIPTS, ...SHELL_FENCES]` 로 되돌려도 전 스위트가 초록으로 살아남는다(변이 생존 확인).
+    // 태그를 빠뜨린 펜스가 사고의 은신처가 되면 게이트가 작성자의 라벨에 종속된다.
+    expect(
+      population.filter((s) => s.kind === "fence" && !s.isShell).length,
+      "비-셸 펜스가 모집단에서 빠졌다 — 줄이음 검사가 라벨에 종속됐다",
+    ).toBeGreaterThanOrEqual(100);
+
+    const failures = population.flatMap(danglingContinuations);
+    expect(failures, `끊긴 줄이음 ${failures.length}건 / 검사 ${population.length}개`).toEqual([]);
   });
 });
