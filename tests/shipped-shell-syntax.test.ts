@@ -392,10 +392,12 @@ describe("배포물 셸 건전성 (#327)", () => {
     // 테스트 이름에 실리는 실개수가 덮는다. 그래서 하한은 원래 목적만 한다.
     const counts = `스크립트 ${SCRIPTS.length} · 펜스 ${FENCES.length} · 셸 펜스 ${SHELL_FENCES.length}`;
     const reading = `수집기 파손 또는 자산 감소 — 어느 쪽인지 개수 변화로 판단하라 (${counts})`;
-    // `templates/` 밖 게시분이 모집단에 실제로 들어왔는지. 이 단언이 없으면 derive 를 지워도
-    // 초록이고, 그때 게시되는 스크립트 하나가 조용히 검사 밖으로 나간다(실제로 그 상태였다).
+    // `templates/` 밖 게시분이 **실제 모집단에** 들어왔는지. `EXTRA_SCRIPTS`(정의)를 단언하면
+    // 정의는 남기고 합류만 끊는 변이가 생존한다 — "배열 둘을 굳이 합칠 필요 없다"는 아주 자연스러운
+    // 정리 한 번이면 난다. 그때 `prune-ecc.sh` 는 문법 오류를 안은 채 검사 밖으로 나가고,
+    // 실패 메시지는 "모집단에 없다"고 하면서 모집단을 안 보는 거짓말이 된다(실측으로 생존 확인).
     expect(
-      EXTRA_SCRIPTS.map((s) => s.file),
+      SCRIPTS.map((s) => s.file),
       "package.json files 가 개별 지정한 .sh 가 모집단에 없다",
     ).toContain("scripts/prune-ecc.sh");
     expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(10);
