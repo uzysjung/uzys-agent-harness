@@ -60,6 +60,7 @@ const NOT_AN_ASSET: ReadonlyMap<string, string> = new Map([
   ["backup", "설치 요약의 행 라벨 (`backup` rows)"],
   ["auto-install-peers", "pnpm 계열 .npmrc 키 — Troubleshooting 예시"],
   ["npm-global", "v26.64.0 마이그레이션 노트가 인용하는 **과거** method kind"],
+  ["instructions", "`opencode.json` 의 설정 키"],
 ]);
 
 /**
@@ -123,6 +124,19 @@ function buildVocabulary(): Map<string, string> {
       const rest = e.target.replace(/^\.claude\//, "");
       for (const seg of rest.split("/")) add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
     }
+  }
+
+  // MCP 서버 이름 — `.mcp.json` 의 기본 3종과 트랙 조건부 행. 문서가 이름으로 안내하는 대상이라
+  // 자산과 같은 축이다. 두 출처를 다 읽는 이유: 기본은 템플릿, 조건부는 tsv 가 SSOT 다.
+  const mcpTemplate = JSON.parse(readFileSync(join(REPO_ROOT, "templates", "mcp.json"), "utf8")) as {
+    mcpServers?: Record<string, unknown>;
+  };
+  for (const n of Object.keys(mcpTemplate.mcpServers ?? {})) add(n, "기본 MCP 서버");
+  for (const line of readFileSync(join(REPO_ROOT, "templates", "track-mcp-map.tsv"), "utf8").split(
+    "\n",
+  )) {
+    if (line.startsWith("#") || line.trim() === "") continue;
+    add(line.split("\t")[0], "트랙 조건부 MCP 서버");
   }
 
   for (const dir of [
