@@ -197,26 +197,29 @@ const TOOLS_NAMED_BY_RULES: ReadonlyArray<string> = (() => {
   return [...found].sort();
 })();
 
-/**
- * manifest 가 CLI 중립 슬롯에 깔겠다고 한 `.sh` 전량 — 지목 축의 반대편.
- * **트랙 전량의 합집합**으로 유도한다. `full` 하나로만 재면 트랙 게이팅된 도구가 생겼을 때
- * `full` 에 없는 것이 비교에서 통째로 빠진다.
- */
-const TOOLS_SHIPPED_BY_MANIFEST: ReadonlyArray<string> = (() => {
+const TOOL_RE = /\.uzys-agent-harness\/([A-Za-z0-9._-]+\.sh)/g;
+
+/** 그 트랙에 **실제로 가는 룰**들이 지목하는 도구. */
+function toolsNamedOnTrack(track: string): string[] {
   const found = new Set<string>();
-  for (const track of TRACKS) {
-    const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as Parameters<
-      typeof buildManifest
-    >[0];
-    for (const e of buildManifest(spec)) {
-      if (!e.applies(spec)) continue;
-      if (e.target.startsWith(".uzys-agent-harness/") && e.target.endsWith(".sh")) {
-        found.add(e.target);
-      }
-    }
+  for (const rule of resolveRules({ tracks: [track] } as Parameters<typeof resolveRules>[0])) {
+    const body = readFileSync(join(ROOT, "templates", "rules", `${rule}.md`), "utf8");
+    for (const m of body.matchAll(TOOL_RE)) found.add(`.uzys-agent-harness/${m[1]}`);
   }
   return [...found].sort();
-})();
+}
+
+/** 그 트랙에 **실제로 깔리는** CLI 중립 `.sh`. */
+function toolsShippedOnTrack(track: string): string[] {
+  const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as Parameters<
+    typeof buildManifest
+  >[0];
+  return buildManifest(spec)
+    .filter((e) => e.applies(spec))
+    .map((e) => e.target)
+    .filter((t) => t.startsWith(".uzys-agent-harness/") && t.endsWith(".sh"))
+    .sort();
+}
 
 describe("룰이 가리키는 도구도 함께 도달한다", () => {
   // 룰 본문이 `.uzys-agent-harness/*.sh` 를 호출 지점으로 지목한다. 룰만 보내고 도구를 안 보내면
@@ -226,12 +229,17 @@ describe("룰이 가리키는 도구도 함께 도달한다", () => {
   });
 
   /**
-   * **양방향으로 문다.** 바닥값(`>= N`)만 두면 도구가 하나 늘어난 뒤의 삭제는 개수를 유지해
-   * 통과하고, 삭제된 그것은 아래 루프에서도 함께 사라져 어디서도 안 물린다. manifest 와
-   * 맞대면 어느 쪽이 움직여도 red 다.
+   * **트랙별로, 양방향으로 문다.**
+   *
+   * 두 번 틀린 자리다. ⓐ 바닥값(`>= N`)만 두면 도구가 늘어난 뒤의 삭제가 개수를 유지해 통과한다.
+   * ⓑ 그래서 집합 비교로 바꿨는데 **전 트랙 합집합**으로 유도했더니, 한 트랙에만 깔려도 집합에
+   * 들어가 **"룰은 전 트랙 · 도구는 일부 트랙"이라는 결함 형태 자체가 통과**했다(독립 리뷰가
+   * `applies: all` → `tracks.includes("tooling")` 변이로 실증 — 28건 전부 초록이었다).
+   *
+   * 도달 결함은 **트랙 단위로** 생긴다. 그러니 판정도 트랙 단위여야 한다.
    */
-  it("지목 집합 == 배포 집합 (한쪽만 늘거나 줄면 red)", () => {
-    expect(TOOLS_NAMED_BY_RULES).toEqual(TOOLS_SHIPPED_BY_MANIFEST);
+  it.each([...TRACKS])("%s: 그 트랙의 룰이 지목한 도구 == 그 트랙에 깔리는 도구", (track) => {
+    expect(toolsNamedOnTrack(track)).toEqual(toolsShippedOnTrack(track));
   });
 
   for (const cli of CLI_BASES) {

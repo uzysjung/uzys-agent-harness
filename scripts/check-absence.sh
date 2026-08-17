@@ -27,11 +27,11 @@
 #                        --subject '<판정할 명령>' [--control-exit N]
 #       예: ... --control '<이미 되는 대상으로 같은 절차>' --subject '<판정할 대상으로 같은 절차>'
 #
-#       **대상이 실행조차 안 되면(126/127) 판정이 아니라 무효다**
-#       — 바이너리 부재를 재려면 `--subject 'command -v <bin>'` 처럼 **1 을 내는 형태**로 쓴다. — "대상이 안 된다"와
+#       **대상이 실행조차 안 되면(126/127) 판정이 아니라 무효다** — "대상이 안 된다"와
 #       "내가 친 명령이 틀렸다"는 다른 사실이고 exit 1 은 둘을 구분해 주지 않는다.
 #       실행기는 `bash -c` 로 고정한다. `sh` 는 macOS 에서 bash, Linux 에서 dash 라
 #       같은 입력이 플랫폼마다 반대 판정을 냈다.
+#       바이너리 부재를 재려면 `--subject 'command -v <bin>'` 처럼 **1 을 내는 형태**로 쓴다.
 #
 # 공통 규율: stderr 를 버리지 않는다 · 파이프로 exit code 를 가리지 않는다 · 건수/코드를 명시 출력한다.
 #
@@ -95,9 +95,14 @@ if [ -n "$CONTROL" ] || [ -n "$SUBJECT" ]; then
   # `if` 가 그것을 거짓 = "대조군 통과" 로 읽는다 — 실패가 삼켜지는 자리다.
   case "$CONTROL_EXIT" in
     ''|*[!0-9]*) usage ;;
-    *) CONTROL_EXIT=$((10#$CONTROL_EXIT)) 2>/dev/null || usage
-       [ "$CONTROL_EXIT" -le 255 ] || usage ;;
   esac
+  # 선행 0 만 벗긴다(0255 → 255 · 000 → 0). **산술을 쓰지 않는다** — bash 산술은 오버플로에서
+  # 에러를 내지 않고 조용히 랩어라운드해서(`$((10#18446744073709551616))` = 0) 사용자가 적은
+  # 기대값이 사라진 채 다른 값으로 판정된다. `|| usage` 도 그때는 한 번도 발화하지 않는다.
+  while [ "${#CONTROL_EXIT}" -gt 1 ] && [ "${CONTROL_EXIT#0}" != "$CONTROL_EXIT" ]; do
+    CONTROL_EXIT="${CONTROL_EXIT#0}"
+  done
+  { [ "${#CONTROL_EXIT}" -le 3 ] && [ "$CONTROL_EXIT" -le 255 ]; } || usage
 
   C_OUT="$WORK_DIR/control.out"; C_ERR="$WORK_DIR/control.err"
   bash -c "$CONTROL" >"$C_OUT" 2>"$C_ERR"
