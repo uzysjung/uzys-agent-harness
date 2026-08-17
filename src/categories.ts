@@ -81,6 +81,8 @@ export const SOURCE_LABELS = {
   htmlstreamofficial: "Preline",
   // 2026-08-17 — GitHub 공식 조직의 awesome-copilot (37,909★ 실측, MIT).
   github: "GitHub",
+  // 2026-08-17 — Claude-Code-Game-Studios (23,924★ 실측, MIT).
+  Donchitos: "Donchitos",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

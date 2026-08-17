@@ -156,7 +156,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 59 자산 매트릭스 (2026-08-17 game-engine 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 60 자산 매트릭스 (2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -885,6 +885,32 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       kind: "skill",
       source: "https://github.com/github/awesome-copilot",
       skill: "game-engine",
+    },
+  },
+  {
+    // 2026-08-17 (사용자 지정) — 게임 스튜디오 **프로세스** 스킬 73종.
+    //
+    // description 이 두 가지를 반드시 말해야 하는 이유 (둘 다 Docker 실측):
+    //   ① **에이전트는 안 깔린다.** 리포의 엔진 전문성(`godot-specialist`·`unity-specialist`·
+    //      `unreal-specialist`)은 49개 *에이전트*에 있는데 `npx skills add` 는 `.claude/skills/`
+    //      만 가져온다(실측: 73 SKILL.md, settings.json·rules·hooks 미설치). "Unity 되나?" 로
+    //      고른 사용자가 스프린트 계획 스킬을 받게 되므로 안 적으면 그게 거짓 광고다.
+    //   ② **상주 ~4,440 tok/세션.** 73 descriptor 실측(17,760자/4). tooling 트랙 baseline 전체가
+    //      ~5,037 tok 이라 이 자산 하나가 상주를 거의 두 배로 만든다 — 이 저장소의 1차 지표를
+    //      가장 크게 움직이는 자산이라 선택 시점에 숫자가 보여야 한다.
+    //
+    // 저자의 공식 설치법은 `git clone` (프로젝트 템플릿)이다. 그 경로는 `.claude/settings.json`·
+    // rules·hooks 를 함께 들여와 우리 하네스와 같은 자리를 다투므로 카탈로그에 넣지 않는다.
+    id: "game-studios",
+    tier: "vetted", // Donchitos/Claude-Code-Game-Studios 23,924★ (MIT · 최종 push 2026-05-21, 2026-08-17 `gh api` 실측)
+    description:
+      "Game studio workflow — 73 process skills (sprint-plan · qa-plan · playtest-report · release-checklist · art-bible · balance-check). Skills only: the repo's 49 engine agents (godot/unity/unreal-specialist) are NOT installed. ~4,440 tok/session resident",
+    category: "workflow",
+    source: "Donchitos",
+    condition: { kind: "opt-in" },
+    method: {
+      kind: "skill",
+      source: "https://github.com/Donchitos/Claude-Code-Game-Studios",
     },
   },
   // === Executive tracks ===
