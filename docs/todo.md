@@ -1,6 +1,6 @@
 # Todo — 현재 목표 & 상태
 
-> **갱신**: 2026-07-19 (v26.122.0) · **역할**: 작업 추적 SSOT (doc-governance 위계의 TODO).
+> **갱신**: 2026-08-17 (v26.147.0) · **역할**: 쉬는 상태 추적기. **열린 작업의 SSOT 는 GitHub Issue 다** — `gh issue list --state open` 이 정본이고, 진행 중인 사이클은 `docs/plans/*-todo.md` 에 있다(main 을 항상 출하 가능하게 두려고 분리).
 > **전략 SSOT**: [`docs/plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) (M1~M6) — 아래 'C→A→B→D' 전략 내용은 이로 **대체됨(historical)**.
 > **목표 anchor**: [`docs/NORTH_STAR.md`](NORTH_STAR.md) (왜·어디로) · **이력**: [`CHANGELOG.md`](../CHANGELOG.md)
 > **Foundation(v26.38) 상세 완료 기록**: [`docs/archive/phase1-foundation/`](archive/phase1-foundation/)
