@@ -3,16 +3,25 @@
 이 프로젝트가 **참조하거나 설치하는** 모든 외부/내부 자산의 단일 카탈로그.
 출처(공식/검증/community), 적용 Track, 설치 명령, 신뢰 등급을 정리.
 
-> 자동 설치는 `setup-harness.sh --track <track>` 시점에 일어난다.
-> 옵션 항목은 대화형 `[y/N]` 프롬프트로 별도 확인.
+> 설치는 `npx -y @uzysjung/agent-harness`(위저드) 또는 `install --track <track>`(비대화형)이 한다.
+> **opt-in 항목은 위저드 3단계의 체크박스이거나 `--with <asset-id>` 다** — 옛 `[y/N]` 프롬프트도,
+> 자산별 전용 플래그도 없다(후자는 v26.81.0 에서 13종 삭제, ADR-022).
+>
+> 각 자산이 어느 트랙에 붙는지의 SSOT 는 `src/external-assets.ts` 의 `condition` 이고, 사람이 읽는
+> 판은 [TRACKS.md](TRACKS.md)·[COMPATIBILITY.md](COMPATIBILITY.md)(후자는 카탈로그에서 생성)다.
+> 이 문서는 **손으로 쓴 카탈로그 해설**이라 셋이 어긋나면 코드가 이긴다.
 
 ## 신뢰 등급
 
 | Tier | 의미 | 예 |
 |------|------|---|
 | ✅ **공식** | Anthropic 또는 stack vendor 공식 | Anthropic skills, Railway, Supabase, MCP servers |
-| 🟢 **검증된 third-party** | 알려진 기여자/조직, 활발히 maintained | vercel-labs, addyosmani, K-Dense, wshobson, trailofbits |
-| 🟡 **Community** | 개인/소규모, 사용 전 내용 검토 권장 | pbakaus, testdino-hq, alirezarezvani, yonatangross |
+| 🟢 **검증된 third-party** | 알려진 기여자/조직, 활발히 maintained | vercel-labs, addyosmani, wshobson, trailofbits, shadcn |
+| 🟡 **Community** | 개인/소규모, 사용 전 내용 검토 권장 | alirezarezvani, coreyhaines31, jakubkrehel, oso95 |
+
+> 이 표의 3등급은 **읽는 사람을 위한 요약**이고, 설치 화면에 실제로 뜨는 배지의 SSOT 는 각 자산의
+> `tier`(`official` / `vetted` / `experimental`)다. 여기 적힌 출처 예시는 카탈로그에서 자산이
+> 빠지면 같이 낡는다 — 현재 배지는 [COMPATIBILITY.md](COMPATIBILITY.md) 가 생성해 보여 준다.
 
 ## Track 약어
 
@@ -22,42 +31,37 @@
 
 ---
 
-## 1. Plugins (`claude plugin install`)
+## 1. 외부 자산 — 설치 방식 5종
 
-| 이름 | 출처 | Tier | Track | 설치 명령 | 용도 |
-|------|------|:-:|------|---------|------|
-| **agent-skills** | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 🟢 | dev tracks | `claude plugin install agent-skills@addy-agent-skills` | spec-driven development 8단계 워크플로우 |
-| **railway-skills** | [railwayapp/railway-skills](https://github.com/railwayapp/railway-skills) | ✅ | opt-in (`--with railway-skills`) | `claude plugin marketplace add railwayapp/railway-skills` + `claude plugin install railway@railway-skills` | Railway 배포/프로젝트/서비스/환경변수 관리 ([공식 docs](https://docs.railway.com/ai/claude-code-plugin)). v0.6.3에서 `railway-plugin` 잘못된 entry 제거 (repo 부재) — 본 entry로 단일화 |
-| **Vercel CLI** | [vercel/vercel](https://github.com/vercel/vercel) | ✅ | opt-in (`--with vercel-cli`) | `npm install -g vercel` | 프론트엔드 배포 (JAMstack) |
-| **Netlify CLI** | [netlify/cli](https://github.com/netlify/cli) | ✅ | csr-supabase, full | `npm install -g netlify-cli` | 프론트엔드 배포 (JAMstack) |
-| **supabase agent-skills** | [supabase/agent-skills](https://github.com/supabase/agent-skills) | ✅ | csr-supabase, full | `claude plugin install supabase@supabase-agent-skills` | Auth/Realtime/Storage/RLS |
-| **postgres-best-practices** | supabase/agent-skills | ✅ | csr-supabase, full | `claude plugin install postgres-best-practices@supabase-agent-skills` | Postgres 쿼리 최적화 |
-| **document-skills** | [anthropics/skills](https://github.com/anthropics/skills) | ✅ | executive, full | `claude plugin install document-skills@anthropic-agent-skills` | docx/pptx/xlsx/pdf/canvas-design 등 |
-| **finance-skills** | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 🟡 | opt-in (`--with finance-skills`) | `claude plugin install finance-skills@claude-code-skills` | 3 financial analyst (DCF/ratio), SaaS metrics coach (ARR/MRR/CAC/LTV), business investment advisor |
-| **product-skills** (v0.5.0) | alirezarezvani/claude-skills | 🟡 | opt-in (`--with product-skills`) | `claude plugin install product-skills@claude-code-skills` | 15 — RICE, PRD, agile PO, UX research, UI design system, competitive teardown, landing page, SaaS scaffolder, product analytics, experiment, product discovery, roadmap communicator, code-to-prd, research summarizer, apple-hig-expert |
-| **data plugin** | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | ✅ | data, full | `claude plugin install data@knowledge-work-plugins` | SQL 탐색 + matplotlib/seaborn/plotly visualization |
+**자산별 목록은 여기 두지 않는다.** 카탈로그(60) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
+[COMPATIBILITY.md](COMPATIBILITY.md) 가 `src/external-assets.ts` 에서 **생성**하고, 트랙별 묶음
+해설은 [TRACKS.md](TRACKS.md) 가 맡는다. 이 절이 자산을 손으로 다시 열거하던 동안 그 사본은
+실제로 낡았다 — 없어진 자산(`c-level-skills`·`railway-plugin`)과 바뀐 명령 <!-- ref:removed -->
+(`npm install -g` → `--save-dev`)을 그대로 안내하고 있었다(#338).
 
-### Optional Plugins (대화형 프롬프트)
+여기 남는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다. 방식은 자산보다 훨씬 덜 바뀌고,
+"내 머신에서 무슨 일이 일어나는가"를 알려면 이쪽이 필요하다. 배선 SSOT = `src/external-installer.ts`.
 
-| 이름 | 출처 | Tier | 트리거 | 용도 |
-|------|------|:-:|------|------|
-| **everything-claude-code (ECC)** | [affaan-m/everything-claude-code](https://github.com/affaan-m/everything-claude-code) | 🟢 | 설치 후 `[y/N]` 프롬프트 | 전체 ECC 번들 (글로벌). 이후 `scripts/prune-ecc.sh`로 project-local 정제 |
-| **trailofbits-skills** | [trailofbits/skills](https://github.com/trailofbits/skills) | 🟢 | dev track 인터랙티브 `[y/N]` | CodeQL + Semgrep 보안 정적 분석 |
+| kind | 실행 명령 | project scope (기본) | global scope |
+|---|---|---|---|
+| `plugin` | `claude plugin marketplace add --scope <s> <marketplace>` → `claude plugin install --scope <s> <pluginId>` | `--scope project` | `--scope user` |
+| `skill` | `npx skills@<pin> add <source> [--skill <name>] --agent <cli>… --yes` | skills CLI 기본(프로젝트) | `-g` 추가 |
+| `npm` | `npm install <pkg>@<version>` | `--save-dev` | `-g` |
+| `npx-run` | `npx <cmd>@<version> <args…>` | 실행형 — 되돌릴 자동 경로가 없다 | 동일 |
+| `shell-script` | `bash <번들 스크립트> <args…>` | 실행형 — 같음 | 동일 |
 
----
+세 가지가 여기서 읽힌다. ⓐ **버전이 고정된다** — `npm`·`npx-run` 은 `pkg@version` 으로 나가므로
+vetting 시점의 코드만 실행된다(v26.80.0). `plugin`·`skill` 은 upstream HEAD 라 아직 고정되지
+않는다. ⓑ **`--agent` 는 반복 플래그다** — skills CLI 1.5.7+ 계약이고, 쉼표 목록은 거부된다.
+ⓒ **`npx-run`·`shell-script` 는 `uninstall` 이 되돌릴 수 없다** — 무엇을 어디에 썼는지 우리가
+모르기 때문이고, 그래서 제거 시 "되돌릴 수 없음"으로 보고된다.
 
-## 2. Skills (`npx skills add`)
-
-| 이름 | 출처 | Tier | Track | 설치 명령 | 용도 |
-|------|------|:-:|------|---------|------|
-| **find-skills** | [vercel-labs/skills](https://github.com/vercel-labs/skills) | 🟢 | dev tracks | `npx skills add vercel-labs/skills --skill find-skills --yes` | 적합한 스킬 검색/추천 |
-| **react-best-practices** | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | 🟢 | csr-*, ssr-nextjs, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices --yes` | React 패턴. v0.6.5 — skills.sh registry name `vercel-react-best-practices` (GitHub dir 이름과 다름, prefix 있음) |
-| **shadcn/ui** | [shadcn/ui](https://github.com/shadcn-ui/ui) | ✅ | csr-*, ssr-nextjs, full | `npx skills add shadcn/ui --yes` | shadcn 컴포넌트 |
-| **web-design-guidelines** | vercel-labs/agent-skills | 🟢 | csr-*, ssr-*, full | `npx skills add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines --yes` | 웹 UI 가이드라인. v0.6.3 — source URL을 full HTTPS로 수정 |
+`internal` kind 는 이 표에 없다 — 외부 명령을 실행하지 않고 번들 템플릿을 복사하는 자산이다
+(방법론 스킬·`ci-scaffold`·`tauri-desktop`).
 
 ---
 
-## 3. MCP Servers (`.mcp.json`)
+## 2. MCP Servers (`.mcp.json`)
 
 `.mcp.json`은 프로젝트 스코프로 자동 생성되며, `templates/track-mcp-map.tsv` 기반으로 Track별 조건부 추가.
 
@@ -76,31 +80,39 @@
 | **railway-mcp-server** | csr-supabase, csr-fastify, csr-fastapi, ssr-htmx, ssr-nextjs, full | `npx -y @railway/mcp-server` |
 | **supabase** | csr-supabase, full | `npx -y @supabase/mcp-server` |
 
-> **신규 MCP 추가**: `templates/track-mcp-map.tsv`에 1줄 추가 → setup-harness.sh 수정 불필요.
+> **신규 MCP 추가**: `templates/track-mcp-map.tsv` 에 1줄 추가하면 된다 — 조립 코드는 손대지 않는다.
+> 조건 없이 항상 나가는 3종의 SSOT 는 `templates/mcp.json` 이다.
 
 ---
 
-## 4. Agents (자체 + ECC cherry-pick)
+## 3. Agents (자체 + ECC cherry-pick)
 
-> **v26.55.0 BREAKING (ADR-016)**: ECC cherry-pick agents 는 `--with-ecc` 또는 Step 3 의 `ecc-plugin` 토글 시에만 설치. Default install 시 본 프로젝트 자산만.
+> **게이팅 방향에 주의** — ADR-019 가 ADR-016 을 뒤집었다. ECC cherry-pick 에이전트는
+> `--with ecc-plugin` 을 **고르지 않았을 때** 폴백으로 깔린다(opt-out). ECC 플러그인을 고르면
+> 같은 역할을 플러그인이 가져오므로 사본이 비켜선다. 배선 = `src/manifest.ts` 의 `!s.withEcc`.
 
-| 에이전트 | 모델 | 출처 | gating | 용도 |
-|---------|:-:|------|:-:|------|
-| **reviewer** | opus | 자체 | always | SOD 검증 (5축 리뷰). context fork |
-| **data-analyst** | opus | 자체 | always | Python/DuckDB/Trino/ML/PySide6 |
-| **strategist** | opus | 자체 | always | 제안서/DD/PPT/경쟁분석 |
-| **plan-checker** | sonnet | 자체 | dev track | docs/plan.md ↔ todo.md ↔ SPEC.md 정합성 |
-| **code-reviewer** | sonnet | ECC | `--with-ecc` | 일상 코드 리뷰 (CRITICAL→LOW) |
-| **security-reviewer** | sonnet | ECC | `--with-ecc` | OWASP Top 10 + 시크릿 탐지 |
-| **silent-failure-hunter** | sonnet | ECC | `--with-ecc` + dev track | swallowed error / bad fallback 탐지 |
-| **build-error-resolver** | sonnet | ECC | `--with-ecc` + dev track | TS/build 에러 fix |
+| 에이전트 | 출처 | 언제 깔리나 | 용도 |
+|---|---|---|---|
+| **reviewer** | 자체 | 항상 | SOD 검증 (다면 리뷰). 구현하지 않은 레인이 판정한다 |
+| **data-analyst** | 자체 | 항상 | Python / DuckDB / Trino / ML / PySide6 |
+| **strategist** | 자체 | 항상 | 제안서 · DD · 덱 · 재무모델 |
+| **plan-checker** | 자체 | dev track | `docs/plan.md` ↔ `todo.md` ↔ `SPEC.md` 정합성 |
+| **implementer** | 자체 | dev track | 구현 레인 — 변경을 쓰고, 그 변경 없이는 실패하는 테스트로 닫는다 |
+| **code-reviewer** | ECC | ECC **미**선택 | 일상 코드 리뷰 (CRITICAL→LOW) |
+| **security-reviewer** | ECC | ECC **미**선택 | OWASP Top 10 + 시크릿 탐지 |
+| **silent-failure-hunter** | ECC | ECC **미**선택 + dev track | swallowed error / bad fallback 탐지 |
+| **build-error-resolver** | ECC | ECC **미**선택 + dev track | TS / build 에러 fix |
+
+> 모델 열은 뺐다 — 에이전트 정의 파일의 frontmatter 가 SSOT 이고, 여기 옮겨 적으면 두 번째 사본이
+> 된다. `implementer` 는 v26.138.0 에 생겼다: 그전 8종이 전부 검토·검증·도메인 특화라 설치자는
+> "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다(두 코퍼스 대조 실측 — 서브에이전트 코드 Edit 433 vs 3).
 
 ---
 
-## 5. Cherry-picked Sources
+## 4. Cherry-picked Sources
 
-`.dev-references/cherrypicks.lock` (19건 — 2026-08-02 ADR-060 에서 verification-loop·karpathy-gate,
-ADR-061 에서 gates-taxonomy 행 해체). ECC에서 발췌해 `templates/`에 복사.
+`.dev-references/cherrypicks.lock` (16건 — 2026-08-02 ADR-060 에서 verification-loop·karpathy-gate,
+ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서 발췌해 `templates/`에 복사.
 `scripts/sync-cherrypicks.sh`로 upstream drift 감지.
 
 | 카테고리 | 항목 |
@@ -114,11 +126,16 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 
 ---
 
-## 6. 자체 작성 자산
+## 5. 자체 작성 자산
 
 ### Skills (templates/skills/)
 
-번들 = 14종. 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
+자체 작성 스킬은 **14종**이고, 그중 **12종은 카탈로그 엔트리를 갖는다**(`INTERNAL_BUNDLED_SKILL_IDS`
+— 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다). 남는 `spec-scaling`·
+`ui-visual-review` 2종은 엔트리 없이 `manifest.ts` 가 트랙 조건으로 직접 깐다. COMPATIBILITY.md 가
+"번들 uzys 스킬 12종"이라 적는 것과 여기 14종이 어긋나 보이는 이유가 이 둘이다.
+
+아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
 uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
 워크드 예시를 잃었고(감사 실측 104건), 그 본문을 무는 게이트는 이 리포에만 있다.
 설치 조건의 SSOT 는 `src/external-assets.ts` 의 각 엔트리 `condition` 이다.
@@ -133,7 +150,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
 | **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |
 | **recurrence-prevention** | 전 dev track | 재발 검증 → 단순/복합 분류 → 대책 사다리 1단 상향(기록→룰→구조 게이트) | ADR-062 복원 |
-| **verification-loop** | 전 dev track | 표면별 검증 트랙 + 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity 4단 | ADR-062 복원 · ECC 파생(MIT, lock 밖 — §5 참조) |
+| **verification-loop** | 전 dev track | 표면별 검증 트랙 + 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity 4단 | ADR-062 복원 · ECC 파생(MIT, lock 밖 — §4 참조) |
 | **model-orchestration** | opt-in | 역할·effort 라우팅 정책, 위임 브리프 규격, 워커 수거·종료 계약 | ADR-062 복원 |
 | **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
 | **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
@@ -145,15 +162,17 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 - **PLAN.template.md** (v26.30.0) — Sprint Contract / Phase Overview / **Milestone × Dependency Graph** (직렬/병렬/강한 의존 표기) + **Critical Path** / Per-Milestone AC / Risk / Open Questions / Changelog 8섹션
 - **skills/north-star/NORTH_STAR.template.md** — NSM / Pillars / Will-Won't / Decision Heuristics 6섹션. **로드맵(시간축)과 이력은 담지 않는다** — 각각 로드맵 문서와 버전 관리 이력 소관이고, 템플릿 §5·§8 은 그 사실을 적은 스텁이다
 
-### Commands (templates/commands/uzys/)
-spec, plan, build, test, review, ship, auto — 6-gate 워크플로우 + Ralph 루프 진입.
-- **spec**에 D 블록(NORTH_STAR 작성 권유 — 6개월+ 프로젝트)
-- **plan** Process step 4에 4-gate 체크 (Complex 복잡도 + NORTH_STAR.md 존재 시)
-- **test**에 UI Track visual-review 호출 섹션
-- **review** Process step 5에 visual-review 결과 흡수 + **REGRESSION 1건이라도 있으면 Review Gate 차단** (CRITICAL 동급)
+### Commands — 없다
+
+`templates/commands/` 디렉터리는 존재하지 않고, manifest 에 `.claude/commands/` 대상도 0건이다.
+직접 쓴 슬래시 명령 세트(`spec`·`plan`·`build`·…)는 ADR-060 에서, ECC 폴백 8종은 ADR-073 에서 <!-- ref:removed -->
+사라졌다. 유일한 예외는 OpenCode 인데, 그쪽은 native 스킬 개념이 없어 스킬 하나당 명령 파일 하나를
+`.opencode/commands/` 로 **생성**한다 — 번들 템플릿이 아니라 설치 시점 변환 산출물이다.
 
 ### Rules (templates/rules/)
-8 파일(실측 2026-08-02 — ADR-060 정비로 기술스택 상세 룰 12종, ADR-061 로 `gates-taxonomy` 삭제).
+6 파일(실측 2026-08-17 — ADR-060 정비로 기술스택 상세 룰 12종, ADR-061 로 게이트 어휘 룰,
+#284 로 `benchmark-parity`, 2026-08-12 로 `playwright-launch` 삭제. 마지막 것의 내용은 <!-- ref:removed -->
+`ui-visual-review` 스킬로 합쳐져 상주에서 발화로 내려갔다 — 그래서 **UI 트랙 전용 룰은 이제 없다**).
 CLAUDE.md와 짝.
 **트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
 (`COMMON_RULES`·`DEV_RULES`·`UI_RULES`·`TRACK_RULES` → `resolveRules()`)다 — SPEC 이 아니다.
@@ -163,7 +182,7 @@ CLAUDE.md와 짝.
 3 파일 (실측 2026-08-16): session-start · protect-files · task-brief-nudge.
 차단하는 훅은 `protect-files` **하나뿐**이고, exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
 `날짜 · 훅 · 대상` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
-*`mcp-pre-exec` 은 ADR-072 로 제거됐다 — 배선이 아니라 목적이 이유다. MCP 서버를 새로 붙이는
+*`mcp-pre-exec` 은 ADR-072 로 제거됐다 — 배선이 아니라 목적이 이유다. MCP 서버를 새로 붙이는 <!-- ref:removed -->
 순간 차단하는 훅은 "사용자가 AI 코딩 도구로 개발을 잘하게 만든다"는 방향과 반대로 작동한다.*
 **task-brief-nudge 는 차단하지 않는다** — UserPromptSubmit 에서 "400자 이상 && `<objective>` 부재"
 라는 결정적 두 조건만 보고 stdout 1줄을 덧붙인다(그 밖엔 무출력 exit 0). 차단 경로가 없어
@@ -173,11 +192,27 @@ CLAUDE.md와 짝.
 `settings.json` 의 `"PostToolUse": []` 로 설치만 되고 실행 0이었다).*
 
 ### Scripts (자체 작성)
-- `scripts/prune-ecc.sh` — ECC plugin 프로젝트 스코프 복사 + 89 KEEP 외 제거
-- `scripts/setup-harness.sh` — 모든 설치 orchestrator. v26.26.0에서 `curl|bash` 설치 UX 버그 fix (stdin/stdout/stderr 격리, fd 3 TTY 재부착)
-- `scripts/test-harness.sh` — 147 assertion (T1~T19). JSON validity / hook unit / 9-track install 병렬 / multi-track / update mode / install.sh file:// E2E / 신규 skill 자산 검증 (5초 quick / 8분 full)
-- `scripts/sync-cherrypicks.sh` — cherry-pick 출처 drift 감지
-- `install.sh` — `curl | bash` 원격 설치 entry. `UZYS_HARNESS_REPO` env로 fork URL 오버라이드 가능
+
+설치를 오케스트레이션하던 `setup-harness.sh` 와 그 어서션 스위트 `test-harness.sh` 는 **없다** —
+CLI 를 TypeScript 로 다시 쓸 때 `src/` 와 `vitest` 가 각각 그 자리를 가져갔다. 검증 명령은
+`npm run ci`(typecheck + lint + coverage + build)다.
+
+**게시에 실려 나가는 것은 `scripts/prune-ecc.sh` 하나뿐이다**(`package.json` 의 `files`). 나머지는
+이 저장소의 개발 도구다.
+
+| 스크립트 | 하는 일 |
+|---|---|
+| `scripts/prune-ecc.sh` | ECC 플러그인을 프로젝트 스코프로 복사하고 curated KEEP 외를 제거. 게시 대상 |
+| `scripts/sync-cherrypicks.sh` | cherry-pick 출처의 upstream drift 감지 |
+| `scripts/check-absence.sh` | "없다"는 결론을 대조군 없이 못 내게 만드는 판정기 (0 부재 · 1 발견 · 2 신뢰불가) |
+| `scripts/gen-compatibility.mjs` | `COMPATIBILITY.md` 의 카탈로그 표 생성 (`npm run gen:compat`) |
+| `scripts/verify-catalog.mjs` | 실 CLI 로 전 카탈로그 설치 가능성 재검증 (`catalog-verify.yml` 월 cron) |
+| `scripts/trust-tier-drift.mjs` | star 수 drift 감시 (`trust-tier-drift.yml` 월 cron) |
+| `scripts/context-cost-report.mjs` · `-baseline.mjs` | 상주 컨텍스트 비용 측정 (`npm run cost:report` · `cost:baseline`) |
+| `install.sh` | `curl \| bash` 진입점. 실제로는 npx CLI 에 위임하는 얇은 래퍼 — 옛 문서의 호출이 계속 동작하게 남겨 둔 것이다 |
+
+표는 **판정·생성에 쓰이는 것만** 담았다. 데모 녹화(`record-demo.sh`·`demo-capture.sh`·
+`demo.Dockerfile`)와 `fresh-dogfood-setup.sh` 는 뺐다 — 전체 목록은 `ls scripts/` 다.
 
 ### eval-harness 확장 (v26.30.0)
 ECC cherry-pick skill이지만 본 harness에서 확장:
@@ -187,48 +222,53 @@ ECC cherry-pick skill이지만 본 harness에서 확장:
 
 ---
 
-## 7. 설치 결정 흐름
+## 6. 설치 결정 흐름
 
 ```
-$ bash scripts/setup-harness.sh --track <track> --project-dir .
+$ npx -y @uzysjung/agent-harness                 # 위저드
+$ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립트)
+      --track <track> --cli <cli> --project-dir .
   ↓
-[Prerequisites] Node 22+ / git / claude / jq
+[전제] Node 20+ · git. `claude` 는 plugin 자산이 있을 때만, `npx`/`npm` 은 그 방식의 자산이 있을 때만
   ↓
-[Track 선택] (또는 --track으로 명시)
+[1 Track] · [2 CLI] — 둘 다 다중 선택
   ↓
-[필수 설치] addy agent-skills + Impeccable + Playwright + find-skills + agent-browser + ADR
+[3 설치 항목] 7 페이지. 앞 2페이지 = 트랙 baseline(룰·훅 / 에이전트·스킬)을 전부 체크된 채로 보여
+             주고 해제할 수 있게 한다. 뒤 5페이지 = 외부 자산 카테고리
   ↓
-[Track 조건부]
-  - csr-*: react-best-practices + shadcn + tauri-aware rule + supabase(csr-supabase만)
-  - ssr-htmx: htmx rule
-  - ssr-nextjs: nextjs rule
-  - data: polars + dask + python-resource/performance + Anthropic data plugin
-  - executive: c-level + business-growth + finance + document-skills (모두 alirezarezvani/claude-skills marketplace + Anthropic)
-  - tooling: cli-development rule
+[4 Scope] Project(기본) / Global      [5 Confirm] 요약 + 세션 시작 컨텍스트 비용
   ↓
-[Optional 프롬프트]
-  - ECC plugin 프로젝트 스코프 설치? [y/N]
-    → y면 prune-ecc.sh 호출 → DELETED/KEPT 목록 표시
-  - Trail of Bits security? [y/N] (dev track만)
+[6 Installing]
+  Phase 1  템플릿  — .claude/{rules,agents,hooks,skills} · 앵커 · .mcp.json · (opt-in) .github/workflows
+  Phase 2  외부 자산 — 4단계에서 고른 scope 로 §1 의 5가지 방식 실행
+  Phase 3  설치 로그 — .uzys-agent-harness/.harness-install.json (`list`·`uninstall` 이 이걸 읽는다)
   ↓
-[.mcp.json 생성] track-mcp-map.tsv 기반 조건부 union
-  ↓
-[Installation Report] ✅/❌ 카운트 표
+[리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목
 ```
+
+트랙이 무엇을 고르는지는 이 그림이 아니라 [TRACKS.md](TRACKS.md) 가 담는다 — 여기 옮겨 적었던
+동안 그 목록은 세 릴리즈치 낡은 자산을 안내하고 있었다.
 
 ---
 
-## 8. 보안 / 신뢰 정책
+## 7. 보안 / 신뢰 정책
 
 - **MCP allowlist**: 없다 (ADR-072 로 제거). MCP 호출은 하네스가 막지 않는다 — 승인은 각 CLI 자신의 권한 체계가 한다. 기존 설치본의 `.mcp-allowlist` 는 `update` 가 백업 후 회수한다.
-- **글로벌 ~/.claude/ 보호**: `setup-harness.sh --project-dir`이 `~/.claude/*`/`/etc/*` 등 시스템 경로 차단 (D16).
+- **글로벌 경로 보호는 경로 차단이 아니라 scope 기본값이다** (ADR-020). `~/.claude/skills/`·`~/.codex/`·
+  `~/.opencode/`·`~/.gemini/`·`npm root -g` 는 4단계에서 Global 을 고르거나 `--scope global` 을
+  넘기지 않는 한 쓰이지 않는다. **`--project-dir` 에 대한 시스템 경로 블록리스트는 없다** — 값은
+  `resolve()` 될 뿐이다(실측 2026-08-17, 대조군 확인). 이 줄은 그런 차단이 있다고 적고 있었고,
+  근거로 든 스크립트는 CLI 재작성 때 사라진 것이었다. **없는 방어를 있다고 적는 것이 없는 것보다
+  나쁘다** — 읽는 사람이 그걸 믿고 위험한 경로를 넘긴다.
 - **`.env` / credentials 수정 차단**: `protect-files.sh` 훅이 `.env`, lock 파일, 인증서 경로 차단.
 - **`--no-verify` / `--force` 금지**: `git-policy.md` §Safety 의 **프로즈 규약**이다 — 강제하는 훅은
   없다. (v26.122.0 정정: 이 줄은 `gate-check.sh` 가 차단한다고 적고 있었으나 그 훅은 ADR-023 에서
-  삭제됐다. 같은 문서 §7 이 이미 "삭제됨"이라 적고 있어 자기모순이었다.)
+  삭제됐다. 같은 문서의 §5 Hooks 가 이미 "삭제됨"이라 적고 있어 자기모순이었다.)
 
 ---
 
-## 9. 라이선스 / 책임
+## 8. 라이선스 / 책임
 
-각 외부 출처의 라이선스를 따른다 (대부분 MIT/Apache 2.0). 본 카탈로그는 통합 가이드일 뿐 외부 자산의 동작/보안에 대한 보증을 제공하지 않는다. `scripts/setup-harness.sh` 실행 전 신뢰 등급(특히 🟡 Community) 검토 권장.
+각 외부 출처의 라이선스를 따른다 (대부분 MIT/Apache 2.0). 본 카탈로그는 통합 가이드일 뿐 외부 자산의
+동작/보안에 대한 보증을 제공하지 않는다. 설치 전에 3단계에서 각 자산의 등급 배지(특히
+⚠ experimental)를 확인하고, 판단이 필요하면 [SECURITY.md](../SECURITY.md) 를 읽는다.

@@ -56,12 +56,24 @@ const GUIDE_DOCS: readonly string[] = [
  * 게이트를 조용히 무력화하는 가장 싼 경로다.
  */
 const NOT_AN_ASSET: ReadonlyMap<string, string> = new Map([
-  ["condition", "REFERENCE.md 자산 표의 열 이름"],
+  ["condition", "카탈로그 엔트리의 필드 이름"],
+  ["tier", "카탈로그 엔트리의 필드 이름"],
+  ["files", "`package.json` 의 게시 계약 키"],
   ["backup", "설치 요약의 행 라벨 (`backup` rows)"],
   ["auto-install-peers", "pnpm 계열 .npmrc 키 — Troubleshooting 예시"],
   ["npm-global", "v26.64.0 마이그레이션 노트가 인용하는 **과거** method kind"],
   ["instructions", "`opencode.json` 의 설정 키"],
 ]);
+
+/**
+ * 줄 단위 면제 표식. **제거 이력을 설명하는 문장은 없어진 이름을 불러야 한다** — "`X` 는 제거됐다"를
+ * 못 쓰게 하면 문서가 왜 바뀌었는지 적을 수단이 사라진다.
+ *
+ * 이름이 아니라 **줄**을 면제하는 이유: 이름을 면제하면 "설치하려면 `X`" 같은 새 stale 안내가 같은
+ * 이름으로 되살아나도 통과한다. 줄 표식은 그 자리에서만 열린다. (같은 형태의 선례 =
+ * `docs-supply-chain` 의 `<!-- catalog-total:frozen -->`.)
+ */
+const HISTORICAL_MARKER = "<!-- ref:removed -->";
 
 /**
  * 우리가 **설치하지 않는** 외부 저장소. WORKFLOWS.md 는 워크플로 큐레이션의 근거로 경쟁·기각
@@ -157,7 +169,12 @@ function buildVocabulary(): Map<string, string> {
     name: string;
     scripts?: Record<string, string>;
     repository?: { url?: string };
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
   };
+  // 툴체인 이름(vitest·biome·tsup…)도 문서가 명령과 함께 부른다.
+  for (const d of [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})])
+    add(d.split("/").pop(), "의존성");
   add(pkg.name.split("/").pop(), "패키지명");
   // 저장소 이름은 `repository.url` 에서 뽑는다 — 작업 디렉터리 이름은 클론마다 달라 근거가 못 된다.
   add(basename(pkg.repository?.url ?? "", ".git").replace(/^.*\//, ""), "저장소명");
@@ -172,22 +189,28 @@ interface Ref {
 }
 
 /** GUIDE_DOCS 의 인라인 코드에서 자산 id 형태 · owner/repo 형태를 각각 수집. */
-function collectRefs(): { shaped: Ref[]; slashed: Ref[] } {
+function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
   const shaped: Ref[] = [];
   const slashed: Ref[] = [];
+  let exempted = 0;
   for (const file of GUIDE_DOCS) {
-    const text = readFileSync(join(REPO_ROOT, file), "utf8");
-    for (const m of text.matchAll(INLINE_CODE)) {
-      const token = (m[1] ?? "").trim();
-      if (SLASHED.test(token)) slashed.push({ file, token });
-      else if (ASSET_SHAPE.test(token)) shaped.push({ file, token });
+    for (const line of readFileSync(join(REPO_ROOT, file), "utf8").split(/\r?\n/)) {
+      if (line.includes(HISTORICAL_MARKER)) {
+        exempted += 1;
+        continue;
+      }
+      for (const m of line.matchAll(INLINE_CODE)) {
+        const token = (m[1] ?? "").trim();
+        if (SLASHED.test(token)) slashed.push({ file, token });
+        else if (ASSET_SHAPE.test(token)) shaped.push({ file, token });
+      }
     }
   }
-  return { shaped, slashed };
+  return { shaped, slashed, exempted };
 }
 
 const VOCAB = buildVocabulary();
-const { shaped: SHAPED_REFS, slashed: SLASHED_REFS } = collectRefs();
+const { shaped: SHAPED_REFS, slashed: SLASHED_REFS, exempted: EXEMPTED_LINES } = collectRefs();
 const CATALOG_SOURCE = readFileSync(join(REPO_ROOT, "src", "external-assets.ts"), "utf8");
 
 describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
@@ -207,6 +230,12 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       SLASHED_REFS.length,
       "owner/repo 형태 참조를 못 찾았다 — 정규식이 죽었다",
     ).toBeGreaterThanOrEqual(5);
+    // 면제 표식을 뿌려서 게이트를 끄는 경로를 막는다. 표식은 제거 이력 문장에만 쓰는 것이고,
+    // 그런 문장이 문서당 여러 줄씩 필요해진다면 그건 문서 구조를 고쳐야 한다는 신호다.
+    expect(
+      EXEMPTED_LINES,
+      `면제 표식(${HISTORICAL_MARKER})이 ${EXEMPTED_LINES}줄 — 이 정도면 게이트가 아니라 장식이다`,
+    ).toBeLessThanOrEqual(15);
   });
 
   it("자산 id 형태로 적힌 이름이 전부 이 저장소에 실재한다", () => {
