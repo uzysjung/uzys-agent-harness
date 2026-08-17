@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { listFilesRecursive } from "../src/fs-ops.js";
@@ -140,15 +141,22 @@ function scanFences(file: string, md: string): Scan {
   return { fences, unclosed };
 }
 
-const UNCLOSED: string[] = [];
-
-function collectSnippets(): Snippet[] {
-  const out: Snippet[] = [];
-  for (const rel of listFilesRecursive(TEMPLATES)) {
-    const abs = join(TEMPLATES, rel);
+/**
+ * 미닫힘 목록을 **반환값으로** 낸다. 모듈 레벨 가변 배열에 밀어 넣으면 "순수 함수로 바꾸자"는
+ * 아주 자연스러운 정리 한 번에 배선이 끊기고, 그때 코퍼스 단언은 `[] === []` 가 되어 조용히
+ * 통과한다(변이 생존 확인). 배선이 값 흐름 위에 있으면 끊기 어렵다.
+ */
+function collectSnippets(
+  root: string = TEMPLATES,
+  label = "templates",
+): { snippets: Snippet[]; unclosed: string[] } {
+  const snippets: Snippet[] = [];
+  const unclosed: string[] = [];
+  for (const rel of listFilesRecursive(root)) {
+    const abs = join(root, rel);
     if (rel.endsWith(".sh")) {
-      out.push({
-        file: `templates/${rel}`,
+      snippets.push({
+        file: `${label}/${rel}`,
         kind: "script",
         startLine: 1,
         isShell: true,
@@ -157,12 +165,12 @@ function collectSnippets(): Snippet[] {
       continue;
     }
     if (rel.endsWith(".md")) {
-      const scan = scanFences(`templates/${rel}`, readFileSync(abs, "utf8"));
-      out.push(...scan.fences);
-      UNCLOSED.push(...scan.unclosed);
+      const scan = scanFences(`${label}/${rel}`, readFileSync(abs, "utf8"));
+      snippets.push(...scan.fences);
+      unclosed.push(...scan.unclosed);
     }
   }
-  return out;
+  return { snippets, unclosed };
 }
 
 /**
@@ -191,7 +199,7 @@ function danglingContinuations(snippet: Snippet): string[] {
     .map(({ line, at }) => `${snippet.file}:${at}\n    ${line}`);
 }
 
-const SNIPPETS = collectSnippets();
+const { snippets: SNIPPETS, unclosed: UNCLOSED } = collectSnippets();
 const SCRIPTS = SNIPPETS.filter((s) => s.kind === "script");
 const FENCES = SNIPPETS.filter((s) => s.kind === "fence");
 const SHELL_FENCES = FENCES.filter((s) => s.isShell);
@@ -279,17 +287,38 @@ describe("배포물 셸 건전성 (#327)", () => {
   });
 
   it("수집기가 살아 있다 — 0건 통과 방지", () => {
-    // 하한은 수집기 회귀(스캐너 파손 → 0건 수집 → 전부 통과)를 잡기 위한 것이지 현재 개수의
-    // 사본이 아니다. 실측 2026-08-17: 스크립트 18 · 펜스 217(그중 셸 48).
-    // 실측의 ~80% 로 둔다 — 자산이 줄어 red 가 나면 "커버리지가 줄었다"는 신호로 읽어야 한다.
-    // 검사한 **실제 개수**는 아래 테스트들의 이름에 실려 매 실행 출력에 남는다.
-    expect(SCRIPTS.length).toBeGreaterThanOrEqual(15);
-    expect(FENCES.length).toBeGreaterThanOrEqual(175);
-    expect(SHELL_FENCES.length).toBeGreaterThanOrEqual(40);
+    // 하한의 목적은 하나다 — **수집기가 죽어 0건을 모으는 것**을 잡는 것. 현재 개수의 사본이
+    // 아니다. 실측 2026-08-17: 스크립트 18 · 펜스 217(그중 셸 48).
+    //
+    // 한때 실측의 80%(15/175/40)로 조였다가 되돌렸다. 그러면 문서 하나만 정당하게 지워도 red 인데
+    // 테스트 이름이 "0건 통과 방지"라 **지운 사람이 수집기가 깨졌다고 오독한다**(실증됨:
+    // `hierarchy.md` 하나 제거 → 셸 37 < 40 red). 침묵하는 열화는 하한이 아니라 미닫힘 테스트와
+    // 테스트 이름에 실리는 실개수가 덮는다. 그래서 하한은 원래 목적만 한다.
+    const counts = `스크립트 ${SCRIPTS.length} · 펜스 ${FENCES.length} · 셸 펜스 ${SHELL_FENCES.length}`;
+    const reading = `수집기 파손 또는 자산 감소 — 어느 쪽인지 개수 변화로 판단하라 (${counts})`;
+    expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(10);
+    expect(FENCES.length, reading).toBeGreaterThanOrEqual(100);
+    expect(SHELL_FENCES.length, reading).toBeGreaterThanOrEqual(30);
   });
 
   it("닫히지 않은 코드펜스가 없다 — 있으면 그 뒤 스니펫이 통째로 검사 밖이다", () => {
     expect(UNCLOSED).toEqual([]);
+  });
+
+  it("수집 파이프라인이 미닫힘을 실제로 실어 나른다", () => {
+    // 위 단언만으로는 배선을 고정하지 못한다 — 코퍼스에 미닫힘이 0건이라 배선을 끊어도
+    // `[] === []` 로 조용히 통과한다(변이 생존 확인). 그래서 **합성 코퍼스**를 파이프라인에
+    // 통과시켜 미닫힘이 끝까지 실려 오는지를 본다.
+    const dir = mkdtempSync(join(tmpdir(), "shipped-shell-"));
+    try {
+      writeFileSync(join(dir, "unclosed.md"), "intro\n\n```bash\nnever closed\n");
+      writeFileSync(join(dir, "fine.md"), "```bash\necho ok\n```\n");
+      const scanned = collectSnippets(dir, "synthetic");
+      expect(scanned.unclosed).toEqual(["synthetic/unclosed.md:3"]);
+      expect(scanned.snippets).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it(`배포되는 셸 스크립트 ${SCRIPTS.length}개가 bash 문법을 통과한다`, () => {
