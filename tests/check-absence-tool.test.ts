@@ -199,6 +199,9 @@ for (const [label, SCRIPT] of [
         ["두 모드 혼용", ["--canary", "x", "--control", "true", "--subject", "true"]],
         // M4 — 조용한 무시가 이 도구의 성격과 반대다.
         ["command 모드에 남는 위치 인자", ["--control", "true", "--subject", "false", "extra"]],
+        // 재리뷰 N2/N4 — 모드 밖 플래그를 "거절한다"고 보고했는데 절반만 맞았다.
+        ["command 모드에 -i", ["--control", "true", "--subject", "false", "-i"]],
+        ["빈 --canary 로 모드 혼용", ["--canary", "", "--control", "true", "--subject", "false"]],
         [
           "pattern 모드에 --control-exit",
           ["--control-exit", "5", "--canary", "x", "x", "clean.txt"],

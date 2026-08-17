@@ -27,7 +27,8 @@
 #                        --subject '<판정할 명령>' [--control-exit N]
 #       예: ... --control '<이미 되는 대상으로 같은 절차>' --subject '<판정할 대상으로 같은 절차>'
 #
-#       **대상이 실행조차 안 되면(126/127) 판정이 아니라 무효다** — "대상이 안 된다"와
+#       **대상이 실행조차 안 되면(126/127) 판정이 아니라 무효다**
+#       — 바이너리 부재를 재려면 `--subject 'command -v <bin>'` 처럼 **1 을 내는 형태**로 쓴다. — "대상이 안 된다"와
 #       "내가 친 명령이 틀렸다"는 다른 사실이고 exit 1 은 둘을 구분해 주지 않는다.
 #       실행기는 `bash -c` 로 고정한다. `sh` 는 macOS 에서 bash, Linux 에서 dash 라
 #       같은 입력이 플랫폼마다 반대 판정을 냈다.
@@ -57,6 +58,7 @@ USAGE
 }
 
 CANARY=""
+CANARY_SET=0
 CONTROL=""
 SUBJECT=""
 CONTROL_EXIT=0
@@ -64,13 +66,14 @@ CONTROL_EXIT_SET=0
 # -i 는 자기검증과 실제 검사에 **동시에** 적용된다. 한쪽만 적용하면 자기검증이 통과해도
 # 실제 검사가 놓치는 구멍이 생긴다 — 이 도구가 막으려는 바로 그 실패다.
 IGNORE_CASE=""
+IGNORE_CASE_SET=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --canary) [ $# -ge 2 ] || usage; CANARY="$2"; shift 2 ;;
+    --canary) [ $# -ge 2 ] || usage; CANARY="$2"; CANARY_SET=1; shift 2 ;;
     --control) [ $# -ge 2 ] || usage; CONTROL="$2"; shift 2 ;;
     --subject) [ $# -ge 2 ] || usage; SUBJECT="$2"; shift 2 ;;
     --control-exit) [ $# -ge 2 ] || usage; CONTROL_EXIT="$2"; CONTROL_EXIT_SET=1; shift 2 ;;
-    -i|--ignore-case) IGNORE_CASE="-i"; shift ;;
+    -i|--ignore-case) IGNORE_CASE="-i"; IGNORE_CASE_SET=1; shift ;;
     --) shift; break ;;
     -*) usage ;;
     *) break ;;
@@ -84,14 +87,16 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 # 모드는 배타적이다. 섞어 부르면 어느 대조군이 적용됐는지 출력만 보고는 알 수 없다.
 if [ -n "$CONTROL" ] || [ -n "$SUBJECT" ]; then
   { [ -n "$CONTROL" ] && [ -n "$SUBJECT" ]; } || usage
-  [ -z "$CANARY" ] || usage
+  [ "$CANARY_SET" -eq 0 ] || usage
   # 남는 위치 인자를 조용히 버리지 않는다 — 조용한 무시가 이 도구의 성격과 반대다.
   [ $# -eq 0 ] || usage
+  [ "$IGNORE_CASE_SET" -eq 0 ] || usage
   # 형태와 **범위**를 함께 본다. 범위를 안 보면 아래 `[ ... -ne ... ]` 가 에러(상태 2)로 끝나고
   # `if` 가 그것을 거짓 = "대조군 통과" 로 읽는다 — 실패가 삼켜지는 자리다.
   case "$CONTROL_EXIT" in
     ''|*[!0-9]*) usage ;;
-    *) { [ "${#CONTROL_EXIT}" -le 3 ] && [ "$CONTROL_EXIT" -le 255 ]; } || usage ;;
+    *) CONTROL_EXIT=$((10#$CONTROL_EXIT)) 2>/dev/null || usage
+       [ "$CONTROL_EXIT" -le 255 ] || usage ;;
   esac
 
   C_OUT="$WORK_DIR/control.out"; C_ERR="$WORK_DIR/control.err"
@@ -128,7 +133,8 @@ if [ -n "$CONTROL" ] || [ -n "$SUBJECT" ]; then
   case "$S_RC" in
     126|127)
       echo "FAIL(2): 대상 명령이 **실행되지 않았다**(exit $S_RC) — 실패가 아니라 무효다." >&2
-      echo "  126 = 실행 권한 없음 · 127 = 명령을 찾을 수 없음. 명령 문자열을 먼저 고쳐라." >&2
+      echo "  126 = 실행 권한 없음 · 127 = 명령을 찾을 수 없음." >&2
+      echo "  **바이너리 부재**를 판정하려면 1 을 내는 형태로 바꿔라 — 예: --subject 'command -v <bin>'" >&2
       exit 2 ;;
   esac
 

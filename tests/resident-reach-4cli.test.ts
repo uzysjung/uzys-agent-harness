@@ -12,7 +12,7 @@ import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { runInstall } from "../src/installer.js";
 import { buildManifest, resolveRules } from "../src/manifest.js";
-import { CLI_BASES, type CliBase, DEFAULT_OPTIONS } from "../src/types.js";
+import { CLI_BASES, type CliBase, DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
 /**
@@ -197,16 +197,25 @@ const TOOLS_NAMED_BY_RULES: ReadonlyArray<string> = (() => {
   return [...found].sort();
 })();
 
-/** manifest 가 CLI 중립 슬롯에 깔겠다고 한 `.sh` 전량 — 지목 축의 반대편. */
+/**
+ * manifest 가 CLI 중립 슬롯에 깔겠다고 한 `.sh` 전량 — 지목 축의 반대편.
+ * **트랙 전량의 합집합**으로 유도한다. `full` 하나로만 재면 트랙 게이팅된 도구가 생겼을 때
+ * `full` 에 없는 것이 비교에서 통째로 빠진다.
+ */
 const TOOLS_SHIPPED_BY_MANIFEST: ReadonlyArray<string> = (() => {
-  const spec = { tracks: ["full"], cli: ["claude"], options: {} } as unknown as Parameters<
-    typeof buildManifest
-  >[0];
-  return buildManifest(spec)
-    .filter((e) => e.applies(spec))
-    .map((e) => e.target)
-    .filter((t) => t.startsWith(".uzys-agent-harness/") && t.endsWith(".sh"))
-    .sort();
+  const found = new Set<string>();
+  for (const track of TRACKS) {
+    const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as Parameters<
+      typeof buildManifest
+    >[0];
+    for (const e of buildManifest(spec)) {
+      if (!e.applies(spec)) continue;
+      if (e.target.startsWith(".uzys-agent-harness/") && e.target.endsWith(".sh")) {
+        found.add(e.target);
+      }
+    }
+  }
+  return [...found].sort();
 })();
 
 describe("룰이 가리키는 도구도 함께 도달한다", () => {
