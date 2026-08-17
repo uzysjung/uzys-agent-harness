@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -96,6 +96,23 @@ for (const [label, SCRIPT] of [
         const r = run(SCRIPT, ["OldName", "clean.txt"], dir);
         expect(r.code).toBe(3);
       });
+
+      /**
+       * 독립 리뷰가 잡은 H2. 경로를 공백 구분 문자열로 쌓아 인용 없이 전개하던 이전 판본은
+       * `a b` 를 `a` 와 `b` 로 쪼개 훑고 **`매치: 0건` + exit 0** 을 냈다. canary 를 통과한
+       * 뒤라 사용자는 최대 확신 상태에서 거짓 부재를 받는다 — 가장 나쁜 실패 모양이다.
+       */
+      it("공백이 든 경로에서도 매치를 찾는다 — 단어 분할로 인한 거짓 부재 금지", () => {
+        mkdirSync(join(dir, "a b"));
+        mkdirSync(join(dir, "a"));
+        mkdirSync(join(dir, "b"));
+        writeFileSync(join(dir, "a b", "hit.txt"), "OldName is HERE\n");
+        writeFileSync(join(dir, "a", "x.txt"), "nothing\n");
+        writeFileSync(join(dir, "b", "y.txt"), "nothing\n");
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "a b"], dir);
+        expect(r.code).toBe(1);
+        expect(r.out).toContain("hit.txt");
+      });
     });
 
     describe("command 모드 — 대조군은 '되는 줄 아는 대상'이다", () => {
@@ -137,6 +154,41 @@ for (const [label, SCRIPT] of [
         expect(r.code).toBe(2);
         expect(r.out).toContain("boom");
       });
+
+      /**
+       * 독립 리뷰가 잡은 H1. 이전 판본은 여기서 **exit 0("부재 확인")** 을 냈다 — 실행조차 안 된
+       * 명령을 "대상이 안 된다"의 증거로 내준 것이고, 그건 이 도구가 없애려던 실패 그 자체다.
+       */
+      it("대상이 실행조차 안 되면(127) 판정이 아니라 무효다 — exit 2", () => {
+        const r = run(SCRIPT, ["--control", "true", "--subject", "nosuchcmd_xyz_123"], dir);
+        expect(r.code).toBe(2);
+        expect(r.out).toContain("실행되지 않았다");
+      });
+
+      it("실행 권한이 없어도(126) 무효다 — exit 2", () => {
+        const r = run(SCRIPT, ["--control", "true", "--subject", "/etc/hosts"], dir);
+        expect(r.code).toBe(2);
+      });
+
+      /**
+       * H1b. `sh -c` 이던 시절 이 입력이 macOS(bash) 에서 1, Linux(dash) 에서 0 으로 **뒤집혔다**.
+       * 하필 이 모드를 만든 계기가 Docker(Linux) 실험이라 가장 아픈 자리였다.
+       */
+      it("실행기를 bash 로 고정한다 — bash 문법이 대상에서 동작하고, 출력에 실행기가 남는다", () => {
+        const r = run(SCRIPT, ["--control", "true", "--subject", "[[ 1 == 1 ]]"], dir);
+        expect(r.code).toBe(1); // bash 에서는 성공 → "안 된다"가 틀렸다
+        expect(r.out).toContain("bash -c");
+      });
+
+      /** M1. 범위를 안 보면 `[ -ne ]` 가 에러로 끝나고 `if` 가 그걸 "대조군 통과"로 읽었다. */
+      it.each([
+        ["20자리", "99999999999999999999"],
+        ["256", "256"],
+      ])("--control-exit 이 범위를 벗어나면(%s) 판정 코드가 아니라 사용법 오류 — exit 3", (_d, v) => {
+        expect(
+          run(SCRIPT, ["--control", "true", "--subject", "false", "--control-exit", v], dir).code,
+        ).toBe(3);
+      });
     });
 
     describe("사용법 오류는 3 — 판정 코드와 섞이지 않는다", () => {
@@ -145,6 +197,12 @@ for (const [label, SCRIPT] of [
         ["--subject 누락", ["--control", "true"]],
         ["--control 누락", ["--subject", "true"]],
         ["두 모드 혼용", ["--canary", "x", "--control", "true", "--subject", "true"]],
+        // M4 — 조용한 무시가 이 도구의 성격과 반대다.
+        ["command 모드에 남는 위치 인자", ["--control", "true", "--subject", "false", "extra"]],
+        [
+          "pattern 모드에 --control-exit",
+          ["--control-exit", "5", "--canary", "x", "x", "clean.txt"],
+        ],
         [
           "--control-exit 비숫자",
           ["--control", "true", "--subject", "true", "--control-exit", "a"],

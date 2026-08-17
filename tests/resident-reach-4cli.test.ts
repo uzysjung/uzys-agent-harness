@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { runInstall } from "../src/installer.js";
-import { resolveRules } from "../src/manifest.js";
+import { buildManifest, resolveRules } from "../src/manifest.js";
 import { CLI_BASES, type CliBase, DEFAULT_OPTIONS } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
@@ -197,11 +197,32 @@ const TOOLS_NAMED_BY_RULES: ReadonlyArray<string> = (() => {
   return [...found].sort();
 })();
 
+/** manifest 가 CLI 중립 슬롯에 깔겠다고 한 `.sh` 전량 — 지목 축의 반대편. */
+const TOOLS_SHIPPED_BY_MANIFEST: ReadonlyArray<string> = (() => {
+  const spec = { tracks: ["full"], cli: ["claude"], options: {} } as unknown as Parameters<
+    typeof buildManifest
+  >[0];
+  return buildManifest(spec)
+    .filter((e) => e.applies(spec))
+    .map((e) => e.target)
+    .filter((t) => t.startsWith(".uzys-agent-harness/") && t.endsWith(".sh"))
+    .sort();
+})();
+
 describe("룰이 가리키는 도구도 함께 도달한다", () => {
   // 룰 본문이 `.uzys-agent-harness/*.sh` 를 호출 지점으로 지목한다. 룰만 보내고 도구를 안 보내면
   // 없는 도구를 있다고 안내하는 것이라, #300 을 고치면서 같은 형태를 새로 만드는 셈이 된다.
   it("탐지기 자기검증 — 배포 룰이 실제로 도구를 지목한다 (0건이면 아래가 공허하다)", () => {
-    expect(TOOLS_NAMED_BY_RULES.length).toBeGreaterThanOrEqual(3);
+    expect(TOOLS_NAMED_BY_RULES.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * **양방향으로 문다.** 바닥값(`>= N`)만 두면 도구가 하나 늘어난 뒤의 삭제는 개수를 유지해
+   * 통과하고, 삭제된 그것은 아래 루프에서도 함께 사라져 어디서도 안 물린다. manifest 와
+   * 맞대면 어느 쪽이 움직여도 red 다.
+   */
+  it("지목 집합 == 배포 집합 (한쪽만 늘거나 줄면 red)", () => {
+    expect(TOOLS_NAMED_BY_RULES).toEqual(TOOLS_SHIPPED_BY_MANIFEST);
   });
 
   for (const cli of CLI_BASES) {
