@@ -79,9 +79,9 @@ MCP `mcp__github__*` 를 쓸 수 있으면 셸 `gh` 보다 우선한다 — 같�
 |---|---|
 | 이번 턴에 끝난다 | **그냥 한다.** 이슈를 만들지 않고 결과를 보고한다 |
 | 이번 턴을 넘는다 · 판단이 안 선다 | 진행을 멈추지 않고, **응답 끝에 이슈 초안**을 붙인다 |
-| 한 줄 질문 · 단순 조회 | 아무것도 안 한다 |
+| 한 줄 질문 · 단순 조회 | 답만 한다. 이슈도 초안도 만들지 않는다 |
 
-초안은 제목 + **`ISSUE.template.md` 의 배경 · 문제 · 제안 · AC · 후속** 다섯 칸이다(§2 의 9칸 중
+초안은 제목 + **`ISSUE.template.md` 의 배경 · 문제 · 제안 · AC · 후속** 다섯 칸이다(§2 의 칸 중
 이 다섯). 접수 시점에는 근거·레퍼런스·전제를 아직 모르는 게 정상이라 등록 후 채운다.
 
 승인을 받으면 등록하고 **응답에 번호를 회신한다**(`#N 으로 접수했습니다`). 승인 전에는 등록하지
@@ -328,21 +328,8 @@ close 전에 **AC 항목마다** 증거를 코멘트로 남긴다: 어떤 명령
 
 **`has_wiki` 가 참이고 wiki 리포가 실재할 때만 동작하고, 아니면 조용히 건너뛴다**(에러 아님).
 
-**리포 실재는 대조군으로 판정한다.** `git ls-remote` 의 exit **128 은 "리포 없음"과 "인증·네트워크
-실패"에 똑같이 나오므로** 그 코드만으로는 가를 수 없다. 이 하네스가 배포한 도구가 그 대조를
-강제한다(`doc-governance` 가 지목하는 것과 같은 도구):
-
-```bash
-gh api repos/:owner/:repo --jq .has_wiki       # 먼저 기능이 켜져 있는지
-URL="$(gh repo view --json url --jq .url)"
-bash .uzys-agent-harness/check-absence.sh \
-  --control "git ls-remote ${URL}.git" \
-  --subject "git ls-remote ${URL}.wiki.git"
-# 도구 exit: 1 = wiki 있음 · 0 = wiki 없음 · 2 = 판정 불가(대조군도 실패)
-```
-
-**2 를 "없음"으로 읽지 마라** — 그건 내 인증·네트워크가 의심된다는 뜻이다. 도구가 없는 환경이면
-같은 두 명령을 직접 돌리되 **stderr 를 버리지 않는다**(진단 문자열이 원인을 가르는 유일한 재료다).
+**`git ls-remote` 의 exit 코드만 보고 판정하지 마라** — 128 은 "리포 없음"과 "인증·네트워크 실패"에
+똑같이 나온다. 대조군을 강제하는 도구로 가른다. 명령과 exit 표는 `references/hierarchy.md` §8-1.
 
 **첫 페이지는 에이전트가 만들 수 없다.** `has_wiki=true` 여도 웹 UI 에서 페이지를 하나 만들기
 전까지 wiki 리포는 존재하지 않고, `gh` 에는 wiki 서브커맨드가 없다. 그건 **사용자 행동**이다 —
@@ -358,11 +345,12 @@ bash .uzys-agent-harness/check-absence.sh \
 - **동기는 절차이지 자동화가 아니다.** 방향성 문서를 고친 사이클에서 미러도 같이 갱신하고, 무엇을
   올렸는지 보고한다. 푸시는 `WRITE` 다 — 승인 없이 하지 않는다.
 
-명령면(clone · 페이지 파일명 규칙 · 배너 형식)은 `references/hierarchy.md` §8.
+조건 판정과 미러 절차(clone → 배너 → commit → push → 확인)는 `references/hierarchy.md` §8.
 
 ## References
 
 - `references/operating-model.md` — 고정/축적/재편 3층, 링크 감쇠, 순서의 세 축, 크기 상한
-- `references/hierarchy.md` — 가용성 판정 절차, `gh` 명령 전체, GitHub 한계 수치, 라벨 부트스트랩
+- `references/hierarchy.md` — 가용성 판정 절차, `gh` 명령 전체, GitHub 한계 수치, 라벨 부트스트랩,
+  **wiki 미러 조건 판정·절차**(§8)
 - `references/readiness.md` — 준비도 지표 전체와 실증 수치·출처
 - `ISSUE.template.md` — 본문 템플릿 (Task 육하원칙 · Epic 두 변형). **최소 섹션의 SSOT**

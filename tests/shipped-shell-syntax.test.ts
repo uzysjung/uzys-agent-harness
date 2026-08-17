@@ -197,7 +197,7 @@ function bashSyntaxError(script: string): string | null {
  *
  * 반환: 인덱스 → 오류 메시지. 통과한 것은 키가 없다.
  */
-function bashSyntaxErrors(sources: readonly string[]): Map<number, string> {
+function bashSyntaxErrors(sources: readonly string[], bin = "bash"): Map<number, string> {
   const out = new Map<number, string>();
   if (sources.length === 0) return out;
   const dir = mkdtempSync(join(tmpdir(), "shipped-shell-"));
@@ -207,17 +207,20 @@ function bashSyntaxErrors(sources: readonly string[]): Map<number, string> {
       writeFileSync(f, src);
       return f;
     });
-    // 실패한 것만 `@@@<index>@@@` 표식과 함께 stdout 으로 낸다.
+    // 실패한 것만 `@@@<index>` 표식과 함께 stdout 으로 낸다.
     // 표식은 **여는 쪽 하나뿐**이어야 한다. `@@@i@@@` 처럼 양쪽에 두면 같은 표식으로 split 했을 때
     // 인덱스와 본문이 다른 블록으로 갈린다(실제로 그렇게 틀렸다).
     const loop =
       'i=0; for f in "$@"; do ' +
       'if ! err="$(bash -n "$f" 2>&1)"; then printf "@@@%s\\n%s\\n" "$i" "$err"; fi; ' +
       "i=$((i+1)); done";
-    const run = spawnSync("bash", ["-c", loop, "_", ...files], {
+    const run = spawnSync(bin, ["-c", loop, "_", ...files], {
       encoding: "utf8",
       timeout: 120_000,
     });
+    // 아래 두 가드가 이 게이트의 **신뢰 경계**다. 지우면 `run.stdout` 이 null 이 되어 빈 Map 이
+    // 돌아가고 **전 스니펫이 조용히 검사 대상에서 빠진다** — 초록인데 아무것도 안 본 상태다.
+    // `bin` 을 주입 가능하게 둔 이유가 이것이다: 없는 실행기로 부르는 테스트가 둘을 함께 고정한다.
     if (run.error) throw new Error(`bash 실행 실패 — 이 게이트는 신뢰 불가: ${run.error.message}`);
     if (run.status !== 0)
       throw new Error(`검사 루프가 exit ${run.status} — 신뢰 불가: ${run.stderr}`);
@@ -282,6 +285,14 @@ describe("배포물 셸 건전성 (#327)", () => {
     // 임시 파일 경로가 메시지에 새면 좌표가 원문이 아닌 곳을 가리킨다.
     expect(batch.get(1)).not.toContain("/s1.sh");
     expect(bashSyntaxErrors([])).toEqual(new Map());
+
+    // **신뢰 경계**: 실행기를 못 돌리면 통과가 아니라 예외여야 한다. 이 단언이 없으면 두 가드를
+    // 지워도 전 스위트가 초록이고, 그때 게이트는 **아무것도 안 보면서 통과**한다(변이 생존 확인).
+    // 메시지로 **어느 가드가 잡았는지**까지 고정한다. `status !== 0` 하나만 남겨도 구멍은 안 생기지만
+    // (null !== 0 이라 함께 걸린다) 그때 원인이 "실행기가 없다"에서 "exit null"로 흐려진다.
+    expect(() => bashSyntaxErrors(["echo ok\n"], "no-such-shell-xyz")).toThrow(/bash 실행 실패/);
+    // 실행은 됐지만 루프가 비정상 종료하는 경우도 통과로 새면 안 된다.
+    expect(() => bashSyntaxErrors(["echo ok\n"], "false")).toThrow(/검사 루프가 exit/);
   });
 
   it("플레이스홀더 치환 — 오탐은 없애고, 삼키는 한계는 박제한다", () => {

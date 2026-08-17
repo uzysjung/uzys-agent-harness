@@ -209,6 +209,11 @@ bash .uzys-agent-harness/check-absence.sh \
 | `1` | wiki 리포가 **있다** | 8-2 로 |
 | `0` | wiki 리포가 **없다** | 첫 페이지 생성을 사용자에게 안내하고 끝 |
 | `2` | **판정 불가** — 대조군도 실패했다 | 인증·네트워크를 먼저 본다. "없음"으로 읽지 마라 |
+| **그 밖(`127` 등)** | **도구 자체가 없다** — 판정이 아니다 | 아래 수동 경로로. `0` 으로 읽으면 안 된다 |
+
+`127` 은 하네스를 설치하지 않은 저장소에서 실제로 난다. **`0` 이 아니라는 것만으로 "wiki 가 있다"로
+읽지 마라** — 도구가 실행조차 안 된 것은 판정이 아니다(그 도구 자신이 126/127 을 무효로 처리하는
+것과 같은 규율이다).
 
 도구가 없는 환경이면 두 명령을 직접 돌린다 — **`2>/dev/null` 을 붙이지 않는다.** `remote:
 Repository not found.` 라는 진단 문자열이 128 의 원인을 가르는 유일한 재료다.
@@ -237,7 +242,15 @@ git clone "${URL}.wiki.git" "$D"                   # WRITE 구간 시작 — 승
 git -C "$D" add North-Star.md
 git -C "$D" commit -m "docs: mirror docs/NORTH_STAR.md at ${SRC}"
 git -C "$D" push                                   # WRITE — 사용자 승인 후에만
-rm -rf "$D"
+
+# 올렸다는 것을 증거로 만든다. push 가 실패했으면 **작업 디렉터리를 지우지 않는다** —
+# 지우면 커밋한 것이 사라져 clone 부터 다시 해야 한다
+if git -C "$D" status -sb | grep -q '\[ahead'; then
+  echo "push 미완 — $D 를 남긴다" >&2
+else
+  git -C "$D" log --oneline -1                      # 이슈/보고에 붙일 증거
+  rm -rf "$D"
+fi
 ```
 
 배너는 **첫 두 줄**이어야 한다. 이게 없으면 다음 사람이 wiki 를 원본으로 편집하고, 그때부터
