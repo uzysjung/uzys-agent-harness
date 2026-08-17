@@ -11,8 +11,8 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { runInstall } from "../src/installer.js";
-import { resolveRules } from "../src/manifest.js";
-import { CLI_BASES, type CliBase, DEFAULT_OPTIONS } from "../src/types.js";
+import { buildManifest, resolveRules } from "../src/manifest.js";
+import { CLI_BASES, type CliBase, DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
 /**
@@ -180,14 +180,72 @@ describe("룰이 4 CLI 전부에 도달한다", () => {
   }
 });
 
+/**
+ * 룰 본문이 지목하는 도구를 **배포 룰에서 뽑아** 대조한다. 목록을 여기 적으면 그게 두 번째
+ * 하드코딩 사본이 되고, 이 저장소에서 그 형태가 이미 두 번 뒤처졌다 — 룰에 새 도구를 적고
+ * 테스트 목록을 안 고치면 아무도 안 문다. 그래서 **모집단을 룰이 답하게** 한다.
+ */
+const TOOLS_NAMED_BY_RULES: ReadonlyArray<string> = (() => {
+  const dir = join(ROOT, "templates", "rules");
+  const found = new Set<string>();
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+    const body = readFileSync(join(dir, f), "utf8");
+    for (const m of body.matchAll(/\.uzys-agent-harness\/([A-Za-z0-9._-]+\.sh)/g)) {
+      found.add(`.uzys-agent-harness/${m[1]}`);
+    }
+  }
+  return [...found].sort();
+})();
+
+const TOOL_RE = /\.uzys-agent-harness\/([A-Za-z0-9._-]+\.sh)/g;
+
+/** 그 트랙에 **실제로 가는 룰**들이 지목하는 도구. */
+function toolsNamedOnTrack(track: string): string[] {
+  const found = new Set<string>();
+  for (const rule of resolveRules({ tracks: [track] } as Parameters<typeof resolveRules>[0])) {
+    const body = readFileSync(join(ROOT, "templates", "rules", `${rule}.md`), "utf8");
+    for (const m of body.matchAll(TOOL_RE)) found.add(`.uzys-agent-harness/${m[1]}`);
+  }
+  return [...found].sort();
+}
+
+/** 그 트랙에 **실제로 깔리는** CLI 중립 `.sh`. */
+function toolsShippedOnTrack(track: string): string[] {
+  const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as Parameters<
+    typeof buildManifest
+  >[0];
+  return buildManifest(spec)
+    .filter((e) => e.applies(spec))
+    .map((e) => e.target)
+    .filter((t) => t.startsWith(".uzys-agent-harness/") && t.endsWith(".sh"))
+    .sort();
+}
+
 describe("룰이 가리키는 도구도 함께 도달한다", () => {
   // 룰 본문이 `.uzys-agent-harness/*.sh` 를 호출 지점으로 지목한다. 룰만 보내고 도구를 안 보내면
   // 없는 도구를 있다고 안내하는 것이라, #300 을 고치면서 같은 형태를 새로 만드는 셈이 된다.
+  it("탐지기 자기검증 — 배포 룰이 실제로 도구를 지목한다 (0건이면 아래가 공허하다)", () => {
+    expect(TOOLS_NAMED_BY_RULES.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * **트랙별로, 양방향으로 문다.**
+   *
+   * 두 번 틀린 자리다. ⓐ 바닥값(`>= N`)만 두면 도구가 늘어난 뒤의 삭제가 개수를 유지해 통과한다.
+   * ⓑ 그래서 집합 비교로 바꿨는데 **전 트랙 합집합**으로 유도했더니, 한 트랙에만 깔려도 집합에
+   * 들어가 **"룰은 전 트랙 · 도구는 일부 트랙"이라는 결함 형태 자체가 통과**했다(독립 리뷰가
+   * `applies: all` → `tracks.includes("tooling")` 변이로 실증 — 28건 전부 초록이었다).
+   *
+   * 도달 결함은 **트랙 단위로** 생긴다. 그러니 판정도 트랙 단위여야 한다.
+   */
+  it.each([...TRACKS])("%s: 그 트랙의 룰이 지목한 도구 == 그 트랙에 깔리는 도구", (track) => {
+    expect(toolsNamedOnTrack(track)).toEqual(toolsShippedOnTrack(track));
+  });
+
   for (const cli of CLI_BASES) {
-    it(`${cli}: spec-drift-check.sh · protect-branch.sh`, () => {
+    it(`${cli}: 룰이 지목한 도구 ${TOOLS_NAMED_BY_RULES.length}종이 전부 설치된다`, () => {
       const files = installed.get(cli)?.files ?? [];
-      expect(files).toContain(".uzys-agent-harness/spec-drift-check.sh");
-      expect(files).toContain(".uzys-agent-harness/protect-branch.sh");
+      for (const tool of TOOLS_NAMED_BY_RULES) expect(files).toContain(tool);
     });
   }
 });

@@ -271,6 +271,17 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     applies: all,
   });
 
+  // 부정 결론("없다"·"안 된다")의 대조군 강제기. 룰 `cli-development` 이 세 규약을 프로즈로 적고
+  // 있었는데 같은 실수가 계속 났다 — 프로즈는 사람이 매번 기억해야 하고, 기억해야 하는 규약은
+  // 규약이 아니다. 타깃이 CLI 중립 슬롯인 이유는 protect-branch·spec-drift-check 과 같다:
+  // 검증 규율은 4개 CLI 와 사람이 함께 쓰는 관심사라 `.claude/` 아래가 아니다.
+  m.push({
+    source: "scripts/check-absence.sh",
+    target: ".uzys-agent-harness/check-absence.sh",
+    type: "file",
+    applies: all,
+  });
+
   // Agents (본 프로젝트)
   for (const a of CORE_AGENTS) {
     m.push({
