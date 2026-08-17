@@ -316,6 +316,14 @@ interface InstallRef {
   field: string;
 }
 
+/**
+ * 닫히지 않은 펜스를 가진 문서. **그 자체가 문서 결함**이고, 동시에 이 게이트의 오탐 경로다 —
+ * 펜스가 안 닫히면 뒤 전체가 "펜스 안"으로 읽혀 줄 전체를 훑고, 평범한 영어 산문이 패키지로
+ * 물린다(*"run npm install in the project root"* → 오탐 6건). 경로를 우회로 막는 대신 **원인을
+ * 실패로** 만든다.
+ */
+const unclosedFenceFiles: string[] = [];
+
 /** 자리표시자 면제 횟수 — 축이 둘인데 한쪽만 계측되던 것을 계측한다(#338 라운드 3 LOW-N2). */
 let placeholderSkips = 0;
 
@@ -398,6 +406,7 @@ function extractInstallRefs(
           }
         }
       });
+    if (openFence !== null) unclosedFenceFiles.push(file);
   }
   return found;
 }
@@ -489,6 +498,10 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       EXEMPTED_LINES,
       `면제 표식(${HISTORICAL_MARKER})이 ${EXEMPTED_LINES}줄 — 이 정도면 게이트가 아니라 장식이다`,
     ).toBeLessThanOrEqual(7);
+    expect(
+      unclosedFenceFiles,
+      "닫히지 않은 코드 펜스 — 문서 렌더도 깨지고, 그 뒤 산문이 설치 명령으로 오탐된다",
+    ).toEqual([]);
     // 두 번째 면제 축. 이름을 꺾쇠로 감싸면 설치 명령 판정이 꺼지므로 무제한이면 우회로가 된다.
     expect(
       placeholderSkips,
