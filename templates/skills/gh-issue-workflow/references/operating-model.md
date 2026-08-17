@@ -79,9 +79,9 @@
 
 ```bash
 gh issue list --milestone "<이번 묶음>" --state all --json number | jq length   # ① 먼저 센다
-gh issue edit <N> --remove-milestone
-gh issue edit <EPIC> --remove-sub-issue <N>
-gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 열어 둔다."
+gh issue edit <N> --remove-milestone                                          # WRITE
+gh issue edit <EPIC> --remove-sub-issue <N>                                   # WRITE
+gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 열어 둔다."   # WRITE
 # ③ 뺀 수 + 남은 수 == ①  ← 이게 맞을 때만 "정리했다"가 참이다
 ```
 

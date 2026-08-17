@@ -20,7 +20,7 @@ gh project list --owner <owner>
 
 # ⑤ 라벨·마일스톤 재고
 gh label list --limit 100
-gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title)"'   # WRITE
+gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title)"'
 ```
 
 **빈 결과를 "없음"으로 읽지 마라.** ③④는 실패할 때 메시지를 낸다 — `2>/dev/null` 로 지우면
@@ -60,8 +60,8 @@ gh issue edit <N> --remove-parent          # WRITE
 ### Milestone
 
 ```bash
-gh api repos/:owner/:repo/milestones -f title="<이름>" -f description="<한 줄>" \   # WRITE
-  -f due_on="YYYY-MM-DDT00:00:00Z"          # 생성 — WRITE
+gh api repos/:owner/:repo/milestones -f title="<이름>" -f description="<한 줄>" \
+  -f due_on="YYYY-MM-DDT00:00:00Z"          # WRITE — 마일스톤 생성
 gh issue edit <N> -m "<이름>"   # WRITE — 붙이기
 gh issue edit <N> --remove-milestone   # WRITE — 떼기
 gh issue list --milestone "<이름>" --state all
@@ -106,7 +106,7 @@ gh issue edit <N> --remove-blocked-by 101   # WRITE
 gh issue edit <N> --add-blocking 105   # WRITE
 ```
 
-착수 후보를 고를 때 `blockedBy.totalCount == 0` 인 것만 남기면 순서 판정이 자동이 된다.
+착수 후보를 고를 때 `blockedBy.totalCount == 0` 인 것만 남기면 **순서** 축의 착수 후보가 걸러진다.
 **본문 `## 전제` 체크박스는 이 필터에 안 잡힌다** — 그 축은 `SKILL.md` §5 가 따로 본다.
 
 ## 4. 읽기 — JSON 필드

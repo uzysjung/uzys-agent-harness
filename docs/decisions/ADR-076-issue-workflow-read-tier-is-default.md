@@ -69,8 +69,10 @@ ADR-074/075 위저드).
 **되돌리는 법** — 코드 변경은 없다(`src/` 는 카탈로그 description 한 줄뿐). 다만 활성 의미를
 담은 자리가 **넷**이라 표만 되돌리면 표와 `## Boundary` 가 서로 모순된다. 순서대로:
 
-1. `SKILL.md` **활성 조건 표**에서 읽기 행을 지우고 구본 문장(`docs/SPEC.md` 에
-   `issue_tracking: enabled` 가 있을 때만 활성 · 기본 비활성 · 그 플래그가 활성화의 SSOT)을 되살린다
+1. `SKILL.md` 의 **`## 활성 조건 — 3단` 절 전체**를 구본 `## Pre-conditions` 로 되돌린다
+   (표만 지목하면 아래 근거 산문 두 문단이 "읽기 단계로 남는다"고 계속 말해 모순이 된다).
+   구본 내용: `docs/SPEC.md` 에 `issue_tracking: enabled` 가 있을 때만 활성 · 기본 비활성 ·
+   그 플래그가 활성화의 SSOT
 2. `SKILL.md` **`## Boundary`** 의 *"…없으면 → 읽기 단계에 머문다"* 줄을 *"…없으면 자동 비활성"* 로
 3. `SKILL.md` **frontmatter** 에 구본 금지문 *"do NOT activate at all unless the project opted in"*
    을 되살린다 — 이게 빠지면 본문을 안 연 에이전트에게는 여전히 읽기 허용으로 보인다
