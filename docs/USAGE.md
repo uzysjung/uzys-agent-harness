@@ -28,7 +28,8 @@ Two things worth knowing about the ones you are most likely to install:
 > Until v26.146.1 the harness shipped eight `/ecc:` command files of its own as a fallback for
 > people who had not installed the plugin. They were removed because a fallback that needs the thing
 > it substitutes for is not a fallback: two of the eight (`e2e`, `eval`) invoked ECC plugin agents <!-- ref:removed -->
-> directly, and the rest only made sense as a front end to the plugin's own surface.
+> directly. The other six ran without the plugin, and were dropped for the ordinary reason (ADR-073)
+> — the harness stopped shipping surface that the plugin already carries.
 
 ---
 
@@ -110,12 +111,12 @@ catalog wires a hook of its own and `--only` does not touch the baseline. (Befor
 asset did, and `uninstall` printed the registration for you to delete by hand rather than editing a
 file that holds your own settings.)
 
-> One caveat that is not about `uninstall`: `settings.json` registers **four** hook commands, not
-> the three under [Hooks](#hooks). The fourth points into a *skill* directory —
+> A detail you may notice in the template: `settings.json` carries **four** hook commands, not the
+> three under [Hooks](#hooks). The fourth points into a *skill* directory —
 > `.claude/skills/strategic-compact/suggest-compact.sh` — and that skill only installs when you have
-> **not** opted into ECC. So on an `--with ecc-plugin` install the registration points at a file that
-> isn't there. It is registered async and non-blocking, so nothing breaks; it is a known gap in this
-> repo rather than something you need to fix.
+> **not** opted into ECC. Install and update both run a healing pass that **removes any hook command
+> whose script isn't on disk**, and the summary reports it (`settings.json stale hook refs · N
+> removed`). So an `--with ecc-plugin` project ends up with three, not a dangling reference.
 
 ### Files outside `.claude/` (v26.125.0+)
 
@@ -199,7 +200,7 @@ ESC at step 1 = exit with cancel. ESC at later steps = silent back.
 External assets carry a trust tier, shown as a badge in step 3:
 
 - **★ official** — Anthropic-official marketplaces + this harness's own assets.
-- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Pre-checked on track match.
+- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Carries no badge of its own. Whether it is pre-checked is decided by the asset's `condition`, not by its tier — most vetted assets are opt-in.
 - **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), sorted to the bottom of each category.
 
 Tiers inform; they never block — you choose what installs. Labels are static in the catalog but **auto-monitored monthly** for star-drift by CI (`trust-tier-drift.yml`); install-method availability is re-verified monthly too (`catalog-verify.yml`).

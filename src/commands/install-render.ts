@@ -734,7 +734,7 @@ function renderPhase1Rows(
   if (!withEcc && baseline.categories) {
     log("");
     log(
-      `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
+      `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (agents and skills copied into .claude/)")}`,
     );
     if (claudeSelected) {
       log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);

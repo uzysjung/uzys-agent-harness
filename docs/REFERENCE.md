@@ -13,15 +13,17 @@
 
 ## 신뢰 등급
 
-| Tier | 의미 | 예 |
-|------|------|---|
 여기 3등급을 따로 두지 않는다. **설치 화면에 뜨는 배지가 곧 등급이고, SSOT 는 각 자산의 `tier` 다.**
 
-| tier | 배지 | 의미 |
+| tier | 3단계 배지 | 의미 |
 |---|---|---|
-| `official` | ★ official | Anthropic 공식 마켓플레이스 · 이 하네스 자체 자산 |
-| `vetted` | vetted | star 1,000+ · 활발한 유지보수 · 실설치 검증 통과. 트랙이 맞으면 미리 체크된다 |
-| `experimental` | ⚠ experimental | star 1,000 미만. **미리 체크되지 않는다**(opt-in 전용) |
+| `official` | `★ official` | Anthropic 공식 마켓플레이스 · 이 하네스 자체 자산 |
+| `vetted` | **없음** | star 1,000+ · 활발한 유지보수 · 실설치 검증 통과 |
+| `experimental` | `⚠ experimental (opt-in)` | star 1,000 미만 |
+
+**tier 는 미리 체크되는지를 정하지 않는다.** 그건 각 자산의 `condition` 이 가른다 — `vetted` 자산
+36종 중 30종이 `opt-in` 이라 어느 트랙에서도 자동으로 체크되지 않는다. tier 가 사전 체크에 하는
+일은 하나뿐이다: `experimental` 은 트랙이 맞아도 제외된다(`src/preset-recommend.ts`).
 
 > 손으로 쓴 등급 표가 여기 있었고, 예시로 든 출처 4곳이 코드에서는 전부 `vetted` 였다 — 즉 "개인이
 > 만든 것"이라는 인상으로 등급을 갈랐고, 보안 판단의 입구에서 등급을 잘못 가리켰다(#338). 자산별
@@ -216,8 +218,11 @@ CLI 를 TypeScript 로 다시 쓸 때 `src/` 와 `vitest` 가 각각 그 자리�
 | 배포 사본 | 설치 위치 | 부르는 곳 |
 |---|---|---|
 | `templates/scripts/check-absence.sh` | `.uzys-agent-harness/check-absence.sh` | `doc-governance` 룰 |
-| `templates/scripts/spec-drift-check.sh` | `.uzys-agent-harness/spec-drift-check.sh` | `doc-governance` 룰 |
-| `templates/scripts/protect-branch.sh` | `.uzys-agent-harness/protect-branch.sh` | 사용자 수동 실행 |
+| `templates/scripts/spec-drift-check.sh` | `.uzys-agent-harness/spec-drift-check.sh` | `doc-governance` · `ship-checklist` 룰 |
+| `templates/scripts/protect-branch.sh` | `.uzys-agent-harness/protect-branch.sh` | `git-policy` 룰 |
+
+셋 다 배포 룰이 이름으로 부른다 — 즉 설치받은 프로젝트에서 룰이 지시하는 명령이 실재한다.
+`git-policy` ↔ `protect-branch.sh` 배선은 `tests/protect-branch-surface.test.ts` 가 문다.
 
 아래 표는 **이 저장소의 개발 도구**다(위 배포 사본의 원본을 포함한다).
 
@@ -267,10 +272,12 @@ $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립�
   Phase 3  CLI 산출물 — codex·opencode·antigravity 를 하나라도 골랐을 때만: AGENTS.md ·
                        .codex/ · opencode.json · .opencode/commands/ · .agents/
   ↓
-[설치 로그] .uzys-agent-harness/.harness-install.json (`list`·`uninstall` 이 이걸 읽는다)
-  ↓
 [리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목
 ```
+
+**위 Phase 번호는 화면에 뜨는 순서**이고 실행 순서와 다르다 — CLI 산출물은 실제로 baseline 안에서
+외부 자산보다 **먼저** 만들어진다. 설치 로그(`.uzys-agent-harness/.harness-install.json`)는 단계로
+표시되지 않고 그 사이에 기록된다. `list`·`uninstall` 이 읽는 것이 이 파일이다.
 
 트랙이 무엇을 고르는지는 이 그림이 아니라 [TRACKS.md](TRACKS.md) 가 담는다 — 여기 옮겨 적었던
 동안 그 목록은 세 릴리즈치 낡은 자산을 안내하고 있었다.

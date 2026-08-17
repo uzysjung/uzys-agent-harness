@@ -98,6 +98,10 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   // SSOT 는 `templates/mcp.json` 의 패키지 인자이지 저장소 경로가 아니다.
   ["ChromeDevTools/chrome-devtools-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
   ["modelcontextprotocol/servers", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  // 셋째. 앞의 둘과 달리 이건 이전 판본에서 **조용히 통과**했다 — 카탈로그 파일에
+  // `@upstash/context7-mcp` 라는 패키지 문자열이 있어 부분 문자열 대조에 걸렸기 때문이다.
+  // 정확 일치로 바꾸자 드러났고, 셋을 같은 자리에 적는 것이 맞다(라운드 2 MED-N5).
+  ["upstash/context7-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
 ]);
 
 /** 자산 id 로 오인될 수 있는 형태 — 소문자·숫자·하이픈만, 4자 이상. */
@@ -112,6 +116,13 @@ const INLINE_CODE = /`([^`\n]+)`/g;
  * 삭제된 §1 표의 출처 열이 정확히 이 형태였다 — 즉 이 PR 이 지운 결함을 게이트가 못 잡고 있었다.
  */
 const MD_LINK_REPO = /\]\(https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:[/#)?]|\.git)/g;
+/**
+ * 링크 **텍스트**가 `owner/repo` 인 형태 — `[pbakaus/impeccable](아무 URL)`.
+ *
+ * URL 쪽만 보면 npmjs·gitlab 등 github 아닌 링크로 그대로 샜다(#338 라운드 2 LOW-N1ⓐ 가 변이로
+ * 실증). 사람이 읽는 것은 텍스트 쪽이므로 주장도 거기 있다.
+ */
+const MD_LINK_TEXT_REPO = /\[([\w.-]+\/[\w.-]+)\]\(/g;
 
 /** 디렉터리의 항목 이름 (확장자 제거). 없는 디렉터리는 빈 배열 — 수집기 하한이 사망을 잡는다. */
 function entryNames(dir: string): string[] {
@@ -235,9 +246,11 @@ function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
         else if (ASSET_SHAPE.test(token)) shaped.push({ file, token });
       }
       // 백틱 밖의 GitHub 링크도 같은 축의 주장이다.
-      for (const m of line.matchAll(MD_LINK_REPO)) {
-        const token = m[1] ?? "";
-        if (token !== "") slashed.push({ file, token });
+      for (const re of [MD_LINK_REPO, MD_LINK_TEXT_REPO]) {
+        for (const m of line.matchAll(re)) {
+          const token = m[1] ?? "";
+          if (token !== "") slashed.push({ file, token });
+        }
       }
     }
   }
@@ -257,7 +270,13 @@ function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
  * 좁힌다. 삭제된 자산 이름은 주석·이력 서술에 남아 있어서, 부분 문자열로 대조하면 공허하게
  * 통과한다(그 게이트의 1차 변이가 실제로 그렇게 살아남았다).
  */
-const INSTALL_CMD_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; field: string }> = [
+const INSTALL_CMD_PATTERNS: ReadonlyArray<{
+  kind: string;
+  re: RegExp;
+  field: string;
+  /** 캡처가 인자열 전체 — 플래그를 걷어내고 남은 토큰을 각각 식별자로 본다. */
+  multi?: boolean;
+}> = [
   { kind: "skill", re: /npx skills add\s+\S+\s+--skill\s+([\w-]+)/, field: "skill" },
   { kind: "source", re: /npx skills add\s+([\w.-]+\/[\w.-]+)/, field: "source" },
   { kind: "plugin", re: /claude plugin install\s+([\w-]+@[\w-]+)/, field: "pluginId" },
@@ -266,10 +285,13 @@ const INSTALL_CMD_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; field: str
   // **패키지가 실재하는지**는 여기서 문다.
   {
     kind: "npm",
-    // 패키지 이름은 `-` 로 시작하지 않는다. 첫 판본이 시작 문자에 `-` 를 허용해
-    // `npm install -g` 의 **플래그를** 패키지로 캡처했다 — 게이트가 스스로 그걸 잡아냈다.
-    re: /npm install\s+(?:(?:-g|--global|--save-dev)\s+)?([@\w.][\w.\-/]*?)(?:@[\w.^~-]+)?\s*(?:`|$)/,
+    // `npm install` · `npm i` · 플래그가 앞뒤 어디에 오든 · 한 줄 다중 패키지 · 버전 범위까지.
+    // 첫 판본은 `-g` 를 **패키지로** 캡처했고(게이트가 스스로 잡음), 그 다음 판본은 `npm i`·`-D`·
+    // 후행 플래그·다중 패키지 6종을 놓쳤다(라운드 2 LOW-N2 실측). 이제 명령 뒤 토큰을 전부 훑고
+    // `-` 로 시작하는 것만 버린다.
+    re: /npm\s+(?:install|i|add)\s+([^`\n]+)/,
     field: "pkg",
+    multi: true,
   },
 ];
 
@@ -295,20 +317,54 @@ function extractInstallRefs(
         // 줄에 그 단어를 끼우면 그냥 열렸다(#338 리뷰 M3b 가 변이로 실증). 표식은 상한이 걸린다.
         if (l.includes(HISTORICAL_MARKER)) return;
         let matchedSkill = false;
-        for (const { kind, re, field } of INSTALL_CMD_PATTERNS) {
+        for (const { kind, re, field, multi } of INSTALL_CMD_PATTERNS) {
           // `--skill` 형태가 잡히면 같은 줄의 bare `source` 는 중복이므로 건너뛴다.
           if (kind === "source" && matchedSkill) continue;
           const m = l.match(re);
           if (!m?.[1]) continue;
           if (kind === "skill") matchedSkill = true;
-          found.push({ file, line: i + 1, kind, ident: m[1], field });
+          if (!multi) {
+            found.push({ file, line: i + 1, kind, ident: m[1], field });
+            continue;
+          }
+          // `multi` — 명령 뒤 인자열 전체를 받아, 플래그가 아닌 토큰을 **전부** 패키지로 본다.
+          // 버전 지정(`pkg@1.2.3`)은 떼고, `&&` 뒤로는 다른 명령이므로 거기서 끊는다.
+          for (const raw of m[1].split("&&")[0]?.trim().split(/\s+/) ?? []) {
+            if (raw === "" || raw.startsWith("-")) continue;
+            // 문서의 **자리표시자**(`<pkg>`·`<name>`)는 광고가 아니라 형식 설명이다.
+            if (raw.startsWith("<") || raw.includes("<")) continue;
+            const ident = raw.replace(/^(@[\w.-]+\/)?([^@]+).*$/, "$1$2");
+            if (ident !== "") found.push({ file, line: i + 1, kind, ident, field });
+          }
         }
       });
   }
   return found;
 }
 
+/**
+ * 카탈로그가 **값으로** 아는 upstream 저장소(`owner/repo`) 집합. 주석이 아니라 필드에서 뽑는다.
+ *
+ * `method.marketplace` 는 그 자체가 `owner/repo` 이고, `method.source` 는 `owner/repo` 이거나
+ * `https://github.com/owner/repo` URL 이다. `source`(자산 출처 라벨)는 owner 만이라 여기 안 넣는다.
+ */
+function buildUpstreamRepos(): Set<string> {
+  const repos = new Set<string>();
+  const norm = (v: unknown): void => {
+    if (typeof v !== "string") return;
+    const s = v.replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "");
+    if (/^[\w.-]+\/[\w.-]+$/.test(s)) repos.add(s);
+  };
+  for (const a of EXTERNAL_ASSETS) {
+    const m = a.method as Record<string, unknown>;
+    norm(m.marketplace);
+    norm(m.source);
+  }
+  return repos;
+}
+
 const VOCAB = buildVocabulary();
+const UPSTREAM_REPOS = buildUpstreamRepos();
 const { shaped: SHAPED_REFS, slashed: SLASHED_REFS, exempted: EXEMPTED_LINES } = collectRefs();
 const CATALOG_SOURCE = readFileSync(join(REPO_ROOT, "src", "external-assets.ts"), "utf8");
 const INSTALL_REFS = extractInstallRefs(GUIDE_DOCS, (f) =>
@@ -334,10 +390,13 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
     ).toBeGreaterThanOrEqual(5);
     // 면제 표식을 뿌려서 게이트를 끄는 경로를 막는다. 표식은 제거 이력 문장에만 쓰는 것이고,
     // 그런 문장이 문서당 여러 줄씩 필요해진다면 그건 문서 구조를 고쳐야 한다는 신호다.
+    // 상한은 **실사용에 붙여** 둔다. 표식은 줄 내용을 안 보므로(살아 있는 광고 줄에 붙여도
+    // 열린다) 여유가 넓을수록 게이트를 조용히 끄기 쉽다 — 라운드 2 실측에서 여유 11줄이었다.
+    // 이력 문장이 정말 더 필요해지면 이 수를 함께 올리고, 그때 왜 늘었는지 커밋에 남긴다.
     expect(
       EXEMPTED_LINES,
       `면제 표식(${HISTORICAL_MARKER})이 ${EXEMPTED_LINES}줄 — 이 정도면 게이트가 아니라 장식이다`,
-    ).toBeLessThanOrEqual(15);
+    ).toBeLessThanOrEqual(7);
   });
 
   it("자산 id 형태로 적힌 이름이 전부 이 저장소에 실재한다", () => {
@@ -358,8 +417,11 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       if (NOT_OUR_ASSET_REPO.has(r.token)) return false;
       // derive 된 어휘가 아는 이름(이 저장소 자신 등)도 통과.
       if (VOCAB.has(r.token)) return false;
-      // upstream 저장소 주장 — 카탈로그가 그 이름을 알고 있어야 한다.
-      return !CATALOG_SOURCE.includes(r.token);
+      // upstream 저장소 주장 — 카탈로그가 그 이름을 **값으로** 알고 있어야 한다.
+      // 이전 판본은 `CATALOG_SOURCE.includes(token)` 이라 카탈로그 파일 **주석**에 남은 이름도
+      // 통과시켰다. 제거된 자산은 정확히 그 자리에(제거 사유 주석에) 남으므로, 이 PR 이 지운
+      // `alirezarezvani/c-level-skills`·`railwayapp/railway-plugin` 을 다시 광고해도 초록이었다.
+      return !UPSTREAM_REPOS.has(r.token);
     }).map((r) => `${r.file}: \`${r.token}\``);
     expect(
       [...new Set(dead)].sort(),

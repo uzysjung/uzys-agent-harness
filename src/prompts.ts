@@ -190,22 +190,22 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
 ];
 
 /**
- * v26.99.0 (ADR-028) — dev-method 방법론 스킬 8종을 wizard 에서 **단일 row** 로 접는다.
+ * v26.99.0 (ADR-028) — dev-method 방법론 스킬 6종을 wizard 에서 **단일 row** 로 접는다.
  *
- * WHY: 8종은 전부 `has-dev-track` = 기본 설치다. 즉 **사실상 선택이 아닌데** 체크박스 8행을
- * 점유해, 진짜 선택인 서드파티 큐레이션을 밀어냈다(사용자 지적 2026-07-16). 8종은 개념적으로
+ * WHY: 6종은 전부 `has-dev-track` = 기본 설치다. 즉 **사실상 선택이 아닌데** 체크박스 6행을
+ * 점유해, 진짜 선택인 서드파티 큐레이션을 밀어냈다(사용자 지적 2026-07-16). 6종은 개념적으로
  * 하나 — "이 하네스의 작업 방법론" — 이므로 한 줄이 정직한 표현이다.
  *
- * 순수 **표현 계층** 변환이다. 입력 시 접고(collapse) 제출 시 8개 asset id 로 펼쳐(expand)
- * 돌려주므로 downstream(computeUserOverride·installer·설치 보고)은 8개를 그대로 본다 —
+ * 순수 **표현 계층** 변환이다. 입력 시 접고(collapse) 제출 시 6개 asset id 로 펼쳐(expand)
+ * 돌려주므로 downstream(computeUserOverride·installer·설치 보고)은 6개를 그대로 본다 —
  * **번들이 "무엇이 설치되는지"를 숨기지 않는다**(사용자 요구 가드). 구성원은
  * `DEV_METHOD_SKILL_IDS` 에서 derive → 자산 추가 시 자동 반영(하드코딩 금지, no-false-ship).
  *
- * 해제 시맨틱(사용자 확정 2026-07-16): 체크박스 1개 = 의미 1개 → **해제하면 8종 전부 제외**.
+ * 해제 시맨틱(사용자 확정 2026-07-16): 체크박스 1개 = 의미 1개 → **해제하면 6종 전부 제외**.
  * 개별 제어는 `--with <id>` / `--without <id>`.
  *
- * all-or-none 불변식: 8종이 **같은 condition(`has-dev-track`)** 을 공유하므로
- * `recommendedExternalAssets` 는 8개를 전부 넣거나 전부 뺀다 → 부분 선택 상태가 생기지 않는다.
+ * all-or-none 불변식: 6종이 **같은 condition(`has-dev-track`)** 을 공유하므로
+ * `recommendedExternalAssets` 는 6개를 전부 넣거나 전부 뺀다 → 부분 선택 상태가 생기지 않는다.
  * 이 불변식이 깨지면 접기가 자산을 조용히 추가/삭제할 수 있으므로
  * `tests/wizard-bundle.test.ts` 가 강제한다 (원칙 5 — 증거를 보고한다).
  */
@@ -229,7 +229,7 @@ export function collapseDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArr
   return anyMember ? [...rest, DEV_METHOD_BUNDLE_VALUE] : rest;
 }
 
-/** 제출 펼치기 — 번들 row 체크 → 8개 asset id. downstream 은 개별 자산만 본다. */
+/** 제출 펼치기 — 번들 row 체크 → 구성원 asset id 전부. downstream 은 개별 자산만 본다. */
 export function expandDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArray<string> {
   const rest = ids.filter((v) => v !== DEV_METHOD_BUNDLE_VALUE);
   return ids.includes(DEV_METHOD_BUNDLE_VALUE) ? [...rest, ...bundleMemberValues()] : rest;
@@ -247,9 +247,9 @@ export interface PageItem {
  * `selectInstallTargets` 안의 클로저였으나 export 로 승격했다 (SOD 리뷰 Important #2):
  * **이 함수가 dev-method 스킬 전원을 wizard 에서 도달 가능하게 만드는 유일한 코드**인데, 테스트가
  * 하나도 닿지 않았다. `wizard-page-parity` 는 "자산의 **카테고리**가 페이지에 있다"만 보는데,
- * 8종은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 8종에 대해
+ * 구성원은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 그 종에 대해
  * 비논리(non sequitur)다 — 번들 row 블록을 지워도 parity 는 통과하고 CI 는 green 인 채
- * 8종이 **어디서도 선택 불가**가 된다. v26.78.0 거짓출하의 정확한 재현이다.
+ * 구성원이 **어디서도 선택 불가**가 된다. v26.78.0 거짓출하의 정확한 재현이다.
  * (`prompts.ts` 는 coverage 제외 대상이라 커버리지 수치도 이 코드에 대해 아무 보장을 못 준다.)
  */
 const BASELINE_TITLES: Record<BaselineKind, string> = {
@@ -299,7 +299,7 @@ export function buildPageGroups(
         hint: o.hint,
       });
     }
-    // v26.99.0 (ADR-028) — 방법론 번들 row. 개별 8행 대신 1행. hint 에 구성원 id 를 전부
+    // v26.99.0 (ADR-028) — 방법론 번들 row. 구성원 개별 행 대신 1행. hint 에 구성원 id 를 전부
     //   노출 — 접는 것이 "무엇이 설치되는지" 를 숨기면 안 된다.
     if (cat === DEV_METHOD_BUNDLE_CATEGORY) {
       items.push({

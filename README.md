@@ -59,9 +59,9 @@ This tool starts from the stack instead. You pick a track, and it pre-checks the
 
 ## What you get
 
-- **Curation by tech stack.** Of the vetted options, you install only what this project calls for. Pick `csr-supabase` and step 3 pre-checks the React, shadcn, Supabase, and Postgres assets that track calls for, plus the method skills every project gets — not the rest of the catalog.
+- **Curation by tech stack.** Of the vetted options, you install only what this project calls for. Pick `csr-supabase` and step 3 pre-checks the React, shadcn, Supabase, and Postgres assets that track calls for, plus the set every project starts with — `find-skills`, `agent-browser`, `frontend-design`, and the method skills on dev tracks — not the rest of the catalog.
 
-- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, normalized task briefs, recurrence prevention. Fourteen of those skills are written and maintained in this repo rather than pulled from a marketplace — twelve of them individually toggleable at step 3 — so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
+- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, normalized task briefs, recurrence prevention. Fourteen of those skills are written and maintained in this repo rather than pulled from a marketplace — twelve of them selectable by id with `--with` / `--without`, six of which collapse into one row at step 3 — so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
 
 - **Four CLIs, one vocabulary.** Claude Code is first class — all assets, hooks, and plugins. Codex, OpenCode, and Antigravity get the skills and rules layer. Your project is not locked to one CLI.
 
