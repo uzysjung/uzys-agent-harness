@@ -40,6 +40,9 @@ import { listFilesRecursive } from "../src/fs-ops.js";
  *     실제로 1건 있다(`skills/eval-harness/SKILL.md` 의 4-백틱 블록 안 `bash`) — 그 명령은
  *     `bash -n` 밖이다. 줄이음은 바깥 펜스 본문으로 계속 검사된다.
  *   - 개발 사본(`.claude/`)은 대상이 아니다 — 배포되는 것은 `templates/` 뿐이라 여기를 문다.
+ *     다만 `templates/` 안에서도 **`.sh` 파일과 마크다운 코드펜스만** 본다. 배포되는 셸이
+ *     그 밖에도 있다 — `github-workflows/*.yml` 의 `run:` 스텝(실측 12줄)과 `settings.json` 의
+ *     훅 `"command"`(4건). 전부 한 줄짜리 호출이라 위험은 낮지만 게이트 밖이다.
  *   - `bash -n` 은 **로컬 bash 버전**을 따른다(macOS 기본은 3.2). bash 4+ 전용 문법은 Linux 에서
  *     통과하고 macOS 에서 red 다. 릴리즈 CI 가 ubuntu + macos 양쪽을 돌아 태그 시점에 갈린다.
  */
@@ -313,9 +316,15 @@ describe("배포물 셸 건전성 (#327)", () => {
     try {
       writeFileSync(join(dir, "unclosed.md"), "intro\n\n```bash\nnever closed\n");
       writeFileSync(join(dir, "fine.md"), "```bash\necho ok\n```\n");
+      // `.sh` 도 넣는다 — 넣지 않으면 스크립트 분기가 파이프라인 테스트에서 안 돌아,
+      // 그 분기가 인자를 무시하도록 되돌리는 변이가 생존한다(실제로 생존했다).
+      writeFileSync(join(dir, "hook.sh"), "echo ok\n");
       const scanned = collectSnippets(dir, "synthetic");
       expect(scanned.unclosed).toEqual(["synthetic/unclosed.md:3"]);
-      expect(scanned.snippets).toHaveLength(1);
+      expect(scanned.snippets.map((s) => `${s.kind} ${s.file}`).sort()).toEqual([
+        "fence synthetic/fine.md",
+        "script synthetic/hook.sh",
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
