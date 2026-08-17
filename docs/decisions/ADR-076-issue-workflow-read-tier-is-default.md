@@ -66,7 +66,17 @@ ADR-074/075 위저드).
 - 활성화의 SSOT 가 "파일 한 줄"에서 "세 조건"으로 늘었다. grep 하나로 판정하던 것이
   판정 절차가 됐다.
 
-**되돌리는 법**: 활성 조건 표에서 읽기 행을 지우고 구본 문장(`issue_tracking: enabled` 없으면
-자동 비활성)을 되살린다. 코드 변경은 없다 — 스킬 본문만 움직인다.
+**되돌리는 법** — 코드 변경은 없다(`src/` 는 카탈로그 description 한 줄뿐). 다만 활성 의미를
+담은 자리가 **넷**이라 표만 되돌리면 표와 `## Boundary` 가 서로 모순된다. 순서대로:
+
+1. `SKILL.md` **활성 조건 표**에서 읽기 행을 지우고 구본 문장(`docs/SPEC.md` 에
+   `issue_tracking: enabled` 가 있을 때만 활성 · 기본 비활성 · 그 플래그가 활성화의 SSOT)을 되살린다
+2. `SKILL.md` **`## Boundary`** 의 *"…없으면 → 읽기 단계에 머문다"* 줄을 *"…없으면 자동 비활성"* 로
+3. `SKILL.md` **frontmatter** 에 구본 금지문 *"do NOT activate at all unless the project opted in"*
+   을 되살린다 — 이게 빠지면 본문을 안 연 에이전트에게는 여전히 읽기 허용으로 보인다
+4. `templates/skills/…` 와 `.claude/skills/…` **두 사본을 동기**하고, 본 ADR Status 를
+   `Superseded` 로 바꾸며 대체 ADR 번호를 적는다
+
+되돌리기가 이 결정의 유일한 안전판이라 절차가 불완전하면 안전판이 아니다.
 
 **남은 결정**: 적극 단계를 위저드에서 고르게 할지(#318). 이 ADR 은 읽기 기본만 확정한다.

@@ -20,7 +20,7 @@ gh project list --owner <owner>
 
 # ⑤ 라벨·마일스톤 재고
 gh label list --limit 100
-gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title)"'
+gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title)"'   # WRITE
 ```
 
 **빈 결과를 "없음"으로 읽지 마라.** ③④는 실패할 때 메시지를 낸다 — `2>/dev/null` 로 지우면
@@ -60,10 +60,10 @@ gh issue edit <N> --remove-parent          # WRITE
 ### Milestone
 
 ```bash
-gh api repos/:owner/:repo/milestones -f title="<이름>" -f description="<한 줄>" \
+gh api repos/:owner/:repo/milestones -f title="<이름>" -f description="<한 줄>" \   # WRITE
   -f due_on="YYYY-MM-DDT00:00:00Z"          # 생성 — WRITE
-gh issue edit <N> -m "<이름>"                # 붙이기
-gh issue edit <N> --remove-milestone         # 떼기
+gh issue edit <N> -m "<이름>"   # WRITE — 붙이기
+gh issue edit <N> --remove-milestone   # WRITE — 떼기
 gh issue list --milestone "<이름>" --state all
 ```
 
@@ -86,9 +86,9 @@ gh project item-list <번호> --owner <owner> --format json
 ### Issue type (조직 리포만)
 
 ```bash
-gh issue create --type "Bug" ...
-gh issue edit <N> --type "Feature"
-gh issue edit <N> --remove-type
+gh issue create --type "Bug" ...   # WRITE
+gh issue edit <N> --type "Feature"   # WRITE
+gh issue edit <N> --remove-type   # WRITE
 ```
 
 개인 리포에서는 이 축이 존재하지 않는다. 라벨 `bug`/`enhancement` 로 대신하고, 나중에 조직으로
@@ -102,11 +102,12 @@ gh issue edit <N> --remove-type
 ```bash
 gh issue create --blocked-by 101 --blocking 105 ...   # WRITE
 gh issue edit <N> --add-blocked-by 101      # WRITE
-gh issue edit <N> --remove-blocked-by 101
-gh issue edit <N> --add-blocking 105
+gh issue edit <N> --remove-blocked-by 101   # WRITE
+gh issue edit <N> --add-blocking 105   # WRITE
 ```
 
 착수 후보를 고를 때 `blockedBy.totalCount == 0` 인 것만 남기면 순서 판정이 자동이 된다.
+**본문 `## 전제` 체크박스는 이 필터에 안 잡힌다** — 그 축은 `SKILL.md` §5 가 따로 본다.
 
 ## 4. 읽기 — JSON 필드
 
@@ -137,8 +138,9 @@ gh issue list --state open --json number,title,labels,blockedBy \
 입력 순서만 남는다 — 광고한 우선순위 정렬이 아니다. `index()` 는 **위치**를 반환하므로
 `// 9` 형태는 라벨이 많을 때 P0 가 무라벨과 동률이 되는 문제도 있다.
 
-`// 0` 을 붙인 이유: **`blockedBy` 는 GitHub Enterprise Server 3.19 미만에서 null 이다.**
-null 이면 `select` 가 전건을 조용히 버려 "착수 가능한 이슈 0건"이 된다 — 부재로 오독되는 자리다.
+`// 0` 을 붙인 이유: **GitHub Enterprise Server 3.19 미만에는 relationships 자체가 없다.**
+필드가 null 로 오는지 질의가 실패하는지는 이 저장소에서 검증하지 못했다 — 어느 쪽이든
+`// 0` 이 `select` 가 전건을 조용히 버려 "착수 가능한 이슈 0건"을 내는 것을 막는다.
 
 ## 5. GitHub 쪽 한계 (문서 값)
 
@@ -158,8 +160,8 @@ null 이면 `select` 가 전건을 조용히 버려 "착수 가능한 이슈 0�
 gh issue list --milestone "<이번 묶음>" --state all --json number,title,state
 
 # ② 뺄 것: 마일스톤·부모만 떼고 이슈는 OPEN 으로 남긴다
-gh issue edit <N> --remove-milestone
-gh issue edit <EPIC> --remove-sub-issue <N>
+gh issue edit <N> --remove-milestone   # WRITE
+gh issue edit <EPIC> --remove-sub-issue <N>   # WRITE
 gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 열어 둔다."   # WRITE
 
 # ③ 다시 셌는지 확인: 뺀 수 + 남은 수 = ① 의 수
@@ -174,13 +176,13 @@ gh issue comment <N> --body "이번 묶음에서 제외 — <사유>. 이슈는 
 사용자에게 먼저 묻는다.**
 
 ```bash
-gh label create "P0" --color B60205 --description "먼저 한다"
-gh label create "P1" --color D93F0B --description "다음"
-gh label create "P2" --color FBCA04 --description "여유 있을 때"
-gh label create "decision-pending" --color 5319E7 --description "방향성 OPEN — 착수 차단"
-gh label create "ready"            --color 0E8A16 --description "방향성 확정 — 착수 가능"
-gh label create "blocked"          --color B60205 --description "전제 미충족"
-gh label create "in-progress"      --color 1D76DB --description "PR 열림"
+gh label create "P0" --color B60205 --description "먼저 한다"   # WRITE
+gh label create "P1" --color D93F0B --description "다음"   # WRITE
+gh label create "P2" --color FBCA04 --description "여유 있을 때"   # WRITE
+gh label create "decision-pending" --color 5319E7 --description "방향성 OPEN — 착수 차단"   # WRITE
+gh label create "ready"            --color 0E8A16 --description "방향성 확정 — 착수 가능"   # WRITE
+gh label create "blocked"          --color B60205 --description "전제 미충족"   # WRITE
+gh label create "in-progress"      --color 1D76DB --description "PR 열림"   # WRITE
 ```
 
 축은 셋으로 충분하다. 라벨을 늘리면 필터가 아니라 장식이 된다.
