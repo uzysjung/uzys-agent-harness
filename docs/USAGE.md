@@ -28,9 +28,10 @@ Two things worth knowing about the ones you are most likely to install:
 > Until v26.146.1 the harness shipped eight `/ecc:` command files of its own as a fallback for
 > people who had not installed the plugin. They were removed because a fallback that needs the thing
 > it substitutes for is not a fallback: two of the eight (`e2e`, `eval`) invoked ECC plugin agents <!-- ref:removed -->
-> directly. The other six did run without the plugin — they were dropped because the plugin carries
-> all six anyway. (ADR-073 records the decision but counts five as broken rather than two; the
-> reading here is from the eight files as they stood at deletion.)
+> directly. The other six did run without the plugin — they were dropped because the plugin ships
+> commands of the same names anyway, so keeping ours would only make it ambiguous which one runs.
+> (Checked against the vendored ECC snapshot, which is a few months old; the plugin's current set is
+> upstream's to change.)
 
 ---
 

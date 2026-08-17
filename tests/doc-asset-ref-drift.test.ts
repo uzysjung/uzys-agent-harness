@@ -122,8 +122,18 @@ const MD_LINK_REPO = /\]\(https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:[/#)?]|\.
  * URL 쪽만 보면 npmjs·gitlab 등 github 아닌 링크로 그대로 샜다(#338 라운드 2 LOW-N1ⓐ 가 변이로
  * 실증). 사람이 읽는 것은 텍스트 쪽이므로 주장도 거기 있다.
  */
-const MD_LINK_TEXT_REPO =
-  /\[([\w.-]+\/[\w.-]+)\]\((?:https?:\/\/)?(?:www\.)?(?:github|gitlab|bitbucket|npmjs)\.com\//g;
+const MD_LINK_TEXT_REPO = /\[([\w.-]+\/[\w.-]+)\]\(([^)\s]+)/g;
+/**
+ * 링크 텍스트가 `owner/repo` 처럼 보여도 저장소 주장이 아닐 수 있다 — `[CI/CD](https://example.com/cicd)`
+ * 가 라운드 3 에서 "카탈로그에 없는 저장소"로 보고됐다. 호스트 허용목록으로 좁혔더니 이번엔
+ * `codeberg.org`·`git.sr.ht` 가 샜다(라운드 4 H1). 그래서 **둘 중 하나면** 주장으로 본다:
+ * 알려진 호스팅 서비스이거나, **URL 경로가 그 `owner/repo` 를 그대로 담고 있거나**.
+ * 후자가 호스트를 안 가리면서 `CI/CD` 같은 우연한 슬래시를 배제한다.
+ */
+const KNOWN_FORGE = /^(?:https?:\/\/)?(?:www\.)?(?:github|gitlab|bitbucket|npmjs)\.com\//i;
+function isRepoClaim(text: string, url: string): boolean {
+  return KNOWN_FORGE.test(url) || url.toLowerCase().includes(`/${text.toLowerCase()}`);
+}
 
 /** 디렉터리의 항목 이름 (확장자 제거). 없는 디렉터리는 빈 배열 — 수집기 하한이 사망을 잡는다. */
 function entryNames(dir: string): string[] {
@@ -247,11 +257,13 @@ function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
         else if (ASSET_SHAPE.test(token)) shaped.push({ file, token });
       }
       // 백틱 밖의 GitHub 링크도 같은 축의 주장이다.
-      for (const re of [MD_LINK_REPO, MD_LINK_TEXT_REPO]) {
-        for (const m of line.matchAll(re)) {
-          const token = m[1] ?? "";
-          if (token !== "") slashed.push({ file, token });
-        }
+      for (const m of line.matchAll(MD_LINK_REPO)) {
+        const token = m[1] ?? "";
+        if (token !== "") slashed.push({ file, token });
+      }
+      for (const m of line.matchAll(MD_LINK_TEXT_REPO)) {
+        const token = m[1] ?? "";
+        if (token !== "" && isRepoClaim(token, m[2] ?? "")) slashed.push({ file, token });
       }
     }
   }
@@ -318,21 +330,42 @@ function commandFragments(line: string, insideFence: boolean): string[] {
   return [...line.matchAll(INLINE_CODE)].map((m) => m[1] ?? "");
 }
 
+/**
+ * 펜스 상태 — CommonMark 규칙으로 연다/닫는다를 **구분**한다.
+ *
+ * 첫 판본은 펜스 줄을 만나면 그냥 토글했다. 그래서 ```` ```` ```` (4백틱) 바깥 펜스 안에
+ * ```` ``` ```` 가 들어가면 짝이 반전돼 **그 안의 백틱 없는 설치 명령이 판정 밖**이 됐고
+ * (라운드 4 F1), 펜스 개수가 홀수면 그 뒤 전체가 "펜스 안"이 되어 **산문 오탐이 부활**했다(F3).
+ * 마크다운이 마크다운을 예시로 보여 줄 때 쓰는 표준 관용구라 작위적이지 않다.
+ *
+ * 규칙: 여는 펜스의 **문자와 길이**를 기억하고, 같은 문자로 **길이 이상**인 펜스에서만 닫는다.
+ */
+const FENCE_LINE = /^[ \t]{0,3}(`{3,}|~{3,})(.*)$/;
+
 function extractInstallRefs(
   files: ReadonlyArray<string>,
   read: (f: string) => string,
 ): InstallRef[] {
   const found: InstallRef[] = [];
-  const FENCE = /^\s*(?:```|~~~)/;
   for (const file of files) {
-    let insideFence = false;
+    let openFence: { char: string; len: number } | null = null;
     read(file)
       .split(/\r?\n/)
       .forEach((l, i) => {
-        if (FENCE.test(l)) {
-          insideFence = !insideFence;
+        const fence = l.match(FENCE_LINE);
+        if (fence) {
+          const marker = fence[1] ?? "";
+          const char = marker[0] ?? "";
+          if (openFence === null) {
+            // info string 에 백틱이 있으면 여는 펜스가 아니다(CommonMark).
+            if (!(char === "`" && (fence[2] ?? "").includes("`")))
+              openFence = { char, len: marker.length };
+            return;
+          }
+          if (char === openFence.char && marker.length >= openFence.len) openFence = null;
           return;
         }
+        const insideFence = openFence !== null;
         // 이력 서술만 면제하고, 면제는 **명시 표식 하나로만** 받는다. 원래 게이트는 줄에 한국어
         // 단어 `삭제` 나 취소선이 있으면 통과시켰는데, 그건 상한 없는 암묵 면제라 살아 있는 광고
         // 줄에 그 단어를 끼우면 그냥 열렸다(#338 리뷰 M3b 가 변이로 실증). 표식은 상한이 걸린다.
@@ -391,26 +424,33 @@ function buildUpstreamRepos(): Set<string> {
 }
 
 /**
- * `owner/repo` 의 **repo 조각**이 카탈로그가 아는 이름인가.
+ * `owner/repo` 가 카탈로그의 자산 하나와 **owner 까지 함께** 맞는가.
  *
  * `npm`(5종)·`npx-run`(1종) 자산은 `pkg`/`cmd` 만 갖고 저장소 경로를 안 갖는다. 그래서
  * `buildUpstreamRepos()` 로는 `vercel-labs/agent-browser`·`bmad-code-org/BMAD-METHOD` 같은
- * **살아 있는 자산의 정당한 출처 링크**가 미지어가 된다(라운드 3 MED-N5 가 변이로 실증 —
- * 그전까지는 카탈로그 파일 주석에 우연히 걸려 통과했다).
+ * **살아 있는 자산의 정당한 출처 링크**가 미지어가 된다(라운드 3 MED-N5 — 그전까지는 카탈로그
+ * 파일 주석에 우연히 걸려 통과했다).
+ *
+ * **owner 를 함께 봐야 한다.** 첫 판본은 repo 이름만 봤는데, 그러면 `evil-owner/north-star` ·
+ * `vercel/agent-browser`(실제 owner 는 `vercel-labs`) · `attacker/find-skills` 가 전부 통과했다
+ * (라운드 4 MED-1 이 실증). 저장소 이전·rename·타이포는 드리프트가 가장 잘 나는 형태이고,
+ * 하필 문서가 "여기서 받으라"고 말하는 자리다.
  *
  * **남는 한계**: repo 이름이 자산 id·패키지명과 다르면(예: `netlify/cli` ↔ `netlify-cli`) 여전히
  * 미지어다. 그때는 `NOT_OUR_ASSET_REPO` 가 아니라 카탈로그 쪽에 저장소를 적는 것이 옳다 —
  * 여기에 "카탈로그 자산 아님"이라는 거짓 사유로 넣지 마라.
  */
-function repoNameKnown(token: string): boolean {
-  const name = (token.split("/")[1] ?? "").toLowerCase();
-  if (name === "") return false;
+function repoMatchesAsset(token: string): boolean {
+  const [owner = "", name = ""] = token.split("/");
+  if (owner === "" || name === "") return false;
+  const lcOwner = owner.toLowerCase();
+  const lcName = name.toLowerCase();
   for (const a of EXTERNAL_ASSETS) {
-    if (a.id.toLowerCase() === name) return true;
-    const pkg = (a.method as Record<string, unknown>).pkg;
-    const cmd = (a.method as Record<string, unknown>).cmd;
-    for (const v of [pkg, cmd])
-      if (typeof v === "string" && (v.split("/").pop() ?? "").toLowerCase() === name) return true;
+    if (a.source.toLowerCase() !== lcOwner) continue;
+    if (a.id.toLowerCase() === lcName) return true;
+    const m = a.method as Record<string, unknown>;
+    for (const v of [m.pkg, m.cmd])
+      if (typeof v === "string" && (v.split("/").pop() ?? "").toLowerCase() === lcName) return true;
   }
   return false;
 }
@@ -474,7 +514,7 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       if (NOT_OUR_ASSET_REPO.has(r.token)) return false;
       // derive 된 어휘가 아는 이름(이 저장소 자신 등)도 통과.
       if (VOCAB.has(r.token)) return false;
-      if (repoNameKnown(r.token)) return false;
+      if (repoMatchesAsset(r.token)) return false;
       // upstream 저장소 주장 — 카탈로그가 그 이름을 **값으로** 알고 있어야 한다.
       // 이전 판본은 `CATALOG_SOURCE.includes(token)` 이라 카탈로그 파일 **주석**에 남은 이름도
       // 통과시켰다. 제거된 자산은 정확히 그 자리에(제거 사유 주석에) 남으므로, 이 PR 이 지운
