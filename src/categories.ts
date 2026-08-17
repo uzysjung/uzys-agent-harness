@@ -79,6 +79,10 @@ export const SOURCE_LABELS = {
   oso95: "oso95",
   // 2026-08-16 — Preline UI (6,386★ 실측, MIT + Preline UI Fair Use 듀얼 라이선스로 상업 이용 가능).
   htmlstreamofficial: "Preline",
+  // 2026-08-17 — GitHub 공식 조직의 awesome-copilot (37,909★ 실측, MIT).
+  github: "GitHub",
+  // 2026-08-17 — Claude-Code-Game-Studios (23,924★ 실측, MIT).
+  Donchitos: "Donchitos",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

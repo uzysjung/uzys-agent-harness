@@ -14,7 +14,7 @@
 | **🟢 registry 실재** | npm registry 실재 확인 (full 설치는 표준 `npm i` — vercel/netlify/supabase/agent-browser CLI) | `npm view` |
 | **🟡 local / matrix** | 로컬 스크립트(ecc-prune) 또는 install-matrix CI (tauri-desktop·번들 uzys 스킬 templates) | `install-matrix.yml` |
 
-> **전 카탈로그 43/58 🟢** (Docker 실설치 + registry 실재). 나머지 15 자산 🟡 = templates(tauri-desktop·ci-scaffold·번들 uzys 스킬 12종 = dev-method 6종 + 전 트랙 4종 + opt-in 2종)·ecc-prune. (2026-08-02 ADR-062 복원 — ADR-060 이 이관했던 9종이 이 리포 번들로 돌아왔고, 같은 ADR 의 AC9 로 `task-brief` 1종이, ADR-064 로 `audit-harness-fit` 1종이 신설됐다. **등급이 🟢에서 🟡로 내려간 것은 품질 저하가 아니라 검증 수단의 변경이다**: `npx skills add` 는 Docker 에서 실 설치가 되지만 templates 는 install-matrix CI 의 파일 배치 검증까지다. 아래 ⚠ 가 그 범위를 규정한다.) 오피셜 플러그인 신규 3종(v26.110.0 — code-review·feature-dev·security-guidance)은 **Docker 실 claude 2.1.214 로 marketplace add + plugin install 3/3 exit 0 실증**(2026-07-18, throwaway 컨테이너 — 호스트 오염 0). ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. ci-scaffold 는 manifest 미경유 전용 단계라 install-matrix 에도 포함되지 않는다 — 검증 = 로컬 unit 테스트(`tests/ci-scaffold.test.ts`: 트랙 매핑·no-clobber·CLI-무관)와 YAML 파싱까지, 실 GitHub Actions 실행은 사용자 repo 에서만 가능(미검증). 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
+> **전 카탈로그 45/60 🟢** (Docker 실설치 + registry 실재). 나머지 15 자산 🟡 = templates(tauri-desktop·ci-scaffold·번들 uzys 스킬 12종 = dev-method 6종 + 전 트랙 4종 + opt-in 2종)·ecc-prune. (2026-08-02 ADR-062 복원 — ADR-060 이 이관했던 9종이 이 리포 번들로 돌아왔고, 같은 ADR 의 AC9 로 `task-brief` 1종이, ADR-064 로 `audit-harness-fit` 1종이 신설됐다. **등급이 🟢에서 🟡로 내려간 것은 품질 저하가 아니라 검증 수단의 변경이다**: `npx skills add` 는 Docker 에서 실 설치가 되지만 templates 는 install-matrix CI 의 파일 배치 검증까지다. 아래 ⚠ 가 그 범위를 규정한다.) 오피셜 플러그인 신규 3종(v26.110.0 — code-review·feature-dev·security-guidance)은 **Docker 실 claude 2.1.214 로 marketplace add + plugin install 3/3 exit 0 실증**(2026-07-18, throwaway 컨테이너 — 호스트 오염 0). ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. ci-scaffold 는 manifest 미경유 전용 단계라 install-matrix 에도 포함되지 않는다 — 검증 = 로컬 unit 테스트(`tests/ci-scaffold.test.ts`: 트랙 매핑·no-clobber·CLI-무관)와 YAML 파싱까지, 실 GitHub Actions 실행은 사용자 repo 에서만 가능(미검증). 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
 
 ## 보안 근거 (Trust Tier + 출처 vetting)
 
@@ -35,11 +35,11 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **58** (official 22 / vetted 34 / experimental 2) · 🟢 검증 **43/58**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
+> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **60** (official 22 / vetted 36 / experimental 2) · 🟢 검증 **45/60**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
 >
 > **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 2026-06-06). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (15)
+#### 🔄 Workflow (16)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
@@ -58,8 +58,9 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code (plugin) | 🟢 Docker |
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
 | `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | Claude Code (npx) | 🟢 Docker |
+| `game-studios` | vetted | `Donchitos/Claude-Code-Game-Studios` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
-#### 🎨 Frontend (9)
+#### 🎨 Frontend (10)
 
 | id | tier | 설치 타겟 | CLI | 검증 |
 |---|---|---|---|---|
@@ -72,6 +73,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 | `react-best-practices` | vetted | `vercel-labs/agent-skills :: vercel-react-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `shadcn-ui` | vetted | `shadcn/ui :: shadcn` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `game-engine` | vetted | `github/awesome-copilot :: game-engine` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 🗄️ Backend (6)
 

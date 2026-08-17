@@ -144,14 +144,14 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 58 distinct asset ids (no duplicates)", () => {
+  it("contains 60 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
     //   + 9(이관 uzys npx) + 3(frontend) = 55. + 1(task-brief 신설, ADR-062 AC9) = 56.
     //   + 1(audit-harness-fit 신설, ADR-064) = 57
     //   + 1(preline — Tailwind 컴포넌트 킷 테마 생성기, htmx·vanilla 대응) = 58.
-    expect(ids).toHaveLength(58);
+    expect(ids).toHaveLength(60);
     expect(ids).toContain("task-brief");
     expect(ids).toContain("audit-harness-fit");
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
