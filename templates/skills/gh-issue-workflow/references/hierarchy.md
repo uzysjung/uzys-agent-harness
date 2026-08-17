@@ -186,3 +186,76 @@ gh label create "in-progress"      --color 1D76DB --description "PR 열림"   # 
 ```
 
 축은 셋으로 충분하다. 라벨을 늘리면 필터가 아니라 장식이 된다.
+
+## 8. wiki 미러 (조건 충족 시에만)
+
+`gh` 에 **wiki 서브커맨드가 없다** — 전부 git 으로 한다. wiki 는 별도 git 리포다.
+
+### 8-1. 조건 판정 — 대조군으로
+
+`git ls-remote` 의 exit **128 은 "리포 없음"과 "인증·네트워크 실패"에 똑같이 나온다.** 그 코드만
+보고 "wiki 가 없다"고 결론내면 틀린다. 대조군을 강제하는 도구로 판정한다:
+
+```bash
+gh api repos/:owner/:repo --jq .has_wiki      # false 면 여기서 끝. 아무것도 하지 않는다
+URL="$(gh repo view --json url --jq .url)"
+bash .uzys-agent-harness/check-absence.sh \
+  --control "git ls-remote ${URL}.git" \
+  --subject "git ls-remote ${URL}.wiki.git"
+```
+
+| 도구 exit | 뜻 | 다음 |
+|---|---|---|
+| `1` | wiki 리포가 **있다** | 8-2 로 |
+| `0` | wiki 리포가 **없다** | 첫 페이지 생성을 사용자에게 안내하고 끝 |
+| `2` | **판정 불가** — 대조군도 실패했다 | 인증·네트워크를 먼저 본다. "없음"으로 읽지 마라 |
+| **그 밖(`127` 등)** | **도구 자체가 없다** — 판정이 아니다 | 아래 수동 경로로. `0` 으로 읽으면 안 된다 |
+
+`127` 은 하네스를 설치하지 않은 저장소에서 실제로 난다. **`0` 이 아니라는 것만으로 "wiki 가 있다"로
+읽지 마라** — 도구가 실행조차 안 된 것은 판정이 아니다(그 도구 자신이 126/127 을 무효로 처리하는
+것과 같은 규율이다).
+
+도구가 없는 환경이면 두 명령을 직접 돌린다 — **`2>/dev/null` 을 붙이지 않는다.** `remote:
+Repository not found.` 라는 진단 문자열이 128 의 원인을 가르는 유일한 재료다.
+
+`0` 이면 여기서 멈추고 사용자에게 넘긴다 — 첫 페이지는 **웹 UI 에서 사람이** 만든다
+(리포 → Wiki 탭 → Create the first page). 에이전트가 할 수 있는 경로가 없다.
+
+### 8-2. 미러 — 여기부터 전부 `WRITE`
+
+```bash
+# 변수는 새 셸에서 다시 만든다 — 앞 블록의 것이 살아 있다고 가정하면 빈 경로로 clone 하고
+# 그 실패가 exit 128 이라 8-1 의 "리포 없음"과 구분되지 않는다
+URL="$(gh repo view --json url --jq .url)"
+SRC="$(git rev-parse --short HEAD)"
+D="$(mktemp -d)"                                   # 고정 경로 금지
+git clone "${URL}.wiki.git" "$D"                   # WRITE 구간 시작 — 승인 없이 push 하지 않는다
+
+# 페이지 파일명은 제목이 곧 파일명이다. 공백은 `-` (사이드바를 두려면 `_Sidebar.md`)
+{
+  printf '> 이 페이지는 `%s` 의 사본이다. **편집은 저장소에서** 하고 여기는 미러만 한다.\n' \
+    "docs/NORTH_STAR.md"
+  printf '> 미러한 커밋: `%s`\n\n' "$SRC"
+  cat docs/NORTH_STAR.md
+} > "$D/North-Star.md"
+
+git -C "$D" add North-Star.md
+git -C "$D" commit -m "docs: mirror docs/NORTH_STAR.md at ${SRC}"
+git -C "$D" push                                   # WRITE — 사용자 승인 후에만
+
+# 올렸다는 것을 증거로 만든다. push 가 실패했으면 **작업 디렉터리를 지우지 않는다** —
+# 지우면 커밋한 것이 사라져 clone 부터 다시 해야 한다
+if git -C "$D" status -sb | grep -q '\[ahead'; then
+  echo "push 미완 — $D 를 남긴다" >&2
+else
+  git -C "$D" log --oneline -1                      # 이슈/보고에 붙일 증거
+  rm -rf "$D"
+fi
+```
+
+배너는 **첫 두 줄**이어야 한다. 이게 없으면 다음 사람이 wiki 를 원본으로 편집하고, 그때부터
+원본이 둘이 된다. 커밋 해시는 `git rev-parse --short HEAD` 로 **미러 시점의 본체 HEAD** 를 쓴다 —
+날짜만 적으면 어느 상태의 사본인지 알 수 없다.
+
+미러 대상은 **목표층뿐**이다 — 움직이는 것(계획·백로그·ADR)을 미러하면 미러가 항상 틀린다.
+계획이 바뀐 사유는 이슈나 ADR 에 있고, wiki 는 그 번호를 가리킨다.
