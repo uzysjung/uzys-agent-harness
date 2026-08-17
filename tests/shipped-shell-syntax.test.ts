@@ -39,15 +39,27 @@ import { listFilesRecursive } from "../src/fs-ops.js";
  *   - 다른 펜스 **안에 중첩된** 펜스는 마크다운 리터럴 예시로 보고 세지 않는다(CommonMark).
  *     실제로 1건 있다(`skills/eval-harness/SKILL.md` 의 4-백틱 블록 안 `bash`) — 그 명령은
  *     `bash -n` 밖이다. 줄이음은 바깥 펜스 본문으로 계속 검사된다.
- *   - 개발 사본(`.claude/`)은 대상이 아니다 — 배포되는 것은 `templates/` 뿐이라 여기를 문다.
- *     다만 `templates/` 안에서도 **`.sh` 파일과 마크다운 코드펜스만** 본다. 배포되는 셸이
- *     그 밖에도 있다 — `github-workflows/*.yml` 의 `run:` 스텝(실측 12줄)과 `settings.json` 의
- *     훅 `"command"`(4건). 전부 한 줄짜리 호출이라 위험은 낮지만 게이트 밖이다.
+ *   - 개발 사본(`.claude/`)은 대상이 아니다. 대상은 **게시되는 것**이고, 그 목록은
+ *     `package.json` 의 `files` 가 정한다 — `templates/` 글롭 + 거기에 **개별 지정된 `.sh`**
+ *     (`templates/` 밖에 있어 글롭에 안 걸린다. 열거하지 않고 `files` 에서 derive 한다).
+ *   - 그래도 `.sh` 파일과 마크다운 코드펜스만 본다. 배포되는 셸이 그 밖에도 있다 —
+ *     `github-workflows/*.yml` 의 `run:` 스텝(실측 12줄)과 `settings.json` 의 훅 `"command"`(4건).
+ *     전부 한 줄짜리 호출이라 위험은 낮지만 게이트 밖이다.
  *   - `bash -n` 은 **로컬 bash 버전**을 따른다(macOS 기본은 3.2). bash 4+ 전용 문법은 Linux 에서
  *     통과하고 macOS 에서 red 다. 릴리즈 CI 가 ubuntu + macos 양쪽을 돌아 태그 시점에 갈린다.
  */
 
-const TEMPLATES = resolve(__dirname, "../templates");
+const REPO_ROOT = resolve(__dirname, "..");
+const TEMPLATES = join(REPO_ROOT, "templates");
+
+/**
+ * `package.json` 의 `files` 가 **개별 지정한 `.sh`**. `templates/` 밖에 있어 글롭이 못 잡는다 —
+ * 실제로 `scripts/prune-ecc.sh` 하나가 게시되는데 게이트 밖이었다(독립 리뷰가 잡았다).
+ * 열거하지 않고 `files` 에서 derive 하므로 게시 계약이 바뀌면 게이트가 따라온다.
+ */
+const SHIPPED_SH_OUTSIDE_TEMPLATES: readonly string[] = (
+  (JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).files ?? []) as string[]
+).filter((f) => f.endsWith(".sh"));
 
 /**
  * `bash -n` 으로 검사할 언어 표시. **`bash -n` 이 실제로 파싱할 수 있는 것만** 넣는다 —
@@ -249,7 +261,17 @@ function danglingContinuations(snippet: Snippet): string[] {
     .map(({ line, at }) => `${snippet.file}:${at}\n    ${line}`);
 }
 
-const { snippets: SNIPPETS, unclosed: UNCLOSED } = collectSnippets();
+const collected = collectSnippets();
+/** `templates/` 밖에서 게시되는 `.sh` 를 모집단에 합친다 — 게시 계약(`files`)이 기준이다. */
+const EXTRA_SCRIPTS: Snippet[] = SHIPPED_SH_OUTSIDE_TEMPLATES.map((rel) => ({
+  file: rel,
+  kind: "script" as const,
+  startLine: 1,
+  isShell: true,
+  source: readFileSync(join(REPO_ROOT, rel), "utf8"),
+}));
+const SNIPPETS = [...collected.snippets, ...EXTRA_SCRIPTS];
+const UNCLOSED = collected.unclosed;
 const SCRIPTS = SNIPPETS.filter((s) => s.kind === "script");
 const FENCES = SNIPPETS.filter((s) => s.kind === "fence");
 const SHELL_FENCES = FENCES.filter((s) => s.isShell);
@@ -362,7 +384,7 @@ describe("배포물 셸 건전성 (#327)", () => {
 
   it("수집기가 살아 있다 — 0건 통과 방지", () => {
     // 하한의 목적은 하나다 — **수집기가 죽어 0건을 모으는 것**을 잡는 것. 현재 개수의 사본이
-    // 아니다. 실측 2026-08-17: 스크립트 18 · 펜스 217(그중 셸 48).
+    // 아니다. 실측 2026-08-17: 스크립트 19(`templates/` 18 + `files` 지정 1) · 펜스 219(그중 셸 50).
     //
     // 한때 실측의 80%(15/175/40)로 조였다가 되돌렸다. 그러면 문서 하나만 정당하게 지워도 red 인데
     // 테스트 이름이 "0건 통과 방지"라 **지운 사람이 수집기가 깨졌다고 오독한다**(실증됨:
@@ -370,6 +392,14 @@ describe("배포물 셸 건전성 (#327)", () => {
     // 테스트 이름에 실리는 실개수가 덮는다. 그래서 하한은 원래 목적만 한다.
     const counts = `스크립트 ${SCRIPTS.length} · 펜스 ${FENCES.length} · 셸 펜스 ${SHELL_FENCES.length}`;
     const reading = `수집기 파손 또는 자산 감소 — 어느 쪽인지 개수 변화로 판단하라 (${counts})`;
+    // `templates/` 밖 게시분이 **실제 모집단에** 들어왔는지. `EXTRA_SCRIPTS`(정의)를 단언하면
+    // 정의는 남기고 합류만 끊는 변이가 생존한다 — "배열 둘을 굳이 합칠 필요 없다"는 아주 자연스러운
+    // 정리 한 번이면 난다. 그때 `prune-ecc.sh` 는 문법 오류를 안은 채 검사 밖으로 나가고,
+    // 실패 메시지는 "모집단에 없다"고 하면서 모집단을 안 보는 거짓말이 된다(실측으로 생존 확인).
+    expect(
+      SCRIPTS.map((s) => s.file),
+      "package.json files 가 개별 지정한 .sh 가 모집단에 없다",
+    ).toContain("scripts/prune-ecc.sh");
     expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(10);
     expect(FENCES.length, reading).toBeGreaterThanOrEqual(100);
     expect(SHELL_FENCES.length, reading).toBeGreaterThanOrEqual(30);
