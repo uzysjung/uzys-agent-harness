@@ -247,7 +247,7 @@ export interface PageItem {
  * `selectInstallTargets` 안의 클로저였으나 export 로 승격했다 (SOD 리뷰 Important #2):
  * **이 함수가 dev-method 스킬 전원을 wizard 에서 도달 가능하게 만드는 유일한 코드**인데, 테스트가
  * 하나도 닿지 않았다. `wizard-page-parity` 는 "자산의 **카테고리**가 페이지에 있다"만 보는데,
- * 구성원은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 그 종에 대해
+ * 구성원은 자기 카테고리에서 필터링되고 번들 row 로만 대표되므로 그 단언은 이제 구성원에 대해
  * 비논리(non sequitur)다 — 번들 row 블록을 지워도 parity 는 통과하고 CI 는 green 인 채
  * 구성원이 **어디서도 선택 불가**가 된다. v26.78.0 거짓출하의 정확한 재현이다.
  * (`prompts.ts` 는 coverage 제외 대상이라 커버리지 수치도 이 코드에 대해 아무 보장을 못 준다.)

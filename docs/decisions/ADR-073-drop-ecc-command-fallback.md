@@ -25,6 +25,14 @@
 **8개 중 5개가 안 고른 자산을 가리킨다.** ECC 를 고르지 *않았다는 이유로* 깔리는데, 그 5개는
 ECC(또는 CL-v2)가 있어야 돈다. 폴백의 전제와 폴백의 요구가 서로 모순이다.
 
+> **정정 (2026-08-18, #338 문서 정합 리뷰)** — 위 표의 5/8 은 **2/8 이 맞다.** `evolve` ·
+> `instinct-status` · `promote` 가 부르는 `continuous-learning-v2` 는 "별도 opt-in 스킬"이 아니라
+> `COMMON_SKILL_DIRS_ECC` 항목이고, `applies: (s) => !s.withEcc` 로 **그 명령들과 똑같은 조건에서
+> 함께 깔린다**(`src/manifest.ts`). 즉 폴백 상황에서 그 셋은 실제로 돌았다. 자립하지 못한 것은
+> 플러그인 에이전트를 직접 부르는 `e2e` · `eval` 둘뿐이다(삭제 직전 `a0d9f7f^` 의 8개 파일 전수
+> 확인). **결정 자체는 유지된다** — 플러그인이 여섯을 모두 제공하므로 폴백을 기본값에 둘 이유가
+> 없다는 근거는 아래 Alternatives 에 이미 있다. 바뀐 것은 Context 의 숫자다.
+
 ## Decision
 
 **`templates/commands/ecc/` 8종을 삭제하고 manifest 배선을 제거한다.** ECC 명령이 필요하면

@@ -28,8 +28,9 @@ Two things worth knowing about the ones you are most likely to install:
 > Until v26.146.1 the harness shipped eight `/ecc:` command files of its own as a fallback for
 > people who had not installed the plugin. They were removed because a fallback that needs the thing
 > it substitutes for is not a fallback: two of the eight (`e2e`, `eval`) invoked ECC plugin agents <!-- ref:removed -->
-> directly. The other six ran without the plugin, and were dropped for the ordinary reason (ADR-073)
-> — the harness stopped shipping surface that the plugin already carries.
+> directly. The other six did run without the plugin — they were dropped because the plugin carries
+> all six anyway. (ADR-073 records the decision but counts five as broken rather than two; the
+> reading here is from the eight files as they stood at deletion.)
 
 ---
 
@@ -197,7 +198,7 @@ ESC at step 1 = exit with cancel. ESC at later steps = silent back.
 
 ## Trust tiers (v26.71.0)
 
-External assets carry a trust tier, shown as a badge in step 3:
+External assets carry a trust tier. Two of the three show as a badge in step 3; `vetted` shows none:
 
 - **★ official** — Anthropic-official marketplaces + this harness's own assets.
 - **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Carries no badge of its own. Whether it is pre-checked is decided by the asset's `condition`, not by its tier — most vetted assets are opt-in.

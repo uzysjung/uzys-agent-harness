@@ -122,7 +122,8 @@ const MD_LINK_REPO = /\]\(https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:[/#)?]|\.
  * URL 쪽만 보면 npmjs·gitlab 등 github 아닌 링크로 그대로 샜다(#338 라운드 2 LOW-N1ⓐ 가 변이로
  * 실증). 사람이 읽는 것은 텍스트 쪽이므로 주장도 거기 있다.
  */
-const MD_LINK_TEXT_REPO = /\[([\w.-]+\/[\w.-]+)\]\(/g;
+const MD_LINK_TEXT_REPO =
+  /\[([\w.-]+\/[\w.-]+)\]\((?:https?:\/\/)?(?:www\.)?(?:github|gitlab|bitbucket|npmjs)\.com\//g;
 
 /** 디렉터리의 항목 이름 (확장자 제거). 없는 디렉터리는 빈 배열 — 수집기 하한이 사망을 잡는다. */
 function entryNames(dir: string): string[] {
@@ -303,38 +304,64 @@ interface InstallRef {
   field: string;
 }
 
+/** 자리표시자 면제 횟수 — 축이 둘인데 한쪽만 계측되던 것을 계측한다(#338 라운드 3 LOW-N2). */
+let placeholderSkips = 0;
+
+/**
+ * 설치 명령을 찾을 **후보 조각**: 인라인 코드 스팬 + 펜스 안의 줄.
+ *
+ * 줄 전체를 보면 평범한 산문이 물린다 — 라운드 3 이 *"run npm install in the project root"* 한 줄로
+ * 오탐 6건(`in`·`the`·`project`…)을 실증했다. 반대로 스팬만 보면 펜스 안 명령을 놓친다. 그래서 둘 다.
+ */
+function commandFragments(line: string, insideFence: boolean): string[] {
+  if (insideFence) return [line];
+  return [...line.matchAll(INLINE_CODE)].map((m) => m[1] ?? "");
+}
+
 function extractInstallRefs(
   files: ReadonlyArray<string>,
   read: (f: string) => string,
 ): InstallRef[] {
   const found: InstallRef[] = [];
+  const FENCE = /^\s*(?:```|~~~)/;
   for (const file of files) {
+    let insideFence = false;
     read(file)
       .split(/\r?\n/)
       .forEach((l, i) => {
+        if (FENCE.test(l)) {
+          insideFence = !insideFence;
+          return;
+        }
         // 이력 서술만 면제하고, 면제는 **명시 표식 하나로만** 받는다. 원래 게이트는 줄에 한국어
         // 단어 `삭제` 나 취소선이 있으면 통과시켰는데, 그건 상한 없는 암묵 면제라 살아 있는 광고
         // 줄에 그 단어를 끼우면 그냥 열렸다(#338 리뷰 M3b 가 변이로 실증). 표식은 상한이 걸린다.
         if (l.includes(HISTORICAL_MARKER)) return;
-        let matchedSkill = false;
-        for (const { kind, re, field, multi } of INSTALL_CMD_PATTERNS) {
-          // `--skill` 형태가 잡히면 같은 줄의 bare `source` 는 중복이므로 건너뛴다.
-          if (kind === "source" && matchedSkill) continue;
-          const m = l.match(re);
-          if (!m?.[1]) continue;
-          if (kind === "skill") matchedSkill = true;
-          if (!multi) {
-            found.push({ file, line: i + 1, kind, ident: m[1], field });
-            continue;
-          }
-          // `multi` — 명령 뒤 인자열 전체를 받아, 플래그가 아닌 토큰을 **전부** 패키지로 본다.
-          // 버전 지정(`pkg@1.2.3`)은 떼고, `&&` 뒤로는 다른 명령이므로 거기서 끊는다.
-          for (const raw of m[1].split("&&")[0]?.trim().split(/\s+/) ?? []) {
-            if (raw === "" || raw.startsWith("-")) continue;
-            // 문서의 **자리표시자**(`<pkg>`·`<name>`)는 광고가 아니라 형식 설명이다.
-            if (raw.startsWith("<") || raw.includes("<")) continue;
-            const ident = raw.replace(/^(@[\w.-]+\/)?([^@]+).*$/, "$1$2");
-            if (ident !== "") found.push({ file, line: i + 1, kind, ident, field });
+        for (const frag of commandFragments(l, insideFence)) {
+          let matchedSkill = false;
+          for (const { kind, re, field, multi } of INSTALL_CMD_PATTERNS) {
+            // `--skill` 형태가 잡히면 같은 조각의 bare `source` 는 중복이므로 건너뛴다.
+            if (kind === "source" && matchedSkill) continue;
+            const m = frag.match(re);
+            if (!m?.[1]) continue;
+            if (kind === "skill") matchedSkill = true;
+            if (!multi) {
+              found.push({ file, line: i + 1, kind, ident: m[1], field });
+              continue;
+            }
+            // `multi` — 명령 뒤 인자열 전체를 받아, 플래그가 아닌 토큰을 **전부** 패키지로 본다.
+            // 버전 지정(`pkg@1.2.3`)은 떼고, `&&` 뒤로는 다른 명령이므로 거기서 끊는다.
+            for (const raw of m[1].split("&&")[0]?.trim().split(/\s+/) ?? []) {
+              if (raw === "" || raw.startsWith("-")) continue;
+              // 문서의 **자리표시자**(`<pkg>`·`<name>`)는 광고가 아니라 형식 설명이다.
+              // 세어 둔다 — 이름을 꺾쇠로 감싸면 판정이 꺼지므로 무제한이면 그게 두 번째 면제 축이다.
+              if (raw.includes("<")) {
+                placeholderSkips += 1;
+                continue;
+              }
+              const ident = raw.replace(/^(@[\w.-]+\/)?([^@]+).*$/, "$1$2");
+              if (ident !== "") found.push({ file, line: i + 1, kind, ident, field });
+            }
           }
         }
       });
@@ -361,6 +388,31 @@ function buildUpstreamRepos(): Set<string> {
     norm(m.source);
   }
   return repos;
+}
+
+/**
+ * `owner/repo` 의 **repo 조각**이 카탈로그가 아는 이름인가.
+ *
+ * `npm`(5종)·`npx-run`(1종) 자산은 `pkg`/`cmd` 만 갖고 저장소 경로를 안 갖는다. 그래서
+ * `buildUpstreamRepos()` 로는 `vercel-labs/agent-browser`·`bmad-code-org/BMAD-METHOD` 같은
+ * **살아 있는 자산의 정당한 출처 링크**가 미지어가 된다(라운드 3 MED-N5 가 변이로 실증 —
+ * 그전까지는 카탈로그 파일 주석에 우연히 걸려 통과했다).
+ *
+ * **남는 한계**: repo 이름이 자산 id·패키지명과 다르면(예: `netlify/cli` ↔ `netlify-cli`) 여전히
+ * 미지어다. 그때는 `NOT_OUR_ASSET_REPO` 가 아니라 카탈로그 쪽에 저장소를 적는 것이 옳다 —
+ * 여기에 "카탈로그 자산 아님"이라는 거짓 사유로 넣지 마라.
+ */
+function repoNameKnown(token: string): boolean {
+  const name = (token.split("/")[1] ?? "").toLowerCase();
+  if (name === "") return false;
+  for (const a of EXTERNAL_ASSETS) {
+    if (a.id.toLowerCase() === name) return true;
+    const pkg = (a.method as Record<string, unknown>).pkg;
+    const cmd = (a.method as Record<string, unknown>).cmd;
+    for (const v of [pkg, cmd])
+      if (typeof v === "string" && (v.split("/").pop() ?? "").toLowerCase() === name) return true;
+  }
+  return false;
 }
 
 const VOCAB = buildVocabulary();
@@ -397,6 +449,11 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       EXEMPTED_LINES,
       `면제 표식(${HISTORICAL_MARKER})이 ${EXEMPTED_LINES}줄 — 이 정도면 게이트가 아니라 장식이다`,
     ).toBeLessThanOrEqual(7);
+    // 두 번째 면제 축. 이름을 꺾쇠로 감싸면 설치 명령 판정이 꺼지므로 무제한이면 우회로가 된다.
+    expect(
+      placeholderSkips,
+      `설치 명령의 자리표시자(<…>) 면제가 ${placeholderSkips}건 — 형식 설명이 아니라 우회로가 됐다`,
+    ).toBeLessThanOrEqual(4);
   });
 
   it("자산 id 형태로 적힌 이름이 전부 이 저장소에 실재한다", () => {
@@ -417,6 +474,7 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       if (NOT_OUR_ASSET_REPO.has(r.token)) return false;
       // derive 된 어휘가 아는 이름(이 저장소 자신 등)도 통과.
       if (VOCAB.has(r.token)) return false;
+      if (repoNameKnown(r.token)) return false;
       // upstream 저장소 주장 — 카탈로그가 그 이름을 **값으로** 알고 있어야 한다.
       // 이전 판본은 `CATALOG_SOURCE.includes(token)` 이라 카탈로그 파일 **주석**에 남은 이름도
       // 통과시켰다. 제거된 자산은 정확히 그 자리에(제거 사유 주석에) 남으므로, 이 PR 이 지운
