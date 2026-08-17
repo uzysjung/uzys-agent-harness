@@ -180,14 +180,34 @@ describe("룰이 4 CLI 전부에 도달한다", () => {
   }
 });
 
+/**
+ * 룰 본문이 지목하는 도구를 **배포 룰에서 뽑아** 대조한다. 목록을 여기 적으면 그게 두 번째
+ * 하드코딩 사본이 되고, 이 저장소에서 그 형태가 이미 두 번 뒤처졌다 — 룰에 새 도구를 적고
+ * 테스트 목록을 안 고치면 아무도 안 문다. 그래서 **모집단을 룰이 답하게** 한다.
+ */
+const TOOLS_NAMED_BY_RULES: ReadonlyArray<string> = (() => {
+  const dir = join(ROOT, "templates", "rules");
+  const found = new Set<string>();
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".md"))) {
+    const body = readFileSync(join(dir, f), "utf8");
+    for (const m of body.matchAll(/\.uzys-agent-harness\/([A-Za-z0-9._-]+\.sh)/g)) {
+      found.add(`.uzys-agent-harness/${m[1]}`);
+    }
+  }
+  return [...found].sort();
+})();
+
 describe("룰이 가리키는 도구도 함께 도달한다", () => {
   // 룰 본문이 `.uzys-agent-harness/*.sh` 를 호출 지점으로 지목한다. 룰만 보내고 도구를 안 보내면
   // 없는 도구를 있다고 안내하는 것이라, #300 을 고치면서 같은 형태를 새로 만드는 셈이 된다.
+  it("탐지기 자기검증 — 배포 룰이 실제로 도구를 지목한다 (0건이면 아래가 공허하다)", () => {
+    expect(TOOLS_NAMED_BY_RULES.length).toBeGreaterThanOrEqual(3);
+  });
+
   for (const cli of CLI_BASES) {
-    it(`${cli}: spec-drift-check.sh · protect-branch.sh`, () => {
+    it(`${cli}: 룰이 지목한 도구 ${TOOLS_NAMED_BY_RULES.length}종이 전부 설치된다`, () => {
       const files = installed.get(cli)?.files ?? [];
-      expect(files).toContain(".uzys-agent-harness/spec-drift-check.sh");
-      expect(files).toContain(".uzys-agent-harness/protect-branch.sh");
+      for (const tool of TOOLS_NAMED_BY_RULES) expect(files).toContain(tool);
     });
   }
 });

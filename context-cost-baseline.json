@@ -7,7 +7,7 @@
   "tracks": {
     "tooling": {
       "items": 23,
-      "tokens": 5037
+      "tokens": 5074
     },
     "csr-supabase": {
       "items": 24,
@@ -39,7 +39,7 @@
     },
     "full": {
       "items": 31,
-      "tokens": 5667
+      "tokens": 5704
     },
     "project-management": {
       "items": 14,
