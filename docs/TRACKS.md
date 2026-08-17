@@ -69,7 +69,7 @@ Per-asset install method and verification status live in the [compatibility matr
 | `vercel-cli` | Vercel CLI — **opt-in** | npm |
 | `netlify-cli` | Netlify CLI — **opt-in** | npm |
 
-The three CLIs above install a global binary, so none of them is pre-checked by a track any more — pick the one your project deploys to at step 3 or with `--with <id>`.
+The three CLIs above install a CLI package — a project `devDependency` by default, or a global binary under `--scope global` — so none of them is pre-checked by a track any more. Pick the one your project deploys to at step 3 or with `--with <id>`.
 
 ### Data (data / full)
 

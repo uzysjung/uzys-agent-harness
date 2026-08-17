@@ -15,13 +15,17 @@
 
 | Tier | 의미 | 예 |
 |------|------|---|
-| ✅ **공식** | Anthropic 또는 stack vendor 공식 | Anthropic skills, Railway, Supabase, MCP servers |
-| 🟢 **검증된 third-party** | 알려진 기여자/조직, 활발히 maintained | vercel-labs, addyosmani, wshobson, trailofbits, shadcn |
-| 🟡 **Community** | 개인/소규모, 사용 전 내용 검토 권장 | alirezarezvani, coreyhaines31, jakubkrehel, oso95 |
+여기 3등급을 따로 두지 않는다. **설치 화면에 뜨는 배지가 곧 등급이고, SSOT 는 각 자산의 `tier` 다.**
 
-> 이 표의 3등급은 **읽는 사람을 위한 요약**이고, 설치 화면에 실제로 뜨는 배지의 SSOT 는 각 자산의
-> `tier`(`official` / `vetted` / `experimental`)다. 여기 적힌 출처 예시는 카탈로그에서 자산이
-> 빠지면 같이 낡는다 — 현재 배지는 [COMPATIBILITY.md](COMPATIBILITY.md) 가 생성해 보여 준다.
+| tier | 배지 | 의미 |
+|---|---|---|
+| `official` | ★ official | Anthropic 공식 마켓플레이스 · 이 하네스 자체 자산 |
+| `vetted` | vetted | star 1,000+ · 활발한 유지보수 · 실설치 검증 통과. 트랙이 맞으면 미리 체크된다 |
+| `experimental` | ⚠ experimental | star 1,000 미만. **미리 체크되지 않는다**(opt-in 전용) |
+
+> 손으로 쓴 등급 표가 여기 있었고, 예시로 든 출처 4곳이 코드에서는 전부 `vetted` 였다 — 즉 "개인이
+> 만든 것"이라는 인상으로 등급을 갈랐고, 보안 판단의 입구에서 등급을 잘못 가리켰다(#338). 자산별
+> 현재 등급은 [COMPATIBILITY.md](COMPATIBILITY.md) 가 카탈로그에서 생성한다.
 
 ## Track 약어
 
@@ -36,8 +40,9 @@
 **자산별 목록은 여기 두지 않는다.** 카탈로그(60) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
 [COMPATIBILITY.md](COMPATIBILITY.md) 가 `src/external-assets.ts` 에서 **생성**하고, 트랙별 묶음
 해설은 [TRACKS.md](TRACKS.md) 가 맡는다. 이 절이 자산을 손으로 다시 열거하던 동안 그 사본은
-실제로 낡았다 — 없어진 자산(`c-level-skills`·`railway-plugin`)과 바뀐 명령 <!-- ref:removed -->
-(`npm install -g` → `--save-dev`)을 그대로 안내하고 있었다(#338).
+실제로 낡았다 — 이 절의 표가 배포 CLI 설치를 `npm install -g` 로 적고 있었는데, 기본 scope 에서
+실제로 나가는 명령은 `npm install --save-dev` 다(#338). 없어진 자산을 안내하던 쪽은 USAGE 와 §6
+흐름도였다.
 
 여기 남는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다. 방식은 자산보다 훨씬 덜 바뀌고,
 "내 머신에서 무슨 일이 일어나는가"를 알려면 이쪽이 필요하다. 배선 SSOT = `src/external-installer.ts`.
@@ -67,11 +72,13 @@ vetting 시점의 코드만 실행된다(v26.80.0). `plugin`·`skill` 은 upstre
 
 ### 모든 dev track 공통
 
-| MCP | 출처 | Tier | 명령 |
-|-----|------|:-:|------|
-| **context7** | [Upstash](https://github.com/upstash/context7-mcp) | ✅ | `npx -y @upstash/context7-mcp@latest` |
-| **github** | [modelcontextprotocol](https://github.com/modelcontextprotocol/servers/tree/main/src/github) | ✅ | `npx -y @modelcontextprotocol/server-github` |
-| **chrome-devtools** | [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) | ✅ | `npx -y chrome-devtools-mcp@latest` |
+| MCP | 출처 | 명령 |
+|-----|------|------|
+| **context7** | [Upstash](https://github.com/upstash/context7-mcp) | `npx -y @upstash/context7-mcp@latest` |
+| **github** | [modelcontextprotocol](https://github.com/modelcontextprotocol/servers/tree/main/src/github) | `npx -y @modelcontextprotocol/server-github` |
+| **chrome-devtools** | [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) | `npx -y chrome-devtools-mcp@latest` |
+
+MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust tier 를 갖지 않는다.
 
 ### Track 조건부 (track-mcp-map.tsv 데이터-driven)
 
@@ -132,7 +139,9 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 
 자체 작성 스킬은 **14종**이고, 그중 **12종은 카탈로그 엔트리를 갖는다**(`INTERNAL_BUNDLED_SKILL_IDS`
 — 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다). 남는 `spec-scaling`·
-`ui-visual-review` 2종은 엔트리 없이 `manifest.ts` 가 트랙 조건으로 직접 깐다. COMPATIBILITY.md 가
+`ui-visual-review` 2종은 엔트리 없이 `manifest.ts` 가 직접 깐다 — `ui-visual-review` 는 UI 트랙
+조건이고, `spec-scaling` 은 **무조건**이며 디렉터리가 아니라 `SKILL.md` 파일 하나만 나간다.
+COMPATIBILITY.md 가
 "번들 uzys 스킬 12종"이라 적는 것과 여기 14종이 어긋나 보이는 이유가 이 둘이다.
 
 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
@@ -165,7 +174,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 ### Commands — 없다
 
 `templates/commands/` 디렉터리는 존재하지 않고, manifest 에 `.claude/commands/` 대상도 0건이다.
-직접 쓴 슬래시 명령 세트(`spec`·`plan`·`build`·…)는 ADR-060 에서, ECC 폴백 8종은 ADR-073 에서 <!-- ref:removed -->
+직접 쓴 슬래시 명령 세트(`spec`·`plan`·`build`·…)는 ADR-023 에서, ECC 폴백 8종은 ADR-073 에서 <!-- ref:removed -->
 사라졌다. 유일한 예외는 OpenCode 인데, 그쪽은 native 스킬 개념이 없어 스킬 하나당 명령 파일 하나를
 `.opencode/commands/` 로 **생성**한다 — 번들 템플릿이 아니라 설치 시점 변환 산출물이다.
 
@@ -197,8 +206,20 @@ CLAUDE.md와 짝.
 CLI 를 TypeScript 로 다시 쓸 때 `src/` 와 `vitest` 가 각각 그 자리를 가져갔다. 검증 명령은
 `npm run ci`(typecheck + lint + coverage + build)다.
 
-**게시에 실려 나가는 것은 `scripts/prune-ecc.sh` 하나뿐이다**(`package.json` 의 `files`). 나머지는
-이 저장소의 개발 도구다.
+셸 스크립트가 사용자 프로젝트에 도달하는 경로는 **둘**이다. ⓐ `scripts/` 중 `package.json` 의
+`files` 가 개별 지정한 **`prune-ecc.sh` 하나** — ECC 를 고른 사람의 설치에서 실행된다. ⓑ
+`templates/scripts/` **3종** — 게시물 전체가 `templates/` 로 나가고, manifest 가 **모든 설치**에
+`.uzys-agent-harness/` 로 깐다(`applies: all`). 배포 룰 `doc-governance` 가 그중 둘을 이름으로
+부른다. 아래 표에서 `check-absence.sh` 를 "개발 도구"로만 읽으면 안 되는 이유다 — 개발 사본과
+배포 사본이 둘 다 있다.
+
+| 배포 사본 | 설치 위치 | 부르는 곳 |
+|---|---|---|
+| `templates/scripts/check-absence.sh` | `.uzys-agent-harness/check-absence.sh` | `doc-governance` 룰 |
+| `templates/scripts/spec-drift-check.sh` | `.uzys-agent-harness/spec-drift-check.sh` | `doc-governance` 룰 |
+| `templates/scripts/protect-branch.sh` | `.uzys-agent-harness/protect-branch.sh` | 사용자 수동 실행 |
+
+아래 표는 **이 저장소의 개발 도구**다(위 배포 사본의 원본을 포함한다).
 
 | 스크립트 | 하는 일 |
 |---|---|
@@ -229,7 +250,8 @@ $ npx -y @uzysjung/agent-harness                 # 위저드
 $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립트)
       --track <track> --cli <cli> --project-dir .
   ↓
-[전제] Node 20+ · git. `claude` 는 plugin 자산이 있을 때만, `npx`/`npm` 은 그 방식의 자산이 있을 때만
+[전제] Node 20+. `claude` 는 plugin 자산이 있을 때만, `npx`/`npm` 은 그 방식의 자산이 있을 때만
+      (설치기 자체는 `git` 을 호출하지 않는다 — 필요한 것은 `npx github:…` 경로뿐)
   ↓
 [1 Track] · [2 CLI] — 둘 다 다중 선택
   ↓
@@ -239,9 +261,13 @@ $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립�
 [4 Scope] Project(기본) / Global      [5 Confirm] 요약 + 세션 시작 컨텍스트 비용
   ↓
 [6 Installing]
-  Phase 1  템플릿  — .claude/{rules,agents,hooks,skills} · 앵커 · .mcp.json · (opt-in) .github/workflows
+  Phase 1  템플릿    — .claude/{rules,agents,hooks,skills} · 앵커 · .mcp.json ·
+                       .uzys-agent-harness/ 스크립트 3종 · (opt-in) .github/workflows
   Phase 2  외부 자산 — 4단계에서 고른 scope 로 §1 의 5가지 방식 실행
-  Phase 3  설치 로그 — .uzys-agent-harness/.harness-install.json (`list`·`uninstall` 이 이걸 읽는다)
+  Phase 3  CLI 산출물 — codex·opencode·antigravity 를 하나라도 골랐을 때만: AGENTS.md ·
+                       .codex/ · opencode.json · .opencode/commands/ · .agents/
+  ↓
+[설치 로그] .uzys-agent-harness/.harness-install.json (`list`·`uninstall` 이 이걸 읽는다)
   ↓
 [리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목
 ```

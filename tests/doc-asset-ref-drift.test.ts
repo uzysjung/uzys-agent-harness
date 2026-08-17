@@ -26,6 +26,11 @@ import { CLI_BASES, INSTALL_SCOPES, TRACKS } from "../src/types.js";
  *
  * 어휘를 **코드·디스크에서 derive** 하는 이유: 이름 목록을 이 파일에 옮겨 적으면 그게 곧 두 번째
  * 하드코딩 사본이고, 자산이 늘 때마다 게이트가 빨개져서 결국 아무도 안 돌린다.
+ *
+ * **아직 못 잡는 것 (알려진 한계)**: 슬래시 명령 이름(`/polish`·`/ecc:eval`)은 판정 밖이다.
+ * 선두 `/` 때문에 두 형태 정규식에 다 탈락하고, 더 근본적으로는 **판정 기준이 없다** — 명령은
+ * upstream 플러그인이 정의하므로 이 저장소가 실재를 확인할 방법이 없다. 그래서 이 PR 은 문서에서
+ * 명령 이름 표를 지우고 `/help` 를 가리키는 쪽을 택했다. 이 한계는 별도 이슈로 추적한다.
  */
 
 const REPO_ROOT = resolve(__dirname, "..");
@@ -48,6 +53,10 @@ const GUIDE_DOCS: readonly string[] = [
   "docs/REFERENCE.md",
   "docs/COMPATIBILITY.md",
   "docs/WORKFLOWS.md",
+  // 배포 앵커. 사용자 문서 목록에 안 보이지만 **모든 설치**에 `CLAUDE-uzys-harness.md` 로 나가고
+  // 매 세션 상주하므로, 잘못된 이름의 피해가 가장 큰 자리다. 지금도 자산 id 3개를 지목한다.
+  // 경로 필터가 `templates/` 를 통째로 제외해 누락 감지에도 안 걸리던 사각이었다(#338 리뷰 MED-7).
+  "templates/CLAUDE.md",
 ];
 
 /**
@@ -85,6 +94,10 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   ["snarktank/ralph", "Ralph 기법의 외부 패키징 — 큐레이션 세트 미포함"],
   ["mikeyobrien/ralph-orchestrator", "같은 사유 — 큐레이션 세트 미포함"],
   ["ghuntley/loom", 'proprietary("do not use") — 명시적 제외'],
+  // MCP 서버의 upstream. `.mcp.json` 항목이라 카탈로그 자산이 아니고 `tier` 도 없다 — 이름의
+  // SSOT 는 `templates/mcp.json` 의 패키지 인자이지 저장소 경로가 아니다.
+  ["ChromeDevTools/chrome-devtools-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  ["modelcontextprotocol/servers", "MCP 서버 upstream — 카탈로그 자산 아님"],
 ]);
 
 /** 자산 id 로 오인될 수 있는 형태 — 소문자·숫자·하이픈만, 4자 이상. */
@@ -92,6 +105,13 @@ const ASSET_SHAPE = /^[a-z0-9][a-z0-9-]{2,}[a-z0-9]$/;
 /** `owner/repo` 형태. 저장소 내 경로도 같은 모양이라 실재 여부로 갈라낸다. */
 const SLASHED = /^[A-Za-z0-9][\w.-]*\/[\w.-]+$/;
 const INLINE_CODE = /`([^`\n]+)`/g;
+/**
+ * 마크다운 링크의 GitHub 저장소 — `[addyosmani/agent-skills](https://github.com/addyosmani/…)`.
+ *
+ * 백틱 밖이라 인라인 코드 수집에 안 걸린다. 리뷰가 변이로 실증한 누수 경로이고(#338 MED-6 · M2),
+ * 삭제된 §1 표의 출처 열이 정확히 이 형태였다 — 즉 이 PR 이 지운 결함을 게이트가 못 잡고 있었다.
+ */
+const MD_LINK_REPO = /\]\(https:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:[/#)?]|\.git)/g;
 
 /** 디렉터리의 항목 이름 (확장자 제거). 없는 디렉터리는 빈 배열 — 수집기 하한이 사망을 잡는다. */
 function entryNames(dir: string): string[] {
@@ -183,7 +203,11 @@ function buildVocabulary(): Map<string, string> {
     add(d.split("/").pop(), "의존성");
   add(pkg.name.split("/").pop(), "패키지명");
   // 저장소 이름은 `repository.url` 에서 뽑는다 — 작업 디렉터리 이름은 클론마다 달라 근거가 못 된다.
-  add(basename(pkg.repository?.url ?? "", ".git").replace(/^.*\//, ""), "저장소명");
+  const repoPath = (pkg.repository?.url ?? "")
+    .replace(/^.*github\.com\//, "")
+    .replace(/\.git$/, "");
+  add(repoPath, "이 저장소(owner/repo) — 배지·데모 GIF 링크가 이 형태로 나온다");
+  add(basename(repoPath), "저장소명");
   for (const s of Object.keys(pkg.scripts ?? {})) add(s, "npm script");
 
   return vocab;
@@ -210,6 +234,11 @@ function collectRefs(): { shaped: Ref[]; slashed: Ref[]; exempted: number } {
         if (SLASHED.test(token)) slashed.push({ file, token });
         else if (ASSET_SHAPE.test(token)) shaped.push({ file, token });
       }
+      // 백틱 밖의 GitHub 링크도 같은 축의 주장이다.
+      for (const m of line.matchAll(MD_LINK_REPO)) {
+        const token = m[1] ?? "";
+        if (token !== "") slashed.push({ file, token });
+      }
     }
   }
   return { shaped, slashed, exempted };
@@ -232,6 +261,16 @@ const INSTALL_CMD_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp; field: str
   { kind: "skill", re: /npx skills add\s+\S+\s+--skill\s+([\w-]+)/, field: "skill" },
   { kind: "source", re: /npx skills add\s+([\w.-]+\/[\w.-]+)/, field: "source" },
   { kind: "plugin", re: /claude plugin install\s+([\w-]+@[\w-]+)/, field: "pluginId" },
+  // `npm install -g <pkg>` — 이 PR 이 스스로 결함으로 든 형태인데 판정 대상이 아니었다(#338 리뷰 M2③).
+  // 기본 scope 는 `--save-dev` 이므로 `-g` 를 무조건으로 적으면 그것만으로 거짓이지만, 최소한
+  // **패키지가 실재하는지**는 여기서 문다.
+  {
+    kind: "npm",
+    // 패키지 이름은 `-` 로 시작하지 않는다. 첫 판본이 시작 문자에 `-` 를 허용해
+    // `npm install -g` 의 **플래그를** 패키지로 캡처했다 — 게이트가 스스로 그걸 잡아냈다.
+    re: /npm install\s+(?:(?:-g|--global|--save-dev)\s+)?([@\w.][\w.\-/]*?)(?:@[\w.^~-]+)?\s*(?:`|$)/,
+    field: "pkg",
+  },
 ];
 
 interface InstallRef {
@@ -251,8 +290,10 @@ function extractInstallRefs(
     read(file)
       .split(/\r?\n/)
       .forEach((l, i) => {
-        // 이력 서술은 광고가 아니다. 취소선·`삭제`·줄 단위 표식 셋 다 인정한다.
-        if (l.includes("~~") || l.includes("삭제") || l.includes(HISTORICAL_MARKER)) return;
+        // 이력 서술만 면제하고, 면제는 **명시 표식 하나로만** 받는다. 원래 게이트는 줄에 한국어
+        // 단어 `삭제` 나 취소선이 있으면 통과시켰는데, 그건 상한 없는 암묵 면제라 살아 있는 광고
+        // 줄에 그 단어를 끼우면 그냥 열렸다(#338 리뷰 M3b 가 변이로 실증). 표식은 상한이 걸린다.
+        if (l.includes(HISTORICAL_MARKER)) return;
         let matchedSkill = false;
         for (const { kind, re, field } of INSTALL_CMD_PATTERNS) {
           // `--skill` 형태가 잡히면 같은 줄의 bare `source` 는 중복이므로 건너뛴다.
@@ -315,6 +356,8 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
       if (existsSync(join(REPO_ROOT, r.token)) || existsSync(join(REPO_ROOT, "docs", r.token)))
         return false;
       if (NOT_OUR_ASSET_REPO.has(r.token)) return false;
+      // derive 된 어휘가 아는 이름(이 저장소 자신 등)도 통과.
+      if (VOCAB.has(r.token)) return false;
       // upstream 저장소 주장 — 카탈로그가 그 이름을 알고 있어야 한다.
       return !CATALOG_SOURCE.includes(r.token);
     }).map((r) => `${r.file}: \`${r.token}\``);
