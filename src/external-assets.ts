@@ -298,7 +298,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "gh-issue-workflow",
     tier: "official", // uzys 자사 스킬 리포
     description:
-      "GitHub issue workflow — investigate, draft, create, implement, verify, and close issue-backed work while keeping read-only, draft, external-write, and status stages distinct",
+      "GitHub issue workflow — run work through issues so user and agent share one backlog: group tasks under a parent (epic) issue, order them with milestones and labels, read comments before starting, promote decisions into the body, and keep read-only, draft, external-write, and status stages distinct",
     category: "workflow",
     source: "uzys",
     // 전 트랙 상주 보존 — north-star 와 같은 이유 (이관 전 COMMON_SKILL_DIRS).
