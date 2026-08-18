@@ -15,6 +15,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, sep } from "node:path";
+import { foreignOwnedTarget } from "./foreign-slot.js";
 import { backupFile } from "./fs-ops.js";
 import { hashContent, type InstallLogSkillFile, isHarnessOwned } from "./install-log.js";
 
@@ -27,6 +28,14 @@ export interface OwnedWriteResult {
   files: InstallLogSkillFile[];
   /** 사용자 편집분이라 백업한 **원본**의 project-relative 경로 — 사용자가 알아보는 이름. */
   backedUp: string[];
+  /**
+   * #343 — 다른 도구가 소유한 스킬 슬롯이라 **쓰지 않은** 자리 (project-relative).
+   *
+   * `.agents/skills/<id>` 는 codex·antigravity 산출물의 자리이자 `npx skills add --agent` 의
+   * 설치처다. 그동안 이 writer 는 그 자리가 링크여도 따라 써서 사용자의 다른 저장소를 덮고,
+   * 백업까지 **그 저장소 안에** 떨궜다 — 사용자가 찾을 자리가 아니다 (ADR-062 와 같은 논거).
+   */
+  foreignOwned: string[];
   /** 생성된 백업 파일의 절대경로 — 설치 화면의 `backup` 행이 이걸 쓴다. */
   backupPaths: string[];
   /**
@@ -49,7 +58,8 @@ export interface OwnedWriter {
    * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
    * | 기록 없음 | 판정 불가 | 보수적으로 백업 |
    *
-   * @returns 이 경로를 이번에 담당했는가. **refresh 모드에서 건너뛴 경우만 false** 다 —
+   * @returns 이 경로를 이번에 담당했는가. `false` 는 **안 썼다**는 뜻이고 경우는 둘이다 —
+   *   refresh 모드에서 없는 파일을 건너뛴 경우, 그리고 #343 이후 **남의 도구가 소유한 슬롯**인 경우.
    *   호출자가 쓰기 성공을 전제로 하는 후속 동작(예: `chmod`)을 그때 건너뛰게 하려는 것이고,
    *   반환을 무시해도 되는 호출부는 무시해도 안전하다. `void` 로 두면 건너뛴 경로에
    *   `chmodSync` 가 걸려 ENOENT 로 터진다.
@@ -110,11 +120,19 @@ export function createOwnedWriter(
   const written = new Map<string, string>();
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
+  const foreignOwned: string[] = [];
   let updated = 0;
 
   return {
     write(absPath, content, opts) {
       const rel = relative(projectDir, absPath).split(sep).join("/");
+      // #343 — 남의 도구가 소유한 스킬 슬롯이면 쓰지 않는다 (판정 SSOT = foreign-slot.ts).
+      // `false` 반환은 기존 계약 그대로다 — 호출부는 이미 "안 썼으면 report 에 안 싣는다".
+      const foreign = foreignOwnedTarget(projectDir, rel);
+      if (foreign !== null) {
+        if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+        return false;
+      }
       const digest = hashContent(content);
 
       if (!existsSync(absPath)) {
@@ -142,6 +160,7 @@ export function createOwnedWriter(
     },
     result() {
       return {
+        foreignOwned: [...foreignOwned],
         files: [...written].map(([path, sha256]) => ({ path, sha256 })),
         backedUp: [...backedUp],
         backupPaths: [...backupPaths],

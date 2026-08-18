@@ -502,12 +502,25 @@ function renderPhase1Rows(
     // 2026-08-02 (ADR-062) — 다른 도구(`npx skills add`)가 소유한 자리는 건너뛴다. 그 사실을
     // 안 보이면 사용자는 "이 스킬만 왜 안 갱신되지"를 추적할 방법이 없고, 반대로 조용히
     // 덮어썼다면 자기 저장소가 바뀐 줄도 모른다. 둘 다 침묵이 문제라 건수가 아니라 이름을 낸다.
+    // #343 — **종류를 단정하지 않는다.** 판정이 `isSymbolicLink()` 에서 "디렉터리가 아닌 것
+    // 전부"로 넓어져 일반 파일·FIFO·깨진 링크도 이 행에 들어온다. 아래 install 행과 같은 어휘다.
     if (baseline.updateMode.skillsSkippedLinks.length > 0) {
       log(
         assetRow(
           "skip",
-          ".claude/skills linked",
-          `${baseline.updateMode.skillsSkippedLinks.join(", ")} · owned by another tool (symlink) — not updated`,
+          ".claude/skills owned by another tool",
+          `${baseline.updateMode.skillsSkippedLinks.join(", ")} · 그 자리가 우리 디렉터리가 아니라 갱신하지 않았다`,
+        ),
+      );
+    }
+    // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
+    // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
+    if (baseline.updateMode.foreignOwned.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "owned by another tool",
+          `${baseline.updateMode.foreignOwned.join(", ")} · 그 자리가 우리 것이 아니라 건드리지 않았다`,
         ),
       );
     }
@@ -658,6 +671,21 @@ function renderPhase1Rows(
         onDisk.size > 0
           ? `${names.length} — ${names.join(", ")} · "still on disk" = 이전 설치본이라 지우지 않는다 (제거: agent-harness uninstall)`
           : `${names.length} — ${names.join(", ")}`,
+      ),
+    );
+  }
+  // #343 — 자리가 남의 것이라 건너뛴 자산. 이 줄이 없으면 사용자는 자기가 3단계에서 고른
+  // 스킬이 왜 없는지 알 방법이 없다 (설치는 성공으로 끝났으니 실패 메시지도 없다).
+  // 어떻게 해야 받을 수 있는지까지 적는다 — 원인만 알려주는 안내는 다음 행동을 못 만든다.
+  if (baseline.baselineForeignOwned.length > 0) {
+    // 경로를 **자르지 않는다**. 목록에 `.claude/skills/<id>` 와 `.agents/skills/<id>` 가 섞이고
+    // (전자는 Claude Code, 후자는 codex·antigravity 자리), 접두를 지우면 둘이 같은 것처럼 보인다.
+    // 종류를 열거하지도 않는다 — 링크 말고 파일·FIFO·하드링크도 실제로 도달 가능하다.
+    log(
+      assetRow(
+        "skip",
+        "owned by another tool",
+        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned.join(", ")} · 그 자리가 우리 것이 아니라 건드리지 않았다 · 하네스 판본을 받으려면 그 자리를 옮기고 재설치`,
       ),
     );
   }

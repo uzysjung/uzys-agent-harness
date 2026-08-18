@@ -1141,7 +1141,7 @@ describe("syncSkills (R-3a)", () => {
     seed("demo", "SKILL.md", "new\n", "old\n");
     const baseline = new Map([["demo/SKILL.md", hashContent("old\n")]]);
 
-    const result = syncSkills(target, source, baseline);
+    const result = syncSkills(target, source, baseline, new Date(), () => null);
 
     expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
     expect(result.backedUp).toEqual([]);
@@ -1154,7 +1154,7 @@ describe("syncSkills (R-3a)", () => {
     // 기준선은 설치 시점 원본. 디스크가 그와 다르다 = 사용자가 고쳤다.
     const baseline = new Map([["demo/SKILL.md", hashContent("original\n")]]);
 
-    const result = syncSkills(target, source, baseline);
+    const result = syncSkills(target, source, baseline, new Date(), () => null);
 
     // 최신판이 활성 (ADR-046: 최신판이 활성, 편집분이 백업 — 반대가 아니다)
     expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
@@ -1168,7 +1168,7 @@ describe("syncSkills (R-3a)", () => {
   it("기준선 기록이 없으면(레거시 설치) 보수적으로 백업한다 — 증명 없이 편집분을 지우지 않는다", () => {
     seed("demo", "SKILL.md", "new\n", "unknown-origin\n");
 
-    const result = syncSkills(target, source, new Map());
+    const result = syncSkills(target, source, new Map(), new Date(), () => null);
 
     expect(result.backedUp).toEqual(["demo/SKILL.md"]);
     expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
@@ -1177,7 +1177,7 @@ describe("syncSkills (R-3a)", () => {
   it("이미 최신이면 아무것도 안 한다 — 재실행이 백업 노이즈를 쌓으면 안 된다", () => {
     seed("demo", "SKILL.md", "same\n", "same\n");
 
-    const result = syncSkills(target, source, new Map()); // 기준선 없어도 내용이 같으면 무동작
+    const result = syncSkills(target, source, new Map(), new Date(), () => null); // 기준선 없어도 내용이 같으면 무동작
 
     expect(result.updated).toBe(0);
     expect(result.backedUp).toEqual([]);
@@ -1188,7 +1188,7 @@ describe("syncSkills (R-3a)", () => {
     mkdirSync(join(source, "not-chosen"), { recursive: true });
     writeFileSync(join(source, "not-chosen", "SKILL.md"), "x\n");
 
-    const result = syncSkills(target, source, new Map());
+    const result = syncSkills(target, source, new Map(), new Date(), () => null);
 
     expect(existsSync(join(target, "not-chosen"))).toBe(false);
     expect(result.updated).toBe(0);
@@ -1199,7 +1199,7 @@ describe("syncSkills (R-3a)", () => {
     mkdirSync(join(source, "demo/references"), { recursive: true });
     writeFileSync(join(source, "demo/references/deep.md"), "ref\n");
 
-    const result = syncSkills(target, source, new Map());
+    const result = syncSkills(target, source, new Map(), new Date(), () => null);
 
     expect(readFileSync(join(target, "demo/references/deep.md"), "utf8")).toBe("ref\n");
     expect(result.updated).toBe(1);
@@ -1209,7 +1209,13 @@ describe("syncSkills (R-3a)", () => {
     seed("demo", "SKILL.md", "new\n", "old\n");
     writeFileSync(join(target, "demo/my-notes.md"), "mine\n");
 
-    syncSkills(target, source, new Map([["demo/SKILL.md", hashContent("old\n")]]));
+    syncSkills(
+      target,
+      source,
+      new Map([["demo/SKILL.md", hashContent("old\n")]]),
+      new Date(),
+      () => null,
+    );
 
     expect(readFileSync(join(target, "demo/my-notes.md"), "utf8")).toBe("mine\n");
   });
@@ -1241,7 +1247,7 @@ describe("syncSkills (R-3a)", () => {
       // 프로젝트의 .claude/skills/demo 는 그 저장소로 가는 링크다.
       symlinkSync(foreignSkill, join(target, "demo"), "dir");
 
-      const result = syncSkills(target, source, new Map());
+      const result = syncSkills(target, source, new Map(), new Date(), () => null);
 
       // 핵심 단언 — 링크 대상 본문 무변경.
       expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");
@@ -1271,6 +1277,8 @@ describe("syncSkills (R-3a)", () => {
         target,
         source,
         new Map([["owned/SKILL.md", hashContent("old\n")]]),
+        new Date(),
+        () => null,
       );
 
       expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");

@@ -16,7 +16,6 @@
 import {
   copyFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -27,6 +26,7 @@ import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
@@ -81,7 +81,9 @@ export interface UpdateModeReport {
    */
   skillsBackedUp: string[];
   /**
-   * 2026-08-02 (ADR-062) — `.claude/skills/<id>` 가 심볼릭 링크라 건너뛴 스킬 id.
+   * 2026-08-02 (ADR-062) — `.claude/skills/<id>` 가 **디렉터리가 아니라** 건너뛴 스킬 id
+   * (심볼릭 링크가 대표적이지만 일반 파일·FIFO 도 들어온다 — #343 에서 술어를 install 과 통일).
+   * 필드명의 `Links` 는 도입 당시 범위를 그대로 쓴다 — 개명은 화면·픽스처 표면을 함께 건드린다.
    * 그 자리는 `npx skills add` 등 **다른 도구가 소유**하므로 하네스가 쓰지 않는다.
    * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
    */
@@ -102,6 +104,13 @@ export interface UpdateModeReport {
   externalUpdated: number;
   /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
   externalBackedUp: string[];
+  /**
+   * #343 — 다른 도구가 소유한 자리라 **쓰지 않은** 경로. 출처를 나누지 않는다 —
+   * 외부 CLI 산출물(`.agents/skills/<id>`)이든 이번 릴리즈 신규 자산이든, 사용자에게
+   * 필요한 것은 "어느 자리를 옮겨야 하는가" 하나다. `skillsSkippedLinks` 는 스킬 id 를
+   * 내는 기존 행이라 그대로 두고, 이쪽은 경로를 낸다.
+   */
+  foreignOwned: string[];
   /**
    * 이번 update 가 **새로 깔아 준** 자산 (projectDir 상대경로) — #283.
    *
@@ -185,6 +194,7 @@ export function runUpdateMode(
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
+    foreignOwned: [],
     installedNew: [],
     restored: [],
     needsReinstall: [],
@@ -220,6 +230,8 @@ export function runUpdateMode(
     join(claudeDir, "skills"),
     join(templatesDir, "skills"),
     skillBaseline(projectDir),
+    new Date(),
+    (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
   );
   report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
@@ -262,6 +274,18 @@ export function runUpdateMode(
   const external = refreshExternalCli(projectDir, harnessRoot);
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
+  // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
+  // 사용자는 두 줄을 서로 다른 두 사건으로 읽는다(리뷰 3라운드 지적).
+  const saidBySlotRow = new Set(report.skillsSkippedLinks.map((id) => `.claude/skills/${id}`));
+  const merged: string[] = [];
+  for (const f of [
+    ...skillSync.foreignOwned,
+    ...fresh.foreignOwned,
+    ...external.externalForeignOwned,
+  ]) {
+    if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
+  }
+  report.foreignOwned = merged;
 
   return report;
 }
@@ -301,10 +325,16 @@ export function runUpdateMode(
 function installNewAssets(
   projectDir: string,
   templatesDir: string,
-): { installed: string[]; restored: string[]; needsReinstall: string[] } {
+): {
+  installed: string[];
+  restored: string[];
+  needsReinstall: string[];
+  foreignOwned: string[];
+} {
   const installed: string[] = [];
   const restored: string[] = [];
   const needsReinstall: string[] = [];
+  const foreignOwned: string[] = [];
   const log = readInstallLog(projectDir);
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
@@ -323,6 +353,15 @@ function installNewAssets(
     if (isBaselineExcluded(entry.target, baselineExcluded)) continue;
 
     const target = join(projectDir, entry.target);
+    // #343 — **existsSync 보다 먼저** 본다. 슬롯이 남의 저장소로의 링크면 그 저장소에 그 파일이
+    // 없을 때 existsSync 가 false 를 내고, 아래 복사가 **남의 저장소 안에 우리 파일을 새로
+    // 만든다**. 그 상태에서 화면은 같은 자리를 "추가했다"(이 함수)와 "안 건드렸다"(syncSkills)로
+    // 동시에 말한다. 슬롯이 깨진 링크면 `mkdirSync` 가 ENOENT 로 죽어 update 자체가 끝난다.
+    const foreign = foreignOwnedTarget(projectDir, entry.target);
+    if (foreign !== null) {
+      if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+      continue;
+    }
     if (existsSync(target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
@@ -343,7 +382,7 @@ function installNewAssets(
     if (priorBaseline.has(recordedAs)) restored.push(entry.target);
     else installed.push(entry.target);
   }
-  return { installed, restored, needsReinstall };
+  return { installed, restored, needsReinstall, foreignOwned };
 }
 
 /**
@@ -487,7 +526,7 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
-): { externalUpdated: number; externalBackedUp: string[] } {
+): { externalUpdated: number; externalBackedUp: string[]; externalForeignOwned: string[] } {
   const log = readInstallLog(projectDir);
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   const result = runCliTransforms({
@@ -520,6 +559,7 @@ function refreshExternalCli(
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
+    externalForeignOwned: result.externalForeignOwned,
   };
 }
 
@@ -621,25 +661,49 @@ export function syncSkills(
   sourceDir: string,
   baseline: ReadonlyMap<string, string>,
   now: Date = new Date(),
-): { updated: number; backedUp: string[]; skippedLinks: string[] } {
+  /**
+   * #343 — `<id>/<rel>` 를 받아 그 파일을 쓰면 남의 것을 건드리는 경우 **그 자리**를 돌려준다.
+   * `copyDir` 과 같은 모양이다: 판정(정책)은 `foreign-slot.ts` 가, 경로 조립은 호출자가 갖는다.
+   * 슬롯만 보는 위 판정으로는 **슬롯 안쪽**(파일 링크·중간 디렉터리 링크·FIFO)이 안 걸린다.
+   * **필수**다 — 옵셔널이면 다음 호출자가 조용히 빠뜨린다(`copyDir` 과 같은 이유).
+   */
+  foreignOf: (relInSkills: string) => string | null,
+): {
+  updated: number;
+  backedUp: string[];
+  skippedLinks: string[];
+  foreignOwned: string[];
+} {
   if (!existsSync(targetDir) || !existsSync(sourceDir))
-    return { updated: 0, backedUp: [], skippedLinks: [] };
+    return { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [] };
   let updated = 0;
   const backedUp: string[] = [];
   const skippedLinks: string[] = [];
+  const foreignOwned: string[] = [];
 
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
     const targetSkill = join(targetDir, skill.name);
-    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
-    // lstat 은 링크를 따라가지 않는다 — 위 existsSync 가 못 하는 판정이 정확히 이것이다.
-    if (lstatSync(targetSkill).isSymbolicLink()) {
+    // #343 — 판정은 `install` 과 **같은 술어**를 쓴다 (SSOT = foreign-slot.ts). 전에는 여기만
+    // `isSymbolicLink()` 라 심링크는 건너뛰면서 **일반 파일·FIFO 는 그대로 통과**했고, 아래
+    // `mkdirSync` 가 EEXIST 로 죽어 update 전체가 끝났다. install 이 그 상태를 화면으로
+    // 승인하게 된 지금은 그 크래시가 곧 "install 은 되는데 update 만 죽는다"가 된다.
+    // existsSync 보다 **먼저** 본다 — 깨진 링크는 existsSync 가 false 라 조용히 빠져나갔다.
+    if (occupiedByNonDirectory(targetSkill)) {
       skippedLinks.push(skill.name);
       continue;
     }
+    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
       const targetFile = join(targetSkill, rel);
+      // 슬롯이 우리 디렉터리여도 **그 안**이 남의 것일 수 있다. 판정 없이 쓰면 링크를 따라
+      // 남의 파일을 덮고(보고 0줄), FIFO 면 `readFileSync` 가 영영 블록된다.
+      const foreign = foreignOf(`${skill.name}/${rel}`);
+      if (foreign !== null) {
+        if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+        continue;
+      }
       const next = readFileSync(join(sourceDir, skill.name, rel), "utf8");
 
       if (!existsSync(targetFile)) {
@@ -662,7 +726,7 @@ export function syncSkills(
       updated++;
     }
   }
-  return { updated, backedUp, skippedLinks };
+  return { updated, backedUp, skippedLinks, foreignOwned };
 }
 
 /** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */

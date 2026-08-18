@@ -22,6 +22,7 @@ import {
   runExternalInstall,
   selectExternalTargets,
 } from "./external-installer.js";
+import { foreignOwnedTarget } from "./foreign-slot.js";
 import {
   backupDir,
   backupFile,
@@ -207,6 +208,11 @@ export interface BaselineReport {
   /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
   baselineExcludedOnDisk: string[];
   /**
+   * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
+   * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
+   */
+  baselineForeignOwned: string[];
+  /**
    * 2026-08-17 (ADR-075) — 이번 선택이 밀어냈는데 디스크에 남아 있던 자산.
    *
    * `removed` 는 실제로 지운 것, `kept` 는 찾았지만 사용자가 정리를 원하지 않아 둔 것이다.
@@ -255,6 +261,8 @@ export interface InstallReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineExcludedOnDisk: string[];
+  /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  baselineForeignOwned: string[];
   /** 이번 선택이 밀어낸 자산의 처리 결과. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   superseded: { removed: string[]; kept: string[] };
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
@@ -369,6 +377,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     externalBackups,
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
+    externalForeignOwned,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -403,6 +412,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backups: [...base.backups, ...externalBackups],
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
+    // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
+    baselineForeignOwned: [
+      ...base.foreignOwned,
+      ...externalForeignOwned.filter((f) => !base.foreignOwned.includes(f)),
+    ],
     // 밀려난 자산 정리는 **manifest 복사가 끝난 뒤**에 한다. 앞에서 지우면 이번 설치가 다시
     // 깔 수도 있는 파일을 지웠다 되돌리는 셈이라, 무엇이 최종 상태인지 보고가 흐려진다.
     superseded: applySupersededCleanup(spec, projectDir, supersededFound),
@@ -511,6 +525,7 @@ function runUpdateInstall(
     skipped: 0,
     baselineExcluded: [],
     baselineExcludedOnDisk: [],
+    baselineForeignOwned: [],
     // update 는 밀려난 자산을 다루지 않는다 — 그 판정은 사용자가 옵션을 고르는 설치 경로의
     // 것이고, update 는 무엇을 골랐는지 다시 묻지 않는다.
     superseded: { removed: [], kept: [] },
@@ -590,6 +605,13 @@ interface ClaudeBaselineResult {
    * 제거가 아니라는 기존 규약(v26.125.0 `● installed` 마커)을 baseline 항목에도 적용한다.
    */
   excludedOnDisk: string[];
+  /**
+   * #343 — 깔릴 자리가 **디렉터리가 아닌 것**으로 이미 차 있어 건너뛴 대상.
+   *
+   * `excluded`(사용자가 체크를 풂) · `skipped`(원본 부재)와 셋 다 다른 사실이라 따로 센다:
+   * 이건 **디스크 쪽 사정**이고, 사용자가 고를 때는 보이지 않던 것이다.
+   */
+  foreignOwned: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -603,6 +625,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     backups: [],
     excluded: [],
     excludedOnDisk: [],
+    foreignOwned: [],
   };
 }
 
@@ -713,6 +736,14 @@ function installClaudeBaseline(
       result.skipped += 1;
       continue;
     }
+    // #343 — 남의 도구가 소유한 스킬 슬롯에는 쓰지 않는다 (판정 SSOT = foreign-slot.ts).
+    // 슬롯이 링크인 경우와 슬롯 안 파일이 링크인 경우를 한 술어가 함께 본다.
+    const foreign = foreignOwnedTarget(projectDir, entry.target);
+    if (foreign !== null) {
+      // 슬롯 단위로 한 번만 보고한다 — 사용자가 옮겨야 할 대상은 파일이 아니라 그 자리다.
+      if (!result.foreignOwned.includes(foreign)) result.foreignOwned.push(foreign);
+      continue;
+    }
     if (entry.type === "file") {
       // 사용자 편집 가능 파일은 덮어쓰기 전 백업 (audit SEC-1 — settings.json hook/statusLine 소실 방지).
       if (entry.target === ".claude/settings.json") {
@@ -732,7 +763,14 @@ function installClaudeBaseline(
       copyFile(source, target);
       result.filesCopied += 1;
     } else {
-      copyDir(source, target);
+      // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
+      // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다. 스킬 14종 중
+      // 13종이 이 경로(dir 엔트리)라 슬롯 판정만으로는 대부분이 안 막혔다.
+      for (const foreign of copyDir(source, target, (relFile) =>
+        foreignOwnedTarget(projectDir, `${entry.target}/${relFile}`),
+      )) {
+        if (!result.foreignOwned.includes(foreign)) result.foreignOwned.push(foreign);
+      }
       result.dirsCopied += 1;
     }
     accumulateCategory(result.categories, entry);

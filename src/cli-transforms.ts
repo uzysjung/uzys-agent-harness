@@ -33,6 +33,12 @@ export interface CliTransformResults {
   externalUpdated: number;
   /** v26.134.0 (ADR-049) — 백업된 사용자 편집분의 project-relative 경로. */
   externalBackedUp: string[];
+  /**
+   * #343 — 다른 도구가 소유한 스킬 슬롯이라 쓰지 않은 자리 (`.agents/skills/<id>` 등).
+   * `.claude/` baseline 의 같은 판정과 **한 줄로 합쳐** 화면에 낸다 — 사용자에게는 어느
+   * 단계가 건너뛰었는지가 아니라 "어느 자리를 옮겨야 하는지"가 필요하다.
+   */
+  externalForeignOwned: string[];
 }
 
 export interface CliTransformParams {
@@ -88,6 +94,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalFiles: InstallLogSkillFile[] = [];
   const externalBackups: string[] = [];
   const externalBackedUp: string[] = [];
+  const externalForeignOwned: string[] = [];
   let externalUpdated = 0;
   const absorb = (report: { ownership: OwnedWriteResult }): void => {
     for (const f of report.ownership.files) {
@@ -96,6 +103,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     }
     externalBackups.push(...report.ownership.backupPaths);
     externalBackedUp.push(...report.ownership.backedUp);
+    for (const f of report.ownership.foreignOwned) {
+      // 세 transform 이 같은 `.agents/skills/` 를 쓰므로 중복이 실제로 난다.
+      if (!externalForeignOwned.includes(f)) externalForeignOwned.push(f);
+    }
     externalUpdated += report.ownership.updated;
   };
 
@@ -155,5 +166,6 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalBackups,
     externalUpdated,
     externalBackedUp,
+    externalForeignOwned,
   };
 }
