@@ -665,8 +665,9 @@ export function syncSkills(
    * #343 — `<id>/<rel>` 를 받아 그 파일을 쓰면 남의 것을 건드리는 경우 **그 자리**를 돌려준다.
    * `copyDir` 과 같은 모양이다: 판정(정책)은 `foreign-slot.ts` 가, 경로 조립은 호출자가 갖는다.
    * 슬롯만 보는 위 판정으로는 **슬롯 안쪽**(파일 링크·중간 디렉터리 링크·FIFO)이 안 걸린다.
+   * **필수**다 — 옵셔널이면 다음 호출자가 조용히 빠뜨린다(`copyDir` 과 같은 이유).
    */
-  foreignOf?: (relInSkills: string) => string | null,
+  foreignOf: (relInSkills: string) => string | null,
 ): {
   updated: number;
   backedUp: string[];
@@ -698,7 +699,7 @@ export function syncSkills(
       const targetFile = join(targetSkill, rel);
       // 슬롯이 우리 디렉터리여도 **그 안**이 남의 것일 수 있다. 판정 없이 쓰면 링크를 따라
       // 남의 파일을 덮고(보고 0줄), FIFO 면 `readFileSync` 가 영영 블록된다.
-      const foreign = foreignOf?.(`${skill.name}/${rel}`) ?? null;
+      const foreign = foreignOf(`${skill.name}/${rel}`);
       if (foreign !== null) {
         if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
         continue;

@@ -45,7 +45,7 @@ describe("fs-ops", () => {
     mkdirSync(join(dir, "src/nested"), { recursive: true });
     writeFileSync(join(dir, "src/a.txt"), "A");
     writeFileSync(join(dir, "src/nested/b.txt"), "B");
-    copyDir(join(dir, "src"), join(dir, "dst"));
+    copyDir(join(dir, "src"), join(dir, "dst"), () => null);
     expect(readFileSync(join(dir, "dst/a.txt"), "utf8")).toBe("A");
     expect(readFileSync(join(dir, "dst/nested/b.txt"), "utf8")).toBe("B");
   });
@@ -71,7 +71,7 @@ describe("fs-ops", () => {
     writeFileSync(join(dir, "s3/real.txt"), "R");
     symlinkSync(join(dir, "s3/real.txt"), join(dir, "s3/link.txt"));
 
-    copyDir(join(dir, "s3"), join(dir, "d3"));
+    copyDir(join(dir, "s3"), join(dir, "d3"), () => null);
 
     expect(readFileSync(join(dir, "d3/real.txt"), "utf8")).toBe("R");
     // 링크는 **내용으로도 링크로도** 복사되지 않는다 — listFilesRecursive 가 링크를 파일로 세지 않는다.
@@ -80,7 +80,9 @@ describe("fs-ops", () => {
   });
 
   it("copyDir throws when source missing", () => {
-    expect(() => copyDir(join(dir, "missing"), join(dir, "out"))).toThrow(/Source dir not found/);
+    expect(() => copyDir(join(dir, "missing"), join(dir, "out"), () => null)).toThrow(
+      /Source dir not found/,
+    );
   });
 
   it("backupDir returns null when target missing", () => {

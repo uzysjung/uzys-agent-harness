@@ -43,7 +43,10 @@ export function copyFile(source: string, target: string): void {
  * 무엇을 건너뛸지 **판정은 호출자 몫**이다 — fs 층에 소유권 정책을 넣으면 그 정책이 두 번째
  * 사본으로 자라난다(`foreign-slot.ts` 가 그 SSOT).
  *
- * @param foreignOf source 기준 상대경로를 받아, 그 파일을 쓰면 남의 것을 건드리는 경우
+ * @param foreignOf **필수**다. 옵셔널로 두면 다음 호출자가 조용히 빠뜨리고, 그 형태가
+ *   이 사이클에 세 번 났다(쓰는 주체가 판정을 안 부름). 가드가 필요 없는 호출은 `() => null` 로
+ *   **명시**한다 — 사람이 매번 기억해야 하는 규약은 규약이 아니다.
+ *   source 기준 상대경로를 받아, 그 파일을 쓰면 남의 것을 건드리는 경우
  *   **그 자리의 경로**를 돌려준다(아니면 null). 파일 경로가 아니라 자리를 받는 이유는
  *   사용자가 옮겨야 할 대상이 파일이 아니라 그 자리(예: 중간 디렉터리 링크)이기 때문이다.
  * @returns 건너뛴 자리들 (**중복 포함** — 거르는 것은 호출자 몫). 화면에 낸다 — 침묵 금지
@@ -51,7 +54,7 @@ export function copyFile(source: string, target: string): void {
 export function copyDir(
   source: string,
   target: string,
-  foreignOf?: (relFile: string) => string | null,
+  foreignOf: (relFile: string) => string | null,
 ): string[] {
   if (!existsSync(source)) {
     throw new Error(`Source dir not found: ${source}`);
@@ -59,7 +62,7 @@ export function copyDir(
   mkdirSync(target, { recursive: true });
   const skipped: string[] = [];
   for (const rel of listFilesRecursive(source)) {
-    const foreign = foreignOf?.(rel) ?? null;
+    const foreign = foreignOf(rel);
     if (foreign !== null) {
       // 한 자리가 여러 파일을 가릴 수 있다(중간 디렉터리 링크) — 같은 자리가 여러 번 담긴다.
       // 중복 제거는 **호출자가** 한다: 엔트리를 넘나드는 중복은 여기서 볼 수 없어 어차피
