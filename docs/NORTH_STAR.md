@@ -109,8 +109,11 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 
 > **현재 상태 (2026-08-17, implementer frontmatter 수정 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,139 tokens/세션** =
-> rules 6개 ~1,152 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,163 tokens/세션** =
+> rules 6개 ~1,176 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
+> (2026-08-19 #345: 배포 Delivery 룰에 **완료 판정의 주체**를 한 줄 되살리며 +24 tok — 앵커가
+> 담지 않는 계약이라 룰이 소유하고, 게이트로 착지시킬 수 없다(남의 저장소의 판정 주체는 코드가
+> 강제할 수 없다). 같은 소실이 재발하지 않게 `tests/delivery-verifier-separation.test.ts` 가 문다.)
 > 룰 6종을 한 줄씩 판정해 **모델이 이미 아는 3줄만 압축**했다(`test-policy`, −139 B / −36 tok).
 > 나머지는 안 건드렸다 — 대부분이 이 저장소가 실제로 당한 사고에서 역산돼 쓰인 문장이고,
 > 승인·보안 경계는 명시가 곧 계약이라 조이면 계약이 흐려진다. 판정표 =
