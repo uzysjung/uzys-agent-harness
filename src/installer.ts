@@ -1,6 +1,7 @@
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -207,6 +208,11 @@ export interface BaselineReport {
   /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
   baselineExcludedOnDisk: string[];
   /**
+   * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
+   * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
+   */
+  baselineForeignOwned: string[];
+  /**
    * 2026-08-17 (ADR-075) — 이번 선택이 밀어냈는데 디스크에 남아 있던 자산.
    *
    * `removed` 는 실제로 지운 것, `kept` 는 찾았지만 사용자가 정리를 원하지 않아 둔 것이다.
@@ -255,6 +261,8 @@ export interface InstallReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineExcludedOnDisk: string[];
+  /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  baselineForeignOwned: string[];
   /** 이번 선택이 밀어낸 자산의 처리 결과. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   superseded: { removed: string[]; kept: string[] };
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
@@ -403,6 +411,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backups: [...base.backups, ...externalBackups],
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
+    baselineForeignOwned: base.foreignOwned,
     // 밀려난 자산 정리는 **manifest 복사가 끝난 뒤**에 한다. 앞에서 지우면 이번 설치가 다시
     // 깔 수도 있는 파일을 지웠다 되돌리는 셈이라, 무엇이 최종 상태인지 보고가 흐려진다.
     superseded: applySupersededCleanup(spec, projectDir, supersededFound),
@@ -511,6 +520,7 @@ function runUpdateInstall(
     skipped: 0,
     baselineExcluded: [],
     baselineExcludedOnDisk: [],
+    baselineForeignOwned: [],
     // update 는 밀려난 자산을 다루지 않는다 — 그 판정은 사용자가 옵션을 고르는 설치 경로의
     // 것이고, update 는 무엇을 골랐는지 다시 묻지 않는다.
     superseded: { removed: [], kept: [] },
@@ -590,6 +600,13 @@ interface ClaudeBaselineResult {
    * 제거가 아니라는 기존 규약(v26.125.0 `● installed` 마커)을 baseline 항목에도 적용한다.
    */
   excludedOnDisk: string[];
+  /**
+   * #343 — 깔릴 자리가 **디렉터리가 아닌 것**으로 이미 차 있어 건너뛴 대상.
+   *
+   * `excluded`(사용자가 체크를 풂) · `skipped`(원본 부재)와 셋 다 다른 사실이라 따로 센다:
+   * 이건 **디스크 쪽 사정**이고, 사용자가 고를 때는 보이지 않던 것이다.
+   */
+  foreignOwned: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -603,6 +620,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     backups: [],
     excluded: [],
     excludedOnDisk: [],
+    foreignOwned: [],
   };
 }
 
@@ -680,6 +698,27 @@ function backupEditedPolicyFile(
   return backupFile(target);
 }
 
+/** 다른 도구(`npx skills add`)가 소유할 수 있는 자리. 그 안의 파일 엔트리를 슬롯으로 되돌린다. */
+const FOREIGN_OWNED_SLOT = /^(\.claude\/skills\/[^/]+)\//;
+
+/**
+ * 그 자리가 **디렉터리가 아닌 것**으로 이미 차 있는가 (비어 있으면 false).
+ *
+ * `existsSync` 로는 판정할 수 없다 — 링크를 따라가므로 "디렉터리가 있다"와 "디렉터리를 가리키는
+ * 링크가 있다"에 같은 답을 내고, 깨진 링크는 아예 없는 것으로 보인다. `lstatSync` 는 링크를
+ * 따라가지 않아 셋을 구분한다 (`update` 의 `syncSkills` 가 쓰는 것과 같은 판정).
+ *
+ * 링크를 덮지 않는 이유 = ADR-062: `.claude/skills/<id>` 는 `npx skills add` 의 프로젝트 스코프
+ * 설치처이고 그 실체는 **다른 저장소로의 링크**다. 따라 쓰면 `.claude/` 밖에 있는 사용자 저장소를
+ * 우리 판본으로 밀고, 백업을 남겨도 사용자가 찾을 자리가 아니다. 링크가 아닌 파일도 같이 건너뛴다 —
+ * 누가 놓아둔 것인지 모르는 것을 지우는 것보다 안 깔고 이름을 내는 편이 되돌릴 수 있다.
+ */
+function occupiedByNonDirectory(path: string): boolean {
+  // throwIfNoEntry:false → 없으면 undefined. EACCES 같은 진짜 오류는 계속 던지게 둔다.
+  const stat = lstatSync(path, { throwIfNoEntry: false });
+  return stat !== undefined && !stat.isDirectory();
+}
+
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
@@ -713,6 +752,15 @@ function installClaudeBaseline(
       result.skipped += 1;
       continue;
     }
+    // #343 — 슬롯 자체가 아니라 **그 안의 파일**로 나가는 엔트리도 있다
+    // (`.claude/skills/spec-scaling/SKILL.md`). 부모가 링크면 `copyFileSync` 는 죽지 않고
+    // **링크를 따라 남의 저장소를 덮는다** — 크래시가 없어 더 조용한 같은 위반이다.
+    const slot = FOREIGN_OWNED_SLOT.exec(entry.target)?.[1];
+    if (slot !== undefined && occupiedByNonDirectory(join(projectDir, slot))) {
+      // 슬롯 단위로 한 번만 보고한다 — 사용자가 옮겨야 할 대상은 파일이 아니라 그 자리다.
+      if (!result.foreignOwned.includes(slot)) result.foreignOwned.push(slot);
+      continue;
+    }
     if (entry.type === "file") {
       // 사용자 편집 가능 파일은 덮어쓰기 전 백업 (audit SEC-1 — settings.json hook/statusLine 소실 방지).
       if (entry.target === ".claude/settings.json") {
@@ -732,6 +780,13 @@ function installClaudeBaseline(
       copyFile(source, target);
       result.filesCopied += 1;
     } else {
+      // #343 — 남의 도구가 소유한 자리는 **쓰지 않는다**. `update` 가 이미 하던 판정을
+      // (ADR-062 · syncSkills 의 skippedLinks) install 에도 둔다. 없던 동안 이 경로는
+      // 건너뛰는 대신 `cpSync` 가 ERR_FS_CP_DIR_TO_NON_DIR 로 죽어 **설치 전체를** 끝냈다.
+      if (occupiedByNonDirectory(target)) {
+        result.foreignOwned.push(entry.target);
+        continue;
+      }
       copyDir(source, target);
       result.dirsCopied += 1;
     }

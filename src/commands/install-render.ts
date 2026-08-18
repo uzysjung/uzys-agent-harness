@@ -661,6 +661,22 @@ function renderPhase1Rows(
       ),
     );
   }
+  // #343 — 자리가 남의 것이라 건너뛴 자산. 이 줄이 없으면 사용자는 자기가 3단계에서 고른
+  // 스킬이 왜 없는지 알 방법이 없다 (설치는 성공으로 끝났으니 실패 메시지도 없다).
+  // 어떻게 해야 받을 수 있는지까지 적는다 — 원인만 알려주는 안내는 다음 행동을 못 만든다.
+  if (baseline.baselineForeignOwned.length > 0) {
+    log(
+      assetRow(
+        "skip",
+        "owned by another tool",
+        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned
+          .map((t) => t.replace(/^\.claude\//, ""))
+          .join(
+            ", ",
+          )} · 그 자리가 디렉터리가 아니라(심볼릭 링크·파일) 건드리지 않았다 · 하네스 판본을 받으려면 그것을 옮기고 재설치`,
+      ),
+    );
+  }
   // 2026-08-17 (ADR-075) — 이번 선택이 밀어낸 자산. **지운 것과 남긴 것을 나눠 낸다**: 지운 것을
   // 안 알리면 사용자가 사라진 파일을 못 쫓고, 남긴 것을 안 알리면 같은 일을 하는 에이전트가 두
   // 벌이라는 사실이 계속 안 보인다. 비대화형 설치는 항상 후자로 떨어진다(물어볼 사람이 없다).
