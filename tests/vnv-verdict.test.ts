@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
+import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
+import { TRACKS } from "../src/types.js";
 
 // v26.113.0 (ADR-041, 라이프사이클 자산화 ⑤) — V&V verdict 어휘 코드화의 광고 계약 검증이었다.
 //
@@ -35,6 +36,66 @@ describe("C3 cherry-pick 계약 — manifest ↔ cherrypicks.lock", () => {
       expect(entry, `cherrypicks.lock entry missing for ${sd}`).toBeDefined();
       expect(entry?.modified, `${sd} must be modified:true in cherrypicks.lock`).toBe(true);
     }
+  });
+
+  /**
+   * `modified:true` 인데 ECC 선택 시 비켜서는 것 — 사고가 아니라 **결정**인 경우의 목록.
+   * `strategic-compact`: 우리 사이드카 훅을 얹은 수정본이지만, ECC 를 고른 설치에서는 디렉터리가
+   * 안 깔리고 `settings.json` 의 훅 참조는 install 치유 패스가 지운다(M-1, installer 테스트가 문다).
+   */
+  const MODIFIED_BUT_GATED = ["strategic-compact"];
+
+  /**
+   * #340 — 위 단언은 **C3 → modified:true** 한 방향만 본다. 반대쪽(`modified:false` 인데
+   * `!s.withEcc` 없이 항상 깔리는 것)은 아무도 안 봤고, 실제로 4종이 그 상태였다:
+   * ECC 플러그인을 고른 사용자가 같은 스킬을 **두 판본** 받았다.
+   *
+   * 계약을 양방향으로 못 박는다 — 판정은 코드를 읽는 대신 **manifest 를 실제로 두 번 만들어**
+   * (withEcc on/off) 대상이 나타나는지로 한다. 조건식을 읽는 테스트는 조건식이 바뀌면 같이
+   * 바뀌어 아무것도 막지 못한다.
+   */
+  it("lock 의 modified 플래그와 설치 조건이 양방향으로 맞는다 (#340)", () => {
+    const lock = JSON.parse(read("../.dev-references/cherrypicks.lock")) as {
+      cherrypicks: Array<{ id: string; dst: string; modified: boolean }>;
+    };
+    const skillRows = lock.cherrypicks.filter((c) => /^templates\/skills\/[^/]+\/$/.test(c.dst));
+    // 모집단이 비면 아래 판정이 저절로 참이 된다.
+    expect(skillRows.length).toBeGreaterThan(5);
+
+    // 모든 트랙을 켜 두 판본을 만든다 — 트랙 게이팅 때문에 안 깔린 것을 "ECC 가 뺐다"로
+    // 오독하지 않으려면 트랙 축을 먼저 열어야 한다.
+    // `buildManifest` 는 항목을 **전부** 내고, 깔릴지는 `applies` 가 정한다. 배열 존재만 보면
+    // 게이트가 있는 항목도 "깔린다"로 읽혀 이 판정이 통째로 무의미해진다(첫 판이 그랬다).
+    const tracks = [...TRACKS];
+    const installed = (withEcc: boolean) =>
+      new Set(
+        buildManifest({ tracks, withEcc })
+          .filter((e) => e.applies({ tracks, withEcc }))
+          .map((e) => e.target),
+      );
+    const withEcc = installed(true);
+    const withoutEcc = installed(false);
+
+    const wrong: string[] = [];
+    for (const row of skillRows) {
+      const id = row.dst.replace("templates/skills/", "").replace(/\/$/, "");
+      const target = `.claude/skills/${id}`;
+      if (!withoutEcc.has(target)) continue; // 이 저장소가 더는 안 깔거나 다른 경로로 깐다
+      const gated = !withEcc.has(target);
+      if (row.modified && gated && !MODIFIED_BUT_GATED.includes(id)) {
+        // `modified` 는 sync 덮어쓰기 방지 플래그이지 설치 게이팅이 아니다. 둘이 갈리는 것은
+        // **결정**이므로 이름을 적어 둔다 — 목록이 늘면 그때 사유를 따진다.
+        wrong.push(
+          `${id}: 우리 수정본인데 ECC 선택 시 빠진다 — 의도면 MODIFIED_BUT_GATED 에 사유와 함께 적어라`,
+        );
+      }
+      if (!row.modified && !gated) {
+        wrong.push(
+          `${id}: 미수정 사본(modified:false)인데 ECC 선택 시에도 깔린다 — 두 판본이 된다`,
+        );
+      }
+    }
+    expect(wrong).toEqual([]);
   });
 
   it("lock 의 모든 dst 가 실재한다 (역방향 — 좀비 lock 행 차단)", () => {
