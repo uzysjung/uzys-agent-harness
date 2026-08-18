@@ -32,7 +32,11 @@ export function copyFile(source: string, target: string): void {
 }
 
 /**
- * Copy a directory recursively. Creates target if missing.
+ * Copy a directory's **files** recursively. Creates target if missing.
+ *
+ * 계약이 통짜 `cpSync` 보다 좁다 — source 쪽 **심볼릭 링크와 빈 디렉터리는 재현되지 않는다**.
+ * 지금 `templates/` 에는 둘 다 0개이고(git 은 빈 디렉터리를 담지 못한다) 실행 비트·내용·
+ * 사용자 추가 파일 보존은 종전과 같다. 스킬에 심링크를 넣게 되면 이 줄부터 다시 볼 것.
  *
  * **파일 단위로 돈다** (`cpSync` 통짜 복사가 아니다, #343). 통짜 복사는 대상 트리 안에 링크가
  * 섞여 있어도 그대로 따라가 남의 파일을 덮는데, 그것을 걸러낼 자리가 호출자에게 없었다.

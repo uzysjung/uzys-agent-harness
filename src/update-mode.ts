@@ -230,6 +230,8 @@ export function runUpdateMode(
     join(claudeDir, "skills"),
     join(templatesDir, "skills"),
     skillBaseline(projectDir),
+    new Date(),
+    (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
   );
   report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
@@ -272,10 +274,18 @@ export function runUpdateMode(
   const external = refreshExternalCli(projectDir, harnessRoot);
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
-  report.foreignOwned = [
+  // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
+  // 사용자는 두 줄을 서로 다른 두 사건으로 읽는다(리뷰 3라운드 지적).
+  const saidBySlotRow = new Set(report.skillsSkippedLinks.map((id) => `.claude/skills/${id}`));
+  const merged: string[] = [];
+  for (const f of [
+    ...skillSync.foreignOwned,
     ...fresh.foreignOwned,
-    ...external.externalForeignOwned.filter((f) => !fresh.foreignOwned.includes(f)),
-  ];
+    ...external.externalForeignOwned,
+  ]) {
+    if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
+  }
+  report.foreignOwned = merged;
 
   return report;
 }
@@ -651,12 +661,24 @@ export function syncSkills(
   sourceDir: string,
   baseline: ReadonlyMap<string, string>,
   now: Date = new Date(),
-): { updated: number; backedUp: string[]; skippedLinks: string[] } {
+  /**
+   * #343 — `<id>/<rel>` 를 받아 그 파일을 쓰면 남의 것을 건드리는 경우 **그 자리**를 돌려준다.
+   * `copyDir` 과 같은 모양이다: 판정(정책)은 `foreign-slot.ts` 가, 경로 조립은 호출자가 갖는다.
+   * 슬롯만 보는 위 판정으로는 **슬롯 안쪽**(파일 링크·중간 디렉터리 링크·FIFO)이 안 걸린다.
+   */
+  foreignOf?: (relInSkills: string) => string | null,
+): {
+  updated: number;
+  backedUp: string[];
+  skippedLinks: string[];
+  foreignOwned: string[];
+} {
   if (!existsSync(targetDir) || !existsSync(sourceDir))
-    return { updated: 0, backedUp: [], skippedLinks: [] };
+    return { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [] };
   let updated = 0;
   const backedUp: string[] = [];
   const skippedLinks: string[] = [];
+  const foreignOwned: string[] = [];
 
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
@@ -674,6 +696,13 @@ export function syncSkills(
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
       const targetFile = join(targetSkill, rel);
+      // 슬롯이 우리 디렉터리여도 **그 안**이 남의 것일 수 있다. 판정 없이 쓰면 링크를 따라
+      // 남의 파일을 덮고(보고 0줄), FIFO 면 `readFileSync` 가 영영 블록된다.
+      const foreign = foreignOf?.(`${skill.name}/${rel}`) ?? null;
+      if (foreign !== null) {
+        if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+        continue;
+      }
       const next = readFileSync(join(sourceDir, skill.name, rel), "utf8");
 
       if (!existsSync(targetFile)) {
@@ -696,7 +725,7 @@ export function syncSkills(
       updated++;
     }
   }
-  return { updated, backedUp, skippedLinks };
+  return { updated, backedUp, skippedLinks, foreignOwned };
 }
 
 /** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */

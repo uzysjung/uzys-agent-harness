@@ -50,6 +50,16 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     projectDir,
   });
 
+  const update = (onProgress?: (event: ProgressEvent) => void) =>
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: specOf(),
+      mode: "update",
+      ...(onProgress ? { onProgress } : {}),
+    });
+
   const install = (onProgress?: (event: ProgressEvent) => void) =>
     runInstall({
       runExternal: null,
@@ -332,9 +342,11 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/${nested}`);
   });
 
-  it("판정 자체가 FIFO 를 남의 것으로 본다 (빠르게 실패하는 자리)", () => {
-    // 아래 설치 시나리오는 가드가 없으면 **영영 블록**된다 — 빨간불이 아니라 멈춤으로 나타나
-    // 원인을 못 읽는다. 그래서 술어를 직접 한 번 더 문다: 여기서는 즉시 red 가 난다.
+  it("판정이 FIFO 를 남의 것으로 본다 (통합 시험으로는 못 무는 자리)", () => {
+    // FIFO 를 **설치로** 시험하지 않는다: 가드가 빠지면 `copyFileSync`·`readFileSync` 가 영영
+    // 블록돼 빨간불이 아니라 **멈춤**으로 끝나고, 동기 블로킹이라 vitest 의 테스트 타임아웃도
+    // 못 자른다(실측: 400초·120초 두 번 강제 종료). 그래서 술어만 직접 문다 — 여기서는 즉시
+    // red 가 난다. "쓰는 쪽이 판정을 부르는가"는 같은 자리를 지나는 심링크 시나리오가 문다.
     const slot = join(projectDir, ".claude/skills/probe-skill");
     mkdirSync(slot, { recursive: true });
     const fifo = join(slot, "SKILL.md");
@@ -381,21 +393,6 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/${sub}`);
   });
 
-  it("스킬 안 파일이 FIFO 면 멈추지 않고 건너뛴다", () => {
-    // 가드가 없으면 이 테스트는 **빨간불이 아니라 멈춤**으로 실패한다(copyFileSync 블록).
-    // 원인을 빨리 읽으려면 바로 위 단위 시험을 먼저 본다.
-    install();
-    const id = installedSkillId();
-    const inner = join(projectDir, ".claude/skills", id, "SKILL.md");
-    rmSync(inner, { force: true });
-    execFileSync("mkfifo", [inner]);
-
-    const report = install();
-
-    expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/SKILL.md`);
-    expect(lstatSync(inner).isFIFO()).toBe(true);
-  });
-
   it("update 는 남의 저장소 안에 우리 파일을 새로 만들지 않는다", () => {
     // update 의 네 번째 쓰기 주체(`installNewAssets`)는 `existsSync` 로만 판정했다. 슬롯이
     // 남의 저장소 링크이고 그쪽에 그 파일이 없으면 existsSync 가 false 라, 복사가 **남의
@@ -423,17 +420,83 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(report.updateMode?.installedNew ?? []).not.toContain(
       ".claude/skills/spec-scaling/SKILL.md",
     );
-    expect(report.updateMode?.foreignOwned ?? []).toContain(".claude/skills/spec-scaling");
+    // 슬롯 자체가 남의 것이므로 슬롯 행이 낸다 (경로 행은 중복을 피해 빠진다 — 아래 전용 시험).
+    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain("spec-scaling");
 
     if (captured === undefined) throw new Error("baseline-complete 이벤트가 오지 않았다");
     const lines: string[] = [];
     const renderer = createInstallRenderer((m) => lines.push(m), specOf(), false);
     renderer.callbacks.onProgress?.({ type: "baseline-complete", baseline: captured });
     const screen = lines.join("\n");
-    expect(screen).toContain(".claude/skills/spec-scaling");
+    expect(screen).toContain("spec-scaling");
     expect(screen).toContain("owned by another tool");
+    // 2라운드에 고친 문구(종류 단정 제거)를 무는 자리 — 없으면 다음 정리 커밋이 조용히 되돌린다.
+    expect(screen).toContain("갱신하지 않았다");
     // 화면이 같은 자리를 "추가했다"고 말하면 안 된다.
     expect(screen).not.toContain("added by this release");
+  });
+
+  it("update 도 슬롯 **안의 파일**이 링크면 따라 쓰지 않는다", () => {
+    // install 은 막는데 update 는 덮던 자리 — `syncSkills` 의 파일 루프가 판정을 안 거쳤다.
+    install();
+    const id = installedSkillId();
+    const external = join(foreignRepo, "x.md");
+    writeFileSync(external, "# 남의 파일\n");
+    const inner = join(projectDir, ".claude/skills", id, "SKILL.md");
+    rmSync(inner, { force: true });
+    symlinkSync(external, inner);
+
+    const report = update();
+
+    expect(readFileSync(external, "utf-8")).toBe("# 남의 파일\n");
+    // 백업조차 남의 저장소 옆에 만들지 않는다.
+    expect(readdirSync(foreignRepo)).toEqual(["x.md"]);
+    expect(report.updateMode?.foreignOwned ?? []).toContain(`.claude/skills/${id}/SKILL.md`);
+  });
+
+  it("update 도 슬롯 안 **중간 디렉터리**가 링크면 그 안으로 쓰지 않는다", () => {
+    install();
+    const skillsDir = join(projectDir, ".claude/skills");
+    let id = "";
+    let sub = "";
+    for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const dir = readdirSync(join(skillsDir, entry.name), { withFileTypes: true }).find((e) =>
+        e.isDirectory(),
+      );
+      if (dir !== undefined) {
+        id = entry.name;
+        sub = dir.name;
+        break;
+      }
+    }
+    if (id === "") throw new Error("하위 디렉터리를 가진 스킬이 없다 — 시나리오가 무의미해진다");
+
+    const external = join(foreignRepo, sub);
+    mkdirSync(external, { recursive: true });
+    writeFileSync(join(external, "keep.md"), "# 남의 하위 파일\n");
+    rmSync(join(skillsDir, id, sub), { recursive: true, force: true });
+    symlinkSync(external, join(skillsDir, id, sub));
+
+    const report = update();
+
+    expect(readdirSync(external)).toEqual(["keep.md"]);
+    expect(report.updateMode?.foreignOwned ?? []).toContain(`.claude/skills/${id}/${sub}`);
+  });
+
+  it("한 자리를 두 행으로 말하지 않는다 (슬롯 행과 경로 행의 중복 제거)", () => {
+    install();
+    const slot = join(projectDir, ".claude/skills/spec-scaling");
+    const external = join(foreignRepo, "spec-scaling");
+    mkdirSync(external, { recursive: true });
+    rmSync(slot, { recursive: true, force: true });
+    symlinkSync(external, slot);
+
+    const report = update();
+
+    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain("spec-scaling");
+    // 같은 자리가 경로 행에 또 뜨면 사용자는 서로 다른 두 사건으로 읽는다.
+    expect(report.updateMode?.foreignOwned ?? []).not.toContain(".claude/skills/spec-scaling");
   });
 
   it("update 는 깨진 링크 슬롯도 이름으로 낸다 (조용히 빠져나가지 않는다)", () => {
