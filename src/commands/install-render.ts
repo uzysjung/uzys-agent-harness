@@ -685,7 +685,7 @@ function renderPhase1Rows(
       assetRow(
         "skip",
         "owned by another tool",
-        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned.join(", ")} · 그 자리가 우리 디렉터리가 아니라 건드리지 않았다 · 하네스 판본을 받으려면 그 자리를 옮기고 재설치`,
+        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned.join(", ")} · 그 자리가 우리 것이 아니라 건드리지 않았다 · 하네스 판본을 받으려면 그 자리를 옮기고 재설치`,
       ),
     );
   }

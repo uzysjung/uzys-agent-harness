@@ -387,7 +387,6 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
     const report = install();
 
-    console.log("[DBG] sub is symlink =", lstatSync(join(skillsDir, id, sub)).isSymbolicLink());
     expect(readdirSync(external)).toEqual(["keep.md"]);
     expect(readFileSync(join(external, "keep.md"), "utf-8")).toBe("# 남의 하위 파일\n");
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/${sub}`);

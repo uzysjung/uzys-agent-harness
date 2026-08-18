@@ -46,7 +46,7 @@ export function copyFile(source: string, target: string): void {
  * @param foreignOf source 기준 상대경로를 받아, 그 파일을 쓰면 남의 것을 건드리는 경우
  *   **그 자리의 경로**를 돌려준다(아니면 null). 파일 경로가 아니라 자리를 받는 이유는
  *   사용자가 옮겨야 할 대상이 파일이 아니라 그 자리(예: 중간 디렉터리 링크)이기 때문이다.
- * @returns 건너뛴 자리들 (중복 제거). 호출자가 화면에 낸다 — 침묵 금지
+ * @returns 건너뛴 자리들 (**중복 포함** — 거르는 것은 호출자 몫). 화면에 낸다 — 침묵 금지
  */
 export function copyDir(
   source: string,
@@ -61,8 +61,10 @@ export function copyDir(
   for (const rel of listFilesRecursive(source)) {
     const foreign = foreignOf?.(rel) ?? null;
     if (foreign !== null) {
-      // 한 자리가 여러 파일을 가릴 수 있다 (중간 디렉터리 링크) — 자리당 한 번만 낸다.
-      if (!skipped.includes(foreign)) skipped.push(foreign);
+      // 한 자리가 여러 파일을 가릴 수 있다(중간 디렉터리 링크) — 같은 자리가 여러 번 담긴다.
+      // 중복 제거는 **호출자가** 한다: 엔트리를 넘나드는 중복은 여기서 볼 수 없어 어차피
+      // 그쪽이 한 번 더 걸러야 하고, 같은 규칙을 두 곳에 두면 한쪽이 죽은 줄이 된다.
+      skipped.push(foreign);
       continue;
     }
     copyFile(join(source, rel), join(target, rel));

@@ -67,7 +67,9 @@
       - 술어는 `install`·`update` 가 **하나를 공유**한다(`src/foreign-slot.ts`). 그전에는
         update 가 `isSymbolicLink()`, install 이 `!isDirectory()` 로 서로 달랐고, 그 차이가
         곧 "install 은 되는데 update 만 EEXIST 로 죽는다"였다.
-      - 건너뛴 자리는 install·update 화면에 **경로로** 보고한다(침묵 금지).
+      - 건너뛴 자리는 install·update 화면에 **이름으로** 보고한다(침묵 금지). 슬롯 통째를
+        건너뛴 update 행만 스킬 id 를 내고, 나머지는 경로를 낸다 — 슬롯 밖 자리(`.agents/`)와
+        슬롯 안 파일이 섞이면 id 로는 구분되지 않기 때문이다.
 - Consequences:
   - 스킬 개선 사이클이 이 리포 릴리즈로 복귀한다(ADR-060 의 분리 이점 소멸 — 감수).
   - model-orchestration 개정판(사용자 작성)은 verdict 어휘 계약(구 D3)을 싣지 않는다 —

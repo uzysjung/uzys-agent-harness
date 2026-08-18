@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -40,6 +48,35 @@ describe("fs-ops", () => {
     copyDir(join(dir, "src"), join(dir, "dst"));
     expect(readFileSync(join(dir, "dst/a.txt"), "utf8")).toBe("A");
     expect(readFileSync(join(dir, "dst/nested/b.txt"), "utf8")).toBe("B");
+  });
+
+  it("copyDir: foreignOf 가 지목한 파일은 건너뛰고 그 자리를 돌려준다 (#343)", () => {
+    mkdirSync(join(dir, "s2/sub"), { recursive: true });
+    writeFileSync(join(dir, "s2/keep.txt"), "K");
+    writeFileSync(join(dir, "s2/sub/x.txt"), "X");
+    writeFileSync(join(dir, "s2/sub/y.txt"), "Y");
+
+    const skipped = copyDir(join(dir, "s2"), join(dir, "d2"), (rel) =>
+      rel.startsWith("sub/") ? "sub" : null,
+    );
+
+    expect(readFileSync(join(dir, "d2/keep.txt"), "utf8")).toBe("K");
+    expect(existsSync(join(dir, "d2/sub/x.txt"))).toBe(false);
+    // 한 자리가 여러 파일을 가리면 그 자리가 그만큼 담긴다 — 거르는 것은 호출자 몫이다.
+    expect(skipped).toEqual(["sub", "sub"]);
+  });
+
+  it("copyDir: source 쪽 심볼릭 링크와 빈 디렉터리는 재현되지 않는다 (좁아진 계약)", () => {
+    mkdirSync(join(dir, "s3/empty"), { recursive: true });
+    writeFileSync(join(dir, "s3/real.txt"), "R");
+    symlinkSync(join(dir, "s3/real.txt"), join(dir, "s3/link.txt"));
+
+    copyDir(join(dir, "s3"), join(dir, "d3"));
+
+    expect(readFileSync(join(dir, "d3/real.txt"), "utf8")).toBe("R");
+    // 링크는 **내용으로도 링크로도** 복사되지 않는다 — listFilesRecursive 가 링크를 파일로 세지 않는다.
+    expect(existsSync(join(dir, "d3/link.txt"))).toBe(false);
+    expect(existsSync(join(dir, "d3/empty"))).toBe(false);
   });
 
   it("copyDir throws when source missing", () => {
