@@ -304,7 +304,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: ["/p/.codex/hooks/a.sh", "/p/.codex/hooks/b.sh"],
         skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -323,7 +323,7 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: Array.from({ length: 6 }, (_, i) => `/p/.opencode/commands/uzys-${i}.md`),
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -398,13 +398,13 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -424,7 +424,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -446,7 +446,7 @@ describe("executeSpec", () => {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         commandFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -476,7 +476,7 @@ describe("executeSpec", () => {
         rulesFile: "/p/.agents/rules/uzys-harness.md",
         harnessRuleFiles: [],
         skillFiles: ["/p/.agents/skills/compaction-handoff/SKILL.md"],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -735,7 +735,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
     executeSpec(
@@ -786,6 +786,7 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        externalForeignOwned: [],
         installedNew: [],
         restored: [],
         needsReinstall: [],
@@ -841,6 +842,7 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        externalForeignOwned: [],
         installedNew: [],
         restored: [],
         needsReinstall: [],
@@ -895,6 +897,7 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        externalForeignOwned: [],
         installedNew: [],
         restored: [],
         needsReinstall: [],
@@ -940,6 +943,7 @@ describe("executeSpec", () => {
         policyBackedUp: [],
         externalUpdated: 0,
         externalBackedUp: [],
+        externalForeignOwned: [],
         installedNew: [],
         restored: [],
         needsReinstall: [],
@@ -1002,7 +1006,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "registered" as const },
@@ -1026,7 +1030,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "already-present" as const },
@@ -1049,7 +1053,7 @@ describe("executeSpec", () => {
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
-        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0 },
+        ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
       codexOptIn: {
         trustEntry: { enabled: true, status: "error" as const, message: "permission denied" },

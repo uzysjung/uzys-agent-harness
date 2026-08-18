@@ -97,6 +97,15 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
     // ⓐ 설치가 죽지 않는다 (여기까지 온 것 자체가 그 증거) — 나머지 자산도 정상 설치됐다.
     expect(report.filesCopied).toBeGreaterThan(10);
+    // ⓐ' **건너뛴 것은 하나뿐이다.** 이 단언이 없으면 "한 자리가 남의 것이면 스킬을 하나도
+    // 안 깐다"는 최악의 오탐이 전 스위트를 통과한다(적대적 검증에서 실제로 생존했다).
+    // 스킬은 `type:"dir"` 이라 filesCopied 로는 안 잡힌다 — 디렉터리 축을 따로 본다.
+    expect(report.baselineForeignOwned).toHaveLength(1);
+    expect(report.dirsCopied).toBeGreaterThan(10);
+    const others = readdirSync(join(projectDir, ".claude/skills"), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    expect(others.length).toBeGreaterThan(10);
     // ⓑ 남의 저장소 본문은 그대로다. 이게 이 판정의 존재 이유다.
     expect(readFileSync(join(external, "SKILL.md"), "utf-8")).toBe("# 남의 저장소 본문\n");
     // ⓒ 링크도 링크인 채로 남는다 (실체 디렉터리로 바뀌지 않았다).
@@ -189,6 +198,83 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(
       report.baselineForeignOwned.filter((t) => t === ".claude/skills/spec-scaling"),
     ).toHaveLength(1);
+  });
+
+  it("codex 자리(.agents/skills/<id>)도 링크를 따라 덮지 않는다", () => {
+    // `.agents/skills/` 는 codex·antigravity 산출물의 자리이자 `npx skills add --agent` 의
+    // 설치처다(SKILLS_CLI_AGENT_MAP). v26.147.0 에서는 `.claude/` 쪽이 먼저 죽어 이 코드가
+    // 돈 적이 없었고, 크래시를 없애는 순간 **처음으로** 도달한다.
+    const withCodex = (): InstallSpec => ({ ...specOf(), cli: ["claude", "codex"] });
+    const run = () =>
+      runInstall({ runExternal: null, harnessRoot: HARNESS_ROOT, projectDir, spec: withCodex() });
+
+    run();
+    const agentSkills = join(projectDir, ".agents/skills");
+    const id = readdirSync(agentSkills, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort()[0];
+    if (id === undefined) throw new Error(".agents/skills 가 비었다 — 이 시나리오가 무의미해진다");
+
+    const external = join(foreignRepo, id);
+    mkdirSync(external, { recursive: true });
+    writeFileSync(join(external, "SKILL.md"), "# 남의 저장소 본문\n");
+    rmSync(join(agentSkills, id), { recursive: true, force: true });
+    symlinkSync(external, join(agentSkills, id));
+
+    const report = run();
+
+    expect(readFileSync(join(external, "SKILL.md"), "utf-8")).toBe("# 남의 저장소 본문\n");
+    // 백업조차 남의 저장소 안에 만들지 않는다 — 사용자가 찾을 자리가 아니다.
+    expect(readdirSync(external)).toEqual(["SKILL.md"]);
+    expect(report.baselineForeignOwned).toContain(`.agents/skills/${id}`);
+  });
+
+  it("슬롯은 우리 것인데 그 안의 SKILL.md 만 링크여도 따라 쓰지 않는다", () => {
+    install();
+    const slot = join(projectDir, ".claude/skills/spec-scaling");
+    const external = join(foreignRepo, "SKILL.md");
+    writeFileSync(external, "# 남의 파일\n");
+    rmSync(join(slot, "SKILL.md"), { force: true });
+    symlinkSync(external, join(slot, "SKILL.md"));
+
+    const report = install();
+
+    expect(readFileSync(external, "utf-8")).toBe("# 남의 파일\n");
+    expect(report.baselineForeignOwned).toContain(".claude/skills/spec-scaling/SKILL.md");
+  });
+
+  it("update 도 install 과 같은 판정을 쓴다 — 일반 파일 위에서 죽지 않는다", () => {
+    // install 이 그 상태를 화면으로 승인하는데 update 만 죽으면, 실패 지점을 옮긴 것에 불과하다.
+    install();
+    const id = installedSkillId();
+    const target = join(projectDir, ".claude/skills", id);
+    rmSync(target, { recursive: true, force: true });
+    writeFileSync(target, "사용자가 놓아둔 파일\n");
+
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: specOf(),
+      mode: "update",
+    });
+
+    expect(readFileSync(target, "utf-8")).toBe("사용자가 놓아둔 파일\n");
+    expect(report.updateMode?.skillsSkippedLinks).toContain(id);
+  });
+
+  it("`.claude` 자체가 심링크인 공유 dotfiles 설치는 막지 않는다 (가드가 넓지 않다)", () => {
+    // `fs-ops.ts` 가 지원 케이스로 명시한 모양이다. 여기까지 막으면 정상 설치가 통째로 멈춘다.
+    const shared = join(foreignRepo, "shared-dotfiles-claude");
+    mkdirSync(shared, { recursive: true });
+    symlinkSync(shared, join(projectDir, ".claude"));
+
+    const report = install();
+
+    expect(report.baselineForeignOwned).toHaveLength(0);
+    expect(report.dirsCopied).toBeGreaterThan(10);
+    expect(existsSync(join(shared, "skills"))).toBe(true);
   });
 
   it("정상 디렉터리는 종전대로 덮어쓴다 (게이트가 설치를 막지 않는다는 대조군)", () => {

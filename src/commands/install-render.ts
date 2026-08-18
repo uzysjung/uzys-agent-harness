@@ -514,6 +514,17 @@ function renderPhase1Rows(
     // 2026-08-16 (ADR-072) — `.mcp-allowlist` 은퇴. 이 줄이 없으면 사용자는 자기 저장소에서
     // 파일 하나가 사라진 것만 보고 이유를 못 찾는다. 백업 경로를 함께 내는 이유는 그게
     // "되돌릴 수 있다"의 유일한 증거이기 때문이다 — 경로 없이 "백업했다"는 안내는 검증 불가다.
+    // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
+    // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
+    if (baseline.updateMode.externalForeignOwned.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "external CLI · owned by another tool",
+          `${baseline.updateMode.externalForeignOwned.join(", ")} · 그 자리가 우리 디렉터리가 아니라 건드리지 않았다`,
+        ),
+      );
+    }
     if (baseline.updateMode.mcpAllowlistRetired) {
       log(
         assetRow(
@@ -665,15 +676,14 @@ function renderPhase1Rows(
   // 스킬이 왜 없는지 알 방법이 없다 (설치는 성공으로 끝났으니 실패 메시지도 없다).
   // 어떻게 해야 받을 수 있는지까지 적는다 — 원인만 알려주는 안내는 다음 행동을 못 만든다.
   if (baseline.baselineForeignOwned.length > 0) {
+    // 경로를 **자르지 않는다**. 목록에 `.claude/skills/<id>` 와 `.agents/skills/<id>` 가 섞이고
+    // (전자는 Claude Code, 후자는 codex·antigravity 자리), 접두를 지우면 둘이 같은 것처럼 보인다.
+    // 종류를 열거하지도 않는다 — 링크 말고 파일·FIFO·하드링크도 실제로 도달 가능하다.
     log(
       assetRow(
         "skip",
         "owned by another tool",
-        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned
-          .map((t) => t.replace(/^\.claude\//, ""))
-          .join(
-            ", ",
-          )} · 그 자리가 디렉터리가 아니라(심볼릭 링크·파일) 건드리지 않았다 · 하네스 판본을 받으려면 그것을 옮기고 재설치`,
+        `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned.join(", ")} · 그 자리가 우리 디렉터리가 아니라 건드리지 않았다 · 하네스 판본을 받으려면 그 자리를 옮기고 재설치`,
       ),
     );
   }

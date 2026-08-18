@@ -16,7 +16,6 @@
 import {
   copyFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -27,6 +26,7 @@ import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
@@ -102,6 +102,12 @@ export interface UpdateModeReport {
   externalUpdated: number;
   /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
   externalBackedUp: string[];
+  /**
+   * #343 — 다른 도구가 소유한 스킬 슬롯이라 **쓰지 않은** 외부 CLI 자리
+   * (`.agents/skills/<id>` 등). `skillsSkippedLinks`(= `.claude/skills/`)와 같은 이유로
+   * 화면에 낸다 — 안 보이면 "왜 이 스킬만 안 갱신되지"를 알 방법이 없다.
+   */
+  externalForeignOwned: string[];
   /**
    * 이번 update 가 **새로 깔아 준** 자산 (projectDir 상대경로) — #283.
    *
@@ -185,6 +191,7 @@ export function runUpdateMode(
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
+    externalForeignOwned: [],
     installedNew: [],
     restored: [],
     needsReinstall: [],
@@ -262,6 +269,7 @@ export function runUpdateMode(
   const external = refreshExternalCli(projectDir, harnessRoot);
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
+  report.externalForeignOwned = external.externalForeignOwned;
 
   return report;
 }
@@ -487,7 +495,7 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
-): { externalUpdated: number; externalBackedUp: string[] } {
+): { externalUpdated: number; externalBackedUp: string[]; externalForeignOwned: string[] } {
   const log = readInstallLog(projectDir);
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   const result = runCliTransforms({
@@ -520,6 +528,7 @@ function refreshExternalCli(
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
+    externalForeignOwned: result.externalForeignOwned,
   };
 }
 
@@ -631,12 +640,16 @@ export function syncSkills(
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
     const targetSkill = join(targetDir, skill.name);
-    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
-    // lstat 은 링크를 따라가지 않는다 — 위 existsSync 가 못 하는 판정이 정확히 이것이다.
-    if (lstatSync(targetSkill).isSymbolicLink()) {
+    // #343 — 판정은 `install` 과 **같은 술어**를 쓴다 (SSOT = foreign-slot.ts). 전에는 여기만
+    // `isSymbolicLink()` 라 심링크는 건너뛰면서 **일반 파일·FIFO 는 그대로 통과**했고, 아래
+    // `mkdirSync` 가 EEXIST 로 죽어 update 전체가 끝났다. install 이 그 상태를 화면으로
+    // 승인하게 된 지금은 그 크래시가 곧 "install 은 되는데 update 만 죽는다"가 된다.
+    // existsSync 보다 **먼저** 본다 — 깨진 링크는 existsSync 가 false 라 조용히 빠져나갔다.
+    if (occupiedByNonDirectory(targetSkill)) {
       skippedLinks.push(skill.name);
       continue;
     }
+    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
       const targetFile = join(targetSkill, rel);

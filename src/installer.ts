@@ -1,7 +1,6 @@
 import {
   chmodSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -23,6 +22,7 @@ import {
   runExternalInstall,
   selectExternalTargets,
 } from "./external-installer.js";
+import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import {
   backupDir,
   backupFile,
@@ -377,6 +377,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     externalBackups,
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
+    externalForeignOwned,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -411,7 +412,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
     backups: [...base.backups, ...externalBackups],
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
-    baselineForeignOwned: base.foreignOwned,
+    // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
+    baselineForeignOwned: [
+      ...base.foreignOwned,
+      ...externalForeignOwned.filter((f) => !base.foreignOwned.includes(f)),
+    ],
     // 밀려난 자산 정리는 **manifest 복사가 끝난 뒤**에 한다. 앞에서 지우면 이번 설치가 다시
     // 깔 수도 있는 파일을 지웠다 되돌리는 셈이라, 무엇이 최종 상태인지 보고가 흐려진다.
     superseded: applySupersededCleanup(spec, projectDir, supersededFound),
@@ -698,27 +703,6 @@ function backupEditedPolicyFile(
   return backupFile(target);
 }
 
-/** 다른 도구(`npx skills add`)가 소유할 수 있는 자리. 그 안의 파일 엔트리를 슬롯으로 되돌린다. */
-const FOREIGN_OWNED_SLOT = /^(\.claude\/skills\/[^/]+)\//;
-
-/**
- * 그 자리가 **디렉터리가 아닌 것**으로 이미 차 있는가 (비어 있으면 false).
- *
- * `existsSync` 로는 판정할 수 없다 — 링크를 따라가므로 "디렉터리가 있다"와 "디렉터리를 가리키는
- * 링크가 있다"에 같은 답을 내고, 깨진 링크는 아예 없는 것으로 보인다. `lstatSync` 는 링크를
- * 따라가지 않아 셋을 구분한다 (`update` 의 `syncSkills` 가 쓰는 것과 같은 판정).
- *
- * 링크를 덮지 않는 이유 = ADR-062: `.claude/skills/<id>` 는 `npx skills add` 의 프로젝트 스코프
- * 설치처이고 그 실체는 **다른 저장소로의 링크**다. 따라 쓰면 `.claude/` 밖에 있는 사용자 저장소를
- * 우리 판본으로 밀고, 백업을 남겨도 사용자가 찾을 자리가 아니다. 링크가 아닌 파일도 같이 건너뛴다 —
- * 누가 놓아둔 것인지 모르는 것을 지우는 것보다 안 깔고 이름을 내는 편이 되돌릴 수 있다.
- */
-function occupiedByNonDirectory(path: string): boolean {
-  // throwIfNoEntry:false → 없으면 undefined. EACCES 같은 진짜 오류는 계속 던지게 둔다.
-  const stat = lstatSync(path, { throwIfNoEntry: false });
-  return stat !== undefined && !stat.isDirectory();
-}
-
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
@@ -752,13 +736,12 @@ function installClaudeBaseline(
       result.skipped += 1;
       continue;
     }
-    // #343 — 슬롯 자체가 아니라 **그 안의 파일**로 나가는 엔트리도 있다
-    // (`.claude/skills/spec-scaling/SKILL.md`). 부모가 링크면 `copyFileSync` 는 죽지 않고
-    // **링크를 따라 남의 저장소를 덮는다** — 크래시가 없어 더 조용한 같은 위반이다.
-    const slot = FOREIGN_OWNED_SLOT.exec(entry.target)?.[1];
-    if (slot !== undefined && occupiedByNonDirectory(join(projectDir, slot))) {
+    // #343 — 남의 도구가 소유한 스킬 슬롯에는 쓰지 않는다 (판정 SSOT = foreign-slot.ts).
+    // 슬롯이 링크인 경우와 슬롯 안 파일이 링크인 경우를 한 술어가 함께 본다.
+    const foreign = foreignOwnedTarget(projectDir, entry.target);
+    if (foreign !== null) {
       // 슬롯 단위로 한 번만 보고한다 — 사용자가 옮겨야 할 대상은 파일이 아니라 그 자리다.
-      if (!result.foreignOwned.includes(slot)) result.foreignOwned.push(slot);
+      if (!result.foreignOwned.includes(foreign)) result.foreignOwned.push(foreign);
       continue;
     }
     if (entry.type === "file") {
@@ -780,11 +763,12 @@ function installClaudeBaseline(
       copyFile(source, target);
       result.filesCopied += 1;
     } else {
-      // #343 — 남의 도구가 소유한 자리는 **쓰지 않는다**. `update` 가 이미 하던 판정을
-      // (ADR-062 · syncSkills 의 skippedLinks) install 에도 둔다. 없던 동안 이 경로는
-      // 건너뛰는 대신 `cpSync` 가 ERR_FS_CP_DIR_TO_NON_DIR 로 죽어 **설치 전체를** 끝냈다.
+      // #343 — 스킬 슬롯 밖의 디렉터리 자산도 자리가 차 있으면 죽지 않고 건너뛴다.
+      // (스킬 슬롯은 위 `foreignOwnedTarget` 이 이미 걸렀다.) 없던 동안 이 경로는
+      // `cpSync` 가 ERR_FS_CP_DIR_TO_NON_DIR 로 죽어 **설치 전체를** 끝냈다 — 크래시 대신
+      // 그 자산만 건너뛰고 이름을 낸다.
       if (occupiedByNonDirectory(target)) {
-        result.foreignOwned.push(entry.target);
+        if (!result.foreignOwned.includes(entry.target)) result.foreignOwned.push(entry.target);
         continue;
       }
       copyDir(source, target);

@@ -55,10 +55,15 @@
       결과는 두 갈래였다 — 슬롯이 링크면 `cpSync` 가 `ERR_FS_CP_DIR_TO_NON_DIR` 로 죽어
       **설치 전체가 실패**했고(v26.147.0 실사용자 보고), 슬롯 안의 파일로 나가는 엔트리
       (`spec-scaling/SKILL.md`)는 죽지도 않고 **링크를 따라 남의 저장소를 덮었다**.
-      결정은 그대로 두고 적용 표면만 install 로 넓힌다(건너뛰고 화면에 이름으로 보고).
-  - 번들 스킬의 상주 계측 사각(계측 spec 이 internal 선택을 안 넣어 0 집계)은 **이월**(사용자
-    결정 2026-08-02) — cost:baseline 은 "무변동"이 정상이며 그 사실을 실측으로 기재한다.
-  - 이관 리포(uzysjung/uzys-agent-skills)의 삭제/아카이브는 사용자 직접 결정·실행.
+      결정은 그대로 두고 적용 표면을 넓힌다. 넓힌 범위를 정확히 적는다:
+      - 대상은 **스킬 슬롯뿐**이다 — `.claude/skills/<id>` 와 `.agents/skills/<id>`
+        (후자는 codex·antigravity 산출물 자리이자 `npx skills add --agent` 의 설치처라
+        같은 위반이 조용히 일어나고 있었다). 슬롯 밖 파일(`settings.json`·`rules/*.md` 등)을
+        공유 dotfiles 로 링크해 두는 것은 지원 케이스라 건드리지 않는다.
+      - 술어는 `install`·`update` 가 **하나를 공유**한다(`src/foreign-slot.ts`). 그전에는
+        update 가 `isSymbolicLink()`, install 이 `!isDirectory()` 로 서로 달랐고, 그 차이가
+        곧 "install 은 되는데 update 만 EEXIST 로 죽는다"였다.
+      - 건너뛴 자리는 install·update 화면에 **경로로** 보고한다(침묵 금지).
 - Consequences:
   - 스킬 개선 사이클이 이 리포 릴리즈로 복귀한다(ADR-060 의 분리 이점 소멸 — 감수).
   - model-orchestration 개정판(사용자 작성)은 verdict 어휘 계약(구 D3)을 싣지 않는다 —
