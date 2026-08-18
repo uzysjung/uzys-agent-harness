@@ -68,6 +68,23 @@ for (const [label, SCRIPT] of [
         expect(r.out).toContain("매치: 0건");
       });
 
+      /**
+       * #329 — "패턴 없음"만으로는 **몇 개를 봤는지** 알 수 없다. 그 상태의 "전수 검사했다"는
+       * 보고를 아무도 검증할 수 없고, 이 저장소는 한 PR 안에서 그 형태로 세 번 틀렸다.
+       */
+      it("검사한 파일 수를 결론 줄에 낸다 — 모집단 없는 '없음'은 검증 불가다", () => {
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+        expect(r.code).toBe(1);
+        expect(r.out).toContain("파일 2개");
+      });
+
+      it("파일 수는 매치된 파일이 아니라 **본 파일 전부**다", () => {
+        // 매치는 dirty.txt 한 곳뿐인데 clean.txt 도 읽었다. 매치 수로 모집단을 대신하면
+        // "1개 봤다"가 되어, 이 줄을 넣은 이유가 그대로 사라진다.
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+        expect(r.out).toContain("매치: 1건 / 파일 2개");
+      });
+
       it("있으면 1 — 위치를 보여준다", () => {
         const r = run(SCRIPT, ["--canary", "OldName", "OldName", "dirty.txt"], dir);
         expect(r.code).toBe(1);
@@ -121,6 +138,12 @@ for (const [label, SCRIPT] of [
         expect(r.code).toBe(0);
         expect(r.out).toContain("대조군");
         expect(r.out).toContain("부정 결론이 증거를 얻었다");
+      });
+
+      it("결론 줄에 대상 명령이 남는다 — 무엇을 판정했는지가 결론과 같은 줄에 있어야 한다", () => {
+        const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
+        expect(r.code).toBe(0);
+        expect(r.out).toMatch(/부정 결론이 증거를 얻었다.*대상 1개: false/);
       });
 
       it("대조 성공 + 대상 성공 → 1 ('안 된다'가 틀렸다)", () => {

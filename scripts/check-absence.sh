@@ -144,10 +144,10 @@ if [ -n "$CONTROL" ] || [ -n "$SUBJECT" ]; then
   esac
 
   if [ "$S_RC" -eq 0 ]; then
-    echo "결과: 대상이 성공했다 — '안 된다'는 결론은 틀렸다."
+    echo "결과: 대상이 성공했다 — '안 된다'는 결론은 틀렸다. (대상 1개: $SUBJECT)"
     exit 1
   fi
-  echo "결과: 대조군이 통과한 상태에서 대상이 실패했다 — 부정 결론이 증거를 얻었다."
+  echo "결과: 대조군이 통과한 상태에서 대상이 실패했다 — 부정 결론이 증거를 얻었다. (대상 1개: $SUBJECT)"
   exit 0
 fi
 
@@ -193,9 +193,15 @@ fi
 [ -s "$ERR" ] && sed 's/^/  warn: /' "$ERR" >&2
 
 COUNT=$(wc -l < "$OUT" | tr -d "[:space:]")
+# 검사 **대상 수**를 함께 낸다 (#329). "패턴 없음"만으로는 몇 개를 봤는지 알 수 없고, 그 상태의
+# "전수 검사했다"는 보고를 아무도 검증할 수 없다 — 이 저장소가 한 PR 안에서 세 번 겪은 형태다.
+# 별도 순회로 센다: 본 검사의 출력에는 **매치된 파일만** 있어 모집단을 알 수 없다.
+SCAN_ERR="$WORK_DIR/scan.err"
+SCANNED=$(grep -rIc "" "${PATHS[@]}" 2>"$SCAN_ERR" | wc -l | tr -d "[:space:]")
+[ -s "$SCAN_ERR" ] && sed 's/^/  warn(scan): /' "$SCAN_ERR" >&2
 printf '검사 대상:'; printf ' %s' "${PATHS[@]}"; printf '\n'
 echo "패턴: $PATTERN  (canary '$CANARY' 검증 통과)"
-echo "매치: ${COUNT}건"
+echo "매치: ${COUNT}건 / 파일 ${SCANNED}개"
 
 if [ "$COUNT" -gt 0 ]; then
   head -50 "$OUT"
