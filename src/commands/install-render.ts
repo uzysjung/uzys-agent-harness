@@ -502,29 +502,31 @@ function renderPhase1Rows(
     // 2026-08-02 (ADR-062) — 다른 도구(`npx skills add`)가 소유한 자리는 건너뛴다. 그 사실을
     // 안 보이면 사용자는 "이 스킬만 왜 안 갱신되지"를 추적할 방법이 없고, 반대로 조용히
     // 덮어썼다면 자기 저장소가 바뀐 줄도 모른다. 둘 다 침묵이 문제라 건수가 아니라 이름을 낸다.
+    // #343 — **종류를 단정하지 않는다.** 판정이 `isSymbolicLink()` 에서 "디렉터리가 아닌 것
+    // 전부"로 넓어져 일반 파일·FIFO·깨진 링크도 이 행에 들어온다. 아래 install 행과 같은 어휘다.
     if (baseline.updateMode.skillsSkippedLinks.length > 0) {
       log(
         assetRow(
           "skip",
-          ".claude/skills linked",
-          `${baseline.updateMode.skillsSkippedLinks.join(", ")} · owned by another tool (symlink) — not updated`,
+          ".claude/skills owned by another tool",
+          `${baseline.updateMode.skillsSkippedLinks.join(", ")} · 그 자리가 우리 디렉터리가 아니라 갱신하지 않았다`,
+        ),
+      );
+    }
+    // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
+    // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
+    if (baseline.updateMode.foreignOwned.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "owned by another tool",
+          `${baseline.updateMode.foreignOwned.join(", ")} · 그 자리가 우리 것이 아니라 건드리지 않았다`,
         ),
       );
     }
     // 2026-08-16 (ADR-072) — `.mcp-allowlist` 은퇴. 이 줄이 없으면 사용자는 자기 저장소에서
     // 파일 하나가 사라진 것만 보고 이유를 못 찾는다. 백업 경로를 함께 내는 이유는 그게
     // "되돌릴 수 있다"의 유일한 증거이기 때문이다 — 경로 없이 "백업했다"는 안내는 검증 불가다.
-    // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
-    // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
-    if (baseline.updateMode.externalForeignOwned.length > 0) {
-      log(
-        assetRow(
-          "skip",
-          "external CLI · owned by another tool",
-          `${baseline.updateMode.externalForeignOwned.join(", ")} · 그 자리가 우리 디렉터리가 아니라 건드리지 않았다`,
-        ),
-      );
-    }
     if (baseline.updateMode.mcpAllowlistRetired) {
       log(
         assetRow(

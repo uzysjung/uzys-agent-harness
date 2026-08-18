@@ -41,9 +41,12 @@ export function occupiedByNonDirectory(path: string): boolean {
  *
  * 두 가지를 본다:
  *   ⓐ 슬롯 자체가 디렉터리가 아니다 → 그 자리 전체가 남의 것 (`npx skills add` 의 링크가 이 모양)
- *   ⓑ 슬롯은 우리 디렉터리인데 **최종 파일이 심링크**다 → 그 파일만 남의 것
- * ⓑ 가 따로 필요한 이유: `copyFileSync`·`writeFileSync` 는 링크를 따라가므로 죽지 않고
- * 조용히 링크 대상을 덮는다 — 크래시가 없어 아무도 신고하지 않는 형태다.
+ *   ⓑ 슬롯 안의 **중간 디렉터리**가 디렉터리가 아니다 → 그 중간 자리가 남의 것
+ *   ⓒ 최종 경로가 **일반 파일이 아니다**(심링크·FIFO·소켓·디렉터리) → 그 자리만 남의 것
+ * ⓑⓒ 가 따로 필요한 이유: `copyFileSync`·`writeFileSync` 는 링크를 따라가므로 죽지 않고
+ * 조용히 링크 대상을 덮는다 — 크래시가 없어 아무도 신고하지 않는 형태다. 심링크만 보지 않는
+ * 이유는 나머지가 더 나쁘기 때문이다: FIFO 면 읽기·쓰기가 **영영 블록**되고(설치가 멈춘다),
+ * 디렉터리면 EISDIR 로 죽는다.
  *
  * @param rel `projectDir` 기준 상대경로 (슬래시 구분)
  */
@@ -51,7 +54,17 @@ export function foreignOwnedTarget(projectDir: string, rel: string): string | nu
   const slot = SKILL_SLOT.exec(rel)?.[1];
   if (slot === undefined) return null;
   if (occupiedByNonDirectory(join(projectDir, slot))) return slot;
-  if (rel !== slot && lstatSync(join(projectDir, rel), { throwIfNoEntry: false })?.isSymbolicLink())
-    return rel;
+  if (rel !== slot) {
+    // 슬롯과 최종 경로 **사이의 디렉터리**부터 본다. 중간 성분이 링크면 마지막 것만 보는
+    // 판정은 그 링크를 따라간 자리를 "평범한 파일"로 읽고 통과시킨다.
+    const parts = rel.slice(slot.length + 1).split("/");
+    let cursor = slot;
+    for (const part of parts.slice(0, -1)) {
+      cursor = `${cursor}/${part}`;
+      if (occupiedByNonDirectory(join(projectDir, cursor))) return cursor;
+    }
+    const leaf = lstatSync(join(projectDir, rel), { throwIfNoEntry: false });
+    if (leaf !== undefined && !leaf.isFile()) return rel;
+  }
   return null;
 }

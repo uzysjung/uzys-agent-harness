@@ -22,7 +22,7 @@ import {
   runExternalInstall,
   selectExternalTargets,
 } from "./external-installer.js";
-import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
+import { foreignOwnedTarget } from "./foreign-slot.js";
 import {
   backupDir,
   backupFile,
@@ -763,15 +763,14 @@ function installClaudeBaseline(
       copyFile(source, target);
       result.filesCopied += 1;
     } else {
-      // #343 — 스킬 슬롯 밖의 디렉터리 자산도 자리가 차 있으면 죽지 않고 건너뛴다.
-      // (스킬 슬롯은 위 `foreignOwnedTarget` 이 이미 걸렀다.) 없던 동안 이 경로는
-      // `cpSync` 가 ERR_FS_CP_DIR_TO_NON_DIR 로 죽어 **설치 전체를** 끝냈다 — 크래시 대신
-      // 그 자산만 건너뛰고 이름을 낸다.
-      if (occupiedByNonDirectory(target)) {
-        if (!result.foreignOwned.includes(entry.target)) result.foreignOwned.push(entry.target);
-        continue;
+      // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
+      // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다. 스킬 14종 중
+      // 13종이 이 경로(dir 엔트리)라 슬롯 판정만으로는 대부분이 안 막혔다.
+      for (const foreign of copyDir(source, target, (relFile) =>
+        foreignOwnedTarget(projectDir, `${entry.target}/${relFile}`),
+      )) {
+        if (!result.foreignOwned.includes(foreign)) result.foreignOwned.push(foreign);
       }
-      copyDir(source, target);
       result.dirsCopied += 1;
     }
     accumulateCategory(result.categories, entry);

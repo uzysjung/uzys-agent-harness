@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -13,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
+import { foreignOwnedTarget } from "../src/foreign-slot.js";
 import type { BaselineReport, ProgressEvent } from "../src/installer.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
@@ -173,7 +175,9 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(installedSkills.length).toBeGreaterThan(0);
     expect(installedSkills).not.toContain(id);
 
-    expect(screen).toContain(`skills/${id}`);
+    // 접두를 포함해 단언한다 — `skills/<id>` 로만 보면 `.claude/` 를 잘라도 통과해서,
+    // `.agents/` 자리와 구분이 안 되게 만드는 회귀를 아무도 막지 못한다.
+    expect(screen).toContain(`.claude/skills/${id}`);
     expect(screen).toContain("owned by another tool");
     // 원인만 알려주는 안내는 다음 행동을 못 만든다 — 되받는 방법까지 화면에 있어야 한다.
     expect(screen).toContain("재설치");
@@ -275,6 +279,179 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(report.baselineForeignOwned).toHaveLength(0);
     expect(report.dirsCopied).toBeGreaterThan(10);
     expect(existsSync(join(shared, "skills"))).toBe(true);
+  });
+
+  it("디렉터리 자산(스킬 대부분)도 **그 안의 파일**이 링크면 따라 쓰지 않는다", () => {
+    // 스킬 14종 중 13종은 `type:"dir"` 엔트리다. 슬롯 판정만으로는 이 다수가 안 막힌다 —
+    // 통짜 복사가 트리 안의 링크를 그대로 따라가기 때문이다.
+    install();
+    const id = installedSkillId();
+    const external = join(foreignRepo, "x.md");
+    writeFileSync(external, "# 남의 파일\n");
+    const inner = join(projectDir, ".claude/skills", id, "SKILL.md");
+    rmSync(inner, { force: true });
+    symlinkSync(external, inner);
+
+    const report = install();
+
+    expect(readFileSync(external, "utf-8")).toBe("# 남의 파일\n");
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/SKILL.md`);
+    // 같은 스킬의 **나머지 파일은 그대로 깔린다** — 파일 하나 때문에 스킬을 통째로 버리지 않는다.
+    expect(report.dirsCopied).toBeGreaterThan(10);
+  });
+
+  it("스킬 안 중첩 경로의 파일이 링크여도 따라 쓰지 않는다", () => {
+    install();
+    // 중첩 파일을 가진 스킬을 **찾아서** 쓴다 — 특정 이름에 묶으면 자산 구성이 바뀔 때
+    // 시나리오가 조용히 무의미해진다.
+    const skillsDir = join(projectDir, ".claude/skills");
+    let id = "";
+    let nested = "";
+    for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const found = readdirSync(join(skillsDir, entry.name), { recursive: true })
+        .map(String)
+        .find((f) => f.includes("/"));
+      if (found !== undefined) {
+        id = entry.name;
+        nested = found;
+        break;
+      }
+    }
+    if (id === "") throw new Error("중첩 파일을 가진 스킬이 없다 — 시나리오가 무의미해진다");
+
+    const external = join(foreignRepo, "nested.md");
+    writeFileSync(external, "# 남의 중첩 파일\n");
+    const inner = join(projectDir, ".claude/skills", id, nested);
+    rmSync(inner, { force: true });
+    symlinkSync(external, inner);
+
+    const report = install();
+
+    expect(readFileSync(external, "utf-8")).toBe("# 남의 중첩 파일\n");
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/${nested}`);
+  });
+
+  it("판정 자체가 FIFO 를 남의 것으로 본다 (빠르게 실패하는 자리)", () => {
+    // 아래 설치 시나리오는 가드가 없으면 **영영 블록**된다 — 빨간불이 아니라 멈춤으로 나타나
+    // 원인을 못 읽는다. 그래서 술어를 직접 한 번 더 문다: 여기서는 즉시 red 가 난다.
+    const slot = join(projectDir, ".claude/skills/probe-skill");
+    mkdirSync(slot, { recursive: true });
+    const fifo = join(slot, "SKILL.md");
+    execFileSync("mkfifo", [fifo]);
+
+    expect(foreignOwnedTarget(projectDir, ".claude/skills/probe-skill/SKILL.md")).toBe(
+      ".claude/skills/probe-skill/SKILL.md",
+    );
+    // 대조군 — 평범한 파일은 우리 것이다(판정이 전부를 남의 것이라 하지 않는다).
+    writeFileSync(join(slot, "plain.md"), "x\n");
+    expect(foreignOwnedTarget(projectDir, ".claude/skills/probe-skill/plain.md")).toBeNull();
+  });
+
+  it("스킬 안 **중간 디렉터리**가 링크여도 그 안으로 쓰지 않는다", () => {
+    // 마지막 성분만 보는 판정은 중간 링크를 따라간 자리를 "평범한 파일"로 읽고 통과시킨다.
+    install();
+    const skillsDir = join(projectDir, ".claude/skills");
+    let id = "";
+    let sub = "";
+    for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const dir = readdirSync(join(skillsDir, entry.name), { withFileTypes: true }).find((e) =>
+        e.isDirectory(),
+      );
+      if (dir !== undefined) {
+        id = entry.name;
+        sub = dir.name;
+        break;
+      }
+    }
+    if (id === "") throw new Error("하위 디렉터리를 가진 스킬이 없다 — 시나리오가 무의미해진다");
+
+    const external = join(foreignRepo, sub);
+    mkdirSync(external, { recursive: true });
+    writeFileSync(join(external, "keep.md"), "# 남의 하위 파일\n");
+    rmSync(join(skillsDir, id, sub), { recursive: true, force: true });
+    symlinkSync(external, join(skillsDir, id, sub));
+
+    const report = install();
+
+    console.log("[DBG] sub is symlink =", lstatSync(join(skillsDir, id, sub)).isSymbolicLink());
+    expect(readdirSync(external)).toEqual(["keep.md"]);
+    expect(readFileSync(join(external, "keep.md"), "utf-8")).toBe("# 남의 하위 파일\n");
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/${sub}`);
+  });
+
+  it("스킬 안 파일이 FIFO 면 멈추지 않고 건너뛴다", () => {
+    // 가드가 없으면 이 테스트는 **빨간불이 아니라 멈춤**으로 실패한다(copyFileSync 블록).
+    // 원인을 빨리 읽으려면 바로 위 단위 시험을 먼저 본다.
+    install();
+    const id = installedSkillId();
+    const inner = join(projectDir, ".claude/skills", id, "SKILL.md");
+    rmSync(inner, { force: true });
+    execFileSync("mkfifo", [inner]);
+
+    const report = install();
+
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/SKILL.md`);
+    expect(lstatSync(inner).isFIFO()).toBe(true);
+  });
+
+  it("update 는 남의 저장소 안에 우리 파일을 새로 만들지 않는다", () => {
+    // update 의 네 번째 쓰기 주체(`installNewAssets`)는 `existsSync` 로만 판정했다. 슬롯이
+    // 남의 저장소 링크이고 그쪽에 그 파일이 없으면 existsSync 가 false 라, 복사가 **남의
+    // 저장소 안에 우리 파일을 새로 만들었다**. 같은 화면이 "추가했다"와 "안 건드렸다"를 동시에 말했다.
+    install();
+    const empty = join(foreignRepo, "spec-scaling");
+    mkdirSync(empty, { recursive: true });
+    const slot = join(projectDir, ".claude/skills/spec-scaling");
+    rmSync(slot, { recursive: true, force: true });
+    symlinkSync(empty, slot);
+
+    let captured: BaselineReport | undefined;
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: specOf(),
+      mode: "update",
+      onProgress: (event) => {
+        if (event.type === "baseline-complete") captured = event.baseline;
+      },
+    });
+
+    expect(readdirSync(empty)).toEqual([]);
+    expect(report.updateMode?.installedNew ?? []).not.toContain(
+      ".claude/skills/spec-scaling/SKILL.md",
+    );
+    expect(report.updateMode?.foreignOwned ?? []).toContain(".claude/skills/spec-scaling");
+
+    if (captured === undefined) throw new Error("baseline-complete 이벤트가 오지 않았다");
+    const lines: string[] = [];
+    const renderer = createInstallRenderer((m) => lines.push(m), specOf(), false);
+    renderer.callbacks.onProgress?.({ type: "baseline-complete", baseline: captured });
+    const screen = lines.join("\n");
+    expect(screen).toContain(".claude/skills/spec-scaling");
+    expect(screen).toContain("owned by another tool");
+    // 화면이 같은 자리를 "추가했다"고 말하면 안 된다.
+    expect(screen).not.toContain("added by this release");
+  });
+
+  it("update 는 깨진 링크 슬롯도 이름으로 낸다 (조용히 빠져나가지 않는다)", () => {
+    install();
+    const id = installedSkillId();
+    const target = join(projectDir, ".claude/skills", id);
+    rmSync(target, { recursive: true, force: true });
+    symlinkSync(join(foreignRepo, "사라진-저장소"), target);
+
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: specOf(),
+      mode: "update",
+    });
+
+    expect(report.updateMode?.skillsSkippedLinks).toContain(id);
   });
 
   it("정상 디렉터리는 종전대로 덮어쓴다 (게이트가 설치를 막지 않는다는 대조군)", () => {

@@ -26,7 +26,7 @@ import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
-import { occupiedByNonDirectory } from "./foreign-slot.js";
+import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
@@ -81,7 +81,9 @@ export interface UpdateModeReport {
    */
   skillsBackedUp: string[];
   /**
-   * 2026-08-02 (ADR-062) — `.claude/skills/<id>` 가 심볼릭 링크라 건너뛴 스킬 id.
+   * 2026-08-02 (ADR-062) — `.claude/skills/<id>` 가 **디렉터리가 아니라** 건너뛴 스킬 id
+   * (심볼릭 링크가 대표적이지만 일반 파일·FIFO 도 들어온다 — #343 에서 술어를 install 과 통일).
+   * 필드명의 `Links` 는 도입 당시 범위를 그대로 쓴다 — 개명은 화면·픽스처 표면을 함께 건드린다.
    * 그 자리는 `npx skills add` 등 **다른 도구가 소유**하므로 하네스가 쓰지 않는다.
    * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
    */
@@ -103,11 +105,12 @@ export interface UpdateModeReport {
   /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
   externalBackedUp: string[];
   /**
-   * #343 — 다른 도구가 소유한 스킬 슬롯이라 **쓰지 않은** 외부 CLI 자리
-   * (`.agents/skills/<id>` 등). `skillsSkippedLinks`(= `.claude/skills/`)와 같은 이유로
-   * 화면에 낸다 — 안 보이면 "왜 이 스킬만 안 갱신되지"를 알 방법이 없다.
+   * #343 — 다른 도구가 소유한 자리라 **쓰지 않은** 경로. 출처를 나누지 않는다 —
+   * 외부 CLI 산출물(`.agents/skills/<id>`)이든 이번 릴리즈 신규 자산이든, 사용자에게
+   * 필요한 것은 "어느 자리를 옮겨야 하는가" 하나다. `skillsSkippedLinks` 는 스킬 id 를
+   * 내는 기존 행이라 그대로 두고, 이쪽은 경로를 낸다.
    */
-  externalForeignOwned: string[];
+  foreignOwned: string[];
   /**
    * 이번 update 가 **새로 깔아 준** 자산 (projectDir 상대경로) — #283.
    *
@@ -191,7 +194,7 @@ export function runUpdateMode(
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
-    externalForeignOwned: [],
+    foreignOwned: [],
     installedNew: [],
     restored: [],
     needsReinstall: [],
@@ -269,7 +272,10 @@ export function runUpdateMode(
   const external = refreshExternalCli(projectDir, harnessRoot);
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
-  report.externalForeignOwned = external.externalForeignOwned;
+  report.foreignOwned = [
+    ...fresh.foreignOwned,
+    ...external.externalForeignOwned.filter((f) => !fresh.foreignOwned.includes(f)),
+  ];
 
   return report;
 }
@@ -309,10 +315,16 @@ export function runUpdateMode(
 function installNewAssets(
   projectDir: string,
   templatesDir: string,
-): { installed: string[]; restored: string[]; needsReinstall: string[] } {
+): {
+  installed: string[];
+  restored: string[];
+  needsReinstall: string[];
+  foreignOwned: string[];
+} {
   const installed: string[] = [];
   const restored: string[] = [];
   const needsReinstall: string[] = [];
+  const foreignOwned: string[] = [];
   const log = readInstallLog(projectDir);
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
@@ -331,6 +343,15 @@ function installNewAssets(
     if (isBaselineExcluded(entry.target, baselineExcluded)) continue;
 
     const target = join(projectDir, entry.target);
+    // #343 — **existsSync 보다 먼저** 본다. 슬롯이 남의 저장소로의 링크면 그 저장소에 그 파일이
+    // 없을 때 existsSync 가 false 를 내고, 아래 복사가 **남의 저장소 안에 우리 파일을 새로
+    // 만든다**. 그 상태에서 화면은 같은 자리를 "추가했다"(이 함수)와 "안 건드렸다"(syncSkills)로
+    // 동시에 말한다. 슬롯이 깨진 링크면 `mkdirSync` 가 ENOENT 로 죽어 update 자체가 끝난다.
+    const foreign = foreignOwnedTarget(projectDir, entry.target);
+    if (foreign !== null) {
+      if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+      continue;
+    }
     if (existsSync(target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
@@ -351,7 +372,7 @@ function installNewAssets(
     if (priorBaseline.has(recordedAs)) restored.push(entry.target);
     else installed.push(entry.target);
   }
-  return { installed, restored, needsReinstall };
+  return { installed, restored, needsReinstall, foreignOwned };
 }
 
 /**

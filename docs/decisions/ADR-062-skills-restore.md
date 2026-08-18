@@ -58,8 +58,12 @@
       결정은 그대로 두고 적용 표면을 넓힌다. 넓힌 범위를 정확히 적는다:
       - 대상은 **스킬 슬롯뿐**이다 — `.claude/skills/<id>` 와 `.agents/skills/<id>`
         (후자는 codex·antigravity 산출물 자리이자 `npx skills add --agent` 의 설치처라
-        같은 위반이 조용히 일어나고 있었다). 슬롯 밖 파일(`settings.json`·`rules/*.md` 등)을
-        공유 dotfiles 로 링크해 두는 것은 지원 케이스라 건드리지 않는다.
+        같은 위반이 조용히 일어나고 있었다). 슬롯 안에서는 슬롯 자체·중간 디렉터리·최종 파일
+        셋 다 본다. **슬롯 밖에는 이 가드를 적용하지 않는다** — `settings.json`·`rules/*.md`
+        를 공유 dotfiles 로 링크해 두면 종전대로 **링크를 따라 쓴다**(백업은 프로젝트 안에
+        남는다). "건드리지 않는다"가 아니라 "판정 대상이 아니다"라는 뜻이다. 넓히지 않는
+        이유는 같은 술어를 그대로 확장하면 파일 자산이 전부 비디렉터리라 **재설치가 통째로
+        건너뛰어지기** 때문이다.
       - 술어는 `install`·`update` 가 **하나를 공유**한다(`src/foreign-slot.ts`). 그전에는
         update 가 `isSymbolicLink()`, install 이 `!isDirectory()` 로 서로 달랐고, 그 차이가
         곧 "install 은 되는데 update 만 EEXIST 로 죽는다"였다.

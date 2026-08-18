@@ -31,13 +31,39 @@ export function copyFile(source: string, target: string): void {
   copyFileSync(source, target);
 }
 
-/** Copy a directory recursively. Creates target if missing. */
-export function copyDir(source: string, target: string): void {
+/**
+ * Copy a directory recursively. Creates target if missing.
+ *
+ * **파일 단위로 돈다** (`cpSync` 통짜 복사가 아니다, #343). 통짜 복사는 대상 트리 안에 링크가
+ * 섞여 있어도 그대로 따라가 남의 파일을 덮는데, 그것을 걸러낼 자리가 호출자에게 없었다.
+ * 무엇을 건너뛸지 **판정은 호출자 몫**이다 — fs 층에 소유권 정책을 넣으면 그 정책이 두 번째
+ * 사본으로 자라난다(`foreign-slot.ts` 가 그 SSOT).
+ *
+ * @param foreignOf source 기준 상대경로를 받아, 그 파일을 쓰면 남의 것을 건드리는 경우
+ *   **그 자리의 경로**를 돌려준다(아니면 null). 파일 경로가 아니라 자리를 받는 이유는
+ *   사용자가 옮겨야 할 대상이 파일이 아니라 그 자리(예: 중간 디렉터리 링크)이기 때문이다.
+ * @returns 건너뛴 자리들 (중복 제거). 호출자가 화면에 낸다 — 침묵 금지
+ */
+export function copyDir(
+  source: string,
+  target: string,
+  foreignOf?: (relFile: string) => string | null,
+): string[] {
   if (!existsSync(source)) {
     throw new Error(`Source dir not found: ${source}`);
   }
   mkdirSync(target, { recursive: true });
-  cpSync(source, target, { recursive: true, force: true });
+  const skipped: string[] = [];
+  for (const rel of listFilesRecursive(source)) {
+    const foreign = foreignOf?.(rel) ?? null;
+    if (foreign !== null) {
+      // 한 자리가 여러 파일을 가릴 수 있다 (중간 디렉터리 링크) — 자리당 한 번만 낸다.
+      if (!skipped.includes(foreign)) skipped.push(foreign);
+      continue;
+    }
+    copyFile(join(source, rel), join(target, rel));
+  }
+  return skipped;
 }
 
 /** 같은 초 안에서 허용하는 백업 개수 상한. 넘으면 조용히 덮는 대신 크게 실패한다. */
