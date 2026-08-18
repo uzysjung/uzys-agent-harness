@@ -89,8 +89,12 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
    (`docs/plans/harness-fit-audit-2026-08-03.md`). `uninstall` 은 이 로그를 함께 지운다(감수).
 3. **룰 7종. 배포판만 `paths:` 하나를 쓴다**(`cli-development` = `**/*.sh`, #284) — 개발 사본
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
-   설치본에 OpenCode 가 섞여 있으면 `opencode.json` 의 `instructions` 글롭이 `.claude/rules/*.md`
-   를 무조건 병합해 그 룰이 다시 매 세션 상주한다.
+   설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **본문에 인라인으로 박혀** 나가므로
+   `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/opencode/transform.ts` renderRulesBlock).
+   *이 줄은 원래 `opencode.json` 의 `instructions` 글롭이 룰을 병합한다고 적었는데 거짓이었다 —
+   그 글롭은 템플릿 값(`docs/…`) 그대로이고, `tests/resident-reach-4cli.test.ts` 가 거기에
+   `rules/` 가 있으면 실패시킨다(#300). 내가 그 문장을 배포 문서로 옮겨 적어 #338 리뷰에서
+   HIGH 로 잡혔다.*
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라

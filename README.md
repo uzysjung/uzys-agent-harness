@@ -49,7 +49,7 @@ npx -y @uzysjung/agent-harness update      # refresh it to the current release
 npx -y @uzysjung/agent-harness uninstall   # pick what to remove
 ```
 
-Run in a terminal, `uninstall` asks what to take out — item by item, or everything. It reverses what it safely can and *prints* the rest — global assets, hook registrations, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. Unchecking something in the installer never removes it; removal only happens here. See [uninstall](docs/USAGE.md#uninstall-v26640).
+Run in a terminal, `uninstall` asks what to take out — item by item, or everything. It reverses what it safely can and *prints* the rest — global-scope assets, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. Unchecking something in the installer never removes it; removal only happens here. See [uninstall](docs/USAGE.md#uninstall-v26640).
 
 ## Why
 
@@ -59,9 +59,9 @@ This tool starts from the stack instead. You pick a track, and it pre-checks the
 
 ## What you get
 
-- **Curation by tech stack.** Of the vetted options, you install only what this project calls for. Pick `csr-supabase` and step 3 pre-checks React, shadcn, Supabase, and Postgres assets — not the other forty.
+- **Curation by tech stack.** Of the vetted options, you install only what this project calls for. Pick `csr-supabase` and step 3 pre-checks three groups: the four that every track gets (`north-star`, `task-brief`, `gh-issue-workflow`, `audit-harness-fit`), the dev-track set (`find-skills`, `agent-browser`, `frontend-design`, and the six method skills), and the ones this stack calls for — React, shadcn, Supabase, Postgres. Not the rest of the catalog.
 
-- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, benchmark-parity loops, recurrence prevention. Eleven of those skills are written and maintained in this repo rather than pulled from a marketplace, so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
+- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, normalized task briefs, recurrence prevention. Fourteen of those skills are written and maintained in this repo rather than pulled from a marketplace — twelve of them selectable by id with `--with` / `--without`, six of which collapse into one row at step 3 — so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
 
 - **Four CLIs, one vocabulary.** Claude Code is first class — all assets, hooks, and plugins. Codex, OpenCode, and Antigravity get the skills and rules layer. Your project is not locked to one CLI.
 

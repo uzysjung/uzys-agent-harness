@@ -229,12 +229,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
   }
 
   // 2026-08-16 — `commands/ecc` 8종 삭제 (ADR-073). ADR-019 는 이것을 "ECC 플러그인을 안 고른
-  // 사람도 같은 명령을 쓰게" 하는 opt-out 폴백으로 넣었는데, 폴백이 자립하지 못했다: 8개 중
-  // **5개가 안 고른 자산을 가리킨다** — `eval`·`e2e` 는 frontmatter 가 없다고 가정한 플러그인의
-  // 에이전트(`everything-claude-code:build`)를 부르고, `evolve`·`instinct-status`·`promote` 는
-  // 별도 opt-in 스킬의 `continuous-learning-v2/scripts/instinct-cli.py` 를 부른다. ECC 를 고르지
-  // **않았다는 이유로** 깔리는데 ECC 가 있어야 도는 명령이었다. ECC 는 `--with ecc-plugin` 으로
-  // 따로 설치할 수 있으므로 폴백을 기본값에 둘 이유가 없다.
+  // 사람도 같은 명령을 쓰게" 하는 opt-out 폴백으로 넣었는데, 8개 중 **2개**(`e2e`·`eval`)가
+  // 플러그인 에이전트(`everything-claude-code:*`)를 직접 불러 폴백 상황에서 아예 못 돌았다.
+  // 나머지 6개는 돌았지만 플러그인이 여섯을 모두 제공하므로 폴백을 기본값에 둘 이유가 없다.
+  //   2026-08-18 정정(#338) — 이 주석과 ADR-073 Context 는 "5개가 안 고른 자산을 가리킨다"로
+  //   적고 있었다. `evolve`·`instinct-status`·`promote` 가 부르는 `continuous-learning-v2` 는
+  //   바로 아래 `COMMON_SKILL_DIRS_ECC` 항목이라 **같은 `!s.withEcc` 조건으로 함께 깔린다** —
+  //   "별도 opt-in 스킬이라 대개 없다"가 틀렸다. 결정은 유지, 숫자만 정정.
   //
   // `ecc-prune` 은 남는다 — 그쪽은 ECC 를 **고른 사람**의 설치를 최적화하는 opt-in 이라 방향이
   // 반대다(사용자 확정 2026-08-16).

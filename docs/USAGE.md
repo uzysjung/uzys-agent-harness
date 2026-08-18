@@ -6,27 +6,32 @@ For install instructions, see [README.md](../README.md).
 
 ---
 
-## Commands
+## Slash commands
 
-### `ecc:` namespace (ECC plugin opt-in)
+**The harness writes no slash commands into `.claude/`.** What it puts there is rules, agents,
+hooks, and skills — commands come from the plugins and skill packs you pick at step 3, and each one
+names its own. Skills are also not commands: your CLI decides when to load them from their
+description, so most of what you install has nothing to type. (One exception, by necessity: OpenCode
+has no native skill concept, so each selected method skill is written as
+`.opencode/commands/<id>.md` — see [OpenCode integration](#opencode-integration).)
 
-Activate via `--with ecc-plugin` or by checking ECC items at step 3.
+To see what is actually registered in your project, ask the CLI rather than a table here — `/help`
+in Claude Code lists the commands your installed plugins contributed. That is the only listing that
+cannot go stale.
 
-| Command | Purpose |
-|---|---|
-| `/ecc:security-scan` | AgentShield scan on `.claude/` |
-| `/ecc:e2e` | Generate + run Playwright E2E |
-| `/ecc:eval` | Evaluate against acceptance criteria |
-| `/ecc:checkpoint` | Snapshot current state |
-| `/ecc:harness-audit` | Audit harness setup |
-| `/ecc:instinct-status` | List learned instincts (CL-v2) |
-| `/ecc:evolve` | Promote instincts → skills |
-| `/ecc:promote` | Promote project instinct to global |
+Two things worth knowing about the ones you are most likely to install:
 
-### Other namespaces
+- **ECC** (`--with ecc-plugin`) installs as the plugin named `ecc`, so its commands appear under
+  `/ecc:…`. The set is upstream's, not ours.
+- **addy** (`--with addy-agent-skills`) is a spec-driven workflow pack — opt-in since v26.42.0.
 
-- **Impeccable** (`/polish`, `/critique`, `/audit`, `/clarify`, etc.) — UI design skills from `pbakaus/impeccable`. Direct call.
-- **addy** (`/spec`, `/plan`, `/build`, `/test`, `/review`, `/ship`, `/code-simplify`) — spec-driven workflow skills from `addyosmani/agent-skills`. Direct call.
+> Until v26.146.1 the harness shipped eight `/ecc:` command files of its own as a fallback for
+> people who had not installed the plugin. They were removed because a fallback that needs the thing
+> it substitutes for is not a fallback: two of the eight (`e2e`, `eval`) invoked ECC plugin agents <!-- ref:removed -->
+> directly. The other six did run without the plugin — they were dropped because the plugin ships
+> commands of the same names anyway, so keeping ours would only make it ambiguous which one runs.
+> (Checked against the vendored ECC snapshot, which is a few months old; the plugin's current set is
+> upstream's to change.)
 
 ---
 
@@ -103,9 +108,17 @@ Only assets whose reverse actually succeeded are dropped from the log — a fail
 listed rather than being recorded as gone. If nothing could be removed automatically, the command
 says so and exits non-zero rather than reporting success.
 
-When `--only` leaves `.claude/` in place, a hook registration in `.claude/settings.json` that
-referenced the removed asset is **printed for you to delete** rather than edited automatically
-(currently implemented for `karpathy-coder`).
+`--only` never leaves a dangling hook entry in `.claude/settings.json`, because no asset in the
+catalog wires a hook of its own and `--only` does not touch the baseline. (Before v26.141.0 one
+asset did, and `uninstall` printed the registration for you to delete by hand rather than editing a
+file that holds your own settings.)
+
+> A detail you may notice in the template: `settings.json` carries **four** hook commands, not the
+> three under [Hooks](#hooks). The fourth points into a *skill* directory —
+> `.claude/skills/strategic-compact/suggest-compact.sh` — and that skill only installs when you have
+> **not** opted into ECC. Install and update both run a healing pass that **removes any hook command
+> whose script isn't on disk**, and the summary reports it (`settings.json stale hook refs · N
+> removed`). So an `--with ecc-plugin` project ends up with three, not a dangling reference.
 
 ### Files outside `.claude/` (v26.125.0+)
 
@@ -146,7 +159,21 @@ Common flags:
 | `--with <asset-id>` (repeatable) | Force-include an external asset |
 | `--without <asset-id>` (repeatable) | Force-exclude an external asset from the preset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline asset — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items the wizard shows on its first two pages |
-| `--with ecc-plugin` | Install ECC plugin + cherry-pick |
+| `--project-dir <path>` | Where to install. Default: the current directory |
+| `--verbose` | Print the file list per category instead of counts only |
+
+Behavior flags, as opposed to asset selection:
+
+| Flag | Effect |
+|---|---|
+| `--with-codex-trust` | Codex only: register a trust entry in `~/.codex/config.toml`. Takes effect **only together with `--scope global`** |
+| `--with-prune` | Use with `--with ecc-plugin` — trims ECC down to a curated subset |
+
+Assets are opted in and out through `--with` / `--without` with the catalog id, not through
+per-asset flags (the 13 asset-specific flags were removed in v26.81.0); `--with ecc-plugin` is that
+same generic form, not a special case. The two flags above are the exception, and they select
+*behavior* rather than an asset — though `--with-prune` does gate one catalog entry (`ecc-prune`).
+Ids come from `list`, or from the [compatibility matrix](COMPATIBILITY.md).
 
 Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harness install --help` after a global install).
 
@@ -160,7 +187,7 @@ Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harne
                        (everything your track installs, pre-checked; uncheck to drop it)
                        then Dev Core (Frontend·Backend·Data) / Dev Tools (Security·Quality·
                        Understanding) / Business / Visual & Media / Workflow & ECC.
-                       The 8 dev-method skills fold into a single "methodology bundle" row.
+                       The 6 dev-method skills fold into a single "methodology bundle" row.
 4/6  Scope             Project (default) / Global
 5/6  Confirm           summary review (+ session-start context cost of your selection)
 6/6  Installing        pipeline
@@ -172,10 +199,10 @@ ESC at step 1 = exit with cancel. ESC at later steps = silent back.
 
 ## Trust tiers (v26.71.0)
 
-External assets carry a trust tier, shown as a badge in step 3:
+External assets carry a trust tier. Two of the three show as a badge in step 3; `vetted` shows none:
 
 - **★ official** — Anthropic-official marketplaces + this harness's own assets.
-- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Pre-checked on track match.
+- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Carries no badge of its own. Whether it is pre-checked is decided by the asset's `condition`, not by its tier — most vetted assets are opt-in.
 - **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), sorted to the bottom of each category.
 
 Tiers inform; they never block — you choose what installs. Labels are static in the catalog but **auto-monitored monthly** for star-drift by CI (`trust-tier-drift.yml`); install-method availability is re-verified monthly too (`catalog-verify.yml`).
@@ -311,21 +338,6 @@ your-project/
 
 ---
 
-## CLI support
-
-| CLI | Status |
-|---|---|
-| Claude Code | First class — all assets and hooks |
-| Codex (OpenAI) | Skills + `AGENTS.md` rules for your stack |
-| OpenCode | Skills + AGENTS.md integration |
-| Antigravity (Google) | Project: `.agents/rules/` (context, always) + `.agents/skills/` (dev-method skills) |
-
-Pick one or more at step 2.
-
----
-
----
-
 ## Project files (what the harness writes)
 
 | Path | Purpose |
@@ -333,12 +345,13 @@ Pick one or more at step 2.
 | `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
 | `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, task-brief-nudge) |
-| `.claude/skills/*` | Anthropic skills (north-star, etc.) |
+| `.claude/skills/*` | Skills — the harness's own method skills (`north-star`, `task-brief`, …) plus the ones your track pre-checked |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
 | `.uzys-agent-harness/hook-blocks.log` | Written at runtime, not at install: one line per hook block. The installer adds `.uzys-agent-harness/` to `.gitignore`, so it never enters your history |
-| `CLAUDE.md` | Project context — fill-in scaffold |
-| `.mcp.json` | MCP server config (chrome-devtools, context7, github, railway) |
+| `CLAUDE.md` | **Yours.** Project context — fill-in scaffold, plus one `@CLAUDE-uzys-harness.md` line that pulls in the anchor |
+| `CLAUDE-uzys-harness.md` | The harness's own anchor — working principles. Owned by the harness, so `update` rewrites it. Keep your notes in `CLAUDE.md` ([which file is whose](CONTEXT-FILES.md)) |
+| `.mcp.json` | MCP servers. Always `context7`, `github`, `chrome-devtools`; plus `railway-mcp-server` on `csr-*`/`ssr-*`/`full` and `supabase` on `csr-supabase`/`full` |
 | `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
 | `.opencode/` | OpenCode dispatcher (if `--cli opencode`) |
 | `.agents/` | Codex + Antigravity shared skills/rules (if either CLI selected) |
@@ -376,11 +389,14 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 `.opencode/` carries:
 
-- `commands/` — dev-method skill command fallbacks (OpenCode has no native skill concept)
-- `opencode.json` — config
-- `AGENTS.md` — shared with Codex
+- `commands/` — one command per method skill, because OpenCode has no native skill concept
+- `opencode.json` — config. The harness only injects MCP servers here; the `instructions` globs stay
+  as shipped and point at your own `docs/`, not at anything the harness wrote
+- `AGENTS.md` — shared with Codex. **This is what carries the rules** for OpenCode
 
-3 hooks map to OpenCode lifecycle events (session start / pre-edit / post-edit).
+**No hooks.** The three baseline hooks are Claude Code's lifecycle events, and nothing is written
+for OpenCode in their place — so an OpenCode-only project gets the rules and the method skills, but
+none of the programmatic guards.
 
 ---
 
@@ -399,10 +415,23 @@ Rules are written regardless (foundational context); dev-method skills are core 
 
 ## ECC integration
 
-ECC plugin lives in `affaan-m/everything-claude-code`. Two modes:
+ECC lives in `affaan-m/everything-claude-code`. There are two ways it reaches your project, and
+they are mutually exclusive by design:
 
-- **Cherry-pick fallback** (default when no ECC opt-in): up to 4 agents + 8 skills + 3 commands copied into `.claude/`.
-- **Full plugin install** (`--with ecc-plugin`): `claude plugin install ecc-plugin`. Optionally `--with-prune` to trim down to a curated set.
+- **Cherry-picked copies** (what you get when you do *not* opt into ECC): up to 4 agents and
+  6 skills are copied into `.claude/` as ordinary files. "Up to" because most are gated on track —
+  a `tooling` project sees fewer than a `full` one.
+- **The plugin itself** (`--with ecc-plugin`): 60 agents · 230 skills · 75 commands, installed by
+  `claude plugin install ecc@ecc`. Those 4 agents and 6 skills then step aside, so you don't carry
+  two versions of the same agent. Add `--with-prune` to trim the plugin to a curated subset.
+
+Six other ECC-derived skills install **either way**, and only two of them do so deliberately:
+`deep-research` and `eval-harness` are modified here, and the plugin's versions don't carry the
+changes. The other four — `market-research`, `investor-materials`, `investor-outreach`
+(on `executive` / `full`) and `nextjs-turbopack` (on `ssr-nextjs` / `full`) — were simply never
+given the ECC gate, so on those tracks `--with ecc-plugin` leaves you with two copies. That is a
+defect in this repo, tracked separately; it is recorded here because the alternative is a document
+that promises something the code does not do.
 
 See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-pick-plugin-gating.md).
 
@@ -410,27 +439,41 @@ See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-
 
 ## Track-specific notes
 
+Asset-by-asset, per track, is [TRACKS.md](TRACKS.md)'s job. Here are only the things that surprise
+people.
+
 ### CSR / SSR
 
-- `csr-supabase` includes Supabase + Vercel CLI (Netlify CLI is **opt-in** since v26.106.0 — deploy-CLI dedup). First `supabase login` requires OAuth (manual).
-- `ssr-nextjs` adds the `nextjs` rule template (App Router patterns).
+- **No deploy CLI is pre-checked**, on any track. `supabase-cli`, `vercel-cli`, and `netlify-cli`
+  each pull in a CLI package — a project `devDependency` by default, or a global binary under
+  `--scope global` — so you pick the one your project actually deploys to, at step 3 or with
+  `--with <id>`. `csr-supabase` still pre-checks the Supabase *skills*
+  (`supabase-agent-skills`, `postgres-best-practices`).
+- Those two are plugins, and **`claude plugin install` writes to `~/.claude/plugins/` in either
+  scope** — the cache and marketplace directories are the CLI's own design. `--scope project` isolates
+  by metadata (`projectPath`), not by staying out of your home directory. Project scope means *no
+  other project is affected*, not *nothing outside this project is written*.
+- The first `supabase login` is an OAuth browser flow. Nothing automates that for you.
 - `ssr-htmx` keeps it server-side — no React assets.
 
 ### Data
 
-- Polars + Dask via `K-Dense-AI/scientific-agent-skills`.
-- Python performance + resource management (`wshobson`) is **opt-in** since v26.106.0.
-- `anthropic-data-plugin` for visualization + SQL.
+`anthropic-data-plugin` (visualization + SQL) is the only **data-specific** asset the `data` track
+pre-checks — the rest of what arrives is the all-track set (method skills, `find-skills`,
+`agent-browser`, `frontend-design`). The dataframe and Python skill packs the track used to pull in
+were dropped in ADR-060, where the harness stopped shipping guidance the model already carries.
+`wshobson-agents` covers the orchestration side and is opt-in on any track.
 
 ### Executive
 
-- `anthropic-document-skills` (pptx / docx / xlsx / pdf).
-- `c-level-skills` (28 advisory skills).
-- `strategist` agent for proposals / DD / financial models.
+`anthropic-document-skills` (pptx / docx / xlsx / pdf) is the only **business-specific** pre-check,
+and the `strategist` agent handles proposals, due diligence, and financial models. `finance-skills`
+and `product-skills` are opt-in — on any track, not just this one.
 
 ### Tooling
 
-Bash + Markdown meta-projects. No app stack. The same dev-method skills work for CLI tools.
+Bash + Markdown meta-projects. No app stack, and the method skills work the same for a CLI tool as
+for an app.
 
 ---
 

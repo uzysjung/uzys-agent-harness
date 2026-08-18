@@ -731,11 +731,13 @@ function renderPhase1Rows(
   log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
   // v26.63.3 (distill H2): ECC fallback hint — Templates section 마지막에 통합 표시.
   //   withEcc=true (ECC plugin opt-in) 사용자에게는 hint 미표시.
+  // 2026-08-18 (#338 리뷰) — 괄호절에서 대상 경로를 뺐다. 이 hint 는 claude 미선택 설치에서도
+  //   뜨는데(`withEcc` 는 claude 를 안 고르면 항상 false, `baseline.categories` 는 CLI 중립
+  //   경로에서도 truthy), 그 설치에는 `.claude/` 가 만들어지지 않는다. 옛 문구의 숫자도 틀렸다
+  //   (실측 4 agents + 6 skills + 0 commands) — 숫자를 고쳐 적는 대신 세지 않아도 참인 문장으로.
   if (!withEcc && baseline.categories) {
     log("");
-    log(
-      `  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)")}`,
-    );
+    log(`  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active")}`);
     if (claudeSelected) {
       log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
     }
