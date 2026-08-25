@@ -196,12 +196,20 @@ COUNT=$(wc -l < "$OUT" | tr -d "[:space:]")
 # 검사 **대상 수**를 함께 낸다 (#329). "패턴 없음"만으로는 몇 개를 봤는지 알 수 없고, 그 상태의
 # "전수 검사했다"는 보고를 아무도 검증할 수 없다 — 이 저장소가 한 PR 안에서 세 번 겪은 형태다.
 # 별도 순회로 센다: 본 검사의 출력에는 **매치된 파일만** 있어 모집단을 알 수 없다.
-SCAN_ERR="$WORK_DIR/scan.err"
-SCANNED=$(grep -rIc "" "${PATHS[@]}" 2>"$SCAN_ERR" | wc -l | tr -d "[:space:]")
+# 세는 방법은 `-c`(파일별 건수)가 아니라 **`-l`(매치한 파일명)** 이다. `-c` 는 GNU 가 바이너리
+# 파일에도 `파일:0` 줄을 내고 BSD(macOS)는 안 내서, **같은 트리가 플랫폼마다 다른 수**를 냈다
+# (실측 500 vs 504). 수가 갈리면 "같은 범위를 봤다"를 이 줄로 확인할 수 없어 넣은 이유가 사라진다.
+# 파이프로 세지도 않는다 — 위 규율("파이프로 exit code 를 가리지 않는다")을 이 줄이 스스로 깨면
+# 다음 사람이 그대로 따라 쓴다.
+SCAN_OUT="$WORK_DIR/scan.txt"; SCAN_ERR="$WORK_DIR/scan.err"
+grep -rIl "" "${PATHS[@]}" >"$SCAN_OUT" 2>"$SCAN_ERR"
 [ -s "$SCAN_ERR" ] && sed 's/^/  warn(scan): /' "$SCAN_ERR" >&2
+SCANNED=$(wc -l < "$SCAN_OUT" | tr -d "[:space:]")
 printf '검사 대상:'; printf ' %s' "${PATHS[@]}"; printf '\n'
 echo "패턴: $PATTERN  (canary '$CANARY' 검증 통과)"
-echo "매치: ${COUNT}건 / 파일 ${SCANNED}개"
+# 모집단을 결론 줄에 밝힌다. `-Il ""` 이 세는 것은 **줄이 하나라도 있는 텍스트 파일**이고,
+# 바이너리(-I)와 빈 파일(줄 0)은 빠진다 — 이 둘이 플랫폼마다 갈리던 자리라서 정의에서 뺐다.
+echo "매치: ${COUNT}건 / 파일 ${SCANNED}개(바이너리·빈 파일 제외)"
 
 if [ "$COUNT" -gt 0 ]; then
   head -50 "$OUT"

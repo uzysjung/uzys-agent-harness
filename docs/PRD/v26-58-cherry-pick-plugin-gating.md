@@ -275,17 +275,42 @@ Phase 1 출력에 명확히:
 | ecc-nextjs-turbopack | ecc/skills/nextjs-turbopack/ | ✗ | 중간 | ssr-nextjs | **C2** |
 | ecc-investor-materials | ecc/skills/investor-materials/ | ✓ | 높음 | executive | **C2** |
 | ecc-investor-outreach | ecc/skills/investor-outreach/ | ✓ | 높음 | executive | **C2** |
-| ecc-cmd-e2e | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | **C2** |
-| ecc-cmd-eval | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | **C2** |
-| ecc-cmd-harness-audit | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | **C2** |
+| ~~ecc-cmd-e2e~~ | ecc/.opencode/commands/e2e.md | ✓ | 중간 | dev | ~~**C2**~~ — 2026-08-16 ADR-073 로 `commands/ecc` 8종 삭제 |
+| ~~ecc-cmd-eval~~ | ecc/.opencode/commands/eval.md | ✓ | 중간 | dev | ~~**C2**~~ — 같음 (ADR-073) |
+| ~~ecc-cmd-harness-audit~~ | ecc/.opencode/commands/harness-audit.md | ✓ | 중간 | dev | ~~**C2**~~ — 같음 (ADR-073) |
 | ~~gsd-gates-taxonomy~~ | gsd/get-shit-done/references/gates.md | N/A (별개 source) | 높음 | 모든 (COMMON_RULES) | ~~**C3**~~ — 2026-08-02 ADR-061 로 자산 삭제·계약 해체 |
-| alirezarezvani-karpathy-gate-hook (MODIFIED) | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | **C3** (modified=true, 별개 source) |
+| ~~alirezarezvani-karpathy-gate-hook~~ | hooks/karpathy-gate.sh | N/A (별개) | 높음 | dev | ~~**C3**~~ — 2026-08-02 ADR-060 으로 훅·플래그·배선 삭제 (BREAKING) |
 
-### 합계
+### 합계 (실측 2026-08-26)
 
 - **C1**: 0 (모든 항목이 plugin OFF 시 가치 있음 — 단순 중복 없음)
-- **C2**: 19 (ecc 22개 중 cl-v2 제외 + ecc-* 만)
-- **C3**: 3 (cl-v2 modified / gsd-gates-taxonomy 별개 / karpathy-gate-hook modified+별개)
+- **C2**: **14** (에이전트 4 · 스킬 10)
+- **C3**: **2** (`deep-research` · `eval-harness`)
+
+**세는 방법 — 표를 눈으로 세지 말고 코드에서 뽑아라.** 위 표는 취소선 행이 섞여 있고, 남은 행도
+`manifest.ts` 의 인라인 `applies` 게이트까지는 안 보여 준다. 그래서 숫자만 고치면 다음 사이클에
+또 썩는다. **C2 19 · C3 3** 은 2026-05-17 확정 당시 이 표의 행을 눈으로 센 값이다. 그 뒤 6행이
+취소선으로 죽었고(ADR-060·061·073) #340 이 인라인 게이트를 4종에 붙였는데 이 절만 안
+따라왔다 — #352 리뷰 적발. **옛 값과 새 값은 뺄셈으로 이어지지 않는다**: 옛 값은 표의
+행을, 새 값은 `manifest` 가 실제로 내는 설치 대상을 센 것이라 모집단이 서로 다르다.
+그래서 숫자만 고치지 않고 아래에 세는 방법을 박아 둔다.
+
+- **C2** = `buildManifest` 를 `withEcc` on/off 로 두 번 만들어 `applies()` 를 통과하는 `target`
+  집합을 diff 한 것. 조건식을 읽는 대신 **결과를 재는** 방법이라 `*_ECC` 목록에 없는 인라인
+  게이트(`market-research`·`investor-materials`·`investor-outreach`·`nextjs-turbopack`)도 들어온다.
+  `*_ECC` 목록만 세면 10 이 나온다 — 그게 이번에 틀린 계수법이다.
+  판정 코드는 `tests/vnv-verdict.test.ts` §"lock 의 modified 플래그와 설치 조건이 양방향으로 맞는다".
+  **트랙 축을 먼저 다 열어야** 한다 — 트랙 때문에 안 깔린 것을 "ECC 가 뺐다"로 오독하지 않으려면.
+- **C3** = `src/manifest.ts` 의 `MODIFIED_ECC_SKILL_DIRS`.
+- **교차 확인** — `cherrypicks.lock` 의 살아 있는 행 수가 C2 + C3 와 같아야 한다:
+
+```bash
+node -e 'console.log(JSON.parse(require("node:fs").readFileSync(".dev-references/cherrypicks.lock","utf8")).cherrypicks.length)'
+# → 16 = C2 14 + C3 2
+```
+
+어긋나면 셋 중 하나다: 자산은 지웠는데 lock 행이 남았거나(좀비 행 — `tests/vnv-verdict.test.ts`
+가 문다), lock 행은 지웠는데 manifest 게이트가 남았거나, 이 표가 안 따라온 것이다.
 
 ### 89 KEEP 누락 처리 (Phase 1.5 컨펌)
 

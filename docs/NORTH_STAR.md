@@ -114,6 +114,20 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > (2026-08-19 #345: 배포 Delivery 룰에 **완료 판정의 주체**를 한 줄 되살리며 +24 tok — 앵커가
 > 담지 않는 계약이라 룰이 소유하고, 게이트로 착지시킬 수 없다(남의 저장소의 판정 주체는 코드가
 > 강제할 수 없다). 같은 소실이 재발하지 않게 `tests/delivery-verifier-separation.test.ts` 가 문다.)
+>
+> **Codex 축은 이 표에 안 나타난다 — 따로 잰다 (실측 2026-08-26).** 위 수치는 Claude Code
+> 설치자의 것이고, Codex 설치자가 무는 상주분은 룰 본문이 **인라인으로 박히는** `AGENTS.md`
+> 한 파일이다. 그래서 같은 #345 한 줄이 저쪽에서는 토큰이 아니라 바이트로 나타난다 —
+> **23,229 B → 23,449 B (+220 B)**. 계측은 `--cli codex --track tooling` 실설치 산출물을
+> `Buffer.byteLength` 로 잰 것이고, 기준선은 이 사이클 직전 커밋의 트리(`git archive`)를 같은
+> 코드로 설치해 얻었다. Codex 의 `project_doc_max_bytes` 기본값 32 KiB 는 **합계** 상한이라
+> 이 파일 하나로 우리가 이미 **71.6%** 를 쓴다. 비증가 ratchet 은
+> `tests/resident-reach-4cli.test.ts` 의 23 KiB 이고, **잔여 여유가 323 B → 103 B** 로 줄었다 —
+> 다음에 룰을 한 줄 더 넣으려면 무엇을 뺄지 같이 정해야 한다. **이 축은
+> `context-cost-baseline.json` 에 두지 않는다**: 그 파일은 `npm run cost:baseline` 이 `TRACKS` 로
+> 전체를 다시 써서 손으로 넣은 키를 다음 실행에 지운다(`scripts/context-cost-baseline.mjs` 는
+> 기존 파일을 읽지 않는다). 저기 실으려면 생성기부터 고쳐야 하고, 그 전까지 Codex 축의 SSOT 는
+> 위 ratchet 과 이 문단이다.
 > 룰 6종을 한 줄씩 판정해 **모델이 이미 아는 3줄만 압축**했다(`test-policy`, −139 B / −36 tok).
 > 나머지는 안 건드렸다 — 대부분이 이 저장소가 실제로 당한 사고에서 역산돼 쓰인 문장이고,
 > 승인·보안 경계는 명시가 곧 계약이라 조이면 계약이 흐려진다. 판정표 =

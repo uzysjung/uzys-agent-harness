@@ -69,10 +69,15 @@ export function classifyBaselineTarget(target: string): BaselineTarget | null {
  *
  * **알려진 한계: `withEcc` 는 이 시점에 모른다** (독립 리뷰 F5). `ecc-plugin` 은 같은 3단계의
  * **뒤쪽 페이지**에서 고르는데 baseline 페이지가 앞에 있어, 여기서는 `withEcc` 가 undefined 다.
- * 결과는 **한 방향으로만 틀린다**: `!s.withEcc` 폴백 에이전트 4종(`build-error-resolver` ·
- * `code-reviewer` · `security-reviewer` · `silent-failure-hunter`)이 화면에 뜨는데 `ecc-plugin`
- * 을 고르면 안 깔린다. 그 반대(안 보여 준 것이 깔리는 것)는 일어나지 않으므로 **조용한 설치는
- * 생기지 않고**, 체크를 남겨 둔 항목은 제외 목록에도 안 들어가 오제외도 없다.
+ * 결과는 **한 방향으로만 틀린다**: `!s.withEcc` 폴백 자산이 화면에 뜨는데 `ecc-plugin` 을 고르면
+ * 안 깔린다. 그 반대(안 보여 준 것이 깔리는 것)는 일어나지 않으므로 **조용한 설치는 생기지 않고**,
+ * 체크를 남겨 둔 항목은 제외 목록에도 안 들어가 오제외도 없다.
+ *
+ * **대상은 에이전트만이 아니다** — 스킬이 더 많다. 전 트랙을 켜면 14종(에이전트 4 · 스킬 10),
+ * `full` 도 같고, 좁은 트랙은 더 적다(`tooling` 7 · `project-management` 4. 실측 2026-08-26).
+ * 여기 이름을 옮겨 적지 않는 이유는 `listBaselineTargets` 를 `withEcc` 없이/`true` 로 두 번 불러
+ * **diff 하면 그 자리에서 나오기** 때문이다 — 목록 사본은 게이트가 늘 때마다 썩는다. 실제로 옛
+ * 문안이 "에이전트 4종"으로 열거했다가 #340 이 스킬 4종에 같은 게이트를 붙이면서 틀려졌다.
  *
  * 고치려면 baseline 페이지를 자산 페이지 **뒤로** 옮겨야 한다 — 사용자가 확정한 "맨 앞에서 전부
  * 보여준다"를 뒤집는 결정이라 여기서 임의로 하지 않는다 (ADR-074 Consequences).

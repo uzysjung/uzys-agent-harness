@@ -35,9 +35,14 @@ export interface AssetSpec {
    * - C2 (plugin OFF fallback): `applies: (s) => !s.withEcc && <track>`.
    * - C3 (modified or 별개 source): `applies: <track only>` (withEcc 무관 항상 install).
    *
-   * **개수를 여기 적지 않는다** — 목록이 SSOT 이고 주석의 숫자는 그 두 번째 사본이라 썩는다
-   * (#340 에서 실제로 19/3 이 실측과 어긋나 있었다). 현행 값은 `_ECC` 목록들과
-   * `MODIFIED_ECC_SKILL_DIRS` 에서 세고, 정합은 `tests/vnv-verdict.test.ts` 가 양방향으로 문다.
+   * **개수를 여기 적지 않는다** — 주석의 숫자는 두 번째 사본이라 썩는다 (#340 에서 실제로
+   * 19/3 이 실측과 어긋나 있었다). 그리고 **`_ECC` 접미 목록을 세는 것으로는 C2 가 안 나온다**:
+   * 이 파일의 `buildManifest` 안에는 목록 없이 인라인 `applies` 로 `!s.withEcc` 를 붙인 엔트리가
+   * 따로 있어(#340 에서 추가), 목록만 세면 그만큼 모자란다.
+   * C2 의 모집단은 **`buildManifest` 를 withEcc on/off 로 두 번 만들어 `applies()` 통과 대상을
+   * diff** 해서 얻는다 — 조건식을 읽는 대신 결과를 재는 이 방법이 인라인 게이트까지 포함한다.
+   * C3 는 `MODIFIED_ECC_SKILL_DIRS`. `tests/vnv-verdict.test.ts` 가 같은 방법으로 양방향 정합을
+   * 문다.
    *
    * 분류 표 SSOT: docs/PRD/v26-58-cherry-pick-plugin-gating.md §6.
    */
