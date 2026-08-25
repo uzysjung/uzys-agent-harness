@@ -214,7 +214,8 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
   it(`COMPATIBILITY.md 자동생성 블록이 '자산 ${total}' 반영 (gen:compat 최신)`, () => {
     const text = readFileSync("docs/COMPATIBILITY.md", "utf-8");
     expect(
-      text.includes(`자산 **${total}**`),
+      // 2026-08-26 (#356) — 생성 블록을 영문화했다. 리터럴이라 문구가 바뀌면 같이 옮겨야 한다.
+      text.includes(`assets **${total}**`),
       `docs/COMPATIBILITY.md 가 자산 ${total} 를 반영하지 않음 — 'npm run gen:compat' 재실행 필요`,
     ).toBe(true);
   });
@@ -252,7 +253,9 @@ describe("카탈로그 총계 문서 동기화 게이트 (audit 2026-07-14 drift
   it("COMPATIBILITY.md 서문(수기)의 분모·🟢+🟡 분해 합·dev-method 수가 SSOT 와 일치", () => {
     const text = readFileSync("docs/COMPATIBILITY.md", "utf-8");
     const m = text.match(
-      /전 카탈로그 (\d+)\/(\d+) 🟢[^\n]*?나머지 (\d+) 자산 🟡[^\n]*?dev-method (\d+)종/,
+      // 2026-08-26 (#356) — 서문을 영어로 다시 썼다. 어절 고정이라 문구가 바뀌면 이 정규식도
+      //   같이 옮겨야 한다(패턴 미발견 = 실패이므로 조용히 새지는 않는다).
+      /(\d+)\/(\d+) assets are 🟢[^\n]*?remaining (\d+) assets are 🟡[^\n]*?dev-method (\d+) skills/,
     );
     expect(
       m,

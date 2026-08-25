@@ -1,47 +1,90 @@
-# 호환·검증 매트릭스 (Compatibility & Verification)
+# Compatibility & Verification
 
-> **갱신**: 2026-06-06 (ADR-021 A) · **SSOT**: [`src/external-assets.ts`](../src/external-assets.ts) `TRUST_TIER` · **신선도**: [`trust-tier-drift.yml`](../.github/workflows/trust-tier-drift.yml) 월 cron
->
-> 본 문서는 ADR-021 재포지셔닝의 **방어 wedge — "검증됐다"의 공개 증거**다. 경쟁사(Vercel/MS APM)의 *정적* capability 표과 달리, 본 매트릭스의 **실설치 검증은 Docker 격리 컨테이너 실행**(반복 가능)에 근거한다. 호스트 글로벌 write 0.
->
-> **재현 가능 검증기**: `scripts/verify-catalog.mjs` + [`catalog-verify.yml`](../.github/workflows/catalog-verify.yml)(월 cron + dispatch) — 실 claude/`npx skills`/`npm` 으로 전 카탈로그 설치 가능성을 CI 에서 재검증, plugin 삭제·rename·패키지 부재 시 fail. "지속 테스트"가 1회성이 아니라 codified.
+This harness installs curated assets — plugins, skills, and rules — into your project.
+This page answers one question: **which of those installs are actually tested, and which
+are not.**
 
-## 검증 등급 (무엇이 "검증됐다"인가)
+The four command-line agents involved are **Claude Code**, **Codex**, **OpenCode**, and
+**Antigravity**. Not every asset reaches all four; the table below says which reaches which,
+and the rule that decides it is [described below](#which-agents-an-asset-reaches).
 
-| 등급 | 의미 | 근거 |
-|------|------|------|
-| **🟢 Docker 실설치** | 실 CLI/패키지를 격리 컨테이너에 실제 설치 → exit 0 + 산출물 확인 (plugin/skill/npx/openspec) | `docs/research/realcli-*.md` |
-| **🟢 registry 실재** | npm registry 실재 확인 (full 설치는 표준 `npm i` — vercel/netlify/supabase/agent-browser CLI) | `npm view` |
-| **🟡 local / matrix** | 로컬 스크립트(ecc-prune) 또는 install-matrix CI (tauri-desktop·번들 uzys 스킬 templates) | `install-matrix.yml` |
+## What we verify
 
-> **전 카탈로그 45/60 🟢** (Docker 실설치 + registry 실재). 나머지 15 자산 🟡 = templates(tauri-desktop·ci-scaffold·번들 uzys 스킬 12종 = dev-method 6종 + 전 트랙 4종 + opt-in 2종)·ecc-prune. (2026-08-02 ADR-062 복원 — ADR-060 이 이관했던 9종이 이 리포 번들로 돌아왔고, 같은 ADR 의 AC9 로 `task-brief` 1종이, ADR-064 로 `audit-harness-fit` 1종이 신설됐다. **등급이 🟢에서 🟡로 내려간 것은 품질 저하가 아니라 검증 수단의 변경이다**: `npx skills add` 는 Docker 에서 실 설치가 되지만 templates 는 install-matrix CI 의 파일 배치 검증까지다. 아래 ⚠ 가 그 범위를 규정한다.) 오피셜 플러그인 신규 3종(v26.110.0 — code-review·feature-dev·security-guidance)은 **Docker 실 claude 2.1.214 로 marketplace add + plugin install 3/3 exit 0 실증**(2026-07-18, throwaway 컨테이너 — 호스트 오염 0). ⚠ **🟡 templates 의 검증 범위 정직화**: install-matrix CI 가 검증하는 것은 **파일 배치(manifest copy — 올바른 위치에 올바른 내용)** 까지다. ci-scaffold 는 manifest 미경유 전용 단계라 install-matrix 에도 포함되지 않는다 — 검증 = 로컬 unit 테스트(`tests/ci-scaffold.test.ts`: 트랙 매핑·no-clobber·CLI-무관)와 YAML 파싱까지, 실 GitHub Actions 실행은 사용자 repo 에서만 가능(미검증). 실 Codex/OpenCode/Antigravity 바이너리가 `.agents/skills/<id>/SKILL.md`·`.opencode/commands/<id>.md` 를 **native 로드(slash 노출)** 하는지는 각 CLI vendor 계약이라 **미검증**(`CLAUDE.md` "Docker mock ≠ 실 CLI"). content-creator·demand-gen 은 upstream 부재 검출 → 제거(v26.76.0).
+- **The install command really runs.** Assets are installed inside throwaway Docker
+  containers, and the run has to exit cleanly and leave the expected files behind. Nothing
+  touches the global configuration on the machine running the test.
+- **It keeps working.** A monthly CI job re-installs the whole catalog. If an upstream
+  plugin is deleted or renamed, or a package disappears from the registry, the job fails.
+- **Packages exist.** For assets delivered as ordinary npm packages, we confirm the exact
+  pinned version resolves in the public registry.
+- **Files land where they belong.** For assets that ship from this repository as templates,
+  CI checks that install writes the right content to the right path for each agent.
 
-## 보안 근거 (Trust Tier + 출처 vetting)
+**45/60 assets are 🟢 verified by a real install; the remaining 15 assets are 🟡 — templates shipped from this repository, among them dev-method 6 skills, where CI verifies file placement instead.**
 
-agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 스캔하지 않는다. 따라서 큐레이션 자산의 보안은 **다층 vetting**으로 보증한다:
+Per-asset status is in the generated table below, one row per asset.
 
-1. **Trust Tier** — `official`(Anthropic 공식 + 본 하네스) / `vetted`(GitHub ★≥1000 + 활성) / `experimental`(★<1000, opt-in + 경고). 정적 라벨이 실 star 와 어긋나면 `trust-tier-drift.yml`(월 cron)이 자동 검출.
-2. **upstream vetting 위임** — 공식 마켓플레이스 자산(superpowers 등 anthropics/claude-plugins-official)은 Anthropic 의 품질·보안 스크리닝을 통과. plugin 자산은 각 upstream 의 검증에 의존.
-3. **Promise = Implementation** — 광고된 설치 명령은 실재(registry/marketplace 확인). 워크플로 핵심군은 Docker 실설치까지.
-4. **`.claude/` 산출물 게이트** — 하네스가 *생성*하는 설정은 ship 전 `npx ecc-agentshield scan`(수동, ship-checklist 게이트)로 점검. *자동 PreToolUse 게이트(`agentshield-gate.sh`)는 6-Gate 제거(ADR-023) 시 삭제 — 현재 미배선.*
-5. **버전 pinning (v26.80.0)** — npm/npx-run 자산은 **정확 semver 로 고정** 설치 (`pkg@version`, 아래 표에 버전 명시). vetting 은 시점 검증이므로 `@latest` 는 vetting 안 된 미래 코드 실행 = supply-chain 구멍. 회귀 테스트가 unpinned 를 차단. **bump 정책**: 분기 자산 audit(A2) 주기에 새 버전을 Docker 실설치 검증 후 갱신.
-   - *잔여 리스크 (정직 표기)*: `plugin`(claude marketplace) / `skill`(skills.sh) 메서드는 설치 CLI 가 버전 지정을 지원하지 않아 **pin 불가** — upstream HEAD 가 설치된다. 이 부분은 Trust Tier + upstream vetting(②)에 의존.
+## What we do NOT verify
 
-> 산업 맥락: Snyk "ToxicSkills" 가 테스트 skill 의 36%에서 prompt injection 을 발견. 본 큐레이션은 위 다층 vetting 으로 무검증 자산 sprawl 을 차단한다 (ADR-021 wedge).
+This is the honest boundary. Everything above stops at *installed and discoverable*.
 
-## 전체 카탈로그 매트릭스 (자동 생성)
+- **That the asset does its job.** We do not run the skill, prompt, or plugin and judge the
+  output. Installation succeeding says nothing about quality.
+- **That your agent loads it natively.** Whether Codex, OpenCode, or Antigravity actually
+  surfaces an installed `SKILL.md` as a usable command is each vendor's own behaviour, and
+  it can change without notice. We verify the file is written; we do not verify the agent
+  picks it up.
+- **That generated CI workflows run.** For scaffolded GitHub Actions files we check the
+  YAML is generated and parses. Running them requires your repository, so it is untested here.
+- **Asset contents.** We do not scan third-party assets for prompt injection or malicious
+  instructions. That is a roadmap item, not a current guarantee — see the next section for
+  what we do instead.
 
-> `npm run gen:compat` 로 자산 데이터에서 자동 생성(수동 drift 0). 아래 블록은 생성기 산출.
+## How assets are vetted
+
+We curate rather than scan, in four layers:
+
+1. **Trust tier.** Every asset is `official` (published by Anthropic or by this project),
+   `vetted` (1,000+ GitHub stars and actively maintained), or `experimental` (below that
+   bar — opt-in only, and the installer warns). A monthly job re-reads real star counts and
+   fails if a label has drifted from reality.
+2. **Upstream review.** Assets from an official marketplace inherit that marketplace's own
+   screening. For those, we depend on the publisher.
+3. **The advertised command is the real command.** Every install command in this catalog is
+   checked against the registry or marketplace it claims to come from.
+4. **Version pinning.** npm-delivered assets are pinned to an exact version, because vetting
+   happens at a point in time and `@latest` would run code nobody reviewed. A regression test
+   fails the build if any pin is loosened.
+
+**Known gap, stated plainly:** plugin- and skill-delivered assets cannot be pinned — their
+install CLIs have no version flag, so they fetch whatever upstream currently publishes. For
+those, layers 1 and 2 are all that stand behind them.
+
+## Which agents an asset reaches
+
+The delivery method decides it — there is no separate list to drift out of sync:
+
+| Delivery method | Reaches |
+|---|---|
+| Plugin (`claude plugin …`) | **Claude Code only.** The install shells out to Claude Code's own plugin command. |
+| Skill (`npx skills add`) | **All four.** The skills CLI takes an `--agent` flag and writes each agent's layout. |
+| npm / npx | **Agent-independent.** These are standalone tools that run in any terminal. |
+| Templates from this repository | **All four.** Install renders the equivalent config for each agent. |
+
+A test compares every row of the table below against the code that makes this decision, so a
+stale row fails the build rather than misleading you.
+
+## Full catalog
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **자동 생성** (`scripts/gen-compatibility.mjs`). 자산 **60** (official 22 / vetted 36 / experimental 2) · 🟢 검증 **45/60**. tier SSOT=`src/external-assets.ts`, drift 감시=`trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **60** (official 22 / vetted 36 / experimental 2) · 🟢 verified **45/60**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
-> **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 2026-06-06). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).
+> **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
 #### 🔄 Workflow (16)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `ci-scaffold` | official | templates (`--with ci-scaffold`) | 4-CLI (templates) | 🟡 local |
 | `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
@@ -62,10 +105,10 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 🎨 Frontend (10)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `tauri-desktop` | official | templates (`--with tauri-desktop`) | 4-CLI (templates) | 🟡 local |
-| `frontend-design` | official | `frontend-design@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `frontend-design` | official | `anthropics/skills :: frontend-design` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `jakubkrehel-skills` | vetted | `jakubkrehel/skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `taste-skill` | vetted | `Leonxlnx/taste-skill :: taste-skill` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `scroll-world` | vetted | `oso95/scroll-world :: scroll-world` | 4-CLI (skills.sh --agent) | 🟢 Docker |
@@ -77,7 +120,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 🗄️ Backend (6)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `vercel-cli` | vetted | `vercel@54.17.3` (npm) | 4-CLI (npm) | 🟢 registry |
 | `netlify-cli` | vetted | `netlify-cli@26.1.0` (npm) | 4-CLI (npm) | 🟢 registry |
@@ -88,13 +131,13 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 📊 Data (1)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `anthropic-data-plugin` | official | `data@knowledge-work-plugins` | Claude Code (plugin) | 🟢 Docker |
 
 #### 💼 Business (3)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `anthropic-document-skills` | official | `document-skills@anthropic-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
@@ -102,7 +145,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 🛡️ Dev Tools (9)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `audit-service-gaps` | official | templates (`--with audit-service-gaps`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `verification-loop` | official | templates (`--with verification-loop`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
@@ -116,7 +159,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 🧠 Understanding (4)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | 4-CLI (npm) | 🟢 registry |
 | `claude-video` | vetted | `watch@claude-video` | Claude Code (plugin) | 🟢 Docker |
@@ -125,7 +168,7 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 🎬 Visual & Media (9)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `frontend-slides` | vetted | `frontend-slides@frontend-slides` | Claude Code (plugin) | 🟢 Docker |
 | `marp-slide` | vetted | `softaworks/agent-toolkit :: marp-slide` | 4-CLI (skills.sh --agent) | 🟢 Docker |
@@ -139,31 +182,19 @@ agentshield 는 로컬 `.claude/` 설정 스캐너로, 임의 외부 repo 를 �
 
 #### 📦 ECC Suite (2)
 
-| id | tier | 설치 타겟 | CLI | 검증 |
+| id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `ecc-prune` | official | `scripts/prune-ecc.sh` | Claude Code (local script) | 🟡 local |
 | `ecc-plugin` | vetted | `ecc@ecc` | Claude Code (plugin) | 🟢 Docker |
 
 <!-- AUTO-GEN:CATALOG:END -->
 
-> v26.81.0 (ADR-022) — tauri-desktop 은 **내부 템플릿 자산**으로 표에 합류 (`--with <id>` 또는 wizard 체크, 설치 주체 = Phase 1 manifest — install-matrix CI 가 검증 🟡). 모든 plugin `pluginId`/skill 이름이 실 claude(2.1.167) / `npx skills` 로 **정확성 확정**(content-creator·demand-gen 은 upstream 부재 검출 → v26.76.0 제거).
-> 🟢 실설치 evidence: [`research/realcli-workflows-verification-2026-06-06.md`](research/realcli-workflows-verification-2026-06-06.md) (워크플로 3 + 기존 4 + 카탈로그 배치) · Codex/Antigravity 구조: [`research/realcli-verification-2026-05-31.md`](research/realcli-verification-2026-05-31.md).
+## Evidence
 
-## 4-CLI 적용 범위
-
-자산이 4개 CLI(Claude Code · Codex · OpenCode · Antigravity) 중 어디에 적용되는지는 **install method** 가 결정한다:
-
-| method | 적용 CLI | 비고 |
-|--------|---------|------|
-| `plugin` (`claude plugin …`) | **Claude Code** primary | CC 플러그인 시스템. 일부는 cross-CLI 미러(wshobson: Codex/Cursor/OpenCode 별도 installer) |
-| `skill` (`npx skills add`) | Claude Code(+ skills.sh 지원 에이전트) | `--agent` 플래그로 다중 |
-| `npm` / `npx-run` | **CLI-agnostic** | 독립 CLI 도구(openspec/bmad/gsd) — 어느 셸에서나 |
-| 하네스 `uzys-*` (templates) | **4-CLI 전부** | `.claude/`·`.codex/`·`.agents/`·`~/.gemini/` 동등 산출 (Cross-CLI Parity NSM) |
-
-> 전체 자산의 Track×CLI 조합 매트릭스(mock)는 `tests/installer-cli-matrix.test.ts`(92 케이스)가 강제.
-
-## 한계 (정직)
-
-- **런타임 슬래시 실행(C tier)은 검증 범위 외** — 본 매트릭스는 *설치 + 인식(discovery)*까지. 슬래시/에이전트의 실 동작은 별도.
-- **npm(4종, openspec 제외)은 registry 실재 확인** — full 설치는 표준 `npm i`(자명). 나머지(plugin/skill/npx/openspec)는 Docker 실설치.
-- **검증은 스냅샷**(2026-06-06)이나 **재현 가능** — tier drift 는 `trust-tier-drift.yml`, 실설치 가능성은 `catalog-verify.yml`(월 cron + dispatch) / `scripts/verify-catalog.mjs`(격리 env) 가 자동 재검증. 매트릭스 표는 `npm run gen:compat` 재생성.
+- Real-install runs: `docs/research/realcli-workflows-verification-2026-06-06.md` and
+  `docs/research/realcli-verification-2026-05-31.md`.
+- Re-verification jobs: `.github/workflows/catalog-verify.yml` and
+  `.github/workflows/trust-tier-drift.yml`; the checker itself is `scripts/verify-catalog.mjs`.
+- The table above is regenerated with `npm run gen:compat`; editing it by hand fails the build.
+- Verification is a snapshot, but a **repeatable** one — every claim on this page is produced
+  by a command you can run.
