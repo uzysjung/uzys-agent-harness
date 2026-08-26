@@ -2,44 +2,31 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// v26.115.0 — recurrence-prevention 스킬의 Level-2 지침 계약.
-// 계기: 이 repo 가 같은 문서 사실 drift 를 5회 재발시킨 원인은 "게이트 부재"가 아니라 **게이트를
-// 파일 열거로 쓴 것**이었다 (게이트의 커버 목록 자체가 두 번째 하드코딩 사본 → 목록 밖 표면이
-// 다음 서식지). 그 교훈이 이 repo 룰에만 박제돼 있으면 스킬 사용자는 같은 함정을 그대로 반복한다
-// — 스킬이 Level 2 를 가르치면서 그 대표적 오용법을 빼놓는 셈. 마커가 빠지면 "재발방지 방법론
-// 설치됨" 보고가 반쪽 계약을 가리킨다 (원칙 5 — 증거 없는 완료 보고 금지).
+// 2026-08-26 (#357, 사용자 결정) — **스킬 본문의 뜻을 코드가 판정하지 않는다.**
 //
-// 2026-08-02 복원(스킬 복원 사이클 AC4): ADR-060 이 삭제한 게이트를 399e225 에서 복원했다.
-// 이 스킬은 통합 대상이 아니라 경로·절 구조가 원본 그대로이므로 단언도 원본 그대로다.
+// 이 파일은 원래 recurrence-prevention 스킬이 Level-2 지침("게이트는 열거가 아니라 훑기로")을
+// 가르치는지 영문 어절로 검사했다 — `sweep, not a list` · `glob` · `derive` ·
+// `default must be checked` · `never by curating an inclusion list` · `five recurrences` 6종.
+//
+// 그 방식은 #345 에서 세 라운드에 걸쳐 수렴하지 않는 것이 측정됐다. 어절을 고정하면 **같은 뜻의
+// 정당한 개정이 빨간불**이 되고("sweep" 을 다른 낱말로 다시 쓰면 막힌다), 그 어절을 남긴 채
+// 옆 문장을 뒤집으면 **뜻이 반대가 돼도 초록불**이다. 양쪽으로 다 틀리는 검사는 없느니만 못하다
+// — 초록불이 "스킬이 제대로 가르친다"는 증거로 읽히기 때문이다.
+//
+// 재발 방지는 이제 변경 이력이 맡는다: 룰·스킬·훅은 개별 독립 자산이고, 자기 변경 요청 없이는
+// 건드리지 않으며, 바꿀 때 이유와 이슈 번호를 커밋에 남긴다
+// (`.claude/rules/change-management.md` §자산은 자기 변경 요청 없이 건드리지 않는다).
+//
+// 남긴 단언은 **돌려서 판정되는 것 하나**다. 두 사본이 바이트 동일한지는 본문의 뜻을 읽지 않고
+// 답이 나오고, 어긋나면 "스킬 주입됨" 보고와 실제 세션 동작이 갈라진다.
 
 const read = (rel: string): string =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 
-const tpl = read("../templates/skills/recurrence-prevention/SKILL.md");
-
-// 양끝 앵커 — 끝을 안 막으면 뒷절(Pitfalls 등)의 동일 낱말로도 통과한다 (v26.113.0 mutation 실증).
-const ladder = (tpl.split("## Step 3a")[1] ?? "").split("## Step 3b")[0] ?? "";
-
-describe("recurrence-prevention — Level 2 게이트 작성 지침", () => {
-  it("게이트를 열거가 아닌 훑기(글롭/derive)로 쓰라고 사다리 절에서 가르친다", () => {
-    expect(ladder, "Step 3a 섹션 슬라이스가 비었다 — 헤딩 변경 여부 확인").not.toBe("");
-    expect(ladder).toMatch(/sweep, not a list/);
-    // 기제(글롭 또는 단일출처 derive)를 명시해야 실행 가능한 지침이 된다.
-    expect(ladder).toMatch(/glob/);
-    expect(ladder).toMatch(/derive/);
-  });
-
-  it("면제는 표식으로 주고 기본값은 검사 — 포함목록 큐레이션 금지", () => {
-    // 이 방향을 뒤집으면(포함목록 유지) 게이트가 다시 열거로 회귀한다 — 원인 그 자체.
-    expect(ladder).toMatch(/default must be checked/);
-    expect(ladder).toMatch(/never by\s+curating an inclusion list/);
-  });
-
-  it("근거로 실제 재발 횟수를 들고 있다 — 무근거 일반화 금지", () => {
-    expect(ladder).toMatch(/five recurrences/);
-  });
-
+describe("recurrence-prevention 스킬", () => {
   it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
-    expect(read("../.claude/skills/recurrence-prevention/SKILL.md")).toBe(tpl);
+    expect(read("../.claude/skills/recurrence-prevention/SKILL.md")).toBe(
+      read("../templates/skills/recurrence-prevention/SKILL.md"),
+    );
   });
 });

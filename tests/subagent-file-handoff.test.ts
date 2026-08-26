@@ -2,72 +2,39 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-// v26.120.0 — 서브에이전트 결과 수거는 파일로. 재발방지 게이트.
+// 2026-08-26 (#357, 사용자 결정) — **스킬 본문의 뜻을 코드가 판정하지 않는다.**
 //
-// 왜 게이트인가: 이 교훈은 두 번 기록됐고(v26.98.0 메모리 · v26.113.0 교훈 ⓓ) 세 번째로 발생했다
-// — 5인 패널을 인라인 반환으로 돌리다 3인분 리포트가 조용히 유실. recurrence-prevention 사다리상
-// 프로즈 기록은 이미 두 번 실패했으므로 구조로 내린다.
+// 이 파일은 원래 세 스킬 본문이 파일 핸드오프 규칙을 **어느 절에서 어떤 낱말로** 가르치는지
+// 검사했다 — `## Worker lifecycle` 하위 절 슬라이스 + `file, not as a return message` ·
+// `silent` · `spawn prompt` · `spawn-time` · `retrofit` · `write its findings to a file` ·
+// `model-orchestration` · `Effective Votes` 8종.
 //
-// 실패가 조용하다는 게 핵심이다: 워커가 "아무것도 안 냈다"로 보여서 전달 실패가 아니라 작업 실패로
-// 오진하고, 같은 일을 다시 시킨다. 그래서 spawn 시점에 결정돼야 하고, 지시가 자산에서 사라지면
-// 다음 세션이 같은 값을 또 치른다.
+// 그 방식은 #345 에서 세 라운드에 걸쳐 수렴하지 않는 것이 측정됐다. 어절과 절 위치를 고정하면
+// **같은 뜻의 정당한 개정과 절 재편이 빨간불**이 되고, 그 어절을 남긴 채 뜻을 뒤집으면
+// **초록불**이다. 양쪽으로 다 틀리는 검사는 없느니만 못하다 — 초록불이 "스킬이 제대로
+// 가르친다"는 증거로 읽히기 때문이다.
 //
-// 2026-08-02 복원(스킬 복원 사이클 AC4): ADR-060 이 스킬 본문을 외부 리포로 옮기며 이 게이트를
-// 삭제했다. 원본 = 399e225. 앵커는 통합 후 본문에 재조준했다 — model-orchestration 사용자
-// 개정판이 규칙을 `## Worker lifecycle` 안의 하위 절
-// `### Collect results as a file, not as a return message` 로 들여놓았으므로, 절 슬라이스를
-// 그 하위 절로 좁힌다(양끝 앵커 유지 — 원본 단언 5개는 하나도 빼지 않는다).
+// 이 게이트의 계기(v26.120.0, 서브에이전트 리포트 3인분 유실)는 지금도 유효하지만, 그것을
+// 막는 것은 **스킬 문서에 특정 낱말이 남아 있는 것**이 아니라 위임 시점에 파일 경로를 지정하는
+// 행위다. 문서가 지워지는 쪽은 변경 이력이 맡는다 — 룰·스킬·훅은 개별 독립 자산이고, 자기
+// 변경 요청 없이는 건드리지 않으며, 바꿀 때 이유와 이슈 번호를 커밋에 남긴다
+// (`.claude/rules/change-management.md` §자산은 자기 변경 요청 없이 건드리지 않는다).
+//
+// 남긴 단언은 **돌려서 판정되는 것**뿐이다. ADR-069 — 외부 실행기 레인은 세 스킬을 **같은
+// 사이클에** 고치므로, 한쪽 사본만 고쳐지는 drift 가 실재 위험이다(설계 §5.1).
+// `external-tool-routing.test.ts` §"세 스킬의 두 사본이 1:1 이다" 가 이 파일을 SKILL.md 3종의
+// 사본 대조 소유자로 지목한다 — 그 계약은 아래에서 그대로 유지된다.
 
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
-const mo = read("../templates/skills/model-orchestration/SKILL.md");
-const mpr = read("../templates/skills/multi-persona-review/SKILL.md");
-const emc = read("../templates/skills/external-model-consult/SKILL.md");
 
-const HANDOFF_HEADING = "### Collect results as a file, not as a return message";
-
-const lifecycle = (mo.split("## Worker lifecycle")[1] ?? "").split("\n## ")[0] ?? "";
-// 하위 절도 양끝을 막는다 — 끝을 안 막으면 뒷 하위 절의 동일 낱말로도 통과한다.
-const handoff = (lifecycle.split(HANDOFF_HEADING)[1] ?? "").split("\n### ")[0] ?? "";
-
-describe("서브에이전트 결과 수거 = 파일 핸드오프", () => {
-  it("model-orchestration 이 규칙을 소유한다 — Worker lifecycle 안에서", () => {
-    // 위임 정책의 소유자. 다른 절에 흩어지면 delegation 결정 시 안 읽힌다.
-    expect(lifecycle, "## Worker lifecycle 슬라이스가 비었다 — 헤딩 변경 여부 확인").not.toBe("");
-    expect(lifecycle).toMatch(/file, not as a return message/);
-    // 소유 위치까지 계약이다: 규칙이 Worker lifecycle 밖으로 나가면 위임을 결정하는 자리에서
-    // 안 읽힌다. 하위 절 슬라이스가 비면 헤딩이 그 절 밖으로 옮겨간 것이다.
-    expect(handoff, `${HANDOFF_HEADING} 하위 절이 Worker lifecycle 안에 없다`).not.toBe("");
-  });
-
-  it("실패가 조용하다는 점과 spawn 시점 결정임을 명시한다", () => {
-    // 이 둘이 빠지면 "가능하면 파일로" 정도의 권고로 읽혀 다시 인라인으로 돌아간다.
-    // 실제 재발 3회차의 원인이 정확히 "나중에 파일로 바꾸면 되지"였다.
-    // OR 로 묶지 않는다 — 한쪽만 남아도 통과하면 가드가 아니라 장식이다(이 테스트 자체의
-    // 1차 판본이 그 구멍으로 mutation 을 놓쳤다).
-    expect(handoff).toMatch(/silent/);
-    expect(handoff).toMatch(/spawn prompt/); // 어떻게: 지시를 spawn 프롬프트에 넣는다
-    expect(handoff).toMatch(/spawn-time/); // 언제: 사후 보정이 아니라 spawn 시점 결정
-    expect(handoff).toMatch(/retrofit/); // 왜: 사후 보정 비용이 실재한다
-  });
-
-  it("multi-persona-review 는 재서술하지 않고 참조한다 (MECE)", () => {
-    // 두 곳에 규칙을 복제하면 한쪽만 고쳐지는 drift 가 시작된다 — doc-governance 원칙.
-    expect(mpr).toMatch(/write its findings to a file/);
-    expect(mpr).toContain("model-orchestration");
-  });
-
-  it("패널 고유의 대가(유효 표 감소)를 밝힌다", () => {
-    // 일반 규칙만으로는 "리포트 하나 날린 것"으로 읽힌다. 패널에서는 표본이 줄어드는 것이고,
-    // 그건 이 스킬이 근거로 삼는 유일한 변수다 (Nine Judges, Two Effective Votes).
-    const step3 = (mpr.split("### 3.")[1] ?? "").split("### 4.")[0] ?? "";
-    expect(step3).toMatch(/Effective Votes/);
-  });
-
-  it("설치본(.claude) 사본이 1:1 이다", () => {
-    expect(read("../.claude/skills/model-orchestration/SKILL.md")).toBe(mo);
-    expect(read("../.claude/skills/multi-persona-review/SKILL.md")).toBe(mpr);
-    // ADR-069 — 외부 실행기 레인은 세 스킬을 **같은 사이클에** 고친다. 이 스킬만 게이트 밖에
-    // 있으면 한쪽 사본만 고쳐지는 drift 가 실제 위험이다(설계 §5.1).
-    expect(read("../.claude/skills/external-model-consult/SKILL.md")).toBe(emc);
+describe("외부 실행기 레인 세 스킬 — 설치본(.claude) 사본이 1:1 이다", () => {
+  it.each([
+    ["model-orchestration"],
+    ["multi-persona-review"],
+    ["external-model-consult"],
+  ])("%s/SKILL.md", (id) => {
+    expect(read(`../.claude/skills/${id}/SKILL.md`)).toBe(
+      read(`../templates/skills/${id}/SKILL.md`),
+    );
   });
 });
