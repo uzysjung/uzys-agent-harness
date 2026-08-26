@@ -140,7 +140,7 @@ function rows() {
     );
     if (assets.length === 0) continue;
     out.push(`\n#### ${CATEGORY_TITLE[cat] ?? cat} (${assets.length})\n`);
-    out.push("| id | tier | 설치 타겟 | CLI | 검증 |");
+    out.push("| id | tier | install target | reaches | verified |");
     out.push("|---|---|---|---|---|");
     for (const a of assets) {
       const tier = TRUST_TIER[a.id] ?? "experimental";
@@ -159,7 +159,7 @@ function summary() {
   const green = EXTERNAL_ASSETS.filter((a) =>
     (LEVEL_OVERRIDE[a.id] ?? LEVEL_BY_KIND[a.method.kind] ?? "").startsWith("🟢"),
   ).length;
-  return `> **자동 생성** (\`scripts/gen-compatibility.mjs\`). 자산 **${EXTERNAL_ASSETS.length}** (official ${counts.official} / vetted ${counts.vetted} / experimental ${counts.experimental}) · 🟢 검증 **${green}/${EXTERNAL_ASSETS.length}**. tier SSOT=\`src/external-assets.ts\`, drift 감시=\`trust-tier-drift.yml\`.\n>\n> **🟢 = method 기반 실설치 검증** (Docker realcli / registry; 검증 배치 기준 ${VDATE}). 날짜는 배치 기준이며 **자산별 실검증일이 아니다** — 자산 추가·검증 이력은 [CHANGELOG](../CHANGELOG.md).`;
+  return `> **Generated** by \`scripts/gen-compatibility.mjs\` — do not edit by hand. assets **${EXTERNAL_ASSETS.length}** (official ${counts.official} / vetted ${counts.vetted} / experimental ${counts.experimental}) · 🟢 verified **${green}/${EXTERNAL_ASSETS.length}**. Tier source of truth: \`src/external-assets.ts\`; drift watcher: \`trust-tier-drift.yml\`.\n>\n> **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date ${VDATE} is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).`;
 }
 
 const START = "<!-- AUTO-GEN:CATALOG:START -->";

@@ -204,18 +204,21 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 4 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0)", () => {
-    // frontend-design(plugin=2) + find-skills(1) + agent-browser(npm install=1) = 4.
+  it("tooling: 3 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0)", () => {
+    // frontend-design(skill=1) + find-skills(1) + agent-browser(npm install=1) = 3.
+    // 2026-08-26 (#344): frontend-design 이 plugin → skill 이 되며 4 → 3. plugin 은
+    //   `marketplace add` + `plugin install` 로 **2번** 띄우고 skill 은 `npx skills add` 1번이다.
+    //   숫자가 줄어든 것은 자산이 빠진 게 아니라 배달 방식이 바뀐 결과다.
     // internal 자산은 프로세스를 띄우지 않는다 — Phase 1 manifest 가 dir 을 복사할 뿐이다.
     // agent-browser 의 `npm root -g` 조회는 모듈 캐시라 이 파일의 선행 테스트가 이미 소비했다 —
     // 단독 실행 시엔 +1 (파일 단위 순서 의존).
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(4);
+    expect(spawnCallCount).toBe(3);
   });
 
-  it("data: tooling baseline 4 + anthropic-data-plugin(×2) = 6 (2026-08-02 복원 ADR-062)", () => {
+  it("data: tooling baseline 3 + anthropic-data-plugin(×2) = 5 (2026-08-02 복원 ADR-062)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(6);
+    expect(spawnCallCount).toBe(5);
   });
 
   it("--with openspec alone (executive base) adds 1 npm call", () => {

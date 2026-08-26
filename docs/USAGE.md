@@ -419,19 +419,22 @@ ECC lives in `affaan-m/everything-claude-code`. There are two ways it reaches yo
 they are mutually exclusive by design:
 
 - **Cherry-picked copies** (what you get when you do *not* opt into ECC): up to 4 agents and
-  6 skills are copied into `.claude/` as ordinary files. "Up to" because most are gated on track —
+  10 skills are copied into `.claude/` as ordinary files. "Up to" because most are gated on track —
   a `tooling` project sees fewer than a `full` one.
 - **The plugin itself** (`--with ecc-plugin`): 60 agents · 230 skills · 75 commands, installed by
-  `claude plugin install ecc@ecc`. Those 4 agents and 6 skills then step aside, so you don't carry
-  two versions of the same agent. Add `--with-prune` to trim the plugin to a curated subset.
+  `claude plugin install ecc@ecc`. Pick ECC **at install time** and those 4 agents and 10 skills are
+  never copied, so you don't carry two versions of the same agent. Add `--with-prune` to trim the
+  plugin to a curated subset.
 
-Six other ECC-derived skills install **either way**, and only two of them do so deliberately:
-`deep-research` and `eval-harness` are modified here, and the plugin's versions don't carry the
-changes. The other four — `market-research`, `investor-materials`, `investor-outreach`
-(on `executive` / `full`) and `nextjs-turbopack` (on `ssr-nextjs` / `full`) — were simply never
-given the ECC gate, so on those tracks `--with ecc-plugin` leaves you with two copies. That is a
-defect in this repo, tracked separately; it is recorded here because the alternative is a document
-that promises something the code does not do.
+> **Turning ECC on later does not remove copies you already have.** The gate decides what gets
+> *written*; nothing deletes what an earlier run wrote. Measured on a `full`-track project: install
+> without ECC, then either `install --with ecc-plugin` over it (add) or `update` — all 14 copies are
+> still in `.claude/`, and you do carry two versions until you delete them yourself. `uninstall
+> --only` cannot do it either: it works from the install log's catalog assets, and these are
+> baseline files. A fresh install with ECC selected is the one path where the sentence above holds.
+
+Two ECC-derived skills install **either way**: `deep-research` and `eval-harness` are modified
+here, so the plugin's versions cannot stand in for them.
 
 See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-pick-plugin-gating.md).
 

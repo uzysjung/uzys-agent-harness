@@ -6,7 +6,13 @@ import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 import { type ExternalInstallReport, selectExternalTargets } from "../src/external-installer.js";
 import { readInstallLog } from "../src/install-log.js";
 import { type InstallContext, runInstall } from "../src/installer.js";
-import type { CliTargets, InstallSpec, OptionFlags, Track } from "../src/types.js";
+import {
+  type CliTargets,
+  type InstallSpec,
+  type OptionFlags,
+  TRACKS,
+  type Track,
+} from "../src/types.js";
 
 type RunExternalFn = NonNullable<InstallContext["runExternal"]>;
 function makeMock(fn: RunExternalFn): RunExternalFn & {
@@ -76,29 +82,41 @@ describe("runInstall — external assets integration", () => {
     // WHY: 이전 헤더 카운트는 internal 자산을 포함해 dev 트랙 전부에서 과대였고
     // ("External assets (13)" 표기 후 5행 스트리밍), 그 값을 검증하는 테스트가 0건이라
     // mock 이 값을 날조하는 경로만 존재했다. 실 runExternalPhase 를 태워 실측한다.
-    const capture = (cli: CliTargets): number => {
+    const capture = (cli: CliTargets, tracks: Track[]): number => {
       let announced = -1;
       runInstall({
         runExternal: makeMock(() => EMPTY_REPORT),
         harnessRoot: HARNESS_ROOT,
         projectDir,
-        spec: { ...spec(["tooling"], {}, projectDir), cli },
+        spec: { ...spec(tracks, {}, projectDir), cli },
         onProgress: (e) => {
           if (e.type === "external-start") announced = e.assetCount;
         },
       });
       return announced;
     };
-    const claudeCount = capture(["claude"]);
-    const codexCount = capture(["codex"]);
-    const expectedCodex = selectExternalTargets(EXTERNAL_ASSETS, {
-      tracks: ["tooling"],
-      options: NO_OPTS,
-      cli: ["codex"],
-    }).targets.length;
-    expect(codexCount).toBe(expectedCodex);
-    // CLI 필터가 실 경로를 관통한다는 직접 증거 — tooling 트랙엔 claude 전용 plugin 이 있다.
-    expect(codexCount).toBeLessThan(claudeCount);
+    const selected = (tracks: Track[], cli: CliTargets): number =>
+      selectExternalTargets(EXTERNAL_ASSETS, { tracks, options: NO_OPTS, cli }).targets.length;
+
+    // 헤더 카운트가 실 시도 대상 수와 일치하는가.
+    expect(capture(["codex"], ["tooling"])).toBe(selected(["tooling"], ["codex"]));
+
+    // CLI 필터가 실 경로를 **관통**한다는 직접 증거.
+    // 2026-08-26 (#344): 예전에는 "tooling 트랙엔 claude 전용 plugin 이 있다"는 **우연한
+    //   카탈로그 사실**에 기대 tooling 하나로 `codex < claude` 를 단언했다. frontend-design 이
+    //   plugin(=claude 전용) → skill(=4 CLI) 로 바뀌자 tooling 에서 그 사실이 사라져 3 = 3 이
+    //   됐고 단언이 무너졌다. 전제를 하드코딩하지 말고 **차이를 내는 트랙을 카탈로그에서
+    //   고른다** — 카탈로그가 또 바뀌어도 이 단언은 안 썩는다.
+    const discriminating = TRACKS.find((t) => selected([t], ["codex"]) < selected([t], ["claude"]));
+    expect(
+      discriminating,
+      "claude 도달 범위가 codex 보다 넓은 트랙이 하나도 없다 — CLI 필터를 관통 검증할 대상이 " +
+        "사라졌다. 카탈로그에서 claude 전용(plugin·shell-script) 자산이 전부 없어졌거나 " +
+        "assetCliSupport 가 망가졌다. 둘 중 무엇인지 확인하라.",
+    ).toBeDefined();
+    const t = discriminating as Track;
+    expect(capture(["codex"], [t])).toBe(selected([t], ["codex"]));
+    expect(capture(["codex"], [t])).toBeLessThan(capture(["claude"], [t]));
   });
 
   it("skips external install when runExternal=null (test mode)", () => {

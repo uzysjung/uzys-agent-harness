@@ -31,9 +31,18 @@ export interface AssetSpec {
    * Note: copied from `OptionFlags.withEcc` by installer; keep both fields in sync.
    *
    * 정책 (cherry-pick × plugin gating):
-   * - C1 (단순 중복): 매핑 자체 삭제. 현재 0개.
-   * - C2 (plugin OFF fallback): `applies: (s) => !s.withEcc && <track>`. 19개.
-   * - C3 (modified or 별개 source): `applies: <track only>` (withEcc 무관 항상 install). 3개.
+   * - C1 (단순 중복): 매핑 자체 삭제.
+   * - C2 (plugin OFF fallback): `applies: (s) => !s.withEcc && <track>`.
+   * - C3 (modified or 별개 source): `applies: <track only>` (withEcc 무관 항상 install).
+   *
+   * **개수를 여기 적지 않는다** — 주석의 숫자는 두 번째 사본이라 썩는다 (#340 에서 실제로
+   * 19/3 이 실측과 어긋나 있었다). 그리고 **`_ECC` 접미 목록을 세는 것으로는 C2 가 안 나온다**:
+   * 이 파일의 `buildManifest` 안에는 목록 없이 인라인 `applies` 로 `!s.withEcc` 를 붙인 엔트리가
+   * 따로 있어(#340 에서 추가), 목록만 세면 그만큼 모자란다.
+   * C2 의 모집단은 **`buildManifest` 를 withEcc on/off 로 두 번 만들어 `applies()` 통과 대상을
+   * diff** 해서 얻는다 — 조건식을 읽는 대신 결과를 재는 이 방법이 인라인 게이트까지 포함한다.
+   * C3 는 `MODIFIED_ECC_SKILL_DIRS`. `tests/vnv-verdict.test.ts` 가 같은 방법으로 양방향 정합을
+   * 문다.
    *
    * 분류 표 SSOT: docs/PRD/v26-58-cherry-pick-plugin-gating.md §6.
    */
@@ -169,12 +178,17 @@ export const ALWAYS_HOOKS = [
 // 이관돼 카탈로그 엔트리(`kind: "skill"`)가 됐다. 전 트랙 도달 범위는 그 엔트리의
 // `any-track: 전 트랙` condition 이 이어받는다 (강등 아님).
 const COMMON_SKILL_DIRS: string[] = [];
-// C2 (plugin OFF fallback, opt-out): strategic-compact.
+// C2 (plugin OFF fallback, opt-out).
 // v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
 // instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
 // 뒤집혀 있었다 — 갈음 불가의 내용이 기능 제거였다. upstream 전체를 복원해 동일해졌으므로
 // (lock modified:false) plugin ON 이면 비켜서는 것이 맞다. 데몬은 upstream 기본값대로 꺼져 있다
 // (config.json observer.enabled=false) — 켜면 백그라운드에서 claude 를 주기 호출하므로 사용자 선택.
+// #340 — strategic-compact 은 lock 에서 `modified:true` 지만 **C2 로 두는 것이 의도**다.
+// `modified` 는 `sync-cherrypicks.sh --apply` 의 덮어쓰기 방지 플래그이지 설치 게이팅이 아니다.
+// ECC 를 고르면 이 디렉터리가 안 깔리고, 그때 `settings.json` 이 남기는 훅 참조는 install 의
+// 치유 패스가 지운다(M-1, `tests/installer.test.ts` 가 문다). 두 축을 같은 것으로 읽으면
+// 이 결정이 사고로 보인다 — 그래서 아래 게이트에 예외로 **이름을 적어** 둔다.
 const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "continuous-learning-v2"];
 // C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
 // 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
@@ -351,25 +365,22 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     type: "file",
     applies: all,
   });
-  m.push({
-    source: "skills/market-research",
-    target: ".claude/skills/market-research",
-    type: "dir",
-    applies: onTracks("executive|full"),
-  });
-  for (const sd of ["investor-materials", "investor-outreach"]) {
+  // #340 — 아래 4종은 `cherrypicks.lock` 에서 `modified:false`(= 우리가 안 고친 사본)인데
+  // `!s.withEcc` 가 빠져 있었다. ECC 플러그인을 고른 사용자가 **같은 스킬을 두 판본** 받았고,
+  // 어느 쪽이 로드되는지 예측할 수 없었다. C2 규칙(ADR-019)에 맞춘다.
+  for (const sd of ["market-research", "investor-materials", "investor-outreach"]) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: onTracks("executive|full"),
+      applies: (s) => !s.withEcc && onTracks("executive|full")(s),
     });
   }
   m.push({
     source: "skills/nextjs-turbopack",
     target: ".claude/skills/nextjs-turbopack",
     type: "dir",
-    applies: onTracks("ssr-nextjs|full"),
+    applies: (s) => !s.withEcc && onTracks("ssr-nextjs|full")(s),
   });
   // v26.87.0 — internal bundled skills (uzys 1st-party templates: dev-method + opt-in advisors,
   // v26.95.0). Whole-dir copy so sidecar files ship too (e.g. gemini-consult/scripts/gemini-ask.sh).

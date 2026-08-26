@@ -507,23 +507,25 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   // === UI tracks (csr-*|ssr-*|full) ===
-  // v26.92.0 — frontend-design (Anthropic official, claude-plugins-official 984.5K installs).
+  // v26.92.0 — frontend-design (Anthropic official).
   //   사용자 결정: has-dev-track 기본추천 (모든 개발 트랙, executive 제외).
   //   category=frontend (UI 자산, wizard 그룹).
-  //   repoForAsset=marketplace(anthropics/claude-plugins-official); official tier=drift 제외.
+  //
+  // 2026-08-26 (#344) — **plugin → skill.** 배달 방식이 도달 CLI 를 정한다(assetCliSupport):
+  //   `plugin` 은 `claude plugin install` 을 spawn 하므로 **구조적으로 Claude Code 전용**이라,
+  //   Codex·OpenCode·Antigravity 를 고른 사용자는 기본 추천 자산인데도 한 번도 받지 못했다
+  //   (사용자 적발). 같은 스킬이 `anthropics/skills` 에 원본으로 있고 `npx skills add` 는
+  //   `--agent` 로 네 CLI 전부에 깐다 — 실재 확인 2026-08-26: `skills/frontend-design/SKILL.md`.
+  //   tier 는 official 그대로(저자 동일). marketplace 경유가 아니게 되어 upstream 판본을 직접 쓴다.
   {
     id: "frontend-design",
-    tier: "official", // anthropics/claude-plugins-official (Anthropic 저자, 984.5K installs)
+    tier: "official", // anthropics/skills (Anthropic 저자, ★171.5K — 2026-08-26 gh api 실측)
     description:
       "frontend-design — distinctive production-grade UI generation (Anthropic official, avoids generic AI aesthetics)",
     category: "frontend",
     source: "anthropics",
     condition: { kind: "has-dev-track" },
-    method: {
-      kind: "plugin",
-      marketplace: "anthropics/claude-plugins-official",
-      pluginId: "frontend-design@claude-plugins-official",
-    },
+    method: { kind: "skill", source: "anthropics/skills", skill: "frontend-design" },
   },
   // 2026-08-02 정비 — 프론트엔드 품질 3종 (사용자 지시). 전부 opt-in: frontend-design 이 기본
   //   생성기이고 이 셋은 그 위의 취향·디테일 층이라 상시 비용을 물릴 근거가 없다 (ADR-032/035

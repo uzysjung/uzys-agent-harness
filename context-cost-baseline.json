@@ -7,31 +7,31 @@
   "tracks": {
     "tooling": {
       "items": 23,
-      "tokens": 5139
+      "tokens": 5163
     },
     "csr-supabase": {
       "items": 24,
-      "tokens": 5194
+      "tokens": 5218
     },
     "csr-fastify": {
       "items": 24,
-      "tokens": 5194
+      "tokens": 5218
     },
     "csr-fastapi": {
       "items": 26,
-      "tokens": 5282
+      "tokens": 5306
     },
     "ssr-htmx": {
       "items": 24,
-      "tokens": 5194
+      "tokens": 5218
     },
     "ssr-nextjs": {
       "items": 25,
-      "tokens": 5234
+      "tokens": 5258
     },
     "data": {
       "items": 24,
-      "tokens": 5034
+      "tokens": 5058
     },
     "executive": {
       "items": 17,
@@ -39,7 +39,7 @@
     },
     "full": {
       "items": 31,
-      "tokens": 5769
+      "tokens": 5793
     },
     "project-management": {
       "items": 14,

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -68,6 +68,57 @@ for (const [label, SCRIPT] of [
         expect(r.out).toContain("매치: 0건");
       });
 
+      /**
+       * #329 — "패턴 없음"만으로는 **몇 개를 봤는지** 알 수 없다. 그 상태의 "전수 검사했다"는
+       * 보고를 아무도 검증할 수 없고, 이 저장소는 한 PR 안에서 그 형태로 세 번 틀렸다.
+       */
+      it("검사한 파일 수를 결론 줄에 낸다 — 모집단 없는 '없음'은 검증 불가다", () => {
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+        expect(r.code).toBe(1);
+        expect(r.out).toContain("파일 2개");
+      });
+
+      it("파일 수는 매치된 파일이 아니라 **본 파일 전부**다", () => {
+        // 매치는 dirty.txt 한 곳뿐인데 clean.txt 도 읽었다. 매치 수로 모집단을 대신하면
+        // "1개 봤다"가 되어, 이 줄을 넣은 이유가 그대로 사라진다.
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+        expect(r.out).toContain("매치: 1건 / 파일 2개");
+      });
+
+      /**
+       * 리뷰 HIGH-1 — 이 계수가 **플랫폼마다 다른 수**를 냈다. 이전 판본의 `grep -rIc ""` 는
+       * GNU 가 바이너리 파일에도 `파일:0` 줄을 내고 BSD(macOS)는 안 내서, 같은 트리를 두고
+       * macOS 500 vs Linux 504 를 냈다(이 저장소 src·templates·tests·scripts·docs 실측,
+       * Debian 컨테이너 대조). 수가 갈리면 "같은 범위를 봤다"를 이 줄로 확인할 수 없고,
+       * 그게 #329 가 이 줄을 넣은 이유 전부다.
+       *
+       * 한 번의 테스트 실행은 한 플랫폼만 밟으므로 "두 값이 같다"를 직접 단언할 수는 없다.
+       * 대신 **두 구현이 합의하는 모집단**을 못박는다 — 줄이 하나라도 있는 텍스트 파일만 센다.
+       * `-c` 계수로 되돌리면 빈 파일이 `파일:0` 로 잡히고, `-I` 를 빼면 바이너리가 잡힌다 —
+       * **둘 다 이 픽스처를 `파일 2개` 에서 `파일 3개` 로 갈라 빨간불이 된다**(macOS 실측,
+       * BSD grep 2.6.0-FreeBSD). `-I` 쪽을 "Linux 에서만 잡힌다"고 적었던 이전 주석은
+       * 게이트를 실제보다 약하게 말한 것이라 고쳤다.
+       */
+      it("모집단은 '줄이 있는 텍스트 파일' — 빈 파일·바이너리는 구현마다 갈려서 뺀다", () => {
+        writeFileSync(join(dir, "empty.txt"), "");
+        writeFileSync(join(dir, "blob.bin"), Buffer.from([0x41, 0x00, 0x42, 0x00, 0x0a]));
+        // 픽스처 구성을 먼저 못박는다. 아래 `파일 2개` 의 뜻은 **네 파일 중 둘이 빠졌다**인데,
+        // 그 사실이 픽스처에만 있으면 위 두 줄을 지워도(텍스트 2개만 남아도) 그대로 초록이다 —
+        // 실제로 이 판본 직전까지 그랬다. 그러면 다음 사람이 "안 쓰이는 픽스처"로 보고 지우고,
+        // 게이트는 살아 있는 채로 계수 회귀를 못 잡는다.
+        expect(readdirSync(dir).sort()).toEqual([
+          "blob.bin",
+          "clean.txt",
+          "dirty.txt",
+          "empty.txt",
+        ]);
+        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "."], dir);
+        expect(r.code).toBe(1);
+        // 무엇을 센 것인지가 결론 줄 안에 있어야 한다 — "파일 N개"만으로는 읽는 사람이
+        // 빈 파일·바이너리가 들었는지 알 수 없고, 그러면 모집단을 다시 추측하게 된다.
+        expect(r.out).toContain("매치: 1건 / 파일 2개(바이너리·빈 파일 제외)");
+      });
+
       it("있으면 1 — 위치를 보여준다", () => {
         const r = run(SCRIPT, ["--canary", "OldName", "OldName", "dirty.txt"], dir);
         expect(r.code).toBe(1);
@@ -121,6 +172,12 @@ for (const [label, SCRIPT] of [
         expect(r.code).toBe(0);
         expect(r.out).toContain("대조군");
         expect(r.out).toContain("부정 결론이 증거를 얻었다");
+      });
+
+      it("결론 줄에 대상 명령이 남는다 — 무엇을 판정했는지가 결론과 같은 줄에 있어야 한다", () => {
+        const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
+        expect(r.code).toBe(0);
+        expect(r.out).toMatch(/부정 결론이 증거를 얻었다.*대상 1개: false/);
       });
 
       it("대조 성공 + 대상 성공 → 1 ('안 된다'가 틀렸다)", () => {
