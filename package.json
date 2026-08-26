@@ -35,6 +35,7 @@
     "cost:report": "npm run build && node scripts/context-cost-report.mjs",
     "cost:baseline": "npm run build && node scripts/context-cost-baseline.mjs",
     "assets:history": "bash scripts/asset-history.sh",
+    "release:audit": "node scripts/release-audit.mjs",
     "security": "npm audit --omit=dev --audit-level=high && npx --yes ecc-agentshield@1.4.0 scan --baseline security-baseline.json --gate",
     "security:baseline": "npx --yes ecc-agentshield@1.4.0 scan --save-baseline security-baseline.json"
   },
