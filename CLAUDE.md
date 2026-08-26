@@ -100,10 +100,14 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
    오래 멈춰 있어 착각을 부른다. GitHub release 는 만들지 않는다 — 태그·npm 이 SSOT 다.
 6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다**(ADR-062) — 이관은
-   본문 소실로 판정 번복됐고, **스킬 본문을 무는 게이트 4종이 이 리포에만 있다**
-   (`north-star-skill`·`recurrence-prevention-skill`·`subagent-file-handoff`·
-   `consult-model-tier`). 배선 SSOT = `src/external-assets.ts` 의
-   `INTERNAL_BUNDLED_SKILL_IDS` / `DEV_METHOD_SKILL_IDS`(개수는 코드가 SSOT).
+   본문 소실로 판정 번복됐고, **스킬 본문에 단언하는 게이트가 이 리포에만 있다**. 개수도
+   이름도 여기 안 적는다 — 열거는 자산 하나가 지워지는 순간 썩는다(`north-star-skill` 삭제로
+   실제로 썩었다). 기준은 **`SKILL.md` 를 읽어 그 *내용*에 단언하는가**이고(존재 확인·
+   바이트 동일 대조는 아니다), **grep 한 번으로 세지 마라** — 한국어 리터럴로 세면 영문으로
+   단언하는 2종을 놓치고 `templates/skills/` 문자열로 세면 경로를 조립하는 1종을 놓친다
+   (2026-08-26 실측: 손열거·리터럴·경로 세 방식이 셋 다 좁았다). 배선 SSOT =
+   `src/external-assets.ts` 의 `INTERNAL_BUNDLED_SKILL_IDS` / `DEV_METHOD_SKILL_IDS`
+   (개수는 코드가 SSOT).
 
 ## 보고·의사결정 형식
 
