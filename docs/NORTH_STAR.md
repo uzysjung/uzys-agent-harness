@@ -113,7 +113,9 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > rules 6개 ~1,176 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
 > (2026-08-19 #345: 배포 Delivery 룰에 **완료 판정의 주체**를 한 줄 되살리며 +24 tok — 앵커가
 > 담지 않는 계약이라 룰이 소유하고, 게이트로 착지시킬 수 없다(남의 저장소의 판정 주체는 코드가
-> 강제할 수 없다). 같은 소실이 재발하지 않게 `tests/delivery-verifier-separation.test.ts` 가 문다.)
+> 강제할 수 없다). **재발 방지는 테스트가 아니라 변경 이력이 맡는다** — 2026-08-26 사용자 결정:
+> 룰·스킬은 개별 독립 자산이고, 바꿀 때 그 이유나 GitHub 이슈를 커밋에 첨부한다. 본문의 *뜻*을
+> 기계로 검증하려던 시도는 세 라운드 모두 우회당해 폐기했다(62줄 → 442줄 → 삭제).)
 >
 > **Codex 축은 이 표에 안 나타난다 — 따로 잰다 (실측 2026-08-26).** 위 수치는 Claude Code
 > 설치자의 것이고, Codex 설치자가 무는 상주분은 룰 본문이 **인라인으로 박히는** `AGENTS.md`
