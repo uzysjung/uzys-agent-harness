@@ -6,8 +6,12 @@
 
 FROM node:20-bookworm-slim
 
+# `ca-certificates` (#369 ②, 2026-08-27 실측): 없으면 `git clone https://github.com/...` 이
+#   `server certificate verification failed. CAfile: none` 으로 죽는다. node/npm 은 자체 CA 를
+#   써서 멀쩡한데 git 만 죽으므로, git 으로 받는 외부 스킬 자산이 **제품이 멀쩡해도 ⊘ 로 뜬다**.
+#   그 상태에서 게이트를 배선하면 태어나자마자 빨간불이고, 그런 게이트는 아무도 안 돌린다(#237).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash git jq \
+    bash git jq ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash uzys

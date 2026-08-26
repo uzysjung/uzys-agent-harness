@@ -212,7 +212,7 @@ function installOne(
   const cwd = ctx.projectDir;
   switch (method.kind) {
     case "skill":
-      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
+      return installSkill(asset, ctx.spawn, method, ctx.cli, ctx.scope, cwd);
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
     case "npm": {
@@ -290,20 +290,28 @@ export function skillsCliSpec(): string {
   return `skills@${SKILLS_CLI_VERSION}`;
 }
 
+/**
+ * `npx skills add` 인자 — **에이전트는 최대 하나**다.
+ *
+ * #372 (실측 2026-08-27, `skills@1.5.11` 컨테이너): `--agent` 를 한 호출에 여러 번 넘기면
+ * Claude Code 몫의 `.claude/skills/` 복사가 **조용히 빠진다**(`.agents/skills/` 에만 깔리고
+ * exit 0). `.agents/skills/` 는 skills CLI 자신이 "universal: Codex, OpenCode, Antigravity" 로
+ * 표시하는 자리라 Claude Code 는 별도 복사를 받아야 하는데, 다중 에이전트에서는 그 복사가
+ * 일어나지 않는다. 대조군(다른 자산·다른 저장소)도 같아서 자산 문제가 아니다.
+ *
+ * `agent === undefined` 는 "전체" — 호출부가 cli 미지정([])일 때 쓴다(레거시 관례).
+ */
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
-  cli: CliTargets,
+  agent: string | undefined,
   scope: InstallScope,
 ): string[] {
   const args = [skillsCliSpec(), "add", method.source];
   if (method.skill) {
     args.push("--skill", method.skill);
   }
-  if (cli.length > 0) {
-    // v26.55.1 — skills cli 1.5.7 부터 multi-agent 는 repeatable `--agent` 만 지원.
-    for (const c of cli) {
-      args.push("--agent", SKILLS_CLI_AGENT_MAP[c] ?? c);
-    }
+  if (agent !== undefined) {
+    args.push("--agent", agent);
   }
   // v26.64.0 (ADR-020) — global scope 시 -g. project 는 skills CLI default (project) 따름.
   if (scope === "global") {
@@ -311,6 +319,40 @@ function buildSkillArgs(
   }
   args.push("--yes");
   return args;
+}
+
+/**
+ * skill 자산 설치 — **고른 CLI 마다 한 번씩** 부른다 (#372).
+ *
+ * 대가: 자산당 호출이 CLI 수만큼 늘어난다(최대 4배). 같은 저장소를 여러 번 clone 하게 되므로
+ * 설치가 느려지고 네트워크 실패 지점도 늘어난다. 그 대가를 받는 이유는 반대쪽이 **조용한
+ * 미설치**이기 때문이다 — exit 0 에 화면은 ✓ 라 아무도 모른다.
+ *
+ * 부분 실패는 성공으로 접지 않는다. 하나라도 실패하면 그 자산은 실패이고, **어느 에이전트가**
+ * 실패했는지 메시지에 남긴다 — 안 남기면 다음 사람이 4번 중 어디가 깨졌는지 알 수 없다.
+ */
+function installSkill(
+  asset: ExternalAsset,
+  spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
+  method: { kind: "skill"; source: string; skill?: string },
+  cli: CliTargets,
+  scope: InstallScope,
+  cwd: string,
+): AssetInstallResult {
+  // cli 미지정([])은 "전체" — 에이전트를 안 붙이고 한 번만 부른다(레거시 관례 유지).
+  const agents: Array<string | undefined> =
+    cli.length === 0 ? [undefined] : cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
+
+  const failures: string[] = [];
+  for (const agent of agents) {
+    const r = runSpawn(asset, spawn, "npx", buildSkillArgs(method, agent, scope), cwd);
+    if (!r.ok) {
+      failures.push(`${agent ?? "all"}: ${r.message ?? "unknown"}`);
+    }
+  }
+  return failures.length === 0
+    ? { asset, ok: true }
+    : { asset, ok: false, message: failures.join(" · ") };
 }
 
 /**
