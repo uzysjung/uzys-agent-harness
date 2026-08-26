@@ -109,3 +109,27 @@ jobs:
           fi
           npm publish --access public
           echo "published: @uzysjung/agent-harness@${GITHUB_REF_NAME#v}"
+
+      # G5 (Epic #366 · #367) — **게시 명령이 성공했다 ≠ registry 에 올라갔다.**
+      # 위 스텝은 NPM_TOKEN 이 없으면 warning 만 내고 exit 0 한다(graceful skip). 그 조용한
+      # 통과가 정확히 이 저장소가 반복해서 다친 형태라, 여기서 **registry 에 실물이 있는지**를
+      # 되묻는다. 없으면 red 다 — 토큰 부재든 게시 실패든, 결과는 "안 나갔다"로 같다.
+      #
+      # 이 스텝은 `publish` job 이 **돌았을 때**만 방어한다. 워크플로 자체가 발동하지 않는
+      # 경우(2026-08-27 Actions 장애)는 여기서 못 잡는다 — 그쪽은 `release-audit.yml` 담당이다.
+      - name: 게시 결과를 registry 에 되묻는다
+        shell: bash
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          # registry 반영에 수 초 걸린다 — 즉시 조회 실패를 게시 실패로 오판하지 않게 재시도.
+          for i in 1 2 3 4 5; do
+            got=$(npm view "@uzysjung/agent-harness@${V}" version 2>/dev/null || true)
+            if [ "$got" = "$V" ]; then
+              echo "registry 확인: @uzysjung/agent-harness@${V} 실재"
+              exit 0
+            fi
+            echo "registry 미반영 (${i}/5) — 10초 후 재시도"
+            sleep 10
+          done
+          echo "::error::태그 ${GITHUB_REF_NAME} 를 밀었는데 npm registry 에 ${V} 가 없다. 게시가 일어나지 않았다 (NPM_TOKEN 부재 또는 publish 실패)."
+          exit 1

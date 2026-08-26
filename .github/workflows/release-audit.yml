@@ -1,0 +1,82 @@
+name: release-audit
+
+# G5 (Epic #366 · #367) — **밀린 태그가 npm 에 실제로 게시됐는가.**
+#
+# 왜 별도 워크플로인가 (2026-08-27 실측): `v26.148.0` 태그를 밀었는데 `ci` 워크플로가 발동하지
+# 않았고, `publish` 는 `needs: ci` 라 따라서 안 돌았다. 원인은 GitHub Actions major outage 였다.
+# **같은 push 에서 `install-matrix` 는 정상 실행됐다** — 부분 발동이라 Actions 탭에는 성공한
+# 워크플로가 하나 보였고, 실패한 빨간불이 아니라 *아무것도 없음*이라 조용했다.
+#
+# 그 워크플로 안에 어떤 검사를 넣어도 그 워크플로가 안 돌면 무의미하다. 그래서 이 검사는
+# **태그 push 이벤트에 의존하지 않는다** — 스케줄로 돈다. 트리거가 유실돼도 다음 실행이 잡는다.
+#
+# 이 게이트도 무오류가 아니다: 저장소가 60일 무활동이면 GitHub 이 스케줄을 자동 비활성화한다.
+# 그때는 이 워크플로 자체가 조용해진다 — `workflow_dispatch` 로 언제든 수동 확인할 수 있다.
+
+on:
+  schedule:
+    # 03:00 UTC = 12:00 KST. 릴리즈는 보통 그 전날 저녁에 나가므로 하루 안에 잡힌다.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # 실패를 이슈로 알린다 (아래 "실패 시 이슈로 알림" 스텝)
+
+# 릴리즈 직후 몇 분간은 "아직 게시 전"이라 red 가 날 수 있다 — 그것은 거짓 red 가 아니라 사실이다.
+concurrency:
+  group: release-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: 밀린 태그가 npm 에 있는가
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # fetch-depth 기본값이면 된다 — 스크립트는 `git ls-remote` 로 **원격**을 직접 읽는다
+      # (로컬 태그는 아직 안 민 것이므로 모집단이 아니다). checkout 은 스크립트와 CHANGELOG 용이다.
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: 태그 ↔ npm registry 대조
+        run: node scripts/release-audit.mjs
+
+      # cron 실패는 아무도 보러 오지 않는다 — 이 저장소가 이미 한 번 겪었다(2026-07-01, 알림 경로 0).
+      # 중복 방지: 같은 제목의 열린 이슈가 있으면 새로 만들지 않고 코멘트만 붙인다.
+      - name: 실패 시 이슈로 알림
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }} # checkout 이 실패해도 gh 가 리포를 안다
+          ISSUE_TITLE: "cron 실패: release-audit — 밀린 태그가 npm 에 없다"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --state open --limit 200 --json number,title \
+            | jq -r --arg t "$ISSUE_TITLE" 'map(select(.title == $t)) | first | .number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "재발 — run: $RUN_URL (attempt ${GITHUB_RUN_ATTEMPT})"
+            exit 0
+          fi
+          body=$(printf '%s\n' \
+            "정기 실행(cron)이 실패했다. **원격에 밀린 태그 중 npm 에 없는 버전이 있다.**" \
+            "" \
+            "- 워크플로: \`.github/workflows/release-audit.yml\` (매일 03:00 UTC)" \
+            "- 실패한 run: $RUN_URL" \
+            "- attempt: ${GITHUB_RUN_ATTEMPT}" \
+            "" \
+            "이 실패는 인프라 오류가 아니라 **게시가 일어나지 않았다**는 신호다. run 로그에 미게시 버전이 나온다." \
+            "" \
+            "확인 순서:" \
+            "1. 릴리즈 워크플로가 발동했나 — \`gh run list --workflow=ci --limit 3\`" \
+            "2. 아예 안 돌았으면(트리거 유실·Actions 장애) 같은 태그에서 재트리거 — \`gh workflow run ci --ref <태그>\`" \
+            "3. 의도적 미게시면 CHANGELOG 헤딩 바로 다음 줄에 \`<!-- npm-publish:none <사유> -->\`" \
+            "" \
+            "로컬 재현: \`npm run release:audit\`" \
+            "" \
+            "다음 실패는 이 이슈에 코멘트로 붙는다. **처리 후 닫아야** 그 다음 실패가 새 이슈로 보인다.")
+          gh issue create --title "$ISSUE_TITLE" --body "$body"
