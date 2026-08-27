@@ -291,6 +291,69 @@ export function skillsCliSpec(): string {
 }
 
 /**
+ * `npx skills add` 가 프로젝트 루트에 남기는 잠금 파일. **update 를 부를지 가르는 유일한 신호**다.
+ *
+ * 이 파일이 없으면 skills CLI 는 `No project skills to update.` 만 내고 exit 0 한다 — 즉 부를
+ * 이유가 없는데도 npx 왕복(네트워크)을 한 번 태우게 된다. 존재 확인이 그 비용을 없앤다.
+ */
+const SKILLS_LOCK_FILE = "skills-lock.json";
+
+/** `update` 가 외부 스킬을 갱신했는지에 대한 보고. */
+export interface ExternalSkillRefresh {
+  /** 실제로 `skills update` 를 불렀나. false = 이 프로젝트에 잠금 파일이 없다. */
+  ran: boolean;
+  /** 실패 사유. 성공이거나 안 불렀으면 null. **실패해도 update 는 계속한다.** */
+  failure: string | null;
+}
+
+/**
+ * 이미 깔린 외부 스킬을 상류 최신판으로 갱신한다 (#374).
+ *
+ * **왜 있나**: `update` 는 우리가 렌더한 CLI 산출물만 새로 썼고(`refreshExternalCli`),
+ * `npx skills add` 로 깐 자산은 **한 번도 갱신하지 않았다**(실측 2026-08-27, npx 호출 추적:
+ * install 2회 · update 0회). 그런데 화면에는 `✓ external CLI artifacts` 가 떠서 다 된 것처럼
+ * 보였다 — 상류가 스킬을 고쳐도 받지 못하고, 못 받는다는 사실도 알 수 없었다.
+ *
+ * **실측 (컨테이너 `skills@1.5.11`, 2026-08-27)** — 착수 전에 잰 4건:
+ *   ① 우리 `--copy` 사본을 인식하나  → 인식한다. `add` 가 남긴 `skills-lock.json` 을 읽는다
+ *   ② 두 사본을 다 갱신하나          → `.claude/` · `.agents/` 양쪽에 변이를 넣고 update →
+ *                                     둘 다 0 (되돌아왔다). 한쪽만 갱신되는 drift 는 없다
+ *   ③ 버전 고정과의 관계             → 고정 유지. `skills@1.5.23` 은 node 20 에서 EBADENGINE
+ *   ④ 실패가 update 를 죽이나        → 여기서 죽이지 않는다(아래). 빈 디렉터리는 CLI 가 exit 0
+ *
+ * **알려진 비용**: 오프라인이면 npx 가 레지스트리를 기다리며 멈춘다(실측: 60초 대조군이
+ * timeout 124). 공유 타임아웃(120초)까지 화면이 조용하다 — `install` 의 `skills add` 도 같은
+ * 노출이라 여기에만 다른 상한을 두지 않는다. 대신 **실패는 update 를 죽이지 않고 한 줄로 뜬다**.
+ *
+ * **왜 스킬을 골라 부르지 않나**: `skills update <이름…>` 으로 우리 것만 지정할 수 있지만,
+ * skill 자산 18종 중 `--skill` 로 이름을 특정하는 것은 15종뿐이고 나머지는 저장소 통째 설치라
+ * 깔린 이름을 우리가 모른다. 이름을 아는 것만 부르면 **3종이 조용히 낡는다** — #372 가 바로 그
+ * "일부만 조용히 빠지는" 결함이었다. 잠금 파일 전체를 갱신하고, 그 사실을 화면에 적는다.
+ */
+export function refreshExternalSkills(
+  projectDir: string,
+  deps: { spawn?: ExternalInstallerDeps["spawn"] } = {},
+): ExternalSkillRefresh {
+  if (!existsSync(join(projectDir, SKILLS_LOCK_FILE))) {
+    return { ran: false, failure: null };
+  }
+  const spawn = deps.spawn ?? defaultSpawn;
+  // `-p` = project scope 만. 사용자의 글로벌 스킬은 우리 update 의 대상이 아니다
+  // (하네스 `update` 자체가 `--project-dir` 전용이다).
+  const args = [skillsCliSpec(), "update", "-p", "-y"];
+  const result = spawn("npx", args, spawnOpts(projectDir));
+  if (result.error) {
+    return { ran: true, failure: result.error.message };
+  }
+  if ((result.status ?? 1) !== 0) {
+    const stderr = (result.stderr ?? "").trim();
+    const tail = stderr.length > 200 ? `${stderr.slice(0, 200)}…` : stderr;
+    return { ran: true, failure: `npx exited ${result.status}${tail ? `: ${tail}` : ""}` };
+  }
+  return { ran: true, failure: null };
+}
+
+/**
  * `npx skills add` 인자.
  *
  * **`--copy` 가 핵심이다** (#372, 실측 2026-08-27 `skills@1.5.11` 컨테이너). 기본 모드에서

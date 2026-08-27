@@ -791,6 +791,8 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         mcpAllowlistRetired: null,
+        externalSkillsRefreshed: false,
+        externalSkillsFailed: null,
       },
     });
     executeSpec(baseSpec, {
@@ -847,6 +849,8 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         mcpAllowlistRetired: null,
+        externalSkillsRefreshed: false,
+        externalSkillsFailed: null,
       },
     });
     executeSpec(baseSpec, {
@@ -902,6 +906,8 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         mcpAllowlistRetired: null,
+        externalSkillsRefreshed: false,
+        externalSkillsFailed: null,
       },
     });
     executeSpec(baseSpec, {
@@ -948,6 +954,8 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         mcpAllowlistRetired: null,
+        externalSkillsRefreshed: false,
+        externalSkillsFailed: null,
       },
     });
     executeSpec(baseSpec, {

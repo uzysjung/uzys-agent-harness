@@ -26,6 +26,7 @@ import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
 import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
 import {
@@ -105,6 +106,24 @@ export interface UpdateModeReport {
   /** 사용자가 고쳐서 백업본을 남긴 외부 CLI 산출물 (projectDir 상대경로). */
   externalBackedUp: string[];
   /**
+   * #374 — `npx skills add` 로 깐 **외부 스킬**을 이번 update 가 상류 최신판으로 갱신했나.
+   *
+   * `externalUpdated` 와 다른 것이다. 위 필드는 **우리가 렌더한** CLI 산출물이고 이쪽은
+   * **남의 저장소에서 받아온 스킬 본문**이다. 둘을 한 행으로 합치지 않는 이유는 이 결함이
+   * 정확히 그 혼동이었기 때문이다 — 화면의 `external CLI artifacts` 를 보고 스킬도 갱신된 줄
+   * 알았지만 그쪽은 한 번도 안 돌았다.
+   *
+   * false = 이 프로젝트에 `skills-lock.json` 이 없어 갱신할 외부 스킬이 없다.
+   */
+  externalSkillsRefreshed: boolean;
+  /**
+   * 외부 스킬 갱신이 실패한 사유. null = 성공이거나 대상이 없다.
+   *
+   * **실패해도 update 는 계속한다** — 네트워크 하나 때문에 정책 파일 갱신까지 잃는 것은
+   * 사용자에게 더 나쁘다. 대신 침묵하지 않는다(화면에 한 줄).
+   */
+  externalSkillsFailed: string | null;
+  /**
    * #343 — 다른 도구가 소유한 자리라 **쓰지 않은** 경로. 출처를 나누지 않는다 —
    * 외부 CLI 산출물(`.agents/skills/<id>`)이든 이번 릴리즈 신규 자산이든, 사용자에게
    * 필요한 것은 "어느 자리를 옮겨야 하는가" 하나다. `skillsSkippedLinks` 는 스킬 id 를
@@ -175,10 +194,20 @@ export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>
  *   호출부만 조용히 외부 CLI 갱신을 건너뛰고, 그건 지금 고치고 있는 바로 그 버그다
  *   (ADR-048 의 `baseline` 을 required 로 둔 것과 같은 이유).
  */
+/** `runUpdateMode` 주입점. 기본은 실 구현 — 테스트만 바꿔 끼운다. */
+export interface UpdateModeDeps {
+  /**
+   * #374 — 외부 스킬 갱신. 기본은 `refreshExternalSkills`(실제 `npx skills update`).
+   * 테스트가 네트워크를 타지 않게 하는 유일한 지점이다.
+   */
+  refreshSkills?: (projectDir: string) => ExternalSkillRefresh;
+}
+
 export function runUpdateMode(
   projectDir: string,
   templatesDir: string,
   harnessRoot: string,
+  deps: UpdateModeDeps = {},
 ): UpdateModeReport {
   const claudeDir = join(projectDir, ".claude");
   const report: UpdateModeReport = {
@@ -194,6 +223,8 @@ export function runUpdateMode(
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
+    externalSkillsRefreshed: false,
+    externalSkillsFailed: null,
     foreignOwned: [],
     installedNew: [],
     restored: [],
@@ -286,6 +317,13 @@ export function runUpdateMode(
     if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
   }
   report.foreignOwned = merged;
+
+  // 5) 외부 스킬 (#374). 4) 는 **우리가 렌더한** 산출물만 새로 쓴다 — `npx skills add` 로 깐
+  //    스킬 본문은 그 경로에 없어서 update 를 몇 번 돌려도 첫 설치 판본 그대로였다.
+  //    실패해도 여기서 멈추지 않는다(위 필드 주석의 사유). 화면 행은 install-render 가 낸다.
+  const skillRefresh = (deps.refreshSkills ?? refreshExternalSkills)(projectDir);
+  report.externalSkillsRefreshed = skillRefresh.ran && skillRefresh.failure === null;
+  report.externalSkillsFailed = skillRefresh.failure;
 
   return report;
 }
