@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-28
-- PR: (PR 생성 후 기입)
+- PR: #379
 - Refs: ADR-077 (CI 목표·가드레일 G1~G5), Epic #366, #369
 
 ## Context
