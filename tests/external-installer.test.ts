@@ -92,6 +92,8 @@ describe("runExternalInstall — method dispatch", () => {
       "owner/repo",
       "--agent",
       "claude-code",
+      // #372 — `--copy` 없이는 Claude Code 몫의 `.claude/skills/` 복사가 조용히 빠진다.
+      "--copy",
       "--yes",
     ]);
   });
@@ -127,6 +129,7 @@ describe("runExternalInstall — method dispatch", () => {
       "react",
       "--agent",
       "claude-code",
+      "--copy",
       "--yes",
     ]);
   });
@@ -142,7 +145,7 @@ describe("runExternalInstall — method dispatch", () => {
   //   그래서 **테스트가 틀린 경우**에 해당해 갱신한다 — 구현을 테스트에 맞추지 않는다.
   //   위 세 줄의 이력은 남긴다: `claude` → `claude-code` 매핑과 콤마 금지는 지금도 유효하다.
   //   호출 형태의 전체 계약 = `tests/skills-per-agent-call.test.ts`.
-  it("skill with multi-CLI: claude 는 단독 호출, 나머지는 한 묶음 (#372)", () => {
+  it("skill with multi-CLI: 한 호출 + --copy (#372)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       {
@@ -153,8 +156,19 @@ describe("runExternalInstall — method dispatch", () => {
       { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] },
     );
     expect(spawn.mock.calls.map((c) => c[1])).toEqual([
-      [skillsCliSpec(), "add", "owner/repo", "--agent", "claude-code", "--yes"],
-      [skillsCliSpec(), "add", "owner/repo", "--agent", "codex", "--agent", "opencode", "--yes"],
+      [
+        skillsCliSpec(),
+        "add",
+        "owner/repo",
+        "--agent",
+        "claude-code",
+        "--agent",
+        "codex",
+        "--agent",
+        "opencode",
+        "--copy",
+        "--yes",
+      ],
     ]);
   });
 

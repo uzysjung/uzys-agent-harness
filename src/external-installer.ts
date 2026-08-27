@@ -212,7 +212,7 @@ function installOne(
   const cwd = ctx.projectDir;
   switch (method.kind) {
     case "skill":
-      return installSkill(asset, ctx.spawn, method, ctx.cli, ctx.scope, cwd);
+      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
     case "npm": {
@@ -291,27 +291,40 @@ export function skillsCliSpec(): string {
 }
 
 /**
- * `npx skills add` 인자 — **에이전트는 최대 하나**다.
+ * `npx skills add` 인자.
  *
- * #372 (실측 2026-08-27, `skills@1.5.11` 컨테이너): `--agent` 를 한 호출에 여러 번 넘기면
- * Claude Code 몫의 `.claude/skills/` 복사가 **조용히 빠진다**(`.agents/skills/` 에만 깔리고
- * exit 0). `.agents/skills/` 는 skills CLI 자신이 "universal: Codex, OpenCode, Antigravity" 로
- * 표시하는 자리라 Claude Code 는 별도 복사를 받아야 하는데, 다중 에이전트에서는 그 복사가
- * 일어나지 않는다. 대조군(다른 자산·다른 저장소)도 같아서 자산 문제가 아니다.
+ * **`--copy` 가 핵심이다** (#372, 실측 2026-08-27 `skills@1.5.11` 컨테이너). 기본 모드에서
+ * 에이전트를 여럿 넘기면 skill 이 `.agents/skills/`(codex·opencode·antigravity 공용)에만 깔리고
+ * **Claude Code 몫의 `.claude/skills/` 가 조용히 빠진다** — exit 0 이라 설치 화면에는 ✓ 로 뜬다.
+ * `--copy`(help: "Copy files instead of symlinking to agent directories")를 붙이면 한 호출로
+ * 두 자리가 다 생긴다.
  *
- * 빈 배열은 "전체" — 호출부가 cli 미지정([])일 때 쓴다(레거시 관례).
+ * 재 본 것들:
+ *   `--agent a --agent b` (반복)      → `.agents/` 만        ❌
+ *   `--agent a b` (variadic, 문서 형태) → `.agents/` 만        ❌ (1.5.23 도 동일)
+ *   `--agent "a,b"` (콤마)             → `Invalid agents:` **exit 1**, 아무것도 안 깔림
+ *   위 어느 형태든 **+ `--copy`**       → 두 자리 다 생김      ✅ 1회 5초
+ * 콤마는 1.5.5 에서만 되던 형태다(1.5.7 폐지, v26.55.1 회귀). 버전 bump 때 이 표를 다시 잰다.
+ *
+ * **`--copy` 는 에이전트를 명시할 때만 붙인다.** 미지정(`cli: []`, 레거시 "전체")에 붙이면
+ * 설치 대상이 `.agents/` 한 곳에서 **약 50개 도구 디렉터리로 폭발**한다(실측). 그 경로는 종전
+ * 그대로 둔다.
  */
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
-  agents: ReadonlyArray<string>,
+  cli: CliTargets,
   scope: InstallScope,
 ): string[] {
   const args = [skillsCliSpec(), "add", method.source];
   if (method.skill) {
     args.push("--skill", method.skill);
   }
-  for (const a of agents) {
-    args.push("--agent", a);
+  if (cli.length > 0) {
+    for (const c of cli) {
+      args.push("--agent", SKILLS_CLI_AGENT_MAP[c] ?? c);
+    }
+    // 에이전트를 고른 경우에만. 위 주석의 폭발 사유.
+    args.push("--copy");
   }
   // v26.64.0 (ADR-020) — global scope 시 -g. project 는 skills CLI default (project) 따름.
   if (scope === "global") {
@@ -319,62 +332,6 @@ function buildSkillArgs(
   }
   args.push("--yes");
   return args;
-}
-
-/** skills CLI 에서 Claude Code 를 가리키는 이름. 아래 그룹핑의 경계이자 유일한 예외다. */
-const CLAUDE_SKILLS_AGENT = SKILLS_CLI_AGENT_MAP.claude;
-
-/**
- * `skills add` 호출을 **목적지별로 묶는다** (#372).
- *
- * `.agents/skills/` 는 codex·opencode·antigravity 가 **공유**하는 자리라 한 호출로 묶어도
- * 되고, Claude Code 는 `.claude/skills/` 로의 **별도 복사**를 받아야 해서 자기 호출이 필요하다.
- * 실측(2026-08-27, `skills@1.5.11`): 자산 하나에 **1회 3초**(Claude 몫 누락) · **2회 8초**(정상) ·
- * 4회 15초(정상). 에이전트마다 부르면 같은 저장소를 그만큼 다시 clone 한다.
- *
- * **콤마 형태(`--agent "a,b"`)로 1회에 끝내는 길은 없다** — 2026-08-27 재확인:
- * `Invalid agents: codex,claude-code` 로 **exit 1**, 아무것도 안 깔린다. 1.5.5 에서만 되던
- * 형태이고 1.5.7 에서 폐지됐다(v26.55.1 회귀). 버전을 올릴 때 다시 재 볼 것 —
- * 되살아나면 이 함수는 통째로 없앨 수 있다.
- *
- * ⚠ **이 그룹핑은 "claude-code 만 특별하다"를 가정한다.** skills CLI 가 다른 에이전트 몫도
- * 빠뜨리기 시작하면 같은 형태로 **조용히** 깨진다 — 증상은 exit 0 에 설치 화면은 ✓ 다.
- * 그래서 경계를 이 함수 하나에 두고, 늘리기 전에 이 주석부터 읽게 한다. 판정 방법은
- * 컨테이너에서 `--agent` 조합을 바꿔 가며 디스크 결과를 보는 것뿐이다(호스트 실행은 훅이 차단).
- */
-function skillAgentGroups(cli: CliTargets): string[][] {
-  // cli 미지정([])은 "전체" — 에이전트를 안 붙이고 한 번만 부른다(레거시 관례 유지).
-  if (cli.length === 0) return [[]];
-  const agents = cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
-  const claude = agents.filter((a) => a === CLAUDE_SKILLS_AGENT);
-  const shared = agents.filter((a) => a !== CLAUDE_SKILLS_AGENT);
-  return [claude, shared].filter((g) => g.length > 0);
-}
-
-/**
- * skill 자산 설치 — 목적지 그룹마다 한 번씩 부른다 (#372).
- *
- * 부분 실패는 성공으로 접지 않는다. 하나라도 실패하면 그 자산은 실패이고, **어느 에이전트가**
- * 실패했는지 메시지에 남긴다 — 안 남기면 다음 사람이 어느 호출이 깨졌는지 알 수 없다.
- */
-function installSkill(
-  asset: ExternalAsset,
-  spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
-  method: { kind: "skill"; source: string; skill?: string },
-  cli: CliTargets,
-  scope: InstallScope,
-  cwd: string,
-): AssetInstallResult {
-  const failures: string[] = [];
-  for (const group of skillAgentGroups(cli)) {
-    const r = runSpawn(asset, spawn, "npx", buildSkillArgs(method, group, scope), cwd);
-    if (!r.ok) {
-      failures.push(`${group.length === 0 ? "all" : group.join("+")}: ${r.message ?? "unknown"}`);
-    }
-  }
-  return failures.length === 0
-    ? { asset, ok: true }
-    : { asset, ok: false, message: failures.join(" · ") };
 }
 
 /**
