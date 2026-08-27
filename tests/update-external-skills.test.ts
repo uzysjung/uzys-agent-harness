@@ -9,21 +9,28 @@ import {
   refreshExternalSkills,
   skillsCliSpec,
 } from "../src/external-installer.js";
+import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 import { runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
+import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
- * #374 — `update` 가 외부 스킬을 갱신한다.
+ * #374 — `update` 가 외부 스킬을 상류 최신판으로 다시 받는다.
  *
- * **무엇이 깨져 있었나**: `update` 는 우리가 렌더한 CLI 산출물만 새로 썼고, `npx skills add`
- * 로 깐 스킬 본문은 **한 번도 건드리지 않았다**(실측 2026-08-27, npx shim 호출 추적:
- * install 2회 · update 0회). 그런데 화면에는 `✓ external CLI artifacts` 가 떠서 다 갱신된
- * 것처럼 보였다 — 상류가 스킬을 고쳐도 못 받고, 못 받는다는 사실도 알 수 없었다.
+ * **무엇이 깨져 있었나**: `update` 는 우리가 놓아둔 정책 파일과 우리가 렌더한 CLI 산출물만
+ * 새로 썼고, `npx skills add` 로 깐 스킬 본문은 **한 번도 건드리지 않았다**(실측 2026-08-27,
+ * npx 호출 추적: install 2회 · update 0회). 화면에는 `✓ external CLI artifacts` 가 떠서 다
+ * 갱신된 것처럼 보였다.
  *
- * 여기서 무는 것은 **호출 형태·발화 조건·실패 처리·화면**이다. 디스크 결과(두 사본이 실제로
- * 되돌아오는가)는 컨테이너에서만 볼 수 있고 그쪽은 docker 시나리오가 소유한다 —
- * 호스트에서 실 CLI 를 돌리는 것은 훅이 차단한다.
+ * **왜 `skills update` 가 아닌가**: 그 서브명령은 `--copy` 도 `--agent` 도 받지 않아서
+ * `.claude/skills/<id>` 를 `.agents/` 로의 **심링크로 강등**하고, 고른 적 없는 `.agents/` 를
+ * 만든다(실측). `foreign-slot.ts` 가 디렉터리 아닌 슬롯을 "남의 것"으로 판정하므로(#343)
+ * 그 뒤로 우리 최신본이 영영 그 자리에 안 들어간다 — 독립 리뷰가 CRITICAL 로 잡았다.
+ * 그래서 **install 과 같은 호출**을 다시 돌린다.
+ *
+ * 여기서 무는 것은 **호출 형태·대상 선정·실패 처리·화면**이다. 디스크 결과(사본이 디렉터리로
+ * 남는가)는 컨테이너에서만 볼 수 있고 그쪽은 docker 시나리오가 소유한다.
  */
 
 type SpawnFn = NonNullable<ExternalInstallerDeps["spawn"]>;
@@ -32,58 +39,135 @@ function okSpawn(): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
 }
 
-const dirs: string[] = [];
-function projectWith(lock: boolean): string {
-  const d = mkdtempSync(join(tmpdir(), "uzys-374-"));
-  dirs.push(d);
-  if (lock) {
-    writeFileSync(join(d, "skills-lock.json"), '{"version":1,"skills":{}}');
-  }
-  return d;
+function makeSpawn(): SpawnFn & { mock: { calls: Array<Parameters<SpawnFn>> } } {
+  return vi.fn(okSpawn) as unknown as SpawnFn & { mock: { calls: Array<Parameters<SpawnFn>> } };
 }
 
+const npxArgs = (spawn: ReturnType<typeof makeSpawn>): string[][] =>
+  spawn.mock.calls.filter((c) => c[0] === "npx").map((c) => [...(c[1] as string[])]);
+
+/** 카탈로그를 흉내 낸다 — 실 자산 id 를 박으면 카탈로그가 바뀔 때 조용히 아무것도 안 문다. */
+const SKILL_A = createMockAsset({
+  id: "skill-a",
+  condition: { kind: "any-track", tracks: ["tooling"] },
+  method: { kind: "skill", source: "owner/a", skill: "a" },
+});
+/** 트랙 조건에 **안 맞는** 자산 — opt-in 으로 깔린 것을 흉내 낸다. */
+const SKILL_OPT_IN = createMockAsset({
+  id: "skill-opt-in",
+  condition: { kind: "any-track", tracks: ["executive"] },
+  method: { kind: "skill", source: "owner/b", skill: "b" },
+});
+const PLUGIN_ASSET = createMockAsset({
+  id: "plugin-x",
+  condition: { kind: "any-track", tracks: ["tooling"] },
+  method: { kind: "plugin", marketplace: "m", pluginId: "p" },
+});
+const CATALOG = [SKILL_A, SKILL_OPT_IN, PLUGIN_ASSET];
+
+function fakeLog(assetIds: Array<{ id: string; method: string }>): InstallLog {
+  return {
+    schemaVersion: 1,
+    installedAt: "2026-08-27T00:00:00.000Z",
+    scope: "project",
+    spec: { tracks: ["tooling"], cli: ["claude", "codex"] },
+    templates: { claudeDir: ".claude" },
+    assets: assetIds.map((a) => ({
+      id: a.id,
+      category: "dev",
+      method: a.method as never,
+      scope: "project" as const,
+      detail: {},
+    })),
+  };
+}
+
+const dirs: string[] = [];
+function tmpProject(): string {
+  const d = mkdtempSync(join(tmpdir(), "uzys-374-"));
+  dirs.push(d);
+  return d;
+}
 afterEach(() => {
-  while (dirs.length > 0) {
-    rmSync(dirs.pop() as string, { recursive: true, force: true });
-  }
+  while (dirs.length > 0) rmSync(dirs.pop() as string, { recursive: true, force: true });
 });
 
-describe("refreshExternalSkills — 호출 형태와 발화 조건", () => {
-  it("skills-lock.json 이 없으면 아예 부르지 않는다 (없는 대상에 네트워크를 태우지 않는다)", () => {
-    const spawn = vi.fn(okSpawn) as unknown as SpawnFn;
-    const r = refreshExternalSkills(projectWith(false), { spawn });
-    expect(r).toEqual({ ran: false, failure: null });
+describe("refreshExternalSkills — 무엇을, 어떤 명령으로 다시 받는가", () => {
+  it("설치 기록이 없으면 **판정 불가**로 낸다 — 조용한 무동작과 구분한다", () => {
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), { spawn, assets: CATALOG, readLog: () => null });
+    expect(r.unknown).toBe(true);
+    expect(r.attempted).toBe(0);
     expect(spawn).not.toHaveBeenCalled();
   });
 
-  it("잠금 파일이 있으면 고정 버전으로 `update -p -y` 를 프로젝트 디렉터리에서 부른다", () => {
-    const spawn = vi.fn(okSpawn) as unknown as SpawnFn & {
-      mock: { calls: Array<Parameters<SpawnFn>> };
-    };
-    const dir = projectWith(true);
-    const r = refreshExternalSkills(dir, { spawn });
-    expect(r).toEqual({ ran: true, failure: null });
+  it("기록에 외부 스킬이 없으면 아무것도 부르지 않는다 (판정 불가와 다르다)", () => {
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      readLog: () => fakeLog([{ id: "plugin-x", method: "plugin" }]),
+    });
+    expect(r).toMatchObject({ attempted: 0, refreshed: 0, unknown: false });
+    expect(spawn).not.toHaveBeenCalled();
+  });
 
-    const calls = (spawn as unknown as { mock: { calls: Array<Parameters<SpawnFn>> } }).mock.calls;
-    expect(calls).toHaveLength(1);
-    const [cmd, rawArgs, opts] = calls[0] as [string, ReadonlyArray<string>, { cwd?: string }];
-    const args = [...rawArgs];
-    expect(cmd).toBe("npx");
-    // 버전을 고정한다 — `skills@latest` 는 node 20 에서 EBADENGINE 이다(1.5.23 실측).
+  it("`skills update` 를 부르지 않는다 — 그 명령은 사본을 심링크로 강등한다", () => {
+    const spawn = makeSpawn();
+    refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => fakeLog([{ id: "skill-a", method: "skill" }]),
+    });
+    const args = npxArgs(spawn);
+    expect(args).toHaveLength(1);
+    expect(args[0], "update 서브명령을 쓰면 --copy 계약이 깨진다").not.toContain("update");
+    expect(args[0]?.[1]).toBe("add");
+  });
+
+  it("install 과 같은 인자로 부른다 — 고정 버전 · 에이전트별 · `--copy`", () => {
+    const spawn = makeSpawn();
+    refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => fakeLog([{ id: "skill-a", method: "skill" }]),
+    });
+    const args = npxArgs(spawn)[0] as string[];
     expect(args[0]).toBe(skillsCliSpec());
-    expect(args.slice(1)).toEqual(["update", "-p", "-y"]);
-    // cwd 가 프로젝트가 아니면 남의 디렉터리 잠금 파일을 갱신한다.
-    expect(opts.cwd).toBe(dir);
+    // #372 계약: --copy 가 없으면 `.claude/skills/` 몫이 조용히 빠진다.
+    expect(args, "--copy 누락 — Claude Code 몫이 조용히 빠진다").toContain("--copy");
+    const agents = args.flatMap((a, i) => (a === "--agent" ? [args[i + 1] as string] : []));
+    expect([...agents].sort()).toEqual(["claude-code", "codex"]);
   });
 
-  it("`-g` 를 붙이지 않는다 — 사용자의 글로벌 스킬은 이 명령의 대상이 아니다", () => {
-    const spawn = vi.fn(okSpawn) as unknown as SpawnFn;
-    refreshExternalSkills(projectWith(true), { spawn });
-    const calls = (spawn as unknown as { mock: { calls: Array<Parameters<SpawnFn>> } }).mock.calls;
-    expect(calls[0]?.[1]).not.toContain("-g");
+  it("기록에 있으면 트랙 조건에 안 맞아도 다시 받는다 (opt-in 으로 깐 자산)", () => {
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      // tracks 는 tooling 인데 이 자산의 조건은 executive 다.
+      readLog: () => fakeLog([{ id: "skill-opt-in", method: "skill" }]),
+    });
+    expect(r.attempted, "조건 재유도로 거르면 opt-in 자산이 조용히 낡는다").toBe(1);
+    expect(r.refreshed).toBe(1);
   });
 
-  it("비정상 종료는 사유를 담아 실패로 낸다 (침묵 금지)", () => {
+  it("기록에 없는 자산을 새로 깔지 않는다", () => {
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => fakeLog([{ id: "skill-a", method: "skill" }]),
+    });
+    expect(r.attempted).toBe(1);
+    expect(npxArgs(spawn)[0]).toContain("owner/a");
+  });
+
+  it("실패는 자산 이름과 함께 보고되고 예외를 던지지 않는다", () => {
     const spawn = vi.fn(() => ({
       pid: 0,
       output: [],
@@ -92,23 +176,26 @@ describe("refreshExternalSkills — 호출 형태와 발화 조건", () => {
       status: 1,
       signal: null,
     })) as unknown as SpawnFn;
-    const r = refreshExternalSkills(projectWith(true), { spawn });
-    expect(r.ran).toBe(true);
-    expect(r.failure).toContain("network unreachable");
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      warn: () => {},
+      readLog: () => fakeLog([{ id: "skill-a", method: "skill" }]),
+    });
+    expect(r.refreshed).toBe(0);
+    expect(r.failed).toHaveLength(1);
+    expect(r.failed[0]?.id).toBe("skill-a");
+    expect(r.failed[0]?.message).toContain("network unreachable");
   });
 
-  it("spawn 자체가 실패해도 예외를 던지지 않는다", () => {
-    const spawn = vi.fn(() => ({
-      pid: 0,
-      output: [],
-      stdout: "",
-      stderr: "",
-      status: null,
-      signal: null,
-      error: new Error("spawn npx ENOENT"),
-    })) as unknown as SpawnFn;
-    const r = refreshExternalSkills(projectWith(true), { spawn });
-    expect(r).toEqual({ ran: true, failure: "spawn npx ENOENT" });
+  it("디스크의 실 설치 기록을 읽는다 (주입 없이)", () => {
+    const dir = tmpProject();
+    writeInstallLog(dir, fakeLog([{ id: "skill-a", method: "skill" }]));
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(dir, { spawn, assets: CATALOG, log: () => {} });
+    expect(r.unknown).toBe(false);
+    expect(r.attempted).toBe(1);
   });
 });
 
@@ -117,7 +204,7 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
   const harnessRoot = join(__dirname, "..");
 
   function installedProject(): string {
-    const d = projectWith(false);
+    const d = tmpProject();
     mkdirSync(join(d, ".claude", "rules"), { recursive: true });
     writeFileSync(join(d, ".claude", "rules", "git-policy.md"), "old\n");
     return d;
@@ -125,31 +212,41 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
 
   it("update 가 외부 스킬 갱신을 **부른다** — 이 배선이 없던 것이 결함이었다", () => {
     const dir = installedProject();
-    const refreshSkills = vi.fn(() => ({ ran: true, failure: null }));
+    const refreshSkills = vi.fn(() => ({
+      attempted: 2,
+      refreshed: 2,
+      failed: [],
+      unknown: false,
+    }));
     const report = runUpdateMode(dir, templatesDir, harnessRoot, { refreshSkills });
     expect(refreshSkills).toHaveBeenCalledWith(dir);
-    expect(report.externalSkillsRefreshed).toBe(true);
-    expect(report.externalSkillsFailed).toBeNull();
+    expect(report.externalSkillsRefreshed).toBe(2);
+    expect(report.externalSkillsFailed).toEqual([]);
+    expect(report.externalSkillsUnknown).toBe(false);
   });
 
   it("갱신이 실패해도 update 는 정책 파일 갱신을 끝낸다", () => {
     const dir = installedProject();
     const report = runUpdateMode(dir, templatesDir, harnessRoot, {
-      refreshSkills: () => ({ ran: true, failure: "npx exited 1" }),
+      refreshSkills: () => ({
+        attempted: 1,
+        refreshed: 0,
+        failed: [{ id: "skill-a", message: "npx exited 1" }],
+        unknown: false,
+      }),
     });
-    expect(report.externalSkillsRefreshed).toBe(false);
-    expect(report.externalSkillsFailed).toBe("npx exited 1");
+    expect(report.externalSkillsRefreshed).toBe(0);
+    expect(report.externalSkillsFailed).toHaveLength(1);
     // 정책 갱신이 실제로 일어났다 — 네트워크 하나 때문에 전부 잃지 않는다.
     expect(Object.values(report.updated).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
   });
 
-  it("대상이 없으면 갱신했다고 말하지 않는다", () => {
+  it("판정 불가는 그대로 보고에 실린다", () => {
     const dir = installedProject();
     const report = runUpdateMode(dir, templatesDir, harnessRoot, {
-      refreshSkills: () => ({ ran: false, failure: null }),
+      refreshSkills: () => ({ attempted: 0, refreshed: 0, failed: [], unknown: true }),
     });
-    expect(report.externalSkillsRefreshed).toBe(false);
-    expect(report.externalSkillsFailed).toBeNull();
+    expect(report.externalSkillsUnknown).toBe(true);
   });
 });
 
@@ -179,8 +276,9 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     restored: [],
     needsReinstall: [],
     mcpAllowlistRetired: null,
-    externalSkillsRefreshed: false,
-    externalSkillsFailed: null,
+    externalSkillsRefreshed: 0,
+    externalSkillsFailed: [],
+    externalSkillsUnknown: false,
   };
 
   const baseline = (over: Partial<UpdateModeReport>): BaselineReport => ({
@@ -216,14 +314,25 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     return out.join("\n");
   };
 
-  it("갱신했으면 그 사실이 화면에 뜬다", () => {
-    expect(lines({ externalSkillsRefreshed: true })).toMatch(/external skills/);
+  it("갱신했으면 몇 개인지 화면에 뜬다", () => {
+    const out = lines({ externalSkillsRefreshed: 3 });
+    expect(out).toMatch(/external skills/);
+    expect(out).toContain("3 refreshed");
   });
 
-  it("실패했으면 사유와 함께 뜬다 — 조용한 실패가 이 결함의 정체였다", () => {
-    const out = lines({ externalSkillsFailed: "npx exited 1: offline" });
+  it("실패했으면 자산 이름과 사유가 뜬다 — 조용한 실패가 이 결함의 정체였다", () => {
+    const out = lines({
+      externalSkillsFailed: [{ id: "skill-a", message: "npx exited 1: offline" }],
+    });
     expect(out).toMatch(/external skills/);
+    expect(out).toContain("skill-a");
     expect(out).toContain("offline");
+  });
+
+  it("판정 불가는 침묵하지 않는다 — '갱신할 게 없다'와 다른 사실이다", () => {
+    const out = lines({ externalSkillsUnknown: true });
+    expect(out).toMatch(/external skills/);
+    expect(out).toMatch(/판정할 수 없다/);
   });
 
   it("대상이 없으면 아무 말도 하지 않는다 (없는 일을 했다고 하지 않는다)", () => {

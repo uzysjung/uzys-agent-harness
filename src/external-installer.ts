@@ -22,8 +22,10 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
+import { type InstallLog, readInstallLog } from "./install-log.js";
 import {
   type CliTargets,
+  DEFAULT_OPTIONS,
   type InstallScope,
   type OptionFlags,
   resolveScope,
@@ -290,67 +292,99 @@ export function skillsCliSpec(): string {
   return `skills@${SKILLS_CLI_VERSION}`;
 }
 
-/**
- * `npx skills add` 가 프로젝트 루트에 남기는 잠금 파일. **update 를 부를지 가르는 유일한 신호**다.
- *
- * 이 파일이 없으면 skills CLI 는 `No project skills to update.` 만 내고 exit 0 한다 — 즉 부를
- * 이유가 없는데도 npx 왕복(네트워크)을 한 번 태우게 된다. 존재 확인이 그 비용을 없앤다.
- */
-const SKILLS_LOCK_FILE = "skills-lock.json";
-
-/** `update` 가 외부 스킬을 갱신했는지에 대한 보고. */
+/** `update` 가 외부 스킬을 갱신했는지에 대한 보고 (#374). */
 export interface ExternalSkillRefresh {
-  /** 실제로 `skills update` 를 불렀나. false = 이 프로젝트에 잠금 파일이 없다. */
-  ran: boolean;
-  /** 실패 사유. 성공이거나 안 불렀으면 null. **실패해도 update 는 계속한다.** */
-  failure: string | null;
+  /** 갱신을 시도한 자산 수. 0 = 설치 기록에 외부 스킬이 없다. */
+  attempted: number;
+  /** 그중 성공한 수. */
+  refreshed: number;
+  /** 실패한 자산 — 화면에 이름을 낸다. 실패해도 update 는 계속한다. */
+  failed: ReadonlyArray<{ id: string; message: string }>;
+  /**
+   * **설치 기록이 없어 무엇을 갱신해야 하는지 판정할 수 없다** (레거시 설치본).
+   *
+   * `attempted: 0` 과 구분한다 — 그쪽은 "갱신할 게 없다"이고 이쪽은 "모른다"다. 둘을 같은
+   * 침묵으로 합치면 이 이슈가 고치려던 실패 형태(조용한 무동작)가 그대로 남는다.
+   */
+  unknown: boolean;
 }
 
 /**
- * 이미 깔린 외부 스킬을 상류 최신판으로 갱신한다 (#374).
+ * 이미 깔린 외부 스킬을 상류 최신판으로 다시 받는다 (#374).
  *
- * **왜 있나**: `update` 는 우리가 렌더한 CLI 산출물만 새로 썼고(`refreshExternalCli`),
- * `npx skills add` 로 깐 자산은 **한 번도 갱신하지 않았다**(실측 2026-08-27, npx 호출 추적:
- * install 2회 · update 0회). 그런데 화면에는 `✓ external CLI artifacts` 가 떠서 다 된 것처럼
- * 보였다 — 상류가 스킬을 고쳐도 받지 못하고, 못 받는다는 사실도 알 수 없었다.
+ * **왜 있나**: `update` 는 우리가 놓아둔 정책 파일과 우리가 렌더한 CLI 산출물만 새로 썼다.
+ * `npx skills add` 로 깐 스킬 본문은 그 경로에 없어서 **한 번도 갱신되지 않았다**(실측
+ * 2026-08-27, npx 호출 추적: install 2회 · update 0회). 그런데 화면에는
+ * `✓ external CLI artifacts` 가 떠서 다 된 것처럼 보였다.
  *
- * **실측 (컨테이너 `skills@1.5.11`, 2026-08-27)** — 착수 전에 잰 4건:
- *   ① 우리 `--copy` 사본을 인식하나  → 인식한다. `add` 가 남긴 `skills-lock.json` 을 읽는다
- *   ② 두 사본을 다 갱신하나          → `.claude/` · `.agents/` 양쪽에 변이를 넣고 update →
- *                                     둘 다 0 (되돌아왔다). 한쪽만 갱신되는 drift 는 없다
- *   ③ 버전 고정과의 관계             → 고정 유지. `skills@1.5.23` 은 node 20 에서 EBADENGINE
- *   ④ 실패가 update 를 죽이나        → 여기서 죽이지 않는다(아래). 빈 디렉터리는 CLI 가 exit 0
+ * **`skills update` 를 쓰지 않는 이유** (독립 리뷰가 잡은 CRITICAL, 실측 2026-08-27):
+ * 그 서브명령은 **`--copy` 도 `--agent` 도 받지 않는다**(도움말의 *Update Options* = `-g`·`-p`·`-y`
+ * 뿐). 그래서 자기 기본 배치로 스킬 자리를 다시 만들고, 결과가 이렇다:
  *
- * **알려진 비용**: 오프라인이면 npx 가 레지스트리를 기다리며 멈춘다(실측: 60초 대조군이
- * timeout 124). 공유 타임아웃(120초)까지 화면이 조용하다 — `install` 의 `skills add` 도 같은
- * 노출이라 여기에만 다른 상한을 두지 않는다. 대신 **실패는 update 를 죽이지 않고 한 줄로 뜬다**.
+ *   claude 단독 설치 · install 직후 → `.claude/skills/<id>` = 실제 디렉터리 · `.agents/` 없음
+ *   같은 프로젝트에 `skills update` → `.claude/skills/<id>` = **`.agents/` 로의 심링크**,
+ *                                     고른 적 없는 `.agents/` 트리가 **생성**됨
  *
- * **왜 스킬을 골라 부르지 않나**: `skills update <이름…>` 으로 우리 것만 지정할 수 있지만,
- * skill 자산 18종 중 `--skill` 로 이름을 특정하는 것은 15종뿐이고 나머지는 저장소 통째 설치라
- * 깔린 이름을 우리가 모른다. 이름을 아는 것만 부르면 **3종이 조용히 낡는다** — #372 가 바로 그
- * "일부만 조용히 빠지는" 결함이었다. 잠금 파일 전체를 갱신하고, 그 사실을 화면에 적는다.
+ * 이건 #372 가 세운 "두 자리에 각각 실제 사본" 계약을 되돌린다. 더 나쁘게는 `foreign-slot.ts`
+ * 가 **디렉터리가 아닌 슬롯을 "남의 것"으로 판정**하므로(#343), 그 뒤로 우리 최신본이 그 자리에
+ * 영영 안 들어간다 — #372 에서 심링크 대안을 기각한 바로 그 이유다. 사용자가 정체 모를
+ * `.agents/` 를 지우면 `.claude/skills/*` 는 끊긴 링크가 된다.
+ *
+ * **그래서 install 과 같은 호출**(`add … --agent … --copy --yes`)을 다시 돌린다. 실측으로
+ * 재실행은 상류 최신판을 받아오고(변이 1 → 0) 두 자리가 실제 디렉터리로 유지된다.
+ * 같은 함수(`runExternalInstall`)를 쓰는 이유는 ADR-049 와 같다 — 인자 조립을 두 벌 두면
+ * 한쪽만 고쳐지는 순간 조용히 갈린다.
+ *
+ * **대상은 설치 기록에 적힌 스킬 자산뿐이다.** 트랙·옵션에서 다시 유도하지 않는다 — 그러면
+ * 사용자가 고른 적 없는 자산이 update 로 새로 깔릴 수 있고, 반대로 opt-in 으로 깐 자산이
+ * 조건 불일치로 조용히 빠진다. `forceInclude` 로 조건·tier 판정을 우회해 **깐 것을 깐 그대로**
+ * 다시 받는다.
  */
 export function refreshExternalSkills(
   projectDir: string,
-  deps: { spawn?: ExternalInstallerDeps["spawn"] } = {},
+  deps: Pick<ExternalInstallerDeps, "spawn" | "assets" | "log" | "warn"> & {
+    /** 설치 기록 읽기 주입점 (테스트용). 기본 `readInstallLog`. */
+    readLog?: (projectDir: string) => InstallLog | null;
+    /** 실 설치 주입점 (테스트용). 기본 `runExternalInstall`. */
+    run?: typeof runExternalInstall;
+  } = {},
 ): ExternalSkillRefresh {
-  if (!existsSync(join(projectDir, SKILLS_LOCK_FILE))) {
-    return { ran: false, failure: null };
+  const none = { attempted: 0, refreshed: 0, failed: [] as const };
+  const log = (deps.readLog ?? readInstallLog)(projectDir);
+  if (!log) {
+    return { ...none, unknown: true };
   }
-  const spawn = deps.spawn ?? defaultSpawn;
-  // `-p` = project scope 만. 사용자의 글로벌 스킬은 우리 update 의 대상이 아니다
-  // (하네스 `update` 자체가 `--project-dir` 전용이다).
-  const args = [skillsCliSpec(), "update", "-p", "-y"];
-  const result = spawn("npx", args, spawnOpts(projectDir));
-  if (result.error) {
-    return { ran: true, failure: result.error.message };
+  const installedIds = new Set(log.assets.filter((a) => a.method === "skill").map((a) => a.id));
+  const catalog = deps.assets ?? EXTERNAL_ASSETS;
+  const targets = catalog.filter((a) => a.method.kind === "skill" && installedIds.has(a.id));
+  if (targets.length === 0) {
+    return { ...none, unknown: false };
   }
-  if ((result.status ?? 1) !== 0) {
-    const stderr = (result.stderr ?? "").trim();
-    const tail = stderr.length > 200 ? `${stderr.slice(0, 200)}…` : stderr;
-    return { ran: true, failure: `npx exited ${result.status}${tail ? `: ${tail}` : ""}` };
-  }
-  return { ran: true, failure: null };
+  const report = (deps.run ?? runExternalInstall)(
+    {
+      tracks: log.spec.tracks as ReadonlyArray<Track>,
+      // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
+      options: DEFAULT_OPTIONS,
+      cli: log.spec.cli as CliTargets,
+      userOverride: { forceInclude: [...installedIds], forceExclude: [] },
+      scope: log.scope,
+      projectDir,
+    },
+    {
+      assets: targets,
+      ...(deps.spawn ? { spawn: deps.spawn } : {}),
+      ...(deps.log ? { log: deps.log } : {}),
+      ...(deps.warn ? { warn: deps.warn } : {}),
+    },
+  );
+  return {
+    attempted: report.attempted.length,
+    refreshed: report.succeeded,
+    failed: report.attempted
+      .filter((r) => !r.ok)
+      .map((r) => ({ id: r.asset.id, message: r.message ?? "failed" })),
+    unknown: false,
+  };
 }
 
 /**

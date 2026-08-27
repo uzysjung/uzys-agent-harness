@@ -512,7 +512,12 @@ function resolveBackupPath(
   return mode === "update" ? copyBackupDir(claudeDir) : backupDir(claudeDir);
 }
 
-/** Update mode 단축 경로 — 정책 파일만 갱신 (manifest copy / external 모두 skip). */
+/**
+ * Update mode 단축 경로 — manifest copy 는 건너뛴다.
+ *
+ * 갱신 대상은 ⓐ 정책 파일 ⓑ 외부 CLI 산출물(ADR-049) ⓒ **설치 기록에 적힌 외부 스킬**(#374).
+ * 세 번째가 오래 빠져 있었고, 그동안 화면은 다 갱신된 것처럼 보였다.
+ */
 function runUpdateInstall(
   ctx: InstallContext,
   templatesDir: string,

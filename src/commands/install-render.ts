@@ -585,21 +585,35 @@ function renderPhase1Rows(
     }
     // #374 — 외부 스킬(`npx skills add` 로 깐 것)은 위 행과 **다른 자산**이다. 이 행이 없던
     // 동안 사용자는 `external CLI artifacts` 를 보고 스킬도 갱신된 줄 알았고, 실제로는 첫 설치
-    // 판본이 영영 남았다. 그래서 성공도 실패도 각자 한 줄을 갖는다 — 침묵이 곧 오해였다.
-    if (baseline.updateMode.externalSkillsRefreshed) {
+    // 판본이 영영 남았다. 그래서 성공·실패·판정불가가 **각자 한 줄**을 갖는다 — 셋을 같은
+    // 침묵으로 합치는 것이 이 결함의 정체였다.
+    if (baseline.updateMode.externalSkillsRefreshed > 0) {
       log(
         assetRow(
           "success",
           "external skills",
-          "refreshed from upstream · skills-lock.json 에 적힌 스킬 전부",
+          `${baseline.updateMode.externalSkillsRefreshed} refreshed from upstream`,
         ),
       );
-    } else if (baseline.updateMode.externalSkillsFailed) {
+    }
+    if (baseline.updateMode.externalSkillsFailed.length > 0) {
       log(
         assetRow(
           "skip",
           "external skills",
-          `not refreshed — ${baseline.updateMode.externalSkillsFailed} · 다음 update 에서 다시 시도한다`,
+          `${baseline.updateMode.externalSkillsFailed
+            .map((f) => `${f.id}: ${f.message}`)
+            .join(" · ")} · 다음 update 에서 다시 시도한다`,
+        ),
+      );
+    }
+    // 레거시 설치본 — "갱신할 게 없다"와 "무엇을 갱신할지 모른다"는 다른 사실이다.
+    if (baseline.updateMode.externalSkillsUnknown) {
+      log(
+        assetRow(
+          "skip",
+          "external skills",
+          "설치 기록이 없어 갱신 대상을 판정할 수 없다 · `agent-harness install` 로 다시 깔면 기록된다",
         ),
       );
     }
