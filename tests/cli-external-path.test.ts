@@ -100,6 +100,35 @@ describe("assetCliSupport — method.kind 에서 derive (하드코딩 목록 금
       }
     }
   });
+
+  // 2026-08-28 (#344 → #369, ADR-077 G2) — **기본 추천 자산은 네 CLI 에 다 닿아야 한다.**
+  //
+  // #344 가 이 축의 결함이었다: `frontend-design` 이 개발 트랙의 기본 추천인데 배달 방식이
+  // `plugin`(= `claude plugin install` spawn)이라 assetCliSupport 가 claude 전용을 냈고,
+  // Codex·OpenCode·Antigravity 를 고른 사용자는 **한 번도 받지 못했다**. 화면은 거짓말을
+  // 하지 않았다 — 그 자산이 목록에서 조용히 빠졌을 뿐이라 아무도 못 봤고, 발견한 것은
+  // 사용자였다. 위 테스트들은 support 가 method.kind 와 **일치하는지**만 보므로 이 형태를
+  // 못 잡는다: plugin 배달이면 claude 전용이 맞다고 통과시킨다.
+  //
+  // 여기서 묻는 것은 다른 질문이다 — **그 자산을 기본으로 추천해도 되는 배달 방식인가.**
+  // opt-in 자산은 사용자가 명시적으로 고르므로 이 제약 밖이다(bmad 처럼 claude 전용이 정당한
+  // 자산이 있다). 대상은 조건이 `has-dev-track` 인 것뿐이고, 목록은 카탈로그에서 유도한다.
+  it("has-dev-track(기본 추천) 자산은 4 CLI 전부에 도달한다 (#344)", () => {
+    const defaults = EXTERNAL_ASSETS.filter((a) => a.condition.kind === "has-dev-track");
+    // 모집단이 비면 이 게이트는 공회전한다 — 초록이 "위반 없음"이 아니라 "안 쟀음"이 된다.
+    expect(
+      defaults.length,
+      "has-dev-track 자산이 0건 — 게이트가 아무것도 안 재고 있다",
+    ).toBeGreaterThan(0);
+    for (const asset of defaults) {
+      expect(
+        assetCliSupport(asset),
+        `${asset.id}: 개발 트랙 기본 추천인데 도달 CLI 가 일부뿐이다. 고른 적도 없는 CLI ` +
+          `사용자에게 조용히 안 가는 형태(#344)다. 배달 방식을 4 CLI 에 닿는 것으로 바꾸거나, ` +
+          `condition 을 opt-in 으로 내려 사용자가 명시적으로 고르게 하라.`,
+      ).toEqual([...CLI_BASES]);
+    }
+  });
 });
 
 describe("selectExternalTargets — 대상/배제 판정 단일 지점 (SOD 리뷰 Important-6)", () => {
