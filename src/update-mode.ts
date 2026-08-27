@@ -120,6 +120,11 @@ export interface UpdateModeReport {
    */
   externalSkillsFailed: ReadonlyArray<{ id: string; message: string }>;
   /**
+   * 설치 기록에는 있는데 **지금 카탈로그에 없는** 스킬 자산 id. 갱신 대상이 아니라는 사실을
+   * 화면에 낸다 — 침묵하면 사용자는 깔린 것 중 일부만 갱신됐다는 사실을 알 수 없다.
+   */
+  externalSkillsNotInCatalog: ReadonlyArray<string>;
+  /**
    * 설치 기록이 없어 **무엇을 갱신해야 하는지 판정할 수 없었다** (레거시 설치본).
    *
    * `externalSkillsRefreshed: 0` 과 구분한다 — 그쪽은 "갱신할 게 없다"이고 이쪽은 "모른다"다.
@@ -172,10 +177,15 @@ export interface UpdateModeReport {
 /**
  * Update 진입점이 쓰는 InstallSpec — **위저드와 `update` 명령이 공유한다.**
  *
- * update 는 `.claude/` 만 건드리므로 spec 에서 실제로 소비되는 건 `projectDir` 와
- * (보고용) `tracks` 뿐이다. `cli`/`options` 는 타입을 채우기 위한 값이라 어느 진입점이든
- * 같아야 하고, 두 곳에서 각자 리터럴로 쓰면 한쪽만 바뀌었을 때 조용히 갈린다 — 이 repo 가
- * 반복해서 당한 실패 모드라 처음부터 한 곳에 둔다.
+ * `cli`/`options` 는 타입을 채우기 위한 값이라 어느 진입점이든 같아야 하고, 두 곳에서 각자
+ * 리터럴로 쓰면 한쪽만 바뀌었을 때 조용히 갈린다 — 이 repo 가 반복해서 당한 실패 모드라
+ * 처음부터 한 곳에 둔다.
+ *
+ * **`scope` 는 설치 기록에서 읽는다** (#374, 독립 리뷰 HIGH-1). update 는 이제 `.claude/` 만
+ * 건드리지 않는다 — ADR-049 이후 `.agents/`·`.codex/` 를, #374 이후 **글로벌 설치본에서는
+ * `~/.claude/` 까지** 갱신한다. 그런데 여기서 스코프를 안 실으면 화면 헤더가 렌더러 기본값인
+ * *"Project — current directory only (no global write)"* 를 찍는다. 홈에 쓰면서 안 쓴다고
+ * 적는 것은 이 저장소가 반복해서 당한 거짓출하 그 형태다.
  */
 export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>): InstallSpec {
   return {
@@ -183,6 +193,7 @@ export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>
     options: DEFAULT_OPTIONS,
     cli: ["claude"],
     projectDir,
+    scope: readInstallLog(projectDir)?.scope ?? "project",
   };
 }
 
@@ -232,6 +243,7 @@ export function runUpdateMode(
     externalBackedUp: [],
     externalSkillsRefreshed: 0,
     externalSkillsFailed: [],
+    externalSkillsNotInCatalog: [],
     externalSkillsUnknown: false,
     foreignOwned: [],
     installedNew: [],
@@ -332,6 +344,7 @@ export function runUpdateMode(
   const skillRefresh = (deps.refreshSkills ?? refreshExternalSkills)(projectDir);
   report.externalSkillsRefreshed = skillRefresh.refreshed;
   report.externalSkillsFailed = skillRefresh.failed;
+  report.externalSkillsNotInCatalog = skillRefresh.notInCatalog;
   report.externalSkillsUnknown = skillRefresh.unknown;
 
   return report;

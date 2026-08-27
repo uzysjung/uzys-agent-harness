@@ -11,9 +11,10 @@
 # 검증:
 #   ① install 이 두 자리(.claude/ · .agents/)에 **실제 디렉터리**를 만든다 (#372)
 #   ② 변이 후 update → 두 사본 다 상류판으로 돌아온다
-#   ③ **update 후에도 슬롯이 디렉터리다** — 심링크로 강등되면 foreign-slot 이 "남의 것"으로
-#      판정해 그 뒤 우리 최신본이 영영 안 들어간다(#343). `skills update` 서브명령을 쓰면
-#      실제로 그렇게 된다(독립 리뷰 CRITICAL, 2026-08-27 실측)
+#   ③ **update 후에도 슬롯이 디렉터리다** — 심링크로 강등되면 `.agents/` 를 지우는 순간 본문이
+#      사라지고, 슬롯 이름이 번들 스킬과 겹치면 foreign-slot 이 "남의 것"으로 판정해(#343)
+#      하네스 writer 가 건너뛴다. `skills update` 서브명령을 쓰면 실제로 강등된다
+#      (독립 리뷰 CRITICAL, 2026-08-27 실측)
 #   ④ claude 단독 설치에 **`.agents/` 가 생기지 않는다** — 고른 적 없는 CLI 자산 금지(ADR-031)
 #   ⑤ 설치 기록이 없으면 화면이 **판정 불가**를 말한다 (조용한 무동작 금지)
 #   ⑥ update 화면에 external skills 행이 뜬다
@@ -122,8 +123,8 @@ echo "✓ update 가 두 사본을 모두 상류판으로 되돌렸다"
 for p in "${CLAUDE_SLOT}" "${AGENTS_SLOT}"; do
   s="$(shape "${p}")"
   if [[ "${s}" != "DIR" ]]; then
-    echo "FAIL: update 후 ${p} 가 ${s} 다 — 슬롯이 강등되면 foreign-slot 이 '남의 것'으로"
-    echo "      판정해(#343) 그 뒤 우리 최신본이 영영 그 자리에 안 들어간다"
+    echo "FAIL: update 후 ${p} 가 ${s} 다 — 강등되면 .agents/ 를 지우는 순간 본문이 사라지고,"
+    echo "      번들 스킬과 이름이 겹치면 foreign-slot 이 '남의 것'으로 판정한다(#343)"
     exit 1
   fi
 done
@@ -178,6 +179,38 @@ if ! grep -q "판정할 수 없다" "${SOLO}/update-nolog.txt"; then
   exit 1
 fi
 echo "✓ 설치 기록이 없으면 화면이 판정 불가를 말한다"
+
+# ───────── D. 글로벌 설치본 — 화면이 실제 쓰는 자리를 말하는가 ─────────
+# update 는 설치 기록의 스코프를 그대로 쓴다(`-g`). 그래서 글로벌 설치본에서는 홈에 쓴다.
+# 그 사실이 헤더에 안 나오면 **홈에 쓰면서 안 쓴다고 적는 것**이고, 그게 이 저장소가 반복해서
+# 당한 거짓출하의 형태다 (독립 리뷰 HIGH-1, 2026-08-27 실측).
+GLB=/tmp/proj-upd-skills-global
+rm -rf "${GLB}"; mkdir -p "${GLB}"; cd "${GLB}"
+agent-harness install --track tooling --scope global --cli claude >/dev/null 2>&1
+
+GSKILL="${HOME}/.claude/skills/frontend-design/SKILL.md"
+if [[ ! -f "${GSKILL}" ]]; then
+  echo "FAIL: 글로벌 설치가 외부 스킬을 홈에 안 깔았다 — D 단계의 전제가 없다"
+  exit 1
+fi
+printf '\n%s\n' "MUTATED-GLOBAL-374" >> "${GSKILL}"
+if [[ "$(grep -c 'MUTATED-GLOBAL-374' "${GSKILL}")" -ne 1 ]]; then
+  echo "FAIL: 홈 변이가 안 걸렸다 — 이 실행은 무효다"
+  exit 1
+fi
+
+agent-harness update > "${GLB}/update-out.txt" 2>&1 || {
+  echo "FAIL: 글로벌 설치본 update 가 실패했다"; tail -30 "${GLB}/update-out.txt"; exit 1
+}
+
+WROTE_HOME=0
+grep -q 'MUTATED-GLOBAL-374' "${GSKILL}" || WROTE_HOME=1
+if [[ "${WROTE_HOME}" -eq 1 ]] && ! grep -q "SCOPE.*Global" "${GLB}/update-out.txt"; then
+  echo "FAIL: update 가 ~/.claude/ 에 썼는데 화면은 Global 이라고 안 한다 — 거짓출하다"
+  grep -E "SCOPE" "${GLB}/update-out.txt" || echo "  (SCOPE 행 자체가 없다)"
+  exit 1
+fi
+echo "✓ 글로벌 설치본: 홈을 갱신하고 화면도 Global 이라고 말한다"
 
 echo ""
 echo "▸ scenario-update-external-skills PASS"

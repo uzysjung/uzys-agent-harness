@@ -793,6 +793,7 @@ describe("executeSpec", () => {
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
         externalSkillsUnknown: false,
       },
     });
@@ -852,6 +853,7 @@ describe("executeSpec", () => {
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
         externalSkillsUnknown: false,
       },
     });
@@ -910,6 +912,7 @@ describe("executeSpec", () => {
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
         externalSkillsUnknown: false,
       },
     });
@@ -959,6 +962,7 @@ describe("executeSpec", () => {
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
         externalSkillsUnknown: false,
       },
     });

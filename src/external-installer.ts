@@ -301,6 +301,13 @@ export interface ExternalSkillRefresh {
   /** 실패한 자산 — 화면에 이름을 낸다. 실패해도 update 는 계속한다. */
   failed: ReadonlyArray<{ id: string; message: string }>;
   /**
+   * 설치 기록에는 있는데 **지금 카탈로그에 없는** 스킬 자산 id — 갱신 대상이 아니다.
+   *
+   * 침묵하면 사용자는 깔린 3종 중 2종만 갱신됐다는 사실을 알 수 없다. 이 저장소는 실제로
+   * 자산을 지운 적이 있다(`north-star-skill`) — 그 릴리즈 뒤 옛 설치본이 도는 자리다.
+   */
+  notInCatalog: ReadonlyArray<string>;
+  /**
    * **설치 기록이 없어 무엇을 갱신해야 하는지 판정할 수 없다** (레거시 설치본).
    *
    * `attempted: 0` 과 구분한다 — 그쪽은 "갱신할 게 없다"이고 이쪽은 "모른다"다. 둘을 같은
@@ -325,10 +332,15 @@ export interface ExternalSkillRefresh {
  *   같은 프로젝트에 `skills update` → `.claude/skills/<id>` = **`.agents/` 로의 심링크**,
  *                                     고른 적 없는 `.agents/` 트리가 **생성**됨
  *
- * 이건 #372 가 세운 "두 자리에 각각 실제 사본" 계약을 되돌린다. 더 나쁘게는 `foreign-slot.ts`
- * 가 **디렉터리가 아닌 슬롯을 "남의 것"으로 판정**하므로(#343), 그 뒤로 우리 최신본이 그 자리에
- * 영영 안 들어간다 — #372 에서 심링크 대안을 기각한 바로 그 이유다. 사용자가 정체 모를
- * `.agents/` 를 지우면 `.claude/skills/*` 는 끊긴 링크가 된다.
+ * 이건 #372 가 세운 "두 자리에 각각 실제 사본" 계약을 되돌린다. 측정된 해악은 셋이다:
+ * ⓐ 고른 적 없는 CLI 의 자산 트리가 생긴다(ADR-031 이 P0 로 닫은 형태) ⓑ 사용자가 정체 모를
+ * `.agents/` 를 지우면 `.claude/skills/*` 는 **끊긴 링크**가 되어 본문이 사라진다
+ * ⓒ 슬롯 이름이 번들 스킬과 겹치면 `foreign-slot.ts` 가 디렉터리 아닌 자리를 "남의 것"으로
+ * 판정해(#343) 하네스 writer 가 건너뛴다.
+ *
+ * *(초판은 여기에 "그 뒤로 우리 최신본이 영영 그 자리에 안 들어간다"고 적었는데 **틀렸다** —
+ * 외부 스킬 id 는 `templates/skills/` 에 없어 우리 writer 가 그 자리를 겨냥하지 않고, 실측에서
+ * 이 구현은 이미 심링크가 된 슬롯을 오히려 디렉터리로 **복구한다**. 독립 리뷰가 반증했다.)*
  *
  * **그래서 install 과 같은 호출**(`add … --agent … --copy --yes`)을 다시 돌린다. 실측으로
  * 재실행은 상류 최신판을 받아오고(변이 1 → 0) 두 자리가 실제 디렉터리로 유지된다.
@@ -337,8 +349,14 @@ export interface ExternalSkillRefresh {
  *
  * **대상은 설치 기록에 적힌 스킬 자산뿐이다.** 트랙·옵션에서 다시 유도하지 않는다 — 그러면
  * 사용자가 고른 적 없는 자산이 update 로 새로 깔릴 수 있고, 반대로 opt-in 으로 깐 자산이
- * 조건 불일치로 조용히 빠진다. `forceInclude` 로 조건·tier 판정을 우회해 **깐 것을 깐 그대로**
+ * 조건 불일치로 조용히 빠진다. `forceInclude` 로 조건 판정을 우회해 **깐 것을 깐 그대로**
  * 다시 받는다.
+ *
+ * **그 우회는 신뢰 티어 게이트도 지난다** — `shouldInstallAsset` 이 `forceInclude` 를 tier
+ * 검사보다 앞에서 본다. 즉 자산이 나중에 experimental(T3)로 강등돼도 이미 깐 사람은 갱신을
+ * 계속 받는다. 이건 부작용이 아니라 **결정**이다(ADR-078 Consequences): update 는 무엇을
+ * 깔지 다시 묻는 자리가 아니고, 티어 강등을 이유로 조용히 갱신을 끊으면 사용자는 낡은 본문을
+ * 쥔 채 그 사실을 모른다. 강등 자체는 `trust-tier-drift` 가 따로 감시한다.
  */
 export function refreshExternalSkills(
   projectDir: string,
@@ -349,7 +367,7 @@ export function refreshExternalSkills(
     run?: typeof runExternalInstall;
   } = {},
 ): ExternalSkillRefresh {
-  const none = { attempted: 0, refreshed: 0, failed: [] as const };
+  const none = { attempted: 0, refreshed: 0, failed: [] as const, notInCatalog: [] as const };
   const log = (deps.readLog ?? readInstallLog)(projectDir);
   if (!log) {
     return { ...none, unknown: true };
@@ -357,8 +375,11 @@ export function refreshExternalSkills(
   const installedIds = new Set(log.assets.filter((a) => a.method === "skill").map((a) => a.id));
   const catalog = deps.assets ?? EXTERNAL_ASSETS;
   const targets = catalog.filter((a) => a.method.kind === "skill" && installedIds.has(a.id));
+  // 기록에는 있는데 카탈로그에서 사라진 자산 — 갱신할 방법이 없다. 화면에 이름을 낸다.
+  const inCatalog = new Set(targets.map((a) => a.id));
+  const notInCatalog = [...installedIds].filter((id) => !inCatalog.has(id));
   if (targets.length === 0) {
-    return { ...none, unknown: false };
+    return { ...none, notInCatalog, unknown: false };
   }
   const report = (deps.run ?? runExternalInstall)(
     {
@@ -383,6 +404,7 @@ export function refreshExternalSkills(
     failed: report.attempted
       .filter((r) => !r.ok)
       .map((r) => ({ id: r.asset.id, message: r.message ?? "failed" })),
+    notInCatalog,
     unknown: false,
   };
 }

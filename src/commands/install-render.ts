@@ -597,13 +597,24 @@ function renderPhase1Rows(
       );
     }
     if (baseline.updateMode.externalSkillsFailed.length > 0) {
+      // 실패가 여럿이면 이름만 낸다 — 사유를 전부 이어 붙이면 한 줄이 1,000자를 넘어 표
+      // 정렬이 깨진다(리뷰 NIT-1). 사유는 첫 건만 대표로 싣는다: 대개 같은 원인이다.
+      const failed = baseline.updateMode.externalSkillsFailed;
+      const head = failed[0] as { id: string; message: string };
+      const meta =
+        failed.length === 1
+          ? `${head.id}: ${head.message}`
+          : `${failed.map((f) => f.id).join(", ")} (${failed.length}건) · 예: ${head.message}`;
+      log(assetRow("skip", "external skills", `${meta} · 다음 update 에서 다시 시도한다`));
+    }
+    // 기록에는 있는데 카탈로그에서 사라진 자산 — "갱신했다"에 섞이면 사용자는 일부만 갱신된
+    // 것을 모른다.
+    if (baseline.updateMode.externalSkillsNotInCatalog.length > 0) {
       log(
         assetRow(
           "skip",
           "external skills",
-          `${baseline.updateMode.externalSkillsFailed
-            .map((f) => `${f.id}: ${f.message}`)
-            .join(" · ")} · 다음 update 에서 다시 시도한다`,
+          `${baseline.updateMode.externalSkillsNotInCatalog.join(", ")} · 카탈로그에 없어 갱신 대상이 아니다`,
         ),
       );
     }

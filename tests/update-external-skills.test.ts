@@ -12,7 +12,7 @@ import {
 import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
-import { runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
+import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
@@ -24,10 +24,9 @@ import { createMockAsset } from "./helpers/mock-asset.js";
  * 갱신된 것처럼 보였다.
  *
  * **왜 `skills update` 가 아닌가**: 그 서브명령은 `--copy` 도 `--agent` 도 받지 않아서
- * `.claude/skills/<id>` 를 `.agents/` 로의 **심링크로 강등**하고, 고른 적 없는 `.agents/` 를
- * 만든다(실측). `foreign-slot.ts` 가 디렉터리 아닌 슬롯을 "남의 것"으로 판정하므로(#343)
- * 그 뒤로 우리 최신본이 영영 그 자리에 안 들어간다 — 독립 리뷰가 CRITICAL 로 잡았다.
- * 그래서 **install 과 같은 호출**을 다시 돌린다.
+ * `.claude/skills/<id>` 를 `.agents/` 로의 **심링크로 강등**하고, **고른 적 없는 `.agents/`
+ * 트리를 만든다**(실측). 사용자가 그 정체 모를 디렉터리를 지우면 스킬 본문이 사라진다.
+ * 독립 리뷰가 CRITICAL 로 잡았다. 그래서 **install 과 같은 호출**을 다시 돌린다.
  *
  * 여기서 무는 것은 **호출 형태·대상 선정·실패 처리·화면**이다. 디스크 결과(사본이 디렉터리로
  * 남는가)는 컨테이너에서만 볼 수 있고 그쪽은 docker 시나리오가 소유한다.
@@ -189,6 +188,37 @@ describe("refreshExternalSkills — 무엇을, 어떤 명령으로 다시 받는
     expect(r.failed[0]?.message).toContain("network unreachable");
   });
 
+  it("기록에 있는데 카탈로그에서 사라진 자산은 **이름을 낸다** — 조용히 빼지 않는다", () => {
+    // 이 저장소는 실제로 자산을 지운 적이 있다(`north-star-skill`). 그 릴리즈 뒤 옛 설치본이
+    // update 를 돌면 여기다. 침묵하면 사용자는 일부만 갱신된 것을 모른다.
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () =>
+        fakeLog([
+          { id: "skill-a", method: "skill" },
+          { id: "ghost-removed-from-catalog", method: "skill" },
+        ]),
+    });
+    expect(r.attempted).toBe(1);
+    expect(r.notInCatalog).toEqual(["ghost-removed-from-catalog"]);
+  });
+
+  it("카탈로그 밖 자산만 있으면 갱신은 0 이고 그래도 이름을 낸다", () => {
+    const spawn = makeSpawn();
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      readLog: () => fakeLog([{ id: "ghost-removed-from-catalog", method: "skill" }]),
+    });
+    expect(r.attempted).toBe(0);
+    expect(r.unknown, "판정 불가가 아니다 — 무엇이 빠졌는지 안다").toBe(false);
+    expect(r.notInCatalog).toEqual(["ghost-removed-from-catalog"]);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
   it("디스크의 실 설치 기록을 읽는다 (주입 없이)", () => {
     const dir = tmpProject();
     writeInstallLog(dir, fakeLog([{ id: "skill-a", method: "skill" }]));
@@ -216,6 +246,7 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
       attempted: 2,
       refreshed: 2,
       failed: [],
+      notInCatalog: [],
       unknown: false,
     }));
     const report = runUpdateMode(dir, templatesDir, harnessRoot, { refreshSkills });
@@ -232,6 +263,7 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
         attempted: 1,
         refreshed: 0,
         failed: [{ id: "skill-a", message: "npx exited 1" }],
+        notInCatalog: [],
         unknown: false,
       }),
     });
@@ -244,7 +276,13 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
   it("판정 불가는 그대로 보고에 실린다", () => {
     const dir = installedProject();
     const report = runUpdateMode(dir, templatesDir, harnessRoot, {
-      refreshSkills: () => ({ attempted: 0, refreshed: 0, failed: [], unknown: true }),
+      refreshSkills: () => ({
+        attempted: 0,
+        refreshed: 0,
+        failed: [],
+        notInCatalog: [],
+        unknown: true,
+      }),
     });
     expect(report.externalSkillsUnknown).toBe(true);
   });
@@ -278,6 +316,7 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     mcpAllowlistRetired: null,
     externalSkillsRefreshed: 0,
     externalSkillsFailed: [],
+    externalSkillsNotInCatalog: [],
     externalSkillsUnknown: false,
   };
 
@@ -335,6 +374,28 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     expect(out).toMatch(/판정할 수 없다/);
   });
 
+  it("카탈로그에서 사라진 자산은 이름이 화면에 뜬다", () => {
+    const out = lines({ externalSkillsNotInCatalog: ["ghost-a", "ghost-b"] });
+    expect(out).toMatch(/external skills/);
+    expect(out).toContain("ghost-a");
+    expect(out).toContain("ghost-b");
+  });
+
+  it("실패가 여럿이면 한 줄이 길어지지 않는다 — 이름만 내고 사유는 대표 1건", () => {
+    const many = Array.from({ length: 10 }, (_, i) => ({
+      id: `skill-${i}`,
+      message: "npx exited 1: a very long explanation that would blow up the row width".repeat(2),
+    }));
+    const row = lines({ externalSkillsFailed: many })
+      .split("\n")
+      .find((l) => l.includes("external skills")) as string;
+    expect(row).toBeDefined();
+    // 사유 10건을 다 이어 붙이면 1,000자를 넘는다.
+    expect(row.length, `실패 행이 너무 길다: ${row.length}자`).toBeLessThan(400);
+    expect(row).toContain("skill-0");
+    expect(row).toContain("10건");
+  });
+
   it("대상이 없으면 아무 말도 하지 않는다 (없는 일을 했다고 하지 않는다)", () => {
     expect(lines({})).not.toMatch(/external skills/);
   });
@@ -344,5 +405,24 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     const out = lines({ externalUpdated: 3 });
     expect(out).toMatch(/external CLI artifacts/);
     expect(out).not.toMatch(/external skills/);
+  });
+});
+
+describe("HIGH-1 — update 화면의 스코프가 실제로 쓰는 자리와 같다", () => {
+  it("글로벌 설치본의 update spec 은 global 이다 — 홈에 쓰면서 '안 쓴다'고 적지 않는다", () => {
+    const dir = tmpProject();
+    writeInstallLog(dir, { ...fakeLog([{ id: "skill-a", method: "skill" }]), scope: "global" });
+    // 이 값이 project 로 남으면 헤더가 "no global write" 를 찍는데, 갱신은 `-g` 로 홈에 쓴다.
+    expect(buildUpdateSpec(dir, ["tooling"]).scope).toBe("global");
+  });
+
+  it("프로젝트 설치본은 project 다", () => {
+    const dir = tmpProject();
+    writeInstallLog(dir, fakeLog([{ id: "skill-a", method: "skill" }]));
+    expect(buildUpdateSpec(dir, ["tooling"]).scope).toBe("project");
+  });
+
+  it("설치 기록이 없으면 project 로 떨어진다 (없는 글로벌 권한을 주장하지 않는다)", () => {
+    expect(buildUpdateSpec(tmpProject(), ["tooling"]).scope).toBe("project");
   });
 });
