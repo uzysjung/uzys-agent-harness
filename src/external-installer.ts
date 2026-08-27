@@ -290,6 +290,26 @@ export function skillsCliSpec(): string {
   return `skills@${SKILLS_CLI_VERSION}`;
 }
 
+/**
+ * `npx skills add` 인자.
+ *
+ * **`--copy` 가 핵심이다** (#372, 실측 2026-08-27 `skills@1.5.11` 컨테이너). 기본 모드에서
+ * 에이전트를 여럿 넘기면 skill 이 `.agents/skills/`(codex·opencode·antigravity 공용)에만 깔리고
+ * **Claude Code 몫의 `.claude/skills/` 가 조용히 빠진다** — exit 0 이라 설치 화면에는 ✓ 로 뜬다.
+ * `--copy`(help: "Copy files instead of symlinking to agent directories")를 붙이면 한 호출로
+ * 두 자리가 다 생긴다.
+ *
+ * 재 본 것들:
+ *   `--agent a --agent b` (반복)      → `.agents/` 만        ❌
+ *   `--agent a b` (variadic, 문서 형태) → `.agents/` 만        ❌ (1.5.23 도 동일)
+ *   `--agent "a,b"` (콤마)             → `Invalid agents:` **exit 1**, 아무것도 안 깔림
+ *   위 어느 형태든 **+ `--copy`**       → 두 자리 다 생김      ✅ 1회 5초
+ * 콤마는 1.5.5 에서만 되던 형태다(1.5.7 폐지, v26.55.1 회귀). 버전 bump 때 이 표를 다시 잰다.
+ *
+ * **`--copy` 는 에이전트를 명시할 때만 붙인다.** 미지정(`cli: []`, 레거시 "전체")에 붙이면
+ * 설치 대상이 `.agents/` 한 곳에서 **약 50개 도구 디렉터리로 폭발**한다(실측). 그 경로는 종전
+ * 그대로 둔다.
+ */
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
   cli: CliTargets,
@@ -300,10 +320,11 @@ function buildSkillArgs(
     args.push("--skill", method.skill);
   }
   if (cli.length > 0) {
-    // v26.55.1 — skills cli 1.5.7 부터 multi-agent 는 repeatable `--agent` 만 지원.
     for (const c of cli) {
       args.push("--agent", SKILLS_CLI_AGENT_MAP[c] ?? c);
     }
+    // 에이전트를 고른 경우에만. 위 주석의 폭발 사유.
+    args.push("--copy");
   }
   // v26.64.0 (ADR-020) — global scope 시 -g. project 는 skills CLI default (project) 따름.
   if (scope === "global") {

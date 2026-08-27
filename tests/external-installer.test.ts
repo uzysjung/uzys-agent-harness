@@ -92,6 +92,8 @@ describe("runExternalInstall — method dispatch", () => {
       "owner/repo",
       "--agent",
       "claude-code",
+      // #372 — `--copy` 없이는 Claude Code 몫의 `.claude/skills/` 복사가 조용히 빠진다.
+      "--copy",
       "--yes",
     ]);
   });
@@ -127,6 +129,7 @@ describe("runExternalInstall — method dispatch", () => {
       "react",
       "--agent",
       "claude-code",
+      "--copy",
       "--yes",
     ]);
   });
@@ -135,7 +138,14 @@ describe("runExternalInstall — method dispatch", () => {
   // v26.39.6 — `claude` → `claude-code` 매핑 (skills CLI 1.5.5 valid name)
   // v26.55.1 — skills cli 1.5.7 부터 repeatable `--agent` 만 지원 (comma 폐지).
   //   "Invalid agents: claude-code,codex,opencode" exit 1 regression.
-  it("skill with multi-CLI passes repeatable --agent (v26.55.1)", () => {
+  // **#372 (2026-08-27) — 한 호출에 여러 `--agent` 를 넘기던 계약을 폐기했다.**
+  //   이 테스트는 그 계약을 박제하고 있었고, 계약 자체가 틀렸다: 컨테이너 실측에서
+  //   `--agent` 를 반복해 넘기면 Claude Code 몫의 `.claude/skills/` 복사가 **조용히 빠진다**
+  //   (`.agents/skills/` 에만 깔리고 exit 0). 대조군(다른 자산)도 같아 자산 문제가 아니다.
+  //   그래서 **테스트가 틀린 경우**에 해당해 갱신한다 — 구현을 테스트에 맞추지 않는다.
+  //   위 세 줄의 이력은 남긴다: `claude` → `claude-code` 매핑과 콤마 금지는 지금도 유효하다.
+  //   호출 형태의 전체 계약 = `tests/skills-per-agent-call.test.ts`.
+  it("skill with multi-CLI: 한 호출 + --copy (#372)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
       {
@@ -145,17 +155,20 @@ describe("runExternalInstall — method dispatch", () => {
       },
       { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] },
     );
-    expect(spawn.mock.calls[0]?.[1]).toEqual([
-      skillsCliSpec(),
-      "add",
-      "owner/repo",
-      "--agent",
-      "claude-code",
-      "--agent",
-      "codex",
-      "--agent",
-      "opencode",
-      "--yes",
+    expect(spawn.mock.calls.map((c) => c[1])).toEqual([
+      [
+        skillsCliSpec(),
+        "add",
+        "owner/repo",
+        "--agent",
+        "claude-code",
+        "--agent",
+        "codex",
+        "--agent",
+        "opencode",
+        "--copy",
+        "--yes",
+      ],
     ]);
   });
 
