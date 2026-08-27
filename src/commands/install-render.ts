@@ -583,6 +583,51 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #374 — 외부 스킬(`npx skills add` 로 깐 것)은 위 행과 **다른 자산**이다. 이 행이 없던
+    // 동안 사용자는 `external CLI artifacts` 를 보고 스킬도 갱신된 줄 알았고, 실제로는 첫 설치
+    // 판본이 영영 남았다. 그래서 성공·실패·판정불가가 **각자 한 줄**을 갖는다 — 셋을 같은
+    // 침묵으로 합치는 것이 이 결함의 정체였다.
+    if (baseline.updateMode.externalSkillsRefreshed > 0) {
+      log(
+        assetRow(
+          "success",
+          "external skills",
+          `${baseline.updateMode.externalSkillsRefreshed} refreshed from upstream`,
+        ),
+      );
+    }
+    if (baseline.updateMode.externalSkillsFailed.length > 0) {
+      // 실패가 여럿이면 이름만 낸다 — 사유를 전부 이어 붙이면 한 줄이 1,000자를 넘어 표
+      // 정렬이 깨진다(리뷰 NIT-1). 사유는 첫 건만 대표로 싣는다: 대개 같은 원인이다.
+      const failed = baseline.updateMode.externalSkillsFailed;
+      const head = failed[0] as { id: string; message: string };
+      const meta =
+        failed.length === 1
+          ? `${head.id}: ${head.message}`
+          : `${failed.map((f) => f.id).join(", ")} (${failed.length}건) · 예: ${head.message}`;
+      log(assetRow("skip", "external skills", `${meta} · 다음 update 에서 다시 시도한다`));
+    }
+    // 기록에는 있는데 카탈로그에서 사라진 자산 — "갱신했다"에 섞이면 사용자는 일부만 갱신된
+    // 것을 모른다.
+    if (baseline.updateMode.externalSkillsNotInCatalog.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "external skills",
+          `${baseline.updateMode.externalSkillsNotInCatalog.join(", ")} · 카탈로그에 없어 갱신 대상이 아니다`,
+        ),
+      );
+    }
+    // 레거시 설치본 — "갱신할 게 없다"와 "무엇을 갱신할지 모른다"는 다른 사실이다.
+    if (baseline.updateMode.externalSkillsUnknown) {
+      log(
+        assetRow(
+          "skip",
+          "external skills",
+          "설치 기록이 없어 갱신 대상을 판정할 수 없다 · `agent-harness install` 로 다시 깔면 기록된다",
+        ),
+      );
+    }
     return;
   }
 
