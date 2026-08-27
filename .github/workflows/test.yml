@@ -121,15 +121,26 @@ jobs:
         shell: bash
         run: |
           V="${GITHUB_REF_NAME#v}"
-          # registry 반영에 수 초 걸린다 — 즉시 조회 실패를 게시 실패로 오판하지 않게 재시도.
-          for i in 1 2 3 4 5; do
-            got=$(npm view "@uzysjung/agent-harness@${V}" version 2>/dev/null || true)
+          # npm 자신이 게시 직후 "may take a few minutes to become available" 이라고 적는다.
+          # 50초만 기다리던 초판은 **정상 게시된 v26.148.1 을 실패로 보고**했다(#377) — 빨간불이
+          # 정상 상태가 되면 아무도 안 보므로(#237), 창을 npm 이 말하는 시간에 맞춘다.
+          # `--prefer-online` 은 낡은 packument 를 주는 읽기 캐시 경로를 없앤다.
+          ATTEMPTS=20
+          INTERVAL=15
+          # 대기 시간을 문구에 따로 적지 않는다 — 값에서 유도한다. 두 곳에 적으면 한쪽만
+          # 바뀌었을 때 화면이 사실과 다른 시간을 말한다.
+          WAITED=$(( ATTEMPTS * INTERVAL / 60 ))
+          for i in $(seq 1 "${ATTEMPTS}"); do
+            got=$(npm view "@uzysjung/agent-harness@${V}" version --prefer-online 2>/dev/null || true)
             if [ "$got" = "$V" ]; then
               echo "registry 확인: @uzysjung/agent-harness@${V} 실재"
               exit 0
             fi
-            echo "registry 미반영 (${i}/5) — 10초 후 재시도"
-            sleep 10
+            echo "registry 미반영 (${i}/${ATTEMPTS}) — ${INTERVAL}초 후 재시도"
+            sleep "${INTERVAL}"
           done
-          echo "::error::태그 ${GITHUB_REF_NAME} 를 밀었는데 npm registry 에 ${V} 가 없다. 게시가 일어나지 않았다 (NPM_TOKEN 부재 또는 publish 실패)."
+          # 관측하지 않은 원인을 단언하지 않는다. 초판은 "게시가 일어나지 않았다"고 적었는데,
+          # 바로 위 단계가 `+ @uzysjung/agent-harness@…` 를 찍은 실행에서도 그렇게 적었다 —
+          # 그 말을 믿고 재태그하면 이미 게시된 버전에 다시 손대게 된다.
+          echo "::error::태그 ${GITHUB_REF_NAME} 를 밀고 ${WAITED}분을 기다렸는데 npm registry 에서 ${V} 가 안 보인다. 위 publish 단계의 출력을 먼저 읽어라 — 게시 자체가 안 일어났는지(NPM_TOKEN 부재·publish 실패) 아니면 반영이 늦는지가 거기 있다. 매일 도는 release-audit 워크플로와 \`npm run release:audit\` 이 같은 질문을 다시 묻는다."
           exit 1
