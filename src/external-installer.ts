@@ -299,19 +299,19 @@ export function skillsCliSpec(): string {
  * 표시하는 자리라 Claude Code 는 별도 복사를 받아야 하는데, 다중 에이전트에서는 그 복사가
  * 일어나지 않는다. 대조군(다른 자산·다른 저장소)도 같아서 자산 문제가 아니다.
  *
- * `agent === undefined` 는 "전체" — 호출부가 cli 미지정([])일 때 쓴다(레거시 관례).
+ * 빈 배열은 "전체" — 호출부가 cli 미지정([])일 때 쓴다(레거시 관례).
  */
 function buildSkillArgs(
   method: { kind: "skill"; source: string; skill?: string },
-  agent: string | undefined,
+  agents: ReadonlyArray<string>,
   scope: InstallScope,
 ): string[] {
   const args = [skillsCliSpec(), "add", method.source];
   if (method.skill) {
     args.push("--skill", method.skill);
   }
-  if (agent !== undefined) {
-    args.push("--agent", agent);
+  for (const a of agents) {
+    args.push("--agent", a);
   }
   // v26.64.0 (ADR-020) — global scope 시 -g. project 는 skills CLI default (project) 따름.
   if (scope === "global") {
@@ -321,15 +321,36 @@ function buildSkillArgs(
   return args;
 }
 
+/** skills CLI 에서 Claude Code 를 가리키는 이름. 아래 그룹핑의 경계이자 유일한 예외다. */
+const CLAUDE_SKILLS_AGENT = SKILLS_CLI_AGENT_MAP.claude;
+
 /**
- * skill 자산 설치 — **고른 CLI 마다 한 번씩** 부른다 (#372).
+ * `skills add` 호출을 **목적지별로 묶는다** (#372).
  *
- * 대가: 자산당 호출이 CLI 수만큼 늘어난다(최대 4배). 같은 저장소를 여러 번 clone 하게 되므로
- * 설치가 느려지고 네트워크 실패 지점도 늘어난다. 그 대가를 받는 이유는 반대쪽이 **조용한
- * 미설치**이기 때문이다 — exit 0 에 화면은 ✓ 라 아무도 모른다.
+ * `.agents/skills/` 는 codex·opencode·antigravity 가 **공유**하는 자리라 한 호출로 묶어도
+ * 되고, Claude Code 는 `.claude/skills/` 로의 **별도 복사**를 받아야 해서 자기 호출이 필요하다.
+ * 실측(2026-08-27, `skills@1.5.11`): 자산 하나에 **1회 3초**(Claude 몫 누락) · **2회 8초**(정상) ·
+ * 4회 15초(정상). 에이전트마다 부르면 같은 저장소를 그만큼 다시 clone 한다.
+ *
+ * ⚠ **이 그룹핑은 "claude-code 만 특별하다"를 가정한다.** skills CLI 가 다른 에이전트 몫도
+ * 빠뜨리기 시작하면 같은 형태로 **조용히** 깨진다 — 증상은 exit 0 에 설치 화면은 ✓ 다.
+ * 그래서 경계를 이 함수 하나에 두고, 늘리기 전에 이 주석부터 읽게 한다. 판정 방법은
+ * 컨테이너에서 `--agent` 조합을 바꿔 가며 디스크 결과를 보는 것뿐이다(호스트 실행은 훅이 차단).
+ */
+function skillAgentGroups(cli: CliTargets): string[][] {
+  // cli 미지정([])은 "전체" — 에이전트를 안 붙이고 한 번만 부른다(레거시 관례 유지).
+  if (cli.length === 0) return [[]];
+  const agents = cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
+  const claude = agents.filter((a) => a === CLAUDE_SKILLS_AGENT);
+  const shared = agents.filter((a) => a !== CLAUDE_SKILLS_AGENT);
+  return [claude, shared].filter((g) => g.length > 0);
+}
+
+/**
+ * skill 자산 설치 — 목적지 그룹마다 한 번씩 부른다 (#372).
  *
  * 부분 실패는 성공으로 접지 않는다. 하나라도 실패하면 그 자산은 실패이고, **어느 에이전트가**
- * 실패했는지 메시지에 남긴다 — 안 남기면 다음 사람이 4번 중 어디가 깨졌는지 알 수 없다.
+ * 실패했는지 메시지에 남긴다 — 안 남기면 다음 사람이 어느 호출이 깨졌는지 알 수 없다.
  */
 function installSkill(
   asset: ExternalAsset,
@@ -339,15 +360,11 @@ function installSkill(
   scope: InstallScope,
   cwd: string,
 ): AssetInstallResult {
-  // cli 미지정([])은 "전체" — 에이전트를 안 붙이고 한 번만 부른다(레거시 관례 유지).
-  const agents: Array<string | undefined> =
-    cli.length === 0 ? [undefined] : cli.map((c) => SKILLS_CLI_AGENT_MAP[c] ?? c);
-
   const failures: string[] = [];
-  for (const agent of agents) {
-    const r = runSpawn(asset, spawn, "npx", buildSkillArgs(method, agent, scope), cwd);
+  for (const group of skillAgentGroups(cli)) {
+    const r = runSpawn(asset, spawn, "npx", buildSkillArgs(method, group, scope), cwd);
     if (!r.ok) {
-      failures.push(`${agent ?? "all"}: ${r.message ?? "unknown"}`);
+      failures.push(`${group.length === 0 ? "all" : group.join("+")}: ${r.message ?? "unknown"}`);
     }
   }
   return failures.length === 0

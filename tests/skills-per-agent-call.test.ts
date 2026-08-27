@@ -5,7 +5,7 @@ import { DEFAULT_OPTIONS } from "../src/types.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
- * #372 — skill 자산은 **에이전트마다 한 번씩** 부른다.
+ * #372 — skill 자산은 **목적지 그룹마다 한 번씩** 부른다.
  *
  * 실측 (2026-08-27, 컨테이너 `skills@1.5.11`): 같은 명령에서 `--agent` 를 반복해 넘기면
  * Claude Code 몫의 복사가 조용히 빠진다. 자산만 다르게 해도 같고(대조군 `find-skills`),
@@ -14,7 +14,12 @@ import { createMockAsset } from "./helpers/mock-asset.js";
  *   --agent claude-code                          → .claude/skills/<id>/SKILL.md   ✅
  *   --agent claude-code --agent codex            → .agents/skills/<id> 만          ❌
  *   --agent claude-code ... (4개 전부)            → .agents/skills/<id> 만          ❌
- *   나눠서 4번 호출                                 → 두 자리 다 생김                 ✅
+ *   claude 1번 + 나머지 3개 1번 (2회)              → 두 자리 다 생김                 ✅
+ *
+ * 호출 횟수는 **2회**로 정했다(사용자 결정 2026-08-27). `.agents/skills/` 는 codex·opencode·
+ * antigravity 가 공유하는 자리라 묶어도 되고, 자산당 실측이 1회 3초(깨짐) · 2회 8초 · 4회 15초다.
+ * 그 대가로 "claude-code 만 특별하다"를 가정하게 된다 — 그 가정이 깨지면 **또 조용히** 깨지므로,
+ * 경계는 `skillAgentGroups` 한 곳에 두고 이 파일이 그 형태를 문다.
  *
  * `.agents/skills/` 는 skills CLI 자신이 "universal: Codex, OpenCode, Antigravity" 로 표시하는
  * 자리다 — Claude Code 는 별도 복사를 받아야 한다. 그래서 영향은 `method.kind:"skill"` 자산
@@ -57,20 +62,42 @@ function npxCalls(spawn: ReturnType<typeof makeSpawnMock>): string[][] {
 const agentsOf = (args: string[]): string[] =>
   args.flatMap((a, i) => (a === "--agent" ? [args[i + 1] as string] : []));
 
-describe("#372 — skill 자산은 에이전트마다 한 번씩 부른다", () => {
-  it("4 CLI 를 고르면 호출이 4번이고, 각 호출의 --agent 는 정확히 하나다", () => {
+describe("#372 — skill 자산은 목적지 그룹마다 한 번씩 부른다", () => {
+  it("4 CLI 를 고르면 호출은 2번 — claude 단독 + 나머지 묶음", () => {
     const spawn = makeSpawnMock();
     runExternalInstall(
       { ...BASE_CTX, cli: ["claude", "codex", "opencode", "antigravity"] },
       { spawn, assets: [SKILL_ASSET], log: () => {}, warn: () => {} },
     );
     const calls = npxCalls(spawn);
-    expect(calls, "자산 1개 · CLI 4개 → npx 호출 4번이어야 한다").toHaveLength(4);
-    for (const args of calls) {
+    expect(calls, "자산 1개 · CLI 4개 → npx 호출 2번이어야 한다").toHaveLength(2);
+    expect(calls.map(agentsOf)).toEqual([
+      // claude-code 는 **혼자** 가야 한다 — 다른 에이전트와 섞이면 .claude/skills 복사가 빠진다.
+      ["claude-code"],
+      ["codex", "opencode", "antigravity"],
+    ]);
+  });
+
+  it("claude-code 는 어떤 조합에서도 다른 에이전트와 같은 호출에 섞이지 않는다", () => {
+    // 이 단언이 이 파일의 핵심이다 — 섞이면 증상이 exit 0 에 화면 ✓ 라 조용하다.
+    for (const cli of [
+      ["claude", "codex"],
+      ["codex", "claude"],
+      ["claude", "opencode", "antigravity"],
+    ] as const) {
+      const spawn = makeSpawnMock();
+      runExternalInstall(
+        { ...BASE_CTX, cli: [...cli] },
+        { spawn, assets: [SKILL_ASSET], log: () => {}, warn: () => {} },
+      );
+      const groups = npxCalls(spawn).map(agentsOf);
+      const withClaude = groups.filter((g) => g.includes("claude-code"));
+      // 공허한 통과 차단 — claude 를 골랐는데 그 호출이 없으면 위 루프는 아무것도 안 본다.
+      expect(withClaude, `claude-code 호출이 아예 없다 (cli=${cli.join(",")})`).toHaveLength(1);
       expect(
-        agentsOf(args),
-        `한 호출에 --agent 가 여럿이면 Claude Code 몫이 조용히 빠진다: ${args.join(" ")}`,
-      ).toHaveLength(1);
+        withClaude[0],
+        `claude-code 가 다른 에이전트와 섞였다 (cli=${cli.join(",")}): ${(withClaude[0] ?? []).join("+")}`,
+      ).toEqual(["claude-code"]);
     }
   });
 
@@ -120,7 +147,7 @@ describe("#372 — skill 자산은 에이전트마다 한 번씩 부른다", () 
       { spawn, assets: [SKILL_ASSET], log: () => {}, warn: () => {} },
     );
     const r = report.attempted.find((a) => a.asset.id === "skill-cross-cli");
-    expect(r?.ok, "한 에이전트가 실패했는데 성공으로 보고됐다").toBe(false);
+    expect(r?.ok, "한 호출이 실패했는데 성공으로 보고됐다").toBe(false);
     expect(r?.message ?? "", "실패 메시지가 어느 에이전트인지 안 말한다").toContain("codex");
   });
 
