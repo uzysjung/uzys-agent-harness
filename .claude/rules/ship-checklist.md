@@ -5,7 +5,7 @@
 ## Pre-Ship Gates
 
 - [ ] **로컬 CI 전체 통과 (1차 게이트)**: `npm run ci`(typecheck + lint + test:coverage + build) exit 0. `npm test` 만으로는 coverage gate 누락. **full 을 요구하는 지점은 여기다** — 커밋에는 테스트가 없고 머지에는 영향 범위만 돈다(시점별 정책 SSOT = `test-policy.md`). **exit code 를 파이프 뒤에서 읽지 마라** — `npm run ci | tail` 의 `$?` 는 `tail` 의 것이고, 백그라운드 실행이면 `;` 뒤 `echo $?` 도 CI 의 코드가 아니다(`cli-development.md` 와 같은 함정, 실제로 한 번 오독할 뻔했다)
-- [ ] **CI green 이 배포의 전제로 배선돼 있는지**: 릴리스 워크플로가 CI job 에 `needs:` 로 묶여 있어 **CI red 면 게시 자체가 안 일어나야** 한다. 확인 없이 태그를 밀지 않는다 — v26.128.0~131.0 에서 `ci` 4연속 red 인데 `publish` 는 별개 워크플로라 성공했고, 그 사실을 3릴리즈 동안 아무도 못 봤다
+- [ ] **CI green 이 배포의 전제로 배선돼 있는지**: 릴리스 워크플로가 검증 job 에 `needs:` 로 묶여 있어 **red 면 게시 자체가 안 일어나야** 한다. 현재 `publish` 는 `needs: [ci, docker-e2e]` 다 — `docker-e2e` 는 컨테이너 설치 2종(배달 방식마다 하나, ADR-079). 확인 없이 태그를 밀지 않는다 — v26.128.0~131.0 에서 `ci` 4연속 red 인데 `publish` 는 별개 워크플로라 성공했고, 그 사실을 3릴리즈 동안 아무도 못 봤다. **`docker-scenarios.yml`(나머지 시나리오 + 실 CLI)은 게시를 막지 않는다** — 태그마다 자동으로 도니 red 를 눈으로 보고 넘어갈지 정한다
 - [ ] **E2E + 커버리지**: 핵심 사용자 흐름 E2E 전부 PASS · `test-policy.md` threshold(이 repo: branches 88)
 - [ ] **태그 후 릴리스 CI 확인**: `gh run view <run-id> --json conclusion` 이 `success` (fail 시 patch 태그로 수정). **`gh run watch --exit-status` 를 판정으로 쓰지 마라** — v26.148.1 에서 conclusion 이 `failure` 인 run 에 **exit 0** 을 냈다(#377). 종료를 기다리는 데는 써도, 통과 여부는 conclusion 을 읽어서 판정한다. **워크플로가 돌았는지부터 본다** — 2026-08-27 Actions 장애 때 같은 태그에서 `install-matrix` 는 돌고 `ci` 는 발동조차 안 해 게시가 조용히 빠졌다(빨간불이 아니라 *아무것도 없음*이라 화면에는 성공한 워크플로 하나만 보인다). 안 돌았으면 `gh workflow run ci --ref <태그>` 로 재트리거
 - [ ] **게시가 실제로 일어났는지**: `npm run release:audit` exit 0 — 원격 태그 중 npm 에 없는 버전이 0. 의도적 미게시는 CHANGELOG 헤딩 바로 다음 줄에 `<!-- npm-publish:none <사유> -->`. 같은 검사가 `release-audit.yml` 로 매일 돌아 트리거 유실을 하루 안에 잡는다(Epic #366 G5)

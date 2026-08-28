@@ -1,0 +1,46 @@
+name: docker scenarios (signal)
+
+# 게시를 **막지 않는** 신호. 2026-08-28 (#369, ADR-077).
+#
+# 게시 차단은 test.yml 의 `docker-e2e` 2개가 맡는다(배달 방식마다 하나). 여기는 나머지 전부다 —
+# update · uninstall · 백업 보존 · scope · 렌더, 그리고 실 CLI 인식(realcli).
+#
+# 왜 안 막나:
+#   - 전부 돌면 20.3분이고 그 대부분이 github/npm 왕복이다. 그 시간을 릴리즈 경로에 얹으면
+#     느려서 우회하게 되고, 우회되는 게이트는 없느니만 못하다(#237).
+#   - realcli 이미지는 antigravity.google 설치 스크립트와 codex/opencode 글로벌 설치를 받는다.
+#     그건 우리 제품이 옳은지가 아니라 **남의 CLI 가 우리 파일을 알아보는지**를 재는 축이라,
+#     그쪽 사고로 우리 게시가 막히는 것은 근거가 약하다.
+#
+# **거짓 red 빈도는 이 워크플로의 실행 이력으로 관측한다** — 태그마다 자동으로 돌므로
+# 몇 번에 한 번 인프라 사유로 빨간불이 나는지가 여기 쌓인다. 그 비율이 낮다고 판단되면
+# 그때 `docker-e2e` 로 승격하고, 높으면 승격하지 않는 근거가 된다.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-scenarios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # mock 이미지 — 우리 install/update/uninstall 동작 전량.
+  scenarios:
+    name: 시나리오 전량 (mock)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      # 첫 실패에서 멈추지 않는다 — run.sh 가 전부 돌고 끝에 요약과 red 개수를 낸다.
+      # 하나씩만 보이면 고칠 때마다 전체를 다시 돌려야 한다.
+      - run: bash test/docker/run.sh all
+
+  # 실 codex/opencode/agy 바이너리 — 그 CLI 들이 우리가 쓴 자리를 아는지에 대한 증거.
+  realcli:
+    name: 실 CLI 인식 (evidence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash test/docker/run-realcli.sh all

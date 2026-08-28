@@ -57,12 +57,36 @@ describe("보안 게이트 배선", () => {
     expect(baseline.findings?.length ?? 0).toBeGreaterThan(100);
   });
 
-  it("게시를 막는 자리에 있다 — `ci` job 안이어야 `needs: ci` 가 성립한다", () => {
+  it("게시를 막는 자리에 있다 — `ci` job 안이어야 `needs:` 가 성립한다", () => {
     // 별도 워크플로로 빼면 v26.128.0~131.0 형태(검증 red 인데 게시 성공)가 재현된다.
-    const ciJob = workflow.split("\n  publish:")[0] ?? "";
-    expect(ciJob, "workflow 를 job 경계로 못 잘랐다 — 이 단언이 공허해진다").toContain("jobs:");
+    //
+    // 2026-08-28 (#369): 예전에는 `publish:` 앞을 통째로 잘라 "ci job" 이라고 불렀는데,
+    // job 이 하나 더 생기자(docker-e2e) 그 구간이 두 job 을 덮어 단언이 헐거워졌다.
+    // job 머리를 실제로 찾아 **ci job 만** 잘라 낸다.
+    const heads = [...workflow.matchAll(/^ {2}([A-Za-z0-9_.-]+):\s*$/gm)];
+    expect(
+      heads.length,
+      "workflow 에서 job 머리를 못 찾았다 — 아래 단언이 공허해진다",
+    ).toBeGreaterThan(1);
+    const ciAt = heads.findIndex((m) => m[1] === "ci");
+    expect(ciAt, "`ci` job 이 없다").toBeGreaterThanOrEqual(0);
+    const ciJob = workflow.slice(
+      heads[ciAt]?.index ?? 0,
+      heads[ciAt + 1]?.index ?? workflow.length,
+    );
     expect(ciJob, "보안 게이트가 `ci` job 밖에 있다").toContain("npm run security");
-    expect(workflow, "`publish` 가 `ci` 에 묶여 있지 않다").toMatch(/publish:[\s\S]*needs: ci/);
+
+    const pubAt = heads.findIndex((m) => m[1] === "publish");
+    expect(pubAt, "`publish` job 이 없다").toBeGreaterThanOrEqual(0);
+    const publishJob = workflow.slice(
+      heads[pubAt]?.index ?? 0,
+      heads[pubAt + 1]?.index ?? workflow.length,
+    );
+    // `needs: ci` 와 `needs: [ci, ...]` 를 둘 다 인정한다 — 형태가 아니라 **ci 에 묶였는가**가
+    // 이 단언의 대상이다. ci 가 빠지면 여전히 문다.
+    expect(publishJob, "`publish` 가 `ci` 에 묶여 있지 않다").toMatch(
+      /needs:\s*(?:ci\s*$|\[[^\]]*\bci\b[^\]]*\])/m,
+    );
   });
 
   it("룰이 그 명령을 가리키고 달성 불가능한 절대값을 요구하지 않는다", () => {

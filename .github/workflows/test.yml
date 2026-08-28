@@ -68,6 +68,34 @@ jobs:
           test -f "$tmp/.mcp.json"
           rm -rf "$tmp"
 
+  # 설치 E2E (컨테이너) — G1~G3 게시 차단 게이트. 2026-08-28 (#369, ADR-077).
+  #
+  # **왜 2개뿐인가.** 시나리오는 20개지만 전부 돌리면 20.3분이고, 그 93%가 검사가 아니라
+  # github/npm 왕복이다(실측: 외부 자산 포함 설치 14초 · 제외 1초 · 총 설치 호출 30회).
+  # 설치가 하는 일은 단순해서 — 템플릿 복사와 외부 설치 — **배달 방식마다 한 번**이면
+  # ①항목이 복사됐나 ②설치가 됐나 ③원하는 버전인가에 답이 나온다. 경우의 수를 다 도는 것은
+  # 시간만 먹고 같은 질문을 다시 묻는다(사용자 확정 2026-08-28).
+  #
+  #   dev-method-skills — 템플릿 복사(4 CLI 자리) + `npx skills add`(외부 스킬)  ~32초
+  #   pinned-versions   — `npm i`(pin 대조) + `npx <cmd>@<ver>`                  ~72초
+  #
+  # 나머지 시나리오(update·uninstall·백업 보존·scope)와 실 CLI 인식(realcli)은
+  # docker-scenarios.yml 에서 **신호로만** 돈다 — 게시를 막지 않는다. 실 CLI 이미지는
+  # antigravity.google 설치 스크립트에 의존하는데, 그건 우리 제품의 정확성이 아니라 남의
+  # CLI 가 우리 파일을 알아보는지를 재는 축이라 게시를 막을 근거가 약하다.
+  # 거짓 red 빈도는 그 워크플로의 실행 이력으로 관측한다.
+  #
+  # ubuntu 단독인 이유: Docker 가 필요하고, `ci` 는 macOS 를 포함한 매트릭스다.
+  docker-e2e:
+    name: 설치 E2E (컨테이너 · 게시 차단)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: ①ⓐ 템플릿 복사 + ⓑ 외부 스킬이 4 CLI 자리에 실재하는가
+        run: bash test/docker/run.sh dev-method-skills
+      - name: ②③ 외부 설치가 되고 pin 한 버전이 깔렸는가
+        run: bash test/docker/run.sh pinned-versions
+
   # npm registry publish (v26.72.1, P2-NPM) — 태그 push 시 자동 publish.
   #   목적: `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 GitFetcher 버그로 실패 → registry publish 로
   #   `npx @uzysjung/agent-harness` 가 전 npm 버전 작동 (git-dep pack 미경유).
@@ -82,7 +110,9 @@ jobs:
   #   미설정 시 publish 단계는 graceful skip (태그 CI 를 red 로 만들지 않음).
   publish:
     name: npm publish (@uzysjung/agent-harness)
-    needs: ci
+    # 2026-08-28 (#369) — `docker-e2e` 를 여기 넣은 것이 배선 조건이다. 별개 워크플로였다면
+    # red 여도 게시가 그대로 나간다(v26.128.0~131.0 이 정확히 그 형태였다).
+    needs: [ci, docker-e2e]
     # 태그 push 에서만 게시. 이 가드가 없으면 workflow_dispatch 수동 CI 실행이 게시를 딸려 돌린다.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest

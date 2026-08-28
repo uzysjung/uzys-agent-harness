@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # B1 — 실 Antigravity CLI(agy) 가 harness project-scope 자산을 인식하는가 (Promise=Implementation).
 #
-# Tier A (hard assert): harness install --cli antigravity --with uzys-harness --scope project 가
-#   .agents/rules/uzys-harness.md + .agents/skills/uzys-{phase}/SKILL.md + .agents/workflows/uzys-{phase}.md write.
-# Tier B (evidence): 실 agy 가 .agents/{skills,workflows,rules} 를 native 인식하는가.
+# Tier A (hard assert): harness install --cli antigravity 가 **고른 항목을 .agents/ 자리에** 놓는가.
+#   묻는 것은 셋뿐이다(2026-08-28 사용자 확정): ① 항목이 복사됐나 ② 설치가 됐나 ③ 원하는 버전인가.
+#   내용이 원본과 같은지는 안 묻는다 — 변환 로직은 tests/antigravity/transform.test.ts 가 소유한다.
+#
+#   2026-08-28 (#369) — 옛 Tier A 는 `.agents/skills/uzys-{phase}` 와 `.agents/workflows/uzys-{phase}.md`
+#   를 요구했는데 둘 다 ADR-023(2026-06-26)에서 제품이 없앤 산출물이다. 그 뒤 **63일간 red**.
+#   기대 목록을 이름으로 박지 않고 카탈로그·설치 기록에서 유도한다.
+# Tier B (evidence): 실 agy 가 .agents/{skills,rules} 를 native 인식하는가.
 #   - 검증 대상 주장(opt-in.ts:61): "Antigravity 가 .agents/skills/ 를 native 인식".
 #   - probe: agy plugin/skills 열거 (auth-free 가능), .antigravitycli marker 필요 여부.
 # Tier C (실행): 슬래시/프롬프트 실제 실행은 auth(login) 필요 → 범위 외.
@@ -32,21 +37,50 @@ echo ""
 
 # ── Tier A: harness project-scope write ──
 echo "── Tier A: harness project-scope write ──"
-agent-harness install --track tooling --cli antigravity --with uzys-harness --scope project >/tmp/install-agy.log 2>&1 \
+# `--with uzys-harness` 를 뺐다 — ADR-023 으로 없어진 자산이라 지금은 경고만 찍고 건너뛴다.
+agent-harness install --track tooling --cli antigravity --scope project >/tmp/install-agy.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-agy.log; exit 1; }
 
 missing=0
 check_file() { [[ -f "$1" ]] || { echo "FAIL: $1 없음"; missing=1; }; }
+
+# ① 앵커 룰 + 배포 룰이 항목 단위로 옮겨졌는가. 기대 목록은 배포 룰 디렉터리에서 유도한다.
 check_file "${PROJ}/.agents/rules/uzys-harness.md"
-for phase in spec plan build test review ship; do
-  check_file "${PROJ}/.agents/skills/uzys-${phase}/SKILL.md"
-  check_file "${PROJ}/.agents/workflows/uzys-${phase}.md"
+RULE_SRC=/work/templates/rules
+RULE_COUNT=0
+for f in "${RULE_SRC}"/*.md; do
+  [[ -e "${f}" ]] || continue
+  RULE_COUNT=$((RULE_COUNT + 1))
+  check_file "${PROJ}/.agents/rules/$(basename "${f}")"
 done
+if [[ "${RULE_COUNT}" -eq 0 ]]; then
+  echo "FAIL: ${RULE_SRC} 에서 룰을 하나도 못 읽었다 — 이 판정은 무효다"
+  missing=1
+fi
+
+# ② 고른 외부 스킬이 .agents/skills/ 에 실재하는가 (설치 기록에서 유도).
+LOGJSON="${PROJ}/.uzys-agent-harness/.harness-install.json"
+if [[ ! -f "${LOGJSON}" ]]; then
+  echo "FAIL: 설치 기록(${LOGJSON})이 없다 — 아래 판정은 무효다"
+  missing=1
+else
+  SKILL_IDS=$(jq -r '.assets[] | select(.method == "skill") | .detail.skill // .id' "${LOGJSON}")
+  COUNT=$(printf '%s\n' "${SKILL_IDS}" | grep -c . || true)
+  if [[ "${COUNT}" -eq 0 ]]; then
+    echo "FAIL: 설치 기록에 skill 자산이 0건 — 외부 설치가 통째로 실패했거나 기록 형식이 바뀌었다"
+    missing=1
+  else
+    echo "  설치 기록에서 유도한 외부 스킬 ${COUNT}종: $(printf '%s ' ${SKILL_IDS})"
+    for sid in ${SKILL_IDS}; do
+      check_file "${PROJ}/.agents/skills/${sid}/SKILL.md"
+    done
+  fi
+fi
+
 if [[ "${missing}" -eq 0 ]]; then
-  echo "✓ Tier A: .agents/rules + skills(6) + workflows(6) 정상 write"
-  echo "  rules:     $(ls "${PROJ}/.agents/rules" 2>/dev/null)"
-  echo "  skills:    $(ls "${PROJ}/.agents/skills" 2>/dev/null | tr '\n' ' ')"
-  echo "  workflows: $(ls "${PROJ}/.agents/workflows" 2>/dev/null | tr '\n' ' ')"
+  echo "✓ Tier A: .agents/rules(앵커 + 배포 룰 ${RULE_COUNT}종) + .agents/skills 정상 write"
+  echo "  rules:  $(ls "${PROJ}/.agents/rules" 2>/dev/null | tr '\n' ' ')"
+  echo "  skills: $(ls "${PROJ}/.agents/skills" 2>/dev/null | tr '\n' ' ')"
 else
   echo "FAIL: Tier A — 일부 파일 누락"
   failed=1

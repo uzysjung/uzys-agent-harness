@@ -43,10 +43,33 @@ case "${1:-all}" in
     build
     # 열거 사본을 두지 않는다 — scenarios/ 에서 derive (run.sh 와 같은 이유: 신규 시나리오가
     # 조용히 거부되는 것을 2026-08-02 에 한 번 겪었다).
+    #
+    # 첫 실패에서 멈추지 않는다 (2026-08-28, #369) — 멈추면 몇 개가 red 인지 알 수 없고,
+    # 이 세 시나리오가 63일간 red 인 채 아무도 못 본 자리가 정확히 그 형태였다.
+    failed=0
+    results=""
     for f in "$(dirname "$0")"/scenarios/scenario-realcli-*.sh; do
       b="$(basename "$f" .sh)"
-      run_scenario "${b#scenario-realcli-}"
+      b="${b#scenario-realcli-}"
+      set +e
+      run_scenario "${b}"
+      code=$?
+      set -e
+      [ "${code}" -ne 0 ] && failed=$((failed + 1))
+      results="${results}${b}\t${code}\n"
     done
+    echo ""
+    echo "━━━ 요약 ━━━"
+    printf "%b" "${results}" | while IFS="$(printf '\t')" read -r name code; do
+      [ -z "${name}" ] && continue
+      if [ "${code}" = "0" ]; then printf '  ✓ %s\n' "${name}"; else printf '  ✗ %s (exit %s)\n' "${name}" "${code}"; fi
+    done
+    echo ""
+    if [ "${failed}" -ne 0 ]; then
+      echo "red ${failed}개"
+      exit 1
+    fi
+    echo "전부 green"
     ;;
   *)
     echo "usage: $0 [build|codex|antigravity|opencode|all]" >&2

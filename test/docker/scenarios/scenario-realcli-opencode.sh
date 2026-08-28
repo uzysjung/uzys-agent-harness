@@ -8,7 +8,7 @@
 #   실 바이너리 확인이 없었다 — 여기가 그 자리다.
 #
 # 검증 tier (codex/antigravity 시나리오와 같은 구조):
-#   A 구조 (hard assert): harness 가 `AGENTS.md` 에 §Harness Rules + 룰 본문을 정확히 write.
+#   A 구조 (hard assert): harness 가 `AGENTS.md` 에 §Harness Rules 와 **룰 항목 전량**을 넣는가.
 #   B 탐색 (evidence):    실 opencode 바이너리가 `AGENTS.md` 를 지시문 소스로 다루는가.
 #   C 실행:               실제 세션은 인증이 필요 → 범위 외 (정직 표기).
 
@@ -49,25 +49,36 @@ else
   failed=1
 fi
 
-# 룰 본문이 실제로 들어갔는가. canary 는 배포 룰 고유 문장이다(앵커에는 없다 —
-# tests/resident-reach-4cli.test.ts 가 그 조건을 별도로 단언한다).
+# 룰이 **항목 단위로** 들어갔는가. 예전에는 룰 본문에서 뽑은 문장 6개를 여기 박아 두고
+# 그것이 AGENTS.md 에 있는지 봤는데, 그건 복사본을 원본과 맞대 보는 자기 대조였고 —
+# 룰 문면이 정상적으로 개정되자(#311, 2026-08-16) 그 문장 하나가 사라져 12일간 red 였다.
+# 설치는 복사다. 물어야 할 것은 "내용이 같은가"가 아니라 **"그 항목이 옮겨졌는가"**다.
+#
+# AGENTS.md 는 룰을 본문에 이어 붙이므로(renderRulesBlock: h1 → h2) 파일명이 사라진다.
+# 그래서 항목의 이름은 각 룰의 h1 제목이고, 그 목록은 배포 룰 디렉터리에서 **유도**한다.
+RULE_SRC=/work/templates/rules
 missing=0
-while IFS= read -r canary; do
-  [[ -z "${canary}" ]] && continue
-  if ! grep -qF "${canary}" "${AGENTS}"; then
-    echo "FAIL: 룰 canary 미도달 — ${canary}"
+rule_count=0
+for f in "${RULE_SRC}"/*.md; do
+  [[ -e "${f}" ]] || continue
+  title="$(grep -m1 '^# ' "${f}" | sed 's/^# //')"
+  if [[ -z "${title}" ]]; then
+    echo "FAIL: $(basename "${f}") 에 h1 제목이 없다 — 이 판정은 무효다"
+    missing=1
+    continue
+  fi
+  rule_count=$((rule_count + 1))
+  if ! grep -qF "## ${title}" "${AGENTS}"; then
+    echo "FAIL: 룰 항목 미도달 — $(basename "${f}") (## ${title})"
     missing=1
   fi
-done <<'CANARIES'
-공유 이력을 바꾸거나
-Select the test level and technique
-무엇으로 검증할지는 이 저장소가 정한다
-한 사실의 기준 문서는 하나다
-합의된 범위와 완료 기준 안에서는
-빈 결과는 부재의 증거가 아니다
-CANARIES
-if [[ "${missing}" -eq 0 ]]; then
-  echo "✓ 배포 룰 6종 본문이 AGENTS.md 안에 있다"
+done
+if [[ "${rule_count}" -eq 0 ]]; then
+  # 모집단 0 은 "전부 통과"가 아니라 "아무것도 안 쟀다"다.
+  echo "FAIL: ${RULE_SRC} 에서 룰을 하나도 못 읽었다 — 아래 결과는 증거가 아니다"
+  failed=1
+elif [[ "${missing}" -eq 0 ]]; then
+  echo "✓ 배포 룰 ${rule_count}종이 항목 단위로 AGENTS.md 안에 있다"
 else
   failed=1
 fi

@@ -174,6 +174,17 @@ function runsVerification(job: Job): boolean {
 }
 
 /**
+ * 선행 job 이 **컨테이너 실설치**를 돌리는가 (ADR-079, 2026-08-28).
+ *
+ * job 이름(`docker-e2e`)을 적지 않는 이유: 이름 열거는 이 파일이 처음부터 금지한 형태다.
+ * 이름을 바꾸면 게이트가 조용히 아무것도 안 보게 된다. 대신 **러너 경로**를 본다 —
+ * 그건 시나리오를 돌리는 유일한 진입점이라 바뀌면 이 줄도 같이 바뀐다.
+ */
+function runsContainerInstall(job: Job): boolean {
+  return /test\/docker\/run\.sh/.test(job.lines.join("\n"));
+}
+
+/**
  * 태그로 제한하는가. `github.ref` 를 태그로 좁히는 관용 표현 셋을 인정한다.
  * `if:` 가 아예 없거나 태그와 무관한 조건이면 위반 — `workflow_dispatch` 수동 실행이 게시를 낸다.
  */
@@ -283,7 +294,7 @@ function render(violations: Violation[]): string[] {
  * 픽스처를 손으로 쓰지 않고 **실제 파일에서 파생**하는 이유: 손으로 쓴 YAML 은 게이트가 그것만
  * 물고 진짜 파일은 못 무는 상태를 못 걸러낸다.
  */
-type Mutation = "drop-needs" | "drop-tag-guard" | "split-workflow";
+type Mutation = "drop-needs" | "drop-tag-guard" | "split-workflow" | "drop-container-needs";
 
 const tempDirs: string[] = [];
 
@@ -311,6 +322,25 @@ function applyMutation(dir: string, host: string, raw: string, mutation: Mutatio
   }
   if (mutation === "drop-tag-guard") {
     writeFileSync(join(dir, host), lines.filter((l) => !/^ +if:.*github\.ref/.test(l)).join("\n"));
+    return;
+  }
+  if (mutation === "drop-container-needs") {
+    // 컨테이너 설치를 돌리는 job 만 `needs:` 목록에서 뺀다 — 이름을 적지 않고 유도한다.
+    const containerIds = new Set(
+      parseJobs(host, raw)
+        .filter(runsContainerInstall)
+        .map((j) => j.id),
+    );
+    const out = lines.map((l) => {
+      const m = l.match(/^( +)needs:\s*\[(.*)\]\s*$/);
+      if (!m) return l;
+      const kept = (m[2] ?? "")
+        .split(",")
+        .map((x) => x.trim().replace(/^["']|["']$/g, ""))
+        .filter((x) => x !== "" && !containerIds.has(x));
+      return `${m[1]}needs: [${kept.join(", ")}]`;
+    });
+    writeFileSync(join(dir, host), out.join("\n"));
     return;
   }
   // split-workflow — 되돌리기 전 구조. 게시 job 을 **다른 파일**로 옮긴다.
@@ -381,6 +411,53 @@ describe("npm 게시가 검증에 배선돼 있는가 (needs: + 태그 가드)",
           .map((l) => `  ${l}`)
           .join("\n"),
     ).toEqual([]);
+  });
+
+  // ── 컨테이너 설치 배선 (ADR-079) ──────────────────────────────────────────
+
+  it("컨테이너 설치를 돌리는 job 이 실재한다 (헛통과 차단)", () => {
+    // 0개면 아래 단언이 "위반 0" 으로 조용히 통과한다. 초록불이 무는지부터 확인한다.
+    const runners = allJobs(WORKFLOW_DIR).filter(runsContainerInstall);
+    expect(
+      runners.map((j) => `${j.workflow} > ${j.id}`),
+      "`test/docker/run.sh` 를 돌리는 job 을 못 찾았다 — 탐지기가 죽었거나 배선이 사라졌다.",
+    ).not.toEqual([]);
+  });
+
+  it("게시 job 은 컨테이너 설치 검증에도 묶여 있다 (ADR-079)", () => {
+    // 단위 테스트는 "설치가 디스크에 무엇을 남기는가"를 보지 않는다. 그 축의 결함 3건이
+    // 전부 CI 초록인 채 사용자에게 갔다(#343 · #344 · #340). 그래서 배달 방식마다 하나씩,
+    // 컨테이너 실설치를 게시 앞에 세웠다 — 이 `needs:` 가 빠지면 그 방어가 통째로 없어지는데
+    // 화면상으로는 아무 일도 안 일어난 것처럼 보인다.
+    const jobs = allJobs(WORKFLOW_DIR);
+    const bad = jobs
+      .filter(publishesToNpm)
+      .filter((job) => {
+        const sameFile = jobs.filter((j) => j.workflow === job.workflow);
+        return !upstreamJobs(job, sameFile).some(runsContainerInstall);
+      })
+      .map((j) => `${j.workflow} > ${j.id}`);
+    expect(
+      bad,
+      "게시가 컨테이너 설치 검증에 묶여 있지 않다 (ADR-079). `needs:` 에서 그 job 을 빼면\n" +
+        "게시는 계속 나가고, 고른 자산이 실제로 깔렸는지는 아무도 안 본다.\n" +
+        bad.map((l) => `  ${l}`).join("\n"),
+    ).toEqual([]);
+  });
+
+  it("변이 4: 컨테이너 job 을 `needs:` 에서 빼면 문다", () => {
+    const dir = mutatedDir("drop-container-needs");
+    const jobs = allJobs(dir);
+    // 변이가 실제로 걸렸는지 먼저 — 안 걸렸으면 아래 단언은 다른 이유로 통과한다.
+    const pub = jobs.filter(publishesToNpm)[0];
+    expect(pub, "변이 사본에서 게시 job 을 못 찾았다").toBeDefined();
+    const upstream = upstreamJobs(
+      pub as Job,
+      jobs.filter((j) => j.workflow === pub?.workflow),
+    );
+    expect(upstream.some(runsContainerInstall), "변이가 안 걸렸다 — 이 대조는 무효다").toBe(false);
+    // 그리고 검증 축은 멀쩡해야 한다 — 변이가 엉뚱한 것을 지웠으면 증거가 아니다.
+    expect(upstream.some(runsVerification), "변이가 검증 job 까지 지웠다 — 대조 무효").toBe(true);
   });
 
   // ── 변이 3종 — 게이트가 실제로 무는지 (초록불이 무는지부터 확인한다) ──────────

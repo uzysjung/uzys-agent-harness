@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # B2 — 실 Codex CLI 가 harness project-scope 자산을 인식하는가 (Promise=Implementation).
 #
-# Tier A (hard assert): harness install --cli codex --with uzys-harness 가
-#   <proj>/.codex/prompts/uzys-*.md 6 file 을 정확히 write.
+# Tier A (hard assert): harness install --cli codex 가 **고른 항목을 codex 자리에** 놓는가.
+#   묻는 것은 셋뿐이다(2026-08-28 사용자 확정): ① 항목이 복사됐나 ② 설치가 됐나 ③ 원하는 버전인가.
+#   파일 내용이 원본과 같은지는 묻지 않는다 — 설치는 복사이고 복사본을 원본과 맞대는 것은
+#   자기 대조다. 변환 로직은 tests/codex/*.test.ts 가 소유한다.
+#
+#   2026-08-28 (#369) — 옛 Tier A 는 `.codex/prompts/uzys-*.md` 6개를 요구했는데, 그 산출물은
+#   ADR-023(2026-06-26)에서 제품이 통째로 없앤 것이다. 그 뒤 **63일간 red 인 채 아무도 안 봤다**.
+#   같은 일이 반복되지 않게, 기대 목록을 이름으로 박지 않고 **설치 기록에서 유도**한다.
 # Tier B (evidence): 실 codex 가 prompt 를 어디서 탐색하는지 경험적 수집.
 #   - codex custom prompt = TUI slash command, source = $CODEX_HOME/prompts/ (공식 docs).
 #   - 질문: project-local <cwd>/.codex/prompts/ 도 스캔하는가? → 증거 dump 후 해석.
@@ -22,23 +28,49 @@ failed=0
 
 # ── Tier A: harness 가 project .codex/prompts/ 에 write ──────────────────
 echo "── Tier A: harness project-scope write ──"
-agent-harness install --track tooling --cli codex --with uzys-harness --scope project >/tmp/install-codex.log 2>&1 \
+# `--with uzys-harness` 를 뺐다 — 그 자산은 ADR-023 에서 없어져 지금은 `[WARN] Unknown asset id`
+# 만 찍히고 건너뛴다. 죽은 플래그를 남기면 다음 사람이 이 시나리오의 범위를 오해한다.
+agent-harness install --track tooling --cli codex --scope project >/tmp/install-codex.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-codex.log; exit 1; }
 
-PROMPTS_DIR="${PROJ}/.codex/prompts"
-expected=(uzys-spec uzys-plan uzys-build uzys-test uzys-review uzys-ship)
 missing=0
-for p in "${expected[@]}"; do
-  if [[ ! -f "${PROMPTS_DIR}/${p}.md" ]]; then
-    echo "FAIL: ${PROMPTS_DIR}/${p}.md 없음"
-    missing=1
-  fi
-done
-if [[ "${missing}" -eq 0 ]]; then
-  echo "✓ Tier A: .codex/prompts/uzys-*.md 6 file 정상 write"
-  echo "  $(ls "${PROMPTS_DIR}")"
+check_file() { [[ -f "$1" ]] || { echo "FAIL: $1 없음"; missing=1; }; }
+
+# ① codex 자리의 고정 산출물 — 실측 2026-08-28 (컨테이너 4-CLI 설치 관측).
+check_file "${PROJ}/AGENTS.md"
+check_file "${PROJ}/.codex/config.toml"
+if ! ls "${PROJ}"/.codex/hooks/*.sh >/dev/null 2>&1; then
+  echo "FAIL: ${PROJ}/.codex/hooks/ 에 훅이 하나도 없다"
+  missing=1
+fi
+
+# ② 고른 외부 스킬이 codex 가 읽는 자리(.agents/skills/)에 실재하는가.
+#    기대 목록은 **설치 기록**에서 유도한다 — 이름을 여기 적으면 카탈로그의 두 번째 사본이 되고,
+#    그 사본이 썩는 것이 방금 이 파일에서 63일간 일어난 일이다.
+LOGJSON="${PROJ}/.uzys-agent-harness/.harness-install.json"
+if [[ ! -f "${LOGJSON}" ]]; then
+  echo "FAIL: 설치 기록(${LOGJSON})이 없다 — 아래 판정은 무효다"
+  missing=1
 else
-  echo "FAIL: Tier A — 일부 prompt 파일 누락"
+  SKILL_IDS=$(jq -r '.assets[] | select(.method == "skill") | .detail.skill // .id' "${LOGJSON}")
+  COUNT=$(printf '%s\n' "${SKILL_IDS}" | grep -c . || true)
+  if [[ "${COUNT}" -eq 0 ]]; then
+    # 부재가 아니라 **모집단 0** 이다. 여기서 초록을 내면 "다 있다"로 읽힌다.
+    echo "FAIL: 설치 기록에 skill 자산이 0건 — 외부 설치가 통째로 실패했거나 기록 형식이 바뀌었다"
+    echo "      (network·git CA 문제일 수 있다. 아래 결과는 증거가 아니다)"
+    missing=1
+  else
+    echo "  설치 기록에서 유도한 외부 스킬 ${COUNT}종: $(printf '%s ' ${SKILL_IDS})"
+    for sid in ${SKILL_IDS}; do
+      check_file "${PROJ}/.agents/skills/${sid}/SKILL.md"
+    done
+  fi
+fi
+
+if [[ "${missing}" -eq 0 ]]; then
+  echo "✓ Tier A: codex 자리(AGENTS.md · .codex/config.toml · .codex/hooks · .agents/skills) 정상"
+else
+  echo "FAIL: Tier A — 일부 항목 누락"
   failed=1
 fi
 echo ""
@@ -53,6 +85,10 @@ rm -rf "${ISO_HOME}"
 mkdir -p "${ISO_HOME}/prompts"
 # 두 위치에 sentinel 배치: global(CODEX_HOME) vs project(cwd/.codex)
 printf -- '---\ndescription: "sentinel HOME"\n---\nSENTINEL_HOME_BODY\n' > "${ISO_HOME}/prompts/zz-sentinel-home.md"
+# project-local prompts 디렉터리는 이제 하네스가 만들지 않는다(ADR-023). 이 probe 가 묻는 것은
+# **codex 가 그 자리를 스캔하는가**이므로, 여기서 직접 만들어 sentinel 을 둔다.
+PROMPTS_DIR="${PROJ}/.codex/prompts"
+mkdir -p "${PROMPTS_DIR}"
 printf -- '---\ndescription: "sentinel PROJ"\n---\nSENTINEL_PROJ_BODY\n' > "${PROMPTS_DIR}/zz-sentinel-proj.md"
 
 export CODEX_HOME="${ISO_HOME}"
