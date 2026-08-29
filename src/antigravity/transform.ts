@@ -143,7 +143,7 @@ function writeRules(harnessRoot: string, projectDir: string, writer: OwnedWriter
     template,
     claudeMd,
     projectName: basename(projectDir),
-    projectContext: renderFillScaffold(),
+    projectContext: renderFillScaffold("antigravity-rule"),
   });
   // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).

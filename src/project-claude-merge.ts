@@ -116,13 +116,44 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
   },
 };
 
+/**
+ * Which file the scaffold is being rendered INTO. It decides one line of the banner: whether the
+ * reader is holding the harness anchor or a file that points at one.
+ *
+ * WHY this is a parameter (#305): the banner used to be one constant shipped byte-identically into
+ * all four surfaces, and its third line was written for `CLAUDE.md`. Rendered into `AGENTS.md` it
+ * asserted two things that are false there — "imported from this file" (measured: 0 import lines)
+ * and "this file is project-specific context only" (measured: 7 principle sections). A reader of
+ * AGENTS.md was told the principles live somewhere else, so they went looking for a file that a
+ * Codex-only install does not even have.
+ */
+export type ScaffoldSurface = "claude" | "agents-md" | "antigravity-rule";
+
+/**
+ * The anchor sentence, true for the file it is rendered into.
+ *
+ * There is no import to point at outside Claude Code: `AGENTS.md` has no include directive —
+ * agentsmd/agents.md#11 and openai/codex#6038 · #17401 are all still open feature requests
+ * (measured 2026-08-29). So every non-Claude surface carries the principles inline and IS the
+ * anchor; saying otherwise sends the reader after a file that may not exist.
+ */
+function anchorLine(surface: ScaffoldSurface): string {
+  if (surface === "claude") {
+    return `> The working principles live in this project's harness anchor \`${HARNESS_ANCHOR_FILE}\`, imported at the bottom of this file. Everything above that import is **project-specific context only**.`;
+  }
+  const self = surface === "antigravity-rule" ? "`.agents/rules/uzys-harness.md`" : "`AGENTS.md`";
+  return `> **This file (${self}) is the harness anchor** — it carries the working principles in full, further down. Only the \`## …\` sections immediately below are project-specific context for you to fill in.`;
+}
+
 /** Visible (rendered-markdown) banner — HTML FILL comments are invisible in a preview, so this
  * blockquote is what stops the scaffold from reading as verified project fact for a human. */
-export const SCAFFOLD_BANNER = [
-  "> ⚙️ **SCAFFOLD — not filled in yet.** The sections below are a fill-in template for THIS project, not verified facts.",
-  "> To fill: open this file and paste each `<!-- FILL: … -->` comment's instruction into your coding agent (e.g. Claude Code) — it will inspect the real repo and write the section. You can also fill them by hand; the comments are the instructions.",
-  `> The working principles live in this project's harness anchor — \`${HARNESS_ANCHOR_FILE}\` (Claude Code, imported from this file), \`AGENTS.md\` (Codex/OpenCode), or \`.agents/rules/uzys-harness.md\` (Antigravity). This file is **project-specific context only**.`,
-].join("\n");
+export function scaffoldBanner(surface: ScaffoldSurface): string {
+  return [
+    "> ⚙️ **SCAFFOLD — not filled in yet.** The sections below are a fill-in template for THIS project, not verified facts.",
+    "> To fill: open this file and paste each `<!-- FILL: … -->` comment's instruction into your coding agent (e.g. Claude Code) — it will inspect the real repo and write the section. You can also fill them by hand; the comments are the instructions.",
+    anchorLine(surface),
+  ].join("\n");
+}
 
 /**
  * Shared project-context scaffold body: the visible banner followed by the six MUST-HAVE
@@ -130,12 +161,12 @@ export const SCAFFOLD_BANNER = [
  * `_(not filled yet — …)_` placeholder. Pure and track-agnostic, so the Claude Code CLAUDE.md
  * and every AGENTS.md `{PROJECT_CONTEXT}` block get byte-identical prompts from one source.
  */
-export function renderFillScaffold(): string {
+export function renderFillScaffold(surface: ScaffoldSurface = "claude"): string {
   const blocks = FILL_SECTIONS.map((id) => {
     const spec = FILL_SPECS[id];
     return `## ${spec.title}\n\n<!-- FILL:${id} — ${spec.prompt} -->\n\n_(not filled yet — ${spec.placeholder})_`;
   });
-  return `${SCAFFOLD_BANNER}\n\n${blocks.join("\n\n")}`;
+  return `${scaffoldBanner(surface)}\n\n${blocks.join("\n\n")}`;
 }
 
 export interface MergeOptions {

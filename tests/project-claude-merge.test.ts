@@ -3,7 +3,7 @@ import {
   FILL_SECTIONS,
   mergeProjectClaude,
   renderFillScaffold,
-  SCAFFOLD_BANNER,
+  scaffoldBanner,
   stripHarnessImport,
   TRACK_DISPLAY_NAMES,
   upsertHarnessImport,
@@ -28,8 +28,35 @@ describe("renderFillScaffold — the shared project-context scaffold", () => {
   });
 
   it("leads with the visible SCAFFOLD banner (HTML FILL comments are invisible in a preview)", () => {
-    expect(renderFillScaffold().startsWith(SCAFFOLD_BANNER)).toBe(true);
-    expect(SCAFFOLD_BANNER).toContain("SCAFFOLD");
+    expect(renderFillScaffold().startsWith(scaffoldBanner("claude"))).toBe(true);
+    expect(scaffoldBanner("claude")).toContain("SCAFFOLD");
+  });
+
+  // #305 — 한 문장이 네 표면에 글자 그대로 나가면서, 그 파일이 앵커인 세 곳에서 거짓이 됐다.
+  //   실측: AGENTS.md 안의 import 문 0건인데 "imported from this file", 원칙 절 7개인데
+  //   "project-specific context only". 읽은 사람은 원칙을 찾아 다른 파일로 갔고, Codex 단독
+  //   설치에는 그 파일이 아예 없다. 그래서 배너의 앵커 줄만 표면별로 갈린다.
+  it("앵커 줄이 표면마다 그 파일에 대해 참이다 (#305)", () => {
+    const claude = scaffoldBanner("claude");
+    expect(claude, "Claude 쪽은 앵커를 import 한다고 말해야 한다").toContain(
+      "imported at the bottom of this file",
+    );
+    expect(claude).toContain("project-specific context only");
+
+    for (const surface of ["agents-md", "antigravity-rule"] as const) {
+      const b = scaffoldBanner(surface);
+      // 그 파일이 앵커다 — 딴 데를 가리키면 없는 파일로 보낸다.
+      expect(b, `${surface}: 자기가 앵커임을 말해야 한다`).toContain("is the harness anchor");
+      // 있지도 않은 import 를 주장하면 안 된다.
+      expect(b, `${surface}: import 를 주장하면 안 된다`).not.toContain("imported");
+      // "이 파일은 컨텍스트만 담는다" 는 원칙 7절을 담은 파일에서 거짓이다.
+      expect(b, `${surface}: 컨텍스트 전용이라 말하면 안 된다`).not.toContain(
+        "project-specific context only",
+      );
+    }
+    // 자기 파일 이름을 스스로 부른다 (다른 표면 이름을 부르면 지시대상이 흔들린다).
+    expect(scaffoldBanner("agents-md")).toContain("`AGENTS.md`");
+    expect(scaffoldBanner("antigravity-rule")).toContain(".agents/rules/uzys-harness.md");
   });
 });
 

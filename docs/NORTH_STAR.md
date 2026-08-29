@@ -109,8 +109,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 
 > **현재 상태 (2026-08-17, implementer frontmatter 수정 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,347 tokens/세션** =
-> rules 6개 ~1,360 · CLAUDE.md 2개 ~2,970 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,331 tokens/세션** =
+> rules 6개 ~1,360 · CLAUDE.md 2개 ~2,954 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
 > (2026-08-26: **자산은 자기 변경 요청 없이 건드리지 않는다**는 이 저장소 전용 룰로 뒀다 —
 > 배포판에 넣으면 Codex 의 `AGENTS.md` 예산을 479 B 초과한다(실측 24,031 B > ratchet 23,552 B).
 > 겪는 사람이 이 저장소를 유지보수하는 쪽이라 상주 비용을 남에게 물리지 않는다.)
