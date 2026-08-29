@@ -49,6 +49,29 @@ API/service, CLI/TUI, library/SDK, documents/configuration, user flow. Each trac
 observation and its own evidence record: read
 [references/tracks.md](references/tracks.md).
 
+## Then pick the depth — it scales with the risk
+
+The Testing rule says depth follows risk and names what counts as high-risk (authentication,
+authorization, payments and settlement, personal data, data integrity, concurrency, state
+transitions, migrations). It deliberately stops there. **Which** instruments to widen with is a
+per-change judgment, and this is where that menu lives:
+
+| Instrument | Reach for it when |
+|---|---|
+| Regression beyond the directly affected scope | the change moves a shared type, a schema, a config default, or anything the affected scope was only *assumed* to bound |
+| Integration / contract tests | it crosses a boundary someone else owns — a service, a queue, a stored format, a published API |
+| Critical-path E2E | a user-visible flow that must not break can only be observed end to end |
+| Mutation testing | **you doubt the tests you already have would catch a defect** |
+
+**Mutation testing is an option, not a requirement.** It is expensive, so being labelled
+high-risk is not by itself a reason to run it — the reason is uncertainty about detection power.
+When the existing suite has already been shown to bite (a negative control, a caught regression),
+the doubt it answers is not there and the cost buys nothing.
+
+Two things this depth choice is *not*: it is not a coverage target, and it is not the scheduled
+full run. Full regression, full E2E, full mutation, and periodic security scanning belong to the
+CI/CD schedule — do not launch them here for one change.
+
 ## Verification Phases (static gates)
 
 ### Phase 1: Build Verification
