@@ -88,7 +88,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     template: agentsTemplate,
     claudeMd,
     projectName,
-    projectContext: renderFillScaffold(),
+    projectContext: renderFillScaffold("agents-md"),
     // codex 와 **같은 파일**(프로젝트 루트 `AGENTS.md`)이다. 두 transform 이 서로 다른 본문을
     // 쓰면 나중에 도는 쪽이 앞선 쪽을 덮어써, codex+opencode 조합에서 룰이 통째로 사라진다
     // (독립 검증 C-1 실측). 같은 내용을 쓰면 순서가 결과를 바꾸지 않는다.

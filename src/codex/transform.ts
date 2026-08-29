@@ -91,7 +91,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     template: agentsTemplate,
     claudeMd,
     projectName,
-    projectContext: renderFillScaffold(),
+    projectContext: renderFillScaffold("agents-md"),
     // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
     harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });
