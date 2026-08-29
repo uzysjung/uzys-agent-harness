@@ -61,6 +61,8 @@ export type ExternalAssetMethod =
         | "audit-harness-fit"
         // CI 가 멈췄을 때 워크플로를 복제하지 않고 self-hosted runner 로 돌린다.
         | "self-hosted-github-runner"
+        // 한국어 글의 번역투·AI 상투구를 진단하고 근거 있는 부분만 최소 수정.
+        | "humanize-korean"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -158,7 +160,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 61 자산 매트릭스 (#353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 62 자산 매트릭스 (#355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -374,6 +376,21 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "self-hosted-github-runner" },
+  },
+
+  {
+    // 트랙과 무관한 글쓰기 규율이라 어느 트랙에서도 고를 수 있고, 어느 트랙에도 자동으로는
+    //   안 깔린다(opt-in). 한국어로 쓰지 않는 사용자에게 기본 설치되면 그대로 낭비다.
+    // clear-korean-communication 과의 경계: 저쪽은 **무엇을 어떤 형식으로 말할지**(설명·승인
+    //   요청의 구조)이고, 이쪽은 **이미 쓴 글의 문체**를 진단해 최소 수정한다.
+    id: "humanize-korean",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Humanize Korean — diagnose what actually reads as translationese, AI cliché, or mechanical structure in Korean prose, then fix only what the diagnosis justifies, preserving facts, numbers, terminology and register (opt-in). References epoko77-ai/im-not-ai",
+    category: "workflow",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "humanize-korean" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -1108,6 +1125,7 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "model-orchestration",
   "external-model-consult",
   "self-hosted-github-runner",
+  "humanize-korean",
 ];
 
 /**

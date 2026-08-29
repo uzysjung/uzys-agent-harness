@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**45/61 assets are 🟢 verified by a real install; the remaining 16 assets are 🟡 — templates shipped from this repository, among them dev-method 6 skills, where CI verifies file placement instead.**
+**45/62 assets are 🟢 verified by a real install; the remaining 17 assets are 🟡 — templates shipped from this repository, among them dev-method 6 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,11 +78,11 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **61** (official 23 / vetted 36 / experimental 2) · 🟢 verified **45/61**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **62** (official 24 / vetted 36 / experimental 2) · 🟢 verified **45/62**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (16)
+#### 🔄 Workflow (17)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -95,6 +95,7 @@ stale row fails the build rather than misleading you.
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `task-brief` | official | templates (`--with task-brief`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `humanize-korean` | official | templates (`--with humanize-korean`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `feature-dev` | official | `feature-dev@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |

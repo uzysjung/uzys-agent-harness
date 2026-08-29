@@ -110,6 +110,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `recurrence-prevention` | When the same defect returns: verify the count against prior evidence, classify slip vs harness problem, escalate record → rule → structural gate |
 | `verification-loop` | Proportional verification tracks per surface, ending in a fixed verdict (PASS / PASS_WITH_NITS / FAIL) plus the evidence each finding rests on |
 | `compaction-handoff` | Persist durable state, a git snapshot, and one resume anchor before a context `/compact` |
+| `self-hosted-github-runner` | When hosted runners stop — billing failure, spending limit, minutes exhausted, org quota, an Actions outage — run the repo's existing workflow **files** on a Docker self-hosted runner instead of copying CI steps into a local script. Covers the runner-label switch, architecture and cache-key traps, container isolation, the risk that `pull_request` jobs then execute on your own machine, and the rollback path |
 
 **On every track**, dev or not.
 
@@ -127,7 +128,15 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
 | `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
 
-> Nine of these twelve were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, and `audit-harness-fit` (ADR-064) is new after it.
+**Korean prose** (`official`, **opt-in on any track** — `--with humanize-korean`; it is about writing, not about a stack, so no track pre-checks it):
+
+| Asset | What |
+|---|---|
+| `humanize-korean` | Diagnose what actually reads as translationese, AI cliché, or mechanical structure in Korean prose — then fix only what the diagnosis justifies, preserving facts, numbers, terminology and register. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one repairs **the style of prose already written** |
+
+> `humanize-korean` was written for this repo after reading [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) — the pattern lists there were the reference; the skill compresses them into a diagnosis-first procedure rather than a detector checklist, because the failure mode of that genre is rewriting sentences that were never wrong.
+
+> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `humanize-korean` are newer still.
 
 ### Not driven by track selection (opt-in on any track)
 
