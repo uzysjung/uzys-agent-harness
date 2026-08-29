@@ -179,8 +179,8 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 
 `templates/commands/` 디렉터리는 존재하지 않고, manifest 에 `.claude/commands/` 대상도 0건이다.
 직접 쓴 슬래시 명령 세트(`spec`·`plan`·`build`·…)는 ADR-023 에서, ECC 폴백 8종은 ADR-073 에서 <!-- ref:removed -->
-사라졌다. 유일한 예외는 OpenCode 인데, 그쪽은 native 스킬 개념이 없어 스킬 하나당 명령 파일 하나를
-`.opencode/commands/` 로 **생성**한다 — 번들 템플릿이 아니라 설치 시점 변환 산출물이다.
+사라졌다. 예외였던 OpenCode 도 2026-08-29 로 없어졌다 — 그쪽이 `.agents/skills/` 를 네이티브로
+읽는 것을 실측해 명령 변환을 폐지했다(ADR-081). 이제 어떤 CLI 에도 명령 파일을 만들지 않는다.
 
 ### Rules (templates/rules/)
 6 파일(실측 2026-08-17 — ADR-060 정비로 기술스택 상세 룰 12종, ADR-061 로 게이트 어휘 룰,
@@ -271,7 +271,7 @@ $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립�
                        .uzys-agent-harness/ 스크립트 3종 · (opt-in) .github/workflows
   Phase 2  외부 자산 — 4단계에서 고른 scope 로 §1 의 5가지 방식 실행
   Phase 3  CLI 산출물 — codex·opencode·antigravity 를 하나라도 골랐을 때만: AGENTS.md ·
-                       .codex/ · opencode.json · .opencode/commands/ · .agents/
+                       .codex/ · opencode.json · .agents/
   ↓
 [리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목
 ```
