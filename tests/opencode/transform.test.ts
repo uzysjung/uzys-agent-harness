@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -17,7 +25,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     rmSync(project, { recursive: true, force: true });
   });
 
-  it("produces AGENTS.md + opencode.json (no dev-method skills → no commands)", () => {
+  it("produces AGENTS.md + opencode.json (no dev-method skills → no skill files)", () => {
     const report = runOpencodeTransform({
       harnessRoot: HARNESS_ROOT,
       projectDir: project,
@@ -25,8 +33,9 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     });
     expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.opencodeJsonPath)).toBe(true);
-    // Commands are only emitted from selectedInternalSkills; none here → empty.
-    expect(report.commandFiles).toHaveLength(0);
+    // 스킬은 selectedInternalSkills 에서만 나온다 — 여기선 0건.
+    expect(report.skillFiles).toHaveLength(0);
+    expect(report.retiredCommands).toHaveLength(0);
 
     // Invariant: no Claude-namespace colon-slash (/uzys:) leaks into OpenCode output.
     const agents = readFileSync(report.agentsMdPath, "utf8");
@@ -50,7 +59,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
   });
 
   // v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback, no native skill).
-  describe("dev-method skills (v26.87.0 — command fallback)", () => {
+  describe("dev-method skills (ADR-081 — .agents/skills 네이티브)", () => {
     // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
     //   검증 대상은 커맨드 fallback 렌더이지 특정 스킬이 아니다.
     const DEV_METHOD = ["compaction-handoff", "eval-harness"];
@@ -63,40 +72,68 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         baseline: new Map(),
       });
       for (const id of DEV_METHOD) {
-        const target = join(project, ".opencode/commands", `${id}.md`);
-        expect(report.commandFiles).toContain(target);
+        // ADR-081 — codex·antigravity 와 **같은 자리**다. OpenCode 1.18.23 이 프로젝트
+        // 스코프 `.agents/skills/**/SKILL.md` 를 자동 로드한다(실측 2026-08-29).
+        const target = join(project, ".agents/skills", id, "SKILL.md");
+        expect(report.skillFiles).toContain(target);
         const body = readFileSync(target, "utf8");
-        // command frontmatter: description(스킬에서 추출) + agent, body 포함.
+        // 스킬 자신의 frontmatter 를 보존한다 — 커맨드 frontmatter 로 갈아끼우지 않는다.
         expect(body.startsWith("---")).toBe(true);
-        expect(body).toMatch(/description:\s*".+"/);
-        expect(body).toMatch(/agent:\s*\w+/);
+        expect(body).toMatch(/name:\s*.+/);
         expect(body).not.toContain("/uzys:");
       }
-      // 커맨드는 선택된 dev-method skill 에서만 생성된다.
-      expect(report.commandFiles).toHaveLength(DEV_METHOD.length);
+      expect(report.skillFiles).toHaveLength(DEV_METHOD.length);
+      // 커맨드 사본은 더 이상 만들지 않는다 — 만들면 같은 이름이 목록에 두 줄로 뜬다.
+      for (const id of DEV_METHOD) {
+        expect(existsSync(join(project, ".opencode/commands", `${id}.md`))).toBe(false);
+      }
     });
 
-    it("compaction-handoff 의 description 이 skill frontmatter 에서 추출됨 (빈 stub 아님)", () => {
+    it("스킬 본문이 원본 그대로 실린다 (description 이 잘리거나 stub 이 되지 않는다)", () => {
       runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
       });
-      const body = readFileSync(join(project, ".opencode/commands/compaction-handoff.md"), "utf8");
-      // 스킬 description 의 핵심 어구가 command description 으로 들어와야 한다 (folded block 파싱 검증).
-      // 접힌 블록(>-)이 한 줄로 펴져야 통과한다 — 두 번째 줄의 어구를 앵커로 쓴다.
-      expect(body).toMatch(/description:\s*".*durable facts and decisions.*"/i);
+      const body = readFileSync(
+        join(project, ".agents/skills/compaction-handoff/SKILL.md"),
+        "utf8",
+      );
+      expect(body).toMatch(/durable facts and decisions/i);
     });
 
-    it("selectedInternalSkills 빈 배열(기본) → dev-method 커맨드 미생성 (커맨드 0개)", () => {
+    it("옛 `.opencode/commands/<id>.md` 는 백업하고 지운다 (같은 이름이 두 줄로 뜨지 않게)", () => {
+      // 전환 전 설치본 재현.
+      const cmdDir = join(project, ".opencode/commands");
+      mkdirSync(cmdDir, { recursive: true });
+      writeFileSync(join(cmdDir, "compaction-handoff.md"), '---\ndescription: "old"\n---\n\nold\n');
+      // 사용자가 직접 쓴 커맨드 — 번들 스킬 이름이 아니므로 건드리면 안 된다.
+      writeFileSync(join(cmdDir, "my-own-command.md"), '---\ndescription: "mine"\n---\n\nmine\n');
+
+      const report = runOpencodeTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: ["compaction-handoff"],
+        baseline: new Map(),
+      });
+
+      expect(existsSync(join(cmdDir, "compaction-handoff.md"))).toBe(false);
+      expect(report.retiredCommands).toHaveLength(1);
+      expect(existsSync(join(cmdDir, "my-own-command.md"))).toBe(true);
+      // 백업을 남긴다 — 사용자가 고쳤을 수 있고 그 편집분을 되살릴 방법이 없다.
+      const backups = readdirSync(cmdDir).filter((f) => f.startsWith("compaction-handoff.md."));
+      expect(backups.length).toBeGreaterThan(0);
+    });
+
+    it("selectedInternalSkills 빈 배열(기본) → 스킬 미생성 (0개)", () => {
       const report = runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
         baseline: new Map(),
       });
-      expect(existsSync(join(project, ".opencode/commands/compaction-handoff.md"))).toBe(false);
-      expect(report.commandFiles).toHaveLength(0);
+      expect(existsSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(false);
+      expect(report.skillFiles).toHaveLength(0);
     });
   });
 });

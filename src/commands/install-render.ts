@@ -258,7 +258,26 @@ export function renderCliArtifacts(
   }
   if (report.opencode) {
     log(assetRow("success", "opencode.json", "$schema + 5 keys"));
-    log(assetRow("success", ".opencode/commands/", `${report.opencode.commandFiles.length} files`));
+    if (report.opencode.skillFiles.length > 0) {
+      log(
+        assetRow(
+          "success",
+          ".agents/skills/",
+          `${report.opencode.skillFiles.length} dev-method skills (codex·antigravity 와 같은 자리)`,
+        ),
+      );
+    }
+    // ADR-081 — 옛 커맨드 사본을 지웠으면 말한다. 조용히 지우면 사용자는 자기가 쓰던
+    // 슬래시 커맨드가 왜 사라졌는지 알 방법이 없다 (스킬로 옮겨져 이름은 그대로 뜬다).
+    if (report.opencode.retiredCommands.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          ".opencode/commands/",
+          `${report.opencode.retiredCommands.length} retired · 같은 스킬이 .agents/skills/ 로 옮겨졌다 (백업 남김)`,
+        ),
+      );
+    }
   }
   // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
   if (report.antigravity) {

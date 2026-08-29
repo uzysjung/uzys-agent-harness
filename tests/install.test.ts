@@ -322,7 +322,8 @@ describe("executeSpec", () => {
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
-        commandFiles: Array.from({ length: 6 }, (_, i) => `/p/.opencode/commands/uzys-${i}.md`),
+        skillFiles: Array.from({ length: 6 }, (_, i) => `/p/.agents/skills/s-${i}/SKILL.md`),
+        retiredCommands: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
@@ -403,7 +404,8 @@ describe("executeSpec", () => {
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
-        commandFiles: [],
+        skillFiles: [],
+        retiredCommands: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });
@@ -445,7 +447,8 @@ describe("executeSpec", () => {
       opencode: {
         agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
-        commandFiles: [],
+        skillFiles: [],
+        retiredCommands: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
     });

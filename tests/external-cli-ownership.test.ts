@@ -143,16 +143,16 @@ describe("codex transform — 소유자 판정", () => {
 });
 
 describe("opencode transform — 소유자 판정", () => {
-  it("사용자가 고친 커맨드와 opencode.json 이 백업된다", () => {
+  it("사용자가 고친 스킬과 opencode.json 이 백업된다", () => {
+    // ADR-081 — 번들 스킬은 `.agents/skills/<id>/SKILL.md` 로 간다(codex 와 같은 자리).
     const first = opencode(new Map());
     edit(join(projectDir, "opencode.json"), '{"mine":true}\n');
-    edit(join(projectDir, ".opencode/commands/compaction-handoff.md"), "# 사용자 커맨드\n");
+    edit(join(projectDir, ".agents/skills/compaction-handoff/SKILL.md"), "# 사용자 스킬\n");
 
     const second = opencode(baselineOf(first.ownership.files));
 
     expect(second.ownership.backedUp).toContain("opencode.json");
-    expect(second.ownership.backedUp).toContain(".opencode/commands/compaction-handoff.md");
-    expect(backupsIn(join(projectDir, ".opencode/commands"))).toHaveLength(1);
+    expect(second.ownership.backedUp).toContain(".agents/skills/compaction-handoff/SKILL.md");
   });
 
   it("안 고쳤으면 백업하지 않는다", () => {

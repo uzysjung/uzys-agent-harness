@@ -9,30 +9,31 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - opencode.json
- *   - .opencode/commands/<id>.md   (dev-method skills as command fallback)
+ *   - .agents/skills/<id>/SKILL.md (dev-method skills — codex·antigravity 와 같은 자리)
  *
  * SPEC: docs/specs/opencode-compat.md
  * Phase: C1 (transform orchestrator)
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ensureDir } from "../fs-ops.js";
+import { renderBundledSkill } from "../codex/skills.js";
+import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
-import { renderCommandFromSkill } from "./commands.js";
 import { renderOpencodeJson } from "./opencode-json.js";
 
 export interface OpencodeTransformParams {
   harnessRoot: string;
   projectDir: string;
   /**
-   * v26.87.0 — dev-method skill ids 선택 목록. OpenCode 는 native skill 개념이 없어 각 skill 을
-   * `.opencode/commands/<id>.md` 커맨드 fallback 으로 surface (description = skill frontmatter,
-   * body = skill 본문). installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
+   * dev-method skill ids 선택 목록. installer 가 `DEV_METHOD_SKILL_IDS` 필터로 채움.
+   *
+   * 2026-08-29 (ADR-081) — `.agents/skills/<id>/SKILL.md` 로 보낸다. v26.87.0 이 커맨드로
+   * 변환하던 근거("OpenCode 는 native skill 개념이 없다")가 더는 사실이 아니다.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
   /** 2026-08-12 — 이 설치의 배포 룰 이름들. codex 와 공유하는 `AGENTS.md` 본문에 embed 된다. */
@@ -53,7 +54,10 @@ export interface OpencodeTransformParams {
 export interface OpencodeTransformReport {
   agentsMdPath: string;
   opencodeJsonPath: string;
-  commandFiles: string[];
+  /** `.agents/skills/<id>/SKILL.md` — codex·antigravity 와 같은 자리(같은 파일)다. */
+  skillFiles: string[];
+  /** 옛 `.opencode/commands/<id>.md` 를 백업하고 지운 경로들 (ADR-081 전환 뒷정리). */
+  retiredCommands: string[];
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
 }
@@ -99,37 +103,58 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   const opencodeJsonPath = join(projectDir, "opencode.json");
   writer.write(opencodeJsonPath, renderOpencodeJson({ template: opencodeTemplate, mcp }));
 
-  // 3. v26.87.0 — dev-method skills → .opencode/commands/<id>.md (command fallback).
-  //   OpenCode 는 native skill 개념이 없어 skill 을 커맨드로 surface.
-  const cmdDir = join(projectDir, ".opencode/commands");
-  // refresh 는 없던 디렉터리를 만들지 않는다 — 만들면 opencode 를 안 쓰는 프로젝트에
-  // 빈 `.opencode/commands/` 가 남아 "설치됨"처럼 보인다. 신규 설치 경로에서는 writer 가
-  // 파일별로 mkdir 하므로 이 줄이 없어도 되지만, 선택 스킬이 0개인 설치의 기존 동작
-  // (빈 디렉터리 생성)을 바꾸지 않으려고 남겨 둔다.
-  if (!refreshOnly) ensureDir(cmdDir);
-  const commandFiles: string[] = [];
+  // 3. dev-method skills → `.agents/skills/<id>/SKILL.md` (ADR-081).
+  //
+  //   실측 2026-08-29 (`opencode 1.18.23`, 컨테이너, 대조군 포함): OpenCode 는 프로젝트
+  //   스코프 `.agents/skills/<id>/SKILL.md` 를 **자동 로드**하고, 그렇게 실린 스킬이
+  //   커맨드 목록에도 `source: "skill"` 로 함께 뜬다. 즉 슬래시 호출을 잃지 않으면서
+  //   모델이 description 을 보고 스스로 부를 수 있게 된다.
+  //
+  //   codex·antigravity 와 **같은 파일**이다. 셋이 한 벌을 공유하므로 조합 설치에서
+  //   같은 스킬이 두 판본으로 깔리는 일이 없다 — 그것이 #340 의 형태였다.
+  const skillFiles: string[] = [];
   for (const id of selectedInternalSkills) {
     const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
     if (!existsSync(src)) {
       continue;
     }
-    const target = join(cmdDir, `${id}.md`);
-    // scripts/ sidecar = the skill shells out to an external CLI → needs a
-    // bash-capable agent; plan (bash denied) made such commands a no-op.
-    const shellDependent = existsSync(join(harnessRoot, "templates/skills", id, "scripts"));
+    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
     // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
-    const wrote = writer.write(
-      target,
-      renderCommandFromSkill(readFileSync(src, "utf8"), id, { shellDependent }),
-    );
-    if (!wrote) continue;
-    commandFiles.push(target);
+    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
+    skillFiles.push(target);
+  }
+
+  // 4. 옛 커맨드 사본 은퇴. 안 지우면 OpenCode 커맨드 목록에 같은 이름이 **두 줄**로 뜬다
+  //   (옛 `source: "command"` + 새 `source: "skill"`). 대상은 번들 스킬 이름인 것만 —
+  //   목록을 적지 않고 `templates/skills/<이름>/SKILL.md` 존재로 유도한다. 사용자가 직접
+  //   쓴 커맨드는 그 조건에 안 걸린다.
+  //
+  //   판정 대신 **백업하고 지운다**: 우리가 렌더한 파일이지만 사용자가 고쳤을 수 있고,
+  //   그 편집분을 되살릴 방법이 없다(`retireMcpAllowlist` 와 같은 이유). 파일이 다시
+  //   생기지 않으므로 이 백업은 프로젝트당 한 번뿐이다.
+  const retiredCommands: string[] = [];
+  const cmdDir = join(projectDir, ".opencode/commands");
+  if (existsSync(cmdDir)) {
+    for (const entry of readdirSync(cmdDir)) {
+      if (!entry.endsWith(".md")) continue;
+      const id = entry.slice(0, -3);
+      if (!existsSync(join(harnessRoot, "templates/skills", id, "SKILL.md"))) continue;
+      const victim = join(cmdDir, entry);
+      try {
+        backupFile(victim);
+        unlinkSync(victim);
+        retiredCommands.push(victim);
+      } catch {
+        // 뒷정리라 실패해도 설치를 세우지 않는다 (read-only 디렉터리 등).
+      }
+    }
   }
 
   return {
     agentsMdPath,
     opencodeJsonPath,
-    commandFiles,
+    skillFiles,
+    retiredCommands,
     ownership: writer.result(),
   };
 }
