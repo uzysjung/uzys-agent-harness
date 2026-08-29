@@ -59,6 +59,8 @@ export type ExternalAssetMethod =
         | "task-brief"
         // 설치된 상주 조종층(앵커·룰·훅·permissions·descriptor)의 밥값 감사 — 자기유지 루프.
         | "audit-harness-fit"
+        // CI 가 멈췄을 때 워크플로를 복제하지 않고 self-hosted runner 로 돌린다.
+        | "self-hosted-github-runner"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -156,7 +158,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 60 자산 매트릭스 (2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 61 자산 매트릭스 (#353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -355,6 +357,23 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },
     method: { kind: "internal", key: "audit-harness-fit" },
+  },
+
+  {
+    // CI 가 멈췄을 때(결제 실패·쿼터 소진·Actions 장애) 검증을 포기하지도, 위조하지도 않는 절차.
+    // has-dev-track 인 이유: 이건 **누가 요청해서 켜는 것이 아니라 사고가 났을 때 켜지는** 것이다.
+    //   CI 가 죽고 나서야 필요해지는 자산을 opt-in 으로 두면, 정작 그 순간에 없다. 대신 executive
+    //   트랙에는 깔지 않는다 — 거기엔 워크플로가 없다.
+    // DEV_METHOD_SKILL_IDS 에 넣지 않는 이유: 저건 wizard 의 "하네스 방법론 N종" 묶음이고,
+    //   이건 방법론이 아니라 사고 대응 런북이다. 묶음에 끼면 묶음의 뜻이 흐려진다.
+    id: "self-hosted-github-runner",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Self-hosted GitHub runner — when hosted runners stop (billing failure, spending limit, minutes exhausted, org quota, Actions outage), run the repo's existing workflow files unchanged on a Docker self-hosted runner instead of copying CI steps into a local script; covers runner-label switching, architecture and cache-key traps, container isolation, the risk that pull_request jobs then execute on your own machine, and the rollback path",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "self-hosted-github-runner" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -1088,6 +1107,7 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "audit-harness-fit",
   "model-orchestration",
   "external-model-consult",
+  "self-hosted-github-runner",
 ];
 
 /**
