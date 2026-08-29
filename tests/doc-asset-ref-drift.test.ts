@@ -102,6 +102,10 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   // `@upstash/context7-mcp` 라는 패키지 문자열이 있어 부분 문자열 대조에 걸렸기 때문이다.
   // 정확 일치로 바꾸자 드러났고, 셋을 같은 자리에 적는 것이 맞다(라운드 2 MED-N5).
   ["upstash/context7-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  // 넷째 축 — 설치하지 않고 **출처로만 인용하는** 저장소. `humanize-korean`(#355)은 우리가 쓴
+  // 스킬이고 이 저장소는 그 참고 문헌이다. 카탈로그에 넣으면 "설치되는 자산"이라는 거짓말이
+  // 되고, 인용을 지우면 출처 표기가 사라진다.
+  ["epoko77-ai/im-not-ai", "humanize-korean 의 참고 문헌 — 인용만 하고 설치하지 않는다"],
 ]);
 
 /** 자산 id 로 오인될 수 있는 형태 — 소문자·숫자·하이픈만, 4자 이상. */

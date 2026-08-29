@@ -144,7 +144,7 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 61 distinct asset ids (no duplicates)", () => {
+  it("contains 62 distinct asset ids (no duplicates)", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
@@ -152,7 +152,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     //   + 1(audit-harness-fit 신설, ADR-064) = 57
     //   + 1(preline — Tailwind 컴포넌트 킷 테마 생성기, htmx·vanilla 대응) = 58.
     //   + 1(self-hosted-github-runner 신설, #353) = 61.
-    expect(ids).toHaveLength(61);
+    //   + 1(humanize-korean 신설, #355) = 62.
+    expect(ids).toHaveLength(62);
     expect(ids).toContain("task-brief");
     expect(ids).toContain("audit-harness-fit");
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
@@ -339,6 +340,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         "external-model-consult",
         "gh-issue-workflow",
         "model-orchestration",
+        // #355 — 전 트랙 opt-in 글쓰기 스킬. has-dev-track 이 아니라 DEV_METHOD 밖이다.
+        "humanize-korean",
         "north-star",
         // #353 — has-dev-track 이지만 방법론이 아니라 CI 사고 대응 런북이라 DEV_METHOD 밖이다.
         "self-hosted-github-runner",
