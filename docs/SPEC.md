@@ -1,6 +1,7 @@
 # SPEC: 문서 체계 재정비 (F 사이클)
 
 - Status: Active
+- issue_tracking: enabled — `gh-issue-workflow` 적극 단계. 이 저장소는 이슈를 백로그로 쓴다 (#318, 2026-08-29 확정)
 
 > 이 파일은 **지금 무엇을 만드는가**만 담는다. 직전 앵커(Foundation v26.38)는
 > `docs/archive/spec-foundation-v26.38.md` 로 옮겼다 — 내용은 그대로이고 이동만 했다.
