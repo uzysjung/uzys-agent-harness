@@ -41,7 +41,7 @@
 
 ## 1. 외부 자산 — 설치 방식 5종
 
-**자산별 목록은 여기 두지 않는다.** 카탈로그(60) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
+**자산별 목록은 여기 두지 않는다.** 카탈로그(61) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
 [COMPATIBILITY.md](COMPATIBILITY.md) 가 `src/external-assets.ts` 에서 **생성**하고, 트랙별 묶음
 해설은 [TRACKS.md](TRACKS.md) 가 맡는다. 이 절이 자산을 손으로 다시 열거하던 동안 그 사본은
 실제로 낡았다 — 이 절의 표가 배포 CLI 설치를 `npm install -g` 로 적고 있었는데, 기본 scope 에서
