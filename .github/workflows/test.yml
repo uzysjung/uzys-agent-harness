@@ -123,34 +123,49 @@ jobs:
     # 태그 push 에서만 게시. 이 가드가 없으면 workflow_dispatch 수동 CI 실행이 게시를 딸려 돌린다.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    # Trusted Publishing (OIDC) — npm 이 이 워크플로의 신원을 직접 검증한다. **토큰이 없다.**
+    # `id-token: write` 가 그 신원(OIDC 토큰)을 발급받는 권한이고, 이 줄이 없으면 npm 은
+    # 익명으로 보고 거절한다. 최소 권한 원칙대로 나머지는 read 로 못 박는다.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v5
+      # Node 20 → 24. OIDC 게시는 **npm CLI >= 11.5.1 · Node >= 22.14.0** 을 요구한다
+      # (`docs.npmjs.com/trusted-publishers`). 이 값은 **러너의 Node** 이고 패키지가 지원하는
+      # 런타임(`engines: >=20`)과 무관하다 — 그쪽은 `ci` job 의 매트릭스가 계속 검증한다.
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
+      # Node 24 가 내장한 npm 이 11.5.1 미만이면 OIDC 를 모른 채 "인증 없음" 으로 죽는다.
+      # 내장 버전은 Node 패치판마다 달라 조용히 갈리므로, 게시 직전에 명시적으로 올린다.
+      - name: npm CLI 를 OIDC 지원 버전으로 (>= 11.5.1)
+        run: |
+          npm install -g npm@latest
+          npm --version
       # version = 태그 (v 제거). package.json 커밋본과 무관하게 태그가 SSOT.
       - name: set version from tag
         shell: bash
         run: npm pkg set version="${GITHUB_REF_NAME#v}"
       - run: npm run build
-      - name: npm publish (skip if NPM_TOKEN absent)
+      # 2026-08-30 — `NPM_TOKEN` 경로를 걷어냈다. 토큰 게시는 npm 이 **2027년 1월경 폐기**
+      # 예정이고(GAT bypass2fa deprecation), 그전에도 계정·패키지의 2FA 설정에 따라 CI 에서
+      # `EOTP` 로 막힌다(v26.149.0 첫 시도가 그것이었다). 함께 사라진 것이 **토큰 부재 시
+      # graceful skip** 이다 — 그 조용한 exit 0 이 이 저장소가 반복해서 다친 형태였다.
+      # 이제 신원이 없으면 게시는 **소리 내며 실패한다**.
+      - name: npm publish (Trusted Publishing · OIDC)
         shell: bash
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::warning::NPM_TOKEN 미설정 — publish 건너뜀. repo Settings>Secrets 에 NPM_TOKEN 추가 후 재태그."
-            exit 0
-          fi
           npm publish --access public
           echo "published: @uzysjung/agent-harness@${GITHUB_REF_NAME#v}"
 
       # G5 (Epic #366 · #367) — **게시 명령이 성공했다 ≠ registry 에 올라갔다.**
-      # 위 스텝은 NPM_TOKEN 이 없으면 warning 만 내고 exit 0 한다(graceful skip). 그 조용한
-      # 통과가 정확히 이 저장소가 반복해서 다친 형태라, 여기서 **registry 에 실물이 있는지**를
-      # 되묻는다. 없으면 red 다 — 토큰 부재든 게시 실패든, 결과는 "안 나갔다"로 같다.
+      # 위 스텝이 exit 0 을 냈다는 것과 실물이 올라갔다는 것은 다른 사실이라, 여기서
+      # **registry 에 실물이 있는지**를 되묻는다. 없으면 red 다 — 원인이 무엇이든 결과는
+      # "안 나갔다"로 같다. (graceful skip 경로는 2026-08-30 에 없앴다. 그때까지 이 스텝의
+      # 존재 이유는 그 조용한 통과였고, 지금은 게시 자체가 소리 내며 실패한다.)
       #
       # 이 스텝은 `publish` job 이 **돌았을 때**만 방어한다. 워크플로 자체가 발동하지 않는
       # 경우(2026-08-27 Actions 장애)는 여기서 못 잡는다 — 그쪽은 `release-audit.yml` 담당이다.
