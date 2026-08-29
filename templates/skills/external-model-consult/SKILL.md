@@ -1,27 +1,16 @@
 ---
 name: external-model-consult
 description: >-
-  Consult a second, non-Claude model through a bundled wrapper for the four things
-  an external round-trip actually buys: (1) natural, native-sounding KOREAN phrasing
-  via Google Gemini (Antigravity `agy` CLI) — copy, UI microcopy, marketing/brochure
-  text, toasts, user-facing messages, translations, rewrites; (2) a MULTI-PERSONA /
-  second-opinion review of a design, plan, spec, PR, or piece of writing; (3) CONCISE,
-  well-STRUCTURED writing via OpenAI Codex (`codex exec`) — tightening verbose prose,
-  restructuring a doc into a clean outline / tables / sections, executive summaries,
-  README skeletons, changelog entries; and (4) IMAGE GENERATION as real PNG/JPG files
-  on disk (labeled flowcharts / architecture / sequence diagrams are NOT this — render
-  those natively as Mermaid). Use whenever Korean text needs to read naturally rather
-  than translated, whenever the user says the Korean "sounds awkward / 어색해 /
-  자연스럽게 다듬어줘", whenever you are about to hand-write polished Korean copy
-  yourself, whenever a document needs to get SHORTER and better ORGANIZED (not
-  prettier-sounding), whenever you want an independent non-Claude critique, or when
-  the user asks for a generated image. Triggers on "gemini 한테 물어봐 / gemini 로
-  다듬어 / gemini로 이미지 만들어줘 / nano banana / agy / antigravity / 제3자 관점 /
-  second opinion / codex한테 물어봐 / codex로 정리해 / 간결하게 정리해줘 / 구조화해줘 /
-  문서 구조 잡아줘 / 이미지 만들어줘 / 그림 생성해줘", and in English "ask codex",
-  "ask gemini", "tighten this up", "make this concise", "restructure this doc",
-  "generate an image". Returns candidates/files for the user to choose from; never
-  auto-applies. Do NOT use for deterministic transforms (rename, reformat, sort),
+  Consult a second, non-Claude model through a bundled wrapper for four things:
+  (1) natural, native-sounding KOREAN phrasing via Google Gemini (Antigravity `agy`
+  CLI) — copy, UI microcopy, marketing text; (2) a MULTI-PERSONA / second-opinion
+  review of a design, plan, spec, or PR; (3) CONCISE,
+  well-STRUCTURED writing via OpenAI Codex (`codex exec`) — tightening prose,
+  restructuring a doc into an outline or tables; and (4) IMAGE GENERATION as real
+  PNG/JPG files on disk (labeled diagrams are NOT this — render those as Mermaid).
+  Triggers on "gemini 한테 물어봐", "자연스럽게 다듬어줘", "codex한테 물어봐",
+  "간결하게 정리해줘", "이미지 만들어줘", and in English "ask gemini", "ask codex",
+  "generate an image". Returns candidates for the user to choose; never auto-applies. Do NOT use for deterministic transforms (rename, reformat, sort),
   labeled diagrams, internal logs or code identifiers, anything needing repo secrets,
   a native parallel-subagent panel (that is `multi-persona-review` where installed),
   or when the user explicitly wants YOUR answer.

@@ -2,21 +2,17 @@
 name: model-orchestration
 description: >-
   Apply the fixed model-role and thinking-effort policy whenever work is delegated to subagents
-  or a model/effort choice is made: the orchestrator (top-tier model, Fable) DIRECTLY owns 설계·
-  기획·분배·리뷰 — sets service direction, arbitrates and reviews plan/spec documents (with
-  multi-persona-review), improves shipped features, and hunts performance/security problems;
-  core implementation, test authoring/execution (E2E included), and code verification/V&V go to
-  Opus at xhigh or above; repetitive/simple implementation (applying an established pattern)
-  goes to Sonnet at high or above — Sonnet is never used for tests or verification;
-  plan/spec drafts may be produced by Opus from a Fable direction brief, but the
-  review/decision is always Fable's. Never delegate below the effort floors. Use whenever you
-  are about to spawn an Agent/Task/Workflow worker, pick a model for a subtask, set a
-  thinking/effort level, assign verification, or hand off orchestration because the current
-  model's quota is exhausted. Trigger on "위임해", "에이전트로 돌려", "오케스트레이션",
-  "모델 역할분담", "어떤 모델로", "effort 얼마로", "thinking level", "서브에이전트", or in English
-  "delegate this", "spawn an agent for", "which model should", "route this task", "verify with",
-  "orchestrate". Fire even when the user doesn't name the policy — any delegation decision is
-  in scope.
+  or a model/effort choice is made: the orchestrator (top-tier model, Fable) DIRECTLY owns
+  설계·기획·분배·리뷰 — sets service direction, reviews plan/spec documents, improves shipped
+  features, and hunts performance/security problems; core implementation, test
+  authoring/execution (E2E included), and code verification/V&V go to Opus at xhigh or above;
+  repetitive/simple implementation goes to Sonnet at high or above — Sonnet is never used for
+  tests or verification; plan/spec drafts may be produced by Opus from a Fable direction brief,
+  but the review/decision is always Fable's. Never delegate below the effort floors. Use whenever
+  you are about to spawn an Agent/Task/Workflow worker, pick a model for a subtask, set a
+  thinking/effort level, or assign verification. Trigger on "위임해", "어떤 모델로",
+  "effort 얼마로", "서브에이전트", "delegate this", "which model should". Fire even when the
+  user doesn't name the policy — any delegation is in scope.
 ---
 
 # Model Orchestration Policy

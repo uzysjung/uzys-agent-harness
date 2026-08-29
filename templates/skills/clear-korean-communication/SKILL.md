@@ -9,16 +9,12 @@ description: >-
   전후맥락 (context) → 추천 + 이유 (recommendation) → UI/UX 형태 (a scannable
   table/option-list) → ASIS→TOBE contrast, led by the recommendation so the user can
   say yes fast. Run it whenever you explain a bug, a cause, or what your change did
-  — especially the moment the reader says they don't follow ("뭔 소리야", "쉽게
-  설명해줘", "이해가 안 돼", "I don't follow", "in plain terms"), or when your draft
-  opens with a file path or symbol name — and whenever you are about to ask
-  "should I do this?". Triggers on the user's verbatim phrases "ASIS TOBE로 설명",
-  "ASIS-TOBE로 알려줘", "화면으로 ASIS TOBE로 설명", "의사결정 / 컨펌 요청",
-  "이거 진행할까요?", the softer "다음 진행할 것들 알려줘", and the English
-  equivalents "present this as ASIS/TOBE", "give me the as-is to-be", "should I do
-  A or B", "ask for my approval", "lay out the options". Do NOT fire for pure
-  information with no decision in it, for trivial reversible actions you would just
-  do, or for context-free word/sentence translation — that is ordinary translation.
+  — especially the moment the reader says they don't follow ("쉽게 설명해줘",
+  "이해가 안 돼", "I don't follow") — and whenever you are about to ask "should I do
+  this?" ("ASIS TOBE로 설명", "이거 진행할까요?", "should I do A or B"). Do NOT fire
+  for pure information with no decision in it, for trivial reversible actions you
+  would just do, or for context-free word/sentence translation — that is ordinary
+  translation.
 ---
 
 # Clear Korean Communication

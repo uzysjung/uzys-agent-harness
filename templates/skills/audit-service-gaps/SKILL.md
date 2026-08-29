@@ -7,13 +7,12 @@ description: >-
   user-perspective (UX) — and enumerates concrete, severity-ranked gaps; BENCHMARK verifies how a
   reference service closes each one and PROPOSES a differentiated close. VERIFY, CHANGE-IMPACT,
   DRIFT and FULL extend the same loop to post-fix closure, baseline changes, doc-vs-code drift, and
-  the whole-service sweep. Use when the user says any of: "북극성 기준으로 부족한 점", "사용자
-  관점에서 부족한 점", "다른 벤치마크 서비스는 이 부분을 어떻게 해결했는지", "갭분석", "레퍼런스
-  서비스랑 비교해서 부족한 점 찾아줘" — or the English equivalents: "gap analysis", "what are we
-  missing vs the ideal/north-star", "benchmark against reference services", "audit this service".
-  Fires for both Korean and English phrasing. Do NOT use it to *define* product direction (that is
-  north-star), to review ONE standalone artifact's prose (that is multi-persona-review), or to turn
-  an unverified benchmark claim into a fact.
+  the whole-service sweep. Use when the user says any of: "북극성 기준으로 부족한 점", "갭분석",
+  "다른 벤치마크 서비스는 이 부분을 어떻게 해결했는지", "레퍼런스 서비스랑 비교해서 부족한 점
+  찾아줘" — or the English "gap analysis", "benchmark against reference services", "audit this
+  service". Do NOT use it to *define* product direction (that is north-star), to review ONE
+  standalone artifact's prose (that is multi-persona-review), or to turn an unverified benchmark
+  claim into a fact.
 ---
 
 # Audit Service Gaps (reverse + competitive)
