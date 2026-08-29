@@ -1,6 +1,6 @@
 # 전체 서비스 감사 → 차기 마일스톤 로드맵 (SSOT)
 
-> 작성 2026-06-13 · 기준 v26.83.0 (초판) · **최종 갱신 2026-08-17 / v26.147.0** (방법론 코어 8 / 수단 3 계층 분리 → v26.106.0 축 판정 61 → v26.108.0 ci-scaffold 62 → v26.110.0 오피셜 플러그인 큐레이션 ADR-039 로 65 → **2026-08-02 ADR-060 정비에서 12종 제거** → preline·game 3종 추가로 **카탈로그 60**(실측 `src/external-assets.ts` 2026-08-17)) · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
+> 작성 2026-06-13 · 기준 v26.83.0 (초판) · **최종 갱신 2026-08-29 / v26.149.0** (방법론 코어 8 / 수단 3 계층 분리 → v26.106.0 축 판정 61 → v26.108.0 ci-scaffold 62 → v26.110.0 오피셜 플러그인 큐레이션 ADR-039 로 65 → **2026-08-02 ADR-060 정비에서 12종 제거** → preline·game 3종 추가로 카탈로그 60 → #353 self-hosted-github-runner · #355 humanize-korean 추가로 **카탈로그 62**(실측 `src/external-assets.ts` 2026-08-29)) · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
 > 규모: 87 에이전트 · 검증 **확정 29 / 미검증 0 / 기각 8**. 기존 `persona-feedback-improvements.md`(P0~P2)를 본 로드맵에 **병합**(중복은 합치고 모순은 근거 강한 쪽 채택).
 > **게시(M2)는 M1 게이트 통과 전 금지.** 본 문서가 개선 실행의 SSOT.
 
@@ -76,7 +76,7 @@
 |---|---|------|------|
 | P1 | M | skill/plugin 설치 시 resolved commit-SHA 를 .harness-install.json 에 기록 (재현성·포렌식 — 라케시 도입조건 1) | persona E-1 |
 | P1 | M | verify-catalog cadence 상향: 월1회 cron→PR 또는 주간 + 검증에 쓰는 claude/skills CLI 버전 pin('검증도구 자체 drift' 제거) + plugin 명령표면 smoke 1건을 install-matrix 에 | SCALE-2 (high; upstream 파손 최대 30일 미감지) |
-| P1 | M | uninstall 누락 reverse: install-log.templates 에 agentsDir(.agents/uzys-*)·AGENTS.md(sha256 보존)·opencode.json 추가, removeTemplates 에서 cli별 reverse (antigravity 는 현재 reverse 0) | CODE-3 (medium; 4-CLI 동등성 uninstall 미충족) |
+| ~~P1~~ ✅ | M | ~~uninstall 누락 reverse~~ → **v26.149.0 완료 (#350 · PR #391)**. 원안(`templates` 에 `agentsDir` 추가)은 **채택하지 않았다** — `.agents/` 는 `npx skills` 와 공유하고 그쪽이 본문을 거기 두므로 통짜 삭제가 남의 스킬 본문을 지운다. 대신 **`externalFiles`(ADR-048)에 이미 있는 경로·sha256 으로 우리가 쓴 파일만** 회수한다(사용자 편집분·비일반파일은 남긴다). 실측: codex `AGENTS.md`+`.agents/`+`.codex/`, opencode `AGENTS.md`+`opencode.json`+`.agents/`, antigravity `.agents/` — 셋 다 uninstall 후 **잔존 0** | CODE-3 (medium; 4-CLI 동등성 uninstall 미충족) |
 | P1 | M | WORKFLOWS/COMPATIBILITY 영어판 (영어 README→한국어 문서 동선 단절 — 민준+소피) + README.ko 를 영문판 기준 동기화(Workflow 8행·Non-interactive 섹션·링크) + 자산 id 집합 일치 CI 가드 | persona E-2 + UX-7(known) + UX-10 (medium README.ko drift) |
 | P2 | S | USAGE 내부코드 정리(E-3): ADR번호/D25/HITO/NSM → docs/decisions 링크 격리, 약어 첫등장 풀네임 + 한국어 혼입 문자열 4곳 영어화(uninstall.ts:87·codex/skills.ts:20·install-render.ts:231·external-installer formatSkippedReport) + 한글 유니코드 lint 테스트 1개 | persona E-3 + UX-6 (medium 한국어 혼입) |
 | P2 | S | wizard Step 3 상단 '추천 그대로 Enter 안전' 안내 + WORKFLOWS 첫 줄 기본 추천 1개 (소피 first-win) | persona E-4 |
