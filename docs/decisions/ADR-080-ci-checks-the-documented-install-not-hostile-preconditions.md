@@ -34,6 +34,10 @@ G1(#370)의 AC 는 세 축이었다: ⓐ 4 CLI 각각 설치 완주 ⓑ **비정
 - **범위 밖** — 자리를 남이 점유한 상태(심볼릭 링크·일반 파일·FIFO·깨진 링크)에서의 동작.
   이건 `foreign-slot.ts` 와 그 단위 테스트가 소유한다. 크래시(#343)는 이미 고쳤고, 그 회귀는
   `npm run ci` 안에서 이미 막힌다.
+- **번들 스킬과 외부 스킬을 함께 본다.** 두 배달 방식은 자리 규약이 다르다 — 실측
+  2026-08-29: 외부 스킬(`npx skills add`)은 codex·opencode·antigravity 가 `.agents/skills/`
+  **한 자리를 공유**하고 Claude Code 만 별도 사본을 받는 반면, 우리가 복사하는 번들 스킬은
+  opencode 만 `.opencode/commands/<id>.md` 로 갈린다. 한쪽만 보면 나머지가 빠져도 안 보인다.
 - **G1 이 CI 에 남기는 것은 축 하나** — **CLI 를 하나만 골랐을 때의 도달**
   (`test/docker/scenarios/scenario-single-cli.sh`). 기존 두 게이트는 4 CLI 를 한 호출에 몰아
   주므로 합집합만 보이고, "OpenCode 만 쓰는 사람이 받는가"는 아무도 안 본다 — #344 가 정확히
