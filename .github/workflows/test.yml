@@ -78,6 +78,11 @@ jobs:
   #
   #   dev-method-skills — 템플릿 복사(4 CLI 자리) + `npx skills add`(외부 스킬)  ~32초
   #   pinned-versions   — `npm i`(pin 대조) + `npx <cmd>@<ver>`                  ~72초
+  #   single-cli        — CLI 를 **하나만** 골랐을 때의 도달 (#370 · G1)          ~95초
+  #
+  # 세 번째가 따로 있는 이유: 앞의 둘은 4 CLI 를 **한 호출**에 몰아 준다. 그건 합집합이라
+  # "OpenCode 만 쓰는 사람이 받는가"를 못 본다 — #344 가 정확히 그 형태로 사용자에게 갔다.
+  # 도구를 하나만 고르는 것이 기본 사용법이므로 이 축은 배달 방식과 별개로 하나 필요하다.
   #
   # 나머지 시나리오(update·uninstall·백업 보존·scope)와 실 CLI 인식(realcli)은
   # docker-scenarios.yml 에서 **신호로만** 돈다 — 게시를 막지 않는다. 실 CLI 이미지는
@@ -95,6 +100,8 @@ jobs:
         run: bash test/docker/run.sh dev-method-skills
       - name: ②③ 외부 설치가 되고 pin 한 버전이 깔렸는가
         run: bash test/docker/run.sh pinned-versions
+      - name: ① CLI 를 하나만 골라도 그 도구 자리에 오는가 (#370)
+        run: bash test/docker/run.sh single-cli
 
   # npm registry publish (v26.72.1, P2-NPM) — 태그 push 시 자동 publish.
   #   목적: `npx -y github:` 가 npm 10(Node 20/22 LTS)에서 GitFetcher 버그로 실패 → registry publish 로
