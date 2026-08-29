@@ -22,8 +22,16 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
 import {
@@ -147,8 +155,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
 
   if (!keepTemplates) {
-    const { rootClaudeMdKept, importStripped } = removeTemplates(installLog, projectDir, rm);
+    const { rootClaudeMdKept, importStripped, external } = removeTemplates(
+      installLog,
+      projectDir,
+      rm,
+    );
     log(`  ${status.success(`templates removed: ${formatTemplateList(installLog)}`)}`);
+    for (const line of externalRemovalLines(external)) log(line);
     if (importStripped) {
       log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
     }
@@ -338,6 +351,7 @@ function dryRunLines(
     if (hasRootImport(projectDir)) {
       lines.push("  ○ strip harness @import from CLAUDE.md (본문 보존)");
     }
+    lines.push(...previewExternalLines(installLog, projectDir));
   }
   lines.push(...advisoryLines(plan, projectDir, rootFiles), "");
   return lines;
@@ -527,10 +541,11 @@ function removeTemplates(
   log: InstallLog,
   projectDir: string,
   rm: (path: string) => void,
-): { rootClaudeMdKept: boolean; importStripped: boolean } {
+): { rootClaudeMdKept: boolean; importStripped: boolean; external: ExternalRemoval } {
   rm(join(projectDir, log.templates.claudeDir));
   if (log.templates.codexDir) rm(join(projectDir, log.templates.codexDir));
   if (log.templates.opencodeDir) rm(join(projectDir, log.templates.opencodeDir));
+  const external = removeExternalFiles(log, projectDir, rm);
   // 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스가 넣은 마커
   // import 블록만 도로 걷어낸다. 안 걷으면 앵커 파일을 지운 뒤 없는 파일을 가리키는 import 가
   // 남아 매 세션 끊긴 참조가 로드된다.
@@ -538,10 +553,88 @@ function removeTemplates(
   // 하네스 앵커 파일 — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
   const rootMd = log.templates.rootClaudeMd;
   if (rootMd) {
-    if (rootClaudeMdModified(log, projectDir)) return { rootClaudeMdKept: true, importStripped };
+    if (rootClaudeMdModified(log, projectDir))
+      return { rootClaudeMdKept: true, importStripped, external };
     rm(join(projectDir, rootMd.path));
   }
-  return { rootClaudeMdKept: false, importStripped };
+  return { rootClaudeMdKept: false, importStripped, external };
+}
+
+/** `removeExternalFiles` 의 결과 — 화면이 지운 것과 남긴 것을 나눠 말할 수 있어야 한다. */
+interface ExternalRemoval {
+  removed: string[];
+  /** 설치 이후 내용이 바뀌어 남긴 것 — 사용자 편집분이라 우리가 소유를 주장하지 않는다. */
+  kept: string[];
+}
+
+/**
+ * 외부 CLI transform 산출물 회수 (#350).
+ *
+ * **디렉터리를 통째로 지우지 않는다.** `templates` 는 `.claude/`·`.codex/`·`.opencode/` 세
+ * 디렉터리만 알고 있어서, codex·opencode·antigravity 가 함께 쓰는 `.agents/` 는 uninstall
+ * 이후에도 통째로 남았다(실측 2026-08-29 · v26.148.1: codex 는 `.agents/skills`, antigravity 는
+ * `.agents/rules` + `.agents/skills` 가 잔존하고 화면에는 한 줄도 안 뜬다).
+ *
+ * 그렇다고 `.agents/` 를 회수 목록에 더하면 안 된다 — **그 자리는 `npx skills` 와 공유**하고,
+ * 그쪽은 `.claude/skills/<id>` 를 `.agents/` 로의 심링크로 만들어 **본문을 거기 둔다**
+ * (`external-installer.ts` 의 실측 주석). 통째 삭제는 남의 도구가 깐 스킬 본문을 지운다.
+ * `.claude/` 통짜 삭제가 안전한 것은 그 안의 링크를 지워도 본문이 `.agents/` 에 남기 때문이고,
+ * 반대 방향은 성립하지 않는다.
+ *
+ * 그래서 **우리가 쓴 파일만** 지운다. 무엇을 썼는지는 이미 정확히 기록돼 있다 —
+ * `externalFiles`(ADR-048)는 transform 이 쓴 파일의 projectDir 상대경로와 sha256 을 담는다.
+ * 열거 사본을 새로 만들지 않아도 되고, 자산이 늘어도 기록이 따라온다.
+ *
+ * 설치 이후 내용이 바뀐 파일은 **남긴다** — 루트 앵커에 이미 쓰는 규칙과 같다(사용자 편집분).
+ */
+function removeExternalFiles(
+  log: InstallLog,
+  projectDir: string,
+  rm: (path: string) => void,
+): ExternalRemoval {
+  const removed: string[] = [];
+  const kept: string[] = [];
+  for (const { path, sha256 } of log.externalFiles ?? []) {
+    const abs = join(projectDir, path);
+    // `.claude/`·`.codex/`·`.opencode/` 아래 것은 위에서 이미 사라졌다 — 부재는 정상이다.
+    if (!existsSync(abs)) continue;
+    // 일반 파일만 회수한다. `.agents/skills/<id>` 는 `npx skills add` 가 **심링크로** 깔아 두는
+    // 자리이고(#343 실사용자 신고로 관측), 그 링크는 우리가 만든 것이 아니다. 안 걸러 두면
+    // 내용이 우연히 같을 때 남의 설치 포인터를 지우고, 다를 때는 "네가 고쳤다"고 잘못 말한다.
+    if (!lstatSync(abs).isFile()) continue;
+    if (hashContent(readFileSync(abs, "utf8")) !== sha256) {
+      kept.push(path);
+      continue;
+    }
+    rm(abs);
+    removed.push(path);
+  }
+  for (const path of removed) pruneEmptyDirsUpward(projectDir, dirname(join(projectDir, path)));
+  return { removed, kept };
+}
+
+/**
+ * 파일을 지운 뒤 빈 껍데기로 남은 상위 디렉터리를 `projectDir` 직전까지 걷어낸다.
+ *
+ * 이게 없으면 `.agents/skills/<id>/` 같은 빈 디렉터리 트리가 남아 "지웠다"는 보고와 디스크가
+ * 다른 말을 한다. 비어 있지 않으면 즉시 멈춘다 — 남의 파일이 하나라도 있으면 그 자리는
+ * 우리 것이 아니다.
+ */
+function pruneEmptyDirsUpward(projectDir: string, startDir: string): void {
+  let cursor = startDir;
+  while (true) {
+    const rel = relative(projectDir, cursor);
+    // projectDir 자신이거나 그 밖으로 나갔으면 멈춘다.
+    if (rel === "" || rel.startsWith(`..${sep}`) || rel === "..") return;
+    try {
+      if (readdirSync(cursor).length > 0) return;
+      rmdirSync(cursor);
+    } catch {
+      // 이미 없거나 지울 수 없다 — uninstall 을 죽일 이유가 아니다.
+      return;
+    }
+    cursor = dirname(cursor);
+  }
 }
 
 /**
@@ -560,6 +653,45 @@ function stripRootImport(projectDir: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * dry-run 이 실행과 **같은 판정**으로 미리 보여 준다. 실행 경로가 회수를 판정하는 술어
+ * (기록에 있고 · 디스크에 있고 · sha256 이 그대로)를 그대로 다시 쓴다.
+ */
+function previewExternalLines(installLog: InstallLog, projectDir: string): string[] {
+  const lines: string[] = [];
+  let removable = 0;
+  for (const { path, sha256 } of installLog.externalFiles ?? []) {
+    const abs = join(projectDir, path);
+    if (!existsSync(abs)) continue;
+    if (hashContent(readFileSync(abs, "utf8")) !== sha256) {
+      lines.push(`  ○ keep ${path} (modified since install — preserved)`);
+      continue;
+    }
+    removable += 1;
+  }
+  if (removable > 0) lines.unshift(`  ○ remove ${removable} CLI output file(s)`);
+  return lines;
+}
+
+/**
+ * `.claude/`·`.codex/`·`.opencode/` 밖(주로 `.agents/`)에서 회수한 산출물 보고.
+ *
+ * 지운 게 없으면 아무 줄도 내지 않는다 — codex·opencode·antigravity 를 안 고른 설치가
+ * 대부분이고, 거기서 "0 files" 를 찍으면 화면만 길어진다.
+ */
+function externalRemovalLines(external: ExternalRemoval): string[] {
+  const lines: string[] = [];
+  if (external.removed.length > 0) {
+    lines.push(`  ${status.success(`CLI outputs removed: ${external.removed.length} file(s)`)}`);
+  }
+  for (const path of external.kept) {
+    lines.push(
+      `  ${c.yellow("⊘")} ${path} kept — modified since install. Remove manually if intended.`,
+    );
+  }
+  return lines;
 }
 
 /** 미리보기용 — 실행 경로와 **같은 술어**를 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
