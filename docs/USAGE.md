@@ -11,9 +11,9 @@ For install instructions, see [README.md](../README.md).
 **The harness writes no slash commands into `.claude/`.** What it puts there is rules, agents,
 hooks, and skills — commands come from the plugins and skill packs you pick at step 3, and each one
 names its own. Skills are also not commands: your CLI decides when to load them from their
-description, so most of what you install has nothing to type. (One exception, by necessity: OpenCode
-has no native skill concept, so each selected method skill is written as
-`.opencode/commands/<id>.md` — see [OpenCode integration](#opencode-integration).)
+description, so most of what you install has nothing to type. That now holds on all four CLIs —
+OpenCode reads `.agents/skills/**/SKILL.md` natively, so it receives the same skill files as Codex
+and Antigravity rather than a command copy.
 
 To see what is actually registered in your project, ask the CLI rather than a table here — `/help`
 in Claude Code lists the commands your installed plugins contributed. That is the only listing that
@@ -255,7 +255,7 @@ npx -y @uzysjung/agent-harness update [--project-dir <path>]
 
 Refreshes the files already installed — rules, agents, commands, hooks, and skills under `.claude/`,
 plus everything written for Codex, OpenCode, and Antigravity (`AGENTS.md`, `.codex/`,
-`opencode.json`, `.opencode/commands/`, `.agents/`) — to the versions in the release you invoke
+`opencode.json`, `.agents/`) — to the versions in the release you invoke
 (v26.134.0+). It does not add tracks, install assets, or ask anything, so it is safe to run from CI
 or a script. The whole `.claude/` directory is copied to `.claude.backup-<ts>` first. Run it with no
 install present and it exits `1` rather than doing nothing quietly.
@@ -273,7 +273,7 @@ both entry points build the identical spec. Adding a track is a different operat
 The harness records a checksum of every file it writes, so it can tell an untouched file from one
 you changed. That check runs on `install` **and** `update`, and covers rules, agents, commands,
 hooks, and skills alike — plus everything written for Codex, OpenCode, and Antigravity
-(`AGENTS.md`, `.codex/`, `opencode.json`, `.opencode/commands/`, `.agents/`):
+(`AGENTS.md`, `.codex/`, `opencode.json`, `.agents/`):
 
 - **You never touched it** → replaced with the newer version, silently. No backup noise just because
   the harness improved the file.
@@ -387,9 +387,11 @@ The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — 
 
 ## OpenCode integration
 
-`.opencode/` carries:
+An OpenCode install writes:
 
-- `commands/` — one command per method skill, because OpenCode has no native skill concept
+- `.agents/skills/<id>/SKILL.md` — the method skills, the same files Codex and Antigravity get.
+  OpenCode reads that directory natively (measured 1.18.23), and the skills also show up in its
+  command list, so slash access survives. No `.opencode/` directory is created
 - `opencode.json` — config. The harness only injects MCP servers here; the `instructions` globs stay
   as shipped and point at your own `docs/`, not at anything the harness wrote
 - `AGENTS.md` — shared with Codex. **This is what carries the rules** for OpenCode

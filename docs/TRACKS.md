@@ -98,7 +98,7 @@ Only `executive` pre-checks a business asset of its own (`anthropic-document-ski
 
 ### First-party method skills
 
-Written and maintained in this repo (`official` tier) and bundled as templates — no external download. **Installs across all 4 CLIs**: Claude (`.claude/skills/`) and Codex / Antigravity as native skills (`.agents/skills/<id>/SKILL.md`), plus OpenCode as a command fallback (`.opencode/commands/<id>.md`, since OpenCode has no native skill concept).
+Written and maintained in this repo (`official` tier) and bundled as templates — no external download. **Installs across all 4 CLIs** as native skills: Claude reads `.claude/skills/`; Codex, OpenCode, and Antigravity all read the same `.agents/skills/<id>/SKILL.md`.
 
 **Core on every dev track** — installed by default; uncheck at step 3 or `--without <id>` to skip.
 
