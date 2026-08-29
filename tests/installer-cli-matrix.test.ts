@@ -192,7 +192,7 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".env.example"))).toBe(false);
   });
 
-  it("[opencode] only: opencode.json + commands/", () => {
+  it("[opencode] only: opencode.json + .agents/skills/ (ADR-081)", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -200,7 +200,10 @@ describe("Matrix invariants — cross-cutting", () => {
       spec: spec("tooling", ["opencode"], projectDir),
     });
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-    expect(existsSync(join(projectDir, ".opencode/commands"))).toBe(true);
+    // 번들 스킬은 codex·antigravity 와 같은 자리로 간다. 옛 커맨드 디렉터리는
+    // 더는 만들지 않는다 — 빈 `.opencode/commands/` 는 "설치됨"처럼 보인다.
+    expect(existsSync(join(projectDir, ".agents/skills"))).toBe(true);
+    expect(existsSync(join(projectDir, ".opencode/commands"))).toBe(false);
   });
 
   it("[claude, codex, opencode]: 3 CLI artifacts side-by-side", () => {

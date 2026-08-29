@@ -7,8 +7,8 @@
 #   ⓑ npx skills add — 외부 스킬이 claude 자리와 범용(.agents) 자리에
 # 자리:
 #   - Claude:              .claude/skills/<id>/SKILL.md
-#   - Codex/Antigravity:   .agents/skills/<id>/SKILL.md (범용 자리, 외부 스킬도 여기)
-#   - OpenCode:            .opencode/commands/<id>.md   (번들 스킬의 command 폴백)
+#   - Codex/OpenCode/Antigravity: .agents/skills/<id>/SKILL.md (범용 자리, 외부 스킬도 여기)
+#     (2026-08-29 ADR-081 — OpenCode 도 여기다. 커맨드 변환은 폐지했다.)
 #
 # (나머지 두 배달 방식 — `npm i` 와 `npx <cmd>@<ver>` — 은 scenario-pinned-versions 가 맡는다.
 #  둘을 합쳐 게시 차단 게이트를 이룬다. 파일 이름은 옛 범위(dev-method)를 남긴 것이고,
@@ -17,9 +17,9 @@
 # 이 시나리오가 묻는 것은 **세 가지뿐**이다 (2026-08-28 사용자 확정):
 #   ① 고른 항목이 각 CLI 자리에 복사됐나   ② 설치가 실제로 됐나   ③ 원하는 버전인가
 # 파일 *내용*이 원본과 같은지는 묻지 않는다 — 설치는 복사이고, 복사본을 원본과 맞대 보는 것은
-# 자기 자신과의 대조다. 변환 로직(frontmatter 보존 · `uzys-` 접두 오염 · opencode 커맨드
+# 자기 자신과의 대조다. 변환 로직(frontmatter 보존 · `uzys-` 접두 오염 · opencode 스킬
 # frontmatter 생성)은 단위 테스트가 소유한다: tests/codex/transform.test.ts ·
-# tests/antigravity/transform.test.ts · tests/opencode/commands.test.ts.
+# tests/antigravity/transform.test.ts · tests/opencode/transform.test.ts.
 #
 # 그래서 여기서 보는 것은 ① 자리별 존재와, 선택 제어의 결과다:
 #   1. 4-CLI 자리에 dev-method 스킬 전량이 있다
@@ -84,14 +84,15 @@ for id in "${DEV_METHOD_IDS[@]}"; do
   assert_file "${PROJ}/.claude/skills/${id}/SKILL.md" "claude: ${id}"
 done
 
-echo "── Codex/Antigravity native (.agents/skills/) ──"
+echo "── Codex/OpenCode/Antigravity native (.agents/skills/) ──"
 for id in "${DEV_METHOD_IDS[@]}"; do
   assert_file  "${PROJ}/.agents/skills/${id}/SKILL.md" ".agents: ${id}"
 done
 
-echo "── OpenCode command 폴백 (.opencode/commands/) ──"
+# ADR-081 — 옛 커맨드 사본을 더는 만들지 않는다. 만들면 OpenCode 커맨드 목록에 같은 이름이
+# 두 줄로 뜬다(옛 command + 새 skill).
 for id in "${DEV_METHOD_IDS[@]}"; do
-  assert_file "${PROJ}/.opencode/commands/${id}.md" "opencode cmd: ${id}"
+  assert_absent "${PROJ}/.opencode/commands/${id}.md" "opencode 옛 커맨드 사본 미생성: ${id}"
 done
 
 # ⓑ 외부 스킬(`npx skills add`)도 같은 설치 한 번의 산출물이다 — 설치를 더 돌리지 않고
@@ -138,7 +139,6 @@ agent-harness install --track tooling \
   || { echo "FAIL: install --without 실패"; cat /tmp/devmethod-without.log; exit 1; }
 assert_absent "${PROJ2}/.claude/skills/${SKILL_A}" "claude: ${SKILL_A} drop"
 assert_absent "${PROJ2}/.agents/skills/${SKILL_A}" ".agents: ${SKILL_A} drop"
-assert_absent "${PROJ2}/.opencode/commands/${SKILL_A}.md" "opencode: ${SKILL_A} drop"
 assert_file   "${PROJ2}/.claude/skills/${SKILL_B}/SKILL.md" "claude: ${SKILL_B} 잔존 (다른 skill 영향 없음)"
 
 echo ""

@@ -85,7 +85,7 @@ NORTH_STAR §5 4-gate + CLAUDE.md P2(Simplicity First) 우선.
 | **OQ3** Dogfood 범위 | **Closed — tooling + csr-fastapi** | Codex와 동일 2 Track. 비교 가능성 유지. 사용자 승인 2026-04-25 |
 | **OQ4** SPEC 범위 | **Closed — 풀 하네스 복제** | Codex와 동등 패턴. 사용자 요청 명시. 사용자 승인 2026-04-25 |
 | **OQ5** Plugin 배포 형식 | **Open** | (a) `templates/opencode/.opencode/plugins/` 로컬 번들 → 설치 시 프로젝트 `.opencode/plugins/`로 복사 / (b) git submodule / (c) npm publish 후 install. 1차 (a). npm은 후속 ADR (Codex OQ8과 동일 패턴) |
-| **OQ6** OpenCode-Skills plugin 의존 | **Open** | 커뮤니티 plugin `/malhashemi/opencode-skills`(Anthropic Agent Skills Spec 따름)가 skills 자동 발견. 의존 vs 자체 구현. 1차 자체 구현(uzys 자산만 정확히 노출). 의존은 후속 검토 |
+| **OQ6** OpenCode-Skills plugin 의존 | **Closed (2026-08-29, ADR-081)** — 플러그인 불요. OpenCode 1.18.23 이 프로젝트 스코프 `.agents/skills/**/SKILL.md` 를 자동 로드한다(실측, 대조군 포함). 번들 스킬을 커맨드로 변환하던 것을 폐지하고 codex·antigravity 와 같은 자리로 보낸다. |
 
 ## 4. Phase 분해
 
