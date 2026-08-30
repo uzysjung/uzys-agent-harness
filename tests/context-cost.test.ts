@@ -10,6 +10,7 @@ import {
   estimateTokens,
   extractFrontmatter,
   formatContextCostLine,
+  formatResidentCostBlock,
   formatResidentCostLine,
   makeResidentCost,
   residentCost,
@@ -416,6 +417,51 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
     expect((line ?? "").indexOf("items resident")).toBeLessThan(
       (line ?? "").indexOf("tokens/session"),
     );
+  });
+
+  it("표시 라인이 **두 축을 갈라** 보여준다 (ADR-083)", () => {
+    // **독립 리뷰 HIGH 적발.** 이 PR 이 광고한 표시 변경 전체가 무게이트였다 — `parts` 를
+    // 이전 형태로 되돌려도, 축 라벨을 아무 문자열로 바꿔도 전 스위트가 초록이었다.
+    // 사용자 도달 표면의 주장은 그 표면을 실행해 증명한다(no-false-ship).
+    const r = makeResidentCost({
+      rules: 1360,
+      projectClaudeMd: 2954,
+      skillDescriptors: 2799,
+      agentDescriptors: 725,
+      items: { rules: 6, skills: 17, agents: 9, claudeMd: 2, total: 34 },
+    });
+    const line = formatResidentCostLine(r, 0) ?? "";
+    // 축 이름과 값을 **derive 한 값으로** 대조한다 — 숫자를 손으로 적으면 그게 세 번째 사본이다.
+    expect(line, "지시문 축이 표시에서 사라졌다").toContain(
+      `directives ${r.directive.items} ~${r.directive.tokens}`,
+    );
+    expect(line, "발화 표면 축이 표시에서 사라졌다").toContain(
+      `triggers ${r.firing.items} ~${r.firing.tokens}`,
+    );
+    // 축만 있고 내역이 없으면 어디가 비싼지 여전히 모른다.
+    expect(line).toContain(`rules ${r.items.rules} ~${r.rules}`);
+    expect(line).toContain(`CLAUDE.md ${r.items.claudeMd} ~${r.projectClaudeMd}`);
+  });
+
+  it("상주 표가 축 소계를 행으로 낸다 (ADR-083)", () => {
+    const r = makeResidentCost({
+      rules: 1360,
+      projectClaudeMd: 2954,
+      skillDescriptors: 2799,
+      agentDescriptors: 725,
+      items: { rules: 6, skills: 17, agents: 9, claudeMd: 2, total: 34 },
+    });
+    const block = formatResidentCostBlock(r).join("\n");
+    // 소계가 없으면 읽는 사람이 네 줄을 머리로 더해야 하고, 그러면 "무엇을 줄여야 하나"가
+    // 표에서 안 보인다 — 축을 가른 이유 자체가 사라진다.
+    expect(block, "지시문 소계 행이 없다").toMatch(
+      new RegExp(`지시문\\s+${r.directive.items}개\\s+~${r.directive.tokens}`),
+    );
+    expect(block, "발화 표면 소계 행이 없다").toMatch(
+      new RegExp(`발화 표면\\s+${r.firing.items}개\\s+~${r.firing.tokens}`),
+    );
+    // 축이 무슨 뜻인지 설명이 함께 나가야 한다 — 라벨만으로는 "줄여도 되는 축"이 안 갈린다.
+    expect(block, "축 설명 줄이 없다").toContain("깎으면 안 불린다");
   });
 
   it("자산이 없으면 null", () => {

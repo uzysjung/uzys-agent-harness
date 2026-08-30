@@ -125,6 +125,10 @@
     "continuous-learning-v2": 79,
     "deep-research": 70,
     "spec-scaling": 57,
+    "market-research": 86,
+    "investor-materials": 92,
+    "investor-outreach": 76,
+    "nextjs-turbopack": 40,
     "compaction-handoff": 124,
     "clear-korean-communication": 271,
     "audit-service-gaps": 267,
@@ -135,16 +139,15 @@
     "gh-issue-workflow": 262,
     "task-brief": 263,
     "audit-harness-fit": 270,
+    "model-orchestration": 273,
+    "external-model-consult": 271,
     "self-hosted-github-runner": 104,
+    "humanize-korean": 64,
+    "python-patterns": 46,
+    "python-testing": 42,
     "agent-introspection-debugging": 48,
     "eval-harness": 49,
     "ui-visual-review": 204,
-    "e2e-testing": 44,
-    "python-patterns": 46,
-    "python-testing": 42,
-    "nextjs-turbopack": 40,
-    "market-research": 86,
-    "investor-materials": 92,
-    "investor-outreach": 76
+    "e2e-testing": 44
   }
 }

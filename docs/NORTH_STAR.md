@@ -280,7 +280,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
 - Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
-- Resident Item Count / Token Cost *(부수 축)*: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
+- Directive Cost / Firing Surface *(구 Resident Item Count / Token Cost — ADR-083 에서 두 축으로 갈렸다)*: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
 - 무게이트 주장 수 / 게이트에 물린 사실 수 / 미파싱 토큰 수 *(1차 축)*: 하네스 산출물에서 주장을 추출해 `npm run ci` 대조. **추출기 미구현 — 현재 값은 미측정**(ADR-058 Consequences 2)
 
 ---

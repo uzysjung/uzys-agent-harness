@@ -1,6 +1,6 @@
 # ADR-053: 1차 NSM 의 양 축을 토큰에서 **상주 항목 수**로 교체
 
-- Status: Accepted
+- Status: Accepted (**대상 범위는 ADR-083 이 좁혔다** — 여기서 정한 '항목 수 1차 축'은 이제 *지시문 축*에만 적용된다. 스킬·에이전트 descriptor 는 발화 표면 축으로 분리돼 총합 ratchet 대상이 아니다.)
 - Date: 2026-07-26
 - PR: (머지 시 기재)
 - Supersedes: **ADR-043 의 1차 NSM 정의 부분만** (차별화 축·HITO 폐기·2단계 판정 근거는 존속).

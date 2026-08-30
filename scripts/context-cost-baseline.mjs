@@ -25,6 +25,7 @@ import {
   buildAssetSpec,
   buildManifest,
   DEFAULT_OPTIONS,
+  INTERNAL_BUNDLED_SKILL_IDS,
   residentCost,
   TRACKS,
 } from "../dist/trust-tier-drift.js";
@@ -45,12 +46,16 @@ for (const track of TRACKS) {
   };
 }
 
-// 스킬별 descriptor 상한. **기존 스킬의 조용한 증가**만 잡는다 — 여기 없는 id(=새 스킬)는
-// 비교 대상이 없으므로 red 가 나지 않는다. 전 트랙 합집합으로 모은다.
+// 스킬별 descriptor 상한.
+//
+// **모집단은 번들 스킬 전체다** — 트랙 기본 설치분만 모으면 opt-in 스킬 3종이 상한 밖에 남고,
+// 그것을 고른 설치자에게는 상한 없이 커질 수 있다(독립 리뷰 MEDIUM). `selectedInternalSkills`
+// 에 전부 넣어 한 번에 잰다.
 const skillDescriptors = {};
-for (const track of TRACKS) {
-  const spec = buildAssetSpec({ tracks: [track], options: DEFAULT_OPTIONS });
-  const r = residentCost(buildManifest(spec).filter((e) => e.applies(spec)));
+{
+  const spec = buildAssetSpec({ tracks: [...TRACKS], options: DEFAULT_OPTIONS });
+  const all = { ...spec, selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS };
+  const r = residentCost(buildManifest(all).filter((e) => e.applies(all)));
   for (const [id, tok] of Object.entries(r.perSkillDescriptor)) {
     skillDescriptors[id] = Math.max(skillDescriptors[id] ?? 0, tok);
   }

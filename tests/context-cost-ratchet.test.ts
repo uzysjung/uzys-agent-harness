@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { residentCost } from "../src/context-cost.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
@@ -142,20 +143,20 @@ describe("상주 컨텍스트 비용 ratchet", () => {
  * 대신 **기존 스킬의 조용한 증가**만 막는다: id 별 상한을 두고, baseline 에 **없는 id(=새 스킬)는
  * 비교하지 않는다.**
  *
- * 실측 근거(2026-08-30, 최근 60일): 스킬 파일을 건드린 커밋 40개 중 **기존 스킬의 frontmatter 가
- * 바뀐 것은 15개(증가는 10개)** 다. 6일에 한 번꼴이라 게이트가 버틴다 — 반면 본문은 28/40 이라
- * 거기 게이트를 걸면 이틀에 한 번 빨간불이 뜬다(그래서 안 건다, #335).
+ * 실측 근거(2026-08-30, 최근 60일 · *커밋 단위 순델타, 신규·삭제 파일 제외* 기준): 스킬 파일을
+ * 건드린 커밋 40개 중 **기존 스킬의 frontmatter 가 바뀐 것은 15개, 그중 순증가 9개**다.
+ * 약 6일에 한 번꼴이라 게이트가 버틴다 — 반면 본문은 28/40 이라 거기 게이트를 걸면 이틀에 한 번
+ * 빨간불이 뜬다(그래서 안 건다, #335). 세는 정의를 바꾸면 ±1 이 움직이므로 정의를 같이 적는다.
  */
 describe("발화 표면 — 기존 스킬 descriptor 의 조용한 증가 (ADR-083)", () => {
   /** 전 트랙 합집합의 실측 descriptor. 트랙마다 도는 대신 한 번에 모은다. */
   const actualPerSkill = ((): Record<string, number> => {
-    const acc: Record<string, number> = {};
-    for (const track of TRACKS) {
-      for (const [id, tok] of Object.entries(measure(track).perSkillDescriptor)) {
-        acc[id] = Math.max(acc[id] ?? 0, tok);
-      }
-    }
-    return acc;
+    // **모집단은 번들 스킬 전체.** 트랙 기본 설치분만 모으면 opt-in 3종이 상한 밖에 남는다
+    // (독립 리뷰 MEDIUM) — 그것을 고른 설치자에게는 상한 없이 커질 수 있다.
+    const base = buildAssetSpec({ tracks: [...TRACKS], options: DEFAULT_OPTIONS });
+    const all = { ...base, selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS };
+    return residentCost(buildManifest(all).filter((e) => e.applies(all)))
+      .perSkillDescriptor as Record<string, number>;
   })();
 
   it("baseline 에 스킬 descriptor 상한이 실제로 기록돼 있다 (0건 통과 방지)", () => {
@@ -170,10 +171,30 @@ describe("발화 표면 — 기존 스킬 descriptor 의 조용한 증가 (ADR-0
     ).toBeGreaterThan(0);
   });
 
+  it("모든 스킬이 baseline 에 등재돼 있다 — 한 줄 삭제가 영구 면제가 되지 않게", () => {
+    // **독립 리뷰 HIGH 적발.** 처음엔 "baseline 에 없는 id = 새 스킬이니 비교하지 않는다"로
+    // 짰는데, 그러면 **기존 항목을 한 줄 지우는 것이 곧 영구 면제**가 된다. 실증: tooling 밖
+    // 스킬의 캡을 지우고 descriptor 를 키우면 executive·full 설치자에게 +504 tok/세션이
+    // 붙는데 전 스위트가 초록이었다. ADR-083 이 "면제 목록은 썩는다"며 기각한 실패 유형이
+    // 채택안 안에 남아 있었다.
+    //
+    // 그래서 **등재를 필수로 바꾼다.** 새 스킬을 넣으면 여기서 한 번 red 가 나고
+    // `npm run cost:baseline` 한 줄로 끝난다 — 새 자산은 어차피 항목 수 게이트·NORTH_STAR
+    // 공시 게이트·1,024자 게이트를 이미 건드리므로 추가 부담이 아니다.
+    const missing = Object.keys(actualPerSkill)
+      .filter((id) => baseline.skillDescriptors?.[id] === undefined)
+      .sort();
+    expect(
+      missing,
+      "baseline.skillDescriptors 에 없는 스킬이 있다. 둘 중 하나다 —\n" +
+        "  ① 새 스킬을 넣었다 → `npm run cost:baseline` 을 돌려 등재하라(정상 절차).\n" +
+        "  ② 누군가 기존 항목을 지웠다 → 그 스킬이 상한 없이 커질 수 있는 상태다. 되돌려라.\n" +
+        "누락:",
+    ).toEqual([]);
+  });
+
   it("기존 스킬의 descriptor 가 baseline 을 넘지 않는다", () => {
     const grown = Object.entries(actualPerSkill)
-      // baseline 에 없는 id = 새 스킬. 비교 대상이 없으므로 통과시킨다 — 새 자산 추가는
-      // 악화가 아니다. 다음 `cost:baseline` 갱신에서 자동으로 등재된다.
       .filter(([id]) => baseline.skillDescriptors?.[id] !== undefined)
       .filter(([id, tok]) => tok > (baseline.skillDescriptors[id] as number))
       .map(([id, tok]) => `${id}: ${baseline.skillDescriptors[id]} → ${tok} tok`);
@@ -185,6 +206,21 @@ describe("발화 표면 — 기존 스킬 descriptor 의 조용한 증가 (ADR-0
         "커밋 본문에 적어라** — 크기만으로는 옳고 그름이 판정되지 않는다:\n  " +
         grown.join("\n  "),
     ).toEqual([]);
+  });
+
+  it.each([
+    ...TRACKS,
+  ])("track=%s 의 firing 기록이 실측과 일치한다 — 기록값이 조용히 썩지 않게", (track) => {
+    // `tracks.*.firing` 은 ratchet 대상이 아니라 **추이 기록**이다. 아무도 안 읽으면 그 순간부터
+    // 조용히 썩는다(독립 리뷰 MEDIUM) — 그래서 값 자체를 실측과 맞대 둔다. 여기가 빨간불이면
+    // `npm run cost:baseline` 을 돌려라. 상한이 아니라 **기록**이므로 여유를 두지 않는다.
+    const rec = baseline.tracks[track]?.firing;
+    const actual = measure(track).firing;
+    expect(rec, `baseline.tracks.${track}.firing 이 없다 — 스키마가 어긋났다.`).toBeDefined();
+    expect({ items: rec?.items, tokens: rec?.tokens }, `track=${track} firing 기록`).toEqual({
+      items: actual.items,
+      tokens: actual.tokens,
+    });
   });
 
   it("baseline 이 실측보다 부풀려져 있지 않다", () => {
