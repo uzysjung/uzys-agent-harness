@@ -11,6 +11,7 @@ import {
   extractFrontmatter,
   formatContextCostLine,
   formatResidentCostLine,
+  makeResidentCost,
   residentCost,
   resolveBundleRoot,
   summarizeContextCost,
@@ -397,14 +398,13 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
 
   it("표시 라인이 내역을 드러낸다 — 총합만 보이면 어디가 비싼지 모른다", () => {
     const line = formatResidentCostLine(
-      {
+      makeResidentCost({
         rules: 3094,
         projectClaudeMd: 938,
         skillDescriptors: 547,
         agentDescriptors: 615,
-        total: 5194,
         items: { rules: 10, skills: 9, agents: 9, claudeMd: 1, total: 29 },
-      },
+      }),
       52,
     );
     expect(line).toContain("~5194 tokens/session");
@@ -421,14 +421,13 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
   it("자산이 없으면 null", () => {
     expect(
       formatResidentCostLine(
-        {
+        makeResidentCost({
           rules: 0,
           projectClaudeMd: 0,
           skillDescriptors: 0,
           agentDescriptors: 0,
-          total: 0,
           items: { rules: 0, skills: 0, agents: 0, claudeMd: 0, total: 0 },
-        },
+        }),
         0,
       ),
     ).toBeNull();

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatResidentCostBlock,
   formatResidentCostLine,
+  makeResidentCost,
   type ResidentCost,
 } from "../src/context-cost.js";
 
@@ -49,14 +50,13 @@ function residentCostConsumers(): { path: string; content: string }[] {
     .filter((f) => /residentCost\s*\(/.test(f.content));
 }
 
-const sample: ResidentCost = {
+const sample: ResidentCost = makeResidentCost({
   rules: 3637,
   projectClaudeMd: 1064,
   skillDescriptors: 550,
   agentDescriptors: 724,
-  total: 5975,
   items: { rules: 10, skills: 9, agents: 9, claudeMd: 1, total: 29 },
-};
+});
 
 describe("상주 비용 표시 계약 (표면 대칭)", () => {
   it("탐지기가 실제로 무는지 먼저 — 상주 비용 소비 파일을 복수로 찾아낸다", () => {

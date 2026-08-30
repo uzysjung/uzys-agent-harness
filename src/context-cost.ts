@@ -121,6 +121,24 @@ export function assetCostRows(
  *   상주에 얹힌다. 외부 플러그인 훅은 여기 안 잡힌다: 올바른 스키마를 쓰는 플러그인 훅 하나가
  *   실측상 +2,222 tok/세션(+37.8%)을 아무 고지 없이 얹을 수 있었다.
  */
+/**
+ * **상주 비용은 한 숫자가 아니다 (ADR-083, 사용자 확정 2026-08-30).**
+ *
+ * 하나로 합치면 정반대 행동을 요구하는 둘이 섞인다:
+ *   - **지시문**(룰 + CLAUDE.md) — 우리가 "항상 읽혀라"고 정해서 넣은 것. 중복이거나 모델이
+ *     이미 아는 것이면 **빼는 것이 순수 이득**이다.
+ *   - **발화 표면**(스킬·에이전트 descriptor) — 자산이 존재하면 따라온다. 줄이려면 자산을
+ *     빼거나 설명을 깎아야 하는데 **깎으면 안 불린다**. #333 에서 상한을 맞추다 트리거 문구
+ *     6개가 소실됐고 #399 에서 되살렸다 — descriptor 는 비용이 아니라 **발화 조건**이다.
+ *
+ * 합쳐 두면 **가치 있는 스킬을 추가할 때 지표가 나빠진다**. 좋은 일을 하면 숫자가 나빠지는
+ * 지표는 판단을 도와주지 않는다. 그래서 축을 가르고, 판정도 따로 한다 —
+ * 지시문은 줄이는 방향으로 ratchet, 발화 표면은 **기존 자산의 조용한 증가만** 막는다
+ * (새 자산 추가는 선택이지 악화가 아니다).
+ *
+ * **관리 대상은 우리가 만든 것뿐이다.** 외부 자산은 설치 시점에 내용을 알 수 없어 여기 안
+ * 들어오고, 리포트가 "미계측 N종"으로 **알려만 준다**(no-false-ship).
+ */
 export interface ResidentCost {
   rules: number;
   projectClaudeMd: number;
@@ -129,6 +147,48 @@ export interface ResidentCost {
   total: number;
   /** 같은 표면의 **개수**. 토큰과 단위가 다르므로 절대 같은 필드에 섞지 않는다 (아래 주석). */
   items: ResidentItemCount;
+  /** 우리가 "항상 읽혀라"고 쓴 지시문 — 룰 + CLAUDE.md. **줄이는 축**. */
+  directive: ResidentAxis;
+  /** 우리 스킬·에이전트가 발화하려고 상주시키는 descriptor. **정확도와 함께 보는 축**. */
+  firing: ResidentAxis;
+  /** 스킬 id → descriptor 토큰. 기존 스킬의 조용한 증가를 잡는 ratchet 의 입력. */
+  perSkillDescriptor: Readonly<Record<string, number>>;
+}
+
+/**
+ * 상주 비용의 **한 축**. 개수와 토큰을 같이 들고 다닌다 — 둘을 따로 두면 한쪽만 갱신되는
+ * drift 가 난다(v26.140.0 에 실제로 났다).
+ */
+export interface ResidentAxis {
+  items: number;
+  tokens: number;
+}
+
+/**
+ * 네 범주 값에서 **축을 derive** 한다. 축을 손으로 적는 자리를 만들지 않는다 — #320 이 정확히
+ * 그렇게 났다(같은 조립을 여러 곳이 각자 하다 한 곳이 틀렸다). 테스트 픽스처도 이걸 쓴다.
+ */
+export function makeResidentCost(base: {
+  rules: number;
+  projectClaudeMd: number;
+  skillDescriptors: number;
+  agentDescriptors: number;
+  items: ResidentItemCount;
+  perSkillDescriptor?: Readonly<Record<string, number>>;
+}): ResidentCost {
+  return {
+    ...base,
+    perSkillDescriptor: base.perSkillDescriptor ?? {},
+    total: base.rules + base.projectClaudeMd + base.skillDescriptors + base.agentDescriptors,
+    directive: {
+      items: base.items.rules + base.items.claudeMd,
+      tokens: base.rules + base.projectClaudeMd,
+    },
+    firing: {
+      items: base.items.skills + base.items.agents,
+      tokens: base.skillDescriptors + base.agentDescriptors,
+    },
+  };
 }
 
 /**
@@ -172,6 +232,7 @@ export function residentCost(
   root: string = resolveBundleRoot(),
 ): ResidentCost {
   const tpl = (source: string): string => join(root, "templates", source);
+  const perSkill: Record<string, number> = {};
   let rules = 0;
   let skillDescriptors = 0;
   let agentDescriptors = 0;
@@ -187,9 +248,17 @@ export function residentCost(
       agentDescriptors += descriptorTokens(tpl(e.source));
       agentItems += 1;
     } else if (e.target.startsWith(".claude/skills/")) {
-      // skills 엔트리는 디렉토리 — SKILL.md 가 descriptor 를 담는다.
-      skillDescriptors += descriptorTokens(join(tpl(e.source), "SKILL.md"));
+      // skills 엔트리는 디렉토리 — SKILL.md 가 descriptor 를 담는다. 다만 파일 단위로 등록된
+      // 것도 있어(`skills/<id>/SKILL.md`) 원본 경로가 이미 파일이면 그대로 쓴다.
+      const src = tpl(e.source);
+      const skillMd = src.endsWith("SKILL.md") ? src : join(src, "SKILL.md");
+      const t = descriptorTokens(skillMd);
+      skillDescriptors += t;
       skillItems += 1;
+      // 기존 스킬의 **조용한 증가**를 잡으려면 id 별 값이 필요하다 — 총합만으로는 새 스킬
+      // 추가와 기존 스킬 팽창을 구분할 수 없고, 그 둘은 판정이 정반대다.
+      const id = /\.claude\/skills\/([^/]+)/.exec(e.target)?.[1];
+      if (id !== undefined) perSkill[id] = (perSkill[id] ?? 0) + t;
     }
   }
   // 설치가 상주시키는 CLAUDE.md 는 **둘**이다. v26.140.0 까지는 앵커만 재면서 라벨은
@@ -208,12 +277,13 @@ export function residentCost(
   // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
   // 스캐폴드는 코드 생성물이라 부재할 수 없다.
   const claudeMdItems = (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
-  return {
+  // 축은 `makeResidentCost` 하나가 derive 한다 — 여기서 다시 조립하면 사본이 둘이 된다.
+  return makeResidentCost({
     rules,
     projectClaudeMd,
     skillDescriptors,
     agentDescriptors,
-    total: rules + projectClaudeMd + skillDescriptors + agentDescriptors,
+    perSkillDescriptor: perSkill,
     items: {
       rules: ruleItems,
       skills: skillItems,
@@ -221,7 +291,7 @@ export function residentCost(
       claudeMd: claudeMdItems,
       total: ruleItems + skillItems + agentItems + claudeMdItems,
     },
-  };
+  });
 }
 
 export interface ContextCostSummary {
@@ -281,11 +351,15 @@ export function formatContextCostLine(s: ContextCostSummary): string | null {
  */
 export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number): string | null {
   if (r.total === 0) return null;
+  // ADR-083 — 내역을 **두 축으로 묶어** 보여준다. 총합은 그대로 낸다(설치자는 전부를 문다).
+  // 달라지는 것은 "그중 무엇을 줄일 수 있는가"가 한눈에 갈린다는 것이다:
+  // directives 는 우리가 쓴 상시 지시문(줄이면 이득), triggers 는 스킬·에이전트가 발화하려고
+  // 상주시키는 descriptor(깎으면 안 불린다).
   const parts = [
-    `rules ${r.items.rules} ~${r.rules}`,
-    `CLAUDE.md ${r.items.claudeMd} ~${r.projectClaudeMd}`,
-    `skills ${r.items.skills} ~${r.skillDescriptors}`,
-    `agents ${r.items.agents} ~${r.agentDescriptors}`,
+    `directives ${r.directive.items} ~${r.directive.tokens}`,
+    `[rules ${r.items.rules} ~${r.rules} · CLAUDE.md ${r.items.claudeMd} ~${r.projectClaudeMd}]`,
+    `triggers ${r.firing.items} ~${r.firing.tokens}`,
+    `[skills ${r.items.skills} ~${r.skillDescriptors} · agents ${r.items.agents} ~${r.agentDescriptors}]`,
   ].join(" · ");
   const external =
     unmeasuredCount > 0
@@ -304,24 +378,38 @@ const RESIDENT_ROWS: ReadonlyArray<{
   count: (r: ResidentCost) => number;
   tokens: (r: ResidentCost) => number;
 }> = [
-  { label: "rules", gap: 14, count: (r) => r.items.rules, tokens: (r) => r.rules },
+  {
+    // ADR-083 — 축 소계를 **행으로** 낸다. 소계가 없으면 읽는 사람이 네 줄을 머리로 더해야
+    // 하고, 그러면 "무엇을 줄여야 하나"가 표에서 안 보인다.
+    label: "지시문",
+    gap: 13,
+    count: (r) => r.directive.items,
+    tokens: (r) => r.directive.tokens,
+  },
+  { label: "  rules", gap: 12, count: (r) => r.items.rules, tokens: (r) => r.rules },
   {
     // 한 행에 두 파일(앵커 + 스캐폴드). 개수 열이 2 를 뱉어 그 사실을 드러낸다 — 라벨로
     // 하나만 이름 붙이면 v26.140.0 이전과 같은 거짓 라벨이 된다.
-    label: "CLAUDE.md",
-    gap: 11,
+    label: "  CLAUDE.md",
+    gap: 8,
     count: (r) => r.items.claudeMd,
     tokens: (r) => r.projectClaudeMd,
   },
   {
-    label: "skill descriptors",
-    gap: 2,
+    label: "발화 표면",
+    gap: 10,
+    count: (r) => r.firing.items,
+    tokens: (r) => r.firing.tokens,
+  },
+  {
+    label: "  skill descriptors",
+    gap: 0,
     count: (r) => r.items.skills,
     tokens: (r) => r.skillDescriptors,
   },
   {
-    label: "agent descriptors",
-    gap: 2,
+    label: "  agent descriptors",
+    gap: 0,
     count: (r) => r.items.agents,
     tokens: (r) => r.agentDescriptors,
   },
@@ -342,5 +430,8 @@ export function formatResidentCostBlock(r: ResidentCost): string[] {
     ),
     "  ─────────────────────────────────",
     `  상주 합계          ${n(r.items.total)}개 상주 · ~${r.total} tokens/세션`,
+    "",
+    "  지시문 = 우리가 항상 읽히게 넣은 것. 줄이면 이득 — 여기가 감축 대상이다.",
+    "  발화 표면 = 스킬·에이전트가 불리려고 상주시키는 descriptor. 깎으면 안 불린다.",
   ];
 }
