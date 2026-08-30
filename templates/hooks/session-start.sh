@@ -45,10 +45,16 @@ ORPHANS=$(printf '%s\n' "$PS_SNAP" | awk -v d="$PROJ_DIR" '$2==1 && index($0,d)>
 #
 # **비용 때문에 후보를 먼저 좁힌다.** cwd 를 묻는 것은 macOS 에서 pid 당 약 4 ms 다(실측).
 #   ppid=1 전체(이 머신 433개)에 물으면 세션 시작이 배로 느려지고, 그 비용은 설치받은
-#   사람이 **매 세션** 낸다. 그래서 ⓐ 가 이미 세지 않은 것 중 에이전트·런타임 부류만 보고,
-#   후보가 0이면 cwd 를 아예 안 묻는다(평시 0 ms — 실측). 상한 40개.
+#   사람이 **매 세션** 낸다. 그래서 ⓐ 가 이미 세지 않은 것 중 **에이전트 부류만** 보고,
+#   후보가 0이면 cwd 를 아예 안 묻는다. 상한 40개.
+#
+#   **비용의 원인을 한 번 잘못 짚었다.** 처음엔 후보 수 탓인 줄 알고 범위를 좁혔는데, 재보니
+#   **후보 1개짜리 `lsof` 가 1,444 ms** 였다 — 비싼 것은 후보 수가 아니라 `lsof` 자신이었다.
+#   `-b`(블록 가능 호출 회피)를 붙이자 같은 답에 **74 ms** 가 됐고, 그래서 범위를 다시 넓힐 수
+#   있었다. 좁힌 채로 뒀으면 경로가 argv 에 없는 비-에이전트 고아(디렉터리 안에서 띄운
+#   `node server.js` 등)를 영영 못 봤을 것이다.
 CAND=$(printf '%s\n' "$PS_SNAP" | awk -v d="$PROJ_DIR" \
-  '$2==1 && index($0,d)==0 && /claude|node|python|bun|deno/ {print $1}' | head -40)
+  '$2==1 && index($0,d)==0 && /claude|node|python|bun|deno|--agent-name/ {print $1}' | head -40)
 CWD_ORPHANS=0
 if [ -n "$CAND" ]; then
   if [ -d /proc ]; then
@@ -62,7 +68,10 @@ if [ -n "$CAND" ]; then
   elif command -v lsof > /dev/null 2>&1; then
     # macOS: /proc 이 없다. 한 번에 묻고, 접두사 일치로 **이 프로젝트 밑**만 센다 —
     # 다른 프로젝트의 고아를 남의 세션이 판단해선 안 된다.
-    CWD_ORPHANS=$(lsof -p "$(printf '%s' "$CAND" | tr '\n' ',' | sed 's/,$//')" -a -d cwd -Fn 2>/dev/null \
+    # `-b` 가 이 검사를 쓸 수 있게 만든다 — 블록 가능한 커널 호출을 피한다. 실측: 후보 1개에
+    # `-b` 없이 **1,444 ms**, 있으면 **74 ms**(19배)이고 답은 같다(cwd 28건 동일). `-w` 는 그때
+    # 나는 경고를 죽이고, `-n`·`-P` 는 우리가 안 쓰는 이름 해석을 건너뛴다.
+    CWD_ORPHANS=$(lsof -b -w -n -P -p "$(printf '%s' "$CAND" | tr '\n' ',' | sed 's/,$//')" -a -d cwd -Fn 2>/dev/null \
       | awk -v d="$PROJ_DIR" -v dp="$PROJ_DIR_P" '
           substr($0,1,1)=="n" {
             p = substr($0,2)
