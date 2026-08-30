@@ -1,7 +1,6 @@
 # Todo — 현재 목표 & 상태
 
-> **갱신**: 2026-08-17 — **역할 정의만 고쳤다. 아래 `## 현재 상태` 블록은 2026-06-06 기준이고
-> 재판정 대기다**(#337). · **역할**: 쉬는 상태 추적기. **열린 작업의 SSOT 는 GitHub Issue 다** — `gh issue list --state open` 이 정본이고, 진행 중인 사이클은 `docs/plans/*-todo.md` 에 있다(main 을 항상 출하 가능하게 두려고 분리).
+> **갱신**: 2026-08-30 — `## 현재 상태` 블록 재판정 완료(#337). · **역할**: 쉬는 상태 추적기. **열린 작업의 SSOT 는 GitHub Issue 다** — `gh issue list --state open` 이 정본이고, 진행 중인 사이클은 `docs/plans/*-todo.md` 에 있다(main 을 항상 출하 가능하게 두려고 분리).
 > **전략 SSOT**: [`docs/plans/service-audit-roadmap.md`](plans/service-audit-roadmap.md) (M1~M6) — 아래 'C→A→B→D' 전략 내용은 이로 **대체됨(historical)**.
 > **목표 anchor**: [`docs/NORTH_STAR.md`](NORTH_STAR.md) (왜·어디로) · **이력**: [`CHANGELOG.md`](../CHANGELOG.md)
 > **Foundation(v26.38) 상세 완료 기록**: [`docs/archive/phase1-foundation/`](archive/phase1-foundation/)
@@ -20,10 +19,13 @@
 
 ---
 
-## 현재 상태 (2026-06-06)
+## 현재 상태 (2026-08-30 재판정 · #337)
 
-- **버전**: main = v26.121.0 (#235). npm 게시본은 별개 — 전략 SSOT = roadmap + harness-audit-2026-07-14.
-- **활성 작업 사이클**: **재포지셔닝 로드맵 C→A→B→D** (deep-research `docs/research/direction-research-2026-06-06.md` + ADR-021). 아래 "열린 목표" 참조.
+- **버전**: `package.json` 과 `git tag` 가 SSOT 다 — 여기 숫자를 적지 않는다. 직전 표기(v26.121.0)는
+  10주 낡아 있었고, 같은 사실을 두 곳에 두면 이 줄이 다시 썩는다. 확인 = `git tag -l | sort -V | tail -5`.
+- **활성 작업 사이클**: **열린 항목의 SSOT 는 GitHub Issue** (`gh issue list --state open`), 진행 중
+  사이클은 `docs/plans/*-todo.md`. 아래 "열린 목표(C→A→B→D)" 절은 **historical** 이고 전략 SSOT 는
+  `docs/plans/service-audit-roadmap.md` 로 대체됐다.
 - **CI 정책**: GitHub Actions 는 릴리스 태그(`v*`) push 시에만 (v26.70.3). 로컬 `npm run ci` 가 1차 게이트.
 
 ---

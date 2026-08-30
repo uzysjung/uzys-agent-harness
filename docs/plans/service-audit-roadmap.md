@@ -1,6 +1,6 @@
 # 전체 서비스 감사 → 차기 마일스톤 로드맵 (SSOT)
 
-> 작성 2026-06-13 · 기준 v26.83.0 (초판) · **최종 갱신 2026-08-29 / v26.149.0** (방법론 코어 8 / 수단 3 계층 분리 → v26.106.0 축 판정 61 → v26.108.0 ci-scaffold 62 → v26.110.0 오피셜 플러그인 큐레이션 ADR-039 로 65 → **2026-08-02 ADR-060 정비에서 12종 제거** → preline·game 3종 추가로 카탈로그 60 → #353 self-hosted-github-runner · #355 humanize-korean 추가로 **카탈로그 62**(실측 `src/external-assets.ts` 2026-08-29)) · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
+> 작성 2026-06-13 · 기준 v26.83.0 (초판) · **최종 갱신 2026-08-30 / v26.149.0** (M1~M4 진척 전수 재판정 #337) (방법론 코어 8 / 수단 3 계층 분리 → v26.106.0 축 판정 61 → v26.108.0 ci-scaffold 62 → v26.110.0 오피셜 플러그인 큐레이션 ADR-039 로 65 → **2026-08-02 ADR-060 정비에서 12종 제거** → preline·game 3종 추가로 카탈로그 60 → #353 self-hosted-github-runner · #355 humanize-korean 추가로 **카탈로그 62**(실측 `src/external-assets.ts` 2026-08-29)) · 방법: ultracode 7차원 병렬 감사 → 적대 검증(critical/high 3표 다수결·medium 1표) → 완전성 비평 → 로드맵 합성
 > 규모: 87 에이전트 · 검증 **확정 29 / 미검증 0 / 기각 8**. 기존 `persona-feedback-improvements.md`(P0~P2)를 본 로드맵에 **병합**(중복은 합치고 모순은 근거 강한 쪽 채택).
 > **게시(M2)는 M1 게이트 통과 전 금지.** 본 문서가 개선 실행의 SSOT.
 
@@ -15,7 +15,7 @@
 | **M5 — 카탈로그 큐레이션 재검토 (Curation Audit)** | "스택 기반 최소 큐레이션"(과설치 회피·검증된 것만)이 관성으로 흐려졌는지 양방향 audit — 빠진 가치자산(Visual & Media 확장 리서치) + 남을 가치 없는 자산(60 전수 keep/drop). | (1) Visual & Media 용도별 추가후보표+Docker검증 등재 (2) 60 자산 keep/demote/drop 판정표(실측근거) (3) drop=Major CR→사용자+ADR |
 | **M6 — 다면 리뷰 (`/uzys:review` 패널 모드, re-scope 2026-06-21)** | `multi-persona-review` 스킬(v26.87.0 출하)을 6-Gate `/uzys:review` 모드로 통합 + delta(동적 페르소나 생성·`.claude/agents/*.md` 자동혼합). 독립 `/uzys:panel` 커맨드 삭제(이중 표면 제거). | (1) `/uzys:review` 패널 모드(독립 커맨드 없음) (2) 동적 페르소나+agent.md 자동혼합 (3) surface parity. SPEC 선행 |
 
-**즉시 착수(immediateNext) — 2026-08-17 갱신:** ~~M2 게시~~ **사용자 보류 유지**(2026-07-17 — HN 티켓 미접수·레딧 접근 불가. 재개 시 `launch-posts.md` 하단 33채널 카탈로그 활용). **백로그의 SSOT 가 이 문서에서 GitHub Issue 로 옮겨졌다**(2026-08-17, #316 에픽 사이클) — 열린 항목은 `gh issue list --state open` 이 정본이고, 이 문서는 **마일스톤 축(M1~M6)** 만 담는다. 구 Lean 실행 큐(ADR-032 ①~⑥)는 v26.103.0~114.0 으로 **전량 종결**됐다. **M2 이후 축의 잔여 = M5 축B(60 자산 전수 keep/drop) · M6 다면 리뷰 통합**, 둘 다 M2 보류에 걸려 있다. **단 아래 M1 진척 블록은 2026-06-21 기준이라 재판정 대기다** — 표본 1건만 확인해도 낡았다(README 수술 B-1~B-5 는 v26.118.0 에서 393 → 102줄 재작성으로 실행됐는데 잔여로 박제돼 있다). M3·M4 표도 미판정이다. 즉 이 줄은 **M1~M4 잔여를 대체하지 않는다** — 재판정은 **#337**.
+**즉시 착수(immediateNext) — 2026-08-30 갱신:** ~~M2 게시~~ **사용자 보류 유지**(2026-07-17 — HN 티켓 미접수·레딧 접근 불가. 재개 시 `launch-posts.md` 하단 33채널 카탈로그 활용). **백로그의 SSOT 가 이 문서에서 GitHub Issue 로 옮겨졌다**(2026-08-17, #316 에픽 사이클) — 열린 항목은 `gh issue list --state open` 이 정본이고, 이 문서는 **마일스톤 축(M1~M6)** 만 담는다. 구 Lean 실행 큐(ADR-032 ①~⑥)는 v26.103.0~114.0 으로 **전량 종결**됐다. **M2 이후 축의 잔여 = M5 축B(60 자산 전수 keep/drop) · M6 다면 리뷰 통합**, 둘 다 M2 보류에 걸려 있다. **M1~M4 진척은 2026-08-30 에 전수 재판정했다(#337)** — 각 마일스톤의 '진척 상태' 블록이 항목별 판정과 근거 명령을 담고, 그것이 SSOT 다. **M1 잔여는 0 이고**(M2 게시 보류만 남는다), M3·M4 는 게시 신호 확보 전이라 미완이 정상이다.
 
 <details><summary>합성 논리(rationale)</summary>
 
@@ -28,9 +28,33 @@
 
 **완료 판정:** (1) grep 으로 다음 4종이 추적파일(dist/templates 제외)에서 0건: bare `npx agent-harness`(scope 없는 것), `uzys-claude-harness`, 데모 .cast title/banner 의 `claude-harness`, README 임베드 GIF 의 구브랜드. (2) SECURITY.md 존재 + GitHub Security 탭 노출. (3) settings.json·CLAUDE.md 가 기존 프로젝트에서 백업 후에만 변경됨을 검증하는 RED→GREEN 테스트 통과. (4) `node dist/index.js install --help` 출력이 실동작과 일치(--with-codex-prompts·--scope). (5) `npm run ci` exit 0 + 신규 hotfix 태그(v26.84.x 류, CalVer 준수) npm publish green. (6) persona-feedback-improvements.md 의 P0 A/B/C/D 전 항목 체크 + 본 M1 신규항목 SSOT 반영.
 
-> **진척 상태 (2026-06-21 페르소나 감사 갱신 · #166~#182 반영) — 아래 표의 SSOT:**
-> **완료(✓ 검증):** 공급망 bare npx 교체(grep 0건) · 데모 재녹화(#179) · settings.json/CLAUDE.md 백업(`installer.ts:426-428`·`741` `backupFileIfChanged`) · SECURITY.md 신설(파일 존재) · install.sh/CONTRIBUTING 구 repo명(grep 0건) · NEXT 안내 spec 분기(`install-render.ts:352`) · `--with-ecc`→`--with ecc-plugin`(`install-render.ts:539`) · `npx skills` pin(`1.5.11`).
-> **잔여(◐ 미검증 — M2 게시 전 확인):** README 수술(B-1~B-5) · 홍보글 최종본(A-1~A-5) · WORKFLOWS star 실측(C-1) · 보안 wedge 문서모순(C-2) · WORKFLOWS `withUzysHarness`→`uzys-harness`(UX-5) · `install --help` 정리(UX-4) · todo.md 현행화(NSM-5).
+> **진척 상태 — 재판정 2026-08-30 (#337). 아래 표의 SSOT.** 판정마다 근거 명령을 병기한다.
+> 직전 판정은 **2026-06-21 기준으로 10주간 박제**돼 있었고, 그동안 완료된 것이 잔여로 남아 있었다.
+>
+> **완료(✓ 재확인):** 공급망 bare npx 교체 · 데모 재녹화(#179) · settings.json/CLAUDE.md 백업 ·
+> SECURITY.md 신설 · install.sh/CONTRIBUTING 구 repo명 · NEXT 안내 spec 분기 ·
+> `--with-ecc`→`--with ecc-plugin` · `npx skills` pin.
+>
+> **직전에 "잔여"로 박제돼 있었으나 재판정 결과 완료(5건):**
+>
+> | 항목 | 판정 근거 (2026-08-30 실측) |
+> |---|---|
+> | README 수술(B-1~B-5) | `wc -l README.md` = **112** — v26.118.0 에서 393→102 재작성됐고 #339 로 추가 정리. 잔여 표기가 10주 낡았다 |
+> | WORKFLOWS star 실측(C-1) | `docs/WORKFLOWS.md:28` — **측정일 2026-06-22 명기** + 출처 repo 6종 열거. 수치가 오래된 것은 별개 축이고, C-1 이 요구한 "실측+날짜"는 충족 |
+> | 보안 wedge 문서모순(C-2) | `docs/COMPATIBILITY.md:39` *"We do not scan third-party assets for prompt injection"* + `:45` 4계층 큐레이션 명시 — **톤다운이 문서로 확정**됐다 |
+> | WORKFLOWS `withUzysHarness`(UX-5) | 간판표(`WORKFLOWS.md:15-23`) 7행에 **`uzys-harness` 행 자체가 없다**(자산이 삭제됨). 부수 항목도 해소 — `docs/USAGE.md:189` 에 Understanding 포함 |
+> | `install --help` 정리(UX-4) | `node dist/index.js install --help` — `--scope` 노출 · `--with-codex-prompts` **부재**. 완료 판정 (4) 와 일치 |
+>
+> **무효(전제가 사라짐, 1건):** 홍보글 최종본(A-1~A-5) — **M2 게시가 사용자 보류**(2026-07-17,
+> HN 티켓 미접수·레딧 접근 불가). 초안은 `docs/research/launch-posts.md` 에 있고, 게시 재개 전에는
+> "최종본"이라는 판정 자체가 성립하지 않는다. **지우지 않고 무효로 표기한다** — 지우면 게시 재개
+> 시 같은 논의가 처음부터 다시 열린다.
+>
+> **미완: 없음.** 마지막 잔여였던 todo.md 현행화(NSM-5)는 같은 사이클에서 닫았다 — 그 파일의
+> `## 현재 상태` 블록이 `main = v26.121.0` 으로 10주 박제돼 있었고(실제 v26.149.0), 버전 숫자를
+> 다시 적는 대신 **`package.json`·`git tag` 를 가리키게** 고쳤다. 같은 사실을 두 곳에 두면 이 줄이
+> 또 썩는다. 즉 **M1 잔여는 0 이고, M2 게시 보류만 남는다.**
+>
 > *아래 표는 원안 발견 목록(historical) — 완료/미완 상태는 본 블록이 SSOT. 동기화는 ship-checklist 의 '로드맵 SSOT 동기화' 게이트로 유지.*
 
 | P | E | 항목 | 출처 |
@@ -72,6 +96,25 @@
 
 **완료 판정:** (1) skill/plugin 설치 시 resolved commit-SHA 가 .harness-install.json 에 기록되고 uninstall reverse 까지 포함. (2) WORKFLOWS/COMPATIBILITY 영어판 존재 + README 영어 독자가 한국어 문서로 끊기지 않음. (3) verify-catalog 가 PR 또는 주간 cron 으로 격상 + 검증 도구(claude/skills CLI) pin. (4) uninstall 이 codex/antigravity/opencode 산출물(.agents/·AGENTS.md·opencode.json)까지 reverse. (5) README.ko 가 영문판과 자산 id 집합 일치(경량 CI 가드).
 
+
+> **진척 상태 — 최초 판정 2026-08-30 (#337).** 이 블록은 지금까지 **없었다** — 표에 ✅ 두 줄만
+> 개별로 붙어 있었고, 나머지 10행은 완료인지 미완인지 아무도 안 적었다. 아래가 그 판정이다.
+>
+> | 항목 | 판정 | 근거 (2026-08-30 실측) |
+> |---|---|---|
+> | resolved commit-SHA 기록 (E-1) | ◐ 미완 | `install-log.ts` 는 **내용 sha256** 만 기록한다(`:71-72`). upstream **commit** SHA 는 없다 — 다른 축이다 |
+> | verify-catalog cadence 상향 (SCALE-2) | ◐ 미완 | `catalog-verify.yml:11` `cron: "0 7 1 * *"` — 여전히 **월 1회** |
+> | uninstall reverse (CODE-3) | ✅ 완료 | v26.149.0 · #350 (표에 이미 반영) |
+> | WORKFLOWS/COMPATIBILITY 영어판 (E-2) | ◐ **부분** | `COMPATIBILITY.md` 는 영문(`# Compatibility & Verification`). `WORKFLOWS.md` 는 **한국어 단일본** — 영어 독자 동선은 여전히 끊긴다 |
+> | USAGE 내부코드 정리 + 한국어 혼입 (E-3/UX-6) | ◐ **부분** | 원안 4파일 중 `codex/skills.ts` 는 해소, **3파일에 한글 잔존** — `external-installer.ts` · `install-render.ts` · `uninstall.ts` |
+> | wizard Step 3 '추천 그대로 Enter' 안내 (E-4) | ◐ 미완 | `prompts.ts`·`wizard-steps.ts` 에 해당 안내 문자열 0건 |
+> | 1st-party 번들링 (wizard row 압축) | ✅ 완료 | v26.99.0 · ADR-028 (표에 이미 반영) |
+> | CalVer 자동 가드 (META-1) | ◐ 미완 | `test.yml:118-124` `publish` job 은 `if: startsWith(github.ref, 'refs/tags/v')` 뿐 — **Major=year-2000 정규식 검증이 없다** |
+> | 비대화형 fail-loud `--strict` (CODE-10) | ◐ 미완 | `src/commands/install.ts` 에 `--strict` 0건 |
+> | update confirm `includeAssets` (CODE-6) | ◐ 미완 | `src/*.ts` 에 `includeAssets` 0건 |
+> | 데모 재녹화 자동화 + brand 가드 (DEMO-5) | ◐ **부분** | `scripts/record-demo.sh` **존재**. 'README GIF 의 .cast brand == 현 패키지명' pre-publish 가드는 확인되지 않았다 |
+> | install `--dry-run` (Priya·Sam) | ◐ 미완 | `install --help` 출력에 `dry-run` 0건 |
+
 | P | E | 항목 | 출처 |
 |---|---|------|------|
 | P1 | M | skill/plugin 설치 시 resolved commit-SHA 를 .harness-install.json 에 기록 (재현성·포렌식 — 라케시 도입조건 1) | persona E-1 |
@@ -92,6 +135,23 @@
 **목표:** North Star 기둥 양립(검증 큐레이션 ↔ 4-CLI 동등성)을 코드구조 차원에서 정합화하고, 카탈로그 확장점(category/kind/CLI/track)의 '분산 하드코딩→derive/컴파일강제'를 수렴. 보안 wedge 의 절반(콘텐츠 스캔 미실행)을 메우거나 톤다운 유지. 전부 L 또는 30일 capacity 초과라 신호 확보 후 착수.
 
 **완료 판정:** (1) ExternalAsset 에 cliSupport 필드 + COMPATIBILITY/홍보문이 자산별 실제 도달 CLI 를 derive(거짓광고 차단) + install 산출보고에 'codex 선택 시 plugin 자산 N개 제외' 명시. (2) category/method.kind/CLI/track 신규 추가 비용이 'derive 1곳 또는 1 Record + 컴파일강제' 로 수렴(런타임 throw 의존 제거). (3) 콘텐츠 prompt-injection 스캔 최소 1회 실행 또는 'security' 주장 톤다운 명문화. (4) prompts.ts selectInstallTargets 동적로직(페이지 ESC 선택보존)이 coverage 포함 + 단위테스트.
+
+
+> **진척 상태 — 최초 판정 2026-08-30 (#337).** M3 과 같이 이 블록도 지금까지 없었다.
+> M4 는 "게시 후 신호 확보 이후" 축이라 **미완이 정상**이다 — 그래도 둘은 이미 끝났다.
+>
+> | 항목 | 판정 | 근거 (2026-08-30 실측) |
+> |---|---|---|
+> | `cliSupport` 필드 (SCALE-1) | ✅ 완료 | `src/external-assets.ts` 에 `cliSupport` 5건 |
+> | 콘텐츠 스캔 or 톤다운 (SEC-3/PROMO-8) | ✅ 완료(톤다운 쪽) | `COMPATIBILITY.md:39` 가 스캔 안 함을 **명문화**했다. 완료 판정 (3) 의 후자 분기 충족 |
+> | `method.kind` 단일 Record (SCALE-4) | ◐ 미완 | `LEVEL_BY_KIND` 가 여전히 `scripts/gen-compatibility.mjs:31` 에만 있다 — `src` 단일 Record 아님 |
+> | CLI 와이어링 레지스트리 (SCALE-5) | ◐ 미완 | `cli-transforms.ts` 에 `Record<CliBase` 0건 · `cli.includes` if-체인 **3곳** 잔존 |
+> | category 하드코딩 수렴 (SCALE-3) | ◐ **부분** | `prompts.ts:361` `assertPagesCoverAllCategories` **런타임 가드**는 있다. 완료 판정 (2) 가 요구한 "런타임 throw 의존 제거"는 미충족 |
+> | track 분류 Record (SCALE-6) | ◐ 미완 | `track-match.ts`·`types.ts` 에 `Record<Track` 0건 |
+> | `selectInstallTargets` reducer 추출 (CODE-5) | ◐ **부분** | `tests/interactive.test.ts` 가 호출한다 — 테스트는 있으나 reducer 추출은 미확인 |
+> | WORKFLOWS '전부 MIT' 정정 (META-4) | ◐ 미완 | `WORKFLOWS.md:92` 가 여전히 *"현재 세트는 전부 MIT"* — `external-assets.ts:662` 는 같은 세트에 `license none` 자산이 있다고 주석으로 적는다. **문서끼리 모순** |
+> | `package.json` keywords (PROMO-7) | ◐ 미완 | `keywords` 필드 **없음** |
+> | low 묶음 | ◐ **부분** | `external-assets.ts` **1,296줄**(800줄 cap 초과, SCALE-7 미완) · `--track bogus` 가 유효 목록을 안 낸다(UX-9 미완) · `CHANGELOG.md:4` 가 "Semantic Versioning" 을 링크하는데 `:8` 은 CalVer 라고 적는다(META-7 **모순 잔존**) |
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|
