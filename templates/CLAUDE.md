@@ -113,10 +113,6 @@ from a broad objective.
 Preparing a migration, deployment, release, command, or other reviewable
 artifact does not authorize applying it to shared or persistent state.
 
-These principles shape decisions; they do not block actions. Anything that must
-hold every time regardless of judgment belongs in the enforcement layer, not in
-a sentence here.
-
 ## 7. Report Evidence
 
 Report what changed, what was verified and how, what independent review found,
