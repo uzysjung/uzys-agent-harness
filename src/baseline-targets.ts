@@ -43,10 +43,12 @@ const PREFIX_BY_KIND: ReadonlyArray<[BaselineKind, string]> = [
 /**
  * 설치 대상 경로 → 선택 항목. 고를 수 없는 자산이면 null.
  *
- * 스킬은 **첫 경로 조각**으로 이름을 잡는다. manifest 에 디렉터리 엔트리
- * (`.claude/skills/deep-research`)와 그 안의 파일 엔트리(`.claude/skills/spec-scaling/SKILL.md`)가
- * 섞여 있는데, 마지막 조각을 쓰면 후자가 `SKILL.md` 라는 이름의 항목으로 뜬다. 첫 조각으로
- * 잡으면 같은 스킬의 두 형태가 **한 체크박스로 합쳐진다** — 해제하면 둘 다 빠지는 것이 맞다.
+ * 스킬은 **첫 경로 조각**으로 이름을 잡는다. #409 이전에는 manifest 에 디렉터리 엔트리와
+ * 파일 엔트리(`.claude/skills/spec-scaling/SKILL.md`)가 섞여 있었고, 마지막 조각을 쓰면 후자가
+ * `SKILL.md` 라는 이름의 항목으로 떴다. **지금은 전부 디렉터리 단위라 그 혼재는 없다**
+ * (`tests/skill-registration-uniform.test.ts` 가 강제). 첫 조각을 계속 쓰는 이유는 그래도
+ * 스킬 하위 파일이 개별 엔트리로 들어올 여지가 남기 때문이고, 그때도 같은 스킬의 여러 형태가
+ * **한 체크박스로 합쳐진다** — 해제하면 둘 다 빠지는 것이 맞다.
  */
 export function classifyBaselineTarget(target: string): BaselineTarget | null {
   for (const [kind, prefix] of PREFIX_BY_KIND) {

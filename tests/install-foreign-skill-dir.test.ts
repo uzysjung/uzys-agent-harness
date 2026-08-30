@@ -193,10 +193,13 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(screen).toContain("재설치");
   });
 
-  it("슬롯 안의 파일로 나가는 자산도 링크를 따라 남의 저장소를 덮지 않는다", () => {
+  it("슬롯 안에 파일이 든 스킬도 링크를 따라 남의 저장소를 덮지 않는다", () => {
     install();
-    // `.claude/skills/spec-scaling/SKILL.md` 는 디렉터리가 아니라 **파일**로 나가는 엔트리다.
-    // 부모가 링크면 copyFileSync 는 죽지 않는다 — 그래서 크래시보다 조용한 위반이 된다.
+    // 원래 이 테스트는 `.claude/skills/spec-scaling/SKILL.md` 가 **파일 단위 엔트리**라는 점을
+    // 겨냥했다. #409 에서 전부 디렉터리 단위로 통일해 그 축은 사라졌고, 지금 이 테스트는
+    // **디렉터리 슬롯의 두 번째 표본**이다(독립 리뷰 MEDIUM 적발 — 초록인 채 중복이 됐다).
+    // 지우지 않고 남기는 이유: 슬롯이 링크일 때 디렉터리 복사가 링크를 따라가지 않는지는
+    // 여전히 지켜야 하고, 표본이 하나보다 둘인 편이 낫다.
     const slot = join(projectDir, ".claude/skills/spec-scaling");
     const external = join(foreignRepo, "spec-scaling");
     mkdirSync(external, { recursive: true });
