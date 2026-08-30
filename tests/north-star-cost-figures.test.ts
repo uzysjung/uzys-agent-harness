@@ -46,28 +46,29 @@ function statedFigures(label: string): { items: number; tokens: number } {
 describe("NORTH_STAR 상주 비용 수치 ↔ 실측", () => {
   const r = measured();
 
-  it("총합이 실측과 일치한다 (개수·토큰 양축)", () => {
+  it("두 축과 합계가 각각 실측과 일치한다 (ADR-083)", () => {
     // 이 줄이 빨간불이면 고칠 곳은 테스트가 아니라 NORTH_STAR 다: npm run cost:report 를 돌려
-    // 나온 값을 옮겨 적어라. 자산의 frontmatter 를 한 글자만 고쳐도 토큰이 움직이고,
-    // 자산을 하나 넣거나 빼면 개수가 움직인다.
-    // 총합만 표기가 다르다(`**상주 29개 항목 · ~5,975 tokens/세션**`) — 내역 helper 와 패턴 불공유.
-    const m = /상주\s*\*{0,2}([\d,]+)개\s*항목\s*·\s*~([\d,]+)\s*tokens/.exec(northStar);
-    if (!m?.[1] || !m?.[2])
-      throw new Error(
-        "NORTH_STAR 에서 상주 총합 표기를 못 찾았다 — 표기가 바뀌었으면 이 게이트도 같이 고쳐라",
-      );
-    expect(Number(m[1].replace(/,/g, ""))).toBe(r.items.total);
-    expect(Number(m[2].replace(/,/g, ""))).toBe(r.total);
+    // 나온 값을 옮겨 적어라.
+    //
+    // **축을 따로 문다**: 합계만 재면 지시문이 늘고 발화 표면이 줄어 상쇄될 때 통과한다.
+    // 그 둘은 판정이 정반대라(지시문 증가 = 나쁨, 발화 표면 증가 = 자산 추가) 상쇄가 곧 은폐다.
+    const axes = [
+      ["지시문", r.directive.items, r.directive.tokens],
+      ["발화 표면", r.firing.items, r.firing.tokens],
+      ["합계", r.items.total, r.total],
+    ] as const;
+    for (const [label, items, tokens] of axes) {
+      expect(statedFigures(label), `${label} 축`).toEqual({ items, tokens });
+    }
   });
 
   it("표면별 내역 4개가 각각 실측과 일치한다 (개수·토큰 양축)", () => {
-    // 총합만 재면 두 표면이 반대로 움직여 상쇄될 때 통과한다 — 내역까지 고정해야 가드다.
-    // 개수 축에서 이 상쇄는 특히 싸다: 룰 1개를 빼고 스킬 1개를 넣으면 총합은 그대로다.
+    // 축 소계만 재면 그 안에서 두 표면이 반대로 움직일 때 통과한다 — 내역까지 고정해야 가드다.
     const surfaces = [
       ["rules", r.items.rules, r.rules],
       ["CLAUDE\\.md", r.items.claudeMd, r.projectClaudeMd],
-      ["agent descriptors", r.items.agents, r.agentDescriptors],
-      ["skill descriptors", r.items.skills, r.skillDescriptors],
+      ["agent", r.items.agents, r.agentDescriptors],
+      ["skill", r.items.skills, r.skillDescriptors],
     ] as const;
     for (const [label, items, tokens] of surfaces) {
       expect(statedFigures(label), `${label} 내역`).toEqual({ items, tokens });
@@ -99,5 +100,9 @@ describe("NORTH_STAR 상주 비용 수치 ↔ 실측", () => {
     // 설치는 CLAUDE.md 를 **둘** 놓는다 — 앵커 `.claude/CLAUDE.md` + 스캐폴드 루트 `CLAUDE.md`.
     // 1 이 나오면 한쪽이 계측에서 빠진 것이고, 그게 v26.140.0 까지의 상태였다.
     expect(r.items.claudeMd).toBe(2);
+    // 축이 0 이면 위 축 단언이 0 == 0 으로 통과한다.
+    expect(r.directive.tokens).toBeGreaterThan(0);
+    expect(r.firing.tokens).toBeGreaterThan(0);
+    expect(r.directive.tokens + r.firing.tokens).toBe(r.total);
   });
 });

@@ -76,8 +76,8 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 | **무게이트 주장 수** *(1차 축)* | 하네스 산출물(`CLAUDE.md` · `.claude/CLAUDE.md` · `.claude/rules/*` · `templates/**` · `docs/` 현행 문서)에 적힌 **기계로 검증 가능한 사실 주장** — 파일 경로 · 명령·npm 스크립트명 · 개수·임계값 · "차단된다/자동으로 …된다" — 중에서 **그 주장이 거짓이 되어도 `npm run ci` 가 red 가 되지 않는 것의 수** | **0** |
 | **게이트에 물린 사실 수** *(짝)* | 같은 범위에서 **거짓이 되면 red 가 되는** 주장의 수 | **증가** — 지우기로 1차 축을 0 으로 만드는 굿하트를 막는다 |
 | **추출기 미파싱 토큰 수** *(공시)* | 주장 문법이 파싱하지 못한 백틱 토큰 수. **비율이 아니라 절대값으로 노출한다** | **공시 의무** — 이 값이 크면 위 두 값의 신뢰도가 그만큼 낮다 |
-| *Resident Item Count* *(부수 축)* | 트랙별 **기본 설치**가 매 세션 상주시키는 **항목 수** = rules 파일 + **CLAUDE.md 2종**(하네스 앵커 루트 `CLAUDE-uzys-harness.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`) + skill/agent descriptor(ADR-044 범위). hooks 는 컨텍스트에 안 올라가므로 제외 | **비증가 ratchet** (baseline 상향은 사고 좌표를 커밋 본문에 요구) |
-| *Resident Token Cost* *(부수 축)* | 같은 상주 범위의 토큰. 개수 축의 굿하트(합치기)를 막는 짝 | 트랙별 **비증가 ratchet** |
+| *Directive Cost* *(감축 축)* | 우리가 **항상 읽히게 넣은 지시문** = rules 파일 + **CLAUDE.md 2종**(하네스 앵커 루트 `CLAUDE-uzys-harness.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`). 개수·토큰 둘 다. hooks 는 컨텍스트에 안 올라가므로 제외 | **비증가 ratchet** (baseline 상향은 사유를 커밋 본문에 요구) |
+| *Firing Surface* *(유지 축)* | 우리 스킬·에이전트가 **불리려고** 상주시키는 descriptor. **총합은 ratchet 대상이 아니다** — 자산을 추가하면 늘고 그건 선택이지 악화가 아니다. 대신 **스킬별 상한**으로 기존 자산의 조용한 증가만 막는다 | 스킬별 비증가 + 발화 정확도(장치 미구현) |
 
 > **왜 이 축이 목적을 재는가.** 룰의 **양**은 사용자 목적과 직접 연결되지 않는다 — 실측이 그것을
 > 보였다(주어가 룰·프로즈면 사고 검출 0건). 반면 **적힌 것이 참인가**는 속도(왕복)와 품질(거짓
@@ -108,11 +108,16 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-08-30, #320 계측 사각 해소 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 34개 항목 · ~7,781 tokens/세션** =
-> rules 6개 ~1,360 · CLAUDE.md 2개 ~2,954 · agent descriptors 9개 ~725 · skill descriptors 17개 ~2,742.
-> **이 수치는 늘어난 것이 아니라 처음으로 다 센 것이다** — 직전 표기 23개/~5,331 은 번들 스킬 11종을
-> 통째로 빼고 세던 값이고(#320), 실제 비용은 그때도 34개였다.
+> **현재 상태 (2026-08-30, ADR-083 축 분리 뒤)**: `npm run cost:report` 실측(tooling 트랙) —
+> **지시문 8개 ~4,314**(줄이는 축, ratchet) · **발화 표면 26개 ~3,524**(유지 축, 스킬별 상한만) ·
+> 합계 34개 ~7,838 이 설치자가 실제로 무는 전부다.
+> 내역: rules 6개 ~1,360 · CLAUDE.md 2개 ~2,954 · skill 17개 ~2,799 · agent 9개 ~725.
+>
+> **왜 한 숫자로 안 두는가**: 합치면 *가치 있는 스킬을 추가할 때 지표가 나빠진다.* 좋은 일을
+> 하면 숫자가 나빠지는 지표는 판단을 도와주지 않는다. 그리고 발화 표면을 깎으면 스킬이 안
+> 불린다 — #333 에서 상한을 맞추다 트리거 문구 6개가 소실됐고 #399 에서 되살렸다.
+> **진짜 줄일 자리는 지시문 축이고, 그 68%가 CLAUDE.md 다**(2,954 / 4,314).
+> 직전 표기 23개/~5,331 은 번들 스킬 11종을 통째로 빼고 세던 값이었다(#320).
 > (2026-08-26: **자산은 자기 변경 요청 없이 건드리지 않는다**는 이 저장소 전용 룰로 뒀다 —
 > 배포판에 넣으면 Codex 의 `AGENTS.md` 예산을 479 B 초과한다(실측 24,031 B > ratchet 23,552 B).
 > 겪는 사람이 이 저장소를 유지보수하는 쪽이라 상주 비용을 남에게 물리지 않는다.)
@@ -275,7 +280,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 - Promise = Implementation: install pipeline E2E test + grep README ↔ manifest cross-check (CI)
 - Cross-CLI Parity: `tests/installer-cli-matrix.test.ts` (11 Track × CLI 조합 매트릭스, 4 CLI)
 - Generated-config Security: `agentshield` 가 하네스 *산출물*(`.claude/`)을 스캔 (자산 repo 콘텐츠 스캔 아님 — COMPATIBILITY.md §보안) + Docker 실행 호환 매트릭스 자동 생성 (CI → `docs/COMPATIBILITY.md` 공개 artifact, ADR-021 A 단계)
-- Resident Item Count / Token Cost *(부수 축)*: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
+- Directive Cost / Firing Surface *(구 Resident Item Count / Token Cost — ADR-083 에서 두 축으로 갈렸다)*: repo-bundled 템플릿 자산 = frontmatter+body 실측(결정론적 문자열 계측), 외부 자산 = "미측정" 명시 (no-false-ship — 추정치를 실측처럼 표기 금지). 상주분 + SKILL.md body 토큰. 값싼 결정론 계측이라 **전수** 적용 — `npm run cost:report`(`scripts/context-cost-report.mjs`)가 자산별 순위표를 출력한다
 - 무게이트 주장 수 / 게이트에 물린 사실 수 / 미파싱 토큰 수 *(1차 축)*: 하네스 산출물에서 주장을 추출해 `npm run ci` 대조. **추출기 미구현 — 현재 값은 미측정**(ADR-058 Consequences 2)
 
 ---

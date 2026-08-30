@@ -1,53 +1,153 @@
 {
-  "$comment": "상주 컨텍스트 비용 상한(ratchet). 값을 올리려면 그 증가를 정당화하는 커밋에서 함께 올린다 — 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
+  "$comment": "상주 컨텍스트 비용 상한(ratchet, ADR-083). 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
+  "axes": {
+    "directive": "우리가 항상 읽히게 넣은 지시문 = 룰 + CLAUDE.md 2종(하네스 앵커 + 프로젝트 스캐폴드). **여기가 감축 대상이고 ratchet 이 무는 축이다.** 올리려면 사유를 커밋 본문에 남긴다.",
+    "firing": "스킬·에이전트가 발화하려고 상주시키는 descriptor. **총합에는 ratchet 을 걸지 않는다** — 자산을 추가하면 늘고, 그건 선택이지 악화가 아니다. 대신 아래 skillDescriptors 가 기존 스킬의 조용한 증가만 막는다.",
+    "skillDescriptors": "스킬 id → descriptor 토큰 상한(전 트랙 최대). 여기 없는 id = 새 스킬이라 비교 대상이 없다(red 안 난다). 기존 스킬을 키우려면 발화 정확도상 필요한 이유를 커밋에 적고 갱신한다."
+  },
   "units": {
-    "items": "상주 항목 수 (rules + skills + agents + CLAUDE.md 2종: 하네스 앵커 루트 `CLAUDE-uzys-harness.md` + 프로젝트 스캐폴드 루트 `CLAUDE.md`) — 1차 축",
-    "tokens": "tokens/session (chars/4 근사 — 실측이 아니라 규약값) — 부수 표시값"
+    "tokens": "tokens/session (chars/4 근사 — 실측이 아니라 규약값)"
   },
   "tracks": {
     "tooling": {
-      "items": 34,
-      "tokens": 7781
+      "directive": {
+        "items": 8,
+        "tokens": 4314
+      },
+      "firing": {
+        "items": 26,
+        "tokens": 3524
+      }
     },
     "csr-supabase": {
-      "items": 35,
-      "tokens": 7836
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 28,
+        "tokens": 3772
+      }
     },
     "csr-fastify": {
-      "items": 35,
-      "tokens": 7836
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 28,
+        "tokens": 3772
+      }
     },
     "csr-fastapi": {
-      "items": 37,
-      "tokens": 7924
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 30,
+        "tokens": 3860
+      }
     },
     "ssr-htmx": {
-      "items": 35,
-      "tokens": 7836
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 28,
+        "tokens": 3772
+      }
     },
     "ssr-nextjs": {
-      "items": 36,
-      "tokens": 7876
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 29,
+        "tokens": 3812
+      }
     },
     "data": {
-      "items": 35,
-      "tokens": 7676
+      "directive": {
+        "items": 7,
+        "tokens": 4121
+      },
+      "firing": {
+        "items": 28,
+        "tokens": 3612
+      }
     },
     "executive": {
-      "items": 21,
-      "tokens": 5388
+      "directive": {
+        "items": 5,
+        "tokens": 3485
+      },
+      "firing": {
+        "items": 16,
+        "tokens": 1960
+      }
     },
     "full": {
-      "items": 42,
-      "tokens": 8411
+      "directive": {
+        "items": 8,
+        "tokens": 4314
+      },
+      "firing": {
+        "items": 34,
+        "tokens": 4154
+      }
     },
     "project-management": {
-      "items": 18,
-      "tokens": 5134
+      "directive": {
+        "items": 5,
+        "tokens": 3485
+      },
+      "firing": {
+        "items": 13,
+        "tokens": 1706
+      }
     },
     "growth-marketing": {
-      "items": 18,
-      "tokens": 5134
+      "directive": {
+        "items": 5,
+        "tokens": 3485
+      },
+      "firing": {
+        "items": 13,
+        "tokens": 1706
+      }
     }
+  },
+  "skillDescriptors": {
+    "strategic-compact": 46,
+    "continuous-learning-v2": 79,
+    "deep-research": 70,
+    "spec-scaling": 57,
+    "market-research": 86,
+    "investor-materials": 92,
+    "investor-outreach": 76,
+    "nextjs-turbopack": 40,
+    "compaction-handoff": 124,
+    "clear-korean-communication": 271,
+    "audit-service-gaps": 267,
+    "multi-persona-review": 217,
+    "recurrence-prevention": 243,
+    "verification-loop": 171,
+    "north-star": 258,
+    "gh-issue-workflow": 262,
+    "task-brief": 263,
+    "audit-harness-fit": 270,
+    "model-orchestration": 273,
+    "external-model-consult": 271,
+    "self-hosted-github-runner": 104,
+    "humanize-korean": 64,
+    "python-patterns": 46,
+    "python-testing": 42,
+    "agent-introspection-debugging": 48,
+    "eval-harness": 49,
+    "ui-visual-review": 204,
+    "e2e-testing": 44
   }
 }
