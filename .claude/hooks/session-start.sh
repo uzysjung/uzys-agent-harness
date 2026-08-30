@@ -27,9 +27,54 @@ fi
 # 실패 모드이기 때문이다(cli-development.md §Cross-Platform).
 ORPHAN_NOTE=""
 PROJ_DIR=$(pwd)
-ORPHANS=$(ps -eo pid,ppid,command 2>/dev/null | awk -v d="$PROJ_DIR" '$2==1 && index($0,d)>0 {n++} END{print n+0}')
-if [ "${ORPHANS:-0}" -gt 0 ]; then
-  ORPHAN_NOTE=" WARNING: ${ORPHANS} orphaned process(es) from a previous session still reference this project (parent died, reparented to init). Inspect with: ps -eo pid,ppid,etime,command | grep \$(pwd) | grep -v grep — then stop what you recognise. Leaving them costs memory and can hold ports or file locks."
+# **물리 경로도 함께 본다.** macOS 의 `/var` 는 `/private/var` 로의 심링크라 `pwd` 는
+# `/var/...`, 커널·`lsof` 는 `/private/var/...` 를 낸다. 논리 경로만 대면 접두사가 어긋나
+# 실재하는 고아를 **0건으로** 보고한다 — 실제로 그렇게 짰다가 진짜 고아를 만든 시험에서 잡혔다.
+PROJ_DIR_P=$(pwd -P 2>/dev/null || printf '%s' "$PROJ_DIR")
+
+# **한 번만 찍고 그 스냅샷을 읽는다.** `ps | grep <이름>` 은 grep 자신의 커맨드라인을 매치해
+# 항상 양성을 낸다 — 이 리포가 실제로 오판한 형태다.
+PS_SNAP=$(ps -eo pid,ppid,command 2>/dev/null || true)
+
+# ⓐ 커맨드라인에 프로젝트 경로가 **든** 고아 (`npm run dev /path/...` 처럼 경로를 인자로 받은 것).
+ORPHANS=$(printf '%s\n' "$PS_SNAP" | awk -v d="$PROJ_DIR" '$2==1 && index($0,d)>0 {n++} END{print n+0}')
+
+# ⓑ 커맨드라인에 경로가 **없는** 고아. 서브에이전트가 이 모양이다 — 경로는 cwd 에만 있어서
+#   ⓐ 는 이 부류를 **구조적으로 0건**으로 보고했다(#326 실측: 살아 있는 서브에이전트 2건 → 0건).
+#   0 을 내는 탐지기는 없는 것보다 나쁘다. 거짓 안심을 준다.
+#
+# **비용 때문에 후보를 먼저 좁힌다.** cwd 를 묻는 것은 macOS 에서 pid 당 약 4 ms 다(실측).
+#   ppid=1 전체(이 머신 433개)에 물으면 세션 시작이 배로 느려지고, 그 비용은 설치받은
+#   사람이 **매 세션** 낸다. 그래서 ⓐ 가 이미 세지 않은 것 중 에이전트·런타임 부류만 보고,
+#   후보가 0이면 cwd 를 아예 안 묻는다(평시 0 ms — 실측). 상한 40개.
+CAND=$(printf '%s\n' "$PS_SNAP" | awk -v d="$PROJ_DIR" \
+  '$2==1 && index($0,d)==0 && /claude|node|python|bun|deno/ {print $1}' | head -40)
+CWD_ORPHANS=0
+if [ -n "$CAND" ]; then
+  if [ -d /proc ]; then
+    # Linux: /proc 는 사실상 공짜다.
+    for pid in $CAND; do
+      cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)
+      case "$cwd" in
+        "$PROJ_DIR" | "$PROJ_DIR"/* | "$PROJ_DIR_P" | "$PROJ_DIR_P"/*) CWD_ORPHANS=$((CWD_ORPHANS + 1)) ;;
+      esac
+    done
+  elif command -v lsof > /dev/null 2>&1; then
+    # macOS: /proc 이 없다. 한 번에 묻고, 접두사 일치로 **이 프로젝트 밑**만 센다 —
+    # 다른 프로젝트의 고아를 남의 세션이 판단해선 안 된다.
+    CWD_ORPHANS=$(lsof -p "$(printf '%s' "$CAND" | tr '\n' ',' | sed 's/,$//')" -a -d cwd -Fn 2>/dev/null \
+      | awk -v d="$PROJ_DIR" -v dp="$PROJ_DIR_P" '
+          substr($0,1,1)=="n" {
+            p = substr($0,2)
+            if (p==d || index(p, d "/")==1 || p==dp || index(p, dp "/")==1) n++
+          } END {print n+0}')
+  fi
+  # lsof 도 /proc 도 없으면 CWD_ORPHANS 는 0 이다. 이 경우는 **못 본 것**이지 없는 것이 아니다.
+fi
+
+ORPHAN_TOTAL=$((${ORPHANS:-0} + ${CWD_ORPHANS:-0}))
+if [ "$ORPHAN_TOTAL" -gt 0 ]; then
+  ORPHAN_NOTE=" WARNING: ${ORPHAN_TOTAL} orphaned process(es) from a previous session still belong to this project (parent died, reparented to init); ${CWD_ORPHANS} of them are only visible by working directory, which is how subagents look. Inspect with: ps -eo pid,ppid,etime,command | grep \$(pwd) | grep -v grep — and for the rest, resolve each candidate's cwd. Then stop what you recognise. Leaving them costs memory and can hold ports or file locks."
 fi
 
 # 3. 세션 컨텍스트 출력

@@ -86,6 +86,22 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
       encoding: "utf8",
     });
 
+  /**
+   * 훅을 **셸의 `cd` 를 거쳐** 돌린다 — 사람이 터미널에서 들어오는 경로다.
+   *
+   * `runHook` 은 `chdir` 로 cwd 를 직접 넣어서 훅 안의 `pwd` 가 **물리 경로**를 낸다. 그런데
+   * 실제 세션은 셸에서 `cd` 로 들어오고, macOS 의 `/var` 는 `/private/var` 심링크라 그때
+   * `pwd` 는 **논리 경로**를 낸다. 커널·`lsof` 는 물리 경로를 내므로 접두사가 어긋나고,
+   * 논리 경로만 대는 판정식은 실재하는 고아를 0건으로 보고한다. 실제로 그렇게 짰다가
+   * 손으로 만든 고아 시험에서 잡혔다 — `runHook` 만으로는 **그 결함이 초록이다.**
+   */
+  const runHookViaCd = (cwd: string) =>
+    execFileSync(
+      "sh",
+      ["-c", `cd '${cwd}' && exec bash '${join(ROOT, "templates/hooks/session-start.sh")}'`],
+      { encoding: "utf8" },
+    );
+
   it("고아가 없으면 경고하지 않고, 있으면 경고한다", () => {
     dir = mkdtempSync(join(tmpdir(), "orphan-gate-"));
     // macOS 의 /var 는 /private/var 심볼릭 링크라 mkdtemp 경로와 셸의 pwd 가 다르다.
@@ -119,6 +135,79 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
       } catch {
         /* 이미 종료 */
       }
+    }
+  });
+
+  /**
+   * **커맨드라인에 경로가 없는 고아** — 서브에이전트가 이 모양이다(#326).
+   *
+   * 위 시험은 `argv` 에 프로젝트 경로가 든 고아를 만든다. 그런데 서브에이전트 프로세스의
+   * 커맨드라인에는 경로가 **없고 cwd 에만** 있다. 그래서 cmdline 만 보던 판정식은 이 부류를
+   * 구조적으로 **0건**으로 보고했다 — 살아 있는 서브에이전트 2건을 0으로 셌다(이슈 실측).
+   * 0 을 내는 탐지기는 없는 것보다 나쁘다: 거짓 안심을 준다.
+   *
+   * 이 시험이 red 가 되면 그 축이 다시 죽은 것이다. cmdline 축은 이 probe 를 못 보므로
+   * 여기서 나는 경고는 **cwd 축이 낸 것**임이 보장된다.
+   */
+  it("커맨드라인에 경로가 없어도 cwd 로 고아를 본다 (서브에이전트 형태)", () => {
+    dir = mkdtempSync(join(tmpdir(), "orphan-cwd-"));
+    const resolved = execFileSync("pwd", { cwd: dir, encoding: "utf8" }).trim();
+    const other = mkdtempSync(join(tmpdir(), "orphan-other-"));
+
+    expect(runHook(dir), "전제 실패 — 시작부터 경고가 있다").not.toContain("orphaned");
+
+    // argv 에 디렉터리 경로를 **넣지 않는다**. 넣으면 cmdline 축이 잡아서 이 시험이 무의미해진다.
+    const token = "orphan_cwd_probe_marker";
+    const script = `setTimeout(() => {}, 30000); // ${token}`;
+    try {
+      // `cd X && cmd &` 는 **비동기 서브셸을 남긴다** — 그 셸의 argv 에 경로가 들어가고
+      // (ppid=1) 실제 프로세스는 그 자식이라 고아가 아니다. 1차 판본이 그렇게 짜여서 아래
+      // 전제 단언에 걸렸다. `exec` 로 중간 셸을 대체하면 프로세스는 하나만 남는다.
+      execFileSync(
+        "sh",
+        [
+          "-c",
+          `( cd '${resolved}' && exec '${process.execPath}' -e '${script}' >/dev/null 2>&1 ) &`,
+        ],
+        { stdio: "ignore" },
+      );
+      let seen = false;
+      for (let i = 0; i < 50 && !seen; i++) {
+        seen = execFileSync("ps", ["-eo", "command"], { encoding: "utf8" }).includes(token);
+        if (!seen) execFileSync("sleep", ["0.1"]);
+      }
+      expect(seen, "probe 가 뜨지 않았다 — 테스트 전제 실패").toBe(true);
+
+      // 전제: 이 probe 의 커맨드라인에는 디렉터리 경로가 없다. 없어야 cwd 축을 재는 것이 된다.
+      const cmdlines = execFileSync("ps", ["-eo", "command"], { encoding: "utf8" })
+        .split("\n")
+        .filter((l) => l.includes(token));
+      expect(cmdlines.length, "probe 를 못 찾았다").toBeGreaterThan(0);
+      expect(
+        cmdlines.some((l) => l.includes(resolved)),
+        "probe 커맨드라인에 경로가 들어갔다 — 그러면 cmdline 축이 잡아 이 시험이 공허해진다",
+      ).toBe(false);
+
+      const out = runHook(dir);
+      expect(out, "cwd 로만 보이는 고아를 못 봤다").toContain("orphaned");
+      expect(out).toContain("only visible by working directory");
+
+      // 셸의 `cd` 를 거친 경로에서도 봐야 한다. 심링크가 낀 경로(macOS `/var`)에서
+      // 논리/물리 표기가 갈리는데, 여기가 사람이 실제로 들어오는 쪽이다.
+      expect(
+        runHookViaCd(dir),
+        "셸 cd 를 거치면 못 본다 — 논리/물리 경로 표기 차이로 실재하는 고아를 0건으로 읽는다",
+      ).toContain("orphaned");
+
+      // 남의 프로젝트 고아를 세면 안 된다 — 같은 probe 가 살아 있는 동안 다른 디렉터리는 0건.
+      expect(runHook(other), "다른 디렉터리에서 남의 고아를 셌다").not.toContain("orphaned");
+    } finally {
+      try {
+        execFileSync("pkill", ["-f", token], { stdio: "ignore" });
+      } catch {
+        /* 이미 종료 */
+      }
+      rmSync(other, { recursive: true, force: true });
     }
   });
 });
