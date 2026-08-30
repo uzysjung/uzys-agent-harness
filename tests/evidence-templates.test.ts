@@ -3,45 +3,32 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
 
-// v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) — 증거 산출물 템플릿 3종의 광고 계약 검증.
-// ① deep-research: 리서치 원장(N confirmed·M killed + 기각 사유 + caveat)
-// ② eval-harness: eval spec 아티팩트 계약(C·R ID·Baseline·Test Command·Status)
-// 앵커는 섹션 슬라이스 양끝 — 무앵커는 다른 절의 동일 낱말로 통과한다 (④⑤ SOD mutation 실증).
+// v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) 로 시작했고, **2026-08-30 재판정(#363)에서
+// 성격이 바뀌었다**: 스킬 본문의 문구를 읽던 3블록을 걷어내고, 돌려서 판정되는 것만 남겼다.
+// 남은 계약 = 카탈로그 배선(`applies()`) · PRD 분류표↔코드 대조 · 코드펜스 균형 ·
+// 룰 인벤토리↔실파일 1:1 · `templates/` ↔ `.claude/` 바이트 동일. 사유는 describe 안 주석.
 
 const read = (rel: string): string =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
-
-const dr = read("../templates/skills/deep-research/SKILL.md");
-const eh = read("../templates/skills/eval-harness/SKILL.md");
 
 const slice = (text: string, start: string, end: string): string =>
   (text.split(start)[1] ?? "").split(end)[0] ?? "";
 
 describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
-  it("deep-research: 원장 섹션 — confirmed/killed 카운트 + 기각 사유 열 + caveat", () => {
-    const ledger = slice(dr, "## Research Ledger", "## Methodology");
-    expect(ledger).toContain("killed");
-    expect(ledger).toContain("Why rejected");
-    expect(ledger).toContain("Caveats");
-  });
-
-  it("deep-research: 원장이 선택이 아님을 근거와 함께 가르친다 — kill 0 은 재검토 신호", () => {
-    const rationale = slice(dr, "### The ledger is not optional", "## Examples");
-    expect(rationale).toContain("re-researches");
-    // "0 killed = 깨끗한 결과" 오독을 명시적으로 차단하는지.
-    expect(rationale).toMatch(/Zero kills/);
-  });
-
-  it("eval-harness: eval spec 아티팩트 계약 — C/R ID + Baseline + Test Command + Status", () => {
-    const define = slice(eh, "### 1. Define (Before Coding)", "### 2. Implement");
-    expect(define).toMatch(/C1\.\.Cn/);
-    expect(define).toMatch(/R1\.\.Rn/);
-    expect(define).toContain("**Baseline**: commit");
-    expect(define).toContain("## Test Command");
-    expect(define).toContain("## Status (after implementation)");
-    // 두 필드의 존재 이유(반증가능성·재실행성)가 함께 있어야 껍데기 템플릿이 안 된다.
-    expect(define).toContain("falsifiable");
-  });
+  // ── 2026-08-30 재판정(#363): 문구 단언 3블록을 걷었다 ──────────────────────────
+  // 걷어낸 것 = `deep-research` 원장 마커(`killed`·`Why rejected`·`Caveats`)·"kill 0 은
+  // 재검토 신호"(`Zero kills`)·`eval-harness` 의 eval spec 필드(`C1..Cn`·`Baseline`·
+  // `Test Command`·`Status`·`falsifiable`). 셋 다 **스킬 본문의 낱말**을 읽었다.
+  //
+  // 근거는 이미 채택된 룰이다 — `change-management.md` §자산은 자기 변경 요청 없이
+  // 건드리지 않는다 의 *"문장의 의미를 무는 자동 검사는 만들지 마라(3회 우회 실측)"*.
+  // 문구 검사는 양쪽으로 틀린다: 같은 뜻으로 다시 쓰면 🔴(정당한 개정 차단), 낱말을 남긴 채
+  // 옆 문장을 뒤집으면 🟢(뜻이 반대인데 통과). 실제로 이 파일의 앵커 방식(섹션 슬라이스)도
+  // 그 우회를 막지 못한다 — 슬라이스 안에서 문장을 뒤집으면 낱말은 그대로다.
+  // 자산 본문의 뜻은 `npm run assets:history` 로 이력을 읽어 사람·에이전트가 판정한다.
+  //
+  // 남긴 5블록은 뜻을 안 읽는다: `applies()` 실행 결과 · PRD 분류표↔코드 목록 대조 ·
+  // 코드펜스 균형(형식 파손) · 룰 인벤토리↔실파일 1:1 · 두 사본 바이트 동일.
 
   // 2026-08-04 (#284) — `benchmark-parity` 룰의 dogfood 계약 검증이 여기 있었다. 룰이 배포에서
   // 빠지면서 함께 제거됐다: 그 룰이 담던 gap.md 표 스키마·PR 의무 필드·walkthrough 절차는 그
