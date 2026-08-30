@@ -1,8 +1,12 @@
-import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import {
+  INTERNAL_BUNDLED_SKILL_IDS,
+  isAssetSelected,
+  type UserOverride,
+} from "./external-assets.js";
 import { INSTALL_LOG_DIR } from "./install-log.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
-import { TRACKS, type Track } from "./types.js";
+import { type OptionFlags, TRACKS, type Track } from "./types.js";
 
 /**
  * Source-relative paths under `templates/` map to project-relative targets under
@@ -54,6 +58,38 @@ export interface AssetSpec {
    * buildManifest 의 skill-dir copy 가 이 목록에 포함된 id 만 게이팅한다.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
+}
+
+/**
+ * `AssetSpec` 의 **유일한 derive**. installer 의 `buildManifestSpec` 과 계측 경로가 함께 쓴다.
+ *
+ * WHY (#320): 계측 4곳이 이 spec 을 **손으로 조립**하고 있었고 — `context-cost-report.mjs` ·
+ * `context-cost-baseline.mjs` · `context-cost-ratchet.test.ts` · `north-star-cost-figures.test.ts` —
+ * 넷 다 `selectedInternalSkills` 를 안 채웠다. 그 필드가 비면 번들 스킬의 `applies` 가
+ * `(undefined ?? []).includes(...)` 로 전부 false 가 되어 **상주 계측에서 통째로 빠진다**.
+ * 실측 결과 track=tooling 에서 상주가 23개/~5,331 로 보고됐지만 실제는 34개/~7,781 이었다 —
+ * 1차 NSM 이 실제의 약 68%만 세고 있었다.
+ *
+ * 손으로 조립하는 자리가 넷이었다는 것이 원인이다. 그래서 고친 방향은 "넷을 각각 채우기"가
+ * 아니라 **조립 지점을 하나로 만드는 것**이다. 새 계측이 생겨도 여기를 부르면 따라온다.
+ *
+ * `cli` 는 받지 않는다 — `buildManifest` 도 `applies` 도 그 필드를 읽지 않는다(계측 spec 들이
+ * `cli: ["claude"]` 를 넣고 있었지만 아무 효과가 없었다).
+ */
+export function buildAssetSpec(ctx: {
+  tracks: ReadonlyArray<Track>;
+  options: OptionFlags;
+  userOverride?: UserOverride;
+}): Required<AssetSpec> {
+  return {
+    tracks: ctx.tracks,
+    withTauri: isAssetSelected("tauri-desktop", ctx),
+    // v26.55.0 — withEcc gating (ADR-016). withPrune 은 ecc-plugin 사용을 전제한다.
+    withEcc: isAssetSelected("ecc-plugin", ctx) || ctx.options.withPrune === true,
+    // v26.87.0 — internal bundled skills (dev-method + opt-in advisors, v26.95.0). id 별 condition
+    // (has-dev-track vs opt-in)은 isAssetSelected 가 적용한다.
+    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, ctx)),
+  };
 }
 
 export interface AssetEntry {

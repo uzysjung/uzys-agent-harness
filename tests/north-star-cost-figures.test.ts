@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { residentCost } from "../src/context-cost.js";
-import { buildManifest } from "../src/manifest.js";
+import { buildAssetSpec, buildManifest } from "../src/manifest.js";
+import { DEFAULT_OPTIONS, type Track } from "../src/types.js";
 
 // NORTH_STAR 가 광고하는 1차 NSM 수치 ↔ 실제 계측의 정합 게이트.
 //
@@ -17,14 +18,13 @@ import { buildManifest } from "../src/manifest.js";
 // 왜 tolerance 를 두지 않는가: 근사 허용은 "조금 틀린 것은 괜찮다"를 제도화한다. 수치가
 // 바뀌었으면 문서도 바뀌어야 한다 — 그 강제가 이 게이트의 전부다.
 
-const TRACK = "tooling";
+const TRACK: Track = "tooling";
 const northStar = readFileSync(new URL("../docs/NORTH_STAR.md", import.meta.url), "utf8");
 
 /** cost:report 와 동일한 경로로 실측한다 (scripts/context-cost-report.mjs 참조). */
 function measured() {
-  const spec = { tracks: [TRACK], cli: ["claude"], options: {} } as Parameters<
-    typeof buildManifest
-  >[0];
+  // installer 와 같은 derive (#320) — 손조립 spec 은 번들 스킬을 계측에서 빠뜨린다.
+  const spec = buildAssetSpec({ tracks: [TRACK], options: DEFAULT_OPTIONS });
   return residentCost(buildManifest(spec).filter((e) => e.applies(spec)));
 }
 

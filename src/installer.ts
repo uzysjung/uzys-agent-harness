@@ -15,7 +15,7 @@ import { runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { addGitignoreAgentArtifacts, addGitignoreEnv, writeEnvExample } from "./env-files.js";
-import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "./external-assets.js";
+import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
@@ -45,7 +45,13 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { type AssetSpec, buildManifest, isCliNeutralTarget, resolveRules } from "./manifest.js";
+import {
+  type AssetSpec,
+  buildAssetSpec,
+  buildManifest,
+  isCliNeutralTarget,
+  resolveRules,
+} from "./manifest.js";
 import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
@@ -563,25 +569,13 @@ function runUpdateInstall(
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
 export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
-  const selectionCtx = {
+  // derive 본체는 `manifest.ts` 의 `buildAssetSpec` 하나다 (#320) — 계측 경로가 같은 것을 부른다.
+  // 여기 다시 조립하면 그 순간 사본이 둘이 되고, 그게 #320 의 원인이었다.
+  return buildAssetSpec({
     tracks: spec.tracks,
     options: spec.options,
     ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
-  };
-  return {
-    tracks: spec.tracks,
-    withTauri: isAssetSelected("tauri-desktop", selectionCtx),
-    // v26.55.0 — withEcc gating (ADR-016). ECC cherry-pick (agents/skills/commands) 항목 토글.
-    // withPrune 은 ecc-plugin 사용을 전제 (이전 applyOptionRules `withEcc ||= withPrune` 의미 보존).
-    withEcc: isAssetSelected("ecc-plugin", selectionCtx) || spec.options.withPrune,
-    // v26.87.0 — internal bundled skills (dev-method + opt-in advisors, v26.95.0). Each id's
-    // condition (has-dev-track vs opt-in) is applied by isAssetSelected — manifest copy + the 3
-    // non-Claude CLI transforms gate on this filtered list, so opt-in ones install only when
-    // wizard-checked / `--with <id>`, and any uncheck / `--without <id>` (forceExclude) drops it.
-    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS.filter((id) =>
-      isAssetSelected(id, selectionCtx),
-    ),
-  };
+  });
 }
 
 /** `.claude/` baseline (manifest copy) 결과. claude 미선택 시 emptyClaudeBaseline(). */
