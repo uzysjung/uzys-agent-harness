@@ -1,7 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import {
+  EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+  isAssetSelected,
+} from "../src/external-assets.js";
 import { type AssetSpec, buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
@@ -19,8 +23,15 @@ import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
  * 존재하니 됐다"로 검사를 짰다가 초록불을 받았다 — 존재와 설치는 다른 사실이다.
  *
  * 검사 대상은 **열거하지 않는다**(`no-false-ship` "게이트는 열거하지 말고 훑어라").
- * 상주 문서 목록도, 자산 목록도 manifest 에서 derive 하므로 새 룰·새 자산이 생기면
- * 게이트를 고치지 않아도 자동으로 커버된다.
+ * 목록은 셋 다 derive 한다 — 상주 문서는 manifest + 다른 CLI 의 `AGENTS.md` 껍데기 템플릿,
+ * 자산은 manifest target + `EXTERNAL_ASSETS` 카탈로그(설치 판정은 `isAssetSelected`).
+ * 그래서 새 룰·새 자산·새 껍데기 문장이 생겨도 게이트를 고칠 필요가 없다.
+ *
+ * **덮지 않는 것**(#294·#295 이전에는 이 자리에 "자동으로 커버된다"고만 적혀 있었고 그것이
+ * 거짓이었다 — 다음 사람이 그 문장을 읽고 안 덮인 표면을 믿는다):
+ *   · 지목의 **뜻**은 안 본다. 어휘 매칭이라 면제 문구를 성의 없이 적으면 통과한다(`ABSENCE_ACK`).
+ *   · 상주가 아닌 표면(스킬 본문·커맨드)은 대상이 아니다 — 매 세션 안 들어온다.
+ *   · id 3자 이하는 산문 오탐만 낳아 제외한다(`assetIdOf`).
  */
 
 const TEMPLATES = resolve(__dirname, "../templates");
@@ -83,6 +94,32 @@ function isResidentDoc(target: string): boolean {
   return target === HARNESS_ANCHOR_FILE || /^\.claude\/rules\/[^/]+\.md$/.test(target);
 }
 
+/**
+ * 다른 세 CLI 의 상주 앵커 **껍데기** (#295).
+ *
+ * WHY: Codex · OpenCode · Antigravity 의 `AGENTS.md` 는 `templates/<cli>/AGENTS.md.template` 이
+ * `CLAUDE.md` 본문을 **감싸서** 만들어진다(`src/<cli>/agents-md.ts`). 감싸는 쪽 산문은 manifest
+ * target 이 아니라서 위 `isResidentDoc` 로는 영영 안 잡혔다 — 그런데 그 껍데기는 우리가 쓴
+ * 프로즈이고, 그 CLI 를 고른 사람이 **매 세션 전문을 문다.** 껍데기에 조건절 없는 지목을 한 줄
+ * 쓰면 아무도 안 막는 상태였다.
+ *
+ * 여기서도 CLI 를 열거하지 않는다 — 디렉터리를 훑어 `AGENTS.md.template` 을 전부 집는다.
+ * 새 CLI 가 붙어도 게이트를 고칠 필요가 없다.
+ *
+ * 설치 트랙은 **전 트랙**이다: 껍데기는 트랙과 무관하게 그 CLI 를 고르면 나간다. 따라서
+ * 껍데기가 부르는 자산은 **모든 트랙에** 있어야 하고, 아니면 부재를 명시해야 한다.
+ *
+ * `{HARNESS_RULES}`·`{PROJECT_RULES}` 자리표시자는 **치환하지 않는다.** 그 본문은 이미
+ * `.claude/rules/*.md` 로 검사되므로 치환하면 같은 위반을 두 번 세게 된다.
+ */
+function anchorShellSources(): string[] {
+  return readdirSync(TEMPLATES, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => `${d.name}/AGENTS.md.template`)
+    .filter((rel) => existsSync(join(TEMPLATES, rel)))
+    .sort();
+}
+
 /** 트랙별 실제 설치분에서 derive 한 두 색인: 자산 id → 트랙들, 상주 문서 source → 트랙들. */
 function buildIndexes(): {
   assetTracks: Map<string, Set<Track>>;
@@ -115,6 +152,28 @@ function buildIndexes(): {
       const id = assetIdOf(e.target);
       if (id && !assetTracks.has(id)) assetTracks.set(id, new Set<Track>());
     }
+
+    // 모집단 보강 ② — 카탈로그 자산 (#294).
+    //
+    // WHY: 위 두 루프의 모집단은 `buildManifest` 가 내놓는 `.claude/…` target 뿐이다. 그래서
+    // `method.kind` 가 plugin · git-clone · marketplace 인 자산은 **애초에 검사 대상이 아니었다**
+    // (실측 45/57). 상주 문서가 그 중 하나를 조건절 없이 부르면 게이트가 검사조차 하지 않는다 —
+    // 이 게이트가 만들어진 이유와 정확히 같은 형태인데 잡히지 않았다.
+    //
+    // 설치 판정은 `isAssetSelected` 에 위임한다. 조건 해석을 여기서 다시 쓰면 그게 선택 로직의
+    // 두 번째 사본이 되고, 이 리포가 반복해서 데인 자리가 바로 거기다.
+    for (const asset of EXTERNAL_ASSETS) {
+      if (asset.id.length < 4) continue; // `assetIdOf` 와 같은 기준 — 3자 이하는 산문 오탐만 낳는다
+      const set = assetTracks.get(asset.id) ?? new Set<Track>();
+      if (isAssetSelected(asset.id, { tracks: [track], options: DEFAULT_OPTIONS })) set.add(track);
+      assetTracks.set(asset.id, set);
+    }
+  }
+
+  // 껍데기는 트랙 루프 밖에서 **전 트랙**으로 넣는다 (#295).
+  for (const rel of anchorShellSources()) {
+    docTracks.set(rel, new Set<Track>(TRACKS));
+    docTarget.set(rel, "AGENTS.md");
   }
   return { assetTracks, docTracks, docTarget };
 }
@@ -289,7 +348,7 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     expect(references).toBeGreaterThan(2);
   });
 
-  it("설치 대상 자산과 상주 문서를 manifest 에서 실제로 뽑는다", () => {
+  it("설치 대상 자산과 상주 문서를 실제로 뽑는다 (manifest + 카탈로그 + 껍데기)", () => {
     // 색인이 비면 "위반 0"이 참이 아니라 무의미해진다.
     const { assetTracks, docTracks } = buildIndexes();
     expect(assetTracks.size).toBeGreaterThan(20);
@@ -305,9 +364,33 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
     // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284) → 7(룰 6 + 앵커, 2026-08-12 에
     // `playwright-launch` 가 스킬로 이동)로 줄었다.
-    expect(docTracks.size).toBeGreaterThan(6); // 모수 7 — 리뷰 MEDIUM-4: 절반 소실도 놓치는 하한은 canary 가 아니다
+    expect(docTracks.size).toBeGreaterThan(9); // 모수 10 = 룰 6 + 앵커 1 + 껍데기 3 (#295)
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
+
+    // #294 canary — **카탈로그 자산이 모집단 안에 있어야 한다.** 이 단언이 없으면 위 보강 루프를
+    // 통째로 지워도 스위트가 초록이다(빠진 45종은 어차피 아무 문서도 안 부르므로 위반이 안 난다).
+    // 열거하지 않고 카탈로그에서 derive 한다 — 새 자산이 붙어도 고칠 필요가 없다.
+    const catalogIds = EXTERNAL_ASSETS.map((a) => a.id).filter((id) => id.length >= 4);
+    const missingFromPopulation = catalogIds.filter((id) => !assetTracks.has(id));
+    expect(
+      missingFromPopulation,
+      "카탈로그 자산이 검사 모집단 밖이다 — 상주 문서가 그 자산을 이름으로 불러도 게이트가\n" +
+        "검사조차 하지 않는다 (#294 가 고친 사각).",
+    ).toEqual([]);
+
+    // #295 canary — **다른 CLI 의 앵커 껍데기가 상주 문서 목록 안에 있고 전 트랙이어야 한다.**
+    const shells = anchorShellSources();
+    expect(
+      shells.length,
+      "AGENTS.md 껍데기 템플릿을 하나도 못 찾았다 — 훑기 경로가 깨졌다",
+    ).toBeGreaterThan(2);
+    for (const rel of shells) {
+      expect(
+        docTracks.get(rel)?.size,
+        `껍데기 ${rel} 가 상주 문서 목록에 없거나 전 트랙이 아니다`,
+      ).toBe(TRACKS.length);
+    }
   });
 
   it("면제 판정이 이웃 블록의 조건절로 새지 않는다", () => {
