@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // ADR-069 / 이슈 #286 — 외부 실행기 레인. 설계 SSOT =
 // `docs/plans/skills-external-executor-2026-08-09.md`.
 //
-// **2026-08-30 재판정(#360)에서 성격이 바뀌었다: 26블록 → 5블록.** 걷어낸 것은 세 스킬 본문의
+// **2026-08-30 재판정(#360)에서 성격이 바뀌었다: 18블록 → 7블록.** 걷어낸 것은 세 스킬 본문의
 // **소유·경계 술어**를 낱말로 세던 A0~A4 · B1 · C1~C3 · D1(배포판·개발 사본 두 벌)과, 그 앵커들이
 // 무는지 보이려고 만든 합성 입력 변이 블록이다.
 //
@@ -17,11 +17,13 @@ import { describe, expect, it } from "vitest";
 // 정교화로는 수렴하지 않는다는 것이 #345 의 결론이고 여기가 그 세 번째 사례다.
 // 자산 본문의 뜻은 `npm run assets:history` 로 이력을 읽어 사람·에이전트가 판정한다.
 //
-// **남긴 5개는 뜻을 안 읽는다.** ⓐ 라우팅·도구 절에 **구체 모델 슬러그가 0건**인가 — 낱말이
+// **남긴 7개는 뜻을 안 읽는다.** ⓐ 라우팅·도구 절에 **구체 모델 슬러그가 0건**인가 — 낱말이
 // 아니라 `이름-버전` 이라는 **형태**를 무는 부재 대조다. 버전 박힌 슬러그는 시간이 지나면 거짓이
 // 되고 설치자를 은퇴한 모델에 묶는다. ⓑ 그 검사의 슬라이스가 비지 않았는가(헛통과 차단).
-// ⓒ reference 파일 두 사본 바이트 동일. ⓓⓔ 두 탐지기(슬러그·절 슬라이서)의 자기검증 —
-// 양성을 먼저 물고 음성은 안 무는지. 남은 것들이 무는지 보이는 canary 는 함께 남긴다.
+// ⓒ 호출 방법이 `external-model-consult` 밖에서 되풀이되지 않는가 — **실재하는 스크립트
+// 파일명·CLI 플래그·exit code 의 부재**다(독립 리뷰가 과삭제로 잡아 되살렸다).
+// ⓓ reference 파일 두 사본 바이트 동일. ⓔⓕⓖ 세 탐지기(슬러그·재서술 표식·절 슬라이서)의
+// 자기검증 — 양성을 먼저 물고 음성은 안 무는지.
 
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
 
@@ -76,6 +78,20 @@ function modelSlugHits(label: string, text: string): string[] {
   return hits;
 }
 
+/**
+ * 호출 방법의 **재서술** 표식. 래퍼 경로·exit code·샌드박스 플래그·출력 태그는
+ * `external-model-consult` 소관이다. 이 표식이 다른 스킬에 나타나면 MECE 가 깨진 것이고,
+ * 그때부터 한쪽만 고쳐지는 drift 가 시작된다(설계 §5.2 C3 의 음성 반쪽 · 위험 #10).
+ *
+ * **2026-08-30 재판정(#360)에서 한 번 걷었다가 되살렸다.** 독립 리뷰가 판정 오류로 잡았다 —
+ * 이것이 무는 것은 문장의 뜻이 아니라 **저장소에 실재하는 스크립트 파일명·CLI 플래그·exit
+ * code 의 부재**다. 남긴 모델 슬러그 검사(`E`)와 구조가 같은데 한쪽만 걷었으니 기준을 내가
+ * 비일관적으로 적용한 것이었다. 리뷰어의 실증: 두 사본에 호출 재서술을 주입하니 걷어낸
+ * 판본은 전 스위트 초록(1508/1508)이고 걷기 전 판본은 2건 red 였다.
+ */
+const WRAPPER_MECHANICS =
+  /(?:gemini|codex)-ask\.sh|codex exec\b|\bagy -p\b|_CONSULT_TIMEOUT|<untrusted-|--dangerously-skip-permissions|\bexit (?:2|3|4|5|124)\b/i;
+
 /** `templates/`(배포물)와 `.claude/`(개발 사본)를 **같은 계약**으로 검사한다. */
 const ROOTS = [
   { label: "templates/skills", path: "../templates/skills" },
@@ -86,6 +102,7 @@ for (const root of ROOTS) {
   const mo = read(`${root.path}/model-orchestration/SKILL.md`);
   const mpr = read(`${root.path}/multi-persona-review/SKILL.md`);
   const emc = read(`${root.path}/external-model-consult/SKILL.md`);
+  const reviewerDesign = read(`${root.path}/multi-persona-review/references/reviewer-design.md`);
 
   /** E 의 검사 범위 = 라우팅·도구 절만. 전면 스캔은 날짜·스크립트 주석을 오탐한다(설계 §4.4). */
   const slugSlices = [
@@ -106,6 +123,29 @@ for (const root of ROOTS) {
       expect(
         empty,
         `앵커가 어긋나 슬라이스가 비었다 — E 가 헛통과한다:\n${empty.join("\n")}`,
+      ).toEqual([]);
+    });
+
+    /**
+     * `multi-persona-review` 가 호출 방법을 **자기 본문에 복제하지 않는가** (MECE).
+     *
+     * 걷어낸 C3 의 전반부는 술어를 낱말로 세던 것이라 안 되살렸다. 되살린 것은 **후반부뿐**
+     * — 삭제가 아니라 **추가**를 잡는 축이고, 무는 대상이 실재하는 파일명·플래그·exit code 라
+     * 문면 개정과 무관하다.
+     */
+    it("호출 방법이 external-model-consult 밖에서 되풀이되지 않는다 (MECE)", () => {
+      const restated: string[] = [];
+      for (const [name, text] of [
+        ["SKILL.md", mpr],
+        ["references/reviewer-design.md", reviewerDesign],
+      ] as const) {
+        text.split("\n").forEach((line, i) => {
+          if (WRAPPER_MECHANICS.test(line)) restated.push(`${name}:${i + 1}  ${line.trim()}`);
+        });
+      }
+      expect(
+        restated,
+        `호출·가드레일·exit code 는 external-model-consult 소관이다 — 여기서 되풀이하지 마라:\n${restated.join("\n")}`,
       ).toEqual([]);
     });
 
@@ -165,6 +205,28 @@ describe("탐지기 자기검증", () => {
     }
     for (const line of negatives) {
       expect(modelSlugHits("canary", line), `오탐: ${line}`).toEqual([]);
+    }
+  });
+
+  it("재서술 표식 — 호출 예시는 물고, 가리키는 문장은 안 문다", () => {
+    const positives = [
+      'bash .claude/skills/external-model-consult/scripts/codex-ask.sh "PROMPT"',
+      "run gemini-ask.sh -t claude",
+      "codex exec -s read-only",
+      "exit 4 = secret-shaped prompt refused",
+      "cap the call with CODEX_CONSULT_TIMEOUT",
+      "read only what is inside <untrusted-codex-output>",
+    ];
+    const negatives = [
+      "The outside seat goes out through `external-model-consult`.",
+      "Its exit-code contract and guardrails live in that skill, not here.",
+      'see [[model-orchestration]] "Worker lifecycle" for the general rule',
+    ];
+    for (const line of positives) {
+      expect(WRAPPER_MECHANICS.test(line), `재서술을 못 문다: ${line}`).toBe(true);
+    }
+    for (const line of negatives) {
+      expect(WRAPPER_MECHANICS.test(line), `오탐: ${line}`).toBe(false);
     }
   });
 
