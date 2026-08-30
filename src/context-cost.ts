@@ -147,7 +147,11 @@ export interface ResidentCost {
   total: number;
   /** 같은 표면의 **개수**. 토큰과 단위가 다르므로 절대 같은 필드에 섞지 않는다 (아래 주석). */
   items: ResidentItemCount;
-  /** 우리가 "항상 읽혀라"고 쓴 지시문 — 룰 + CLAUDE.md. **줄이는 축**. */
+  /**
+   * 우리가 "항상 읽혀라"고 쓴 지시문 — 룰 + CLAUDE.md.
+   * **작을수록 좋은 축이 아니다**(사용자 확정 2026-08-30). 판단은 크기가 아니라
+   * *불필요한 지시문이 있나*로 한다. ratchet 이 지키는 것은 **조용한 증가 차단**이다.
+   */
   directive: ResidentAxis;
   /** 우리 스킬·에이전트가 발화하려고 상주시키는 descriptor. **정확도와 함께 보는 축**. */
   firing: ResidentAxis;
@@ -352,8 +356,9 @@ export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number)
   if (r.total === 0) return null;
   // ADR-083 — 내역을 **두 축으로 묶어** 보여준다. 총합은 그대로 낸다(설치자는 전부를 문다).
   // 달라지는 것은 "그중 무엇을 줄일 수 있는가"가 한눈에 갈린다는 것이다:
-  // directives 는 우리가 쓴 상시 지시문(줄이면 이득), triggers 는 스킬·에이전트가 발화하려고
-  // 상주시키는 descriptor(깎으면 안 불린다).
+  // directives 는 우리가 쓴 상시 지시문, triggers 는 스킬·에이전트가 발화하려고 상주시키는
+  // descriptor 다. **둘 다 작을수록 좋은 값이 아니다** — 앞은 "불필요한 것이 있나", 뒤는
+  // "깎으면 안 불린다"로 판단이 다르다. 갈라 보여 주는 이유가 그것이다.
   const parts = [
     `directives ${r.directive.items} ~${r.directive.tokens}`,
     `[rules ${r.items.rules} ~${r.rules} · CLAUDE.md ${r.items.claudeMd} ~${r.projectClaudeMd}]`,
@@ -430,7 +435,8 @@ export function formatResidentCostBlock(r: ResidentCost): string[] {
     "  ─────────────────────────────────",
     `  상주 합계          ${n(r.items.total)}개 상주 · ~${r.total} tokens/세션`,
     "",
-    "  지시문 = 우리가 항상 읽히게 넣은 것. 줄이면 이득 — 여기가 감축 대상이다.",
+    "  지시문 = 우리가 항상 읽히게 넣은 것. **작을수록 좋은 값이 아니다** — 판단은",
+    "           '불필요한 지시문이 있나'로 한다. ratchet 은 조용한 증가만 막는다.",
     "  발화 표면 = 스킬·에이전트가 불리려고 상주시키는 descriptor. 깎으면 안 불린다.",
   ];
 }

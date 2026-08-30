@@ -69,7 +69,7 @@ writeFileSync(
         "상주 컨텍스트 비용 상한(ratchet, ADR-083). 조용한 증가를 막는 것이 이 파일의 전부다. 갱신: npm run cost:baseline",
       axes: {
         directive:
-          "우리가 항상 읽히게 넣은 지시문 = 룰 + CLAUDE.md 2종(하네스 앵커 + 프로젝트 스캐폴드). **여기가 감축 대상이고 ratchet 이 무는 축이다.** 올리려면 사유를 커밋 본문에 남긴다.",
+          "우리가 항상 읽히게 넣은 지시문 = 룰 + CLAUDE.md 2종(하네스 앵커 + 프로젝트 스캐폴드). **작을수록 좋은 값이 아니다** — 판단은 크기가 아니라 '불필요한 지시문이 있나'로 한다(사용자 확정 2026-08-30). ratchet 이 지키는 것은 감축이 아니라 **조용한 증가 차단**이고, 정당하게 늘릴 때는 사유를 커밋 본문에 남긴다.",
         firing:
           "스킬·에이전트가 발화하려고 상주시키는 descriptor. **총합에는 ratchet 을 걸지 않는다** — 자산을 추가하면 늘고, 그건 선택이지 악화가 아니다. 대신 아래 skillDescriptors 가 기존 스킬의 조용한 증가만 막는다.",
         skillDescriptors:
@@ -87,7 +87,7 @@ writeFileSync(
 
 const rows = Object.entries(tracks).sort((a, b) => b[1].directive.tokens - a[1].directive.tokens);
 console.log(`▸ context-cost baseline 갱신 → ${OUT}\n`);
-console.log("  track                 지시문(ratchet)      발화 표면(기록)");
+console.log("  track                 지시문(조용한증가 차단)  발화 표면(기록)");
 for (const [track, v] of rows)
   console.log(
     `  ${track.padEnd(20)} ${String(v.directive.items).padStart(3)}개 ~${String(v.directive.tokens).padStart(5)}` +
