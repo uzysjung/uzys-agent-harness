@@ -401,10 +401,15 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: all,
     });
   }
+  // #409 — 우리 스킬은 **전부 디렉터리 단위**로 등록한다. 이 하나만 파일 단위였고, 그 예외가
+  // 실제로 사고를 냈다: 스킬 경로를 다루는 코드가 "항상 디렉터리"를 가정해 뒤에 `/SKILL.md` 를
+  // 붙였고, 여기서는 없는 경로가 만들어져 상주 계측이 **조용히 0으로 셌다**(ADR-083).
+  // 그리고 파일 단위는 `references/` 를 나중에 붙여도 **배포에서 조용히 빠진다**.
+  // 아래 게이트가 이 통일을 강제한다: tests/skill-registration-uniform.test.ts
   m.push({
-    source: "skills/spec-scaling/SKILL.md",
-    target: ".claude/skills/spec-scaling/SKILL.md",
-    type: "file",
+    source: "skills/spec-scaling",
+    target: ".claude/skills/spec-scaling",
+    type: "dir",
     applies: all,
   });
   // #340 — 아래 4종은 `cherrypicks.lock` 에서 `modified:false`(= 우리가 안 고친 사본)인데
