@@ -55,21 +55,38 @@ Do not run after compaction without first reconstructing the best available stat
 - Historical archives are disabled by default. If explicitly required, keep them under
   `.handoff/archive/`, apply a retention limit, and never auto-load them on resume.
 
-### `MEMORY.md` — durable facts only
+### `MEMORY.md` — rules, not history
 
-Keep:
+Memory is loaded **every session**, so every line is a standing cost. What earns that cost is
+**principles, recurrence countermeasures, and facts you actually need to do the work** — not a
+record of what was done.
 
-- stable purpose, scope, constraints, invariants, and operating principles;
-- durable repository or user preferences;
-- pointers to active ADRs and `.handoff/CURRENT.md`.
+**Judge every entry — the ones you are adding AND the ones already there — with three questions:**
 
-Remove or exclude:
+1. **Does it change what I do next time?** If not, don't write it. "We shipped X" changes nothing.
+2. **Does it already live somewhere?** Rules, the project's instruction files, ADRs, skills, and
+   git history are each a source of truth. If the fact is there, that place owns it — do not keep
+   a copy here. **A duplicated fact is guaranteed to rot on one side**, and you cannot tell which.
+3. **Is it finished?** Completed cycles, release logs, and version history belong to the
+   changelog, ADRs, and git — not here.
 
-- current branch, test failure, task progress, temporary blocker, raw output;
-- completed session history, old anchors, duplicated repository content.
+What survives all three: **operating principles · countermeasures for repeated mistakes ·
+facts that cannot be derived from the repository** (another tool's flags, limits, and policies;
+standing decisions such as "we accepted this risk, do not re-open it").
 
-Update or replace existing entries; do not append near-duplicates. Remove superseded facts. Target:
-**200 lines / 20 KB maximum**, unless the repository defines another limit.
+**Re-judge the whole index at every handoff, not just the new lines.** An index only ever grows
+unless something forces the question, and this is that moment.
+
+Prefer updating an existing entry over adding a near-duplicate. To drop one, **move the file to
+`archive/` rather than deleting it** — it leaves the index (so it stops loading) while staying
+recoverable.
+
+**Size is a symptom, not the standard.** Keep the index under **200 lines / 20 KB** (unless the
+repository sets another limit), but being under it is *not* evidence the index is healthy: a short
+index full of duplicates and finished history still fails all three questions. Measured case: an
+index at 67 lines / 20.7 KB passed the size rule while **48 of its entries were dead** — completed
+cycle records and copies of facts already owned by rules and ADRs. Re-judged against the three
+questions, it came out at 23 lines / 6.0 KB.
 
 ### `docs/decisions/` — durable decisions only
 
