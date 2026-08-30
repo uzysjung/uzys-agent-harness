@@ -4,17 +4,15 @@ description: >-
   Rewrite a task request into the canonical XML brief — objective, inputs, invariants,
   success_criteria, boundaries, autonomy, verification, communication, output_format — so the
   worker receives one judgeable definition of done instead of prose. Runs in two directions:
-  INBOUND reshapes a sprawling or half-formed request (pasted requirements, a wall of background,
-  a request that grew across several messages) into that shape, filling each field from context
-  already on screen and deleting sections that do not apply; OUTBOUND writes the prompt that a
-  spawned worker actually receives, so nobody hand-rolls a one-off prompt shape per delegation.
-  Trigger on "브리프로 정리", "작업 지시서로 만들어", "프롬프트 구조화", "브리프 만들어줘",
-  "이 요청 정리해줘", and in English "turn this into a task brief", "structure this prompt",
-  "write the brief for this", "draft the spawn prompt". Fire unprompted the moment you are about
-  to hand a multi-part task to a subagent, a workflow worker, or a parallel lane. Do NOT fire on a
-  one-line question, a lookup, or an ordinary conversational exchange where you simply need one
-  more piece of information — asking a clarifying question is not a brief, and wrapping a
-  one-sentence ask in nine XML tags costs more than it buys.
+  INBOUND reshapes a sprawling or half-formed request into that shape, filling each field from
+  context already on screen and deleting sections that do not apply; OUTBOUND writes the prompt
+  that a spawned worker actually receives. Trigger on "브리프로 정리", "작업 지시서로 만들어",
+  "프롬프트 구조화", and in English "turn this into a task brief", "structure this prompt".
+  Fire unprompted the moment you are about to hand a multi-part task to a subagent, a workflow
+  worker, or a parallel lane. Do NOT fire on a one-line question, a lookup, or an ordinary
+  conversational exchange where you simply need one more piece of information — asking a
+  clarifying question is not a brief, and wrapping a one-sentence ask in nine XML tags costs
+  more than it buys.
 ---
 
 # Task Brief

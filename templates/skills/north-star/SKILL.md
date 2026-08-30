@@ -10,12 +10,10 @@ description: >-
   should go next. Sits one layer above SPEC/PRD — answers 'why and where to', not
   'what and how'. Fires on the user's real phrasings: "앞으로 어떤 방향으로
   개선·발전시킬지 고민해봐", "NORTH.md / NORTH_STAR 보고 나아갈 방향 + 기능 제안",
-  "나아갈 방향 + 기능제안 (수용 → 계획 수립하고 메모리에 기록)", "북극성 정렬 로드맵",
-  as well as the English equivalents "what direction should we take next", "propose
-  a roadmap / feature backlog from the north star", "plan the next milestones and
-  save it to memory". Do NOT use it to find what is broken right now — detecting
-  bugs, gaps, or quality regressions belongs to the audit/gap skills; this skill
-  consumes their findings and DIRECTS forward planning.
+  "북극성 정렬 로드맵", and the English "what direction should we take next",
+  "propose a roadmap from the north star". Do NOT use it to find what is broken
+  right now — detecting bugs, gaps, or quality regressions belongs to the audit/gap
+  skills; this skill consumes their findings and DIRECTS forward planning.
 ---
 
 # North Star
