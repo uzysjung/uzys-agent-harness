@@ -136,7 +136,7 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
         /* 이미 종료 */
       }
     }
-  });
+  }, 30000);
 
   /**
    * **커맨드라인에 경로가 없는 고아** — 서브에이전트가 이 모양이다(#326).
@@ -167,7 +167,11 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
         "sh",
         [
           "-c",
-          `( cd '${resolved}' && exec '${process.execPath}' -e '${script}' >/dev/null 2>&1 ) &`,
+          // `--agent-name` 을 단다 — **서브에이전트가 실제로 갖는 모양**이다(#326 실측).
+          // 경로는 여전히 argv 에 없다. `--` 가 반드시 앞에 와야 한다: 없으면 node 가
+          // `node: bad option: --agent-name` 으로 **즉시 죽고**, 그러면 이 시험이 '훅이 못
+          // 봤다'로 빨간불을 내 원인을 엉뚱한 데서 찾게 된다(실제로 한 번 그랬다).
+          `( cd '${resolved}' && exec '${process.execPath}' -e '${script}' -- --agent-name ${token} >/dev/null 2>&1 ) &`,
         ],
         { stdio: "ignore" },
       );
@@ -209,7 +213,8 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
       }
       rmSync(other, { recursive: true, force: true });
     }
-  });
+    // 실 프로세스를 띄우고 `ps` 를 폴링하므로 전 스위트 부하에서 기본 5초를 넘긴다(실측 6.7초).
+  }, 30000);
 });
 
 // 2026-08-26 (사용자 결정) — 아래에 있던 **룰 산문 단언 3블록을 걷어냈다.**
