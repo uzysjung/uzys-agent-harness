@@ -35,20 +35,76 @@ function frontmatterOf(raw: string): string | null {
  * folded scalar(`>-`)를 한 줄로 접어 길이를 잰다 — 공식 상한이 그 값에 걸리기 때문이다.
  * 들여쓰기가 풀리는 첫 줄에서 멈춘다(다음 키의 시작).
  */
-function descriptionOf(frontmatter: string): string | null {
+type Description =
+  | { kind: "none" }
+  | { kind: "value"; text: string }
+  | { kind: "unsupported"; why: string };
+
+/**
+ * frontmatter 의 `description` 값. **읽을 수 없는 형태는 값이 아니라 `unsupported` 를 낸다.**
+ *
+ * 1차 판본은 block 지시자에 안 걸리는 첫 줄을 **그 줄 하나만** 값으로 읽고 끝냈다. YAML 은
+ * 따옴표 스칼라도 plain 스칼라도 들여쓴 줄로 이어지는 것을 허용하므로, 이어쓰기로 감싼
+ * description 은 **실제보다 짧게** 읽혀 상한을 조용히 통과했다. 독립 리뷰가 세 형태를
+ * 실증했다(전부 유효 YAML, 전부 `npm run ci` exit 0):
+ *   여러 줄 double-quoted 528 → 1,237자 · plain 이어쓰기 232 → 1,141자 · `>+` 984 → 1,294자.
+ *
+ * 손으로 YAML 을 온전히 파싱하다 난 문제라, 정교화 대신 **모르는 형태는 실패시킨다.** 아는 것은
+ * ⓐ block 스칼라(`>` `>-` `>+` `|` `|-` `|+`) ⓑ 그 줄에서 끝나는 한 줄 값(따옴표는 같은 줄에서
+ * 닫히고, plain 은 다음 줄이 들여쓰기로 이어지지 않는다) 둘뿐이다. 그 밖은 값을 안 내고
+ * `unsupported` 를 내며, 아래 게이트가 그것을 **실패로** 판정한다. 파서를 의존성으로 들이는
+ * 대신 표기를 좁히는 쪽을 골랐다 — 긴 description 은 block 스칼라로 쓰면 된다.
+ */
+function describeDescription(frontmatter: string): Description {
   const lines = frontmatter.split("\n");
   const at = lines.findIndex((l) => /^description:/.test(l));
-  if (at < 0) return null;
-  const head = (lines[at] as string).replace(/^description:[ \t]*/, "");
-  if (!/^(>-?|\|-?)$/.test(head.trim())) return head.trim().replace(/^["']|["']$/g, "");
-  const body: string[] = [];
-  for (let i = at + 1; i < lines.length; i++) {
-    const line = lines[i] as string;
-    if (line.trim() === "") continue;
-    if (!/^[ \t]/.test(line)) break;
-    body.push(line.trim());
+  if (at < 0) return { kind: "none" };
+  const head = (lines[at] as string).replace(/^description:[ \t]*/, "").trim();
+
+  /** 뒤따르는 들여쓴 줄들 (빈 줄은 건너뛰되, 들여쓰기가 끊기면 멈춘다). */
+  const indented = (): string[] => {
+    const out: string[] = [];
+    for (let i = at + 1; i < lines.length; i++) {
+      const line = lines[i] as string;
+      if (line.trim() === "") continue;
+      if (!/^[ \t]/.test(line)) break;
+      out.push(line.trim());
+    }
+    return out;
+  };
+
+  // ⓐ block 스칼라. `+`(keep)·`-`(strip)·무표기 전부. 접힘(`>`)은 공백 하나로 잇는다.
+  if (/^([>|])[-+]?$/.test(head)) {
+    return { kind: "value", text: indented().join(head.startsWith(">") ? " " : "\n") };
   }
-  return body.join(" ");
+
+  // ⓑ 따옴표 스칼라 — **같은 줄에서 닫혀야** 안다.
+  const q = head.slice(0, 1);
+  if (q === '"' || q === "'") {
+    const closed = new RegExp(`^${q}(?:[^${q}\\\\]|\\\\.)*${q}$`).test(head);
+    if (!closed) {
+      return {
+        kind: "unsupported",
+        why: `따옴표가 같은 줄에서 안 닫힌다 — 여러 줄 따옴표 스칼라는 실제보다 짧게 읽힌다. block 스칼라(\`>-\`)로 써라`,
+      };
+    }
+    return { kind: "value", text: head.slice(1, -1) };
+  }
+
+  // ⓒ plain 스칼라 — 다음 줄이 들여쓰기로 **이어지면** 한 줄만 읽는 것이 틀린다.
+  if (indented().length > 0) {
+    return {
+      kind: "unsupported",
+      why: "plain 스칼라가 다음 줄로 이어진다 — 첫 줄만 읽히므로 상한이 헛통과한다. block 스칼라(`>-`)로 써라",
+    };
+  }
+  return { kind: "value", text: head };
+}
+
+/** 값이 읽히면 그 문자열, 아니면 null. 기존 호출부 호환용. */
+function descriptionOf(frontmatter: string): string | null {
+  const d = describeDescription(frontmatter);
+  return d.kind === "value" ? d.text : null;
 }
 
 /** 공식 상한 (platform.claude.com Agent Skills, 실측 2026-08-30). */
@@ -203,12 +259,64 @@ describe("스킬 description 이 공식 상한 안에 든다", () => {
     expect(descriptionOf("name: x")).toBeNull();
   });
 
+  /**
+   * **1차 판본이 놓친 세 표기.** 독립 리뷰가 실제 자산에 걸어 실증했다 — 셋 다 유효 YAML 인데
+   * `npm run ci` 가 exit 0 이었다(1,237자 · 1,141자 · 1,294자). 그래서 여기 고정한다:
+   * 읽을 수 있으면 **제 길이로** 읽고, 읽을 수 없으면 값을 내지 말고 `unsupported` 를 내야 한다.
+   * 값을 내면서 짧게 읽는 것이 이 게이트의 유일한 치명적 실패다 — 조용히 통과하기 때문이다.
+   */
+  it("탐지기 자기검증 — 짧게 읽히던 세 표기", () => {
+    const long = "z".repeat(1200);
+
+    // ⓐ 여러 줄 double-quoted: 같은 줄에서 안 닫힌다 → 값을 내면 안 된다.
+    const multiQuoted = describeDescription(`description: "start\n  ${long}"`);
+    expect(multiQuoted.kind, "여러 줄 따옴표를 값으로 읽으면 짧게 읽힌다").toBe("unsupported");
+
+    // ⓑ plain 스칼라 이어쓰기: 다음 줄이 들여쓰기로 이어진다 → 값을 내면 안 된다.
+    const plainCont = describeDescription(`description: start\n  ${long}`);
+    expect(plainCont.kind, "plain 이어쓰기를 값으로 읽으면 첫 줄만 읽힌다").toBe("unsupported");
+
+    // ⓒ `>+` keep indicator: 이건 **읽을 수 있다**. 1차 판본은 `">+"` 를 값 2자로 읽었다.
+    const keep = describeDescription(`description: >+\n  ${long}`);
+    expect(keep.kind).toBe("value");
+    expect(keep.kind === "value" && keep.text.length, "`>+` 를 제 길이로 못 읽는다").toBe(1200);
+
+    // `|` 계열도 같은 자리에서 갈린다.
+    expect(describeDescription("description: |-\n  a\n  b").kind).toBe("value");
+    expect(describeDescription("description: |+\n  a\n  b").kind).toBe("value");
+
+    // 오탐 가드 — 한 줄에서 닫히는 따옴표는 정상이다.
+    expect(describeDescription(`description: "one line"`).kind).toBe("value");
+    expect(describeDescription("description: plain one line\nmodel: opus").kind).toBe("value");
+  });
+
   it("전제 확인 — 검사할 SKILL.md 가 실제로 있다 (0건 통과 방지)", () => {
     expect(skills.length, "SKILL.md 를 하나도 못 찾았다 — 글롭이 죽었다").toBeGreaterThan(20);
-    const withDesc = skills.filter(
-      (f) => descriptionOf(frontmatterOf(readFileSync(join(ROOT, f), "utf8")) ?? "") !== null,
+    const missing = skills.filter(
+      (f) =>
+        describeDescription(frontmatterOf(readFileSync(join(ROOT, f), "utf8")) ?? "").kind !==
+        "value",
     );
-    expect(withDesc.length, "description 추출이 전부 실패했다").toBe(skills.length);
+    expect(missing, `description 을 읽지 못한 파일:\n${missing.join("\n")}`).toEqual([]);
+  });
+
+  /**
+   * **읽을 수 없는 표기는 실패다 — 통과가 아니다.** 상한 검사는 값을 못 읽으면 저절로
+   * 통과하므로, 못 읽는 상태 자체를 red 로 만들어야 사각이 안 열린다.
+   */
+  it("모든 SKILL.md 의 description 표기를 읽을 수 있다", () => {
+    const bad: string[] = [];
+    for (const rel of skills) {
+      const fm = frontmatterOf(readFileSync(join(ROOT, rel), "utf8"));
+      const d = describeDescription(fm ?? "");
+      if (d.kind === "unsupported") bad.push(`${rel} → ${d.why}`);
+      if (d.kind === "none") bad.push(`${rel} → description 이 없다`);
+    }
+    expect(
+      bad,
+      `검사한 SKILL.md ${skills.length}개 중 ${bad.length}개의 description 을 읽을 수 없다. ` +
+        `읽을 수 없으면 상한 검사가 헛통과한다:\n${bad.map((b) => `  ${b}`).join("\n")}`,
+    ).toEqual([]);
   });
 
   it("모든 SKILL.md 의 description 이 1,024자 이내다", () => {

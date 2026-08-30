@@ -2,18 +2,18 @@
 name: external-model-consult
 description: >-
   Consult a second, non-Claude model through a bundled wrapper for four things:
-  (1) natural, native-sounding KOREAN phrasing via Google Gemini (Antigravity `agy`
-  CLI) — copy, UI microcopy, marketing text; (2) a MULTI-PERSONA / second-opinion
-  review of a design, plan, spec, or PR; (3) CONCISE,
-  well-STRUCTURED writing via OpenAI Codex (`codex exec`) — tightening prose,
-  restructuring a doc into an outline or tables; and (4) IMAGE GENERATION as real
-  PNG/JPG files on disk (labeled diagrams are NOT this — render those as Mermaid).
-  Triggers on "gemini 한테 물어봐", "자연스럽게 다듬어줘", "codex한테 물어봐",
+  (1) natural, native-sounding KOREAN phrasing via Google Gemini — copy, UI microcopy,
+  marketing text; (2) a MULTI-PERSONA / second-opinion review of a design, plan or spec;
+  (3) CONCISE, well-STRUCTURED writing via OpenAI Codex — tightening prose, restructuring
+  a doc; and (4) IMAGE GENERATION as real image files on disk (not labeled diagrams —
+  use Mermaid). Fire it when Korean reads translated, or when you would otherwise
+  hand-write polished Korean yourself. Triggers on "어색해", "자연스럽게 다듬어줘",
+  "gemini 한테 물어봐", "nano banana", "제3자 관점", "codex한테 물어봐",
   "간결하게 정리해줘", "이미지 만들어줘", and in English "ask gemini", "ask codex",
-  "generate an image". Returns candidates for the user to choose; never auto-applies. Do NOT use for deterministic transforms (rename, reformat, sort),
-  labeled diagrams, internal logs or code identifiers, anything needing repo secrets,
-  a native parallel-subagent panel (that is `multi-persona-review` where installed),
-  or when the user explicitly wants YOUR answer.
+  "generate an image". Returns candidates to choose from; never auto-applies. Do NOT use
+  for deterministic transforms (rename, reformat, sort), labeled diagrams, internal logs
+  or identifiers, anything needing repo secrets, a native subagent panel
+  (`multi-persona-review`), or when the user explicitly wants YOUR answer.
 ---
 
 # external-model-consult

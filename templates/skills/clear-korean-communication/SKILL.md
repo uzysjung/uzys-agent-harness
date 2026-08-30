@@ -4,12 +4,11 @@ description: >-
   Make a technical explanation land, and turn the decision at the end of it into
   something the reader can approve in one pass. Two halves of one job: (1) EXPLAIN
   — fix the referent first (one name often points at two things), lead with who is
-  affected and what changes, put file paths and symbols after the claim as evidence;
+  affected and what changes, put file paths after the claim as evidence;
   (2) DECIDE — present approval/choice moments in the user's four-part format
-  전후맥락 (context) → 추천 + 이유 (recommendation) → UI/UX 형태 (a scannable
-  table/option-list) → ASIS→TOBE contrast, led by the recommendation so the user can
+  전후맥락 (context) → 추천 + 이유 (recommendation) → UI/UX 형태 (a scannable table) → ASIS→TOBE contrast, led by the recommendation so the user can
   say yes fast. Run it whenever you explain a bug, a cause, or what your change did
-  — especially the moment the reader says they don't follow ("쉽게 설명해줘",
+  — especially the moment the reader says they don't follow ("뭔 소리야", "쉽게 설명해줘",
   "이해가 안 돼", "I don't follow") — and whenever you are about to ask "should I do
   this?" ("ASIS TOBE로 설명", "이거 진행할까요?", "should I do A or B"). Do NOT fire
   for pure information with no decision in it, for trivial reversible actions you
