@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "../src/external-assets.js";
-import { type AssetSpec, buildManifest } from "../src/manifest.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { type AssetSpec, buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
@@ -34,13 +34,9 @@ const TEMPLATES = resolve(__dirname, "../templates");
  * (그래서 opt-in 으로만 깔리는 문서 — 예: tauri — 는 어느 트랙에도 상주하지 않아 대상 밖이다.)
  */
 function specFor(track: Track): AssetSpec {
-  const ctx = { tracks: [track], options: DEFAULT_OPTIONS };
-  return {
-    tracks: [track],
-    withTauri: isAssetSelected("tauri-desktop", ctx),
-    withEcc: isAssetSelected("ecc-plugin", ctx),
-    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, ctx)),
-  };
+  // 조립을 여기서 다시 쓰지 않는다 — 설치기와 같은 `buildAssetSpec` 을 부른다 (#320).
+  // 전에는 이 함수가 그 본문을 줄 단위로 베끼고 있었다(독립 리뷰 적발).
+  return buildAssetSpec({ tracks: [track], options: DEFAULT_OPTIONS });
 }
 
 /**

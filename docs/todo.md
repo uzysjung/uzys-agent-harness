@@ -139,27 +139,17 @@ recurrence-prevention 사다리상 구조 게이트 단계.
 
 <!-- ship-gate:ignore-start -->
 
-- [ ] **번들 스킬 상주 계측 사각 — 선택 spec 밖이라 0 으로 집계된다.**
-      (이월 확정 2026-08-02, 사용자 결정. 적용 범위 = ADR-062.)
+- [x] **번들 스킬 상주 계측 사각 — 선택 spec 밖이라 0 으로 집계된다.** (✅ #320)
 
-      두 계측 게이트의 measure 함수가 spec 에 `selectedInternalSkills` 를 안 넣는다
-      (`tests/context-cost-ratchet.test.ts` · `tests/north-star-cost-figures.test.ts` 둘 다
-      `{ tracks:[track], cli:["claude"], options:{} }`). `src/manifest.ts` 의 게이팅이
-      `(s) => (s.selectedInternalSkills ?? []).includes(sd)` 이므로 **번들 스킬은 전부 false →
-      항목 0 · 토큰 0** 으로 계산된다.
+      계측 spec 을 각자 손으로 조립하던 자리들을 `manifest.ts` 의 `buildAssetSpec` 하나로
+      모았다 — 설치기(`buildManifestSpec`)가 부르는 것과 같은 함수다. 착수 시 확인 항목
+      ⓐⓑⓒ 는 전부 옵션 A(계측 spec 을 채운다)로 처리했다: 트랙별 `isAssetSelected` 필터를
+      그대로 쓰고, 전 트랙 baseline 을 일괄 재기록하고, NORTH_STAR 수치를 동반 갱신했다.
+      실측 tooling 23개/~5,331 → **34개/~7,781**. 이 상향은 비용 증가가 아니라 계측 확대다.
 
-      **실측 확인(ADR-062 복원 시점)**: 스킬 9종을 internal 로 되돌렸는데
-      `npm run cost:baseline` 재생성 결과가 **바이트 동일**이었다. dev 트랙 설치마다 스킬
-      디렉터리가 6~10개 늘어나는데 이 리포의 1차 NSM(상주 항목 수)은 한 자리도 안 움직인다.
-
-      **왜 이번에 안 고치나**: 계측 경로를 고치면 전 트랙 ratchet baseline 이 동시에 움직여
-      (`actual ≤ recorded`) 이 사이클의 변경과 계측 정책 변경이 한 커밋에 섞인다. 판정은
-      "의도인지 결함인지"부터 필요하다 — 번들 스킬의 descriptor 는 설치자가 실제로 매 세션
-      무는 비용이므로 **결함 쪽으로 기운다**.
-
-      착수 시 확인할 것: ⓐ measure spec 에 `selectedInternalSkills` 를 넣을지, 넣는다면
-      트랙별 `isAssetSelected` 필터를 통과시킬지 ⓑ 전 트랙 baseline 일괄 재기록 ⓒ NORTH_STAR
-      수기 수치 동반 갱신(`north-star-cost-figures` 가 문다).
+      **독립 리뷰가 하나 더 잡았다**: 계측만 고치면 `docs`·`cost:report` 는 34 인데 **설치
+      화면(헤더·wizard confirm)은 23** 이 되어 새 불일치가 난다. 두 표면도 같은 spec 을 쓰게
+      고쳤고, 그 회귀를 `tests/context-cost.test.ts` 가 문다(변이로 red 확인).
 
 - [x] R-3a **`update-mode.ts` 가 `.claude/skills` 를 갱신하지 않는다** (✅ v26.126.0, ADR-046).
       착수 시 서술 정정: "정정이 **하나도** 도달하지 않는다"는 과장이었다 — CLI 기능은

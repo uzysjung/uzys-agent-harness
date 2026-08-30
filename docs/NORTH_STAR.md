@@ -212,10 +212,13 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > ✅ **번들 스킬 누락은 #320 에서 닫혔다 (2026-08-30).** 2026-08-02~08-30 사이 이 표는 번들
 > 스킬을 한 종도 세지 않았다 — 계측 spec 이 `selectedInternalSkills` 를 안 넘겨 `templates/skills/`
 > 전부가 항목 0 · 토큰 0 으로 계산됐고, 그래서 스킬 9종을 되돌려도 이 표와
-> `context-cost-baseline.json` 이 **한 자리도 안 움직였다**. 원인은 계측 spec 을 **손으로 조립하는
-> 자리가 다섯 곳**이었던 것이고(report · baseline · ratchet · 이 문서 게이트 · 항목 수 표),
-> 고친 방향은 다섯을 각각 채우는 것이 아니라 **조립을 `buildAssetSpec` 하나로 모은 것**이다 —
-> 설치기(`buildManifestSpec`)가 부르는 것과 같은 함수라 계측과 설치가 갈릴 수 없다.
+> `context-cost-baseline.json` 이 **한 자리도 안 움직였다**. 원인은 계측 spec 을 **각자 손으로
+> 조립하고 있었던 것**이고, 고친 방향은 각자 채우기가 아니라 **조립을 `buildAssetSpec` 하나로
+> 모은 것**이다 — 설치기(`buildManifestSpec`)가 부르는 것과 같은 함수다.
+> **설치 화면 두 표면(헤더·wizard confirm)도 같은 결함을 갖고 있었다** — 독립 리뷰가 잡았고
+> 같은 사이클에서 함께 고쳤다. 그것을 안 고쳤다면 문서·리포트는 34, 설치자 화면은 23 이 되어
+> **일관되게 틀린 상태보다 나빠질 뻔했다.** 고친 자리 수는 여기 적지 않는다(세어 적은 숫자는
+> 사본이라 썩는다 — 실제로 "넷"과 "다섯"이 갈렸다).
 > 그때 baseline 이 전 트랙에서 한 번에 뛰었다(tooling 23→34 · ~5,331→~7,781). **비용이 는 것이
 > 아니라 안 세던 것을 세기 시작한 것**이라 이 상향에는 감축 사유가 붙지 않는다.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고

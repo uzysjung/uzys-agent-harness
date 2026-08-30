@@ -61,17 +61,23 @@ export interface AssetSpec {
 }
 
 /**
- * `AssetSpec` 의 **유일한 derive**. installer 의 `buildManifestSpec` 과 계측 경로가 함께 쓴다.
+ * `AssetSpec` 의 derive. installer 의 `buildManifestSpec`, 설치 화면 두 표면, 계측 경로가
+ * **모두 이것을 부른다** — 그 목록이 여기서 끝이라는 뜻은 아니다(아래 "남은 자리" 참조).
  *
- * WHY (#320): 계측 4곳이 이 spec 을 **손으로 조립**하고 있었고 — `context-cost-report.mjs` ·
- * `context-cost-baseline.mjs` · `context-cost-ratchet.test.ts` · `north-star-cost-figures.test.ts` —
- * 넷 다 `selectedInternalSkills` 를 안 채웠다. 그 필드가 비면 번들 스킬의 `applies` 가
- * `(undefined ?? []).includes(...)` 로 전부 false 가 되어 **상주 계측에서 통째로 빠진다**.
- * 실측 결과 track=tooling 에서 상주가 23개/~5,331 로 보고됐지만 실제는 34개/~7,781 이었다 —
+ * WHY (#320): 상주 비용을 세는 자리들이 이 spec 을 **손으로 조립**하고 있었고, 전부
+ * `selectedInternalSkills` 를 안 채웠다. 그 필드가 비면 번들 스킬의 `applies` 가
+ * `(undefined ?? []).includes(...)` 로 전부 false 가 되어 **계측에서 통째로 빠진다**.
+ * 실측: track=tooling 에서 상주가 23개/~5,331 로 보고됐지만 실제는 34개/~7,781 —
  * 1차 NSM 이 실제의 약 68%만 세고 있었다.
  *
- * 손으로 조립하는 자리가 넷이었다는 것이 원인이다. 그래서 고친 방향은 "넷을 각각 채우기"가
- * 아니라 **조립 지점을 하나로 만드는 것**이다. 새 계측이 생겨도 여기를 부르면 따라온다.
+ * 원인은 필드 하나가 아니라 **조립을 각자 하고 있었다는 것**이다. 그래서 고친 방향은 각자
+ * 채우기가 아니라 이 함수로 모으는 것이다. 개수를 여기 적지 않는다 — 세어 적은 숫자는 두 번째
+ * 사본이라 썩는다(실제로 커밋 본문의 "다섯"과 이 주석의 "넷"이 갈렸고 독립 리뷰가 잡았다).
+ *
+ * **남은 자리(정직하게)**: `protect-branch-surface` · `spec-drift-script-surface` ·
+ * `resident-reach-4cli` 세 테스트는 여전히 좁은 spec 을 손으로 만든다. 셋 다 스킬 게이팅과
+ * 무관한 단일 `.uzys-agent-harness/*.sh` 엔트리만 보므로 현재 무해하지만, "모든 자리가 여기를
+ * 부른다"고 읽으면 틀린다.
  *
  * `cli` 는 받지 않는다 — `buildManifest` 도 `applies` 도 그 필드를 읽지 않는다(계측 spec 들이
  * `cli: ["claude"]` 를 넣고 있었지만 아무 효과가 없었다).

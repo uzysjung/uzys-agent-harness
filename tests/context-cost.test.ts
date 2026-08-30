@@ -16,7 +16,7 @@ import {
   summarizeContextCost,
 } from "../src/context-cost.js";
 import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
-import { runInstall } from "../src/installer.js";
+import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { renderFillScaffold } from "../src/project-claude-merge.js";
@@ -172,13 +172,41 @@ describe("context cost surfaces", () => {
    * 표면이 보여야 하는 문자열을 여기서 다시 조립하지 않는다 — 포맷 함수를 그대로 호출해
    * 얻는다. 기대값을 손으로 적으면 그 문자열이 세 번째 사본이 되고, 표면이 자체 조립으로
    * 새는 것을 잡으려는 이 테스트가 정작 같은 잘못을 저지르게 된다.
+   *
+   * **기대값은 `buildManifestSpec` 을 거친다 (#320 H1, 독립 리뷰 적발).** 전에는 `InstallSpec`
+   * 을 그대로 `applies()` 에 넘겨 기대값을 뽑았는데, 표면도 같은 좁은 spec 을 쓰고 있어서
+   * **둘이 같은 결함을 공유한 채 항상 초록**이었다. 그동안 설치자 화면은 track=tooling 에서
+   * 23개(실제 34개)를 출력하고 있었다. 기대값을 설치기 쪽에 묶어야 표면이 새는 것이 보인다.
    */
   const expectedLine = (): string => {
-    const entries = buildManifest(spec).filter((e) => e.applies(spec));
+    const assetSpec = buildManifestSpec(spec);
+    const entries = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
     const line = formatResidentCostLine(residentCost(entries), 0);
     // unmeasured 절은 자산 선택에 따라 달라지므로 그 앞부분(개수·토큰·내역)만 비교한다.
     return (line ?? "").split(" · 0 external")[0]?.replace(/\)$/, "") ?? "";
   };
+
+  it("화면에 뜨는 상주 항목 수가 baseline·cost:report 와 같은 값이다 (#320 H1)", () => {
+    // 계측만 고치고 표면을 두면 **내부는 34, 화면은 23** 이 된다 — 일관되게 틀린 것보다 나쁘다.
+    // `residentCost` 를 설치기 spec 으로 부른 것이 이 저장소의 1차 지표 값이고, 화면은 그것과
+    // 같아야 한다.
+    const truth = residentCost(
+      buildManifest(buildManifestSpec(spec)).filter((e) => e.applies(buildManifestSpec(spec))),
+    ).items.total;
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    const shown = /(\d+) items resident/.exec(lines.join("\n"))?.[1];
+    expect(
+      shown,
+      "설치 헤더가 상주 항목 수를 아예 안 낸다 — 표면이 사라졌거나 문구가 바뀌었다.",
+    ).toBeDefined();
+    expect(
+      Number(shown),
+      `설치 헤더가 ${shown}개를 보여주는데 실제 상주는 ${truth}개다 — 설치자에게 나가는 숫자가\n` +
+        "1차 지표와 어긋난다(#320 H1: 표면이 selectedInternalSkills 없는 spec 을 쓰면 이 형태가 된다).",
+    ).toBe(truth);
+    expect(formatSummary(spec)).toContain(`${truth} items resident`);
+  });
 
   it("non-interactive install header prints the context cost line", () => {
     const lines: string[] = [];
@@ -471,7 +499,11 @@ describe("상주 계측 ↔ 실제 설치 (#320 재발 방지)", () => {
   });
 
   it("모집단이 통째로 비어 통과하는 상태를 막는다 (0 == 0 방지)", () => {
-    // 위 등식은 derive **자체**가 망가져 양쪽이 함께 0 이 되면 초록으로 통과한다.
+    // **위 등식이 무는 범위를 과장하지 않는다** (독립 리뷰 적발): 등식은 "계측만 설치와
+    // 갈리는 것"을 잡는다. `buildAssetSpec` **자체**가 망가지면 계측과 설치가 **함께** 줄어
+    // 등식은 초록으로 산다. 그 경우를 실제로 무는 것은 아래 하한 단언과, 그 다음 describe 의
+    // **하드코딩된 항목 수 표**(executive 11 / tooling 17 / full 25)다 — 그 표가 derive 에서
+    // 값을 뽑지 않고 손으로 적혀 있다는 것이 여기서는 장점이다.
     const { measured, selected } = measuredVsInstalled("tooling");
     expect(selected, "buildAssetSpec 이 번들 스킬을 하나도 안 고른다").toBeGreaterThan(0);
     expect(measured, "상주 스킬 계측이 0 이다").toBeGreaterThan(selected);
