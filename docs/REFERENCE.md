@@ -144,7 +144,10 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 자체 작성 스킬은 **14종**이고, 그중 **12종은 카탈로그 엔트리를 갖는다**(`INTERNAL_BUNDLED_SKILL_IDS`
 — 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다). 남는 `spec-scaling`·
 `ui-visual-review` 2종은 엔트리 없이 `manifest.ts` 가 직접 깐다 — `ui-visual-review` 는 UI 트랙
-조건이고, `spec-scaling` 은 **무조건**이며 디렉터리가 아니라 `SKILL.md` 파일 하나만 나간다.
+조건이고, `spec-scaling` 은 **무조건**이다. (~~디렉터리가 아니라 `SKILL.md` 파일 하나만 나간다~~
+— #409 에서 **디렉터리 단위로 통일**했다. 우리 스킬은 이제 예외 없이 디렉터리로 등록되고,
+`tests/skill-registration-uniform.test.ts` 가 그것을 강제한다. 파일 단위였던 동안 상주 계측이
+이 스킬을 조용히 0으로 셌다 — ADR-083.)
 COMPATIBILITY.md 가
 "번들 uzys 스킬 12종"이라 적는 것과 여기 14종이 어긋나 보이는 이유가 이 둘이다.
 

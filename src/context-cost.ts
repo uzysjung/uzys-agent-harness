@@ -248,11 +248,10 @@ export function residentCost(
       agentDescriptors += descriptorTokens(tpl(e.source));
       agentItems += 1;
     } else if (e.target.startsWith(".claude/skills/")) {
-      // skills 엔트리는 디렉토리 — SKILL.md 가 descriptor 를 담는다. 다만 파일 단위로 등록된
-      // 것도 있어(`skills/<id>/SKILL.md`) 원본 경로가 이미 파일이면 그대로 쓴다.
-      const src = tpl(e.source);
-      const skillMd = src.endsWith("SKILL.md") ? src : join(src, "SKILL.md");
-      const t = descriptorTokens(skillMd);
+      // skills 엔트리는 **항상 디렉터리**다 — `tests/skill-registration-uniform.test.ts` 가
+      // 그것을 강제한다(#409). 파일 단위 등록을 받아 주던 분기는 통일과 함께 걷었다:
+      // 일어날 수 없는 상태에 방어를 두면 다음 사람이 그 형태가 지원된다고 읽는다.
+      const t = descriptorTokens(join(tpl(e.source), "SKILL.md"));
       skillDescriptors += t;
       skillItems += 1;
       // 기존 스킬의 **조용한 증가**를 잡으려면 id 별 값이 필요하다 — 총합만으로는 새 스킬
