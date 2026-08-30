@@ -252,15 +252,35 @@ describe("번들 스킬 래퍼는 모델 이름을 상수로 굳히지 않는다
     ).toBe("");
   });
 
-  /** 래퍼에 flag 를 늘려놓고 SKILL.md 에 안 적으면 그 경로는 아무도 못 쓴다. */
+  /**
+   * 래퍼에 flag 를 늘려놓고 SKILL.md 에 안 적으면 그 경로는 아무도 못 쓴다.
+   *
+   * **2026-08-30 재판정(#363/#364 와 같은 묶음, #362): 남긴다.** 이 파일에서 유일하게 문서를
+   * 읽는 블록이라 재판정 대상이었지만, 읽는 것은 **문장의 뜻이 아니라 코드에서 derive 한 flag
+   * 집합**이다. 기대값을 사람이 적지 않고 `getopts` 문자열에서 뽑으므로, 문서를 같은 뜻으로 다시
+   * 써도 통과하고(정당한 개정을 막지 않는다) 래퍼에 flag 가 늘면 반드시 문다. 뜻을 무는 검사가
+   * 양쪽으로 틀리는 것과 성격이 다르다 — `change-management.md` §자산은 자기 변경 요청 없이
+   * 건드리지 않는다 가 금지하는 형태가 아니다.
+   *
+   * 재판정 중에 **조용한 통과 구멍**을 하나 닫았다: 정규식이 안 맞으면 `return` 으로 빠져나가
+   * 단언 0건으로 초록이었다. 래퍼가 `getopts` 표기를 바꾸면 이 게이트가 통째로 장식이 되는데
+   * 화면에는 ✓ 만 보인다. 이제 spec 추출 실패 자체를 실패로 판정한다.
+   */
   it.each(
     scripts.map((p) => [basename(p), p] as const),
   )("%s 의 getopts flag 는 전부 같은 스킬의 SKILL.md 에 적혀 있다", (_name, path) => {
     const src = readFileSync(path, "utf8");
-    const spec = src.match(/while getopts "([^"]+)"/)?.[1];
-    if (!spec) return;
+    // 옵션을 안 받는 스크립트(`detect-project.sh` 등)는 해당 없음 — 여기서 빠진다.
+    if (!/\bgetopts\b/.test(src)) return;
+    const spec = src.match(/while\s+getopts\s+"([^"]+)"/)?.[1];
+    // getopts 는 쓰는데 spec 추출이 실패했다 = 표기가 바뀌었다. 예전엔 여기서 조용히
+    // 빠져나가 **단언 0건으로 초록**이었다 — 게이트가 통째로 장식이 되는데 화면엔 ✓ 만 보인다.
+    expect(
+      spec,
+      `${_name}: getopts 를 쓰는데 spec 을 못 뽑았다 — 이 블록이 단언 0건으로 통과한다. 추출을 고쳐라.`,
+    ).toBeDefined();
     const doc = readFileSync(resolve(path, "../../SKILL.md"), "utf8");
-    for (const letter of spec.replace(/:/g, "")) {
+    for (const letter of (spec as string).replace(/:/g, "")) {
       expect(doc, `-${letter} 가 문서에 없다 — 래퍼에만 있는 옵션은 없는 것과 같다`).toContain(
         `-${letter} `,
       );
