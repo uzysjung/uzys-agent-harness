@@ -108,9 +108,11 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 표식을 요구한다 — 정의를 좁혀 분모에서 빼는 방식으로 0 을 만드는 것을 막는다.
 
 
-> **현재 상태 (2026-08-17, implementer frontmatter 수정 뒤)**: **상주 + 발화 양축 계측 완료**
-> — `npm run cost:report`. 실측(tooling 트랙): **상주 23개 항목 · ~5,331 tokens/세션** =
-> rules 6개 ~1,360 · CLAUDE.md 2개 ~2,954 · agent descriptors 9개 ~725 · skill descriptors 6개 ~292.
+> **현재 상태 (2026-08-30, #320 계측 사각 해소 뒤)**: **상주 + 발화 양축 계측 완료**
+> — `npm run cost:report`. 실측(tooling 트랙): **상주 34개 항목 · ~7,781 tokens/세션** =
+> rules 6개 ~1,360 · CLAUDE.md 2개 ~2,954 · agent descriptors 9개 ~725 · skill descriptors 17개 ~2,742.
+> **이 수치는 늘어난 것이 아니라 처음으로 다 센 것이다** — 직전 표기 23개/~5,331 은 번들 스킬 11종을
+> 통째로 빼고 세던 값이고(#320), 실제 비용은 그때도 34개였다.
 > (2026-08-26: **자산은 자기 변경 요청 없이 건드리지 않는다**는 이 저장소 전용 룰로 뒀다 —
 > 배포판에 넣으면 Codex 의 `AGENTS.md` 예산을 479 B 초과한다(실측 24,031 B > ratchet 23,552 B).
 > 겪는 사람이 이 저장소를 유지보수하는 쪽이라 상주 비용을 남에게 물리지 않는다.)
@@ -207,13 +209,18 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > CLAUDE.md 가 2개인 것은 설치가 **하네스 앵커(루트 `CLAUDE-uzys-harness.md`)와 프로젝트
 > 스캐폴드+import(루트 `CLAUDE.md`)를 둘 다** 놓기 때문이다. v26.140.0 까지는 앵커만 재면서
 > 라벨은 "스캐폴드"였고, 그래서 스캐폴드 ~954 tok/세션이 계측 밖에 있었다.
-> ⚠ **이 23개에 번들 스킬은 안 들어 있다** (실측 2026-08-02, ADR-062 복원 시 확인). 상주 계측의
-> 측정 spec 이 `selectedInternalSkills` 를 넘기지 않아 `templates/skills/` 번들은 전부 항목 0 ·
-> 토큰 0 으로 계산된다 — 그래서 스킬 9종을 되돌려도 이 표와 `context-cost-baseline.json` 이
-> **한 자리도 안 움직였다**(재생성 후 diff 무차이로 확인). 같은 실행의 자산별 리포트는 번들
-> 11종 상주 ~3,059 를 낸다. 즉 **두 수치의 모집단이 다르다.** 1차 NSM 이 "상주 항목 수"인 이상
-> 이 사각은 결함이다 — 고치면 ratchet 의 전 트랙 baseline 이 동시에 움직이므로 별도 항목으로
-> 이월했다(`docs/todo.md`). 그때까지 위 23개는 **"룰·CLAUDE.md·agent descriptor 기준"** 으로 읽는다.
+> ✅ **번들 스킬 누락은 #320 에서 닫혔다 (2026-08-30).** 2026-08-02~08-30 사이 이 표는 번들
+> 스킬을 한 종도 세지 않았다 — 계측 spec 이 `selectedInternalSkills` 를 안 넘겨 `templates/skills/`
+> 전부가 항목 0 · 토큰 0 으로 계산됐고, 그래서 스킬 9종을 되돌려도 이 표와
+> `context-cost-baseline.json` 이 **한 자리도 안 움직였다**. 원인은 계측 spec 을 **각자 손으로
+> 조립하고 있었던 것**이고, 고친 방향은 각자 채우기가 아니라 **조립을 `buildAssetSpec` 하나로
+> 모은 것**이다 — 설치기(`buildManifestSpec`)가 부르는 것과 같은 함수다.
+> **설치 화면 두 표면(헤더·wizard confirm)도 같은 결함을 갖고 있었다** — 독립 리뷰가 잡았고
+> 같은 사이클에서 함께 고쳤다. 그것을 안 고쳤다면 문서·리포트는 34, 설치자 화면은 23 이 되어
+> **일관되게 틀린 상태보다 나빠질 뻔했다.** 고친 자리 수는 여기 적지 않는다(세어 적은 숫자는
+> 사본이라 썩는다 — 실제로 "넷"과 "다섯"이 갈렸다).
+> 그때 baseline 이 전 트랙에서 한 번에 뛰었다(tooling 23→34 · ~5,331→~7,781). **비용이 는 것이
+> 아니라 안 세던 것을 세기 시작한 것**이라 이 상향에는 감축 사유가 붙지 않는다.
 > **11개 트랙 전체 수치는 여기 옮겨 적지 않는다** — `context-cost-baseline.json` 이 SSOT 이고
 > `npm run cost:report <track>` 이 현재값을 낸다. 같은 사실을 두 곳에 두면 한쪽이 썩는다
 > (doc-governance). 위 tooling 수치만 문서에 두는 이유는 그것이 게이트로 대조되기 때문이다.

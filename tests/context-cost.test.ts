@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderInstallHeader } from "../src/commands/install-render.js";
 import {
@@ -16,10 +16,13 @@ import {
   summarizeContextCost,
 } from "../src/context-cost.js";
 import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
-import { buildManifest } from "../src/manifest.js";
+import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { renderFillScaffold } from "../src/project-claude-merge.js";
-import { type InstallSpec, TRACKS } from "../src/types.js";
+import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "../src/types.js";
+
+const HARNESS_ROOT_FOR_INSTALL = resolve(__dirname, "..");
 
 /** 상주 CLAUDE.md 중 스캐폴드 몫. 파일이 아니라 생성물이라 어떤 root 에서도 같다. */
 const scaffoldTokens = (): number => estimateTokens(renderFillScaffold().trim().length);
@@ -169,13 +172,41 @@ describe("context cost surfaces", () => {
    * 표면이 보여야 하는 문자열을 여기서 다시 조립하지 않는다 — 포맷 함수를 그대로 호출해
    * 얻는다. 기대값을 손으로 적으면 그 문자열이 세 번째 사본이 되고, 표면이 자체 조립으로
    * 새는 것을 잡으려는 이 테스트가 정작 같은 잘못을 저지르게 된다.
+   *
+   * **기대값은 `buildManifestSpec` 을 거친다 (#320 H1, 독립 리뷰 적발).** 전에는 `InstallSpec`
+   * 을 그대로 `applies()` 에 넘겨 기대값을 뽑았는데, 표면도 같은 좁은 spec 을 쓰고 있어서
+   * **둘이 같은 결함을 공유한 채 항상 초록**이었다. 그동안 설치자 화면은 track=tooling 에서
+   * 23개(실제 34개)를 출력하고 있었다. 기대값을 설치기 쪽에 묶어야 표면이 새는 것이 보인다.
    */
   const expectedLine = (): string => {
-    const entries = buildManifest(spec).filter((e) => e.applies(spec));
+    const assetSpec = buildManifestSpec(spec);
+    const entries = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
     const line = formatResidentCostLine(residentCost(entries), 0);
     // unmeasured 절은 자산 선택에 따라 달라지므로 그 앞부분(개수·토큰·내역)만 비교한다.
     return (line ?? "").split(" · 0 external")[0]?.replace(/\)$/, "") ?? "";
   };
+
+  it("화면에 뜨는 상주 항목 수가 baseline·cost:report 와 같은 값이다 (#320 H1)", () => {
+    // 계측만 고치고 표면을 두면 **내부는 34, 화면은 23** 이 된다 — 일관되게 틀린 것보다 나쁘다.
+    // `residentCost` 를 설치기 spec 으로 부른 것이 이 저장소의 1차 지표 값이고, 화면은 그것과
+    // 같아야 한다.
+    const truth = residentCost(
+      buildManifest(buildManifestSpec(spec)).filter((e) => e.applies(buildManifestSpec(spec))),
+    ).items.total;
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    const shown = /(\d+) items resident/.exec(lines.join("\n"))?.[1];
+    expect(
+      shown,
+      "설치 헤더가 상주 항목 수를 아예 안 낸다 — 표면이 사라졌거나 문구가 바뀌었다.",
+    ).toBeDefined();
+    expect(
+      Number(shown),
+      `설치 헤더가 ${shown}개를 보여주는데 실제 상주는 ${truth}개다 — 설치자에게 나가는 숫자가\n` +
+        "1차 지표와 어긋난다(#320 H1: 표면이 selectedInternalSkills 없는 spec 을 쓰면 이 형태가 된다).",
+    ).toBe(truth);
+    expect(formatSummary(spec)).toContain(`${truth} items resident`);
+  });
 
   it("non-interactive install header prints the context cost line", () => {
     const lines: string[] = [];
@@ -415,9 +446,73 @@ describe("상주 비용 — 표면 전체 (ADR-044)", () => {
  * 아래는 상수표를 읽는 게 아니라 **실제 manifest + applies 필터**로 센다 — cost:report ·
  * baseline · ratchet 이 쓰는 것과 같은 경로다. 계측 경로가 갈리면 수치가 갈린다.
  */
+/**
+ * **계측을 "설치가 실제로 만드는 것"에 묶는다 (#320, 사용자 지시 2026-08-30).**
+ *
+ * #320 의 원인은 필드 하나를 빠뜨린 것이 아니라 **계측이 설치와 다른 목록을 보고 있었다**는
+ * 것이다. 그래서 재발 방지도 "필드를 채웠는지" 확인이 아니라 **두 목록을 맞대는 것**으로 한다 —
+ * 새 스킬이 카탈로그에 들어오면 설치분과 계측분이 함께 움직이므로 이 등식은 저절로 최신이 된다.
+ * 열거가 없어서 게이트를 고칠 일도 없다.
+ *
+ * 외부 설치(`runExternal`)는 no-op 으로 둔다 — 그쪽은 설치 시점에 내용을 알 수 없어 의도적으로
+ * "미계측"이고(no-false-ship), 섞으면 이 등식이 네트워크 상태에 따라 흔들린다.
+ */
+describe("상주 계측 ↔ 실제 설치 (#320 재발 방지)", () => {
+  const measuredVsInstalled = (
+    track: Track,
+  ): { measured: number; installed: ReadonlyArray<string>; selected: number } => {
+    const projectDir = mkdtempSync(join(tmpdir(), "cost-install-"));
+    try {
+      const spec = buildAssetSpec({ tracks: [track], options: DEFAULT_OPTIONS });
+      runInstall({
+        harnessRoot: HARNESS_ROOT_FOR_INSTALL,
+        projectDir,
+        spec: { tracks: [track], options: DEFAULT_OPTIONS, cli: ["claude"], projectDir },
+        mode: "add",
+        runExternal: () => ({ attempted: [], succeeded: 0, skipped: 0, excludedByCli: [] }),
+      });
+      const installed = readdirSync(join(projectDir, ".claude", "skills"), { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name)
+        .sort();
+      const measured = residentCost(buildManifest(spec).filter((e) => e.applies(spec))).items
+        .skills;
+      return { measured, installed, selected: spec.selectedInternalSkills.length };
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  };
+
+  it.each([
+    "executive",
+    "tooling",
+    "full",
+  ] as ReadonlyArray<Track>)("track=%s — 상주 계측이 세는 스킬 수 = 설치가 실제로 만든 스킬 디렉터리 수", (track) => {
+    const { measured, installed } = measuredVsInstalled(track);
+    expect(
+      measured,
+      `계측 ${measured}종 ≠ 실설치 ${installed.length}종.\n` +
+        `설치된 것: ${installed.join(", ")}\n` +
+        "계측 spec 이 설치기와 다른 목록을 보고 있다 — #320 이 정확히 이 형태였다\n" +
+        "(계측만 손으로 조립해 selectedInternalSkills 를 안 넘겼고, 번들 스킬이 통째로 빠졌다).",
+    ).toBe(installed.length);
+  });
+
+  it("모집단이 통째로 비어 통과하는 상태를 막는다 (0 == 0 방지)", () => {
+    // **위 등식이 무는 범위를 과장하지 않는다** (독립 리뷰 적발): 등식은 "계측만 설치와
+    // 갈리는 것"을 잡는다. `buildAssetSpec` **자체**가 망가지면 계측과 설치가 **함께** 줄어
+    // 등식은 초록으로 산다. 그 경우를 실제로 무는 것은 아래 하한 단언과, 그 다음 describe 의
+    // **하드코딩된 항목 수 표**(executive 11 / tooling 17 / full 25)다 — 그 표가 derive 에서
+    // 값을 뽑지 않고 손으로 적혀 있다는 것이 여기서는 장점이다.
+    const { measured, selected } = measuredVsInstalled("tooling");
+    expect(selected, "buildAssetSpec 이 번들 스킬을 하나도 안 고른다").toBeGreaterThan(0);
+    expect(measured, "상주 스킬 계측이 0 이다").toBeGreaterThan(selected);
+  });
+});
+
 describe("상주 항목 수 (quantity 축)", () => {
   const count = (track: string): ReturnType<typeof residentCost>["items"] => {
-    const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as InstallSpec;
+    const spec = buildAssetSpec({ tracks: [track as Track], options: DEFAULT_OPTIONS });
     return residentCost(buildManifest(spec).filter((e) => e.applies(spec))).items;
   };
 
@@ -429,11 +524,11 @@ describe("상주 항목 수 (quantity 축)", () => {
   //   2026-08-02 룰·훅 다이어트 — 룰 축이 전 트랙 1 줄었다: `gates-taxonomy` 를 COMMON_RULES 에서
   //   뺐다(게이트 4유형 어휘표 = 모델 기지식). 훅은 상주가 아니라 이 표에 영향이 없다.
   it.each([
-    ["executive", { rules: 3, skills: 7, agents: 5, claudeMd: 2, total: 17 }],
-    ["tooling", { rules: 6, skills: 6, agents: 9, claudeMd: 2, total: 23 }],
+    ["executive", { rules: 3, skills: 11, agents: 5, claudeMd: 2, total: 21 }],
+    ["tooling", { rules: 6, skills: 17, agents: 9, claudeMd: 2, total: 34 }],
     // 2026-08-12 — `playwright-launch` 가 `ui-visual-review` 스킬로 흡수돼 UI 트랙 룰이 0이 됐다.
     // full 의 룰이 7 → 6 이고 총합도 하나 준다 (스킬 수는 그대로 — 흡수된 곳이 이미 있던 스킬이다).
-    ["full", { rules: 6, skills: 14, agents: 9, claudeMd: 2, total: 31 }],
+    ["full", { rules: 6, skills: 25, agents: 9, claudeMd: 2, total: 42 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

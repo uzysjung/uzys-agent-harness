@@ -451,10 +451,12 @@ export function formatSummary(spec: InstallSpec): string {
     // v26.103.0 (ADR-032) — header 와 동일 문구 (표면별 상이 문구 금지, v26.88.0 교훈).
     // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
     // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
+    // #320 H1 — 헤더와 같은 이유로 **설치기와 같은 spec**(`buildManifestSpec`)으로 센다.
+    const assetSpec = buildManifestSpec(spec);
     const cost = formatResidentCostLine(
       residentCost(
-        buildManifest(spec).filter(
-          (e) => e.applies(spec) && !isBaselineExcluded(e.target, baselineExcluded),
+        buildManifest(assetSpec).filter(
+          (e) => e.applies(assetSpec) && !isBaselineExcluded(e.target, baselineExcluded),
         ),
       ),
       summarizeContextCost(finalAssets).unmeasuredCount,

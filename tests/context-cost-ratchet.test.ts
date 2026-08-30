@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { residentCost } from "../src/context-cost.js";
-import { buildManifest } from "../src/manifest.js";
-import { type InstallSpec, TRACKS } from "../src/types.js";
+import { buildAssetSpec, buildManifest } from "../src/manifest.js";
+import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
 
 /**
  * 상주 컨텍스트 비용의 **성장** 게이트 (v26.136.0).
@@ -40,7 +40,9 @@ const baseline = JSON.parse(
 
 /** cost:report · NORTH_STAR 게이트와 **같은 경로**로 잰다 (계측 경로가 갈리면 수치가 갈린다). */
 function measure(track: string): BaselineEntry {
-  const spec = { tracks: [track], cli: ["claude"], options: {} } as unknown as InstallSpec;
+  // spec 을 손으로 조립하지 않는다 — installer 와 **같은 derive**(`buildAssetSpec`)를 부른다.
+  // 손조립이던 동안 `selectedInternalSkills` 가 비어 번들 스킬 11종이 계측에서 통째로 빠졌다(#320).
+  const spec = buildAssetSpec({ tracks: [track as Track], options: DEFAULT_OPTIONS });
   const r = residentCost(buildManifest(spec).filter((e) => e.applies(spec)));
   return { items: r.items.total, tokens: r.total };
 }

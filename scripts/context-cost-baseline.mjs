@@ -21,13 +21,20 @@
  */
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { buildManifest, residentCost, TRACKS } from "../dist/trust-tier-drift.js";
+import {
+  buildAssetSpec,
+  buildManifest,
+  DEFAULT_OPTIONS,
+  residentCost,
+  TRACKS,
+} from "../dist/trust-tier-drift.js";
 
 const OUT = fileURLToPath(new URL("../context-cost-baseline.json", import.meta.url));
 
 const tracks = {};
 for (const track of TRACKS) {
-  const spec = { tracks: [track], cli: ["claude"], options: {} };
+  // installer 와 같은 derive (#320) — 손조립 spec 은 번들 스킬 descriptor 를 통째로 빠뜨린다.
+  const spec = buildAssetSpec({ tracks: [track], options: DEFAULT_OPTIONS });
   const r = residentCost(buildManifest(spec).filter((e) => e.applies(spec)));
   tracks[track] = { items: r.items.total, tokens: r.total };
 }

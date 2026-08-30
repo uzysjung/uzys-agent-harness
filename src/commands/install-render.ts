@@ -19,7 +19,13 @@ import {
   isAssetSelected,
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
-import type { BaselineReport, InstallMode, InstallReport, ProgressEvent } from "../installer.js";
+import {
+  type BaselineReport,
+  buildManifestSpec,
+  type InstallMode,
+  type InstallReport,
+  type ProgressEvent,
+} from "../installer.js";
 import { buildManifest } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
@@ -106,8 +112,13 @@ export function renderInstallHeader(
     }
     // v26.103.0 (ADR-032) — Session-Start Context Cost NSM. 번들 스킬 = frontmatter 실측(~),
     // 외부 자산 = unmeasured 명시 (추정치를 실측처럼 표기 금지).
+    // #320 H1 — **설치기와 같은 spec 으로 센다.** `InstallSpec` 을 그대로 넘기면
+    // `selectedInternalSkills` 가 없어 번들 스킬이 전부 미설치로 계산되고, 설치자에게
+    // 실제보다 작은 숫자가 나간다(track=tooling 에서 23 vs 실제 34). 계측·문서만 고치고
+    // 이 줄을 두면 화면과 내부 수치가 어긋난다 — 일관되게 틀린 것보다 나쁘다.
+    const assetSpec = buildManifestSpec(spec);
     const cost = formatResidentCostLine(
-      residentCost(buildManifest(spec).filter((e) => e.applies(spec))),
+      residentCost(buildManifest(assetSpec).filter((e) => e.applies(assetSpec))),
       summarizeContextCost(finalAssets).unmeasuredCount,
     );
     if (cost) log(`              ${c.dim(`· ${cost}`)}`);

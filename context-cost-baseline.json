@@ -6,48 +6,48 @@
   },
   "tracks": {
     "tooling": {
-      "items": 23,
-      "tokens": 5331
+      "items": 34,
+      "tokens": 7781
     },
     "csr-supabase": {
-      "items": 24,
-      "tokens": 5386
+      "items": 35,
+      "tokens": 7836
     },
     "csr-fastify": {
-      "items": 24,
-      "tokens": 5386
+      "items": 35,
+      "tokens": 7836
     },
     "csr-fastapi": {
-      "items": 26,
-      "tokens": 5474
+      "items": 37,
+      "tokens": 7924
     },
     "ssr-htmx": {
-      "items": 24,
-      "tokens": 5386
+      "items": 35,
+      "tokens": 7836
     },
     "ssr-nextjs": {
-      "items": 25,
-      "tokens": 5426
+      "items": 36,
+      "tokens": 7876
     },
     "data": {
-      "items": 24,
-      "tokens": 5226
+      "items": 35,
+      "tokens": 7676
     },
     "executive": {
-      "items": 17,
-      "tokens": 4335
+      "items": 21,
+      "tokens": 5388
     },
     "full": {
-      "items": 31,
-      "tokens": 5961
+      "items": 42,
+      "tokens": 8411
     },
     "project-management": {
-      "items": 14,
-      "tokens": 4081
+      "items": 18,
+      "tokens": 5134
     },
     "growth-marketing": {
-      "items": 14,
-      "tokens": 4081
+      "items": 18,
+      "tokens": 5134
     }
   }
 }

@@ -38,9 +38,9 @@ export {
   INTERNAL_BUNDLED_SKILL_IDS,
   TRUST_TIER,
 } from "./external-assets.js";
-export { buildManifest } from "./manifest.js";
+export { buildAssetSpec, buildManifest } from "./manifest.js";
 // v26.102.0 (ADR-031) — 도달 라벨("N-CLI")의 N 을 derive 하기 위한 re-export (매직 넘버 금지).
-export { CLI_BASES, TRACKS } from "./types.js";
+export { CLI_BASES, DEFAULT_OPTIONS, TRACKS } from "./types.js";
 
 /** vetted 경계 (NORTH_STAR / PRD v26-71 D2). */
 export const STAR_THRESHOLD = 1000;

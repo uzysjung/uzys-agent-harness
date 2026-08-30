@@ -15,7 +15,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   assetCostRows,
+  buildAssetSpec,
   buildManifest,
+  DEFAULT_OPTIONS,
   EXTERNAL_ASSETS,
   formatResidentCostBlock,
   INTERNAL_BUNDLED_SKILL_IDS,
@@ -48,13 +50,18 @@ const sum = (list, key) => list.reduce((a, r) => a + (r[key] ?? 0), 0);
 const base = rows.filter((r) => defaults.has(r.id));
 
 console.log("\n▸ 합계\n");
-console.log(`  기본 설치 ${String(base.length).padStart(2)}종  상주 ~${sum(base, "descriptorTokens")}  ·  전부 발화 시 ~${sum(base, "bodyTokens")}`);
-console.log(`  번들 전체 ${String(rows.length).padStart(2)}종  상주 ~${sum(rows, "descriptorTokens")}  ·  전부 발화 시 ~${sum(rows, "bodyTokens")}`);
+console.log(
+  `  기본 설치 ${String(base.length).padStart(2)}종  상주 ~${sum(base, "descriptorTokens")}  ·  전부 발화 시 ~${sum(base, "bodyTokens")}`,
+);
+console.log(
+  `  번들 전체 ${String(rows.length).padStart(2)}종  상주 ~${sum(rows, "descriptorTokens")}  ·  전부 발화 시 ~${sum(rows, "bodyTokens")}`,
+);
 
 // v26.117.0 (ADR-044) — 상주 비용은 스킬 descriptor 만이 아니다. 트랙별 실제 설치 계획에서
 // 상주 표면 전체를 실측한다 (판정 기준 = 표면 열거가 아니라 "상주인가 발화인가").
 const TRACK = process.argv[2] ?? "tooling";
-const spec = { tracks: [TRACK], cli: ["claude"], options: {} };
+// installer 와 같은 derive (#320) — 손조립 spec 은 번들 스킬 descriptor 를 통째로 빠뜨린다.
+const spec = buildAssetSpec({ tracks: [TRACK], options: DEFAULT_OPTIONS });
 const entries = buildManifest(spec).filter((e) => e.applies(spec));
 const res = residentCost(entries, ROOT);
 
@@ -70,6 +77,8 @@ for (const line of formatResidentCostBlock(res)) console.log(line);
 
 const external = EXTERNAL_ASSETS.filter((a) => a.method.kind !== "internal").length;
 console.log("\n▸ 미계측\n");
-console.log(`  외부 자산 ${String(external).padStart(2)}종   설치 시점에 콘텐츠를 알 수 없다 (no-false-ship — 추정치 금지).`);
+console.log(
+  `  외부 자산 ${String(external).padStart(2)}종   설치 시점에 콘텐츠를 알 수 없다 (no-false-ship — 추정치 금지).`,
+);
 console.log("  MCP tool schema   서버가 제공 — 템플릿에서 계산 불가.");
 console.log("  hooks             컨텍스트에 안 올라감 (실행될 뿐) — 비용 대상 아님.\n");
