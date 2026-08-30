@@ -30,7 +30,12 @@ import { DEFAULT_OPTIONS, TRACKS, type Track } from "../src/types.js";
  * **덮지 않는 것**(#294·#295 이전에는 이 자리에 "자동으로 커버된다"고만 적혀 있었고 그것이
  * 거짓이었다 — 다음 사람이 그 문장을 읽고 안 덮인 표면을 믿는다):
  *   · 지목의 **뜻**은 안 본다. 어휘 매칭이라 면제 문구를 성의 없이 적으면 통과한다(`ABSENCE_ACK`).
- *   · 상주가 아닌 표면(스킬 본문·커맨드)은 대상이 아니다 — 매 세션 안 들어온다.
+ *   · **스킬·에이전트의 descriptor 는 안 본다.** 상주 표면의 정의는 아래 `isResidentDoc` 주석대로
+ *     `context-cost.ts` 와 같은 기준인데, 그쪽 상주에는 rules·CLAUDE.md 전문 **말고 descriptor 도**
+ *     들어 있다. 즉 이 게이트가 훑는 것은 상주 표면의 **전부가 아니다** — 이 줄이 없으면 위 목록을
+ *     읽고 "상주는 다 덮였다"로 읽는다. 구멍이 아니라 **범위 표기**다 — 2026-08-30 전수 37종
+ *     (스킬 28 + 에이전트 9, 빈 description 0)에 지목 위반 0, 탐지기 canary 는 물었다.
+ *   · 상주가 아닌 표면(스킬 본문·커맨드)은 애초에 대상이 아니다 — 매 세션 안 들어온다.
  *   · id 3자 이하는 산문 오탐만 낳아 제외한다(`assetIdOf`).
  */
 
@@ -156,24 +161,35 @@ function buildIndexes(): {
     // 모집단 보강 ② — 카탈로그 자산 (#294).
     //
     // WHY: 위 두 루프의 모집단은 `buildManifest` 가 내놓는 `.claude/…` target 뿐이다. 그래서
-    // `method.kind` 가 plugin · git-clone · marketplace 인 자산은 **애초에 검사 대상이 아니었다**
-    // (실측 45/57). 상주 문서가 그 중 하나를 조건절 없이 부르면 게이트가 검사조차 하지 않는다 —
+    // `method.kind` 가 plugin · git-clone · marketplace 인 자산은 **애초에 검사 대상이 아니었다.**
+    // 상주 문서가 그 중 하나를 조건절 없이 부르면 게이트가 검사조차 하지 않는다 —
     // 이 게이트가 만들어진 이유와 정확히 같은 형태인데 잡히지 않았다.
     //
     // 설치 판정은 `isAssetSelected` 에 위임한다. 조건 해석을 여기서 다시 쓰면 그게 선택 로직의
     // 두 번째 사본이 되고, 이 리포가 반복해서 데인 자리가 바로 거기다.
+    //
+    // **몇 종이 밖이었는지는 여기 안 적는다.** 초안에 이슈의 `45/57` 을 옮겨 적었는데 이슈 등록일
+    // 기준이라 이미 썩어 있었다(독립 리뷰 적발) — 거짓 단언을 걷는 PR 이 새 거짓을 만들 뻔했다.
+    // 개수의 SSOT 는 `EXTERNAL_ASSETS` 이고, 아래 canary 가 모집단 누락을 id 로 열거해 보여준다.
     for (const asset of EXTERNAL_ASSETS) {
-      if (asset.id.length < 4) continue; // `assetIdOf` 와 같은 기준 — 3자 이하는 산문 오탐만 낳는다
+      // `assetIdOf` 와 같은 기준. 오늘 카탈로그에 3자 이하 id 는 없지만(그 사례 `ecc` 는 manifest
+      // 디렉터리 이름이었다) 두 모집단의 기준을 갈라 두면 한쪽에만 오탐이 생긴다.
+      if (asset.id.length < 4) continue;
       const set = assetTracks.get(asset.id) ?? new Set<Track>();
       if (isAssetSelected(asset.id, { tracks: [track], options: DEFAULT_OPTIONS })) set.add(track);
       assetTracks.set(asset.id, set);
     }
   }
 
-  // 껍데기는 트랙 루프 밖에서 **전 트랙**으로 넣는다 (#295).
+  // 껍데기는 트랙 루프 밖에서 **전 트랙**으로 넣는다 (#295) — 세 transform 이 트랙이 아니라
+  // 고른 CLI 로만 갈린다(`src/cli-transforms.ts`).
+  //
+  // target 에 설치 경로를 적지 않고 source 를 그대로 쓴다: 초안은 `"AGENTS.md"` 로 뭉갰는데
+  // antigravity 는 거기 쓰지 않아 **거짓 표기**였다(독립 리뷰 적발). 이 값은 테스트 전용 `inject`
+  // 훅이 문서를 지목하는 데만 쓰이므로 설치 경로일 필요가 없고, 틀릴 바엔 안 적는 게 낫다.
   for (const rel of anchorShellSources()) {
     docTracks.set(rel, new Set<Track>(TRACKS));
-    docTarget.set(rel, "AGENTS.md");
+    docTarget.set(rel, rel);
   }
   return { assetTracks, docTracks, docTarget };
 }
@@ -345,7 +361,11 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 실측 3 (2026-08-12 — `playwright-launch` 가 스킬로 흡수되며 그 룰이 갖고 있던 지목 2건이
     // 함께 빠졌다. #290 보강 직후는 5였다). 하한을 실측 바로 아래로 조인다 — 아래 `docTracks`
     // 하한과 같은 기준이다: 한 건만 소실돼도 무는 하한이라야 canary 다.
-    expect(references).toBeGreaterThan(2);
+    //
+    // 2026-08-30 재측정 **4**. 하한이 2 에 멈춰 있어 4 중 2 가 조용히 사라질 수 있었다(독립 리뷰
+    // 적발 — #294·#295 에서 형제 하한 `docTracks` 만 조이고 이건 두고 갔다). 모집단이 넓어져도
+    // 지목 수는 그대로다: 늘어난 자산을 오늘 아무 상주 문서도 부르지 않는다.
+    expect(references).toBeGreaterThan(3);
   });
 
   it("설치 대상 자산과 상주 문서를 실제로 뽑는다 (manifest + 카탈로그 + 껍데기)", () => {
