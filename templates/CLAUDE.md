@@ -1,7 +1,7 @@
 # Working Principles
 
 These are default decision principles. Project-specific instructions may refine
-them. Hard invariants belong in executable enforcement, not prose.
+them.
 
 ## 1. Understand First
 
