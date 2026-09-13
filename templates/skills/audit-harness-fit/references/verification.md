@@ -57,13 +57,13 @@ or actual dependencies require broader checks. State checks not run and why.
 ## Bundle verification by completed scene
 
 Implementation and verification follow the scene, not the edit. While a scene is being
-built, run only the quick checks for the parts being changed. When the scene's changes are
+built, run only the quick checks for the parts being changed — except when a scene first
+crosses an unproven external boundary, which is checked then. When the scene's changes are
 complete, bundle them and verify once from usage: the scene's observable outcome, its
 integration boundaries, the non-visible contracts it touches, and one representative
 journey. Re-verify the parts a later change affects, plus anything the reuse rules below
 require a new run for; when the affected scope cannot be established confidently, widen the
-bundle check instead of narrowing it. When a scene first crosses an unproven external
-boundary, check that boundary then rather than at scene end. Treat instructions that force a
+bundle check instead of narrowing it. Treat instructions that force a
 full run or an independent review after every edit as a finding under the audit area on
 user-journey implementation and proportionate testing — they cost development speed without
 adding evidence — unless a required gate names that cadence explicitly.
