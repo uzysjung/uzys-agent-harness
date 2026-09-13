@@ -12,71 +12,71 @@
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4379
+        "tokens": 4481
       },
       "firing": {
         "items": 26,
-        "tokens": 3368
+        "tokens": 3409
       }
     },
     "csr-supabase": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 28,
-        "tokens": 3616
+        "tokens": 3657
       }
     },
     "csr-fastify": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 28,
-        "tokens": 3616
+        "tokens": 3657
       }
     },
     "csr-fastapi": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 30,
-        "tokens": 3704
+        "tokens": 3745
       }
     },
     "ssr-htmx": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 28,
-        "tokens": 3616
+        "tokens": 3657
       }
     },
     "ssr-nextjs": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 29,
-        "tokens": 3656
+        "tokens": 3697
       }
     },
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 4186
+        "tokens": 4288
       },
       "firing": {
         "items": 28,
-        "tokens": 3456
+        "tokens": 3497
       }
     },
     "executive": {
@@ -86,17 +86,17 @@
       },
       "firing": {
         "items": 16,
-        "tokens": 1804
+        "tokens": 1845
       }
     },
     "full": {
       "directive": {
         "items": 8,
-        "tokens": 4379
+        "tokens": 4481
       },
       "firing": {
         "items": 34,
-        "tokens": 3998
+        "tokens": 4039
       }
     },
     "project-management": {
@@ -106,7 +106,7 @@
       },
       "firing": {
         "items": 13,
-        "tokens": 1550
+        "tokens": 1591
       }
     },
     "growth-marketing": {
@@ -116,7 +116,7 @@
       },
       "firing": {
         "items": 13,
-        "tokens": 1550
+        "tokens": 1591
       }
     }
   },

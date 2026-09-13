@@ -371,8 +371,13 @@ describe("각 CLI 의 배선이 실재하는 파일을 가리킨다", () => {
     //   regression · integration/contract · critical-path E2E · mutation)를 룰에서 빼
     //   `verification-loop` 스킬로 내리자 절반이 됐다. 스킬 본문은 상주가 아니다.
     //   여기 올릴 때는 그렇게 한다: 먼저 무엇을 상주에서 뺄 수 있는지 보고, 남는 만큼만 올린다.
+    // 2026-09-13 (ADR-087, #424 · #423) — 24.5 KiB → 24.75 KiB. 사용자 문안(씬 단위 검증 리듬 +
+    //   머지 전 독립 검증 문턱)이 Delivery 룰에 들어가 실측 24,414 → 25,320 B(+906 B: Delivery
+    //   +887 · Testing +19). 사용자 문안은 덜어낼 대상이 아니라 같은 변경 안에서 빼지 못했다 —
+    //   여유는 24 B 뿐이다. 뺄 것은 정해져 있다: 같은 감사의 F-12(AGENTS 껍데기의 이 리포
+    //   메타·이력, 약 −1.5 KB)가 다음 PR 이고, 그때 이 상한을 다시 내린다.
     const bytes = Buffer.byteLength(body, "utf8");
-    const RATCHET = 24.5 * 1024; // 실측 24,324 B 바로 위 (#346)
+    const RATCHET = 24.75 * 1024; // 실측 25,320 B 바로 위 (ADR-087)
     expect(
       bytes,
       `AGENTS.md ${bytes} B — 32 KiB **합계** 예산의 ${Math.round((bytes / (32 * 1024)) * 100)}% 를 우리가 쓴다.\n` +

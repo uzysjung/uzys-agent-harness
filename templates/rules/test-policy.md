@@ -3,9 +3,9 @@
 **How far** to verify scales with the risk of the change; **when** those results must exist
 belongs to the Delivery rule.
 
-- An ordinary change gets the repository's baseline CI, regression across the affected scope, and
-  whatever independent verification it warrants. A high-risk one widens that in proportion to what
-  it touches and what its failure would cost.
+- An ordinary change gets the repository's baseline CI and regression across the affected scope;
+  independent verification only where the Delivery rule requires it. A high-risk one widens that in
+  proportion to what it touches and what its failure would cost.
 - High-risk includes at least authentication, authorization, payments and settlement, personal
   data, data integrity, concurrency, state transitions, and migrations.
 - Full regression, full E2E, full mutation, and periodic security scanning belong to the CI/CD
