@@ -92,8 +92,10 @@ status: active
 
 **문제 상황**: Codex·OpenCode 설치자의 에이전트만 매 수정마다 커밋한다(Claude Code · Antigravity
 설치자는 이 줄을 받지 않는다 — 같은 하네스가 CLI 마다 다른 리듬을 준다). 씬 단위로 모아 검토하는
-F-01 과 정면으로 어긋난다. "main 직접 커밋 금지 · Conventional Commits" 는 `git-policy` 룰이
-같은 파일 §Harness Rules 로 이미 들어온다 — 사본이다.
+F-01 과 정면으로 어긋난다. "main 직접 커밋 금지" 는 `git-policy` 룰(§Git Safety "기본 브랜치 직접
+push")이 같은 파일 §Harness Rules 로 이미 들어온다 — 사본이다. **정정 (PR #439 리뷰)**: Conventional
+Commits 는 `git-policy` 룰에 **없다** — Claude · Antigravity 설치자도 애초에 받지 않던 줄이라 대칭을
+위해 버린다(커밋 형식은 프로젝트가 정할 일이지 하네스 룰이 아니다).
 
 **수정안**: 두 템플릿에서 `## Git Policy` 절 삭제. 근거 위치는 룰. (Antigravity 템플릿에는 애초에
 없다 — 없어도 되는 것의 증거.)
@@ -113,6 +115,13 @@ F-01 과 정면으로 어긋난다. "main 직접 커밋 금지 · Conventional C
 **수정안**: 두 템플릿에서 `## Session Start` · `## Context Management` 절 삭제. 조건부 안내는 훅에
 남는다(Codex 는 `session_start` 훅, OpenCode 는 없음 — OpenCode 설치자는 SPEC 안내를 잃는다. 대신
 `opencode.json` `instructions` 가 SPEC 문서를 얹으므로 실손실은 없다).
+
+**정정 (2026-09-13, PR #439 리뷰)**: Codex `session_start` 훅은 프로젝트 스코프 설치에서는 **로드되지
+않는다** — `~/.codex/config.toml` trust entry 가 있어야 하고 설치기는 전역 스코프 + opt-in
+(`withCodexTrust`)일 때만 그것을 쓴다(`src/installer.ts` `codexTrust`). 기본 설치 Codex 설치자는
+훅으로 SPEC 안내를 받지 못한다. 그래서 Codex 템플릿에는 **조건부 한 줄**을 남긴다: *"`docs/SPEC.md`
+가 있으면 세션 시작 때 먼저 읽는다 … 없으면 해당 없다"* — 없는 파일을 지목하지 않고 같은 지시를
+두 번 쓰지 않는다(F-03 이 문제 삼은 두 가지).
 
 ### F-04 [보류 · 사용자 확정 필요] `task-brief` 가 전 트랙 기본 + 매 프롬프트 넛지 + 상시 안내
 

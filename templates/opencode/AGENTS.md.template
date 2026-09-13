@@ -1,9 +1,5 @@
 # {PROJECT_NAME} — OpenCode Agent Guide
 
-> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via TS CLI `src/opencode/transform.ts` (Phase C)
-> **OpenCode Version**: 0.x (anomalyco/opencode)
-> **Linked SPEC**: `docs/specs/opencode-compat.md`
-
 ## Project Context
 
 {PROJECT_CONTEXT}
@@ -19,53 +15,9 @@
 
 {HARNESS_RULES}
 
-## Session Start
+## Protected Files
 
-매 세션 시작 시:
-1. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
-2. `docs/todo.md` 또는 `docs/plans/*-todo.md` 현재 Phase 확인
+OpenCode `permission` 설정이 1차 방어다. 그 위에:
 
-위 절차를 세션 시작 시 수행한다.
-
-## Protected Files (DO NOT EDIT)
-
-OpenCode `permission` 설정이 1차 방어. LLM 추가 준수:
-
-- `.env*`
-- `**/credentials.json`
-- `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `uv.lock`
-- `.git/` 내부 파일 (커밋 메시지/hook 제외)
-- `~/.opencode/`, `~/.codex/`, `~/.claude/` 글로벌 (D16 보호)
-
-보호 영역 이슈 발견 시 **보고만**. 직접 수정 금지.
-
-## Git Policy
-
-- 코드/문서 변경 시 **즉시 commit**. "나중에 한꺼번에" 금지.
-- `main` 직접 커밋 금지. feature branch 사용.
-- Conventional Commits — `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci)
-
-## Agents (subagent)
-
-| Agent | Mode | 역할 |
-|-------|------|------|
-| reviewer | subagent | 검증 전용 (SOD). 5축 리뷰 |
-| data-analyst | subagent | Python / DuckDB / Trino / ML / PySide6 |
-| strategist | subagent | 제안서 / DD / PPT / 경쟁분석 / 재무모델 |
-| code-reviewer | subagent | 일상적 코드 리뷰 |
-| security-reviewer | subagent | OWASP Top 10, 보안 패턴 |
-
-`opencode.json` `agent.<name>.mode = "subagent"` 로 정의.
-
-## Experience Accumulation
-
-- 검증된 learning만 Rules 승격
-
-## Context Management
-
-- SPEC/PRD 매 세션 시작 시 재참조 (Persistent Anchor)
-- 이 `AGENTS.md` 는 OpenCode 가 프로젝트 루트에서 **자동으로** 읽는다 — §Harness Rules 가 그래서 여기 있다. `opencode.json` 의 `instructions` 키는 그 위에 SPEC 문서를 더 얹는다
-
----
-
-*이 문서는 자동 생성됨. 수동 편집 시 transform 재실행이 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*
+- lock 파일(`package-lock.json` · `pnpm-lock.yaml` · `poetry.lock` · `Cargo.lock` · `uv.lock` 등)은 **손으로 고치지 않는다** — 패키지 매니저로 재생성한다.
+- `.env*` · `**/credentials.json` · `.git/` 내부(커밋 메시지·hook 제외) · `~/.opencode/` `~/.codex/` `~/.claude/` 전역 설정은 **보고만** 한다. 직접 수정하지 않는다.
