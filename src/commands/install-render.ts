@@ -530,6 +530,17 @@ function renderPhase1Rows(
     if (baseline.updateMode.rootImportAdded) {
       log(assetRow("success", "CLAUDE.md", `${HARNESS_IMPORT_LINE} import added`));
     }
+    // ADR-085 — 관리 블록 안(상시 스킬 안내)이 깔린 스킬을 따라 바뀌었으면 말한다. 사용자
+    // 파일의 한 구간이 바뀐 것이라 조용히 넘기지 않는다.
+    if (baseline.updateMode.rootBlockRefreshed) {
+      log(
+        assetRow(
+          "success",
+          "CLAUDE.md",
+          "harness block refreshed (skills that apply continuously)",
+        ),
+      );
+    }
     // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
     if (baseline.updateMode.legacyAnchor) {
       log(

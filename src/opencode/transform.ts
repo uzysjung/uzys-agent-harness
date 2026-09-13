@@ -21,7 +21,7 @@ import { writeBundledSkillDirs } from "../codex/skills.js";
 import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
-import { renderFillScaffold } from "../project-claude-merge.js";
+import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -91,7 +91,11 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     template: agentsTemplate,
     claudeMd,
     projectName,
-    projectContext: renderFillScaffold("agents-md"),
+    // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
+    projectContext: withContinuousSkillsNote(
+      renderFillScaffold("agents-md"),
+      selectedInternalSkills,
+    ),
     // codex 와 **같은 파일**(프로젝트 루트 `AGENTS.md`)이다. 두 transform 이 서로 다른 본문을
     // 쓰면 나중에 도는 쪽이 앞선 쪽을 덮어써, codex+opencode 조합에서 룰이 통째로 사라진다
     // (독립 검증 C-1 실측). 같은 내용을 쓰면 순서가 결과를 바꾸지 않는다.

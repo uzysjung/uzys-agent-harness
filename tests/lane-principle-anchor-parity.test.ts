@@ -83,7 +83,9 @@ const AXES = [
     scope: "all" as const,
     why: "산출물을 만든 레인이 아닌 쪽이 기획서를 읽는다 — 작성자는 자기가 안 적은 요구를 볼 수 없다",
     artifact: /spec|PRD|plan|기획서|계획/i,
-    lane: /other than the (?:one|lane|agent) (?:that|who) produced|other than the author|not (?:its|the) author|작성자가 아닌|작성자와 다른|만든 레인이 아닌/i,
+    // ADR-085 — 배포 앵커가 전역 6원칙 문안이 되며 `an agent that did not author the work` 가
+    // 들어왔다. 성분은 같다(만든 쪽이 아닌 레인).
+    lane: /other than the (?:one|lane|agent) (?:that|who) produced|other than the author|not (?:its|the) author|did not (?:author|produce|write)|작성자가 아닌|작성자와 다른|만든 레인이 아닌/i,
   },
   {
     // **리포 앵커 전용.** 배포 앵커에서 뺀 이유는 문안 취향이 아니라 **도달 범위**다:
@@ -102,11 +104,16 @@ const AXES = [
     scope: "all" as const,
     why: "검증은 만든 쪽의 보고를 읽는 대신 직접 다시 돌려 증거를 얻는다",
     artifact: /verification|verifying|검증/i,
-    lane: /verifies the work itself|rather than trusting|its own evidence|re-?run|직접 다시 돌려|직접 재실행|스스로 다시/i,
+    // ADR-085 — 전역 6원칙 문안: `The reviewer must assess both the criteria and the work, not
+    // merely the author's summary`. 보고를 읽는 대신 산출물을 본다는 같은 성분이다.
+    lane: /verifies the work itself|rather than trusting|its own evidence|not merely the author's summary|assess(?:es)? both the criteria and the work|re-?run|직접 다시 돌려|직접 재실행|스스로 다시/i,
   },
   {
+    // **리포 앵커 전용 (ADR-085, 2026-09-13).** 배포 앵커는 사용자의 전역 6원칙과 바이트 동일하고
+    // 그 문안에 적대적 패널이 없다 — 사용자가 뺀 것이지 게이트가 잃은 것이 아니다. 설치자에게는
+    // `multi-persona-review` 스킬 descriptor 가 발화 조건을 갖는다. 이 리포 앵커에는 남아 있다.
     id: "적대적 패널의 문턱",
-    scope: "all" as const,
+    scope: "repo" as const,
     why:
       "패널은 **되돌리기 비싼** 결정에만 — 문턱이 없으면 사소한 것까지 패널을 돌리게 되고 " +
       "그건 사용자가 명시적으로 금지한 형태다. 문턱 판별자 어휘는 앵커마다 다르다" +

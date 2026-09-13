@@ -25,7 +25,7 @@ import {
 import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { CONTINUOUS_SKILLS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
 import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
@@ -68,6 +68,11 @@ export interface UpdateModeReport {
   anchorCreated: boolean;
   /** 이행 중 루트 `CLAUDE.md` 에 앵커 import 줄을 새로 얹었나 (이미 있었으면 false). */
   rootImportAdded: boolean;
+  /**
+   * ADR-085 — 이미 있던 관리 블록의 **안**이 바뀌었나(상시 스킬 안내가 깔린 스킬을 따라 현행화됐다,
+   * 또는 지워진 import 줄이 돌아왔다). 블록이 처음 생긴 경우는 `rootImportAdded` 다.
+   */
+  rootBlockRefreshed: boolean;
   /**
    * 디스크에 아직 남아 있는 구 앵커 경로(`.claude/CLAUDE.md`). 없으면 null.
    *
@@ -235,6 +240,7 @@ export function runUpdateMode(
     claudeMdUpdated: false,
     anchorCreated: false,
     rootImportAdded: false,
+    rootBlockRefreshed: false,
     legacyAnchor: null,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
@@ -508,6 +514,11 @@ function syncHarnessAnchor(
   copyFileSync(templateMd, anchor);
   if (existed) {
     report.claudeMdUpdated = true;
+    // ADR-085 — 앵커가 있는 정상 설치본에서도 루트 CLAUDE.md 의 관리 블록은 매 update 현행화한다
+    // (상시 스킬 안내 = 지금 깔린 스킬). upsert 는 내용이 같으면 입력을 그대로 돌려주므로 파일을
+    // 만지지 않는다. 독립 리뷰(#433 B-1)가 이 분기가 빠져 있던 것을 실측으로 잡았다 — 그 전에는
+    // 이행 분기에서만 불려 "현행화한다"는 단언이 정상 설치본에서 거짓이었다.
+    report.rootBlockRefreshed = upsertRootImport(projectDir);
     return;
   }
 
@@ -533,6 +544,11 @@ function upsertRootImport(projectDir: string): boolean {
   const next = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
     tracks: installedTracks(projectDir),
+    // ADR-085 — update 는 선택 목록을 인자로 받지 않는다. `syncSkills` 와 같은 판정을 쓴다:
+    // `.claude/skills/<id>` 가 있으면 그 스킬은 이 설치가 고른 것이다.
+    continuousSkills: CONTINUOUS_SKILLS.map((s) => s.id).filter((id) =>
+      existsSync(join(projectDir, ".claude/skills", id)),
+    ),
   });
   if (next === existing) return false;
   writeFileSync(target, next);

@@ -785,6 +785,7 @@ describe("executeSpec", () => {
         claudeMdUpdated: true,
         anchorCreated: false,
         rootImportAdded: false,
+        rootBlockRefreshed: false,
         legacyAnchor: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
@@ -845,6 +846,7 @@ describe("executeSpec", () => {
         claudeMdUpdated: false,
         anchorCreated: false,
         rootImportAdded: false,
+        rootBlockRefreshed: false,
         legacyAnchor: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
@@ -904,6 +906,7 @@ describe("executeSpec", () => {
         claudeMdUpdated: false,
         anchorCreated: false,
         rootImportAdded: false,
+        rootBlockRefreshed: false,
         legacyAnchor: null,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
         skillsSkippedLinks: [],
@@ -954,6 +957,7 @@ describe("executeSpec", () => {
         claudeMdUpdated: false,
         anchorCreated: true,
         rootImportAdded: true,
+        rootBlockRefreshed: false,
         legacyAnchor: ".claude/CLAUDE.md",
         skillsBackedUp: [],
         skillsSkippedLinks: [],
@@ -992,6 +996,56 @@ describe("executeSpec", () => {
     expect(legacy, "구 앵커 안내 행이 없다 — 죽은 사본이 살아 있는 설정으로 읽힌다").toBeDefined();
     expect(legacy).toContain("no longer updated");
     expect(legacy).toContain("delete");
+  });
+
+  // ADR-085 — 정상 설치본에서 관리 블록 안(상시 스킬 안내)이 바뀌면 화면이 말한다. 재리뷰(#433)가
+  // 이 줄에 게이트가 없다고 지적했다. 이행 3사실과 달리 블록 갱신은 **혼자** 일어난다(앵커 생성·
+  // import 부착 없음) — 그 조합에서만 이 줄이 뜨고 이행 줄은 뜨지 않아야 한다.
+  it("관리 블록 갱신 사실을 화면에 노출한다 — 이행 줄과 섞이지 않는다", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      mode: "update",
+      updateMode: {
+        updated: {},
+        pruned: {},
+        staleHookRefs: [],
+        claudeMdUpdated: true,
+        anchorCreated: false,
+        rootImportAdded: false,
+        rootBlockRefreshed: true,
+        legacyAnchor: null,
+        skillsBackedUp: [],
+        skillsSkippedLinks: [],
+        policyBackedUp: [],
+        externalUpdated: 0,
+        externalBackedUp: [],
+        foreignOwned: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
+        mcpAllowlistRetired: null,
+        externalSkillsRefreshed: 0,
+        externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
+        externalSkillsUnknown: false,
+      },
+    });
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline,
+      resolveHarnessRoot: () => "/h",
+      mode: "update",
+    });
+    const rows = log.mock.calls.map((args) => String(args[0]));
+    expect(
+      rows.find((l) => l.includes("harness block refreshed")),
+      "사용자 CLAUDE.md 의 관리 블록을 고쳤는데 화면에 아무 말이 없다",
+    ).toBeDefined();
+    expect(rows.find((l) => l.includes("import added"))).toBeUndefined();
+    expect(rows.find((l) => l.includes("anchor migration"))).toBeUndefined();
   });
 
   it("renders 'add' / 'reinstall' header label for those modes", () => {

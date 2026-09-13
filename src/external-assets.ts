@@ -1135,6 +1135,36 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
 ];
 
 /**
+ * ADR-085 (#427) — **매 응답·매 위임에 적용되는** 번들 스킬.
+ *
+ * 스킬 본문은 프롬프트가 그 스킬의 일처럼 보일 때 열린다. 그건 작업형 스킬에는 충분하고 이
+ * 셋에는 부족하다 — "모든 답변에" · "모든 위임에" 는 어떤 프롬프트도 닮지 않아서, 어딘가에 한
+ * 줄이 없으면 영영 안 열린다(ADR-068 실측). 그 한 줄은 v26.150.0 까지 배포 앵커 꼬리절이
+ * 들고 있었는데, 앵커가 전역 6원칙과 **바이트 동일**해지면서(ADR-085) 자리를 옮겼다:
+ * 설치기가 **실제로 깐 스킬만** 골라 프로젝트 맥락 블록에 적는다(`renderContinuousSkillsNote`).
+ * 앵커의 "where installed" 조건문보다 정확하다 — 안 깐 스킬 이름이 상주하지 않는다.
+ *
+ * 문장은 설치자의 에이전트가 읽는 지시문이다. 한 줄 = 언제 적용되는가 뿐, 설명·이력 없음.
+ */
+export const CONTINUOUS_SKILLS: ReadonlyArray<{ id: string; whenToApply: string }> = [
+  {
+    id: "clear-korean-communication",
+    whenToApply:
+      "applies to every answer, report, and approval request — a decision is presented as AS-IS → TO-BE from the position of whoever lives with the result; not only at the moment approval is asked for",
+  },
+  {
+    id: "task-brief",
+    whenToApply:
+      "normalize an incoming work request into the brief shape before starting, fill the fields it left open from context, and show the filled-in brief so the user can carry it straight into a prompt, marking which values were assumed",
+  },
+  {
+    id: "model-orchestration",
+    whenToApply:
+      "when work is delegated, it decides which lane takes the work and how that lane is run",
+  },
+];
+
+/**
  * v26.79.0 — `TRUST_TIER` 는 EXTERNAL_ASSETS.tier 에서 derive (단일 출처). 별도 Record 유지 시
  * 누락/stale drift 가능 → 제거. 기존 소비자(prompts.ts·gen-compatibility·trust-tier-drift)는
  * 이 derived map 을 그대로 import. id 키는 각 자산 id 와 1:1 (자산 추가 시 자동 반영).

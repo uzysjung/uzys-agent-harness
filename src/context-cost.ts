@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { EXTERNAL_ASSETS } from "./external-assets.js";
-import { renderFillScaffold } from "./project-claude-merge.js";
+import { CONTINUOUS_SKILLS, EXTERNAL_ASSETS } from "./external-assets.js";
+import { renderFillScaffold, withContinuousSkillsNote } from "./project-claude-merge.js";
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost.
@@ -275,7 +275,14 @@ export function residentCost(
   // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 2줄(프로젝트명·트랙)은
   // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
   const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));
-  const projectScaffold = estimateTokens(renderFillScaffold().trim().length);
+  // ADR-085 — 스캐폴드 뒤에 붙는 상시 스킬 안내까지 잰다. 전 스킬 선택 기준(상한) — 안내는
+  // 깔린 스킬만 적으므로 실제 설치본은 이보다 작거나 같다.
+  const projectScaffold = estimateTokens(
+    withContinuousSkillsNote(
+      renderFillScaffold(),
+      CONTINUOUS_SKILLS.map((s) => s.id),
+    ).trim().length,
+  );
   const projectClaudeMd = harnessAnchor + projectScaffold;
   // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
   // 스캐폴드는 코드 생성물이라 부재할 수 없다.

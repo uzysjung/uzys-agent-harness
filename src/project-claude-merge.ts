@@ -1,3 +1,4 @@
+import { CONTINUOUS_SKILLS } from "./external-assets.js";
 import { TRACKS, type Track } from "./types.js";
 
 /**
@@ -33,7 +34,46 @@ export const HARNESS_IMPORT_LINE = `@${HARNESS_ANCHOR_FILE}`;
  */
 const IMPORT_MARKER_START = "<!-- uzys-harness:import:start -->";
 const IMPORT_MARKER_END = "<!-- uzys-harness:import:end -->";
-const IMPORT_BLOCK = `${IMPORT_MARKER_START}\n${HARNESS_IMPORT_LINE}\n${IMPORT_MARKER_END}`;
+
+/**
+ * ADR-085 — 상시 적용 스킬 안내. **실제로 깔린 것만** 적는다.
+ *
+ * 배포 앵커가 전역 6원칙과 바이트 동일해지면서 앵커 꼬리절(`Skills that apply continuously`)이
+ * 사라졌다. 그 절이 하던 일 — 프롬프트 모양으로는 절대 발화하지 않는 스킬을 매 응답에 열게
+ * 하는 것 — 을 설치기가 프로젝트 맥락 블록에서 한다. 어느 스킬이 그런지는 카탈로그
+ * (`CONTINUOUS_SKILLS`)가 SSOT 이고, 여기는 선택된 것만 골라 줄을 만든다.
+ *
+ * @returns 안내 블록. 해당 스킬이 하나도 선택되지 않았으면 빈 문자열 — 한 줄도 상주시키지 않는다.
+ */
+export function renderContinuousSkillsNote(selectedInternalSkills: ReadonlyArray<string>): string {
+  const lines = CONTINUOUS_SKILLS.filter((s) => selectedInternalSkills.includes(s.id)).map(
+    (s) => `- \`${s.id}\` — ${s.whenToApply}.`,
+  );
+  if (lines.length === 0) return "";
+  return [
+    "## Skills that apply continuously",
+    "",
+    "These installed skills apply to every response or delegation; no prompt ever looks like their job, so open them from this list:",
+    "",
+    ...lines,
+  ].join("\n");
+}
+
+/** 스캐폴드 뒤에 상시 스킬 안내를 붙인다 — 안내가 비면 스캐폴드를 그대로 돌려준다. */
+export function withContinuousSkillsNote(
+  scaffold: string,
+  selectedInternalSkills: ReadonlyArray<string>,
+): string {
+  const note = renderContinuousSkillsNote(selectedInternalSkills);
+  return note ? `${scaffold}\n\n${note}` : scaffold;
+}
+
+/** 관리 블록 본문 — import 한 줄 + (있으면) 상시 스킬 안내. 블록 안은 하네스 소유다. */
+function importBlock(continuousSkills: ReadonlyArray<string>): string {
+  const note = renderContinuousSkillsNote(continuousSkills);
+  const body = note ? `${HARNESS_IMPORT_LINE}\n\n${note}` : HARNESS_IMPORT_LINE;
+  return `${IMPORT_MARKER_START}\n${body}\n${IMPORT_MARKER_END}`;
+}
 
 export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
   tooling: "Tooling",
@@ -174,6 +214,11 @@ export interface MergeOptions {
   projectName: string;
   /** Selected tracks → the active-track note (genuine install metadata). */
   tracks: ReadonlyArray<Track>;
+  /**
+   * ADR-085 — 이 설치가 깐 번들 스킬 id. 관리 블록 안의 상시 스킬 안내는 여기서 고른다.
+   * 생략 = 안내 없음(레거시 호출부·테스트). update 는 `.claude/skills/<id>` 존재로 채운다.
+   */
+  continuousSkills?: ReadonlyArray<string>;
 }
 
 /**
@@ -202,14 +247,29 @@ export function mergeProjectClaude(opts: MergeOptions): string {
  * @returns 기록할 내용. 이미 import 가 있으면 **입력과 바이트 동일**(= 쓰지 않아도 된다).
  */
 export function upsertHarnessImport(existing: string | null, opts: MergeOptions): string {
+  const block = importBlock(opts.continuousSkills ?? []);
   if (existing === null) {
-    return `${mergeProjectClaude(opts)}\n${IMPORT_BLOCK}\n`;
+    return `${mergeProjectClaude(opts)}\n${block}\n`;
+  }
+  // ADR-085 — 마커 블록이 있으면 **그 안만** 현행으로 바꾼다. 블록 안은 하네스 소유라 사용자
+  // 편집을 덮는 것이 아니고, 스킬을 더 깔거나 뺐을 때 안내가 따라와야 한다. 내용이 같으면
+  // 입력을 그대로 돌려준다(= 파일을 만지지 않는다).
+  const start = existing.indexOf(IMPORT_MARKER_START);
+  if (start !== -1) {
+    const endAt = existing.indexOf(IMPORT_MARKER_END, start);
+    if (endAt === -1) return existing; // 깨진 블록 — 우리가 판정할 수 없다. 손대지 않는다.
+    const current = existing.slice(start, endAt + IMPORT_MARKER_END.length);
+    // 문자열 replace 는 치환문의 `$` 를 패턴으로 읽는다(리뷰 N-2) — slice 결합으로 그대로 넣는다.
+    if (current === block) return existing;
+    return `${existing.slice(0, start)}${block}${existing.slice(endAt + IMPORT_MARKER_END.length)}`;
   }
   if (hasHarnessImport(existing)) {
+    // 사용자가 손으로 적은 import 줄 — 파일 전체가 사용자 소유라 블록을 얹지 않는다. 그때는
+    // 상시 스킬 안내도 못 넣는다(관리 자리가 없다).
     return existing;
   }
   const body = existing.endsWith("\n") ? existing : `${existing}\n`;
-  return `${body}\n${IMPORT_BLOCK}\n`;
+  return `${body}\n${block}\n`;
 }
 
 /**

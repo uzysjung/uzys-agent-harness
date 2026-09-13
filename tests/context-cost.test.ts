@@ -17,17 +17,28 @@ import {
   resolveBundleRoot,
   summarizeContextCost,
 } from "../src/context-cost.js";
-import { DEV_METHOD_SKILL_IDS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import {
+  CONTINUOUS_SKILLS,
+  DEV_METHOD_SKILL_IDS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "../src/external-assets.js";
 import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
-import { renderFillScaffold } from "../src/project-claude-merge.js";
+import { renderFillScaffold, withContinuousSkillsNote } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "../src/types.js";
 
 const HARNESS_ROOT_FOR_INSTALL = resolve(__dirname, "..");
 
 /** 상주 CLAUDE.md 중 스캐폴드 몫. 파일이 아니라 생성물이라 어떤 root 에서도 같다. */
-const scaffoldTokens = (): number => estimateTokens(renderFillScaffold().trim().length);
+// ADR-085 — src 와 같은 대상: 스캐폴드 + 상시 스킬 안내(전 스킬 선택 기준 상한).
+const scaffoldTokens = (): number =>
+  estimateTokens(
+    withContinuousSkillsNote(
+      renderFillScaffold(),
+      CONTINUOUS_SKILLS.map((s) => s.id),
+    ).trim().length,
+  );
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost ratchet.

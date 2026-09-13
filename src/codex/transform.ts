@@ -22,7 +22,7 @@ import { basename, join } from "node:path";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
-import { renderFillScaffold } from "../project-claude-merge.js";
+import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
@@ -92,7 +92,11 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     template: agentsTemplate,
     claudeMd,
     projectName,
-    projectContext: renderFillScaffold("agents-md"),
+    // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
+    projectContext: withContinuousSkillsNote(
+      renderFillScaffold("agents-md"),
+      selectedInternalSkills,
+    ),
     // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
     harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });

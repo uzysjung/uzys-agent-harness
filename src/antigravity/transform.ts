@@ -22,7 +22,7 @@ import { basename, join } from "node:path";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
 import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
-import { renderFillScaffold } from "../project-claude-merge.js";
+import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules } from "../rules-port.js";
 
 export interface AntigravityTransformParams {
@@ -80,7 +80,7 @@ export function runAntigravityTransform(
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  const rulesFile = writeRules(harnessRoot, projectDir, writer);
+  const rulesFile = writeRules(harnessRoot, projectDir, writer, selectedInternalSkills);
 
   // 1a. 2026-08-12 — 배포 룰을 같은 워크스페이스 룰 디렉터리에 형제 파일로 놓는다.
   //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
@@ -129,7 +129,12 @@ export function runAntigravityTransform(
  *
  * template 또는 CLAUDE.md 부재 시 null (graceful — install 진행).
  */
-function writeRules(harnessRoot: string, projectDir: string, writer: OwnedWriter): string | null {
+function writeRules(
+  harnessRoot: string,
+  projectDir: string,
+  writer: OwnedWriter,
+  selectedInternalSkills: ReadonlyArray<string>,
+): string | null {
   const claudeMdPath = join(harnessRoot, "templates/CLAUDE.md");
   const templatePath = join(harnessRoot, "templates/antigravity/AGENTS.md.template");
   if (!existsSync(claudeMdPath) || !existsSync(templatePath)) {
@@ -142,7 +147,11 @@ function writeRules(harnessRoot: string, projectDir: string, writer: OwnedWriter
     template,
     claudeMd,
     projectName: basename(projectDir),
-    projectContext: renderFillScaffold("antigravity-rule"),
+    // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
+    projectContext: withContinuousSkillsNote(
+      renderFillScaffold("antigravity-rule"),
+      selectedInternalSkills,
+    ),
   });
   // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).

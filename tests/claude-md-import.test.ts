@@ -65,4 +65,49 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     // idempotent 재실행에도 펜스 밖 줄이 또 늘면 안 된다.
     expect(upsertHarnessImport(out, { projectName: "p", tracks: ["tooling"] })).toBe(out);
   });
+
+  // ADR-085 — 상시 스킬 안내는 관리 블록 **안**에, 깔린 것만.
+  describe("관리 블록 안의 상시 스킬 안내 (ADR-085)", () => {
+    const opts = (skills: string[]) => ({
+      projectName: "p",
+      tracks: ["tooling"] as const,
+      continuousSkills: skills,
+    });
+    const NOTE = "## Skills that apply continuously";
+
+    it("깔린 상시 스킬만 적고, 상시 스킬이 아닌 것은 적지 않는다", () => {
+      const out = upsertHarnessImport(null, opts(["task-brief", "north-star"]));
+      expect(out).toContain(NOTE);
+      expect(out).toContain("`task-brief`");
+      expect(out).not.toContain("`north-star`");
+      expect(out).not.toContain("`clear-korean-communication`"); // 안 깔린 상시 스킬
+      expect(importCount(out)).toBe(1);
+    });
+
+    it("상시 스킬이 하나도 없으면 안내 절 자체가 없다 — 한 줄도 상주시키지 않는다", () => {
+      const out = upsertHarnessImport(null, opts(["north-star"]));
+      expect(out).not.toContain(NOTE);
+      expect(importCount(out)).toBe(1);
+    });
+
+    it("안내는 마커 블록 안에 있다 — uninstall 이 블록만 도려내면 안내도 같이 사라진다", () => {
+      const out = upsertHarnessImport(null, opts(["task-brief"]));
+      const start = out.indexOf("<!-- uzys-harness:import:start -->");
+      const end = out.indexOf("<!-- uzys-harness:import:end -->");
+      expect(out.indexOf(NOTE)).toBeGreaterThan(start);
+      expect(out.indexOf(NOTE)).toBeLessThan(end);
+    });
+
+    it("재실행이 블록을 현행화한다 — 스킬을 빼면 안내가 빠지고 사용자 본문은 그대로", () => {
+      const user = "# p\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
+      const withNote = upsertHarnessImport(user, opts(["task-brief"]));
+      expect(withNote).toContain(NOTE);
+      const refreshed = upsertHarnessImport(withNote, opts([]));
+      expect(refreshed).not.toContain(NOTE);
+      expect(refreshed).toContain("- 커밋은 한국어로");
+      expect(importCount(refreshed)).toBe(1);
+      // 같은 선택으로 다시 돌리면 바이트 동일(파일을 만지지 않는다).
+      expect(upsertHarnessImport(withNote, opts(["task-brief"]))).toBe(withNote);
+    });
+  });
 });

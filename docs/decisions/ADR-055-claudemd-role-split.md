@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-26
+- Amended by: ADR-085 (2026-09-13) — "배포 앵커가 의사결정 5요소를 싣는다" 절은 대체됐다(형식은 `clear-korean-communication` 스킬 소유). 앵커 2파일 역할 분리는 현행
 - PR: (머지 시 기재)
 - Supersedes: — (없음. ADR-054 는 **폐기가 아니라 재배치** — 아래 Consequences 참조)
 
