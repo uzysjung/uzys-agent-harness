@@ -119,7 +119,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
 | `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
 | `task-brief` | Normalize a request — and every delegation prompt — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. Ships with the `task-brief-nudge` hook, which adds one line of stdout when a long prompt arrives without a brief |
-| `audit-harness-fit` | Audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context — measured, judged against published criteria and block logs, then relocated: procedures to skills, must-hold guarantees to hooks and permission rules, derivable facts back to code |
+| `audit-harness-fit` | Audit or clean up the instructions and skills your agent loads: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire rules and skills that add nothing, move decision history out of resident text, right-size verification around the user journey — and fill or refresh the `AGENTS.md` / `CLAUDE.md` project context from repository evidence. Read-only unless you ask it to apply |
 
 **Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 
@@ -128,15 +128,15 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
 | `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
 
-**Korean prose** (`official`, **opt-in on any track** — `--with humanize-korean`; it is about writing, not about a stack, so no track pre-checks it):
+**Korean prose** (`official`, **opt-in on any track** — `--with natural-korean`; it is about writing, not about a stack, so no track pre-checks it):
 
 | Asset | What |
 |---|---|
-| `humanize-korean` | Diagnose what actually reads as translationese, AI cliché, or mechanical structure in Korean prose — then fix only what the diagnosis justifies, preserving facts, numbers, terminology and register. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one repairs **the style of prose already written** |
+| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keep meaning and register, cut translationese, needless English, stock phrases and mechanical repetition, and fix only what is actually awkward. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one governs **how the Korean itself is written** |
 
-> `humanize-korean` was written for this repo after reading [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) — the pattern lists there were the reference; the skill compresses them into a diagnosis-first procedure rather than a detector checklist, because the failure mode of that genre is rewriting sentences that were never wrong.
+> `natural-korean` replaced the earlier humanize-korean skill (#428). The predecessor was a diagnosis-first *revision* skill; this one also covers writing and translation, so the name followed the scope. A project that installed the old id keeps it — `update` only refreshes skills it finds installed — and picks up the new one with `--with natural-korean`.
 
-> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `humanize-korean` are newer still.
+> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `natural-korean` are newer still.
 
 ### Not driven by track selection (opt-in on any track)
 

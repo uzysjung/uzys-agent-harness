@@ -11,7 +11,7 @@
  *   - AGENTS.md
  *   - .codex/config.toml
  *   - .codex/hooks/*.sh              (hooks ported from templates/hooks/)
- *   - .agents/skills/<id>/SKILL.md   (dev-method skills, frontmatter 보존)
+ *   - .agents/skills/<id>/**         (dev-method skills — SKILL.md frontmatter 보존 + 형제 파일, #431)
  *
  * v0.6.4 — skill 출력 경로는 Codex 공식 표준 `.agents/skills/<name>/SKILL.md` (repo-level scope).
  *   참조: https://developers.openai.com/codex/skills
@@ -26,15 +26,15 @@ import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
-import { renderBundledSkill } from "./skills.js";
+import { writeBundledSkillDirs } from "./skills.js";
 
 export interface CodexTransformParams {
   harnessRoot: string;
   projectDir: string;
   /**
    * v26.87.0 — dev-method skill ids 선택 목록 (installer 가 `DEV_METHOD_SKILL_IDS` 를
-   * `isAssetSelected` 로 필터). 각 id 의 `templates/skills/<id>/SKILL.md` 를 Codex native
-   * `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
+   * `isAssetSelected` 로 필터). 각 id 의 `templates/skills/<id>/` 를 Codex native
+   * `.agents/skills/<id>/` 로 (SKILL.md frontmatter 보존) 출력 — #431 이후 디렉터리 전체다.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
   /** 2026-08-12 — 이 설치의 배포 룰 이름들. Codex 는 룰 디렉터리가 없어 AGENTS.md 본문에 embed 한다. */
@@ -58,6 +58,7 @@ export interface CodexTransformReport {
   agentsMdPath: string;
   configTomlPath: string;
   hookFiles: string[];
+  /** `.agents/skills/<id>/` 에 쓴 **모든** 파일 — `SKILL.md` + 형제(references/scripts 등, #431). */
   skillFiles: string[];
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
@@ -132,19 +133,16 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     hookFiles.push(target);
   }
 
-  // 4. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
+  // 4. v26.87.0 — dev-method skills → .agents/skills/<id>/ (frontmatter 보존).
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 그대로 보존하고 body 만 포팅.
-  const skillFiles: string[] = [];
-  for (const id of selectedInternalSkills) {
-    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
-    if (!existsSync(src)) {
-      continue;
-    }
-    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
-    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
-    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
-    skillFiles.push(target);
-  }
+  //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 **디렉터리 전체**다. 루프는 세 transform
+  //   공용 helper 가 소유한다(사본 셋이면 다음 수정이 또 하나를 빠뜨린다).
+  const skillFiles = writeBundledSkillDirs({
+    harnessRoot,
+    projectDir,
+    skillIds: selectedInternalSkills,
+    writer,
+  });
 
   return {
     agentsMdPath,

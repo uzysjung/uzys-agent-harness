@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runOpencodeTransform } from "../../src/opencode/transform.js";
+import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
 
@@ -82,7 +83,11 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         expect(body).toMatch(/name:\s*.+/);
         expect(body).not.toContain("/uzys:");
       }
-      expect(report.skillFiles).toHaveLength(DEV_METHOD.length);
+      // #431 — 길이로 재지 않는다. 번들 스킬은 디렉터리라서 `references/`·`agents/` 를 가진
+      // 스킬이 하나 들어오면 파일 수가 스킬 수보다 커진다. 여기서 지키려던 성질은 "고른
+      // 스킬의 `SKILL.md` 가 전부 실렸고 **고르지 않은 것은 없다**"이므로 그대로 단언한다.
+      const skillMds = report.skillFiles.filter((p) => p.endsWith("/SKILL.md"));
+      expect(skillMds).toHaveLength(DEV_METHOD.length);
       // 커맨드 사본은 더 이상 만들지 않는다 — 만들면 같은 이름이 목록에 두 줄로 뜬다.
       for (const id of DEV_METHOD) {
         expect(existsSync(join(project, ".opencode/commands", `${id}.md`))).toBe(false);
@@ -101,6 +106,26 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         "utf8",
       );
       expect(body).toMatch(/durable facts and decisions/i);
+    });
+
+    // #431 — OpenCode 도 스킬을 디렉터리로 읽는다. `SKILL.md` 만 보내면 참조 라우팅이
+    //   빈 자리를 가리킨다. 대상 id 는 `templates/skills/` 에서 유도한다.
+    it("references/ 를 가진 스킬은 형제 파일까지 .agents/skills/<id>/ 에 온다", () => {
+      const id = firstSkillIdWithReferences(HARNESS_ROOT);
+      const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
+      const report = runOpencodeTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: [id],
+        baseline: new Map(),
+      });
+      for (const rel of expected) {
+        const target = join(project, ".agents/skills", id, rel);
+        expect(existsSync(target), `${rel} 미도달`).toBe(true);
+        expect(report.skillFiles).toContain(target);
+      }
+      // 형제가 0건이면 위 루프는 SKILL.md 하나만 보고 통과한다 — 모집단 자기검증.
+      expect(expected.filter((rel) => rel !== "SKILL.md").length).toBeGreaterThan(0);
     });
 
     it("옛 `.opencode/commands/<id>.md` 는 백업하고 지운다 (같은 이름이 두 줄로 뜨지 않게)", () => {

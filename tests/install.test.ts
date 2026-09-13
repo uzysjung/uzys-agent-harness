@@ -494,7 +494,9 @@ describe("executeSpec", () => {
     // 산출물 섹션 헤더 + rules/skills 행 (6-Gate workflows 제거 — project context rules + dev-method skills).
     expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
     expect(lines.some((l) => l.includes(".agents/rules/uzys-harness.md"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
+    // ADR-086 — 이제 디렉터리째 간다. 라벨도 파일이 아니라 디렉터리다.
+    // 옛 라벨의 진부분 문자열이라 includes 로는 회귀를 못 문다 — 뒤에 SKILL 이 오면 실패해야 한다.
+    expect(lines.some((l) => /\.agents\/skills\/<id>\/(?!SKILL)/.test(l))).toBe(true);
   });
 
   // v26.78.1 (R1) — karpathy hook 결과 렌더의 무음 실패 가드였다. 2026-08-02 정비(ADR-060)로
@@ -1444,6 +1446,40 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
       if (origHome === undefined) delete process.env.HOME;
       else process.env.HOME = origHome;
     }
+  });
+});
+
+// ADR-084 — FILL 힌트의 populate 안내는 `audit-harness-fit` 이 **실제로 깔린 경우에만** 붙는다.
+// 독립 리뷰(#432) 가 이 분기를 덮는 테스트가 없다고 지적했다 — 안 깔린 스킬을 부르라는 안내는
+// "advertised ≠ real" 이라 양 분기를 다 잰다.
+describe("renderFinalSummary FILL row — populate 안내는 깔린 경우에만 (ADR-084)", () => {
+  const base: InstallSpec = {
+    tracks: ["tooling"],
+    options: { withPrune: false, withCodexTrust: false },
+    cli: ["claude"],
+    projectDir: "/p",
+  };
+
+  async function fillRow(spec: InstallSpec): Promise<string> {
+    const { renderFinalSummary } = await import("../src/commands/install-render.js");
+    const lines: string[] = [];
+    renderFinalSummary((m) => lines.push(m), spec, fakeReport, false);
+    return lines.find((l) => l.includes("FILL")) ?? "";
+  }
+
+  it("기본 설치(any-track 이라 깔린다) → populate 안내가 붙는다", async () => {
+    const row = await fillRow(base);
+    expect(row).toContain("FILL: … -->");
+    expect(row).toContain("audit-harness-fit");
+  });
+
+  it("--without audit-harness-fit → 안내가 없고 기존 문장은 그대로", async () => {
+    const row = await fillRow({
+      ...base,
+      userOverride: { forceInclude: [], forceExclude: ["audit-harness-fit"] },
+    });
+    expect(row).toContain("FILL: … -->");
+    expect(row).not.toContain("audit-harness-fit");
   });
 });
 

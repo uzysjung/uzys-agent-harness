@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { renderBundledSkill } from "../../src/codex/skills.js";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderBundledSkill, writeBundledSkillDirs } from "../../src/codex/skills.js";
+import { countSkillDirs } from "../../src/commands/install-render.js";
+import { listFilesRecursive } from "../../src/fs-ops.js";
+import { createOwnedWriter } from "../../src/owned-write.js";
+import {
+  bundledSkillDir,
+  expectedSkillRelFiles,
+  firstSkillIdWithReferences,
+} from "../helpers/bundled-skill-dir.js";
+
+const HARNESS_ROOT = resolve(__dirname, "../..");
 
 // v26.87.0 — renderBundledSkill: dev-method skills 의 native skill 출력.
 // 핵심 intent = 이미 완성된 skill 의 frontmatter(name: <id>)를 보존하고 body 만 포팅한다는 것.
@@ -32,5 +45,164 @@ describe("renderBundledSkill (v26.87.0 dev-method)", () => {
     // No silent drop: original content survives, slashes ported.
     expect(out).toContain("name: y");
     expect(out).toContain("/uzys-ship");
+  });
+});
+
+/**
+ * #431 — 번들 스킬은 `SKILL.md` 한 파일이 아니라 **디렉터리**다.
+ *
+ * 그 전까지 세 CLI(codex·opencode·antigravity) 설치자는 `SKILL.md` 만 받아서, 본문을
+ * `references/`·`scripts/` 로 나눠 든 스킬이 "그 파일을 읽어라"로 라우팅하면 **그 자리가
+ * 비어 있었다**. 여기서 재는 것은 그 도달이고, 기대 목록은 `templates/skills/<id>/` 에서
+ * 유도한다 — 테스트에 파일 이름을 적는 순간 그 목록이 카탈로그의 두 번째 사본이 된다.
+ */
+describe("writeBundledSkillDirs (#431 — 디렉터리 전체 도달)", () => {
+  let project: string;
+
+  beforeEach(() => {
+    project = mkdtempSync(join(tmpdir(), "ch-skilldir-"));
+  });
+  afterEach(() => {
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  function run(harnessRoot: string, ids: string[], refreshOnly = false) {
+    const writer = createOwnedWriter(project, new Map(), { refreshOnly });
+    const written = writeBundledSkillDirs({
+      harnessRoot,
+      projectDir: project,
+      skillIds: ids,
+      writer,
+    });
+    return { written, ownership: writer.result() };
+  }
+
+  it("실제 번들 스킬의 모든 파일이 .agents/skills/<id>/ 에 온다 (기대 목록은 templates/ 에서 유도)", () => {
+    const id = firstSkillIdWithReferences(HARNESS_ROOT);
+    const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
+    // 모집단 자기검증 — SKILL.md 하나뿐인 스킬을 고르면 아래 단언은 **아무것도 재지 않는다**.
+    expect(expected.length, `${id} 의 형제 파일이 0건 — 유도기가 틀렸다`).toBeGreaterThan(1);
+    expect(expected.some((rel) => rel.includes("/"))).toBe(true);
+
+    const { written, ownership } = run(HARNESS_ROOT, [id]);
+
+    const outDir = join(project, ".agents/skills", id);
+    expect(listFilesRecursive(outDir).sort()).toEqual(expected);
+    // 보고 배열도 쓴 파일 전부를 담는다 — 일부만 담으면 화면과 디스크가 갈린다.
+    expect([...written].sort()).toEqual(
+      expected.map((rel) => join(outDir, ...rel.split("/"))).sort(),
+    );
+    // 쓴 파일 전부가 ownership 에 실려야 install log `externalFiles` 와 uninstall 회수가 따라온다.
+    expect(
+      ownership.files.map((f) => f.path).sort(),
+      "형제 파일이 기준선에서 빠지면 uninstall 이 그 파일을 못 지운다",
+    ).toEqual(expected.map((rel) => `.agents/skills/${id}/${rel}`).sort());
+  });
+
+  it("SKILL.md 는 renderBundledSkill 판본과 바이트 동일하다 (#431 이 기존 산출물을 바꾸지 않는다)", () => {
+    const id = firstSkillIdWithReferences(HARNESS_ROOT);
+    run(HARNESS_ROOT, [id]);
+    const out = readFileSync(join(project, ".agents/skills", id, "SKILL.md"), "utf8");
+    expect(out).toBe(
+      renderBundledSkill(readFileSync(join(bundledSkillDir(HARNESS_ROOT, id), "SKILL.md"), "utf8")),
+    );
+  });
+
+  // 아래 세 건은 **합성 픽스처**를 쓴다: `.DS_Store` 는 커밋되지 않고(로컬 부산물), 포팅
+  // 대상/비대상을 한 스킬 안에 나란히 두려면 입력을 우리가 통제해야 한다.
+  describe("파일 종류별 처리 (합성 픽스처)", () => {
+    let harnessRoot: string;
+    const id = "fixture-skill";
+
+    beforeEach(() => {
+      harnessRoot = mkdtempSync(join(tmpdir(), "ch-skilldir-src-"));
+      const dir = join(harnessRoot, "templates/skills", id);
+      for (const sub of ["references", "scripts", "agents", ".hidden"]) {
+        mkdirSync(join(dir, sub), { recursive: true });
+      }
+      writeFileSync(
+        join(dir, "SKILL.md"),
+        "---\nname: fixture-skill\n---\n\nsee references/a.md\n",
+      );
+      writeFileSync(join(dir, "references/a.md"), "run /uzys:plan in $CLAUDE_PROJECT_DIR\n");
+      writeFileSync(
+        join(dir, "scripts/run.sh"),
+        '#!/usr/bin/env bash\ncd "$CLAUDE_PROJECT_DIR" || exit 1\n# see /uzys:spec\n',
+      );
+      // 포팅 비대상 — 내용에 `/uzys:` 와 `CLAUDE_PROJECT_DIR` 를 **일부러** 넣어 둔다.
+      writeFileSync(
+        join(dir, "agents/openai.yaml"),
+        'cmd: "/uzys:plan"\nenv: CLAUDE_PROJECT_DIR  ',
+      );
+      writeFileSync(join(dir, ".DS_Store"), "\u0000binary\u0000");
+      writeFileSync(join(dir, ".hidden/secret.md"), "닷디렉터리 안 /uzys:plan\n");
+    });
+    afterEach(() => {
+      rmSync(harnessRoot, { recursive: true, force: true });
+    });
+
+    it("이름이 `.` 으로 시작하는 파일·디렉터리는 복사하지 않는다", () => {
+      const { written } = run(harnessRoot, [id]);
+      const outDir = join(project, ".agents/skills", id);
+      expect(listFilesRecursive(outDir).sort()).toEqual([
+        "SKILL.md",
+        "agents/openai.yaml",
+        "references/a.md",
+        "scripts/run.sh",
+      ]);
+      expect(written.some((p) => p.includes(".DS_Store") || p.includes(".hidden"))).toBe(false);
+    });
+
+    it("형제 `.md`·`.sh` 는 SKILL.md 와 같은 포팅을 받고 `.sh` 에 실행 비트가 붙는다", () => {
+      run(harnessRoot, [id]);
+      const outDir = join(project, ".agents/skills", id);
+      const ref = readFileSync(join(outDir, "references/a.md"), "utf8");
+      expect(ref).toContain("/uzys-plan");
+      expect(ref).not.toContain("/uzys:plan");
+      expect(ref).toContain("CODEX_PROJECT_DIR");
+      expect(ref).not.toContain("CLAUDE_PROJECT_DIR");
+
+      const script = join(outDir, "scripts/run.sh");
+      const body = readFileSync(script, "utf8");
+      expect(body).toContain("CODEX_PROJECT_DIR");
+      expect(body).not.toContain("CLAUDE_PROJECT_DIR");
+      expect(body).toContain("/uzys-spec");
+      // 0o755 — 실행 비트가 없으면 SKILL.md 가 시키는 `bash scripts/run.sh` 가 아니라
+      // 사용자가 직접 chmod 해야 하는 상태로 나간다.
+      expect(statSync(script).mode & 0o111).not.toBe(0);
+    });
+
+    it("그 밖의 파일은 바이트 그대로 간다 (코드·데이터를 문자열 치환하지 않는다)", () => {
+      run(harnessRoot, [id]);
+      const rel = "agents/openai.yaml";
+      const src = readFileSync(join(harnessRoot, "templates/skills", id, rel));
+      const out = readFileSync(join(project, ".agents/skills", id, rel));
+      expect(out.equals(src), `${rel} 가 변형됐다 — 포팅 대상은 .md·.sh 뿐이다`).toBe(true);
+    });
+
+    it("refresh 모드: SKILL.md 가 없는 스킬은 형제도 만들지 않는다 (안 깐 CLI 보호)", () => {
+      const { written } = run(harnessRoot, [id], true);
+      expect(written).toEqual([]);
+      expect(listFilesRecursive(join(project, ".agents"))).toEqual([]);
+    });
+  });
+});
+
+// ADR-086 — 설치 화면의 "N skills" 는 파일 수가 아니라 스킬 디렉터리 수다.
+describe("countSkillDirs — 형제 파일이 늘어도 스킬 수는 <id> 디렉터리 수", () => {
+  it("SKILL.md + references 2개인 스킬 하나와 SKILL.md 만인 스킬 하나 = 2", () => {
+    const files = [
+      "/p/.agents/skills/alpha/SKILL.md",
+      "/p/.agents/skills/alpha/references/a.md",
+      "/p/.agents/skills/alpha/references/b.md",
+      "/p/.agents/skills/beta/SKILL.md",
+    ];
+    expect(countSkillDirs(files)).toBe(2);
+    expect(files.length).toBe(4); // 파일 수로 세면 4 — 그 숫자가 화면에 나가던 상태
+  });
+
+  it("빈 목록은 0, .agents/skills 밖 경로는 세지 않는다", () => {
+    expect(countSkillDirs([])).toBe(0);
+    expect(countSkillDirs(["/p/.claude/skills/alpha/SKILL.md"])).toBe(0);
   });
 });

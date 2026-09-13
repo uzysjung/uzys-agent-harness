@@ -249,8 +249,8 @@ export function renderCliArtifacts(
       log(
         assetRow(
           "success",
-          ".agents/skills/<id>/SKILL.md",
-          `${report.codex.skillFiles.length} skills`,
+          ".agents/skills/<id>/",
+          `${countSkillDirs(report.codex.skillFiles)} skills`,
         ),
       );
     }
@@ -274,7 +274,7 @@ export function renderCliArtifacts(
         assetRow(
           "success",
           ".agents/skills/",
-          `${report.opencode.skillFiles.length} dev-method skills (codex·antigravity 와 같은 자리)`,
+          `${countSkillDirs(report.opencode.skillFiles)} dev-method skills (codex·antigravity 와 같은 자리)`,
         ),
       );
     }
@@ -299,8 +299,8 @@ export function renderCliArtifacts(
       log(
         assetRow(
           "success",
-          ".agents/skills/<id>/SKILL.md",
-          `${report.antigravity.skillFiles.length} skills`,
+          ".agents/skills/<id>/",
+          `${countSkillDirs(report.antigravity.skillFiles)} skills`,
         ),
       );
     }
@@ -391,14 +391,36 @@ export function renderFinalSummary(
   log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
   const scaffoldFiles = scaffoldFilesForCli(spec.cli);
   if (scaffoldFiles.length > 0) {
+    // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
+    // **실제로 깔린 경우에만** 말한다: 안 깔린 스킬을 부르라는 안내는 "advertised ≠ real" 이다.
+    // 설치 여부는 설치기와 같은 spec 으로 센다(위 ASSETS 줄과 같은 이유).
+    const auditInstalled =
+      buildManifestSpec(spec).selectedInternalSkills?.includes("audit-harness-fit");
+    const populateHint = auditInstalled
+      ? `, or ask the ${c.bold("audit-harness-fit")} skill to fill it from repository evidence`
+      : "";
     log(
       infoRow(
         "FILL",
-        `${scaffoldFiles.map((f) => c.bold(f)).join(" · ")} — a fill-in scaffold. Open and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor it to this project`,
+        `${scaffoldFiles.map((f) => c.bold(f)).join(" · ")} — a fill-in scaffold. Open and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor it to this project${populateHint}`,
       ),
     );
   }
   log("");
+}
+
+/**
+ * ADR-086 — `skillFiles` 는 이제 스킬 **디렉터리 전체**의 파일이다(SKILL.md + references/ …).
+ * 화면의 "N skills" 는 파일 수가 아니라 `<id>` 디렉터리 수여야 한다 — 8종을 골랐는데 "13 skills"
+ * 로 뜨면 설치자가 자기가 안 고른 것이 깔렸다고 읽는다.
+ */
+export function countSkillDirs(skillFiles: ReadonlyArray<string>): number {
+  const ids = new Set<string>();
+  for (const f of skillFiles) {
+    const m = /[\\/]\.agents[\\/]skills[\\/]([^\\/]+)[\\/]/.exec(f);
+    if (m?.[1] !== undefined) ids.add(m[1]);
+  }
+  return ids.size;
 }
 
 /**

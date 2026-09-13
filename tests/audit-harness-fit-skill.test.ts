@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,153 +8,120 @@ import {
   INTERNAL_BUNDLED_SKILL_IDS,
   shouldInstallAsset,
 } from "../src/external-assets.js";
+import { listFilesRecursive } from "../src/fs-ops.js";
 import { DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
 
-// ADR-064 — audit-harness-fit 스킬의 계약.
+// ADR-084 (#425) — audit-harness-fit 2판의 계약.
 //
-// **2026-08-30 재판정(#361)에서 성격이 바뀌었다: 21블록 → 7블록.** 걷어낸 14개는 전부
-// SKILL.md 본문의 **낱말**을 읽었다 — 트리거 문구(한국어 4·영어 3) · Do NOT 절이 부르는 스킬
-// 이름 · 5단계 헤딩 순서 · 판정 근거 3종 · Stage 3 범주 목록 · 성공 기준 절의 형태 · 로그 0줄
-// 가드 · RELOCATE 표 · APPLY 절 · 워크드 예시 · references 의 인용 구절.
+// 1판(ADR-064·066)은 **공식 체크리스트 인용**이 판정 근거였고, 그래서 이 파일의 핵심 게이트는
+// `references/official-criteria.md` 의 blockquote 전량을 리포 안 리서치 원장과 문자 대조하는
+// 것이었다(날조 인용을 실제로 잡았다). 2판은 판정 근거를 **확정된 사용자 의도 + 리포 실증**으로
+// 바꿨고 인용 파일이 없다 — 그 게이트는 대상이 사라져 은퇴했다(ADR-084 §Consequences).
 //
-// **왜 걷었나 — 이미 채택된 룰이 금지하는 형태다.** `.claude/rules/change-management.md`
-// §자산은 자기 변경 요청 없이 건드리지 않는다 가 *"문장의 의미를 무는 자동 검사는 만들지
-// 마라(3회 우회 실측)"* 로 못박는다. 문구 검사는 양쪽으로 틀린다: 같은 뜻으로 다시 쓰면
-// 🔴(정당한 개정 차단), 낱말을 남긴 채 옆 문장을 뒤집으면 🟢. 자산 본문의 뜻은
-// `npm run assets:history` 로 이력을 읽어 사람·에이전트가 판정한다.
-//
-// **`description` 1,024자 상한 블록도 함께 걷었다 — 중복이 됐다.** #333(PR #395)에서
-// `tests/frontmatter-yaml.test.ts` 가 `SKILL.md` **전수**를 글롭으로 검사하게 됐다. 이 파일에만
-// 붙어 있던 것이 27종 무검사를 만든 원인이었으므로, 사본을 남기면 같은 형태가 반복된다.
-//
-// **남긴 7개는 뜻을 안 읽는다**: 100줄 초과 참조 파일의 TOC·출처 URL 실재(형식) · 배포물이
-// 리포 전용 경로를 안 담는가(부재 대조) · 두 사본 바이트 동일 · 인용이 원장에 문자 대조로
-// 실재하는가(+그 탐지기의 헛통과 차단) · 카탈로그 배선 2.
-// 특히 인용 대조는 **날조를 잡은 실적이 있다** — 아래 그 게이트의 주석이 그 사고를 기록한다.
+// **여기 남긴 것은 뜻을 안 읽는다**(`.claude/rules/change-management.md` §자산은 자기 변경 요청
+// 없이 건드리지 않는다 — 문장의 의미를 무는 자동 검사는 만들지 마라). 2판은 SKILL.md 가
+// 라우터이고 본문이 `references/` 에 있으므로, 깨지면 설치자에게 **빈 껍데기**가 되는 축만 잰다:
+//   ① 라우터가 가리키는 참조 파일이 실재하고, 참조 파일은 전부 라우터에서 도달된다 (양방향)
+//   ② 100줄 넘는 참조 파일에 TOC (공식 스킬 작성 기준 — 줄 수와 헤딩 실재만 본다)
+//   ③ 낯선 프로젝트에서 돌아야 하므로 이 리포 전용 도구·경로에 기대지 않는다 (부재 대조)
+//   ④ `.claude/` 개발 사본이 배포 원본과 바이트 동일 — 파일 목록은 원본 디렉터리에서 **유도**
+//   ⑤ 카탈로그 배선 2 (1판과 같다)
 
-const read = (rel: string): string =>
-  readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+const here = (rel: string): string => fileURLToPath(new URL(rel, import.meta.url));
+const read = (rel: string): string => readFileSync(here(rel), "utf8");
 
-const tpl = read("../templates/skills/audit-harness-fit/SKILL.md");
-const criteria = read("../templates/skills/audit-harness-fit/references/official-criteria.md");
+const SKILL_DIR = "../templates/skills/audit-harness-fit";
+const MIRROR_DIR = "../.claude/skills/audit-harness-fit";
 
-describe("audit-harness-fit — 참조 파일의 형식과 이식성", () => {
-  // 공식 스킬 작성 기준: 100줄 넘는 참조 파일에는 TOC. 줄 수와 헤딩 실재만 보므로 문면 개정과
-  // 무관하다 — 인용 *내용*의 정합은 아래 원장 대조 게이트가 훨씬 강하게 맡는다.
-  it("100줄 초과 참조 파일에 TOC 와 출처 URL 이 있다", () => {
-    expect(criteria.split("\n").length).toBeGreaterThan(100);
-    expect(criteria).toMatch(/^## Contents$/m);
-    expect(criteria).toMatch(/https:\/\/code\.claude\.com\/docs\/en\/(memory|permissions)/);
-    expect(criteria).toMatch(/https:\/\/platform\.claude\.com\/docs\/en\//);
+/** 배포 원본의 파일 목록. 열거하지 않는다 — 참조 파일이 늘면 모집단이 따라온다. */
+const shippedFiles = listFilesRecursive(here(SKILL_DIR)).filter(
+  (rel) => !rel.split("/").some((seg) => seg.startsWith(".")),
+);
+const skillMd = read(`${SKILL_DIR}/SKILL.md`);
+
+/** SKILL.md 본문이 `[..](references/x.md)` 로 가리키는 상대 경로 전부. */
+function routedReferences(md: string): string[] {
+  const out = new Set<string>();
+  for (const m of md.matchAll(/\]\(((?:references|scripts|evals)\/[^)#]+)(?:#[^)]*)?\)/g)) {
+    if (m[1] !== undefined) out.add(m[1]);
+  }
+  return [...out].sort();
+}
+
+describe("audit-harness-fit — 라우터와 참조 파일의 양방향 도달", () => {
+  const routed = routedReferences(skillMd);
+  const onDisk = shippedFiles.filter((rel) => rel.startsWith("references/")).sort();
+
+  it("모집단이 살아 있다 (헛통과 차단)", () => {
+    // 라우팅 링크 0건이면 아래 두 단언은 빈 배열끼리 같아져 초록이 된다 — 그건 "라우터가 아무
+    // 것도 안 가리킨다"는 뜻이지 정합이 아니다.
+    expect(routed.length).toBeGreaterThan(2);
+    expect(onDisk.length).toBeGreaterThan(2);
+    expect(shippedFiles).toContain("SKILL.md");
   });
 
-  // 낯선 프로젝트에서 돌아야 한다 — 이 리포의 npm 스크립트·리서치 경로에 기대면 그 순간 이식 불가.
-  it("이 리포 전용 도구·경로에 의존하지 않는다", () => {
-    for (const text of [tpl, criteria]) {
-      expect(text).not.toMatch(/npm run (cost:report|cost:baseline|ci\b)/);
-      expect(text).not.toMatch(/docs\/research\//);
-      expect(text).not.toMatch(/docs\/decisions\//);
-    }
+  it("라우터가 가리키는 참조 파일이 전부 실재한다", () => {
+    const missing = routed.filter((rel) => !shippedFiles.includes(rel));
+    expect(missing, "SKILL.md 가 없는 파일로 라우팅한다 — 설치자에게는 빈 껍데기다").toEqual([]);
   });
 
-  it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
-    expect(read("../.claude/skills/audit-harness-fit/SKILL.md")).toBe(tpl);
-    expect(read("../.claude/skills/audit-harness-fit/references/official-criteria.md")).toBe(
-      criteria,
-    );
+  it("references/ 의 파일은 전부 라우터에서 도달된다 (고아 참조 없음)", () => {
+    const orphan = onDisk.filter((rel) => !routed.includes(rel));
+    expect(orphan, "SKILL.md 어디서도 안 가리키는 참조 파일 — 아무도 못 읽는다").toEqual([]);
+  });
+
+  it("탐지기 자기검증 — 링크 추출기가 실제로 문다", () => {
+    expect(routedReferences("see [x](references/a.md) and [y](references/b.md#s)")).toEqual([
+      "references/a.md",
+      "references/b.md",
+    ]);
+    expect(routedReferences("no links here")).toEqual([]);
   });
 });
 
-/**
- * 인용 정합 게이트 — **날조된 인용을 잡는다**.
- *
- * WHY 별개 게이트인가: 위의 `toContain` 단언들은 **훼손·삭제만** 잡고 *추가*는 못 잡는다.
- * 검증 레인이 실제로 없는 문장("Never keep more than seven rule files…")을 진짜 출처 번호를 달아
- * 두 사본에 주입했는데 24/24 초록이었다 — 같은 파일이 20줄 아래에서 정면으로 부정하는 문장인데도
- * 통과했다. 이 스킬이 전신과 갈리는 유일한 지점이 "판정은 인용·로그·계측으로만"이므로, 인용의
- * 추적성이 깨지면 산출물의 근거가 통째로 사라진다.
- *
- * 대조 대상은 **리포 안의 리서치 원장**(`docs/research/rules-hooks-value-audit-2026-08-02/`)이다.
- * 이 경로는 배포되지 않으므로 배포 사본의 이식성 단언(`docs/research/` 금지)과 충돌하지 않는다 —
- * 게이트만 이 리포에 남고 스킬은 깨끗하게 나간다.
- */
-describe("audit-harness-fit — references 인용이 원장에 실재하는가", () => {
-  const LEDGER = "../docs/research/rules-hooks-value-audit-2026-08-02";
-
-  /**
-   * 원장과 참조 파일은 같은 문장을 다른 폭으로 접어 싣는다. 그 차이만 지우고 **글자는 남긴다**:
-   * ⓐ 표 구분행(`| :--- |`) 제거 — 참조 파일은 안 싣고 원장은 싣는다
-   * ⓑ 중첩 인용부호(`>   > `)까지 벗기기 — 한 겹만 벗기면 본문에 `>` 가 남는다
-   * ⓒ 스마트따옴표 통일 · `[text](url)` → `[text]` (참조 파일은 URL 을 본문에서 뺀다)
-   * ⓓ `**` 제거 — 원장의 강조 일부는 원문이 아니라 **발췌자 표시**다(원장이 그렇게 명기한다)
-   * ⓔ 표 셀 패딩과 줄바꿈 접힘을 공백 하나로 — 접힘을 못 넘으면 게이트가 장식이 된다
-   */
-  const normalize = (s: string): string =>
-    s
-      .split("\n")
-      .filter((l) => !/^\s*>?\s*\|[\s:|-]+\|\s*$/.test(l))
-      .join("\n")
-      .replace(/^\s*(?:>\s*)+/gm, " ")
-      .replace(/[“”]/g, '"')
-      .replace(/[‘’]/g, "'")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "[$1]")
-      .replace(/\*\*/g, "")
-      .replace(/\s*\|\s*/g, " | ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  const ledger = normalize(
-    readdirSync(fileURLToPath(new URL(LEDGER, import.meta.url)))
-      .filter((f) => f.endsWith(".md"))
-      .map((f) => read(`${LEDGER}/${f}`))
-      .join("\n\n"),
-  );
-
-  /** 연속된 `>` 줄 = 인용 한 덩어리. 덩어리째 대조해야 문장 잘라 붙이기가 걸린다. */
-  const quoteBlocks = (): Array<{ line: number; text: string }> => {
-    const out: Array<{ line: number; text: string }> = [];
-    let cur: string[] = [];
-    let start = 0;
-    for (const [i, l] of criteria.split("\n").entries()) {
-      if (l.startsWith(">")) {
-        if (cur.length === 0) start = i + 1;
-        cur.push(l);
-      } else if (cur.length > 0) {
-        out.push({ line: start, text: cur.join("\n") });
-        cur = [];
-      }
+describe("audit-harness-fit — 참조 파일의 형식과 이식성", () => {
+  it("100줄 초과 참조 파일에 TOC 가 있다", () => {
+    const long = shippedFiles.filter(
+      (rel) =>
+        rel.startsWith("references/") && read(`${SKILL_DIR}/${rel}`).split("\n").length > 100,
+    );
+    // 2판 초안에서 audit.md 가 여기 걸린다. 0건이면 이 단언은 아무것도 안 잰다 — 그 사실을 드러낸다.
+    expect(long.length).toBeGreaterThan(0);
+    for (const rel of long) {
+      expect(read(`${SKILL_DIR}/${rel}`), `${rel} 에 TOC(## Contents) 가 없다`).toMatch(
+        /^## Contents$/m,
+      );
     }
-    if (cur.length > 0) out.push({ line: start, text: cur.join("\n") });
-    return out;
-  };
-
-  /** 원장에 없어도 되는 인용. **비어 있는 것이 정상**이고, 채울 때는 사유를 함께 적는다. */
-  const ALLOWED_WITHOUT_LEDGER: readonly string[] = [];
-
-  it("원장을 실제로 읽는다 (헛통과 차단)", () => {
-    expect(ledger.length).toBeGreaterThan(20000);
-    expect(quoteBlocks().length).toBeGreaterThan(40);
   });
 
-  it("blockquote 전량이 원장에서 문자 대조로 추적된다", () => {
-    const unmatched = quoteBlocks()
-      .map(({ line, text }) => ({
-        line,
-        // 인용부호와 꼬리의 출처 표기(`" — (2)`)는 참조 파일 쪽 편집이라 벗기고 본문만 대조한다.
-        text: normalize(text)
-          .replace(/^"/, "")
-          .replace(/"\s*[—-]\s*\(\d+(?:,\s*\d+)*\)\s*$/, "")
-          .replace(/"$/, "")
-          .trim(),
-      }))
-      .filter(({ text }) => !ledger.includes(text))
-      .filter(({ text }) => !ALLOWED_WITHOUT_LEDGER.includes(text))
-      .map(({ line, text }) => `official-criteria.md:${line}  ${text.slice(0, 120)}`);
+  it("이 리포 전용 도구·경로에 의존하지 않는다 (배포물 전 파일)", () => {
+    // canary: 패턴이 잡는 문자열로 탐지기부터 확인한다 — 잡지 못하면 아래 부재 결론은 무효다.
+    const forbidden = [
+      /npm run (cost:report|cost:baseline|ci\b)/,
+      /docs\/research\//,
+      /docs\/decisions\//,
+    ];
+    expect(forbidden.some((re) => re.test("run `npm run cost:report` first"))).toBe(true);
+    for (const rel of shippedFiles) {
+      const text = read(`${SKILL_DIR}/${rel}`);
+      for (const re of forbidden) {
+        expect(text, `${rel} 가 이 리포 전용 표면(${re.source})을 가리킨다`).not.toMatch(re);
+      }
+    }
+  });
 
-    expect(
-      unmatched,
-      `원장에 없는 인용이다 — 원문에서 재확보해 원장에 편입하거나 (summary) 로 강등하라:\n${unmatched.join("\n")}`,
-    ).toEqual([]);
+  it("repo-local .claude 복사본이 템플릿과 파일 단위로 byte-동일 (silent drift 가드)", () => {
+    const mirror = listFilesRecursive(here(MIRROR_DIR)).filter(
+      (rel) => !rel.split("/").some((seg) => seg.startsWith(".")),
+    );
+    expect([...mirror].sort()).toEqual([...shippedFiles].sort());
+    for (const rel of shippedFiles) {
+      expect(read(`${MIRROR_DIR}/${rel}`), `${rel} 가 미러와 다르다`).toBe(
+        read(`${SKILL_DIR}/${rel}`),
+      );
+    }
+    // 미러가 심링크면 "동일"은 자기 자신과의 대조다.
+    expect(statSync(here(MIRROR_DIR)).isDirectory()).toBe(true);
   });
 });
 

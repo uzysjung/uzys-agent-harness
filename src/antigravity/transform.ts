@@ -12,7 +12,7 @@
  *   1. `.agents/rules/uzys-harness.md` — project context (CLAUDE.md → Antigravity rule).
  *      foundational context (CLAUDE.md/AGENTS.md 처럼 항상 작성).
  *      cli=antigravity 단독 선택 시 이게 없으면 Antigravity 가 프로젝트 컨벤션을 모름.
- *   2. `.agents/skills/<id>/SKILL.md` — dev-method skills (frontmatter 보존, codex 와 공유).
+ *   2. `.agents/skills/<id>/**` — dev-method skills 디렉터리 전체 (frontmatter 보존, codex 와 공유).
  *
  * SAFETY: `~/.gemini/` 글로벌 write 없음.
  */
@@ -20,7 +20,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { renderAgentsMd } from "../codex/agents-md.js";
-import { renderBundledSkill } from "../codex/skills.js";
+import { writeBundledSkillDirs } from "../codex/skills.js";
 import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
 import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules } from "../rules-port.js";
@@ -31,8 +31,8 @@ export interface AntigravityTransformParams {
   /** 사용자 프로젝트 root. `.agents/` 가 만들어질 위치. */
   projectDir: string;
   /**
-   * v26.87.0 — dev-method skill ids 선택 목록. 각 id 의 `templates/skills/<id>/SKILL.md` 를
-   * Antigravity native `.agents/skills/<id>/SKILL.md` 로 (frontmatter 보존) 출력.
+   * v26.87.0 — dev-method skill ids 선택 목록. 각 id 의 `templates/skills/<id>/` 를
+   * Antigravity native `.agents/skills/<id>/` 로 (SKILL.md frontmatter 보존) 출력.
    */
   selectedInternalSkills?: ReadonlyArray<string>;
   /** 2026-08-12 — 이 설치의 배포 룰 이름들. `.agents/rules/<name>.md` 로 나간다. */
@@ -54,7 +54,10 @@ export interface AntigravityTransformReport {
   rulesFile: string | null;
   /** 2026-08-12 — 작성된 배포 룰 경로 (.agents/rules/<name>.md). 앵커와 형제. */
   harnessRuleFiles: string[];
-  /** 작성된 SKILL.md 경로 list (.agents/skills/<id>/SKILL.md). */
+  /**
+   * `.agents/skills/<id>/` 에 쓴 **모든** 파일 경로 — `SKILL.md` + 형제(references/scripts 등).
+   * #431 이전에는 `SKILL.md` 하나뿐이었다.
+   */
   skillFiles: ReadonlyArray<string>;
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
@@ -98,20 +101,16 @@ export function runAntigravityTransform(
     harnessRuleFiles.push(target);
   }
 
-  const skillFiles: string[] = [];
-
-  // 1b. v26.87.0 — dev-method skills → .agents/skills/<id>/SKILL.md (frontmatter 보존).
+  // 1b. v26.87.0 — dev-method skills → .agents/skills/<id>/ (frontmatter 보존).
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 보존.
-  for (const id of selectedInternalSkills) {
-    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
-    if (!existsSync(src)) {
-      continue;
-    }
-    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
-    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
-    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
-    skillFiles.push(target);
-  }
+  //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체다. 루프는 세 transform
+  //   공용 helper 가 소유한다(codex·opencode 와 같은 산출물).
+  const skillFiles = writeBundledSkillDirs({
+    harnessRoot,
+    projectDir,
+    skillIds: selectedInternalSkills,
+    writer,
+  });
 
   return {
     rulesFile,

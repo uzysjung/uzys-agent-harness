@@ -61,8 +61,8 @@ export type ExternalAssetMethod =
         | "audit-harness-fit"
         // CI 가 멈췄을 때 워크플로를 복제하지 않고 self-hosted runner 로 돌린다.
         | "self-hosted-github-runner"
-        // 한국어 글의 번역투·AI 상투구를 진단하고 근거 있는 부분만 최소 수정.
-        | "humanize-korean"
+        // 한국어 답변·글쓰기·번역·퇴고 — 뜻과 말투를 살리며 번역투·상투구·기계적 반복을 줄인다.
+        | "natural-korean"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
         | "ci-scaffold";
     };
@@ -160,7 +160,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 62 자산 매트릭스 (#355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 62 자산 매트릭스 (#428 humanize-korean → natural-korean 개명. 그 전 #355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -351,10 +351,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 전 트랙인 이유: 이 하네스는 **모든 트랙에** 앵커·룰·훅을 깐다. 그 상주층이 밥값을 하는지
     // 되묻는 루프만 개발 트랙에 두면, 상주 비용은 전원이 무는데 감사는 일부만 갖는 비대칭이
     // 된다. 감사 대상이 개발 산출물이 아니라 **설치본 자신**이라 트랙 술어와 무관하다.
+    // ADR-084 (#425) — 2판. 판정 근거가 공식 체크리스트 인용에서 **확정된 의도 + 리포 실증**으로
+    //   바뀌었고, 모드 4개(audit · verification · apply · populate)를 SKILL.md 가 references 로
+    //   라우팅한다. 비-Claude CLI 도 디렉터리째 받는 것이 전제다(#431).
     id: "audit-harness-fit",
     tier: "official", // uzys 자사 스킬
     description:
-      "Audit harness fit — audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context, judged by published criteria, block logs, and measurement; relocate procedures to skills, guarantees to hooks/permissions, derivable facts to code",
+      "Audit harness fit — audit or clean up agent instructions and skills: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire low-value rules and skills, move decision history out of resident text, right-size user-journey verification; also fill or refresh AGENTS.md / CLAUDE.md project context from repository evidence",
     category: "workflow",
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },
@@ -382,15 +385,18 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 트랙과 무관한 글쓰기 규율이라 어느 트랙에서도 고를 수 있고, 어느 트랙에도 자동으로는
     //   안 깔린다(opt-in). 한국어로 쓰지 않는 사용자에게 기본 설치되면 그대로 낭비다.
     // clear-korean-communication 과의 경계: 저쪽은 **무엇을 어떤 형식으로 말할지**(설명·승인
-    //   요청의 구조)이고, 이쪽은 **이미 쓴 글의 문체**를 진단해 최소 수정한다.
-    id: "humanize-korean",
+    //   요청의 구조)이고, 이쪽은 **한국어로 쓰는 행위 자체**(답변·글쓰기·번역·퇴고)의 표현이다.
+    // #428 — 전신 `humanize-korean`(#355, 진단-우선 퇴고)을 개명·교체했다. 범위가 퇴고에서
+    //   쓰기·번역까지로 넓어져 이름이 뜻과 어긋났다. 옛 id 로 깐 설치본은 `update` 가 손대지
+    //   않고(설치된 디렉터리만 갱신) 그대로 남는다 — 새 판은 `--with natural-korean` 으로 받는다.
+    id: "natural-korean",
     tier: "official", // uzys 자사 스킬
     description:
-      "Humanize Korean — diagnose what actually reads as translationese, AI cliché, or mechanical structure in Korean prose, then fix only what the diagnosis justifies, preserving facts, numbers, terminology and register (opt-in). References epoko77-ai/im-not-ai",
+      "Natural Korean — write, answer, translate, and revise in Korean that reads as Korean: keep meaning and register, cut translationese, needless English, stock phrases, and mechanical repetition; fix only what is actually awkward (opt-in)",
     category: "workflow",
     source: "uzys",
     condition: { kind: "opt-in" },
-    method: { kind: "internal", key: "humanize-korean" },
+    method: { kind: "internal", key: "natural-korean" },
   },
 
   // === Option-gated (v26.42.0 — opt-in, BREAKING vs prior has-dev-track auto-install) ===
@@ -1125,7 +1131,7 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "model-orchestration",
   "external-model-consult",
   "self-hosted-github-runner",
-  "humanize-korean",
+  "natural-korean",
 ];
 
 /**

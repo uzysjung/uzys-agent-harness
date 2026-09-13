@@ -152,7 +152,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     //   + 1(audit-harness-fit 신설, ADR-064) = 57
     //   + 1(preline — Tailwind 컴포넌트 킷 테마 생성기, htmx·vanilla 대응) = 58.
     //   + 1(self-hosted-github-runner 신설, #353) = 61.
-    //   + 1(humanize-korean 신설, #355) = 62.
+    //   + 1(humanize-korean 신설, #355) = 62. #428 에서 natural-korean 으로 개명 — 수는 그대로.
     expect(ids).toHaveLength(62);
     expect(ids).toContain("task-brief");
     expect(ids).toContain("audit-harness-fit");
@@ -340,8 +340,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         "external-model-consult",
         "gh-issue-workflow",
         "model-orchestration",
-        // #355 — 전 트랙 opt-in 글쓰기 스킬. has-dev-track 이 아니라 DEV_METHOD 밖이다.
-        "humanize-korean",
+        // #355/#428 — 전 트랙 opt-in 글쓰기 스킬. has-dev-track 이 아니라 DEV_METHOD 밖이다.
+        "natural-korean",
         "north-star",
         // #353 — has-dev-track 이지만 방법론이 아니라 CI 사고 대응 런북이라 DEV_METHOD 밖이다.
         "self-hosted-github-runner",
