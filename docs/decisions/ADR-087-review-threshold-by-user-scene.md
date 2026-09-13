@@ -36,6 +36,7 @@
   - 이 리포의 머지 게이트가 약해지는 구간이 있다: `docs/` · `tests/` · `.claude/` 만 바꾼 PR 은 독립 리뷰 없이
     들어온다. 그 위험은 배포 게이트의 독립 검증과 릴리즈 CI 가 받는다. ADR-056 Consequences 2 의 "머지 행은
     프로즈뿐" 은 그대로다.
-  - 상주 지시문: Delivery 룰 +약 0.5 KB(설치자 전원). `context-cost-baseline.json` 의 의도적 갱신(ADR-083).
+  - 상주 지시문: Delivery 룰 +887 B · Testing 룰 +19 B(설치자 전원). tooling 지시문 4,379 → 4,481 tok.
+    Codex `AGENTS.md` 24,414 → 25,320 B — ratchet 24.75 KiB 로 상향, F-12 PR 에서 되내린다. `context-cost-baseline.json` 의 의도적 갱신(ADR-083).
   - `reviewer` 에이전트 본문의 입력(씬 + 완료 기준, F-15)과 `AGENTS.md` 껍데기의 "즉시 commit"(F-02)은 이
     결정의 착지점이지만 별 PR 이다(감사 보고서 §적용 순서).

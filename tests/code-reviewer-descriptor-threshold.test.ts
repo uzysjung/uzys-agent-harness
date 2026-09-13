@@ -23,6 +23,15 @@ const description = (path: string): string => {
 
 const SHIPPED = "templates/agents/code-reviewer.md";
 const REPO = ".claude/agents/code-reviewer.md";
+/**
+ * ECC 원본 descriptor 축자(`.claude/local-plugins/ecc/agents/code-reviewer.md`, 2026-09-13).
+ * 파일이 아니라 상수인 이유: 그 디렉터리는 gitignore 라 CI·새 클론에 없다 — 파일을 읽으면
+ * 게이트가 우리가 못 고치는 것 때문에 상시 red 가 된다(`frontmatter-yaml.test.ts` 가 같은 이유로
+ * 그 디렉터리를 제외한다). canary 가 지키는 것은 "탐지기가 원문 형태를 문다" 이고, 그것은
+ * 원문 문장 하나면 충분하다.
+ */
+const UPSTREAM_DESCRIPTION =
+  "Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. MUST BE USED for all code changes.";
 
 describe("code-reviewer descriptor — 수정마다가 아니라 씬 완료 · 문턱 위 머지 전 (ADR-087)", () => {
   it("ECC 원본의 무조건 지시 토큰이 두 사본 어디에도 없다", () => {
@@ -38,9 +47,9 @@ describe("code-reviewer descriptor — 수정마다가 아니라 씬 완료 · �
     expect(description(REPO)).toBe(description(SHIPPED));
   });
 
-  it("canary — ECC 원본에는 그 토큰이 있다(탐지기가 문다)", () => {
-    expect(description(".claude/local-plugins/ecc/agents/code-reviewer.md")).toMatch(
-      /MUST BE USED/,
-    );
+  it("canary — ECC 원문 형태에는 그 토큰이 있다(탐지기가 문다)", () => {
+    expect(UPSTREAM_DESCRIPTION).toMatch(/MUST BE USED/);
+    // 두 사본이 원문과 실제로 다르다 — 같으면 위 두 단언은 공허하다.
+    expect(description(SHIPPED)).not.toBe(UPSTREAM_DESCRIPTION);
   });
 });
