@@ -29,13 +29,13 @@ status: active
 - [x] **① 자연스러운 한국어 스킬 (#428)** — PR #430 — `humanize-korean` → `natural-korean` 로 **이름을 바꾸고**
   본문을 첨부 SKILL.md 로 교체. 배선·테스트·문서·`.claude/` 미러 동반. 옛 id 를 고른 설치자가 `update`
   때 `notInCatalog` 로 떨어지는지 확인하고 떨어지면 안내 한 줄. 자산 수 62 유지.
-- [ ] **② 충돌 해소 스킬 (#425)** — 첨부 zip 을 `templates/skills/audit-harness-fit/` 에 **같은 id 로 통합**
+- [x] **② 충돌 해소 스킬 (#425)** — PR #432 (전제 #431 = PR #434) — 첨부 zip 을 `templates/skills/audit-harness-fit/` 에 **같은 id 로 통합**
   (SKILL.md + references 4 + README + evals). `official-criteria.md` 와 인용 원장 게이트는 **은퇴**(ADR-084
   가 ADR-066 을 supersede · ADR-064 amend). 테스트는 뜻을 안 읽는 형태로 재작성: 라우팅 링크 실재 ·
   100줄 초과 참조의 TOC · 리포 전용 경로 부재 · 미러 바이트 동일 · 카탈로그 배선. 카탈로그 `description`
   갱신. 설치 후 FILL 안내(`install-render.ts:396`)에 스킬이 깔린 경우에만 "populate" 한 줄.
   **선행 조건**: 비-Claude CLI 3종이 스킬 **디렉터리 전체**를 복사하게 고친다(신규 이슈, 아래 D3).
-- [ ] **③ 앵커 동일화 — 고객 앵커 = 전역 6원칙 (#427-A, #418 흡수)** — `templates/CLAUDE.md` 를 #427 본문으로
+- [x] **③ 앵커 동일화 — 고객 앵커 = 전역 6원칙 (#427-A, #418 흡수)** — `templates/CLAUDE.md` 를 #427 본문으로
   **바이트 동일** 교체(꼬리 2절 제거). 상시 스킬 안내(`clear-korean-communication` · `task-brief` ·
   `model-orchestration`)는 설치기가 만드는 프로젝트 블록의 `Installed Harness Assets` 절로 옮겨 **실제로 설치된
   것만** 적는다. ASIS→TOBE 형식은 `clear-korean-communication` 스킬이 소유. ADR 1건이 ADR-055 · ADR-068 을
@@ -43,14 +43,23 @@ status: active
   이 리포 `.claude/CLAUDE.md`: "테스트는 구현이 아닌 레인이 쓴다"(사용자가 2026-07-26 기각한 축) ·
   "구현은 implementer 에 위임"(#427 §6 은 비용 대비로 위임) 두 문장을 #427 에 맞춘다. 루트 `CLAUDE.md`
   는 사실만 담고 있어 충돌 0(확인).
-- [ ] **④ 전체 하네스 충돌 감사 (#426)** — ②의 스킬을 **이 리포에** 읽기 전용으로 돌린다. 대상 = 4 CLI
+- [x] **④ 전체 하네스 충돌 감사 (#426)** — 보고서 `docs/plans/harness-conflict-audit-2026-09-13.md` (HIGH 2 · MED 6 · LOW 5 · 보류 3) — ②의 스킬을 **이 리포에** 읽기 전용으로 돌린다. 대상 = 4 CLI
   설치 렌더(임시 디렉터리 4개, `runInstall`) + 이 리포 `.claude/`. 산출물 = `docs/plans/harness-conflict-audit-2026-09-13.md`
   (F-xx 기록: 원문 양쪽 · 상황 · 수정안 · 확인/미확인 경로). 파일 수정 없음.
-- [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 중 사용자가 확정한 것을
-  적용. 확정된 것 하나는 이미 있다: `code-reviewer` 에이전트 descriptor 의 *"MUST BE USED for all code
-  changes"* (양쪽 사본) → 씬 완료 시점으로. 고객 `Delivery` 룰에 3단계 리듬(변경부 빠른 검사 → 씬 수정분
-  모아 독립 검토 → 통합·빌드·실사용 흐름)과 #423 의 머지 전 독립검증 기준(핵심 사용자 기능 · 되돌리기
-  어려운 것 · 돈·권한)을 넣는다. 필수 보안·데이터 보호 검사는 유지.
+- [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 전부 확정됨(보고서
+  §사용자 결정). PR 5개, 각각 독립 리뷰:
+  - [ ] ⓐ **리뷰 문턱 통일** F-01 · F-14 · R-01 · R-02 — `code-reviewer` descriptor(양쪽) · 고객 `Delivery` 룰
+    3단계 리듬 + #423 머지 전 기준 · `Testing` 룰 문턱 SSOT 한 곳 · 이 리포 `test-policy` · `ship-checklist`.
+    필수 보안·데이터 보호 검사는 유지.
+  - [ ] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트.
+  - [ ] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
+  - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
+    제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·
+    `doc-governance` 한 줄. 자산 수 62 → 59(스킬 −3), 카탈로그·lock·문서·`.claude/` 미러 동반.
+  - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
+    배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
+    `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에
+    같은 사실 실재.
 - [ ] **⑥ 출하** — CHANGELOG · `cost:baseline` · 릴리즈 순서(`ship-checklist`).
 
 ## 결정 (사용자 확정 2026-09-13)
@@ -61,6 +70,12 @@ status: active
 | D2 | 비-Claude CLI 에 스킬 디렉터리 전체 복사 | **한다**. 충돌 해소 스킬 작업 안에서 먼저 처리 |
 | D3 | #423 을 ⑤에 합친다 | **합친다** |
 | 결과 | 적대적 패널 축 | 사용자 문안에 없으므로 배포 앵커에서 사라진다. 게이트의 그 축은 이 리포 앵커 전용 |
+| D4 | `task-brief` 문턱·이름 | **`objective-brief`** 로 개명. 긴 작업·피처·프로젝트 규모 이상에만 — 설치자·이 리포 동일 문턱 |
+| D5 | `strategic-compact` | **제거**(스킬·훅). 순정 자동 컴팩션이 있다 |
+| D6 | `continuous-learning-v2` | **제거**. `recurrence-prevention` 이 담당 |
+| D7 | `spec-scaling` | **retire** + `doc-governance` 한 줄 |
+| D8 | 이력 분리 범위 | **매 세션 상주하는 파일 전부**, 사례표 포함(계수는 한 줄 + 링크) |
+| D9 | `mcp-pre-exec` | 이미 제거됨(#307) — 죽은 배선·낡은 문장만 정리 |
 
 ## 가드레일
 
