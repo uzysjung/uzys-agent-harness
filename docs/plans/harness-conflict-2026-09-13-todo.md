@@ -51,7 +51,7 @@ status: active
   - [x] ⓐ **리뷰 문턱 통일** F-01 · F-14 · R-01 · R-02 — ADR-087 — `code-reviewer` descriptor(양쪽) · 고객 `Delivery` 룰
     3단계 리듬 + #423 머지 전 기준 · `Testing` 룰 문턱 SSOT 한 곳 · 이 리포 `test-policy` · `ship-checklist`.
     필수 보안·데이터 보호 검사는 유지.
-  - [ ] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트.
+  - [x] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트(25,320 → 23,115 B, ratchet 22.75 KiB).
   - [ ] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
   - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
     제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·

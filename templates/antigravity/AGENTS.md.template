@@ -1,9 +1,5 @@
 # {PROJECT_NAME} — Antigravity Agent Guide
 
-> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via TS CLI `src/antigravity/transform.ts`
-> **Antigravity**: 2.0+ (`agy` CLI + desktop IDE)
-> **Location**: workspace rule — `.agents/rules/uzys-harness.md`
-
 ## Project Context
 
 {PROJECT_CONTEXT}
@@ -12,23 +8,7 @@
 
 {PROJECT_RULES}
 
-## Protected Files (DO NOT EDIT)
+## Protected Files
 
-- `.env*`, `**/credentials.json`
-- `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `uv.lock`
-- `.git/` 내부 파일 (커밋 메시지/hook 제외)
-- `~/.gemini/`, `~/.claude/`, `~/.codex/` 글로벌 (D16 보호)
-
-보호 영역 이슈 발견 시 **보고만**. 직접 수정 금지.
-
-## Scopes
-
-| Scope | 위치 | 비고 |
-|-------|------|------|
-| Workspace skills | `.agents/skills/` | 본 프로젝트 한정 (Codex 공유) |
-| Workspace rules | `.agents/rules/` | 본 문서 |
-| Global rules | `~/.gemini/GEMINI.md` | 사용자 직접 관리 (harness 미터치) |
-
----
-
-*이 문서는 자동 생성됨. 수동 편집 시 harness 재설치가 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*
+- lock 파일(`package-lock.json` · `pnpm-lock.yaml` · `poetry.lock` · `Cargo.lock` · `uv.lock` 등)은 **손으로 고치지 않는다** — 패키지 매니저로 재생성한다.
+- `.env*` · `**/credentials.json` · `.git/` 내부(커밋 메시지·hook 제외) · `~/.gemini/` `~/.claude/` `~/.codex/` 전역 설정은 **보고만** 한다. 직접 수정하지 않는다.
