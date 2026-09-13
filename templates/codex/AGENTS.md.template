@@ -19,6 +19,10 @@
 
 {HARNESS_RULES}
 
+## Session Start
+
+`docs/SPEC.md` 가 있으면 세션 시작 때 먼저 읽는다 — 현재 범위와 완료 기준의 앵커다. 없으면 이 줄은 해당 없다.
+
 ## Protected Files
 
 Codex `sandbox_mode = "workspace-write"` + `approval_policy = "on-request"` 가 1차 방어다. 그 위에:
