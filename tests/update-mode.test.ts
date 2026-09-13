@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { hashContent, readInstallLog, writeInstallLog } from "../src/install-log.js";
+import { upsertHarnessImport } from "../src/project-claude-merge.js";
 import {
   cleanStaleHookRefs,
   keepHookRef,
@@ -990,6 +991,80 @@ describe("신규 자산 설치 (#283)", () => {
  * update 를 몇 번 돌려도 앵커가 옛 버전에 **영구 동결**되고 화면에도 아무 말이 안 뜬다.
  * ADR-060 「적용 범위」는 이 이행을 단언하는데 코드에는 없었다 — 이 describe 가 그 자리를 문다.
  */
+/**
+ * ADR-085 — 루트 CLAUDE.md 관리 블록 안의 상시 스킬 안내는 **지금 깔린 스킬**을 따라 update 마다
+ * 현행화된다. 독립 리뷰(#433 B-1)가 잡은 구멍: 앵커가 있는 정상 설치본에서는 `upsertRootImport`
+ * 가 아예 불리지 않아 "현행화한다"가 거짓이었다(양성 대조: 앵커를 지우면 이행 분기를 타며 현행화됨).
+ * 이 describe 는 그 정상 설치본 경로를 문다.
+ */
+describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)", () => {
+  const NOTE = "## Skills that apply continuously";
+  let projectDir = "";
+  let templatesDir = "";
+  const rootPath = () => join(projectDir, "CLAUDE.md");
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "ch-blk-p-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-blk-t-"));
+    for (const d of ["rules", "agents", "commands/uzys", "hooks"]) {
+      mkdirSync(join(templatesDir, d), { recursive: true });
+      mkdirSync(join(projectDir, ".claude", d), { recursive: true });
+    }
+    writeFileSync(join(templatesDir, "CLAUDE.md"), "anchor-v2\n");
+    // 정상 설치본: 루트 앵커가 **있다** — 이행 분기가 아니라 갱신 분기를 탄다.
+    writeFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "anchor-v1\n");
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
+  });
+
+  it("스킬을 지운 뒤 update 하면 안내에서 그 스킬이 빠진다", () => {
+    // install 시점 상태: task-brief 가 깔려 있었고 블록에 그 안내가 있다.
+    writeFileSync(
+      rootPath(),
+      upsertHarnessImport("# p\n", {
+        projectName: "p",
+        tracks: ["tooling"],
+        continuousSkills: ["task-brief"],
+      }),
+    );
+    expect(readFileSync(rootPath(), "utf8")).toContain("`task-brief`");
+    // 사용자가 스킬 디렉터리를 지웠다(= 더는 깔려 있지 않다). 아무것도 안 만든다.
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.claudeMdUpdated).toBe(true); // 갱신 분기를 탔다 (이행 분기가 아니다)
+    expect(report.anchorCreated).toBe(false);
+    expect(report.rootBlockRefreshed).toBe(true);
+    const root = readFileSync(rootPath(), "utf8");
+    expect(root).not.toContain(NOTE);
+    expect(root).toContain("@CLAUDE-uzys-harness.md");
+  });
+
+  it("스킬을 더 깐 뒤 update 하면 안내가 생긴다 — 같은 상태로 다시 돌리면 파일을 만지지 않는다", () => {
+    writeFileSync(
+      rootPath(),
+      upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"], continuousSkills: [] }),
+    );
+    mkdirSync(join(projectDir, ".claude/skills/task-brief"), { recursive: true });
+    writeFileSync(
+      join(projectDir, ".claude/skills/task-brief/SKILL.md"),
+      "---\nname: task-brief\n---\n",
+    );
+
+    const first = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+    expect(first.rootBlockRefreshed).toBe(true);
+    const after = readFileSync(rootPath(), "utf8");
+    expect(after).toContain(NOTE);
+    expect(after).toContain("`task-brief`");
+
+    const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+    expect(second.rootBlockRefreshed).toBe(false);
+    expect(readFileSync(rootPath(), "utf8")).toBe(after);
+  });
+});
+
 describe("레거시 설치본 앵커 이행 (P5 · ADR-060)", () => {
   /** 사용자가 직접 쓴 루트 CLAUDE.md — 이행이 한 글자도 건드리면 안 되는 본문. */
   const USER_ROOT = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";

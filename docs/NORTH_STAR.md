@@ -149,7 +149,7 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 승인·보안 경계는 명시가 곧 계약이라 조이면 계약이 흐려진다. 판정표 =
 > `docs/plans/rules-hooks-audit-2026-08-16.md`.
 > 직전(2026-08-12, 23개 ~4,968) 대비 **+104 tok, 개수는 그대로** — 전부 배포 앵커의
-> §Presenting a decision 이다. 그 절이 `AS-IS → TO-BE` 형식을 요구하면서 **누구 입장에서 쓰라는
+> §Presenting a decision(당시 절 — 2026-09-13 ADR-085 로 앵커에서 빠져 스킬로 갔다)이다. 그 절이 `AS-IS → TO-BE` 형식을 요구하면서 **누구 입장에서 쓰라는
 > 말은 한 번도 안 했고**, 그래서 판정표가 코드 관점(`installer.ts` 가 어떻게 바뀐다)으로 채워졌다.
 > 게이트로 내릴 수 없는 종류다 — "누구 자리에서 쓰였나"는 기계로 판정할 수 없어 앵커가 맞는
 > 자리다. 초안은 +179 tok 였고 같은 내용을 유지한 채 104 로 줄였다.

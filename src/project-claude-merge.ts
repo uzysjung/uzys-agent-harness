@@ -259,7 +259,9 @@ export function upsertHarnessImport(existing: string | null, opts: MergeOptions)
     const endAt = existing.indexOf(IMPORT_MARKER_END, start);
     if (endAt === -1) return existing; // 깨진 블록 — 우리가 판정할 수 없다. 손대지 않는다.
     const current = existing.slice(start, endAt + IMPORT_MARKER_END.length);
-    return current === block ? existing : existing.replace(current, block);
+    // 문자열 replace 는 치환문의 `$` 를 패턴으로 읽는다(리뷰 N-2) — slice 결합으로 그대로 넣는다.
+    if (current === block) return existing;
+    return `${existing.slice(0, start)}${block}${existing.slice(endAt + IMPORT_MARKER_END.length)}`;
   }
   if (hasHarnessImport(existing)) {
     // 사용자가 손으로 적은 import 줄 — 파일 전체가 사용자 소유라 블록을 얹지 않는다. 그때는

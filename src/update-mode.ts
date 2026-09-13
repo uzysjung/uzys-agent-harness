@@ -69,6 +69,11 @@ export interface UpdateModeReport {
   /** 이행 중 루트 `CLAUDE.md` 에 앵커 import 줄을 새로 얹었나 (이미 있었으면 false). */
   rootImportAdded: boolean;
   /**
+   * ADR-085 — 이미 있던 관리 블록의 **안**이 바뀌었나(상시 스킬 안내가 깔린 스킬을 따라 현행화됐다,
+   * 또는 지워진 import 줄이 돌아왔다). 블록이 처음 생긴 경우는 `rootImportAdded` 다.
+   */
+  rootBlockRefreshed: boolean;
+  /**
    * 디스크에 아직 남아 있는 구 앵커 경로(`.claude/CLAUDE.md`). 없으면 null.
    *
    * **지우지 않는다** — 사용자가 그 파일을 고쳤는지 update 시점엔 판정할 수 없다. 대신 화면에
@@ -235,6 +240,7 @@ export function runUpdateMode(
     claudeMdUpdated: false,
     anchorCreated: false,
     rootImportAdded: false,
+    rootBlockRefreshed: false,
     legacyAnchor: null,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
@@ -508,6 +514,11 @@ function syncHarnessAnchor(
   copyFileSync(templateMd, anchor);
   if (existed) {
     report.claudeMdUpdated = true;
+    // ADR-085 — 앵커가 있는 정상 설치본에서도 루트 CLAUDE.md 의 관리 블록은 매 update 현행화한다
+    // (상시 스킬 안내 = 지금 깔린 스킬). upsert 는 내용이 같으면 입력을 그대로 돌려주므로 파일을
+    // 만지지 않는다. 독립 리뷰(#433 B-1)가 이 분기가 빠져 있던 것을 실측으로 잡았다 — 그 전에는
+    // 이행 분기에서만 불려 "현행화한다"는 단언이 정상 설치본에서 거짓이었다.
+    report.rootBlockRefreshed = upsertRootImport(projectDir);
     return;
   }
 
