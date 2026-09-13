@@ -61,10 +61,13 @@ status: active
   - [x] ⓕ **audit-harness-fit 에 씬 묶음 검증 · 개발 속도 관점** (사용자 지시 2026-09-13, PR #441) — 영역 5 확장 +
     verification 참조 "Bundle verification by completed scene". 씬 리듬 문장이 **두 곳**(Delivery 룰 · 이 스킬)에
     있다 — 리듬을 바꿀 때는 둘 다 고친다(리뷰 지적).
-  - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
-    배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
-    `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에
-    같은 사실 실재.
+  - [x] ⓔ **이 리포 이력 분리** R-03 · R-04 · R-06~R-09 — 루트 `CLAUDE.md` · `.claude/CLAUDE.md` ·
+    `.claude/rules/` 7종에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 → "신설 근거: N회 재발
+    (링크)" 한 줄, `recurrence-prevention` 룰 템플릿 정합(배포판 + 미러). 죽은 MCP 훅 배선 삭제
+    (`.claude/settings.json` 훅 명령 4 → 3). 배포 룰 6종은 **2차 감사 G-02~G-06 이 별도로 처리**했고
+    `.claude/rules/doc-governance.md` 는 배포판과 바이트 동일 계약(`doc-governance-baseline-rule`)이라
+    무변경. 메모리 색인은 리포 밖이라 비대상. 목적지를 못 찾은 문장 1건은 지우지 않고 남겼다
+    (`cli-development` §부정 결론은 도구로 한다 꼬리).
 - [ ] **⑥ 출하** — CHANGELOG · `cost:baseline` · 릴리즈 순서(`ship-checklist`).
 
 ## 결정 (사용자 확정 2026-09-13)

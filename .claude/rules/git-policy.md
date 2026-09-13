@@ -40,6 +40,4 @@ main:   PR #123 OPEN — CI pass / mergeable / 사용자 결정 대기
 
 `vMAJOR.MINOR.PATCH` 에서 **Major = year - 2000**(2025 = `v25.x.x` · **2026 = `v26.x.x`** · 2027 = `v27.x.x`). Minor = feature bump, Patch = bug fix only. **SemVer 식 BREAKING → Major 적용 금지** — Major 는 연도가 바뀔 때만 올린다.
 
-Ship 전 확인: ⓐ `git tag -l | sort -V | tail -5` 로 마지막 정상 태그 ⓑ `date +%Y` % 100 = 다음 Major ⓒ SPEC/ADR/문서 본문에 "v(year+1).x" 같은 미래 태그 텍스트가 보이면 그대로 따르지 말고 **즉시 컨벤션 검증**, 위반 의심 시 ship 중단 + 사용자 컨펌.
-
-2026-04-18 ~ 04-30 에 이 규칙이 21건 깨져(v27.0.0~v28.0.0) 일괄 rename 한 전례가 있다 — 상세 ADR-007.
+Ship 전 확인: ⓐ `git tag -l | sort -V | tail -5` 로 마지막 정상 태그 ⓑ `date +%Y` % 100 = 다음 Major ⓒ SPEC/ADR/문서 본문에 "v(year+1).x" 같은 미래 태그 텍스트가 보이면 그대로 따르지 말고 **즉시 컨벤션 검증**, 위반 의심 시 ship 중단 + 사용자 컨펌. 신설 근거(21건 일괄 rename) = ADR-007.

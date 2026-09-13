@@ -13,9 +13,7 @@
 통과 못 한 자산은 나머지를 아무리 잘 만족해도 넣지 않는다. 방향의 SSOT 는 `docs/NORTH_STAR.md`
 §1 — 여기 옮겨 적지 않는다.
 
-**이 줄이 있는 이유**: 훅 판정에서 실제로 순서를 뒤집었다. `mcp-pre-exec` 을 *"결정론적이다"*
-하나로 남긴다고 판정했고, 사용자가 *"MCP 취약점 때문에 보안 지키겠다고 항상 실행하는 게 우리
-제품 취지에 맞나"*로 적발했다. 기술적 타당성은 목적 적합성의 증거가 아니다.
+**기술적 타당성은 목적 적합성의 증거가 아니다.** 이 기준이 실제로 판정을 뒤집은 첫 사례 = ADR-072.
 
 ## 세션 재앵커 (순서대로)
 
@@ -63,12 +61,11 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Boundaries
 
-**Always (✅ 훅 자동, 실측 2026-09-13)**: `.claude/settings.json` 에 등록된 훅 명령은 **4개**다 —
-SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서) 편집 차단 · 호스트 실 CLI 실행 차단 ·
-MCP allowlist. **마지막 하나는 배선만 남았다** — 훅 파일은 ADR-072 로 지웠고 `.claude/hooks/` 에
-실재하는 것은 3개다(ADR-088 은 스킬이 자기 훅을 얹던 1개를 스킬과 함께 은퇴시켰다).
-(배포판 `templates/hooks/` 는 2개 — `docker-only-realcli` 는 이 리포 전용이다.)
-**차단하는 훅 3개는 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에 1줄 남긴다**(ADR-061).
+**Always (✅ 훅 자동, 실측 2026-09-13)**: `.claude/settings.json` 에 등록된 훅 명령 **3개** =
+`.claude/hooks/` 의 실파일 3개 — SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서) 편집
+차단 · 호스트 실 CLI 실행 차단. (배포판 `templates/hooks/` 는 2개 — `docker-only-realcli` 는 이
+리포 전용이다.) **차단하는 훅 2개는 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에 1줄
+남긴다**(ADR-061).
 
 **Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
 **커밋·push·PR 생성은 승인 불요** — 되돌리기 비싼 지점은 main 반영이다.
@@ -83,8 +80,8 @@ MCP allowlist. **마지막 하나는 배선만 남았다** — 훅 파일은 ADR
 1. **로컬에 차단 훅을 더 얹지 마라.** 되돌릴 수 없는 것(main 보호)은 GitHub 룰셋이 서버에서
    맡는다(§Boundaries). 로컬 가드 신설은 기각 — 명령마다 검사하고 우회 플래그로 새고 클론마다
    재설치해야 한다. 남은 방향은 반대쪽이다: **되돌릴 수 있는 것을 막는 로컬 차단**(문서 동기화·
-   MCP 조회·`.env` 편집)의 강등이 백로그다(A2). `permissions` 는 `bypassPermissions` · deny/ask 0.
-2. **차단 로그는 발화의 증거이지 옳음의 증거가 아니다.** 차단하는 훅 3개가
+   `.env` 편집)의 강등이 백로그다(A2). `permissions` 는 `bypassPermissions` · deny/ask 0.
+2. **차단 로그는 발화의 증거이지 옳음의 증거가 아니다.** 차단하는 훅 2개가
    `.uzys-agent-harness/hook-blocks.log` 에 탭 구분 `날짜·훅·대상` 1줄을 남긴다(ADR-061). 감사
    때는 차단 수가 아니라 **오탐부터** 대조한다 — 표본 현황·판정은 최신 감사 문서
    (`docs/plans/harness-fit-audit-2026-08-03.md`). `uninstall` 은 이 로그를 함께 지운다(감수).
@@ -92,21 +89,19 @@ MCP allowlist. **마지막 하나는 배선만 남았다** — 훅 파일은 ADR
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
    설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **본문에 인라인으로 박혀** 나가므로
    `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/opencode/transform.ts` renderRulesBlock).
-   *이 줄은 원래 `opencode.json` 의 `instructions` 글롭이 룰을 병합한다고 적었는데 거짓이었다 —
-   그 글롭은 템플릿 값(`docs/…`) 그대로이고, `tests/resident-reach-4cli.test.ts` 가 거기에
-   `rules/` 가 있으면 실패시킨다(#300). 내가 그 문장을 배포 문서로 옮겨 적어 #338 리뷰에서
-   HIGH 로 잡혔다.*
+   `opencode.json` 의 `instructions` 글롭은 룰을 병합하지 않는다 — 그 글롭은 템플릿 값(`docs/…`)
+   그대로이고 `tests/resident-reach-4cli.test.ts` 가 거기 `rules/` 가 들어오면 실패시킨다. 이
+   줄의 정정 경위 = #300 · #338.
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
    오래 멈춰 있어 착각을 부른다. GitHub release 는 만들지 않는다 — 태그·npm 이 SSOT 다.
-6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다**(ADR-062) — 이관은
-   본문 소실로 판정 번복됐고, **스킬 본문에 단언하는 게이트가 이 리포에만 있다**. 개수도
-   이름도 여기 안 적는다 — 열거는 자산 하나가 지워지는 순간 썩는다(`north-star-skill` 삭제로
-   실제로 썩었다). 기준은 **`SKILL.md` 를 읽어 그 *내용*에 단언하는가**이고(존재 확인·
-   바이트 동일 대조는 아니다), **grep 한 번으로 세지 마라** — 한국어 리터럴로 세면 영문으로
-   단언하는 2종을 놓치고 `templates/skills/` 문자열로 세면 경로를 조립하는 1종을 놓친다
-   (2026-08-26 실측: 손열거·리터럴·경로 세 방식이 셋 다 좁았다). 배선 SSOT =
+6. **uzys 자작 스킬의 SSOT 는 이 리포 번들(`templates/skills/`)이다**(ADR-062 — 이관 번복 사유는
+   거기) — **스킬 본문에 단언하는 게이트가 이 리포에만 있다**. 개수도 이름도 여기 안 적는다 —
+   열거는 자산 하나가 지워지는 순간 썩는다(자산 삭제 전례 = ADR-078 Consequences). 기준은 **`SKILL.md` 를
+   읽어 그 *내용*에 단언하는가**이고(존재 확인·바이트 동일 대조는 아니다), **grep 한 번으로
+   세지 마라** — 한국어 리터럴로 세면 영문으로 단언하는 2종을 놓치고 `templates/skills/`
+   문자열로 세면 경로를 조립하는 1종을 놓친다(실측 2026-08-26). 배선 SSOT =
    `src/external-assets.ts` 의 `INTERNAL_BUNDLED_SKILL_IDS` / `DEV_METHOD_SKILL_IDS`
    (개수는 코드가 SSOT).
 
