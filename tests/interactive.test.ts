@@ -24,7 +24,6 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     confirmInstall: vi.fn(async () => true),
     // 2026-08-17 (ADR-075) — 기본 목은 **정리 안 함**. 삭제 쪽을 기본값으로 두면 이 프롬프트를
     // 신경 쓰지 않는 테스트가 조용히 파일 삭제 경로를 타게 된다.
-    confirmSupersededCleanup: vi.fn(async () => false),
     // v26.54.0 — default mock: 사용자가 추천 그대로 confirm. selectInstallTargets returns initial.
     selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial),
     ...overrides,
@@ -522,7 +521,6 @@ describe("computeUserOverride", () => {
     "self-hosted-github-runner",
     // 2026-08-02 AC9 — objective-brief (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
     "objective-brief",
-    "verification-loop",
   ];
 
   it("selections == recommended → undefined (no override)", () => {

@@ -57,9 +57,9 @@
 
 | # | 자산 | 설치 조건 · 발화 | 없을 때 나빠지는 행위 | 관측 출처 | 판정 |
 |---|---|---|---|---|---|
-| R4 | agent-introspection-debugging | **dev 트랙(ECC 플러그인 없을 때)** · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴 후보** — 사용자 동의(2026-09-14)는 "리포 전용" 전제였다 → 설치자에게도 나가므로 **재확인 필요**. 대체: 모델 기본 동작 |
+| R4 | agent-introspection-debugging | **dev 트랙(ECC 플러그인 없을 때)** · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴(사용자 확정 2026-09-14)** — 설치자에게도 나가는 것을 확인한 뒤의 결정. 대체: 모델 기본 동작 |
 | R5 | deep-research | **전 트랙 항상** · 1 (이 사이클) | 출처 없는 리서치 보고 | 없음(효과 미관측) · 본문은 하네스가 설치하지 않는 firecrawl/exa 전용 명령 + 킬 원장 | **은퇴(사용자 확정 2026-09-14)** — 대체: 모델 기본 검색·조회. "죽인 주장 원장"은 보고 관행으로 |
-| R3 | eval-harness | **dev 트랙** · 0 (이 리포 4월 1회) | — | 없음 — 이 리포 게이트는 vitest, 설치자 관측 없음 | **은퇴 후보** — EDD 아티팩트 계약(ADR-042)은 Testing · Delivery 룰 + reviewer 가 덮는다 |
+| R3 | eval-harness | **dev 트랙** · 0 (이 리포 4월 1회) | — | 없음 — 이 리포 게이트는 vitest, 설치자 관측 없음 | **은퇴(사용자 확정 2026-09-14)** — EDD 아티팩트 계약(ADR-042)은 Testing · Delivery 룰 + reviewer 가 덮는다 |
 | R6 | ui-visual-review | **UI 트랙** · 0 | UI 시각 회귀를 놓친다 | 없음(이 리포 tooling) | **①은 범위 밖(§7)** · ②에서 **은퇴** — 이 리포에 UI 없음. 같은 이유로 ②의 `playwright-launch` 룰도 §4 |
 
 ### ② 리포 전용 스킬 2종 (배선 없음)
@@ -156,10 +156,10 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 
 ## 5. 요약 — 판정 집계
 
-| 표면 | 유지 | 강등 | 은퇴 / 은퇴 후보 | A/B 후보 | #454 로 |
+| 표면 | 유지 | 강등 | 은퇴 | A/B 후보 | #454 로 |
 |---|---|---|---|---|---|
 | ① 스킬 14 | 11 (S1~S6 · S8 · S9 · S11 · S12 · S13) + S7(사용자 확정) | — | S14 verification-loop(사용자) | S10 north-star · S7 효과 | — |
-| ①-b ECC 파생 4 | — | — | R4 · R5 · R3 (은퇴 후보, 사용자 확인) · R6 (②에서만) | — | — |
+| ①-b ECC 파생 4 | — | — | R4 · R5 · R3 (사용자 확정) · R6 (②에서만) | — | — |
 | ② 리포 전용 2 | — | — | R1 · R2 (은퇴) | — | — |
 | 에이전트 7 (①②) | A1 reviewer · A2 implementer | A6 data-analyst · A7 strategist (트랙 조건부; ②에서는 은퇴) | A3 · A4 · A5 (사용자) | A2 효과 | — |
 | 훅 | H1 · H2 · H3 전부 | — | — | — | — |
@@ -189,10 +189,10 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 ## 8. 미결 결정 (사용자)
 
 1. ~~S11 audit-service-gaps~~ — **유지**(사용자 관측, goaltrack)
-2. ~~R5 deep-research~~ **은퇴 확정** · R4 agent-introspection-debugging(리포 전용 전제로 동의했었음) · R3 eval-harness — 설치자에게도 나가므로 **확인 대기**
+2. ~~R5 deep-research · R4 agent-introspection-debugging · R3 eval-harness~~ — **셋 다 은퇴 확정**(사용자 2026-09-14). 설치자에게도 나가는 것을 확인한 뒤의 결정이다
 3. ~~Shell 룰 3문장안~~ — **확정**
 4. ~~A6·A7~~ — **트랙 조건부 강등**(사용자 확정)
 5. ~~강등 8곳~~ — **진행 확정**(diff 는 3단계 PR 리뷰에서 대조)
 6. ~~2단계~~ — **사용자 관측 수집으로 대체**. 남은 관측: S7 objective-brief · S10 north-star(사용자, 실제 프로젝트) · A2 implementer(이 리포, 내가)
 
-확정되면 3단계: ADR 1건 + 한 PR(①·② 동시, 은퇴는 #444·#449 의 update 안내 형태 — `RETIRED_SKILL_IDS` · `RETIRED_AGENT_IDS`), 4단계: NORTH_STAR §1 축 한 줄.
+**3단계 적용 완료** — ADR-090 · PR #457(①·② 동시, 은퇴 안내는 #444·#449 형태). 남은 것은 4단계(NORTH_STAR §1 축 한 줄) · #454(Testing·Delivery 룰 18문장) · #456(base 트랙) · 트랙 조건부 스킬 7종(§7).

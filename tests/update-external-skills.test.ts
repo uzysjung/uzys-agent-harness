@@ -12,7 +12,7 @@ import {
 } from "../src/external-installer.js";
 import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
-import { RETIRED_AGENT_IDS } from "../src/manifest.js";
+import { RETIRED_AGENT_IDS, RETIRED_AGENTS } from "../src/manifest.js";
 import type { InstallSpec } from "../src/types.js";
 import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
@@ -369,7 +369,6 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     baselineExcluded: [],
     baselineExcludedOnDisk: [],
     baselineForeignOwned: [],
-    superseded: { removed: [], kept: [] },
   });
 
   const lines = (over: Partial<UpdateModeReport>): string => {
@@ -419,8 +418,11 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     expect(out).not.toMatch(/은퇴/);
   });
 
-  it("은퇴한 스킬은 지워도 된다고 말한다 — 새 이름을 찾게 만들지 않는다", () => {
-    const id = RETIRED_SKILL_IDS[0] as string;
+  // ADR-090 (#452) — **첫 원소만 보지 않는다.** `[0]` 을 쓰면 새로 은퇴시킨 자산이 목록에만
+  // 오르고 화면에는 안 뜨는 상태가 초록으로 산다(그 자리가 이 저장소의 열거-사본 실패 모드다).
+  it.each([
+    ...RETIRED_SKILL_IDS,
+  ])("은퇴한 스킬 %s 는 지워도 된다고 말한다 — 새 이름을 찾게 만들지 않는다", (id) => {
     const out = lines({ externalSkillsNotInCatalog: [id] });
     expect(out).toContain(id);
     expect(out).toMatch(/은퇴/);
@@ -429,13 +431,60 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
 
   // ADR-089 (#445) — 에이전트 은퇴도 같은 규율이다: 지우지 않고 **지워도 된다는 사실과 대신
   // 쓸 것**을 말한다. 대안을 빼면 은퇴가 기능 상실로 읽혀 사용자가 죽은 파일을 붙든다.
-  it("은퇴한 에이전트는 지워도 된다고 말하고 대안을 함께 준다", () => {
-    const id = RETIRED_AGENT_IDS[0] as string;
+  it.each([...RETIRED_AGENTS])("은퇴한 에이전트 $id 는 지워도 된다고 말하고 대안을 함께 준다", ({
+    id,
+    instead,
+  }) => {
     const out = lines({ retiredAgents: [id] });
     expect(out).toContain(id);
     expect(out).toMatch(/은퇴/);
     expect(out).toContain(`.claude/agents/${id}.md`);
-    expect(out).toContain("/security-review");
+    expect(out).toContain(instead);
+  });
+
+  /**
+   * ADR-090 (#452) — **목록에서 derive 하지 않는 표본.** 위 `it.each(RETIRED_*)` 는 목록을
+   * 훑으므로 목록에서 한 줄을 빼면 그 케이스가 통째로 사라져 초록으로 산다(변이 대조에서 실측:
+   * `RETIRED_SKILL_IDS` 에서 `deep-research` 를 빼도 전 스위트가 초록이었다).
+   *
+   * 그래서 이 블록의 이름은 **손으로 적은 관측**이다 — v26.151.0 설치본의 `.claude/` 에 실제로
+   * 있던 것들. 은퇴시키면서 목록에 안 올리면 여기가 빨간불을 낸다. 두 벌을 적는 비용은
+   * 의도한 것이다(`context-cost.test.ts` 의 수기 항목 수 표와 같은 이유).
+   */
+  const RETIRED_FROM_V26_151_INSTALL: ReadonlyArray<string> = [
+    "verification-loop",
+    "deep-research",
+    "eval-harness",
+    "agent-introspection-debugging",
+  ];
+  const RETIRED_AGENTS_FROM_V26_151_INSTALL: ReadonlyArray<string> = [
+    "plan-checker",
+    "silent-failure-hunter",
+    "build-error-resolver",
+  ];
+
+  it("v26.151.0 설치본의 은퇴 자산 전부가 이름과 함께 안내된다 (목록 derive 아님)", () => {
+    const out = lines({
+      externalSkillsNotInCatalog: [...RETIRED_FROM_V26_151_INSTALL],
+      retiredAgents: [...RETIRED_AGENTS_FROM_V26_151_INSTALL],
+    });
+    for (const id of RETIRED_FROM_V26_151_INSTALL) {
+      expect(out, `${id} 가 은퇴 안내를 못 받는다`).toContain(
+        `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+      );
+    }
+    for (const id of RETIRED_AGENTS_FROM_V26_151_INSTALL) {
+      expect(out, `${id} 가 은퇴 안내를 못 받는다`).toContain(
+        `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다`,
+      );
+    }
+    // 에이전트 축은 렌더가 넘어온 id 마다 행을 찍으므로 위 단언만으로는 `RETIRED_AGENTS` 멤버십이
+    // 실행되지 않는다(리뷰 #457 B1 — `plan-checker` 행을 지워도 초록이었다). 실제 배선은
+    // `update-mode.ts` 가 `RETIRED_AGENT_IDS.includes` 로 화면에 낼 id 를 고르므로 멤버십을 직접 문다.
+    expect(RETIRED_AGENT_IDS).toEqual(
+      expect.arrayContaining([...RETIRED_AGENTS_FROM_V26_151_INSTALL]),
+    );
+    expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_FROM_V26_151_INSTALL]));
   });
 
   it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {

@@ -63,7 +63,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
   describe("dev-method skills (ADR-081 — .agents/skills 네이티브)", () => {
     // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
     //   검증 대상은 커맨드 fallback 렌더이지 특정 스킬이 아니다.
-    const DEV_METHOD = ["compaction-handoff", "eval-harness"];
+    const DEV_METHOD = ["compaction-handoff", "recurrence-prevention"];
 
     it("selectedInternalSkills 주어지면 .opencode/commands/<id>.md 커맨드로 렌더", () => {
       const report = runOpencodeTransform({

@@ -85,7 +85,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `.uzys-agent-harness/hook-blocks.log` 에 탭 구분 `날짜·훅·대상` 1줄을 남긴다(ADR-061). 감사
    때는 차단 수가 아니라 **오탐부터** 대조한다 — 표본 현황·판정은 최신 감사 문서
    (`docs/plans/harness-fit-audit-2026-08-03.md`). `uninstall` 은 이 로그를 함께 지운다(감수).
-3. **룰 7종. 배포판만 `paths:` 하나를 쓴다**(`cli-development` = `**/*.sh`, #284) — 개발 사본
+3. **룰 6종. 배포판만 `paths:` 하나를 쓴다**(`cli-development` = `**/*.sh`, #284) — 개발 사본
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
    설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **본문에 인라인으로 박혀** 나가므로
    `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/opencode/transform.ts` renderRulesBlock).

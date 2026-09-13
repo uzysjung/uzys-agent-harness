@@ -49,7 +49,6 @@ export type ExternalAssetMethod =
         | "clear-korean-communication"
         | "north-star"
         | "audit-service-gaps"
-        | "verification-loop"
         | "multi-persona-review"
         | "recurrence-prevention"
         | "gh-issue-workflow"
@@ -160,7 +159,8 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 62 자산 매트릭스 (#426 task-brief → objective-brief 개명 — 수는 그대로. 같은 PR 에서 은퇴한
+ * 61 자산 매트릭스 (#452 ADR-090 verification-loop 은퇴 — 카탈로그 엔트리였다. 그 전
+ * #426 task-brief → objective-brief 개명 — 수는 그대로. 같은 PR 에서 은퇴한
  * 스킬 3종(strategic-compact · continuous-learning-v2 · spec-scaling)은 카탈로그 엔트리가 아니라
  * manifest 번들이었으므로 이 수에 없었다. 그 전 #428 humanize-korean → natural-korean 개명. 그 전 #355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
@@ -269,16 +269,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "audit-service-gaps" },
-  },
-  {
-    id: "verification-loop",
-    tier: "official", // uzys 자사 스킬 리포
-    description:
-      "Verification loop — run proportional verification tracks (UI · API · CLI · library · docs · real user flow) and end with evidence plus a fixed verdict; a green build is not proof of user-visible completion",
-    category: "dev-tools",
-    source: "uzys",
-    condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "verification-loop" },
   },
   {
     id: "multi-persona-review",
@@ -1102,7 +1092,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
  * `tests/external-assets.test.ts` 가 단언한다). 전 트랙(any-track)·opt-in 번들 스킬은 여기
  * 들어오지 않는다 — 조건이 섞이면 wizard 번들이 부분집합이 되어 사용자가 안 고른 자산을
  * 설치한다 (`tests/wizard-bundle.test.ts` 의 recommended ∩ members ∈ {∅, 전체}).
- * 현재 dev-method skills 6종.
+ * 현재 dev-method skills 5종.
  */
 export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "compaction-handoff",
@@ -1110,7 +1100,6 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "audit-service-gaps",
   "multi-persona-review",
   "recurrence-prevention",
-  "verification-loop",
 ];
 
 /**
@@ -1188,6 +1177,11 @@ export const RETIRED_SKILL_IDS: ReadonlyArray<string> = [
   "strategic-compact",
   "continuous-learning-v2",
   "spec-scaling",
+  // ADR-090 (#452) — 관측 없는 자산 은퇴. 앞 세 종과 같은 경로로 안내한다.
+  "verification-loop",
+  "deep-research",
+  "eval-harness",
+  "agent-introspection-debugging",
 ];
 
 /**

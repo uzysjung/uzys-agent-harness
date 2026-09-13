@@ -33,11 +33,9 @@ SPEC 에 없던 의사결정은 `docs/decisions/` 에 기록한다. **대상** =
 Status 는 **Proposed**(초안, 미적용) → **Accepted**(머지됨, 이 결정에 따라 쓴다) → **Superseded**(다른 ADR 이 대체) 또는 **Deprecated**(무효인데 대체 없음 — **사유를 PR/본문에 남긴다**). 뒤 둘은 terminal.
 PR review 에서 `Alternatives` 와 `Consequences` 를 검증하고, 머지 직전에 Status 를 Accepted 로 바꾸고 PR 번호를 채운다. 기각은 **별도 ADR 을 만들지 않고** PR comment 에 사유를 남긴다. 결정을 바꿀 때는 새 ADR 에 `Supersedes:` 를 쓰고 **기존 ADR 의 Status 도 함께** 갱신한다 — 한쪽만 고치면 어느 것이 현행인지 알 수 없다.
 
-## Savepoint
+## Staging
 
-Major CR 적용 전, 또는 되돌리기 어려운 변경 직전에 커밋으로 지점을 남긴다: `git commit -a -m "chore: savepoint before [변경 설명]"`.
-
-**`git add -A` 를 쓰지 않는다.** 설치 직후처럼 `.gitignore` 가 아직 시크릿을 덮지 못한 상태에서는 그 한 줄이 `.env` 를 그대로 커밋한다 — 같은 하네스의 `git-policy` 가 금지하는 것을 savepoint 가 수행하게 된다. 추적 중인 변경만 담고, 새 파일이 꼭 필요하면 경로를 하나씩 지정해 추가한다.
+**`git add -A` 를 쓰지 않는다.** 설치 직후처럼 `.gitignore` 가 아직 시크릿을 덮지 못한 상태에서는 그 한 줄이 `.env` 를 그대로 커밋한다 — 같은 하네스의 `git-policy` 가 금지하는 것을 그 커밋이 수행하게 된다. 추적 중인 변경만 담고, 새 파일이 꼭 필요하면 경로를 하나씩 지정해 추가한다.
 
 ## 자산은 자기 변경 요청 없이 건드리지 않는다
 

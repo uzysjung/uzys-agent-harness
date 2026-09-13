@@ -173,16 +173,9 @@ frontmatter model choice. If delegation models look wrong, check that env var fi
 
 ## Delegation prompt spec
 
-Every delegation carries these four elements (the exact set Anthropic found necessary after
-their orchestrator over-spawned and workers duplicated work), plus acceptance criteria:
-
-1. **Objective** — one sentence, plus why it matters (models perform better knowing intent).
-2. **Output format** — what comes back, in what structure. State that the final message IS the
-   deliverable (raw data, no user-facing preamble).
-3. **Tool/source guidance** — where to look, what to trust, what to skip.
-4. **Boundaries** — what NOT to touch, where the task ends, what is out of scope.
-5. **Acceptance criteria** — how the worker (and you) know it's done. Strong AC lets the
-   worker loop independently instead of returning half-done.
+[[objective-brief]] owns the delegation prompt format — write the brief there and hand it over.
+Without that skill installed, the five elements are: objective (and why it matters), output
+format, tool/source guidance, boundaries, acceptance criteria.
 
 Scale worker count to the task, stated up front in your own plan: trivial lookup → no agent at
 all (do it directly); bounded question → one agent; genuinely independent axes → one agent per
@@ -191,20 +184,9 @@ turn — delegate when the task's value justifies it, not by reflex.
 
 ## Worker lifecycle — 다 쓴 에이전트는 닫는다
 
-Delegation is not finished when the result arrives — it is finished when the worker is closed.
-A completed agent left running stays resident: in split-terminal setups (iTerm2 subagent panes
-등) every leftover worker keeps a window open, and idle agents keep pinging the session long
-after their job ended. The clutter compounds per delegation.
-
-- **Consume the result → stop the agent** (TaskStop or the harness's stop mechanism) as one
-  motion. Close-after-use is the default, not a cleanup chore for later.
-- Keep a worker alive ONLY when you will genuinely continue it via SendMessage (e.g. a reviewer
-  that must re-verify after fixes land) — and state that intent when you decide it, so every
-  still-open agent is a declared decision, not a leak.
-- **Sweep at checkpoints**: at phase end and during [[compaction-handoff]], list running agents
-  and stop every finished one before moving on. Compaction wipes the orchestrator's own ledger
-  of open workers, so the sweep must use an enumeration probe (a TaskStop against a nonexistent
-  id lists running teammates), not memory.
+Closing what you spawned is owned by the `git-policy` rule's Session Cleanup section — the
+sweep there uses an enumeration probe rather than memory, because compaction wipes the
+orchestrator's own ledger of open workers.
 
 ### Collect results as a file, not as a return message
 

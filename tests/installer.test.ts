@@ -257,8 +257,8 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
 
   const baseOptions = { withPrune: false, withCodexTrust: false };
 
-  /** 항상 깔리는 스킬 디렉터리 — ② 방향의 참조 대상(C3, `applies: all`). */
-  const LIVE_SKILL = "deep-research";
+  /** tooling 트랙 기본 선택에 들어오는 스킬 디렉터리 — ② 방향의 참조 대상. */
+  const LIVE_SKILL = "north-star";
   /** 어느 spec 에서도 깔리지 않는 이름 — ① 방향. */
   const GHOST_SKILL = "ghost-sidecar-skill";
   const SIDECAR = "sidecar.sh";

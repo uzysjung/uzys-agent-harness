@@ -63,9 +63,9 @@ npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 
 ## 무엇을 얻는가
 
-- **스택 기반 큐레이션.** 검증된 옵션 중에서 이 프로젝트에 실제로 필요한 자산만 골라 설치한다. `csr-supabase` 를 고르면 세 묶음이 미리 체크된다 — 모든 track 이 받는 4종(`north-star`·`objective-brief`·`gh-issue-workflow`·`audit-harness-fit`), 개발 track 이 받는 것들(`find-skills`·`agent-browser`·`frontend-design` + 방법론 스킬 6종), 그리고 이 스택이 필요로 하는 React·shadcn·Supabase·Postgres. 카탈로그의 나머지는 처음부터 끼어들지 않는다.
+- **스택 기반 큐레이션.** 검증된 옵션 중에서 이 프로젝트에 실제로 필요한 자산만 골라 설치한다. `csr-supabase` 를 고르면 세 묶음이 미리 체크된다 — 모든 track 이 받는 4종(`north-star`·`objective-brief`·`gh-issue-workflow`·`audit-harness-fit`), 개발 track 이 받는 것들(`find-skills`·`agent-browser`·`frontend-design` + 방법론 스킬 5종), 그리고 이 스택이 필요로 하는 React·shadcn·Supabase·Postgres. 카탈로그의 나머지는 처음부터 끼어들지 않는다.
 
-- **규율 레이어.** 실제 프로덕션 프로젝트를 에이전트로 운영하며 추출한 룰·훅·방법론 스킬·CI 스캐폴드로 구성된다. 문서 거버넌스와 검증 게이트, 작업 브리프 정규화, 재발 방지 체계를 아우르며, 특히 스킬 14종은 마켓플레이스에 의존하지 않고 이 저장소에서 직접 쓰고 관리한다. 그중 12종은 id 로 지정할 수 있고(`--with`/`--without`), 그 12종 가운데 6종은 3단계 화면에서 한 줄로 묶여 함께 켜지고 꺼진다. 이 레이어 덕분에 단순한 skill 모음을 넘어선 하네스로 작동한다.
+- **규율 레이어.** 실제 프로덕션 프로젝트를 에이전트로 운영하며 추출한 룰·훅·방법론 스킬·CI 스캐폴드로 구성된다. 문서 거버넌스와 검증 게이트, 작업 브리프 정규화, 재발 방지 체계를 아우르며, 특히 스킬 14종은 마켓플레이스에 의존하지 않고 이 저장소에서 직접 쓰고 관리한다. 그중 13종은 id 로 지정할 수 있고(`--with`/`--without`), 그 13종 가운데 5종은 3단계 화면에서 한 줄로 묶여 함께 켜지고 꺼진다. 이 레이어 덕분에 단순한 skill 모음을 넘어선 하네스로 작동한다.
 
 - **4개 CLI, 하나의 어휘.** 1급 지원 대상인 Claude Code 에는 모든 자산·훅·plugin 을 적용하고, Codex, OpenCode, Antigravity 에는 skill 과 rule 레이어를 적용한다. 프로젝트가 특정 CLI 에 묶이지 않는다.
 

@@ -1,5 +1,5 @@
 # track-mcp-map.tsv — Track별 MCP 서버 매핑 데이터
-# v26.12.0 — setup-harness.sh의 .mcp.json 조립 case문 외재화 (deep-research 권장)
+# v26.12.0 — setup-harness.sh의 .mcp.json 조립 case문 외재화
 #
 # 형식 (탭 구분):
 #   <mcp_name>	<track_pattern>	<command>	<args_json>

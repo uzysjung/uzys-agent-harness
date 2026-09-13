@@ -1,8 +1,10 @@
 # ADR-088: 스킬 3종 은퇴 · `task-brief` → `objective-brief` 개명과 문턱 상향
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-13
-- PR: (머지 직전에 채운다)
+- PR: #444
+- Amended-by: ADR-090 (은퇴 목록에 스킬 4종이 더해진다. 개명·은퇴를 화면이 갈라 말한다는
+  결정은 그대로다)
 - Amends: ADR-085 (`CONTINUOUS_SKILLS` 3종 → 2종. 상시 스킬 안내를 설치기가 프로젝트 블록에
   쓴다는 결정은 그대로다)
 

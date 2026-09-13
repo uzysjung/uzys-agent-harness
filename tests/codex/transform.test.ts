@@ -63,7 +63,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
   describe("dev-method skills (v26.87.0 — multi-CLI routing)", () => {
     // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
     //   검증 대상은 라우팅(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
-    const DEV_METHOD = ["compaction-handoff", "eval-harness"];
+    const DEV_METHOD = ["compaction-handoff", "recurrence-prevention"];
 
     // ADR-085 — 상시 스킬 안내는 AGENTS.md 프로젝트 맥락에, 깔린 것만.
     it("상시 스킬을 골랐을 때만 AGENTS.md 에 안내 절이 붙는다", () => {
@@ -160,7 +160,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
       });
       expect(existsSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
       // 선택하지 않은 skill 은 빠지고 dev-method 1개만.
-      expect(existsSync(join(project, ".agents/skills/eval-harness"))).toBe(false);
+      expect(existsSync(join(project, ".agents/skills/recurrence-prevention"))).toBe(false);
       expect(report.skillFiles).toHaveLength(1);
     });
   });

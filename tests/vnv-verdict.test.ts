@@ -23,13 +23,10 @@ describe("C3 cherry-pick 계약 — manifest ↔ cherrypicks.lock", () => {
     // derive 원본이 비거나 한쪽(COMMON/DEV)을 잃으면 아래 루프가 0회 돌아 공허하게 통과한다
     // — mutation 으로 실증된 구멍(M13/M14). 알려진 C3 의 존재를 먼저 못 박는다.
     // 신규 C3 추가는 이 단언을 건드리지 않고 lock 플래그만 요구한다(제거만 차단).
-    // v26.121.0 — 앵커였던 학습 스킬이 C2 로 내려갔고(upstream 전체 복원 → lock
-    // modified:false) ADR-088 에서 은퇴했다.
-    // 2026-08-02 — verification-loop 이 C3 계약에서 빠졌다(이관). 앵커는 COMMON=deep-research,
-    // DEV=eval-harness 로 각 한 축씩 유지 — 한 축이 사라지면 루프가 반쪽만 돈다.
-    expect(MODIFIED_ECC_SKILL_DIRS).toContain("deep-research");
-    expect(MODIFIED_ECC_SKILL_DIRS).toContain("eval-harness");
-    expect(MODIFIED_ECC_SKILL_DIRS).not.toContain("verification-loop");
+    // ADR-090 (#452) — 마지막 C3 두 종(deep-research · eval-harness)이 은퇴해 **축이 비었다.**
+    // 빈 목록을 못 박는 이유: 아래 루프가 0회 돌아 공허하게 통과하는 상태를 그대로 두면 다음에
+    // C3 가 들어와도 아무도 lock 플래그를 요구하지 않는다. 이 단언이 그때 빨간불을 낸다.
+    expect(MODIFIED_ECC_SKILL_DIRS).toEqual([]);
 
     for (const sd of MODIFIED_ECC_SKILL_DIRS) {
       const entry = lock.cherrypicks.find((c) => c.dst === `templates/skills/${sd}/`);
@@ -112,15 +109,5 @@ describe("C3 cherry-pick 계약 — manifest ↔ cherrypicks.lock", () => {
       .filter((c) => !existsSync(fileURLToPath(new URL(`../${c.dst}`, import.meta.url))))
       .map((c) => `${c.id} → ${c.dst}`);
     expect(dangling).toEqual([]);
-  });
-
-  it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
-    // 이 repo 는 자기 하네스를 .claude/ 에 자가 설치해 쓴다. 템플릿만 고치고 복사본을
-    // 안 고치면 "주입됨" 보고와 실제 세션 동작이 갈라진다.
-    for (const sd of MODIFIED_ECC_SKILL_DIRS) {
-      expect(read(`../.claude/skills/${sd}/SKILL.md`)).toBe(
-        read(`../templates/skills/${sd}/SKILL.md`),
-      );
-    }
   });
 });

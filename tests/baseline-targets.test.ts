@@ -30,7 +30,7 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
     [".claude/rules/git-policy.md", "rules", "git-policy"],
     [".claude/agents/reviewer.md", "agents", "reviewer"],
     [".claude/hooks/protect-files.sh", "hooks", "protect-files"],
-    [".claude/skills/deep-research", "skills", "deep-research"],
+    [".claude/skills/python-patterns", "skills", "python-patterns"],
   ])("%s → %s/%s", (target, kind, name) => {
     const t = classifyBaselineTarget(target);
     expect(t?.kind).toBe(kind);
@@ -41,9 +41,9 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
   // manifest 에는 디렉터리 엔트리와 그 **안의 파일** 엔트리가 섞여 있다. 마지막 경로 조각을 쓰면
   // 후자가 `SKILL.md` 라는 이름의 항목으로 화면에 뜬다 — 실제로 그렇게 만들었다가 고쳤다.
   it("스킬은 첫 경로 조각으로 합쳐진다 (디렉터리 · 내부 파일이 한 체크박스)", () => {
-    const dir = classifyBaselineTarget(".claude/skills/deep-research");
-    const file = classifyBaselineTarget(".claude/skills/deep-research/SKILL.md");
-    expect(dir?.id).toBe("baseline:skills/deep-research");
+    const dir = classifyBaselineTarget(".claude/skills/python-patterns");
+    const file = classifyBaselineTarget(".claude/skills/python-patterns/SKILL.md");
+    expect(dir?.id).toBe("baseline:skills/python-patterns");
     expect(file?.id).toBe(dir?.id);
   });
 
@@ -67,7 +67,9 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
 
 describe("listBaselineTargets — manifest 에서 유도한다", () => {
   it("네 종류가 모두 나오고 트랙이 안 고른 것은 안 나온다", () => {
-    const tooling = listBaselineTargets({ tracks: ["tooling"] });
+    // 스킬 축은 트랙 조건부 자산이 있는 트랙에서만 나온다 — tooling 단독에는 ADR-090 이후
+    // baseline 스킬이 없다(번들 스킬은 자산 페이지에서 개별 선택된다, `listBaselineTargets` 주석).
+    const tooling = listBaselineTargets({ tracks: ["tooling", "data"] });
     const kinds = new Set(tooling.map((t) => t.kind));
     expect(kinds).toEqual(new Set(["rules", "agents", "hooks", "skills"]));
 
@@ -178,11 +180,15 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: spec({ cli: ["claude"], baselineExclude: ["baseline:skills/deep-research"] }),
+      spec: spec({
+        tracks: ["tooling", "data"],
+        cli: ["claude"],
+        baselineExclude: ["baseline:skills/python-patterns"],
+      }),
     });
-    expect(existsSync(join(projectDir, ".claude/skills/deep-research"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
     // 제외가 통째로 날리는 것이 아님을 보인다 — 안 뺀 스킬은 그대로.
-    expect(existsSync(join(projectDir, ".claude/skills/eval-harness"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
   });
 
   it("구조 자산은 제외 지시가 있어도 깔린다 (설치가 반쪽이 되지 않는다)", () => {
@@ -208,22 +214,26 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
     const EXCLUDE = [
       "baseline:rules/git-policy",
       "baseline:agents/reviewer",
-      "baseline:skills/deep-research",
+      "baseline:skills/python-patterns",
     ];
+    // 스킬 표본이 data 트랙 자산이라 트랙 축을 함께 연다 (ADR-090 — tooling 단독에는 baseline
+    // 스킬이 없다). 룰·에이전트 표본은 tooling 쪽 그대로다.
+    const f1 = (extra: Partial<InstallSpec> = {}): InstallSpec =>
+      spec({ tracks: ["tooling", "data"], ...extra });
 
     const installThenUpdate = () => {
       runInstall({
         runExternal: null,
         harnessRoot: HARNESS_ROOT,
         projectDir,
-        spec: spec({ baselineExclude: EXCLUDE }),
+        spec: f1({ baselineExclude: EXCLUDE }),
       });
       return runInstall({
         runExternal: null,
         harnessRoot: HARNESS_ROOT,
         projectDir,
         mode: "update",
-        spec: spec(),
+        spec: f1(),
       });
     };
 
@@ -232,7 +242,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
         runExternal: null,
         harnessRoot: HARNESS_ROOT,
         projectDir,
-        spec: spec({ baselineExclude: EXCLUDE }),
+        spec: f1({ baselineExclude: EXCLUDE }),
       });
       const log = readInstallLog(projectDir);
       expect(log?.spec.baselineExclude).toEqual(EXCLUDE);
@@ -246,7 +256,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
     it.each([
       [".claude/rules/git-policy.md"],
       [".claude/agents/reviewer.md"],
-      [".claude/skills/deep-research"],
+      [".claude/skills/python-patterns"],
     ])("%s 는 update 뒤에도 없다", (rel) => {
       installThenUpdate();
       expect(existsSync(join(projectDir, rel))).toBe(false);
@@ -274,7 +284,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
         runExternal: null,
         harnessRoot: HARNESS_ROOT,
         projectDir,
-        spec: spec({ baselineExclude: EXCLUDE }),
+        spec: f1({ baselineExclude: EXCLUDE }),
       });
       const kept = join(projectDir, ".claude/agents/implementer.md");
       expect(existsSync(kept)).toBe(true);
@@ -284,7 +294,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
         harnessRoot: HARNESS_ROOT,
         projectDir,
         mode: "update",
-        spec: spec(),
+        spec: f1(),
       });
       expect(existsSync(kept)).toBe(true);
       expect(report.updateMode?.restored).toContain(".claude/agents/implementer.md");

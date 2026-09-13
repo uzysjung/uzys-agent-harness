@@ -49,7 +49,9 @@ const RULE_CANARIES: ReadonlyArray<readonly [string, string]> = [
   ["doc-governance", "한 사실의 기준 문서는 하나다"],
   // 2026-09-13 (2차 감사 G-05) — 앵커 §6 과 중복이던 1항을 지워 canary 를 정책 줄(인간 결정 경계)로 옮겼다.
   ["change-management", "임의로 바꾸지 않고 인간 결정을 받는다"],
-  ["cli-development", "빈 결과는 부재의 증거가 아니다"],
+  // ADR-090 (#452) — canary 를 압축된 줄에서 **살아남는 줄**(훅 차단 계약, 환경 사실)로 옮겼다.
+  // 2026-08-16 의 git-policy 정정과 같은 사유: 다듬을 때마다 도달 게이트가 같이 우는 자리를 피한다.
+  ["cli-development", "차단 계약은 실행기마다 다르다"],
 ];
 
 /** `--cli <one>` 단독 설치 산출물. 설치는 비싸므로 CLI 당 한 번만 돌린다. */
