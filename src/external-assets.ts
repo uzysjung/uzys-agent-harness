@@ -434,8 +434,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
   // v26.110.0 (ADR-039, 오피셜 플러그인 큐레이션) — feature-dev: 탐색→설계→구현 워크플로우 +
-  //   전용 에이전트 3종(code-architect/code-explorer/code-reviewer). 방법론류 — ADR-032
-  //   "워크플로우 강제 구조는 기본 불필요" + 자체 code-reviewer 가 기본 리뷰 에이전트와 중복
+  //   전용 에이전트 3종(탐색·설계·리뷰). 방법론류 — ADR-032 "워크플로우 강제 구조는 기본
+  //   불필요" + 그 리뷰 에이전트가 Claude Code 기본 `/code-review` 와 중복(ADR-089)
   //   → superpowers 와 동급 opt-in.
   {
     id: "feature-dev",
@@ -634,8 +634,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
 
   // === dev tools (has_dev_track) ===
   // v26.110.0 (ADR-039) — code-review: /code-review 커맨드 1개 (다중 에이전트 confidence
-  //   스코어링 PR 리뷰). 기본 리뷰 스택(reviewer·code-reviewer·security-reviewer)과 표면 중복
-  //   + 최신 Claude Code 네이티브 /code-review 와 충돌 소지 → opt-in.
+  //   스코어링 PR 리뷰). 기본 리뷰 레인(`reviewer`)과 표면 중복 + Claude Code 네이티브
+  //   /code-review 와 충돌 소지 → opt-in. (ADR-089 로 우리 리뷰 에이전트 2종은 은퇴했다.)
   {
     id: "code-review",
     tier: "official", // anthropics/claude-plugins-official (404.3K installs, 사용자 관측 2026-07-18)
@@ -651,7 +651,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
   // v26.110.0 (ADR-039) — security-guidance: 매 편집 패턴 경고 + LLM diff 리뷰 (훅 12파일,
   //   Python + Agent SDK 의존). 상시 훅 = 매 편집 비용 + 폭발 반경 — 실측 전 기본설치 금지
-  //   (Context Cost NSM) → opt-in. security-reviewer 에이전트·agentshield ship 게이트와 보완.
+  //   (Context Cost NSM) → opt-in. Claude Code `/security-review`·agentshield ship 게이트와 보완.
   {
     id: "security-guidance",
     tier: "official", // anthropics/claude-plugins-official (220.8K installs, 사용자 관측 2026-07-18)

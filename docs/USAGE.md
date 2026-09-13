@@ -343,7 +343,7 @@ your-project/
 | Path | Purpose |
 |---|---|
 | `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
-| `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
+| `.claude/agents/*.md` | Agent definitions (reviewer, implementer, etc.) |
 | `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files) |
 | `.claude/skills/*` | Skills — the harness's own method skills (`north-star`, `objective-brief`, …) plus the ones your track pre-checked |
 | `.claude/settings.json` | Statusline + hooks registration |

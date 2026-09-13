@@ -178,15 +178,34 @@ export const ALL_RULES: ReadonlyArray<string> = resolveRules({ tracks: [...TRACK
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 본 프로젝트 (always): reviewer, data-analyst, strategist
 // ECC cherry-pick C2 (plugin OFF 시 fallback — opt-out gating, !s.withEcc):
-//   code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver
+//   silent-failure-hunter, build-error-resolver (dev track — `DEV_AGENTS_ECC`)
+//
+// ADR-089 (#445) — `code-reviewer`·`security-reviewer` 은퇴. 전 트랙 C2 폴백이었는데
+//   벤더 기본 기능(Claude Code `/code-review`·`/security-review`, `codex review`)과 하는 일이
+//   같아 차별성이 0 이었다. 그래서 이 축(전 트랙 ECC 폴백 에이전트)은 지금 비어 있다.
 const CORE_AGENTS = ["reviewer", "data-analyst", "strategist"];
-const CORE_AGENTS_ECC = ["code-reviewer", "security-reviewer"];
 
 // v26.138.0 — implementer: 구현 레인. 기존 에이전트 8종이 전부 검토·검증·도메인 특화라
 //   설치자는 "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다. 근거 = 두 코퍼스 실측 대조에서
 //   서브에이전트 코드 Edit 433 vs 3 — 규율 차이가 아니라 **레인 부재**였다.
 const DEV_AGENTS = ["plan-checker", "implementer"];
 const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
+
+/**
+ * 은퇴한 에이전트 id — 번들에도 manifest 에도 없고 대체 파일도 없다. ADR-089 (#445).
+ *
+ * 이미 깔린 파일의 운명은 **기준선(install log, ADR-047)이 있느냐**로 갈린다. 있으면 `pruneOrphans`
+ * 가 우리 소유임을 증명하고 `update` 때 회수한다(사용자 편집분은 백업) — v26.132.0 이후 install/
+ * update 를 한 번이라도 돈 설치본이 여기다. 없으면(그 이전 레거시) 파일이 남고, 침묵하면 사용자는
+ * 그게 죽은 사본인 줄 모른다 — 그때만 화면이 대신 말하고 손은 사용자가. 스킬 쪽
+ * `RETIRED_SKILL_IDS`(`external-assets.ts`)와 같은 형태이고, 렌더는 이 목록만 읽는다
+ * (`commands/install-render.ts`). 안내 스캔은 prune 뒤에 돈다 — 이미 지운 파일을 "지워도 된다"고
+ * 말하지 않기 위해서다.
+ *
+ * 여기에 이름을 두는 이유: 에이전트를 무엇을 어디에 깔지 정하는 **배선 SSOT 가 이 파일**이라
+ * 은퇴 목록이 갈라지면 다음 은퇴에서 한쪽이 조용히 뒤처진다.
+ */
+export const RETIRED_AGENT_IDS: ReadonlyArray<string> = ["code-reviewer", "security-reviewer"];
 
 /**
  * Hooks installed for every project (parity with setup-harness.sh L815-826).
@@ -345,14 +364,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
     });
   }
   // v26.58.0 — Agents (ECC cherry-pick). ADR-019. C2: plugin OFF 시만 install (opt-out).
-  for (const a of CORE_AGENTS_ECC) {
-    m.push({
-      source: `agents/${a}.md`,
-      target: `.claude/agents/${a}.md`,
-      type: "file",
-      applies: (s) => !s.withEcc,
-    });
-  }
+  // ADR-089 (#445) 이후 남은 C2 에이전트는 dev track 두 종뿐이다.
   for (const a of DEV_AGENTS_ECC) {
     m.push({
       source: `agents/${a}.md`,

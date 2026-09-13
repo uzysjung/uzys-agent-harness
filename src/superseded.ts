@@ -1,15 +1,15 @@
 /**
  * superseded.ts — **이번 선택이 밀어낸, 그런데 디스크에 남아 있는** 자산을 찾는다.
  *
- * 왜 있는가: `ecc-plugin` 을 고르면 하네스가 깔아 둔 폴백 에이전트 4종
- * (`build-error-resolver` · `code-reviewer` · `security-reviewer` · `silent-failure-hunter`)이
- * manifest 상 `applies: (s) => !s.withEcc` 라 **더 이상 설치 대상이 아니게 된다.** 그런데 이미
- * 깔려 있던 파일은 아무도 안 지웠다 — install 은 안 깔 뿐이고, `pruneOrphans` 는 `templates/` 에
- * 원본이 있으면 손대지 않는다. 실측(빈 프로젝트 → 설치 → `--with ecc-plugin` → `update`):
- * 세 단계 내내 9개 그대로.
+ * 왜 있는가: `ecc-plugin` 을 고르면 하네스가 깔아 둔 폴백 에이전트
+ * (`build-error-resolver` · `silent-failure-hunter` — ADR-089 로 두 종이 은퇴해 dev track 의
+ * 이 둘만 남았다)가 manifest 상 `applies: (s) => !s.withEcc` 라 **더 이상 설치 대상이 아니게
+ * 된다.** 그런데 이미 깔려 있던 파일은 아무도 안 지웠다 — install 은 안 깔 뿐이고,
+ * `pruneOrphans` 는 `templates/` 에 원본이 있으면 손대지 않는다. 실측(빈 프로젝트 → 설치 →
+ * `--with ecc-plugin` → `update`): 세 단계 내내 개수 그대로(ADR-089 뒤 7개).
  *
- * 결과는 **같은 일을 하겠다는 에이전트가 두 벌**이다. ECC 는 자기 `code-reviewer.md` 를 들고
- * 오므로 이름까지 겹친다. 비용은 ~287 tok/세션, 영구. 화면은 아무 말도 안 했다.
+ * 결과는 **같은 일을 하겠다는 에이전트가 두 벌**이다. ECC 는 자기 `build-error-resolver.md` 를
+ * 들고 오므로 이름까지 겹친다. 비용은 ~287 tok/세션, 영구. 화면은 아무 말도 안 했다.
  *
  * ## 판정식 — 열거하지 않는다
  *
@@ -45,7 +45,7 @@ import { type InstallLog, isHarnessOwned, POLICY_DIRS } from "./install-log.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 
 export interface SupersededAsset {
-  /** projectDir 상대 경로 (`.claude/agents/code-reviewer.md`). 실제 삭제 대상. */
+  /** projectDir 상대 경로 (`.claude/agents/silent-failure-hunter.md`). 실제 삭제 대상. */
   target: string;
   /** `baseline:<kind>/<name>` — 화면 표기와 재설치 안내에 쓰는 이름. */
   id: string;

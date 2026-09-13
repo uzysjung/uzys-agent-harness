@@ -70,6 +70,10 @@ status: active
     `.claude/rules/doc-governance.md` 는 배포판과 바이트 동일 계약(`doc-governance-baseline-rule`)이라
     무변경. 메모리 색인은 리포 밖이라 비대상. 목적지를 못 찾은 문장 1건은 지우지 않고 남겼다
     (`cli-development` §부정 결론은 도구로 한다 꼬리).
+  - [x] ⓗ **리뷰 에이전트 은퇴** #445 · #443 — ADR-089 — `code-reviewer` · `security-reviewer` 와
+    OpenCode subagent 엔트리를 뺀다. 벤더 기본 `/code-review` · `/security-review` · `codex review`
+    와 하는 일이 같다. 이미 깐 설치본에는 `RETIRED_AGENT_IDS` 안내 한 줄. 상주(tooling) agent
+    9개 ~766 → 7개 ~567 · 합계 31개 ~7,563 → 29개 ~7,364. PR #449.
 - [ ] **⑥ 출하** — CHANGELOG · `cost:baseline` · 릴리즈 순서(`ship-checklist`).
 
 ## 결정 (사용자 확정 2026-09-13)

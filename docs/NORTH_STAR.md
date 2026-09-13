@@ -109,9 +109,9 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 
 > **현재 상태 (2026-08-30, ADR-083 축 분리 뒤)**: `npm run cost:report` 실측(tooling 트랙) —
-> **지시문 8개 ~4,330**(적정성 축 — 조용한 증가만 차단) · **발화 표면 23개 ~3,233**(유지 축, 스킬별 상한만) ·
-> 합계 31개 ~7,563 이 설치자가 실제로 무는 전부다.
-> 내역: rules 6개 ~1,373 · CLAUDE.md 2개 ~2,957 · skill 14개 ~2,467 · agent 9개 ~766.
+> **지시문 8개 ~4,330**(적정성 축 — 조용한 증가만 차단) · **발화 표면 21개 ~3,034**(유지 축, 스킬별 상한만) ·
+> 합계 29개 ~7,364 이 설치자가 실제로 무는 전부다.
+> 내역: rules 6개 ~1,373 · CLAUDE.md 2개 ~2,957 · skill 14개 ~2,467 · agent 7개 ~567.
 > (2026-09-13 두 건: ⓐ skill −156 — `audit-harness-fit` 2판의 descriptor 가 짧아졌다(ADR-084).
 > ⓑ CLAUDE.md +65 — 배포 앵커가 사용자 전역 6원칙과 바이트 동일해졌고(ADR-085, 앵커 −513 B) 앵커에서
 > 빠진 상시 스킬 안내를 설치기가 프로젝트 블록에 쓴다(전 스킬 선택 기준 상한으로 계상). 사용자 결정에
@@ -126,6 +126,10 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 > 발화 표면 ~3,409 · 합계 ~7,890.)
 > (2026-09-13 ⓖ rules −122 — 2차 감사: Testing 룰의 방법 지식 3항 retire(모델이 안다) + 앵커·룰 간 중복 4건 정리.
 > 문턱·게이트·보호 검사는 불변. 직전 지시문 ~4,452 · 합계 ~7,685.)
+> (2026-09-13 ⓗ agent −2개 −199 — 리뷰 에이전트 은퇴(ADR-089, #445 · #443): `code-reviewer` ·
+> `security-reviewer` 를 뺐다. 벤더 기본 기능(Claude Code `/code-review` · `/security-review`,
+> `codex review`)과 하는 일이 같아 차별성이 0 이었다. 완료를 판정하는 `reviewer` 는 유지 — 다른 축이다.
+> 직전 발화 표면 ~3,233 · 합계 ~7,563.)
 >
 > **왜 한 숫자로 안 두는가**: 합치면 *가치 있는 스킬을 추가할 때 지표가 나빠진다.* 좋은 일을
 > 하면 숫자가 나빠지는 지표는 판단을 도와주지 않는다. 그리고 발화 표면을 깎으면 스킬이 안

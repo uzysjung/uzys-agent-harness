@@ -833,7 +833,7 @@ describe("신규 자산 설치 (#283)", () => {
     writeFileSync(join(templatesDir, "rules/git-policy.md"), "git v2\n");
     writeFileSync(join(templatesDir, "rules/cli-development.md"), "cli v1\n");
     writeFileSync(join(templatesDir, "agents/reviewer.md"), "core agent\n");
-    writeFileSync(join(templatesDir, "agents/code-reviewer.md"), "ecc fallback agent\n");
+    writeFileSync(join(templatesDir, "agents/silent-failure-hunter.md"), "ecc fallback agent\n");
     writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "git v1\n");
     writeInstallLog(projectDir, {
       schemaVersion: 1,
@@ -908,12 +908,12 @@ describe("신규 자산 설치 (#283)", () => {
   });
 
   it("opt-in 에 달린 자산은 들이지 않는다 — update 는 그 선택을 복원할 수 없다", () => {
-    // code-reviewer 는 `!withEcc` 게이팅(ECC plugin OFF 시의 fallback)이다. plugin 을 켠
+    // silent-failure-hunter 는 `!withEcc` 게이팅(ECC plugin OFF 시의 fallback)이다. plugin 을 켠
     // 설치자에게 이걸 깔면 그가 끄기로 한 자산을 update 가 되살리는 셈이 된다.
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
-    expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(false);
-    expect(report.installedNew).not.toContain(".claude/agents/code-reviewer.md");
+    expect(existsSync(join(projectDir, ".claude/agents/silent-failure-hunter.md"))).toBe(false);
+    expect(report.installedNew).not.toContain(".claude/agents/silent-failure-hunter.md");
     // 0건 함정 방지 — 기능 자체가 꺼지면 위 두 단언은 공허하게 통과한다. 같은 실행에서
     // **걸러지지 않아야 할 것**이 실제로 깔렸는지 함께 본다.
     expect(report.installedNew).toContain(".claude/agents/reviewer.md");
@@ -980,6 +980,27 @@ describe("신규 자산 설치 (#283)", () => {
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
     // tooling 트랙 전용 룰 — 트랙을 모르는 상태에서 들이면 Track 혼입이다.
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(false);
+  });
+
+  /**
+   * ADR-089 (#445) — 은퇴한 에이전트가 디스크에 남아 있으면 이름을 낸다.
+   *
+   * **`pruneOrphans` 로 안 덮이는 구간이 이 행의 존재 이유다.** 소유를 증명할 수 있는 설치본
+   * (install log 의 `policyFiles` 기준선에 그 파일이 있는 경우)에서는 prune 이 알아서 지운다.
+   * 그런데 기준선이 없는 레거시 설치본에서는 소유를 주장할 수 없어 prune 이 건너뛰고, 그러면
+   * 죽은 descriptor 가 **영구히** 상주하는데 화면은 한 마디도 안 한다. 여기가 그 자리다.
+   */
+  it("은퇴한 에이전트가 남아 있으면 이름을 낸다 (ADR-089)", () => {
+    writeFileSync(join(projectDir, ".claude/agents/code-reviewer.md"), "옛 릴리즈가 깐 것\n");
+    writeFileSync(join(projectDir, ".claude/agents/reviewer.md"), "core agent\n");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.retiredAgents).toContain("code-reviewer");
+    // 지우지는 않는다 — 사용자가 고쳤는지 판정할 기준선이 없다. 말하고 손은 사용자가.
+    expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(true);
+    // 대조군 — 살아 있는 에이전트까지 쓸어담는 스캔이면 이 단언이 빨개진다.
+    expect(report.retiredAgents).not.toContain("reviewer");
   });
 });
 

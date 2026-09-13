@@ -104,7 +104,7 @@ npx eslint . --fix
 ## When NOT to Use
 
 - Code needs refactoring or new features → use the `implementer` agent
-- Security issues → use `security-reviewer`
+- Security issues → run Claude Code's `/security-review` on the diff
 
 ---
 

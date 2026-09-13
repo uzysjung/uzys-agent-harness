@@ -6,6 +6,8 @@
 - **Supersedes**: ADR-016 의 cherry-pick gating 의미 (opposite 방향 정정)
 - **Partially superseded by**: ADR-073 — `commands/ecc` opt-out 부분만 대체됐다(그 8종은 기본
   설치에서 제거). **C1/C2/C3 분류 체계 자체는 현행**이라 Status 를 `Superseded` 로 내리지 않는다.
+- **Amended by**: ADR-089 — C2 에이전트 중 `code-reviewer` · `security-reviewer` 가 은퇴했다.
+  분류 체계와 나머지 C2 자산의 게이팅은 그대로다.
 
 ## Context
 

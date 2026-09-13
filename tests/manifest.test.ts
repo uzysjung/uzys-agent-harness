@@ -7,6 +7,7 @@ import {
   ALWAYS_HOOKS,
   buildManifest,
   MODIFIED_ECC_SKILL_DIRS,
+  RETIRED_AGENT_IDS,
   resolveRules,
 } from "../src/manifest.js";
 import { TRACKS } from "../src/types.js";
@@ -106,20 +107,40 @@ describe("buildManifest", () => {
     expect(e2eDataOff?.applies({ tracks: ["data"] })).toBe(false);
   });
 
-  it("CORE_AGENTS_ECC (code-reviewer, security-reviewer): C2 opt-out. v26.58.0 ADR-019", () => {
+  // ADR-089 (#445) — 이 자리는 원래 `CORE_AGENTS_ECC`(code-reviewer · security-reviewer)를 물었다.
+  // 두 종이 은퇴하면서 C2 에이전트는 dev track 둘만 남았으므로 **모집단을 그쪽으로 옮긴다** —
+  // 테스트를 지우면 "에이전트도 C2 게이팅을 받는다"는 계약이 무게이트로 남는다.
+  it("DEV_AGENTS_ECC (silent-failure-hunter, build-error-resolver): C2 opt-out. ADR-019", () => {
     // plugin OFF (default) → cherry-pick fallback install
     const off = buildManifest({ tracks: ["tooling"] });
-    const codeOff = off.find((e) => e.source === "agents/code-reviewer.md");
-    const secOff = off.find((e) => e.source === "agents/security-reviewer.md");
-    expect(codeOff?.applies({ tracks: ["tooling"] })).toBe(true);
-    expect(secOff?.applies({ tracks: ["tooling"] })).toBe(true);
+    const hunterOff = off.find((e) => e.source === "agents/silent-failure-hunter.md");
+    const buildOff = off.find((e) => e.source === "agents/build-error-resolver.md");
+    expect(hunterOff?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(buildOff?.applies({ tracks: ["tooling"] })).toBe(true);
 
     // plugin ON → cherry-pick skip (plugin 으로 갈음)
     const on = buildManifest({ tracks: ["tooling"], withEcc: true });
-    const codeOn = on.find((e) => e.source === "agents/code-reviewer.md");
-    const secOn = on.find((e) => e.source === "agents/security-reviewer.md");
-    expect(codeOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
-    expect(secOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    const hunterOn = on.find((e) => e.source === "agents/silent-failure-hunter.md");
+    const buildOn = on.find((e) => e.source === "agents/build-error-resolver.md");
+    expect(hunterOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    expect(buildOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+  });
+
+  // ADR-089 (#445) — 은퇴는 **manifest 에서 사라졌다**로 증명한다. 파일 부재만 보면 다음 사람이
+  // 번들에 파일을 되돌려 놓는 순간 조용히 되살아난다.
+  it("은퇴한 리뷰 에이전트 2종은 어떤 조합에서도 manifest 에 없다 (ADR-089)", () => {
+    for (const withEcc of [false, true]) {
+      const m = buildManifest({ tracks: [...TRACKS], withEcc });
+      for (const id of RETIRED_AGENT_IDS) {
+        expect(
+          m.find((e) => e.source === `agents/${id}.md`),
+          `${id} 가 manifest 에 살아 있다 (withEcc=${withEcc})`,
+        ).toBeUndefined();
+      }
+      // 0건 함정 방지 — 모집단이 비면 위 단언은 공허하다. 남는 에이전트가 실제로 잡히는지 본다.
+      expect(m.find((e) => e.source === "agents/reviewer.md")).toBeDefined();
+    }
+    expect(RETIRED_AGENT_IDS.length).toBeGreaterThan(0);
   });
 
   // 2026-08-16 (ADR-073) — 판정을 뒤집었다. ADR-019 는 ECC 플러그인을 **안 고른** 사람에게

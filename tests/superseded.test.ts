@@ -13,17 +13,20 @@ import type { CliTargets, InstallSpec, OptionFlags, Track } from "../src/types.j
  * 이번 선택이 밀어낸 자산이 디스크에 남는 문제 (ADR-075).
  *
  * 실측한 증상: 빈 프로젝트 → 설치(에이전트 9개) → `--with ecc-plugin` 추가 → `update`.
- * 세 단계 내내 9개 그대로였다. `ecc-plugin` 을 고르면 manifest 상 `!withEcc` 폴백 4종이 설치
+ * 세 단계 내내 9개 그대로였다. `ecc-plugin` 을 고르면 manifest 상 `!withEcc` 폴백이 설치
  * 대상에서 빠지는데, **이미 깔린 파일은 아무도 안 지운다** — install 은 안 깔 뿐이고
- * `pruneOrphans` 는 `templates/` 에 원본이 있으면 손대지 않는다. ECC 는 자기 `code-reviewer.md`
- * 를 들고 오므로 이름까지 겹치고, 비용은 ~287 tok/세션이 영구로 남았다.
+ * `pruneOrphans` 는 `templates/` 에 원본이 있으면 손대지 않는다. ECC 는 같은 이름의 에이전트를
+ * 들고 오므로 이름까지 겹치고, 비용은 ~287 tok/세션이 영구로 남았다.
  *
  * 두 축을 함께 문다: **찾는가**(판정식이 맞는가) · **지우는가**(사용자가 그러라고 했을 때만).
  */
 const HARNESS_ROOT = resolve(__dirname, "..");
 const NO_OPTS: OptionFlags = { withPrune: false, withCodexTrust: false };
-/** manifest 의 `applies: (s) => !s.withEcc` 폴백 에이전트 — `ecc-plugin` 이 밀어내는 것들. */
-const FALLBACK = ".claude/agents/code-reviewer.md";
+/**
+ * manifest 의 `applies: (s) => !s.withEcc` 폴백 에이전트 — `ecc-plugin` 이 밀어내는 것.
+ * ADR-089 로 전 트랙 폴백 2종이 은퇴해, 남은 표본은 dev track 의 이것이다.
+ */
+const FALLBACK = ".claude/agents/silent-failure-hunter.md";
 /** 같은 트랙의 폴백 아닌 에이전트. 탐지기가 전부를 쓸어담지 않음을 보이는 대조군. */
 const KEPT = ".claude/agents/implementer.md";
 

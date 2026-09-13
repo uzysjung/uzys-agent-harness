@@ -15,8 +15,8 @@
         "tokens": 4330
       },
       "firing": {
-        "items": 23,
-        "tokens": 3233
+        "items": 21,
+        "tokens": 3034
       }
     },
     "csr-supabase": {
@@ -25,8 +25,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 25,
-        "tokens": 3481
+        "items": 23,
+        "tokens": 3282
       }
     },
     "csr-fastify": {
@@ -35,8 +35,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 25,
-        "tokens": 3481
+        "items": 23,
+        "tokens": 3282
       }
     },
     "csr-fastapi": {
@@ -45,8 +45,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 27,
-        "tokens": 3569
+        "items": 25,
+        "tokens": 3370
       }
     },
     "ssr-htmx": {
@@ -55,8 +55,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 25,
-        "tokens": 3481
+        "items": 23,
+        "tokens": 3282
       }
     },
     "ssr-nextjs": {
@@ -65,8 +65,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 26,
-        "tokens": 3521
+        "items": 24,
+        "tokens": 3322
       }
     },
     "data": {
@@ -75,8 +75,8 @@
         "tokens": 4151
       },
       "firing": {
-        "items": 25,
-        "tokens": 3321
+        "items": 23,
+        "tokens": 3122
       }
     },
     "executive": {
@@ -85,8 +85,8 @@
         "tokens": 3503
       },
       "firing": {
-        "items": 13,
-        "tokens": 1669
+        "items": 11,
+        "tokens": 1470
       }
     },
     "full": {
@@ -95,8 +95,8 @@
         "tokens": 4330
       },
       "firing": {
-        "items": 31,
-        "tokens": 3863
+        "items": 29,
+        "tokens": 3664
       }
     },
     "project-management": {
@@ -105,8 +105,8 @@
         "tokens": 3503
       },
       "firing": {
-        "items": 10,
-        "tokens": 1415
+        "items": 8,
+        "tokens": 1216
       }
     },
     "growth-marketing": {
@@ -115,8 +115,8 @@
         "tokens": 3503
       },
       "firing": {
-        "items": 10,
-        "tokens": 1415
+        "items": 8,
+        "tokens": 1216
       }
     }
   },
