@@ -1,5 +1,14 @@
 # User Journeys, Verification, and Model Delegation
 
+## Contents
+
+- [Start from the usage scene](#start-from-the-usage-scene)
+- [Choose sufficient evidence](#choose-sufficient-evidence)
+- [Bundle verification by completed scene](#bundle-verification-by-completed-scene)
+- [Reuse evidence with explicit invalidation](#reuse-evidence-with-explicit-invalidation)
+- [Delegate only when the judgment warrants it](#delegate-only-when-the-judgment-warrants-it)
+- [Demonstrate improvement honestly](#demonstrate-improvement-honestly)
+
 ## Start from the usage scene
 
 Use confirmed requirements and accessible product evidence to identify **actor,
@@ -44,6 +53,30 @@ disproportionate, propose a separate policy decision;
 do not disable it, lower its threshold, or relabel it to make cleanup succeed.
 Document checks are sufficient for document-only effects unless applicable policy
 or actual dependencies require broader checks. State checks not run and why.
+
+## Bundle verification by completed scene
+
+Implementation and verification follow the scene, not the edit. While a scene is being
+built, run only the quick checks for the parts being changed — except when a scene first
+crosses an unproven external boundary, which is checked then. When the scene's changes are
+complete, bundle them and verify once from usage: the scene's observable outcome, its
+integration boundaries, the non-visible contracts it touches, and one representative
+journey. Re-verify the parts a later change affects, plus anything the reuse rules below
+require a new run for; when the affected scope cannot be established confidently, widen the
+bundle check instead of narrowing it. Treat instructions that force a
+full run or an independent review after every edit as a finding under the audit area on
+user-journey implementation and proportionate testing — they cost development speed without
+adding evidence — unless a required gate names that cadence explicitly.
+
+Bundling is not deferral. A scene is one actor reaching one observable outcome; when its
+changes outgrow what one review can hold, split it into smaller scenes rather than
+verifying later, and do not start the next scene on top of an unverified one. Keep each
+change committed on its own so a failed bundle bisects to the change that broke it, and
+keep merge and deployment gates where they are — a scene is verified before it crosses
+either. The non-visible contracts listed above — money and payments, permissions, data and
+its migrations, and any irreversible operation among them — are **separate verification
+targets**: they get their own independent check before merge regardless of how the scene is
+bundled, and a representative journey passing does not stand in for them.
 
 ## Reuse evidence with explicit invalidation
 
