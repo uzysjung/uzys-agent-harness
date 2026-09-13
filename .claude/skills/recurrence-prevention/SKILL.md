@@ -2,9 +2,9 @@
 name: recurrence-prevention
 description: >-
   When the same defect, mistake, or incident happens AGAIN — a recurrence, not a one-off — verify
-  it against prior evidence (memory, rule case tables, git/CHANGELOG history), classify it as a
+  it against prior evidence (memory, rule 근거 links, git/CHANGELOG history), classify it as a
   simple slip vs a complex harness problem, then escalate the countermeasure one level up the
-  ladder: record (1st) → forced rule with a case table (2nd) → structural gate — test, hook, or
+  ladder: record (1st) → forced rule with linked priors (2nd) → structural gate — test, hook, or
   derive — once prose has failed (3rd+). Complex problems get countermeasure candidates designed
   by a multi-persona panel instead of a quick patch. Use for "재발했어", "같은 실수 또 했네",
   "이거 저번에도 그랬잖아", "재발방지 대책 등록해줘", "재발방지 룰 만들어", "this happened again",
@@ -34,7 +34,7 @@ is the next level up — not a louder version of the same level.**
 - The user reports a recurrence or asks for a countermeasure: "재발했어", "같은 실수 또 했네",
   "재발방지 대책 등록해줘", "postmortem this".
 - You are fixing a defect and, while investigating, find a prior record of the same failure mode
-  (memory entry, rule case table, CHANGELOG note) — even if nobody said "recurrence" out loud.
+  (memory entry, a rule's 신설 근거 link, CHANGELOG note) — even if nobody said "recurrence" out loud.
 - A rule or gate that was supposed to prevent this class of failure existed **and was bypassed** —
   that is itself a recurrence at the countermeasure level.
 
@@ -65,7 +65,8 @@ count basis — an unsourced generalization inflates counts and produces rule bl
    same file does not. Write the signature down first — it decides everything after.
 2. **Search prior evidence** for that signature, in order of reliability:
    - durable memory (project memory entries, lessons/feedback notes)
-   - existing rule files and their case tables (a matching case-table row = confirmed prior)
+   - existing rule files and the occurrence links on their "신설 근거" line (a linked prior
+     occurrence = confirmed prior)
    - `git log --grep`, CHANGELOG entries, ADRs, postmortem docs
    - recorded observations, if the project keeps them — a session-observation digest that lists
      commands and files repeated across sessions. Narrow but real: it turns "I kept redoing this"
@@ -114,8 +115,8 @@ one.)
 
 | Level | When | Countermeasure | Characteristic failure of this level |
 |---|---|---|---|
-| **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or a case-table row if a related rule already exists | Records don't steer — nothing re-reads them at the decision moment |
-| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + case table. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps | Prose can be skimmed, forgotten under context pressure, or rationalized around |
+| **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or an occurrence link on a related rule's 신설 근거 line if one already exists | Records don't steer — nothing re-reads them at the decision moment |
+| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + a one-line "신설 근거" with links to each occurrence. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps | Prose can be skimmed, forgotten under context pressure, or rationalized around |
 | **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible | Gates that never demonstrably fire; gates so noisy they get bypassed |
 
 Load-bearing principle at Level 2: **comment warnings and doc reminders are not a blocking
@@ -165,12 +166,8 @@ a fact is free and always right.
 ```markdown
 # <rule-name>
 
-<One-line principle, stated as an imperative.> 신설 근거: N회 재발 (YYYY-MM-DD):
-
-| 사례 | 내용 |
-|------|------|
-| <date/version> | <what happened, one line> |
-| <date/version> | <what happened, one line> |
+<One-line principle, stated as an imperative.> **신설 근거: N회 재발** (<date/version> ·
+<date/version>) — 발생별 기록은 <issue / ADR / postmortem link per occurrence>.
 
 ## 절대 원칙
 
@@ -180,12 +177,15 @@ a fact is free and always right.
 ## 위반 발견 시
 
 1. 즉시 정정 보고 (무엇이 어떻게 위반이었는지 명시)
-2. 본 사례표 + durable memory 에 추가
+2. 발생을 이슈·ADR 에 기록하고 durable memory 에 추가한 뒤, 위 근거 줄의 횟수와 링크를 올린다
 3. 재위반이면 구조적 게이트(테스트/훅/derive)로 승격 — 프로즈는 이미 두 번 실패했다
 ```
 
-The case table is not decoration — it is the recurrence counter for the *next* occurrence, and
-it is what makes the rule persuasive to a future agent deciding whether to comply.
+The 근거 line is not decoration — it is the recurrence counter for the *next* occurrence, and it
+is what makes the rule persuasive to a future agent deciding whether to comply. **Keep the count
+and the links on the rule; keep the incident narratives in the linked issues/ADRs.** A standing
+rule is re-read every session by every install, so each incident row it carries is a permanent
+context cost — the link costs one line and still lets the next agent verify the count.
 
 ## Step 3b — Complex problem: multi-persona countermeasure design
 
@@ -231,7 +231,7 @@ would be a false ship. Before closing:
 ```
 ## 재발방지 보고
 - Signature: <failure-mode class, one line>
-- Count: N회 — evidence: <memory entry / case-table row / commit·CHANGELOG ref per occurrence>
+- Count: N회 — evidence: <memory entry / rule 근거 link / commit·CHANGELOG ref per occurrence>
 - Classification: 단순 실수 | 복잡한 하네스 문제 (+ the discriminator that decided it)
 - Countermeasure: Level 0 기록 | Level 1 룰 | Level 2 게이트 | 페르소나 설계 → <chosen option>
 - Artifact: <path of memory entry / rule file / test or hook>
