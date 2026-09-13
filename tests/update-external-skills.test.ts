@@ -451,13 +451,13 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
    * 있던 것들. 은퇴시키면서 목록에 안 올리면 여기가 빨간불을 낸다. 두 벌을 적는 비용은
    * 의도한 것이다(`context-cost.test.ts` 의 수기 항목 수 표와 같은 이유).
    */
-  const RETIRED_IN_V26_152: ReadonlyArray<string> = [
+  const RETIRED_FROM_V26_151_INSTALL: ReadonlyArray<string> = [
     "verification-loop",
     "deep-research",
     "eval-harness",
     "agent-introspection-debugging",
   ];
-  const RETIRED_AGENTS_IN_V26_152: ReadonlyArray<string> = [
+  const RETIRED_AGENTS_FROM_V26_151_INSTALL: ReadonlyArray<string> = [
     "plan-checker",
     "silent-failure-hunter",
     "build-error-resolver",
@@ -465,15 +465,15 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
 
   it("v26.151.0 설치본의 은퇴 자산 전부가 이름과 함께 안내된다 (목록 derive 아님)", () => {
     const out = lines({
-      externalSkillsNotInCatalog: [...RETIRED_IN_V26_152],
-      retiredAgents: [...RETIRED_AGENTS_IN_V26_152],
+      externalSkillsNotInCatalog: [...RETIRED_FROM_V26_151_INSTALL],
+      retiredAgents: [...RETIRED_AGENTS_FROM_V26_151_INSTALL],
     });
-    for (const id of RETIRED_IN_V26_152) {
+    for (const id of RETIRED_FROM_V26_151_INSTALL) {
       expect(out, `${id} 가 은퇴 안내를 못 받는다`).toContain(
         `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
       );
     }
-    for (const id of RETIRED_AGENTS_IN_V26_152) {
+    for (const id of RETIRED_AGENTS_FROM_V26_151_INSTALL) {
       expect(out, `${id} 가 은퇴 안내를 못 받는다`).toContain(
         `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다`,
       );
@@ -481,8 +481,8 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     // 에이전트 축은 렌더가 넘어온 id 마다 행을 찍으므로 위 단언만으로는 `RETIRED_AGENTS` 멤버십이
     // 실행되지 않는다(리뷰 #457 B1 — `plan-checker` 행을 지워도 초록이었다). 실제 배선은
     // `update-mode.ts` 가 `RETIRED_AGENT_IDS.includes` 로 화면에 낼 id 를 고르므로 멤버십을 직접 문다.
-    expect(RETIRED_AGENT_IDS).toEqual(expect.arrayContaining([...RETIRED_AGENTS_IN_V26_152]));
-    expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_IN_V26_152]));
+    expect(RETIRED_AGENT_IDS).toEqual(expect.arrayContaining([...RETIRED_AGENTS_FROM_V26_151_INSTALL]));
+    expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_FROM_V26_151_INSTALL]));
   });
 
   it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {
