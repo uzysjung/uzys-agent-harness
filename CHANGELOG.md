@@ -41,7 +41,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **스킬 3종 은퇴** (ADR-088): `strategic-compact`(매 Write/Edit 마다 도는 훅 — 순정 자동 컴팩션이
   있다) · `continuous-learning-v2`("관측한다"고 광고하지만 훅이 배선되지 않아 관측 0 — 재발 방지는
   `recurrence-prevention`) · `spec-scaling`(한 문장짜리 판단 — `doc-governance` 룰 한 줄 *"상주 문서에는
-  현행 결정만, 이력 · 근거는 ADR · 계획 문서로"* 가 대신한다). 번들 스킬 16 → 15(+개명), 카탈로그 62 그대로.
+  현행 결정만, 이력 · 근거는 ADR · 계획 문서로"* 가 대신한다). 번들 uzys 스킬 16 → 15(은퇴 3 · 개명 1 은 수 유지 · ECC 파생분 별도), 카탈로그 62 그대로.
 - **리뷰 에이전트 2종 은퇴** (#445 · #443 · ADR-089): `code-reviewer` · `security-reviewer`(ECC 파생)는
   Claude Code `/code-review` · `/security-review`, `codex review` 와 하는 일이 같고 체크리스트 · OWASP 는
   모델 지식이다. OpenCode 의 `code-reviewer` subagent 엔트리도 뺐다(기본 `plan` 에이전트가 읽기 전용
@@ -69,7 +69,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **`humanize-korean` → `natural-korean`** (#428). 본문을 사용자 첨부 판으로 교체.
 - **상주 비용(tooling)**: v26.150.0 **34개 ~7,838** → **29개 ~7,364** tokens/세션 — 지시문 8개 ~4,314 →
   ~4,330(앵커 −513 B · 상시 안내 · 리뷰 문턱 · 룰 정리의 합) · 발화 표면 26개 ~3,524 → 21개 ~3,034.
-  Codex `AGENTS.md`(tooling) **25,320 → 22,594 B**(ratchet 24.5 → 23.0 KiB). 크기는 결과이지 목표가
+  Codex `AGENTS.md`(tooling) **24,271 → 22,594 B**(ratchet 24.5 → 23.0 KiB). 크기는 결과이지 목표가
   아니다 — 판단은 "불필요한 지시문이 있나" 로만 했다.
 
 ### 설치와 무관한 변경 (이 저장소 운영용)
