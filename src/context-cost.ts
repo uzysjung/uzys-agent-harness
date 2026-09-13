@@ -230,12 +230,18 @@ function descriptorTokens(path: string): number {
 /**
  * 설치 계획(manifest 엔트리)에서 상주 비용을 실측. `applies` 로 이미 걸러진 엔트리를 받으므로
  * **트랙별 실제 설치분**이 반영된다 (templates/ 전체 합계 같은 부풀린 수치가 아니다).
+ *
+ * `file` 은 **잴 대상이 배포판이 아닌 경우**의 탈출구다 (#458). update 는 갱신 **후 디스크**를
+ * 재야 한다: 트랙에서 강등·은퇴한 에이전트는 manifest 에 없는데 파일은 남아 매 세션 상주하므로,
+ * 계획으로 재면 화면 숫자가 그 설치본의 실제보다 작다. 파일 자산은 파일 경로, `skills` 는
+ * 디렉터리 경로를 준다(엔트리 `source` 와 같은 단위). 안 주면 지금처럼 `templates/<source>` 다.
  */
 export function residentCost(
-  entries: ReadonlyArray<{ source: string; target: string }>,
+  entries: ReadonlyArray<{ source: string; target: string; file?: string }>,
   root: string = resolveBundleRoot(),
 ): ResidentCost {
   const tpl = (source: string): string => join(root, "templates", source);
+  const measured = (e: { source: string; file?: string }): string => e.file ?? tpl(e.source);
   const perSkill: Record<string, number> = {};
   let rules = 0;
   let skillDescriptors = 0;
@@ -246,16 +252,16 @@ export function residentCost(
   for (const e of entries) {
     // 토큰과 개수를 **같은 분기에서** 올린다 — 분기를 나누면 둘이 다른 대상을 세게 된다.
     if (e.target.startsWith(".claude/rules/")) {
-      rules += fileTokens(tpl(e.source));
+      rules += fileTokens(measured(e));
       ruleItems += 1;
     } else if (e.target.startsWith(".claude/agents/")) {
-      agentDescriptors += descriptorTokens(tpl(e.source));
+      agentDescriptors += descriptorTokens(measured(e));
       agentItems += 1;
     } else if (e.target.startsWith(".claude/skills/")) {
       // skills 엔트리는 **항상 디렉터리**다 — `tests/skill-registration-uniform.test.ts` 가
       // 그것을 강제한다(#409). 파일 단위 등록을 받아 주던 분기는 통일과 함께 걷었다:
       // 일어날 수 없는 상태에 방어를 두면 다음 사람이 그 형태가 지원된다고 읽는다.
-      const t = descriptorTokens(join(tpl(e.source), "SKILL.md"));
+      const t = descriptorTokens(join(measured(e), "SKILL.md"));
       skillDescriptors += t;
       skillItems += 1;
       // 기존 스킬의 **조용한 증가**를 잡으려면 id 별 값이 필요하다 — 총합만으로는 새 스킬

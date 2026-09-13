@@ -196,8 +196,14 @@ const DEV_AGENTS = ["implementer"];
  * 전 트랙이던 두 종을 여기로 내린 이유: descriptor 는 트랙과 무관하게 매 세션 상주하는데,
  * tooling·ssr-nextjs 만 고른 설치자에게 "데이터 분석 관례"·"사업 전략" 레인은 열릴 일이 없다.
  * 트랙 패턴은 각 에이전트의 도메인과 1:1 이다.
+ *
+ * **export 인 이유** (#458): 강등 **전에** 깔린 설치본에는 이 파일들이 디스크에 남는다
+ * (`pruneOrphans` 는 템플릿에 원본이 있는 한 못 지운다 — 은퇴가 아니라 트랙 조건화라 원본은
+ * 그대로다). `update` 화면이 "어느 트랙 전용인지 · 지워도 된다"를 말하려면 **id 와 패턴을 같이**
+ * 읽어야 하고, 그 근거는 배선 SSOT 인 이 표 하나다 — update 쪽에 id 를 다시 적으면 다음 강등에서
+ * 한쪽이 조용히 뒤처진다(`RETIRED_AGENT_IDS` 와 같은 규율).
  */
-const TRACK_AGENTS: ReadonlyArray<readonly [string, string]> = [
+export const TRACK_AGENTS: ReadonlyArray<readonly [string, string]> = [
   ["data-analyst", "data|full"],
   ["strategist", "executive|full"],
 ];

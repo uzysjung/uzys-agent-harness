@@ -11,7 +11,12 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { hashContent, readInstallLog, writeInstallLog } from "../src/install-log.js";
+import {
+  hashContent,
+  installLogPath,
+  readInstallLog,
+  writeInstallLog,
+} from "../src/install-log.js";
 import { upsertHarnessImport } from "../src/project-claude-merge.js";
 import {
   cleanStaleHookRefs,
@@ -1002,6 +1007,70 @@ describe("신규 자산 설치 (#283)", () => {
     expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(true);
     // 대조군 — 살아 있는 에이전트까지 쓸어담는 스캔이면 이 단언이 빨개진다.
     expect(report.retiredAgents).not.toContain("reviewer");
+  });
+
+  /**
+   * ADR-090 (#458) — **트랙에서 강등된** 에이전트가 디스크에 남아 있으면 이름을 낸다.
+   *
+   * 은퇴 행(위)이 못 덮는 구간이다: `data-analyst`·`strategist` 는 은퇴한 것이 아니라 트랙
+   * 조건부로 내려갔을 뿐이라 템플릿에 원본이 그대로 있고, 그래서 `pruneOrphans` 도 못 지운다
+   * (orphan 이 아니다). v26.151.0 이하를 tooling 으로 깐 설치본에서 실제로 남은 파일이고,
+   * 침묵하면 그 설치자는 안 쓰는 descriptor 를 매 세션 상주시키면서 그 사실을 영영 모른다.
+   *
+   * 판정 근거는 **이 설치본의 트랙**이라 같은 파일이 트랙에 따라 정반대로 갈린다 — 그래서
+   * 대조군을 같은 실행 안에 둔다.
+   */
+  const writeAgents = (...ids: string[]): void => {
+    for (const id of ids) {
+      writeFileSync(join(projectDir, `.claude/agents/${id}.md`), `옛 릴리즈가 깐 ${id}\n`);
+    }
+  };
+
+  it("tooling 설치본에 남은 트랙 전용 에이전트는 이름을 낸다 (ADR-090 · #458)", () => {
+    writeAgents("data-analyst", "strategist", "implementer");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.demotedAgents).toContain("data-analyst");
+    expect(report.demotedAgents).toContain("strategist");
+    // 지우지 않는다 (ADR-046 · 사용자 결정 2026-09-14). 말하고 손은 사용자가.
+    expect(existsSync(join(projectDir, ".claude/agents/data-analyst.md"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/agents/strategist.md"))).toBe(true);
+    // 전 트랙 자산까지 쓸어담는 스캔이면 이 단언이 빨개진다 — `implementer` 는 dev 축이라
+    // tooling 설치본이 지금도 받는 자산이다.
+    expect(report.demotedAgents).not.toContain("implementer");
+  });
+
+  it("그 트랙을 고른 설치본에는 아무 말도 하지 않는다 — 같은 파일이 트랙에 따라 갈린다", () => {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["data"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+    writeAgents("data-analyst", "strategist");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    // `data` 트랙이 고른 자산이다. 여기서 "지워도 된다"고 말하면 쓰는 파일을 지우게 만든다.
+    expect(report.demotedAgents).not.toContain("data-analyst");
+    // 0건 함정 방지 — 스캔이 통째로 꺼져도 위 단언은 통과한다. 같은 실행에서 **갈려야 할
+    // 쪽**(executive|full 전용)이 실제로 잡히는지 함께 본다.
+    expect(report.demotedAgents).toContain("strategist");
+  });
+
+  it("설치 기록이 없으면 강등 판정을 하지 않는다 — 트랙을 모르는 채로 지우라고 말할 수 없다", () => {
+    rmSync(installLogPath(projectDir), { force: true });
+    writeAgents("data-analyst", "code-reviewer");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.demotedAgents).toEqual([]);
+    // 대조군 — 은퇴 판정은 트랙과 무관하므로 같은 실행에서 그대로 돈다. 이 단언이 없으면
+    // "update 가 통째로 죽어서 빈 배열"인 경우와 구분되지 않는다.
+    expect(report.retiredAgents).toContain("code-reviewer");
   });
 });
 

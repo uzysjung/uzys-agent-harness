@@ -1,5 +1,9 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
+import { estimateTokens } from "../src/context-cost.js";
 import { experimentalOptInCandidates } from "../src/external-assets.js";
 import type { BaselineReport, InstallReport } from "../src/installer.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "../src/types.js";
@@ -795,6 +799,7 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         retiredAgents: [],
+        demotedAgents: [],
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
@@ -816,6 +821,108 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("CLAUDE-uzys-harness.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
+  });
+
+  /**
+   * #458 — update 화면의 상주 계측은 **갱신 후 디스크**를 잰다.
+   *
+   * 무엇이 틀려 있었나: 헤더가 찍던 줄은 manifest 계획("지금 깔면 이렇게 된다")이라, 트랙에서
+   * 강등·은퇴해 manifest 에서 빠졌지만 **파일은 남아 매 세션 상주하는** 에이전트를 못 센다.
+   * 리뷰어 컨테이너 실측(v26.151.0 tooling → 이 빌드로 update)에서 화면은 20 items 를 찍었고
+   * 디스크 `.claude/agents/` 에는 4개가 있었다. 같은 화면이 바로 아래 줄에서 "이 파일 지워도
+   * 된다"고 말하는데, 그 근거가 되는 숫자가 그 파일을 안 세고 있었다.
+   */
+  const withAgentsOnDisk = (
+    fn: (spec: InstallSpec, agents: ReadonlyArray<string>) => void,
+    agentFrontmatters: ReadonlyArray<string>,
+  ): void => {
+    const dir = mkdtempSync(join(tmpdir(), "ch-upd-cost-"));
+    try {
+      mkdirSync(join(dir, ".claude", "agents"), { recursive: true });
+      agentFrontmatters.forEach((fm, i) => {
+        writeFileSync(join(dir, ".claude", "agents", `a${i}.md`), `---\n${fm}\n---\n\n본문\n`);
+      });
+      fn({ ...baseSpec, projectDir: dir }, agentFrontmatters);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  const updatePipeline = () =>
+    pipelineFor({
+      ...fakeReport,
+      mode: "update",
+      updateMode: {
+        updated: {},
+        pruned: {},
+        staleHookRefs: [],
+        claudeMdUpdated: false,
+        anchorCreated: false,
+        rootImportAdded: false,
+        rootBlockRefreshed: false,
+        legacyAnchor: null,
+        skillsBackedUp: [],
+        skillsSkippedLinks: [],
+        policyBackedUp: [],
+        externalUpdated: 0,
+        externalBackedUp: [],
+        foreignOwned: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
+        retiredAgents: [],
+        demotedAgents: [],
+        mcpAllowlistRetired: null,
+        externalSkillsRefreshed: 0,
+        externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
+        externalSkillsUnknown: false,
+      },
+    });
+
+  it("update 의 상주 계측은 디스크의 에이전트 파일을 센다 (#458)", () => {
+    withAgentsOnDisk(
+      (spec, agents) => {
+        const log = vi.fn();
+        const exit = vi.fn() as unknown as (code: number) => never;
+        executeSpec(spec, {
+          log,
+          exit,
+          runPipeline: updatePipeline(),
+          resolveHarnessRoot: () => "/h",
+          mode: "update",
+        });
+        const out = log.mock.calls.map((c) => String(c[0])).join("\n");
+        const line = /session-start context cost: [^\n]*/.exec(out)?.[0];
+        expect(line, "update 화면에 상주 계측 줄이 없다").toBeDefined();
+        // 개수는 디스크 파일 수, 토큰은 그 파일들의 frontmatter 합 — 계획(manifest)으로 재면
+        // tooling 트랙 에이전트 수(2)가 나와 여기서 빨개진다.
+        const tokens = agents.reduce((sum, fm) => sum + estimateTokens(fm.length), 0);
+        expect(line).toContain(`agents ${agents.length} ~${tokens}`);
+      },
+      ["name: a\ndescription: 첫째", "name: b\ndescription: 둘째", "name: c\ndescription: 셋째"],
+    );
+  });
+
+  it("update 전체 출력에 상주 계측 줄은 하나뿐이다 — 계획과 실측이 함께 뜨면 어느 쪽이 참인지 모른다", () => {
+    withAgentsOnDisk(
+      (spec) => {
+        const log = vi.fn();
+        const exit = vi.fn() as unknown as (code: number) => never;
+        executeSpec(spec, {
+          log,
+          exit,
+          runPipeline: updatePipeline(),
+          resolveHarnessRoot: () => "/h",
+          mode: "update",
+        });
+        const hits = log.mock.calls
+          .map((c) => String(c[0]))
+          .filter((l) => l.includes("session-start context cost"));
+        expect(hits.length, `상주 계측 줄 ${hits.length}개:\n${hits.join("\n")}`).toBe(1);
+      },
+      ["name: a\ndescription: 하나"],
+    );
   });
 
   /**
@@ -857,6 +964,7 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         retiredAgents: [],
+        demotedAgents: [],
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
@@ -918,6 +1026,7 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         retiredAgents: [],
+        demotedAgents: [],
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
@@ -970,6 +1079,7 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         retiredAgents: [],
+        demotedAgents: [],
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],
@@ -1028,6 +1138,7 @@ describe("executeSpec", () => {
         restored: [],
         needsReinstall: [],
         retiredAgents: [],
+        demotedAgents: [],
         mcpAllowlistRetired: null,
         externalSkillsRefreshed: 0,
         externalSkillsFailed: [],

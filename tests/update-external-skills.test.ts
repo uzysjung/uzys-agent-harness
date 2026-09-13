@@ -12,7 +12,7 @@ import {
 } from "../src/external-installer.js";
 import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
-import { RETIRED_AGENT_IDS, RETIRED_AGENTS } from "../src/manifest.js";
+import { RETIRED_AGENT_IDS, RETIRED_AGENTS, TRACK_AGENTS } from "../src/manifest.js";
 import type { InstallSpec } from "../src/types.js";
 import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
@@ -339,6 +339,7 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     restored: [],
     needsReinstall: [],
     retiredAgents: [],
+    demotedAgents: [],
     mcpAllowlistRetired: null,
     externalSkillsRefreshed: 0,
     externalSkillsFailed: [],
@@ -442,6 +443,25 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     expect(out).toContain(instead);
   });
 
+  // ADR-090 (#458) — 강등은 은퇴와 **다른 사실**이다: 그 트랙에는 안 가지만 다른 트랙에는
+  // 여전히 간다. 그래서 화면이 어느 트랙 전용인지를 말한다 — 안 말하면 설치자는 자산이
+  // 없어진 줄 알거나, 반대로 자기 트랙 자산인 줄 알고 죽은 파일을 붙든다.
+  it.each([
+    ...TRACK_AGENTS,
+  ])("강등된 에이전트 %s 는 트랙명과 함께 지워도 된다고 말한다", (id, pattern) => {
+    const out = lines({ demotedAgents: [id] });
+    expect(out).toContain(id);
+    expect(out).toMatch(/이 트랙에서는 더 이상 설치하지 않는다/);
+    // 트랙명은 배선 SSOT 의 패턴에서 온다 — 화면이 다른 트랙을 대라면 여기서 빨개진다.
+    for (const t of pattern.split("|")) {
+      expect(out).toContain(t);
+    }
+    expect(out).toContain("트랙 전용");
+    expect(out).toContain(`.claude/agents/${id}.md`);
+    // 은퇴 문구와 섞이면 사용자가 "다른 트랙에서는 쓴다"를 못 읽는다.
+    expect(out).not.toMatch(/이 릴리즈에서 은퇴/);
+  });
+
   /**
    * ADR-090 (#452) — **목록에서 derive 하지 않는 표본.** 위 `it.each(RETIRED_*)` 는 목록을
    * 훑으므로 목록에서 한 줄을 빼면 그 케이스가 통째로 사라져 초록으로 산다(변이 대조에서 실측:
@@ -461,6 +481,15 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     "plan-checker",
     "silent-failure-hunter",
     "build-error-resolver",
+  ];
+  /**
+   * #458 — 같은 이유의 강등 판본. v26.151.0 을 **tooling 트랙으로** 깐 프로젝트의
+   * `.claude/agents/` 에 실제로 남아 있던 두 파일이다(리뷰어 컨테이너 실측, PR #457).
+   * 위 목록과 같은 규율: `TRACK_AGENTS` 에서 한 줄을 빼면 여기가 빨간불을 낸다.
+   */
+  const DEMOTED_AGENTS_FROM_V26_151_TOOLING_INSTALL: ReadonlyArray<string> = [
+    "data-analyst",
+    "strategist",
   ];
 
   it("v26.151.0 설치본의 은퇴 자산 전부가 이름과 함께 안내된다 (목록 derive 아님)", () => {
@@ -485,6 +514,22 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
       expect.arrayContaining([...RETIRED_AGENTS_FROM_V26_151_INSTALL]),
     );
     expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_FROM_V26_151_INSTALL]));
+  });
+
+  it("v26.151.0 tooling 설치본의 강등 자산 전부가 트랙명과 함께 안내된다 (목록 derive 아님)", () => {
+    const out = lines({ demotedAgents: [...DEMOTED_AGENTS_FROM_V26_151_TOOLING_INSTALL] });
+    for (const id of DEMOTED_AGENTS_FROM_V26_151_TOOLING_INSTALL) {
+      expect(out, `${id} 가 강등 안내를 못 받는다`).toContain(
+        `${id} · 이 트랙에서는 더 이상 설치하지 않는다`,
+      );
+      expect(out).toContain(`.claude/agents/${id}.md 를 지워도 된다`);
+    }
+    // 렌더는 넘어온 id 를 찍을 뿐이라 위 단언만으로는 배선(`TRACK_AGENTS` 멤버십)이 실행되지
+    // 않는다 — 강등 스캔이 읽는 것은 이 표이고, 여기서 한 줄이 빠지면 그 설치자는 안내를
+    // 영영 못 받는다. 그래서 멤버십을 직접 문다 (은퇴 축의 리뷰 #457 B1 과 같은 형태).
+    expect(TRACK_AGENTS.map(([id]) => id)).toEqual(
+      expect.arrayContaining([...DEMOTED_AGENTS_FROM_V26_151_TOOLING_INSTALL]),
+    );
   });
 
   it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {
