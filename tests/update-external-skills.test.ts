@@ -257,6 +257,28 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
     expect(report.externalSkillsUnknown).toBe(false);
   });
 
+  it("디스크에 남은 개명·은퇴 스킬 디렉터리가 안내 대상에 오른다 — 설치자가 update 때 그 문구를 본다 (ADR-088)", () => {
+    // 외부(npx) 스킬 갱신은 번들 스킬 id 를 모른다 — 개명·은퇴 안내가 실제로 뜨는 유일한 경로는
+    // `.claude/skills/` 를 직접 훑는 스캔이다. 그 스캔을 죽이면 두 문구는 아무에게도 안 보인다
+    // (PR #444 리뷰 HIGH-nit: 무력화해도 전 스위트가 초록이었다).
+    const dir = installedProject();
+    for (const id of ["task-brief", "spec-scaling"]) {
+      mkdirSync(join(dir, ".claude", "skills", id), { recursive: true });
+      writeFileSync(join(dir, ".claude", "skills", id, "SKILL.md"), `---\nname: ${id}\n---\n`);
+    }
+    const refreshSkills = vi.fn(() => ({
+      attempted: 0,
+      refreshed: 0,
+      failed: [],
+      notInCatalog: [],
+      unknown: false,
+    }));
+    const report = runUpdateMode(dir, templatesDir, harnessRoot, { refreshSkills });
+    expect(report.externalSkillsNotInCatalog).toEqual(
+      expect.arrayContaining(["task-brief", "spec-scaling"]),
+    );
+  });
+
   it("갱신이 실패해도 update 는 정책 파일 갱신을 끝낸다", () => {
     const dir = installedProject();
     const report = runUpdateMode(dir, templatesDir, harnessRoot, {
