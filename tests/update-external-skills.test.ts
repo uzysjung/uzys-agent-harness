@@ -12,6 +12,7 @@ import {
 } from "../src/external-installer.js";
 import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
+import { RETIRED_AGENT_IDS } from "../src/manifest.js";
 import type { InstallSpec } from "../src/types.js";
 import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
@@ -337,6 +338,7 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     installedNew: [],
     restored: [],
     needsReinstall: [],
+    retiredAgents: [],
     mcpAllowlistRetired: null,
     externalSkillsRefreshed: 0,
     externalSkillsFailed: [],
@@ -423,6 +425,17 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     expect(out).toContain(id);
     expect(out).toMatch(/은퇴/);
     expect(out).toContain(`.claude/skills/${id}`);
+  });
+
+  // ADR-089 (#445) — 에이전트 은퇴도 같은 규율이다: 지우지 않고 **지워도 된다는 사실과 대신
+  // 쓸 것**을 말한다. 대안을 빼면 은퇴가 기능 상실로 읽혀 사용자가 죽은 파일을 붙든다.
+  it("은퇴한 에이전트는 지워도 된다고 말하고 대안을 함께 준다", () => {
+    const id = RETIRED_AGENT_IDS[0] as string;
+    const out = lines({ retiredAgents: [id] });
+    expect(out).toContain(id);
+    expect(out).toMatch(/은퇴/);
+    expect(out).toContain(`.claude/agents/${id}.md`);
+    expect(out).toContain("/security-review");
   });
 
   it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {

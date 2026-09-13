@@ -601,6 +601,19 @@ function renderPhase1Rows(
         ),
       );
     }
+    // ADR-089 (#445) — 은퇴한 에이전트. 스킬 은퇴 행(아래)과 같은 규율이다: 지우지 않고
+    // **지워도 된다는 사실과 대신 쓸 것**을 말한다. 대안을 함께 적는 이유는 은퇴가 곧 기능
+    // 상실로 읽히면 사용자가 파일을 붙들기 때문이다 — 여기서는 벤더 기본 기능이 대안이다.
+    for (const id of baseline.updateMode.retiredAgents) {
+      log(
+        assetRow(
+          "skip",
+          "agents",
+          `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다 · ` +
+            "Claude Code 의 `/code-review` · `/security-review` 가 같은 일을 한다",
+        ),
+      );
+    }
     // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
     // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
     if (baseline.updateMode.policyBackedUp.length > 0) {

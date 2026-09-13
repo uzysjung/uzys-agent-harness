@@ -109,20 +109,22 @@ MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust ti
 | **strategist** | 자체 | 항상 | 제안서 · DD · 덱 · 재무모델 |
 | **plan-checker** | 자체 | dev track | `docs/plan.md` ↔ `todo.md` ↔ `SPEC.md` 정합성 |
 | **implementer** | 자체 | dev track | 구현 레인 — 변경을 쓰고, 그 변경 없이는 실패하는 테스트로 닫는다 |
-| **code-reviewer** | ECC | ECC **미**선택 | 일상 코드 리뷰 (CRITICAL→LOW) |
-| **security-reviewer** | ECC | ECC **미**선택 | OWASP Top 10 + 시크릿 탐지 |
 | **silent-failure-hunter** | ECC | ECC **미**선택 + dev track | swallowed error / bad fallback 탐지 |
 | **build-error-resolver** | ECC | ECC **미**선택 + dev track | TS / build 에러 fix |
 
 > 모델 열은 뺐다 — 에이전트 정의 파일의 frontmatter 가 SSOT 이고, 여기 옮겨 적으면 두 번째 사본이
 > 된다. `implementer` 는 v26.138.0 에 생겼다: 그전 8종이 전부 검토·검증·도메인 특화라 설치자는
 > "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다(두 코퍼스 대조 실측 — 서브에이전트 코드 Edit 433 vs 3).
+>
+> **일상 코드 리뷰·보안 리뷰 전용 에이전트는 없다** (ADR-089) — Claude Code 의 `/code-review` ·
+> `/security-review`, Codex 의 `codex review` 가 같은 일을 벤더 기본으로 한다. 우리가 남기는
+> `reviewer` 는 다른 축이다: 버그를 찾는 것이 아니라 **만든 레인이 아닌 레인이 완료를 판정**한다.
 
 ---
 
 ## 4. Cherry-picked Sources
 
-`.dev-references/cherrypicks.lock` (14건 — ADR-088 에서 은퇴한 스킬 2종의 행 제거, 2026-08-02
+`.dev-references/cherrypicks.lock` (12건 — ADR-089 에서 리뷰 에이전트 2종, ADR-088 에서 은퇴한 스킬 2종의 행 제거, 2026-08-02
 ADR-060 에서 verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서
 발췌해 `templates/`에 복사.
 `scripts/sync-cherrypicks.sh`로 upstream drift 감지.
@@ -130,7 +132,7 @@ ADR-060 에서 verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘
 | 카테고리 | 항목 |
 |---------|------|
 | Skills (templates/skills/) | deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
-| Agents (templates/agents/) | code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver |
+| Agents (templates/agents/) | silent-failure-hunter, build-error-resolver |
 
 **`verification-loop` 은 이 목록에 없다** — ECC 파생이지만 lock 밖이다(ADR-060 이 행을 해체했고
 ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포하며 출처는 SKILL.md 본문의 MIT 귀속

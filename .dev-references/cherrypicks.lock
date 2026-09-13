@@ -42,24 +42,6 @@
   },
   "cherrypicks": [
     {
-      "id": "ecc-code-reviewer",
-      "source": "ecc",
-      "src": "agents/code-reviewer.md",
-      "dst": "templates/agents/code-reviewer.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": null
-    },
-    {
-      "id": "ecc-security-reviewer",
-      "source": "ecc",
-      "src": "agents/security-reviewer.md",
-      "dst": "templates/agents/security-reviewer.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": null
-    },
-    {
       "id": "ecc-deep-research",
       "source": "ecc",
       "src": ".agents/skills/deep-research/",

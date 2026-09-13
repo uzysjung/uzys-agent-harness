@@ -45,7 +45,13 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { ALL_RULES, type AssetEntry, type AssetSpec, buildManifest } from "./manifest.js";
+import {
+  ALL_RULES,
+  type AssetEntry,
+  type AssetSpec,
+  buildManifest,
+  RETIRED_AGENT_IDS,
+} from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
 
@@ -173,6 +179,15 @@ export interface UpdateModeReport {
    */
   needsReinstall: string[];
   /**
+   * ADR-089 (#445) — `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id.
+   *
+   * **지우지 않는다** — 사용자가 그 파일을 고쳤는지 update 시점엔 판정할 수 없다(`legacyAnchor`
+   * 와 같은 규율). 대신 화면이 "이 릴리즈에서 은퇴했고 벤더 기본 기능이 같은 일을 한다"를 낸다.
+   * 침묵하면 옛 릴리즈로 깐 설치본은 죽은 에이전트 descriptor 를 매 세션 상주시키면서 그 사실을
+   * 영영 모른다.
+   */
+  retiredAgents: string[];
+  /**
    * 2026-08-16 (ADR-072) — 이번 update 가 물러낸 `.mcp-allowlist` 의 **백업 경로**. 없었으면 null.
    *
    * 이 파일은 `.claude/` 밖(프로젝트 루트)이라 `pruneOrphans` 의 사정거리에 없다. 읽던 훅
@@ -260,6 +275,7 @@ export function runUpdateMode(
     installedNew: [],
     restored: [],
     needsReinstall: [],
+    retiredAgents: [],
     mcpAllowlistRetired: null,
   };
 
@@ -330,6 +346,12 @@ export function runUpdateMode(
   //      때문이다 — 위가 배선을 지우고 여기가 그 배선이 읽던 데이터를 지운다.
   report.mcpAllowlistRetired = retireMcpAllowlist(projectDir);
 
+  // 3.6) 은퇴한 에이전트 (ADR-089 · #445). 바로 위 두 절과 같은 축이다 — **더는 갱신되지 않는
+  //      것이 디스크에 남아 있다**. 다만 지우는 것은 위 둘과 다르다: `.mcp-allowlist` 는 우리가
+  //      만든 자동 생성물이라 회수했지만, 에이전트 파일은 사용자가 고쳤을 수 있고 update 시점에
+  //      그것을 판정할 기준선이 없다. 그래서 말만 한다.
+  report.retiredAgents = staleAgentFiles(claudeDir);
+
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
@@ -382,6 +404,22 @@ function staleSkillDirs(claudeDir: string): string[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && stale(e.name))
     .map((e) => e.name);
+}
+
+/**
+ * `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id (ADR-089 · #445). 문구는 `install-render`.
+ *
+ * `staleSkillDirs` 와 같은 형태로 **디스크를 본다** — manifest 에서 사라진 자산은 설치 기록이나
+ * 카탈로그를 훑어서는 안 보인다. 열거하지 않는 것도 같다: 배선 SSOT 의 `RETIRED_AGENT_IDS` 를
+ * 읽으므로 다음 은퇴에서 이 함수가 뒤처지지 않는다.
+ */
+function staleAgentFiles(claudeDir: string): string[] {
+  const dir = join(claudeDir, "agents");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".md"))
+    .map((e) => basename(e.name, ".md"))
+    .filter((id) => RETIRED_AGENT_IDS.includes(id));
 }
 
 /**

@@ -22,14 +22,6 @@
         "edit": false,
         "bash": false
       }
-    },
-    "code-reviewer": {
-      "mode": "subagent",
-      "description": "5축 리뷰 (correctness/readability/architecture/security/performance)",
-      "tools": {
-        "write": false,
-        "edit": false
-      }
     }
   },
   "plugin": [],

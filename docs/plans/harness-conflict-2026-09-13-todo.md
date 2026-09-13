@@ -63,6 +63,10 @@ status: active
     있다 — 리듬을 바꿀 때는 둘 다 고친다(리뷰 지적).
   - [ ] ⓖ **2차 감사 — 설치자 룰·훅** G-01(훅 `.env.example` 허용) · G-02~G-06(Testing 방법 지식 3항 retire ·
     중복 4건). 보고서 §2차 감사.
+  - [x] ⓗ **리뷰 에이전트 은퇴** #445 · #443 — ADR-089 — `code-reviewer` · `security-reviewer` 와
+    OpenCode subagent 엔트리를 뺀다. 벤더 기본 `/code-review` · `/security-review` · `codex review`
+    와 하는 일이 같다. 이미 깐 설치본에는 `RETIRED_AGENT_IDS` 안내 한 줄. 상주(tooling) agent
+    9개 ~766 → 7개 ~567 · 합계 31개 ~7,563 → 29개 ~7,364.
   - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 (+ 2차 감사 R-06~R-09) — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
     배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
     `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에
