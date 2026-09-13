@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 ---
 
 # 지침 충돌 해소 사이클 (2026-09-13) — #427 · #425 · #428 · #426 · #424
@@ -74,7 +74,9 @@ status: active
     OpenCode subagent 엔트리를 뺀다. 벤더 기본 `/code-review` · `/security-review` · `codex review`
     와 하는 일이 같다. 이미 깐 설치본에는 `RETIRED_AGENT_IDS` 안내 한 줄. 상주(tooling) agent
     9개 ~766 → 7개 ~567 · 합계 31개 ~7,563 → 29개 ~7,364. PR #449.
-- [ ] **⑥ 출하** — CHANGELOG · `cost:baseline` · 릴리즈 순서(`ship-checklist`).
+- [x] **⑥ 출하** — v26.151.0 (2026-09-14, #450). 태그 push → `ci` 4 job · `docker-e2e` · `publish` · `install-matrix` 9 job ·
+  `docker scenarios` 전부 success · npm `26.151.0` · `release:audit` 밀린 태그 0. 후속 = #452 전수검사(#446 흡수) ·
+  #451 · #437 · #438 · #429.
 
 ## 결정 (사용자 확정 2026-09-13)
 
