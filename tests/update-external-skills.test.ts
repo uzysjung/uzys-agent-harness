@@ -12,7 +12,7 @@ import {
 } from "../src/external-installer.js";
 import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
-import { RETIRED_AGENTS } from "../src/manifest.js";
+import { RETIRED_AGENT_IDS, RETIRED_AGENTS } from "../src/manifest.js";
 import type { InstallSpec } from "../src/types.js";
 import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
@@ -478,6 +478,11 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
         `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다`,
       );
     }
+    // 에이전트 축은 렌더가 넘어온 id 마다 행을 찍으므로 위 단언만으로는 `RETIRED_AGENTS` 멤버십이
+    // 실행되지 않는다(리뷰 #457 B1 — `plan-checker` 행을 지워도 초록이었다). 실제 배선은
+    // `update-mode.ts` 가 `RETIRED_AGENT_IDS.includes` 로 화면에 낼 id 를 고르므로 멤버십을 직접 문다.
+    expect(RETIRED_AGENT_IDS).toEqual(expect.arrayContaining([...RETIRED_AGENTS_IN_V26_152]));
+    expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_IN_V26_152]));
   });
 
   it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {
