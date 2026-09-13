@@ -313,7 +313,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "model-orchestration",
     tier: "official", // uzys 자사 스킬 리포
     description:
-      "Model orchestration — decompose work by capability and route independent, bounded tasks to available agents while preserving ownership, permissions, and verification (opt-in — recommended)",
+      "Model orchestration — decompose work by capability and route independent, bounded tasks to available agents while preserving ownership, permissions, and verification. Model names are Claude Code vocabulary; on other CLIs the same split maps onto that vendor's tiers (opt-in — recommended)",
     category: "workflow",
     source: "uzys",
     condition: { kind: "opt-in" },

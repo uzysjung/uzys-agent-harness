@@ -17,6 +17,13 @@ description: >-
 
 # Model Orchestration Policy
 
+**What is policy and what is vocabulary.** The policy is the role split — orchestrator ≠ builder ≠
+verifier — and the rule that verification never goes to a lower tier than the work it verifies.
+`Fable` · `Opus` · `Sonnet` and the effort levels (`xhigh` · `high` · `max`) are Claude Code
+vocabulary. On Codex, OpenCode, or Antigravity apply the same split with that vendor's top tier for
+orchestration and verification and its mid tier for repetitive implementation; an effort knob that
+does not exist there is not a violation — putting verification on a lower tier is.
+
 A fixed role split between model tiers, set by the user (2026-07-04, revised 2026-07-07 and
 2026-08-02 — *"설계·분배·기획·리뷰는 Fable5, 핵심 구현·테스트·검증은 opus5, 반복·단순 구현은
 sonnet"*). The premise is

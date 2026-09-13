@@ -52,7 +52,7 @@ status: active
     3단계 리듬 + #423 머지 전 기준 · `Testing` 룰 문턱 SSOT 한 곳 · 이 리포 `test-policy` · `ship-checklist`.
     필수 보안·데이터 보호 검사는 유지.
   - [x] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트(25,320 → 23,283 B, ratchet 22.75 KiB).
-  - [ ] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
+  - [x] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
   - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
     제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·
     `doc-governance` 한 줄. 자산 수 62 → 59(스킬 −3), 카탈로그·lock·문서·`.claude/` 미러 동반.
@@ -70,7 +70,7 @@ status: active
 | D2 | 비-Claude CLI 에 스킬 디렉터리 전체 복사 | **한다**. 충돌 해소 스킬 작업 안에서 먼저 처리 |
 | D3 | #423 을 ⑤에 합친다 | **합친다** |
 | 결과 | 적대적 패널 축 | 사용자 문안에 없으므로 배포 앵커에서 사라진다. 게이트의 그 축은 이 리포 앵커 전용 |
-| D4 | `task-brief` 문턱·이름 | **`objective-brief`** 로 개명. 긴 작업·피처·프로젝트 규모 이상에만 — 설치자·이 리포 동일 문턱 |
+| D4 | `task-brief` 문턱·이름 | **`objective-brief`** 로 개명. 긴 작업·피처·프로젝트 규모 이상에만 — 설치자·이 리포 동일 문턱. **보강(사용자 2026-09-13)**: 원인은 *"모든 요청을 브리프화해 보여준 뒤 진행(확정 2026-08-03) — 한 줄 요청에도 브리프가 앞서 속도를 늦추는 1순위"*. 발화 조건 = **위임 · 설계 · 다단계 작업**에만(한 줄 요청 · 단일 수정은 제외). 스킬 descriptor 와 본문 "When to use" 를 이 세 조건으로 쓴다 |
 | D5 | `strategic-compact` | **제거**(스킬·훅). 순정 자동 컴팩션이 있다 |
 | D6 | `continuous-learning-v2` | **제거**. `recurrence-prevention` 이 담당 |
 | D7 | `spec-scaling` | **retire** + `doc-governance` 한 줄 |
