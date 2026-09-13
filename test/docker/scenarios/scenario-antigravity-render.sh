@@ -41,7 +41,8 @@ echo "── 산출물 섹션 (R2: antigravity invisible 이던 버그) ──"
 assert_grep "Antigravity artifacts" "산출물 섹션 헤더 노출"
 assert_grep "\.agents/rules/uzys-harness\.md" "rules 행 노출"
 # ADR-086 — 라벨이 파일이 아니라 디렉터리(`<id>/`)다. 스킬이 디렉터리째 나간다.
-assert_grep "\.agents/skills/<id>/" "skills 행 노출"
+# 옛 라벨(`<id>/SKILL.md`)의 진부분 문자열로 물면 회귀를 못 잡는다(재리뷰 N-1) — 뒤에 SKILL 이 없어야 한다.
+assert_grep "\.agents/skills/<id>/([^S]|$)" "skills 행 노출 (디렉터리 라벨)"
 # workflows 행 단언은 뺐다 — `.agents/workflows/` 산출은 ADR-023(2026-06-26)에서 제품이
 # 없앤 것이고, 이 시나리오는 그 뒤 63일간 그 삭제분을 요구하며 red 였다. 부재 쪽은
 # tests/antigravity/transform.test.ts 가 이미 단언한다(디렉터리 자체가 안 생긴다).

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-13
-- PR: #TBD
+- PR: #434
 - Supersedes: 없음. ADR-081(OpenCode 도 `.agents/skills/` 로)을 **amend** — "무엇을 보내는가"를
   `SKILL.md` 한 파일에서 스킬 디렉터리 전체로 넓힌다
 

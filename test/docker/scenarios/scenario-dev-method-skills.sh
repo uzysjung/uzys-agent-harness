@@ -6,8 +6,8 @@
 #   ⓐ 템플릿 복사   — 번들 스킬이 각 CLI 자리에
 #   ⓑ npx skills add — 외부 스킬이 claude 자리와 범용(.agents) 자리에
 # 자리:
-#   - Claude:              .claude/skills/<id>/SKILL.md
-#   - Codex/OpenCode/Antigravity: .agents/skills/<id>/SKILL.md (범용 자리, 외부 스킬도 여기)
+#   - Claude:              .claude/skills/<id>/ (SKILL.md + references/ 등 디렉터리째)
+#   - Codex/OpenCode/Antigravity: .agents/skills/<id>/ (범용 자리, 외부 스킬도 여기 — ADR-086 부터 디렉터리째)
 #     (2026-08-29 ADR-081 — OpenCode 도 여기다. 커맨드 변환은 폐지했다.)
 #
 # (나머지 두 배달 방식 — `npm i` 와 `npx <cmd>@<ver>` — 은 scenario-pinned-versions 가 맡는다.
