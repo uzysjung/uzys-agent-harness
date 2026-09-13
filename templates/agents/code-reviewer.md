@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. MUST BE USED for all code changes.
+description: Expert code review specialist for quality, security, and maintainability. Use when a user scene's changes are complete and collected for review, and before merging changes that touch core user features, irreversible operations, or money and permissions. Not after every edit; reversible, low-impact changes are covered by regression tests instead.
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---

@@ -48,7 +48,7 @@ status: active
   (F-xx 기록: 원문 양쪽 · 상황 · 수정안 · 확인/미확인 경로). 파일 수정 없음.
 - [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 전부 확정됨(보고서
   §사용자 결정). PR 5개, 각각 독립 리뷰:
-  - [ ] ⓐ **리뷰 문턱 통일** F-01 · F-14 · R-01 · R-02 — `code-reviewer` descriptor(양쪽) · 고객 `Delivery` 룰
+  - [x] ⓐ **리뷰 문턱 통일** F-01 · F-14 · R-01 · R-02 — ADR-087 — `code-reviewer` descriptor(양쪽) · 고객 `Delivery` 룰
     3단계 리듬 + #423 머지 전 기준 · `Testing` 룰 문턱 SSOT 한 곳 · 이 리포 `test-policy` · `ship-checklist`.
     필수 보안·데이터 보호 검사는 유지.
   - [ ] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트.

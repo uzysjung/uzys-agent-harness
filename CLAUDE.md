@@ -53,7 +53,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 | 시점 | 판정 주체(누가 막나) | 미충족 시 |
 |---|---|---|
 | 커밋 | 없음 | 차단 없음 |
-| 머지(PR) | 에이전트 자신(로컬 `npm run ci`) + **독립 리뷰 에이전트** | ⬜ **PR 에는 CI 가 없다** — 프로즈가 유일한 방어 |
+| 머지(PR) | 에이전트 자신(로컬 `npm run ci`) + **독립 리뷰 에이전트**(문턱 = `.claude/rules/test-policy.md` §시점별 검증 — 그 밖은 리그레션만) | ⬜ **PR 에는 CI 가 없다** — 프로즈가 유일한 방어 |
 | 배포(tag `v*`) | 🧪 GitHub Actions `ci` + **`docker-e2e`(컨테이너 실설치 3종)** → `publish` 가 `needs: [ci, docker-e2e]` | 배선 확인(v26.140.0 · docker-e2e 는 2026-08-28 #369·#370) · **red→미게시 발화는 미관측** |
 | 배포(tag `v*`) · 신호만 | ⬜ `docker-scenarios.yml` — 나머지 시나리오 15종 + 실 CLI 3종 | **게시를 막지 않는다**(ADR-079). red 를 사람이 봐야 한다 |
 
