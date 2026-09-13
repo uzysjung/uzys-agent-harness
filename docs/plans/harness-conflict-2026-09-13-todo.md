@@ -61,7 +61,9 @@ status: active
   - [x] ⓕ **audit-harness-fit 에 씬 묶음 검증 · 개발 속도 관점** (사용자 지시 2026-09-13, PR #441) — 영역 5 확장 +
     verification 참조 "Bundle verification by completed scene". 씬 리듬 문장이 **두 곳**(Delivery 룰 · 이 스킬)에
     있다 — 리듬을 바꿀 때는 둘 다 고친다(리뷰 지적).
-  - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
+  - [ ] ⓖ **2차 감사 — 설치자 룰·훅** G-01(훅 `.env.example` 허용) · G-02~G-06(Testing 방법 지식 3항 retire ·
+    중복 4건). 보고서 §2차 감사.
+  - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 (+ 2차 감사 R-06~R-09) — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
     배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
     `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에
     같은 사실 실재.
