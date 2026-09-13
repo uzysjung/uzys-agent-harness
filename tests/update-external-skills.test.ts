@@ -481,7 +481,9 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     // 에이전트 축은 렌더가 넘어온 id 마다 행을 찍으므로 위 단언만으로는 `RETIRED_AGENTS` 멤버십이
     // 실행되지 않는다(리뷰 #457 B1 — `plan-checker` 행을 지워도 초록이었다). 실제 배선은
     // `update-mode.ts` 가 `RETIRED_AGENT_IDS.includes` 로 화면에 낼 id 를 고르므로 멤버십을 직접 문다.
-    expect(RETIRED_AGENT_IDS).toEqual(expect.arrayContaining([...RETIRED_AGENTS_FROM_V26_151_INSTALL]));
+    expect(RETIRED_AGENT_IDS).toEqual(
+      expect.arrayContaining([...RETIRED_AGENTS_FROM_V26_151_INSTALL]),
+    );
     expect(RETIRED_SKILL_IDS).toEqual(expect.arrayContaining([...RETIRED_FROM_V26_151_INSTALL]));
   });
 
