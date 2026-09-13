@@ -279,14 +279,14 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
   // 도달"이 아니라 "전 트랙 미도달"만 확인하게 된다. 실제로 파일을 깔지 정하는 곳은 두 군데다:
   // installer 의 `selectedInternalSkills` 계산(isAssetSelected)과 manifest 항목의 `applies`.
   // 둘 다 트랙별로 돌린다 — 하나만 보면 선택은 됐는데 복사가 안 되는 경우를 놓친다.
-  // 2026-08-02 AC9 — `task-brief` 신설분을 같은 단언에 넣는다. 신설이라 "이관 전 범위 유지"는
+  // 2026-08-02 AC9 — `objective-brief` 신설분을 같은 단언에 넣는다. 신설이라 "이관 전 범위 유지"는
   // 해당 없지만 **검사해야 할 성질은 같다**: 카탈로그 condition 이 any-track 인데 어느 트랙에서
   // 선택되지 않거나 선택만 되고 복사가 안 되면 그 트랙 설치자는 조용히 잃는다. 목록을 나누면
   // 신설 자산만 이 검사를 빠져나가는 두 번째 경로가 생긴다.
   // ADR-064 — `audit-harness-fit` 신설분도 같은 단언에 넣는다. 근거는 위 AC9 와 같다:
   // 목록을 나누면 신설 자산만 이 검사를 빠져나가는 경로가 또 생긴다.
   it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 4종 · dev 트랙 6종 · opt-in 2종", () => {
-    const allTrack = ["north-star", "gh-issue-workflow", "task-brief", "audit-harness-fit"];
+    const allTrack = ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"];
     const devOnly = [
       "clear-korean-communication",
       "audit-service-gaps",

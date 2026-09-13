@@ -41,9 +41,9 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
   // manifest 에는 디렉터리 엔트리와 그 **안의 파일** 엔트리가 섞여 있다. 마지막 경로 조각을 쓰면
   // 후자가 `SKILL.md` 라는 이름의 항목으로 화면에 뜬다 — 실제로 그렇게 만들었다가 고쳤다.
   it("스킬은 첫 경로 조각으로 합쳐진다 (디렉터리 · 내부 파일이 한 체크박스)", () => {
-    const dir = classifyBaselineTarget(".claude/skills/spec-scaling");
-    const file = classifyBaselineTarget(".claude/skills/spec-scaling/SKILL.md");
-    expect(dir?.id).toBe("baseline:skills/spec-scaling");
+    const dir = classifyBaselineTarget(".claude/skills/deep-research");
+    const file = classifyBaselineTarget(".claude/skills/deep-research/SKILL.md");
+    expect(dir?.id).toBe("baseline:skills/deep-research");
     expect(file?.id).toBe(dir?.id);
   });
 
@@ -181,7 +181,8 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       spec: spec({ cli: ["claude"], baselineExclude: ["baseline:skills/deep-research"] }),
     });
     expect(existsSync(join(projectDir, ".claude/skills/deep-research"))).toBe(false);
-    expect(existsSync(join(projectDir, ".claude/skills/strategic-compact"))).toBe(true);
+    // 제외가 통째로 날리는 것이 아님을 보인다 — 안 뺀 스킬은 그대로.
+    expect(existsSync(join(projectDir, ".claude/skills/eval-harness"))).toBe(true);
   });
 
   it("구조 자산은 제외 지시가 있어도 깔린다 (설치가 반쪽이 되지 않는다)", () => {

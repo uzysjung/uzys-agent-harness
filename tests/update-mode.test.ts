@@ -126,19 +126,19 @@ describe("pruneOrphans", () => {
  *
  * M-1 — 탐지 범위를 `.claude/hooks/` 한 층에서 **`.claude/` 이하 전체**로 넓힌다.
  *
- * 왜 지금 넓히나: `templates/settings.json` 의 PreToolUse(`Write|Edit`) 훅이
- * `.claude/skills/strategic-compact/suggest-compact.sh` 를 **무조건** 참조하는데, 그 스킬은
- * `withEcc=true`(ECC plugin 선택) 에서 설치되지 않는다(`src/manifest.ts` `COMMON_SKILL_DIRS_ECC`
- * → `applies: (s) => !s.withEcc`). settings.json 자신은 `applies: all` 이라 항상 깔린다 —
- * 즉 plugin 을 켠 설치자는 **없는 파일을 가리키는 훅**을 Write/Edit 마다 실행한다(bash exit 127).
+ * 왜 넓혔나: `templates/settings.json` 의 PreToolUse(`Write|Edit`) 훅이 **스킬 디렉터리 안의
+ * 사이드카 스크립트**(`.claude/skills/<id>/*.sh`)를 무조건 참조했고, 그 스킬은 좁게 깔렸다
+ * (ECC plugin 을 고르면 비켜서는 C2). settings.json 자신은 `applies: all` 이라 항상 깔린다 —
+ * 즉 plugin 을 켠 설치자는 **없는 파일을 가리키는 훅**을 Write/Edit 마다 실행했다(bash exit 127).
  * 치유기는 이미 있었지만 참조 추출 regex 가 `hooks/` 한 층으로 좁아 이 부류를 **한 번도 물지
- * 못했다**. 로컬 도그푸드가 `withEcc=false` 라 그 파일이 우연히 존재해서 영원히 안 보였다.
+ * 못했다**. 로컬 도그푸드에 그 파일이 우연히 존재해서 영원히 안 보였다. 그 훅·스킬은 ADR-088
+ * 에서 은퇴했고 **부류는 남는다** — 스킬 안의 스크립트를 부르는 배선은 언제든 다시 생긴다.
  *
  * 그래서 계약이 두 곳 바뀐다:
  *   ① 두 번째 인자가 `.claude/hooks/` → **`.claude/` 자신**. 존재 확인이 hooks 밖으로 나가야 한다.
  *   ② `removed` 원소가 파일명 → **`.claude/` 기준 상대경로**. 렌더가 이 값을 그대로 사용자에게
  *      보여주는데(`src/commands/install-render.ts` "stale hook refs · N removed"),
- *      `suggest-compact.sh` 만 찍히면 어느 것이 지워졌는지 못 찾는다.
+ *      파일명만 찍히면 어느 것이 지워졌는지 못 찾는다.
  *
  * 넓히지 **않는** 경계: `.claude/` 밖 참조는 부재여도 보존한다. 사용자 자기 스크립트를 치유기가
  * 지우면 그건 치유가 아니라 파손이다.
@@ -336,19 +336,19 @@ describe("cleanStaleHookRefs", () => {
 
   it("스킬 디렉터리 안의 스크립트 참조도 부재면 제거한다 (settings.json 이 스킬보다 넓게 깔린다)", () => {
     // withEcc=true 설치가 정확히 이 상태다: settings.json 은 있고 스킬 디렉터리는 없다.
-    writeSettings([ref("skills/strategic-compact/suggest-compact.sh")]);
+    writeSettings([ref("skills/sidecar-skill/suggest.sh")]);
 
     const removed = cleanStaleHookRefs(settingsPath, claudeDir);
 
-    expect(removed).toEqual(["skills/strategic-compact/suggest-compact.sh"]);
+    expect(removed).toEqual(["skills/sidecar-skill/suggest.sh"]);
     expect(remainingCommands()).toEqual([]);
   });
 
   it("같은 참조라도 파일이 실재하면 보존한다 (치유기가 멀쩡한 훅을 뜯으면 안 된다)", () => {
     // withEcc=false 설치. 스킬이 깔려 있으므로 훅은 살아 있어야 한다.
-    mkdirSync(join(claudeDir, "skills/strategic-compact"), { recursive: true });
-    writeFileSync(join(claudeDir, "skills/strategic-compact/suggest-compact.sh"), "#!/bin/bash\n");
-    writeSettings([ref("skills/strategic-compact/suggest-compact.sh")]);
+    mkdirSync(join(claudeDir, "skills/sidecar-skill"), { recursive: true });
+    writeFileSync(join(claudeDir, "skills/sidecar-skill/suggest.sh"), "#!/bin/bash\n");
+    writeSettings([ref("skills/sidecar-skill/suggest.sh")]);
 
     const removed = cleanStaleHookRefs(settingsPath, claudeDir);
 
@@ -1020,16 +1020,16 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
   });
 
   it("스킬을 지운 뒤 update 하면 안내에서 그 스킬이 빠진다", () => {
-    // install 시점 상태: task-brief 가 깔려 있었고 블록에 그 안내가 있다.
+    // install 시점 상태: 상시 스킬이 깔려 있었고 블록에 그 안내가 있다.
     writeFileSync(
       rootPath(),
       upsertHarnessImport("# p\n", {
         projectName: "p",
         tracks: ["tooling"],
-        continuousSkills: ["task-brief"],
+        continuousSkills: ["clear-korean-communication"],
       }),
     );
-    expect(readFileSync(rootPath(), "utf8")).toContain("`task-brief`");
+    expect(readFileSync(rootPath(), "utf8")).toContain("`clear-korean-communication`");
     // 사용자가 스킬 디렉터리를 지웠다(= 더는 깔려 있지 않다). 아무것도 안 만든다.
 
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
@@ -1047,17 +1047,17 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
       rootPath(),
       upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"], continuousSkills: [] }),
     );
-    mkdirSync(join(projectDir, ".claude/skills/task-brief"), { recursive: true });
+    mkdirSync(join(projectDir, ".claude/skills/clear-korean-communication"), { recursive: true });
     writeFileSync(
-      join(projectDir, ".claude/skills/task-brief/SKILL.md"),
-      "---\nname: task-brief\n---\n",
+      join(projectDir, ".claude/skills/clear-korean-communication/SKILL.md"),
+      "---\nname: clear-korean-communication\n---\n",
     );
 
     const first = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(first.rootBlockRefreshed).toBe(true);
     const after = readFileSync(rootPath(), "utf8");
     expect(after).toContain(NOTE);
-    expect(after).toContain("`task-brief`");
+    expect(after).toContain("`clear-korean-communication`");
 
     const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(second.rootBlockRefreshed).toBe(false);

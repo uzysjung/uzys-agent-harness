@@ -47,15 +47,8 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     expect(drEntry?.applies({ tracks: ["executive"], withEcc: true })).toBe(true);
     expect(ehEntry?.applies({ tracks: ["executive"], withEcc: true })).toBe(false);
 
-    // 잔여 C2 (strategic-compact·agent-introspection-debugging) 는 재분류가 전파되지 않았는지.
-    expect(
-      m
-        .find((e) => e.source === "skills/strategic-compact")
-        ?.applies({
-          tracks: ["tooling"],
-          withEcc: true,
-        }),
-    ).toBe(false);
+    // 잔여 C2 (agent-introspection-debugging) 는 재분류가 전파되지 않았는지. ADR-088 에서 공통
+    // C2 두 종이 은퇴해 dev 축 하나만 남았다 — 축이 비면 이 단언이 공허해지므로 이름을 적어 둔다.
     expect(
       m
         .find((e) => e.source === "skills/agent-introspection-debugging")

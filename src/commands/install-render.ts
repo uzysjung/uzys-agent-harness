@@ -17,6 +17,8 @@ import {
   type ExternalAsset,
   experimentalOptInCandidates,
   isAssetSelected,
+  RENAMED_SKILL_IDS,
+  RETIRED_SKILL_IDS,
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
 import {
@@ -672,14 +674,42 @@ function renderPhase1Rows(
     }
     // 기록에는 있는데 카탈로그에서 사라진 자산 — "갱신했다"에 섞이면 사용자는 일부만 갱신된
     // 것을 모른다.
+    //
+    // ADR-088 (#426) — 한 문구로 뭉치지 않는다. 사용자가 할 일이 셋으로 갈린다: 개명된 것은
+    // **새 이름으로 다시 받아야** 하고, 은퇴한 것은 **지워도 되고**, 나머지는 우리가 모른다.
+    // 같은 줄로 말하면 은퇴한 스킬의 새 판을 찾아 헤맨다. 매핑은 카탈로그가 소유한다.
     if (baseline.updateMode.externalSkillsNotInCatalog.length > 0) {
-      log(
-        assetRow(
-          "skip",
-          "external skills",
-          `${baseline.updateMode.externalSkillsNotInCatalog.join(", ")} · 카탈로그에 없어 갱신 대상이 아니다`,
-        ),
-      );
+      const ids = baseline.updateMode.externalSkillsNotInCatalog;
+      for (const id of ids) {
+        const renamedTo = RENAMED_SKILL_IDS[id];
+        if (renamedTo) {
+          log(
+            assetRow(
+              "skip",
+              "skills",
+              `${id} 는 ${renamedTo} 가 됐다 · update 뒤 .claude/skills/${id} 를 지우고 ${renamedTo} 를 선택해 받는다`,
+            ),
+          );
+        } else if (RETIRED_SKILL_IDS.includes(id)) {
+          log(
+            assetRow(
+              "skip",
+              "skills",
+              `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+            ),
+          );
+        }
+      }
+      const unknown = ids.filter((id) => !RENAMED_SKILL_IDS[id] && !RETIRED_SKILL_IDS.includes(id));
+      if (unknown.length > 0) {
+        log(
+          assetRow(
+            "skip",
+            "external skills",
+            `${unknown.join(", ")} · 카탈로그에 없어 갱신 대상이 아니다`,
+          ),
+        );
+      }
     }
     // 레거시 설치본 — "갱신할 게 없다"와 "무엇을 갱신할지 모른다"는 다른 사실이다.
     if (baseline.updateMode.externalSkillsUnknown) {
@@ -735,12 +765,7 @@ function renderPhase1Rows(
       );
     }
     if (cats.hooks.length > 0) {
-      phase1Row(
-        "hooks",
-        cats.hooks.length,
-        "session-start · protect-files · task-brief-nudge",
-        cats.hooks,
-      );
+      phase1Row("hooks", cats.hooks.length, "session-start · protect-files", cats.hooks);
     }
     // 2026-08-16 (ADR-073) — 라벨에서 `/ecc:*` 를 뺐다. 명령 템플릿이 하나도 남지 않아 이 행은
     // 지금 뜨지 않지만, 분류기(`.claude/commands/` 접두)는 일반형이라 명령이 다시 생기면 그대로
@@ -752,7 +777,7 @@ function renderPhase1Rows(
       phase1Row(
         "skills",
         cats.skills.length,
-        "spec-scaling · deep-research · ui-visual-review · eval-harness (modified)",
+        "deep-research · ui-visual-review · eval-harness (modified)",
         cats.skills,
       );
     }

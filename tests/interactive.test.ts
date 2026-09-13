@@ -520,8 +520,8 @@ describe("computeUserOverride", () => {
     "recurrence-prevention",
     // #353 — self-hosted-github-runner (has-dev-track 신설) 도 dev 트랙 추천 기준선에 합류.
     "self-hosted-github-runner",
-    // 2026-08-02 AC9 — task-brief (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
-    "task-brief",
+    // 2026-08-02 AC9 — objective-brief (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
+    "objective-brief",
     "verification-loop",
   ];
 

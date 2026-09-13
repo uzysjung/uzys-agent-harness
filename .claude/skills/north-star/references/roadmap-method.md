@@ -129,8 +129,8 @@ Release 완성 작업            → Parent: Initiative Exit Criterion
 
 - **audit-service-gaps** — *detects* north-star gaps end-to-end. This workflow consumes those gaps
   as the evidence in step 2.
-- **strategic-compact** / the project's ADR + plan-SSOT conventions — the persistence mechanism
-  (step 5) reuses them rather than reinventing.
+- The project's ADR + plan-SSOT conventions — the persistence mechanism (step 5) reuses them
+  rather than reinventing.
 
 > Audit and gap skills answer "what's wrong now?". This skill answers "where do we go, and in what
 > order?" — and makes the answer durable.

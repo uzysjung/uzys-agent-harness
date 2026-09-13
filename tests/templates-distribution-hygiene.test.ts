@@ -44,8 +44,13 @@ const ALL_TRACKS: ReadonlyArray<Track> = [
   "full",
 ] as ReadonlyArray<Track>;
 
-/** upstream cherry-pick 자산 — 우리가 고치면 sync 가 되돌린다. 표식 있는 면제. */
-const UPSTREAM_VENDORED = ["skills/continuous-learning-v2"];
+/**
+ * upstream cherry-pick 자산 — 우리가 고치면 sync 가 되돌린다. 표식 있는 면제.
+ *
+ * ADR-088 (#426 F-10) — 유일한 항목(학습 스킬)이 은퇴해 목록이 비었다. 상수와 아래 필터는
+ * 남긴다: 다음 vendored cherry-pick 이 들어올 자리이고, 빈 목록이면 아무것도 면제되지 않는다.
+ */
+const UPSTREAM_VENDORED: ReadonlyArray<string> = [];
 
 /** 설치 대상 = manifest 가 선언한 source 들. 디렉터리면 그 아래 전부. */
 function distributedFiles(): string[] {

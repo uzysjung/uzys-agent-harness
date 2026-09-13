@@ -12,119 +12,116 @@
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4481
+        "tokens": 4452
       },
       "firing": {
-        "items": 26,
-        "tokens": 3409
+        "items": 23,
+        "tokens": 3233
       }
     },
     "csr-supabase": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 28,
-        "tokens": 3657
+        "items": 25,
+        "tokens": 3481
       }
     },
     "csr-fastify": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 28,
-        "tokens": 3657
+        "items": 25,
+        "tokens": 3481
       }
     },
     "csr-fastapi": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 30,
-        "tokens": 3745
+        "items": 27,
+        "tokens": 3569
       }
     },
     "ssr-htmx": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 28,
-        "tokens": 3657
+        "items": 25,
+        "tokens": 3481
       }
     },
     "ssr-nextjs": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 29,
-        "tokens": 3697
+        "items": 26,
+        "tokens": 3521
       }
     },
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 4288
+        "tokens": 4259
       },
       "firing": {
-        "items": 28,
-        "tokens": 3497
+        "items": 25,
+        "tokens": 3321
       }
     },
     "executive": {
       "directive": {
         "items": 5,
-        "tokens": 3550
+        "tokens": 3521
       },
       "firing": {
-        "items": 16,
-        "tokens": 1845
+        "items": 13,
+        "tokens": 1669
       }
     },
     "full": {
       "directive": {
         "items": 8,
-        "tokens": 4481
+        "tokens": 4452
       },
       "firing": {
-        "items": 34,
-        "tokens": 4039
+        "items": 31,
+        "tokens": 3863
       }
     },
     "project-management": {
       "directive": {
         "items": 5,
-        "tokens": 3550
+        "tokens": 3521
       },
       "firing": {
-        "items": 13,
-        "tokens": 1591
+        "items": 10,
+        "tokens": 1415
       }
     },
     "growth-marketing": {
       "directive": {
         "items": 5,
-        "tokens": 3550
+        "tokens": 3521
       },
       "firing": {
-        "items": 13,
-        "tokens": 1591
+        "items": 10,
+        "tokens": 1415
       }
     }
   },
   "skillDescriptors": {
-    "strategic-compact": 46,
-    "continuous-learning-v2": 79,
     "deep-research": 70,
-    "spec-scaling": 57,
     "market-research": 86,
     "investor-materials": 92,
     "investor-outreach": 76,
@@ -137,7 +134,7 @@
     "verification-loop": 171,
     "north-star": 258,
     "gh-issue-workflow": 262,
-    "task-brief": 263,
+    "objective-brief": 269,
     "audit-harness-fit": 114,
     "model-orchestration": 273,
     "external-model-consult": 271,

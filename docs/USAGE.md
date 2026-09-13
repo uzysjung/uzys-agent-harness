@@ -113,12 +113,12 @@ catalog wires a hook of its own and `--only` does not touch the baseline. (Befor
 asset did, and `uninstall` printed the registration for you to delete by hand rather than editing a
 file that holds your own settings.)
 
-> A detail you may notice in the template: `settings.json` carries **four** hook commands, not the
-> three under [Hooks](#hooks). The fourth points into a *skill* directory —
-> `.claude/skills/strategic-compact/suggest-compact.sh` — and that skill only installs when you have
-> **not** opted into ECC. Install and update both run a healing pass that **removes any hook command
-> whose script isn't on disk**, and the summary reports it (`settings.json stale hook refs · N
-> removed`). So an `--with ecc-plugin` project ends up with three, not a dangling reference.
+> A detail worth knowing about `settings.json`: install and update both run a healing pass that
+> **removes any hook command whose script isn't on disk**, and the summary reports it
+> (`settings.json stale hook refs · N removed`). Until ADR-088 the template wired one hook that
+> lived inside a *skill* directory, and that skill stepped aside for the ECC plugin — so some
+> projects got a hook command pointing at a file they never received. The healing pass is what kept
+> that from becoming a `bash: no such file` on every edit, and it stays for any future wiring.
 
 ### Files outside `.claude/` (v26.125.0+)
 
@@ -344,8 +344,8 @@ your-project/
 |---|---|
 | `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
 | `.claude/agents/*.md` | Agent definitions (reviewer, code-reviewer, etc.) |
-| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files, task-brief-nudge) |
-| `.claude/skills/*` | Skills — the harness's own method skills (`north-star`, `task-brief`, …) plus the ones your track pre-checked |
+| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files) |
+| `.claude/skills/*` | Skills — the harness's own method skills (`north-star`, `objective-brief`, …) plus the ones your track pre-checked |
 | `.claude/settings.json` | Statusline + hooks registration |
 | `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
 | `.uzys-agent-harness/hook-blocks.log` | Written at runtime, not at install: one line per hook block. The installer adds `.uzys-agent-harness/` to `.gitignore`, so it never enters your history |
@@ -367,7 +367,6 @@ your-project/
 |---|---|---|
 | `session-start.sh` | session start | Load SPEC / Change Log context |
 | `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
-| `task-brief-nudge.sh` | UserPromptSubmit | Suggest structuring a long, unstructured request — never blocks |
 
 `protect-files.sh` is the only hook that blocks, and it appends one tab-separated line —
 `date · hook · target` — to `.uzys-agent-harness/hook-blocks.log` every time it exits 2. A failed

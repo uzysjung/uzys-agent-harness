@@ -22,7 +22,8 @@ This protocol is **snapshot-based, not append-based**:
 - Git and PR state: authoritative implementation snapshot.
 - `/compact` line: short pointer to the anchor, not another summary.
 
-> `strategic-compact` decides **when** to compact. This skill defines **how** to checkpoint.
+> Claude Code compacts on its own when the context fills up. This skill defines **how** to
+> checkpoint before that happens — or before you compact by hand.
 
 ## Goals
 
@@ -325,5 +326,4 @@ a minimal manual resume anchor in the response.
 
 ## Related skills
 
-- **strategic-compact** — decides when to compact.
 - **git-policy Session Cleanup** — defines repository and PR cleanup expectations.

@@ -55,8 +55,8 @@ export type ExternalAssetMethod =
         | "gh-issue-workflow"
         | "model-orchestration"
         | "external-model-consult"
-        // 위임·요청을 canonical 브리프 형태로 정규화 (UserPromptSubmit 넛지 훅과 한 벌).
-        | "task-brief"
+        // 위임·설계·다단계 작업의 요청을 canonical 브리프 형태로 정규화.
+        | "objective-brief"
         // 설치된 상주 조종층(앵커·룰·훅·permissions·descriptor)의 밥값 감사 — 자기유지 루프.
         | "audit-harness-fit"
         // CI 가 멈췄을 때 워크플로를 복제하지 않고 self-hosted runner 로 돌린다.
@@ -160,7 +160,9 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 62 자산 매트릭스 (#428 humanize-korean → natural-korean 개명. 그 전 #355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
+ * 62 자산 매트릭스 (#426 task-brief → objective-brief 개명 — 수는 그대로. 같은 PR 에서 은퇴한
+ * 스킬 3종(strategic-compact · continuous-learning-v2 · spec-scaling)은 카탈로그 엔트리가 아니라
+ * manifest 번들이었으므로 이 수에 없었다. 그 전 #428 humanize-korean → natural-korean 개명. 그 전 #355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전: 2026-08-17 game-engine · game-studios 추가. 그 전: 2026-08-16 preline 추가. 그 전: 2026-08-02 복원분 + task-brief·audit-harness-fit 신설. 그 전 정비: 모델이 이미 아는
  * pattern-guide·중복 번들 12종 제거
  * [impeccable·polars/dask·python 2종·c-level/business-growth/pm/marketing/research-summarizer·
  * playwright-skill·karpathy-coder] + uzys 방법론 스킬 11종을 이관 리포 npx 설치 9종으로 대체
@@ -334,20 +336,21 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     // 복원 9종이 아니라 신설이다 — 이관 이력이 없다.
     // 전 트랙인 이유: 위임과 요청 정규화는 개발 트랙의 행위가 아니라 **전 트랙의 행위**다.
-    // executive 트랙도 서브에이전트에 일을 넘기고, 그때 브리프가 없으면 완료 판정 기준 없이
-    // 넘긴다. 짝인 `task-brief-nudge.sh` 훅이 `ALWAYS_HOOKS`(전 설치본)라 스킬만 좁게 깔면
-    // 넛지가 없는 스킬을 가리킨다 — 훅과 스킬의 도달 범위는 같아야 한다.
-    id: "task-brief",
+    // executive 트랙도 서브에이전트에 일을 넘기고, 그때 브리프가 없으면 완료 판정 기준 없이 넘긴다.
+    // ADR-088 (#426 F-04) — 전신 `task-brief` 개명. 문턱이 **위임 · 설계 · 다단계(피처/프로젝트
+    //   규모 이상)** 로 좁혀졌고, 한 줄 요청마다 브리프를 권하던 매 프롬프트 넛지 훅과 상시 스킬
+    //   안내(`CONTINUOUS_SKILLS`)가 함께 빠졌다. 이름이 그 문턱을 들고 있다.
+    id: "objective-brief",
     tier: "official", // uzys 자사 스킬
     description:
-      "Task brief — normalize an incoming request into the canonical brief (objective · inputs · invariants · success criteria · boundaries · autonomy · verification) and write every delegation prompt in that same shape",
+      "Objective brief — normalize a delegation, a design task, or multi-step work at feature scale into the canonical brief (objective · inputs · invariants · success criteria · boundaries · autonomy · verification) and write every delegation prompt in that same shape",
     category: "workflow",
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },
-    method: { kind: "internal", key: "task-brief" },
+    method: { kind: "internal", key: "objective-brief" },
   },
   {
-    // task-brief 와 같은 신설이다 — 이관 이력이 없다.
+    // objective-brief 와 같은 신설이다 — 이관 이력이 없다.
     // 전 트랙인 이유: 이 하네스는 **모든 트랙에** 앵커·룰·훅을 깐다. 그 상주층이 밥값을 하는지
     // 되묻는 루프만 개발 트랙에 두면, 상주 비용은 전원이 무는데 감사는 일부만 갖는 비대칭이
     // 된다. 감사 대상이 개발 산출물이 아니라 **설치본 자신**이라 트랙 술어와 무관하다.
@@ -1126,7 +1129,7 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,
   "north-star",
   "gh-issue-workflow",
-  "task-brief",
+  "objective-brief",
   "audit-harness-fit",
   "model-orchestration",
   "external-model-consult",
@@ -1137,14 +1140,18 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
 /**
  * ADR-085 (#427) — **매 응답·매 위임에 적용되는** 번들 스킬.
  *
- * 스킬 본문은 프롬프트가 그 스킬의 일처럼 보일 때 열린다. 그건 작업형 스킬에는 충분하고 이
- * 셋에는 부족하다 — "모든 답변에" · "모든 위임에" 는 어떤 프롬프트도 닮지 않아서, 어딘가에 한
- * 줄이 없으면 영영 안 열린다(ADR-068 실측). 그 한 줄은 v26.150.0 까지 배포 앵커 꼬리절이
+ * 스킬 본문은 프롬프트가 그 스킬의 일처럼 보일 때 열린다. 그건 작업형 스킬에는 충분하고 여기
+ * 적힌 것들에는 부족하다 — "모든 답변에" · "모든 위임에" 는 어떤 프롬프트도 닮지 않아서, 어딘가에
+ * 한 줄이 없으면 영영 안 열린다(ADR-068 실측). 그 한 줄은 v26.150.0 까지 배포 앵커 꼬리절이
  * 들고 있었는데, 앵커가 전역 6원칙과 **바이트 동일**해지면서(ADR-085) 자리를 옮겼다:
  * 설치기가 **실제로 깐 스킬만** 골라 프로젝트 맥락 블록에 적는다(`renderContinuousSkillsNote`).
  * 앵커의 "where installed" 조건문보다 정확하다 — 안 깐 스킬 이름이 상주하지 않는다.
  *
  * 문장은 설치자의 에이전트가 읽는 지시문이다. 한 줄 = 언제 적용되는가 뿐, 설명·이력 없음.
+ *
+ * ADR-088 (#426 F-04) — `objective-brief`(구 `task-brief`)가 여기서 빠졌다. 그 스킬은 위임·설계·
+ * 다단계 작업에만 쓰므로 "매 응답·매 위임" 축이 아니고, 상시 안내로 두면 한 줄 요청에도 브리프가
+ * 앞섰다. 발화는 스킬 descriptor 가 맡는다.
  */
 export const CONTINUOUS_SKILLS: ReadonlyArray<{ id: string; whenToApply: string }> = [
   {
@@ -1153,15 +1160,34 @@ export const CONTINUOUS_SKILLS: ReadonlyArray<{ id: string; whenToApply: string 
       "applies to every answer, report, and approval request — a decision is presented as AS-IS → TO-BE from the position of whoever lives with the result; not only at the moment approval is asked for",
   },
   {
-    id: "task-brief",
-    whenToApply:
-      "normalize an incoming work request into the brief shape before starting, fill the fields it left open from context, and show the filled-in brief so the user can carry it straight into a prompt, marking which values were assumed",
-  },
-  {
     id: "model-orchestration",
     whenToApply:
       "when work is delegated, it decides which lane takes the work and how that lane is run",
   },
+];
+
+/**
+ * 개명된 스킬 id (old → new). ADR-088 (#426 F-04) · #428(humanize-korean → natural-korean).
+ *
+ * `update` 는 **설치된 디렉터리만** 갱신하므로 옛 id 로 깐 설치본은 그대로 남는다 — 지우지 않는
+ * 것이 현행 규율이다(남의 프로젝트 파일을 우리가 삭제하지 않는다). 그래서 화면이 대신 말한다:
+ * 무엇이 무엇으로 바뀌었고 새 판을 어떻게 받는지. 렌더는 이 맵만 읽는다(`install-render.ts`).
+ */
+export const RENAMED_SKILL_IDS: Readonly<Record<string, string>> = {
+  "task-brief": "objective-brief",
+  "humanize-korean": "natural-korean",
+};
+
+/**
+ * 은퇴한 스킬 id — 카탈로그에도 번들에도 없고 대체 id 도 없다. ADR-088 (#426 F-09 · F-10 · F-11).
+ *
+ * `RENAMED_SKILL_IDS` 와 가르는 이유: "새 이름으로 받아라"와 "이제 안 쓴다"는 사용자가 할 일이
+ * 다르다. 한 문구로 뭉치면 은퇴한 스킬의 새 판을 찾아 헤매게 된다.
+ */
+export const RETIRED_SKILL_IDS: ReadonlyArray<string> = [
+  "strategic-compact",
+  "continuous-learning-v2",
+  "spec-scaling",
 ];
 
 /**
