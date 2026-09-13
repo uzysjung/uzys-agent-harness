@@ -56,6 +56,9 @@ status: active
   - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
     제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·
     `doc-governance` 한 줄. 자산 수 62 → 59(스킬 −3), 카탈로그·lock·문서·`.claude/` 미러 동반.
+  - [x] ⓕ **audit-harness-fit 에 씬 묶음 검증 · 개발 속도 관점** (사용자 지시 2026-09-13, PR #441) — 영역 5 확장 +
+    verification 참조 "Bundle verification by completed scene". 씬 리듬 문장이 **두 곳**(Delivery 룰 · 이 스킬)에
+    있다 — 리듬을 바꿀 때는 둘 다 고친다(리뷰 지적).
   - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
     배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
     `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에

@@ -60,19 +60,23 @@ Implementation and verification follow the scene, not the edit. While a scene is
 built, run only the quick checks for the parts being changed. When the scene's changes are
 complete, bundle them and verify once from usage: the scene's observable outcome, its
 integration boundaries, the non-visible contracts it touches, and one representative
-journey. Re-verify only the parts a later change affects. Treat instructions that force a
-full run or an independent review after every edit as a finding under audit area 5 — they
-cost development speed without adding evidence — unless a required gate names that cadence
-explicitly.
+journey. Re-verify the parts a later change affects, plus anything the reuse rules below
+require a new run for; when the affected scope cannot be established confidently, widen the
+bundle check instead of narrowing it. When a scene first crosses an unproven external
+boundary, check that boundary then rather than at scene end. Treat instructions that force a
+full run or an independent review after every edit as a finding under the audit area on
+user-journey implementation and proportionate testing — they cost development speed without
+adding evidence — unless a required gate names that cadence explicitly.
 
 Bundling is not deferral. A scene is one actor reaching one observable outcome; when its
 changes outgrow what one review can hold, split it into smaller scenes rather than
-verifying later. Keep each change committed on its own so a failed bundle bisects to the
-change that broke it, and keep merge and deployment gates where they are — a scene is
-verified before it crosses either. Money, permissions, data and its migrations, and any
-irreversible operation are **separate verification targets**: they get their own
-independent check before merge regardless of how the scene is bundled, and a
-representative journey passing does not stand in for them.
+verifying later, and do not start the next scene on top of an unverified one. Keep each
+change committed on its own so a failed bundle bisects to the change that broke it, and
+keep merge and deployment gates where they are — a scene is verified before it crosses
+either. The non-visible contracts listed above — money and payments, permissions, data and
+its migrations, and any irreversible operation among them — are **separate verification
+targets**: they get their own independent check before merge regardless of how the scene is
+bundled, and a representative journey passing does not stand in for them.
 
 ## Reuse evidence with explicit invalidation
 
