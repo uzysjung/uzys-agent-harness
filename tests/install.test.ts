@@ -1395,6 +1395,40 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
   });
 });
 
+// ADR-084 — FILL 힌트의 populate 안내는 `audit-harness-fit` 이 **실제로 깔린 경우에만** 붙는다.
+// 독립 리뷰(#432) 가 이 분기를 덮는 테스트가 없다고 지적했다 — 안 깔린 스킬을 부르라는 안내는
+// "advertised ≠ real" 이라 양 분기를 다 잰다.
+describe("renderFinalSummary FILL row — populate 안내는 깔린 경우에만 (ADR-084)", () => {
+  const base: InstallSpec = {
+    tracks: ["tooling"],
+    options: { withPrune: false, withCodexTrust: false },
+    cli: ["claude"],
+    projectDir: "/p",
+  };
+
+  async function fillRow(spec: InstallSpec): Promise<string> {
+    const { renderFinalSummary } = await import("../src/commands/install-render.js");
+    const lines: string[] = [];
+    renderFinalSummary((m) => lines.push(m), spec, fakeReport, false);
+    return lines.find((l) => l.includes("FILL")) ?? "";
+  }
+
+  it("기본 설치(any-track 이라 깔린다) → populate 안내가 붙는다", async () => {
+    const row = await fillRow(base);
+    expect(row).toContain("FILL: … -->");
+    expect(row).toContain("audit-harness-fit");
+  });
+
+  it("--without audit-harness-fit → 안내가 없고 기존 문장은 그대로", async () => {
+    const row = await fillRow({
+      ...base,
+      userOverride: { forceInclude: [], forceExclude: ["audit-harness-fit"] },
+    });
+    expect(row).toContain("FILL: … -->");
+    expect(row).not.toContain("audit-harness-fit");
+  });
+});
+
 describe("renderFinalSummary NEXT row (audit UX-2)", () => {
   // WHY: /uzys:* 6-Gate 슬래시 명령이 제거됐다. NEXT 행은 더 이상 존재하지 않는
   //   `claude → /uzys:spec` 로 첫 가치를 유도하면 안 된다 (no-false-ship dead-end).

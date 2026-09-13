@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-02
 - PR: #273
+- Amended by: ADR-084 (2026-09-13) — Decision 1·2(5단계 · 3근거 판정 프레임)는 대체됐다. 3·4(전 트랙 기본 · 임의 프로젝트 동작)는 현행
 - Context: 사용자 제안(2026-08-02) — "공식 문서 2편(prompting-claude-opus-5 ·
   claude-code-power-user-tips)의 CLAUDE.md·rule·hook 관점을 기반으로 하네스 정리 스킬".
   두 문서는 반대 방향의 루프 한 쌍이다: power-user-tips 는 축적 루프(실수→CLAUDE.md 추가,

@@ -351,10 +351,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 전 트랙인 이유: 이 하네스는 **모든 트랙에** 앵커·룰·훅을 깐다. 그 상주층이 밥값을 하는지
     // 되묻는 루프만 개발 트랙에 두면, 상주 비용은 전원이 무는데 감사는 일부만 갖는 비대칭이
     // 된다. 감사 대상이 개발 산출물이 아니라 **설치본 자신**이라 트랙 술어와 무관하다.
+    // ADR-084 (#425) — 2판. 판정 근거가 공식 체크리스트 인용에서 **확정된 의도 + 리포 실증**으로
+    //   바뀌었고, 모드 4개(audit · verification · apply · populate)를 SKILL.md 가 references 로
+    //   라우팅한다. 비-Claude CLI 도 디렉터리째 받는 것이 전제다(#431).
     id: "audit-harness-fit",
     tier: "official", // uzys 자사 스킬
     description:
-      "Audit harness fit — audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context, judged by published criteria, block logs, and measurement; relocate procedures to skills, guarantees to hooks/permissions, derivable facts to code",
+      "Audit harness fit — audit or clean up agent instructions and skills: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire low-value rules and skills, move decision history out of resident text, right-size user-journey verification; also fill or refresh AGENTS.md / CLAUDE.md project context from repository evidence",
     category: "workflow",
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },

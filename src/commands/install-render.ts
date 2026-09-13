@@ -391,10 +391,18 @@ export function renderFinalSummary(
   log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
   const scaffoldFiles = scaffoldFilesForCli(spec.cli);
   if (scaffoldFiles.length > 0) {
+    // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
+    // **실제로 깔린 경우에만** 말한다: 안 깔린 스킬을 부르라는 안내는 "advertised ≠ real" 이다.
+    // 설치 여부는 설치기와 같은 spec 으로 센다(위 ASSETS 줄과 같은 이유).
+    const auditInstalled =
+      buildManifestSpec(spec).selectedInternalSkills?.includes("audit-harness-fit");
+    const populateHint = auditInstalled
+      ? `, or ask the ${c.bold("audit-harness-fit")} skill to fill it from repository evidence`
+      : "";
     log(
       infoRow(
         "FILL",
-        `${scaffoldFiles.map((f) => c.bold(f)).join(" · ")} — a fill-in scaffold. Open and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor it to this project`,
+        `${scaffoldFiles.map((f) => c.bold(f)).join(" · ")} — a fill-in scaffold. Open and paste each ${c.bold("<!-- FILL: … -->")} prompt to your agent to tailor it to this project${populateHint}`,
       ),
     );
   }
