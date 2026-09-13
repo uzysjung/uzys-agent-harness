@@ -26,7 +26,7 @@ status: active
 
 ## 순서 — PR 5개, 각각 독립 리뷰
 
-- [ ] **① 자연스러운 한국어 스킬 (#428)** — `humanize-korean` → `natural-korean` 로 **이름을 바꾸고**
+- [x] **① 자연스러운 한국어 스킬 (#428)** — PR #430 — `humanize-korean` → `natural-korean` 로 **이름을 바꾸고**
   본문을 첨부 SKILL.md 로 교체. 배선·테스트·문서·`.claude/` 미러 동반. 옛 id 를 고른 설치자가 `update`
   때 `notInCatalog` 로 떨어지는지 확인하고 떨어지면 안내 한 줄. 자산 수 62 유지.
 - [ ] **② 충돌 해소 스킬 (#425)** — 첨부 zip 을 `templates/skills/audit-harness-fit/` 에 **같은 id 로 통합**
