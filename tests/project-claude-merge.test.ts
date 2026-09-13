@@ -112,12 +112,16 @@ describe("mergeProjectClaude — the delivered project-root CLAUDE.md", () => {
  *     끊긴 참조가 남는다.
  */
 describe("upsertHarnessImport / stripHarnessImport — 구현 중 드러난 경계", () => {
-  it("마커 블록이 있으면 안쪽 import 줄이 사라졌어도 블록을 또 붙이지 않는다", () => {
+  it("마커 블록이 있으면 블록을 또 붙이지 않고 **그 안만** 현행으로 되돌린다 (ADR-085)", () => {
     const once = upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"] });
     // 사용자가 블록 안쪽 줄만 지운 상태 (마커는 남아 있다).
     const edited = once.replace("\n@CLAUDE-uzys-harness.md", "");
     const out = upsertHarnessImport(edited, { projectName: "p", tracks: ["tooling"] });
-    expect(out).toBe(edited);
+    // 마커 안은 하네스 소유다 — 상시 스킬 안내가 선택에 따라 바뀌어야 하므로 블록 본문을
+    // 다시 렌더한다. 그 결과 지워진 import 줄도 돌아온다. 하네스를 빼려면 블록째 지운다(strip).
+    // 2026-09-13 전에는 "안쪽만 지운 상태를 그대로 둔다"였다 — 그때는 블록 안이 한 줄뿐이라
+    // 현행화할 것이 없었다.
+    expect(out).toBe(once);
     expect(out.split("<!-- uzys-harness:import:start -->")).toHaveLength(2); // 블록 1개
   });
 

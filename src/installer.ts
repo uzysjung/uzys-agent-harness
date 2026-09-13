@@ -785,7 +785,11 @@ function installClaudeBaseline(
   writeInstalledTracks(projectDir, manifestSpec.tracks);
 
   // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
-  const rootClaudeMd = writeRootClaudeMd(projectDir, manifestSpec.tracks);
+  const rootClaudeMd = writeRootClaudeMd(
+    projectDir,
+    manifestSpec.tracks,
+    manifestSpec.selectedInternalSkills ?? [],
+  );
   result.rootClaudeMd = { tracks: manifestSpec.tracks, created: rootClaudeMd.created };
   // 무결성 기록의 대상은 **하네스 앵커 파일**이다 (루트 CLAUDE.md 가 아니다) — uninstall 이
   // 회수하는 것도, update 가 갱신하는 것도 그 파일뿐이라 소유를 주장할 수 있는 것도 그것뿐이다.
@@ -1005,10 +1009,18 @@ function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>)
  * 사용자 본문은 그대로 남고 우리 블록만 추가되며, uninstall 이 그 블록만 도로 걷어간다.
  * (`.mcp.json`·`.gitignore` 처럼 사용자 파일에 병합하는 다른 산출물과 같은 방침이다.)
  */
-function writeRootClaudeMd(projectDir: string, tracks: ReadonlyArray<Track>): { created: boolean } {
+function writeRootClaudeMd(
+  projectDir: string,
+  tracks: ReadonlyArray<Track>,
+  continuousSkills: ReadonlyArray<string>,
+): { created: boolean } {
   const target = join(projectDir, "CLAUDE.md");
   const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
-  const content = upsertHarnessImport(existing, { projectName: basename(projectDir), tracks });
+  const content = upsertHarnessImport(existing, {
+    projectName: basename(projectDir),
+    tracks,
+    continuousSkills,
+  });
   // 이미 import 가 있으면 upsert 가 입력을 그대로 돌려준다 — 그때는 파일을 만지지 않는다.
   if (content !== existing) {
     writeFileSync(target, content);

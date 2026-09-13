@@ -25,7 +25,7 @@ import {
 import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { CONTINUOUS_SKILLS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
 import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
@@ -533,6 +533,11 @@ function upsertRootImport(projectDir: string): boolean {
   const next = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
     tracks: installedTracks(projectDir),
+    // ADR-085 — update 는 선택 목록을 인자로 받지 않는다. `syncSkills` 와 같은 판정을 쓴다:
+    // `.claude/skills/<id>` 가 있으면 그 스킬은 이 설치가 고른 것이다.
+    continuousSkills: CONTINUOUS_SKILLS.map((s) => s.id).filter((id) =>
+      existsSync(join(projectDir, ".claude/skills", id)),
+    ),
   });
   if (next === existing) return false;
   writeFileSync(target, next);

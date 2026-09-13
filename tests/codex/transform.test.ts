@@ -64,6 +64,28 @@ describe("runCodexTransform (E2E against templates/)", () => {
     //   검증 대상은 라우팅(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
     const DEV_METHOD = ["compaction-handoff", "eval-harness"];
 
+    // ADR-085 — 상시 스킬 안내는 AGENTS.md 프로젝트 맥락에, 깔린 것만.
+    it("상시 스킬을 골랐을 때만 AGENTS.md 에 안내 절이 붙는다", () => {
+      const NOTE = "## Skills that apply continuously";
+      runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: ["task-brief", ...DEV_METHOD],
+        baseline: new Map(),
+      });
+      const withNote = readFileSync(join(project, "AGENTS.md"), "utf8");
+      expect(withNote).toContain(NOTE);
+      expect(withNote).toContain("`task-brief`");
+      expect(withNote).not.toContain("`compaction-handoff`"); // 상시 스킬이 아니다
+      runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: DEV_METHOD,
+        baseline: new Map(),
+      });
+      expect(readFileSync(join(project, "AGENTS.md"), "utf8")).not.toContain(NOTE);
+    });
+
     it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,

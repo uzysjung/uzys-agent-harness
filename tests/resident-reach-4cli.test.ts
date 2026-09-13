@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { CONTINUOUS_SKILLS } from "../src/external-assets.js";
 import { runInstall } from "../src/installer.js";
 import { buildManifest, resolveRules } from "../src/manifest.js";
 import { CLI_BASES, type CliBase, DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
@@ -165,6 +166,63 @@ describe("탐지기 자기검증", () => {
     expect(CLI_BASES.length).toBe(4);
     for (const cli of CLI_BASES) {
       expect(installed.get(cli)?.files.length ?? 0, `${cli} 설치 산출물 0개`).toBeGreaterThan(5);
+    }
+  });
+});
+
+/**
+ * ADR-085 — 상시 스킬 안내의 도달. 배포 앵커가 전역 6원칙과 바이트 동일해지며 앵커에서 빠진
+ * `Skills that apply continuously` 를 설치기가 **깔린 스킬만** 골라 프로젝트 맥락에 쓴다. 생성물이라
+ * 템플릿 파일을 훑는 reachability 게이트의 모집단 밖이고, 도달은 여기서 실설치로 잰다.
+ *
+ * 자리: Claude Code 는 루트 `CLAUDE.md` 의 관리 블록(그 파일이 앵커를 import 한다), Codex·OpenCode 는
+ * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `task-brief`(any-track)를 항상 깔므로
+ * 안내가 있어야 하고, 세 상시 스킬을 전부 빼면(음성 대조) 안내 절이 한 CLI 에도 없어야 한다.
+ */
+describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만 (ADR-085)", () => {
+  const NOTE = "## Skills that apply continuously";
+  const NOTE_DESTINATION: Record<CliBase, (f: string) => boolean> = {
+    claude: (f) => f === "CLAUDE.md",
+    codex: (f) => f === "AGENTS.md",
+    opencode: (f) => f === "AGENTS.md",
+    antigravity: (f) => f.startsWith(".agents/rules/"),
+  };
+  const noteReaches = (inst: Installed, cli: CliBase): boolean =>
+    [...inst.text].some(([p, body]) => NOTE_DESTINATION[cli](p) && body.includes(NOTE));
+
+  it("canary — 안내 절은 앵커 원본에 없다 (있으면 도달 판정이 앵커 임베드와 구분되지 않는다)", () => {
+    expect(readFileSync(join(ROOT, "templates/CLAUDE.md"), "utf8")).not.toContain(NOTE);
+    expect(CONTINUOUS_SKILLS.map((s) => s.id)).toContain("task-brief");
+  });
+
+  for (const cli of CLI_BASES) {
+    it(`${cli}: 상시 스킬을 깐 설치본의 로딩 경로에 안내가 있다`, () => {
+      const inst = installed.get(cli);
+      if (!inst) throw new Error(`설치 산출물 없음: ${cli}`);
+      expect(noteReaches(inst, cli), `${cli} 에 상시 스킬 안내 미도달`).toBe(true);
+      expect([...inst.text.values()].some((b) => b.includes("`task-brief`"))).toBe(true);
+    });
+  }
+
+  it("음성 대조 — 상시 스킬 3종을 전부 빼면 어느 CLI 에도 안내 절이 없다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "reach-no-continuous-"));
+    runInstall({
+      harnessRoot: ROOT,
+      projectDir: dir,
+      spec: {
+        cli: [...CLI_BASES],
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS },
+        projectDir: dir,
+        userOverride: { forceInclude: [], forceExclude: CONTINUOUS_SKILLS.map((s) => s.id) },
+      },
+      runExternal: null,
+    });
+    const inst = snapshot(dir);
+    // 설치 자체는 됐다 — 0건 통과 방지.
+    expect(inst.files.length).toBeGreaterThan(5);
+    for (const cli of CLI_BASES) {
+      expect(noteReaches(inst, cli), `${cli}: 뺀 스킬의 안내가 남아 있다`).toBe(false);
     }
   });
 });

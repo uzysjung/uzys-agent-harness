@@ -1,8 +1,9 @@
 # ADR-068: 배포 앵커를 7원칙 판단 문서로 좁힌다
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-10
 - PR: #288
+- Superseded by: ADR-085 (2026-09-13) — 배포 앵커는 사용자의 전역 6원칙과 바이트 동일. 상시 스킬 안내는 설치기가 프로젝트 블록에 쓴다
 - Supersedes: 없음 (ADR-055 의 앵커 5요소 절과 ADR-060 의 앵커 도입을 **유지한 채** 본문을 교체한다)
 
 ## Context
