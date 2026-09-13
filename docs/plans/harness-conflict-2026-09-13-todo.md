@@ -29,13 +29,13 @@ status: active
 - [x] **① 자연스러운 한국어 스킬 (#428)** — PR #430 — `humanize-korean` → `natural-korean` 로 **이름을 바꾸고**
   본문을 첨부 SKILL.md 로 교체. 배선·테스트·문서·`.claude/` 미러 동반. 옛 id 를 고른 설치자가 `update`
   때 `notInCatalog` 로 떨어지는지 확인하고 떨어지면 안내 한 줄. 자산 수 62 유지.
-- [ ] **② 충돌 해소 스킬 (#425)** — 첨부 zip 을 `templates/skills/audit-harness-fit/` 에 **같은 id 로 통합**
+- [x] **② 충돌 해소 스킬 (#425)** — PR #432 (전제 #431 = PR #434) — 첨부 zip 을 `templates/skills/audit-harness-fit/` 에 **같은 id 로 통합**
   (SKILL.md + references 4 + README + evals). `official-criteria.md` 와 인용 원장 게이트는 **은퇴**(ADR-084
   가 ADR-066 을 supersede · ADR-064 amend). 테스트는 뜻을 안 읽는 형태로 재작성: 라우팅 링크 실재 ·
   100줄 초과 참조의 TOC · 리포 전용 경로 부재 · 미러 바이트 동일 · 카탈로그 배선. 카탈로그 `description`
   갱신. 설치 후 FILL 안내(`install-render.ts:396`)에 스킬이 깔린 경우에만 "populate" 한 줄.
   **선행 조건**: 비-Claude CLI 3종이 스킬 **디렉터리 전체**를 복사하게 고친다(신규 이슈, 아래 D3).
-- [ ] **③ 앵커 동일화 — 고객 앵커 = 전역 6원칙 (#427-A, #418 흡수)** — `templates/CLAUDE.md` 를 #427 본문으로
+- [x] **③ 앵커 동일화 — 고객 앵커 = 전역 6원칙 (#427-A, #418 흡수)** — `templates/CLAUDE.md` 를 #427 본문으로
   **바이트 동일** 교체(꼬리 2절 제거). 상시 스킬 안내(`clear-korean-communication` · `task-brief` ·
   `model-orchestration`)는 설치기가 만드는 프로젝트 블록의 `Installed Harness Assets` 절로 옮겨 **실제로 설치된
   것만** 적는다. ASIS→TOBE 형식은 `clear-korean-communication` 스킬이 소유. ADR 1건이 ADR-055 · ADR-068 을
@@ -43,7 +43,7 @@ status: active
   이 리포 `.claude/CLAUDE.md`: "테스트는 구현이 아닌 레인이 쓴다"(사용자가 2026-07-26 기각한 축) ·
   "구현은 implementer 에 위임"(#427 §6 은 비용 대비로 위임) 두 문장을 #427 에 맞춘다. 루트 `CLAUDE.md`
   는 사실만 담고 있어 충돌 0(확인).
-- [ ] **④ 전체 하네스 충돌 감사 (#426)** — ②의 스킬을 **이 리포에** 읽기 전용으로 돌린다. 대상 = 4 CLI
+- [x] **④ 전체 하네스 충돌 감사 (#426)** — 보고서 `docs/plans/harness-conflict-audit-2026-09-13.md` (HIGH 2 · MED 6 · LOW 5 · 보류 3) — ②의 스킬을 **이 리포에** 읽기 전용으로 돌린다. 대상 = 4 CLI
   설치 렌더(임시 디렉터리 4개, `runInstall`) + 이 리포 `.claude/`. 산출물 = `docs/plans/harness-conflict-audit-2026-09-13.md`
   (F-xx 기록: 원문 양쪽 · 상황 · 수정안 · 확인/미확인 경로). 파일 수정 없음.
 - [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 중 사용자가 확정한 것을
