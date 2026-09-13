@@ -47,7 +47,8 @@ const RULE_CANARIES: ReadonlyArray<readonly [string, string]> = [
   ["test-policy", "omitting one only when failure on it is not plausible"],
   ["ship-checklist", "무엇으로 검증할지는 이 저장소가 정한다"],
   ["doc-governance", "한 사실의 기준 문서는 하나다"],
-  ["change-management", "합의된 범위와 완료 기준 안에서는"],
+  // 2026-09-13 (2차 감사 G-05) — 앵커 §6 과 중복이던 1항을 지워 canary 를 정책 줄(인간 결정 경계)로 옮겼다.
+  ["change-management", "임의로 바꾸지 않고 인간 결정을 받는다"],
   ["cli-development", "빈 결과는 부재의 증거가 아니다"],
 ];
 
