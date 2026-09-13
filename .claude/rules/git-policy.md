@@ -22,7 +22,7 @@
 
 ## Post-Merge Cleanup
 
-`gh pr merge <num> --squash --delete-branch`(repo settings 의 "Automatically delete head branches" 가 켜져 있으면 `--delete-branch` 생략 가능 — 둘 중 하나는 항상 적용) → `git checkout main && git pull --ff-only` → `git branch -d <branch>`(squash merge 후의 "unmerged" 경고는 같은 변경임을 확인한 뒤 `-D`).
+머지는 squash, 브랜치는 삭제한다(로컬·원격 둘 다).
 
 ## 보고 형식 — "build/verify/review gate ✓" ≠ "main 반영"
 

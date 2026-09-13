@@ -29,7 +29,7 @@ export interface BaselineTarget {
   /** `baseline:<kind>/<name>` — 위저드 체크 값이자 `--without` 인자. */
   id: string;
   kind: BaselineKind;
-  /** 사용자에게 보이는 이름 (`git-policy`, `reviewer`, `protect-files`, `deep-research`). */
+  /** 사용자에게 보이는 이름 (`git-policy`, `reviewer`, `protect-files`, `north-star`). */
   name: string;
 }
 

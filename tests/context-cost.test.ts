@@ -62,8 +62,10 @@ const scaffoldTokens = (): number =>
  * 설명 확장이 아니다. 종당 평균 ~236 은 이관 전 8종 시절(~226/종, v26.103.0 실측 1,809/8)과
  * 같은 자릿수다 — description 이 원본 verbatim 트리거 발화를 되찾았는데도 종당 비용은
  * 안 불었다는 뜻이라 이 상향은 "스킬이 늘어난 만큼"에 그친다.
+ * 실측 2026-09-14 (ADR-090, #452): `verification-loop` 은퇴로 코어 5종 = ~1,122 tokens.
+ * 예산 = 1,200 으로 재조임 (여유 ~7% — 줄었으면 예산도 낮춘다는 같은 ratchet 규칙).
  */
-const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1500;
+const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1200;
 
 describe("context-cost primitives", () => {
   it("estimates tokens at chars/4 rounded up", () => {
@@ -562,7 +564,9 @@ describe("상주 계측 ↔ 실제 설치 (#320 재발 방지)", () => {
     // 값을 뽑지 않고 손으로 적혀 있다는 것이 여기서는 장점이다.
     const { measured, selected } = measuredVsInstalled("tooling");
     expect(selected, "buildAssetSpec 이 번들 스킬을 하나도 안 고른다").toBeGreaterThan(0);
-    expect(measured, "상주 스킬 계측이 0 이다").toBeGreaterThan(selected);
+    // ADR-090 (#452) 이전에는 `measured > selected` 였다 — 카탈로그 엔트리 없이 깔리던 ECC 파생
+    // 스킬이 tooling 상주에 섞여 있었기 때문이다. 그 셋이 은퇴해 두 집합이 겹친다.
+    expect(measured, "상주 스킬 계측이 0 이다").toBeGreaterThanOrEqual(selected);
   });
 });
 
@@ -584,11 +588,14 @@ describe("상주 항목 수 (quantity 축)", () => {
     // 1종은 무조건 설치였다). 개수가 조용히 늘거나 주는 것을 막는 자리라 값을 적어 둔다.
     // ADR-089 (#445) — 리뷰 에이전트 2종 은퇴로 agent 수가 **전 트랙** 2 줄었다(둘 다 트랙
     // 무관 C2 폴백이었다). 벤더 기본 `/code-review`·`/security-review` 와 하는 일이 같았다.
-    ["executive", { rules: 3, skills: 8, agents: 3, claudeMd: 2, total: 16 }],
-    ["tooling", { rules: 6, skills: 14, agents: 7, claudeMd: 2, total: 29 }],
+    // ADR-090 (#452) — 스킬 축: 은퇴 4종 중 트랙별로 걸리는 만큼 준다(executive 1 · tooling 4 ·
+    // full 4). 에이전트 축: 은퇴 3종 + 트랙 조건부 강등 2종으로 tooling 이 7 → 2 가 됐고,
+    // full 은 강등분을 도로 받아 4 다. executive 는 strategist 만 받아 2.
+    ["executive", { rules: 3, skills: 7, agents: 2, claudeMd: 2, total: 14 }],
+    ["tooling", { rules: 6, skills: 10, agents: 2, claudeMd: 2, total: 20 }],
     // 2026-08-12 — `playwright-launch` 가 `ui-visual-review` 스킬로 흡수돼 UI 트랙 룰이 0이 됐다.
     // full 의 룰이 7 → 6 이고 총합도 하나 준다 (스킬 수는 그대로 — 흡수된 곳이 이미 있던 스킬이다).
-    ["full", { rules: 6, skills: 22, agents: 7, claudeMd: 2, total: 37 }],
+    ["full", { rules: 6, skills: 18, agents: 4, claudeMd: 2, total: 30 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

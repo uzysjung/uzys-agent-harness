@@ -419,23 +419,22 @@ Rules are written regardless (foundational context); dev-method skills are core 
 ECC lives in `affaan-m/everything-claude-code`. There are two ways it reaches your project, and
 they are mutually exclusive by design:
 
-- **Cherry-picked copies** (what you get when you do *not* opt into ECC): up to 4 agents and
-  10 skills are copied into `.claude/` as ordinary files. "Up to" because most are gated on track —
-  a `tooling` project sees fewer than a `full` one.
+- **Cherry-picked copies** (what you get when you do *not* opt into ECC): up to 7 skills are
+  copied into `.claude/` as ordinary files. "Up to" because every one of them is gated on track —
+  a `tooling` project gets none, a `full` one gets all 7. No agents are cherry-picked any more
+  (ADR-090 retired the last two).
 - **The plugin itself** (`--with ecc-plugin`): 60 agents · 230 skills · 75 commands, installed by
-  `claude plugin install ecc@ecc`. Pick ECC **at install time** and those 4 agents and 10 skills are
-  never copied, so you don't carry two versions of the same agent. Add `--with-prune` to trim the
+  `claude plugin install ecc@ecc`. Pick ECC **at install time** and those 7 skills are never
+  copied, so you don't carry two versions of the same skill. Add `--with-prune` to trim the
   plugin to a curated subset.
 
 > **Turning ECC on later does not remove copies you already have.** The gate decides what gets
 > *written*; nothing deletes what an earlier run wrote. Measured on a `full`-track project: install
-> without ECC, then either `install --with ecc-plugin` over it (add) or `update` — all 14 copies are
-> still in `.claude/`, and you do carry two versions until you delete them yourself. `uninstall
+> without ECC, then either `install --with ecc-plugin` over it (add) or `update` — every copy an
+> earlier run wrote is still in `.claude/`, and you do carry two versions until you delete them
+> yourself. `uninstall
 > --only` cannot do it either: it works from the install log's catalog assets, and these are
 > baseline files. A fresh install with ECC selected is the one path where the sentence above holds.
-
-Two ECC-derived skills install **either way**: `deep-research` and `eval-harness` are modified
-here, so the plugin's versions cannot stand in for them.
 
 See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-pick-plugin-gating.md).
 

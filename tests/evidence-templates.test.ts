@@ -1,20 +1,18 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildManifest, MODIFIED_ECC_SKILL_DIRS } from "../src/manifest.js";
 
-// v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) 로 시작했고, **2026-08-30 재판정(#363)에서
-// 성격이 바뀌었다**: 스킬 본문의 문구를 읽던 3블록을 걷어내고, 돌려서 판정되는 것만 남겼다.
-// 남은 계약 = 카탈로그 배선(`applies()`) · PRD 분류표↔코드 대조 · 코드펜스 균형 ·
-// 룰 인벤토리↔실파일 1:1 · `templates/` ↔ `.claude/` 바이트 동일. 사유는 describe 안 주석.
+// v26.114.0 (ADR-042, 라이프사이클 자산화 ⑥) 로 시작했고 두 번 성격이 바뀌었다. **2026-08-30
+// 재판정(#363)**: 스킬 본문의 문구를 읽던 3블록을 걷고 돌려서 판정되는 것만 남겼다.
+// **ADR-090 (#452)**: 남은 계약 중 ECC C3 축(카탈로그 배선 · PRD 분류표 대조 · 두 사본 바이트
+// 동일)은 그 대상 자산이 전부 은퇴해 사라졌다 — C3 축의 재등장은 `tests/manifest.test.ts` ·
+// `tests/vnv-verdict.test.ts` 가 빈 목록 단언으로 지킨다.
+// 남은 계약 = 배포 스킬의 코드펜스 균형(형식 파손) · 룰 인벤토리↔실파일 1:1.
 
 const read = (rel: string): string =>
   readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 
-const slice = (text: string, start: string, end: string): string =>
-  (text.split(start)[1] ?? "").split(end)[0] ?? "";
-
-describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
+describe("배포 자산 형식 계약 (구 라이프사이클 ⑥)", () => {
   // ── 2026-08-30 재판정(#363): 문구 단언 3블록을 걷었다 ──────────────────────────
   // 걷어낸 것 = `deep-research` 원장 마커(`killed`·`Why rejected`·`Caveats`)·"kill 0 은
   // 재검토 신호"(`Zero kills`)·`eval-harness` 의 eval spec 필드(`C1..Cn`·`Baseline`·
@@ -27,68 +25,27 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
   // 그 우회를 막지 못한다 — 슬라이스 안에서 문장을 뒤집으면 낱말은 그대로다.
   // 자산 본문의 뜻은 `npm run assets:history` 로 이력을 읽어 사람·에이전트가 판정한다.
   //
-  // 남긴 5블록은 뜻을 안 읽는다: `applies()` 실행 결과 · PRD 분류표↔코드 목록 대조 ·
-  // 코드펜스 균형(형식 파손) · 룰 인벤토리↔실파일 1:1 · 두 사본 바이트 동일.
+  // 남긴 블록은 뜻을 안 읽는다: 코드펜스 균형(형식 파손) · 룰 인벤토리↔실파일 1:1.
 
   // 2026-08-04 (#284) — `benchmark-parity` 룰의 dogfood 계약 검증이 여기 있었다. 룰이 배포에서
   // 빠지면서 함께 제거됐다: 그 룰이 담던 gap.md 표 스키마·PR 의무 필드·walkthrough 절차는 그
   // 작업을 할 때만 필요한데 매 세션 상주했고, 같은 일을 `audit-service-gaps` 스킬이 담당한다.
   // 룰이 되살아나면 `tests/manifest.test.ts` 가 잡는다 (상주로 되돌아가는 것이 회귀다).
 
-  it("C2→C3 재분류: deep-research·eval-harness 는 withEcc 무관 install (수정본)", () => {
-    // 수정본을 C2 로 두면 plugin ON 사용자는 원장/eval 계약이 없는 ECC 판만 받는다
-    // → "코드화됨" 광고가 그 사용자에게 거짓 (no-false-ship). ADR-019 분류상 C3.
-    const m = buildManifest({ tracks: ["tooling"] });
-    const drEntry = m.find((e) => e.source === "skills/deep-research");
-    const ehEntry = m.find((e) => e.source === "skills/eval-harness");
-    expect(drEntry?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
-    expect(ehEntry?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
-    // deep-research = 전 트랙 / eval-harness = dev 트랙 유지
-    expect(drEntry?.applies({ tracks: ["executive"], withEcc: true })).toBe(true);
-    expect(ehEntry?.applies({ tracks: ["executive"], withEcc: true })).toBe(false);
-
-    // 잔여 C2 (agent-introspection-debugging) 는 재분류가 전파되지 않았는지. ADR-088 에서 공통
-    // C2 두 종이 은퇴해 dev 축 하나만 남았다 — 축이 비면 이 단언이 공허해지므로 이름을 적어 둔다.
-    expect(
-      m
-        .find((e) => e.source === "skills/agent-introspection-debugging")
-        ?.applies({
-          tracks: ["tooling"],
-          withEcc: true,
-        }),
-    ).toBe(false);
-  });
-
-  it("PRD 분류표의 C3 행 ↔ 코드의 C3 목록 일치 (3중 동기 의무 구조화)", () => {
-    // ADR-019 는 분류가 "코드 주석 + ADR + PRD 표" 3중으로 동기돼야 한다고 규정하지만,
-    // 강제 수단이 없어 v26.113.0(SOD F2)·v26.114.0 두 릴리즈 연속으로 표가 stale 했다.
-    // 재발 = 이전 대책(주석 경고)의 실패 → 한 레벨 위로 에스컬레이션 (recurrence-prevention).
-    // 같은 목록 2곳 하드코딩은 derive 또는 대조 테스트 없이 머지 금지 (no-false-ship).
-    const prd = read("../docs/PRD/v26-58-cherry-pick-plugin-gating.md");
-    const table = slice(prd, "### 22개 분류 확정", "###");
-    const c3InTable = new Set(
-      [
-        ...table.matchAll(
-          /^\| ecc-[^|]*\| ecc\/(?:\.agents\/)?skills\/([^/]+)\/[^|]*\|(?:[^|]*\|){3}\s*\*\*C3\*\*/gm,
-        ),
-      ].map((m) => m[1] as string),
-    );
-    // 코드의 C3 = ECC 출처 스킬 전체. 표에 없는 것(karpathy hook 등 별개 source)은 대상 아님.
-    for (const sd of MODIFIED_ECC_SKILL_DIRS) {
-      expect(c3InTable, `PRD 분류표가 ${sd} 를 C3 로 표기해야 한다`).toContain(sd);
-    }
-    // 역방향 — 표만 C3 이고 코드는 C2 인 유령 행도 차단.
-    for (const sd of c3InTable) {
-      expect(MODIFIED_ECC_SKILL_DIRS, `코드가 ${sd} 를 C3 로 배선해야 한다`).toContain(sd);
-    }
-  });
-
   it("배포 자산의 마크다운 펜스가 균형 — 중첩 코드블록이 바깥 블록을 조기 종료하지 않는다", () => {
     // SOD F1 실증: eval-harness 템플릿 안에 ```bash 를 중첩했더니 그 닫는 펜스가 **바깥**
     // ```markdown 을 닫아, 이후 산문과 기존 헤딩까지 코드로 렌더됐다. 계약 테스트는 전부
     // toContain 이라 코드블록 안 텍스트로도 통과 — 형식 파손을 아무도 못 잡았다.
     // 중첩 시 바깥 펜스는 백틱 4개 이상이어야 한다 (CommonMark: 닫는 펜스는 정보 문자열 없음).
-    for (const rel of ["skills/eval-harness/SKILL.md", "skills/deep-research/SKILL.md"]) {
+    // ADR-090 (#452) — 표본 두 종이 은퇴했다. 이름을 다시 열거하는 대신 **배포되는 스킬
+    // 전량을 훑는다** — 열거 사본은 자산이 바뀔 때마다 뒤처지고, 뒤처진 목록은 새 자산의
+    // 형식 파손을 아무도 안 본다.
+    const skillsDir = fileURLToPath(new URL("../templates/skills", import.meta.url));
+    const rels = readdirSync(skillsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => `skills/${e.name}/SKILL.md`);
+    expect(rels.length, "배포 스킬이 0건 — 이 게이트가 무의미해진다").toBeGreaterThan(5);
+    for (const rel of rels) {
       const lines = read(`../templates/${rel}`).split("\n");
       let openFence: string | null = null;
       for (const [idx, line] of lines.entries()) {
@@ -158,12 +115,6 @@ describe("증거 산출물 템플릿 — 라이프사이클 ⑥ 계약", () => {
     for (const name of files) {
       // 표는 일부 룰명을 굵게 표기한다(`| **cli-development** |`) — 표기 변형 허용, 행 존재만 단언.
       expect(claudeMd, `Active Rules 표에 ${name} 행이 없음`).toMatch(ruleInventoryRow(name));
-    }
-  });
-
-  it("repo-local .claude 복사본이 템플릿과 byte-동일 (silent drift 가드)", () => {
-    for (const rel of ["skills/deep-research/SKILL.md", "skills/eval-harness/SKILL.md"]) {
-      expect(read(`../.claude/${rel}`), rel).toBe(read(`../templates/${rel}`));
     }
   });
 });

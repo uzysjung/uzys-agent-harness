@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { foreignOwnedTarget } from "../src/foreign-slot.js";
 import type { BaselineReport, ProgressEvent } from "../src/installer.js";
@@ -44,11 +44,47 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
   let foreignRepo: string;
 
   /**
+   * 정상 설치의 규모 — "나머지 자산도 정상 설치됐다"의 기준. **매직 넘버를 쓰지 않는다**:
+   * 자산이 은퇴할 때마다 상수가 뒤처지고(ADR-088 · ADR-090 에서 두 번), 뒤처진 상수는
+   * 시나리오가 아니라 개수 때문에 빨간불을 낸다. 같은 스위트의 clean install 실측을 쓴다.
+   */
+  let clean: { files: number; dirs: number; skills: number };
+
+  beforeAll(() => {
+    const dir = mkdtempSync(join(tmpdir(), "ch-343-clean-"));
+    try {
+      const report = runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir: dir,
+        spec: {
+          tracks: ["tooling"],
+          options: { withPrune: false, withCodexTrust: false },
+          cli: ["claude"],
+          projectDir: dir,
+        },
+      });
+      clean = {
+        files: report.filesCopied,
+        dirs: report.dirsCopied,
+        skills: readdirSync(join(dir, ".claude/skills"), { withFileTypes: true }).filter((e) =>
+          e.isDirectory(),
+        ).length,
+      };
+      // 기준 자체가 0 이면 아래 단언이 전부 공허해진다.
+      expect(clean.files).toBeGreaterThan(0);
+      expect(clean.skills).toBeGreaterThan(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /**
    * 설치본에 항상 있는 스킬 슬롯 하나. 테스트마다 이름을 적지 않는다 — 자산이 은퇴하면
-   * (ADR-088 에서 전임 표본이 은퇴했다) 고칠 자리가 한 곳이어야 한다.
+   * (ADR-088 · ADR-090 에서 전임 표본이 은퇴했다) 고칠 자리가 한 곳이어야 한다.
    * `installedSkillId()` 가 고르는 첫 슬롯과 **다른** 표본이라 "둘째 표본" 성질이 유지된다.
    */
-  const SLOT_SKILL = "deep-research";
+  const SLOT_SKILL = "recurrence-prevention";
 
   const specOf = (): InstallSpec => ({
     tracks: ["tooling"],
@@ -115,16 +151,16 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     const report = install();
 
     // ⓐ 설치가 죽지 않는다 (여기까지 온 것 자체가 그 증거) — 나머지 자산도 정상 설치됐다.
-    expect(report.filesCopied).toBeGreaterThan(10);
+    expect(report.filesCopied).toBeGreaterThanOrEqual(clean.files - 1);
     // ⓐ' **건너뛴 것은 하나뿐이다.** 이 단언이 없으면 "한 자리가 남의 것이면 스킬을 하나도
     // 안 깐다"는 최악의 오탐이 전 스위트를 통과한다(적대적 검증에서 실제로 생존했다).
     // 스킬은 `type:"dir"` 이라 filesCopied 로는 안 잡힌다 — 디렉터리 축을 따로 본다.
     expect(report.baselineForeignOwned).toHaveLength(1);
-    expect(report.dirsCopied).toBeGreaterThan(10);
+    expect(report.dirsCopied).toBeGreaterThanOrEqual(clean.dirs - 1);
     const others = readdirSync(join(projectDir, ".claude/skills"), { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => e.name);
-    expect(others.length).toBeGreaterThan(10);
+    expect(others.length).toBeGreaterThanOrEqual(clean.skills - 1);
     // ⓑ 남의 저장소 본문은 그대로다. 이게 이 판정의 존재 이유다.
     expect(readFileSync(join(external, "SKILL.md"), "utf-8")).toBe("# 남의 저장소 본문\n");
     // ⓒ 링크도 링크인 채로 남는다 (실체 디렉터리로 바뀌지 않았다).
@@ -143,7 +179,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
     const report = install();
 
-    expect(report.filesCopied).toBeGreaterThan(10);
+    expect(report.filesCopied).toBeGreaterThanOrEqual(clean.files - 1);
     // 지우지 않는다 — 누가 놓아둔 것인지 모르는 파일이다.
     expect(readFileSync(target, "utf-8")).toBe("사용자가 놓아둔 파일\n");
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}`);
@@ -159,7 +195,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
     const report = install();
 
-    expect(report.filesCopied).toBeGreaterThan(10);
+    expect(report.filesCopied).toBeGreaterThanOrEqual(clean.files - 1);
     expect(lstatSync(target).isSymbolicLink()).toBe(true);
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}`);
   });
@@ -297,12 +333,12 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     const report = install();
 
     expect(report.baselineForeignOwned).toHaveLength(0);
-    expect(report.dirsCopied).toBeGreaterThan(10);
+    expect(report.dirsCopied).toBeGreaterThanOrEqual(clean.dirs - 1);
     expect(existsSync(join(shared, "skills"))).toBe(true);
   });
 
   it("디렉터리 자산(스킬 대부분)도 **그 안의 파일**이 링크면 따라 쓰지 않는다", () => {
-    // 스킬 14종 중 13종은 `type:"dir"` 엔트리다. 슬롯 판정만으로는 이 다수가 안 막힌다 —
+    // 스킬은 전부 `type:"dir"` 엔트리다(#409). 슬롯 판정만으로는 그 다수가 안 막힌다 —
     // 통짜 복사가 트리 안의 링크를 그대로 따라가기 때문이다.
     install();
     const id = installedSkillId();
@@ -317,7 +353,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(readFileSync(external, "utf-8")).toBe("# 남의 파일\n");
     expect(report.baselineForeignOwned).toContain(`.claude/skills/${id}/SKILL.md`);
     // 같은 스킬의 **나머지 파일은 그대로 깔린다** — 파일 하나 때문에 스킬을 통째로 버리지 않는다.
-    expect(report.dirsCopied).toBeGreaterThan(10);
+    expect(report.dirsCopied).toBeGreaterThanOrEqual(clean.dirs - 1);
   });
 
   it("스킬 안 중첩 경로의 파일이 링크여도 따라 쓰지 않는다", () => {

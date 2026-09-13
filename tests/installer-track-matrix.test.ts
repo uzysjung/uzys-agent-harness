@@ -285,14 +285,13 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
   // 신설 자산만 이 검사를 빠져나가는 두 번째 경로가 생긴다.
   // ADR-064 — `audit-harness-fit` 신설분도 같은 단언에 넣는다. 근거는 위 AC9 와 같다:
   // 목록을 나누면 신설 자산만 이 검사를 빠져나가는 경로가 또 생긴다.
-  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 4종 · dev 트랙 6종 · opt-in 2종", () => {
+  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙 · opt-in", () => {
     const allTrack = ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"];
     const devOnly = [
       "clear-korean-communication",
       "audit-service-gaps",
       "multi-persona-review",
       "recurrence-prevention",
-      "verification-loop",
       "compaction-handoff",
     ];
     const optIn = ["model-orchestration", "external-model-consult"];

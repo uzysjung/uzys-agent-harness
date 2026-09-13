@@ -93,7 +93,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
   let project = "";
   // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
   //   검증 대상은 **라우팅**(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
-  const DEV_METHOD = ["compaction-handoff", "eval-harness"];
+  const DEV_METHOD = ["compaction-handoff", "recurrence-prevention"];
 
   beforeEach(() => {
     project = mkdtempSync(join(tmpdir(), "agy-devmethod-"));
@@ -170,7 +170,7 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
       baseline: new Map(),
     });
     expect(existsSync(join(project, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
-    expect(existsSync(join(project, ".agents/skills/eval-harness"))).toBe(false);
+    expect(existsSync(join(project, ".agents/skills/recurrence-prevention"))).toBe(false);
     expect(report.skillFiles).toHaveLength(1);
   });
 });

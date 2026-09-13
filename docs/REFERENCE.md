@@ -41,7 +41,7 @@
 
 ## 1. 외부 자산 — 설치 방식 5종
 
-**자산별 목록은 여기 두지 않는다.** 카탈로그(62) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
+**자산별 목록은 여기 두지 않는다.** 카탈로그(61) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
 [COMPATIBILITY.md](COMPATIBILITY.md) 가 `src/external-assets.ts` 에서 **생성**하고, 트랙별 묶음
 해설은 [TRACKS.md](TRACKS.md) 가 맡는다. 이 절이 자산을 손으로 다시 열거하던 동안 그 사본은
 실제로 낡았다 — 이 절의 표가 배포 CLI 설치를 `npm install -g` 로 적고 있었는데, 기본 scope 에서
@@ -124,19 +124,15 @@ MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust ti
 
 ## 4. Cherry-picked Sources
 
-`.dev-references/cherrypicks.lock` (12건 — ADR-089 에서 리뷰 에이전트 2종, ADR-088 에서 은퇴한 스킬 2종의 행 제거, 2026-08-02
-ADR-060 에서 verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서
-발췌해 `templates/`에 복사.
+`.dev-references/cherrypicks.lock` (7건 — ADR-090 에서 ECC 파생 스킬 3종·폴백 에이전트 2종,
+ADR-089 에서 리뷰 에이전트 2종, ADR-088 에서 스킬 2종, 2026-08-02 ADR-060 에서
+verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서 발췌해
+`templates/`에 복사.
 `scripts/sync-cherrypicks.sh`로 upstream drift 감지.
 
 | 카테고리 | 항목 |
 |---------|------|
-| Skills (templates/skills/) | deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
-| Agents (templates/agents/) | silent-failure-hunter, build-error-resolver |
-
-**`verification-loop` 은 이 목록에 없다** — ECC 파생이지만 lock 밖이다(ADR-060 이 행을 해체했고
-ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포하며 출처는 SKILL.md 본문의 MIT 귀속
-1줄이 진다. lock 에 되돌리면 `sync-cherrypicks.sh --apply` 의 rsync 가 우리 본문을 덮어쓴다.
+| Skills (templates/skills/) | market-research, e2e-testing, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
 
 ---
 
@@ -144,7 +140,7 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 
 ### Skills (templates/skills/)
 
-자체 작성 스킬은 **15종**이고, 그중 **14종은 카탈로그 엔트리를 갖는다**
+자체 작성 스킬은 **14종**이고, 그중 **13종은 카탈로그 엔트리를 갖는다**
 (`INTERNAL_BUNDLED_SKILL_IDS` — 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다).
 남는 `ui-visual-review` 1종만 엔트리 없이 `manifest.ts` 가 직접 깐다(UI 트랙 조건). **개수의
 SSOT 는 코드다** — `INTERNAL_BUNDLED_SKILL_IDS` 와 `templates/skills/` 를 세라. 여기 숫자와
@@ -153,7 +149,7 @@ SSOT 는 코드다** — `INTERNAL_BUNDLED_SKILL_IDS` 와 `templates/skills/` �
 등록되고, `tests/skill-registration-uniform.test.ts` 가 그것을 강제한다. 파일 단위였던 동안
 상주 계측이 그 스킬을 조용히 0으로 셌다 — ADR-083.)
 
-아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
+아래 8종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
 uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
 워크드 예시를 잃었고(감사 실측 104건), 그 본문을 무는 게이트는 이 리포에만 있다.
 설치 조건의 SSOT 는 `src/external-assets.ts` 의 각 엔트리 `condition` 이다.
@@ -168,7 +164,6 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
 | **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |
 | **recurrence-prevention** | 전 dev track | 재발 검증 → 단순/복합 분류 → 대책 사다리 1단 상향(기록→룰→구조 게이트) | ADR-062 복원 |
-| **verification-loop** | 전 dev track | 표면별 검증 트랙 + 고정 verdict(PASS/PASS_WITH_NITS/FAIL) + severity 4단 | ADR-062 복원 · ECC 파생(MIT, lock 밖 — §4 참조) |
 | **model-orchestration** | opt-in | 역할·effort 라우팅 정책, 위임 브리프 규격, 워커 수거·종료 계약 | ADR-062 복원 |
 | **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
 | **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
@@ -244,12 +239,6 @@ CLI 를 TypeScript 로 다시 쓸 때 `src/` 와 `vitest` 가 각각 그 자리�
 
 표는 **판정·생성에 쓰이는 것만** 담았다. 데모 녹화(`record-demo.sh`·`demo-capture.sh`·
 `demo.Dockerfile`)와 `fresh-dogfood-setup.sh` 는 뺐다 — 전체 목록은 `ls scripts/` 다.
-
-### eval-harness 확장 (v26.30.0)
-ECC cherry-pick skill이지만 본 harness에서 확장:
-- `.md` (설계) + `.log` (실행 결과) **쌍 의무화**
-- `.md` 3섹션: **Capability / Regression / Test** 필수
-- `.log` append 포맷 예시 포함
 
 ---
 

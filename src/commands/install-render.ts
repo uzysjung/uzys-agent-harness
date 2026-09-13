@@ -28,7 +28,7 @@ import {
   type InstallReport,
   type ProgressEvent,
 } from "../installer.js";
-import { buildManifest } from "../manifest.js";
+import { buildManifest, RETIRED_AGENTS } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
@@ -605,12 +605,13 @@ function renderPhase1Rows(
     // **지워도 된다는 사실과 대신 쓸 것**을 말한다. 대안을 함께 적는 이유는 은퇴가 곧 기능
     // 상실로 읽히면 사용자가 파일을 붙들기 때문이다 — 여기서는 벤더 기본 기능이 대안이다.
     for (const id of baseline.updateMode.retiredAgents) {
+      const instead = RETIRED_AGENTS.find((a) => a.id === id)?.instead;
       log(
         assetRow(
           "skip",
           "agents",
-          `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다 · ` +
-            "Claude Code 의 `/code-review` · `/security-review` 가 같은 일을 한다",
+          `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다` +
+            (instead === undefined ? "" : ` · ${instead}`),
         ),
       );
     }
@@ -768,12 +769,13 @@ function renderPhase1Rows(
       );
     }
     if (cats.agents.length > 0) {
-      // v26.63.3 (clarify H3): SOD jargon 보강 — independent verifier 명시.
-      // v26.63.3 (distill H2): "Without ECC plugin..." 반복 제거 — section footer 통합.
+      // ADR-090 (#452) — 라벨을 자산 중립으로. 은퇴·강등으로 목록이 트랙마다 달라졌고, 이름을
+      // 부르면 화면이 없는 자산을 계속 부른다(ADR-073 의 `/ecc:*` 와 같은 형태). 실제 이름은
+      // `--verbose` 의 files 줄이 낸다.
       phase1Row(
         "agents",
         cats.agents.length,
-        "SOD reviewer (opus, independent verifier) + 3 base",
+        "independent verifier · implementation lane · domain lanes (track)",
         cats.agents,
       );
     }
@@ -790,7 +792,7 @@ function renderPhase1Rows(
       phase1Row(
         "skills",
         cats.skills.length,
-        "deep-research · ui-visual-review · eval-harness (modified)",
+        "bundled methodology skills (track · opt-in)",
         cats.skills,
       );
     }
@@ -832,31 +834,6 @@ function renderPhase1Rows(
         "skip",
         "owned by another tool",
         `${baseline.baselineForeignOwned.length} — ${baseline.baselineForeignOwned.join(", ")} · 그 자리가 우리 것이 아니라 건드리지 않았다 · 하네스 판본을 받으려면 그 자리를 옮기고 재설치`,
-      ),
-    );
-  }
-  // 2026-08-17 (ADR-075) — 이번 선택이 밀어낸 자산. **지운 것과 남긴 것을 나눠 낸다**: 지운 것을
-  // 안 알리면 사용자가 사라진 파일을 못 쫓고, 남긴 것을 안 알리면 같은 일을 하는 에이전트가 두
-  // 벌이라는 사실이 계속 안 보인다. 비대화형 설치는 항상 후자로 떨어진다(물어볼 사람이 없다).
-  if (baseline.superseded.removed.length > 0) {
-    log(
-      assetRow(
-        "success",
-        "superseded — cleaned",
-        `${baseline.superseded.removed.length} — ${baseline.superseded.removed
-          .map((t) => t.replace(/^\.claude\//, ""))
-          .join(", ")} · 되돌리려면 그 자산 없이 재설치`,
-      ),
-    );
-  }
-  if (baseline.superseded.kept.length > 0) {
-    log(
-      assetRow(
-        "skip",
-        "superseded — kept",
-        `${baseline.superseded.kept.length} — ${baseline.superseded.kept
-          .map((t) => t.replace(/^\.claude\//, ""))
-          .join(", ")} · 이번 선택이 대체했지만 지우지 않았다 (제거: agent-harness uninstall)`,
       ),
     );
   }

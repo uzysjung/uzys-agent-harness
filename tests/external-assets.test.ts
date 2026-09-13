@@ -155,7 +155,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     //   + 1(humanize-korean 신설, #355) = 62. #428 에서 natural-korean 으로 개명 — 수는 그대로.
     //   #426(ADR-088) objective-brief 개명 — 수는 그대로. 같은 PR 의 은퇴 3종(strategic-compact ·
     //   continuous-learning-v2 · spec-scaling)은 카탈로그 엔트리가 아니라 manifest 번들이었다.
-    expect(ids).toHaveLength(62);
+    //   − 1(#452 ADR-090 verification-loop 은퇴 — 이쪽은 카탈로그 엔트리였다) = 61.
+    expect(ids).toHaveLength(61);
     expect(ids).toContain("objective-brief");
     expect(ids).toContain("audit-harness-fit");
     // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
@@ -200,7 +201,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   //   돌아왔다. Promise=Impl: 이제 method 는 반드시 `kind:"internal"` 이고 key 는 id 와 같아야
   //   한다 — `kind:"skill"` 로 남으면 설치 시 존재하지 않는 이관 리포에서 npx 로 받으려 든다.
   //   condition 은 이관 전 도달 범위 그대로다(강등·승격 둘 다 금지).
-  it("복원 uzys 스킬 9종: kind:internal · key=id · tier official · 이관 전 condition", () => {
+  it("복원 uzys 스킬: kind:internal · key=id · tier official · 이관 전 condition", () => {
     const expected: Record<string, { category: string; condition: string }> = {
       "clear-korean-communication": { category: "workflow", condition: "has-dev-track" },
       // north-star · gh-issue-workflow 는 이관 전 COMMON_SKILL_DIRS(전 트랙 상주)였다 —
@@ -208,7 +209,6 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "north-star": { category: "workflow", condition: "any-track" },
       "gh-issue-workflow": { category: "workflow", condition: "any-track" },
       "audit-service-gaps": { category: "dev-tools", condition: "has-dev-track" },
-      "verification-loop": { category: "dev-tools", condition: "has-dev-track" },
       "multi-persona-review": { category: "dev-tools", condition: "has-dev-track" },
       "recurrence-prevention": { category: "workflow", condition: "has-dev-track" },
       "model-orchestration": { category: "workflow", condition: "opt-in" },
@@ -289,7 +289,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   //   official tier + has-dev-track condition + internal method = repo-bundled, core on
   //   dev tracks, NOT a github source (those repos don't exist → false-ship). drift 시 fail.
   // 2026-08-02 복원 (ADR-062) — 이관 8→1 이 되돌려져 6종. 술어는 그대로다.
-  it("dev-method skills: internal/official/has-dev-track, 6종", () => {
+  it("dev-method skills: internal/official/has-dev-track", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "compaction-handoff": "workflow",
@@ -297,7 +297,6 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "audit-service-gaps": "dev-tools",
       "multi-persona-review": "dev-tools",
       "recurrence-prevention": "workflow",
-      "verification-loop": "dev-tools",
     };
     expect([...DEV_METHOD_SKILL_IDS].sort()).toEqual(Object.keys(expectedCategory).sort());
     for (const id of DEV_METHOD_SKILL_IDS) {

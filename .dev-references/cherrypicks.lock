@@ -42,15 +42,6 @@
   },
   "cherrypicks": [
     {
-      "id": "ecc-deep-research",
-      "source": "ecc",
-      "src": ".agents/skills/deep-research/",
-      "dst": "templates/skills/deep-research/",
-      "type": "directory",
-      "modified": true,
-      "modification_note": "v26.114.0 (ADR-042): 리서치 원장(N confirmed·M killed + 기각 사유 표 + caveat 블록) 주입 → modified=true (sync --apply 의 rsync --delete 로부터 보호, manifest C3 와 짝)"
-    },
-    {
       "id": "ecc-market-research",
       "source": "ecc",
       "src": ".agents/skills/market-research/",
@@ -60,15 +51,6 @@
       "modification_note": "Phase 4b A4에서 신규 추가. executive Track 한정."
     },
     {
-      "id": "ecc-eval-harness",
-      "source": "ecc",
-      "src": ".agents/skills/eval-harness/",
-      "dst": "templates/skills/eval-harness/",
-      "type": "directory",
-      "modified": true,
-      "modification_note": "v26.114.0 (ADR-042): eval spec 아티팩트 계약(C1..Cn/R1..Rn ID·Baseline commit·Test Command·Status after implementation) 주입 → modified=true (sync --apply 보호, manifest C3 와 짝)"
-    },
-    {
       "id": "ecc-e2e-testing",
       "source": "ecc",
       "src": ".agents/skills/e2e-testing/",
@@ -76,33 +58,6 @@
       "type": "directory",
       "modified": false,
       "modification_note": "Playwright POM 패턴, flaky test 처리, 아티팩트 캡처. UI Track 한정"
-    },
-    {
-      "id": "ecc-agent-introspection-debugging",
-      "source": "ecc",
-      "src": ".agents/skills/agent-introspection-debugging/",
-      "dst": "templates/skills/agent-introspection-debugging/",
-      "type": "directory",
-      "modified": false,
-      "modification_note": "looping/hanging 워크플로우 복구. Failure → Diagnosis → Recovery → Report 4단계"
-    },
-    {
-      "id": "ecc-silent-failure-hunter",
-      "source": "ecc",
-      "src": "agents/silent-failure-hunter.md",
-      "dst": "templates/agents/silent-failure-hunter.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "P1-5 from harness-engineering-audit-2026-04 (A16). zero tolerance for silent failures 에이전트. dev Track 한정 설치"
-    },
-    {
-      "id": "ecc-build-error-resolver",
-      "source": "ecc",
-      "src": "agents/build-error-resolver.md",
-      "dst": "templates/agents/build-error-resolver.md",
-      "type": "file",
-      "modified": false,
-      "modification_note": "Phase 5.1 A14 from harness-engineering-audit-2026-04 (D30). TypeScript/webpack/build 에러 최소 diff 복구 에이전트. dev Track 한정"
     },
     {
       "id": "ecc-python-patterns",

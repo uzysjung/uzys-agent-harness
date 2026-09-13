@@ -175,21 +175,32 @@ export function resolveRules(spec: AssetSpec): string[] {
  */
 export const ALL_RULES: ReadonlyArray<string> = resolveRules({ tracks: [...TRACKS] });
 
-// v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
-// 본 프로젝트 (always): reviewer, data-analyst, strategist
-// ECC cherry-pick C2 (plugin OFF 시 fallback — opt-out gating, !s.withEcc):
-//   silent-failure-hunter, build-error-resolver (dev track — `DEV_AGENTS_ECC`)
-//
-// ADR-089 (#445) — `code-reviewer`·`security-reviewer` 은퇴. 전 트랙 C2 폴백이었는데
-//   벤더 기본 기능(Claude Code `/code-review`·`/security-review`, `codex review`)과 하는 일이
-//   같아 차별성이 0 이었다. 그래서 이 축(전 트랙 ECC 폴백 에이전트)은 지금 비어 있다.
-const CORE_AGENTS = ["reviewer", "data-analyst", "strategist"];
+// 전 트랙 에이전트. ADR-090 (#452) — `data-analyst`·`strategist` 가 여기서 빠져 트랙 조건부로
+//   내려갔다(`TRACK_AGENTS`): 도메인 관례를 싣는 descriptor 인데 tooling 설치자에게는 열릴 일이
+//   없어 상주만 했다. ADR-089 (#445) 이후 ECC 폴백 에이전트 축은 비어 있고, ADR-090 에서
+//   dev 축 폴백 두 종(`silent-failure-hunter`·`build-error-resolver`)도 은퇴해 그 축 자체가
+//   없어졌다 — `!s.withEcc` 로 갈리는 **파일** 자산이 더는 없다(그래서 `superseded` 판정도 함께
+//   사라졌다. 같은 형태가 다시 생기면 그 판정부터 되살린다).
+const CORE_AGENTS = ["reviewer"];
 
 // v26.138.0 — implementer: 구현 레인. 기존 에이전트 8종이 전부 검토·검증·도메인 특화라
 //   설치자는 "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다. 근거 = 두 코퍼스 실측 대조에서
 //   서브에이전트 코드 Edit 433 vs 3 — 규율 차이가 아니라 **레인 부재**였다.
-const DEV_AGENTS = ["plan-checker", "implementer"];
-const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
+// ADR-090 (#452) — `plan-checker` 은퇴(spawn 0 · 없는 절·없는 파일을 지목). 계획 문서 검토는
+//   `reviewer` 가 같은 계약으로 한다.
+const DEV_AGENTS = ["implementer"];
+
+/**
+ * 트랙 조건부 에이전트 — 그 도메인을 고른 설치자에게만 간다. ADR-090 (#452).
+ *
+ * 전 트랙이던 두 종을 여기로 내린 이유: descriptor 는 트랙과 무관하게 매 세션 상주하는데,
+ * tooling·ssr-nextjs 만 고른 설치자에게 "데이터 분석 관례"·"사업 전략" 레인은 열릴 일이 없다.
+ * 트랙 패턴은 각 에이전트의 도메인과 1:1 이다.
+ */
+const TRACK_AGENTS: ReadonlyArray<readonly [string, string]> = [
+  ["data-analyst", "data|full"],
+  ["strategist", "executive|full"],
+];
 
 /**
  * 은퇴한 에이전트 id — 번들에도 manifest 에도 없고 대체 파일도 없다. ADR-089 (#445).
@@ -205,7 +216,18 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
  * 여기에 이름을 두는 이유: 에이전트를 무엇을 어디에 깔지 정하는 **배선 SSOT 가 이 파일**이라
  * 은퇴 목록이 갈라지면 다음 은퇴에서 한쪽이 조용히 뒤처진다.
  */
-export const RETIRED_AGENT_IDS: ReadonlyArray<string> = ["code-reviewer", "security-reviewer"];
+export const RETIRED_AGENTS: ReadonlyArray<{ id: string; instead: string }> = [
+  { id: "code-reviewer", instead: "Claude Code 의 `/code-review` 가 같은 일을 한다" },
+  { id: "security-reviewer", instead: "Claude Code 의 `/security-review` 가 같은 일을 한다" },
+  // ADR-090 (#452) — spawn 0 · 결함만 관측된 세 종. **대안을 종마다 적는다**: 한 문구로 뭉치면
+  // 자기 에이전트와 상관없는 대안을 읽게 되고, 그건 "대신 쓸 것을 말한다"의 뜻을 잃는다.
+  { id: "plan-checker", instead: "`reviewer` 가 계획 문서도 같은 계약으로 검토한다" },
+  { id: "silent-failure-hunter", instead: "Claude Code 의 `/code-review` 가 같은 일을 한다" },
+  { id: "build-error-resolver", instead: "모델이 기본으로 하는 일이라 대체 자산이 없다" },
+];
+
+/** 은퇴 판정용 id 목록 — `RETIRED_AGENTS` 에서 derive 한다(두 목록이 갈리지 않게). */
+export const RETIRED_AGENT_IDS: ReadonlyArray<string> = RETIRED_AGENTS.map((a) => a.id);
 
 /**
  * Hooks installed for every project (parity with setup-harness.sh L815-826).
@@ -239,18 +261,18 @@ const COMMON_SKILL_DIRS: string[] = [];
 // ADR-088 (#426 F-09 · F-10) — 여기 있던 두 종이 은퇴해 목록이 비었다. 상수와 아래 루프는 남긴다:
 // 다음 C2 cherry-pick 이 들어올 자리이고, 빈 목록이면 루프가 0회 돌아 아무 엔트리도 안 만든다.
 const COMMON_SKILL_DIRS_ECC: string[] = [];
-// C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
-// 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
-const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
+// C3 (modified=true — plugin 으로 갈음 불가, 항상 install).
+// ADR-090 (#452) — `deep-research` 가 은퇴해 이 축이 비었다. 상수와 아래 루프는 남긴다:
+// 다음 C3 cherry-pick 이 들어올 자리이고, 빈 목록이면 루프가 0회 돌아 엔트리를 안 만든다.
+const MODIFIED_COMMON_SKILL_DIRS: string[] = [];
 
 const DEV_SKILL_DIRS: string[] = [];
-const DEV_SKILL_DIRS_ECC = ["agent-introspection-debugging"];
+// ADR-090 (#452) — `agent-introspection-debugging` 은퇴로 비었다.
+const DEV_SKILL_DIRS_ECC: string[] = [];
 // C3 (modified=true): plugin 으로 갈음 불가, dev 트랙 항상 install.
-// eval-harness = v26.114.0 eval spec 아티팩트 계약(C·R ID·baseline·Test Command·Status, ADR-042).
-// 2026-08-02 정비 (ADR-060) — verification-loop 은 C3 계약을 해체했다: 우리 판본이
-// uzysjung/uzys-agent-skills 로 이관돼 더는 ECC 파생 번들이 아니다. cherrypicks.lock 의
-// `ecc-verification-loop` 행도 함께 제거 — lock 과 이 목록은 1:1 이어야 한다(아래 주석).
-const MODIFIED_DEV_SKILL_DIRS = ["eval-harness"];
+// ADR-090 (#452) — `eval-harness` 은퇴로 비었다. 그 아티팩트 계약(ADR-042)은 Testing·Delivery
+// 룰과 `reviewer` 가 덮는다.
+const MODIFIED_DEV_SKILL_DIRS: string[] = [];
 
 /**
  * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).
@@ -363,14 +385,13 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: dev,
     });
   }
-  // v26.58.0 — Agents (ECC cherry-pick). ADR-019. C2: plugin OFF 시만 install (opt-out).
-  // ADR-089 (#445) 이후 남은 C2 에이전트는 dev track 두 종뿐이다.
-  for (const a of DEV_AGENTS_ECC) {
+  // ADR-090 (#452) — 도메인 트랙을 고른 설치에만.
+  for (const [a, pattern] of TRACK_AGENTS) {
     m.push({
       source: `agents/${a}.md`,
       target: `.claude/agents/${a}.md`,
       type: "file",
-      applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
+      applies: onTracks(pattern),
     });
   }
 

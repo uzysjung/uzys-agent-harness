@@ -231,8 +231,6 @@ that skip benchmarking — is in [references/worked-example.md](references/worke
   evaluation here.
 - **`north-star`** — same target state, opposite direction: it *directs* the roadmap forward; this
   *detects* gaps against it. It also owns the roadmap ordering this skill's findings feed.
-- **`verification-loop`** — after a fix lands, it produces the evidence and the fixed verdict;
-  `VERIFY` mode consumes that rather than re-deriving it.
 - **ADR conventions** — record each proposed fix as an architecture decision record in the
   project's `docs/decisions/`, including the rejected benchmark alternative.
 

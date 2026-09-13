@@ -833,7 +833,7 @@ describe("신규 자산 설치 (#283)", () => {
     writeFileSync(join(templatesDir, "rules/git-policy.md"), "git v2\n");
     writeFileSync(join(templatesDir, "rules/cli-development.md"), "cli v1\n");
     writeFileSync(join(templatesDir, "agents/reviewer.md"), "core agent\n");
-    writeFileSync(join(templatesDir, "agents/silent-failure-hunter.md"), "ecc fallback agent\n");
+    writeFileSync(join(templatesDir, "agents/strategist.md"), "track-gated agent\n");
     writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "git v1\n");
     writeInstallLog(projectDir, {
       schemaVersion: 1,
@@ -907,13 +907,14 @@ describe("신규 자산 설치 (#283)", () => {
     expect(report.needsReinstall).toContain(".claude/hooks/session-start.sh");
   });
 
-  it("opt-in 에 달린 자산은 들이지 않는다 — update 는 그 선택을 복원할 수 없다", () => {
-    // silent-failure-hunter 는 `!withEcc` 게이팅(ECC plugin OFF 시의 fallback)이다. plugin 을 켠
-    // 설치자에게 이걸 깔면 그가 끄기로 한 자산을 update 가 되살리는 셈이 된다.
+  it("이 설치의 조건에 안 맞는 자산은 들이지 않는다 — update 는 그 선택을 되묻지 않는다", () => {
+    // 표본은 `strategist`(executive|full 트랙 조건부, ADR-090 강등). tooling 설치자에게 이걸
+    // 깔면 그가 고른 적 없는 자산을 update 가 들이는 셈이 된다. ADR-090 이전 표본은
+    // `!withEcc` 폴백 에이전트였는데 그 축에 파일 자산이 더는 없다 — 술어는 같은 `applies()` 다.
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
-    expect(existsSync(join(projectDir, ".claude/agents/silent-failure-hunter.md"))).toBe(false);
-    expect(report.installedNew).not.toContain(".claude/agents/silent-failure-hunter.md");
+    expect(existsSync(join(projectDir, ".claude/agents/strategist.md"))).toBe(false);
+    expect(report.installedNew).not.toContain(".claude/agents/strategist.md");
     // 0건 함정 방지 — 기능 자체가 꺼지면 위 두 단언은 공허하게 통과한다. 같은 실행에서
     // **걸러지지 않아야 할 것**이 실제로 깔렸는지 함께 본다.
     expect(report.installedNew).toContain(".claude/agents/reviewer.md");

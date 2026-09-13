@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-09-13
 - PR: #449
+- Amended-by: ADR-090 (은퇴 에이전트 3종 추가 · `RETIRED_AGENT_IDS` 가 대안 문구를 종마다 갖는
+  `RETIRED_AGENTS` 에서 derive 된다. 벤더 기본 기능이 같은 일을 한다는 판정은 그대로다)
 - Amends: ADR-019 (C2 에이전트 목록에서 두 종이 빠진다. C1/C2/C3 분류 체계와 나머지 C2 자산의
   게이팅은 그대로다)
 

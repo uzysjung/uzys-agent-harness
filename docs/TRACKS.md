@@ -108,7 +108,6 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `audit-service-gaps` | Enumerate gaps against the north-star baseline through three lenses, then check how a reference service closed each one before proposing a fix |
 | `multi-persona-review` | Review one artifact through independent personas in parallel → deduped, severity-ranked findings |
 | `recurrence-prevention` | When the same defect returns: verify the count against prior evidence, classify slip vs harness problem, escalate record → rule → structural gate |
-| `verification-loop` | Proportional verification tracks per surface, ending in a fixed verdict (PASS / PASS_WITH_NITS / FAIL) plus the evidence each finding rests on |
 | `compaction-handoff` | Persist durable state, a git snapshot, and one resume anchor before a context `/compact` |
 | `self-hosted-github-runner` | When hosted runners stop — billing failure, spending limit, minutes exhausted, org quota, an Actions outage — run the repo's existing workflow **files** on a Docker self-hosted runner instead of copying CI steps into a local script. Covers the runner-label switch, architecture and cache-key traps, container isolation, the risk that `pull_request` jobs then execute on your own machine, and the rollback path |
 

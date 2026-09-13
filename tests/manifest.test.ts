@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { INTERNAL_BUNDLED_SKILL_IDS, RETIRED_SKILL_IDS } from "../src/external-assets.js";
 import {
   ALWAYS_HOOKS,
   buildManifest,
@@ -107,23 +107,29 @@ describe("buildManifest", () => {
     expect(e2eDataOff?.applies({ tracks: ["data"] })).toBe(false);
   });
 
-  // ADR-089 (#445) — 이 자리는 원래 `CORE_AGENTS_ECC`(code-reviewer · security-reviewer)를 물었다.
-  // 두 종이 은퇴하면서 C2 에이전트는 dev track 둘만 남았으므로 **모집단을 그쪽으로 옮긴다** —
-  // 테스트를 지우면 "에이전트도 C2 게이팅을 받는다"는 계약이 무게이트로 남는다.
-  it("DEV_AGENTS_ECC (silent-failure-hunter, build-error-resolver): C2 opt-out. ADR-019", () => {
-    // plugin OFF (default) → cherry-pick fallback install
-    const off = buildManifest({ tracks: ["tooling"] });
-    const hunterOff = off.find((e) => e.source === "agents/silent-failure-hunter.md");
-    const buildOff = off.find((e) => e.source === "agents/build-error-resolver.md");
-    expect(hunterOff?.applies({ tracks: ["tooling"] })).toBe(true);
-    expect(buildOff?.applies({ tracks: ["tooling"] })).toBe(true);
+  // ADR-090 (#452) — ECC 폴백 에이전트 축이 은퇴로 비었고(그 계약의 표본은 스킬 쪽 C2 테스트가
+  // 이어받는다), 그 자리에 **트랙 조건부 강등**이 들어왔다. 두 에이전트는 전 트랙 상주였는데
+  // 도메인을 안 고른 설치자에게는 열릴 일이 없어 descriptor 만 물고 있었다.
+  it("data-analyst · strategist: 도메인 트랙에만 깔린다 (ADR-090 강등)", () => {
+    const entry = (id: string) =>
+      buildManifest({ tracks: [...TRACKS] }).find((e) => e.source === `agents/${id}.md`);
+    const da = entry("data-analyst");
+    const st = entry("strategist");
+    expect(da, "data-analyst 가 manifest 에 없다").toBeDefined();
+    expect(st, "strategist 가 manifest 에 없다").toBeDefined();
 
-    // plugin ON → cherry-pick skip (plugin 으로 갈음)
-    const on = buildManifest({ tracks: ["tooling"], withEcc: true });
-    const hunterOn = on.find((e) => e.source === "agents/silent-failure-hunter.md");
-    const buildOn = on.find((e) => e.source === "agents/build-error-resolver.md");
-    expect(hunterOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
-    expect(buildOn?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+    expect(da?.applies({ tracks: ["data"] })).toBe(true);
+    expect(da?.applies({ tracks: ["full"] })).toBe(true);
+    expect(da?.applies({ tracks: ["tooling"] })).toBe(false);
+
+    expect(st?.applies({ tracks: ["executive"] })).toBe(true);
+    expect(st?.applies({ tracks: ["full"] })).toBe(true);
+    expect(st?.applies({ tracks: ["tooling"] })).toBe(false);
+
+    // 전 트랙 축이 통째로 죽지는 않았다 — 같은 조회로 reviewer 는 어느 트랙에나 깔린다.
+    const rv = entry("reviewer");
+    expect(rv?.applies({ tracks: ["tooling"] })).toBe(true);
+    expect(rv?.applies({ tracks: ["executive"] })).toBe(true);
   });
 
   // ADR-089 (#445) — 은퇴는 **manifest 에서 사라졌다**로 증명한다. 파일 부재만 보면 다음 사람이
@@ -166,62 +172,30 @@ describe("buildManifest", () => {
     expect(m.find((e) => e.source === "hooks/protect-files.sh")).toBeDefined();
   });
 
-  it("agent-introspection-debugging: C2 — plugin ON 이면 비켜선다 (ADR-019)", () => {
-    // C2 = "plugin 이 같은 것을 주므로 plugin 을 고르면 우리 사본은 비켜선다"(opt-out 폴백).
-    // 실사용 영향: 이 조건이 빠지면 ECC plugin 을 켠 사용자가 **같은 스킬을 두 판본** 받고
-    // 어느 쪽이 로드되는지 예측할 수 없다(#340 이 4종에서 실제로 그랬다).
-    //
-    // 표본이 dev 축 하나인 이유: 공통 축의 C2 두 종이 ADR-088 에서 은퇴했다. 표본이 사라지면
-    // 이 계약을 아무도 안 보므로 남은 축으로 옮겨 유지한다.
-    const off = buildManifest({ tracks: ["tooling"] });
-    const cl = off.find((e) => e.source === "skills/agent-introspection-debugging");
-    expect(cl).toBeDefined();
-    expect(cl?.applies({ tracks: ["tooling"] })).toBe(true);
-    expect(cl?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
-
-    // dev 트랙 술어와 withEcc 가 **함께** 걸린다 — executive 에는 안 가고, plugin ON 에도 안 간다.
-    expect(cl?.applies({ tracks: ["executive"], withEcc: false })).toBe(false);
-    expect(cl?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
+  // ADR-090 (#452) — 은퇴한 스킬도 에이전트와 같은 방식으로 증명한다: **manifest 에서 사라졌다**.
+  // 파일 부재만 보면 다음 사람이 `templates/skills/` 에 디렉터리를 되돌려 놓는 순간 조용히
+  // 되살아난다. C2(plugin OFF 폴백) 계약의 표본은 아래 python-* · 위 e2e-testing 이 잇는다.
+  it("은퇴한 스킬은 어떤 조합에서도 manifest 에 없다 (ADR-090)", () => {
+    for (const withEcc of [false, true]) {
+      const m = buildManifest({ tracks: [...TRACKS], withEcc });
+      for (const id of RETIRED_SKILL_IDS) {
+        expect(
+          m.find((e) => e.source === `skills/${id}`),
+          `${id} 가 manifest 에 살아 있다 (withEcc=${withEcc})`,
+        ).toBeUndefined();
+      }
+      // 0건 함정 방지 — 같은 조회로 남는 스킬은 잡힌다.
+      expect(m.find((e) => e.source === "skills/recurrence-prevention")).toBeDefined();
+    }
+    expect(RETIRED_SKILL_IDS.length).toBeGreaterThan(0);
   });
 
-  it("eval-harness: C3 (아티팩트 계약 주입 = modified) → withEcc 무관 dev 트랙 install. v26.114.0 ADR-042", () => {
-    // 주입한 계약은 ECC plugin 판에 없으므로 plugin ON 이어도 cherry-pick 을 유지해야 한다.
-    // C2 로 남기면 withEcc 사용자에게 "계약 코드화됨" 광고가 거짓이 된다 (no-false-ship).
-    // 2026-08-02 정비 (ADR-060) — 이 자리의 앵커였던 verification-loop 이 이관돼 C3 계약이
-    // 해체됐다. 남은 DEV 축 C3 는 eval-harness 하나이고, 검증하는 술어는 그대로다.
-    const m = buildManifest({ tracks: ["tooling"] });
-    const eh = m.find((e) => e.source === "skills/eval-harness");
-    expect(eh).toBeDefined();
-    expect(eh?.applies({ tracks: ["tooling"] })).toBe(true);
-    expect(eh?.applies({ tracks: ["tooling"], withEcc: true })).toBe(true);
-    expect(eh?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(true);
-
-    // dev 트랙 조건은 유지 — executive 단독은 종전과 동일하게 미설치.
-    expect(eh?.applies({ tracks: ["executive"] })).toBe(false);
-
-    // 2026-08-02 복원 (ADR-062) — verification-loop 이 번들로 돌아왔다. 여기서 지키는 것은
-    // "존재/부재"가 아니라 **어느 축으로 들어오는가**다: ECC C3(withEcc 무관 dev 트랙)가 아니라
-    // internal 번들(selectedInternalSkills 게이팅)이어야 한다. C3 로 다시 붙으면
-    // cherrypicks.lock 과 1:1 이 깨져 `sync-cherrypicks.sh --apply` 가 본문을 덮어쓴다.
-    const vl = m.find((e) => e.source === "skills/verification-loop");
-    expect(vl, "verification-loop 이 번들 목록에 없다").toBeDefined();
-    expect(vl?.applies({ tracks: ["tooling"] })).toBe(false); // 선택 안 하면 안 깔린다
-    expect(
-      vl?.applies({ tracks: ["tooling"], selectedInternalSkills: ["verification-loop"] }),
-    ).toBe(true);
-    // withEcc 로는 갈리지 않는다 — C3 축이 아님을 실동작으로 고정.
-    expect(
-      vl?.applies({
-        tracks: ["tooling"],
-        withEcc: true,
-        selectedInternalSkills: ["verification-loop"],
-      }),
-    ).toBe(true);
-    expect(MODIFIED_ECC_SKILL_DIRS).not.toContain("verification-loop");
-
-    // 잔여 DEV_SKILL_DIRS_ECC 는 C2 그대로 — 재분류 전파 방지.
-    const aid = m.find((e) => e.source === "skills/agent-introspection-debugging");
-    expect(aid?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
+  it("C3(withEcc 무관 install) 축은 지금 비어 있다 — 되살아나면 lock 과 1:1 을 요구한다", () => {
+    // ADR-090 (#452) — 마지막 C3 두 종(deep-research · eval-harness)이 은퇴했다. 목록을 빈 채로
+    // 못 박는 이유: 다음에 C3 가 들어오면 이 단언이 빨간불을 내고, 그때 `cherrypicks.lock` 의
+    // `modified:true` 와 1:1 인지(tests/vnv-verdict.test.ts)를 같이 세우게 된다. 그 1:1 이
+    // 깨지면 `sync-cherrypicks.sh --apply` 의 rsync --delete 가 우리 수정본을 조용히 덮는다.
+    expect(MODIFIED_ECC_SKILL_DIRS).toEqual([]);
   });
 
   it("python-* skills: C2 opt-out + track gating. v26.58.0 ADR-019", () => {
