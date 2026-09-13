@@ -16,8 +16,8 @@
 
 | 표면 | 스킬 | 에이전트 | 룰 | 훅 |
 |---|---|---|---|---|
-| ① `templates/` — 설치자에게 나가는 것 | 번들 14 | 7 (Claude Code 만 — 타 CLI 변환에 에이전트 없음) | 6 | 2 (`session-start` 는 Codex 에도, trust 필요) |
-| ② `.claude/` — 이 리포 | 20 = ①의 14 미러 + 리포 전용 6 | 7 (①과 동일) | 7 = ①의 6 개발 사본 + `playwright-launch` | 3 = ①의 2 + `docker-only-realcli` |
+| ① `templates/` — 설치자에게 나가는 것 | 번들 14 + **ECC 파생 4**(#452 의 "14" 밖 — 배선 확인 2026-09-14) | 7 (Claude Code 만 — 타 CLI 변환에 에이전트 없음) | 6 | 2 (`session-start` 는 Codex 에도, trust 필요) |
+| ② `.claude/` — 이 리포 | 20 = ①의 18 미러 + 리포 전용 2 | 7 (①과 동일) | 7 = ①의 6 개발 사본 + `playwright-launch` | 3 = ①의 2 + `docker-only-realcli` |
 
 ①의 트랙 조건부 스킬 7종(e2e-testing · python-* · nextjs-turbopack · investor-* · market-research)은 번들 14 밖이라
 이번 범위에서 뺐다 — 별도 행으로 후속(§7).
@@ -53,16 +53,21 @@
 | S13 | natural-korean (opt-in) | 4 CLI · 0 | — | **없음** · 사용자 제공 본문(#428) | 39 / 491 | **유지(opt-in, 사용자 제공)** — S9 Mode K 와 겹침은 사용자가 알고 둔 것 |
 | S14 | verification-loop | 4 CLI · 0 | 초록 빌드를 사용자 가시 완료의 증거로 쓴다 | 부정 2(158줄이 CI 순서뿐 — NORTH_STAR:319 · 자작 전제 오류) · verdict 어휘는 보고 4편이 쓰나 스킬명 미기재 | 171 / 2,241 | **은퇴(사용자 판단 2026-09-14)** — 대체: Delivery 룰 "실행하지 않은 상태는 통과가 아니다" + `reviewer` 판정 형식. 종속: audit-service-gaps · agent-introspection-debugging 교차참조 2곳 · NORTH_STAR 한 문장 · `external-assets.ts` · 테스트 6곳 |
 
-### ② 리포 전용 스킬 6종
+### ①-b ECC 파생 스킬 4종 — 설치자에게 나간다 (`manifest.ts` C3, 번들 14 밖)
 
-| # | 자산 | 출처 · 발화 | 없을 때 나빠지는 행위 | 관측 출처 | 판정 |
+| # | 자산 | 설치 조건 · 발화 | 없을 때 나빠지는 행위 | 관측 출처 | 판정 |
 |---|---|---|---|---|---|
-| R1 | architecture-decision-record | 외부(AI Agent Hub) · 0 · **`disable-model-invocation: true` + `user-invocable: false` — 어떤 경로로도 안 열린다** | — | 없음 | **은퇴** — 죽은 사본. ADR 형식은 `change-management` 룰이 이미 갖고 있다 |
-| R2 | find-skills | 외부 · 0 | — | 없음 | **은퇴** — `npx skills` 사용법은 MEMORY 에 있다 |
-| R3 | eval-harness | ECC · 0 (`.claude/evals/session-2026-04-20.md` 1회, 4월) | — | 없음(4월 이후 미사용, 이 리포 게이트는 vitest) | **은퇴** |
-| R4 | agent-introspection-debugging | ECC · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴(사용자 확정 2026-09-14)** — 모델 기본 동작과 겹치고 참조가 죽어 있다 |
-| R5 | deep-research | ECC · 1 (이 사이클, 북극성 리서치) | 출처 없는 리서치 보고 | 없음(발화 1, 효과 미관측) · 본문은 firecrawl/exa 전용 명령 + 킬 원장 | **A/B 후보** — 유일하게 값을 더하는 절은 "킬 원장"이다 |
-| R6 | ui-visual-review | 자작 · 0 · **이 리포에 UI 없음** | — | 없음 | ②에서 **은퇴**(①의 UI 트랙용은 범위 밖 §7). 같은 이유로 ②의 `playwright-launch` 룰도 §4 |
+| R4 | agent-introspection-debugging | **dev 트랙(ECC 플러그인 없을 때)** · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴 후보** — 사용자 동의(2026-09-14)는 "리포 전용" 전제였다 → 설치자에게도 나가므로 **재확인 필요**. 대체: 모델 기본 동작 |
+| R5 | deep-research | **전 트랙 항상** · 1 (이 사이클) | 출처 없는 리서치 보고 | 없음(효과 미관측) · 본문은 하네스가 설치하지 않는 firecrawl/exa 전용 명령 + 킬 원장 | **은퇴 후보** — 사용자 의견(2026-09-14) "기본 리서치가 잘하면 필요 없다". 대체: 모델 기본 검색·조회 |
+| R3 | eval-harness | **dev 트랙** · 0 (이 리포 4월 1회) | — | 없음 — 이 리포 게이트는 vitest, 설치자 관측 없음 | **은퇴 후보** — EDD 아티팩트 계약(ADR-042)은 Testing · Delivery 룰 + reviewer 가 덮는다 |
+| R6 | ui-visual-review | **UI 트랙** · 0 | UI 시각 회귀를 놓친다 | 없음(이 리포 tooling) | **①은 범위 밖(§7)** · ②에서 **은퇴** — 이 리포에 UI 없음. 같은 이유로 ②의 `playwright-launch` 룰도 §4 |
+
+### ② 리포 전용 스킬 2종 (배선 없음)
+
+| # | 자산 | 출처 · 발화 | 관측 출처 | 판정 |
+|---|---|---|---|---|
+| R1 | architecture-decision-record | 외부(AI Agent Hub) · 0 · **`disable-model-invocation: true` + `user-invocable: false` — 어떤 경로로도 안 열린다** | 없음 | **은퇴** — 죽은 사본. ADR 형식은 `change-management` 룰이 이미 갖고 있다 |
+| R2 | find-skills | 외부 카탈로그(opt-in) 사본 · 0 | 없음 | ②에서 **은퇴** — `npx skills` 사용법은 MEMORY 에 있다. ① 카탈로그 항목은 남의 자산이라 대상 밖 |
 
 ## 2. 에이전트 — ①② 동일 7종 (Claude Code 만 도달)
 
@@ -154,7 +159,8 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 | 표면 | 유지 | 강등 | 은퇴 / 은퇴 후보 | A/B 후보 | #454 로 |
 |---|---|---|---|---|---|
 | ① 스킬 14 | 11 (S1~S6 · S8 · S9 · S11 · S12 · S13) + S7(사용자 확정) | — | S14 verification-loop(사용자) | S10 north-star · S7 효과 | — |
-| ② 리포 전용 스킬 6 | — | — | R1 · R2 · R3 · R4 (은퇴) · R6 (②에서) | R5 deep-research | — |
+| ①-b ECC 파생 4 | — | — | R4 · R5 · R3 (은퇴 후보, 사용자 확인) · R6 (②에서만) | — | — |
+| ② 리포 전용 2 | — | — | R1 · R2 (은퇴) | — | — |
 | 에이전트 7 (①②) | A1 reviewer · A2 implementer | A6 data-analyst · A7 strategist (트랙 조건부; ②에서는 은퇴) | A3 · A4 · A5 (사용자) | A2 효과 | — |
 | 훅 | H1 · H2 · H3 전부 | — | — | — | — |
 | ① 룰 44문장 | 13 | 5 (C1b · C2 · L1 · D3 · L4) | 1 (L2) | 2 (C3 · C4) + D1·D2 관측 확보 | 18 (Testing 9 · Delivery 9) |
@@ -171,7 +177,6 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 | S7 objective-brief | 피처 규모 위임 1건: 브리프 有 / 無 | 워커의 되묻기 수 · 범위 이탈 · 완료 판정 라운드 |
 | S10 north-star | 새 프로젝트 방향 문서 작성: 스킬 有 / 템플릿만 | 문서의 lifecycle 오분류(Finite/Persistent) 수 · 사용자 정정 수 |
 | A2 implementer | 같은 버그 수정: implementer 위임 / 메인 스레드 | 결함 · 되돌림 · 검증 레인 분리 유지 여부 |
-| R5 deep-research | 같은 리서치: 스킬 有 / 無 | 출처 없는 주장 수 · 킬 원장 유무 |
 | C3 · C4 · D1 · D2 (판단 지침 4문장) | 결정 기록·문서 동기화가 걸리는 작업 2건: 룰 有 / 無 | 결정 기록 누락 · 문서-코드 어긋남 · 사용자 정정 수 |
 
 차이가 안 나는 것은 뺀다. A/B 없이 은퇴하는 것(사용자 판단 4종 · 죽은 사본 3종 · ②PL)은 그대로 3단계로.
@@ -185,7 +190,7 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 ## 8. 미결 결정 (사용자)
 
 1. ~~S11 audit-service-gaps~~ — **유지**(사용자 관측, goaltrack)
-2. ~~R4 agent-introspection-debugging~~ — **은퇴**(사용자 확정)
+2. R4 agent-introspection-debugging · R5 deep-research · R3 eval-harness — **은퇴 후보(설치자에게도 나가는 것으로 판명, 재확인 필요)**
 3. L2 파이프 `$?` 은퇴 · L1 을 L3 포인터로 흡수 · L4 한 줄 — 동의하는가
 4. ~~A6·A7~~ — **트랙 조건부 강등**(사용자 확정)
 5. C2 · L4 · ②C3 · ②L1 · ②G3 강등 문안 — 3단계에서 diff 로 보인다
