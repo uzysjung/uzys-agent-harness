@@ -7,6 +7,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.152.0] — 2026-09-14 (관측이 판정한다 — 발화한 적 없는 자산을 걷어내고, 룰은 보호 경계·환경 사실·사용자 확정만 남긴다)
+
+설치본의 스킬 · 룰 · 훅 · 에이전트 하나하나를 **"없을 때 설치자의 작업이 관측 가능하게 나빠지는가"** 로
+전수 판정했다(#452, `docs/plans/harness-inventory-audit-2026-09-14.md`, ADR-090). 근거는 이 리포 이력
+48편 · ADR · 리뷰 보고 15건 · 세션 기록 19개와 **설치자의 실제 프로젝트 관측**이다. 발화 횟수는 도달의
+증거이지 도움의 증거가 아니라 판정에 쓰지 않았다. 문턱 · 게이트 · 보호 검사 · Testing · Delivery 룰은
+한 글자도 바꾸지 않았다(Testing · Delivery 는 #454 로).
+
+### 설치받는 사람에게 달라지는 것
+
+- **스킬 4종 은퇴**: `verification-loop`(158줄이 CI 실행 순서뿐 — Delivery 룰 "실행하지 않은 상태는
+  통과가 아니다" + `reviewer` 판정이 대신한다) · `deep-research`(하네스가 설치하지 않는 firecrawl/exa
+  전용 명령 — 기본 검색 · 조회가 대신한다) · `eval-harness` · `agent-introspection-debugging`(발화 0 ·
+  존재하지 않는 스킬을 지목). `update` 화면이 네 종을 이름 · 경로 · 대안과 함께 안내한다 — 자동 삭제 없음.
+- **에이전트 3종 은퇴**: `plan-checker`(`reviewer` 가 계획 문서도 같은 계약으로 본다) ·
+  `silent-failure-hunter`(`/code-review`) · `build-error-resolver`(모델 기본 능력). 설치 기준선이 있는
+  설치본은 `update` 가 회수하고, 없으면 종별 대안과 함께 안내한다. `data-analyst` 는 data 트랙,
+  `strategist` 는 executive 트랙에만 깔린다(그전에는 전 트랙). 이미 깔린 두 파일은 남는다 — 안내는 #458.
+- **룰 세 곳이 짧아졌다**. Change Boundaries 는 앵커와 같은 말 두 문장을 뺐다(범위 안 계속 · 의미
+  변경은 합의 — 전역 6원칙 §3 · §6). Shell Safety 는 다섯 문장이 셋으로 — "빈 결과 ≠ 부재" 와 파이프
+  `$?` 는 룰에 있는 동안 같은 실수를 세 번 못 막았고 막은 것은 `check-absence.sh` 였으므로 그 도구를
+  가리키는 한 줄로, BSD/GNU 목록은 한 줄로. Documentation Boundaries 의 "미완 표기는 모르는 것" 세
+  문장은 "코드로 확인해 정정한다 — 심볼 ≠ 완료" 한 줄로. **ADR 기록 대상 · 결정 변경 시 참조 문서
+  갱신 · SSOT 하나 · 추적 문서 동기화 네 문장은 그대로다**(사용자 확정 — 당연하지만 누락하지 않도록).
+- **`model-orchestration` 중복 두 절이 포인터로**: 위임 프롬프트 사양은 `objective-brief`, 다 쓴
+  워커 닫기는 `git-policy` Session Cleanup 이 SSOT. "결과는 파일로 수거" 소절은 그대로(3회 관측된 계약).
+- **은퇴 안내가 실제로 무는 테스트**: 은퇴 목록에서 한 종을 빼면 테스트가 red 다 — 목록에서 derive
+  하던 표본은 목록에서 빠져도 초록이었다(리뷰가 잡음). 손으로 적은 표본 + 멤버십 단언.
+- **상주 비용(tooling)**: v26.151.0 **29개 ~7,364** → **20개 ~6,546** tokens/세션 — 지시문 8개 ~4,330
+  → ~4,225(룰 ~1,373 → ~1,268) · 발화 표면 21개 ~3,034 → **12개 ~2,321**(스킬 descriptor 14 → 10, 에이전트
+  7 → 2). 크기는 결과이지 목표가 아니다.
+- **북극성 §1 에 축 한 줄**: *지시는 설치자의 작업이 그것 없이보다 빠르고 안정적이라는 관측을 근거로
+  상주한다 — 크기가 아니라 관측이 판정한다.* 이 릴리즈가 첫 전수 적용이다.
+
+### 설치와 무관한 변경 (이 저장소 운영용)
+
+- 이 리포 `.claude/` 에서 죽은 사본 6종(`architecture-decision-record` — 어떤 경로로도 안 열림 ·
+  `find-skills` · `eval-harness` · `agent-introspection-debugging` · `deep-research` · `ui-visual-review`)과
+  UI 없는 리포의 `playwright-launch` 룰, 에이전트 5종을 뺐다. Savepoint · BSD 표 · Post-Merge 절차는
+  한 줄로. `superseded` 판정 모듈은 갈릴 자산이 0 이 되어 위저드 화면과 함께 제거.
+- 판정 표가 말하는 것: 룰 44문장 중 프로즈가 행동을 바꿨다는 긍정 관측은 0 — 막은 기록 5건은 전부
+  설치 스크립트 · GitHub 룰셋 · 독립 리뷰가 문 것이다. 값을 했다는 관측이 있는 자산은 6종
+  (audit-harness-fit · multi-persona-review · gh-issue-workflow · recurrence-prevention · reviewer ·
+  session-start).
+- 후속 이슈: #458 강등 잔존 안내 · 상주 계측 · #454 테스트 · 독립검증 정책과 테스트 스위트 전수 검토 ·
+  #456 base 트랙(스택 무관 원칙 · 방법론만) · #451 · #437.
+
 ## [v26.151.0] — 2026-09-14 (지침이 개발을 막던 자리 — 문턱을 씬으로, 앵커를 사용자 원칙으로, 모델이 아는 것은 빼고)
 
 전체 하네스 지침을 두 번 감사했다(#426, `docs/plans/harness-conflict-audit-2026-09-13.md`). 기준은 셋 —
