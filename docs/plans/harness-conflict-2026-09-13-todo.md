@@ -46,11 +46,20 @@ status: active
 - [x] **④ 전체 하네스 충돌 감사 (#426)** — 보고서 `docs/plans/harness-conflict-audit-2026-09-13.md` (HIGH 2 · MED 6 · LOW 5 · 보류 3) — ②의 스킬을 **이 리포에** 읽기 전용으로 돌린다. 대상 = 4 CLI
   설치 렌더(임시 디렉터리 4개, `runInstall`) + 이 리포 `.claude/`. 산출물 = `docs/plans/harness-conflict-audit-2026-09-13.md`
   (F-xx 기록: 원문 양쪽 · 상황 · 수정안 · 확인/미확인 경로). 파일 수정 없음.
-- [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 중 사용자가 확정한 것을
-  적용. 확정된 것 하나는 이미 있다: `code-reviewer` 에이전트 descriptor 의 *"MUST BE USED for all code
-  changes"* (양쪽 사본) → 씬 완료 시점으로. 고객 `Delivery` 룰에 3단계 리듬(변경부 빠른 검사 → 씬 수정분
-  모아 독립 검토 → 통합·빌드·실사용 흐름)과 #423 의 머지 전 독립검증 기준(핵심 사용자 기능 · 되돌리기
-  어려운 것 · 돈·권한)을 넣는다. 필수 보안·데이터 보호 검사는 유지.
+- [ ] **⑤ 씬 단위 검사 + 감사 결과 적용 (#424 · #427-B, #423 동반)** — ④의 findings 전부 확정됨(보고서
+  §사용자 결정). PR 5개, 각각 독립 리뷰:
+  - [ ] ⓐ **리뷰 문턱 통일** F-01 · F-14 · R-01 · R-02 — `code-reviewer` descriptor(양쪽) · 고객 `Delivery` 룰
+    3단계 리듬 + #423 머지 전 기준 · `Testing` 룰 문턱 SSOT 한 곳 · 이 리포 `test-policy` · `ship-checklist`.
+    필수 보안·데이터 보호 검사는 유지.
+  - [ ] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트.
+  - [ ] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
+  - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
+    제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·
+    `doc-governance` 한 줄. 자산 수 62 → 59(스킬 −3), 카탈로그·lock·문서·`.claude/` 미러 동반.
+  - [ ] ⓔ **이 리포 이력 분리** R-03 · R-04 — 상주 파일 전부(루트 `CLAUDE.md` · `.claude/CLAUDE.md` · 룰 6종 ·
+    배포 룰 6종 · 메모리 색인)에서 경위·전례·정정 이력을 ADR·plan·이슈 링크로. 사례표 포함,
+    `recurrence-prevention` 룰 템플릿 정합. 죽은 MCP 훅 배선 삭제. 리뷰 기준 = 지운 문장마다 링크 목적지에
+    같은 사실 실재.
 - [ ] **⑥ 출하** — CHANGELOG · `cost:baseline` · 릴리즈 순서(`ship-checklist`).
 
 ## 결정 (사용자 확정 2026-09-13)
@@ -61,6 +70,12 @@ status: active
 | D2 | 비-Claude CLI 에 스킬 디렉터리 전체 복사 | **한다**. 충돌 해소 스킬 작업 안에서 먼저 처리 |
 | D3 | #423 을 ⑤에 합친다 | **합친다** |
 | 결과 | 적대적 패널 축 | 사용자 문안에 없으므로 배포 앵커에서 사라진다. 게이트의 그 축은 이 리포 앵커 전용 |
+| D4 | `task-brief` 문턱·이름 | **`objective-brief`** 로 개명. 긴 작업·피처·프로젝트 규모 이상에만 — 설치자·이 리포 동일 문턱 |
+| D5 | `strategic-compact` | **제거**(스킬·훅). 순정 자동 컴팩션이 있다 |
+| D6 | `continuous-learning-v2` | **제거**. `recurrence-prevention` 이 담당 |
+| D7 | `spec-scaling` | **retire** + `doc-governance` 한 줄 |
+| D8 | 이력 분리 범위 | **매 세션 상주하는 파일 전부**, 사례표 포함(계수는 한 줄 + 링크) |
+| D9 | `mcp-pre-exec` | 이미 제거됨(#307) — 죽은 배선·낡은 문장만 정리 |
 
 ## 가드레일
 
