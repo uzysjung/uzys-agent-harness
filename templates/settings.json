@@ -22,26 +22,11 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh\""
-          },
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh\"",
-            "async": true,
-            "timeout": 5
           }
         ]
       }
     ],
     "PostToolUse": [],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/task-brief-nudge.sh\""
-          }
-        ]
-      }
-    ]
+    "UserPromptSubmit": []
   }
 }

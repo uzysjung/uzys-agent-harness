@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
+import { RENAMED_SKILL_IDS, RETIRED_SKILL_IDS } from "../src/external-assets.js";
 import {
   type ExternalInstallerDeps,
   refreshExternalSkills,
@@ -380,6 +381,32 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     expect(out).toMatch(/external skills/);
     expect(out).toContain("ghost-a");
     expect(out).toContain("ghost-b");
+  });
+
+  // ADR-088 (#426) — 개명·은퇴는 **사용자가 할 일이 다르다**. 한 문구로 뭉치면 은퇴한 스킬의
+  // 새 판을 찾아 헤맨다. 매핑은 카탈로그(`RENAMED_SKILL_IDS`·`RETIRED_SKILL_IDS`)가 소유한다.
+  it("개명된 스킬은 새 이름과 받는 방법을 말한다", () => {
+    const [oldId, newId] = Object.entries(RENAMED_SKILL_IDS)[0] as [string, string];
+    const out = lines({ externalSkillsNotInCatalog: [oldId] });
+    expect(out).toContain(oldId);
+    expect(out).toContain(newId);
+    expect(out).toMatch(/지우고/);
+    // 개명은 "은퇴"가 아니다 — 새 판이 있는데 없다고 읽히면 사용자가 그 스킬을 버린다.
+    expect(out).not.toMatch(/은퇴/);
+  });
+
+  it("은퇴한 스킬은 지워도 된다고 말한다 — 새 이름을 찾게 만들지 않는다", () => {
+    const id = RETIRED_SKILL_IDS[0] as string;
+    const out = lines({ externalSkillsNotInCatalog: [id] });
+    expect(out).toContain(id);
+    expect(out).toMatch(/은퇴/);
+    expect(out).toContain(`.claude/skills/${id}`);
+  });
+
+  it("카탈로그에 없지만 개명·은퇴 목록에도 없으면 기존 문구 그대로", () => {
+    const out = lines({ externalSkillsNotInCatalog: ["ghost-a"] });
+    expect(out).toContain("ghost-a");
+    expect(out).toMatch(/카탈로그에 없어 갱신 대상이 아니다/);
   });
 
   it("실패가 여럿이면 한 줄이 길어지지 않는다 — 이름만 내고 사유는 대표 1건", () => {

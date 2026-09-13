@@ -9,18 +9,17 @@ import { DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
 /**
  * **항상 깔리는 파일이, 자기보다 좁게 깔리는 경로를 실행 참조하지 않는가.**
  *
- * 계기(M-1): `templates/settings.json` 의 PreToolUse(`Write|Edit`) 훅이
- * `.claude/skills/strategic-compact/suggest-compact.sh` 를 **무조건** 참조한다. 그런데
- * settings.json 은 `applies: all`(`src/manifest.ts`)이고 그 스킬은 `COMMON_SKILL_DIRS_ECC`
- * → `applies: (s) => !s.withEcc` 다. 실측:
+ * 계기(M-1): `templates/settings.json` 의 PreToolUse(`Write|Edit`) 훅이 **스킬 디렉터리 안의
+ * 사이드카 스크립트**를 무조건 참조했다. 그런데 settings.json 은 `applies: all`
+ * (`src/manifest.ts`)이고 그 스킬은 C2(`applies: (s) => !s.withEcc`)였다. 실측:
  *
- *   withEcc=false  settings.json ✓  strategic-compact ✓
- *   withEcc=true   settings.json ✓  strategic-compact ✗   ← 훅이 없는 파일을 가리킨다
+ *   withEcc=false  settings.json ✓  스킬 디렉터리 ✓
+ *   withEcc=true   settings.json ✓  스킬 디렉터리 ✗   ← 훅이 없는 파일을 가리킨다
  *
  * 이 결함이 살아남은 이유가 이 게이트를 만드는 이유다 — 이 리포 자신이 `withEcc=false` 로
- * 도그푸드해서 그 스크립트가 **로컬에는 존재한다.** 로컬 값과 배포 조건이 우연히 갈라져
- * 영원히 안 보이는 형태(`no-false-ship` §"게이트 자신도 환경에 따라 달라지는 값을
- * 하드코딩하지 않는다")이고, 그래서 판정을 **디스크가 아니라 manifest** 로 한다.
+ * 도그푸드해서 그 스크립트가 **로컬에는 존재했다.** 로컬 값과 배포 조건이 우연히 갈라져
+ * 영원히 안 보이는 형태이고, 그래서 판정을 **디스크가 아니라 manifest** 로 한다. 그 훅은
+ * ADR-088 에서 은퇴했지만 부류는 남는다 — 넓게 깔리는 파일이 좁은 경로를 실행 참조하는 형태.
  *
  * 부류 = "설치 조건이 넓은 파일 → 좁은 경로로의 실행 참조". 개별 참조를 잡는 게 아니다.
  *

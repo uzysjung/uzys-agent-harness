@@ -118,7 +118,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 |---|---|
 | `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
 | `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
-| `task-brief` | Normalize a request — and every delegation prompt — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. Ships with the `task-brief-nudge` hook, which adds one line of stdout when a long prompt arrives without a brief |
+| `objective-brief` | Normalize work that is about to be delegated, designed, or carried out over several steps — anything at feature or project scale — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. A one-line question, a lookup, a single edit, or a routine change does not get a brief |
 | `audit-harness-fit` | Audit or clean up the instructions and skills your agent loads: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire rules and skills that add nothing, move decision history out of resident text, right-size verification around the user journey — and fill or refresh the `AGENTS.md` / `CLAUDE.md` project context from repository evidence. Read-only unless you ask it to apply |
 
 **Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
@@ -136,7 +136,9 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 
 > `natural-korean` replaced the earlier humanize-korean skill (#428). The predecessor was a diagnosis-first *revision* skill; this one also covers writing and translation, so the name followed the scope. A project that installed the old id keeps it — `update` only refreshes skills it finds installed — and picks up the new one with `--with natural-korean`.
 
-> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `natural-korean` are newer still.
+> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `objective-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `natural-korean` are newer still.
+
+> **What changed in ADR-088.** `objective-brief` was called task-brief, and the prompt hook that nudged you toward it on every long prompt is gone: the brief is for delegation, design, and multi-step work, and prompt length is no evidence of scale. Three skills retired in the same release — a compaction-timing skill (Claude Code compacts on its own), a session-observation skill (`recurrence-prevention` covers the same ground), and a SPEC-splitting skill (one line in the `doc-governance` rule replaces it: keep current decisions in resident documents, move history to ADRs and plan files). A project that installed any of them keeps the directory — `update` does not delete skills — and the update summary names what to remove.
 
 ### Not driven by track selection (opt-in on any track)
 

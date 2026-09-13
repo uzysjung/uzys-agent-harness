@@ -60,24 +60,6 @@
       "modification_note": null
     },
     {
-      "id": "ecc-cl-v2",
-      "source": "ecc",
-      "src": "skills/continuous-learning-v2/",
-      "dst": "templates/skills/continuous-learning-v2/",
-      "type": "directory",
-      "modified": false,
-      "modification_note": null
-    },
-    {
-      "id": "ecc-strategic-compact",
-      "source": "ecc",
-      "src": "skills/strategic-compact/",
-      "dst": "templates/skills/strategic-compact/",
-      "type": "directory",
-      "modified": true,
-      "modification_note": "우리 배포는 suggest-compact.sh(bash)를 유지 — upstream 은 812d4d0 에서 스크립트를 삭제하고 SKILL.md 만 남겼다. SKILL.md 도 설치기 자동배선 안내로 재작성(v26.121.0). sync --apply 가 훅 스크립트를 지우지 않도록 modified 유지 필수."
-    },
-    {
       "id": "ecc-deep-research",
       "source": "ecc",
       "src": ".agents/skills/deep-research/",

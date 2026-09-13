@@ -122,13 +122,14 @@ MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust ti
 
 ## 4. Cherry-picked Sources
 
-`.dev-references/cherrypicks.lock` (16건 — 2026-08-02 ADR-060 에서 verification-loop·karpathy-gate,
-ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서 발췌해 `templates/`에 복사.
+`.dev-references/cherrypicks.lock` (14건 — ADR-088 에서 은퇴한 스킬 2종의 행 제거, 2026-08-02
+ADR-060 에서 verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서
+발췌해 `templates/`에 복사.
 `scripts/sync-cherrypicks.sh`로 upstream drift 감지.
 
 | 카테고리 | 항목 |
 |---------|------|
-| Skills (templates/skills/) | continuous-learning-v2, strategic-compact, deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
+| Skills (templates/skills/) | deep-research, market-research, eval-harness, e2e-testing, agent-introspection-debugging, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
 | Agents (templates/agents/) | code-reviewer, security-reviewer, silent-failure-hunter, build-error-resolver |
 
 **`verification-loop` 은 이 목록에 없다** — ECC 파생이지만 lock 밖이다(ADR-060 이 행을 해체했고
@@ -141,15 +142,14 @@ ADR-062 복원은 재등재하지 않았다). 우리 판본으로 유지·배포
 
 ### Skills (templates/skills/)
 
-자체 작성 스킬은 **14종**이고, 그중 **12종은 카탈로그 엔트리를 갖는다**(`INTERNAL_BUNDLED_SKILL_IDS`
-— 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다). 남는 `spec-scaling`·
-`ui-visual-review` 2종은 엔트리 없이 `manifest.ts` 가 직접 깐다 — `ui-visual-review` 는 UI 트랙
-조건이고, `spec-scaling` 은 **무조건**이다. (~~디렉터리가 아니라 `SKILL.md` 파일 하나만 나간다~~
-— #409 에서 **디렉터리 단위로 통일**했다. 우리 스킬은 이제 예외 없이 디렉터리로 등록되고,
-`tests/skill-registration-uniform.test.ts` 가 그것을 강제한다. 파일 단위였던 동안 상주 계측이
-이 스킬을 조용히 0으로 셌다 — ADR-083.)
-COMPATIBILITY.md 가
-"번들 uzys 스킬 12종"이라 적는 것과 여기 14종이 어긋나 보이는 이유가 이 둘이다.
+자체 작성 스킬은 **15종**이고, 그중 **14종은 카탈로그 엔트리를 갖는다**
+(`INTERNAL_BUNDLED_SKILL_IDS` — 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다).
+남는 `ui-visual-review` 1종만 엔트리 없이 `manifest.ts` 가 직접 깐다(UI 트랙 조건). **개수의
+SSOT 는 코드다** — `INTERNAL_BUNDLED_SKILL_IDS` 와 `templates/skills/` 를 세라. 여기 숫자와
+다른 문서의 숫자가 어긋나 보이면 코드가 답이다. (~~디렉터리가 아니라 `SKILL.md` 파일 하나만
+나간다~~ — #409 에서 **디렉터리 단위로 통일**했다. 우리 스킬은 이제 예외 없이 디렉터리로
+등록되고, `tests/skill-registration-uniform.test.ts` 가 그것을 강제한다. 파일 단위였던 동안
+상주 계측이 그 스킬을 조용히 0으로 셌다 — ADR-083.)
 
 아래 9종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
 uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
@@ -160,7 +160,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 |-------|----------|------|------|
 | **north-star** | 전 track | NSM(metric-as-proxy)·Pillars·Will/Won't·4-gate + 우선순위 순서 게이트. `NORTH_STAR.template.md` 동반 | ADR-062 복원 (구 north-star + northstar-roadmap 통합) |
 | **gh-issue-workflow** | 전 track | 이슈를 비동기 백로그·결정 채널로. 5섹션 body 템플릿(`ISSUE.template.md`) + 읽기/초안/원격쓰기 단계 분리 | ADR-062 복원 |
-| **task-brief** | 전 track | 요청·위임 프롬프트를 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. `task-brief-nudge.sh` 훅과 한 벌 | ADR-062 AC9 신설 (복원 아님) |
+| **objective-brief** | 전 track | 위임·설계·다단계(피처/프로젝트 규모 이상) 작업을 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. 한 줄 질문·조회·단일 수정·루틴 변경은 제외 | ADR-062 AC9 신설 → ADR-088 개명·문턱 |
 | **audit-harness-fit** | 전 track | 지침·스킬 정비 4모드 — audit(무조건 지시·지침 충돌·불필요한 원칙·상주 이력·과도한 검증 5영역, 읽기 전용) · verification(사용 장면 기준 검증 설계) · apply(승인된 변경만) · populate(`AGENTS.md`/`CLAUDE.md` 프로젝트 맥락 채우기). 판정 근거는 확정된 의도와 리포 실증 | ADR-064 신설 → ADR-084 2판 |
 | **clear-korean-communication** | 전 dev track | 독자 위치에서 시작하는 설명 + 승인 요청 4요소(맥락→추천→UI/UX→ASIS/TOBE) | ADR-062 복원 (구 asis-tobe-decision + explain-plainly 통합) |
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
@@ -170,7 +170,6 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **model-orchestration** | opt-in | 역할·effort 라우팅 정책, 위임 브리프 규격, 워커 수거·종료 계약 | ADR-062 복원 |
 | **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
 | **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
-| **spec-scaling** | 전 dev track | SPEC.md/PRD.md 300줄 초과 시 기능별 or 영역별 분리 제안 (docs/specs/ or docs/PRD/) | v26.30.0 확장 |
 | **ui-visual-review** | csr-*/ssr-*/full | Playwright/chrome-devtools 스크린샷 캡처 → baseline diff → 에이전트 REGRESSION 분류 → Review Gate 차단 | v26.29.0 신규 |
 
 ### Templates (templates/docs/)
@@ -195,14 +194,14 @@ CLAUDE.md와 짝.
 - **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
 
 ### Hooks (templates/hooks/)
-3 파일 (실측 2026-08-16): session-start · protect-files · task-brief-nudge.
+2 파일 (실측 2026-09-13): session-start · protect-files.
 차단하는 훅은 `protect-files` **하나뿐**이고, exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
 `날짜 · 훅 · 대상` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
 *`mcp-pre-exec` 은 ADR-072 로 제거됐다 — 배선이 아니라 목적이 이유다. MCP 서버를 새로 붙이는 <!-- ref:removed -->
 순간 차단하는 훅은 "사용자가 AI 코딩 도구로 개발을 잘하게 만든다"는 방향과 반대로 작동한다.*
-**task-brief-nudge 는 차단하지 않는다** — UserPromptSubmit 에서 "400자 이상 && `<objective>` 부재"
-라는 결정적 두 조건만 보고 stdout 1줄을 덧붙인다(그 밖엔 무출력 exit 0). 차단 경로가 없어
-차단 로그도 남기지 않는다. 브리프 변환 자체는 판단이 필요하므로 `task-brief` 스킬 몫이다.
+*브리프 넛지 훅(UserPromptSubmit)은 ADR-088 로 제거됐다 — "400자 이상 && `<objective>` 부재"
+라는 두 조건은 결정적이지만 **길이는 규모의 증거가 아니었다**. 브리프는 위임·설계·다단계 작업에만
+쓰는 것으로 문턱이 올라갔고(`objective-brief`), 그 문턱은 매 프롬프트 훅으로 표현할 수 없다.*
 *구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 ADR-023, karpathy-gate·spec-drift-check
 는 ADR-060, checkpoint-snapshot 은 ADR-061 에서 삭제됨(검증 스캐폴딩·무동작 실측 — 마지막 것은
 `settings.json` 의 `"PostToolUse": []` 로 설치만 되고 실행 0이었다).*

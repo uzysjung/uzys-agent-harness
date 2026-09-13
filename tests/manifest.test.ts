@@ -145,21 +145,21 @@ describe("buildManifest", () => {
     expect(m.find((e) => e.source === "hooks/protect-files.sh")).toBeDefined();
   });
 
-  it("continuous-learning-v2: C2 — plugin ON 이면 비켜선다. v26.121.0", () => {
-    // v26.58.0(ADR-019)에서는 C3 였다: "우리가 수정한 판본이라 plugin 으로 갈음 불가 → 항상
-    // install". 그 근거가 뒤집혀 있었다 — 우리 수정의 내용이 upstream 의 agents/(관측을 instinct
-    // 로 바꾸는 분석기) **제거**였고, 즉 우리 판본은 상위집합이 아니라 진부분집합이었다. 갈음
-    // 불가가 아니라 갈음당해야 맞는 쪽이다. upstream 전체 복원(lock modified:false)으로 C2 로 옮겼다.
+  it("agent-introspection-debugging: C2 — plugin ON 이면 비켜선다 (ADR-019)", () => {
+    // C2 = "plugin 이 같은 것을 주므로 plugin 을 고르면 우리 사본은 비켜선다"(opt-out 폴백).
+    // 실사용 영향: 이 조건이 빠지면 ECC plugin 을 켠 사용자가 **같은 스킬을 두 판본** 받고
+    // 어느 쪽이 로드되는지 예측할 수 없다(#340 이 4종에서 실제로 그랬다).
     //
-    // 실사용 영향: ECC plugin 을 켠 사용자는 동작하는 plugin 판본과 우리 사본을 둘 다 갖고 있었다.
+    // 표본이 dev 축 하나인 이유: 공통 축의 C2 두 종이 ADR-088 에서 은퇴했다. 표본이 사라지면
+    // 이 계약을 아무도 안 보므로 남은 축으로 옮겨 유지한다.
     const off = buildManifest({ tracks: ["tooling"] });
-    const cl = off.find((e) => e.source === "skills/continuous-learning-v2");
+    const cl = off.find((e) => e.source === "skills/agent-introspection-debugging");
     expect(cl).toBeDefined();
     expect(cl?.applies({ tracks: ["tooling"] })).toBe(true);
     expect(cl?.applies({ tracks: ["tooling"], withEcc: true })).toBe(false);
 
-    // track 무관 — 갈리는 축은 withEcc 하나다.
-    expect(cl?.applies({ tracks: ["executive"], withEcc: false })).toBe(true);
+    // dev 트랙 술어와 withEcc 가 **함께** 걸린다 — executive 에는 안 가고, plugin ON 에도 안 간다.
+    expect(cl?.applies({ tracks: ["executive"], withEcc: false })).toBe(false);
     expect(cl?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
   });
 

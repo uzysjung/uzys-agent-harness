@@ -93,7 +93,7 @@ stale row fails the build rather than misleading you.
 | `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `gh-issue-workflow` | official | templates (`--with gh-issue-workflow`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `task-brief` | official | templates (`--with task-brief`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `objective-brief` | official | templates (`--with objective-brief`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `natural-korean` | official | templates (`--with natural-korean`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |

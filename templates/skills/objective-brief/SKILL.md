@@ -1,21 +1,21 @@
 ---
-name: task-brief
+name: objective-brief
 description: >-
-  Rewrite a task request into the canonical XML brief — objective, inputs, invariants,
-  success_criteria, boundaries, autonomy, verification, communication, output_format — so the
-  worker receives one judgeable definition of done instead of prose. Runs in two directions:
-  INBOUND reshapes a sprawling or half-formed request into that shape, filling each field from
-  context already on screen and deleting sections that do not apply; OUTBOUND writes the prompt
-  that a spawned worker actually receives. Trigger on "브리프로 정리", "작업 지시서로 만들어",
-  "프롬프트 구조화", and in English "turn this into a task brief", "structure this prompt".
-  Fire unprompted the moment you are about to hand a multi-part task to a subagent, a workflow
-  worker, or a parallel lane. Do NOT fire on a one-line question, a lookup, or an ordinary
-  conversational exchange where you simply need one more piece of information — asking a
-  clarifying question is not a brief, and wrapping a one-sentence ask in nine XML tags costs
-  more than it buys.
+  Rewrite work about to be delegated, designed, or run over several steps into the canonical XML
+  brief — objective, inputs, invariants, success_criteria, boundaries, autonomy, verification,
+  communication, output_format — so the worker receives one judgeable definition of done instead
+  of prose. Runs in two directions: INBOUND reshapes a sprawling or half-formed request into that
+  shape, filling each field from context already on screen and dropping sections that do not
+  apply; OUTBOUND writes the prompt a spawned worker actually receives. Trigger on "브리프로 정리",
+  "작업 지시서로 만들어", "프롬프트 구조화", and in English "turn this into a task brief",
+  "structure this prompt". Fire unprompted before handing a multi-part task to a subagent, a
+  workflow worker, or a parallel lane, and before design or multi-step work at feature or project
+  scale. Do NOT fire on a one-line question, a lookup, a single edit, or a routine change — a
+  clarifying question is not a brief, and nine XML tags around a small ask cost more than they
+  buy.
 ---
 
-# Task Brief
+# Objective Brief
 
 A single shape for "here is the task". The point is not tidiness — it is that every field is a
 place where an unstated assumption would otherwise stay unstated. A worker that receives prose
@@ -102,8 +102,9 @@ as a field that was considered and found empty, which is a claim you did not mak
 
 ## Inbound — normalize the request before acting on it
 
-A request arrives as prose, a paste, or an ask that grew across three messages. Reshape it first,
-then work from the reshaped version.
+A feature-scale or project-scale request arrives as prose, a paste, or an ask that grew across
+three messages. Reshape it first, then work from the reshaped version. A one-line question, a
+lookup, a single edit, or a routine change does not get a brief — answer it.
 
 1. **Read the whole request before writing any field.** The objective is usually stated last.
 2. **Fill fields from context you already have** — open files, the error text on screen, the

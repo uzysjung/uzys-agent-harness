@@ -580,11 +580,13 @@ describe("상주 항목 수 (quantity 축)", () => {
   //   2026-08-02 룰·훅 다이어트 — 룰 축이 전 트랙 1 줄었다: `gates-taxonomy` 를 COMMON_RULES 에서
   //   뺐다(게이트 4유형 어휘표 = 모델 기지식). 훅은 상주가 아니라 이 표에 영향이 없다.
   it.each([
-    ["executive", { rules: 3, skills: 11, agents: 5, claudeMd: 2, total: 21 }],
-    ["tooling", { rules: 6, skills: 17, agents: 9, claudeMd: 2, total: 34 }],
+    // ADR-088 (#426) — 스킬 3종 은퇴로 각 트랙의 skill 수가 3 줄었다(은퇴 2종은 전 트랙 C2,
+    // 1종은 무조건 설치였다). 개수가 조용히 늘거나 주는 것을 막는 자리라 값을 적어 둔다.
+    ["executive", { rules: 3, skills: 8, agents: 5, claudeMd: 2, total: 18 }],
+    ["tooling", { rules: 6, skills: 14, agents: 9, claudeMd: 2, total: 31 }],
     // 2026-08-12 — `playwright-launch` 가 `ui-visual-review` 스킬로 흡수돼 UI 트랙 룰이 0이 됐다.
     // full 의 룰이 7 → 6 이고 총합도 하나 준다 (스킬 수는 그대로 — 흡수된 곳이 이미 있던 스킬이다).
-    ["full", { rules: 6, skills: 25, agents: 9, claudeMd: 2, total: 42 }],
+    ["full", { rules: 6, skills: 22, agents: 9, claudeMd: 2, total: 39 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

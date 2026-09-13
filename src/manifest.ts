@@ -206,14 +206,10 @@ const DEV_AGENTS_ECC = ["silent-failure-hunter", "build-error-resolver"];
  * (판정 기준 = 루트 `CLAUDE.md` §판정은 목적에서 시작한다). 결정론적으로 구현됐다는 사실은
  * 목적 적합성의 증거가 아니다.
  */
-export const ALWAYS_HOOKS = [
-  "session-start.sh",
-  "protect-files.sh",
-  // UserPromptSubmit 넛지. 차단하지 않는 유일한 훅 — 판정은 결정적 두 조건뿐이고(길이 ·
-  // `<objective>` 표식 부재) 변환 자체는 `task-brief` 스킬 몫이다. `templates/settings.json`
-  // 배선과 한 벌 (hook-wiring-parity 가 한쪽만 있는 상태를 문다).
-  "task-brief-nudge.sh",
-];
+// ADR-088 (#426 F-04) — UserPromptSubmit 넛지 훅이 빠졌다. 긴 프롬프트마다 "브리프로 정리하라"를
+// 한 줄 붙였는데, 브리프는 위임·설계·다단계 작업에만 쓰는 것으로 문턱이 올라갔다(`objective-brief`).
+// 매 프롬프트 훅은 그 문턱을 표현할 수 없다 — 길이는 규모의 증거가 아니다.
+export const ALWAYS_HOOKS = ["session-start.sh", "protect-files.sh"];
 
 // v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로
@@ -221,17 +217,9 @@ export const ALWAYS_HOOKS = [
 // `any-track: 전 트랙` condition 이 이어받는다 (강등 아님).
 const COMMON_SKILL_DIRS: string[] = [];
 // C2 (plugin OFF fallback, opt-out).
-// v26.121.0 — continuous-learning-v2 가 C3 → C2. 우리 판본이 upstream 에서 agents/(관측을
-// instinct 로 바꾸는 분석기)를 뺀 진부분집합이었고, 그래서 "plugin 으로 갈음 불가"라는 C3 근거가
-// 뒤집혀 있었다 — 갈음 불가의 내용이 기능 제거였다. upstream 전체를 복원해 동일해졌으므로
-// (lock modified:false) plugin ON 이면 비켜서는 것이 맞다. 데몬은 upstream 기본값대로 꺼져 있다
-// (config.json observer.enabled=false) — 켜면 백그라운드에서 claude 를 주기 호출하므로 사용자 선택.
-// #340 — strategic-compact 은 lock 에서 `modified:true` 지만 **C2 로 두는 것이 의도**다.
-// `modified` 는 `sync-cherrypicks.sh --apply` 의 덮어쓰기 방지 플래그이지 설치 게이팅이 아니다.
-// ECC 를 고르면 이 디렉터리가 안 깔리고, 그때 `settings.json` 이 남기는 훅 참조는 install 의
-// 치유 패스가 지운다(M-1, `tests/installer.test.ts` 가 문다). 두 축을 같은 것으로 읽으면
-// 이 결정이 사고로 보인다 — 그래서 아래 게이트에 예외로 **이름을 적어** 둔다.
-const COMMON_SKILL_DIRS_ECC = ["strategic-compact", "continuous-learning-v2"];
+// ADR-088 (#426 F-09 · F-10) — 여기 있던 두 종이 은퇴해 목록이 비었다. 상수와 아래 루프는 남긴다:
+// 다음 C2 cherry-pick 이 들어올 자리이고, 빈 목록이면 루프가 0회 돌아 아무 엔트리도 안 만든다.
+const COMMON_SKILL_DIRS_ECC: string[] = [];
 // C3 (modified=true — plugin 으로 갈음 불가, 항상 install). deep-research = v26.114.0
 // 리서치 원장(confirmed/killed + caveat) 주입, ADR-042.
 const MODIFIED_COMMON_SKILL_DIRS = ["deep-research"];
@@ -289,9 +277,9 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
   // 플러그인 에이전트(`everything-claude-code:*`)를 직접 불러 폴백 상황에서 아예 못 돌았다.
   // 나머지 6개는 돌았지만 플러그인이 여섯을 모두 제공하므로 폴백을 기본값에 둘 이유가 없다.
   //   2026-08-18 정정(#338) — 이 주석과 ADR-073 Context 는 "5개가 안 고른 자산을 가리킨다"로
-  //   적고 있었다. `evolve`·`instinct-status`·`promote` 가 부르는 `continuous-learning-v2` 는
-  //   바로 아래 `COMMON_SKILL_DIRS_ECC` 항목이라 **같은 `!s.withEcc` 조건으로 함께 깔린다** —
-  //   "별도 opt-in 스킬이라 대개 없다"가 틀렸다. 결정은 유지, 숫자만 정정.
+  //   적고 있었다. 그중 셋이 부르던 학습 스킬은 같은 `!s.withEcc` 조건으로 **함께 깔리는**
+  //   C2 항목이었다 — "별도 opt-in 스킬이라 대개 없다"가 틀렸다. 결정은 유지, 숫자만 정정.
+  //   (그 스킬은 ADR-088 에서 은퇴했다 — 명령 템플릿도 이미 없다.)
   //
   // `ecc-prune` 은 남는다 — 그쪽은 ECC 를 **고른 사람**의 설치를 최적화하는 opt-in 이라 방향이
   // 반대다(사용자 확정 2026-08-16).
@@ -375,6 +363,10 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
   }
 
   // Common skill directories
+  // #409 — 스킬은 **전부 디렉터리 단위**로 등록한다. 파일 단위 예외가 하나 있었고 사고를 냈다:
+  // 스킬 경로를 다루는 코드가 "항상 디렉터리"를 가정해 뒤에 `/SKILL.md` 를 붙여 없는 경로를 만들고,
+  // 상주 계측이 **조용히 0으로 셌다**(ADR-083). 파일 단위는 `references/` 를 나중에 붙여도 배포에서
+  // 조용히 빠진다. 게이트가 이 통일을 강제한다: tests/skill-registration-uniform.test.ts
   for (const sd of COMMON_SKILL_DIRS) {
     m.push({
       source: `skills/${sd}`,
@@ -401,17 +393,6 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: all,
     });
   }
-  // #409 — 우리 스킬은 **전부 디렉터리 단위**로 등록한다. 이 하나만 파일 단위였고, 그 예외가
-  // 실제로 사고를 냈다: 스킬 경로를 다루는 코드가 "항상 디렉터리"를 가정해 뒤에 `/SKILL.md` 를
-  // 붙였고, 여기서는 없는 경로가 만들어져 상주 계측이 **조용히 0으로 셌다**(ADR-083).
-  // 그리고 파일 단위는 `references/` 를 나중에 붙여도 **배포에서 조용히 빠진다**.
-  // 아래 게이트가 이 통일을 강제한다: tests/skill-registration-uniform.test.ts
-  m.push({
-    source: "skills/spec-scaling",
-    target: ".claude/skills/spec-scaling",
-    type: "dir",
-    applies: all,
-  });
   // #340 — 아래 4종은 `cherrypicks.lock` 에서 `modified:false`(= 우리가 안 고친 사본)인데
   // `!s.withEcc` 가 빠져 있었다. ECC 플러그인을 고른 사용자가 **같은 스킬을 두 판본** 받았고,
   // 어느 쪽이 로드되는지 예측할 수 없었다. C2 규칙(ADR-019)에 맞춘다.

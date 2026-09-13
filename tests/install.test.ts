@@ -530,7 +530,7 @@ describe("executeSpec", () => {
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
       ...fakeReport,
-      staleHookRefs: ["skills/strategic-compact/suggest-compact.sh", "hooks/legacy-thing.sh"],
+      staleHookRefs: ["skills/sidecar-skill/suggest.sh", "hooks/legacy-thing.sh"],
     });
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
 
@@ -544,7 +544,7 @@ describe("executeSpec", () => {
     ).toBeDefined();
     expect(row).toContain("2 removed");
     // 경로 나열 — 하나라도 빠지면 사용자가 그 파일을 못 찾는다 (건수만으로는 추적 불가).
-    expect(row).toContain("skills/strategic-compact/suggest-compact.sh");
+    expect(row).toContain("skills/sidecar-skill/suggest.sh");
     expect(row).toContain("hooks/legacy-thing.sh");
   });
 
@@ -842,7 +842,7 @@ describe("executeSpec", () => {
       updateMode: {
         updated: {},
         pruned: {},
-        staleHookRefs: ["skills/strategic-compact/suggest-compact.sh", "hooks/legacy-thing.sh"],
+        staleHookRefs: ["skills/sidecar-skill/suggest.sh", "hooks/legacy-thing.sh"],
         claudeMdUpdated: false,
         anchorCreated: false,
         rootImportAdded: false,
@@ -882,7 +882,7 @@ describe("executeSpec", () => {
       row,
       "update 행이 건수만 찍고 경로를 안 보여준다 — 사용자가 제자리에서 고쳐진 자기 " +
         "settings.json 에서 무엇이 사라졌는지 알 방법이 없다 (fresh 분기는 이미 보여준다).",
-    ).toContain("skills/strategic-compact/suggest-compact.sh");
+    ).toContain("skills/sidecar-skill/suggest.sh");
     expect(row).toContain("hooks/legacy-thing.sh");
   });
 

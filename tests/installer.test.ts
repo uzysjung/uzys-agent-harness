@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -225,48 +225,86 @@ describe("installer (integration with templates/)", () => {
  * WHY 단위 계약(`tests/update-mode.test.ts`)으로 부족한가: 그쪽은 치유기 함수만 본다.
  * 결함의 본체는 **install 이 그 함수를 부르는가**이고, 그 호출은 지워도 단위 테스트가
  * 전부 초록이다(실측 확인). 그래서 여기서는 함수가 아니라 **파이프라인**을 돌린다 —
- * 실 `templates/` 로 설치하고, 디스크에 남은 `.claude/settings.json` 을 읽어 판정한다.
+ * 실제로 설치하고, 디스크에 남은 `.claude/settings.json` 을 읽어 판정한다.
  *
  * 결함의 형태: `templates/settings.json` 은 `applies: all` 이라 항상 깔리는데, 그 PreToolUse
- * 훅이 참조하는 `.claude/skills/strategic-compact/suggest-compact.sh` 는
- * `withEcc=true`(ECC plugin 선택) 에서 **미설치**다. 그 조합의 설치자는 Write/Edit 마다 없는
- * 파일을 bash 로 부른다(exit 127).
+ * 훅이 참조하는 **스킬 디렉터리 안의 사이드카 스크립트**는 그 스킬의 조건대로 좁게 깔린다.
+ * 그 조합의 설치자는 Write/Edit 마다 없는 파일을 bash 로 부른다(exit 127).
+ *
+ * **입력을 변이시켜 잰다**(이 리포 확정 어휘 = 입력 변이). 그 배선을 들고 있던 스킬은
+ * ADR-088 (#426 F-09) 에서 은퇴해 실 템플릿에 더는 없다 — 그래서 실 `templates/` 를 임시
+ * 디렉터리로 복사해 **거기에만** 같은 형태의 훅을 넣는다. 손으로 쓴 settings.json 픽스처를
+ * 쓰면 템플릿 표기가 바뀌는 순간 이 게이트가 조용히 거짓이 된다.
  *
  * 두 방향을 **같이** 본다 — 치유가 파손이 되면 안 되기 때문이다:
- *   ① withEcc=true  → 죽은 참조가 사라진다 + 보고에 실린다
- *   ② withEcc=false → 같은 참조가 **살아남는다** (스킬이 실제로 깔려 있다)
+ *   ① 참조 대상이 안 깔린다 → 죽은 참조가 사라진다 + 보고에 실린다
+ *   ② 참조 대상이 깔린다   → 같은 형태의 참조가 **살아남는다**
  *   ③ 두 경우 모두 `.claude/hooks/*.sh` 정상 참조는 건드리지 않는다
  */
 describe("install 경로의 stale hook ref 치유 (M-1)", () => {
   let projectDir: string;
+  const mutatedRoots: string[] = [];
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), "ch-heal-"));
   });
   afterEach(() => {
     rmSync(projectDir, { recursive: true, force: true });
+    for (const root of mutatedRoots.splice(0)) {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   const baseOptions = { withPrune: false, withCodexTrust: false };
 
+  /** 항상 깔리는 스킬 디렉터리 — ② 방향의 참조 대상(C3, `applies: all`). */
+  const LIVE_SKILL = "deep-research";
+  /** 어느 spec 에서도 깔리지 않는 이름 — ① 방향. */
+  const GHOST_SKILL = "ghost-sidecar-skill";
+  const SIDECAR = "sidecar.sh";
+
   /**
-   * `withEcc` 는 spec 의 boolean 이 아니라 **자산 선택**에서 파생된다
-   * (`installer.ts` `buildManifestSpec` → `isAssetSelected("ecc-plugin")`). 그래서 테스트도
-   * 사용자가 실제로 하는 것과 같은 입력(`--with ecc-plugin` = forceInclude)으로 만든다.
-   * `runExternal: null` 이라 plugin 자체는 안 깔리지만, manifest 게이팅은 선택만 보므로
-   * "plugin 을 골랐다 → cherry-pick 스킬은 비켜선다" 상태가 정확히 재현된다.
+   * 실 `templates/` 사본 + 스킬 안의 사이드카를 부르는 훅 한 줄.
+   *
+   * @param withSidecarFile true 면 그 스크립트까지 templates 에 만들어 **설치되게** 한다
+   *   (= 참조가 살아 있는 쪽). false 면 배선만 있고 대상은 어디에도 없다.
    */
-  function install(withEcc: boolean) {
+  function mutatedHarnessRoot(skillDir: string, withSidecarFile: boolean): string {
+    const root = mkdtempSync(join(tmpdir(), "ch-heal-root-"));
+    mutatedRoots.push(root);
+    cpSync(join(HARNESS_ROOT, "templates"), join(root, "templates"), { recursive: true });
+    const settingsPath = join(root, "templates/settings.json");
+    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+      hooks: {
+        PreToolUse: Array<{ matcher?: string; hooks: Array<{ type: string; command: string }> }>;
+      };
+    };
+    settings.hooks.PreToolUse.push({
+      matcher: "Write|Edit",
+      hooks: [
+        {
+          type: "command",
+          command: `bash "$CLAUDE_PROJECT_DIR/.claude/skills/${skillDir}/${SIDECAR}"`,
+        },
+      ],
+    });
+    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+    if (withSidecarFile) {
+      writeFileSync(join(root, "templates/skills", skillDir, SIDECAR), "#!/bin/bash\nexit 0\n");
+    }
+    return root;
+  }
+
+  function install(harnessRoot: string) {
     return runInstall({
       runExternal: null,
-      harnessRoot: HARNESS_ROOT,
+      harnessRoot,
       projectDir,
       spec: {
         tracks: ["tooling"],
         options: baseOptions,
         cli: ["claude"],
         projectDir,
-        ...(withEcc ? { userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] } } : {}),
       },
     });
   }
@@ -276,34 +314,34 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
   }
 
   /** 정상 참조 = 항상 깔리는 훅(`ALWAYS_HOOKS`) 중 settings.json 이 실제로 부르는 것들. */
-  const LIVE_HOOK_REFS = ["session-start.sh", "protect-files.sh", "task-brief-nudge.sh"];
+  const LIVE_HOOK_REFS = ["session-start.sh", "protect-files.sh"];
 
-  it("전제 확인 — 두 설치가 스킬 유무에서 실제로 갈린다 (헛통과 차단)", () => {
-    // 여기가 안 갈리면 아래 두 케이스는 같은 상황을 두 번 보는 것이고, 초록불이 무의미해진다.
-    install(true);
-    expect(existsSync(join(projectDir, ".claude/skills/strategic-compact"))).toBe(false);
+  it("전제 확인 — 변이가 배선을 넣었고 두 경우가 갈린다 (헛통과 차단)", () => {
+    // 변이가 안 걸렸으면 아래 판정은 "치유했다"와 "배선이 애초에 없었다"를 구분하지 못한다.
+    const ghostRoot = mutatedHarnessRoot(GHOST_SKILL, false);
+    expect(readFileSync(join(ghostRoot, "templates/settings.json"), "utf8")).toContain(SIDECAR);
+    install(ghostRoot);
+    expect(existsSync(join(projectDir, `.claude/skills/${GHOST_SKILL}`))).toBe(false);
 
     rmSync(projectDir, { recursive: true, force: true });
     projectDir = mkdtempSync(join(tmpdir(), "ch-heal-"));
-    install(false);
-    expect(
-      existsSync(join(projectDir, ".claude/skills/strategic-compact/suggest-compact.sh")),
-    ).toBe(true);
+    install(mutatedHarnessRoot(LIVE_SKILL, true));
+    expect(existsSync(join(projectDir, `.claude/skills/${LIVE_SKILL}/${SIDECAR}`))).toBe(true);
   });
 
-  it("withEcc=true — 없는 스킬을 가리키던 훅 참조가 설치 후 사라진다", () => {
-    const report = install(true);
+  it("참조 대상이 없으면 — 죽은 훅 참조가 설치 후 사라진다", () => {
+    const report = install(mutatedHarnessRoot(GHOST_SKILL, false));
 
     expect(
       report.staleHookRefs,
       "install 이 치유기를 부르지 않았다 — settings.json 이 없는 파일을 가리킨 채 남는다",
-    ).toContain("skills/strategic-compact/suggest-compact.sh");
+    ).toContain(`skills/${GHOST_SKILL}/${SIDECAR}`);
     // 보고만 하고 파일을 안 고치면 아무 소용이 없다. 디스크가 답이다.
-    expect(settingsText()).not.toContain("suggest-compact");
+    expect(settingsText()).not.toContain(SIDECAR);
   });
 
-  it("withEcc=true — 정상 훅 참조는 살아남는다 (치유가 파손이 되면 안 된다)", () => {
-    install(true);
+  it("참조 대상이 없어도 정상 훅 참조는 살아남는다 (치유가 파손이 되면 안 된다)", () => {
+    install(mutatedHarnessRoot(GHOST_SKILL, false));
     const text = settingsText();
     for (const hook of LIVE_HOOK_REFS) {
       expect(text, `${hook} 참조가 사라졌다 — 치유기가 멀쩡한 훅을 뜯었다`).toContain(hook);
@@ -311,11 +349,11 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
     }
   });
 
-  it("withEcc=false — 스킬이 깔리므로 같은 참조가 보존된다", () => {
-    const report = install(false);
+  it("참조 대상이 깔리면 같은 참조가 보존된다", () => {
+    const report = install(mutatedHarnessRoot(LIVE_SKILL, true));
 
     expect(report.staleHookRefs).toEqual([]);
-    expect(settingsText()).toContain("suggest-compact");
+    expect(settingsText()).toContain(SIDECAR);
     for (const hook of LIVE_HOOK_REFS) {
       expect(settingsText()).toContain(hook);
     }

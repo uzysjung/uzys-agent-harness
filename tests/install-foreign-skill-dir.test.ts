@@ -43,6 +43,13 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
   let projectDir: string;
   let foreignRepo: string;
 
+  /**
+   * 설치본에 항상 있는 스킬 슬롯 하나. 테스트마다 이름을 적지 않는다 — 자산이 은퇴하면
+   * (ADR-088 에서 전임 표본이 은퇴했다) 고칠 자리가 한 곳이어야 한다.
+   * `installedSkillId()` 가 고르는 첫 슬롯과 **다른** 표본이라 "둘째 표본" 성질이 유지된다.
+   */
+  const SLOT_SKILL = "deep-research";
+
   const specOf = (): InstallSpec => ({
     tracks: ["tooling"],
     options: { withPrune: false, withCodexTrust: false },
@@ -195,13 +202,13 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
   it("슬롯 안에 파일이 든 스킬도 링크를 따라 남의 저장소를 덮지 않는다", () => {
     install();
-    // 원래 이 테스트는 `.claude/skills/spec-scaling/SKILL.md` 가 **파일 단위 엔트리**라는 점을
+    // 원래 이 테스트는 한 스킬의 `SKILL.md` 가 **파일 단위 엔트리**라는 점을
     // 겨냥했다. #409 에서 전부 디렉터리 단위로 통일해 그 축은 사라졌고, 지금 이 테스트는
     // **디렉터리 슬롯의 두 번째 표본**이다(독립 리뷰 MEDIUM 적발 — 초록인 채 중복이 됐다).
     // 지우지 않고 남기는 이유: 슬롯이 링크일 때 디렉터리 복사가 링크를 따라가지 않는지는
     // 여전히 지켜야 하고, 표본이 하나보다 둘인 편이 낫다.
-    const slot = join(projectDir, ".claude/skills/spec-scaling");
-    const external = join(foreignRepo, "spec-scaling");
+    const slot = join(projectDir, `.claude/skills/${SLOT_SKILL}`);
+    const external = join(foreignRepo, SLOT_SKILL);
     mkdirSync(external, { recursive: true });
     writeFileSync(join(external, "SKILL.md"), "# 남의 저장소 본문\n");
     rmSync(slot, { recursive: true, force: true });
@@ -210,10 +217,10 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     const report = install();
 
     expect(readFileSync(join(external, "SKILL.md"), "utf-8")).toBe("# 남의 저장소 본문\n");
-    expect(report.baselineForeignOwned).toContain(".claude/skills/spec-scaling");
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${SLOT_SKILL}`);
     // 슬롯 하나당 한 줄 — 파일마다 반복해 내지 않는다.
     expect(
-      report.baselineForeignOwned.filter((t) => t === ".claude/skills/spec-scaling"),
+      report.baselineForeignOwned.filter((t) => t === `.claude/skills/${SLOT_SKILL}`),
     ).toHaveLength(1);
   });
 
@@ -249,7 +256,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
   it("슬롯은 우리 것인데 그 안의 SKILL.md 만 링크여도 따라 쓰지 않는다", () => {
     install();
-    const slot = join(projectDir, ".claude/skills/spec-scaling");
+    const slot = join(projectDir, `.claude/skills/${SLOT_SKILL}`);
     const external = join(foreignRepo, "SKILL.md");
     writeFileSync(external, "# 남의 파일\n");
     rmSync(join(slot, "SKILL.md"), { force: true });
@@ -258,7 +265,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     const report = install();
 
     expect(readFileSync(external, "utf-8")).toBe("# 남의 파일\n");
-    expect(report.baselineForeignOwned).toContain(".claude/skills/spec-scaling/SKILL.md");
+    expect(report.baselineForeignOwned).toContain(`.claude/skills/${SLOT_SKILL}/SKILL.md`);
   });
 
   it("update 도 install 과 같은 판정을 쓴다 — 일반 파일 위에서 죽지 않는다", () => {
@@ -400,9 +407,9 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     // 남의 저장소 링크이고 그쪽에 그 파일이 없으면 existsSync 가 false 라, 복사가 **남의
     // 저장소 안에 우리 파일을 새로 만들었다**. 같은 화면이 "추가했다"와 "안 건드렸다"를 동시에 말했다.
     install();
-    const empty = join(foreignRepo, "spec-scaling");
+    const empty = join(foreignRepo, SLOT_SKILL);
     mkdirSync(empty, { recursive: true });
-    const slot = join(projectDir, ".claude/skills/spec-scaling");
+    const slot = join(projectDir, `.claude/skills/${SLOT_SKILL}`);
     rmSync(slot, { recursive: true, force: true });
     symlinkSync(empty, slot);
 
@@ -420,17 +427,17 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
     expect(readdirSync(empty)).toEqual([]);
     expect(report.updateMode?.installedNew ?? []).not.toContain(
-      ".claude/skills/spec-scaling/SKILL.md",
+      `.claude/skills/${SLOT_SKILL}/SKILL.md`,
     );
     // 슬롯 자체가 남의 것이므로 슬롯 행이 낸다 (경로 행은 중복을 피해 빠진다 — 아래 전용 시험).
-    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain("spec-scaling");
+    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain(SLOT_SKILL);
 
     if (captured === undefined) throw new Error("baseline-complete 이벤트가 오지 않았다");
     const lines: string[] = [];
     const renderer = createInstallRenderer((m) => lines.push(m), specOf(), false);
     renderer.callbacks.onProgress?.({ type: "baseline-complete", baseline: captured });
     const screen = lines.join("\n");
-    expect(screen).toContain("spec-scaling");
+    expect(screen).toContain(SLOT_SKILL);
     expect(screen).toContain("owned by another tool");
     // 2라운드에 고친 문구(종류 단정 제거)를 무는 자리 — 없으면 다음 정리 커밋이 조용히 되돌린다.
     expect(screen).toContain("갱신하지 않았다");
@@ -488,17 +495,17 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
   it("한 자리를 두 행으로 말하지 않는다 (슬롯 행과 경로 행의 중복 제거)", () => {
     install();
-    const slot = join(projectDir, ".claude/skills/spec-scaling");
-    const external = join(foreignRepo, "spec-scaling");
+    const slot = join(projectDir, `.claude/skills/${SLOT_SKILL}`);
+    const external = join(foreignRepo, SLOT_SKILL);
     mkdirSync(external, { recursive: true });
     rmSync(slot, { recursive: true, force: true });
     symlinkSync(external, slot);
 
     const report = update();
 
-    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain("spec-scaling");
+    expect(report.updateMode?.skillsSkippedLinks ?? []).toContain(SLOT_SKILL);
     // 같은 자리가 경로 행에 또 뜨면 사용자는 서로 다른 두 사건으로 읽는다.
-    expect(report.updateMode?.foreignOwned ?? []).not.toContain(".claude/skills/spec-scaling");
+    expect(report.updateMode?.foreignOwned ?? []).not.toContain(`.claude/skills/${SLOT_SKILL}`);
   });
 
   it("update 는 깨진 링크 슬롯도 이름으로 낸다 (조용히 빠져나가지 않는다)", () => {
