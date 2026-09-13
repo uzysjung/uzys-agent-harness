@@ -44,6 +44,10 @@ BASENAME=$(basename "$FILE_PATH")
 
 # 보호 패턴 확인
 case "$BASENAME" in
+  # 예시·템플릿 파일에는 시크릿이 없다 — 에이전트가 만들고 고치는 것이 정상이다 (2차 감사 G-01).
+  .env.example|.env.sample|.env.template)
+    exit 0
+    ;;
   .env|.env.*)
     log_block "$FILE_PATH"
     echo "BLOCKED: Protected file: $BASENAME. Environment files must be edited manually." >&2

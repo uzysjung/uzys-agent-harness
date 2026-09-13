@@ -320,3 +320,29 @@ diff 는 그 씬의 범위에서 읽는다"* 한 줄.
 | F-11 | `spec-scaling` **retire**, `doc-governance` 룰 한 줄로 대체 |
 | R-03 | 이력 분리를 **상주 파일 전부**에 적용, 사례표 포함 |
 | R-04 | 훅은 이미 없음 — 죽은 배선 · 낡은 문장 정리 |
+
+---
+
+## 2차 감사 (2026-09-13, 사용자 지시 — 스킬 제외 · 개발 속도 · Fable 급 모델 전제)
+
+대상 = 배포 앵커 · 배포 룰 6 · 훅 2 · OpenCode 설정, 이 리포 `CLAUDE.md` 2 · 룰 6. 충돌 0. 판정 잣대 셋: 개발
+속도를 늦추나 · 충돌하나 · Fable 급 모델이 이 문장 없이 못 하는 것이 있나.
+
+| ID | 등급 | 대상 | 판정 | 확정 |
+|---|---|---|---|---|
+| G-01 | MED · 속도 | `protect-files.sh` 가 `.env.example` · `.env.sample` · `.env.template` 도 차단(훅 직접 실행으로 실측) | 시크릿 없는 예시 파일은 통과 | **수정 승인** |
+| G-02 | MED · Fable | Testing 룰의 방법 지식 3항(관측 가능 행동 · 결정적 테스트 · 커버리지는 목표 아님) | retire — 모델이 안다. 문턱 · high-risk 정의 · CI 일정 · prod-호환 · 개인정보 · 단언 약화 금지 · 범위 불명 시 넓히기는 유지 | 승인 |
+| G-03 | LOW · 중복 | "빈 결과는 부재의 증거가 아니다" 가 Shell Safety 2항 + Documentation Boundaries 1항 | Shell Safety 는 셸 역학 + `doc-governance` 포인터만 | 승인 |
+| G-04 | LOW · 중복 | Delivery 1항 = 앵커 §4 "not merely the author's summary" | 머지 전 문턱 항의 절로 합침 | 승인 |
+| G-05 | LOW · 중복 | Change Boundaries 1항 = 앵커 §6 첫 문장 | 삭제 | 승인 |
+| G-06 | LOW · 속도 | Git Safety §Session Cleanup 서사 — `session-start.sh` 가 고아를 탐지해 알린다 | 한 줄로 | 승인 |
+| G-07 | 관찰 | OpenCode `instructions` 가 SPEC 본문을 매 세션 상주(Claude 는 포인터) | 보류 — 포인터로 바꾸면 OpenCode 는 훅이 없어 안내를 잃는다 | 보류 |
+| 앵커 | 판정 밖 | 사용자 문안. §4 계획 리뷰 문장은 "Scale review depth" 가 완화 | — | — |
+| R-06 | MED · 속도 | 이 리포 `ship-checklist` "로드맵 SSOT 동기화" — 그 문서 자신이 백로그 SSOT 를 이슈로 옮겼다(2026-08-17) | 항 삭제(마일스톤 축 변경 때만) | 승인, ⓔ 에 포함 |
+| R-07 | LOW · Fable | 이 리포 `test-policy` 커버리지 표의 csr·ssr·data 행 | tooling 행만 | ⓔ |
+| R-08 | LOW · 중복 | `.claude/CLAUDE.md` §의사결정 및 컨펌 요청 시 = `clear-korean-communication` Part 2 | 포인터 한 줄 + "결과를 안고 사는 사람" 한 문장 | ⓔ |
+| R-09 | LOW | `.claude/CLAUDE.md` §Phase 완료 시 "판정 보류 중(ADR-055)" 2026-07 부터 상주 | 한 줄 유지, 보류 꼬리 삭제 | ⓔ |
+| R-03 보강 | — | 이력 분리 추가 대상: ship-checklist 서사 4곳 · git-policy 버전 사고 이력 · change-management 사례표 · 루트 함정 · "판정은 목적에서" 경위 | ⓔ | ⓔ |
+
+사용자 전제(2026-09-13): *"AI 모델이 개발 속도 개선과 안정성을 적절히 잘 선택할 수 있는 지침으로 개선한다"* — 지운 것은
+방법 지식과 중복뿐이고, 문턱 · 게이트 · 보호 검사는 한 항도 약화하지 않았다.
