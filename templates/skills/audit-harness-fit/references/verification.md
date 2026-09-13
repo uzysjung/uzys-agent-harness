@@ -69,7 +69,10 @@ Bundling is not deferral. A scene is one actor reaching one observable outcome; 
 changes outgrow what one review can hold, split it into smaller scenes rather than
 verifying later. Keep each change committed on its own so a failed bundle bisects to the
 change that broke it, and keep merge and deployment gates where they are — a scene is
-verified before it crosses either.
+verified before it crosses either. Money, permissions, data and its migrations, and any
+irreversible operation are **separate verification targets**: they get their own
+independent check before merge regardless of how the scene is bundled, and a
+representative journey passing does not stand in for them.
 
 ## Reuse evidence with explicit invalidation
 
