@@ -22,7 +22,7 @@
 # tests/antigravity/transform.test.ts · tests/opencode/transform.test.ts.
 #
 # 그래서 여기서 보는 것은 ① 자리별 존재와, 선택 제어의 결과다:
-#   1. 4-CLI 자리에 dev-method 스킬 전량이 있다
+#   1. 4-CLI 자리에 dev-method 스킬 전량이 있다 (#431 — `.agents/` 쪽은 디렉터리 전체)
 #   2. 독립 게이팅 — 6Gate 산출물은 없다 (ADR-023 으로 제품에서 제거)
 #   3. 선택 제어 — --without <id> 시 해당 skill 만 4-CLI 전 경로에서 drop
 #
@@ -88,6 +88,35 @@ echo "── Codex/OpenCode/Antigravity native (.agents/skills/) ──"
 for id in "${DEV_METHOD_IDS[@]}"; do
   assert_file  "${PROJ}/.agents/skills/${id}/SKILL.md" ".agents: ${id}"
 done
+
+# #431 — 스킬은 **디렉터리**다. `SKILL.md` 만 보내던 동안 세 CLI 설치자는 안내판만 받고
+#   본문(`references/` 등)은 못 받았다 — `SKILL.md` 가 "references/x.md 를 읽어라"로
+#   라우팅하면 그 자리가 비어 있었다. 대상 스킬과 기대 파일 목록은 **컨테이너 안
+#   templates/skills/ 에서 유도한다**(위 카탈로그 유도와 같은 이유 — 이름 목록은 썩는다).
+echo "── 스킬 디렉터리 전체 도달 (#431 — SKILL.md 의 형제 파일) ──"
+SKILL_REF=""
+for id in "${DEV_METHOD_IDS[@]}"; do
+  if [[ -d "/work/templates/skills/${id}/references" ]]; then SKILL_REF="${id}"; break; fi
+done
+if [[ -z "${SKILL_REF}" ]]; then
+  echo "  ✗ FAIL: references/ 를 가진 dev-method 스킬을 못 찾았다 — 이 판정은 무효다(유도기 점검)"
+  failed=1
+else
+  SRC_DIR="/work/templates/skills/${SKILL_REF}"
+  # 닷파일(`.DS_Store` 등)은 나가지 않아야 하므로 기대 목록에서도 뺀다.
+  SIBLINGS=$( (cd "${SRC_DIR}" && find . -type f) | sed 's|^\./||' | grep -vE '(^|/)\.' | grep -v '^SKILL\.md$' )
+  SIB_COUNT=$(printf '%s\n' "${SIBLINGS}" | grep -c . || true)
+  if [[ "${SIB_COUNT}" -eq 0 ]]; then
+    # 모집단 0 은 "위반 없음"이 아니라 "아무것도 안 쟀음"이다.
+    echo "  ✗ FAIL: ${SKILL_REF} 의 형제 파일이 0건 — 유도기가 틀렸다"
+    failed=1
+  else
+    echo "  ${SKILL_REF} 의 형제 파일 ${SIB_COUNT}건을 templates/ 에서 유도했다"
+    for rel in ${SIBLINGS}; do
+      assert_file "${PROJ}/.agents/skills/${SKILL_REF}/${rel}" ".agents: ${SKILL_REF}/${rel}"
+    done
+  fi
+fi
 
 # ADR-081 — 옛 커맨드 사본을 더는 만들지 않는다. 만들면 OpenCode 커맨드 목록에 같은 이름이
 # 두 줄로 뜬다(옛 command + 새 skill).

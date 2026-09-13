@@ -18,6 +18,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,6 +27,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { hashContent, readInstallLog, writeInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
+import {
+  expectedSkillRelFiles,
+  installedSkillIdWithReferences,
+} from "./helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = join(__dirname, "..");
 
@@ -125,6 +130,42 @@ describe("update — 이미 있는 외부 CLI 산출물을 갱신한다 (ⓐ)", 
     expect(readFileSync(join(projectDir, rel), "utf8")).toBe(fresh);
   });
 
+  /**
+   * #431 — `SKILL.md` 만 깔려 있던 기존 설치본이 update 로 형제 파일(`references/` 등)을 받는다.
+   *
+   * 이 축이 없으면 이미 설치한 사용자는 재설치하기 전까지 스킬 본문을 영영 못 받는다 —
+   * `refreshOnly` 가 "없는 파일은 사용자가 안 고른 것"으로 판정하기 때문이다(ADR-049 의
+   * `createInRefresh` 가 존재하는 이유와 같은 형태).
+   */
+  it("형제 파일이 없던 기존 설치본에 update 하면 형제 파일이 생긴다 (#431)", () => {
+    install(["claude", "codex"]);
+    const id = installedSkillIdWithReferences(HARNESS_ROOT, join(projectDir, ".agents/skills"));
+    const siblings = expectedSkillRelFiles(HARNESS_ROOT, id).filter((rel) => rel !== "SKILL.md");
+    expect(siblings.length, `${id} 의 형제 파일이 0건 — 유도기가 틀렸다`).toBeGreaterThan(0);
+    // 픽스처 자기검증 — 설치가 형제를 깔았어야 "지웠다가 update 로 되살린다"가 성립한다.
+    for (const rel of siblings) {
+      expect(existsSync(join(projectDir, ".agents/skills", id, rel)), `설치 ${rel}`).toBe(true);
+    }
+
+    // #431 이전 하네스가 깔아 둔 상태 재현 — 디스크에서 형제를 지우고 **기준선에서도** 뺀다.
+    // 기준선에 남겨 두면 "있었는데 사용자가 지웠다"가 되어 다른 경로를 재게 된다.
+    for (const rel of siblings)
+      rmSync(join(projectDir, ".agents/skills", id, rel), { force: true });
+    const log = readInstallLog(projectDir);
+    if (!log) throw new Error("install log 가 없다 — 픽스처 전제가 깨졌다");
+    const gone = new Set(siblings.map((rel) => `.agents/skills/${id}/${rel}`));
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: (log.externalFiles ?? []).filter((f) => !gone.has(f.path)),
+    });
+
+    update();
+
+    for (const rel of siblings) {
+      expect(existsSync(join(projectDir, ".agents/skills", id, rel)), `${rel} 미도달`).toBe(true);
+    }
+  });
+
   it("사용자가 고친 산출물은 백업으로 보존되고 최신판이 자리에 온다", () => {
     install(["claude", "codex"]);
     const hook = join(projectDir, ".codex/hooks/session-start.sh");
@@ -175,6 +216,27 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     const after = existsSync(skillsDir) ? readdirSync(skillsDir).sort() : [];
     // update 는 전체 스킬 목록을 넘긴다 — refresh 필터가 없으면 여기서 목록이 늘어난다.
     expect(after).toEqual(before);
+  });
+
+  /**
+   * #431 — 형제 파일의 `createInRefresh` 예외가 "안 깐 CLI 는 건드리지 않는다"를 깨지 않는가.
+   *
+   * 예외의 근거는 **같은 스킬의 `SKILL.md` 를 그 자리에서 담당했다**는 것뿐이다. 그 판정이
+   * 느슨해지면 claude 만 쓰는 사용자가 update 한 번에 `.agents/` 를 받는다.
+   */
+  it("claude 만 깐 프로젝트에 형제 파일도 생기지 않는다 (#431 createInRefresh 경계)", () => {
+    install(["claude"]);
+    // 대조군 — 그 스킬이 claude 자리에는 형제까지 실재한다. 없으면 아래 부재 단언이 공허하다.
+    const id = installedSkillIdWithReferences(HARNESS_ROOT, join(projectDir, ".claude/skills"));
+    const siblings = expectedSkillRelFiles(HARNESS_ROOT, id).filter((rel) => rel !== "SKILL.md");
+    expect(siblings.length).toBeGreaterThan(0);
+    for (const rel of siblings) {
+      expect(existsSync(join(projectDir, ".claude/skills", id, rel)), `대조군 ${rel}`).toBe(true);
+    }
+
+    update();
+
+    expect(existsSync(join(projectDir, ".agents"))).toBe(false);
   });
 });
 

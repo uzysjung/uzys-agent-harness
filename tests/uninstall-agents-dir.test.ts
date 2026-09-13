@@ -12,8 +12,13 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
+import { readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
+import {
+  expectedSkillRelFiles,
+  installedSkillIdWithReferences,
+} from "./helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -75,6 +80,33 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
       expect(lines.join("\n")).toContain("CLI outputs removed");
     });
   }
+
+  /**
+   * #431 — 스킬이 디렉터리로 나가면서 회수 대상도 `SKILL.md` 하나가 아니게 됐다.
+   *
+   * 회수는 `externalFiles` 기록으로 한다(위 주석). 형제 파일이 그 기록에서 빠지면 `.agents/`
+   * 안에 우리 파일이 남고, 사용자 화면에는 한 줄도 안 뜬다 — #350 과 똑같은 형태다.
+   */
+  it("스킬 디렉터리의 형제 파일까지 회수된다 (#431)", () => {
+    install("codex");
+    const id = installedSkillIdWithReferences(HARNESS_ROOT, join(projectDir, ".agents/skills"));
+    const siblings = expectedSkillRelFiles(HARNESS_ROOT, id).filter((rel) => rel !== "SKILL.md");
+    // 시나리오 자기검증 — 형제가 안 깔렸으면 아래 부재 단언은 아무것도 재지 않는다.
+    expect(siblings.length, `${id} 의 형제 파일이 0건 — 유도기가 틀렸다`).toBeGreaterThan(0);
+    for (const rel of siblings) {
+      expect(existsSync(join(projectDir, ".agents/skills", id, rel)), `설치 ${rel}`).toBe(true);
+    }
+    const recorded = (readInstallLog(projectDir)?.externalFiles ?? []).map((f) => f.path);
+    for (const rel of siblings) {
+      expect(recorded, "기록에 없으면 회수도 안 된다").toContain(`.agents/skills/${id}/${rel}`);
+    }
+
+    uninstall();
+
+    for (const rel of siblings) {
+      expect(existsSync(join(projectDir, ".agents/skills", id, rel)), `잔존 ${rel}`).toBe(false);
+    }
+  });
 
   it("사용자가 고친 산출물은 남기고 그 사실을 화면에 낸다", () => {
     install("antigravity");

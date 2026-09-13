@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runAntigravityTransform } from "../../src/antigravity/transform.js";
+import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
 
 // rule-ref:frozen-file — 아래 SAMPLE_CLAUDE_MD 의 `Rule N` 은 임베드 렌더를 시험하는 **합성
 // fixture** 다(앵커 지목이 아니다). 줄 단위 표식을 쓰면 표식이 템플릿 리터럴 안으로 들어가
@@ -139,6 +140,26 @@ describe("runAntigravityTransform — dev-method skills (v26.87.0 multi-CLI rout
     });
     expect(existsSync(join(project, ".agents/skills/compaction-handoff"))).toBe(false);
     expect(report.skillFiles).toHaveLength(0);
+  });
+
+  // #431 — Antigravity 도 스킬을 디렉터리로 읽는다(agentskills 사양). 대상 id 는
+  //   `templates/skills/` 에서 유도한다 — 이름을 박으면 자산 개편에 조용히 썩는다.
+  it("references/ 를 가진 스킬은 형제 파일까지 .agents/skills/<id>/ 에 온다", () => {
+    const id = firstSkillIdWithReferences(HARNESS_ROOT);
+    const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
+    const report = runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: project,
+      selectedInternalSkills: [id],
+      baseline: new Map(),
+    });
+    for (const rel of expected) {
+      const target = join(project, ".agents/skills", id, rel);
+      expect(existsSync(target), `${rel} 미도달`).toBe(true);
+      expect(report.skillFiles).toContain(target);
+    }
+    // 형제가 0건이면 위 루프는 SKILL.md 하나만 보고 통과한다 — 모집단 자기검증.
+    expect(expected.filter((rel) => rel !== "SKILL.md").length).toBeGreaterThan(0);
   });
 
   it("선택한 dev-method skill 만 렌더 (선택 안 한 id 는 빠짐)", () => {
