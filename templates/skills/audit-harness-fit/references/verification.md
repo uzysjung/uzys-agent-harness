@@ -59,10 +59,17 @@ or actual dependencies require broader checks. State checks not run and why.
 Implementation and verification follow the scene, not the edit. While a scene is being
 built, run only the quick checks for the parts being changed. When the scene's changes are
 complete, bundle them and verify once from usage: the scene's observable outcome, its
-integration boundaries, and one representative journey. Re-verify only the parts a later
-change affects. Treat instructions that force a full run or an independent review after
-every edit as a finding under audit area 5 — they cost development speed without adding
-evidence — unless a required gate names that cadence explicitly.
+integration boundaries, the non-visible contracts it touches, and one representative
+journey. Re-verify only the parts a later change affects. Treat instructions that force a
+full run or an independent review after every edit as a finding under audit area 5 — they
+cost development speed without adding evidence — unless a required gate names that cadence
+explicitly.
+
+Bundling is not deferral. A scene is one actor reaching one observable outcome; when its
+changes outgrow what one review can hold, split it into smaller scenes rather than
+verifying later. Keep each change committed on its own so a failed bundle bisects to the
+change that broke it, and keep merge and deployment gates where they are — a scene is
+verified before it crosses either.
 
 ## Reuse evidence with explicit invalidation
 
