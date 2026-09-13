@@ -119,7 +119,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
 | `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
 | `task-brief` | Normalize a request — and every delegation prompt — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. Ships with the `task-brief-nudge` hook, which adds one line of stdout when a long prompt arrives without a brief |
-| `audit-harness-fit` | Audit whether the resident steering layer (anchor · rules · hooks · permissions · skill descriptors) still earns its context — measured, judged against published criteria and block logs, then relocated: procedures to skills, must-hold guarantees to hooks and permission rules, derivable facts back to code |
+| `audit-harness-fit` | Audit or clean up the instructions and skills your agent loads: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire rules and skills that add nothing, move decision history out of resident text, right-size verification around the user journey — and fill or refresh the `AGENTS.md` / `CLAUDE.md` project context from repository evidence. Read-only unless you ask it to apply |
 
 **Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
 
