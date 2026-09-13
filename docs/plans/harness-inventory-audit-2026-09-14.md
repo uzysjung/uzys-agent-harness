@@ -48,7 +48,7 @@
 | S8 | model-orchestration (opt-in) | 4 CLI · 0 | 검증이 만든 레인보다 낮은 티어로 간다 | 부정 1(Worker lifecycle 66% 미준수 → git-policy 로 이관·게이트) / 양성: 레인표로 실제 배정(2026-08-02) — 효과 관측 없음 · 역할 분담 자체가 **사용자 계약**(2026-07-04) | 273 / 4,468 | **유지(opt-in)** + 중복 정리: 위임 프롬프트 사양 → objective-brief 가리키기 · Worker lifecycle → git-policy 가리키기(본문 두 곳이 같은 말) |
 | S9 | external-model-consult (opt-in) | 4 CLI · 1 (구 gemini-consult) | 시크릿이 외부 모델로 나가거나 리포가 남의 워크스페이스에 들어간다(②축) · 한국어 카피 품질 | **양성(②축)** — 래퍼가 env allowlist·secret 거부·exit 계약을 강제(실측표) · 환경 사실(agy 쿼터 1풀·모델 슬러그·exit 코드) · 사용자 선호(Gemini 한국어) | 271 / 4,173 | **유지(opt-in)** |
 | S10 | north-star | 4 CLI · 0 | 방향 문서 없이 우선순위를 즉흥으로 정한다 | **간접만** — `docs/NORTH_STAR.md` 는 판정 기준으로 실제 쓰임(rules-hooks-audit Q2). 스킬이 문서를 만들었다는 기록 없음 | 258 / 3,318 | **A/B 후보** — 템플릿·lifecycle 판정 규칙은 남기고 본문 23KB 중 방법론 서술(RICE·4-gate 설명)은 모델 지식 여부를 2단계에서 잰다 |
-| S11 | audit-service-gaps | 4 CLI · 0 | 갭 분석이 근거 없는 의견으로 나간다 | **없음** — 산출물 0(2026-06-13 감사는 폐기된 다른 도구) · 대체 가능성 주장만 3곳 | 267 / 3,311 | **은퇴 후보** — 방법론(Nielsen · ODI · PR-FAQ) 14.8KB 는 모델 지식이고 이 리포 산출물이 없다. 갈리면 A/B |
+| S11 | audit-service-gaps | 4 CLI · 0 | 갭 분석이 근거 없는 의견으로 나간다 | 이 리포: 없음(산출물 0) · **설치자 세션 관측(사용자 2026-09-14)**: 다른 서비스(goaltrack)에서 "굉장히 유용했다" — 단 "얘기해 주기 전까지는 거의 진행을 안 한다"(자기 발화 없음, 이름을 불러야 연다) | 267 / 3,311 | **유지(사용자 관측)** — 이 리포에 산출물이 없는 것은 tooling 이라 갭 분석 대상이 없어서다 |
 | S12 | self-hosted-github-runner | 4 CLI · 0 | CI 가 죽었을 때 검증을 건너뛰거나 스크립트에 베껴 위조한다(②축) | **없음** — 사건(2026-08-20 결제 실패)이 재발하지 않아 관측 기회 0. 본문은 실측 환경 사실(glibc 세대 · arch 캐시 키 · 결제 실패 계정의 self-hosted 배정) | 104 / 2,495 | **유지** — 사건 키트. 발화 시에만 비용, 관측은 사건 때만 가능 |
 | S13 | natural-korean (opt-in) | 4 CLI · 0 | — | **없음** · 사용자 제공 본문(#428) | 39 / 491 | **유지(opt-in, 사용자 제공)** — S9 Mode K 와 겹침은 사용자가 알고 둔 것 |
 | S14 | verification-loop | 4 CLI · 0 | 초록 빌드를 사용자 가시 완료의 증거로 쓴다 | 부정 2(158줄이 CI 순서뿐 — NORTH_STAR:319 · 자작 전제 오류) · verdict 어휘는 보고 4편이 쓰나 스킬명 미기재 | 171 / 2,241 | **은퇴(사용자 판단 2026-09-14)** — 대체: Delivery 룰 "실행하지 않은 상태는 통과가 아니다" + `reviewer` 판정 형식. 종속: audit-service-gaps · agent-introspection-debugging 교차참조 2곳 · NORTH_STAR 한 문장 · `external-assets.ts` · 테스트 6곳 |
@@ -60,7 +60,7 @@
 | R1 | architecture-decision-record | 외부(AI Agent Hub) · 0 · **`disable-model-invocation: true` + `user-invocable: false` — 어떤 경로로도 안 열린다** | — | 없음 | **은퇴** — 죽은 사본. ADR 형식은 `change-management` 룰이 이미 갖고 있다 |
 | R2 | find-skills | 외부 · 0 | — | 없음 | **은퇴** — `npx skills` 사용법은 MEMORY 에 있다 |
 | R3 | eval-harness | ECC · 0 (`.claude/evals/session-2026-04-20.md` 1회, 4월) | — | 없음(4월 이후 미사용, 이 리포 게이트는 vitest) | **은퇴** |
-| R4 | agent-introspection-debugging | ECC · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴 후보** — 모델 기본 동작과 겹치고 참조가 죽어 있다 |
+| R4 | agent-introspection-debugging | ECC · 0 | 루프에 빠진 에이전트가 같은 시도를 반복한다 | 없음 · 본문이 없는 스킬(`council` · `workspace-surface-audit`)을 지목 | **은퇴(사용자 확정 2026-09-14)** — 모델 기본 동작과 겹치고 참조가 죽어 있다 |
 | R5 | deep-research | ECC · 1 (이 사이클, 북극성 리서치) | 출처 없는 리서치 보고 | 없음(발화 1, 효과 미관측) · 본문은 firecrawl/exa 전용 명령 + 킬 원장 | **A/B 후보** — 유일하게 값을 더하는 절은 "킬 원장"이다 |
 | R6 | ui-visual-review | 자작 · 0 · **이 리포에 UI 없음** | — | 없음 | ②에서 **은퇴**(①의 UI 트랙용은 범위 밖 §7). 같은 이유로 ②의 `playwright-launch` 룰도 §4 |
 
@@ -73,8 +73,8 @@
 | A3 | plan-checker | dev 트랙 · 0 | — | A/B "활성 NO" · 없는 절·없는 파일 지목(결함만) · `reviewer` 본문에 호출 참조 0 | **은퇴(사용자 판단 2026-09-14)** — 대체: reviewer 문서 모드. 종속: manifest 뿐 |
 | A4 | silent-failure-hunter | dev 트랙(ECC off) · 0 | — | A/B "호출 NO" · runbook 측정 칸 비어 있음 | **은퇴(사용자 판단)** — 대체: `/code-review`. 종속: `superseded.ts` · manifest · 테스트 3 |
 | A5 | build-error-resolver | dev 트랙(ECC off) · 0 | — | A/B "호출 NO" · 부재 에이전트 4종 지목(결함) | **은퇴(사용자 판단)** — 대체: 모델 기본 능력. 종속: `superseded.ts` · manifest · 테스트 |
-| A6 | data-analyst | **전 트랙(CORE)** · 0 | (data 트랙 설치자) 도메인 관례 없이 분석 코드 | 없음 — 비교 주장 1건 | **강등** — `data\|full` 트랙 조건부로(tooling 설치자에게 죽은 descriptor). ②에서는 **은퇴** |
-| A7 | strategist | **전 트랙(CORE)** · 0 | (executive 트랙 설치자) | 없음 | **강등** — `executive\|full` 조건부로. ②에서는 **은퇴** |
+| A6 | data-analyst | **전 트랙(CORE)** · 0 | (data 트랙 설치자) 도메인 관례 없이 분석 코드 | 없음 — 비교 주장 1건 | **강등(사용자 확정 2026-09-14)** — `data\|full` 트랙 조건부로(tooling 설치자에게 죽은 descriptor). ②에서는 **은퇴** |
+| A7 | strategist | **전 트랙(CORE)** · 0 | (executive 트랙 설치자) | 없음 | **강등(사용자 확정 2026-09-14)** — `executive\|full` 조건부로. ②에서는 **은퇴** |
 
 ## 3. 훅 — ① 2종 · ② +1
 
@@ -153,8 +153,8 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 
 | 표면 | 유지 | 강등 | 은퇴 / 은퇴 후보 | A/B 후보 | #454 로 |
 |---|---|---|---|---|---|
-| ① 스킬 14 | 10 (S1~S6 · S8 · S9 · S12 · S13) + S7(사용자 확정) | — | S14 verification-loop(사용자) · S11 audit-service-gaps(후보) | S10 north-star · S7 효과 | — |
-| ② 리포 전용 스킬 6 | — | — | R1 · R2 · R3 (은퇴) · R4 (후보) · R6 (②에서) | R5 deep-research | — |
+| ① 스킬 14 | 11 (S1~S6 · S8 · S9 · S11 · S12 · S13) + S7(사용자 확정) | — | S14 verification-loop(사용자) | S10 north-star · S7 효과 | — |
+| ② 리포 전용 스킬 6 | — | — | R1 · R2 · R3 · R4 (은퇴) · R6 (②에서) | R5 deep-research | — |
 | 에이전트 7 (①②) | A1 reviewer · A2 implementer | A6 data-analyst · A7 strategist (트랙 조건부; ②에서는 은퇴) | A3 · A4 · A5 (사용자) | A2 효과 | — |
 | 훅 | H1 · H2 · H3 전부 | — | — | — | — |
 | ① 룰 44문장 | 13 | 5 (C1b · C2 · L1 · D3 · L4) | 1 (L2) | 2 (C3 · C4) + D1·D2 관측 확보 | 18 (Testing 9 · Delivery 9) |
@@ -173,7 +173,6 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 | A2 implementer | 같은 버그 수정: implementer 위임 / 메인 스레드 | 결함 · 되돌림 · 검증 레인 분리 유지 여부 |
 | R5 deep-research | 같은 리서치: 스킬 有 / 無 | 출처 없는 주장 수 · 킬 원장 유무 |
 | C3 · C4 · D1 · D2 (판단 지침 4문장) | 결정 기록·문서 동기화가 걸리는 작업 2건: 룰 有 / 無 | 결정 기록 누락 · 문서-코드 어긋남 · 사용자 정정 수 |
-| S11 audit-service-gaps (은퇴가 갈리면) | 갭 분석 1건 | 근거 없는 의견 수 · 순위의 재현 가능성 |
 
 차이가 안 나는 것은 뺀다. A/B 없이 은퇴하는 것(사용자 판단 4종 · 죽은 사본 3종 · ②PL)은 그대로 3단계로.
 
@@ -185,10 +184,10 @@ Testing(`test-policy`) · Delivery(`ship-checklist`) 두 룰의 문장 판정은
 
 ## 8. 미결 결정 (사용자)
 
-1. S11 audit-service-gaps — 은퇴 / A/B 로 미룸
-2. R4 agent-introspection-debugging — 은퇴 / A/B
+1. ~~S11 audit-service-gaps~~ — **유지**(사용자 관측, goaltrack)
+2. ~~R4 agent-introspection-debugging~~ — **은퇴**(사용자 확정)
 3. L2 파이프 `$?` 은퇴 · L1 을 L3 포인터로 흡수 · L4 한 줄 — 동의하는가
-4. A6·A7 — 트랙 조건부 강등에 동의하는가(전 트랙 CORE → `data|full` · `executive|full`)
+4. ~~A6·A7~~ — **트랙 조건부 강등**(사용자 확정)
 5. C2 · L4 · ②C3 · ②L1 · ②G3 강등 문안 — 3단계에서 diff 로 보인다
 6. 2단계 A/B 를 어느 작업으로, 누가(사용자 세션 / run-realcli) 돌리는가
 
