@@ -6,7 +6,7 @@
  * 이 둘만 남았다)가 manifest 상 `applies: (s) => !s.withEcc` 라 **더 이상 설치 대상이 아니게
  * 된다.** 그런데 이미 깔려 있던 파일은 아무도 안 지웠다 — install 은 안 깔 뿐이고,
  * `pruneOrphans` 는 `templates/` 에 원본이 있으면 손대지 않는다. 실측(빈 프로젝트 → 설치 →
- * `--with ecc-plugin` → `update`): 세 단계 내내 9개 그대로.
+ * `--with ecc-plugin` → `update`): 세 단계 내내 개수 그대로(ADR-089 뒤 7개).
  *
  * 결과는 **같은 일을 하겠다는 에이전트가 두 벌**이다. ECC 는 자기 `build-error-resolver.md` 를
  * 들고 오므로 이름까지 겹친다. 비용은 ~287 tok/세션, 영구. 화면은 아무 말도 안 했다.

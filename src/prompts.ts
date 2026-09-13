@@ -172,7 +172,7 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
   // 2026-08-16 — 트랙이 고르는 자산을 **맨 앞에서** 전부 보여준다. 그전까지 이 항목들은 화면에
   // 한 번도 안 나온 채 깔렸고, 사용자는 설치가 끝난 뒤 요약에서 처음 봤다.
   //
-  // 2페이지로 나눈 근거는 실측이다: 최대 트랙(`full`)이 32항목(rules 6 · agents 9 · hooks 3 ·
+  // 2페이지로 나눈 근거는 실측이다: 최대 트랙(`full`)이 32항목(당시 실측 — rules 6 · agents 9 · hooks 3 ·
   // skills 14)이라 clack groupMultiselect 의 "페이지당 ≤ ~30행" 제약을 한 페이지로는 못 지킨다.
   // 가르는 축은 역할이다 — 정책·가드가 한쪽, 실행 능력이 다른 쪽.
   { label: "Track baseline — Rules & Hooks (정책·가드)", cats: [], baseline: ["rules", "hooks"] },

@@ -37,7 +37,7 @@
 `code-reviewer` · `security-reviewer` 에이전트와 OpenCode 의 `code-reviewer` subagent 엔트리를
 은퇴시킨다. 배선·번들·ECC lock 행·문서에서 함께 뺀다.
 
-이미 깐 설치본은 **우리가 지우지 않는다**(남의 프로젝트 파일을 하네스가 삭제하지 않는 현행 규율).
+이미 깐 설치본은 **기준선(ADR-047) 유무로 갈린다** — 있으면 `update` 의 prune 이 회수(편집분 백업)하고, 없으면 남는다.
 소유를 증명할 수 있는 설치본에서는 `update` 의 기존 orphan prune 이 알아서 정리하고, 기준선이 없는
 레거시 설치본에는 화면이 한 줄로 말한다 — *"이 릴리즈에서 은퇴 · `.claude/agents/<id>.md` 를 지워도
 된다 · Claude Code 의 `/code-review` · `/security-review` 가 같은 일을 한다"*. 목록의 SSOT 는
@@ -60,7 +60,7 @@
 - **설치자**: 기본 설치에서 에이전트 2종이 빠진다. 코드 리뷰·보안 리뷰는 쓰던 CLI 의 기본 명령으로
   한다 — Claude Code `/code-review` · `/security-review`, Codex `codex review`. 완료 판정은 그대로
   `reviewer` 가 맡는다(벤더 명령이 대신하지 못하는 축).
-- **이미 깐 설치본**: `update` 가 지우지 않는다. 기준선이 있으면 기존 prune 이 정리하고, 없으면
+- **이미 깐 설치본**: 기준선이 있으면 `update` 의 prune 이 회수한다(v26.132.0 이후 설치본 = 다수 경로). 없으면
   화면이 "지워도 된다 + 대신 쓸 것"을 낸다. 안내 목록 = `RETIRED_AGENT_IDS`.
 - **상주 비용(tooling)**: agent descriptors 9개 ~766 → **7개 ~567**. 합계 31개 ~7,563 → 29개 ~7,364.
 - **`superseded.ts` 의 대상**: ECC 플러그인이 밀어내는 폴백 에이전트가 4종 → 2종
