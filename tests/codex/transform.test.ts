@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runCodexTransform } from "../../src/codex/transform.js";
+import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
 
@@ -106,6 +107,26 @@ describe("runCodexTransform (E2E against templates/)", () => {
       expect(existsSync(join(project, ".agents/skills/compaction-handoff"))).toBe(false);
       // 선택된 dev-method skill 이 없으므로 skillFiles 전체가 비어 있어야 한다.
       expect(report.skillFiles).toEqual([]);
+    });
+
+    // #431 — `SKILL.md` 만 가던 시절 이 단언은 `references/` 를 빈 자리로 남겼다. 대상 id 는
+    //   `templates/skills/` 에서 유도한다 — 이름을 박으면 자산 개편에 조용히 썩는다.
+    it("references/ 를 가진 스킬은 형제 파일까지 .agents/skills/<id>/ 에 온다", () => {
+      const id = firstSkillIdWithReferences(HARNESS_ROOT);
+      const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
+      const report = runCodexTransform({
+        harnessRoot: HARNESS_ROOT,
+        projectDir: project,
+        selectedInternalSkills: [id],
+        baseline: new Map(),
+      });
+      for (const rel of expected) {
+        const target = join(project, ".agents/skills", id, rel);
+        expect(existsSync(target), `${rel} 미도달`).toBe(true);
+        expect(report.skillFiles).toContain(target);
+      }
+      // 형제가 0건이면 위 루프는 SKILL.md 하나만 보고 통과한다 — 모집단 자기검증.
+      expect(expected.filter((rel) => rel !== "SKILL.md").length).toBeGreaterThan(0);
     });
 
     it("selected dev-method skill 만 렌더 (선택 안 한 id 는 빠짐)", () => {

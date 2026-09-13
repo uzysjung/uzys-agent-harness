@@ -494,7 +494,9 @@ describe("executeSpec", () => {
     // 산출물 섹션 헤더 + rules/skills 행 (6-Gate workflows 제거 — project context rules + dev-method skills).
     expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
     expect(lines.some((l) => l.includes(".agents/rules/uzys-harness.md"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/skills/<id>/SKILL.md"))).toBe(true);
+    // ADR-086 — 이제 디렉터리째 간다. 라벨도 파일이 아니라 디렉터리다.
+    // 옛 라벨의 진부분 문자열이라 includes 로는 회귀를 못 문다 — 뒤에 SKILL 이 오면 실패해야 한다.
+    expect(lines.some((l) => /\.agents\/skills\/<id>\/(?!SKILL)/.test(l))).toBe(true);
   });
 
   // v26.78.1 (R1) — karpathy hook 결과 렌더의 무음 실패 가드였다. 2026-08-02 정비(ADR-060)로
