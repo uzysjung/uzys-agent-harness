@@ -25,7 +25,12 @@ import {
 import { basename, dirname, join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
-import { CONTINUOUS_SKILLS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import {
+  CONTINUOUS_SKILLS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+  RENAMED_SKILL_IDS,
+  RETIRED_SKILL_IDS,
+} from "./external-assets.js";
 import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
 import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
 import { backupFile, listFilesRecursive } from "./fs-ops.js";
@@ -350,10 +355,33 @@ export function runUpdateMode(
   const skillRefresh = (deps.refreshSkills ?? refreshExternalSkills)(projectDir);
   report.externalSkillsRefreshed = skillRefresh.refreshed;
   report.externalSkillsFailed = skillRefresh.failed;
-  report.externalSkillsNotInCatalog = skillRefresh.notInCatalog;
+  // 개명·은퇴한 스킬은 **디스크에서** 찾는다. 위 refresh 는 `method: "skill"`(npx 외부 스킬)만
+  // 훑으므로 번들 스킬(`method: "internal"`)은 기록에 그 부류로 남지 않는다 — 그쪽만 보면
+  // 옛 이름의 디렉터리를 그대로 들고 있는 설치자에게 화면이 한 마디도 안 한다.
+  // 지우지는 않는다(ADR-046 — 스킬 디렉터리 안에는 사용자 파일이 섞인다). 말해 주고 손은 사용자가.
+  report.externalSkillsNotInCatalog = [
+    ...skillRefresh.notInCatalog,
+    ...staleSkillDirs(claudeDir).filter((id) => !skillRefresh.notInCatalog.includes(id)),
+  ];
   report.externalSkillsUnknown = skillRefresh.unknown;
 
   return report;
+}
+
+/**
+ * `.claude/skills/` 에 남아 있는 **개명·은퇴한** 스킬 id. 화면 문구는 `install-render` 가 가른다.
+ *
+ * 열거하지 않는다 — 카탈로그의 `RENAMED_SKILL_IDS`·`RETIRED_SKILL_IDS` 를 읽는다. 여기에 이름을
+ * 적으면 다음 개명에서 이 파일이 조용히 뒤처진다.
+ */
+function staleSkillDirs(claudeDir: string): string[] {
+  const dir = join(claudeDir, "skills");
+  if (!existsSync(dir)) return [];
+  const stale = (id: string): boolean =>
+    RENAMED_SKILL_IDS[id] !== undefined || RETIRED_SKILL_IDS.includes(id);
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && stale(e.name))
+    .map((e) => e.name);
 }
 
 /**
@@ -972,10 +1000,10 @@ export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): str
  * 앵커가 없으면 파일 부재와 무관하게 true (= 보존, `removed` 수집도 안 한다).
  *
  * M-1 — 탐지 범위가 `.claude/hooks/` 한 층에서 **`.claude/` 이하 임의 깊이**로 넓어졌다.
- * `templates/settings.json` 은 `applies: all` 인데 그 훅이 참조하는
- * `.claude/skills/strategic-compact/suggest-compact.sh` 는 `withEcc=true` 에서 미설치라,
- * plugin 을 켠 설치자는 Write/Edit 마다 없는 파일을 bash 로 부른다(exit 127). 치유기는
- * 이미 있었지만 이 부류를 regex 가 못 물었을 뿐이다.
+ * `templates/settings.json` 은 `applies: all` 인데 거기 배선된 훅이 **스킬 디렉터리 안의 사이드카
+ * 스크립트**(`.claude/skills/<id>/*.sh`)를 참조하고 그 스킬은 좁게 깔릴 수 있다 — plugin 을 켠
+ * 설치자는 Write/Edit 마다 없는 파일을 bash 로 부른다(exit 127). 치유기는 이미 있었지만 이
+ * 부류를 regex 가 못 물었을 뿐이다. (그 훅은 ADR-088 에서 스킬과 함께 은퇴했다 — 부류는 남는다.)
  *
  * H-2 — 그 확장이 경로 세그먼트 `/.claude/` 만 봐서 **홈 `~/.claude/`** 까지 사정권에 넣었다.
  * 앵커 판정(`projectAnchoredRef`)이 그 경계를 되돌린다.

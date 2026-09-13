@@ -177,8 +177,9 @@ describe("탐지기 자기검증", () => {
  * 템플릿 파일을 훑는 reachability 게이트의 모집단 밖이고, 도달은 여기서 실설치로 잰다.
  *
  * 자리: Claude Code 는 루트 `CLAUDE.md` 의 관리 블록(그 파일이 앵커를 import 한다), Codex·OpenCode 는
- * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `task-brief`(any-track)를 항상 깔므로
- * 안내가 있어야 하고, 세 상시 스킬을 전부 빼면(음성 대조) 안내 절이 한 CLI 에도 없어야 한다.
+ * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `clear-korean-communication`
+ * (has-dev-track)을 항상 깔므로 안내가 있어야 하고, 상시 스킬을 전부 빼면(음성 대조) 안내 절이
+ * 한 CLI 에도 없어야 한다.
  */
 describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만 (ADR-085)", () => {
   const NOTE = "## Skills that apply continuously";
@@ -193,7 +194,7 @@ describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만
 
   it("canary — 안내 절은 앵커 원본에 없다 (있으면 도달 판정이 앵커 임베드와 구분되지 않는다)", () => {
     expect(readFileSync(join(ROOT, "templates/CLAUDE.md"), "utf8")).not.toContain(NOTE);
-    expect(CONTINUOUS_SKILLS.map((s) => s.id)).toContain("task-brief");
+    expect(CONTINUOUS_SKILLS.map((s) => s.id)).toContain("clear-korean-communication");
   });
 
   for (const cli of CLI_BASES) {
@@ -201,11 +202,13 @@ describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만
       const inst = installed.get(cli);
       if (!inst) throw new Error(`설치 산출물 없음: ${cli}`);
       expect(noteReaches(inst, cli), `${cli} 에 상시 스킬 안내 미도달`).toBe(true);
-      expect([...inst.text.values()].some((b) => b.includes("`task-brief`"))).toBe(true);
+      expect([...inst.text.values()].some((b) => b.includes("`clear-korean-communication`"))).toBe(
+        true,
+      );
     });
   }
 
-  it("음성 대조 — 상시 스킬 3종을 전부 빼면 어느 CLI 에도 안내 절이 없다", () => {
+  it("음성 대조 — 상시 스킬을 전부 빼면 어느 CLI 에도 안내 절이 없다", () => {
     const dir = mkdtempSync(join(tmpdir(), "reach-no-continuous-"));
     runInstall({
       harnessRoot: ROOT,
@@ -383,8 +386,13 @@ describe("각 CLI 의 배선이 실재하는 파일을 가리킨다", () => {
     //   (−2,037; SPEC 조건부 한 줄은 리뷰 지적으로 남겼다 — Codex 기본 설치는 훅이 안 로드된다).
     //   예고한 −1.5 KB 보다 크게 내려 위 상향분(+906)을 되돌리고도 남는다. 여유 13 B — 다음에
     //   룰 한 줄을 더하면 여기서 묻는다. 그게 이 ratchet 의 일이다.
+    // 2026-09-13 (ADR-088, #426 F-04·F-09·F-10·F-11) — 22.75 KiB → 23.0 KiB. 예고한 대로 다음 한 줄에서
+    //   물었고, 그 줄이 사용자 확정 문안이다: 은퇴시킨 SPEC 분리 스킬의 대체가 `doc-governance` 룰
+    //   한 줄(상주 문서에는 현행 결정만)이다. 실측 23,283 → 23,304 B (+21). 같은 변경이 반대쪽도
+    //   줄였다 — 상시 스킬 안내에서 `objective-brief` 가 빠져 프로젝트 맥락이 짧아졌고, 그래서 룰
+    //   한 줄(약 +350 B)의 대부분이 상계됐다. 뺄 것을 먼저 찾은 결과가 이 +21 이고, 여유 248 B 다.
     const bytes = Buffer.byteLength(body, "utf8");
-    const RATCHET = 22.75 * 1024; // 실측 23,283 B 바로 위 (감사 F-12)
+    const RATCHET = 23.0 * 1024; // 실측 23,304 B 바로 위 (ADR-088)
     expect(
       bytes,
       `AGENTS.md ${bytes} B — 32 KiB **합계** 예산의 ${Math.round((bytes / (32 * 1024)) * 100)}% 를 우리가 쓴다.\n` +

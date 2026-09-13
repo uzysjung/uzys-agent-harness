@@ -63,11 +63,11 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## Boundaries
 
-**Always (✅ 훅 자동, 실측 2026-08-03)**: `.claude/settings.json` 에 등록된 훅 명령은 **5개**다 —
-`.claude/hooks/` 의 설치 훅 4개(SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서) 편집 차단 ·
-MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 얹은 1개**
-(`.claude/skills/strategic-compact/suggest-compact.sh`, Write|Edit async). "훅 4개"로만 세면
-스킬발 훅이 계측에서 빠진다. (배포판 `templates/hooks/` 는 3개 — `docker-only-realcli` 는 이 리포 전용이다.)
+**Always (✅ 훅 자동, 실측 2026-09-13)**: `.claude/settings.json` 에 등록된 훅 명령은 **4개**다 —
+SessionStart SPEC 안내 · 보호 파일(`.env*`·lock·인증서) 편집 차단 · 호스트 실 CLI 실행 차단 ·
+MCP allowlist. **마지막 하나는 배선만 남았다** — 훅 파일은 ADR-072 로 지웠고 `.claude/hooks/` 에
+실재하는 것은 3개다(ADR-088 은 스킬이 자기 훅을 얹던 1개를 스킬과 함께 은퇴시켰다).
+(배포판 `templates/hooks/` 는 2개 — `docker-only-realcli` 는 이 리포 전용이다.)
 **차단하는 훅 3개는 차단할 때마다 `.uzys-agent-harness/hook-blocks.log` 에 1줄 남긴다**(ADR-061).
 
 **Ask First**: PR 머지 · 태그 push · npm 게시 · 되돌리기 어려운 공유 상태 변경.
@@ -119,8 +119,10 @@ MCP allowlist · 호스트 실 CLI 실행 차단) + **스킬이 자기 훅을 �
 실행 형식·예시 = `clear-korean-communication` 스킬 — 이 리포 번들이라
 `templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
 
-**작업 요청은 착수 전에 `task-brief` 로 정규화해 보여준다**(사용자 확정 2026-08-03) — 사용자가
-채우지 않은 필드(objective 의 판정 기준·success_criteria·boundaries·verification 등)를 대화
-맥락으로 채운 **완성 브리프를 응답에 제시해 사용자가 그대로 프롬프트로 가져갈 수 있게** 한다.
-채운 값은 가정임을 표시하고, 정규화는 형태를 입히는 것이지 범위를 늘리는 것이 아니다. 한 줄
-질문·단순 조회는 제외(스킬의 Do-NOT). 템플릿 = `templates/skills/task-brief/`(이 리포 번들).
+**위임·설계·다단계 작업은 착수 전에 `objective-brief` 로 정규화해 보여준다**(사용자 확정
+2026-09-13, ADR-088 — 2026-08-03 의 "모든 작업 요청"에서 문턱이 올라갔다). 피처·프로젝트 규모
+이상이면 사용자가 채우지 않은 필드(objective 의 판정 기준·success_criteria·boundaries·
+verification 등)를 대화 맥락으로 채운 **완성 브리프를 응답에 제시해 사용자가 그대로 프롬프트로
+가져갈 수 있게** 한다. 채운 값은 가정임을 표시하고, 정규화는 형태를 입히는 것이지 범위를 늘리는
+것이 아니다. 한 줄 질문·조회·단일 수정·루틴 변경은 제외(스킬의 Do-NOT). 템플릿 =
+`templates/skills/objective-brief/`(이 리포 번들).

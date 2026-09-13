@@ -23,8 +23,8 @@ describe("C3 cherry-pick 계약 — manifest ↔ cherrypicks.lock", () => {
     // derive 원본이 비거나 한쪽(COMMON/DEV)을 잃으면 아래 루프가 0회 돌아 공허하게 통과한다
     // — mutation 으로 실증된 구멍(M13/M14). 알려진 C3 의 존재를 먼저 못 박는다.
     // 신규 C3 추가는 이 단언을 건드리지 않고 lock 플래그만 요구한다(제거만 차단).
-    // v26.121.0 — 앵커였던 continuous-learning-v2 가 C2 로 내려갔다(upstream 전체 복원 →
-    // lock modified:false).
+    // v26.121.0 — 앵커였던 학습 스킬이 C2 로 내려갔고(upstream 전체 복원 → lock
+    // modified:false) ADR-088 에서 은퇴했다.
     // 2026-08-02 — verification-loop 이 C3 계약에서 빠졌다(이관). 앵커는 COMMON=deep-research,
     // DEV=eval-harness 로 각 한 축씩 유지 — 한 축이 사라지면 루프가 반쪽만 돈다.
     expect(MODIFIED_ECC_SKILL_DIRS).toContain("deep-research");
@@ -40,10 +40,12 @@ describe("C3 cherry-pick 계약 — manifest ↔ cherrypicks.lock", () => {
 
   /**
    * `modified:true` 인데 ECC 선택 시 비켜서는 것 — 사고가 아니라 **결정**인 경우의 목록.
-   * `strategic-compact`: 우리 사이드카 훅을 얹은 수정본이지만, ECC 를 고른 설치에서는 디렉터리가
-   * 안 깔리고 `settings.json` 의 훅 참조는 install 치유 패스가 지운다(M-1, installer 테스트가 문다).
+   *
+   * ADR-088 (#426 F-09) — 유일한 항목(사이드카 훅을 얹은 수정본)이 은퇴해 비었다. 목록과 아래
+   * 판정은 남긴다: 빈 목록이면 어떤 것도 면제되지 않으므로 같은 형태가 다시 생기면 그 자리에서
+   * 이름과 사유를 요구한다.
    */
-  const MODIFIED_BUT_GATED = ["strategic-compact"];
+  const MODIFIED_BUT_GATED: ReadonlyArray<string> = [];
 
   /**
    * #340 — 위 단언은 **C3 → modified:true** 한 방향만 본다. 반대쪽(`modified:false` 인데

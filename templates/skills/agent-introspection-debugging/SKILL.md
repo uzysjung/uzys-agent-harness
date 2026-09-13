@@ -138,7 +138,7 @@ Good pattern:
 ## Integration with ECC
 
 - Use `verification-loop` after recovery if code was changed.
-- Use `continuous-learning-v2` when the failure pattern is worth turning into an instinct or later skill.
+- Use `recurrence-prevention` when the failure pattern is worth a rule, a gate, or a later skill.
 - Use `council` when the issue is not technical failure but decision ambiguity.
 - Use `workspace-surface-audit` if the failure came from conflicting local state or repo drift.
 

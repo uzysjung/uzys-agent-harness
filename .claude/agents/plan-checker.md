@@ -44,7 +44,7 @@ origin: self-authored (GSD gsd-plan-checker 사상 흡수, 100% 자체 작성)
 - "Phase 2는 Phase 1 완료 후" 같은 명시적 순서가 있는지 확인.
 
 ### D5. Context Budget
-- SPEC.md > 300줄이면 spec-scaling skill로 분리 제안(WARNING).
+- SPEC.md 가 길어져 한 화면에 안 들어오면 기능별 or 영역별 분리를 제안(WARNING).
 - plan.md에 30개 이상 task가 한 Phase에 몰려 있으면 WARNING (분해 필요).
 - 각 task의 예상 파일 수 × 평균 크기가 context window의 50% 초과 시 WARNING.
 

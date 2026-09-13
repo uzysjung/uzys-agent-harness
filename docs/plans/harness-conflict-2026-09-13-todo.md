@@ -53,9 +53,11 @@ status: active
     필수 보안·데이터 보호 검사는 유지.
   - [x] ⓑ **AGENTS 껍데기 3종 정리** F-02 · F-03 · F-05 · F-06 · F-12 — 렌더 게이트 · Codex 크기 게이트(25,320 → 23,283 B, ratchet 22.75 KiB).
   - [x] ⓒ **스킬·에이전트 본문** F-07 · F-08 · F-15 — 한 문단씩.
-  - [ ] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
+  - [x] ⓓ **자산 정리(배포판)** F-04 · F-09 · F-10 · F-11 — ADR-088 — `task-brief`→`objective-brief` 개명·문턱·넛지 훅
     제거·상시 안내 제외 · `strategic-compact` · `continuous-learning-v2` 제거 · `spec-scaling` retire ·
-    `doc-governance` 한 줄. 자산 수 62 → 59(스킬 −3), 카탈로그·lock·문서·`.claude/` 미러 동반.
+    `doc-governance` 한 줄. 카탈로그·lock·문서·`.claude/` 미러 동반. **카탈로그 수는 62 그대로** —
+    은퇴 3종은 카탈로그 엔트리가 아니라 manifest 번들이었다(착수 전 "62 → 59" 는 오기). 번들 uzys
+    스킬 16 → 15. 상주(tooling) 34개 ~7,890 → 31개 ~7,685 · Codex AGENTS.md 23,283 → 23,304 B.
   - [x] ⓕ **audit-harness-fit 에 씬 묶음 검증 · 개발 속도 관점** (사용자 지시 2026-09-13, PR #441) — 영역 5 확장 +
     verification 참조 "Bundle verification by completed scene". 씬 리듬 문장이 **두 곳**(Delivery 룰 · 이 스킬)에
     있다 — 리듬을 바꿀 때는 둘 다 고친다(리뷰 지적).
