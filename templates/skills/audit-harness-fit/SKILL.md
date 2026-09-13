@@ -38,7 +38,9 @@ A full audit covers these concerns; a narrower request keeps its stated scope:
 2. Conflicts, changed decisions, and stale interpretations of the user's intent.
 3. Excessive principles or skills with no useful incremental value.
 4. Long rationale and history occupying active instructions or menus.
-5. User-journey-based implementation, proportionate testing, and useful delegation.
+5. User-journey-based implementation, proportionate testing, and useful delegation —
+   including instructions that slow development: per-edit full runs, per-change reviews,
+   or checks that could be bundled once per completed user scene.
 
 There is no fixed finding limit or quota. Keep all material, supported findings
 within inspected scope, group shared root causes, and order by consequence.

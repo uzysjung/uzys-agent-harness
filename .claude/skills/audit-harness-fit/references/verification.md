@@ -1,5 +1,14 @@
 # User Journeys, Verification, and Model Delegation
 
+## Contents
+
+- [Start from the usage scene](#start-from-the-usage-scene)
+- [Choose sufficient evidence](#choose-sufficient-evidence)
+- [Bundle verification by completed scene](#bundle-verification-by-completed-scene)
+- [Reuse evidence with explicit invalidation](#reuse-evidence-with-explicit-invalidation)
+- [Delegate only when the judgment warrants it](#delegate-only-when-the-judgment-warrants-it)
+- [Demonstrate improvement honestly](#demonstrate-improvement-honestly)
+
 ## Start from the usage scene
 
 Use confirmed requirements and accessible product evidence to identify **actor,
@@ -44,6 +53,16 @@ disproportionate, propose a separate policy decision;
 do not disable it, lower its threshold, or relabel it to make cleanup succeed.
 Document checks are sufficient for document-only effects unless applicable policy
 or actual dependencies require broader checks. State checks not run and why.
+
+## Bundle verification by completed scene
+
+Implementation and verification follow the scene, not the edit. While a scene is being
+built, run only the quick checks for the parts being changed. When the scene's changes are
+complete, bundle them and verify once from usage: the scene's observable outcome, its
+integration boundaries, and one representative journey. Re-verify only the parts a later
+change affects. Treat instructions that force a full run or an independent review after
+every edit as a finding under audit area 5 — they cost development speed without adding
+evidence — unless a required gate names that cadence explicitly.
 
 ## Reuse evidence with explicit invalidation
 
