@@ -9,7 +9,7 @@
  * Outputs (under projectDir):
  *   - AGENTS.md
  *   - opencode.json
- *   - .agents/skills/<id>/SKILL.md (dev-method skills — codex·antigravity 와 같은 자리)
+ *   - .agents/skills/<id>/** (dev-method skills 디렉터리 전체 — codex·antigravity 와 같은 자리)
  *
  * SPEC: docs/specs/opencode-compat.md
  * Phase: C1 (transform orchestrator)
@@ -17,7 +17,7 @@
 
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { renderBundledSkill } from "../codex/skills.js";
+import { writeBundledSkillDirs } from "../codex/skills.js";
 import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
@@ -54,7 +54,10 @@ export interface OpencodeTransformParams {
 export interface OpencodeTransformReport {
   agentsMdPath: string;
   opencodeJsonPath: string;
-  /** `.agents/skills/<id>/SKILL.md` — codex·antigravity 와 같은 자리(같은 파일)다. */
+  /**
+   * `.agents/skills/<id>/` 에 쓴 **모든** 파일 — codex·antigravity 와 같은 자리(같은 파일)다.
+   * #431 이후 `SKILL.md` 의 형제(references/scripts 등)도 함께 들어온다.
+   */
   skillFiles: string[];
   /** 옛 `.opencode/commands/<id>.md` 를 백업하고 지운 경로들 (ADR-081 전환 뒷정리). */
   retiredCommands: string[];
@@ -112,17 +115,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   //
   //   codex·antigravity 와 **같은 파일**이다. 셋이 한 벌을 공유하므로 조합 설치에서
   //   같은 스킬이 두 판본으로 깔리는 일이 없다 — 그것이 #340 의 형태였다.
-  const skillFiles: string[] = [];
-  for (const id of selectedInternalSkills) {
-    const src = join(harnessRoot, "templates/skills", id, "SKILL.md");
-    if (!existsSync(src)) {
-      continue;
-    }
-    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
-    // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다.
-    if (!writer.write(target, renderBundledSkill(readFileSync(src, "utf8")))) continue;
-    skillFiles.push(target);
-  }
+  //
+  //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체를 보낸다. 루프는 세
+  //   transform 공용 helper 가 소유한다.
+  const skillFiles = writeBundledSkillDirs({
+    harnessRoot,
+    projectDir,
+    skillIds: selectedInternalSkills,
+    writer,
+  });
 
   // 4. 옛 커맨드 사본 은퇴. 안 지우면 OpenCode 커맨드 목록에 같은 이름이 **두 줄**로 뜬다
   //   (옛 `source: "command"` + 새 `source: "skill"`). 대상은 번들 스킬 이름인 것만 —

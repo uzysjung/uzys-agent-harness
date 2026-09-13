@@ -95,7 +95,7 @@ stale row fails the build rather than misleading you.
 | `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `task-brief` | official | templates (`--with task-brief`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `humanize-korean` | official | templates (`--with humanize-korean`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `natural-korean` | official | templates (`--with natural-korean`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `feature-dev` | official | `feature-dev@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |

@@ -128,15 +128,15 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 | `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
 | `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
 
-**Korean prose** (`official`, **opt-in on any track** — `--with humanize-korean`; it is about writing, not about a stack, so no track pre-checks it):
+**Korean prose** (`official`, **opt-in on any track** — `--with natural-korean`; it is about writing, not about a stack, so no track pre-checks it):
 
 | Asset | What |
 |---|---|
-| `humanize-korean` | Diagnose what actually reads as translationese, AI cliché, or mechanical structure in Korean prose — then fix only what the diagnosis justifies, preserving facts, numbers, terminology and register. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one repairs **the style of prose already written** |
+| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keep meaning and register, cut translationese, needless English, stock phrases and mechanical repetition, and fix only what is actually awkward. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one governs **how the Korean itself is written** |
 
-> `humanize-korean` was written for this repo after reading [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai) — the pattern lists there were the reference; the skill compresses them into a diagnosis-first procedure rather than a detector checklist, because the failure mode of that genre is rewriting sentences that were never wrong.
+> `natural-korean` replaced the earlier humanize-korean skill (#428). The predecessor was a diagnosis-first *revision* skill; this one also covers writing and translation, so the name followed the scope. A project that installed the old id keeps it — `update` only refreshes skills it finds installed — and picks up the new one with `--with natural-korean`.
 
-> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `humanize-korean` are newer still.
+> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `task-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `natural-korean` are newer still.
 
 ### Not driven by track selection (opt-in on any track)
 

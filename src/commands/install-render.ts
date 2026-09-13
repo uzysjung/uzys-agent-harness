@@ -249,8 +249,8 @@ export function renderCliArtifacts(
       log(
         assetRow(
           "success",
-          ".agents/skills/<id>/SKILL.md",
-          `${report.codex.skillFiles.length} skills`,
+          ".agents/skills/<id>/",
+          `${countSkillDirs(report.codex.skillFiles)} skills`,
         ),
       );
     }
@@ -274,7 +274,7 @@ export function renderCliArtifacts(
         assetRow(
           "success",
           ".agents/skills/",
-          `${report.opencode.skillFiles.length} dev-method skills (codex·antigravity 와 같은 자리)`,
+          `${countSkillDirs(report.opencode.skillFiles)} dev-method skills (codex·antigravity 와 같은 자리)`,
         ),
       );
     }
@@ -299,8 +299,8 @@ export function renderCliArtifacts(
       log(
         assetRow(
           "success",
-          ".agents/skills/<id>/SKILL.md",
-          `${report.antigravity.skillFiles.length} skills`,
+          ".agents/skills/<id>/",
+          `${countSkillDirs(report.antigravity.skillFiles)} skills`,
         ),
       );
     }
@@ -407,6 +407,20 @@ export function renderFinalSummary(
     );
   }
   log("");
+}
+
+/**
+ * ADR-086 — `skillFiles` 는 이제 스킬 **디렉터리 전체**의 파일이다(SKILL.md + references/ …).
+ * 화면의 "N skills" 는 파일 수가 아니라 `<id>` 디렉터리 수여야 한다 — 8종을 골랐는데 "13 skills"
+ * 로 뜨면 설치자가 자기가 안 고른 것이 깔렸다고 읽는다.
+ */
+export function countSkillDirs(skillFiles: ReadonlyArray<string>): number {
+  const ids = new Set<string>();
+  for (const f of skillFiles) {
+    const m = /[\\/]\.agents[\\/]skills[\\/]([^\\/]+)[\\/]/.exec(f);
+    if (m?.[1] !== undefined) ids.add(m[1]);
+  }
+  return ids.size;
 }
 
 /**
