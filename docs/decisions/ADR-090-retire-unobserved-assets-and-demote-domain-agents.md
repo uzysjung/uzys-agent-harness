@@ -103,7 +103,8 @@ Session Cleanup 을 가리킨다. "Collect results as a file" 소절은 **그대
 - **설치자(강등의 그늘)**: `data-analyst` · `strategist` 를 이미 받은 tooling 설치자에게는
   그 파일이 **남는다** — 은퇴가 아니라 트랙 조건부라 `RETIRED_AGENT_IDS` 에 없고, `templates/`
   에 원본이 있어 prune 도 안 건드린다. 위저드가 *"Track removal is not automated"* 로 이미
-  선언한 영역과 같은 자리다. 새 설치부터 트랙대로 간다.
+  선언한 영역과 같은 자리다. 새 설치부터 트랙대로 간다. **update 화면은 그 파일이 남았음을
+  트랙명과 함께 안내하고, 상주 계측은 디스크를 센다**(#458 · 파일은 여전히 지우지 않는다).
 - **설치자(비용)**: tooling 트랙 상주 29개 ~7,364 → **20개 ~6,546**(실측 2026-09-14,
   `npm run cost:report tooling`). 내역은 `docs/NORTH_STAR.md` §현재 상태가 SSOT.
 - **위저드**: baseline 페이지의 스킬 축이 tooling 단독 설치에서 **0건**이 된다(거기 뜨던 것이
