@@ -6,6 +6,8 @@
  * 오케스트레이션만, 여기는 화면 출력만. 동작 변경 0 (순수 이동).
  */
 
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
 import { formatResidentCostLine, residentCost, summarizeContextCost } from "../context-cost.js";
@@ -28,7 +30,7 @@ import {
   type InstallReport,
   type ProgressEvent,
 } from "../installer.js";
-import { buildManifest, RETIRED_AGENTS } from "../manifest.js";
+import { buildManifest, RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
@@ -118,12 +120,18 @@ export function renderInstallHeader(
     // `selectedInternalSkills` 가 없어 번들 스킬이 전부 미설치로 계산되고, 설치자에게
     // 실제보다 작은 숫자가 나간다(track=tooling 에서 23 vs 실제 34). 계측·문서만 고치고
     // 이 줄을 두면 화면과 내부 수치가 어긋난다 — 일관되게 틀린 것보다 나쁘다.
-    const assetSpec = buildManifestSpec(spec);
-    const cost = formatResidentCostLine(
-      residentCost(buildManifest(assetSpec).filter((e) => e.applies(assetSpec))),
-      summarizeContextCost(finalAssets).unmeasuredCount,
-    );
-    if (cost) log(`              ${c.dim(`· ${cost}`)}`);
+    // #458 — **update 모드는 여기서 안 찍는다.** 이 줄은 manifest 계획, 즉 "지금 깔면 이렇게
+    // 된다"이고 update 화면에서는 사실이 될 수 없다: 트랙에서 강등·은퇴한 에이전트 파일이
+    // 디스크에 남아 매 세션 상주하는데 계획에는 없어서, 설치자는 실제보다 작은 숫자를 본다
+    // (실측: 화면 agents 2 · 디스크 4). 갱신 **후 디스크**로 잰 줄을 `renderUpdateSummary` 가 낸다.
+    if (mode !== "update") {
+      const assetSpec = buildManifestSpec(spec);
+      const cost = formatResidentCostLine(
+        residentCost(buildManifest(assetSpec).filter((e) => e.applies(assetSpec))),
+        summarizeContextCost(finalAssets).unmeasuredCount,
+      );
+      if (cost) log(`              ${c.dim(`· ${cost}`)}`);
+    }
   }
   log("");
 }
@@ -204,7 +212,11 @@ export function createInstallRenderer(
 }
 
 /** Update mode 단축 Summary — manifest copy / external 모두 skip 된 경로. */
-export function renderUpdateSummary(log: (msg: string) => void, report: InstallReport): void {
+export function renderUpdateSummary(
+  log: (msg: string) => void,
+  spec: InstallSpec,
+  report: InstallReport,
+): void {
   log("");
   // v26.63.2 — Summary 도 unifiedSection 으로 통일 (━━ marker). Step 5 안 sub-section 들과 일관.
   log(unifiedSection("Summary"));
@@ -215,7 +227,42 @@ export function renderUpdateSummary(log: (msg: string) => void, report: InstallR
     log(infoRow("BACKUP", shortenPath(report.backup)));
     log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shortenPath(report.backup)} .claude`));
   }
+  // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
+  // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
+  const cost = formatResidentCostLine(
+    residentCost(residentEntriesOnDisk(spec)),
+    summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
+  );
+  if (cost) log(infoRow("CONTEXT", cost));
   log("");
+}
+
+/**
+ * update 가 재는 상주 엔트리 — **에이전트만 디스크에서** 읽는다 (#458).
+ *
+ * 나머지(룰·스킬·CLAUDE.md)는 update 가 방금 배포판으로 동기화한 것이라 계획 = 디스크다.
+ * 에이전트만 갈리는 이유는 **트랙 조건화(ADR-090)와 은퇴(ADR-089)가 파일을 안 지우기 때문**이다:
+ * manifest 에는 없는데 파일은 남아 descriptor 가 매 세션 상주한다. 그 차이를 안 반영하면 화면이
+ * 실제보다 작은 숫자를 내고, 바로 그 숫자를 근거로 "지워도 된다" 안내가 붙는 화면이다.
+ */
+function residentEntriesOnDisk(
+  spec: InstallSpec,
+): Array<{ source: string; target: string; file?: string }> {
+  const assetSpec = buildManifestSpec(spec);
+  const planned = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
+  const agentsDir = join(spec.projectDir, ".claude", "agents");
+  const onDisk = existsSync(agentsDir)
+    ? readdirSync(agentsDir, { withFileTypes: true })
+        .filter((e) => e.isFile() && e.name.endsWith(".md"))
+        .map((e) => ({
+          source: `agents/${e.name}`,
+          target: `.claude/agents/${e.name}`,
+          // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 descriptor 도,
+          // 배포판에 더는 없는 에이전트도 실제로 상주하는 것은 이쪽이다.
+          file: join(agentsDir, e.name),
+        }))
+    : [];
+  return [...planned.filter((e) => !e.target.startsWith(".claude/agents/")), ...onDisk];
 }
 
 /**
@@ -612,6 +659,20 @@ function renderPhase1Rows(
           "agents",
           `${id} · 이 릴리즈에서 은퇴 — .claude/agents/${id}.md 를 지워도 된다` +
             (instead === undefined ? "" : ` · ${instead}`),
+        ),
+      );
+    }
+    // ADR-090 (#458) — 트랙에서 **강등된** 에이전트. 위 은퇴 행과 사용자가 할 일은 같고(지워도
+    // 된다) 사실은 다르다 — 이건 **다른 트랙에는 여전히 가는** 자산이다. 그래서 "은퇴"라 하지
+    // 않고 어느 트랙 전용인지를 말한다. 목록을 여기 적지 않으려고 배선 SSOT(`TRACK_AGENTS`)를
+    // 돌면서 보고된 id 만 찍는다 — 트랙명도 그 패턴에서 그대로 derive 한다.
+    for (const [id, pattern] of TRACK_AGENTS) {
+      if (!baseline.updateMode.demotedAgents.includes(id)) continue;
+      log(
+        assetRow(
+          "skip",
+          "agents",
+          `${id} · 이 트랙에서는 더 이상 설치하지 않는다 — ${pattern.split("|").join(" · ")} 트랙 전용 · .claude/agents/${id}.md 를 지워도 된다`,
         ),
       );
     }

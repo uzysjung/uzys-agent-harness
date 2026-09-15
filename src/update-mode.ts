@@ -51,8 +51,10 @@ import {
   type AssetSpec,
   buildManifest,
   RETIRED_AGENT_IDS,
+  TRACK_AGENTS,
 } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
+import { anyTrack } from "./track-match.js";
 import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
 
 /**
@@ -188,6 +190,18 @@ export interface UpdateModeReport {
    */
   retiredAgents: string[];
   /**
+   * ADR-090 (#452 · #458) — 이 설치본의 트랙에서 **빠진**(강등된) 에이전트 id.
+   *
+   * 은퇴(`retiredAgents`)와 가르는 이유는 사실이 다르기 때문이다: 은퇴한 것은 아무에게도 안 가고,
+   * 강등된 것은 **다른 트랙에는 여전히 간다**. 한 문구로 뭉치면 data 트랙 설치자가 자기 자산을
+   * 없어진 것으로 읽는다. 그래서 화면이 "어느 트랙 전용인지"를 함께 말한다.
+   *
+   * 은퇴와 같은 것: **지우지 않는다**(ADR-046 · 사용자 결정 2026-09-14). 그 파일을 사용자가
+   * 고쳤는지 update 시점엔 판정할 수 없다. `pruneOrphans` 도 못 지운다 — 템플릿에 원본이
+   * 그대로 있어 orphan 이 아니다. 말하고 손은 사용자가.
+   */
+  demotedAgents: string[];
+  /**
    * 2026-08-16 (ADR-072) — 이번 update 가 물러낸 `.mcp-allowlist` 의 **백업 경로**. 없었으면 null.
    *
    * 이 파일은 `.claude/` 밖(프로젝트 루트)이라 `pruneOrphans` 의 사정거리에 없다. 읽던 훅
@@ -276,6 +290,7 @@ export function runUpdateMode(
     restored: [],
     needsReinstall: [],
     retiredAgents: [],
+    demotedAgents: [],
     mcpAllowlistRetired: null,
   };
 
@@ -351,6 +366,9 @@ export function runUpdateMode(
   //      만든 자동 생성물이라 회수했지만, 에이전트 파일은 사용자가 고쳤을 수 있고 update 시점에
   //      그것을 판정할 기준선이 없다. 그래서 말만 한다.
   report.retiredAgents = staleAgentFiles(claudeDir);
+  // 3.7) 트랙에서 **강등된** 에이전트 (ADR-090 · #458). 같은 자리에 두는 이유는 사용자가 할 일이
+  //      같아서다(지워도 된다). 판정 근거만 다르다 — 은퇴는 목록, 강등은 **이 설치본의 트랙**이다.
+  report.demotedAgents = demotedAgentFiles(claudeDir, installedTracks(projectDir));
 
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
@@ -420,6 +438,29 @@ function staleAgentFiles(claudeDir: string): string[] {
     .filter((e) => e.isFile() && e.name.endsWith(".md"))
     .map((e) => basename(e.name, ".md"))
     .filter((id) => RETIRED_AGENT_IDS.includes(id));
+}
+
+/**
+ * `.claude/agents/` 에 남아 있는 **이 트랙에서 강등된** 에이전트 id (ADR-090 · #458).
+ *
+ * `staleAgentFiles` 와 같은 형태로 디스크를 보되, 판정은 **배선 SSOT 의 `TRACK_AGENTS` 패턴을
+ * 이 설치본의 트랙으로 `anyTrack` 한 결과**다. id 를 여기 적지 않는 이유는 은퇴 쪽과 같다 —
+ * 다음 강등에서 이 함수가 조용히 뒤처진다.
+ *
+ * **트랙을 모르면 아무 말도 하지 않는다.** install log 가 없는 레거시 설치본이 그쪽이고, 거기서
+ * 추측으로 "지워도 된다"고 말하면 실제로 그 트랙의 자산인 파일을 지우게 만든다.
+ */
+function demotedAgentFiles(claudeDir: string, tracks: ReadonlyArray<Track>): string[] {
+  if (tracks.length === 0) return [];
+  const dir = join(claudeDir, "agents");
+  if (!existsSync(dir)) return [];
+  const demoted = TRACK_AGENTS.filter(([, pattern]) => !anyTrack(tracks, pattern)).map(
+    ([id]) => id,
+  );
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".md"))
+    .map((e) => basename(e.name, ".md"))
+    .filter((id) => demoted.includes(id));
 }
 
 /**

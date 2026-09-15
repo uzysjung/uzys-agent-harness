@@ -282,7 +282,7 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
 
   // Update mode 단축 출력 — manifest copy / external 모두 skip
   if (report.updateMode) {
-    renderUpdateSummary(log, report);
+    renderUpdateSummary(log, spec, report);
     return;
   }
 

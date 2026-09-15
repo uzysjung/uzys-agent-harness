@@ -39,7 +39,8 @@
 
   2. **계측은 설치 계획(manifest)에서 한다** — `residentCost(entries)`. `applies` 로 걸러진
      엔트리를 받으므로 트랙별 실제 설치분이 반영된다. `templates/` 전체 합계 같은 부풀린 수치를
-     쓰지 않는다.
+     쓰지 않는다. **예외 = `update` 의 agents 축**: 갱신 뒤 디스크의 `.claude/agents/*.md` 를 센다 —
+     트랙 밖으로 강등된 파일은 계획에 없는데 상주한다(#458 · ADR-090 Consequences).
   3. **표시도 함께 고친다** — `formatResidentCostLine` 이 총합 + 내역(rules/CLAUDE.md/skills/
      agents)을 보여준다. 총합만 보이면 어디가 비싼지 알 수 없고, 60%를 차지하는 룰이 계속
      안 보인다.
