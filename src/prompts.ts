@@ -40,7 +40,7 @@ import { stepLabel, type WizardStep } from "./wizard-steps.js";
  * groupMultiselect 의 단일 string value 에 두 source 통합:
  *   - `option:<key>` → OPTION_DEFS 의 manifest-영향 build option (현재 빈 배열 — 아래 OPTION_DEFS 참조)
  *   - `asset:<id>` → EXTERNAL_ASSETS 의 외부 자산
- * 다른 OptionFlags 항목 (withGsd, withEcc, withPrune, withTob,
+ * 다른 OptionFlags 항목 (withGsd, withEcc, withPrune, withTob — 전부 삭제됨,
  * withAddyAgentSkills, withSuperpowers, withWshobsonAgents, withOpenspec, withBmad) 은
  * EXTERNAL_ASSETS 에 1:1 자산이 있어
  * 자산 체크 → userOverride.forceInclude 로 처리. UI 중복 표시 없음.
@@ -153,7 +153,7 @@ const CLI_BASE_LABELS: Record<CliBase, string> = {
  *   Page 2: Dev Tools    — dev-tools + understanding                (13행)
  *   Page 3: Business     — business (documents)                     ( 9행)
  *   Page 4: Visual&Media — visual-media (slides·diagrams·motion·video) (10행)
- *   Page 5: Workflow/ECC — workflow(+ 방법론 번들 1행) + ecc-suite   (10행)
+ *   Page 5: Workflow     — workflow (방법론 스킬 포함)                (10행)
  */
 export interface InstallTargetPage {
   label: string;
@@ -185,7 +185,7 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
   { label: "Business (PM · Executive · Documents)", cats: ["business"] },
   // v26.85.0 — 코드-퍼스트 비주얼/미디어 제작 (용도별 섹션, 전부 opt-in).
   { label: "Visual & Media (Slides · Diagrams · Motion · Video)", cats: ["visual-media"] },
-  { label: "Workflow & ECC Suite", cats: ["workflow", "ecc-suite"] },
+  { label: "Workflow", cats: ["workflow"] },
 ];
 
 /**

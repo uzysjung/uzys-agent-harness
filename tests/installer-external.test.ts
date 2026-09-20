@@ -26,7 +26,6 @@ function makeMock(fn: RunExternalFn): RunExternalFn & {
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
-  withPrune: false,
   withCodexTrust: false,
 };
 
@@ -64,16 +63,16 @@ describe("runInstall — external assets integration", () => {
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
-        ...spec(["tooling"], { withPrune: true }, projectDir),
-        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
+        ...spec(["tooling"], { withCodexTrust: true }, projectDir),
+        userOverride: { forceInclude: ["bmad-method"], forceExclude: [] },
       },
     });
     expect(runExternal).toHaveBeenCalledOnce();
     const [ctx] = runExternal.mock.calls[0] ?? [];
     expect(ctx?.tracks).toEqual(["tooling"]);
-    expect(ctx?.options.withPrune).toBe(true);
+    expect(ctx?.options.withCodexTrust).toBe(true);
     // v26.81.0 (ADR-022) — 자산 선택은 userOverride 로 전파.
-    expect(ctx?.userOverride?.forceInclude).toEqual(["ecc-plugin"]);
+    expect(ctx?.userOverride?.forceInclude).toEqual(["bmad-method"]);
     // Bug B (2026-06-07): 외부 설치기가 올바른 프로젝트에 착지하도록 projectDir 가 전달돼야 함.
     expect(ctx?.projectDir).toBe(projectDir);
   });

@@ -393,17 +393,20 @@ describe("배포물 셸 건전성 (#327)", () => {
     const counts = `스크립트 ${SCRIPTS.length} · 펜스 ${FENCES.length} · 셸 펜스 ${SHELL_FENCES.length}`;
     const reading = `수집기 파손 또는 자산 감소 — 어느 쪽인지 개수 변화로 판단하라 (${counts})`;
     // `templates/` 밖 게시분이 **실제 모집단에** 들어왔는지. `EXTRA_SCRIPTS`(정의)를 단언하면
-    // 정의는 남기고 합류만 끊는 변이가 생존한다 — "배열 둘을 굳이 합칠 필요 없다"는 아주 자연스러운
-    // 정리 한 번이면 난다. 그때 `prune-ecc.sh` 는 문법 오류를 안은 채 검사 밖으로 나가고,
-    // 실패 메시지는 "모집단에 없다"고 하면서 모집단을 안 보는 거짓말이 된다(실측으로 생존 확인).
-    expect(
-      SCRIPTS.map((s) => s.file),
-      "package.json files 가 개별 지정한 .sh 가 모집단에 없다",
-    ).toContain("scripts/prune-ecc.sh");
-    // #438 — codex 자리표시자 훅 2개(설치본에 안 나가던 것)를 지워 모집단이 10 → 8. 하한은 자산 수를
-    // 따라 내린다 — 수집기 파손과 자산 감소를 가르는 것이 이 단언의 역할이다.
-    expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(8);
-    expect(FENCES.length, reading).toBeGreaterThanOrEqual(100);
+    // 정의는 남기고 합류만 끊는 변이가 생존한다. #492 로 `files` 의 마지막 개별 `.sh`
+    // (`scripts/prune-ecc.sh`)가 게시 계약에서 빠져 지금 이 목록은 비어 있다 — 그래서 단언은
+    // "그런 파일이 생기면 모집단에 합류한다"를 derive 로 건다(열거 금지).
+    for (const rel of SHIPPED_SH_OUTSIDE_TEMPLATES) {
+      expect(
+        SCRIPTS.map((s) => s.file),
+        `package.json files 가 개별 지정한 ${rel} 가 모집단에 없다`,
+      ).toContain(rel);
+    }
+    // #438 — codex 자리표시자 훅 2개(설치본에 안 나가던 것)를 지워 모집단이 10 → 8. #492 —
+    // ECC cherry-pick 스킬 7종 + prune 스크립트가 빠져 다시 내려간다. 하한은 자산 수를 따라
+    // 내린다 — 수집기 파손과 자산 감소를 가르는 것이 이 단언의 역할이다.
+    expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(6);
+    expect(FENCES.length, reading).toBeGreaterThanOrEqual(80);
     expect(SHELL_FENCES.length, reading).toBeGreaterThanOrEqual(30);
   });
 
@@ -460,7 +463,7 @@ describe("배포물 셸 건전성 (#327)", () => {
     expect(
       population.filter((s) => s.kind === "fence" && !s.isShell).length,
       "비-셸 펜스가 모집단에서 빠졌다 — 줄이음 검사가 라벨에 종속됐다",
-    ).toBeGreaterThanOrEqual(100);
+    ).toBeGreaterThanOrEqual(40);
 
     const failures = population.flatMap(danglingContinuations);
     expect(failures, `끊긴 줄이음 ${failures.length}건 / 검사 ${population.length}개`).toEqual([]);

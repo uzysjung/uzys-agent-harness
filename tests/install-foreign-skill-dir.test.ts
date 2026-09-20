@@ -59,7 +59,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
         projectDir: dir,
         spec: {
           tracks: ["tooling"],
-          options: { withPrune: false, withCodexTrust: false },
+          options: { withCodexTrust: false },
           cli: ["claude"],
           projectDir: dir,
         },
@@ -88,7 +88,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
 
   const specOf = (): InstallSpec => ({
     tracks: ["tooling"],
-    options: { withPrune: false, withCodexTrust: false },
+    options: { withCodexTrust: false },
     cli: ["claude"],
     projectDir,
   });

@@ -79,6 +79,35 @@ describe("listAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  // #492 — 은퇴한 자산은 카탈로그에 없다. `list` 가 카탈로그를 조회하면 그 자산은 화면에서
+  // 사라지고, 그러면 사용자는 `uninstall --only <id>` 의 입력값을 알 수 없다.
+  it("카탈로그에서 은퇴한 자산도 그대로 보여준다 (로그가 진실이다)", () => {
+    writeLog(tmpDir, {
+      ...baseLog(),
+      assets: [
+        {
+          id: "ecc-plugin",
+          category: "ecc-suite",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "affaan-m/everything-claude-code", pluginId: "ecc@ecc" },
+        },
+        {
+          id: "find-skills",
+          category: "dev-tools",
+          method: "skill",
+          scope: "project",
+          detail: { source: "vercel-labs/skills" },
+        },
+      ],
+    });
+    const { output, exit } = run();
+    expect(output).toContain("ecc-plugin");
+    expect(output).toContain("find-skills");
+    expect(exit).toHaveBeenCalledWith(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("global 자산은 자동 삭제 대상이 아님을 표시한다 (D16 — 오해하면 지웠다고 믿는다)", () => {
     writeLog(tmpDir, {
       ...baseLog(),

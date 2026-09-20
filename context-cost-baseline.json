@@ -35,8 +35,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 14,
-        "tokens": 2423
+        "items": 13,
+        "tokens": 2379
       }
     },
     "csr-fastify": {
@@ -45,8 +45,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 14,
-        "tokens": 2423
+        "items": 13,
+        "tokens": 2379
       }
     },
     "csr-fastapi": {
@@ -55,8 +55,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 16,
-        "tokens": 2511
+        "items": 13,
+        "tokens": 2379
       }
     },
     "ssr-htmx": {
@@ -65,8 +65,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 14,
-        "tokens": 2423
+        "items": 13,
+        "tokens": 2379
       }
     },
     "ssr-nextjs": {
@@ -75,8 +75,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 15,
-        "tokens": 2463
+        "items": 13,
+        "tokens": 2379
       }
     },
     "data": {
@@ -85,8 +85,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 15,
-        "tokens": 2335
+        "items": 13,
+        "tokens": 2247
       }
     },
     "executive": {
@@ -95,8 +95,8 @@
         "tokens": 2777
       },
       "firing": {
-        "items": 9,
-        "tokens": 1347
+        "items": 6,
+        "tokens": 1093
       }
     },
     "full": {
@@ -105,8 +105,8 @@
         "tokens": 3770
       },
       "firing": {
-        "items": 22,
-        "tokens": 2966
+        "items": 15,
+        "tokens": 2540
       }
     },
     "project-management": {
@@ -131,10 +131,6 @@
     }
   },
   "skillDescriptors": {
-    "market-research": 86,
-    "investor-materials": 92,
-    "investor-outreach": 76,
-    "nextjs-turbopack": 40,
     "compaction-handoff": 124,
     "user-centered-explanation": 85,
     "audit-service-gaps": 267,
@@ -148,9 +144,6 @@
     "external-model-consult": 271,
     "self-hosted-github-runner": 104,
     "natural-korean": 39,
-    "python-patterns": 46,
-    "python-testing": 42,
-    "ui-visual-review": 204,
-    "e2e-testing": 44
+    "ui-visual-review": 204
   }
 }

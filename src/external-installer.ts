@@ -35,8 +35,6 @@ import {
 export interface ExternalInstallerDeps {
   /** Override `spawnSync` for tests (mock으로 호출 횟수 + args 검증). */
   spawn?: (cmd: string, args: ReadonlyArray<string>, opts: SpawnOpts) => SpawnSyncReturns<string>;
-  /** harness root (prune-ecc.sh script 위치 resolve용). */
-  harnessRoot?: string;
   /** asset 매트릭스 override (테스트용, 기본 EXTERNAL_ASSETS 전체). */
   assets?: ReadonlyArray<ExternalAsset>;
   /** 진행 상황 로그 stream (기본 console.log). 일반 로그용. */
@@ -72,7 +70,7 @@ export interface AssetInstallResult {
    * v26.59.0 — 설치된 자산 version. install 후 detectVersion 으로 path 기반 추출.
    * plugin: ~/.claude/plugins/cache/<marketplace>/<plugin>/<VERSION>/ 디렉토리명
    * npm-global: <npm root -g>/<pkg>/package.json 의 version
-   * 그 외 method (skill, npx-run, shell-script): 표준 metadata 없음 → undefined.
+   * 그 외 method (skill, npx-run): 표준 metadata 없음 → undefined.
    */
   version?: string;
 }
@@ -157,7 +155,6 @@ export function runExternalInstall(
   const warn = deps.warn ?? console.error;
   const spawn = deps.spawn ?? defaultSpawn;
   const assets = deps.assets ?? EXTERNAL_ASSETS;
-  const harnessRoot = deps.harnessRoot ?? process.cwd();
   const projectDir = ctx.projectDir ?? process.cwd();
 
   // v26.81.0 (ADR-022) — internal 자산(tauri-desktop)은 Phase 1 의
@@ -182,7 +179,7 @@ export function runExternalInstall(
   for (const asset of sorted) {
     deps.onAssetStart?.(asset);
     log(`  → ${asset.description}`);
-    const baseResult = installOne(asset, { spawn, harnessRoot, cli, scope, projectDir });
+    const baseResult = installOne(asset, { spawn, cli, scope, projectDir });
     let result: AssetInstallResult = baseResult;
     if (baseResult.ok) {
       const v = detectVersion(asset.method, spawn);
@@ -214,7 +211,6 @@ function installOne(
   asset: ExternalAsset,
   ctx: {
     spawn: NonNullable<ExternalInstallerDeps["spawn"]>;
-    harnessRoot: string;
     cli: CliTargets;
     scope: InstallScope;
     /** v26.77.0 — spawn cwd. 자산이 올바른 프로젝트에 착지하도록 projectDir 로 고정. */
@@ -251,17 +247,6 @@ function installOne(
         [`${method.cmd}@${method.version}`, ...(method.args ?? [])],
         cwd,
       );
-    case "shell-script": {
-      const scriptPath = join(ctx.harnessRoot, method.script);
-      if (!existsSync(scriptPath)) {
-        return {
-          asset,
-          ok: false,
-          message: `script not found: ${scriptPath}`,
-        };
-      }
-      return runSpawn(asset, ctx.spawn, "bash", [scriptPath, ...method.args], cwd);
-    }
     case "internal":
       // v26.81.0 (ADR-022) — 도달 불가 (runExternalInstall 이 사전 필터). exhaustive switch
       //   + 방어: 도달해도 spawn 없이 ok (Phase 1 manifest 가 실 설치 주체).
@@ -556,7 +541,7 @@ function defaultSpawn(
  *
  * - plugin: ~/.claude/plugins/cache/<marketplace>/<plugin>/<VERSION>/ 디렉토리명 (semver-like 만)
  * - npm-global: <npm root -g>/<pkg>/package.json 의 version
- * - skill / npx-run / shell-script: 표준 metadata 위치 없음 → undefined
+ * - skill / npx-run: 표준 metadata 위치 없음 → undefined
  */
 function detectVersion(
   method: ExternalAssetMethod,

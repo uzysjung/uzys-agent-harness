@@ -27,13 +27,16 @@ describe("렌더 힌트 parity (audit CODE-1)", () => {
     ).toEqual([]);
   });
 
-  it("렌더가 하드코딩으로 안내하는 자산 id 가 카탈로그에 실재 (ecc-plugin)", () => {
-    // install-render.ts:521 의 'Use --with ecc-plugin ...' 안내.
-    const advertised = "ecc-plugin";
+  it("렌더가 `--with <id>` 로 안내하는 자산 id 는 전부 카탈로그에 실재한다", () => {
+    // #492 — 유일한 하드코딩 안내였던 'Use --with ecc-plugin' 이 자산과 함께 사라졌다. id 를
+    // 열거하는 대신 렌더 소스에서 **긁어서** 대조한다 — 다음에 안내가 생겨도 이 게이트가 문다.
     const ids = new Set(EXTERNAL_ASSETS.map((a) => a.id));
-    expect(ids.has(advertised), `렌더가 안내하는 '${advertised}' 가 EXTERNAL_ASSETS 에 없음`).toBe(
-      true,
-    );
+    const advertised = [...RENDER_SRC.matchAll(/--with ([a-z][a-z0-9-]*)/g)].map((m) => m[1] ?? "");
+    const missing = advertised.filter((id) => !ids.has(id));
+    expect(
+      missing,
+      `렌더가 안내하는 자산이 EXTERNAL_ASSETS 에 없다: ${missing.join(", ")}`,
+    ).toEqual([]);
   });
 
   it("FILL 스캐폴드 안내가 설치 출력에 존재 (채우기 트리거 = 콘솔 메시지)", () => {

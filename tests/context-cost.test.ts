@@ -613,7 +613,7 @@ describe("상주 계측 ↔ 실제 설치 (#320 재발 방지)", () => {
     // **위 등식이 무는 범위를 과장하지 않는다** (독립 리뷰 적발): 등식은 "계측만 설치와
     // 갈리는 것"을 잡는다. `buildAssetSpec` **자체**가 망가지면 계측과 설치가 **함께** 줄어
     // 등식은 초록으로 산다. 그 경우를 실제로 무는 것은 아래 하한 단언과, 그 다음 describe 의
-    // **하드코딩된 항목 수 표**(executive 11 / tooling 17 / full 25)다 — 그 표가 derive 에서
+    // **하드코딩된 항목 수 표**(executive · tooling · full)다 — 그 표가 derive 에서
     // 값을 뽑지 않고 손으로 적혀 있다는 것이 여기서는 장점이다.
     const { measured, selected } = measuredVsInstalled("tooling");
     expect(selected, "buildAssetSpec 이 번들 스킬을 하나도 안 고른다").toBeGreaterThan(0);
@@ -644,11 +644,13 @@ describe("상주 항목 수 (quantity 축)", () => {
     // ADR-090 (#452) — 스킬 축: 은퇴 4종 중 트랙별로 걸리는 만큼 준다(executive 1 · tooling 4 ·
     // full 4). 에이전트 축: 은퇴 3종 + 트랙 조건부 강등 2종으로 tooling 이 7 → 2 가 됐고,
     // full 은 강등분을 도로 받아 4 다. executive 는 strategist 만 받아 2.
-    ["executive", { rules: 3, skills: 7, agents: 2, claudeMd: 2, total: 14 }],
+    // #492 — ECC cherry-pick 스킬 7종 은퇴: executive 3(market-research · investor 2종) ·
+    // full 7 이 상주에서 빠진다. tooling 은 원래 그 축이 없어 그대로다.
+    ["executive", { rules: 3, skills: 4, agents: 2, claudeMd: 2, total: 11 }],
     ["tooling", { rules: 6, skills: 10, agents: 2, claudeMd: 2, total: 20 }],
     // 2026-08-12 — `playwright-launch` 가 `ui-visual-review` 스킬로 흡수돼 UI 트랙 룰이 0이 됐다.
     // full 의 룰이 7 → 6 이고 총합도 하나 준다 (스킬 수는 그대로 — 흡수된 곳이 이미 있던 스킬이다).
-    ["full", { rules: 6, skills: 18, agents: 4, claudeMd: 2, total: 30 }],
+    ["full", { rules: 6, skills: 11, agents: 4, claudeMd: 2, total: 23 }],
   ] as const)("track=%s 의 상주 항목 수가 실측과 일치한다", (track, expected) => {
     expect(count(track)).toEqual(expected);
   });

@@ -116,28 +116,18 @@ describe("buildAssetEntries", () => {
     expect(e2[0]?.detail).toEqual({ source: "owner/repo" });
   });
 
-  it("npx-run / shell-script method → detail 에 cmd/script + args", () => {
+  it("npx-run method → detail 에 cmd + args", () => {
     const npxRun = createMockAsset({
       id: "gsd",
       condition: { kind: "any-track", tracks: ["tooling"] },
       // v26.80.0 — cmd 는 bare 이름 (version 은 별도 필드). detail 의 cmd 도 bare 로 기록.
       method: { kind: "npx-run", cmd: "get-shit-done-cc", version: "1.42.0", args: ["--init"] },
     });
-    const shell = createMockAsset({
-      id: "prune",
-      condition: { kind: "any-track", tracks: ["tooling"] },
-      method: { kind: "shell-script", script: "scripts/prune-ecc.sh", args: ["--yes"] },
-    });
     const e1 = buildAssetEntries(
       { attempted: [mkResult(npxRun)], succeeded: 1, skipped: 0, excludedByCli: [] },
       "project",
     );
-    const e2 = buildAssetEntries(
-      { attempted: [mkResult(shell)], succeeded: 1, skipped: 0, excludedByCli: [] },
-      "project",
-    );
     expect(e1[0]?.detail).toEqual({ cmd: "get-shit-done-cc", args: "--init" });
-    expect(e2[0]?.detail).toEqual({ script: "scripts/prune-ecc.sh", args: "--yes" });
   });
 });
 
@@ -335,11 +325,16 @@ describe("survivesClaudeDirRename — .claude/ 를 밀어낸 설치의 누적 �
     expect(survivorsAfterRename(prev)).toEqual([]);
   });
 
-  it("skill / shell-script 도 `.claude/` 안이라 빠진다", () => {
+  it("skill / legacy shell-script 도 `.claude/` 안이라 빠진다", () => {
     expect(survivorsAfterRename(withMethod("sk", { kind: "skill", source: "o/r" }))).toEqual([]);
-    expect(
-      survivorsAfterRename(withMethod("sh", { kind: "shell-script", script: "s.sh", args: [] })),
-    ).toEqual([]);
+    // #492 — `shell-script` 는 카탈로그에서 은퇴했지만 **옛 로그에는 남아 있다**. 그 로그를
+    // 읽는 경로가 계속 같은 판정을 내리는지 본다 (로그를 직접 만들어야 재현된다).
+    const base = withMethod("sh", { kind: "skill", source: "o/r" });
+    const legacy: InstallLog = {
+      ...base,
+      assets: base.assets.map((a) => ({ ...a, method: "shell-script" as const })),
+    };
+    expect(survivorsAfterRename(legacy)).toEqual([]);
   });
 
   it("plugin / npm 은 프로젝트 밖이라 남는다", () => {

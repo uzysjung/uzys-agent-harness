@@ -1,6 +1,6 @@
 # ADR-073: ECC 명령 폴백 8종을 기본 설치에서 뺀다
 
-- Status: Accepted
+- Status: Accepted — 전제 소멸: ECC 플러그인 자체가 ADR-093 (2026-09-20, #492)에서 퇴역했다. "명령 파일을 만들지 않는다"는 결정은 그대로 유효
 - Date: 2026-08-16
 - PR: #308
 - Supersedes: ADR-019 의 `commands/ecc` opt-out 부분 (나머지 C2/C3 판정은 유효)

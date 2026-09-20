@@ -107,6 +107,9 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   // `@upstash/context7-mcp` 라는 패키지 문자열이 있어 부분 문자열 대조에 걸렸기 때문이다.
   // 정확 일치로 바꾸자 드러났고, 셋을 같은 자리에 적는 것이 맞다(라운드 2 MED-N5).
   ["upstash/context7-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  // skills CLI 자체 — 번들 스킬을 하네스 없이 받는 설치 도구다. `find-skills` 자산이 은퇴(#492)하면서 이
+  // 저장소가 카탈로그 출처에서 빠졌지만, README 가 도구로서 링크하는 것은 자산 주장이 아니다.
+  ["vercel-labs/skills", "skills CLI 도구 자체 — 카탈로그 자산 아님"],
 ]);
 
 /** 자산 id 로 오인될 수 있는 형태 — 소문자·숫자·하이픈만, 4자 이상. */
@@ -177,13 +180,11 @@ function buildVocabulary(): Map<string, string> {
   for (const s of DEV_METHOD_SKILL_IDS) add(s, "dev-method 스킬");
 
   // manifest 가 실제로 깔 대상 이름 — 룰·에이전트·훅·스킬을 전수로 얻는 유일한 방법이다.
-  // ECC opt-out 게이팅(C2)이 걸린 자산은 withEcc 양쪽을 다 돌지 않으면 절반이 빠진다.
-  for (const withEcc of [false, true]) {
-    for (const e of buildManifest({ tracks: [...TRACKS], withEcc, withTauri: true })) {
-      const rest = e.target.replace(/^\.claude\//, "");
-      for (const seg of rest.split("/"))
-        add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
-    }
+  // #492 — ECC opt-out 게이팅(C2)이 없어져 opt-in 축은 withTauri 하나뿐이다.
+  for (const e of buildManifest({ tracks: [...TRACKS], withTauri: true })) {
+    const rest = e.target.replace(/^\.claude\//, "");
+    for (const seg of rest.split("/"))
+      add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
   }
 
   // MCP 서버 이름 — `.mcp.json` 의 기본 3종과 트랙 조건부 행. 문서가 이름으로 안내하는 대상이라

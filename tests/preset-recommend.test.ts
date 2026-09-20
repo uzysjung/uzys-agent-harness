@@ -13,7 +13,7 @@ describe("recommendedExternalAssets", () => {
     expect(rec).not.toContain("railway-skills");
     expect(rec).not.toContain("architecture-decision-record");
     // T2 vetted / official — track 적합 시 추천
-    expect(rec).toContain("find-skills");
+    expect(rec).toContain("compaction-handoff");
     expect(rec).toContain("frontend-design");
   });
 

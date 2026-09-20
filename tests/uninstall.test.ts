@@ -1395,3 +1395,93 @@ describe("uninstallAction — 루트 파일 안내 (F-1f)", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
+
+/**
+ * #492 — 카탈로그에서 **은퇴한 자산**이 든 설치 로그는 디스크에 그대로 남는다. uninstall 은
+ * 카탈로그가 아니라 로그를 읽어야 하고(그래야 옛 설치본을 되돌릴 수 있다), 로그에만 남은
+ * method 종류(`shell-script`)도 안내 문구를 잃지 않아야 한다.
+ */
+describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", () => {
+  let tmpDir = "";
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "harness-uninstall-retired-"));
+  });
+
+  function retiredLog(): InstallLog {
+    return {
+      ...baseLog(),
+      assets: [
+        {
+          id: "ecc-plugin",
+          category: "ecc-suite",
+          method: "plugin",
+          scope: "project",
+          detail: { marketplace: "affaan-m/everything-claude-code", pluginId: "ecc@ecc" },
+        },
+        {
+          id: "find-skills",
+          category: "dev-tools",
+          method: "skill",
+          scope: "project",
+          detail: { source: "vercel-labs/skills" },
+        },
+        {
+          id: "ecc-prune",
+          category: "ecc-suite",
+          method: "shell-script",
+          scope: "global",
+          detail: { script: "scripts/prune-ecc.sh", args: "--apply --force" },
+        },
+      ],
+    };
+  }
+
+  it("전량 uninstall 이 은퇴 자산의 reverse 를 그대로 수행한다 (카탈로그 조회 없음)", () => {
+    writeLog(tmpDir, retiredLog());
+    const spawn = vi.fn(() => ok());
+    const logFn = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction({ projectDir: tmpDir }, { log: logFn, err: vi.fn(), exit, spawn, rm: vi.fn() });
+    expect(spawn).toHaveBeenCalledWith("claude", [
+      "plugin",
+      "uninstall",
+      "--scope",
+      "project",
+      "ecc@ecc",
+    ]);
+    expect(spawn).toHaveBeenCalledWith("npx", [
+      skillsCliSpec(),
+      "remove",
+      "vercel-labs/skills",
+      "--yes",
+    ]);
+    const output = logFn.mock.calls.flat().join("\n");
+    // global + 되돌리기 경로 없음 → 안내만. 문구가 `undefined` 로 새면 여기서 잡힌다.
+    expect(output).toContain("ecc-prune");
+    expect(output).toContain("(no standard reverse — manual)");
+    expect(output).not.toContain("undefined");
+    expect(exit).toHaveBeenCalledWith(0);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("--only <은퇴 id> 도 알려진 id 로 취급된다 (오타 취급되어 차단되지 않는다)", () => {
+    writeLog(tmpDir, retiredLog());
+    const spawn = vi.fn(() => ok());
+    const errFn = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    uninstallAction(
+      { projectDir: tmpDir, only: "find-skills" },
+      { log: vi.fn(), err: errFn, exit, spawn, rm: vi.fn() },
+    );
+    expect(errFn.mock.calls.flat().join("\n")).not.toContain("not found in install log");
+    expect(spawn).toHaveBeenCalledWith("npx", [
+      skillsCliSpec(),
+      "remove",
+      "vercel-labs/skills",
+      "--yes",
+    ]);
+    const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;
+    expect(after.assets.map((a) => a.id)).toEqual(["ecc-plugin", "ecc-prune"]);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+});

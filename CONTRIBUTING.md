@@ -76,56 +76,13 @@ After adding:
 - Register it in `src/manifest.ts` (`ALWAYS_HOOKS` for every install, or the relevant opt-in list)
 - Add a unit test covering both the pass and the block path
 
-## Updating cherry-picked content
+## Upstream cherry-picks — none since v26.159.0
 
-Skills, hooks, or agents pulled from upstream repos (ECC, claude-powerline, etc.) are tracked in `.dev-references/cherrypicks.lock`. **Do not** hand-edit cherry-picked files unless you intend to fork them locally.
-
-### Sync workflow
-
-```bash
-# 1. Detect drift (read-only)
-bash scripts/sync-cherrypicks.sh
-
-# 2. Auto-apply upstream changes for unmodified files
-bash scripts/sync-cherrypicks.sh --apply
-
-# 3. CI gate — exit 1 if any drift remains
-bash scripts/sync-cherrypicks.sh --check
-```
-
-### Adding a new cherry-pick
-
-1. Register the source repo in `cherrypicks.lock` under `sources.*`:
-   ```json
-   {
-     "url": "https://github.com/org/repo",
-     "local_path": ".dev-references/repo",
-     "commit": "<pinned SHA>"
-   }
-   ```
-2. Clone into `.dev-references/<name>` (gitignored).
-3. Add each file to `cherrypicks[]`:
-   ```json
-   {
-     "source": "<name>",
-     "src": "path/in/upstream",
-     "dst": "templates/skills/.../file.md",
-     "src_hash": "<sha256 of source file>",
-     "modified": false
-   }
-   ```
-4. Copy file to `dst`, run `bash scripts/sync-cherrypicks.sh` — should report "in sync".
-5. If local tweaks are required, set `modified: true` and note reason in commit.
-
-### Bumping pinned commits
-
-When upstream ships something you want:
-
-1. `cd .dev-references/<name> && git fetch && git checkout <new-sha>`
-2. Update `sources.<name>.commit` in `cherrypicks.lock`
-3. `bash scripts/sync-cherrypicks.sh` — review diff per file
-4. `--apply` for unmodified files; manually merge `modified: true` cases
-5. Update `src_hash` values to match new upstream content
+Skills copied from upstream repos (ECC and others) were retired in ADR-093 (#492): what they carried was
+general knowledge the model already has, or a verification procedure fixed in advance. Every bundled skill is
+now written and maintained in this repo (`templates/skills/`). If you want to bring an upstream file in again,
+prefer a catalog entry (`src/external-assets.ts`, installed from the source at install time) over a copy — a
+copy needs a sync mechanism, and the last one rotted with no members.
 
 ### Do NOT
 

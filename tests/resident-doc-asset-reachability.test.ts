@@ -70,11 +70,10 @@ function specFor(track: Track): AssetSpec {
  * 채워지므로 opt-in 전용 자산은 `installedOn = ∅` 이 되어 상주 문서의 전 트랙이 미설치로 잡힌다.
  * 판정 기준선이 "평범하게 깔았을 때"라는 위 원칙은 그대로다.
  *
- * **`withTauri`·`withEcc` 를 켜지 않는 이유**(독립 검증이 지적 — 켠 채로 두면 이름과 반대로 돌았다):
- * `withTauri` 는 이 필드를 읽는 게이팅이 배포에 하나도 없어 무동작이고(`manifest.ts` 의 필드 주석),
- * `withEcc` 는 **opt-out** 축이라 켜면 오히려 C2 fallback 자산 10종이 빠진다(ADR-019 — 플러그인이
- * 켜지면 그쪽이 제공한다). 두 축 다 켜서 **얻는 자산이 0**이므로 켜지 않는다. `s.withEcc` 를 양의
- * 방향으로 읽는 게이팅이 생기면 그때 극성을 하나 더 돌면 된다 — 지금 없는 것을 위해 축을 늘리지 않는다.
+ * **`withTauri` 를 켜지 않는 이유**(독립 검증이 지적 — 켠 채로 두면 이름과 반대로 돌았다):
+ * 이 필드를 읽는 게이팅이 배포에 하나도 없어 무동작이다(`manifest.ts` 의 필드 주석). 켜서 얻는
+ * 자산이 0 이므로 켜지 않는다 — 지금 없는 것을 위해 축을 늘리지 않는다. (#492 로 같은 판단을
+ * 받던 `withEcc` 축은 자산과 함께 사라졌다.)
  */
 function populationSpecFor(track: Track): AssetSpec {
   return { tracks: [track], selectedInternalSkills: [...INTERNAL_BUNDLED_SKILL_IDS] };

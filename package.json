@@ -15,7 +15,6 @@
   "files": [
     "dist",
     "templates",
-    "scripts/prune-ecc.sh",
     "README.md",
     "LICENSE"
   ],

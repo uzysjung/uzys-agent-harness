@@ -43,9 +43,9 @@ describe("buildCli", () => {
     // v26.81.0 (ADR-022) — 잔존 = 동작 옵션 + generic 자산 선택만.
     // 6-Gate 제거 — withCodexSkills/withCodexPrompts/withAntigravityGlobal 삭제.
     // 2026-08-02 정비 (ADR-060, BREAKING) — `--with-karpathy-hook` 삭제.
-    expect(optionNames).toEqual(
-      expect.arrayContaining(["with", "without", "withPrune", "withCodexTrust"]),
-    );
+    // #492 — `--with-prune` 삭제 (ECC 자산 은퇴). 남은 동작 옵션은 codex-trust 하나.
+    expect(optionNames).toEqual(expect.arrayContaining(["with", "without", "withCodexTrust"]));
+    expect(optionNames).not.toContain("withPrune");
     expect(optionNames).not.toContain("withKarpathyHook");
   });
 
@@ -100,7 +100,6 @@ describe("defaultAction", () => {
     const spec = {
       tracks: ["tooling"] as const,
       options: {
-        withPrune: false,
         withCodexTrust: false,
         withKarpathyHook: false,
       },

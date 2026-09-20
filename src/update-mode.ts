@@ -775,7 +775,7 @@ function recordNewSkillBaseline(
  * update 는 사용자가 어떤 opt-in 을 골랐는지 모른다 — install log 의 spec 은 tracks·cli 뿐이다.
  * 그래서 opt-in 축을 **양극단으로 평가해 교집합**을 취한다: 어느 쪽에서도 설치 대상이면 선택과
  * 무관한 자산이고, 한쪽에서만 대상이면 선택에 달린 자산이라 update 가 임의로 들일 수 없다
- * (plugin 을 켠 사용자에게 ECC fallback 에이전트를 깔면 그게 곧 원치 않는 자산이다).
+ * (사용자가 안 고른 opt-in 자산을 update 가 들이면 그게 곧 원치 않는 자산이다).
  * 축 이름을 열거하지 않는 이유는 늘 같다 — 열거는 곧 두 번째 사본이고, 다음에 늘어나는 축이
  * 여기서 빠진다.
  *
@@ -788,8 +788,8 @@ function recordNewSkillBaseline(
  */
 function trackOnlyFileAssets(tracks: ReadonlyArray<Track>): AssetEntry[] {
   const base = { tracks, selectedInternalSkills: [] as ReadonlyArray<string> };
-  const optedOut: AssetSpec = { ...base, withEcc: false, withTauri: false };
-  const optedIn: AssetSpec = { ...base, withEcc: true, withTauri: true };
+  const optedOut: AssetSpec = { ...base, withTauri: false };
+  const optedIn: AssetSpec = { ...base, withTauri: true };
   // `buildManifest` 는 목록만 만들고 게이팅은 하지 않는다 — 거르는 것은 각 엔트리의 `applies`
   // 술어이고, 그건 호출자가 평가한다 (`installer.ts` 의 manifest 루프와 같은 계약).
   return buildManifest(optedOut).filter(

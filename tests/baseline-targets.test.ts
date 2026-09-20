@@ -15,7 +15,7 @@ import { baselineExcludeFrom, formatSummary, initialTargetSelection } from "../s
 import type { InstallSpec, OptionFlags } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
-const NO_OPTS: OptionFlags = { withPrune: false, withCodexTrust: false };
+const NO_OPTS: OptionFlags = { withCodexTrust: false };
 
 /**
  * 트랙이 고르는 자산을 사용자가 볼 수 있고 해제할 수 있는가.
@@ -32,7 +32,7 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
     [".claude/rules/git-policy.md", "rules", "git-policy"],
     [".claude/agents/reviewer.md", "agents", "reviewer"],
     [".claude/hooks/protect-files.sh", "hooks", "protect-files"],
-    [".claude/skills/python-patterns", "skills", "python-patterns"],
+    [".claude/skills/ui-visual-review", "skills", "ui-visual-review"],
   ])("%s → %s/%s", (target, kind, name) => {
     const t = classifyBaselineTarget(target);
     expect(t?.kind).toBe(kind);
@@ -43,9 +43,9 @@ describe("classifyBaselineTarget — 고를 수 있는 것과 없는 것", () =>
   // manifest 에는 디렉터리 엔트리와 그 **안의 파일** 엔트리가 섞여 있다. 마지막 경로 조각을 쓰면
   // 후자가 `SKILL.md` 라는 이름의 항목으로 화면에 뜬다 — 실제로 그렇게 만들었다가 고쳤다.
   it("스킬은 첫 경로 조각으로 합쳐진다 (디렉터리 · 내부 파일이 한 체크박스)", () => {
-    const dir = classifyBaselineTarget(".claude/skills/python-patterns");
-    const file = classifyBaselineTarget(".claude/skills/python-patterns/SKILL.md");
-    expect(dir?.id).toBe("baseline:skills/python-patterns");
+    const dir = classifyBaselineTarget(".claude/skills/ui-visual-review");
+    const file = classifyBaselineTarget(".claude/skills/ui-visual-review/SKILL.md");
+    expect(dir?.id).toBe("baseline:skills/ui-visual-review");
     expect(file?.id).toBe(dir?.id);
   });
 
@@ -71,7 +71,8 @@ describe("listBaselineTargets — manifest 에서 유도한다", () => {
   it("네 종류가 모두 나오고 트랙이 안 고른 것은 안 나온다", () => {
     // 스킬 축은 트랙 조건부 자산이 있는 트랙에서만 나온다 — tooling 단독에는 ADR-090 이후
     // baseline 스킬이 없다(번들 스킬은 자산 페이지에서 개별 선택된다, `listBaselineTargets` 주석).
-    const tooling = listBaselineTargets({ tracks: ["tooling", "data"] });
+    // #492 — ECC cherry-pick 스킬이 빠져 트랙 조건부 스킬은 UI 트랙의 `ui-visual-review` 뿐이다.
+    const tooling = listBaselineTargets({ tracks: ["tooling", "ssr-nextjs"] });
     const kinds = new Set(tooling.map((t) => t.kind));
     expect(kinds).toEqual(new Set(["rules", "agents", "hooks", "skills"]));
 
@@ -183,14 +184,14 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: spec({
-        tracks: ["tooling", "data"],
+        tracks: ["tooling", "ssr-nextjs"],
         cli: ["claude"],
-        baselineExclude: ["baseline:skills/python-patterns"],
+        baselineExclude: ["baseline:skills/ui-visual-review"],
       }),
     });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
-    // 제외가 통째로 날리는 것이 아님을 보인다 — 안 뺀 스킬은 그대로.
-    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/ui-visual-review"))).toBe(false);
+    // 제외가 통째로 날리는 것이 아님을 보인다 — 안 뺀 자산은 그대로.
+    expect(existsSync(join(projectDir, ".claude/agents/reviewer.md"))).toBe(true);
   });
 
   it("구조 자산은 제외 지시가 있어도 깔린다 (설치가 반쪽이 되지 않는다)", () => {

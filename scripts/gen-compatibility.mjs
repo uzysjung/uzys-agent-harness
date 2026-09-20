@@ -33,7 +33,6 @@ const LEVEL_BY_KIND = {
   skill: "🟢 Docker", // npx skills add
   "npx-run": "🟢 Docker", // npx 실행
   npm: "🟢 registry", // registry 실재 (openspec 는 아래 override 로 실설치)
-  "shell-script": "🟡 local", // 로컬 스크립트 (네트워크 무관)
   internal: "🟡 local", // v26.81.0 (ADR-022) — 내부 템플릿 (Phase 1 manifest, install-matrix 가 검증)
 };
 const LEVEL_OVERRIDE = {
@@ -49,7 +48,6 @@ const KIND_FLAVOR = {
   skill: "skills.sh --agent",
   npm: "npm",
   "npx-run": "npx",
-  "shell-script": "local script",
   // tauri rule 은 .claude/rules/ 착지(claude 편중) — 라벨은 기존과 동일하게 유지하되
   // 알려진 과대 표기임을 기록 (ADR-031 리스크 (a), 구 CLI_SCOPE 주석 승계).
   internal: "templates",
@@ -91,7 +89,6 @@ const CATEGORY_TITLE = {
   "dev-tools": "🛡️ Dev Tools",
   understanding: "🧠 Understanding",
   "visual-media": "🎬 Visual & Media",
-  "ecc-suite": "📦 ECC Suite",
 };
 const CAT_ORDER = [
   "workflow",
@@ -102,7 +99,6 @@ const CAT_ORDER = [
   "dev-tools",
   "understanding",
   "visual-media",
-  "ecc-suite",
 ];
 
 // v26.79.0 — drift 가드 (no-false-ship): src/categories.ts 의 CATEGORIES 가 SSOT.

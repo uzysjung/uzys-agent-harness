@@ -23,7 +23,6 @@ import {
   EXTERNAL_ASSETS,
   type ExternalAsset,
   experimentalOptInCandidates,
-  isAssetSelected,
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
@@ -161,14 +160,7 @@ export function createInstallRenderer(
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
-        // v26.81.0 (ADR-022) — withEcc boolean 삭제 → ecc-plugin 자산 선택으로 판정 (hint 게이팅).
-        // v26.102.0 (ADR-031) — "선택 = 설치됨" 은 claude 도달 시에만 성립: codex 단독에선
-        // ecc-plugin 이 배제되므로 fallback 힌트가 계속 진실이어야 한다 (SOD 리뷰 F2).
-        const claudeSelected = targetsInclude(spec.cli, "claude");
-        const eccWillInstall =
-          claudeSelected &&
-          (isAssetSelected("ecc-plugin", spec) || spec.options.withPrune === true);
-        renderPhase1Rows(log, event.baseline, verbose, eccWillInstall, claudeSelected);
+        renderPhase1Rows(log, event.baseline, verbose);
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
@@ -546,8 +538,6 @@ function formatAssetMeta(asset: ExternalAsset, version?: string): string {
       return `npm · ${m.pkg}@${m.version}`;
     case "npx-run":
       return `npx · ${m.cmd}@${m.version}`;
-    case "shell-script":
-      return `bash · ${m.script}`;
     case "internal":
       // v26.81.0 (ADR-022) — 내부 템플릿 자산 (Phase 1 manifest 가 설치 주체).
       return `internal · templates (${m.key})`;
@@ -562,10 +552,6 @@ function renderPhase1Rows(
   log: (msg: string) => void,
   baseline: BaselineReport,
   verbose = false,
-  withEcc = false,
-  // v26.102.0 (ADR-031) — ecc 힌트의 `--with ecc-plugin` 안내는 claude 도달 시에만 참
-  // (plugin 은 claude 전용 — codex 단독에선 그 명령이 no-op, SOD 리뷰 F2).
-  claudeSelected = true,
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
@@ -1009,19 +995,8 @@ function renderPhase1Rows(
   }
   const mcpList = baseline.mcpServers.join(", ") || "(none)";
   log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
-  // v26.63.3 (distill H2): ECC fallback hint — Templates section 마지막에 통합 표시.
-  //   withEcc=true (ECC plugin opt-in) 사용자에게는 hint 미표시.
-  // 2026-08-18 (#338 리뷰) — 괄호절에서 대상 경로를 뺐다. 이 hint 는 claude 미선택 설치에서도
-  //   뜨는데(`withEcc` 는 claude 를 안 고르면 항상 false, `baseline.categories` 는 CLI 중립
-  //   경로에서도 truthy), 그 설치에는 `.claude/` 가 만들어지지 않는다. 옛 문구의 숫자도 틀렸다
-  //   (실측 4 agents + 6 skills + 0 commands) — 숫자를 고쳐 적는 대신 세지 않아도 참인 문장으로.
-  if (!withEcc && baseline.categories) {
-    log("");
-    log(`  ${c.dim("·")} ${c.dim("ECC plugin not selected — cherry-pick fallback active")}`);
-    if (claudeSelected) {
-      log(`  ${c.dim("·")} ${c.dim("Use --with ecc-plugin to install ECC plugin instead")}`);
-    }
-  }
+  // #492 — ECC fallback hint 삭제. 폴백 사본도 `ecc-plugin` 자산도 없어져 "무엇 대신 무엇이
+  //   깔렸다"고 말할 대상 자체가 없다.
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));
   }

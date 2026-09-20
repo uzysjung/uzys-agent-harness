@@ -41,10 +41,10 @@ describe("installedTargetState — 설치 상태 조회", () => {
   });
 
   it("project scope 는 표시 + 사전 체크 양쪽에 들어간다", () => {
-    writeLog(dir, [asset("code-review", "project")]);
+    writeLog(dir, [asset("trailofbits-skills", "project")]);
     expect(installedTargetState(dir)).toEqual({
-      installed: ["code-review"],
-      projectScoped: ["code-review"],
+      installed: ["trailofbits-skills"],
+      projectScoped: ["trailofbits-skills"],
     });
     rmSync(dir, { recursive: true, force: true });
   });
@@ -78,9 +78,9 @@ describe("buildPageGroups — installed 마커", () => {
     const { flatItems } = buildPageGroups(
       ["dev-tools"],
       new Set<string>(),
-      new Set(["asset:code-review"]),
+      new Set(["asset:trailofbits-skills"]),
     );
-    const row = flatItems.find((i) => i.value === "asset:code-review");
+    const row = flatItems.find((i) => i.value === "asset:trailofbits-skills");
     expect(row?.label).toContain("installed");
   });
 

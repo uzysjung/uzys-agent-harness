@@ -45,7 +45,6 @@ const existingState: DetectedInstall = {
 };
 
 const ALL_FALSE_OPTIONS: OptionFlags = {
-  withPrune: false,
   withCodexTrust: false,
 };
 
@@ -115,9 +114,9 @@ describe("runInteractive", () => {
   });
 
   it("v26.54.0 — asset unchecked from recommended → userOverride.forceExclude", async () => {
-    // T3 는 추천에서 빠지므로 uncheck 시나리오는 vetted 추천 자산(find-skills)으로 만든다.
+    // T3 는 추천에서 빠지므로 uncheck 시나리오는 추천 자산(frontend-design)으로 만든다.
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
-      initial.filter((t) => t !== "asset:find-skills"),
+      initial.filter((t) => t !== "asset:frontend-design"),
     );
     const prompts = makePrompts({ selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
@@ -126,7 +125,7 @@ describe("runInteractive", () => {
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
-    expect(result.spec?.userOverride?.forceExclude).toContain("find-skills");
+    expect(result.spec?.userOverride?.forceExclude).toContain("frontend-design");
   });
 
   it("existing install: action=exit returns reason=exit", async () => {
@@ -418,15 +417,14 @@ describe("formatSummary", () => {
       tracks: ["tooling", "csr-fastapi"],
       options: {
         ...ALL_FALSE_OPTIONS,
-        withPrune: true,
         withCodexTrust: true,
       },
       cli: ["codex"],
       projectDir: "/proj",
     });
     expect(summary).toContain("tooling, csr-fastapi");
-    // v26.81.0 (ADR-022) — Options 행은 잔존 동작 옵션만 표시.
-    expect(summary).toContain("prune, codextrust");
+    // v26.81.0 (ADR-022) — Options 행은 잔존 동작 옵션만 표시 (#492 이후 codex-trust 하나).
+    expect(summary).toContain("codextrust");
     expect(summary).toContain("CLI:       codex");
     expect(summary).toContain("/proj");
   });
@@ -460,9 +458,8 @@ describe("toOptionFlags", () => {
   });
 
   it("sets only the keys present in the array to true", () => {
-    expect(toOptionFlags(["withPrune", "withCodexTrust"])).toEqual({
+    expect(toOptionFlags(["withCodexTrust"])).toEqual({
       ...ALL_FALSE_OPTIONS,
-      withPrune: true,
       withCodexTrust: true,
     });
   });
@@ -474,13 +471,12 @@ describe("toOptionFlags", () => {
 describe("v26.54.0 — splitInstallTargets", () => {
   it("split mixed list of option:* and asset:* prefixed ids", () => {
     const { optionKeys, assetIds } = splitInstallTargets([
-      "option:withPrune",
-      "asset:find-skills",
       "option:withCodexTrust",
+      "asset:openspec",
       "asset:railway-skills",
     ]);
-    expect(optionKeys).toEqual(["withPrune", "withCodexTrust"]);
-    expect(assetIds).toEqual(["find-skills", "railway-skills"]);
+    expect(optionKeys).toEqual(["withCodexTrust"]);
+    expect(assetIds).toEqual(["openspec", "railway-skills"]);
   });
 
   it("empty input → empty arrays", () => {
@@ -508,7 +504,6 @@ describe("computeUserOverride", () => {
     "audit-service-gaps",
     "user-centered-explanation",
     "compaction-handoff",
-    "find-skills",
     // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.
     "frontend-design",
     "gh-issue-workflow",
@@ -529,11 +524,11 @@ describe("computeUserOverride", () => {
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
-    // 추천 집합에서 find-skills 를 uncheck → forceExclude.
-    const without = TOOLING_RECOMMENDED.filter((id) => id !== "find-skills");
+    // 추천 집합에서 frontend-design 을 uncheck → forceExclude.
+    const without = TOOLING_RECOMMENDED.filter((id) => id !== "frontend-design");
     const result = computeUserOverride(["tooling"] as Track[], without);
     expect(result).toBeDefined();
-    expect(result?.forceExclude).toEqual(["find-skills"]);
+    expect(result?.forceExclude).toEqual(["frontend-design"]);
     expect(result?.forceInclude).toEqual([]);
   });
 
@@ -546,7 +541,7 @@ describe("computeUserOverride", () => {
   });
 
   it("mix — include + exclude 동시", () => {
-    const mixed = ["find-skills", "railway-skills"];
+    const mixed = ["frontend-design", "railway-skills"];
     const result = computeUserOverride(["tooling"] as Track[], mixed);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
     expect(result?.forceExclude.length).toBeGreaterThan(0);
