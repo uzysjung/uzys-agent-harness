@@ -16,7 +16,7 @@
       },
       "firing": {
         "items": 12,
-        "tokens": 2321
+        "tokens": 2123
       }
     },
     "csr-supabase": {
@@ -26,7 +26,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2569
+        "tokens": 2371
       }
     },
     "csr-fastify": {
@@ -36,7 +36,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2569
+        "tokens": 2371
       }
     },
     "csr-fastapi": {
@@ -46,7 +46,7 @@
       },
       "firing": {
         "items": 16,
-        "tokens": 2657
+        "tokens": 2459
       }
     },
     "ssr-htmx": {
@@ -56,7 +56,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2569
+        "tokens": 2371
       }
     },
     "ssr-nextjs": {
@@ -66,7 +66,7 @@
       },
       "firing": {
         "items": 15,
-        "tokens": 2609
+        "tokens": 2411
       }
     },
     "data": {
@@ -76,7 +76,7 @@
       },
       "firing": {
         "items": 15,
-        "tokens": 2481
+        "tokens": 2283
       }
     },
     "executive": {
@@ -96,7 +96,7 @@
       },
       "firing": {
         "items": 22,
-        "tokens": 3112
+        "tokens": 2914
       }
     },
     "project-management": {
@@ -126,7 +126,7 @@
     "investor-outreach": 76,
     "nextjs-turbopack": 40,
     "compaction-handoff": 124,
-    "clear-korean-communication": 271,
+    "clear-korean-communication": 73,
     "audit-service-gaps": 267,
     "multi-persona-review": 217,
     "recurrence-prevention": 243,
