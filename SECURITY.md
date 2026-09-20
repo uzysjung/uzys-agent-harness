@@ -30,9 +30,10 @@ Telling us which one helps us route it correctly.
 
 2. **Curated third-party assets** — the plugins / skills / workflows the harness installs.
    These are maintained by their **upstream authors**. We select them by a **trust-tier
-   heuristic** (GitHub stars ≥ 1000 + active maintenance) and verify their **install path** in
-   Docker. Report a vulnerability *inside* an upstream asset to that asset's maintainer first,
-   then tell us so we can adjust the catalog (de-list, pin, or warn).
+   heuristic** (GitHub stars ≥ 1000, not archived) and verify their **install path** in an
+   isolated environment — a monthly CI job re-runs every install command, and the local
+   scenario suite does the same in Docker. Report a vulnerability *inside* an upstream asset to
+   that asset's maintainer first, then tell us so we can adjust the catalog (de-list, pin, or warn).
 
 ### What "vetted" means — and does not
 

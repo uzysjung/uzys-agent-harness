@@ -1,248 +1,171 @@
-# Reference — 외부/내부 자산 카탈로그
+# Reference — 자산 카탈로그 해설 (유지보수자용)
 
-이 프로젝트가 **참조하거나 설치하는** 모든 외부/내부 자산의 단일 카탈로그.
-출처(공식/검증/community), 적용 Track, 설치 명령, 신뢰 등급을 정리.
+이 문서는 **이 하네스를 고치는 사람**을 위한 카탈로그 해설이다. 설치해서 쓰는 사람은
+[USAGE.md](USAGE.md)(명령·플래그·파일 위치)와 [TRACKS.md](TRACKS.md)(트랙별 자산)를 읽는 편이 빠르다.
 
-> 설치는 `npx -y @uzysjung/agent-harness`(위저드) 또는 `install --track <track>`(비대화형)이 한다.
-> **opt-in 항목은 위저드 3단계의 체크박스이거나 `--with <asset-id>` 다** — 옛 `[y/N]` 프롬프트도,
-> 자산별 전용 플래그도 없다(후자는 v26.81.0 에서 13종 삭제, ADR-022).
->
-> 각 자산이 어느 트랙에 붙는지의 SSOT 는 `src/external-assets.ts` 의 `condition` 이고, 사람이 읽는
-> 판은 [TRACKS.md](TRACKS.md)·[COMPATIBILITY.md](COMPATIBILITY.md)(후자는 카탈로그에서 생성)다.
-> 이 문서는 **손으로 쓴 카탈로그 해설**이라 셋이 어긋나면 코드가 이긴다.
+SSOT 는 코드다. 자산이 어느 트랙에 붙는지는 `src/external-assets.ts` 의 `condition`, 룰·에이전트·훅
+배선은 `src/manifest.ts`, 자산 전체 표는 그 카탈로그에서 생성되는 [COMPATIBILITY.md](COMPATIBILITY.md)
+다. 이 문서는 손으로 쓴 해설이므로 내용이 어긋나면 코드가 우선한다. 결정의 경위는 여기 적지 않고
+[`docs/decisions/`](decisions/) 의 ADR 로 링크한다.
 
-## 신뢰 등급
+## 1. 신뢰 등급
 
-손으로 쓴 3등급을 따로 두지 않는다. **등급의 SSOT 는 각 자산의 `tier` 이고, 설치 화면은 그중 둘만 배지로 보여 준다** — `vetted` 는 배지가 없어서 화면만 보고는 등급을 알 수 없다.
+등급의 SSOT 는 각 자산의 `tier` 다. 설치 화면에서는 셋 중 둘만 배지로 표시한다.
 
-| tier | 3단계 배지 | 의미 |
+| tier | 3단계 배지 | 뜻 |
 |---|---|---|
 | `official` | `★ official` | Anthropic 공식 마켓플레이스 · 이 하네스 자체 자산 |
-| `vetted` | **없음** | star 1,000+ · 활발한 유지보수 · 실설치 검증 통과 |
+| `vetted` | 없음 | star 1,000+ · archived 아님 · 설치 경로 실검증 통과 |
 | `experimental` | `⚠ experimental (opt-in)` | star 1,000 미만 |
 
-**tier 는 미리 체크되는지를 정하지 않는다.** 그건 각 자산의 `condition` 이 가른다 — `vetted` 자산
-36종 중 30종이 `opt-in` 이라 어느 트랙에서도 자동으로 체크되지 않는다. tier 가 사전 체크에 하는
-일은 하나뿐이다: `experimental` 은 트랙이 맞아도 제외된다(`src/preset-recommend.ts` 가 트랙
-필터 **뒤에** 적용한다). 다만 현행 `experimental` 2종은 둘 다 `opt-in` 이라 트랙이 맞는 일 자체가
-없다 — 규칙은 살아 있고 지금 걸리는 자산이 없을 뿐이다.
+tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `condition` 이 결정한다. `vetted` 36종 가운데 트랙이
+미리 체크하는 것은 5종(`find-skills` · `supabase-agent-skills` · `postgres-best-practices` ·
+`react-best-practices` · `shadcn-ui`)뿐이고 나머지 31종은 `opt-in` 이다. tier 가 사전 체크에 하는 일은
+하나다: `experimental` 은 트랙이 맞아도 제외된다(`src/preset-recommend.ts` 가 트랙 필터 뒤에
+적용). 현행 `experimental` 2종(`railway-skills` · `revealjs`)은 둘 다 `opt-in` 이라 지금 걸리는
+자산은 없다. `trust-tier-drift.yml` 이 월 1회 star 를 재측정하며, 라벨이 실제와 다르면 그 워크플로가 실패한다.
 
-> 손으로 쓴 등급 표가 여기 있었고, 예시로 든 출처 4곳이 코드에서는 전부 `vetted` 였다 — 즉 "개인이
-> 만든 것"이라는 인상으로 등급을 갈랐고, 보안 판단의 입구에서 등급을 잘못 가리켰다(#338). 자산별
-> 현재 등급은 [COMPATIBILITY.md](COMPATIBILITY.md) 가 카탈로그에서 생성한다.
+## 2. 트랙
 
-## Track 약어
+`base` / `csr-*`(csr-supabase · csr-fastify · csr-fastapi) / `ssr-*`(ssr-htmx · ssr-nextjs) / `data` /
+`tooling` / `full`(= 모든 dev 트랙의 합) / `executive` / `project-management` / `growth-marketing`.
 
-`base` (스택 무관 — 원칙·방법론·테스트 스킬만, #456) / `csr-*` (csr-supabase, csr-fastify, csr-fastapi) / `ssr-*` (ssr-htmx, ssr-nextjs) / `data` / `executive` / `tooling` / `full` (= 모든 dev track union) / `project-management` (v0.5.0) / `growth-marketing` (v0.5.0)
+**dev 트랙** = base + csr-* + ssr-* + data + tooling + full. `base` 는 dev 이지만 스택 전용 자산과 개발
+도구(`frontend-design` · `find-skills`)의 사전 선택에서 빠진다 — 그 둘의 조건은 `DEV_TRACKS_WITH_STACK`
+(= base 를 뺀 dev 트랙)이다. 방법론 스킬의 조건 `has-dev-track` 은 base 를 포함한다.
 
-**dev tracks** = base + csr-* + ssr-* + data + tooling + full (executive + project-management + growth-marketing 제외). base 는 dev 이지만 스택 전용 자산과 개발 도구(frontend-design · find-skills)의 기본 선택에서 빠진다. `agent-browser` 는 전 트랙 opt-in(#489).
+## 3. 외부 자산 — 설치 방식 5종
 
----
-
-## 1. 외부 자산 — 설치 방식 5종
-
-**자산별 목록은 여기 두지 않는다.** 카탈로그(61) 전체의 id·tier·설치 타겟·CLI 도달·검증 등급은
-[COMPATIBILITY.md](COMPATIBILITY.md) 가 `src/external-assets.ts` 에서 **생성**하고, 트랙별 묶음
-해설은 [TRACKS.md](TRACKS.md) 가 맡는다. 이 절이 자산을 손으로 다시 열거하던 동안 그 사본은
-실제로 낡았다 — 이 절의 표가 배포 CLI 설치를 `npm install -g` 로 적고 있었는데, 기본 scope 에서
-실제로 나가는 명령은 `npm install --save-dev` 다(#338). 없어진 자산을 안내하던 쪽은 USAGE 와 §6
-흐름도였다.
-
-여기 남는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다. 방식은 자산보다 훨씬 덜 바뀌고,
-"내 머신에서 무슨 일이 일어나는가"를 알려면 이쪽이 필요하다. 배선 SSOT = `src/external-installer.ts`.
+자산별 목록은 여기 두지 않는다(61종 전체 = [COMPATIBILITY.md](COMPATIBILITY.md), 트랙별 묶음 =
+[TRACKS.md](TRACKS.md)). 여기 남기는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다 — "내 머신에서
+무슨 일이 일어나는가"에 대한 답이다. 배선 SSOT = `src/external-installer.ts`.
 
 | kind | 실행 명령 | project scope (기본) | global scope |
 |---|---|---|---|
 | `plugin` | `claude plugin marketplace add --scope <s> <marketplace>` → `claude plugin install --scope <s> <pluginId>` | `--scope project` | `--scope user` |
-| `skill` | `npx skills@<pin> add <source> [--skill <name>] --agent <cli>… --yes` | skills CLI 기본(프로젝트) | `-g` 추가 |
+| `skill` | `npx skills@<pin> add <source> [--skill <name>] --agent <cli>… --copy --yes` | skills CLI 기본(프로젝트) | `-g` 추가 |
 | `npm` | `npm install <pkg>@<version>` | `--save-dev` | `-g` |
 | `npx-run` | `npx <cmd>@<version> <args…>` | 실행형 — 되돌릴 자동 경로가 없다 | 동일 |
 | `shell-script` | `bash <번들 스크립트> <args…>` | 실행형 — 같음 | 동일 |
 
-세 가지가 여기서 읽힌다. ⓐ **버전이 고정된다** — `npm`·`npx-run` 은 `pkg@version` 으로 나가므로
-vetting 시점의 코드만 실행된다(v26.80.0). `plugin`·`skill` 은 upstream HEAD 라 아직 고정되지
-않는다. ⓑ **`--agent` 는 반복 플래그다** — skills CLI 1.5.7+ 계약이고, 쉼표 목록은 거부된다.
-ⓒ **`npx-run`·`shell-script` 는 `uninstall` 이 되돌릴 수 없다** — 무엇을 어디에 썼는지 우리가
-모르기 때문이고, 그래서 제거 시 "되돌릴 수 없음"으로 보고된다.
+참고할 것 세 가지. ⓐ **버전이 고정된다** — `npm` · `npx-run` 은 `pkg@version` 으로 나가므로 vetting 시점의
+코드만 실행된다. `plugin` · `skill` 은 upstream HEAD 라 고정되지 않는다. ⓑ **`--agent` 는 반복
+플래그이며 `--copy` 가 붙는다.** 다중 에이전트 기본 모드가 Claude Code 몫을 아무 말 없이 건너뛰기 때문이다
+(#372). ⓒ **`npx-run` · `shell-script` 는 `uninstall` 로 되돌릴 수 없다.** 무엇을 어디에 설치했는지 하네스가
+추적할 수 없으므로 제거 시 "되돌릴 수 없음"으로 보고한다.
 
-`internal` kind 는 이 표에 없다 — 외부 명령을 실행하지 않고 번들 템플릿을 복사하는 자산이다
-(방법론 스킬·`ci-scaffold`·`tauri-desktop`).
+`internal` kind 는 이 표에 없다 — 외부 명령 없이 번들 템플릿을 복사하는 자산이다(번들 스킬 13종 ·
+`ci-scaffold` · `tauri-desktop`). `plugin` 자산은 `claude` CLI 가 PATH 에 없으면 warn-skip 된다.
+`claude plugin` 은 scope 와 무관하게 `~/.claude/plugins/` 아래 캐시를 쓰고 프로젝트는 메타데이터
+(`installed_plugins.json` 의 `projectPath`)로 구분한다 — CLI 자체 설계다.
 
----
+## 4. MCP 서버 (`.mcp.json`)
 
-## 2. MCP Servers (`.mcp.json`)
+`.mcp.json` 은 **모든 트랙**에 생성·병합되고, 트랙 조건부 항목은 `templates/track-mcp-map.tsv` 가 정한다.
 
-`.mcp.json`은 프로젝트 스코프로 자동 생성되며, `templates/track-mcp-map.tsv` 기반으로 Track별 조건부 추가.
-
-### 모든 dev track 공통
-
-| MCP | 출처 | 명령 |
-|-----|------|------|
-| **context7** | [Upstash](https://github.com/upstash/context7-mcp) | `npx -y @upstash/context7-mcp@latest` |
-| **github** | [modelcontextprotocol](https://github.com/modelcontextprotocol/servers/tree/main/src/github) | `npx -y @modelcontextprotocol/server-github` |
-| **chrome-devtools** | [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) | `npx -y chrome-devtools-mcp@latest` |
-
-MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust tier 를 갖지 않는다.
-
-### Track 조건부 (track-mcp-map.tsv 데이터-driven)
-
-| MCP | Track | 명령 |
-|-----|------|------|
-| **railway-mcp-server** | csr-supabase, csr-fastify, csr-fastapi, ssr-htmx, ssr-nextjs, full | `npx -y @railway/mcp-server` |
-| **supabase** | csr-supabase, full | `npx -y @supabase/mcp-server` |
-
-> **신규 MCP 추가**: `templates/track-mcp-map.tsv` 에 1줄 추가하면 된다 — 조립 코드는 손대지 않는다.
-> 조건 없이 항상 나가는 3종의 SSOT 는 `templates/mcp.json` 이다.
-
----
-
-## 3. Agents (자체 + ECC cherry-pick)
-
-> **게이팅 방향에 주의** — ADR-019 가 ADR-016 을 뒤집었다. ECC cherry-pick 에이전트는
-> `--with ecc-plugin` 을 **고르지 않았을 때** 폴백으로 깔린다(opt-out). ECC 플러그인을 고르면
-> 같은 역할을 플러그인이 가져오므로 사본이 비켜선다. 배선 = `src/manifest.ts` 의 `!s.withEcc`.
-
-| 에이전트 | 출처 | 언제 깔리나 | 용도 |
-|---|---|---|---|
-| **reviewer** | 자체 | 항상 | SOD 검증 (다면 리뷰). 구현하지 않은 레인이 판정한다 |
-| **data-analyst** | 자체 | 항상 | Python / DuckDB / Trino / ML / PySide6 |
-| **strategist** | 자체 | 항상 | 제안서 · DD · 덱 · 재무모델 |
-| **plan-checker** | 자체 | dev track | `docs/plan.md` ↔ `todo.md` ↔ `SPEC.md` 정합성 |
-| **implementer** | 자체 | dev track | 구현 레인 — 변경을 쓰고, 그 변경 없이는 실패하는 테스트로 닫는다 |
-| **silent-failure-hunter** | ECC | ECC **미**선택 + dev track | swallowed error / bad fallback 탐지 |
-| **build-error-resolver** | ECC | ECC **미**선택 + dev track | TS / build 에러 fix |
-
-> 모델 열은 뺐다 — 에이전트 정의 파일의 frontmatter 가 SSOT 이고, 여기 옮겨 적으면 두 번째 사본이
-> 된다. `implementer` 는 v26.138.0 에 생겼다: 그전 8종이 전부 검토·검증·도메인 특화라 설치자는
-> "코드를 볼 사람"만 받고 "쓸 사람"은 못 받았다(두 코퍼스 대조 실측 — 서브에이전트 코드 Edit 433 vs 3).
->
-> **일상 코드 리뷰·보안 리뷰 전용 에이전트는 없다** (ADR-089) — Claude Code 의 `/code-review` ·
-> `/security-review`, Codex 의 `codex review` 가 같은 일을 벤더 기본으로 한다. 우리가 남기는
-> `reviewer` 는 다른 축이다: 버그를 찾는 것이 아니라 **만든 레인이 아닌 레인이 완료를 판정**한다.
-
----
-
-## 4. Cherry-picked Sources
-
-`.dev-references/cherrypicks.lock` (7건 — ADR-090 에서 ECC 파생 스킬 3종·폴백 에이전트 2종,
-ADR-089 에서 리뷰 에이전트 2종, ADR-088 에서 스킬 2종, 2026-08-02 ADR-060 에서
-verification-loop·karpathy-gate, ADR-061 에서 게이트 어휘 룰 행 해체). ECC에서 발췌해
-`templates/`에 복사.
-`scripts/sync-cherrypicks.sh`로 upstream drift 감지.
-
-| 카테고리 | 항목 |
-|---------|------|
-| Skills (templates/skills/) | market-research, e2e-testing, python-patterns, python-testing, nextjs-turbopack, investor-materials, investor-outreach |
-
----
-
-## 5. 자체 작성 자산
-
-### Skills (templates/skills/)
-
-자체 작성 스킬은 **14종**이고, 그중 **13종은 카탈로그 엔트리를 갖는다**
-(`INTERNAL_BUNDLED_SKILL_IDS` — 위저드에서 체크·해제할 수 있고 `--with`/`--without` 로 지정된다).
-남는 `ui-visual-review` 1종만 엔트리 없이 `manifest.ts` 가 직접 깐다(UI 트랙 조건). **개수의
-SSOT 는 코드다** — `INTERNAL_BUNDLED_SKILL_IDS` 와 `templates/skills/` 를 세라. 여기 숫자와
-다른 문서의 숫자가 어긋나 보이면 코드가 답이다. (~~디렉터리가 아니라 `SKILL.md` 파일 하나만
-나간다~~ — #409 에서 **디렉터리 단위로 통일**했다. 우리 스킬은 이제 예외 없이 디렉터리로
-등록되고, `tests/skill-registration-uniform.test.ts` 가 그것을 강제한다. 파일 단위였던 동안
-상주 계측이 그 스킬을 조용히 0으로 셌다 — ADR-083.)
-
-아래 8종은 2026-08-02 **ADR-062 로 이 리포에 복원**됐다(ADR-060 이 `npx skills add
-uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 보존이다 — 이관본이 판정 기준·수치·
-워크드 예시를 잃었고(감사 실측 104건), 그 본문을 무는 게이트는 이 리포에만 있다.
-설치 조건의 SSOT 는 `src/external-assets.ts` 의 각 엔트리 `condition` 이다.
-
-| Skill | 설치 조건 | 용도 | 비고 |
-|-------|----------|------|------|
-| **north-star** | 전 track | NSM(metric-as-proxy)·Pillars·Will/Won't·4-gate + 우선순위 순서 게이트. `NORTH_STAR.template.md` 동반 | ADR-062 복원 (구 north-star + northstar-roadmap 통합) |
-| **gh-issue-workflow** | 전 track | 이슈를 비동기 백로그·결정 채널로. 5섹션 body 템플릿(`ISSUE.template.md`) + 읽기/초안/원격쓰기 단계 분리 | ADR-062 복원 |
-| **objective-brief** | 전 track | 위임·설계·다단계(피처/프로젝트 규모 이상) 작업을 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. 한 줄 질문·조회·단일 수정·루틴 변경은 제외 | ADR-062 AC9 신설 → ADR-088 개명·문턱 |
-| **audit-harness-fit** | 전 track | 지침·스킬을 자율·생산성·검증 가능한 품질 쪽으로 개선하는 4모드 — audit(불필요한 질문·재검사 · 충돌 · 빠진 실행 맥락 · 저가치 절차 · 모델 역량에 낡은 보조 절차, 읽기 전용) · verification(사용 장면 기준 검증 설계) · apply(승인된 변경만) · populate(`AGENTS.md`/`CLAUDE.md` 프로젝트 맥락 채우기). 판정 근거는 확정된 의도와 리포 실증 | ADR-064 신설 → ADR-084 2판 |
-| **user-centered-explanation** | 전 dev track | 사용자 행동·결과 관점의 설명(사용자의 언어) + 선택·승인 요청의 기본 표(맥락 · 문제점 · 해결방안 · 추천방안, 각각 이유) + 화면·동작 전후 비교 | #485 개명(구 clear-korean-communication ← ADR-062 복원, 구 asis-tobe-decision + explain-plainly 통합) |
-| **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
-| **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |
-| **recurrence-prevention** | 전 dev track | 재발 검증 → 단순/복합 분류 → 대책 사다리 1단 상향(기록→룰→구조 게이트) | ADR-062 복원 |
-| **model-orchestration** | opt-in | 모델·effort·위임 배분 원칙 — 컨텍스트 재사용 우선, 추가 워커·독립 리뷰는 기대 기여가 비용을 넘을 때만 | ADR-062 복원 · ADR-091 개정 |
-| **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
-| **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
-| **ui-visual-review** | csr-*/ssr-*/full | Playwright/chrome-devtools 스크린샷 캡처 → baseline diff → 에이전트 REGRESSION 분류 → Review Gate 차단 | v26.29.0 신규 |
-
-### Templates (templates/docs/)
-
-- **PLAN.template.md** (v26.30.0) — Sprint Contract / Phase Overview / **Milestone × Dependency Graph** (직렬/병렬/강한 의존 표기) + **Critical Path** / Per-Milestone AC / Risk / Open Questions / Changelog 8섹션
-- **skills/north-star/NORTH_STAR.template.md** — NSM / Pillars / Will-Won't / Decision Heuristics 6섹션. **로드맵(시간축)과 이력은 담지 않는다** — 각각 로드맵 문서와 버전 관리 이력 소관이고, 템플릿 §5·§8 은 그 사실을 적은 스텁이다
-
-### Commands — 없다
-
-`templates/commands/` 디렉터리는 존재하지 않고, manifest 에 `.claude/commands/` 대상도 0건이다.
-직접 쓴 슬래시 명령 세트(`spec`·`plan`·`build`·…)는 ADR-023 에서, ECC 폴백 8종은 ADR-073 에서 <!-- ref:removed -->
-사라졌다. 예외였던 OpenCode 도 2026-08-29 로 없어졌다 — 그쪽이 `.agents/skills/` 를 네이티브로
-읽는 것을 실측해 명령 변환을 폐지했다(ADR-081). 이제 어떤 CLI 에도 명령 파일을 만들지 않는다.
-
-### Rules (templates/rules/)
-6 파일(실측 2026-08-17 — ADR-060 정비로 기술스택 상세 룰 12종, ADR-061 로 게이트 어휘 룰,
-#284 로 `benchmark-parity`, 2026-08-12 로 `playwright-launch` 삭제. 마지막 것의 내용은 <!-- ref:removed -->
-`ui-visual-review` 스킬로 합쳐져 상주에서 발화로 내려갔다 — 그래서 **UI 트랙 전용 룰은 이제 없다**).
-CLAUDE.md와 짝.
-**트랙별 적용 조건의 SSOT 는 `src/manifest.ts`**
-(`COMMON_RULES`·`DEV_RULES`·`UI_RULES`·`TRACK_RULES` → `resolveRules()`)다 — SPEC 이 아니다.
-- **change-management.md** (v26.30.0 확장) — ADR Status 흐름 `Proposed → Accepted → Superseded/Deprecated` + 채택 프로세스 + 대상/비대상
-
-### Hooks (templates/hooks/)
-2 파일 (실측 2026-09-13): session-start · protect-files.
-차단하는 훅은 `protect-files` **하나뿐**이고, exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에
-`날짜 · 훅 · 대상` 1줄을 남긴다 (ADR-061). 로그 실패는 차단 판정을 바꾸지 않는다.
-*`mcp-pre-exec` 은 ADR-072 로 제거됐다 — 배선이 아니라 목적이 이유다. MCP 서버를 새로 붙이는 <!-- ref:removed -->
-순간 차단하는 훅은 "사용자가 AI 코딩 도구로 개발을 잘하게 만든다"는 방향과 반대로 작동한다.*
-*브리프 넛지 훅(UserPromptSubmit)은 ADR-088 로 제거됐다 — "400자 이상 && `<objective>` 부재"
-라는 두 조건은 결정적이지만 **길이는 규모의 증거가 아니었다**. 브리프는 위임·설계·다단계 작업에만
-쓰는 것으로 문턱이 올라갔고(`objective-brief`), 그 문턱은 매 프롬프트 훅으로 표현할 수 없다.*
-*구 6-Gate 훅(gate-check/agentshield-gate)·codebase-map 은 ADR-023, karpathy-gate·spec-drift-check
-는 ADR-060, checkpoint-snapshot 은 ADR-061 에서 삭제됨(검증 스캐폴딩·무동작 실측 — 마지막 것은
-`settings.json` 의 `"PostToolUse": []` 로 설치만 되고 실행 0이었다).*
-
-### Scripts (자체 작성)
-
-설치를 오케스트레이션하던 `setup-harness.sh` 와 그 어서션 스위트 `test-harness.sh` 는 **없다** —
-CLI 를 TypeScript 로 다시 쓸 때 `src/` 와 `vitest` 가 각각 그 자리를 가져갔다. 검증 명령은
-`npm run ci`(typecheck + lint + coverage + build)다.
-
-셸 스크립트가 사용자 프로젝트에 도달하는 경로는 **둘**이다. ⓐ `scripts/` 중 `package.json` 의
-`files` 가 개별 지정한 **`prune-ecc.sh` 하나** — ECC 를 고른 사람의 설치에서 실행된다. ⓑ
-`templates/scripts/` **3종** — 게시물 전체가 `templates/` 로 나가고, manifest 가 **모든 설치**에
-`.uzys-agent-harness/` 로 깐다(`applies: all`). 배포 룰이 셋 다 이름으로 부른다(아래 표). 아래 표에서 `check-absence.sh` 를 "개발 도구"로만 읽으면 안 되는 이유다 — 개발 사본과
-배포 사본이 둘 다 있다.
-
-| 배포 사본 | 설치 위치 | 부르는 곳 |
+| MCP | 조건 | 명령 |
 |---|---|---|
-| `templates/scripts/check-absence.sh` | `.uzys-agent-harness/check-absence.sh` | `doc-governance` 룰 |
-| `templates/scripts/spec-drift-check.sh` | `.uzys-agent-harness/spec-drift-check.sh` | `doc-governance` · `ship-checklist` 룰 |
-| `templates/scripts/protect-branch.sh` | `.uzys-agent-harness/protect-branch.sh` | `git-policy` 룰 |
+| **context7** | 항상 | `npx -y @upstash/context7-mcp@latest` |
+| **github** | 항상 | `npx -y @modelcontextprotocol/server-github` |
+| **chrome-devtools** | 항상 | `npx -y chrome-devtools-mcp@latest` |
+| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · ssr-nextjs · full | `npx -y @railway/mcp-server` |
+| **supabase** | csr-supabase · full | `npx -y @supabase/mcp-server` |
 
-셋 다 배포 룰이 이름으로 부른다 — 즉 설치받은 프로젝트에서 룰이 지시하는 명령이 실재한다.
-`git-policy` ↔ `protect-branch.sh` 배선은 `tests/protect-branch-surface.test.ts` 가 문다.
+항상 설치되는 3종의 SSOT 는 `templates/mcp.json` 이고, 조건부는 tsv 에 한 줄을 추가해 확장한다(조립
+코드는 손대지 않는다). MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust tier 가 없다.
 
-아래 표는 **이 저장소의 개발 도구**다(위 배포 사본의 원본을 포함한다).
+## 5. 에이전트 (`templates/agents/`)
+
+4 파일. 배선 SSOT = `src/manifest.ts` 의 `CORE_AGENTS` · `DEV_AGENTS` · `TRACK_AGENTS` ·
+`RETIRED_AGENTS`.
+
+| 에이전트 | 언제 깔리나 | 용도 |
+|---|---|---|
+| **reviewer** | 항상 | 작업을 수행하지 않은 다른 레인이 완료를 판정한다(다면 리뷰 · 계획 문서 검토 포함) |
+| **implementer** | dev 트랙 | 구현 레인 — 변경을 작성하고, 그 변경 없이는 실패하는 테스트를 추가해 마무리한다 |
+| **data-analyst** | data · full | Python / DuckDB / Trino / ML / PySide6 |
+| **strategist** | executive · full | 제안서 · DD · 덱 · 재무모델 |
+
+모델 열은 없다 — 각 파일의 frontmatter 가 SSOT 다. 일상 코드 리뷰·보안 리뷰 전용 에이전트는 두지
+않는다: Claude Code 의 `/code-review` · `/security-review`, Codex 의 `codex review` 가 벤더 기본으로 같은
+일을 한다(ADR-089). 은퇴한 에이전트 id 는 `RETIRED_AGENTS` 에 대안과 함께 남아 있어 `update` 화면이
+설치본에 남은 옛 파일을 식별해 안내할 수 있다(ADR-090). ECC 에서 가져오는 에이전트는 없다.
+
+## 6. 스킬
+
+### 번들 스킬 (`templates/skills/`)
+
+디렉터리 21개. 그중 **13종이 카탈로그 엔트리를 갖고**(`INTERNAL_BUNDLED_SKILL_IDS` — 위저드에서
+체크·해제하고 `--with`/`--without` 으로 지정한다) 나머지 8종은 `manifest.ts` 가 트랙 조건에 따라 직접 설치한다.
+개수의 SSOT 는 코드다. 이곳의 숫자와 다른 문서의 숫자가 어긋나면 코드가 우선한다. 스킬은 예외 없이
+**디렉터리 단위**로 등록한다(`tests/skill-registration-uniform.test.ts`, ADR-083).
+
+카탈로그 13종의 설치 조건과 한 줄 설명은 [TRACKS.md §What every track gets](TRACKS.md#what-every-track-gets)
+에 있다(조건 = 전 트랙 4 · `has-dev-track` 6 · `opt-in` 3). 스킬을 옮기고 되돌린 경위는 ADR-060 · ADR-062,
+개명·은퇴는 ADR-088 · #428 · #485 — 개명 맵은 `RENAMED_SKILL_IDS`, 은퇴 목록은 `RETIRED_SKILL_IDS`.
+
+manifest 가 직접 설치하는 8종:
+
+| Skill | 조건 | 출처 |
+|---|---|---|
+| `ui-visual-review` | csr-* · ssr-* · full | 자체 — Playwright/chrome-devtools 스크린샷 → baseline diff → 리뷰 게이트 |
+| `e2e-testing` | csr-* · ssr-* · full, ECC 플러그인 미선택 시 | ECC cherry-pick |
+| `nextjs-turbopack` | ssr-nextjs · full, 동상 | ECC cherry-pick |
+| `python-patterns` · `python-testing` | data · csr-fastapi · full, 동상 | ECC cherry-pick |
+| `market-research` · `investor-materials` · `investor-outreach` | executive · full, 동상 | ECC cherry-pick |
+
+### Cherry-pick 출처
+
+`.dev-references/cherrypicks.lock` 이 7건을 추적한다(위 표의 ECC 7종). ECC 플러그인(`--with ecc-plugin`)을
+고른 설치에서는 플러그인이 같은 역할을 하므로 사본을 설치하지 않는다 — 배선은 `src/manifest.ts` 의
+`!s.withEcc`(ADR-019). `scripts/sync-cherrypicks.sh` 가 upstream drift 를 감지한다.
+
+## 7. 룰 · 훅 · 스크립트 · 템플릿
+
+**룰** (`templates/rules/`) 6 파일 — `git-policy` · `change-management` · `doc-governance` 는 전 트랙,
+`test-policy` · `ship-checklist` 는 dev 트랙, `cli-development` 는 tooling · full. 배선 SSOT =
+`src/manifest.ts` 의 `COMMON_RULES` · `DEV_RULES` · `TRACK_RULES` → `resolveRules()`. UI 트랙 전용 룰은
+없다(`UI_RULES` 는 빈 배열로 자리만 남겼다). 기술스택 상세 룰을 배포에서 뺀 경위는 ADR-060.
+
+**훅** (`templates/hooks/`) 2 파일 — `session-start` · `protect-files`. 차단하는 훅은 `protect-files`
+하나이고 exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에 `날짜 · 훅 · 대상` 한 줄을 남긴다(ADR-061).
+로그 기록에 실패해도 차단 동작은 그대로다. 훅을 걷어낸 결정 = ADR-023 · ADR-060 · ADR-061 · ADR-072 · ADR-088.
+
+**설치 대상 프로젝트에 들어가는 스크립트** — `templates/scripts/` 3종이 모든 설치에서 `.uzys-agent-harness/` 로
+복사된다(`applies: all`). 배포 룰이 세 스크립트를 이름으로 호출한다.
+
+| 배포 사본 | 설치 위치 | 부르는 룰 |
+|---|---|---|
+| `templates/scripts/check-absence.sh` | `.uzys-agent-harness/check-absence.sh` | `doc-governance` · `cli-development` |
+| `templates/scripts/spec-drift-check.sh` | `.uzys-agent-harness/spec-drift-check.sh` | `doc-governance` · `ship-checklist` |
+| `templates/scripts/protect-branch.sh` | `.uzys-agent-harness/protect-branch.sh` | `git-policy` |
+
+여기에 `scripts/prune-ecc.sh` 하나가 `package.json` 의 `files` 로 게시되어 ECC 를 고른 설치에서 실행된다.
+
+**이 저장소의 개발 도구** (`scripts/`, 판정·생성에 쓰이는 것):
 
 | 스크립트 | 하는 일 |
 |---|---|
-| `scripts/prune-ecc.sh` | ECC 플러그인을 프로젝트 스코프로 복사하고 curated KEEP 외를 제거. 게시 대상 |
-| `scripts/sync-cherrypicks.sh` | cherry-pick 출처의 upstream drift 감지 |
-| `scripts/check-absence.sh` | "없다"는 결론을 대조군 없이 못 내게 만드는 판정기 (0 부재 · 1 발견 · 2 신뢰불가) |
-| `scripts/gen-compatibility.mjs` | `COMPATIBILITY.md` 의 카탈로그 표 생성 (`npm run gen:compat`) |
-| `scripts/verify-catalog.mjs` | 실 CLI 로 전 카탈로그 설치 가능성 재검증 (`catalog-verify.yml` 월 cron) |
-| `scripts/trust-tier-drift.mjs` | star 수 drift 감시 (`trust-tier-drift.yml` 월 cron) |
-| `scripts/context-cost-report.mjs` · `-baseline.mjs` | 상주 컨텍스트 비용 측정 (`npm run cost:report` · `cost:baseline`) |
-| `install.sh` | `curl \| bash` 진입점. 실제로는 npx CLI 에 위임하는 얇은 래퍼 — 옛 문서의 호출이 계속 동작하게 남겨 둔 것이다 |
+| `gen-compatibility.mjs` | `COMPATIBILITY.md` 의 카탈로그 표 생성 (`npm run gen:compat`) |
+| `verify-catalog.mjs` | 실 CLI 로 전 카탈로그 설치 가능성 재검증 (`catalog-verify.yml` 월 cron) |
+| `trust-tier-drift.mjs` | star · archived drift 감시 (`trust-tier-drift.yml` 월 cron) |
+| `release-audit.mjs` | 원격 태그 중 npm 에 없는 버전 검출 (`npm run release:audit` · `release-audit.yml` 매일) |
+| `context-cost-report.mjs` · `-baseline.mjs` | 상주 컨텍스트 비용 측정 (`npm run cost:report` · `cost:baseline`) |
+| `asset-history.sh` | 자산별 마지막 변경 커밋과 그 커밋의 자산 수 (`npm run assets:history`) |
+| `check-absence.sh` | "없다"는 결론을 대조군 없이 못 내게 하는 판정기 (배포 사본의 원본) |
+| `sync-cherrypicks.sh` | cherry-pick 출처의 upstream drift 감지 |
+| `prune-ecc.sh` | ECC 플러그인을 curated KEEP 으로 잘라내기 (게시 대상) |
 
-표는 **판정·생성에 쓰이는 것만** 담았다. 데모 녹화(`record-demo.sh`·`demo-capture.sh`·
-`demo.Dockerfile`)와 `fresh-dogfood-setup.sh` 는 뺐다 — 전체 목록은 `ls scripts/` 다.
+데모 녹화(`record-demo.sh` · `demo-capture.sh` · `demo.Dockerfile`)와 `fresh-dogfood-setup.sh` 는 제외했다.
+`install.sh` 는 `curl | bash` 진입점으로, npx CLI 에 위임하는 얇은 래퍼다.
 
----
+**템플릿** (`templates/docs/`) — `PLAN.template.md`(계획 문서 8절)와
+`templates/skills/north-star/NORTH_STAR.template.md`(북극성 6절 — 로드맵과 이력은 담지 않는다).
 
-## 6. 설치 결정 흐름
+**슬래시 명령은 없다.** `templates/commands/` 가 없고 manifest 에 `.claude/commands/` 대상도 0건이다
+(ADR-023 · ADR-073 · ADR-081).
+
+## 8. 설치 흐름
 
 ```
 $ npx -y @uzysjung/agent-harness                 # 위저드
@@ -250,52 +173,39 @@ $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립�
       --track <track> --cli <cli> --project-dir .
   ↓
 [전제] Node 20+. `claude` 는 plugin 자산이 있을 때만, `npx`/`npm` 은 그 방식의 자산이 있을 때만
-      (설치기 자체는 `git` 을 호출하지 않는다 — 필요한 것은 `npx github:…` 경로뿐)
   ↓
 [1 Track] · [2 CLI] — 둘 다 다중 선택
   ↓
-[3 설치 항목] 7 페이지. 앞 2페이지 = 트랙 baseline(룰·훅 / 에이전트·스킬)을 전부 체크된 채로 보여
-             주고 해제할 수 있게 한다. 뒤 5페이지 = 외부 자산 카테고리
+[3 설치 항목] 7 페이지. 앞 2 = 트랙 baseline(룰·훅 / 에이전트·스킬), 뒤 5 = 외부 자산 카테고리
   ↓
 [4 Scope] Project(기본) / Global      [5 Confirm] 요약 + 세션 시작 컨텍스트 비용
   ↓
 [6 Installing]
   Phase 1  템플릿    — .claude/{rules,agents,hooks,skills} · 앵커 · .mcp.json ·
                        .uzys-agent-harness/ 스크립트 3종 · (opt-in) .github/workflows
-  Phase 2  외부 자산 — 4단계에서 고른 scope 로 §1 의 5가지 방식 실행
-  Phase 3  CLI 산출물 — codex·opencode·antigravity 를 하나라도 골랐을 때만: AGENTS.md ·
-                       .codex/ · opencode.json · .agents/
+  Phase 2  외부 자산 — 4단계에서 고른 scope 로 §3 의 5가지 방식 실행
+  Phase 3  CLI 산출물 — codex · opencode · antigravity 를 하나라도 골랐을 때만:
+                       AGENTS.md · .codex/ · opencode.json · .agents/
   ↓
-[리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목
+[리포트] 카테고리별 카운트(+`--verbose` 면 파일 목록) · 백업 경로 · 되돌릴 수 없는 항목 · FILL 안내
 ```
 
-**위 Phase 번호는 화면에 뜨는 순서**이고 실행 순서와 다르다 — CLI 산출물은 실제로 baseline 안에서
-외부 자산보다 **먼저** 만들어진다. 설치 로그(`.uzys-agent-harness/.harness-install.json`)는 단계로
-표시되지 않고 그 사이에 기록된다. `list`·`uninstall` 이 읽는 것이 이 파일이다.
+Phase 번호는 화면 순서이고 실행 순서와 다르다 — CLI 산출물은 baseline 안에서 외부 자산보다 먼저
+만들어진다. 설치 로그(`.uzys-agent-harness/.harness-install.json`)는 그 사이에 기록되며, `list` ·
+`update` · `uninstall` 명령은 이 파일을 참조한다.
 
-트랙이 무엇을 고르는지는 이 그림이 아니라 [TRACKS.md](TRACKS.md) 가 담는다 — 여기 옮겨 적었던
-동안 그 목록은 세 릴리즈치 낡은 자산을 안내하고 있었다.
+## 9. 보안 · 신뢰 정책
 
----
+- **MCP 호출은 하네스가 막지 않는다** — 승인은 각 CLI 자신의 권한 체계가 한다(ADR-072). 옛 설치본의
+  `.mcp-allowlist` 는 `update` 가 백업 후 회수한다.
+- **글로벌 경로 보호는 경로 차단이 아니라 scope 기본값이다** (ADR-020). `--project-dir` 값은 `resolve()`
+  될 뿐 시스템 경로 블록리스트는 없다 — 없는 방어를 있다고 적지 않는다.
+- **`.env` · lock · 인증서 편집 차단** — `protect-files.sh` 훅(§7).
+- **`--no-verify` · `--force` 금지는 `git-policy` 룰의 프로즈 규약**이다 — 강제하는 훅은 없다. main 보호는
+  GitHub 룰셋이 서버에서 맡는다(`protect-branch.sh`).
 
-## 7. 보안 / 신뢰 정책
+## 10. 라이선스 · 책임
 
-- **MCP allowlist**: 없다 (ADR-072 로 제거). MCP 호출은 하네스가 막지 않는다 — 승인은 각 CLI 자신의 권한 체계가 한다. 기존 설치본의 `.mcp-allowlist` 는 `update` 가 백업 후 회수한다.
-- **글로벌 경로 보호는 경로 차단이 아니라 scope 기본값이다** (ADR-020). `~/.claude/skills/`·`~/.codex/`·
-  `~/.opencode/`·`~/.gemini/`·`npm root -g` 는 4단계에서 Global 을 고르거나 `--scope global` 을
-  넘기지 않는 한 쓰이지 않는다. **`--project-dir` 에 대한 시스템 경로 블록리스트는 없다** — 값은
-  `resolve()` 될 뿐이다(실측 2026-08-17, 대조군 확인). 이 줄은 그런 차단이 있다고 적고 있었고,
-  근거로 든 스크립트는 CLI 재작성 때 사라진 것이었다. **없는 방어를 있다고 적는 것이 없는 것보다
-  나쁘다** — 읽는 사람이 그걸 믿고 위험한 경로를 넘긴다.
-- **`.env` / credentials 수정 차단**: `protect-files.sh` 훅이 `.env`, lock 파일, 인증서 경로 차단.
-- **`--no-verify` / `--force` 금지**: `git-policy.md` §Safety 의 **프로즈 규약**이다 — 강제하는 훅은
-  없다. (v26.122.0 정정: 이 줄은 `gate-check.sh` 가 차단한다고 적고 있었으나 그 훅은 ADR-023 에서
-  삭제됐다. 같은 문서의 §5 Hooks 가 이미 "삭제됨"이라 적고 있어 자기모순이었다.)
-
----
-
-## 8. 라이선스 / 책임
-
-각 외부 출처의 라이선스를 따른다 (대부분 MIT/Apache 2.0). 본 카탈로그는 통합 가이드일 뿐 외부 자산의
-동작/보안에 대한 보증을 제공하지 않는다. 설치 전에 3단계에서 각 자산의 등급 배지(특히
-⚠ experimental)를 확인하고, 판단이 필요하면 [SECURITY.md](../SECURITY.md) 를 읽는다.
+각 외부 출처의 라이선스를 따른다(대부분 MIT / Apache 2.0). 이 카탈로그는 통합 가이드일 뿐 외부 자산의
+동작·보안을 보증하지 않는다. 설치 전에 3단계의 등급 배지(특히 `⚠ experimental`)를 보고, 판단이
+필요하면 [SECURITY.md](../SECURITY.md) 를 읽는다.

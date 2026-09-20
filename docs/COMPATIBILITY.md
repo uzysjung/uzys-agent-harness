@@ -87,15 +87,15 @@ stale row fails the build rather than misleading you.
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `ci-scaffold` | official | templates (`--with ci-scaffold`) | 4-CLI (templates) | 🟡 local |
-| `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `user-centered-explanation` | official | templates (`--with user-centered-explanation`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `north-star` | official | templates (`--with north-star`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `gh-issue-workflow` | official | templates (`--with gh-issue-workflow`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `model-orchestration` | official | templates (`--with model-orchestration`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `objective-brief` | official | templates (`--with objective-brief`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `natural-korean` | official | templates (`--with natural-korean`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `compaction-handoff` | official | templates (`--with compaction-handoff`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `user-centered-explanation` | official | templates (`--with user-centered-explanation`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `north-star` | official | templates (`--with north-star`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `gh-issue-workflow` | official | templates (`--with gh-issue-workflow`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `model-orchestration` | official | templates (`--with model-orchestration`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `objective-brief` | official | templates (`--with objective-brief`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `natural-korean` | official | templates (`--with natural-korean`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `feature-dev` | official | `feature-dev@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |
@@ -148,10 +148,10 @@ stale row fails the build rather than misleading you.
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
-| `audit-service-gaps` | official | templates (`--with audit-service-gaps`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `multi-persona-review` | official | templates (`--with multi-persona-review`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `external-model-consult` | official | templates (`--with external-model-consult`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `audit-service-gaps` | official | templates (`--with audit-service-gaps`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `multi-persona-review` | official | templates (`--with multi-persona-review`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `external-model-consult` | official | templates (`--with external-model-consult`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `code-review` | official | `code-review@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `find-skills` | vetted | `vercel-labs/skills :: find-skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |

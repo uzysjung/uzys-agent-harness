@@ -72,6 +72,11 @@ const NOT_AN_ASSET: ReadonlyMap<string, string> = new Map([
   ["auto-install-peers", "pnpm 계열 .npmrc 키 — Troubleshooting 예시"],
   ["npm-global", "v26.64.0 마이그레이션 노트가 인용하는 **과거** method kind"],
   ["instructions", "`opencode.json` 의 설정 키"],
+  // `update --only <group>` 의 묶음 이름(`src/types.ts` UpdateGroup). `skills`·`rules`·`hooks` 는
+  //   디렉터리 이름과 겹쳐 어휘에 이미 있고, 아래 셋만 자산 모양이면서 자산이 아니다(#429).
+  ["anchor", "`update --only` 묶음 이름 — 하네스 앵커 파일"],
+  ["external", "`update --only` 묶음 이름 — 외부 자산"],
+  ["new-skills", "`update --only` 묶음 이름 — 이번 릴리즈 신규 번들 스킬"],
 ]);
 
 /**
