@@ -223,6 +223,8 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     expect(rootBackupsFor("AGENTS.md")).toEqual([]);
   });
 
+  // 무는 것은 "로그의 어느 필드로 가르나"다 — `templates.*Dir` 대신 `spec.cli`(마지막 설치분)로 바꾸면
+  // codex 산출물이 옛 내용으로 남아 red. 수정 전 코드(전 CLI 갱신)에서는 green 인 것이 맞다.
   it("codex 뒤에 opencode 를 추가 설치한 프로젝트는 update 가 둘 다 갱신한다 — 로그가 추가 설치를 누적한다", () => {
     install(["codex"]);
     install(["opencode"]);
