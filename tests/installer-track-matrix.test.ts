@@ -67,8 +67,10 @@ describe("Track matrix — assets called per track", () => {
     // 2026-08-02 (ADR-062 복원) — 그 9종이 `kind:"internal"` 로 돌아가 **이 목록에서 빠진다**.
     //   external-installer.ts:112 가 internal 을 걸러내기 때문이다 — 사라진 게 아니라 Phase 1
     //   (manifest dir copy)이 맡는다. 도달 범위는 아래 "번들 9종은 …" 테스트가 그 표면에서 문다.
-    expect(ids).toEqual(["frontend-design", "find-skills", "agent-browser"]);
+    // #489 (2026-09-20) — agent-browser 는 opt-in 으로 내려가 기본 집합에서 빠진다.
+    expect(ids).toEqual(["frontend-design", "find-skills"]);
     expect(ids).not.toContain("product-skills");
+    expect(ids).not.toContain("agent-browser");
   });
 
   it("data: 3 data-specific + dev baseline + dev-tools (v26.106.0 ADR-035)", () => {
@@ -79,12 +81,8 @@ describe("Track matrix — assets called per track", () => {
     // v26.106.0 (ADR-035 승인 A·C) — 일반 Python 패턴 2종 opt-in 강등 + product-skills PM 한정.
     // 2026-08-02 (ADR-060) — polars/dask/karpathy 삭제 · uzys 이관 7종 합류.
     // 2026-08-02 (ADR-062 복원) — uzys 9종은 internal 로 복귀 → external 시도 목록에서 빠진다.
-    expect(ids).toEqual([
-      "frontend-design",
-      "anthropic-data-plugin",
-      "find-skills",
-      "agent-browser",
-    ]);
+    // #489 — agent-browser opt-in → 기본 집합에서 제외.
+    expect(ids).toEqual(["frontend-design", "anthropic-data-plugin", "find-skills"]);
   });
 
   it("csr-fastapi: dev baseline + UI(react+shadcn) — taste 가이드는 opt-in (v26.106.0 ADR-035)", () => {
@@ -204,24 +202,25 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 3 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0)", () => {
-    // frontend-design(skill=1) + find-skills(1) + agent-browser(npm install=1) = 3.
+  it("tooling: 2 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0 · #489 agent-browser opt-in)", () => {
+    // frontend-design(skill=1) + find-skills(1) = 2. agent-browser(npm install=1)는 #489 로 opt-in.
     // 2026-08-26 (#344): frontend-design 이 plugin → skill 이 되며 4 → 3. plugin 은
     //   `marketplace add` + `plugin install` 로 **2번** 띄우고 skill 은 `npx skills add` 1번이다.
     //   숫자가 줄어든 것은 자산이 빠진 게 아니라 배달 방식이 바뀐 결과다.
     // internal 자산은 프로세스를 띄우지 않는다 — Phase 1 manifest 가 dir 을 복사할 뿐이다.
-    // agent-browser 의 `npm root -g` 조회는 모듈 캐시라 이 파일의 선행 테스트가 이미 소비했다 —
-    // 단독 실행 시엔 +1 (파일 단위 순서 의존).
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(3);
+    expect(spawnCallCount).toBe(2);
   });
 
-  it("data: tooling baseline 3 + anthropic-data-plugin(×2) = 5 (2026-08-02 복원 ADR-062)", () => {
+  it("data: tooling baseline 2 + anthropic-data-plugin(×2) = 4 (2026-08-02 복원 ADR-062 · #489)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(5);
+    expect(spawnCallCount).toBe(4);
   });
 
   it("--with openspec alone (executive base) adds 1 npm call", () => {
+    // #489 — tooling 이 더는 npm 을 띄우지 않아(agent-browser opt-in) `npm root -g` 조회(모듈 캐시)가
+    // 이 파일에서 처음 소비되는 자리가 여기가 됐다. 측정 전에 한 번 예열해 순서 의존을 없앤다.
+    runForTrack(["executive"], {}, ["openspec"]);
     const baseExec = runForTrack(["executive"]).spawnCallCount;
     const withOpenspec = runForTrack(["executive"], {}, ["openspec"]).spawnCallCount;
     expect(withOpenspec - baseExec).toBe(1);
