@@ -7,6 +7,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.157.0] — 2026-09-20 (필요한 보호는 유지하고 검증 방법은 근거에 따라 — 가드 증식 방지 · 스킬 개별 설치 · agent-browser opt-in)
+
+### Changed
+- **Testing 룰 · audit-harness-fit · recurrence-prevention — 가드 증식 방지** (#496 · #498, 사용자 리뷰 문안):
+  "이건 안 되게 해줘"에 에이전트가 가드를 세게 쌓고 그 가드를 검토하는 가드까지 만드는 일을 막는다.
+  Testing 룰: 요구된 결과를 지키는 범위에서 총부담이 가장 작은 보호 · 원인 수정과 기존 장치 개선을 먼저,
+  충분하면 새 가드 없음 · 보호 수준은 어조·발생 횟수·검사 개수/대상이 아니라 구체적 위험과 추가 검증 가치 ·
+  근거 재사용 + 조건이 바뀌면 재검증 · 모델·도구 역량에 맞춰 방법은 바꾸되 수용 기준·필수 게이트·권한 경계는
+  유지. "의도한 동작이 바뀐 경우에만 테스트 변경" → 기대값이 틀렸거나 낡았거나 중복이면 고치되 계약 커버리지
+  보존. `audit-harness-fit`: 감지(검사의 대상·중첩·사고 부재)는 신호일 뿐 제거 규칙이 아니고 유지·수정·
+  통합·대체·축소·제거를 열어 둔다(자동 승격·강등 없음) · 새 장치의 유효성은 비례 증거로, 범위를 안 훑고도
+  통과하는 검사를 구분. `recurrence-prevention`: 횟수별 강제 승격 → 근거 기반 재평가(재발은 대책을 재평가할
+  근거, 수단은 선택지). 독립 리뷰 1라운드(BLOCKER 1 해소). 상주 비용(tooling): 합계 ~5,691 → ~5,945.
+- **agent-browser 를 기본 체크에서 opt-in 으로** (#489 · #499, 사용자 결정): computer-use 가 같은 일을 하고
+  셋 중 설치 비용이 가장 크다(npm devDep). 3단계에 체크 해제로 뜨고 `--with agent-browser` 로 켠다.
+  frontend-design · find-skills 는 기본 체크 유지. 기존 설치본 영향 없음.
+
+### Added
+- **번들 스킬을 하네스 없이 하나씩 받는 한 줄** (#442 · #500): `npx skills add uzysjung/uzys-agent-harness/templates/skills --skill <id> -a claude-code`
+  — skills CLI 가 GitHub 하위 경로를 소스로 받으므로 사이트·CI 없이 된다(순정 node:20 컨테이너 실측,
+  references/ 포함 안착). README 영·한 Install 절. skills.sh 는 설치 집계로 자동 등재되며 루트 `skills.sh.json`
+  이 리포 페이지의 묶음(방법론 5 · 워크플로 8)을 정한다. `.claude-plugin/plugin.json`(PR #502)이 skills CLI 의 루트 형태
+  탐색(`npx skills add uzysjung/uzys-agent-harness`)에 번들 위치를 알려 21종 전부가 잡힌다 — skills.sh 페이지의 안내
+  명령이 그대로 맞는다.
+
 ## [v26.156.0] — 2026-09-20 (설명은 사용자 행동·결과부터 — 스킬 개명 · 상시 한 줄 · 재발 대책의 형태)
 
 ### Changed
