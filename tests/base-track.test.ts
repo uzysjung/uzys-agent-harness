@@ -44,17 +44,19 @@ describe("base 트랙 (#456)", () => {
     expect(onlyTooling).toEqual([".claude/rules/cli-development.md"]);
   });
 
-  it("외부 자산 기본 선택: 전 트랙 4종은 오고, 개발 도구 3종(frontend-design · find-skills · agent-browser)은 안 온다 — 대조군 tooling 은 온다", () => {
+  it("외부 자산 기본 선택: 전 트랙 4종은 오고, 개발 도구(frontend-design · find-skills)는 안 온다 — 대조군 tooling 은 온다 · agent-browser 는 어디서도 기본이 아니다(#489)", () => {
     const base = recommendedExternalAssets(["base"]);
     for (const id of ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"])
       expect(base).toContain(id);
-    for (const id of ["frontend-design", "find-skills", "agent-browser"]) {
+    for (const id of ["frontend-design", "find-skills"]) {
       expect(base, `${id} 가 base 기본 선택에 들어왔다`).not.toContain(id);
       expect(
         recommendedExternalAssets(["tooling"]),
         `대조군: tooling 이 ${id} 를 못 받는다`,
       ).toContain(id);
     }
+    // #489 — agent-browser 는 opt-in: 스택 있는 dev 트랙에서도 기본 체크가 아니다.
+    expect(recommendedExternalAssets(["tooling"])).not.toContain("agent-browser");
     // 스택 전용 자산 0 — tooling 과 비교해 base 에만 있는 것이 없다
     const tooling = new Set(recommendedExternalAssets(["tooling"]));
     for (const id of base) expect(tooling, `base 만 받는 외부 자산 ${id}`).toContain(id);

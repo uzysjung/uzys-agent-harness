@@ -502,7 +502,7 @@ describe("computeUserOverride", () => {
   //   집합에 남는다(condition 보존). 전 트랙 상주분(north-star·gh-issue-workflow)도 dev
   //   트랙에서 당연히 추천된다.
   const TOOLING_RECOMMENDED = [
-    "agent-browser",
+    // #489 — agent-browser 는 opt-in 으로 내려가 추천 기준선에서 빠졌다.
     // ADR-064 — audit-harness-fit (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
     "audit-harness-fit",
     "audit-service-gaps",
@@ -546,7 +546,7 @@ describe("computeUserOverride", () => {
   });
 
   it("mix — include + exclude 동시", () => {
-    const mixed = ["agent-browser", "railway-skills"];
+    const mixed = ["find-skills", "railway-skills"];
     const result = computeUserOverride(["tooling"] as Track[], mixed);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
     expect(result?.forceExclude.length).toBeGreaterThan(0);

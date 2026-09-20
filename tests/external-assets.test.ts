@@ -720,9 +720,8 @@ describe("filterApplicableAssets", () => {
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
-    expect(ids).toEqual(
-      expect.arrayContaining(["anthropic-data-plugin", "find-skills", "agent-browser"]),
-    );
+    expect(ids).toEqual(expect.arrayContaining(["anthropic-data-plugin", "find-skills"]));
+    expect(ids).not.toContain("agent-browser"); // #489 — opt-in
     // 2026-08-02 정비 (ADR-060) — data 스킬 4종(polars·dask·python 2종)은 카탈로그에서 제거.
     expect(ids).not.toContain("polars-K-Dense");
     expect(ids).not.toContain("python-resource-management");
