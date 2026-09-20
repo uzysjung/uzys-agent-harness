@@ -12,7 +12,12 @@ import {
   outro,
   select,
 } from "@clack/prompts";
-import { type BaselineKind, type BaselineTarget, listBaselineTargets } from "./baseline-targets.js";
+import {
+  type BaselineKind,
+  type BaselineTarget,
+  listBaselineTargets,
+  withBaselineHints,
+} from "./baseline-targets.js";
 import { CATEGORIES, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { assetTrustTier, DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "./external-assets.js";
@@ -277,6 +282,7 @@ export function buildPageGroups(
       .map((t) => ({
         value: t.id,
         label: `    ${t.name}${installedMark(t.id)}`,
+        ...(t.hint ? { hint: t.hint } : {}),
       }));
     if (items.length === 0) continue;
     groups[BASELINE_TITLES[kind]] = items;
@@ -502,7 +508,8 @@ export const defaultPrompts: Prompts = {
     // 페이지 정의 = 모듈 스코프 INSTALL_TARGET_PAGES (SSOT, 카테고리 전수 가드됨).
     const pages = INSTALL_TARGET_PAGES;
     // 트랙에서 유도한다 — 화면과 설치가 같은 목록을 보게 하는 유일한 방법이다.
-    const baselineTargets = listBaselineTargets({ tracks: recap?.tracks ?? [] });
+    // #421 — 이름만으로는 체크를 풀지 말지 판단할 수 없다. 파일에서 뽑은 한 줄을 붙인다.
+    const baselineTargets = withBaselineHints(listBaselineTargets({ tracks: recap?.tracks ?? [] }));
     // v26.99.0 (ADR-028) — 표현 계층에서만 번들로 접는다. 제출 시 다시 펼쳐 돌려주므로
     //   downstream 계약(개별 asset id)은 불변.
     const displayInitial = collapseDevMethodBundle(initialChecked);
