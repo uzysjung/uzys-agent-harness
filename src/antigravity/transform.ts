@@ -156,5 +156,11 @@ function writeRules(
   // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).
   // refresh 모드가 건너뛰면 null — 안 만든 파일을 만들었다고 보고하지 않는다.
-  return writer.write(target, rulesOut) ? target : null;
+  // #503 — `renderAgentsMd` 가 AGENTS.md 병합용 마커를 넣지만 이 파일은 통째로 하네스 소유라
+  // 병합이 없다. 뜻 없는 주석 줄이 상주하지 않게 걷어낸다.
+  const withoutMarkers = rulesOut
+    .split("\n")
+    .filter((l) => !/^<!-- uzys-harness:(?:anchor|skills):(?:start|end) -->$/.test(l.trim()))
+    .join("\n");
+  return writer.write(target, withoutMarkers) ? target : null;
 }

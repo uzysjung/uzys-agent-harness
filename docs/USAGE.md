@@ -189,6 +189,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 |---|---|
 | `.claude/settings.json` with your own hooks or statusLine | Backed up to `settings.json.backup-<ts>`, then merged |
 | Root `CLAUDE.md` | Kept. One import block is appended; `update` and `uninstall` touch only that block |
+| `AGENTS.md` with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours. One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
 | `.claude/` on the wizard's **Reinstall** | Renamed to `.claude.backup-<ts>`, then rebuilt |
 | `.mcp.json` | Your servers are preserved and merged |

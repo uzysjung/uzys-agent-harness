@@ -90,11 +90,20 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도구를 모두 설치했다면 나중에 실행된
 쪽의 판이 남습니다. 어느 쪽이든 같은 룰 절(`## Harness Rules`)을 담습니다.
 
-`AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context`)이 있습니다. 다만 이
-파일은 `CLAUDE.md` 와 달리 **하네스가 통째로 다시 씁니다** — `update` 를 돌리면 채워 둔 절이 빈 템플릿으로
-돌아가고, 이전 판은 `AGENTS.md.backup-<시각>` 에 남습니다. 갱신 뒤에는 백업에서 그 절을 다시 옮겨
-적으세요(에이전트에게 `audit-harness-fit` 으로 백업의 편집을 새 판에 얹어 달라고 해도 됩니다). 이 동작을
-`CLAUDE.md` 처럼 바꾸는 일은 이슈 #503 으로 추적합니다.
+`AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
+있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
+몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자
+절 안에서는 `<!-- uzys-harness:… -->` 주석 쌍으로 감싼 조각(상시 스킬 안내 · 작업 원칙 본문)입니다.
+**그 주석 쌍 사이**에 적은 것은 다음 `update` 가 덮어쓰니 바깥에 적으세요.
+
+한 번의 예외가 있습니다. 이 주석 쌍이 없던 판(v26.159.0 이하)으로 설치한 프로젝트는 **첫 `update`**
+에서 `## Project Rules` 에 덧쓴 줄이 백업(`AGENTS.md.backup-<시각>`)으로 갑니다 — 그 절은 통째로
+하네스가 렌더한 원칙 본문이라 어디까지가 여러분의 줄인지 알 수 없기 때문입니다. `## Project Context`
+는 첫 `update` 에서도 그대로 남습니다. 두 번째 `update` 부터는 주석 쌍이 있어 두 절 다 남습니다.
+
+절 제목을 지웠거나 이름을 바꾸면 하네스가 **그 절**을 알아볼 수 없어 그 절만 최신판으로 다시 씁니다(다른
+절은 그대로) — 그때는 이전 판이 `AGENTS.md.backup-<시각>` 에 남고, 에이전트에게 `audit-harness-fit` 으로 백업의 편집을
+새 판에 얹어 달라고 할 수 있습니다.
 
 ## 4. 헷갈리는 이름 셋
 
