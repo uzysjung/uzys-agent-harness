@@ -59,6 +59,7 @@ import {
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { anyTrack } from "./track-match.js";
 import {
+  type CliBase,
   DEFAULT_OPTIONS,
   type InstallSpec,
   TRACKS,
@@ -930,10 +931,16 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
 /**
  * 외부 CLI 산출물 갱신 + 기준선 재기록 (v26.134.0 · ADR-049).
  *
- * **어느 CLI 가 설치돼 있는지 판정하지 않는다.** `refreshOnly` 가 "디스크에 이미 있는 파일만"
- * 으로 걸러 주므로, 안 깐 CLI 는 대상 파일이 없어 자연히 아무것도 안 쓴다. 선택 스킬도 같다 —
+ * **어느 CLI 가 설치돼 있는지는 원칙적으로 판정하지 않는다.** `refreshOnly` 가 "디스크에 이미 있는
+ * 파일만"으로 걸러 주므로, 안 깐 CLI 는 대상 파일이 없어 자연히 아무것도 안 쓴다. 선택 스킬도 같다 —
  * 전체 목록을 넘겨도 안 깔린 스킬은 파일이 없어 건너뛴다. 그래서 update 쪽에 CLI 목록이나
  * 스킬 선택 상태의 **사본이 생기지 않는다** (이 repo 가 반복해서 당한 열거-사본 실패 모드).
+ *
+ * **단 하나의 예외 = codex · opencode** (#514). 둘은 같은 `AGENTS.md` 를 쓰므로 "파일이 있으면 그
+ * CLI 가 깔린 것"이 둘 사이에서는 성립하지 않는다 — codex 만 고른 설치본에도 파일이 있으니 OpenCode
+ * transform 이 뒤에 돌아 Codex 판(`## Session Start`)을 OpenCode 판으로 바꿨다. 이 둘만 설치 로그의
+ * `templates.codexDir` · `opencodeDir` 로 가른다(`installedCliTargets`) — 사본이 아니라 uninstall 이
+ * 이미 읽는 그 기록이고, 추가 설치를 누적한다(`spec.cli` 는 마지막 설치분이라 쓰지 않는다).
  *
  * **룰만 예외로 거른다** (ADR-074). `AGENTS.md` 는 룰을 파일 하나에 **합쳐 렌더**하므로
  * refreshOnly 의 "디스크에 있는 것만" 규칙이 룰 단위로는 작동하지 않는다 — 파일이 있으니
@@ -949,6 +956,19 @@ function installedBundledSkills(projectDir: string): string[] {
   );
 }
 
+/**
+ * #514 — 같은 `AGENTS.md` 를 나눠 쓰는 codex · opencode 는 파일 존재로 가릴 수 없어 로그로 가른다.
+ * 나머지(antigravity)는 전용 파일이라 `refreshOnly` 의 디스크 판정 그대로. 로그가 없으면 전부.
+ */
+function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
+  if (log === null) return ALL_CLI_TARGETS;
+  return ALL_CLI_TARGETS.filter((cli) => {
+    if (cli === "codex") return log.templates.codexDir !== undefined;
+    if (cli === "opencode") return log.templates.opencodeDir !== undefined;
+    return true;
+  });
+}
+
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
@@ -958,7 +978,7 @@ function refreshExternalCli(
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
-    cli: ALL_CLI_TARGETS,
+    cli: installedCliTargets(log),
     // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
     // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
     // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은

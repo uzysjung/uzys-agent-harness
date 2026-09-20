@@ -62,6 +62,9 @@ export interface CliTransformParams {
    * 하나도 없어 자연히 아무것도 안 쓰므로, update 는 `CLI_BASES` 전부를 그냥 넘기면 된다 —
    * CLI 목록이나 스킬 목록의 **열거 사본을 만들 필요가 없다** (`no-false-ship` §게이트는
    * 열거하지 말고 훑어라와 같은 취지: 사람이 기억해야 하는 목록은 다음 drift 의 서식지다).
+   *
+   * 예외 하나: codex 와 opencode 는 같은 `AGENTS.md` 를 쓰므로 파일 존재가 둘을 못 가른다 — update 는
+   * 그 둘만 설치 로그로 걸러 `cli` 에 넘긴다 (#514, `update-mode.ts` `installedCliTargets`).
    */
   refreshOnly?: boolean;
   /** codex global trust opt-in — `scope=global` + `withCodexTrust` 일 때만. update 는 안 쓴다. */
@@ -69,8 +72,8 @@ export interface CliTransformParams {
 }
 
 /**
- * update 가 넘기는 CLI 목록 — 전부. 판정은 `refreshOnly` 가 디스크로 대신한다.
- * `CLI_BASES` 에서 파생하므로 CLI 가 늘어도 여기를 고칠 필요가 없다.
+ * update 가 넘기는 CLI 목록의 상한 — 전부. 판정은 `refreshOnly` 가 디스크로 대신한다(codex · opencode
+ * 만 로그로, #514). `CLI_BASES` 에서 파생하므로 CLI 가 늘어도 여기를 고칠 필요가 없다.
  */
 export const ALL_CLI_TARGETS: ReadonlyArray<CliBase> = CLI_BASES;
 
