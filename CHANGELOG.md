@@ -7,6 +7,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.160.0] — 2026-09-21 (update 가 설치자의 선택과 맥락을 지킨다 — --without 스킬 · AGENTS.md 사용자 절 · 상시 스위트 정리)
+
+### Fixed
+- **`update` 가 설치 때 뺀 번들 스킬을 되돌려 깔지 않는다** (#505 · #515): `--without <id>` 또는 위저드 3단계 체크
+  해제로 뺀 번들 스킬을 설치 로그 `spec.skillExclude` 에 남기고(ADR-074 의 `baselineExclude` 와 같은 비누적 규칙)
+  `update` 가 그 목록을 건너뛴다. 전에는 update 마다 같은 디렉터리를 다시 지워야 했다. 손으로 지운 디렉터리는
+  신호가 아니라 여전히 복구된다(USAGE 에 구분). 옛 로그(필드 없음)는 동작 그대로. 독립 리뷰 MERGE-OK ·
+  컨테이너 시나리오 `update-respects-without` 신설.
+- **Codex·OpenCode `AGENTS.md` 의 `## Project Context` · `## Project Rules` 가 `update` 를 넘긴다** (#503 · #517 ·
+  ADR-095): 설치자 절은 디스크에서 이어받고 하네스 조각(상시 스킬 안내 · 작업 원칙 앵커)만
+  `<!-- uzys-harness:skills|anchor:start/end -->` 마커 사이에서 갱신한다 — 루트 `CLAUDE.md` 와 같은 소유 모델.
+  전에는 update 마다 빈 템플릿으로 돌아가 백업에서 손으로 옮겨야 했다. 마커 없는 옛 설치본은 첫 update 한 번만
+  `## Project Rules` 편집분이 백업으로 간다(Project Context 는 그때도 보존, 문서 명시). Antigravity 룰 파일에는
+  마커가 들어가지 않는다. 독립 리뷰 BLOCKER 1 → 반영. 컨테이너 시나리오 `update-preserves-agents-md` 신설.
+- **`update` 뒤 `AGENTS.md` 의 상시 스킬 안내가 깔리지 않은 스킬을 적지 않는다** (릴리즈 전 탐침 실측): update 가
+  번들 스킬 전체를 안내에 넘겨 `--without` 으로 뺀 스킬과 opt-in 스킬을 "열어라"고 적었다 — 루트 `CLAUDE.md` 와
+  같이 디스크(`.claude/skills` · `.agents/skills`)에 있는 것만 적는다.
+
+### Changed
+- **상시 테스트 스위트를 "설치자에게 안착하나 · 일어나면 안 될 일을 막나" 축으로 좁혔다** (#454 · #437 · #511 · #512):
+  102 → 92 파일, 개발 사본(`.claude/`) 1:1 대조 · 트랙 12 같은 개수 단언 · 훅 내부 구조 regex · 지워진 기능의
+  부재 검증 · 카탈로그 값 스냅샷 · 앵커 문안 성분 단언 제거. 시크릿·거짓 출하·무백업 삭제·공급망·문서 오안내
+  게이트는 그대로. 커버리지 하한 branches 88 → 86(사용자 결정 — 유지보수자 지표 단위를 걷은 몫). 판정 표 =
+  `docs/plans/test-suite-audit-2026-09-21.md`. 설치자에게 나가는 룰·스킬·코드 변경 없음.
+- **이 리포의 머지 전 독립 리뷰 문턱** = "설치자 디스크·공유 상태를 되돌리기 어렵게 바꾸는 변경 · 릴리즈 배선"
+  (ADR-094, ADR-087 D4 amend) — `src/`·`templates/` 경로 자체는 문턱이 아니다. 배포판 룰은 변경 없음.
+- 시나리오 `workflow-scope` 에서 #492 로 퇴역한 `--with` 2개 제거. 발견된 별건은 이슈로: #514(codex 단독 설치본의
+  update 가 OpenCode 판을 씀) · #516(uninstall 이 채운 AGENTS.md 를 통째로 지움).
+
 ## [v26.159.0] — 2026-09-20 (최신 모델 기준으로 불필요한 선택지 퇴역 — 카탈로그 61 → 50 · ECC 축 제거 · 남는 자산은 "언제 쓰나")
 
 ### Removed

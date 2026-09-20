@@ -940,6 +940,15 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  * 통째로 다시 써지고, 그 안에 사용자가 뺀 룰이 되돌아온다. 여기가 `.claude/` 밖으로 룰이
  * 나가는 유일한 경로다.
  */
+/** 디스크 기준으로 지금 깔린 번들 스킬 — update 는 선택 목록의 사본을 두지 않는다(ADR-085). */
+function installedBundledSkills(projectDir: string): string[] {
+  return INTERNAL_BUNDLED_SKILL_IDS.filter(
+    (id) =>
+      existsSync(join(projectDir, ".claude/skills", id)) ||
+      existsSync(join(projectDir, ".agents/skills", id)),
+  );
+}
+
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
@@ -950,8 +959,11 @@ function refreshExternalCli(
     harnessRoot,
     projectDir,
     cli: ALL_CLI_TARGETS,
-    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
-    // 스킬은 **전부** 넘긴다 — 안 깔린 스킬은 대상 파일이 없어 refreshOnly 가 건너뛴다.
+    // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
+    // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
+    // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
+    // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
+    selectedInternalSkills: installedBundledSkills(projectDir),
     rules: ALL_RULES.filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,

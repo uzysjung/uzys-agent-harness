@@ -206,6 +206,35 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     expect(existsSync(join(projectDir, ".opencode"))).toBe(false);
   });
 
+  it("AGENTS.md 의 상시 스킬 안내는 update 뒤에도 깔린 스킬만 적는다 (#505 · ADR-085)", () => {
+    // `--without` 으로 뺀 상시 스킬 — update 가 목록 전체를 넘기면 안내가 "열어라"고 적는다(실측).
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: {
+        ...spec(["claude", "codex"]),
+        userOverride: { forceInclude: [], forceExclude: ["user-centered-explanation"] },
+      },
+      mode: "add",
+      runExternal: null,
+    });
+    const agents = () => readFileSync(join(projectDir, "AGENTS.md"), "utf8");
+    expect(existsSync(join(projectDir, ".claude/skills/user-centered-explanation"))).toBe(false);
+    expect(agents()).not.toContain("`user-centered-explanation`");
+
+    update();
+
+    expect(agents()).not.toContain("`user-centered-explanation`");
+    // 대조군 — 깔린 상시 스킬은 update 뒤에도 안내에 남는다(안내 자체가 사라진 것이 아니다).
+    mkdirSync(join(projectDir, ".claude/skills/user-centered-explanation"), { recursive: true });
+    writeFileSync(
+      join(projectDir, ".claude/skills/user-centered-explanation/SKILL.md"),
+      "---\nname: user-centered-explanation\n---\n",
+    );
+    update();
+    expect(agents()).toContain("`user-centered-explanation`");
+  });
+
   it("설치되지 않은 스킬이 update 로 딸려 들어오지 않는다", () => {
     install(["claude", "codex"]);
     const skillsDir = join(projectDir, ".agents/skills");
