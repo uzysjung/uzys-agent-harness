@@ -579,6 +579,16 @@ function renderPhase1Rows(
     if (baseline.updateMode.claudeMdUpdated) {
       log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
     }
+    // #480 — 편집분을 백업했다는 사실은 반드시 화면에 남긴다(룰 `edited policy files` 행과 같은 이유).
+    if (baseline.updateMode.anchorBackedUp) {
+      log(
+        assetRow(
+          "skip",
+          `${HARNESS_ANCHOR_FILE} edited`,
+          "your edits backed up as *.backup-<time> — latest template is now active",
+        ),
+      );
+    }
     // P5 이행 (ADR-060) — v26.140.0 이전 설치본은 앵커가 `.claude/CLAUDE.md` 라 루트에 없다.
     // 이번 update 가 만든 앵커와 사용자 `CLAUDE.md` 에 얹은 import 줄을 **화면에 남긴다**:
     // 조용히 하면 앵커 계약이 바뀐 사실도, 자기 CLAUDE.md 가 한 줄 늘었다는 사실도 모른다.

@@ -75,6 +75,12 @@ export interface UpdateModeReport {
   /** 갱신된 CLAUDE.md (true if updated). */
   claudeMdUpdated: boolean;
   /**
+   * #480 — 앵커(`CLAUDE-uzys-harness.md`)를 설치자가 고친 상태에서 갱신해 `*.backup-<time>` 을
+   * 남겼다. 전에는 기준선 대조 없이 덮어써 편집이 **백업 없이 사라졌다**(컨테이너 실측
+   * 2026-09-20) — 룰·스킬은 ADR-046 대로 백업하는데 앵커만 예외였다. 화면에 노출한다.
+   */
+  anchorBackedUp: boolean;
+  /**
    * P5 · ADR-060 이행 — 루트 앵커가 **없어서 이번에 만들었다** (v26.140.0 이전 설치본).
    *
    * `claudeMdUpdated` 와 배타적이다: 갱신은 이미 있던 파일, 생성은 이번에 생긴 파일.
@@ -281,6 +287,7 @@ export function runUpdateMode(
     pruned: {},
     staleHookRefs: [],
     claudeMdUpdated: false,
+    anchorBackedUp: false,
     anchorCreated: false,
     rootImportAdded: false,
     rootBlockRefreshed: false,
@@ -617,6 +624,7 @@ function syncHarnessAnchor(
   projectDir: string,
   templatesDir: string,
   report: UpdateModeReport,
+  now: Date = new Date(),
 ): void {
   // 구 앵커는 **지우지 않고 알린다** — 사용자가 고쳤는지 판정할 근거가 update 에는 없다.
   // 이행이 끝난 뒤에도 파일이 남아 있는 한 계속 알린다 (지워야 없어지는 안내).
@@ -629,9 +637,25 @@ function syncHarnessAnchor(
 
   const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
   const existed = existsSync(anchor);
-  copyFileSync(templateMd, anchor);
   if (existed) {
+    // #480 — 룰·스킬과 같은 잣대(ADR-046): 설치 시점 sha 와 다르면 설치자가 고친 것이니 먼저
+    // 백업한다. 기준선이 없으면(레거시) 보수적으로 백업 — 증명 없이 편집분을 지우지 않는다.
+    // 내용이 이미 같으면 아무것도 안 한다(재실행이 백업 노이즈를 쌓으면 안 된다).
+    const current = readFileSync(anchor, "utf8");
+    if (current !== readFileSync(templateMd, "utf8")) {
+      const recorded = readInstallLog(projectDir)?.templates.rootClaudeMd;
+      const owned =
+        recorded?.path === HARNESS_ANCHOR_FILE && hashContent(current) === recorded.sha256;
+      if (!owned) {
+        backupFile(anchor, now);
+        report.anchorBackedUp = true;
+      }
+      copyFileSync(templateMd, anchor);
+    }
     report.claudeMdUpdated = true;
+    // 갱신 뒤 기준선도 다시 찍는다 — 안 찍으면 다음 update 가 방금 놓은 최신판을 "사용자가
+    // 고쳤다"로 읽어 매번 백업한다(전에는 생성 때 한 번만 기록했다).
+    recordAnchorBaseline(projectDir, anchor);
     // ADR-085 — 앵커가 있는 정상 설치본에서도 루트 CLAUDE.md 의 관리 블록은 매 update 현행화한다
     // (상시 스킬 안내 = 지금 깔린 스킬). upsert 는 내용이 같으면 입력을 그대로 돌려주므로 파일을
     // 만지지 않는다. 독립 리뷰(#433 B-1)가 이 분기가 빠져 있던 것을 실측으로 잡았다 — 그 전에는
@@ -640,6 +664,7 @@ function syncHarnessAnchor(
     return;
   }
 
+  copyFileSync(templateMd, anchor);
   report.anchorCreated = true;
   report.rootImportAdded = upsertRootImport(projectDir);
   // 이번에 만든 앵커는 install log 에 남긴다 — uninstall 이 회수를 주장하는 근거가 그 기록
