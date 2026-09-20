@@ -27,9 +27,9 @@ import { describe, expect, it } from "vitest";
 
 const read = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
 
-/** 설계 §2.1 — model-orchestration 신설 절. */
-const H_EXTERNAL_EXECUTORS = "## External executors — the lane outside the harness";
-const H_ROUTING_TEST = "## Routing test";
+// 설계 §2.1 의 model-orchestration 두 절(외부 실행기 레인 · 라우팅 테스트)은 #464 에서 본문이
+// 자율 배분 원칙으로 개정되며 사라졌다 — 그 스킬은 이제 절이 아니라 **전문**을 슬라이스로 넣는다
+// (날짜·스크립트 주석이 없는 짧은 원칙문이라 전면 스캔의 오탐 사유가 없다).
 /** 설계 §3.2 — multi-persona-review 신설 하위 절. */
 const H_SEATS = "#### Seats an outside tool can fill";
 /** 설계 §1 — 어느 provider 가 무엇을 맡는가의 SSOT(라우팅 표). */
@@ -106,11 +106,7 @@ for (const root of ROOTS) {
 
   /** E 의 검사 범위 = 라우팅·도구 절만. 전면 스캔은 날짜·스크립트 주석을 오탐한다(설계 §4.4). */
   const slugSlices = [
-    {
-      label: `model-orchestration ${H_EXTERNAL_EXECUTORS}`,
-      text: section(mo, H_EXTERNAL_EXECUTORS),
-    },
-    { label: `model-orchestration ${H_ROUTING_TEST}`, text: section(mo, H_ROUTING_TEST) },
+    { label: "model-orchestration (전문 — #464 이후 라우팅 절이 따로 없다)", text: mo },
     { label: `multi-persona-review ${H_SEATS}`, text: section(mpr, H_SEATS) },
     { label: `external-model-consult ${H_WHICH_PROVIDER}`, text: section(emc, H_WHICH_PROVIDER) },
     { label: `external-model-consult ${H_PREREQUISITE}`, text: section(emc, H_PREREQUISITE) },
