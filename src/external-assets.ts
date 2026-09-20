@@ -350,7 +350,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "audit-harness-fit",
     tier: "official", // uzys 자사 스킬
     description:
-      "Audit harness fit — audit or clean up agent instructions and skills: remove needless questions and rechecks, reconcile conflicting or changed guidance, retire low-value rules and skills, move decision history out of resident text, right-size user-journey verification; also fill or refresh AGENTS.md / CLAUDE.md project context from repository evidence",
+      "Audit harness fit — improve agent instructions and skills for autonomous, productive delivery with verifiable quality: resolve needless questions and repeated checks, conflicting decisions, missing actionable context, and low-value procedures; adapt guidance to demonstrated model and tool capabilities; also fill or refresh AGENTS.md / CLAUDE.md project context from repository evidence",
     category: "workflow",
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },
