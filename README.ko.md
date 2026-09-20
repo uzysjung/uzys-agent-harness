@@ -48,7 +48,7 @@ claude    # 또는 codex / opencode / agy
 | 하네스 전체 — 룰·훅·에이전트와 내 스택에 맞는 스킬을 트랙 단위로 | 위의 위저드 |
 | 스킬 하나만 — 하네스도 트랙도 없이 | `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` |
 
-이 저장소가 배포하는 모든 스킬은 [skills CLI](https://github.com/vercel-labs/skills) 로 하나씩 받을 수 있다. `npx skills add uzysjung/uzys-agent-harness --list` 로 id 목록을 본다. 설치 프로그램이 복사하는 것과 같은 파일(`references/` 포함)을 받고, 같은 명령을 다시 돌리면 갱신된다. [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) 에도 올라가 있다.
+이 저장소가 배포하는 모든 스킬은 [skills CLI](https://github.com/vercel-labs/skills) 로 하나씩 받을 수 있다. `npx skills add uzysjung/uzys-agent-harness --list` 로 id 목록을 본다. 설치 프로그램이 복사하는 것과 같은 파일(`references/` 포함)을 받고, 같은 명령을 다시 돌리면 갱신된다([자세히](docs/USAGE.md#one-skill-without-the-harness)). [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) 에도 올라가 있다.
 
 ## 철학 — 필요한 틀만 남겨 AI 의 개발 생산성을 높인다
 

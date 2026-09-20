@@ -18,18 +18,19 @@ your-project/
 ├── AGENTS.md                    ← Codex · OpenCode 가 읽는 자리 (아래 §3)
 ├── .claude/
 │   ├── rules/*.md               ← 하네스 것. 룰
-│   ├── agents/*.md              ← 하네스 것. 리뷰·검증 레인
+│   ├── agents/*.md              ← 하네스 것. 리뷰·구현 레인
 │   ├── hooks/*.sh               ← 하네스 것. 결정론적 가드
 │   ├── skills/*/                ← 하네스 것. 작업 절차
 │   └── settings.json            ← 하네스가 씁니다 (훅 배선). 고치면 백업 후 갱신됩니다
+├── .uzys-agent-harness/         ← 하네스 것. 설치 기록 · 룰이 부르는 스크립트 3종 · 훅 차단 로그
+├── .agents/skills/*/            ← Codex · OpenCode · Antigravity 가 함께 읽는 스킬 (아래 §3)
 └── .agents/rules/*.md           ← Antigravity 가 읽는 자리 (아래 §3)
 ```
 
 ## 2. `CLAUDE.md` 와 `CLAUDE-uzys-harness.md` — 왜 두 개인가
 
-한 파일에 둘 다 담으면 **갱신할 때 당신이 쓴 내용이 날아갑니다.** 실제로 v26.140.0 이전에는
-재설치할 때마다 당신이 채운 프로젝트 맥락이 빈 템플릿으로 되돌아갔습니다. 그래서 소유를
-갈랐습니다.
+한 파일에 둘 다 담으면 **갱신할 때 당신이 쓴 내용이 날아갑니다.** 그래서 소유를 갈랐습니다
+(경위는 `docs/decisions/ADR-060`).
 
 | | `CLAUDE.md` | `CLAUDE-uzys-harness.md` |
 |---|---|---|
@@ -67,8 +68,9 @@ your-project/
 _(not filled yet — what this project is, who it is for, and why it exists)_
 ```
 
-`<!-- FILL:... -->` 는 **당신의 코딩 에이전트에게 줄 지시문**입니다. 그 주석을 복사해 프롬프트로
-넣으면 에이전트가 저장소를 직접 보고 절을 채웁니다. 손으로 써도 됩니다.
+`<!-- FILL:... -->` 는 **당신의 코딩 에이전트에게 줄 지시문**입니다. 가장 빠른 길은 에이전트에게
+`audit-harness-fit` 스킬을 한 번 돌리라고 하는 것입니다 — 저장소를 읽고 절을 근거로 채웁니다. 주석을
+하나씩 복사해 프롬프트로 넣어도 되고, 손으로 써도 됩니다.
 
 **하네스가 알아서 채우지는 않습니다** — 확인하지 않은 사실을 당신 저장소에 적지 않기 위해서고,
 그래서 `_(not filled yet — ...)_` 자리표시가 남아 있으면 *"아직 아무도 안 채웠다"* 는 뜻이지
@@ -93,10 +95,10 @@ Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 둘 다 �
 
 ## 4. 헷갈리는 이름 셋
 
-**`.claude/CLAUDE.md` 는 이제 안 씁니다.** v26.140.0 이전 설치본은 원칙을 여기 뒀습니다. 지금은
-루트 `CLAUDE-uzys-harness.md` 로 옮겼고, `update` 를 돌리면 *"legacy anchor · no longer updated"*
-라고 알려 줍니다. 그 파일은 **지우지 않습니다** — 당신이 거기에 뭔가 적었을 수 있어서, 판단은
-당신에게 남깁니다. 필요 없으면 직접 지우세요.
+**`.claude/CLAUDE.md` 는 이제 안 씁니다.** 오래된 설치본은 원칙을 여기 뒀습니다. 지금은
+루트 `CLAUDE-uzys-harness.md` 로 옮겼고, 그 파일이 남아 있으면 `update` 가 *"legacy anchor · no longer
+updated"* 라고 알려 줍니다. 하네스는 그 파일을 **지우지 않습니다** — 당신이 거기에 뭔가 적었을 수
+있어서, 판단은 당신에게 남깁니다. 필요 없으면 직접 지우세요.
 
 **`AGENTS.md` 는 두 도구가 공유합니다** — Codex 전용이 아닙니다(§3).
 
@@ -116,5 +118,5 @@ Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 둘 다 �
 ## 참고
 
 - 설치·갱신·제거 명령 — [USAGE.md](USAGE.md)
-- 무엇이 설치되는지 전체 목록 — [REFERENCE.md](REFERENCE.md)
+- 트랙별로 무엇이 설치되는지 — [TRACKS.md](TRACKS.md)
 - 왜 이렇게 나눴는지 — `docs/decisions/ADR-060`(앵커 분리) · `ADR-071`(룰이 4 CLI 전부에 도달)

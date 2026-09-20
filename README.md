@@ -48,7 +48,7 @@ The wizard needs a terminal. For CI, containers, or onboarding scripts, use the 
 | The harness — rules, hooks, agents, and the skills your stack calls for, curated by track | The wizard above |
 | One skill, nothing else — no harness, no track | `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` |
 
-Every skill this repo ships is installable on its own with the [skills CLI](https://github.com/vercel-labs/skills); `npx skills add uzysjung/uzys-agent-harness --list` shows the ids. You get the same files the installer copies, `references/` included. Re-run the command to refresh. They are listed on [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) as well.
+Every skill this repo ships is installable on its own with the [skills CLI](https://github.com/vercel-labs/skills); `npx skills add uzysjung/uzys-agent-harness --list` shows the ids. You get the same files the installer copies, `references/` included. Re-run the command to refresh ([details](docs/USAGE.md#one-skill-without-the-harness)). They are listed on [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) as well.
 
 ## Philosophy — keep only the frame the model needs
 

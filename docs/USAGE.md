@@ -57,6 +57,17 @@ Two flags select *behaviour* rather than an asset:
 
 Everything else is `--with` / `--without` by catalog id; there are no per-asset flags. `npx -y @uzysjung/agent-harness install --help` prints the full list. If you install the package globally with npm, the same commands are available as `agent-harness …`.
 
+### One skill, without the harness
+
+Every skill this repo ships can also be installed on its own with the [skills CLI](https://github.com/vercel-labs/skills) — no harness, no track, nothing else written:
+
+```bash
+npx skills add uzysjung/uzys-agent-harness --skill user-centered-explanation -a claude-code
+npx skills add uzysjung/uzys-agent-harness --list        # every id you can pass to --skill
+```
+
+You get the same directory the installer would copy (`SKILL.md` and `references/`), placed where your CLI reads skills (`-a claude-code` → `.claude/skills/<id>/`; other agents by name). Re-run the same command to refresh it. Use this when you want one method skill in a project that does not need the rules, hooks, or track assets — for example `user-centered-explanation` or `recurrence-prevention` on its own. Moving to the full harness later is just running the wizard; it will find and refresh the skill you already have.
+
 ### Scope
 
 Default = **Project**. Global is opt-in, at step 4 or with `--scope global`.

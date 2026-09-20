@@ -39,7 +39,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 | **Dev tools** | `find-skills` · `frontend-design` (all dev tracks except `base`) | — |
 | **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-*`/`full`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
 
-The method skills are built into this repo — written and maintained here, bundled as templates, no separate download. They install as native skills on all four CLIs: Claude Code reads `.claude/skills/`, and Codex, OpenCode, and Antigravity read the same `.agents/skills/<id>/`. Each can be dropped with `--without <id>`.
+The method skills are built into this repo — written and maintained here, bundled as templates, no separate download. They install as native skills on all four CLIs: Claude Code reads `.claude/skills/`, and Codex, OpenCode, and Antigravity read the same `.agents/skills/<id>/`. Each can be dropped with `--without <id>` — or installed alone, without the harness, with `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` ([how](USAGE.md#one-skill-without-the-harness)).
 
 | Skill | What it does |
 |---|---|
