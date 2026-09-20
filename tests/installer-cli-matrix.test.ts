@@ -84,7 +84,7 @@ function comboLabel(targets: CliTargets): string {
   return targets.join("+");
 }
 
-describe("11 Track × 7 CLI combination matrix (77 scenarios) — E2E install", () => {
+describe("12 Track × 7 CLI combination matrix (84 scenarios) — E2E install", () => {
   let projectDir: string;
 
   beforeEach(() => {
@@ -155,10 +155,10 @@ describe("Matrix invariants — cross-cutting", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("count check: TRACKS.length=11 × COMBINATIONS.length=7 = 77 scenarios (v0.7.0)", () => {
-    expect(TRACKS.length).toBe(11);
+  it("count check: TRACKS.length=12 × COMBINATIONS.length=7 = 84 scenarios (v0.7.0 · #456 base)", () => {
+    expect(TRACKS.length).toBe(12);
     expect(COMBINATIONS.length).toBe(7);
-    expect(TRACKS.length * COMBINATIONS.length).toBe(77);
+    expect(TRACKS.length * COMBINATIONS.length).toBe(84);
   });
 
   it("each combination is sorted (claude → codex → opencode order)", () => {

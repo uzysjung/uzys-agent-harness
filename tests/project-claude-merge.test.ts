@@ -150,6 +150,6 @@ describe("mergeProjectClaude — display names", () => {
     expect(TRACK_DISPLAY_NAMES["ssr-nextjs"]).toBe("SSR Next.js");
     expect(TRACK_DISPLAY_NAMES["project-management"]).toBe("Project Management");
     expect(TRACK_DISPLAY_NAMES["growth-marketing"]).toBe("Growth Marketing");
-    expect(Object.keys(TRACK_DISPLAY_NAMES)).toHaveLength(11);
+    expect(Object.keys(TRACK_DISPLAY_NAMES)).toHaveLength(12);
   });
 });

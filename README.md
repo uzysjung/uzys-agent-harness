@@ -61,7 +61,7 @@ This tool starts from the stack instead. You pick a track, and it pre-checks the
 
 - **Curation by tech stack.** Of the vetted options, you install only what this project calls for. Pick `csr-supabase` and step 3 pre-checks three groups: the four that every track gets (`north-star`, `objective-brief`, `gh-issue-workflow`, `audit-harness-fit`), the dev-track set (`find-skills`, `agent-browser`, `frontend-design`, and the five method skills), and the ones this stack calls for — React, shadcn, Supabase, Postgres. Not the rest of the catalog.
 
-- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, normalized task briefs, recurrence prevention. Fourteen of those skills are written and maintained in this repo rather than pulled from a marketplace — thirteen of them selectable by id with `--with` / `--without`, five of which collapse into one row at step 3 — so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
+- **A discipline layer.** Rules, hooks, method skills, and CI scaffolds distilled from running real production projects with agents: doc governance, verification gates, normalized task briefs, recurrence prevention. Fourteen of those skills are written and maintained in this repo rather than pulled from a marketplace — thirteen of them selectable by id with `--with` / `--without` — so the harness ships the method, not just a pointer to one. This layer is what makes it a harness rather than a skill pack.
 
 - **Four CLIs, one vocabulary.** Claude Code is first class — all assets, hooks, and plugins. Codex, OpenCode, and Antigravity get the skills and rules layer. Your project is not locked to one CLI.
 
@@ -79,6 +79,7 @@ Every asset carries its tier as a badge at step 3: **★ official** (Anthropic-o
 
 Eleven tracks, grouped by what you're building:
 
+- **No stack yet** — `base` (principles, method skills, tests; nothing stack-specific)
 - **Frontend + backend** — `csr-supabase` · `csr-fastify` · `csr-fastapi` · `ssr-nextjs` · `ssr-htmx`
 - **Data** — `data`
 - **Business** — `executive` · `project-management` · `growth-marketing`

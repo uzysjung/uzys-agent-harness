@@ -76,6 +76,7 @@ function importBlock(continuousSkills: ReadonlyArray<string>): string {
 }
 
 export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
+  base: "Base",
   tooling: "Tooling",
   "csr-supabase": "CSR Supabase",
   "csr-fastify": "CSR Fastify",

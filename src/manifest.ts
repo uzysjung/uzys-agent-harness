@@ -133,6 +133,7 @@ const UI_RULES: string[] = [];
 //   남은 트랙 매핑은 `cli-development` 하나뿐 — 그래도 표를 유지하는 이유는 트랙별 룰이라는
 //   축 자체는 살아 있고, 배열을 없애면 다음에 트랙 룰을 넣을 자리가 사라지기 때문이다.
 const TRACK_RULES: Record<Track, string[]> = {
+  base: [], // #456 — 공통 룰만. cli-development 는 tooling·full 전용
   "csr-supabase": [],
   "csr-fastify": [],
   "csr-fastapi": [],

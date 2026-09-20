@@ -117,6 +117,14 @@ export interface ExternalAsset {
 export type TrustTier = "official" | "vetted" | "experimental";
 
 /** csr-*|ssr-nextjs|full per bash setup-harness.sh L1041 (ssr-htmx 제외 — htmx는 React 미사용). */
+/**
+ * #456 (사용자 결정 B, 2026-09-20) — dev 트랙 중 **스택이 있는** 것. `base` 는 "원칙·방법론·테스트
+ * 스킬만" 이라 스택 무관 개발 도구(frontend-design · find-skills · agent-browser)도 기본 선택에서
+ * 뺀다 — 자동으로 딸려 오면 설치자가 매번 체크를 풀어야 한다. 열거하지 않고 `hasDevTrack` 에서
+ * 유도한다 — 트랙이 늘어도 여기가 뒤처지지 않는다.
+ */
+const DEV_TRACKS_WITH_STACK: Track[] = TRACKS.filter((t) => t !== "base" && hasDevTrack([t]));
+
 const CSR_SSR_NEXTJS_FULL: Track[] = [
   "csr-supabase",
   "csr-fastify",
@@ -148,6 +156,7 @@ export const EXECUTIVE_STYLE_TRACKS: ReadonlyArray<Track> = [
  * `any-track` condition 에 dev set 전체를 인라인하지 않도록 사용.
  */
 export const DEV_TRACKS: ReadonlyArray<Track> = [
+  "base", // #456 — 스택 없는 dev 트랙
   "csr-supabase",
   "csr-fastify",
   "csr-fastapi",
@@ -559,7 +568,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       "frontend-design — distinctive production-grade UI generation (Anthropic official, avoids generic AI aesthetics)",
     category: "frontend",
     source: "anthropics",
-    condition: { kind: "has-dev-track" },
+    condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
     method: { kind: "skill", source: "anthropics/skills", skill: "frontend-design" },
   },
   // 2026-08-02 정비 — 프론트엔드 품질 3종 (사용자 지시). 전부 opt-in: frontend-design 이 기본
@@ -669,7 +678,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     description: "find-skills — search · rank all installed skills (vercel-labs, all dev tracks)",
     category: "dev-tools",
     source: "vercel-labs",
-    condition: { kind: "has-dev-track" },
+    condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
     method: { kind: "skill", source: "vercel-labs/skills", skill: "find-skills" },
   },
   // v26.110.0 (ADR-039) — context7 플러그인은 **미등록** (검토 후 철회): templates/mcp.json ·
@@ -684,7 +693,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // v26.78.0 — Understanding 으로 재분류: 웹 지각(screenshot·DOM). 영상/코드 지각과 같은 축.
     category: "understanding",
     source: "vercel-labs",
-    condition: { kind: "has-dev-track" },
+    condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
     method: { kind: "npm", pkg: "agent-browser", version: "0.31.0" },
   },
   // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.

@@ -33,9 +33,9 @@
 
 ## Track 약어
 
-`csr-*` (csr-supabase, csr-fastify, csr-fastapi) / `ssr-*` (ssr-htmx, ssr-nextjs) / `data` / `executive` / `tooling` / `full` (= 모든 dev track union) / `project-management` (v0.5.0) / `growth-marketing` (v0.5.0)
+`base` (스택 무관 — 원칙·방법론·테스트 스킬만, #456) / `csr-*` (csr-supabase, csr-fastify, csr-fastapi) / `ssr-*` (ssr-htmx, ssr-nextjs) / `data` / `executive` / `tooling` / `full` (= 모든 dev track union) / `project-management` (v0.5.0) / `growth-marketing` (v0.5.0)
 
-**dev tracks** = csr-* + ssr-* + data + tooling + full (executive + project-management + growth-marketing 제외).
+**dev tracks** = base + csr-* + ssr-* + data + tooling + full (executive + project-management + growth-marketing 제외). base 는 dev 이지만 스택 전용 자산과 개발 도구 3종(frontend-design · find-skills · agent-browser)의 기본 선택에서 빠진다.
 
 ---
 
