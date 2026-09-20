@@ -55,6 +55,17 @@ npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 제거되지 않으며, 제거는 오직 이 명령에서만 일어난다. 자세한 내용은
 [uninstall](docs/USAGE.md#uninstall-v26640) 참고.
 
+### 스킬 하나만 받기 (하네스 없이)
+
+번들 스킬은 [skills CLI](https://github.com/vercel-labs/skills) 로 하나씩도 받는다 — 하네스도 트랙도 필요 없다:
+
+```bash
+npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centered-explanation -a claude-code
+# 목록 보기:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
+```
+
+경로가 가리키는 `templates/skills/` 가 하네스가 내보내는 모든 스킬의 원본이라, 설치기가 복사하는 것과 같은 파일(`references/` 포함)을 받는다. 갱신은 같은 명령을 다시 돌리면 된다. 2026-09-20 순정 `node:20` 컨테이너에서 확인. 스킬 디렉터리 페이지: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (설치 집계로 자동 등재되며, 리포 루트의 `skills.sh.json` 이 페이지의 묶음을 정한다).
+
 ## 왜
 
 코딩 에이전트는 계속 발전하지만, 한 번 설치한 skill 과 MCP 는 실제 사용과 무관하게 매 세션 context window 를 점유한다. awesome-list 에 수백 개의 선택지가 있어도 내 기술 스택에 맞는 항목을 찾아주지는 않는다. 결국 전부 설치해 매 세션 불필요한 비용을 치르거나, 프로젝트를 시작할 때마다 직접 목록을 확인하고 골라야 한다.
@@ -63,7 +74,7 @@ npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 
 ## 무엇을 얻는가
 
-- **스택 기반 큐레이션.** 검증된 옵션 중에서 이 프로젝트에 실제로 필요한 자산만 골라 설치한다. `csr-supabase` 를 고르면 세 묶음이 미리 체크된다 — 모든 track 이 받는 4종(`north-star`·`objective-brief`·`gh-issue-workflow`·`audit-harness-fit`), 개발 track 이 받는 것들(`find-skills`·`agent-browser`·`frontend-design` + 방법론 스킬 5종), 그리고 이 스택이 필요로 하는 React·shadcn·Supabase·Postgres. 카탈로그의 나머지는 처음부터 끼어들지 않는다.
+- **스택 기반 큐레이션.** 검증된 옵션 중에서 이 프로젝트에 실제로 필요한 자산만 골라 설치한다. `csr-supabase` 를 고르면 세 묶음이 미리 체크된다 — 모든 track 이 받는 4종(`north-star`·`objective-brief`·`gh-issue-workflow`·`audit-harness-fit`), 개발 track 이 받는 것들(`find-skills`·`frontend-design` + 방법론 스킬 5종), 그리고 이 스택이 필요로 하는 React·shadcn·Supabase·Postgres. 카탈로그의 나머지는 처음부터 끼어들지 않는다.
 
 - **규율 레이어.** 실제 프로덕션 프로젝트를 에이전트로 운영하며 추출한 룰·훅·방법론 스킬·CI 스캐폴드로 구성된다. 문서 거버넌스와 검증 게이트, 작업 브리프 정규화, 재발 방지 체계를 아우르며, 특히 스킬 14종은 마켓플레이스에 의존하지 않고 이 저장소에서 직접 쓰고 관리한다. 그중 13종은 id 로 지정할 수 있다(`--with`/`--without`). 이 레이어 덕분에 단순한 skill 모음을 넘어선 하네스로 작동한다.
 

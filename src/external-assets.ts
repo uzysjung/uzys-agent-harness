@@ -695,7 +695,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // v26.78.0 — Understanding 으로 재분류: 웹 지각(screenshot·DOM). 영상/코드 지각과 같은 축.
     category: "understanding",
     source: "vercel-labs",
-    condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
+    // #489 (사용자 결정 2026-09-20 a) — 기본 체크에서 opt-in 으로. computer-use 가 같은 일을 하고,
+    // 셋 중 설치 비용이 가장 크다(npm devDep → 안 쓰는 프로젝트에 node_modules 만 남는다).
+    // 3단계에는 그대로 뜨되 체크 해제, `--with agent-browser` 로 켠다. 기존 설치본은 영향 없음.
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "agent-browser", version: "0.31.0" },
   },
   // v26.78.0 — Understanding 신규 3종 (plugin, opt-in). 에이전트 인지 증강: 영상·코드 지각 + 메모리.

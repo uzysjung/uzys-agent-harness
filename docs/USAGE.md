@@ -463,7 +463,7 @@ people.
 
 `anthropic-data-plugin` (visualization + SQL) is the only **data-specific** asset the `data` track
 pre-checks — the rest of what arrives is the all-track set (method skills, `find-skills`,
-`agent-browser`, `frontend-design`). The dataframe and Python skill packs the track used to pull in
+`frontend-design`; `agent-browser` is opt-in since #489). The dataframe and Python skill packs the track used to pull in
 were dropped in ADR-060, where the harness stopped shipping guidance the model already carries.
 `wshobson-agents` covers the orchestration side and is opt-in on any track.
 

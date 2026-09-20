@@ -1,0 +1,30 @@
+{
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Method skills",
+      "description": "How the agent works with you: handoff, explanation, gap audit, panel review, recurrence handling.",
+      "skills": [
+        "compaction-handoff",
+        "user-centered-explanation",
+        "audit-service-gaps",
+        "multi-persona-review",
+        "recurrence-prevention"
+      ]
+    },
+    {
+      "title": "Workflow skills",
+      "description": "Direction, issues, briefs, harness fit, delegation, outside models, CI runners, Korean prose.",
+      "skills": [
+        "north-star",
+        "gh-issue-workflow",
+        "objective-brief",
+        "audit-harness-fit",
+        "model-orchestration",
+        "external-model-consult",
+        "self-hosted-github-runner",
+        "natural-korean"
+      ]
+    }
+  ]
+}
