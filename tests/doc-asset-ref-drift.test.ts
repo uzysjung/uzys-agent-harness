@@ -541,8 +541,21 @@ describe("문서가 가리키는 자산이 실재하는가 (#338)", () => {
   });
 
   it("광고된 설치 명령의 식별자가 카탈로그의 해당 필드로 실재한다", () => {
+    // #442 — 우리 번들 스킬은 `npx skills add uzysjung/uzys-agent-harness/templates/skills --skill <id>`
+    // 로도 광고된다. 그 id 는 카탈로그의 `skill:` 필드가 아니라 번들 디렉터리(`templates/skills/<id>/SKILL.md`)로
+    // 실재한다 — 존재를 디스크에서 본다(열거하지 않는다).
+    // 그 명령의 소스(`--list` 형태면 bare source 로 잡힌다)는 이 저장소 자신이다 — package.json 의
+    // repository 에서 읽는다.
+    const pkg = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")) as {
+      repository?: { url?: string };
+    };
+    const ownRepo = (pkg.repository?.url?.match(/github\.com[/:]([^/]+\/[^/.]+)/) ?? [])[1] ?? "";
+    const bundled = (r: { kind: string; ident: string }): boolean =>
+      (r.kind === "skill" &&
+        existsSync(join(REPO_ROOT, "templates", "skills", r.ident, "SKILL.md"))) ||
+      (r.kind === "source" && ownRepo !== "" && r.ident === ownRepo);
     const missing = INSTALL_REFS.filter(
-      (r) => !CATALOG_SOURCE.includes(`${r.field}: "${r.ident}"`),
+      (r) => !CATALOG_SOURCE.includes(`${r.field}: "${r.ident}"`) && !bundled(r),
     ).map(
       (r) =>
         `${r.file}:${r.line} 의 ${r.kind} "${r.ident}" 가 카탈로그에 없다 — ` +
