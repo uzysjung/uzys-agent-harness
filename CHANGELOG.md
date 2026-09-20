@@ -28,7 +28,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **번들 스킬을 하네스 없이 하나씩 받는 한 줄** (#442 · #500): `npx skills add uzysjung/uzys-agent-harness/templates/skills --skill <id> -a claude-code`
   — skills CLI 가 GitHub 하위 경로를 소스로 받으므로 사이트·CI 없이 된다(순정 node:20 컨테이너 실측,
   references/ 포함 안착). README 영·한 Install 절. skills.sh 는 설치 집계로 자동 등재되며 루트 `skills.sh.json`
-  이 리포 페이지의 묶음(방법론 5 · 워크플로 8)을 정한다.
+  이 리포 페이지의 묶음(방법론 5 · 워크플로 8)을 정한다. `.claude-plugin/plugin.json`(PR #502)이 skills CLI 의 루트 형태
+  탐색(`npx skills add uzysjung/uzys-agent-harness`)에 번들 위치를 알려 21종 전부가 잡힌다 — skills.sh 페이지의 안내
+  명령이 그대로 맞는다.
 
 ## [v26.156.0] — 2026-09-20 (설명은 사용자 행동·결과부터 — 스킬 개명 · 상시 한 줄 · 재발 대책의 형태)
 
