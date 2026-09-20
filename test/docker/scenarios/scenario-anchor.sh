@@ -47,5 +47,21 @@ COUNT=$(grep -cxF "${IMPORT_LINE}" CLAUDE.md || true)
 [ "${COUNT}" = "1" ] || fail "C: 재설치 후 import 줄 수 ${COUNT} ≠ 1 (idempotent 파손)"
 echo "✓ C: 재설치 idempotent"
 
+# ── E. 앵커 편집 후 update: 편집분은 백업, 최신판이 자리 (#480) ─────────────
+# 전에는 update 가 기준선 대조 없이 덮어써 편집이 백업 없이 사라졌다(컨테이너 실측 2026-09-20).
+printf '\n<!-- MY ANCHOR EDIT -->\n' >> CLAUDE-uzys-harness.md
+agent-harness update --project-dir "$(pwd)" > /tmp/anchor-update.txt 2>&1 || fail "E: update 실패"
+grep -q "MY ANCHOR EDIT" CLAUDE-uzys-harness.md && fail "E: 편집분이 그대로 남았다 — 갱신이 안 됐다"
+BK=$(ls CLAUDE-uzys-harness.md.backup-* 2>/dev/null | head -1)
+[ -n "${BK}" ] || fail "E: 앵커 편집분이 백업 없이 사라졌다 (#480 재현)"
+grep -q "MY ANCHOR EDIT" "${BK}" || fail "E: 백업본에 편집 내용이 없다"
+sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/anchor-update.txt | grep -q "CLAUDE-uzys-harness.md edited" \
+  || fail "E: Update 요약에 앵커 백업 행이 없다 (조용한 백업은 없는 것과 같다)"
+# 재실행: 편집이 없으니 백업이 늘면 안 된다 — 기준선을 다시 찍는지의 증거
+agent-harness update --project-dir "$(pwd)" > /dev/null 2>&1 || fail "E: 재실행 update 실패"
+N=$(ls CLAUDE-uzys-harness.md.backup-* 2>/dev/null | wc -l)
+[ "${N}" = "1" ] || fail "E: 편집 없는 재실행에서 백업이 ${N}개 — 기준선 갱신이 안 된다"
+echo "✓ E: 앵커 편집분 백업 + 최신판 활성 + 재실행 무백업"
+
 echo ""
 echo "✓ scenario-anchor PASS"

@@ -785,6 +785,62 @@ describe("runUpdateMode (E2E with templates)", () => {
   });
 
   /**
+   * #480 — 앵커를 고친 설치자의 편집이 update 에서 **백업 없이 사라졌다**(컨테이너 실측 2026-09-20).
+   * 룰·스킬은 ADR-046 대로 백업하는데 앵커만 기준선 대조 없이 덮어썼다.
+   */
+  describe("앵커 편집분 (#480)", () => {
+    const anchorPath = (): string => join(projectDir, "CLAUDE-uzys-harness.md");
+    const backups = (): string[] =>
+      readdirSync(projectDir).filter((f) => f.startsWith("CLAUDE-uzys-harness.md.backup-"));
+    const withAnchorBaseline = (sha256: string): void => {
+      writeInstallLog(projectDir, {
+        schemaVersion: 1,
+        installedAt: new Date(0).toISOString(),
+        scope: "project",
+        spec: { tracks: ["tooling"], cli: ["claude"] },
+        templates: {
+          claudeDir: ".claude",
+          rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256 },
+        },
+        assets: [],
+      });
+    };
+
+    it("설치자가 고쳤으면 백업을 남기고 최신판을 놓는다 — 편집이 조용히 사라지지 않는다", () => {
+      withAnchorBaseline(hashContent("old-CLAUDE\n")); // 설치 시점 판
+      writeFileSync(anchorPath(), "old-CLAUDE\n<!-- my edit -->\n");
+
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+      expect(report.anchorBackedUp).toBe(true);
+      expect(readFileSync(anchorPath(), "utf8")).toBe("template-CLAUDE\n");
+      expect(backups()).toHaveLength(1);
+      expect(readFileSync(join(projectDir, backups()[0] as string), "utf8")).toContain("my edit");
+    });
+
+    it("안 고쳤으면 백업 없이 갱신하고 기준선을 다시 찍는다 — 재실행은 백업을 만들지 않는다", () => {
+      withAnchorBaseline(hashContent("old-CLAUDE\n"));
+
+      const first = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+      expect(first.anchorBackedUp).toBe(false);
+      expect(backups()).toEqual([]);
+      expect(readInstallLog(projectDir)?.templates.rootClaudeMd?.sha256).toBe(
+        hashContent("template-CLAUDE\n"),
+      );
+
+      const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+      expect(second.anchorBackedUp).toBe(false);
+      expect(backups()).toEqual([]);
+    });
+
+    it("기준선이 없으면(레거시) 보수적으로 백업한다 — 증명 없이 편집분을 지우지 않는다", () => {
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+      expect(report.anchorBackedUp).toBe(true);
+      expect(backups()).toHaveLength(1);
+    });
+  });
+
+  /**
    * v26.132.0 (ADR-047) 로 바뀐 계약. 그 전까지는 install log 유무와 무관하게 "templates 에
    * 없으면 삭제"였고, 그래서 사용자가 직접 쓴 룰이 update 한 번에 사라졌다. 이제 소유를
    * 증명할 수 있을 때만 지운다.
