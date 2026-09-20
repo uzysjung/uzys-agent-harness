@@ -132,7 +132,7 @@
 | `skill-trigger-overlap.test.ts` | it 2 | ③ | relocate — 스킬 description 을 바꾸는 PR 의 검증으로 | 퇴역 적용 — description 을 바꾸는 PR 의 검증으로(이슈 #454 후속 메모) |
 | `skills-cli-pin.test.ts` | it 3 | ② | keep | 유지 |
 | `skills-per-agent-call.test.ts` | it 6 | ① | keep | 유지 |
-| `spec-anchor-preserved.test.ts` | it 3 | ③ | retire — `docs/SPEC.md:51`·`docs/archive/README.md:15` 가 이 테스트를 지목하므로 그 두 줄 정정 동반 | **보류 — 사용자 결정**. `docs/SPEC.md` DO NOT CHANGE 절이 이 테스트를 지목한다(Major CR). 잣대로는 ③(리포 문서 해시) |
+| `spec-anchor-preserved.test.ts` | it 3 | ③ | retire — `docs/SPEC.md:51`·`docs/archive/README.md:15` 가 이 테스트를 지목하므로 그 두 줄 정정 동반 | 퇴역 적용(후속 PR, 사용자 결정 ⓑ 2026-09-21) — SPEC DO NOT CHANGE 줄·archive README 의 보증 수단을 git 이력으로 바꿈 |
 | `spec-drift-backlog-exemption.test.ts` | it 2 | ③(갈림) | 갈림 — 잣대로는 retire(리포 유지보수자용 문서 게이트). 단 상주 문서 4곳이 🧪 로 지목한다: `CLAUDE.md:22` · `.claude/rule… | 유지. 리포 출하 게이트(main 항상 출하 가능, ADR-060·065) — 설치자용이 아니라 이 리포의 거짓 출하 축 |
 | `spec-drift-script-surface.test.ts` | it 13 + each 1 | 혼합(①②+③) | narrow — L62·L281 제거. L87 은 갈림(배포 룰이 실제 호출 형태를 적는지는 설치자 안내 정확성) | 축소 적용 |
 | `state.test.ts` | it 11 | ① | keep | 유지 |
@@ -232,8 +232,7 @@
 
 ## 6. 보류 · 후속
 
-- **사용자 결정 1건**: `tests/spec-anchor-preserved.test.ts`(리포 문서 해시 39줄) — `docs/SPEC.md` DO NOT CHANGE 절이
-  이 테스트를 지목하므로 Major CR. 잣대로는 ③. 지우려면 SPEC 그 줄과 `docs/archive/README.md` 한 줄을 함께 고친다.
+- ~~사용자 결정 1건~~ `tests/spec-anchor-preserved.test.ts` — 사용자 결정 ⓑ(2026-09-21)로 퇴역. SPEC Change Log 에 Major 행.
 - `skill-trigger-overlap` 이 하던 description 유사도 검사는 **description 을 바꾸는 PR** 에서 한 번 돌린다(상시 아님).
   스크립트가 필요하면 그 PR 에서 `scripts/` 로.
 - **커버리지 하한 88 → 86 (사용자 결정 2026-09-21)**: `context-cost.test.ts` 의 계측·순위표 단위 ~28건은 유지보수자 지표(`npm run cost:report`)라 ③인데, 걷으면 branches 가 하한 88 아래(실측 86.78)였다. 숫자를 지키려고 그 테스트를 남기는 것이 곧 "테스트를 위한 테스트"라 하한을 실측에 맞췄다(`vitest.config.ts` · `.claude/rules/test-policy.md` · CLAUDE.md · ship-checklist 동기화). 대안(계측 함수를 `scripts/` 로 옮겨 모집단에서 제외)은 src 리팩터라 미착수.
