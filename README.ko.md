@@ -60,11 +60,11 @@ npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 번들 스킬은 [skills CLI](https://github.com/vercel-labs/skills) 로 하나씩도 받는다 — 하네스도 트랙도 필요 없다:
 
 ```bash
-npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centered-explanation -a claude-code
-# 목록 보기:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
+npx skills add uzysjung/uzys-agent-harness --skill user-centered-explanation -a claude-code
+# 목록 보기:  npx skills add uzysjung/uzys-agent-harness --list
 ```
 
-경로가 가리키는 `templates/skills/` 가 하네스가 내보내는 모든 스킬의 원본이라, 설치기가 복사하는 것과 같은 파일(`references/` 포함)을 받는다. 갱신은 같은 명령을 다시 돌리면 된다. 2026-09-20 순정 `node:20` 컨테이너에서 확인. 스킬 디렉터리 페이지: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (설치 집계로 자동 등재되며, 리포 루트의 `skills.sh.json` 이 페이지의 묶음을 정한다).
+`.claude-plugin/plugin.json` 이 skills CLI 에 번들 위치(`templates/skills/`)를 알려 준다 — 하네스가 내보내는 모든 스킬의 원본이라, 설치기가 복사하는 것과 같은 파일(`references/` 포함)을 받는다. 갱신은 같은 명령을 다시 돌리면 된다. 2026-09-20 순정 `node:20` 컨테이너에서 확인. 스킬 디렉터리 페이지: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (설치 집계로 자동 등재되며, 리포 루트의 `skills.sh.json` 이 페이지의 묶음을 정한다).
 
 ## 왜
 

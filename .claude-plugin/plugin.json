@@ -1,0 +1,5 @@
+{
+  "name": "uzys-agent-harness",
+  "description": "Bundled skills of uzys-agent-harness. The `skills` path tells the skills CLI (npx skills add uzysjung/uzys-agent-harness) where the bundle lives — templates/skills/ is the single source (ADR-062); one entry is enough because the CLI adds that directory and discovers every skill in it.",
+  "skills": ["./templates/skills/north-star"]
+}
