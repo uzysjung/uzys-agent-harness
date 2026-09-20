@@ -10,7 +10,12 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
-import { formatResidentCostLine, residentCost, summarizeContextCost } from "../context-cost.js";
+import {
+  formatResidentCostLine,
+  landsOnDisk,
+  residentCost,
+  summarizeContextCost,
+} from "../context-cost.js";
 import { assetRow, c, infoRow, padDisplay, sectionHeader, unifiedSection } from "../design.js";
 import {
   assetCliSupport,
@@ -127,7 +132,11 @@ export function renderInstallHeader(
     if (mode !== "update") {
       const assetSpec = buildManifestSpec(spec);
       const cost = formatResidentCostLine(
-        residentCost(buildManifest(assetSpec).filter((e) => e.applies(assetSpec))),
+        residentCost(
+          buildManifest(assetSpec).filter(
+            (e) => e.applies(assetSpec) && landsOnDisk(e.target, spec.cli),
+          ),
+        ),
         summarizeContextCost(finalAssets).unmeasuredCount,
       );
       if (cost) log(`              ${c.dim(`· ${cost}`)}`);

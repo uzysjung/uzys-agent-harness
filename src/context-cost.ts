@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTINUOUS_SKILLS, EXTERNAL_ASSETS } from "./external-assets.js";
 import { renderFillScaffold, withContinuousSkillsNote } from "./project-claude-merge.js";
+import type { CliTargets } from "./types.js";
 
 /**
  * v26.103.0 (ADR-032) — Session-Start Context Cost.
@@ -236,6 +237,20 @@ function descriptorTokens(path: string): number {
  * 계획으로 재면 화면 숫자가 그 설치본의 실제보다 작다. 파일 자산은 파일 경로, `skills` 는
  * 디렉터리 경로를 준다(엔트리 `source` 와 같은 단위). 안 주면 지금처럼 `templates/<source>` 다.
  */
+/**
+ * 계획(manifest) 엔트리 중 **그 CLI 조합에서 실제로 디스크에 남는** 것인가 (#476).
+ *
+ * `.claude/agents/` 는 Claude Code 서브에이전트 파일이고 다른 CLI 산출물로 변환되지 않는다 —
+ * claude 를 안 고른 설치는 `.claude/` 자체를 만들지 않는다(`installer.ts` baseline 분기). 계획으로
+ * 재던 헤더·wizard confirm 은 그 파일을 셌고, 같은 설치의 update 화면(디스크 실측, #458)은 0 을
+ * 냈다 — 실측: codex 단독 tooling 에서 헤더 `agents 2 ~192` · update `agents 0 ~0`. 룰은 AGENTS.md
+ * 에 인라인되고 스킬은 `.agents/skills/` descriptor 로 남으므로 그대로 센다.
+ */
+export function landsOnDisk(target: string, cli: CliTargets): boolean {
+  if (target.startsWith(".claude/agents/")) return cli.includes("claude");
+  return true;
+}
+
 export function residentCost(
   entries: ReadonlyArray<{ source: string; target: string; file?: string }>,
   root: string = resolveBundleRoot(),
