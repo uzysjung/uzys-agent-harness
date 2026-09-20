@@ -12,77 +12,77 @@
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4225
+        "tokens": 3506
       },
       "firing": {
         "items": 12,
-        "tokens": 2340
+        "tokens": 2142
       }
     },
     "csr-supabase": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 14,
-        "tokens": 2588
+        "tokens": 2390
       }
     },
     "csr-fastify": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 14,
-        "tokens": 2588
+        "tokens": 2390
       }
     },
     "csr-fastapi": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 16,
-        "tokens": 2676
+        "tokens": 2478
       }
     },
     "ssr-htmx": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 14,
-        "tokens": 2588
+        "tokens": 2390
       }
     },
     "ssr-nextjs": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 15,
-        "tokens": 2628
+        "tokens": 2430
       }
     },
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 4113
+        "tokens": 3394
       },
       "firing": {
         "items": 15,
-        "tokens": 2500
+        "tokens": 2302
       }
     },
     "executive": {
       "directive": {
         "items": 5,
-        "tokens": 3465
+        "tokens": 2746
       },
       "firing": {
         "items": 9,
@@ -92,17 +92,17 @@
     "full": {
       "directive": {
         "items": 8,
-        "tokens": 4225
+        "tokens": 3506
       },
       "firing": {
         "items": 22,
-        "tokens": 3131
+        "tokens": 2933
       }
     },
     "project-management": {
       "directive": {
         "items": 5,
-        "tokens": 3465
+        "tokens": 2746
       },
       "firing": {
         "items": 5,
@@ -112,7 +112,7 @@
     "growth-marketing": {
       "directive": {
         "items": 5,
-        "tokens": 3465
+        "tokens": 2746
       },
       "firing": {
         "items": 5,
@@ -126,7 +126,7 @@
     "investor-outreach": 76,
     "nextjs-turbopack": 40,
     "compaction-handoff": 124,
-    "clear-korean-communication": 271,
+    "clear-korean-communication": 73,
     "audit-service-gaps": 267,
     "multi-persona-review": 217,
     "recurrence-prevention": 243,
@@ -134,7 +134,7 @@
     "gh-issue-workflow": 262,
     "objective-brief": 269,
     "audit-harness-fit": 133,
-    "model-orchestration": 273,
+    "model-orchestration": 95,
     "external-model-consult": 271,
     "self-hosted-github-runner": 104,
     "natural-korean": 39,

@@ -183,17 +183,22 @@ env -i PATH="$PATH" HOME="$HOME" TERM="${TERM:-dumb}" \
   "$AGY" --model="$MODEL" -p "$PROMPT" >"$MSGFILE" &
 APID=$!
 TIMED_OUT=0
-ELAPSED=0
+# Poll at 200 ms, not 1 s (#411): with a 1 s tick every call paid up to a full second of idle
+# wait after the CLI had already exited, which is what pushed the wrapper's test cases toward
+# vitest's 5 s budget on a busy machine. TICKS counts fifths of a second; both BSD and GNU
+# `sleep` accept the fractional argument.
+TICKS=0
+TICK_LIMIT=$((TIMEOUT_S * 5))
 while kill -0 "$APID" 2>/dev/null; do
-  if [ "$ELAPSED" -ge "$TIMEOUT_S" ]; then
+  if [ "$TICKS" -ge "$TICK_LIMIT" ]; then
     TIMED_OUT=1
     kill "$APID" 2>/dev/null || true
     sleep 2
     kill -9 "$APID" 2>/dev/null || true
     break
   fi
-  sleep 1
-  ELAPSED=$((ELAPSED + 1))
+  sleep 0.2
+  TICKS=$((TICKS + 1))
 done
 set +e
 wait "$APID"

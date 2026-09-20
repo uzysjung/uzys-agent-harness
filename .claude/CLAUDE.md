@@ -24,11 +24,11 @@
 
 ## 의사결정 및 컨펌 요청 시
 
-4요소(전후맥락 · 추천+이유 · UI/UX 형태 · ASIS→TOBE)와 그 서식은 `clear-korean-communication`
-스킬 Part 2 가 SSOT 다 — 이 리포 번들이라 `templates/skills/clear-korean-communication/` 에서
-바로 읽는다(ADR-062. 설치·네트워크 불요).
+형식은 `clear-korean-communication` 스킬의 기본 표(**맥락 · 문제점 · 해결방안 · 추천방안**, 각각
+이유와 함께)가 SSOT 다(사용자 확정 2026-09-15, #465) — 이 리포 번들이라
+`templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
 
-**ASIS→TOBE 는 "그 결과를 안고 사는 사람" 자리에서 쓴다**(사용자 확정 2026-08-16) — 영향받는
+**ASIS→TOBE 를 덧붙일 때는 "그 결과를 안고 사는 사람" 자리에서 쓴다**(사용자 확정 2026-08-16) — 영향받는
 역할(설치받는 사용자 / 운영자 / 리뷰어 / 다음 유지보수자)을 지목해 **전에는 못 하던 무엇을 할 수
 있게 되는가** 또는 **무엇이 더는 안 일어나는가**로 적고, 표의 항목이 `installer.ts` 로 시작하면
 그 자체가 다시 쓰라는 신호다.

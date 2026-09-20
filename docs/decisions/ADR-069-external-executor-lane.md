@@ -4,6 +4,8 @@
 - Date: 2026-08-10
 - PR: #291
 - 관련: ADR-068(배포 앵커 7원칙) · 이슈 #286
+- Amended by: ADR-091 (5술어·최초 승인 절차가 `model-orchestration` 본문에서 빠진다. 제3자 노출 전
+  승인이라는 보호 경계는 새 본문 §6 과 `external-model-consult` 가 든다)
 
 ## Context
 

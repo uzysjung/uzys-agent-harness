@@ -124,7 +124,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 
 | Asset | What |
 |---|---|
-| `model-orchestration` | Role split and effort floors for delegation — who authors, who verifies, which model and effort each lane gets |
+| `model-orchestration` | Allocation principles for models, reasoning effort, and delegation — reuse context first; add workers, model calls, or independent review only when their expected contribution justifies the cost |
 | `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
 
 **Korean prose** (`official`, **opt-in on any track** — `--with natural-korean`; it is about writing, not about a stack, so no track pre-checks it):
