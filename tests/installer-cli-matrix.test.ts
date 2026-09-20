@@ -1,5 +1,5 @@
 /**
- * 77 시나리오 매트릭스 — 11 Track × 7 CLI combination E2E install (v0.7.0).
+ * Track × CLI 조합 매트릭스 — 전 트랙 × 7 CLI 조합 E2E install (개수는 TRACKS·COMBINATIONS 에서 derive).
  *
  * SPEC: docs/specs/cli-multi-select.md AC5 + AC6 + Major CR.
  *
