@@ -253,6 +253,23 @@ export function renderUpdateSummary(
     summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
   );
   if (cost) log(infoRow("CONTEXT", cost));
+  // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
+  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다.
+  const backups = report.updateMode?.backups ?? [];
+  if (backups.length > 0) {
+    log(
+      infoRow(
+        "BACKUPS",
+        `${backups.length} edited file(s) kept as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+      ),
+    );
+    log(
+      infoRow(
+        "NEXT",
+        'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+      ),
+    );
+  }
   log("");
 }
 

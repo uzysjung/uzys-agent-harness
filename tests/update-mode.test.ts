@@ -7,6 +7,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -785,6 +786,65 @@ describe("runUpdateMode (E2E with templates)", () => {
     expect(report.anchorCreated).toBe(false);
     expect(report.rootImportAdded).toBe(false);
     expect(report.legacyAnchor).toBeNull();
+  });
+
+  /** #480 ③ — 백업 목록: 화면 마지막 줄과 json 이 audit-harness-fit 에 넘길 증거다. */
+  describe("백업 목록 (#480 ③)", () => {
+    const listFile = (): string => join(projectDir, ".uzys-agent-harness/update-backups.json");
+    it("편집분이 백업되면 원본↔백업 쌍이 보고와 json 에 남는다 (룰 + 앵커, 기준선 없는 레거시)", () => {
+      mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+      const paths = report.backups.map((b) => b.path);
+      expect(paths).toContain(".claude/rules/git-policy.md");
+      expect(paths).toContain("CLAUDE-uzys-harness.md");
+      for (const b of report.backups) {
+        expect(b.backup.startsWith(`${b.path}.backup-`)).toBe(true);
+        expect(existsSync(join(projectDir, b.backup))).toBe(true);
+      }
+      const json = JSON.parse(readFileSync(listFile(), "utf8")) as { backups: unknown[] };
+      expect(json.backups).toEqual(report.backups);
+    });
+
+    it("백업이 없으면 목록 파일을 남기지 않는다 — 옛 목록은 '지금도 백업이 있다'로 읽힌다", () => {
+      mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+      writeFileSync(listFile(), "{}");
+      writeInstallLog(projectDir, {
+        schemaVersion: 1,
+        installedAt: new Date(0).toISOString(),
+        scope: "project",
+        spec: { tracks: ["tooling"], cli: ["claude"] },
+        templates: {
+          claudeDir: ".claude",
+          rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: hashContent("old-CLAUDE\n") },
+        },
+        assets: [],
+        policyFiles: [
+          { path: "rules/git-policy.md", sha256: hashContent("v1\n") },
+          { path: "rules/orphan-rule.md", sha256: hashContent("stale\n") },
+          { path: "hooks/session-start.sh", sha256: hashContent("echo old\n") },
+        ],
+      });
+
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+      expect(report.backups).toEqual([]);
+      expect(existsSync(listFile())).toBe(false);
+    });
+
+    it("이전 실행의 백업은 세지 않는다 — 시작 시각 이전 mtime", () => {
+      mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+      const stale = join(projectDir, ".claude/rules/git-policy.md.backup-20200101T000000");
+      writeFileSync(stale, "ancient\n");
+      const past = new Date("2020-01-01T00:00:00Z");
+      utimesSync(stale, past, past);
+
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+      expect(report.backups.map((b) => b.backup)).not.toContain(
+        ".claude/rules/git-policy.md.backup-20200101T000000",
+      );
+    });
   });
 
   /** #480 ① — 설치자가 고른 묶음만 갱신한다. 룰·앵커를 고친 설치자가 스킬만 받고 싶을 때 쓴다. */

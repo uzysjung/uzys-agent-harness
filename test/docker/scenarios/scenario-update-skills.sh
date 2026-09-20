@@ -87,6 +87,17 @@ if ! grep -q "MY LOCAL EDIT" "${BK}"; then
 fi
 echo "✓ 백업본에 편집 내용 보존"
 
+# #480 ③ — 백업 목록 파일 + 화면의 다음 행동 안내 (audit-harness-fit 에 넘길 증거)
+LIST="${PROJ}/.uzys-agent-harness/update-backups.json"
+[[ -f "${LIST}" ]] || { echo "FAIL: update-backups.json 이 없다 — 백업이 있었는데 목록이 안 남았다"; exit 1; }
+jq -e --arg p "${TARGET#${PROJ}/}" '.backups[] | select(.path == $p)' "${LIST}" >/dev/null \
+  || { echo "FAIL: 목록에 백업된 파일(${TARGET#${PROJ}/})이 없다"; cat "${LIST}"; exit 1; }
+sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q "BACKUPS" \
+  || { echo "FAIL: Update 요약에 BACKUPS 행이 없다"; exit 1; }
+sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q "audit-harness-fit" \
+  || { echo "FAIL: Update 요약이 다음 행동(audit-harness-fit)을 지목하지 않는다"; exit 1; }
+echo "✓ 백업 목록 파일 + 다음 행동 안내"
+
 # 자리에는 최신판(= 편집 없는 templates 판)이 와야 한다 (ADR-046: 최신판이 활성)
 if grep -q "MY LOCAL EDIT" "${TARGET}"; then
   echo "FAIL: 편집분이 그대로 남았다 — 갱신이 안 됐다 (= R-3a 재현)"

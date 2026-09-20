@@ -20,6 +20,7 @@ import {
   readdirSync,
   readFileSync,
   rmdirSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -82,6 +83,13 @@ export interface UpdateModeReport {
   staleHookRefs: string[];
   /** 갱신된 CLAUDE.md (true if updated). */
   claudeMdUpdated: boolean;
+  /**
+   * #480 ③ — 이번 update 가 남긴 백업 쌍(원본 ↔ `*.backup-<time>`, projectDir 상대경로). 화면
+   * 마지막 줄과 `.uzys-agent-harness/update-backups.json` 에 낸다 — 설치자가 편집분을 새 판에
+   * 다시 얹을 때(audit-harness-fit 에 요청) 그 파일이 증거다. 범용 스킬에 이 하네스의 백업
+   * 규약을 심지 않는다(사용자 정정 2026-09-20) — 증거를 내는 쪽이 하네스다.
+   */
+  backups: Array<{ path: string; backup: string }>;
   /**
    * #480 — 설치자가 고르지 않아 **건드리지 않은** 묶음 (`update --only` · 위저드 체크박스).
    * 화면에 낸다 — 안 보이면 "update 를 돌렸는데 룰이 그대로다"가 결함으로 읽힌다.
@@ -316,6 +324,7 @@ export function runUpdateMode(
   only?: ReadonlyArray<UpdateGroup>,
 ): UpdateModeReport {
   const claudeDir = join(projectDir, ".claude");
+  const startedAt = Date.now();
   // #480 — 고른 묶음만 돈다. 안 고르면(undefined) 전부 — 기존 호출부의 동작 그대로.
   const wants = (g: UpdateGroup): boolean => only === undefined || only.includes(g);
   const report: UpdateModeReport = {
@@ -323,6 +332,7 @@ export function runUpdateMode(
     pruned: {},
     staleHookRefs: [],
     claudeMdUpdated: false,
+    backups: [],
     skippedGroups: only === undefined ? [] : UPDATE_GROUPS.filter((g) => !only.includes(g)),
     anchorBackedUp: false,
     anchorCreated: false,
@@ -483,6 +493,8 @@ export function runUpdateMode(
   ];
   report.externalSkillsUnknown = skillRefresh.unknown;
 
+  report.backups = collectRunBackups(projectDir, startedAt);
+  writeBackupList(projectDir, report.backups);
   return report;
 }
 
@@ -641,6 +653,61 @@ function installNewAssets(
     else installed.push(entry.target);
   }
   return { installed, restored, needsReinstall, foreignOwned };
+}
+
+/** `backupFile` 이 만드는 이름 — `<원본>.backup-<YYYYMMDDTHHMMSS>[-n]` (`fs-ops.ts` claimBackupPath). */
+const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
+
+/** 백업이 생길 수 있는 자리 — 하네스가 쓰는 디렉터리 + 루트의 앵커·AGENTS.md. */
+const BACKUP_SCAN_DIRS = [".claude", ".codex", ".opencode", ".agents"] as const;
+
+/**
+ * #480 ③ — 이번 실행이 남긴 백업 쌍. 만든 자리마다 경로를 모아 올리지 않고 **디스크를 본다**:
+ * 백업을 만드는 함수가 넷(룰·스킬·앵커·외부 산출물)이라 하나가 빠지면 목록이 조용히 거짓이 된다.
+ * 판정은 이름 규칙 + 시작 시각 이후의 mtime.
+ */
+export function collectRunBackups(
+  projectDir: string,
+  startedAt: number,
+): Array<{ path: string; backup: string }> {
+  const out: Array<{ path: string; backup: string }> = [];
+  const consider = (rel: string): void => {
+    if (!BACKUP_SUFFIX.test(rel)) return;
+    const abs = join(projectDir, rel);
+    if (statSync(abs).mtimeMs < startedAt - 1000) return;
+    out.push({ path: rel.replace(BACKUP_SUFFIX, ""), backup: rel });
+  };
+  for (const e of readdirSync(projectDir, { withFileTypes: true }))
+    if (e.isFile()) consider(e.name);
+  for (const dir of BACKUP_SCAN_DIRS) {
+    for (const rel of listFilesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);
+  }
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * `.uzys-agent-harness/update-backups.json` — 이번 실행의 백업 목록. 백업이 없으면 지운다
+ * (옛 목록이 남으면 "지금도 백업이 있다"로 읽힌다). 설치 기록 디렉터리가 없으면 만들지 않는다.
+ */
+function writeBackupList(
+  projectDir: string,
+  backups: ReadonlyArray<{ path: string; backup: string }>,
+): void {
+  const dir = join(projectDir, ".uzys-agent-harness");
+  const file = join(dir, "update-backups.json");
+  try {
+    if (backups.length === 0) {
+      if (existsSync(file)) unlinkSync(file);
+      return;
+    }
+    if (!existsSync(dir)) return;
+    writeFileSync(
+      file,
+      `${JSON.stringify({ updatedAt: new Date().toISOString(), note: "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 당신의 편집분. 편집을 새 판에 다시 얹으려면 두 파일의 diff 를 보라.", backups }, null, 2)}\n`,
+    );
+  } catch {
+    // 목록 기록 실패가 update 자체를 실패시키지는 않는다.
+  }
 }
 
 /**

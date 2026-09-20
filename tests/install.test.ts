@@ -832,6 +832,7 @@ describe("executeSpec", () => {
         pruned: { ".claude/rules": ["orphan.md"], ".claude/hooks": [] },
         staleHookRefs: ["dead.sh"],
         claudeMdUpdated: true,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: false,
@@ -907,6 +908,7 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: [],
         claudeMdUpdated: false,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: false,
@@ -932,6 +934,44 @@ describe("executeSpec", () => {
         externalSkillsUnknown: false,
       },
     });
+
+  it("update 요약은 백업이 있으면 목록 파일과 다음 행동(audit-harness-fit)을 지목한다 (#480 ③)", () => {
+    withAgentsOnDisk(
+      (spec) => {
+        const log = vi.fn();
+        const exit = vi.fn() as unknown as (code: number) => never;
+        const base = updatePipeline();
+        executeSpec(spec, {
+          log,
+          exit,
+          runPipeline: (...args: Parameters<typeof base>) => {
+            const r = base(...args);
+            return {
+              ...r,
+              updateMode: r.updateMode
+                ? {
+                    ...r.updateMode,
+                    backups: [
+                      {
+                        path: ".claude/rules/git-policy.md",
+                        backup: ".claude/rules/git-policy.md.backup-20260920T000000",
+                      },
+                    ],
+                  }
+                : r.updateMode,
+            };
+          },
+          resolveHarnessRoot: () => "/h",
+          mode: "update",
+        });
+        const out = log.mock.calls.map((c) => String(c[0])).join("\n");
+        expect(out).toContain("BACKUPS");
+        expect(out).toContain("update-backups.json");
+        expect(out).toContain("audit-harness-fit");
+      },
+      ["name: a\ndescription: 하나"],
+    );
+  });
 
   it("update 의 상주 계측은 디스크의 에이전트 파일을 센다 (#458)", () => {
     withAgentsOnDisk(
@@ -1003,6 +1043,7 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: ["skills/sidecar-skill/suggest.sh", "hooks/legacy-thing.sh"],
         claudeMdUpdated: false,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: false,
@@ -1068,6 +1109,7 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: [],
         claudeMdUpdated: false,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: false,
@@ -1124,6 +1166,7 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: [],
         claudeMdUpdated: false,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: true,
@@ -1186,6 +1229,7 @@ describe("executeSpec", () => {
         pruned: {},
         staleHookRefs: [],
         claudeMdUpdated: true,
+        backups: [],
         skippedGroups: [],
         anchorBackedUp: false,
         anchorCreated: false,
