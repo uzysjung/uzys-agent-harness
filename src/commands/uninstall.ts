@@ -584,6 +584,8 @@ interface ExternalRemoval {
   kept: string[];
   /** #516 — 하네스 절만 걷어내고 설치자 절을 남긴 것 (`AGENTS.md`). */
   stripped: string[];
+  /** #516 — 절 경계를 판정할 수 없어(템플릿 불가·쓰기 실패) 통째로 남긴 것. 편집분과는 다른 사유다. */
+  unjudged: string[];
 }
 
 /** 설치자 소유 절이 있는 유일한 외부 산출물 — codex · opencode transform 이 같은 이름으로 쓴다. */
@@ -592,6 +594,9 @@ const AGENTS_MD = "AGENTS.md";
 /**
  * `AGENTS.md` 를 렌더한 템플릿 — 절 경계의 SSOT(ADR-095 D3). 두 CLI 가 같은 파일을 쓰고
  * opencode transform 이 뒤에 돌아 그 판이 남으므로 opencode 가 깔려 있으면 그 템플릿이다.
+ * 두 템플릿은 설치자 소유 절 이름(`## Project Context` · `## Project Rules`)이 같고 codex 판의
+ * 절 이름이 opencode 판을 포함하므로, 로그와 디스크의 판이 어긋나도(#514 이전 update 를 거친
+ * codex 단독 설치본) 경계 판정은 같다 — 독립 리뷰 N2 실측.
  * 못 읽으면 `null` — 그때는 경계를 판정할 수 없으니 파일을 남긴다(지우는 쪽으로 넘어가지 않는다).
  */
 function readAgentsMdTemplate(harnessRoot: string, log: InstallLog): string | null {
@@ -651,6 +656,7 @@ function removeExternalFiles(
   const removed: string[] = [];
   const kept: string[] = [];
   const stripped: string[] = [];
+  const unjudged: string[] = [];
   for (const { path, sha256 } of log.externalFiles ?? []) {
     const abs = join(projectDir, path);
     // `.claude/`·`.codex/`·`.opencode/` 아래 것은 위에서 이미 사라졌다 — 부재는 정상이다.
@@ -667,7 +673,7 @@ function removeExternalFiles(
     if (path === AGENTS_MD) {
       const verdict = agentsMdRemainder(current, harnessRoot, log);
       if (!verdict.ok) {
-        kept.push(path);
+        unjudged.push(path);
         continue;
       }
       if (verdict.remainder !== null) {
@@ -676,7 +682,7 @@ function removeExternalFiles(
           stripped.push(path);
         } catch {
           // 쓰기 실패는 남긴 것과 같다 — 파일은 그대로 있고, 지웠다고 말하지 않는다.
-          kept.push(path);
+          unjudged.push(path);
         }
         continue;
       }
@@ -685,7 +691,7 @@ function removeExternalFiles(
     removed.push(path);
   }
   for (const path of removed) pruneEmptyDirsUpward(projectDir, dirname(join(projectDir, path)));
-  return { removed, kept, stripped };
+  return { removed, kept, stripped, unjudged };
 }
 
 /**
@@ -752,7 +758,7 @@ function previewExternalLines(
     if (path === AGENTS_MD) {
       const verdict = agentsMdRemainder(current, harnessRoot, installLog);
       if (!verdict.ok) {
-        lines.push(`  ○ keep ${path} (modified since install — preserved)`);
+        lines.push(`  ○ keep ${path} (harness sections could not be separated — preserved)`);
         continue;
       }
       if (verdict.remainder !== null) {
@@ -779,6 +785,11 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
   }
   for (const path of external.stripped) {
     lines.push(`  ${status.success(`${path} — harness sections removed (본문 보존)`)}`);
+  }
+  for (const path of external.unjudged) {
+    lines.push(
+      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (template unreadable or write failed). Remove manually if intended.`,
+    );
   }
   for (const path of external.kept) {
     lines.push(
