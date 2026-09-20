@@ -253,7 +253,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(byId("taste-skill")?.method).toEqual({
       kind: "skill",
       source: "Leonxlnx/taste-skill",
-      skill: "taste-skill",
+      skill: "design-taste-frontend",
     });
     expect(byId("scroll-world")?.method).toEqual({
       kind: "skill",
