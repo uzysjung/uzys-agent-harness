@@ -19,8 +19,11 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "../src/install-log.js";
+import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { upsertHarnessImport } from "../src/project-claude-merge.js";
+import { DEFAULT_OPTIONS, UPDATE_GROUPS } from "../src/types.js";
 import {
+  buildUpdateSpec,
   cleanStaleHookRefs,
   keepHookRef,
   pruneOrphans,
@@ -782,6 +785,109 @@ describe("runUpdateMode (E2E with templates)", () => {
     expect(report.anchorCreated).toBe(false);
     expect(report.rootImportAdded).toBe(false);
     expect(report.legacyAnchor).toBeNull();
+  });
+
+  /** #480 ① — 설치자가 고른 묶음만 갱신한다. 룰·앵커를 고친 설치자가 스킬만 받고 싶을 때 쓴다. */
+  describe("update --only (#480 ①)", () => {
+    const withLog = (): void => {
+      writeInstallLog(projectDir, {
+        schemaVersion: 1,
+        installedAt: new Date(0).toISOString(),
+        scope: "project",
+        spec: { tracks: ["tooling"], cli: ["claude"] },
+        templates: { claudeDir: ".claude" },
+        assets: [],
+        policyFiles: [{ path: "rules/orphan-rule.md", sha256: hashContent("stale\n") }],
+      });
+    };
+
+    it("skills 만 고르면 룰·앵커·훅은 한 바이트도 안 바뀌고 건너뛴 묶음이 보고된다", () => {
+      withLog();
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["skills"]);
+
+      expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v1\n");
+      expect(readFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "utf8")).toBe("old-CLAUDE\n");
+      expect(readFileSync(join(projectDir, ".claude/hooks/session-start.sh"), "utf8")).toBe(
+        "echo old\n",
+      );
+      // prune 도 안 한다 — 룰 묶음을 안 골랐으면 그 디렉터리는 통째로 남의 일이다
+      expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(true);
+      expect(report.claudeMdUpdated).toBe(false);
+      expect(report.skippedGroups).toEqual(["new-skills", "rules", "anchor", "hooks", "external"]);
+    });
+
+    it("rules 만 고르면 룰은 갱신되고 스킬 기준선은 그대로다 — 건너뛴 묶음의 편집을 소유로 오기록하지 않는다", () => {
+      withLog();
+      mkdirSync(join(projectDir, ".claude/skills/demo"), { recursive: true });
+      writeFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "my-edit\n");
+      mkdirSync(join(templatesDir, "skills/demo"), { recursive: true });
+      writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "bundle\n");
+      // 건너뛸 훅 디렉터리의 기준선 기록 — 이게 그대로 남아야 한다
+      const before = readInstallLog(projectDir) as NonNullable<ReturnType<typeof readInstallLog>>;
+      writeInstallLog(projectDir, {
+        ...before,
+        policyFiles: [
+          ...(before.policyFiles ?? []),
+          { path: "hooks/session-start.sh", sha256: "keep-me-untouched" },
+        ],
+      });
+
+      runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["rules"]);
+
+      expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v2\n");
+      expect(readFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "utf8")).toBe(
+        "my-edit\n",
+      );
+      expect(readInstallLog(projectDir)?.skillFiles ?? []).toEqual([]);
+      const policy = readInstallLog(projectDir)?.policyFiles ?? [];
+      // 동기화한 rules 는 최신판 sha 로 다시 찍혔다 — 안 찍으면 다음 전체 update 가 "편집분"으로 백업한다(리뷰 N-1)
+      expect(policy.find((f) => f.path === "rules/git-policy.md")?.sha256).toBe(
+        hashContent("v2\n"),
+      );
+      // 건너뛴 hooks 의 기록은 그대로 — 디스크(echo old)를 소유로 오기록하지 않는다(리뷰 ⓒ)
+      expect(policy.find((f) => f.path === "hooks/session-start.sh")?.sha256).toBe(
+        "keep-me-untouched",
+      );
+    });
+
+    it("new-skills — 이 트랙이 기본으로 받는 번들 스킬 중 디스크에 없는 것을 깔고 기준선에 더한다", () => {
+      withLog();
+      // 기본 선택 스킬 id 는 열거하지 않고 manifest 에서 뽑는다 — 열거는 자산 하나가 지워지면 썩는다
+      const spec = buildAssetSpec({ tracks: ["tooling"], options: DEFAULT_OPTIONS });
+      const entry = buildManifest(spec).find(
+        (e) => e.type === "dir" && e.target.startsWith(".claude/skills/") && e.applies(spec),
+      );
+      expect(
+        entry,
+        "tooling 트랙에 기본 스킬이 하나도 없다 — 이 테스트가 볼 대상이 없다",
+      ).toBeDefined();
+      const e = entry as NonNullable<typeof entry>;
+      mkdirSync(join(templatesDir, e.source), { recursive: true });
+      writeFileSync(
+        join(templatesDir, e.source, "SKILL.md"),
+        "---\nname: x\ndescription: y\n---\n",
+      );
+
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["new-skills"]);
+
+      expect(existsSync(join(projectDir, e.target, "SKILL.md"))).toBe(true);
+      expect(report.installedNew).toContain(e.target);
+      const id = e.target.slice(".claude/skills/".length);
+      expect(
+        (readInstallLog(projectDir)?.skillFiles ?? []).some((f) => f.path === `${id}/SKILL.md`),
+      ).toBe(true);
+      // 두 번째 실행은 이미 있으니 아무것도 안 깐다
+      const again = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["new-skills"]);
+      expect(again.installedNew).toEqual([]);
+    });
+
+    it("전부 고르면 제한이 없는 것과 같다 — spec 에 updateOnly 가 남지 않는다", () => {
+      expect(
+        buildUpdateSpec(projectDir, ["tooling"], [...UPDATE_GROUPS]).updateOnly,
+      ).toBeUndefined();
+      expect(buildUpdateSpec(projectDir, ["tooling"], ["skills"]).updateOnly).toEqual(["skills"]);
+      expect(buildUpdateSpec(projectDir, ["tooling"]).updateOnly).toBeUndefined();
+    });
   });
 
   /**

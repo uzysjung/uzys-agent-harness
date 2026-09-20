@@ -81,6 +81,20 @@ export const DEFAULT_OPTIONS: OptionFlags = {
   withCodexTrust: false,
 };
 
+/**
+ * #480 — `update` 가 갱신하는 묶음. 설치자가 고를 수 있다(`update --only <group>` · 위저드 체크박스).
+ * 안 고르면 전부. 룰·앵커를 고친 설치자가 스킬만 받고 싶을 때 쓴다.
+ */
+export const UPDATE_GROUPS = [
+  "skills",
+  "new-skills",
+  "rules",
+  "anchor",
+  "hooks",
+  "external",
+] as const;
+export type UpdateGroup = (typeof UPDATE_GROUPS)[number];
+
 /** Aggregate result of interactive flow — the spec the install pipeline consumes. */
 export interface InstallSpec {
   tracks: Track[];
@@ -95,6 +109,10 @@ export interface InstallSpec {
    * 사용처는 `resolveScope(spec.scope)` 또는 `scope ?? "project"` 로 normalize.
    */
   scope?: InstallScope;
+  /**
+   * #480 — update 모드에서 갱신할 묶음. undefined = 전부. `install` 은 읽지 않는다.
+   */
+  updateOnly?: ReadonlyArray<UpdateGroup>;
   /**
    * v26.47.0 — User-level override of preset/option condition (Phase C full).
    * `forceInclude`: condition 무관 강제 포함 / `forceExclude`: condition 무관 강제 제외.

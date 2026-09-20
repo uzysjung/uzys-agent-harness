@@ -62,6 +62,38 @@ describe("update 명령 — 비대화형 진입점", () => {
     expect(spec.tracks).toEqual(["tooling", "data"]);
   });
 
+  it("--only 는 spec.updateOnly 로 간다 — 한 번이면 string, 여러 번이면 배열 (#480)", () => {
+    const execute = vi.fn();
+    updateAction(
+      { projectDir: dir, only: "skills" },
+      { log: () => {}, err: () => {}, detect: () => fakeState(), execute },
+    );
+    expect((execute.mock.calls[0] as [InstallSpec])[0].updateOnly).toEqual(["skills"]);
+
+    updateAction(
+      { projectDir: dir, only: ["skills", "new-skills"] },
+      { log: () => {}, err: () => {}, detect: () => fakeState(), execute },
+    );
+    expect((execute.mock.calls[1] as [InstallSpec])[0].updateOnly).toEqual([
+      "skills",
+      "new-skills",
+    ]);
+  });
+
+  it("모르는 --only 값은 exit 1 — 오타가 '전부 갱신'이 되면 플래그의 뜻이 뒤집힌다 (#480)", () => {
+    const execute = vi.fn();
+    const errs: string[] = [];
+    const exit = vi.fn() as unknown as (code: number) => never;
+    updateAction(
+      { projectDir: dir, only: "rulez" },
+      { log: () => {}, err: (m) => errs.push(m), detect: () => fakeState(), execute, exit },
+    );
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(execute).not.toHaveBeenCalled();
+    expect(errs.join("\n")).toContain("rulez");
+    expect(errs.join("\n")).toContain("skills | new-skills | rules | anchor | hooks | external");
+  });
+
   it("설치가 없으면 exit 1 + 다음 행동 안내 — 조용히 성공하지 않는다", () => {
     const execute = vi.fn();
     const errs: string[] = [];

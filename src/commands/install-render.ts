@@ -586,6 +586,17 @@ function renderPhase1Rows(
         log(assetRow("skip", `${dir} orphan prune`, `${removed.length} removed`));
       }
     }
+    // #480 — 고르지 않은 묶음은 건드리지 않았음을 말한다. 조용하면 "update 를 돌렸는데 룰이
+    // 그대로다"가 결함으로 읽힌다.
+    if (baseline.updateMode.skippedGroups.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "not selected — untouched",
+          `${baseline.updateMode.skippedGroups.join(", ")} · run again with --only or the wizard to include`,
+        ),
+      );
+    }
     if (baseline.updateMode.claudeMdUpdated) {
       log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
     }
