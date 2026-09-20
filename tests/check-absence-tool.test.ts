@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -22,7 +22,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  */
 
 const ROOT = resolve(import.meta.dirname, "..");
-const REPO_COPY = join(ROOT, "scripts", "check-absence.sh");
 const SHIPPED_COPY = join(ROOT, "templates", "scripts", "check-absence.sh");
 
 function run(
@@ -39,237 +38,213 @@ function run(
   }
 }
 
-describe("두 사본이 갈라지지 않는다", () => {
-  // 개발용(`scripts/`)과 배포용(`templates/scripts/`)이 다르게 동작하면, 이 저장소에서 확인한
-  // 것이 설치받은 사람에게서 참이라는 보장이 사라진다. 스크립트 안 호출 예시에 디렉터리 접두사를
-  // 두지 않은 것도 이 동일성을 유지하려는 것이다.
-  it("scripts/ 와 templates/scripts/ 의 check-absence.sh 가 바이트 단위로 같다", () => {
-    expect(readFileSync(SHIPPED_COPY, "utf8")).toBe(readFileSync(REPO_COPY, "utf8"));
+describe("배포판 check-absence.sh — 부재를 증거로 만든다", () => {
+  const SCRIPT = SHIPPED_COPY;
+  let dir = "";
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "absence-"));
+    writeFileSync(join(dir, "clean.txt"), "nothing to see\n");
+    writeFileSync(join(dir, "dirty.txt"), "contains OldName here\n");
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  describe("pattern 모드 — 대조군은 합성한 canary 다", () => {
+    it("정말 없으면 0 — 매치 건수를 명시 출력한다 (빈 출력로 얼버무리지 않는다)", () => {
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt"], dir);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain("매치: 0건");
+    });
+
+    /**
+     * #329 — "패턴 없음"만으로는 **몇 개를 봤는지** 알 수 없다. 그 상태의 "전수 검사했다"는
+     * 보고를 아무도 검증할 수 없고, 이 저장소는 한 PR 안에서 그 형태로 세 번 틀렸다.
+     */
+    it("검사한 파일 수를 결론 줄에 낸다 — 모집단 없는 '없음'은 검증 불가다", () => {
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+      expect(r.code).toBe(1);
+      expect(r.out).toContain("파일 2개");
+    });
+
+    it("파일 수는 매치된 파일이 아니라 **본 파일 전부**다", () => {
+      // 매치는 dirty.txt 한 곳뿐인데 clean.txt 도 읽었다. 매치 수로 모집단을 대신하면
+      // "1개 봤다"가 되어, 이 줄을 넣은 이유가 그대로 사라진다.
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
+      expect(r.out).toContain("매치: 1건 / 파일 2개");
+    });
+
+    /**
+     * 리뷰 HIGH-1 — 이 계수가 **플랫폼마다 다른 수**를 냈다. 이전 판본의 `grep -rIc ""` 는
+     * GNU 가 바이너리 파일에도 `파일:0` 줄을 내고 BSD(macOS)는 안 내서, 같은 트리를 두고
+     * macOS 500 vs Linux 504 를 냈다(이 저장소 src·templates·tests·scripts·docs 실측,
+     * Debian 컨테이너 대조). 수가 갈리면 "같은 범위를 봤다"를 이 줄로 확인할 수 없고,
+     * 그게 #329 가 이 줄을 넣은 이유 전부다.
+     *
+     * 한 번의 테스트 실행은 한 플랫폼만 밟으므로 "두 값이 같다"를 직접 단언할 수는 없다.
+     * 대신 **두 구현이 합의하는 모집단**을 못박는다 — 줄이 하나라도 있는 텍스트 파일만 센다.
+     * `-c` 계수로 되돌리면 빈 파일이 `파일:0` 로 잡히고, `-I` 를 빼면 바이너리가 잡힌다 —
+     * **둘 다 이 픽스처를 `파일 2개` 에서 `파일 3개` 로 갈라 빨간불이 된다**(macOS 실측,
+     * BSD grep 2.6.0-FreeBSD). `-I` 쪽을 "Linux 에서만 잡힌다"고 적었던 이전 주석은
+     * 게이트를 실제보다 약하게 말한 것이라 고쳤다.
+     */
+    it("모집단은 '줄이 있는 텍스트 파일' — 빈 파일·바이너리는 구현마다 갈려서 뺀다", () => {
+      writeFileSync(join(dir, "empty.txt"), "");
+      writeFileSync(join(dir, "blob.bin"), Buffer.from([0x41, 0x00, 0x42, 0x00, 0x0a]));
+      // 픽스처 구성을 먼저 못박는다. 아래 `파일 2개` 의 뜻은 **네 파일 중 둘이 빠졌다**인데,
+      // 그 사실이 픽스처에만 있으면 위 두 줄을 지워도(텍스트 2개만 남아도) 그대로 초록이다 —
+      // 실제로 이 판본 직전까지 그랬다. 그러면 다음 사람이 "안 쓰이는 픽스처"로 보고 지우고,
+      // 게이트는 살아 있는 채로 계수 회귀를 못 잡는다.
+      expect(readdirSync(dir).sort()).toEqual(["blob.bin", "clean.txt", "dirty.txt", "empty.txt"]);
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "."], dir);
+      expect(r.code).toBe(1);
+      // 무엇을 센 것인지가 결론 줄 안에 있어야 한다 — "파일 N개"만으로는 읽는 사람이
+      // 빈 파일·바이너리가 들었는지 알 수 없고, 그러면 모집단을 다시 추측하게 된다.
+      expect(r.out).toContain("매치: 1건 / 파일 2개(바이너리·빈 파일 제외)");
+    });
+
+    it("있으면 1 — 위치를 보여준다", () => {
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "dirty.txt"], dir);
+      expect(r.code).toBe(1);
+      expect(r.out).toContain("dirty.txt");
+    });
+
+    /** 이 도구를 만들게 한 실제 사고: 소문자 패턴 + 대문자 실 데이터 → 놓치고 "잔여 0" 선언. */
+    it("탐지기가 canary 를 못 잡으면 2 — '없음'을 결론으로 내주지 않는다", () => {
+      const r = run(SCRIPT, ["--canary", "OldName", "oldname", "dirty.txt"], dir);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain("탐지기 자기검증 실패");
+    });
+
+    it("-i 는 자기검증과 실검사에 동시 적용된다 — 한쪽만 적용되면 구멍이 생긴다", () => {
+      const r = run(SCRIPT, ["--canary", "OldName", "-i", "oldname", "dirty.txt"], dir);
+      expect(r.code).toBe(1); // 대소문자 무시하면 잡혀야 한다
+    });
+
+    it("경로가 없으면 2 — '없음'이 아니라 '안 봤음'이다", () => {
+      const r = run(SCRIPT, ["--canary", "x", "x", "no-such-file.txt"], dir);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain("안 봤음");
+    });
+
+    it("canary 없이는 쓸 수 없다 — 그게 이 도구의 존재 이유다", () => {
+      const r = run(SCRIPT, ["OldName", "clean.txt"], dir);
+      expect(r.code).toBe(3);
+    });
+
+    /**
+     * 독립 리뷰가 잡은 H2. 경로를 공백 구분 문자열로 쌓아 인용 없이 전개하던 이전 판본은
+     * `a b` 를 `a` 와 `b` 로 쪼개 훑고 **`매치: 0건` + exit 0** 을 냈다. canary 를 통과한
+     * 뒤라 사용자는 최대 확신 상태에서 거짓 부재를 받는다 — 가장 나쁜 실패 모양이다.
+     */
+    it("공백이 든 경로에서도 매치를 찾는다 — 단어 분할로 인한 거짓 부재 금지", () => {
+      mkdirSync(join(dir, "a b"));
+      mkdirSync(join(dir, "a"));
+      mkdirSync(join(dir, "b"));
+      writeFileSync(join(dir, "a b", "hit.txt"), "OldName is HERE\n");
+      writeFileSync(join(dir, "a", "x.txt"), "nothing\n");
+      writeFileSync(join(dir, "b", "y.txt"), "nothing\n");
+      const r = run(SCRIPT, ["--canary", "OldName", "OldName", "a b"], dir);
+      expect(r.code).toBe(1);
+      expect(r.out).toContain("hit.txt");
+    });
+  });
+
+  describe("command 모드 — 대조군은 '되는 줄 아는 대상'이다", () => {
+    it("대조 성공 + 대상 실패 → 0. 무엇이 대조군이었는지 출력에 남는다", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain("대조군");
+      expect(r.out).toContain("부정 결론이 증거를 얻었다");
+    });
+
+    it("결론 줄에 대상 명령이 남는다 — 무엇을 판정했는지가 결론과 같은 줄에 있어야 한다", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
+      expect(r.code).toBe(0);
+      expect(r.out).toMatch(/부정 결론이 증거를 얻었다.*대상 1개: false/);
+    });
+
+    it("대조 성공 + 대상 성공 → 1 ('안 된다'가 틀렸다)", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "true"], dir);
+      expect(r.code).toBe(1);
+      expect(r.out).toContain("'안 된다'는 결론은 틀렸다");
+    });
+
+    /**
+     * 이 한 줄이 command 모드의 존재 이유다. 대조군까지 함께 실패했는데 대상의 exit 1 만 보고
+     * "설치 불가"라고 보고한 적이 있다 — 코드가 아니라 **사유 문구**가 그때 필요했던 것이다.
+     */
+    it("대조군이 실패하면 대상도 실패해도 2 — 실험 자체가 무효다", () => {
+      const r = run(SCRIPT, ["--control", "false", "--subject", "false"], dir);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain("대조군이 기대");
+      expect(r.out).toContain("증거가 아니다");
+    });
+
+    it("--control-exit 로 대조군의 기대 코드를 옮길 수 있다", () => {
+      const r = run(
+        SCRIPT,
+        ["--control", "false", "--control-exit", "1", "--subject", "false"],
+        dir,
+      );
+      expect(r.code).toBe(0);
+    });
+
+    it("대조군 stderr 를 삼키지 않는다 — 왜 무효인지가 보여야 고친다", () => {
+      const r = run(SCRIPT, ["--control", "echo boom >&2; exit 7", "--subject", "false"], dir);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain("boom");
+    });
+
+    /**
+     * 독립 리뷰가 잡은 H1. 이전 판본은 여기서 **exit 0("부재 확인")** 을 냈다 — 실행조차 안 된
+     * 명령을 "대상이 안 된다"의 증거로 내준 것이고, 그건 이 도구가 없애려던 실패 그 자체다.
+     */
+    it("대상이 실행조차 안 되면(127) 판정이 아니라 무효다 — exit 2", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "nosuchcmd_xyz_123"], dir);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain("실행되지 않았다");
+    });
+
+    it("실행 권한이 없어도(126) 무효다 — exit 2", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "/etc/hosts"], dir);
+      expect(r.code).toBe(2);
+    });
+
+    /**
+     * H1b. `sh -c` 이던 시절 이 입력이 macOS(bash) 에서 1, Linux(dash) 에서 0 으로 **뒤집혔다**.
+     * 하필 이 모드를 만든 계기가 Docker(Linux) 실험이라 가장 아픈 자리였다.
+     */
+    it("실행기를 bash 로 고정한다 — bash 문법이 대상에서 동작하고, 출력에 실행기가 남는다", () => {
+      const r = run(SCRIPT, ["--control", "true", "--subject", "[[ 1 == 1 ]]"], dir);
+      expect(r.code).toBe(1); // bash 에서는 성공 → "안 된다"가 틀렸다
+      expect(r.out).toContain("bash -c");
+    });
+
+    /** M1. 범위를 안 보면 `[ -ne ]` 가 에러로 끝나고 `if` 가 그걸 "대조군 통과"로 읽었다. */
+    it.each([
+      ["20자리", "99999999999999999999"],
+      ["256", "256"],
+    ])("--control-exit 이 범위를 벗어나면(%s) 판정 코드가 아니라 사용법 오류 — exit 3", (_d, v) => {
+      expect(
+        run(SCRIPT, ["--control", "true", "--subject", "false", "--control-exit", v], dir).code,
+      ).toBe(3);
+    });
+  });
+
+  describe("사용법 오류는 3 — 판정 코드와 섞이지 않는다", () => {
+    it.each([
+      ["인자 없음", [] as ReadonlyArray<string>],
+      ["--subject 누락", ["--control", "true"]],
+      ["--control 누락", ["--subject", "true"]],
+      ["두 모드 혼용", ["--canary", "x", "--control", "true", "--subject", "true"]],
+      // M4 — 조용한 무시가 이 도구의 성격과 반대다.
+      ["command 모드에 남는 위치 인자", ["--control", "true", "--subject", "false", "extra"]],
+      // 재리뷰 N2/N4 — 모드 밖 플래그를 "거절한다"고 보고했는데 절반만 맞았다.
+      ["command 모드에 -i", ["--control", "true", "--subject", "false", "-i"]],
+      ["빈 --canary 로 모드 혼용", ["--canary", "", "--control", "true", "--subject", "false"]],
+      ["pattern 모드에 --control-exit", ["--control-exit", "5", "--canary", "x", "x", "clean.txt"]],
+      ["--control-exit 비숫자", ["--control", "true", "--subject", "true", "--control-exit", "a"]],
+    ])("%s", (_desc, args) => {
+      expect(run(SCRIPT, args, dir).code).toBe(3);
+    });
   });
 });
-
-for (const [label, SCRIPT] of [
-  ["repo", REPO_COPY],
-  ["shipped", SHIPPED_COPY],
-] as const) {
-  describe(`${label} 사본 — 부재를 증거로 만든다`, () => {
-    let dir = "";
-    beforeEach(() => {
-      dir = mkdtempSync(join(tmpdir(), "absence-"));
-      writeFileSync(join(dir, "clean.txt"), "nothing to see\n");
-      writeFileSync(join(dir, "dirty.txt"), "contains OldName here\n");
-    });
-    afterEach(() => rmSync(dir, { recursive: true, force: true }));
-
-    describe("pattern 모드 — 대조군은 합성한 canary 다", () => {
-      it("정말 없으면 0 — 매치 건수를 명시 출력한다 (빈 출력로 얼버무리지 않는다)", () => {
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt"], dir);
-        expect(r.code).toBe(0);
-        expect(r.out).toContain("매치: 0건");
-      });
-
-      /**
-       * #329 — "패턴 없음"만으로는 **몇 개를 봤는지** 알 수 없다. 그 상태의 "전수 검사했다"는
-       * 보고를 아무도 검증할 수 없고, 이 저장소는 한 PR 안에서 그 형태로 세 번 틀렸다.
-       */
-      it("검사한 파일 수를 결론 줄에 낸다 — 모집단 없는 '없음'은 검증 불가다", () => {
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
-        expect(r.code).toBe(1);
-        expect(r.out).toContain("파일 2개");
-      });
-
-      it("파일 수는 매치된 파일이 아니라 **본 파일 전부**다", () => {
-        // 매치는 dirty.txt 한 곳뿐인데 clean.txt 도 읽었다. 매치 수로 모집단을 대신하면
-        // "1개 봤다"가 되어, 이 줄을 넣은 이유가 그대로 사라진다.
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "clean.txt", "dirty.txt"], dir);
-        expect(r.out).toContain("매치: 1건 / 파일 2개");
-      });
-
-      /**
-       * 리뷰 HIGH-1 — 이 계수가 **플랫폼마다 다른 수**를 냈다. 이전 판본의 `grep -rIc ""` 는
-       * GNU 가 바이너리 파일에도 `파일:0` 줄을 내고 BSD(macOS)는 안 내서, 같은 트리를 두고
-       * macOS 500 vs Linux 504 를 냈다(이 저장소 src·templates·tests·scripts·docs 실측,
-       * Debian 컨테이너 대조). 수가 갈리면 "같은 범위를 봤다"를 이 줄로 확인할 수 없고,
-       * 그게 #329 가 이 줄을 넣은 이유 전부다.
-       *
-       * 한 번의 테스트 실행은 한 플랫폼만 밟으므로 "두 값이 같다"를 직접 단언할 수는 없다.
-       * 대신 **두 구현이 합의하는 모집단**을 못박는다 — 줄이 하나라도 있는 텍스트 파일만 센다.
-       * `-c` 계수로 되돌리면 빈 파일이 `파일:0` 로 잡히고, `-I` 를 빼면 바이너리가 잡힌다 —
-       * **둘 다 이 픽스처를 `파일 2개` 에서 `파일 3개` 로 갈라 빨간불이 된다**(macOS 실측,
-       * BSD grep 2.6.0-FreeBSD). `-I` 쪽을 "Linux 에서만 잡힌다"고 적었던 이전 주석은
-       * 게이트를 실제보다 약하게 말한 것이라 고쳤다.
-       */
-      it("모집단은 '줄이 있는 텍스트 파일' — 빈 파일·바이너리는 구현마다 갈려서 뺀다", () => {
-        writeFileSync(join(dir, "empty.txt"), "");
-        writeFileSync(join(dir, "blob.bin"), Buffer.from([0x41, 0x00, 0x42, 0x00, 0x0a]));
-        // 픽스처 구성을 먼저 못박는다. 아래 `파일 2개` 의 뜻은 **네 파일 중 둘이 빠졌다**인데,
-        // 그 사실이 픽스처에만 있으면 위 두 줄을 지워도(텍스트 2개만 남아도) 그대로 초록이다 —
-        // 실제로 이 판본 직전까지 그랬다. 그러면 다음 사람이 "안 쓰이는 픽스처"로 보고 지우고,
-        // 게이트는 살아 있는 채로 계수 회귀를 못 잡는다.
-        expect(readdirSync(dir).sort()).toEqual([
-          "blob.bin",
-          "clean.txt",
-          "dirty.txt",
-          "empty.txt",
-        ]);
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "."], dir);
-        expect(r.code).toBe(1);
-        // 무엇을 센 것인지가 결론 줄 안에 있어야 한다 — "파일 N개"만으로는 읽는 사람이
-        // 빈 파일·바이너리가 들었는지 알 수 없고, 그러면 모집단을 다시 추측하게 된다.
-        expect(r.out).toContain("매치: 1건 / 파일 2개(바이너리·빈 파일 제외)");
-      });
-
-      it("있으면 1 — 위치를 보여준다", () => {
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "dirty.txt"], dir);
-        expect(r.code).toBe(1);
-        expect(r.out).toContain("dirty.txt");
-      });
-
-      /** 이 도구를 만들게 한 실제 사고: 소문자 패턴 + 대문자 실 데이터 → 놓치고 "잔여 0" 선언. */
-      it("탐지기가 canary 를 못 잡으면 2 — '없음'을 결론으로 내주지 않는다", () => {
-        const r = run(SCRIPT, ["--canary", "OldName", "oldname", "dirty.txt"], dir);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain("탐지기 자기검증 실패");
-      });
-
-      it("-i 는 자기검증과 실검사에 동시 적용된다 — 한쪽만 적용되면 구멍이 생긴다", () => {
-        const r = run(SCRIPT, ["--canary", "OldName", "-i", "oldname", "dirty.txt"], dir);
-        expect(r.code).toBe(1); // 대소문자 무시하면 잡혀야 한다
-      });
-
-      it("경로가 없으면 2 — '없음'이 아니라 '안 봤음'이다", () => {
-        const r = run(SCRIPT, ["--canary", "x", "x", "no-such-file.txt"], dir);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain("안 봤음");
-      });
-
-      it("canary 없이는 쓸 수 없다 — 그게 이 도구의 존재 이유다", () => {
-        const r = run(SCRIPT, ["OldName", "clean.txt"], dir);
-        expect(r.code).toBe(3);
-      });
-
-      /**
-       * 독립 리뷰가 잡은 H2. 경로를 공백 구분 문자열로 쌓아 인용 없이 전개하던 이전 판본은
-       * `a b` 를 `a` 와 `b` 로 쪼개 훑고 **`매치: 0건` + exit 0** 을 냈다. canary 를 통과한
-       * 뒤라 사용자는 최대 확신 상태에서 거짓 부재를 받는다 — 가장 나쁜 실패 모양이다.
-       */
-      it("공백이 든 경로에서도 매치를 찾는다 — 단어 분할로 인한 거짓 부재 금지", () => {
-        mkdirSync(join(dir, "a b"));
-        mkdirSync(join(dir, "a"));
-        mkdirSync(join(dir, "b"));
-        writeFileSync(join(dir, "a b", "hit.txt"), "OldName is HERE\n");
-        writeFileSync(join(dir, "a", "x.txt"), "nothing\n");
-        writeFileSync(join(dir, "b", "y.txt"), "nothing\n");
-        const r = run(SCRIPT, ["--canary", "OldName", "OldName", "a b"], dir);
-        expect(r.code).toBe(1);
-        expect(r.out).toContain("hit.txt");
-      });
-    });
-
-    describe("command 모드 — 대조군은 '되는 줄 아는 대상'이다", () => {
-      it("대조 성공 + 대상 실패 → 0. 무엇이 대조군이었는지 출력에 남는다", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
-        expect(r.code).toBe(0);
-        expect(r.out).toContain("대조군");
-        expect(r.out).toContain("부정 결론이 증거를 얻었다");
-      });
-
-      it("결론 줄에 대상 명령이 남는다 — 무엇을 판정했는지가 결론과 같은 줄에 있어야 한다", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "false"], dir);
-        expect(r.code).toBe(0);
-        expect(r.out).toMatch(/부정 결론이 증거를 얻었다.*대상 1개: false/);
-      });
-
-      it("대조 성공 + 대상 성공 → 1 ('안 된다'가 틀렸다)", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "true"], dir);
-        expect(r.code).toBe(1);
-        expect(r.out).toContain("'안 된다'는 결론은 틀렸다");
-      });
-
-      /**
-       * 이 한 줄이 command 모드의 존재 이유다. 대조군까지 함께 실패했는데 대상의 exit 1 만 보고
-       * "설치 불가"라고 보고한 적이 있다 — 코드가 아니라 **사유 문구**가 그때 필요했던 것이다.
-       */
-      it("대조군이 실패하면 대상도 실패해도 2 — 실험 자체가 무효다", () => {
-        const r = run(SCRIPT, ["--control", "false", "--subject", "false"], dir);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain("대조군이 기대");
-        expect(r.out).toContain("증거가 아니다");
-      });
-
-      it("--control-exit 로 대조군의 기대 코드를 옮길 수 있다", () => {
-        const r = run(
-          SCRIPT,
-          ["--control", "false", "--control-exit", "1", "--subject", "false"],
-          dir,
-        );
-        expect(r.code).toBe(0);
-      });
-
-      it("대조군 stderr 를 삼키지 않는다 — 왜 무효인지가 보여야 고친다", () => {
-        const r = run(SCRIPT, ["--control", "echo boom >&2; exit 7", "--subject", "false"], dir);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain("boom");
-      });
-
-      /**
-       * 독립 리뷰가 잡은 H1. 이전 판본은 여기서 **exit 0("부재 확인")** 을 냈다 — 실행조차 안 된
-       * 명령을 "대상이 안 된다"의 증거로 내준 것이고, 그건 이 도구가 없애려던 실패 그 자체다.
-       */
-      it("대상이 실행조차 안 되면(127) 판정이 아니라 무효다 — exit 2", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "nosuchcmd_xyz_123"], dir);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain("실행되지 않았다");
-      });
-
-      it("실행 권한이 없어도(126) 무효다 — exit 2", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "/etc/hosts"], dir);
-        expect(r.code).toBe(2);
-      });
-
-      /**
-       * H1b. `sh -c` 이던 시절 이 입력이 macOS(bash) 에서 1, Linux(dash) 에서 0 으로 **뒤집혔다**.
-       * 하필 이 모드를 만든 계기가 Docker(Linux) 실험이라 가장 아픈 자리였다.
-       */
-      it("실행기를 bash 로 고정한다 — bash 문법이 대상에서 동작하고, 출력에 실행기가 남는다", () => {
-        const r = run(SCRIPT, ["--control", "true", "--subject", "[[ 1 == 1 ]]"], dir);
-        expect(r.code).toBe(1); // bash 에서는 성공 → "안 된다"가 틀렸다
-        expect(r.out).toContain("bash -c");
-      });
-
-      /** M1. 범위를 안 보면 `[ -ne ]` 가 에러로 끝나고 `if` 가 그걸 "대조군 통과"로 읽었다. */
-      it.each([
-        ["20자리", "99999999999999999999"],
-        ["256", "256"],
-      ])("--control-exit 이 범위를 벗어나면(%s) 판정 코드가 아니라 사용법 오류 — exit 3", (_d, v) => {
-        expect(
-          run(SCRIPT, ["--control", "true", "--subject", "false", "--control-exit", v], dir).code,
-        ).toBe(3);
-      });
-    });
-
-    describe("사용법 오류는 3 — 판정 코드와 섞이지 않는다", () => {
-      it.each([
-        ["인자 없음", [] as ReadonlyArray<string>],
-        ["--subject 누락", ["--control", "true"]],
-        ["--control 누락", ["--subject", "true"]],
-        ["두 모드 혼용", ["--canary", "x", "--control", "true", "--subject", "true"]],
-        // M4 — 조용한 무시가 이 도구의 성격과 반대다.
-        ["command 모드에 남는 위치 인자", ["--control", "true", "--subject", "false", "extra"]],
-        // 재리뷰 N2/N4 — 모드 밖 플래그를 "거절한다"고 보고했는데 절반만 맞았다.
-        ["command 모드에 -i", ["--control", "true", "--subject", "false", "-i"]],
-        ["빈 --canary 로 모드 혼용", ["--canary", "", "--control", "true", "--subject", "false"]],
-        [
-          "pattern 모드에 --control-exit",
-          ["--control-exit", "5", "--canary", "x", "x", "clean.txt"],
-        ],
-        [
-          "--control-exit 비숫자",
-          ["--control", "true", "--subject", "true", "--control-exit", "a"],
-        ],
-      ])("%s", (_desc, args) => {
-        expect(run(SCRIPT, args, dir).code).toBe(3);
-      });
-    });
-  });
-}

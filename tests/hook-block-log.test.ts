@@ -34,7 +34,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const LOG_REL = join(".uzys-agent-harness", "hook-blocks.log");
 
 interface HookCase {
-  /** ROOT 기준 훅 경로. 배포판·설치본 양 사본을 각각 건다. */
+  /** ROOT 기준 훅 경로. */
   path: string;
   /** 차단돼야 하는 stdin JSON */
   block: unknown;
@@ -50,30 +50,18 @@ interface HookCase {
 }
 
 /**
- * 대상 훅. `protect-files` 는 배포판과 설치본 **양쪽** — 이 리포는 자기 배포물을 도그푸딩하므로
- * 한쪽만 고치면 파는 것과 쓰는 것이 갈린다. `docker-only-realcli` 는 dev 전용이라 `.claude/`
- * 사본만 있다.
+ * 대상 훅 = **설치자에게 나가는 배포판 사본**. 개발 사본(`.claude/hooks/`)과 dev 전용
+ * `docker-only-realcli` 는 설치자 디스크에 닿지 않아 이 계약의 대상이 아니다.
  *
  * 2026-08-16 (ADR-072) — `mcp-pre-exec` 케이스 삭제(훅이 없어졌다). 그래서 **차단하는 훅은
  * 배포판에 하나뿐이다** — 이 목록이 짧아진 것은 커버리지 후퇴가 아니라 차단면 자체가 줄어든
  * 결과다. 훅이 되살아나면 이 목록에 다시 넣어야 로그 계약이 걸린다.
  */
 const HOOKS: HookCase[] = [
-  ...["templates", ".claude"].map((copy) => ({
-    path: `${copy}/hooks/protect-files.sh`,
+  {
+    path: "templates/hooks/protect-files.sh",
     block: { tool_name: "Edit", tool_input: { file_path: "/proj/.env" } },
     pass: { tool_name: "Edit", tool_input: { file_path: "/proj/src/index.ts" } },
-  })),
-  {
-    path: ".claude/hooks/docker-only-realcli.sh",
-    // CI 가 세팅돼 있으면 훅이 즉시 통과시킨다 (GitHub Actions 대비 반드시 비운다).
-    env: { CI: "" },
-    block: { tool_name: "Bash", tool_input: { command: "agent-harness install --track tooling" } },
-    pass: { tool_name: "Bash", tool_input: { command: "npm run ci" } },
-    // 컨테이너 안에서는 `/.dockerenv` 때문에 훅이 설계상 전부 통과시킨다 — 차단 계약을
-    // 물을 수 있는 환경이 아니다. vitest 는 호스트/CI 러너에서 도는 것이 전제.
-    skip: existsSync("/.dockerenv"),
-    skipReason: "컨테이너 내부 — docker-only-realcli 는 /.dockerenv 가 있으면 통과가 정상",
   },
 ];
 
