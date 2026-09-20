@@ -179,7 +179,7 @@ describe("탐지기 자기검증", () => {
  * 템플릿 파일을 훑는 reachability 게이트의 모집단 밖이고, 도달은 여기서 실설치로 잰다.
  *
  * 자리: Claude Code 는 루트 `CLAUDE.md` 의 관리 블록(그 파일이 앵커를 import 한다), Codex·OpenCode 는
- * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `clear-korean-communication`
+ * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `user-centered-explanation`
  * (has-dev-track)을 항상 깔므로 안내가 있어야 하고, 상시 스킬을 전부 빼면(음성 대조) 안내 절이
  * 한 CLI 에도 없어야 한다.
  */
@@ -196,7 +196,7 @@ describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만
 
   it("canary — 안내 절은 앵커 원본에 없다 (있으면 도달 판정이 앵커 임베드와 구분되지 않는다)", () => {
     expect(readFileSync(join(ROOT, "templates/CLAUDE.md"), "utf8")).not.toContain(NOTE);
-    expect(CONTINUOUS_SKILLS.map((s) => s.id)).toContain("clear-korean-communication");
+    expect(CONTINUOUS_SKILLS.map((s) => s.id)).toContain("user-centered-explanation");
   });
 
   for (const cli of CLI_BASES) {
@@ -204,7 +204,7 @@ describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만
       const inst = installed.get(cli);
       if (!inst) throw new Error(`설치 산출물 없음: ${cli}`);
       expect(noteReaches(inst, cli), `${cli} 에 상시 스킬 안내 미도달`).toBe(true);
-      expect([...inst.text.values()].some((b) => b.includes("`clear-korean-communication`"))).toBe(
+      expect([...inst.text.values()].some((b) => b.includes("`user-centered-explanation`"))).toBe(
         true,
       );
     });

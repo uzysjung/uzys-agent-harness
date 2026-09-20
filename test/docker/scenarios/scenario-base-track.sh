@@ -27,7 +27,7 @@ echo "✓ ① 룰 = 공통 5종 (cli-development 없음)"
 echo "✓ ② reviewer + implementer · 훅 2종"
 
 # ③ 스킬
-for s in compaction-handoff clear-korean-communication audit-service-gaps multi-persona-review recurrence-prevention \
+for s in compaction-handoff user-centered-explanation audit-service-gaps multi-persona-review recurrence-prevention \
          north-star gh-issue-workflow objective-brief audit-harness-fit; do
   [ -f ".claude/skills/${s}/SKILL.md" ] || fail "③ 스킬 ${s} 누락"
 done

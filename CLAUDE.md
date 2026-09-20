@@ -107,13 +107,13 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 
 ## 보고·의사결정 형식
 
-**모든 답변**을 `clear-korean-communication` 규율로 쓴다 — 승인 요청 순간만이 아니다(사용자 확정
+**모든 답변**을 `user-centered-explanation` 규율로 쓴다 — 승인 요청 순간만이 아니다(사용자 확정
 2026-08-03). 사용자에게는 **"무엇이 달라지는가"**로 말한다 — 경로·심볼·커밋 해시로 시작하는
 초안은 그 자체가 다시 쓰라는 신호다. 승인·선택 요청은 스킬의 기본 표(**맥락 · 문제점 · 해결방안 ·
 추천방안**, 각각 이유와 함께 — 사용자 확정 2026-09-15, #465)로, 수치는 before → after 로 쓴다
 ("빨라짐"은 검증 불가라 미검증 주장과 구분되지 않는다).
-실행 형식·예시 = `clear-korean-communication` 스킬 — 이 리포 번들이라
-`templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
+실행 형식·예시 = `user-centered-explanation` 스킬 — 이 리포 번들이라
+`templates/skills/user-centered-explanation/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
 
 **위임·설계·다단계 작업은 착수 전에 `objective-brief` 로 정규화해 보여준다**(사용자 확정
 2026-09-13, ADR-088 — 2026-08-03 의 "모든 작업 요청"에서 문턱이 올라갔다). 피처·프로젝트 규모

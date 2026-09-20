@@ -203,7 +203,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   //   condition 은 이관 전 도달 범위 그대로다(강등·승격 둘 다 금지).
   it("복원 uzys 스킬: kind:internal · key=id · tier official · 이관 전 condition", () => {
     const expected: Record<string, { category: string; condition: string }> = {
-      "clear-korean-communication": { category: "workflow", condition: "has-dev-track" },
+      "user-centered-explanation": { category: "workflow", condition: "has-dev-track" },
       // north-star · gh-issue-workflow 는 이관 전 COMMON_SKILL_DIRS(전 트랙 상주)였다 —
       //   강등 금지. any-track 전 트랙 나열이 그 도달 범위의 표현이다.
       "north-star": { category: "workflow", condition: "any-track" },
@@ -293,7 +293,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const expectedCategory: Record<string, "dev-tools" | "workflow"> = {
       "compaction-handoff": "workflow",
-      "clear-korean-communication": "workflow",
+      "user-centered-explanation": "workflow",
       "audit-service-gaps": "dev-tools",
       "multi-persona-review": "dev-tools",
       "recurrence-prevention": "workflow",

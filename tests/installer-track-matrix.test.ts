@@ -288,7 +288,7 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
   it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙 · opt-in", () => {
     const allTrack = ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"];
     const devOnly = [
-      "clear-korean-communication",
+      "user-centered-explanation",
       "audit-service-gaps",
       "multi-persona-review",
       "recurrence-prevention",

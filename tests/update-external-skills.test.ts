@@ -418,7 +418,9 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     const out = lines({ externalSkillsNotInCatalog: [oldId] });
     expect(out).toContain(oldId);
     expect(out).toContain(newId);
-    expect(out).toMatch(/지우고/);
+    // #480 ① 이후 새 이름은 같은 update 의 new-skills 묶음이 깐다 — "선택해 받아라"는 거짓이 됐다.
+    expect(out).toMatch(/new-skills/);
+    expect(out).toMatch(/지워도 된다/);
     // 개명은 "은퇴"가 아니다 — 새 판이 있는데 없다고 읽히면 사용자가 그 스킬을 버린다.
     expect(out).not.toMatch(/은퇴/);
   });

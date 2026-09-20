@@ -830,7 +830,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} 는 ${renamedTo} 가 됐다 · update 뒤 .claude/skills/${id} 를 지우고 ${renamedTo} 를 선택해 받는다`,
+              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · .claude/skills/${id} 는 지워도 된다`,
             ),
           );
         } else if (RETIRED_SKILL_IDS.includes(id)) {
