@@ -10,7 +10,11 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { ExternalAsset, ExternalAssetMethod } from "./external-assets.js";
+import {
+  type ExternalAsset,
+  type ExternalAssetMethod,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
 import { listFilesRecursive } from "./fs-ops.js";
 import type { InstallScope, InstallSpec } from "./types.js";
@@ -119,6 +123,20 @@ export interface InstallLog {
      * 그때 기록이 남아 있으면 로그가 디스크와 다른 말을 한다.
      */
     baselineExclude?: ReadonlyArray<string>;
+    /**
+     * #505 — 사용자가 위저드 체크 해제 / `--without <id>` 로 뺀 **번들 스킬** id
+     * (`INTERNAL_BUNDLED_SKILL_IDS` 의 id 그대로 — `baseline:` 접두 없음). 아무것도 안 뺐으면
+     * 필드 자체가 없다.
+     *
+     * `baselineExclude` 와 **보는 목록이 다르다**: 번들 스킬은 자산 페이지에서 개별 선택되므로
+     * baseline 후보가 아니고(`baseline-targets.ts` `listBaselineTargets` 주석), 해제는
+     * `userOverride.forceExclude` 에만 남았다. install 은 그걸 보고 안 깔지만 `update` 는 spec 을
+     * 트랙에서 다시 유도하므로 **뺀 스킬을 되돌려 깔았다**(#505) — 사용자는 update 때마다 같은
+     * 디렉터리를 다시 지워야 했다.
+     *
+     * `baselineExclude` 와 같이 **누적하지 않는다**: 로그는 마지막 설치가 실제로 한 일이다.
+     */
+    skillExclude?: ReadonlyArray<string>;
   };
   /** templates 출처 — uninstall 시 templates 제거 위치 */
   templates: {
@@ -214,6 +232,9 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
   }
 }
 
+/** #505 — 로그에 남길 해제 대상 판별용. 외부 자산 제외는 update 가 재설치하지 않아 제외한다. */
+const BUNDLED_SKILL_IDS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_IDS);
+
 /**
  * install log 생성. `previous` 가 있으면 **누적**한다 (v26.123.0 — F-1a).
  *
@@ -240,6 +261,11 @@ export function buildInstallLog(
   claudeDirMovedAside = false,
   rootFiles: ReadonlyArray<InstallLogRootFile> = [],
 ): InstallLog {
+  // #505 — 번들 스킬 해제는 **자산 id** 로 들어온다(`userOverride.forceExclude`). 위저드 체크
+  // 해제와 `--without <id>` 가 같은 자리로 모이므로 두 진입점이 한 줄로 덮인다.
+  const skillExclude = (spec.userOverride?.forceExclude ?? []).filter((id) =>
+    BUNDLED_SKILL_IDS.has(id),
+  );
   const templates: InstallLog["templates"] = {
     claudeDir: ".claude/",
     ...(spec.cli.includes("codex") ? { codexDir: ".codex/" } : {}),
@@ -256,6 +282,7 @@ export function buildInstallLog(
       ...(spec.baselineExclude && spec.baselineExclude.length > 0
         ? { baselineExclude: spec.baselineExclude }
         : {}),
+      ...(skillExclude.length > 0 ? { skillExclude } : {}),
     },
     // 이번 설치가 만든 항목이 이기고, 이번에 안 만든 항목은 이전 값을 그대로 둔다.
     // (예: claude 로 깔고 나중에 codex 만 추가 설치해도 root CLAUDE.md 기록이 살아남는다)

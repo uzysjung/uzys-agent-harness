@@ -11,8 +11,16 @@ import {
 } from "../src/baseline-targets.js";
 import { readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
-import { baselineExcludeFrom, formatSummary, initialTargetSelection } from "../src/interactive.js";
+import {
+  baselineExcludeFrom,
+  computeUserOverride,
+  formatSummary,
+  initialTargetSelection,
+} from "../src/interactive.js";
+import { buildAssetSpec } from "../src/manifest.js";
+import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import type { InstallSpec, OptionFlags } from "../src/types.js";
+import { runUpdateMode } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 const NO_OPTS: OptionFlags = { withCodexTrust: false };
@@ -301,6 +309,86 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       });
       expect(existsSync(kept)).toBe(true);
       expect(report.updateMode?.restored).toContain(".claude/agents/implementer.md");
+    });
+  });
+
+  /**
+   * #505 — 번들 스킬 해제는 `update` 가 되돌렸다. F1 과 **보는 목록이 다른 것**이 원인이다:
+   * 번들 스킬은 자산 페이지에서 개별 선택되므로 baseline 후보가 아니고, 해제가
+   * `userOverride.forceExclude` 에만 남아 설치 로그에 안 실렸다. `update` 는 트랙에서 spec 을
+   * 다시 유도하므로 뺀 스킬이 매번 돌아왔고, 설치자는 update 때마다 같은 디렉터리를 지웠다.
+   */
+  describe("update 가 번들 스킬 해제를 되돌리지 않는다 (#505)", () => {
+    // 표본을 열거하지 않고 트랙이 실제로 고른 번들 스킬에서 뽑는다 — 자산 하나가 지워지면
+    // 열거는 썩는다(`listBaselineTargets` 주석과 같은 이유).
+    const bundled = buildAssetSpec({
+      tracks: ["tooling"],
+      options: NO_OPTS,
+    }).selectedInternalSkills;
+    const dropped = bundled[0] ?? "";
+    const kept = bundled[1] ?? "";
+    const skillDir = (id: string): string => join(projectDir, ".claude/skills", id);
+    const install = (extra: Partial<InstallSpec> = {}) =>
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: spec({ cli: ["claude"], ...extra }),
+      });
+    const dropOne = () => install({ userOverride: { forceInclude: [], forceExclude: [dropped] } });
+    const update = () => runUpdateMode(projectDir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
+
+    it("전제 — 해제 없이 깔면 표본 2종이 다 들어온다 (부재 단언이 공허해지지 않게)", () => {
+      expect(
+        bundled.length,
+        "tooling 트랙의 번들 스킬이 2종 미만 — 이 블록이 볼 표본이 없다",
+      ).toBeGreaterThan(1);
+      install();
+      expect(existsSync(skillDir(dropped))).toBe(true);
+      expect(existsSync(skillDir(kept))).toBe(true);
+    });
+
+    it("설치 로그가 해제한 번들 스킬을 남긴다 (update 가 읽을 유일한 근거)", () => {
+      dropOne();
+      expect(existsSync(skillDir(dropped))).toBe(false);
+      expect(readInstallLog(projectDir)?.spec.skillExclude).toEqual([dropped]);
+    });
+
+    it("해제 없이 설치하면 로그에 필드가 없다 (없는 선택을 지어내지 않는다)", () => {
+      install();
+      expect(readInstallLog(projectDir)?.spec.skillExclude).toBeUndefined();
+    });
+
+    it("위저드 체크 해제도 같은 필드를 남긴다 (진입점 대칭)", () => {
+      // 위저드는 체크 상태를 `computeUserOverride` 로 뒤집는다 — 플래그와 같은 자리로 모이는지를
+      // 그 함수의 출력으로 확인한다. 여기가 갈리면 같은 기능이 진입점마다 다르다.
+      const override = computeUserOverride(
+        ["tooling"],
+        recommendedExternalAssets(["tooling"]).filter((id) => id !== dropped),
+      );
+      expect(
+        override?.forceExclude,
+        "위저드가 이 스킬을 자산 페이지에 안 낸다 — 표본이 틀렸다",
+      ).toContain(dropped);
+      install({ ...(override ? { userOverride: override } : {}) });
+      expect(readInstallLog(projectDir)?.spec.skillExclude).toEqual([dropped]);
+    });
+
+    it("update 뒤에도 그 디렉터리는 없다 — 안 뺀 스킬은 그대로", () => {
+      dropOne();
+      const report = update();
+      expect(existsSync(skillDir(dropped))).toBe(false);
+      expect(report.installedNew).not.toContain(`.claude/skills/${dropped}`);
+      expect(existsSync(skillDir(kept))).toBe(true);
+    });
+
+    it("음성 대조 — 해제하지 않은 스킬은 지워도 update 가 되돌려 깐다", () => {
+      // 이 대조가 없으면 위 부재 단언은 "update 가 원래 스킬을 안 깐다"로도 통과한다.
+      dropOne();
+      rmSync(skillDir(kept), { recursive: true, force: true });
+      const report = update();
+      expect(existsSync(skillDir(kept))).toBe(true);
+      expect(report.installedNew).toContain(`.claude/skills/${kept}`);
     });
   });
 
