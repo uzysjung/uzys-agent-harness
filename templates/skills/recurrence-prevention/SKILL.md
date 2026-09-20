@@ -93,7 +93,7 @@ For the capture checklist (what to write down about the failure so the next coun
 | Correct behavior | Known, agreed, undisputed | Disputed, unclear, or trade-off-laden |
 | Why it recurred | Wasn't followed: forgot, skipped, overlooked | The countermeasure itself was wrong/insufficient, or cause spans components |
 | Typical examples | Forgot a checklist step; committed a forbidden file; skipped a verification | A "verified" path that still shipped broken; drift between N surfaces; a gate that passes while the behavior fails |
-| Path | **Escalation ladder** (Step 3a) | **Multi-persona countermeasure design** (Step 3b) |
+| Path | **Choose the countermeasure level** (Step 3a) | **Multi-persona countermeasure design** (Step 3b) |
 
 Two quick discriminators:
 - Could you write the corrective rule in one sentence right now, with confidence nobody would
@@ -122,7 +122,7 @@ maintenance + false-positive cost).
 |---|---|---|---|
 | **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or an occurrence link on a related rule's 신설 근거 line if one already exists | Records don't steer — nothing re-reads them at the decision moment |
 | **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + a one-line "신설 근거" with links to each occurrence. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps. **Shape**: the *minimum condition* that prevents the failure — what must be true, not how to do it — stated in positive form; a prohibition only where the damage is irreversible | Prose can be skimmed, forgotten under context pressure, or rationalized around |
-| **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible. **Shape**: one level up means *more deterministic*, not *more forbidden* — the gate checks a result and leaves the model's judgment where no check can express it | Gates that never demonstrably fire; gates so noisy they get bypassed |
+| **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible. **Shape**: a stronger countermeasure means *more deterministic*, not *more forbidden* — the gate checks a result and leaves the model's judgment where no check can express it | Gates that never demonstrably fire; gates so noisy they get bypassed |
 
 Load-bearing principle at Level 2: **comment warnings and doc reminders are not a blocking
 mechanism.** If the countermeasure's effect depends on someone (human or model) reading prose at
@@ -145,10 +145,10 @@ every install, forever**, while a gate costs CI time and **zero** standing conte
 questions in order and stop at the first that decides:
 
 1. **Can the wrong action be detected deterministically?** — a failing test, a hook that exits
-   non-zero, a derive that deletes the duplicated list. If yes, **write the gate instead, even at
-   count 2.** This is the one sanctioned way to enter above your count, and it is not gate
-   inflation: you are not buying stronger enforcement than the count justifies, you are picking
-   the cheaper artifact for the same enforcement. Code answers what code can answer.
+   non-zero, a derive that deletes the duplicated list. If yes, **write the gate instead of a
+   rule.** That is not gate inflation: you are not buying stronger enforcement than the risk
+   justifies, you are picking the cheaper artifact for the same enforcement. Code answers what
+   code can answer.
 2. **Would the rule change behaviour that would otherwise be wrong?** If the corrective principle
    is something a competent agent does anyway, or it restates a rule that already exists, it buys
    nothing and bills every session. Stay at Level 0.
@@ -238,7 +238,7 @@ would be a false ship. Before closing:
   test gate or derive.
 - **Derive/single-source**: show the duplicated site is gone (grep returns one definition).
 - **Rule (prose)**: not mechanically verifiable — say so explicitly ("등록됨, 준수는 미검증").
-  That honesty is what justifies escalating to Level 2 if it recurs anyway.
+  That honesty is what justifies replacing it with a deterministic mechanism if it recurs anyway.
 
 ## Output format — 재발방지 보고
 
