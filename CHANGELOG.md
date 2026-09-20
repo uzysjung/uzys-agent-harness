@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.158.0] — 2026-09-20 (사용자 문서 전면 현행화 — 철학이 README 의 중심에)
+
+### Changed
+- **README 영·한 재작성** (#429 · #504): 설치 바로 다음에 철학 절 — 필요한 틀만 남긴다 · "하지 마라 / 반드시 해라"가
+  최신 모델의 성능을 깎는 이유(우리 룰 44문장 중 행동을 바꾼 관측 0건, ADR-090) · 모델이 발전하면 스킬도 개선된다 ·
+  `audit-harness-fit` 으로 계속 점검한다 · 속도와 품질은 맞바꾸지 않는다 · 만드는 서비스의 고객 관점에서 설명한다.
+  설치 경로 2개(하네스 전체 / `npx skills add uzysjung/uzys-agent-harness --skill <id>` 로 스킬 하나만) · 첫 세션에
+  `audit-harness-fit` 으로 프로젝트 맥락 채우기(스택 인터뷰 단계는 두지 않음, 사용자 결정) · CLI 별 도달 표.
+  감사 4레인이 찾은 드리프트 정정 — 트랙 11→12 · Global 이 아니어도 `claude plugin` 은 `~/.claude/plugins/` 캐시를
+  쓴다 · "삭제 없음"→"내가 쓰거나 고친 것은 백업 없이 지우지 않는다" · Codex 는 세션 시작 훅만 · vetted 는 배지 없음 ·
+  룰은 dev 트랙 5(tooling·full 6) · `list` 는 릴리즈를 안 보여 준다.
+- **USAGE · TRACKS · REFERENCE · WORKFLOWS · CONTEXT-FILES · SECURITY 현행화** (#429 · #504): USAGE 를 작업 순서(설치 →
+  첫 세션 → 갱신 → 확인·제거)로 재구성하고 `update --only` 6묶음 · update 가 새 스킬을 깐다 · 루트 `CLAUDE.md` 는
+  import 블록만 · `.opencode/` 없음 · 스크립트 3종 등 15건 정정, 4개월 넘은 마이그레이션 절 삭제. TRACKS 는 "모든
+  트랙이 받는 것" 표 + 스택별 추가분 + 번들 스택 스킬 8종. REFERENCE 는 유지보수자 카탈로그로 위치를 명시하고
+  에이전트 표(은퇴 3종 제거 · 트랙 조건부 2종)·`--copy`·`.mcp.json` 전 트랙을 바로잡고 이력 1/3 을 ADR 링크로.
+  WORKFLOWS ★ 7건 재측정(2026-09-20). CONTEXT-FILES: 원칙 6개 · **AGENTS.md 의 Project Context 는 update 가 초기화한다**
+  (실제 동작대로 — 이슈 #503). 한국어는 Gemini 3.1 Pro + `natural-korean`, 영어는 Gemini 3.1 Pro 검수. 독립 리뷰
+  BLOCKER 9건 반영(그중 `update` 가 `--without` 으로 뺀 번들 스킬을 복귀시키는 결함은 이슈 #505).
+- **COMPATIBILITY 생성기** (#429 · #504): 번들 스킬 13행의 CLI 열이 ADR-081 이전의 "OpenCode (cmd)" 를 상수로 들고
+  있어 재생성으로 안 고쳐졌다 — 상수를 "4-CLI (bundled skill dir)" 로 바꾸고 재생성.
+- 저장소 private vulnerability reporting 활성화(사용자 실행) — SECURITY.md 의 신고 경로가 실제로 열렸다.
+
 ## [v26.157.0] — 2026-09-20 (필요한 보호는 유지하고 검증 방법은 근거에 따라 — 가드 증식 방지 · 스킬 개별 설치 · agent-browser opt-in)
 
 ### Changed
