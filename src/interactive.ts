@@ -1,5 +1,10 @@
 import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
-import { formatResidentCostLine, residentCost, summarizeContextCost } from "./context-cost.js";
+import {
+  formatResidentCostLine,
+  landsOnDisk,
+  residentCost,
+  summarizeContextCost,
+} from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
 import { readInstallLog } from "./install-log.js";
 import { buildManifestSpec, type InstallMode } from "./installer.js";
@@ -390,7 +395,10 @@ export function formatSummary(spec: InstallSpec): string {
     const cost = formatResidentCostLine(
       residentCost(
         buildManifest(assetSpec).filter(
-          (e) => e.applies(assetSpec) && !isBaselineExcluded(e.target, baselineExcluded),
+          (e) =>
+            e.applies(assetSpec) &&
+            !isBaselineExcluded(e.target, baselineExcluded) &&
+            landsOnDisk(e.target, spec.cli),
         ),
       ),
       summarizeContextCost(finalAssets).unmeasuredCount,

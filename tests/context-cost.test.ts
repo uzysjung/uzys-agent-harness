@@ -12,6 +12,7 @@ import {
   formatContextCostLine,
   formatResidentCostBlock,
   formatResidentCostLine,
+  landsOnDisk,
   makeResidentCost,
   residentCost,
   resolveBundleRoot,
@@ -251,6 +252,58 @@ describe("context cost surfaces", () => {
     // 헤더는 dim 이스케이프가 붙으므로 wizard 라인이 헤더 라인에 포함되는지로 본다.
     expect(fromHeader).toContain(expectedLine());
     expect(fromWizard).toContain(expectedLine());
+  });
+});
+
+/**
+ * #476 — 계획(manifest)으로 재는 두 표면(헤더 · wizard confirm)은 그 CLI 조합에서 **디스크에
+ * 남는** 것만 센다. codex 단독 설치는 `.claude/` 를 만들지 않는데 서브에이전트를 셌고(tooling:
+ * `agents 2 ~192`), 같은 설치의 update 화면(디스크 실측, #458)은 `agents 0 ~0` 을 냈다 — 같은
+ * 설치가 화면마다 다른 숫자를 가진다. 기대값은 여기서 손으로 적지 않고 manifest 계획에서 뽑는다.
+ */
+describe("계획 상주 계측은 CLI 조합에서 디스크에 남는 것만 센다 (#476)", () => {
+  const specFor = (cli: ReadonlyArray<string>): InstallSpec =>
+    ({
+      projectDir: "/tmp/x",
+      tracks: ["tooling"],
+      cli,
+      options: {},
+      scope: "project",
+    }) as unknown as InstallSpec;
+  const headerLine = (spec: InstallSpec): string => {
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    return /session-start context cost: [^\n]*/.exec(lines.join("\n"))?.[0] ?? "";
+  };
+  const plannedAgents = (spec: InstallSpec): number => {
+    const a = buildManifestSpec(spec);
+    return buildManifest(a).filter((e) => e.applies(a) && e.target.startsWith(".claude/agents/"))
+      .length;
+  };
+
+  it("codex 단독 — 헤더와 wizard confirm 이 agents 0 ~0 (계획에는 에이전트가 있다 = 대조군)", () => {
+    const spec = specFor(["codex"]);
+    expect(
+      plannedAgents(spec),
+      "대조군: 계획에 에이전트가 없으면 이 테스트는 필터가 무는지 못 본다",
+    ).toBeGreaterThan(0);
+    expect(headerLine(spec)).toContain("agents 0 ~0");
+    expect(formatSummary(spec)).toContain("agents 0 ~0");
+  });
+
+  it("claude 포함 — 계획의 에이전트 수를 그대로 센다 (기존 동작 보존)", () => {
+    const spec = specFor(["claude", "codex"]);
+    expect(headerLine(spec)).toContain(`agents ${plannedAgents(spec)} ~`);
+    expect(formatSummary(spec)).toContain(`agents ${plannedAgents(spec)} ~`);
+  });
+
+  it("landsOnDisk — 룰·스킬은 CLI 무관(AGENTS.md 인라인 · .agents/skills), 에이전트만 claude 에 묶인다", () => {
+    expect(landsOnDisk(".claude/rules/x.md", ["codex"])).toBe(true);
+    expect(landsOnDisk(".claude/skills/x", ["opencode"])).toBe(true);
+    expect(landsOnDisk(".claude/agents/x.md", ["codex"])).toBe(false);
+    expect(landsOnDisk(".claude/agents/x.md", ["antigravity"])).toBe(false);
+    expect(landsOnDisk(".claude/agents/x.md", ["claude"])).toBe(true);
+    expect(landsOnDisk(".claude/agents/x.md", ["codex", "claude"])).toBe(true);
   });
 });
 
