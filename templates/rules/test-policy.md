@@ -6,6 +6,12 @@ belongs to the Delivery rule.
 - An ordinary change gets the repository's baseline CI and regression across the affected scope;
   independent verification only where the Delivery rule requires it. A high-risk one widens that in
   proportion to what it touches and what its failure would cost.
+- A request to prevent something earns the smallest mechanism that prevents it, sized by
+  observed frequency, damage, and reversibility rather than by how strongly the request is
+  worded. Show once, when a check is introduced, that it bites (red on the bad case, green on
+  the fix); after that it stands on its own. A check earns its place by catching a failure a
+  user can reach — one whose only subject is another check, test, or rule, or whose only
+  possible violator is the project's own documentation, is retired.
 - High-risk includes at least authentication, authorization, payments and settlement, personal
   data, data integrity, concurrency, state transitions, and migrations.
 - Full regression, full E2E, full mutation, and periodic security scanning belong to the CI/CD

@@ -52,6 +52,11 @@ its assertions and conditions actually support each. Separate targets do not by
 themselves require separate runs or separate reviewers. Add checks for evidence gaps,
 credible risk, or applicable policy; required review independence is a separate issue.
 
+A new check is shown to bite once, when it is introduced (failing on the bad case,
+passing on the fix); it then stands on its own without a standing check of the check.
+Size a safeguard by observed frequency, damage, and reversibility rather than by how
+strongly it was requested, and count its per-run cost against the incident it prevents.
+
 Identify binding tests and independent-review gates from their policy / CI source.
 Explicit project policy can bind even without CI enforcement. Preserve those gates;
 route disproportionate mandatory requirements to a separate policy decision. Retain

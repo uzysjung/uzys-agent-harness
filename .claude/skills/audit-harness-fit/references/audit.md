@@ -107,6 +107,17 @@ for consequential context gaps supported by repeated questions, repository evide
 or a concrete blocked task. Supplement only the actionable information needed to
 resolve the gap, using established references where possible.
 
+Look also for guard proliferation: a check whose subject is another check, test, rule,
+or review step; a check whose only possible failure is drift in the project's own
+documentation or copies; a safeguard introduced together with the request that asked
+for it, with no observed occurrence; and a safeguard whose per-run cost (time, rounds,
+questions on every task) exceeds the cost of the incident it prevents. A request to
+prevent something justifies the smallest mechanism that prevents it, sized by observed
+frequency, damage, and reversibility, not by the wording of the request. Propose
+stepping such guards down — remove the second-order check, and move the first-order
+one to the level its evidence supports (gate → one-line criterion → record) — and
+state for each what it was covering.
+
 Choose **keep / rewrite / narrow / supplement / merge / relocate / retire / defer**.
 A useful tool can remain while its wrapper or routing changes. Equivalent content
 under the same scope can establish duplication without an incident or benchmark.
