@@ -1,11 +1,13 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   classifyBaselineTarget,
+  describeBaselineTarget,
   isBaselineExcluded,
   listBaselineTargets,
+  withBaselineHints,
 } from "../src/baseline-targets.js";
 import { readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
@@ -377,5 +379,68 @@ describe("formatSummary — 해제가 확인 화면에 보인다 (F2)", () => {
     expect(before).toBeGreaterThan(0);
     expect(after).toBeGreaterThan(0);
     expect(after).toBeLessThan(before);
+  });
+});
+
+/** #421 — 위저드 행의 한 줄 설명은 파일에서 뽑는다. 번들 문구가 아니라 형태를 단언한다(#437). */
+describe("describeBaselineTarget — 파일에서 한 줄 설명을 뽑는다 (#421)", () => {
+  let tpl = "";
+  beforeEach(() => {
+    tpl = mkdtempSync(join(tmpdir(), "ch-hint-"));
+    for (const d of ["rules", "agents", "hooks", "skills/demo-skill"])
+      mkdirSync(join(tpl, d), { recursive: true });
+    writeFileSync(
+      join(tpl, "rules/demo-rule.md"),
+      "# Demo Safety\n\n- **첫 문장**은 이렇게 시작한다. 둘째 문장.\n",
+    );
+    writeFileSync(
+      join(tpl, "agents/demo-agent.md"),
+      '---\nname: demo-agent\ndescription: "Reviews things independently."\ntools: []\n---\n\n본문\n',
+    );
+    writeFileSync(
+      join(tpl, "hooks/demo-hook.sh"),
+      "#!/bin/bash\n# PreToolUse Hook: 보호 파일이면 차단\n# jq 또는 bash\nset -e\n",
+    );
+    writeFileSync(
+      join(tpl, "skills/demo-skill/SKILL.md"),
+      "---\nname: demo-skill\ndescription: Decides who verifies.\n---\n# body\n",
+    );
+  });
+  afterEach(() => rmSync(tpl, { recursive: true, force: true }));
+
+  const t = (kind: "rules" | "agents" | "hooks" | "skills", name: string) => ({
+    id: `baseline:${kind}/${name}`,
+    kind,
+    name,
+  });
+
+  it("룰 = 제목 + 첫 본문 줄(마크다운 장식 제거)", () => {
+    expect(describeBaselineTarget(t("rules", "demo-rule"), tpl)).toBe(
+      "Demo Safety · 첫 문장은 이렇게 시작한다. 둘째 문장.",
+    );
+  });
+  it("에이전트·스킬 = frontmatter description(따옴표 제거)", () => {
+    expect(describeBaselineTarget(t("agents", "demo-agent"), tpl)).toBe(
+      "Reviews things independently.",
+    );
+    expect(describeBaselineTarget(t("skills", "demo-skill"), tpl)).toBe("Decides who verifies.");
+  });
+  it("훅 = shebang 다음 머리 주석", () => {
+    expect(describeBaselineTarget(t("hooks", "demo-hook"), tpl)).toBe(
+      "PreToolUse Hook: 보호 파일이면 차단 · jq 또는 bash",
+    );
+  });
+  it("파일이 없으면 이름만 남는다 — 설명이 없다고 행이 사라지면 안 된다", () => {
+    expect(describeBaselineTarget(t("rules", "nope"), tpl)).toBeUndefined();
+    const out = withBaselineHints([t("rules", "nope"), t("rules", "demo-rule")], tpl);
+    expect(out[0]?.hint).toBeUndefined();
+    expect(out[1]?.hint).toContain("Demo Safety");
+  });
+  it("실제 번들의 룰·에이전트·훅 전부에 설명이 붙는다 — 하나라도 비면 그 행만 불친절해진다", () => {
+    const targets = listBaselineTargets({ tracks: ["tooling"] });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const x of withBaselineHints(targets)) {
+      expect(x.hint, `${x.id} 에 설명이 없다`).toBeTruthy();
+    }
   });
 });
