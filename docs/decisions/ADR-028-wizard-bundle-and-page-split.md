@@ -1,6 +1,6 @@
 # ADR-028: wizard — 방법론 번들 단일 row + Dev 페이지 분할
 
-- Status: Accepted
+- Status: Superseded — 결정 ⓐ(번들 행)는 ADR-092 가 대체(사용자 결정 2026-09-20, #421). 결정 ⓑ(Dev 페이지 분할 · 행수 상한 게이트)는 ADR-092 가 그대로 유지한다
 - Date: 2026-07-17
 - PR: #204
 - Supersedes: 없음 (ADR-022 의 generic `--with <id>` 표면은 불변)
