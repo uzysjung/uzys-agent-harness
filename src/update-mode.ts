@@ -363,9 +363,14 @@ export function runUpdateMode(
     report.policyBackedUp.push(...synced.backedUp);
     report.pruned[label] = pruneOrphans(target, source, ext, ctx);
   }
-  // 기준선은 **전부 동기화했을 때만** 다시 찍는다 — 건너뛴 디렉터리의 사용자 편집을 지금 디스크
-  // 그대로 "하네스가 놓아둔 것"으로 기록하면 다음 update 가 백업 없이 덮어쓴다.
-  if (wants("rules") && wants("hooks")) refreshPolicyBaseline(projectDir, templatesDir);
+  // 기준선은 **동기화한 디렉터리만** 다시 찍는다 — 건너뛴 디렉터리의 사용자 편집을 지금 디스크
+  // 그대로 "하네스가 놓아둔 것"으로 기록하면 다음 update 가 백업 없이 덮어쓴다(리뷰 ⓒ). 반대로
+  // 동기화한 디렉터리를 안 찍으면 다음 전체 update 가 방금 놓은 최신판을 "편집분"으로 백업한다
+  // (리뷰 N-1 실측). 그래서 전부-아니면-전무가 아니라 디렉터리 단위다.
+  const syncedDirs = POLICY_DIRS.filter((d) => wants(d.dir === "hooks" ? "hooks" : "rules")).map(
+    (d) => d.dir,
+  );
+  if (syncedDirs.length > 0) refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
@@ -1091,10 +1096,20 @@ function policyBaseline(projectDir: string): ReadonlyMap<string, string> {
  *
  * 로그가 없으면 만들지 않는다 (설치 기록 날조 금지 — uninstall 이 그걸 믿는다).
  */
-function refreshPolicyBaseline(projectDir: string, templatesDir: string): void {
+function refreshPolicyBaseline(
+  projectDir: string,
+  templatesDir: string,
+  /** #480 — 이번에 동기화한 디렉터리(`POLICY_DIRS` 의 `dir`). 안 주면 전부. */
+  dirs?: ReadonlyArray<string>,
+): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
-  const policyFiles = collectPolicyHashes(projectDir, templatesDir);
+  const inDirs = (path: string): boolean =>
+    dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`));
+  const policyFiles = [
+    ...(log.policyFiles ?? []).filter((f) => !inDirs(f.path)),
+    ...collectPolicyHashes(projectDir, templatesDir).filter((f) => inDirs(f.path)),
+  ];
   const next: InstallLog = { ...log };
   if (policyFiles.length > 0) next.policyFiles = policyFiles;
   else delete next.policyFiles;

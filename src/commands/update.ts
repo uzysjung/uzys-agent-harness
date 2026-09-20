@@ -55,7 +55,11 @@ export function updateAction(options: UpdateOptions = {}, deps: UpdateActionDeps
     return;
   }
 
-  const rawOnly = options.only === undefined ? [] : [options.only].flat();
+  // cac 는 `--only` 를 값 없이 주면 boolean true 를 준다 — "true" 가 모르는 값으로 거절되게 문자열로.
+  const rawOnly =
+    options.only === undefined
+      ? []
+      : [options.only].flat().map((v) => (typeof v === "string" ? v : "(missing value)"));
   const parsed = parseUpdateOnly(rawOnly);
   if (!parsed.ok) {
     err(status.failure(c.red(`Unknown --only value: ${parsed.invalid.join(", ")}`)));

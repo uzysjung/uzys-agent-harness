@@ -822,6 +822,15 @@ describe("runUpdateMode (E2E with templates)", () => {
       writeFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "my-edit\n");
       mkdirSync(join(templatesDir, "skills/demo"), { recursive: true });
       writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "bundle\n");
+      // 건너뛸 훅 디렉터리의 기준선 기록 — 이게 그대로 남아야 한다
+      const before = readInstallLog(projectDir) as NonNullable<ReturnType<typeof readInstallLog>>;
+      writeInstallLog(projectDir, {
+        ...before,
+        policyFiles: [
+          ...(before.policyFiles ?? []),
+          { path: "hooks/session-start.sh", sha256: "keep-me-untouched" },
+        ],
+      });
 
       runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["rules"]);
 
@@ -830,6 +839,15 @@ describe("runUpdateMode (E2E with templates)", () => {
         "my-edit\n",
       );
       expect(readInstallLog(projectDir)?.skillFiles ?? []).toEqual([]);
+      const policy = readInstallLog(projectDir)?.policyFiles ?? [];
+      // 동기화한 rules 는 최신판 sha 로 다시 찍혔다 — 안 찍으면 다음 전체 update 가 "편집분"으로 백업한다(리뷰 N-1)
+      expect(policy.find((f) => f.path === "rules/git-policy.md")?.sha256).toBe(
+        hashContent("v2\n"),
+      );
+      // 건너뛴 hooks 의 기록은 그대로 — 디스크(echo old)를 소유로 오기록하지 않는다(리뷰 ⓒ)
+      expect(policy.find((f) => f.path === "hooks/session-start.sh")?.sha256).toBe(
+        "keep-me-untouched",
+      );
     });
 
     it("new-skills — 이 트랙이 기본으로 받는 번들 스킬 중 디스크에 없는 것을 깔고 기준선에 더한다", () => {
