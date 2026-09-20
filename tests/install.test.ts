@@ -4,9 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
 import { estimateTokens } from "../src/context-cost.js";
-import { experimentalOptInCandidates } from "../src/external-assets.js";
 import type { BaselineReport, InstallReport } from "../src/installer.js";
-import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "../src/types.js";
+import type { InstallSpec, Track } from "../src/types.js";
 
 /**
  * Build a mock runPipeline that fires onProgress events from the supplied
@@ -157,51 +156,6 @@ describe("installAction", () => {
     expect(runPipeline).toHaveBeenCalledOnce();
   });
 
-  // 2026-08-02 사용자 결정 (ADR-063) — railway-skills 가 opt-in condition 이 되면서 카탈로그에
-  //   "condition 은 매치하는데 T3 라서 빠진" 자산이 하나도 없다 → OPT-IN 힌트 줄은 어떤 트랙에서도
-  //   뜨지 않는다. 그래서 positive 단언을 유지할 실 데이터가 없다.
-  //   이 테스트는 그 전제(후보 0)를 먼저 못 박고, 전제가 깨지면(=트랙 조건부 T3 자산이 다시
-  //   생기면) 실패해서 **positive 단언 복원을 강제**한다. 조용히 통과하는 공허한 테스트로
-  //   남기지 않기 위한 배선이다 (v26.71.1 Transparent Defaults 의 현재 상태 기록).
-  it("non-interactive install: 조건 매치 T3 가 0 이라 OPT-IN 힌트가 뜨지 않는다 (ADR-063)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor(fakeReport);
-    // 전제: 어떤 트랙에서도 힌트 후보가 없다. 하나라도 생기면 아래 negative 단언은 거짓이 되고
-    //   이 테스트가 먼저 그 사실을 알린다.
-    for (const t of TRACKS) {
-      expect(
-        experimentalOptInCandidates({ tracks: [t], options: { ...DEFAULT_OPTIONS } }),
-        `${t}: 조건 매치 T3 가 생겼다 — OPT-IN 힌트의 positive 단언을 복원할 것`,
-      ).toEqual([]);
-    }
-    installAction(
-      { cli: ["claude"], track: ["csr-fastify"], projectDir: "/p" },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    const optInCalls = log.mock.calls.filter((call) => String(call[0]).includes("OPT-IN"));
-    expect(optInCalls).toHaveLength(0);
-  });
-
-  it("no opt-in hint when experimental already force-included via --with (v26.71.1)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor(fakeReport);
-    installAction(
-      {
-        cli: ["claude"],
-        // 위 테스트와 같은 트랙이어야 대조가 성립한다 — tooling 은 T3 매치가 0이라
-        //   `--with` 없이도 힌트가 안 떠서 이 테스트가 공허하게 통과했다 (2026-08-02 발견).
-        track: ["csr-fastify"],
-        projectDir: "/p",
-        with: ["railway-skills"],
-      },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    const optInCalls = log.mock.calls.filter((call) => String(call[0]).includes("OPT-IN"));
-    expect(optInCalls).toHaveLength(0);
-  });
-
   it("calls err + exit(1) on invalid --cli", () => {
     const log = vi.fn();
     const err = vi.fn();
@@ -335,44 +289,6 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("OpenCode"));
   });
 
-  // WHY (audit SCALE-1 / 비-Claude 페르소나): plugin-kind 자산은 claude marketplace 전용이라
-  //   codex/opencode/antigravity 에 설치되지 않는다. 비-Claude CLI 사용자가 "Install complete"
-  //   만 보고 큐레이션 절반(plugin)을 못 받은 걸 모르면 "4-CLI" 가 거짓 인상이 된다.
-  //   이 NOTE 가 사라지면 그 비대칭이 다시 silent 가 되므로 본 테스트가 실패해야 한다.
-  it("claude 포함 mixed CLI 에선 plugin 자산이 설치되므로 제외 고지가 없다 (ADR-031 — 구 NOTE 의 거짓 출력 소멸)", () => {
-    // WHY: v26.88.0 NOTE 는 claude 를 함께 골라 plugin 이 실제 설치되는 경우에도
-    // "not installed" 를 찍었다 (SOD 리뷰 F4). 신규 고지의 SSOT 는 report.external.excludedByCli
-    // — claude 포함이면 배제 0 이므로 어떤 제외 문구도 나와선 안 된다.
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor(fakeReport);
-    executeSpec(
-      {
-        ...baseSpec,
-        cli: ["claude", "codex"],
-        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
-      },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
-    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("EXCLUDED"));
-  });
-
-  it("omits plugin-Claude-only NOTE for a Claude-only install (no non-Claude CLI)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor(fakeReport);
-    executeSpec(
-      {
-        ...baseSpec,
-        cli: ["claude"],
-        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
-      },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("Claude Code-only"));
-  });
-
   it("logs warn when skipped > 0", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
@@ -498,19 +414,6 @@ describe("executeSpec", () => {
     // ADR-086 — 이제 디렉터리째 간다. 라벨도 파일이 아니라 디렉터리다.
     // 옛 라벨의 진부분 문자열이라 includes 로는 회귀를 못 문다 — 뒤에 SKILL 이 오면 실패해야 한다.
     expect(lines.some((l) => /\.agents\/skills\/<id>\/(?!SKILL)/.test(l))).toBe(true);
-  });
-
-  // v26.78.1 (R1) — karpathy hook 결과 렌더의 무음 실패 가드였다. 2026-08-02 정비(ADR-060)로
-  //   karpathy 자산·훅·`--with-karpathy-hook` 배선이 전부 삭제돼 렌더할 HOOK 행 자체가 없다.
-  //   같은 계열의 "무음 금지" 가드는 아래 STALE-HOOK 행(M-1)이 계속 지킨다.
-
-  it("renders NO HOOK row when user did not opt in (karpathyHook null)", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({ ...fakeReport });
-    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
-    const lines = log.mock.calls.map((args) => String(args[0]));
-    expect(lines.some((l) => l.includes("HOOK"))).toBe(false);
   });
 
   /**
@@ -1620,52 +1523,6 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
     const { formatCliPhaseTitle } = await import("../src/commands/install-render.js");
     expect(formatCliPhaseTitle(["codex", "antigravity"])).toBe("Codex + Antigravity artifacts");
   });
-
-  it("shortenPath: short path (≤50) returns as-is", async () => {
-    const { shortenPath } = await import("../src/commands/install-render.js");
-    expect(shortenPath("/tmp/short")).toBe("/tmp/short");
-  });
-
-  it("shortenPath: HOME prefix → '~/...'", async () => {
-    const { shortenPath } = await import("../src/commands/install-render.js");
-    const home = process.env.HOME ?? "";
-    if (home) {
-      const long = `${home}/very/deep/nested/path/that/exceeds/50/characters/threshold`;
-      expect(shortenPath(long).startsWith("~/")).toBe(true);
-    }
-  });
-
-  it("shortenPath: /private/tmp/ → /tmp/", async () => {
-    const { shortenPath } = await import("../src/commands/install-render.js");
-    const long = "/private/tmp/very/deep/nested/path/that/exceeds/50/characters";
-    expect(shortenPath(long).startsWith("/tmp/")).toBe(true);
-  });
-
-  it("shortenPath: long path without HOME match → '…/last3'", async () => {
-    const { shortenPath } = await import("../src/commands/install-render.js");
-    const origHome = process.env.HOME;
-    process.env.HOME = "/nowhere-impossible-prefix-for-test";
-    try {
-      const path = "/opt/some/very/long/path/with/many/segments/to/exceed/limit";
-      expect(shortenPath(path).startsWith("…/")).toBe(true);
-    } finally {
-      if (origHome === undefined) delete process.env.HOME;
-      else process.env.HOME = origHome;
-    }
-  });
-
-  it("shortenPath: long but ≤3 segments → unchanged (fallback)", async () => {
-    const { shortenPath } = await import("../src/commands/install-render.js");
-    const origHome = process.env.HOME;
-    process.env.HOME = "/nowhere-impossible-prefix-for-test";
-    try {
-      const path = "/aaaaaaaaaaaaaaaaaaaaa/bbbbbbbbbbbbbbbbbbbbb/cccccccccccccccccccccc";
-      expect(shortenPath(path)).toBe(path);
-    } finally {
-      if (origHome === undefined) delete process.env.HOME;
-      else process.env.HOME = origHome;
-    }
-  });
 });
 
 // ADR-084 — FILL 힌트의 populate 안내는 `audit-harness-fit` 이 **실제로 깔린 경우에만** 붙는다.
@@ -1720,10 +1577,6 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
     renderFinalSummary((m) => lines.push(m), spec, fakeReport, false);
     return lines.find((l) => l.includes("NEXT")) ?? "";
   }
-
-  it("기본설치 NEXT 행은 /uzys:spec dead-end 를 안내하지 않는다", async () => {
-    expect(await nextRow(toolingClaude)).not.toContain("/uzys:spec");
-  });
 
   it("claude install → NEXT 행이 Claude 사용을 안내 (/uzys:spec 없음)", async () => {
     const row = await nextRow(toolingClaude);

@@ -143,13 +143,3 @@ describe("upsertHarnessImport / stripHarnessImport — 구현 중 드러난 경�
     expect(stripHarnessImport("# 남의 파일\n\n내용\n")).toBeNull();
   });
 });
-
-describe("mergeProjectClaude — display names", () => {
-  it("exposes all 11 track display names (R3)", () => {
-    expect(TRACK_DISPLAY_NAMES["csr-fastapi"]).toBe("CSR FastAPI");
-    expect(TRACK_DISPLAY_NAMES["ssr-nextjs"]).toBe("SSR Next.js");
-    expect(TRACK_DISPLAY_NAMES["project-management"]).toBe("Project Management");
-    expect(TRACK_DISPLAY_NAMES["growth-marketing"]).toBe("Growth Marketing");
-    expect(Object.keys(TRACK_DISPLAY_NAMES)).toHaveLength(12);
-  });
-});

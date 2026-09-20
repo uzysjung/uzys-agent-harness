@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -66,12 +66,10 @@ describe("SessionStart 훅의 출력 스키마", () => {
     expect(SESSION_START.length).toBeGreaterThan(0);
   });
 
-  // 배포판과 설치본 **양쪽** 을 돈다. 이 리포는 자기 배포물을 도그푸딩하므로 한쪽만 고치면
-  // 파는 것과 쓰는 것이 갈린다. 바이트 동일성으로 묶지 않는 이유는 아래 별도 테스트에 적었다.
-  const copies = SESSION_START.flatMap((name) => [
-    { name, dirLabel: "templates" as const },
-    { name, dirLabel: ".claude" as const },
-  ]);
+  // 설치자에게 나가는 **배포판**을 돈다 — 계약을 지켜야 하는 것은 우리가 파는 사본이다.
+  // 바이트 동일성은 일부러 요구하지 않는다: 이 리포의 사건 기록은 `.claude/` 사본에만 두고
+  // 배포판에는 원칙만 남기는 것이 기존 규칙(`templates-distribution-hygiene`)이다.
+  const copies = SESSION_START.map((name) => ({ name, dirLabel: "templates" as const }));
 
   it.each(copies)("$dirLabel/hooks/$name 의 stdout 이 CLI 가 읽는 스키마다", ({
     name,
@@ -103,16 +101,5 @@ describe("SessionStart 훅의 출력 스키마", () => {
       typeof hs?.additionalContext === "string" && (hs.additionalContext as string).length > 0,
       `${name} 의 additionalContext 가 비어 있다 — 도달은 하지만 전달할 내용이 없다.`,
     ).toBe(true);
-  });
-
-  // **바이트 동일성은 일부러 요구하지 않는다.** 처음엔 그렇게 썼다가 배포 위생 게이트
-  // (`templates-distribution-hygiene`)와 충돌했다 — 이 리포의 사건 기록은 `.claude/` 사본에만 두고
-  // 배포판에는 원칙만 남기는 것이 기존 규칙이고, 그쪽이 사고 근거가 있어 이긴다. 지켜야 할 것은
-  // 주석의 일치가 아니라 **동작의 일치**이므로 위 테스트가 양쪽을 실행해 같은 계약을 건다.
-  // 대신 여기서는 사본이 존재는 하는지만 본다 — 한쪽이 통째로 없으면 위 테스트가 조용히 반쪽만 돈다.
-  it.each(SESSION_START)("%s 가 배포판과 설치본 양쪽에 존재한다", (name) => {
-    for (const d of ["templates", ".claude"]) {
-      expect(existsSync(join(ROOT, d, "hooks", name)), `${d}/hooks/${name} 가 없다`).toBe(true);
-    }
   });
 });

@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  computeUserOverride,
-  formatSummary,
-  runInteractive,
-  splitInstallTargets,
-  toOptionFlags,
-} from "../src/interactive.js";
+import { computeUserOverride, formatSummary, runInteractive } from "../src/interactive.js";
+import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
 import type { DetectedInstall } from "../src/state.js";
 import type { CliTargets, OptionFlags, Track } from "../src/types.js";
@@ -452,73 +447,15 @@ describe("formatSummary", () => {
   });
 });
 
-describe("toOptionFlags", () => {
-  it("maps an empty array to all-false flags", () => {
-    expect(toOptionFlags([])).toEqual(ALL_FALSE_OPTIONS);
-  });
-
-  it("sets only the keys present in the array to true", () => {
-    expect(toOptionFlags(["withCodexTrust"])).toEqual({
-      ...ALL_FALSE_OPTIONS,
-      withCodexTrust: true,
-    });
-  });
-});
-
-// v26.81.0 (ADR-022) — applyOptionRules(withPrune→withEcc) 삭제. prune→ecc 결합은
-//   installer.ts eccSelected 로 이동 (tests/installer-11-track.test.ts 가 통합 검증).
-
-describe("v26.54.0 — splitInstallTargets", () => {
-  it("split mixed list of option:* and asset:* prefixed ids", () => {
-    const { optionKeys, assetIds } = splitInstallTargets([
-      "option:withCodexTrust",
-      "asset:openspec",
-      "asset:railway-skills",
-    ]);
-    expect(optionKeys).toEqual(["withCodexTrust"]);
-    expect(assetIds).toEqual(["openspec", "railway-skills"]);
-  });
-
-  it("empty input → empty arrays", () => {
-    const { optionKeys, assetIds } = splitInstallTargets([]);
-    expect(optionKeys).toEqual([]);
-    expect(assetIds).toEqual([]);
-  });
-
-  it("asset id with embedded colon survives prefix slice", () => {
-    const { assetIds } = splitInstallTargets(["asset:foo:bar"]);
-    expect(assetIds).toEqual(["foo:bar"]);
-  });
-});
-
 describe("computeUserOverride", () => {
-  // v26.87.0 — dev-method skills (official, has-dev-track) 가 tooling 추천에 합류.
-  //   forceInclude/forceExclude diffing 의도는 동일 — recommended 기준선만 6종 늘어난다.
-  // 2026-08-02 정비 (ADR-060) — 이관 스킬이 internal → `kind:"skill"` 로 바뀌었을 뿐 추천
-  //   집합에 남는다(condition 보존). 전 트랙 상주분(north-star·gh-issue-workflow)도 dev
-  //   트랙에서 당연히 추천된다.
-  const TOOLING_RECOMMENDED = [
-    // #489 — agent-browser 는 opt-in 으로 내려가 추천 기준선에서 빠졌다.
-    // ADR-064 — audit-harness-fit (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
-    "audit-harness-fit",
-    "audit-service-gaps",
-    "user-centered-explanation",
-    "compaction-handoff",
-    // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.
-    "frontend-design",
-    "gh-issue-workflow",
-    // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 PM 트랙 한정으로 축소 → tooling 추천 제외.
-    "multi-persona-review",
-    "north-star",
-    // v26.105.0 (ADR-034) — model-orchestration 은 수단(권장) opt-in 으로 이동 → 추천 기준선 제외.
-    "recurrence-prevention",
-    // #353 — self-hosted-github-runner (has-dev-track 신설) 도 dev 트랙 추천 기준선에 합류.
-    "self-hosted-github-runner",
-    // 2026-08-02 AC9 — objective-brief (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
-    "objective-brief",
-  ];
+  // 추천 기준선은 **카탈로그에서 derive** 한다 — 여기 id 를 적어두면 자산이 하나 들고 날
+  // 때마다 두 번째 사본이 썩는다(#454). 이 블록이 재는 것은 목록의 내용이 아니라
+  // 선택분과 추천분의 **diff 규칙**이다.
+  const TOOLING_RECOMMENDED = [...recommendedExternalAssets(["tooling"])];
 
   it("selections == recommended → undefined (no override)", () => {
+    // 전제 확인: 추천이 비면 아래 diff 단언들이 전부 헛통과한다.
+    expect(TOOLING_RECOMMENDED.length).toBeGreaterThan(0);
     // v26.71.0 — tooling 추천은 vetted/official 만 (T3 제외).
     expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
   });

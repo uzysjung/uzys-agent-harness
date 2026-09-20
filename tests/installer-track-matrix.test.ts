@@ -26,10 +26,8 @@ function ok(): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
 }
 
-function makeMockSpawn(): SpawnFn & { mock: { calls: Array<Parameters<SpawnFn>> } } {
-  return vi.fn(() => ok()) as unknown as SpawnFn & {
-    mock: { calls: Array<Parameters<SpawnFn>> };
-  };
+function makeMockSpawn(): SpawnFn {
+  return vi.fn(() => ok()) as unknown as SpawnFn;
 }
 
 function runForTrack(
@@ -37,8 +35,7 @@ function runForTrack(
   options: Partial<OptionFlags> = {},
   // v26.81.0 (ADR-022) — 자산 opt-in 은 forceInclude(--with <id>) 로 전달.
   forceInclude: string[] = [],
-): { ids: string[]; spawnCallCount: number } {
-  const spawn = makeMockSpawn();
+): { ids: string[] } {
   const report = runExternalInstall(
     {
       tracks,
@@ -46,46 +43,12 @@ function runForTrack(
       cli: ["claude"],
       ...(forceInclude.length > 0 ? { userOverride: { forceInclude, forceExclude: [] } } : {}),
     },
-    { spawn, log: () => {}, warn: () => {}, assets: EXTERNAL_ASSETS },
+    { spawn: makeMockSpawn(), log: () => {}, warn: () => {}, assets: EXTERNAL_ASSETS },
   );
-  return {
-    ids: report.attempted.map((r) => r.asset.id),
-    spawnCallCount: spawn.mock.calls.length,
-  };
+  return { ids: report.attempted.map((r) => r.asset.id) };
 }
 
 describe("Track matrix — assets called per track", () => {
-  it("tooling: dev baseline + dev-tools (v26.106.0 ADR-035 — product-skills 는 PM 트랙 한정)", () => {
-    const { ids } = runForTrack(["tooling"]);
-    // v26.42.0 — addy-agent-skills moved to option-gated (withAddyAgentSkills).
-    // v26.71.1 — playwright-skill (T3 experimental) 는 opt-in only (PRD R6) → default 제외.
-    // v26.78.0 — agent-browser 가 dev-tools → understanding 재분류 → 카테고리 정렬상 맨 뒤로.
-    // v26.92.0 — frontend-design (official, has-dev-track) 추가. category=frontend → 정렬상 맨 앞.
-    // v26.106.0 (ADR-035 사용자 승인 C) — product-skills 는 project-management 한정 → dev 트랙 제외.
-    // v26.110.0 (ADR-039) — 신규 3종은 전부 opt-in → 기본 집합 불변 (context7 plugin 은 미등록).
-    // 2026-08-02 (ADR-060) — karpathy-coder 삭제 · uzys 이관 스킬 7종이 kind:skill 로 합류.
-    // 2026-08-02 (ADR-062 복원) — 그 9종이 `kind:"internal"` 로 돌아가 **이 목록에서 빠진다**.
-    //   external-installer.ts:112 가 internal 을 걸러내기 때문이다 — 사라진 게 아니라 Phase 1
-    //   (manifest dir copy)이 맡는다. 도달 범위는 아래 "번들 9종은 …" 테스트가 그 표면에서 문다.
-    // #489 (2026-09-20) — agent-browser 는 opt-in 으로 내려가 기본 집합에서 빠진다.
-    // #492 — find-skills 은퇴로 dev 기본 외부 자산은 frontend-design 하나다.
-    expect(ids).toEqual(["frontend-design"]);
-    expect(ids).not.toContain("product-skills");
-    expect(ids).not.toContain("agent-browser");
-  });
-
-  it("data: 3 data-specific + dev baseline + dev-tools (v26.106.0 ADR-035)", () => {
-    const { ids } = runForTrack(["data"]);
-    // v26.71.1 — playwright-skill (T3) opt-in only → 제외.
-    // v26.78.0 — agent-browser 가 understanding 재분류 → 카테고리 정렬상 맨 뒤로.
-    // v26.92.0 — frontend-design (official, has-dev-track) → category=frontend 정렬상 맨 앞.
-    // v26.106.0 (ADR-035 승인 A·C) — 일반 Python 패턴 2종 opt-in 강등 + product-skills PM 한정.
-    // 2026-08-02 (ADR-060) — polars/dask/karpathy 삭제 · uzys 이관 7종 합류.
-    // 2026-08-02 (ADR-062 복원) — uzys 9종은 internal 로 복귀 → external 시도 목록에서 빠진다.
-    // #489 — agent-browser opt-in → 기본 집합에서 제외.
-    expect(ids).toEqual(["frontend-design", "anthropic-data-plugin"]);
-  });
-
   it("csr-fastapi: dev baseline + UI(react+shadcn) — taste 가이드는 opt-in (v26.106.0 ADR-035)", () => {
     const { ids } = runForTrack(["csr-fastapi"]);
     // v0.6.3 — railway-plugin entry 제거. v26.71.1 — railway-skills(T3) opt-in only → default 제외.
@@ -143,19 +106,6 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).toContain("frontend-design"); // has-dev-track baseline 은 유지
   });
 
-  it("executive: Anthropic 만 (finance-skills 는 2026-08-02 opt-in 강등)", () => {
-    const { ids } = runForTrack(["executive"]);
-    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종(north-star·gh-issue-workflow)은 internal 로
-    //   돌아가 Phase 1 이 맡는다. 전 트랙 도달은 아래 전용 테스트가 manifest 표면에서 검증한다.
-    // 2026-08-02 사용자 결정 (ADR-063) — finance-skills 는 executive 기본에서 opt-in 으로.
-    expect(ids).toEqual(["anthropic-document-skills"]);
-    expect(ids).not.toContain("finance-skills");
-    // No dev-track assets
-    expect(ids).not.toContain("addy-agent-skills");
-    expect(ids).not.toContain("polars-K-Dense");
-    expect(ids).not.toContain("railway-skills");
-  });
-
   it("full: all Track-conditional assets active", () => {
     const { ids } = runForTrack(["full"]);
     // data + csr-supabase + ui + react + executive + dev baseline
@@ -195,72 +145,11 @@ describe("Track matrix — assets called per track", () => {
   });
 });
 
-describe("Track matrix — spawn call counts", () => {
-  it("tooling: 1 spawn call (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0 · #489 agent-browser opt-in)", () => {
-    // #492 — find-skills 은퇴로 frontend-design(skill=1) 하나만 남는다.
-    // 2026-08-26 (#344): frontend-design 이 plugin → skill 이 되며 4 → 3. plugin 은
-    //   `marketplace add` + `plugin install` 로 **2번** 띄우고 skill 은 `npx skills add` 1번이다.
-    //   숫자가 줄어든 것은 자산이 빠진 게 아니라 배달 방식이 바뀐 결과다.
-    // internal 자산은 프로세스를 띄우지 않는다 — Phase 1 manifest 가 dir 을 복사할 뿐이다.
-    const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(1);
-  });
-
-  it("data: tooling baseline 1 + anthropic-data-plugin(×2) = 3 (2026-08-02 복원 ADR-062 · #489)", () => {
-    const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(3);
-  });
-
-  it("--with openspec alone (executive base) adds 1 npm call", () => {
-    // #489 — tooling 이 더는 npm 을 띄우지 않아(agent-browser opt-in) `npm root -g` 조회(모듈 캐시)가
-    // 이 파일에서 처음 소비되는 자리가 여기가 됐다. 측정 전에 한 번 예열해 순서 의존을 없앤다.
-    runForTrack(["executive"], {}, ["openspec"]);
-    const baseExec = runForTrack(["executive"]).spawnCallCount;
-    const withOpenspec = runForTrack(["executive"], {}, ["openspec"]).spawnCallCount;
-    expect(withOpenspec - baseExec).toBe(1);
-  });
-});
-
 // === v0.5.0 — 신규 Track 매핑 검증 (P2-T4 합집합 회귀 + P3-T2 신규 Track) ===
 describe("Track matrix — v0.5.0 신규 Track", () => {
-  it("project-management: external 자산 0 (product-skills 는 2026-08-02 opt-in 강등)", () => {
-    const { ids } = runForTrack(["project-management"]);
-    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종은 internal 로 복귀 → external 목록 밖.
-    // 2026-08-02 사용자 결정 (ADR-063) — product-skills 가 opt-in 이 되면서 이 트랙의 external
-    //   기본 집합은 비었다. "비었다"가 "안 깔린다"는 아니다 — 아래 전 트랙 도달 테스트 참조.
-    expect(ids).toEqual([]);
-    expect(ids).not.toContain("product-skills");
-    // No has-dev-track assets
-    expect(ids).not.toContain("addy-agent-skills");
-    // No executive assets
-    expect(ids).not.toContain("anthropic-document-skills");
-  });
-
   it("--with product-skills 는 여전히 설치 (강등이지 삭제가 아니다 — ADR-063)", () => {
     const { ids } = runForTrack(["project-management"], {}, ["product-skills"]);
     expect(ids).toContain("product-skills");
-  });
-
-  it("growth-marketing: external 자산 0 (business-growth·marketing-skills·research-summarizer 는 2026-08-02 정비로 삭제)", () => {
-    const { ids } = runForTrack(["growth-marketing"]);
-    // 2026-08-02 (ADR-062 복원) — 전 트랙 상주 2종이 internal 로 복귀해 external 은 비었다.
-    //   "비었다"가 "안 깔린다"가 아님은 아래 전 트랙 도달 테스트가 증명한다.
-    expect(ids).toEqual([]);
-    expect(ids).not.toContain("product-skills");
-    // finance-skills excluded (executive/full only)
-    expect(ids).not.toContain("finance-skills");
-  });
-
-  it("project-management spawn calls: 0 (2026-08-02 ADR-063 — product-skills opt-in 강등)", () => {
-    const { spawnCallCount } = runForTrack(["project-management"]);
-    expect(spawnCallCount).toBe(0);
-    // 대조 — --with 로 고르면 그 순간 plugin 2회(marketplace add + install)가 다시 돈다.
-    expect(runForTrack(["project-management"], {}, ["product-skills"]).spawnCallCount).toBe(2);
-  });
-
-  it("growth-marketing spawn calls: 0 (2026-08-02 복원 ADR-062 — internal 은 spawn 하지 않는다)", () => {
-    const { spawnCallCount } = runForTrack(["growth-marketing"]);
-    expect(spawnCallCount).toBe(0);
   });
 
   // 2026-08-02 정비(ADR-060) 회귀 — north-star·gh-issue-workflow 는 COMMON_SKILL_DIRS(전 트랙

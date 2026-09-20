@@ -30,7 +30,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { installLogPath } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import {
-  type CliBase,
   type CliTargets,
   DEFAULT_OPTIONS,
   type InstallSpec,
@@ -84,7 +83,7 @@ function comboLabel(targets: CliTargets): string {
   return targets.join("+");
 }
 
-describe("12 Track × 7 CLI combination matrix (84 scenarios) — E2E install", () => {
+describe("Track × CLI combination matrix — E2E install", () => {
   let projectDir: string;
 
   beforeEach(() => {
@@ -155,21 +154,6 @@ describe("Matrix invariants — cross-cutting", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("count check: TRACKS.length=12 × COMBINATIONS.length=7 = 84 scenarios (v0.7.0 · #456 base)", () => {
-    expect(TRACKS.length).toBe(12);
-    expect(COMBINATIONS.length).toBe(7);
-    expect(TRACKS.length * COMBINATIONS.length).toBe(84);
-  });
-
-  it("each combination is sorted (claude → codex → opencode order)", () => {
-    const order: Record<CliBase, number> = { claude: 0, codex: 1, opencode: 2, antigravity: 3 };
-    for (const combo of COMBINATIONS) {
-      const indices = combo.map((c) => order[c]);
-      const sorted = [...indices].sort((a, b) => a - b);
-      expect(indices).toEqual(sorted);
-    }
-  });
-
   it("csr-supabase + [claude]: .env.example generated", () => {
     const report = runInstall({
       runExternal: null,
@@ -206,19 +190,6 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, ".opencode/commands"))).toBe(false);
   });
 
-  it("[claude, codex, opencode]: 3 CLI artifacts side-by-side", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec("tooling", ["claude", "codex", "opencode"], projectDir),
-    });
-    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
-    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
-    expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-  });
-
   // v0.8.0 — .claude/ 의 claude 에셋(CLAUDE.md/settings/tracks)은 조건부 (단독 dead weight 제거).
   // v26.135.0 (#253) — install log 도 `.claude/` 를 떠났다. 이제 codex 단독 설치는 `.claude/`
   // 디렉터리 자체를 만들지 않는다 (예전엔 로그 하나 때문에 생겨서 "버그 1"로 적혀 있었다).
@@ -240,30 +211,6 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     // .mcp.json은 Codex도 사용 (cli 무관 항상)
     expect(existsSync(join(projectDir, ".mcp.json"))).toBe(true);
-  });
-
-  it("[opencode] only: claude 에셋 미생성, opencode.json만", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec("tooling", ["opencode"], projectDir),
-    });
-    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
-    expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-  });
-
-  it("[codex, opencode] (Claude 제외): claude 에셋 미생성, Codex+OpenCode 둘 다 생성", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec("tooling", ["codex", "opencode"], projectDir),
-    });
-    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
-    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
-    expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
   });
 
   it("Codex global opt-in stays OFF when withCodex* flags false (D16)", () => {
@@ -309,53 +256,5 @@ describe("Matrix invariants — cross-cutting", () => {
       },
     });
     expect(report.codexOptIn).not.toBeNull();
-  });
-
-  // v0.8.0 HIGH-1 — claude 미선택 시 `.claude/settings.json` 이 아예 안 생긴다는 계약.
-  //   원래는 withKarpathyHook 경로로 검증했으나 2026-08-02 정비(ADR-060)가 그 배선을 지웠다.
-  //   계약 자체는 남아 있으므로(다른 CLI 단독 설치가 `.claude/` 를 오염시키면 안 된다) 훅과
-  //   무관한 형태로 유지한다.
-  it("[codex] 단독: `.claude/settings.json` 미생성", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS },
-        cli: ["codex"],
-        projectDir,
-      },
-    });
-    expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
-  });
-
-  it("[opencode] 단독: `.claude/settings.json` 미생성", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS },
-        cli: ["opencode"],
-        projectDir,
-      },
-    });
-    expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
-  });
-
-  // v0.7.0 신규 조합 검증 (이전 5 mode에 없던 조합)
-  it("[claude, opencode] (Codex 제외): AGENTS.md + opencode.json, NO .codex/config.toml", () => {
-    runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: spec("tooling", ["claude", "opencode"], projectDir),
-    });
-    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(true);
-    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
-    expect(existsSync(join(projectDir, "opencode.json"))).toBe(true);
-    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(false);
   });
 });

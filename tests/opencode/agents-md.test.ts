@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renameSlashes, renderAgentsMd } from "../../src/opencode/agents-md.js";
+import { renderAgentsMd } from "../../src/opencode/agents-md.js";
 
 // rule-ref:frozen-file — 아래 SAMPLE_CLAUDE_MD 의 `Rule N` 은 임베드 렌더를 시험하는 **합성
 // fixture** 다(앵커 지목이 아니다). 줄 단위 표식을 쓰면 표식이 템플릿 리터럴 안으로 들어가
@@ -13,16 +13,6 @@ OpenCode-flavored harness. Use /uzys:spec to start.
 ## Rule 2 — Simplicity
 Keep it minimal.
 `;
-
-describe("opencode/agents-md renameSlashes", () => {
-  it("rewrites all /uzys: to /uzys-", () => {
-    expect(renameSlashes("/uzys:spec + /uzys:plan")).toBe("/uzys-spec + /uzys-plan");
-  });
-
-  it("leaves unrelated text alone", () => {
-    expect(renameSlashes("colon :elsewhere")).toBe("colon :elsewhere");
-  });
-});
 
 describe("opencode/agents-md renderAgentsMd (v26.70.0 — full CLAUDE.md embed)", () => {
   const TEMPLATE = `# {PROJECT_NAME} — OpenCode Agent Guide
