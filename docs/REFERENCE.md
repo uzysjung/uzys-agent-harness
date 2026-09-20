@@ -159,7 +159,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **north-star** | 전 track | NSM(metric-as-proxy)·Pillars·Will/Won't·4-gate + 우선순위 순서 게이트. `NORTH_STAR.template.md` 동반 | ADR-062 복원 (구 north-star + northstar-roadmap 통합) |
 | **gh-issue-workflow** | 전 track | 이슈를 비동기 백로그·결정 채널로. 5섹션 body 템플릿(`ISSUE.template.md`) + 읽기/초안/원격쓰기 단계 분리 | ADR-062 복원 |
 | **objective-brief** | 전 track | 위임·설계·다단계(피처/프로젝트 규모 이상) 작업을 canonical 브리프(objective·invariants·success_criteria·boundaries·autonomy·verification…)로 정규화. 한 줄 질문·조회·단일 수정·루틴 변경은 제외 | ADR-062 AC9 신설 → ADR-088 개명·문턱 |
-| **audit-harness-fit** | 전 track | 지침·스킬 정비 4모드 — audit(무조건 지시·지침 충돌·불필요한 원칙·상주 이력·과도한 검증 5영역, 읽기 전용) · verification(사용 장면 기준 검증 설계) · apply(승인된 변경만) · populate(`AGENTS.md`/`CLAUDE.md` 프로젝트 맥락 채우기). 판정 근거는 확정된 의도와 리포 실증 | ADR-064 신설 → ADR-084 2판 |
+| **audit-harness-fit** | 전 track | 지침·스킬을 자율·생산성·검증 가능한 품질 쪽으로 개선하는 4모드 — audit(불필요한 질문·재검사 · 충돌 · 빠진 실행 맥락 · 저가치 절차 · 모델 역량에 낡은 보조 절차, 읽기 전용) · verification(사용 장면 기준 검증 설계) · apply(승인된 변경만) · populate(`AGENTS.md`/`CLAUDE.md` 프로젝트 맥락 채우기). 판정 근거는 확정된 의도와 리포 실증 | ADR-064 신설 → ADR-084 2판 |
 | **clear-korean-communication** | 전 dev track | 사용자 관점의 설명 + 선택·승인 요청의 기본 표(맥락 · 문제점 · 해결방안 · 추천방안, 각각 이유) | ADR-062 복원 (구 asis-tobe-decision + explain-plainly 통합) |
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
 | **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |

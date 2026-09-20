@@ -16,7 +16,7 @@
       },
       "firing": {
         "items": 12,
-        "tokens": 2123
+        "tokens": 2142
       }
     },
     "csr-supabase": {
@@ -26,7 +26,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2371
+        "tokens": 2390
       }
     },
     "csr-fastify": {
@@ -36,7 +36,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2371
+        "tokens": 2390
       }
     },
     "csr-fastapi": {
@@ -46,7 +46,7 @@
       },
       "firing": {
         "items": 16,
-        "tokens": 2459
+        "tokens": 2478
       }
     },
     "ssr-htmx": {
@@ -56,7 +56,7 @@
       },
       "firing": {
         "items": 14,
-        "tokens": 2371
+        "tokens": 2390
       }
     },
     "ssr-nextjs": {
@@ -66,7 +66,7 @@
       },
       "firing": {
         "items": 15,
-        "tokens": 2411
+        "tokens": 2430
       }
     },
     "data": {
@@ -76,7 +76,7 @@
       },
       "firing": {
         "items": 15,
-        "tokens": 2283
+        "tokens": 2302
       }
     },
     "executive": {
@@ -86,7 +86,7 @@
       },
       "firing": {
         "items": 9,
-        "tokens": 1328
+        "tokens": 1347
       }
     },
     "full": {
@@ -96,7 +96,7 @@
       },
       "firing": {
         "items": 22,
-        "tokens": 2914
+        "tokens": 2933
       }
     },
     "project-management": {
@@ -106,7 +106,7 @@
       },
       "firing": {
         "items": 5,
-        "tokens": 985
+        "tokens": 1004
       }
     },
     "growth-marketing": {
@@ -116,7 +116,7 @@
       },
       "firing": {
         "items": 5,
-        "tokens": 985
+        "tokens": 1004
       }
     }
   },
@@ -133,7 +133,7 @@
     "north-star": 258,
     "gh-issue-workflow": 262,
     "objective-brief": 269,
-    "audit-harness-fit": 114,
+    "audit-harness-fit": 133,
     "model-orchestration": 95,
     "external-model-consult": 271,
     "self-hosted-github-runner": 104,
