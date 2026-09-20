@@ -238,6 +238,44 @@ describe("runExternalInstall — method dispatch", () => {
     expect(spawn.mock.calls[0]?.[1]).toEqual(["install", "--save-dev", "vercel@54.0.0"]);
   });
 
+  it('npm 설치는 시간 상한이 10분이다 — 큰 CLI 가 120초 안에 못 끝나 "멈춤"으로 보였다 (#422)', () => {
+    const spawn = makeSpawnMock(() => ok());
+    runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        userOverride: { forceInclude: ["npm-asset", "skill-with-name"], forceExclude: [] },
+      },
+      { spawn, assets: [TEST_ASSETS[1] as ExternalAsset, TEST_ASSETS[3] as ExternalAsset] },
+    );
+    const byCmd = new Map(spawn.mock.calls.map((c) => [c[0], c[2]]));
+    expect(byCmd.get("npm")?.timeout).toBe(600_000);
+    // 대조군: 스킬 설치는 기본 상한 그대로 — 상한을 전부 올린 것이 아니다
+    expect(byCmd.get("npx")?.timeout).toBe(120_000);
+  });
+
+  it("시간 초과는 설치자가 직접 이어 돌릴 명령을 알려 준다 (#422)", () => {
+    const spawn = makeSpawnMock(() => {
+      const err = new Error("spawnSync npm ETIMEDOUT") as NodeJS.ErrnoException;
+      err.code = "ETIMEDOUT";
+      return { ...ok(), status: null, signal: "SIGTERM", error: err };
+    });
+    const report = runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        cli: ["claude"],
+        userOverride: { forceInclude: ["npm-asset"], forceExclude: [] },
+      },
+      { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
+    );
+    const r = report.attempted[0];
+    expect(r?.ok).toBe(false);
+    expect(r?.message).toContain("timed out after 600s");
+    expect(r?.message).toContain("npm install --save-dev vercel@54.0.0");
+  });
+
   it("npm-global produces npm install -g <pkg> when scope=global (opt-in)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
