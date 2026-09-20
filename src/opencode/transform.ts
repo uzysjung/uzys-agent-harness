@@ -17,11 +17,12 @@
 
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
+import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
 import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
-import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderOpencodeJson } from "./opencode-json.js";
@@ -92,7 +93,8 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     claudeMd,
     projectName,
     // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
-    projectContext: withContinuousSkillsNote(
+    // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다 (codex 와 같은 마커).
+    projectContext: withMarkedContinuousSkillsNote(
       renderFillScaffold("agents-md"),
       selectedInternalSkills,
     ),
@@ -104,7 +106,16 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로. codex 가 같은 install 안에서 이미
   // 쓴 AGENTS.md 를 여기서 '사용자 편집'으로 오판하면 매 설치마다 백업이 생긴다.
-  writer.write(agentsMdPath, agentsMdOut);
+  // #503 — codex 가 방금 쓴 판을 디스크에서 이어받는다. 그 판에 이미 설치자 절이 살아 있으므로
+  // 두 transform 의 순서가 결과를 바꾸지 않는다.
+  writer.write(
+    agentsMdPath,
+    mergeAgentsMd({
+      rendered: agentsMdOut,
+      existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
+      template: agentsTemplate,
+    }),
+  );
 
   // 2. opencode.json
   const opencodeJsonPath = join(projectDir, "opencode.json");

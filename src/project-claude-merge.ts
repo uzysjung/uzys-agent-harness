@@ -45,13 +45,19 @@ const IMPORT_MARKER_END = "<!-- uzys-harness:import:end -->";
  *
  * @returns 안내 블록. 해당 스킬이 하나도 선택되지 않았으면 빈 문자열 — 한 줄도 상주시키지 않는다.
  */
+/**
+ * 안내 절의 헤딩. **마커 없는 옛 `AGENTS.md`** 에서 이 조각을 찾아내는 단서라
+ * (`agents-md-merge.ts`) 리터럴을 양쪽에 두지 않는다 — 갈리면 조각이 두 벌 쌓인다.
+ */
+export const CONTINUOUS_SKILLS_HEADING = "## Skills that apply continuously";
+
 export function renderContinuousSkillsNote(selectedInternalSkills: ReadonlyArray<string>): string {
   const lines = CONTINUOUS_SKILLS.filter((s) => selectedInternalSkills.includes(s.id)).map(
     (s) => `- \`${s.id}\` — ${s.whenToApply}.`,
   );
   if (lines.length === 0) return "";
   return [
-    "## Skills that apply continuously",
+    CONTINUOUS_SKILLS_HEADING,
     "",
     "These installed skills apply to every response or delegation; no prompt ever looks like their job, so open them from this list:",
     "",

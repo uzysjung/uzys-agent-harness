@@ -90,11 +90,15 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도구를 모두 설치했다면 나중에 실행된
 쪽의 판이 남습니다. 어느 쪽이든 같은 룰 절(`## Harness Rules`)을 담습니다.
 
-`AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context`)이 있습니다. 다만 이
-파일은 `CLAUDE.md` 와 달리 **하네스가 통째로 다시 씁니다** — `update` 를 돌리면 채워 둔 절이 빈 템플릿으로
-돌아가고, 이전 판은 `AGENTS.md.backup-<시각>` 에 남습니다. 갱신 뒤에는 백업에서 그 절을 다시 옮겨
-적으세요(에이전트에게 `audit-harness-fit` 으로 백업의 편집을 새 판에 얹어 달라고 해도 됩니다). 이 동작을
-`CLAUDE.md` 처럼 바꾸는 일은 이슈 #503 으로 추적합니다.
+`AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
+있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
+몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자
+절 안에서는 `<!-- uzys-harness:… -->` 주석 쌍으로 감싼 조각(상시 스킬 안내 · 작업 원칙 본문)입니다.
+**그 주석 쌍 사이**에 적은 것은 다음 `update` 가 덮어쓰니 바깥에 적으세요.
+
+절 제목을 지웠거나 이름을 바꾸면 하네스가 그 절을 알아볼 수 없어 파일 전체를 최신판으로 다시 씁니다 —
+그때는 이전 판이 `AGENTS.md.backup-<시각>` 에 남고, 에이전트에게 `audit-harness-fit` 으로 백업의 편집을
+새 판에 얹어 달라고 할 수 있습니다.
 
 ## 4. 헷갈리는 이름 셋
 

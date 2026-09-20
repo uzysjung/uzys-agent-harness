@@ -19,10 +19,11 @@
 
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
-import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
+import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderConfigToml } from "./config-toml.js";
@@ -93,7 +94,8 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     claudeMd,
     projectName,
     // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
-    projectContext: withContinuousSkillsNote(
+    // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다.
+    projectContext: withMarkedContinuousSkillsNote(
       renderFillScaffold("agents-md"),
       selectedInternalSkills,
     ),
@@ -103,7 +105,16 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용
   // 비교는 하네스가 템플릿을 고친 릴리즈마다 전 사용자에게 백업을 쌓는다 (ADR-047 기각 사유).
-  writer.write(agentsMdPath, agentsMdOut);
+  // #503 — 백업은 마지막 그물이지 보존 수단이 아니었다. 설치자가 채운 절은 디스크에서
+  // 이어받고 하네스 소유분만 최신판으로 간다 (`mergeAgentsMd`).
+  writer.write(
+    agentsMdPath,
+    mergeAgentsMd({
+      rendered: agentsMdOut,
+      existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
+      template: agentsTemplate,
+    }),
+  );
 
   // 2. .codex/config.toml
   const configTomlPath = join(projectDir, ".codex/config.toml");

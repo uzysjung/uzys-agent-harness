@@ -7,6 +7,8 @@
  *   `{PROJECT_RULES}` placeholder 에 CLAUDE.md 본문 전체를 삽입 (heading 구조 의존 0).
  */
 
+import { ANCHOR_BLOCK, wrapHarnessBlock } from "../agents-md-merge.js";
+
 /** Rename Claude slash conventions (`/uzys:foo`) to Codex (`/uzys-foo`). */
 export function renameSlashes(text: string): string {
   return text.replaceAll("/uzys:", "/uzys-");
@@ -38,7 +40,9 @@ export interface AgentsMdParams {
  */
 export function renderAgentsMd(params: AgentsMdParams): string {
   // CLAUDE.md 의 첫 h1 (# title) 제거 — 템플릿이 자체 h1 보유.
-  const body = params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
+  // #503 — 앵커 본문은 마커로 감싼다. `## Project Rules` 절은 설치자도 덧쓰는 자리라,
+  // 감싸 두어야 재렌더가 **이 조각만** 갈아 끼우고 설치자가 쓴 줄을 남긴다.
+  const body = wrapHarnessBlock(ANCHOR_BLOCK, params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim());
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
     .replaceAll("{PROJECT_RULES}", body)

@@ -7,6 +7,8 @@
  * v26.70.0 — section 추출 → CLAUDE.md 전문 embed (`{PROJECT_RULES}`). codex/agents-md 와 동일 fix.
  */
 
+import { ANCHOR_BLOCK, wrapHarnessBlock } from "../agents-md-merge.js";
+
 /** Rename Claude slash conventions (`/uzys:foo`) to OpenCode (`/uzys-foo`). */
 export function renameSlashes(text: string): string {
   return text.replaceAll("/uzys:", "/uzys-");
@@ -34,7 +36,9 @@ export interface AgentsMdParams {
  *   - {PROJECT_CONTEXT} — project-specific fill scaffold (renderFillScaffold())
  */
 export function renderAgentsMd(params: AgentsMdParams): string {
-  const body = params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
+  // #503 — codex 와 **같은 파일**을 쓰므로 마커도 같은 자리에 같은 이름으로 들어가야 한다.
+  // 한쪽만 감싸면 나중에 도는 transform 이 상대의 블록을 못 찾아 설치자 본문을 되돌린다.
+  const body = wrapHarnessBlock(ANCHOR_BLOCK, params.claudeMd.replace(/^#\s+.*\r?\n/, "").trim());
   const replaced = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
     .replaceAll("{PROJECT_RULES}", body)
