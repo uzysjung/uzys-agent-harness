@@ -167,7 +167,7 @@ Brings what is installed to the release you invoke:
 - **Reports** what it cannot add on its own. A new hook, for example, needs an entry in `settings.json`, which `update` does not rewrite — so it is listed as *needs reinstall* rather than installed half-way.
 - **Names** renamed or retired skills still sitting in `.claude/skills/`, and says which ones are safe to delete. It never deletes a skill directory for you.
 
-It never installs a CLI you did not choose, and it runs without prompting, so it is safe to run from CI. One caveat: a bundled skill you dropped with `--without` at install time is not remembered, so `update` brings it back — delete the directory again, or track this in issue #505. It copies `.claude/` to `.claude.backup-<ts>` first and exits `1` if there is no install to update.
+It never installs a CLI you did not choose, and it runs without prompting, so it is safe to run from CI. A bundled skill you dropped at install time — `--without <id>` or unchecked in the wizard — stays dropped: the install log records it and `update` leaves it out. Deleting a skill directory by hand is not the same signal, so `update` restores that one; drop it with `--without` on your next `install` if you want it gone for good. `update` copies `.claude/` to `.claude.backup-<ts>` first and exits `1` if there is no install to update.
 
 `--only` limits it to a group, repeatable: `skills` · `new-skills` · `rules` · `anchor` · `hooks` · `external`. The wizard's **Update policy files** action offers the same groups as a checklist.
 

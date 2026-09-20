@@ -724,6 +724,10 @@ function installNewSkillDirs(
   const foreignOwned: string[] = [];
   const log = readInstallLog(projectDir);
   const excluded = new Set(log?.spec.baselineExclude ?? []);
+  // #505 — 번들 스킬 해제는 자산 id 로 기록된다(`skillExclude`). baseline 자산과 목록이 달라
+  // `isBaselineExcluded` 로는 안 걸린다 — 그래서 `--without <skill>` 로 뺀 스킬이 update 마다
+  // 되돌아왔다. 옛 로그(필드 없음)는 빈 집합이라 동작이 그대로다.
+  const skillExcluded = new Set(log?.spec.skillExclude ?? []);
   if (!(log?.spec.cli ?? ["claude"]).includes("claude")) return { installed, foreignOwned };
   const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
   for (const entry of buildManifest(spec)) {
@@ -731,6 +735,7 @@ function installNewSkillDirs(
     // ADR-074 — 설치 때 해제한 스킬은 다시 들이지 않는다. 판정은 파일 자산과 같은 헬퍼로
     // (`tests/baseline-targets.test.ts` F1 이 이 줄이 빠졌던 것을 잡았다 — python-patterns 부활).
     if (!entry.applies(spec) || isBaselineExcluded(entry.target, excluded)) continue;
+    if (skillExcluded.has(entry.target.slice(".claude/skills/".length))) continue;
     const target = join(projectDir, entry.target);
     const foreign = foreignOwnedTarget(projectDir, entry.target);
     if (foreign !== null) {
