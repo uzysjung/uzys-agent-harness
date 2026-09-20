@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-21
-- PR: #TBD-503
+- PR: #517
 - Related: ADR-048(외부 CLI 산출물의 소유자 판정 백업) · ADR-085(상시 스킬 안내를 프로젝트 맥락 블록에)
 - Context: Codex/OpenCode 설치본의 루트 `AGENTS.md` 는 매 렌더마다 통째로 다시 써졌다. 설치자가
   `## Project Context` 에 채운 맥락은 `update` 때마다 빈 스캐폴드로 돌아가고 백업(`AGENTS.md.backup-<시각>`)
