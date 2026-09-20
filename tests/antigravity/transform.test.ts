@@ -75,6 +75,8 @@ describe("runAntigravityTransform — rules (v26.69.0, project context)", () => 
     // project-context 스캐폴드 주입 ({PROJECT_CONTEXT} → renderFillScaffold())
     expect(rules).toContain("<!-- FILL:stack —");
     expect(rules).not.toContain("{PROJECT_CONTEXT}");
+    // #503 리뷰 N2 — AGENTS.md 병합용 마커는 통째로 하네스 소유인 이 파일에 상주하지 않는다.
+    expect(rules).not.toContain("<!-- uzys-harness:");
     cleanup();
   });
 

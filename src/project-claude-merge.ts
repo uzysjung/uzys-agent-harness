@@ -36,6 +36,12 @@ const IMPORT_MARKER_START = "<!-- uzys-harness:import:start -->";
 const IMPORT_MARKER_END = "<!-- uzys-harness:import:end -->";
 
 /**
+ * 안내 절의 헤딩. **마커 없는 옛 `AGENTS.md`** 에서 이 조각을 찾아내는 단서라
+ * (`agents-md-merge.ts`) 리터럴을 양쪽에 두지 않는다 — 갈리면 조각이 두 벌 쌓인다.
+ */
+export const CONTINUOUS_SKILLS_HEADING = "## Skills that apply continuously";
+
+/**
  * ADR-085 — 상시 적용 스킬 안내. **실제로 깔린 것만** 적는다.
  *
  * 배포 앵커가 전역 6원칙과 바이트 동일해지면서 앵커 꼬리절(`Skills that apply continuously`)이
@@ -45,12 +51,6 @@ const IMPORT_MARKER_END = "<!-- uzys-harness:import:end -->";
  *
  * @returns 안내 블록. 해당 스킬이 하나도 선택되지 않았으면 빈 문자열 — 한 줄도 상주시키지 않는다.
  */
-/**
- * 안내 절의 헤딩. **마커 없는 옛 `AGENTS.md`** 에서 이 조각을 찾아내는 단서라
- * (`agents-md-merge.ts`) 리터럴을 양쪽에 두지 않는다 — 갈리면 조각이 두 벌 쌓인다.
- */
-export const CONTINUOUS_SKILLS_HEADING = "## Skills that apply continuously";
-
 export function renderContinuousSkillsNote(selectedInternalSkills: ReadonlyArray<string>): string {
   const lines = CONTINUOUS_SKILLS.filter((s) => selectedInternalSkills.includes(s.id)).map(
     (s) => `- \`${s.id}\` — ${s.whenToApply}.`,

@@ -166,13 +166,17 @@ describe("AGENTS.md — 설치자가 채운 절은 재렌더를 넘긴다 (#503)
   it("마커 없는 옛 설치본 — 사용자 문단 보존 · 스킬 안내 중복 0", () => {
     const first = codex(new Map());
     // v26.159.0 판 = 지금 렌더에서 마커 줄만 뺀 것. 그 시절 파일을 그대로 재현한다.
-    const legacy = prependToSection(
-      read()
-        .split("\n")
-        .filter((l) => !l.trim().startsWith("<!-- uzys-harness:"))
-        .join("\n"),
+    const legacy = appendToSection(
+      prependToSection(
+        read()
+          .split("\n")
+          .filter((l) => !l.trim().startsWith("<!-- uzys-harness:"))
+          .join("\n"),
+        "Project Context",
+        "옛 설치본에 적어 둔 문단.",
+      ),
       "Project Context",
-      "옛 설치본에 적어 둔 문단.",
+      "안내 뒤에 적어 둔 문단.",
     );
     writeFileSync(agentsPath(), legacy);
     expect(legacy).not.toContain("uzys-harness:skills");
@@ -182,6 +186,8 @@ describe("AGENTS.md — 설치자가 채운 절은 재렌더를 넘긴다 (#503)
     const after = read();
 
     expect(section(after, "Project Context")).toContain("옛 설치본에 적어 둔 문단.");
+    // 리뷰 B1 — 안내 *뒤*의 설치자 문단도 첫 update 를 넘긴다(옛 조각의 끝까지만 걷어낸다).
+    expect(section(after, "Project Context")).toContain("안내 뒤에 적어 둔 문단.");
     expect(occurrences(after, SKILLS_HEADING)).toBe(1);
     // 이번 판부터 마커가 산다 — 다음 update 부터는 조각만 갈아 끼운다.
     expect(after).toContain("<!-- uzys-harness:skills:start -->");

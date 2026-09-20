@@ -146,13 +146,37 @@ function refreshBlock(
     }
     return [...head, ...fresh, ...tail];
   }
-  // 마커 없는 옛 설치본 — 헤딩으로 조각을 찾아 걷어내고 그 자리에 마커째 다시 넣는다.
+  // 마커 없는 옛 설치본 — 헤딩으로 조각을 찾아 **조각의 끝까지만** 걷어내고 그 자리에 마커째
+  // 다시 넣는다. 절 끝까지 잘라내면 설치자가 안내 *뒤*에 적어 둔 문단이 첫 update 에서 사라진다
+  // (#503 독립 리뷰 B1 — 백업에는 남지만 문서는 "그대로 남는다"고 약속한다).
   const legacyAt =
     legacyHeading === undefined
       ? -1
       : existing.findIndex((l) => l.replace(/\r$/, "").trim() === legacyHeading);
-  const kept = trimTrailingBlanks(legacyAt === -1 ? existing : existing.slice(0, legacyAt));
-  return fresh === null ? [...kept, ""] : [...kept, "", ...fresh, ""];
+  if (legacyAt === -1) {
+    const kept = trimTrailingBlanks(existing);
+    return fresh === null ? [...kept, ""] : [...kept, "", ...fresh, ""];
+  }
+  const head = trimTrailingBlanks(existing.slice(0, legacyAt));
+  const tail = existing.slice(legacyNoteEnd(existing, legacyAt));
+  while (tail.length > 0 && (tail[0] ?? "").trim() === "") tail.shift();
+  const body = fresh === null ? [...head] : [...head, "", ...fresh];
+  return tail.length > 0 ? [...body, "", ...tail] : [...body, ""];
+}
+
+/**
+ * 마커 없는 옛 안내 조각(ADR-085)이 끝나는 줄 — 헤딩 다음부터 빈 줄 · 소개 문장 · `- \`id\` — …`
+ * 항목만 조각으로 친다. 그 밖의 첫 줄이 설치자 텍스트의 시작이다.
+ */
+function legacyNoteEnd(lines: ReadonlyArray<string>, headingAt: number): number {
+  let i = headingAt + 1;
+  while (i < lines.length) {
+    const l = (lines[i] ?? "").replace(/\r$/, "").trim();
+    const isNote = l === "" || l.startsWith("- `") || l.startsWith("These installed skills apply");
+    if (!isNote) break;
+    i++;
+  }
+  return i;
 }
 
 export interface MergeAgentsMdParams {
