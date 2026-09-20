@@ -340,7 +340,7 @@ export function runUpdateMode(
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
   report.skillsPruned = skillSync.pruned;
-  refreshSkillBaseline(projectDir);
+  refreshSkillBaseline(projectDir, templatesDir);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
   //
@@ -840,8 +840,10 @@ export function updateDir(
  * | 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 덮어쓴다 |
  * | 기준선 기록 없음 | 판정 불가 | 보수적으로 백업 (레거시 설치의 첫 update 1회) |
  *
- * **orphan prune 은 하지 않는다** — 스킬 디렉터리 안에는 사용자가 자기 참고 파일을 넣을 수 있고,
- * templates 에 없다는 이유로 지우면 그게 곧 사용자 파일 삭제다 (ADR-046 "지우지 않는다").
+ * **번들에 없는 파일은 지운다** (#477, 사용자 결정 2026-09-20 — "있으면 백업하고 다시 깐다").
+ * 번들 스킬 디렉터리의 파일 목록이 최신본의 정의이고, 사용자 것(기준선 없음·다름)은 지우기 전에
+ * 덮어쓸 때와 같은 잣대로 `.backup-<stamp>` 을 남긴다. 기준선은 번들에 있는 파일만 담는다
+ * (`collectSkillHashes`) — 그래야 사용자 파일이 "하네스가 깔았던 것"으로 오판되지 않는다.
  *
  * **심볼릭 링크는 건너뛴다** (2026-08-02 · ADR-062). `existsSync` 는 링크를 따라가므로 그것만
  * 보면 "설치돼 있다"와 "다른 저장소를 가리키는 링크가 있다"가 구분되지 않는다. `npx skills add`
@@ -991,10 +993,10 @@ function refreshPolicyBaseline(projectDir: string, templatesDir: string): void {
  *
  * 로그가 없으면 **만들지 않는다** — update 가 설치 기록을 날조하면 uninstall 이 그걸 믿는다.
  */
-function refreshSkillBaseline(projectDir: string): void {
+function refreshSkillBaseline(projectDir: string, templatesDir: string): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
-  const skillFiles = collectSkillHashes(projectDir);
+  const skillFiles = collectSkillHashes(projectDir, templatesDir);
   const next: InstallLog = { ...log };
   if (skillFiles.length > 0) next.skillFiles = skillFiles;
   else delete next.skillFiles;

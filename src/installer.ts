@@ -832,7 +832,7 @@ function writeInstallLogSafe(
     );
     // v26.126.0 (ADR-046) — 스킬 기준선은 **이력이 아니라 스냅샷**이라 buildInstallLog 의 누적
     // 경로를 타지 않는다. manifest copy 가 끝난 뒤 디스크를 읽어야 값이 맞다.
-    const skillFiles = collectSkillHashes(ctx.projectDir);
+    const skillFiles = collectSkillHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));
     // v26.132.0 (ADR-047) — 정책 파일 기준선도 같은 이유로 여기서 찍는다. 이게 없으면
     // 다음 update 가 소유를 판정하지 못해 ⓐ 멀쩡한 파일을 전부 백업하고 ⓑ 폐기 룰을 회수 못 한다.
     const policyFiles = collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));

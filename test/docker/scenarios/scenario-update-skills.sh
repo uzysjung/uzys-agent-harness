@@ -145,7 +145,7 @@ if ! ls "${TARGET_DIR}"/my-notes.md.backup-* >/dev/null 2>&1; then
   exit 1
 fi
 echo "✓ 사용자 파일은 백업 뒤 삭제"
-if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q 'removed from bundle'; then
+if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q 'not in bundle'; then
   echo "FAIL: Update 요약에 삭제 행이 없다 (조용히 지우면 사용자는 파일이 왜 없어졌는지 모른다)"
   exit 1
 fi

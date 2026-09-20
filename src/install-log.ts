@@ -386,13 +386,23 @@ export function mergeExternalFiles(
  *
  * 누적하지 않고 **매번 통째로 교체**한다 (`rootFiles` 와 반대다) — 이건 이력이 아니라 현재
  * 디스크 상태의 스냅샷이고, 지워진 파일의 해시가 남으면 그 자체로 거짓 기록이 된다.
+ * 디스크 전체가 아니라 **번들에 있는 파일만** 담는다 (#477, 아래 주석).
  */
-export function collectSkillHashes(projectDir: string): InstallLogSkillFile[] {
+export function collectSkillHashes(
+  projectDir: string,
+  templatesDir: string,
+): InstallLogSkillFile[] {
   const skillsDir = join(projectDir, ".claude/skills");
-  return listFilesRecursive(skillsDir).map((rel) => ({
-    path: rel,
-    sha256: hashContent(readFileSync(join(skillsDir, rel), "utf8")),
-  }));
+  // #477 — 소유 판정은 `collectPolicyHashes` 와 같이 **templates 에 그 파일이 있는가**다. 디스크에만
+  // 있는 파일(사용자가 스킬 디렉터리에 둔 것)을 기준선에 넣으면 다음 update 의 prune 이 그걸
+  // "하네스가 깔았던 것"으로 읽어 파일별 백업 없이 지운다 — 독립 리뷰가 install 재실행 경로에서
+  // 실증했다. 이 필터가 사용자 파일의 파일별 백업을 지키는 마지막 문이다.
+  return listFilesRecursive(skillsDir)
+    .filter((rel) => existsSync(join(templatesDir, "skills", rel)))
+    .map((rel) => ({
+      path: rel,
+      sha256: hashContent(readFileSync(join(skillsDir, rel), "utf8")),
+    }));
 }
 
 /**

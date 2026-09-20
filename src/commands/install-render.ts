@@ -617,7 +617,7 @@ function renderPhase1Rows(
       log(
         assetRow(
           "success",
-          ".claude/skills removed from bundle",
+          ".claude/skills not in bundle",
           `${baseline.updateMode.skillsPruned.length} files deleted · ${baseline.updateMode.skillsPruned.join(", ")}`,
         ),
       );

@@ -1,4 +1,5 @@
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  collectSkillHashes,
   hashContent,
   installLogPath,
   readInstallLog,
@@ -1419,6 +1421,34 @@ describe("syncSkills (R-3a)", () => {
     expect(readFileSync(join(target, "demo/references", refs[0] as string), "utf8")).toBe(
       "edited-ref\n",
     );
+  });
+
+  it("기준선은 번들에 있는 파일만 담는다 — 사용자 파일이 들어가면 다음 update 가 백업 없이 지운다 (#477 리뷰 HIGH-1)", () => {
+    // install 재실행 경로: 사용자가 둔 my-notes.md 가 디스크에 있는 채로 기준선을 다시 찍는다.
+    seed("demo", "SKILL.md", "s\n", "s\n");
+    writeFileSync(join(target, "demo/my-notes.md"), "mine\n");
+    const project = mkdtempSync(join(tmpdir(), "ch-sk-p-"));
+    try {
+      mkdirSync(join(project, ".claude"), { recursive: true });
+      // templatesDir 는 <dir>/skills/<id>/… 형태 — source 의 부모를 흉내 낸다
+      const templates = mkdtempSync(join(tmpdir(), "ch-sk-tpl-"));
+      cpSync(source, join(templates, "skills"), { recursive: true });
+      cpSync(target, join(project, ".claude/skills"), { recursive: true });
+
+      const paths = collectSkillHashes(project, templates).map((f) => f.path);
+
+      expect(paths).toContain("demo/SKILL.md");
+      expect(paths, "사용자 파일이 기준선에 들어갔다").not.toContain("demo/my-notes.md");
+      // 그 기준선으로 sync 하면 사용자 파일은 백업이 남는다 — 위 필터가 지키는 약속
+      const baseline = new Map(
+        collectSkillHashes(project, templates).map((f) => [f.path, f.sha256]),
+      );
+      const result = syncSkills(target, source, baseline, new Date(), () => null);
+      expect(result.backedUp).toEqual(["demo/my-notes.md"]);
+      rmSync(templates, { recursive: true, force: true });
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
   });
 
   it("우리가 남긴 *.backup-* 은 지우지 않는다 — 지우면 매 update 가 직전 백업을 먹는다 (#477)", () => {
