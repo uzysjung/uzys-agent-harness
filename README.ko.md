@@ -55,6 +55,17 @@ npx -y @uzysjung/agent-harness uninstall   # 무엇을 뺄지 고른다
 제거되지 않으며, 제거는 오직 이 명령에서만 일어난다. 자세한 내용은
 [uninstall](docs/USAGE.md#uninstall-v26640) 참고.
 
+### 스킬 하나만 받기 (하네스 없이)
+
+번들 스킬은 [skills CLI](https://github.com/vercel-labs/skills) 로 하나씩도 받는다 — 하네스도 트랙도 필요 없다:
+
+```bash
+npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centered-explanation -a claude-code
+# 목록 보기:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
+```
+
+경로가 가리키는 `templates/skills/` 가 하네스가 내보내는 모든 스킬의 원본이라, 설치기가 복사하는 것과 같은 파일(`references/` 포함)을 받는다. 갱신은 같은 명령을 다시 돌리면 된다. 2026-09-20 순정 `node:20` 컨테이너에서 확인. 스킬 디렉터리 페이지: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (설치 집계로 자동 등재되며, 리포 루트의 `skills.sh.json` 이 페이지의 묶음을 정한다).
+
 ## 왜
 
 코딩 에이전트는 계속 발전하지만, 한 번 설치한 skill 과 MCP 는 실제 사용과 무관하게 매 세션 context window 를 점유한다. awesome-list 에 수백 개의 선택지가 있어도 내 기술 스택에 맞는 항목을 찾아주지는 않는다. 결국 전부 설치해 매 세션 불필요한 비용을 치르거나, 프로젝트를 시작할 때마다 직접 목록을 확인하고 골라야 한다.

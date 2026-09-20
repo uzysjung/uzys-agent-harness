@@ -51,6 +51,17 @@ npx -y @uzysjung/agent-harness uninstall   # pick what to remove
 
 Run in a terminal, `uninstall` asks what to take out — item by item, or everything. It reverses what it safely can and *prints* the rest — global-scope assets, and files outside `.claude/` such as `.mcp.json` — instead of editing files that hold your own content. Unchecking something in the installer never removes it; removal only happens here. See [uninstall](docs/USAGE.md#uninstall-v26640).
 
+### One skill, without the harness
+
+Every bundled skill is also installable on its own with the [skills CLI](https://github.com/vercel-labs/skills) — no harness, no track:
+
+```bash
+npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centered-explanation -a claude-code
+# see what is there:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
+```
+
+The path points at the bundle (`templates/skills/`), which is the single source for every skill the harness ships — you get the same file the installer would copy, `references/` and all. Re-run the same command to refresh. Verified in a clean `node:20` container on 2026-09-20. The repo page on the skills directory: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (listed automatically from installs; `skills.sh.json` at the repo root groups the page).
+
 ## Why
 
 Coding agents keep getting stronger on their own. But every skill and MCP you install sits in the context window each session whether you use it or not, and the awesome-lists carry hundreds of options with no way to tell which ones your stack actually calls for. So you either install everything and pay for it every session, or read through the lists yourself each time you start a project.
