@@ -5,7 +5,8 @@
 # 거부하므로 `script` 로 pty 를 붙이고 키 입력 2개를 흘려 넣는다.
 # (v26.131.0 부터 비대화형 `agent-harness update` 도 있다 — 그쪽은 scenario-update-noninteractive
 #  가 non-TTY 조건에서 따로 검증한다. 두 경로는 서로의 증거가 되지 않는다.)
-#   ① 라우터에서 "update" 선택 (2번째 항목 → ↓ + Enter)  ② 확인 프롬프트 Enter
+#   ① 라우터에서 "update" 선택 (2번째 항목 → ↓ + Enter)  ② "What to update" 체크박스(#480 ①, 전부
+#   체크 → Enter 로 수락)  ③ 확인 프롬프트 Enter
 #
 # 검증:
 #   - install 후 `.claude/skills/` 존재 + install log 에 skillFiles 기준선 기록
@@ -53,7 +54,7 @@ TARGET_DIR=$(dirname "${TARGET}")
 run_update() {
   # 키 사이에 **지연이 필요하다.** 한 번에 흘리면 clack 이 프롬프트를 그리기 전에 입력이
   # 지나가 라우터 선택 자체가 안 된다 (그 경우 update 가 아예 안 돌고도 조용히 끝난다).
-  ( sleep 2; printf '\033[B'; sleep 0.5; printf '\r'; sleep 2; printf '\r'; sleep 3 ) \
+  ( sleep 2; printf '\033[B'; sleep 0.5; printf '\r'; sleep 2; printf '\r'; sleep 1.5; printf '\r'; sleep 3 ) \
     | script -qec "agent-harness" /dev/null >/tmp/update-out.txt 2>&1 || true
 
   # update 가 실제로 돌았는지부터 확인한다 — 안 돌았는데 "백업 없음"을 통과로 읽으면

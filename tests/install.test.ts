@@ -954,7 +954,9 @@ describe("executeSpec", () => {
                     backups: [
                       {
                         path: ".claude/rules/git-policy.md",
-                        backup: ".claude/rules/git-policy.md.backup-20260920T000000",
+                        // 화면 출력만 보는 픽스처 — 실제 백업은 실행 시각으로 이름이 붙는다(fs-ops formatStamp).
+                        // 진짜 날짜처럼 보이면 "오늘이어야 한다"로 읽히므로 누가 봐도 가짜인 스탬프로 둔다.
+                        backup: ".claude/rules/git-policy.md.backup-00000000T000000",
                       },
                     ],
                   }
