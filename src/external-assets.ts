@@ -588,7 +588,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     condition: { kind: "opt-in" },
     // 리포에 스킬 14종(brandkit·brutalist·minimalist 등)이 있고 본체가 `taste-skill` —
     // 스타일 변형은 그 안에서 고른다. 다른 단일 대표 자산(remotion)과 같은 형태.
-    method: { kind: "skill", source: "Leonxlnx/taste-skill", skill: "taste-skill" },
+    // 2026-09-20 (#420) — 업스트림이 SKILL.md 의 `name:` 을 `design-taste-frontend` 로 바꿨다. `npx skills
+    // add --skill` 은 디렉터리명이 아니라 **frontmatter name** 으로 맞춘다(실측: 옛 이름은 "No matching
+    // skills found", 새 이름은 설치 완료). 디렉터리는 여전히 `skills/taste-skill/` 이다.
+    method: { kind: "skill", source: "Leonxlnx/taste-skill", skill: "design-taste-frontend" },
   },
   {
     id: "scroll-world",
@@ -603,10 +606,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // 2026-08-16 — Preline 은 Tailwind 컴포넌트 킷이지만 **프레임워크에 매이지 않는다**: htmx·
   // vanilla 에도 붙는다(사용자 확인). 그래서 `frontend` 이면서 React/Vue 트랙 전용이 아니다.
   //
-  // 리포 안에 스킬은 `skills/theme-generator/` **하나**다 — 공식 문서는 이것을
-  // "preline-theme-generator" 라 부르지만 실제 디렉터리명은 `theme-generator` 이고,
-  // `npx skills add` 가 보는 것은 디렉터리명이다(실측 2026-08-16). 문서 표기를 그대로 옮겼다면
-  // 설치가 조용히 빗나갔다.
+  // 리포 안에 테마 스킬은 `skills/theme-generator/` 하나다. 2026-08-16 실측에서는 `npx skills add`
+  // 가 디렉터리명(`theme-generator`)으로 맞췄는데, 2026-09-01 부터 그 이름이 "No matching skills
+  // found" 가 됐다(#420) — 지금은 SKILL.md 의 `name:`(`preline-theme-generator`)으로 맞춘다(실측
+  // 2026-09-20: 옛 이름 exit 1 · 새 이름 설치 완료). 이름이 바뀌면 월 1회 catalog-verify 가 잡는다.
   //
   // 같은 날 조사한 flowbite 는 **넣지 않는다**: 에이전트용 제공물이 MCP 서버뿐인데, 이 저장소의
   // `.mcp.json` 조립은 트랙 조건만 읽어 opt-in 경로가 없다 — 넣으면 해당 트랙 전원에게 항상
@@ -619,7 +622,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "frontend",
     source: "htmlstreamofficial",
     condition: { kind: "opt-in" },
-    method: { kind: "skill", source: "htmlstreamofficial/preline", skill: "theme-generator" },
+    method: {
+      kind: "skill",
+      source: "htmlstreamofficial/preline",
+      skill: "preline-theme-generator",
+    },
   },
 
   // === dev tools (has_dev_track) ===

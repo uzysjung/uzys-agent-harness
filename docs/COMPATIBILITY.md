@@ -111,9 +111,9 @@ stale row fails the build rather than misleading you.
 | `tauri-desktop` | official | templates (`--with tauri-desktop`) | 4-CLI (templates) | 🟡 local |
 | `frontend-design` | official | `anthropics/skills :: frontend-design` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `jakubkrehel-skills` | vetted | `jakubkrehel/skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `taste-skill` | vetted | `Leonxlnx/taste-skill :: taste-skill` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `taste-skill` | vetted | `Leonxlnx/taste-skill :: design-taste-frontend` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `scroll-world` | vetted | `oso95/scroll-world :: scroll-world` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `preline` | vetted | `htmlstreamofficial/preline :: theme-generator` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `preline` | vetted | `htmlstreamofficial/preline :: preline-theme-generator` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `react-best-practices` | vetted | `vercel-labs/agent-skills :: vercel-react-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `shadcn-ui` | vetted | `shadcn/ui :: shadcn` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | 4-CLI (skills.sh --agent) | 🟢 Docker |
