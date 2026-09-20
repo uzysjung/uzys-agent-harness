@@ -1,8 +1,8 @@
 # ADR-091: 사용자 문안으로 지침 3종 개정 — 배포 앵커 · model-orchestration · 의사결정 형식
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-20
-- PR: #468 (앵커 · 이 ADR) · #467 (model-orchestration) · #466 (clear-korean-communication)
+- PR: #474 (앵커 · 이 ADR) · #473 (model-orchestration) · #466 (clear-korean-communication)
 - Amends: ADR-085 (결정 1 "배포 앵커 = 전역 `~/.claude/CLAUDE.md` 바이트 동일"이 끝난다 — 앵커는
   사용자가 #463 에 첨부한 Working Principles 문안이다. 결정 2·3·4 는 그대로) ·
   ADR-069 (외부 실행기 레인의 5술어·최초 1회 승인 절차가 `model-orchestration` 본문에서 빠진다.
