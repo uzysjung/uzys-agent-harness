@@ -92,73 +92,68 @@ function modelSlugHits(label: string, text: string): string[] {
 const WRAPPER_MECHANICS =
   /(?:gemini|codex)-ask\.sh|codex exec\b|\bagy -p\b|_CONSULT_TIMEOUT|<untrusted-|--dangerously-skip-permissions|\bexit (?:2|3|4|5|124)\b/i;
 
-/** `templates/`(배포물)와 `.claude/`(개발 사본)를 **같은 계약**으로 검사한다. */
-const ROOTS = [
-  { label: "templates/skills", path: "../templates/skills" },
-  { label: ".claude/skills", path: "../.claude/skills" },
-] as const;
+/** 설치자에게 나가는 배포물만 검사한다 — 개발 사본(`.claude/skills/`)은 대상이 아니다. */
+const root = { label: "templates/skills", path: "../templates/skills" } as const;
 
-for (const root of ROOTS) {
-  const mo = read(`${root.path}/model-orchestration/SKILL.md`);
-  const mpr = read(`${root.path}/multi-persona-review/SKILL.md`);
-  const emc = read(`${root.path}/external-model-consult/SKILL.md`);
-  const reviewerDesign = read(`${root.path}/multi-persona-review/references/reviewer-design.md`);
+const mo = read(`${root.path}/model-orchestration/SKILL.md`);
+const mpr = read(`${root.path}/multi-persona-review/SKILL.md`);
+const emc = read(`${root.path}/external-model-consult/SKILL.md`);
+const reviewerDesign = read(`${root.path}/multi-persona-review/references/reviewer-design.md`);
 
-  /** E 의 검사 범위 = 라우팅·도구 절만. 전면 스캔은 날짜·스크립트 주석을 오탐한다(설계 §4.4). */
-  const slugSlices = [
-    { label: "model-orchestration (전문 — #464 이후 라우팅 절이 따로 없다)", text: mo },
-    { label: `multi-persona-review ${H_SEATS}`, text: section(mpr, H_SEATS) },
-    { label: `external-model-consult ${H_WHICH_PROVIDER}`, text: section(emc, H_WHICH_PROVIDER) },
-    { label: `external-model-consult ${H_PREREQUISITE}`, text: section(emc, H_PREREQUISITE) },
-  ];
+/** E 의 검사 범위 = 라우팅·도구 절만. 전면 스캔은 날짜·스크립트 주석을 오탐한다(설계 §4.4). */
+const slugSlices = [
+  { label: "model-orchestration (전문 — #464 이후 라우팅 절이 따로 없다)", text: mo },
+  { label: `multi-persona-review ${H_SEATS}`, text: section(mpr, H_SEATS) },
+  { label: `external-model-consult ${H_WHICH_PROVIDER}`, text: section(emc, H_WHICH_PROVIDER) },
+  { label: `external-model-consult ${H_PREREQUISITE}`, text: section(emc, H_PREREQUISITE) },
+];
 
-  describe(`외부 실행기 레인 위생 — ${root.label}`, () => {
-    it("E0 — 모델 슬러그 검사의 슬라이스가 전부 비어 있지 않다", () => {
-      // 빈 결과를 부재의 증거로 쓰지 않는다. 앵커가 어긋나면 E 는 0건을 내고 조용히 통과한다.
-      const empty = slugSlices.filter((s) => s.text.trim() === "").map((s) => s.label);
-      expect(
-        empty,
-        `앵커가 어긋나 슬라이스가 비었다 — E 가 헛통과한다:\n${empty.join("\n")}`,
-      ).toEqual([]);
-    });
-
-    /**
-     * `multi-persona-review` 가 호출 방법을 **자기 본문에 복제하지 않는가** (MECE).
-     *
-     * 걷어낸 C3 의 전반부는 술어를 낱말로 세던 것이라 안 되살렸다. 되살린 것은 **후반부뿐**
-     * — 삭제가 아니라 **추가**를 잡는 축이고, 무는 대상이 실재하는 파일명·플래그·exit code 라
-     * 문면 개정과 무관하다.
-     */
-    it("호출 방법이 external-model-consult 밖에서 되풀이되지 않는다 (MECE)", () => {
-      const restated: string[] = [];
-      for (const [name, text] of [
-        ["SKILL.md", mpr],
-        ["references/reviewer-design.md", reviewerDesign],
-      ] as const) {
-        text.split("\n").forEach((line, i) => {
-          if (WRAPPER_MECHANICS.test(line)) restated.push(`${name}:${i + 1}  ${line.trim()}`);
-        });
-      }
-      expect(
-        restated,
-        `호출·가드레일·exit code 는 external-model-consult 소관이다 — 여기서 되풀이하지 마라:\n${restated.join("\n")}`,
-      ).toEqual([]);
-    });
-
-    it("E — 라우팅·도구 절 안에 구체 모델 슬러그가 0건", () => {
-      const hits = slugSlices.flatMap((s) => modelSlugHits(s.label, s.text));
-      expect(
-        hits,
-        [
-          "배포 본문은 모델을 고르지 않는다 — 그 CLI 가 자기 설정으로 고른 것을 쓰고,",
-          "무엇이 답했는지 보고한다. 버전·티어가 박힌 슬러그는 시간이 지나면 거짓이 되고",
-          "설치자를 은퇴한 모델에 묶는다.",
-          hits.join("\n"),
-        ].join("\n"),
-      ).toEqual([]);
-    });
+describe(`외부 실행기 레인 위생 — ${root.label}`, () => {
+  it("E0 — 모델 슬러그 검사의 슬라이스가 전부 비어 있지 않다", () => {
+    // 빈 결과를 부재의 증거로 쓰지 않는다. 앵커가 어긋나면 E 는 0건을 내고 조용히 통과한다.
+    const empty = slugSlices.filter((s) => s.text.trim() === "").map((s) => s.label);
+    expect(
+      empty,
+      `앵커가 어긋나 슬라이스가 비었다 — E 가 헛통과한다:\n${empty.join("\n")}`,
+    ).toEqual([]);
   });
-}
+
+  /**
+   * `multi-persona-review` 가 호출 방법을 **자기 본문에 복제하지 않는가** (MECE).
+   *
+   * 걷어낸 C3 의 전반부는 술어를 낱말로 세던 것이라 안 되살렸다. 되살린 것은 **후반부뿐**
+   * — 삭제가 아니라 **추가**를 잡는 축이고, 무는 대상이 실재하는 파일명·플래그·exit code 라
+   * 문면 개정과 무관하다.
+   */
+  it("호출 방법이 external-model-consult 밖에서 되풀이되지 않는다 (MECE)", () => {
+    const restated: string[] = [];
+    for (const [name, text] of [
+      ["SKILL.md", mpr],
+      ["references/reviewer-design.md", reviewerDesign],
+    ] as const) {
+      text.split("\n").forEach((line, i) => {
+        if (WRAPPER_MECHANICS.test(line)) restated.push(`${name}:${i + 1}  ${line.trim()}`);
+      });
+    }
+    expect(
+      restated,
+      `호출·가드레일·exit code 는 external-model-consult 소관이다 — 여기서 되풀이하지 마라:\n${restated.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("E — 라우팅·도구 절 안에 구체 모델 슬러그가 0건", () => {
+    const hits = slugSlices.flatMap((s) => modelSlugHits(s.label, s.text));
+    expect(
+      hits,
+      [
+        "배포 본문은 모델을 고르지 않는다 — 그 CLI 가 자기 설정으로 고른 것을 쓰고,",
+        "무엇이 답했는지 보고한다. 버전·티어가 박힌 슬러그는 시간이 지나면 거짓이 되고",
+        "설치자를 은퇴한 모델에 묶는다.",
+        hits.join("\n"),
+      ].join("\n"),
+    ).toEqual([]);
+  });
+});
 
 /**
  * 탐지기 자기검증 — **위에 남긴 검사가 실제로 무는가.**

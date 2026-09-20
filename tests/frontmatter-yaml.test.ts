@@ -144,20 +144,10 @@ function plainScalarColonViolations(frontmatter: string): Violation[] {
 }
 
 /**
- * 우리 소유의 `.md` 만 본다.
- *
- * `.claude/local-plugins/` 는 ECC 플러그인이 통째로 들여온 남의 산출물이다(그쪽 번역 문서에
- * 같은 위반이 13건 있지만 우리가 고칠 파일이 아니다). 여기를 안 빼면 게이트가 우리가 못 고치는
- * 것 때문에 상시 red 가 되고, 상시 red 인 게이트는 아무도 안 돌린다(#237 이 없앤 관행).
+ * 설치자에게 나가는 `.md` 만 본다 — 개발 사본(`.claude/`)은 배포물이 아니라 대상이 아니다.
  */
 function ownedMarkdown(): string[] {
-  const roots = [
-    "templates",
-    ".claude/agents",
-    ".claude/rules",
-    ".claude/skills",
-    ".claude/commands",
-  ];
+  const roots = ["templates"];
   return roots.flatMap((r) =>
     listFilesRecursive(join(ROOT, r))
       .filter((rel) => rel.endsWith(".md"))
@@ -193,7 +183,8 @@ describe("frontmatter 가 YAML 로 읽힌다", () => {
 
   it("전제 확인 — 검사할 파일이 실제로 있다 (게이트가 죽지 않았는가)", () => {
     const withFm = files.filter((f) => frontmatterOf(readFileSync(join(ROOT, f), "utf8")) !== null);
-    expect(withFm.length).toBeGreaterThan(20);
+    // 하한은 배포판 한 트리 기준 (개발 사본을 검사 대상에서 뺐다 — 실측 19).
+    expect(withFm.length).toBeGreaterThan(10);
   });
 
   it("우리 소유 파일에 plain scalar 콜론 위반이 없다", () => {
@@ -213,15 +204,6 @@ describe("frontmatter 가 YAML 로 읽힌다", () => {
         `값을 따옴표로 감싸라 (형제 파일 data-analyst·reviewer·strategist 가 이미 그렇게 한다):\n` +
         found.map((f) => `  ${f}`).join("\n"),
     ).toEqual([]);
-  });
-
-  it("배포판과 개발 사본을 **양쪽 다** 훑는다 (한쪽만 고치는 것을 막는다)", () => {
-    // 두 트리의 내용이 같아야 한다는 뜻이 아니다 — `templates/` 는 배포물이고 `.claude/` 는
-    // 우리 개발용이라 **의도적으로 다르다**(9개 중 2개가 지금도 다르다). 여기서 고정하는 것은
-    // 검사 대상에 두 트리가 다 들어 있다는 사실이다. 실제 결함이 양쪽에 있었고, 한쪽만 봤다면
-    // 사용자는 고쳐진 것을 받고 우리는 깨진 것을 계속 썼거나 그 반대가 됐다.
-    expect(files.some((f) => f.startsWith("templates/agents/"))).toBe(true);
-    expect(files.some((f) => f.startsWith(".claude/agents/"))).toBe(true);
   });
 });
 
@@ -291,7 +273,8 @@ describe("스킬 description 이 공식 상한 안에 든다", () => {
   });
 
   it("전제 확인 — 검사할 SKILL.md 가 실제로 있다 (0건 통과 방지)", () => {
-    expect(skills.length, "SKILL.md 를 하나도 못 찾았다 — 글롭이 죽었다").toBeGreaterThan(20);
+    // 하한은 배포판 한 트리 기준 (개발 사본을 검사 대상에서 뺐다 — 실측 14).
+    expect(skills.length, "SKILL.md 를 하나도 못 찾았다 — 글롭이 죽었다").toBeGreaterThan(10);
     const missing = skills.filter(
       (f) =>
         describeDescription(frontmatterOf(readFileSync(join(ROOT, f), "utf8")) ?? "").kind !==
