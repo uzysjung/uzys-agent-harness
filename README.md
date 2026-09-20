@@ -56,11 +56,11 @@ Run in a terminal, `uninstall` asks what to take out — item by item, or everyt
 Every bundled skill is also installable on its own with the [skills CLI](https://github.com/vercel-labs/skills) — no harness, no track:
 
 ```bash
-npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centered-explanation -a claude-code
-# see what is there:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
+npx skills add uzysjung/uzys-agent-harness --skill user-centered-explanation -a claude-code
+# see what is there:  npx skills add uzysjung/uzys-agent-harness --list
 ```
 
-The path points at the bundle (`templates/skills/`), which is the single source for every skill the harness ships — you get the same file the installer would copy, `references/` and all. Re-run the same command to refresh. Verified in a clean `node:20` container on 2026-09-20. The repo page on the skills directory: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (listed automatically from installs; `skills.sh.json` at the repo root groups the page).
+`.claude-plugin/plugin.json` points the skills CLI at the bundle (`templates/skills/`), the single source for every skill the harness ships — you get the same file the installer would copy, `references/` and all. Re-run the same command to refresh. Verified in a clean `node:20` container on 2026-09-20. The repo page on the skills directory: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (listed automatically from installs; `skills.sh.json` at the repo root groups the page).
 
 ## Why
 
