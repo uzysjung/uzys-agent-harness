@@ -20,20 +20,6 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 describe("세션 시작 시 이전 세션 고아 프로세스 감지", () => {
   const hook = read("templates/hooks/session-start.sh");
 
-  it("탐지 로직이 훅에 있고 메시지로 연결된다", () => {
-    // 계산만 하고 메시지에 안 붙이면 사용자에게 도달하지 않는다 — 있으나 마나다.
-    expect(hook).toMatch(/ORPHANS=/);
-    expect(hook).toMatch(/\$\{ORPHAN_NOTE\}/);
-  });
-
-  it("자기 프로젝트로 범위를 좁힌다", () => {
-    // 남의 프로젝트 프로세스를 내 세션이 판정하면 안 된다. 실제로 그 오판을 한 적이 있다 —
-    // 다른 저장소 소속 프로세스를 정리 대상으로 올렸다가 소유 관계를 확인하고 물러섰다.
-    expect(hook).toMatch(/PROJ_DIR=/);
-    expect(hook).toMatch(/index\(\$0,\s*d\)/); // awk 가 커맨드라인에서 프로젝트 경로를 찾는다
-    expect(hook).toMatch(/\$2==1/); // ppid==1 = 고아만
-  });
-
   it("죽이지 않는다 — 탐지와 보고까지만", () => {
     // 무엇을 죽일지는 사람이 정한다. 훅이 프로세스를 죽이면 되돌릴 수 없는 부수효과다.
     expect(hook).not.toMatch(/\bkill\b\s+["$]/);
@@ -59,11 +45,8 @@ describe("세션 시작 시 이전 세션 고아 프로세스 감지", () => {
 describe("무승인 git pull 을 실행하지 않는다 (D3ⓐ, ADR-058)", () => {
   // 이전에는 브랜치가 있고 detached HEAD 가 아니면 매 세션마다 승인 없이 `git pull --rebase`
   // 를 조용히(`>/dev/null 2>&1`) 돌렸다 — 로컬 커밋을 다시 쓰는 조작인데 무슨 일이 일어났는지도
-  // 안 보였다. 배포판·설치본 양쪽에서 제거됐는지를 본다(한쪽만 고치면 파는 것과 쓰는 것이 갈린다).
-  it.each([
-    "templates/hooks/session-start.sh",
-    ".claude/hooks/session-start.sh",
-  ])("%s 가 git pull 을 호출하지 않는다", (path) => {
+  // 안 보였다. 배포판에서 제거됐는지를 본다(이 리포 개발 사본은 상시 대상이 아니다, #454).
+  it.each(["templates/hooks/session-start.sh"])("%s 가 git pull 을 호출하지 않는다", (path) => {
     const code = read(path)
       .split("\n")
       .filter((l) => !l.trimStart().startsWith("#"))

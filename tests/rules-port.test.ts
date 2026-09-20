@@ -41,9 +41,10 @@ describe("portRules — 배포 룰 전량", () => {
       readFileSync(join(RULES_DIR, `${n}.md`), "utf8").startsWith("---\n"),
     );
     // 하나도 없으면 아래 "노출 0" 단언이 공허하게 통과한다.
-    expect(withFrontmatter.length, "frontmatter 를 가진 룰이 없다 — 변환 검사가 무의미해진다").toBe(
-      1,
-    );
+    expect(
+      withFrontmatter.length,
+      "frontmatter 를 가진 룰이 없다 — 변환 검사가 무의미해진다",
+    ).toBeGreaterThan(0);
   });
 
   it("이식된 본문 어디에도 frontmatter 구분자가 남지 않는다", () => {

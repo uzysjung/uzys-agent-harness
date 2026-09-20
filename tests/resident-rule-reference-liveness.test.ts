@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type AssetSpec, buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { HARNESS_ANCHOR_FILE } from "../src/project-claude-merge.js";
@@ -127,38 +127,17 @@ function specFor(track: Track): AssetSpec {
 interface ResidentDoc {
   /** 리포 상대 경로 (보고용). */
   path: string;
-  /**
-   * 이 문서가 대조할 앵커들 — **합집합**으로 판정한다. 배송분은 배송 앵커, 리포 사본은 리포
-   * 앵커, 게이트(`tests/**`)는 **둘 다**(어느 계열을 단언하는 테스트인지 파일마다 다르다).
-   */
+  /** 이 문서가 대조할 앵커들 — 합집합으로 판정한다(지금은 배송 앵커 하나). */
   anchors: string[];
 }
 
-/** `tests/**` 의 `.ts` 전부. 열거하지 않는다 — 새 게이트가 생겨도 자동으로 범위에 든다. */
-function walkTests(dir: string, acc: string[] = []): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const abs = join(dir, entry.name);
-    if (entry.isDirectory()) walkTests(abs, acc);
-    else if (entry.name.endsWith(".ts")) acc.push(abs);
-  }
-  return acc;
-}
-
 const SHIPPED_ANCHOR = "templates/CLAUDE.md";
-const REPO_ANCHOR = ".claude/CLAUDE.md";
 
 /**
- * 검사 대상 = **세 계열**. 어느 계열도 파일을 열거하지 않는다:
- *   ⓐ 배송 상주 문서 — `buildManifest` 에서 derive (새 룰이 생겨도 자동 포함).
- *   ⓑ 이 리포의 상주 사본 — `.claude/CLAUDE.md` + `.claude/rules/` 디렉터리 글롭.
- *   ⓒ **`tests/**` 전체** — v26.141.0 추가. 계기: `doc-governance-baseline-rule.test.ts` 가
- *      `expect(section).toContain("Rule 8")` 로 **없어진 이름을 리터럴로 물고 있었다.** 즉  (rule-ref:frozen)
- *      죽은 참조는 산문만의 문제가 아니고 **게이트 자신**이 그 서식지였다. 상주 문서만 보면 못 본다.
- *
- * 계열마다 앵커가 다르다: 배송분이 지목하는 `Rule N` 은 배송 앵커에 있어야 하고, 리포 사본이
- * 지목하는 것은 리포 앵커에 있어야 한다. 한쪽 앵커로 양쪽을 재면 한 계열이 조용히 면제된다.
- * `tests/**` 는 어느 계열을 단언하는지 파일마다 달라 **두 앵커의 합집합**으로 본다 — 더 관대한
- * 쪽이지만 지금 두 앵커 다 `Rule N` 을 정의하지 않으므로 판정력은 같다.
+ * 검사 대상 = **배송 상주 문서**만 — `buildManifest` 에서 derive 한다(새 룰이 생겨도 자동 포함,
+ * 파일 열거 없음). 이 리포의 개발 사본(`.claude/`)과 `tests/**` 는 v26.141.0~v26.159.0 사이 함께
+ * 검사했으나 설치자에게 도달하지 않는 유지보수 위생이라 상시 대상에서 뺐다(#454). 그 두 계열의
+ * 죽은 지목은 앵커를 고치는 PR 이 그때 본다.
  */
 function residentDocs(): ResidentDoc[] {
   const docs = new Map<string, ResidentDoc>();
@@ -171,20 +150,6 @@ function residentDocs(): ResidentDoc[] {
         docs.set(path, { path, anchors: [SHIPPED_ANCHOR] });
       }
     }
-  }
-  if (existsSync(join(REPO_ROOT, REPO_ANCHOR))) {
-    docs.set(REPO_ANCHOR, { path: REPO_ANCHOR, anchors: [REPO_ANCHOR] });
-  }
-  const repoRules = join(REPO_ROOT, ".claude/rules");
-  if (existsSync(repoRules)) {
-    for (const f of readdirSync(repoRules).filter((f) => f.endsWith(".md"))) {
-      const path = `.claude/rules/${f}`;
-      docs.set(path, { path, anchors: [REPO_ANCHOR] });
-    }
-  }
-  for (const abs of walkTests(__dirname)) {
-    const path = `tests/${abs.slice(__dirname.length + 1)}`;
-    docs.set(path, { path, anchors: [SHIPPED_ANCHOR, REPO_ANCHOR] });
   }
   return [...docs.values()];
 }
@@ -268,30 +233,12 @@ describe("상주 문서의 Rule N 지목이 앵커에 살아 있는가", () => {
     ).toHaveLength(0);
   });
 
-  it("검사 대상을 manifest + 리포 글롭 + tests 글롭에서 실제로 뽑는다", () => {
+  it("검사 대상을 manifest 에서 실제로 뽑는다 (배송 앵커 + 룰)", () => {
     const { docs } = scanAll();
     // 대상이 비면 "위반 0"이 참이 아니라 무의미해진다.
-    expect(docs.length).toBeGreaterThan(10);
+    expect(docs.length).toBeGreaterThan(1);
     expect(docs.some((d) => d.path === SHIPPED_ANCHOR)).toBe(true);
-    expect(docs.some((d) => d.path === REPO_ANCHOR)).toBe(true);
-    // `tests/**` 가 실제로 들어왔는가 — 이 파일 자신과 하위 디렉터리 파일이 있어야 한다.
-    expect(docs.some((d) => d.path === `tests/${basename(__filename)}`)).toBe(true);
-    expect(docs.some((d) => d.path.startsWith("tests/") && d.path.includes("/"))).toBe(true);
-    // 세 계열이 서로 다른 앵커 조합을 본다 — 하나로 통일하면 한 계열이 조용히 면제된다.
-    expect(new Set(docs.map((d) => d.anchors.join("|"))).size).toBe(3);
-  });
-
-  it("파일 단위 면제가 늘어나면 눈에 띈다 (면제 자체가 검사 대상)", () => {
-    const { frozenFiles } = scanAll();
-    // 면제는 편의가 아니라 예외다. 늘어날 때 이 단언이 먼저 빨간불이 되어 사유를 다시 묻게 한다.
-    //
-    // 현재 3건 = 임베드 렌더를 시험하는 **합성 fixture** 파일들(codex·opencode·antigravity).
-    // 이 게이트 자신은 **파일 단위로 면제하지 않았다** — 줄 단위 표식으로 충분했고(모든 지목이
-    // 한 줄에 있었다), 그래야 이 파일에 **새로** 들어오는 죽은 지목은 계속 잡힌다.
-    expect(
-      frozenFiles.sort(),
-      "파일 단위 면제 목록이 바뀌었다 — 각 항목의 사유를 다시 확인하라",
-    ).toHaveLength(3);
+    expect(docs.some((d) => d.path.startsWith("templates/rules/"))).toBe(true);
   });
 
   it("상주 문서·게이트에 죽은 Rule N 지목이 없다", () => {

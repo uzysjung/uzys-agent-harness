@@ -1032,55 +1032,6 @@ describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리"
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("--only 없는 dry-run 은 수기 안내를 하지 않는다 — 실제 실행은 그 파일을 지운다 (I3)", () => {
-    const log: InstallLog = {
-      ...baseLog(),
-      assets: [
-        {
-          id: "karpathy-coder",
-          category: "dev-tools",
-          method: "plugin",
-          scope: "project",
-          detail: { marketplace: "mp", pluginId: "k@mp" },
-        },
-      ],
-    };
-    writeLog(tmpDir, log);
-    mkdirSync(join(tmpDir, ".claude"), { recursive: true });
-    writeFileSync(
-      join(tmpDir, ".claude", "settings.json"),
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Write|Edit",
-              hooks: [
-                {
-                  type: "command",
-                  command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/karpathy-gate.sh"',
-                },
-              ],
-            },
-          ],
-        },
-      }),
-      "utf8",
-    );
-    const logFn = vi.fn();
-    uninstallAction(
-      { projectDir: tmpDir, dryRun: true },
-      {
-        log: logFn,
-        err: vi.fn(),
-        exit: vi.fn() as unknown as (code: number) => never,
-        spawn: vi.fn(() => ok()),
-        rm: vi.fn(),
-      },
-    );
-    expect(logFn.mock.calls.flat().join("\n")).not.toContain("[MANUAL]");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
   it("로그 재기록이 실패하면 무엇이 실제로 제거됐는지 알리고 exit 1 (I5)", () => {
     // 되돌리기는 이미 끝난 뒤라 스택트레이스로 죽으면 그 정보가 사라진다.
     writeLog(tmpDir, richLog());

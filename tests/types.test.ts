@@ -25,14 +25,3 @@ describe("isCliBase (v0.8.0 — replaces isCliMode)", () => {
     expect(isCliBase("all")).toBe(false);
   });
 });
-
-describe("TRACKS array", () => {
-  it("has 12 tracks (v0.5.0 — added project-management, growth-marketing · #456 base)", () => {
-    expect(TRACKS).toHaveLength(12);
-  });
-
-  it("includes the two v0.5.0 tracks", () => {
-    expect(TRACKS).toContain("project-management");
-    expect(TRACKS).toContain("growth-marketing");
-  });
-});

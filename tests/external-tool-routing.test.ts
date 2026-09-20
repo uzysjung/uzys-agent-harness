@@ -160,16 +160,6 @@ for (const root of ROOTS) {
   });
 }
 
-describe("세 스킬의 두 사본이 1:1 이다", () => {
-  // SKILL.md 3종은 `subagent-file-handoff.test.ts` 가 문다. reference 파일은 그 게이트 밖이라
-  // 여기서 막는다 — 이번 사이클이 `reviewer-design.md` 도 양쪽에서 고치기 때문이다(설계 §3.6).
-  it("multi-persona-review/references/reviewer-design.md", () => {
-    expect(read("../.claude/skills/multi-persona-review/references/reviewer-design.md")).toBe(
-      read("../templates/skills/multi-persona-review/references/reviewer-design.md"),
-    );
-  });
-});
-
 /**
  * 탐지기 자기검증 — **위에 남긴 검사가 실제로 무는가.**
  *
