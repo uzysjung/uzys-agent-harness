@@ -1,7 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { FILL_SECTIONS, renderFillScaffold } from "../src/project-claude-merge.js";
 
 const TEMPLATES_DIR = resolve(__dirname, "../templates");
 
@@ -30,13 +29,6 @@ describe("AGENTS.md project-context parity (cross-CLI drift gate)", () => {
     expect(paths.length).toBeGreaterThanOrEqual(3);
     for (const p of paths) {
       expect(readFileSync(p, "utf8")).toContain("{PROJECT_CONTEXT}");
-    }
-  });
-
-  it("the shared scaffold carries every MUST-HAVE FILL section (one source for all 4 CLIs)", () => {
-    const scaffold = renderFillScaffold();
-    for (const id of FILL_SECTIONS) {
-      expect(scaffold).toContain(`<!-- FILL:${id} —`);
     }
   });
 

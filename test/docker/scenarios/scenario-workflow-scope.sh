@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 워크플로 project-scope 설치 실검증 (real claude, throwaway 컨테이너 전용).
 #
-# 질문: --scope project 로 워크플로(openspec/bmad/superpowers/wshobson) 를 설치하면
+# 질문: --scope project 로 워크플로(openspec/bmad — superpowers·wshobson 은 #492 로 퇴역) 를 설치하면
 #       정말 프로젝트 디렉토리 기준으로 떨어지는가? 호스트 글로벌은 안 건드리는가?
 #
 # 컨테이너 안에서 실행 가정 (real claude + harness 전역 설치 + git HTTPS insteadOf 완료).
@@ -22,10 +22,10 @@ ls -A "${HOME}/.codex" 2>/dev/null | sort > /tmp/codex-before.txt || true
 ls -A "${HOME}/.opencode" 2>/dev/null | sort > /tmp/opencode-before.txt || true
 
 echo ""
-echo "▸ agent-harness install --project-dir ${PROJ} (cwd=${NEUTRAL}) + 4 workflow opt-in"
+echo "▸ agent-harness install --project-dir ${PROJ} (cwd=${NEUTRAL}) + 2 workflow opt-in"
 agent-harness install \
   --track tooling --project-dir "${PROJ}" \
-  --with openspec --with bmad-method --with superpowers --with wshobson-agents \
+  --with openspec --with bmad-method \
   --cli claude --scope project 2>&1 | tail -25
 
 echo ""
@@ -44,11 +44,6 @@ check "bmad (project _bmad)"                        "${PROJ}/_bmad"
 check "install log (project, CLI 중립 위치)"        "${PROJ}/.uzys-agent-harness/.harness-install.json"
 check "plugin scope 메타 (project .claude/settings.json)" "${PROJ}/.claude/settings.json"
 
-echo ""
-echo "━━━ project settings.json plugin 등록 확인 ━━━"
-if [ -f "${PROJ}/.claude/settings.json" ]; then
-  grep -oE 'superpowers|full-stack-orchestration' "${PROJ}/.claude/settings.json" | sort -u | sed 's/^/  enabled: /' || echo "  (plugin 등록 없음)"
-fi
 
 echo ""
 echo "━━━ 호스트 글로벌 비오염 검증 (~/.codex, ~/.opencode) ━━━"

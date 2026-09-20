@@ -1,73 +1,59 @@
 import { describe, expect, it } from "vitest";
+import { DEV_TRACKS, EXTERNAL_ASSETS } from "../src/external-assets.js";
 import { recommendedExternalAssets } from "../src/preset-recommend.js";
+import { DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
+
+// WHY: 추천 결과를 자산 id 로 핀하면 카탈로그가 한 줄 바뀔 때마다 테스트가 깨진다(#492 에서
+//   은퇴 자산 id 들이 그대로 남아 있었다). id 대신 **추천이 지켜야 할 성질**을 전 트랙에
+//   훑어서 건다 — 자산이 들고 나도 성질은 그대로이고, 새 자산도 자동으로 커버된다.
 
 describe("recommendedExternalAssets", () => {
   it("empty presets → empty recommendation", () => {
     expect(recommendedExternalAssets([])).toEqual([]);
   });
 
-  it("experimental(T3) 자산은 pre-check 추천 제외, vetted 는 포함 (PRD v26-71 R6)", () => {
-    const rec = recommendedExternalAssets(["csr-fastify"]);
-    // T3 (star < 1000) — 추천 제외 (opt-in). 2026-08-02 정비로 playwright-skill 이 제거돼
-    //   dev 트랙에서 조건이 매치되는 T3 는 railway-skills 하나다.
-    expect(rec).not.toContain("railway-skills");
-    expect(rec).not.toContain("architecture-decision-record");
-    // T2 vetted / official — track 적합 시 추천
-    expect(rec).toContain("compaction-handoff");
-    expect(rec).toContain("frontend-design");
-  });
+  it("모든 트랙의 추천이 카탈로그 실재 · 비-experimental · 비-opt-in · 조건 매치를 지킨다", () => {
+    const byId = new Map(EXTERNAL_ASSETS.map((a) => [a.id, a]));
+    let checked = 0;
 
-  it("csr-supabase preset includes supabase skills + UI stack (CLI 2종은 ADR-063 opt-in)", () => {
-    const ids = recommendedExternalAssets(["csr-supabase"]);
-    expect(ids).toContain("supabase-agent-skills");
-    expect(ids).toContain("postgres-best-practices");
-    expect(ids).toContain("shadcn-ui");
-    // 2026-08-02 사용자 결정 (ADR-063) — 전역 CLI 2종은 pre-check 대상에서 빠진다.
-    expect(ids).not.toContain("supabase-cli");
-    expect(ids).not.toContain("vercel-cli");
-    // v26.106.0 (ADR-035) — 강등 3종은 추천 제외: netlify-cli(중복 10:1 실측),
-    //   web-design-guidelines·impeccable(taste 가이드 opt-in, frontend-design official 이 기본).
-    expect(ids).not.toContain("netlify-cli");
-    expect(ids).not.toContain("web-design-guidelines");
-    expect(ids).not.toContain("impeccable");
-  });
+    for (const track of TRACKS) {
+      for (const id of recommendedExternalAssets([track])) {
+        const asset = byId.get(id);
+        // ① 추천한 id 가 카탈로그에 실재한다 (없으면 설치 단계에서 조용히 사라진다).
+        expect(asset, `'${track}' 추천 id '${id}' 가 EXTERNAL_ASSETS 에 없다`).toBeDefined();
+        if (!asset) continue;
+        checked += 1;
 
-  it("does NOT include option-gated assets (addy/superpowers/ecc/tob)", () => {
-    const ids = recommendedExternalAssets(["csr-supabase"]);
-    expect(ids).not.toContain("addy-agent-skills");
-    expect(ids).not.toContain("superpowers");
-    expect(ids).not.toContain("ecc-plugin");
-    expect(ids).not.toContain("trailofbits-skills");
-  });
+        // ② experimental(T3)은 pre-check 제외 — opt-in 으로만 들어온다 (PRD v26-71 R6).
+        expect(asset.tier, `'${id}' 는 experimental 인데 '${track}' 에서 추천됐다`).not.toBe(
+          "experimental",
+        );
 
-  it("executive preset → Anthropic business + 전 트랙 상주 스킬 (finance 는 ADR-063 opt-in)", () => {
-    const ids = recommendedExternalAssets(["executive"]);
-    expect(ids).toContain("anthropic-document-skills");
-    // 2026-08-02 사용자 결정 (ADR-063) — finance-skills 는 pre-check 대상에서 빠진다.
-    expect(ids).not.toContain("finance-skills");
-    // 2026-08-02 정비 (ADR-060) — alirezarezvani 자문 번들 2종(c-level·business-growth) 제거.
-    expect(ids).not.toContain("c-level-skills");
-    expect(ids).not.toContain("business-growth-skills");
-    // 이관 스킬 중 전 트랙 상주분은 비-dev 트랙에서도 추천돼야 한다 (강등 금지).
-    expect(ids).toContain("north-star");
-    expect(ids).toContain("gh-issue-workflow");
-    // 2026-08-02 AC9 — 신설 전 트랙 스킬. 위임은 개발 트랙만의 행위가 아니다.
-    expect(ids).toContain("objective-brief");
-    // ADR-064 — 상주층은 전 트랙에 깔린다. 그것을 되묻는 감사도 전 트랙이다.
-    expect(ids).toContain("audit-harness-fit");
-  });
+        // ③ 순수 opt-in 자산은 `--with <id>` / 위저드 체크로만 — 추천에 뜨면 안 된다 (ADR-022).
+        expect(asset.condition.kind, `'${id}' 는 opt-in 인데 '${track}' 에서 추천됐다`).not.toBe(
+          "opt-in",
+        );
 
-  it("data preset includes data plugin (v26.106.0 ADR-035 · 2026-08-02 정비)", () => {
-    const ids = recommendedExternalAssets(["data"]);
-    expect(ids).toContain("anthropic-data-plugin");
-    // 2026-08-02 정비 (ADR-060) — K-Dense 2종 제거 (pandas 대안 사용법 = 모델이 이미 아는 것).
-    expect(ids).not.toContain("polars-K-Dense");
-    expect(ids).not.toContain("dask-K-Dense");
-  });
+        // ④ 조건이 실제로 그 트랙에 매치한다 — 추천 구현과 별개로 condition 을 다시 읽어 판정.
+        const cond = asset.condition;
+        const matches =
+          cond.kind === "any-track"
+            ? cond.tracks.includes(track)
+            : cond.kind === "has-dev-track"
+              ? DEV_TRACKS.includes(track)
+              : cond.kind === "option"
+                ? DEFAULT_OPTIONS[cond.flag] === true
+                : false;
+        expect(matches, `'${id}' 의 condition(${cond.kind})이 '${track}' 에 매치하지 않는다`).toBe(
+          true,
+        );
+      }
+    }
 
-  it("result is deterministic (sorted by id)", () => {
-    const ids = [...recommendedExternalAssets(["csr-supabase"])];
-    const sorted = [...ids].sort();
-    expect(ids).toEqual(sorted);
+    // 전제 확인: 한 건도 안 봤으면 위 단언 전부가 헛통과다.
+    expect(
+      checked,
+      "어느 트랙도 자산을 추천하지 않았다 — 픽스처/카탈로그가 잘못됐다",
+    ).toBeGreaterThan(0);
   });
 });

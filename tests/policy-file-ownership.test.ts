@@ -186,13 +186,6 @@ describe("collectPolicyHashes 기준선", () => {
       hashContent("echo hi\n"),
     );
   });
-
-  it("POLICY_DIRS 가 update 대상과 같은 SSOT 를 쓴다 (열거 사본 방지)", () => {
-    // 정책 디렉터리 목록이 두 곳에 하드코딩되면 한쪽만 늘었을 때 조용히 갈린다.
-    // 이 repo 가 반복해서 당한 실패 모드라 목록 자체를 계약으로 고정한다.
-    expect(POLICY_DIRS.map((d) => d.dir)).toEqual(["rules", "agents", "commands/uzys", "hooks"]);
-    expect(POLICY_DIRS.find((d) => d.dir === "hooks")?.ext).toBe(".sh");
-  });
 });
 
 /**

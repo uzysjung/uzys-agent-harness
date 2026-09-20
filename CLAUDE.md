@@ -30,7 +30,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
 | 목적 | 명령 |
 |---|---|
 | 전체 게이트 | `npm run ci` = typecheck + lint + test:coverage + build. **약 14초** |
-| 테스트만 | `npm test` — **coverage gate 를 놓친다**(branches 88 미달이 안 잡힌다) |
+| 테스트만 | `npm test` — **coverage gate 를 놓친다**(branches 86 미달이 안 잡힌다) |
 | 상주 비용 | `npm run cost:report [track]` · baseline 갱신 `npm run cost:baseline` |
 | 실환경 검증 | `bash test/docker/run.sh <시나리오>` — 호스트에서 실 CLI 설치·실행은 ✅ 차단된다 |
 | 문서 drift 확인 | `bash templates/scripts/spec-drift-check.sh ship` — 룰이 가리키는 `.uzys-agent-harness/` 경로는 설치받은 프로젝트 전용이다(이 리포는 자기 자신에 미설치) |

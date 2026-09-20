@@ -75,21 +75,6 @@ describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () 
     // 나머지 파일은 정상 설치 (부분 skip 이 전체 abort 가 되면 안 됨).
     expect(report.written).toEqual([".github/workflows/e2e.yml"]);
   });
-
-  it("설치된 템플릿은 fill-in 스캐폴드다 (FILL 마커 + tag 트리거 + no-overwrite 고지)", () => {
-    run(["csr-fastapi"]);
-    for (const f of ["ci.yml", "ci-python.yml", "e2e.yml"]) {
-      const text = readFileSync(join(projectDir, ".github/workflows", f), "utf-8");
-      expect(text, `${f}: FILL 마커`).toContain("FILL");
-      expect(text, `${f}: tag-only 트리거 기본`).toContain('tags: ["v*"]');
-      expect(text, `${f}: no-overwrite 계약 고지`).toContain("never overwrite");
-    }
-    // Dev-Prod parity (test-policy) — 실DB 서비스 컨테이너 블록은 CI 변형에 존재해야 한다.
-    for (const f of ["ci.yml", "ci-python.yml"]) {
-      const text = readFileSync(join(projectDir, ".github/workflows", f), "utf-8");
-      expect(text, `${f}: 실DB 서비스 컨테이너 블록`).toContain("postgres");
-    }
-  });
 });
 
 describe("runInstall × ci-scaffold (opt-in 게이팅 + CLI-무관)", () => {

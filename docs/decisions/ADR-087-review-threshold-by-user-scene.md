@@ -4,6 +4,7 @@
 - Date: 2026-09-13
 - PR: #436
 - Amends: ADR-056 (머지 행의 "독립 에이전트 리뷰 필수" → 문턱. 커밋 · 배포 행은 그대로)
+- Amended by: ADR-094 (Decision 4 의 이 리포 문턱 — 경로(`templates/` · `src/`)에서 "되돌리기 어려운 변경 · 릴리즈 배선"으로 좁힘, 2026-09-21)
 - Context: 코드 리뷰 문턱이 세 층에 세 값으로 있었다(감사 F-01 · `docs/plans/harness-conflict-audit-2026-09-13.md`).
   `code-reviewer` descriptor = *"MUST BE USED for all code changes"*(ECC 원본 문구) · 앵커 §4 = 완료 선언 전 ·
   Delivery 룰 = 머지 전. 가장 넓은 문으로 읽으면 CSS 한 줄에도 리뷰 에이전트가 뜨고, 씬을 이루는 수정 5건이면

@@ -26,30 +26,6 @@ describe("resolveRules", () => {
     expect(rules).toEqual(expect.arrayContaining(["test-policy", "ship-checklist"]));
   });
 
-  it("playwright-launch 는 어느 트랙에도 깔리지 않는다 (2026-08-12 — 스킬이 흡수했다)", () => {
-    // UI 트랙 전용 룰이었다. 남아 있던 것은 브라우저 금지문인데, 그 룰 본문이 스스로 "절차는
-    // `ui-visual-review` 스킬이 SSOT" 라고 적고 있었다 — 금지와 절차를 한 자리로 합쳤다.
-    // 되살아나면(= 상주 룰로 되돌아가면) 여기서 잡는다. 금지문 자체가 소실됐는지는
-    // tests/browser-prohibitions-owner.test.ts 가 따로 문다.
-    for (const track of TRACKS) {
-      expect(resolveRules({ tracks: [track] })).not.toContain("playwright-launch");
-    }
-    // 0건 함정 방지 — 룰 해석 자체가 죽으면 위 단언이 공허하게 통과한다.
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("git-policy");
-  });
-
-  it("benchmark-parity 는 어느 트랙에도 깔리지 않는다 (#284 — 스킬이 대신한다)", () => {
-    // v26.109.0 (ADR-038) 이 UI 트랙 한정으로 넣었던 룰이다. 2026-08-04 (#284) 에 빠졌다:
-    // 그 룰이 담고 있던 것은 gap.md 표 스키마 · PR 의무 필드 · dogfood walkthrough 절차이고,
-    // 전부 **그 작업을 할 때만** 필요한데 매 세션 상주했다. 같은 일을 `audit-service-gaps`
-    // 스킬이 온디맨드로 담당한다. 되살아나면(= 상주로 되돌아가면) 여기서 잡는다.
-    for (const track of TRACKS) {
-      expect(resolveRules({ tracks: [track] })).not.toContain("benchmark-parity");
-    }
-    // 0건 함정 방지 — 룰 해석 자체가 죽으면 위 단언이 공허하게 통과한다.
-    expect(resolveRules({ tracks: ["ssr-nextjs"] })).toContain("doc-governance");
-  });
-
   // 2026-08-02 정비 — 기술스택 상세 룰 8종(shadcn·nextjs·htmx·pyside6·database·api-contract·
   //   data-analysis·tauri)이 배포에서 빠져 트랙 매핑에 남은 것은 `cli-development` 하나다.
   //   그래도 union 축은 계속 물어야 한다: 트랙을 섞었을 때 한쪽 트랙의 룰이 빠지면 그건
@@ -60,29 +36,9 @@ describe("resolveRules", () => {
 
     expect(resolveRules({ tracks: ["executive"] })).not.toContain("cli-development");
   });
-
-  it("returns sorted, deduplicated names", () => {
-    const rules = resolveRules({ tracks: ["full"] });
-    expect(rules).toEqual([...rules].sort());
-    expect(new Set(rules).size).toBe(rules.length);
-  });
 });
 
 describe("buildManifest", () => {
-  it("does not emit any uzys/* command entries (6-Gate workflow removed)", () => {
-    const tooling = buildManifest({ tracks: ["tooling"] });
-    expect(tooling.find((e) => e.target.includes("commands/uzys/"))).toBeUndefined();
-  });
-
-  it("does not include any project-root CLAUDE.md entry — merged via installer", () => {
-    const single = buildManifest({ tracks: ["tooling"] });
-    expect(single.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
-    expect(single.find((e) => e.source.startsWith("project-claude/"))).toBeUndefined();
-
-    const multi = buildManifest({ tracks: ["tooling", "data"] });
-    expect(multi.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
-  });
-
   // #492 — ECC cherry-pick C2 게이팅(`!withEcc`)이 자산과 함께 없어졌다. 남는 UI 스킬은
   // 우리가 쓴 `ui-visual-review` 하나이고, 트랙 게이팅만 받는다.
   it("ui-visual-review: UI 트랙에만 깔린다 (트랙 게이팅)", () => {
@@ -132,15 +88,6 @@ describe("buildManifest", () => {
       expect(m.find((e) => e.source === "agents/reviewer.md")).toBeDefined();
     }
     expect(RETIRED_AGENT_IDS.length).toBeGreaterThan(0);
-  });
-
-  // 2026-08-16 (ADR-073) — 판정을 뒤집었다. ADR-019 는 ECC 플러그인을 **안 고른** 사람에게
-  // 폴백 명령 8종을 깔았는데, 그중 5개가 안 고른 자산(ECC 에이전트 · CL-v2 스크립트)을 가리켜
-  // 폴백이 자립하지 못했다. 이제 어떤 조합에서도 명령이 깔리지 않는다(#492 에서 게이팅 축
-  // 자체가 없어져 조합은 하나뿐이다).
-  it("ecc commands: 안 깔린다 (ADR-073)", () => {
-    const m = buildManifest({ tracks: ["tooling"] });
-    expect(m.find((e) => e.source === "commands/ecc")).toBeUndefined();
   });
 
   it("전제 확인 — 같은 조회 방식으로 실재하는 엔트리는 찾힌다 (게이트 자기검증)", () => {

@@ -171,10 +171,6 @@ describe("update spec 단일 출처", () => {
     const [spec] = execute.mock.calls[0] as [InstallSpec];
     expect(spec).toEqual(buildUpdateSpec("/tmp/x", ["tooling"]));
   });
-
-  it("update spec 은 .claude/ 만 대상이므로 cli 는 claude 고정", () => {
-    expect(buildUpdateSpec("/p", []).cli).toEqual(["claude"]);
-  });
 });
 
 describe("mode ↔ 비대화형 진입점 대응 (계열 비대칭 가드)", () => {

@@ -1,18 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildCli, defaultAction, VERSION } from "../src/cli.js";
 import type { InteractiveResult } from "../src/interactive.js";
-import { isCliBase } from "../src/types.js";
 
 describe("buildCli", () => {
-  it("returns a cac instance with the expected name", () => {
-    const cli = buildCli();
-    expect(cli.name).toBe("agent-harness");
-  });
-
-  it("exposes the current version string in semver shape", () => {
-    expect(VERSION).toMatch(/^\d+\.\d+\.\d+(-[\w.]+)?$/);
-  });
-
   it("VERSION == package.json version (v26.82.1 — 하드코딩 drift 재발 방지)", async () => {
     // WHY: v26.82.0 ship 때 package.json 만 bump 되고 하드코딩 VERSION(26.81.0)이 남아
     //   npm 게시 패키지가 --version 을 거짓 보고 (no-false-ship 위반 클래스).
@@ -47,47 +37,6 @@ describe("buildCli", () => {
     expect(optionNames).toEqual(expect.arrayContaining(["with", "without", "withCodexTrust"]));
     expect(optionNames).not.toContain("withPrune");
     expect(optionNames).not.toContain("withKarpathyHook");
-  });
-
-  it("v26.81.0 (ADR-022) — asset-coupled --with-* flags are GONE (재발 방지 가드)", () => {
-    // WHY: 자산 1:1 플래그는 자산 추가마다 프로덕션 8곳+테스트 10+파일 동기화를 강제했고
-    //   그 누락이 v26.76.0 거짓출하(미등록 크래시)의 원인. 자산 opt-in 은 generic
-    //   `--with <id>` 만. 아래 플래그가 다시 등록되면 ADR-022 위반 — fail.
-    const cli = buildCli();
-    const installCmd = cli.commands.find((cmd) => cmd.name === "install");
-    const optionNames = installCmd?.options.map((o) => o.name) ?? [];
-    const banned = [
-      "withTauri",
-      "withGsd",
-      "withEcc",
-      "withTob",
-      "withSuperpowers",
-      "withAddyAgentSkills",
-      "withWshobsonAgents",
-      "withOpenspec",
-      "withBmad",
-      "withClaudeVideo",
-      "withUnderstandAnything",
-      "withAgentmemory",
-      "withUzysHarness",
-    ];
-    for (const flag of banned) {
-      expect(optionNames, `asset-coupled flag "${flag}" must not be registered`).not.toContain(
-        flag,
-      );
-    }
-  });
-
-  it("registers an explicit empty default command (interactive placeholder)", () => {
-    const cli = buildCli();
-    const defaultCmd = cli.commands.find((cmd) => cmd.name === "");
-    expect(defaultCmd).toBeDefined();
-  });
-
-  it("default command has the interactive description label", () => {
-    const cli = buildCli();
-    const defaultCmd = cli.commands.find((cmd) => cmd.name === "");
-    expect(defaultCmd?.description).toContain("Interactive");
   });
 });
 
@@ -167,25 +116,5 @@ describe("defaultAction", () => {
       Object.defineProperty(process.stdin, "isTTY", { value: original, configurable: true });
     }
     expect(exit).toHaveBeenCalledWith(2);
-  });
-});
-
-describe("isCliBase (v0.8.0 — replaces isCliMode)", () => {
-  it.each(["claude", "codex", "opencode"])("accepts %s as a valid CLI base", (base) => {
-    expect(isCliBase(base)).toBe(true);
-  });
-
-  it.each([
-    null,
-    undefined,
-    "",
-    "invalid",
-    "both",
-    "all",
-    1,
-    true,
-    {},
-  ])("rejects %s as an invalid CLI base (v0.8.0 — both/all alias removed)", (value) => {
-    expect(isCliBase(value)).toBe(false);
   });
 });

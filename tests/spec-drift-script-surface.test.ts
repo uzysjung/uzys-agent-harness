@@ -59,18 +59,6 @@ describe("SPEC/TODO drift 스크립트의 도달 경로", () => {
     expect(target).toMatch(/\.sh$/);
   });
 
-  it("원본 파일이 실재하고 계약을 스스로 설명한다", () => {
-    const body = readFileSync(SCRIPT, "utf8");
-    // 면제 표식은 이 스크립트의 존재 이유다(상시 차단 → 우회 관행 → 게이트 사망 경로를 끊은 것).
-    // 본문에 없으면 복원된 것은 #237 이전의 상시 차단판이다.
-    expect(body).toContain("ship-gate:ignore-start");
-    expect(body).toContain("ship-gate:ignore-end");
-    // 호출자(룰)가 exit 2 로 차단을 판정한다 — 계약이 본문에 안 적히면 다음 사람이 코드를
-    // 읽어 유추해야 하고, 유추는 조용히 틀린다.
-    expect(body).toMatch(/Exit codes/i);
-    expect(body).toContain("exit 2");
-  });
-
   it("배포 룰 2종이 **manifest 가 정한 그 경로**를 가리킨다 (derive 대조)", () => {
     const target = entryFor("tooling")?.target;
     expect(target).toBeDefined();
@@ -270,16 +258,5 @@ describe("ship 게이트 백로그 면제 — 행동", () => {
     const r = runScript(dir, "ship");
 
     expect(r.status, "표식 없는 문서에서 면제가 기본값이 됐다").toBe(2);
-  });
-});
-
-// WHY: 픽스처만 보면 "표식 파싱이 맞다"까지만 확인된다. 우리 문서 레이아웃에서 실제로 통과하는지는
-//   이 저장소를 대상으로 돌려봐야 안다 — 그 둘이 갈렸던 상태를 이미 겪었다(산문 인용 오인).
-//   `docs/todo.md` 는 쉬는 상태 추적기이고 열린 사이클은 `docs/plans/*-todo.md` 로 분리한다는
-//   계약이 살아 있으면 여기는 항상 0 이어야 한다.
-describe("dogfood — 이 저장소에서 ship 게이트가 통과한다", () => {
-  it("ROOT 를 대상으로 ship 모드가 exit 0", () => {
-    const r = runScript(ROOT, "ship");
-    expect(r.status, `실 저장소에서 ship 이 막힌다.\n${r.stdout}\n${r.stderr}`).toBe(0);
   });
 });

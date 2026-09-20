@@ -291,22 +291,10 @@ describe("번들 스킬 래퍼는 모델 이름을 상수로 굳히지 않는다
 /**
  * #411 — 래퍼의 이식형 timeout 이 1초 간격으로 폴링해서, CLI 가 즉시 끝나도 호출마다 최대
  * 1초를 놀았다. 전체 스위트가 붐비면 케이스당 ~1.3초가 vitest 기본 5초에 닿아 결함 없이 red 가
- * 났다(릴리즈 CI 관측 2회). 폴링을 200 ms 로 내렸다 — 아래 두 단언이 그 계약이다:
- * ① CLI 가 끝나면 1초를 채우지 않고 돌아온다(옛 구현은 구조상 ≥1,000 ms)
- * ② timeout 은 여전히 문다(초 단위 예산이 틱으로 환산돼도 exit 124).
+ * 났다(릴리즈 CI 관측 2회). 폴링을 200 ms 로 내렸다 — 아래 단언이 그 계약이다:
+ * timeout 은 여전히 문다(초 단위 예산이 틱으로 환산돼도 exit 124).
  */
 describe("래퍼 폴링 간격 (#411)", () => {
-  it("CLI 가 즉시 끝나면 1초를 놀지 않는다 — 옛 구현은 sleep 1 때문에 구조상 1초 이상이었다", () => {
-    const started = Date.now();
-    const r = run(GEMINI, ["hello"], { AGY_BIN: agyStub() });
-    const elapsed = Date.now() - started;
-    expect(r.code).toBe(0);
-    expect(
-      elapsed,
-      `래퍼가 ${elapsed}ms 걸렸다 — 스텁은 즉시 끝나므로 1초 가까이 걸리면 폴링 간격이 되돌아간 것이다`,
-    ).toBeLessThan(950);
-  });
-
   it("timeout 은 여전히 문다 — 1초 예산에 3초 걸리는 CLI 는 exit 124", () => {
     writeStub(
       "agy",

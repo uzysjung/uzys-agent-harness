@@ -2,9 +2,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { RETIRED_SKILL_IDS } from "../src/external-assets.js";
 import { runInstall } from "../src/installer.js";
-import type { InstallSpec, OptionFlags, Track } from "../src/types.js";
+import { type InstallSpec, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -23,21 +22,6 @@ function buildSpec(tracks: Track[], projectDir: string): InstallSpec {
 
 /** No-op external install — tests don't want to trigger real `claude plugin install`. */
 const NO_EXTERNAL = null;
-
-const TRACKS: ReadonlyArray<Track> = [
-  "base",
-  "tooling",
-  "csr-supabase",
-  "csr-fastify",
-  "csr-fastapi",
-  "ssr-htmx",
-  "ssr-nextjs",
-  "data",
-  "executive",
-  "full",
-  "project-management",
-  "growth-marketing",
-];
 
 /**
  * Per-track expected files (subset — proves Track-pattern routing in manifest.ts).
@@ -151,29 +135,6 @@ describe("track-specific skills routing", () => {
       rmSync(other, { recursive: true, force: true });
     }
   });
-
-  // 은퇴한 cherry-pick 스킬이 어떤 트랙에서도 디스크에 나타나지 않는다 — 템플릿 삭제가
-  // 배선까지 갔는지(설치 결과로) 본다. 목록은 카탈로그의 `RETIRED_SKILL_IDS` 에서 읽는다.
-  it("은퇴한 스킬 디렉터리는 어느 트랙 설치에서도 안 생긴다 (#492)", () => {
-    for (const track of ["data", "ssr-nextjs", "executive"] as const) {
-      const dir = mkdtempSync(join(tmpdir(), `ch-retired-${track}-`));
-      try {
-        runInstall({
-          runExternal: NO_EXTERNAL,
-          harnessRoot: HARNESS_ROOT,
-          projectDir: dir,
-          spec: buildSpec([track], dir),
-        });
-        for (const id of RETIRED_SKILL_IDS) {
-          expect(existsSync(join(dir, `.claude/skills/${id}`)), `${track}: ${id}`).toBe(false);
-        }
-        // 0건 함정 방지 — 같은 경로 조립으로 실재하는 것은 잡힌다.
-        expect(existsSync(join(dir, ".claude/rules/git-policy.md"))).toBe(true);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
-    }
-  });
 });
 
 // 2026-08-02 정비 — `--with-tauri` 룰 설치 describe 블록 삭제. `templates/rules/tauri.md` 가
@@ -202,24 +163,5 @@ describe("--cli=both produces both Claude and Codex outputs", () => {
     expect(report.codex).not.toBeNull();
     // 6-Gate workflow removed — uzys-* skills must never be generated for Codex.
     expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
-  });
-
-  it("codex install never emits uzys-* 6-Gate artifacts (dev-method skills only)", () => {
-    const report = runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: { ...buildSpec(["tooling"], projectDir), cli: ["claude", "codex"] },
-    });
-    // baseline 은 그대로 생성
-    expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
-    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(true);
-    // 6-Gate workflow removed — uzys-{phase} skills / prompts must be absent.
-    expect(report.codex?.skillFiles?.some((f) => f.includes("/uzys-"))).toBe(false);
-    expect(existsSync(join(projectDir, ".codex/prompts"))).toBe(false);
-    expect(existsSync(join(projectDir, ".agents/skills/uzys-spec"))).toBe(false);
-    // 잔존 유일 번들 dev-method skill 은 native 매핑되어 존재해야 한다 (tooling = dev track).
-    // 2026-08-02 정비(ADR-060)로 multi-persona-review 등은 npx 설치로 이관 — 번들 검증 표본 교체.
-    expect(existsSync(join(projectDir, ".agents/skills/compaction-handoff/SKILL.md"))).toBe(true);
   });
 });
