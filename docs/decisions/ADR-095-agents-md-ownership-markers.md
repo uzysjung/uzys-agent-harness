@@ -32,8 +32,8 @@
   - 마커 대신 헤딩만으로 조각 판정 — 기각. 설치자가 같은 헤딩을 쓰면 구분 불가(리뷰 ⓓ).
 - Consequences:
   - 설치자: `update` 뒤 Project Context 가 남는다. 첫 update 한 번은 Project Rules 편집분이 백업으로(문서 명시).
-  - `uninstall` 은 이제 설치자 문장이 든 `AGENTS.md` 를 기준선 일치로 보고 통째로 지운다 — 루트 `CLAUDE.md`
-    처럼 하네스 절만 걷어내야 한다 → 이슈 #516.
+  - `uninstall` 은 이 결정 직후 설치자 문장이 든 `AGENTS.md` 를 기준선 일치로 보고 통째로 지웠다 → #516 에서
+    루트 `CLAUDE.md` 와 같은 경계로 정리(하네스 절·마커 블록만 걷어내고 설치자 절은 남긴다 — `stripHarnessFromAgentsMd`).
   - codex 단독 설치본에 update 가 OpenCode transform 까지 돌려 판이 바뀌는 문제는 이 결정 이전부터 있던
     별건 → 이슈 #514.
   - 상주 비용 계측(`context-cost.ts`)은 마커 4줄을 세지 않는다(유지보수자 지표, 설치자 영향 없음).
