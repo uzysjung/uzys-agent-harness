@@ -21,7 +21,7 @@ import {
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
-import type { InstallSpec, OptionFlags, Track } from "./types.js";
+import { type InstallSpec, type OptionFlags, type Track, UPDATE_GROUPS } from "./types.js";
 import { buildUpdateSpec } from "./update-mode.js";
 import { stepLabel, WIZARD } from "./wizard-steps.js";
 
@@ -190,10 +190,17 @@ export async function runInteractive(
     if (action === "update") {
       mode = "update";
       // spec 은 `buildUpdateSpec` 단일 출처 — 비대화형 `update` 명령과 같은 것을 쓴다.
-      const spec = buildUpdateSpec(projectDir, state.tracks);
-      const confirmed = await prompts.confirmInstall(
-        `UPDATE policy files only:\n${formatSummary(spec)}`,
-      );
+      // #480 — 무엇을 갱신할지 고른다. 프롬프트가 없는 구현(테스트 픽스처)은 전부.
+      const groups = prompts.selectUpdateGroups ? await prompts.selectUpdateGroups() : null;
+      if (groups === null && prompts.selectUpdateGroups) {
+        prompts.cancel("Cancelled.");
+        return { ok: false, reason: "cancelled" };
+      }
+      const spec = buildUpdateSpec(projectDir, state.tracks, groups ?? undefined);
+      const scopeLine = spec.updateOnly
+        ? `UPDATE ${spec.updateOnly.join(" · ")} only (untouched: ${UPDATE_GROUPS.filter((g) => !spec.updateOnly?.includes(g)).join(", ")}):`
+        : "UPDATE installed harness files:";
+      const confirmed = await prompts.confirmInstall(`${scopeLine}\n${formatSummary(spec)}`);
       if (!confirmed) {
         prompts.outro("Cancelled.");
         return { ok: false, reason: "cancelled" };

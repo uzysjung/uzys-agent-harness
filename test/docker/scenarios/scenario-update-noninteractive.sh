@@ -115,5 +115,16 @@ if ! grep -q "Update complete" /tmp/ni-dir.txt; then
 fi
 echo "✓ --project-dir 로 cwd 밖 프로젝트 갱신"
 
+# --- #480 ①: --only skills 는 룰·앵커를 한 바이트도 안 건드린다 ---
+printf '\n<!-- MY RULE EDIT -->\n' >> .claude/rules/git-policy.md
+printf '\n<!-- MY ANCHOR EDIT -->\n' >> CLAUDE-uzys-harness.md
+agent-harness update --only skills >/tmp/ni-only.txt 2>&1 || { echo "FAIL: --only skills exit"; tail -20 /tmp/ni-only.txt; exit 1; }
+grep -q "MY RULE EDIT" .claude/rules/git-policy.md || { echo "FAIL: --only skills 인데 룰이 바뀌었다"; exit 1; }
+grep -q "MY ANCHOR EDIT" CLAUDE-uzys-harness.md || { echo "FAIL: --only skills 인데 앵커가 바뀌었다"; exit 1; }
+ls .claude/rules/*.backup-* >/dev/null 2>&1 && { echo "FAIL: --only skills 인데 룰 백업이 생겼다"; exit 1; }
+sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/ni-only.txt | grep -q "not selected" || { echo "FAIL: 건너뛴 묶음 안내가 없다"; exit 1; }
+agent-harness update --only rulez >/tmp/ni-bad.txt 2>&1 && { echo "FAIL: 모르는 --only 값이 통과했다"; exit 1; }
+echo "✓ --only skills 는 룰·앵커 불변 + 건너뛴 묶음 안내 · 모르는 값은 거절"
+
 echo ""
 echo "PASS: scenario-update-noninteractive"

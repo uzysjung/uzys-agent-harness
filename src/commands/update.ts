@@ -15,12 +15,14 @@
 import { resolve } from "node:path";
 import { c, status } from "../design.js";
 import { type DetectedInstall, detectInstallState } from "../state.js";
-import type { InstallSpec } from "../types.js";
-import { buildUpdateSpec } from "../update-mode.js";
+import { type InstallSpec, UPDATE_GROUPS } from "../types.js";
+import { buildUpdateSpec, parseUpdateOnly } from "../update-mode.js";
 import { type ExecuteSpecDeps, executeSpec } from "./install.js";
 
 export interface UpdateOptions {
   projectDir?: string;
+  /** #480 — `--only <group>` (반복). cac 는 한 번이면 string, 여러 번이면 string[] 을 준다. */
+  only?: string | string[];
 }
 
 export interface UpdateActionDeps {
@@ -53,8 +55,21 @@ export function updateAction(options: UpdateOptions = {}, deps: UpdateActionDeps
     return;
   }
 
+  const rawOnly = options.only === undefined ? [] : [options.only].flat();
+  const parsed = parseUpdateOnly(rawOnly);
+  if (!parsed.ok) {
+    err(status.failure(c.red(`Unknown --only value: ${parsed.invalid.join(", ")}`)));
+    err(c.dim(`  Valid groups: ${UPDATE_GROUPS.join(" | ")}`));
+    exit(1);
+    return;
+  }
   log(c.dim(`Updating installed harness files in ${projectDir}`));
-  execute(buildUpdateSpec(projectDir, state.tracks), { log, err, exit, mode: "update" });
+  execute(buildUpdateSpec(projectDir, state.tracks, parsed.groups), {
+    log,
+    err,
+    exit,
+    mode: "update",
+  });
 }
 
 export function registerUpdateCommand(cli: import("../cli.js").Cli): void {
@@ -66,6 +81,10 @@ export function registerUpdateCommand(cli: import("../cli.js").Cli): void {
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })
+    .option(
+      "--only <group>",
+      `[Scope] Update only this group (repeatable): ${UPDATE_GROUPS.join(" | ")}`,
+    )
     /* v8 ignore next 3 — cac action callback. updateAction 자체는 별도 tests 로 검증. */
     .action((options: UpdateOptions) => {
       updateAction(options);

@@ -25,6 +25,8 @@ import {
   type OptionFlags,
   TRACKS,
   type Track,
+  UPDATE_GROUPS,
+  type UpdateGroup,
 } from "./types.js";
 import { stepLabel, type WizardStep } from "./wizard-steps.js";
 
@@ -59,6 +61,11 @@ export interface Prompts {
    */
   selectScope: (initial?: InstallScope, step?: WizardStep) => Promise<InstallScope | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
+  /**
+   * #480 — update 위저드의 "무엇을 갱신할까" 체크박스. 옵셔널: 없는 구현(테스트 픽스처)은 전부
+   * 갱신으로 읽는다. null = 취소.
+   */
+  selectUpdateGroups?: () => Promise<UpdateGroup[] | null>;
 
   /**
    * v26.54.0 — Step 3 (all-in-one). EXTERNAL_ASSETS + 표시-대상 OPTION_DEFS 를
@@ -434,6 +441,43 @@ export const defaultPrompts: Prompts = {
       ],
     });
     return isCancel(result) ? null : (result as InstallScope);
+  },
+
+  selectUpdateGroups: async () => {
+    const result = await multiselect({
+      message: "What to update  (space = toggle · your edits are always backed up)",
+      options: [
+        { value: "skills" as const, label: "Skills", hint: "installed bundled skills → latest" },
+        {
+          value: "new-skills" as const,
+          label: "New skills",
+          hint: "bundled skills added since your install",
+        },
+        {
+          value: "rules" as const,
+          label: "Rules · agents · commands",
+          hint: "your edited files → *.backup-<time>",
+        },
+        {
+          value: "anchor" as const,
+          label: "CLAUDE-uzys-harness.md anchor",
+          hint: "your edited anchor → *.backup-<time>",
+        },
+        {
+          value: "hooks" as const,
+          label: "Hooks · settings.json",
+          hint: "stale hook refs cleaned",
+        },
+        {
+          value: "external" as const,
+          label: "Codex / OpenCode / Antigravity + external skills",
+          hint: "rendered artifacts + npx skills",
+        },
+      ],
+      initialValues: [...UPDATE_GROUPS],
+      required: true,
+    });
+    return isCancel(result) ? null : (result as UpdateGroup[]);
   },
 
   confirmInstall: async (summary) => {

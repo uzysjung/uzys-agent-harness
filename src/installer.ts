@@ -477,7 +477,13 @@ function runUpdateInstall(
   templatesDir: string,
   backupPath: string | null,
 ): InstallReport {
-  const updateReport = runUpdateMode(ctx.projectDir, templatesDir, ctx.harnessRoot);
+  const updateReport = runUpdateMode(
+    ctx.projectDir,
+    templatesDir,
+    ctx.harnessRoot,
+    {},
+    ctx.spec.updateOnly,
+  );
   const baseline: BaselineReport = {
     filesCopied: 0,
     dirsCopied: 0,

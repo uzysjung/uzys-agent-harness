@@ -34,7 +34,7 @@ import {
 } from "./external-assets.js";
 import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
 import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
-import { backupFile, listFilesRecursive } from "./fs-ops.js";
+import { backupFile, copyDir, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
   collectSkillHashes,
@@ -50,13 +50,21 @@ import {
   ALL_RULES,
   type AssetEntry,
   type AssetSpec,
+  buildAssetSpec,
   buildManifest,
   RETIRED_AGENT_IDS,
   TRACK_AGENTS,
 } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { anyTrack } from "./track-match.js";
-import { DEFAULT_OPTIONS, type InstallSpec, TRACKS, type Track } from "./types.js";
+import {
+  DEFAULT_OPTIONS,
+  type InstallSpec,
+  TRACKS,
+  type Track,
+  UPDATE_GROUPS,
+  type UpdateGroup,
+} from "./types.js";
 
 /**
  * v26.140.0 **이전** 설치본의 앵커 위치 (P5 · ADR-060 이행 대상).
@@ -74,6 +82,11 @@ export interface UpdateModeReport {
   staleHookRefs: string[];
   /** 갱신된 CLAUDE.md (true if updated). */
   claudeMdUpdated: boolean;
+  /**
+   * #480 — 설치자가 고르지 않아 **건드리지 않은** 묶음 (`update --only` · 위저드 체크박스).
+   * 화면에 낸다 — 안 보이면 "update 를 돌렸는데 룰이 그대로다"가 결함으로 읽힌다.
+   */
+  skippedGroups: UpdateGroup[];
   /**
    * P5 · ADR-060 이행 — 루트 앵커가 **없어서 이번에 만들었다** (v26.140.0 이전 설치본).
    *
@@ -235,14 +248,34 @@ export interface UpdateModeReport {
  * *"Project — current directory only (no global write)"* 를 찍는다. 홈에 쓰면서 안 쓴다고
  * 적는 것은 이 저장소가 반복해서 당한 거짓출하 그 형태다.
  */
-export function buildUpdateSpec(projectDir: string, tracks: ReadonlyArray<Track>): InstallSpec {
+export function buildUpdateSpec(
+  projectDir: string,
+  tracks: ReadonlyArray<Track>,
+  only?: ReadonlyArray<UpdateGroup>,
+): InstallSpec {
   return {
     tracks: [...tracks],
     options: DEFAULT_OPTIONS,
     cli: ["claude"],
     projectDir,
     scope: readInstallLog(projectDir)?.scope ?? "project",
+    // 전부 골랐으면 "제한 없음"과 같다 — 화면·기록에 제한이 있었던 것처럼 남기지 않는다.
+    ...(only !== undefined && only.length > 0 && only.length < UPDATE_GROUPS.length
+      ? { updateOnly: [...only] }
+      : {}),
   };
+}
+
+/**
+ * `--only <group>` 값 검증 (#480). 모르는 이름은 조용히 무시하지 않는다 — 오타 하나로 "전부
+ * 갱신"이 되면 설치자가 룰을 안 건드리려고 쓴 플래그가 정반대로 동작한다.
+ */
+export function parseUpdateOnly(
+  raw: ReadonlyArray<string>,
+): { ok: true; groups: UpdateGroup[] } | { ok: false; invalid: string[] } {
+  const invalid = raw.filter((v) => !(UPDATE_GROUPS as ReadonlyArray<string>).includes(v));
+  if (invalid.length > 0) return { ok: false, invalid };
+  return { ok: true, groups: [...new Set(raw as UpdateGroup[])] };
 }
 
 /**
@@ -274,13 +307,17 @@ export function runUpdateMode(
   templatesDir: string,
   harnessRoot: string,
   deps: UpdateModeDeps = {},
+  only?: ReadonlyArray<UpdateGroup>,
 ): UpdateModeReport {
   const claudeDir = join(projectDir, ".claude");
+  // #480 — 고른 묶음만 돈다. 안 고르면(undefined) 전부 — 기존 호출부의 동작 그대로.
+  const wants = (g: UpdateGroup): boolean => only === undefined || only.includes(g);
   const report: UpdateModeReport = {
     updated: {},
     pruned: {},
     staleHookRefs: [],
     claudeMdUpdated: false,
+    skippedGroups: only === undefined ? [] : UPDATE_GROUPS.filter((g) => !only.includes(g)),
     anchorCreated: false,
     rootImportAdded: false,
     rootBlockRefreshed: false,
@@ -307,7 +344,7 @@ export function runUpdateMode(
   // 0) 릴리즈로 **새로 생긴** 자산 설치 (#283). 정책 동기화보다 먼저 도는 이유는
   // `refreshPolicyBaseline` 이 아래에서 기준선을 다시 찍기 때문이다 — 순서를 뒤집으면 방금 깐
   // 파일이 기준선에 없어 다음 update 가 "사용자가 만든 파일"로 오판한다.
-  const fresh = installNewAssets(projectDir, templatesDir);
+  const fresh = installNewAssets(projectDir, templatesDir, wants);
   report.installedNew = fresh.installed;
   report.restored = fresh.restored;
   report.needsReinstall = fresh.needsReinstall;
@@ -316,6 +353,7 @@ export function runUpdateMode(
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
   const policyBase = policyBaseline(projectDir);
   for (const { dir, ext } of POLICY_DIRS) {
+    if (!wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
@@ -325,22 +363,34 @@ export function runUpdateMode(
     report.policyBackedUp.push(...synced.backedUp);
     report.pruned[label] = pruneOrphans(target, source, ext, ctx);
   }
-  refreshPolicyBaseline(projectDir, templatesDir);
+  // 기준선은 **전부 동기화했을 때만** 다시 찍는다 — 건너뛴 디렉터리의 사용자 편집을 지금 디스크
+  // 그대로 "하네스가 놓아둔 것"으로 기록하면 다음 update 가 백업 없이 덮어쓴다.
+  if (wants("rules") && wants("hooks")) refreshPolicyBaseline(projectDir, templatesDir);
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
-  const skillSync = syncSkills(
-    join(claudeDir, "skills"),
-    join(templatesDir, "skills"),
-    skillBaseline(projectDir),
-    new Date(),
-    (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
-  );
-  report.updated[".claude/skills"] = skillSync.updated;
+  const skillSync = wants("skills")
+    ? syncSkills(
+        join(claudeDir, "skills"),
+        join(templatesDir, "skills"),
+        skillBaseline(projectDir),
+        new Date(),
+        (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
+      )
+    : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
+  if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
   report.skillsPruned = skillSync.pruned;
-  refreshSkillBaseline(projectDir, templatesDir);
+  // #480 ① — 릴리즈로 새로 생긴 번들 스킬을 깐다. `syncSkills` 는 이미 깔린 것만 다루고
+  // `installNewAssets` 는 파일 자산만 다뤄, 기존 설치본은 새 스킬을 영영 못 받았다.
+  const newSkills = wants("new-skills")
+    ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
+    : { installed: [], foreignOwned: [] };
+  report.installedNew.push(...newSkills.installed);
+  if (wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
+  else if (newSkills.installed.length > 0)
+    recordNewSkillBaseline(projectDir, templatesDir, newSkills.installed);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
   //
@@ -359,18 +409,18 @@ export function runUpdateMode(
   //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
   const installLog = readInstallLog(projectDir);
   if (existsSync(claudeDir) && (installLog === null || installLog.spec.cli.includes("claude"))) {
-    syncHarnessAnchor(projectDir, templatesDir, report);
+    if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);
   }
 
   // 3) settings.json stale hook ref cleanup
   const settingsPath = join(claudeDir, "settings.json");
-  if (existsSync(settingsPath)) {
+  if (wants("hooks") && existsSync(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
   }
 
   // 3.5) `.mcp-allowlist` 회수 (ADR-072). 3) 바로 뒤인 이유는 같은 은퇴의 나머지 절반이기
   //      때문이다 — 위가 배선을 지우고 여기가 그 배선이 읽던 데이터를 지운다.
-  report.mcpAllowlistRetired = retireMcpAllowlist(projectDir);
+  if (wants("hooks")) report.mcpAllowlistRetired = retireMcpAllowlist(projectDir);
 
   // 3.6) 은퇴한 에이전트 (ADR-089 · #445). 바로 위 두 절과 같은 축이다 — **더는 갱신되지 않는
   //      것이 디스크에 남아 있다**. 다만 지우는 것은 위 둘과 다르다: `.mcp-allowlist` 는 우리가
@@ -384,7 +434,9 @@ export function runUpdateMode(
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
-  const external = refreshExternalCli(projectDir, harnessRoot);
+  const external = wants("external")
+    ? refreshExternalCli(projectDir, harnessRoot)
+    : { externalUpdated: 0, externalBackedUp: [], externalForeignOwned: [] };
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
   // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
@@ -394,6 +446,7 @@ export function runUpdateMode(
   for (const f of [
     ...skillSync.foreignOwned,
     ...fresh.foreignOwned,
+    ...newSkills.foreignOwned,
     ...external.externalForeignOwned,
   ]) {
     if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
@@ -403,7 +456,9 @@ export function runUpdateMode(
   // 5) 외부 스킬 (#374). 4) 는 **우리가 렌더한** 산출물만 새로 쓴다 — `npx skills add` 로 깐
   //    스킬 본문은 그 경로에 없어서 update 를 몇 번 돌려도 첫 설치 판본 그대로였다.
   //    실패해도 여기서 멈추지 않는다(위 필드 주석의 사유). 화면 행은 install-render 가 낸다.
-  const skillRefresh = (deps.refreshSkills ?? refreshExternalSkills)(projectDir);
+  const skillRefresh = wants("external")
+    ? (deps.refreshSkills ?? refreshExternalSkills)(projectDir)
+    : { attempted: 0, refreshed: 0, failed: [], notInCatalog: [], unknown: false };
   report.externalSkillsRefreshed = skillRefresh.refreshed;
   report.externalSkillsFailed = skillRefresh.failed;
   // 개명·은퇴한 스킬은 **디스크에서** 찾는다. 위 refresh 는 `method: "skill"`(npx 외부 스킬)만
@@ -509,6 +564,7 @@ function demotedAgentFiles(claudeDir: string, tracks: ReadonlyArray<Track>): str
 function installNewAssets(
   projectDir: string,
   templatesDir: string,
+  wants: (g: UpdateGroup) => boolean = () => true,
 ): {
   installed: string[];
   restored: string[];
@@ -529,6 +585,12 @@ function installNewAssets(
   const priorBaseline = policyBaseline(projectDir);
 
   for (const entry of trackOnlyFileAssets(installedTracks(projectDir))) {
+    // #480 — 파일 자산의 묶음: 훅·settings 는 "hooks", 나머지(룰·에이전트·명령·스크립트)는 "rules".
+    const group: UpdateGroup =
+      entry.target.startsWith(".claude/hooks/") || entry.target === ".claude/settings.json"
+        ? "hooks"
+        : "rules";
+    if (!wants(group)) continue;
     // 하네스 앵커는 제외 — `syncHarnessAnchor` 가 **이행 로직과 함께** 소유한다. 여기서 먼저
     // 만들면 그쪽이 "이미 있었다"로 보고 루트 `CLAUDE.md` 의 import 줄을 얹지 않아, ADR-060
     // 이행이 조용히 반쪽이 된다.
@@ -567,6 +629,65 @@ function installNewAssets(
     else installed.push(entry.target);
   }
   return { installed, restored, needsReinstall, foreignOwned };
+}
+
+/**
+ * #480 ① — 릴리즈로 새로 생긴 **번들 스킬 디렉터리**를 깐다. 대상 = 이 트랙 구성이 기본
+ * 옵션으로 설치했을 스킬(`buildAssetSpec` 의 기본 선택 — opt-in 스킬은 안 들인다) 중 디스크에
+ * 없는 것. 설치 때 해제한 것(ADR-074)·남의 자리(#343)·이미 있는 것은 건너뛴다.
+ */
+function installNewSkillDirs(
+  projectDir: string,
+  templatesDir: string,
+  tracks: ReadonlyArray<Track>,
+): { installed: string[]; foreignOwned: string[] } {
+  const installed: string[] = [];
+  const foreignOwned: string[] = [];
+  const log = readInstallLog(projectDir);
+  const excluded = new Set(log?.spec.baselineExclude ?? []);
+  if (!(log?.spec.cli ?? ["claude"]).includes("claude")) return { installed, foreignOwned };
+  const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
+  for (const entry of buildManifest(spec)) {
+    if (entry.type !== "dir" || !entry.target.startsWith(".claude/skills/")) continue;
+    // ADR-074 — 설치 때 해제한 스킬은 다시 들이지 않는다. 판정은 파일 자산과 같은 헬퍼로
+    // (`tests/baseline-targets.test.ts` F1 이 이 줄이 빠졌던 것을 잡았다 — python-patterns 부활).
+    if (!entry.applies(spec) || isBaselineExcluded(entry.target, excluded)) continue;
+    const target = join(projectDir, entry.target);
+    const foreign = foreignOwnedTarget(projectDir, entry.target);
+    if (foreign !== null) {
+      if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
+      continue;
+    }
+    if (existsSync(target)) continue;
+    const source = join(templatesDir, entry.source);
+    if (!existsSync(source)) continue;
+    copyDir(source, target, (rel) => foreignOwnedTarget(projectDir, `${entry.target}/${rel}`));
+    installed.push(entry.target);
+  }
+  return { installed, foreignOwned };
+}
+
+/**
+ * 새로 깐 스킬만 기준선에 **더한다** — `refreshSkillBaseline` 처럼 통째로 다시 찍으면 이번에
+ * 건너뛴(`--only new-skills`) 기존 스킬의 사용자 편집이 "하네스가 놓아둔 것"으로 기록된다.
+ */
+function recordNewSkillBaseline(
+  projectDir: string,
+  templatesDir: string,
+  targets: ReadonlyArray<string>,
+): void {
+  const log = readInstallLog(projectDir);
+  if (!log) return;
+  const ids = new Set(targets.map((t) => t.slice(".claude/skills/".length)));
+  const added = collectSkillHashes(projectDir, templatesDir).filter((f) =>
+    ids.has(f.path.split("/")[0] ?? ""),
+  );
+  const kept = (log.skillFiles ?? []).filter((f) => !ids.has(f.path.split("/")[0] ?? ""));
+  try {
+    writeInstallLog(projectDir, { ...log, skillFiles: [...kept, ...added] });
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다 (다른 기준선 갱신과 같은 방침).
+  }
 }
 
 /**
