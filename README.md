@@ -31,7 +31,7 @@ The wizard walks you through six steps:
 6/6  Installing
 ```
 
-Then open your CLI in the project — the rules, skills, and (on Claude Code and Codex) hooks are live:
+Then open your CLI in the project — the rules and skills are live, and on Claude Code the hooks too:
 
 ```bash
 claude    # or codex / opencode / agy
@@ -54,9 +54,9 @@ Every skill this repo ships is installable on its own with the [skills CLI](http
 
 Piling rules and skills onto an AI coding tool does not make it better. Every instruction that is always loaded costs context in every session, and telling a frontier model how to do something it already does well only slows it down. This harness starts from the opposite end: **keep a principle only where the model is likely to slip, and take it back out as models improve.**
 
-- **"Don't do X" and "always do Y" degrade today's models.** A pile of prohibitions and mandates removes the model's room to judge. The moment a situation differs slightly from the rule, the model gets stuck or works around it. Once guards start guarding other guards, development slows down while quality stays flat. So the harness writes guidance as *what must be true* — the outcome, the invariant, the boundary — and leaves *how* to the model. Prohibitions survive only for irreversible damage (secrets, shared history, money and permissions), and those are enforced by a hook, not by a sentence. This direction came from measurement, not taste: of the 44 sentences in our own rules, the number observed to change an agent's behaviour was zero. What actually caught incidents was gates, tests, and an independent reviewer.
+- **"Don't do X" and "always do Y" degrade today's models.** A pile of prohibitions and mandates removes the model's room to judge. The moment a situation differs slightly from the rule, the model gets stuck or works around it. Once guards start guarding other guards, development slows down while quality stays flat. So the harness writes guidance as *what must be true* — the outcome, the invariant, the boundary — and leaves *how* to the model. Prohibitions are kept for irreversible damage — secrets and shared history — and even those are enforced by a mechanism rather than a sentence: a hook blocks edits to `.env` and key files, and a GitHub ruleset the harness helps you apply protects the default branch. This direction came from measurement, not taste: of the 44 sentences in our own rules, the number observed to change an agent's behaviour was zero. What actually caught incidents was gates, tests, and an independent reviewer.
 
-- **Skills improve as models improve.** Each asset is kept only when there is an observation behind it: "without this, the agent is measurably slower or wrong." Guidance without that evidence is removed from the always-loaded set — it becomes a skill that loads only when needed, or it is retired. So `update` brings you a set trimmed to the current models, not a bigger one.
+- **Skills improve as models improve.** Each asset is kept only when there is an observation behind it: "without this, the agent is measurably slower or wrong." Guidance without that evidence is removed from the always-loaded set — it becomes a skill that loads only when needed, or it is retired. So `update` brings you the current judgement — what was added, and what was cut — not just more.
 
 - **`audit-harness-fit` keeps checking.** Run once after install and it fills your project context from the repository. Run later and it finds needless questions, repeated checks, decisions that contradict each other, and procedures that a better model no longer needs — then proposes the edit. Whether the harness fits your project is a question you keep asking, not one you settle at install time.
 
@@ -68,8 +68,8 @@ Those five are the direction, and the first question for any asset — in or out
 
 ## What you get
 
-- **Rules** — six short files on git policy, change management, documentation, testing, and shipping. Dev tracks get all six; business tracks get the three that apply to any project.
-- **Hooks** — two: one loads your spec and change log at session start, one blocks edits to `.env`, lock files, and certificates. That second hook is the only thing in the harness that says "no", and it writes one line to a log every time it does.
+- **Rules** — six short files on git policy, change management, documentation, testing, shipping, and CLI development. Dev tracks get five; `tooling` and `full` add the sixth; business tracks get the three that apply to any project.
+- **Hooks** — two, on Claude Code: one loads your spec and change log at session start, one blocks edits to `.env`, lock files, and certificates. That second hook is the only thing in the harness that says "no", and it writes one line to a log every time it does. Codex gets the session-start hook only; its hook API cannot intercept file edits.
 - **Skills** — the harness's own method skills, written and maintained in this repo, plus the stack skills your track calls for. Four go to every track (`north-star`, `objective-brief`, `gh-issue-workflow`, `audit-harness-fit`); dev tracks add five method skills and an incident runbook; stack tracks add `find-skills`, `frontend-design`, and whatever your stack needs (React, shadcn, Supabase, Postgres on `csr-supabase`, for example). Thirteen of the bundled skills can be named directly with `--with` / `--without`.
 - **Agents** — an independent `reviewer` on every track; `implementer` on dev tracks; `data-analyst` and `strategist` only on the tracks that use them.
 - **A working-principles anchor** — one file your CLI reads every session. Your own `CLAUDE.md` stays yours; the harness adds one import line and never touches the rest. Which file is whose: [docs/CONTEXT-FILES.md](docs/CONTEXT-FILES.md).
@@ -79,7 +79,7 @@ What reaches which CLI:
 | CLI | Rules | Skills | Hooks | Plugins |
 |---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ (in `AGENTS.md`) | ✓ | ✓ (ported) | — |
+| Codex | ✓ (in `AGENTS.md`) | ✓ | session start only | — |
 | OpenCode | ✓ (in `AGENTS.md`) | ✓ | — | — |
 | Antigravity | ✓ | ✓ | — | — |
 
@@ -101,16 +101,16 @@ A track is a starting point, not a lock-in: everything it pre-checks can be unch
 ## Day to day
 
 ```bash
-npx -y @uzysjung/agent-harness list        # what this project got, and from which release
+npx -y @uzysjung/agent-harness list        # what this project got
 npx -y @uzysjung/agent-harness update      # bring it to the current release
 npx -y @uzysjung/agent-harness uninstall   # pick what to remove, or remove everything
 ```
 
 `update` refreshes the files the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose. `update --only skills` limits it to one group. `uninstall` asks item by item in a terminal; `--dry-run` shows the plan first.
 
-**Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing is deleted without a backup beside it. Your existing `.mcp.json` servers are merged, not replaced. Details: [installing into an existing project](docs/USAGE.md#installing-into-an-existing-project).
+**Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it. Your existing `.mcp.json` servers are merged, not replaced. Details: [installing into an existing project](docs/USAGE.md#installing-into-an-existing-project).
 
-**Project scope is the default.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm unless you choose Global at step 4. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` in either scope and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines, an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — the full list is in [what the harness writes](docs/USAGE.md#what-the-harness-writes).
+**Project scope is the default.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm unless you choose Global at step 4. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` in either scope and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — the full list is in [what the harness writes](docs/USAGE.md#what-the-harness-writes).
 
 ## Vetting
 

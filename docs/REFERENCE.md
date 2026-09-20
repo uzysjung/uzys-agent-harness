@@ -159,8 +159,8 @@ manifest 가 직접 설치하는 8종:
 데모 녹화(`record-demo.sh` · `demo-capture.sh` · `demo.Dockerfile`)와 `fresh-dogfood-setup.sh` 는 제외했다.
 `install.sh` 는 `curl | bash` 진입점으로, npx CLI 에 위임하는 얇은 래퍼다.
 
-**템플릿** (`templates/docs/`) — `PLAN.template.md`(계획 문서 8절)와
-`templates/skills/north-star/NORTH_STAR.template.md`(북극성 6절 — 로드맵과 이력은 담지 않는다).
+**템플릿** (`templates/docs/`) — `PLAN.template.md`(계획 문서 틀)와
+`templates/skills/north-star/NORTH_STAR.template.md`(북극성 틀 — 로드맵과 이력은 담지 않는다).
 
 **슬래시 명령은 없다.** `templates/commands/` 가 없고 manifest 에 `.claude/commands/` 대상도 0건이다
 (ADR-023 · ADR-073 · ADR-081).

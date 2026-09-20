@@ -90,6 +90,19 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
 | `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency` (global binary under `--scope global`). Pick the one your project deploys to | opt-in |
 
+### Bundled stack skills
+
+Eight more skills ship inside the harness and follow the track, not the catalog — they do not appear at step 3 and have no `--with` id:
+
+| Skill | Tracks |
+|---|---|
+| `ui-visual-review` · `e2e-testing` | `csr-*` · `ssr-*` · `full` |
+| `nextjs-turbopack` | `ssr-nextjs` · `full` |
+| `python-patterns` · `python-testing` | `data` · `csr-fastapi` · `full` |
+| `market-research` · `investor-materials` · `investor-outreach` | `executive` · `full` |
+
+All but `ui-visual-review` are cherry-picked from everything-claude-code and step aside when you install the ECC plugin ([usage guide](USAGE.md#workflow-bundles-and-ecc)).
+
 ### Data and business
 
 | Asset | What | Tracks |
