@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-20
-- PR: #485
+- PR: #486
 - Supersedes: ADR-028 의 결정 ⓐ(방법론 번들 단일 row). ⓑ Dev 페이지 분할과 행수 상한 게이트(≤30, `tests/wizard-bundle.test.ts`)는 그대로 유효하다.
 
 ## Context
