@@ -1,172 +1,138 @@
-# Tracks & per-track assets
+# Tracks — what each one installs
 
-A **track** is a preset bundle for your stack. Pick one or more at step 1 of the wizard; each
-track determines which skills, plugins, and rules are pre-checked at step 3. Everything is
-toggleable before install — a track is a starting point, not a lock-in.
+A **track** is a preset for what you are building. Pick one or more at step 1 of the wizard (or `--track <name>`); the track decides which rules, agents, skills, and external assets are **pre-checked** at step 3. You can uncheck any pre-checked item before installing, and add anything else at step 3 or with `--with <id>`. A track is a starting point, not a lock-in.
 
-Back to the [README](../README.md) · install detail in the [usage guide](USAGE.md) · per-asset
-verification status in the [compatibility matrix](COMPATIBILITY.md).
+See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for flags and file paths, and the [compatibility matrix](COMPATIBILITY.md) for every asset with its install method and verification. That matrix is generated from the catalog; this page is written by hand, so the matrix wins if the two ever disagree.
 
 ---
 
-## Track list
+## The twelve tracks
 
-### Dev tracks
-
-| Track | Stack |
+| Track | For |
 |---|---|
-| `base` | no stack — principles · methodology · tests only (#456). Common rules 5 · reviewer + implementer · method skills · all-track skills. No stack skills, no `cli-development`, and the dev-track tools (`frontend-design` · `find-skills`) are not pre-checked |
+| `base` | No stack chosen yet. Principles, method skills, and the testing rules — nothing stack-specific, and the dev-track tools (`frontend-design`, `find-skills`) are not pre-checked |
 | `csr-supabase` | Vite + React + Supabase |
 | `csr-fastify` | Vite + React + Fastify |
 | `csr-fastapi` | Vite + React + FastAPI |
 | `ssr-nextjs` | Next.js (App Router) |
 | `ssr-htmx` | htmx + FastAPI |
-| `data` | Python data + DuckDB + PySide6 |
-| `full` | union of all dev tracks |
+| `data` | Python data work — DuckDB, PySide6 |
+| `tooling` | Bash + Markdown projects with no app stack (a CLI, a docs repo, this harness itself) |
+| `full` | Every dev track at once |
+| `executive` | Proposals, due diligence, decks, financial models |
+| `project-management` | PM workflow and reviews |
+| `growth-marketing` | Growth and content marketing |
 
-### Business tracks
-
-| Track | Use |
-|---|---|
-| `executive` | proposals, due diligence, decks, financial models |
-| `project-management` | PM workflow + reviews |
-| `growth-marketing` | growth + content marketing |
-
-### Meta
-
-| Track | Use |
-|---|---|
-| `tooling` | Bash + Markdown meta-projects (no app stack) |
+"Dev tracks" below means the first nine. The last three are business tracks: they get the common rules and the all-track skills, and no development tooling.
 
 ---
 
-## What gets installed per track
+## What every track gets
 
-External assets are recommended automatically based on your track selection. Step 3 shows them pre-checked; you can toggle anything before install. Rows marked **opt-in** are never pre-checked — you add them at step 3 or with `--with <id>`. That includes every ⚠ experimental asset, whatever track it matches.
-
-Per-asset install method and verification status live in the [compatibility matrix](COMPATIBILITY.md). That page is generated from the catalog; this one is written by hand, so the matrix wins if the two ever disagree.
-
-### Frontend (csr-* / ssr-nextjs / full)
-
-| Asset | What | Source |
+| | Dev tracks | Business tracks |
 |---|---|---|
-| `frontend-design` | Distinctive production-grade UI generation — **default on all dev tracks** | Anthropic official |
-| `react-best-practices` | React hook, perf, and component patterns | vercel-labs |
-| `shadcn-ui` | Radix-based component copy + Tailwind theme | shadcn (official) |
-| `web-design-guidelines` | Visual hierarchy, color, spacing — **opt-in** since v26.106.0 (`frontend-design` covers the default) | vercel-labs |
-| `taste-skill` | Anti-slop frontend design — infers a design language, then tunes variance / motion / density — **opt-in** | Leonxlnx |
-| `jakubkrehel-skills` | Better-* interface suite — typography, OKLCH color, accessibility, layout, UX writing, one concern per skill — **opt-in** | jakubkrehel |
-| `scroll-world` | Scroll-driven 3D world landing pages — **opt-in** | oso95 |
-| `tauri-desktop` | Tauri desktop rule template — **opt-in** | this project |
+| **Rules** | git policy · change management · doc governance · test policy · ship checklist (+ CLI development on `tooling` and `full`) | git policy · change management · doc governance |
+| **Hooks** | session start · protect files | same |
+| **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
+| **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
+| **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` | — |
+| **Dev tools** | `find-skills` · `frontend-design` (all dev tracks except `base`) | — |
+| **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-*`/`full`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
 
-### Backend (csr-* / ssr-* / full)
+The method skills are built into this repo — written and maintained here, bundled as templates, no separate download. They install as native skills on all four CLIs: Claude Code reads `.claude/skills/`, and Codex, OpenCode, and Antigravity read the same `.agents/skills/<id>/`. Each can be dropped with `--without <id>` — or installed alone, without the harness, with `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` ([how](USAGE.md#one-skill-without-the-harness)).
 
-| Asset | What | Source |
-|---|---|---|
-| `railway-skills` | Railway deploy + project/service/env management — **opt-in** (also ⚠ experimental tier, which alone already keeps it out of every pre-check) | Railway official |
-| `supabase-agent-skills` (csr-supabase · full) | RLS, auth, edge function, and realtime guidance | Supabase official |
-| `postgres-best-practices` (csr-supabase · full) | Schema, index, and query patterns | Supabase official |
-| `supabase-cli` | Supabase CLI (`supabase login` for OAuth) — **opt-in** | npm |
-| `vercel-cli` | Vercel CLI — **opt-in** | npm |
-| `netlify-cli` | Netlify CLI — **opt-in** | npm |
-
-The three CLIs above install a CLI package — a project `devDependency` by default, or a global binary under `--scope global` — so none of them is pre-checked by a track any more. Pick the one your project deploys to at step 3 or with `--with <id>`.
-
-### Data (data / full)
-
-| Asset | What | Source |
-|---|---|---|
-| `anthropic-data-plugin` | Visualization + SQL exploration | Anthropic official |
-
-### Business (executive / project-management / growth-marketing)
-
-| Asset | What | Source | Tracks |
-|---|---|---|---|
-| `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring | Anthropic official | executive · full |
-| `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) — **opt-in** | alirezarezvani | any track |
-| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) — **opt-in** | alirezarezvani | any track |
-| `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) — **opt-in** | coreyhaines31 | any track |
-
-Only `executive` pre-checks a business asset of its own (`anthropic-document-skills`). `project-management` and `growth-marketing` pre-check none — they get the all-track first-party skills below, and `product-skills` / `marketingskills` are the opt-ins to add at step 3.
-
-### Dev Tools (all dev tracks)
-
-| Asset | What | Source |
-|---|---|---|
-| `find-skills` | Search and rank installed skills | vercel-labs |
-| `agent-browser` | Agent-friendly Playwright wrapper — screenshot and DOM-search CLI | vercel-labs (npm) |
-| `code-review` | Multi-agent PR review with confidence scoring — **opt-in** (overlaps the default review agents) | Anthropic official |
-
-### First-party method skills
-
-Written and maintained in this repo (`official` tier) and bundled as templates — no external download. **Installs across all 4 CLIs** as native skills: Claude reads `.claude/skills/`; Codex, OpenCode, and Antigravity all read the same `.agents/skills/<id>/SKILL.md`.
-
-**Core on every dev track** — installed by default; uncheck at step 3 or `--without <id>` to skip.
-
-| Asset | What |
+| Skill | What it does |
 |---|---|
-| `user-centered-explanation` | Explain problems, changes, and choices as what the user does and sees, in the user's language; an approval moment goes context → problem → options → recommendation, with AS-IS/TO-BE for screens and flows |
-| `audit-service-gaps` | Enumerate gaps against the north-star baseline through three lenses, then check how a reference service closed each one before proposing a fix |
-| `multi-persona-review` | Review one artifact through independent personas in parallel → deduped, severity-ranked findings |
-| `recurrence-prevention` | When the same defect returns: verify the count against prior evidence, classify slip vs harness problem, escalate record → rule → structural gate |
-| `compaction-handoff` | Persist durable state, a git snapshot, and one resume anchor before a context `/compact` |
-| `self-hosted-github-runner` | When hosted runners stop — billing failure, spending limit, minutes exhausted, org quota, an Actions outage — run the repo's existing workflow **files** on a Docker self-hosted runner instead of copying CI steps into a local script. Covers the runner-label switch, architecture and cache-key traps, container isolation, the risk that `pull_request` jobs then execute on your own machine, and the rollback path |
+| `north-star` | Direction baseline — the north-star metric as a proxy, pillars, will/won't, decision gates — and the roadmap derived from it |
+| `objective-brief` | Normalizes work about to be delegated, designed, or carried out in several steps into one brief: objective, inputs, invariants, success criteria, boundaries, autonomy, verification. One-line questions and routine edits get no brief |
+| `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only, draft, and remote-write stages kept apart |
+| `audit-harness-fit` | Checks whether the instructions and skills your agent loads still fit: needless questions and repeated checks, contradicting decisions, missing context, procedures a better model no longer needs. Fills your `CLAUDE.md` / `AGENTS.md` project sections from repository evidence. Read-only unless you ask it to apply |
+| `user-centered-explanation` | Explains problems, changes, and choices as what the user does and sees, in the user's language; an approval request arrives as context → problem → options → recommendation, with before/after for screens and flows |
+| `audit-service-gaps` | Lists gaps against the north-star baseline through three lenses, then checks how a reference service closed each before proposing a fix |
+| `multi-persona-review` | Reviews one artifact through independent personas in parallel and returns deduplicated, severity-ranked findings |
+| `recurrence-prevention` | When the same defect comes back: confirm it really recurred, decide whether it was a simple slip or a harness problem, then repair or replace the countermeasure — a note, a rule, or a structural gate — based on evidence |
+| `compaction-handoff` | Before the agent's context is compacted (its working memory trimmed): save durable state, a git snapshot, and one resume point |
+| `self-hosted-github-runner` | When hosted runners stop (billing, quota, outage): run the repo's existing workflow files on a Docker self-hosted runner instead of copying CI steps into a script |
 
-**On every track**, dev or not.
+Three more bundled skills are **opt-in on any track** — recommended, not required:
 
-| Asset | What |
-|---|---|
-| `north-star` | Direction baseline — NSM as metric-proxy, pillars, Will/Won't, decision gates — and the ranked roadmap derived from it |
-| `gh-issue-workflow` | GitHub Issues as the async backlog and decision channel, with read-only / draft / remote-write stages kept distinct |
-| `objective-brief` | Normalize work that is about to be delegated, designed, or carried out over several steps — anything at feature or project scale — into the canonical brief: objective · inputs · invariants · success criteria · boundaries · autonomy · verification. A one-line question, a lookup, a single edit, or a routine change does not get a brief |
-| `audit-harness-fit` | Improve the instructions and skills your agent loads for autonomous, productive delivery with verifiable quality: resolve needless questions and repeated checks, conflicting decisions, missing actionable context, and low-value procedures; adapt guidance to demonstrated model and tool capabilities — and fill or refresh the `AGENTS.md` / `CLAUDE.md` project context from repository evidence. Read-only unless you ask it to apply |
-
-**Recommended means** (`official`, **opt-in** — the methodology above is core; these are *means* the maintainer recommends, not requirements. `--with model-orchestration` / `--with external-model-consult`; the second needs its provider's CLI at runtime — Antigravity [`agy`](https://antigravity.google/cli) or OpenAI `codex`):
-
-| Asset | What |
-|---|---|
-| `model-orchestration` | Allocation principles for models, reasoning effort, and delegation — reuse context first; add workers, model calls, or independent review only when their expected contribution justifies the cost |
-| `external-model-consult` | Ask a non-Claude model for natural Korean phrasing, a second opinion, concise restructuring, or image generation |
-
-**Korean prose** (`official`, **opt-in on any track** — `--with natural-korean`; it is about writing, not about a stack, so no track pre-checks it):
-
-| Asset | What |
-|---|---|
-| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keep meaning and register, cut translationese, needless English, stock phrases and mechanical repetition, and fix only what is actually awkward. Sibling to `user-centered-explanation`: that one decides **what to say and in what shape**, this one governs **how the Korean itself is written** |
-
-> `natural-korean` replaced the earlier humanize-korean skill (#428). The predecessor was a diagnosis-first *revision* skill; this one also covers writing and translation, so the name followed the scope. A project that installed the old id keeps it — `update` only refreshes skills it finds installed — and picks up the new one with `--with natural-korean`.
-
-> Nine of these fourteen were bundled here, moved out to a separate skills repo in 2026-08, then **moved back in ADR-062** — the migrated copies had lost the decision rules, measured precedents, and worked examples that made them worth loading. `compaction-handoff` never left; `objective-brief` is new in the same cycle, `audit-harness-fit` (ADR-064) is new after it, and `self-hosted-github-runner` / `natural-korean` are newer still.
-
-> **What changed in ADR-088.** `objective-brief` was called task-brief, and the prompt hook that nudged you toward it on every long prompt is gone: the brief is for delegation, design, and multi-step work, and prompt length is no evidence of scale. Three skills retired in the same release — a compaction-timing skill (Claude Code compacts on its own), a session-observation skill (`recurrence-prevention` covers the same ground), and a SPEC-splitting skill (one line in the `doc-governance` rule replaces it: keep current decisions in resident documents, move history to ADRs and plan files). A project that installed any of them keeps the directory — `update` does not delete skills — and the update summary names what to remove.
-
-### Not driven by track selection (opt-in on any track)
-
-Understanding — `claude-video` · `understand-anything` · `agentmemory`. Visual & media — `frontend-slides` · `marp-slide` · `mermaid-diagrams` · `gsap-skills` · `remotion` · `ppt-master` · `ppt-generation` · `web-video-presentation` · `revealjs`. Pick them at step 3 or pass `--with <id>`; the full catalog is in the [compatibility matrix](COMPATIBILITY.md).
-
-### Workflow (opt-in — pick one or more at step 3)
-
-> **Which one?** See the [Workflow curation guide](WORKFLOWS.md) — a vetted comparison of all 7 installable workflows (plus honest pointers to Spec Kit / Kiro, which we recommend but don't auto-install).
-
-| Asset | What | Activates |
+| Skill | What it does | Add with |
 |---|---|---|
-| `superpowers` | Agentic skills framework, Anthropic official marketplace | obra/superpowers |
-| `ecc-plugin` | 60 agents · 230 skills · 75 commands | affaan-m |
-| `openspec` | Spec-driven brownfield delta workflow (propose → apply → archive) | Fission-AI |
-| `bmad-method` | Multi-agent agile workflow (PM/Architect/Dev, 12+ agents) | bmad-code-org |
-| `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` `/code-simplify` skills | addyosmani's workflow |
-| `wshobson-agents` | Multi-agent orchestration workflows (full-stack/tdd/review), cross-CLI | wshobson |
-| `feature-dev` | Guided feature workflow — explore/architect/review agents | Anthropic official marketplace |
-
-**First-party CI scaffold** (`official`, **opt-in** — `--with ci-scaffold`): `.github/workflows/` fill-in templates — tag-triggered CI + real-DB service container block + coverage gate + Playwright E2E — variant-matched to your tracks (node / python / both; E2E on UI tracks). The only asset that writes outside `.claude/`, so it **never overwrites existing workflow files** (they're reported as preserved), and uninstall leaves `.github/` untouched.
-
-### Security & ECC (opt-in)
-
-| Asset | What | Source |
-|---|---|---|
-| `security-guidance` | Pattern-based security warnings on every edit + LLM diff review (needs Python + Agent SDK at runtime) | Anthropic official |
-| `trailofbits-skills` | Differential security review | Trail of Bits |
-| `ecc-plugin` | ECC plugin (project-scoped via `prune-ecc.sh`) | affaan-m |
-| `ecc-prune` | Trim ECC down to the curated KEEP set (`prune-ecc.sh` derives the count — no second copy of it here) | this project |
+| `model-orchestration` | Which model, how much reasoning effort, and when to delegate — reuse context first, add workers or independent review only when their contribution justifies the cost | `--with model-orchestration` |
+| `external-model-consult` | Ask a non-Claude model (Gemini via `agy`, or Codex) for natural Korean phrasing, a second opinion, concise restructuring, or image generation. Needs that provider's CLI at runtime | `--with external-model-consult` |
+| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keeps meaning and register, removes translationese. Sibling of `user-centered-explanation`: that one decides *what* to say, this one *how the Korean is written* | `--with natural-korean` |
 
 ---
+
+## What each stack adds
+
+Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checked on any track — add them at step 3 or with `--with <id>`; that includes every `⚠ experimental` asset.
+
+### Frontend
+
+| Asset | What | Tracks |
+|---|---|---|
+| `react-best-practices` | React hook, performance, and component patterns (vercel-labs) | `csr-*` · `ssr-nextjs` · `full` |
+| `shadcn-ui` | Radix-based components + Tailwind theme (shadcn) | `csr-*` · `ssr-nextjs` · `full` |
+| `web-design-guidelines` | Visual hierarchy, colour, spacing (vercel-labs) — `frontend-design` covers the default | opt-in |
+| `taste-skill` | Learns your design language, then adjusts variety, motion, and density (Leonxlnx) | opt-in |
+| `jakubkrehel-skills` | Typography, OKLCH colour, accessibility, layout, UX writing — one concern per skill | opt-in |
+| `scroll-world` | Scroll-driven 3D landing pages (oso95) | opt-in |
+| `preline` | Preline UI component patterns | opt-in |
+| `tauri-desktop` | Tauri desktop rule template (this project) | opt-in |
+
+### Backend
+
+| Asset | What | Tracks |
+|---|---|---|
+| `supabase-agent-skills` | RLS, auth, edge functions, realtime (Supabase official) | `csr-supabase` · `full` |
+| `postgres-best-practices` | Schema, index, and query patterns (Supabase official) | `csr-supabase` · `full` |
+| `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
+| `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency` (global binary under `--scope global`). Pick the one your project deploys to | opt-in |
+
+### Bundled stack skills
+
+Eight more skills ship inside the harness and follow the track, not the catalog — they do not appear at step 3 and have no `--with` id:
+
+| Skill | Tracks |
+|---|---|
+| `ui-visual-review` · `e2e-testing` | `csr-*` · `ssr-*` · `full` |
+| `nextjs-turbopack` | `ssr-nextjs` · `full` |
+| `python-patterns` · `python-testing` | `data` · `csr-fastapi` · `full` |
+| `market-research` · `investor-materials` · `investor-outreach` | `executive` · `full` |
+
+All but `ui-visual-review` are cherry-picked from everything-claude-code and step aside when you install the ECC plugin ([usage guide](USAGE.md#workflow-bundles-and-ecc)).
+
+### Data and business
+
+| Asset | What | Tracks |
+|---|---|---|
+| `anthropic-data-plugin` | Visualization + SQL exploration (Anthropic official) | `data` · `full` |
+| `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring (Anthropic official) | `executive` · `full` |
+| `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) | opt-in |
+| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) | opt-in |
+| `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) | opt-in |
+
+The `project-management` and `growth-marketing` tracks pre-check no external asset of their own; add `product-skills` and `marketingskills` if you want them.
+
+### Dev tools, understanding, visual
+
+All opt-in, on any track: `code-review` · `security-guidance` · `trailofbits-skills` (review and security) — `agent-browser` · `claude-video` · `understand-anything` · `agentmemory` (understanding) — `frontend-slides` · `marp-slide` · `mermaid-diagrams` · `gsap-skills` · `remotion` · `ppt-master` · `ppt-generation` · `web-video-presentation` · `revealjs` (visual & media) — `game-engine` · `game-studios`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
+
+### Workflow bundles
+
+All opt-in. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't need one.
+
+| Asset | What | Source |
+|---|---|---|
+| `superpowers` | Agentic skills framework | obra, via the Anthropic official marketplace |
+| `ecc-plugin` | 60 agents · 230 skills · 75 commands — everything-claude-code | affaan-m |
+| `openspec` | Spec-driven changes to an existing codebase (propose → apply → archive) | Fission-AI |
+| `bmad-method` | Multi-agent agile workflow (PM / Architect / Dev) | bmad-code-org |
+| `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` skills | addyosmani |
+| `wshobson-agents` | Multi-agent orchestration workflows, cross-CLI | wshobson |
+| `feature-dev` | Guided single-feature loop with explore / architect / review agents | Anthropic official marketplace |
+
+**CI scaffold** (`--with ci-scaffold`, this project): fill-in GitHub Actions templates — tag-triggered CI, a real-database service container, a coverage gate, Playwright E2E on UI tracks — matched to your tracks (node / python / both). The only asset that writes under `.github/`, and it never overwrites an existing workflow file; `uninstall` leaves `.github/` alone.
+
+**ECC** (`--with ecc-plugin`, `--with-prune`): see [the usage guide](USAGE.md#workflow-bundles-and-ecc) for how the plugin and the cherry-picked copies exclude each other.

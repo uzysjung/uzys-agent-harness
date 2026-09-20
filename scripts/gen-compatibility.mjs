@@ -65,14 +65,16 @@ function cliScopeLabel(asset) {
         : support.join("+");
   return `${reach} (${KIND_FLAVOR[asset.method.kind] ?? asset.method.kind})`;
 }
-// v26.87.0 — per-asset CLI scope override (no-false-ship). dev-method skills 는 4-CLI 로
-// 라우팅된다: Claude(.claude/skills/) + Codex/Antigravity native skill(.agents/skills/<id>/SKILL.md,
-// frontmatter 보존) + OpenCode command fallback(.opencode/commands/<id>.md). transform 단위테스트로
-// 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
+// v26.87.0 — per-asset CLI scope override (no-false-ship). 번들 스킬은 4-CLI 로 라우팅된다:
+// Claude(.claude/skills/<id>/) + Codex · OpenCode · Antigravity 가 같은 .agents/skills/<id>/ 를
+// 읽는다(ADR-081 — OpenCode 의 command 폴백은 2026-08-29 폐지, transform 이 옛 사본을 회수한다).
+// transform 단위테스트로 검증(frontmatter name:<id> 보존 가드 포함); 실 CLI native 인식은 Docker 미검증.
 // v26.93.0 — 하드코딩 id 목록 → SSOT derive (동일 목록 2곳 하드코딩 시 신규 스킬이 이 override
 // 에서 silent 누락되던 drift 차단 — model-orchestration 추가에서 실검출). v26.95.0 —
 // INTERNAL_BUNDLED_SKILL_IDS (dev-method + opt-in gemini-consult) 로 확장: 번들 스킬은 전부 4-CLI.
-const DEV_METHOD_CLI_SCOPE = "Claude · Codex · Antigravity (skill) · OpenCode (cmd)";
+// #429 (2026-09-20) — 라벨이 ADR-081 이전의 "OpenCode (cmd)" 를 들고 있었다. 재생성으로는 안
+// 고쳐지는 상수라 여기서 바꾼다.
+const DEV_METHOD_CLI_SCOPE = "4-CLI (bundled skill dir)";
 const CLI_SCOPE_OVERRIDE = Object.fromEntries(
   INTERNAL_BUNDLED_SKILL_IDS.map((id) => [id, DEV_METHOD_CLI_SCOPE]),
 );

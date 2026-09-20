@@ -1,532 +1,276 @@
 # Usage Guide
 
-Quick reference for using `uzys-agent-harness` after install.
+Everything after `npx -y @uzysjung/agent-harness`: the flags, what lands where, how to keep it current, and how to take it out again. The [README](../README.md) covers the first install; this page is the reference for the rest.
 
-For install instructions, see [README.md](../README.md).
-
----
-
-## Slash commands
-
-**The harness writes no slash commands into `.claude/`.** What it puts there is rules, agents,
-hooks, and skills — commands come from the plugins and skill packs you pick at step 3, and each one
-names its own. Skills are also not commands: your CLI decides when to load them from their
-description, so most of what you install has nothing to type. That now holds on all four CLIs —
-OpenCode reads `.agents/skills/**/SKILL.md` natively, so it receives the same skill files as Codex
-and Antigravity rather than a command copy.
-
-To see what is actually registered in your project, ask the CLI rather than a table here — `/help`
-in Claude Code lists the commands your installed plugins contributed. That is the only listing that
-cannot go stale.
-
-Two things worth knowing about the ones you are most likely to install:
-
-- **ECC** (`--with ecc-plugin`) installs as the plugin named `ecc`, so its commands appear under
-  `/ecc:…`. The set is upstream's, not ours.
-- **addy** (`--with addy-agent-skills`) is a spec-driven workflow pack — opt-in since v26.42.0.
-
-> Until v26.146.1 the harness shipped eight `/ecc:` command files of its own as a fallback for
-> people who had not installed the plugin. They were removed because a fallback that needs the thing
-> it substitutes for is not a fallback: two of the eight (`e2e`, `eval`) invoked ECC plugin agents <!-- ref:removed -->
-> directly. The other six did run without the plugin — they were dropped because the plugin ships
-> commands of the same names anyway, so keeping ours would only make it ambiguous which one runs.
-> (Checked against the vendored ECC snapshot, which is a few months old; the plugin's current set is
-> upstream's to change.)
+Version markers are omitted on purpose — this page describes the release you are currently using. Older behaviour is in the [CHANGELOG](../CHANGELOG.md).
 
 ---
 
-## Scope (v26.64.0+, ADR-020)
-
-Default = **Project**. Global write only when you explicitly opt in.
-
-| Method | Project (default) | Global (opt-in) |
-|---|---|---|
-| `claude plugin` | `--scope project` | `--scope user` |
-| `npx skills` | project `node_modules` | `-g` |
-| `npm` | `--save-dev` | `-g` |
-| Codex (skills / config) | `.codex/` (project) | `~/.codex/` |
-| Antigravity (skills / workflows) | `.agents/` (project) | `~/.gemini/antigravity/` |
-| `~/.claude/skills/` · `~/.codex/` · `~/.opencode/` · `~/.gemini/` · `npm root -g` | **not touched** | written per asset |
-
-`~/.claude/plugins/{cache,marketplaces,installed_plugins.json}` is written by claude CLI itself in both modes — the `installed_plugins.json` metadata isolates entries by `projectPath` so other projects aren't affected.
-
-At step 4 of the wizard, pick Project (pre-selected) or Global. Non-interactive: `--scope <project|global>`.
-
----
-
-## What's installed (v26.125.0+)
-
-```bash
-npx -y @uzysjung/agent-harness list
-```
-
-Reads `.uzys-agent-harness/.harness-install.json` and prints the assets, their scope and version, the template
-dirs, and whether your root `CLAUDE.md` has been edited since install. Read-only. The asset ids it
-shows are the input to `uninstall --only`.
-
-The install wizard reads the same record (v26.125.0+): assets already installed are marked
-`● installed` at step 3, and project-scope ones start checked. The marker is display only —
-**unchecking never removes anything.** Removal happens only in `uninstall`, so a misclick in the
-installer cannot delete your assets.
-
-Installing again is additive: `install --with <id>` appends to the log, so a later `uninstall`
-still knows about everything from the earlier run. The exception is the interactive **Reinstall**
-action (the wizard's "Reinstall (backs up current `.claude/` first)"), which moves `.claude/` aside
-and rebuilds it: assets whose files lived inside `.claude/` are genuinely gone, so they're dropped
-from the record too. Assets that live outside the project (`plugin`, `npm`) are kept.
-
-## Uninstall (v26.64.0+)
-
-```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
-```
-
-Reverses the install based on `.uzys-agent-harness/.harness-install.json`.
-
-**Run it with no flags in a terminal and it asks what to remove (v26.125.0+).** First a mode —
-*pick items* (templates stay) or *remove everything* (assets **and** `.claude/`) — then, for the
-first mode, a checklist of the installed assets. Each row states what removing it will actually do,
-including the ones that have no automated reverse. Nothing happens until you confirm, and selecting
-nothing is not a full uninstall — it exits without changes.
-
-The picker is skipped when you have already said what you want: `--only`, `--dry-run`, `--yes`, or
-no TTY (CI, pipes). Those paths behave exactly as before, so scripts are unaffected.
-
-- **Project-scope assets**: removed automatically (`claude plugin uninstall --scope project`, `npm uninstall --save-dev`, `.codex/` cleanup, etc.).
-- **Project root `CLAUDE.md`**: removed only if unchanged since install (sha256 match); kept with a notice if you edited it.
-- **Global-scope assets**: listed as advisory only. You run the removal yourself.
-- **Assets with no automated reverse** (`npx-run`, `shell-script`): reported as such and left in the record — a full uninstall removes `.claude/` around them, but `--only` cannot undo them. Anything they wrote outside `.claude/` (e.g. BMAD's `_bmad/`, `_bmad-output/`) stays and is yours to delete.
-
-| Flag | What |
-|---|---|
-| `--dry-run` | List the reverse steps, change nothing |
-| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
-| `--only <ids>` | Remove just these assets (comma-separated, from `list`). Templates untouched; the log is rewritten with what remains, so the rest stays removable |
-| `--yes` | Skip the picker and remove everything (for scripts on a TTY) |
-
-Only assets whose reverse actually succeeded are dropped from the log — a failed removal stays
-listed rather than being recorded as gone. If nothing could be removed automatically, the command
-says so and exits non-zero rather than reporting success.
-
-`--only` never leaves a dangling hook entry in `.claude/settings.json`, because no asset in the
-catalog wires a hook of its own and `--only` does not touch the baseline. (Before v26.141.0 one
-asset did, and `uninstall` printed the registration for you to delete by hand rather than editing a
-file that holds your own settings.)
-
-> A detail worth knowing about `settings.json`: install and update both run a healing pass that
-> **removes any hook command whose script isn't on disk**, and the summary reports it
-> (`settings.json stale hook refs · N removed`). Until ADR-088 the template wired one hook that
-> lived inside a *skill* directory, and that skill stepped aside for the ECC plugin — so some
-> projects got a hook command pointing at a file they never received. The healing pass is what kept
-> that from becoming a `bash: no such file` on every edit, and it stays for any future wiring.
-
-### Files outside `.claude/` (v26.125.0+)
-
-> **Which file is yours and which is the harness's?** `CLAUDE.md`, `CLAUDE-uzys-harness.md`,
-> `AGENTS.md`, and `.agents/rules/` all hold context, and they have different owners and different
-> update rules. [CONTEXT-FILES.md](CONTEXT-FILES.md) explains the split — read it before editing any
-> of them, so your project notes don't land in a file that `update` overwrites.
-
-Install also writes to the project root: `.mcp.json` (merged), `.gitignore` (appended lines),
-`.env.example`, and `.github/workflows/` when `ci-scaffold` is selected. A full
-uninstall **lists these and removes none of them** — your own content is mixed into `.mcp.json` and
-`.gitignore`, and the workflow files are yours once installed. Each is labelled by how it got there:
-
-- **created** — the harness made the file; if you haven't edited it, deleting it is safe.
-- **merged** — it already existed and the harness added to it; check it by hand.
-
-Only files still present on disk are listed, and `list` shows the same set under **Root files**.
-`--only` doesn't print this section: it targets specific assets, not the install as a whole.
-Logs written before v26.125.0 have no record of these files, so an older install shows nothing here.
-
----
-
-## Non-interactive install
-
-For CI or scripted use:
-
-```bash
-npx -y @uzysjung/agent-harness install --track <name>
-```
-
-Common flags:
-
-| Flag | Effect |
-|---|---|
-| `--track <name>` (repeatable) | Required. Pick a track |
-| `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
-| `--scope <project\|global>` | Default `project` |
-| `--with <asset-id>` (repeatable) | Force-include an external asset |
-| `--without <asset-id>` (repeatable) | Force-exclude an external asset from the preset |
-| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline asset — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items the wizard shows on its first two pages |
-| `--project-dir <path>` | Where to install. Default: the current directory |
-| `--verbose` | Print the file list per category instead of counts only |
-
-Behavior flags, as opposed to asset selection:
-
-| Flag | Effect |
-|---|---|
-| `--with-codex-trust` | Codex only: register a trust entry in `~/.codex/config.toml`. Takes effect **only together with `--scope global`** |
-| `--with-prune` | Use with `--with ecc-plugin` — trims ECC down to a curated subset |
-
-Assets are opted in and out through `--with` / `--without` with the catalog id, not through
-per-asset flags (the 13 asset-specific flags were removed in v26.81.0); `--with ecc-plugin` is that
-same generic form, not a special case. The two flags above are the exception, and they select
-*behavior* rather than an asset — though `--with-prune` does gate one catalog entry (`ecc-prune`).
-Ids come from `list`, or from the [compatibility matrix](COMPATIBILITY.md).
-
-Full flag list: `npx -y @uzysjung/agent-harness install --help` (or `agent-harness install --help` after a global install).
+## Install
 
 ### Interactive wizard (6-step)
 
 ```
-1/6  Tracks            preset by stack
+1/6  Tracks            one or more — see docs/TRACKS.md
 2/6  CLI               claude / codex / opencode / antigravity (multi-select)
-3/6  Install items     7 pages of grouped multiselects:
+3/6  Install items     7 pages of checklists:
                        Track baseline — Rules & Hooks / Track baseline — Agents & Skills
                        (everything your track installs, pre-checked; uncheck to drop it)
-                       then Dev Core (Frontend·Backend·Data) / Dev Tools (Security·Quality·
-                       Understanding) / Business / Visual & Media / Workflow & ECC.
-                       The 6 dev-method skills fold into a single "methodology bundle" row.
+                       then Dev Core (Frontend · Backend · Data) / Dev Tools (Security ·
+                       Quality · Understanding) / Business / Visual & Media / Workflow & ECC
 4/6  Scope             Project (default) / Global
-5/6  Confirm           summary review (+ session-start context cost of your selection)
-6/6  Installing        pipeline
+5/6  Confirm           summary + the session-start context cost of your selection
+6/6  Installing
 ```
 
-ESC at step 1 = exit with cancel. ESC at later steps = silent back.
+ESC at step 1 exits; ESC at any later step goes back one step.
 
----
+Assets already in this project show `● installed` at step 3 and start checked. **Unchecking never removes anything** — removal only happens in `uninstall` — so a misclick in the installer cannot delete an asset.
 
-## Trust tiers (v26.71.0)
+Run the wizard again on an installed project and it shows a menu instead of a fresh install: **Add a new Track**, **Update policy files** (same as `update` below), **Reinstall** (moves `.claude/` aside as `.claude.backup-<ts>` and rebuilds it), or **Exit**.
 
-External assets carry a trust tier. Two of the three show as a badge in step 3; `vetted` shows none:
+### Non-interactive install
 
-- **★ official** — Anthropic-official marketplaces + this harness's own assets.
-- **vetted** — community assets with ≥ 1000 GitHub stars + active maintenance. Carries no badge of its own. Whether it is pre-checked is decided by the asset's `condition`, not by its tier — most vetted assets are opt-in.
-- **⚠ experimental** — under 1000 stars. Opt-in only (not pre-checked), sorted to the bottom of each category.
+For CI, containers, and scripts:
 
-Tiers inform; they never block — you choose what installs. Labels are static in the catalog but **auto-monitored monthly** for star-drift by CI (`trust-tier-drift.yml`); install-method availability is re-verified monthly too (`catalog-verify.yml`).
+```bash
+npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <id>]... [--without <id>]...
+```
 
----
+| Flag | Effect |
+|---|---|
+| `--track <name>` (repeatable) | **Required.** One of the [tracks](TRACKS.md) |
+| `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
+| `--scope <project\|global>` | Default `project` |
+| `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md) |
+| `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
+| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
+| `--project-dir <path>` | Where to install. Default: the current directory |
+| `--verbose` | Print every file per category instead of counts |
 
-## Multi-CLI install
+Two flags select *behaviour* rather than an asset:
 
-Pick more than one at step 2 (or pass `--cli` multiple times):
+| Flag | Effect |
+|---|---|
+| `--with-codex-trust` | Codex only: register a trust entry in `~/.codex/config.toml`. Takes effect **only with `--scope global`** |
+| `--with-prune` | With `--with ecc-plugin`: trim the ECC plugin to a curated subset |
+
+Everything else is `--with` / `--without` by catalog id; there are no per-asset flags. `npx -y @uzysjung/agent-harness install --help` prints the full list. If you install the package globally with npm, the same commands are available as `agent-harness …`.
+
+### One skill, without the harness
+
+Every skill this repo ships can also be installed on its own with the [skills CLI](https://github.com/vercel-labs/skills) — no harness, no track, nothing else written:
+
+```bash
+npx skills add uzysjung/uzys-agent-harness --skill user-centered-explanation -a claude-code
+npx skills add uzysjung/uzys-agent-harness --list        # every id you can pass to --skill
+```
+
+You get the same directory the installer would copy (`SKILL.md` and `references/`), placed where your CLI reads skills (`-a claude-code` → `.claude/skills/<id>/`; other agents by name). Re-run the same command to refresh it. Use this when you want one method skill in a project that does not need the rules, hooks, or track assets — for example `user-centered-explanation` or `recurrence-prevention` on its own. Moving to the full harness later is just running the wizard; it will find and refresh the skill you already have.
+
+### Scope
+
+Default = **Project**. Global is opt-in, at step 4 or with `--scope global`.
+
+| Delivery method | Project (default) | Global |
+|---|---|---|
+| `claude plugin` | `--scope project` | `--scope user` |
+| `npx skills` (skill packs) | copied into `.claude/skills/` and, for other CLIs, `.agents/skills/` | `-g` |
+| `npm` (CLI packages) | `devDependency` in `package.json` | `-g` |
+| Codex config | `.codex/` in the project | `~/.codex/` |
+| Antigravity | `.agents/` in the project | `~/.gemini/antigravity/` |
+
+`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched in project scope. **The one exception is Claude Code plugins**: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` in both scopes and isolates projects through the `projectPath` field of `installed_plugins.json`. Project scope means *no other project is affected*, not *nothing outside this project is written*.
+
+### Multi-CLI install
+
+Pick more than one CLI at step 2, or repeat `--cli`:
 
 ```bash
 npx -y @uzysjung/agent-harness install --track tooling --cli claude --cli codex --cli opencode
 ```
 
-Each CLI gets its own dispatcher file:
-
-| CLI | Dispatcher | Notes |
+| CLI | What is written | Notes |
 |---|---|---|
-| Claude Code | `.claude/` | First class. All hooks active |
-| Codex | `.codex/` + project `AGENTS.md` + `.agents/skills/` | Skills + `AGENTS.md` rules for your stack |
-| OpenCode | `.opencode/` + project `AGENTS.md` | Skills + commands |
-| Antigravity | `.agents/rules/` + `.agents/skills/` | Shares `.agents/skills/` (dev-method skills) with Codex (v26.66.0+) |
+| Claude Code | `.claude/` (rules, agents, hooks, skills, `settings.json`) + `CLAUDE.md` import line + `CLAUDE-uzys-harness.md` | First class — all assets, hooks, and plugins |
+| Codex | `AGENTS.md` (principles + rules inline) · `.codex/config.toml` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/` | Session-start hook only; plugins are Claude-only |
+| OpenCode | `AGENTS.md` (shared with Codex) · `opencode.json` (MCP servers only) · `.agents/skills/<id>/` | No hooks. No `.opencode/` directory |
+| Antigravity | `.agents/rules/uzys-harness.md` + `.agents/rules/<rule>.md` · `.agents/skills/<id>/` | No hooks |
 
-Skills are **copied per CLI format, not symlinked** — each CLI needs its own variant (slash-command namespace and env-var renames differ), and Codex + Antigravity share one `.agents/skills/` file. All variants render from the same bundled source at install time, so there is no drift between them.
-
----
-
-## Installing into an existing project
-
-`agent-harness` never silently overwrites your config. Before replacing an **editable** file whose contents differ, it writes a timestamped backup next to it — and every backup path is printed in the install summary (`backup` rows). Nothing is deleted.
-
-| You already have… | What happens |
-|---|---|
-| `.claude/settings.json` with your own hooks / statusLine | Backed up to `settings.json.backup-<ts>` before update |
-| Root `CLAUDE.md` (yours differs from the generated one) | Backed up to `CLAUDE.md.backup-<ts>` before the merge write |
-| `.claude/` on `update` | The whole directory is **copied** to `.claude.backup-<ts>`; the original stays and is updated in place |
-| `.claude/` on the wizard's **Reinstall** action | The whole directory is **renamed** to `.claude.backup-<ts>`, then rebuilt from scratch |
-| `.mcp.json` | Your existing MCP servers are preserved and merged, not replaced |
-| A skill under `.claude/skills/` **you edited** | Your version is copied to `<file>.backup-<ts>`, the newer one takes its place (v26.126.0+) |
-| A rule / agent / command / hook **you edited** | Same treatment — `<file>.backup-<ts>`, newer version takes its place (v26.132.0+) |
-| A rule or hook **you wrote yourself** | Left alone. `update` only removes files the harness installed (v26.132.0+) |
-
-> Fresh project? None of this triggers — backups only protect pre-existing files.
-
-### Updating an install
-
-```bash
-npx -y @uzysjung/agent-harness update [--project-dir <path>]
-```
-
-Refreshes the files already installed — rules, agents, commands, hooks, and skills under `.claude/`,
-plus everything written for Codex, OpenCode, and Antigravity (`AGENTS.md`, `.codex/`,
-`opencode.json`, `.agents/`) — to the versions in the release you invoke
-(v26.134.0+). It does not add tracks, install assets, or ask anything, so it is safe to run from CI
-or a script. The whole `.claude/` directory is copied to `.claude.backup-<ts>` first. Run it with no
-install present and it exits `1` rather than doing nothing quietly.
-
-The same thing is reachable from the wizard (run with no arguments → **Update policy files**);
-both entry points build the identical spec. Adding a track is a different operation — that is
-`install --track <name>` on top of the existing install.
-
-> Scope: `update` only refreshes files that are **already there**. It never installs a CLI you did
-> not choose or a skill you did not select, so a Claude-only project stays Claude-only. The flip
-> side: artifacts a newer release *adds* arrive on `install`, not on `update`.
-
-### What happens to files you edited
-
-The harness records a checksum of every file it writes, so it can tell an untouched file from one
-you changed. That check runs on `install` **and** `update`, and covers rules, agents, commands,
-hooks, and skills alike — plus everything written for Codex, OpenCode, and Antigravity
-(`AGENTS.md`, `.codex/`, `opencode.json`, `.agents/`):
-
-- **You never touched it** → replaced with the newer version, silently. No backup noise just because
-  the harness improved the file.
-- **You edited it** → your version is saved as `<file>.backup-<ts>` and the newer version takes its
-  place. The summary shows the count.
-- **No checksum on record** (installed before the feature landed) → anything that differs is backed
-  up to be safe. This happens once; later runs are precise.
-
-Deletion is narrower than replacement. `update` removes a policy file only when the checksum record
-proves the harness installed it — that is how a retired rule gets cleaned up without touching the
-rule *you* wrote. If there is no record to prove ownership, nothing is deleted.
-
-Two things `update` will *not* do: install a skill you never chose, and delete a file you added
-inside a skill directory.
-
-> History: skills were not refreshed at all before v26.126.0; rules and hooks were overwritten with
-> no backup — and user-written rules deleted — before v26.132.0; Codex/OpenCode/Antigravity output
-> was overwritten with no backup before v26.133.0.
+Codex, OpenCode, and Antigravity read the **same** `.agents/skills/<id>/` directories, so one copy serves all three. All variants are generated from the same bundled source at install time, so they cannot drift out of sync between CLIs. To see which files belong to you and which to the harness, per CLI, read [CONTEXT-FILES.md](CONTEXT-FILES.md).
 
 ---
 
-## How it works
+## After install
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  npx -y @uzysjung/agent-harness                         │
-│         │                                                │
-│         ▼                                                │
-│  ┌─ 6-step wizard ──────────────────────────────────┐    │
-│  │  Track(s) → CLI(s) → Items → Scope → Confirm    │    │
-│  └──────────────────┬───────────────────────────────┘    │
-│                     ▼                                    │
-│  ┌─ Phase 1: Templates ─────────────────────────────┐    │
-│  │  .claude/{rules,agents,hooks,commands,skills}    │    │
-│  │  CLAUDE.md (scaffold) · .mcp.json                │    │
-│  └──────────────────┬───────────────────────────────┘    │
-│                     ▼                                    │
-│  ┌─ Phase 2: External assets ───────────────────────┐    │
-│  │  claude plugin / npx skills / npm / shell-script │    │
-│  │  Honors the scope chosen at step 4               │    │
-│  └──────────────────┬───────────────────────────────┘    │
-│                     ▼                                    │
-│  ┌─ Phase 3: install log ───────────────────────────┐    │
-│  │  .uzys-agent-harness/.harness-install.json       │    │
-│  │  (drives `uninstall`)                            │    │
-│  └──────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────┘
-```
+### Your first session
 
-After install, a `tooling` + Claude project looks like:
+The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode) with fill-in sections about your project, each carrying a `<!-- FILL: … -->` prompt. Ask your agent to run the `audit-harness-fit` skill once: its populate mode reads your repository and fills those sections with what it finds there. You can also paste each prompt to your agent, or write the sections by hand. The harness never fills them itself — it does not write unverified facts about your project into your repository.
 
-```
-your-project/
-├── .claude/
-│   ├── rules/          # coding conventions for your stack
-│   ├── agents/         # subagent definitions
-│   ├── hooks/          # lifecycle / pre-commit hooks
-│   └── settings.json   # your existing one is backed up first
-├── CLAUDE.md           # fill-in scaffold (yours backed up if it differed)
-└── .mcp.json           # MCP servers, merged with yours
-```
-
----
-
-## Project files (what the harness writes)
+### What the harness writes
 
 | Path | Purpose |
 |---|---|
-| `.claude/rules/*.md` | LLM-facing rules — lifecycle discipline (git-policy, doc-governance, change-management; dev tracks add test-policy + ship-checklist; tooling/full add cli-development). The same rules reach Codex, OpenCode, and Antigravity in each CLI's native location |
-| `.claude/agents/*.md` | Agent definitions (reviewer, implementer, etc.) |
-| `.claude/hooks/*.sh` | Programmatic guards (session-start, protect-files) |
-| `.claude/skills/*` | Skills — the harness's own method skills (`north-star`, `objective-brief`, …) plus the ones your track pre-checked |
-| `.claude/settings.json` | Statusline + hooks registration |
-| `.uzys-agent-harness/.harness-install.json` | Install log — accumulates across installs; drives `list` and `uninstall`. Lives outside `.claude/` because it is CLI-neutral (v26.135.0) |
-| `.uzys-agent-harness/hook-blocks.log` | Written at runtime, not at install: one line per hook block. The installer adds `.uzys-agent-harness/` to `.gitignore`, so it never enters your history |
-| `CLAUDE.md` | **Yours.** Project context — fill-in scaffold, plus one `@CLAUDE-uzys-harness.md` line that pulls in the anchor |
-| `CLAUDE-uzys-harness.md` | The harness's own anchor — working principles. Owned by the harness, so `update` rewrites it. Keep your notes in `CLAUDE.md` ([which file is whose](CONTEXT-FILES.md)) |
-| `.mcp.json` | MCP servers. Always `context7`, `github`, `chrome-devtools`; plus `railway-mcp-server` on `csr-*`/`ssr-*`/`full` and `supabase` on `csr-supabase`/`full` |
-| `.codex/` | Codex project-scope dispatcher (if `--cli codex`) |
-| `.opencode/` | OpenCode dispatcher (if `--cli opencode`) |
-| `.agents/` | Codex + Antigravity shared skills/rules (if either CLI selected) |
-| `.github/workflows/` | CI fill-in templates — **only with `--with ci-scaffold`**; never overwrites existing files |
+| `.claude/rules/*.md` | Rules: git policy, change management, doc governance on every track; test policy and ship checklist on dev tracks; CLI development on `tooling` and `full`. The same rules reach the other CLIs in their own locations |
+| `.claude/agents/*.md` | `reviewer` always; `implementer` on dev tracks; `data-analyst` on `data`/`full`; `strategist` on `executive`/`full` |
+| `.claude/hooks/*.sh` | Two hooks: `session-start.sh`, `protect-files.sh` — see [Hooks](#hooks) |
+| `.claude/skills/<id>/` | The harness's own skills plus the ones your track pre-checked — whole directories, `references/` included |
+| `.claude/settings.json` | Hook registration. Your existing file is backed up first |
+| `CLAUDE.md` | **Yours.** A fill-in scaffold if it did not exist; otherwise untouched except for one import block at the end |
+| `CLAUDE-uzys-harness.md` | The harness's working-principles anchor. Owned by the harness, rewritten on `update` — keep your notes in `CLAUDE.md` |
+| `.uzys-agent-harness/` | CLI-neutral slot: the install record (`.harness-install.json`), three helper scripts the rules call by name (`protect-branch.sh`, `spec-drift-check.sh`, `check-absence.sh`), and the hook block log written at runtime. Added to `.gitignore` when that file exists |
+| `.mcp.json` | MCP servers — `context7`, `github`, `chrome-devtools` on every track; `railway-mcp-server` on `csr-*`/`ssr-*`/`full`; `supabase` on `csr-supabase`/`full`. Merged with yours |
+| `.gitignore` · `.env.example` | Ignore lines for agent artifacts and `.env` appended when `.gitignore` exists; an example env file on `csr-supabase` / `full` |
+| `AGENTS.md` · `.codex/` · `opencode.json` · `.agents/` | Only for the CLIs you selected (table above) |
+| `.github/workflows/` | Only with `--with ci-scaffold`. Never overwrites an existing workflow file |
 
----
+`list` shows the root files it created or merged, so you can tell which ones were yours before the install.
 
-## Hooks
+### Hooks
 
-`.claude/hooks/` scripts that run automatically on tool calls or session events.
-
-| Hook | When | Purpose |
+| Hook | When | What it does |
 |---|---|---|
-| `session-start.sh` | session start | Load SPEC / Change Log context |
-| `protect-files.sh` | PreToolUse Write/Edit | Block edits to protected paths |
+| `session-start.sh` | session start | Points the agent at your spec and change log |
+| `protect-files.sh` | before Write/Edit | Blocks edits to `.env*` (except `.example`/`.sample`/`.template`), lock files, and certificate/key files |
 
-`protect-files.sh` is the only hook that blocks, and it appends one tab-separated line —
-`date · hook · target` — to `.uzys-agent-harness/hook-blocks.log` every time it exits 2. A failed
-write never changes the block itself. `uninstall` removes that directory, so the log goes with it.
+`protect-files.sh` is the only hook that blocks anything. Each time it blocks an edit, it appends one tab-separated line — date, hook, target — to `.uzys-agent-harness/hook-blocks.log`. If that log line cannot be written, the edit is still blocked. These hooks are Claude Code's. Codex receives `session-start.sh` ported into `.codex/hooks/`; the file-protection hook does not reach it, because Codex's hook API cannot intercept file edits ([ADR-002](decisions/ADR-002-codex-hook-gap.md)) — on Codex the `.env` protection is a rule, not a block. OpenCode and Antigravity have no hook mechanism the harness writes to.
 
-An MCP allowlist hook shipped until v26.146.1 and was removed in ADR-072: gating every MCP call
-works against the point of the harness, which is to help you build with these tools rather than
-to stand between you and them. If you had one, `update` backs up and retires `.mcp-allowlist`.
+Install and update both remove any `settings.json` hook entry whose script file is missing, and note it in the summary. A hook pointing at a missing file would otherwise fail on every edit.
 
----
+### Slash commands
 
-## Codex integration
+The harness writes no slash commands. It installs rules, agents, hooks, and skills, and your CLI decides when to load a skill from its description, so for most of it there is nothing to type. Slash commands come from the plugins and skill packs you pick at step 3. Run `/help` in Claude Code for an up-to-date list of the commands your plugins added — that list cannot go stale. The ECC plugin (`--with ecc-plugin`) installs under the name `ecc`, so its commands appear as `/ecc:…`.
 
-The `AGENTS.md` file at project root is the Codex equivalent of `CLAUDE.md` — a fill-in scaffold, same as `CLAUDE.md`. Project `.agents/skills/` are dev-method skills shared with Antigravity (one file serves both CLIs).
+### Trust tiers
 
----
+Every external asset carries a tier. Step 3 shows two of the three as a badge:
 
-## OpenCode integration
+- **`★ official`** — Anthropic-official marketplaces and this harness's own assets.
+- **vetted** — 1,000+ GitHub stars, not archived, install path verified. **No badge.** Whether it is pre-checked depends on the asset's condition, not its tier — most vetted assets are opt-in.
+- **`⚠ experimental (opt-in)`** — under 1,000 stars. Never pre-checked, sorted to the bottom of its category; you add it deliberately with a check or `--with`.
 
-An OpenCode install writes:
-
-- `.agents/skills/<id>/SKILL.md` — the method skills, the same files Codex and Antigravity get.
-  OpenCode reads that directory natively (measured 1.18.23), and the skills also show up in its
-  command list, so slash access survives. No `.opencode/` directory is created
-- `opencode.json` — config. The harness only injects MCP servers here; the `instructions` globs stay
-  as shipped and point at your own `docs/`, not at anything the harness wrote
-- `AGENTS.md` — shared with Codex. **This is what carries the rules** for OpenCode
-
-**No hooks.** The three baseline hooks are Claude Code's lifecycle events, and nothing is written
-for OpenCode in their place — so an OpenCode-only project gets the rules and the method skills, but
-none of the programmatic guards.
+Tiers inform; they never block. A monthly CI job re-reads star counts and archive status and fails if a label no longer matches; another re-runs every install command.
 
 ---
 
-## Antigravity integration (v26.66.0+)
+## Keeping it current
 
-Google Antigravity 2.0 (I/O 2026-05-19) — `agy` CLI + desktop IDE. uzys-agent-harness writes:
+### `update`
 
-- `.agents/rules/` — project context (full CLAUDE.md embedded). **Always written** when `--cli antigravity` (the Antigravity equivalent of CLAUDE.md / AGENTS.md). v26.69.0+.
-- `.agents/skills/<id>/SKILL.md` — dev-method skills in Anthropic format (shared with Codex; one file serves both CLIs).
+```bash
+npx -y @uzysjung/agent-harness update [--only <group>]... [--project-dir <path>]
+```
 
-Rules are written regardless (foundational context); dev-method skills are core on dev tracks.
+Brings what is installed to the release you invoke:
 
-> **Verification status (2026-05-31)**: file layout is **structurally verified** against real `agy 1.0.3` in Docker (`test/docker/run-realcli.sh antigravity`) — `.agents/rules` + `.agents/skills/<id>/SKILL.md` written correctly per Antigravity's documented workspace spec. **Runtime recognition** in a logged-in `agy` session (does a skill load) is **not yet automated** — `agy --print` is Google-OAuth-gated and TUI commands require a TTY. Manual confirmation in a logged-in session is recommended.
+- **Refreshes** every policy file the harness installed — rules, agents, hooks, skills, the anchor, and the Codex / OpenCode / Antigravity output.
+- **Adds** skills and other file assets that a newer release introduced, and restores harness files that went missing. The summary lists both separately.
+- **Reports** what it cannot add on its own. A new hook, for example, needs an entry in `settings.json`, which `update` does not rewrite — so it is listed as *needs reinstall* rather than installed half-way.
+- **Names** renamed or retired skills still sitting in `.claude/skills/`, and says which ones are safe to delete. It never deletes a skill directory for you.
 
----
+It never installs a CLI you did not choose, and it runs without prompting, so it is safe to run from CI. One caveat: a bundled skill you dropped with `--without` at install time is not remembered, so `update` brings it back — delete the directory again, or track this in issue #505. It copies `.claude/` to `.claude.backup-<ts>` first and exits `1` if there is no install to update.
 
-## ECC integration
+`--only` limits it to a group, repeatable: `skills` · `new-skills` · `rules` · `anchor` · `hooks` · `external`. The wizard's **Update policy files** action offers the same groups as a checklist.
 
-ECC lives in `affaan-m/everything-claude-code`. There are two ways it reaches your project, and
-they are mutually exclusive by design:
+### What happens to files you edited
 
-- **Cherry-picked copies** (what you get when you do *not* opt into ECC): up to 7 skills are
-  copied into `.claude/` as ordinary files. "Up to" because every one of them is gated on track —
-  a `tooling` project gets none, a `full` one gets all 7. No agents are cherry-picked any more
-  (ADR-090 retired the last two).
-- **The plugin itself** (`--with ecc-plugin`): 60 agents · 230 skills · 75 commands, installed by
-  `claude plugin install ecc@ecc`. Pick ECC **at install time** and those 7 skills are never
-  copied, so you don't carry two versions of the same skill. Add `--with-prune` to trim the
-  plugin to a curated subset.
+The harness keeps a checksum of every file it writes, so `install` and `update` can tell an untouched file from one you changed:
 
-> **Turning ECC on later does not remove copies you already have.** The gate decides what gets
-> *written*; nothing deletes what an earlier run wrote. Measured on a `full`-track project: install
-> without ECC, then either `install --with ecc-plugin` over it (add) or `update` — every copy an
-> earlier run wrote is still in `.claude/`, and you do carry two versions until you delete them
-> yourself. `uninstall
-> --only` cannot do it either: it works from the install log's catalog assets, and these are
-> baseline files. A fresh install with ECC selected is the one path where the sentence above holds.
+- **Untouched** → replaced with the newer version, silently.
+- **Edited by you** → your version is saved as `<file>.backup-<ts>` and the newer version takes its place. The summary shows the count and writes the list to `.uzys-agent-harness/update-backups.json`. To carry your edits onto the new version, ask the `audit-harness-fit` skill to re-apply them from the backup.
+- **No checksum on record** (installed before checksums existed) → anything that differs is backed up once; later runs are precise.
 
-See [decisions/ADR-019-cherry-pick-plugin-gating.md](./decisions/ADR-019-cherry-pick-plugin-gating.md).
+`update` is more careful about deleting than about replacing: it deletes a policy file only when the record proves the harness installed it. That is how a retired rule is cleaned up without touching a rule *you* wrote. Inside a skill directory, files that are not part of the current bundle are removed; they are backed up first unless they are exactly what the harness originally wrote. This keeps old, unused files from piling up in a skill.
 
----
+### Installing into an existing project
 
-## Track-specific notes
+The harness never silently overwrites your config. Before replacing an editable file whose contents differ, it writes a timestamped backup next to it and prints the path in the summary. Nothing you wrote or edited is deleted without a backup beside it.
 
-Asset-by-asset, per track, is [TRACKS.md](TRACKS.md)'s job. Here are only the things that surprise
-people.
-
-### CSR / SSR
-
-- **No deploy CLI is pre-checked**, on any track. `supabase-cli`, `vercel-cli`, and `netlify-cli`
-  each pull in a CLI package — a project `devDependency` by default, or a global binary under
-  `--scope global` — so you pick the one your project actually deploys to, at step 3 or with
-  `--with <id>`. `csr-supabase` still pre-checks the Supabase *skills*
-  (`supabase-agent-skills`, `postgres-best-practices`).
-- Those two are plugins, and **`claude plugin install` writes to `~/.claude/plugins/` in either
-  scope** — the cache and marketplace directories are the CLI's own design. `--scope project` isolates
-  by metadata (`projectPath`), not by staying out of your home directory. Project scope means *no
-  other project is affected*, not *nothing outside this project is written*.
-- The first `supabase login` is an OAuth browser flow. Nothing automates that for you.
-- `ssr-htmx` keeps it server-side — no React assets.
-
-### Data
-
-`anthropic-data-plugin` (visualization + SQL) is the only **data-specific** asset the `data` track
-pre-checks — the rest of what arrives is the all-track set (method skills, `find-skills`,
-`frontend-design`; `agent-browser` is opt-in since #489). The dataframe and Python skill packs the track used to pull in
-were dropped in ADR-060, where the harness stopped shipping guidance the model already carries.
-`wshobson-agents` covers the orchestration side and is opt-in on any track.
-
-### Executive
-
-`anthropic-document-skills` (pptx / docx / xlsx / pdf) is the only **business-specific** pre-check,
-and the `strategist` agent handles proposals, due diligence, and financial models. `finance-skills`
-and `product-skills` are opt-in — on any track, not just this one.
-
-### Tooling
-
-Bash + Markdown meta-projects. No app stack, and the method skills work the same for a CLI tool as
-for an app.
+| You already have… | What happens |
+|---|---|
+| `.claude/settings.json` with your own hooks or statusLine | Backed up to `settings.json.backup-<ts>`, then merged |
+| Root `CLAUDE.md` | Kept. One import block is appended; `update` and `uninstall` touch only that block |
+| `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
+| `.claude/` on the wizard's **Reinstall** | Renamed to `.claude.backup-<ts>`, then rebuilt |
+| `.mcp.json` | Your servers are preserved and merged |
+| A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
+| A rule or hook **you wrote yourself** | Left alone |
+| `.opencode/commands/<id>.md` from an old OpenCode install | Backed up, then retired — OpenCode now reads `.agents/skills/` directly |
 
 ---
 
-## Migration notes
+## Seeing and removing what was installed
 
-### v26.135.0 — Install log moved out of `.claude/`
+### `list`
 
-The install log now lives at `.uzys-agent-harness/.harness-install.json`. It records what the
-harness installed for **every** CLI, so keeping it under `.claude/` meant an OpenCode-only or
-Codex-only install created a `.claude/` directory containing nothing but that one file ([#253]).
+```bash
+npx -y @uzysjung/agent-harness list
+```
 
-Nothing to do on your side: the old location is still read, and the next `install` / `update` /
-`uninstall --only` moves the file and removes the old copy. `uninstall` removes the new directory
-too. If you had a `.claude/` that existed *only* because of the log, it disappears on the next
-install — that directory was the bug.
+Read-only. Shows when the project was set up, the chosen tracks and CLIs, the installed assets with their scope, the template directories, and the root files the install created or merged. The asset ids it prints are what `uninstall --only` takes.
 
-[#253]: https://github.com/uzysjung/uzys-agent-harness/issues/253
+### `uninstall`
 
-### v26.64.0 — Project-scope default (BREAKING)
+```bash
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
+```
 
-- All install assets now default to project scope. `~/.claude/skills/`, `~/.codex/`, `~/.opencode/`, `npm -g` untouched unless you opt in.
-- `npm-global` assets (vercel / supabase / netlify-cli / agent-browser) now install as `--save-dev` by default.
+Run it with no flags in a terminal and it opens an interactive menu. First you choose *pick items* (templates stay) or *remove everything*; if you pick items, a checklist follows where each row says exactly what removing it will do. Nothing happens until you confirm, and selecting nothing exits without changes. The menu is skipped when a flag already says what you want — `--only`, `--dry-run`, `--yes` — or when there is no terminal.
 
-### v26.42.0 — addy-agent-skills opt-in (BREAKING)
+| Flag | What |
+|---|---|
+| `--dry-run` | Print the reverse steps, change nothing |
+| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/` |
+| `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Templates untouched; the record keeps the rest |
+| `--yes` | Skip the picker and remove everything |
 
-`addyosmani/agent-skills` is no longer auto-installed. Use `--with addy-agent-skills` or check at step 3.
+What it can and cannot reverse:
+
+- **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`, skill directories).
+- **Harness files** — `.claude/` and `.codex/` are removed; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
+- **Global-scope assets** — listed for you to remove by hand.
+- **Assets with no automated reverse** (`npx-run`, `shell-script` kinds) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
+- **Root files** — `.mcp.json`, `.gitignore`, `.env.example`, `.github/workflows/` are **listed and left in place**, labelled created or merged, because your own content may be in them.
+
+Only assets that were actually removed leave the record; a failed removal stays listed. If nothing could be removed, the command says so and exits with an error code.
+
+---
+
+## Workflow bundles and ECC
+
+Workflow packs (`superpowers`, `ecc-plugin`, `openspec`, `bmad-method`, `addy-agent-skills`, `wshobson-agents`, `feature-dev`) are all opt-in — pick them at step 3 or with `--with`. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't need one.
+
+ECC (`affaan-m/everything-claude-code`) reaches a project in one of two ways, and they exclude each other by design. Without the plugin, up to seven of its skills are copied into `.claude/skills/` as ordinary files, depending on your track (a `tooling` project gets none, `full` gets all seven). With `--with ecc-plugin`, the plugin itself is installed and those copies are skipped, so you never carry two versions. `--with-prune` trims the plugin to a curated subset. Enabling the plugin *later* does not remove copies an earlier run wrote — delete them yourself to keep a single source. Background: [ADR-019](decisions/ADR-019-cherry-pick-plugin-gating.md).
+
+---
+
+## Track notes
+
+Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises here:
+
+- **No deploy CLI is pre-checked on any track.** `supabase-cli`, `vercel-cli`, and `netlify-cli` each install a CLI package (a `devDependency` by default, a global binary under `--scope global`), so pick the one your project deploys to. `csr-supabase` still pre-checks the Supabase *skills*.
+- **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`, plus the bundled `python-patterns` and `python-testing` skills; the rest is the dev-track set (method skills, `find-skills`, `frontend-design`).
+- **`executive`** pre-checks `anthropic-document-skills`, brings the `strategist` agent, and installs the bundled `market-research`, `investor-materials`, and `investor-outreach` skills. `finance-skills` and `product-skills` are opt-in on any track.
+- **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app.
+- `ssr-htmx` stays server-side — no React assets.
 
 ---
 
 ## Troubleshooting
 
-### `npm warn Unknown project config` during install
+**`npm warn Unknown project config` during install** — harmless. Your `.npmrc` has pnpm-specific keys that npm ignores. Add `--loglevel=error` to hide the warning.
 
-Harmless. Your `.npmrc` has pnpm-specific keys (`auto-install-peers`, etc.) that npm doesn't recognize. Install behavior is unaffected.
+**Plugin assets skipped with a warning** — the `claude` command was not found on your PATH. Install Claude Code first, then run the installer again with `--with <id>` for each plugin you wanted.
 
-Suppress with `--loglevel=error` if needed.
+**Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-### `Invalid agents: claude`
-
-skills CLI ≥ 1.5.7 requires repeatable `--agent` (not comma-separated). The harness already does this correctly; if you see it, you may be on a pre-v26.55.1 install. Re-run the latest harness.
-
-### Plugin install fails (`marketplace not found`)
-
-Usually means the marketplace was already added and skipping silently. Plugin install retries regardless. If the plugin itself fails, check `~/.claude/plugins/installed_plugins.json` for stale entries.
+**`update` says a hook needs reinstall** — run the wizard and choose **Reinstall**, or run `install --track <your track>` again. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 
-## Advanced
+## Further reading
 
-- [docs/NORTH_STAR.md](./NORTH_STAR.md) — design principles
-- [docs/REFERENCE.md](./REFERENCE.md) — per-track asset matrix in detail
-- [docs/decisions/](./decisions/) — architecture decision records (ADRs)
-- [scripts/sync-cherrypicks.sh](../scripts/sync-cherrypicks.sh) — internal sync tool for upstream cherry-picks (maintainers only)
+- [CONTEXT-FILES.md](CONTEXT-FILES.md) — which context file is yours and which is the harness's
+- [REFERENCE.md](REFERENCE.md) — maintainer catalog: install methods, MCP servers, agents, scripts
+- [NORTH_STAR.md](NORTH_STAR.md) — why the harness is shaped this way
+- [decisions/](decisions/) — architecture decision records
