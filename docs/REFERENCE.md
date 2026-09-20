@@ -87,7 +87,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 모델 열은 없다 — 각 파일의 frontmatter 가 SSOT 다. 일상 코드 리뷰·보안 리뷰 전용 에이전트는 두지
 않는다: Claude Code 의 `/code-review` · `/security-review`, Codex 의 `codex review` 가 벤더 기본으로 같은
 일을 한다(ADR-089). 은퇴한 에이전트 id 는 `RETIRED_AGENTS` 에 대안과 함께 남아 있어 `update` 화면이
-설치본에 남은 옛 파일을 식별해 안내할 수 있다(ADR-090). 
+설치본에 남은 옛 파일을 식별해 안내할 수 있다(ADR-090).
 
 ## 6. 스킬
 

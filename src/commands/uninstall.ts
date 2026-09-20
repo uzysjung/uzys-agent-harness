@@ -115,7 +115,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // 하나만 빼려던 사용자가 templates 까지 잃는다. 무응답보다 명시적 거절이 안전하다.
   if (options.only !== undefined && selectedIds === null) {
     err(status.failure(c.red("ERROR: --only 에 자산 id 가 없다")));
-    err(c.dim("       예: --only code-review  (id 는 `agent-harness list` 에서 확인)"));
+    err(c.dim("       예: --only openspec  (id 는 `agent-harness list` 에서 확인)"));
     exit(1);
     return;
   }

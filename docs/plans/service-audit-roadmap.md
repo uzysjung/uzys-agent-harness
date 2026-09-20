@@ -161,7 +161,7 @@
 
 **목표:** 카탈로그(현 50 자산 — #492 ADR-093 외부 자산 11종 퇴역 · ECC 축 제거. 그 전 #452 ADR-090 verification-loop 은퇴. 그 전 #428 humanize-korean → natural-korean 개명. 그 전 #355 humanize-korean 추가. 그 전 #353 self-hosted-github-runner 추가. 그 전 2026-08-17 game-engine · game-studios 추가. 그 전 2026-08-16 preline 추가. 그 전 2026-08-02 ADR-060 정비에서 축B 의 큰 몫이 실행됨: 12종 제거. 함께 갔던 uzys 스킬 외부화는 같은 날 ADR-062 가 이관 실패 판정으로 번복·번들 복원)를 양방향 audit — (축A) 빠진 가치자산 없는지(Visual & Media 용도별 확장 리서치) + (축B) 남을 가치 없는 자산 없는지(전수 유지가치 재검토). "넣자"는 쉽고 "빼자"는 안 해 쌓이는 큐레이션 부패 방지.
 
-**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 60 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
+**완료 판정:** (1) Visual & Media 용도별(슬라이드/다이어그램/모션/동영상/녹화) 추가 후보표 갱신 + Docker 실설치 통과분만 등재(no-false-ship). (2) 50 자산 각각 keep/demote/drop 판정표 + 실측근거(추정 금지). (3) drop 판정 = Major CR(사용자 도달경로 변경)→사용자 결정+ADR.
 
 | P | E | 항목 | 출처 |
 |---|---|------|------|

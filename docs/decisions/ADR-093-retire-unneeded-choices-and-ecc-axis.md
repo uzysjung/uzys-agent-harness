@@ -1,8 +1,8 @@
 # ADR-093: 최신 모델 기준으로 불필요한 선택지 퇴역 — 외부 자산 11종 · ECC 축 · ECC 발췌 스킬 7종
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-20
-- PR: #TBD
+- PR: #507
 - Supersedes: ADR-019(cherry-pick ↔ plugin 게이팅)의 ECC 축 · ADR-021 큐레이션 세트 중 워크플로 4종 · ADR-039(feature-dev) · ADR-073 의 전제(ECC 플러그인 존속)
 
 ## Context
@@ -56,5 +56,8 @@
   줄었는지로 본다(이슈 원문).
 - 기존 설치본의 ECC 플러그인은 그대로 남는다 — 이 릴리즈는 그것을 지우지 않고, `uninstall` 로 사용자가 뺀다.
 - ADR-019 의 게이팅 축과 ADR-073 의 "플러그인이 명령을 제공한다" 전제는 더 이상 성립하지 않는다(Superseded 표기).
+- 이슈가 "기본 적용 축소 · 노출 축소 · 검증 후 결정"으로 보류한 5종 — `react-best-practices` · `postgres-best-practices` ·
+  `anthropic-data-plugin` · `jakubkrehel-skills` · `marketingskills` — 는 이번 범위 밖이다(condition 변경 0). 판정은
+  `docs/plans/service-audit-roadmap.md` M5 축B(카탈로그 전수 keep/demote/drop)로 넘긴다.
 - 문서(TRACKS · USAGE · REFERENCE · WORKFLOWS · COMPATIBILITY)의 해당 행·절을 함께 제거한다 — `doc-asset-ref-drift` 와
   `docs-supply-chain` 게이트가 누락을 잡는다.

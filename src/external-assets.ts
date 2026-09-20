@@ -644,7 +644,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "agentmemory",
     tier: "vetted", // rohitg00/agentmemory 21k
     description:
-      "AgentMemory — a separate memory server (MCP + hooks) that persists state across sessions. Check first whether your CLI's own memory and project records already cover it",
+      "AgentMemory — a separate memory server (MCP + hooks) that persists state across sessions; the runtime server is its own install (npx @agentmemory/agentmemory). Check first whether your CLI's own memory and project records already cover it",
     category: "understanding",
     source: "rohitg00",
     condition: { kind: "opt-in" },
@@ -734,7 +734,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "revealjs",
     tier: "experimental", // ryanbbrown/revealjs-skill 347 (<1000 → experimental, opt-in + 경고)
     description:
-      "reveal.js — HTML presentations with themes, code highlighting, and speaker notes, no build step. Experimental tier: under 1,000 stars",
+      "reveal.js — HTML presentations with themes, code highlighting, and speaker notes, no build step. Overlaps the other HTML deck assets; pick it when you specifically need reveal.js templates or compatibility",
     category: "visual-media",
     source: "ryanbbrown",
     condition: { kind: "opt-in" },
@@ -746,7 +746,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "supabase-agent-skills",
     tier: "vetted", // supabase/agent-skills 2.2k
     description:
-      "Supabase agent skills — auth, RLS, edge functions, realtime, and current docs (Supabase official). Only for projects on Supabase; pre-checked on csr-supabase",
+      "Supabase agent skills — auth, RLS, edge functions, realtime, and current docs (Supabase official). Only for projects on Supabase; pre-checked on csr-supabase and full",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },

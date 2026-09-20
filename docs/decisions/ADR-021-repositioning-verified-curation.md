@@ -1,6 +1,6 @@
 # ADR-021: 검증+보안 큐레이션으로 재포지셔닝 (설치 = 전달 메커니즘)
 
-- Status: Accepted
+- Status: Accepted — 부분 대체: 큐레이션 세트의 워크플로 4종(Superpowers · addy · wshobson · ECC)은 ADR-093 (2026-09-20, #492)에서 퇴역했다. "출처·설치 검증된 큐레이션" 이라는 포지셔닝 자체는 현행
 - Date: 2026-06-06
 - PR: #142 (merged 2026-06-06)
 - Supersedes: (없음 — NORTH_STAR Statement는 유지, 차별화 축 emphasis만 격상)
