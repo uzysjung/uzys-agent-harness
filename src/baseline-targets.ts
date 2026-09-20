@@ -15,6 +15,9 @@
  * (`installer.ts` categorize)와 같은 술어다.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { extractFrontmatter, resolveBundleRoot } from "./context-cost.js";
 import { type AssetSpec, buildManifest } from "./manifest.js";
 
 /** 사용자가 해제할 수 있는 baseline 자산 종류. */
@@ -31,6 +34,12 @@ export interface BaselineTarget {
   kind: BaselineKind;
   /** 사용자에게 보이는 이름 (`git-policy`, `reviewer`, `protect-files`, `north-star`). */
   name: string;
+  /**
+   * #421 — 위저드 행 옆의 한 줄 설명. 파일 자체에서 뽑는다(룰 = 제목 + 첫 문장 · 에이전트·스킬 =
+   * frontmatter description · 훅 = 머리 주석) — 여기 따로 적으면 파일이 바뀔 때 썩는다.
+   * `withBaselineHints` 가 채운다. 없으면 이름만 보인다.
+   */
+  hint?: string;
 }
 
 const PREFIX_BY_KIND: ReadonlyArray<[BaselineKind, string]> = [
@@ -110,4 +119,67 @@ export function isBaselineExcluded(target: string, excluded: ReadonlySet<string>
   if (excluded.size === 0) return false;
   const t = classifyBaselineTarget(target);
   return t !== null && excluded.has(t.id);
+}
+
+const HINT_MAX = 96;
+
+function clip(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > HINT_MAX ? `${t.slice(0, HINT_MAX - 1)}…` : t;
+}
+
+/**
+ * #421 — 대상 파일에서 한 줄 설명을 뽑는다. 사용자 관측: "Rule, Agent 에 대한 설명이 불친절" —
+ * 이름(`git-policy`)만으로는 체크를 풀지 말지 판단할 수 없었다.
+ */
+export function describeBaselineTarget(
+  t: BaselineTarget,
+  templatesDir: string = join(resolveBundleRoot(), "templates"),
+): string | undefined {
+  const file =
+    t.kind === "skills"
+      ? join(templatesDir, "skills", t.name, "SKILL.md")
+      : join(templatesDir, t.kind, `${t.name}.${t.kind === "hooks" ? "sh" : "md"}`);
+  if (!existsSync(file)) return undefined;
+  const content = readFileSync(file, "utf8");
+  if (t.kind === "agents" || t.kind === "skills") {
+    const fm = extractFrontmatter(content) ?? "";
+    const m = /^description:\s*(.+)$/m.exec(fm);
+    const raw = m?.[1]?.trim().replace(/^["']|["']$/g, "");
+    return raw ? clip(raw) : undefined;
+  }
+  if (t.kind === "hooks") {
+    // shebang 다음의 주석 줄들 — 첫 빈 줄이나 코드가 나오기 전까지
+    const lines = content.split("\n").slice(1);
+    const comment: string[] = [];
+    for (const l of lines) {
+      if (!l.startsWith("#")) break;
+      comment.push(l.replace(/^#\s?/, ""));
+    }
+    return comment.length > 0 ? clip(comment.join(" · ")) : undefined;
+  }
+  // rules — `# 제목` + 첫 본문 줄
+  const body = content.split("\n");
+  const heading = body
+    .find((l) => l.startsWith("# "))
+    ?.slice(2)
+    .trim();
+  const first = body
+    .slice(body.findIndex((l) => l.startsWith("# ")) + 1)
+    .find((l) => l.trim() !== "")
+    ?.replace(/^[-*]\s+/, "")
+    .replace(/\*\*/g, "");
+  if (!heading) return undefined;
+  return clip(first ? `${heading} · ${first}` : heading);
+}
+
+/** 목록 전체에 설명을 붙인다 — 위저드가 부른다. 파일이 없으면 그 행은 이름만 남는다. */
+export function withBaselineHints(
+  targets: ReadonlyArray<BaselineTarget>,
+  templatesDir?: string,
+): BaselineTarget[] {
+  return targets.map((t) => {
+    const hint = describeBaselineTarget(t, templatesDir);
+    return hint ? { ...t, hint } : t;
+  });
 }
