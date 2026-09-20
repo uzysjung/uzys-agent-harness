@@ -116,5 +116,40 @@ if [[ "${AFTER}" -ne "${BACKUPS}" ]]; then
 fi
 echo "✓ 재실행해도 백업 미증가 (${AFTER}건 유지) — 기준선이 갱신되고 있다"
 
+# --- 케이스 3 (#477): 번들에서 사라진 파일은 지운다 — 결과는 "지우고 다시 깐 것" 과 같다 ---
+# 옛 릴리즈가 깔았다가 이번 번들에서 빠진 파일을 흉내 낸다: 파일을 두고 그 sha 를 기준선에
+# 등록한다(= 하네스가 놓아둔 그대로). 실측 전례 = 26.152→26.153 의 clear-korean-communication/references/.
+SKILL_ID=$(basename "${TARGET_DIR}")
+LEGACY="${TARGET_DIR}/references/legacy-from-old-bundle.md"
+mkdir -p "$(dirname "${LEGACY}")"
+printf 'old bundle file\n' > "${LEGACY}"
+LEGACY_SHA=$(sha256sum "${LEGACY}" | cut -d' ' -f1)
+jq --arg p "${SKILL_ID}/references/legacy-from-old-bundle.md" --arg h "${LEGACY_SHA}" \
+  '.skillFiles += [{path: $p, sha256: $h}]' "${LOG}" > "${LOG}.tmp" && mv "${LOG}.tmp" "${LOG}"
+# 사용자가 직접 둔 파일(기준선 없음) — 지우되 백업이 남아야 한다
+printf 'my notes\n' > "${TARGET_DIR}/my-notes.md"
+
+run_update
+
+if [[ -e "${LEGACY}" ]]; then
+  echo "FAIL: 번들에서 사라진 파일이 update 뒤에도 남았다 (#477 재현)"
+  exit 1
+fi
+echo "✓ 번들에서 사라진 파일 삭제"
+if [[ -e "${TARGET_DIR}/my-notes.md" ]]; then
+  echo "FAIL: 번들에 없는 사용자 파일이 남았다 — 디렉터리 내용이 번들과 달라야 할 이유가 없다"
+  exit 1
+fi
+if ! ls "${TARGET_DIR}"/my-notes.md.backup-* >/dev/null 2>&1; then
+  echo "FAIL: 사용자 파일을 백업 없이 지웠다 (사용자 작업 소실)"
+  exit 1
+fi
+echo "✓ 사용자 파일은 백업 뒤 삭제"
+if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q 'not in bundle'; then
+  echo "FAIL: Update 요약에 삭제 행이 없다 (조용히 지우면 사용자는 파일이 왜 없어졌는지 모른다)"
+  exit 1
+fi
+echo "✓ Update 요약에 삭제 행 노출"
+
 echo ""
 echo "PASS: scenario-update-skills"
