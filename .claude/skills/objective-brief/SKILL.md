@@ -131,7 +131,7 @@ One shape means a worker never has to infer where the boundaries are stated, and
 delegation missing a field is visibly missing it.
 
 Where the `model-orchestration` skill is installed, its delegation-prompt spec is the routing-side
-authority (which model, which effort floor, who verifies). This template **carries** that spec
+authority (which model and effort, whether another context earns its cost, who verifies). This template **carries** that spec
 rather than competing with it — the mapping is one-to-one:
 
 | Delegation element | Brief field |
@@ -148,8 +148,8 @@ Two of those rows are the ones people drop, so state them explicitly:
 
 - **Resource limit is where model and effort live.** "One agent, opus, effort floor xhigh, no
   further fan-out" belongs here as a hard cap, not as an aside in prose. A cap that is not in the
-  brief is not a cap. Where `model-orchestration` is installed, take the floors from it; where it
-  is not, still name the model and effort you intend, because a worker that inherits an unstated
+  brief is not a cap. Where `model-orchestration` is installed, take the model and effort choice
+  from its allocation principles; where it is not, still name the model and effort you intend, because a worker that inherits an unstated
   level runs at whatever the session happened to be set to.
 - **리뷰어 위임형 is the lane split, written down.** Choosing it tells the worker that a different
   lane writes the tests and issues the verdict, so it must not spend the run self-certifying —

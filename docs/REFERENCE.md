@@ -164,7 +164,7 @@ uzysjung/uzys-agent-skills` 로 이관했던 것). 되돌린 이유는 본문 �
 | **audit-service-gaps** | 전 dev track | 북극성·결함·사용자관점 3렌즈로 갭 열거 → 레퍼런스가 어떻게 닫았는지 확인 후 제안 | ADR-062 복원 (구 gap-analysis-e2e) |
 | **multi-persona-review** | 전 dev track | 산출물 1개를 독립 페르소나 3~5인 병렬 리뷰 → P0/P1/P2 종합 | ADR-062 복원 |
 | **recurrence-prevention** | 전 dev track | 재발 검증 → 단순/복합 분류 → 대책 사다리 1단 상향(기록→룰→구조 게이트) | ADR-062 복원 |
-| **model-orchestration** | opt-in | 역할·effort 라우팅 정책, 위임 브리프 규격, 워커 수거·종료 계약 | ADR-062 복원 |
+| **model-orchestration** | opt-in | 모델·effort·위임 배분 원칙 — 컨텍스트 재사용 우선, 추가 워커·독립 리뷰는 기대 기여가 비용을 넘을 때만 | ADR-062 복원 · ADR-091 개정 |
 | **external-model-consult** | opt-in | 외부 모델 자문(한국어 표현·2차 의견·구조화·이미지). 래퍼 스크립트 2종 동반 | ADR-062 복원 (구 gemini-consult + codex-consult 통합) |
 | **compaction-handoff** | 전 dev track | /compact 직전 재개 앵커 1개로 상태 고정 | 이관 대상이 아니었다 |
 | **ui-visual-review** | csr-*/ssr-*/full | Playwright/chrome-devtools 스크린샷 캡처 → baseline diff → 에이전트 REGRESSION 분류 → Review Gate 차단 | v26.29.0 신규 |
