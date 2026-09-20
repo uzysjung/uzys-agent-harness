@@ -2,43 +2,32 @@
 
 > **갱신**: 2026-09-20 (★ 재측정) · 큐레이션 근거: ADR-021 · [`NORTH_STAR.md`](NORTH_STAR.md) · [`research/direction-research-2026-06-06.md`](research/direction-research-2026-06-06.md)
 >
-> agent-harness 의 핵심 역할은 **검증된 워크플로와 자산을 큐레이션**하는 것이다. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해 준다. **skill·rule 자산은 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 모두 설치**되지만, **plugin 계열(superpowers/ecc 등)은 Claude Code 에서만 쓸 수 있다.** Claude 를 선택하지 않은 설치에서는 플러그인 설치를 시도하지 않고 `EXCLUDED` 로 안내한다(ADR-031; 자산별 지원 CLI 는 `COMPATIBILITY.md` 의 CLI 열 참조). 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
+> agent-harness 의 핵심 역할은 **검증된 워크플로와 자산을 큐레이션**하는 것이다. "무엇이든 설치"가 아니라, AI 코딩 워크플로 시스템들을 **검증해서 고르게** 해 준다. **skill·rule 자산은 4개 CLI(Claude Code · Codex · OpenCode · Antigravity)에 모두 설치**되지만, **plugin 계열(security-guidance · Supabase 스킬 등)은 Claude Code 에서만 쓸 수 있다.** Claude 를 선택하지 않은 설치에서는 플러그인 설치를 시도하지 않고 `EXCLUDED` 로 안내한다(ADR-031; 자산별 지원 CLI 는 `COMPATIBILITY.md` 의 CLI 열 참조). 이 문서는 *어떤 워크플로를 골라야 하나*에 답한다.
 >
 > 마켓플레이스가 1개(2025-12)에서 8개(2026 Q2)로 늘어나면서 **"스킬을 찾기보다 비교하는 데 시간을 더 쓰는"** 문제가 생겼다. 이 가이드가 그 비교를 대신한다.
 
 ---
 
-## 한눈에 — 설치 가능 워크플로 (7)
+## 한눈에 — 설치 가능 워크플로 (2)
 
-설치 방법: 인터랙티브 위저드 3단계의 **Workflow & ECC Suite** 페이지에서 고르거나, `npx -y @uzysjung/agent-harness install --track <t> --with <id>` 를 실행한다. 전부 opt-in 이라 트랙이 미리 체크하지 않는다.
+설치 방법: 인터랙티브 위저드 3단계의 **Workflow** 페이지에서 고르거나, `npx -y @uzysjung/agent-harness install --track <t> --with <id>` 를 실행한다. 둘 다 opt-in 이라 트랙이 미리 체크하지 않는다.
 
-| 워크플로 | id | 출처 | ★ | Tier | 설치 | 한 줄 정체 |
+| 워크플로 | id | 출처 | ★ | Tier | 설치 | 언제 쓰나 |
 |---|---|---|---|---|---|---|
-| **Superpowers** | `superpowers` | obra → anthropics 공식 | 289k | official | plugin | agentic skills 프레임워크. `/spec /plan …`(no-namespace) |
-| **ECC** | `ecc-plugin` | affaan-m | 263k | vetted | plugin | 60 agents·230 skills·75 commands 종합 패키지(kitchen-sink) |
-| **OpenSpec** | `openspec` | Fission-AI | 70k | vetted | npm | **spec-driven brownfield delta**(propose→apply→archive) |
-| **BMAD-METHOD** | `bmad-method` | bmad-code-org | 53k | vetted | npx | **멀티-에이전트 애자일**(PM/Architect/Dev, 12+ agents) |
-| **addy agent-skills** | `addy-agent-skills` | addyosmani | 97k | vetted | plugin | general dev `/spec /plan` (경량) |
-| **wshobson agents** | `wshobson-agents` | wshobson | 40k | vetted | plugin | 멀티-에이전트 오케스트레이션(full-stack/tdd/review), cross-CLI |
-| **feature-dev** | `feature-dev` | anthropics 공식 | — | official | plugin | 가이드된 단일 기능 개발 루프(탐색→설계→구현)와 전용 에이전트 3종(architect/explorer/reviewer) |
+| **OpenSpec** | `openspec` | Fission-AI | 70k | vetted | npm | 기존 코드베이스를 **스펙과 델타(propose → apply → archive)** 로 바꾸는 팀 계약. 팀이 그 명세 체계를 실제로 채택했을 때 |
+| **BMAD-METHOD** | `bmad-method` | bmad-code-org | 53k | vetted | npx | **역할 고정 멀티에이전트 애자일**(PM / Architect / Dev). 팀 규모 전달에 한정하고, 핀된 6.9.0 은 전체 절차를 돈다 |
 
-> OpenSpec · BMAD · wshobson 은 3-에이전트 시장 리서치로 발굴해 검증 기준(★ 1,000 이상 · 활성 · 설치 가능)을 통과한 것이고(ADR-021), feature-dev 는 공식 마켓플레이스 큐레이션에서 왔다(ADR-039). feature-dev 의 ★ 가 비어 있는 이유는 마켓플레이스 모노레포 소속이라 단독 수치가 없기 때문이다.
+> ★ 는 GitHub `stargazers_count` 실측값으로 **측정일 2026-09-20**, 천 단위 반올림이다.
 >
-> ★ 는 GitHub `stargazers_count` 실측값으로 **측정일 2026-09-20**, 천 단위 반올림이다. 출처 저장소: obra/superpowers · affaan-m/ECC · Fission-AI/OpenSpec · bmad-code-org/BMAD-METHOD · addyosmani/agent-skills · wshobson/agents.
+> **2026-09-20 에 퇴역한 것(ADR-093 · #492)**: Superpowers · feature-dev · wshobson agents · addy agent-skills · ECC 플러그인. 공통 이유는 하나다 — 모델이 스스로 고를 수 있는 절차(브레인스토밍 호출 · 7단계 고정 · 단계 병합 금지 · 별도 방법론 체계 · 5-에이전트 고정 리뷰)를 미리 정해 두어 **방법 선택을 모델에게 맡기는 원칙과 반대로 작동**했다. 원본 저장소의 가치를 부정한 것이 아니라 이 하네스의 선택지에서 뺀 것이다. 이미 설치한 프로젝트는 `uninstall` 로 뺀다.
 
 ---
 
 ## 어떤 걸 골라야 하나 (의사결정)
 
-- **스킬/하위에이전트 프레임워크**로 능력을 확장 → **Superpowers**(공식, 가장 안전).
-- **다 깔고 골라쓰기**(에이전트·스킬·커맨드 대량) → **ECC**. 단 무겁다.
-- **기존 코드베이스(brownfield)를 스펙 기반으로 점진적으로 바꾸려면** → **OpenSpec**(delta 기반).
-- **애자일 팀 시뮬레이션**(PM→Architect→Dev 역할 분담) → **BMAD-METHOD**.
-- **`/spec`, `/plan` 같은 가벼운 슬래시 명령어**만 필요하면 → **addy agent-skills**.
-- **멀티-에이전트 오케스트레이션 + 다(多)CLI 일관성** → **wshobson agents**.
-- **가이드된 단일 기능 개발 루프**(탐색→설계→리뷰, 공식·경량) → **feature-dev**.
-
-> 여러 개를 함께 골라도 된다. 단, `/spec` 처럼 슬래시 명령어 이름이 겹칠 수 있으니 주의한다.
+- **지속되는 요구사항·변경 명세를 사람과 에이전트가 공유**해야 한다(brownfield · 다인 팀) → **OpenSpec**.
+- **역할 분담이 고정된 팀 시뮬레이션**(PM → Architect → Dev)이 필요하다 → **BMAD-METHOD**.
+- 그 밖의 경우 — 아래 표의 왼쪽 열 — 는 워크플로 묶음 없이 하네스 기본 설치로 충분하다.
 
 ---
 
@@ -87,7 +76,7 @@
 
 1. **검증(Trust Tier)** — official(Anthropic · 본 하네스) / vetted(★ 1,000 이상 · 활성) / experimental(★ 1,000 미만, opt-in). 등급의 SSOT 는 [`src/external-assets.ts`](../src/external-assets.ts) 의 각 자산 `tier` 이고, 매월 cron 이 ★ 변동을 감지한다(`trust-tier-drift.yml`).
 2. **설치 가능 + Node 모델 적합** — uv/Python 의존이나 대화형-전용은 자동설치 제외(추천만).
-3. **철학 차별 + 중복 회피** — 같은 엔진 re-wrapper, 기존 큐레이션 자산과 기능 중복(claude-flow/oh-my-claudecode 등)은 제외.
+3. **철학 차별 + 중복 회피** — 같은 엔진 re-wrapper, 기존 큐레이션 자산과 기능 중복(claude-flow/oh-my-claudecode 등)은 제외. **모델의 방법 선택을 대신하는 고정 절차 체계도 제외**(ADR-093).
 4. **라이선스** — permissive 우선. copyleft(GPL/AGPL)·Commons-Clause·proprietary 는 신중(현재 세트는 전부 MIT).
 5. **보안 vetting (ADR-021 wedge)** — Snyk "ToxicSkills" 가 skill 의 36%에서 prompt injection 발견. 자산 보안 스캔은 A 단계(`docs/COMPATIBILITY.md`)에서 공개 예정.
 

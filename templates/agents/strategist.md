@@ -84,3 +84,13 @@ model: opus
 - 경쟁사 분석 시 감정적 표현 금지 — 객관적 기능/성능 비교만
 - 재무 모델에서 비현실적 성장률(연 300%+) 무비판 사용 금지
 - 근거 없는 시장 규모 추정 금지
+
+## Evidence & Consistency Standards (moved from the retired market-research / investor-materials skills, #492)
+
+Apply to every research finding, proposal, deck, memo, or model:
+
+- **Every important claim carries a source and a date.** Prefer recent data; flag stale data explicitly. Numbers are either sourced or labelled as estimates.
+- **Every leap in logic states its assumption.** Market sizing shows the top-down source *and* a bottom-up sanity check from realistic acquisition assumptions.
+- **Include the contrarian evidence.** Downside cases, counterarguments, and reasons the thesis could be wrong go in the document, not only in the author's head.
+- **Separate fact, inference, and recommendation** — and make the recommendation follow from the evidence, so the reader can tell where the judgement starts.
+- **Investor-facing numbers stay consistent across assets.** One source of truth for each metric; definitions, assumptions, and periods match between the deck, the memo, and the model; use-of-funds and revenue layers sum cleanly. Unverifiable claims, fuzzy sizing without assumptions, and inflated certainty are defects.

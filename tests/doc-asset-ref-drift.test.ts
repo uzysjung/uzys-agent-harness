@@ -107,6 +107,9 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   // `@upstash/context7-mcp` 라는 패키지 문자열이 있어 부분 문자열 대조에 걸렸기 때문이다.
   // 정확 일치로 바꾸자 드러났고, 셋을 같은 자리에 적는 것이 맞다(라운드 2 MED-N5).
   ["upstash/context7-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  // skills CLI 자체 — 번들 스킬을 하네스 없이 받는 설치 도구다. `find-skills` 자산이 은퇴(#492)하면서 이
+  // 저장소가 카탈로그 출처에서 빠졌지만, README 가 도구로서 링크하는 것은 자산 주장이 아니다.
+  ["vercel-labs/skills", "skills CLI 도구 자체 — 카탈로그 자산 아님"],
 ]);
 
 /** 자산 id 로 오인될 수 있는 형태 — 소문자·숫자·하이픈만, 4자 이상. */

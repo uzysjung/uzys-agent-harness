@@ -10,7 +10,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 
 | Track | For |
 |---|---|
-| `base` | No stack chosen yet. Principles, method skills, and the testing rules — nothing stack-specific, and the dev-track tools (`frontend-design`, `find-skills`) are not pre-checked |
+| `base` | No stack chosen yet. Principles, method skills, and the testing rules — nothing stack-specific, and `frontend-design` is not pre-checked |
 | `csr-supabase` | Vite + React + Supabase |
 | `csr-fastify` | Vite + React + Fastify |
 | `csr-fastapi` | Vite + React + FastAPI |
@@ -36,7 +36,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 | **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
 | **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
 | **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` | — |
-| **Dev tools** | `find-skills` · `frontend-design` (all dev tracks except `base`) | — |
+| **Dev tools** | `frontend-design` (all dev tracks except `base`) | — |
 | **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-*`/`full`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
 
 The method skills are built into this repo — written and maintained here, bundled as templates, no separate download. They install as native skills on all four CLIs: Claude Code reads `.claude/skills/`, and Codex, OpenCode, and Antigravity read the same `.agents/skills/<id>/`. Each can be dropped with `--without <id>` — or installed alone, without the harness, with `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` ([how](USAGE.md#one-skill-without-the-harness)).
@@ -90,18 +90,9 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
 | `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency` (global binary under `--scope global`). Pick the one your project deploys to | opt-in |
 
-### Bundled stack skills
+### Bundled stack skill
 
-Eight more skills ship inside the harness and follow the track, not the catalog — they do not appear at step 3 and have no `--with` id:
-
-| Skill | Tracks |
-|---|---|
-| `ui-visual-review` · `e2e-testing` | `csr-*` · `ssr-*` · `full` |
-| `nextjs-turbopack` | `ssr-nextjs` · `full` |
-| `python-patterns` · `python-testing` | `data` · `csr-fastapi` · `full` |
-| `market-research` · `investor-materials` · `investor-outreach` | `executive` · `full` |
-
-All but `ui-visual-review` are cherry-picked from everything-claude-code and step aside when you install the ECC plugin ([usage guide](USAGE.md#workflow-bundles-and-ecc)).
+One more skill ships inside the harness and follows the track, not the catalog — it does not appear at step 3 and has no `--with` id: `ui-visual-review` on `csr-*` · `ssr-*` · `full` (screenshot capture, baseline diff, and a review gate for UI changes).
 
 ### Data and business
 
@@ -117,22 +108,15 @@ The `project-management` and `growth-marketing` tracks pre-check no external ass
 
 ### Dev tools, understanding, visual
 
-All opt-in, on any track: `code-review` · `security-guidance` · `trailofbits-skills` (review and security) — `agent-browser` · `claude-video` · `understand-anything` · `agentmemory` (understanding) — `frontend-slides` · `marp-slide` · `mermaid-diagrams` · `gsap-skills` · `remotion` · `ppt-master` · `ppt-generation` · `web-video-presentation` · `revealjs` (visual & media) — `game-engine` · `game-studios`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
+All opt-in, on any track: `security-guidance` · `trailofbits-skills` (security review) — `agent-browser` · `claude-video` · `understand-anything` · `agentmemory` (understanding) — `frontend-slides` · `marp-slide` · `gsap-skills` · `remotion` · `ppt-master` · `web-video-presentation` · `revealjs` (visual & media) — `game-engine`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
 
 ### Workflow bundles
 
-All opt-in. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't need one.
+Both opt-in. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't need one.
 
 | Asset | What | Source |
 |---|---|---|
-| `superpowers` | Agentic skills framework | obra, via the Anthropic official marketplace |
-| `ecc-plugin` | 60 agents · 230 skills · 75 commands — everything-claude-code | affaan-m |
-| `openspec` | Spec-driven changes to an existing codebase (propose → apply → archive) | Fission-AI |
-| `bmad-method` | Multi-agent agile workflow (PM / Architect / Dev) | bmad-code-org |
-| `addy-agent-skills` | `/spec` `/plan` `/build` `/test` `/review` `/ship` skills | addyosmani |
-| `wshobson-agents` | Multi-agent orchestration workflows, cross-CLI | wshobson |
-| `feature-dev` | Guided single-feature loop with explore / architect / review agents | Anthropic official marketplace |
+| `openspec` | Spec-driven changes to an existing codebase (propose → apply → archive) — a team contract, for teams that adopted it | Fission-AI |
+| `bmad-method` | Multi-agent agile workflow (PM / Architect / Dev) — for team-scale delivery with fixed roles | bmad-code-org |
 
 **CI scaffold** (`--with ci-scaffold`, this project): fill-in GitHub Actions templates — tag-triggered CI, a real-database service container, a coverage gate, Playwright E2E on UI tracks — matched to your tracks (node / python / both). The only asset that writes under `.github/`, and it never overwrites an existing workflow file; `uninstall` leaves `.github/` alone.
-
-**ECC** (`--with ecc-plugin`, `--with-prune`): see [the usage guide](USAGE.md#workflow-bundles-and-ecc) for how the plugin and the cherry-picked copies exclude each other.

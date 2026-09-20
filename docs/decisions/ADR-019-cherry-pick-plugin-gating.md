@@ -1,6 +1,6 @@
 # ADR-019: Cherry-pick × Plugin opt-out gating (C1/C2/C3 분류 체계)
 
-- **Status**: Accepted
+- **Status**: Superseded — by ADR-093 (2026-09-20, #492): ECC 플러그인과 발췌 스킬 7종이 모두 퇴역해 C1/C2/C3 게이팅 축 자체가 사라졌다
 - **Date**: 2026-05-17
 - **PR**: (pending v26.58.0)
 - **Supersedes**: ADR-016 의 cherry-pick gating 의미 (opposite 방향 정정)

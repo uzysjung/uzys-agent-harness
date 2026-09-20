@@ -70,7 +70,7 @@ AI 코딩 도구에 룰과 스킬을 쌓을수록 좋아지는 게 아니다. �
 
 - **룰** — git 정책 · 변경 관리 · 문서 · 테스트 · 출하 · CLI 개발에 관한 짧은 파일 6개. 개발 트랙은 5개, `tooling` 과 `full` 은 여섯째까지, 비즈니스 트랙은 어느 프로젝트에나 해당하는 3개를 받는다.
 - **훅** — Claude Code 에 2개. 하나는 세션 시작 때 스펙과 변경 이력을 읽어 오고, 하나는 `.env` · lock 파일 · 인증서 편집을 막는다. 이 둘째 훅이 하네스에서 유일하게 "안 된다"고 말하는 것이고, 막을 때마다 로그에 한 줄을 남긴다. Codex 는 세션 시작 훅만 받는다 — Codex 의 훅 API 는 파일 편집을 가로채지 못한다.
-- **스킬** — 이 리포에서 직접 쓰고 관리하는 방법론 스킬과, 트랙이 부르는 스택 스킬. 4종은 모든 트랙에 포함된다(`north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit`). 개발 트랙은 방법론 스킬 5종과 사고 대응 런북 하나를 더 받고, 스택이 있는 트랙에는 `find-skills` · `frontend-design` 과 스택별 스킬(예: `csr-supabase` 면 React · shadcn · Supabase · Postgres)이 설치된다. 번들 스킬 13종은 `--with` / `--without` 으로 이름을 지정할 수 있다.
+- **스킬** — 이 리포에서 직접 쓰고 관리하는 방법론 스킬과, 트랙이 부르는 스택 스킬. 4종은 모든 트랙에 포함된다(`north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit`). 개발 트랙은 방법론 스킬 5종과 사고 대응 런북 하나를 더 받고, 스택이 있는 트랙에는 `frontend-design` 과 스택별 스킬(예: `csr-supabase` 면 React · shadcn · Supabase · Postgres)이 설치된다. 번들 스킬 13종은 `--with` / `--without` 으로 이름을 지정할 수 있다.
 - **에이전트** — 모든 트랙에 독립 `reviewer`, 개발 트랙에 `implementer`, `data-analyst` 와 `strategist` 는 그것을 쓰는 트랙에만.
 - **작업 원칙 앵커** — CLI 가 매 세션 읽는 파일 하나. 내 `CLAUDE.md` 는 내 것으로 남고, 하네스는 import 한 줄만 얹고 나머지는 건드리지 않는다. 어느 파일이 누구 것인지: [docs/CONTEXT-FILES.md](docs/CONTEXT-FILES.md).
 

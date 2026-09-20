@@ -48,12 +48,11 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--project-dir <path>` | Where to install. Default: the current directory |
 | `--verbose` | Print every file per category instead of counts |
 
-Two flags select *behaviour* rather than an asset:
+One flag selects *behaviour* rather than an asset:
 
 | Flag | Effect |
 |---|---|
 | `--with-codex-trust` | Codex only: register a trust entry in `~/.codex/config.toml`. Takes effect **only with `--scope global`** |
-| `--with-prune` | With `--with ecc-plugin`: trim the ECC plugin to a curated subset |
 
 Everything else is `--with` / `--without` by catalog id; there are no per-asset flags. `npx -y @uzysjung/agent-harness install --help` prints the full list. If you install the package globally with npm, the same commands are available as `agent-harness …`.
 
@@ -139,7 +138,7 @@ Install and update both remove any `settings.json` hook entry whose script file 
 
 ### Slash commands
 
-The harness writes no slash commands. It installs rules, agents, hooks, and skills, and your CLI decides when to load a skill from its description, so for most of it there is nothing to type. Slash commands come from the plugins and skill packs you pick at step 3. Run `/help` in Claude Code for an up-to-date list of the commands your plugins added — that list cannot go stale. The ECC plugin (`--with ecc-plugin`) installs under the name `ecc`, so its commands appear as `/ecc:…`.
+The harness writes no slash commands. It installs rules, agents, hooks, and skills, and your CLI decides when to load a skill from its description, so for most of it there is nothing to type. Slash commands come from the plugins and skill packs you pick at step 3. Run `/help` in Claude Code for an up-to-date list of the commands your plugins added — that list cannot go stale.
 
 ### Trust tiers
 
@@ -229,18 +228,16 @@ What it can and cannot reverse:
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`, skill directories).
 - **Harness files** — `.claude/` and `.codex/` are removed; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
 - **Global-scope assets** — listed for you to remove by hand.
-- **Assets with no automated reverse** (`npx-run`, `shell-script` kinds) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
+- **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
 - **Root files** — `.mcp.json`, `.gitignore`, `.env.example`, `.github/workflows/` are **listed and left in place**, labelled created or merged, because your own content may be in them.
 
 Only assets that were actually removed leave the record; a failed removal stays listed. If nothing could be removed, the command says so and exits with an error code.
 
 ---
 
-## Workflow bundles and ECC
+## Workflow bundles
 
-Workflow packs (`superpowers`, `ecc-plugin`, `openspec`, `bmad-method`, `addy-agent-skills`, `wshobson-agents`, `feature-dev`) are all opt-in — pick them at step 3 or with `--with`. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't need one.
-
-ECC (`affaan-m/everything-claude-code`) reaches a project in one of two ways, and they exclude each other by design. Without the plugin, up to seven of its skills are copied into `.claude/skills/` as ordinary files, depending on your track (a `tooling` project gets none, `full` gets all seven). With `--with ecc-plugin`, the plugin itself is installed and those copies are skipped, so you never carry two versions. `--with-prune` trims the plugin to a curated subset. Enabling the plugin *later* does not remove copies an earlier run wrote — delete them yourself to keep a single source. Background: [ADR-019](decisions/ADR-019-cherry-pick-plugin-gating.md).
+Two opt-in workflow packs remain in the catalog, `openspec` and `bmad-method` — pick them at step 3 or with `--with`. [WORKFLOWS.md](WORKFLOWS.md) says what each is for and when you don't need one. Earlier releases also offered a set of fixed-procedure workflow plugins and an ECC plugin bundle; they were retired in v26.159.0 because they replaced the model's judgement with fixed steps ([ADR-093](decisions/ADR-093-retire-unneeded-choices-and-ecc-axis.md)). A project that installed them keeps them until you run `uninstall`.
 
 ---
 
@@ -249,8 +246,8 @@ ECC (`affaan-m/everything-claude-code`) reaches a project in one of two ways, an
 Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises here:
 
 - **No deploy CLI is pre-checked on any track.** `supabase-cli`, `vercel-cli`, and `netlify-cli` each install a CLI package (a `devDependency` by default, a global binary under `--scope global`), so pick the one your project deploys to. `csr-supabase` still pre-checks the Supabase *skills*.
-- **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`, plus the bundled `python-patterns` and `python-testing` skills; the rest is the dev-track set (method skills, `find-skills`, `frontend-design`).
-- **`executive`** pre-checks `anthropic-document-skills`, brings the `strategist` agent, and installs the bundled `market-research`, `investor-materials`, and `investor-outreach` skills. `finance-skills` and `product-skills` are opt-in on any track.
+- **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills, `frontend-design`).
+- **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` and `product-skills` are opt-in on any track.
 - **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app.
 - `ssr-htmx` stays server-side — no React assets.
 

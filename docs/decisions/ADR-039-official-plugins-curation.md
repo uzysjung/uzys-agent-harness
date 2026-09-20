@@ -1,6 +1,6 @@
 # ADR-039: 오피셜 플러그인 큐레이션 배치 — 3종 opt-in + context7·claude-md-management 미등록
 
-- Status: Accepted
+- Status: Accepted — 부분 대체: `feature-dev` · `code-review` 는 ADR-093 (2026-09-20, #492)에서 퇴역했다. `security-guidance` 는 현행
 - Date: 2026-07-18
 - PR: #223
 - Context: 사용자 제안(2026-07-18) — claude-plugins-official 의 고설치 플러그인 6종

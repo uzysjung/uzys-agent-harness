@@ -181,7 +181,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "anthropic-data-plugin",
     tier: "official", // anthropics/knowledge-work-plugins 18k
-    description: "Anthropic data plugin (visualization, SQL exploration)",
+    description:
+      "Anthropic data plugin — SQL exploration, analysis, and visualization workflows. Installing it does not connect your warehouse; that is a separate MCP setup",
     category: "data",
     source: "anthropics",
     condition: { kind: "any-track", tracks: ["data", "full"] },
@@ -400,7 +401,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // v26.75.0 (ADR-021) — `npm i --save-dev @fission-ai/openspec` 후 `openspec init` 로 슬래시 주입.
     id: "openspec",
     tier: "vetted", // Fission-AI/OpenSpec 53k
-    description: "OpenSpec — spec-driven brownfield delta workflow (propose → apply → archive)",
+    description:
+      "OpenSpec — spec-driven change workflow for an existing codebase (propose → apply → archive). Use when your team has adopted a shared spec-and-delta process; it is a collaboration contract, not a coding aid",
     category: "workflow",
     source: "fission-ai",
     condition: { kind: "opt-in" },
@@ -411,7 +413,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // directory" 프롬프트에서 hang (Docker realcli 검출). cwd(=project) 기준 `.` 지정으로 봉합.
     id: "bmad-method",
     tier: "vetted", // bmad-code-org/BMAD-METHOD 48k
-    description: "BMAD-METHOD — multi-agent agile workflow (PM/Architect/Dev, 12+ agents)",
+    description:
+      "BMAD-METHOD — multi-agent agile workflow (PM / Architect / Dev roles). Use for team-scale delivery with fixed roles; the pinned 6.9.0 still runs the full ceremony, so skip it for solo or small changes",
     category: "workflow",
     source: "bmad-code-org",
     condition: { kind: "opt-in" },
@@ -435,7 +438,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "railway-skills",
     tier: "experimental", // railwayapp/railway-skills 268
-    description: "Railway agent-skills (deploy + project/service/env management)",
+    description:
+      "Railway skills — deploy and manage projects, services, and environments on Railway. Only for projects hosted on Railway; it drives a real account",
     category: "backend",
     source: "railwayapp",
     // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
@@ -451,7 +455,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "vercel-cli",
     tier: "vetted", // vercel/vercel 15k
-    description: "Vercel CLI (npm)",
+    description:
+      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel",
     category: "backend",
     source: "vercel",
     // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
@@ -463,7 +468,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     //   (vercel 2.79M vs netlify 276k /주, 2026-07-18) → vercel 만 기본, netlify 는 opt-in.
     id: "netlify-cli",
     tier: "vetted", // netlify/cli 1.9k
-    description: "Netlify CLI (npm)",
+    description:
+      "Netlify CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Netlify",
     category: "backend",
     source: "netlify",
     condition: { kind: "opt-in" },
@@ -472,7 +478,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "supabase-cli",
     tier: "vetted", // supabase 103k
-    description: "Supabase CLI (npm) — first 'supabase login' requires OAuth",
+    description:
+      "Supabase CLI — the real Supabase tool as a devDependency (global under --scope global); first `supabase login` opens an OAuth browser flow. Only if this project uses Supabase",
     category: "backend",
     source: "supabase",
     // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
@@ -495,7 +502,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "frontend-design",
     tier: "official", // anthropics/skills (Anthropic 저자, ★171.5K — 2026-08-26 gh api 실측)
     description:
-      "frontend-design — distinctive production-grade UI generation (Anthropic official, avoids generic AI aesthetics)",
+      "frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system",
     category: "frontend",
     source: "anthropics",
     condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
@@ -508,7 +515,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "jakubkrehel-skills",
     tier: "vetted", // jakubkrehel/skills 2,602 (2026-08-02)
     description:
-      "Better-* interface suite — 7 skills reviewing/improving UI detail, typography, OKLCH color, accessibility, layout, and UX writing, one concern per skill",
+      "Better-* interface suite — one skill per concern: typography, OKLCH color, accessibility, layout, UX writing, component states. Add when you need a specific UI review, not as a default",
     category: "frontend",
     source: "jakubkrehel",
     condition: { kind: "opt-in" },
@@ -521,7 +528,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "taste-skill",
     tier: "vetted", // Leonxlnx/taste-skill 70,078 (2026-08-02)
     description:
-      "Anti-slop frontend design — removes the boilerplate look of AI-generated UI; infers a design language and tunes VARIANCE/MOTION/DENSITY, with minimalist/brutalist/high-end style variants",
+      "taste-skill — tunes the look of landing pages, portfolios, and redesigns (variance · motion · density). Not for dashboards or multi-step product UI",
     category: "frontend",
     source: "Leonxlnx",
     condition: { kind: "opt-in" },
@@ -536,7 +543,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "scroll-world",
     tier: "vetted", // oso95/scroll-world 6,863 (2026-08-02)
     description:
-      "Scroll-driven 3D world landing pages — interviews for brand/scene direction, generates AI assets, then builds a continuous camera-flight scroll engine",
+      "scroll-world — scroll-driven 3D landing pages with generated media assets. A special production pipeline that needs external image/video services; only when that effect is requested",
     category: "frontend",
     source: "oso95",
     condition: { kind: "opt-in" },
@@ -557,7 +564,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "preline",
     tier: "vetted", // htmlstreamofficial/preline 6,386 (2026-08-16)
     description:
-      "Preline theme generator — turns a brand description into a Preline UI Tailwind theme (tokens, dark mode, component overrides); framework-agnostic, works with plain HTML and htmx",
+      "Preline theme generator — turns a brand description into a Preline UI Tailwind theme (tokens, dark mode, overrides) with a local generator script. Only for projects that use Preline",
     category: "frontend",
     source: "htmlstreamofficial",
     condition: { kind: "opt-in" },
@@ -576,7 +583,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "security-guidance",
     tier: "official", // anthropics/claude-plugins-official (220.8K installs, 사용자 관측 2026-07-18)
     description:
-      "security-guidance — pattern-based security warnings on edits + LLM diff review (Anthropic official)",
+      "security-guidance — pattern warnings on every edit plus an LLM review of diffs and commits (Anthropic official). Weigh it against security tools you already run: overlap, false positives, and cost per edit",
     category: "dev-tools",
     source: "anthropics",
     condition: { kind: "opt-in" },
@@ -594,7 +601,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "agent-browser",
     tier: "vetted", // vercel-labs/agent-browser 34k
     description:
-      "agent-browser — agent-friendly Playwright wrapper (screenshot · DOM search CLI, dev tracks)",
+      "agent-browser — drives a real browser from the terminal (Playwright wrapper: screenshots, DOM search). Only if your CLI has no equivalent browser tool",
     // v26.78.0 — Understanding 으로 재분류: 웹 지각(screenshot·DOM). 영상/코드 지각과 같은 축.
     category: "understanding",
     source: "vercel-labs",
@@ -609,7 +616,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "claude-video",
     tier: "vetted", // bradautomates/claude-video 1.8k
     description:
-      "Claude Video — /watch downloads any video, extracts frames + transcript so Claude can see + hear it (yt-dlp/ffmpeg auto on first run)",
+      "Claude Video — fetches a video from a URL, extracts frames and a transcript so the agent can see and hear it. For video evidence, not general image understanding",
     category: "understanding",
     source: "bradautomates",
     condition: { kind: "opt-in" },
@@ -623,7 +630,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "understand-anything",
     tier: "vetted", // Lum1104/Understand-Anything 53k
     description:
-      "Understand Anything — multi-agent pipeline builds an interactive knowledge graph of your codebase (files/functions/deps) to explore + query",
+      "Understand Anything — builds an interactive knowledge graph and dashboard of your codebase. For visual exploration of a large codebase; the graph costs time to build and keep current",
     category: "understanding",
     source: "Lum1104",
     condition: { kind: "opt-in" },
@@ -637,7 +644,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "agentmemory",
     tier: "vetted", // rohitg00/agentmemory 21k
     description:
-      "AgentMemory — persistent memory runtime; plugin auto-wires MCP (53 tools) + hooks + skills. Runtime server: npx @agentmemory/agentmemory",
+      "AgentMemory — a separate memory server (MCP + hooks) that persists state across sessions. Check first whether your CLI's own memory and project records already cover it",
     category: "understanding",
     source: "rohitg00",
     condition: { kind: "opt-in" },
@@ -654,7 +661,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "frontend-slides",
     tier: "vetted", // zarazhangrui/frontend-slides 21k
     description:
-      "frontend-slides — dependency-free HTML slide decks (presets · templates · PPTX→HTML · PDF export)",
+      "frontend-slides — dependency-free HTML slide decks with PPTX-to-HTML and PDF export scripts. When an HTML deck is the actual deliverable",
     category: "visual-media",
     source: "zarazhangrui",
     condition: { kind: "opt-in" },
@@ -667,7 +674,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "marp-slide",
     tier: "vetted", // softaworks/agent-toolkit 2k
-    description: "marp-slide — Marp Markdown slides (7 themes · PPTX/PDF export)",
+    description:
+      "marp-slide — Marp Markdown slides with 7 themes and PPTX/PDF export. Only for a Marp-based workflow",
     category: "visual-media",
     source: "softaworks",
     // softaworks plugin dir 는 plugin.json 부재 → skill 경로가 안전 (Docker 검증).
@@ -678,7 +686,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "gsap-skills",
     tier: "vetted", // greensock/gsap-skills 9k (GSAP 본가 공식)
     description:
-      "GSAP skills — official GreenSock motion/scroll animation guide (8 skills: timeline · scrolltrigger · react)",
+      "GSAP skills — GreenSock's own guide to timelines, ScrollTrigger, and framework lifecycle cleanup. Only for projects that already use GSAP; not a reason to pick it",
     category: "visual-media",
     source: "greensock",
     condition: { kind: "opt-in" },
@@ -695,7 +703,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "remotion",
     tier: "vetted", // remotion-dev/skills 3.6k (license none — 출처 신뢰; 코어 BUSL 고지)
     description:
-      "Remotion — programmatic MP4 video from React components (data-driven). Core license = BUSL",
+      "Remotion — programmatic MP4 video from React components (core license BUSL). The skill is a reference; the renderer and its environment are a separate install",
     category: "visual-media",
     source: "remotion-dev",
     condition: { kind: "opt-in" },
@@ -706,7 +714,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "ppt-master",
     tier: "vetted", // hugohe3/ppt-master 29k
     description:
-      "ppt-master — editable PowerPoint (.pptx) from any document (native shapes · speaker notes · custom .pptx template)",
+      "ppt-master — editable PowerPoint (.pptx) from a document, with native shapes, speaker notes, and your own template. When the deliverable must stay editable in PowerPoint",
     category: "visual-media",
     source: "hugohe3",
     condition: { kind: "opt-in" },
@@ -716,7 +724,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "web-video-presentation",
     tier: "vetted", // ConardLi/garden-skills 8.4k
     description:
-      "web-video-presentation — click-driven 16:9 web decks that look like video (optional TTS narration; garden-skills)",
+      "web-video-presentation — click-driven 16:9 web decks that play like video, with optional TTS narration. Keeps a step-by-step approval procedure; use for narrated web presentations",
     category: "visual-media",
     source: "ConardLi",
     condition: { kind: "opt-in" },
@@ -726,7 +734,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "revealjs",
     tier: "experimental", // ryanbbrown/revealjs-skill 347 (<1000 → experimental, opt-in + 경고)
     description:
-      "reveal.js — polished HTML presentations (themes · multi-column · code highlight · speaker notes, no build step)",
+      "reveal.js — HTML presentations with themes, code highlighting, and speaker notes, no build step. Experimental tier: under 1,000 stars",
     category: "visual-media",
     source: "ryanbbrown",
     condition: { kind: "opt-in" },
@@ -738,7 +746,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "supabase-agent-skills",
     tier: "vetted", // supabase/agent-skills 2.2k
     description:
-      "Supabase — RLS · auth · edge function · realtime guide (csr-supabase · full tracks)",
+      "Supabase agent skills — auth, RLS, edge functions, realtime, and current docs (Supabase official). Only for projects on Supabase; pre-checked on csr-supabase",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -752,7 +760,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "postgres-best-practices",
     tier: "vetted", // supabase/agent-skills 2.2k
     description:
-      "Postgres best practices — schema · index · query patterns (csr-supabase · full tracks)",
+      "Postgres best practices — schema, index, and query optimization reference (Supabase official). Reach for it when designing tables or fixing slow queries, not on every edit",
     category: "backend",
     source: "supabase",
     condition: { kind: "any-track", tracks: ["csr-supabase", "full"] },
@@ -770,7 +778,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "react-best-practices",
     tier: "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
     description:
-      "React best practices — Vercel's hook · perf · component patterns (CSR · SSR · Next tracks)",
+      "React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -785,7 +793,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "shadcn-ui",
     tier: "vetted", // shadcn-ui/ui 115k
-    description: "shadcn/ui — Radix-based React component copy + Tailwind theme (shadcn official)",
+    description:
+      "shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn",
     category: "frontend",
     source: "shadcn-ui",
     condition: { kind: "any-track", tracks: CSR_SSR_NEXTJS_FULL },
@@ -798,7 +807,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "web-design-guidelines",
     tier: "vetted", // vercel-labs/agent-skills 27k (license none — 출처 신뢰)
     description:
-      "Web design guidelines — Vercel's visual hierarchy · color · spacing (CSR · SSR · Next tracks)",
+      "Web design guidelines — Vercel's review checklist for hierarchy, color, spacing, and accessibility. A review aid, not a generator; frontend-design covers the default",
     category: "frontend",
     source: "vercel-labs",
     condition: { kind: "opt-in" },
@@ -817,7 +826,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "game-engine",
     tier: "vetted", // github/awesome-copilot 37,909★ (MIT, 2026-08-17 `gh api` 실측 · GitHub 공식 조직)
     description:
-      "Game engine — web game development with HTML5 Canvas · WebGL (Phaser · Three.js · Babylon.js): game loop, physics, collision, sprites, tilemaps, gamepad input, WebRTC multiplayer",
+      "Game engine — web game development with HTML5 Canvas / WebGL (Phaser, Three.js, Babylon.js): game loop, physics, sprites, tilemaps, input. Web games only, not Unity or Unreal",
     category: "frontend",
     source: "github",
     condition: { kind: "opt-in" },
@@ -831,7 +840,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "anthropic-document-skills",
     tier: "official", // anthropics/skills 144k
-    description: "Anthropic document-skills (pptx/docx/xlsx/pdf)",
+    description:
+      "Anthropic document skills — pptx / docx / xlsx / pdf authoring with real scripts (slide duplication, OOXML validation, thumbnails). For document deliverables",
     category: "business",
     source: "anthropics",
     condition: { kind: "any-track", tracks: ["executive", "full"] },
@@ -847,7 +857,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "finance-skills",
     tier: "vetted", // alirezarezvani 16k
-    description: "finance-skills (3 — financial analyst, SaaS metrics, investment advisor)",
+    description:
+      "finance-skills — financial analyst, SaaS metrics, and investment advisor skills with calculation scripts. For financial analysis work; the tools matter more than the role names",
     category: "business",
     source: "alirezarezvani",
     // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
@@ -864,7 +875,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "product-skills",
     tier: "vetted", // alirezarezvani 16k
-    description: "product-skills (15 — RICE, PRD, agile PO, UX research, SaaS scaffolder ...)",
+    description:
+      "product-skills — RICE prioritization, PRD, interview analysis, design tokens, project scaffolding (15 skills with Python tools). Pick it for product-management work, and use the tools you need",
     category: "dev-tools",
     source: "alirezarezvani",
     // v26.106.0 (ADR-035, 사용자 승인 C): dev 8트랙 기본에서 제외 — PM 스킬 15종은 PM 트랙 목적
@@ -891,7 +903,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     id: "marketingskills",
     tier: "vetted", // coreyhaines31 35k
-    description: "marketingskills (45 — CRO/copywriting/SEO/AI-SEO/ads/growth, coreyhaines31 35k★)",
+    description:
+      "marketingskills — SEO, conversion, ads, content, and measurement (45 skills, cross-referenced). For marketing work; too broad as a default on a development track",
     category: "business",
     source: "coreyhaines31",
     condition: { kind: "opt-in" },
@@ -917,7 +930,8 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // 추가 plugin 원하는 사용자는: `claude plugin install <name>@trailofbits` (예: audit-context-building)
     id: "trailofbits-skills",
     tier: "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
-    description: "Trail of Bits differential-review plugin (security-focused code review)",
+    description:
+      "Trail of Bits differential-review — security review of a change: history, call impact, attack scenarios, verification scope. For security-relevant changes, not every PR",
     category: "dev-tools",
     source: "trailofbits",
     condition: { kind: "opt-in" },

@@ -405,7 +405,7 @@ describe("배포물 셸 건전성 (#327)", () => {
     // #438 — codex 자리표시자 훅 2개(설치본에 안 나가던 것)를 지워 모집단이 10 → 8. #492 —
     // ECC cherry-pick 스킬 7종 + prune 스크립트가 빠져 다시 내려간다. 하한은 자산 수를 따라
     // 내린다 — 수집기 파손과 자산 감소를 가르는 것이 이 단언의 역할이다.
-    expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(7);
+    expect(SCRIPTS.length, reading).toBeGreaterThanOrEqual(6);
     expect(FENCES.length, reading).toBeGreaterThanOrEqual(80);
     expect(SHELL_FENCES.length, reading).toBeGreaterThanOrEqual(30);
   });
