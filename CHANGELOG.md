@@ -7,6 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.155.0] — 2026-09-20 (base 트랙 — 스택을 정하지 않은 프로젝트도 원칙·방법론만 받는다)
+
+### Added
+- **`base` 트랙** (#456 · #490, 사용자 결정 B): 스택을 아직 정하지 않았거나 스택 자산이 필요 없는 프로젝트가
+  `--track base` 를 고를 수 있다. 받는 것 = 공통 룰 5종(`cli-development` 제외) · reviewer + implementer ·
+  protect-files + session-start · 방법론 스킬 5종 + 전 트랙 스킬 4종. 스택 전용 스킬·플러그인은 없고, 개발 도구
+  3종(frontend-design · find-skills · agent-browser)은 기본 선택에서 빠진다 — 체크하면 받는다. 다른 트랙은 불변
+  (테스트가 `base ⊂ tooling` 이고 차이가 `cli-development` 하나임을 단언). 개발 도구 3종의 조건은 열거가 아니라
+  "스택 있는 dev 트랙"에서 유도한다.
+
+### Changed
+- README 의 "방법론 5종이 3단계 한 줄로 묶인다" 문구 제거 — v26.154.0(#486) 이후 거짓이었다.
+
 ## [v26.154.0] — 2026-09-20 (update 가 설치자의 편집을 잃지 않는다 — 항목 선택 · 앵커 백업 · 새 스킬 추가 · 백업 목록)
 
 설치자가 v26.153.0 배포 직후 보고한 스트레스 하나에서 출발했다: *"rule, claude.md 를 덮어치거나 이전 것을
