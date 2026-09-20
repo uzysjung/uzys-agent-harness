@@ -14,12 +14,12 @@ Claude Code SSOT(`templates/`, `.claude/`)에서 Codex CLI 프로젝트로 **포
 templates/codex/
 ├── README.md                        # 본 파일
 ├── AGENTS.md.template               # 프로젝트 AGENTS.md (CLAUDE.md에서 생성)
-├── config.toml.template             # 프로젝트 .codex/config.toml (hooks + mcp + sandbox)
-└── hooks/                           # Shell 스크립트 (.claude/hooks/ 재사용 가능)
-    ├── README.md                    # 포팅 상태 + Event 매핑
-    ├── session-start.sh             # session_start
-    └── uncommitted-check.sh         # post_tool_use (Bash 한정)
+└── config.toml.template             # 프로젝트 .codex/config.toml (hooks + mcp + sandbox)
 ```
+
+훅 스크립트는 이 디렉터리에 없다 — 설치기가 `templates/hooks/session-start.sh` 를 포팅해
+`<project>/.codex/hooks/` 에 놓는다(`src/codex/transform.ts` `HOOK_NAMES`). 자리표시자 사본을 두면
+설치본에 안 나가는 파일이 리포에 남아 배선을 오독하게 한다(#438).
 
 ## 설치 대상 경로 (`setup-harness.sh --cli=codex` 실행 후)
 
@@ -27,7 +27,7 @@ templates/codex/
 |--------|-----------|
 | `AGENTS.md.template` | `<project>/AGENTS.md` |
 | `config.toml.template` | `<project>/.codex/config.toml` |
-| `hooks/*.sh` | `<project>/.codex/hooks/*.sh` |
+| `templates/hooks/session-start.sh` (포팅) | `<project>/.codex/hooks/session-start.sh` |
 | 사용자 `~/.codex/config.toml`에 trust 등록 추가 | (D4 opt-in 확인) |
 
 ## Hook Event 매핑 (Claude → Codex)
@@ -46,7 +46,6 @@ stdin JSON 필드(`session_id`, `cwd`, `tool_name`, `tool_input`, `hook_event_na
 ## 미구현 (후속 Phase)
 
 - `AGENTS.md.template` 본문 — CLAUDE.md에서 변환 (Phase C)
-- `hooks/*.sh` 본체 — `.claude/hooks/` 에서 포팅 (Phase C)
 - `setup-harness.sh --cli=codex` 경로 — Phase D
 - Trust entry 확인 프롬프트 — Phase D
 - `--cli=codex` dogfood 검증 — Phase F
