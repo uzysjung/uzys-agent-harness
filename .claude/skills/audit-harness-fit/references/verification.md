@@ -1,123 +1,154 @@
-# User Journeys, Verification, and Model Delegation
+# User Journeys, Verification, and Execution Routes
 
 ## Contents
 
 - [Start from the usage scene](#start-from-the-usage-scene)
 - [Choose sufficient evidence](#choose-sufficient-evidence)
-- [Bundle verification by completed scene](#bundle-verification-by-completed-scene)
+- [Choose timing and change boundaries](#choose-timing-and-change-boundaries)
 - [Reuse evidence with explicit invalidation](#reuse-evidence-with-explicit-invalidation)
-- [Delegate only when the judgment warrants it](#delegate-only-when-the-judgment-warrants-it)
+- [Choose a suitable execution route](#choose-a-suitable-execution-route)
 - [Demonstrate improvement honestly](#demonstrate-improvement-honestly)
 
 ## Start from the usage scene
 
 Use confirmed requirements and accessible product evidence to identify **actor,
-precondition, action/input, observable outcome, and consequential failure/recovery**.
-Actors can be end users, operators, API consumers, or scheduled jobs. An assumption
-about a persona or goal remains an assumption, not a requirement inferred from code.
+precondition, action/input, observable outcome, and consequential failure/recovery**
+where relevant to the change. Actors include end users, operators, API consumers,
+and scheduled jobs. Reuse established context; keep assumed goals distinct from
+accepted requirements. An isolated contract change can use its existing contract
+without reopening the whole product brief.
 
-Propose the smallest working end-to-end implementation slice for the requested
-outcome. A visible screen is not complete when its required persistence, retrieval,
-authorization, or error recovery is absent. Extend only with requested capabilities.
-This skill proposes how to implement and verify; it does not change product code.
+Propose the smallest coherent implementation slice that delivers the requested
+outcome. Required persistence, retrieval, authorization, and recovery belong in
+that slice even when the visible screen already works. Choose boundaries that
+support useful feedback and manageable risk; extend only with requested capabilities.
+This skill proposes implementation and verification guidance, not product-code edits.
 
 ## Choose sufficient evidence
 
-Map each affected scene or critical contract to a check and an observable pass
-condition. Reuse existing coverage. A compact form is:
+Map each affected scene or critical contract to an observable pass condition and
+sufficient evidence. Reuse existing coverage. A compact form, when useful, is:
 
-| Scene / contract | Observable pass condition | Existing check or proposed check | Required or optional; execution / review owner |
+| Scene / contract | Observable pass condition | Existing or proposed evidence | Required gate / optional check; owner where relevant |
 |---|---|---|---|
 
-Choose the narrowest reliable level: unit for isolated logic, integration for real
-boundaries, and E2E for journeys requiring whole-path evidence. A slice being end-to-end
-does not mean every test must be E2E. Avoid testing every private function, arbitrary
-coverage targets, duplicate layers that prove nothing new, and running the entire
-suite after each edit solely because a prompt demands it.
+Choose the reliable level or combination with the lowest reasonable total burden:
+unit checks for isolated logic, integration for real boundaries, and E2E when a
+whole-path claim needs evidence. Include setup, selection, execution, diagnosis,
+and maintenance effort. A fast, reliable full suite can be simpler than elaborate
+selection. A user-facing slice does not require every assertion to be E2E.
 
-For example, saving a record and later retrieving it may need persistence integration
-coverage and one representative UI journey; validation edge cases can stay at unit
-level. This is an example, not a fixed test prescription for every product.
+For example, saving and retrieving a record may use persistence integration coverage
+and a representative UI journey, with input validation at unit level. This is an
+illustration, not a universal test prescription. Target changed behavior, credible
+failure/recovery paths, and affected dependencies rather than every private function,
+a coverage quota, or unrelated hypothetical edge case.
 
-Scale optional checks with impact, affected dependencies, uncertainty, and reversibility.
-Include credible negative/recovery paths and non-visible contracts such as authorization,
-data integrity, payments, concurrency, migration, and interoperability when affected.
-Happy-path screenshots do not establish those contracts. Avoid expanding to every
-hypothetical edge case unrelated to the change.
+Treat consequential contracts such as authorization, payments, integrity, concurrency,
+migration, and interoperability as explicit verification targets when affected.
+Each needs evidence adequate to its claim; a happy-path screenshot alone cannot
+establish these properties. One test or execution can cover several contracts when
+its assertions and conditions actually support each. Separate targets do not by
+themselves require separate runs or separate reviewers. Add checks for evidence gaps,
+credible risk, or applicable policy; required review independence is a separate issue.
 
-Required tests and independent-review gates remain binding. Identify their policy /
-CI source: an explicit project test policy can be mandatory even without CI enforcement.
-Distinguish those gates from generic requests to "think again"; if their status is
-unclear, retain them pending a policy decision. When a required gate seems
-disproportionate, propose a separate policy decision;
-do not disable it, lower its threshold, or relabel it to make cleanup succeed.
-Document checks are sufficient for document-only effects unless applicable policy
-or actual dependencies require broader checks. State checks not run and why.
+Identify binding tests and independent-review gates from their policy / CI source.
+Explicit project policy can bind even without CI enforcement. Preserve those gates;
+route disproportionate mandatory requirements to a separate policy decision. Retain
+an unclear gate pending clarification while continuing work independent of it.
+Generic requests to "think again" are assessed for evidence value, not presumed gates.
+Document-only effects normally need document checks unless policy or dependencies
+require more. State checks not run and the resulting limits.
 
-## Bundle verification by completed scene
+## Choose timing and change boundaries
 
-Implementation and verification follow the scene, not the edit. While a scene is being
-built, run only the quick checks for the parts being changed — except when a scene first
-crosses an unproven external boundary, which is checked then. When the scene's changes are
-complete, bundle them and verify once from usage: the scene's observable outcome, its
-integration boundaries, the non-visible contracts it touches, and one representative
-journey. Re-verify the parts a later change affects, plus anything the reuse rules below
-require a new run for; when the affected scope cannot be established confidently, widen the
-bundle check instead of narrowing it. Treat instructions that force a
-full run or an independent review after every edit as a finding under the audit area on
-user-journey implementation and proportionate testing — they cost development speed without
-adding evidence — unless a required gate names that cadence explicitly.
+Choose verification timing and batch size for useful feedback, uncertainty, impact,
+and recoverability. Resolve costly assumptions and unproven boundaries early enough
+to avoid building substantial work on an unsupported contract. Run quick local checks,
+incremental tests, or a broader bundle when they offer the best feedback for the task.
+Use existing tools and evidence before introducing new process overhead.
 
-Bundling is not deferral. A scene is one actor reaching one observable outcome; when its
-changes outgrow what one review can hold, split it into smaller scenes rather than
-verifying later, and do not start the next scene on top of an unverified one. Keep each
-change committed on its own so a failed bundle bisects to the change that broke it, and
-keep merge and deployment gates where they are — a scene is verified before it crosses
-either. The non-visible contracts listed above — money and payments, permissions, data and
-its migrations, and any irreversible operation among them — are **separate verification
-targets**: they get their own independent check before merge regardless of how the scene is
-bundled, and a representative journey passing does not stand in for them.
+Work may proceed in parallel when it is isolated or relies on sufficiently established
+contracts. Make consequential unverified assumptions visible and contain their impact.
+As a change grows beyond reliable review or recovery, split it or verify the uncertain
+boundary sooner. Complete the evidence required for acceptance and applicable merge /
+release gates before crossing those boundaries.
+
+Organize edits into coherent, reviewable, recoverable units. Follow the project's
+commit policy and actual authorization; logical change boundaries are not a command
+to commit each edit. Existing diffs, checkpoints, or version history can support
+recovery where appropriate. Commit and push actions remain outside this cleanup.
+
+Assess a prescribed cadence by the evidence it adds and its total cost. Checking a
+changed state can be useful even after a small edit; repeating a check with unchanged
+relevant conditions may add nothing. Per-edit full suites, continuous checks, batched
+verification, and targeted runs can each be suitable. Retain explicitly required
+cadence and propose policy changes separately. Choose a method instead of replacing
+one universal schedule with another.
 
 ## Reuse evidence with explicit invalidation
 
-Use existing logs or results to identify what was checked, the affected source state,
-inputs/dependencies, relevant environment, and result. Add only missing material
-provenance; do not require a new fingerprinting or evidence-management framework.
-A result is reusable when those relevant conditions and its coverage still hold.
+Use existing results to establish what was checked, relevant source state, inputs /
+dependencies, environment, and result. Add missing material provenance only. Existing
+records are sufficient when they support that determination; a new evidence-management
+or fingerprinting framework is not a prerequisite.
 
-Recheck the affected scope when code, configuration, dependencies, meaningful inputs,
-environment, or acceptance criteria change; when evidence does not cover the contract;
-when a failure or credible nondeterminism remains; or when policy requires a new run.
-Do not rerun unaffected optional checks merely because time passed, another reviewer
-arrived, or a response is about to be sent. A stale result cannot certify a new diff.
-Stop optional verification when acceptance conditions have sufficient evidence and
-there is no relevant unresolved failure or risk. Do not claim all work safe forever.
+Reuse a result when its coverage and relevant conditions still hold. Reassess and
+recheck affected scope when code, configuration, dependencies, meaningful inputs,
+environment, or acceptance criteria change; coverage is insufficient; a failure or
+credible nondeterminism remains; or policy requires a new run. A changed dependency
+can invalidate evidence beyond the edited file. When impact is uncertain, widen the
+check enough to address that uncertainty.
 
-## Delegate only when the judgment warrants it
+Reuse unaffected optional results when another reviewer arrives, a response is due,
+or time passes without a relevant validity limit. Time-sensitive credentials, data,
+or environment guarantees may themselves expire. Finish optional verification when
+acceptance conditions have sufficient evidence and remaining uncertainty is within
+accepted risk boundaries. Report residual uncertainty; a past pass does not certify
+a new state.
 
-Propose or use a more capable available model for a difficult design trade-off,
-a blocked diagnosis, or high-impact journey review when likely to improve the answer.
-Prefer the existing routing policy and actual environment. Routine implementation /
-checks stay with the current agent; a model's label, price, or recency is not evidence
-that it is better at the task. Do not prescribe an unverified model name or CLI flag.
+## Choose a suitable execution route
 
-Before actually delegating, confirm the tool/model exists and the data sharing,
-permission, and cost boundaries permit it. A read-only audit may propose delegation
-without making a new external call. Send a bounded question with the scene, constraints,
-diff / necessary evidence, acceptance criteria, uncertainty, and requested review output.
-Ask for the specific decision or missing test, not a repeated open-ended "check everything".
+Reuse the established routing policy and current route by default. Change routes
+when task-specific evidence supports a better quality / effort trade-off. Options
+can include an existing deterministic tool, the current agent, a specialist, a
+lower-cost capable model, a more capable model, or an authorized human reviewer.
+Routine tasks need no repeated model comparison.
 
-Model judgment complements executable evidence, never substitutes for it. Keep author
-and reviewer independent where required; changing a model label in the author's own
-self-review is not independent review. Do not introduce a new universal review gate.
-If no suitable model/reviewer is available, disclose that fact, use a permitted human
-or other route where available, and leave required review pending. Continue work that
-does not depend on the unmet gate. Never claim delegation happened when it did not.
+Consider expected answer quality, reliability, latency, total cost, context-transfer
+and review effort, data boundaries, and required independence. Delegate when the
+likely benefit justifies the handoff. A model's name, price, or recency alone does
+not establish task fitness; use configured capabilities and relevant observations.
+
+Before an actual call, establish that the tool / model exists and applicable data,
+permission, and cost boundaries permit it. Reuse valid configuration and approvals.
+A read-only audit can propose a route without invoking it. Send a bounded question
+with the scene or contract, constraints, necessary evidence, uncertainty, acceptance
+criteria, and requested decision. Minimize sensitive context and unnecessary repetition.
+
+Model judgment complements executable evidence. Do not present an opinion as a test
+result, self-review as required independent review, or a proposed handoff as executed.
+Where independence is required, use a genuinely separate permitted reviewer/process;
+a different model label alone does not supply it. Keep required review pending when
+no suitable route is available, identify an allowed alternative, and continue work
+that does not depend on the unmet gate. This guidance adds no universal review gate.
 
 ## Demonstrate improvement honestly
 
-For an uncertain simplification, propose a small representative comparison only if
-needed: did the agent complete the same scene with fewer avoidable questions/checks
-while retaining acceptance evidence and safeguards? Reuse existing observations.
-Label expected benefits as hypotheses until observed; byte counts and model agreement
-are not behavioral validation. Do not make every guidance edit wait for an experiment.
+Distinguish a well-supported guidance proposal from observed improvement in delivery.
+Structural validity, fewer words, fewer tool calls, and model agreement do not by
+themselves prove better outcomes. Use existing observations first; select a small
+representative comparison only when it can resolve a material uncertainty.
+
+For an authorized comparison, hold the accepted outcome, quality criteria, and
+safeguards constant. Compare completion and relevant regressions first, then useful
+available measures of elapsed work, cost, avoidable questions, and rework. A method
+can improve efficiency at retained quality or improve quality within the permitted
+budget. Evidence lost from an affected critical contract is not an efficiency gain.
+
+Account for task difficulty, model/tool configuration, and repeated-task familiarity
+when interpreting a result. Report what was observed and its limits; a successful
+case supports its tested scope, not universal superiority. Restore or revise a trial
+that misses acceptance criteria, increases material risk, or loses its expected value.
+[Apply](apply.md) governs authorization and adoption. Clear supported edits can proceed
+without an experiment; comparisons stay bounded to decisions that need them.
