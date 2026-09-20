@@ -15,6 +15,7 @@ verification status in the [compatibility matrix](COMPATIBILITY.md).
 
 | Track | Stack |
 |---|---|
+| `base` | no stack — principles · methodology · tests only (#456). Common rules 5 · reviewer + implementer · method skills · all-track skills. No stack skills, no `cli-development`, and the dev-track tool trio (`frontend-design` · `find-skills` · `agent-browser`) is not pre-checked |
 | `csr-supabase` | Vite + React + Supabase |
 | `csr-fastify` | Vite + React + Fastify |
 | `csr-fastapi` | Vite + React + FastAPI |

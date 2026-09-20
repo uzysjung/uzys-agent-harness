@@ -9,6 +9,16 @@
     "tokens": "tokens/session (chars/4 근사 — 실측이 아니라 규약값)"
   },
   "tracks": {
+    "base": {
+      "directive": {
+        "items": 7,
+        "tokens": 3394
+      },
+      "firing": {
+        "items": 12,
+        "tokens": 2142
+      }
+    },
     "tooling": {
       "directive": {
         "items": 8,

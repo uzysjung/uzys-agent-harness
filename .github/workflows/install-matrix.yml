@@ -128,7 +128,7 @@ jobs:
             echo "| track | core files |"
             echo "|---|---|"
           } >> "$GITHUB_STEP_SUMMARY"
-          for track in tooling executive data; do
+          for track in base tooling executive data; do
             proj="$(mktemp -d)"
             npx agent-harness install --track "$track" --project-dir "$proj"
             for f in CLAUDE-uzys-harness.md .claude/.installed-tracks .mcp.json; do

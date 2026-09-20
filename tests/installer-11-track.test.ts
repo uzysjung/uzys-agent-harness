@@ -25,6 +25,7 @@ function buildSpec(tracks: Track[], projectDir: string): InstallSpec {
 const NO_EXTERNAL = null;
 
 const TRACKS: ReadonlyArray<Track> = [
+  "base",
   "tooling",
   "csr-supabase",
   "csr-fastify",
@@ -48,6 +49,8 @@ const TRACKS: ReadonlyArray<Track> = [
  * 전 트랙 공통 룰만 적으면 이 표가 라우팅을 더 이상 증명하지 못한다.
  */
 const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
+  // #456 — dev 룰은 받되 cli-development 는 없다 (tooling 과의 차이가 곧 base 의 정의)
+  base: { rules: ["test-policy", "ship-checklist"] },
   tooling: { rules: ["cli-development", "test-policy"] },
   "csr-supabase": { rules: ["test-policy"], mcp: ["supabase"] },
   "csr-fastify": { rules: ["test-policy", "ship-checklist"] },

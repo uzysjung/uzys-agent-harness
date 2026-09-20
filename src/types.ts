@@ -1,5 +1,7 @@
 /** Available installation tracks. v0.5.0 — 11 Track (PM/Growth Marketing 추가). */
 export const TRACKS = [
+  // #456 (2026-09-20) — 스택 무관: 원칙·방법론·테스트 스킬만. 스택을 아직 안 정한 프로젝트용.
+  "base",
   "tooling",
   "csr-supabase",
   "csr-fastify",

@@ -27,8 +27,8 @@ describe("isCliBase (v0.8.0 — replaces isCliMode)", () => {
 });
 
 describe("TRACKS array", () => {
-  it("has 11 tracks (v0.5.0 — added project-management, growth-marketing)", () => {
-    expect(TRACKS).toHaveLength(11);
+  it("has 12 tracks (v0.5.0 — added project-management, growth-marketing · #456 base)", () => {
+    expect(TRACKS).toHaveLength(12);
   });
 
   it("includes the two v0.5.0 tracks", () => {

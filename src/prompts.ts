@@ -94,6 +94,7 @@ export interface Prompts {
 }
 
 const TRACK_LABELS: Record<Track, string> = {
+  base: "base — principles · methodology · tests only (no stack)",
   tooling: "tooling — Bash + Markdown meta-project",
   "csr-supabase": "csr-supabase — Vite + React + Supabase",
   "csr-fastify": "csr-fastify — Vite + React + Fastify",
