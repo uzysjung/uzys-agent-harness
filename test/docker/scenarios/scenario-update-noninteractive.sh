@@ -116,6 +116,7 @@ fi
 echo "✓ --project-dir 로 cwd 밖 프로젝트 갱신"
 
 # --- #480 ①: --only skills 는 룰·앵커를 한 바이트도 안 건드린다 ---
+cd "${PROJ}"
 printf '\n<!-- MY RULE EDIT -->\n' >> .claude/rules/git-policy.md
 printf '\n<!-- MY ANCHOR EDIT -->\n' >> CLAUDE-uzys-harness.md
 agent-harness update --only skills >/tmp/ni-only.txt 2>&1 || { echo "FAIL: --only skills exit"; tail -20 /tmp/ni-only.txt; exit 1; }
