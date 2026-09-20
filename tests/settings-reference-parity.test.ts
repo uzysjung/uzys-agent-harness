@@ -119,14 +119,12 @@ function specMatrix(): SpecCase[] {
   for (const track of TRACKS) {
     const ctx = { tracks: [track], options: DEFAULT_OPTIONS };
     const defaultSkills = INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, ctx));
-    for (const withEcc of [false, true]) {
-      for (const withTauri of [false, true]) {
-        for (const skills of [defaultSkills, [] as ReadonlyArray<string>]) {
-          cases.push({
-            label: `${track} withEcc=${withEcc} withTauri=${withTauri} skills=${skills.length}`,
-            spec: { tracks: [track], withEcc, withTauri, selectedInternalSkills: skills },
-          });
-        }
+    for (const withTauri of [false, true]) {
+      for (const skills of [defaultSkills, [] as ReadonlyArray<string>]) {
+        cases.push({
+          label: `${track} withTauri=${withTauri} skills=${skills.length}`,
+          spec: { tracks: [track], withTauri, selectedInternalSkills: skills },
+        });
       }
     }
   }
@@ -267,12 +265,13 @@ describe("settings.json 참조 경로의 설치 파리티", () => {
     expect(refs.every((r) => r.path.length > 0)).toBe(true);
   });
 
-  it("spec 매트릭스가 비지 않고 withEcc 양쪽을 포함한다 (헛통과 차단)", () => {
+  it("spec 매트릭스가 비지 않고 opt-in 양쪽을 포함한다 (헛통과 차단)", () => {
     const matrix = specMatrix();
     expect(matrix.length).toBeGreaterThan(0);
     // 이 축이 없으면 게이트는 M-1 을 못 본다 — 선례가 정확히 그렇게 놓쳤다.
-    expect(matrix.some((c) => c.spec.withEcc === true)).toBe(true);
-    expect(matrix.some((c) => c.spec.withEcc === false)).toBe(true);
+    // #492 — withEcc 가 없어져 남은 opt-in 축은 withTauri 다.
+    expect(matrix.some((c) => c.spec.withTauri === true)).toBe(true);
+    expect(matrix.some((c) => c.spec.withTauri === false)).toBe(true);
     expect(new Set(matrix.map((c) => c.spec.tracks[0])).size).toBe(TRACKS.length);
     // referrer 가 어느 spec 에도 안 깔리면 함의문이 공허참이 된다.
     expect(matrix.filter((c) => referrerApplies(c.spec)).length).toBeGreaterThan(0);

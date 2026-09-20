@@ -1,7 +1,7 @@
 /**
  * Category-based installer (v26.43.0) — 분야별 대표 스킬 큐레이션.
  *
- * 9 카테고리: Frontend / Backend / Data / Business / Dev Tools / Understanding / Visual & Media / Workflow / ECC Suite.
+ * 카테고리 목록은 아래 `CATEGORIES` 가 SSOT (여기 열거하지 않는다 — 사본은 썩는다).
  * 각 카테고리 안에서 자산은 (출처, ExternalAsset.id) 로 식별. Step 2 UI 그룹화 기준.
  *
  * Source labels = 정확한 GitHub org/user (Phase A의 SSOT).
@@ -17,7 +17,6 @@ export const CATEGORIES = [
   "understanding",
   "visual-media",
   "workflow",
-  "ecc-suite",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
@@ -32,7 +31,6 @@ export const CATEGORY_TITLES: Record<Category, string> = {
   // v26.85.0 — 코드-퍼스트 비주얼/미디어 제작: 슬라이드·다이어그램·모션·동영상.
   "visual-media": "🎬 Visual & Media (Slides · Diagrams · Motion · Video)",
   workflow: "🔄 Workflow (Development Cycle)",
-  "ecc-suite": "📦 ECC Suite",
 };
 
 /** Source labels — GitHub org/user. Maps the canonical owner shown to the user. */

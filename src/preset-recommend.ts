@@ -4,8 +4,7 @@
  * Step 1 에서 선택된 preset 들의 condition 을 만족하는 외부 자산(plugin/skill/npm/npx)
  * 의 id 를 반환한다. Step 2 multiselect 의 초기 체크 상태에 사용.
  *
- * Option-gated 자산은 추천에 포함 X — 사용자가 의식적으로 토글해야 함
- * (superpowers, addy-agent-skills, ECC suite 등).
+ * Opt-in 자산은 추천에 포함 X — 사용자가 의식적으로 골라야 함.
  */
 
 import { assetTrustTier, EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";

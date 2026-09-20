@@ -52,15 +52,15 @@ const BASE_CTX = {
 };
 
 describe("assetCliSupport — method.kind 에서 derive (하드코딩 목록 금지)", () => {
-  it("plugin/shell-script 는 claude 전용, 나머지 kind 는 전 CLI (entry override 예외)", () => {
-    // WHY: 도달 범위의 SSOT 는 installOne 의 실동작 — plugin 은 `claude plugin ...` spawn,
-    // shell-script(ecc-prune)는 .claude/local-plugins/ write. 둘 다 구조적으로 claude 전용.
+  it("plugin 은 claude 전용, 나머지 kind 는 전 CLI (entry override 예외)", () => {
+    // WHY: 도달 범위의 SSOT 는 installOne 의 실동작 — plugin 은 `claude plugin ...` spawn 이라
+    // 구조적으로 claude 전용이다(#492 로 같은 성질이던 shell-script kind 는 없어졌다).
     // kind 기본값이 자산에서 거짓인 경우(bmad)만 cliSupportOverride 가 우선한다.
     for (const asset of EXTERNAL_ASSETS) {
       const support = assetCliSupport(asset);
       if (asset.cliSupportOverride) {
         expect(support, asset.id).toEqual([...asset.cliSupportOverride]);
-      } else if (asset.method.kind === "plugin" || asset.method.kind === "shell-script") {
+      } else if (asset.method.kind === "plugin") {
         expect(support, asset.id).toEqual(["claude"]);
       } else {
         expect(support, asset.id).toEqual([...CLI_BASES]);
@@ -74,8 +74,7 @@ describe("assetCliSupport — method.kind 에서 derive (하드코딩 목록 금
     // 같은 함정에 빠지면 여기서 fail — override 기입을 강제한다.
     for (const asset of EXTERNAL_ASSETS) {
       const m = asset.method;
-      const argText =
-        m.kind === "npx-run" || m.kind === "shell-script" ? (m.args ?? []).join(" ") : "";
+      const argText = m.kind === "npx-run" ? (m.args ?? []).join(" ") : "";
       if (/claude/i.test(argText)) {
         expect(
           assetCliSupport(asset),
@@ -285,44 +284,5 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
     expect(out).toContain("plugin-claude-only");
     // 구 NOTE 의 어휘("Claude Code-only")는 사라져야 한다 — 이중 고지·숫자 불일치의 원천.
     expect(out).not.toContain("Claude Code-only");
-  });
-
-  it("ecc 힌트: codex 단독에선 no-op 명령('--with ecc-plugin') 안내를 하지 않는다 (F2)", () => {
-    const baseline = {
-      filesCopied: 1,
-      dirsCopied: 1,
-      skipped: 0,
-      baselineExcluded: [],
-      baselineExcludedOnDisk: [],
-      baselineForeignOwned: [],
-      backup: null,
-      backups: [],
-      categories: { rules: ["a.md"], agents: [], hooks: [], commands: 0, skills: [] },
-      installedTracks: ["tooling"],
-      mcpServers: [],
-      codex: null,
-      codexOptIn: null,
-      opencode: null,
-      antigravity: null,
-      ciScaffold: null,
-      updateMode: null,
-      mode: "fresh" as const,
-      envFiles: {
-        envExampleCreated: false,
-        gitignoreEnvAdded: false,
-        gitignoreNpxSkillsAdded: [],
-      },
-      rootClaudeMd: null,
-    };
-    const render = (cli: CliTargets): string => {
-      const lines: string[] = [];
-      const r = createInstallRenderer((m) => lines.push(m), mkSpec(cli), false);
-      r.callbacks.onProgress?.({ type: "baseline-complete", baseline });
-      return lines.join("\n");
-    };
-    expect(render(["claude"])).toContain("Use --with ecc-plugin");
-    expect(render(["codex"])).not.toContain("Use --with ecc-plugin");
-    // fallback 상태 자체는 양쪽 다 진실이므로 유지된다.
-    expect(render(["codex"])).toContain("cherry-pick fallback active");
   });
 });

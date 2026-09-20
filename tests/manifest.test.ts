@@ -3,13 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { INTERNAL_BUNDLED_SKILL_IDS, RETIRED_SKILL_IDS } from "../src/external-assets.js";
-import {
-  ALWAYS_HOOKS,
-  buildManifest,
-  MODIFIED_ECC_SKILL_DIRS,
-  RETIRED_AGENT_IDS,
-  resolveRules,
-} from "../src/manifest.js";
+import { ALWAYS_HOOKS, buildManifest, RETIRED_AGENT_IDS, resolveRules } from "../src/manifest.js";
 import { TRACKS } from "../src/types.js";
 
 describe("resolveRules", () => {
@@ -89,22 +83,13 @@ describe("buildManifest", () => {
     expect(multi.find((e) => e.target === "CLAUDE.md")).toBeUndefined();
   });
 
-  it("e2e-testing: C2 opt-out gating (plugin OFF + ui track → install). v26.58.0 ADR-019", () => {
-    // v26.58.0 — e2e-testing 은 ECC cherry-pick C2 → !withEcc + ui track 둘 다 필요.
-    // ui track + withEcc=true → skip (plugin ON → cherry-pick 갈음)
-    const uiWithEcc = buildManifest({ tracks: ["ssr-nextjs"], withEcc: true });
-    const e2eUiOn = uiWithEcc.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eUiOn?.applies({ tracks: ["ssr-nextjs"], withEcc: true })).toBe(false);
-
-    // ui track + withEcc=false (default) → install (cherry-pick fallback)
-    const uiNoEcc = buildManifest({ tracks: ["ssr-nextjs"] });
-    const e2eUiOff = uiNoEcc.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eUiOff?.applies({ tracks: ["ssr-nextjs"] })).toBe(true);
-
-    // 비-UI track (data) + withEcc=false → skip (track 미일치)
-    const dataNoEcc = buildManifest({ tracks: ["data"] });
-    const e2eDataOff = dataNoEcc.find((e) => e.source === "skills/e2e-testing");
-    expect(e2eDataOff?.applies({ tracks: ["data"] })).toBe(false);
+  // #492 — ECC cherry-pick C2 게이팅(`!withEcc`)이 자산과 함께 없어졌다. 남는 UI 스킬은
+  // 우리가 쓴 `ui-visual-review` 하나이고, 트랙 게이팅만 받는다.
+  it("ui-visual-review: UI 트랙에만 깔린다 (트랙 게이팅)", () => {
+    const m = buildManifest({ tracks: [...TRACKS] });
+    const ui = m.find((e) => e.source === "skills/ui-visual-review");
+    expect(ui?.applies({ tracks: ["ssr-nextjs"] })).toBe(true);
+    expect(ui?.applies({ tracks: ["data"] })).toBe(false);
   });
 
   // ADR-090 (#452) — ECC 폴백 에이전트 축이 은퇴로 비었고(그 계약의 표본은 스킬 쪽 C2 테스트가
@@ -135,12 +120,12 @@ describe("buildManifest", () => {
   // ADR-089 (#445) — 은퇴는 **manifest 에서 사라졌다**로 증명한다. 파일 부재만 보면 다음 사람이
   // 번들에 파일을 되돌려 놓는 순간 조용히 되살아난다.
   it("은퇴한 리뷰 에이전트 2종은 어떤 조합에서도 manifest 에 없다 (ADR-089)", () => {
-    for (const withEcc of [false, true]) {
-      const m = buildManifest({ tracks: [...TRACKS], withEcc });
+    for (const withTauri of [false, true]) {
+      const m = buildManifest({ tracks: [...TRACKS], withTauri });
       for (const id of RETIRED_AGENT_IDS) {
         expect(
           m.find((e) => e.source === `agents/${id}.md`),
-          `${id} 가 manifest 에 살아 있다 (withEcc=${withEcc})`,
+          `${id} 가 manifest 에 살아 있다 (withTauri=${withTauri})`,
         ).toBeUndefined();
       }
       // 0건 함정 방지 — 모집단이 비면 위 단언은 공허하다. 남는 에이전트가 실제로 잡히는지 본다.
@@ -151,18 +136,11 @@ describe("buildManifest", () => {
 
   // 2026-08-16 (ADR-073) — 판정을 뒤집었다. ADR-019 는 ECC 플러그인을 **안 고른** 사람에게
   // 폴백 명령 8종을 깔았는데, 그중 5개가 안 고른 자산(ECC 에이전트 · CL-v2 스크립트)을 가리켜
-  // 폴백이 자립하지 못했다. 이제 어떤 조합에서도 명령이 깔리지 않는다.
-  //
-  // 두 조합을 **함께** 본다: withEcc 한쪽만 보면 "플러그인 ON 이라 건너뛴 것"과 "자산이 아예
-  // 없는 것"이 구분되지 않는다.
-  it("ecc commands: 어떤 조합에서도 안 깔린다 (ADR-073)", () => {
-    for (const withEcc of [false, true]) {
-      const m = buildManifest({ tracks: ["tooling"], withEcc });
-      expect(
-        m.find((e) => e.source === "commands/ecc"),
-        `withEcc=${withEcc} 에서 commands/ecc 엔트리가 살아 있다`,
-      ).toBeUndefined();
-    }
+  // 폴백이 자립하지 못했다. 이제 어떤 조합에서도 명령이 깔리지 않는다(#492 에서 게이팅 축
+  // 자체가 없어져 조합은 하나뿐이다).
+  it("ecc commands: 안 깔린다 (ADR-073)", () => {
+    const m = buildManifest({ tracks: ["tooling"] });
+    expect(m.find((e) => e.source === "commands/ecc")).toBeUndefined();
   });
 
   it("전제 확인 — 같은 조회 방식으로 실재하는 엔트리는 찾힌다 (게이트 자기검증)", () => {
@@ -174,39 +152,18 @@ describe("buildManifest", () => {
 
   // ADR-090 (#452) — 은퇴한 스킬도 에이전트와 같은 방식으로 증명한다: **manifest 에서 사라졌다**.
   // 파일 부재만 보면 다음 사람이 `templates/skills/` 에 디렉터리를 되돌려 놓는 순간 조용히
-  // 되살아난다. C2(plugin OFF 폴백) 계약의 표본은 아래 python-* · 위 e2e-testing 이 잇는다.
-  it("은퇴한 스킬은 어떤 조합에서도 manifest 에 없다 (ADR-090)", () => {
-    for (const withEcc of [false, true]) {
-      const m = buildManifest({ tracks: [...TRACKS], withEcc });
-      for (const id of RETIRED_SKILL_IDS) {
-        expect(
-          m.find((e) => e.source === `skills/${id}`),
-          `${id} 가 manifest 에 살아 있다 (withEcc=${withEcc})`,
-        ).toBeUndefined();
-      }
-      // 0건 함정 방지 — 같은 조회로 남는 스킬은 잡힌다.
-      expect(m.find((e) => e.source === "skills/recurrence-prevention")).toBeDefined();
+  // 되살아난다. #492 로 은퇴 목록에 ECC cherry-pick 7종이 들어와 같은 게이트가 그것도 문다.
+  it("은퇴한 스킬은 manifest 에 없다 (ADR-090 · #492)", () => {
+    const m = buildManifest({ tracks: [...TRACKS], withTauri: true });
+    for (const id of RETIRED_SKILL_IDS) {
+      expect(
+        m.find((e) => e.source === `skills/${id}`),
+        `${id} 가 manifest 에 살아 있다`,
+      ).toBeUndefined();
     }
+    // 0건 함정 방지 — 같은 조회로 남는 스킬은 잡힌다.
+    expect(m.find((e) => e.source === "skills/recurrence-prevention")).toBeDefined();
     expect(RETIRED_SKILL_IDS.length).toBeGreaterThan(0);
-  });
-
-  it("C3(withEcc 무관 install) 축은 지금 비어 있다 — 되살아나면 lock 과 1:1 을 요구한다", () => {
-    // ADR-090 (#452) — 마지막 C3 두 종(deep-research · eval-harness)이 은퇴했다. 목록을 빈 채로
-    // 못 박는 이유: 다음에 C3 가 들어오면 이 단언이 빨간불을 내고, 그때 `cherrypicks.lock` 의
-    // `modified:true` 와 1:1 인지(tests/vnv-verdict.test.ts)를 같이 세우게 된다. 그 1:1 이
-    // 깨지면 `sync-cherrypicks.sh --apply` 의 rsync --delete 가 우리 수정본을 조용히 덮는다.
-    expect(MODIFIED_ECC_SKILL_DIRS).toEqual([]);
-  });
-
-  it("python-* skills: C2 opt-out + track gating. v26.58.0 ADR-019", () => {
-    const m = buildManifest({ tracks: ["data"] });
-    const pp = m.find((e) => e.source === "skills/python-patterns");
-    // data track + plugin OFF → install
-    expect(pp?.applies({ tracks: ["data"] })).toBe(true);
-    // data track + plugin ON → skip
-    expect(pp?.applies({ tracks: ["data"], withEcc: true })).toBe(false);
-    // 비-Python track + plugin OFF → skip (track 미일치)
-    expect(pp?.applies({ tracks: ["executive"] })).toBe(false);
   });
 
   it("includes hooks for all tracks", () => {
@@ -220,16 +177,6 @@ describe("buildManifest", () => {
     for (const h of hookEntries) {
       expect(h.applies({ tracks: ["executive"] })).toBe(true);
     }
-  });
-
-  it("includes market-research only for executive|full", () => {
-    const exec = buildManifest({ tracks: ["executive"] });
-    const mrExec = exec.find((e) => e.source === "skills/market-research");
-    expect(mrExec?.applies({ tracks: ["executive"] })).toBe(true);
-
-    const data = buildManifest({ tracks: ["data"] });
-    const mrData = data.find((e) => e.source === "skills/market-research");
-    expect(mrData?.applies({ tracks: ["data"] })).toBe(false);
   });
 
   // v26.87.0 — dev-method skills (uzys 1st-party, internal). no-false-ship invariant:

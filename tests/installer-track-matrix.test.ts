@@ -68,7 +68,8 @@ describe("Track matrix — assets called per track", () => {
     //   external-installer.ts:112 가 internal 을 걸러내기 때문이다 — 사라진 게 아니라 Phase 1
     //   (manifest dir copy)이 맡는다. 도달 범위는 아래 "번들 9종은 …" 테스트가 그 표면에서 문다.
     // #489 (2026-09-20) — agent-browser 는 opt-in 으로 내려가 기본 집합에서 빠진다.
-    expect(ids).toEqual(["frontend-design", "find-skills"]);
+    // #492 — find-skills 은퇴로 dev 기본 외부 자산은 frontend-design 하나다.
+    expect(ids).toEqual(["frontend-design"]);
     expect(ids).not.toContain("product-skills");
     expect(ids).not.toContain("agent-browser");
   });
@@ -82,7 +83,7 @@ describe("Track matrix — assets called per track", () => {
     // 2026-08-02 (ADR-060) — polars/dask/karpathy 삭제 · uzys 이관 7종 합류.
     // 2026-08-02 (ADR-062 복원) — uzys 9종은 internal 로 복귀 → external 시도 목록에서 빠진다.
     // #489 — agent-browser opt-in → 기본 집합에서 제외.
-    expect(ids).toEqual(["frontend-design", "anthropic-data-plugin", "find-skills"]);
+    expect(ids).toEqual(["frontend-design", "anthropic-data-plugin"]);
   });
 
   it("csr-fastapi: dev baseline + UI(react+shadcn) — taste 가이드는 opt-in (v26.106.0 ADR-035)", () => {
@@ -90,7 +91,7 @@ describe("Track matrix — assets called per track", () => {
     // v0.6.3 — railway-plugin entry 제거. v26.71.1 — railway-skills(T3) opt-in only → default 제외.
     expect(ids).not.toContain("railway-skills");
     expect(ids).not.toContain("railway-plugin");
-    expect(ids).not.toContain("addy-agent-skills"); // v26.42.0 — option-gated
+    expect(ids).not.toContain("bmad-method"); // opt-in
     // csr-* matches CSR_SSR_NEXTJS_FULL set → react/shadcn applies
     expect(ids).toContain("react-best-practices");
     expect(ids).toContain("shadcn-ui");
@@ -177,20 +178,13 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("impeccable"); // v26.106.0 — ADR-035 opt-in 강등
   });
 
-  it("--with addy-agent-skills adds addy-agent-skills plugin (v26.81.0 ADR-022)", () => {
-    const { ids } = runForTrack(["tooling"], {}, ["addy-agent-skills"]);
-    expect(ids).toContain("addy-agent-skills");
-  });
-
-  it("--with ecc-plugin adds ecc-plugin to attempt list (opt-in)", () => {
-    const { ids } = runForTrack(["tooling"], {}, ["ecc-plugin"]);
-    expect(ids).toContain("ecc-plugin");
-    expect(ids).not.toContain("ecc-prune"); // separate opt-in (withPrune behavior flag)
-  });
-
-  it("--with-prune adds ecc-prune (option-gated, independent of withEcc)", () => {
-    const { ids } = runForTrack(["tooling"], { withPrune: true });
-    expect(ids).toContain("ecc-prune");
+  // #492 — 이 자리를 지키던 세 판(addy-agent-skills · ecc-plugin · --with-prune)은 자산과
+  // 플래그가 함께 은퇴했다. 계약(“opt-in 은 --with 로만 들어온다 · 다른 opt-in 을 끌고 오지
+  // 않는다”)은 살아 있는 자산으로 그대로 잰다.
+  it("--with bmad-method adds bmad only (다른 opt-in 은 안 딸려 온다)", () => {
+    const { ids } = runForTrack(["tooling"], {}, ["bmad-method"]);
+    expect(ids).toContain("bmad-method");
+    expect(ids).not.toContain("openspec");
   });
 
   it("--with trailofbits-skills adds Trail of Bits (any track)", () => {
@@ -202,19 +196,19 @@ describe("Track matrix — assets called per track", () => {
 });
 
 describe("Track matrix — spawn call counts", () => {
-  it("tooling: 2 spawn calls (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0 · #489 agent-browser opt-in)", () => {
-    // frontend-design(skill=1) + find-skills(1) = 2. agent-browser(npm install=1)는 #489 로 opt-in.
+  it("tooling: 1 spawn call (2026-08-02 복원 ADR-062 — uzys 9종은 internal 로 복귀해 spawn 0 · #489 agent-browser opt-in)", () => {
+    // #492 — find-skills 은퇴로 frontend-design(skill=1) 하나만 남는다.
     // 2026-08-26 (#344): frontend-design 이 plugin → skill 이 되며 4 → 3. plugin 은
     //   `marketplace add` + `plugin install` 로 **2번** 띄우고 skill 은 `npx skills add` 1번이다.
     //   숫자가 줄어든 것은 자산이 빠진 게 아니라 배달 방식이 바뀐 결과다.
     // internal 자산은 프로세스를 띄우지 않는다 — Phase 1 manifest 가 dir 을 복사할 뿐이다.
     const { spawnCallCount } = runForTrack(["tooling"]);
-    expect(spawnCallCount).toBe(2);
+    expect(spawnCallCount).toBe(1);
   });
 
-  it("data: tooling baseline 2 + anthropic-data-plugin(×2) = 4 (2026-08-02 복원 ADR-062 · #489)", () => {
+  it("data: tooling baseline 1 + anthropic-data-plugin(×2) = 3 (2026-08-02 복원 ADR-062 · #489)", () => {
     const { spawnCallCount } = runForTrack(["data"]);
-    expect(spawnCallCount).toBe(4);
+    expect(spawnCallCount).toBe(3);
   });
 
   it("--with openspec alone (executive base) adds 1 npm call", () => {

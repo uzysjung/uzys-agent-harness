@@ -241,12 +241,12 @@ describe("installAction", () => {
       return fakeReport;
     });
     installAction(
-      { cli: ["claude"], track: ["tooling"], withPrune: true, projectDir: "/p" },
+      { cli: ["claude"], track: ["tooling"], withCodexTrust: true, projectDir: "/p" },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
-    expect(captured?.options.withPrune).toBe(true);
-    // v26.81.0 (ADR-022) — withEcc boolean 삭제. prune→ecc 결합은 installer 내부
-    //   (eccSelected = isAssetSelected("ecc-plugin") || withPrune) 로 이동.
+    expect(captured?.options.withCodexTrust).toBe(true);
+    // #492 — 동작 플래그는 `--with-codex-trust` 하나만 남았다(`--with-prune` 은 ECC 자산과 함께
+    //   은퇴). 자산 선택은 `--with <id>`(userOverride) 경로다.
   });
 
   it("logs backup path when pipeline returns one", () => {
@@ -277,7 +277,6 @@ describe("executeSpec", () => {
   const baseSpec: InstallSpec = {
     tracks: ["tooling"],
     options: {
-      withPrune: false,
       withCodexTrust: false,
     },
     cli: ["claude"],
@@ -596,8 +595,7 @@ describe("executeSpec", () => {
       {
         ...baseSpec,
         options: {
-          withPrune: true,
-          withCodexTrust: false,
+          withCodexTrust: true,
         },
       },
       { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
@@ -606,9 +604,9 @@ describe("executeSpec", () => {
     const optsCall = log.mock.calls.find((args) =>
       typeof args[0] === "string" ? args[0].includes("OPTIONS") : false,
     );
-    expect(optsCall?.[0]).toContain("prune");
-    // 2026-08-02 정비 (ADR-060) — karpathy-hook 플래그 삭제. 잔존 동작 옵션은 prune·codex-trust.
-    expect(optsCall?.[0]).not.toContain("karpathy");
+    // #492 — 잔존 동작 옵션은 codex-trust 하나다(prune 은 ECC 자산과 함께 은퇴).
+    expect(optsCall?.[0]).toContain("codex-trust");
+    expect(optsCall?.[0]).not.toContain("prune");
   });
 
   it("renders Phase 2 (External Assets) when report.external has attempted entries", () => {
@@ -670,20 +668,16 @@ describe("executeSpec", () => {
           },
           {
             asset: {
-              id: "test-shell",
-              description: "shell",
+              id: "test-internal",
+              description: "internal",
               category: "dev-tools" as const,
               source: "uzys" as const,
               tier: "vetted" as const,
               condition: { kind: "any-track" as const, tracks: ["tooling"] as Track[] },
-              method: {
-                kind: "shell-script",
-                script: "scripts/x.sh",
-                args: [],
-              } as const,
+              method: { kind: "internal", key: "ci-scaffold" } as const,
             },
             ok: false,
-            message: "script missing",
+            message: "template missing",
           },
         ],
         succeeded: 4,
@@ -697,7 +691,7 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("test-plugin"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("test-npm"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("test-npx"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("test-shell"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("test-internal"));
     // formatAssetMeta covered each kind
     expect(log).toHaveBeenCalledWith(expect.stringContaining("owner/repo · react"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("foo@ms"));
@@ -706,7 +700,7 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("npm · vercel@54.0.0"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("npx · gsd@1.0.0"));
     // failed asset shows error message
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("script missing"));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("template missing"));
     // v26.63.0 — unifiedSection "━━ External assets (N) ━━" (Phase 카운터 제거)
     expect(log).toHaveBeenCalledWith(expect.stringContaining("External assets"));
     // Summary WARN line for skipped
@@ -1680,7 +1674,7 @@ describe("v26.48.0 — install helpers (coverage 복구)", () => {
 describe("renderFinalSummary FILL row — populate 안내는 깔린 경우에만 (ADR-084)", () => {
   const base: InstallSpec = {
     tracks: ["tooling"],
-    options: { withPrune: false, withCodexTrust: false },
+    options: { withCodexTrust: false },
     cli: ["claude"],
     projectDir: "/p",
   };
@@ -1714,7 +1708,6 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
   const toolingClaude: InstallSpec = {
     tracks: ["tooling"],
     options: {
-      withPrune: false,
       withCodexTrust: false,
     },
     cli: ["claude"],

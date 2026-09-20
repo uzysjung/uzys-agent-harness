@@ -55,8 +55,8 @@ describe("Trust Tier (v26.71.0, PRD v26-71; v26.79.0 SSOT derive)", () => {
 
   it("assetTrustTier — official / vetted / experimental 분류", () => {
     expect(assetTrustTier("anthropic-document-skills")).toBe("official"); // anthropics 공식
-    expect(assetTrustTier("ecc-prune")).toBe("official"); // 하네스 자체
-    expect(assetTrustTier("ecc-plugin")).toBe("vetted"); // affaan-m 199k
+    expect(assetTrustTier("ci-scaffold")).toBe("official"); // 하네스 자체
+    expect(assetTrustTier("bmad-method")).toBe("vetted"); // bmad-code-org
     expect(assetTrustTier("railway-skills")).toBe("experimental"); // 268 < 1000
   });
 
@@ -118,7 +118,7 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
     }).map((a) => a.id);
     expect(ids).not.toContain("railway-skills"); // T3
     expect(ids).not.toContain("architecture-decision-record"); // T3
-    expect(ids).toContain("find-skills"); // vetted
+    expect(ids).toContain("react-best-practices"); // vetted
     expect(ids).toContain("frontend-design"); // official
   });
 
@@ -144,24 +144,14 @@ describe("shouldInstallAsset — experimental opt-in (v26.71.1, PRD v26-71 R6/AC
 });
 
 describe("external-assets EXTERNAL_ASSETS catalog", () => {
-  it("contains 62 distinct asset ids (no duplicates)", () => {
+  it("자산 id 는 중복 없고, 은퇴한 id 는 되돌아오지 않는다", () => {
     const ids = EXTERNAL_ASSETS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
-    // 2026-08-02 정비 (ADR-060): 66 − 12(카탈로그 삭제) − 11(internal uzys 삭제)
-    //   + 9(이관 uzys npx) + 3(frontend) = 55. + 1(objective-brief 신설, ADR-062 AC9) = 56.
-    //   + 1(audit-harness-fit 신설, ADR-064) = 57
-    //   + 1(preline — Tailwind 컴포넌트 킷 테마 생성기, htmx·vanilla 대응) = 58.
-    //   + 1(self-hosted-github-runner 신설, #353) = 61.
-    //   + 1(humanize-korean 신설, #355) = 62. #428 에서 natural-korean 으로 개명 — 수는 그대로.
-    //   #426(ADR-088) objective-brief 개명 — 수는 그대로. 같은 PR 의 은퇴 3종(strategic-compact ·
-    //   continuous-learning-v2 · spec-scaling)은 카탈로그 엔트리가 아니라 manifest 번들이었다.
-    //   − 1(#452 ADR-090 verification-loop 은퇴 — 이쪽은 카탈로그 엔트리였다) = 61.
-    expect(ids).toHaveLength(61);
+    // 개수는 단언하지 않는다 — `EXTERNAL_ASSETS.length` 를 옮겨 적은 숫자일 뿐이라 자산이
+    // 늘거나 줄 때마다 썩는다(#492 직전까지 "61" 과 그 산수 이력이 여기 있었다). 계약은
+    // **무엇이 있고 무엇이 없어야 하는가** 쪽이다.
     expect(ids).toContain("objective-brief");
     expect(ids).toContain("audit-harness-fit");
-    // v26.110.0 (ADR-039) — 오피셜 플러그인 큐레이션 배치: 3종 opt-in.
-    expect(ids).toContain("code-review");
-    expect(ids).toContain("feature-dev");
     expect(ids).toContain("security-guidance");
     // context7 플러그인 = 미등록 (mcp.json/codex config 템플릿이 이미 기본 wiring — 중복 등록 방지).
     expect(ids).not.toContain("context7");
@@ -181,6 +171,18 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       "research-summarizer",
       "playwright-skill",
       "karpathy-coder",
+      // #492 — 관측 없는 자산 은퇴. 부재가 곧 결정이다.
+      "superpowers",
+      "feature-dev",
+      "wshobson-agents",
+      "addy-agent-skills",
+      "code-review",
+      "find-skills",
+      "mermaid-diagrams",
+      "ecc-plugin",
+      "ecc-prune",
+      "game-studios",
+      "ppt-generation",
     ]) {
       expect(ids, `${removed} 는 제거 대상`).not.toContain(removed);
     }
@@ -190,8 +192,6 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).toContain("frontend-design");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");
-    expect(ids).toContain("ecc-plugin");
-    expect(ids).toContain("ecc-prune");
     expect(ids).toContain("trailofbits-skills");
     // v26.87.0 — 번들 internal skills (uzys 1st-party).
     for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
@@ -420,12 +420,11 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   });
 
   it("official plugins curation batch (v26.110.0, ADR-039): 조건·마켓플레이스 계약", () => {
-    // 사용자 승인 + 검증 정정 (2026-07-18): code-review·feature-dev·security-guidance opt-in /
+    // 사용자 승인 + 검증 정정 (2026-07-18): 오피셜 플러그인도 opt-in /
     //   context7 = 미등록(mcp.json 템플릿 기본 wiring 기충족 — 중복) / claude-md-management 기각.
     //   "오피셜 = 기본설치"가 아니라 "갭 충족 + 상시 비용 정당"이 기본설치 축 (ADR-032/035).
+    //   #492 — 같은 배치의 code-review·feature-dev 가 은퇴해 남은 1종으로 계약을 고정한다.
     const batch = {
-      "code-review": { category: "dev-tools" },
-      "feature-dev": { category: "workflow" },
       "security-guidance": { category: "dev-tools" },
     } as const;
     for (const [id, want] of Object.entries(batch)) {
@@ -494,7 +493,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   // v26.85.0 — Visual & Media 카테고리 (코드-퍼스트 제작). Promise=Impl: 광고한 설치법 = 정의.
   //   좌표는 Docker 실설치 검증(실 claude 2.1.177) PASS 값 — drift(rename/삭제) 시 fail.
   //   no-false-ship surface parity: opt-in(자동 미설치) + forceInclude(--with/wizard)로만 설치.
-  it("Visual & Media category: 9 assets, opt-in + forceInclude reachable, exact methods", () => {
+  it("Visual & Media category: opt-in + forceInclude reachable, exact methods", () => {
     const byId = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
     const vm = EXTERNAL_ASSETS.filter((a) => a.category === "visual-media").map((a) => a.id);
     expect(vm.sort()).toEqual(
@@ -502,10 +501,8 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         "frontend-slides",
         "gsap-skills",
         "marp-slide",
-        "mermaid-diagrams",
         "remotion",
         "ppt-master",
-        "ppt-generation",
         "web-video-presentation",
         "revealjs",
       ].sort(),
@@ -525,27 +522,17 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       source: "softaworks/agent-toolkit",
       skill: "marp-slide",
     });
-    expect(byId("mermaid-diagrams")?.method).toEqual({
-      kind: "skill",
-      source: "softaworks/agent-toolkit",
-      skill: "mermaid-diagrams",
-    });
     // remotion --skill = remotion-best-practices (Docker 실측 — dir `remotion` ≠ frontmatter name).
     expect(byId("remotion")?.method).toEqual({
       kind: "skill",
       source: "remotion-dev/skills",
       skill: "remotion-best-practices",
     });
-    // Issue #176 프레젠테이션 4종 (Docker 4/4 PASS — skills@1.5.11 add <src> --agent claude-code --skill).
+    // Issue #176 프레젠테이션 배치 (Docker PASS — skills@1.5.11 add <src> --agent claude-code --skill).
     expect(byId("ppt-master")?.method).toEqual({
       kind: "skill",
       source: "hugohe3/ppt-master",
       skill: "ppt-master",
-    });
-    expect(byId("ppt-generation")?.method).toEqual({
-      kind: "skill",
-      source: "bytedance/deer-flow",
-      skill: "ppt-generation",
     });
     expect(byId("web-video-presentation")?.method).toEqual({
       kind: "skill",
@@ -557,7 +544,7 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
       source: "ryanbbrown/revealjs-skill",
       skill: "revealjs",
     });
-    // 전부 opt-in (자동 미설치). tier: vetted 8 + experimental 1 (revealjs ★347 <1000, opt-in).
+    // 전부 opt-in (자동 미설치). revealjs(★347 <1000)만 experimental, 나머지는 vetted.
     for (const id of vm) {
       expect(byId(id)?.condition.kind).toBe("opt-in");
     }
@@ -591,43 +578,22 @@ describe("shouldInstallAsset — track conditions", () => {
   });
 
   it("has-dev-track matches any non-executive track", () => {
-    const findSkills = EXTERNAL_ASSETS.find((a) => a.id === "find-skills");
-    if (!findSkills) throw new Error("find-skills missing");
-    expect(shouldInstallAsset(findSkills, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(true);
-    expect(shouldInstallAsset(findSkills, { tracks: ["csr-fastapi"], options: NO_OPTIONS })).toBe(
+    // #492 — 예시를 find-skills 에서 번들 방법론 스킬로 옮겼다. 조건 축(has-dev-track)은 같다.
+    const devSkill = EXTERNAL_ASSETS.find((a) => a.id === "compaction-handoff");
+    if (!devSkill) throw new Error("compaction-handoff missing");
+    expect(shouldInstallAsset(devSkill, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(true);
+    expect(shouldInstallAsset(devSkill, { tracks: ["csr-fastapi"], options: NO_OPTIONS })).toBe(
       true,
     );
-    expect(shouldInstallAsset(findSkills, { tracks: ["executive"], options: NO_OPTIONS })).toBe(
+    expect(shouldInstallAsset(devSkill, { tracks: ["executive"], options: NO_OPTIONS })).toBe(
       false,
     );
   });
 
   // v26.81.0 (ADR-022) — flag 게이팅 → opt-in(forceInclude) 게이팅으로 의미 전환.
   //   WHY: condition 만으론 절대 미설치(무단 설치 금지), --with <id>/wizard 체크로만 활성.
-  it("opt-in conditions never match by themselves — forceInclude only", () => {
-    const ecc = EXTERNAL_ASSETS.find((a) => a.id === "ecc-plugin");
-    if (!ecc) throw new Error("ecc-plugin missing");
-    expect(shouldInstallAsset(ecc, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
-    expect(
-      shouldInstallAsset(ecc, {
-        tracks: ["tooling"],
-        options: NO_OPTIONS,
-        userOverride: { forceInclude: ["ecc-plugin"], forceExclude: [] },
-      }),
-    ).toBe(true);
-  });
-
-  it("ecc-prune fires when withPrune=true (separate from withEcc)", () => {
-    const prune = EXTERNAL_ASSETS.find((a) => a.id === "ecc-prune");
-    if (!prune) throw new Error("ecc-prune missing");
-    // withPrune이 자체적으로 trigger (ecc-prune is gated on withPrune flag)
-    expect(
-      shouldInstallAsset(prune, {
-        tracks: ["tooling"],
-        options: { ...NO_OPTIONS, withPrune: true },
-      }),
-    ).toBe(true);
-  });
+  //   #492 — 이 계약을 ecc-plugin 으로 재던 판이 은퇴했다. 바로 아래 trailofbits-skills 가
+  //   같은 계약을 문다(자산만 다르고 판정은 동일).
 
   it("Trail of Bits is gated on `--with trailofbits-skills` (opt-in)", () => {
     const tob = EXTERNAL_ASSETS.find((a) => a.id === "trailofbits-skills");
@@ -655,21 +621,21 @@ describe("shouldInstallAsset — track conditions", () => {
     expect(tob.method.pluginId).toBe("differential-review@trailofbits");
   });
 
-  it("workflow 큐레이션 확장 (v26.75.0, ADR-021) — 3 자산 옵션 gated + 검증 메서드/tier", () => {
-    const wshobson = EXTERNAL_ASSETS.find((a) => a.id === "wshobson-agents");
+  it("workflow 큐레이션 확장 (v26.75.0, ADR-021) — 옵션 gated + 검증 메서드/tier", () => {
+    // #492 — 같은 배치의 wshobson-agents 는 은퇴했다. 남은 둘로 계약을 고정한다.
     const openspec = EXTERNAL_ASSETS.find((a) => a.id === "openspec");
     const bmad = EXTERNAL_ASSETS.find((a) => a.id === "bmad-method");
-    if (!wshobson || !openspec || !bmad) throw new Error("workflow 자산 누락");
+    if (!openspec || !bmad) throw new Error("workflow 자산 누락");
 
     // 전부 workflow 카테고리 + vetted, 기본 트랙엔 미포함 (옵션 gated — 무단 설치 금지)
-    for (const a of [wshobson, openspec, bmad]) {
+    for (const a of [openspec, bmad]) {
       expect(a.category).toBe("workflow");
       expect(assetTrustTier(a.id)).toBe("vetted");
       expect(shouldInstallAsset(a, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     }
 
     // v26.81.0 (ADR-022) — `--with <id>` (forceInclude) 로만 활성
-    for (const a of [wshobson, openspec, bmad]) {
+    for (const a of [openspec, bmad]) {
       expect(
         shouldInstallAsset(a, {
           tracks: ["tooling"],
@@ -680,11 +646,6 @@ describe("shouldInstallAsset — track conditions", () => {
     }
 
     // 검증된 설치 메서드 (Promise=Impl — 변조 시 회귀 fail)
-    expect(wshobson.method).toEqual({
-      kind: "plugin",
-      marketplace: "wshobson/agents",
-      pluginId: "full-stack-orchestration@claude-code-workflows",
-    });
     // v26.80.0 — version pinned (vetting 시점 코드만 실행). bump 는 A2 audit 주기 + Docker 검증.
     expect(openspec.method).toEqual({ kind: "npm", pkg: "@fission-ai/openspec", version: "1.4.1" });
     expect(bmad.method).toEqual({
@@ -710,7 +671,7 @@ describe("filterApplicableAssets", () => {
     expect(ids).not.toContain("finance-skills");
     expect(ids).toContain("north-star");
     expect(ids).toContain("gh-issue-workflow");
-    expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
+    expect(ids).not.toContain("bmad-method"); // opt-in
     expect(ids).not.toContain("anthropic-data-plugin"); // data|full
   });
 
@@ -720,13 +681,13 @@ describe("filterApplicableAssets", () => {
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
-    expect(ids).toEqual(expect.arrayContaining(["anthropic-data-plugin", "find-skills"]));
+    expect(ids).toEqual(expect.arrayContaining(["anthropic-data-plugin", "compaction-handoff"]));
     expect(ids).not.toContain("agent-browser"); // #489 — opt-in
     // 2026-08-02 정비 (ADR-060) — data 스킬 4종(polars·dask·python 2종)은 카탈로그에서 제거.
     expect(ids).not.toContain("polars-K-Dense");
     expect(ids).not.toContain("python-resource-management");
     expect(ids).not.toContain("python-performance-optimization");
-    expect(ids).not.toContain("addy-agent-skills"); // option-gated (v26.42.0+)
+    expect(ids).not.toContain("bmad-method"); // opt-in
     expect(ids).not.toContain("railway-skills"); // not in data
   });
 
@@ -736,8 +697,8 @@ describe("filterApplicableAssets", () => {
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
-    // 옵션 gated 는 제외 (ecc, tob 등)
-    expect(ids).not.toContain("ecc-plugin");
+    // 옵션 gated 는 제외 (bmad, tob 등)
+    expect(ids).not.toContain("bmad-method");
     expect(ids).not.toContain("trailofbits-skills");
     // Track 매트릭스의 vetted/official 자산은 포함
     expect(ids).toContain("anthropic-data-plugin");
@@ -756,14 +717,14 @@ describe("filterApplicableAssets", () => {
       tracks: ["tooling"] as Track[],
       options: NO_OPTIONS,
       userOverride: {
-        forceInclude: ["ecc-plugin", "trailofbits-skills", "addy-agent-skills"],
+        forceInclude: ["bmad-method", "trailofbits-skills", "openspec"],
         forceExclude: [],
       },
     });
     const ids = apps.map((a) => a.id);
-    expect(ids).toContain("ecc-plugin");
+    expect(ids).toContain("bmad-method");
     expect(ids).toContain("trailofbits-skills");
-    expect(ids).toContain("addy-agent-skills");
+    expect(ids).toContain("openspec");
   });
 });
 

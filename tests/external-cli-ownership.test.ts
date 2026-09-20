@@ -196,7 +196,7 @@ describe("installer 배선 — 기준선이 install log 를 왕복하는가", ()
   function install(): void {
     const spec: InstallSpec = {
       tracks: ["tooling"],
-      options: { withPrune: false, withCodexTrust: false },
+      options: { withCodexTrust: false },
       cli: ["codex", "opencode"],
       projectDir,
     };

@@ -43,7 +43,7 @@ beforeEach(() => {
 function spec(cli: InstallSpec["cli"]): InstallSpec {
   return {
     tracks: ["tooling"],
-    options: { withPrune: false, withCodexTrust: false },
+    options: { withCodexTrust: false },
     cli,
     projectDir,
   };

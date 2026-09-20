@@ -263,7 +263,9 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
     // `.claude/skills/` 를 직접 훑는 스캔이다. 그 스캔을 죽이면 두 문구는 아무에게도 안 보인다
     // (PR #444 리뷰 HIGH-nit: 무력화해도 전 스위트가 초록이었다).
     const dir = installedProject();
-    for (const id of ["task-brief", "spec-scaling"]) {
+    // #492 — `python-patterns` 는 이번에 은퇴한 번들 스킬이다. 옛 설치본 디스크에는 남아 있고,
+    // 그 사람이 update 를 돌 때 "이제 안 쓴다"를 듣는 경로가 이것 하나다.
+    for (const id of ["task-brief", "spec-scaling", "python-patterns"]) {
       mkdirSync(join(dir, ".claude", "skills", id), { recursive: true });
       writeFileSync(join(dir, ".claude", "skills", id, "SKILL.md"), `---\nname: ${id}\n---\n`);
     }
@@ -276,7 +278,7 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
     }));
     const report = runUpdateMode(dir, templatesDir, harnessRoot, { refreshSkills });
     expect(report.externalSkillsNotInCatalog).toEqual(
-      expect.arrayContaining(["task-brief", "spec-scaling"]),
+      expect.arrayContaining(["task-brief", "spec-scaling", "python-patterns"]),
     );
   });
 
@@ -315,7 +317,7 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
 describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다", () => {
   const spec: InstallSpec = {
     tracks: ["tooling"],
-    options: { withPrune: false, withCodexTrust: false },
+    options: { withCodexTrust: false },
     cli: ["claude"],
     projectDir: "/p",
   };

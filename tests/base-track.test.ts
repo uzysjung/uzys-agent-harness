@@ -44,11 +44,12 @@ describe("base 트랙 (#456)", () => {
     expect(onlyTooling).toEqual([".claude/rules/cli-development.md"]);
   });
 
-  it("외부 자산 기본 선택: 전 트랙 4종은 오고, 개발 도구(frontend-design · find-skills)는 안 온다 — 대조군 tooling 은 온다 · agent-browser 는 어디서도 기본이 아니다(#489)", () => {
+  it("외부 자산 기본 선택: 전 트랙 4종은 오고, 개발 도구(frontend-design)는 안 온다 — 대조군 tooling 은 온다 · agent-browser 는 어디서도 기본이 아니다(#489)", () => {
     const base = recommendedExternalAssets(["base"]);
     for (const id of ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"])
       expect(base).toContain(id);
-    for (const id of ["frontend-design", "find-skills"]) {
+    // #492 — 같이 재던 find-skills 가 은퇴했다. 축(스택 무관 개발 도구)은 그대로다.
+    for (const id of ["frontend-design"]) {
       expect(base, `${id} 가 base 기본 선택에 들어왔다`).not.toContain(id);
       expect(
         recommendedExternalAssets(["tooling"]),

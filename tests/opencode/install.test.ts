@@ -25,7 +25,6 @@ describe("OpenCode install pipeline (integration)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["opencode"],
@@ -66,7 +65,6 @@ describe("OpenCode install pipeline (integration)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude", "codex", "opencode"],
@@ -93,7 +91,6 @@ describe("OpenCode install pipeline (integration)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -114,7 +111,6 @@ describe("OpenCode install pipeline (integration)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude", "codex"],

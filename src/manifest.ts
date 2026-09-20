@@ -31,27 +31,6 @@ export interface AssetSpec {
    */
   withTauri?: boolean;
   /**
-   * v26.58.0 — withEcc opt-out gating (BREAKING vs v26.55.0). ADR-019 supersedes ADR-016 부분.
-   * Note: copied from `OptionFlags.withEcc` by installer; keep both fields in sync.
-   *
-   * 정책 (cherry-pick × plugin gating):
-   * - C1 (단순 중복): 매핑 자체 삭제.
-   * - C2 (plugin OFF fallback): `applies: (s) => !s.withEcc && <track>`.
-   * - C3 (modified or 별개 source): `applies: <track only>` (withEcc 무관 항상 install).
-   *
-   * **개수를 여기 적지 않는다** — 주석의 숫자는 두 번째 사본이라 썩는다 (#340 에서 실제로
-   * 19/3 이 실측과 어긋나 있었다). 그리고 **`_ECC` 접미 목록을 세는 것으로는 C2 가 안 나온다**:
-   * 이 파일의 `buildManifest` 안에는 목록 없이 인라인 `applies` 로 `!s.withEcc` 를 붙인 엔트리가
-   * 따로 있어(#340 에서 추가), 목록만 세면 그만큼 모자란다.
-   * C2 의 모집단은 **`buildManifest` 를 withEcc on/off 로 두 번 만들어 `applies()` 통과 대상을
-   * diff** 해서 얻는다 — 조건식을 읽는 대신 결과를 재는 이 방법이 인라인 게이트까지 포함한다.
-   * C3 는 `MODIFIED_ECC_SKILL_DIRS`. `tests/vnv-verdict.test.ts` 가 같은 방법으로 양방향 정합을
-   * 문다.
-   *
-   * 분류 표 SSOT: docs/PRD/v26-58-cherry-pick-plugin-gating.md §6.
-   */
-  withEcc?: boolean;
-  /**
    * v26.87.0 — 선택된 내부 dev-method skill id 집합 (uzys 1st-party, repo-bundled).
    * installer 가 `DEV_METHOD_SKILL_IDS` 를 `isAssetSelected` 로 필터해 채운다 — 즉
    * track(has-dev-track) 기본 + wizard uncheck / `--without <id>` (forceExclude) 반영.
@@ -90,8 +69,6 @@ export function buildAssetSpec(ctx: {
   return {
     tracks: ctx.tracks,
     withTauri: isAssetSelected("tauri-desktop", ctx),
-    // v26.55.0 — withEcc gating (ADR-016). withPrune 은 ecc-plugin 사용을 전제한다.
-    withEcc: isAssetSelected("ecc-plugin", ctx) || ctx.options.withPrune === true,
     // v26.87.0 — internal bundled skills (dev-method + opt-in advisors, v26.95.0). id 별 condition
     // (has-dev-track vs opt-in)은 isAssetSelected 가 적용한다.
     selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, ctx)),
@@ -180,8 +157,8 @@ export const ALL_RULES: ReadonlyArray<string> = resolveRules({ tracks: [...TRACK
 //   내려갔다(`TRACK_AGENTS`): 도메인 관례를 싣는 descriptor 인데 tooling 설치자에게는 열릴 일이
 //   없어 상주만 했다. ADR-089 (#445) 이후 ECC 폴백 에이전트 축은 비어 있고, ADR-090 에서
 //   dev 축 폴백 두 종(`silent-failure-hunter`·`build-error-resolver`)도 은퇴해 그 축 자체가
-//   없어졌다 — `!s.withEcc` 로 갈리는 **파일** 자산이 더는 없다(그래서 `superseded` 판정도 함께
-//   사라졌다. 같은 형태가 다시 생기면 그 판정부터 되살린다).
+//   없어졌다 — #492 에서 ECC 축(과 그 게이트)이 통째로 빠지면서 `superseded` 판정도 함께
+//   사라졌다. 같은 형태가 다시 생기면 그 판정부터 되살린다.
 const CORE_AGENTS = ["reviewer"];
 
 // v26.138.0 — implementer: 구현 레인. 기존 에이전트 8종이 전부 검토·검증·도메인 특화라
@@ -259,41 +236,16 @@ export const RETIRED_AGENT_IDS: ReadonlyArray<string> = RETIRED_AGENTS.map((a) =
 // 매 프롬프트 훅은 그 문턱을 표현할 수 없다 — 길이는 규모의 증거가 아니다.
 export const ALWAYS_HOOKS = ["session-start.sh", "protect-files.sh"];
 
-// v26.58.0 — ECC cherry-pick × plugin gating. ADR-019.
 // 2026-08-02 정비 (ADR-060) — north-star · gh-issue-workflow 는 uzysjung/uzys-agent-skills 로
 // 이관돼 카탈로그 엔트리(`kind: "skill"`)가 됐다. 전 트랙 도달 범위는 그 엔트리의
 // `any-track: 전 트랙` condition 이 이어받는다 (강등 아님).
+// #492 — ECC 축(cherry-pick × plugin gating, ADR-019)이 통째로 없어졌다. 폴백 사본 7종은
+// 은퇴(`RETIRED_SKILL_IDS`)했고 `ecc-plugin`·`ecc-prune` 은 카탈로그에서 빠졌다. 남은 두 상수는
+// 우리가 직접 쓰는 스킬의 자리다 — 빈 목록이면 아래 루프가 0회 돌아 엔트리를 안 만든다.
 const COMMON_SKILL_DIRS: string[] = [];
-// C2 (plugin OFF fallback, opt-out).
-// ADR-088 (#426 F-09 · F-10) — 여기 있던 두 종이 은퇴해 목록이 비었다. 상수와 아래 루프는 남긴다:
-// 다음 C2 cherry-pick 이 들어올 자리이고, 빈 목록이면 루프가 0회 돌아 아무 엔트리도 안 만든다.
-const COMMON_SKILL_DIRS_ECC: string[] = [];
-// C3 (modified=true — plugin 으로 갈음 불가, 항상 install).
-// ADR-090 (#452) — `deep-research` 가 은퇴해 이 축이 비었다. 상수와 아래 루프는 남긴다:
-// 다음 C3 cherry-pick 이 들어올 자리이고, 빈 목록이면 루프가 0회 돌아 엔트리를 안 만든다.
-const MODIFIED_COMMON_SKILL_DIRS: string[] = [];
-
 const DEV_SKILL_DIRS: string[] = [];
-// ADR-090 (#452) — `agent-introspection-debugging` 은퇴로 비었다.
-const DEV_SKILL_DIRS_ECC: string[] = [];
-// C3 (modified=true): plugin 으로 갈음 불가, dev 트랙 항상 install.
-// ADR-090 (#452) — `eval-harness` 은퇴로 비었다. 그 아티팩트 계약(ADR-042)은 Testing·Delivery
-// 룰과 `reviewer` 가 덮는다.
-const MODIFIED_DEV_SKILL_DIRS: string[] = [];
-
-/**
- * C3 로 분류된 ECC cherry-pick 스킬 전체 (수정본 — plugin 으로 갈음 불가).
- * `.dev-references/cherrypicks.lock` 의 `modified: true` 와 1:1 이어야 한다 — lock 이
- * false 로 남으면 `sync-cherrypicks.sh --apply` 의 rsync --delete 가 로컬 수정을 조용히
- * 덮어쓴다. 정합은 tests/vnv-verdict.test.ts 가 강제한다. ADR-041.
- */
-export const MODIFIED_ECC_SKILL_DIRS = [...MODIFIED_COMMON_SKILL_DIRS, ...MODIFIED_DEV_SKILL_DIRS];
 
 const UI_SKILL_DIRS = ["ui-visual-review"];
-const UI_SKILL_DIRS_ECC = ["e2e-testing"];
-
-// python-* skills (data|csr-fastapi|full) — C2 (plugin OFF fallback).
-const PYTHON_SKILL_DIRS_ECC = ["python-patterns", "python-testing"];
 
 /**
  * CLI 중립 자산인가 — `.uzys-agent-harness/` 아래는 4개 CLI 와 사람이 함께 쓰는 슬롯이다
@@ -328,9 +280,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
   //   적고 있었다. 그중 셋이 부르던 학습 스킬은 같은 `!s.withEcc` 조건으로 **함께 깔리는**
   //   C2 항목이었다 — "별도 opt-in 스킬이라 대개 없다"가 틀렸다. 결정은 유지, 숫자만 정정.
   //   (그 스킬은 ADR-088 에서 은퇴했다 — 명령 템플릿도 이미 없다.)
-  //
-  // `ecc-prune` 은 남는다 — 그쪽은 ECC 를 **고른 사람**의 설치를 최적화하는 opt-in 이라 방향이
-  // 반대다(사용자 확정 2026-08-16).
+  //   #492 — `ecc-plugin`·`ecc-prune` 자산도 카탈로그에서 빠져 ECC 축 자체가 없다.
 
   // 하네스 앵커 — **프로젝트 루트**에 하네스 소유 파일로 나간다 (P5 · ADR-060).
   // 루트 `CLAUDE.md` 는 사용자 것이고, 거기엔 이 파일을 끌어오는 `@import` 한 줄만 들어간다
@@ -415,41 +365,6 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: all,
     });
   }
-  // v26.58.0 — Common skill dirs (ECC cherry-pick). ADR-019. C2: plugin OFF 시만 install (opt-out).
-  for (const sd of COMMON_SKILL_DIRS_ECC) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: (s) => !s.withEcc,
-    });
-  }
-  // v26.58.0 — C3 (modified=true). plugin 으로 갈음 불가, 항상 install. ADR-019.
-  for (const sd of MODIFIED_COMMON_SKILL_DIRS) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: all,
-    });
-  }
-  // #340 — 아래 4종은 `cherrypicks.lock` 에서 `modified:false`(= 우리가 안 고친 사본)인데
-  // `!s.withEcc` 가 빠져 있었다. ECC 플러그인을 고른 사용자가 **같은 스킬을 두 판본** 받았고,
-  // 어느 쪽이 로드되는지 예측할 수 없었다. C2 규칙(ADR-019)에 맞춘다.
-  for (const sd of ["market-research", "investor-materials", "investor-outreach"]) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: (s) => !s.withEcc && onTracks("executive|full")(s),
-    });
-  }
-  m.push({
-    source: "skills/nextjs-turbopack",
-    target: ".claude/skills/nextjs-turbopack",
-    type: "dir",
-    applies: (s) => !s.withEcc && onTracks("ssr-nextjs|full")(s),
-  });
   // v26.87.0 — internal bundled skills (uzys 1st-party templates: dev-method + opt-in advisors,
   // v26.95.0). Whole-dir copy so sidecar files ship too (e.g. gemini-consult/scripts/gemini-ask.sh).
   // Gated on `selectedInternalSkills` (installer computes it via isAssetSelected) — NOT track alone —
@@ -462,33 +377,7 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       applies: (s) => (s.selectedInternalSkills ?? []).includes(sd),
     });
   }
-  // v26.58.0 — python-* / DEV_SKILL_DIRS / UI_SKILL_DIRS 중 ECC 출처는 opt-out gating. ADR-019. C2.
-  for (const sd of PYTHON_SKILL_DIRS_ECC) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: (s) => !s.withEcc && anyTrack(s.tracks, "data|csr-fastapi|full"),
-    });
-  }
   for (const sd of DEV_SKILL_DIRS) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: dev,
-    });
-  }
-  for (const sd of DEV_SKILL_DIRS_ECC) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: (s) => !s.withEcc && hasDevTrack(s.tracks),
-    });
-  }
-  // C3 (modified=true). plugin 으로 갈음 불가 — verdict 어휘는 ECC plugin 판에 없다. ADR-041.
-  for (const sd of MODIFIED_DEV_SKILL_DIRS) {
     m.push({
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
@@ -502,14 +391,6 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: ui,
-    });
-  }
-  for (const sd of UI_SKILL_DIRS_ECC) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: (s) => !s.withEcc && hasUiTrack(s.tracks),
     });
   }
 

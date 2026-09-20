@@ -77,6 +77,7 @@ function hintFor(asset: InstallLogAsset): string {
     case "npm":
       return "npm uninstall --save-dev";
     case "npx-run":
+    // shell-script = #492 에서 은퇴한 legacy kind. 옛 로그가 그대로 들어온다.
     case "shell-script":
     case "internal":
       return "자동 되돌리기 경로 없음 — 전량 제거(`.claude/` 삭제)로만 사라진다";

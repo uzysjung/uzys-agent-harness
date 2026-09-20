@@ -3,12 +3,6 @@
   "schema": "cherrypicks-manifest-v1",
   "synced_at": "2026-04-17T00:00:00Z",
   "sources": {
-    "ecc": {
-      "url": "https://github.com/affaan-m/everything-claude-code",
-      "local_path": ".dev-references/ecc",
-      "commit": "754b8dd",
-      "note": "원본 ECC. cherry-pick 출처."
-    },
     "agent-skills": {
       "url": "https://github.com/addyosmani/agent-skills",
       "local_path": ".dev-references/agent-skills",
@@ -40,91 +34,8 @@
       "note": "v0.6.0 — karpathy-coder hook script cherry-pick 출처. plugin marketplace로 설치되나 hook script만 자체 호스팅 (PreToolUse 매처 호환 위해 adapt)."
     }
   },
-  "cherrypicks": [
-    {
-      "id": "ecc-market-research",
-      "source": "ecc",
-      "src": ".agents/skills/market-research/",
-      "dst": "templates/skills/market-research/",
-      "type": "directory",
-      "modified": false,
-      "modification_note": "Phase 4b A4에서 신규 추가. executive Track 한정."
-    },
-    {
-      "id": "ecc-e2e-testing",
-      "source": "ecc",
-      "src": ".agents/skills/e2e-testing/",
-      "dst": "templates/skills/e2e-testing/",
-      "type": "directory",
-      "modified": false,
-      "modification_note": "Playwright POM 패턴, flaky test 처리, 아티팩트 캡처. UI Track 한정"
-    },
-    {
-      "id": "ecc-python-patterns",
-      "source": "ecc",
-      "src": "skills/python-patterns/",
-      "dst": "templates/skills/python-patterns/",
-      "type": "directory",
-      "modified": false,
-      "sync_verified_at": "2026-04-17",
-      "modification_note": "v26.10.0 — data + csr-fastapi Track용 Python idiom/best practices"
-    },
-    {
-      "id": "ecc-python-testing",
-      "source": "ecc",
-      "src": "skills/python-testing/",
-      "dst": "templates/skills/python-testing/",
-      "type": "directory",
-      "modified": false,
-      "sync_verified_at": "2026-04-17",
-      "modification_note": "v26.10.0 — data + csr-fastapi Track용 pytest + coverage 워크플로우"
-    },
-    {
-      "id": "ecc-nextjs-turbopack",
-      "source": "ecc",
-      "src": "skills/nextjs-turbopack/",
-      "dst": "templates/skills/nextjs-turbopack/",
-      "type": "directory",
-      "modified": false,
-      "sync_verified_at": "2026-04-17",
-      "modification_note": "v26.10.0 — ssr-nextjs Track용 Next 16+ Turbopack 번들링"
-    },
-    {
-      "id": "ecc-investor-materials",
-      "source": "ecc",
-      "src": "skills/investor-materials/",
-      "dst": "templates/skills/investor-materials/",
-      "type": "directory",
-      "modified": false,
-      "sync_verified_at": "2026-04-17",
-      "modification_note": "v26.10.0 — executive Track용 피치덱/메모/재무모델"
-    },
-    {
-      "id": "ecc-investor-outreach",
-      "source": "ecc",
-      "src": "skills/investor-outreach/",
-      "dst": "templates/skills/investor-outreach/",
-      "type": "directory",
-      "modified": false,
-      "sync_verified_at": "2026-04-17",
-      "modification_note": "v26.10.0 — executive Track용 펀드레이징 follow-up"
-    }
-  ],
-  "removals": [
-    {
-      "id": "ecc-testing-rule",
-      "src": "rules/common/testing.md",
-      "reason": "test-policy.md가 Track별 차등 커버리지로 더 완전. 중복 제거."
-    },
-    {
-      "id": "ecc-checkpoint-cmd",
-      "src": ".opencode/commands/checkpoint.md",
-      "dst": "templates/commands/ecc/checkpoint.md",
-      "type": "file",
-      "modified": true,
-      "modification_note": "ECC 원본 참조하여 자체 작성. 형식 단순화."
-    }
-  ],
+  "cherrypicks": [],
+  "removals": [],
   "verification": {
     "rule": "각 cherrypick의 dst 파일이 존재하고, modified=false인 경우 sync-cherrypicks.sh가 ECC 원본과 hash 비교 가능해야 함"
   }

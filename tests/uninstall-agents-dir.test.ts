@@ -46,7 +46,7 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
       projectDir,
       spec: {
         tracks: ["tooling"],
-        options: { withPrune: false, withCodexTrust: false },
+        options: { withCodexTrust: false },
         cli: [cli],
         projectDir,
       } satisfies InstallSpec,

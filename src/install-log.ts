@@ -27,11 +27,19 @@ export const INSTALL_LOG_DIR = ".uzys-agent-harness";
 export const LEGACY_INSTALL_LOG_DIR = ".claude";
 export const INSTALL_LOG_VERSION = 1;
 
+/**
+ * 로그에 실릴 수 있는 method 종류. **카탈로그의 현재 method 보다 넓다** — #492 에서 은퇴한
+ * `shell-script`(ecc-prune)를 깐 설치본의 로그가 디스크에 남아 있고, uninstall/list 는 그
+ * 로그를 그대로 읽는다. 여기서 빼면 옛 로그가 아래 exhaustive switch 어느 가지에도 안 걸려
+ * 안내 문구가 `undefined` 가 된다.
+ */
+export type InstallLogMethod = ExternalAssetMethod["kind"] | "shell-script";
+
 export interface InstallLogAsset {
   id: string;
   category: string;
-  /** External asset method.kind 그대로. uninstall reverse 시 분기 기준. */
-  method: ExternalAssetMethod["kind"];
+  /** External asset method.kind 그대로 (+ 은퇴한 legacy kind). uninstall reverse 시 분기 기준. */
+  method: InstallLogMethod;
   /** scope=global 자산은 uninstall 시 안내만 (D16 — 글로벌 자동 삭제 금지). */
   scope: InstallScope;
   /** method 별 추가 정보. plugin: marketplace + pluginId. skill: source. npm: pkg. */
@@ -200,8 +208,6 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
       return { pkg: method.pkg };
     case "npx-run":
       return { cmd: method.cmd, args: (method.args ?? []).join(" ") };
-    case "shell-script":
-      return { script: method.script, args: method.args.join(" ") };
     case "internal":
       // v26.81.0 (ADR-022) — Phase 1 manifest 가 설치 주체. external 단계에선 미기록이 정상.
       return { key: method.key };
@@ -222,7 +228,7 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
  * `claudeDirMovedAside` = 이번 설치가 `.claude/` 를 backup 으로 rename 했는가. 그 경우
  * **`.claude/` 안에 살던 이전 자산은 실제로 사라졌으므로 누적에서 뺀다** — 안 빼면 F-1a 를
  * 반대 방향으로 재현한다(있지도 않은 걸 있다고 기록). 해당: project scope 의 `skill`
- * (`npx skills add` 가 `.claude/skills/` 에 설치) 와 `shell-script`(ecc-prune →
+ * (`npx skills add` 가 `.claude/skills/` 에 설치) 와 legacy `shell-script`(ecc-prune →
  * `.claude/local-plugins/`). plugin/npm 은 프로젝트 밖에 살아 남으므로 유지한다.
  */
 export function buildInstallLog(
@@ -310,7 +316,7 @@ function survivesClaudeDirRename(asset: InstallLogAsset): boolean {
     case "skill":
       return false; // `npx skills add` project scope → `.claude/skills/`
     case "shell-script":
-      return false; // ecc-prune → `.claude/local-plugins/`
+      return false; // legacy(#492 은퇴): ecc-prune → `.claude/local-plugins/`
     case "npx-run":
       // bmad-method 는 `--tools claude-code` 로 `.claude/` 안에 agent command 를 만든다
       // (external-assets.ts 의 cliSupportOverride 주석 + Docker 실증 realcli-workflows-2026-06-06).

@@ -9,7 +9,6 @@ import type { InstallSpec, OptionFlags, Track } from "../src/types.js";
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
-  withPrune: false,
   withCodexTrust: false,
 };
 

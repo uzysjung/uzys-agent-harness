@@ -39,12 +39,12 @@ export interface InstallOptions {
   //   withAddyAgentSkills/withUzysHarness/withSuperpowers/withWshobsonAgents/withOpenspec/
   //   withBmad/withClaudeVideo/withUnderstandAnything/withAgentmemory) 완전 삭제.
   //   자산 선택 = generic `--with <id>` / `--without <id>` 만. 아래는 동작 옵션.
-  withPrune?: boolean;
+  //   #492 — `--with-prune` 삭제 (ECC 자산 은퇴로 prune 대상 자체가 없다).
   withCodexTrust?: boolean;
   /**
    * v26.47.0 (Phase C full) — External Asset 직접 추가 (preset condition 무관 강제 포함).
    * cac repeatable. 예: `--with railway-skills --with impeccable`.
-   * 옵션-키 동작 flag (예: `--with-prune`) 와 별개 — External Asset id 만.
+   * 옵션-키 동작 flag (예: `--with-codex-trust`) 와 별개 — External Asset id 만.
    */
   with?: string | string[];
   /**
@@ -198,7 +198,6 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
     //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
     options: {
-      withPrune: options.withPrune === true,
       withCodexTrust: options.withCodexTrust === true,
     },
     cli: validated.cli,
@@ -382,11 +381,7 @@ export function registerInstallCommand(cli: Cli): void {
     )
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
     //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.
-    //   아래는 자산이 아닌 설치 동작 옵션만.
-    .option(
-      "--with-prune",
-      "[Behavior] Prune ECC items beyond curated 89 (use with --with ecc-plugin)",
-    )
+    //   #492 — 마지막 동작 플래그였던 `--with-prune` 도 삭제 (ECC 자산 은퇴).
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===

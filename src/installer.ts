@@ -157,7 +157,7 @@ export interface BaselineCategoryCounts {
   agents: string[];
   /** hook 파일 names (확장자 제외) */
   hooks: string[];
-  /** commands 디렉토리 카운트 (uzys + ecc) — names는 디렉토리라 무의미 */
+  /** commands 디렉토리 카운트 — names는 디렉토리라 무의미 */
   commands: number;
   /** skill 디렉토리 names */
   skills: string[];
@@ -417,7 +417,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ━━━ M-1 — settings.json stale hook ref 치유 (baseline·external 뒤 1회) ━━━
   // 여기서 부르는 이유: 앞 단계들이 settings.json 과 참조 대상(스킬/훅 파일)을 모두 확정한
   // 뒤여야 "무엇이 없는가"가 답이 된다. 판정하지 않고 **디스크가 답하게 한다** — 설치자에
-  // withEcc 사본이 생기지 않는다 (ADR-049 와 같은 형태).
+  // 없는 참조가 남지 않는다 (ADR-049 와 같은 형태).
   const staleHookRefs = healStaleHookRefs(spec, projectDir);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
@@ -516,7 +516,7 @@ function runUpdateInstall(
 
 /**
  * v26.81.0 (ADR-022) — manifest 게이팅 입력. 내부 자산 선택 판정 — 이전
- * OptionFlags.withTauri/withUzysHarness/withEcc boolean 자리를 카탈로그 선택
+ * OptionFlags.withTauri/withUzysHarness boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
 export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
@@ -779,10 +779,9 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
   if (ctx.runExternal === null) {
     return null;
   }
-  const { harnessRoot, projectDir, spec } = ctx;
+  const { projectDir, spec } = ctx;
   const runExt = ctx.runExternal ?? runExternalInstall;
   const externalDeps: ExternalInstallerDeps = {
-    harnessRoot,
     log: () => {},
     warn: () => {},
   };

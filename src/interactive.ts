@@ -73,7 +73,6 @@ export function baselineExcludeFrom(
 export function toOptionFlags(keys: ReadonlyArray<keyof OptionFlags>): OptionFlags {
   const picked = new Set<keyof OptionFlags>(keys);
   return {
-    withPrune: picked.has("withPrune"),
     withCodexTrust: picked.has("withCodexTrust"),
   };
 }

@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**45/61 assets are 🟢 verified by a real install; the remaining 16 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**35/50 assets are 🟢 verified by a real install; the remaining 15 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,11 +78,11 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **61** (official 23 / vetted 36 / experimental 2) · 🟢 verified **45/61**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **50** (official 19 / vetted 29 / experimental 2) · 🟢 verified **35/50**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
-#### 🔄 Workflow (17)
+#### 🔄 Workflow (12)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -96,13 +96,8 @@ stale row fails the build rather than misleading you.
 | `objective-brief` | official | templates (`--with objective-brief`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `audit-harness-fit` | official | templates (`--with audit-harness-fit`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `natural-korean` | official | templates (`--with natural-korean`) | 4-CLI (bundled skill dir) | 🟡 local |
-| `superpowers` | official | `superpowers@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
-| `feature-dev` | official | `feature-dev@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
-| `addy-agent-skills` | vetted | `agent-skills@addy-agent-skills` | Claude Code (plugin) | 🟢 Docker |
-| `wshobson-agents` | vetted | `full-stack-orchestration@claude-code-workflows` | Claude Code (plugin) | 🟢 Docker |
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
 | `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | Claude Code (npx) | 🟢 Docker |
-| `game-studios` | vetted | `Donchitos/Claude-Code-Game-Studios` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 🎨 Frontend (10)
 
@@ -144,7 +139,7 @@ stale row fails the build rather than misleading you.
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (9)
+#### 🛡️ Dev Tools (7)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -152,9 +147,7 @@ stale row fails the build rather than misleading you.
 | `multi-persona-review` | official | templates (`--with multi-persona-review`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `external-model-consult` | official | templates (`--with external-model-consult`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | 4-CLI (bundled skill dir) | 🟡 local |
-| `code-review` | official | `code-review@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
-| `find-skills` | vetted | `vercel-labs/skills :: find-skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `product-skills` | vetted | `product-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `trailofbits-skills` | vetted | `differential-review@trailofbits` | Claude Code (plugin) | 🟢 Docker |
 
@@ -167,26 +160,17 @@ stale row fails the build rather than misleading you.
 | `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code (plugin) | 🟢 Docker |
 | `agentmemory` | vetted | `agentmemory@agentmemory` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🎬 Visual & Media (9)
+#### 🎬 Visual & Media (7)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `frontend-slides` | vetted | `frontend-slides@frontend-slides` | Claude Code (plugin) | 🟢 Docker |
 | `marp-slide` | vetted | `softaworks/agent-toolkit :: marp-slide` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `mermaid-diagrams` | vetted | `softaworks/agent-toolkit :: mermaid-diagrams` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `gsap-skills` | vetted | `gsap-skills@gsap-skills` | Claude Code (plugin) | 🟢 Docker |
 | `remotion` | vetted | `remotion-dev/skills :: remotion-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `ppt-master` | vetted | `hugohe3/ppt-master :: ppt-master` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `ppt-generation` | vetted | `bytedance/deer-flow :: ppt-generation` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `web-video-presentation` | vetted | `ConardLi/garden-skills :: web-video-presentation` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `revealjs` | experimental | `ryanbbrown/revealjs-skill :: revealjs` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-
-#### 📦 ECC Suite (2)
-
-| id | tier | install target | reaches | verified |
-|---|---|---|---|---|
-| `ecc-prune` | official | `scripts/prune-ecc.sh` | Claude Code (local script) | 🟡 local |
-| `ecc-plugin` | vetted | `ecc@ecc` | Claude Code (plugin) | 🟢 Docker |
 
 <!-- AUTO-GEN:CATALOG:END -->
 

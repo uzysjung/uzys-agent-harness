@@ -25,7 +25,6 @@ describe("installer (integration with templates/)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -79,7 +78,6 @@ describe("installer (integration with templates/)", () => {
       spec: {
         tracks: ["executive"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -100,7 +98,6 @@ describe("installer (integration with templates/)", () => {
       spec: {
         tracks: ["tooling", "data"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -142,7 +139,7 @@ describe("installer (integration with templates/)", () => {
         projectDir,
         spec: {
           tracks: ["tooling"],
-          options: { withPrune: false, withCodexTrust: false },
+          options: { withCodexTrust: false },
           cli: ["claude"],
           projectDir,
         },
@@ -173,7 +170,6 @@ describe("installer (integration with templates/)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -188,7 +184,6 @@ describe("installer (integration with templates/)", () => {
       spec: {
         tracks: ["tooling"],
         options: {
-          withPrune: false,
           withCodexTrust: false,
         },
         cli: ["claude"],
@@ -208,7 +203,6 @@ describe("installer (integration with templates/)", () => {
         spec: {
           tracks: ["tooling"],
           options: {
-            withPrune: false,
             withCodexTrust: false,
           },
           cli: ["claude"],
@@ -255,7 +249,7 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
     }
   });
 
-  const baseOptions = { withPrune: false, withCodexTrust: false };
+  const baseOptions = { withCodexTrust: false };
 
   /** tooling 트랙 기본 선택에 들어오는 스킬 디렉터리 — ② 방향의 참조 대상. */
   const LIVE_SKILL = "north-star";

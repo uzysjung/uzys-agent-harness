@@ -414,7 +414,7 @@ interface ReversePlan {
   reverseSteps: ReverseStep[];
   globalAdvisories: GlobalAdvisory[];
   /**
-   * 자동 되돌리기 경로가 없는 자산 (npx-run / shell-script / internal). 전량 uninstall 에선
+   * 자동 되돌리기 경로가 없는 자산 (npx-run / legacy shell-script / internal). 전량 uninstall 에선
    * `.claude/` 통째 제거가 덮지만, `--only` 에선 **아무 일도 안 일어난다** — 그래서 따로 센다.
    */
   noReversePath: InstallLogAsset[];
@@ -485,7 +485,7 @@ function buildProjectReverseStep(
       // fire-and-forget — reverse 없음 (예: GSD orchestrator).
       return null;
     case "shell-script":
-      // 로컬 script 호출 — 일반 reverse 없음 (script 별 별도 cleanup 필요).
+      // legacy(#492 은퇴) 로컬 script 호출 — 일반 reverse 없음 (script 별 별도 cleanup 필요).
       return null;
     case "internal":
       // v26.81.0 (ADR-022) — 내부 템플릿 — removeTemplates 가 .claude/ 전체로 처리.

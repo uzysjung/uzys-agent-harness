@@ -2,13 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RETIRED_SKILL_IDS } from "../src/external-assets.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec, OptionFlags, Track } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 const NO_OPTS: OptionFlags = {
-  withPrune: false,
   withCodexTrust: false,
 };
 
@@ -126,79 +126,53 @@ describe("track-specific skills routing", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("v26.58.0 — data routes python-* when withEcc=false (cherry-pick fallback). ADR-019", () => {
-    // C2 opt-out: plugin OFF + data track → cherry-pick install.
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["data"], projectDir),
-    });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(true);
-  });
-
-  it("v26.58.0 — python-* skipped when withEcc=true (plugin 으로 갈음). ADR-019", () => {
-    // C2 opt-out: plugin ON 시 cherry-pick skip.
-    // v26.81.0 (ADR-022) — withEcc flag → ecc-plugin 자산 선택 (isAssetSelected 통합 검증).
-    const spec = buildSpec(["data"], projectDir);
-    spec.userOverride = { forceInclude: ["ecc-plugin"], forceExclude: [] };
-    runInstall({ runExternal: NO_EXTERNAL, harnessRoot: HARNESS_ROOT, projectDir, spec });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(false);
-    expect(existsSync(join(projectDir, ".claude/skills/python-testing"))).toBe(false);
-  });
-
-  it("data does NOT route nextjs-turbopack", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["data"], projectDir),
-    });
-    expect(existsSync(join(projectDir, ".claude/skills/nextjs-turbopack"))).toBe(false);
-  });
-
-  it("ssr-nextjs routes nextjs-turbopack", () => {
+  // #492 — 여기 있던 7종(python-* · nextjs-turbopack · investor-* · market-research)은 ECC
+  // cherry-pick 이었고 함께 은퇴했다. 트랙으로 갈리는 스킬은 `ui-visual-review` 하나가 남아,
+  // 같은 계약(트랙이 고르면 깔리고 아니면 안 깔린다)을 그것으로 잰다.
+  it("UI 트랙은 ui-visual-review 를 깔고, 비-UI 트랙은 안 깐다", () => {
     runInstall({
       runExternal: NO_EXTERNAL,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: buildSpec(["ssr-nextjs"], projectDir),
     });
-    expect(existsSync(join(projectDir, ".claude/skills/nextjs-turbopack"))).toBe(true);
+    expect(existsSync(join(projectDir, ".claude/skills/ui-visual-review"))).toBe(true);
+
+    const other = mkdtempSync(join(tmpdir(), "ch-skills-data-"));
+    try {
+      runInstall({
+        runExternal: NO_EXTERNAL,
+        harnessRoot: HARNESS_ROOT,
+        projectDir: other,
+        spec: buildSpec(["data"], other),
+      });
+      expect(existsSync(join(other, ".claude/skills/ui-visual-review"))).toBe(false);
+    } finally {
+      rmSync(other, { recursive: true, force: true });
+    }
   });
 
-  it("executive routes investor-materials + investor-outreach + market-research", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["executive"], projectDir),
-    });
-    expect(existsSync(join(projectDir, ".claude/skills/investor-materials"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/skills/investor-outreach"))).toBe(true);
-    expect(existsSync(join(projectDir, ".claude/skills/market-research"))).toBe(true);
-  });
-
-  it("tooling does NOT route investor-* (executive-only)", () => {
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["tooling"], projectDir),
-    });
-    expect(existsSync(join(projectDir, ".claude/skills/investor-materials"))).toBe(false);
-  });
-
-  it("v26.58.0 — csr-fastapi routes python-patterns when withEcc=false. ADR-019", () => {
-    // C2 opt-out: csr-fastapi + plugin OFF → cherry-pick install.
-    runInstall({
-      runExternal: NO_EXTERNAL,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: buildSpec(["csr-fastapi"], projectDir),
-    });
-    expect(existsSync(join(projectDir, ".claude/skills/python-patterns"))).toBe(true);
+  // 은퇴한 cherry-pick 스킬이 어떤 트랙에서도 디스크에 나타나지 않는다 — 템플릿 삭제가
+  // 배선까지 갔는지(설치 결과로) 본다. 목록은 카탈로그의 `RETIRED_SKILL_IDS` 에서 읽는다.
+  it("은퇴한 스킬 디렉터리는 어느 트랙 설치에서도 안 생긴다 (#492)", () => {
+    for (const track of ["data", "ssr-nextjs", "executive"] as const) {
+      const dir = mkdtempSync(join(tmpdir(), `ch-retired-${track}-`));
+      try {
+        runInstall({
+          runExternal: NO_EXTERNAL,
+          harnessRoot: HARNESS_ROOT,
+          projectDir: dir,
+          spec: buildSpec([track], dir),
+        });
+        for (const id of RETIRED_SKILL_IDS) {
+          expect(existsSync(join(dir, `.claude/skills/${id}`)), `${track}: ${id}`).toBe(false);
+        }
+        // 0건 함정 방지 — 같은 경로 조립으로 실재하는 것은 잡힌다.
+        expect(existsSync(join(dir, ".claude/rules/git-policy.md"))).toBe(true);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
   });
 });
 

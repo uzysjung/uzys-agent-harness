@@ -69,17 +69,17 @@ export function resolveScope(scope: InstallScope | undefined): InstallScope {
  * withSuperpowers/withAddyAgentSkills/withWshobsonAgents/withOpenspec/withBmad/
  * withClaudeVideo/withUnderstandAnything/withAgentmemory + withTauri/withUzysHarness)
  * 완전 삭제. 자산 선택은 `userOverride.forceInclude`(wizard 체크 / `--with <id>`)로
- * 일원화 — 자산 추가 시 플래그 코드 0곳. 잔존 6종 = 자산이 아닌 **설치 동작 옵션**만.
+ * 일원화 — 자산 추가 시 플래그 코드 0곳. 잔존 = 자산이 아닌 **설치 동작 옵션**만.
+ *
+ * #492 — `withPrune`(ECC prune 실행)도 빠졌다. 그 옵션이 켜던 자산(`ecc-prune`)과 전제 자산
+ * (`ecc-plugin`)이 카탈로그에서 은퇴해 남길 동작이 없다.
  */
 export interface OptionFlags {
-  /** ecc-prune 실행 결합 — prune 은 ecc-plugin 선택을 전제 (installer.ts eccSelected 가 처리). */
-  withPrune: boolean;
   /** Codex global opt-in: ~/.codex/config.toml [projects."..."] trust entry. D16 — 사용자 명시 동의 필수. */
   withCodexTrust: boolean;
 }
 
 export const DEFAULT_OPTIONS: OptionFlags = {
-  withPrune: false,
   withCodexTrust: false,
 };
 

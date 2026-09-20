@@ -177,13 +177,11 @@ function buildVocabulary(): Map<string, string> {
   for (const s of DEV_METHOD_SKILL_IDS) add(s, "dev-method 스킬");
 
   // manifest 가 실제로 깔 대상 이름 — 룰·에이전트·훅·스킬을 전수로 얻는 유일한 방법이다.
-  // ECC opt-out 게이팅(C2)이 걸린 자산은 withEcc 양쪽을 다 돌지 않으면 절반이 빠진다.
-  for (const withEcc of [false, true]) {
-    for (const e of buildManifest({ tracks: [...TRACKS], withEcc, withTauri: true })) {
-      const rest = e.target.replace(/^\.claude\//, "");
-      for (const seg of rest.split("/"))
-        add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
-    }
+  // #492 — ECC opt-out 게이팅(C2)이 없어져 opt-in 축은 withTauri 하나뿐이다.
+  for (const e of buildManifest({ tracks: [...TRACKS], withTauri: true })) {
+    const rest = e.target.replace(/^\.claude\//, "");
+    for (const seg of rest.split("/"))
+      add(seg.replace(/\.(md|sh|json)$/, ""), "manifest 설치 대상");
   }
 
   // MCP 서버 이름 — `.mcp.json` 의 기본 3종과 트랙 조건부 행. 문서가 이름으로 안내하는 대상이라
