@@ -60,7 +60,7 @@ npx skills add uzysjung/uzys-agent-harness/templates/skills --skill user-centere
 # see what is there:  npx skills add uzysjung/uzys-agent-harness/templates/skills --list
 ```
 
-The path points at the bundle (`templates/skills/`), which is the single source for every skill the harness ships — you get the same file the installer would copy, `references/` and all. Re-run the same command to refresh. Verified in a clean `node:20` container on 2026-09-20.
+The path points at the bundle (`templates/skills/`), which is the single source for every skill the harness ships — you get the same file the installer would copy, `references/` and all. Re-run the same command to refresh. Verified in a clean `node:20` container on 2026-09-20. The repo page on the skills directory: [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness) (listed automatically from installs; `skills.sh.json` at the repo root groups the page).
 
 ## Why
 
