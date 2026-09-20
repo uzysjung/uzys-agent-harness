@@ -79,8 +79,12 @@ type Origin = "shipped" | "repo";
  */
 const AXES = [
   {
+    // **리포 앵커 전용 (#463, 2026-09-20).** 배포 앵커가 사용자의 Working Principles 문안이 되며
+    // 독립 리뷰는 "fresh perspective 가 확신을 실질적으로 높일 때 또는 명시적으로 요구될 때"의
+    // 조건부가 됐다 — 기획서를 작성자가 아닌 레인이 읽는다는 무조건 문장은 사용자가 뺀 것이지
+    // 게이트가 잃은 것이 아니다(ADR-085 의 적대적 패널 축과 같은 처리). 이 리포 앵커에는 남아 있다.
     id: "설계 리뷰 분리",
-    scope: "all" as const,
+    scope: "repo" as const,
     why: "산출물을 만든 레인이 아닌 쪽이 기획서를 읽는다 — 작성자는 자기가 안 적은 요구를 볼 수 없다",
     artifact: /spec|PRD|plan|기획서|계획/i,
     // ADR-085 — 배포 앵커가 전역 6원칙 문안이 되며 `an agent that did not author the work` 가
@@ -103,10 +107,14 @@ const AXES = [
     id: "검증의 자기 증거",
     scope: "all" as const,
     why: "검증은 만든 쪽의 보고를 읽는 대신 직접 다시 돌려 증거를 얻는다",
-    artifact: /verification|verifying|검증/i,
+    // #463 — Working Principles 문안은 `verified results` 로 적는다. 명사형만 세면 이 문안이
+    // 빠진다.
+    artifact: /verification|verifying|verified|검증/i,
     // ADR-085 — 전역 6원칙 문안: `The reviewer must assess both the criteria and the work, not
     // merely the author's summary`. 보고를 읽는 대신 산출물을 본다는 같은 성분이다.
-    lane: /verifies the work itself|rather than trusting|its own evidence|not merely the author's summary|assess(?:es)? both the criteria and the work|re-?run|직접 다시 돌려|직접 재실행|스스로 다시/i,
+    // #463 — Working Principles 문안: `Base conclusions on actual artifacts and observed behavior`.
+    // 만든 쪽의 보고가 아니라 산출물·동작을 본다는 같은 성분이다.
+    lane: /verifies the work itself|rather than trusting|its own evidence|not merely the author's summary|assess(?:es)? both the criteria and the work|actual artifacts and observed behavior|re-?run|직접 다시 돌려|직접 재실행|스스로 다시/i,
   },
   {
     // **리포 앵커 전용 (ADR-085, 2026-09-13).** 배포 앵커는 사용자의 전역 6원칙과 바이트 동일하고
