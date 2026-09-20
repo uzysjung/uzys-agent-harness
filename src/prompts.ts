@@ -20,7 +20,7 @@ import {
 } from "./baseline-targets.js";
 import { CATEGORIES, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
-import { assetTrustTier, DEV_METHOD_SKILL_IDS, EXTERNAL_ASSETS } from "./external-assets.js";
+import { assetTrustTier, EXTERNAL_ASSETS } from "./external-assets.js";
 import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
 import type { DetectedInstall } from "./state.js";
 import {
@@ -188,51 +188,10 @@ export const INSTALL_TARGET_PAGES: ReadonlyArray<InstallTargetPage> = [
 ];
 
 /**
- * v26.99.0 (ADR-028) — dev-method 방법론 스킬 6종을 wizard 에서 **단일 row** 로 접는다.
- *
- * WHY: 6종은 전부 `has-dev-track` = 기본 설치다. 즉 **사실상 선택이 아닌데** 체크박스 6행을
- * 점유해, 진짜 선택인 서드파티 큐레이션을 밀어냈다(사용자 지적 2026-07-16). 6종은 개념적으로
- * 하나 — "이 하네스의 작업 방법론" — 이므로 한 줄이 정직한 표현이다.
- *
- * 순수 **표현 계층** 변환이다. 입력 시 접고(collapse) 제출 시 6개 asset id 로 펼쳐(expand)
- * 돌려주므로 downstream(computeUserOverride·installer·설치 보고)은 6개를 그대로 본다 —
- * **번들이 "무엇이 설치되는지"를 숨기지 않는다**(사용자 요구 가드). 구성원은
- * `DEV_METHOD_SKILL_IDS` 에서 derive → 자산 추가 시 자동 반영(하드코딩 금지, no-false-ship).
- *
- * 해제 시맨틱(사용자 확정 2026-07-16): 체크박스 1개 = 의미 1개 → **해제하면 6종 전부 제외**.
- * 개별 제어는 `--with <id>` / `--without <id>`.
- *
- * all-or-none 불변식: 6종이 **같은 condition(`has-dev-track`)** 을 공유하므로
- * `recommendedExternalAssets` 는 6개를 전부 넣거나 전부 뺀다 → 부분 선택 상태가 생기지 않는다.
- * 이 불변식이 깨지면 접기가 자산을 조용히 추가/삭제할 수 있으므로
- * `tests/wizard-bundle.test.ts` 가 강제한다 (원칙 5 — 증거를 보고한다).
+ * #421 ② (사용자 결정 2026-09-20, ADR-092 — ADR-028 ⓐ 대체) — 방법론 스킬은 **개별 행**으로 렌더한다.
+ * 전에는 5종을 "uzys 하네스 방법론 N종" 한 행으로 접었는데(ADR-028), 하나만 빼고 싶어도 못 빼고
+ * 각각의 쓸모가 다른데 설명이 한 줄뿐이었다. 다섯 전부 기본 체크(has-dev-track)는 그대로다.
  */
-export const DEV_METHOD_BUNDLE_VALUE = "bundle:dev-method";
-
-/**
- * 번들 row 가 렌더되는 카테고리 — 방법론 = 개발 사이클 도구라 workflow.
- * export = SSOT (테스트가 `"workflow"` 를 재차 하드코딩하면 번들 위치 변경 시 게이트 수식이
- * 렌더와 조용히 갈린다 — no-false-ship "2곳 이상 하드코딩 금지").
- */
-export const DEV_METHOD_BUNDLE_CATEGORY: Category = "workflow";
-
-const bundleMemberValues = (): ReadonlyArray<string> =>
-  DEV_METHOD_SKILL_IDS.map((id) => `asset:${id}`);
-
-/** 입력 접기 — dev-method 멤버가 (불변식상 전부) 있으면 번들 row 체크로 치환. */
-export function collapseDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArray<string> {
-  const members = new Set(bundleMemberValues());
-  const rest = ids.filter((v) => !members.has(v));
-  const anyMember = ids.some((v) => members.has(v));
-  return anyMember ? [...rest, DEV_METHOD_BUNDLE_VALUE] : rest;
-}
-
-/** 제출 펼치기 — 번들 row 체크 → 구성원 asset id 전부. downstream 은 개별 자산만 본다. */
-export function expandDevMethodBundle(ids: ReadonlyArray<string>): ReadonlyArray<string> {
-  const rest = ids.filter((v) => v !== DEV_METHOD_BUNDLE_VALUE);
-  return ids.includes(DEV_METHOD_BUNDLE_VALUE) ? [...rest, ...bundleMemberValues()] : rest;
-}
-
 export interface PageItem {
   value: string;
   label: string;
@@ -298,22 +257,12 @@ export function buildPageGroups(
         hint: o.hint,
       });
     }
-    // v26.99.0 (ADR-028) — 방법론 번들 row. 구성원 개별 행 대신 1행. hint 에 구성원 id 를 전부
-    //   노출 — 접는 것이 "무엇이 설치되는지" 를 숨기면 안 된다.
-    if (cat === DEV_METHOD_BUNDLE_CATEGORY) {
-      items.push({
-        value: DEV_METHOD_BUNDLE_VALUE,
-        label: `    uzys 하네스 방법론 ${DEV_METHOD_SKILL_IDS.length}종  [uzys]  ★ official${installedMark(DEV_METHOD_BUNDLE_VALUE)}`,
-        hint: DEV_METHOD_SKILL_IDS.join(", "),
-      });
-    }
     // v26.71.0 (PRD v26-71) — tier 우선 정렬 (official → vetted → experimental) + 배지.
     const tierOrder = { official: 0, vetted: 1, experimental: 2 } as const;
-    const devMethod = new Set<string>(DEV_METHOD_SKILL_IDS);
-    const catAssets = [...EXTERNAL_ASSETS.filter((x) => x.category === cat)]
-      // 번들 구성원은 개별 row 로 렌더하지 않는다 (번들 1행이 대표).
-      .filter((x) => !devMethod.has(x.id))
-      .sort((a, b) => tierOrder[assetTrustTier(a.id)] - tierOrder[assetTrustTier(b.id)]);
+    // #421 ② — 방법론 스킬도 개별 행(ADR-092). 카탈로그 description 이 그대로 hint 가 된다.
+    const catAssets = [...EXTERNAL_ASSETS.filter((x) => x.category === cat)].sort(
+      (a, b) => tierOrder[assetTrustTier(a.id)] - tierOrder[assetTrustTier(b.id)],
+    );
     for (const a of catAssets) {
       const tier = assetTrustTier(a.id);
       const badge =
@@ -510,19 +459,14 @@ export const defaultPrompts: Prompts = {
     // 트랙에서 유도한다 — 화면과 설치가 같은 목록을 보게 하는 유일한 방법이다.
     // #421 — 이름만으로는 체크를 풀지 말지 판단할 수 없다. 파일에서 뽑은 한 줄을 붙인다.
     const baselineTargets = withBaselineHints(listBaselineTargets({ tracks: recap?.tracks ?? [] }));
-    // v26.99.0 (ADR-028) — 표현 계층에서만 번들로 접는다. 제출 시 다시 펼쳐 돌려주므로
-    //   downstream 계약(개별 asset id)은 불변.
-    const displayInitial = collapseDevMethodBundle(initialChecked);
-    const initialSet = new Set<string>(displayInitial);
-    const collected = new Set<string>(displayInitial);
+    const initialSet = new Set<string>(initialChecked);
+    const collected = new Set<string>(initialChecked);
 
     const recapLine = recap
       ? `Tracks: ${recap.tracks.join(", ")}  ·  CLIs: ${recap.cli.join(", ")}`
       : "";
     // v26.125.0 — 마커 전용. 체크 상태와 별개이며, 체크를 풀어도 제거되지 않는다.
-    const installedSet = new Set<string>(
-      collapseDevMethodBundle((recap?.installed ?? []) as ReadonlyArray<InstallTargetId>),
-    );
+    const installedSet = new Set<string>((recap?.installed ?? []) as ReadonlyArray<string>);
 
     // alt screen for the whole Step 3 loop. page 전환 시 buffer 안에서 redraw.
     process.stdout.write("\x1b[?1049h");
@@ -601,8 +545,7 @@ export const defaultPrompts: Prompts = {
         pageIdx++;
       }
       if (!aborted) {
-        // 번들 → 개별 asset id 로 펼쳐 반환. 설치·보고는 멤버 전원을 개별로 본다.
-        resultIds = expandDevMethodBundle([...collected]) as ReadonlyArray<InstallTargetId>;
+        resultIds = [...collected] as ReadonlyArray<InstallTargetId>;
       }
     } finally {
       process.stdout.write("\x1b[?1049l");
