@@ -107,6 +107,24 @@ for consequential context gaps supported by repeated questions, repository evide
 or a concrete blocked task. Supplement only the actionable information needed to
 resolve the gap, using established references where possible.
 
+Look for guard proliferation where checks duplicate assurance, constrain incidental
+wording or implementation details, or repeatedly confirm another safeguard's
+existence without protecting a consequential outcome. A check's subject, nesting
+depth, or lack of recorded incidents is a review signal, not a removal rule.
+
+For a candidate, identify the required outcome or constraint and the meaningful
+coverage, independence, diagnosis, or recovery value it adds beyond existing
+protection. Consider fixing the cause, repairing or consolidating existing checks,
+replacing a mechanism, narrowing its scope, or retiring it rather than following
+an escalation or downgrade ladder.
+
+Compare the retained quality and credible risk with setup, execution, context,
+false-alarm, review, and maintenance effort. Use qualitative judgment when it
+settles the choice; measure or propose a bounded trial only for uncertainty that
+could change the decision. State unsupported assumptions rather than inventing
+incident probabilities or cost estimates. For consolidation or retirement,
+explain how still-required protection remains covered, or why it is no longer needed.
+
 Choose **keep / rewrite / narrow / supplement / merge / relocate / retire / defer**.
 A useful tool can remain while its wrapper or routing changes. Equivalent content
 under the same scope can establish duplication without an incident or benchmark.
