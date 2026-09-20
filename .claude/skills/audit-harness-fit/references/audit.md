@@ -107,16 +107,23 @@ for consequential context gaps supported by repeated questions, repository evide
 or a concrete blocked task. Supplement only the actionable information needed to
 resolve the gap, using established references where possible.
 
-Look also for guard proliferation: a check whose subject is another check, test, rule,
-or review step; a check whose only possible failure is drift in the project's own
-documentation or copies; a safeguard introduced together with the request that asked
-for it, with no observed occurrence; and a safeguard whose per-run cost (time, rounds,
-questions on every task) exceeds the cost of the incident it prevents. A request to
-prevent something justifies the smallest mechanism that prevents it, sized by observed
-frequency, damage, and reversibility, not by the wording of the request. Propose
-stepping such guards down — remove the second-order check, and move the first-order
-one to the level its evidence supports (gate → one-line criterion → record) — and
-state for each what it was covering.
+Look for guard proliferation where checks duplicate assurance, constrain incidental
+wording or implementation details, or repeatedly confirm another safeguard's
+existence without protecting a consequential outcome. A check's subject, nesting
+depth, or lack of recorded incidents is a review signal, not a removal rule.
+
+For a candidate, identify the required outcome or constraint and the meaningful
+coverage, independence, diagnosis, or recovery value it adds beyond existing
+protection. Consider fixing the cause, repairing or consolidating existing checks,
+replacing a mechanism, narrowing its scope, or retiring it rather than following
+an escalation or downgrade ladder.
+
+Compare the retained quality and credible risk with setup, execution, context,
+false-alarm, review, and maintenance effort. Use qualitative judgment when it
+settles the choice; measure or propose a bounded trial only for uncertainty that
+could change the decision. State unsupported assumptions rather than inventing
+incident probabilities or cost estimates. For consolidation or retirement,
+explain how still-required protection remains covered, or why it is no longer needed.
 
 Choose **keep / rewrite / narrow / supplement / merge / relocate / retire / defer**.
 A useful tool can remain while its wrapper or routing changes. Equivalent content

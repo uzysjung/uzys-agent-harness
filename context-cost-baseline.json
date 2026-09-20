@@ -12,81 +12,81 @@
     "base": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 12,
-        "tokens": 2154
+        "tokens": 2175
       }
     },
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 3668
+        "tokens": 3770
       },
       "firing": {
         "items": 12,
-        "tokens": 2154
+        "tokens": 2175
       }
     },
     "csr-supabase": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 14,
-        "tokens": 2402
+        "tokens": 2423
       }
     },
     "csr-fastify": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 14,
-        "tokens": 2402
+        "tokens": 2423
       }
     },
     "csr-fastapi": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 16,
-        "tokens": 2490
+        "tokens": 2511
       }
     },
     "ssr-htmx": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 14,
-        "tokens": 2402
+        "tokens": 2423
       }
     },
     "ssr-nextjs": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 15,
-        "tokens": 2442
+        "tokens": 2463
       }
     },
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 3556
+        "tokens": 3658
       },
       "firing": {
         "items": 15,
-        "tokens": 2314
+        "tokens": 2335
       }
     },
     "executive": {
@@ -102,11 +102,11 @@
     "full": {
       "directive": {
         "items": 8,
-        "tokens": 3668
+        "tokens": 3770
       },
       "firing": {
         "items": 22,
-        "tokens": 2945
+        "tokens": 2966
       }
     },
     "project-management": {
@@ -139,7 +139,7 @@
     "user-centered-explanation": 85,
     "audit-service-gaps": 267,
     "multi-persona-review": 217,
-    "recurrence-prevention": 243,
+    "recurrence-prevention": 264,
     "north-star": 258,
     "gh-issue-workflow": 262,
     "objective-brief": 269,

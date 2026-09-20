@@ -52,10 +52,20 @@ its assertions and conditions actually support each. Separate targets do not by
 themselves require separate runs or separate reviewers. Add checks for evidence gaps,
 credible risk, or applicable policy; required review independence is a separate issue.
 
-A new check is shown to bite once, when it is introduced (failing on the bad case,
-passing on the fix); it then stands on its own without a standing check of the check.
-Size a safeguard by observed frequency, damage, and reversibility rather than by how
-strongly it was requested, and count its per-run cost against the incident it prevents.
+For a new or materially changed executable safeguard, use proportionate evidence
+that it accepts valid operation and detects the relevant violation. Existing tests,
+controlled counterexamples, or another reliable method may suffice. A failing run
+supports the claim only if it fails for the intended reason.
+
+When a check can pass without exercising its intended scope, distinguish that
+condition from a meaningful pass where the contract requires coverage. A known
+violation can exercise detection without proving real-target discovery or required
+execution.
+
+Prefer existing test and execution mechanisms to a new supervisory layer.
+Retain tests of safeguards when they close a meaningful evidence gap; adding a
+check alone creates no need for another. Apply the evidence-reuse, invalidation,
+and stopping guidance below.
 
 Identify binding tests and independent-review gates from their policy / CI source.
 Explicit project policy can bind even without CI enforcement. Preserve those gates;

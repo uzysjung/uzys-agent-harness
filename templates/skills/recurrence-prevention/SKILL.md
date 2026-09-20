@@ -3,9 +3,10 @@ name: recurrence-prevention
 description: >-
   When the same defect, mistake, or incident happens AGAIN — a recurrence, not a one-off — verify
   it against prior evidence (memory, rule 근거 links, git/CHANGELOG history), classify it as a
-  simple slip vs a complex harness problem, then escalate the countermeasure one level up the
-  ladder: record (1st) → forced rule with linked priors (2nd) → structural gate — test, hook, or
-  derive — once prose has failed (3rd+). Complex problems get countermeasure candidates designed
+  simple slip vs a complex harness problem, then re-evaluate the countermeasure that failed:
+  repair or replace it, choosing a record, a one-line criterion, a code fix, or a structural gate
+  (test, hook, derive) by evidence — more deterministic when prose has demonstrably failed,
+  nothing new when repair suffices. Complex problems get countermeasure candidates designed
   by a multi-persona panel instead of a quick patch. Use for "재발했어", "같은 실수 또 했네",
   "이거 저번에도 그랬잖아", "재발방지 대책 등록해줘", "재발방지 룰 만들어", "this happened again",
   "same bug as last time", "add a recurrence countermeasure", "postmortem this failure". Do NOT use
@@ -18,15 +19,18 @@ description: >-
 A defect that happens once is a bug. A defect that happens **twice is a countermeasure failure** —
 whatever was supposed to prevent the second occurrence (a mental note, a memory entry, a rule)
 demonstrably did not. So on a recurrence, the unit of work is not the fix (you already know the
-fix — you applied it last time). The unit of work is the **countermeasure**, and the core move is:
-**escalate it one level, because the current level just failed.**
+fix — you applied it last time). The unit of work is the **countermeasure**: re-evaluate the cause
+analysis and whatever was supposed to prevent this, repair or replace it, and reach for a more
+deterministic mechanism only when repairing the existing one cannot suffice. **A recurrence is
+evidence for that re-evaluation, not an order to add a level.**
 
 This skill codifies a practice proven in the harness repo that ships it: the no-false-ship rule
 was created only after the *third* false-ship incident; CHANGELOG drift survived a written
 convention for seven releases and stopped only when a test gate enforced it; comment warnings
 against hardcoded-list drift failed twice before "derive to a single source" became mandatory.
-The pattern is consistent: **each enforcement level fails in a characteristic way, and the answer
-is the next level up — not a louder version of the same level.**
+The pattern is consistent: **each enforcement level fails in a characteristic way, and when one
+has demonstrably failed the answer is usually a more deterministic mechanism — not a louder
+version of the same level, and not a new mechanism when the existing one can be repaired.**
 
 ## When to use
 
@@ -103,17 +107,18 @@ When the classification itself is unclear, the cause taxonomy in
 policy · coordination · loop) usually decides it: a `logic`/`state` cause with agreed correct
 behavior is a slip; a `policy`/`coordination` cause is almost always the complex path.
 
-## Step 3a — Simple slip: the escalation ladder
+## Step 3a — Simple slip: choose the countermeasure level
 
-Enter the ladder at the level matching the count. **Never enter above your count** — a gate for a
-first-time slip is gate inflation, and every gate is permanent maintenance + false-positive cost.
-(Two exceptions. Downward-honest: a **registered countermeasure that failed** counts that failure
-at its own level — a violated Level-1 rule at count 2 legitimately escalates to Level 2. And
-cost-driven: the Level 1 pre-flight below sends a count-2 slip straight to Level 2 when the wrong
-action is deterministically detectable, because a gate is the *cheaper* artifact, not the stronger
-one.)
+The levels below are **options ordered by determinism, not a mandatory sequence**. The count is
+evidence of how far the current countermeasure has failed; it does not select the level by itself.
+Choose the least burdensome option that reliably prevents the cause: repair or replace the failed
+countermeasure first; prefer a gate when prose has demonstrably failed or when the wrong action is
+deterministically detectable (a gate is then the *cheaper* artifact, not the stronger one); and
+let credible risk, not the count, justify protection — a concrete irreversible-damage path earns a
+gate at count 0, while a first-time slip with no credible risk earns none (every gate is permanent
+maintenance + false-positive cost).
 
-| Level | When | Countermeasure | Characteristic failure of this level |
+| Level | Typical evidence (a signal, not a trigger) | Countermeasure | Characteristic failure of this level |
 |---|---|---|---|
 | **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or an occurrence link on a related rule's 신설 근거 line if one already exists | Records don't steer — nothing re-reads them at the decision moment |
 | **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + a one-line "신설 근거" with links to each occurrence. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps. **Shape**: the *minimum condition* that prevents the failure — what must be true, not how to do it — stated in positive form; a prohibition only where the damage is irreversible | Prose can be skimmed, forgotten under context pressure, or rationalized around |
@@ -185,7 +190,8 @@ irreversible damage or a protected gate; otherwise state the condition and leave
 
 1. 즉시 정정 보고 (무엇이 어떻게 위반이었는지 명시)
 2. 발생을 이슈·ADR 에 기록하고 durable memory 에 추가한 뒤, 위 근거 줄의 횟수와 링크를 올린다
-3. 재위반이면 구조적 게이트(테스트/훅/derive)로 승격 — 프로즈는 이미 두 번 실패했다
+3. 재위반이면 원인 분석과 이 룰을 재평가한다 — 룰을 고쳐 충분하면 거기서 끝내고, 프로즈가 실제로
+   실패한 것이면 결정론적 장치(테스트/훅/derive)로 대체한다
 ```
 
 The 근거 line is not decoration — it is the recurrence counter for the *next* occurrence, and it
@@ -210,10 +216,10 @@ for mechanics — run 3-5 personas in parallel, independently, then synthesize):
 Synthesize into 2-3 concrete countermeasure options with costs, and present them as a decision
 (recommendation first, ASIS→TOBE contrast — see `user-centered-explanation` if bundled). The
 chosen option still lands on the ladder: it becomes a record, a rule, or a gate — the panel decides
-*what* the countermeasure is, the ladder decides *how hard* it is enforced. The
-never-above-your-count guard governs slips with no failed countermeasure; here, a prior
-countermeasure that fired as designed and still failed already justifies landing one level above
-it (a failed Level-1 rule → a Level-2 gate is escalation, not inflation).
+*what* the countermeasure is, the evidence decides *how deterministic* it must be. A prior
+countermeasure that fired as designed and still failed is evidence that repairing it is not
+enough, which justifies a more deterministic mechanism (a failed rule → a gate); it is not a
+mandate to add one — replacing the failed mechanism is the default, stacking a new one on top is not.
 
 When choosing among the panel's options, compare them on prevention strength, false-positive rate,
 standing context cost, **per-run speed cost** (time, rounds, and questions added to every task),
@@ -278,7 +284,8 @@ before creating them. Level 0 records need no confirmation.
   of prohibitions either routes around it or freezes. Write the state that must hold; reserve
   prohibitions for irreversible damage and protected gates.
 - **Same-level retry** — responding to a recurrence by rewriting the same rule more emphatically
-  (CAPS, "NEVER", repetition). The level failed, not the wording. Escalate.
+  (CAPS, "NEVER", repetition). The level failed, not the wording — repair it if it can be
+  repaired, otherwise replace it with a more deterministic mechanism.
 - **Inflating the count** — when no prior artifact can be found, record this as the first confirmed
   occurrence rather than borrowing a remembered one to reach count 2.
 
