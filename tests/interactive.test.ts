@@ -506,7 +506,7 @@ describe("computeUserOverride", () => {
     // ADR-064 — audit-harness-fit (any-track 신설) 도 dev 트랙 추천 기준선에 합류.
     "audit-harness-fit",
     "audit-service-gaps",
-    "clear-korean-communication",
+    "user-centered-explanation",
     "compaction-handoff",
     "find-skills",
     // v26.92.0 — frontend-design (official, has-dev-track) → tooling 추천 집합 포함.

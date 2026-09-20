@@ -1341,10 +1341,10 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
       upsertHarnessImport("# p\n", {
         projectName: "p",
         tracks: ["tooling"],
-        continuousSkills: ["clear-korean-communication"],
+        continuousSkills: ["user-centered-explanation"],
       }),
     );
-    expect(readFileSync(rootPath(), "utf8")).toContain("`clear-korean-communication`");
+    expect(readFileSync(rootPath(), "utf8")).toContain("`user-centered-explanation`");
     // 사용자가 스킬 디렉터리를 지웠다(= 더는 깔려 있지 않다). 아무것도 안 만든다.
 
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
@@ -1362,17 +1362,17 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
       rootPath(),
       upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"], continuousSkills: [] }),
     );
-    mkdirSync(join(projectDir, ".claude/skills/clear-korean-communication"), { recursive: true });
+    mkdirSync(join(projectDir, ".claude/skills/user-centered-explanation"), { recursive: true });
     writeFileSync(
-      join(projectDir, ".claude/skills/clear-korean-communication/SKILL.md"),
-      "---\nname: clear-korean-communication\n---\n",
+      join(projectDir, ".claude/skills/user-centered-explanation/SKILL.md"),
+      "---\nname: user-centered-explanation\n---\n",
     );
 
     const first = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(first.rootBlockRefreshed).toBe(true);
     const after = readFileSync(rootPath(), "utf8");
     expect(after).toContain(NOTE);
-    expect(after).toContain("`clear-korean-communication`");
+    expect(after).toContain("`user-centered-explanation`");
 
     const second = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(second.rootBlockRefreshed).toBe(false);

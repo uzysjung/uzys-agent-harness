@@ -46,7 +46,7 @@ export type ExternalAssetMethod =
         // 2026-08-02 복원 (ADR-062) — 이관(ADR-060)이 본문을 열화시켜 이 리포 번들로 되돌렸다.
         //   9종 전부 `templates/skills/<id>/` 로 다시 번들된다.
         | "compaction-handoff"
-        | "clear-korean-communication"
+        | "user-centered-explanation"
         | "north-star"
         | "audit-service-gaps"
         | "multi-persona-review"
@@ -248,14 +248,16 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   //   앞선다 — 본문 게이트(테스트)가 이 리포에만 있기 때문이다. tier official = 자사
   //   (star 무관 — trust-tier-drift 가 official 을 건너뛴다). condition 은 이관 전 도달 범위 유지.
   {
-    id: "clear-korean-communication",
+    // #485 — 전신 `clear-korean-communication` 개명. 이름이 "한국어 전용"으로 읽혀 영어 사용자에게
+    // 닿지 않았다(사용자 결정 2026-09-20). 본문은 사용자가 검토한 개정안, 답변 언어는 사용자의 언어.
+    id: "user-centered-explanation",
     tier: "official", // uzys 자사 스킬 리포
     description:
-      "Clear Korean communication — restate technical facts from the reader's position (impact and cause first, then evidence) instead of translation-ese; covers decisions, approval requests, and AS-IS/TO-BE contrasts",
+      "User-centered explanation — explain problems, changes, and choices as what the user does and sees (impact and cause first, then evidence), in the user's language; covers decisions, approval requests, and AS-IS/TO-BE contrasts of screens and flows",
     category: "workflow",
     source: "uzys",
     condition: { kind: "has-dev-track" },
-    method: { kind: "internal", key: "clear-korean-communication" },
+    method: { kind: "internal", key: "user-centered-explanation" },
   },
   {
     id: "north-star",
@@ -386,7 +388,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     // 트랙과 무관한 글쓰기 규율이라 어느 트랙에서도 고를 수 있고, 어느 트랙에도 자동으로는
     //   안 깔린다(opt-in). 한국어로 쓰지 않는 사용자에게 기본 설치되면 그대로 낭비다.
-    // clear-korean-communication 과의 경계: 저쪽은 **무엇을 어떤 형식으로 말할지**(설명·승인
+    // user-centered-explanation 과의 경계: 저쪽은 **무엇을 어떤 형식으로 말할지**(설명·승인
     //   요청의 구조)이고, 이쪽은 **한국어로 쓰는 행위 자체**(답변·글쓰기·번역·퇴고)의 표현이다.
     // #428 — 전신 `humanize-korean`(#355, 진단-우선 퇴고)을 개명·교체했다. 범위가 퇴고에서
     //   쓰기·번역까지로 넓어져 이름이 뜻과 어긋났다. 옛 id 로 깐 설치본은 `update` 가 손대지
@@ -1112,7 +1114,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
  */
 export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "compaction-handoff",
-  "clear-korean-communication",
+  "user-centered-explanation",
   "audit-service-gaps",
   "multi-persona-review",
   "recurrence-prevention",
@@ -1160,9 +1162,11 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
  */
 export const CONTINUOUS_SKILLS: ReadonlyArray<{ id: string; whenToApply: string }> = [
   {
-    id: "clear-korean-communication",
+    // #493 (#485 분리, 사용자 결정 2026-09-20) — 상주 한 줄의 문안은 사용자가 이슈에 적은 원칙이다:
+    // 평소 설명부터 사용자 행동·결과를 먼저, 재설명·UX 전후·중요한 선택 정리는 스킬로.
+    id: "user-centered-explanation",
     whenToApply:
-      "applies to every answer, report, and approval request — a decision is presented as AS-IS → TO-BE from the position of whoever lives with the result; not only at the moment approval is asked for",
+      "when explaining a development problem, change, or choice to the user, explain what the user does and sees before internal implementation — in every answer and report, not only when approval is asked for; for a detailed re-explanation, a UX before/after comparison, or laying out an important decision, apply this skill",
   },
   {
     id: "model-orchestration",
@@ -1181,6 +1185,8 @@ export const CONTINUOUS_SKILLS: ReadonlyArray<{ id: string; whenToApply: string 
 export const RENAMED_SKILL_IDS: Readonly<Record<string, string>> = {
   "task-brief": "objective-brief",
   "humanize-korean": "natural-korean",
+  // #485 (2026-09-20) — 새 이름은 `new-skills` 묶음(#480 ①)이 같은 update 에서 깐다.
+  "clear-korean-communication": "user-centered-explanation",
 };
 
 /**

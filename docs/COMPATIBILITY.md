@@ -88,7 +88,7 @@ stale row fails the build rather than misleading you.
 |---|---|---|---|---|
 | `ci-scaffold` | official | templates (`--with ci-scaffold`) | 4-CLI (templates) | 🟡 local |
 | `compaction-handoff` | official | templates (`--with compaction-handoff`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
-| `clear-korean-communication` | official | templates (`--with clear-korean-communication`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
+| `user-centered-explanation` | official | templates (`--with user-centered-explanation`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `north-star` | official | templates (`--with north-star`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `recurrence-prevention` | official | templates (`--with recurrence-prevention`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |
 | `gh-issue-workflow` | official | templates (`--with gh-issue-workflow`) | Claude · Codex · Antigravity (skill) · OpenCode (cmd) | 🟡 local |

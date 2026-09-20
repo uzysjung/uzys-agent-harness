@@ -208,7 +208,7 @@ for mechanics — run 3-5 personas in parallel, independently, then synthesize):
 - **The adversary** — "this countermeasure will fail because…" for each candidate.
 
 Synthesize into 2-3 concrete countermeasure options with costs, and present them as a decision
-(recommendation first, ASIS→TOBE contrast — see `clear-korean-communication` if bundled). The
+(recommendation first, ASIS→TOBE contrast — see `user-centered-explanation` if bundled). The
 chosen option still lands on the ladder: it becomes a record, a rule, or a gate — the panel decides
 *what* the countermeasure is, the ladder decides *how hard* it is enforced. The
 never-above-your-count guard governs slips with no failed countermeasure; here, a prior
@@ -285,7 +285,7 @@ before creating them. Level 0 records need no confirmation.
 ## Cross-references
 
 - `multi-persona-review` — panel mechanics for the complex path (Step 3b).
-- `clear-korean-communication` — presenting countermeasure options for user confirmation
+- `user-centered-explanation` — presenting countermeasure options for user confirmation
   (recommendation first, ASIS→TOBE contrast).
 - **Periodic audit of accumulated countermeasures** — the natural cleanup loop for what this skill
   creates (are the rules and gates still TRUE, USED, AFFORDABLE, SAFE?). No bundled skill owns it;

@@ -71,12 +71,12 @@ describe("runCodexTransform (E2E against templates/)", () => {
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
         projectDir: project,
-        selectedInternalSkills: ["clear-korean-communication", ...DEV_METHOD],
+        selectedInternalSkills: ["user-centered-explanation", ...DEV_METHOD],
         baseline: new Map(),
       });
       const withNote = readFileSync(join(project, "AGENTS.md"), "utf8");
       expect(withNote).toContain(NOTE);
-      expect(withNote).toContain("`clear-korean-communication`");
+      expect(withNote).toContain("`user-centered-explanation`");
       expect(withNote).not.toContain("`compaction-handoff`"); // 상시 스킬이 아니다
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
