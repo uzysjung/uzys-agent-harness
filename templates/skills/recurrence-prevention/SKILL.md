@@ -116,8 +116,8 @@ one.)
 | Level | When | Countermeasure | Characteristic failure of this level |
 |---|---|---|---|
 | **0 기록** | 1st occurrence | Fix + durable record: memory/lessons entry with **Why** it matters and **How to apply**, or an occurrence link on a related rule's 신설 근거 line if one already exists | Records don't steer — nothing re-reads them at the decision moment |
-| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + a one-line "신설 근거" with links to each occurrence. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps | Prose can be skimmed, forgotten under context pressure, or rationalized around |
-| **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible | Gates that never demonstrably fire; gates so noisy they get bypassed |
+| **1 룰 강제 등록** | 2nd occurrence (the record failed) | Register a forced rule on the project's **always-loaded steering surface**, using the template below — one-line principle + a one-line "신설 근거" with links to each occurrence. `.claude/rules/<name>.md` (Claude Code) or a rules section in `AGENTS.md` (other CLIs) — and **verify it actually loads**: if the always-loaded context (CLAUDE.md / AGENTS.md) doesn't already pull that location in, reference the rule from it. A rule file nothing loads is still Level 0 with extra steps. **Shape**: the *minimum condition* that prevents the failure — what must be true, not how to do it — stated in positive form; a prohibition only where the damage is irreversible | Prose can be skimmed, forgotten under context pressure, or rationalized around |
+| **2 구조적 게이트** | 3rd+ occurrence, **or** a registered countermeasure failed — bypassed *or* followed as designed yet insufficient | Deterministic enforcement that does not depend on the agent reading anything: a test gate that fails CI, a pre-action hook that blocks the command (where the CLI supports hooks), or **derive-to-single-source** so the drift is structurally impossible. **Shape**: one level up means *more deterministic*, not *more forbidden* — the gate checks a result and leaves the model's judgment where no check can express it | Gates that never demonstrably fire; gates so noisy they get bypassed |
 
 Load-bearing principle at Level 2: **comment warnings and doc reminders are not a blocking
 mechanism.** If the countermeasure's effect depends on someone (human or model) reading prose at
@@ -136,7 +136,7 @@ fifth.
 
 **Level 1 pre-flight — a 2nd occurrence does not automatically earn a rule.** Per unit of
 enforcement a rule is the most expensive artifact on the ladder: it is read **every session, by
-every install, forever**, while a gate costs CI time and **zero** standing context. Answer three
+every install, forever**, while a gate costs CI time and **zero** standing context. Answer four
 questions in order and stop at the first that decides:
 
 1. **Can the wrong action be detected deterministically?** — a failing test, a hook that exits
@@ -149,14 +149,20 @@ questions in order and stop at the first that decides:
    nothing and bills every session. Stay at Level 0.
 3. **Is it general, or is it this project's circumstance?** A project's own incidents belong on
    that project's steering surface — never in a rule set that strangers install.
+4. **Does the rule replace the model's judgment, or feed it?** A rule that fixes a procedure
+   ("always run X before Y", "review every edit") replaces a judgment the model could make by
+   risk — and stops improving when the model improves. Rewrite it as a one-line criterion (what
+   must be true, what evidence counts) and let the model choose the depth. A rule that removes a
+   place where the model decides is not a rule candidate in that form.
 
-Only what survives all three — **a judgement call no deterministic check can express, that
-changes behaviour, and that generalises** — is a rule candidate. That is the bar for "serious
+Only what survives all four — **a judgement call no deterministic check can express, that
+changes behaviour, that generalises, and that gives the judgment an input instead of replacing
+it** — is a rule candidate. That is the bar for "serious
 enough to be worth permanent context".
 
 **Confirm before adding standing cost.** Levels 1 and 2 need explicit user confirmation. For a
 rule the escalation must state, in one block: signature · count with evidence · the proposed text ·
-**its standing cost in tokens and the resulting total** · which of the three questions it survived
+**its standing cost in tokens and the resulting total** · **its per-run cost** (seconds, rounds, or questions added to every task — a countermeasure that slows every task to prevent one incident is rejected unless "what actually happens without it" is the answer) · which of the four questions it survived
 and why the deterministic alternative does not work. **Do not guess the cost — measure the draft**
 (if the project reports context cost, run that report). Level 0 needs no confirmation — recording
 a fact is free and always right.
@@ -169,10 +175,11 @@ a fact is free and always right.
 <One-line principle, stated as an imperative.> **신설 근거: N회 재발** (<date/version> ·
 <date/version>) — 발생별 기록은 <issue / ADR / postmortem link per occurrence>.
 
-## 절대 원칙
+## 지켜야 할 상태
 
-**<The enforced behavior. One sentence if possible.>**
-<What is explicitly forbidden, and what to do instead.>
+**<The state that must hold when this rule is followed — positive form, one sentence if possible.>**
+<What breaks it, and what to do instead. A prohibition ("X 금지") belongs here only when X is
+irreversible damage or a protected gate; otherwise state the condition and leave the method to the agent.>
 
 ## 위반 발견 시
 
@@ -209,8 +216,9 @@ countermeasure that fired as designed and still failed already justifies landing
 it (a failed Level-1 rule → a Level-2 gate is escalation, not inflation).
 
 When choosing among the panel's options, compare them on prevention strength, false-positive rate,
-standing context cost, maintenance cost, and permission impact — and prefer the *smallest*
-mechanism that actually prevents the cause. The mechanism menu is in
+standing context cost, **per-run speed cost** (time, rounds, and questions added to every task),
+**effect on the model's autonomy** (does it feed a judgment or replace one), maintenance cost, and
+permission impact — and prefer the *smallest* mechanism that actually prevents the cause. The mechanism menu is in
 [references/failure-analysis.md](references/failure-analysis.md).
 
 ## Step 4 — Verify the countermeasure fires
@@ -235,8 +243,8 @@ would be a false ship. Before closing:
 - Classification: 단순 실수 | 복잡한 하네스 문제 (+ the discriminator that decided it)
 - Countermeasure: Level 0 기록 | Level 1 룰 | Level 2 게이트 | 페르소나 설계 → <chosen option>
 - Artifact: <path of memory entry / rule file / test or hook>
-- Standing cost: <rule 이면 측정치 ~N tokens/session + 갱신된 총합 | gate·record 면 0>
-- Pre-flight: <Level 1 3질문 통과 근거 — 결정론 불가 사유 · 행동 변화 · 일반성>
+- Standing cost: <rule 이면 측정치 ~N tokens/session + 갱신된 총합 | gate·record 면 0> · per-run: <매 작업에 더해지는 시간·라운드·질문 | 0>
+- Pre-flight: <Level 1 4질문 통과 근거 — 결정론 불가 사유 · 행동 변화 · 일반성 · 판단을 대신하지 않음>
 - Fires-verified: <RED→GREEN output, hook exit code, grep proof — or "룰 프로즈: 미검증" honestly>
 - User confirmation: <obtained for Level 1/2 | not needed (Level 0)>
 ```
@@ -265,6 +273,10 @@ before creating them. Level 0 records need no confirmation.
   is already on the failing trajectory even if no single rule looks unreasonable.
 - **Gate theater** — a gate that was never seen to fire may be checking nothing (wrong matcher,
   wrong path, dead config). Step 4 is mandatory, not optional polish.
+- **Prohibition accumulation** — countermeasures written only as "do not X" pile into a defence
+  list: each blocks one path to the bad state and none of the others, and a model reading a wall
+  of prohibitions either routes around it or freezes. Write the state that must hold; reserve
+  prohibitions for irreversible damage and protected gates.
 - **Same-level retry** — responding to a recurrence by rewriting the same rule more emphatically
   (CAPS, "NEVER", repetition). The level failed, not the wording. Escalate.
 - **Inflating the count** — when no prior artifact can be found, record this as the first confirmed

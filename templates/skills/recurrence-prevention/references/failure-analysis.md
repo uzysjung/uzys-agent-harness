@@ -47,17 +47,18 @@ Before designing anything durable, stop the bleeding without widening the blast 
 
 ## Countermeasure mechanisms
 
-Prefer the smallest mechanism that prevents the *cause*, not the symptom:
+Prefer the smallest mechanism that prevents the *cause*, not the symptom — and count, for each
+candidate, what it costs on every run and what judgment it takes away from the model:
 
-| Cause shape | Mechanism |
-|---|---|
-| Incorrect behavior | Fix the code or the contract |
-| A stable behavioral boundary regressed | Regression test |
-| The same truth is written in two places | Derive from one source (delete the copy) |
-| A deterministic lifecycle event is violated | Hook, or a verification gate |
-| A judgment recurs at decision time and no check can express it | A concise Rule (Level 1) |
-| Completion is claimed without evidence | Verification gate that requires the evidence |
-| Human or external coordination gap | Operating procedure / checklist |
+| Cause shape | Mechanism | Per-run cost | Autonomy impact |
+|---|---|---|---|
+| Incorrect behavior | Fix the code or the contract | none | none |
+| A stable behavioral boundary regressed | Regression test | CI time | none — checks a result, not a method |
+| The same truth is written in two places | Derive from one source (delete the copy) | none (removes work) | none |
+| A deterministic lifecycle event is violated | Hook, or a verification gate | every matching action; a blocking hook adds a round each time it misfires | low if it checks a result; high if it fixes a procedure |
+| A judgment recurs at decision time and no check can express it | A concise Rule (Level 1) | every session (standing context) | feeds the judgment when it states a criterion; replaces it when it fixes a procedure — write the criterion |
+| Completion is claimed without evidence | Verification gate that requires the evidence | per completion claim | none — asks for evidence, not a method |
+| Human or external coordination gap | Operating procedure / checklist | every run of the procedure | high — use only where coordination, not judgment, is the gap |
 
 Verify a mechanical mechanism on **both** the bad case and the corrected case — a gate seen green
 only has never been shown to bite. Record prose-only safeguards as unverified enforcement; that
