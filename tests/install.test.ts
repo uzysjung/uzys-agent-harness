@@ -713,6 +713,53 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("1 external asset"));
   });
 
+  it('npm 자산은 결과 행 전에 진행 중 한 줄을 낸다 — 수 분의 침묵이 "멈춤"으로 보였다 (#422)', () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const npmAsset = {
+      id: "netlify-cli",
+      description: "Netlify CLI (npm)",
+      category: "backend" as const,
+      source: "netlify" as const,
+      tier: "vetted" as const,
+      condition: { kind: "opt-in" as const },
+      method: { kind: "npm" as const, pkg: "netlify-cli", version: "26.1.0" },
+    };
+    const skillAsset = {
+      ...npmAsset,
+      id: "some-skill",
+      method: { kind: "skill" as const, source: "owner/repo" },
+    };
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline: pipelineFor({
+        ...fakeReport,
+        external: {
+          attempted: [
+            { asset: npmAsset, ok: true },
+            { asset: skillAsset, ok: true },
+          ],
+          succeeded: 2,
+          skipped: 0,
+          excludedByCli: [],
+        },
+      }),
+      resolveHarnessRoot: () => "/h",
+    });
+    const lines = log.mock.calls.map((c) => String(c[0]));
+    const pending = lines.findIndex(
+      (l) => l.includes("… netlify-cli") && l.includes("npm install netlify-cli@26.1.0"),
+    );
+    const result = lines.findIndex(
+      (l) => l.includes("netlify-cli") && l.includes("npm · netlify-cli@26.1.0"),
+    );
+    expect(pending, "진행 중 줄이 없다").toBeGreaterThanOrEqual(0);
+    expect(pending, "진행 중 줄이 결과 행보다 뒤에 있다").toBeLessThan(result);
+    // 대조군: 스킬 자산은 F2 결정대로 결과 1행뿐
+    expect(lines.some((l) => l.includes("… some-skill"))).toBe(false);
+  });
+
   it("renders Phase 3 (instead of 2) for codex when external assets phase is rendered", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;

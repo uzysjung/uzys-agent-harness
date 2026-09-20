@@ -208,6 +208,16 @@ export function createInstallRenderer(
           log(`  ${c.bold(`━━ ${CATEGORY_TITLES[asset.category]} ━━`)}`);
           currentCategory = asset.category;
         }
+        // #422 — 패키지 설치(npm · npx)는 수 분 걸리는데 결과 행이 뜰 때까지 화면이 침묵해
+        // 설치자에게 "멈춤"으로 보였다(netlify-cli 413 MB). 시작을 한 줄로 알린다 — 다른 종류는
+        // 초 단위라 F2 결정(자산당 결과 1행) 그대로 둔다.
+        if (asset.method.kind === "npm" || asset.method.kind === "npx-run") {
+          const what =
+            asset.method.kind === "npm"
+              ? `npm install ${asset.method.pkg}@${asset.method.version}`
+              : `npx ${asset.method.cmd}@${asset.method.version}`;
+          log(`  ${c.dim(`… ${asset.id}  ${what} — running, may take a few minutes`)}`);
+        }
       },
       onAssetResult: (result) => {
         const meta = result.ok

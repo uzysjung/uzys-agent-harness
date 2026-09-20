@@ -93,6 +93,17 @@ export interface ExternalInstallReport {
 }
 
 const DEFAULT_SPAWN_TIMEOUT_MS = 120_000;
+/**
+ * #422 — `npm install` 계열은 큰 CLI(netlify-cli 26.x 는 413 MB · 컨테이너 실측 86초)를 받는다.
+ * 120초는 느린 망·기존 lockfile 해석에서 넘기고, 그동안 화면은 침묵이라 설치자에게는 "멈춤"이다.
+ * 진행 표시는 렌더러(`onAssetStart`)가, 시간 상한은 여기서 — 넘기면 직접 돌릴 명령을 알려 준다.
+ */
+const NPM_SPAWN_TIMEOUT_MS = 600_000;
+
+/** method.kind 별 spawn 시간 상한 — 패키지 설치는 길고, 그 밖은 기본값. */
+function spawnTimeoutFor(kind: ExternalAsset["method"]["kind"]): number {
+  return kind === "npm" || kind === "npx-run" ? NPM_SPAWN_TIMEOUT_MS : DEFAULT_SPAWN_TIMEOUT_MS;
+}
 
 /**
  * v26.102.0 (ADR-031) — external 단계의 대상/배제 판정 **단일 지점**. 규칙 = 조건 통과 ∧
@@ -493,8 +504,19 @@ function runSpawn(
   args: ReadonlyArray<string>,
   cwd?: string,
 ): AssetInstallResult {
-  const result = spawn(cmd, args, spawnOpts(cwd));
+  const timeout = spawnTimeoutFor(asset.method.kind);
+  const result = spawn(cmd, args, spawnOpts(cwd, timeout));
   if (result.error) {
+    // #422 — 시간 초과는 "실패"가 아니라 "덜 끝남"이다. 설치자가 같은 명령을 직접 이어 돌릴 수
+    // 있게 명령을 그대로 낸다 — 메시지에 원인(ETIMEDOUT)만 있으면 무엇을 해야 하는지 모른다.
+    const code = (result.error as NodeJS.ErrnoException).code;
+    if (code === "ETIMEDOUT") {
+      return {
+        asset,
+        ok: false,
+        message: `timed out after ${Math.round(timeout / 1000)}s — finish it yourself: ${cmd} ${args.join(" ")}`,
+      };
+    }
     return { asset, ok: false, message: result.error.message };
   }
   if ((result.status ?? 1) !== 0) {
@@ -509,11 +531,11 @@ function runSpawn(
   return { asset, ok: true };
 }
 
-function spawnOpts(cwd?: string): SpawnOpts {
+function spawnOpts(cwd?: string, timeout: number = DEFAULT_SPAWN_TIMEOUT_MS): SpawnOpts {
   return {
     encoding: "utf8",
     stdio: "pipe",
-    timeout: DEFAULT_SPAWN_TIMEOUT_MS,
+    timeout,
     ...(cwd ? { cwd } : {}),
   };
 }
