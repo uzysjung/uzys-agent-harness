@@ -105,7 +105,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 
 | Asset | What |
 |---|---|
-| `clear-korean-communication` | Explain from the reader's position, and put an approval moment in context → recommendation → option table → AS-IS/TO-BE form |
+| `user-centered-explanation` | Explain problems, changes, and choices as what the user does and sees, in the user's language; an approval moment goes context → problem → options → recommendation, with AS-IS/TO-BE for screens and flows |
 | `audit-service-gaps` | Enumerate gaps against the north-star baseline through three lenses, then check how a reference service closed each one before proposing a fix |
 | `multi-persona-review` | Review one artifact through independent personas in parallel → deduped, severity-ranked findings |
 | `recurrence-prevention` | When the same defect returns: verify the count against prior evidence, classify slip vs harness problem, escalate record → rule → structural gate |
@@ -132,7 +132,7 @@ Written and maintained in this repo (`official` tier) and bundled as templates �
 
 | Asset | What |
 |---|---|
-| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keep meaning and register, cut translationese, needless English, stock phrases and mechanical repetition, and fix only what is actually awkward. Sibling to `clear-korean-communication`: that one decides **what to say and in what shape**, this one governs **how the Korean itself is written** |
+| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keep meaning and register, cut translationese, needless English, stock phrases and mechanical repetition, and fix only what is actually awkward. Sibling to `user-centered-explanation`: that one decides **what to say and in what shape**, this one governs **how the Korean itself is written** |
 
 > `natural-korean` replaced the earlier humanize-korean skill (#428). The predecessor was a diagnosis-first *revision* skill; this one also covers writing and translation, so the name followed the scope. A project that installed the old id keeps it — `update` only refreshes skills it finds installed — and picks up the new one with `--with natural-korean`.
 

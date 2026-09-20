@@ -76,9 +76,9 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     const NOTE = "## Skills that apply continuously";
 
     it("깔린 상시 스킬만 적고, 상시 스킬이 아닌 것은 적지 않는다", () => {
-      const out = upsertHarnessImport(null, opts(["clear-korean-communication", "north-star"]));
+      const out = upsertHarnessImport(null, opts(["user-centered-explanation", "north-star"]));
       expect(out).toContain(NOTE);
-      expect(out).toContain("`clear-korean-communication`");
+      expect(out).toContain("`user-centered-explanation`");
       expect(out).not.toContain("`north-star`");
       expect(out).not.toContain("`model-orchestration`"); // 안 깔린 상시 스킬
       expect(importCount(out)).toBe(1);
@@ -91,7 +91,7 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     });
 
     it("안내는 마커 블록 안에 있다 — uninstall 이 블록만 도려내면 안내도 같이 사라진다", () => {
-      const out = upsertHarnessImport(null, opts(["clear-korean-communication"]));
+      const out = upsertHarnessImport(null, opts(["user-centered-explanation"]));
       const start = out.indexOf("<!-- uzys-harness:import:start -->");
       const end = out.indexOf("<!-- uzys-harness:import:end -->");
       expect(out.indexOf(NOTE)).toBeGreaterThan(start);
@@ -100,14 +100,14 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
 
     it("재실행이 블록을 현행화한다 — 스킬을 빼면 안내가 빠지고 사용자 본문은 그대로", () => {
       const user = "# p\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
-      const withNote = upsertHarnessImport(user, opts(["clear-korean-communication"]));
+      const withNote = upsertHarnessImport(user, opts(["user-centered-explanation"]));
       expect(withNote).toContain(NOTE);
       const refreshed = upsertHarnessImport(withNote, opts([]));
       expect(refreshed).not.toContain(NOTE);
       expect(refreshed).toContain("- 커밋은 한국어로");
       expect(importCount(refreshed)).toBe(1);
       // 같은 선택으로 다시 돌리면 바이트 동일(파일을 만지지 않는다).
-      expect(upsertHarnessImport(withNote, opts(["clear-korean-communication"]))).toBe(withNote);
+      expect(upsertHarnessImport(withNote, opts(["user-centered-explanation"]))).toBe(withNote);
     });
   });
 });

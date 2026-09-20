@@ -24,9 +24,9 @@
 
 ## 의사결정 및 컨펌 요청 시
 
-형식은 `clear-korean-communication` 스킬의 기본 표(**맥락 · 문제점 · 해결방안 · 추천방안**, 각각
+형식은 `user-centered-explanation` 스킬의 기본 표(**맥락 · 문제점 · 해결방안 · 추천방안**, 각각
 이유와 함께)가 SSOT 다(사용자 확정 2026-09-15, #465) — 이 리포 번들이라
-`templates/skills/clear-korean-communication/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
+`templates/skills/user-centered-explanation/` 에서 바로 읽는다(ADR-062. 설치·네트워크 불요).
 
 **ASIS→TOBE 를 덧붙일 때는 "그 결과를 안고 사는 사람" 자리에서 쓴다**(사용자 확정 2026-08-16) — 영향받는
 역할(설치받는 사용자 / 운영자 / 리뷰어 / 다음 유지보수자)을 지목해 **전에는 못 하던 무엇을 할 수
