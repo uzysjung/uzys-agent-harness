@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.159.0] — 2026-09-20 (최신 모델 기준으로 불필요한 선택지 퇴역 — 카탈로그 61 → 50 · ECC 축 제거 · 남는 자산은 "언제 쓰나")
+
+### Removed
+- **외부 자산 11종 퇴역** (#492 · #507 · ADR-093, 사용자 결정): `superpowers` · `feature-dev` · `wshobson-agents` ·
+  `addy-agent-skills` · `code-review` · `find-skills` · `mermaid-diagrams`(모델의 방법 선택을 고정 절차로 대체하거나 일반
+  작업을 우회시킴) · `ecc-plugin` · `ecc-prune` · `game-studios` · `ppt-generation`(중복 하네스 또는 불완전한 설치 구성).
+  `--with-prune` 플래그 · `withEcc`/`withPrune` 축 · `ecc-suite` 카테고리 · `scripts/prune-ecc.sh` 제거. 위저드 페이지
+  "Workflow & ECC Suite" → "Workflow"(OpenSpec · BMAD 2종).
+- **ECC 발췌 스킬 7종 독립 제공 종료**: `python-patterns` · `python-testing` · `e2e-testing` · `nextjs-turbopack` ·
+  `market-research` · `investor-materials` · `investor-outreach` — 모델이 이미 아는 범용 지식이거나 검증 방식을 미리
+  고정(항상 TDD · 커버리지 80%). `templates/skills` 21 → 14. 기존 설치본의 디렉터리는 지우지 않고 `update` 화면이
+  "은퇴 · 지워도 된다"를 안내한다(`RETIRED_SKILL_IDS`). cherry-pick 동기화 기계(`cherrypicks.lock` · `sync-cherrypicks.sh`)는
+  대상이 0건이 되어 함께 제거.
+
+### Changed
+- **남는 외부 자산 35종의 설치 화면 설명을 "무엇을 — 언제 쓴다"로** (#492): 이슈의 조건부 유지 사유를 옮겼다 — 예:
+  `react-best-practices` 는 "React 성능 작업에, 모든 컴포넌트 편집에는 아니다", `agent-browser` 는 "CLI 에 동등한
+  브라우저 도구가 없을 때만". condition 은 하나도 바꾸지 않았다(이슈가 보류한 5종은 ADR-093 · 로드맵 M5 축B 로).
+- **`strategist` 에이전트에 근거·일관성 기준 추가**: 퇴역한 두 사업용 스킬이 담고 있던 출처·기준일 · 가정 · 반대 근거 ·
+  투자자용 수치의 정의·기간 일치 요구를 옮겼다.
+- **기존 설치본 안전**: 퇴역 자산 id 가 든 설치 로그를 `list` · `uninstall`(전량 · `--only`)이 그대로 다룬다 — 회귀 테스트
+  신설 + 음성 대조(legacy `shell-script` kind 를 타입에 남긴 이유). 독립 리뷰 BLOCKER 0 · 권고 9건 반영.
+- 문서 7종 · 랜딩/llms 총계 50 · ADR-019 Superseded · ADR-021/039/073 부분 대체 표기. 데모 GIF 재녹화는 #508.
+
 ## [v26.158.0] — 2026-09-20 (사용자 문서 전면 현행화 — 철학이 README 의 중심에)
 
 ### Changed
