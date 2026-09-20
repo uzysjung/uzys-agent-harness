@@ -232,6 +232,9 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
   }
 }
 
+/** #505 — 로그에 남길 해제 대상 판별용. 외부 자산 제외는 update 가 재설치하지 않아 제외한다. */
+const BUNDLED_SKILL_IDS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_IDS);
+
 /**
  * install log 생성. `previous` 가 있으면 **누적**한다 (v26.123.0 — F-1a).
  *
@@ -249,9 +252,6 @@ function methodDetail(method: ExternalAssetMethod): Record<string, string> {
  * (`npx skills add` 가 `.claude/skills/` 에 설치) 와 legacy `shell-script`(ecc-prune →
  * `.claude/local-plugins/`). plugin/npm 은 프로젝트 밖에 살아 남으므로 유지한다.
  */
-/** #505 — 로그에 남길 해제 대상 판별용. 외부 자산 제외는 update 가 재설치하지 않아 제외한다. */
-const BUNDLED_SKILL_IDS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_IDS);
-
 export function buildInstallLog(
   spec: InstallSpec,
   external: ExternalInstallReport | null,
