@@ -4,7 +4,7 @@
 
 | 영역 | 최소 커버리지 |
 |---|---|
-| **이 repo (tooling)** | lines·functions·statements 90 / **branches 88** — SSOT: `vitest.config.ts` |
+| **이 repo (tooling)** | lines·functions·statements 90 / **branches 86** — SSOT: `vitest.config.ts` (88 → 86, #454 사용자 결정 2026-09-21) |
 
 ## 시점별 검증 (사용자 확정 2026-07-27)
 
@@ -20,7 +20,7 @@
 
 **GitHub Actions 는 태그(`v*`) push 시에만 돈다 — PR 에는 CI 가 없다.** 머지 단의 방어는 로컬 실행 + 독립 리뷰가 전부이고, 배포 단의 `needs:` 배선이 마지막 방어선이다. 태그 push 후 릴리스 CI 는 `gh run view <run-id> --json conclusion` 으로 판정한다 — `gh run watch --exit-status` 는 실패한 run 에 exit 0 을 낸 실측이 있다(#377). 추가 릴리스 게이트 = `install-matrix.yml`(태그 + `workflow_dispatch`) — fresh-env 설치 매트릭스(OS×Node×pm + 멀티트랙 + npx github: smoke), First-Run Success 회귀 게이트. 머지 후 `gh workflow run install-matrix.yml --ref main` 로 검증.
 
-`npm test` 만으로는 coverage gate 를 놓친다(전례 = `docs/todo.md` v26.70.1). `npm run ci` = typecheck + lint + test:coverage + build 이고 branches(88)가 가장 빡빡한 gate 다.
+`npm test` 만으로는 coverage gate 를 놓친다(전례 = `docs/todo.md` v26.70.1). `npm run ci` = typecheck + lint + test:coverage + build 이고 branches(86)가 가장 빡빡한 gate 다.
 
 ## 영향 범위를 도구·grep 으로 도출하지 마라 — 두 번 틀렸다
 

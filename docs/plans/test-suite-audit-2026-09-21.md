@@ -23,8 +23,8 @@
 | 항목 | before → after |
 |---|---|
 | 테스트 파일 | 102 → 93 |
-| 테스트(it) | 1,592 → 1,389 |
-| branches 커버리지 | 88.76 → 88.29 (하한 88 유지) |
+| 테스트(it) | 1,592 → 1,367 |
+| branches 커버리지 | 88.76 → 86.78 (하한 88 → **86**, 사용자 결정 2026-09-21) |
 | `npm run ci` | exit 0 (17초) |
 | 파일 단위 결정 | 유지 61 · 축소 30 · 퇴역 9 · 성질 검사로 재작성 1 · 보류(사용자 결정) 1 |
 
@@ -72,7 +72,7 @@
 | `consult-model-tier.test.ts` | 16 | 혼합 | keep(폴링 elapsed it 은 narrow/갈림) | 축소 적용(elapsed<950ms 타이밍 단언 1건 제거 — 계기가 CI 시간이라 ③) |
 | `context-cost-display-parity.test.ts` | 4 | ③ | retire(갈림: it3-4 를 `context-cost.test.ts` 표면 절로 흡수) | 퇴역 적용 |
 | `context-cost-ratchet.test.ts` | 9 | ③ | 갈림(relocate: 자산 변경 PR·`cost:report` 게이트로 / 또는 keep) | 유지. 설치자 매 세션 상주 비용이 조용히 늘지 않는다(ADR-083 정책 집행, baseline derive) |
-| `context-cost.test.ts` | 39 | 혼합 | narrow(표면 절 8건 keep, 나머지 ~28건 retire 또는 `cost:report` 스크립트 테스트/값 변경 PR 로 relocate) | 축소 적용은 **5건만**(개수 하드코딩 표 3 · ADR-032 ratchet 중복 2). 계측·순위표·ADR-044 단위 ~24건은 잣대로는 ③이지만 걷으면 `src/context-cost.ts` branches 가 52% 로 떨어져 **하한 88 게이트가 red**(실측 86.78). 하한은 사용자 정책이라 이 PR 은 유지하고 그 단위들을 남긴다 — 하한을 낮출지는 §6 |
+| `context-cost.test.ts` | 39 | 혼합 | narrow(표면 절 8건 keep, 나머지 ~28건 retire 또는 `cost:report` 스크립트 테스트/값 변경 PR 로 relocate) | 축소 적용 — 표면 절(설치 헤더·confirm 값 = 계측 · 두 표면 동일 · codex 단독 agents 0 · 계측 스킬 수 = 실설치 · 번들 스킬 frontmatter · path robustness) 11건만 남김. 계측·순위표·ADR-044 단위 ~28건 제거 → `src/context-cost.ts` branches 90 → 52. 그 몫으로 하한을 88 → 86 으로 내렸다(§6) |
 | `context-files-doc.test.ts` | 6 | ② | keep | 유지 |
 | `cron-failure-notification.test.ts` | 2 | ③ | retire(갈림: `release-audit` cron 이 미게시를 잡는 경로라 간접 방어) | 유지. release-audit cron 의 실패 알림 = 미게시 감지 경로 |
 | `design.test.ts` | 13 | 혼합 | narrow(TTY/NO_COLOR 3건만 keep) | 축소 적용 |
@@ -236,6 +236,6 @@
   이 테스트를 지목하므로 Major CR. 잣대로는 ③. 지우려면 SPEC 그 줄과 `docs/archive/README.md` 한 줄을 함께 고친다.
 - `skill-trigger-overlap` 이 하던 description 유사도 검사는 **description 을 바꾸는 PR** 에서 한 번 돌린다(상시 아님).
   스크립트가 필요하면 그 PR 에서 `scripts/` 로.
-- **커버리지 하한과 ③ 의 충돌**: `context-cost.test.ts` 의 계측·순위표 단위 ~24건은 유지보수자 지표(`npm run cost:report`)라 ③이지만, 걷으면 branches 88.29 → 86.78 로 하한(`vitest.config.ts`, ADR-013/014 약속) 아래다. 이 PR 은 하한을 건드리지 않고 그 단위를 남겼다. 하한을 낮추거나 `context-cost.ts` 의 report 전용 함수를 `scripts/` 로 옮겨 커버리지 모집단에서 빼는 것은 사용자 결정.
+- **커버리지 하한 88 → 86 (사용자 결정 2026-09-21)**: `context-cost.test.ts` 의 계측·순위표 단위 ~28건은 유지보수자 지표(`npm run cost:report`)라 ③인데, 걷으면 branches 가 하한 88 아래(실측 86.78)였다. 숫자를 지키려고 그 테스트를 남기는 것이 곧 "테스트를 위한 테스트"라 하한을 실측에 맞췄다(`vitest.config.ts` · `.claude/rules/test-policy.md` · CLAUDE.md · ship-checklist 동기화). 대안(계측 함수를 `scripts/` 로 옮겨 모집단에서 제외)은 src 리팩터라 미착수.
 - #437(문구 단언 테스트)은 이 감사가 흡수 — 확정 시 닫는다.
 - 효과 측정: 다음 사이클에서 "리뷰 레인이 돈 PR / 블로커를 낸 PR" 과 `npm run ci` 시간을 본다(ADR-094 Consequences).

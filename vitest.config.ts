@@ -22,10 +22,12 @@ export default defineConfig({
       exclude: ["src/**/*.d.ts", "src/types/**", "src/index.ts", "src/prompts.ts"],
       thresholds: {
         lines: 90,
-        // branches: 90 → 88 → 87 → 86 → 87 → 88 → 86 (v26.64.0) → 87 (v26.64.1) → 88 (v26.65.2 완전 복구).
-        // install.ts / cli.ts / external-installer.ts 의 dep-inject defaults + spawn helpers 에 v8 ignore.
-        // wizard-steps.ts 100% test. ADR-013/014 약속 회복.
-        branches: 88,
+        // branches: 90 → 88 → 87 → 86 → 87 → 88 → 86 (v26.64.0) → 87 (v26.64.1) → 88 (v26.65.2)
+        //   → 86 (#454, 2026-09-21 사용자 결정). 상시 스위트를 "설치자에게 안착하나 · 일어나면 안 될 일을
+        //   막나"로 좁히면서 유지보수자 지표(`cost:report` 내부, src/context-cost.ts)만 재던 단위 24건을
+        //   걷었다 — 그 몫이 정확히 88.29 → 86.x 다. 숫자를 지키려고 그 테스트를 남기는 것이 곧 "테스트를
+        //   위한 테스트"라 하한을 실측에 맞췄다(docs/plans/test-suite-audit-2026-09-21.md §6).
+        branches: 86,
         functions: 90,
         statements: 90,
       },
