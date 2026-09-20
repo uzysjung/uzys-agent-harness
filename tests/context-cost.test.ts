@@ -65,7 +65,7 @@ const scaffoldTokens = (): number =>
  * 실측 2026-09-14 (ADR-090, #452): `verification-loop` 은퇴로 코어 5종 = ~1,122 tokens.
  * 예산 = 1,200 으로 재조임 (여유 ~7% — 줄었으면 예산도 낮춘다는 같은 ratchet 규칙).
  */
-const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1200;
+const DEV_METHOD_DESCRIPTOR_BUDGET_TOKENS = 1100;
 
 describe("context-cost primitives", () => {
   it("estimates tokens at chars/4 rounded up", () => {
