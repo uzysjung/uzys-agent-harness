@@ -1371,19 +1371,67 @@ describe("syncSkills (R-3a)", () => {
     expect(result.updated).toBe(1);
   });
 
-  it("templates 에 없는 사용자 파일은 지우지 않는다 — prune 하면 사용자 파일 삭제다", () => {
-    seed("demo", "SKILL.md", "new\n", "old\n");
+  /**
+   * #477 — 번들 스킬 디렉터리의 파일 목록이 "최신본이 가져야 할 파일" 이다. update 의 결과는
+   * "디렉터리를 지우고 다시 깐 것" 과 같아야 한다: 번들에 없는 파일은 사라지고, 사용자 것이면
+   * 백업으로 남는다. 실측: 26.152→26.153 에서 `clear-korean-communication/references/` 3파일이
+   * 새 SKILL.md 가 가리키지 않는 채로 남았다.
+   */
+  it("번들에서 사라진 파일은 지운다 — 우리가 깐 그대로면 백업 없이 (#477)", () => {
+    seed("demo", "SKILL.md", "s\n", "s\n");
+    mkdirSync(join(target, "demo/references"), { recursive: true });
+    writeFileSync(join(target, "demo/references/old.md"), "old-ref\n");
+    const baseline = new Map([
+      ["demo/SKILL.md", hashContent("s\n")],
+      ["demo/references/old.md", hashContent("old-ref\n")],
+    ]);
+
+    const result = syncSkills(target, source, baseline, new Date(), () => null);
+
+    expect(existsSync(join(target, "demo/references/old.md"))).toBe(false);
+    expect(existsSync(join(target, "demo/references")), "빈 디렉터리도 걷는다").toBe(false);
+    expect(result.pruned).toEqual(["demo/references/old.md"]);
+    expect(result.backedUp).toEqual([]);
+    expect(backupsOf("demo")).toEqual([]);
+    // 디렉터리 내용 = 번들. 이것이 "지우고 다시 깐다" 의 정의다.
+    expect(readdirSync(join(target, "demo"))).toEqual(["SKILL.md"]);
+  });
+
+  it("번들에 없는 파일이 사용자 것이면(기준선 없음·다름) 백업하고 지운다 (#477)", () => {
+    seed("demo", "SKILL.md", "s\n", "s\n");
     writeFileSync(join(target, "demo/my-notes.md"), "mine\n");
+    mkdirSync(join(target, "demo/references"), { recursive: true });
+    writeFileSync(join(target, "demo/references/old.md"), "edited-ref\n");
+    const baseline = new Map([["demo/references/old.md", hashContent("original-ref\n")]]);
 
-    syncSkills(
-      target,
-      source,
-      new Map([["demo/SKILL.md", hashContent("old\n")]]),
-      new Date(),
-      () => null,
+    const result = syncSkills(target, source, baseline, new Date(), () => null);
+
+    expect(existsSync(join(target, "demo/my-notes.md"))).toBe(false);
+    expect(existsSync(join(target, "demo/references/old.md"))).toBe(false);
+    expect(result.pruned.sort()).toEqual(["demo/my-notes.md", "demo/references/old.md"]);
+    expect(result.backedUp.sort()).toEqual(["demo/my-notes.md", "demo/references/old.md"]);
+    // 편집분·출처 미상 파일은 백업에 살아 있어야 한다 — 이게 깨지면 사용자 작업이 소실된다
+    const notes = backupsOf("demo").find((f) => f.startsWith("my-notes.md.backup-"));
+    expect(notes).toBeDefined();
+    expect(readFileSync(join(target, "demo", notes as string), "utf8")).toBe("mine\n");
+    const refs = readdirSync(join(target, "demo/references")).filter((f) => f.includes(".backup-"));
+    expect(refs).toHaveLength(1);
+    expect(readFileSync(join(target, "demo/references", refs[0] as string), "utf8")).toBe(
+      "edited-ref\n",
     );
+  });
 
-    expect(readFileSync(join(target, "demo/my-notes.md"), "utf8")).toBe("mine\n");
+  it("우리가 남긴 *.backup-* 은 지우지 않는다 — 지우면 매 update 가 직전 백업을 먹는다 (#477)", () => {
+    seed("demo", "SKILL.md", "s\n", "s\n");
+    writeFileSync(join(target, "demo/SKILL.md.backup-20260101T000000Z"), "prev\n");
+
+    const result = syncSkills(target, source, new Map(), new Date(), () => null);
+
+    expect(readFileSync(join(target, "demo/SKILL.md.backup-20260101T000000Z"), "utf8")).toBe(
+      "prev\n",
+    );
+    expect(result.pruned).toEqual([]);
+    expect(result.updated).toBe(0);
   });
 
   /**

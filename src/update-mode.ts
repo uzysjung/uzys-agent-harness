@@ -19,6 +19,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  rmdirSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -107,6 +108,14 @@ export interface UpdateModeReport {
    * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
    */
   skillsSkippedLinks: string[];
+  /**
+   * #477 — 번들에서 사라져 설치본에서 지운 스킬 파일 (`.claude/skills/` 상대경로). 번들 스킬
+   * 디렉터리의 파일 목록이 "최신본이 가져야 할 파일"의 정의다 — 그 목록에 없는 파일이 남으면
+   * 갱신된 SKILL.md 가 가리키지 않는 옛 서식이 디스크에 살아 있다(실측: 26.152→26.153 에서
+   * `clear-korean-communication/references/` 3파일). 지우기 전에 기준선과 다르거나 기록이 없는
+   * 파일은 `*.backup-<time>` 으로 남긴다(`skillsBackedUp` 에도 든다) — 덮어쓸 때와 같은 잣대다.
+   */
+  skillsPruned: string[];
   /**
    * v26.132.0 (ADR-047) — 사용자가 고쳐서 백업본을 남긴 정책 파일 (`.claude/` 상대경로).
    * `skillsBackedUp` 과 같은 이유로 화면에 노출한다 — 안 보이면 사용자는 자기 편집분이
@@ -278,6 +287,7 @@ export function runUpdateMode(
     legacyAnchor: null,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
+    skillsPruned: [],
     policyBackedUp: [],
     externalUpdated: 0,
     externalBackedUp: [],
@@ -329,6 +339,7 @@ export function runUpdateMode(
   report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
+  report.skillsPruned = skillSync.pruned;
   refreshSkillBaseline(projectDir);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
@@ -856,13 +867,15 @@ export function syncSkills(
   backedUp: string[];
   skippedLinks: string[];
   foreignOwned: string[];
+  pruned: string[];
 } {
   if (!existsSync(targetDir) || !existsSync(sourceDir))
-    return { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [] };
+    return { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
   let updated = 0;
   const backedUp: string[] = [];
   const skippedLinks: string[] = [];
   const foreignOwned: string[] = [];
+  const pruned: string[] = [];
 
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
@@ -908,8 +921,33 @@ export function syncSkills(
       writeFileSync(targetFile, next);
       updated++;
     }
+
+    // #477 — 번들 목록이 곧 "최신본이 가져야 할 파일" 이다. 그 밖의 파일은 지운다 — 결과는
+    // "디렉터리를 지우고 다시 까는 것"과 같고, 사용자 편집분·출처 미상 파일은 덮어쓸 때와 같은
+    // 잣대(기준선 sha)로 먼저 백업한다. 우리가 남긴 `*.backup-*` 은 목록 밖이지만 지우지
+    // 않는다 — 지우면 매 update 가 직전 백업을 먹는다. 남의 자리(링크·FIFO)도 건드리지 않는다.
+    const bundled = new Set(listFilesRecursive(join(sourceDir, skill.name)));
+    for (const rel of listFilesRecursive(targetSkill)) {
+      if (bundled.has(rel) || basename(rel).includes(".backup-")) continue;
+      if (foreignOf(`${skill.name}/${rel}`) !== null) continue;
+      const targetFile = join(targetSkill, rel);
+      const recorded = baseline.get(`${skill.name}/${rel}`);
+      if (recorded === undefined || hashContent(readFileSync(targetFile, "utf8")) !== recorded) {
+        backupFile(targetFile, now);
+        backedUp.push(`${skill.name}/${rel}`);
+      }
+      unlinkSync(targetFile);
+      pruned.push(`${skill.name}/${rel}`);
+      // 비게 된 중간 디렉터리(예: references/)도 걷는다 — 빈 디렉터리는 "파일이 있었다"는 흔적만 남긴다.
+      for (
+        let d = dirname(targetFile);
+        d !== targetSkill && readdirSync(d).length === 0;
+        d = dirname(d)
+      )
+        rmdirSync(d);
+    }
   }
-  return { updated, backedUp, skippedLinks, foreignOwned };
+  return { updated, backedUp, skippedLinks, foreignOwned, pruned };
 }
 
 /** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */

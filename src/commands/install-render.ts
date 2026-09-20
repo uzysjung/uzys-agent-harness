@@ -611,6 +611,17 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #477 — 번들에서 사라진 파일을 지웠다는 사실도 화면에 남긴다. 조용히 지우면 사용자는
+    // 파일이 왜 없어졌는지 모르고, 안 지우면 옛 서식이 디스크에 남는다 — 둘 다 침묵이 문제다.
+    if (baseline.updateMode.skillsPruned.length > 0) {
+      log(
+        assetRow(
+          "success",
+          ".claude/skills removed from bundle",
+          `${baseline.updateMode.skillsPruned.length} files deleted · ${baseline.updateMode.skillsPruned.join(", ")}`,
+        ),
+      );
+    }
     // 2026-08-02 (ADR-062) — 다른 도구(`npx skills add`)가 소유한 자리는 건너뛴다. 그 사실을
     // 안 보이면 사용자는 "이 스킬만 왜 안 갱신되지"를 추적할 방법이 없고, 반대로 조용히
     // 덮어썼다면 자기 저장소가 바뀐 줄도 모른다. 둘 다 침묵이 문제라 건수가 아니라 이름을 낸다.
