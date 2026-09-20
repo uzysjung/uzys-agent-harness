@@ -48,7 +48,7 @@
 
 ## DO NOT CHANGE
 
-- `docs/archive/spec-foundation-v26.38.md` — 보존 앵커. **내용 불변**이 이동의 전제였다(`tests/spec-anchor-preserved.test.ts` 가 해시로 고정).
+- `docs/archive/spec-foundation-v26.38.md` — 보존 앵커. **내용 불변**이 이동의 전제였다(보증 = git 이력. 해시 고정 테스트는 #454 잣대로 2026-09-21 퇴역 — 설치자에게 닿는 결과가 없다).
 - `~/.claude/` 전역 — 이 리포의 작업이 호스트 전역을 건드리지 않는다.
 - `package.json` 의 `files`(게시 계약) — 4종 템플릿을 tarball 밖에 두는 결정이 여기 걸려 있다.
 - 배포물(`templates/**`)에 이 리포의 태그·ADR 번호·홈 경로 유입 — `no-false-ship` §templates 는 배포물이다.
@@ -68,4 +68,5 @@ AC 가 전부 `[x]` 가 되면 이 파일을 `docs/archive/` 로 옮기고 다�
 
 | 날짜 | 유형 | 변경 |
 |---|---|---|
+| 2026-09-21 | Major | DO NOT CHANGE 의 보존 앵커 줄 — 불변 보증 수단을 해시 테스트에서 git 이력으로(사용자 결정, #454 판정 표 §6). **불변 약속 자체는 그대로** |
 | 2026-08-02 | Clarification | Non-Goals "룰 내용 감축" 줄 현행화 — 착수 시점 수치 "33개" 삭제, 그 H 사이클이 별도로 실행 중임을 `docs/plans/rules-hooks-diet-2026-08-02-todo.md`·ADR-061 로 위임. **경계는 불변**(F 사이클은 룰 본문 미변경) |
