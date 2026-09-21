@@ -125,6 +125,18 @@ export interface UpdateModeReport {
    */
   legacyAnchor: string | null;
   /**
+   * #528 재리뷰 BLOCKER-6 — `.claude/` 가 디스크에 있는데 설치 로그가 claude 를 깔린 CLI 로
+   * 기록하지 않아 이번 update 가 그 디렉터리를 건너뛴 경우.
+   *
+   * 두 상태가 같은 모양이다: ⓐ 설치자가 직접 만든 `.claude/`(하네스는 건드리면 안 된다) ⓑ v26.125.0
+   * 이전에 claude 로 깔고 다른 CLI 를 추가해 앵커 기록이 지워진 **진짜 claude 설치본**(갱신을 받아야
+   * 한다). 기록만으로는 둘을 가를 수 없고 디스크 존재는 판정 근거가 아니다(ADR-096 D6). 그래서
+   * 판정은 "건너뛴다"(ⓐ 를 지키는 쪽)로 두되 **침묵하지 않는다** — 화면이 그 사실과 ⓑ 의 복구
+   * 명령(`install --cli claude` 1회 = `clis`·앵커 기록이 굳는다)을 말한다. 디스크 존재는 여기서
+   * 안내를 낼지 말지에만 쓰인다.
+   */
+  claudeUnrecorded: boolean;
+  /**
    * v26.126.0 (R-3a) — 사용자가 고쳐서 백업본을 남긴 스킬 파일 (`.claude/skills/` 상대경로).
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
    */
@@ -269,12 +281,16 @@ export function buildUpdateSpec(
   tracks: ReadonlyArray<Track>,
   only?: ReadonlyArray<UpdateGroup>,
 ): InstallSpec {
+  const log = readInstallLog(projectDir);
+  // #528 (재리뷰 NOTE-F) — 화면 머리글의 `CLI` 는 깔린 집합이다. 고정 `["claude"]` 는 codex 단독
+  // 설치본의 update 도 "CLI claude" 라고 적었다. 로그가 없으면(레거시) 이전과 같이 claude.
+  const clis = log === null ? [] : installedClis(log);
   return {
     tracks: [...tracks],
     options: DEFAULT_OPTIONS,
-    cli: ["claude"],
+    cli: clis.length > 0 ? [...clis] : ["claude"],
     projectDir,
-    scope: readInstallLog(projectDir)?.scope ?? "project",
+    scope: log?.scope ?? "project",
     // 전부 골랐으면 "제한 없음"과 같다 — 화면·기록에 제한이 있었던 것처럼 남기지 않는다.
     ...(only !== undefined && only.length > 0 && only.length < UPDATE_GROUPS.length
       ? { updateOnly: [...only] }
@@ -341,6 +357,7 @@ export function runUpdateMode(
     rootImportAdded: false,
     rootBlockRefreshed: false,
     legacyAnchor: null,
+    claudeUnrecorded: false,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
     skillsPruned: [],
@@ -376,6 +393,7 @@ export function runUpdateMode(
   // 앵커까지 깐다 — 그 뒤 `uninstall --cli claude` 가 설치자 파일을 함께 지운다(컨테이너 실측).
   const logAtStart = readInstallLog(projectDir);
   const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
+  report.claudeUnrecorded = !claudeManaged && existsSync(claudeDir);
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
@@ -444,7 +462,8 @@ export function runUpdateMode(
   //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
   //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
   // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합(`claudeManaged`, 위에서 한 번 판정). 옛
-  // 로그에서 그 집합은 **기록만으로** 유도되므로(앵커 sha · `policyFiles` · `skillFiles`)
+  // 로그에서 그 집합은 **기록만으로** 유도되므로(앵커 sha — `policyFiles`·`skillFiles` 는 옛 판이
+  // 무조건 훑어 적은 값이라 단서가 아니다, BLOCKER-5)
   // `spec.cli` 기반 판정과 같은 답을 내고, 디스크에 `.claude/` 가 있다는 사실은 들어오지 않는다.
   if (existsSync(claudeDir) && claudeManaged) {
     if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);

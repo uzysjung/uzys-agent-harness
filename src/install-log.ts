@@ -163,7 +163,8 @@ export interface InstallLog {
      *
      * v26.160.1 까지는 고르지 않아도 `".claude/"` 가 적혔다. 디스크에 없는 디렉터리를 기록이
      * 있다고 말하는 셈이라, 옛 로그에서 CLI 집합을 유도할 때 **이 필드는 단서가 아니다**
-     * (claude 의 단서는 `rootClaudeMd`·`policyFiles`·`skillFiles` — `installedClis`).
+     * (claude 의 단서는 `rootClaudeMd` 하나 — `installedClis`. `policyFiles`·`skillFiles` 는 옛 판이
+     * claude 선택과 무관하게 훑어 적어 단서가 못 된다, BLOCKER-5).
      */
     claudeDir?: string;
     /** .codex/ project local (cli=codex 시) */

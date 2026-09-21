@@ -646,6 +646,17 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #528 BLOCKER-6 — 기록에 없는 `.claude/` 는 건너뛰되 침묵하지 않는다. 설치자 디렉터리와
+    // 앵커 기록이 지워진 옛 claude 설치본이 같은 모양이라, 판정 대신 사실과 복구 명령을 낸다.
+    if (baseline.updateMode.claudeUnrecorded) {
+      log(
+        assetRow(
+          "skip",
+          ".claude/",
+          "present but not recorded as installed — left untouched. If you did install Claude Code here (before v26.125.0, then added another CLI), run `agent-harness install --cli claude --track <track>` once to re-record it; otherwise this directory is yours",
+        ),
+      );
+    }
     // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
     if (baseline.updateMode.legacyAnchor) {
       log(
