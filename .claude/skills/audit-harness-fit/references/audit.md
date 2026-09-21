@@ -5,6 +5,7 @@
 - [Establish coverage](#establish-coverage)
 - [Questions and rechecks](#questions-and-rechecks)
 - [Conflicts and changed decisions](#conflicts-and-changed-decisions)
+- [Reconcile principles across sources](#reconcile-principles-across-sources)
 - [Instruction value and capability fit](#instruction-value-and-capability-fit)
 - [Rationale and history](#rationale-and-history)
 - [Testing and delegation](#testing-and-delegation)
@@ -78,6 +79,42 @@ confirmed intent, current implementation, and active wording to change. An appro
 goal can still be unimplemented; a bug can still contradict the intended behavior.
 Keep one authoritative statement, reconcile authorized dependents, and retain
 superseded decisions as history instead of competing active commands.
+
+## Reconcile principles across sources
+
+Use this procedure when the request names authoritative sources (for example
+rules and user-level guidance) and asks that lower-precedence sources (project
+`CLAUDE.md` / `AGENTS.md`, memory notes, local rules) be brought into line.
+Spot reading finds wrong names and paths but misses principle conflicts; the
+ledger below is what makes the comparison complete.
+
+1. **Precedence table first.** List every source in scope with its rank (from
+   the request, then the client's actual priority), its scope, and its role:
+   *reference* (defines the intent) or *subject* (must conform). Memory and
+   assistant-written notes are subjects unless the user ranks them otherwise.
+2. **Statement ledger.** Extract every actionable statement from each subject —
+   one row each: statement · source · the situation that triggers it · the
+   reference statement governing that situation · verdict (aligned / conflict /
+   stale / duplicate / uncovered by any reference / out of scope). Match by the
+   situation and the action it produces, not by wording. Verification scope and
+   timing, what is standing-authorized versus explicit-only, review independence,
+   and gates described versus actually wired are where wording differs and
+   actions collide. A statement without a row is unaudited; report it as not
+   assessed rather than implying coverage.
+3. **Reverse pass.** Read each reference top to bottom and, for every statement
+   it makes, find the subject statement that echoes, contradicts, or omits it.
+   This catches conflicts the subject never mentions.
+4. **Known-conflict control.** When the requester or the audit already knows one
+   real conflict, confirm the ledger surfaces it before reporting. A ledger that
+   misses the known case is incomplete; extend it instead of reporting it.
+5. **Act within the delegated authority.** When the request ranks the sources and
+   asks for improvement, conflicts and stale facts in subject sources are fixed
+   through the [Apply](apply.md) reference, not returned as questions. Ask only
+   where the change would alter a binding control or where the reference itself
+   is ambiguous; state the assumption and continue with the rest.
+
+Report the precedence table, the ledger (or its per-verdict counts with the
+not-assessed list), and the applied edit for each finding.
 
 ## Instruction value and capability fit
 
