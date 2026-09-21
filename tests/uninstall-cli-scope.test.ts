@@ -105,19 +105,20 @@ describe("#528 uninstall --cli", () => {
     expect((log?.externalFiles ?? []).some((f) => f.path === "AGENTS.md")).toBe(false);
   });
 
-  it("뺀 CLI 의 흔적은 기록에서도 사라진다 — `spec.cli` · 회수한 디렉터리의 `externalFiles`", () => {
-    // 남겨 두면 기록이 디스크와 다른 말을 한다. `spec.cli` 는 그냥 표시용이 아니다 —
-    // `external-installer.ts` 가 외부 스킬 refresh 의 대상 CLI 로 그 값을 읽는다(리뷰 N2).
+  it("뺀 CLI 의 흔적은 기록에서 사라진다 — 회수한 디렉터리의 `externalFiles` · 깔린 집합(`clis`)", () => {
+    // 남겨 두면 기록이 디스크와 다른 말을 한다(리뷰 N2). 단 `spec.cli` 는 "마지막 install 의
+    // 요청"이라 손대지 않는다 — 비우면 빈 배열이 되고 외부 스킬 refresh 가 `--agent`·`--copy` 를
+    // 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3). 깔린 집합은 `clis` 하나가 말한다.
     install(["claude", "codex"]);
     const before = readInstallLog(projectDir);
-    expect(before?.spec.cli).toContain("codex");
+    expect(before?.spec.cli).toEqual(["claude", "codex"]);
     expect((before?.externalFiles ?? []).some((f) => f.path.startsWith(".codex/"))).toBe(true);
 
     expect(removeCli("codex").code).toBe(0);
 
     const log = readInstallLog(projectDir);
-    expect(log?.spec.cli).not.toContain("codex");
-    expect(log?.spec.cli).toContain("claude");
+    expect(log?.spec.cli).toEqual(["claude", "codex"]); // 마지막 요청은 그대로
+    expect(installedClis(log)).toEqual(["claude"]); // 깔린 집합은 갱신
     expect((log?.externalFiles ?? []).some((f) => f.path.startsWith(".codex/"))).toBe(false);
   });
 

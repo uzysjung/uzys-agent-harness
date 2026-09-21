@@ -862,10 +862,21 @@ function writeInstallLogSafe(
     );
     // v26.126.0 (ADR-046) — 스킬 기준선은 **이력이 아니라 스냅샷**이라 buildInstallLog 의 누적
     // 경로를 타지 않는다. manifest copy 가 끝난 뒤 디스크를 읽어야 값이 맞다.
-    const skillFiles = collectSkillHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));
+    // #528 재리뷰 N-A — `.claude/` 를 훑는 것은 claude 가 **깔린 집합**(`clis`, 누적)에 있을 때만.
+    // 안 고른 설치본의 `.claude/` 는 설치자 것이라, 템플릿과 같은 상대 경로가 우연히 있으면
+    // 기록이 생겨 옛 로그 유도가 claude 를 "깔렸다"고 읽는다(= 그 디렉터리가 `--cli claude` 로
+    // 지워진다). `spec.cli` 가 아니라 `clis` 인 이유: claude 로 깔고 codex 를 추가하는 설치는
+    // 요청엔 codex 뿐이지만 `.claude/` 기준선은 계속 찍혀야 한다(안 찍으면 다음 update 가 판정
+    // 불가로 떨어져 매번 백업한다 — ADR-047).
+    const claudeInstalled = (log.spec.clis ?? []).includes("claude");
+    const skillFiles = claudeInstalled
+      ? collectSkillHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"))
+      : [];
     // v26.132.0 (ADR-047) — 정책 파일 기준선도 같은 이유로 여기서 찍는다. 이게 없으면
     // 다음 update 가 소유를 판정하지 못해 ⓐ 멀쩡한 파일을 전부 백업하고 ⓑ 폐기 룰을 회수 못 한다.
-    const policyFiles = collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"));
+    const policyFiles = claudeInstalled
+      ? collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"))
+      : [];
     // v26.133.0 (ADR-048) — 외부 CLI 기준선은 transform 이 **쓰면서 만든 값**이라 여기서 다시
     // 훑지 않는다. 이번에 안 건드린 산출물의 기록은 유지하고(다음 실행이 판정 불가로 떨어지지
     // 않게), 디스크에서 사라진 항목만 뺀다.

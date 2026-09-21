@@ -143,6 +143,43 @@ describe("refreshExternalSkills — 무엇을, 어떤 명령으로 다시 받는
     expect([...agents].sort()).toEqual(["claude-code", "codex"]);
   });
 
+  it("대상 CLI 는 깔린 집합(`clis`)이다 — `spec.cli` 가 뺀 CLI 를 말하거나 비어 있어도 (#528 재리뷰 BLOCKER-3)", () => {
+    // `uninstall --cli codex` 뒤: `spec.cli` 는 마지막 install 의 요청이라 codex 를 계속 말한다.
+    // 그 값으로 인자를 조립하면 뺀 CLI 자리에 다시 깐다.
+    const spawn = makeSpawn();
+    refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => ({
+        ...fakeLog([{ id: "skill-a", method: "skill" }]),
+        spec: { tracks: ["tooling"], cli: ["claude", "codex"], clis: ["claude"] },
+      }),
+    });
+    const args = npxArgs(spawn)[0] as string[];
+    const agents = args.flatMap((a, i) => (a === "--agent" ? [args[i + 1] as string] : []));
+    expect(agents).toEqual(["claude-code"]);
+    expect(args).toContain("--copy");
+
+    // 이전 판이 만들던 모양: `spec.cli` 를 비워 둔 로그. 빈 배열로 조립하면 `--agent` 도 `--copy` 도
+    // 빠져 Claude 몫이 조용히 빠진다(#372) — 깔린 집합을 읽으면 그 모양에서도 같은 인자다.
+    const spawn2 = makeSpawn();
+    refreshExternalSkills(tmpProject(), {
+      spawn: spawn2,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => ({
+        ...fakeLog([{ id: "skill-a", method: "skill" }]),
+        spec: { tracks: ["tooling"], cli: [], clis: ["claude"] },
+      }),
+    });
+    const args2 = npxArgs(spawn2)[0] as string[];
+    expect(args2.flatMap((a, i) => (a === "--agent" ? [args2[i + 1] as string] : []))).toEqual([
+      "claude-code",
+    ]);
+    expect(args2, "--copy 누락 — Claude Code 몫이 조용히 빠진다").toContain("--copy");
+  });
+
   it("기록에 있으면 트랙 조건에 안 맞아도 다시 받는다 (opt-in 으로 깐 자산)", () => {
     const spawn = makeSpawn();
     const r = refreshExternalSkills(tmpProject(), {

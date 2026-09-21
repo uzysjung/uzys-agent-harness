@@ -125,3 +125,62 @@ describe("#528 옛 로그 + 설치자 소유 `.claude/`", () => {
     expect(cliLine).not.toContain("claude");
   });
 });
+
+/**
+ * #528 재리뷰 N-A — **`.claude/` 기준선(`policyFiles` · `skillFiles`)은 claude 가 깔린 집합에 있을 때만
+ * 찍는다.** 안 고른 설치본의 `.claude/` 는 설치자 것인데, 템플릿과 같은 상대 경로(`rules/git-policy.md`)
+ * 가 우연히 있으면 기록이 생겨 옛 로그 유도가 claude 를 "깔렸다"고 읽는다 — 그 한 줄이 위 describe 의
+ * 삭제 경로로 이어진다. 기록 시점에서 막는다.
+ */
+describe("#528 codex 단독 설치는 설치자 `.claude/` 를 훑어 기준선을 찍지 않는다", () => {
+  let projectDir: string;
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "legacy528b-"));
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  const install = (cli: InstallSpec["cli"]) =>
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: { tracks: ["tooling"], options: { withCodexTrust: false }, cli, projectDir },
+    });
+
+  it("템플릿과 같은 경로의 설치자 룰이 있어도 policyFiles·skillFiles 가 안 생기고 claude 로 유도되지 않는다", () => {
+    mkdirSync(join(projectDir, ".claude/rules"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "# 내 룰\n");
+    mkdirSync(join(projectDir, ".claude/skills/north-star"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/skills/north-star/SKILL.md"), "# 내 스킬\n");
+
+    install(["codex"]);
+
+    const log = readInstallLog(projectDir);
+    expect(log?.policyFiles).toBeUndefined();
+    expect(log?.skillFiles).toBeUndefined();
+    expect(installedClis(log)).toEqual(["codex"]);
+    // 옛 판 형태(clis 없음)로 되돌려도 같은 답 — 유도가 기록만 읽는다.
+    const raw = JSON.parse(readFileSync(installLogPath(projectDir), "utf8"));
+    raw.spec.clis = undefined;
+    expect(installedClis(raw)).toEqual(["codex"]);
+    // 설치자 파일은 그대로다.
+    expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("# 내 룰\n");
+  });
+
+  it("대조군 — claude 를 고르면 기준선이 찍힌다 (게이트가 반대로 작동하지 않는다)", () => {
+    install(["claude"]);
+    const log = readInstallLog(projectDir);
+    expect(log?.policyFiles?.length ?? 0).toBeGreaterThan(0);
+    expect(log?.skillFiles?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("claude 로 깔고 codex 를 추가해도 `.claude/` 기준선은 계속 찍힌다 (ADR-047 판정 불가 회귀 방지)", () => {
+    install(["claude"]);
+    install(["codex"]);
+    const log = readInstallLog(projectDir);
+    expect(installedClis(log)).toEqual(["claude", "codex"]);
+    expect(log?.policyFiles?.length ?? 0).toBeGreaterThan(0);
+  });
+});

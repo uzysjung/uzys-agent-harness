@@ -100,10 +100,16 @@
   `list`) 전부 guard 를 달았다. 옛 로그는 값이 있으므로 동작이 그대로다.
 - `list` 의 `cli:` 줄이 `spec.cli` 대신 깔린 집합을 찍는다 — `uninstall --cli codex` 뒤에도 codex
   를 말하던 자리였다.
-- `uninstall --cli <name>` 은 `spec.clis` 뿐 아니라 **`spec.cli` 와 회수한 디렉터리 아래의
-  `externalFiles` 항목에서도** 그 CLI 를 뺀다. `spec.cli` 는 표시용만이 아니라
-  `external-installer.ts` 가 외부 스킬 refresh 의 대상 CLI 로 읽는 값이라, 남겨 두면 방금 뺀
-  CLI 가 다음 실행의 대상이 된다(독립 리뷰 N2).
+- `uninstall --cli <name>` 은 `spec.clis` 와 회수한 디렉터리 아래의 `externalFiles` 항목에서 그
+  CLI 를 뺀다. **`spec.cli` 는 손대지 않는다** — "마지막 install 의 요청"이라는 뜻을 유지한다. 대신
+  그 값을 읽던 외부 스킬 refresh(`external-installer.ts`)가 **깔린 집합(`installedClis`)** 을 읽는다.
+  첫 수정판은 `spec.cli` 에서도 뺐는데, 한 항목뿐인 로그에서 빈 배열이 되어 refresh 가 `--agent`·
+  `--copy` 를 못 붙여 Claude 몫이 조용히 빠졌다(재리뷰 BLOCKER-3 — `spec.cli` 를 "읽는 곳"을
+  고치지 않고 "값"을 고친 결과).
+- `.claude/` 기준선(`policyFiles` · `skillFiles`)은 **claude 가 깔린 집합(`clis`)에 있을 때만** 찍는다.
+  안 고른 설치본의 `.claude/` 는 설치자 것이라 훑으면 안 되고, 템플릿과 같은 상대 경로가 우연히 있으면
+  그 기록이 옛 로그 유도를 claude 로 기울인다(재리뷰 N-A). claude 로 깔고 다른 CLI 를 추가하는 설치는
+  `clis` 에 claude 가 남아 기준선이 계속 찍힌다(ADR-047 의 판정 불가 회귀 없음).
 - **아직 안 한 것**(Epic #527 의 다음 레인): 새 릴리즈의 번들 스킬을 `.agents/` 자리에도 까는 것
   (S3) · 링크 슬롯(#524) · 위저드의 CLI 잠금·Uninstall 화면(L5). 이 ADR 은 그 레인들이 읽을
   **기록과 표**만 세운다.

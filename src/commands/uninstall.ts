@@ -640,7 +640,9 @@ function settleCliLog(
     ...installLog,
     spec: {
       ...installLog.spec,
-      cli: installLog.spec.cli.filter((cli) => cli !== target),
+      // `spec.cli` 는 손대지 않는다 — "마지막 install 이 요청한 CLI" 라는 뜻이고, 빼면 빈 배열이
+      // 된다(재리뷰 BLOCKER-3: 외부 스킬 refresh 가 그 값으로 `--agent`·`--copy` 를 조립하다
+      // 빈 배열이면 둘 다 빠져 Claude 몫이 조용히 빠졌다). 깔린 집합은 `clis` 하나가 말한다.
       clis: [...remaining],
     },
     templates: { ...installLog.templates },
