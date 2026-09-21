@@ -1107,11 +1107,15 @@ describe("신규 자산 설치 (#283)", () => {
     // install 은 `spec.cli` 에 claude 가 있을 때만 `.claude/` baseline 을 만든다
     // (codex/opencode 단독 사용자의 dead weight 회피). update 에 그 술어가 없으면 codex 로 깐
     // 프로젝트에 `.claude/` 하네스가 통째로 들어간다 — 고른 적 없는 CLI 의 설정이다.
+    //
+    // #528 — 기록이 `clis: ["codex"]` 다. 이 픽스처의 `.claude/` 는 beforeEach 가 만든
+    // **사용자 디렉터리**이고, 로그가 명시적으로 codex 만 말하므로 유도 규칙은 돌지 않는다
+    // (유도는 `clis` 가 없는 옛 로그에서만 — 그쪽은 `.claude/` 존재를 claude 의 단서로 쓴다).
     writeInstallLog(projectDir, {
       schemaVersion: 1,
       installedAt: new Date(0).toISOString(),
       scope: "project",
-      spec: { tracks: ["tooling"], cli: ["codex"] },
+      spec: { tracks: ["tooling"], cli: ["codex"], clis: ["codex"] },
       templates: { claudeDir: ".claude" },
       assets: [],
     });
@@ -1122,6 +1126,25 @@ describe("신규 자산 설치 (#283)", () => {
     expect(existsSync(join(projectDir, ".claude/agents/reviewer.md"))).toBe(false);
     // CLI 중립 자산은 그대로 들어간다 — 그게 #283 이 신고한 바로 그 파일이다.
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+  });
+
+  it("#528 옛 로그가 `spec.cli: [opencode]` 여도 `.claude/` 가 있으면 새 Claude 자산을 깐다", () => {
+    // Epic #527 의 실측 결함: 위저드 Add 에서 claude 를 풀고 opencode 를 체크하면 파일은 남고
+    // 로그의 `spec.cli` 만 덮인다. 그 뒤 update 는 `.claude/` 를 갱신은 하면서도 **새 릴리즈가
+    // 더한 Claude 자산은 "안 골랐다"고 보고 안 깔았다** — 화면은 침묵. 유도 규칙이 닫는다.
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["opencode"] },
+      templates: { claudeDir: ".claude", opencodeDir: ".opencode/" },
+      assets: [],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.installedNew).toContain(".claude/rules/cli-development.md");
+    expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
   });
 
   it("훅은 깔지 않고 재설치를 안내한다 — 배선 없는 훅은 파일만 늘고 실행은 0이다", () => {

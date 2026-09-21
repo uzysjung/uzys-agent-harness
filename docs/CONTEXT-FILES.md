@@ -90,6 +90,15 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도구를 모두 설치했다면 나중에 실행된
 쪽의 판이 남습니다. 어느 쪽이든 같은 룰 절(`## Harness Rules`)을 담습니다.
 
+**공유 파일은 마지막 도구가 나갈 때까지 남습니다.** `uninstall --cli <이름>` 으로 도구 하나를 뺄 때,
+그 도구만 쓰는 자리는 함께 사라지지만 아래 자리는 쓰는 도구가 하나라도 남아 있으면 그대로입니다.
+
+| 공유 자리 | 함께 쓰는 도구 | 언제 사라지나 |
+|---|---|---|
+| `AGENTS.md` | Codex · OpenCode | 둘 다 빠질 때. 그때도 여러분이 채운 두 절은 파일에 남습니다 |
+| `.agents/skills/` | Codex · OpenCode · Antigravity | 셋 다 빠질 때 |
+| `.mcp.json` · `.uzys-agent-harness/` | 네 도구 전부 | 도구 하나를 빼는 것으로는 안 사라집니다 — 전량 `uninstall` 의 몫입니다 |
+
 `AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
 있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
 몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자

@@ -35,6 +35,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { stripHarnessFromAgentsMd } from "../agents-md-merge.js";
+import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
 import {
@@ -43,12 +44,15 @@ import {
   type InstallLog,
   type InstallLogAsset,
   type InstallLogRootFile,
+  type InstallLogSkillFile,
+  installedClis,
   installLogPath,
   legacyInstallLogPath,
   readInstallLog,
   writeInstallLog,
 } from "../install-log.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
+import { CLI_BASES, type CliBase, isCliBase } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
 import { defaultHarnessRoot } from "./install.js";
 
@@ -63,6 +67,13 @@ export interface UninstallOptions {
   only?: string;
   /** v26.125.0 — 대화형 선택 화면을 건너뛰고 전량 제거 (비대화형 스크립트용). */
   yes?: boolean;
+  /**
+   * #528 — **CLI 하나만** 뺀다 (Epic #527 정의 4). 그 CLI 전용 자리와, 그 CLI 가 나가면서
+   * 쓰는 쪽이 하나도 안 남는 공유 자리만 회수한다. 자산(`assets`)은 CLI 소속이 아니라 손대지
+   * 않고, 설치자 본문은 기존 규칙대로 남는다(루트 `CLAUDE.md` 는 import 블록만 · `AGENTS.md`
+   * 는 하네스 절만, #516).
+   */
+  cli?: string;
 }
 
 export interface UninstallActionDeps {
@@ -114,6 +125,15 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
     err(c.dim("       Was this project installed by agent-harness? Nothing to uninstall."));
     exit(1);
+    return;
+  }
+
+  // #528 — CLI 하나만 빼는 경로. 전량 제거와 술어가 달라(표 기반) 이 자리에서 갈린다.
+  if (options.cli !== undefined) {
+    removeCliAction(
+      { options, installLog, projectDir, harnessRoot },
+      { log, err, exit, rm, writeLog },
+    );
     return;
   }
 
@@ -426,6 +446,252 @@ function rootFileAdvisoryLines(
   ];
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * #528 — `uninstall --cli <name>`: CLI 하나만 뺀다 (Epic #527 정의 4)
+ *
+ * 전량 제거와 술어가 다르다. 전량은 "기록에 있는 것 전부"지만 여기서는 **소유 표**가 정한다
+ * (`cli-ownership.ts`): 전용 자리는 무조건, 공유 자리는 **남는 CLI 중 쓰는 쪽이 하나도 없을
+ * 때만**. 지우는 절차 자체는 전량 경로의 함수를 그대로 쓴다 — `removeExternalFiles`(sha 소유
+ * 판정 + #516 `AGENTS.md` 절 걷어내기) · `stripRootImport` · `rootClaudeMdModified`. 여기서
+ * 판정을 새로 쓰면 그게 곧 두 번째 사본이고, 사본이 갈리면 설치자 파일이 사라진다.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+interface RemoveCliCtx {
+  options: UninstallOptions;
+  installLog: InstallLog;
+  projectDir: string;
+  harnessRoot: string;
+}
+
+interface RemoveCliIo {
+  log: (msg: string) => void;
+  err: (msg: string) => void;
+  exit: (code: number) => never;
+  rm: (path: string) => void;
+  writeLog: (projectDir: string, log: InstallLog) => void;
+}
+
+/** CLI → 그 CLI 를 뺄 때 함께 지워야 할 `templates` 필드. antigravity 는 그 기록이 없다. */
+const TEMPLATE_DIR_FIELD: Partial<Record<CliBase, "claudeDir" | "codexDir" | "opencodeDir">> = {
+  claude: "claudeDir",
+  codex: "codexDir",
+  opencode: "opencodeDir",
+};
+
+/**
+ * 전제조건 검사. **아무것도 실행하기 전에** 전부 본다 (`--only` 의 pre-flight 와 같은 규율) —
+ * 절반만 지우고 거절하면 되돌릴 방법이 없다.
+ *
+ * @returns 뺄 CLI. `null` 이면 이미 `exit` 했다.
+ */
+function resolveCliTarget(ctx: RemoveCliCtx, io: RemoveCliIo): CliBase | null {
+  const { options, installLog, projectDir } = ctx;
+  // `--only`(자산만) · `--keep-templates`(파일을 남긴다)는 이 명령이 하려는 일과 반대다.
+  // 조용히 한쪽을 이기게 하면 사용자는 자기가 시킨 것과 다른 결과를 받는다.
+  if (options.only !== undefined || options.keepTemplates) {
+    io.err(status.failure(c.red("ERROR: --cli 는 --only · --keep-templates 와 함께 쓸 수 없다")));
+    io.err(
+      c.dim(
+        "       CLI 하나 제거: uninstall --cli <name>  /  자산 하나 제거: uninstall --only <id>",
+      ),
+    );
+    io.exit(1);
+    return null;
+  }
+  const target = (options.cli ?? "").trim();
+  if (!isCliBase(target)) {
+    io.err(status.failure(c.red(`ERROR: Invalid --cli value: ${target || "(empty)"}`)));
+    io.err(c.dim(`       Must be one of: ${CLI_BASES.join(" | ")}`));
+    io.exit(1);
+    return null;
+  }
+  const installed = installedClis(projectDir, installLog);
+  if (!installed.includes(target)) {
+    io.err(status.failure(c.red(`ERROR: ${target} is not installed in this project`)));
+    io.err(c.dim(`       installed: ${installed.join(", ") || "(none)"}`));
+    io.exit(1);
+    return null;
+  }
+  // 마지막 하나는 거절한다 — 전량 삭제 경로를 두 개 두면 한쪽만 고쳐지는 날이 온다.
+  if (installed.length <= 1) {
+    io.err(status.failure(c.red(`ERROR: ${target} 는 이 프로젝트의 마지막 CLI 다`)));
+    io.err(c.dim("       전량 제거는 `agent-harness uninstall` 을 쓴다 (자산·설치 기록까지 함께)"));
+    io.exit(1);
+    return null;
+  }
+  return target;
+}
+
+/** 이 경로가 회수 대상 자리에 속하는가. `/` 로 끝나는 항목은 접두 디렉터리다. */
+function underAny(path: string, owned: ReadonlyArray<string>): boolean {
+  return owned.some((o) => (o.endsWith("/") ? path.startsWith(o) : path === o));
+}
+
+/** 회수 대상을 `kind` 별로 나눈 것 — dry-run 과 실행이 같은 목록을 읽는다. */
+interface CliRemovalPlan {
+  dirs: string[];
+  /** `externalFiles` 중 이번에 판정할 항목만 담은 로그 사본. 전량 경로 함수에 그대로 넘긴다. */
+  scoped: InstallLog;
+  anchor: boolean;
+  importBlock: boolean;
+}
+
+function planCliRemoval(
+  target: CliBase,
+  remaining: ReadonlyArray<CliBase>,
+  installLog: InstallLog,
+): CliRemovalPlan {
+  const { exclusive, sharedNowUnowned } = removableFor(target, remaining);
+  const owned: ReadonlyArray<OwnedPath> = [...exclusive, ...sharedNowUnowned];
+  const recorded = owned.filter((o) => o.kind === "recorded").map((o) => o.path);
+  const scopedFiles: ReadonlyArray<InstallLogSkillFile> = (installLog.externalFiles ?? []).filter(
+    (f) => underAny(f.path, recorded),
+  );
+  return {
+    dirs: owned.filter((o) => o.kind === "dir").map((o) => o.path),
+    scoped: { ...installLog, externalFiles: scopedFiles },
+    anchor: owned.some((o) => o.kind === "anchor"),
+    importBlock: owned.some((o) => o.kind === "import-block"),
+  };
+}
+
+function removeCliHeader(
+  target: CliBase,
+  installed: ReadonlyArray<CliBase>,
+  remaining: ReadonlyArray<CliBase>,
+): string[] {
+  return [
+    "",
+    c.bold(`uzys-agent-harness · uninstall --cli ${target}`),
+    "",
+    c.dim(`  installed: ${installed.join(", ")}`),
+    c.dim(`  removing:  ${target}`),
+    c.dim(`  remaining: ${remaining.join(", ")}`),
+    "",
+  ];
+}
+
+/** dry-run 미리보기 — 실행 경로와 **같은 술어**를 쓴다. */
+function removeCliDryRunLines(
+  plan: CliRemovalPlan,
+  ctx: RemoveCliCtx,
+  remaining: ReadonlyArray<CliBase>,
+): string[] {
+  const { installLog, projectDir, harnessRoot } = ctx;
+  const lines = [c.yellow("[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):"), ""];
+  for (const dir of plan.dirs) {
+    if (existsSync(join(projectDir, dir))) lines.push(`  ○ remove ${dir}`);
+  }
+  lines.push(...previewExternalLines(plan.scoped, projectDir, harnessRoot));
+  const rootMd = plan.anchor ? installLog.templates.rootClaudeMd : undefined;
+  if (rootMd && existsSync(join(projectDir, rootMd.path))) {
+    lines.push(
+      rootClaudeMdModified(installLog, projectDir)
+        ? `  ○ keep ${rootMd.path} (modified since install — preserved)`
+        : `  ○ remove ${rootMd.path}`,
+    );
+  }
+  if (plan.importBlock && hasRootImport(projectDir)) {
+    lines.push("  ○ strip harness @import from CLAUDE.md (본문 보존)");
+  }
+  lines.push(`  ○ install log updated (clis: ${remaining.join(", ")})`, "");
+  return lines;
+}
+
+/**
+ * 하네스 앵커 파일 회수. 전량 경로와 같은 규칙 — install 원본 그대로일 때만 지운다.
+ * @returns 실제로 지웠는가 (기록을 뺄지 결정한다 — 남긴 파일의 기록까지 지우면 전량 uninstall 이
+ *   그 파일을 더는 안내하지 못한다).
+ */
+function removeHarnessAnchor(ctx: RemoveCliCtx, io: RemoveCliIo): boolean {
+  const { installLog, projectDir } = ctx;
+  const rootMd = installLog.templates.rootClaudeMd;
+  if (!rootMd || !existsSync(join(projectDir, rootMd.path))) return false;
+  if (rootClaudeMdModified(installLog, projectDir)) {
+    io.log(
+      `  ${c.yellow("⊘")} ${rootMd.path} kept — modified since install. Remove manually if intended.`,
+    );
+    return false;
+  }
+  io.rm(join(projectDir, rootMd.path));
+  io.log(`  ${status.success(`${rootMd.path} removed`)}`);
+  return true;
+}
+
+/** 제거 후 로그. `assets` 는 손대지 않는다 — 자산은 CLI 소속이 아니다(스킬 자리는 표가 본다). */
+function settleCliLog(
+  ctx: RemoveCliCtx,
+  target: CliBase,
+  remaining: ReadonlyArray<CliBase>,
+  recovered: ReadonlySet<string>,
+  anchorRemoved: boolean,
+): InstallLog {
+  const { installLog } = ctx;
+  const next: InstallLog = {
+    ...installLog,
+    spec: { ...installLog.spec, clis: [...remaining] },
+    templates: { ...installLog.templates },
+  };
+  const field = TEMPLATE_DIR_FIELD[target];
+  if (field) delete next.templates[field];
+  if (anchorRemoved) delete next.templates.rootClaudeMd;
+  const survivors = (installLog.externalFiles ?? []).filter((f) => !recovered.has(f.path));
+  if (survivors.length > 0) next.externalFiles = survivors;
+  else delete next.externalFiles;
+  return next;
+}
+
+function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
+  const target = resolveCliTarget(ctx, io);
+  if (target === null) return;
+  const { options, installLog, projectDir, harnessRoot } = ctx;
+  const installed = installedClis(projectDir, installLog);
+  const remaining = installed.filter((cli) => cli !== target);
+  const plan = planCliRemoval(target, remaining, installLog);
+
+  for (const line of removeCliHeader(target, installed, remaining)) io.log(line);
+
+  if (options.dryRun) {
+    for (const line of removeCliDryRunLines(plan, ctx, remaining)) io.log(line);
+    io.exit(0);
+    return;
+  }
+
+  for (const dir of plan.dirs) {
+    if (!existsSync(join(projectDir, dir))) continue;
+    io.rm(join(projectDir, dir));
+    io.log(`  ${status.success(`${dir} removed`)}`);
+  }
+  const external = removeExternalFiles(plan.scoped, projectDir, io.rm, harnessRoot);
+  for (const line of externalRemovalLines(external)) io.log(line);
+  // 루트 `CLAUDE.md` 의 import 블록을 앵커보다 **먼저** 걷는다 — 전량 경로와 같은 순서다.
+  // 반대로 하면 잠깐이라도 없는 파일을 가리키는 import 가 남는다.
+  if (plan.importBlock && stripRootImport(projectDir)) {
+    io.log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
+  }
+  const anchorRemoved = plan.anchor ? removeHarnessAnchor(ctx, io) : false;
+
+  const recovered = new Set([...external.removed, ...external.stripped]);
+  const next = settleCliLog(ctx, target, remaining, recovered, anchorRemoved);
+  try {
+    io.writeLog(projectDir, next);
+    io.log(`  ${status.success(`install log updated (clis: ${remaining.join(", ")})`)}`);
+  } catch (e) {
+    // 회수는 이미 끝났다 — 여기서 throw 하면 무엇이 지워졌는지도 사라진다(전량 경로와 같은 방침).
+    io.err(status.failure(c.red(`ERROR: install log 갱신 실패 — ${installLogPath(projectDir)}`)));
+    io.err(c.dim(`       ${e instanceof Error ? e.message : String(e)}`));
+    io.log("");
+    io.log(
+      c.yellow(`${target} 는 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)`),
+    );
+    io.exit(1);
+    return;
+  }
+  io.log("");
+  io.log(status.success(c.green(`${target} removed (remaining: ${remaining.join(", ")})`)));
+  io.exit(0);
+}
+
 interface ReversePlan {
   reverseSteps: ReverseStep[];
   globalAdvisories: GlobalAdvisory[];
@@ -559,7 +825,9 @@ function removeTemplates(
   rm: (path: string) => void,
   harnessRoot: string,
 ): { rootClaudeMdKept: boolean; importStripped: boolean; external: ExternalRemoval } {
-  rm(join(projectDir, log.templates.claudeDir));
+  // #528 — `claudeDir` 는 claude 를 고른 설치에만 있다. 옛 로그는 고르지 않아도 적혀 있지만
+  // 그때도 `.claude/` 가 없으면 `defaultRm` 이 그냥 넘긴다.
+  if (log.templates.claudeDir) rm(join(projectDir, log.templates.claudeDir));
   if (log.templates.codexDir) rm(join(projectDir, log.templates.codexDir));
   if (log.templates.opencodeDir) rm(join(projectDir, log.templates.opencodeDir));
   const external = removeExternalFiles(log, projectDir, rm, harnessRoot);
@@ -825,10 +1093,13 @@ function rootClaudeMdModified(log: InstallLog, projectDir: string): boolean {
 }
 
 function formatTemplateList(log: InstallLog): string {
-  const items: string[] = [log.templates.claudeDir];
+  const items: string[] = [];
+  if (log.templates.claudeDir) items.push(log.templates.claudeDir);
   if (log.templates.codexDir) items.push(log.templates.codexDir);
   if (log.templates.opencodeDir) items.push(log.templates.opencodeDir);
-  return items.join(", ");
+  // 셋 다 없는 설치(antigravity 단독)도 있다 — 빈 문자열을 찍으면 "templates removed: " 가
+  // 목록 없이 나가므로 명시적으로 말한다.
+  return items.join(", ") || "(none)";
 }
 
 /* v8 ignore start — thin dep-inject defaults. tests 는 항상 mock 주입. */
@@ -858,6 +1129,10 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
       "--only <ids>",
       "[Scope] Remove only these assets (comma-separated ids from `agent-harness list`). Templates untouched",
     )
+    .option(
+      "--cli <name>",
+      `[Scope] Remove one CLI only (${CLI_BASES.join(" | ")}). Shared files stay until the last user leaves`,
+    )
     .option("--yes", "[Mode] Skip the interactive picker and remove everything (non-interactive)")
     /* v8 ignore next 3 — cac action callback. 분기 판정은 shouldRunInteractive 가 갖고 tests 로 검증. */
     .action(async (options: UninstallOptions) => {
@@ -876,7 +1151,8 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
 export function shouldRunInteractive(options: UninstallOptions, isTty: boolean): boolean {
   if (!isTty) return false;
   if (options.yes || options.dryRun) return false;
-  return options.only === undefined;
+  // #528 — `--cli` 도 "뺄 대상을 이미 지정한" 경우다. 화면으로 들여보내면 그 선택이 무시된다.
+  return options.only === undefined && options.cli === undefined;
 }
 
 /* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
