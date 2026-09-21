@@ -27,6 +27,7 @@ import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import { renderAgentsMd } from "./agents-md.js";
 import { renderOpencodeJson } from "./opencode-json.js";
+import { allowSkillCreation, bundledSkillTargets } from "./skill-targets.js";
 
 export interface OpencodeTransformParams {
   harnessRoot: string;
@@ -94,6 +95,16 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   const projectName = basename(projectDir);
   const mcp = readOptionalJson(join(harnessRoot, ".mcp.json"));
 
+  // #531 (Epic #527 S3) — `update` 가 **새 릴리즈의 번들 스킬도** 이 CLI 자리에 깐다.
+  // 호출부(`selectedInternalSkills`)는 update 에서 "디스크에 있는 스킬"만 넘기므로 어느 자리에도
+  // 없는 스킬은 목록에 아예 없다. 그래서 대상 집합을 설치 기록에서 다시 구해 합친다.
+  // install(refreshOnly 아님)에서는 호출부의 선택이 그대로 SSOT 다 — 여기서 늘리지 않는다.
+  const creatable = refreshOnly ? bundledSkillTargets(projectDir) : [];
+  const skillIds =
+    creatable.length === 0
+      ? selectedInternalSkills
+      : [...new Set([...selectedInternalSkills, ...creatable])];
+
   // 1. AGENTS.md
   ensureDir(projectDir);
   const agentsMdPath = join(projectDir, "AGENTS.md");
@@ -107,9 +118,11 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     projectName,
     // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
     // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다 (codex 와 같은 마커).
+    // #531 — `skillIds` 를 쓴다(= 깔린 것 + **이번 실행이 만들 것**). 안 그러면 이번에 새로
+    // 깐 상시 스킬이 다음 update 까지 안내에서 빠져 설치자 에이전트가 영영 안 연다.
     projectContext: withMarkedContinuousSkillsNote(
       seededContext ?? renderFillScaffold("agents-md"),
-      selectedInternalSkills,
+      skillIds,
     ),
     // codex 와 **같은 파일**(프로젝트 루트 `AGENTS.md`)이다. 두 transform 이 서로 다른 본문을
     // 쓰면 나중에 도는 쪽이 앞선 쪽을 덮어써, codex+opencode 조합에서 룰이 통째로 사라진다
@@ -146,11 +159,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   //
   //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체를 보낸다. 루프는 세
   //   transform 공용 helper 가 소유한다.
+  //
+  //   #531 — `allowSkillCreation` 이 refreshOnly 에서도 **대상 집합의 자리만** 만들게 한다
+  //   (증거·범위는 `skill-targets.ts`). 안 고른 CLI 는 여기까지 오지 않고, 안 고른 스킬은
+  //   `creatable` 에 없어 예외를 못 받는다.
   const skillFiles = writeBundledSkillDirs({
     harnessRoot,
     projectDir,
-    skillIds: selectedInternalSkills,
-    writer,
+    skillIds,
+    writer: allowSkillCreation(writer, projectDir, creatable),
   });
 
   // 4. 옛 커맨드 사본 은퇴. 안 지우면 OpenCode 커맨드 목록에 같은 이름이 **두 줄**로 뜬다
