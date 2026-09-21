@@ -1107,6 +1107,10 @@ describe("신규 자산 설치 (#283)", () => {
     // install 은 `spec.cli` 에 claude 가 있을 때만 `.claude/` baseline 을 만든다
     // (codex/opencode 단독 사용자의 dead weight 회피). update 에 그 술어가 없으면 codex 로 깐
     // 프로젝트에 `.claude/` 하네스가 통째로 들어간다 — 고른 적 없는 CLI 의 설정이다.
+    //
+    // 픽스처는 **옛 로그 그대로**다(`clis` 없음 · `templates.claudeDir` 있음 — v26.160.1 이하가
+    // codex 단독 설치에도 그 필드를 적었다). 디스크의 `.claude/` 는 beforeEach 가 만든 설치자
+    // 디렉터리이고, 유도 규칙은 그것을 보지 않는다(#528 · ADR-096 Decision 6).
     writeInstallLog(projectDir, {
       schemaVersion: 1,
       installedAt: new Date(0).toISOString(),
@@ -1122,6 +1126,32 @@ describe("신규 자산 설치 (#283)", () => {
     expect(existsSync(join(projectDir, ".claude/agents/reviewer.md"))).toBe(false);
     // CLI 중립 자산은 그대로 들어간다 — 그게 #283 이 신고한 바로 그 파일이다.
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
+  });
+
+  it("#528 옛 로그가 `spec.cli: [opencode]` 여도 앵커 기록이 있으면 새 Claude 자산을 깐다", () => {
+    // Epic #527 의 실측 결함: 위저드 Add 에서 claude 를 풀고 opencode 를 체크하면 파일은 남고
+    // 로그의 `spec.cli` 만 덮인다. 그 뒤 update 는 `.claude/` 를 갱신은 하면서도 **새 릴리즈가
+    // 더한 Claude 자산은 "안 골랐다"고 보고 안 깔았다** — 화면은 침묵. 유도 규칙이 닫는다.
+    //
+    // claude 를 골랐던 증거는 **기록**이다 — 첫 설치가 남긴 앵커 sha(`templates.rootClaudeMd`).
+    // 그 필드는 templates 병합으로 이후 설치에도 살아남는다(`buildInstallLog`).
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["opencode"] },
+      templates: {
+        claudeDir: ".claude",
+        opencodeDir: ".opencode/",
+        rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: "anchor-sha" },
+      },
+      assets: [],
+    });
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.installedNew).toContain(".claude/rules/cli-development.md");
+    expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
   });
 
   it("훅은 깔지 않고 재설치를 안내한다 — 배선 없는 훅은 파일만 늘고 실행은 0이다", () => {

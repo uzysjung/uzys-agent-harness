@@ -22,7 +22,7 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { type InstallLog, readInstallLog } from "./install-log.js";
+import { type InstallLog, installedClis, readInstallLog } from "./install-log.js";
 import {
   type CliTargets,
   DEFAULT_OPTIONS,
@@ -382,7 +382,10 @@ export function refreshExternalSkills(
       tracks: log.spec.tracks as ReadonlyArray<Track>,
       // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
       options: DEFAULT_OPTIONS,
-      cli: log.spec.cli as CliTargets,
+      // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
+      // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
+      // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
+      cli: [...installedClis(log)] as CliTargets,
       userOverride: { forceInclude: [...installedIds], forceExclude: [] },
       scope: log.scope,
       projectDir,

@@ -241,6 +241,19 @@ function trimBlankEdges(lines: ReadonlyArray<string>): string[] {
   return out;
 }
 
+/**
+ * 설치자가 `## Project Context` 에 적어 둔 줄 (하네스 마커 블록 제외). 절이 없으면 `null`.
+ *
+ * #528 앵커 씨 뿌리기가 다른 앵커로 옮길 때 읽는 자리 — 경계는 `stripHarnessFromAgentsMd` 와
+ * 같다(템플릿의 최상위 절 이름). 판정("채워졌는가")은 하지 않는다: 그 판정을 두 곳에 두면
+ * 갈리고, 여기 호출부는 자기 스캐폴드와 비교할 줄 안다.
+ */
+export function projectContextInstallerLines(params: StripAgentsMdParams): string[] | null {
+  const { existing, template } = params;
+  const body = sectionBody(existing, sectionNames(template), CONTEXT_SECTION);
+  return body === null ? null : installerLines(body, SKILLS_BLOCK);
+}
+
 export interface StripAgentsMdParams {
   /** 디스크의 현재 내용. */
   existing: string;

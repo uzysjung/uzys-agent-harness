@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import {
   type ExternalAsset,
   type ExternalAssetMethod,
@@ -17,7 +18,7 @@ import {
 } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
 import { listFilesRecursive } from "./fs-ops.js";
-import type { InstallScope, InstallSpec } from "./types.js";
+import { type CliBase, type InstallScope, type InstallSpec, isCliBase } from "./types.js";
 
 export const INSTALL_LOG_FILENAME = ".harness-install.json";
 /**
@@ -109,7 +110,24 @@ export interface InstallLog {
   /** install 시 spec 요약 (tracks/cli — uninstall reasoning 용) */
   spec: {
     tracks: ReadonlyArray<string>;
+    /**
+     * **마지막 설치가 고른 CLI**. 누적하지 않는다 — 설치 화면·`list` 의 표시용이다.
+     * "지금 이 프로젝트에 무엇이 깔려 있나"는 아래 `clis` 가 답한다(#528).
+     */
     cli: ReadonlyArray<string>;
+    /**
+     * #528 (Epic #527 정의 1) — **지금 이 프로젝트에 깔려 있는 CLI 집합**(누적).
+     * install 은 더하기만 하고, 빼는 것은 `uninstall --cli <name>` 뿐이다.
+     *
+     * `cli` 와 나눈 이유: 그 필드는 **마지막 설치분**이라 "claude 로 깔고 나중에 opencode 를
+     * 더했다"를 표현할 수 없다. 그래서 위저드에서 claude 를 풀고 opencode 를 더하면 로그가
+     * `["opencode"]` 로 덮이고, 다음 update 가 새 릴리즈의 Claude 자산을 "안 골랐다"고 보고
+     * 깔지 않았다(실측 2026-09-21). 파일은 그대로 남아 있는데도.
+     *
+     * **필드가 없는 옛 로그는 정상이다** — `installedClis` 가 그때 유도한다(`INSTALL_LOG_VERSION`
+     * 을 올리지 않는 이유: 부재를 정상으로 읽는 이 파일의 기존 관행 그대로다).
+     */
+    clis?: ReadonlyArray<CliBase>;
     /**
      * 2026-08-16 (ADR-074) — 사용자가 위저드/`--without` 로 **해제한** 트랙 baseline 자산 id
      * (`baseline:<kind>/<name>`). 아무것도 안 뺐으면 필드 자체가 없다(기존 로그도 이 상태).
@@ -140,8 +158,15 @@ export interface InstallLog {
   };
   /** templates 출처 — uninstall 시 templates 제거 위치 */
   templates: {
-    /** .claude/ project local */
-    claudeDir: string;
+    /**
+     * .claude/ project local — **claude 를 고른 설치에만** 있다 (#528).
+     *
+     * v26.160.1 까지는 고르지 않아도 `".claude/"` 가 적혔다. 디스크에 없는 디렉터리를 기록이
+     * 있다고 말하는 셈이라, 옛 로그에서 CLI 집합을 유도할 때 **이 필드는 단서가 아니다**
+     * (claude 의 단서는 `rootClaudeMd` 하나 — `installedClis`. `policyFiles`·`skillFiles` 는 옛 판이
+     * claude 선택과 무관하게 훑어 적어 단서가 못 된다, BLOCKER-5).
+     */
+    claudeDir?: string;
     /** .codex/ project local (cli=codex 시) */
     codexDir?: string;
     /** .opencode/ project local (cli=opencode 시) */
@@ -183,6 +208,67 @@ export interface InstallLog {
    * 없다 (v26.132.x 이하 로그도 이 상태 — 부재는 정상이고, 그때는 보수적 백업으로 떨어진다).
    */
   externalFiles?: ReadonlyArray<InstallLogSkillFile>;
+}
+
+/**
+ * antigravity 의 전용 표지 — 옛 로그 유도의 단서 (#528). 이 CLI 는 `templates` 항목이 없어
+ * 그 절만 봐서는 존재를 알 수 없고, `externalFiles` 에 남는 이 경로가 유일한 기록이다.
+ */
+const ANTIGRAVITY_RULE_FILE = ".agents/rules/uzys-harness.md";
+
+/**
+ * **지금 이 프로젝트에 깔려 있는 CLI 집합** (#528 · Epic #527 정의 1).
+ *
+ * `spec.clis` 가 있으면 그것이 답이다. 없으면(v26.160.1 이하로 깐 로그) **기록만으로 1회
+ * 유도**한다:
+ *
+ *   claude      ⇐ `spec.cli` ∋ claude ∨ `templates.rootClaudeMd`
+ *   codex       ⇐ `spec.cli` ∋ codex ∨ `templates.codexDir`
+ *   opencode    ⇐ `spec.cli` ∋ opencode ∨ `templates.opencodeDir`
+ *   antigravity ⇐ `spec.cli` ∋ antigravity ∨ `externalFiles` ∋ `.agents/rules/uzys-harness.md`
+ *
+ * **디스크 존재는 신호가 아니다**(ADR-096 Decision 6). 이 함수가 `projectDir` 를 받지 않는
+ * 이유가 그것이다 — 한 번은 `.claude/` 의 실존을 claude 의 단서로 썼고, 그러면 하네스가 깐
+ * 적 없는 **설치자 소유 `.claude/`**(Claude Code 가 권한 승인 때 만드는 `settings.local.json`
+ * 하나면 생긴다)가 "깔린 CLI" 로 읽혀 `uninstall --cli claude` 가 그 트리를 통째로 지운다
+ * (독립 리뷰 BLOCKER-1, 2026-09-22). 소유는 기록에서만 나온다.
+ *
+ * 그 자리를 대신하는 claude 의 기록은 **앵커 sha(`templates.rootClaudeMd`) 하나**다 — claude 를
+ * 고른 설치에만 적히고 이후 설치에도 누적된다(`buildInstallLog` 의 templates 병합). 쓸 수 없는
+ * 기록 둘: `templates.claudeDir` 는 v26.160.1 까지 고르지 않아도 적혔고, `policyFiles`·`skillFiles`
+ * 는 v26.160.1 까지 claude 선택과 무관하게 **디스크의 `.claude/` 를 훑어** 적혔다 — 설치자 파일이
+ * 템플릿과 같은 상대 경로(`rules/git-policy.md`)면 codex 단독 로그에도 들어 있다(독립 리뷰
+ * BLOCKER-5, 컨테이너 실측). 이 판부터 두 기준선은 claude 가 깔렸을 때만 찍지만, 유도가 존재하는
+ * 이유인 옛 로그에서는 그 보장이 없으므로 단서로 쓰지 않는다. 놓치는 창 = 앵커 기록이 없는
+ * claude 설치본(v26.70.0 이하로 깔고 그 뒤 claude 재설치가 없는 경우) — 틀리는 방향이 안전
+ * (`.claude/` 를 건드리지 않는다)이고 재설치가 `clis` 를 굳힌다.
+ *
+ * **읽기만으로 로그를 고치지 않는다.** 유도 결과는 다음에 로그를 다시 쓸 때(`buildInstallLog`)
+ * 기록된다 — `list` 나 `update --dry-run` 같은 읽기 경로가 디스크 기록을 바꾸면, 사용자가
+ * 아무것도 안 했는데 기록이 달라진다.
+ *
+ * @returns `CLI_BASE_SORT_ORDER` 정렬. **로그가 없으면 빈 배열** — "아무 CLI 도 없다"가 아니라
+ *   "기록이 없어 말할 수 없다"이고, 그 구분은 호출부가 한다 (update 는 전부로, install 은
+ *   이번 선택만으로 다룬다).
+ */
+export function installedClis(log: InstallLog | null): ReadonlyArray<CliBase> {
+  if (log === null) return [];
+  if (log.spec.clis) return sortClis(log.spec.clis);
+  const found = new Set<CliBase>(log.spec.cli.filter(isCliBase));
+  if (log.templates.rootClaudeMd !== undefined) found.add("claude");
+  if (log.templates.codexDir !== undefined) found.add("codex");
+  if (log.templates.opencodeDir !== undefined) found.add("opencode");
+  if ((log.externalFiles ?? []).some((f) => f.path === ANTIGRAVITY_RULE_FILE)) {
+    found.add("antigravity");
+  }
+  return sortClis([...found]);
+}
+
+/** 정렬은 `CLI_BASE_SORT_ORDER` 하나만 쓴다 — 로그 diff 가 순서 때문에 흔들리지 않게. */
+function sortClis(clis: ReadonlyArray<CliBase>): CliBase[] {
+  return [...new Set(clis)]
+    .filter(isCliBase)
+    .sort((a, b) => CLI_BASE_SORT_ORDER[a] - CLI_BASE_SORT_ORDER[b]);
 }
 
 /**
@@ -266,12 +352,19 @@ export function buildInstallLog(
   const skillExclude = (spec.userOverride?.forceExclude ?? []).filter((id) =>
     BUNDLED_SKILL_IDS.has(id),
   );
+  // #528 — `.claude/` 는 claude 를 골랐을 때만 적는다. 고르지 않아도 적던 탓에 기록이
+  // 디스크에 없는 디렉터리를 있다고 말했고, uninstall 은 그 경로를 rm 하려 들었다(무해했지만
+  // "templates removed: .claude/" 라고 화면에 찍혔다 — 없는 것을 지웠다는 보고다).
   const templates: InstallLog["templates"] = {
-    claudeDir: ".claude/",
+    ...(spec.cli.includes("claude") ? { claudeDir: ".claude/" } : {}),
     ...(spec.cli.includes("codex") ? { codexDir: ".codex/" } : {}),
     ...(spec.cli.includes("opencode") ? { opencodeDir: ".opencode/" } : {}),
     ...(rootClaudeMd ? { rootClaudeMd } : {}),
   };
+  // #528 — CLI 집합은 **더해지기만 한다**. reinstall(`.claude/` backup rename) 에서도 누적인
+  // 이유: 밀려나는 것은 `.claude/` 뿐이고 다른 CLI 의 산출물(`AGENTS.md`·`.opencode/`)은
+  // 그대로 디스크에 남기 때문이다. 빼는 경로는 `uninstall --cli <name>` 하나다.
+  const clis = sortClis([...installedClis(previous ?? null), ...spec.cli.filter(isCliBase)]);
   const log: InstallLog = {
     schemaVersion: INSTALL_LOG_VERSION,
     installedAt: new Date().toISOString(),
@@ -279,6 +372,7 @@ export function buildInstallLog(
     spec: {
       tracks: spec.tracks,
       cli: spec.cli,
+      clis,
       ...(spec.baselineExclude && spec.baselineExclude.length > 0
         ? { baselineExclude: spec.baselineExclude }
         : {}),

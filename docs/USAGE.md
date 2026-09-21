@@ -212,7 +212,7 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 ### `uninstall`
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--yes]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes]
 ```
 
 Run it with no flags in a terminal and it opens an interactive menu. First you choose *pick items* (templates stay) or *remove everything*; if you pick items, a checklist follows where each row says exactly what removing it will do. Nothing happens until you confirm, and selecting nothing exits without changes. The menu is skipped when a flag already says what you want — `--only`, `--dry-run`, `--yes` — or when there is no terminal.
@@ -222,7 +222,24 @@ Run it with no flags in a terminal and it opens an interactive menu. First you c
 | `--dry-run` | Print the reverse steps, change nothing |
 | `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/` |
 | `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Templates untouched; the record keeps the rest |
+| `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
 | `--yes` | Skip the picker and remove everything |
+
+#### Removing one CLI
+
+Installing adds a CLI; it never drops one. `--cli <name>` is the way back out for a single CLI, and it takes exactly the files that CLI owns:
+
+```bash
+npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see it first
+```
+
+- **Files only that CLI uses** go: `.codex/` for Codex, `.claude/` + `CLAUDE-uzys-harness.md` for Claude Code, `opencode.json` + `.opencode/` for OpenCode, `.agents/rules/uzys-harness.md` for Antigravity.
+- **Files two CLIs share stay until the last one leaves.** `AGENTS.md` belongs to Codex *and* OpenCode; `.agents/skills/` to Codex, OpenCode and Antigravity. Remove Codex while OpenCode is installed and both stay untouched. Remove the last of them and they are cleaned up with the same rules the full `uninstall` uses — your `## Project Context` / `## Project Rules` survive in `AGENTS.md`, and only the harness sections are cut out.
+- **Your own text in shared files stays.** In `CLAUDE.md` only the import block is cut; a file you edited since the install is kept whole and named on screen. **A CLI directory goes whole, though** — removing Claude Code deletes `.claude/` with everything inside it, including files you put there yourself (`settings.local.json`, your own commands), exactly as the full `uninstall` does. Run `--dry-run` first to see the list.
+- **Installed assets (`list`) are not touched** — they are not owned by a CLI. Use `--only <ids>` for those.
+- **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only` or `--keep-templates`.
+
+The record (`clis` in `.uzys-agent-harness/.harness-install.json`) is what every command reads to know which CLIs this project has — `list` prints it, and `update` refreshes exactly that set, including assets a new release adds.
 
 What it can and cannot reverse:
 

@@ -90,6 +90,21 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도구를 모두 설치했다면 나중에 실행된
 쪽의 판이 남습니다. 어느 쪽이든 같은 룰 절(`## Harness Rules`)을 담습니다.
 
+**공유 파일은 마지막 도구가 나갈 때까지 남습니다.** `uninstall --cli <이름>` 으로 도구 하나를 뺄 때,
+그 도구만 쓰는 자리는 함께 사라지지만 아래 자리는 쓰는 도구가 하나라도 남아 있으면 그대로입니다.
+
+| 공유 자리 | 함께 쓰는 도구 | 언제 사라지나 |
+|---|---|---|
+| `AGENTS.md` | Codex · OpenCode | 둘 다 빠질 때. 그때도 여러분이 채운 두 절은 파일에 남습니다 |
+| `.agents/skills/` | Codex · OpenCode · Antigravity | 셋 다 빠질 때 |
+| `.mcp.json` · `.uzys-agent-harness/` | 네 도구 전부 | 도구 하나를 빼는 것으로는 안 사라집니다 — 전량 `uninstall` 의 몫입니다 |
+
+**도구를 더해 앵커가 새로 생길 때는 이미 적어 둔 맥락을 옮겨 심습니다.** Claude Code 로 깔아 루트
+`CLAUDE.md` 를 채운 뒤 Codex 를 더하면, 새로 만들어지는 `AGENTS.md` 의 `## Project Context` 가 빈
+스캐폴드가 아니라 **그 본문**으로 태어납니다(반대 방향도 같습니다). 옮기는 것은 글자 그대로의
+복사뿐이라 두 파일의 도구 고유 표현(경로 이름·도구 이름)은 아직 어긋날 수 있습니다 — 설치 화면이
+`audit-harness-fit` 으로 한 번 맞추라고 안내합니다. 이미 있는 앵커는 건드리지 않습니다.
+
 `AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
 있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
 몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자

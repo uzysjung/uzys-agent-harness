@@ -736,6 +736,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -769,6 +770,60 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("CLAUDE-uzys-harness.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
+    // #528 BLOCKER-6 — 기록된 설치본에는 "기록에 없는 .claude/" 안내가 없다(대조군).
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("not recorded as installed"));
+  });
+
+  it("기록에 없는 `.claude/` 를 건너뛰었으면 그 사실과 복구 명령을 낸다 (#528 BLOCKER-6)", () => {
+    const log = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor({
+      ...fakeReport,
+      backup: "/p/.claude.backup-2026",
+      mode: "update",
+      updateMode: {
+        updated: {},
+        pruned: {},
+        staleHookRefs: [],
+        claudeMdUpdated: false,
+        backups: [],
+        skippedGroups: [],
+        anchorBackedUp: false,
+        anchorCreated: false,
+        rootImportAdded: false,
+        rootBlockRefreshed: false,
+        legacyAnchor: null,
+        claudeUnrecorded: "agent-harness install --track tooling --cli claude --scope project",
+        skillsBackedUp: [],
+        skillsSkippedLinks: [],
+        skillsPruned: [],
+        policyBackedUp: [],
+        externalUpdated: 0,
+        externalBackedUp: [],
+        foreignOwned: [],
+        installedNew: [],
+        restored: [],
+        needsReinstall: [],
+        retiredAgents: [],
+        demotedAgents: [],
+        mcpAllowlistRetired: null,
+        externalSkillsRefreshed: 0,
+        externalSkillsFailed: [],
+        externalSkillsNotInCatalog: [],
+        externalSkillsUnknown: false,
+      },
+    });
+    executeSpec(baseSpec, {
+      log,
+      exit,
+      runPipeline,
+      resolveHarnessRoot: () => "/h",
+      mode: "update",
+    });
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("not recorded as installed"));
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("agent-harness install --track tooling --cli claude --scope project"),
+    );
   });
 
   /**
@@ -812,6 +867,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -949,6 +1005,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1015,6 +1072,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
+        claudeUnrecorded: null,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1072,6 +1130,7 @@ describe("executeSpec", () => {
         rootImportAdded: true,
         rootBlockRefreshed: false,
         legacyAnchor: ".claude/CLAUDE.md",
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1135,6 +1194,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: true,
         legacyAnchor: null,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],

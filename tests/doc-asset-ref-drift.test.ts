@@ -77,6 +77,7 @@ const NOT_AN_ASSET: ReadonlyMap<string, string> = new Map([
   ["anchor", "`update --only` 묶음 이름 — 하네스 앵커 파일"],
   ["external", "`update --only` 묶음 이름 — 외부 자산"],
   ["new-skills", "`update --only` 묶음 이름 — 이번 릴리즈 신규 번들 스킬"],
+  ["clis", "설치 로그(`.harness-install.json`)의 필드 이름 — 깔린 CLI 집합 (#528)"],
 ]);
 
 /**

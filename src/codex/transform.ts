@@ -20,6 +20,7 @@
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
+import { seedAgentsMdProjectContext } from "../anchor-seed.js";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
@@ -57,6 +58,14 @@ export interface CodexTransformParams {
 
 export interface CodexTransformReport {
   agentsMdPath: string;
+  /**
+   * #528 — 이 실행이 `AGENTS.md` 를 **새로 만들면서** 다른 앵커의 설치자 절을 옮겨 심었으면
+   * 그 출처 파일명. 안 심었으면 `null`. 화면이 "옮겼다 · 표현은 스킬로 맞춰라"를 말하는 근거다.
+   *
+   * optional = **부재는 "안 심었다"** 로 읽는다. 이 리포트를 손으로 만드는 자리(테스트 stub)가
+   * 여럿이고, 그쪽에 새 필드를 강제해도 얻는 것이 없다 — 틀리는 방향이 안전한 쪽이다.
+   */
+  agentsMdSeededFrom?: string | null;
   configTomlPath: string;
   hookFiles: string[];
   /** `.agents/skills/<id>/` 에 쓴 **모든** 파일 — `SKILL.md` + 형제(references/scripts 등, #431). */
@@ -88,6 +97,10 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
 
   // 1. AGENTS.md
   const agentsMdPath = join(projectDir, "AGENTS.md");
+  // #528 — **새로 만드는 순간에만** 다른 앵커의 설치자 절을 옮겨 심는다. 이미 있으면 그 파일의
+  // 설치자 절이 이기고(`mergeAgentsMd`), refreshOnly(update)는 없는 파일을 만들지 않는다.
+  const seededContext =
+    refreshOnly || existsSync(agentsMdPath) ? null : seedAgentsMdProjectContext(projectDir);
   ensureDir(projectDir);
   const agentsMdOut = renderAgentsMd({
     template: agentsTemplate,
@@ -96,7 +109,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
     // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다.
     projectContext: withMarkedContinuousSkillsNote(
-      renderFillScaffold("agents-md"),
+      seededContext ?? renderFillScaffold("agents-md"),
       selectedInternalSkills,
     ),
     // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
@@ -157,6 +170,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
 
   return {
     agentsMdPath,
+    agentsMdSeededFrom: seededContext === null ? null : "CLAUDE.md",
     configTomlPath,
     hookFiles,
     skillFiles,

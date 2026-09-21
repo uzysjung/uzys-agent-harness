@@ -41,6 +41,7 @@ import {
   collectSkillHashes,
   hashContent,
   type InstallLog,
+  installedClis,
   isHarnessOwned as isOwnedByBaseline,
   mergeExternalFiles,
   POLICY_DIRS,
@@ -123,6 +124,22 @@ export interface UpdateModeReport {
    * 사용자는 그게 죽은 사본인 줄 모른다.
    */
   legacyAnchor: string | null;
+  /**
+   * #528 재리뷰 BLOCKER-6 — `.claude/` 가 디스크에 있는데 설치 로그가 claude 를 깔린 CLI 로
+   * 기록하지 않아 이번 update 가 그 디렉터리를 건너뛴 경우.
+   *
+   * 두 상태가 같은 모양이다: ⓐ 설치자가 직접 만든 `.claude/`(하네스는 건드리면 안 된다) ⓑ v26.125.0
+   * 이전에 claude 로 깔고 다른 CLI 를 추가해 앵커 기록이 지워진 **진짜 claude 설치본**(갱신을 받아야
+   * 한다). 기록만으로는 둘을 가를 수 없고 디스크 존재는 판정 근거가 아니다(ADR-096 D6). 그래서
+   * 판정은 "건너뛴다"(ⓐ 를 지키는 쪽)로 두되 **침묵하지 않는다** — 화면이 그 사실과 ⓑ 의 복구
+   * 명령(`install --cli claude` 1회 = `clis`·앵커 기록이 굳는다)을 말한다. 디스크 존재는 여기서
+   * 안내를 낼지 말지에만 쓰인다.
+   *
+   * 값 = 그대로 칠 수 있는 복구 명령(트랙·scope 를 로그에서 채운 것 — 6차 리뷰 NOTE-I·J: `--scope` 가
+   * 빠지면 global 설치본의 기록이 project 로 뒤집히고, `<track>` 자리표시자는 설치자가 채워야 한다).
+   * 안내가 필요 없으면 `null`.
+   */
+  claudeUnrecorded: string | null;
   /**
    * v26.126.0 (R-3a) — 사용자가 고쳐서 백업본을 남긴 스킬 파일 (`.claude/skills/` 상대경로).
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
@@ -268,12 +285,16 @@ export function buildUpdateSpec(
   tracks: ReadonlyArray<Track>,
   only?: ReadonlyArray<UpdateGroup>,
 ): InstallSpec {
+  const log = readInstallLog(projectDir);
+  // #528 (재리뷰 NOTE-F) — 화면 머리글의 `CLI` 는 깔린 집합이다. 고정 `["claude"]` 는 codex 단독
+  // 설치본의 update 도 "CLI claude" 라고 적었다. 로그가 없으면(레거시) 이전과 같이 claude.
+  const clis = log === null ? [] : installedClis(log);
   return {
     tracks: [...tracks],
     options: DEFAULT_OPTIONS,
-    cli: ["claude"],
+    cli: clis.length > 0 ? [...clis] : ["claude"],
     projectDir,
-    scope: readInstallLog(projectDir)?.scope ?? "project",
+    scope: log?.scope ?? "project",
     // 전부 골랐으면 "제한 없음"과 같다 — 화면·기록에 제한이 있었던 것처럼 남기지 않는다.
     ...(only !== undefined && only.length > 0 && only.length < UPDATE_GROUPS.length
       ? { updateOnly: [...only] }
@@ -340,6 +361,7 @@ export function runUpdateMode(
     rootImportAdded: false,
     rootBlockRefreshed: false,
     legacyAnchor: null,
+    claudeUnrecorded: null,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
     skillsPruned: [],
@@ -367,11 +389,24 @@ export function runUpdateMode(
   report.restored = fresh.restored;
   report.needsReinstall = fresh.needsReinstall;
 
+  // #528 재리뷰 BLOCKER-4 — `.claude/` 를 만지는 단계 전부(정책 동기화 · 기준선 기록 · 스킬 · 새
+  // 스킬 · 앵커)는 **claude 가 깔린 집합에 있을 때만** 돈다. 로그가 없는 레거시 설치본은 이전과
+  // 같이 claude 로 다룬다(`.claude/` 가 그 설치본의 유일한 자리였다). 이 게이트가 없으면 codex
+  // 단독 옛 로그 + 설치자의 `.claude/rules/…` 한 파일에서 정책 동기화가 그 파일을 덮고
+  // `policyFiles` 를 기록하며, 같은 실행의 뒤 단계가 그 기록으로 claude 를 유도해 스킬 11종과
+  // 앵커까지 깐다 — 그 뒤 `uninstall --cli claude` 가 설치자 파일을 함께 지운다(컨테이너 실측).
+  const logAtStart = readInstallLog(projectDir);
+  const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
+  report.claudeUnrecorded =
+    !claudeManaged && logAtStart !== null && existsSync(claudeDir)
+      ? recordClaudeCommand(logAtStart, installedTracks(projectDir))
+      : null;
+
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
   const policyBase = policyBaseline(projectDir);
   for (const { dir, ext } of POLICY_DIRS) {
-    if (!wants(dir === "hooks" ? "hooks" : "rules")) continue;
+    if (!claudeManaged || !wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
@@ -388,31 +423,34 @@ export function runUpdateMode(
   const syncedDirs = POLICY_DIRS.filter((d) => wants(d.dir === "hooks" ? "hooks" : "rules")).map(
     (d) => d.dir,
   );
-  if (syncedDirs.length > 0) refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
+  if (claudeManaged && syncedDirs.length > 0)
+    refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
-  const skillSync = wants("skills")
-    ? syncSkills(
-        join(claudeDir, "skills"),
-        join(templatesDir, "skills"),
-        skillBaseline(projectDir),
-        new Date(),
-        (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
-      )
-    : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
+  const skillSync =
+    claudeManaged && wants("skills")
+      ? syncSkills(
+          join(claudeDir, "skills"),
+          join(templatesDir, "skills"),
+          skillBaseline(projectDir),
+          new Date(),
+          (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
+        )
+      : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
   if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
   report.skillsPruned = skillSync.pruned;
   // #480 ① — 릴리즈로 새로 생긴 번들 스킬을 깐다. `syncSkills` 는 이미 깔린 것만 다루고
   // `installNewAssets` 는 파일 자산만 다뤄, 기존 설치본은 새 스킬을 영영 못 받았다.
-  const newSkills = wants("new-skills")
-    ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
-    : { installed: [], foreignOwned: [] };
+  const newSkills =
+    claudeManaged && wants("new-skills")
+      ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
+      : { installed: [], foreignOwned: [] };
   report.installedNew.push(...newSkills.installed);
-  if (wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
-  else if (newSkills.installed.length > 0)
+  if (claudeManaged && wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
+  else if (claudeManaged && newSkills.installed.length > 0)
     recordNewSkillBaseline(projectDir, templatesDir, newSkills.installed);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
@@ -430,8 +468,11 @@ export function runUpdateMode(
   //    이행 자체가 죽는다(그 이행이 이 함수의 원래 목적이다 — 로그 단독 판정은 update-mode
   //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
   //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
-  const installLog = readInstallLog(projectDir);
-  if (existsSync(claudeDir) && (installLog === null || installLog.spec.cli.includes("claude"))) {
+  // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합(`claudeManaged`, 위에서 한 번 판정). 옛
+  // 로그에서 그 집합은 **기록만으로** 유도되므로(앵커 sha — `policyFiles`·`skillFiles` 는 옛 판이
+  // 무조건 훑어 적은 값이라 단서가 아니다, BLOCKER-5)
+  // `spec.cli` 기반 판정과 같은 답을 내고, 디스크에 `.claude/` 가 있다는 사실은 들어오지 않는다.
+  if (existsSync(claudeDir) && claudeManaged) {
     if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);
   }
 
@@ -603,7 +644,10 @@ function installNewAssets(
   const log = readInstallLog(projectDir);
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
-  const claudeSelected = log?.spec.cli.includes("claude") ?? false;
+  // #528 — 판정은 `spec.cli`(마지막 설치분)가 아니라 **깔린 집합**이다. 위저드에서 claude 를
+  // 풀고 opencode 를 더한 로그는 `spec.cli` 가 `["opencode"]` 로 덮여, 첫 설치의 앵커 기록이
+  // 그대로 남아 있는데도 새 릴리즈의 Claude 자산을 못 받았다(실측 2026-09-21).
+  const claudeSelected = installedClis(log).includes("claude");
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
   // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
@@ -729,7 +773,9 @@ function installNewSkillDirs(
   // `isBaselineExcluded` 로는 안 걸린다 — 그래서 `--without <skill>` 로 뺀 스킬이 update 마다
   // 되돌아왔다. 옛 로그(필드 없음)는 빈 집합이라 동작이 그대로다.
   const skillExcluded = new Set(log?.spec.skillExclude ?? []);
-  if (!(log?.spec.cli ?? ["claude"]).includes("claude")) return { installed, foreignOwned };
+  // #528 — 같은 이유로 `spec.cli` 가 아니라 깔린 집합을 본다. 로그가 없는 레거시 설치본은
+  // 이전과 같이 claude 로 다룬다(`.claude/skills/` 가 그 설치본의 유일한 스킬 자리였다).
+  if (log !== null && !installedClis(log).includes("claude")) return { installed, foreignOwned };
   const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
   for (const entry of buildManifest(spec)) {
     if (entry.type !== "dir" || !entry.target.startsWith(".claude/skills/")) continue;
@@ -936,11 +982,11 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  * 전체 목록을 넘겨도 안 깔린 스킬은 파일이 없어 건너뛴다. 그래서 update 쪽에 CLI 목록이나
  * 스킬 선택 상태의 **사본이 생기지 않는다** (이 repo 가 반복해서 당한 열거-사본 실패 모드).
  *
- * **단 하나의 예외 = codex · opencode** (#514). 둘은 같은 `AGENTS.md` 를 쓰므로 "파일이 있으면 그
- * CLI 가 깔린 것"이 둘 사이에서는 성립하지 않는다 — codex 만 고른 설치본에도 파일이 있으니 OpenCode
- * transform 이 뒤에 돌아 Codex 판(`## Session Start`)을 OpenCode 판으로 바꿨다. 이 둘만 설치 로그의
- * `templates.codexDir` · `opencodeDir` 로 가른다(`installedCliTargets`) — 사본이 아니라 uninstall 이
- * 이미 읽는 그 기록이고, 추가 설치를 누적한다(`spec.cli` 는 마지막 설치분이라 쓰지 않는다).
+ * **단 하나의 예외 = 설치 로그의 CLI 집합** (#514 → #528). codex 와 opencode 는 같은 `AGENTS.md` 를
+ * 쓰므로 "파일이 있으면 그 CLI 가 깔린 것"이 둘 사이에서는 성립하지 않는다 — codex 만 고른 설치본에도
+ * 파일이 있으니 OpenCode transform 이 뒤에 돌아 Codex 판(`## Session Start`)을 OpenCode 판으로 바꿨다.
+ * #514 는 그 둘만 `templates.*Dir` 로 갈랐고, #528 이 네 CLI 를 로그 한 필드(`spec.clis`)로 합쳤다 —
+ * 사본이 아니라 install·uninstall 이 같이 쓰는 그 기록이고, 추가 설치를 누적한다.
  *
  * **룰만 예외로 거른다** (ADR-074). `AGENTS.md` 는 룰을 파일 하나에 **합쳐 렌더**하므로
  * refreshOnly 의 "디스크에 있는 것만" 규칙이 룰 단위로는 작동하지 않는다 — 파일이 있으니
@@ -957,16 +1003,17 @@ function installedBundledSkills(projectDir: string): string[] {
 }
 
 /**
- * #514 — 같은 `AGENTS.md` 를 나눠 쓰는 codex · opencode 는 파일 존재로 가릴 수 없어 로그로 가른다.
- * 나머지(antigravity)는 전용 파일이라 `refreshOnly` 의 디스크 판정 그대로. 로그가 없으면 전부.
+ * #528 — 갱신 대상 CLI 는 **설치 로그의 `clis` 하나**가 말한다(`installedClis`).
+ *
+ * #514 는 codex · opencode 만 `templates.*Dir` 로 갈랐다 — 둘이 같은 `AGENTS.md` 를 써서 파일
+ * 존재로는 못 가르기 때문이었다. 그 판정이 이제 로그 한 필드로 합쳐졌고, 옛 로그는 같은 두
+ * 필드를 포함한 유도 규칙이 덮는다(그래서 #514 가 고친 증상은 그대로 막힌다).
+ *
+ * **로그가 없으면 전부** — 레거시 설치본이다. 그때는 `refreshOnly` 의 디스크 판정이 대신한다.
  */
 function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
   if (log === null) return ALL_CLI_TARGETS;
-  return ALL_CLI_TARGETS.filter((cli) => {
-    if (cli === "codex") return log.templates.codexDir !== undefined;
-    if (cli === "opencode") return log.templates.opencodeDir !== undefined;
-    return true;
-  });
+  return installedClis(log);
 }
 
 function refreshExternalCli(
@@ -1476,4 +1523,16 @@ interface HookEntry {
 interface SettingsJson {
   hooks?: Record<string, HookEntry[]>;
   [key: string]: unknown;
+}
+
+/**
+ * BLOCKER-6 안내의 복구 명령 — 로그의 트랙·scope 를 그대로 채워 설치자가 아무것도 기억하지 않아도
+ * 복사해 칠 수 있게 한다. 이 한 번의 install 이 `clis`·앵커 기록을 굳혀 다음 update 부터 정상 갱신.
+ */
+function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): string {
+  const trackArgs = (tracks.length > 0 ? tracks : log.spec.tracks).map((t) => `--track ${t}`);
+  return `agent-harness install ${trackArgs.join(" ")} --cli claude --scope ${log.scope}`.replace(
+    /\s+/g,
+    " ",
+  );
 }
