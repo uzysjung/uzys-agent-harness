@@ -30,6 +30,7 @@ criteria and authority boundaries are not lowered on that basis.
 | Requested work | Read | Behavior |
 |---|---|---|
 | Audit, reconcile, or propose improvements | [Audit](references/audit.md) | Read-only findings and proposed edits |
+| Bring project guidance / memory into line with named authoritative sources | [Audit § Reconcile principles](references/audit.md#reconcile-principles-across-sources), then [Apply](references/apply.md) | Precedence table, complete statement ledger, fixes within the delegated authority |
 | A full audit, or testing / usage-scene / execution-route (delegation) advice | [Verification](references/verification.md), plus Audit for findings | Propose outcome-based implementation, sufficient verification, and a suitable route |
 | Apply, remove, merge, relocate, or conduct an authorized trial | [Apply](references/apply.md); Audit only for unresolved findings | Make bounded local changes; distinguish trials from adoption |
 | Fill or refresh project context | [Populate](references/populate.md) | Edit only authorized project-context sections |
@@ -46,7 +47,8 @@ requests stay on their existing workflow.
 A full audit covers these concerns; a narrower request keeps its stated scope:
 
 1. Questions, research, and rechecks: useful triggers, evidence reuse, and stop conditions.
-2. Conflicts and changed decisions: confirmed intent, actual implementation, and authority.
+2. Conflicts and changed decisions: confirmed intent, actual implementation, and authority —
+   across sources, by a complete statement ledger rather than spot reading.
 3. Instruction value and autonomy: useful project context, proportionate procedures,
    missing enablers, and fit to demonstrated model and tool capabilities.
 4. Context efficiency: current actionable guidance, with long rationale and history on demand.

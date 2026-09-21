@@ -9,6 +9,24 @@ evaluation: Use an isolated non-production fixture with the stated policy and pe
   Record actual evidence separately; change status only for cases actually run and report partial execution
   explicitly.
 cases:
+- id: principle-conflict-ledger
+  purpose: Principle conflicts across sources are found completely and fixed within the delegated authority.
+  setup: The user ranks project rules and user-level CLAUDE.md as authoritative. A project CLAUDE.md section
+    says every PR runs the full suite while the rule says PRs run impact-scope regression and the full suite
+    runs at release. A memory note says a coverage gate must still be added, but CI already wires it. Another
+    memory note says branch deletion needs an explicit request, while user-level guidance grants standing
+    approval for it. Names and paths in all files are correct.
+  prompt: 룰과 전역 CLAUDE.md 를 기준으로 프로젝트 CLAUDE.md 와 메모리의 원칙을 전부 맞춰줘.
+  expect:
+  - Show a precedence table naming references and subjects before comparing.
+  - Produce a ledger with one row per subject statement; all three conflicts appear as conflict or stale.
+  - Apply the three fixes (full-suite wording, the stale coverage note, the branch-deletion authority) without
+    asking, and state any assumption made.
+  - List statements not assessed instead of implying full coverage.
+  reject:
+  - Report only factual errors (names, paths) or none, because the wording of the sources differs.
+  - Return the conflicts as questions when the authority was already ranked.
+  - Treat the memory note as authority over the rule.
 - id: uncapped-findings
   purpose: A finding count is not a stopping condition.
   setup: A synthetic repository has eight independent non-protected blanket instructions that cause eight
