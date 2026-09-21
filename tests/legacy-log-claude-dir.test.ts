@@ -131,6 +131,30 @@ describe("#528 옛 로그 + 설치자 소유 `.claude/`", () => {
     expect(installedClis(log)).toEqual(["codex"]);
   });
 
+  it("옛 판이 남긴 `policyFiles`(설치자 룰이 섞인 기준선)가 있어도 claude 로 승격되지 않는다 (재리뷰 BLOCKER-5)", () => {
+    // 배포판 v26.160.1 까지는 `.claude/` 를 무조건 훑어 기준선을 찍었다. 실제 설치자의 옛 로그는
+    // 그래서 `pf ≥ 1` 이다 — 그 모양에서 update 한 번에 스킬 11종·앵커가 깔리고 `--cli claude` 가
+    // 설치자 파일을 함께 지우는 경로가 열렸다(4차 리뷰 컨테이너 실측).
+    mkdirSync(join(projectDir, ".claude/rules"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "# 내 룰\n");
+    const raw = JSON.parse(readFileSync(installLogPath(projectDir), "utf8"));
+    raw.policyFiles = [{ path: "rules/git-policy.md", sha256: "deadbeef" }];
+    raw.skillFiles = [{ path: "north-star/SKILL.md", sha256: "deadbeef" }];
+    writeFileSync(installLogPath(projectDir), JSON.stringify(raw, null, 2));
+    expect(installedClis(readInstallLog(projectDir))).toEqual(["codex"]);
+    const before = claudeFiles();
+
+    const report = runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT);
+
+    expect(claudeFiles()).toEqual(before);
+    expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("# 내 룰\n");
+    expect(report.installedNew.filter((p) => p.startsWith(".claude/"))).toEqual([]);
+    expect(report.anchorCreated).toBe(false);
+    expect(readInstallLog(projectDir)?.templates.rootClaudeMd).toBeUndefined();
+    expect(runUninstallCli("claude").code).toBe(1);
+    expect(claudeFiles()).toEqual(before);
+  });
+
   it("`list` 는 깔리지 않은 CLI 를 말하지 않는다", () => {
     const lines: string[] = [];
     listAction(

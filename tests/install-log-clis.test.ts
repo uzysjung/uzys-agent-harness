@@ -53,17 +53,17 @@ describe("#528 설치 로그의 CLI 집합", () => {
       expect(installedClis(log)).toEqual(["claude"]);
     });
 
-    it("claude 단독: 앵커가 빠진 설치본은 `policyFiles`·`skillFiles` 가 말한다", () => {
-      // 앵커 기록은 manifest 에서 그 파일이 빠졌거나 source 부재로 skip 되면 null 이다
-      // (`installer.ts` harnessAnchorLog). 그때도 `.claude/` 상대 기준선 둘이 남는다.
+    it("`policyFiles`·`skillFiles` 만으로는 claude 가 아니다 — 옛 판은 그 둘을 claude 선택과 무관하게 훑어 적었다 (BLOCKER-5)", () => {
+      // v26.160.1 까지 `installer.ts` 는 `.claude/` 를 무조건 훑어 기준선을 찍었다. 설치자 파일이
+      // 템플릿과 같은 상대 경로면 codex 단독 로그에도 이 두 필드가 들어 있다(컨테이너 실측).
       const log = emptyLog({
-        spec: { tracks: ["tooling"], cli: [] },
-        templates: { claudeDir: ".claude/" },
+        spec: { tracks: ["tooling"], cli: ["codex"] },
+        templates: { claudeDir: ".claude/", codexDir: ".codex/" },
         policyFiles: [{ path: "rules/git-policy.md", sha256: "p" }],
         skillFiles: [{ path: "objective-brief/SKILL.md", sha256: "s" }],
       });
 
-      expect(installedClis(log)).toEqual(["claude"]);
+      expect(installedClis(log)).toEqual(["codex"]);
     });
 
     it("codex + opencode: `spec.cli` 는 마지막 하나뿐이라도 `templates.*Dir` 가 둘을 말한다", () => {

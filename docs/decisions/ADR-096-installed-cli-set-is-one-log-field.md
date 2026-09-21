@@ -40,16 +40,18 @@
    정상으로 읽는 관행을 이미 갖고 있다(`rootFiles`·`skillFiles`·`externalFiles`).
 
    ```
-   claude      ⇐ spec.cli ∋ claude      ∨ templates.rootClaudeMd ∨ policyFiles ∨ skillFiles
+   claude      ⇐ spec.cli ∋ claude      ∨ templates.rootClaudeMd
    codex       ⇐ spec.cli ∋ codex       ∨ templates.codexDir
    opencode    ⇐ spec.cli ∋ opencode    ∨ templates.opencodeDir
    antigravity ⇐ spec.cli ∋ antigravity ∨ externalFiles ∋ .agents/rules/uzys-harness.md
    ```
 
-   claude 의 근거가 셋인 이유: `templates.claudeDir` 는 고르지 않아도 적혀 있어 믿으면 codex 단독
-   설치본이 전부 claude 로 읽히고, 남은 기록 셋은 **claude 를 고른 설치에만** 생긴다(claude 미선택
-   설치는 `.claude/` baseline 대신 CLI 중립 자산만 깐다 — `installer.ts`). 앵커가 빠진 설치본은
-   `policyFiles`·`skillFiles` 가, 자산을 전부 해제한 설치본은 앵커 sha 가 받는다. **유도 결과는
+   claude 의 근거가 앵커 sha 하나인 이유: `templates.claudeDir` 는 고르지 않아도 적혀 있고,
+   `policyFiles`·`skillFiles` 는 v26.160.1 까지 claude 선택과 무관하게 **디스크의 `.claude/` 를 훑어**
+   적혔다 — 설치자 파일이 템플릿과 같은 경로면 codex 단독 로그에도 들어 있다(독립 리뷰 BLOCKER-5,
+   컨테이너 실측). 옛 로그에서 claude 를 고른 설치에만 있는 기록은 앵커 sha 뿐이다(v26.70.1 부터
+   무조건 기록, 이후 설치에 누적). 놓치는 창 = 그 이전에 깔고 claude 재설치가 없던 설치본 — 틀리는
+   방향이 안전(`.claude/` 를 건드리지 않음)이고 재설치가 `clis` 를 굳힌다. **유도 결과는
    읽기 시점에 기록하지 않는다** — 다음에 로그를 다시 쓸 때 실린다. 읽기 경로(`list`·`--dry-run`)가
    디스크 기록을 바꾸면 사용자가 아무것도 안 했는데 기록이 달라진다.
 4. **CLI 별 소유 표를 한 모듈로 둔다**(`src/cli-ownership.ts`). 전용 경로 · 공유 경로(상대 CLI) ·
@@ -84,8 +86,13 @@
   깔렸다고 말하고 → 사용자가 `uninstall --cli claude` 를 치고 → `.claude/` 트리가
   `rmSync(recursive)` 로 통째 사라진다(그 자리는 `kind: "dir"` 라 sha 판정이 없고, 백업도 확인
   화면도 없다). 같은 오판정으로 `update` 는 고른 적 없는 Claude 하네스를 그 디렉터리에 깔았다.
-  Decision 6 과 정면으로 어긋나는 규칙이었고, 대체 근거(앵커 sha · `policyFiles` · `skillFiles`)가
-  **이미 기록에 있어** 디스크를 볼 이유도 없었다. 회귀 가드 = `tests/legacy-log-claude-dir.test.ts`.
+  Decision 6 과 정면으로 어긋나는 규칙이었고, 대체 근거(앵커 sha)가 **이미 기록에 있어** 디스크를
+  볼 이유도 없었다. 회귀 가드 = `tests/legacy-log-claude-dir.test.ts`.
+- **옛 로그의 `policyFiles`·`skillFiles` 를 claude 의 단서로 쓴다 — 기각(독립 리뷰 BLOCKER-5).**
+  두 필드는 배포판이 `.claude/` 를 무조건 훑어 적은 값이라 설치자 파일이 섞여 있고, 그 모양의 옛
+  로그가 `update` 한 번에 claude 설치본으로 승격돼 `.claude/` 2 → 38 파일 + 앵커 생성으로
+  이어졌다(컨테이너 실측). 옛 기록의 뜻은 **그 기록을 쓴 판의 코드**로 판정한다 — 이 판이 게이트를
+  달았다고 옛 기록까지 깨끗해지지 않는다.
 - **`INSTALL_LOG_VERSION` 을 올리고 마이그레이션 명령을 만든다.** 사용자가 한 번 더 뭔가를 쳐야
   하고, 안 친 프로젝트는 그대로 깨진다. 부재를 정상으로 읽는 기존 관행이 더 싸고 더 안전하다.
 - **`uninstall --cli` 없이 전량 uninstall → 재설치로 안내한다.** 설치자가 채운 `AGENTS.md` ·

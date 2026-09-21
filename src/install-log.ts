@@ -221,7 +221,7 @@ const ANTIGRAVITY_RULE_FILE = ".agents/rules/uzys-harness.md";
  * `spec.clis` 가 있으면 그것이 답이다. 없으면(v26.160.1 이하로 깐 로그) **기록만으로 1회
  * 유도**한다:
  *
- *   claude      ⇐ `spec.cli` ∋ claude ∨ `templates.rootClaudeMd` ∨ `policyFiles` ∨ `skillFiles`
+ *   claude      ⇐ `spec.cli` ∋ claude ∨ `templates.rootClaudeMd`
  *   codex       ⇐ `spec.cli` ∋ codex ∨ `templates.codexDir`
  *   opencode    ⇐ `spec.cli` ∋ opencode ∨ `templates.opencodeDir`
  *   antigravity ⇐ `spec.cli` ∋ antigravity ∨ `externalFiles` ∋ `.agents/rules/uzys-harness.md`
@@ -232,11 +232,15 @@ const ANTIGRAVITY_RULE_FILE = ".agents/rules/uzys-harness.md";
  * 하나면 생긴다)가 "깔린 CLI" 로 읽혀 `uninstall --cli claude` 가 그 트리를 통째로 지운다
  * (독립 리뷰 BLOCKER-1, 2026-09-22). 소유는 기록에서만 나온다.
  *
- * 그 자리를 대신하는 claude 의 기록은 셋이다: 앵커 sha(`templates.rootClaudeMd`) ·
- * `.claude/` 상대 경로로 남는 `policyFiles`·`skillFiles`. 셋 다 **claude 를 고른 설치에만**
- * 생긴다 — `installer.ts` 가 claude 미선택이면 `.claude/` baseline 대신 CLI 중립 자산
- * (`.uzys-agent-harness/`)만 깔기 때문이다. `templates.claudeDir` 는 v26.160.1 까지 고르지
- * 않아도 적혔으므로 단서로 쓸 수 없다.
+ * 그 자리를 대신하는 claude 의 기록은 **앵커 sha(`templates.rootClaudeMd`) 하나**다 — claude 를
+ * 고른 설치에만 적히고 이후 설치에도 누적된다(`buildInstallLog` 의 templates 병합). 쓸 수 없는
+ * 기록 둘: `templates.claudeDir` 는 v26.160.1 까지 고르지 않아도 적혔고, `policyFiles`·`skillFiles`
+ * 는 v26.160.1 까지 claude 선택과 무관하게 **디스크의 `.claude/` 를 훑어** 적혔다 — 설치자 파일이
+ * 템플릿과 같은 상대 경로(`rules/git-policy.md`)면 codex 단독 로그에도 들어 있다(독립 리뷰
+ * BLOCKER-5, 컨테이너 실측). 이 판부터 두 기준선은 claude 가 깔렸을 때만 찍지만, 유도가 존재하는
+ * 이유인 옛 로그에서는 그 보장이 없으므로 단서로 쓰지 않는다. 놓치는 창 = 앵커 기록이 없는
+ * claude 설치본(v26.70.0 이하로 깔고 그 뒤 claude 재설치가 없는 경우) — 틀리는 방향이 안전
+ * (`.claude/` 를 건드리지 않는다)이고 재설치가 `clis` 를 굳힌다.
  *
  * **읽기만으로 로그를 고치지 않는다.** 유도 결과는 다음에 로그를 다시 쓸 때(`buildInstallLog`)
  * 기록된다 — `list` 나 `update --dry-run` 같은 읽기 경로가 디스크 기록을 바꾸면, 사용자가
@@ -250,13 +254,7 @@ export function installedClis(log: InstallLog | null): ReadonlyArray<CliBase> {
   if (log === null) return [];
   if (log.spec.clis) return sortClis(log.spec.clis);
   const found = new Set<CliBase>(log.spec.cli.filter(isCliBase));
-  if (
-    log.templates.rootClaudeMd !== undefined ||
-    (log.policyFiles ?? []).length > 0 ||
-    (log.skillFiles ?? []).length > 0
-  ) {
-    found.add("claude");
-  }
+  if (log.templates.rootClaudeMd !== undefined) found.add("claude");
   if (log.templates.codexDir !== undefined) found.add("codex");
   if (log.templates.opencodeDir !== undefined) found.add("opencode");
   if ((log.externalFiles ?? []).some((f) => f.path === ANTIGRAVITY_RULE_FILE)) {
