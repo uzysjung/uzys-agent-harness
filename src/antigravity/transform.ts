@@ -19,11 +19,15 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { isBaselineExcluded } from "../baseline-targets.js";
 import { renderAgentsMd } from "../codex/agents-md.js";
-import { writeBundledSkillDirs } from "../codex/skills.js";
+import { renderBundledSkill, writeBundledSkillDirs } from "../codex/skills.js";
+import { readInstallLog } from "../install-log.js";
+import { buildAssetSpec } from "../manifest.js";
 import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
 import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules } from "../rules-port.js";
+import { DEFAULT_OPTIONS, TRACKS, type Track } from "../types.js";
 
 export interface AntigravityTransformParams {
   /** harness root (templates/CLAUDE.md source 위치). */
@@ -79,8 +83,27 @@ export function runAntigravityTransform(
   } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
+  // 0. #532 (Epic #527 S3) — 새 릴리즈가 더한 번들 스킬(또는 설치자가 지운 자리)을 이 CLI 의
+  //   스킬 자리에도 깐다. refresh 모드에서만 돌고, **앵커가 디스크에 있을 때만** 돈다 —
+  //   `refreshOnly` 의 규율("안 고른 CLI 에는 새로 만들지 않는다")을 지키는 증거가 그것이다.
+  //   증거를 아래 `rulesFile` 반환값이 아니라 디스크에서 읽는 이유: 이 목록이 **1 의 상시 스킬
+  //   안내에 들어가야** 하므로(ADR-085 — 안내는 실제로 깔린 것만) 룰을 쓰기 전에 정해져야 한다.
+  const seeded =
+    refreshOnly && existsSync(anchorFile(projectDir))
+      ? seedMissingSkillDirs(
+          harnessRoot,
+          projectDir,
+          pendingBundledSkillIds(projectDir, selectedInternalSkills),
+          writer,
+        )
+      : [];
+  const skillIds =
+    seeded.length > 0
+      ? [...new Set([...selectedInternalSkills, ...seeded])]
+      : selectedInternalSkills;
+
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  const rulesFile = writeRules(harnessRoot, projectDir, writer, selectedInternalSkills);
+  const rulesFile = writeRules(harnessRoot, projectDir, writer, skillIds);
 
   // 1a. 2026-08-12 — 배포 룰을 같은 워크스페이스 룰 디렉터리에 형제 파일로 놓는다.
   //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
@@ -105,10 +128,12 @@ export function runAntigravityTransform(
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 보존.
   //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체다. 루프는 세 transform
   //   공용 helper 가 소유한다(codex·opencode 와 같은 산출물).
+  //   #532 — `skillIds` 는 선택분 + 0 에서 새로 만든 자리다. 새 자리의 `SKILL.md` 는 방금
+  //   만들어져 디스크에 있으므로 refresh 모드에서도 이 루프가 형제 파일까지 채운다.
   const skillFiles = writeBundledSkillDirs({
     harnessRoot,
     projectDir,
-    skillIds: selectedInternalSkills,
+    skillIds,
     writer,
   });
 
@@ -118,6 +143,78 @@ export function runAntigravityTransform(
     skillFiles,
     ownership: writer.result(),
   };
+}
+
+/**
+ * 이 CLI 의 **전용** 자리 (Epic #527 소유 표). 파일이 디스크에 있다는 것이 곧 "이 프로젝트에
+ * Antigravity 가 설치돼 있다"는 증거다 — `uninstall --cli antigravity` 가 회수하는 자리이자,
+ * 설치 로그의 옛 판에서 이 CLI 를 유도하는 단서와 같은 파일(`install-log.ts` `installedClis`)이다.
+ */
+function anchorFile(projectDir: string): string {
+  return join(projectDir, ".agents", "rules", "uzys-harness.md");
+}
+
+/**
+ * #532 (Epic #527 S3) — 이 프로젝트의 번들 스킬 중 `.agents/skills/<id>` 자리가 **비어 있는** id.
+ *
+ * 두 갈래가 섞인다. ⓐ 새 릴리즈가 더한 스킬 — 디스크 어디에도 없으므로 update 가 넘겨 주는
+ * `selectedInternalSkills`(`installedBundledSkills`, 디스크에서 유도)에 아예 들어오지 않는다.
+ * ⓑ 설치자가 지웠거나 다른 CLI 자리에만 있는 스킬 — 프로젝트의 스킬 선택은 하나이고 그 집합이
+ * 깔린 CLI 전부의 자리로 간다(Epic §S2).
+ *
+ * ⓐ 의 대상 집합은 **기존 판정 함수로** 만든다(`buildAssetSpec` — 트랙별·opt-in 게이팅의 SSOT).
+ * 목록을 여기 적으면 그게 다음 drift 의 서식지다. 빼는 규칙도 기존 그대로 — `--without <skill>`
+ * 은 `spec.skillExclude`(#505), 자산 페이지 해제는 `baselineExclude`(ADR-074). 둘 다 안 보면
+ * 설치자가 뺀 스킬이 update 마다 되돌아온다.
+ */
+function pendingBundledSkillIds(
+  projectDir: string,
+  selectedInternalSkills: ReadonlyArray<string>,
+): string[] {
+  const log = readInstallLog(projectDir);
+  const tracks = (log?.spec.tracks ?? []).filter((t): t is Track =>
+    (TRACKS as ReadonlyArray<string>).includes(t),
+  );
+  const excluded = new Set(log?.spec.baselineExclude ?? []);
+  const skillExcluded = new Set(log?.spec.skillExclude ?? []);
+  const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
+  const pending: string[] = [];
+  for (const id of new Set([...spec.selectedInternalSkills, ...selectedInternalSkills])) {
+    if (skillExcluded.has(id)) continue;
+    if (isBaselineExcluded(`.claude/skills/${id}`, excluded)) continue;
+    // 이미 이 CLI 자리에 있으면 갱신 대상이지 생성 대상이 아니다 — 기존 규칙이 담당한다.
+    if (existsSync(join(projectDir, ".agents", "skills", id, "SKILL.md"))) continue;
+    pending.push(id);
+  }
+  return pending;
+}
+
+/**
+ * #532 — 비어 있는 `.agents/skills/<id>/SKILL.md` 자리를 만든다 (refresh 모드 예외).
+ *
+ * `createInRefresh` 를 켜는 근거는 호출부가 잡은 **앵커 존재**다(위 0 번 주석). 형제 파일은
+ * `writeBundledSkillDirs` 가 이어서 채우므로 여기서는 `SKILL.md` 하나만 놓는다 — 그 헬퍼는
+ * `SKILL.md` 를 담당했다는 사실을 형제의 `createInRefresh` 근거로 쓴다(#431).
+ *
+ * @returns 실제로 자리를 잡은 id 만. 원본이 없거나 남의 도구가 소유한 자리(#343)는 빠진다 —
+ *   안 깐 스킬을 룰 파일의 상시 안내에 적으면 그게 곧 거짓 안내다.
+ */
+function seedMissingSkillDirs(
+  harnessRoot: string,
+  projectDir: string,
+  ids: ReadonlyArray<string>,
+  writer: OwnedWriter,
+): string[] {
+  const seeded: string[] = [];
+  for (const id of ids) {
+    const source = join(harnessRoot, "templates/skills", id, "SKILL.md");
+    if (!existsSync(source)) continue;
+    const target = join(projectDir, ".agents", "skills", id, "SKILL.md");
+    const body = renderBundledSkill(readFileSync(source, "utf8"));
+    if (!writer.write(target, body, { createInRefresh: true })) continue;
+    seeded.push(id);
+  }
+  return seeded;
 }
 
 /**
@@ -142,7 +239,7 @@ function writeRules(
   }
   const claudeMd = readFileSync(claudeMdPath, "utf8");
   const template = readFileSync(templatePath, "utf8");
-  const target = join(projectDir, ".agents", "rules", "uzys-harness.md");
+  const target = anchorFile(projectDir);
   const rulesOut = renderAgentsMd({
     template,
     claudeMd,
