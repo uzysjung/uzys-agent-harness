@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -95,6 +103,22 @@ describe("#528 uninstall --cli", () => {
     expect(log?.templates.codexDir).toBeUndefined();
     expect(log?.templates.claudeDir).toBe(".claude/");
     expect((log?.externalFiles ?? []).some((f) => f.path === "AGENTS.md")).toBe(false);
+  });
+
+  it("뺀 CLI 의 흔적은 기록에서도 사라진다 — `spec.cli` · 회수한 디렉터리의 `externalFiles`", () => {
+    // 남겨 두면 기록이 디스크와 다른 말을 한다. `spec.cli` 는 그냥 표시용이 아니다 —
+    // `external-installer.ts` 가 외부 스킬 refresh 의 대상 CLI 로 그 값을 읽는다(리뷰 N2).
+    install(["claude", "codex"]);
+    const before = readInstallLog(projectDir);
+    expect(before?.spec.cli).toContain("codex");
+    expect((before?.externalFiles ?? []).some((f) => f.path.startsWith(".codex/"))).toBe(true);
+
+    expect(removeCli("codex").code).toBe(0);
+
+    const log = readInstallLog(projectDir);
+    expect(log?.spec.cli).not.toContain("codex");
+    expect(log?.spec.cli).toContain("claude");
+    expect((log?.externalFiles ?? []).some((f) => f.path.startsWith(".codex/"))).toBe(false);
   });
 
   it("opencode 가 남으면 공유 자리는 남는다 — `AGENTS.md` · `.agents/skills/`", () => {
@@ -208,6 +232,31 @@ describe("#528 uninstall --cli", () => {
     ).toBe(logBefore);
   });
 
+  it("심링크는 예고와 실행이 같은 술어로 건너뛴다 — `npx skills` 가 깐 포인터다", () => {
+    install(["claude", "codex"]);
+    // `npx skills add` 가 파일을 심링크로 깔아 둔 상태. 내용이 그대로라 sha 판정만으로는
+    // 회수 대상으로 보이지만, 그 링크는 우리가 만든 것이 아니다. 실행 경로는 `lstatSync` 로
+    // 걸러 내는데 예고에 그 줄이 없으면 "remove N file(s)" 가 실제와 갈린다(리뷰 N5).
+    const recorded = (readInstallLog(projectDir)?.externalFiles ?? []).find((f) =>
+      f.path.startsWith(".agents/skills/"),
+    )?.path;
+    expect(recorded).toBeDefined();
+    const linked = join(projectDir, recorded as string);
+    const real = `${linked}.real`;
+    renameSync(linked, real);
+    symlinkSync(real, linked);
+
+    const preview = removeCli("codex", { dryRun: true });
+    const run = removeCli("codex");
+
+    const previewed = /remove (\d+) CLI output file/.exec(preview.lines.join("\n"))?.[1];
+    const removed = /CLI outputs removed: (\d+) file/.exec(run.lines.join("\n"))?.[1];
+    expect(previewed).toBeDefined();
+    expect(previewed).toBe(removed);
+    // 링크 자체는 양쪽 다 건드리지 않는다.
+    expect(existsSync(linked)).toBe(true);
+  });
+
   it("옛 로그(`clis` 없음)에서도 유도한 집합으로 판정한다", () => {
     install(["claude", "codex"]);
     const logPath = join(projectDir, ".uzys-agent-harness/.harness-install.json");
@@ -216,7 +265,7 @@ describe("#528 uninstall --cli", () => {
     raw.spec.clis = undefined;
     raw.spec.cli = ["codex"];
     writeFileSync(logPath, JSON.stringify(raw, null, 2));
-    expect(installedClis(projectDir, readInstallLog(projectDir))).toEqual(["claude", "codex"]);
+    expect(installedClis(readInstallLog(projectDir))).toEqual(["claude", "codex"]);
 
     const run = removeCli("codex");
 

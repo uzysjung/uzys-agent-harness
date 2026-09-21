@@ -432,11 +432,12 @@ export function runUpdateMode(
   //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
   //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
   const installLog = readInstallLog(projectDir);
-  // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합. 옛 로그에서는 `.claude/` 존재가 유도
-  // 규칙의 단서이기도 해서 이 줄의 두 조건이 같은 답을 내고, 동작은 이전과 같다.
+  // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합. 옛 로그에서 그 집합은 **기록만으로**
+  // 유도되므로(앵커 sha · `policyFiles` · `skillFiles`) `spec.cli` 기반 판정과 같은 답을
+  // 내고, 디스크에 `.claude/` 가 있다는 사실은 이 판정에 들어오지 않는다.
   if (
     existsSync(claudeDir) &&
-    (installLog === null || installedClis(projectDir, installLog).includes("claude"))
+    (installLog === null || installedClis(installLog).includes("claude"))
   ) {
     if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);
   }
@@ -610,9 +611,9 @@ function installNewAssets(
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
   // 안 깔아 주는 쪽보다 비싸다. CLI 중립 자산(`.uzys-agent-harness/`)은 그대로 대상이다.
   // #528 — 판정은 `spec.cli`(마지막 설치분)가 아니라 **깔린 집합**이다. 위저드에서 claude 를
-  // 풀고 opencode 를 더한 로그는 `spec.cli` 가 `["opencode"]` 로 덮여, `.claude/` 가 멀쩡히
-  // 있는데도 새 릴리즈의 Claude 자산을 못 받았다(실측 2026-09-21).
-  const claudeSelected = installedClis(projectDir, log).includes("claude");
+  // 풀고 opencode 를 더한 로그는 `spec.cli` 가 `["opencode"]` 로 덮여, 첫 설치의 앵커 기록이
+  // 그대로 남아 있는데도 새 릴리즈의 Claude 자산을 못 받았다(실측 2026-09-21).
+  const claudeSelected = installedClis(log).includes("claude");
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
   // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
@@ -740,8 +741,7 @@ function installNewSkillDirs(
   const skillExcluded = new Set(log?.spec.skillExclude ?? []);
   // #528 — 같은 이유로 `spec.cli` 가 아니라 깔린 집합을 본다. 로그가 없는 레거시 설치본은
   // 이전과 같이 claude 로 다룬다(`.claude/skills/` 가 그 설치본의 유일한 스킬 자리였다).
-  if (log !== null && !installedClis(projectDir, log).includes("claude"))
-    return { installed, foreignOwned };
+  if (log !== null && !installedClis(log).includes("claude")) return { installed, foreignOwned };
   const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
   for (const entry of buildManifest(spec)) {
     if (entry.type !== "dir" || !entry.target.startsWith(".claude/skills/")) continue;
@@ -977,9 +977,9 @@ function installedBundledSkills(projectDir: string): string[] {
  *
  * **로그가 없으면 전부** — 레거시 설치본이다. 그때는 `refreshOnly` 의 디스크 판정이 대신한다.
  */
-function installedCliTargets(projectDir: string, log: InstallLog | null): ReadonlyArray<CliBase> {
+function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
   if (log === null) return ALL_CLI_TARGETS;
-  return installedClis(projectDir, log);
+  return installedClis(log);
 }
 
 function refreshExternalCli(
@@ -991,7 +991,7 @@ function refreshExternalCli(
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
-    cli: installedCliTargets(projectDir, log),
+    cli: installedCliTargets(log),
     // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
     // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
     // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은

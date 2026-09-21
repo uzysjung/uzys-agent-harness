@@ -53,7 +53,7 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
   log(c.dim(`  tracks:    ${installLog.spec.tracks.join(", ") || "(none)"}`));
   // #528 — **지금 깔려 있는 집합**을 보여 준다. `spec.cli` 는 마지막 설치가 고른 것이라
   // `uninstall --cli codex` 뒤에도 codex 를 계속 말한다 — 화면이 디스크와 다른 말을 하는 자리였다.
-  log(c.dim(`  cli:       ${installedClis(projectDir, installLog).join(", ") || "(none)"}`));
+  log(c.dim(`  cli:       ${installedClis(installLog).join(", ") || "(none)"}`));
   log("");
 
   log(c.bold(`  Assets (${installLog.assets.length})`));

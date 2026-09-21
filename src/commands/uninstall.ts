@@ -485,7 +485,7 @@ const TEMPLATE_DIR_FIELD: Partial<Record<CliBase, "claudeDir" | "codexDir" | "op
  * @returns 뺄 CLI. `null` 이면 이미 `exit` 했다.
  */
 function resolveCliTarget(ctx: RemoveCliCtx, io: RemoveCliIo): CliBase | null {
-  const { options, installLog, projectDir } = ctx;
+  const { options, installLog } = ctx;
   // `--only`(자산만) · `--keep-templates`(파일을 남긴다)는 이 명령이 하려는 일과 반대다.
   // 조용히 한쪽을 이기게 하면 사용자는 자기가 시킨 것과 다른 결과를 받는다.
   if (options.only !== undefined || options.keepTemplates) {
@@ -505,7 +505,7 @@ function resolveCliTarget(ctx: RemoveCliCtx, io: RemoveCliIo): CliBase | null {
     io.exit(1);
     return null;
   }
-  const installed = installedClis(projectDir, installLog);
+  const installed = installedClis(installLog);
   if (!installed.includes(target)) {
     io.err(status.failure(c.red(`ERROR: ${target} is not installed in this project`)));
     io.err(c.dim(`       installed: ${installed.join(", ") || "(none)"}`));
@@ -618,24 +618,39 @@ function removeHarnessAnchor(ctx: RemoveCliCtx, io: RemoveCliIo): boolean {
   return true;
 }
 
-/** 제거 후 로그. `assets` 는 손대지 않는다 — 자산은 CLI 소속이 아니다(스킬 자리는 표가 본다). */
+/**
+ * 제거 후 로그. `assets` 는 손대지 않는다 — 자산은 CLI 소속이 아니다(스킬 자리는 표가 본다).
+ *
+ * **뺀 CLI 의 흔적은 기록에서도 함께 뺀다.** 남겨 두면 기록이 디스크와 다른 말을 하고, 그
+ * 값을 읽는 쪽이 이미 있다: `external-installer.ts` 는 `spec.cli` 를 외부 스킬 refresh 의
+ * 대상 CLI 로 쓴다 — 방금 뺀 CLI 를 대상으로 지정하게 된다(독립 리뷰 N2). 회수한 전용
+ * 디렉터리(`.codex/` 등) 아래의 `externalFiles` 항목도 같은 이유로 지운다 — 그 파일들은
+ * 디렉터리와 함께 이미 사라졌다.
+ */
 function settleCliLog(
   ctx: RemoveCliCtx,
   target: CliBase,
   remaining: ReadonlyArray<CliBase>,
   recovered: ReadonlySet<string>,
   anchorRemoved: boolean,
+  removedDirs: ReadonlyArray<string>,
 ): InstallLog {
   const { installLog } = ctx;
   const next: InstallLog = {
     ...installLog,
-    spec: { ...installLog.spec, clis: [...remaining] },
+    spec: {
+      ...installLog.spec,
+      cli: installLog.spec.cli.filter((cli) => cli !== target),
+      clis: [...remaining],
+    },
     templates: { ...installLog.templates },
   };
   const field = TEMPLATE_DIR_FIELD[target];
   if (field) delete next.templates[field];
   if (anchorRemoved) delete next.templates.rootClaudeMd;
-  const survivors = (installLog.externalFiles ?? []).filter((f) => !recovered.has(f.path));
+  const survivors = (installLog.externalFiles ?? []).filter(
+    (f) => !recovered.has(f.path) && !underAny(f.path, removedDirs),
+  );
   if (survivors.length > 0) next.externalFiles = survivors;
   else delete next.externalFiles;
   return next;
@@ -645,7 +660,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   const target = resolveCliTarget(ctx, io);
   if (target === null) return;
   const { options, installLog, projectDir, harnessRoot } = ctx;
-  const installed = installedClis(projectDir, installLog);
+  const installed = installedClis(installLog);
   const remaining = installed.filter((cli) => cli !== target);
   const plan = planCliRemoval(target, remaining, installLog);
 
@@ -672,7 +687,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   const anchorRemoved = plan.anchor ? removeHarnessAnchor(ctx, io) : false;
 
   const recovered = new Set([...external.removed, ...external.stripped]);
-  const next = settleCliLog(ctx, target, remaining, recovered, anchorRemoved);
+  const next = settleCliLog(ctx, target, remaining, recovered, anchorRemoved, plan.dirs);
   try {
     io.writeLog(projectDir, next);
     io.log(`  ${status.success(`install log updated (clis: ${remaining.join(", ")})`)}`);
@@ -1018,6 +1033,9 @@ function previewExternalLines(
   for (const { path, sha256 } of installLog.externalFiles ?? []) {
     const abs = join(projectDir, path);
     if (!existsSync(abs)) continue;
+    // 실행 경로와 **같은 술어**다 — 심링크(`npx skills` 가 깐 `.agents/skills/<id>`)는 회수
+    // 대상이 아니다. 이 줄이 없으면 미리보기만 그것을 세어 예고한 수와 실제가 갈린다(N5).
+    if (!lstatSync(abs).isFile()) continue;
     const current = readFileSync(abs, "utf8");
     if (hashContent(current) !== sha256) {
       lines.push(`  ○ keep ${path} (modified since install — preserved)`);
