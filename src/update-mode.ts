@@ -368,11 +368,20 @@ export function runUpdateMode(
   report.restored = fresh.restored;
   report.needsReinstall = fresh.needsReinstall;
 
+  // #528 재리뷰 BLOCKER-4 — `.claude/` 를 만지는 단계 전부(정책 동기화 · 기준선 기록 · 스킬 · 새
+  // 스킬 · 앵커)는 **claude 가 깔린 집합에 있을 때만** 돈다. 로그가 없는 레거시 설치본은 이전과
+  // 같이 claude 로 다룬다(`.claude/` 가 그 설치본의 유일한 자리였다). 이 게이트가 없으면 codex
+  // 단독 옛 로그 + 설치자의 `.claude/rules/…` 한 파일에서 정책 동기화가 그 파일을 덮고
+  // `policyFiles` 를 기록하며, 같은 실행의 뒤 단계가 그 기록으로 claude 를 유도해 스킬 11종과
+  // 앵커까지 깐다 — 그 뒤 `uninstall --cli claude` 가 설치자 파일을 함께 지운다(컨테이너 실측).
+  const logAtStart = readInstallLog(projectDir);
+  const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
+
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
   const policyBase = policyBaseline(projectDir);
   for (const { dir, ext } of POLICY_DIRS) {
-    if (!wants(dir === "hooks" ? "hooks" : "rules")) continue;
+    if (!claudeManaged || !wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
@@ -389,31 +398,34 @@ export function runUpdateMode(
   const syncedDirs = POLICY_DIRS.filter((d) => wants(d.dir === "hooks" ? "hooks" : "rules")).map(
     (d) => d.dir,
   );
-  if (syncedDirs.length > 0) refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
+  if (claudeManaged && syncedDirs.length > 0)
+    refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
-  const skillSync = wants("skills")
-    ? syncSkills(
-        join(claudeDir, "skills"),
-        join(templatesDir, "skills"),
-        skillBaseline(projectDir),
-        new Date(),
-        (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
-      )
-    : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
+  const skillSync =
+    claudeManaged && wants("skills")
+      ? syncSkills(
+          join(claudeDir, "skills"),
+          join(templatesDir, "skills"),
+          skillBaseline(projectDir),
+          new Date(),
+          (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
+        )
+      : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
   if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
   report.skillsPruned = skillSync.pruned;
   // #480 ① — 릴리즈로 새로 생긴 번들 스킬을 깐다. `syncSkills` 는 이미 깔린 것만 다루고
   // `installNewAssets` 는 파일 자산만 다뤄, 기존 설치본은 새 스킬을 영영 못 받았다.
-  const newSkills = wants("new-skills")
-    ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
-    : { installed: [], foreignOwned: [] };
+  const newSkills =
+    claudeManaged && wants("new-skills")
+      ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
+      : { installed: [], foreignOwned: [] };
   report.installedNew.push(...newSkills.installed);
-  if (wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
-  else if (newSkills.installed.length > 0)
+  if (claudeManaged && wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
+  else if (claudeManaged && newSkills.installed.length > 0)
     recordNewSkillBaseline(projectDir, templatesDir, newSkills.installed);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
@@ -431,14 +443,10 @@ export function runUpdateMode(
   //    이행 자체가 죽는다(그 이행이 이 함수의 원래 목적이다 — 로그 단독 판정은 update-mode
   //    테스트 6건이 red 로 잡았다). 그래서 디렉터리가 있고, **로그가 claude 를 말하거나 로그가
   //    아예 없을 때**만 돈다. 로그가 있는데 claude 가 없다 = 명시적으로 안 고른 것이다.
-  const installLog = readInstallLog(projectDir);
-  // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합. 옛 로그에서 그 집합은 **기록만으로**
-  // 유도되므로(앵커 sha · `policyFiles` · `skillFiles`) `spec.cli` 기반 판정과 같은 답을
-  // 내고, 디스크에 `.claude/` 가 있다는 사실은 이 판정에 들어오지 않는다.
-  if (
-    existsSync(claudeDir) &&
-    (installLog === null || installedClis(installLog).includes("claude"))
-  ) {
+  // #528 — `spec.cli`(마지막 설치분) 대신 깔린 집합(`claudeManaged`, 위에서 한 번 판정). 옛
+  // 로그에서 그 집합은 **기록만으로** 유도되므로(앵커 sha · `policyFiles` · `skillFiles`)
+  // `spec.cli` 기반 판정과 같은 답을 내고, 디스크에 `.claude/` 가 있다는 사실은 들어오지 않는다.
+  if (existsSync(claudeDir) && claudeManaged) {
     if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);
   }
 

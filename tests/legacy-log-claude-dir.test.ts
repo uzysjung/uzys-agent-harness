@@ -109,6 +109,28 @@ describe("#528 옛 로그 + 설치자 소유 `.claude/`", () => {
     expect(report.installedNew.filter((p) => p.startsWith(".claude/"))).toEqual([]);
   });
 
+  it("설치자의 `.claude/rules/…` 가 템플릿과 같은 경로여도 `update` 는 덮지도 기록하지도 깔지도 않는다 (재리뷰 BLOCKER-4)", () => {
+    // 3차 리뷰 실측: 이 파일 하나로 정책 동기화가 돌아 `policyFiles` 를 기록하고, 같은 실행의 뒤
+    // 단계가 그 기록으로 claude 를 유도해 스킬 11종과 앵커까지 깔았다 → `--cli claude` 가 설치자
+    // 파일을 함께 지우는 1차 BLOCKER-1 모양으로 돌아간다.
+    mkdirSync(join(projectDir, ".claude/rules"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "# 내 룰\n");
+    const before = claudeFiles();
+
+    const report = runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT);
+
+    expect(claudeFiles()).toEqual(before);
+    expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("# 내 룰\n");
+    expect(report.updated[".claude/rules"] ?? 0).toBe(0);
+    expect(report.installedNew.filter((p) => p.startsWith(".claude/"))).toEqual([]);
+    expect(report.anchorCreated).toBe(false);
+    const log = readInstallLog(projectDir);
+    expect(log?.policyFiles).toBeUndefined();
+    expect(log?.skillFiles).toBeUndefined();
+    expect(log?.templates.rootClaudeMd).toBeUndefined();
+    expect(installedClis(log)).toEqual(["codex"]);
+  });
+
   it("`list` 는 깔리지 않은 CLI 를 말하지 않는다", () => {
     const lines: string[] = [];
     listAction(
