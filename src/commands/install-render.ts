@@ -319,6 +319,19 @@ export function renderCliArtifacts(
   } else if (report.codex || report.opencode) {
     log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}`));
   }
+  // #528 — 새로 만든 앵커에 다른 앵커의 설치자 절을 옮겨 심었으면 말한다. 조용히 옮기면
+  // 설치자는 자기 문장이 두 파일에 생긴 것을 모르고, 어느 쪽을 고쳐야 하는지도 모른다.
+  const agentsSeededFrom =
+    report.codex?.agentsMdSeededFrom ?? report.opencode?.agentsMdSeededFrom ?? null;
+  if (agentsSeededFrom) {
+    log(
+      assetRow(
+        "success",
+        "AGENTS.md",
+        `Project Context seeded from ${agentsSeededFrom} · CLI 고유 표현은 audit-harness-fit 으로 맞춘다`,
+      ),
+    );
+  }
   if (report.codex) {
     log(assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]"));
     log(assetRow("success", ".codex/hooks/", `${report.codex.hookFiles.length} files`));
@@ -963,9 +976,7 @@ function renderPhase1Rows(
       assetRow(
         "success",
         "CLAUDE.md (root)",
-        baseline.rootClaudeMd.created
-          ? `fill-in scaffold + @import · ${n} track${n > 1 ? "s" : ""} noted`
-          : `@import ${HARNESS_ANCHOR_FILE} (body preserved)`,
+        rootClaudeMdMeta(baseline.rootClaudeMd, n),
         TEMPLATES_COL,
       ),
     );
@@ -1054,6 +1065,22 @@ export function shortenPath(p: string): string {
     return `…/${segs.slice(-3).join("/")}`;
   }
   return p;
+}
+
+/**
+ * 루트 `CLAUDE.md` 행의 설명. 세 경우를 한 문구로 묶지 않는다 — 묶는 순간 거짓 보고가 된다
+ * (P5 · ADR-060: 기존 사용자 파일에는 스캐폴드를 쓰지 않는다. #528: 옮겨 심은 경우가 늘었다).
+ */
+function rootClaudeMdMeta(
+  root: { created: boolean; seededFrom?: string | null },
+  trackCount: number,
+): string {
+  const tracks = `${trackCount} track${trackCount > 1 ? "s" : ""} noted`;
+  if (!root.created) return `@import ${HARNESS_ANCHOR_FILE} (body preserved)`;
+  if (root.seededFrom) {
+    return `Project Context seeded from ${root.seededFrom} + @import · ${tracks} · CLI 고유 표현은 audit-harness-fit 으로 맞춘다`;
+  }
+  return `fill-in scaffold + @import · ${tracks}`;
 }
 
 /**

@@ -226,6 +226,13 @@ export interface MergeOptions {
    * 생략 = 안내 없음(레거시 호출부·테스트). update 는 `.claude/skills/<id>` 존재로 채운다.
    */
   continuousSkills?: ReadonlyArray<string>;
+  /**
+   * #528 — 파일을 **새로 만들 때** 프로젝트 맥락 자리에 넣을 본문. 생략 = 빈 스캐폴드.
+   *
+   * CLI 를 더해 앵커가 새로 태어날 때 다른 앵커의 설치자 절을 옮겨 심는 자리다(`anchor-seed.ts`).
+   * 이미 있는 파일에는 쓰이지 않는다 — 그쪽은 본문이 설치자 소유고 우리는 마커 블록만 책임진다.
+   */
+  projectContext?: string;
 }
 
 /**
@@ -238,7 +245,7 @@ export function mergeProjectClaude(opts: MergeOptions): string {
   const expanded = expandTracks(opts.tracks);
   const trackList = expanded.map((t) => TRACK_DISPLAY_NAMES[t]).join(", ");
   const header = `# ${opts.projectName}\n\n> Active track(s): ${trackList}`;
-  return `${header}\n\n${renderFillScaffold()}\n`;
+  return `${header}\n\n${opts.projectContext ?? renderFillScaffold()}\n`;
 }
 
 /**

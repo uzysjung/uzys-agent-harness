@@ -99,6 +99,12 @@ Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도�
 | `.agents/skills/` | Codex · OpenCode · Antigravity | 셋 다 빠질 때 |
 | `.mcp.json` · `.uzys-agent-harness/` | 네 도구 전부 | 도구 하나를 빼는 것으로는 안 사라집니다 — 전량 `uninstall` 의 몫입니다 |
 
+**도구를 더해 앵커가 새로 생길 때는 이미 적어 둔 맥락을 옮겨 심습니다.** Claude Code 로 깔아 루트
+`CLAUDE.md` 를 채운 뒤 Codex 를 더하면, 새로 만들어지는 `AGENTS.md` 의 `## Project Context` 가 빈
+스캐폴드가 아니라 **그 본문**으로 태어납니다(반대 방향도 같습니다). 옮기는 것은 글자 그대로의
+복사뿐이라 두 파일의 도구 고유 표현(경로 이름·도구 이름)은 아직 어긋날 수 있습니다 — 설치 화면이
+`audit-harness-fit` 으로 한 번 맞추라고 안내합니다. 이미 있는 앵커는 건드리지 않습니다.
+
 `AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
 있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
 몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자

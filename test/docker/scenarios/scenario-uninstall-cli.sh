@@ -7,7 +7,8 @@
 #
 # 검증:
 #   ① codex 전용 자리(`.codex/`)가 사라진다
-#   ② codex 가 마지막 사용자였던 공유 자리(`.agents/skills/`)가 사라진다
+#   ② codex 가 마지막 사용자였던 공유 자리에서 **하네스가 쓴 스킬**이 사라진다. 같은 디렉터리의
+#      남의 스킬(`npx skills` 가 깐 것)은 그대로다 — 그 자리는 공유이고 우리 것만 회수한다
 #   ③ `AGENTS.md` 는 **남고** 설치자 문단이 그대로이며 `## Harness Rules` 는 없다 (#516 승계)
 #   ④ claude 쪽(`.claude/` · 루트 `CLAUDE.md` 의 import)은 하나도 안 건드린다
 #   ⑤ 설치 로그의 `clis` 에 claude 만 남는다
@@ -27,13 +28,16 @@ agent-harness install --track tooling --cli claude --cli codex --scope project >
 echo "✓ install 완료 (cli=claude,codex)"
 
 AGENTS="${PROJ}/AGENTS.md"
-for path in "${AGENTS}" "${PROJ}/.codex" "${PROJ}/.agents/skills" "${PROJ}/.claude"; do
+# 하네스가 번들로 깐 스킬 하나 — `.agents/` 회수의 대상 표본. `.claude/` 쪽 사본과 짝이다.
+HARNESS_SKILL=audit-harness-fit
+for path in "${AGENTS}" "${PROJ}/.codex" "${PROJ}/.agents/skills/${HARNESS_SKILL}" \
+  "${PROJ}/.claude/skills/${HARNESS_SKILL}"; do
   if [[ ! -e "${path}" ]]; then
     echo "FAIL: ${path} 가 설치되지 않았다 — 검증 대상이 없다"
     exit 1
   fi
 done
-echo "✓ 전제 확인 — AGENTS.md · .codex/ · .agents/skills/ · .claude/ 존재"
+echo "✓ 전제 확인 — AGENTS.md · .codex/ · .agents/skills/${HARNESS_SKILL} · .claude/ 사본 존재"
 
 # --- 설치자가 Project Context 를 채운다 ---
 MARK="우리 팀 결제 정산 배치. 빌드는 make build. $$"
@@ -73,13 +77,18 @@ fi
 echo "✓ uninstall --cli codex exit 0"
 
 # --- ① · ② 전용 자리 + 마지막 사용자가 된 공유 자리 ---
-for gone in "${PROJ}/.codex" "${PROJ}/.agents/skills"; do
+for gone in "${PROJ}/.codex" "${PROJ}/.agents/skills/${HARNESS_SKILL}"; do
   if [[ -e "${gone}" ]]; then
     echo "FAIL: ${gone} 가 남았다 — codex 가 마지막 사용자인데 회수되지 않았다"
     exit 1
   fi
 done
-echo "✓ .codex/ · .agents/skills/ 회수"
+# 같은 자리의 claude 사본은 그대로다 — `.agents/` 와 `.claude/` 는 각자의 자리다.
+if [[ ! -d "${PROJ}/.claude/skills/${HARNESS_SKILL}" ]]; then
+  echo "FAIL: .claude/skills/${HARNESS_SKILL} 이 사라졌다 — claude 는 아직 설치돼 있다"
+  exit 1
+fi
+echo "✓ .codex/ · .agents/skills/${HARNESS_SKILL} 회수 · .claude/ 사본 보존"
 
 # --- ③ AGENTS.md 는 남고 설치자 문단 보존, 하네스 절은 제거 ---
 if [[ ! -f "${AGENTS}" ]]; then

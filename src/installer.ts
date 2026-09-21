@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
@@ -201,7 +202,12 @@ export interface BaselineReport {
    * import 한 줄만 얹었다는 뜻 — 두 경우의 보고 문구가 달라야 한다 (스캐폴드를 쓰지도 않고
    * "fill-in scaffold" 라고 보고하면 그게 거짓 보고다).
    */
-  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
+  rootClaudeMd: {
+    tracks: ReadonlyArray<Track>;
+    created: boolean;
+    /** #528 — 새로 만들면서 다른 앵커의 설치자 절을 옮겨 심었으면 그 출처. 아니면 `null`. */
+    seededFrom?: string | null;
+  } | null;
   /**
    * 2026-08-16 — 사용자가 위저드에서 체크를 푼 트랙 자산의 대상 경로.
    *
@@ -339,7 +345,14 @@ export function runInstall(ctx: InstallContext): InstallReport {
   const baselineExcluded = new Set(spec.baselineExclude ?? []);
 
   const base = spec.cli.includes("claude")
-    ? installClaudeBaseline(manifestSpec, projectDir, templatesDir, policyBase, baselineExcluded)
+    ? installClaudeBaseline(
+        manifestSpec,
+        projectDir,
+        templatesDir,
+        policyBase,
+        baselineExcluded,
+        harnessRoot,
+      )
     : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
       // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
       // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
@@ -535,7 +548,12 @@ interface ClaudeBaselineResult {
   dirsCopied: number;
   skipped: number;
   categories: BaselineCategoryCounts;
-  rootClaudeMd: { tracks: ReadonlyArray<Track>; created: boolean } | null;
+  rootClaudeMd: {
+    tracks: ReadonlyArray<Track>;
+    created: boolean;
+    /** #528 — 새로 만들면서 다른 앵커의 설치자 절을 옮겨 심었으면 그 출처. 아니면 `null`. */
+    seededFrom?: string | null;
+  } | null;
   /** 하네스 앵커 파일 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
   rootClaudeMdLog: { path: string; sha256: string } | null;
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
@@ -659,6 +677,8 @@ function installClaudeBaseline(
   templatesDir: string,
   policyBase: ReadonlyMap<string, string>,
   baselineExcluded: ReadonlySet<string>,
+  /** #528 — 루트 `CLAUDE.md` 를 **새로 만들 때** `AGENTS.md` 의 절 경계를 읽을 템플릿 자리. */
+  harnessRoot: string,
 ): ClaudeBaselineResult {
   ensureProjectSkeleton(projectDir);
 
@@ -740,8 +760,13 @@ function installClaudeBaseline(
     projectDir,
     manifestSpec.tracks,
     manifestSpec.selectedInternalSkills ?? [],
+    harnessRoot,
   );
-  result.rootClaudeMd = { tracks: manifestSpec.tracks, created: rootClaudeMd.created };
+  result.rootClaudeMd = {
+    tracks: manifestSpec.tracks,
+    created: rootClaudeMd.created,
+    seededFrom: rootClaudeMd.seededFrom,
+  };
   // 무결성 기록의 대상은 **하네스 앵커 파일**이다 (루트 CLAUDE.md 가 아니다) — uninstall 이
   // 회수하는 것도, update 가 갱신하는 것도 그 파일뿐이라 소유를 주장할 수 있는 것도 그것뿐이다.
   // 방금 manifest copy 가 놓아둔 디스크 내용을 읽는다: 렌더를 다시 하면 기준선이 두 벌이 된다.
@@ -963,19 +988,24 @@ function writeRootClaudeMd(
   projectDir: string,
   tracks: ReadonlyArray<Track>,
   continuousSkills: ReadonlyArray<string>,
-): { created: boolean } {
+  harnessRoot: string,
+): { created: boolean; seededFrom: string | null } {
   const target = join(projectDir, "CLAUDE.md");
   const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
+  // #528 — 파일을 **새로 만들 때만** `AGENTS.md` 의 설치자 절을 옮겨 심는다. 이미 있으면 그
+  // 본문이 이기고(우리는 마커 블록만 책임진다), 그때는 옮길 자리 자체가 없다.
+  const seeded = existing === null ? seedRootClaudeProjectContext(projectDir, harnessRoot) : null;
   const content = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
     tracks,
     continuousSkills,
+    ...(seeded === null ? {} : { projectContext: seeded }),
   });
   // 이미 import 가 있으면 upsert 가 입력을 그대로 돌려준다 — 그때는 파일을 만지지 않는다.
   if (content !== existing) {
     writeFileSync(target, content);
   }
-  return { created: existing === null };
+  return { created: existing === null, seededFrom: seeded === null ? null : "AGENTS.md" };
 }
 
 function chmodHooksSync(hookDir: string): void {
