@@ -4,6 +4,7 @@
 - Date: 2026-07-20
 - PR: (이 PR)
 - Extends: ADR-048 (외부 CLI 소유자 판정) · ADR-047 · ADR-046
+- Amended by: #514 (2026-09-21) — codex · opencode 한 쌍만 설치 로그(`templates.codexDir` · `opencodeDir`)로 가른다. 아래 §Decision 끝 문단.
 
 ## Context
 
@@ -33,6 +34,13 @@ ADR-048 이 선행조건이었다. 소유자 판정 없이 update 에 외부 CLI
 그러면 안 깐 CLI 는 대상 파일이 하나도 없어 자연히 제외되고, 안 고른 스킬도 마찬가지다.
 `update` 는 `CLI_BASES` 전부와 전체 스킬 목록을 그냥 넘긴다. 이것은 `.claude/` 쪽 `updateDir`
 이 "target 에 이미 있는 파일만"으로 오래 지켜 온 규율(Track 혼입 방지)과 **같은 규칙**이다.
+
+**예외 하나 (#514, 2026-09-21).** codex 와 opencode 는 같은 `AGENTS.md` 를 쓰므로 "파일이 있으면 그
+CLI 가 깔린 것"이 둘 사이에서는 성립하지 않는다 — codex 만 고른 설치본에도 파일이 있어 OpenCode
+transform 이 뒤에 돌아 Codex 판(`## Session Start`)을 OpenCode 판으로 바꿨다. 이 둘만 설치 로그의
+`templates.codexDir` · `opencodeDir` 로 가른다(`update-mode.ts` `installedCliTargets`). 위에서 기각한
+`spec.cli` 가 아니라 uninstall 이 이미 읽는 누적 기록이라 **새 사본이 아니다**. antigravity 는 전용
+파일이라 그대로 디스크 판정. 로그가 없으면 전부(이 문단 이전 동작).
 
 **install 과 update 는 같은 함수를 쓴다.** `runCliTransforms` 를 `installer.ts` 에서
 `src/cli-transforms.ts` 로 옮겼다. 각자 transform 을 부르면 기준선을 잇는 규칙이 두 벌이 되고,

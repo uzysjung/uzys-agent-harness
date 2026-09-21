@@ -206,6 +206,40 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     expect(existsSync(join(projectDir, ".opencode"))).toBe(false);
   });
 
+  it("codex 만 깐 프로젝트의 AGENTS.md 는 update 뒤에도 Codex 판이다 — 공유 파일이라 존재로는 못 가른다 (#514)", () => {
+    install(["codex"]);
+    const agents = join(projectDir, "AGENTS.md");
+    // 시나리오 자기검증 — Codex 판에만 있는 절이 처음부터 있어야 "사라졌다"를 잴 수 있다.
+    expect(readFileSync(agents, "utf8")).toContain("## Session Start");
+    expect(readFileSync(agents, "utf8")).toContain("Codex Agent Guide");
+
+    update();
+
+    const after = readFileSync(agents, "utf8");
+    expect(after).toContain("## Session Start");
+    expect(after).toContain("Codex Agent Guide");
+    expect(after).not.toContain("OpenCode Agent Guide");
+    // 판이 안 바뀌었으니 백업도 없다 — 바뀌면 편집분 백업이 1건 생기던 것이 #514 의 화면 증상이다.
+    expect(rootBackupsFor("AGENTS.md")).toEqual([]);
+  });
+
+  // 무는 것은 "로그의 어느 필드로 가르나"다 — `templates.*Dir` 대신 `spec.cli`(마지막 설치분)로 바꾸면
+  // codex 산출물이 옛 내용으로 남아 red. 수정 전 코드(전 CLI 갱신)에서는 green 인 것이 맞다.
+  it("codex 뒤에 opencode 를 추가 설치한 프로젝트는 update 가 둘 다 갱신한다 — 로그가 추가 설치를 누적한다", () => {
+    install(["codex"]);
+    install(["opencode"]);
+    pretendStale(".codex/config.toml", "# stale codex\n");
+
+    update();
+
+    // codex 산출물이 최신판으로 돌아왔다 = codex transform 이 돌았다.
+    expect(readFileSync(join(projectDir, ".codex/config.toml"), "utf8")).not.toContain(
+      "# stale codex",
+    );
+    // 두 CLI 가 다 깔린 파일은 뒤에 도는 OpenCode 판(문서화된 동작).
+    expect(readFileSync(join(projectDir, "AGENTS.md"), "utf8")).toContain("OpenCode Agent Guide");
+  });
+
   it("AGENTS.md 의 상시 스킬 안내는 update 뒤에도 깔린 스킬만 적는다 (#505 · ADR-085)", () => {
     // `--without` 으로 뺀 상시 스킬 — update 가 목록 전체를 넘기면 안내가 "열어라"고 적는다(실측).
     runInstall({

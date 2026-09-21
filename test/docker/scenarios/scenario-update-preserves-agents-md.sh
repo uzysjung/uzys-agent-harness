@@ -9,14 +9,13 @@
 #   ① `--cli codex` 설치본의 `## Project Context` 에 적은 문단이 update 뒤에도 그대로다
 #   ② 하네스 몫(`## Harness Rules`)은 그대로 자리에 있다 — 보존이 갱신을 죽이지 않았다
 #   ③ 마커가 실재한다 (다음 update 가 조각만 갈아 끼울 수 있는 상태)
-#   ④ update 를 한 번 더 돌려도 문단이 남고 백업이 쌓이지 않는다
+#   ④ update 를 두 번 돌려도 문단이 남고 백업은 0 건이다
+#   ⑤ `--cli codex` 로만 깐 파일은 update 뒤에도 **Codex 판**이다 — `## Session Start` 가 남는다 (#514)
 #
-# ④ 가 "백업 0" 이 아닌 이유(실측 2026-09-21, 이 시나리오가 처음 드러냄): `--cli codex` 로만
-# 깔아도 `update` 는 **OpenCode transform 까지** 같은 `AGENTS.md` 에 돌린다 — refreshOnly 가
-# "파일이 있으면 그 CLI 가 깔린 것"으로 판정하는데 이 파일은 두 CLI 가 공유하기 때문이다. 그래서
-# 첫 update 는 Codex 판을 OpenCode 판으로 바꾸고(`## Session Start` 가 빠진다) 편집분 백업을 한 번
-# 남긴다. **이 변경 이전에도 같았다**(그때는 파일이 통째로 덮여 눈에 안 띄었을 뿐) — #503 범위
-# 밖의 별건이라 여기서는 보존과 **누적 없음**만 문다.
+# ⑤ 의 경위(실측 2026-09-21, 이 시나리오가 처음 드러냄): `update` 는 "파일이 있으면 그 CLI 가 깔린
+# 것"으로 판정했는데 `AGENTS.md` 는 codex · opencode 가 공유하므로 codex 만 골라도 OpenCode transform
+# 이 뒤에 돌아 판을 바꾸고 편집분 백업을 하나 남겼다. #514 가 그 둘만 설치 로그로 가른다 — 그래서
+# ④ 가 "누적 없음"이 아니라 **0 건**을 문다.
 
 set -euo pipefail
 
@@ -84,6 +83,19 @@ if ! grep -qF "${MARK}" "${AGENTS}"; then
 fi
 echo "✓ Project Context 문단 보존"
 
+# --- ⑤ 판이 바뀌지 않았다 (#514) ---
+if ! grep -qF '## Session Start' "${AGENTS}"; then
+  echo "FAIL: update 가 Codex 판을 다른 CLI 판으로 바꿨다 — '## Session Start' 가 사라졌다 (#514)"
+  head -3 "${AGENTS}"
+  exit 1
+fi
+if ! grep -q 'Codex Agent Guide' "${AGENTS}"; then
+  echo "FAIL: 제목이 Codex 판이 아니다 (#514)"
+  head -3 "${AGENTS}"
+  exit 1
+fi
+echo "✓ codex 단독 설치본은 update 뒤에도 Codex 판"
+
 # --- ② 하네스 몫은 자리에 ---
 if ! grep -qF '## Harness Rules' "${AGENTS}"; then
   echo "FAIL: '## Harness Rules' 가 사라졌다 — 보존이 갱신을 죽였다"
@@ -102,11 +114,15 @@ if ! grep -qF '<!-- uzys-harness:anchor:start -->' "${AGENTS}"; then
 fi
 echo "✓ 마커 유지"
 
-# --- ④ 한 번 더 돌려도 보존 + 백업 누적 0 ---
+# --- ④ 한 번 더 돌려도 보존 + 백업 0 ---
 count_backups() {
   find "${PROJ}" -maxdepth 1 -name 'AGENTS.md.backup-*' | wc -l | tr -d ' '
 }
 BEFORE=$(count_backups)
+if [[ "${BEFORE}" -ne 0 ]]; then
+  echo "FAIL: 첫 update 가 AGENTS.md 백업을 ${BEFORE}건 남겼다 — 판이 바뀌었거나(#514) 편집분을 사용자 편집으로 오판했다"
+  exit 1
+fi
 
 agent-harness update >/tmp/agents-preserve-out2.txt 2>&1 || {
   echo "FAIL: 두 번째 update 가 실패했다"
