@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.160.1] — 2026-09-21 (AGENTS.md — uninstall 이 설치자 절을 남기고 · update 가 codex 단독 설치본의 판을 지킨다)
+
+### Fixed
+
+- **`uninstall` 이 설치자가 채운 `AGENTS.md` 를 통째로 지우지 않는다** (#516, PR #520). `update` 가 설치자 절을 이어받아 다시 쓰면서(#503) 그 문장이 기준선 안으로 들어갔고, uninstall 은 "기준선과 같으면 우리 것"으로 보고 살아 있는 파일을 지웠다. 이제 루트 `CLAUDE.md` 와 같은 경계다 — 하네스 절(`## Harness Rules` · `## Session Start` · `## Protected Files`)과 `<!-- uzys-harness:… -->` 조각만 걷어내고 `## Project Context` · `## Project Rules` 는 남긴다. 두 절에 아무것도 안 적었으면 전과 같이 파일째 삭제. `--dry-run` 은 `strip harness sections from AGENTS.md` 로 예고한다. 절 경계를 판정할 수 없을 때(템플릿 불가·쓰기 실패)는 지우지 않고 그 사유대로 알린다. 독립 리뷰 MERGE-OK(손실 경로 9종 재현, 블로커 0). 컨테이너 `scenario-uninstall-preserves-agents-md` 신설.
+- **`--cli codex` 로만 깐 프로젝트의 `AGENTS.md` 가 `update` 뒤에도 Codex 판이다** (#514, PR #521). update 는 "파일이 있으면 그 CLI 가 깔린 것"으로 판정했는데 `AGENTS.md` 는 codex · opencode 가 공유해 OpenCode transform 이 뒤에 돌아 `## Session Start` 를 없앴다. 이 두 CLI 만 설치 로그의 `templates.codexDir` · `opencodeDir`(추가 설치를 누적하는 기록)로 가른다 — ADR-049 에 예외로 추기. 이미 판이 바뀐 파일은 다음 update 에서 Codex 판으로 돌아온다(설치자 절 보존, 백업 0). 로그가 없는 클론 작업본의 잔존 경로는 #522 로 분리.
+
 ## [v26.160.0] — 2026-09-21 (update 가 설치자의 선택과 맥락을 지킨다 — --without 스킬 · AGENTS.md 사용자 절 · 상시 스위트 정리)
 
 ### Fixed
