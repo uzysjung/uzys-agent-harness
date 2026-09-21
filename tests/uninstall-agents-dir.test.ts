@@ -56,7 +56,11 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
     const lines: string[] = [];
     uninstallAction(
       { projectDir, yes: true, dryRun: false },
-      { exit: () => undefined as never, log: (l: string) => lines.push(l) },
+      {
+        exit: () => undefined as never,
+        log: (l: string) => lines.push(l),
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
     );
     return lines;
   };
@@ -172,5 +176,114 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
     expect(preview.join("\n")).toMatch(/remove \d+ CLI output file\(s\)/);
     // 미리보기는 아무것도 안 바꾼다.
     expect(existsSync(join(projectDir, ".agents"))).toBe(true);
+  });
+});
+
+/**
+ * #516 — **uninstall 이 설치자가 채운 `AGENTS.md` 를 통째로 지웠다.**
+ *
+ * `update` 가 설치자 절을 이어받아 다시 쓰면서(#503) 그 문장이 기준선 sha 안으로 들어갔고,
+ * uninstall 은 "기준선과 같은 파일 = 우리 것"으로 보고 지웠다. 직전 백업에는 남지만 살아 있는
+ * 파일은 없다. 루트 `CLAUDE.md` 는 import 블록만 걷어내고 본문을 남기는 것과 비대칭이었다.
+ *
+ * 여기서 무는 것은 설치자가 실제로 치는 순서 그대로다 — install → 절을 채움 → update → uninstall.
+ */
+describe("#516 uninstall 이 AGENTS.md 의 하네스 절만 걷어내고 설치자 절을 남긴다", () => {
+  let projectDir: string;
+
+  const run = (mode: "add" | "update") =>
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      mode,
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: mode === "update" ? ["claude"] : ["codex"],
+        projectDir,
+      } satisfies InstallSpec,
+    });
+
+  const uninstall = (dryRun = false): string[] => {
+    const lines: string[] = [];
+    uninstallAction(
+      { projectDir, yes: true, dryRun },
+      {
+        exit: () => undefined as never,
+        log: (l: string) => lines.push(l),
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+    return lines;
+  };
+
+  const agentsPath = () => join(projectDir, "AGENTS.md");
+  const read = () => readFileSync(agentsPath(), "utf8");
+
+  /** 설치자가 두 절을 채운다 — 맥락 문단 하나, 규칙 줄 하나. */
+  const CONTEXT_LINE = "우리 팀 결제 서비스다. 런타임은 Bun.";
+  const RULE_LINE = "- PR 은 두 명이 본다.";
+  const fill = (): void => {
+    const filled = read()
+      .replace("## Project Context\n", `## Project Context\n\n${CONTEXT_LINE}\n`)
+      .replace("\n## Harness Rules", `\n${RULE_LINE}\n\n## Harness Rules`);
+    expect(filled, "대조군 — 채우기가 실제로 들어갔어야 아래 판정이 의미가 있다").toContain(
+      RULE_LINE,
+    );
+    writeFileSync(agentsPath(), filled);
+  };
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "un516-"));
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("채운 AGENTS.md → update → uninstall: 파일이 남고 설치자 절은 그대로, 하네스 절·마커는 없다", () => {
+    run("add");
+    fill();
+    run("update");
+    // 시나리오 자기검증 — update 가 설치자 문장을 기준선 안으로 들였는지(= #516 이 생기는 조건).
+    expect(read()).toContain(CONTEXT_LINE);
+    expect(read()).toContain("## Harness Rules");
+
+    const lines = uninstall();
+
+    expect(existsSync(agentsPath())).toBe(true);
+    const after = read();
+    expect(after).toContain(CONTEXT_LINE);
+    expect(after).toContain(RULE_LINE);
+    expect(after).toContain("## Project Context");
+    expect(after).toContain("## Project Rules");
+    // 하네스 몫은 전부 나갔다 — 절도, 마커도, 앵커 본문도.
+    expect(after).not.toContain("## Harness Rules");
+    expect(after).not.toContain("## Session Start");
+    expect(after).not.toContain("## Protected Files");
+    expect(after).not.toContain("<!-- uzys-harness:");
+    expect(after).not.toContain("Skills that apply continuously");
+    expect(lines.join("\n")).toContain("AGENTS.md — harness sections removed");
+  });
+
+  it("아무것도 안 채운 AGENTS.md 는 전과 같이 지운다 — 남길 설치자 절이 없다", () => {
+    run("add");
+    run("update");
+
+    uninstall();
+
+    expect(existsSync(agentsPath())).toBe(false);
+  });
+
+  it("--dry-run 은 '걷어낸다'고 미리 말하고 파일은 건드리지 않는다", () => {
+    run("add");
+    fill();
+    run("update");
+    const before = read();
+
+    const lines = uninstall(true);
+
+    expect(lines.join("\n")).toContain("strip harness sections from AGENTS.md");
+    expect(read()).toBe(before);
   });
 });

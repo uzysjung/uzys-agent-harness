@@ -18,7 +18,11 @@
  * 갖고 있어서, Project Context 가 첫 하위 헤딩에서 끊긴다(실측).
  */
 
-import { CONTINUOUS_SKILLS_HEADING, renderContinuousSkillsNote } from "./project-claude-merge.js";
+import {
+  CONTINUOUS_SKILLS_HEADING,
+  renderContinuousSkillsNote,
+  renderFillScaffold,
+} from "./project-claude-merge.js";
 
 export interface HarnessBlockMarker {
   start: string;
@@ -217,4 +221,67 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   }
 
   return bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
+}
+
+/** 절 본문에서 하네스 마커 블록 하나를 뺀 나머지 = 설치자가 적은 줄. 절이 없으면 빈 배열. */
+function installerLines(body: ReadonlyArray<string> | null, m: HarnessBlockMarker): string[] {
+  if (body === null) return [];
+  const at = blockRange(body, m);
+  return at === null ? [...body] : [...body.slice(0, at[0]), ...body.slice(at[1] + 1)];
+}
+
+/** 비교용 정규화 — 빈 줄과 줄 끝 공백은 "내용"이 아니다. */
+function compact(lines: ReadonlyArray<string>): string[] {
+  return lines.map((l) => l.replace(/\r$/, "").trimEnd()).filter((l) => l.trim() !== "");
+}
+
+function trimBlankEdges(lines: ReadonlyArray<string>): string[] {
+  const out = trimTrailingBlanks(lines);
+  while (out.length > 0 && (out[0] ?? "").trim() === "") out.shift();
+  return out;
+}
+
+export interface StripAgentsMdParams {
+  /** 디스크의 현재 내용. */
+  existing: string;
+  /** 절 이름의 SSOT — 이 파일을 렌더한 그 템플릿. */
+  template: string;
+}
+
+/**
+ * uninstall 용 — 하네스 몫을 걷어내고 설치자 절만 남긴다 (#516).
+ *
+ * 루트 `CLAUDE.md` 의 `stripHarnessImport` 와 같은 자리다. `update` 가 설치자 절을 이어받아 다시
+ * 쓰면서(#503) 그 문장이 기준선 sha 안으로 들어갔고, uninstall 은 "기준선과 같으면 우리 것"으로
+ * 보고 파일을 통째로 지웠다 — 설치자가 채운 `## Project Context` 가 살아 있는 파일에서 사라졌다.
+ *
+ * 남기는 것 = 제목 줄 + `## Project Context` · `## Project Rules` 의 설치자 줄(마커 블록은 뺀다).
+ * 걷어내는 것 = 하네스 소유 절 전부(`## Harness Rules` · `## Session Start` · `## Protected Files`)와
+ * 두 마커 블록. 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3).
+ *
+ * @returns 남길 내용. 설치자가 아무것도 안 채웠으면(Project Context 가 스캐폴드 그대로이고
+ *   Project Rules 에 덧쓴 줄이 없으면) `null` = 파일째 삭제. **마커가 없는 파일도 `null`** — 병합
+ *   모델 이전 렌더라 설치자 줄이 섞여 있을 수 없고, 그 파일의 소유는 기준선 sha 가 그대로 말한다
+ *   (호출부는 sha 가 다르면 이 함수를 부르지 않고 파일을 남긴다).
+ */
+export function stripHarnessFromAgentsMd(params: StripAgentsMdParams): string | null {
+  const { existing, template } = params;
+  const lines = existing.split("\n");
+  if (blockRange(lines, ANCHOR_BLOCK) === null && blockRange(lines, SKILLS_BLOCK) === null) {
+    return null;
+  }
+  const names = sectionNames(template);
+  const context = installerLines(sectionBody(existing, names, CONTEXT_SECTION), SKILLS_BLOCK);
+  const rules = installerLines(sectionBody(existing, names, RULES_SECTION), ANCHOR_BLOCK);
+  const scaffold = compact(renderFillScaffold("agents-md").split("\n"));
+  const contextFilled = compact(context).join("\n") !== scaffold.join("\n");
+  const rulesFilled = compact(rules).length > 0;
+  if (!contextFilled && !rulesFilled) return null;
+
+  const out: string[] = [];
+  const title = (lines[0] ?? "").replace(/\r$/, "");
+  if (/^# /.test(title)) out.push(title, "");
+  out.push(`## ${CONTEXT_SECTION}`, "", ...trimBlankEdges(context), "");
+  if (rulesFilled) out.push(`## ${RULES_SECTION}`, "", ...trimBlankEdges(rules), "");
+  return out.join("\n");
 }
