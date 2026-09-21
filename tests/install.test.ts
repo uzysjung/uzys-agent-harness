@@ -736,7 +736,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -793,7 +793,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
-        claudeUnrecorded: true,
+        claudeUnrecorded: "agent-harness install --track tooling --cli claude --scope project",
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -821,7 +821,9 @@ describe("executeSpec", () => {
       mode: "update",
     });
     expect(log).toHaveBeenCalledWith(expect.stringContaining("not recorded as installed"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("install --cli claude"));
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining("agent-harness install --track tooling --cli claude --scope project"),
+    );
   });
 
   /**
@@ -865,7 +867,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1003,7 +1005,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1070,7 +1072,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: false,
         legacyAnchor: null,
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1128,7 +1130,7 @@ describe("executeSpec", () => {
         rootImportAdded: true,
         rootBlockRefreshed: false,
         legacyAnchor: ".claude/CLAUDE.md",
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],
@@ -1192,7 +1194,7 @@ describe("executeSpec", () => {
         rootImportAdded: false,
         rootBlockRefreshed: true,
         legacyAnchor: null,
-        claudeUnrecorded: false,
+        claudeUnrecorded: null,
         skillsBackedUp: [],
         skillsSkippedLinks: [],
         skillsPruned: [],

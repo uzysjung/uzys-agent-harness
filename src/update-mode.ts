@@ -134,8 +134,12 @@ export interface UpdateModeReport {
    * 판정은 "건너뛴다"(ⓐ 를 지키는 쪽)로 두되 **침묵하지 않는다** — 화면이 그 사실과 ⓑ 의 복구
    * 명령(`install --cli claude` 1회 = `clis`·앵커 기록이 굳는다)을 말한다. 디스크 존재는 여기서
    * 안내를 낼지 말지에만 쓰인다.
+   *
+   * 값 = 그대로 칠 수 있는 복구 명령(트랙·scope 를 로그에서 채운 것 — 6차 리뷰 NOTE-I·J: `--scope` 가
+   * 빠지면 global 설치본의 기록이 project 로 뒤집히고, `<track>` 자리표시자는 설치자가 채워야 한다).
+   * 안내가 필요 없으면 `null`.
    */
-  claudeUnrecorded: boolean;
+  claudeUnrecorded: string | null;
   /**
    * v26.126.0 (R-3a) — 사용자가 고쳐서 백업본을 남긴 스킬 파일 (`.claude/skills/` 상대경로).
    * 화면에 그대로 노출한다. 안 보이면 사용자는 자기 편집분이 어디 갔는지 알 수 없다.
@@ -357,7 +361,7 @@ export function runUpdateMode(
     rootImportAdded: false,
     rootBlockRefreshed: false,
     legacyAnchor: null,
-    claudeUnrecorded: false,
+    claudeUnrecorded: null,
     skillsBackedUp: [],
     skillsSkippedLinks: [],
     skillsPruned: [],
@@ -393,7 +397,10 @@ export function runUpdateMode(
   // 앵커까지 깐다 — 그 뒤 `uninstall --cli claude` 가 설치자 파일을 함께 지운다(컨테이너 실측).
   const logAtStart = readInstallLog(projectDir);
   const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
-  report.claudeUnrecorded = !claudeManaged && existsSync(claudeDir);
+  report.claudeUnrecorded =
+    !claudeManaged && logAtStart !== null && existsSync(claudeDir)
+      ? recordClaudeCommand(logAtStart, installedTracks(projectDir))
+      : null;
 
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
@@ -1516,4 +1523,16 @@ interface HookEntry {
 interface SettingsJson {
   hooks?: Record<string, HookEntry[]>;
   [key: string]: unknown;
+}
+
+/**
+ * BLOCKER-6 안내의 복구 명령 — 로그의 트랙·scope 를 그대로 채워 설치자가 아무것도 기억하지 않아도
+ * 복사해 칠 수 있게 한다. 이 한 번의 install 이 `clis`·앵커 기록을 굳혀 다음 update 부터 정상 갱신.
+ */
+function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): string {
+  const trackArgs = (tracks.length > 0 ? tracks : log.spec.tracks).map((t) => `--track ${t}`);
+  return `agent-harness install ${trackArgs.join(" ")} --cli claude --scope ${log.scope}`.replace(
+    /\s+/g,
+    " ",
+  );
 }

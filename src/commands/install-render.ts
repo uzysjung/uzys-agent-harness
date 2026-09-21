@@ -653,7 +653,7 @@ function renderPhase1Rows(
         assetRow(
           "skip",
           ".claude/",
-          "present but not recorded as installed — left untouched. If you did install Claude Code here (before v26.125.0, then added another CLI), run `agent-harness install --cli claude --track <track>` once to re-record it; otherwise this directory is yours",
+          `present but not recorded as installed — left untouched. If its rules/ · agents/ · hooks/ · skills/ came from this tool (you did not write them), run \`${baseline.updateMode.claudeUnrecorded}\` once to re-record them and updates resume; otherwise this directory is yours`,
         ),
       );
     }

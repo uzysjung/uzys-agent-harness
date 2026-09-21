@@ -109,7 +109,10 @@ describe("#528 옛 로그 + 설치자 소유 `.claude/`", () => {
     expect(report.installedNew.filter((p) => p.startsWith(".claude/"))).toEqual([]);
     // 재리뷰 BLOCKER-6 — 건너뛰되 침묵하지 않는다. 앵커 기록이 지워진 옛 claude 설치본(v26.125.0
     // 이전 add)이 같은 모양이라 화면이 사실과 복구 명령을 내야 한다.
-    expect(report.claudeUnrecorded).toBe(true);
+    // 복구 명령은 로그의 트랙·scope 로 채워져 그대로 칠 수 있어야 한다(6차 NOTE-I·J).
+    expect(report.claudeUnrecorded).toBe(
+      "agent-harness install --track tooling --cli claude --scope project",
+    );
   });
 
   it("설치자의 `.claude/rules/…` 가 템플릿과 같은 경로여도 `update` 는 덮지도 기록하지도 깔지도 않는다 (재리뷰 BLOCKER-4)", () => {
@@ -224,7 +227,7 @@ describe("#528 codex 단독 설치는 설치자 `.claude/` 를 훑어 기준선�
     expect(log?.policyFiles?.length ?? 0).toBeGreaterThan(0);
     expect(log?.skillFiles?.length ?? 0).toBeGreaterThan(0);
     // 기록된 claude 설치본에는 BLOCKER-6 안내가 뜨지 않는다.
-    expect(runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT).claudeUnrecorded).toBe(false);
+    expect(runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT).claudeUnrecorded).toBeNull();
   });
 
   it("claude 로 깔고 codex 를 추가해도 `.claude/` 기준선은 계속 찍힌다 (ADR-047 판정 불가 회귀 방지)", () => {
