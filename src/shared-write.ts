@@ -145,6 +145,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
       return result("left", {
         line: verdict.line,
         deletedFile: true,
+        portions: [], // 파일이 없다 — 이 경로의 몫 기록은 비운다(키는 전부 excluded 로 간다)
         deleted: [...recorded.keys()].flatMap((k) => {
           const id = keyId(path, k);
           return id === null ? [] : [id];

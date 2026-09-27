@@ -8,7 +8,15 @@
  * install(첫 설치) · 재설치 · update 가 같은 변환을 타므로 셋 다 같은 결과여야 한다.
  */
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -486,6 +494,35 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     expect(second.externalUpdated).toBeGreaterThanOrEqual(1);
     const writerCounted = second.codex?.ownership.updated ?? 0;
     expect(second.externalUpdated).toBe(writerCounted + 1);
+  });
+
+  it("update 에서 설치자가 파일째 지웠으면 되살리지 않고 기록된 키 전부를 지운 키로 돌려준다(Q4)", () => {
+    put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
+    const first = run();
+    rmSync(join(projectDir, "opencode.json"));
+
+    const second = runCliTransforms({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      cli: ["opencode"],
+      selectedInternalSkills: [],
+      rules: ["git-policy"],
+      tracks: ["tooling"],
+      previousExternal: first.externalFiles,
+      refreshOnly: true,
+      shared: { portions: first.portions },
+    });
+
+    const r = second.sharedFiles.find((f) => f.path === "opencode.json");
+    expect(r).toMatchObject({ action: "left", deletedFile: true, portions: [] });
+    expect([...(r?.deleted ?? [])].sort()).toEqual(
+      first.portions
+        .filter((p) => p.path === "opencode.json")
+        .map((p) => `opencode:${p.key}`)
+        .sort(),
+    );
+    expect(second.portionPaths).toContain("opencode.json");
+    expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
   });
 
   it("excluded 의 키는 더하지 않는다", () => {
