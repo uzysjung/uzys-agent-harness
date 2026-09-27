@@ -416,7 +416,7 @@ export function registerInstallCommand(cli: Cli): void {
     // === Codex trust (v26.46.0+ · ADR-097 결정 2 — 범위 조건 없음) ===
     .option(
       "--with-codex-trust",
-      '[Codex] Trust this folder in Codex: add [projects."<dir>"] to ~/.codex/config.toml so .codex/config.toml (MCP · sandbox) is read without opening Codex first',
+      '[Codex] Trust this folder in Codex: add [projects."<dir>"] to ~/.codex/config.toml so .codex/config.toml (MCP · hooks · sandbox · approval) is read without opening Codex first',
     )
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
     //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.

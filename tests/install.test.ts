@@ -1650,7 +1650,7 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
     expect(row).toContain("Codex");
   });
 
-  // #567 · ADR-097 결정 2 — Codex 는 이 폴더를 신뢰해야 `.codex/config.toml`(MCP · sandbox) 을 켠다.
+  // #567 · ADR-097 결정 2 — Codex 는 이 폴더를 신뢰해야 `.codex/config.toml`(MCP · 훅 · sandbox · approval) 을 켠다.
   // 화면이 그 사실과 켜는 방법을 말하는가 — codex 를 안 깔았거나 이번 실행이 trust 를 등록했으면 안 말한다.
   it("codex 설치 → NEXT 가 config.toml 은 trust 뒤에 켜진다고 말한다", async () => {
     const { renderFinalSummary } = await import("../src/commands/install-render.js");

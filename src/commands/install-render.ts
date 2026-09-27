@@ -490,7 +490,7 @@ export function renderFinalSummary(
     const cont = (text: string): string => `${" ".repeat(16)} ${text}`;
     log(
       cont(
-        `${c.bold("Codex")} turns on .codex/config.toml (MCP · sandbox · approval) only after you trust this folder:`,
+        `${c.bold("Codex")} turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:`,
       ),
     );
     log(
