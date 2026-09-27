@@ -6,7 +6,7 @@
  * 오케스트레이션만, 여기는 화면 출력만. 동작 변경 0 (순수 이동).
  */
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
@@ -574,7 +574,13 @@ export function renderFinalSummary(
       ),
     );
   }
-  const scaffoldFiles = scaffoldFilesForCli(spec.cli);
+  // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
+  // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
+  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
+  const scaffoldFiles = scaffoldFilesForCli(spec.cli).filter(
+    (f) =>
+      f !== "AGENTS.md" || agentsMd?.model !== "block" || hasFillPrompt(join(spec.projectDir, f)),
+  );
   if (scaffoldFiles.length > 0) {
     // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
     // **실제로 깔린 경우에만** 말한다: 안 깔린 스킬을 부르라는 안내는 "advertised ≠ real" 이다.
@@ -592,6 +598,15 @@ export function renderFinalSummary(
     );
   }
   log("");
+}
+
+/** 파일에 채울 자리(`<!-- FILL: … -->`)가 실제로 있는가. 못 읽으면 없다. */
+function hasFillPrompt(path: string): boolean {
+  try {
+    return readFileSync(path, "utf8").includes("<!-- FILL:");
+  } catch {
+    return false;
+  }
 }
 
 /**

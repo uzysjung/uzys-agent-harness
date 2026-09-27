@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ADAPTERS } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
 import { runCliTransforms } from "../src/cli-transforms.js";
-import { renderCliArtifacts } from "../src/commands/install-render.js";
+import { renderCliArtifacts, renderFinalSummary } from "../src/commands/install-render.js";
 import { hashContent, type InstallLogPortion, readInstallLog } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import { createOwnedWriter } from "../src/owned-write.js";
@@ -813,5 +813,46 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
 
     const report = install(["codex"]);
     expect(report.codex?.configToml).toMatchObject({ action: "unchanged", leftAsIs: [] });
+  });
+});
+
+/* ─── 화면 — 리뷰 N1 · N2 ──────────────────────────────────────────────── */
+
+describe("화면 — 한 일만 말한다 (리뷰 N1 · N2)", () => {
+  function summary(cli: CliBase[], report: InstallReport): string[] {
+    const lines: string[] = [];
+    renderFinalSummary((m) => lines.push(m), spec(cli), report, false);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    return lines.map((l) => l.replace(/\x1b\[[0-9;]*m/g, ""));
+  }
+
+  it("N2 — 첫 접촉 AGENTS.md 에는 FILL 이 없으니 FILL 안내가 AGENTS.md 를 부르지 않는다", () => {
+    put("AGENTS.md", INSTALLER_AGENTS);
+    const report = install(["codex"]);
+    expect(read("AGENTS.md")).not.toContain("<!-- FILL:"); // 전제
+    expect(
+      summary(["codex"], report).some((l) => l.includes("FILL") && l.includes("AGENTS.md")),
+    ).toBe(false);
+  });
+
+  it("N2 대조군 — 하네스가 만든 AGENTS.md(스캐폴드 있음)는 FILL 안내에 나온다", () => {
+    const report = install(["codex"]);
+    expect(read("AGENTS.md")).toContain("<!-- FILL:");
+    expect(
+      summary(["codex"], report).some((l) => l.includes("FILL") && l.includes("AGENTS.md")),
+    ).toBe(true);
+  });
+
+  it("N1 — 값이 하네스 렌더와 같은 키를 'kept yours' 로 부르지 않는다(기록 없는 옛 로그 · 고친 하네스 파일)", () => {
+    install(["opencode"]);
+    const json = JSON.parse(read("opencode.json")) as Record<string, unknown>;
+    put("opencode.json", `${JSON.stringify({ ...json, myKey: true }, null, 2)}\n`); // 기준선과 다르다
+    dropPortions();
+
+    const report = install(["opencode"]);
+
+    expect(report.opencode?.opencodeJson?.kept).toEqual([]);
+    const row = screen(["opencode"], report).find((l) => l.includes("opencode.json")) ?? "";
+    expect(row).not.toContain("kept yours");
   });
 });
