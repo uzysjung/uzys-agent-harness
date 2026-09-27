@@ -13,7 +13,8 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     cancel: vi.fn(),
     selectTracks: vi.fn(async () => ["tooling"] as Track[]),
     selectCli: vi.fn(async () => ["claude"] as CliTargets),
-    selectAction: vi.fn(async () => "add" as const),
+    // #533 — 기설치 메뉴는 update / uninstall / exit 셋이다(add·remove·reinstall 은 없다).
+    selectAction: vi.fn(async () => "update" as const),
     // v26.64.0 (ADR-020) — default mock: scope=project (D16).
     selectScope: vi.fn(async () => "project" as const),
     confirmInstall: vi.fn(async () => true),
@@ -135,16 +136,18 @@ describe("runInteractive", () => {
     expect(prompts.selectTracks).not.toHaveBeenCalled();
   });
 
-  it("existing install: action=remove returns disabled-action", async () => {
-    const prompts = makePrompts({ selectAction: vi.fn(async () => "remove" as const) });
+  // #533 (D8) — 제거는 Uninstall 화면(= `agent-harness uninstall` 과 같은 함수)이 맡는다. 위저드는
+  // 그 화면으로 넘기기만 하고 설치 흐름을 타지 않는다.
+  it("existing install: action=uninstall hands off to the uninstall screen (no install prompts)", async () => {
+    const prompts = makePrompts({ selectAction: vi.fn(async () => "uninstall" as const) });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => existingState,
       isTty: () => true,
     });
-    expect(result.ok).toBe(false);
-    expect(result.reason).toBe("disabled-action");
-    expect(prompts.cancel).toHaveBeenCalledOnce();
+    expect(result).toEqual({ ok: true, uninstall: true });
+    expect(prompts.selectTracks).not.toHaveBeenCalled();
+    expect(prompts.confirmInstall).not.toHaveBeenCalled();
   });
 
   it("existing install: action=update returns spec with mode=update + Track preservation", async () => {
@@ -160,7 +163,10 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(true);
     expect(result.mode).toBe("update");
     expect(result.spec?.tracks).toEqual(existingState.tracks);
-    expect(prompts.selectTracks).not.toHaveBeenCalled();
+    // #533 — Update 는 한 흐름이다: Step 1 이 깔린 트랙을 잠근 채(체크된 채) 연다.
+    const calls = (prompts.selectTracks as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[0]?.[0]).toEqual(existingState.tracks);
+    expect(calls[0]?.[2]).toEqual(existingState.tracks);
     // 위저드가 자체 spec 리터럴로 되돌아가면 비대화형 `update` 명령과 조용히 갈린다 —
     // 두 진입점이 같은 것을 설치한다는 보장이 여기서 끊긴다.
     expect(result.spec).toEqual(buildUpdateSpec("/tmp/proj", existingState.tracks));
@@ -180,48 +186,18 @@ describe("runInteractive", () => {
     expect(result.reason).toBe("cancelled");
   });
 
-  it("existing install: action=reinstall passes through to track prompts (mode=reinstall)", async () => {
-    const prompts = makePrompts({
-      selectAction: vi.fn(async () => "reinstall" as const),
-    });
-    const result = await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => existingState,
-      isTty: () => true,
-    });
-    expect(result.ok).toBe(true);
-    expect(result.mode).toBe("reinstall");
-  });
-
-  it("existing install: action=add seeds initialTracks from detected", async () => {
-    const selectTracks = vi.fn(async () => ["tooling", "data"] as Track[]);
-    const prompts = makePrompts({
-      selectAction: vi.fn(async () => "add" as const),
-      selectTracks,
-    });
-    await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => existingState,
-      isTty: () => true,
-    });
-    // v26.65.0 — 2번째 arg 는 step indicator. 본 test 는 첫 arg (initialTracks) 만 검증.
-    const calls = selectTracks.mock.calls as ReadonlyArray<ReadonlyArray<unknown>>;
-    expect(calls[0]?.[0]).toEqual(["tooling"]);
-  });
-
-  it("existing install: action=reinstall does not seed initialTracks", async () => {
-    const selectTracks = vi.fn(async () => ["data"] as Track[]);
-    const prompts = makePrompts({
-      selectAction: vi.fn(async () => "reinstall" as const),
-      selectTracks,
-    });
-    await runInteractive("/tmp/proj", {
-      prompts,
-      detect: () => existingState,
-      isTty: () => true,
-    });
-    const calls = selectTracks.mock.calls as ReadonlyArray<ReadonlyArray<unknown>>;
-    expect(calls[0]?.[0]).toBeUndefined();
+  // #533 — Reinstall 은 메뉴에서 빠져 `install --reinstall` 플래그가 됐다. 위저드는 어떤 선택으로도
+  // `mode: "reinstall"`(`.claude/` 를 통째로 옮기는 경로)을 만들지 않는다.
+  it("existing install: the wizard never produces mode=reinstall", async () => {
+    for (const action of ["update", "uninstall", "exit"] as const) {
+      const prompts = makePrompts({ selectAction: vi.fn(async () => action) });
+      const result = await runInteractive("/tmp/proj", {
+        prompts,
+        detect: () => existingState,
+        isTty: () => true,
+      });
+      expect(result.mode).not.toBe("reinstall");
+    }
   });
 
   it.each([
@@ -443,7 +419,7 @@ describe("formatSummary", () => {
       userOverride: { forceInclude: ["railway-skills"], forceExclude: ["playwright-skill"] },
     });
     expect(summary).toContain("+User added: railway-skills");
-    expect(summary).toContain("-User removed: playwright-skill");
+    expect(summary).toContain("-Unchecked by you: playwright-skill");
   });
 });
 

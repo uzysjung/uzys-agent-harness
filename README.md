@@ -90,6 +90,8 @@ A **track** is a starting set for what you are building. It only pre-checks item
 
 `update` refreshes what the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose — installing adds a CLI, and only `uninstall` takes one away. `update --only skills` limits it to one group.
 
+In a terminal, `uninstall` offers three choices — one CLI, selected assets, or everything — and `--dry-run` shows the plan first. It never deletes `.claude/`, `.codex/`, or `.opencode/`: each is moved aside as `<dir>.backup-<ts>`, so files you put there yourself stay in the backup.
+
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing `.mcp.json` servers are merged, not replaced ([installing into an existing project](docs/USAGE.md#installing-into-an-existing-project)).
 
 **Your project only, by default.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm unless you choose Global at step 4. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` in either scope and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).

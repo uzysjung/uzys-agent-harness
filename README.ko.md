@@ -90,6 +90,8 @@ claude    # 또는 codex / opencode / agy
 
 `update` 명령은 하네스가 설치한 파일을 최신으로 갱신하고, 새 버전에 추가된 스킬을 설치하며, 새로운 훅처럼 다시 설치해야 할 항목이 있으면 안내해 준다. 선택하지 않은 CLI 는 새로 설치하지 않는다 — CLI 환경은 설치할 때만 추가되고 `uninstall` 로만 지울 수 있다. `update --only skills` 처럼 특정 묶음만 업데이트할 수도 있다.
 
+`uninstall` 은 터미널에서 CLI 하나 · 고른 자산 · 전부 셋 중에서 고르게 하고, `--dry-run` 으로 계획만 먼저 볼 수 있다. `.claude/` · `.codex/` · `.opencode/` 는 지우지 않고 `<dir>.backup-<ts>` 로 옮기므로, 거기 직접 둔 파일은 백업에 남는다.
+
 **기존 프로젝트에 적용해도 안전하다.** 내가 직접 수정한 파일을 교체해야 할 때는 타임스탬프를 붙여 백업본을 남기고 그 경로를 알려 준다. 내가 작성하거나 수정한 파일은 백업 없이 지우지 않으며, 기존에 있던 `.mcp.json` 서버 설정은 덮어쓰지 않고 내용을 병합한다([기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project)).
 
 **기본적으로 현재 프로젝트에만 설치된다.** 위저드 4단계에서 Global 을 선택하지 않는 한 `~/.codex/` · `~/.opencode/` · `~/.gemini/` 디렉터리나 전역 npm 환경에는 아무것도 설치하지 않는다. 유일한 예외는 Claude Code 플러그인이다 — `claude` CLI 는 범위를 불문하고 플러그인 캐시를 `~/.claude/plugins/` 디렉터리에 저장하며 프로젝트는 메타데이터로 구분하기 때문이다. `.claude/` 디렉터리 밖에는 `.mcp.json`, `.gitignore` 파일에 추가하는 몇 줄(파일이 이미 있을 때), Supabase 트랙의 경우 `.env.example`, 그리고 설치 기록을 남기는 `.uzys-agent-harness/` 디렉터리만 생성한다 — [전체 설치 목록 보기](docs/USAGE.md#what-the-harness-writes).

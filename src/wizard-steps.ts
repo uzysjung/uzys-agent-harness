@@ -31,6 +31,26 @@ export const WIZARD: {
 };
 
 /**
+ * #533 (D3) — 기설치 Update 흐름은 5단계다. 스코프는 묻지 않는다 — 설치 기록의 것을 확인 화면에
+ * 보인다(다시 물으면 global 설치본에 project 를 섞는 길이 생긴다).
+ */
+export const UPDATE_WIZARD_TOTAL = 5;
+
+export const UPDATE_WIZARD: {
+  TRACKS: WizardStep;
+  CLI: WizardStep;
+  TARGETS: WizardStep;
+  CONFIRM: WizardStep;
+  RUN: WizardStep;
+} = {
+  TRACKS: { current: 1, total: UPDATE_WIZARD_TOTAL },
+  CLI: { current: 2, total: UPDATE_WIZARD_TOTAL },
+  TARGETS: { current: 3, total: UPDATE_WIZARD_TOTAL },
+  CONFIRM: { current: 4, total: UPDATE_WIZARD_TOTAL },
+  RUN: { current: 5, total: UPDATE_WIZARD_TOTAL },
+};
+
+/**
  * Wizard step header — `Step N/M — <suffix>` 형식.
  *
  * step 미지정 시 suffix 만 반환 (backward compat — tests / non-wizard 호출).

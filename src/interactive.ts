@@ -1,12 +1,20 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
+import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
+import {
+  type InstallOptions,
+  installCommandLine,
+  installSpecFromOptions,
+} from "./commands/install.js";
 import {
   formatResidentCostLine,
   landsOnDisk,
   residentCost,
   summarizeContextCost,
 } from "./context-cost.js";
-import { assetReachesCli, EXTERNAL_ASSETS } from "./external-assets.js";
-import { readInstallLog } from "./install-log.js";
+import { assetReachesCli, EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { type InstallLog, installedClis, readInstallLog } from "./install-log.js";
 import { buildManifestSpec, type InstallMode } from "./installer.js";
 import { buildManifest } from "./manifest.js";
 import {
@@ -20,10 +28,21 @@ import {
   type Prompts,
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
+import { buildInstallRecordView } from "./router.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
-import { type InstallSpec, type OptionFlags, type Track, UPDATE_GROUPS } from "./types.js";
+import {
+  type CliBase,
+  type CliTargets,
+  type InstallScope,
+  type InstallSpec,
+  isTrack,
+  type OptionFlags,
+  type Track,
+  UPDATE_GROUPS,
+  type UpdateGroup,
+} from "./types.js";
 import { buildUpdateSpec } from "./update-mode.js";
-import { stepLabel, WIZARD } from "./wizard-steps.js";
+import { stepLabel, UPDATE_WIZARD, WIZARD } from "./wizard-steps.js";
 
 /**
  * v26.54.0 — All-in-one 결과 → option keys + asset id list 분리.
@@ -132,8 +151,138 @@ export interface InteractiveResult {
   ok: boolean;
   spec?: InstallSpec;
   mode?: InstallMode;
+  /**
+   * #533 (D8) — 메뉴에서 Uninstall 을 골랐다. 화면과 실행은 `agent-harness uninstall` 과 **같은
+   * 함수**가 맡는다(`runUninstallScreen`) — 위저드 안에 삭제 판정의 사본을 두지 않는다.
+   */
+  uninstall?: boolean;
   reason?: "no-tty" | "cancelled" | "disabled-action" | "exit";
   message?: string;
+}
+
+/**
+ * #533 (D4) — 잠금. 프롬프트가 무엇을 돌려주든 **깔린 것은 빠지지 않는다**. clack 의 `a`·`i` 키가
+ * 화면에서 잠긴 항목을 풀 수 있으므로 화면만 믿지 않고 여기서 합친다(Epic #527 정의 2).
+ * 트랙은 `detectInstallState` 와 같은 사전순으로 낸다.
+ */
+export function lockTracks(picked: ReadonlyArray<Track>, installed: ReadonlyArray<Track>): Track[] {
+  return [...new Set<Track>([...installed, ...picked])].sort();
+}
+
+/** CLI 판 `lockTracks`. 순서는 `CLI_BASE_SORT_ORDER` 하나 — 로그 · `--cli` 파싱과 같다. */
+export function lockClis(
+  picked: ReadonlyArray<CliBase>,
+  installed: ReadonlyArray<CliBase>,
+): CliBase[] {
+  return [...new Set<CliBase>([...installed, ...picked])].sort(
+    (a, b) => CLI_BASE_SORT_ORDER[a] - CLI_BASE_SORT_ORDER[b],
+  );
+}
+
+/** Update 확인 직전의 선택 — 잠금 합집합이 끝난 값이다. */
+export interface UpdateSelection {
+  tracks: ReadonlyArray<Track>;
+  cli: ReadonlyArray<CliBase>;
+  /** Step 3 에서 체크된 채로 남은 외부 자산 id (`asset:` 접두 없음). */
+  assetIds: ReadonlyArray<string>;
+  baselineExclude: ReadonlyArray<string>;
+  /** 체크를 푼 번들 스킬 id — install 이 로그 `skillExclude` 로 남기는 것과 같은 규칙. */
+  skillExclude: ReadonlyArray<string>;
+}
+
+const BUNDLED_SKILLS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_IDS);
+
+/**
+ * #533 (D6 · D7) — Update 한 흐름 뒤에서 **어느 엔진이 도는가**. 순수 함수 하나가 정한다.
+ *
+ * - `"refresh"` = `agent-harness update` 와 같은 일(`buildUpdateSpec`). 트랙·CLI 를 기록에서 읽으므로
+ *   **더한 것을 받을 수 없다**(`update-mode.ts` `installedTracks` · `installedCliTargets`).
+ * - `"add"` = 같은 인자의 `install --track … --cli …` 와 같은 일. 기존 파일도 같은 기준선으로 갱신한다.
+ *
+ * `add` 조건(하나라도): ① 트랙 ≠ 기록 ② CLI ≠ 기록의 깔린 집합 ③ 외부 자산 선택 ≠ 기록 —
+ * 기록이 덮지 않는 자산(`coveredByRecord` 밖)을 체크했거나 기록된 project 자산의 체크를 풀었다
+ * ④ baseline 해제 ≠ 기록 ⑤ 번들 스킬 해제 ≠ 기록. 해제 기록은 install 엔진만 남기므로(update 엔진엔
+ * 자리가 없다) ④·⑤ 가 바뀌면 install 이어야 한다. **애매하면 `add`** — add 는 기존 파일도 갱신하므로
+ * 틀리는 방향이 안전하다.
+ *
+ * @param legacyTracks 기록이 없는 옛 설치본(`log === null`)의 트랙 — 메타파일·휴리스틱에서 감지한 것.
+ */
+export function classifyUpdateIntent(
+  log: InstallLog | null,
+  confirmed: UpdateSelection,
+  legacyTracks: ReadonlyArray<Track> = [],
+): "refresh" | "add" {
+  const recordTracks = log ? log.spec.tracks : legacyTracks;
+  const recordClis = recordedClis(log);
+  if (!sameSet(confirmed.tracks, recordTracks)) return "add";
+  if (!sameSet(confirmed.cli, recordClis)) return "add";
+  const recorded = log?.assets ?? [];
+  const covered = coveredByRecord(log, legacyTracks);
+  const picked = new Set(confirmed.assetIds);
+  if (confirmed.assetIds.some((id) => !covered.has(id))) return "add";
+  if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id))) return "add";
+  if (!sameSet(confirmed.baselineExclude, log?.spec.baselineExclude ?? [])) return "add";
+  if (!sameSet(confirmed.skillExclude, log?.spec.skillExclude ?? [])) return "add";
+  return "refresh";
+}
+
+/** 기록의 깔린 CLI. 기록이 없으면 `buildUpdateSpec` 이 claude 로 다룬다 — 같은 기준을 쓴다. */
+function recordedClis(log: InstallLog | null): CliBase[] {
+  return log ? [...installedClis(log)] : ["claude"];
+}
+
+/**
+ * 기록이 **이미 덮는** 외부 자산 — 아무것도 안 바꾼 Update(refresh = `update` 엔진)가 있는 그대로
+ * 두어도 화면과 디스크가 맞는 것. ⓐ 기록된 자산 ⓑ 기록 트랙의 추천 중 **설치 기록에 원래 안 남는
+ * 것**: 내장(`internal` — 템플릿이 깔아 외부 설치 단계를 안 탄다) · 기록의 CLI 로 닿지 않는 것(설치해도
+ * 안 깔린다 — 확인 화면이 "outside reach — not installed" 로 말한다).
+ *
+ * 그 밖의 추천 외부 자산(비내장 · 닿는데 기록에 없다)은 설치 때 뺐거나, 설치가 실패했거나, 새 릴리즈가
+ * 추천에 더한 것이다 — refresh 는 기록된 것만 갱신하므로 **덮지 않는다**(리뷰 B2). 그걸 체크하면 add 다.
+ */
+function coveredByRecord(log: InstallLog | null, legacyTracks: ReadonlyArray<Track>): Set<string> {
+  const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
+  const clis = recordedClis(log);
+  const covered = new Set<string>((log?.assets ?? []).map((a) => a.id));
+  for (const id of recommendedExternalAssets(recordTracks)) {
+    const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+    if (!asset || asset.method.kind === "internal" || !assetReachesCli(asset, clis)) {
+      covered.add(id);
+    }
+  }
+  return covered;
+}
+
+function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  return left.size === right.size && [...left].every((x) => right.has(x));
+}
+
+/**
+ * Update 흐름 Step 3 의 초기 체크 — 첫 설치와 같은 `initialTargetSelection` 에서 뺀다:
+ * ① **기록된 해제분**(baseline · 번들 스킬) — 빼지 않으면 아무것도 안 건드린 선택이 기록과 달라져
+ *    ④·⑤ 로 add 가 되고, 예전에 뺀 룰·스킬이 되돌아 깔린다.
+ * ② 기록 트랙의 추천 중 **기록이 덮지 않는 외부 자산**(`coveredByRecord` 밖) — 체크된 채 보이면
+ *    "선택됨"으로 세어지는데 refresh 는 그것을 깔지 않는다(리뷰 B2). 체크 = 확인 뒤 디스크에 있다.
+ *    설치자가 체크하면 add 로 가서 깔린다.
+ */
+export function updateInitialSelection(
+  tracks: ReadonlyArray<Track>,
+  installedProjectAssetIds: ReadonlyArray<string>,
+  log: InstallLog | null,
+  legacyTracks: ReadonlyArray<Track> = [],
+): InstallTargetId[] {
+  const covered = coveredByRecord(log, legacyTracks);
+  const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
+  const excluded = new Set<string>([
+    ...(log?.spec.baselineExclude ?? []),
+    ...(log?.spec.skillExclude ?? []).map((id) => `asset:${id}`),
+    ...recommendedExternalAssets(recordTracks)
+      .filter((id) => !covered.has(id))
+      .map((id) => `asset:${id}`),
+  ]);
+  return initialTargetSelection(tracks, installedProjectAssetIds).filter((id) => !excluded.has(id));
 }
 
 /**
@@ -170,10 +319,10 @@ export async function runInteractive(
   // 거짓을 말한 셈이다. 마커는 표시 전용이고 체크를 풀어도 제거되지 않는다 (제거 = `uninstall`).
   const installed = (deps.readInstalled ?? installedTargetState)(projectDir);
 
-  let initialTracks: Track[] | undefined;
-  let mode: InstallMode = "fresh";
   if (state.state === "existing") {
-    const action = await prompts.selectAction(state);
+    const log = readInstallLog(projectDir);
+    const record = buildInstallRecordView(state, log, existsSync(join(projectDir, ".claude")));
+    const action = await prompts.selectAction(state, record);
     if (action === null) {
       prompts.cancel("Cancelled.");
       return { ok: false, reason: "cancelled" };
@@ -182,37 +331,16 @@ export async function runInteractive(
       prompts.outro("Exiting without changes.");
       return { ok: false, reason: "exit" };
     }
-    if (action === "remove") {
-      prompts.cancel("Track removal is not automated — manually edit `.claude/`. Aborting.");
-      return { ok: false, reason: "disabled-action" };
+    if (action === "uninstall") {
+      return { ok: true, uninstall: true };
     }
-    if (action === "update") {
-      mode = "update";
-      // spec 은 `buildUpdateSpec` 단일 출처 — 비대화형 `update` 명령과 같은 것을 쓴다.
-      // #480 — 무엇을 갱신할지 고른다. 프롬프트가 없는 구현(테스트 픽스처)은 전부.
-      const groups = prompts.selectUpdateGroups ? await prompts.selectUpdateGroups() : null;
-      if (groups === null && prompts.selectUpdateGroups) {
-        prompts.cancel("Cancelled.");
-        return { ok: false, reason: "cancelled" };
-      }
-      const spec = buildUpdateSpec(projectDir, state.tracks, groups ?? undefined);
-      const scopeLine = spec.updateOnly
-        ? `UPDATE ${spec.updateOnly.join(" · ")} only (untouched: ${UPDATE_GROUPS.filter((g) => !spec.updateOnly?.includes(g)).join(", ")}):`
-        : "UPDATE installed harness files:";
-      const confirmed = await prompts.confirmInstall(`${scopeLine}\n${formatSummary(spec)}`);
-      if (!confirmed) {
-        prompts.outro("Cancelled.");
-        return { ok: false, reason: "cancelled" };
-      }
-      prompts.outro("Running update mode...");
-      return { ok: true, mode: "update", spec };
+    // 깨진 설치에서는 화면이 Update 를 막는다(D10). 그래도 돌아오면(다른 프롬프트 구현) 엔진이
+    // 거절할 실행을 만들지 않고 복구 명령을 그대로 돌려준다.
+    if (record.repair !== null) {
+      prompts.cancel(`.claude/ is missing — repair first: ${record.repair}`);
+      return { ok: false, reason: "disabled-action", message: record.repair };
     }
-    if (action === "add") {
-      mode = "add";
-      initialTracks = state.tracks;
-    } else if (action === "reinstall") {
-      mode = "reinstall";
-    }
+    return runUpdateFlow({ projectDir, state, log, prompts, installed });
   }
 
   // v26.64.0 (ADR-020) — scope step 추가. Default "project". Step 3.5 (targets 직후, confirm 직전).
@@ -225,7 +353,7 @@ export async function runInteractive(
 
   while (true) {
     if (step === "tracks") {
-      const result = await prompts.selectTracks(tracks ?? initialTracks, WIZARD.TRACKS);
+      const result = await prompts.selectTracks(tracks ?? undefined, WIZARD.TRACKS);
       if (result === null) {
         // Step 1 ESC = exit with cancel message (only step where ESC is "cancel")
         prompts.cancel("Cancelled.");
@@ -299,7 +427,7 @@ export async function runInteractive(
         projectDir,
         ...(userOverride ? { userOverride } : {}),
         // 해제 목록을 안 넘기면 이 화면이 **제외 유무와 문자열이 완전히 같아진다** — 같은 화면이
-        // 외부 자산 제거는 `-User removed:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
+        // 외부 자산 제거는 `-Unchecked by you:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
         // 읽힌다. 상주 비용을 줄이려고 20개를 푼 사용자가 그대로인 숫자를 보게 된다.
         ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
       })}\n  SCOPE     ${scopeLabel}`;
@@ -326,9 +454,229 @@ export async function runInteractive(
       };
 
       prompts.outro(stepLabel(WIZARD.INSTALL, "Installing..."));
-      return { ok: true, mode, spec };
+      return { ok: true, mode: "fresh", spec };
     }
   }
+}
+
+interface UpdateFlowContext {
+  projectDir: string;
+  state: DetectedInstall;
+  log: InstallLog | null;
+  prompts: Prompts;
+  installed: InstalledTargetState;
+}
+
+/**
+ * #533 — 기설치 Update 흐름 (트랙 → CLI → 자산 → 확인 → 실행, 5단계 · D3).
+ *
+ * 깔린 트랙·CLI 는 체크된 채 잠기고(D4) 더할 것만 받는다. 확인 화면에서 `classifyUpdateIntent` 가
+ * 엔진을 고르고, `RUNS AS` 줄이 그 실행이 플래그로 치면 어느 명령과 같은지 말한다(D6).
+ * **파일은 이 흐름 어디서도 지워지지 않는다** — 체크 해제는 "이번에 안 깐다"이고 제거는 Uninstall 뿐이다.
+ */
+async function runUpdateFlow(ctx: UpdateFlowContext): Promise<InteractiveResult> {
+  const { projectDir, state, log, prompts, installed } = ctx;
+  // 옛 설치본(기록 없음)은 CLI 를 말할 수 없어 CLI 잠금이 없다(D5). 트랙은 감지된 것으로 잠근다.
+  const lockedTracks = lockTracks(log ? log.spec.tracks.filter(isTrack) : [], state.tracks);
+  const lockedClis = installedClis(log);
+  const scope: InstallScope = log?.scope ?? "project";
+
+  type Step = "tracks" | "cli" | "targets" | "confirm";
+  let step: Step = "tracks";
+  let tracks: Track[] | null = null;
+  let cli: CliBase[] | null = null;
+  let targetSelections: ReadonlyArray<InstallTargetId> | null = null;
+
+  while (true) {
+    if (step === "tracks") {
+      const result = await prompts.selectTracks(
+        tracks ?? lockedTracks,
+        UPDATE_WIZARD.TRACKS,
+        lockedTracks,
+      );
+      if (result === null) {
+        prompts.cancel("Cancelled.");
+        return { ok: false, reason: "cancelled" };
+      }
+      const next = lockTracks(result, lockedTracks);
+      if (tracks !== null && !tracksEqual(tracks, next)) targetSelections = null;
+      tracks = next;
+      step = "cli";
+    } else if (step === "cli") {
+      const initial: CliTargets = cli ?? (lockedClis.length > 0 ? [...lockedClis] : ["claude"]);
+      const result = await prompts.selectCli(initial, UPDATE_WIZARD.CLI, lockedClis);
+      if (result === null) {
+        step = "tracks";
+        continue;
+      }
+      cli = lockClis(result, lockedClis);
+      step = "targets";
+    } else if (step === "targets") {
+      const current = tracks ?? lockedTracks;
+      const initial =
+        targetSelections !== null
+          ? [...targetSelections]
+          : updateInitialSelection(current, installed.projectScoped, log, state.tracks);
+      const result = await prompts.selectInstallTargets(initial, UPDATE_WIZARD.TARGETS, {
+        tracks: current,
+        cli: cli ?? [...lockedClis],
+        installed: installed.installed.map((id) => `asset:${id}`),
+      });
+      if (result === null) {
+        step = "cli";
+        continue;
+      }
+      targetSelections = result;
+      step = "confirm";
+    } else {
+      const outcome = await confirmUpdate({
+        projectDir,
+        state,
+        log,
+        prompts,
+        scope,
+        lockedClis,
+        // biome-ignore lint/style/noNonNullAssertion: confirm 도달 = 이전 step 완료 보장
+        tracks: tracks!,
+        // biome-ignore lint/style/noNonNullAssertion: same as above
+        cli: cli!,
+        targetSelections: targetSelections ?? [],
+      });
+      if (outcome === "back") {
+        step = "targets";
+        continue;
+      }
+      return outcome;
+    }
+  }
+}
+
+interface ConfirmUpdateInput {
+  projectDir: string;
+  state: DetectedInstall;
+  log: InstallLog | null;
+  prompts: Prompts;
+  scope: InstallScope;
+  lockedClis: ReadonlyArray<CliBase>;
+  tracks: ReadonlyArray<Track>;
+  cli: ReadonlyArray<CliBase>;
+  targetSelections: ReadonlyArray<InstallTargetId>;
+}
+
+/** Update Step 4 — 엔진을 고르고, 그 엔진의 명령을 `RUNS AS` 로 보이고, 확인받는다. */
+async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResult | "back"> {
+  const { projectDir, state, log, prompts, scope, tracks, cli } = input;
+  const { assetIds, baselineIds } = splitInstallTargets(input.targetSelections);
+  const userOverride = computeUserOverride(tracks, assetIds);
+  const baselineExclude = baselineExcludeFrom(listBaselineTargets({ tracks }), baselineIds);
+  const skillExclude = (userOverride?.forceExclude ?? []).filter((id) => BUNDLED_SKILLS.has(id));
+  const intent = classifyUpdateIntent(
+    log,
+    { tracks, cli, assetIds, baselineExclude, skillExclude },
+    state.tracks,
+  );
+  const header = stepLabel(UPDATE_WIZARD.CONFIRM, "Confirm");
+  const scopeLine = `  SCOPE     ${scope === "global" ? "Global" : "Project"} (${log ? "from your install record — not changed here" : "no install record — default"})`;
+
+  if (intent === "refresh") {
+    // #480 · D13 — 갱신 묶음 체크박스는 refresh 에만 있다(install 엔진엔 묶음 개념이 없다).
+    // 프롬프트가 없는 구현(테스트 픽스처)은 전부.
+    const groups: UpdateGroup[] | null | undefined = prompts.selectUpdateGroups
+      ? await prompts.selectUpdateGroups()
+      : undefined;
+    if (groups === null) return "back";
+    // spec 은 `buildUpdateSpec` 단일 출처 — 비대화형 `update` 명령과 같은 것을 쓴다.
+    const spec = buildUpdateSpec(projectDir, state.tracks, groups);
+    const only = spec.updateOnly ?? [];
+    const summary = [
+      header,
+      only.length > 0
+        ? `UPDATE ${only.join(" · ")} only (untouched: ${UPDATE_GROUPS.filter((g) => !only.includes(g)).join(", ")}):`
+        : "UPDATE installed harness files:",
+      // 요약은 Step 3 에서 체크된 것을 센다 — spec(추천 전체)으로 세면 체크 안 된 채 둔 자산까지
+      // "selected" 로 적는데 refresh 는 그것을 깔지 않는다(리뷰 B2). 실행 spec 은 그대로다.
+      annotate(formatSummary({ ...spec, ...(userOverride ? { userOverride } : {}) }), {
+        Tracks: "no change",
+        CLI: "no change",
+        Assets: "no change",
+      }),
+      scopeLine,
+      `  RUNS AS   agent-harness update${only.map((g) => ` --only ${g}`).join("")}`,
+    ].join("\n");
+    const confirmed = await prompts.confirmInstall(summary);
+    if (confirmed === null) return "back";
+    if (!confirmed) {
+      prompts.outro("Cancelled.");
+      return { ok: false, reason: "cancelled" };
+    }
+    prompts.outro("Running update mode...");
+    return { ok: true, mode: "update", spec };
+  }
+
+  // add — install 엔진. spec 은 `install` 명령과 **같은 함수**가 같은 인자로 만든다(D6).
+  const without = [...(userOverride?.forceExclude ?? []), ...baselineExclude];
+  const options: InstallOptions = {
+    track: [...tracks],
+    cli: [...cli],
+    scope,
+    projectDir,
+    ...(userOverride && userOverride.forceInclude.length > 0
+      ? { with: [...userOverride.forceInclude] }
+      : {}),
+    ...(without.length > 0 ? { without } : {}),
+  };
+  const spec = installSpecFromOptions(options, [...cli], () => {});
+  const recordTracks = new Set<string>(log ? log.spec.tracks : state.tracks);
+  const addedTracks = tracks.filter((t) => !recordTracks.has(t));
+  const addedClis = cli.filter((c) => !input.lockedClis.includes(c));
+  const covered = coveredByRecord(log, state.tracks);
+  const addedAssets = assetIds.filter((id) => !covered.has(id));
+  const locked = input.lockedClis.join(", ");
+  const summary = [
+    header,
+    annotate(formatSummary(spec), {
+      Tracks: addedTracks.length > 0 ? `+${addedTracks.join(", +")}` : "no change",
+      CLI: [
+        addedClis.length > 0 ? `+${addedClis.join(", +")}` : "",
+        locked ? `${locked} ${input.lockedClis.length > 1 ? "stay" : "stays"} — locked` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      Assets:
+        addedAssets.length > 0
+          ? `+${addedAssets.length} new: ${addedAssets.join(", ")}`
+          : "no new assets",
+    }),
+    scopeLine,
+    `  RUNS AS   ${installCommandLine(options)}`,
+    "            (adds the new track's files and the new CLI's files · refreshes what is installed · edited files → *.backup-<time>)",
+    "            (retired-file cleanup runs on your next `agent-harness update`)",
+  ].join("\n");
+  const confirmed = await prompts.confirmInstall(summary);
+  if (confirmed === null) return "back";
+  if (!confirmed) {
+    prompts.outro("Cancelled by user.");
+    return { ok: false, reason: "cancelled" };
+  }
+  prompts.outro(stepLabel(UPDATE_WIZARD.RUN, "Installing..."));
+  return { ok: true, mode: "add", spec };
+}
+
+/**
+ * 요약의 `Tracks:` · `CLI:` · `Assets:` 줄 끝에 무엇이 바뀌는지 붙인다 — 화면이 "무엇을 더하나"를
+ * 말하게 한다. 빈 메모는 붙이지 않는다.
+ */
+function annotate(summary: string, notes: Record<"Tracks" | "CLI" | "Assets", string>): string {
+  return summary
+    .split("\n")
+    .map((line) => {
+      const key = (Object.keys(notes) as Array<keyof typeof notes>).find((k) =>
+        line.startsWith(`${k}:`),
+      );
+      const note = key ? notes[key] : "";
+      return note ? `${line.padEnd(40)} (${note})` : line;
+    })
+    .join("\n");
 }
 
 /**
@@ -417,7 +765,7 @@ export function formatSummary(spec: InstallSpec): string {
       lines.push(`  +User added: ${spec.userOverride.forceInclude.join(", ")}`);
     }
     if (spec.userOverride.forceExclude.length > 0) {
-      lines.push(`  -User removed: ${spec.userOverride.forceExclude.join(", ")}`);
+      lines.push(`  -Unchecked by you: ${spec.userOverride.forceExclude.join(", ")}`);
     }
   }
   // 트랙 baseline 해제분. 설치 화면과 **같은 문구**를 쓴다 (표면별 상이 문구 금지) — 다르면

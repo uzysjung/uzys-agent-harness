@@ -88,9 +88,8 @@ export const MODE_ENTRY_POINT: Record<InstallMode, string | null> = {
   // (backup 없음 · manifest copy 동일) — 별도 명령이 필요 없다.
   add: "install",
   update: "update",
-  // 미제공 — `.claude/` 를 통째로 backup 으로 **옮기는** 파괴적 경로다. 비대화형 진입점을
-  // 붙일지는 별도 판단 사항이라 열어둔다 (열어둔 것 자체가 이 표에 보인다).
-  reinstall: null,
+  // #533 (D9) — 위저드 메뉴에서 빠져 플래그가 됐다. `.claude/` 를 통째로 backup 으로 옮기는 경로다.
+  reinstall: "install --reinstall",
 };
 
 export interface InstallContext {
@@ -334,7 +333,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 단, **claude 를 고른 설치인데 `.claude/` 가 없으면** 그건 정상 상태가 아니라 깨진 설치다 —
   // 그대로 진행하면 룰만 복원되고 `settings.json`·훅이 없는 반쪽 `.claude/` 가 만들어진다
   // (독립 재검증 M-R2). 그 경우는 예전처럼 막고 재설치로 보낸다.
-  const claudeWasSelected = previousLog?.spec.cli.includes("claude") ?? false;
+  const claudeWasSelected = previousLog !== null && installedClis(previousLog).includes("claude");
   if (mode === "update" && !existsSync(claudeDir) && (previousLog === null || claudeWasSelected)) {
     // 두 상황을 같은 문장으로 말하지 않는다 — 하나는 "깔린 게 없다", 다른 하나는 "깔렸는데
     // 일부가 사라졌다"이고, 사용자가 할 일이 다르다. 후자를 "설치가 없다"고 하면 로그를 눈으로

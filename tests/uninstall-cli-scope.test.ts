@@ -225,7 +225,8 @@ describe("#528 uninstall --cli", () => {
     const run = removeCli("codex", { dryRun: true });
 
     expect(run.code).toBe(0);
-    expect(run.lines.join("\n")).toContain("remove .codex/");
+    // 사용자 결정 2026-09-27 — CLI 디렉터리는 지우지 않고 옮겨 둔다(#533 리뷰 B3). 예고도 그 말을 한다.
+    expect(run.lines.join("\n")).toContain("move .codex/ aside");
     expect(has(".codex")).toBe(true);
     expect(has("AGENTS.md")).toBe(true);
     expect(

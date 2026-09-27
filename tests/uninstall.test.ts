@@ -251,7 +251,7 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("default 모드 → templates 폴더 rm 호출 (claudeDir + codexDir + opencodeDir 모두)", () => {
+  it("default 모드 → templates 회수 (claudeDir + codexDir + opencodeDir 모두 옮겨 둔다)", () => {
     const log: InstallLog = {
       ...baseLog(),
       assets: [],
@@ -259,6 +259,7 @@ describe("uninstallAction", () => {
     };
     writeLog(tmpDir, log);
     const rm = vi.fn();
+    const moveAside = vi.fn(() => null);
     uninstallAction(
       { projectDir: tmpDir },
       {
@@ -267,16 +268,20 @@ describe("uninstallAction", () => {
         exit: vi.fn() as unknown as (code: number) => never,
         spawn: vi.fn(() => ok()),
         rm,
+        moveAside,
       },
     );
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
-    expect(rmPaths).toContain(join(tmpDir, ".claude/"));
+    // 사용자 결정 2026-09-27 — CLI 디렉터리는 지우지 않고 `<dir>.backup-<time>` 으로 옮겨 둔다
+    // (`.claude/` → 같은 날 `.codex/` · `.opencode/` 로 확장, #533 리뷰 B3).
+    for (const dir of [".claude", ".codex", ".opencode"]) {
+      expect(moveAside).toHaveBeenCalledWith(join(tmpDir, dir));
+      expect(rmPaths).not.toContain(join(tmpDir, `${dir}/`));
+    }
     // v26.135.0 (#253) — 로그는 이제 `.claude/` 밖이라 templates 제거에 딸려가지 않는다.
     // 여기서 명시적으로 지우지 않으면 uninstall 후 `.uzys-agent-harness/` 가 남아
     // "전부 지웠다"가 거짓이 되고, 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다.
     expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
-    expect(rmPaths).toContain(join(tmpDir, ".codex/"));
-    expect(rmPaths).toContain(join(tmpDir, ".opencode/"));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -863,9 +868,10 @@ describe("uninstallAction — --only (항목별 제거)", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("--only 없이는 기존대로 전량 제거 + templates 삭제 (기본 동작 불변)", () => {
+  it("--only 없이는 기존대로 전량 제거 + templates 회수 (`.claude/` 는 옮겨 둔다 — 2026-09-27)", () => {
     writeLog(tmpDir, twoAssetLog());
     const rm = vi.fn();
+    const moveAside = vi.fn(() => null);
     uninstallAction(
       { projectDir: tmpDir },
       {
@@ -874,9 +880,10 @@ describe("uninstallAction — --only (항목별 제거)", () => {
         exit: vi.fn() as unknown as (code: number) => never,
         spawn: vi.fn(() => ok()),
         rm,
+        moveAside,
       },
     );
-    expect(rm).toHaveBeenCalledWith(join(tmpDir, ".claude/"));
+    expect(moveAside).toHaveBeenCalledWith(join(tmpDir, ".claude"));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

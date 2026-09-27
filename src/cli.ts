@@ -2,7 +2,7 @@ import { cac } from "cac";
 import packageJson from "../package.json";
 import { type ExecuteSpecDeps, executeSpec, registerInstallCommand } from "./commands/install.js";
 import { registerListCommand } from "./commands/list.js";
-import { registerUninstallCommand } from "./commands/uninstall.js";
+import { registerUninstallCommand, runUninstallScreen } from "./commands/uninstall.js";
 import { registerUpdateCommand } from "./commands/update.js";
 import { type InteractiveResult, runInteractive } from "./interactive.js";
 
@@ -21,6 +21,8 @@ export interface DefaultActionDeps {
   run?: (cwd: string) => Promise<InteractiveResult>;
   /** Override the install pipeline + report renderer (used by tests). */
   execute?: (spec: NonNullable<InteractiveResult["spec"]>, deps: ExecuteSpecDeps) => void;
+  /** #533 — 메뉴의 Uninstall. 기본은 `agent-harness uninstall` 과 같은 화면·엔진. */
+  uninstall?: (cwd: string) => Promise<void>;
 }
 
 /**
@@ -37,6 +39,14 @@ export async function defaultAction(deps: DefaultActionDeps = {}): Promise<void>
   const execute = deps.execute ?? executeSpec;
 
   const result = await run(process.cwd());
+  // #533 (D8) — 제거는 설치 파이프라인이 아니라 uninstall 명령과 같은 화면·엔진이 맡는다.
+  if (result.ok && result.uninstall) {
+    /* v8 ignore next — 기본값은 clack 화면이다. tests 는 uninstall 을 주입한다. */
+    const uninstall =
+      deps.uninstall ?? ((cwd: string) => runUninstallScreen(cwd, { embedded: true }));
+    await uninstall(process.cwd());
+    return;
+  }
   if (!result.ok) {
     if (result.message) {
       err(result.message);

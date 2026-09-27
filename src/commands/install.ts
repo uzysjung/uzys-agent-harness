@@ -57,6 +57,12 @@ export interface InstallOptions {
    * 명시 안 하면 wizard 의 scope prompt → 비대화형은 "project".
    */
   scope?: string;
+  /**
+   * #533 (D9) — `.claude/` 를 `.claude.backup-<ts>` 로 옮기고 처음부터 다시 깐다(`mode: "reinstall"`).
+   * 위저드 메뉴에서 빠져 이 플래그가 됐다. `--track` 은 여전히 필수다. `.claude/` 가 없으면 옮길
+   * 것이 없어 첫 설치처럼 돈다 — 깨진 설치(기록엔 claude, `.claude/` 없음)의 복구 명령이 이것이다.
+   */
+  reinstall?: boolean;
 }
 
 export interface RunInstallResult {
@@ -144,6 +150,31 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     return;
   }
 
+  const spec = installSpecFromOptions(options, validated.cli, err);
+
+  executeSpec(spec, {
+    log,
+    err,
+    exit,
+    runPipeline,
+    resolveHarnessRoot,
+    verbose: options.verbose === true,
+    ...(options.reinstall === true ? { mode: "reinstall" as const } : {}),
+  });
+}
+
+/**
+ * 검증을 통과한 플래그 → `InstallSpec`.
+ *
+ * #533 (D6) — `install` 명령과 위저드 Update 의 추가 케이스가 **이 함수 하나**로 spec 을 만든다.
+ * 위저드 확인 화면의 `RUNS AS` 줄(`installCommandLine`)이 곧 이 함수의 입력이라, 화면이 말하는
+ * 명령과 실제로 도는 spec 이 갈라질 자리가 없다.
+ */
+export function installSpecFromOptions(
+  options: InstallOptions,
+  cli: CliTargets,
+  err: (msg: string) => void,
+): InstallSpec {
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
@@ -191,7 +222,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       ? { forceInclude: filteredInclude, forceExclude: filteredExclude }
       : undefined;
 
-  const spec: InstallSpec = {
+  return {
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
     ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
@@ -200,19 +231,27 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     options: {
       withCodexTrust: options.withCodexTrust === true,
     },
-    cli: validated.cli,
+    cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
     scope: resolveScopeOption(options.scope, err),
   };
+}
 
-  executeSpec(spec, {
-    log,
-    err,
-    exit,
-    runPipeline,
-    resolveHarnessRoot,
-    verbose: options.verbose === true,
-  });
+/**
+ * `InstallOptions` → 사람이 그대로 칠 수 있는 명령 한 줄 (`--project-dir` 는 뺀다 — 현재 디렉터리에서
+ * 치는 명령이다). #533 — 위저드 확인 화면의 `RUNS AS` 줄. `installSpecFromOptions` 의 역이다.
+ */
+export function installCommandLine(options: InstallOptions): string {
+  const repeat = (flag: string, value: string | string[] | undefined): string[] =>
+    normalizeRepeatable(value).map((v) => `${flag} ${v}`);
+  return [
+    "agent-harness install",
+    ...repeat("--track", options.track),
+    ...repeat("--cli", options.cli),
+    ...(options.scope ? [`--scope ${options.scope}`] : []),
+    ...repeat("--with", options.with),
+    ...repeat("--without", options.without),
+  ].join(" ");
 }
 
 export interface ExecuteSpecDeps {
@@ -382,6 +421,11 @@ export function registerInstallCommand(cli: Cli): void {
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
     //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.
     //   #492 — 마지막 동작 플래그였던 `--with-prune` 도 삭제 (ECC 자산 은퇴).
+    // === Mode (#533 D9) ===
+    .option(
+      "--reinstall",
+      "[Mode] Move .claude/ aside as .claude.backup-<ts> and rebuild it — use when .claude/ is damaged or missing",
+    )
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===

@@ -10,7 +10,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 
 | Track | For |
 |---|---|
-| `base` | No stack chosen yet. Principles, method skills, and the testing rules — nothing stack-specific, and `frontend-design` is not pre-checked |
+| `base` | No stack chosen yet. Principles, method skills, and the testing rules — nothing stack-specific, and `frontend-design` is not pre-checked. Every dev track already includes everything `base` installs, so picking it alongside one adds nothing |
 | `csr-supabase` | Vite + React + Supabase |
 | `csr-fastify` | Vite + React + Fastify |
 | `csr-fastapi` | Vite + React + FastAPI |

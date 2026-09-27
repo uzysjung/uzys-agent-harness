@@ -48,7 +48,7 @@
 - [x] 계획·브리프 설계 검증 (Fable · `verify-plan-AB.md`)
 - [x] A — Claude 자리 (#529 · #524 · #536) → #547
 - [x] B — 공유 스킬 자리 (#530 · #531 · #532, PR #538 · #539 흡수) → #548
-- [ ] C — 위저드 (#533 · #523) — 설계 `docs/plans/wizard-533-design-2026-09-27.md` · 브리프 `docs/plans/wizard-533-brief-2026-09-27.md` · Uninstall = 전체·CLI·외부 자산 · base 배타 없음(사용자 결정)
+- [x] C — 위저드 (#533 · #523) — 독립 리뷰 1차 BLOCK 3건(Claude 제거 뒤 Update 실패 · 체크된 자산 미설치 · `.codex/`·`.opencode/` 무백업 삭제) → 수정(세 CLI 폴더 모두 `<dir>.backup-<ts>` 로 이동 — README 약속 기준) → 재검증 PASS with notes — 설계 `docs/plans/wizard-533-design-2026-09-27.md` · 브리프 `docs/plans/wizard-533-brief-2026-09-27.md` · Uninstall = 전체·CLI·외부 자산 · base 배타 없음(사용자 결정)
 - [x] D — descriptor (#509) → #540
 - [x] E — dev 의존성 (PR #537 대체) → #541
 - [x] F — update 잡음 (#550) — 독립 리뷰 1차 BLOCK(거절되는 `--without` 안내) → 수정 → 재검증 PASS with notes
