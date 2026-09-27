@@ -22,15 +22,14 @@ Node 20 이상이 필요하다. 프로젝트 폴더에서 다음 명령을 실�
 npx -y @uzysjung/agent-harness
 ```
 
-위저드가 다음 여섯 단계를 안내한다:
+위저드가 다음 다섯 단계를 안내한다:
 
 ```
-1/6  Tracks          무엇을 만드는지(스택) — 항목을 미리 체크해 줄 뿐이다
-2/6  CLI             claude / codex / opencode / antigravity — 여러 개 가능
-3/6  Install items   트랙에 맞는 항목이 미리 체크되어 있다. 원치 않는 것은 해제
-4/6  Scope           Project(기본값, 이 폴더에만) 또는 Global
-5/6  Confirm         요약과 함께, 이 선택이 매 세션에 얹는 컨텍스트 크기를 보여 준다
-6/6  Installing
+1/5  Tracks          무엇을 만드는지(스택) — 항목을 미리 체크해 줄 뿐이다
+2/5  CLI             claude / codex / opencode / antigravity — 여러 개 가능
+3/5  Install items   트랙에 맞는 항목이 미리 체크되어 있다. 원치 않는 것은 해제
+4/5  Confirm         요약과 함께, 이 선택이 매 세션에 얹는 컨텍스트 크기를 보여 준다
+5/5  Installing
 ```
 
 그다음 같은 폴더에서 AI 코딩 도구를 실행하면, 첫 세션부터 룰과 스킬이 바로 적용된다:
@@ -94,7 +93,7 @@ claude    # 또는 codex / opencode / agy
 
 **기존 프로젝트에 적용해도 안전하다.** 내가 직접 수정한 파일을 교체해야 할 때는 타임스탬프를 붙여 백업본을 남기고 그 경로를 알려 준다. 내가 작성하거나 수정한 파일은 백업 없이 지우지 않으며, 기존에 있던 `.mcp.json` 서버 설정은 덮어쓰지 않고 내용을 병합한다([기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project)).
 
-**기본적으로 현재 프로젝트에만 설치된다.** 위저드 4단계에서 Global 을 선택하지 않는 한 `~/.codex/` · `~/.opencode/` · `~/.gemini/` 디렉터리나 전역 npm 환경에는 아무것도 설치하지 않는다. 유일한 예외는 Claude Code 플러그인이다 — `claude` CLI 는 범위를 불문하고 플러그인 캐시를 `~/.claude/plugins/` 디렉터리에 저장하며 프로젝트는 메타데이터로 구분하기 때문이다. `.claude/` 디렉터리 밖에는 `.mcp.json`, `.gitignore` 파일에 추가하는 몇 줄(파일이 이미 있을 때), Supabase 트랙의 경우 `.env.example`, 그리고 설치 기록을 남기는 `.uzys-agent-harness/` 디렉터리만 생성한다 — [전체 설치 목록 보기](docs/USAGE.md#what-the-harness-writes).
+**현재 프로젝트에만 설치된다.** `~/.codex/` · `~/.opencode/` · `~/.gemini/` 디렉터리나 전역 npm 환경에는 아무것도 설치하지 않는다. 유일한 예외는 Claude Code 플러그인이다 — `claude` CLI 는 플러그인 캐시를 `~/.claude/plugins/` 디렉터리에 저장하며 프로젝트는 메타데이터로 구분하기 때문이다. `.claude/` 디렉터리 밖에는 `.mcp.json`, `.gitignore` 파일에 추가하는 몇 줄(파일이 이미 있을 때), Supabase 트랙의 경우 `.env.example`, 그리고 설치 기록을 남기는 `.uzys-agent-harness/` 디렉터리만 생성한다 — [전체 설치 목록 보기](docs/USAGE.md#what-the-harness-writes).
 
 ## 다른 도구를 이미 쓰고 있다면
 

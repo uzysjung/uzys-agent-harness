@@ -88,7 +88,7 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `supabase-agent-skills` | RLS, auth, edge functions, realtime (Supabase official) | `csr-supabase` · `full` |
 | `postgres-best-practices` | Schema, index, and query patterns (Supabase official) | `csr-supabase` · `full` |
 | `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
-| `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency` (global binary under `--scope global`). Pick the one your project deploys to | opt-in |
+| `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency`. Pick the one your project deploys to | opt-in |
 
 ### Bundled stack skill
 
