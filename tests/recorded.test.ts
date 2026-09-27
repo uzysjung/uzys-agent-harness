@@ -7,6 +7,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { InstallLog } from "../src/install-log.js";
+import { judge } from "../src/judge.js";
+import { RETIRED_AGENT_IDS, RETIRED_AGENTS } from "../src/manifest.js";
 import { excludedIds, kindOf, ownersOf, recorded } from "../src/recorded.js";
 
 function log(
@@ -174,5 +176,62 @@ describe("excludedIds · ownersOf · kindOf", () => {
       kindOf(log({ rootFiles: [{ path: "_bmad/", change: "advisory", notes: [] }] }), "_bmad/"),
     ).toBe("advisory");
     expect(kindOf(null, GIT_POLICY)).toBe("harness");
+  });
+});
+
+describe("recorded — 옛 로그의 은퇴 하네스 파일(#551 리뷰 B3 · P4)", () => {
+  // v26.150 시절 로그 모양 — `clis` 없음 · 디스크 스캔 `policyFiles` · 앵커 sha
+  const v150 = log({
+    spec: { tracks: ["tooling"], cli: ["claude"] },
+    templates: {
+      claudeDir: ".claude/",
+      rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: "a" },
+    },
+    policyFiles: [
+      { path: "rules/git-policy.md", sha256: "g" },
+      { path: "agents/code-reviewer.md", sha256: "c" },
+      { path: "agents/plan-checker.md", sha256: "p" },
+      { path: "hooks/task-brief-nudge.sh", sha256: "t" },
+    ],
+  });
+  const RETIRED = [
+    ".claude/agents/code-reviewer.md",
+    ".claude/agents/plan-checker.md",
+    ".claude/hooks/task-brief-nudge.sh",
+  ];
+
+  it.each(RETIRED)("%s → no-sha → uninstall · update 회수 = backup+remove", (path) => {
+    const rec = recorded(v150, path);
+    expect(rec).toEqual({ state: "no-sha" });
+    const disk = "whatever is on disk\n";
+    expect(judge({ op: "remove", kind: "harness", rec, disk, next: null }).verdict).toBe(
+      "backup+remove",
+    );
+  });
+
+  it("대조군 — 지금도 배포하는 rules/git-policy.md 는 옛 sha 그대로 sha", () => {
+    expect(recorded(v150, GIT_POLICY)).toEqual({ state: "sha", sha256: "g" });
+  });
+
+  it("claude 가 없거나 · 설치자가 뺐거나 · 옛 스캔 기록이 없으면 은퇴 경로도 기록 없음(지우지 않는다)", () => {
+    const codex = log({ ...v150, spec: { tracks: ["tooling"], cli: ["codex"] }, templates: {} });
+    expect(recorded(codex, ".claude/agents/code-reviewer.md")).toEqual({ state: "none" });
+    const excluded = log({ ...v150, excluded: ["baseline:agents/code-reviewer"] });
+    expect(recorded(excluded, ".claude/agents/code-reviewer.md")).toEqual({ state: "none" });
+    expect(recorded(v150, ".claude/rules/code-style.md")).toEqual({ state: "none" }); // policyFiles 에 없다
+  });
+
+  it("writer 가 이어받은 은퇴 항목도 no-sha — 옛 스캔 sha 로 백업 없이 지우지 않는다", () => {
+    const writer = log({ ...v150, records: "writer" });
+    expect(recorded(writer, ".claude/agents/code-reviewer.md")).toEqual({ state: "no-sha" });
+  });
+
+  it("같은 이름이 다시 배포되면 은퇴가 아니다 — 대상으로 읽는다", () => {
+    const again = recorded(v150, ".claude/agents/code-reviewer.md", { isTarget: () => true });
+    expect(again).toEqual({ state: "sha", sha256: "c" });
+  });
+
+  it("은퇴 에이전트 id 는 은퇴 경로에서 나오고, 대안 문구 목록과 같은 집합이다", () => {
+    expect([...RETIRED_AGENT_IDS].sort()).toEqual(RETIRED_AGENTS.map((a) => a.id).sort());
   });
 });

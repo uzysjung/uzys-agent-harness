@@ -8,9 +8,11 @@
  * **옛 스캔 필드 필터(Q1).** v26.161.0 까지의 `policyFiles`·`skillFiles` 는 설치 뒤 디스크를 훑어 템플릿과 이름이
  * 같은 파일을 적은 값이라 설치자 파일이 섞여 있다(BLOCKER-5 · B2). 로그에 `records: "writer"` 가 없으면 그 두 필드의
  * 항목은 셋을 다 만족할 때만 기록으로 읽는다: ① claude 가 깔린 CLI 집합에 있다 ② 경로가 기록 트랙에서 나오는 하네스
- * 대상이다(manifest — 번들 스킬은 옵션 선택이 기록에 없으므로 전부) ③ `excluded` 에 없다. 걸린 항목은 "기록 없음" —
- * 지우지 않는 쪽이다. 새 판이 쓴 기록(`records: "writer"`)과 `externalFiles` · 앵커 sha 는 쓰는 순간 적은 값이라
- * 필터 없이 읽는다.
+ * 대상이다(manifest — 번들 스킬은 옵션 선택이 기록에 없으므로 전부) **이거나 하네스가 배포했다가 은퇴시킨 경로다
+ * (`RETIRED_PATHS` — 옛 판 전용의 닫힌 목록)** ③ `excluded` 에 없다. 걸린 항목은 "기록 없음" — 지우지 않는 쪽이다.
+ * 은퇴 경로의 옛 스캔 sha 는 하네스 내용의 증거가 아니므로 "기록 있음 · sha 없음" 으로 읽는다 — update 와 uninstall 이
+ * 모두 `backup+remove` 로 치운다(#551 리뷰 B3). writer 가 이어받은 은퇴 항목도 같게 읽는다. 새 판이 쓴 기록
+ * (`records: "writer"`)과 `externalFiles` · 앵커 sha 는 쓰는 순간 적은 값이라 필터 없이 읽는다.
  *
  * **"기록 있음 · sha 없음"(`no-sha`)** = 로그가 그 경로의 소유 CLI 를 말하고(`cli-ownership.ts` 표 — 경로 접두)
  * 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전 판(#557). `claudeManaged`(`update-mode.ts`)를 다른
@@ -25,7 +27,7 @@ import { CLI_OWNERSHIP } from "./cli-ownership.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { type InstallLog, installedClis } from "./install-log.js";
 import type { FileKind, Recorded } from "./judge.js";
-import { buildManifest } from "./manifest.js";
+import { buildManifest, RETIRED_PATHS } from "./manifest.js";
 import { CLI_BASES, type CliBase, isTrack } from "./types.js";
 
 export type { Recorded } from "./judge.js";
@@ -73,6 +75,11 @@ export function isRecordedTrackTarget(log: InstallLog, path: string): boolean {
   );
 }
 
+/** 하네스가 배포했다가 은퇴시킨 `.claude/` 정책 파일인가(`RETIRED_PATHS` 는 `.claude/` 상대). */
+function isRetiredPath(path: string): boolean {
+  return path.startsWith(CLAUDE_DIR) && RETIRED_PATHS.includes(path.slice(CLAUDE_DIR.length));
+}
+
 function isExcludedPath(path: string, excluded: ReadonlySet<string>): boolean {
   const baseline = classifyBaselineTarget(path);
   if (baseline === null) return false;
@@ -105,8 +112,10 @@ export function recorded(
   const excluded = excludedIds(log);
   const clis = installedClis(log);
   const isTarget = opts.isTarget ?? ((p: string) => isRecordedTrackTarget(log, p));
+  // 같은 이름이 다시 배포되면(대상이면) 은퇴가 아니다 — 그때는 보통 대상으로 읽는다
+  const retired = () => isRetiredPath(path) && !isTarget(path);
   const legacyOwned = () =>
-    clis.includes("claude") && isTarget(path) && !isExcludedPath(path, excluded);
+    clis.includes("claude") && (isTarget(path) || retired()) && !isExcludedPath(path, excluded);
 
   const external = log.externalFiles?.find((f) => f.path === path);
   if (external) return { state: "sha", sha256: external.sha256 };
@@ -120,6 +129,8 @@ export function recorded(
       ? log.policyFiles?.find((f) => f.path === path.slice(CLAUDE_DIR.length))
       : undefined;
   if (scanned) {
+    // 은퇴 경로 — 옛 스캔 sha 는 하네스 내용의 증거가 아니다(설치자 동명 파일일 수 있다). 치우되 백업을 남긴다
+    if (retired()) return legacyOwned() ? { state: "no-sha" } : { state: "none" };
     if (writer || legacyOwned()) return { state: "sha", sha256: scanned.sha256 };
     return { state: "none" }; // 필터에 걸린 옛 항목 — 기록 없음(지우지 않는 쪽)
   }

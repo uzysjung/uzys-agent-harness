@@ -471,3 +471,48 @@ describe("judge — R2 · R3 (배선 전이라 판정 수준에서)", () => {
     expect(judgeDisplaced(input)).toMatchObject({ verdict, record });
   });
 });
+
+describe("judge — 리뷰 NOTE 보완(#551 리뷰 N1 · N2 · N3 · N4)", () => {
+  it("N4 — excluded 는 기록 상태와 무관하게 write 를 막는다(update 가 뺀 것을 만들지 않는다)", () => {
+    for (const rec of [NONE, NO_SHA, SHA]) {
+      for (const disk of [null, MINE]) {
+        const got = judge({
+          op: "write",
+          kind: "harness",
+          rec,
+          disk,
+          next: NEXT,
+          run: "update",
+          excluded: true,
+        });
+        expect([got.verdict, got.line, got.record]).toEqual(["leave", "", "keep"]);
+      }
+    }
+  });
+
+  it("N3 — 하네스가 만든 함께 쓰는 파일은 기록에 created 로 남는다", () => {
+    const got = judge({
+      kind: "shared",
+      rec: NONE,
+      next: "{}\n",
+      adapter: "json-keys",
+      op: "write",
+      disk: null,
+    });
+    expect([got.verdict, got.record]).toEqual(["create", "created"]);
+  });
+
+  it("N1 — 설치자가 이미 지운 스캐폴드는 알리지 않는다(화면은 실재하는 것만)", () => {
+    expect(judge({ kind: "advisory", rec: NONE, next: "ci", op: "remove", disk: null })).toEqual({
+      verdict: "leave",
+      line: "",
+      record: "keep",
+    });
+  });
+
+  it("N2 — 자리가 막혔어도 백업이 없으면 없는 경로를 가리키지 않고 기록을 지운다", () => {
+    const got = judgeDisplaced({ backup: "a.md.backup-1", backupExists: false, slotEmpty: false });
+    expect(got).toMatchObject({ verdict: "advise", record: "forget" });
+    expect(got.line).not.toContain("a.md.backup-1");
+  });
+});

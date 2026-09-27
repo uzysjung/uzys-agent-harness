@@ -4,8 +4,14 @@
  * 키 문법(설계 표 그대로):
  *   `statusLine`                          최상위 속성
  *   `mcpServers.<name>` · `mcp.<name>`    객체 안 속성 — 첫 `.` 에서만 자른다(서버 이름에 `.` 이 있어도 된다)
- *   `hooks.<Event>#<script>`              `hooks.<Event>` 배열에서 `hooks[].command` 가 `.claude/hooks/<script>`
- *                                         를 부르는 **항목**(matcher 묶음) — 배열은 항목 단위다
+ *   `hooks.<Event>#<script>`              **핸들러 하나** — `hooks.<Event>` 의 matcher 묶음 안 `hooks[]` 중
+ *                                         `command` 가 **이 프로젝트의** `.claude/hooks/<script>` 를 부르는 것
+ *                                         (앵커 판정 = `hook-ref.ts` `projectAnchoredRef`, 치유기와 같은 함수 —
+ *                                         홈 `~/.claude/hooks/` 의 같은 이름은 설치자 것). 같은 묶음의 다른
+ *                                         핸들러는 설치자 몫이다(#551 리뷰 B1). 렌더 값은 **더할 때 붙일 묶음**
+ *                                         `{ matcher?, hooks: [<핸들러>] }` 이고, 몫(sha)은 그 핸들러뿐이다
+ *   `hooks.<Event>#<script>{}`            그 핸들러를 담은 묶음을 하네스가 **만들었다** — 핸들러를 빼서 묶음의
+ *                                         `hooks` 가 비면 묶음째 걷는다. 설치자 묶음은 비어도 남긴다
  *   `<path>{}` · `<path>[]`               하네스가 **만든** 빈 컨테이너 — strip 이 비었으면 걷는다
  *
  * 컨테이너 키가 따로 있는 이유: strip 은 "빈 컨테이너 정리"를 해야 하는데(설정 파일에 `hooks` 가 없던
@@ -18,6 +24,8 @@
  * 이 어댑터로 옮기며 고친다. 여기서는 파싱 실패 = `{ ok: false }` 다.
  */
 
+import { join } from "node:path";
+import { projectAnchoredRef } from "../hook-ref.js";
 import { hashContent } from "../install-log.js";
 import {
   type PortionAdapter,
@@ -63,6 +71,7 @@ const CONTAINER_SHA = hashContent("uzys-harness:container");
 
 type Parsed =
   | { kind: "container"; path: string[]; shape: "object" | "array" }
+  | { kind: "group"; path: string[]; script: string }
   | { kind: "item"; path: string[]; script: string }
   | { kind: "prop"; path: string[]; name: string };
 
@@ -75,6 +84,8 @@ function splitHead(s: string): string[] {
 function parseKey(key: string): Parsed {
   const container = /^(.+?)(\{\}|\[\])$/.exec(key);
   if (container) {
+    const inner = parseKey(container[1] ?? "");
+    if (inner.kind === "item") return { kind: "group", path: inner.path, script: inner.script };
     return {
       kind: "container",
       path: splitHead(container[1] ?? ""),
@@ -88,26 +99,61 @@ function parseKey(key: string): Parsed {
   return { kind: "prop", path: path.slice(0, -1), name: path.at(-1) ?? key };
 }
 
+/** 값이 아니라 "하네스가 만들었다" 는 표시인 키(빈 컨테이너 · 묶음) — 키 id 가 없고 sha 도 뜻이 없다. */
 export function isContainerKey(key: string): boolean {
-  return parseKey(key).kind === "container";
+  const kind = parseKey(key).kind;
+  return kind === "container" || kind === "group";
 }
 
-/** settings.json 훅 항목은 기록된 키면 sha 와 무관하게 뺀다(N-f · N13 — 스크립트가 함께 사라진다). */
+function isGroupKey(key: string): boolean {
+  return parseKey(key).kind === "group";
+}
+
+/** settings.json 훅 핸들러는 기록된 키면 sha 와 무관하게 뺀다(N-f · N13 — 스크립트가 함께 사라진다). */
 function alwaysStrip(key: string): boolean {
   return parseKey(key).kind === "item";
 }
 
-function escapeRe(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** 이 핸들러가 이 프로젝트의 `.claude/hooks/<script>` 를 부르는가 — 판정은 치유기와 같은 함수. */
+function callsScript(handler: unknown, script: string, claudeDir: string | undefined): boolean {
+  if (!isObject(handler) || typeof handler.command !== "string") return false;
+  return projectAnchoredRef(handler.command, claudeDir) === `hooks/${script}`;
 }
 
-/** 이 matcher 묶음이 `.claude/hooks/<script>` 를 부르는가. */
-function callsScript(entry: unknown, script: string): boolean {
-  if (!isObject(entry) || !Array.isArray(entry.hooks)) return false;
-  const re = new RegExp(`(?:^|[\\s"'/])\\.claude/hooks/${escapeRe(script)}(?=$|[\\s"'])`);
-  return entry.hooks.some(
-    (h) => isObject(h) && typeof h.command === "string" && re.test(h.command),
-  );
+interface HandlerAt {
+  groups: unknown[];
+  gi: number;
+  hooks: unknown[];
+  hi: number;
+}
+
+/** 이벤트 배열에서 그 스크립트를 부르는 핸들러의 자리. 없으면 undefined. */
+function findHandler(
+  root: JsonObject,
+  path: ReadonlyArray<string>,
+  script: string,
+  claudeDir: string | undefined,
+): HandlerAt | undefined {
+  const groups = walk(root, path);
+  if (!Array.isArray(groups)) return undefined;
+  for (const [gi, group] of groups.entries()) {
+    if (!isObject(group) || !Array.isArray(group.hooks)) continue;
+    const hi = group.hooks.findIndex((h) => callsScript(h, script, claudeDir));
+    if (hi !== -1) return { groups, gi, hooks: group.hooks, hi };
+  }
+  return undefined;
+}
+
+/** 렌더가 준 묶음에서 그 스크립트를 부르는 핸들러 — 없으면 렌더가 잘못됐다. */
+function renderedHandler(key: string, group: unknown, claudeDir: string | undefined): unknown {
+  const p = parseKey(key);
+  const hooks = isObject(group) && Array.isArray(group.hooks) ? group.hooks : [];
+  const handler =
+    p.kind === "item" ? hooks.find((h) => callsScript(h, p.script, claudeDir)) : undefined;
+  if (handler === undefined) {
+    throw new Error(`json-keys: rendered group for ${key} has no handler calling that hook script`);
+  }
+  return handler;
 }
 
 /** 경로의 컨테이너. 없으면 undefined, 있는데 모양이 다르면 null(설치자 값 — 건드리지 않는다). */
@@ -121,13 +167,15 @@ function walk(root: JsonObject, path: ReadonlyArray<string>): unknown {
   return cur;
 }
 
-function readKey(root: JsonObject, key: string): unknown {
+function readKey(root: JsonObject, key: string, claudeDir: string | undefined): unknown {
   const p = parseKey(key);
+  if (p.kind === "item" || p.kind === "group") {
+    const at = findHandler(root, p.path, p.script, claudeDir);
+    if (at === undefined) return undefined;
+    return p.kind === "item" ? at.hooks[at.hi] : at.groups[at.gi];
+  }
   const holder = walk(root, p.path);
   if (p.kind === "container") return holder ?? undefined;
-  if (p.kind === "item") {
-    return Array.isArray(holder) ? holder.find((e) => callsScript(e, p.script)) : undefined;
-  }
   return isObject(holder) ? holder[p.name] : undefined;
 }
 
@@ -135,9 +183,15 @@ function readKey(root: JsonObject, key: string): unknown {
  * 값을 쓴다 — 없는 컨테이너는 만들고 그 컨테이너 키를 `created` 에 적는다.
  * @returns 컨테이너 자리에 모양이 다른 설치자 값이 있으면 false(쓰지 않았다)
  */
-function writeKey(root: JsonObject, key: string, value: unknown, created: string[]): boolean {
+function writeKey(
+  root: JsonObject,
+  key: string,
+  value: unknown,
+  created: string[],
+  claudeDir: string | undefined,
+): boolean {
   const p = parseKey(key);
-  if (p.kind === "container") return false;
+  if (p.kind === "container" || p.kind === "group") return false;
   // 컨테이너 사슬: 마지막 칸은 item 이면 배열, prop 이면 객체
   let cur: JsonObject = root;
   const chain = p.path;
@@ -155,23 +209,37 @@ function writeKey(root: JsonObject, key: string, value: unknown, created: string
     if (!wantArray) cur = cur[seg] as JsonObject;
   }
   if (p.kind === "item") {
-    const arr = walk(root, chain) as unknown[];
-    const at = arr.findIndex((e) => callsScript(e, p.script));
-    if (at === -1) arr.push(value);
-    else arr[at] = value;
+    // 있으면 핸들러만 갈아 끼운다(묶음 · 형제 핸들러는 그대로). 없으면 렌더의 묶음을 새로 붙이고 그 묶음을
+    // 하네스가 만들었다고 적는다 — 설치자 묶음 안에 끼워 넣지 않는다(뺄 때 그 묶음을 걷을 근거가 없다).
+    const at = findHandler(root, chain, p.script, claudeDir);
+    if (at !== undefined) {
+      at.hooks[at.hi] = structuredClone(renderedHandler(key, value, claudeDir));
+    } else {
+      (walk(root, chain) as unknown[]).push(structuredClone(value));
+      created.push(`${key}{}`);
+    }
     return true;
   }
   cur[p.name] = value;
   return true;
 }
 
-function deleteKey(root: JsonObject, key: string): void {
+/**
+ * @param ownsGroup 핸들러 키일 때 — 그 핸들러의 묶음을 하네스가 만들었나. 그렇고 비면 묶음째 걷는다.
+ */
+function deleteKey(
+  root: JsonObject,
+  key: string,
+  claudeDir: string | undefined,
+  ownsGroup = false,
+): void {
   const p = parseKey(key);
+  if (p.kind === "group") return;
   if (p.kind === "item") {
-    const arr = walk(root, p.path);
-    if (!Array.isArray(arr)) return;
-    const at = arr.findIndex((e) => callsScript(e, p.script));
-    if (at !== -1) arr.splice(at, 1);
+    const at = findHandler(root, p.path, p.script, claudeDir);
+    if (at === undefined) return;
+    at.hooks.splice(at.hi, 1);
+    if (ownsGroup && at.hooks.length === 0) at.groups.splice(at.gi, 1);
     return;
   }
   const holderPath = p.kind === "container" ? p.path.slice(0, -1) : p.path;
@@ -184,27 +252,56 @@ function isEmptyContainer(v: unknown): boolean {
   return (Array.isArray(v) && v.length === 0) || (isObject(v) && Object.keys(v).length === 0);
 }
 
-/** 하네스가 만든 컨테이너 중 비었으면 걷는다 — 깊은 것부터. 남은 것만 기록으로 돌려준다. */
+/**
+ * 하네스가 만든 컨테이너 중 비었으면 걷는다 — 깊은 것부터. 남은 것만 기록으로 돌려준다.
+ * 묶음 키는 여기서 다루지 않는다 — 핸들러를 뺄 때 함께 판정한다(`deleteKey` 의 `ownsGroup`).
+ */
 function pruneContainers(root: JsonObject, containers: ReadonlyArray<string>): string[] {
   const depth = (k: string) => parseKey(k).path.length;
   const kept: string[] = [];
-  for (const key of [...containers].sort((a, b) => depth(b) - depth(a))) {
-    const v = readKey(root, key);
+  const plain = containers.filter((k) => !isGroupKey(k));
+  for (const key of [...plain].sort((a, b) => depth(b) - depth(a))) {
+    const v = readKey(root, key, undefined);
     if (v === undefined || v === null) continue;
-    if (isEmptyContainer(v)) deleteKey(root, key);
+    if (isEmptyContainer(v)) deleteKey(root, key, undefined);
     else kept.push(key);
   }
   return kept;
 }
 
-function present(root: JsonObject, keys: Iterable<string>): Map<string, string> {
+function present(
+  root: JsonObject,
+  keys: Iterable<string>,
+  claudeDir: string | undefined,
+): Map<string, string> {
   const out = new Map<string, string>();
   for (const k of keys) {
     if (isContainerKey(k)) continue;
-    const v = readKey(root, k);
+    const v = readKey(root, k, claudeDir);
     if (v !== undefined) out.set(k, jsonSha(v));
   }
   return out;
+}
+
+function claudeDirOf(projectDir: string | undefined): string | undefined {
+  return projectDir === undefined ? undefined : join(projectDir, ".claude");
+}
+
+/** 몫으로 남은 핸들러 중 묶음을 하네스가 만든 것 — 묶음 키를 이어 적는다. */
+function carryGroups(
+  root: JsonObject,
+  portions: Map<string, string>,
+  owned: ReadonlySet<string>,
+  claudeDir: string | undefined,
+): void {
+  for (const key of [...portions.keys()]) {
+    if (parseKey(key).kind !== "item" || !owned.has(key)) continue;
+    if (readKey(root, key, claudeDir) !== undefined) portions.set(`${key}{}`, CONTAINER_SHA);
+  }
+}
+
+function ownedGroups(keys: Iterable<string>): Set<string> {
+  return new Set([...keys].filter(isGroupKey).map((k) => k.slice(0, -2)));
 }
 
 function serialize(root: JsonObject): string {
@@ -218,33 +315,39 @@ function valueKeys(m: ReadonlyMap<string, unknown>): string[] {
 export const jsonKeys: PortionAdapter<unknown> = {
   unreadable: UNREADABLE,
 
-  read(text, keys) {
+  read(text, keys, projectDir) {
     const root = parseRoot(text);
     if (root === null) return null;
-    return present(root, keys ?? Object.keys(root));
+    return present(root, keys ?? Object.keys(root), claudeDirOf(projectDir));
   },
 
   upsert(existing, input): UpsertResult {
     const fresh = existing === null;
     const root = fresh ? {} : parseRoot(existing);
     if (root === null) return { ok: false, reason: UNREADABLE };
+    const claudeDir = claudeDirOf(input.projectDir);
     const recorded = fresh ? new Map<string, string>() : input.recorded;
     const recordedValues = new Map([...recorded].filter(([k]) => !isContainerKey(k)));
     const render = new Map([...input.render].filter(([k]) => !isContainerKey(k)));
+    const renderSha = ([k, v]: [string, unknown]): [string, string] => [
+      k,
+      jsonSha(parseKey(k).kind === "item" ? renderedHandler(k, v, claudeDir) : v),
+    ];
     const plan = planUpsert({
-      render: new Map([...render].map(([k, v]) => [k, jsonSha(v)])),
+      render: new Map([...render].map(renderSha)),
       recorded: recordedValues,
-      present: present(root, [...recordedValues.keys(), ...render.keys()]),
+      present: present(root, [...recordedValues.keys(), ...render.keys()], claudeDir),
       excluded: input.excluded,
       alwaysStrip,
     });
     const before = stable(root);
     const created: string[] = [];
-    for (const k of plan.remove) deleteKey(root, k);
-    for (const k of plan.replace) writeKey(root, k, render.get(k), created);
+    const owned = ownedGroups(recorded.keys());
+    for (const k of plan.remove) deleteKey(root, k, claudeDir, owned.has(k));
+    for (const k of plan.replace) writeKey(root, k, render.get(k), created, claudeDir);
     const kept = [...plan.kept];
     for (const k of plan.add) {
-      if (!writeKey(root, k, render.get(k), created)) {
+      if (!writeKey(root, k, render.get(k), created, claudeDir)) {
         plan.portions.delete(k);
         kept.push(k);
       }
@@ -254,6 +357,7 @@ export const jsonKeys: PortionAdapter<unknown> = {
       ...created,
     ]);
     for (const c of containers) plan.portions.set(c, CONTAINER_SHA);
+    carryGroups(root, plan.portions, new Set([...owned, ...ownedGroups(created)]), claudeDir);
     // 실제로 바뀐 것만 — 컨테이너 모양이 달라 못 쓴 키는 바꾼 것이 아니다(입력 바이트를 그대로 둔다)
     const changed = fresh || stable(root) !== before;
     return {
@@ -269,16 +373,19 @@ export const jsonKeys: PortionAdapter<unknown> = {
   strip(existing, input): StripResult {
     const root = parseRoot(existing);
     if (root === null) return { ok: false, reason: UNREADABLE };
+    const claudeDir = claudeDirOf(input.projectDir);
     const plan = planStrip({
       recorded: new Map([...input.recorded].filter(([k]) => !isContainerKey(k))),
-      present: present(root, valueKeys(input.recorded)),
+      present: present(root, valueKeys(input.recorded), claudeDir),
       excluded: input.excluded,
       alwaysStrip,
     });
     const before = stable(root);
-    for (const k of plan.remove) deleteKey(root, k);
+    const owned = ownedGroups(input.recorded.keys());
+    for (const k of plan.remove) deleteKey(root, k, claudeDir, owned.has(k));
     const containers = pruneContainers(root, [...input.recorded.keys()].filter(isContainerKey));
     for (const c of containers) plan.portions.set(c, CONTAINER_SHA);
+    carryGroups(root, plan.portions, owned, claudeDir);
     const changed = stable(root) !== before;
     return {
       ok: true,

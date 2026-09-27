@@ -38,6 +38,8 @@ export type Verdict =
  * - `forget`           경로 기록을 뺀다(하네스가 지웠다 · 이미 없다)
  * - `exclude-portions` 이 파일의 `portions` 키 전부를 키 id 로 `excluded` 에 옮긴다(설치자가 파일째 지웠다, Q4)
  * - `advisory`         `rootFiles.change = advisory` 로 경로만 적는다
+ * - `created`          `rootFiles.change = created` — 하네스가 만든 함께 쓰는 파일(strip 뒤 남는 것이 없으면 파일째
+ *                      지우는 근거, 설계 §1.2 shared 행). 몫 자체는 어댑터 결과의 `portions` 로 적는다
  */
 export type RecordEffect =
   | "keep"
@@ -46,7 +48,8 @@ export type RecordEffect =
   | "displaced+sha"
   | "forget"
   | "exclude-portions"
-  | "advisory";
+  | "advisory"
+  | "created";
 
 /** 경로 하나에 대한 기록 상태 — `recorded()` 의 반환. */
 export interface Recorded {
@@ -67,7 +70,10 @@ export interface JudgeInput {
   next: string | null;
   /** write 가 어느 동작인가 — 같은 칸 안에서 갈리는 곳(update 의 되살림 문구 · excluded · 함께 쓰는 파일의 부재)만 읽는다. 기본 install. */
   run?: "install" | "update";
-  /** 이 항목이 `excluded` 에 있는가 — `harness · sha · 디스크 없음` 의 update 칸. */
+  /**
+   * 이 항목이 `excluded` 에 있는가. write 는 기록 상태와 무관하게 쓰지 않는다(`leave`) — 표는 `sha · 디스크 없음`
+   * 의 update 칸에만 적었지만 세 동작 표가 update 대상에서 excluded 를 통째로 뺀다(#551 리뷰 N4).
+   */
   excluded?: boolean;
   /** shared 전용 — 이 파일의 어댑터. 파싱 판정(#574)에 쓴다. */
   adapter?: Adapter;
@@ -151,11 +157,11 @@ function sameAsRecord(input: JudgeInput): boolean {
 function harnessWrite(input: JudgeInput): Judgement {
   const { rec, disk } = input;
   const update = input.run === "update";
+  if (input.excluded) return j("leave", "", "keep"); // 설치자가 뺀 것 — 만들지도 갱신하지도 않는다
   if (disk === null) {
     if (rec.state === "none") return j("create", update ? LINES.newInRelease : LINES.wrote, "sha");
-    // sha · 디스크 없음: install 은 create, update 는 "was missing — restored"(excluded 면 leave).
+    // sha · 디스크 없음: install 은 create, update 는 "was missing — restored".
     // no-sha · 디스크 없음은 표에 행이 없다 — 같은 "기록 있음" 이라 sha 칸을 따른다(인계 문서 §표와 갈린 자리).
-    if (update && input.excluded) return j("leave", "", "keep");
     return j("create", update ? LINES.restored : LINES.wrote, "sha");
   }
   if (rec.state === "none") {
@@ -199,7 +205,7 @@ function shared(input: JudgeInput): Judgement {
     if (input.run === "update" && input.hasPortions) {
       return j("leave", LINES.sharedDeleted, "exclude-portions");
     }
-    return j("create", LINES.sharedCreated, "keep");
+    return j("create", LINES.sharedCreated, "created");
   }
   if (ADAPTERS[adapter].read(disk) === null) {
     return j("leave+advise", unreadable(adapter, input.op), "keep"); // #574 — 한 바이트도 쓰지 않는다
@@ -210,7 +216,10 @@ function shared(input: JudgeInput): Judgement {
 }
 
 function advisory(input: JudgeInput): Judgement {
-  if (input.op === "remove") return j("advise", LINES.leftForYou, "keep");
+  if (input.op === "remove") {
+    // 설치자가 이미 지웠으면 말할 것이 없다 — 화면은 실재하는 것만 알린다(#551 리뷰 N1)
+    return input.disk === null ? j("leave", "", "keep") : j("advise", LINES.leftForYou, "keep");
+  }
   // 도구가 만든 경로(next 없음)는 경로만 기록한다. 스캐폴드는 없을 때만 install 이 한 번 쓴다 —
   // update 는 갱신하지 않는다(설계 §2 행 16·17 의 update 칸 "—").
   if (input.next === null) return j("leave", "", "advisory");
@@ -245,18 +254,20 @@ export interface DisplacedJudgement {
 
 export function judgeDisplaced(input: DisplacedInput): DisplacedJudgement {
   if (input.backup === null) return { verdict: "leave", line: "", record: "forget" };
+  // 백업 부재를 먼저 본다 — 없는 경로를 "여기 있다" 고 가리키지 않는다(#551 리뷰 N2). 되돌릴 것이 없으니
+  // 기록도 지운다(남기면 이후 모든 remove 가 같은 줄을 되풀이한다).
+  if (!input.backupExists) {
+    return {
+      verdict: "advise",
+      line: "could not put back your earlier file — its backup is no longer there",
+      record: "forget",
+    };
+  }
   if (!input.slotEmpty) {
     return {
       verdict: "advise",
       line: `not put back — the spot is taken; your earlier file is at ${input.backup}`,
       record: "keep",
-    };
-  }
-  if (!input.backupExists) {
-    return {
-      verdict: "advise",
-      line: `could not put back your earlier file — ${input.backup} is gone`,
-      record: "forget",
     };
   }
   return {

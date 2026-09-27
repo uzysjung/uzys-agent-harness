@@ -35,8 +35,13 @@ function blockText(name: string, body: string): string {
   return wrapHarnessBlock(marker(name), body);
 }
 
+/** CRLF 로 체크아웃돼도 같은 블록으로 읽는다(#551 리뷰 N6) — 안 그러면 "설치자가 고쳤다" 로 읽혀 갱신도 회수도 안 된다. */
+function normEol(s: string): string {
+  return s.replace(/\r\n/g, "\n").replace(/\r$/, "");
+}
+
 function shas(blocks: ReadonlyMap<string, Region>): Map<string, string> {
-  return new Map([...blocks].map(([k, b]) => [k, hashContent(b.body)]));
+  return new Map([...blocks].map(([k, b]) => [k, hashContent(normEol(b.body))]));
 }
 
 function at<T>(map: ReadonlyMap<string, T>, key: string): T {

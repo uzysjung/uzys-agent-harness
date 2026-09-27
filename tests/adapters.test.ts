@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import { ADAPTERS, adapterFor, excludedKeys, keyId, SHARED_FILES } from "../src/adapters/index.js";
-import { scanToml } from "../src/adapters/toml-region.js";
+import { readToml } from "../src/adapters/toml-region.js";
 
 const none = new Set<string>();
 const fresh = new Map<string, string>();
@@ -329,13 +329,11 @@ describe("lines — .gitignore", () => {
 
 /* ─── toml-region ───────────────────────────────────────────────────────── */
 
-/** 파싱 동치 — 주석·빈 줄·들여쓰기를 뺀 의미 줄이 같다(외부 파서 없이 이 저장소가 약속하는 수준). */
-function tomlMeaning(text: string): string[] {
-  expect(scanToml(text)).not.toBeNull();
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l !== "" && !l.startsWith("#"));
+/** 파싱 동치 — 실제 TOML 파서(`smol-toml`)가 읽은 값이 같다. 읽히지 않으면 그 자체로 실패. */
+function tomlMeaning(text: string): unknown {
+  const parsed = readToml(text);
+  expect(parsed, text).not.toBeNull();
+  return parsed;
 }
 
 describe("toml-region — .codex/config.toml", () => {
@@ -369,16 +367,71 @@ describe("toml-region — .codex/config.toml", () => {
     originals.map((x) => [JSON.stringify(x), x]),
   )("upsert∘strip = 원본(파싱 동치) — %s", (_, x) => {
     const u = upsertOk(tr, x, render);
-    expect(scanToml(u.text)).not.toBeNull();
+    tomlMeaning(u.text);
     const s = stripOk(tr, u.text, u.portions);
     expect(tomlMeaning(s.text)).toEqual(tomlMeaning(x));
   });
 
-  it("최상위 키 구간은 첫 [table] 앞에 들어간다 — 파일 끝이면 설치자 표 안으로 빨려 들어간다(B4)", () => {
+  it("최상위 키 구간은 파일 맨 앞에 들어간다 — 파일 끝이면 설치자 표 안으로 빨려 들어간다(B4)", () => {
     const u = upsertOk(tr, 'model = "o3"\n[profiles.fast]\nmodel = "x"\n', render);
-    const items = scanToml(u.text) ?? [];
-    const approval = items.find((i) => i.kind === "key" && i.key === "approval_policy");
-    expect(approval).toMatchObject({ table: null });
+    expect(u.text.startsWith("# uzys-harness:top:start\n")).toBe(true);
+    expect(tomlMeaning(u.text)).toMatchObject({
+      approval_policy: "on-request",
+      profiles: { fast: { model: "x" } },
+    });
+  });
+
+  it("여러 줄 문자열 안의 `[…]` 줄을 첫 표로 착각하지 않는다(리뷰 P3 · N7)", () => {
+    const x = 'developer_instructions = """\nBe careful.\n[important]\nnever push\n"""\n';
+    const u = upsertOk(tr, x, render);
+    expect(tomlMeaning(u.text)).toMatchObject({
+      approval_policy: "on-request",
+      developer_instructions: "Be careful.\n[important]\nnever push\n",
+    });
+    expect(tomlMeaning(stripOk(tr, u.text, u.portions).text)).toEqual(tomlMeaning(x));
+  });
+
+  describe("설치자가 같은 표를 다른 형태로 이미 정의했다 — 결과는 읽히고 그 항목은 설치자 것(리뷰 P2 · B2)", () => {
+    const p2Render = new Map([
+      ["top", 'approval_policy = "on-request"'],
+      [
+        "tables",
+        '[features]\nweb_search_request = false\n\n[mcp_servers.context7]\ncommand = "npx"\nargs = ["-y", "@upstash/context7-mcp"]',
+      ],
+    ]);
+    it.each([
+      ["인라인 표", "features = { web_search_request = true }\n", "[features]"],
+      [
+        "표 안의 인라인 표",
+        '[mcp_servers]\ncontext7 = { command = "npx", args = ["-y", "@upstash/context7-mcp"] }\n',
+        "[mcp_servers.context7]",
+      ],
+      ["표 안의 점 키", '[mcp_servers]\ncontext7.command = "bunx"\n', "[mcp_servers.context7]"],
+      ["최상위 점 키", 'mcp_servers.context7.command = "bunx"\n', "[mcp_servers.context7]"],
+    ])("%s", (_, x, taken) => {
+      expect(readToml(x)).not.toBeNull(); // 입력은 유효하다
+      const u = upsertOk(tr, x, p2Render);
+      const parsed = tomlMeaning(u.text);
+      expect(u.kept).toContain(taken);
+      expect(parsed).toMatchObject(readToml(x) ?? {}); // 설치자 값이 그대로 이긴다
+      expect(tomlMeaning(stripOk(tr, u.text, u.portions).text)).toEqual(readToml(x));
+    });
+
+    it("설치자가 하위 표만 정의했어도 그 표는 설치자 것 — 파싱은 되지만 하네스 키가 섞여 들지 않는다", () => {
+      const x = '[mcp_servers.context7.env]\nTOKEN = "t"\n';
+      const u = upsertOk(tr, x, p2Render);
+      expect(u.kept).toContain("[mcp_servers.context7]");
+      expect((tomlMeaning(u.text) as { mcp_servers: unknown }).mcp_servers).toEqual({
+        context7: { env: { TOKEN: "t" } },
+      });
+    });
+
+    it("닫힌 인라인 표를 넓히는 항목은 경로가 없어도 뺀다(쓴 결과가 읽혀야 한다)", () => {
+      const x = 'mcp_servers = { mine = { command = "x" } }\n';
+      const u = upsertOk(tr, x, p2Render);
+      expect(u.kept).toContain("[mcp_servers.context7]");
+      expect(tomlMeaning(u.text)).toMatchObject({ mcp_servers: { mine: { command: "x" } } });
+    });
   });
 
   it("구간 밖 설치자 키·표가 이긴다 — 하네스 구간에서 그 항목을 뺀다 · [[배열 표]]는 충돌이 아니다", () => {
@@ -414,17 +467,35 @@ describe("toml-region — .codex/config.toml", () => {
     "[t]\na = 1\n[t]\nb = 2\n", // 같은 표 두 번
     "a = 1\na = 2\n", // 같은 키 두 번
     "[t\n", // 깨진 헤더
-    "# uzys-harness:top:start\na = 1\n", // 끝 마커 없음
-  ])("읽지 못하는 파일(%j)에는 한 바이트도 쓰지 않는다", (broken) => {
+    "x = { y = 1 }\n[x.z]\nq = 1\n", // 인라인 표를 다시 정의
+  ])("TOML 로 읽히지 않는 파일(%j)에는 한 바이트도 쓰지 않는다(#574)", (broken) => {
     expect(tr.read(broken)).toBeNull();
-    expect(tr.upsert(broken, { render, recorded: fresh, excluded: none })).toEqual({
-      ok: false,
-      reason: "invalid TOML",
-    });
-    expect(tr.strip(broken, { recorded: fresh, excluded: none })).toMatchObject({ ok: false });
+    const failed = { ok: false, reason: "invalid TOML" };
+    expect(tr.upsert(broken, { render, recorded: fresh, excluded: none })).toEqual(failed);
+    expect(tr.strip(broken, { recorded: fresh, excluded: none })).toEqual(failed);
   });
 
-  it("여러 줄 값 · 인라인 표 · 여러 줄 문자열 · 주석을 읽는다", () => {
+  it("쓴 결과가 읽히지 않으면 쓰지 않는다 — 설치자가 고쳐 남긴 구간과 새 구간이 겹칠 때", () => {
+    const first = upsertOk(tr, "", new Map([["tables", "[features]\na = true"]]));
+    const edited = first.text.replace("a = true", "a = false"); // 설치자가 구간을 고쳤다 → 남긴다
+    const r = tr.upsert(edited, {
+      // 릴리즈가 `tables` 를 은퇴시키고 같은 표를 새 구간에 정의 — 고쳐 남긴 구간은 판정 문서 밖이라 사후 검증만 본다
+      render: new Map([["extra", "[features]\nb = 1"]]),
+      recorded: first.portions,
+      excluded: none,
+    });
+    expect(r).toEqual({ ok: false, reason: "the merged result would not be readable TOML" });
+  });
+
+  it("마커가 깨진 파일에도 쓰지 않는다", () => {
+    const broken = "# uzys-harness:top:start\na = 1\n"; // 끝 마커 없음 — TOML 로는 읽힌다
+    const failed = { ok: false, reason: "harness markers are broken" };
+    expect(tr.read(broken)).toBeNull();
+    expect(tr.upsert(broken, { render, recorded: fresh, excluded: none })).toEqual(failed);
+    expect(tr.strip(broken, { recorded: fresh, excluded: none })).toEqual(failed);
+  });
+
+  it("여러 줄 값 · 인라인 표 · 여러 줄 문자열 · 주석이 있는 파일을 읽는다", () => {
     const ok = [
       "a = [",
       '  "x", # comment',
@@ -438,7 +509,8 @@ describe("toml-region — .codex/config.toml", () => {
       '["quoted.table"]',
       "'lit' = 1",
     ].join("\n");
-    expect(scanToml(ok)).not.toBeNull();
+    expect(tr.read(ok)).not.toBeNull();
+    tomlMeaning(upsertOk(tr, ok, render).text);
   });
 });
 
@@ -579,5 +651,126 @@ describe("릴리즈가 몫의 값을 바꾸면 기록 sha 그대로인 키만 �
     // 렌더에서 빠진 구간은 upsert 가 걷는다(기록 sha 그대로일 때)
     const gone = upsertOk(tr, v2.text, new Map(), v2.portions);
     expect(gone.text).toBe(x);
+  });
+});
+
+/* ─── json-keys 훅 — 핸들러 단위(#551 리뷰 B1) ──────────────────────────── */
+
+describe("json-keys 훅 — 몫은 핸들러 하나, 같은 묶음의 다른 핸들러는 설치자 것", () => {
+  const js = ADAPTERS["json-keys"];
+  const protect = HOOK("protect-files.sh", { matcher: "Write|Edit" });
+  const render = new Map<string, unknown>([["hooks.PreToolUse#protect-files.sh", protect]]);
+  const prettier = { type: "command", command: "npx prettier --write $FILE" };
+
+  it("하네스 묶음에 설치자가 더한 핸들러(prettier)는 strip 뒤에도 남는다", () => {
+    const u = upsertOk(js, '{"permissions":{"allow":["Bash"]}}', render);
+    const withMine = JSON.parse(u.text);
+    withMine.hooks.PreToolUse[0].hooks.push(prettier);
+    const s = stripOk(js, JSON.stringify(withMine), u.portions);
+    expect(s.removed).toEqual(["hooks.PreToolUse#protect-files.sh"]);
+    expect(JSON.parse(s.text)).toEqual({
+      permissions: { allow: ["Bash"] },
+      hooks: { PreToolUse: [{ matcher: "Write|Edit", hooks: [prettier] }] },
+    });
+  });
+
+  it("렌더에서 빠진 훅(은퇴 · --without)을 upsert 가 뺄 때도 형제 핸들러는 남는다", () => {
+    const u = upsertOk(js, "{}", render);
+    const withMine = JSON.parse(u.text);
+    withMine.hooks.PreToolUse[0].hooks.push(prettier);
+    const again = upsertOk(js, JSON.stringify(withMine), new Map(), u.portions);
+    expect(JSON.parse(again.text).hooks.PreToolUse).toEqual([
+      { matcher: "Write|Edit", hooks: [prettier] },
+    ]);
+  });
+
+  it("설치자 묶음 안의 하네스 핸들러(옛 로그에서 호출부가 몫으로 넘긴 것)를 빼도 설치자 묶음은 비어도 남는다", () => {
+    const mine = { hooks: { PreToolUse: [protect] } }; // 묶음을 하네스가 만들었다는 기록이 없다
+    const recorded = js.read(JSON.stringify(mine), ["hooks.PreToolUse#protect-files.sh"]);
+    const s = stripOk(js, JSON.stringify(mine), recorded ?? new Map());
+    expect(JSON.parse(s.text)).toEqual({
+      hooks: { PreToolUse: [{ matcher: "Write|Edit", hooks: [] }] },
+    });
+  });
+
+  const homeHook = {
+    hooks: [{ type: "command", command: "bash ~/.claude/hooks/session-start.sh" }],
+  };
+  const sessionRender = new Map<string, unknown>([
+    ["hooks.SessionStart#session-start.sh", HOOK("session-start.sh")],
+  ]);
+
+  it("홈 ~/.claude/hooks/ 의 같은 이름 스크립트는 하네스 것이 아니다 — 설치 전부터 있어도 하네스 훅은 깔린다", () => {
+    const x = JSON.stringify({ hooks: { SessionStart: [homeHook] } });
+    const u = upsertOk(js, x, sessionRender);
+    expect(u.kept).toEqual([]);
+    expect([...u.portions.keys()]).toContain("hooks.SessionStart#session-start.sh");
+    expect(JSON.parse(u.text).hooks.SessionStart).toHaveLength(2);
+    // 되돌리면 홈 훅만 남는다
+    expect(JSON.parse(stripOk(js, u.text, u.portions).text)).toEqual(JSON.parse(x));
+  });
+
+  it("설치 뒤 홈 훅이 하네스 묶음 앞에 와도 strip 은 홈 훅을 지우지 않는다", () => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const reordered = JSON.parse(u.text);
+    reordered.hooks.SessionStart.unshift(homeHook);
+    const s = stripOk(js, JSON.stringify(reordered), u.portions);
+    expect(JSON.parse(s.text)).toEqual({ hooks: { SessionStart: [homeHook] } });
+  });
+
+  it("옛 절대경로 표기는 프로젝트 경로를 받을 때만 이 프로젝트 것으로 읽는다(치유기와 같은 규칙)", () => {
+    const legacy = JSON.stringify({
+      hooks: {
+        SessionStart: [
+          { hooks: [{ type: "command", command: "bash /work/p/.claude/hooks/session-start.sh" }] },
+        ],
+      },
+    });
+    const key = ["hooks.SessionStart#session-start.sh"];
+    expect([...(js.read(legacy, key, "/work/p")?.keys() ?? [])]).toEqual(key);
+    expect([...(js.read(legacy, key)?.keys() ?? [])]).toEqual([]);
+    expect([...(js.read(legacy, key, "/work/other")?.keys() ?? [])]).toEqual([]);
+  });
+
+  it("렌더 묶음에 그 스크립트를 부르는 핸들러가 없으면 조용히 넘어가지 않는다", () => {
+    const bad = new Map<string, unknown>([["hooks.SessionStart#session-start.sh", homeHook]]);
+    expect(() =>
+      js.upsert("{}", { render: bad, recorded: new Map(), excluded: new Set() }),
+    ).toThrow(/no handler/);
+  });
+});
+
+/* ─── CRLF 재체크아웃(#551 리뷰 N6) ─────────────────────────────────────── */
+
+describe("설치 뒤 체크아웃이 CRLF 로 바꿔도 하네스 몫을 알아본다", () => {
+  const crlf = (t: string) => t.replace(/\r?\n/g, "\r\n");
+  const cases = [
+    ["marker-md", "# P\n", new Map([["import", "@A\n\nline"]]), new Map([["import", "@B"]])],
+    [
+      "lines",
+      "node_modules\n",
+      new Map([[".env", "# h\n.env"]]),
+      new Map([[".env", "# h2\n.env"]]),
+    ],
+    [
+      "toml-region",
+      'model = "o3"\n',
+      new Map([["tables", "[features]\na = true"]]),
+      new Map([["tables", "[features]\na = false"]]),
+    ],
+  ] as const;
+
+  it.each(
+    cases,
+  )("%s — strip 은 CRLF 원본으로 돌아온다(끝에 \\r 이 남지 않는다) · 갱신은 고친 것으로 읽지 않는다", (name, x, v1, v2) => {
+    const adapter = ADAPTERS[name];
+    const u = upsertOk(adapter, x, v1);
+    const onDisk = crlf(u.text);
+    const s = stripOk(adapter, onDisk, u.portions);
+    expect(s.kept).toEqual([]);
+    expect(s.text).toBe(crlf(x));
+    const again = upsertOk(adapter, onDisk, v2, u.portions);
+    expect(again.kept).toEqual([]);
+    expect(again.changed).toBe(true);
   });
 });

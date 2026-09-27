@@ -100,9 +100,11 @@ recorded(log, projectRelPath): { state: "none" | "no-sha" | "sha"; sha256?: stri
 자체로 소유다(필터 없음). 설치 뒤 템플릿 디렉터리 전체와 이름을 맞춰 디스크를 훑는 `collectPolicyHashes`·`collectSkillHashes`
 (`install-log.ts:518-560`)는 install 경로에서 끊고 폐지한다. **필터는 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 에만
 건다.** 조건은 셋이다: claude 가 `installedClis(log)` 에 있을 것 · 경로가 `resolveRules`/에이전트 표로 **기록 트랙에서** 나오는
-대상이거나 번들 스킬 id(옵션 선택은 기록에 없으므로 번들 id 전부) · `excluded`(옛 `baselineExclude`·`skillExclude` 포함)에 없을
-것. 새 판이 로그를 처음 쓸 때 이 필터를 한 번 적용해 남은 것만 이어받고, 로그에 `records: "writer"` 를 적는다. 이 표시가 있으면
-이후로는 필터 없이 읽는다. 필터에 걸린 옛 항목은 "기록 없음" 이 된다(지우지 않는 쪽 — 안전). 고르지 않은 트랙의 같은 이름
+대상이거나 번들 스킬 id(옵션 선택은 기록에 없으므로 번들 id 전부)이거나 하네스가 배포했다가 은퇴시킨 경로(`RETIRED_PATHS` — 옛 판
+전용의 닫힌 목록) · `excluded`(옛 `baselineExclude`·`skillExclude` 포함)에 없을 것. 새 판이 로그를 처음 쓸 때 이 필터를 한 번 적용해 남은 것만 이어받고, 로그에 `records: "writer"` 를 적는다. 이 표시가 있으면
+이후로는 필터 없이 읽는다. 필터에 걸린 옛 항목은 "기록 없음" 이 된다(지우지 않는 쪽 — 안전). 은퇴 경로의 옛 스캔 sha 는 하네스
+내용의 증거가 아니므로 "기록 있음 · sha 없음" 으로 읽는다 — update 와 uninstall 이 모두 `backup+remove` 로 치운다(설치자가 같은
+이름으로 쓴 파일이어도 바이트는 백업에 남는다). 첫 writer 는 은퇴 항목을 회수할 때까지 이어받는다. 고르지 않은 트랙의 같은 이름
 설치자 파일(예: csr 설치자의 자기 `.claude/agents/data-analyst.md`)은 그래서 소유가 아니다. **"기록 있음 · sha 없음"** = 로그가
 그 CLI 를 말하고(`claudeManaged`, `update-mode.ts:426-436`) 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전
 판(#557)이 여기다.
@@ -340,7 +342,7 @@ harness/shared/yours 세 열로.
 
 | 남아 있는 것 | 새 판이 하는 일 | 설치자가 잃는 것 |
 |---|---|---|
-| 옛 로그의 `policyFiles`·`skillFiles`(옛 판이 디스크를 훑어 적은 값) | 새 판이 로그를 처음 쓸 때 §1.2 의 소유 필터를 **한 번** 건다 — claude 가 `installedClis(log)` 에 있고 · 경로가 기록 트랙에서 나오는 대상이거나 번들 스킬 id 이며 · `excluded`(옛 `baselineExclude`·`skillExclude` 포함)에 없는 것만 이어받고 `records: "writer"` 를 적는다. 걸린 항목은 "기록 없음"(지우지 않는 쪽). 고르지 않은 트랙의 같은 이름 설치자 파일은 그래서 소유가 아니다. `externalFiles`·`rootFiles` 는 옛 판도 쓰는 순간 적었으므로 필터 없이 그대로 읽는다. `templates.*Dir` 은 안 읽는다(#559) | 없음 |
+| 옛 로그의 `policyFiles`·`skillFiles`(옛 판이 디스크를 훑어 적은 값) | 새 판이 로그를 처음 쓸 때 §1.2 의 소유 필터를 **한 번** 건다 — claude 가 `installedClis(log)` 에 있고 · 경로가 기록 트랙에서 나오는 대상이거나 번들 스킬 id · 은퇴 경로(`RETIRED_PATHS`, sha 없음으로 읽음)이며 · `excluded`(옛 `baselineExclude`·`skillExclude` 포함)에 없는 것만 이어받고 `records: "writer"` 를 적는다. 걸린 항목은 "기록 없음"(지우지 않는 쪽). 고르지 않은 트랙의 같은 이름 설치자 파일은 그래서 소유가 아니다. `externalFiles`·`rootFiles` 는 옛 판도 쓰는 순간 적었으므로 필터 없이 그대로 읽는다. `templates.*Dir` 은 안 읽는다(#559) | 없음 |
 | 옛 로그의 `baselineExclude`·`skillExclude` | 접근자가 `excluded` 와 합쳐 읽는다. 다음 쓰기부터 `excluded` 로 | 없음 |
 | 옛 로그에 없는 함께 쓰는 파일의 몫(`settings.json` 훅 · `.mcp.json` 서버 · `.gitignore` 줄) | 어댑터의 **내용 식별자**로 몫을 찾는다(내용 식별은 **여기서만** 쓴다, R3): `settings.json` 은 하네스 훅 스크립트를 부르는 항목 · `.gitignore` 는 `rootFiles.notes` 의 줄 · `.mcp.json` 은 `rootFiles.change === "created"` 일 때만 템플릿 서버 이름으로(아니면 남기고 알린다). 첫 write 가 `portions` 를 채우고 그 뒤로는 `portions` 만 본다 | 없음 |
 | sha 없는 하네스 파일(체크섬 도입 전 판, 로그는 있음) | §1.2 "기록 있음 · sha 없음" 칸 — 이미 최신이면 조용히, 다르면 1회 백업 + "saved a copy once" | 없음(1회 백업 파일) |
@@ -393,12 +395,12 @@ update 는 되살리지 않고 `excluded` 에 키 id(`mcp:github` · `settings:s
 | 어댑터 | 파일 | 하네스 몫(= `key`) | upsert | strip |
 |---|---|---|---|---|
 | `marker-md` | 루트 `CLAUDE.md` · `AGENTS.md` | 마커 블록 이름. 루트 `CLAUDE.md` = `import` 블록. `AGENTS.md`: **`recorded === "none"` 인 파일(첫 접촉)** = 설치자 본문 바이트 그대로 + 하네스 절 전체를 블록 하나(`agents`)로 파일 끝에; **`no-sha`·`sha`(하네스가 만든 파일)** = 지금의 절 모델(ADR-095 D1, `anchor`·`skills` 블록 — 옛 판이 만든 파일을 첫 접촉으로 읽으면 룰이 두 벌 들어간다, N-c) | 지금 코드(`upsertHarnessImport`·`mergeAgentsMd`) + 첫 접촉 분기 | 지금 코드(`stripHarnessImport`·`stripHarnessFromAgentsMd`) + `agents` 블록 제거 — `upsert∘strip` 은 설치자 원본과 바이트 동일 |
-| `json-keys` | `.mcp.json` · `opencode.json` · `.claude/settings.json` | 키 경로: `mcpServers.<name>` · `mcp.<name>` · `hooks.<Event>#<하네스 스크립트명>`(항목의 `command` 가 하네스 훅 스크립트를 부르면 그 항목 — 설치자가 타임아웃 등 필드를 고쳤어도 스크립트가 지워지면 죽은 참조라 **뺀다**, N13) · `statusLine`(없던 경우만, A5). `_comment` · 빈 배열(`PostToolUse: []`)은 몫이 아니다 | 설치자 키가 있으면 그대로, 없는 키만 더한다(`excluded` 키는 더하지 않는다); 배열은 항목 단위 | **`portions` 에 기록된 키만**, sha 가 그대로인 것을 뺀다(설치자 항목이 설치자 스크립트를 부르면 그대로). 단 `hooks` 항목은 `portions` 에 기록된 키면 sha 와 무관하게 뺀다(스크립트가 함께 사라지므로 남기면 죽은 참조다, N-f); 빈 컨테이너 정리 |
-| `toml-region` | `.codex/config.toml` | **구간 둘**: 최상위 키 구간(`approval_policy`·`sandbox_mode`)은 **첫 `[table]` 헤더 앞**, 표 구간(`[sandbox_workspace_write]`·`[[hooks.*]]`·`[mcp_servers.*]`·`[features]`)은 파일 끝. 각 구간은 `# uzys-harness:<name>:start/end` 로 감싼다(B4) | 구간이 없으면 만든다. 충돌은 TOML **파서로 읽어서** 판정(쓰기는 구간 텍스트만): 구간 밖에 같은 최상위 키·같은 `[table]` 이 있으면 그 항목은 구간에서 뺀다(설치자 값 우선, "kept yours: approval_policy"). `[[배열 표]]` 는 더하기만 하고 충돌로 보지 않는다. 파서 도입이 부담이면 대안 = 하네스 몫에서 최상위 키를 없애고 표만 쓴다 | 구간 둘만 뺀다 |
+| `json-keys` | `.mcp.json` · `opencode.json` · `.claude/settings.json` | 키 경로: `mcpServers.<name>` · `mcp.<name>` · `hooks.<Event>#<하네스 스크립트명>`(핸들러 단위 — matcher 묶음 안 `hooks[]` 의 핸들러 중 `command` 가 이 프로젝트의 `.claude/hooks/<script>` 를 부르는 것(`projectAnchoredRef` 규칙 — 홈 `~/.claude/hooks/` 의 같은 이름은 설치자 것). 같은 묶음의 다른 핸들러는 설치자 몫이고, 묶음은 하네스가 만들었고 비었을 때만 걷는다 — 설치자가 타임아웃 등 필드를 고쳤어도 스크립트가 지워지면 죽은 참조라 **뺀다**, N13) · `statusLine`(없던 경우만, A5). `_comment` · 빈 배열(`PostToolUse: []`)은 몫이 아니다 | 설치자 키가 있으면 그대로, 없는 키만 더한다(`excluded` 키는 더하지 않는다); 배열은 항목 단위 | **`portions` 에 기록된 키만**, sha 가 그대로인 것을 뺀다(설치자 항목이 설치자 스크립트를 부르면 그대로). 단 `hooks` 항목은 `portions` 에 기록된 키면 sha 와 무관하게 뺀다(스크립트가 함께 사라지므로 남기면 죽은 참조다, N-f); 빈 컨테이너 정리 |
+| `toml-region` | `.codex/config.toml` | **구간 둘**: 최상위 키 구간(`approval_policy`·`sandbox_mode`)은 **파일 맨 앞**, 표 구간(`[sandbox_workspace_write]`·`[[hooks.*]]`·`[mcp_servers.*]`·`[features]`)은 파일 끝. 각 구간은 `# uzys-harness:<name>:start/end` 로 감싼다(B4) | 구간이 없으면 만든다. 충돌은 TOML **파서로 읽어서** 판정(`smol-toml` — 구간 밖을 파싱한 객체에 같은 키 경로가 명시 · 암묵 · 인라인 · 점 키 어느 형태로든 있으면 그 항목을 뺀다. 쓴 결과를 다시 파싱해 실패하면 쓰지 않는다)(쓰기는 구간 텍스트만): 구간 밖에 같은 최상위 키·같은 `[table]` 이 있으면 그 항목은 구간에서 뺀다(설치자 값 우선, "kept yours: approval_policy"). `[[배열 표]]` 는 더하기만 하고 충돌로 보지 않는다 | 구간 둘만 뺀다 |
 | `lines` | `.gitignore` | 줄 원문(헤더 주석 포함) | 없는 줄만 붙인다 | 기록된 줄이 그대로 있으면 뺀다 |
 
-TOML 은 읽기용 파서 하나만 쓴다(직렬화는 하지 않는다 — 구간 텍스트를 그대로 쓴다). 라이브러리 선택은 구현 선택이고
-ADR 대상이 아니다.
+TOML 은 읽기용 파서 하나만 쓴다(직렬화는 하지 않는다 — 구간 텍스트를 그대로 쓴다). 파서는 `smol-toml`(의존성 0 · BSD-3,
+번들에 포함) — 외부 의존성 도입이라 ADR-097 Consequences 에 적었다.
 
 ### 6.3 새 파일 종류 추가 절차
 

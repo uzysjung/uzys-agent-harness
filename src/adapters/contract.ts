@@ -32,11 +32,15 @@ export interface UpsertInput<V> {
    * 쓰이는 순간 설치자 것이고, strip 은 건드리지 않는다.
    */
   seed?: string;
+  /** 이 파일이 사는 프로젝트(절대경로). `json-keys` 의 훅 식별이 옛 절대경로 표기를 알아보는 데만 쓴다. */
+  projectDir?: string;
 }
 
 export interface StripInput {
   recorded: PortionShas;
   excluded: ReadonlySet<string>;
+  /** `UpsertInput.projectDir` 와 같다. */
+  projectDir?: string;
 }
 
 export interface Unreadable {
@@ -90,7 +94,7 @@ export interface PortionAdapter<V> {
    * `keys` 를 주면 그중 지금 파일에 있는 키의 sha 를 돌려준다(옛 로그의 몫 찾기 §5 에서 호출부가
    * 내용 식별로 고른 후보를 넘긴다).
    */
-  read(text: string, keys?: Iterable<string>): Map<string, string> | null;
+  read(text: string, keys?: Iterable<string>, projectDir?: string): Map<string, string> | null;
   upsert(existing: string | null, input: UpsertInput<V>): UpsertResult;
   strip(existing: string, input: StripInput): StripResult;
 }

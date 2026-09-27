@@ -7,7 +7,7 @@
  *   붙이기(파일 끝)  : ""        → run
  *                      "…"       → "…" + "\n" + run      (끝 개행이 있든 없든 "\n" 하나를 앞에 둔다)
  *   끼우기(줄 시작)  : 앞 + run + 뒤                      (구분 줄 없음)
- *   빼기            : 파일 끝에 닿는 구간은 앞의 "\n" 하나도 함께 뺀다. 가운데 구간은 그것만 뺀다.
+ *   빼기            : 파일 끝에 닿는 구간은 앞의 "\n" 하나도 함께 뺀다(CRLF 로 바뀐 파일이면 "\r\n"). 가운데 구간은 그것만 뺀다.
  *
  * 끝 개행이 없는 `"x"` 는 `"x\n" + run` 이 되고 빼면 `"x"` 로, 끝 개행이 있는 `"x\n"` 은 빈 줄 하나를
  * 사이에 두고 붙었다가 `"x\n"` 로 돌아온다 — 두 입력이 같은 출력을 내지 않으므로(단사) 되돌릴 수 있다.
@@ -76,7 +76,10 @@ export function applyEdits(text: string, edits: ReadonlyArray<Edit>): string {
     if (e.replacement !== null) {
       out = `${out.slice(0, e.start)}${e.replacement}${out.slice(e.end)}`;
     } else if (e.end >= out.length && e.start > 0 && out[e.start - 1] === "\n") {
-      out = out.slice(0, e.start - 1);
+      // 체크아웃이 CRLF 로 바꿨으면(뺄 구간 안이 `\r\n` 이면) 붙일 때 넣은 구분 개행도 `\r\n` 이 됐다 —
+      // `\n` 하나만 빼면 `\r` 이 남는다(#551 리뷰 N6)
+      const crlf = out.slice(e.start, e.end).includes("\r\n") && out[e.start - 2] === "\r";
+      out = out.slice(0, e.start - (crlf ? 2 : 1));
     } else {
       out = `${out.slice(0, e.start)}${out.slice(e.end)}`;
     }
