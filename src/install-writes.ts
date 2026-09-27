@@ -279,12 +279,12 @@ export function createInstallWriter(args: {
       rootFiles.push({ path, change: "created", notes: [opts.createdNote ?? "하네스 몫만"] });
     }
     const valueKeys = [...res.portions.keys()].filter((k) => !isContainerKey(k));
-    const line =
-      j.verdict === "create"
-        ? j.line
-        : res.changed
-          ? j.line
-          : "kept — the harness part is already in place";
+    // 바뀐 것이 없으면 "썼다" 고 하지 않는다 — 하네스 몫이 이미 있거나, 설치자 것이 그 자리를 다 채웠다
+    const line = res.changed
+      ? j.line
+      : valueKeys.length > 0
+        ? "kept — the harness part is already in place"
+        : "nothing written — yours already has these";
     return result(j.verdict, line, {
       changed: res.changed,
       harness: names(valueKeys),

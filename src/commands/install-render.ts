@@ -1168,7 +1168,7 @@ function renderPhase1Rows(
 export function judgedRow(j: JudgedWrite): string {
   return j.backup !== undefined
     ? `  ${c.green(symbol.success)} backed up  ${j.path} — ${j.line}`
-    : `  ${c.yellow(symbol.skip)} kept  ${j.path} — ${j.line}`;
+    : `  ${c.yellow(symbol.skip)} ${j.path} — ${j.line}`;
 }
 
 /**

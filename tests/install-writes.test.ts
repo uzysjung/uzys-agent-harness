@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { listAction } from "../src/commands/list.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
@@ -138,7 +139,7 @@ describe("하네스 파일 쓰기가 판정을 탄다 — 첫 접촉 · 고친 �
     expect(backupsOf(RULE)).toEqual([]);
     expect(log().rootFiles).toContainEqual({ path: RULE, change: "displaced", notes: [] });
     expect(log().policyFiles?.map((f) => f.path)).not.toContain("rules/git-policy.md");
-    expect(screen).toContain(`kept  ${RULE} — kept — already the same as the harness version`);
+    expect(screen).toContain(`⊘ ${RULE} — kept — already the same as the harness version`);
   });
 
   it("설치자가 고친 하네스 파일은 그 파일 하나를 백업한 뒤 갱신한다 — 편집이라 말한다", () => {
@@ -406,6 +407,28 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
       ]),
     );
   });
+
+  it("옛 판이 적어 둔 은퇴 훅 참조는 뺀다 — 설치자 훅은 그대로", () => {
+    const tpl = JSON.parse(template("settings.json")) as Settings;
+    tpl.hooks.PostToolUse = [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/checkpoint-snapshot.sh"',
+          },
+        ],
+      } as never,
+      { hooks: [{ type: "command", command: "bash my-post.sh" }] } as never,
+    ];
+    write(SETTINGS, JSON.stringify(tpl, null, 2));
+    writeLog(legacyLog());
+
+    install();
+
+    expect(read(SETTINGS)).not.toContain("checkpoint-snapshot.sh");
+    expect(commands("PostToolUse")).toEqual(["bash my-post.sh"]);
+  });
 });
 
 /* ─── .mcp.json (criterion 4 · #574) ─────────────────────────────────────── */
@@ -459,6 +482,42 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
     expect((JSON.parse(read(".mcp.json")) as typeof mcp).mcpServers.context7).toBeUndefined();
     expect(log().excluded).toContain("mcp:context7");
   });
+
+  it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {
+    const servers = renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
+    const edited = { ...servers, context7: { ...servers.context7, env: { MY_KEY: "mine" } } };
+    write(".mcp.json", JSON.stringify({ mcpServers: edited }, null, 2));
+    writeLog(
+      legacyLog({
+        rootFiles: [{ path: ".mcp.json", change: "created", notes: ["MCP 서버 정의 생성"] }],
+      }),
+    );
+
+    const { screen } = install();
+
+    const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> };
+    expect(mcp.mcpServers.context7?.env, "설치자가 고친 하네스 서버를 백업 없이 덮었다").toEqual({
+      MY_KEY: "mine",
+    });
+    const keys = (log().portions ?? []).filter((p) => p.path === ".mcp.json").map((p) => p.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(Object.keys(servers).map((n) => `mcpServers.${n}`)),
+    );
+    expect(screen).toContain("kept yours: context7");
+  });
+
+  it("옛 판이 병합한 설치자 `.mcp.json` 의 같은 이름 서버는 설치자 것으로 둔다", () => {
+    const servers = renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
+    write(".mcp.json", JSON.stringify({ mcpServers: servers }, null, 2));
+    writeLog(
+      legacyLog({ rootFiles: [{ path: ".mcp.json", change: "modified", notes: ["병합"] }] }),
+    );
+
+    install();
+
+    const keys = (log().portions ?? []).filter((p) => p.path === ".mcp.json").map((p) => p.key);
+    expect(keys.filter((k) => !k.endsWith("{}"))).toEqual([]);
+  });
 });
 
 /* ─── .gitignore ─────────────────────────────────────────────────────────── */
@@ -478,6 +537,30 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
     const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
     expect(keys).toEqual([".factory/", ".goose/", ".uzys-agent-harness/"]);
     expect(report.envFiles.gitignoreEnvAdded).toBe(false);
+  });
+
+  it("옛 판이 더한 줄을 몫으로 이어받는다 — 딸린 주석이 두 번 붙지 않는다", () => {
+    const old =
+      "node_modules\n\n# Secret env (auto-added by agent-harness install)\n.env\n\n" +
+      "# agent CLI / harness 자동 생성물 (auto-added by agent-harness)\n.factory/\n.goose/\n.uzys-agent-harness/\n";
+    write(".gitignore", old);
+    writeLog(
+      legacyLog({
+        rootFiles: [
+          {
+            path: ".gitignore",
+            change: "modified",
+            notes: ["추가된 줄: .env, .factory/, .goose/, .uzys-agent-harness/"],
+          },
+        ],
+      }),
+    );
+
+    install();
+
+    expect(read(".gitignore")).toBe(old);
+    const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
+    expect(keys.sort()).toEqual([".env", ".factory/", ".goose/", ".uzys-agent-harness/"]);
   });
 });
 
