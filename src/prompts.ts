@@ -21,7 +21,12 @@ import {
 import { CATEGORIES, CATEGORY_TITLES, type Category } from "./categories.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import { assetTrustTier, EXTERNAL_ASSETS } from "./external-assets.js";
-import { buildRouterChoices, type RouterAction, summarizeState } from "./router.js";
+import {
+  buildRouterChoices,
+  describeInstall,
+  type InstallRecordView,
+  type RouterAction,
+} from "./router.js";
 import type { DetectedInstall } from "./state.js";
 import {
   type CliBase,
@@ -56,10 +61,28 @@ export interface Prompts {
    * v26.65.0 — step optional 두 번째 인자. 호출자가 `WIZARD.TRACKS` 전달 시 message 에
    * "Step N/M — Select Track(s)" 형식 indicator 자동 삽입. 미전달 시 prefix 없이 raw label.
    */
-  selectTracks: (initial?: Track[], step?: WizardStep) => Promise<Track[] | null>;
+  selectTracks: (
+    initial?: Track[],
+    step?: WizardStep,
+    /**
+     * #533 — 이미 깔린 트랙. 라벨에 `● installed` 를 붙이고 체크된 채로 시작한다. **잠금은 화면이
+     * 아니라 `interactive.ts` 의 합집합이 한다**(D4) — clack 의 `a`(전체 토글)·`i`(반전)가 항목을
+     * 풀 수 있고, `disabled` 는 체크 표시 없이 취소선으로 그려져 "없는 것"처럼 읽힌다(실측 1.3.0).
+     */
+    installed?: ReadonlyArray<Track>,
+  ) => Promise<Track[] | null>;
   /** v0.7.0 — single select → multiselect (3 base 체크박스). default `["claude"]`. */
-  selectCli: (initial?: CliTargets, step?: WizardStep) => Promise<CliTargets | null>;
-  selectAction: (state: DetectedInstall) => Promise<RouterAction | null>;
+  selectCli: (
+    initial?: CliTargets,
+    step?: WizardStep,
+    /** #533 — 이미 깔린 CLI. `selectTracks` 의 `installed` 와 같은 규약(표시만 — 잠금은 합집합). */
+    installed?: ReadonlyArray<CliBase>,
+  ) => Promise<CliTargets | null>;
+  /** #533 (D2) — `record` 는 메뉴 머리글이 읊는 설치 기록. 없으면 기록 없음으로 그린다. */
+  selectAction: (
+    state: DetectedInstall,
+    record?: InstallRecordView,
+  ) => Promise<RouterAction | null>;
   /**
    * v26.64.0 (ADR-020) — Installation scope 선택. Default = "project" (pre-selected).
    * Global 은 사용자 명시 opt-in. null = silent back.
@@ -94,7 +117,9 @@ export interface Prompts {
 }
 
 const TRACK_LABELS: Record<Track, string> = {
-  base: "base — principles · methodology · tests only (no stack)",
+  // #533 — base 는 모든 dev 트랙에 이미 들어 있다(dev 트랙 8종 ∪ base = 추가 파일 0, 설계 §5 실측).
+  // 함께 골라도 해는 없어 막지 않고(사용자 결정 2026-09-27), 그 사실만 라벨로 알린다.
+  base: "base — no stack yet — every dev track already includes it",
   tooling: "tooling — Bash + Markdown meta-project",
   "csr-supabase": "csr-supabase — Vite + React + Supabase",
   "csr-fastify": "csr-fastify — Vite + React + Fastify",
@@ -327,11 +352,18 @@ export const defaultPrompts: Prompts = {
   outro: (msg) => outro(msg),
   cancel: (msg) => cancel(msg),
 
-  selectTracks: async (initial, step) => {
+  selectTracks: async (initial, step, installed = []) => {
     // v26.65.0 — step indicator SSOT (wizard-steps.ts). 6-step 통합 (1 tracks · 2 cli · 3 targets · 4 scope · 5 confirm · 6 installing).
+    const locked = new Set<Track>(installed);
     const result = await multiselect({
-      message: stepLabel(step, "Select Track(s)"),
-      options: TRACKS.map((t) => ({ value: t, label: TRACK_LABELS[t] })),
+      message:
+        locked.size > 0
+          ? `${stepLabel(step, "Tracks")}   (● installed = already here, locked · check a new one to add its rules · agents · skills)`
+          : stepLabel(step, "Select Track(s)"),
+      options: TRACKS.map((t) => ({
+        value: t,
+        label: locked.has(t) ? `${TRACK_LABELS[t]}   ● installed` : TRACK_LABELS[t],
+      })),
       ...(initial ? { initialValues: initial } : {}),
       maxItems: viewportItems(11),
       required: true,
@@ -339,15 +371,21 @@ export const defaultPrompts: Prompts = {
     return isCancel(result) ? null : (result as Track[]);
   },
 
-  selectCli: async (initial, step) => {
+  selectCli: async (initial, step, installed = []) => {
     const initialValues: CliBase[] = initial && initial.length > 0 ? [...initial] : ["claude"];
+    const locked = new Set<CliBase>(installed);
+    const label = (c: CliBase): string =>
+      locked.has(c) ? `${CLI_BASE_LABELS[c]}   ● installed` : CLI_BASE_LABELS[c];
     const result = await multiselect({
-      message: stepLabel(step, "Target CLI(s)"),
+      message:
+        locked.size > 0
+          ? `${stepLabel(step, "CLIs")}     (● installed = locked — remove one with Uninstall · check another to install its files)`
+          : stepLabel(step, "Target CLI(s)"),
       options: [
-        { value: "claude" as const, label: CLI_BASE_LABELS.claude },
-        { value: "codex" as const, label: CLI_BASE_LABELS.codex },
-        { value: "opencode" as const, label: CLI_BASE_LABELS.opencode },
-        { value: "antigravity" as const, label: CLI_BASE_LABELS.antigravity },
+        { value: "claude" as const, label: label("claude") },
+        { value: "codex" as const, label: label("codex") },
+        { value: "opencode" as const, label: label("opencode") },
+        { value: "antigravity" as const, label: label("antigravity") },
       ],
       initialValues,
       required: true,
@@ -358,10 +396,10 @@ export const defaultPrompts: Prompts = {
     );
   },
 
-  selectAction: async (state) => {
+  selectAction: async (state, record) => {
     const result = await select({
-      message: summarizeState(state),
-      options: buildRouterChoices(state).map((c) => {
+      message: describeInstall(state, record),
+      options: buildRouterChoices(state, record).map((c) => {
         const label = c.enabled ? c.label : `${c.label} [disabled]`;
         // disabled:true → clack 이 cursor skip + strikethrough (선택 자체 차단).
         return {
@@ -515,7 +553,7 @@ export const defaultPrompts: Prompts = {
           // 마커의 뜻을 화면에서 바로 알려준다 — 체크 해제를 제거로 오해하는 것이 이 화면의
           // 원래 문제였으므로, 마커가 보일 때는 제거 경로를 같은 자리에서 말한다.
           installedSet.size > 0
-            ? "  ● installed = 이미 설치됨 · 체크 해제해도 제거되지 않는다 (제거: agent-harness uninstall)"
+            ? "  ● installed = 이미 설치됨 · 체크 해제해도 제거되지 않는다 (제거: Uninstall 메뉴 또는 agent-harness uninstall)"
             : "",
           "  Space toggle · Enter → next · ESC → prev",
         ]

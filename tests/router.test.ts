@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRouterChoices, summarizeState } from "../src/router.js";
+import { buildRouterChoices, describeInstall, summarizeState } from "../src/router.js";
 import type { DetectedInstall } from "../src/state.js";
 
 const newState: DetectedInstall = {
@@ -24,28 +24,30 @@ const legacyState: DetectedInstall = {
 };
 
 describe("buildRouterChoices", () => {
-  it("returns 5 choices in stable order", () => {
+  // #533 (D1) — 기설치 메뉴는 세 항목이다. Add 는 Update 로 합쳐졌고, Remove(고를 수 없는 항목)는
+  // 빠졌고, Reinstall 은 `install --reinstall` 플래그가 됐다.
+  it("returns 3 choices in stable order — update, uninstall, exit", () => {
     const choices = buildRouterChoices(existingState);
-    expect(choices.map((c) => c.value)).toEqual(["add", "update", "remove", "reinstall", "exit"]);
+    expect(choices.map((c) => c.value)).toEqual(["update", "uninstall", "exit"]);
+    for (const gone of ["add", "remove", "reinstall"]) {
+      expect(choices.map((c) => c.value as string)).not.toContain(gone);
+    }
   });
 
-  it("disables only the remove action", () => {
+  it("disables nothing on a healthy install", () => {
     const choices = buildRouterChoices(existingState);
-    const disabled = choices.filter((c) => !c.enabled).map((c) => c.value);
-    expect(disabled).toEqual(["remove"]);
+    expect(choices.filter((c) => !c.enabled)).toEqual([]);
   });
 
-  it("includes detected tracks in the add hint", () => {
-    const choices = buildRouterChoices(existingState);
-    const add = choices.find((c) => c.value === "add");
-    expect(add?.hint).toContain("tooling");
-    expect(add?.hint).toContain("csr-fastapi");
+  // (이전 "add hint 에 감지된 트랙" 단언의 자리 이동 — #533 D2 에서 트랙은 메뉴 머리글이 읊는다.)
+  it("includes detected tracks in the menu header", () => {
+    const header = describeInstall(existingState);
+    expect(header).toContain("tooling");
+    expect(header).toContain("csr-fastapi");
   });
 
   it("falls back to '(none detected)' when tracks empty", () => {
-    const choices = buildRouterChoices(legacyState);
-    const add = choices.find((c) => c.value === "add");
-    expect(add?.hint).toContain("none detected");
+    expect(describeInstall(legacyState)).toContain("none detected");
   });
 });
 

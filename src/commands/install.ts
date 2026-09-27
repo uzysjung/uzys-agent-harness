@@ -144,6 +144,30 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     return;
   }
 
+  const spec = installSpecFromOptions(options, validated.cli, err);
+
+  executeSpec(spec, {
+    log,
+    err,
+    exit,
+    runPipeline,
+    resolveHarnessRoot,
+    verbose: options.verbose === true,
+  });
+}
+
+/**
+ * 검증을 통과한 플래그 → `InstallSpec`.
+ *
+ * #533 (D6) — `install` 명령과 위저드 Update 의 추가 케이스가 **이 함수 하나**로 spec 을 만든다.
+ * 위저드 확인 화면의 `RUNS AS` 줄(`installCommandLine`)이 곧 이 함수의 입력이라, 화면이 말하는
+ * 명령과 실제로 도는 spec 이 갈라질 자리가 없다.
+ */
+export function installSpecFromOptions(
+  options: InstallOptions,
+  cli: CliTargets,
+  err: (msg: string) => void,
+): InstallSpec {
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
@@ -191,7 +215,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
       ? { forceInclude: filteredInclude, forceExclude: filteredExclude }
       : undefined;
 
-  const spec: InstallSpec = {
+  return {
     tracks: (options.track as Track[]) ?? [],
     ...(userOverride ? { userOverride } : {}),
     ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
@@ -200,19 +224,27 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     options: {
       withCodexTrust: options.withCodexTrust === true,
     },
-    cli: validated.cli,
+    cli,
     projectDir: resolve(options.projectDir ?? process.cwd()),
     scope: resolveScopeOption(options.scope, err),
   };
+}
 
-  executeSpec(spec, {
-    log,
-    err,
-    exit,
-    runPipeline,
-    resolveHarnessRoot,
-    verbose: options.verbose === true,
-  });
+/**
+ * `InstallOptions` → 사람이 그대로 칠 수 있는 명령 한 줄 (`--project-dir` 는 뺀다 — 현재 디렉터리에서
+ * 치는 명령이다). #533 — 위저드 확인 화면의 `RUNS AS` 줄. `installSpecFromOptions` 의 역이다.
+ */
+export function installCommandLine(options: InstallOptions): string {
+  const repeat = (flag: string, value: string | string[] | undefined): string[] =>
+    normalizeRepeatable(value).map((v) => `${flag} ${v}`);
+  return [
+    "agent-harness install",
+    ...repeat("--track", options.track),
+    ...repeat("--cli", options.cli),
+    ...(options.scope ? [`--scope ${options.scope}`] : []),
+    ...repeat("--with", options.with),
+    ...repeat("--without", options.without),
+  ].join(" ");
 }
 
 export interface ExecuteSpecDeps {
