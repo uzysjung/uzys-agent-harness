@@ -464,7 +464,7 @@ update 에도 돌아오지 않는다(R2) + `displaced` 파일이 uninstall 뒤 �
 | **M3 빼면 깨끗이 빠진다** | PR-7 | uninstall 3종이 `judge(remove)` 를 탄다: 폴더 이동 폐지 · shared strip(#569 — `.mcp.json` · `.gitignore`; `portions` 키만) · 고친 파일 `backup+remove`(결정 4) · `displaced` 파일 제자리 되돌리기(R3) · 백업 잔존 나열(#570) · `--keep-templates` 폐지(결정 6) · `cli-ownership` `dir` 재정의(N3) | #569 · #570 | PR-3 · PR-4 | |
 | | PR-8 | 지우는 동작 공통 확인·`--yes`·pre-flight(쓰기 권한) — uninstall 3종 + `--reinstall` | #561 · #565 | PR-7(같은 파일 `uninstall.ts` — 순차) | |
 | | PR-9 | `--reinstall` 의 나머지 = 이번 spec 에 없는 기록 항목 remove(확인은 PR-8) · tool 항목의 되돌리기 식별자(`detail.skill`)·경로 기록·회수·재실행 전 백업(N5) · advisory 문구(npx-run · `skills-lock.json` · 스캐폴드 `.github/workflows/*` · `.env.example` "yours now" — #569 의 `.env.example` 몫, R4) | #571 · #573 | PR-7 | PR-8 과 병렬 가능(다른 파일) |
-| **문서** | PR-10 | README 한 문단 · USAGE(N11 목록 전부) · CONTEXT-FILES · 루트 `CLAUDE.md` §설치자 디스크 절의 "설치자 파일(기록에 없는 것): 건드리지 않는다" 줄을 결정 7 로 현행화(N-d) · CHANGELOG. ADR-097 Accepted | — | M1~M3 | 마지막 |
+| **문서** | PR-10 | README 한 문단 · USAGE(N11 목록 전부) · CONTEXT-FILES · 루트 `CLAUDE.md` §설치자 디스크 절의 "설치자 파일(기록에 없는 것): 건드리지 않는다" 줄을 결정 7 로 현행화(N-d) · CHANGELOG. ADR-097 Consequences 현행화 | — | M1~M3 | 마지막 |
 
 #551 마지막 코멘트의 장면 5개(팀 리드)와의 대응: 처음 깔아도 남는다 = M1(#572 포함) · 갱신 = M2 · 빼기 = M3 ·
 CLI 실동작 = M4 · **화면이 사실대로 말한다** = PR-6(#559 · #564 · #560) + PR-2 문구 — 다섯째 장면은 별도 마일스톤이 아니라

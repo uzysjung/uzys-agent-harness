@@ -1,8 +1,8 @@
 # ADR-097: 설치자 디스크는 한 원칙으로 — 판정 함수 하나 · 어댑터 4종 · 파일 단위 백업
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-27 (5차 판 — 독립 검토 B1–B8 · R1–R5 · Q1–Q4 + 사용자 결정 1·2·7 반영)
-- PR: (미정)
+- PR: #575 (설계 · 결정) — 구현은 설계 §9 PR-1 ~ PR-10
 - Issue: #551 (하위 18건 — #556–#561 · #563–#574)
 - Supersedes: 사용자 결정 2026-09-27 "uninstall · `--reinstall` 은 CLI 폴더를 `<dir>.backup-<ts>` 로 옮긴다"(PR #554 · v26.161.0, ADR 없음 — `src/commands/uninstall.ts:100-124` 주석이 그 결정의 기록이다)
 - Amends: ADR-046 · ADR-047 · ADR-048(편집 판정·파일 단위 백업을 **uninstall 까지** 같은 표로; 첫 접촉은 §8 결정 7) · ADR-049(`refreshOnly` 유지, 폴더 백업 폐지) · ADR-074(두 제외 필드 → 한 목록 `excluded`, **누적** — "제외 없이 다시 깔면 돌아온다" 는 더는 참이 아니고 되돌리기는 `--with <id>` 하나다) · ADR-095(기록에 없는 `AGENTS.md` 는 루트 `CLAUDE.md` 모델) · ADR-096(`templates.*Dir` 미사용 — 깔린 CLI 집합 `clis` 와 소유 표는 그대로, `dir` 의 뜻만 경로 접두로) · ADR-002 D4(trust 등록은 Codex 자신의 프롬프트에 맡기고 `--with-codex-trust` 는 범위 조건 없는 옵션이 된다) · ADR-020(Global scope 선택지 삭제 — 항상 프로젝트; D16 의 "글로벌 자산은 안내만" 은 옛 global 설치본에 그대로). ADR-037 은 그대로다(스캐폴드 = advisory).
