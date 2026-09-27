@@ -229,6 +229,25 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS); // 다른 파일은 그대로 걷힌다
   });
 
+  it("몫 기록이 없어도 못 읽는 파일은 조용히 넘기지 않는다", () => {
+    firstContact();
+    const log = readInstallLog(projectDir);
+    if (!log) throw new Error("install log 가 없다");
+    delete log.portions;
+    writeFileSync(
+      join(projectDir, ".uzys-agent-harness/.harness-install.json"),
+      JSON.stringify(log),
+    );
+    put("opencode.json", "{ broken");
+
+    const run = uninstall();
+
+    expect(read("opencode.json")).toBe("{ broken");
+    expect(run.lines.join("\n")).toContain(
+      "left  opencode.json — could not read it (invalid JSON)",
+    );
+  });
+
   it("하네스가 만든 opencode.json 은 지금의 회수 그대로 — 설치자가 고쳤으면 통째로 남긴다(몫을 걷지 않는다)", () => {
     install(["opencode"]);
     const json = JSON.parse(read("opencode.json")) as Record<string, unknown>;
