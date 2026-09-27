@@ -1,19 +1,15 @@
 ---
 name: external-model-consult
 description: >-
-  Consult a second, non-Claude model through a bundled wrapper for four things:
-  (1) natural, native-sounding KOREAN phrasing via Google Gemini — copy, UI microcopy,
-  marketing text; (2) a MULTI-PERSONA / second-opinion review of a design, plan or spec;
-  (3) CONCISE, well-STRUCTURED writing via OpenAI Codex — tightening prose, restructuring
-  a doc; and (4) IMAGE GENERATION as real image files on disk (not labeled diagrams —
-  use Mermaid). Fire it when Korean reads translated, or when you would otherwise
-  hand-write polished Korean yourself. Triggers on "어색해", "자연스럽게 다듬어줘",
-  "gemini 한테 물어봐", "nano banana", "제3자 관점", "codex한테 물어봐",
-  "간결하게 정리해줘", "이미지 만들어줘", and in English "ask gemini", "ask codex",
-  "generate an image". Returns candidates to choose from; never auto-applies. Do NOT use
-  for deterministic transforms (rename, reformat, sort), labeled diagrams, internal logs
-  or identifiers, anything needing repo secrets, a native subagent panel
-  (`multi-persona-review`), or when the user explicitly wants YOUR answer.
+  Uses bundled CLI wrappers for Gemini Korean copywriting/polishing and
+  different-model critiques of designs, plans, or specs; Codex prose
+  tightening/restructuring; and image-file generation (Codex default;
+  Gemini for Gemini/Nano Banana requests). Use for polished user-facing
+  Korean, translated-sounding text, substantive concision/structure work,
+  image requests, or asking Gemini/Codex: "자연스럽게 다듬어줘", "제3자 관점",
+  "간결하게 정리해줘", "이미지 만들어줘". Returns candidates or image files;
+  never auto-applies. Not for deterministic edits, labeled diagrams,
+  logs/identifiers, secrets, native persona panels, or requests for your own answer.
 ---
 
 # external-model-consult

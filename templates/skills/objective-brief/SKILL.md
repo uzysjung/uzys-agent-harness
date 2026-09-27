@@ -1,18 +1,13 @@
 ---
 name: objective-brief
 description: >-
-  Rewrite work about to be delegated, designed, or run over several steps into the canonical XML
-  brief — objective, inputs, invariants, success_criteria, boundaries, autonomy, verification,
-  communication, output_format — so the worker receives one judgeable definition of done instead
-  of prose. Runs in two directions: INBOUND reshapes a sprawling or half-formed request into that
-  shape, filling each field from context already on screen and dropping sections that do not
-  apply; OUTBOUND writes the prompt a spawned worker actually receives. Trigger on "브리프로 정리",
-  "작업 지시서로 만들어", "프롬프트 구조화", and in English "turn this into a task brief",
-  "structure this prompt". Fire unprompted before handing a multi-part task to a subagent, a
-  workflow worker, or a parallel lane, and before design or multi-step work at feature or project
-  scale. Do NOT fire on a one-line question, a lookup, a single edit, or a routine change — a
-  clarifying question is not a brief, and nine XML tags around a small ask cost more than they
-  buy.
+  Structures requests and worker prompts into the canonical XML task brief,
+  using existing context to state the objective, constraints, and verifiable
+  completion criteria. Use for "브리프로 정리", "작업 지시서로 만들어",
+  "프롬프트 구조화", or task-brief requests. Apply proactively before multi-part
+  delegation to subagents, workflow workers, or parallel lanes, and before
+  feature- or project-scale design or multi-step execution. Omit inapplicable
+  fields; skip one-line questions, lookups, single edits, and routine changes.
 ---
 
 # Objective Brief

@@ -1,18 +1,13 @@
 ---
 name: gh-issue-workflow
 description: >-
-  Runs work through GitHub Issues so the user and the agent can see the same backlog: normalize an
-  incoming request into an issue before building, group tasks under a parent (epic) issue, order
-  them with milestones and priority labels, read every comment before starting, and promote
-  decisions out of comments into the issue body so they survive. Enforces the body template
-  (배경/문제/근거/레퍼런스/제안/전제/방향성/AC/후속) so issues become reusable agent context, and
-  keeps read-only, draft, remote-write, implement, verify, and status stages distinct. Use whenever
-  a request will outlive the chat turn, whenever work needs an order the user can review, or when
-  the user names issues ("이슈로 등록해줘", "에픽으로 묶어줘", "이슈 정리해줘", "#42 작업해줘",
-  "우선순위 다시 잡자", "backlog this", "break this into sub-issues", "implement issue #N").
-  Read-only stages make no remote change; never create, edit, label, comment on, close, or
-  re-parent a remote issue, and never touch a project board, without the user asking for that
-  change.
+  Organizes work through GitHub Issues: drafts, epics/sub-issues, milestones,
+  priorities, implementation, verification, and status. Use when work outlives
+  the chat turn, needs ordering for user review, or requests issue/backlog work
+  ("이슈로 등록해줘", "에픽으로 묶어줘", "#42 작업해줘", "우선순위 다시 잡자").
+  Normalize requests before building, read all comments, and preserve decisions
+  in issue bodies. Remote issue or project-board changes require the user's
+  request; reading and drafting do not authorize writes.
 ---
 
 # GitHub Issue Workflow

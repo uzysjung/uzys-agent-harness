@@ -1,12 +1,11 @@
 ---
 name: compaction-handoff
 description: >-
-  Create a compact, reconstructible checkpoint immediately before context compaction. Persist only
-  durable facts and decisions, overwrite one current resume anchor, verify Git and open-PR state,
-  and emit one concrete next action plus a short /compact line. Use for "컴팩션 준비해줘",
-  "컴팩션하고 이어서 진행할 수 있게 준비해줘", "핸드오프 준비해줘", or "prepare for
-  compaction", or equivalent. Repeated execution must be idempotent and must not grow state files
-  without bound.
+  Creates a reconstructible checkpoint before manual or automatic context
+  compaction or a session handoff. Use for "컴팩션 준비해줘", "핸드오프 준비해줘",
+  or prepare-for-compaction requests. Preserves durable facts and decisions,
+  verifies Git/PR state, and overwrites one bounded resume anchor with one
+  concrete next action and a short /compact pointer. Repeated runs are idempotent.
 ---
 
 # Compaction Handoff Protocol

@@ -1,16 +1,12 @@
 ---
 name: multi-persona-review
 description: >-
-  A panel-review skill that critiques ONE artifact (launch post, README, doc, markdown, plan,
-  design) via 3-5 disjoint user-perspective personas running in parallel, then synthesizes deduped,
-  severity-ranked improvement points (P0/P1/P2). Use when the user says "작성글을 사용자 관점의
-  페르소나를 여러명 만들어서 (손넷 모델정도로) 피드백 받아바", "다면 리뷰 해볼까", "페르소나로 리뷰",
-  "여러 관점으로 피드백", or in English "multi-persona review", "review this from different user
-  perspectives", "get persona feedback on this post/README/doc", "panel review this artifact".
-  Lighter than a full service audit — point it at ONE artifact, not a whole codebase. Do NOT use it
-  for a whole-service or whole-codebase audit, nor for a gap-vs-benchmark loop (both are
-  audit-service-gaps), and do NOT simulate diversity by renaming reviewers that inspect the same
-  evidence.
+  Reviews one artifact (post, README, document, plan, or design) through 3-5
+  distinct target-user personas in independent parallel reviews, then
+  deduplicates and prioritizes concrete improvement candidates. Use for
+  "다면 리뷰", "페르소나로 리뷰", "여러 관점으로 피드백", or multi-persona/panel review
+  requests. Not for whole-service/codebase audits or gap-versus-benchmark
+  analysis; those belong to audit-service-gaps.
 ---
 
 # Multi-Persona Review (다면페르소나 워크플로우 리뷰)
