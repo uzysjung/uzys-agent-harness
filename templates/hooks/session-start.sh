@@ -3,7 +3,17 @@
 # 세션 컨텍스트 출력 + 고아 프로세스 감지
 set -e
 
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+# git 이 아니면 그렇다고 말한다. 첫 커밋 전에도 `symbolic-ref` 는 브랜치 이름을 낸다
+# (`rev-parse --abbrev-ref HEAD` 는 이때 리터럴 "HEAD" 를 낸다 — #580). 진짜 detached HEAD
+# (커밋이 있고 브랜치가 아닌 커밋을 체크아웃한 상태)만 `symbolic-ref` 가 실패하고, 그때만
+# "detached" 라고 말한다 — git 의 detached HEAD 를 정확히 가리키는 값이라 모델이 체크아웃
+# 복구를 시도할 근거가 실제로 있을 때만 쓴다.
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  BRANCH="not a git repo"
+else
+  BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+  BRANCH="${BRANCH:-detached}"
+fi
 
 # 1. SPEC 존재 여부 확인
 SPEC_EXISTS="false"
@@ -94,9 +104,9 @@ fi
 # `hookSpecificOutput.{additionalContext|initialUserMessage}` 다.
 # 조용히 버려지는 출력은 컨텍스트 비용이 0 인 대신 기능도 0 이다.
 if [ "$SPEC_EXISTS" = "true" ]; then
-  MSG="Session started. Branch: ${BRANCH:-detached}. SPEC exists — read docs/SPEC.md first (Persistent Anchor). Check Change Log and current Phase before starting work.${ORPHAN_NOTE}"
+  MSG="Session started. Branch: $BRANCH. SPEC exists — read docs/SPEC.md first (Persistent Anchor). Check Change Log and current Phase before starting work.${ORPHAN_NOTE}"
 else
-  MSG="Session started. Branch: ${BRANCH:-detached}. No SPEC found.${ORPHAN_NOTE}"
+  MSG="Session started. Branch: $BRANCH. No SPEC found.${ORPHAN_NOTE}"
 fi
 
 # JSON 문자열 이스케이프 — 백슬래시 먼저, 그 다음 따옴표(순서를 바꾸면 이중 이스케이프된다).

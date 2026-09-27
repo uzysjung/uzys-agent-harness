@@ -161,7 +161,7 @@ PATTERN="$1"; shift
 # 1) 탐지기 자기검증
 printf '%s\n' "$CANARY" > "$WORK_DIR/canary.txt"
 
-if ! grep -rIqE ${IGNORE_CASE:+"$IGNORE_CASE"} "$PATTERN" "$WORK_DIR/canary.txt" 2>"$WORK_DIR/probe.err"; then
+if ! grep -rIqE ${IGNORE_CASE:+"$IGNORE_CASE"} -e "$PATTERN" "$WORK_DIR/canary.txt" 2>"$WORK_DIR/probe.err"; then
   echo "FAIL(2): 탐지기 자기검증 실패 — canary '$CANARY' 가 패턴 '$PATTERN' 에 안 잡힌다." >&2
   echo "  이 상태의 '매치 없음'은 부재의 증거가 아니다. 패턴이나 canary 를 고쳐라." >&2
   [ -s "$WORK_DIR/probe.err" ] && sed 's/^/  grep: /' "$WORK_DIR/probe.err" >&2
@@ -182,7 +182,7 @@ if [ "${#PATHS[@]}" -eq 0 ]; then
   exit 2
 fi
 
-grep -rInIE ${IGNORE_CASE:+"$IGNORE_CASE"} "$PATTERN" "${PATHS[@]}" >"$OUT" 2>"$ERR"
+grep -rInIE ${IGNORE_CASE:+"$IGNORE_CASE"} -e "$PATTERN" "${PATHS[@]}" >"$OUT" 2>"$ERR"
 GREP_RC=$?
 
 if [ "$GREP_RC" -ge 2 ]; then

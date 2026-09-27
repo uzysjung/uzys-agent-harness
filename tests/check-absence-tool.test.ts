@@ -135,6 +135,30 @@ describe("배포판 check-absence.sh — 부재를 증거로 만든다", () => {
      * `a b` 를 `a` 와 `b` 로 쪼개 훑고 **`매치: 0건` + exit 0** 을 냈다. canary 를 통과한
      * 뒤라 사용자는 최대 확신 상태에서 거짓 부재를 받는다 — 가장 나쁜 실패 모양이다.
      */
+    /**
+     * #581 — `-` 로 시작하는 패턴(없앤 플래그 등)을 `--` 뒤에 넘기면 인자 파서는 받는데
+     * grep 호출에 `-e` 가 없어 grep 이 패턴을 자신의 옵션으로 읽고 exit 2(오류)로 끝났다.
+     * "탐지기 자기검증 실패"라는 문구는 패턴·canary 문제로 오독되지만 원인은 grep 호출이었다.
+     */
+    it("'-' 로 시작하는 패턴도 -- 뒤에서 검사된다 (grep 이 옵션으로 오인하지 않는다)", () => {
+      writeFileSync(join(dir, "flag.txt"), "still has --legacy flag\n");
+      const absent = run(
+        SCRIPT,
+        ["--canary", "use --legacy flag", "--", "--legacy", "clean.txt"],
+        dir,
+      );
+      expect(absent.code).toBe(0);
+      expect(absent.out).toContain("매치: 0건");
+
+      const found = run(
+        SCRIPT,
+        ["--canary", "use --legacy flag", "--", "--legacy", "flag.txt"],
+        dir,
+      );
+      expect(found.code).toBe(1);
+      expect(found.out).toContain("flag.txt");
+    });
+
     it("공백이 든 경로에서도 매치를 찾는다 — 단어 분할로 인한 거짓 부재 금지", () => {
       mkdirSync(join(dir, "a b"));
       mkdirSync(join(dir, "a"));

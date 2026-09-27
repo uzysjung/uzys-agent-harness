@@ -351,6 +351,80 @@ describe("runExternalInstall — failure modes", () => {
   //   모든 실패는 warn-skip 로 수렴 (위 default 테스트가 보장). 이전의 "abort stops
   //   install" 테스트는 죽은 코드 검증이라 삭제.
 
+  /**
+   * #583 — `npx skills` 류는 실패 원인을 stderr 가 아니라 stdout 에 쓴다(실측, skills@1.5.11).
+   * stderr 가 비어 있으면 "npx exited 1" 한 줄만 남아 무엇을 해야 하는지 알 수 없었다.
+   */
+  it("stderr 가 비어 있으면 stdout 끝에서 원인 한 줄을 가져온다", () => {
+    const spawn = makeSpawnMock(() => ({
+      pid: 0,
+      output: [],
+      stdout: "installing…\nInvalid agents: bogus-agent",
+      stderr: "",
+      status: 1,
+      signal: null,
+    }));
+    const report = runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        userOverride: { forceInclude: ["npx-asset"], forceExclude: [] },
+        cli: ["claude"],
+      },
+      { spawn, assets: [TEST_ASSETS[4] as ExternalAsset] },
+    );
+    expect(report.attempted[0]?.message).toContain("Invalid agents: bogus-agent");
+  });
+
+  it("stdout 이 길면 끝부분만(200자) 가져온다 — 앞에 잘림 표시(…)", () => {
+    const longStdout = `${"x".repeat(300)}TAIL-MARKER`;
+    const spawn = makeSpawnMock(() => ({
+      pid: 0,
+      output: [],
+      stdout: longStdout,
+      stderr: "",
+      status: 1,
+      signal: null,
+    }));
+    const report = runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        userOverride: { forceInclude: ["npx-asset"], forceExclude: [] },
+        cli: ["claude"],
+      },
+      { spawn, assets: [TEST_ASSETS[4] as ExternalAsset] },
+    );
+    expect(report.attempted[0]?.message).toContain("TAIL-MARKER");
+    expect(report.attempted[0]?.message).toContain("…");
+  });
+
+  /**
+   * npm 은 원인이 stderr **앞쪽**에 있고 stdout 끝은 "A complete log of this run can be
+   * found in: …" 뿐이다 — stderr 가 있으면 그 경로를 그대로 쓴다(회귀 방지).
+   */
+  it("stderr 가 있으면(npm 류) stdout 은 안 보고 stderr 앞쪽을 쓴다", () => {
+    const spawn = makeSpawnMock(() => ({
+      pid: 0,
+      output: [],
+      stdout: "A complete log of this run can be found in: /root/.npm/_logs/…-debug.log",
+      stderr: "npm ERR! 404 Not Found — real cause here",
+      status: 1,
+      signal: null,
+    }));
+    const report = runExternalInstall(
+      {
+        tracks: ["tooling"],
+        options: DEFAULT_OPTIONS,
+        userOverride: { forceInclude: ["npm-asset"], forceExclude: [] },
+        cli: ["claude"],
+      },
+      { spawn, assets: [TEST_ASSETS[3] as ExternalAsset] },
+    );
+    expect(report.attempted[0]?.message).toContain("real cause here");
+    expect(report.attempted[0]?.message).not.toContain("complete log");
+  });
+
   it("skips assets that don't match the spec (dispatch never called)", () => {
     const spawn = makeSpawnMock(() => ok());
     runExternalInstall(
