@@ -317,8 +317,8 @@ describe("update — 세 CLI 가 함께 깔려도 공유 자리는 한 번만 �
   it("⑥ 한 번 생성 · 두 번째 update 백업 0 · `AGENTS.md` 최종 바이트 불변", () => {
     const all: CliTargets = ["codex", "opencode", "antigravity"];
     install(all);
-    // 기준 실행 — 공유 자리에 할 일이 없을 때의 갱신 수. codex → opencode 가 같은 `AGENTS.md` 를
-    // 서로 다른 템플릿으로 두 번 쓰는 것은 기존 동작이라 0 이 아니다(cli-transforms.ts).
+    // 기준 실행 — 공유 자리에 할 일이 없을 때의 갱신 수. #550 이후 0 이지만 차이로 잰다 — 다른
+    // 산출물의 갱신이 섞여도 이 단언이 공유 자리의 몫만 재게.
     const steady = update(all).updateMode?.externalUpdated ?? -1;
     const id = WITH_REFS;
     pretendNewInThisRelease(id);

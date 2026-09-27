@@ -12,6 +12,8 @@
 #   ② 하네스 구버전 내용이 남은 스킬은 최신판으로 덮이고 **백업 0** — 사용자가 고친 게 아니므로
 #      (기준선 sha 를 같이 맞췄다) 백업이 생기면 릴리즈마다 쌓여 보호가 무력해진다
 #   ③ antigravity 를 더해 세 CLI 가 같은 자리를 써도 update 백업 0
+#   ③' 화면 — 기록 없는 스킬은 "added by this release", 설치자가 **손으로 지운** 스킬은 이름 +
+#      "was missing" + 영구히 빼는 `--without <id>` 안내 (#550)
 #   ④ `uninstall --cli codex` — `.codex/` 만 회수, `.agents/skills` · `AGENTS.md` 는 남는다
 #   ⑤ `uninstall --cli opencode` — `opencode.json` 회수, `.agents/skills` 는 antigravity 가 쓰니 남고,
 #      `AGENTS.md` 는 마지막 사용자가 나가므로 #516 규칙(하네스 절 제거 · 설치자 절 유지)
@@ -193,6 +195,38 @@ if ! grep -qF "${MARK}" "${AGENTS}"; then
   exit 1
 fi
 echo "✓ ③ antigravity 추가 → update — clis=${CLIS} · 백업 0 · 설치자 문단 보존"
+
+# ───────────────── ③' 화면이 스킬 이름을 댄다 (#550) ─────────────────
+# 색 코드를 걷고 본다 — 문구 판정에 방해만 된다.
+plain() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
+# ①② 의 GONE_ID 는 기록까지 지운 "이 릴리즈의 추가"였다 — 되살림으로 말하면 거짓이다.
+if ! plain "${OUT}/codex-opencode.txt" | grep -F ".agents/skills/${GONE_ID}" | grep -qF "added by this release"; then
+  echo "FAIL: 기록 없던 ${GONE_ID} 가 화면에 'added by this release' 로 뜨지 않았다 (#550)"
+  plain "${OUT}/codex-opencode.txt" | tail -30
+  exit 1
+fi
+# 이제 기록이 있다 — 설치자가 손으로 지우면 update 가 되살리고, 그 사실과 빼는 법을 말해야 한다.
+rm -rf "${SKILLS:?}/${GONE_ID}"
+run_update hand-deleted
+if [[ ! -f "${SKILLS}/${GONE_ID}/SKILL.md" ]]; then
+  echo "FAIL: 손으로 지운 ${GONE_ID} 를 update 가 되살리지 않았다 — 아래 화면 판정의 전제가 깨졌다"
+  exit 1
+fi
+if ! plain "${OUT}/hand-deleted.txt" | grep -F ".agents/skills/${GONE_ID}" | grep -qF "was missing"; then
+  echo "FAIL: 되살린 ${GONE_ID} 의 이름이 화면에 없다 (#550)"
+  plain "${OUT}/hand-deleted.txt" | tail -30
+  exit 1
+fi
+if ! plain "${OUT}/hand-deleted.txt" | grep -qF -- "--without ${GONE_ID}"; then
+  echo "FAIL: 영구히 빼는 방법(--without ${GONE_ID})이 화면에 없다 (#550)"
+  plain "${OUT}/hand-deleted.txt" | tail -30
+  exit 1
+fi
+if plain "${OUT}/hand-deleted.txt" | grep -qF -- "--without ${STALE_ID}"; then
+  echo "FAIL: 지우지 않은 ${STALE_ID} 까지 되살림으로 말했다 — 판정이 전부를 낸다"
+  exit 1
+fi
+echo "✓ ③' 화면 — ${GONE_ID}: 신규는 'added by this release', 손으로 지운 뒤엔 'was missing' + --without (#550)"
 
 # ───────────────────────── ④ uninstall --cli codex ─────────────────────────
 agent-harness uninstall --cli codex >"${OUT}/uninst-codex.txt" 2>&1 || {

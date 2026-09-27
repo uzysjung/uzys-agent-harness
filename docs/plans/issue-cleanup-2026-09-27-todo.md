@@ -51,7 +51,7 @@
 - [ ] C — 위저드 (#533 · #523) — 설계 `docs/plans/wizard-533-design-2026-09-27.md` · 브리프 `docs/plans/wizard-533-brief-2026-09-27.md` · Uninstall = 전체·CLI·외부 자산 · base 배타 없음(사용자 결정)
 - [x] D — descriptor (#509) → #540
 - [x] E — dev 의존성 (PR #537 대체) → #541
-- [ ] F — update 잡음 (#550)
+- [x] F — update 잡음 (#550) — 독립 리뷰 1차 BLOCK(거절되는 `--without` 안내) → 수정 → 재검증 PASS with notes
 - [x] README (#546) → #549
 - [x] #522 닫기 · #513 보류 코멘트 · 트랙 단위 uninstall 별도 이슈 → #543
 - [ ] 릴리즈 v26.161.0
