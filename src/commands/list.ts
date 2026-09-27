@@ -65,8 +65,8 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
   }
 
   log("");
-  log(c.bold("  Templates"));
-  for (const line of formatTemplateRows(installLog, projectDir)) {
+  log(c.bold("  Harness files"));
+  for (const line of formatHarnessFileRows(installLog, projectDir)) {
     log(line);
   }
 
@@ -97,12 +97,31 @@ export function formatAssetRows(assets: ReadonlyArray<InstallLogAsset>): string[
   });
 }
 
-/** templates 행 — 디렉토리 + root CLAUDE.md 수정 여부(uninstall 이 보존할지 여부와 같은 판정). */
-function formatTemplateRows(log: InstallLog, projectDir: string): string[] {
-  const dirs = [log.templates.claudeDir, log.templates.codexDir, log.templates.opencodeDir].filter(
-    (d): d is string => Boolean(d),
-  );
-  const rows = [`    ${c.dim(dirs.join("  "))}`];
+/**
+ * 하네스 파일 행 — **기록이 말하는 자리만** 최상위 폴더·파일로 + root CLAUDE.md 수정 여부(uninstall 이
+ * 보존할지 여부와 같은 판정).
+ *
+ * #559 (설계 §2 행 25) — `templates.*Dir` 는 읽지 않는다. 그 필드는 CLI 를 골랐다는 뜻으로 적혔을 뿐
+ * 하네스가 그 폴더를 만들었다는 기록이 아니다(OpenCode 는 `.opencode/` 를 만들지 않는데 `list` 가 보였다).
+ *
+ * - codex · opencode · antigravity 산출물 = `externalFiles`(쓰는 순간 경로·sha 를 적는다).
+ * - `.claude/` = claude 가 **깔린 CLI 집합**에 있을 때만(`installedClis` — 기록에서 유도, 디스크 아님).
+ *   `.claude/` 의 파일별 기록(`policyFiles`·`skillFiles`)은 옛 판이 디스크를 훑어 적은 값이라 설치자 파일이
+ *   섞여 있다 — 파일 단위로 보이려면 소유 필터(PR-1 `recorded()`)가 필요해 여기서는 폴더만 말한다.
+ */
+function harnessFileTops(log: InstallLog): string[] {
+  const tops = new Set<string>();
+  if (installedClis(log).includes("claude")) tops.add(".claude/");
+  for (const f of log.externalFiles ?? []) {
+    const slash = f.path.indexOf("/");
+    tops.add(slash === -1 ? f.path : f.path.slice(0, slash + 1));
+  }
+  return [...tops];
+}
+
+function formatHarnessFileRows(log: InstallLog, projectDir: string): string[] {
+  const tops = harnessFileTops(log);
+  const rows = [`    ${c.dim(tops.length > 0 ? tops.join("  ") : "(none recorded)")}`];
   const rootMd = log.templates.rootClaudeMd;
   if (rootMd) {
     const path = join(projectDir, rootMd.path);
