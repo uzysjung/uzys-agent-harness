@@ -283,6 +283,8 @@ export interface InstallReport {
   baselineLinked?: string[];
   /** #524 — 링크가 가리키는 공유 본문이 우리 기록에 없어 건드리지 않은 스킬 id. */
   baselineLinkedNotOurs?: string[];
+  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  backups?: string[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
