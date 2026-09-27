@@ -37,6 +37,7 @@ import {
 import { buildManifest, RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
+import type { SharedWriteResult } from "../shared-write.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
 /**
@@ -306,7 +307,13 @@ export function renderCliArtifacts(
   log(unifiedSection(formatCliPhaseTitle(spec.cli)));
   log("");
   // AGENTS.md is shared across Codex/OpenCode — render once with shared note
-  if (report.codex && report.opencode) {
+  // #558 — 설치자 파일에 블록 하나만 더했으면(첫 접촉) 그렇게 말한다. 하네스가 만든 파일(절 모델)은 전과 같다.
+  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
+  const agentsBlock = agentsMd?.model === "block" ? agentsMd.shared : null;
+  if (agentsBlock) {
+    const row = sharedRow(agentsBlock, "one harness block at the end (your text kept as-is)");
+    if (row) log(row);
+  } else if (report.codex && report.opencode) {
     log(assetRow("success", "AGENTS.md", "shared (Codex + OpenCode)"));
   } else if (report.codex || report.opencode) {
     log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}`));
@@ -325,7 +332,11 @@ export function renderCliArtifacts(
     );
   }
   if (report.codex) {
-    log(assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]"));
+    // #563 — 하네스 몫(구간 둘)만 썼다. 설치자 키가 이긴 항목은 "kept yours" · 못 읽었으면 "left" 와 이유.
+    const configRow = report.codex.configToml
+      ? sharedRow(report.codex.configToml, "harness regions: settings + [mcp_servers.*]")
+      : assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]");
+    if (configRow) log(configRow);
     log(assetRow("success", ".codex/hooks/", `${report.codex.hookFiles.length} files`));
     if (report.codex.skillFiles.length > 0) {
       log(
@@ -350,7 +361,12 @@ export function renderCliArtifacts(
     }
   }
   if (report.opencode) {
-    log(assetRow("success", "opencode.json", "$schema + 5 keys"));
+    // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
+    const opencodeJson = report.opencode.opencodeJson;
+    const opencodeRow = opencodeJson
+      ? sharedRow(opencodeJson, `harness mcp: ${mcpNames(opencodeJson)}`)
+      : assetRow("success", "opencode.json", "$schema + 5 keys");
+    if (opencodeRow) log(opencodeRow);
     if (report.opencode.skillFiles.length > 0) {
       log(
         assetRow(
@@ -405,6 +421,31 @@ export function renderCliArtifacts(
     }
   }
   log("");
+}
+
+/**
+ * #551 (ADR-097 §4) — 함께 쓰는 파일 한 줄. 판정이 낸 행동만 말한다: 만들었다 · 하네스 몫만 썼다 · 이미 최신 · 못 써서
+ * 남겼다(이유와 함께). 설치자 값이 이긴 항목은 "kept yours" 로 붙인다. update 가 없는 파일을 안 만든 것은 말하지 않는다.
+ */
+function sharedRow(r: SharedWriteResult, part: string): string | null {
+  if (r.action === "skipped") return null;
+  if (r.action === "left") return assetRow("skip", r.path, `left — ${r.line}`);
+  const verb =
+    r.action === "created"
+      ? "wrote"
+      : r.action === "updated"
+        ? "wrote the harness part — yours stays"
+        : "harness part already current — yours stays";
+  const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
+  return assetRow("success", r.path, `${verb} · ${part}${kept}`);
+}
+
+/** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
+function mcpNames(r: SharedWriteResult): string {
+  const names = (r.portions ?? [])
+    .map((p) => /^mcp\.(.+)$/.exec(p.key)?.[1])
+    .filter((n): n is string => n !== undefined && !n.endsWith("{}"));
+  return names.length > 0 ? names.join(" · ") : "none";
 }
 
 /** 최종 Summary (STATUS / TRACKS / CLI / HOOK / WARN / OPT-IN / NEXT). */

@@ -18,7 +18,8 @@
 
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
+import { ADAPTERS } from "../adapters/index.js";
+import { anchorTitle, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
 import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { seedAgentsMdProjectContext } from "../anchor-seed.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
@@ -27,8 +28,15 @@ import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
+import {
+  type AgentsMdWriteResult,
+  type SharedRecord,
+  type SharedWriteResult,
+  writeAgentsMd,
+  writeShared,
+} from "../shared-write.js";
 import { renderAgentsMd } from "./agents-md.js";
-import { renderOpencodeJson } from "./opencode-json.js";
+import { renderOpencodeJson, renderOpencodeMcp } from "./opencode-json.js";
 
 export interface OpencodeTransformParams {
   harnessRoot: string;
@@ -59,6 +67,11 @@ export interface OpencodeTransformParams {
    * opencode 를 안 깐 프로젝트에서 돌려도 `opencode.json`/`.opencode/` 가 생기지 않는다.
    */
   refreshOnly?: boolean;
+  /**
+   * #551 (ADR-097) — 함께 쓰는 파일(`opencode.json` · 첫 접촉 `AGENTS.md`)의 앞 기록. 생략 = 몫을 기록한 적 없는
+   * 로그로 보고 내용 식별로 대신한다(`shared-write.ts` `SharedRecord`).
+   */
+  shared?: SharedRecord;
 }
 
 export interface OpencodeTransformReport {
@@ -72,6 +85,13 @@ export interface OpencodeTransformReport {
    */
   agentsMdSeededFrom?: string | null;
   opencodeJsonPath: string;
+  /**
+   * #563 — `opencode.json` 에 하네스 몫(`mcp.<name>`)만 쓴 결과. optional = codex 리포트의 같은 필드와 같은 이유
+   * (손으로 만드는 테스트 stub) — 부재는 "알릴 것 없음".
+   */
+  opencodeJson?: SharedWriteResult;
+  /** #558 — `AGENTS.md` 를 쓴 모델과 결과. 부재 = 알릴 것 없음. */
+  agentsMd?: AgentsMdWriteResult | null;
   /**
    * `.agents/skills/<id>/` 에 쓴 **모든** 파일 — codex·antigravity 와 같은 자리(같은 파일)다.
    * #431 이후 `SKILL.md` 의 형제(references/scripts 등)도 함께 들어온다.
@@ -92,6 +112,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     mcp,
     baseline,
     refreshOnly,
+    shared = {},
   } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
@@ -136,23 +157,40 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     // (독립 검증 C-1 실측). 같은 내용을 쓰면 순서가 결과를 바꾸지 않는다.
     harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
   });
-  // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-  // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로. codex 가 같은 install 안에서 이미
-  // 쓴 AGENTS.md 를 여기서 '사용자 편집'으로 오판하면 매 설치마다 백업이 생긴다.
-  // #503 — 디스크의 판에서 설치자 절을 이어받는다. #550 이후 codex 는 같은 실행에서 이 파일을 쓰지
-  // 않으므로(`cli-transforms.ts` writeAgentsMd) 조합 설치본에서 이 파일을 쓰는 쪽은 여기 하나다.
-  writer.write(
-    agentsMdPath,
-    mergeAgentsMd({
-      rendered: agentsMdOut,
-      existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
-      template: agentsTemplate,
-    }),
-  );
+  // #503 — 하네스가 만든 파일은 디스크의 판에서 설치자 절을 이어받는다(절 모델). #558 — 기록에 없는 설치자 파일은
+  // 본문 그대로 + 파일 끝 블록 하나(첫 접촉). 판정은 codex 와 같은 함수(`agentsMdModel`). #550 이후 codex 는 같은
+  // 실행에서 이 파일을 쓰지 않으므로(`cli-transforms.ts` writeAgentsMd) 조합 설치본에서 이 파일을 쓰는 쪽은 여기 하나다.
+  const agentsMd = writeAgentsMd({
+    projectDir,
+    rendered: agentsMdOut,
+    template: agentsTemplate,
+    anchorTitle: anchorTitle(claudeMd),
+    writer,
+    baseline,
+    record: shared,
+    refreshOnly: refreshOnly ?? false,
+  });
 
-  // 2. opencode.json
-  const opencodeJsonPath = join(projectDir, "opencode.json");
-  writer.write(opencodeJsonPath, renderOpencodeJson({ template: opencodeTemplate, mcp }));
+  // 2. opencode.json — 함께 쓰는 파일(#563 · ADR-097 §6.2 `json-keys`): 하네스 MCP 키(`mcp.<name>`)만 upsert 한다.
+  //    템플릿의 나머지 키는 파일을 새로 만들 때만 바탕(seed)으로 깔린다.
+  const opencodeJsonPath = join(projectDir, OPENCODE_JSON);
+  const render = renderOpencodeMcp(mcp);
+  const opencodeJson = writeShared({
+    projectDir,
+    path: OPENCODE_JSON,
+    render,
+    record: shared,
+    baseline,
+    writer,
+    // 몫 기록이 없는 로그 — 하네스가 만든 파일(기준선에 있다)이면 하네스 서버 이름의 키가 하네스 몫이다
+    // (설계 §5 의 `.mcp.json` "created 일 때만 템플릿 서버 이름으로" 와 같은 규칙). 설치자 파일이면 없다.
+    identify: (text) =>
+      baseline.has(OPENCODE_JSON)
+        ? (ADAPTERS["json-keys"].read(text, render.keys()) ?? new Map())
+        : new Map(),
+    refreshOnly: refreshOnly ?? false,
+    seed: renderOpencodeJson({ template: opencodeTemplate }),
+  });
 
   // 3. dev-method skills → `.agents/skills/<id>/SKILL.md` (ADR-081).
   //
@@ -206,11 +244,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     agentsMdPath,
     agentsMdSeededFrom: seededContext === null ? null : "CLAUDE.md",
     opencodeJsonPath,
+    opencodeJson,
+    agentsMd,
     skillFiles,
     retiredCommands,
     ownership: writer.result(),
   };
 }
+
+const OPENCODE_JSON = "opencode.json";
 
 function readRequired(path: string): string {
   if (!existsSync(path)) {

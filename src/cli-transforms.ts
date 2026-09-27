@@ -15,10 +15,11 @@ import {
 } from "./antigravity/transform.js";
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
-import type { InstallLogSkillFile } from "./install-log.js";
+import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
 import { composeMcpJson, type McpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import type { OwnedWriteResult } from "./owned-write.js";
+import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
 /** Codex / OpenCode / Antigravity per-CLI transforms (+ `--with-codex-trust` opt-in) 결과. */
@@ -41,6 +42,21 @@ export interface CliTransformResults {
    * 단계가 건너뛰었는지가 아니라 "어느 자리를 옮겨야 하는지"가 필요하다.
    */
   externalForeignOwned: string[];
+  /**
+   * #551 (ADR-097) — 함께 쓰는 파일(`.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md`)마다 이번 실행의
+   * 판정·결과. 화면이 한 줄씩 읽는다.
+   */
+  sharedFiles: SharedWriteResult[];
+  /**
+   * 이번 실행이 판정한 함께 쓰는 파일의 몫 전체 — **로그의 `portions` 에서 이 파일들의 항목을 이것으로 바꾼다**
+   * (`sharedFiles[i].portions === null` 인 파일은 판정하지 않았으니 로그 항목을 그대로 둔다 — 그 경로는 여기 없다).
+   * 로그에 쓰는 연결은 설계 §9 PR-3.
+   */
+  portions: InstallLogPortion[];
+  /** 판정한 파일의 경로 — `portions` 가 대신하는 범위. */
+  portionPaths: string[];
+  /** 설치자가 하네스 몫에서 지운 키 id(`codex:tables` · `opencode:mcp.github` …) — 로그 `excluded` 에 **더한다**(R2 · Q2). */
+  deletedKeyIds: string[];
 }
 
 export interface CliTransformParams {
@@ -80,6 +96,12 @@ export interface CliTransformParams {
    * (범위 조건 없음, ADR-097 결정 2). update 는 안 쓴다.
    */
   codexTrust?: boolean;
+  /**
+   * #551 (ADR-097) — 함께 쓰는 파일의 앞 기록: 설치 로그의 `portions`(없는 로그면 `undefined` 그대로 — 빈 배열로
+   * 바꾸지 마라, 그러면 "몫 기록 있음 · 이 파일 몫 없음" 으로 읽혀 하네스 구간을 설치자 것으로 본다)와
+   * `excludedIds(log)`. 생략 = 몫을 기록한 적 없는 로그(내용 식별로 대신한다, `shared-write.ts`).
+   */
+  shared?: SharedRecord;
 }
 
 /**
@@ -114,6 +136,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     previousExternal,
     refreshOnly = false,
     codexTrust = false,
+    shared = {},
   } = params;
 
   // v26.133.0 (ADR-048) — 기준선을 transform 사이로 **이어준다**. codex 와 opencode 는 같은
@@ -126,6 +149,19 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalBackedUp: string[] = [];
   const externalForeignOwned: string[] = [];
   let externalUpdated = 0;
+  const sharedFiles: SharedWriteResult[] = [];
+  const absorbShared = (
+    report: { ownership: OwnedWriteResult },
+    results: ReadonlyArray<SharedWriteResult | null | undefined>,
+  ): void => {
+    for (const r of results) {
+      if (!r) continue;
+      sharedFiles.push(r);
+      // 하네스가 만든 파일은 writer 가 이미 셌다(`ownership.updated`) — 설치자 파일에 직접 쓴 것만 더한다
+      const counted = report.ownership.files.some((f) => f.path === r.path);
+      if (!counted && (r.action === "created" || r.action === "updated")) externalUpdated++;
+    }
+  };
   const absorb = (report: { ownership: OwnedWriteResult }): void => {
     for (const f of report.ownership.files) {
       baseline.set(f.path, f.sha256);
@@ -160,12 +196,14 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       mcp: harnessMcp(),
       baseline,
       refreshOnly,
+      shared,
       // #550 — 같은 `AGENTS.md` 를 한 실행에서 쓰는 쪽은 하나다. opencode 가 뒤에서 자기 템플릿으로
       // 쓰면 codex 판은 어차피 같은 실행 안에서 덮였고(최종 파일 = opencode 판), 매 실행 codex 가
       // opencode 판을 자기 판으로 뒤집는 한 번의 쓰기가 설치자 편집분을 백업으로 쌓았다.
       writeAgentsMd: !cli.includes("opencode"),
     });
     absorb(codex);
+    absorbShared(codex, [codex.agentsMd?.shared, codex.configToml]);
     // ADR-097 결정 2 — 범위와 무관하게 `--with-codex-trust` 를 준 경우에만 홈 파일에 한 줄을 더한다.
     // 안 줬으면 Codex 가 첫 실행에서 직접 묻는다("Trust and continue") — 설치 화면 NEXT 가 그걸 안내한다.
     if (codexTrust) {
@@ -183,8 +221,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       mcp: harnessMcp(),
       baseline,
       refreshOnly,
+      shared,
     });
     absorb(opencode);
+    absorbShared(opencode, [opencode.agentsMd?.shared, opencode.opencodeJson]);
   }
 
   // v26.66.0 — Antigravity transform: `.agents/rules/uzys-harness.md` + dev-method skills.
@@ -211,5 +251,9 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalUpdated,
     externalBackedUp,
     externalForeignOwned,
+    sharedFiles,
+    portions: sharedFiles.flatMap((r) => r.portions ?? []),
+    portionPaths: sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),
+    deletedKeyIds: [...new Set(sharedFiles.flatMap((r) => r.deleted))],
   };
 }

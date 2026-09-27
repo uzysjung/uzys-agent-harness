@@ -125,15 +125,20 @@ describe("codex transform — 소유자 판정", () => {
     expect(second.ownership.backedUp).toEqual([]);
   });
 
-  it("사용자가 고친 config.toml 과 스킬도 같은 보호를 받는다", () => {
+  it("사용자가 고친 스킬은 같은 보호를 받는다 · config.toml 은 함께 쓰는 파일이라 고친 내용이 라이브에 남는다(#563)", () => {
     const first = codex(new Map());
-    edit(join(projectDir, ".codex/config.toml"), "# 사용자 config\n");
+    edit(join(projectDir, ".codex/config.toml"), 'model = "o3" # 사용자 config\n');
     edit(join(projectDir, ".agents/skills/compaction-handoff/SKILL.md"), "# 사용자 스킬\n");
 
     const second = codex(baselineOf(first.ownership.files));
 
-    expect(second.ownership.backedUp).toContain(".codex/config.toml");
     expect(second.ownership.backedUp).toContain(".agents/skills/compaction-handoff/SKILL.md");
+    // 함께 쓰는 파일은 백업이 아니라 몫만 — 설치자 줄은 라이브 파일에 그대로, 하네스 구간이 옆에 선다
+    expect(second.ownership.backedUp).not.toContain(".codex/config.toml");
+    expect(backupsIn(join(projectDir, ".codex"))).toHaveLength(0);
+    const toml = readFileSync(join(projectDir, ".codex/config.toml"), "utf8");
+    expect(toml).toContain('model = "o3" # 사용자 config');
+    expect(toml).toContain("# uzys-harness:tables:start");
   });
 
   it("기준선은 하네스가 방금 쓴 내용과 일치한다 — 다음 실행이 자기 산출물을 오판하면 안 된다", () => {
@@ -148,7 +153,7 @@ describe("codex transform — 소유자 판정", () => {
 });
 
 describe("opencode transform — 소유자 판정", () => {
-  it("사용자가 고친 스킬과 opencode.json 이 백업된다", () => {
+  it("사용자가 고친 스킬은 백업된다 · opencode.json 은 함께 쓰는 파일이라 고친 내용이 라이브에 남는다(#563)", () => {
     // ADR-081 — 번들 스킬은 `.agents/skills/<id>/SKILL.md` 로 간다(codex 와 같은 자리).
     const first = opencode(new Map());
     edit(join(projectDir, "opencode.json"), '{"mine":true}\n');
@@ -156,8 +161,15 @@ describe("opencode transform — 소유자 판정", () => {
 
     const second = opencode(baselineOf(first.ownership.files));
 
-    expect(second.ownership.backedUp).toContain("opencode.json");
     expect(second.ownership.backedUp).toContain(".agents/skills/compaction-handoff/SKILL.md");
+    expect(second.ownership.backedUp).not.toContain("opencode.json");
+    expect(backupsIn(projectDir)).toHaveLength(0);
+    const json = JSON.parse(readFileSync(join(projectDir, "opencode.json"), "utf8")) as {
+      mine?: boolean;
+      mcp?: Record<string, unknown>;
+    };
+    expect(json.mine).toBe(true);
+    expect(Object.keys(json.mcp ?? {}).length).toBeGreaterThan(0);
   });
 
   it("안 고쳤으면 백업하지 않는다", () => {

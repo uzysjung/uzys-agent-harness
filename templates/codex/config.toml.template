@@ -51,26 +51,6 @@ timeout = 10
 async = false
 
 # ============================================================
-# MCP Servers — .mcp.json에서 포맷 변환
-# 조건부 포함: Track 따라 setup-harness가 추가
-# ============================================================
-
-[mcp_servers.context7]
-command = "npx"
-args = ["-y", "@upstash/context7-mcp"]
-
-# github MCP (필요 시 활성화)
-# [mcp_servers.github]
-# command = "npx"
-# args = ["-y", "@modelcontextprotocol/server-github"]
-# env = { GITHUB_PERSONAL_ACCESS_TOKEN = "{GITHUB_TOKEN}" }
-
-# Railway MCP (csr-fastify/csr-fastapi/ssr-*/full 에서만)
-# [mcp_servers.railway]
-# command = "npx"
-# args = ["-y", "railway-mcp-server"]
-
-# ============================================================
 # Features (본 설치가 사용하는 stable feature 명시)
 # ============================================================
 [features]
@@ -80,3 +60,11 @@ plugins = true               # stable — plugin 번들 호환
 tool_search = true           # stable
 skill_mcp_dependency_install = true  # skill이 MCP 자동 설치
 child_agents_md = false      # under dev — 본 SPEC 범위 밖
+
+# ============================================================
+# MCP Servers — 설치기가 이 아래에 이 프로젝트 트랙의 서버를 붙인다
+# 원천 = templates/mcp.json + templates/track-mcp-map.tsv (Claude .mcp.json 과 같다, #568)
+# ============================================================
+# github MCP 에 토큰을 줄 때 (필요 시 활성화):
+# [mcp_servers.github]
+# env = { GITHUB_PERSONAL_ACCESS_TOKEN = "{GITHUB_TOKEN}" }
