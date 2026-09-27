@@ -102,9 +102,9 @@ recorded(log, projectRelPath): { state: "none" | "no-sha" | "sha"; sha256?: stri
 건다.** 조건은 셋이다: claude 가 `installedClis(log)` 에 있을 것 · 경로가 `resolveRules`/에이전트 표로 **기록 트랙에서** 나오는
 대상이거나 번들 스킬 id(옵션 선택은 기록에 없으므로 번들 id 전부)이거나 하네스가 배포했다가 은퇴시킨 경로(`RETIRED_PATHS` — 옛 판
 전용의 닫힌 목록) · `excluded`(옛 `baselineExclude`·`skillExclude` 포함)에 없을 것. 새 판이 로그를 처음 쓸 때 이 필터를 한 번 적용해 남은 것만 이어받고, 로그에 `records: "writer"` 를 적는다. 이 표시가 있으면
-이후로는 필터 없이 읽는다. 필터에 걸린 옛 항목은 "기록 없음" 이 된다(지우지 않는 쪽 — 안전). 은퇴 경로의 옛 스캔 sha 는 하네스
+이후로는 필터 없이 읽는다(이어받은 은퇴 항목만 예외 — 아래). 필터에 걸린 옛 항목은 "기록 없음" 이 된다(지우지 않는 쪽 — 안전). 은퇴 경로의 옛 스캔 sha 는 하네스
 내용의 증거가 아니므로 "기록 있음 · sha 없음" 으로 읽는다 — update 와 uninstall 이 모두 `backup+remove` 로 치운다(설치자가 같은
-이름으로 쓴 파일이어도 바이트는 백업에 남는다). 첫 writer 는 은퇴 항목을 회수할 때까지 이어받는다. 고르지 않은 트랙의 같은 이름
+이름으로 쓴 파일이어도 바이트는 백업에 남는다). 첫 writer 는 은퇴 항목을 회수할 때까지 이어받고, 그동안 그 항목에는 claude 설치 · `excluded` 아님 조건을 계속 건다. 고르지 않은 트랙의 같은 이름
 설치자 파일(예: csr 설치자의 자기 `.claude/agents/data-analyst.md`)은 그래서 소유가 아니다. **"기록 있음 · sha 없음"** = 로그가
 그 CLI 를 말하고(`claudeManaged`, `update-mode.ts:426-436`) 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전
 판(#557)이 여기다.
