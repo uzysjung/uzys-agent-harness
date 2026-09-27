@@ -17,6 +17,8 @@
 #      (Claude 자산이 여전히 갱신 대상이다)
 #   ⑤ `uninstall --cli claude` 는 `.claude/` 를 지우지 않고 `.claude.backup-*` 로 옮긴다 — 설치자 파일 보존
 #      (사용자 결정 2026-09-27)
+#   ⑤-b Claude 를 뺀 뒤에도 `agent-harness update` 가 돈다 — 남은 OpenCode 자산을 갱신하고, 방금 뺀
+#      Claude 를 다시 깔라고 하지 않으며 `.claude/` 를 되살리지 않는다(#533 리뷰 B1)
 #   ⑥ 대조군 — 남은 opencode 를 `--cli` 로 빼는 것은 거절된다(마지막 CLI)
 #
 # "Claude 를 화면에서 풀 수 없다"의 키 입력 재현은 pty 에서 취약하다 — 그 잠금은 유닛
@@ -192,6 +194,35 @@ if [[ ! -e "${PROJ}/opencode.json" || ! -e "${PROJ}/AGENTS.md" ]]; then
   exit 1
 fi
 echo "✓ ⑤ uninstall --cli claude — .claude/ → $(basename "${BACKUP}") (settings.local.json 보존) · opencode.json 유지"
+
+# --- ⑤-b Claude 를 뺀 뒤 update (리뷰 B1) ---
+# 남은 CLI(OpenCode)의 공유 스킬 본문을 옛 판으로 흉내 낸다 — update 가 그것을 최신판으로 되돌리면
+# OpenCode 자산이 갱신 대상이라는 증거다.
+SHARED_SKILL="${PROJ}/.agents/skills/audit-harness-fit/SKILL.md"
+[[ -f "${SHARED_SKILL}" ]] || { echo "FAIL: 전제 — ${SHARED_SKILL} 가 없다"; exit 1; }
+printf '\n<!-- stale copy from an older release -->\n' >> "${SHARED_SKILL}"
+set +e
+agent-harness update >"${WORK}/update-after-claude.txt" 2>&1
+RC_UPD=$?
+set -e
+if [[ "${RC_UPD}" -ne 0 ]]; then
+  echo "FAIL: Claude 를 뺀 뒤 update 가 exit ${RC_UPD} — 남은 CLI 를 갱신할 수 없다 (리뷰 B1)"
+  tail -20 "${WORK}/update-after-claude.txt"
+  exit 1
+fi
+if grep -qiE "broken install|Reinstall instead" "${WORK}/update-after-claude.txt"; then
+  echo "FAIL: update 가 방금 뺀 Claude 를 '깨진 설치'로 보고 재설치를 권한다"
+  exit 1
+fi
+if grep -qF "stale copy from an older release" "${SHARED_SKILL}"; then
+  echo "FAIL: update 가 남은 OpenCode 의 공유 스킬(.agents/skills)을 갱신하지 않았다"
+  exit 1
+fi
+if [[ -e "${PROJ}/.claude" ]]; then
+  echo "FAIL: update 가 방금 뺀 Claude 의 .claude/ 를 되살렸다"
+  exit 1
+fi
+echo "✓ ⑤-b Claude 를 뺀 뒤 update exit 0 — OpenCode 공유 스킬 갱신 · 재설치 권유 없음 · .claude/ 미생성"
 
 # --- ⑥ 대조군 — 마지막 CLI 는 거절 ---
 set +e
