@@ -4,8 +4,11 @@ import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { shouldRunInteractive } from "../src/commands/uninstall.js";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
+import type { CliBase } from "../src/types.js";
 import {
+  buildCliRows,
   buildRemovableRows,
+  buildUninstallModeChoices,
   runInteractiveUninstall,
   type UninstallPrompts,
 } from "../src/uninstall-interactive.js";
@@ -15,13 +18,17 @@ import {
  * install 위저드의 체크 해제는 여전히 아무것도 지우지 않는다 — 제거는 이 명령 전용이다
  * (사용자 결정: "B는 install 에서 체크해제고 uninstall 을 별도로 실행해서 들어가도록").
  */
-function writeLog(dir: string, assets: InstallLog["assets"]): void {
+function writeLog(
+  dir: string,
+  assets: InstallLog["assets"],
+  clis: ReadonlyArray<CliBase> = ["claude"],
+): void {
   mkdirSync(dirname(installLogPath(dir)), { recursive: true });
   const log: InstallLog = {
     schemaVersion: 1,
     installedAt: "2026-07-19T00:00:00.000Z",
     scope: "project",
-    spec: { tracks: ["tooling"], cli: ["claude"] },
+    spec: { tracks: ["tooling"], cli: [...clis], clis: [...clis] },
     templates: { claudeDir: ".claude/" },
     assets,
   };
@@ -42,6 +49,7 @@ function mkPrompts(over: Partial<UninstallPrompts> = {}): UninstallPrompts {
     outro: vi.fn(),
     cancel: vi.fn(),
     selectMode: vi.fn(async () => "selected" as const),
+    selectCli: vi.fn(async () => null),
     selectAssets: vi.fn(async () => [] as string[]),
     confirm: vi.fn(async () => true),
     ...over,
@@ -49,17 +57,18 @@ function mkPrompts(over: Partial<UninstallPrompts> = {}): UninstallPrompts {
 }
 
 describe("buildRemovableRows — 무엇을 고를 수 있는가", () => {
+  // #533 D12 — 화면 문구가 영어로 바뀌었다(위저드와 한 흐름). 단언하는 사실은 같다.
   it("global 자산은 자동 제거 대상이 아님을 라벨에 표시한다 (D16)", () => {
     const rows = buildRemovableRows([asset("p"), asset("g", "global")]);
-    expect(rows.find((r) => r.value === "g")?.hint).toContain("수기");
-    expect(rows.find((r) => r.value === "p")?.hint).not.toContain("수기");
+    expect(rows.find((r) => r.value === "g")?.hint).toContain("manual");
+    expect(rows.find((r) => r.value === "p")?.hint).not.toContain("manual");
   });
 
   it("자동 되돌리기 경로가 없는 method 는 그렇다고 말한다 — 골라도 안 지워지는 걸 숨기지 않는다", () => {
     const rows = buildRemovableRows([
       { id: "b", category: "workflow", method: "npx-run", scope: "project", detail: {} },
     ]);
-    expect(rows[0]?.hint).toContain("자동 되돌리기 경로 없음");
+    expect(rows[0]?.hint).toContain("no automatic reverse path");
   });
 
   it("아무것도 없으면 빈 목록", () => {
@@ -128,12 +137,95 @@ describe("runInteractiveUninstall", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  // #533 (D8) — 세 모드가 각각 기존 엔진 하나로 간다. 화면은 옵션만 만들고 판정은 uninstallAction.
+  it("CLI 하나 모드는 고른 CLI 를 `--cli` 로 넘긴다 (확인 문구 = 같은 명령)", async () => {
+    writeLog(dir, [asset("a")], ["claude", "opencode"]);
+    const confirm = vi.fn(async (_summary: string) => true);
+    const r = await run(
+      mkPrompts({
+        selectMode: vi.fn(async () => "cli" as const),
+        selectCli: vi.fn(async () => "opencode" as const),
+        confirm,
+      }),
+    );
+    expect(r).toEqual({ ok: true, options: { projectDir: dir, cli: "opencode" } });
+    expect(confirm.mock.calls[0]?.[0]).toContain("agent-harness uninstall --cli opencode");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("세 모드 → 옵션: cli={projectDir,cli} · selected={projectDir,only} · all={projectDir}", async () => {
+    writeLog(dir, [asset("a"), asset("b")], ["claude", "codex"]);
+    const cases = [
+      [
+        {
+          selectMode: vi.fn(async () => "cli" as const),
+          selectCli: vi.fn(async () => "codex" as const),
+        },
+        { projectDir: dir, cli: "codex" },
+      ],
+      [
+        {
+          selectMode: vi.fn(async () => "selected" as const),
+          selectAssets: vi.fn(async () => ["a", "b"]),
+        },
+        { projectDir: dir, only: "a,b" },
+      ],
+      [{ selectMode: vi.fn(async () => "all" as const) }, { projectDir: dir }],
+    ] as const;
+    for (const [over, options] of cases) {
+      expect(await run(mkPrompts(over))).toEqual({ ok: true, options });
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("CLI 선택에서 ESC 하면 취소", async () => {
+    writeLog(dir, [], ["claude", "codex"]);
+    const r = await run(mkPrompts({ selectMode: vi.fn(async () => "cli" as const) }));
+    expect(r).toMatchObject({ ok: false, reason: "cancelled" });
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("전량 모드 확인 문구에 templates 가 사라진다는 사실이 들어간다", async () => {
     writeLog(dir, [asset("a")]);
     const confirm = vi.fn(async (_summary: string) => false);
     await run(mkPrompts({ selectMode: vi.fn(async () => "all" as const), confirm }));
     expect(confirm.mock.calls[0]?.[0]).toContain(".claude/");
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("buildUninstallModeChoices — 엔진이 거절할 선택을 미리 보인다 (#533 D8)", () => {
+  it("CLI 가 하나면 'Remove one CLI' 가 막힌다 — 엔진이 마지막 CLI 를 거절한다", () => {
+    const choices = buildUninstallModeChoices(["claude"], 2);
+    expect(choices.find((c) => c.value === "cli")?.enabled).toBe(false);
+    expect(buildUninstallModeChoices(["claude", "codex"], 2).every((c) => c.enabled)).toBe(true);
+  });
+
+  it("외부 자산이 0 이면 'Remove selected assets' 가 막힌다 — 엔진이 빈 --only 를 거절한다", () => {
+    const choices = buildUninstallModeChoices(["claude", "codex"], 0);
+    expect(choices.find((c) => c.value === "selected")?.enabled).toBe(false);
+    expect(choices.find((c) => c.value === "all")?.enabled).toBe(true);
+  });
+
+  it("순서는 cli · selected · all", () => {
+    expect(buildUninstallModeChoices(["claude"], 0).map((c) => c.value)).toEqual([
+      "cli",
+      "selected",
+      "all",
+    ]);
+  });
+});
+
+describe("buildCliRows — 무엇이 나가는지는 엔진과 같은 표(removableFor)에서", () => {
+  it("claude 행은 `.claude/` 를 지우지 않고 옮긴다고 말한다", () => {
+    const claude = buildCliRows(["claude", "opencode"]).find((r) => r.value === "claude");
+    expect(claude?.hint).toContain(".claude.backup-<time>");
+  });
+
+  it("공유 자리는 다른 CLI 가 쓰면 나가는 목록에 없다", () => {
+    const codex = buildCliRows(["codex", "opencode"]).find((r) => r.value === "codex");
+    expect(codex?.hint).toContain(".codex/");
+    expect(codex?.hint).not.toContain("AGENTS.md");
   });
 });
 

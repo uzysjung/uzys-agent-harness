@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listBaselineTargets } from "../src/baseline-targets.js";
-import { buildCli } from "../src/cli.js";
+import { buildCli, defaultAction } from "../src/cli.js";
 import {
   type InstallOptions,
   installSpecFromOptions,
@@ -320,5 +320,23 @@ describe("깨진 설치 (D10) — 기록에 claude, `.claude/` 없음", () => {
     });
     expect(seen?.repair).toBeNull();
     expect(seen?.clis).toEqual(["codex"]);
+  });
+});
+
+describe("메뉴 Uninstall → uninstall 명령과 같은 화면 (D8)", () => {
+  it("설치 파이프라인을 타지 않고 uninstall 화면으로 넘긴다", async () => {
+    const execute = vi.fn();
+    const uninstall = vi.fn(async (_cwd: string) => {});
+    const exit = vi.fn() as unknown as (code: number) => never;
+    await defaultAction({
+      run: async () => ({ ok: true, uninstall: true }),
+      execute,
+      uninstall,
+      exit,
+      err: vi.fn(),
+    });
+    expect(uninstall).toHaveBeenCalledWith(process.cwd());
+    expect(execute).not.toHaveBeenCalled();
+    expect(exit).not.toHaveBeenCalled();
   });
 });

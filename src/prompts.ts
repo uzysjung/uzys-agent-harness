@@ -150,7 +150,7 @@ interface OptionDef {
  */
 export const VISIBLE_OPTION_DEFS: ReadonlyArray<OptionDef> = [];
 
-const CLI_BASE_LABELS: Record<CliBase, string> = {
+export const CLI_BASE_LABELS: Record<CliBase, string> = {
   claude: "Claude Code",
   codex: "Codex (OpenAI)",
   opencode: "OpenCode (anomalyco)",

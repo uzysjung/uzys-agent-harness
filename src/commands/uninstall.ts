@@ -1240,8 +1240,18 @@ async function dispatchUninstall(options: UninstallOptions): Promise<void> {
     uninstallAction(options);
     return;
   }
-  const projectDir = resolve(options.projectDir ?? process.cwd());
-  const picked = await runInteractiveUninstall(projectDir);
+  await runUninstallScreen(resolve(options.projectDir ?? process.cwd()));
+}
+
+/**
+ * #533 (D8) — 제거 화면 → `uninstallAction`. `agent-harness uninstall`(TTY) 과 위저드 메뉴의
+ * Uninstall 이 **이 함수 하나**를 부른다. 화면은 옵션만 만들고 판정은 엔진 pre-flight 가 한다.
+ */
+export async function runUninstallScreen(
+  projectDir: string,
+  opts: { embedded?: boolean } = {},
+): Promise<void> {
+  const picked = await runInteractiveUninstall(projectDir, opts);
   if (!picked.ok || !picked.options) {
     if (picked.reason === "no-log") {
       console.error(
