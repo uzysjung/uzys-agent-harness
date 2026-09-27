@@ -306,13 +306,40 @@ describe("Claude 자리 — 링크 스킬 · 백업 규약 (#529 · #524 · #536
       // Claude Code 가 권한 승인 때 만드는 모양 — 하네스가 깐 적 없는 설치자 디렉터리.
       mkdirSync(join(projectDir, ".claude"), { recursive: true });
       writeFileSync(join(projectDir, ".claude/settings.local.json"), "{}\n");
+      // 팀이 커밋한 Claude Code 훅 — 스크립트는 생성물이라 이 클론엔 아직 없다. update 의 죽은 훅
+      // 정리 단계가 "프로젝트 기준 경로 + 파일 없음"으로 읽는 바로 그 모양이다(4칸 들여쓰기도 설치자 것).
+      const teamSettings = `${JSON.stringify(
+        {
+          permissions: { allow: ["Bash(make build)"] },
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: "Bash",
+                hooks: [
+                  {
+                    type: "command",
+                    command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/team-guard.sh"',
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        null,
+        4,
+      )}\n`;
+      writeFileSync(join(projectDir, ".claude/settings.json"), teamSettings);
 
       const report = update();
 
-      // 음성 대조: installer.ts resolveBackupPath 의 `claudeUntouched` 를 되돌리면 red.
+      // 음성 대조: installer.ts resolveBackupPath 의 `claudeUntouched` 를 되돌리면 사본 단언이 red.
       expect(report.backup).toBeNull();
       expect(claudeCopies()).toEqual([]);
       expect(readFileSync(join(projectDir, ".claude/settings.local.json"), "utf8")).toBe("{}\n");
+      // 음성 대조: update-mode.ts 3단계의 `claudeManaged` 게이트를 되돌리면 아래 둘이 red — 사본이
+      // 없는 실행이라 이 파일이 바뀌면 원본이 어디에도 없다(리뷰 BLOCKER-1).
+      expect(readFileSync(join(projectDir, ".claude/settings.json"), "utf8")).toBe(teamSettings);
+      expect(report.updateMode?.staleHookRefs).toEqual([]);
     });
 
     it("대조군 — claude 로 깔고 codex 를 더한 설치본(`spec.cli` = [codex])은 사본 1개", () => {

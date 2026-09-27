@@ -13,8 +13,9 @@
 #      'linked · updated via' 로 말한다. `.claude.backup-*` 은 claude 가 깔렸으니 1(대조군 — 되돌림 지점)
 #   ③ `uninstall --cli claude` 뒤 `.claude/` 없음 · 공유 본문 유지 · 루트 `CLAUDE.md` 설치자 본문 유지 ·
 #      로그 clis = ["codex"]
-#   ④ 그 뒤 설치자가 `.claude/` 를 다시 가져도(Claude Code 의 settings.local.json) update 가 통째
-#      사본(`.claude.backup-*`)을 더 쌓지 않는다 (#536-1)
+#   ④ 그 뒤 설치자가 `.claude/` 를 다시 가져도(Claude Code 의 settings.local.json · 팀 훅이 든
+#      settings.json) update 가 통째 사본(`.claude.backup-*`)을 더 쌓지 않고(#536-1) 그 파일들을
+#      바이트 그대로 둔다(리뷰 BLOCKER-1 — 사본이 없는 실행이라 바뀌면 원본이 없다)
 
 set -euo pipefail
 
@@ -176,6 +177,27 @@ echo "✓ ③ uninstall --cli claude — .claude/ 없음 · 공유 본문 유지
 # --- ④ #536-1 — claude 가 없는 설치본의 설치자 .claude/ 는 update 가 복사하지 않는다 ---
 mkdir -p "${PROJ}/.claude"
 printf '{}\n' >"${PROJ}/.claude/settings.local.json"
+# 팀이 커밋한 Claude Code 훅 — 스크립트는 생성물이라 클론에 아직 없다. update 의 죽은 훅 정리
+# 단계가 지우는 바로 그 모양이고, 이 실행엔 `.claude` 사본이 없으니 바뀌면 원본이 어디에도 없다
+# (리뷰 BLOCKER-1). 4칸 들여쓰기 = 설치자 서식(재서식도 변경이다).
+cat >"${PROJ}/.claude/settings.json" <<'JSON'
+{
+    "permissions": {
+        "allow": ["Bash(make build)"]
+    },
+    "hooks": {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/team-guard.sh\"" }
+                ]
+            }
+        ]
+    }
+}
+JSON
+cp "${PROJ}/.claude/settings.json" "${OUT}/team-settings.json"
 BEFORE=$(count_claude_copies)
 agent-harness update >"${OUT}/update2.txt" 2>&1 || {
   echo "FAIL: codex 단독 update 가 실패했다"
@@ -191,7 +213,12 @@ if [[ "$(cat "${PROJ}/.claude/settings.local.json")" != "{}" ]]; then
   echo "FAIL: 설치자 .claude/settings.local.json 이 바뀌었다"
   exit 1
 fi
-echo "✓ ④ claude 없는 update — .claude.backup-* ${BEFORE} → ${AFTER} (새 사본 0) · 설치자 파일 무변경"
+if ! cmp -s "${PROJ}/.claude/settings.json" "${OUT}/team-settings.json"; then
+  echo "FAIL: claude 가 깔리지 않은 update 가 설치자 .claude/settings.json 을 고쳤다 — 사본도 없다"
+  diff "${OUT}/team-settings.json" "${PROJ}/.claude/settings.json" || true
+  exit 1
+fi
+echo "✓ ④ claude 없는 update — .claude.backup-* ${BEFORE} → ${AFTER} (새 사본 0) · 설치자 settings.json·settings.local.json 바이트 무변경"
 
 rm -rf "${OUT}"
 echo ""

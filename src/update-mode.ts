@@ -490,8 +490,12 @@ export function runUpdateMode(
   }
 
   // 3) settings.json stale hook ref cleanup
+  // #536 리뷰 BLOCKER-1 — 이 단계도 `.claude/` 를 **고친다**(항목 삭제 + 재서식). claude 가 깔린
+  // 집합에 없으면 그 `settings.json` 은 설치자 것이고(예: 팀이 커밋한 Claude Code 훅 — 스크립트는
+  // 생성물이라 클론에 아직 없다), 그 실행은 `.claude.backup-*` 도 만들지 않는다(installer
+  // resolveBackupPath). 게이트가 없으면 설치자 훅 배선이 원본 없이 사라진다(실 CLI 재현).
   const settingsPath = join(claudeDir, "settings.json");
-  if (wants("hooks") && existsSync(settingsPath)) {
+  if (claudeManaged && wants("hooks") && existsSync(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
   }
 
