@@ -216,6 +216,19 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     });
   });
 
+  it("못 읽는 파일에는 한 바이트도 쓰지 않고 이유를 말한다(#574 규칙)", () => {
+    firstContact();
+    put("opencode.json", "{ broken");
+
+    const run = uninstall();
+
+    expect(read("opencode.json")).toBe("{ broken");
+    expect(run.lines.join("\n")).toContain(
+      "left  opencode.json — could not read it (invalid JSON) — harness part not removed",
+    );
+    expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS); // 다른 파일은 그대로 걷힌다
+  });
+
   it("하네스가 만든 opencode.json 은 지금의 회수 그대로 — 설치자가 고쳤으면 통째로 남긴다(몫을 걷지 않는다)", () => {
     install(["opencode"]);
     const json = JSON.parse(read("opencode.json")) as Record<string, unknown>;
