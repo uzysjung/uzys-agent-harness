@@ -1,6 +1,12 @@
 ---
 name: ui-visual-review
-description: "Captures screenshots of key UI flows after E2E tests pass, runs an agent-side first-pass diff (regressions, console errors, layout shifts), then surfaces a checklist for the user's final approval. Also owns the browser-launch rules AND procedure — read it BEFORE opening a browser by any means (Playwright, chrome-devtools MCP, a launcher script), not after something feels slow: the prohibitions here exist because attaching to the user's live Chrome or using a throwaway context degrades the session in ways that are expensive to undo. Fire it for manual E2E checks, UX/fidelity comparison against a reference product, a one-time OAuth login, automated capture, and whenever the user reports the browser is laggy. Use after E2E tests pass on a UI track (csr-*, ssr-*, full)."
+description: >-
+  Captures and compares key UI-flow screenshots after E2E tests pass on UI
+  tracks (csr-*, ssr-*, full), flags visual regressions and console errors,
+  and prepares findings for user approval. Also owns browser-launch rules:
+  read before opening any browser via Playwright, chrome-devtools MCP, or a
+  launcher. Use for manual E2E checks, reference-product UX/fidelity comparisons,
+  OAuth login, automated capture, or reported browser lag.
 ---
 
 # UI Visual Review

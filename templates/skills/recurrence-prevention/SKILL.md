@@ -1,17 +1,13 @@
 ---
 name: recurrence-prevention
 description: >-
-  When the same defect, mistake, or incident happens AGAIN — a recurrence, not a one-off — verify
-  it against prior evidence (memory, rule 근거 links, git/CHANGELOG history), classify it as a
-  simple slip vs a complex harness problem, then re-evaluate the countermeasure that failed:
-  repair or replace it, choosing a record, a one-line criterion, a code fix, or a structural gate
-  (test, hook, derive) by evidence — more deterministic when prose has demonstrably failed,
-  nothing new when repair suffices. Complex problems get countermeasure candidates designed
-  by a multi-persona panel instead of a quick patch. Use for "재발했어", "같은 실수 또 했네",
-  "이거 저번에도 그랬잖아", "재발방지 대책 등록해줘", "재발방지 룰 만들어", "this happened again",
-  "same bug as last time", "add a recurrence countermeasure", "postmortem this failure". Do NOT use
-  it for a first-time defect (fix it, record it, stop), do NOT create a standing rule from an
-  unverified first occurrence, and do NOT use it as a general audit of the steering layer at rest.
+  Verifies reported or detected recurrence against prior evidence and repairs
+  or replaces the failed countermeasure, choosing a proportionate record,
+  rule, code fix, or structural gate. Use for "재발했어", "같은 실수 또 했네",
+  "재발방지 대책 등록해줘", "재발방지 룰 만들어", recurring failures, failed safeguards,
+  or recurrence-focused postmortems. Complex cases use multi-persona
+  countermeasure design. Not for ordinary first-time defects or general harness
+  audits; do not create a standing rule from an unverified first occurrence.
 ---
 
 # Recurrence Prevention (재발방지)

@@ -1,4 +1,4 @@
-import { lstatSync } from "node:fs";
+import { lstatSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -34,6 +34,33 @@ export function occupiedByNonDirectory(path: string): boolean {
   // throwIfNoEntry:false → 없으면 undefined. EACCES 같은 진짜 오류는 계속 던지게 둔다.
   const stat = lstatSync(path, { throwIfNoEntry: false });
   return stat !== undefined && !stat.isDirectory();
+}
+
+/**
+ * `.claude/skills/<id>` 가 **이 프로젝트의** `.agents/skills/<id>` 디렉터리를 가리키는 링크인가
+ * (#524 · Epic #527 S4).
+ *
+ * 설치자가 스킬 본문을 `.agents/skills/` 한 곳에 두고 Claude 자리에는 링크만 거는 구성이다. 그
+ * 링크는 남의 저장소가 아니라 **같은 프로젝트의 공유 자리**라, 아래 `foreignOwnedTarget` 의 "링크 =
+ * 남의 것"(#343)에서 이 한 모양만 뺀다. 본문을 쓸지는 여기서 정하지 않는다 — 그 자리가 우리 기록에
+ * 있는지(`externalFiles`)는 호출자가 본다. 이 술어는 "어디를 가리키는가"만 답한다.
+ *
+ * **양쪽을 realpath 한다.** 한쪽만 풀면 macOS 임시 디렉터리(`/var/…` → `/private/var/…`)처럼
+ * 프로젝트 경로 자체가 링크를 품은 곳에서 모든 링크가 "밖"으로 읽힌다. 깨진 링크(`realpathSync`
+ * 가 던진다) · 다른 id · 디렉터리가 아닌 대상 · 프로젝트 밖은 전부 false — 기존 foreign 규칙으로
+ * 떨어진다.
+ */
+export function linksToProjectSharedSkill(projectDir: string, id: string): boolean {
+  const slot = join(projectDir, ".claude/skills", id);
+  if (lstatSync(slot, { throwIfNoEntry: false })?.isSymbolicLink() !== true) return false;
+  try {
+    const real = realpathSync(slot);
+    return (
+      real === join(realpathSync(projectDir), ".agents/skills", id) && statSync(real).isDirectory()
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**

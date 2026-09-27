@@ -18,9 +18,11 @@ project requirements remain binding.
 
 ## 1. Keep ownership with useful context
 
-The agent holding the user's intent and relevant project context owns the
-integrated result. It may plan, draft, implement, run checks, and refine directly.
-Roles describe responsibilities; they do not require separate workers.
+The current session normally holds the user's intent and relevant project context.
+It chooses the execution structure and owns integration and final acceptance. It
+may plan, draft, implement, run checks, and refine directly, or delegate where
+another model is better suited. Roles describe responsibilities, not model names
+or a requirement for separate workers.
 
 Keep tightly coupled work together when a handoff would mostly make another
 agent reconstruct the same understanding. Completing the task in one capable
@@ -49,6 +51,21 @@ Choose from actual capabilities and task evidence rather than fixed vendor-role
 assignments or universal effort floors. Honor explicit model, effort, budget,
 and data-processing constraints. Adapt when capabilities or evidence change.
 
+For planning and design, keep drafting in the session when context continuity is
+valuable. Use another capable model for problem framing, a first draft, alternative
+designs, trade-off analysis, a focused question, or independent review according to
+the expected information gain. A model useful for review may be the better author.
+Possible arrangements include session drafting followed by useful independent
+review, or session-defined goals and constraints followed by another model's
+design. The session integrates either result; neither arrangement requires an
+extra review by default. Compare separately developed alternatives when their
+different approaches justify the additional work.
+
+Choose effort by actual difficulty, interacting decisions, remaining uncertainty,
+likely rework, and the benefit of further reasoning. High stakes call for stronger
+assurance, not automatically maximum effort: inspecting code, contracts, tests,
+or external facts may resolve a risk that more reasoning alone cannot.
+
 ## 3. Make additional contexts earn their cost
 
 Add a worker for a concrete benefit: needed expertise or tools, useful context or
@@ -62,9 +79,11 @@ Independence makes parallel work possible; its expected contribution makes it
 worthwhile. Each additional worker should provide a distinct useful result.
 
 Parallel changes need clear interfaces and non-overlapping ownership or suitable
-isolation, including shared test resources and integration assumptions. Use the
-main context for complementary work rather than repeating a delegated task.
-Apply the same benefit test to nested delegation and account for its total cost.
+isolation, including shared test resources. Different files are insufficient if
+workers still depend on each other's unresolved decisions or shared contracts.
+Settle those dependencies first or keep the dependent work together. Use the main
+context for complementary work rather than repeating a delegated task. Apply the
+same benefit test to nested delegation and account for its total cost.
 
 Several perspectives can be considered in one context. Separate them when
 independent scrutiny, different evidence, or specialized capability adds value,
@@ -85,26 +104,47 @@ constraints explicit rather than relying on a lossy summary or hidden context.
 
 Ask for the result needed for integration, its evidence, and remaining gaps.
 Short results can return directly. Use durable files or artifacts for large,
-reusable, or truncation-prone output, agreeing on the destination before it is
-produced. Preserve relevant version information so evidence stays attributable.
+reusable, or truncation-prone output; choose the destination when delegating.
+Preserve relevant version information so evidence stays attributable.
+
+Let implementers resolve routine details within the agreed scope. Bring newly
+discovered consequential choices back to the owning session when they change
+user behavior, API or data contracts, architecture, or security boundaries, or
+expose a conflict with the design or a material ambiguity. Return the issue and
+evidence, not a request to approve every detail. The session resolves it within
+existing authority and involves the user only when their decision is needed.
 
 ## 5. Review consequential uncertainty, not every stage
 
-Implementers should execute relevant checks and correct their work. This is
-verification, but not independent review. Add independent review when a fresh
-perspective materially improves assurance or when explicitly required.
+Implementers may write and run relevant tests and correct their work. Writing a
+test and judging whether it sufficiently covers the outcome are different
+responsibilities; assigning a reviewer does not prohibit implementer-written
+tests. Self-checking is verification, not independent review. Add independent
+review when a fresh perspective materially improves assurance or when explicitly
+required.
 
-Give the reviewer the original objective, constraints, actual artifacts, and
-execution evidence, with sufficient capability to assess the material risks.
-Focus independent assessment on consequential assumptions and blind spots rather
-than replaying the author's reasoning or assigning a reviewer to each artifact.
-Neither model prestige nor agreement among agents substitutes for evidence.
+Consider the consequence of being wrong: costly-to-reverse product scope or core
+user-flow decisions, long-lived contracts or data models, compatibility, security,
+privacy, deletion, and money. Review uncertain assumptions before dependent work
+becomes expensive. Established patterns, confirmed local bug fixes, and mechanical
+updates usually need no additional reviewer unless their actual impact or remaining
+uncertainty warrants one. Apply the same judgment to plans, designs, and code.
+
+Give the reviewer the original objective, constraints, relevant decisions, actual
+artifacts, and execution evidence, with sufficient capability to assess the risks.
+Enable inspection of source code, API and data contracts, and measurements when
+needed; the draft alone may carry the author's mistaken assumptions. Focus on
+consequential assumptions and blind spots without prescribing the conclusion.
+Independence comes from a separate assessment of evidence, not a different model
+name. Neither model prestige nor agreement among agents substitutes for evidence.
 
 Own acceptance and integration: inspect the artifacts and evidence material to
 the outcome, resolve substantiated gaps, and check affected integration behavior.
 Reuse applicable execution and review evidence across stages; revisit areas when
 changes or new information invalidate it. Finish when required readiness is
 supported, rather than commissioning another pass without a likely benefit.
+Return substantiated findings to the existing implementer when its retained
+context makes correction efficient; reassess only the affected evidence.
 
 ## 6. Preserve authority and continuity
 
