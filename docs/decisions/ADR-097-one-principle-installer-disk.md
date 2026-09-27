@@ -40,7 +40,7 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
    경로.** writer 가 쓰는 순간 경로와 sha 를 기록에 더하고, 하네스가 지운 경로만 뺀다 — 기록은 실행마다 새로 쓰지 않고 누적한다
    (`mergeExternalFiles` 와 같은 규칙, 네 필드 모두). 새 판이 적은 기록은 그 자체로 소유다(필터 없음). 설치 뒤 템플릿과 이름을
    맞춰 디스크를 훑는 `collectPolicyHashes`·`collectSkillHashes` 는 폐지한다. 필터는 옛 판이 디스크를 훑어 적은
-   `policyFiles`·`skillFiles` 에만 한 번 건다(claude 설치 · 기록 트랙에서 나오는 대상이거나 번들 스킬 id · `excluded` 아님) — 새
+   `policyFiles`·`skillFiles` 에만 한 번 건다(claude 설치 · 기록 트랙에서 나오는 대상이거나 번들 스킬 id · 은퇴 경로(`RETIRED_PATHS`, sha 없음으로 읽어 회수) · `excluded` 아님) — 새
    판이 로그를 처음 쓸 때 남은 것만 이어받고 `records: "writer"` 를 적으며, 걸린 옛 항목은 "기록 없음" 이 된다(지우지 않는 쪽).
    디스크 존재는 "안 만든다" 의 근거로만 쓴다(ADR-096 D6 유지). `INSTALL_LOG_VERSION` 은 올리지 않는다.
 2. **판정 함수는 하나다.** `judge({op, kind, rec, disk, next}) → {verdict, line}` — 기록 상태(`none` · `no-sha` · `sha`) ·
@@ -65,7 +65,7 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
    파일의 `portions` 키 전부를 `excluded` 로 옮기고 만들지 않는다(릴리즈가 새로 더한 함께 쓰는 파일만 만든다) ⓓ strip 은
    `portions` 에 기록된 키만 뺀다 — 내용 식별은 옛 로그의 몫 찾기에만 쓴다; 설치 전에 이미 있던 키는 값이 하네스 판과 같아도
    `portions` 에 적지 않는다. 기록에 없는 `AGENTS.md`(첫 접촉)는 루트 `CLAUDE.md` 와 같은
-   모델(본문 그대로 + 하네스 블록 하나). `.codex/config.toml` 의 몫은 최상위 키 구간(첫 `[table]` 앞)과 표 구간(파일 끝)
+   모델(본문 그대로 + 하네스 블록 하나). `.codex/config.toml` 의 몫은 최상위 키 구간(파일 맨 앞)과 표 구간(파일 끝)
    둘이고 충돌은 파서로 읽어 판정한다.
 5. **하네스 자리 밖의 기록 없는 파일은 어떤 동작도 건드리지 않는다.** 외부 도구가 만든 것은 설치 때와 같은 식별자로 도구의 되돌리기를
    부른 뒤(#573) 기록된 파일에만 3 을 적용하고, 하네스가 만들지 않았거나 넘겨준 산출물은 경로를 나열만 한다. **스캐폴드**
@@ -124,3 +124,4 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
 - Global 선택지 삭제로 위저드가 6단계에서 5단계가 되고 `--scope global` 을 쓰던 스크립트는 거절 메시지(대체 명령 포함)를 받는다.
   #560 은 이 결정으로 닫힌다.
 - 측정: 다음 탐색 테스트(같은 프로토콜)에서 "같은 파일 · 다른 규칙" 발견 수 = 0 이 목표. 지금은 18.
+- `.codex/config.toml` 판정에 `smol-toml`(의존성 0 · BSD-3)을 번들한다 — 런타임 의존성 2 → 3.

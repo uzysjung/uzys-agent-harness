@@ -7,7 +7,7 @@ export default defineConfig({
   target: "node20",
   platform: "node",
   bundle: true,
-  noExternal: [/^@clack\//, "cac"],
+  noExternal: [/^@clack\//, "cac", "smol-toml"],
   sourcemap: true,
   clean: true,
   minify: false,

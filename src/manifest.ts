@@ -210,8 +210,82 @@ export const RETIRED_AGENTS: ReadonlyArray<{ id: string; instead: string }> = [
   { id: "build-error-resolver", instead: "모델이 기본으로 하는 일이라 대체 자산이 없다" },
 ];
 
-/** 은퇴 판정용 id 목록 — `RETIRED_AGENTS` 에서 derive 한다(두 목록이 갈리지 않게). */
-export const RETIRED_AGENT_IDS: ReadonlyArray<string> = RETIRED_AGENTS.map((a) => a.id);
+/**
+ * 하네스가 `.claude/` 에 배포했다가 은퇴시킨 정책 파일 — **옛 로그 키 형식**(`policyFiles` 의 `.claude/` 상대 경로).
+ *
+ * 왜 있나 (#551 리뷰 B3): 옛 판(v26.161.0 까지)의 `policyFiles` 는 설치 뒤 디스크를 훑어 적은 값이라 설치자 파일이
+ * 섞여 있고, 새 판은 거기에 소유 필터를 건다(`recorded.ts`). 필터가 "지금 배포하는 것" 만 소유로 인정하면 과거에
+ * 배포했다가 은퇴시킨 파일이 설치자 파일로 떨어져 update 도 uninstall 도 영영 치우지 않는다 — 오늘 `pruneOrphans` 가
+ * 하던 회수가 사라진다. 이 목록의 경로는 "기록 있음 · sha 없음" 으로 읽혀 `backup+remove` 로 치워진다(옛 스캔 sha 는
+ * 하네스 내용의 증거가 아니므로 설치자가 같은 이름으로 쓴 파일이어도 바이트는 백업에 남는다).
+ *
+ * **닫힌 목록이다.** 옛 판(디스크 스캔 로그) 전용이다. 새 판이 로그를 쓰기 시작한 뒤(`records: "writer"`)의 은퇴는
+ * writer 가 쓴 기록이 치우므로 여기에 더하지 않는다 — 앞으로 늘지 않는다.
+ *
+ * 범위 = `pruneOrphans` 가 회수하던 `.claude/{rules,agents,commands/uzys,hooks}`(확장자는 `POLICY_DIRS` 그대로).
+ * 출처 = `git log --diff-filter=DR --name-status -- templates/rules templates/agents templates/hooks templates/commands`
+ * 중 그 범위 · 확장자이고 지금 템플릿에 없는 것 45개(이름 변경 0, 2026-09-27). 스킬은 범위 밖이다 — 스킬 은퇴는 안내만
+ * 한다(`RETIRED_SKILL_IDS`). 다른 CLI 경로는 옛 스캔 필드에 없다(그쪽은 쓰는 순간 적는 `externalFiles` 뿐이다).
+ */
+export const RETIRED_PATHS: ReadonlyArray<string> = [
+  // rules (23)
+  "rules/api-contract.md",
+  "rules/benchmark-parity.md",
+  "rules/code-style.md",
+  "rules/commit-policy.md",
+  "rules/data-analysis.md",
+  "rules/database.md",
+  "rules/design-workflow.md",
+  "rules/ecc-git-workflow.md",
+  "rules/ecc-performance-common.md",
+  "rules/ecc-security-common.md",
+  "rules/ecc-testing.md",
+  "rules/error-handling.md",
+  "rules/gates-taxonomy.md",
+  "rules/gsd-planner-antipatterns.md",
+  "rules/htmx.md",
+  "rules/model-routing.md",
+  "rules/nextjs.md",
+  "rules/no-false-ship.md",
+  "rules/playwright-launch.md",
+  "rules/pyside6.md",
+  "rules/seo.md",
+  "rules/shadcn.md",
+  "rules/tauri.md",
+  // agents (5)
+  "agents/build-error-resolver.md",
+  "agents/code-reviewer.md",
+  "agents/plan-checker.md",
+  "agents/security-reviewer.md",
+  "agents/silent-failure-hunter.md",
+  // commands/uzys (7)
+  "commands/uzys/auto.md",
+  "commands/uzys/build.md",
+  "commands/uzys/plan.md",
+  "commands/uzys/review.md",
+  "commands/uzys/ship.md",
+  "commands/uzys/spec.md",
+  "commands/uzys/test.md",
+  // hooks (10)
+  "hooks/agentshield-gate.sh",
+  "hooks/checkpoint-snapshot.sh",
+  "hooks/codebase-map.sh",
+  "hooks/gate-check.sh",
+  "hooks/hito-counter.sh",
+  "hooks/karpathy-gate.sh",
+  "hooks/mcp-pre-exec.sh",
+  "hooks/spec-drift-check.sh",
+  "hooks/task-brief-nudge.sh",
+  "hooks/uncommitted-check.sh",
+];
+
+/**
+ * 은퇴 판정용 에이전트 id — `RETIRED_PATHS` 에서 derive 한다(은퇴 목록이 둘로 갈라지지 않게). 대안 문구는
+ * `RETIRED_AGENTS` 가 갖고, 두 목록의 id 가 같은지는 `tests/recorded.test.ts` 가 문다.
+ */
+export const RETIRED_AGENT_IDS: ReadonlyArray<string> = RETIRED_PATHS.filter((p) =>
+  p.startsWith("agents/"),
+).map((p) => p.slice("agents/".length).replace(/\.md$/, ""));
 
 /**
  * Hooks installed for every project (parity with setup-harness.sh L815-826).
