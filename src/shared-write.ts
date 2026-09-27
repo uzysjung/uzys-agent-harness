@@ -52,7 +52,7 @@ export interface SharedRecord {
  * - `updated`   있던 파일에 몫을 더하거나 바꿨다
  * - `unchanged` 이미 최신 — 쓰지 않았다
  * - `left`      쓰지 않고 남겼다(못 읽음 · 합친 결과가 안 읽힘 · 설치자가 파일째 지움 등) — `line` 이 이유
- * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049) — 알릴 것이 없다
+ * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049 · 설치자가 지운 파일도 — Q4 는 PR-5) — 알릴 것이 없다
  */
 export type SharedAction = "created" | "updated" | "unchanged" | "left" | "skipped";
 
@@ -73,8 +73,6 @@ export interface SharedWriteResult {
   portions: InstallLogPortion[] | null;
   /** 기록에 있었는데 파일에 없던 몫의 키 id — 설치자가 지웠다. 호출부가 `excluded` 에 적는다(R2). */
   deleted: string[];
-  /** 설치자가 이 파일을 통째로 지웠다(update, Q4) — 기록된 몫 키 전부가 `deleted` 에 들어 있다. */
-  deletedFile: boolean;
 }
 
 export interface WriteSharedParams<V> {
@@ -125,7 +123,6 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     leftAsIs: [],
     portions: null,
     deleted: [],
-    deletedFile: false,
     ...rest,
   });
 
@@ -142,16 +139,12 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   });
   switch (verdict.verdict) {
     case "leave":
-      // update · 파일 없음 · 기록 있음 = 설치자가 파일째 지웠다 — 되살리지 않고 기록된 키 전부를 excluded 로(Q4)
-      return result("left", {
-        line: verdict.line,
-        deletedFile: true,
-        portions: [], // 파일이 없다 — 이 경로의 몫 기록은 비운다(키는 전부 excluded 로 간다)
-        deleted: [...recorded.keys()].flatMap((k) => {
-          const id = keyId(path, k);
-          return id === null ? [] : [id];
-        }),
-      });
+      // update · 파일 없음 · 기록 있음. 설계는 이것을 "설치자가 파일째 지웠다 → 키 전부 excluded"(Q4)로 읽지만 **이 판은
+      // 그 칸을 켜지 않는다** — Q4 는 PR-5 에서 update 화면 줄(`you deleted it — not recreated`) · `--with <id>` 수용과
+      // 함께 켠다. 둘 없이 켜면 초기화하려고 파일을 지운 설치자가 update 한 번에 하네스 설정을 조용히 잃고 되찾을 길이
+      // 없다(리뷰 B1 — 다음 install 이 빈 config.toml 을 만들었다). 지금은 main 과 같이: 만들지 않고(ADR-049) · 지운
+      // 키로 적지 않고 · 몫 기록은 그대로 둔다(`portions: null`) — 다음 install 이 완전한 파일을 만든다.
+      return result("skipped");
     case "leave+advise":
       return result("left", { line: verdict.line });
     case "create":

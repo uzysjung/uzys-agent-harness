@@ -8,7 +8,16 @@
  * 지금의 회수 경로 그대로.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -259,6 +268,21 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(read("opencode.json")).toBe(edited);
     expect(run.lines.join("\n")).toContain("opencode.json kept — modified since install");
     expect(run.lines.join("\n")).not.toContain("opencode.json — removed the harness part");
+  });
+
+  it("AGENTS.md 가 CLAUDE.md 로의 링크여도 두 블록을 걷은 뒤 원본과 바이트 동일 (리뷰 NOTE-3)", () => {
+    const original = "# Mine\n\nWe deploy on Tuesdays.\n";
+    put("CLAUDE.md", original);
+    symlinkSync("CLAUDE.md", join(projectDir, "AGENTS.md"));
+    install(["claude", "codex"]);
+    // 전제 — 한 파일에 import 블록과 하네스 블록이 둘 다 붙었다
+    expect(read("CLAUDE.md")).toContain("<!-- uzys-harness:import:start -->");
+    expect(read("CLAUDE.md")).toContain("<!-- uzys-harness:agents:start -->");
+
+    uninstall();
+
+    expect(read("CLAUDE.md")).toBe(original);
+    expect(lstatSync(join(projectDir, "AGENTS.md")).isSymbolicLink()).toBe(true);
   });
 
   it("하네스가 만든 AGENTS.md(안 채움)는 지금처럼 지운다", () => {

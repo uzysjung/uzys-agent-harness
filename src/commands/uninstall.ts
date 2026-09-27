@@ -245,6 +245,10 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
 
   if (!keepTemplates) {
+    // #551 R1 · 리뷰 NOTE-3 — 함께 쓰는 파일의 하네스 블록은 루트 `CLAUDE.md` import 블록보다 **먼저** 걷는다(붙인 순서의
+    // 역순). `AGENTS.md` 가 `CLAUDE.md` 로의 링크면 한 파일에 두 블록이 붙는데, import 를 먼저 걷으면 그 둘레 빈 줄이
+    // 정리돼 뒤 블록을 걷을 때 설치자 원본의 끝 개행까지 빠진다.
+    const sharedStrips = stripCliShared(installLog, projectDir, harnessRoot, CLI_SHARED, true);
     const { rootClaudeMdKept, importStripped, external, moved } = removeTemplates(
       templatesLog,
       projectDir,
@@ -257,12 +261,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       log(`  ${status.success("templates removed: (none)")}`);
     }
     for (const line of externalRemovalLines(external)) log(line);
-    for (const line of sharedStripLines(
-      stripCliShared(installLog, projectDir, harnessRoot, CLI_SHARED, true),
-      false,
-    )) {
-      log(line);
-    }
+    for (const line of sharedStripLines(sharedStrips, false)) log(line);
     if (importStripped) {
       log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
     }

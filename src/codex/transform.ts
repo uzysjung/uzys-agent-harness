@@ -271,7 +271,6 @@ function writeConfigToml(args: {
       leftAsIs: [],
       portions: null,
       deleted: [],
-      deletedFile: false,
     };
   }
   return writeShared({
