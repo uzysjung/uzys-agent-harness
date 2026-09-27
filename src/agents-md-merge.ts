@@ -29,7 +29,8 @@ export interface HarnessBlockMarker {
   end: string;
 }
 
-const marker = (name: string): HarnessBlockMarker => ({
+/** 마커 형식의 SSOT — `src/adapters/marker-md.ts` 도 이것을 쓴다(#551). */
+export const marker = (name: string): HarnessBlockMarker => ({
   start: `<!-- uzys-harness:${name}:start -->`,
   end: `<!-- uzys-harness:${name}:end -->`,
 });

@@ -66,8 +66,13 @@ export interface InstallLogRootFile {
   /**
    * created = 하네스가 없던 파일을 만들었다 (내용 전부 하네스 것 → 손 안 댔으면 지워도 안전).
    * modified = 이미 있던 사용자 파일에 병합/추가했다 (직접 확인이 필요하다).
+   *
+   * #551 (ADR-097) 이 두 값을 더한다 — 아직 아무 경로도 쓰지 않는다(배선은 설계 §9 PR-3 이후):
+   * advisory = 넘겨준 파일(스캐폴드 · 도구 산출물). 갱신도 삭제도 하지 않고 알리기만 한다.
+   * displaced = 하네스 자리에 있던 설치자 파일을 비켜 뒀다. `notes[0]` = 백업 경로(없으면 백업 없이
+   *   그대로 둔 것) — 하네스가 그 자리를 떠날 때 제자리로 되돌리는 근거다(`judgeDisplaced`).
    */
-  change: "created" | "modified";
+  change: "created" | "modified" | "advisory" | "displaced";
   /** 무엇을 했는지 — uninstall 안내에 그대로 나온다. 재설치 시 합집합으로 누적된다. */
   notes: string[];
 }
@@ -99,6 +104,25 @@ export const POLICY_DIRS = [
   { dir: "commands/uzys", ext: ".md" },
   { dir: "hooks", ext: ".sh" },
 ] as const;
+
+/**
+ * #551 (ADR-097) — 함께 쓰는 파일의 하네스 몫을 읽고 쓰는 방식 넷. 어느 경로가 어느 어댑터인지는
+ * `src/adapters/index.ts` 의 `SHARED_FILES` 가 SSOT 다.
+ */
+export type Adapter = "marker-md" | "json-keys" | "toml-region" | "lines";
+
+/**
+ * #551 (ADR-097) — 함께 쓰는 파일 안의 하네스 몫 **키 하나**. `key` 의 뜻은 어댑터가 정한다
+ * (`mcpServers.github` · `hooks.SessionStart#session-start.sh` · 마커 블록 이름 · `.gitignore` 줄 …).
+ * `sha256` = 하네스가 그 키에 써 둔 값 — 지금 파일의 값과 다르면 설치자가 고친 것이다.
+ */
+export interface InstallLogPortion {
+  /** project-relative 경로 (`.mcp.json` · `.claude/settings.json` …) */
+  path: string;
+  adapter: Adapter;
+  key: string;
+  sha256: string;
+}
 
 export interface InstallLog {
   /** schema version — backward compat 검출용 */
@@ -208,6 +232,27 @@ export interface InstallLog {
    * 없다 (v26.132.x 이하 로그도 이 상태 — 부재는 정상이고, 그때는 보수적 백업으로 떨어진다).
    */
   externalFiles?: ReadonlyArray<InstallLogSkillFile>;
+  /**
+   * #551 (ADR-097) — 함께 쓰는 파일의 하네스 몫, **키 단위**. 하네스가 실제로 더한 키만 담는다 —
+   * 설치 전에 이미 있던 키는 값이 하네스 판과 같아도 적지 않는다(설치자 것). strip 은 여기 적힌
+   * 키만 뺀다. 부재 = 정상(옛 로그 · 아직 아무도 쓰지 않는다 — 배선은 설계 §9 PR-3 이후).
+   * `INSTALL_LOG_VERSION` 은 올리지 않는다(ADR-096 D3 관행).
+   */
+  portions?: ReadonlyArray<InstallLogPortion>;
+  /**
+   * #551 (ADR-097) — 설치자가 뺀 것 **한 목록**. baseline id(`baseline:rules/x`) · 번들 스킬 id ·
+   * 외부 자산 id · 함께 쓰는 파일의 키 id(`mcp:github` · `settings:statusLine` ·
+   * `settings:hooks.<Event>#<script>` · `opencode:mcp.<name>` · `gitignore:<line>`)를 가리지 않는다.
+   * **누적한다** — install 의 `--without` 은 더하고 `--with` 만 뺀다. 어느 실행도 새로 계산해 덮지
+   * 않는다. 옛 `spec.baselineExclude` · `spec.skillExclude` 는 읽기 폴백으로 합쳐 읽는다
+   * (`excludedIds`, `src/recorded.ts`).
+   */
+  excluded?: ReadonlyArray<string>;
+  /**
+   * #551 (ADR-097 Q1) — 새 판(쓰는 순간 기록하는 writer)이 이 로그를 처음 쓸 때 적는 표시. 있으면
+   * 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 에 거는 소유 필터를 더는 적용하지 않는다.
+   */
+  records?: "writer";
 }
 
 /**
