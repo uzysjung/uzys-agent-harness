@@ -350,7 +350,7 @@ harness/shared/yours 세 열로.
 | 로그 `scope: global` 설치본(결정 1 이전) | update · uninstall 이 지금처럼 처리한다 — 외부 자산은 도구 재실행 · D16 수동 명령 안내. 새 `install` 만 `--scope global` 을 거절하고 대체 명령을 안내한다 | 없음 |
 | v26.161.0 이 만든 `<dir>.backup-<ts>` · update 의 `.claude.backup-<ts>` · 옛 `<file>.backup-<ts>` | **설치자 것** — 어느 동작도 지우지 않는다. `list` 와 uninstall 마지막 화면이 개수·경로를 알린다 | 없음 |
 | 옛 `.opencode/commands/<id>.md` | `externalFiles` 에 있을 때만 행 26 규칙(N4); 없으면 건드리지 않는다 | 없음 |
-| 옛 판이 **통째로** 쓴 `.codex/config.toml` · `opencode.json`(구간·몫 이전, `externalFiles` 에 sha) | 기준선 sha 그대로면 없던 것처럼 새로 쓴다(몫 형식 — 바꿀 설치자 내용이 없다). 그 뒤 바뀐 `config.toml` 이 하네스 훅(`.codex/hooks/session-start.sh`)을 부르면 **쓰지 않고 알린다** — 어디까지가 설치자 것인지 가를 수 없고 구간을 더하면 같은 훅이 두 번 돈다(PR-4). 바뀐 `opencode.json` 은 하네스 서버 이름의 키만 하네스 몫으로 읽는다(위 `.mcp.json` created 와 같은 규칙) | 없음(바뀐 `config.toml` 은 하네스 몫도 갱신되지 않는다) |
+| 옛 판이 **통째로** 쓴 `.codex/config.toml` · `opencode.json`(구간·몫 이전, `externalFiles` 에 sha) | 기준선 sha 그대로면 없던 것처럼 새로 쓴다(몫 형식 — 바꿀 설치자 내용이 없다). 그 뒤 바뀐 `config.toml` 이 하네스 훅(`.codex/hooks/session-start.sh`)을 부르면 **쓰지 않고 알린다** — 어디까지가 설치자 것인지 가를 수 없고 구간을 더하면 같은 훅이 두 번 돈다(PR-4). 그 밖에 몫 기록(`portions`)이 없는 파일은 하네스 구간·키를 **갈아 끼우지 않고 남긴다** — 값이 하네스가 쓴 그대로인지 알 수 없어서, 바꾸면 설치자가 그 안에서 고친 값이 백업 없이 사라진다(PR-4 에서 재현). 첫 write 가 `portions` 를 채운 뒤로 갱신된다 | 없음(기록이 생기기 전까지 그 파일의 하네스 몫은 갱신되지 않는다) |
 | 옛 로그로 `uninstall --cli` | `owner` 는 `cli-ownership.ts` 표에서 유도(경로 접두로, N3) | 없음 |
 
 읽기만 하는 명령(`list`·`--dry-run`)은 기록을 고치지 않는다(ADR-096 D3).
