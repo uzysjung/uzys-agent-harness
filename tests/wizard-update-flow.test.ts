@@ -6,11 +6,13 @@ import { listBaselineTargets } from "../src/baseline-targets.js";
 import { buildCli, defaultAction } from "../src/cli.js";
 import {
   type InstallOptions,
+  installAction,
   installSpecFromOptions,
   specFromOptions,
 } from "../src/commands/install.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
+import { MODE_ENTRY_POINT } from "../src/installer.js";
 import { classifyUpdateIntent, runInteractive, type UpdateSelection } from "../src/interactive.js";
 import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
@@ -338,5 +340,47 @@ describe("메뉴 Uninstall → uninstall 명령과 같은 화면 (D8)", () => {
     expect(uninstall).toHaveBeenCalledWith(process.cwd());
     expect(execute).not.toHaveBeenCalled();
     expect(exit).not.toHaveBeenCalled();
+  });
+});
+
+describe("`install --reinstall` (D9) — 위저드 메뉴의 Reinstall 이 플래그가 됐다", () => {
+  const runFlags = (argv: string[]) => {
+    const cli = buildCli();
+    const parsed = cli.parse(["node", "agent-harness", ...argv], { run: false });
+    // mode 만 보고 멈춘다 — executeSpec 이 throw 를 "install failed" 로 받아 exit 한다.
+    const runPipeline = vi.fn((..._args: unknown[]): never => {
+      throw new Error("stop after capturing mode");
+    });
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    installAction(parsed.options as InstallOptions, {
+      runPipeline,
+      resolveHarnessRoot: () => "/nowhere",
+      log: vi.fn(),
+      err,
+      exit,
+    });
+    return { runPipeline, err, exit };
+  };
+
+  it("파이프라인이 mode=reinstall 로 돈다 · 플래그 없으면 이전처럼 mode 없음", () => {
+    const withFlag = runFlags(["install", "--reinstall", "--track", "tooling", "--cli", "claude"]);
+    expect(withFlag.runPipeline.mock.calls[0]?.[2]).toBe("reinstall");
+    const without = runFlags(["install", "--track", "tooling"]);
+    expect(without.runPipeline.mock.calls[0]?.[2]).toBeUndefined();
+  });
+
+  it("--track 없이는 기존 거절 그대로 (exit 1) — 무엇을 다시 깔지 모르고 .claude/ 를 옮기지 않는다", () => {
+    const { runPipeline, err, exit } = runFlags(["install", "--reinstall"]);
+    expect(runPipeline).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+    // 문구는 기존 거절 그대로다(cac 가 다른 플래그와 함께면 빈 --track 을 "undefined" 로 채워
+    // "Unknown track" 이 된다 — `install --verbose` 도 같다). 여기서 지키는 것은 거절 자체다.
+    expect(err.mock.calls.flat().join("\n")).toMatch(/track/i);
+  });
+
+  it("모든 mode 에 비대화형 진입점이 있다 (위저드 전용 mode 0)", () => {
+    expect(Object.values(MODE_ENTRY_POINT)).not.toContain(null);
+    expect(MODE_ENTRY_POINT.reinstall).toBe("install --reinstall");
   });
 });

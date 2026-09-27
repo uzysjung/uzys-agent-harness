@@ -186,9 +186,20 @@ describe("mode ↔ 비대화형 진입점 대응 (계열 비대칭 가드)", () 
   );
 
   it("진입점으로 선언된 명령은 전부 실제 등록돼 있다", () => {
-    for (const [mode, command] of Object.entries(MODE_ENTRY_POINT)) {
-      if (command === null) continue;
+    // #533 — 진입점이 `install --reinstall` 처럼 **명령 + 플래그**일 수 있다. 명령 이름과 그 명령의
+    // 플래그를 따로 본다 — 이름만 보면 없는 플래그를 적어 둔 표가 통과한다.
+    const cli = buildCli();
+    for (const [mode, entry] of Object.entries(MODE_ENTRY_POINT)) {
+      if (entry === null) continue;
+      const [command = "", ...flags] = entry.split(" ");
       expect(registered, `mode '${mode}' → '${command}' 명령 미등록`).toContain(command);
+      const declared = cli.commands.find((c) => c.name === command)?.options.map((o) => o.rawName);
+      for (const flag of flags) {
+        expect(
+          declared?.some((raw) => raw.split(/[\s,]+/).includes(flag)),
+          `mode '${mode}' → '${command}' 에 ${flag} 미등록`,
+        ).toBe(true);
+      }
     }
   });
 
@@ -200,9 +211,9 @@ describe("mode ↔ 비대화형 진입점 대응 (계열 비대칭 가드)", () 
     const wizardOnly = Object.entries(MODE_ENTRY_POINT)
       .filter(([, cmd]) => cmd === null)
       .map(([mode]) => mode);
-    // reinstall = `.claude/` 를 옮기는 파괴적 경로. 비대화형 진입점을 붙이면 이 목록에서 빠지고
-    // 이 단언이 실패한다 — 그때 의도적 변경임을 명시하게 만드는 게 목적이다.
-    expect(wizardOnly).toEqual(["reinstall"]);
+    // #533 (D9) — 마지막 위저드 전용이던 reinstall 이 `install --reinstall` 플래그가 됐다(의도된 변경).
+    // mode 가 새로 위저드 전용이 되면 이 단언이 실패한다 — 그때 의도적 변경임을 명시하게 만든다.
+    expect(wizardOnly).toEqual([]);
   });
 });
 

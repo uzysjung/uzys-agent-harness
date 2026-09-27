@@ -57,6 +57,12 @@ export interface InstallOptions {
    * 명시 안 하면 wizard 의 scope prompt → 비대화형은 "project".
    */
   scope?: string;
+  /**
+   * #533 (D9) — `.claude/` 를 `.claude.backup-<ts>` 로 옮기고 처음부터 다시 깐다(`mode: "reinstall"`).
+   * 위저드 메뉴에서 빠져 이 플래그가 됐다. `--track` 은 여전히 필수다. `.claude/` 가 없으면 옮길
+   * 것이 없어 첫 설치처럼 돈다 — 깨진 설치(기록엔 claude, `.claude/` 없음)의 복구 명령이 이것이다.
+   */
+  reinstall?: boolean;
 }
 
 export interface RunInstallResult {
@@ -153,6 +159,7 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     runPipeline,
     resolveHarnessRoot,
     verbose: options.verbose === true,
+    ...(options.reinstall === true ? { mode: "reinstall" as const } : {}),
   });
 }
 
@@ -414,6 +421,11 @@ export function registerInstallCommand(cli: Cli): void {
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 플래그 13종 삭제. 자산 opt-in 은 전부
     //   generic `--with <asset-id>` (위) — 자산 id 목록은 docs/COMPATIBILITY.md 표 참조.
     //   #492 — 마지막 동작 플래그였던 `--with-prune` 도 삭제 (ECC 자산 은퇴).
+    // === Mode (#533 D9) ===
+    .option(
+      "--reinstall",
+      "[Mode] Move .claude/ aside as .claude.backup-<ts> and rebuild it — use when .claude/ is damaged or missing",
+    )
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")
     // === Examples (v26.50.0+) ===

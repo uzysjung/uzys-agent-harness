@@ -88,9 +88,8 @@ export const MODE_ENTRY_POINT: Record<InstallMode, string | null> = {
   // (backup 없음 · manifest copy 동일) — 별도 명령이 필요 없다.
   add: "install",
   update: "update",
-  // 미제공 — `.claude/` 를 통째로 backup 으로 **옮기는** 파괴적 경로다. 비대화형 진입점을
-  // 붙일지는 별도 판단 사항이라 열어둔다 (열어둔 것 자체가 이 표에 보인다).
-  reinstall: null,
+  // #533 (D9) — 위저드 메뉴에서 빠져 플래그가 됐다. `.claude/` 를 통째로 backup 으로 옮기는 경로다.
+  reinstall: "install --reinstall",
 };
 
 export interface InstallContext {
