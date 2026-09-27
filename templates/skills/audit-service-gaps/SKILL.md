@@ -1,18 +1,13 @@
 ---
 name: audit-service-gaps
 description: >-
-  Audits the observable gaps between a service as it is today and an explicit target state, then
-  researches how reference services actually solved each high-ranked gap before proposing a fix.
-  DETECT scans through three independent lenses — north-star alignment, correctness (bugs), and
-  user-perspective (UX) — and enumerates concrete, severity-ranked gaps; BENCHMARK verifies how a
-  reference service closes each one and PROPOSES a differentiated close. VERIFY, CHANGE-IMPACT,
-  DRIFT and FULL extend the same loop to post-fix closure, baseline changes, doc-vs-code drift, and
-  the whole-service sweep. Use when the user says any of: "북극성 기준으로 부족한 점", "갭분석",
-  "다른 벤치마크 서비스는 이 부분을 어떻게 해결했는지", "레퍼런스 서비스랑 비교해서 부족한 점
-  찾아줘" — or the English "gap analysis", "benchmark against reference services", "audit this
-  service". Do NOT use it to *define* product direction (that is north-star), to review ONE
-  standalone artifact's prose (that is multi-persona-review), or to turn an unverified benchmark
-  claim into a fact.
+  Finds and prioritizes observable service gaps against an explicit target
+  across north-star alignment, correctness, and UX, then verifies reference
+  solutions before proposing fixes for high-ranked gaps. Use for "갭분석",
+  "북극성 기준으로 부족한 점", reference-service benchmarking, post-fix verification,
+  changed-baseline impact, doc-code drift, or full-service audits. Product
+  direction belongs to north-star; single-artifact critique to multi-persona-review.
+  Keep unverified benchmark claims labeled.
 ---
 
 # Audit Service Gaps (reverse + competitive)
