@@ -268,6 +268,7 @@ function writeConfigToml(args: {
       action: "left",
       line: LEGACY_CHANGED,
       kept: [],
+      leftAsIs: [],
       portions: null,
       deleted: [],
       deletedFile: false,

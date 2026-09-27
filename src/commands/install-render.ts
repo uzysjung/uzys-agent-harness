@@ -447,7 +447,8 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
         ? "wrote the harness part — yours stays"
         : "harness part already current — yours stays";
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
-  return assetRow("success", r.path, `${verb} · ${part}${kept}`);
+  const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
+  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}`);
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */

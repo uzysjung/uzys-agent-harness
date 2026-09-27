@@ -199,6 +199,15 @@ describe(".codex/config.toml — 설치자 파일에 하네스 몫(구간 둘)�
     expect(toml().mcp_servers?.context7?.env).toEqual({ CONTEXT7_API_KEY: "mine" });
   });
 
+  it("몫 기록 없이 다시 깔면 하네스 구간을 남기고 화면이 그렇게 말한다 — 하네스 구간을 'kept yours' 로 부르지 않는다", () => {
+    put(".codex/config.toml", INSTALLER_TOML);
+    install(["codex"]);
+    const report = install(["codex"]);
+    const row = screen(["codex"], report).find((l) => l.includes(".codex/config.toml")) ?? "";
+    expect(row).toContain("harness part left as is: top · tables");
+    expect(row).not.toContain("kept yours");
+  });
+
   it("TOML 로 읽히지 않으면 한 바이트도 쓰지 않고 이유를 말한다(#574 규칙)", () => {
     const broken = 'model = "o3\n[mcp_servers.myown\n';
     put(".codex/config.toml", broken);
@@ -604,9 +613,9 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     put(".codex/config.toml", edited);
     const third = again(["tooling"], second.portions);
     expect(read(".codex/config.toml")).toBe(edited);
-    expect(third.sharedFiles.find((f) => f.path === ".codex/config.toml")?.kept).toContain(
-      "tables",
-    );
+    const r = third.sharedFiles.find((f) => f.path === ".codex/config.toml");
+    expect(r?.leftAsIs).toEqual(["tables"]);
+    expect(r?.kept).not.toContain("tables"); // 하네스 구간 이름을 "kept yours" 로 부르지 않는다
   });
 
   it("excluded 의 키는 더하지 않는다", () => {

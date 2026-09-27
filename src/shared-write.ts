@@ -62,6 +62,11 @@ export interface SharedWriteResult {
   line: string;
   /** 설치자 값이 이겨 하네스 판을 쓰지 않은 항목 — 화면의 "kept yours". */
   kept: string[];
+  /**
+   * 파일에 있는데 갈아 끼우지 않은 **하네스 구간·블록**(`top` · `tables` · `agents`) — 설치자가 그 안을 고쳤거나 몫
+   * 기록이 없어 하네스가 쓴 그대로인지 알 수 없다. 이름이 하네스 것이라 "kept yours" 로 부르지 않는다.
+   */
+  leftAsIs: string[];
   /** 쓴 뒤 이 파일에 대해 기록할 몫 전체. `null` = 이번에 판정하지 않았다(기록을 그대로 둔다). */
   portions: InstallLogPortion[] | null;
   /** 기록에 있었는데 파일에 없던 몫의 키 id — 설치자가 지웠다. 호출부가 `excluded` 에 적는다(R2). */
@@ -115,6 +120,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     action,
     line: "",
     kept: [],
+    leftAsIs: [],
     portions: null,
     deleted: [],
     deletedFile: false,
@@ -191,8 +197,13 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   }
   const action: SharedAction =
     onDisk === null ? "created" : upserted.text !== onDisk ? "updated" : "unchanged";
+  // 구간·블록 이름은 하네스만 쓴다 — 렌더의 키가 그대로 kept 로 나왔으면 설치자 값이 아니라 남겨 둔 하네스 몫이다.
+  // `json-keys` 의 키(`mcp.<name>`)는 설치자도 같은 이름을 쓰므로 가르지 않는다
+  const regionNamed = adapter !== "json-keys";
+  const isRegion = (k: string) => regionNamed && render.has(k);
   return result(action, {
-    kept: upserted.kept,
+    kept: upserted.kept.filter((k) => !isRegion(k)),
+    leftAsIs: upserted.kept.filter(isRegion),
     portions,
     deleted,
   });
