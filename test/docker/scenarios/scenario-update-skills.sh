@@ -2,11 +2,12 @@
 # v26.126.0 (R-3a · ADR-046) — scenario-update-skills: update 가 `.claude/skills` 를 갱신하는가.
 #
 # 왜 pty 를 쓰나: 이 시나리오가 검증하는 것은 **위저드 경로**의 update 다. 위저드는 TTY 없이는
-# 거부하므로 `script` 로 pty 를 붙이고 키 입력 2개를 흘려 넣는다.
+# 거부하므로 `script` 로 pty 를 붙이고, 화면이 각 단계를 그린 뒤에 키를 보낸다.
 # (v26.131.0 부터 비대화형 `agent-harness update` 도 있다 — 그쪽은 scenario-update-noninteractive
 #  가 non-TTY 조건에서 따로 검증한다. 두 경로는 서로의 증거가 되지 않는다.)
-#   ① 라우터에서 "update" 선택 (2번째 항목 → ↓ + Enter)  ② "What to update" 체크박스(#480 ①, 전부
-#   체크 → Enter 로 수락)  ③ 확인 프롬프트 Enter
+#   #533 — 메뉴가 Update / Uninstall / Exit 이 됐고 Update 는 한 흐름이다: ① 메뉴 Update(첫 항목)
+#   ② 트랙 그대로 ③ CLI 그대로 ④ 자산 페이지 전부 Enter(페이지 수는 화면의 `Page n/N` 에서 읽는다)
+#   ⑤ 아무것도 더하지 않았으니 refresh — "What to update" 체크박스(#480 ①, 전부 체크) Enter ⑥ 확인 Enter
 #
 # 검증:
 #   - install 후 `.claude/skills/` 존재 + install log 에 skillFiles 기준선 기록
@@ -51,11 +52,52 @@ fi
 TARGET_DIR=$(dirname "${TARGET}")
 
 # --- 위저드 update 를 pty 로 구동 ---
+plain_out() { sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' /tmp/update-out.txt; }
+
+wait_for() {
+  local pattern="$1" tries=0
+  until plain_out | grep -qE -- "${pattern}"; do
+    tries=$((tries + 1))
+    if [[ "${tries}" -gt 300 ]]; then
+      echo "FAIL: 위저드 화면에 '${pattern}' 이 30초 안에 안 나왔다"
+      plain_out | tail -30
+      exit 1
+    fi
+    sleep 0.1
+  done
+  sleep 0.3
+}
+
+key() { printf '%b' "$1" >&3; sleep 0.3; }
+
 run_update() {
-  # 키 사이에 **지연이 필요하다.** 한 번에 흘리면 clack 이 프롬프트를 그리기 전에 입력이
-  # 지나가 라우터 선택 자체가 안 된다 (그 경우 update 가 아예 안 돌고도 조용히 끝난다).
-  ( sleep 2; printf '\033[B'; sleep 0.5; printf '\r'; sleep 2; printf '\r'; sleep 1.5; printf '\r'; sleep 3 ) \
-    | script -qec "agent-harness" /dev/null >/tmp/update-out.txt 2>&1 || true
+  # 화면이 그 단계를 그린 것을 **본 뒤에** 키를 보낸다(FIFO). 한 번에 흘리면 clack 이 프롬프트를
+  # 그리기 전에 입력이 지나가 메뉴 선택 자체가 안 된다 (그 경우 update 가 아예 안 돌고도 조용히 끝난다).
+  local fifo
+  fifo=$(mktemp -u)
+  mkfifo "${fifo}"
+  : >/tmp/update-out.txt
+  script -qec "stty cols 220 rows 60; agent-harness" /dev/null <"${fifo}" >/tmp/update-out.txt 2>&1 &
+  local pid=$!
+  exec 3>"${fifo}"
+  wait_for "Installed here:"; key '\r'  # 메뉴 — Update
+  wait_for "Step 1/5"; key '\r'         # 트랙 그대로
+  wait_for "Step 2/5"; key '\r'         # CLI 그대로
+  wait_for "Page 1/[0-9]+"
+  local pages n
+  pages=$(plain_out | grep -oE "Page 1/[0-9]+" | head -1 | cut -d/ -f2)
+  for n in $(seq 1 "${pages}"); do
+    wait_for "Page ${n}/${pages}"; key '\r'
+  done
+  wait_for "What to update"; key '\r'   # #480 묶음 — 전부 체크 그대로
+  wait_for "Proceed\?"; key '\r'        # 확인
+  for _ in $(seq 1 600); do
+    kill -0 "${pid}" 2>/dev/null || break
+    sleep 0.2
+  done
+  exec 3>&-
+  wait "${pid}" || true
+  rm -f "${fifo}"
 
   # update 가 실제로 돌았는지부터 확인한다 — 안 돌았는데 "백업 없음"을 통과로 읽으면
   # 이 시나리오는 아무것도 검증하지 않으면서 green 이 된다.
