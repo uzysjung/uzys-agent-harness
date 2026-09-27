@@ -22,15 +22,14 @@ You need Node 20 or newer. Run this in your project folder:
 npx -y @uzysjung/agent-harness
 ```
 
-The wizard asks six things:
+The wizard asks five things:
 
 ```
-1/6  Tracks          what you are building (a stack) — this only pre-checks items
-2/6  CLI             claude / codex / opencode / antigravity — one or more
-3/6  Install items   everything is pre-checked for your track; uncheck what you don't want
-4/6  Scope           Project (default, this folder only) or Global
-5/6  Confirm         summary, plus how much context your selection adds to each session
-6/6  Installing
+1/5  Tracks          what you are building (a stack) — this only pre-checks items
+2/5  CLI             claude / codex / opencode / antigravity — one or more
+3/5  Install items   everything is pre-checked for your track; uncheck what you don't want
+4/5  Confirm         summary, plus how much context your selection adds to each session
+5/5  Installing
 ```
 
 Then open your AI coding tool in the same folder. The rules and skills are live from the first session:
@@ -94,7 +93,7 @@ In a terminal, `uninstall` offers three choices — one CLI, selected assets, or
 
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing `.mcp.json` servers are merged, not replaced ([installing into an existing project](docs/USAGE.md#installing-into-an-existing-project)).
 
-**Your project only, by default.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm unless you choose Global at step 4. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` in either scope and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).
+**Your project only.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).
 
 ## Already using another tool?
 

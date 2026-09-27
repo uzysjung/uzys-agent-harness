@@ -39,7 +39,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 [TRACKS.md](TRACKS.md)). 여기 남기는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다 — "내 머신에서
 무슨 일이 일어나는가"에 대한 답이다. 배선 SSOT = `src/external-installer.ts`.
 
-| kind | 실행 명령 | project scope (기본) | global scope |
+| kind | 실행 명령 | project scope | global scope (Global 이 있던 때 깐 설치본만) |
 |---|---|---|---|
 | `plugin` | `claude plugin marketplace add --scope <s> <marketplace>` → `claude plugin install --scope <s> <pluginId>` | `--scope project` | `--scope user` |
 | `skill` | `npx skills@<pin> add <source> [--skill <name>] --agent <cli>… --copy --yes` | skills CLI 기본(프로젝트) | `-g` 추가 |
@@ -163,12 +163,12 @@ $ npx -y @uzysjung/agent-harness install \       # 비대화형 (CI·스크립�
   ↓
 [3 설치 항목] 7 페이지. 앞 2 = 트랙 baseline(룰·훅 / 에이전트·스킬), 뒤 5 = 외부 자산 카테고리
   ↓
-[4 Scope] Project(기본) / Global      [5 Confirm] 요약 + 세션 시작 컨텍스트 비용
+[4 Confirm] 요약 + 세션 시작 컨텍스트 비용
   ↓
-[6 Installing]
+[5 Installing]
   Phase 1  템플릿    — .claude/{rules,agents,hooks,skills} · 앵커 · .mcp.json ·
                        .uzys-agent-harness/ 스크립트 3종 · (opt-in) .github/workflows
-  Phase 2  외부 자산 — 4단계에서 고른 scope 로 §3 의 5가지 방식 실행
+  Phase 2  외부 자산 — project scope 로 §3 의 4가지 방식 실행(Global 이 있던 때 깐 설치본은 기록의 scope)
   Phase 3  CLI 산출물 — codex · opencode · antigravity 를 하나라도 골랐을 때만:
                        AGENTS.md · .codex/ · opencode.json · .agents/
   ↓
