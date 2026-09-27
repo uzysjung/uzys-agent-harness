@@ -202,7 +202,7 @@ type Verdict = "create" | "overwrite" | "backup+overwrite" | "leave" | "leave+ad
 | 31 | `~/.claude/plugins/**` · `installed_plugins.json` (plugin, `external-installer.ts:458-483`) | tool | 도구 | 도구 | — | 도구 | T(`claude plugin uninstall --scope project`) | — | T |
 | 32 | `_bmad/` · `_bmad-output/` · `.claude/skills/bmad-*` (npx-run, #571) | advisory | **자산 한 단계 단위**로 설치 전후 루트 목록 diff → 경로 기록 **≠** | 같음 | — | 같음 | A **≠**(경로 나열) | — | A |
 | 33 | `~/.codex/config.toml` `[projects."<dir>"]` (`codex/trust-entry.ts:19-40`) | tool(홈) | `--with-codex-trust` 시 등록 **≠**(범위 조건 없음 — 결정 2) | 같음 | — | 같음 | A **≠**(지금 uninstall 은 trust 항목을 안내하지 않는다 — PR-7 이 "이 폴더의 Codex 신뢰 항목이 `~/.codex/config.toml` 에 남는다 · 빼려면 …" 한 줄을 낸다, PR-2 리뷰 N4) | — | — |
-| 34 | Global scope 자산(`--scope user` · `npx skills -g` · `npm -g`, `external-installer.ts:224-236,447-483`) | tool(홈) — **옛 설치본만** | ∅ **≠**(결정 1 — `--scope global` 은 거절, 대체 명령 안내) | ∅ | 로그 `scope: global` 이면 지금처럼 도구 재실행 | ∅ | A(D16, 지금처럼) | — | A |
+| 34 | Global scope 자산(`--scope user` · `npx skills -g` · `npm -g`, `external-installer.ts:224-236,447-483`) | tool(홈) — **옛 설치본만** | ∅ **≠**(결정 1 — `--scope global` 은 거절, 대체 명령 안내) | 로그 `scope: global` 이면 받는다(update 와 같게 — 그 설치본의 확인 화면·복구 명령이 `--scope global` 을 찍는다, PR-6) | 로그 `scope: global` 이면 지금처럼 도구 재실행 | ∅ | A(D16, 지금처럼) | — | A |
 | 35 | `.mcp-allowlist` 옛 판 (`update-mode.ts:1523-1533`) | harness(옛) | — | — | 백업+X(ADR-072 그대로) | — | — | — | — |
 | 36 | `.claude/CLAUDE.md` 옛 앵커 (`update-mode.ts:86,944-946`) | advisory | — | — | A | — | — | — | — |
 | 37 | `docs/decisions/` 빈 디렉터리 (`fs-ops.ts:227`) | — | ∅ **≠** | ∅ | — | ∅ | — | — | — |

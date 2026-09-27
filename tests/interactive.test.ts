@@ -15,8 +15,6 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     selectCli: vi.fn(async () => ["claude"] as CliTargets),
     // #533 — 기설치 메뉴는 update / uninstall / exit 셋이다(add·remove·reinstall 은 없다).
     selectAction: vi.fn(async () => "update" as const),
-    // v26.64.0 (ADR-020) — default mock: scope=project (D16).
-    selectScope: vi.fn(async () => "project" as const),
     confirmInstall: vi.fn(async () => true),
     // 2026-08-17 (ADR-075) — 기본 목은 **정리 안 함**. 삭제 쪽을 기본값으로 두면 이 프롬프트를
     // 신경 쓰지 않는 테스트가 조용히 파일 삭제 경로를 타게 된다.
@@ -260,16 +258,36 @@ describe("runInteractive", () => {
     expect(result.ok).toBe(false);
   });
 
-  // v26.64.0 (ADR-020) — Scope step 추가로 confirm 의 silent back 은 이제 selectScope 로.
-  // selectInstallTargets 는 1번만 호출됨 (scope 가 새 backstep).
-  it("v26.64.0 — ESC at confirm goes back to selectScope (silent back)", async () => {
+  /**
+   * #560 (ADR-097 결정 1) — 새 설치 위저드는 범위를 묻지 않는다. Global 을 고른 사람은 "홈에 쓴다"는
+   * 화면을 봤지만 하네스 파일은 늘 이 프로젝트에 쓰였다 — 선택지 자체를 없앴다. 옛 판의 Scope 프롬프트가
+   * 되살아나면 아래 `selectScope` 가 불려 global 을 돌려주고, 확인 화면이 `Step 5/6` · `SCOPE` 를 낸다.
+   */
+  it("#560 — 새 설치는 5단계: Scope 를 묻지 않고 확인 화면에 SCOPE 가 없으며 spec 은 project", async () => {
+    const selectScope = vi.fn(async () => "global" as const);
+    const confirmInstall = vi.fn(async (_summary: string) => true as boolean | null);
+    const prompts = Object.assign(makePrompts({ confirmInstall }), { selectScope });
+    const result = await runInteractive("/tmp/proj", {
+      prompts,
+      detect: () => newState,
+      isTty: () => true,
+    });
+    expect(selectScope).not.toHaveBeenCalled();
+    expect(result.spec?.scope).toBe("project");
+    const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
+    expect(summary).toContain("Step 4/5 — Confirm");
+    expect(summary).not.toContain("SCOPE");
+    expect(prompts.outro).toHaveBeenCalledWith("Step 5/5 — Installing...");
+  });
+
+  // #560 — Scope 단계가 없어져 확인 화면의 ESC 는 바로 앞 단계(설치 항목)로 돌아간다.
+  it("ESC at confirm goes back to selectInstallTargets (silent back)", async () => {
     const confirmInstall = vi
       .fn<(summary: string) => Promise<boolean | null>>()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(true);
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
-    const selectScope = vi.fn(async () => "project" as const);
-    const prompts = makePrompts({ confirmInstall, selectInstallTargets, selectScope });
+    const prompts = makePrompts({ confirmInstall, selectInstallTargets });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
@@ -277,8 +295,7 @@ describe("runInteractive", () => {
     });
     expect(result.ok).toBe(true);
     expect(confirmInstall).toHaveBeenCalledTimes(2);
-    expect(selectScope).toHaveBeenCalledTimes(2);
-    expect(selectInstallTargets).toHaveBeenCalledTimes(1);
+    expect(selectInstallTargets).toHaveBeenCalledTimes(2);
   });
 
   it("v26.54.0 — Step 1 ESC emits cancel message (not silent)", async () => {

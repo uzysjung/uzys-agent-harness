@@ -12,27 +12,29 @@ export interface WizardStep {
   total: number;
 }
 
-export const WIZARD_TOTAL = 6;
+/**
+ * #560 (ADR-097 결정 1) — 6→5단계. Scope 단계를 없앴다: 하네스 파일은 범위와 무관하게 늘 이 프로젝트에
+ * 쓰였고, Global 이 바꾸던 것은 외부 자산 도구의 플래그뿐이었다 — 화면은 "~/.claude/ 에 쓴다"고 했다.
+ */
+export const WIZARD_TOTAL = 5;
 
 export const WIZARD: {
   TRACKS: WizardStep;
   CLI: WizardStep;
   TARGETS: WizardStep;
-  SCOPE: WizardStep;
   CONFIRM: WizardStep;
   INSTALL: WizardStep;
 } = {
   TRACKS: { current: 1, total: WIZARD_TOTAL },
   CLI: { current: 2, total: WIZARD_TOTAL },
   TARGETS: { current: 3, total: WIZARD_TOTAL },
-  SCOPE: { current: 4, total: WIZARD_TOTAL },
-  CONFIRM: { current: 5, total: WIZARD_TOTAL },
-  INSTALL: { current: 6, total: WIZARD_TOTAL },
+  CONFIRM: { current: 4, total: WIZARD_TOTAL },
+  INSTALL: { current: 5, total: WIZARD_TOTAL },
 };
 
 /**
  * #533 (D3) — 기설치 Update 흐름은 5단계다. 스코프는 묻지 않는다 — 설치 기록의 것을 확인 화면에
- * 보인다(다시 물으면 global 설치본에 project 를 섞는 길이 생긴다).
+ * 보인다(결정 1 이전의 global 설치본은 기록대로 간다 — 다시 물으면 project 를 섞는 길이 생긴다).
  */
 export const UPDATE_WIZARD_TOTAL = 5;
 

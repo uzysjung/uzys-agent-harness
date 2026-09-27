@@ -8,19 +8,18 @@ Version markers are omitted on purpose — this page describes the release you a
 
 ## Install
 
-### Interactive wizard (6-step)
+### Interactive wizard (5-step)
 
 ```
-1/6  Tracks            one or more — see docs/TRACKS.md
-2/6  CLI               claude / codex / opencode / antigravity (multi-select)
-3/6  Install items     7 pages of checklists:
+1/5  Tracks            one or more — see docs/TRACKS.md
+2/5  CLI               claude / codex / opencode / antigravity (multi-select)
+3/5  Install items     7 pages of checklists:
                        Track baseline — Rules & Hooks / Track baseline — Agents & Skills
                        (everything your track installs, pre-checked; uncheck to drop it)
                        then Dev Core (Frontend · Backend · Data) / Dev Tools (Security ·
                        Quality · Understanding) / Business / Visual & Media / Workflow & ECC
-4/6  Scope             Project (default) / Global
-5/6  Confirm           summary + the session-start context cost of your selection
-6/6  Installing
+4/5  Confirm           summary + the session-start context cost of your selection
+5/5  Installing
 ```
 
 ESC at step 1 exits; ESC at any later step goes back one step.
@@ -29,7 +28,7 @@ Assets already in this project show `● installed` at step 3 and start checked.
 
 Run the wizard again on an installed project and it shows what is installed — tracks, CLIs, scope, and where the record lives — and three choices: **Update**, **Uninstall**, **Exit**.
 
-**Update** walks tracks → CLIs → install items → confirm (no scope step — the scope comes from your install record). What is already installed starts checked and marked `● installed`; you only add:
+**Update** walks tracks → CLIs → install items → confirm (an install made with the retired Global option keeps the scope its record says — see [Scope](#scope)). What is already installed starts checked and marked `● installed`; you only add:
 
 - **Add nothing** and it does exactly what [`update`](#update) does.
 - **Add a track, a CLI, or an asset** and it does exactly what `install --track … --cli …` does with the combined set — new files arrive, installed ones are refreshed, edited ones are backed up. The confirm screen prints that command on a `RUNS AS` line.
@@ -50,7 +49,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 |---|---|
 | `--track <name>` (repeatable) | **Required.** One of the [tracks](TRACKS.md) |
 | `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
-| `--scope <project\|global>` | Default `project` |
+| `--scope project` | The only choice, and the default. `global` is refused on a new install — see [Scope](#scope) |
 | `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md) |
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
@@ -79,17 +78,19 @@ You get the same directory the installer would copy (`SKILL.md` and `references/
 
 ### Scope
 
-Default = **Project**. Global is opt-in, at step 4 or with `--scope global`.
+Everything the harness installs goes into this project. There is no Global option: it only ever changed the flags passed to the external-asset tools — never where the harness files went — while the screen said it wrote to `~/.claude/`. `install --scope global` on a new install is refused and prints the commands below instead.
 
-| Delivery method | Project (default) | Global |
-|---|---|---|
-| `claude plugin` | `--scope project` | `--scope user` |
-| `npx skills` (skill packs) | copied into `.claude/skills/` and, for other CLIs, `.agents/skills/` | `-g` |
-| `npm` (CLI packages) | `devDependency` in `package.json` | `-g` |
-| Codex config | `.codex/` in the project | `~/.codex/` |
-| Antigravity | `.agents/` in the project | `~/.gemini/antigravity/` |
+| Delivery method | Where it goes |
+|---|---|
+| `claude plugin` | `--scope project` |
+| `npx skills` (skill packs) | copied into `.claude/skills/` and, for other CLIs, `.agents/skills/` |
+| `npm` (CLI packages) | `devDependency` in `package.json` |
 
-`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched in project scope. **The one exception is Claude Code plugins**: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` in both scopes and isolates projects through the `projectPath` field of `installed_plugins.json`. Project scope means *no other project is affected*, not *nothing outside this project is written*.
+To make one external asset available in every project, install it with its own tool: `claude plugin install --scope user <plugin>` · `npx skills add -g <source>` · `npm i -g <pkg>`.
+
+**An install made with Global before it was retired keeps working.** Its record says `global`, so `update` refreshes its assets with the global flags and `uninstall` lists them for you to remove by hand, as before — and `install --scope global` is still accepted in that project, so the repair and `RUNS AS` commands the screens print for it run as shown.
+
+`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched. Two exceptions: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` and isolates projects through the `projectPath` field of `installed_plugins.json`, and `--with-codex-trust` adds one trust entry for this folder to `~/.codex/config.toml`. *This project only* means *no other project is affected*, not *nothing outside this project is written*.
 
 ### Multi-CLI install
 
@@ -218,7 +219,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 npx -y @uzysjung/agent-harness list
 ```
 
-Read-only. Shows when the project was set up, the chosen tracks and CLIs, the installed assets with their scope, the template directories, and the root files the install created or merged. The asset ids it prints are what `uninstall --only` takes.
+Read-only. Shows when the project was set up, the chosen tracks and CLIs, the installed assets with their scope, the folders and files the install record says the harness wrote (a folder it never created is not listed), and the root files the install created or merged. The asset ids it prints are what `uninstall --only` takes.
 
 ### `uninstall`
 
@@ -294,7 +295,7 @@ Two opt-in workflow packs remain in the catalog, `openspec` and `bmad-method` �
 
 Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises here:
 
-- **No deploy CLI is pre-checked on any track.** `supabase-cli`, `vercel-cli`, and `netlify-cli` each install a CLI package (a `devDependency` by default, a global binary under `--scope global`), so pick the one your project deploys to. `csr-supabase` still pre-checks the Supabase *skills*.
+- **No deploy CLI is pre-checked on any track.** `supabase-cli`, `vercel-cli`, and `netlify-cli` each install a CLI package as a `devDependency`, so pick the one your project deploys to. `csr-supabase` still pre-checks the Supabase *skills*.
 - **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills, `frontend-design`).
 - **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` and `product-skills` are opt-in on any track.
 - **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app.

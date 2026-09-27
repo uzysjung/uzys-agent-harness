@@ -68,7 +68,8 @@ export interface InstallRenderer {
 }
 
 /**
- * install header (TARGET / TRACKS / CLI / SCOPE / OPTIONS / ASSETS) 렌더.
+ * install header (TARGET / TRACKS / CLI / OPTIONS / ASSETS) 렌더.
+ * #560 — SCOPE 행은 없다. 하네스 파일은 늘 이 프로젝트에 쓰이고, 그 행의 Global 문구("writes to ~/.claude/")가 사실이 아니었다.
  * wizard 모드는 Step 3 review + Step 4 confirm 에서 이미 표시하므로 호출 안 함.
  */
 export function renderInstallHeader(
@@ -90,15 +91,6 @@ export function renderInstallHeader(
   log(infoRow("TARGET", shortenPath(spec.projectDir)));
   log(infoRow("TRACKS", spec.tracks.join(", ")));
   log(infoRow("CLI", spec.cli.join(" · ")));
-  // v26.64.0 (ADR-020) — SCOPE row. 사용자가 매 install 시 어디에 write 되는지 인지 (D16).
-  {
-    const effectiveScope = spec.scope ?? "project";
-    const scopeMsg =
-      effectiveScope === "global"
-        ? "Global — writes to ~/.claude/, ~/.codex/, npm -g"
-        : "Project — current directory only (no global write)";
-    log(infoRow("SCOPE", scopeMsg));
-  }
   log(infoRow("OPTIONS", formatOptions(spec)));
   // v26.82.0 (Phase R, S6) — merge 는 preset-recommend.ts 단일 구현 (이전 computeFinalAssets 중복).
   const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
@@ -340,7 +332,7 @@ export function renderCliArtifacts(
         assetRow(
           "success",
           ".agents/skills/<id>/",
-          `${countSkillDirs(report.codex.skillFiles)} skills`,
+          `${countSkillDirs(report.codex.skillFiles)} bundled skills`,
         ),
       );
     }
@@ -364,7 +356,7 @@ export function renderCliArtifacts(
         assetRow(
           "success",
           ".agents/skills/",
-          `${countSkillDirs(report.opencode.skillFiles)} dev-method skills (codex·antigravity 와 같은 자리)`,
+          `${countSkillDirs(report.opencode.skillFiles)} bundled skills (codex·antigravity 와 같은 자리)`,
         ),
       );
     }
@@ -381,16 +373,33 @@ export function renderCliArtifacts(
     }
   }
   // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
+  // #564 — 숫자는 **이번 실행이 쓴 것**(변환 반환값 — writer 가 받아 기록에 적은 경로)에서 센다. 앵커 한 줄만
+  //   적던 탓에 같은 폴더에 쓴 배포 룰(`harnessRuleFiles`)이 화면에서 빠졌다(csr-fastapi: 디스크 6 · 화면 1).
   if (report.antigravity) {
-    if (report.antigravity.rulesFile) {
-      log(assetRow("success", ".agents/rules/uzys-harness.md", `from ${HARNESS_ANCHOR_FILE}`));
+    const anchor = report.antigravity.rulesFile;
+    const rules = report.antigravity.harnessRuleFiles.length;
+    const total = (anchor ? 1 : 0) + rules;
+    if (total > 0) {
+      const parts = [
+        ...(anchor ? [`uzys-harness.md from ${HARNESS_ANCHOR_FILE}`] : []),
+        ...(rules > 0 ? [`${rules} harness rule${rules === 1 ? "" : "s"}`] : []),
+      ];
+      log(
+        assetRow(
+          "success",
+          ".agents/rules/",
+          `${total} file${total === 1 ? "" : "s"} · ${parts.join(" + ")}`,
+        ),
+      );
     }
+    // 스킬 수는 이미 변환이 쓴 파일(`skillFiles`)의 `<id>` 수다. 같은 폴더에 외부 skill 팩(`npx skills`)도
+    //   들어가므로 "bundled" 로 이 줄이 무엇을 세는지 밝힌다 — 팩은 External assets 절이 한 줄씩 말한다.
     if (report.antigravity.skillFiles.length > 0) {
       log(
         assetRow(
           "success",
           ".agents/skills/<id>/",
-          `${countSkillDirs(report.antigravity.skillFiles)} skills`,
+          `${countSkillDirs(report.antigravity.skillFiles)} bundled skills`,
         ),
       );
     }

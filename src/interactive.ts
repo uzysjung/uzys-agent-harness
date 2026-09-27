@@ -343,13 +343,12 @@ export async function runInteractive(
     return runUpdateFlow({ projectDir, state, log, prompts, installed });
   }
 
-  // v26.64.0 (ADR-020) — scope step 추가. Default "project". Step 3.5 (targets 직후, confirm 직전).
-  type Step = "tracks" | "cli" | "targets" | "scope" | "confirm";
+  // #560 (ADR-097 결정 1) — Scope 단계는 없다. 새 설치는 항상 project 다.
+  type Step = "tracks" | "cli" | "targets" | "confirm";
   let step: Step = "tracks";
   let tracks: Track[] | null = null;
   let cli: import("./types.js").CliTargets | null = null;
   let targetSelections: ReadonlyArray<InstallTargetId> | null = null;
-  let scope: import("./types.js").InstallScope = "project";
 
   while (true) {
     if (step === "tracks") {
@@ -378,7 +377,7 @@ export async function runInteractive(
         targetSelections !== null
           ? [...targetSelections]
           : initialTargetSelection(tracks ?? [], installed.projectScoped);
-      // v26.65.0 — step indicator SSOT (wizard-steps.ts). Phase: 3 targets → 4 scope → 5 confirm → 6 install.
+      // v26.65.0 — step indicator SSOT (wizard-steps.ts). Phase: 3 targets → 4 confirm → 5 install.
       const result = await prompts.selectInstallTargets(initial, WIZARD.TARGETS, {
         tracks: tracks ?? [],
         cli: cli ?? ["claude"],
@@ -389,15 +388,6 @@ export async function runInteractive(
         continue;
       }
       targetSelections = result;
-      step = "scope";
-    } else if (step === "scope") {
-      // v26.64.0 (ADR-020) — Installation scope select. Default "project" (D16).
-      const result = await prompts.selectScope(scope, WIZARD.SCOPE);
-      if (result === null) {
-        step = "targets"; // silent back
-        continue;
-      }
-      scope = result;
       step = "confirm";
     } else {
       // confirm
@@ -415,12 +405,7 @@ export async function runInteractive(
         targetSelections === null
           ? []
           : baselineExcludeFrom(listBaselineTargets({ tracks: finalTracks }), baselineIds);
-      // v26.64.0 (ADR-020) — Confirm summary 에 SCOPE 명시 (사용자 인지 + D16).
-      const scopeLabel =
-        scope === "global"
-          ? "Global (writes to ~/.claude/, ~/.codex/, npm -g)"
-          : "Project (current directory only)";
-      const summary = `${formatSummary({
+      const summary = formatSummary({
         tracks: finalTracks,
         options,
         cli: finalCli,
@@ -430,12 +415,12 @@ export async function runInteractive(
         // 외부 자산 제거는 `-Unchecked by you:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
         // 읽힌다. 상주 비용을 줄이려고 20개를 푼 사용자가 그대로인 숫자를 보게 된다.
         ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
-      })}\n  SCOPE     ${scopeLabel}`;
+      });
       const confirmed = await prompts.confirmInstall(
         `${stepLabel(WIZARD.CONFIRM, "Confirm")}\n${summary}`,
       );
       if (confirmed === null) {
-        step = "scope"; // silent back
+        step = "targets"; // silent back
         continue;
       }
       if (!confirmed) {
@@ -448,7 +433,7 @@ export async function runInteractive(
         options,
         cli: finalCli,
         projectDir,
-        scope,
+        scope: "project",
         ...(userOverride ? { userOverride } : {}),
         ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
       };

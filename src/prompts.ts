@@ -31,7 +31,6 @@ import type { DetectedInstall } from "./state.js";
 import {
   type CliBase,
   type CliTargets,
-  type InstallScope,
   type OptionFlags,
   TRACKS,
   type Track,
@@ -83,11 +82,6 @@ export interface Prompts {
     state: DetectedInstall,
     record?: InstallRecordView,
   ) => Promise<RouterAction | null>;
-  /**
-   * v26.64.0 (ADR-020) — Installation scope 선택. Default = "project" (pre-selected).
-   * Global 은 사용자 명시 opt-in. null = silent back.
-   */
-  selectScope: (initial?: InstallScope, step?: WizardStep) => Promise<InstallScope | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
   /**
    * #480 — update 위저드의 "무엇을 갱신할까" 체크박스. 옵셔널: 없는 구현(테스트 픽스처)은 전부
@@ -353,7 +347,7 @@ export const defaultPrompts: Prompts = {
   cancel: (msg) => cancel(msg),
 
   selectTracks: async (initial, step, installed = []) => {
-    // v26.65.0 — step indicator SSOT (wizard-steps.ts). 6-step 통합 (1 tracks · 2 cli · 3 targets · 4 scope · 5 confirm · 6 installing).
+    // v26.65.0 — step indicator SSOT (wizard-steps.ts). 5-step (1 tracks · 2 cli · 3 targets · 4 confirm · 5 installing — #560 Scope 단계 삭제).
     const locked = new Set<Track>(installed);
     const result = await multiselect({
       message:
@@ -411,30 +405,6 @@ export const defaultPrompts: Prompts = {
       }),
     });
     return isCancel(result) ? null : (result as RouterAction);
-  },
-
-  /**
-   * v26.64.0 (ADR-020) — Installation scope select. Default Project (D16 — no global write).
-   * Global 은 사용자 명시 opt-in 시에만.
-   */
-  selectScope: async (initial = "project", step) => {
-    const result = await select({
-      message: stepLabel(step, "Installation scope"),
-      initialValue: initial,
-      options: [
-        {
-          value: "project",
-          label: "Project",
-          hint: "Install in current directory (committed with your project)",
-        },
-        {
-          value: "global",
-          label: "Global",
-          hint: "Write to ~/.claude/, ~/.codex/, npm -g (shared across all projects)",
-        },
-      ],
-    });
-    return isCancel(result) ? null : (result as InstallScope);
   },
 
   selectUpdateGroups: async () => {
