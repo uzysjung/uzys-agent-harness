@@ -17,7 +17,8 @@
 #   ┌ pattern 모드 — "이 패턴이 없다"
 #   │   대조군 = 합성한 알려진 양성(canary). 패턴이 그것을 물어야 부재 결과를 신뢰한다.
 #   │
-#   │   check-absence.sh --canary '<알려진 양성>' [-i] '<ERE 패턴>' <경로>...
+#   │   check-absence.sh --canary '<알려진 양성>' [-i] [--] '<ERE 패턴>' <경로>...
+#   │   ('-' 로 시작하는 패턴은 앞에 -- 를 둔다: ... --canary 'use --old' -- '--old' src)
 #   │   예: ... --canary 'OldName' 'oldname|legacy_prefix' dist src templates
 #   │
 #   └ command 모드 — "이 명령이 안 된다 / 이 기능이 없다"
@@ -46,7 +47,7 @@ set -u
 usage() {
   cat >&2 <<'USAGE'
 usage:
-  pattern 모드:  check-absence.sh --canary <알려진-양성> [-i] <ERE-패턴> <경로>...
+  pattern 모드:  check-absence.sh --canary <알려진-양성> [-i] [--] <ERE-패턴> <경로>...   ('-' 로 시작하는 패턴은 앞에 --)
   command 모드:  check-absence.sh --control <대조-명령> --subject <대상-명령> [--control-exit N]
 
   두 모드 모두 대조군이 필수다. 탐지기(또는 절차)가 실제로 무는지 보이지 않으면
