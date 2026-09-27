@@ -13,7 +13,7 @@
  * 각각 기존 엔진 하나에 1:1 로 대응하므로 새로운 파괴적 조합이 생기지 않는다:
  *   CLI 하나   → `--cli <name>` (그 CLI 전용 자리 + 마지막 사용자가 된 공유 자리)
  *   선택 제거  → `--only <ids>` (templates 유지, 로그는 남은 자산으로 재기록)
- *   전량 제거  → 플래그 없음  (templates 포함 — `.claude/` 는 백업으로 옮긴다)
+ *   전량 제거  → 플래그 없음  (templates 포함 — `.claude/` · `.codex/` · `.opencode/` 는 백업으로 옮긴다)
  * 화면의 `disabled`(CLI 가 하나 · 자산이 0)는 미리보기일 뿐이다 — 마지막 CLI · 빈 목록 · 없는 id 의
  * 거절은 엔진 pre-flight 가 그대로 한다.
  */
@@ -148,16 +148,16 @@ export function buildUninstallModeChoices(
     {
       value: "all",
       label: "Remove everything",
-      hint: "assets + templates + the install record — .claude/ is moved aside as .claude.backup-<time>",
+      hint: "assets + templates + the install record — .claude/ · .codex/ · .opencode/ are moved aside as <dir>.backup-<time>",
       enabled: true,
     },
   ];
 }
 
-/** 소유 표의 한 자리를 사람이 읽는 말로. `.claude/` 는 지우지 않고 옮긴다(사용자 결정 2026-09-27). */
+/** 소유 표의 한 자리를 사람이 읽는 말로. CLI 디렉터리는 지우지 않고 옮긴다(사용자 결정 2026-09-27). */
 function describeOwned(p: OwnedPath): string {
-  if (p.kind === "dir" && p.path === ".claude/") {
-    return ".claude/ → moved aside as .claude.backup-<time> (your own files there stay in it)";
+  if (p.kind === "dir") {
+    return `${p.path} → moved aside as ${p.path.replace(/\/+$/, "")}.backup-<time> (your own files there stay in it)`;
   }
   if (p.kind === "import-block") return `the import block in ${p.path} (your text stays)`;
   if (p.path === "AGENTS.md") return "AGENTS.md harness sections (your ## Project Context stays)";
@@ -242,7 +242,7 @@ export async function runInteractiveUninstall(
       [
         "Remove everything? This is the same as: agent-harness uninstall --yes",
         `  · ${log.assets.length} recorded asset(s) — only those with an automatic reverse path are removed`,
-        "  · templates: .claude/ is moved aside as .claude.backup-<time> (your own files there stay in it); .codex/ · .opencode/ are removed",
+        "  · templates: .claude/ · .codex/ · .opencode/ are moved aside as <dir>.backup-<time> (your own files there stay in them)",
         "  · the install record goes too",
         "  · files outside (.mcp.json etc.) are not deleted — you get instructions instead",
       ].join("\n"),

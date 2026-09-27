@@ -33,7 +33,8 @@ Run the wizard again on an installed project and it shows what is installed — 
 
 - **Add nothing** and it does exactly what [`update`](#update) does.
 - **Add a track, a CLI, or an asset** and it does exactly what `install --track … --cli …` does with the combined set — new files arrive, installed ones are refreshed, edited ones are backed up. The confirm screen prints that command on a `RUNS AS` line.
-- **An installed CLI cannot be dropped here.** Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
+- **A checked box means the asset is there after the run.** A recommended asset that is not installed — dropped at install time, failed to install, or new in this release — starts unchecked; check it and the run becomes the `install …` above.
+- **An installed CLI cannot be dropped here** (projects with an install record). Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
 
 **Uninstall** opens the same screen as [`uninstall`](#uninstall). If the record says Claude Code is installed but `.claude/` is gone, the menu shows a one-line repair command (`install --reinstall --track … --cli claude --scope …`) and Update stays disabled until you run it.
 
@@ -201,7 +202,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 | `AGENTS.md` with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
 | `.claude/` on `install --reinstall` | Renamed to `.claude.backup-<ts>`, then rebuilt |
-| `.claude/` on `uninstall` (everything, or `--cli claude`) | Renamed to `.claude.backup-<ts>` — your own files there (`settings.local.json`, your commands) stay in the backup |
+| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup |
 | `.mcp.json` | Your servers are preserved and merged |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
@@ -236,7 +237,7 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 | Flag | What |
 |---|---|
 | `--dry-run` | Print the reverse steps, change nothing |
-| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/` |
+| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
 | `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Templates untouched; the record keeps the rest |
 | `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
 | `--yes` | Skip the picker and remove everything |
@@ -244,7 +245,7 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 What it can and cannot reverse:
 
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`, skill directories).
-- **Harness files** — `.codex/` is removed; `.claude/` is moved aside as `.claude.backup-<ts>`, so files you put there yourself (`settings.local.json`, your own commands) are in the backup; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
+- **Harness files** — `.claude/`, `.codex/` and `.opencode/` are not deleted: each is moved aside as `<dir>.backup-<ts>` with everything in it, so files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) are in the backup; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
 - **Global-scope assets** — listed for you to remove by hand.
 - **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
 - **Root files** — `.mcp.json`, `.gitignore`, `.env.example`, `.github/workflows/` are **listed and left in place**, labelled created or merged, because your own content may be in them.
@@ -267,14 +268,15 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 | `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup |
 | `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
 | `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
-| `.codex/` | Codex | Codex is removed |
-| `opencode.json` (and `.opencode/` from older installs) | OpenCode | OpenCode is removed |
+| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup |
+| `opencode.json` | OpenCode | OpenCode is removed (kept if you edited it) |
+| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours |
 | `.agents/rules/uzys-harness.md` | Antigravity | Antigravity is removed |
 | `AGENTS.md` | Codex, OpenCode | The last of them is removed — only the harness sections; your `## Project Context` / `## Project Rules` stay |
 | `.agents/skills/` (harness skills only) | Codex, OpenCode, Antigravity | The last of them is removed — skills you installed yourself stay |
 | `.mcp.json`, `.uzys-agent-harness/` | Every CLI | Never by `--cli` |
 
-- **Your own text in shared files stays.** A file you edited since the install is kept whole and named on screen. Run `--dry-run` first to see the list.
+- **Nothing you put there is deleted.** A harness file outside those directories that you edited since the install is kept in place and named on screen; the CLI directories themselves go to a backup, whole. Run `--dry-run` first to see the list.
 - **Installed assets (`list`) are not touched** — they are not owned by a CLI. Use `--only <ids>` for those.
 - **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only` or `--keep-templates`.
 
@@ -308,7 +310,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-**`update` says a hook needs reinstall** — run `install --reinstall --track <your track>`, or run `install --track <your track>` again. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
+**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it moves the whole directory aside first. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 

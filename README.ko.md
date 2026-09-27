@@ -103,10 +103,10 @@ CLI 별로 도달하는 것:
 ```bash
 npx -y @uzysjung/agent-harness list        # 이 프로젝트에 무엇이 깔렸나
 npx -y @uzysjung/agent-harness update      # 현재 릴리즈로 갱신
-npx -y @uzysjung/agent-harness uninstall   # 골라서 제거하거나 전부 제거
+npx -y @uzysjung/agent-harness uninstall   # CLI 하나 · 고른 자산 · 전부 중에서 제거
 ```
 
-`update` 는 하네스가 설치한 파일을 갱신하고, 새 릴리즈에 추가된 스킬을 함께 설치하며, 재설치가 필요한 것(새 훅)은 그렇다고 알려 준다. 고르지 않은 CLI 를 설치하는 일은 없다. `update --only skills` 처럼 한 묶음만 갱신할 수 있다. `uninstall` 은 터미널에서 항목별로 묻고, `--dry-run` 으로 계획만 먼저 볼 수 있다.
+`update` 는 하네스가 설치한 파일을 갱신하고, 새 릴리즈에 추가된 스킬을 함께 설치하며, 재설치가 필요한 것(새 훅)은 그렇다고 알려 준다. 고르지 않은 CLI 를 설치하는 일은 없다. `update --only skills` 처럼 한 묶음만 갱신할 수 있다. `uninstall` 은 터미널에서 CLI 하나 · 고른 자산 · 전부 셋 중에서 고르게 하고, `--dry-run` 으로 계획만 먼저 볼 수 있다. `.claude/` · `.codex/` · `.opencode/` 는 지우지 않고 `<dir>.backup-<ts>` 로 옮기므로, 거기 직접 둔 파일은 백업에 남는다.
 
 **기존 프로젝트에도 안전하다.** 내가 고친 파일을 교체하기 전에 옆에 타임스탬프 백업을 만들고 경로를 출력한다. 내가 쓰거나 고친 것은 백업 없이 지우지 않는다. 기존 `.mcp.json` 서버는 교체가 아니라 병합된다. 자세한 내용: [기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project).
 

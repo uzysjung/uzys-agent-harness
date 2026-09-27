@@ -103,10 +103,10 @@ A track is a starting point, not a lock-in: everything it pre-checks can be unch
 ```bash
 npx -y @uzysjung/agent-harness list        # what this project got
 npx -y @uzysjung/agent-harness update      # bring it to the current release
-npx -y @uzysjung/agent-harness uninstall   # pick what to remove, or remove everything
+npx -y @uzysjung/agent-harness uninstall   # remove one CLI, selected assets, or everything
 ```
 
-`update` refreshes the files the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose. `update --only skills` limits it to one group. `uninstall` asks item by item in a terminal; `--dry-run` shows the plan first.
+`update` refreshes the files the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose. `update --only skills` limits it to one group. `uninstall` in a terminal offers three choices — one CLI, selected assets, or everything — and `--dry-run` shows the plan first. It never deletes `.claude/`, `.codex/` or `.opencode/`: each is moved aside as `<dir>.backup-<ts>`, so files you put there yourself stay in the backup.
 
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it. Your existing `.mcp.json` servers are merged, not replaced. Details: [installing into an existing project](docs/USAGE.md#installing-into-an-existing-project).
 
