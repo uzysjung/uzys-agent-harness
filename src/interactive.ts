@@ -200,13 +200,10 @@ const BUNDLED_SKILLS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_IDS);
  * - `"add"` = 같은 인자의 `install --track … --cli …` 와 같은 일. 기존 파일도 같은 기준선으로 갱신한다.
  *
  * `add` 조건(하나라도): ① 트랙 ≠ 기록 ② CLI ≠ 기록의 깔린 집합 ③ 외부 자산 선택 ≠ 기록 —
- * 기록도 추천도 아닌 것을 체크했거나 기록된 project 자산의 체크를 풀었다 ④ baseline 해제 ≠ 기록
- * ⑤ 번들 스킬 해제 ≠ 기록. 해제 기록은 install 엔진만 남기므로(update 엔진엔 자리가 없다) ④·⑤ 가
- * 바뀌면 install 이어야 한다. **애매하면 `add`** — add 는 기존 파일도 갱신하므로 틀리는 방향이 안전하다.
- *
- * ③ 이 "로그 `assets` 에 없는 것" 이 아니라 "기록 ∪ 기록 트랙의 추천 밖" 인 이유: 번들 스킬 같은
- * 내장 자산은 외부 설치 단계를 타지 않아 `assets` 에 기록되지 않는다. 그 기준이면 아무것도 안 건드린
- * 사용자도 늘 add 로 떨어진다.
+ * 기록이 덮지 않는 자산(`coveredByRecord` 밖)을 체크했거나 기록된 project 자산의 체크를 풀었다
+ * ④ baseline 해제 ≠ 기록 ⑤ 번들 스킬 해제 ≠ 기록. 해제 기록은 install 엔진만 남기므로(update 엔진엔
+ * 자리가 없다) ④·⑤ 가 바뀌면 install 이어야 한다. **애매하면 `add`** — add 는 기존 파일도 갱신하므로
+ * 틀리는 방향이 안전하다.
  *
  * @param legacyTracks 기록이 없는 옛 설치본(`log === null`)의 트랙 — 메타파일·휴리스틱에서 감지한 것.
  */
@@ -216,21 +213,44 @@ export function classifyUpdateIntent(
   legacyTracks: ReadonlyArray<Track> = [],
 ): "refresh" | "add" {
   const recordTracks = log ? log.spec.tracks : legacyTracks;
-  // 기록이 없으면 `buildUpdateSpec` 이 claude 로 다룬다 — 같은 기준으로 비교한다.
-  const recordClis: ReadonlyArray<string> = log ? installedClis(log) : ["claude"];
+  const recordClis = recordedClis(log);
   if (!sameSet(confirmed.tracks, recordTracks)) return "add";
   if (!sameSet(confirmed.cli, recordClis)) return "add";
   const recorded = log?.assets ?? [];
-  const covered = new Set<string>([
-    ...recorded.map((a) => a.id),
-    ...recommendedExternalAssets(recordTracks.filter(isTrack)),
-  ]);
+  const covered = coveredByRecord(log, legacyTracks);
   const picked = new Set(confirmed.assetIds);
   if (confirmed.assetIds.some((id) => !covered.has(id))) return "add";
   if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id))) return "add";
   if (!sameSet(confirmed.baselineExclude, log?.spec.baselineExclude ?? [])) return "add";
   if (!sameSet(confirmed.skillExclude, log?.spec.skillExclude ?? [])) return "add";
   return "refresh";
+}
+
+/** 기록의 깔린 CLI. 기록이 없으면 `buildUpdateSpec` 이 claude 로 다룬다 — 같은 기준을 쓴다. */
+function recordedClis(log: InstallLog | null): CliBase[] {
+  return log ? [...installedClis(log)] : ["claude"];
+}
+
+/**
+ * 기록이 **이미 덮는** 외부 자산 — 아무것도 안 바꾼 Update(refresh = `update` 엔진)가 있는 그대로
+ * 두어도 화면과 디스크가 맞는 것. ⓐ 기록된 자산 ⓑ 기록 트랙의 추천 중 **설치 기록에 원래 안 남는
+ * 것**: 내장(`internal` — 템플릿이 깔아 외부 설치 단계를 안 탄다) · 기록의 CLI 로 닿지 않는 것(설치해도
+ * 안 깔린다 — 확인 화면이 "outside reach — not installed" 로 말한다).
+ *
+ * 그 밖의 추천 외부 자산(비내장 · 닿는데 기록에 없다)은 설치 때 뺐거나, 설치가 실패했거나, 새 릴리즈가
+ * 추천에 더한 것이다 — refresh 는 기록된 것만 갱신하므로 **덮지 않는다**(리뷰 B2). 그걸 체크하면 add 다.
+ */
+function coveredByRecord(log: InstallLog | null, legacyTracks: ReadonlyArray<Track>): Set<string> {
+  const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
+  const clis = recordedClis(log);
+  const covered = new Set<string>((log?.assets ?? []).map((a) => a.id));
+  for (const id of recommendedExternalAssets(recordTracks)) {
+    const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+    if (!asset || asset.method.kind === "internal" || !assetReachesCli(asset, clis)) {
+      covered.add(id);
+    }
+  }
+  return covered;
 }
 
 function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
@@ -240,18 +260,27 @@ function sameSet(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
 }
 
 /**
- * Update 흐름 Step 3 의 초기 체크 — 첫 설치와 같은 `initialTargetSelection` 에서 **기록된 해제분**을
- * 뺀다. 빼지 않으면 아무것도 안 건드린 사용자의 선택이 기록과 달라져 ④·⑤ 로 add 가 되고, 예전에
- * 뺀 룰·스킬이 되돌아 깔린다.
+ * Update 흐름 Step 3 의 초기 체크 — 첫 설치와 같은 `initialTargetSelection` 에서 뺀다:
+ * ① **기록된 해제분**(baseline · 번들 스킬) — 빼지 않으면 아무것도 안 건드린 선택이 기록과 달라져
+ *    ④·⑤ 로 add 가 되고, 예전에 뺀 룰·스킬이 되돌아 깔린다.
+ * ② 기록 트랙의 추천 중 **기록이 덮지 않는 외부 자산**(`coveredByRecord` 밖) — 체크된 채 보이면
+ *    "선택됨"으로 세어지는데 refresh 는 그것을 깔지 않는다(리뷰 B2). 체크 = 확인 뒤 디스크에 있다.
+ *    설치자가 체크하면 add 로 가서 깔린다.
  */
 export function updateInitialSelection(
   tracks: ReadonlyArray<Track>,
   installedProjectAssetIds: ReadonlyArray<string>,
   log: InstallLog | null,
+  legacyTracks: ReadonlyArray<Track> = [],
 ): InstallTargetId[] {
+  const covered = coveredByRecord(log, legacyTracks);
+  const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
   const excluded = new Set<string>([
     ...(log?.spec.baselineExclude ?? []),
     ...(log?.spec.skillExclude ?? []).map((id) => `asset:${id}`),
+    ...recommendedExternalAssets(recordTracks)
+      .filter((id) => !covered.has(id))
+      .map((id) => `asset:${id}`),
   ]);
   return initialTargetSelection(tracks, installedProjectAssetIds).filter((id) => !excluded.has(id));
 }
@@ -487,7 +516,7 @@ async function runUpdateFlow(ctx: UpdateFlowContext): Promise<InteractiveResult>
       const initial =
         targetSelections !== null
           ? [...targetSelections]
-          : updateInitialSelection(current, installed.projectScoped, log);
+          : updateInitialSelection(current, installed.projectScoped, log, state.tracks);
       const result = await prompts.selectInstallTargets(initial, UPDATE_WIZARD.TARGETS, {
         tracks: current,
         cli: cli ?? [...lockedClis],
@@ -564,7 +593,9 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
       only.length > 0
         ? `UPDATE ${only.join(" · ")} only (untouched: ${UPDATE_GROUPS.filter((g) => !only.includes(g)).join(", ")}):`
         : "UPDATE installed harness files:",
-      annotate(formatSummary(spec), {
+      // 요약은 Step 3 에서 체크된 것을 센다 — spec(추천 전체)으로 세면 체크 안 된 채 둔 자산까지
+      // "selected" 로 적는데 refresh 는 그것을 깔지 않는다(리뷰 B2). 실행 spec 은 그대로다.
+      annotate(formatSummary({ ...spec, ...(userOverride ? { userOverride } : {}) }), {
         Tracks: "no change",
         CLI: "no change",
         Assets: "no change",
@@ -598,10 +629,7 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   const recordTracks = new Set<string>(log ? log.spec.tracks : state.tracks);
   const addedTracks = tracks.filter((t) => !recordTracks.has(t));
   const addedClis = cli.filter((c) => !input.lockedClis.includes(c));
-  const covered = new Set<string>([
-    ...(log?.assets ?? []).map((a) => a.id),
-    ...recommendedExternalAssets([...recordTracks].filter(isTrack)),
-  ]);
+  const covered = coveredByRecord(log, state.tracks);
   const addedAssets = assetIds.filter((id) => !covered.has(id));
   const locked = input.lockedClis.join(", ");
   const summary = [

@@ -19,7 +19,11 @@ import {
   specFromOptions,
 } from "../src/commands/install.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import {
+  assetReachesCli,
+  EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "../src/external-assets.js";
 import { type InstallLog, installLogPath, readInstallLog } from "../src/install-log.js";
 import { MODE_ENTRY_POINT, runInstall } from "../src/installer.js";
 import { classifyUpdateIntent, runInteractive, type UpdateSelection } from "../src/interactive.js";
@@ -53,6 +57,23 @@ const A_SKILL = TOOLING_REC.find((id) => BUNDLED.has(id)) ?? "";
 const A_BASELINE = listBaselineTargets({ tracks: ["tooling"] })[0]?.id ?? "";
 /** tooling 추천 밖의 외부 자산 — "더했다"의 표본. */
 const NOT_RECOMMENDED = "railway-skills";
+const assetOf = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
+/**
+ * tooling 추천 중 **외부 설치 단계를 타고 claude 에 닿는** 자산 — 설치되면 기록 `assets` 에 남는 것.
+ * 기록에 없으면 설치 때 뺐거나 실패했거나 새 릴리즈가 더한 것이다(리뷰 B2). 카탈로그에서 뽑는다.
+ */
+const TOOLING_EXTERNAL_REC = TOOLING_REC.filter((id) => {
+  const a = assetOf(id);
+  return a !== undefined && a.method.kind !== "internal" && assetReachesCli(a, ["claude"]);
+});
+const TOOLING_INTERNAL_REC = TOOLING_REC.filter((id) => assetOf(id)?.method.kind === "internal");
+const logAsset = (id: string): InstallLog["assets"][number] => ({
+  id,
+  category: "dev-tools",
+  method: "skill",
+  scope: "project",
+  detail: {},
+});
 
 function writeLog(
   dir: string,
@@ -240,6 +261,58 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
   });
 });
 
+/**
+ * 리뷰 B2 — "화면에 체크돼 있으면 확인 뒤 실제로 깔려 있다 · 아무것도 안 바꾸면 refresh".
+ * 추천됐지만 기록에 없는 외부 자산(설치 때 뺐거나 · 실패했거나 · 새 릴리즈가 추천에 더했다)은 체크된 채
+ * 보이고 "N selected" 로 세어지는데 refresh 로 가서 깔리지 않았다.
+ */
+describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리뷰 B2)", () => {
+  let dir = "";
+  const EXT = TOOLING_EXTERNAL_REC[0] ?? "";
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "wiz-b2-"));
+    mkdirSync(join(dir, ".claude"));
+    writeLog(dir, {}); // assets [] — 추천 외부 자산이 기록에 없다
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("기본값 그대로 → refresh 이고, 그 자산은 체크 안 된 채 시작하며 선택으로 세지 않는다", async () => {
+    expect(EXT).not.toBe(""); // 전제
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
+    const confirmInstall = vi.fn(async (_s: string) => true);
+    const result = await runInteractive(dir, {
+      prompts: makePrompts({ selectInstallTargets, confirmInstall }),
+      detect: () => state(),
+      isTty: () => true,
+    });
+    expect(selectInstallTargets.mock.calls[0]?.[0]).not.toContain(`asset:${EXT}`);
+    expect(result.mode).toBe("update");
+    const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
+    const selectedLines = summary.split("\n").filter((l) => l.trim().startsWith("· "));
+    expect(selectedLines.join("\n")).not.toContain(EXT);
+  });
+
+  it("그 자산을 체크하면 add — RUNS AS install 이고 spec 이 그 자산을 깐다", async () => {
+    const confirmInstall = vi.fn(async (_s: string) => true);
+    const result = await runInteractive(dir, {
+      prompts: makePrompts({
+        selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => [
+          ...initial,
+          `asset:${EXT}` as InstallTargetId,
+        ]),
+        confirmInstall,
+      }),
+      detect: () => state(),
+      isTty: () => true,
+    });
+    const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
+    expect(result.mode).toBe("add");
+    expect(summary).toMatch(/RUNS AS\s+agent-harness install --track tooling --cli claude/);
+    expect(result.spec?.userOverride?.forceExclude ?? []).not.toContain(EXT);
+    expect(result.spec).toEqual(specFromRunsAs(summary, dir));
+  });
+});
+
 describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하면 add", () => {
   const log = (over: Partial<InstallLog> = {}): InstallLog => ({
     schemaVersion: 1,
@@ -247,9 +320,8 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
     scope: "project",
     spec: { tracks: ["tooling"], cli: ["claude"], clis: ["claude"] },
     templates: {},
-    assets: [
-      { id: NOT_RECOMMENDED, category: "dev-tools", method: "skill", scope: "project", detail: {} },
-    ],
+    // 추천 외부 자산은 설치됐다(기록에 있다) — 아래 "기록과 같다"의 기준선.
+    assets: [...TOOLING_EXTERNAL_REC, NOT_RECOMMENDED].map(logAsset),
     ...over,
   });
   const same: UpdateSelection = {
@@ -261,7 +333,36 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
   };
 
   it("기록과 같으면 refresh — 번들 스킬(assets 에 안 남는 내장 자산)이 체크돼 있어도", () => {
+    expect(TOOLING_EXTERNAL_REC.length).toBeGreaterThan(0); // 전제: 아래 ③ 케이스가 헛통과하지 않게
     expect(classifyUpdateIntent(log(), same)).toBe("refresh");
+  });
+
+  it("③ 기록에 없는 추천 외부 자산을 체크했다(설치 때 뺐거나 실패했다) → add — refresh 는 그걸 깔지 않는다", () => {
+    const unrecorded = log({ assets: [logAsset(NOT_RECOMMENDED)] });
+    expect(classifyUpdateIntent(unrecorded, same)).toBe("add");
+  });
+
+  it("기록의 CLI 로 닿지 않는 추천 자산은 기록에 없어도 덮인다 — 설치해도 안 깔리는 것이다", () => {
+    // data 트랙 · codex 단독 — 추천 중 claude 전용(plugin) 자산은 codex 로 닿지 않는다(카탈로그에서 유도).
+    const rec = recommendedExternalAssets(["data"]);
+    const external = rec.filter((id) => assetOf(id)?.method.kind !== "internal");
+    const unreachable = external.filter((id) => {
+      const a = assetOf(id);
+      return a !== undefined && !assetReachesCli(a, ["codex"]);
+    });
+    expect(unreachable.length).toBeGreaterThan(0); // 전제
+    const codexLog = log({
+      spec: { tracks: ["data"], cli: ["codex"], clis: ["codex"] },
+      // 닿는 외부 자산은 설치됐다(기록에 있다). 닿지 않는 것은 기록에 없다.
+      assets: external.filter((id) => !unreachable.includes(id)).map(logAsset),
+    });
+    const selection = {
+      ...same,
+      tracks: ["data"] as Track[],
+      cli: ["codex"] as const,
+      assetIds: rec,
+    };
+    expect(classifyUpdateIntent(codexLog, selection)).toBe("refresh");
   });
 
   it.each([
@@ -276,9 +377,13 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
   });
 
   it("기록이 없으면 감지된 트랙 · claude 를 기준으로 본다 (buildUpdateSpec 과 같은 기준)", () => {
-    const legacy = { ...same, assetIds: [...TOOLING_REC] };
+    // 기록이 없으니 기록된 외부 자산도 없다 — Step 3 는 내장 추천만 체크한 채 시작한다.
+    const legacy = { ...same, assetIds: [...TOOLING_INTERNAL_REC] };
     expect(classifyUpdateIntent(null, legacy, ["tooling"])).toBe("refresh");
     expect(classifyUpdateIntent(null, { ...legacy, cli: ["codex"] }, ["tooling"])).toBe("add");
+    expect(classifyUpdateIntent(null, { ...legacy, assetIds: [...TOOLING_REC] }, ["tooling"])).toBe(
+      "add",
+    );
   });
 });
 
