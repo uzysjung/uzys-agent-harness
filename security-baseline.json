@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "timestamp": "2026-08-11T21:58:47.056Z",
+  "timestamp": "2026-09-27T07:15:52.590Z",
   "score": {
     "grade": "D",
     "numericScore": 45,
@@ -58,6 +58,22 @@
       "fingerprint": "permissions-env-access-0::settings.local.json::Bash(export PATH=\"$HOME/.cargo/bin:$HOME/.bun/bin:$PATH\")"
     },
     {
+      "id": "agents-bash-access-agents/design-verifier-max.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/design-verifier-max.md",
+      "file": "agents/design-verifier-max.md",
+      "fingerprint": "agents-bash-access-agents/design-verifier-max.md::agents/design-verifier-max.md::"
+    },
+    {
+      "id": "agents-bash-access-agents/design-verifier-xhigh.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/design-verifier-xhigh.md",
+      "file": "agents/design-verifier-xhigh.md",
+      "fingerprint": "agents-bash-access-agents/design-verifier-xhigh.md::agents/design-verifier-xhigh.md::"
+    },
+    {
       "id": "hooks-bg-process-1048",
       "severity": "high",
       "category": "hooks",
@@ -65,15 +81,6 @@
       "file": "hooks/docker-only-realcli.sh",
       "evidence": "&",
       "fingerprint": "hooks-bg-process-1048::hooks/docker-only-realcli.sh::&"
-    },
-    {
-      "id": "hooks-bg-process-1330",
-      "severity": "high",
-      "category": "hooks",
-      "title": "Hook spawns background process: &",
-      "file": "hooks/mcp-pre-exec.sh",
-      "evidence": "&",
-      "fingerprint": "hooks-bg-process-1330::hooks/mcp-pre-exec.sh::&"
     },
     {
       "id": "hooks-bg-process-661",
@@ -280,55 +287,12 @@
       "fingerprint": "hooks-no-pretooluse::settings.local.json::"
     },
     {
-      "id": "agents-bash-access-agents/build-error-resolver.md",
+      "id": "agents-bash-access-agents/design-verifier.md",
       "severity": "medium",
       "category": "agents",
-      "title": "Agent has Bash access: agents/build-error-resolver.md",
-      "file": "agents/build-error-resolver.md",
-      "fingerprint": "agents-bash-access-agents/build-error-resolver.md::agents/build-error-resolver.md::"
-    },
-    {
-      "id": "agents-escalation-chain-agents/build-error-resolver.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has full escalation chain: agents/build-error-resolver.md",
-      "file": "agents/build-error-resolver.md",
-      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
-      "fingerprint": "agents-escalation-chain-agents/build-error-resolver.md::agents/build-error-resolver.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
-    },
-    {
-      "id": "agents-bash-access-agents/code-reviewer.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has Bash access: agents/code-reviewer.md",
-      "file": "agents/code-reviewer.md",
-      "fingerprint": "agents-bash-access-agents/code-reviewer.md::agents/code-reviewer.md::"
-    },
-    {
-      "id": "agents-oversized-prompt-agents/code-reviewer.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent definition effective size is 6296 characters (>5000 threshold)",
-      "file": "agents/code-reviewer.md",
-      "evidence": "6296 effective characters (8747 raw)",
-      "fingerprint": "agents-oversized-prompt-agents/code-reviewer.md::agents/code-reviewer.md::6296 effective characters (8747 raw)"
-    },
-    {
-      "id": "agents-bash-access-agents/data-analyst.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has Bash access: agents/data-analyst.md",
-      "file": "agents/data-analyst.md",
-      "fingerprint": "agents-bash-access-agents/data-analyst.md::agents/data-analyst.md::"
-    },
-    {
-      "id": "agents-escalation-chain-agents/data-analyst.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has full escalation chain: agents/data-analyst.md",
-      "file": "agents/data-analyst.md",
-      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
-      "fingerprint": "agents-escalation-chain-agents/data-analyst.md::agents/data-analyst.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
+      "title": "Agent has Bash access: agents/design-verifier.md",
+      "file": "agents/design-verifier.md",
+      "fingerprint": "agents-bash-access-agents/design-verifier.md::agents/design-verifier.md::"
     },
     {
       "id": "agents-bash-access-agents/implementer.md",
@@ -354,48 +318,6 @@
       "title": "Agent has Bash access: agents/reviewer.md",
       "file": "agents/reviewer.md",
       "fingerprint": "agents-bash-access-agents/reviewer.md::agents/reviewer.md::"
-    },
-    {
-      "id": "agents-bash-access-agents/security-reviewer.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has Bash access: agents/security-reviewer.md",
-      "file": "agents/security-reviewer.md",
-      "fingerprint": "agents-bash-access-agents/security-reviewer.md::agents/security-reviewer.md::"
-    },
-    {
-      "id": "agents-escalation-chain-agents/security-reviewer.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has full escalation chain: agents/security-reviewer.md",
-      "file": "agents/security-reviewer.md",
-      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
-      "fingerprint": "agents-escalation-chain-agents/security-reviewer.md::agents/security-reviewer.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
-    },
-    {
-      "id": "agents-bash-access-agents/silent-failure-hunter.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has Bash access: agents/silent-failure-hunter.md",
-      "file": "agents/silent-failure-hunter.md",
-      "fingerprint": "agents-bash-access-agents/silent-failure-hunter.md::agents/silent-failure-hunter.md::"
-    },
-    {
-      "id": "agents-bash-access-agents/strategist.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has Bash access: agents/strategist.md",
-      "file": "agents/strategist.md",
-      "fingerprint": "agents-bash-access-agents/strategist.md::agents/strategist.md::"
-    },
-    {
-      "id": "agents-escalation-chain-agents/strategist.md",
-      "severity": "medium",
-      "category": "agents",
-      "title": "Agent has full escalation chain: agents/strategist.md",
-      "file": "agents/strategist.md",
-      "evidence": "Discovery: Grep, Glob + Read + Write: Write, Edit + Bash",
-      "fingerprint": "agents-escalation-chain-agents/strategist.md::agents/strategist.md::Discovery: Grep, Glob + Read + Write: Write, Edit + Bash"
     },
     {
       "id": "agents-bash-access-local-plugins/ecc/agents/code-reviewer.md",

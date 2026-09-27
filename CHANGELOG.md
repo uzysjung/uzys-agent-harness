@@ -7,6 +7,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.161.0] — 2026-09-27 (CLI 는 더하기만, 빼기는 uninstall 로 — 기설치 메뉴 Update / Uninstall / Exit · uninstall --cli · CLI 폴더는 지우지 않고 옮긴다)
+
+### Added
+- **기설치 메뉴가 Update / Uninstall / Exit 셋이다** (#533 · #523, PR #554). 전의 다섯 항목(Add a new Track · Update policy files · Remove(비활성) · Reinstall · Exit)은 무엇이 다른지 구분되지 않았다(사용자 보고). Update 는 한 흐름이다 — 깔린 트랙·CLI 는 체크된 채 잠기고(`● installed`, 화면에서 풀 수 없다) 더할 것만 고른다. 아무것도 안 더하면 `update` 와, 무엇을 더하면 `install --track … --cli …` 와 똑같이 돌고 확인 화면의 `RUNS AS` 줄이 그 명령을 보여 준다. Step 3 에서 체크된 자산은 실행 뒤 실제로 깔려 있다. base 트랙 라벨에 "모든 dev 트랙에 이미 포함" 한 줄(배타 선택은 하지 않는다 — 사용자 결정).
+- **`uninstall --cli <name>`** (#528, PR #535 · ADR-096). 그 CLI 전용 파일과, 그 CLI 가 마지막 사용자였던 공유 파일(`AGENTS.md` 하네스 절 · `.agents/skills/` 의 하네스 기록분)만 회수한다. 다른 CLI 의 파일 · 설치자 본문 · `npx skills` 가 깐 남의 스킬은 그대로. 마지막 남은 CLI 는 거절하고 전량 `uninstall` 을 안내한다. 설치 로그가 깔린 CLI 를 한 필드(`spec.clis`, 누적)로 기록하고 install · update · uninstall · `list` · 위저드가 그것만 읽는다 — 옛 로그는 1회 유도.
+- **Uninstall 화면 하나에 세 모드** — CLI 하나(`--cli`) · 고른 자산(`--only`) · 전부. 위저드 메뉴와 `agent-harness uninstall` 이 같은 화면을 쓴다(PR #554).
+- **`install --reinstall`** — 위저드 메뉴의 Reinstall 을 대체한다. 깨진 설치면 메뉴 위에 이 복구 명령 한 줄(PR #554).
+- **CLI 를 더하면 프로젝트 맥락이 따라간다** — Claude 로 깐 프로젝트에 OpenCode 를 더하면 새 `AGENTS.md` 의 `## Project Context` 에 루트 `CLAUDE.md` 의 설치자 본문이 복사된다(반대 방향도, PR #535).
+- `audit-harness-fit` 에 출처 간 원칙 정합 절차 — 우선순위표 · 문장 대장 · 역방향 대조 · 알려진 충돌로 대장 검증 (#525, PR #534).
+
+### Changed
+- **`uninstall` 이 `.claude/` · `.codex/` · `.opencode/` 를 지우지 않고 `<dir>.backup-<ts>` 로 옮긴다** (PR #554). 전: 통째 삭제 — 설치자가 `.codex/config.toml` 에 더한 MCP 나 `.opencode/command/` 의 자기 커맨드가 백업 없이 사라졌고 `--dry-run` 은 그 파일을 "preserved" 로 예고했다. `.claude/` 는 사용자 결정(2026-09-27), 나머지 둘은 같은 이유와 README 의 "백업 없이 지우지 않는다" 약속 기준. 전량 제거 뒤 이 백업 디렉터리를 지우는 것은 설치자 몫이다.
+- 자체 스킬 descriptor 10종을 사용자 교체 문안으로 (#509, PR #540) — tooling 트랙 발화 표면 ~2,175 → ~1,393 tok, 상주 합계 ~5,945 → ~5,163 tok.
+- `model-orchestration` 스킬 개정 — 역할을 모델 이름이 아니라 작업의 경중·문맥·비용으로 고른다 (#542, PR #544).
+- README · README.ko 를 처음 보는 사람 기준으로 재구성 — 빠른 시작 → 무엇이 들어 있나 → 트랙 → 매일 명령 → 왜 이렇게 만들었나 (#546, PR #549).
+
+### Fixed
+- **Codex · OpenCode · Antigravity 설치본의 `update` 가 새 릴리즈의 번들 스킬을 공유 자리 `.agents/skills` 에도 깐다** (#530 · #531 · #532, PR #548). 전에는 Claude 자리에만 깔렸다. 설치 때 뺀 스킬은 계속 빠지고, 기록 없는 옛 설치본에는 만들지 않는다.
+- **Claude 자리** (#529 · #524 · #536, PR #547): `.claude/skills/<id>` 를 이 프로젝트의 `.agents/skills/<id>` 링크로 둔 설치자의 스킬 본문이 옛 판으로 남던 것 · Claude 를 깔지 않은 프로젝트의 `update` 가 실행마다 `.claude.backup-<ts>` 를 쌓던 것 · 고친 스킬 파일이 `install` 에 백업 없이 덮이던 것.
+- **Codex + OpenCode 설치본에서 `AGENTS.md` 의 `## Project Context` 를 고친 뒤 `update` 마다 백업이 쌓이던 것** (#550, PR #553). 두 변환이 같은 파일을 서로 다른 템플릿으로 번갈아 썼다 — 이제 한 실행에서 한 번만 쓴다(최종 바이트는 전과 같다). 편집 없이 매번 뜨던 "2 files updated" 도 사라졌다.
+- **`update` 가 되살린 스킬·룰·에이전트를 이름으로 알리고, 영구히 빼는 인자를 안내한다** (#550, PR #553) — install 이 실제로 받는 값(번들 스킬 `<id>` · 트랙 기본 자산 `baseline:<kind>/<name>`)과 "재설치 뒤 다시 지운다". 전: 공유 자리는 개수만 · Claude 자리는 지운 스킬을 "added by this release" 로 · 룰·에이전트는 거짓인 "delete it again if intentional".
+- `uninstall --cli claude` 뒤 Update 가 "broken install" 로 실패하던 것 — 화면과 엔진이 같은 기록(깔린 CLI 집합)으로 판정한다(PR #554).
+
+### Security
+- dev 의존성 경고 6건 → 1건(vitest · coverage-v8 4.1.11, PR #541 — #537 대체). 게시 산출물 audit 은 전후 0. 개발 전용 에이전트 design-verifier 3종의 Bash 접근을 AgentShield baseline 에 수용(설치자에게 나가지 않음 · 읽기 전용 계약).
+
 ## [v26.160.1] — 2026-09-21 (AGENTS.md — uninstall 이 설치자 절을 남기고 · update 가 codex 단독 설치본의 판을 지킨다)
 
 ### Fixed
