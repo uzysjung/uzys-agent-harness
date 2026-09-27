@@ -60,9 +60,9 @@ export interface InstallOptions {
    */
   scope?: string;
   /**
-   * #533 (D9) — `.claude/` 를 `.claude.backup-<ts>` 로 옮기고 처음부터 다시 깐다(`mode: "reinstall"`).
-   * 위저드 메뉴에서 빠져 이 플래그가 됐다. `--track` 은 여전히 필수다. `.claude/` 가 없으면 옮길
-   * 것이 없어 첫 설치처럼 돈다 — 깨진 설치(기록엔 claude, `.claude/` 없음)의 복구 명령이 이것이다.
+   * #533 (D9) — 하네스 파일을 다시 깐다(`mode: "reinstall"`). 위저드 메뉴에서 빠져 이 플래그가 됐다.
+   * `--track` 은 여전히 필수다. #551 PR-3 — 폴더를 옮기지 않는다: install 과 같은 쓰기를 판정대로 한다
+   * (고친 파일만 그 파일 하나 백업). 깨진 설치(기록엔 claude, `.claude/` 없음)의 복구 명령이 이것이다.
    */
   reinstall?: boolean;
 }
@@ -460,7 +460,7 @@ export function registerInstallCommand(cli: Cli): void {
     // === Mode (#533 D9) ===
     .option(
       "--reinstall",
-      "[Mode] Move .claude/ aside as .claude.backup-<ts> and rebuild it — use when .claude/ is damaged or missing",
+      "[Mode] Rewrite the harness files in place — files you edited are saved as <file>.backup-<time> first; your own files stay. Use when .claude/ is damaged or missing",
     )
     // === Misc ===
     .option("--verbose", "[Misc] Show installed file lists per category (default: counts only)")

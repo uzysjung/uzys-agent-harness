@@ -16,7 +16,15 @@ import {
   residentCost,
   summarizeContextCost,
 } from "../context-cost.js";
-import { assetRow, c, infoRow, padDisplay, sectionHeader, unifiedSection } from "../design.js";
+import {
+  assetRow,
+  c,
+  infoRow,
+  padDisplay,
+  sectionHeader,
+  symbol,
+  unifiedSection,
+} from "../design.js";
 import {
   assetCliSupport,
   assetReachesCli,
@@ -27,6 +35,7 @@ import {
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
+import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
   buildManifestSpec,
@@ -974,9 +983,16 @@ function renderPhase1Rows(
   }
 
   // Fresh / add / reinstall — Phase 1 rows
-  // audit SEC-1/CODE-2 — 기존 settings.json·CLAUDE.md 를 덮어쓰기 전 백업했으면 fail-loud 노출.
+  // #551 PR-3 — 하네스 파일 판정의 알릴 줄. 백업한 파일마다 실제 백업 경로를 댄다(판정의 `line` 그대로).
+  const judgedBackups = new Set<string>();
+  for (const j of baseline.judged ?? []) {
+    if (j.backupAbs !== undefined) judgedBackups.add(j.backupAbs);
+    log(judgedRow(j));
+  }
+  // 외부 CLI 산출물 · 링크 본문의 백업 — 판정 줄이 없는 쪽만(같은 백업을 두 번 말하지 않는다).
   if (baseline.backups) {
     for (const b of baseline.backups) {
+      if (judgedBackups.has(b)) continue;
       log(assetRow("success", "backup", shortenPath(b)));
     }
   }
@@ -1113,17 +1129,27 @@ function renderPhase1Rows(
   if (baseline.backup) {
     log(assetRow("success", "backup", shortenPath(baseline.backup), TEMPLATES_COL));
   }
-  const mcpList = baseline.mcpServers.join(", ") || "(none)";
-  log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
+  // #551 PR-3 — 함께 쓰는 파일은 판정에서 나온 줄로 말한다(하네스 몫만 썼는지 · 못 읽어 남겼는지).
+  const shared = baseline.shared;
+  if (shared !== undefined) {
+    for (const f of shared) {
+      const row = sharedFileRow(f);
+      if (row !== null) log(row);
+    }
+  } else {
+    // 판정 결과가 없는 보고(화면 픽스처) — 옛 표기
+    const mcpList = baseline.mcpServers.join(", ") || "(none)";
+    log(assetRow("success", ".mcp.json", mcpList, TEMPLATES_COL));
+  }
   // #492 — ECC fallback hint 삭제. 폴백 사본도 `ecc-plugin` 자산도 없어져 "무엇 대신 무엇이
   //   깔렸다"고 말할 대상 자체가 없다.
   if (baseline.envFiles.envExampleCreated) {
     log(assetRow("success", ".env.example", "Supabase token guide"));
   }
-  if (baseline.envFiles.gitignoreEnvAdded) {
+  if (shared === undefined && baseline.envFiles.gitignoreEnvAdded) {
     log(assetRow("success", ".gitignore", "+ .env"));
   }
-  if (baseline.envFiles.gitignoreNpxSkillsAdded.length > 0) {
+  if (shared === undefined && baseline.envFiles.gitignoreNpxSkillsAdded.length > 0) {
     log(
       assetRow(
         "success",
@@ -1133,6 +1159,32 @@ function renderPhase1Rows(
     );
   }
   log("");
+}
+
+/**
+ * 하네스 파일 한 줄 — 판정(`judge`)의 줄 그대로. 백업했으면 그 파일의 실제 백업 경로가 줄 안에 있다
+ * (`<file>.backup-<time>` 자리표시를 writer 가 바꿨다).
+ */
+export function judgedRow(j: JudgedWrite): string {
+  return j.backup !== undefined
+    ? `  ${c.green(symbol.success)} backed up  ${j.path} — ${j.line}`
+    : `  ${c.yellow(symbol.skip)} ${j.path} — ${j.line}`;
+}
+
+/**
+ * 함께 쓰는 파일 한 줄 — 판정(`judge`)의 줄 + 어댑터가 실제로 한 일. 없는 `.gitignore` 처럼 아무것도 안 한
+ * 파일은 말하지 않는다. 못 읽은 파일은 `⊘ left <file> — could not read it (…)` 한 줄이다(#574).
+ */
+export function sharedFileRow(f: SharedWrite): string | null {
+  if (f.line === "") return null;
+  if (f.verdict === "leave+advise") return `  ${c.yellow(symbol.skip)} left  ${f.path} — ${f.line}`;
+  const parts = [f.line];
+  if (f.added.length > 0) parts.push(`added: ${f.added.join(", ")}`);
+  if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
+  if (f.deleted.length > 0) {
+    parts.push(`you removed: ${f.deleted.join(", ")} — not added back`);
+  }
+  return assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
 }
 
 function formatOptions(spec: InstallSpec): string {

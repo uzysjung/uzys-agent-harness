@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { anyTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
@@ -84,38 +84,17 @@ export function mergeMcpServers(
 }
 
 /**
- * Compose the final `.mcp.json` for a project install.
- * Read base template + track map, merge with optional existing user file (additive).
+ * 하네스가 이 트랙에 까는 `.mcp.json` 서버 — 템플릿 + 트랙 표. **설치자 파일과 합치지 않는다**:
+ * 설치자 파일에 하네스 몫을 더하는 일은 `json-keys` 어댑터가 한다(#551 PR-3). 여기서 합치던 판은
+ * 설치자 파일을 못 읽으면 템플릿으로 덮었다(#574) — 합치는 자리를 하나로 줄여 그 경로가 없다.
  */
 export function composeMcpJson(opts: {
   templateMcpPath: string;
   trackMapPath: string;
-  existingPath?: string;
   tracks: ReadonlyArray<Track>;
 }): McpJson {
   const base = JSON.parse(readFileSync(opts.templateMcpPath, "utf8")) as McpJson;
-  const merged =
-    opts.existingPath && existsSync(opts.existingPath)
-      ? mergeUserBase(base, opts.existingPath)
-      : base;
   const mapRaw = existsSync(opts.trackMapPath) ? readFileSync(opts.trackMapPath, "utf8") : "";
   const rows = parseTrackMcpMap(mapRaw);
-  return mergeMcpServers(merged, rows, opts.tracks);
-}
-
-function mergeUserBase(base: McpJson, existingPath: string): McpJson {
-  try {
-    const existing = JSON.parse(readFileSync(existingPath, "utf8")) as McpJson;
-    return {
-      ...base,
-      mcpServers: { ...base.mcpServers, ...existing.mcpServers },
-    };
-  } catch {
-    return base;
-  }
-}
-
-/** Write the composed `.mcp.json` to disk (2-space pretty). */
-export function writeMcpJson(path: string, mcp: McpJson): void {
-  writeFileSync(path, `${JSON.stringify(mcp, null, 2)}\n`);
+  return mergeMcpServers(base, rows, opts.tracks);
 }

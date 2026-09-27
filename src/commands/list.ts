@@ -136,6 +136,17 @@ function formatHarnessFileRows(log: InstallLog, projectDir: string): string[] {
 }
 
 /**
+ * `rootFiles.change` 의 짧은 이름 — #551(ADR-097)이 둘을 더했다: advisory(넘겨준 파일 — 이제 설치자 것) ·
+ * displaced(하네스 자리에 있던 설치자 파일을 비켜 뒀다 — notes 가 그 백업 경로).
+ */
+const ROOT_FILE_CHANGE: Record<InstallLogRootFile["change"], string> = {
+  created: "생성",
+  modified: "병합",
+  advisory: "넘겨줌",
+  displaced: "비켜 둠",
+};
+
+/**
  * v26.124.0 (F-1f) — `.claude/` 밖 루트 파일 행. uninstall 안내와 같은 규율로
  * **실재하는 것만** 낸다 (사용자가 이미 지운 파일을 인벤토리에 남기면 그게 거짓 기록이다).
  */
@@ -147,7 +158,7 @@ function formatRootFileRows(
   const width = Math.max(0, ...present.map((f) => f.path.length));
   return present.map(
     (f) =>
-      `    ${c.dim(padDisplay(f.path, width))}  ${c.dim(f.change === "created" ? "생성" : "병합")}  ${c.dim(f.notes.join(" / "))}`,
+      `    ${c.dim(padDisplay(f.path, width))}  ${c.dim(ROOT_FILE_CHANGE[f.change])}  ${c.dim(f.notes.join(" / "))}`,
   );
 }
 
