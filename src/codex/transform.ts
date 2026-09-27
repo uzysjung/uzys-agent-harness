@@ -55,6 +55,14 @@ export interface CodexTransformParams {
    * 그래서 codex 를 안 깐 프로젝트에서 이 transform 을 돌려도 `.codex/` 가 생기지 않는다.
    */
   refreshOnly?: boolean;
+  /**
+   * #550 — 이 실행에서 `AGENTS.md` 를 쓰는가. 기본 `true`.
+   *
+   * opencode 가 **같은 실행에서** 같은 파일을 자기 템플릿으로 쓸 때만 `false` 다(`cli-transforms.ts`).
+   * 둘 다 쓰면 디스크에는 늘 opencode 판이 남고, 다음 실행의 codex 가 그 판을 자기 판으로 바꾸려
+   * 든다 — 설치자가 Project Context 를 고친 파일이면 그 쓰기가 백업을 남긴다(편집마다 1건).
+   */
+  writeAgentsMd?: boolean;
 }
 
 export interface CodexTransformReport {
@@ -87,6 +95,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     rules = [],
     baseline,
     refreshOnly,
+    writeAgentsMd = true,
   } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
@@ -106,40 +115,44 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     writer,
   });
 
-  // 1. AGENTS.md
+  // 1. AGENTS.md — #550 opencode 가 같은 실행에서 쓰면 건너뛴다(`writeAgentsMd` 주석).
   const agentsMdPath = join(projectDir, "AGENTS.md");
   // #528 — **새로 만드는 순간에만** 다른 앵커의 설치자 절을 옮겨 심는다. 이미 있으면 그 파일의
   // 설치자 절이 이기고(`mergeAgentsMd`), refreshOnly(update)는 없는 파일을 만들지 않는다.
   const seededContext =
-    refreshOnly || existsSync(agentsMdPath) ? null : seedAgentsMdProjectContext(projectDir);
+    !writeAgentsMd || refreshOnly || existsSync(agentsMdPath)
+      ? null
+      : seedAgentsMdProjectContext(projectDir);
   ensureDir(projectDir);
-  const agentsMdOut = renderAgentsMd({
-    template: agentsTemplate,
-    claudeMd,
-    projectName,
-    // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
-    // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다.
-    // #530 — `skillIds` 를 쓴다(= 깔린 것 + **이번 실행이 만들 것**).
-    projectContext: withMarkedContinuousSkillsNote(
-      seededContext ?? renderFillScaffold("agents-md"),
-      skillIds,
-    ),
-    // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
-    harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
-  });
-  // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-  // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용
-  // 비교는 하네스가 템플릿을 고친 릴리즈마다 전 사용자에게 백업을 쌓는다 (ADR-047 기각 사유).
-  // #503 — 백업은 마지막 그물이지 보존 수단이 아니었다. 설치자가 채운 절은 디스크에서
-  // 이어받고 하네스 소유분만 최신판으로 간다 (`mergeAgentsMd`).
-  writer.write(
-    agentsMdPath,
-    mergeAgentsMd({
-      rendered: agentsMdOut,
-      existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
+  if (writeAgentsMd) {
+    const agentsMdOut = renderAgentsMd({
       template: agentsTemplate,
-    }),
-  );
+      claudeMd,
+      projectName,
+      // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
+      // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다.
+      // #530 — `skillIds` 를 쓴다(= 깔린 것 + **이번 실행이 만들 것**).
+      projectContext: withMarkedContinuousSkillsNote(
+        seededContext ?? renderFillScaffold("agents-md"),
+        skillIds,
+      ),
+      // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
+      harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
+    });
+    // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
+    // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용
+    // 비교는 하네스가 템플릿을 고친 릴리즈마다 전 사용자에게 백업을 쌓는다 (ADR-047 기각 사유).
+    // #503 — 백업은 마지막 그물이지 보존 수단이 아니었다. 설치자가 채운 절은 디스크에서
+    // 이어받고 하네스 소유분만 최신판으로 간다 (`mergeAgentsMd`).
+    writer.write(
+      agentsMdPath,
+      mergeAgentsMd({
+        rendered: agentsMdOut,
+        existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
+        template: agentsTemplate,
+      }),
+    );
+  }
 
   // 2. .codex/config.toml
   const configTomlPath = join(projectDir, ".codex/config.toml");

@@ -124,6 +124,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       rules,
       baseline,
       refreshOnly,
+      // #550 — 같은 `AGENTS.md` 를 한 실행에서 쓰는 쪽은 하나다. opencode 가 뒤에서 자기 템플릿으로
+      // 쓰면 codex 판은 어차피 같은 실행 안에서 덮였고(최종 파일 = opencode 판), 매 실행 codex 가
+      // opencode 판을 자기 판으로 뒤집는 한 번의 쓰기가 설치자 편집분을 백업으로 쌓았다.
+      writeAgentsMd: !cli.includes("opencode"),
     });
     absorb(codex);
     // v26.64.0 (ADR-020) — Codex global trust opt-in 은 scope=global 일 때만 의미.

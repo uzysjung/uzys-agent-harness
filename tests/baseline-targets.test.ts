@@ -379,6 +379,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       const report = update();
       expect(existsSync(skillDir(dropped))).toBe(false);
       expect(report.installedNew).not.toContain(`.claude/skills/${dropped}`);
+      expect(report.restored).not.toContain(`.claude/skills/${dropped}`);
       expect(existsSync(skillDir(kept))).toBe(true);
     });
 
@@ -388,7 +389,8 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       rmSync(skillDir(kept), { recursive: true, force: true });
       const report = update();
       expect(existsSync(skillDir(kept))).toBe(true);
-      expect(report.installedNew).toContain(`.claude/skills/${kept}`);
+      // #550 — 전에 깔아 준 스킬이라 "이 릴리즈의 추가"가 아니라 되살림으로 보고된다.
+      expect(report.restored).toContain(`.claude/skills/${kept}`);
     });
   });
 
