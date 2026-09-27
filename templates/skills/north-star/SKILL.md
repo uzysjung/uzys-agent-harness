@@ -1,19 +1,13 @@
 ---
 name: north-star
 description: >-
-  Defines and enforces a project's long-term direction (North Star Statement,
-  metric-as-proxy NSM, strategic Pillars with a module↔pillar map, Will/Won't,
-  4-gate + priority-order decision heuristics), then turns that direction into a
-  ranked, persisted roadmap so the plan survives /compact and new sessions. Use
-  when starting a new project, when scope creep is suspected, when a non-obvious
-  feature request needs prioritization, or when the user asks where the project
-  should go next. Sits one layer above SPEC/PRD — answers 'why and where to', not
-  'what and how'. Fires on the user's real phrasings: "앞으로 어떤 방향으로
-  개선·발전시킬지 고민해봐", "NORTH.md / NORTH_STAR 보고 나아갈 방향 + 기능 제안",
-  "북극성 정렬 로드맵", and the English "what direction should we take next",
-  "propose a roadmap from the north star". Do NOT use it to find what is broken
-  right now — detecting bugs, gaps, or quality regressions belongs to the audit/gap
-  skills; this skill consumes their findings and DIRECTS forward planning.
+  Defines long-term product direction, a North Star metric, strategic boundaries,
+  and alignment criteria, then applies them to a prioritized, persisted roadmap.
+  Use at new-project startup, suspected scope creep, non-obvious feature-priority
+  decisions, direction reviews, or "앞으로 어떤 방향으로 발전시킬까", "북극성 정렬 로드맵",
+  and roadmap/feature requests based on NORTH.md or NORTH_STAR.
+  Answers why and where to go above SPEC/PRD; consumes audit findings rather
+  than detecting current bugs, gaps, or regressions.
 ---
 
 # North Star

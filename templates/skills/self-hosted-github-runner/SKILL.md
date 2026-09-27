@@ -1,12 +1,11 @@
 ---
 name: self-hosted-github-runner
-description: >
-  GitHub 호스티드 러너를 못 쓰게 됐을 때, 레포의 기존 워크플로를 **그대로** 자기 머신의 Docker
-  self-hosted runner 에서 돌리게 만든다. 결제 실패·지출한도·분(minutes) 소진·조직 쿼터·Actions
-  장애로 CI 가 멈췄을 때, "CI 를 로컬에서 돌리자"·"self-hosted runner"·"act 로 돌릴까"·"CI 죽었는데
-  머지·배포 어떻게 하냐"는 말이 나올 때 쓴다. **누군가 "CI 스텝을 스크립트에 옮겨 적어 로컬에서
-  돌리자"고 제안할 때도 반드시 이 스킬을 켠다** — 그 안은 워크플로를 두 벌로 갈라놓고, 갈라진
-  순간부터 로컬 초록이 CI 초록을 뜻하지 않게 되기 때문이다.
+description: >-
+  GitHub 호스티드 러너의 결제·사용량·쿼터·장애 문제로 CI가 막혔을 때,
+  기존 워크플로를 복제하지 않고 Docker self-hosted runner에서 실행하도록 돕는다.
+  "CI를 로컬에서 돌리자", "self-hosted runner", "act로 돌릴까",
+  "CI가 멈췄는데 머지·배포는?" 또는 CI 스텝을 로컬 스크립트로 옮기자는 제안에도 사용한다.
+  PR·배포 게이트 복구와 로컬 실행 목적을 구분해 runner 또는 act를 선택한다.
 ---
 
 # Self-Hosted GitHub Runner
