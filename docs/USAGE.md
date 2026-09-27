@@ -27,7 +27,15 @@ ESC at step 1 exits; ESC at any later step goes back one step.
 
 Assets already in this project show `● installed` at step 3 and start checked. **Unchecking never removes anything** — removal only happens in `uninstall` — so a misclick in the installer cannot delete an asset.
 
-Run the wizard again on an installed project and it shows a menu instead of a fresh install: **Add a new Track**, **Update policy files** (same as `update` below), **Reinstall** (moves `.claude/` aside as `.claude.backup-<ts>` and rebuilds it), or **Exit**.
+Run the wizard again on an installed project and it shows what is installed — tracks, CLIs, scope, and where the record lives — and three choices: **Update**, **Uninstall**, **Exit**.
+
+**Update** walks tracks → CLIs → install items → confirm (no scope step — the scope comes from your install record). What is already installed starts checked and marked `● installed`; you only add:
+
+- **Add nothing** and it does exactly what [`update`](#update) does.
+- **Add a track, a CLI, or an asset** and it does exactly what `install --track … --cli …` does with the combined set — new files arrive, installed ones are refreshed, edited ones are backed up. The confirm screen prints that command on a `RUNS AS` line.
+- **An installed CLI cannot be dropped here.** Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
+
+**Uninstall** opens the same screen as [`uninstall`](#uninstall). If the record says Claude Code is installed but `.claude/` is gone, the menu shows a one-line repair command (`install --reinstall --track … --cli claude --scope …`) and Update stays disabled until you run it.
 
 ### Non-interactive install
 
@@ -46,6 +54,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--project-dir <path>` | Where to install. Default: the current directory |
+| `--reinstall` | Moves `.claude/` aside as `.claude.backup-<ts>` and rebuilds it. Use when `.claude/` is damaged or missing. `--track` is still required |
 | `--verbose` | Print every file per category instead of counts |
 
 One flag selects *behaviour* rather than an asset:
@@ -169,7 +178,7 @@ Brings what is installed to the release you invoke:
 
 It never installs a CLI you did not choose, and it runs without prompting, so it is safe to run from CI. A bundled skill you dropped at install time — `--without <id>` or unchecked in the wizard — stays dropped: the install log records it and `update` leaves it out. Deleting a skill directory by hand is not the same signal, so `update` restores that one; drop it with `--without` on your next `install` if you want it gone for good. `update` copies `.claude/` to `.claude.backup-<ts>` first and exits `1` if there is no install to update.
 
-`--only` limits it to a group, repeatable: `skills` · `new-skills` · `rules` · `anchor` · `hooks` · `external`. The wizard's **Update policy files** action offers the same groups as a checklist.
+`--only` limits it to a group, repeatable: `skills` · `new-skills` · `rules` · `anchor` · `hooks` · `external`. The wizard's **Update** offers the same groups as a checklist when you add nothing.
 
 ### What happens to files you edited
 
@@ -191,7 +200,8 @@ The harness never silently overwrites your config. Before replacing an editable 
 | Root `CLAUDE.md` | Kept. One import block is appended; `update` and `uninstall` touch only that block |
 | `AGENTS.md` with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
-| `.claude/` on the wizard's **Reinstall** | Renamed to `.claude.backup-<ts>`, then rebuilt |
+| `.claude/` on `install --reinstall` | Renamed to `.claude.backup-<ts>`, then rebuilt |
+| `.claude/` on `uninstall` (everything, or `--cli claude`) | Renamed to `.claude.backup-<ts>` — your own files there (`settings.local.json`, your commands) stay in the backup |
 | `.mcp.json` | Your servers are preserved and merged |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
@@ -215,7 +225,13 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes]
 ```
 
-Run it with no flags in a terminal and it opens an interactive menu. First you choose *pick items* (templates stay) or *remove everything*; if you pick items, a checklist follows where each row says exactly what removing it will do. Nothing happens until you confirm, and selecting nothing exits without changes. The menu is skipped when a flag already says what you want — `--only`, `--dry-run`, `--yes` — or when there is no terminal.
+Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with three choices, each the same as a flag:
+
+- **Remove one CLI** = `--cli <name>`. Disabled when only one CLI is installed.
+- **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; templates stay. Disabled when no external assets are recorded.
+- **Remove everything** = `--yes`.
+
+The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes` — or when there is no terminal.
 
 | Flag | What |
 |---|---|
@@ -225,31 +241,44 @@ Run it with no flags in a terminal and it opens an interactive menu. First you c
 | `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
 | `--yes` | Skip the picker and remove everything |
 
-#### Removing one CLI
-
-Installing adds a CLI; it never drops one. `--cli <name>` is the way back out for a single CLI, and it takes exactly the files that CLI owns:
-
-```bash
-npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see it first
-```
-
-- **Files only that CLI uses** go: `.codex/` for Codex, `.claude/` + `CLAUDE-uzys-harness.md` for Claude Code, `opencode.json` + `.opencode/` for OpenCode, `.agents/rules/uzys-harness.md` for Antigravity.
-- **Files two CLIs share stay until the last one leaves.** `AGENTS.md` belongs to Codex *and* OpenCode; `.agents/skills/` to Codex, OpenCode and Antigravity. Remove Codex while OpenCode is installed and both stay untouched. Remove the last of them and they are cleaned up with the same rules the full `uninstall` uses — your `## Project Context` / `## Project Rules` survive in `AGENTS.md`, and only the harness sections are cut out.
-- **Your own text in shared files stays.** In `CLAUDE.md` only the import block is cut; a file you edited since the install is kept whole and named on screen. **A CLI directory goes whole, though** — removing Claude Code deletes `.claude/` with everything inside it, including files you put there yourself (`settings.local.json`, your own commands), exactly as the full `uninstall` does. Run `--dry-run` first to see the list.
-- **Installed assets (`list`) are not touched** — they are not owned by a CLI. Use `--only <ids>` for those.
-- **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only` or `--keep-templates`.
-
-The record (`clis` in `.uzys-agent-harness/.harness-install.json`) is what every command reads to know which CLIs this project has — `list` prints it, and `update` refreshes exactly that set, including assets a new release adds.
-
 What it can and cannot reverse:
 
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`, skill directories).
-- **Harness files** — `.claude/` and `.codex/` are removed; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
+- **Harness files** — `.codex/` is removed; `.claude/` is moved aside as `.claude.backup-<ts>`, so files you put there yourself (`settings.local.json`, your own commands) are in the backup; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
 - **Global-scope assets** — listed for you to remove by hand.
 - **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
 - **Root files** — `.mcp.json`, `.gitignore`, `.env.example`, `.github/workflows/` are **listed and left in place**, labelled created or merged, because your own content may be in them.
 
 Only assets that were actually removed leave the record; a failed removal stays listed. If nothing could be removed, the command says so and exits with an error code.
+
+### Adding and removing a CLI
+
+Installing adds a CLI; it never drops one.
+
+- **Add** — in the wizard, **Update** → step 2, check the CLI. Or run `install --track <your tracks> --cli <each installed CLI> --cli <new>` — the command the wizard's confirm screen shows. Installed CLIs stay installed either way. The finish screen points at the `audit-harness-fit` skill for adapting CLI-specific wording.
+- **Remove** — in the wizard, **Uninstall** → **Remove one CLI**. Or run `uninstall --cli <name>`. It takes exactly the files that CLI owns:
+
+```bash
+npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see it first
+```
+
+| File | Used by | Goes when |
+|---|---|---|
+| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup |
+| `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
+| `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
+| `.codex/` | Codex | Codex is removed |
+| `opencode.json` (and `.opencode/` from older installs) | OpenCode | OpenCode is removed |
+| `.agents/rules/uzys-harness.md` | Antigravity | Antigravity is removed |
+| `AGENTS.md` | Codex, OpenCode | The last of them is removed — only the harness sections; your `## Project Context` / `## Project Rules` stay |
+| `.agents/skills/` (harness skills only) | Codex, OpenCode, Antigravity | The last of them is removed — skills you installed yourself stay |
+| `.mcp.json`, `.uzys-agent-harness/` | Every CLI | Never by `--cli` |
+
+- **Your own text in shared files stays.** A file you edited since the install is kept whole and named on screen. Run `--dry-run` first to see the list.
+- **Installed assets (`list`) are not touched** — they are not owned by a CLI. Use `--only <ids>` for those.
+- **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only` or `--keep-templates`.
+
+The record (`clis` in `.uzys-agent-harness/.harness-install.json`) is what every command reads to know which CLIs this project has — `list` prints it, and `update` refreshes exactly that set, including assets a new release adds.
 
 ---
 
@@ -279,7 +308,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-**`update` says a hook needs reinstall** — run the wizard and choose **Reinstall**, or run `install --track <your track>` again. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
+**`update` says a hook needs reinstall** — run `install --reinstall --track <your track>`, or run `install --track <your track>` again. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 
