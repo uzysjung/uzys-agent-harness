@@ -1,20 +1,13 @@
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
-import { runCliTransforms } from "./cli-transforms.js";
+import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
-import { addGitignoreAgentArtifacts, addGitignoreEnv, writeEnvExample } from "./env-files.js";
+import { gitignoreRender, writeEnvExample } from "./env-files.js";
 import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -23,31 +16,31 @@ import {
   selectExternalTargets,
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
-import {
-  backupDir,
-  backupFile,
-  backupFileIfChanged,
-  copyBackupDir,
-  copyDir,
-  copyFile,
-  ensureProjectSkeleton,
-  listFilesRecursive,
-} from "./fs-ops.js";
+import { copyBackupDir, ensureProjectSkeleton, listFilesRecursive } from "./fs-ops.js";
 import {
   buildInstallLog,
-  collectPolicyHashes,
-  collectSkillHashes,
-  hashContent,
   type InstallLog,
   type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
-  isHarnessOwned,
   mergeExternalFiles,
-  POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import {
+  composeWriterLog,
+  createInstallWriter,
+  cumulativeExcluded,
+  GITIGNORE_NOTE_PREFIX,
+  type InstallWriter,
+  type JudgedWrite,
+  legacyGitignoreSeed,
+  legacyMcpSeed,
+  legacySettingsSeed,
+  renderSettingsPortion,
+  type SharedWrite,
+  type WriteLedger,
+} from "./install-writes.js";
 import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
   type AssetSpec,
@@ -56,18 +49,17 @@ import {
   isCliNeutralTarget,
   resolveRules,
 } from "./manifest.js";
-import { composeMcpJson, writeMcpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
-import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
+import { upsertHarnessImport } from "./project-claude-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
-import { cleanStaleHookRefs, runUpdateMode, type UpdateModeReport } from "./update-mode.js";
+import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
 /**
  * Install mode — Router action 매핑.
  *   - "fresh"     : 첫 설치 (기본값)
  *   - "add"       : 기존 위에 Track union 추가 (backup 없음)
  *   - "update"    : 정책 파일만 templates로 갱신 (backup + orphan prune + stale hook)
- *   - "reinstall" : 기존 .claude/ backup 후 처음부터 (backup 강제)
+ *   - "reinstall" : install 과 같은 쓰기 (#551 PR-3 — `.claude/` 를 옮기지 않는다. 고친 파일만 그 파일 하나 백업)
  */
 export type InstallMode = "fresh" | "add" | "update" | "reinstall";
 
@@ -88,7 +80,8 @@ export const MODE_ENTRY_POINT: Record<InstallMode, string | null> = {
   // (backup 없음 · manifest copy 동일) — 별도 명령이 필요 없다.
   add: "install",
   update: "update",
-  // #533 (D9) — 위저드 메뉴에서 빠져 플래그가 됐다. `.claude/` 를 통째로 backup 으로 옮기는 경로다.
+  // #533 (D9) — 위저드 메뉴에서 빠져 플래그가 됐다. #551 PR-3 — 폴더 이동은 없다: install 과 같은 쓰기를
+  // 판정(`judge`)대로 한다. 기록 밖 항목 회수는 설계 §9 PR-9.
   reinstall: "install --reinstall",
 };
 
@@ -100,13 +93,13 @@ export interface InstallContext {
   spec: InstallSpec;
   /**
    * Router action mode. Defaults to "fresh".
-   * - "add"/"update"/"reinstall" trigger different install paths.
-   * - reinstall + update force backup=true.
+   * - "update" 은 따로 도는 경로다. "add"/"reinstall" 은 fresh 와 같은 쓰기다(#551 PR-3).
    */
   mode?: InstallMode;
   /**
-   * When true, an existing .claude/ is renamed to a timestamped backup before install.
-   * Auto-true when mode ∈ {update, reinstall}.
+   * **update 전용** — `.claude/` 사본(`.claude.backup-<ts>`)을 뜰지. 기본은 update 이고 claude 가 깔린 설치.
+   * install · `--reinstall` 은 폴더를 옮기거나 복사하지 않는다 — 고친 파일만 그 파일 하나를 백업한다(#551 PR-3).
+   * update 의 폴더 사본은 설계 §9 PR-5 가 없앤다.
    */
   backup?: boolean;
   /**
@@ -235,8 +228,15 @@ export interface BaselineReport {
   baselineLinked?: string[];
   /** #524 — 링크가 가리키는 공유 본문이 우리 기록에 없어 **건드리지 않은** 스킬 id. */
   baselineLinkedNotOurs?: string[];
-  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
+  /** 덮어쓰기 전 보존한 설치자 파일 백업의 절대경로 — 하네스 파일 · 외부 CLI 산출물 · 링크 본문. */
   backups?: string[];
+  /**
+   * #551 PR-3 — 하네스 파일 판정 중 **알릴 것**(백업한 파일마다 실제 백업 경로 · 같은 내용이라 둔 설치자 파일).
+   * 화면 줄은 여기서만 나온다(`judge` 의 `line`). 옵셔널 = update 경로와 화면 픽스처는 싣지 않는다.
+   */
+  judged?: JudgedWrite[];
+  /** #551 PR-3 — 함께 쓰는 파일(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 판정과 결과. */
+  shared?: SharedWrite[];
 }
 
 export interface InstallReport {
@@ -261,9 +261,9 @@ export interface InstallReport {
   /** Update-mode report (rules/agents/commands/hooks/skills 갱신 + orphan prune + stale hook). null when not update mode. */
   updateMode: UpdateModeReport | null;
   /**
-   * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로).
-   * install 은 settings.json 을 매번 템플릿으로 덮어쓰므로 치유도 매번 다시 해야 한다.
-   * claude 미선택 시 `.claude/settings.json` 자체가 없어 항상 `[]`.
+   * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로). update 경로 전용 —
+   * install 은 settings.json 의 하네스 몫을 **이번 선택으로 렌더**해 몫만 쓰므로 사후 치유가 없다(#551 PR-3 ·
+   * 설계 N13). install 에서는 항상 `[]`.
    */
   staleHookRefs: string[];
   /**
@@ -284,6 +284,10 @@ export interface InstallReport {
   baselineLinkedNotOurs?: string[];
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   backups?: string[];
+  /** #551 PR-3 — `BaselineReport.judged` 와 같다. */
+  judged?: JudgedWrite[];
+  /** #551 PR-3 — `BaselineReport.shared` 와 같다. */
+  shared?: SharedWrite[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -318,7 +322,6 @@ export function runInstall(ctx: InstallContext): InstallReport {
   const claudeDir = join(projectDir, ".claude");
 
   // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
-  // reinstall 은 아래에서 `.claude/` 를 통째로 backup 으로 옮기므로 그 뒤엔 읽을 수 없다.
   const previousLog = readInstallLog(projectDir);
 
   // Update mode pre-flight — 갱신할 **설치**가 있어야 한다. backup 전에 검증.
@@ -345,43 +348,48 @@ export function runInstall(ctx: InstallContext): InstallReport {
     );
   }
 
-  const backupPath = resolveBackupPath(ctx, mode, claudeDir, previousLog);
-
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update") {
-    return runUpdateInstall(ctx, templatesDir, backupPath);
+    return runUpdateInstall(
+      ctx,
+      templatesDir,
+      resolveUpdateBackupPath(ctx, claudeDir, previousLog),
+    );
   }
 
   const manifestSpec = buildManifestSpec(spec);
 
-  // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
-  // Codex/OpenCode 단독 사용자는 dead weight 회피.
-  // ADR-047 — 덮어쓰기 전 소유 판정에 쓸 기준선. `.claude/` 를 옮겨낸 뒤(reinstall)엔 대조할
-  // 대상이 없으므로 previousLog 를 그대로 쓰되, 그 경우 아래 existsSync 가 자연히 걸러낸다.
-  const policyBase = new Map((previousLog?.policyFiles ?? []).map((f) => [f.path, f.sha256]));
-  // #536 — 스킬 디렉터리도 같은 잣대로 판정한다. 키는 `.claude/skills/` 상대(`<id>/<rel>`).
-  const skillBase = new Map((previousLog?.skillFiles ?? []).map((f) => [f.path, f.sha256]));
-
   // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
   const baselineExcluded = new Set(spec.baselineExclude ?? []);
 
+  // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
+  // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다. 설치자가 뺀 것은 누적한다(설계 §6.2 ⓒ).
+  const excluded = cumulativeExcluded(
+    previousLog,
+    [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
+    spec.userOverride?.forceInclude ?? [],
+  );
+  const writer = createInstallWriter({ projectDir, previousLog, excluded });
+
+  // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
+  // Codex/OpenCode 단독 사용자는 dead weight 회피.
   const base = spec.cli.includes("claude")
     ? installClaudeBaseline(
         manifestSpec,
         projectDir,
         templatesDir,
-        policyBase,
-        skillBase,
         baselineExcluded,
         harnessRoot,
+        writer,
+        previousLog,
       )
     : // claude 미선택이어도 CLI 중립 자산은 깔린다. manifest 전체가 `.claude/` baseline 안에서만
       // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
       // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
-      installCliNeutralAssets(manifestSpec, projectDir, templatesDir, baselineExcluded);
+      installCliNeutralAssets(manifestSpec, templatesDir, baselineExcluded, writer);
 
-  // Compose .mcp.json from template + track-mcp-map.tsv (Codex/OpenCode도 사용 — claude 무관)
-  const mcpResult = composeAndWriteMcp(harnessRoot, projectDir, spec);
+  // `.mcp.json` — 하네스 서버만 더한다(템플릿 + 트랙 표, Codex/OpenCode 와 같은 원천 #568). claude 무관.
+  const mcp = writeMcpPortion(writer, harnessRoot, spec.tracks, previousLog);
 
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in 전용). `.github/` 은 CLI-agnostic 이라
   // claude baseline 조건 밖에서 설치. 기존 워크플로 파일은 절대 덮어쓰지 않는다.
@@ -393,9 +401,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
     ? installCiScaffold({ harnessRoot, projectDir, tracks: spec.tracks })
     : null;
 
-  // v26.133.0 (ADR-048) — 외부 CLI transform 도 소유자 판정을 받는다. 기준선은 `.claude/` 와
-  // 별도 필드(`externalFiles`)다: 저기는 templates 복사라 사후에 디스크를 훑어 만들지만
-  // (`collectPolicyHashes`), 여기는 **렌더 결과**라 훑어서는 무엇이 하네스 것인지 알 수 없다.
+  // v26.133.0 (ADR-048) — 외부 CLI transform 도 소유자 판정을 받는다. 기준선은 transform 이 **쓰면서
+  // 만든 값**(`externalFiles`)이다 — 렌더 결과라 디스크를 훑어서는 무엇이 하네스 것인지 알 수 없다.
   const {
     externalFiles,
     externalBackups,
@@ -434,23 +441,29 @@ export function runInstall(ctx: InstallContext): InstallReport {
     ),
   });
 
+  const envFiles = writeEnvironmentFiles(writer, projectDir, spec.tracks, previousLog);
+  const ledger = writer.ledger();
+
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
     skipped: base.skipped,
-    backup: backupPath,
+    // #551 PR-3 — install · `--reinstall` 은 폴더를 옮기지 않는다. 백업은 파일마다 `backups`/`judged` 에 있다.
+    backup: null,
     installedTracks: [...spec.tracks].sort(),
-    mcpServers: Object.keys(mcpResult.mcpServers).sort(),
+    mcpServers: mcp,
     ...cliTransforms,
     ciScaffold,
     updateMode: null,
     mode,
-    envFiles: writeEnvironmentFiles(projectDir, spec.tracks),
+    envFiles,
     categories: base.categories,
     rootClaudeMd: base.rootClaudeMd,
     // 외부 CLI 백업도 같은 줄에 노출한다 — 백업이 화면에 안 보이면 사용자는 자기 편집분이
     // 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다 (ADR-046/047 과 같은 이유).
-    backups: [...base.backups, ...externalBackups, ...linked.backupPaths],
+    backups: [...ledger.backups, ...externalBackups, ...linked.backupPaths],
+    judged: ledger.judged,
+    shared: ledger.shared,
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
@@ -467,66 +480,41 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
   const external = runExternalPhase(ctx);
 
-  // ━━━ M-1 — settings.json stale hook ref 치유 (baseline·external 뒤 1회) ━━━
-  // 여기서 부르는 이유: 앞 단계들이 settings.json 과 참조 대상(스킬/훅 파일)을 모두 확정한
-  // 뒤여야 "무엇이 없는가"가 답이 된다. 판정하지 않고 **디스크가 답하게 한다** — 설치자에
-  // 없는 참조가 남지 않는다 (ADR-049 와 같은 형태).
-  const staleHookRefs = healStaleHookRefs(spec, projectDir);
-
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
-  // backupPath 가 있으면 `.claude/` 를 rename 으로 밀어냈다는 뜻 — 그 안에 살던 이전 자산은
-  // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
+  // #551 PR-3 — 쓰기 = 기록. 이번 실행이 쓴 경로·sha 를 옛 기록 위에 누적한다(디스크 스캔 없음).
   writeInstallLogSafe(
     ctx,
     // 링크 본문의 기준선도 같은 필드다 — 같은 경로면 뒤(이번에 쓴 값)가 이긴다.
     [...externalFiles, ...linked.files],
     external,
-    base.rootClaudeMdLog,
+    ledger,
     previousLog,
-    backupPath !== null,
-    collectRootFiles(baseline.envFiles, ciScaffold, mcpResult.created),
+    excluded,
+    collectRootFiles(envFiles, ciScaffold, ledger.shared),
   );
 
-  return { ...baseline, external, staleHookRefs };
+  // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
+  return { ...baseline, external, staleHookRefs: [] };
 }
 
 /**
- * M-1 — settings.json 이 참조하는 없는 `.claude/**` 스크립트를 제거한다.
+ * update 의 `.claude/` 사본(copy) — **update 전용**(설계 §9 PR-5 가 없앤다). install · `--reinstall` 은 폴더를
+ * 옮기거나 복사하지 않는다(#551 PR-3).
  *
- * update 쪽 치유기(`cleanStaleHookRefs`)를 그대로 재사용한다. install 이 settings.json 을
- * 매번 템플릿으로 덮어쓰므로(`copyFile`) 치유는 설치마다 다시 필요하고, 같은 술어를 두 벌
- * 두면 그 사본이 다음 drift 서식지가 된다.
+ * #536 — **Claude 가 깔린 집합에 없으면** `.claude/` 를 복사하지 않는다. 그 실행은 `.claude/` 를 한 글자도
+ * 안 바꾸므로(update-mode `claudeManaged`) 백업할 것이 없고, 복사하면 설치자 소유 디렉터리의 사본이 실행마다
+ * 쌓인다. 판정은 로그의 깔린 집합(`installedClis`)이다 — `spec.cli`(마지막 설치분)로 보면 claude 로 깔고 codex 를
+ * 더한 설치본이 `[codex]` 로 읽혀 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 로그가 없는 레거시 설치본은
+ * 이전과 같이 백업한다.
  */
-function healStaleHookRefs(spec: InstallSpec, projectDir: string): string[] {
-  // claude 미선택이면 `.claude/settings.json` 자체가 없다.
-  if (!spec.cli.includes("claude")) return [];
-  const settingsPath = join(projectDir, ".claude/settings.json");
-  if (!existsSync(settingsPath)) return [];
-  return cleanStaleHookRefs(settingsPath, join(projectDir, ".claude"));
-}
-
-/**
- * Backup auto-on for update + reinstall (sourced from router action).
- * Update: copy backup (preserve original .claude/ for in-place update).
- * Reinstall + others: rename backup (move .claude/ aside, then full install).
- *
- * #536 — update 는 **Claude 가 깔린 집합에 없으면** `.claude/` 를 복사하지 않는다. 그 실행은
- * `.claude/` 를 한 글자도 안 바꾸므로(update-mode `claudeManaged`) 백업할 것이 없고, 복사하면
- * 설치자 소유 디렉터리의 사본이 실행마다 쌓인다. 판정은 로그의 깔린 집합(`installedClis`)이다 —
- * `spec.cli`(마지막 설치분)로 보면 claude 로 깔고 codex 를 더한 설치본이 `[codex]` 로 읽혀
- * 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 로그가 없는 레거시 설치본은 이전과 같이 백업한다.
- */
-function resolveBackupPath(
+function resolveUpdateBackupPath(
   ctx: InstallContext,
-  mode: InstallMode,
   claudeDir: string,
   previousLog: InstallLog | null,
 ): string | null {
   const claudeUntouched = previousLog !== null && !installedClis(previousLog).includes("claude");
-  const wantBackup =
-    ctx.backup ?? (mode === "reinstall" || (mode === "update" && !claudeUntouched));
-  if (!wantBackup) return null;
-  return mode === "update" ? copyBackupDir(claudeDir) : backupDir(claudeDir);
+  if (!(ctx.backup ?? !claudeUntouched)) return null;
+  return copyBackupDir(claudeDir);
 }
 
 /**
@@ -604,10 +592,6 @@ interface ClaudeBaselineResult {
     /** #528 — 새로 만들면서 다른 앵커의 설치자 절을 옮겨 심었으면 그 출처. 아니면 `null`. */
     seededFrom?: string | null;
   } | null;
-  /** 하네스 앵커 파일 무결성 기록 — uninstall 시 사용자 수정 여부 판별 (install 원본과 sha 비교). */
-  rootClaudeMdLog: { path: string; sha256: string } | null;
-  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md). audit SEC-1/CODE-2. */
-  backups: string[];
   /**
    * 2026-08-16 — 사용자가 위저드에서 **체크를 푼** 자산의 대상 경로.
    *
@@ -644,8 +628,6 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     skipped: 0,
     categories: { rules: [], agents: [], hooks: [], commands: 0, skills: [] },
     rootClaudeMd: null,
-    rootClaudeMdLog: null,
-    backups: [],
     excluded: [],
     excludedOnDisk: [],
     foreignOwned: [],
@@ -672,9 +654,9 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
  */
 function installCliNeutralAssets(
   manifestSpec: Required<AssetSpec>,
-  projectDir: string,
   templatesDir: string,
   baselineExcluded: ReadonlySet<string>,
+  writer: InstallWriter,
 ): ClaudeBaselineResult {
   const result = emptyClaudeBaseline();
   for (const entry of buildManifest(manifestSpec)) {
@@ -692,87 +674,42 @@ function installCliNeutralAssets(
       result.skipped += 1;
       continue;
     }
-    copyFile(source, join(projectDir, entry.target));
+    // #551 PR-3 — 판정대로 쓴다(첫 접촉 · 고친 파일은 그 파일 하나 백업). 전에는 백업 없이 덮었다.
+    writer.harness(entry.target, { source });
     result.filesCopied += 1;
   }
   return result;
 }
 
-/** `.claude/` baseline — manifest copy + hook chmod + .installed-tracks + root CLAUDE.md merge. */
-/**
- * 정책 파일(rules/agents/commands/hooks)을 덮어쓰기 전 사용자 편집분 보호 (v26.132.0 · ADR-047).
- *
- * 판정은 update 와 **같은 기준선**(install log `policyFiles`)을 쓴다 — 두 명령이 서로 다른
- * 기준으로 "사용자가 고쳤다"를 판정하면 한쪽이 백업한 걸 다른 쪽이 조용히 밀 수 있다.
- *
- * @returns 백업 경로. 백업이 불필요했으면 null.
- */
-function backupEditedPolicyFile(
-  entryTarget: string,
-  target: string,
-  source: string,
-  baseline: ReadonlyMap<string, string>,
-): string | null {
-  const prefix = ".claude/";
-  if (!entryTarget.startsWith(prefix)) return null;
-  const rel = entryTarget.slice(prefix.length);
-  if (!POLICY_DIRS.some(({ dir, ext }) => rel.startsWith(`${dir}/`) && rel.endsWith(ext))) {
-    return null;
-  }
-  if (!existsSync(target)) return null;
-  const current = readFileSync(target, "utf-8");
-  if (current === readFileSync(source, "utf-8")) return null; // 이미 최신 — 백업 불필요
-  const recorded = baseline.get(rel);
-  if (recorded !== undefined && recorded === hashContent(current)) return null; // 하네스가 놓아둔 그대로
-  return backupFile(target);
-}
+/** 훅 스크립트 자리 — settings.json 의 하네스 몫은 이번에 여기 깔린 스크립트만 부른다(설계 N13). */
+const HOOKS_PREFIX = ".claude/hooks/";
+const SETTINGS_TARGET = ".claude/settings.json";
+const INSTALLED_TRACKS = ".claude/.installed-tracks";
 
 /**
- * #536 — 스킬 디렉터리를 덮기 전 파일 단위로 편집분을 보존한다. 룰의 `backupEditedPolicyFile` 과
- * **같은 표**다: 번들과 같으면 없음 · 기준선(`skillFiles`)과 같으면 없음 · 그 밖(기준선과 다름 ·
- * 기록 없음)은 `.backup-<stamp>`. 그 전까지 디렉터리 복사는 어느 축에서도 백업이 없어, 기설치 위
- * `install`(위저드 Add · 옛 로그의 복구 명령)이 고친 스킬을 흔적 없이 밀었다.
+ * `.claude/` baseline — manifest 의 하네스 파일을 판정대로 쓴다 + hook chmod + `.installed-tracks` +
+ * `settings.json` 의 하네스 몫 + 루트 CLAUDE.md import.
  *
- * 남의 자리(파일 링크·FIFO)는 보지 않는다 — `copyDir` 이 어차피 건너뛰고, 백업은 그 링크를 따라
- * 남의 내용을 우리 자리에 복제한다.
- *
- * @returns 만든 백업의 절대경로.
+ * #551 PR-3 — 파일마다 `judge`(설계 §1.2)가 정한다: 없으면 쓰고 · 기록 sha 그대로면 조용히 갱신하고 ·
+ * 설치자가 고쳤거나(기록과 다름) 기록 없는 설치자 파일이 자리에 있으면(첫 접촉) **그 파일 하나**를
+ * `<file>.backup-<ts>` 로 남긴 뒤 쓴다. 스킬 디렉터리도 파일 단위다(#343 — 슬롯 안 파일 링크는 건너뛴다).
+ * `settings.json` 은 함께 쓰는 파일이라 통째로 쓰지 않고 하네스 몫만 더한다(#563).
  */
-function backupEditedSkillFiles(
-  projectDir: string,
-  entryTarget: string,
-  source: string,
-  baseline: ReadonlyMap<string, string>,
-): string[] {
-  const id = entryTarget.slice(".claude/skills/".length);
-  const backups: string[] = [];
-  for (const rel of listFilesRecursive(source)) {
-    if (foreignOwnedTarget(projectDir, `${entryTarget}/${rel}`) !== null) continue;
-    const target = join(projectDir, entryTarget, rel);
-    if (!existsSync(target)) continue;
-    const current = readFileSync(target, "utf-8");
-    if (current === readFileSync(join(source, rel), "utf-8")) continue; // 이미 최신
-    if (isHarnessOwned(baseline, `${id}/${rel}`, current)) continue; // 하네스가 놓아둔 그대로
-    backups.push(backupFile(target));
-  }
-  return backups;
-}
-
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
   templatesDir: string,
-  policyBase: ReadonlyMap<string, string>,
-  /** #536 — 스킬 파일 기준선 (`skillFiles`, 키 `<id>/<rel>`). 빈 Map = 판정 불가 → 보수적 백업. */
-  skillBase: ReadonlyMap<string, string>,
   baselineExcluded: ReadonlySet<string>,
   /** #528 — 루트 `CLAUDE.md` 를 **새로 만들 때** `AGENTS.md` 의 절 경계를 읽을 템플릿 자리. */
   harnessRoot: string,
+  writer: InstallWriter,
+  previousLog: InstallLog | null,
 ): ClaudeBaselineResult {
   ensureProjectSkeleton(projectDir);
 
   const result = emptyClaudeBaseline();
   const manifest = buildManifest(manifestSpec);
+  let settingsSource: string | null = null;
 
   for (const entry of manifest) {
     if (!entry.applies(manifestSpec)) {
@@ -812,33 +749,24 @@ function installClaudeBaseline(
       continue;
     }
     if (entry.type === "file") {
-      // 사용자 편집 가능 파일은 덮어쓰기 전 백업 (audit SEC-1 — settings.json hook/statusLine 소실 방지).
-      if (entry.target === ".claude/settings.json") {
-        const backup = backupFileIfChanged(target, readFileSync(source, "utf-8"));
-        if (backup) {
-          result.backups.push(backup);
-        }
+      if (entry.target === SETTINGS_TARGET) {
+        // 함께 쓰는 파일 — 훅 스크립트가 다 깔린 뒤 하네스 몫만 쓴다(아래).
+        settingsSource = source;
       } else {
-        // v26.132.0 (ADR-047) — 룰·훅·에이전트도 같은 보호를 받는다. 그 전까지 install 이
-        // 백업한 건 settings.json 하나뿐이라, 기존 설치 위 `install` 이 사용자가 고친 룰을
-        // 흔적 없이 밀었다 (add 모드는 `.claude/` 통짜 백업도 없다 — resolveBackupPath).
-        const backup = backupEditedPolicyFile(entry.target, target, source, policyBase);
-        if (backup) {
-          result.backups.push(backup);
-        }
+        writer.harness(entry.target, { source });
       }
-      copyFile(source, target);
       result.filesCopied += 1;
     } else {
       // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
-      // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다. 스킬 14종 중
-      // 13종이 이 경로(dir 엔트리)라 슬롯 판정만으로는 대부분이 안 막혔다.
+      // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다.
       // dir 엔트리는 전부 `.claude/skills/<id>` 다(manifest.ts #409 — 스킬은 디렉터리 단위로만).
-      result.backups.push(...backupEditedSkillFiles(projectDir, entry.target, source, skillBase));
-      for (const foreign of copyDir(source, target, (relFile) =>
-        foreignOwnedTarget(projectDir, `${entry.target}/${relFile}`),
-      )) {
-        if (!result.foreignOwned.includes(foreign)) result.foreignOwned.push(foreign);
+      for (const rel of listFilesRecursive(source)) {
+        const slot = foreignOwnedTarget(projectDir, `${entry.target}/${rel}`);
+        if (slot !== null) {
+          if (!result.foreignOwned.includes(slot)) result.foreignOwned.push(slot);
+          continue;
+        }
+        writer.harness(`${entry.target}/${rel}`, { source: join(source, rel) });
       }
       result.dirsCopied += 1;
     }
@@ -851,8 +779,24 @@ function installClaudeBaseline(
     chmodHooksSync(hookDir);
   }
 
-  // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks)
-  writeInstalledTracks(projectDir, manifestSpec.tracks);
+  // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
+  // 하네스 파일이라 같은 판정을 받는다 — 옛 판 기록엔 sha 가 없으므로 대상으로 알려 준다("no checksum").
+  writer.harness(
+    INSTALLED_TRACKS,
+    { content: installedTracksText(manifestSpec.tracks) },
+    { isTarget: (p) => p === INSTALLED_TRACKS },
+  );
+
+  if (settingsSource !== null) {
+    writeSettingsPortion(writer, settingsSource, projectDir, previousLog, (script) => {
+      const target = `${HOOKS_PREFIX}${script}`;
+      return (
+        manifest.some((e) => e.target === target && e.applies(manifestSpec)) &&
+        !isBaselineExcluded(target, baselineExcluded) &&
+        existsSync(join(projectDir, target))
+      );
+    });
+  }
 
   // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
   const rootClaudeMd = writeRootClaudeMd(
@@ -866,31 +810,81 @@ function installClaudeBaseline(
     created: rootClaudeMd.created,
     seededFrom: rootClaudeMd.seededFrom,
   };
-  // 무결성 기록의 대상은 **하네스 앵커 파일**이다 (루트 CLAUDE.md 가 아니다) — uninstall 이
-  // 회수하는 것도, update 가 갱신하는 것도 그 파일뿐이라 소유를 주장할 수 있는 것도 그것뿐이다.
-  // 방금 manifest copy 가 놓아둔 디스크 내용을 읽는다: 렌더를 다시 하면 기준선이 두 벌이 된다.
-  result.rootClaudeMdLog = harnessAnchorLog(projectDir);
   return result;
 }
 
-/** 앵커 파일의 설치 시점 sha. manifest 에서 빠졌거나 source 부재로 skip 됐으면 null (정직 기록). */
-function harnessAnchorLog(projectDir: string): { path: string; sha256: string } | null {
-  const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
-  if (!existsSync(anchor)) return null;
-  return { path: HARNESS_ANCHOR_FILE, sha256: hashContent(readFileSync(anchor, "utf-8")) };
+/**
+ * `.claude/settings.json` — 함께 쓰는 파일(`json-keys`). 템플릿을 **이번 선택으로** 렌더한 하네스 몫(훅 · statusLine)만
+ * 더하고, 설치자의 키·훅·statusLine·model 은 그대로 둔다(#563). 못 읽으면 한 바이트도 쓰지 않는다(#574).
+ * `projectDir` 는 필수다 — 옛 판이 절대경로로 박은 하네스 훅을 알아봐야 같은 훅이 두 번 돌지 않는다(PR-1 인계 ①).
+ */
+function writeSettingsPortion(
+  writer: InstallWriter,
+  source: string,
+  projectDir: string,
+  previousLog: InstallLog | null,
+  hookInstalled: (script: string) => boolean,
+): SharedWrite {
+  const render = renderSettingsPortion(readFileSync(source, "utf8"), hookInstalled);
+  const claudeWasInstalled = previousLog !== null && installedClis(previousLog).includes("claude");
+  return writer.shared(SETTINGS_TARGET, render, {
+    // 옛 판은 이 파일을 템플릿으로 통째 덮었다 — claude 를 깐 기록이 있을 때만 그 훅을 하네스 몫으로 찾는다
+    legacySeed: (text) =>
+      claudeWasInstalled ? legacySettingsSeed(text, render, projectDir) : new Map(),
+    createdNote: "Claude Code 설정 — 하네스 몫만(훅 · statusLine)",
+  });
 }
 
-/** Environment files (F7/F8 — bash setup-harness.sh L880~890 + L954~996 등가). */
+/**
+ * `.mcp.json` — 함께 쓰는 파일(`json-keys`). 하네스 서버(템플릿 + 트랙 표 — Codex · OpenCode 와 같은 원천,
+ * #568)만 더한다. 설치자 서버와 같은 이름이면 설치자 것이 이기고, 설치자가 지운 하네스 서버는 되살리지 않는다.
+ *
+ * @returns 쓴 뒤 파일에 있는 하네스 서버 이름(정렬) — 설치 화면 · 보고.
+ */
+function writeMcpPortion(
+  writer: InstallWriter,
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+  previousLog: InstallLog | null,
+): string[] {
+  const servers = renderHarnessMcp(harnessRoot, tracks).mcpServers;
+  const render = new Map<string, unknown>(
+    Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, cfg]),
+  );
+  const res = writer.shared(".mcp.json", render, {
+    legacySeed: (text) => legacyMcpSeed(text, render, previousLog),
+    createdNote: "MCP 서버 정의 생성",
+  });
+  return [...res.harness].sort();
+}
+
+function installedTracksText(tracks: ReadonlyArray<string>): string {
+  return `${[...new Set(tracks)].sort().join("\n")}\n`;
+}
+
+/**
+ * Environment files (F7/F8). `.env.example` 은 스캐폴드라 없을 때만 한 번 쓴다(ADR-037 · 결정 7). `.gitignore` 는
+ * 함께 쓰는 파일(`lines`) — **있을 때만** 하네스 줄을 더한다(설계 §2 행 15 "지금도 줄 추가" — 없는 파일은 만들지
+ * 않는다). 설치자가 이미 둔 같은 줄은 설치자 것이고, 설치자가 지운 하네스 줄은 되살리지 않는다.
+ */
 function writeEnvironmentFiles(
+  writer: InstallWriter,
   projectDir: string,
   tracks: ReadonlyArray<Track>,
+  previousLog: InstallLog | null,
 ): BaselineReport["envFiles"] {
+  const envExampleCreated = writeEnvExample(projectDir, tracks);
+  const render = gitignoreRender();
+  const res = writer.shared(".gitignore", render, {
+    onlyIfPresent: true,
+    legacySeed: (text) => legacyGitignoreSeed(text, render, previousLog),
+  });
   return {
-    envExampleCreated: writeEnvExample(projectDir, tracks),
-    gitignoreEnvAdded: addGitignoreEnv(projectDir),
+    envExampleCreated,
+    gitignoreEnvAdded: res.added.includes(".env"),
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3).
     // 2026-08-02 — `.uzys-agent-harness/` 합류 (설치 로그 + 훅 차단 로그).
-    gitignoreNpxSkillsAdded: addGitignoreAgentArtifacts(projectDir),
+    gitignoreNpxSkillsAdded: res.added.filter((line) => line !== ".env"),
   };
 }
 
@@ -939,53 +933,43 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
 /**
  * Install log write — `.uzys-agent-harness/.harness-install.json` (자산 list + scope + timestamp,
  * uninstall command 의 source). 실패는 install 자체를 fail 시키지 않음 (D16 — install 성공 우선).
+ *
+ * #551 PR-3 — **쓰기 = 기록.** 기준선은 설치 뒤 디스크를 훑어 만들지 않는다(`collectPolicyHashes` ·
+ * `collectSkillHashes` 는 install 경로에서 끊었다 — 템플릿과 이름이 같은 설치자 파일을 담았다, R1). 이번 실행이
+ * 판정대로 쓴 경로·sha 를 옛 기록 위에 누적하고(`composeWriterLog`), 옛 판 스캔 기록은 처음 한 번 소유 필터를
+ * 거쳐 이어받는다(`records: "writer"`, Q1).
  */
 function writeInstallLogSafe(
   ctx: InstallContext,
-  externalFiles: ReadonlyArray<InstallLogSkillFile>,
+  cliFiles: ReadonlyArray<InstallLogSkillFile>,
   external: ExternalInstallReport | null,
-  rootClaudeMdLog: { path: string; sha256: string } | null,
+  ledger: WriteLedger,
   previousLog: InstallLog | null,
-  claudeDirMovedAside: boolean,
+  excluded: ReadonlySet<string>,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
 ): void {
   try {
-    const log = buildInstallLog(
+    const base = buildInstallLog(
       ctx.spec,
       external,
       resolveScope(ctx.spec.scope),
-      rootClaudeMdLog,
+      ledger.anchor,
       previousLog,
-      claudeDirMovedAside,
-      rootFiles,
+      // `--reinstall` 도 `.claude/` 를 옮기지 않는다 — 이전 자산은 디스크에 그대로다
+      false,
+      [...rootFiles, ...ledger.rootFiles],
     );
-    // v26.126.0 (ADR-046) — 스킬 기준선은 **이력이 아니라 스냅샷**이라 buildInstallLog 의 누적
-    // 경로를 타지 않는다. manifest copy 가 끝난 뒤 디스크를 읽어야 값이 맞다.
-    // #528 재리뷰 N-A — `.claude/` 를 훑는 것은 claude 가 **깔린 집합**(`clis`, 누적)에 있을 때만.
-    // 안 고른 설치본의 `.claude/` 는 설치자 것이라, 템플릿과 같은 상대 경로가 우연히 있으면
-    // 기록이 생겨 옛 로그 유도가 claude 를 "깔렸다"고 읽는다(= 그 디렉터리가 `--cli claude` 로
-    // 지워진다). `spec.cli` 가 아니라 `clis` 인 이유: claude 로 깔고 codex 를 추가하는 설치는
-    // 요청엔 codex 뿐이지만 `.claude/` 기준선은 계속 찍혀야 한다(안 찍으면 다음 update 가 판정
-    // 불가로 떨어져 매번 백업한다 — ADR-047).
-    const claudeInstalled = (log.spec.clis ?? []).includes("claude");
-    const skillFiles = claudeInstalled
-      ? collectSkillHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"))
-      : [];
-    // v26.132.0 (ADR-047) — 정책 파일 기준선도 같은 이유로 여기서 찍는다. 이게 없으면
-    // 다음 update 가 소유를 판정하지 못해 ⓐ 멀쩡한 파일을 전부 백업하고 ⓑ 폐기 룰을 회수 못 한다.
-    const policyFiles = claudeInstalled
-      ? collectPolicyHashes(ctx.projectDir, join(ctx.harnessRoot, "templates"))
-      : [];
-    // v26.133.0 (ADR-048) — 외부 CLI 기준선은 transform 이 **쓰면서 만든 값**이라 여기서 다시
-    // 훑지 않는다. 이번에 안 건드린 산출물의 기록은 유지하고(다음 실행이 판정 불가로 떨어지지
-    // 않게), 디스크에서 사라진 항목만 뺀다.
-    const merged = mergeExternalFiles(ctx.projectDir, previousLog?.externalFiles, externalFiles);
-    writeInstallLog(ctx.projectDir, {
-      ...log,
-      ...(skillFiles.length > 0 ? { skillFiles } : {}),
-      ...(policyFiles.length > 0 ? { policyFiles } : {}),
-      ...(merged.length > 0 ? { externalFiles: merged } : {}),
-    });
+    writeInstallLog(
+      ctx.projectDir,
+      composeWriterLog({
+        projectDir: ctx.projectDir,
+        base,
+        previous: previousLog,
+        ledger,
+        cliFiles,
+        excluded,
+      }),
+    );
   } catch (e) {
     ctx.onProgress?.({
       type: "install-log-error",
@@ -994,45 +978,27 @@ function writeInstallLogSafe(
   }
 }
 
-function composeAndWriteMcp(
-  harnessRoot: string,
-  projectDir: string,
-  spec: InstallSpec,
-): { mcpServers: Record<string, unknown>; created: boolean } {
-  const mcpPath = join(projectDir, ".mcp.json");
-  // 쓰기 전에 본다 — 쓰고 나면 "우리가 만든 것"과 "사용자 것에 병합한 것"을 구분할 수 없다.
-  const created = !existsSync(mcpPath);
-  const composed = composeMcpJson({
-    templateMcpPath: join(harnessRoot, "templates/mcp.json"),
-    trackMapPath: join(harnessRoot, "templates/track-mcp-map.tsv"),
-    existingPath: mcpPath,
-    tracks: spec.tracks,
-  });
-  writeMcpJson(mcpPath, composed);
-  return { ...composed, created };
-}
-
 /**
- * v26.124.0 (F-1f) — 이번 설치가 `.claude/` **밖**에 만들거나 고친 루트 파일 목록.
+ * v26.124.0 (F-1f) — 이번 설치가 `.claude/` **밖**에 고친 루트 파일 목록(하네스가 **만든** 함께 쓰는 파일은
+ * writer 가 `created` 로 적는다).
  *
- * uninstall 은 이걸 지우지 않고 **안내만** 한다 (사용자 내용이 섞임). 그러려면 무엇을 건드렸는지
- * 기록이 있어야 하는데 v26.123.0 까지 아무 기록이 없어서 안내조차 못 했다.
- *
- * **이번 설치가 실제로 바꾼 것만 넣는다** — idempotent skip(이미 있어서 안 건드림)은 넣지 않는다.
+ * **이번 설치가 실제로 바꾼 것만 넣는다** — 못 읽어 남긴 파일 · 이미 최신이라 안 건드린 파일은 넣지 않는다.
  * 이전 설치분은 install-log 의 누적(mergeRootFiles)이 살려 준다.
  */
 function collectRootFiles(
   envFiles: BaselineReport["envFiles"],
   ciScaffold: CiScaffoldReport | null,
-  mcpCreated: boolean,
+  shared: ReadonlyArray<SharedWrite>,
 ): InstallLogRootFile[] {
-  const files: InstallLogRootFile[] = [
-    {
+  const files: InstallLogRootFile[] = [];
+  const mcp = shared.find((f) => f.path === ".mcp.json");
+  if (mcp?.verdict === "upsert-portion" && mcp.changed) {
+    files.push({
       path: ".mcp.json",
-      change: mcpCreated ? "created" : "modified",
-      notes: [mcpCreated ? "MCP 서버 정의 생성" : "MCP 서버 정의 병합 (기존 항목 보존)"],
-    },
-  ];
+      change: "modified",
+      notes: ["MCP 서버 정의 병합 (기존 항목 보존)"],
+    });
+  }
   if (envFiles.envExampleCreated) {
     files.push({ path: ".env.example", change: "created", notes: ["Supabase 토큰 가이드"] });
   }
@@ -1044,7 +1010,7 @@ function collectRootFiles(
     files.push({
       path: ".gitignore",
       change: "modified",
-      notes: [`추가된 줄: ${gitignoreAdded.join(", ")}`],
+      notes: [`${GITIGNORE_NOTE_PREFIX}${gitignoreAdded.join(", ")}`],
     });
   }
   for (const workflow of ciScaffold?.written ?? []) {
@@ -1077,13 +1043,6 @@ function accumulateCategory(
     const name = target.replace(/^\.claude\/skills\//, "").replace(/\/?$/, "");
     cats.skills.push(name);
   }
-}
-
-function writeInstalledTracks(projectDir: string, tracks: ReadonlyArray<string>): void {
-  const path = join(projectDir, ".claude/.installed-tracks");
-  mkdirSync(dirname(path), { recursive: true });
-  const sorted = [...new Set(tracks)].sort().join("\n");
-  writeFileSync(path, `${sorted}\n`);
 }
 
 /**

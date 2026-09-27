@@ -197,7 +197,21 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
 
   // v26.124.0 (F-1f) — `.claude/` 밖 루트 파일 안내. `--only` 는 특정 자산만 건드리는 작업이라
   // 설치 전반이 만든 루트 파일은 대상이 아니다. 구 로그(rootFiles 부재)는 빈 배열 = 안내 없음.
-  const rootFiles = selectedIds ? [] : (installLog.rootFiles ?? []);
+  // #551 PR-3 — 기록에 옮겨 둘 디렉터리 안의 항목(`.claude/settings.json` created · displaced)이 생겼다. 그 자리는
+  // 디렉터리와 함께 백업으로 가므로 "남는 것" 으로 예고하지 않는다(실행 뒤 안내는 원래 부재로 걸렀다).
+  const movedDirs = keepTemplates ? [] : recordedTemplateDirs(installLog);
+  const rootFiles = selectedIds
+    ? []
+    : (installLog.rootFiles ?? []).filter((f) => !underAny(f.path, movedDirs));
+  // #551 PR-3 — install 이 `.uzys-agent-harness/` 의 하네스 스크립트를 `externalFiles` 에 적는다. 그 디렉터리는
+  // 기록 파일과 함께 통째로 지워지므로(`settleLog`) 여기서 따로 회수·보고하지 않는다 — 따로 보고하면 고친 파일을
+  // "kept" 라 말한 뒤 디렉터리째 지운다. 파일 단위 회수는 설계 §9 PR-7.
+  const templatesLog: InstallLog = {
+    ...installLog,
+    externalFiles: (installLog.externalFiles ?? []).filter(
+      (f) => !f.path.startsWith(`${INSTALL_LOG_DIR}/`),
+    ),
+  };
 
   const plan = planReverse(targetAssets, spawn);
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
@@ -205,7 +219,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   if (options.dryRun) {
     for (const line of dryRunLines(
       plan,
-      installLog,
+      templatesLog,
       projectDir,
       keepTemplates,
       rootFiles,
@@ -226,7 +240,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
 
   if (!keepTemplates) {
     const { rootClaudeMdKept, importStripped, external, moved } = removeTemplates(
-      installLog,
+      templatesLog,
       projectDir,
       { rm, moveAside },
       harnessRoot,
@@ -480,16 +494,35 @@ function rootFileAdvisoryLines(
     "",
     c.yellow("[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):"),
     ...present.flatMap((f) => [
-      c.dim(
-        `  · ${f.path} — ${
-          f.change === "created"
-            ? "하네스가 생성 (수정한 적 없으면 삭제해도 안전)"
-            : "기존 사용자 파일에 병합 (직접 확인 필요)"
-        }`,
-      ),
-      c.dim(`      ${f.notes.join(" / ")}`),
+      c.dim(`  · ${f.path} — ${rootFileMeaning(f, projectDir)}`),
+      // displaced 의 notes 는 백업 경로 하나 — 위 줄이 이미 댔다
+      ...(f.change !== "displaced" && f.notes.length > 0
+        ? [c.dim(`      ${f.notes.join(" / ")}`)]
+        : []),
     ]),
   ];
+}
+
+/**
+ * 루트 파일 기록 한 줄의 뜻 — `rootFiles.change` 넷(#551 ADR-097: advisory · displaced 가 더해졌다).
+ * displaced 의 `notes[0]` 은 비켜 둔 설치자 원본의 백업 경로다 — 실재할 때만 그 자리를 댄다.
+ */
+function rootFileMeaning(f: InstallLogRootFile, projectDir: string): string {
+  switch (f.change) {
+    case "created":
+      return "하네스가 생성 (수정한 적 없으면 삭제해도 안전)";
+    case "modified":
+      return "기존 사용자 파일에 병합 (직접 확인 필요)";
+    case "advisory":
+      return "넘겨준 파일 — 이제 설치자 것 (지우지 않는다)";
+    case "displaced": {
+      const backup = f.notes[0];
+      if (backup === undefined) return "하네스 판과 같은 설치자 파일이 있던 자리 (그대로 두었다)";
+      return existsSync(join(projectDir, backup))
+        ? `하네스가 쓴 자리 — 원래 있던 설치자 파일은 ${backup} 에 있다`
+        : `하네스가 쓴 자리 — 원래 있던 설치자 파일의 백업(${backup})이 더는 없다`;
+    }
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

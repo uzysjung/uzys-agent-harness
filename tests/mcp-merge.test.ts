@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -8,7 +8,6 @@ import {
   mergeMcpServers,
   parseTrackMcpMap,
   type TrackMcpRow,
-  writeMcpJson,
 } from "../src/mcp-merge.js";
 
 const SAMPLE_MAP = `# header
@@ -114,32 +113,9 @@ describe("composeMcpJson", () => {
     ]);
   });
 
-  it("preserves user-defined servers from existing file", () => {
-    const userPath = join(dir, "user.mcp.json");
-    writeFileSync(
-      userPath,
-      JSON.stringify({ mcpServers: { custom: { command: "u", args: ["x"] } } }),
-    );
-    const out = composeMcpJson({
-      templateMcpPath: join(dir, "mcp.json"),
-      trackMapPath: join(dir, "track-mcp-map.tsv"),
-      existingPath: userPath,
-      tracks: ["tooling"],
-    });
-    expect(out.mcpServers.custom?.command).toBe("u");
-  });
-
-  it("survives a malformed existing user file (falls back to template only)", () => {
-    const userPath = join(dir, "user.mcp.json");
-    writeFileSync(userPath, "{ not json }");
-    const out = composeMcpJson({
-      templateMcpPath: join(dir, "mcp.json"),
-      trackMapPath: join(dir, "track-mcp-map.tsv"),
-      existingPath: userPath,
-      tracks: ["tooling"],
-    });
-    expect(out.mcpServers.context7).toBeDefined();
-  });
+  // #551 PR-3 — 설치자 파일과 합치는 일은 더는 여기서 하지 않는다(`existingPath` 삭제). 합치던 판은 설치자 파일을
+  // 못 읽으면 템플릿으로 덮었다(#574). 설치자 서버 보존 · 깨진 파일 무쓰기는 `json-keys` 어댑터 경로에서 문다
+  // (`tests/adapters.test.ts` · `tests/install-writes.test.ts`).
 
   it("works when track-mcp-map.tsv is missing", () => {
     const out = composeMcpJson({
@@ -148,17 +124,5 @@ describe("composeMcpJson", () => {
       tracks: ["full"],
     });
     expect(Object.keys(out.mcpServers)).toEqual(["context7"]);
-  });
-});
-
-describe("writeMcpJson", () => {
-  it("writes JSON with trailing newline", () => {
-    const dir = mkdtempSync(join(tmpdir(), "ch-mcp-write-"));
-    const path = join(dir, "out.json");
-    writeMcpJson(path, { mcpServers: {} });
-    const raw = readFileSync(path, "utf8");
-    expect(raw.endsWith("\n")).toBe(true);
-    expect(JSON.parse(raw)).toEqual({ mcpServers: {} });
-    rmSync(dir, { recursive: true, force: true });
   });
 });

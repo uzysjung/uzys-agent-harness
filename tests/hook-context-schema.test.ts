@@ -103,3 +103,60 @@ describe("SessionStart 훅의 출력 스키마", () => {
     ).toBe(true);
   });
 });
+
+/**
+ * git 이 아니거나 첫 커밋 전인 프로젝트에서 브랜치를 오표시하는 회귀를 막는다 (#580).
+ *
+ * git 을 스텁하지 않고 **실제 git** 을 실제 임시 디렉터리에서 돌린다 — 이슈의 재현이 그
+ * 형태이고, 스텁은 `rev-parse`/`symbolic-ref` 의 실제 실패 모드(첫 커밋 전에도 성공하는가)를
+ * 가려 버린다.
+ */
+describe("session-start.sh 의 브랜치 표시 (#580)", () => {
+  const HOOK = join(
+    resolve(dirname(fileURLToPath(import.meta.url)), ".."),
+    "templates/hooks/session-start.sh",
+  );
+  let dir = "";
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "harness-branch-display-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function branchOf(cwd: string): string {
+    const stdout = execFileSync("bash", [HOOK], { cwd, encoding: "utf8", timeout: 10_000 });
+    const ctx = (JSON.parse(stdout) as { hookSpecificOutput: { additionalContext: string } })
+      .hookSpecificOutput.additionalContext;
+    return /Branch: ([^.]*)\./.exec(ctx)?.[1] ?? "";
+  }
+
+  it("git 이 아닌 디렉터리에서는 그렇다고 말한다 — 'detached' 를 쓰지 않는다", () => {
+    expect(branchOf(dir)).toBe("not a git repo");
+  });
+
+  it("git init 직후 첫 커밋 전에는 브랜치 이름을 말한다 — 'HEAD' 를 쓰지 않는다", () => {
+    execFileSync("git", ["init", "-q"], { cwd: dir });
+    const branch = branchOf(dir);
+    expect(branch).not.toBe("HEAD");
+    expect(branch).not.toBe("detached");
+    expect(branch.length).toBeGreaterThan(0);
+  });
+
+  it("커밋이 있으면 대조군대로 브랜치 이름을 말한다", () => {
+    execFileSync("git", ["init", "-q"], { cwd: dir });
+    const before = branchOf(dir);
+    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "x"], { cwd: dir });
+    expect(branchOf(dir)).toBe(before);
+  });
+
+  it("진짜 detached HEAD(커밋을 체크아웃)에서는 'detached' 를 말한다", () => {
+    execFileSync("git", ["init", "-q"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "x"], { cwd: dir });
+    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "y"], { cwd: dir });
+    execFileSync("git", ["checkout", "-q", "HEAD~1"], { cwd: dir });
+    expect(branchOf(dir)).toBe("detached");
+  });
+});

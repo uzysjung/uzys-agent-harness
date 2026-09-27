@@ -2,7 +2,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { addGitignoreAgentArtifacts, addGitignoreEnv, writeEnvExample } from "../src/env-files.js";
+import { ADAPTERS } from "../src/adapters/index.js";
+import { gitignoreRender, writeEnvExample } from "../src/env-files.js";
 import type { Track } from "../src/types.js";
 
 describe("writeEnvExample", () => {
@@ -43,83 +44,58 @@ describe("writeEnvExample", () => {
   });
 });
 
-describe("addGitignoreEnv", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-gi-"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("appends .env when .gitignore exists without it", () => {
-    writeFileSync(join(dir, ".gitignore"), "node_modules\ndist\n");
-    const added = addGitignoreEnv(dir);
-    expect(added).toBe(true);
-    const after = readFileSync(join(dir, ".gitignore"), "utf8");
-    expect(after).toContain(".env");
-    expect(after).toContain("node_modules"); // existing preserved
-  });
-
-  it("skips when .gitignore is missing", () => {
-    expect(addGitignoreEnv(dir)).toBe(false);
-  });
-
-  it("skips when .env line already in .gitignore (exact match)", () => {
-    writeFileSync(join(dir, ".gitignore"), "node_modules\n.env\n");
-    expect(addGitignoreEnv(dir)).toBe(false);
-  });
-
-  it("skips when .env line already in .gitignore (with whitespace)", () => {
-    writeFileSync(join(dir, ".gitignore"), ".env  # comment\n");
-    expect(addGitignoreEnv(dir)).toBe(false);
-  });
-
-  it("does NOT match .env.example or .env.local as 'already present'", () => {
-    writeFileSync(join(dir, ".gitignore"), ".env.example\n.env.local\n");
-    const added = addGitignoreEnv(dir);
-    expect(added).toBe(true);
-  });
-});
-
 // 2026-08-16 (ADR-072) — `writeMcpAllowlist` describe 삭제. 함수가 없어졌다: 그 파일을 읽던
 // `mcp-pre-exec.sh` 훅이 목적 부적합으로 빠지면서 생성기만 남으면 아무도 안 보는 파일을 남의
 // 저장소에 계속 만들게 된다. 은퇴 경로(기존 설치본 정리)는 `tests/update-mode.test.ts` 가 문다.
 
-describe("addGitignoreAgentArtifacts (v0.8.0)", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-gi-skl-"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
+/**
+ * `.gitignore` 의 하네스 몫 — 렌더(`gitignoreRender`)를 `lines` 어댑터로 붙인다(#551 PR-3). 전에는 줄을 직접
+ * 덧붙이는 함수 둘이 있었다(`addGitignoreEnv` · `addGitignoreAgentArtifacts`) — 빼는 짝이 없어 uninstall 이
+ * 하네스 줄을 못 걷었다(#569). 없는 `.gitignore` 를 만들지 않는 것은 installer 의 몫이다
+ * (`tests/install-writes.test.ts`).
+ */
+describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () => {
+  function apply(existing: string, recorded: ReadonlyMap<string, string> = new Map()) {
+    const res = ADAPTERS.lines.upsert(existing, {
+      render: gitignoreRender(),
+      recorded,
+      excluded: new Set(),
+    });
+    if (!res.ok) throw new Error("lines 어댑터가 .gitignore 를 못 읽었다");
+    return { text: res.text, added: [...res.portions.keys()].filter((k) => !recorded.has(k)), res };
+  }
+
+  it("없는 줄만 붙이고 기존 줄은 그대로 둔다", () => {
+    const { text, added } = apply("node_modules\ndist\n");
+    expect(text.startsWith("node_modules\ndist\n")).toBe(true);
+    expect(added).toEqual([".env", ".factory/", ".goose/", ".uzys-agent-harness/"]);
+    expect(text).toContain("# Secret env (auto-added by agent-harness install)\n.env\n");
+    expect(text).toContain("auto-added by agent-harness");
   });
 
-  it("no .gitignore → returns []", () => {
-    expect(addGitignoreAgentArtifacts(dir)).toEqual([]);
+  it("설치자가 이미 둔 `.env` 는 설치자 것이다 — 더하지도 몫으로 적지도 않는다", () => {
+    const { added, res } = apply("node_modules\n.env\n");
+    expect(added).not.toContain(".env");
+    expect(res.kept).toContain(".env");
   });
 
-  it("empty .gitignore → adds .factory/, .goose/, .uzys-agent-harness/", () => {
-    writeFileSync(join(dir, ".gitignore"), "");
-    const added = addGitignoreAgentArtifacts(dir);
-    expect(added).toEqual([".factory/", ".goose/", ".uzys-agent-harness/"]);
-    const content = readFileSync(join(dir, ".gitignore"), "utf8");
-    expect(content).toContain(".factory/");
-    expect(content).toContain(".goose/");
-    expect(content).toContain(".uzys-agent-harness/");
-    expect(content).toContain("auto-added by agent-harness");
+  it("뒤 공백만 다른 `.env` 도 같은 줄이다", () => {
+    expect(apply(".env  \n").added).not.toContain(".env");
   });
 
-  it("idempotent — second call returns []", () => {
-    writeFileSync(join(dir, ".gitignore"), "");
-    addGitignoreAgentArtifacts(dir);
-    expect(addGitignoreAgentArtifacts(dir)).toEqual([]);
+  it("`.env.example` · `.env.local` 은 `.env` 가 아니다", () => {
+    expect(apply(".env.example\n.env.local\n").added).toContain(".env");
   });
 
-  it("partial — .factory/ already present, 나머지만 추가", () => {
-    writeFileSync(join(dir, ".gitignore"), ".factory/\n");
-    const added = addGitignoreAgentArtifacts(dir);
-    expect(added).toEqual([".goose/", ".uzys-agent-harness/"]);
+  it("두 번째 실행은 아무것도 더하지 않는다 (기록 = 첫 실행의 몫)", () => {
+    const first = apply("");
+    const again = apply(first.text, first.res.portions);
+    expect(again.res.changed).toBe(false);
+    expect(again.added).toEqual([]);
+  });
+
+  it("partial — .factory/ 가 이미 있으면 나머지만 붙는다", () => {
+    expect(apply(".factory/\n").added).toEqual([".env", ".goose/", ".uzys-agent-harness/"]);
   });
 
   /**
@@ -128,7 +104,6 @@ describe("addGitignoreAgentArtifacts (v0.8.0)", () => {
    * 비용을 떠넘기는 형태라 패턴 누락을 여기서 단독으로 문다.
    */
   it("차단 로그 디렉터리가 반드시 포함된다 (계측이 사용자 리포를 더럽히지 않는다)", () => {
-    writeFileSync(join(dir, ".gitignore"), ".factory/\n.goose/\n");
-    expect(addGitignoreAgentArtifacts(dir)).toEqual([".uzys-agent-harness/"]);
+    expect(apply(".env\n.factory/\n.goose/\n").added).toEqual([".uzys-agent-harness/"]);
   });
 });

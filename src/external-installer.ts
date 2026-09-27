@@ -11,7 +11,7 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
@@ -182,7 +182,7 @@ export function runExternalInstall(
     const baseResult = installOne(asset, { spawn, cli, scope, projectDir });
     let result: AssetInstallResult = baseResult;
     if (baseResult.ok) {
-      const v = detectVersion(asset.method, spawn);
+      const v = detectVersion(asset.method, spawn, scope, projectDir);
       if (v) result = { ...baseResult, version: v };
     }
     deps.onAssetResult?.(result);
@@ -509,7 +509,18 @@ function runSpawn(
   }
   if ((result.status ?? 1) !== 0) {
     const stderr = (result.stderr ?? "").trim();
-    const tail = stderr.length > 200 ? `${stderr.slice(0, 200)}…` : stderr;
+    // #583 — stderr 가 비면(`npx skills` 류는 원인을 stdout 에만 쓴다) stdout 끝부분에서
+    // 원인을 가져온다. npm 은 원인이 stderr 앞쪽에 있고 stdout 끝은 "A complete log of this
+    // run can be found in: …" 뿐이라 그 경로는 그대로 둔다(같은 자리 시간 초과 처리, #422 와
+    // 같은 근거 — 메시지에 원인이 없으면 무엇을 해야 하는지 모른다).
+    const usingStdout = stderr.length === 0;
+    const source = usingStdout ? (result.stdout ?? "").trim() : stderr;
+    const tail =
+      source.length > 200
+        ? usingStdout
+          ? `…${source.slice(-200)}`
+          : `${source.slice(0, 200)}…`
+        : source;
     return {
       asset,
       ok: false,
@@ -539,39 +550,35 @@ function defaultSpawn(
 
 /**
  * v26.59.0 — install 후 path 기반 version 추출.
+ * #582 — 캐시 폴더 이름 정렬·전역 npm 사본 대신 **이번 실행이 실제로 깐 것**을 읽는다.
  *
- * 안전 원칙: 실패 시 undefined 반환 (silent). install 성공 자체는 이미 검증됨.
+ * 안전 원칙: 실패 시 undefined 반환 (silent). install 성공 자체는 이미 검증됨. 모르면 비운다 —
+ * 틀린 값을 보여주는 것보다 낫다.
  *
- * - plugin: ~/.claude/plugins/cache/<marketplace>/<plugin>/<VERSION>/ 디렉토리명 (semver-like 만)
- * - npm-global: <npm root -g>/<pkg>/package.json 의 version
+ * - plugin: `~/.claude/plugins/installed_plugins.json` 의 이 scope·projectPath 항목의 version.
+ *   폴더 이름 정렬은 갱신 뒤에도 남는 옛 캐시·버전 필드 없는 커밋 SHA 폴더 때문에 "최신"과
+ *   무관하다 — 실제 설치 기록은 claude 자신이 이 파일에 남긴다(v26.64.0 ADR-020 댓글이 이미
+ *   이 파일을 매칭 대상으로 지목했다).
+ * - npm: scope=project(기본, `--save-dev`) 는 `<projectDir>/node_modules/<pkg>/package.json`.
+ *   scope=global(`-g`) 은 `npm root -g` 의 전역 사본 — 그 경우엔 전역이 실제로 깐 자리다.
  * - skill / npx-run: 표준 metadata 위치 없음 → undefined
  */
 function detectVersion(
   method: ExternalAssetMethod,
   spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
+  scope: InstallScope,
+  projectDir: string,
 ): string | undefined {
   try {
     switch (method.kind) {
-      case "plugin": {
-        // pluginId = "<plugin>@<marketplace-short>". cache path:
-        // ~/.claude/plugins/cache/<marketplace-short>/<plugin>/<VERSION>/
-        // method.marketplace 는 GH `<user>/<repo>` (다른 값) 이라 path 에 사용 X.
-        const at = method.pluginId.lastIndexOf("@");
-        if (at <= 0) return undefined;
-        const plugin = method.pluginId.slice(0, at);
-        const marketplaceShort = method.pluginId.slice(at + 1);
-        const cacheBase = join(homedir(), ".claude/plugins/cache", marketplaceShort, plugin);
-        if (!existsSync(cacheBase)) return undefined;
-        const versions = readdirSync(cacheBase)
-          .filter((v) => /^\d/.test(v))
-          .sort();
-        return versions.at(-1);
-      }
+      case "plugin":
+        return detectPluginVersion(method.pluginId, scope, projectDir);
       case "npm": {
-        const npmRoot = getNpmGlobalRoot(spawn);
-        if (!npmRoot) return undefined;
-        const pkgJson = join(npmRoot, method.pkg, "package.json");
-        if (!existsSync(pkgJson)) return undefined;
+        const pkgJson =
+          scope === "global"
+            ? detectGlobalNpmPackageJsonPath(method.pkg, spawn)
+            : join(projectDir, "node_modules", method.pkg, "package.json");
+        if (!pkgJson || !existsSync(pkgJson)) return undefined;
         const parsed = JSON.parse(readFileSync(pkgJson, "utf8")) as { version?: string };
         return parsed.version;
       }
@@ -581,6 +588,52 @@ function detectVersion(
   } catch {
     return undefined;
   }
+}
+
+/** `installed_plugins.json` 의 항목 하나 — 우리가 읽는 필드만 선언(그 외는 무시). */
+interface InstalledPluginEntry {
+  scope?: string;
+  projectPath?: string;
+  version?: string;
+  lastUpdated?: string;
+}
+
+/**
+ * `~/.claude/plugins/installed_plugins.json` 에서 이번 실행의 scope·프로젝트에 맞는 항목의
+ * version 을 읽는다. pluginId 는 카탈로그에 이미 "<plugin>@<marketplace-short>" 형태로 있고,
+ * 그 문자열이 이 파일의 최상위 키와 그대로 일치한다.
+ */
+function detectPluginVersion(
+  pluginId: string,
+  scope: InstallScope,
+  projectDir: string,
+): string | undefined {
+  const claudeScope = scope === "global" ? "user" : "project";
+  const path = join(homedir(), ".claude/plugins/installed_plugins.json");
+  if (!existsSync(path)) return undefined;
+  const data = JSON.parse(readFileSync(path, "utf8")) as {
+    plugins?: Record<string, ReadonlyArray<InstalledPluginEntry>>;
+  };
+  const entries = data.plugins?.[pluginId] ?? [];
+  const matches = entries.filter((e) =>
+    claudeScope === "user"
+      ? e.scope === "user"
+      : e.scope === "project" && e.projectPath === projectDir,
+  );
+  if (matches.length === 0) return undefined;
+  // 같은 scope·프로젝트에 항목이 둘 이상이면(관측된 적은 없지만) 가장 최근 걸 쓴다.
+  const latest = [...matches].sort((a, b) =>
+    (a.lastUpdated ?? "").localeCompare(b.lastUpdated ?? ""),
+  );
+  return latest.at(-1)?.version;
+}
+
+function detectGlobalNpmPackageJsonPath(
+  pkg: string,
+  spawn: NonNullable<ExternalInstallerDeps["spawn"]>,
+): string | undefined {
+  const npmRoot = getNpmGlobalRoot(spawn);
+  return npmRoot ? join(npmRoot, pkg, "package.json") : undefined;
 }
 
 let npmGlobalRootCache: string | undefined;
