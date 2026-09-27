@@ -617,7 +617,8 @@ describe("list · uninstall 이 displaced 를 사실대로 부른다", () => {
       { log: listOut, err: listOut, exit: vi.fn() as unknown as (code: number) => never },
     );
     const listed = listOut.mock.calls.flat().join("\n");
-    expect(listed).toMatch(new RegExp(`${ANCHOR}\\s+비켜 둠\\s+${backup.replace(/\./g, "\\.")}`));
+    const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    expect(listed).toMatch(new RegExp(`${esc(ANCHOR)}\\s+비켜 둠\\s+${esc(backup)}`));
 
     const lines: string[] = [];
     uninstallAction(
