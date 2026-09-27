@@ -581,9 +581,6 @@ function linkedSkillRows(
   }
 }
 
-/** #550 — update 가 되살린 번들 스킬 자리(Claude · 공유 자리 둘 다). 캡처 = 스킬 id. */
-const RESTORED_SKILL_PATH = /^\.(?:claude|agents)\/skills\/([^/]+)$/;
-
 /**
  * Phase 1 rows 출력. baseline-complete progress event에서 호출 — 외부 자산 설치
  * 시작 전 즉시 화면에 표시되어야 한다 (멈춰 보임 방지).
@@ -610,27 +607,33 @@ function renderPhase1Rows(
     // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
     // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
     // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.
-    // #550 — 번들 스킬은 "다시 지우라"가 답이 아니다: 설치 기록이 그 스킬을 기본 선택으로 보는 한
-    // 다음 update 가 또 되살린다. 빼는 길은 해제를 기록하는 재설치(`--without`, #505) 하나라 그
-    // 플래그를 스킬 id 로 채워 한 줄로 낸다. 자리가 둘(`.claude/skills` · `.agents/skills`)이어도 id 는 하나다.
-    const restoredSkillIds: string[] = [];
+    // #550 — "다시 지우라"는 답이 아니다: 설치 기록이 그 자산을 설치 대상으로 보는 한 다음 update 가
+    // 또 되살린다(룰·에이전트·스킬 모두 — 리뷰 N1 실측). 빼는 길은 해제를 기록하는 재설치 하나라, 그
+    // 인자(install 이 실제로 받는 id — `restoredWithout`)를 채워 한 줄로 낸다. 재설치는 이미 되살아난
+    // 파일을 지우지 않으므로 "그다음 다시 지운다"까지 말한다(리뷰 N2). 인자가 없는 자산은 뺄 길이
+    // 없으니 그 사실을 말한다. 같은 스킬이 두 자리에서 돌아와도 인자는 하나다.
+    const withoutArgs: string[] = [];
     for (const path of baseline.updateMode.restored) {
-      const skillId = RESTORED_SKILL_PATH.exec(path)?.[1];
-      if (skillId === undefined) {
+      const arg = baseline.updateMode.restoredWithout?.[path];
+      if (arg === undefined) {
         log(
-          assetRow("success", path, "was missing — reinstalled (delete it again if intentional)"),
+          assetRow(
+            "success",
+            path,
+            "was missing — reinstalled (harness-managed — update always restores it)",
+          ),
         );
         continue;
       }
       log(assetRow("success", path, "was missing — reinstalled"));
-      if (!restoredSkillIds.includes(skillId)) restoredSkillIds.push(skillId);
+      if (!withoutArgs.includes(arg)) withoutArgs.push(arg);
     }
-    if (restoredSkillIds.length > 0) {
+    if (withoutArgs.length > 0) {
       log(
         assetRow(
           "skip",
-          "to keep a skill out",
-          `deleting it is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${restoredSkillIds.map((id) => `--without ${id}`).join(" ")}`,
+          "to keep it out",
+          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again`,
         ),
       );
     }

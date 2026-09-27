@@ -379,6 +379,7 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       const report = update();
       expect(existsSync(skillDir(dropped))).toBe(false);
       expect(report.installedNew).not.toContain(`.claude/skills/${dropped}`);
+      expect(report.restored).not.toContain(`.claude/skills/${dropped}`);
       expect(existsSync(skillDir(kept))).toBe(true);
     });
 

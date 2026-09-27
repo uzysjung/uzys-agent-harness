@@ -25,10 +25,15 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { isBaselineExcluded } from "./baseline-targets.js";
+import {
+  classifyBaselineTarget,
+  isBaselineExcluded,
+  listBaselineTargets,
+} from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
 import {
   CONTINUOUS_SKILLS,
+  EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
@@ -239,6 +244,15 @@ export interface UpdateModeReport {
    * 파일이 왜 돌아왔는지 추적할 수 없다. 판별 신호는 install log 의 `policyFiles` 기준선이다.
    */
   restored: string[];
+  /**
+   * #550 리뷰 B1·N1 — `restored` 경로 → 그 자산을 **영구히 빼는** `install --without` 인자.
+   * 키가 없는 경로는 뺄 수 없는 자산이다(하네스가 관리 — update 가 늘 되살린다). 판정 =
+   * `restoredWithoutArgs`.
+   *
+   * optional = 부재는 "안내할 인자 없음"으로 읽는다. 이 리포트를 손으로 만드는 테스트 stub 이
+   * 여럿이고(`restored: []`), 채우는 곳은 `runUpdateMode` 하나다.
+   */
+  restoredWithout?: Readonly<Record<string, string>>;
   /**
    * 이 릴리즈에 새로 생겼지만 **update 가 깔 수 없는** 자산 (projectDir 상대경로).
    *
@@ -533,6 +547,9 @@ export function runUpdateMode(
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
   report.installedNew.push(...external.skillsInstalled);
   report.restored.push(...external.skillsRestored);
+  // 되살림 목록이 여기서 완성된다(파일 자산 · Claude 스킬 · 공유 자리 스킬). 인자를 정하는 트랙은
+  // 되살릴 것을 정한 그 출처(설치 기록)다 — 화면 머리글의 트랙과 섞지 않는다.
+  report.restoredWithout = restoredWithoutArgs(report.restored, installedTracks(projectDir));
   // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
   // 사용자는 두 줄을 서로 다른 두 사건으로 읽는다(리뷰 3라운드 지적).
   const saidBySlotRow = new Set(report.skillsSkippedLinks.map((id) => `.claude/skills/${id}`));
@@ -1065,6 +1082,40 @@ function installedBundledSkills(projectDir: string): string[] {
 function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
   if (log === null) return ALL_CLI_TARGETS;
   return installedClis(log);
+}
+
+/** 되살린 스킬 자리 — Claude(`.claude/skills`) · 공유 자리(`.agents/skills`). 캡처 = 스킬 id. */
+const RESTORED_SKILL_SLOT = /^\.(?:claude|agents)\/skills\/([^/]+)$/;
+
+/**
+ * #550 리뷰 B1·N1 — 되살린 자산을 영구히 빼는 `install --without` 인자.
+ *
+ * 추측하지 않고 **install 이 받아서 기록하는 id** 로만 정한다(`commands/install.ts` 검증과 같은 두
+ * 목록): ⓐ 카탈로그 id 인 번들 스킬 → 로그 `skillExclude`(#505) ⓑ 이 트랙의 baseline id
+ * (`listBaselineTargets`) → `baselineExclude`(ADR-074). update 가 되살리기 전에 보는 것도 이 두 기록이다.
+ * 둘 다 아니면 뺄 길이 없으니 인자를 내지 않는다.
+ *
+ * 스킬 자리라고 ⓐ 로 보내면 틀린다 — UI 트랙의 `ui-visual-review` 는 번들 스킬이 아니라 트랙
+ * baseline 이라 `--without ui-visual-review` 가 `Unknown asset id` 로 거절되고 스킬은 계속 돌아왔다
+ * (리뷰 B1 컨테이너 재현). 맞는 인자는 `baseline:skills/ui-visual-review` 다.
+ */
+function restoredWithoutArgs(
+  paths: ReadonlyArray<string>,
+  tracks: ReadonlyArray<Track>,
+): Record<string, string> {
+  const catalog = new Set(EXTERNAL_ASSETS.map((a) => a.id));
+  const baselineIds = new Set(listBaselineTargets({ tracks }).map((t) => t.id));
+  const out: Record<string, string> = {};
+  for (const path of paths) {
+    const skill = RESTORED_SKILL_SLOT.exec(path)?.[1];
+    if (skill !== undefined && catalog.has(skill) && INTERNAL_BUNDLED_SKILL_IDS.includes(skill)) {
+      out[path] = skill;
+      continue;
+    }
+    const target = classifyBaselineTarget(path);
+    if (target !== null && baselineIds.has(target.id)) out[path] = target.id;
+  }
+  return out;
 }
 
 /** 공유 스킬 자리(Codex · OpenCode · Antigravity) — `agents-skill-targets.ts` 가 쓰는 그 자리. */
