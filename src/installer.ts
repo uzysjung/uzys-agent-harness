@@ -409,6 +409,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
     externalForeignOwned,
+    sharedFiles: _sharedFiles,
+    portions: cliPortions,
+    portionPaths: cliPortionPaths,
+    deletedKeyIds: cliDeletedIds,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -425,6 +429,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
     previousExternal: previousLog?.externalFiles ?? [],
     // ADR-097 결정 2 — 범위 조건 없이 `--with-codex-trust` 하나로 정한다.
     codexTrust: spec.options.withCodexTrust,
+    // #551 R2 — `.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md` 의 몫도 `.mcp.json` 과 같은 왕복을
+    // 탄다: 앞 기록의 몫과 누적 제외 목록을 넘기고, 결과 몫 · 지운 키를 아래 기록(`composeWriterLog`)에 싣는다.
+    // 안 실으면 다음 실행이 하네스 구간을 설치자 것으로 읽어 영영 갱신하지 못한다.
+    shared: { portions: previousLog?.portions ?? [], excluded: [...excluded] },
   });
 
   // #524 — 링크 자리의 공유 본문. 외부 변환 **뒤에** 돈다: 그 결과를 기준선에 합쳐야 같은 실행에서
@@ -442,7 +450,14 @@ export function runInstall(ctx: InstallContext): InstallReport {
   });
 
   const envFiles = writeEnvironmentFiles(writer, projectDir, spec.tracks, previousLog);
-  const ledger = writer.ledger();
+  const writerLedger = writer.ledger();
+  // 두 쓰기 경로(PR-3 writer · CLI 변환)의 몫은 파일이 겹치지 않는다 — 경로 단위로 합쳐 한 기록으로 쓴다.
+  const ledger: WriteLedger = {
+    ...writerLedger,
+    portions: [...writerLedger.portions, ...cliPortions],
+    portionPaths: [...writerLedger.portionPaths, ...cliPortionPaths],
+    deletedIds: [...writerLedger.deletedIds, ...cliDeletedIds],
+  };
 
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
