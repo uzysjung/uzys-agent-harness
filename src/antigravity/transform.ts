@@ -19,6 +19,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
 import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
@@ -79,8 +80,19 @@ export function runAntigravityTransform(
   } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
+  // 0. #532 (Epic #527 S3) — 새 릴리즈가 더한 번들 스킬(또는 설치자가 지운 자리)을 이 CLI 의
+  //   스킬 자리에도 깐다. 대상 집합·생성 허가는 codex·opencode 와 **같은 모듈**이 정한다 —
+  //   세 CLI 가 같은 `.agents/skills/` 를 쓰므로 판정이 셋이면 한 update 안에서 갈린다.
+  //   이 목록이 1 의 상시 스킬 안내에도 들어간다(ADR-085 — 이번에 만든 것까지).
+  const { skillIds, skillWriter } = agentsSkillSlot({
+    projectDir,
+    selectedInternalSkills,
+    refreshOnly: refreshOnly ?? false,
+    writer,
+  });
+
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  const rulesFile = writeRules(harnessRoot, projectDir, writer, selectedInternalSkills);
+  const rulesFile = writeRules(harnessRoot, projectDir, writer, skillIds);
 
   // 1a. 2026-08-12 — 배포 룰을 같은 워크스페이스 룰 디렉터리에 형제 파일로 놓는다.
   //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
@@ -105,11 +117,13 @@ export function runAntigravityTransform(
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 보존.
   //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체다. 루프는 세 transform
   //   공용 helper 가 소유한다(codex·opencode 와 같은 산출물).
+  //   #532 — `skillWriter` 가 refreshOnly 에서도 **대상 집합의 자리만** 만들게 한다
+  //   (증거·범위는 `agents-skill-targets.ts`).
   const skillFiles = writeBundledSkillDirs({
     harnessRoot,
     projectDir,
-    skillIds: selectedInternalSkills,
-    writer,
+    skillIds,
+    writer: skillWriter,
   });
 
   return {

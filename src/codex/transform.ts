@@ -20,6 +20,7 @@
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
+import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { seedAgentsMdProjectContext } from "../anchor-seed.js";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
@@ -95,6 +96,16 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   const projectName = basename(projectDir);
   const mcp = readOptionalJson(join(harnessRoot, ".mcp.json"));
 
+  // #530 (Epic #527 S3) — `update` 가 **새 릴리즈의 번들 스킬도** 이 CLI 자리에 깐다. 대상
+  // 집합·생성 허가는 세 transform 공용 모듈이 정한다 — opencode 와 같은 `AGENTS.md` 를 쓰므로
+  // 둘이 같은 목록을 받아야 상시 안내가 갈리지 않는다.
+  const { skillIds, skillWriter } = agentsSkillSlot({
+    projectDir,
+    selectedInternalSkills,
+    refreshOnly: refreshOnly ?? false,
+    writer,
+  });
+
   // 1. AGENTS.md
   const agentsMdPath = join(projectDir, "AGENTS.md");
   // #528 — **새로 만드는 순간에만** 다른 앵커의 설치자 절을 옮겨 심는다. 이미 있으면 그 파일의
@@ -108,9 +119,10 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     projectName,
     // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
     // #503 — 그 조각은 설치자 소유 절 안에 사니 마커로 감싼다.
+    // #530 — `skillIds` 를 쓴다(= 깔린 것 + **이번 실행이 만들 것**).
     projectContext: withMarkedContinuousSkillsNote(
       seededContext ?? renderFillScaffold("agents-md"),
-      selectedInternalSkills,
+      skillIds,
     ),
     // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
     harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
@@ -161,11 +173,13 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   //   renderBundledSkill 이 source frontmatter(name: <id>)를 그대로 보존하고 body 만 포팅.
   //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 **디렉터리 전체**다. 루프는 세 transform
   //   공용 helper 가 소유한다(사본 셋이면 다음 수정이 또 하나를 빠뜨린다).
+  //   #530 — `skillWriter` 가 refreshOnly 에서도 **대상 집합의 자리만** 만들게 한다
+  //   (증거·범위는 `agents-skill-targets.ts`).
   const skillFiles = writeBundledSkillDirs({
     harnessRoot,
     projectDir,
-    skillIds: selectedInternalSkills,
-    writer,
+    skillIds,
+    writer: skillWriter,
   });
 
   return {
