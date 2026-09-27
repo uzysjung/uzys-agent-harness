@@ -6,7 +6,7 @@
 
 v26.64.0 의 AC1/AC2 검증:
 - `install --scope project` (default) → 컨테이너 글로벌 fs diff = 0
-- `install --scope global` (opt-in) → ADR-020 매트릭스대로 정확 write
+- `install --scope global` → 새 설치는 거절 + 대체 명령 안내(#560) · 기록이 이미 global 인 옛 설치본만 받는다
 - `uninstall` → project 자산 reverse, global 자산 미수정
 
 ## 구조
@@ -22,7 +22,7 @@ test/docker/
 └── scenarios/
     ├── scenario-smoke.sh        # build + --help + snapshot 동작 (Phase 0 완료)
     ├── scenario-project.sh      # install --scope project → diff=0 (Phase 2 후)
-    ├── scenario-global.sh       # install --scope global → 정확 write (Phase 2 후)
+    ├── scenario-global.sh       # 새 설치 --scope global 거절 · 옛 global 설치본은 지금처럼 (#560)
     └── scenario-uninstall.sh    # install + uninstall reverse (Phase 2 후)
 ```
 

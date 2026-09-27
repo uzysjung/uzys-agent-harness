@@ -3,9 +3,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
+import { renderInstallHeader } from "../src/commands/install-render.js";
 import { estimateTokens } from "../src/context-cost.js";
 import { type BaselineReport, type InstallReport, runInstall } from "../src/installer.js";
-import type { InstallSpec, Track } from "../src/types.js";
+import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
 
 /**
  * Build a mock runPipeline that fires onProgress events from the supplied
@@ -1502,6 +1503,26 @@ describe("v26.64.0 (ADR-020) — --scope flag", () => {
     expect(exit).not.toHaveBeenCalled();
     expect(captured?.scope).toBe("global");
     rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  /**
+   * 옛 global 설치본의 update·install 은 외부 도구를 홈에 다시 깐다 — 화면이 그 사실을 말해야 한다
+   * (docker `scenario-update-external-skills` D). 새 설치(project)에는 행이 없다.
+   */
+  it("#560 — 헤더의 SCOPE 행은 기록이 global 인 설치본에만 뜬다", () => {
+    const base: InstallSpec = {
+      tracks: ["tooling"],
+      options: DEFAULT_OPTIONS,
+      projectDir: "/p",
+      cli: ["claude"],
+    };
+    const render = (spec: InstallSpec): string => {
+      const lines: string[] = [];
+      renderInstallHeader((m) => lines.push(m), spec, "update");
+      return lines.join("\n");
+    };
+    expect(render({ ...base, scope: "global" })).toMatch(/SCOPE.*Global/);
+    expect(render({ ...base, scope: "project" })).not.toContain("SCOPE");
   });
 
   it("--scope invalid → warn + fallback to 'project' (D16 safe default)", () => {

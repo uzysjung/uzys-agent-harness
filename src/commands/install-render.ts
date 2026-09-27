@@ -91,6 +91,16 @@ export function renderInstallHeader(
   log(infoRow("TARGET", shortenPath(spec.projectDir)));
   log(infoRow("TRACKS", spec.tracks.join(", ")));
   log(infoRow("CLI", spec.cli.join(" · ")));
+  // #560 — 새 설치는 늘 project 라 행이 없다. 기록이 global 인 옛 설치본은 update·install 이 외부 도구를
+  //   홈에 다시 깔므로 그 사실만 말한다 — 하네스 파일은 그 설치본도 이 프로젝트에 쓴다.
+  if (spec.scope === "global") {
+    log(
+      infoRow(
+        "SCOPE",
+        "Global (from your install record) — external tools install for your user (~/.claude/, npm -g); harness files stay in this project",
+      ),
+    );
+  }
   log(infoRow("OPTIONS", formatOptions(spec)));
   // v26.82.0 (Phase R, S6) — merge 는 preset-recommend.ts 단일 구현 (이전 computeFinalAssets 중복).
   const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
