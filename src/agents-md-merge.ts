@@ -40,6 +40,13 @@ export const ANCHOR_BLOCK = marker("anchor");
 /** `## Project Context` 안의 상시 스킬 안내(ADR-085)가 사는 자리. */
 export const SKILLS_BLOCK = marker("skills");
 
+/**
+ * #558 — 첫 접촉 `AGENTS.md`(하네스 기록에 없는 설치자 파일)의 하네스 블록 이름(설계 §6.2 `marker-md`). 루트
+ * `CLAUDE.md` 의 import 블록과 같은 모델이다 — 설치자 본문은 바이트 그대로, 하네스 몫은 파일 끝의 이 블록 하나.
+ */
+export const AGENTS_BLOCK_NAME = "agents";
+export const AGENTS_BLOCK = marker(AGENTS_BLOCK_NAME);
+
 /** 설치자 소유 절 — 이 둘만 디스크 본문을 이어받는다. 템플릿의 절 이름과 같아야 한다. */
 const CONTEXT_SECTION = "Project Context";
 const RULES_SECTION = "Project Rules";
@@ -182,6 +189,57 @@ function legacyNoteEnd(lines: ReadonlyArray<string>, headingAt: number): number 
     i++;
   }
   return i;
+}
+
+/** 앵커 제목을 못 읽었을 때 — `templates/CLAUDE.md` 의 첫 줄과 같은 말. */
+const ANCHOR_TITLE_FALLBACK = "Working Principles";
+
+/** 앵커(`templates/CLAUDE.md`)의 제목 — 첫 줄 `# …`. 절 모델 렌더는 이 줄을 떼고 `## Project Rules` 아래에 둔다. */
+export function anchorTitle(claudeMd: string): string {
+  const first = claudeMd.split("\n")[0] ?? "";
+  return /^#\s+(.+?)\s*\r?$/.exec(first)?.[1] ?? ANCHOR_TITLE_FALLBACK;
+}
+
+function markerInner(body: ReadonlyArray<string> | null, m: HarnessBlockMarker): string[] {
+  if (body === null) return [];
+  const at = blockRange(body, m);
+  return at === null ? [] : body.slice(at[0] + 1, at[1]);
+}
+
+/**
+ * #558 — 첫 접촉 블록 본문. 절 모델 렌더(`renderAgentsMd` 결과)에서 **하네스 몫만** 뽑아 한 덩어리로 만든다.
+ *
+ * - 설치자 절(`## Project Context` · `## Project Rules`)은 설치자 파일에 이미 있으니 뺀다 — 스캐폴드도 넣지 않는다.
+ * - 그 절 안에 살던 하네스 조각(앵커 본문 · 상시 스킬 안내)은 마커를 벗겨 블록 안으로 옮긴다 — 블록 안에서 블록을
+ *   열면 읽지 못한 파일이 된다(`marker-md`).
+ * - 앵커에는 앵커 자신의 제목(`## Working Principles`)을 단다 — 설치자의 `## Project Rules` 와 같은 이름의 절이 두 개
+ *   생기면 에이전트가 어느 쪽이 설치자 규칙인지 가를 수 없다.
+ * - 나머지 하네스 절(`## Harness Rules` · `## Session Start` · `## Protected Files`)은 렌더 그대로.
+ */
+export function renderAgentsBlock(params: {
+  rendered: string;
+  template: string;
+  anchorTitle: string;
+}): string {
+  const { rendered, template } = params;
+  const names = sectionNames(template);
+  const anchor = markerInner(sectionBody(rendered, names, RULES_SECTION), ANCHOR_BLOCK);
+  const skills = markerInner(sectionBody(rendered, names, CONTEXT_SECTION), SKILLS_BLOCK);
+  const harness: string[] = [];
+  let keep = false;
+  for (const line of rendered.split("\n")) {
+    const name = headingName(line, names);
+    if (name !== null) keep = name !== CONTEXT_SECTION && name !== RULES_SECTION;
+    if (keep) harness.push(line);
+  }
+  return [
+    [`## ${params.anchorTitle}`, "", ...trimBlankEdges(anchor)],
+    trimBlankEdges(skills),
+    trimBlankEdges(harness),
+  ]
+    .filter((part) => part.length > 0)
+    .map((part) => part.join("\n"))
+    .join("\n\n");
 }
 
 export interface MergeAgentsMdParams {

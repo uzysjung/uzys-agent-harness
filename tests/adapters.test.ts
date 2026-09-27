@@ -501,6 +501,25 @@ describe("toml-region — .codex/config.toml", () => {
     });
   });
 
+  it("BOM 이 붙은 파일 — 최상위 키 구간은 BOM 뒤에 들어가고, 없는 키를 설치자 것이라 하지 않는다(#551 PR-1 인계 ①)", () => {
+    const x = '﻿model = "o3"\n';
+    const u = upsertOk(tr, x, render);
+    // BOM 앞에 끼우면 판정 문서가 깨져 설치자에게 없는 `sandbox_mode` 가 "kept" 로 보고되고 안 쓰였다
+    expect(u.kept).toEqual([]);
+    expect(u.text.startsWith("﻿# uzys-harness:top:start\n")).toBe(true);
+    expect(tomlMeaning(u.text)).toMatchObject({
+      model: "o3",
+      approval_policy: "on-request",
+      sandbox_mode: "workspace-write",
+    });
+    // 갈아 끼워도 · 빼도 BOM 은 제자리 — 빼면 원본과 바이트 동일
+    const bumped = new Map([...render, ["top", 'approval_policy = "never"']]);
+    const v2 = upsertOk(tr, u.text, bumped, u.portions);
+    expect(v2.text.startsWith("﻿# uzys-harness:top:start\n")).toBe(true);
+    expect(stripOk(tr, u.text, u.portions).text).toBe(x);
+    expect(stripOk(tr, v2.text, v2.portions).text).toBe(x);
+  });
+
   it("마커가 깨진 파일에도 쓰지 않는다", () => {
     const broken = "# uzys-harness:top:start\na = 1\n"; // 끝 마커 없음 — TOML 로는 읽힌다
     const failed = { ok: false, reason: "harness markers are broken" };

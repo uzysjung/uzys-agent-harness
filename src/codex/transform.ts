@@ -20,16 +20,24 @@
 
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { mergeAgentsMd, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
+import { ADAPTERS } from "../adapters/index.js";
+import { anchorTitle, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
 import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { seedAgentsMdProjectContext } from "../anchor-seed.js";
 import { ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
-import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
+import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
+import {
+  type AgentsMdWriteResult,
+  type SharedRecord,
+  type SharedWriteResult,
+  writeAgentsMd,
+  writeShared,
+} from "../shared-write.js";
 import { renderAgentsMd } from "./agents-md.js";
-import { renderConfigToml } from "./config-toml.js";
+import { configRegions, isChangedLegacyConfig, renderConfigToml } from "./config-toml.js";
 import { writeBundledSkillDirs } from "./skills.js";
 
 export interface CodexTransformParams {
@@ -70,6 +78,11 @@ export interface CodexTransformParams {
    * 든다 — 설치자가 Project Context 를 고친 파일이면 그 쓰기가 백업을 남긴다(편집마다 1건).
    */
   writeAgentsMd?: boolean;
+  /**
+   * #551 (ADR-097) — 함께 쓰는 파일(`.codex/config.toml` · 첫 접촉 `AGENTS.md`)의 앞 기록(`shared-write.ts`
+   * `SharedRecord`). 생략 = 몫 기록 없음 — 하네스 구간을 갈아 끼우지 않고 남긴다.
+   */
+  shared?: SharedRecord;
 }
 
 export interface CodexTransformReport {
@@ -83,6 +96,13 @@ export interface CodexTransformReport {
    */
   agentsMdSeededFrom?: string | null;
   configTomlPath: string;
+  /**
+   * #563 — `.codex/config.toml` 에 하네스 몫(구간 둘)만 쓴 결과. 화면 · 기록(`portions`)이 읽는다.
+   * optional = `agentsMdSeededFrom` 과 같은 이유(손으로 만드는 테스트 stub) — 부재는 "알릴 것 없음" 으로 읽는다.
+   */
+  configToml?: SharedWriteResult;
+  /** #558 — `AGENTS.md` 를 이 실행에서 썼으면 그 모델과 결과. 안 썼으면(opencode 가 쓴다) `null` · 부재. */
+  agentsMd?: AgentsMdWriteResult | null;
   hookFiles: string[];
   /** `.agents/skills/<id>/` 에 쓴 **모든** 파일 — `SKILL.md` + 형제(references/scripts 등, #431). */
   skillFiles: string[];
@@ -103,7 +123,8 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     mcp,
     baseline,
     refreshOnly,
-    writeAgentsMd = true,
+    writeAgentsMd: writesAgentsMd = true,
+    shared = {},
   } = params;
   const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
 
@@ -127,11 +148,12 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   // #528 — **새로 만드는 순간에만** 다른 앵커의 설치자 절을 옮겨 심는다. 이미 있으면 그 파일의
   // 설치자 절이 이기고(`mergeAgentsMd`), refreshOnly(update)는 없는 파일을 만들지 않는다.
   const seededContext =
-    !writeAgentsMd || refreshOnly || existsSync(agentsMdPath)
+    !writesAgentsMd || refreshOnly || existsSync(agentsMdPath)
       ? null
       : seedAgentsMdProjectContext(projectDir);
   ensureDir(projectDir);
-  if (writeAgentsMd) {
+  let agentsMd: AgentsMdWriteResult | null = null;
+  if (writesAgentsMd) {
     const agentsMdOut = renderAgentsMd({
       template: agentsTemplate,
       claudeMd,
@@ -146,32 +168,32 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
       // Codex 는 룰 디렉터리가 없다 — 룰이 AGENTS.md 본문에 들어가야 도달한다(§Harness Rules).
       harnessRules: renderRulesBlock(portRules(harnessRoot, rules)),
     });
-    // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-    // v26.133.0 (ADR-048) — 내용 비교(backupFileIfChanged)에서 소유자 판정으로 바꿨다. 내용
-    // 비교는 하네스가 템플릿을 고친 릴리즈마다 전 사용자에게 백업을 쌓는다 (ADR-047 기각 사유).
-    // #503 — 백업은 마지막 그물이지 보존 수단이 아니었다. 설치자가 채운 절은 디스크에서
-    // 이어받고 하네스 소유분만 최신판으로 간다 (`mergeAgentsMd`).
-    writer.write(
-      agentsMdPath,
-      mergeAgentsMd({
-        rendered: agentsMdOut,
-        existing: existsSync(agentsMdPath) ? readFileSync(agentsMdPath, "utf8") : null,
-        template: agentsTemplate,
-      }),
-    );
+    // 하네스가 만든 파일은 절 모델(#503 — 설치자 절은 이어받고 하네스 절만 최신판, owned-write 가 기준선),
+    // 기록에 없는 설치자 파일은 첫 접촉 블록 모델(#558 — 본문 그대로 + 파일 끝 블록 하나). 판정 = `agentsMdModel`.
+    agentsMd = writeAgentsMd({
+      projectDir,
+      rendered: agentsMdOut,
+      template: agentsTemplate,
+      anchorTitle: anchorTitle(claudeMd),
+      writer,
+      baseline,
+      record: shared,
+      refreshOnly: refreshOnly ?? false,
+    });
   }
 
-  // 2. .codex/config.toml
-  const configTomlPath = join(projectDir, ".codex/config.toml");
-  writer.write(
-    configTomlPath,
-    renderConfigToml({
-      template: configTemplate,
-      projectName,
-      projectDir,
-      mcp,
-    }),
-  );
+  // 2. .codex/config.toml — 함께 쓰는 파일(#563 · ADR-097 §6.2 `toml-region`): 하네스 몫 구간 둘만 upsert 한다.
+  const configTomlPath = join(projectDir, CONFIG_TOML);
+  const configToml = writeConfigToml({
+    projectDir,
+    regions: configRegions(
+      renderConfigToml({ template: configTemplate, projectName, projectDir, mcp }),
+    ),
+    baseline,
+    writer,
+    record: shared,
+    refreshOnly: refreshOnly ?? false,
+  });
 
   // 3. .codex/hooks/session-start.sh
   const hookDir = join(projectDir, ".codex/hooks");
@@ -206,10 +228,61 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     agentsMdPath,
     agentsMdSeededFrom: seededContext === null ? null : "CLAUDE.md",
     configTomlPath,
+    configToml,
+    agentsMd,
     hookFiles,
     skillFiles,
     ownership: writer.result(),
   };
+}
+
+const CONFIG_TOML = ".codex/config.toml";
+
+/** 옛 판이 통째로 쓴 파일이 그 뒤 바뀌었다 — 쓰지 않는다(`isChangedLegacyConfig`). */
+const LEGACY_CHANGED =
+  "written by an earlier harness version and changed since — left as is; harness part not added";
+
+/**
+ * `.codex/config.toml` — 몫(구간 둘)만 쓴다(`writeShared`). 예외 하나: 옛 판이 통째로 쓴 파일이 그 뒤 바뀌었으면
+ * 쓰지 않는다(`isChangedLegacyConfig`).
+ */
+function writeConfigToml(args: {
+  projectDir: string;
+  regions: ReadonlyMap<string, string>;
+  baseline: ReadonlyMap<string, string>;
+  writer: OwnedWriter;
+  record: SharedRecord;
+  refreshOnly: boolean;
+}): SharedWriteResult {
+  const abs = join(args.projectDir, CONFIG_TOML);
+  const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
+  const regions = disk === null ? null : ADAPTERS["toml-region"].read(disk);
+  // 못 읽는 파일(`null`)은 판정 함수가 "한 바이트도 안 쓴다" 로 낸다 — 여기서는 읽히고 구간이 없는 파일만 가른다
+  if (
+    disk !== null &&
+    regions?.size === 0 &&
+    isChangedLegacyConfig(disk, args.baseline.get(CONFIG_TOML))
+  ) {
+    return {
+      path: CONFIG_TOML,
+      action: "left",
+      line: LEGACY_CHANGED,
+      kept: [],
+      leftAsIs: [],
+      portions: null,
+      deleted: [],
+      deletedFile: false,
+    };
+  }
+  return writeShared({
+    projectDir: args.projectDir,
+    path: CONFIG_TOML,
+    render: args.regions,
+    record: args.record,
+    baseline: args.baseline,
+    writer: args.writer,
+    refreshOnly: args.refreshOnly,
+  });
 }
 
 function readRequired(path: string): string {

@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { readToml } from "../../src/adapters/toml-region.js";
 import { renderConfigToml } from "../../src/codex/config-toml.js";
 
 const TEMPLATE = `# Codex config — {PROJECT_NAME}
@@ -44,7 +47,7 @@ describe("renderConfigToml", () => {
     expect(out).toContain("codex_hooks = true");
   });
 
-  it("strips default [mcp_servers.X] blocks when an mcp object is supplied", () => {
+  it("appends one [mcp_servers.X] block per supplied server", () => {
     const out = renderConfigToml({
       template: TEMPLATE,
       projectName: "demo",
@@ -55,10 +58,25 @@ describe("renderConfigToml", () => {
         },
       },
     });
-    expect(out).not.toContain("[mcp_servers.context7]");
     expect(out).toContain("[mcp_servers.custom]");
     expect(out).toContain('command = "node"');
     expect(out).toContain('args = ["x.js"]');
+  });
+
+  // #563 — 서버 원천은 하네스 MCP 하나다. 배포 템플릿에 살아 있는 `[mcp_servers.*]` 가 있으면 렌더가 그것을 줄 단위로
+  // 걷어내야 하고(옛 `stripExistingMcpSection`), 안 걷으면 트랙 표에 없는 서버가 Codex 에만 깔린다.
+  it("the shipped template carries no live [mcp_servers.*] — the harness servers are the only source", () => {
+    const shipped = readFileSync(
+      join(__dirname, "../../templates/codex/config.toml.template"),
+      "utf8",
+    );
+    const out = renderConfigToml({
+      template: shipped,
+      projectName: "demo",
+      projectDir: "/p",
+      mcp: { mcpServers: { custom: { command: "node", args: ["x.js"] } } },
+    });
+    expect(Object.keys(readToml(out)?.mcp_servers ?? {})).toEqual(["custom"]);
   });
 
   it("emits env block when mcpServers entry has env", () => {

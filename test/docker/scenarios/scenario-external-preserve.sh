@@ -11,7 +11,8 @@
 # 검증:
 #   ① install log 에 외부 CLI 기준선(externalFiles)이 기록된다
 #   ② 사용자가 고친 `.codex/hooks/*.sh` 가 재설치에서 `.backup-<stamp>` 로 보존된다
-#   ③ opencode 산출물도 같은 보호를 받는다 (CLI 종류로 보호가 갈리지 않는다)
+#   ③ opencode.json 은 함께 쓰는 파일이다(#563 · ADR-097 §6.2) — 설치자가 더한 키가 **라이브 파일에** 남고
+#      하네스 MCP 키만 제자리에 있다. 백업은 없다(몫만 바꾸므로 잃을 것이 없다)
 #   ④ 편집 없이 재설치를 반복해도 백업본이 쌓이지 않는다 — 특히 codex/opencode 가 공유하는
 #      AGENTS.md. 기준선 전달이 끊기면 여기서 먼저 터진다.
 
@@ -61,8 +62,9 @@ echo "✓ 무편집 재설치 — 백업 미축적 (AGENTS.md 공유 경로 포�
 # ② · ③ 사용자 편집 후 재설치.
 MARK="# 사용자가 직접 고친 내용 $$"
 printf '%s\n' "${MARK}" >> "${HOOK}"
-printf '%s\n' "${MARK}" >> "${OCJSON}"
 printf '%s\n' "${MARK}" >> "${AGENTS}"
+# opencode.json 은 JSON 으로 고친다 — 주석 줄을 덧붙이면 JSON 이 깨져 "못 읽으면 한 바이트도 안 쓴다"(#574)를 재게 된다
+jq --arg mark "${MARK}" '. + {myEdit: $mark}' "${OCJSON}" > "${OCJSON}.tmp" && mv "${OCJSON}.tmp" "${OCJSON}"
 
 agent-harness install --track tooling --cli codex --cli opencode --scope project >/dev/null
 
@@ -87,8 +89,22 @@ check_preserved () {
 }
 
 check_preserved "${HOOK}" ".codex/hooks/session-start.sh"
-check_preserved "${OCJSON}" "opencode.json"
 check_preserved "${AGENTS}" "AGENTS.md"
+
+# ③ 함께 쓰는 파일 — 설치자 키가 라이브에 남고, 하네스 MCP 키도 남고, 백업은 없다
+if [[ "$(jq -r '.myEdit // ""' "${OCJSON}")" != "${MARK}" ]]; then
+  echo "FAIL: opencode.json — 설치자가 더한 키가 라이브 파일에서 사라졌다 (#563)"
+  exit 1
+fi
+if [[ "$(jq '.mcp // {} | length' "${OCJSON}")" -eq 0 ]]; then
+  echo "FAIL: opencode.json — 하네스 MCP 키가 없다"
+  exit 1
+fi
+if find "${PROJ}" -maxdepth 1 -name 'opencode.json.backup-*' | grep -q .; then
+  echo "FAIL: opencode.json — 함께 쓰는 파일인데 백업이 생겼다"
+  exit 1
+fi
+echo "✓ opencode.json — 설치자 키 라이브 유지 + 하네스 MCP 키 유지 · 백업 0"
 
 echo ""
 echo "▸ scenario-external-preserve PASS"

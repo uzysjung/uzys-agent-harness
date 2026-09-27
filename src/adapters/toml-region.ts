@@ -2,7 +2,7 @@
  * `toml-region` — `.codex/config.toml` (#551 · ADR-097 §6.2).
  *
  * 몫 = 이름 붙은 구간(`# uzys-harness:<name>:start` ~ `:end`). 설계의 두 구간:
- *   `top`    최상위 키(`approval_policy` · `sandbox_mode`) — **파일 맨 앞**에 끼운다. 파일 끝이면 설치자의 마지막
+ *   `top`    최상위 키(`approval_policy` · `sandbox_mode`) — **파일 맨 앞**(BOM 이 있으면 그 뒤)에 끼운다. 파일 끝이면 설치자의 마지막
  *            `[table]` 안으로 들어가 Codex 가 조용히 무시하고(B4 · `strict_config.rs`), "첫 `[table]` 앞" 을 줄로
  *            찾으면 여러 줄 문자열 안의 `[…]` 줄에 속는다(#551 리뷰 N7). 파일 시작은 늘 루트 표다.
  *   그 밖    표 구간(`[sandbox_workspace_write]` · `[[hooks.*]]` · `[mcp_servers.*]` …) — 파일 끝에 붙인다.
@@ -40,6 +40,7 @@ export const TOP_REGION = "top";
 
 const MARKER_LINE = /^# uzys-harness:([A-Za-z0-9_-]+):(start|end)$/;
 const UNREADABLE = "invalid TOML";
+const BOM = "\uFEFF";
 const MARKERS_BROKEN = "harness markers are broken";
 const WOULD_BREAK = "the merged result would not be readable TOML";
 
@@ -199,10 +200,21 @@ function regionText(name: string, body: string): string {
   return `# uzys-harness:${name}:start\n${body}\n# uzys-harness:${name}:end`;
 }
 
+/** 파일 머리의 BOM 길이(0 · 1). smol-toml 은 BOM 을 받는다 — 구간은 BOM **뒤**에 둔다(#551 PR-1 인계 ①). */
+function bomLength(text: string): number {
+  return text.startsWith(BOM) ? BOM.length : 0;
+}
+
 /** 파일을 읽는다 — 파서가 못 읽으면 unreadable, 마커가 깨졌으면 markers. */
 function load(text: string): Map<string, Region> | "unreadable" | "markers" {
   if (readToml(text) === null) return "unreadable";
-  return parseRegions(text, MARKER_LINE) ?? "markers";
+  const regions = parseRegions(text, MARKER_LINE);
+  if (regions === null) return "markers";
+  // 첫 줄의 구간은 줄 시작(0)에서 시작한다고 읽히는데 그 자리의 BOM 은 구간이 아니다 — 갈아 끼우거나 뺄 때
+  // BOM 이 함께 사라지지 않게 구간을 BOM 뒤에서 시작시킨다
+  const bom = bomLength(text);
+  for (const r of regions.values()) if (r.start < bom) r.start = bom;
+  return regions;
 }
 
 function fail(state: "unreadable" | "markers"): { ok: false; reason: string } {
@@ -227,7 +239,10 @@ export const tomlRegion: PortionAdapter<string> = {
     const regions = load(base);
     if (typeof regions === "string") return fail(regions);
     const wanted = new Map([...input.render].filter(([k]) => !input.excluded.has(k)));
-    const filtered = filterRender(wanted, maskRegions(base, regions));
+    // 판정 문서는 `top` 몫 + 설치자 것을 잇는다 — 설치자 것에 BOM 이 남아 있으면 문서 한가운데 BOM 이 와 파싱이
+    // 깨지고, 그러면 설치자에게 없는 키까지 "kept" 로 보고된다(#551 PR-1 인계 ①)
+    const bom = bomLength(base);
+    const filtered = filterRender(wanted, maskRegions(base, regions).slice(bom));
     const plan = planUpsert({
       render: new Map([...filtered.render].map(([k, v]) => [k, hashContent(v)])),
       recorded: fresh ? new Map() : input.recorded,
@@ -249,7 +264,7 @@ export const tomlRegion: PortionAdapter<string> = {
     let text = applyEdits(base, edits);
     for (const k of plan.add) {
       const run = regionText(k, at(filtered.render, k));
-      text = k === TOP_REGION ? insertRun(text, 0, run) : appendRun(text, run);
+      text = k === TOP_REGION ? insertRun(text, bom, run) : appendRun(text, run);
     }
     if (readToml(text) === null) return { ok: false, reason: WOULD_BREAK };
     return {

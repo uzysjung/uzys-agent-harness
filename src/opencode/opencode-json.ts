@@ -38,6 +38,24 @@ interface OpencodeConfig {
   [key: string]: unknown;
 }
 
+/** Claude `.mcp.json` 형식 서버 하나 → OpenCode `McpLocalConfig`. */
+function toLocal(cfg: McpJson["mcpServers"][string]): OpencodeLocalMcp {
+  const local: OpencodeLocalMcp = { type: "local", command: [cfg.command, ...cfg.args] };
+  if (cfg.env && Object.keys(cfg.env).length > 0) local.environment = { ...cfg.env };
+  return local;
+}
+
+/**
+ * #563 (ADR-097 §6.2 `json-keys`) — `opencode.json` 의 하네스 몫 = 서버마다 키 `mcp.<name>`. 설치자 파일에는 이것만
+ * 더한다 — 템플릿의 나머지 키(`$schema` · `agent` · `permission` …)는 하네스가 파일을 **새로 만들 때만** 바탕(seed)으로
+ * 깔리고, 그 순간부터 설치자 것이다.
+ */
+export function renderOpencodeMcp(mcp: McpJson): Map<string, OpencodeLocalMcp> {
+  return new Map(
+    Object.entries(mcp.mcpServers).map(([name, cfg]) => [`mcp.${name}`, toLocal(cfg)]),
+  );
+}
+
 /**
  * Substitute `mcp` in the template with the harness MCP servers (OpenCode format).
  * Other keys (`agent`, `command`, `plugin`, `permission`, `instructions`,
@@ -48,11 +66,7 @@ export function renderOpencodeJson(params: RenderOpencodeJsonParams): string {
 
   if (params.mcp) {
     config.mcp = Object.fromEntries(
-      Object.entries(params.mcp.mcpServers).map(([name, cfg]) => {
-        const local: OpencodeLocalMcp = { type: "local", command: [cfg.command, ...cfg.args] };
-        if (cfg.env && Object.keys(cfg.env).length > 0) local.environment = { ...cfg.env };
-        return [name, local];
-      }),
+      Object.entries(params.mcp.mcpServers).map(([name, cfg]) => [name, toLocal(cfg)]),
     );
   }
 
