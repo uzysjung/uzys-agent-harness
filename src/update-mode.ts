@@ -68,6 +68,7 @@ import {
   TRACK_AGENTS,
 } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
+import { excludedIds } from "./recorded.js";
 import { anyTrack } from "./track-match.js";
 import {
   type CliBase,
@@ -1164,6 +1165,9 @@ function refreshExternalCli(
     tracks: installedTracks(projectDir),
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
+    // #551 R2 — 함께 쓰는 파일(`.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md`)의 몫 왕복. install 과
+    // 같은 입력(앞 기록의 몫 · 설치자가 뺀 것)을 넘겨야 설치자가 지운 하네스 구간·키·블록을 되살리지 않는다.
+    shared: { portions: log?.portions ?? [], excluded: [...excludedIds(log)] },
   });
 
   // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금
@@ -1175,6 +1179,19 @@ function refreshExternalCli(
     const next: InstallLog = { ...log };
     if (merged.length > 0) next.externalFiles = merged;
     else delete next.externalFiles;
+    // #551 R2 — 몫도 같은 이유로 다시 적는다: 갱신한 구간의 sha 를 안 적으면 다음 install 이 그 구간을 "설치자가
+    // 고쳤다" 로 읽고 영영 남긴다. 규칙은 install 의 `composeWriterLog` 와 같다 — 판정한 경로만 갈아 끼우고, 설치자가
+    // 지운 키는 `excluded` 에 **더한다**(덮어쓰지 않는다).
+    const touched = new Set(result.portionPaths);
+    const portions = [
+      ...(log.portions ?? []).filter((p) => !touched.has(p.path)),
+      ...result.portions,
+    ];
+    if (portions.length > 0) next.portions = portions;
+    else delete next.portions;
+    const excluded = [...new Set([...(log.excluded ?? []), ...result.deletedKeyIds])];
+    if (excluded.length > 0) next.excluded = excluded;
+    else delete next.excluded;
     try {
       writeInstallLog(projectDir, next);
     } catch {

@@ -6,7 +6,7 @@
  * 오케스트레이션만, 여기는 화면 출력만. 동작 변경 0 (순수 이동).
  */
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
@@ -330,7 +330,13 @@ export function renderCliArtifacts(
   const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
   const agentsBlock = agentsMd?.model === "block" ? agentsMd.shared : null;
   if (agentsBlock) {
-    const row = sharedRow(agentsBlock, "one harness block at the end (your text kept as-is)");
+    // 리뷰 NOTE-2 — 설치자가 블록을 지워 excluded 면 파일에 블록이 없다. 있는 것만 말한다
+    const row = sharedRow(
+      agentsBlock,
+      harnessKeysInFile(agentsBlock).length > 0
+        ? "one harness block at the end (your text kept as-is)"
+        : "no harness block in the file (your text kept as-is)",
+    );
     if (row) log(row);
   } else if (report.codex && report.opencode) {
     log(assetRow("success", "AGENTS.md", "shared (Codex + OpenCode)"));
@@ -353,7 +359,7 @@ export function renderCliArtifacts(
   if (report.codex) {
     // #563 — 하네스 몫(구간 둘)만 썼다. 설치자 키가 이긴 항목은 "kept yours" · 못 읽었으면 "left" 와 이유.
     const configRow = report.codex.configToml
-      ? sharedRow(report.codex.configToml, "harness regions: settings + [mcp_servers.*]")
+      ? sharedRow(report.codex.configToml, configRegionsPart(report.codex.configToml))
       : assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]");
     if (configRow) log(configRow);
     log(assetRow("success", ".codex/hooks/", `${report.codex.hookFiles.length} files`));
@@ -383,7 +389,7 @@ export function renderCliArtifacts(
     // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
     const opencodeJson = report.opencode.opencodeJson;
     const opencodeRow = opencodeJson
-      ? sharedRow(opencodeJson, `harness mcp: ${mcpNames(opencodeJson)}`)
+      ? sharedRow(opencodeJson, opencodeMcpPart(opencodeJson))
       : assetRow("success", "opencode.json", "$schema + 5 keys");
     if (opencodeRow) log(opencodeRow);
     if (report.opencode.skillFiles.length > 0) {
@@ -466,11 +472,28 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
-function mcpNames(r: SharedWriteResult): string {
-  const names = (r.portions ?? [])
-    .map((p) => /^mcp\.(.+)$/.exec(p.key)?.[1])
+function opencodeMcpPart(r: SharedWriteResult): string {
+  const names = harnessKeysInFile(r)
+    .map((k) => /^mcp\.(.+)$/.exec(k)?.[1])
     .filter((n): n is string => n !== undefined && !n.endsWith("{}"));
-  return names.length > 0 ? names.join(" · ") : "none";
+  return names.length > 0 ? `harness mcp: ${names.join(" · ")}` : "no harness part in the file";
+}
+
+/** config.toml 의 하네스 구간 — 파일 순서(`top` 이 맨 앞)대로. */
+function configRegionsPart(r: SharedWriteResult): string {
+  const order = (k: string) => (k === "top" ? 0 : 1);
+  const regions = harnessKeysInFile(r).sort((a, b) => order(a) - order(b));
+  return regions.length > 0
+    ? `harness regions: ${regions.join(" · ")}`
+    : "no harness part in the file";
+}
+
+/**
+ * 리뷰 B1 · NOTE-2 — 지금 파일에 든 하네스 몫의 키. 기록할 몫(`portions` — 쓴 것 · 설치자가 고쳐 남긴 것) + 기록 없이
+ * 남겨 둔 구간·블록(`leftAsIs`). 설치자가 지워 excluded 인 키는 어느 쪽에도 없다 — 없는 것을 있다고 말하지 않는다.
+ */
+function harnessKeysInFile(r: SharedWriteResult): string[] {
+  return [...new Set([...(r.portions ?? []).map((p) => p.key), ...r.leftAsIs])];
 }
 
 /** 최종 Summary (STATUS / TRACKS / CLI / HOOK / WARN / OPT-IN / NEXT). */
@@ -574,7 +597,13 @@ export function renderFinalSummary(
       ),
     );
   }
-  const scaffoldFiles = scaffoldFilesForCli(spec.cli);
+  // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
+  // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
+  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
+  const scaffoldFiles = scaffoldFilesForCli(spec.cli).filter(
+    (f) =>
+      f !== "AGENTS.md" || agentsMd?.model !== "block" || hasFillPrompt(join(spec.projectDir, f)),
+  );
   if (scaffoldFiles.length > 0) {
     // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
     // **실제로 깔린 경우에만** 말한다: 안 깔린 스킬을 부르라는 안내는 "advertised ≠ real" 이다.
@@ -592,6 +621,15 @@ export function renderFinalSummary(
     );
   }
   log("");
+}
+
+/** 파일에 채울 자리(`<!-- FILL: … -->`)가 실제로 있는가. 못 읽으면 없다. */
+function hasFillPrompt(path: string): boolean {
+  try {
+    return readFileSync(path, "utf8").includes("<!-- FILL:");
+  } catch {
+    return false;
+  }
 }
 
 /**

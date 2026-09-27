@@ -13,13 +13,15 @@
  *      없음 · 다름)은 그 자리에 몫만 더해 직접 쓰고 기준선을 남기지 않는다 — 남기면 지금의 uninstall 이 그 파일을
  *      "하네스 것" 으로 읽고 **통째로** 지운다. 어느 쪽도 파일 백업을 만들지 않는다(몫만 바꾸므로 잃는 것이 없다).
  *
- * 기록(`portions` · 지운 키 → `excluded`)은 **돌려주기만** 한다 — 로그에 쓰는 연결은 설계 §9 PR-3.
+ * 기록(`portions` · 지운 키 → `excluded`)은 **돌려주기만** 한다 — 로그에 쓰는 것은 호출부(install 의
+ * `composeWriterLog` · update 의 `refreshExternalCli`)다. uninstall 은 같은 기록으로 몫만 걷는다(`stripShared`, #551 R1).
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { PortionAdapter, PortionShas } from "./adapters/contract.js";
 import { ADAPTERS, adapterFor, excludedKeys, keyId } from "./adapters/index.js";
+import { jsonSha } from "./adapters/json-keys.js";
 import {
   AGENTS_BLOCK,
   AGENTS_BLOCK_NAME,
@@ -50,7 +52,7 @@ export interface SharedRecord {
  * - `updated`   있던 파일에 몫을 더하거나 바꿨다
  * - `unchanged` 이미 최신 — 쓰지 않았다
  * - `left`      쓰지 않고 남겼다(못 읽음 · 합친 결과가 안 읽힘 · 설치자가 파일째 지움 등) — `line` 이 이유
- * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049) — 알릴 것이 없다
+ * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049 · 설치자가 지운 파일도 — Q4 는 PR-5) — 알릴 것이 없다
  */
 export type SharedAction = "created" | "updated" | "unchanged" | "left" | "skipped";
 
@@ -71,8 +73,6 @@ export interface SharedWriteResult {
   portions: InstallLogPortion[] | null;
   /** 기록에 있었는데 파일에 없던 몫의 키 id — 설치자가 지웠다. 호출부가 `excluded` 에 적는다(R2). */
   deleted: string[];
-  /** 설치자가 이 파일을 통째로 지웠다(update, Q4) — 기록된 몫 키 전부가 `deleted` 에 들어 있다. */
-  deletedFile: boolean;
 }
 
 export interface WriteSharedParams<V> {
@@ -123,7 +123,6 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     leftAsIs: [],
     portions: null,
     deleted: [],
-    deletedFile: false,
     ...rest,
   });
 
@@ -140,16 +139,12 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   });
   switch (verdict.verdict) {
     case "leave":
-      // update · 파일 없음 · 기록 있음 = 설치자가 파일째 지웠다 — 되살리지 않고 기록된 키 전부를 excluded 로(Q4)
-      return result("left", {
-        line: verdict.line,
-        deletedFile: true,
-        portions: [], // 파일이 없다 — 이 경로의 몫 기록은 비운다(키는 전부 excluded 로 간다)
-        deleted: [...recorded.keys()].flatMap((k) => {
-          const id = keyId(path, k);
-          return id === null ? [] : [id];
-        }),
-      });
+      // update · 파일 없음 · 기록 있음. 설계는 이것을 "설치자가 파일째 지웠다 → 키 전부 excluded"(Q4)로 읽지만 **이 판은
+      // 그 칸을 켜지 않는다** — Q4 는 PR-5 에서 update 화면 줄(`you deleted it — not recreated`) · `--with <id>` 수용과
+      // 함께 켠다. 둘 없이 켜면 초기화하려고 파일을 지운 설치자가 update 한 번에 하네스 설정을 조용히 잃고 되찾을 길이
+      // 없다(리뷰 B1 — 다음 install 이 빈 config.toml 을 만들었다). 지금은 main 과 같이: 만들지 않고(ADR-049) · 지운
+      // 키로 적지 않고 · 몫 기록은 그대로 둔다(`portions: null`) — 다음 install 이 완전한 파일을 만든다.
+      return result("skipped");
     case "leave+advise":
       return result("left", { line: verdict.line });
     case "create":
@@ -201,8 +196,15 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   // `json-keys` 의 키(`mcp.<name>`)는 설치자도 같은 이름을 쓰므로 가르지 않는다
   const regionNamed = adapter !== "json-keys";
   const isRegion = (k: string) => regionNamed && render.has(k);
+  // 값이 하네스 렌더와 **같은** 키는 "kept yours" 가 아니다 — 이긴 것이 없다(리뷰 N1: 기록 없이 남은 하네스 키를 설치자
+  // 것이라 불렀다). `json-keys` 만 값으로 잴 수 있다 — TOML 항목은 구간 단위로만 비교한다
+  const present =
+    adapter === "json-keys" && onDisk !== null
+      ? (ADAPTERS["json-keys"].read(onDisk, render.keys(), projectDir) ?? new Map<string, string>())
+      : new Map<string, string>();
+  const sameAsRender = (k: string) => present.get(k) === jsonSha(render.get(k));
   return result(action, {
-    kept: upserted.kept.filter((k) => !isRegion(k)),
+    kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k)),
     leftAsIs: upserted.kept.filter(isRegion),
     portions,
     deleted,
@@ -293,4 +295,101 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
     refreshOnly: params.refreshOnly,
   });
   return { model: "block", shared };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * uninstall — 기록된 몫만 걷는다 (#551 R1 · 설계 §1.2 shared 행 `strip-portion`)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * - `removed` 기록된 몫을 걷었다(미리보기면 걷을 것이 있다)
+ * - `left`    걷지 않은 것이 있다 — 못 읽음 · 설치자가 고친 몫 · 기록이 없어 알 수 없는 몫(`line` 이 이유)
+ * - `none`    걷을 것도 알릴 것도 없다
+ */
+export interface SharedStripResult {
+  path: string;
+  action: "removed" | "left" | "none";
+  line: string;
+  /** 걷은 몫의 키(어댑터 키). */
+  removed: string[];
+  /** 기록에 있지만 설치자가 고쳐 남긴 키. */
+  kept: string[];
+  /** 걷은 뒤에도 이 파일에 남는 기록된 몫(= `kept`) — 로그가 남는 경로(`--cli`)가 이어 적는다. */
+  portions: InstallLogPortion[];
+}
+
+export interface StripSharedParams {
+  projectDir: string;
+  path: string;
+  /** 설치 로그의 `portions` 전체 — 이 파일 것만 골라 쓴다. */
+  portions: ReadonlyArray<InstallLogPortion>;
+  excluded: ReadonlyArray<string>;
+  /**
+   * 이 파일의 몫 기록이 **없을 때** 파일에 하네스 몫이 남아 있는지 알아보는 법 — 알리기만 하고 지우지 않는다
+   * (기록 없이 지우면 설치자 것을 지울 수 있다). 돌려준 이름이 있으면 `left` 한 줄이 된다.
+   */
+  remnant: (disk: string) => string[];
+  /** 기록이 없어 남긴 것을 설명하는 한 줄 — `remnant` 가 돌려준 이름을 받는다. */
+  remnantLine: (names: ReadonlyArray<string>) => string;
+  /** false = 미리보기(쓰지 않는다). 판정은 같다. */
+  write: boolean;
+}
+
+export function stripShared(params: StripSharedParams): SharedStripResult {
+  const { projectDir, path } = params;
+  const adapter = adapterFor(path);
+  if (adapter === null) throw new Error(`shared-write: ${path} is not a shared file`);
+  const out = (
+    action: SharedStripResult["action"],
+    rest: Partial<Omit<SharedStripResult, "path" | "action">> = {},
+  ): SharedStripResult => ({
+    path,
+    action,
+    line: "",
+    removed: [],
+    kept: [],
+    portions: [],
+    ...rest,
+  });
+  const abs = join(projectDir, path);
+  // 링크를 따라간다 — install 도 링크 너머(예: AGENTS.md → CLAUDE.md)에 몫을 썼다. 파일이 아니면 걷을 것이 없다
+  if (!existsSync(abs) || !statSync(abs).isFile()) return out("none");
+  const disk = readFileSync(abs, "utf8");
+  const recorded = new Map(
+    params.portions.filter((p) => p.path === path).map((p) => [p.key, p.sha256]),
+  );
+  const verdict = judge({
+    op: "remove",
+    kind: "shared",
+    rec: { state: "none" },
+    disk,
+    next: null,
+    adapter,
+  });
+  if (verdict.verdict === "leave+advise") {
+    return out("left", { line: verdict.line, portions: toPortions(path, recorded) });
+  }
+  if (recorded.size === 0) {
+    const names = params.remnant(disk);
+    return names.length === 0 ? out("none") : out("left", { line: params.remnantLine(names) });
+  }
+  const impl = ADAPTERS[adapter] as unknown as PortionAdapter<unknown>;
+  const res = impl.strip(disk, {
+    recorded,
+    excluded: excludedKeys(path, params.excluded),
+    projectDir,
+  });
+  if (!res.ok) {
+    return out("left", {
+      line: `could not read it (${res.reason}) — harness part not removed`,
+      portions: toPortions(path, recorded),
+    });
+  }
+  if (params.write && res.changed) writeFileSync(abs, res.text);
+  const action = res.removed.length > 0 ? "removed" : res.kept.length > 0 ? "left" : "none";
+  return out(action, {
+    removed: res.removed,
+    kept: res.kept,
+    portions: toPortions(path, res.portions),
+  });
 }
