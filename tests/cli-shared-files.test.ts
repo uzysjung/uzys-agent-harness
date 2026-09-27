@@ -364,11 +364,29 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
     expect(backups()).toEqual([]);
   });
 
-  it("uninstall 이 설치자 본문을 지우지 않는다 — 블록 파일은 하네스 기준선에 없다", () => {
+  it("블록 파일은 하네스 기준선에 남지 않는다 — 남으면 지금의 uninstall 이 '안 고친 하네스 파일' 로 읽고 본문째 지운다", () => {
     put("AGENTS.md", INSTALLER_AGENTS);
     install(["codex"]);
     const log = readInstallLog(projectDir);
     expect((log?.externalFiles ?? []).map((f) => f.path)).not.toContain("AGENTS.md");
+  });
+
+  it("블록 파일이 어쩌다 기준선과 같은 sha 로 기록돼 있어도 설치자 본문을 새로 쓰지 않는다", () => {
+    put("AGENTS.md", INSTALLER_AGENTS);
+    install(["codex"]);
+    const withBlock = read("AGENTS.md");
+    // 기준선이 이 파일을 "하네스가 쓴 그대로" 라고 말하는 상태 — 블록 파일은 하네스 파일이 아니므로 새로 쓰면 안 된다
+    const r = runCliTransforms({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      cli: ["codex"],
+      selectedInternalSkills: [],
+      rules: ["doc-governance"],
+      tracks: ["tooling"],
+      previousExternal: [{ path: "AGENTS.md", sha256: hashContent(withBlock) }],
+    });
+    expect(r.sharedFiles.find((f) => f.path === "AGENTS.md")?.action).toBe("updated");
+    expect(read("AGENTS.md").startsWith(INSTALLER_AGENTS)).toBe(true);
   });
 
   it("하네스가 만든 파일은 전과 같은 절 모델이다 — 마커 조각 · 절이 그대로", () => {
@@ -439,6 +457,26 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     expect(second.portions.map((p) => p.key)).not.toContain("mcp.github");
     // 설치자 것은 그대로
     expect(toml().mcp_servers?.myown).toBeDefined();
+  });
+
+  it("설치자 파일에 직접 쓴 갱신도 update 갱신 수에 센다 — 기준선(`externalFiles`)에는 남기지 않는다", () => {
+    put("AGENTS.md", INSTALLER_AGENTS);
+    run();
+    const second = runCliTransforms({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      cli: ["codex"],
+      selectedInternalSkills: [],
+      rules: ["doc-governance"], // 룰이 바뀐 릴리즈 — 블록이 바뀐다
+      tracks: ["tooling"],
+      previousExternal: [],
+    });
+    const agents = second.sharedFiles.find((r) => r.path === "AGENTS.md");
+    expect(agents?.action).toBe("updated");
+    expect(second.externalFiles.map((f) => f.path)).not.toContain("AGENTS.md");
+    expect(second.externalUpdated).toBeGreaterThanOrEqual(1);
+    const writerCounted = second.codex?.ownership.updated ?? 0;
+    expect(second.externalUpdated).toBe(writerCounted + 1);
   });
 
   it("excluded 의 키는 더하지 않는다", () => {

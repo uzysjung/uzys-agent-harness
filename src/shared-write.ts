@@ -135,7 +135,9 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     next: null,
     run: refreshOnly ? "update" : "install",
     adapter,
-    hasPortions: recorded.size > 0 || baseline.has(path),
+    // 파일이 없으면 `recorded` 는 로그의 몫뿐이다(내용 식별은 읽을 파일이 있어야 한다) — 몫 기록이 없는 로그의 update 는
+    // 지운 파일을 "만들지 않는다" 쪽(아래 `skipped`)으로 간다. 어느 쪽이든 쓰지 않는다
+    hasPortions: recorded.size > 0,
   });
   switch (verdict.verdict) {
     case "leave":
