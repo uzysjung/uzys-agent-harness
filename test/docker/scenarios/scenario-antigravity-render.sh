@@ -39,7 +39,8 @@ assert_grep() {
 
 echo "── 산출물 섹션 (R2: antigravity invisible 이던 버그) ──"
 assert_grep "Antigravity artifacts" "산출물 섹션 헤더 노출"
-assert_grep "\.agents/rules/uzys-harness\.md" "rules 행 노출"
+# #564 — 룰 행은 폴더 하나로 이번 실행이 쓴 파일 수와 앵커를 함께 말한다(`.agents/rules/  7 files · uzys-harness.md from …`).
+assert_grep "\.agents/rules/ +[0-9]+ files? · uzys-harness\.md" "rules 행 노출 (쓴 파일 수 + 앵커)"
 # ADR-086 — 라벨이 파일이 아니라 디렉터리(`<id>/`)다. 스킬이 디렉터리째 나간다.
 # 옛 라벨(`<id>/SKILL.md`)의 진부분 문자열로 물면 회귀를 못 잡는다(재리뷰 N-1) — 뒤에 SKILL 이 없어야 한다.
 assert_grep "\.agents/skills/<id>/([^S]|$)" "skills 행 노출 (디렉터리 라벨)"

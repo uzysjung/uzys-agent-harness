@@ -186,6 +186,11 @@ echo "✓ 설치 기록이 없으면 화면이 판정 불가를 말한다"
 # 당한 거짓출하의 형태다 (독립 리뷰 HIGH-1, 2026-08-27 실측).
 GLB=/tmp/proj-upd-skills-global
 rm -rf "${GLB}"; mkdir -p "${GLB}"; cd "${GLB}"
+# 새 설치는 Global 을 받지 않는다(#560). 옛 Global 설치본 = project 설치 뒤 기록 scope 를 global 로 —
+# 그러면 install 이 같은 플래그를 받아 외부 자산을 홈에 다시 깐다(옛 판이 남긴 상태와 같은 모양).
+agent-harness install --track tooling --cli claude >/dev/null 2>&1
+GLOG="${GLB}/.uzys-agent-harness/.harness-install.json"
+jq '.scope = "global"' "${GLOG}" > "${GLOG}.tmp" && mv "${GLOG}.tmp" "${GLOG}"
 agent-harness install --track tooling --scope global --cli claude >/dev/null 2>&1
 
 GSKILL="${HOME}/.claude/skills/frontend-design/SKILL.md"
