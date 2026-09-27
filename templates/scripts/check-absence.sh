@@ -17,7 +17,8 @@
 #   ┌ pattern 모드 — "이 패턴이 없다"
 #   │   대조군 = 합성한 알려진 양성(canary). 패턴이 그것을 물어야 부재 결과를 신뢰한다.
 #   │
-#   │   check-absence.sh --canary '<알려진 양성>' [-i] '<ERE 패턴>' <경로>...
+#   │   check-absence.sh --canary '<알려진 양성>' [-i] [--] '<ERE 패턴>' <경로>...
+#   │   ('-' 로 시작하는 패턴은 앞에 -- 를 둔다: ... --canary 'use --old' -- '--old' src)
 #   │   예: ... --canary 'OldName' 'oldname|legacy_prefix' dist src templates
 #   │
 #   └ command 모드 — "이 명령이 안 된다 / 이 기능이 없다"
@@ -46,7 +47,7 @@ set -u
 usage() {
   cat >&2 <<'USAGE'
 usage:
-  pattern 모드:  check-absence.sh --canary <알려진-양성> [-i] <ERE-패턴> <경로>...
+  pattern 모드:  check-absence.sh --canary <알려진-양성> [-i] [--] <ERE-패턴> <경로>...   ('-' 로 시작하는 패턴은 앞에 --)
   command 모드:  check-absence.sh --control <대조-명령> --subject <대상-명령> [--control-exit N]
 
   두 모드 모두 대조군이 필수다. 탐지기(또는 절차)가 실제로 무는지 보이지 않으면
@@ -161,7 +162,7 @@ PATTERN="$1"; shift
 # 1) 탐지기 자기검증
 printf '%s\n' "$CANARY" > "$WORK_DIR/canary.txt"
 
-if ! grep -rIqE ${IGNORE_CASE:+"$IGNORE_CASE"} "$PATTERN" "$WORK_DIR/canary.txt" 2>"$WORK_DIR/probe.err"; then
+if ! grep -rIqE ${IGNORE_CASE:+"$IGNORE_CASE"} -e "$PATTERN" "$WORK_DIR/canary.txt" 2>"$WORK_DIR/probe.err"; then
   echo "FAIL(2): 탐지기 자기검증 실패 — canary '$CANARY' 가 패턴 '$PATTERN' 에 안 잡힌다." >&2
   echo "  이 상태의 '매치 없음'은 부재의 증거가 아니다. 패턴이나 canary 를 고쳐라." >&2
   [ -s "$WORK_DIR/probe.err" ] && sed 's/^/  grep: /' "$WORK_DIR/probe.err" >&2
@@ -182,7 +183,7 @@ if [ "${#PATHS[@]}" -eq 0 ]; then
   exit 2
 fi
 
-grep -rInIE ${IGNORE_CASE:+"$IGNORE_CASE"} "$PATTERN" "${PATHS[@]}" >"$OUT" 2>"$ERR"
+grep -rInIE ${IGNORE_CASE:+"$IGNORE_CASE"} -e "$PATTERN" "${PATHS[@]}" >"$OUT" 2>"$ERR"
 GREP_RC=$?
 
 if [ "$GREP_RC" -ge 2 ]; then
