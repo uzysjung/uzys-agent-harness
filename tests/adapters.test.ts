@@ -487,6 +487,20 @@ describe("toml-region — .codex/config.toml", () => {
     expect(r).toEqual({ ok: false, reason: "the merged result would not be readable TOML" });
   });
 
+  it("렌더 항목의 경계는 파서가 정한다 — 여러 줄 값 · 줄 머리의 `[` 가 항목을 쪼개지 않는다", () => {
+    const multi = new Map([
+      ["top", "retries = [\n  1,\n  2,\n]\nlabel = 'x'"],
+      ["tables", '[t]\nnested = [\n[1, 2],\n]\nnote = """\n[not-a-header]\n"""'],
+    ]);
+    const u = upsertOk(tr, "retries = [3]\n", multi); // 설치자 retries 가 이긴다 — 항목 하나로 빠진다
+    expect(u.kept).toEqual(["retries"]);
+    expect(tomlMeaning(u.text)).toEqual({
+      label: "x",
+      retries: [3],
+      t: { nested: [[1, 2]], note: "[not-a-header]\n" },
+    });
+  });
+
   it("마커가 깨진 파일에도 쓰지 않는다", () => {
     const broken = "# uzys-harness:top:start\na = 1\n"; // 끝 마커 없음 — TOML 로는 읽힌다
     const failed = { ok: false, reason: "harness markers are broken" };
