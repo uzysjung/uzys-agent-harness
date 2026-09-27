@@ -132,8 +132,8 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   // 사용자가 채운 AGENTS.md 를 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
   // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로. codex 가 같은 install 안에서 이미
   // 쓴 AGENTS.md 를 여기서 '사용자 편집'으로 오판하면 매 설치마다 백업이 생긴다.
-  // #503 — codex 가 방금 쓴 판을 디스크에서 이어받는다. 그 판에 이미 설치자 절이 살아 있으므로
-  // 두 transform 의 순서가 결과를 바꾸지 않는다.
+  // #503 — 디스크의 판에서 설치자 절을 이어받는다. #550 이후 codex 는 같은 실행에서 이 파일을 쓰지
+  // 않으므로(`cli-transforms.ts` writeAgentsMd) 조합 설치본에서 이 파일을 쓰는 쪽은 여기 하나다.
   writer.write(
     agentsMdPath,
     mergeAgentsMd({

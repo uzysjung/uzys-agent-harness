@@ -11,11 +11,16 @@
 #   ③ 마커가 실재한다 (다음 update 가 조각만 갈아 끼울 수 있는 상태)
 #   ④ update 를 두 번 돌려도 문단이 남고 백업은 0 건이다
 #   ⑤ `--cli codex` 로만 깐 파일은 update 뒤에도 **Codex 판**이다 — `## Session Start` 가 남는다 (#514)
+#   ⑥ `--cli codex --cli opencode` 설치본 — 설치 **뒤에** 채운 문단이 update 2회에 그대로이고 백업 0 (#550)
 #
 # ⑤ 의 경위(실측 2026-09-21, 이 시나리오가 처음 드러냄): `update` 는 "파일이 있으면 그 CLI 가 깔린
 # 것"으로 판정했는데 `AGENTS.md` 는 codex · opencode 가 공유하므로 codex 만 골라도 OpenCode transform
 # 이 뒤에 돌아 판을 바꾸고 편집분 백업을 하나 남겼다. #514 가 그 둘만 설치 로그로 가른다 — 그래서
 # ④ 가 "누적 없음"이 아니라 **0 건**을 문다.
+#
+# ⑥ 의 경위(#550): 두 CLI 를 함께 깔면 codex · opencode 가 같은 `AGENTS.md` 를 서로 다른 템플릿으로
+# 차례로 썼다. 설치자가 **마지막 update 뒤에** 절을 고치면 다음 update 의 codex 쓰기가 그 파일을
+# 사용자 편집으로 보고 백업을 1건 남겼다(편집마다 1건). 편집 시점이 핵심이라 install 직후에 채운다.
 
 set -euo pipefail
 
@@ -142,6 +147,43 @@ if [[ "${AFTER}" -ne "${BEFORE}" ]]; then
   exit 1
 fi
 echo "✓ 재실행에도 문단 보존 + 백업 누적 0 (${AFTER}건 유지)"
+
+# --- ⑥ codex + opencode 조합 (#550) ---
+PROJ2=/tmp/proj-agents-preserve-both
+rm -rf "${PROJ2}"
+mkdir -p "${PROJ2}"
+cd "${PROJ2}"
+agent-harness install --track tooling --cli codex --cli opencode --scope project >/dev/null
+AGENTS2="${PROJ2}/AGENTS.md"
+MARK2="두 CLI 를 같이 쓰는 팀. 배포는 금요일에 하지 않는다. $$"
+awk -v mark="${MARK2}" '
+  { print }
+  $0 == "## Project Context" && !done { print ""; print mark; done = 1 }
+' "${AGENTS2}" > "${AGENTS2}.tmp"
+mv "${AGENTS2}.tmp" "${AGENTS2}"
+if ! grep -qF "${MARK2}" "${AGENTS2}"; then
+  echo "FAIL: (codex+opencode) 문단을 넣지 못했다 — 대조군 없이 아래 판정을 신뢰할 수 없다"
+  exit 1
+fi
+EDITED2="$(sha256sum "${AGENTS2}" | cut -d' ' -f1)"
+for round in 1 2; do
+  agent-harness update >"/tmp/agents-preserve-both-${round}.txt" 2>&1 || {
+    echo "FAIL: (codex+opencode) ${round}회째 update 가 실패했다"
+    tail -30 "/tmp/agents-preserve-both-${round}.txt"
+    exit 1
+  }
+  BOTH_BACKUPS=$(find "${PROJ2}" -maxdepth 1 -name 'AGENTS.md.backup-*' | wc -l | tr -d ' ')
+  if [[ "${BOTH_BACKUPS}" -ne 0 ]]; then
+    echo "FAIL: (codex+opencode) ${round}회째 update 가 AGENTS.md 백업을 ${BOTH_BACKUPS}건 남겼다 (#550)"
+    diff "$(find "${PROJ2}" -maxdepth 1 -name 'AGENTS.md.backup-*' | sort | tail -1)" "${AGENTS2}" || true
+    exit 1
+  fi
+  if [[ "$(sha256sum "${AGENTS2}" | cut -d' ' -f1)" != "${EDITED2}" ]]; then
+    echo "FAIL: (codex+opencode) ${round}회째 update 가 같은 릴리즈인데 AGENTS.md 를 바꿨다"
+    exit 1
+  fi
+done
+echo "✓ ⑥ codex+opencode — 설치 뒤 채운 문단이 update 2회에 바이트 그대로 · 백업 0 (#550)"
 
 echo ""
 echo "PASS: scenario-update-preserves-agents-md"

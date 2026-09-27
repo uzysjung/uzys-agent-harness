@@ -460,11 +460,13 @@ export function runUpdateMode(
   const newSkills =
     claudeManaged && wants("new-skills")
       ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
-      : { installed: [], foreignOwned: [] };
+      : { installed: [], restored: [], foreignOwned: [] };
   report.installedNew.push(...newSkills.installed);
+  report.restored.push(...newSkills.restored);
+  const copiedSkills = [...newSkills.installed, ...newSkills.restored];
   if (claudeManaged && wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
-  else if (claudeManaged && newSkills.installed.length > 0)
-    recordNewSkillBaseline(projectDir, templatesDir, newSkills.installed);
+  else if (claudeManaged && copiedSkills.length > 0)
+    recordNewSkillBaseline(projectDir, templatesDir, copiedSkills);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
   //
@@ -517,9 +519,20 @@ export function runUpdateMode(
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
     ? refreshExternalCli(projectDir, harnessRoot)
-    : { externalUpdated: 0, externalBackedUp: [], externalForeignOwned: [], written: [] };
+    : {
+        externalUpdated: 0,
+        externalBackedUp: [],
+        externalForeignOwned: [],
+        written: [],
+        skillsInstalled: [],
+        skillsRestored: [],
+      };
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
+  // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
+  // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
+  report.installedNew.push(...external.skillsInstalled);
+  report.restored.push(...external.skillsRestored);
   // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
   // 사용자는 두 줄을 서로 다른 두 사건으로 읽는다(리뷰 3라운드 지적).
   const saidBySlotRow = new Set(report.skillsSkippedLinks.map((id) => `.claude/skills/${id}`));
@@ -796,10 +809,14 @@ function installNewSkillDirs(
   projectDir: string,
   templatesDir: string,
   tracks: ReadonlyArray<Track>,
-): { installed: string[]; foreignOwned: string[] } {
+): { installed: string[]; restored: string[]; foreignOwned: string[] } {
   const installed: string[] = [];
+  const restored: string[] = [];
   const foreignOwned: string[] = [];
   const log = readInstallLog(projectDir);
+  // #550 — 전에 깔아 준 적이 있는가(`skillFiles` 기준선에 그 id 의 파일이 있는가). 파일 자산의
+  // `installNewAssets` 와 같은 신호다 — 없으면 이 릴리즈의 추가, 있으면 설치자가 지운 것의 되살림.
+  const priorIds = new Set((log?.skillFiles ?? []).map((f) => f.path.split("/")[0] ?? ""));
   const excluded = new Set(log?.spec.baselineExclude ?? []);
   // #505 — 번들 스킬 해제는 자산 id 로 기록된다(`skillExclude`). baseline 자산과 목록이 달라
   // `isBaselineExcluded` 로는 안 걸린다 — 그래서 `--without <skill>` 로 뺀 스킬이 update 마다
@@ -807,7 +824,8 @@ function installNewSkillDirs(
   const skillExcluded = new Set(log?.spec.skillExclude ?? []);
   // #528 — 같은 이유로 `spec.cli` 가 아니라 깔린 집합을 본다. 로그가 없는 레거시 설치본은
   // 이전과 같이 claude 로 다룬다(`.claude/skills/` 가 그 설치본의 유일한 스킬 자리였다).
-  if (log !== null && !installedClis(log).includes("claude")) return { installed, foreignOwned };
+  if (log !== null && !installedClis(log).includes("claude"))
+    return { installed, restored, foreignOwned };
   const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
   for (const entry of buildManifest(spec)) {
     if (entry.type !== "dir" || !entry.target.startsWith(".claude/skills/")) continue;
@@ -825,9 +843,10 @@ function installNewSkillDirs(
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
     copyDir(source, target, (rel) => foreignOwnedTarget(projectDir, `${entry.target}/${rel}`));
-    installed.push(entry.target);
+    if (priorIds.has(entry.target.slice(".claude/skills/".length))) restored.push(entry.target);
+    else installed.push(entry.target);
   }
-  return { installed, foreignOwned };
+  return { installed, restored, foreignOwned };
 }
 
 /**
@@ -1048,6 +1067,20 @@ function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
   return installedClis(log);
 }
 
+/** 공유 스킬 자리(Codex · OpenCode · Antigravity) — `agents-skill-targets.ts` 가 쓰는 그 자리. */
+const SHARED_SKILLS_DIR = ".agents/skills";
+/** 공유 자리 스킬의 파일 하나 — 캡처 = id. */
+const SHARED_SKILL_FILE = /^\.agents\/skills\/([^/]+)\//;
+/** 공유 자리 스킬의 본문 — 스킬이 "있다"의 판정 파일. */
+const SHARED_SKILL_MD = /^\.agents\/skills\/([^/]+)\/SKILL\.md$/;
+
+/** 지금 공유 자리에 `SKILL.md` 가 있는 스킬 id. */
+function sharedSkillIdsOnDisk(projectDir: string): ReadonlySet<string> {
+  const root = join(projectDir, SHARED_SKILLS_DIR);
+  if (!existsSync(root)) return new Set();
+  return new Set(readdirSync(root).filter((id) => existsSync(join(root, id, "SKILL.md"))));
+}
+
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
@@ -1057,9 +1090,14 @@ function refreshExternalCli(
   externalForeignOwned: string[];
   /** 이번 실행이 담당한 산출물(projectDir 상대) — #524 링크 자리 행이 "갱신됐다"를 이걸로 판정한다. */
   written: string[];
+  /** #550 — 이번 실행이 공유 자리에 **새로 만든** 스킬 중 기록에 없던 것 (`.agents/skills/<id>`). */
+  skillsInstalled: string[];
+  /** #550 — 같은 것 중 **전에 깔아 준 기록이 있는** 것 = 설치자가 지운 것의 되살림. */
+  skillsRestored: string[];
 } {
   const log = readInstallLog(projectDir);
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
+  const presentBefore = sharedSkillIdsOnDisk(projectDir);
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
@@ -1090,11 +1128,29 @@ function refreshExternalCli(
     }
   }
 
+  // #550 — 새로 만든 스킬 = 실행 전 디스크에 `SKILL.md` 가 없었고 이번에 우리가 쓴 것. 신규와
+  // 되살림은 `installNewAssets` 와 같은 신호로 가른다 — 실행 전 기준선(`externalFiles`)에 그 id 의
+  // 파일이 있었는가. 세 transform 이 같은 파일을 기록하므로 id 로 중복을 걷는다.
+  const priorIds = new Set(
+    (log?.externalFiles ?? []).map((f) => SHARED_SKILL_FILE.exec(f.path)?.[1]).filter(Boolean),
+  );
+  const skillsInstalled: string[] = [];
+  const skillsRestored: string[] = [];
+  for (const f of result.externalFiles) {
+    const id = SHARED_SKILL_MD.exec(f.path)?.[1];
+    if (id === undefined || presentBefore.has(id)) continue;
+    const slot = `${SHARED_SKILLS_DIR}/${id}`;
+    const into = priorIds.has(id) ? skillsRestored : skillsInstalled;
+    if (!into.includes(slot)) into.push(slot);
+  }
+
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
     externalForeignOwned: result.externalForeignOwned,
     written: result.externalFiles.map((f) => f.path),
+    skillsInstalled,
+    skillsRestored,
   };
 }
 

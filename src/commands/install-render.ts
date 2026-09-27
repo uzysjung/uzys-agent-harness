@@ -581,6 +581,9 @@ function linkedSkillRows(
   }
 }
 
+/** #550 — update 가 되살린 번들 스킬 자리(Claude · 공유 자리 둘 다). 캡처 = 스킬 id. */
+const RESTORED_SKILL_PATH = /^\.(?:claude|agents)\/skills\/([^/]+)$/;
+
 /**
  * Phase 1 rows 출력. baseline-complete progress event에서 호출 — 외부 자산 설치
  * 시작 전 즉시 화면에 표시되어야 한다 (멈춰 보임 방지).
@@ -607,8 +610,29 @@ function renderPhase1Rows(
     // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
     // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
     // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.
+    // #550 — 번들 스킬은 "다시 지우라"가 답이 아니다: 설치 기록이 그 스킬을 기본 선택으로 보는 한
+    // 다음 update 가 또 되살린다. 빼는 길은 해제를 기록하는 재설치(`--without`, #505) 하나라 그
+    // 플래그를 스킬 id 로 채워 한 줄로 낸다. 자리가 둘(`.claude/skills` · `.agents/skills`)이어도 id 는 하나다.
+    const restoredSkillIds: string[] = [];
     for (const path of baseline.updateMode.restored) {
-      log(assetRow("success", path, "was missing — reinstalled (delete it again if intentional)"));
+      const skillId = RESTORED_SKILL_PATH.exec(path)?.[1];
+      if (skillId === undefined) {
+        log(
+          assetRow("success", path, "was missing — reinstalled (delete it again if intentional)"),
+        );
+        continue;
+      }
+      log(assetRow("success", path, "was missing — reinstalled"));
+      if (!restoredSkillIds.includes(skillId)) restoredSkillIds.push(skillId);
+    }
+    if (restoredSkillIds.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "to keep a skill out",
+          `deleting it is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${restoredSkillIds.map((id) => `--without ${id}`).join(" ")}`,
+        ),
+      );
     }
     // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
     // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
