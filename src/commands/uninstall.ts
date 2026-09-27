@@ -6,7 +6,9 @@
  *   2. assets[] 별 reverse:
  *      - scope=project: 실제 reverse (`claude plugin uninstall --scope project`, `npm uninstall`, fs rm).
  *      - scope=global: 안내만 (D16 — 글로벌 영역 자동 삭제 금지). 사용자가 직접 명령 실행.
- *   3. templates 폴더 rm (`.claude/`, `.codex/`, `.opencode/`) — `--keep-templates` 시 보존.
+ *   3. templates 폴더 회수 — `.codex/`, `.opencode/` 는 rm, **`.claude/` 는 `.claude.backup-<time>` 으로
+ *      옮겨 둔다**(사용자 결정 2026-09-27 — 설치자가 거기 둔 자기 파일을 백업 없이 지우지 않는다).
+ *      `--keep-templates` 시 보존.
  *      외부 CLI 산출물은 기록(`externalFiles`)대로 회수하되 `AGENTS.md` 는 루트 `CLAUDE.md` 처럼
  *      하네스 절만 걷어내고 설치자 절을 남긴다 (#516).
  *   4. install log 자체도 함께 제거.
@@ -38,6 +40,7 @@ import { stripHarnessFromAgentsMd } from "../agents-md-merge.js";
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
+import { backupDir } from "../fs-ops.js";
 import {
   hashContent,
   INSTALL_LOG_DIR,
@@ -86,7 +89,34 @@ export interface UninstallActionDeps {
   writeLog?: (projectDir: string, log: InstallLog) => void;
   /** #516 — `AGENTS.md` 절 경계의 SSOT(템플릿)를 읽을 자리. 테스트는 리포 루트를 주입한다. */
   resolveHarnessRoot?: () => string;
+  /**
+   * `.claude/` 를 지우는 대신 옮겨 둔다(사용자 결정 2026-09-27). 기본은 reinstall 과 같은
+   * `backupDir` — `.claude.backup-<time>` 이름 규약·충돌 회피를 그대로 쓴다. @returns 백업 경로,
+   * 옮길 것이 없으면 null.
+   */
+  moveAside?: (path: string) => string | null;
 }
+
+/**
+ * 설치자가 `.claude/` 에 자기 파일(`settings.local.json` · 직접 만든 커맨드 · `settings.json` 에 더한
+ * 권한 줄)을 둔다 — 하네스 전용 디렉터리가 아니다. 그래서 전량 제거와 `--cli claude` 는 이 자리를
+ * **지우지 않고 옮겨 둔다**(사용자 결정 2026-09-27). `.codex/` · `.opencode/` 는 그대로 rm 이다.
+ */
+function isClaudeDir(rel: string): boolean {
+  return rel.replace(/\/+$/, "") === ".claude";
+}
+
+/** `.claude/` → 백업 경로. 끝의 `/` 를 떼야 `.claude.backup-*` 형제가 된다(붙이면 안쪽을 가리킨다). */
+function claudeDirPath(projectDir: string, rel: string): string {
+  return join(projectDir, rel.replace(/\/+$/, ""));
+}
+
+function movedAsideLine(projectDir: string, rel: string, backup: string): string {
+  return `  ${status.success(`${rel} moved aside → ${relative(projectDir, backup)} (your own files there are kept)`)}`;
+}
+
+const MOVE_ASIDE_PREVIEW = (rel: string): string =>
+  `  ○ move ${rel} aside → .claude.backup-<time> (your own files there stay in the backup)`;
 
 interface ReverseStep {
   /** 어느 자산의 reverse 인지 — `--only` 성공분만 로그에서 빼기 위해 필요. */
@@ -117,6 +147,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const spawn = deps.spawn ?? defaultSpawn;
   const rm = deps.rm ?? defaultRm;
   const writeLog = deps.writeLog ?? writeInstallLog;
+  const moveAside = deps.moveAside ?? backupDir;
   const harnessRoot = (deps.resolveHarnessRoot ?? defaultHarnessRoot)();
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
@@ -132,7 +163,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   if (options.cli !== undefined) {
     removeCliAction(
       { options, installLog, projectDir, harnessRoot },
-      { log, err, exit, rm, writeLog },
+      { log, err, exit, rm, writeLog, moveAside },
     );
     return;
   }
@@ -189,13 +220,19 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
 
   if (!keepTemplates) {
-    const { rootClaudeMdKept, importStripped, external } = removeTemplates(
+    const { rootClaudeMdKept, importStripped, external, claudeBackup } = removeTemplates(
       installLog,
       projectDir,
-      rm,
+      { rm, moveAside },
       harnessRoot,
     );
-    log(`  ${status.success(`templates removed: ${formatTemplateList(installLog)}`)}`);
+    if (claudeBackup && installLog.templates.claudeDir) {
+      log(movedAsideLine(projectDir, installLog.templates.claudeDir, claudeBackup));
+    }
+    const removedList = formatRemovedTemplates(installLog);
+    if (removedList !== "(none)" || !claudeBackup) {
+      log(`  ${status.success(`templates removed: ${removedList}`)}`);
+    }
     for (const line of externalRemovalLines(external)) log(line);
     if (importStripped) {
       log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
@@ -375,7 +412,12 @@ function dryRunLines(
     ),
   );
   if (!keepTemplates) {
-    lines.push(`  ○ remove templates: ${formatTemplateList(installLog)}`);
+    if (installLog.templates.claudeDir)
+      lines.push(MOVE_ASIDE_PREVIEW(installLog.templates.claudeDir));
+    const removedList = formatRemovedTemplates(installLog);
+    if (removedList !== "(none)" || !installLog.templates.claudeDir) {
+      lines.push(`  ○ remove templates: ${removedList}`);
+    }
     const rootMd = installLog.templates.rootClaudeMd;
     if (rootMd) {
       lines.push(
@@ -469,6 +511,7 @@ interface RemoveCliIo {
   exit: (code: number) => never;
   rm: (path: string) => void;
   writeLog: (projectDir: string, log: InstallLog) => void;
+  moveAside: (path: string) => string | null;
 }
 
 /** CLI → 그 CLI 를 뺄 때 함께 지워야 할 `templates` 필드. antigravity 는 그 기록이 없다. */
@@ -580,7 +623,8 @@ function removeCliDryRunLines(
   const { installLog, projectDir, harnessRoot } = ctx;
   const lines = [c.yellow("[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):"), ""];
   for (const dir of plan.dirs) {
-    if (existsSync(join(projectDir, dir))) lines.push(`  ○ remove ${dir}`);
+    if (!existsSync(join(projectDir, dir))) continue;
+    lines.push(isClaudeDir(dir) ? MOVE_ASIDE_PREVIEW(dir) : `  ○ remove ${dir}`);
   }
   lines.push(...previewExternalLines(plan.scoped, projectDir, harnessRoot));
   const rootMd = plan.anchor ? installLog.templates.rootClaudeMd : undefined;
@@ -676,6 +720,11 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
 
   for (const dir of plan.dirs) {
     if (!existsSync(join(projectDir, dir))) continue;
+    if (isClaudeDir(dir)) {
+      const backup = io.moveAside(claudeDirPath(projectDir, dir));
+      if (backup) io.log(movedAsideLine(projectDir, dir, backup));
+      continue;
+    }
     io.rm(join(projectDir, dir));
     io.log(`  ${status.success(`${dir} removed`)}`);
   }
@@ -839,12 +888,22 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
 function removeTemplates(
   log: InstallLog,
   projectDir: string,
-  rm: (path: string) => void,
+  io: { rm: (path: string) => void; moveAside: (path: string) => string | null },
   harnessRoot: string,
-): { rootClaudeMdKept: boolean; importStripped: boolean; external: ExternalRemoval } {
+): {
+  rootClaudeMdKept: boolean;
+  importStripped: boolean;
+  external: ExternalRemoval;
+  /** `.claude/` 를 옮겨 둔 자리. 없었으면 null. */
+  claudeBackup: string | null;
+} {
+  const { rm } = io;
   // #528 — `claudeDir` 는 claude 를 고른 설치에만 있다. 옛 로그는 고르지 않아도 적혀 있지만
-  // 그때도 `.claude/` 가 없으면 `defaultRm` 이 그냥 넘긴다.
-  if (log.templates.claudeDir) rm(join(projectDir, log.templates.claudeDir));
+  // 그때도 `.claude/` 가 없으면 `backupDir` 이 null 을 내고 넘긴다.
+  // 사용자 결정 2026-09-27 — `.claude/` 는 지우지 않고 옮겨 둔다(`isClaudeDir` 주석).
+  const claudeBackup = log.templates.claudeDir
+    ? io.moveAside(claudeDirPath(projectDir, log.templates.claudeDir))
+    : null;
   if (log.templates.codexDir) rm(join(projectDir, log.templates.codexDir));
   if (log.templates.opencodeDir) rm(join(projectDir, log.templates.opencodeDir));
   const external = removeExternalFiles(log, projectDir, rm, harnessRoot);
@@ -856,10 +915,10 @@ function removeTemplates(
   const rootMd = log.templates.rootClaudeMd;
   if (rootMd) {
     if (rootClaudeMdModified(log, projectDir))
-      return { rootClaudeMdKept: true, importStripped, external };
+      return { rootClaudeMdKept: true, importStripped, external, claudeBackup };
     rm(join(projectDir, rootMd.path));
   }
-  return { rootClaudeMdKept: false, importStripped, external };
+  return { rootClaudeMdKept: false, importStripped, external, claudeBackup };
 }
 
 /** `removeExternalFiles` 의 결과 — 화면이 지운 것과 남긴 것을 나눠 말할 수 있어야 한다. */
@@ -1112,9 +1171,9 @@ function rootClaudeMdModified(log: InstallLog, projectDir: string): boolean {
   return hashContent(readFileSync(path, "utf8")) !== rootMd.sha256;
 }
 
-function formatTemplateList(log: InstallLog): string {
+/** rm 으로 회수하는 템플릿 디렉터리. `.claude/` 는 옮겨 두므로(`isClaudeDir`) 여기 없다. */
+function formatRemovedTemplates(log: InstallLog): string {
   const items: string[] = [];
-  if (log.templates.claudeDir) items.push(log.templates.claudeDir);
   if (log.templates.codexDir) items.push(log.templates.codexDir);
   if (log.templates.opencodeDir) items.push(log.templates.opencodeDir);
   // 셋 다 없는 설치(antigravity 단독)도 있다 — 빈 문자열을 찍으면 "templates removed: " 가
