@@ -23,11 +23,19 @@ RUN chmod +x /usr/local/bin/claude /usr/local/bin/skills
 
 # Build as root (tsup 임시 파일 write 권한 회피).
 # install 검증은 uzys 사용자로 별도 phase 에서 (Docker stage 한 image 안 root + uzys 둘 다 사용).
+#
+# #568 — **npm 게시판과 같은 산출물(`npm pack`)로 설치한다.** `npm install -g .` 는 /work 를 링크해
+#   하네스 루트가 저장소 루트가 되고, 패키지(`package.json` `files`)에 없는 파일까지 보인다 — 저장소
+#   루트의 `.mcp.json` 을 읽던 변환이 컨테이너에서는 멀쩡하고 게시판에서만 OpenCode MCP 를 비운 이유다.
+#   /work 는 시나리오 스크립트와 그들이 기대 목록을 유도하는 원본(src/ · templates/)으로만 남는다.
 WORKDIR /work
 COPY . /work
 RUN npm ci --ignore-scripts \
   && npm run build \
-  && npm install -g .
+  && mkdir -p /tmp/harness-pkg \
+  && npm pack --pack-destination /tmp/harness-pkg \
+  && npm install -g /tmp/harness-pkg/uzysjung-agent-harness-*.tgz \
+  && rm -rf /tmp/harness-pkg
 
 # uzys 사용자가 컨테이너 안 ~/.claude, ~/.codex 등 자기 home 에 write 가능해야 함.
 # /work 는 root:root 소유지만 readable + executable — uzys 가 시나리오 스크립트 실행 OK.

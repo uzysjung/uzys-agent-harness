@@ -23,7 +23,7 @@
  *
  * 실제 spawn은 mock (runExternal=null) — 외부 자산 호출 차단.
  */
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -223,38 +223,42 @@ describe("Matrix invariants — cross-cutting", () => {
     expect(report.codexOptIn).toBeNull();
   });
 
-  // v26.64.0 (ADR-020) — scope=project (default) 시 withCodexTrust 가 true 라도 글로벌 opt-in skip.
-  // ~/.codex/ write 는 scope=global 일 때만.
-  it("scope=project: withCodexTrust=true 라도 codexOptIn skip (ADR-020 / D16)", () => {
-    const report = runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withCodexTrust: true },
-        cli: ["codex"],
-        projectDir,
-        scope: "project",
-      },
+  // ADR-097 결정 2 (#567) — `--with-codex-trust` 는 **범위 조건 없이** 이 폴더의 trust 한 줄을 홈의
+  // Codex 설정에 더한다(예전에는 scope=global 에서만 돌아 프로젝트 설치에서는 조용히 무시됐다).
+  // HOME 을 임시 디렉터리로 돌린다 — 테스트 폴더를 실제 `~/.codex/config.toml` 에 등록하지 않는다.
+  describe("--with-codex-trust (범위 무관)", () => {
+    let home: string;
+    let prevHome: string | undefined;
+    beforeEach(() => {
+      prevHome = process.env.HOME;
+      home = mkdtempSync(join(tmpdir(), "ch-home-"));
+      process.env.HOME = home;
     });
-    expect(report.codexOptIn).toBeNull();
-  });
+    afterEach(() => {
+      if (prevHome === undefined) delete process.env.HOME;
+      else process.env.HOME = prevHome;
+      rmSync(home, { recursive: true, force: true });
+    });
 
-  // v26.64.0 (ADR-020) — scope=global + withCodexTrust true → codexOptIn 호출됨.
-  it("scope=global + withCodexTrust=true: codexOptIn 호출 (~/.codex/ write 활성)", () => {
-    const report = runInstall({
-      runExternal: null,
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      spec: {
-        tracks: ["tooling"],
-        options: { ...DEFAULT_OPTIONS, withCodexTrust: true },
-        cli: ["codex"],
-        projectDir,
-        scope: "global",
-      },
-    });
-    expect(report.codexOptIn).not.toBeNull();
+    for (const scope of ["project", "global"] as const) {
+      it(`scope=${scope}: 이 폴더의 trust 항목이 홈 Codex 설정에 등록된다`, () => {
+        const report = runInstall({
+          runExternal: null,
+          harnessRoot: HARNESS_ROOT,
+          projectDir,
+          spec: {
+            tracks: ["tooling"],
+            options: { ...DEFAULT_OPTIONS, withCodexTrust: true },
+            cli: ["codex"],
+            projectDir,
+            scope,
+          },
+        });
+        expect(report.codexOptIn?.trustEntry.status).toBe("registered");
+        expect(readFileSync(join(home, ".codex/config.toml"), "utf8")).toContain(
+          `[projects."${projectDir}"]`,
+        );
+      });
+    }
   });
 });

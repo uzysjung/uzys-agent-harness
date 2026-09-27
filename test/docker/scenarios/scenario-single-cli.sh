@@ -5,7 +5,7 @@
 #   그건 합집합이라 "OpenCode 만 쓰는 사람이 받는가"를 못 본다 — #344 가 정확히 그 형태였다
 #   (개발 트랙 기본 추천 자산이 Claude Code 에만 도달했고, 발견한 것은 사용자였다).
 #
-# 묻는 것은 둘뿐이다:
+# 묻는 것은 셋이다:
 #   ① 설치가 끝났나 (exit 0)
 #   ② 고른 스킬이 그 도구 트리에 실재하나 — **우리가 복사하는 번들 스킬과 `npx skills add`
 #      로 받는 외부 스킬 둘 다**. 두 배달 방식은 자리 규약이 달라서(실측 2026-08-28: 외부
@@ -13,6 +13,11 @@
 #      Code 만 별도 사본을 받는다 — `npx skills add --copy` 가 그 사본이다) 한쪽만 보면
 #      나머지가 빠져도 안 보인다. 실제로 다중 도구 설치에서 Claude Code 몫이 조용히
 #      빠진 적이 있다(exit 0 · 화면 ✓).
+#   ③ (#568) MCP 서버가 그 도구의 설정 파일에 **`.mcp.json` 과 같은 목록**으로 들어갔나 — 설정
+#      파일에 MCP 를 따로 두는 도구(codex · opencode)만. 빈 프로젝트라 `.mcp.json` 은 하네스 몫만
+#      담으므로 기대 목록은 거기서 읽는다. 이 이미지는 npm pack 산출물로 설치하므로(Dockerfile)
+#      패키지에 없는 파일을 원천으로 쓰는 코드는 여기서 빈 목록을 낸다 — OpenCode `mcp` 가 게시판에서만
+#      비어 있던 것이 그 형태였다.
 #
 # **알고 있는 한계**: 도달 여부는 "그 도구 트리 어디엔가 그 이름이 있는가"로 본다. 자리를
 #   **틀리게** 넣은 경우(예: claude 만 골랐는데 `.agents/` 에 넣음)는 이 판정을 통과한다.
@@ -94,6 +99,29 @@ for cli in ${CLI_LIST}; do
     failed=1
   else
     echo "  ✓ ${cli}: 설치 완료 · 번들 ${SKILL_COUNT}종 + 외부 ${EXT_COUNT}종 전부 도달"
+  fi
+
+  # ③ MCP 서버 목록 (#568). 설정 파일 이름은 그 도구의 규약이라 여기서 고른다.
+  case "${cli}" in
+    opencode) got=$(jq -r '.mcp // {} | keys[]' opencode.json | sort) ;;
+    codex) got=$(sed -nE 's/^\[mcp_servers\."?([^]"]+)"?\]$/\1/p' .codex/config.toml | sort) ;;
+    *) continue ;;
+  esac
+  want=$(jq -r '.mcpServers | keys[]' .mcp.json | sort)
+  if [[ -z "${want}" ]]; then
+    echo "  FAIL[${cli}]: .mcp.json 에 서버가 0개 — 아래 대조는 증거가 아니다"
+    failed=1
+  elif [[ "${got}" != "${want}" ]]; then
+    echo "  FAIL[${cli}]: MCP 서버가 .mcp.json 과 다르다 — 기대 [$(echo ${want})] · 실제 [$(echo ${got})]"
+    failed=1
+  elif [[ "${cli}" == "opencode" ]] &&
+    ! jq -e '.mcp | to_entries | all(.value.type == "local" and (.value.command | type) == "array")' \
+      opencode.json >/dev/null; then
+    # OpenCode 는 Claude 형식({type:"stdio", command, args})을 설정 오류로 거절한다(실측 1.18.32).
+    echo "  FAIL[${cli}]: opencode.json mcp 가 OpenCode 형식(type local · command 배열)이 아니다"
+    failed=1
+  else
+    echo "  ✓ ${cli}: MCP 서버 $(echo "${want}" | wc -l | tr -d ' ')개가 .mcp.json 과 같은 목록"
   fi
 done
 

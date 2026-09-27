@@ -4,7 +4,8 @@
  * Replaces `scripts/claude-to-codex.sh` (Phase D, OQ4 = TS port).
  *
  * Inputs:
- *   - harnessRoot:  repository root (templates/ + .mcp.json)
+ *   - harnessRoot:  harness root (templates/) — 저장소 루트 또는 npm 패키지 루트
+ *   - mcp:          하네스 MCP 서버 (`renderHarnessMcp` — 템플릿 + 트랙 표, #568)
  *   - projectDir:   target project to receive AGENTS.md + .codex/ + .agents/skills/
  *
  * Outputs (under projectDir):
@@ -42,6 +43,12 @@ export interface CodexTransformParams {
   selectedInternalSkills?: ReadonlyArray<string>;
   /** 2026-08-12 — 이 설치의 배포 룰 이름들. Codex 는 룰 디렉터리가 없어 AGENTS.md 본문에 embed 한다. */
   rules?: ReadonlyArray<string>;
+  /**
+   * #568 — 이 설치의 하네스 MCP 서버(`cli-transforms.ts` `renderHarnessMcp` — 템플릿 + 트랙 표).
+   * 예전에는 하네스 루트의 `.mcp.json` 을 읽었는데 그 파일은 npm 패키지에 없다. **required** —
+   * 호출부가 빠뜨리면 조용히 빈 목록이 되는 것이 바로 그 버그의 형태였다.
+   */
+  mcp: McpJson;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
    *
@@ -93,6 +100,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     projectDir,
     selectedInternalSkills = [],
     rules = [],
+    mcp,
     baseline,
     refreshOnly,
     writeAgentsMd = true,
@@ -103,7 +111,6 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
   const agentsTemplate = readRequired(join(harnessRoot, "templates/codex/AGENTS.md.template"));
   const configTemplate = readRequired(join(harnessRoot, "templates/codex/config.toml.template"));
   const projectName = basename(projectDir);
-  const mcp = readOptionalJson(join(harnessRoot, ".mcp.json"));
 
   // #530 (Epic #527 S3) — `update` 가 **새 릴리즈의 번들 스킬도** 이 CLI 자리에 깐다. 대상
   // 집합·생성 허가는 세 transform 공용 모듈이 정한다 — opencode 와 같은 `AGENTS.md` 를 쓰므로
@@ -210,15 +217,4 @@ function readRequired(path: string): string {
     throw new Error(`Codex transform: required source missing: ${path}`);
   }
   return readFileSync(path, "utf8");
-}
-
-function readOptionalJson(path: string): McpJson | null {
-  if (!existsSync(path)) {
-    return null;
-  }
-  try {
-    return JSON.parse(readFileSync(path, "utf8")) as McpJson;
-  } catch {
-    return null;
-  }
 }

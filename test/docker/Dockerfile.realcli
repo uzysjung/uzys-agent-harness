@@ -36,12 +36,15 @@ RUN npm install -g @openai/codex@${CODEX_VERSION} \
 RUN npm install -g opencode-ai \
   && (opencode --version || echo "[warn] opencode --version failed at build")
 
-# harness build + 글로벌 설치
+# harness build + 글로벌 설치 — npm 게시판과 같은 산출물(`npm pack`)로. 이유는 Dockerfile 의 같은 자리(#568).
 WORKDIR /work
 COPY . /work
 RUN npm ci --ignore-scripts \
   && npm run build \
-  && npm install -g .
+  && mkdir -p /tmp/harness-pkg \
+  && npm pack --pack-destination /tmp/harness-pkg \
+  && npm install -g /tmp/harness-pkg/uzysjung-agent-harness-*.tgz \
+  && rm -rf /tmp/harness-pkg
 
 # 실 Antigravity CLI (agy) — uzys 사용자 home 에 설치 (~/.local/bin/agy).
 # install.sh 는 실행 사용자 home 기준. root 빌드 후 uzys 로 설치하려면 USER 전환.

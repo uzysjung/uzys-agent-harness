@@ -94,6 +94,32 @@ if grep -q '"instructions"' "${PROJ}/opencode.json"; then
 fi
 echo ""
 
+# ── Tier A-2: 실 opencode 가 opencode.json 을 받아들이고 MCP 서버를 보는가 (#568) ──
+# OpenCode 는 설정 형식이 틀리면 **파일 전체를 거절한다**("Configuration is invalid", exit 1) — 서버
+# 목록이 맞아도 형식이 Claude 판({type:"stdio", command, args})이면 OpenCode 자체가 안 뜬다(실측
+# 1.18.32). 연결(`opencode mcp list`)은 서버를 네트워크로 받아야 해서 여기서는 설정 해석까지만 본다.
+echo "── Tier A-2: 실 opencode 가 opencode.json 을 해석하는가 (hard assert) ──"
+dbg_err="$(mktemp)"
+if dbg="$(cd "${PROJ}" && opencode debug config 2>"${dbg_err}")"; then
+  got="$(printf '%s\n' "${dbg}" | jq -r '.mcp // {} | keys[]' | sort)"
+  want="$(jq -r '.mcpServers | keys[]' "${PROJ}/.mcp.json" | sort)"
+  if [[ -z "${want}" ]]; then
+    echo "FAIL: .mcp.json 에 서버가 0개 — 대조가 증거가 아니다"
+    failed=1
+  elif [[ "${got}" == "${want}" ]]; then
+    echo "✓ opencode 가 설정을 받아들이고 .mcp.json 과 같은 MCP 서버 $(echo "${want}" | wc -l | tr -d ' ')개를 본다"
+  else
+    echo "FAIL: opencode 가 보는 MCP 서버가 .mcp.json 과 다르다 — 기대 [$(echo ${want})] · 실제 [$(echo ${got})]"
+    failed=1
+  fi
+else
+  echo "FAIL: opencode debug config 가 설정을 거절했다"
+  head -5 "${dbg_err}" | sed 's/^/    /'
+  failed=1
+fi
+rm -f "${dbg_err}"
+echo ""
+
 # ── Tier B: 실 opencode 가 AGENTS.md 를 지시문 소스로 다루는가 ───────────
 echo "── Tier B: 실 opencode discovery (evidence) ──"
 opencode --version 2>&1 | sed 's/^/  opencode: /'
