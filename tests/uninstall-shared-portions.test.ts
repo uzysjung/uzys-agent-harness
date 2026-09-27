@@ -195,6 +195,27 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
   });
 
+  it("--cli 가 남긴(설치자가 고친) 몫은 기록에 이어 적는다 — 기록에서 빠지면 다음 uninstall 이 그 키를 설명할 수 없다", () => {
+    firstContact();
+    const json = JSON.parse(read("opencode.json")) as {
+      mcp: Record<string, { environment?: object }>;
+    };
+    const github = json.mcp.github;
+    if (github === undefined) throw new Error("전제가 깨졌다");
+    github.environment = { GITHUB_TOKEN: "mine" };
+    put("opencode.json", JSON.stringify(json));
+
+    uninstall({ cli: "opencode" });
+
+    const kept = (readInstallLog(projectDir)?.portions ?? []).filter(
+      (p) => p.path === "opencode.json",
+    );
+    expect(kept.map((p) => p.key)).toEqual(["mcp.github"]);
+    expect(JSON.parse(read("opencode.json")).mcp.github).toMatchObject({
+      environment: { GITHUB_TOKEN: "mine" },
+    });
+  });
+
   it("하네스가 만든 opencode.json 은 지금의 회수 그대로 — 설치자가 고쳤으면 통째로 남긴다(몫을 걷지 않는다)", () => {
     install(["opencode"]);
     const json = JSON.parse(read("opencode.json")) as Record<string, unknown>;
