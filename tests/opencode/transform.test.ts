@@ -10,10 +10,13 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderHarnessMcp } from "../../src/cli-transforms.js";
 import { runOpencodeTransform } from "../../src/opencode/transform.js";
 import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
+/** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
+const HARNESS_MCP = renderHarnessMcp(HARNESS_ROOT, ["tooling"]);
 
 describe("runOpencodeTransform (E2E against templates/)", () => {
   let project: string;
@@ -29,6 +32,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
   it("produces AGENTS.md + opencode.json (no dev-method skills → no skill files)", () => {
     const report = runOpencodeTransform({
       harnessRoot: HARNESS_ROOT,
+      mcp: HARNESS_MCP,
       projectDir: project,
       baseline: new Map(),
     });
@@ -53,6 +57,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     expect(() =>
       runOpencodeTransform({
         harnessRoot: "/no/such/root",
+        mcp: HARNESS_MCP,
         projectDir: project,
         baseline: new Map(),
       }),
@@ -68,6 +73,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     it("selectedInternalSkills 주어지면 .opencode/commands/<id>.md 커맨드로 렌더", () => {
       const report = runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: DEV_METHOD,
         baseline: new Map(),
@@ -97,6 +103,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     it("스킬 본문이 원본 그대로 실린다 (description 이 잘리거나 stub 이 되지 않는다)", () => {
       runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
@@ -115,6 +122,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
       const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
       const report = runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: [id],
         baseline: new Map(),
@@ -138,6 +146,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
 
       const report = runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
@@ -154,6 +163,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     it("selectedInternalSkills 빈 배열(기본) → 스킬 미생성 (0개)", () => {
       const report = runOpencodeTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         baseline: new Map(),
       });

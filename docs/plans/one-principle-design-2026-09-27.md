@@ -201,7 +201,7 @@ type Verdict = "create" | "overwrite" | "backup+overwrite" | "leave" | "leave+ad
 | 30 | `package.json` devDependencies · `node_modules/` (npm 자산, `external-installer.ts:228-236`) | tool | 도구 | 도구 | — | 도구 | T(`npm uninstall`) | — | T |
 | 31 | `~/.claude/plugins/**` · `installed_plugins.json` (plugin, `external-installer.ts:458-483`) | tool | 도구 | 도구 | — | 도구 | T(`claude plugin uninstall --scope project`) | — | T |
 | 32 | `_bmad/` · `_bmad-output/` · `.claude/skills/bmad-*` (npx-run, #571) | advisory | **자산 한 단계 단위**로 설치 전후 루트 목록 diff → 경로 기록 **≠** | 같음 | — | 같음 | A **≠**(경로 나열) | — | A |
-| 33 | `~/.codex/config.toml` `[projects."<dir>"]` (`codex/trust-entry.ts:19-40`) | tool(홈) | `--with-codex-trust` 시 등록 **≠**(범위 조건 없음 — 결정 2) | 같음 | — | 같음 | A(D16 — 수동 명령) | — | — |
+| 33 | `~/.codex/config.toml` `[projects."<dir>"]` (`codex/trust-entry.ts:19-40`) | tool(홈) | `--with-codex-trust` 시 등록 **≠**(범위 조건 없음 — 결정 2) | 같음 | — | 같음 | A **≠**(지금 uninstall 은 trust 항목을 안내하지 않는다 — PR-7 이 "이 폴더의 Codex 신뢰 항목이 `~/.codex/config.toml` 에 남는다 · 빼려면 …" 한 줄을 낸다, PR-2 리뷰 N4) | — | — |
 | 34 | Global scope 자산(`--scope user` · `npx skills -g` · `npm -g`, `external-installer.ts:224-236,447-483`) | tool(홈) — **옛 설치본만** | ∅ **≠**(결정 1 — `--scope global` 은 거절, 대체 명령 안내) | ∅ | 로그 `scope: global` 이면 지금처럼 도구 재실행 | ∅ | A(D16, 지금처럼) | — | A |
 | 35 | `.mcp-allowlist` 옛 판 (`update-mode.ts:1523-1533`) | harness(옛) | — | — | 백업+X(ADR-072 그대로) | — | — | — | — |
 | 36 | `.claude/CLAUDE.md` 옛 앵커 (`update-mode.ts:86,944-946`) | advisory | — | — | A | — | — | — | — |
@@ -421,8 +421,8 @@ update 에도 돌아오지 않는다(R2) + `displaced` 파일이 uninstall 뒤 �
 계약, #574 케이스 추가) · `install-log-clis`·`legacy-log-claude-dir`(옛 로그 유도) · `uninstall-cli-scope`(소유 표).
 
 **B. npm pack 산출물로 설치하는 경로(#568 재발 방지).** `test/docker/Dockerfile` 이 `COPY . /work && npm install -g .`
-(`Dockerfile:27-30`) 로 저장소 루트를 하네스 루트로 쓰는 것이 #568 을 못 본 원인이다. 최소 변경: 빌드 단계에서 `npm pack`
-→ `npm install -g ./uzysjung-agent-harness-*.tgz` 로 바꾸고 `/work` 의 소스는 시나리오 스크립트만 남긴다. 그러면
+(`Dockerfile:27-30`) 로 저장소 루트를 하네스 루트로 쓰는 것이 #568 을 못 본 원인이다. 구현(PR-2): 빌드 단계에서 `npm pack`
+→ `npm install -g ./uzysjung-agent-harness-*.tgz` 로 바꾼다. `/work` 는 그대로 둔다 — 시나리오가 기대 목록을 `/work/src`·`/work/templates` 에서 유도하고, 설치본은 `/work` 를 읽지 않는다(PR-2 리뷰 N3 확인). 그러면
 `files` 밖 파일(`.mcp.json`)을 읽는 코드는 컨테이너에서 곧바로 빈 결과를 낸다. `docker-e2e` 3종(`test.yml:94-104`)이 이
 이미지를 쓰므로 새 시나리오 없이 게이트가 선다. 실 CLI 이미지(`Dockerfile.realcli:41-44`)도 같이.
 

@@ -19,8 +19,14 @@ const HARNESS_ROOT = join(__dirname, "..");
 
 describe("렌더 힌트 parity (audit CODE-1)", () => {
   it("삭제된 하이픈형 자산 플래그 '--with-<id>' 재등장 0건 (공백형 '--with <id>' 만 허용)", () => {
-    // 별개 옵션 --with-codex-prompts 가 이 렌더 파일에 정당히 들어오면 화이트리스트 갱신.
-    const hits = RENDER_SRC.match(/--with-[a-z][a-z-]*/g) ?? [];
+    // 막는 것은 **삭제된** 자산 플래그다. 지금 cac 에 등록된 동작 플래그(`--with-codex-trust` —
+    // #567 NEXT 가 headless 경로로 안내한다)는 등록 소스에서 유도해 허용한다 — 목록을 적지 않는다.
+    const registered = new Set(
+      [
+        ...readFileSync("src/commands/install.ts", "utf-8").matchAll(/"(--with-[a-z][a-z-]*)"/g),
+      ].map((m) => m[1]),
+    );
+    const hits = (RENDER_SRC.match(/--with-[a-z][a-z-]*/g) ?? []).filter((h) => !registered.has(h));
     expect(
       hits,
       `삭제된 자산 플래그 형태 발견: ${JSON.stringify(hits)} — generic '--with <id>' 로 교체`,

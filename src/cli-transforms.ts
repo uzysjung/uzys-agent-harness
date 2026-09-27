@@ -8,6 +8,7 @@
  * 네 번째 재발이다. 겸사로 `update-mode.ts` → `installer.ts` 순환 import 도 생기지 않는다.
  */
 
+import { join } from "node:path";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -15,11 +16,12 @@ import {
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
 import type { InstallLogSkillFile } from "./install-log.js";
+import { composeMcpJson, type McpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import type { OwnedWriteResult } from "./owned-write.js";
-import { CLI_BASES, type CliBase } from "./types.js";
+import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
-/** Codex / OpenCode / Antigravity per-CLI transforms (+ scope=global opt-in) 결과. */
+/** Codex / OpenCode / Antigravity per-CLI transforms (+ `--with-codex-trust` opt-in) 결과. */
 export interface CliTransformResults {
   codex: CodexTransformReport | null;
   codexOptIn: CodexOptInReport | null;
@@ -53,6 +55,12 @@ export interface CliTransformParams {
    * 형태다 — 무엇을 깔지는 installer 가 정하고, 어디에 놓을지는 각 transform 이 정한다.
    */
   rules: ReadonlyArray<string>;
+  /**
+   * #568 — 이 설치의 트랙. Codex · OpenCode 의 MCP 서버를 Claude `.mcp.json` 과 같은 원천(템플릿 +
+   * 트랙 표, `renderHarnessMcp`)에서 렌더하는 데 쓴다. **required** — 빠뜨린 호출부가 조용히 기본
+   * 서버만 받으면 트랙 서버(railway 등)가 그 경로에서만 사라진다(`baseline` 과 같은 이유).
+   */
+  tracks: ReadonlyArray<Track>;
   /** install log 의 `externalFiles`. 없으면 빈 배열 = 판정 불가 → 보수적 백업. */
   previousExternal: ReadonlyArray<InstallLogSkillFile>;
   /**
@@ -67,8 +75,26 @@ export interface CliTransformParams {
    * 그 둘만 설치 로그로 걸러 `cli` 에 넘긴다 (#514, `update-mode.ts` `installedCliTargets`).
    */
   refreshOnly?: boolean;
-  /** codex global trust opt-in — `scope=global` + `withCodexTrust` 일 때만. update 는 안 쓴다. */
+  /**
+   * `~/.codex/config.toml` 에 이 폴더의 trust 항목을 등록한다 — `--with-codex-trust` 를 줬을 때만
+   * (범위 조건 없음, ADR-097 결정 2). update 는 안 쓴다.
+   */
   codexTrust?: boolean;
+}
+
+/**
+ * #568 — 하네스가 이 트랙에 까는 MCP 서버(템플릿 `templates/mcp.json` + `templates/track-mcp-map.tsv`).
+ *
+ * Claude `.mcp.json` 을 만드는 `composeMcpJson` 과 **같은 함수**를 설치자 파일 없이 부른다 — 설치자
+ * 파일과 합치기 **전**의 하네스 몫이다. Codex · OpenCode 는 예전에 하네스 루트의 `.mcp.json` 을 읽었는데,
+ * 그 파일은 npm 패키지(`files`)에 없어 게시판에서는 OpenCode 의 `mcp` 가 늘 비었다.
+ */
+export function renderHarnessMcp(harnessRoot: string, tracks: ReadonlyArray<Track>): McpJson {
+  return composeMcpJson({
+    templateMcpPath: join(harnessRoot, "templates/mcp.json"),
+    trackMapPath: join(harnessRoot, "templates/track-mcp-map.tsv"),
+    tracks,
+  });
 }
 
 /**
@@ -84,6 +110,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     cli,
     selectedInternalSkills,
     rules,
+    tracks,
     previousExternal,
     refreshOnly = false,
     codexTrust = false,
@@ -113,6 +140,14 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalUpdated += report.ownership.updated;
   };
 
+  // #568 — 두 CLI 가 **한 값**을 받는다. 각자 렌더하면 같은 원천이어도 목록이 갈릴 자리가 생긴다.
+  // 둘 다 안 고른 설치에서는 템플릿을 읽지 않는다(처음 필요할 때 한 번 렌더).
+  let mcp: McpJson | undefined;
+  const harnessMcp = (): McpJson => {
+    mcp ??= renderHarnessMcp(harnessRoot, tracks);
+    return mcp;
+  };
+
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
   if (cli.includes("codex")) {
@@ -122,6 +157,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       projectDir,
       selectedInternalSkills,
       rules,
+      mcp: harnessMcp(),
       baseline,
       refreshOnly,
       // #550 — 같은 `AGENTS.md` 를 한 실행에서 쓰는 쪽은 하나다. opencode 가 뒤에서 자기 템플릿으로
@@ -130,8 +166,8 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       writeAgentsMd: !cli.includes("opencode"),
     });
     absorb(codex);
-    // v26.64.0 (ADR-020) — Codex global trust opt-in 은 scope=global 일 때만 의미.
-    // scope=project (default) 시 ~/.codex/ write skip (config.toml trust entry 만).
+    // ADR-097 결정 2 — 범위와 무관하게 `--with-codex-trust` 를 준 경우에만 홈 파일에 한 줄을 더한다.
+    // 안 줬으면 Codex 가 첫 실행에서 직접 묻는다("Trust and continue") — 설치 화면 NEXT 가 그걸 안내한다.
     if (codexTrust) {
       codexOptIn = runCodexOptIn({ projectDir });
     }
@@ -144,6 +180,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       projectDir,
       selectedInternalSkills,
       rules,
+      mcp: harnessMcp(),
       baseline,
       refreshOnly,
     });

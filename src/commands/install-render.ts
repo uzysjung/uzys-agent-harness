@@ -479,6 +479,26 @@ export function renderFinalSummary(
   const primary = (spec.cli.includes("claude") ? "claude" : spec.cli[0]) ?? "claude";
   const label = CLI_SUMMARY_LABELS[primary];
   log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
+  // #567 · ADR-097 결정 2 — Codex 는 룰(`AGENTS.md`)·스킬은 바로 읽지만 `.codex/config.toml` 은 이 폴더를
+  // 신뢰해야 켠다(실측 Codex 0.125.0: trust 전 `codex mcp list` = 서버 0 · sandbox 설정 무시). 그 한 번의
+  // 확인은 Codex 가 첫 실행에서 직접 묻는다. 이번 실행이 trust 항목을 이미 등록했으면 말할 것이 없다.
+  const codexTrusted =
+    report.codexOptIn?.trustEntry.status === "registered" ||
+    report.codexOptIn?.trustEntry.status === "already-present";
+  if (spec.cli.includes("codex") && !codexTrusted) {
+    // NEXT 값 열에 맞춘 이어지는 줄 — infoRow 의 들여쓰기 2 + 라벨 14 + 구분 공백 1.
+    const cont = (text: string): string => `${" ".repeat(16)} ${text}`;
+    log(
+      cont(
+        `${c.bold("Codex")} turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:`,
+      ),
+    );
+    log(
+      cont(
+        `open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim("(headless: agent-harness install … --with-codex-trust)")}`,
+      ),
+    );
+  }
   const scaffoldFiles = scaffoldFilesForCli(spec.cli);
   if (scaffoldFiles.length > 0) {
     // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.

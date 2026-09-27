@@ -23,6 +23,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
+import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { runCodexTransform } from "../src/codex/transform.js";
 import { hashContent, type InstallLogSkillFile, readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
@@ -30,6 +31,8 @@ import { runOpencodeTransform } from "../src/opencode/transform.js";
 import type { InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = join(__dirname, "..");
+/** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
+const HARNESS_MCP = renderHarnessMcp(HARNESS_ROOT, ["tooling"]);
 // 2026-08-02 정비 (ADR-060) — 표본이 이관된 verification-loop 에서 잔존 번들 스킬로 바뀌었다.
 const SKILLS = ["compaction-handoff"];
 
@@ -58,6 +61,7 @@ function edit(abs: string, content: string): void {
 function codex(baseline: ReadonlyMap<string, string>) {
   return runCodexTransform({
     harnessRoot: HARNESS_ROOT,
+    mcp: HARNESS_MCP,
     projectDir,
     selectedInternalSkills: SKILLS,
     baseline,
@@ -67,6 +71,7 @@ function codex(baseline: ReadonlyMap<string, string>) {
 function opencode(baseline: ReadonlyMap<string, string>) {
   return runOpencodeTransform({
     harnessRoot: HARNESS_ROOT,
+    mcp: HARNESS_MCP,
     projectDir,
     selectedInternalSkills: SKILLS,
     baseline,
