@@ -97,9 +97,9 @@ export interface CliTransformParams {
    */
   codexTrust?: boolean;
   /**
-   * #551 (ADR-097) — 함께 쓰는 파일의 앞 기록: 설치 로그의 `portions`(없는 로그면 `undefined` 그대로 — 빈 배열로
-   * 바꾸지 마라, 그러면 "몫 기록 있음 · 이 파일 몫 없음" 으로 읽혀 하네스 구간을 설치자 것으로 본다)와
-   * `excludedIds(log)`. 생략 = 몫을 기록한 적 없는 로그(내용 식별로 대신한다, `shared-write.ts`).
+   * #551 (ADR-097) — 함께 쓰는 파일의 앞 기록: 설치 로그의 `portions` 와 `excludedIds(log)`. **기록 writer(PR-3)가 이
+   * 결과의 `portions` 를 로그에 쓰고 다음 실행에 여기로 돌려줘야** 하네스 몫이 갱신된다 — 생략하면 기준선 sha 그대로인
+   * 하네스 파일 말고는 하네스 구간·키를 갈아 끼우지 않고 남긴다(`shared-write.ts` `SharedRecord`).
    */
   shared?: SharedRecord;
 }

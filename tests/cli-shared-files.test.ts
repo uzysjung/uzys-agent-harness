@@ -20,6 +20,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ADAPTERS } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
 import { runCliTransforms } from "../src/cli-transforms.js";
 import { renderCliArtifacts } from "../src/commands/install-render.js";
@@ -91,6 +92,12 @@ function backups(dir = projectDir): string[] {
     else if (e.isDirectory()) out.push(...backups(abs));
   }
   return out;
+}
+
+/** 지금 파일의 하네스 블록을 기록된 몫으로 — 기록 writer(PR-3)가 남겼을 값을 테스트가 대신 만든다. */
+function portionsOf(path: "AGENTS.md", text: string): InstallLogPortion[] {
+  const shas = ADAPTERS["marker-md"].read(text, ["agents"]) ?? new Map<string, string>();
+  return [...shas].map(([key, sha256]) => ({ path, adapter: "marker-md", key, sha256 }));
 }
 
 type Toml = Record<string, unknown> & {
@@ -168,6 +175,28 @@ describe(".codex/config.toml — 설치자 파일에 하네스 몫(구간 둘)�
     expect(first.match(/# uzys-harness:tables:start/g)).toHaveLength(1);
     expect(toml().mcp_servers?.myown).toBeDefined();
     expect(backups()).toEqual([]);
+  });
+
+  // 몫 기록(`portions`)이 로그에 없으면 구간 안의 값이 하네스가 쓴 그대로인지 알 수 없다. 모른다고 하네스 판으로
+  // 갈아 끼우면 설치자가 구간 안에서 고친 값(예: 하네스 서버에 토큰 env 추가)이 백업도 없이 사라진다 — 남긴다.
+  it.each([
+    ["첫 접촉 파일", INSTALLER_TOML],
+    ["하네스가 만든 파일", null],
+  ])("몫 기록이 없는 로그에서 설치자가 하네스 구간 안을 고쳤으면 되돌리지 않는다 — %s", (_, original) => {
+    if (original !== null) put(".codex/config.toml", original);
+    install(["codex"]);
+    const edited = read(".codex/config.toml").replace(
+      'args = ["-y","@upstash/context7-mcp@latest"]',
+      'args = ["-y","@upstash/context7-mcp@latest"]\nenv = { CONTEXT7_API_KEY = "mine" }',
+    );
+    expect(edited).toContain("CONTEXT7_API_KEY"); // 대조군 — 편집이 실제로 들어갔다
+    writeFileSync(join(projectDir, ".codex/config.toml"), edited);
+
+    install(["codex"]);
+    update();
+
+    expect(read(".codex/config.toml")).toBe(edited);
+    expect(toml().mcp_servers?.context7?.env).toEqual({ CONTEXT7_API_KEY: "mine" });
   });
 
   it("TOML 로 읽히지 않으면 한 바이트도 쓰지 않고 이유를 말한다(#574 규칙)", () => {
@@ -299,6 +328,25 @@ describe("opencode.json — 설치자 설정은 그대로, 하네스 MCP 키만 
     expect((JSON.parse(first) as { model: string }).model).toBe(INSTALLER_OPENCODE.model);
   });
 
+  it("몫 기록이 없는 로그에서 하네스가 만든 파일의 하네스 서버 값을 설치자가 고쳤으면 되돌리지 않는다", () => {
+    install(["opencode"]);
+    const json = JSON.parse(read("opencode.json")) as {
+      mcp: Record<string, { environment?: object }>;
+    };
+    const context7 = json.mcp.context7;
+    if (context7 === undefined) throw new Error("하네스 서버 context7 이 없다 — 전제가 깨졌다");
+    context7.environment = { CONTEXT7_API_KEY: "mine" };
+    put("opencode.json", `${JSON.stringify(json, null, 2)}\n`);
+
+    install(["opencode"]);
+    update();
+
+    const after = JSON.parse(read("opencode.json")) as {
+      mcp: Record<string, { environment?: object }>;
+    };
+    expect(after.mcp.context7?.environment).toEqual({ CONTEXT7_API_KEY: "mine" });
+  });
+
   it("JSON 으로 읽히지 않으면 한 바이트도 쓰지 않는다", () => {
     put("opencode.json", "{ model: nope");
     const report = install(["opencode"]);
@@ -392,8 +440,9 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
       rules: ["doc-governance"],
       tracks: ["tooling"],
       previousExternal: [{ path: "AGENTS.md", sha256: hashContent(withBlock) }],
+      shared: { portions: portionsOf("AGENTS.md", withBlock) },
     });
-    expect(r.sharedFiles.find((f) => f.path === "AGENTS.md")?.action).toBe("updated");
+    expect(r.sharedFiles.find((f) => f.path === "AGENTS.md")?.action).toBe("updated"); // 블록은 갈렸다
     expect(read("AGENTS.md").startsWith(INSTALLER_AGENTS)).toBe(true);
   });
 
@@ -478,7 +527,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
 
   it("설치자 파일에 직접 쓴 갱신도 update 갱신 수에 센다 — 기준선(`externalFiles`)에는 남기지 않는다", () => {
     put("AGENTS.md", INSTALLER_AGENTS);
-    run();
+    const first = run();
     const second = runCliTransforms({
       harnessRoot: HARNESS_ROOT,
       projectDir,
@@ -486,7 +535,8 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
       selectedInternalSkills: [],
       rules: ["doc-governance"], // 룰이 바뀐 릴리즈 — 블록이 바뀐다
       tracks: ["tooling"],
-      previousExternal: [],
+      previousExternal: first.externalFiles,
+      shared: { portions: first.portions },
     });
     const agents = second.sharedFiles.find((r) => r.path === "AGENTS.md");
     expect(agents?.action).toBe("updated");
@@ -523,6 +573,40 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     );
     expect(second.portionPaths).toContain("opencode.json");
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
+  });
+
+  it("기록된 몫이 있으면 하네스 구간을 갱신한다 — 설치자가 구간 안을 고쳤으면 그 구간만 남기고 알린다", () => {
+    put(".codex/config.toml", INSTALLER_TOML);
+    const first = run();
+    const again = (tracks: ("tooling" | "csr-fastapi")[], portions: InstallLogPortion[]) =>
+      runCliTransforms({
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        cli: ["codex"],
+        selectedInternalSkills: [],
+        rules: ["git-policy"],
+        tracks,
+        previousExternal: first.externalFiles,
+        shared: { portions },
+      });
+
+    // 트랙 서버가 늘어난 릴리즈 — 기록 sha 그대로인 표 구간은 갈린다
+    const second = again(["csr-fastapi"], first.portions);
+    expect(toml().mcp_servers).toHaveProperty("railway-mcp-server");
+    expect(toml().mcp_servers?.myown).toBeDefined();
+    expect(second.sharedFiles.find((f) => f.path === ".codex/config.toml")?.action).toBe("updated");
+
+    // 설치자가 표 구간 안을 고쳤다 — 다음 갱신은 그 구간을 남기고 "kept" 로 알린다
+    const edited = read(".codex/config.toml").replace(
+      'args = ["-y","@upstash/context7-mcp@latest"]',
+      'args = ["-y","@upstash/context7-mcp@latest"]\nenv = { CONTEXT7_API_KEY = "mine" }',
+    );
+    put(".codex/config.toml", edited);
+    const third = again(["tooling"], second.portions);
+    expect(read(".codex/config.toml")).toBe(edited);
+    expect(third.sharedFiles.find((f) => f.path === ".codex/config.toml")?.kept).toContain(
+      "tables",
+    );
   });
 
   it("excluded 의 키는 더하지 않는다", () => {

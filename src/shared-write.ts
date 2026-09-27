@@ -35,8 +35,10 @@ import type { OwnedWriter } from "./owned-write.js";
 /** 앞 실행이 남긴 기록 중 함께 쓰는 파일이 읽는 것 — `runCliTransforms` 가 호출부에서 받아 넘긴다. */
 export interface SharedRecord {
   /**
-   * 설치 로그의 `portions`. **`undefined` = 몫을 기록한 적 없는 로그**(옛 판 · 기록 배선 전)이고, 그때만 파일마다
-   * 내용 식별(`identify`, 설계 §5)로 대신한다. 배열이면(비었어도) 그것만 본다.
+   * 설치 로그의 `portions` — 키마다 하네스가 써 둔 값의 sha. 이것이 있어야 하네스 몫을 갱신·회수할 수 있다(파일 값이
+   * 기록 sha 그대로일 때만). **없으면(옛 판 · 기록 배선 전) 파일에 있는 하네스 구간·키가 하네스가 쓴 그대로인지 알 수
+   * 없다** — 그때는 갈아 끼우지 않고 남긴다. 모른다고 하네스 판으로 바꾸면 설치자가 구간 안에서 고친 값이 백업도 없이
+   * 사라진다(`tests/cli-shared-files.test.ts`). 예외 하나: 기준선 sha 그대로인 하네스 파일은 통째로 새로 쓴다(아래).
    */
   portions?: ReadonlyArray<InstallLogPortion>;
   /** 설치자가 뺀 것 한 목록(`excludedIds(log)`) — 이 파일의 키 id 만 골라 쓴다. */
@@ -79,8 +81,6 @@ export interface WriteSharedParams<V> {
   baseline: ReadonlyMap<string, string>;
   /** 하네스가 만든 파일을 쓰는 writer(변환의 것 그대로) — 기준선이 거기로 쌓인다. */
   writer: OwnedWriter;
-  /** 몫 기록이 없는 로그(`record.portions === undefined`)에서 이 파일의 하네스 몫을 찾는 법(설계 §5). */
-  identify: (disk: string) => PortionShas;
   /** update 경로 — 없는 파일은 만들지 않는다(ADR-049). */
   refreshOnly: boolean;
   /** 파일을 새로 만들 때만 하네스 몫 앞에 둘 본문(컨텍스트 파일의 스캐폴드 등) — 몫이 아니다. */
@@ -93,16 +93,10 @@ function toPortions(path: string, portions: ReadonlyMap<string, string>): Instal
   return [...portions].map(([key, sha256]) => ({ path, adapter, key, sha256 }));
 }
 
-function recordedFor(
-  path: string,
-  record: SharedRecord,
-  disk: string | null,
-  identify: (disk: string) => PortionShas,
-): PortionShas {
-  if (record.portions !== undefined) {
-    return new Map(record.portions.filter((p) => p.path === path).map((p) => [p.key, p.sha256]));
-  }
-  return disk === null ? new Map() : identify(disk);
+function recordedFor(path: string, record: SharedRecord): PortionShas {
+  return new Map(
+    (record.portions ?? []).filter((p) => p.path === path).map((p) => [p.key, p.sha256]),
+  );
 }
 
 export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult {
@@ -111,7 +105,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   if (adapter === null) throw new Error(`shared-write: ${path} is not a shared file`);
   const abs = join(projectDir, path);
   const onDisk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
-  const recorded = recordedFor(path, record, onDisk, params.identify);
+  const recorded = recordedFor(path, record);
   const excluded = excludedKeys(path, record.excluded ?? []);
   const result = (
     action: SharedAction,
@@ -135,8 +129,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     next: null,
     run: refreshOnly ? "update" : "install",
     adapter,
-    // 파일이 없으면 `recorded` 는 로그의 몫뿐이다(내용 식별은 읽을 파일이 있어야 한다) — 몫 기록이 없는 로그의 update 는
-    // 지운 파일을 "만들지 않는다" 쪽(아래 `skipped`)으로 간다. 어느 쪽이든 쓰지 않는다
+    // 몫 기록이 없는 로그의 update 는 지운 파일을 "만들지 않는다" 쪽(아래 `skipped`)으로 간다. 어느 쪽이든 쓰지 않는다
     hasPortions: recorded.size > 0,
   });
   switch (verdict.verdict) {
@@ -286,7 +279,6 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
     // uninstall 이 "기준선 그대로인 하네스 파일" 로 읽고 절 모델로 걷어내려다 설치자 본문째 지운다.
     baseline: new Map(),
     writer: params.writer,
-    identify: (text) => ADAPTERS["marker-md"].read(text, [AGENTS_BLOCK_NAME]) ?? new Map(),
     refreshOnly: params.refreshOnly,
   });
   return { model: "block", shared };

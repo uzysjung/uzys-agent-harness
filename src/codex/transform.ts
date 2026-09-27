@@ -79,8 +79,8 @@ export interface CodexTransformParams {
    */
   writeAgentsMd?: boolean;
   /**
-   * #551 (ADR-097) — 함께 쓰는 파일(`.codex/config.toml` · 첫 접촉 `AGENTS.md`)의 앞 기록. 생략 = 몫을 기록한 적
-   * 없는 로그로 보고 내용 식별로 대신한다(`shared-write.ts` `SharedRecord`).
+   * #551 (ADR-097) — 함께 쓰는 파일(`.codex/config.toml` · 첫 접촉 `AGENTS.md`)의 앞 기록(`shared-write.ts`
+   * `SharedRecord`). 생략 = 몫 기록 없음 — 하네스 구간을 갈아 끼우지 않고 남긴다.
    */
   shared?: SharedRecord;
 }
@@ -280,8 +280,6 @@ function writeConfigToml(args: {
     record: args.record,
     baseline: args.baseline,
     writer: args.writer,
-    // 몫 기록이 없는 로그 — 마커 구간이 곧 하네스 몫이다(구간 이름은 하네스만 쓴다)
-    identify: (text) => ADAPTERS["toml-region"].read(text) ?? new Map(),
     refreshOnly: args.refreshOnly,
   });
 }

@@ -18,7 +18,6 @@
 
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
-import { ADAPTERS } from "../adapters/index.js";
 import { anchorTitle, withMarkedContinuousSkillsNote } from "../agents-md-merge.js";
 import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { seedAgentsMdProjectContext } from "../anchor-seed.js";
@@ -68,8 +67,8 @@ export interface OpencodeTransformParams {
    */
   refreshOnly?: boolean;
   /**
-   * #551 (ADR-097) — 함께 쓰는 파일(`opencode.json` · 첫 접촉 `AGENTS.md`)의 앞 기록. 생략 = 몫을 기록한 적 없는
-   * 로그로 보고 내용 식별로 대신한다(`shared-write.ts` `SharedRecord`).
+   * #551 (ADR-097) — 함께 쓰는 파일(`opencode.json` · 첫 접촉 `AGENTS.md`)의 앞 기록(`shared-write.ts`
+   * `SharedRecord`). 생략 = 몫 기록 없음 — 하네스 키를 갈아 끼우지 않고 남긴다.
    */
   shared?: SharedRecord;
 }
@@ -182,12 +181,6 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     record: shared,
     baseline,
     writer,
-    // 몫 기록이 없는 로그 — 하네스가 만든 파일(기준선에 있다)이면 하네스 서버 이름의 키가 하네스 몫이다
-    // (설계 §5 의 `.mcp.json` "created 일 때만 템플릿 서버 이름으로" 와 같은 규칙). 설치자 파일이면 없다.
-    identify: (text) =>
-      baseline.has(OPENCODE_JSON)
-        ? (ADAPTERS["json-keys"].read(text, render.keys()) ?? new Map())
-        : new Map(),
     refreshOnly: refreshOnly ?? false,
     seed: renderOpencodeJson({ template: opencodeTemplate }),
   });
