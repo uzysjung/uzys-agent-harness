@@ -22,7 +22,7 @@ import {
   runExternalInstall,
   selectExternalTargets,
 } from "./external-installer.js";
-import { foreignOwnedTarget } from "./foreign-slot.js";
+import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import {
   backupDir,
   backupFile,
@@ -31,6 +31,7 @@ import {
   copyDir,
   copyFile,
   ensureProjectSkeleton,
+  listFilesRecursive,
 } from "./fs-ops.js";
 import {
   buildInstallLog,
@@ -40,11 +41,14 @@ import {
   type InstallLog,
   type InstallLogRootFile,
   type InstallLogSkillFile,
+  installedClis,
+  isHarnessOwned,
   mergeExternalFiles,
   POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
   type AssetSpec,
   buildAssetSpec,
@@ -222,6 +226,16 @@ export interface BaselineReport {
    * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
    */
   baselineForeignOwned: string[];
+  /**
+   * #524 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는 링크라 **그 공유
+   * 본문**을 최신판으로 맞춘 스킬 id. 링크 자리는 여전히 건드리지 않는다(링크는 설치자 것이다).
+   * `baselineForeignOwned` 와 나누는 이유: 이쪽은 받았고 저쪽은 못 받았다 — 한 행이면 설치자는
+   * 자기 스킬이 갱신됐는지 알 수 없다. 옵셔널인 이유는 update 경로와 화면 픽스처가 이 축을 안 싣기
+   * 때문이다(없음 = 0건).
+   */
+  baselineLinked?: string[];
+  /** #524 — 링크가 가리키는 공유 본문이 우리 기록에 없어 **건드리지 않은** 스킬 id. */
+  baselineLinkedNotOurs?: string[];
   /** 덮어쓰기 전 보존한 사용자 파일 백업 경로 (settings.json·CLAUDE.md, fresh/add 모드). audit SEC-1/CODE-2. */
   backups?: string[];
 }
@@ -265,6 +279,12 @@ export interface InstallReport {
   baselineExcludedOnDisk: string[];
   /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineForeignOwned: string[];
+  /** #524 — 링크를 통해 공유 본문을 갱신한 스킬 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  baselineLinked?: string[];
+  /** #524 — 링크가 가리키는 공유 본문이 우리 기록에 없어 건드리지 않은 스킬 id. */
+  baselineLinkedNotOurs?: string[];
+  /** 덮어쓰기 전 보존한 사용자 파일 백업 경로. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  backups?: string[];
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */
@@ -326,7 +346,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     );
   }
 
-  const backupPath = resolveBackupPath(ctx, mode, claudeDir);
+  const backupPath = resolveBackupPath(ctx, mode, claudeDir, previousLog);
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update") {
@@ -340,6 +360,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // ADR-047 — 덮어쓰기 전 소유 판정에 쓸 기준선. `.claude/` 를 옮겨낸 뒤(reinstall)엔 대조할
   // 대상이 없으므로 previousLog 를 그대로 쓰되, 그 경우 아래 existsSync 가 자연히 걸러낸다.
   const policyBase = new Map((previousLog?.policyFiles ?? []).map((f) => [f.path, f.sha256]));
+  // #536 — 스킬 디렉터리도 같은 잣대로 판정한다. 키는 `.claude/skills/` 상대(`<id>/<rel>`).
+  const skillBase = new Map((previousLog?.skillFiles ?? []).map((f) => [f.path, f.sha256]));
 
   // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
   const baselineExcluded = new Set(spec.baselineExclude ?? []);
@@ -350,6 +372,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
         projectDir,
         templatesDir,
         policyBase,
+        skillBase,
         baselineExcluded,
         harnessRoot,
       )
@@ -395,6 +418,20 @@ export function runInstall(ctx: InstallContext): InstallReport {
     codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
   });
 
+  // #524 — 링크 자리의 공유 본문. 외부 변환 **뒤에** 돈다: 그 결과를 기준선에 합쳐야 같은 실행에서
+  // 방금 쓴 바이트를 "설치자 편집"으로 오판하지 않는다(같은 바이트면 no-op).
+  const linked = refreshLinkedSkillBodies({
+    harnessRoot,
+    projectDir,
+    ids: base.linkedSkills,
+    baseline: new Map(
+      mergeExternalFiles(projectDir, previousLog?.externalFiles, externalFiles).map((f) => [
+        f.path,
+        f.sha256,
+      ]),
+    ),
+  });
+
   const baseline: BaselineReport = {
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
@@ -411,14 +448,15 @@ export function runInstall(ctx: InstallContext): InstallReport {
     rootClaudeMd: base.rootClaudeMd,
     // 외부 CLI 백업도 같은 줄에 노출한다 — 백업이 화면에 안 보이면 사용자는 자기 편집분이
     // 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다 (ADR-046/047 과 같은 이유).
-    backups: [...base.backups, ...externalBackups],
+    backups: [...base.backups, ...externalBackups, ...linked.backupPaths],
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
     baselineForeignOwned: [
-      ...base.foreignOwned,
-      ...externalForeignOwned.filter((f) => !base.foreignOwned.includes(f)),
+      ...new Set([...base.foreignOwned, ...externalForeignOwned, ...linked.foreignOwned]),
     ],
+    baselineLinked: linked.updated,
+    baselineLinkedNotOurs: linked.notOurs,
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -438,7 +476,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 실제로 사라졌으므로 누적에서 빠져야 한다 (fresh/add 는 backupPath=null → 전부 유지).
   writeInstallLogSafe(
     ctx,
-    externalFiles,
+    // 링크 본문의 기준선도 같은 필드다 — 같은 경로면 뒤(이번에 쓴 값)가 이긴다.
+    [...externalFiles, ...linked.files],
     external,
     base.rootClaudeMdLog,
     previousLog,
@@ -468,13 +507,22 @@ function healStaleHookRefs(spec: InstallSpec, projectDir: string): string[] {
  * Backup auto-on for update + reinstall (sourced from router action).
  * Update: copy backup (preserve original .claude/ for in-place update).
  * Reinstall + others: rename backup (move .claude/ aside, then full install).
+ *
+ * #536 — update 는 **Claude 가 깔린 집합에 없으면** `.claude/` 를 복사하지 않는다. 그 실행은
+ * `.claude/` 를 한 글자도 안 바꾸므로(update-mode `claudeManaged`) 백업할 것이 없고, 복사하면
+ * 설치자 소유 디렉터리의 사본이 실행마다 쌓인다. 판정은 로그의 깔린 집합(`installedClis`)이다 —
+ * `spec.cli`(마지막 설치분)로 보면 claude 로 깔고 codex 를 더한 설치본이 `[codex]` 로 읽혀
+ * 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 로그가 없는 레거시 설치본은 이전과 같이 백업한다.
  */
 function resolveBackupPath(
   ctx: InstallContext,
   mode: InstallMode,
   claudeDir: string,
+  previousLog: InstallLog | null,
 ): string | null {
-  const wantBackup = ctx.backup ?? (mode === "update" || mode === "reinstall");
+  const claudeUntouched = previousLog !== null && !installedClis(previousLog).includes("claude");
+  const wantBackup =
+    ctx.backup ?? (mode === "reinstall" || (mode === "update" && !claudeUntouched));
   if (!wantBackup) return null;
   return mode === "update" ? copyBackupDir(claudeDir) : backupDir(claudeDir);
 }
@@ -580,6 +628,11 @@ interface ClaudeBaselineResult {
    * 이건 **디스크 쪽 사정**이고, 사용자가 고를 때는 보이지 않던 것이다.
    */
   foreignOwned: string[];
+  /**
+   * #524 — 자리가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는 링크인 스킬 id. `foreignOwned` 에
+   * 넣지 않는다 — 그 본문은 외부 변환 뒤에 `refreshLinkedSkillBodies` 가 기록대로 판정한다.
+   */
+  linkedSkills: string[];
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -594,6 +647,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     excluded: [],
     excludedOnDisk: [],
     foreignOwned: [],
+    linkedSkills: [],
   };
 }
 
@@ -671,11 +725,44 @@ function backupEditedPolicyFile(
   return backupFile(target);
 }
 
+/**
+ * #536 — 스킬 디렉터리를 덮기 전 파일 단위로 편집분을 보존한다. 룰의 `backupEditedPolicyFile` 과
+ * **같은 표**다: 번들과 같으면 없음 · 기준선(`skillFiles`)과 같으면 없음 · 그 밖(기준선과 다름 ·
+ * 기록 없음)은 `.backup-<stamp>`. 그 전까지 디렉터리 복사는 어느 축에서도 백업이 없어, 기설치 위
+ * `install`(위저드 Add · 옛 로그의 복구 명령)이 고친 스킬을 흔적 없이 밀었다.
+ *
+ * 남의 자리(파일 링크·FIFO)는 보지 않는다 — `copyDir` 이 어차피 건너뛰고, 백업은 그 링크를 따라
+ * 남의 내용을 우리 자리에 복제한다.
+ *
+ * @returns 만든 백업의 절대경로.
+ */
+function backupEditedSkillFiles(
+  projectDir: string,
+  entryTarget: string,
+  source: string,
+  baseline: ReadonlyMap<string, string>,
+): string[] {
+  const id = entryTarget.slice(".claude/skills/".length);
+  const backups: string[] = [];
+  for (const rel of listFilesRecursive(source)) {
+    if (foreignOwnedTarget(projectDir, `${entryTarget}/${rel}`) !== null) continue;
+    const target = join(projectDir, entryTarget, rel);
+    if (!existsSync(target)) continue;
+    const current = readFileSync(target, "utf-8");
+    if (current === readFileSync(join(source, rel), "utf-8")) continue; // 이미 최신
+    if (isHarnessOwned(baseline, `${id}/${rel}`, current)) continue; // 하네스가 놓아둔 그대로
+    backups.push(backupFile(target));
+  }
+  return backups;
+}
+
 function installClaudeBaseline(
   manifestSpec: Required<AssetSpec>,
   projectDir: string,
   templatesDir: string,
   policyBase: ReadonlyMap<string, string>,
+  /** #536 — 스킬 파일 기준선 (`skillFiles`, 키 `<id>/<rel>`). 빈 Map = 판정 불가 → 보수적 백업. */
+  skillBase: ReadonlyMap<string, string>,
   baselineExcluded: ReadonlySet<string>,
   /** #528 — 루트 `CLAUDE.md` 를 **새로 만들 때** `AGENTS.md` 의 절 경계를 읽을 템플릿 자리. */
   harnessRoot: string,
@@ -704,6 +791,14 @@ function installClaudeBaseline(
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) {
       result.skipped += 1;
+      continue;
+    }
+    // #524 — 슬롯이 이 프로젝트의 `.agents/skills/<id>` 로의 링크면 남의 것이 아니라 공유 본문이다.
+    // 링크 자리엔 쓰지 않고(디렉터리를 부으면 링크를 따라간다) id 만 넘긴다 — 본문 판정은 외부
+    // 변환 뒤에 기록으로 한다(`runInstall` → `refreshLinkedSkillBodies`).
+    const skillId = entry.target.slice(".claude/skills/".length);
+    if (entry.type === "dir" && linksToProjectSharedSkill(projectDir, skillId)) {
+      result.linkedSkills.push(skillId);
       continue;
     }
     // #343 — 남의 도구가 소유한 스킬 슬롯에는 쓰지 않는다 (판정 SSOT = foreign-slot.ts).
@@ -736,6 +831,8 @@ function installClaudeBaseline(
       // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
       // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다. 스킬 14종 중
       // 13종이 이 경로(dir 엔트리)라 슬롯 판정만으로는 대부분이 안 막혔다.
+      // dir 엔트리는 전부 `.claude/skills/<id>` 다(manifest.ts #409 — 스킬은 디렉터리 단위로만).
+      result.backups.push(...backupEditedSkillFiles(projectDir, entry.target, source, skillBase));
       for (const foreign of copyDir(source, target, (relFile) =>
         foreignOwnedTarget(projectDir, `${entry.target}/${relFile}`),
       )) {
