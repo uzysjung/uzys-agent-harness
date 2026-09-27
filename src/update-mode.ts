@@ -34,7 +34,11 @@ import {
   RETIRED_SKILL_IDS,
 } from "./external-assets.js";
 import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
-import { foreignOwnedTarget, occupiedByNonDirectory } from "./foreign-slot.js";
+import {
+  foreignOwnedTarget,
+  linksToProjectSharedSkill,
+  occupiedByNonDirectory,
+} from "./foreign-slot.js";
 import { backupFile, copyDir, listFilesRecursive } from "./fs-ops.js";
 import {
   collectPolicyHashes,
@@ -153,6 +157,15 @@ export interface UpdateModeReport {
    * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
    */
   skillsSkippedLinks: string[];
+  /**
+   * #524 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는 링크이고 그 공유
+   * 본문을 이번 update 의 외부 변환이 갱신한 스킬 id. `skillsSkippedLinks` 에서 빠져 이리로 온다 —
+   * 같은 자리를 "남의 것"이라 부르면 설치자는 자기 스킬이 갱신되지 않은 줄 안다. update 는 이 자리에
+   * **본문을 따로 쓰지 않는다**(쓰는 주체는 외부 변환 하나). 옵셔널 = 화면 픽스처가 안 싣는 축.
+   */
+  skillsLinked?: string[];
+  /** #524 — 같은 링크인데 공유 본문이 이번 외부 변환의 기록에 없어 **건드리지 않은** 스킬 id. */
+  skillsLinkedNotOurs?: string[];
   /**
    * #477 — 번들에서 사라져 설치본에서 지운 스킬 파일 (`.claude/skills/` 상대경로). 번들 스킬
    * 디렉터리의 파일 목록이 "최신본이 가져야 할 파일"의 정의다 — 그 목록에 없는 파일이 남으면
@@ -500,7 +513,7 @@ export function runUpdateMode(
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
     ? refreshExternalCli(projectDir, harnessRoot)
-    : { externalUpdated: 0, externalBackedUp: [], externalForeignOwned: [] };
+    : { externalUpdated: 0, externalBackedUp: [], externalForeignOwned: [], written: [] };
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
   // 한 자리를 두 행이 말하지 않게 한다 — 위 `skillsSkippedLinks` 행이 이미 낸 슬롯은 뺀다.
@@ -516,6 +529,21 @@ export function runUpdateMode(
     if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
   }
   report.foreignOwned = merged;
+  // #524 — 슬롯 행에서 **이 프로젝트의 공유 자리로의 링크**를 가른다. 본문은 바로 위 외부 변환이
+  // 이미 갱신했고 여기서는 쓰지 않는다(같은 파일의 쓰기 주체는 하나 — `linked-skill-bodies.ts` 는
+  // add 전용). 이 줄이 바꾸는 것은 화면의 말뿐이다: 갱신된 자리를 "남의 것"이라 부르지 않는다.
+  // 외부 변환을 안 돌린 실행(`--only`)은 갱신 여부를 말할 근거가 없어 종전 행에 둔다.
+  if (wants("external")) {
+    const linked = report.skillsSkippedLinks.filter((id) =>
+      linksToProjectSharedSkill(projectDir, id),
+    );
+    const refreshed = linked.filter((id) =>
+      external.written.includes(`.agents/skills/${id}/SKILL.md`),
+    );
+    report.skillsLinked = refreshed;
+    report.skillsLinkedNotOurs = linked.filter((id) => !refreshed.includes(id));
+    report.skillsSkippedLinks = report.skillsSkippedLinks.filter((id) => !linked.includes(id));
+  }
 
   // 5) 외부 스킬 (#374). 4) 는 **우리가 렌더한** 산출물만 새로 쓴다 — `npx skills add` 로 깐
   //    스킬 본문은 그 경로에 없어서 update 를 몇 번 돌려도 첫 설치 판본 그대로였다.
@@ -1019,7 +1047,13 @@ function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
-): { externalUpdated: number; externalBackedUp: string[]; externalForeignOwned: string[] } {
+): {
+  externalUpdated: number;
+  externalBackedUp: string[];
+  externalForeignOwned: string[];
+  /** 이번 실행이 담당한 산출물(projectDir 상대) — #524 링크 자리 행이 "갱신됐다"를 이걸로 판정한다. */
+  written: string[];
+} {
   const log = readInstallLog(projectDir);
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   const result = runCliTransforms({
@@ -1056,6 +1090,7 @@ function refreshExternalCli(
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
     externalForeignOwned: result.externalForeignOwned,
+    written: result.externalFiles.map((f) => f.path),
   };
 }
 

@@ -558,6 +558,30 @@ function formatAssetMeta(asset: ExternalAsset, version?: string): string {
 }
 
 /**
+ * #524 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 로의 링크인 자리. install 과
+ * update 가 같은 함수로 낸다. 갱신된 것과 안 된 것을 **다른 행**으로 — 한 행이면 설치자는 자기
+ * 스킬이 최신인지 알 수 없다. 안 된 쪽은 이유(그 본문은 우리 기록에 없다)를 함께 적는다.
+ */
+function linkedSkillRows(
+  log: (msg: string) => void,
+  updated: ReadonlyArray<string>,
+  notOurs: ReadonlyArray<string>,
+): void {
+  for (const id of updated) {
+    log(assetRow("success", `.claude/skills/${id}`, `linked · updated via .agents/skills/${id}`));
+  }
+  for (const id of notOurs) {
+    log(
+      assetRow(
+        "skip",
+        `.claude/skills/${id}`,
+        `linked · not ours — .agents/skills/${id} 는 이 하네스가 쓴 기록이 없어 건드리지 않았다`,
+      ),
+    );
+  }
+}
+
+/**
  * Phase 1 rows 출력. baseline-complete progress event에서 호출 — 외부 자산 설치
  * 시작 전 즉시 화면에 표시되어야 한다 (멈춰 보임 방지).
  */
@@ -689,6 +713,12 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #524 — 이 프로젝트의 `.agents/skills/<id>` 로의 링크는 "남의 것" 행이 아니라 여기서 말한다.
+    linkedSkillRows(
+      log,
+      baseline.updateMode.skillsLinked ?? [],
+      baseline.updateMode.skillsLinkedNotOurs ?? [],
+    );
     // 2026-08-02 (ADR-062) — 다른 도구(`npx skills add`)가 소유한 자리는 건너뛴다. 그 사실을
     // 안 보이면 사용자는 "이 스킬만 왜 안 갱신되지"를 추적할 방법이 없고, 반대로 조용히
     // 덮어썼다면 자기 저장소가 바뀐 줄도 모른다. 둘 다 침묵이 문제라 건수가 아니라 이름을 낸다.
@@ -961,6 +991,8 @@ function renderPhase1Rows(
       ),
     );
   }
+  // #524 — 링크 자리의 공유 본문. update 와 같은 행을 쓴다(같은 자리를 명령마다 다르게 부르지 않는다).
+  linkedSkillRows(log, baseline.baselineLinked ?? [], baseline.baselineLinkedNotOurs ?? []);
   // #343 — 자리가 남의 것이라 건너뛴 자산. 이 줄이 없으면 사용자는 자기가 3단계에서 고른
   // 스킬이 왜 없는지 알 방법이 없다 (설치는 성공으로 끝났으니 실패 메시지도 없다).
   // 어떻게 해야 받을 수 있는지까지 적는다 — 원인만 알려주는 안내는 다음 행동을 못 만든다.
