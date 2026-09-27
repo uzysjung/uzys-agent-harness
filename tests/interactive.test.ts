@@ -419,7 +419,7 @@ describe("formatSummary", () => {
       userOverride: { forceInclude: ["railway-skills"], forceExclude: ["playwright-skill"] },
     });
     expect(summary).toContain("+User added: railway-skills");
-    expect(summary).toContain("-User removed: playwright-skill");
+    expect(summary).toContain("-Unchecked by you: playwright-skill");
   });
 });
 

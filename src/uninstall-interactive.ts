@@ -148,7 +148,7 @@ export function buildUninstallModeChoices(
     {
       value: "all",
       label: "Remove everything",
-      hint: "assets + templates + the install record — .claude/ · .codex/ · .opencode/ are moved aside as <dir>.backup-<time>",
+      hint: "assets + templates + the install record — CLI folders (.claude/ · .codex/ · .opencode/, whichever exist) are moved aside as <dir>.backup-<time>",
       enabled: true,
     },
   ];
@@ -242,7 +242,7 @@ export async function runInteractiveUninstall(
       [
         "Remove everything? This is the same as: agent-harness uninstall --yes",
         `  · ${log.assets.length} recorded asset(s) — only those with an automatic reverse path are removed`,
-        "  · templates: .claude/ · .codex/ · .opencode/ are moved aside as <dir>.backup-<time> (your own files there stay in them)",
+        "  · templates: CLI folders (.claude/ · .codex/ · .opencode/, whichever exist) are moved aside as <dir>.backup-<time> (your own files there stay in them)",
         "  · the install record goes too",
         "  · files outside (.mcp.json etc.) are not deleted — you get instructions instead",
       ].join("\n"),

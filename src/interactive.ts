@@ -427,7 +427,7 @@ export async function runInteractive(
         projectDir,
         ...(userOverride ? { userOverride } : {}),
         // 해제 목록을 안 넘기면 이 화면이 **제외 유무와 문자열이 완전히 같아진다** — 같은 화면이
-        // 외부 자산 제거는 `-User removed:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
+        // 외부 자산 제거는 `-Unchecked by you:` 로 이미 보고하므로, 없음은 "아무것도 안 빠졌다"로
         // 읽힌다. 상주 비용을 줄이려고 20개를 푼 사용자가 그대로인 숫자를 보게 된다.
         ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
       })}\n  SCOPE     ${scopeLabel}`;
@@ -765,7 +765,7 @@ export function formatSummary(spec: InstallSpec): string {
       lines.push(`  +User added: ${spec.userOverride.forceInclude.join(", ")}`);
     }
     if (spec.userOverride.forceExclude.length > 0) {
-      lines.push(`  -User removed: ${spec.userOverride.forceExclude.join(", ")}`);
+      lines.push(`  -Unchecked by you: ${spec.userOverride.forceExclude.join(", ")}`);
     }
   }
   // 트랙 baseline 해제분. 설치 화면과 **같은 문구**를 쓴다 (표면별 상이 문구 금지) — 다르면
