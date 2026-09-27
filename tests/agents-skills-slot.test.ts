@@ -206,14 +206,22 @@ function noteLine(id: string): string {
 }
 
 describe.each(SLOT_CLIS)("update — 새 번들 스킬이 공유 자리에 깔린다 (%s)", (cli) => {
-  it("① 없는 `.agents/skills/<id>` 를 포팅판으로 만들고(형제 파일까지) 기준선에 기록한다", () => {
-    install([cli]);
+  // claude 와 함께 깐 형태도 잰다 — 그때는 `.claude/skills/<id>` 가 있어 update 가 넘기는 목록에
+  // 그 id 가 이미 들어 있다. 목록에 있어도 생성 허가가 없으면 refreshOnly 가 건너뛴다.
+  const shapes: ReadonlyArray<[string, CliTargets]> = [
+    ["단독", [cli]],
+    ["claude 와 함께", ["claude", cli]],
+  ];
+  it.each(
+    shapes,
+  )("① (%s) 없는 `.agents/skills/<id>` 를 포팅판으로 만들고(형제 파일까지) 기록한다", (_, clis) => {
+    install(clis);
     const id = WITH_REFS;
     const fresh = snapshot(id);
     pretendNewInThisRelease(id);
     expect(existsSync(join(projectDir, AGENTS_SKILLS, id))).toBe(false);
 
-    const report = update([cli]);
+    const report = update(clis);
 
     // 본문 = 포팅판(`renderBundledSkill`) — Claude 원문(`/uzys:`)이 가면 이 CLI 에 없는 커맨드를 안내한다.
     const source = readFileSync(join(HARNESS_ROOT, "templates/skills", id, "SKILL.md"), "utf8");
@@ -233,7 +241,7 @@ describe.each(SLOT_CLIS)("update — 새 번들 스킬이 공유 자리에 깔�
     expect(report.updateMode?.externalBackedUp ?? []).toEqual([]);
     expect(backupsUnder(join(projectDir, AGENTS_SKILLS))).toEqual([]);
     // 고른 적 없는 CLI 의 자리를 경유하지 않았다.
-    expect(existsSync(join(projectDir, ".claude"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude"))).toBe(clis.includes("claude"));
   });
 
   it("② `--without <id>` 로 뺀 스킬은 update 가 되돌려 깔지 않는다 (#505)", () => {
@@ -343,6 +351,18 @@ describe("update — 기존 산출물 회귀 대조군", () => {
     pretendHarnessOwned(rel, "# v26.1.0 시절 스킬 본문\n");
 
     const report = update([cli]);
+
+    expect(readFileSync(join(projectDir, rel), "utf8")).toBe(fresh);
+    expect(report.updateMode?.externalBackedUp ?? []).toEqual([]);
+  });
+
+  it("antigravity: 룰 파일(앵커) 옛 판은 백업 없이 최신판으로 갱신된다", () => {
+    install(["antigravity"]);
+    const rel = ANCHOR.antigravity as string;
+    const fresh = readFileSync(join(projectDir, rel), "utf8");
+    pretendHarnessOwned(rel, "# v26.1.0 시절 룰 파일\n");
+
+    const report = update(["antigravity"]);
 
     expect(readFileSync(join(projectDir, rel), "utf8")).toBe(fresh);
     expect(report.updateMode?.externalBackedUp ?? []).toEqual([]);
