@@ -8,6 +8,7 @@
 #   ./test/docker/run-realcli.sh codex        # codex 만
 #   ./test/docker/run-realcli.sh antigravity  # antigravity 만
 #   ./test/docker/run-realcli.sh opencode     # opencode 만 (AGENTS.md 자동 로드 전제 검증)
+#   ./test/docker/run-realcli.sh shared-files # 설치자 config.toml · opencode.json · AGENTS.md 가 남고 실 CLI 가 받는가 (#563 #558)
 #   ./test/docker/run-realcli.sh build        # 이미지 빌드만
 
 set -euo pipefail
@@ -35,7 +36,7 @@ case "${1:-all}" in
   build)
     build
     ;;
-  codex|antigravity|opencode)
+  codex|antigravity|opencode|shared-files)
     build
     run_scenario "$1"
     ;;
@@ -72,7 +73,7 @@ case "${1:-all}" in
     echo "전부 green"
     ;;
   *)
-    echo "usage: $0 [build|codex|antigravity|opencode|all]" >&2
+    echo "usage: $0 [build|codex|antigravity|opencode|shared-files|all]" >&2
     exit 1
     ;;
 esac
