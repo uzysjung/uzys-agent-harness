@@ -10,6 +10,9 @@
 #      설치자 model · 서버 + 하네스 서버를 본다. 대조: 설치 전에는 설치자 서버 하나만 보인다.
 #   ③ #558 `AGENTS.md` — `## Project Context` · `## Project Rules` 를 채운 파일에 설치 → 두 절의 설치자 문장이 남고
 #      하네스 몫은 블록 하나.
+#   ④ #551 R1 · R2 생애주기 — 세 파일을 가진 프로젝트에 첫 접촉 install → 트랙 추가 install(하네스 구간·키에 새 서버,
+#      실 codex · opencode 가 봄) → 설치자가 하네스 구간 안을 고치고 하네스 서버 하나를 지움 → update(고친 것 남고 지운 것
+#      안 돌아옴 · 기록에 excluded) → uninstall(AGENTS.md 원본 바이트 · opencode.json 설치자 서버만 — 실 opencode 가 봄).
 
 set -uo pipefail # set -e 제외: 판정마다 failed 를 모은다.
 
@@ -187,6 +190,142 @@ if ls AGENTS.md.backup-* >/dev/null 2>&1; then
   echo "FAIL: 함께 쓰는 파일인데 백업이 생겼다 — 몫만 바꿨다면 잃을 것이 없다"
   failed=1
 fi
+echo ""
+
+# ── ④ 생애주기: 첫 접촉 install → 트랙 추가 install → update → uninstall (#551 R1 · R2) ──
+echo "── ④ 생애주기 (#551 R1 · R2) ──"
+P4=/tmp/proj-shared-lifecycle
+rm -rf "${P4}"
+mkdir -p "${P4}/.codex"
+cd "${P4}" || exit 1
+cat >.codex/config.toml <<'TOML'
+model = "o3"
+
+[mcp_servers.myown]
+command = "node"
+args = ["my-server.js"]
+TOML
+cat >opencode.json <<'JSON'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "mcp": { "myown": { "type": "local", "command": ["node", "my-server.js"] } }
+}
+JSON
+cat >AGENTS.md <<'MD'
+## Project Context
+MARKER-CONTEXT-LIFECYCLE
+
+## Project Rules
+MARKER-RULES-LIFECYCLE
+MD
+cp AGENTS.md /tmp/agents-lifecycle-original.md
+LOG4="${P4}/.uzys-agent-harness/.harness-install.json"
+
+run_install() { # tracks...
+  local args=()
+  for t in "$@"; do args+=(--track "$t"); done
+  agent-harness install "${args[@]}" --cli codex --cli opencode --with-codex-trust --scope project \
+    >/tmp/lifecycle-install.log 2>&1 || {
+    echo "FAIL: install $* 실패"
+    tail -30 /tmp/lifecycle-install.log
+    exit 1
+  }
+}
+codex_names() { codex mcp list 2>/dev/null | awk 'NR>1 {print $1}' | sort | tr '\n' ' '; }
+oc_names() { opencode debug config 2>/dev/null | jq -r '.mcp // {} | keys[]' | sort | tr '\n' ' '; }
+
+run_install tooling
+if [[ "$(jq -r '[.portions[]? | select(.path == ".codex/config.toml") | .key] | sort | join(",")' "${LOG4}")" == "tables,top" ]]; then
+  echo "✓ 첫 접촉 install 이 config.toml 몫(top · tables)을 기록했다"
+else
+  echo "FAIL: config.toml 몫이 기록되지 않았다 — 다음 실행이 하네스 구간을 갱신할 수 없다 (R2)"
+  failed=1
+fi
+if codex_names | grep -q 'railway-mcp-server'; then
+  echo "FAIL: 대조군 — tooling 만 깔았는데 railway 가 이미 보인다. 아래 판정이 증거가 아니다"
+  failed=1
+fi
+
+run_install tooling csr-fastapi
+cx="$(codex_names)"
+oc="$(oc_names)"
+if [[ " ${cx}" == *" railway-mcp-server "* && " ${cx}" == *" myown "* ]]; then
+  echo "✓ 트랙 추가 뒤 실 codex 가 새 하네스 서버와 설치자 서버를 함께 본다: ${cx}"
+else
+  echo "FAIL: 트랙 추가 뒤 codex mcp list = [${cx}] — 하네스 구간이 갱신되지 않았다 (R2)"
+  failed=1
+fi
+if [[ " ${oc}" == *" railway-mcp-server "* && " ${oc}" == *" myown "* ]]; then
+  echo "✓ 트랙 추가 뒤 실 opencode 가 새 하네스 서버와 설치자 서버를 함께 본다"
+else
+  echo "FAIL: 트랙 추가 뒤 opencode mcp = [${oc}]"
+  failed=1
+fi
+
+# 설치자가 하네스 구간 안을 고치고(sandbox_mode) · 하네스 서버 하나를 지운다(opencode github)
+sed -i 's/^sandbox_mode = "workspace-write"$/sandbox_mode = "read-only"/' .codex/config.toml
+grep -q '^sandbox_mode = "read-only"$' .codex/config.toml || {
+  echo "FAIL: 대조군 — 구간 안 편집이 들어가지 않았다"
+  failed=1
+}
+jq 'del(.mcp.github)' opencode.json >opencode.json.tmp && mv opencode.json.tmp opencode.json
+
+agent-harness update >/tmp/lifecycle-update.log 2>&1 || {
+  echo "FAIL: update 실패"
+  tail -30 /tmp/lifecycle-update.log
+  exit 1
+}
+if grep -q '^sandbox_mode = "read-only"$' .codex/config.toml; then
+  echo "✓ update 가 설치자가 고친 하네스 구간을 되돌리지 않았다"
+else
+  echo "FAIL: update 가 하네스 구간 안의 설치자 편집을 되돌렸다"
+  failed=1
+fi
+if jq -e '.mcp | has("github")' opencode.json >/dev/null; then
+  echo "FAIL: update 가 설치자가 지운 하네스 서버(github)를 되살렸다 (R2)"
+  failed=1
+elif jq -e '.excluded | index("opencode:mcp.github")' "${LOG4}" >/dev/null; then
+  echo "✓ update 가 지운 서버를 되살리지 않고 기록(excluded)에 적었다"
+else
+  echo "FAIL: 지운 서버가 excluded 에 없다 — 다음 install 이 되살린다"
+  failed=1
+fi
+codex mcp list >/dev/null 2>&1 && echo "✓ update 뒤에도 실 codex 가 설정을 받는다" || {
+  echo "FAIL: update 뒤 codex 가 설정을 거절했다"
+  failed=1
+}
+
+agent-harness uninstall --yes >/tmp/lifecycle-uninstall.log 2>&1 || {
+  echo "FAIL: uninstall 실패"
+  tail -30 /tmp/lifecycle-uninstall.log
+  exit 1
+}
+if cmp -s /tmp/agents-lifecycle-original.md AGENTS.md; then
+  echo "✓ uninstall 뒤 AGENTS.md 가 설치자 원본과 바이트 동일 (R1)"
+else
+  echo "FAIL: uninstall 뒤 AGENTS.md 가 원본과 다르다 (R1)"
+  diff /tmp/agents-lifecycle-original.md AGENTS.md | head -10
+  failed=1
+fi
+if [[ "$(jq -r '.mcp | keys | join(",")' opencode.json)" == "myown" && "$(jq -r '.model' opencode.json)" == "anthropic/claude-sonnet-4-5" ]]; then
+  echo "✓ uninstall 뒤 opencode.json 에는 설치자 model · 서버만 (R1)"
+else
+  echo "FAIL: uninstall 뒤 opencode.json = $(jq -c '.mcp | keys' opencode.json) (R1)"
+  failed=1
+fi
+if [[ "$(oc_names)" == "myown " ]]; then
+  echo "✓ uninstall 뒤 실 opencode 가 설치자 서버 하나만 본다"
+else
+  echo "FAIL: uninstall 뒤 opencode 가 보는 서버 = [$(oc_names)]"
+  failed=1
+fi
+for want in "AGENTS.md — removed the harness block" "opencode.json — removed the harness part"; do
+  grep -qF "${want}" /tmp/lifecycle-uninstall.log || {
+    echo "FAIL: uninstall 화면에 '${want}' 가 없다 — 한 일을 말하지 않는다"
+    failed=1
+  }
+done
 echo ""
 
 if [[ "${failed}" -eq 0 ]]; then
