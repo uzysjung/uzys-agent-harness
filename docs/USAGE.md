@@ -54,7 +54,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--project-dir <path>` | Where to install. Default: the current directory |
-| `--reinstall` | Moves `.claude/` aside as `.claude.backup-<ts>` and rebuilds it. Use when `.claude/` is damaged or missing. `--track` is still required |
+| `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. `--track` is still required |
 | `--verbose` | Print every file per category instead of counts |
 
 One flag selects *behaviour* rather than an asset:
@@ -205,7 +205,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 | `.codex/config.toml` | Your keys, tables, and MCP servers stay. The harness adds two marked regions (`# uzys-harness:top` and `# uzys-harness:tables`); where you already set the same key or table, yours wins and the summary says `kept yours` |
 | An `AGENTS.md` the harness created, with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
-| `.claude/` on `install --reinstall` | Renamed to `.claude.backup-<ts>`, then rebuilt |
+| `.claude/` on `install --reinstall` | Harness files are rewritten in place; one you edited is saved as `<file>.backup-<ts>` first. Your own files there stay |
 | `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup |
 | `.mcp.json` | Your servers are preserved and merged |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
@@ -314,7 +314,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it moves the whole directory aside first. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
+**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it rewrites every harness file, saving each one you edited as `<file>.backup-<ts>` first. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 
