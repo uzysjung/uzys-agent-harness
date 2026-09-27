@@ -105,7 +105,6 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
     selectAction: vi.fn(async () => "update" as const),
     selectTracks: vi.fn(async (initial?: Track[]) => initial ?? (["tooling"] as Track[])),
     selectCli: vi.fn(async (initial?: CliTargets) => initial ?? (["claude"] as CliTargets)),
-    selectScope: vi.fn(async () => "project" as const),
     confirmInstall: vi.fn(async () => true),
     selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial),
     ...overrides,

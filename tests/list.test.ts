@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listAction } from "../src/commands/list.js";
 import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
 
 /**
  * v26.123.0 (F-1b) — 설치 기록은 v26.64.0 부터 있었지만 사용자가 볼 수단이 없었다.
@@ -207,5 +208,65 @@ describe("listAction — 루트 파일 (F-1f)", () => {
     writeLog(tmpDir, baseLog());
     expect(run()).not.toContain("Root files");
     rmSync(tmpDir, { recursive: true, force: true });
+  });
+});
+
+/**
+ * #559 (설계 §2 행 25) — `list` 는 **기록이 말하는 자리만** 보인다. 예전에는 `templates.*Dir` 를 읽어
+ * OpenCode 를 고른 설치에 `.opencode/` 를 보였다 — OpenCode 는 그 폴더를 만들지 않는다(스킬은
+ * `.agents/skills/`, 설정은 `opencode.json`). 설치자는 없는 폴더를 찾거나 지우려 들게 된다.
+ */
+describe("listAction — 하네스 파일은 기록 경로에서 (#559)", () => {
+  let projectDir = "";
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "harness-list-559-"));
+  });
+
+  function harnessRow(): string {
+    const lines: string[] = [];
+    listAction(
+      { projectDir },
+      { log: (l: string) => lines.push(l), err: vi.fn(), exit: vi.fn() as never },
+    );
+    const at = lines.findIndex((l) => l.includes("Harness files"));
+    return lines[at + 1] ?? "";
+  }
+
+  it("claude · codex · opencode 설치 — 만들지 않은 .opencode/ 를 말하지 않는다", () => {
+    runInstall({
+      runExternal: null,
+      harnessRoot: resolve(__dirname, ".."),
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: ["claude", "codex", "opencode"],
+        projectDir,
+      },
+    });
+    expect(existsSync(join(projectDir, ".opencode"))).toBe(false); // 픽스처 자기검증
+
+    const row = harnessRow();
+    expect(row).toContain(".claude/");
+    expect(row).toContain(".codex/");
+    expect(row).not.toContain(".opencode/");
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("옛 codex 단독 로그(claudeDir 가 적혀 있다)에 .claude/ 를 말하지 않는다 — 깔린 CLI 는 기록에서", () => {
+    // v26.160.1 이하는 claude 를 안 골라도 `templates.claudeDir` 를 적었고, `policyFiles` 는 설치자
+    // `.claude/` 를 훑어 적었다 — 둘 다 하네스가 거기 썼다는 기록이 아니다.
+    writeLog(projectDir, {
+      ...baseLog(),
+      spec: { tracks: ["tooling"], cli: ["codex"] },
+      templates: { claudeDir: ".claude/", codexDir: ".codex/" },
+      policyFiles: [{ path: "rules/git-policy.md", sha256: hashContent("# 내 룰\n") }],
+      externalFiles: [{ path: ".codex/hooks/session-start.sh", sha256: "x" }],
+    });
+
+    const row = harnessRow();
+    expect(row).toContain(".codex/");
+    expect(row).not.toContain(".claude/");
+    rmSync(projectDir, { recursive: true, force: true });
   });
 });

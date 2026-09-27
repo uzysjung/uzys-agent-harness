@@ -10,6 +10,7 @@ import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
+import { readInstallLog } from "../install-log.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
 import {
   type CliTargets,
@@ -53,8 +54,9 @@ export interface InstallOptions {
    */
   without?: string | string[];
   /**
-   * v26.64.0 (ADR-020) — Installation scope. `project` (default) | `global`.
-   * 명시 안 하면 wizard 의 scope prompt → 비대화형은 "project".
+   * v26.64.0 (ADR-020) — Installation scope. `project` (default).
+   * #560 (ADR-097 결정 1) — `global` 은 새 설치에서 거절한다(`globalScopeRefusal`). 기록이 이미 global 인
+   * 설치본만 그대로 받는다 — 그 설치본의 위저드 `RUNS AS` 줄과 복구 명령이 `--scope global` 을 찍는다.
    */
   scope?: string;
   /**
@@ -149,6 +151,13 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     exit(1);
     return;
   }
+  const refusal = globalScopeRefusal(options);
+  if (refusal !== null) {
+    err(status.failure(c.red(`ERROR: ${refusal[0]}`)));
+    for (const line of refusal.slice(1)) err(`       ${line}`);
+    exit(1);
+    return;
+  }
 
   const spec = installSpecFromOptions(options, validated.cli, err);
 
@@ -161,6 +170,31 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     verbose: options.verbose === true,
     ...(options.reinstall === true ? { mode: "reinstall" as const } : {}),
   });
+}
+
+/**
+ * #560 (ADR-097 결정 1) — 새 설치의 `--scope global` 을 거절하고 대체 명령을 안내한다. 하네스 파일은
+ * 범위와 무관하게 늘 이 프로젝트에 쓰였고 Global 이 바꾸던 것은 외부 자산 도구의 플래그뿐이었다 — 그것은
+ * 도구를 직접 부르면 된다.
+ *
+ * **기록이 이미 global 이면 받는다**(설계 §5 — 옛 global 설치본은 지금처럼). 그 설치본의 위저드 Update
+ * 확인 화면(`RUNS AS`)과 복구 명령(`router.ts` · `update-mode.ts`)이 기록의 scope 를 그대로 찍으므로,
+ * 여기서 막으면 화면이 준 명령을 설치자가 칠 수 없게 된다. 판정은 기록으로 한다 — 디스크 존재가 아니다.
+ *
+ * @returns 거절이면 출력할 줄(첫 줄 = 사유), 아니면 null.
+ */
+function globalScopeRefusal(options: InstallOptions): string[] | null {
+  if (options.scope !== "global") return null;
+  const projectDir = resolve(options.projectDir ?? process.cwd());
+  if (readInstallLog(projectDir)?.scope === "global") return null;
+  return [
+    "--scope global is no longer offered — the harness installs into this project only.",
+    "To make an external asset available in every project, install it with its own tool:",
+    "  claude plugin install --scope user <plugin>",
+    "  npx skills add -g <source>",
+    "  npm i -g <pkg>",
+    "Then run this command again without --scope.",
+  ];
 }
 
 /**
@@ -335,14 +369,12 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
 
 /**
  * v26.64.0 (ADR-020) — `--scope` flag 해석. invalid 값은 warn + "project" default.
- * 비대화형 (--track 명시) 진입에서만 호출. wizard 는 별도 prompt.
+ * `global` 이 여기까지 오는 것은 기록이 이미 global 인 설치본뿐이다(`globalScopeRefusal` · 위저드 Update).
  */
 function resolveScopeOption(value: string | undefined, err: (msg: string) => void): InstallScope {
   if (value === undefined) return "project";
   if (isInstallScope(value)) return value;
-  err(
-    c.yellow(`[WARN] Unknown --scope value '${value}' (expected: project, global). Using project.`),
-  );
+  err(c.yellow(`[WARN] Unknown --scope value '${value}' (expected: project). Using project.`));
   return "project";
 }
 
@@ -401,9 +433,13 @@ export function registerInstallCommand(cli: Cli): void {
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })
-    .option("--scope <scope>", "[Scope] Installation scope: project (default) | global", {
-      default: "project",
-    })
+    .option(
+      "--scope <scope>",
+      "[Scope] project (the only choice — harness files always go into this project). global is kept only for installs whose record already says global",
+      {
+        default: "project",
+      },
+    )
     // === Asset selection (Phase C full, v26.47.0+) ===
     .option(
       "--with <asset-id>",

@@ -1,10 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
 import { estimateTokens } from "../src/context-cost.js";
-import type { BaselineReport, InstallReport } from "../src/installer.js";
+import { type BaselineReport, type InstallReport, runInstall } from "../src/installer.js";
 import type { InstallSpec, Track } from "../src/types.js";
 
 /**
@@ -410,10 +410,50 @@ describe("executeSpec", () => {
     expect(cliRow).not.toContain("Claude");
     // 산출물 섹션 헤더 + rules/skills 행 (6-Gate workflows 제거 — project context rules + dev-method skills).
     expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/rules/uzys-harness.md"))).toBe(true);
+    expect(lines.some((l) => l.includes(".agents/rules/") && l.includes("uzys-harness.md"))).toBe(
+      true,
+    );
     // ADR-086 — 이제 디렉터리째 간다. 라벨도 파일이 아니라 디렉터리다.
     // 옛 라벨의 진부분 문자열이라 includes 로는 회귀를 못 문다 — 뒤에 SKILL 이 오면 실패해야 한다.
     expect(lines.some((l) => /\.agents\/skills\/<id>\/(?!SKILL)/.test(l))).toBe(true);
+  });
+
+  /**
+   * #564 — Antigravity 요약의 룰 수는 **이번 실행이 쓴 파일**에서 센다. 앵커 한 줄만 적던 판은 같은
+   * `.agents/rules/` 에 쓴 배포 룰을 화면에서 빠뜨렸다(이슈 재현: csr-fastapi · antigravity+claude —
+   * 디스크 6 · 화면 1). 새 폴더라 디스크 = 이번 실행이 쓴 것이므로 둘을 맞대 본다.
+   */
+  it("#564 — Antigravity 룰 행의 숫자 = 이번 실행이 .agents/rules/ 에 쓴 파일 수", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "antigravity-count-"));
+    const lines: string[] = [];
+    executeSpec(
+      {
+        tracks: ["csr-fastapi"],
+        options: { withCodexTrust: false },
+        cli: ["claude", "antigravity"],
+        projectDir,
+      },
+      {
+        log: (l: string) => lines.push(l),
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        resolveHarnessRoot: () => resolve(__dirname, ".."),
+        runPipeline: (spec, harnessRoot, mode, callbacks) =>
+          runInstall({
+            harnessRoot,
+            projectDir,
+            spec,
+            runExternal: null,
+            ...(mode ? { mode } : {}),
+            ...(callbacks?.onProgress ? { onProgress: callbacks.onProgress } : {}),
+          }),
+      },
+    );
+    const onDisk = readdirSync(join(projectDir, ".agents/rules")).length;
+    expect(onDisk).toBeGreaterThan(1); // 픽스처 자기검증 — 앵커 말고도 룰 파일이 있어야 재현이다
+    const row = lines.find((l) => /\.agents\/rules\/\s/.test(l)) ?? "";
+    expect(Number(/\.agents\/rules\/\s+(\d+) /.exec(row)?.[1])).toBe(onDisk);
+    rmSync(projectDir, { recursive: true, force: true });
   });
 
   /**
@@ -1407,8 +1447,48 @@ describe("v26.64.0 (ADR-020) — --scope flag", () => {
     expect(captured?.scope).toBe("project");
   });
 
-  it("--scope global → spec.scope === 'global'", () => {
-    const log = vi.fn();
+  /**
+   * #560 (ADR-097 결정 1) — 새 설치의 `--scope global` 은 **아무것도 하지 않고** 거절한다. Global 은
+   * 하네스 파일을 홈에 쓰지 않았고(화면만 그렇게 말했다) 외부 자산 도구의 플래그만 바꿨다 — 그래서 대체
+   * 안내는 그 도구를 직접 부르는 명령이다.
+   */
+  it("#560 — 기록 없는 프로젝트의 --scope global 은 거절 + 도구별 대체 명령 · 파이프라인 미실행", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "scope-global-new-"));
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = vi.fn(() => fakeReport);
+    installAction(
+      { cli: ["claude"], track: ["tooling"], projectDir, scope: "global" },
+      { log: vi.fn(), err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(runPipeline).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(1);
+    const printed = err.mock.calls.flat().join("\n");
+    expect(printed).toContain("--scope global is no longer offered");
+    expect(printed).toContain("claude plugin install --scope user");
+    expect(printed).toContain("npx skills add -g");
+    expect(printed).toContain("npm i -g");
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  /**
+   * 설계 §5 — 기록이 이미 global 인 설치본(결정 1 이전)은 지금처럼 간다. 그 설치본의 위저드 Update 확인
+   * 화면(`RUNS AS`)과 복구 명령이 `--scope global` 을 찍으므로, 여기서 막으면 화면이 준 명령이 실패한다.
+   */
+  it("#560 — 기록이 global 인 설치본은 --scope global 을 그대로 받는다 (옛 설치본 회귀 고정)", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "scope-global-old-"));
+    mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+    writeFileSync(
+      join(projectDir, ".uzys-agent-harness/.harness-install.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        installedAt: "2026-07-01T00:00:00.000Z",
+        scope: "global",
+        spec: { tracks: ["tooling"], cli: ["claude"] },
+        templates: {},
+        assets: [],
+      }),
+    );
     const exit = vi.fn() as unknown as (code: number) => never;
     let captured: InstallSpec | undefined;
     const runPipeline = vi.fn((spec: InstallSpec) => {
@@ -1416,10 +1496,12 @@ describe("v26.64.0 (ADR-020) — --scope flag", () => {
       return fakeReport;
     });
     installAction(
-      { cli: ["claude"], track: ["tooling"], projectDir: "/p", scope: "global" },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+      { cli: ["claude"], track: ["tooling"], projectDir, scope: "global" },
+      { log: vi.fn(), err: vi.fn(), exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
+    expect(exit).not.toHaveBeenCalled();
     expect(captured?.scope).toBe("global");
+    rmSync(projectDir, { recursive: true, force: true });
   });
 
   it("--scope invalid → warn + fallback to 'project' (D16 safe default)", () => {
