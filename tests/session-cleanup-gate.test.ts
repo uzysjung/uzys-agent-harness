@@ -16,6 +16,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = resolve(__dirname, "..");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
+// 호스트 전체 프로세스 목록이다 — 긴 인자로 뜬 남의 프로세스(프롬프트를 argv 로 받는 CLI 등)가 있으면 기본
+// 버퍼(1 MiB)를 넘겨 ENOBUFS 로 죽는다(실측 3.1 MB). 테스트 대상과 무관한 환경 실패라 넉넉히 받는다.
+const psCommands = () =>
+  execFileSync("ps", ["-eo", "command"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 
 describe("세션 시작 시 이전 세션 고아 프로세스 감지", () => {
   const hook = read("templates/hooks/session-start.sh");
@@ -104,7 +108,7 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
       // 프로세스가 뜰 때까지 짧게 기다린다 — 폴링이라 느린 머신에서도 견딘다.
       let seen = false;
       for (let i = 0; i < 50 && !seen; i++) {
-        seen = execFileSync("ps", ["-eo", "command"], { encoding: "utf8" }).includes(probe);
+        seen = psCommands().includes(probe);
         if (!seen) execFileSync("sleep", ["0.1"]);
       }
       expect(seen, "probe 프로세스가 뜨지 않았다 — 테스트 전제 실패").toBe(true);
@@ -160,13 +164,13 @@ describe("session-start 훅 실동작 (실제 고아를 만들어 검증)", () =
       );
       let seen = false;
       for (let i = 0; i < 50 && !seen; i++) {
-        seen = execFileSync("ps", ["-eo", "command"], { encoding: "utf8" }).includes(token);
+        seen = psCommands().includes(token);
         if (!seen) execFileSync("sleep", ["0.1"]);
       }
       expect(seen, "probe 가 뜨지 않았다 — 테스트 전제 실패").toBe(true);
 
       // 전제: 이 probe 의 커맨드라인에는 디렉터리 경로가 없다. 없어야 cwd 축을 재는 것이 된다.
-      const cmdlines = execFileSync("ps", ["-eo", "command"], { encoding: "utf8" })
+      const cmdlines = psCommands()
         .split("\n")
         .filter((l) => l.includes(token));
       expect(cmdlines.length, "probe 를 못 찾았다").toBeGreaterThan(0);
