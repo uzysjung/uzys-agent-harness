@@ -1,4 +1,12 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -161,8 +169,7 @@ describe("installer (integration with templates/)", () => {
     expect(readFileSync(rootMd, "utf8")).toBe(afterFirst);
   });
 
-  it("backup option moves existing .claude/ aside before install", () => {
-    // Pre-populate a .claude/ to trigger backup
+  it("backup 옵션은 install 에서 `.claude/` 를 옮기지 않는다 — 폴더 단위 백업은 update 전용 (#551 PR-3)", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -190,8 +197,9 @@ describe("installer (integration with templates/)", () => {
         projectDir,
       },
     });
-    expect(second.backup).toMatch(/\.claude\.backup-/);
-    expect(existsSync(`${second.backup}`)).toBe(true);
+    expect(second.backup).toBeNull();
+    expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
+    expect(existsSync(join(projectDir, ".claude/rules"))).toBe(true);
   });
 
   it("throws when templates directory missing", () => {
@@ -214,28 +222,19 @@ describe("installer (integration with templates/)", () => {
 });
 
 /**
- * M-1 — install 경로가 settings.json 의 죽은 훅 참조를 **실제로** 치유하는가.
+ * M-1 → #551 PR-3 — install 이 settings.json 에 **없는 스크립트를 부르는 하네스 참조를 쓰지 않는가**.
  *
- * WHY 단위 계약(`tests/update-mode.test.ts`)으로 부족한가: 그쪽은 치유기 함수만 본다.
- * 결함의 본체는 **install 이 그 함수를 부르는가**이고, 그 호출은 지워도 단위 테스트가
- * 전부 초록이다(실측 확인). 그래서 여기서는 함수가 아니라 **파이프라인**을 돌린다 —
- * 실제로 설치하고, 디스크에 남은 `.claude/settings.json` 을 읽어 판정한다.
+ * 전에는 템플릿으로 settings.json 을 통째로 덮은 뒤 치유기(`cleanStaleHookRefs`)로 죽은 참조를 걷었다. 이제
+ * install 은 하네스 몫만 쓰고, 그 몫은 **이번 선택으로 렌더**한다(설계 N13) — 깔지 않는 훅은 처음부터 부르지 않고,
+ * 기록된 하네스 훅이 렌더에서 빠지면 upsert 가 뺀다. 파이프라인을 돌려 디스크의 settings.json 으로 판정한다.
  *
- * 결함의 형태: `templates/settings.json` 은 `applies: all` 이라 항상 깔리는데, 그 PreToolUse
- * 훅이 참조하는 **스킬 디렉터리 안의 사이드카 스크립트**는 그 스킬의 조건대로 좁게 깔린다.
- * 그 조합의 설치자는 Write/Edit 마다 없는 파일을 bash 로 부른다(exit 127).
- *
- * **입력을 변이시켜 잰다**(이 리포 확정 어휘 = 입력 변이). 그 배선을 들고 있던 스킬은
- * ADR-088 (#426 F-09) 에서 은퇴해 실 템플릿에 더는 없다 — 그래서 실 `templates/` 를 임시
- * 디렉터리로 복사해 **거기에만** 같은 형태의 훅을 넣는다. 손으로 쓴 settings.json 픽스처를
- * 쓰면 템플릿 표기가 바뀌는 순간 이 게이트가 조용히 거짓이 된다.
- *
- * 두 방향을 **같이** 본다 — 치유가 파손이 되면 안 되기 때문이다:
- *   ① 참조 대상이 안 깔린다 → 죽은 참조가 사라진다 + 보고에 실린다
- *   ② 참조 대상이 깔린다   → 같은 형태의 참조가 **살아남는다**
- *   ③ 두 경우 모두 `.claude/hooks/*.sh` 정상 참조는 건드리지 않는다
+ * 세 방향을 같이 본다:
+ *   ① 설치자가 뺀 훅(`--without baseline:hooks/…`) → 참조가 없다 · 다른 훅은 산다
+ *   ② 앞 설치가 적은 훅이 이번 선택에서 빠진다 → 다음 install 이 그 참조를 뺀다(설치자 훅은 그대로)
+ *   ③ 템플릿이 몫으로 옮길 수 없는 훅(`.claude/hooks/` 밖 스크립트 — 옛 M-1 의 스킬 사이드카)을 부르면
+ *      조용히 빠뜨리지 않고 멈춘다 — **입력 변이**: 실 `templates/` 사본에만 그 훅을 넣는다.
  */
-describe("install 경로의 stale hook ref 치유 (M-1)", () => {
+describe("install 의 settings.json — 이번 선택으로 렌더한 하네스 몫 (M-1 → #551 PR-3)", () => {
   let projectDir: string;
   const mutatedRoots: string[] = [];
 
@@ -250,20 +249,59 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
   });
 
   const baseOptions = { withCodexTrust: false };
+  const PROTECT = "protect-files.sh";
+  const SESSION = "session-start.sh";
 
-  /** tooling 트랙 기본 선택에 들어오는 스킬 디렉터리 — ② 방향의 참조 대상. */
-  const LIVE_SKILL = "north-star";
-  /** 어느 spec 에서도 깔리지 않는 이름 — ① 방향. */
-  const GHOST_SKILL = "ghost-sidecar-skill";
-  const SIDECAR = "sidecar.sh";
+  function install(harnessRoot: string, baselineExclude: string[] = []) {
+    return runInstall({
+      runExternal: null,
+      harnessRoot,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: baseOptions,
+        cli: ["claude"],
+        projectDir,
+        ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
+      },
+    });
+  }
 
-  /**
-   * 실 `templates/` 사본 + 스킬 안의 사이드카를 부르는 훅 한 줄.
-   *
-   * @param withSidecarFile true 면 그 스크립트까지 templates 에 만들어 **설치되게** 한다
-   *   (= 참조가 살아 있는 쪽). false 면 배선만 있고 대상은 어디에도 없다.
-   */
-  function mutatedHarnessRoot(skillDir: string, withSidecarFile: boolean): string {
+  function settingsText(): string {
+    return readFileSync(join(projectDir, ".claude/settings.json"), "utf8");
+  }
+
+  it("① 설치자가 뺀 훅은 settings.json 이 부르지 않는다 — 다른 훅은 산다", () => {
+    const report = install(HARNESS_ROOT, ["baseline:hooks/protect-files"]);
+
+    expect(existsSync(join(projectDir, ".claude/hooks", PROTECT))).toBe(false);
+    expect(
+      settingsText(),
+      "깔지 않은 훅을 부르는 참조를 썼다 — Write/Edit 마다 exit 127",
+    ).not.toContain(PROTECT);
+    expect(settingsText()).toContain(SESSION);
+    // install 은 사후 치유를 하지 않는다 — 보고할 것이 없다
+    expect(report.staleHookRefs).toEqual([]);
+  });
+
+  it("② 앞 설치가 적은 하네스 훅이 이번 선택에서 빠지면 그 참조를 뺀다 (설치자 훅은 그대로)", () => {
+    install(HARNESS_ROOT);
+    expect(settingsText()).toContain(PROTECT);
+    const mine = { type: "command", command: "bash my-own.sh" };
+    const withMine = JSON.parse(settingsText()) as {
+      hooks: { PreToolUse: Array<{ matcher?: string; hooks: unknown[] }> };
+    };
+    withMine.hooks.PreToolUse.push({ matcher: "Bash", hooks: [mine] });
+    writeFileSync(join(projectDir, ".claude/settings.json"), JSON.stringify(withMine, null, 2));
+
+    install(HARNESS_ROOT, ["baseline:hooks/protect-files"]);
+
+    expect(settingsText()).not.toContain(PROTECT);
+    expect(settingsText()).toContain("my-own.sh");
+    expect(settingsText()).toContain(SESSION);
+  });
+
+  it("③ 템플릿이 `.claude/hooks/` 밖 스크립트를 부르면 설치가 멈춘다 — 몫으로 옮길 수 없는 참조를 조용히 빠뜨리지 않는다", () => {
     const root = mkdtempSync(join(tmpdir(), "ch-heal-root-"));
     mutatedRoots.push(root);
     cpSync(join(HARNESS_ROOT, "templates"), join(root, "templates"), { recursive: true });
@@ -278,79 +316,15 @@ describe("install 경로의 stale hook ref 치유 (M-1)", () => {
       hooks: [
         {
           type: "command",
-          command: `bash "$CLAUDE_PROJECT_DIR/.claude/skills/${skillDir}/${SIDECAR}"`,
+          command: 'bash "$CLAUDE_PROJECT_DIR/.claude/skills/north-star/sidecar.sh"',
         },
       ],
     });
     writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
-    if (withSidecarFile) {
-      writeFileSync(join(root, "templates/skills", skillDir, SIDECAR), "#!/bin/bash\nexit 0\n");
-    }
-    return root;
-  }
+    // 전제 — 변이가 템플릿에 들어갔다(안 들어갔으면 아래 판정이 헛통과한다)
+    expect(readFileSync(settingsPath, "utf8")).toContain("sidecar.sh");
 
-  function install(harnessRoot: string) {
-    return runInstall({
-      runExternal: null,
-      harnessRoot,
-      projectDir,
-      spec: {
-        tracks: ["tooling"],
-        options: baseOptions,
-        cli: ["claude"],
-        projectDir,
-      },
-    });
-  }
-
-  function settingsText(): string {
-    return readFileSync(join(projectDir, ".claude/settings.json"), "utf8");
-  }
-
-  /** 정상 참조 = 항상 깔리는 훅(`ALWAYS_HOOKS`) 중 settings.json 이 실제로 부르는 것들. */
-  const LIVE_HOOK_REFS = ["session-start.sh", "protect-files.sh"];
-
-  it("전제 확인 — 변이가 배선을 넣었고 두 경우가 갈린다 (헛통과 차단)", () => {
-    // 변이가 안 걸렸으면 아래 판정은 "치유했다"와 "배선이 애초에 없었다"를 구분하지 못한다.
-    const ghostRoot = mutatedHarnessRoot(GHOST_SKILL, false);
-    expect(readFileSync(join(ghostRoot, "templates/settings.json"), "utf8")).toContain(SIDECAR);
-    install(ghostRoot);
-    expect(existsSync(join(projectDir, `.claude/skills/${GHOST_SKILL}`))).toBe(false);
-
-    rmSync(projectDir, { recursive: true, force: true });
-    projectDir = mkdtempSync(join(tmpdir(), "ch-heal-"));
-    install(mutatedHarnessRoot(LIVE_SKILL, true));
-    expect(existsSync(join(projectDir, `.claude/skills/${LIVE_SKILL}/${SIDECAR}`))).toBe(true);
-  });
-
-  it("참조 대상이 없으면 — 죽은 훅 참조가 설치 후 사라진다", () => {
-    const report = install(mutatedHarnessRoot(GHOST_SKILL, false));
-
-    expect(
-      report.staleHookRefs,
-      "install 이 치유기를 부르지 않았다 — settings.json 이 없는 파일을 가리킨 채 남는다",
-    ).toContain(`skills/${GHOST_SKILL}/${SIDECAR}`);
-    // 보고만 하고 파일을 안 고치면 아무 소용이 없다. 디스크가 답이다.
-    expect(settingsText()).not.toContain(SIDECAR);
-  });
-
-  it("참조 대상이 없어도 정상 훅 참조는 살아남는다 (치유가 파손이 되면 안 된다)", () => {
-    install(mutatedHarnessRoot(GHOST_SKILL, false));
-    const text = settingsText();
-    for (const hook of LIVE_HOOK_REFS) {
-      expect(text, `${hook} 참조가 사라졌다 — 치유기가 멀쩡한 훅을 뜯었다`).toContain(hook);
-      expect(existsSync(join(projectDir, ".claude/hooks", hook))).toBe(true);
-    }
-  });
-
-  it("참조 대상이 깔리면 같은 참조가 보존된다", () => {
-    const report = install(mutatedHarnessRoot(LIVE_SKILL, true));
-
-    expect(report.staleHookRefs).toEqual([]);
-    expect(settingsText()).toContain(SIDECAR);
-    for (const hook of LIVE_HOOK_REFS) {
-      expect(settingsText()).toContain(hook);
-    }
+    expect(() => install(root)).toThrow(/cannot be written as a harness portion/);
   });
 
   it("claude 미선택이면 건드릴 settings.json 이 없다 — 빈 보고", () => {

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -249,7 +249,7 @@ describe("runInstall — mode dispatch", () => {
     ).not.toThrow();
   });
 
-  it("mode=reinstall auto-creates backup", () => {
+  it("mode=reinstall 은 `.claude/` 를 옮기지 않는다 — install 과 같은 쓰기 (#551 PR-3)", () => {
     // baseline install
     runInstall({
       runExternal: null,
@@ -257,6 +257,8 @@ describe("runInstall — mode dispatch", () => {
       projectDir,
       spec: spec(["tooling"], {}, projectDir),
     });
+    // 설치자가 `.claude/` 에 둔 자기 파일 — 폴더를 옮기던 판은 이것을 백업 폴더로 함께 가져갔다
+    writeFileSync(join(projectDir, ".claude/settings.local.json"), '{"permissions":{}}\n');
     const report = runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -265,7 +267,11 @@ describe("runInstall — mode dispatch", () => {
       mode: "reinstall",
     });
     expect(report.mode).toBe("reinstall");
-    expect(report.backup).toMatch(/\.claude\.backup-/);
+    expect(report.backup).toBeNull();
+    expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
+    expect(readFileSync(join(projectDir, ".claude/settings.local.json"), "utf8")).toBe(
+      '{"permissions":{}}\n',
+    );
   });
 
   it("mode=add does NOT create backup", () => {
@@ -339,9 +345,8 @@ describe("runInstall — mode dispatch", () => {
   });
 
   /**
-   * reinstall 은 `.claude/` 를 backup 으로 rename 한다. 그래서 이전 자산 중
-   * **`.claude/` 밖에 사는 것만** 기록에 남아야 맞다 — 안쪽에 살던 건 실제로 사라졌으므로
-   * 남기면 "있지도 않은 걸 있다고" 기록하게 된다(F-1a 를 반대 방향으로 재현).
+   * #551 PR-3 — reinstall 은 `.claude/` 를 옮기지 않는다. 그래서 이전 자산 기록은 `.claude/` 안에 살던 것까지
+   * 그대로 남아야 맞다 — 디스크에 그대로 있으므로 빼면 "있는 걸 없다고" 기록하게 된다(F-1a 재현).
    */
   const withAsset = (id: string, method: "plugin" | "skill"): RunExternalFn =>
     makeMock(() => ({
@@ -388,9 +393,8 @@ describe("runInstall — mode dispatch", () => {
     expect(log?.assets.map((a) => a.id)).toEqual(["before-reinstall", "after-reinstall"]);
   });
 
-  it("reinstall 은 `.claude/skills/` 에 살던 skill 자산 기록을 버린다 (실제로 사라졌으므로)", () => {
-    // `npx skills add` project scope = `.claude/skills/` → rename 과 함께 소멸.
-    // 남겨두면 list 가 과대보고하고 uninstall 이 없는 걸 지우려 든다.
+  it("reinstall 뒤에도 `.claude/skills/` 에 사는 skill 자산 기록이 남는다 (폴더를 옮기지 않으므로)", () => {
+    // `npx skills add` project scope = `.claude/skills/` — reinstall 이 폴더를 옮기던 판은 여기서 기록을 버렸다.
     runInstall({
       runExternal: withAsset("old-skill", "skill"),
       harnessRoot: HARNESS_ROOT,
@@ -405,7 +409,7 @@ describe("runInstall — mode dispatch", () => {
       mode: "reinstall",
     });
 
-    expect(readInstallLog(projectDir)?.assets.map((a) => a.id)).toEqual(["new-skill"]);
+    expect(readInstallLog(projectDir)?.assets.map((a) => a.id)).toEqual(["old-skill", "new-skill"]);
   });
 
   it("backup 없는 추가 설치(add)에서는 skill 자산도 그대로 유지된다", () => {

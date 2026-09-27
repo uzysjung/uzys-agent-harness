@@ -442,6 +442,9 @@ export function buildInstallLog(
  * 1회차는 `.env`, 2회차는 `.factory/` 를 추가하면 둘 다 디스크에 남아 있으므로 둘 다 알려야 한다.
  * `change` 는 한 번이라도 created 면 created — 하네스가 만든 파일에 나중에 병합한 것뿐이고,
  * 사용자에게는 "전부 하네스 것"이 여전히 참이다 (modified 로 낮추면 지워도 될 것을 못 지운다).
+ *
+ * #551 — `displaced` 는 합치지 않고 **마지막 하나**만 둔다. `notes[0]` 이 되돌릴 백업 경로라, 합집합이면
+ * 옛 백업을 가리키게 된다(설계 §1.2 "displaced 되돌리기 세부").
  */
 function mergeRootFiles(
   previous: ReadonlyArray<InstallLogRootFile> | undefined,
@@ -452,7 +455,7 @@ function mergeRootFiles(
     const prior = byPath.get(file.path);
     byPath.set(
       file.path,
-      prior
+      prior && file.change !== "displaced"
         ? {
             path: file.path,
             change: prior.change === "created" ? "created" : file.change,
