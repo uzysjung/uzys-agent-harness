@@ -26,6 +26,8 @@ import { runCliTransforms } from "../src/cli-transforms.js";
 import { renderCliArtifacts } from "../src/commands/install-render.js";
 import { hashContent, type InstallLogPortion, readInstallLog } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
+import { createOwnedWriter } from "../src/owned-write.js";
+import { writeShared } from "../src/shared-write.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -624,5 +626,38 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
     expect(read(".codex/config.toml")).not.toContain("uzys-harness:top");
     expect(r.portions.map((p) => p.key)).not.toContain("mcp.github");
+  });
+});
+
+/* ─── writeShared — 합친 결과가 안 읽히면 쓰지 않는다 ───────────────────── */
+
+describe("writeShared — 읽히는 파일이어도 합친 결과가 안 읽히면 한 바이트도 쓰지 않는다", () => {
+  it("설치자가 고쳐 남긴 구간과 새 구간이 같은 표를 정의하면 쓰지 않고 이유를 낸다", () => {
+    const first = writeShared({
+      projectDir,
+      path: ".codex/config.toml",
+      render: new Map([["tables", "[features]\na = true"]]),
+      record: {},
+      baseline: new Map(),
+      writer: createOwnedWriter(projectDir, new Map()),
+      refreshOnly: false,
+    });
+    // 설치자가 하네스 구간을 고쳤다 → 다음 갱신은 그 구간을 남긴다. 릴리즈는 같은 표를 새 구간에 정의한다
+    const edited = read(".codex/config.toml").replace("a = true", "a = false");
+    put(".codex/config.toml", edited);
+    const r = writeShared({
+      projectDir,
+      path: ".codex/config.toml",
+      render: new Map([["extra", "[features]\nb = 1"]]),
+      record: { portions: first.portions ?? [] },
+      baseline: new Map(),
+      writer: createOwnedWriter(projectDir, new Map()),
+      refreshOnly: false,
+    });
+    expect(r).toMatchObject({ action: "left", portions: null });
+    expect(r.line).toBe(
+      "could not merge it (the merged result would not be readable TOML) — harness part not added",
+    );
+    expect(read(".codex/config.toml")).toBe(edited);
   });
 });
