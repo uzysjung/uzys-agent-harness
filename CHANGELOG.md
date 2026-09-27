@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.162.0] — 2026-09-27 (처음 깔아도 내 설정이 남고 · 깐 것이 CLI 에서 동작한다 — 설치자 디스크 한 원칙 1단계)
+
+### Changed
+- **이미 쓰던 프로젝트에 처음 깔아도 설치자 설정이 남는다** (#563 · #558, PR #587 · #588). `.claude/settings.json` 의 자기 훅 · `statusLine` · `model`, `.mcp.json` 서버, `.codex/config.toml` 의 MCP · model, `opencode.json` 의 키, 이미 있던 `AGENTS.md` 본문이 라이브에 그대로 있고 하네스 몫만 더한다(`AGENTS.md` 는 파일 끝 블록 하나, `config.toml` 은 표시된 구간 둘). 전: 통째 교체 — 원본은 백업에만 있었고 지금 도는 CLI 는 백업을 읽지 않아 설정이 사라진 것과 같았다. 같은 키 · 같은 이름 서버는 설치자 값이 이기고 화면이 `kept yours` 로 말한다.
+- **트랙을 더하거나 새 판으로 갱신하면 Codex · OpenCode 설정의 하네스 몫이 실제로 바뀐다** (PR #590). 설치 기록이 파일마다 하네스 몫을 적고 install · update 가 그 기록으로 판정한다 — 설치자가 몫 **안에서** 고친 것은 남기고, 지운 구간 · 블록 · MCP 키는 되살리지 않는다. 파일을 **통째로** 지우면 전처럼 다음 install 이 다시 만든다. 옛 판이 통째로 쓴 `config.toml` 을 설치자가 고쳤으면 install · update 가 건드리지 않는다(install 화면이 한 줄로 알린다).
+- **`install --reinstall` 이 `.claude/` 를 통째로 옮기지 않는다** (#572, PR #587). install 과 같은 쓰기 — 하네스 파일을 제자리에서 다시 쓰고, 설치자가 고친 파일은 그 하나만 `<file>.backup-<ts>` 로 남긴다. 전: 고친 `CLAUDE-uzys-harness.md` 가 백업 없이 덮였다.
+- **Global 선택지를 없앴다** (#560, PR #577 · #579). 위저드 6 → 5단계, 새 설치의 `--scope global` 은 대체 명령(`claude plugin install --scope user` · `npx skills add -g` · `npm i -g`)을 안내하고 거절한다. Global 은 외부 도구 플래그만 바꿨고 하네스 파일은 늘 이 프로젝트에 썼다(화면은 `~/.claude/` 에 쓴다고 했다). 이미 Global 로 깐 설치본은 전처럼 동작하고 헤더에 SCOPE 한 줄을 보인다.
+- `.codex/config.toml` 판정에 TOML 파서 `smol-toml`(의존성 0 · BSD-3)을 번들 — 런타임 의존성 2 → 3 (PR #578).
+
+### Fixed
+- **Codex · OpenCode 설치가 MCP 서버를 실제로 쓴다** (#568 · #567, PR #576). OpenCode `opencode.json` 의 `mcp` 가 트랙과 무관하게 비던 것(원천 파일이 npm 패키지에 없었다)과 Claude 형식 서버 때문에 OpenCode 가 설정 전체를 거부하던 것. **기존 OpenCode 설치자는 `update` 한 번으로 트랙의 MCP 서버 3~5개가 켜진다.** Codex 는 폴더를 신뢰해야 `.codex/config.toml` 을 읽는다 — 화면이 "Trust and continue" 와 `--with-codex-trust` 를 안내한다. 릴리즈 게이트 이미지가 `npm pack` 산출물로 설치해 패키지 누락을 잡는다.
+- **읽지 못하는 함께 쓰는 파일에는 한 바이트도 쓰지 않는다** (#574, PR #587 · #588). 끝 쉼표 하나 든 `.mcp.json` · 깨진 TOML · 주석 든 `opencode.json` — 전: 백업 없이 템플릿으로 덮어 설치자 서버가 사라졌다. 후: 그대로 두고 이유를 한 줄로 알린다.
+- **`uninstall` 이 이미 있던 `AGENTS.md` 끝의 하네스 블록과 `opencode.json` 의 하네스 MCP 키만 걷는다** (PR #590). 전: 블록(룰 약 210줄)과 MCP 서버가 uninstall 뒤에도 남아 Codex · OpenCode 가 계속 읽었다. 설치자가 고친 키 · 같은 이름 서버 · 못 읽는 파일 · 기록 없는 옛 설치본은 지우지 않고 한 줄로 말한다.
+- `list` 가 만들지 않은 `.opencode/` 를 설치된 것으로 보이던 것 (#559) · Antigravity 설치 요약의 룰 수가 디스크보다 적던 것 (#564), PR #577 · #579.
+- 세션 시작 훅이 git 이 없거나 첫 커밋 전인 프로젝트에서 브랜치를 `detached` · `HEAD` 로 알리던 것 (#580) · `check-absence.sh` 로 `-` 로 시작하는 패턴을 확인할 수 없던 것(`--` 뒤에 쓴다, #581) · 외부 자산 버전을 실제 설치본과 다르게 보이던 것 (#582) · 외부 skill 설치 실패 원인을 `npx exited 1` 로만 말하던 것 (#583), PR #586.
+
 ## [v26.161.0] — 2026-09-27 (CLI 는 더하기만, 빼기는 uninstall 로 — 기설치 메뉴 Update / Uninstall / Exit · uninstall --cli · CLI 폴더는 지우지 않고 옮긴다)
 
 ### Added
