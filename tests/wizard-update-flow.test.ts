@@ -1,6 +1,14 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listBaselineTargets } from "../src/baseline-targets.js";
 import { buildCli, defaultAction } from "../src/cli.js";
@@ -10,15 +18,21 @@ import {
   installSpecFromOptions,
   specFromOptions,
 } from "../src/commands/install.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
-import { type InstallLog, installLogPath } from "../src/install-log.js";
-import { MODE_ENTRY_POINT } from "../src/installer.js";
+import { type InstallLog, installLogPath, readInstallLog } from "../src/install-log.js";
+import { MODE_ENTRY_POINT, runInstall } from "../src/installer.js";
 import { classifyUpdateIntent, runInteractive, type UpdateSelection } from "../src/interactive.js";
 import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
-import { buildRouterChoices, describeInstall, type InstallRecordView } from "../src/router.js";
+import {
+  buildInstallRecordView,
+  buildRouterChoices,
+  describeInstall,
+  type InstallRecordView,
+} from "../src/router.js";
 import type { DetectedInstall } from "../src/state.js";
-import type { CliTargets, Track } from "../src/types.js";
+import type { CliBase, CliTargets, Track } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
 /**
@@ -382,5 +396,79 @@ describe("`install --reinstall` (D9) — 위저드 메뉴의 Reinstall 이 플�
   it("모든 mode 에 비대화형 진입점이 있다 (위저드 전용 mode 0)", () => {
     expect(Object.values(MODE_ENTRY_POINT)).not.toContain(null);
     expect(MODE_ENTRY_POINT.reinstall).toBe("install --reinstall");
+  });
+});
+
+/**
+ * 리뷰 B1 — Claude 를 뺀 뒤(`uninstall --cli claude`, 새 Uninstall 화면의 Remove one CLI)에도 Update 가
+ * 돌아야 한다. 화면(메뉴 머리글)과 엔진(update pre-flight)이 깨진 설치를 **같은 기록(`clis`)**으로
+ * 판정해야 한다(D10) — 엔진이 마지막 설치의 `spec.cli` 를 보던 때는 화면이 Update 를 열어 주고
+ * 엔진이 "broken install … Reinstall" 로 거절했다(방금 뺀 Claude 를 다시 깔라는 문장).
+ */
+describe("깨진 설치 — 화면과 엔진이 같은 기록으로 판정한다 (리뷰 B1 · D10)", () => {
+  const HARNESS_ROOT = resolve(__dirname, "..");
+  let dir = "";
+  const run = (mode: "add" | "update", cli: ReadonlyArray<CliBase>) =>
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      mode,
+      runExternal: null,
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: [...cli],
+        projectDir: dir,
+      },
+    });
+  const screenSaysBroken = (): boolean =>
+    buildInstallRecordView(state(), readInstallLog(dir), existsSync(join(dir, ".claude")))
+      .repair !== null;
+  const engineSaysBroken = (): boolean => {
+    try {
+      run("update", ["claude", "codex"]);
+      return false;
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("broken install")) return true;
+      throw e;
+    }
+  };
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "wiz-b1-"));
+    run("add", ["claude", "codex"]);
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("claude+codex → `uninstall --cli claude` → update 가 돈다 · codex 자산을 갱신하고 `.claude/` 를 되살리지 않는다", () => {
+    let code: number | null = null;
+    uninstallAction(
+      { projectDir: dir, cli: "claude" },
+      {
+        log: () => {},
+        err: () => {},
+        exit: (c: number) => {
+          code ??= c;
+          return undefined as never;
+        },
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+    expect(code).toBe(0);
+    // 기록의 마지막 설치분(spec.cli)엔 claude 가 남아 있다 — 이 상태가 두 술어를 갈라 놓던 입력이다.
+    expect(readInstallLog(dir)?.spec.cli).toContain("claude");
+    const skill = join(dir, ".agents/skills/audit-harness-fit/SKILL.md");
+    appendFileSync(skill, "\n<!-- stale local copy -->\n");
+
+    expect(screenSaysBroken()).toBe(false);
+    expect(engineSaysBroken()).toBe(false);
+    expect(readFileSync(skill, "utf8")).not.toContain("stale local copy");
+    expect(existsSync(join(dir, ".claude"))).toBe(false);
+  });
+
+  it("기록에 claude 가 남았는데 `.claude/` 가 없으면 — 화면도 엔진도 깨진 설치라고 한다", () => {
+    rmSync(join(dir, ".claude"), { recursive: true, force: true });
+    expect(screenSaysBroken()).toBe(true);
+    expect(engineSaysBroken()).toBe(true);
   });
 });
