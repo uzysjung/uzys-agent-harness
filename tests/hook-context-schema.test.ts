@@ -126,6 +126,25 @@ describe("session-start.sh 의 브랜치 표시 (#580)", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  // 러너에는 git 신원이 없다(`Author identity unknown` — v26.162.0 릴리즈 CI 가 여기서 red). 커밋에 신원을 싣는다
+  function commit(cwd: string, message: string): void {
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        message,
+      ],
+      { cwd },
+    );
+  }
+
   function branchOf(cwd: string): string {
     const stdout = execFileSync("bash", [HOOK], { cwd, encoding: "utf8", timeout: 10_000 });
     const ctx = (JSON.parse(stdout) as { hookSpecificOutput: { additionalContext: string } })
@@ -148,14 +167,14 @@ describe("session-start.sh 의 브랜치 표시 (#580)", () => {
   it("커밋이 있으면 대조군대로 브랜치 이름을 말한다", () => {
     execFileSync("git", ["init", "-q"], { cwd: dir });
     const before = branchOf(dir);
-    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "x"], { cwd: dir });
+    commit(dir, "x");
     expect(branchOf(dir)).toBe(before);
   });
 
   it("진짜 detached HEAD(커밋을 체크아웃)에서는 'detached' 를 말한다", () => {
     execFileSync("git", ["init", "-q"], { cwd: dir });
-    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "x"], { cwd: dir });
-    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "y"], { cwd: dir });
+    commit(dir, "x");
+    commit(dir, "y");
     execFileSync("git", ["checkout", "-q", "HEAD~1"], { cwd: dir });
     expect(branchOf(dir)).toBe("detached");
   });
