@@ -396,6 +396,15 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
     expect(live).toContain("<!-- uzys-harness:anchor:start -->");
     expect(live).not.toContain("uzys-harness:agents");
   });
+
+  it("기록을 잃은 하네스 파일(절 모델 조각 마커가 있다)은 첫 접촉으로 읽지 않는다 — 룰이 두 벌 들어가지 않는다(N-c)", () => {
+    install(["codex"]);
+    const before = read("AGENTS.md");
+    rmSync(join(projectDir, ".uzys-agent-harness"), { recursive: true, force: true }); // 로그가 사라졌다
+    const report = install(["codex"]);
+    expect(report.codex?.agentsMd?.model).toBe("sections");
+    expect(read("AGENTS.md")).toBe(before);
+  });
 });
 
 /* ─── runCliTransforms — 기록에 넘길 몫 ──────────────────────────────────── */
