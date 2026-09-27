@@ -1,5 +1,5 @@
 /**
- * config.toml transform — fill placeholders + append [mcp_servers.X] from .mcp.json.
+ * config.toml transform — fill placeholders + append [mcp_servers.X] from the harness MCP servers.
  * Mirrors `claude-to-codex.sh` steps 2 + 5.
  */
 
@@ -9,7 +9,7 @@ export interface RenderConfigTomlParams {
   template: string;
   projectName: string;
   projectDir: string;
-  /** Source `.mcp.json` (parsed). When provided, [mcp_servers.X] blocks replace defaults. */
+  /** 하네스 MCP 서버 (`renderHarnessMcp`). When provided, [mcp_servers.X] blocks replace defaults. */
   mcp?: McpJson | null;
 }
 
@@ -17,7 +17,7 @@ const DEFAULT_MCP_BLOCK_RE = /\n# =+\n# MCP Servers — .*?\n# =+[\s\S]*$/;
 
 /**
  * Substitute placeholders + replace the MCP servers section with blocks
- * derived from the supplied `.mcp.json` (or leave the template default).
+ * derived from the supplied MCP servers (or leave the template default).
  */
 export function renderConfigToml(params: RenderConfigTomlParams): string {
   const substituted = params.template
@@ -35,7 +35,7 @@ export function renderConfigToml(params: RenderConfigTomlParams): string {
 }
 
 function stripExistingMcpSection(toml: string): string {
-  // Drop default [mcp_servers.X] blocks shipped in the template (we replace from .mcp.json)
+  // Drop default [mcp_servers.X] blocks shipped in the template (we replace from the harness servers)
   const lines = toml.split(/\r?\n/);
   const out: string[] = [];
   let skipping = false;
@@ -63,10 +63,11 @@ function stripExistingMcpSection(toml: string): string {
 }
 
 function renderMcpServers(mcp: McpJson): string {
-  const stamp = new Date().toISOString().slice(0, 10);
+  // #568 — 날짜를 찍지 않는다. 출력이 날마다 바뀌면 아무것도 안 바뀐 update 도 이 파일을 다시 쓰고
+  // "갱신했다"로 센다. 원천도 이제 `.mcp.json` 이 아니라 템플릿 + 트랙 표다(`renderHarnessMcp`).
   const header = [
     "# ============================================================",
-    `# MCP Servers — generated from .mcp.json (${stamp})`,
+    "# MCP Servers — added by uzys-agent-harness for this project's tracks",
     "# ============================================================",
   ].join("\n");
 

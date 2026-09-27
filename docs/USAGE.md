@@ -62,7 +62,7 @@ One flag selects *behaviour* rather than an asset:
 
 | Flag | Effect |
 |---|---|
-| `--with-codex-trust` | Codex only: register a trust entry in `~/.codex/config.toml`. Takes effect **only with `--scope global`** |
+| `--with-codex-trust` | Codex only: register this folder as trusted in `~/.codex/config.toml`, so Codex reads the project's `.codex/config.toml` (MCP · sandbox · approval) without first asking. Without it, Codex asks once on first launch — choose **Trust and continue** |
 
 Everything else is `--with` / `--without` by catalog id; there are no per-asset flags. `npx -y @uzysjung/agent-harness install --help` prints the full list. If you install the package globally with npm, the same commands are available as `agent-harness …`.
 

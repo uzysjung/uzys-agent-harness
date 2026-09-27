@@ -1159,6 +1159,8 @@ function refreshExternalCli(
     // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
     selectedInternalSkills: installedBundledSkills(projectDir),
     rules: ALL_RULES.filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
+    // #568 — MCP 서버의 트랙은 설치 기록에서(기록이 없으면 기본 서버만 — 지어내지 않는다).
+    tracks: installedTracks(projectDir),
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
   });

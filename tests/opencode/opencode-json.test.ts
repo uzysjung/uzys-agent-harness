@@ -30,7 +30,9 @@ describe("opencode/opencode-json renderOpencodeJson", () => {
     expect(parsed.mcp.placeholder).toBeDefined();
   });
 
-  it("replaces mcp.<name> from .mcp.json", () => {
+  // #568 — OpenCode 형식(`McpLocalConfig`)으로 옮긴다. Claude 형식({command, args, env})을 그대로
+  // 넣으면 OpenCode 가 설정 파일 전체를 거절한다(opencode 1.18.32 실측: "Configuration is invalid").
+  it("replaces mcp.<name> from the harness servers in OpenCode local format", () => {
     const out = renderOpencodeJson({
       template: TEMPLATE,
       mcp: {
@@ -45,9 +47,15 @@ describe("opencode/opencode-json renderOpencodeJson", () => {
       },
     });
     const parsed = JSON.parse(out);
-    expect(parsed.mcp.context7.command).toBe("npx");
-    expect(parsed.mcp.context7.args).toEqual(["-y", "@context7/mcp-server"]);
-    expect(parsed.mcp.github.env.GITHUB_TOKEN).toBe("${GITHUB_TOKEN}");
+    expect(parsed.mcp.context7).toEqual({
+      type: "local",
+      command: ["npx", "-y", "@context7/mcp-server"],
+    });
+    expect(parsed.mcp.github).toEqual({
+      type: "local",
+      command: ["npx", "-y", "@modelcontextprotocol/server-github"],
+      environment: { GITHUB_TOKEN: "${GITHUB_TOKEN}" },
+    });
     // template default removed
     expect(parsed.mcp.placeholder).toBeUndefined();
   });

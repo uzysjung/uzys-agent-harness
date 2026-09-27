@@ -2,10 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderHarnessMcp } from "../../src/cli-transforms.js";
 import { runCodexTransform } from "../../src/codex/transform.js";
 import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
+/** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
+const HARNESS_MCP = renderHarnessMcp(HARNESS_ROOT, ["tooling"]);
 
 describe("runCodexTransform (E2E against templates/)", () => {
   let project: string;
@@ -21,6 +24,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
   it("produces Codex baseline — AGENTS.md + config.toml + ported hooks (slash + env rename)", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
+      mcp: HARNESS_MCP,
       projectDir: project,
       baseline: new Map(),
     });
@@ -46,6 +50,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
   it("default (no selectedInternalSkills) → skillFiles empty, no .agents/skills written", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
+      mcp: HARNESS_MCP,
       projectDir: project,
       baseline: new Map(),
     });
@@ -55,7 +60,12 @@ describe("runCodexTransform (E2E against templates/)", () => {
 
   it("throws when required template missing", () => {
     expect(() =>
-      runCodexTransform({ harnessRoot: "/no/such/root", projectDir: project, baseline: new Map() }),
+      runCodexTransform({
+        harnessRoot: "/no/such/root",
+        mcp: HARNESS_MCP,
+        projectDir: project,
+        baseline: new Map(),
+      }),
     ).toThrow(/required source missing/);
   });
 
@@ -70,6 +80,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
       const NOTE = "## Skills that apply continuously";
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["user-centered-explanation", ...DEV_METHOD],
         baseline: new Map(),
@@ -80,6 +91,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
       expect(withNote).not.toContain("`compaction-handoff`"); // 상시 스킬이 아니다
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: DEV_METHOD,
         baseline: new Map(),
@@ -90,6 +102,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: DEV_METHOD,
         baseline: new Map(),
@@ -107,6 +120,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     it("frontmatter 가 name: <id> 보존 (NOT name: uzys-<id>) — renderBundledSkill frontmatter 보존 가드", () => {
       runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),
@@ -123,6 +137,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     it("selectedInternalSkills 빈 배열(기본) → dev-method skill 미생성", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         baseline: new Map(),
       });
@@ -138,6 +153,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
       const expected = expectedSkillRelFiles(HARNESS_ROOT, id);
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: [id],
         baseline: new Map(),
@@ -154,6 +170,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     it("selected dev-method skill 만 렌더 (선택 안 한 id 는 빠짐)", () => {
       const report = runCodexTransform({
         harnessRoot: HARNESS_ROOT,
+        mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
         baseline: new Map(),

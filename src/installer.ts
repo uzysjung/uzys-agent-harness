@@ -413,8 +413,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
     rules: resolveRules(manifestSpec).filter(
       (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
     ),
+    // #568 — Codex · OpenCode 의 MCP 서버는 `.mcp.json` 과 같은 원천(템플릿 + 이 트랙 표)에서 온다.
+    tracks: spec.tracks,
     previousExternal: previousLog?.externalFiles ?? [],
-    codexTrust: (spec.scope ?? "project") === "global" && spec.options.withCodexTrust,
+    // ADR-097 결정 2 — 범위 조건 없이 `--with-codex-trust` 하나로 정한다.
+    codexTrust: spec.options.withCodexTrust,
   });
 
   // #524 — 링크 자리의 공유 본문. 외부 변환 **뒤에** 돈다: 그 결과를 기준선에 합쳐야 같은 실행에서

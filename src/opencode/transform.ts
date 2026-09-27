@@ -1,9 +1,10 @@
 /**
- * OpenCode transform orchestrator — SSOT (templates/CLAUDE.md, .mcp.json) →
+ * OpenCode transform orchestrator — SSOT (templates/CLAUDE.md, 하네스 MCP 서버) →
  * OpenCode 자산.
  *
  * Inputs:
- *   - harnessRoot:  repository root (templates/ + .mcp.json)
+ *   - harnessRoot:  harness root (templates/) — 저장소 루트 또는 npm 패키지 루트
+ *   - mcp:          하네스 MCP 서버 (`renderHarnessMcp` — 템플릿 + 트랙 표, #568)
  *   - projectDir:   target project to receive AGENTS.md + opencode.json + .opencode/
  *
  * Outputs (under projectDir):
@@ -41,6 +42,12 @@ export interface OpencodeTransformParams {
   selectedInternalSkills?: ReadonlyArray<string>;
   /** 2026-08-12 — 이 설치의 배포 룰 이름들. codex 와 공유하는 `AGENTS.md` 본문에 embed 된다. */
   rules?: ReadonlyArray<string>;
+  /**
+   * #568 — 이 설치의 하네스 MCP 서버(`cli-transforms.ts` `renderHarnessMcp` — 템플릿 + 트랙 표).
+   * 예전에는 하네스 루트의 `.mcp.json` 을 읽었는데 그 파일은 npm 패키지에 없다. **required** —
+   * 호출부가 빠뜨리면 조용히 빈 목록이 되는 것이 바로 그 버그의 형태였다.
+   */
+  mcp: McpJson;
   /**
    * v26.133.0 (ADR-048) — 설치 시점 기준선 (install log `externalFiles`).
    * codex 쪽과 같은 이유로 **required** 다 — 안 넘긴 호출부가 조용히 판정 불가로 떨어지면
@@ -82,6 +89,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     projectDir,
     selectedInternalSkills = [],
     rules = [],
+    mcp,
     baseline,
     refreshOnly,
   } = params;
@@ -93,7 +101,6 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     join(harnessRoot, "templates/opencode/opencode.json.template"),
   );
   const projectName = basename(projectDir);
-  const mcp = readOptionalJson(join(harnessRoot, ".mcp.json"));
 
   // #531 (Epic #527 S3) — `update` 가 **새 릴리즈의 번들 스킬도** 이 CLI 자리에 깐다.
   // 호출부(`selectedInternalSkills`)는 update 에서 "디스크에 있는 스킬"만 넘기므로 어느 자리에도
@@ -210,15 +217,4 @@ function readRequired(path: string): string {
     throw new Error(`OpenCode transform: required source missing: ${path}`);
   }
   return readFileSync(path, "utf8");
-}
-
-function readOptionalJson(path: string): McpJson | null {
-  if (!existsSync(path)) {
-    return null;
-  }
-  try {
-    return JSON.parse(readFileSync(path, "utf8")) as McpJson;
-  } catch {
-    return null;
-  }
 }
