@@ -207,7 +207,9 @@ describe(".codex/config.toml — 설치자 파일에 하네스 몫(구간 둘)�
     const report = install(["codex"]);
     const row = screen(["codex"], report).find((l) => l.includes(".codex/config.toml")) ?? "";
     expect(row).toContain("harness part left as is: top · tables");
+    expect(row).toContain("nothing written");
     expect(row).not.toContain("kept yours");
+    expect(row).not.toContain("already current");
   });
 
   it("TOML 로 읽히지 않으면 한 바이트도 쓰지 않고 이유를 말한다(#574 규칙)", () => {

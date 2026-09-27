@@ -440,12 +440,17 @@ export function renderCliArtifacts(
 function sharedRow(r: SharedWriteResult, part: string): string | null {
   if (r.action === "skipped") return null;
   if (r.action === "left") return assetRow("skip", r.path, `left — ${r.line}`);
+  // 안 쓴 파일을 "최신" 이라 하지 않는다 — 남겨 둔 하네스 구간이 있으면 그 구간은 최신인지 모른다
+  const unchanged =
+    r.leftAsIs.length > 0
+      ? "nothing written — yours stays"
+      : "harness part already current — yours stays";
   const verb =
     r.action === "created"
       ? "wrote"
       : r.action === "updated"
         ? "wrote the harness part — yours stays"
-        : "harness part already current — yours stays";
+        : unchanged;
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
   const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
   return assetRow("success", r.path, `${verb} · ${part}${kept}${left}`);
