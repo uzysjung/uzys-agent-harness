@@ -473,7 +473,10 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     const out = lines({ externalSkillsNotInCatalog: [id] });
     expect(out).toContain(id);
     expect(out).toMatch(/은퇴/);
-    expect(out).toContain(`.claude/skills/${id}`);
+    // #639 — 안내는 두 슬롯(.claude/skills · .agents/skills) 다 말한다. 한쪽 경로만 못박으면
+    // 비-Claude 설치에서 같은 디렉터리가 남는데 화면이 침묵한다.
+    expect(out).toMatch(/\.claude\/skills 또는 \.agents\/skills/);
+    expect(out).toContain(id);
   });
 
   // ADR-089 (#445) — 에이전트 은퇴도 같은 규율이다: 지우지 않고 **지워도 된다는 사실과 대신
@@ -545,7 +548,7 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     });
     for (const id of RETIRED_FROM_V26_151_INSTALL) {
       expect(out, `${id} 가 은퇴 안내를 못 받는다`).toContain(
-        `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+        `${id} · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
       );
     }
     for (const id of RETIRED_AGENTS_FROM_V26_151_INSTALL) {

@@ -17,6 +17,7 @@ import {
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import { copyBackupDir, ensureProjectSkeleton, listFilesRecursive } from "./fs-ops.js";
+import { cleanStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
   type InstallLog,
@@ -165,6 +166,8 @@ export interface BaselineReport {
   filesCopied: number;
   dirsCopied: number;
   skipped: number;
+  /** #603 — install 이 settings.json 에서 지운 죽은 훅 참조(.claude/ 상대경로). USAGE L148 약속의 고지용. */
+  staleHookRefs?: string[];
   backup: string | null;
   installedTracks: string[];
   mcpServers: string[];
@@ -460,6 +463,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   };
 
   const baseline: BaselineReport = {
+    ...(base.staleHookRefs.length > 0 ? { staleHookRefs: base.staleHookRefs } : {}),
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
     skipped: base.skipped,
@@ -509,7 +513,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   );
 
   // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
-  return { ...baseline, external, staleHookRefs: [] };
+  return { ...baseline, external, staleHookRefs: baseline.staleHookRefs ?? [] };
 }
 
 /**
@@ -597,6 +601,8 @@ export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
 
 /** `.claude/` baseline (manifest copy) 결과. claude 미선택 시 emptyClaudeBaseline(). */
 interface ClaudeBaselineResult {
+  /** #603 — install 치유가 지운 죽은 훅 참조. */
+  staleHookRefs: string[];
   filesCopied: number;
   dirsCopied: number;
   skipped: number;
@@ -638,6 +644,7 @@ interface ClaudeBaselineResult {
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
   return {
+    staleHookRefs: [],
     filesCopied: 0,
     dirsCopied: 0,
     skipped: 0,
@@ -811,6 +818,14 @@ function installClaudeBaseline(
         existsSync(join(projectDir, target))
       );
     });
+    // #603 — USAGE L148: "Install and update both remove any settings.json hook entry whose
+    // script file is missing, and note it in the summary." update 만 지우던 것을 install 도.
+    // 스크립트가 이번 실행으로 깔렸는지와 무관하게 **참조 시점의 파일 유무**로 판정한다.
+    const healed = cleanStaleHookRefs(
+      join(projectDir, ".claude", "settings.json"),
+      join(projectDir, ".claude"),
+    );
+    if (healed.length > 0) result.staleHookRefs.push(...healed);
   }
 
   // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.

@@ -45,7 +45,11 @@ import {
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
 import { backupFile, copyDir, listFilesRecursive } from "./fs-ops.js";
-import { projectAnchoredRef } from "./hook-ref.js";
+import { cleanStaleHookRefs, keepHookRef } from "./hook-ref.js";
+
+// 치유기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
+export { cleanStaleHookRefs, keepHookRef };
+
 import {
   collectPolicyHashes,
   collectSkillHashes,
@@ -59,12 +63,13 @@ import {
   writeInstallLog,
 } from "./install-log.js";
 import {
-  ALL_RULES,
   type AssetEntry,
   type AssetSpec,
   buildAssetSpec,
   buildManifest,
+  isCliNeutralTarget,
   RETIRED_AGENT_IDS,
+  resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
@@ -530,6 +535,12 @@ export function runUpdateMode(
   //      같아서다(지워도 된다). 판정 근거만 다르다 — 은퇴는 목록, 강등은 **이 설치본의 트랙**이다.
   report.demotedAgents = demotedAgentFiles(claudeDir, installedTracks(projectDir));
 
+  // 3.8) CLI 중립 헬퍼(`.uzys-agent-harness/*.sh`) 갱신 — #597.
+  //      결측 설치는 0단계 installNewAssets(#283) 가 이미 맡는다 — 이 단계의 공백은 **존재하지만
+  //      옛 판**인 경우다(26.160.0 → 26.162.1 update 후에도 check-absence.sh 가 옛 판). 배포 룰이
+  //      이 스크립트를 호출 지점으로 지목하므로 수정이 도달하지 않으면 게이트가 허위로 오래 산다.
+  if (logAtStart !== null) refreshNeutralHelpers(projectDir, templatesDir, logAtStart, report);
+
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
@@ -595,7 +606,11 @@ export function runUpdateMode(
   // 지우지는 않는다(ADR-046 — 스킬 디렉터리 안에는 사용자 파일이 섞인다). 말해 주고 손은 사용자가.
   report.externalSkillsNotInCatalog = [
     ...skillRefresh.notInCatalog,
-    ...staleSkillDirs(claudeDir).filter((id) => !skillRefresh.notInCatalog.includes(id)),
+    ...staleSkillDirs(
+      projectDir,
+      claudeDir,
+      logAtStart === null ? [] : installedClis(logAtStart),
+    ).filter((id) => !skillRefresh.notInCatalog.includes(id)),
   ];
   report.externalSkillsUnknown = skillRefresh.unknown;
 
@@ -610,14 +625,25 @@ export function runUpdateMode(
  * 열거하지 않는다 — 카탈로그의 `RENAMED_SKILL_IDS`·`RETIRED_SKILL_IDS` 를 읽는다. 여기에 이름을
  * 적으면 다음 개명에서 이 파일이 조용히 뒤처진다.
  */
-function staleSkillDirs(claudeDir: string): string[] {
-  const dir = join(claudeDir, "skills");
-  if (!existsSync(dir)) return [];
+function staleSkillDirs(
+  projectDir: string,
+  claudeDir: string,
+  clis: ReadonlyArray<string>,
+): string[] {
   const stale = (id: string): boolean =>
     RENAMED_SKILL_IDS[id] !== undefined || RETIRED_SKILL_IDS.includes(id);
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && stale(e.name))
-    .map((e) => e.name);
+  // #639 — 비-Claude CLI(codex·opencode·antigravity)의 스킬 자리는 `.agents/skills/` 다.
+  // 안 훑으면 옛 이름 디렉터리가 **새 이름과 이중으로 활성**인데 화면이 침묵한다.
+  const dirs = [join(claudeDir, "skills")];
+  if (clis.some((cli) => cli !== "claude")) dirs.push(join(projectDir, ".agents", "skills"));
+  const ids = new Set<string>();
+  for (const dir of dirs) {
+    if (!existsSync(dir)) continue;
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory() && stale(e.name)) ids.add(e.name);
+    }
+  }
+  return [...ids];
 }
 
 /**
@@ -1160,7 +1186,13 @@ function refreshExternalCli(
     // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
     // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
     selectedInternalSkills: installedBundledSkills(projectDir),
-    rules: ALL_RULES.filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
+    // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. ALL_RULES 문서는
+    // "refreshOnly 가 디스크로 대신 판정한다"고 했지만 렌더 경로(AGENTS.md 절 · antigravity 룰
+    // 생성)는 디스크 게이트가 없어, data 트랙 설치에서 update 만으로 cli-development(제6룰)가
+    // 생겼다. claude 레인은 처음부터 resolveRules 로 흐르므로 이쪽만 맞춘다.
+    rules: resolveRules({ tracks: installedTracks(projectDir) }).filter(
+      (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
+    ),
     // #568 — MCP 서버의 트랙은 설치 기록에서(기록이 없으면 기본 서버만 — 지어내지 않는다).
     tracks: installedTracks(projectDir),
     previousExternal: log?.externalFiles ?? [],
@@ -1553,91 +1585,40 @@ export function retireMcpAllowlist(projectDir: string, now: Date = new Date()): 
 }
 
 /**
- * settings.json의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거.
- * bash clean_stale_hook_refs 등가 (jq 의존 없이 JSON 직접 파싱).
+ * #597 — CLI 중립 헬퍼 스크립트(`.uzys-agent-harness/*.sh`)를 현재 판 템플릿으로 갱신한다.
  *
- * @param claudeDir `.claude/` 자신. 이전엔 `.claude/hooks/` 였다 — M-1 으로 한 층 넓혔다.
- * @returns 제거된 hook script 의 `.claude/` 기준 상대경로 목록
+ * 규칙은 배포 파일의 일반 정책(L185-193)과 같다:
+ *   - 기록 sha 그대로(=아무도 안 고침) → 백업 없이 교체
+ *   - 사용자가 고친 판본 → `backupFile` 로 옆에 보존 후 교체
+ * 기록의 externalFiles sha 도 그 자리에서 이어준다(#632 교훈: logAtStart 를 고쳐야 뒷단계
+ * 재기록이 옛 값을 되살리지 않는다).
  */
-export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
-  let settings: SettingsJson;
-  try {
-    settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
-  } catch {
-    return [];
+function refreshNeutralHelpers(
+  projectDir: string,
+  templatesDir: string,
+  log: InstallLog,
+  report: UpdateModeReport,
+): void {
+  const spec = buildAssetSpec({ tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS });
+  for (const entry of buildManifest(spec)) {
+    if (entry.type !== "file" || !isCliNeutralTarget(entry.target)) continue;
+    if (!entry.applies(spec)) continue;
+    const abs = join(projectDir, entry.target);
+    const source = join(templatesDir, entry.source);
+    if (!existsSync(abs) || !existsSync(source)) continue;
+    const recorded = (log.externalFiles ?? []).find((f) => f.path === entry.target);
+    const diskSha = hashContent(readFileSync(abs, "utf8"));
+    const freshSha = hashContent(readFileSync(source, "utf8"));
+    if (diskSha === freshSha) continue;
+    // 기록에 없거나(26.160.0 등 옛 판이 헬퍼를 externalFiles 에 안 남겼다 — #597 의 핵심 인구)
+    // 기록과 달라진(=사용자 편집) 디스크는 모두 L185-193 일반 정책으로: 백업 후 교체.
+    // 0단계(#283)의 "이미 있는 파일은 덮어쓰지 않는다"는 여전히 성립 — 덮는 쪽은 이렇게
+    // **판정하고 백업하는 경로**뿐이다.
+    if (recorded === undefined || recorded.sha256 !== diskSha) backupFile(abs);
+    writeFileSync(abs, readFileSync(source, "utf8"), "utf8");
+    if (recorded) recorded.sha256 = freshSha;
+    report.updated[entry.target] = (report.updated[entry.target] ?? 0) + 1;
   }
-  const hookEvents = settings.hooks ?? {};
-  const removed: string[] = [];
-  const cleanedHooks: Record<string, HookEntry[]> = {};
-
-  for (const [eventName, eventEntries] of Object.entries(hookEvents)) {
-    if (!Array.isArray(eventEntries)) {
-      cleanedHooks[eventName] = eventEntries; // non-array event — 그대로 보존
-      continue;
-    }
-    cleanedHooks[eventName] = eventEntries
-      .filter((entry) => Array.isArray(entry?.hooks))
-      .map((entry) => ({
-        ...entry,
-        hooks: entry.hooks.filter((hook) => keepHookRef(hook, claudeDir, removed)),
-      }))
-      .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
-  }
-
-  if (removed.length > 0) {
-    const next: SettingsJson = { ...settings, hooks: cleanedHooks };
-    writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
-  }
-  return removed;
-}
-
-/**
- * hook command 가 **이 프로젝트에 앵커된** 실존 `.sh` 참조면 true.
- * 앵커돼 있는데 파일이 없으면 removed 에 상대경로를 수집하고 false (= 제거).
- * 앵커가 없으면 파일 부재와 무관하게 true (= 보존, `removed` 수집도 안 한다).
- *
- * M-1 — 탐지 범위가 `.claude/hooks/` 한 층에서 **`.claude/` 이하 임의 깊이**로 넓어졌다.
- * `templates/settings.json` 은 `applies: all` 인데 거기 배선된 훅이 **스킬 디렉터리 안의 사이드카
- * 스크립트**(`.claude/skills/<id>/*.sh`)를 참조하고 그 스킬은 좁게 깔릴 수 있다 — plugin 을 켠
- * 설치자는 Write/Edit 마다 없는 파일을 bash 로 부른다(exit 127). 치유기는 이미 있었지만 이
- * 부류를 regex 가 못 물었을 뿐이다. (그 훅은 ADR-088 에서 스킬과 함께 은퇴했다 — 부류는 남는다.)
- *
- * H-2 — 그 확장이 경로 세그먼트 `/.claude/` 만 봐서 **홈 `~/.claude/`** 까지 사정권에 넣었다.
- * 앵커 판정(`projectAnchoredRef`)이 그 경계를 되돌린다.
- *
- * 캡처와 기준 디렉터리는 **원자적으로 같이** 간다 — 기준만 `claudeDir` 로 옮기고 캡처가
- * 파일명이면 `.claude/alive.sh` 를 찾다 못 찾아 멀쩡한 훅을 지운다.
- *
- * 기존 한계 유지: 한 command 안에서 **앵커 배열 순서상 먼저 걸린 앵커**가 뽑아낸 참조 하나만
- * 본다 — 문자열상 먼저 나오는 참조가 아니다. 앵커가 여럿 섞인 command 에서는 뒤쪽 참조가
- * 판정 대상이 될 수 있고, 나머지는 검사 없이 보존된다(안전한 쪽).
- *
- * export 사유: `tests/settings-reference-parity.test.ts` 가 "이 참조는 치유기가 실제로 무는가"를
- * 직접 호출해 면제 판정에 쓴다 — 면제는 말이 아니라 기계적 계약으로 증명한다.
- */
-export function keepHookRef(hook: HookCommand, claudeDir: string, removed: string[]): boolean {
-  const relPath = projectAnchoredRef(hook?.command ?? "", claudeDir);
-  if (relPath === undefined) return true; // 이 프로젝트에 앵커된 hook script 참조 아님 — 보존
-  const exists = existsSync(join(claudeDir, relPath));
-  // 중복 제거는 **경로 기준**. 파일명 기준이면 같은 이름이 두 디렉터리에 있을 때
-  // 살아 있는 쪽 때문에 죽은 쪽이 보고에서 사라진다.
-  if (!exists && !removed.includes(relPath)) removed.push(relPath);
-  return exists;
-}
-
-interface HookCommand {
-  type?: string;
-  command?: string;
-}
-
-interface HookEntry {
-  matcher?: string;
-  hooks: HookCommand[];
-}
-
-interface SettingsJson {
-  hooks?: Record<string, HookEntry[]>;
-  [key: string]: unknown;
 }
 
 /**

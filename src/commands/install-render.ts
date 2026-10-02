@@ -22,6 +22,7 @@ import {
   infoRow,
   padDisplay,
   sectionHeader,
+  status,
   symbol,
   unifiedSection,
 } from "../design.js";
@@ -1030,7 +1031,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · .claude/skills/${id} 는 지워도 된다`,
+              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         } else if (RETIRED_SKILL_IDS.includes(id)) {
@@ -1038,7 +1039,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+              `${id} · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         }
@@ -1083,6 +1084,14 @@ function renderPhase1Rows(
   }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
+  // #603 — install 치유가 지운 죽은 훅 참조 고지 (USAGE L148 "note it in the summary").
+  if (baseline.staleHookRefs?.length) {
+    log(
+      `  ${status.failure("⊘")} ${c.bold("settings.json")} ${c.dim(
+        `stale hook refs removed — ${baseline.staleHookRefs.join(", ")}`,
+      )}`,
+    );
+  }
   const cats = baseline.categories;
   if (cats) {
     // v26.63.0 — files 라인은 verbose 옵션 시만. 기본은 카운트 + use 1 줄.
