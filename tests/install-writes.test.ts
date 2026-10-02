@@ -24,6 +24,14 @@ import {
 import { type InstallMode, type InstallReport, runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
+/** #657 — 백업 패턴 4종(테스트 기대치가 소스 목록과 함께 살아야 함). */
+const BACKUP_PATTERNS = [
+  ".claude.backup-*/",
+  ".codex.backup-*/",
+  ".opencode.backup-*/",
+  "*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*",
+] as const;
+
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 /**
@@ -535,7 +543,7 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
 
     expect(read(".gitignore").startsWith("node_modules\n.env\n")).toBe(true);
     const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
-    expect(keys).toEqual([".factory/", ".goose/", ".uzys-agent-harness/"]);
+    expect(keys).toEqual([".factory/", ".goose/", ".uzys-agent-harness/", ...BACKUP_PATTERNS]);
     expect(report.envFiles.gitignoreEnvAdded).toBe(false);
   });
 
@@ -550,7 +558,9 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
           {
             path: ".gitignore",
             change: "modified",
-            notes: ["추가된 줄: .env, .factory/, .goose/, .uzys-agent-harness/"],
+            notes: [
+              "추가된 줄: .env, .factory/, .goose/, .uzys-agent-harness/, …backup patterns(#657)",
+            ],
           },
         ],
       }),
@@ -558,9 +568,16 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
 
     install();
 
-    expect(read(".gitignore")).toBe(old);
+    // #657 — 옛 판이 붙인 줄은 그대로(주석도 두 번 안 붙는다) 이어받고, 이 판이 새로 정의한
+    // 백업 패턴은 같은 머리글 아래에 더해진다. "이어받기"는 "새 줄 추가 금지"가 아니다.
+    const after = read(".gitignore");
+    expect(after.startsWith(old.replace(/\n$/, ""))).toBe(true);
+    for (const pat of BACKUP_PATTERNS) expect(after).toContain(pat);
+    expect(after.match(/auto-added by agent-harness( install)?\)/g)?.length).toBe(2); // 주석 중복 없음
     const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
-    expect(keys.sort()).toEqual([".env", ".factory/", ".goose/", ".uzys-agent-harness/"]);
+    expect(keys.sort()).toEqual(
+      [...[".env", ".factory/", ".goose/", ".uzys-agent-harness/"], ...BACKUP_PATTERNS].sort(),
+    );
   });
 });
 
