@@ -1,3 +1,6 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 /**
  * 훅 command 가 **이 프로젝트의** `.claude/` 아래 스크립트를 부르는가 — 판정 한 곳 (#551).
  *
@@ -57,4 +60,73 @@ export function projectAnchoredRef(command: string, claudeDir?: string): string 
     }
   }
   return undefined;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * settings.json 죽은 훅 참조 치유기 — update(#536) 와 install(#603) 이 같이 쓴다.
+ * update-mode.ts 에서 옮겼다: installer 가 import 하려는데 installer←update-mode 의존이
+ * 이미 있어 반대 방향 import 는 순환이 된다. 판정(SSOT)도 여기(projectAnchoredRef)다.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface HookCommand {
+  type?: string;
+  command?: string;
+}
+
+export interface HookEntry {
+  matcher?: string;
+  hooks: HookCommand[];
+}
+
+interface SettingsJson {
+  hooks?: Record<string, HookEntry[]>;
+  [key: string]: unknown;
+}
+
+/** `hook.command` 가 이 프로젝트 `.claude/` 의 스크립트를 부르는가 — 안 부르면 보존. */
+export function keepHookRef(hook: HookCommand, claudeDir: string, removed: string[]): boolean {
+  const relPath = projectAnchoredRef(hook?.command ?? "", claudeDir);
+  if (relPath === undefined) return true; // 이 프로젝트에 앵커된 hook script 참조 아님 — 보존
+  const exists = existsSync(join(claudeDir, relPath));
+  // 중복 제거는 **경로 기준**. 파일명 기준이면 같은 이름이 두 디렉터리에 있을 때
+  // 살아 있는 쪽 때문에 죽은 쪽이 보고에서 사라진다.
+  if (!exists && !removed.includes(relPath)) removed.push(relPath);
+  return exists;
+}
+
+/**
+ * settings.json 의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거.
+ * USAGE: "Install and update both remove any settings.json hook entry whose script file is
+ * missing, and note it in the summary." 반환값 = 지운 참조의 `.claude/` 상대경로.
+ */
+export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
+  let settings: SettingsJson;
+  try {
+    settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
+  } catch {
+    return [];
+  }
+  const hookEvents = settings.hooks ?? {};
+  const removed: string[] = [];
+  const cleanedHooks: Record<string, HookEntry[]> = {};
+
+  for (const [eventName, eventEntries] of Object.entries(hookEvents)) {
+    if (!Array.isArray(eventEntries)) {
+      cleanedHooks[eventName] = eventEntries; // non-array event — 그대로 보존
+      continue;
+    }
+    cleanedHooks[eventName] = eventEntries
+      .filter((entry) => Array.isArray(entry?.hooks))
+      .map((entry) => ({
+        ...entry,
+        hooks: entry.hooks.filter((hook) => keepHookRef(hook, claudeDir, removed)),
+      }))
+      .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
+  }
+
+  if (removed.length > 0) {
+    const next: SettingsJson = { ...settings, hooks: cleanedHooks };
+    writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
+  }
+  return removed;
 }
