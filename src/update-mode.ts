@@ -515,6 +515,11 @@ export function runUpdateMode(
   const settingsPath = join(claudeDir, "settings.json");
   if (claudeManaged && wants("hooks") && existsSync(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
+    // #632 — 치유된 참조는 "스크립트가 없던 일시 상태"다. 몫 기록에 남겨 두면 다음 install 이
+    // 그 훅을 "설치자가 뺀 것"(excluded)으로 읽어 복구를 영구 거부한다. 몫에서 걷어 첫 접촉으로
+    // 되돌린다 — 스크립트가 돌아오면(재설치) 배선이 다시 생긴다.
+    if (report.staleHookRefs.length > 0 && logAtStart !== null)
+      dropHealedHookPortions(projectDir, logAtStart, report.staleHookRefs);
   }
 
   // 3.5) `.mcp-allowlist` 회수 (ADR-072). 3) 바로 뒤인 이유는 같은 은퇴의 나머지 절반이기
@@ -1650,4 +1655,41 @@ function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): st
     /\s+/g,
     " ",
   );
+}
+
+/**
+ * #632 — `cleanStaleHookRefs` 가 지운 훅 참조의 몫 기록을 걷는다. 훅 몫의 key 는
+ * `hooks.<Event>#<script>` 형태라 스크립트 파일명(`#` 뒤)으로 짝을 맞춘다. 빼기 기록에
+ * 이미 굳은 같은 키도 함께 지운다(치유 전 판에서 굳은 흔적).
+ *
+ * `logAtStart` 를 **그 자리에서** 고친다 — 이 실행의 뒷단계(skillFiles·몫 왕복)가 각자 읽은
+ * 옛 로그로 다시 쓰기 때문에, 여기서 디스크만 고치면 이전 몫이 되살아난다(컨테이너 실측).
+ */
+function dropHealedHookPortions(
+  projectDir: string,
+  logAtStart: InstallLog,
+  healedFiles: ReadonlyArray<string>,
+): void {
+  // 치유자는 `.claude/` 기준 상대경로(hooks/session-start.sh)를, 몫 key 는 파일명만(# 뒤) 쓴다 —
+  // basename 으로 짝 맞춘다. hooks/ 디렉터리 안 스크립트명은 유일하므로 안전하다.
+  const healed = new Set(healedFiles.map((f) => f.split("/").pop() ?? f));
+  const isHealedKey = (key: string) => {
+    const at = key.lastIndexOf("#");
+    return at !== -1 && healed.has(key.slice(at + 1));
+  };
+  const portions = (logAtStart.portions ?? []).filter(
+    (p) => !(p.path === join(".claude", "settings.json") && isHealedKey(p.key)),
+  );
+  const excluded = (logAtStart.excluded ?? []).filter(
+    (id) => !isHealedKey(id.replace(/^settings:/, "")),
+  );
+  if (portions.length > 0) logAtStart.portions = portions;
+  else delete logAtStart.portions;
+  if (excluded.length > 0) logAtStart.excluded = excluded;
+  else delete logAtStart.excluded;
+  try {
+    writeInstallLog(projectDir, logAtStart);
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다(위 writeInstallLog 들과 같은 방침).
+  }
 }
