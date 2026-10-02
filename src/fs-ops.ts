@@ -1,16 +1,18 @@
 import {
   copyFileSync,
-  cpSync,
   existsSync,
   constants as fsConstants,
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   renameSync,
   rmdirSync,
+  symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { hashContent } from "./install-log.js";
 
 /** Ensure a directory exists, creating parents as needed. Idempotent. */
 export function ensureDir(path: string): void {
@@ -146,8 +148,32 @@ export function copyBackupDir(target: string, now: Date = new Date()): string | 
     return null;
   }
   const backup = claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) => mkdirSync(c));
-  cpSync(realpathSync(target), backup, { recursive: true });
+  // #594 — 통짜 cpSync(recursive) 는 VirtioFS(도커 바인드마운트) 등 공유 FS 에서 EACCES 로
+  // 죽고 부분 복사 고아를 남긴다. 파일 단위 순회로 바꾸되 cpSync 의 **심링크 계약은 계속
+  // 지킨다** — 링크는 링크로 보존하고(남의 저장소를 복제하지 않는다, backup-symlink 계약),
+  // 끊어진 링크도 죽지 않고 옮긴다.
+  copyTreePreservingLinks(realpathSync(target), backup);
   return backup;
+}
+
+/**
+ * #594 — 백업용 디렉터 복사: 파일은 copyFile, 디렉터는 재귀, 심볼릭 링크는 **링크 그대로**
+ * (cpSync 의 기본 동작과 같다). listFilesRecursive 기반 copyDir 은 링크를 풀어버려 남의
+ * 저장소를 통째로 복제하므로 여기에 쓸 수 없다.
+ */
+function copyTreePreservingLinks(source: string, target: string): void {
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const src = join(source, entry.name);
+    const dst = join(target, entry.name);
+    if (entry.isSymbolicLink()) {
+      // 끊어진 링크도 readlink 자체는 되므로 링크로 보존된다 — 풀지 않는다.
+      symlinkSync(readlinkSync(src), dst);
+      continue;
+    }
+    if (entry.isDirectory()) copyTreePreservingLinks(src, dst);
+    else copyFile(src, dst);
+  }
 }
 
 /**
@@ -229,4 +255,27 @@ export function ensureProjectSkeleton(projectDir: string): void {
   for (const d of dirs) {
     mkdirSync(join(projectDir, d), { recursive: true });
   }
+}
+
+/**
+ * #556 — 두 디렉터 트리가 내용 기준 동일한가 (경로 집합 + 파일별 sha). update 가 시작 시 만든
+ * `.claude.backup-<ts>` 가 실행 끝까지 원본과 동일하다면 이번 실행은 `.claude/` 를 하나도 안
+ * 고친 것이다 — 그 백업은 아무것도 지키지 않으므로 지운다(실행마다 쌓이는 것이 #556).
+ */
+export function dirTreesIdentical(a: string, b: string): boolean {
+  if (!existsSync(a) || !existsSync(b)) return false;
+  const signature = (root: string): Map<string, string> => {
+    const out = new Map<string, string>();
+    for (const rel of listFilesRecursive(root)) {
+      out.set(rel, hashContent(readFileSync(join(root, rel), "utf8")));
+    }
+    return out;
+  };
+  const sa = signature(a);
+  const sb = signature(b);
+  if (sa.size !== sb.size) return false;
+  for (const [rel, sha] of sa) {
+    if (sb.get(rel) !== sha) return false;
+  }
+  return true;
 }

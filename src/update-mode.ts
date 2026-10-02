@@ -376,6 +376,11 @@ export function runUpdateMode(
 ): UpdateModeReport {
   const claudeDir = join(projectDir, ".claude");
   const startedAt = Date.now();
+  // #646 — 실행 전 백업 스냅샷. mtime 슬랙(-1000ms) 때문에 직전 명령(install 등)이
+  // 만든 백업을 '이번 실행의 것'으로 잘못 싣던 것을 이름 집합으로 확정 제외한다.
+  const backupsAtStart = new Set(
+    collectRunBackups(projectDir, Number.NEGATIVE_INFINITY).map((b) => b.backup),
+  );
   // #480 — 고른 묶음만 돈다. 안 고르면(undefined) 전부 — 기존 호출부의 동작 그대로.
   const wants = (g: UpdateGroup): boolean => only === undefined || only.includes(g);
   const report: UpdateModeReport = {
@@ -599,7 +604,7 @@ export function runUpdateMode(
   ];
   report.externalSkillsUnknown = skillRefresh.unknown;
 
-  report.backups = collectRunBackups(projectDir, startedAt);
+  report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
   writeBackupList(projectDir, report.backups);
   return report;
 }
@@ -778,10 +783,13 @@ const BACKUP_SCAN_DIRS = [".claude", ".codex", ".opencode", ".agents"] as const;
 export function collectRunBackups(
   projectDir: string,
   startedAt: number,
+  /** #646 — 실행 시작 전에 이미 있던 백업(예: 직전 install 이 1초 안에 만든 것). mtime 슬랙 없이 확정적으로 제외한다. */
+  exclude?: ReadonlySet<string>,
 ): Array<{ path: string; backup: string }> {
   const out: Array<{ path: string; backup: string }> = [];
   const consider = (rel: string): void => {
     if (!BACKUP_SUFFIX.test(rel)) return;
+    if (exclude?.has(rel)) return;
     const abs = join(projectDir, rel);
     if (statSync(abs).mtimeMs < startedAt - 1000) return;
     out.push({ path: rel.replace(BACKUP_SUFFIX, ""), backup: rel });
