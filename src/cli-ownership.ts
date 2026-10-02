@@ -73,6 +73,10 @@ export const CLI_OWNERSHIP: Record<CliBase, ReadonlyArray<OwnedPath>> = {
   ],
   antigravity: [
     { path: ".agents/rules/uzys-harness.md", kind: "recorded", sharedWith: [] },
+    // #596 — 앵커뿐 아니라 **형제 룰 파일들**도 antigravity 소유다(transform 이 externalFiles 에
+    // 기록한다). 소유 표가 앵커 하나만 알아서 --cli antigravity 가 룰을 회수하지도 보고하지도
+    // 않았다(전량 uninstall 은 회수함 — 유일한 누수 경로).
+    { path: ".agents/rules/", kind: "recorded", sharedWith: [] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["codex", "opencode"] },
     ...SHARED_BY_ALL("antigravity"),
   ],
