@@ -44,7 +44,7 @@ import {
   linksToProjectSharedSkill,
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
-import { backupFile, copyDir, listFilesRecursive } from "./fs-ops.js";
+import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
   collectPolicyHashes,
@@ -1009,6 +1009,8 @@ function upsertRootImport(projectDir: string): boolean {
     ),
   });
   if (next === existing) return false;
+  // #653 — 비UTF-8 바이트가 섞인 기존 파일을 문자열 왕복으로 덮기 전에 원시 바이트를 보존한다.
+  if (existing !== null) backupIfLossyUtf8(target);
   writeFileSync(target, next);
   return true;
 }
