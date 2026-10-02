@@ -16,7 +16,12 @@ import {
   selectExternalTargets,
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
-import { copyBackupDir, ensureProjectSkeleton, listFilesRecursive } from "./fs-ops.js";
+import {
+  backupIfLossyUtf8,
+  copyBackupDir,
+  ensureProjectSkeleton,
+  listFilesRecursive,
+} from "./fs-ops.js";
 import {
   buildInstallLog,
   type InstallLog,
@@ -1087,6 +1092,8 @@ function writeRootClaudeMd(
   });
   // 이미 import 가 있으면 upsert 가 입력을 그대로 돌려준다 — 그때는 파일을 만지지 않는다.
   if (content !== existing) {
+    // #653 — 비UTF-8 바이트가 섞인 기존 파일을 문자열 왕복으로 덮기 전에 원시 바이트를 보존한다.
+    if (existing !== null) backupIfLossyUtf8(target);
     writeFileSync(target, content);
   }
   return { created: existing === null, seededFrom: seeded === null ? null : "AGENTS.md" };

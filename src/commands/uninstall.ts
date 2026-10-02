@@ -43,7 +43,7 @@ import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
-import { backupDir } from "../fs-ops.js";
+import { backupDir, backupIfLossyUtf8 } from "../fs-ops.js";
 import {
   hashContent,
   INSTALL_LOG_DIR,
@@ -1241,6 +1241,8 @@ function stripRootImport(projectDir: string): boolean {
   const stripped = current === null ? null : stripHarnessImport(current);
   if (stripped === null) return false;
   try {
+    // #653 — 비UTF-8 바이트가 섞인 파일을 문자열 왕복으로 재작성 전에 원시 바이트를 보존한다.
+    backupIfLossyUtf8(join(projectDir, "CLAUDE.md"));
     writeFileSync(join(projectDir, "CLAUDE.md"), stripped, "utf8");
     return true;
   } catch {
@@ -1395,13 +1397,38 @@ export function shouldRunInteractive(options: UninstallOptions, isTty: boolean):
   return options.only === undefined && options.cli === undefined;
 }
 
-/* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
+/* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive·lacksRemovalIntent, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
 async function dispatchUninstall(options: UninstallOptions): Promise<void> {
+  // #561 — 터미널 없는 환경(파이프·CI)에서 플래그 없이 실행되면 확인 없이 전량 제거되던
+  // 기본값을 거부로 바꾼다. USAGE "Nothing happens until you confirm" 의 비TTY 판이다.
+  if (!process.stdin.isTTY && lacksRemovalIntent(options)) {
+    console.error(
+      status.failure(
+        c.red(
+          "ERROR: no terminal and no flag saying what to remove — nothing was done. Pass --yes (remove everything), --only <ids>, --cli <name>, or --dry-run.",
+        ),
+      ),
+    );
+    process.exit(1);
+  }
   if (!shouldRunInteractive(options, Boolean(process.stdin.isTTY))) {
     uninstallAction(options);
     return;
   }
   await runUninstallScreen(resolve(options.projectDir ?? process.cwd()));
+}
+
+/**
+ * #561 — 사용자가 "무엇을 지우겠다"고 말한 플래그가 하나도 없는가.
+ * USAGE L239 가 말하는 네 가지(--only · --cli · --dry-run · --yes)만 의사 표현으로 친다.
+ */
+export function lacksRemovalIntent(options: UninstallOptions): boolean {
+  return (
+    options.yes === undefined &&
+    options.dryRun === undefined &&
+    options.only === undefined &&
+    options.cli === undefined
+  );
 }
 
 /**
