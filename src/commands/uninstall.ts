@@ -765,8 +765,13 @@ function settleCliLog(
   // #551 R1 — 몫을 판정한 파일은 걷고 남은 몫(설치자가 고친 키 · 못 읽어 남긴 몫)만 이어 적는다. 판정하지 않은
   // 파일(다른 CLI 가 아직 쓰는 자리 · 하네스가 만든 파일)의 몫은 그대로다.
   const touched = new Set(shared.map((r) => r.path));
+  // #623 — externalFiles 와 같은 규칙: 옮겨 둔 디렉터리(예: `.codex/`) 아래 몫은 이 CLI 것이었다.
+  // 남겨 두면 사용자가 자체 config.toml 을 새로 만들 때 "설치자가 지운 몫"(excluded)으로 읽혀
+  // 재설치가 아무 리전도 못 넣고 허위 excluded 까지 기록된다.
   const portions = [
-    ...(installLog.portions ?? []).filter((p) => !touched.has(p.path)),
+    ...(installLog.portions ?? []).filter(
+      (p) => !touched.has(p.path) && !underAny(p.path, removedDirs),
+    ),
     ...shared.flatMap((r) => r.portions),
   ];
   if (portions.length > 0) next.portions = portions;
