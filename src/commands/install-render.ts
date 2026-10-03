@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { hasTrustEntry } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
  *
@@ -583,7 +585,20 @@ export function renderFinalSummary(
   const codexTrusted =
     report.codexOptIn?.trustEntry.status === "registered" ||
     report.codexOptIn?.trustEntry.status === "already-present";
-  if (spec.cli.includes("codex") && !codexTrusted) {
+  // #637 — 플래그 없는 재설치는 codexOptIn 자체를 안 만들어, **이미 등록된** trust 를
+  // 확인하지 않고 안내를 되살렸다 — Codex 는 묻지도 않는데 "trust this folder" 를 말한다.
+  // 전역 config 의 해당 항목 존재를 직접 본다(등록 여부 판정은 trust-entry 의 SSOT).
+  const alreadyTrustedGlobally = (() => {
+    try {
+      const home = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+      const configPath = join(home, "config.toml");
+      if (!existsSync(configPath)) return false;
+      return hasTrustEntry(readFileSync(configPath, "utf8"), spec.projectDir);
+    } catch {
+      return false;
+    }
+  })();
+  if (spec.cli.includes("codex") && !codexTrusted && !alreadyTrustedGlobally) {
     // NEXT 값 열에 맞춘 이어지는 줄 — infoRow 의 들여쓰기 2 + 라벨 14 + 구분 공백 1.
     const cont = (text: string): string => `${" ".repeat(16)} ${text}`;
     log(
