@@ -50,7 +50,7 @@ claude    # 또는 codex / opencode / agy
 | **훅** | CLI 가 스스로 실행하는 스크립트. Claude Code 에는 2개가 들어간다: 하나는 세션을 시작할 때 스펙과 변경 기록을 불러오고, 다른 하나는 `.env` · lock 파일 · 인증서 편집을 막는다 — 하네스에서 "안 된다"고 제한하는 유일한 장치이며, 편집을 막을 때마다 로그를 한 줄 남긴다 | 자동으로 — 세션을 시작할 때, 편집하기 직전에 |
 | **스킬** | 작업에 필요할 때 에이전트가 열어보는 단계별 절차서. 이 저장소에서 관리하는 방법론 스킬과 트랙에 필요한 기술 스택 스킬이 들어 있다(예: `csr-supabase` 의 React · shadcn · Supabase · Postgres) | 필요할 때만 — 한 줄짜리 설명만 항상 띄워 두고, 본문은 사용할 때만 읽는다 |
 | **에이전트** | 메인 에이전트가 작업을 맡기는 조수. 모든 트랙에 독립 검증자 `reviewer` 가 있고, 개발 트랙에는 `implementer` 가 있으며, 그것을 쓰는 트랙에만 `data-analyst` · `strategist` 가 들어간다 | 메인 에이전트가 작업을 위임할 때 |
-| **앵커** | CLI 가 매 세션마다 읽는 작업 원칙 파일. 원래 있던 내 `CLAUDE.md` 파일은 그대로 유지된다 — 하네스는 import 구문 한 줄만 추가할 뿐 나머지는 건드리지 않는다([어느 파일이 누구 것인가](docs/CONTEXT-FILES.md)) | 매 세션 |
+| **앵커** | CLI 가 매 세션마다 읽는 작업 원칙 파일. 원래 있던 내 `CLAUDE.md` 파일은 그대로 유지된다 — 하네스는 표식으로 감싼 import 블록(`@CLAUDE-uzys-harness.md` 참조와 그 아래 스킬 안내)만 추가할 뿐 나머지는 건드리지 않는다([어느 파일이 누구 것인가](docs/CONTEXT-FILES.md)) | 매 세션 |
 
 모든 트랙에 공통으로 들어가는 방법론 스킬은 4가지다: `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit`. 번들 스킬은 `--with` 나 `--without` 뒤에 이름을 적어 추가하거나 뺄 수 있다.
 
@@ -93,7 +93,7 @@ claude    # 또는 codex / opencode / agy
 
 **기존 프로젝트에 적용해도 안전하다.** 내가 직접 수정한 파일을 교체해야 할 때는 타임스탬프를 붙여 백업본을 남기고 그 경로를 알려 준다. 내가 작성하거나 수정한 파일은 백업 없이 지우지 않으며, 기존에 있던 `.mcp.json` 서버 설정은 덮어쓰지 않고 내용을 병합한다([기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project)).
 
-**현재 프로젝트에만 설치된다.** `~/.codex/` · `~/.opencode/` · `~/.gemini/` 디렉터리나 전역 npm 환경에는 아무것도 설치하지 않는다. 유일한 예외는 Claude Code 플러그인이다 — `claude` CLI 는 플러그인 캐시를 `~/.claude/plugins/` 디렉터리에 저장하며 프로젝트는 메타데이터로 구분하기 때문이다. `.claude/` 디렉터리 밖에는 `.mcp.json`, `.gitignore` 파일에 추가하는 몇 줄(파일이 이미 있을 때), Supabase 트랙의 경우 `.env.example`, 그리고 설치 기록을 남기는 `.uzys-agent-harness/` 디렉터리만 생성한다 — [전체 설치 목록 보기](docs/USAGE.md#what-the-harness-writes).
+**현재 프로젝트에만 설치된다.** `~/.opencode/` · `~/.gemini/` 디렉터리나 전역 npm 환경에는 아무것도 설치하지 않는다. 프로젝트 밖에 쓰는 옵트인 예외는 둘뿐이다 — Claude Code 플러그인(`claude` CLI 가 플러그인 캐시를 `~/.claude/plugins/` 에 저장하며 프로젝트는 메타데이터로 구분), 그리고 `--with-codex-trust`(Codex 가 프로젝트 설정을 읽도록 `~/.codex/config.toml` 에 `[projects]` trust 항목 하나 추가 — [자세히](docs/USAGE.md#scope)). `.claude/` 디렉터리 밖에는 `CLAUDE.md`/`AGENTS.md` 스캐폴드와 하네스 앵커, `.mcp.json`, `.gitignore` 파일에 추가하는 몇 줄(파일이 이미 있을 때), `csr-supabase`(및 `full`) 트랙의 `.env.example`, `--with ci-scaffold` 를 줬을 때만 `.github/workflows/`, 그리고 설치 기록을 남기는 `.uzys-agent-harness/` 디렉터리를 생성한다 — [전체 설치 목록 보기](docs/USAGE.md#what-the-harness-writes).
 
 ## 다른 도구를 이미 쓰고 있다면
 
