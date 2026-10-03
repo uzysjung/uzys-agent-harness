@@ -46,7 +46,7 @@ We curate rather than scan, in four layers:
 
 1. **Trust tier.** Every asset is `official` (published by Anthropic or by this project),
    `vetted` (1,000+ GitHub stars and actively maintained), or `experimental` (below that
-   bar — opt-in only, and the installer warns). A monthly job re-reads real star counts and
+   bar — opt-in only; the wizard marks them with a ⚠ badge (non-interactive installs print no extra warning)). A monthly job re-reads real star counts and
    fails if a label has drifted from reality.
 2. **Upstream review.** Assets from an official marketplace inherit that marketplace's own
    screening. For those, we depend on the publisher.

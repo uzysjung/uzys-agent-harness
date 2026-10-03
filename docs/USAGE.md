@@ -52,7 +52,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--scope project` | The only choice, and the default. `global` is refused on a new install — see [Scope](#scope) |
 | `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md) |
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
-| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
+| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--project-dir <path>` | Where to install. Default: the current directory |
 | `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. `--track` is still required |
 | `--verbose` | Print every file per category instead of counts |
@@ -103,8 +103,8 @@ npx -y @uzysjung/agent-harness install --track tooling --cli claude --cli codex 
 | CLI | What is written | Notes |
 |---|---|---|
 | Claude Code | `.claude/` (rules, agents, hooks, skills, `settings.json`) + `CLAUDE.md` import line + `CLAUDE-uzys-harness.md` | First class — all assets, hooks, and plugins |
-| Codex | `AGENTS.md` (principles + rules inline) · `.codex/config.toml` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/` | Session-start hook only; plugins are Claude-only |
-| OpenCode | `AGENTS.md` (shared with Codex) · `opencode.json` (MCP servers only) · `.agents/skills/<id>/` | No hooks. No `.opencode/` directory |
+| Codex | `AGENTS.md` (principles + rules inline) · `.codex/config.toml` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/` · `.mcp.json` (shared — same source as Claude, #568) | Session-start hook only; plugins are Claude-only |
+| OpenCode | `AGENTS.md` (shared with Codex) · `opencode.json` (harness MCP servers plus a small scaffold — `$schema`·`instructions`·theme are yours to edit) · `.agents/skills/<id>/` | No hooks. No `.opencode/` directory |
 | Antigravity | `.agents/rules/uzys-harness.md` + `.agents/rules/<rule>.md` · `.agents/skills/<id>/` | No hooks |
 
 Codex, OpenCode, and Antigravity read the **same** `.agents/skills/<id>/` directories, so one copy serves all three. All variants are generated from the same bundled source at install time, so they cannot drift out of sync between CLIs. To see which files belong to you and which to the harness, per CLI, read [CONTEXT-FILES.md](CONTEXT-FILES.md).
@@ -219,7 +219,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 ### `list`
 
 ```bash
-npx -y @uzysjung/agent-harness list
+npx -y @uzysjung/agent-harness list [--project-dir <path>]
 ```
 
 Read-only. Shows when the project was set up, the chosen tracks and CLIs, the installed assets with their scope, the folders and files the install record says the harness wrote (a folder it never created is not listed), and the root files the install created or merged. The asset ids it prints are what `uninstall --only` takes.
@@ -227,7 +227,7 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 ### `uninstall`
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes] [--project-dir <path>]
 ```
 
 Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with three choices, each the same as a flag:
