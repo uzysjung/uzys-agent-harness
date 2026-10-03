@@ -48,17 +48,22 @@ case "$BASENAME" in
   .env.example|.env.sample|.env.template)
     exit 0
     ;;
-  .env|.env.*)
+  # #604 — `.env*` 글롭에는 `.envrc`(direnv) 도 들어간다. 패턴이 `.env.*`(점 추가)라
+  # 두 번째 점이 없는 .envrc 가 새어나갔다 — 실제 시크릿을 담는 파일이다.
+  # #634 — 문서가 말하는 "lock files, certificate/key files" 에 맞춰 잠금·인증서·비밀키
+  # 확장자를 보강한다(폐쇄 목록 유지 — 과잉 차단은 게이트를 무력화하는 우회를 부른다).
+  .env|.env.*|.envrc|.envrc.*)
     log_block "$FILE_PATH"
     echo "BLOCKED: Protected file: $BASENAME. Environment files must be edited manually." >&2
     exit 2
     ;;
-  package-lock.json|yarn.lock|pnpm-lock.yaml|Cargo.lock|poetry.lock|uv.lock)
+  package-lock.json|npm-shrinkwrap.json|yarn.lock|pnpm-lock.yaml|Cargo.lock|poetry.lock|uv.lock|\
+Gemfile.lock|composer.lock|bun.lock|bun.lockb|Pipfile.lock|packages.lock.json|flake.lock|deno.lock|go.sum)
     log_block "$FILE_PATH"
     echo "BLOCKED: Protected file: $BASENAME. Lock files should not be edited directly." >&2
     exit 2
     ;;
-  *.pem|*.key|*.p12|*.pfx)
+  *.pem|*.key|*.p12|*.pfx|*.crt|*.cer|*.csr|*.jks|id_rsa|id_dsa|id_ecdsa|id_ed25519)
     log_block "$FILE_PATH"
     echo "BLOCKED: Protected file: $BASENAME. Certificate/key files must not be modified by agents." >&2
     exit 2
