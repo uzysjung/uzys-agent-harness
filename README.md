@@ -16,7 +16,7 @@ Works with **Claude Code** · **Codex** · **OpenCode** · **Antigravity**.
 
 ## Quick start
 
-You need Node 20 or newer. Run this in your project folder:
+You need Node 20.12 or newer. Run this in your project folder:
 
 ```bash
 npx -y @uzysjung/agent-harness
