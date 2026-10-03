@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
@@ -16,7 +16,7 @@ import {
   selectExternalTargets,
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
-import { copyBackupDir, ensureProjectSkeleton, listFilesRecursive } from "./fs-ops.js";
+import { backupFile, copyBackupDir, ensureProjectSkeleton, listFilesRecursive } from "./fs-ops.js";
 import {
   buildInstallLog,
   type InstallLog,
@@ -369,6 +369,34 @@ export function runInstall(ctx: InstallContext): InstallReport {
     [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
     spec.userOverride?.forceInclude ?? [],
   );
+  // #614 — `--reinstall` 은 "damaged .claude/ 를 고친다"가 존재 이유다. settings.json 이 파손
+  // JSON 이면 평시 계약(#574: 한 바이트도 안 쓴다)은 이 판을 못 고친다 — reinstall 에서만
+  // 원본을 백업해 두고 빈 설정으로 다시 시작한다. 이때 settings 의 몫 기록도 첫 접촉으로
+  // 되돌린다(빈 파일에 옛 sha 만 남으면 "설치자가 지웠다"로 읽혀 훅이 영구 배제된다 — #632 계열).
+  if (mode === "reinstall" && previousLog !== null) {
+    const settingsPath = join(projectDir, ".claude", "settings.json");
+    if (existsSync(settingsPath)) {
+      let broken = false;
+      try {
+        JSON.parse(readFileSync(settingsPath, "utf8"));
+      } catch {
+        broken = true;
+      }
+      if (broken) {
+        const backup = backupFile(settingsPath);
+        writeFileSync(settingsPath, "{}\n", "utf8");
+        previousLog.portions = (previousLog.portions ?? []).filter(
+          (pp) => pp.path !== ".claude/settings.json",
+        );
+        previousLog.excluded = (previousLog.excluded ?? []).filter(
+          (id) => !id.startsWith("settings:"),
+        );
+        console.error(
+          `⚠ ${relative(process.cwd(), settingsPath)} was not valid JSON — --reinstall restored it from scratch; original saved as ${relative(process.cwd(), backup)}`,
+        );
+      }
+    }
+  }
   const writer = createInstallWriter({ projectDir, previousLog, excluded });
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
