@@ -84,7 +84,6 @@ export interface AssetEntry {
 
 const all = (): boolean => true;
 const dev = (s: AssetSpec): boolean => hasDevTrack(s.tracks);
-const ui = (s: AssetSpec): boolean => hasUiTrack(s.tracks);
 const onTracks =
   (pattern: string) =>
   (s: AssetSpec): boolean =>
@@ -319,7 +318,8 @@ export const ALWAYS_HOOKS = ["session-start.sh", "protect-files.sh"];
 const COMMON_SKILL_DIRS: string[] = [];
 const DEV_SKILL_DIRS: string[] = [];
 
-const UI_SKILL_DIRS = ["ui-visual-review"];
+// #602 — ui-visual-review 는 INTERNAL_BUNDLED_SKILL_IDS 로 이동(4CLI 배선). 스펙의
+// selectedInternalSkills 가 UI 트랙 조건을 건다 — 여기 별도 루프는 .claude/ 만 깔던 누수의 원천이었다.
 
 /**
  * CLI 중립 자산인가 — `.uzys-agent-harness/` 아래는 4개 CLI 와 사람이 함께 쓰는 슬롯이다
@@ -448,7 +448,16 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       source: `skills/${sd}`,
       target: `.claude/skills/${sd}`,
       type: "dir",
-      applies: (s) => (s.selectedInternalSkills ?? []).includes(sd),
+      // #602 — selectedInternalSkills 가 SSOT(위저드 해제·--without 반영). `tracks` 만 담긴
+      // 스펙(listBaselineTargets·위저드 1단계 등)에서는 카탈로그 조건으로 판정한다 —
+      // buildAssetSpec 와 같은 isAssetSelected 라 두 번 적는 사본이 아니라 같은 원천이다.
+      applies: (s) =>
+        s.selectedInternalSkills !== undefined
+          ? s.selectedInternalSkills.includes(sd)
+          : // #602 폴백은 트랙 추종 번들 스킬 한정 — 카탈로그 옵트인(compaction-handoff 등)은
+            // 선택 목록 없이는 깔리지 않는다(위저드 해제·--without 의 SSOT 를 우회하는 금이 된다).
+            sd === "ui-visual-review" &&
+            isAssetSelected(sd, { tracks: s.tracks, options: { withCodexTrust: false } }),
     });
   }
   for (const sd of DEV_SKILL_DIRS) {
@@ -457,14 +466,6 @@ export function buildManifest(spec: AssetSpec): AssetEntry[] {
       target: `.claude/skills/${sd}`,
       type: "dir",
       applies: dev,
-    });
-  }
-  for (const sd of UI_SKILL_DIRS) {
-    m.push({
-      source: `skills/${sd}`,
-      target: `.claude/skills/${sd}`,
-      type: "dir",
-      applies: ui,
     });
   }
 

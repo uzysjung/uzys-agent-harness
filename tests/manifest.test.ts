@@ -148,7 +148,8 @@ describe("buildManifest", () => {
     expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: ["other-skill"] })).toBe(
       false,
     );
-    // selectedInternalSkills omitted / empty → dropped (no track-only fallback).
+    // selectedInternalSkills omitted → 카탈로그 조건 폴백(#602 — ui-visual-review 는 UI 트록에서
+    // 선택된다). 빈 배열은 명시적 "아무것도 안 골랐다" → dropped.
     expect(entry?.applies({ tracks: ["tooling"] })).toBe(false);
     expect(entry?.applies({ tracks: ["tooling"], selectedInternalSkills: [] })).toBe(false);
   });
