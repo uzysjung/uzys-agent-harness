@@ -16,8 +16,10 @@ export interface CodexOptInReport {
   /** ~/.codex/config.toml trust entry 등록 결과 */
   trustEntry: {
     enabled: boolean;
-    status: "registered" | "already-present" | "error" | "skipped";
+    status: "registered" | "already-present" | "unreadable" | "error" | "skipped";
     message?: string;
+    /** 항목을 넣은(또는 넣으려던) 전역 파일 — uninstall 안내가 그 자리를 가리킨다(#644). */
+    configPath?: string;
   };
 }
 
@@ -37,6 +39,7 @@ export function runCodexOptIn(ctx: CodexOptInContext): CodexOptInReport {
     trustEntry: {
       enabled: true,
       status: result.status,
+      configPath,
       ...(result.message ? { message: result.message } : {}),
     },
   };

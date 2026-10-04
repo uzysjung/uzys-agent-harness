@@ -371,7 +371,7 @@ export function renderCliArtifacts(
     // Codex global opt-in (D16) — config.toml trust entry, only when explicitly enabled.
     if (report.codexOptIn?.trustEntry.enabled) {
       const trust = report.codexOptIn.trustEntry;
-      const kind = trust.status === "error" ? "skip" : "success";
+      const kind = trust.status === "error" || trust.status === "unreadable" ? "skip" : "success";
       const meta =
         trust.status === "registered"
           ? '[projects."<dir>"] trust_level="trusted"'
@@ -600,11 +600,12 @@ export function renderFinalSummary(
         `${c.bold("Codex")} turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:`,
       ),
     );
-    log(
-      cont(
-        `open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim("(headless: agent-harness install … --with-codex-trust)")}`,
-      ),
-    );
+    // #644 — 방금 `--with-codex-trust` 가 전역 config 를 못 읽어 쓰지 않았으면 같은 플래그를 다시 권하지 않는다.
+    const headless =
+      report.codexOptIn?.trustEntry.status === "unreadable"
+        ? "headless: fix ~/.codex/config.toml (not valid TOML), then run with --with-codex-trust again"
+        : "headless: agent-harness install … --with-codex-trust";
+    log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
   }
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
