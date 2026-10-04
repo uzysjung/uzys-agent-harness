@@ -65,8 +65,8 @@
         "tokens": 3658
       },
       "firing": {
-        "items": 13,
-        "tokens": 1514
+        "items": 12,
+        "tokens": 1393
       }
     },
     "ssr-nextjs": {
@@ -136,6 +136,7 @@
     "audit-service-gaps": 136,
     "multi-persona-review": 113,
     "recurrence-prevention": 140,
+    "ui-visual-review": 121,
     "north-star": 136,
     "gh-issue-workflow": 136,
     "objective-brief": 139,
@@ -143,7 +144,6 @@
     "model-orchestration": 95,
     "external-model-consult": 171,
     "self-hosted-github-runner": 78,
-    "natural-korean": 39,
-    "ui-visual-review": 121
+    "natural-korean": 39
   }
 }

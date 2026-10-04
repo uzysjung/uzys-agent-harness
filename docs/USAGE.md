@@ -52,9 +52,9 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--scope project` | The only choice, and the default. `global` is refused on a new install — see [Scope](#scope) |
 | `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md) |
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
-| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
+| `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--project-dir <path>` | Where to install. Default: the current directory |
-| `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. `--track` is still required |
+| `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. A `settings.json` that cannot be read is left untouched and the command stops with an error — fix or delete that file, then run it again. `--track` is still required |
 | `--verbose` | Print every file per category instead of counts |
 
 One flag selects *behaviour* rather than an asset:
@@ -103,8 +103,8 @@ npx -y @uzysjung/agent-harness install --track tooling --cli claude --cli codex 
 | CLI | What is written | Notes |
 |---|---|---|
 | Claude Code | `.claude/` (rules, agents, hooks, skills, `settings.json`) + `CLAUDE.md` import line + `CLAUDE-uzys-harness.md` | First class — all assets, hooks, and plugins |
-| Codex | `AGENTS.md` (principles + rules inline) · `.codex/config.toml` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/` | Session-start hook only; plugins are Claude-only |
-| OpenCode | `AGENTS.md` (shared with Codex) · `opencode.json` (MCP servers only) · `.agents/skills/<id>/` | No hooks. No `.opencode/` directory |
+| Codex | `AGENTS.md` (principles + rules inline) · `.codex/config.toml` · `.codex/hooks/session-start.sh` · `.agents/skills/<id>/` · `.mcp.json` (shared — same source as Claude, #568) | Session-start hook only; plugins are Claude-only |
+| OpenCode | `AGENTS.md` (shared with Codex) · `opencode.json` (harness MCP servers plus a small scaffold — `$schema`·`instructions`·theme are yours to edit) · `.agents/skills/<id>/` | No hooks. No `.opencode/` directory |
 | Antigravity | `.agents/rules/uzys-harness.md` + `.agents/rules/<rule>.md` · `.agents/skills/<id>/` | No hooks |
 
 Codex, OpenCode, and Antigravity read the **same** `.agents/skills/<id>/` directories, so one copy serves all three. All variants are generated from the same bundled source at install time, so they cannot drift out of sync between CLIs. To see which files belong to you and which to the harness, per CLI, read [CONTEXT-FILES.md](CONTEXT-FILES.md).
@@ -198,7 +198,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 
 | You already have… | What happens |
 |---|---|
-| `.claude/settings.json` with your own hooks or statusLine | Backed up to `settings.json.backup-<ts>`, then merged |
+| `.claude/settings.json` with your own hooks or statusLine | Merged in place — your keys and hooks win, the harness adds only its own part (#563). A settings file that cannot be read is left byte-for-byte untouched (#574) |
 | Root `CLAUDE.md` | Kept. One import block is appended; `update` and `uninstall` touch only that block |
 | An `AGENTS.md` you already wrote before installing | Kept byte for byte. The harness adds one `<!-- uzys-harness:agents -->` block at the end; `install` and `update` refresh only that block, and `uninstall` removes it. If you edit inside the block, it is left as it is and the summary says so; if you delete the block, it is not added back |
 | `opencode.json` | Your keys and servers stay. The harness adds only its MCP servers (`mcp.<name>`); a server of yours with the same name wins. `uninstall` removes the servers it added — ones you changed are left, and the summary says so. If the harness created the file, `uninstall` deletes it unless you changed it |
@@ -219,7 +219,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 ### `list`
 
 ```bash
-npx -y @uzysjung/agent-harness list
+npx -y @uzysjung/agent-harness list [--project-dir <path>]
 ```
 
 Read-only. Shows when the project was set up, the chosen tracks and CLIs, the installed assets with their scope, the folders and files the install record says the harness wrote (a folder it never created is not listed), and the root files the install created or merged. The asset ids it prints are what `uninstall --only` takes.
@@ -227,7 +227,7 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 ### `uninstall`
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes] [--project-dir <path>]
 ```
 
 Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with three choices, each the same as a flag:
@@ -236,7 +236,7 @@ Run it with no flags in a terminal — or choose **Uninstall** in the wizard's m
 - **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; templates stay. Disabled when no external assets are recorded.
 - **Remove everything** = `--yes`.
 
-The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes` — or when there is no terminal.
+The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes`. Without a terminal **and** without one of those flags, `uninstall` refuses and removes nothing — a pipe or CI run can no longer remove everything by default.
 
 | Flag | What |
 |---|---|
@@ -314,7 +314,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it rewrites every harness file, saving each one you edited as `<file>.backup-<ts>` first. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
+**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it rewrites every harness file, saving each one you edited as `<file>.backup-<ts>` first (a `settings.json` that is not valid JSON is not rewritten: the command stops, you fix or delete it and run again). `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 

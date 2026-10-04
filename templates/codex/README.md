@@ -32,9 +32,9 @@ templates/codex/
 
 ## Hook Event 매핑 (Claude → Codex)
 
-| Claude | Codex event (snake_case) | Blockable | 제약 |
+| Claude | Codex event | Blockable | 제약 |
 |--------|--------------------------|-----------|------|
-| `SessionStart` | `session_start` | ❌ | — |
+| `SessionStart` | `SessionStart` (PascalCase + 중첩 `[[hooks.SessionStart.hooks]]`, #627) | ❌ | flat `session_start` 는 현행 codex-cli 가 무음 무시 · `timeout = 10`(초) 상한 — 빼면 Codex 기본 10분 |
 | `UserPromptSubmit` | `user_prompt_submit` | ✅ (exit 2) | matcher 무시 |
 | `PreToolUse` (Skill) | `pre_tool_use` matcher="Skill" | ✅ | **Bash 툴 한정 발화 (Issue #16732)** |
 | `PreToolUse` (Write) | — | — | **Codex `sandbox_mode`로 이관** (ADR-002 v2 D3) |

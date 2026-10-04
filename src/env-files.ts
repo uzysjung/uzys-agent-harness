@@ -52,7 +52,17 @@ const ENV_EXAMPLE_TRACKS: ReadonlyArray<Track> = ["csr-supabase", "full"];
 
 const GITIGNORE_ENV_COMMENT = "# Secret env (auto-added by agent-harness install)";
 
-const AGENT_ARTIFACT_DIRS = [".factory/", ".goose/", ".uzys-agent-harness/"];
+const AGENT_ARTIFACT_DIRS = [
+  ".factory/",
+  ".goose/",
+  ".uzys-agent-harness/",
+  // #657 — 하네스가 만드는 백업 디렉터·파일. gitignore 에 안 걸면 팀원의 `git add -A` 가
+  // update 마다 백업을 커밋한다(#556 으로 no-op 사본은 없어지지만, 진짜 백업은 계속 생긴다).
+  ".claude.backup-*/",
+  ".codex.backup-*/",
+  ".opencode.backup-*/",
+  "*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*",
+];
 const GITIGNORE_AGENT_ARTIFACT_HEADER =
   "# agent CLI / harness 자동 생성물 (auto-added by agent-harness)";
 

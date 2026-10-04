@@ -263,7 +263,8 @@ describe("#550 리뷰 — 안내대로 재설치하고 다시 지우면 update �
       tracks: ["csr-supabase"],
       cli: ["claude"],
       pick: () => ".claude/skills/ui-visual-review",
-      arg: () => "baseline:skills/ui-visual-review",
+      // #602 — internal 카탈로그 자산으로 편입되어 영구 제외 인자가 카탈로그 id 로 바뀌었다.
+      arg: () => "ui-visual-review",
     },
     {
       // N1 — 룰의 "delete it again if intentional" 은 거짓이었다.

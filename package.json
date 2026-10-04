@@ -1,13 +1,13 @@
 {
   "name": "@uzysjung/agent-harness",
-  "version": "26.162.1",
+  "version": "26.163.0",
   "description": "Curate vetted AI-coding skills & plugins by your tech stack — install only what you need, across Claude Code, Codex, OpenCode & Antigravity",
   "type": "module",
   "publishConfig": {
     "access": "public"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.12.0"
   },
   "bin": {
     "agent-harness": "./dist/index.js"
