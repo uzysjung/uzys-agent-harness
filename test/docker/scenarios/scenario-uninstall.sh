@@ -4,7 +4,8 @@
 # 검증:
 #   - install 후 .uzys-agent-harness/.harness-install.json 존재
 #   - uninstall --dry-run 후 .claude/ 보존 (실제 변경 X)
-#   - uninstall 후 .claude/ 제거, install log 제거
+#   - 터미널·플래그 없는 uninstall 은 거절, 무변경 (#561)
+#   - uninstall --yes 후 .claude/ 제거, install log 제거
 
 set -euo pipefail
 
@@ -36,8 +37,25 @@ if [[ ! -d "${PROJ}/.claude" ]]; then
 fi
 echo "✓ --dry-run 후 .claude/ 보존"
 
-# 실 uninstall
-agent-harness uninstall >/dev/null
+# #561 — 터미널 없이 무엇을 지울지 말하지 않은 uninstall 은 거절하고 아무것도 안 지운다.
+# stdin 을 /dev/null 로 고정해 `docker run -t` 로 돌려도 같은 경로를 탄다.
+set +e
+agent-harness uninstall </dev/null >/tmp/unin-noflag.txt 2>&1
+RC=$?
+set -e
+if [[ "${RC}" -eq 0 ]]; then
+  echo "FAIL: 터미널·플래그 없는 uninstall 이 exit 0 — 확인 없이 지우는 기본값으로 돌아갔다 (#561)"
+  cat /tmp/unin-noflag.txt
+  exit 1
+fi
+if [[ ! -d "${PROJ}/.claude" || ! -f "${LOG}" ]]; then
+  echo "FAIL: 거절했다면서 .claude/ 또는 설치 기록을 지웠다"
+  exit 1
+fi
+echo "✓ 터미널·플래그 없는 uninstall 은 거절 (exit ${RC}) · .claude/ · 기록 보존"
+
+# 실 uninstall — 비TTY 에서 전량 제거는 --yes 로 명시한다 (#561)
+agent-harness uninstall --yes </dev/null >/dev/null
 
 if [[ -d "${PROJ}/.claude" ]]; then
   echo "FAIL: uninstall 후에도 .claude/ 남아있음"

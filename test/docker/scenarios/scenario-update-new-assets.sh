@@ -14,7 +14,8 @@
 #   ① `.uzys-agent-harness/*.sh` 가 없으면 update 가 설치한다 (룰이 가리키는 실행체)
 #   ② 설치된 스크립트가 실제로 실행 가능하다 (파일만 놓고 깨진 상태가 아닌지)
 #   ③ 룰 파일이 없으면 update 가 설치한다 (트랙이 요구하는 것만)
-#   ④ 사용자가 고친 파일은 덮어쓰지 않는다 (신규 설치 경로가 갱신 경로를 침범하지 않는다)
+#   ④ 사용자가 고친 헬퍼는 그 파일 하나만 백업(편집분 바이트 그대로)하고 새 판으로 교체하며,
+#      화면·백업 목록이 그 백업을 알린다 (#597 — 하네스 파일 원칙)
 #   ⑤ 트랙 밖 룰은 들이지 않는다 (Track 혼입 방지)
 #   ⑥ codex 전용 설치본에 `.claude/` 를 들이지 않는다 (독립 리뷰 HIGH-1)
 #   ⑦ 배선할 수 없는 훅은 깔지 않고 재설치를 안내한다 (독립 리뷰 HIGH-2)
@@ -149,14 +150,50 @@ if ! grep -q "was missing — reinstalled" /tmp/new-rule.txt; then
 fi
 echo "✓ ③ 없던 룰을 내용까지 복구 + '복구'로 정확히 보고"
 
-# --- ④ 사용자가 고친 파일은 덮어쓰지 않는다 ---
-printf '# MY OWN SCRIPT\n' > "${DRIFT}"
-agent-harness update >/dev/null 2>&1
-if ! grep -q "MY OWN SCRIPT" "${DRIFT}"; then
-  echo "FAIL: 사용자가 고친 스크립트를 신규 설치 경로가 덮어썼다"
+# --- ④ 사용자가 고친 헬퍼: 그 파일 하나만 백업하고 새 판으로 (#597) ---
+# 헬퍼는 하네스 파일이다 — 설치자가 고쳤으면 편집분을 `<file>.backup-<ts>` 로 남기고 새 판을 쓴다.
+# 보호 대상은 "편집분이 어디에도 없게 되는 것"이므로 백업의 바이트까지 대조한다.
+FRESH=$(mktemp)
+EDITED=$(mktemp)
+cp "${DRIFT}" "${FRESH}" # ① 에서 update 가 깐 현재 판
+printf '# MY OWN SCRIPT\n' >"${DRIFT}"
+cp "${DRIFT}" "${EDITED}"
+if cmp -s "${FRESH}" "${EDITED}"; then
+  echo "FAIL: 편집이 먹지 않았다 — 이후 판정이 무의미하다"
   exit 1
 fi
-echo "✓ ④ 사용자 편집분은 그대로 (신규 설치가 갱신 경로를 침범하지 않는다)"
+shopt -s nullglob
+PRE_BACKUPS=("${DRIFT}".backup-*)
+agent-harness update >/tmp/edited-helper.txt 2>&1
+POST_BACKUPS=("${DRIFT}".backup-*)
+shopt -u nullglob
+if [[ "$((${#POST_BACKUPS[@]} - ${#PRE_BACKUPS[@]}))" -ne 1 ]]; then
+  echo "FAIL: 고친 헬퍼의 백업이 1개 생기지 않았다 (${#PRE_BACKUPS[@]} → ${#POST_BACKUPS[@]}) — 편집분이 사라질 수 있다"
+  tail -30 /tmp/edited-helper.txt
+  exit 1
+fi
+NEW_BACKUP="${POST_BACKUPS[${#POST_BACKUPS[@]} - 1]}"
+if ! cmp -s "${NEW_BACKUP}" "${EDITED}"; then
+  echo "FAIL: 백업(${NEW_BACKUP})이 설치자 편집분과 바이트가 다르다"
+  exit 1
+fi
+if ! cmp -s "${DRIFT}" "${FRESH}"; then
+  echo "FAIL: 고친 헬퍼가 현재 판으로 교체되지 않았다"
+  head -5 "${DRIFT}"
+  exit 1
+fi
+if ! grep -q "BACKUPS" /tmp/edited-helper.txt; then
+  echo "FAIL: 화면이 백업을 알리지 않는다 — 설치자는 편집분이 어디 갔는지 모른다"
+  tail -30 /tmp/edited-helper.txt
+  exit 1
+fi
+if ! grep -qF "$(basename "${NEW_BACKUP}")" "${HARNESS_DIR}/update-backups.json"; then
+  echo "FAIL: update-backups.json 에 헬퍼 백업이 없다"
+  cat "${HARNESS_DIR}/update-backups.json" || true
+  exit 1
+fi
+rm -f "${FRESH}" "${EDITED}"
+echo "✓ ④ 고친 헬퍼 — 편집분은 $(basename "${NEW_BACKUP}") 에 바이트 그대로 · 자리는 현재 판 · 화면·백업 목록이 알림"
 
 # --- ⑤ 트랙 밖 룰은 들이지 않는다 ---
 # tooling 트랙에 UI 룰(playwright-launch)이 깔리면 그건 Track 혼입이다.
