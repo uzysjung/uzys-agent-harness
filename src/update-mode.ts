@@ -271,7 +271,7 @@ export interface UpdateModeReport {
    */
   restored: string[];
   /**
-   * #550 리뷰 B1·N1 — `restored` 경로 → 그 자산을 **영구히 빼는** `install --without` 인자.
+   * #550 리뷰 B1·N1 — `restored` 경로 → 그 자산을 **빼는**(update 가 지키고 다음 install 이 대체하는) `install --without` 인자.
    * 키가 없는 경로는 뺄 수 없는 자산이다(하네스가 관리 — update 가 늘 되살린다). 판정 =
    * `restoredWithoutArgs`.
    *
@@ -1226,7 +1226,7 @@ function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
 const RESTORED_SKILL_SLOT = /^\.(?:claude|agents)\/skills\/([^/]+)$/;
 
 /**
- * #550 리뷰 B1·N1 — 되살린 자산을 영구히 빼는 `install --without` 인자.
+ * #550 리뷰 B1·N1 — 되살린 자산을 빼는(update 가 지키고 다음 install 이 대체하는) `install --without` 인자.
  *
  * 추측하지 않고 **install 이 받아서 기록하는 id** 로만 정한다(`commands/install.ts` 검증과 같은 두
  * 목록): ⓐ 카탈로그 id 인 번들 스킬 → 로그 `skillExclude`(#505) ⓑ 이 트랙의 baseline id

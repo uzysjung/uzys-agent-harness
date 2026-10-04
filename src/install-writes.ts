@@ -70,7 +70,7 @@ export interface SharedWrite {
   kept: string[];
   /**
    * 기록에 있는데 파일에 없어 이번에 되돌린 하네스 키 — **키 id**(`mcp:github`). 화면이 `was missing — restored` 와
-   * 영구히 빼는 명령(`--without <id>`)을 함께 말한다(ADR-099 R1 · §4).
+   * 빼는 명령(`--without <id>` — update 가 지키고 다음 install 이 대체)을 함께 말한다(ADR-099 R1 · §4).
    */
   restored: string[];
   /** `added` 의 키 id — 옛 판이 뺀 것으로 적었던 키를 되살렸는지(R5) 가른다. */

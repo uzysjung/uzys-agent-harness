@@ -449,7 +449,7 @@ describe("R5 — 옛 판(26.162–26.163)이 굳힌 기록을 한 번 푼다", (
     expect(JSON.parse(readFileSync(abs(".mcp.json"), "utf8")).mcpServers.github).toBeDefined();
     expect(report.legacyRestored).toEqual(["mcp:github"]);
     expect(screen).toContain(
-      "restored 1 harness part(s) an earlier version had marked as removed (mcp:github) — to drop one for good: install … --without <id>",
+      "restored 1 harness part(s) an earlier version had marked as removed (mcp:github) — to drop one: install … --without <id> (kept out by update; a later install without that flag brings it back)",
     );
     expect(rawLog().excludedKeysMigrated).toBe(true);
     expect(rawLog().excluded ?? []).not.toContain("mcp:github");

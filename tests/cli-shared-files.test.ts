@@ -768,7 +768,9 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     const rows = screen(["opencode"], report);
     const row = rows.find((l) => l.includes("opencode.json")) ?? "";
     expect(row).toContain("was missing — restored: opencode:mcp.github");
-    expect(row).toContain("drop for good: install … --without opencode:mcp.github");
+    expect(row).toContain(
+      "drop it: install … --without opencode:mcp.github — kept out by update; a later install without that flag brings it back",
+    );
 
     // 명시적 빼기 — 기록 sha 와 같은 키만 걷고, update 가 지킨다
     install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github", "agents-md:agents"] });
@@ -933,7 +935,7 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
     const screen = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
     expect(screen).toContain("was missing — restored: codex:tables");
-    expect(screen).toContain("drop for good: install … --without codex:tables");
+    expect(screen).toContain("drop it: install … --without codex:tables — kept out by update");
     expect(screen).toContain("was missing — restored: agents-md:agents");
 
     expect(read(".codex/config.toml")).toContain("# uzys-harness:tables:start");

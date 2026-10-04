@@ -367,7 +367,9 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(true);
     expect(log().excluded ?? []).not.toContain(HOOK);
     expect(screen).toContain(`was missing — restored: ${HOOK}`);
-    expect(screen).toContain(`drop for good: install … --without ${HOOK}`);
+    expect(screen).toContain(
+      `drop it: install … --without ${HOOK} — kept out by update; a later install without that flag brings it back`,
+    );
     expect(screen).not.toContain("not added back");
 
     // 명시적 빼기 — 훅 핸들러는 고쳤어도 뺀다(스크립트 참조라 남기면 죽은 참조, N-f). 화면이 그 사실을 말한다(리뷰 #693 NOTE-2)

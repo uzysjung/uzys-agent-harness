@@ -14,7 +14,7 @@
   있는 id(R4 집합), 밖은 이어받는다. **update · uninstall 은 읽기만 한다.** 선택 이력은 기록 `selections`(효과분 · 최근 100개)에 남고
   `list` 가 보여 준다(보강 설계 `docs/plans/selection-record-design-2026-10-04.md`, 사용자 요구 2026-10-04 "사람 A, 사람 B 모두 기대하는대로").
   이 선택 한 필드만 ADR-097 의 누적(Q2)에서 빠진다 — `assets` · `clis` · `portions` 등 쓰기 = 기록 축은 그대로 누적이다. 기록에 있는데
-  사라진 하네스 몫(파일 · 키 · CLI 산출물 · 훅 스크립트)은 install·update 가 되돌리고 `was missing — restored` + 영구히 빼는 명령을
+  사라진 하네스 몫(파일 · 키 · CLI 산출물 · 훅 스크립트)은 install·update 가 되돌리고 `was missing — restored` + 빼는 명령과 그 효과 범위(update 가 지키고 다음 install 이 대체)를
   말한다. `--with`/`--without` 은 화면이 보여 주는 모든 id(키 id 포함)를 받는다. 옛 판이 자동 추론으로 적은 키 id 는 1회 지우고,
   옛 기록의 모호한 카탈로그 빼기는 폴더 유무 + mtime 창으로 1회 판정한다(이력에 남긴다). 같은 id 를 `--with`·`--without` 에 함께
   주면 거절한다. 기록된 빼기는 update · uninstall 이 지키고, 플래그 없는 다음 install 은 전에 뺀 것을 다시 깔며 `↺` 줄로 말한다.

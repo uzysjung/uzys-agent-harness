@@ -830,12 +830,12 @@ function renderPhase1Rows(
         assetRow(
           "skip",
           "to keep it out",
-          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again`,
+          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
         ),
       );
     }
     // ADR-099 §4 — 함께 쓰는 파일에서 사라진 하네스 몫을 되돌렸다. 손으로 지운 것은 빼기가 아니라서 되돌리고,
-    // 영구히 빼는 명령을 같은 줄에 붙인다.
+    // 빼는 명령과 그 효과 범위(KEPT_OUT_SCOPE)를 같은 줄에 붙인다.
     for (const r of baseline.updateMode.restoredKeys ?? []) {
       log(assetRow("success", r.path, restoredKeysPart(r.ids)));
     }
@@ -1452,12 +1452,19 @@ export function legacyReleasedCatalogRows(ids: ReadonlyArray<string>): string[] 
 }
 
 /**
- * ADR-099 §4 — 기록에 있는데 사라져 되돌린 하네스 키. 손으로 지운 것은 빼 달라는 신호가 아니라서 되돌리고, 영구히 빼는
- * 명령(`--without <키 id>`)을 같은 줄 끝에 흐리게 붙인다 — 다음 설치들이 그 선택을 지킨다.
+ * 빼는 명령의 효과 범위 — 화면의 모든 "빼려면" 안내가 이 한 문구로 말한다(설계 selection-record §3: install 의 선택은 다음
+ * install 이 대체하고 update 는 지킨다). "영구히" 라 말하지 않는다 — 사실이 아니다.
+ */
+export const KEPT_OUT_SCOPE =
+  "kept out by update; a later install without that flag brings it back";
+
+/**
+ * ADR-099 §4 — 기록에 있는데 사라져 되돌린 하네스 키. 손으로 지운 것은 빼 달라는 신호가 아니라서 되돌리고, 빼는
+ * 명령(`--without <키 id>`)과 그 효과 범위를 같은 줄 끝에 흐리게 붙인다 — update 가 지키고, 다음 install 이 대체한다.
  */
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
   const drop = ids.map((id) => `--without ${id}`).join(" ");
-  return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop for good: install … ${drop})`)}`;
+  return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
 }
 
 /**
@@ -1466,7 +1473,7 @@ export function restoredKeysPart(ids: ReadonlyArray<string>): string {
  */
 export function legacyRestoredRow(ids: ReadonlyArray<string>): string | null {
   if (ids.length === 0) return null;
-  return `  ${c.green("↺")} restored ${ids.length} harness part(s) an earlier version had marked as removed (${ids.join(", ")}) — to drop one for good: install … --without <id>`;
+  return `  ${c.green("↺")} restored ${ids.length} harness part(s) an earlier version had marked as removed (${ids.join(", ")}) — to drop one: install … --without <id> (${KEPT_OUT_SCOPE})`;
 }
 
 function formatOptions(spec: InstallSpec): string {
