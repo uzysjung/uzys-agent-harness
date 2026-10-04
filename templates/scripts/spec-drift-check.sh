@@ -43,7 +43,10 @@ count_unchecked() {
   awk '
     /^[ \t]*<!--[ ]*ship-gate:ignore-start[ ]*-->[ \t]*$/ { skip = 1; opened++; next }
     /^[ \t]*<!--[ ]*ship-gate:ignore-end[ ]*-->[ \t]*$/   { skip = 0; closed++; next }
-    /^- \[ \]|^  - \[ \]/                                 { total++; if (!skip) counted++ }
+    # #649 — 들여쓰기 무관(1·3·4칸·탭 포함) + 표 셀 unchecked. 옛 패턴은 0칸·정확히 2칸만
+    # 세어 나머지를 조용히 통과시켰다(ship 게이트 허위 통과).
+    /^[ \t]*- \[ \]/                                      { total++; if (!skip) counted++ }
+    /\|[ \t]*\[ \][ \t]*\|/                               { total++; if (!skip) counted++ }
     END {
       if (opened != closed) {
         printf "spec-drift-check: ship-gate:ignore 표식 불일치 (start %d / end %d) — 면제를 무시한다\n", opened, closed > "/dev/stderr"
@@ -68,12 +71,16 @@ first_existing() {
   echo ""
 }
 
+# #649 — 읽은 파일 수를 센다. 0개면 "없다"가 아니라 "안 봤다"다(루트 밖 cwd 호출 등) —
+# 같은 원리로 check-absence.sh 가 'not examined' 를 구분한다.
+EXAMINED=0
 SPEC_FILE=$(first_existing "$DOCS_DIR/SPEC.md" "$PROJECT_DIR/SPEC.md")
 TODO_FILE=$(first_existing "$DOCS_DIR/todo.md" "$DOCS_DIR/TODO.md" "$PROJECT_DIR/todo.md" \
   "$PROJECT_DIR/TODO.md" "$PROJECT_DIR/tasks/todo.md")
 
 # 1. SPEC unchecked 검사
 if [ -n "$SPEC_FILE" ]; then
+  EXAMINED=$((EXAMINED + 1))
   UNCHECKED=$(count_unchecked "$SPEC_FILE")
   UNCHECKED=${UNCHECKED:-0}
   if [ "$UNCHECKED" -gt 0 ] 2>/dev/null; then
@@ -84,6 +91,7 @@ fi
 
 # 2. TODO unchecked 검사
 if [ -n "$TODO_FILE" ]; then
+  EXAMINED=$((EXAMINED + 1))
   UNCHECKED=$(count_unchecked "$TODO_FILE")
   UNCHECKED=${UNCHECKED:-0}
   if [ "$UNCHECKED" -gt 0 ] 2>/dev/null; then
@@ -94,6 +102,10 @@ fi
 
 # 3. SPEC Status 일관성 — gate-status.json과 대조 (6-gate 워크플로 사용 프로젝트만; 파일 없으면 skip)
 GATE_FILE="$PROJECT_DIR/.claude/gate-status.json"
+# #649 — jq 부재 스킵을 조용히 하지 않는다("정상"과 "못 봤음"이 같은 출력이 되므로).
+if [ -f "$GATE_FILE" ] && [ -n "$SPEC_FILE" ] && ! command -v jq &> /dev/null; then
+  echo "NOTE: gate-status.json 이 있지만 jq 가 없어 Status 일관성 검사를 건너뛰었다 (not examined)" >&2
+fi
 if [ -f "$GATE_FILE" ] && [ -n "$SPEC_FILE" ] && command -v jq &> /dev/null; then
   BUILD_DONE=$(jq -r '.build.completed // false' "$GATE_FILE")
   VERIFY_DONE=$(jq -r '.verify.completed // false' "$GATE_FILE")
@@ -116,7 +128,12 @@ fi
 
 # Summary
 if [ "$DRIFT" -eq 0 ]; then
-  echo "OK: SPEC/TODO 동기화 상태 정상"
+  if [ "$EXAMINED" -eq 0 ]; then
+    # #649 — 후보를 하나도 못 찾았다면 "정상"은 할 수 없는 말이다(안 봤음).
+    echo "WARNING: SPEC/TODO 후보를 하나도 찾지 못했다 (not examined) — 프로젝트 루트에서 실행했는지 확인" >&2
+    exit 0
+  fi
+  echo "OK: SPEC/TODO 동기화 상태 정상 (${EXAMINED}개 파일 검사)"
   exit 0
 fi
 

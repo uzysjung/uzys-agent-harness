@@ -277,7 +277,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   );
 
   // dry-run 과 같은 인자를 넘겨야 미리보기가 실행 결과와 맞는다.
-  for (const line of advisoryLines(plan, projectDir, rootFiles)) {
+  for (const line of advisoryLines(plan, projectDir, rootFiles, options.keepTemplates === true)) {
     log(line);
   }
 
@@ -434,6 +434,10 @@ function dryRunLines(
     lines.push(c.dim("  (no project-scope assets to reverse)"));
   }
   lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
+  // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
+  // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
+  // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
+  lines.push("  ○ remove install record (.uzys-agent-harness/ — 로그·헬퍼 스크립트·차단 로그)");
   lines.push(
     ...plan.noReversePath.map((a) =>
       c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
@@ -466,7 +470,7 @@ function dryRunLines(
       ),
     );
   }
-  lines.push(...advisoryLines(plan, projectDir, rootFiles), "");
+  lines.push(...advisoryLines(plan, projectDir, rootFiles, keepTemplates), "");
   return lines;
 }
 
@@ -475,6 +479,7 @@ function advisoryLines(
   plan: ReversePlan,
   projectDir: string,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
+  keepTemplates = false,
 ): string[] {
   const lines: string[] = [];
   if (plan.globalAdvisories.length > 0) {
@@ -490,7 +495,10 @@ function advisoryLines(
   }
   // templatesKept 와 무관하다 — `.claude/` 를 통째로 지우는 경로야말로 밖에 남는 것을
   // 사용자가 존재조차 모르게 되는 경우다. 그게 F-1f 가 잡는 구멍이다.
-  lines.push(...rootFileAdvisoryLines(rootFiles, projectDir));
+  // #626 — `--keep-templates` 에서는 movedDirs 가 비어 ROOT 필터가 풀리는데, 그러면
+  // `.claude/settings.json` 같은 **안쪽** 파일이 "밖에 남는 것" 헤더 아래 나열된다 —
+  // keep-templates 는 말 그대로 templates 를 남기는 것이라 안쪽은 헤더가 거짓말을 한다.
+  lines.push(...rootFileAdvisoryLines(rootFiles, projectDir, keepTemplates));
   // #570 — 하네스가 남긴 백업 산물(디렉터·파일) 공지. 색인(.uzys-agent-harness/)은 이번에
   // 지워지므로, 남는 실물을 말하지 않으면 정체를 알 방법이 없다.
   lines.push(...backupArtifactAdvisoryLines(projectDir));
@@ -538,12 +546,18 @@ function backupArtifactAdvisoryLines(projectDir: string): string[] {
 function rootFileAdvisoryLines(
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   projectDir: string,
+  keepTemplates = false,
 ): string[] {
+  // #626 — keepTemplates 한정: 헤더를 바꾼다. "밖에 남는 것"이 아니라 "남는 것" 전체가
+  // 참이 된다(안쪽 경로도 살아 있으므로). 나열 자체는 같은 rootFiles 에서.
+  const header = keepTemplates
+    ? "[LEFT] uninstall 후 남는 것 — templates 보존(.claude/ 등) + 루트 파일 (자동으로 지우지 않는다):"
+    : "[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):";
   const present = rootFiles.filter((f) => existsSync(join(projectDir, f.path)));
   if (present.length === 0) return [];
   return [
     "",
-    c.yellow("[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):"),
+    c.yellow(header),
     ...present.flatMap((f) => [
       c.dim(`  · ${f.path} — ${rootFileMeaning(f, projectDir)}`),
       // displaced 의 notes 는 백업 경로 하나 — 위 줄이 이미 댔다
