@@ -141,6 +141,11 @@ interface ReverseStep {
   label: string;
   /** 실제 동작 — dry-run 일 때는 호출 안 함. */
   execute: () => { ok: boolean; message?: string };
+  /**
+   * 대상 스킬의 실체(realpath)가 프로젝트 밖이면 그 경로 — 외부 도구가 링크를 따라가 밖을 지우므로
+   * **부르기 전에** 판정한다. 실행·dry-run 이 같은 값을 읽는다(남김 + 경로).
+   */
+  outside?: string | undefined;
 }
 
 interface GlobalAdvisory {
@@ -231,7 +236,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     ),
   };
 
-  const plan = planReverse(targetAssets, spawn);
+  const plan = planReverse(targetAssets, spawn, projectDir);
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
@@ -367,6 +372,13 @@ function executeReverse(
   let failed = 0;
   const removedIds: string[] = [];
   for (const step of plan.reverseSteps) {
+    if (step.outside) {
+      // 외부 도구가 링크를 따라가 밖의 스킬을 지운다 — 부르지 않고 남긴다(기록도 유지).
+      log(
+        `  ${c.yellow("⊘")} ${step.label} kept — skill folder link target is outside the project (${step.outside}). Not touched; remove manually if intended.`,
+      );
+      continue;
+    }
     const result = step.execute();
     if (result.ok) {
       log(`  ${status.success(step.label)}`);
@@ -454,7 +466,13 @@ function dryRunLines(
   if (plan.reverseSteps.length === 0) {
     lines.push(c.dim("  (no project-scope assets to reverse)"));
   }
-  lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
+  lines.push(
+    ...plan.reverseSteps.map((s) =>
+      s.outside
+        ? `  ○ keep ${s.label} (skill link target outside project: ${s.outside} — preserved)`
+        : `  ○ ${s.label}`,
+    ),
+  );
   // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
@@ -1016,6 +1034,7 @@ interface ReversePlan {
 function planReverse(
   assets: ReadonlyArray<InstallLogAsset>,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
+  projectDir: string,
 ): ReversePlan {
   const reverseSteps: ReverseStep[] = [];
   const globalAdvisories: GlobalAdvisory[] = [];
@@ -1026,7 +1045,7 @@ function planReverse(
       globalAdvisories.push({ asset, command: buildGlobalAdvisoryCmd(asset) });
       continue;
     }
-    const step = buildProjectReverseStep(asset, spawn);
+    const step = buildProjectReverseStep(asset, spawn, projectDir);
     if (step) reverseSteps.push(step);
     else noReversePath.push(asset);
   }
@@ -1034,9 +1053,19 @@ function planReverse(
   return { reverseSteps, globalAdvisories, noReversePath };
 }
 
+/** skills CLI 가 스킬을 두는 두 자리 — 어느 쪽이든 실체가 프로젝트 밖이면 그 경로(없거나 읽기 실패면 undefined). */
+function outsideSkillTarget(projectDir: string, name: string): string | undefined {
+  for (const rel of [`.agents/skills/${name}`, `.claude/skills/${name}`]) {
+    const target = safeRealpath(join(projectDir, rel));
+    if (target !== null && isOutsideProject(projectDir, target)) return target;
+  }
+  return undefined;
+}
+
 function buildProjectReverseStep(
   asset: InstallLogAsset,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
+  projectDir: string,
 ): ReverseStep | null {
   switch (asset.method) {
     case "plugin": {
@@ -1065,6 +1094,7 @@ function buildProjectReverseStep(
       return {
         assetId: asset.id,
         label: `npx skills remove ${name}`,
+        outside: outsideSkillTarget(projectDir, name),
         execute: () => {
           const r = spawn("npx", [skillsCliSpec(), "remove", name, "--yes"]);
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
@@ -1602,10 +1632,24 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
       `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (a file or template could not be read, or the write failed). Remove manually if intended.`,
     );
   }
-  for (const { path, target } of external.outside) {
-    lines.push(
-      `  ${c.yellow("⊘")} ${path} kept — link target is outside the project (${target}). Not touched; remove manually if intended.`,
-    );
+  // 같은 폴더 링크 아래 여러 파일이면 폴더 단위 한 줄(경로 + 개수)로 묶는다.
+  const outsideGroups = new Map<string, Array<{ path: string; target: string }>>();
+  for (const o of external.outside) {
+    const key = `${dirname(o.path)}\0${dirname(o.target)}`;
+    outsideGroups.set(key, [...(outsideGroups.get(key) ?? []), o]);
+  }
+  for (const group of outsideGroups.values()) {
+    const first = group[0];
+    if (!first) continue;
+    if (group.length === 1) {
+      lines.push(
+        `  ${c.yellow("⊘")} ${first.path} kept — link target is outside the project (${first.target}). Not touched; remove manually if intended.`,
+      );
+    } else {
+      lines.push(
+        `  ${c.yellow("⊘")} ${dirname(first.path)}/ kept ${group.length} file(s) — link target is outside the project (${dirname(first.target)}). Not touched; remove manually if intended.`,
+      );
+    }
   }
   for (const path of external.kept) {
     lines.push(

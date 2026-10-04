@@ -14,13 +14,14 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { runInstall } from "../src/installer.js";
@@ -88,6 +89,64 @@ describe("#573 — skills remove 인자는 스킬 이름", () => {
     const call = spawn.mock.calls[0] as unknown as [string, string[]];
     expect(call[1]).toContain("frontend-design");
     expect(call[1]).not.toContain("anthropics/skills");
+  });
+});
+
+describe("#573 — 밖을 가리키는 스킬 폴더 링크는 외부 도구를 부르지 않는다", () => {
+  const setup = () => {
+    install(["claude"]);
+    const path = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
+    const log = JSON.parse(readFileSync(path, "utf8"));
+    log.assets = [
+      {
+        id: "fd",
+        method: "skill",
+        detail: { source: "anthropics/skills", skill: "frontend-design" },
+      },
+    ];
+    writeFileSync(path, JSON.stringify(log));
+  };
+  const run = (spawn: unknown, dryRun = false) => {
+    const lines: string[] = [];
+    uninstallAction({ projectDir, yes: true, dryRun } as never, {
+      exit: () => undefined as never,
+      log: (l: string) => lines.push(l),
+      err: (l: string) => lines.push(l),
+      spawn: spawn as never,
+      rm: () => {},
+      resolveHarnessRoot: () => HARNESS_ROOT,
+    });
+    return lines.join("\n");
+  };
+
+  for (const folder of [".agents/skills", ".claude/skills", ".claude"]) {
+    it(`${folder} 가 밖 폴더 링크면 부르지 않고 경로를 말한다(dry-run 도 같다)`, () => {
+      setup();
+      const outside = mkdtempSync(join(tmpdir(), "ah-outside-"));
+      const sub = folder === ".claude" ? "skills/frontend-design" : "frontend-design";
+      mkdirSync(join(outside, sub), { recursive: true });
+      writeFileSync(join(outside, sub, "SKILL.md"), "x");
+      const linkPath = join(projectDir, folder);
+      rmSync(linkPath, { recursive: true, force: true });
+      mkdirSync(dirname(linkPath), { recursive: true });
+      symlinkSync(outside, linkPath);
+      const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
+      const dry = run(spawn, true);
+      expect(dry).toContain("keep npx skills remove frontend-design");
+      const out = run(spawn);
+      expect(spawn).not.toHaveBeenCalled();
+      expect(out).toContain(realpathSync(outside));
+      expect(existsSync(join(outside, sub, "SKILL.md"))).toBe(true);
+      rmSync(outside, { recursive: true, force: true });
+    });
+  }
+
+  it("프로젝트 안 실폴더는 기존대로 도구를 부른다(대조)", () => {
+    setup();
+    mkdirSync(join(projectDir, ".agents/skills/frontend-design"), { recursive: true });
+    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
+    run(spawn);
+    expect(spawn).toHaveBeenCalledTimes(1);
   });
 });
 
