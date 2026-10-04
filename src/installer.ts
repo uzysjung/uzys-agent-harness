@@ -541,6 +541,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     previousLog,
     excluded,
     collectRootFiles(envFiles, ciScaffold, ledger.shared),
+    cliTransforms.codexOptIn,
   );
 
   // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
@@ -1008,6 +1009,7 @@ function writeInstallLogSafe(
   previousLog: InstallLog | null,
   excluded: ReadonlySet<string>,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
+  codexOptIn: CodexOptInReport | null,
 ): void {
   try {
     const base = buildInstallLog(
@@ -1019,6 +1021,10 @@ function writeInstallLogSafe(
       // `--reinstall` 도 `.claude/` 를 옮기지 않는다 — 이전 자산은 디스크에 그대로다
       false,
       [...rootFiles, ...ledger.rootFiles],
+      // #644 — 하네스가 실제로 더한 전역 trust 항목만 적는다(이미 있던 것은 설치자 몫).
+      codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
+        ? { configPath: codexOptIn.trustEntry.configPath, projectDir: ctx.projectDir }
+        : undefined,
     );
     writeInstallLog(
       ctx.projectDir,

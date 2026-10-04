@@ -217,6 +217,12 @@ export interface InstallLog {
    */
   rootFiles?: ReadonlyArray<InstallLogRootFile>;
   /**
+   * #644 — `--with-codex-trust` 가 **하네스가 실제로 더한** 전역 trust 항목(`registered` 일 때만 적는다 —
+   * 이미 있던 항목은 설치자 것이라 적지 않는다). uninstall 은 이 기록으로 "손수 지울 것" 에 올릴 뿐 전역 파일은
+   * 건드리지 않는다(D16). 부재 = 정상(옛 로그 · 플래그 없이 깐 설치).
+   */
+  codexTrust?: { configPath: string; projectDir: string };
+  /**
    * v26.126.0 (R-3a · ADR-046) — 스킬 파일 기준선 해시. 스킬을 안 깔았으면 필드 자체가 없다
    * (v26.125.0 이하 로그도 이 상태 — 읽는 쪽은 부재를 정상으로 다뤄야 한다).
    */
@@ -421,6 +427,7 @@ export function buildInstallLog(
   previous?: InstallLog | null,
   claudeDirMovedAside = false,
   rootFiles: ReadonlyArray<InstallLogRootFile> = [],
+  codexTrust?: InstallLog["codexTrust"],
 ): InstallLog {
   // #505 — 번들 스킬 해제는 **자산 id** 로 들어온다(`userOverride.forceExclude`). 위저드 체크
   // 해제와 `--without <id>` 가 같은 자리로 모이므로 두 진입점이 한 줄로 덮인다.
@@ -464,6 +471,9 @@ export function buildInstallLog(
   // 루트 파일은 `.claude/` 밖이라 backup rename 과 무관하게 살아남는다 → 무조건 누적.
   const mergedRootFiles = mergeRootFiles(previous?.rootFiles, rootFiles);
   if (mergedRootFiles.length > 0) log.rootFiles = mergedRootFiles;
+  // #644 — 전역 파일의 항목은 설치 폴더가 아니라 홈에 있어 backup rename 과 무관하다 → 이전 기록을 이어받는다.
+  const trust = codexTrust ?? previous?.codexTrust;
+  if (trust) log.codexTrust = trust;
   return log;
 }
 

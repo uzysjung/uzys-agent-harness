@@ -238,6 +238,8 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // #551 PR-3 — install 이 `.uzys-agent-harness/` 의 하네스 스크립트를 `externalFiles` 에 적는다. 그 디렉터리는
   // 기록 파일과 함께 통째로 지워지므로(`settleLog`) 여기서 따로 회수·보고하지 않는다 — 따로 보고하면 고친 파일을
   // "kept" 라 말한 뒤 디렉터리째 지운다. 파일 단위 회수는 설계 §9 PR-7.
+  // #644 — 전역 `~/.codex/config.toml` 의 trust 항목은 `--only`(자산만)의 대상이 아니다. 지우지 않고 알리기만 한다(D16).
+  const globalTrust = selectedIds ? undefined : installLog.codexTrust;
   const templatesLog: InstallLog = {
     ...installLog,
     externalFiles: (installLog.externalFiles ?? []).filter(
@@ -271,6 +273,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       rootFiles,
       harnessRoot,
       sharedPaths,
+      globalTrust,
     )) {
       log(line);
     }
@@ -363,7 +366,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   );
 
   // dry-run 과 같은 인자를 넘겨야 미리보기가 실행 결과와 맞는다.
-  for (const line of advisoryLines(plan, projectDir, rootFiles, options.keepTemplates === true)) {
+  for (const line of advisoryLines(
+    plan,
+    projectDir,
+    rootFiles,
+    options.keepTemplates === true,
+    globalTrust,
+  )) {
     log(line);
   }
 
@@ -578,6 +587,7 @@ function dryRunLines(
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   harnessRoot: string,
   sharedPaths: ReadonlyArray<string>,
+  globalTrust: InstallLog["codexTrust"],
 ): string[] {
   const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
   if (plan.reverseSteps.length === 0) {
@@ -621,7 +631,7 @@ function dryRunLines(
       ),
     );
   }
-  lines.push(...advisoryLines(plan, projectDir, rootFiles, keepTemplates), "");
+  lines.push(...advisoryLines(plan, projectDir, rootFiles, keepTemplates, globalTrust), "");
   return lines;
 }
 
@@ -631,8 +641,19 @@ function advisoryLines(
   projectDir: string,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   keepTemplates = false,
+  globalTrust?: InstallLog["codexTrust"],
 ): string[] {
   const lines: string[] = [];
+  if (globalTrust) {
+    // #644 — 홈 파일은 설치자 것이다: 지우지 않고 어느 항목인지만 알린다. 전에는 이 항목이 어디에도 안 나와,
+    // 폴더 이름을 바꾼 뒤 옛 경로 항목이 다른 프로젝트를 자동 신뢰하는 채로 쌓였다.
+    lines.push(
+      "",
+      c.yellow("[GLOBAL] Codex trust entry — remove by hand (never deleted automatically):"),
+      c.dim(`  · ${globalTrust.configPath}`),
+      c.dim(`      [projects."${globalTrust.projectDir}"]`),
+    );
+  }
   if (plan.globalAdvisories.length > 0) {
     lines.push(
       "",
