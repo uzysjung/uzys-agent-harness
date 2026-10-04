@@ -275,12 +275,12 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 
 | File | Used by | Goes when |
 |---|---|---|
-| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup |
+| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup; a link to outside the project stays as it is |
 | `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
 | `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
 | `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup; a link to outside the project stays as it is |
 | `opencode.json` | OpenCode | OpenCode is removed (kept if you edited it) |
-| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours |
+| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours; a link to outside the project stays as it is |
 | `.agents/rules/uzys-harness.md` | Antigravity | Antigravity is removed |
 | `AGENTS.md` | Codex, OpenCode | The last of them is removed — only the harness sections; your `## Project Context` / `## Project Rules` stay |
 | `.agents/skills/` (harness skills only) | Codex, OpenCode, Antigravity | The last of them is removed — skills you installed yourself stay |
