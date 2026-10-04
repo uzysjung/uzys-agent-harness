@@ -3,102 +3,252 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>agent-harness — curate vetted AI-coding skills & plugins by your tech stack</title>
-<meta name="description" content="One-command installer and curator of vetted, Docker-verified AI-coding skills, plugins, rules, and hooks by tech stack — across Claude Code, Codex, OpenCode & Antigravity. Project-scoped, MIT.">
+<title>uzys-agent-harness — the few rules, hooks, and skills your AI coding tool actually needs</title>
+<meta name="description" content="Give your AI coding tool the few rules, hooks, and skills it actually needs — and nothing it doesn't. One wizard installs a vetted set for your stack, scoped to your project. Works with Claude Code, Codex, OpenCode, and Antigravity. MIT.">
 <link rel="canonical" href="https://github.com/uzysjung/uzys-agent-harness">
-<meta property="og:title" content="agent-harness">
-<meta property="og:description" content="Install only the vetted AI-coding skills & plugins your tech stack needs — across Claude Code, Codex, OpenCode & Antigravity.">
+<meta property="og:title" content="uzys-agent-harness — the few rules, hooks, and skills your AI coding tool actually needs">
+<meta property="og:description" content="Keep only the structure that helps you build better with an AI coding tool. One wizard installs a vetted set for your stack, scoped to your project — for Claude Code, Codex, OpenCode, and Antigravity.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://github.com/uzysjung/uzys-agent-harness">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "agent-harness",
+  "name": "uzys-agent-harness",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS, Linux, Windows",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://opensource.org/licenses/MIT",
-  "description": "One-command installer and curator of vetted AI-coding skills, plugins, rules, and hooks by tech stack across Claude Code, Codex, OpenCode, and Antigravity.",
+  "description": "Give your AI coding tool the few rules, hooks, and skills it actually needs — and nothing it doesn't. One wizard installs a vetted set for your stack, scoped to your project. Works with Claude Code, Codex, OpenCode, and Antigravity.",
   "url": "https://github.com/uzysjung/uzys-agent-harness",
   "downloadUrl": "https://www.npmjs.com/package/@uzysjung/agent-harness"
 }
 </script>
 <style>
-  :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --accent:#58a6ff; --card:#161b22; --line:#30363d; }
+  :root {
+    --bg:#0d1117; --fg:#e6edf3; --muted:#9ea7b3; --accent:#79b8ff;
+    --card:#161b22; --line:#30363d; --code-bg:#010409; --code-fg:#7ee787;
+    --green:#238636; --num:#58a6ff;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
-  .wrap { max-width:820px; margin:0 auto; padding:0 20px; }
-  header { padding:64px 0 24px; }
-  h1 { font-size:2.2rem; margin:0 0 8px; letter-spacing:-.5px; }
-  .tag { font-size:1.2rem; color:var(--fg); margin:0 0 20px; font-weight:600; }
-  .sub { color:var(--muted); margin:0 0 28px; }
-  code, pre { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; }
-  .cmd { background:#010409; border:1px solid var(--line); border-radius:8px; padding:14px 16px; font-size:1rem; color:#7ee787; overflow-x:auto; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; overflow-x:hidden; }
+  a { color:var(--accent); text-decoration:underline; text-decoration-color:rgba(121,184,255,.35); text-underline-offset:2px; }
+  a:hover { text-decoration-color:var(--accent); }
+  code { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:.92em; background:#1f242c; border:1px solid var(--line); border-radius:4px; padding:0 .3em; overflow-wrap:anywhere; }
+  .wrap { max-width:860px; margin:0 auto; padding:0 16px; }
+  .skip { position:absolute; left:-9999px; }
+  .skip:focus { left:16px; top:8px; background:var(--card); padding:8px 12px; border:1px solid var(--line); border-radius:6px; z-index:10; }
+
+  /* Hero */
+  header { padding:56px 0 28px; }
+  .brand { color:var(--muted); font-size:.95rem; margin:0 0 10px; letter-spacing:.2px; }
+  .brand code { background:transparent; border:0; padding:0; color:var(--fg); }
+  h1 { font-size:2.1rem; line-height:1.2; margin:0 0 16px; letter-spacing:-.4px; }
+  .lead { font-size:1.08rem; color:var(--fg); margin:0 0 22px; max-width:46rem; }
+  .cmd { background:var(--code-bg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:1rem; color:var(--code-fg); overflow-x:auto; white-space:nowrap; }
   .cmd::before { content:"$ "; color:var(--muted); }
-  .btns { margin:24px 0 8px; display:flex; gap:12px; flex-wrap:wrap; }
-  .btn { display:inline-block; padding:10px 18px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-weight:600; }
-  .btn.primary { background:#238636; border-color:#238636; color:#fff; }
-  .badges { margin:18px 0; display:flex; gap:8px; flex-wrap:wrap; }
+  .cmdnote { color:var(--muted); font-size:.92rem; margin:10px 0 0; }
+  .cmdnote code { background:#1f242c; }
+  .clis { margin:20px 0 0; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .clis span.lbl { color:var(--muted); font-size:.92rem; margin-right:2px; }
+  .chip { display:inline-block; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:.9rem; font-weight:600; }
+  .btns { margin:22px 0 6px; display:flex; gap:10px; flex-wrap:wrap; }
+  .btn { display:inline-block; padding:10px 18px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-weight:600; text-decoration:none; }
+  .btn:hover { border-color:var(--accent); text-decoration:none; }
+  .btn.primary { background:var(--green); border-color:var(--green); color:#fff; }
+  .btn.primary:hover { background:#2ea043; border-color:#2ea043; }
+  .badges { margin:14px 0 0; display:flex; gap:8px; flex-wrap:wrap; }
   .badges img { height:20px; }
-  section { padding:28px 0; border-top:1px solid var(--line); }
-  h2 { font-size:1.25rem; margin:0 0 14px; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
-  .card b { display:block; margin-bottom:4px; }
+
+  /* Sections */
+  section { padding:32px 0; border-top:1px solid var(--line); }
+  h2 { font-size:1.4rem; margin:0 0 12px; letter-spacing:-.2px; }
+  h3 { font-size:1.02rem; margin:0 0 8px; line-height:1.4; }
+  section > p { margin:0 0 14px; }
+  .muted { color:var(--muted); }
+  .small { font-size:.92rem; }
+  .north { font-size:1.08rem; margin:0 0 18px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px 18px; }
+  .card .n { color:var(--num); font-weight:700; font-size:.85rem; letter-spacing:.4px; display:block; margin-bottom:6px; }
   .card p { margin:0; color:var(--muted); font-size:.94rem; }
-  .note { color:var(--muted); font-size:.92rem; }
-  .note strong { color:var(--fg); }
-  ul.clis { list-style:none; padding:0; margin:0; }
-  ul.clis li { padding:6px 0; color:var(--muted); }
-  ul.clis b { color:var(--fg); }
-  footer { padding:32px 0 64px; color:var(--muted); font-size:.9rem; border-top:1px solid var(--line); }
-  @media (max-width:600px){ .grid{grid-template-columns:1fr;} h1{font-size:1.8rem;} }
+  .card p strong { color:var(--fg); }
+
+  /* Tables */
+  .tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px; }
+  table { border-collapse:collapse; width:100%; font-size:.94rem; }
+  th, td { text-align:left; vertical-align:top; padding:10px 12px; border-top:1px solid var(--line); }
+  thead th { border-top:0; background:var(--card); color:var(--fg); font-weight:600; }
+  td { color:var(--muted); }
+  td strong, td b { color:var(--fg); }
+  table.reach th { white-space:nowrap; }
+  table.reach th:first-child, table.reach td:first-child { color:var(--fg); font-weight:600; }
+
+  /* Lists */
+  ul.plain { list-style:none; padding:0; margin:0; }
+  ul.plain li { padding:8px 0; border-top:1px solid var(--line); color:var(--muted); font-size:.95rem; }
+  ul.plain li:first-child { border-top:0; }
+  ul.plain li strong { color:var(--fg); }
+  ul.links { padding-left:1.2em; margin:0; }
+  ul.links li { margin:6px 0; color:var(--muted); }
+
+  footer { padding:28px 0 56px; color:var(--muted); font-size:.9rem; border-top:1px solid var(--line); }
+
+  @media (max-width:600px) {
+    header { padding:40px 0 24px; }
+    h1 { font-size:1.6rem; }
+    .lead { font-size:1rem; }
+    .grid { grid-template-columns:1fr; }
+    .cmd { font-size:.92rem; }
+    table.reach th, table.reach td { padding:8px 8px; font-size:.88rem; }
+    table.reach th { white-space:normal; }
+    table.reach .where { display:none; }
+    /* Comparison table → stacked cards */
+    table.compare, table.compare thead, table.compare tbody, table.compare tr, table.compare th, table.compare td { display:block; }
+    table.compare thead { position:absolute; left:-9999px; }
+    table.compare tr { border-top:1px solid var(--line); }
+    table.compare tr:first-child { border-top:0; }
+    table.compare td { border-top:0; padding:8px 12px; }
+    table.compare td:first-child { padding-top:12px; color:var(--fg); }
+    table.compare td:last-child { padding-bottom:14px; }
+    table.compare td::before { content:attr(data-label); display:block; font-size:.78rem; letter-spacing:.4px; text-transform:uppercase; color:var(--num); margin-bottom:2px; }
+  }
 </style>
 </head>
 <body>
+<a class="skip" href="#why">Skip to content</a>
 <div class="wrap">
   <header>
-    <h1>agent-harness</h1>
-    <p class="tag">Install only the AI-coding skills &amp; plugins your tech stack actually needs.</p>
-    <p class="sub">Coding agents keep piling on skills and MCPs you'll never use — it just bloats their context. <strong>agent-harness</strong> curates by <strong>tech stack</strong>: of the vetted options, you install only what this project calls for, across Claude Code, Codex, OpenCode &amp; Antigravity. Project scope by default — no global pollution unless you ask.</p>
-    <div class="cmd">npx -y @uzysjung/agent-harness install</div>
+    <p class="brand"><code>uzys-agent-harness</code> · MIT · for Claude Code, Codex, OpenCode &amp; Antigravity</p>
+    <h1>Give your AI coding tool the few rules, hooks, and skills it actually needs — and nothing it doesn't.</h1>
+    <p class="lead">Keep only the structure that helps you build better with an AI coding tool: a direction, a definition of done, and hard limits — not a script for work it can already decide how to do. One wizard installs a vetted set for your stack, scoped to your project.</p>
+    <div class="cmd" aria-label="Install command">npx -y @uzysjung/agent-harness</div>
+    <p class="cmdnote">Node 20.12 or newer. Run it in your project folder; the wizard asks five things. Then open your tool in the same folder — <code>claude</code>, <code>codex</code>, <code>opencode</code>, or <code>agy</code> — and the rules and skills are live from the first session. No terminal? <code>install --track &lt;name&gt;</code> is the only required flag.</p>
+    <div class="clis" aria-label="Supported CLIs">
+      <span class="lbl">Works with</span>
+      <span class="chip">Claude Code</span>
+      <span class="chip">Codex</span>
+      <span class="chip">OpenCode</span>
+      <span class="chip">Antigravity</span>
+    </div>
     <div class="btns">
       <a class="btn primary" href="https://github.com/uzysjung/uzys-agent-harness">GitHub</a>
       <a class="btn" href="https://www.npmjs.com/package/@uzysjung/agent-harness">npm</a>
-      <a class="btn" href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/COMPATIBILITY.md">Compatibility matrix</a>
+      <a class="btn" href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md">Docs</a>
     </div>
     <div class="badges">
-      <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license">
-      <img src="https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version" alt="version">
-      <img src="https://img.shields.io/github/actions/workflow/status/uzysjung/uzys-agent-harness/test.yml?label=CI" alt="CI">
+      <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" width="78" height="20">
+      <img src="https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version" alt="Latest version tag" width="110" height="20">
+      <img src="https://img.shields.io/github/actions/workflow/status/uzysjung/uzys-agent-harness/test.yml?label=CI" alt="CI status" width="70" height="20">
     </div>
   </header>
 
-  <section>
-    <h2>Why</h2>
+  <section id="why" aria-labelledby="why-h">
+    <h2 id="why-h">Why uzys-agent-harness</h2>
+    <p class="north"><strong>North star: keep only the structure that helps you build better with an AI coding tool.</strong> Every always-loaded instruction costs context in every session, so each one has to earn its place. Four beliefs follow from that; under each is what makes it real here.</p>
     <div class="grid">
-      <div class="card"><b>Curated by stack</b><p>Pick your stack; install only the vetted skills, plugins, rules &amp; hooks that project needs — not a kitchen sink.</p></div>
-      <div class="card"><b>Trust-tier vetting</b><p>Every catalog asset is ≥1000★ + actively maintained + Docker install-verified (35/51 green; the rest are repo-bundled templates verified by CI file placement), re-checked monthly for star-drift.</p></div>
-      <div class="card"><b>Project-scoped</b><p>Default writes stay inside the project. Existing config is backed up before any change — nothing is silently overwritten.</p></div>
-      <div class="card"><b>Honest by design</b><p>Vetted ≠ a security audit. The compatibility matrix is generated from real install runs, not a hand-maintained table.</p></div>
+      <article class="card">
+        <span class="n">1</span>
+        <h3>As models improve, the harness should improve with them — usually by asking for less.</h3>
+        <p><strong>Here:</strong> an instruction stays always-loaded only while there is an observation that the agent is slower or wrong without it; otherwise it becomes an on-demand skill or is retired. <code>audit-harness-fit</code> runs that check on your project — needless questions, repeated checks, conflicting decisions, procedures a better model no longer needs — and proposes the edit.</p>
+      </article>
+      <article class="card">
+        <span class="n">2</span>
+        <h3>An agent needs a destination and guardrails, not a prompt for every step.</h3>
+        <p><strong>Here:</strong> three skills on every track — <code>north-star</code>, <code>objective-brief</code>, <code>gh-issue-workflow</code>. The guardrails are few and mechanical: on Claude Code a hook blocks edits to <code>.env</code>, lock files, and certificates; a bundled script you run once applies a GitHub ruleset to your default branch; the anchor requires your approval for destructive or privileged actions, deployment, and shared-state writes. Inside those lines the agent decides.</p>
+      </article>
+      <article class="card">
+        <span class="n">3</span>
+        <h3>Always-loaded context is a budget, so the harness keeps cleaning itself.</h3>
+        <p><strong>Here:</strong> step 4 of the wizard shows how much context your selection adds per session before you confirm. <code>update</code> refreshes what the harness installed, adds what a newer release introduced, removes rules and hooks a release retired, and names retired skills and agents still on disk rather than deleting them.</p>
+      </article>
+      <article class="card">
+        <span class="n">4</span>
+        <h3>Different perspectives and different agents make better speed · cost · quality trade-offs.</h3>
+        <p><strong>Here:</strong> rules and skills render for all four CLIs from one source, so switching tools keeps the vocabulary. <code>implementer</code> (dev tracks) builds and <code>reviewer</code> verifies — an agent that did not write the code runs it and decides. <code>multi-persona-review</code> (dev tracks) critiques one artifact from several user perspectives. Opt-in: <code>model-orchestration</code> and <code>external-model-consult</code>, each via <code>--with</code>.</p>
+      </article>
     </div>
   </section>
 
-  <section>
-    <h2>Across four CLIs (honestly labeled)</h2>
-    <ul class="clis">
-      <li><b>Claude Code</b> — first-class: skills, plugins, rules, hooks, 6-gate workflow.</li>
-      <li><b>Codex / Antigravity</b> — native skills + rules layer (<code>.agents/skills/</code>, AGENTS.md).</li>
-      <li><b>OpenCode</b> — rules + native skills (reads <code>.agents/skills/</code>, same files as Codex).</li>
+  <section aria-labelledby="cmp-h">
+    <h2 id="cmp-h">Compared with the alternatives</h2>
+    <div class="tbl">
+      <table class="compare">
+        <thead><tr><th scope="col">If you would otherwise…</th><th scope="col">What is different here</th></tr></thead>
+        <tbody>
+          <tr>
+            <td data-label="If you would otherwise…"><strong>Write your own <code>CLAUDE.md</code> or <code>AGENTS.md</code></strong></td>
+            <td data-label="What is different here">Keep it — the harness adds one marked block and never touches the rest. Around it, the harness packages what a file alone does not enforce or maintain: hooks that actually block, a <code>reviewer</code> agent separate from the one that builds, and an install record so <code>update</code> and <code>uninstall</code> touch only what the harness put there.</td>
+          </tr>
+          <tr>
+            <td data-label="If you would otherwise…"><strong>Pick skills from a marketplace</strong></td>
+            <td data-label="What is different here">If one skill is all you need, take just that one: every skill here installs on its own with <code>npx skills add</code>. The wizard is for the set a skill list does not carry — standing rules, hooks, agents, and the record that keeps them current across releases.</td>
+          </tr>
+          <tr>
+            <td data-label="If you would otherwise…"><strong>Use a harness with many rules</strong></td>
+            <td data-label="What is different here">Fewer standing instructions, and step 4 shows their per-session cost before you confirm. The hard blocks are a hook on <code>.env</code>, lock files, and certificates (Claude Code) and the branch ruleset; everything else is the agent's call inside the anchor's approval boundary. For a fixed process, add <code>openspec</code> or <code>bmad-method</code> — both opt-in, compared in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">WORKFLOWS.md</a>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="ev-h">
+    <h2 id="ev-h">Evidence</h2>
+    <p>What is measured so far comes from this repository, which is the harness's own dogfood and its only measured sample. In the last audit, none of the 44 sentences in our rules was observed to change an agent's behaviour — gates, tests, and the independent reviewer caught the recorded incidents — so protection against irreversible damage lives in hooks and rulesets, not in sentences, and the same audit retired four skills and three agents that had no observation behind them (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/decisions/ADR-090-retire-unobserved-assets-and-demote-domain-agents.md">ADR-090</a>).</p>
+    <p class="muted small">Treat this as dogfood evidence, not a cross-project benchmark: it does not yet show faster development, lower model cost, or better results in other projects.</p>
+  </section>
+
+  <section aria-labelledby="reach-h">
+    <h2 id="reach-h">What reaches which CLI</h2>
+    <div class="tbl">
+      <table class="reach">
+        <thead><tr><th scope="col">CLI</th><th scope="col">Rules</th><th scope="col">Skills</th><th scope="col">Hooks</th><th scope="col">Plugins</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Claude Code</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+          <tr><th scope="row">Codex</th><td>✓ <span class="where">(in <code>AGENTS.md</code>)</span></td><td>✓</td><td>session start only</td><td>—</td></tr>
+          <tr><th scope="row">OpenCode</th><td>✓ <span class="where">(in <code>AGENTS.md</code>)</span></td><td>✓</td><td>—</td><td>—</td></tr>
+          <tr><th scope="row">Antigravity</th><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small" style="margin-top:12px;">On Codex and OpenCode the rules go into <code>AGENTS.md</code>. Plugins are Claude Code's own mechanism, so they are Claude-only. Skills and rules render for all four from the same source, so they stay consistent across tools. Claude Code plugins need the <code>claude</code> command on your PATH; without it they are skipped with a warning.</p>
+  </section>
+
+  <section aria-labelledby="safe-h">
+    <h2 id="safe-h">Safe on an existing project</h2>
+    <ul class="plain">
+      <li><strong>Your project only.</strong> Nothing goes to <code>~/.opencode/</code>, <code>~/.gemini/</code>, or global npm. Two opt-in exceptions write outside the project: Claude Code plugins (the <code>claude</code> CLI keeps its plugin cache under <code>~/.claude/plugins/</code>), and <code>--with-codex-trust</code>, which adds one trust entry to <code>~/.codex/config.toml</code> so Codex reads its project config.</li>
+      <li><strong>Your <code>CLAUDE.md</code> stays yours.</strong> The harness adds one marked import block and never touches the rest.</li>
+      <li><strong>Backups beside your files.</strong> Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing <code>.mcp.json</code> servers are merged, not replaced.</li>
+      <li><strong>An install record, not guesswork.</strong> The harness keeps its own record at <code>.uzys-agent-harness/</code>, so <code>update</code> and <code>uninstall</code> touch only what the harness put there. <code>uninstall</code> never deletes <code>.claude/</code>, <code>.codex/</code>, or <code>.opencode/</code>: each is moved aside as <code>&lt;dir&gt;.backup-&lt;ts&gt;</code>.</li>
+      <li><strong>Teammates do nothing.</strong> Cloned a repo a teammate set up with the harness? The install record is committed with the files. <code>list</code> shows it; <code>update</code> and <code>uninstall</code> work as on their machine.</li>
     </ul>
-    <p class="note" style="margin-top:14px;"><strong>What "vetted" means:</strong> ≥1000 GitHub stars, active maintenance, and a real install in an isolated Docker container — <strong>not</strong> a line-by-line security audit or a prompt-injection scan of asset contents. npm/npx assets are version-pinned; plugin/skill assets resolve to upstream HEAD. Treat installed assets like any third-party dependency.</p>
+    <p class="muted small" style="margin-top:12px;">The full list of what gets written where: <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#what-the-harness-writes">USAGE.md</a>.</p>
+  </section>
+
+  <section aria-labelledby="vet-h">
+    <h2 id="vet-h">What "vetted" means</h2>
+    <p>An external asset is <strong>vetted</strong> when it has at least 1,000 GitHub stars, is not archived, and its install command has been run and checked in an isolated environment. Two monthly CI jobs re-check the stars and the install path. Vetting is <strong>not</strong> a line-by-line security audit and does not scan asset contents for prompt injection. npm and npx assets are pinned to a version; plugin and skill assets resolve to upstream HEAD.</p>
+    <p class="muted small">At step 3, <code>★ official</code> marks Anthropic-official marketplaces and this harness's own assets, and <code>⚠ experimental</code> marks assets under 1,000 stars — never pre-checked, added only by you. Vetted assets carry no badge. Tiers inform; they never block. Treat installed assets like any other third-party dependency: <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+  </section>
+
+  <section aria-labelledby="more-h">
+    <h2 id="more-h">Read more</h2>
+    <ul class="links">
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/NORTH_STAR.md#1-north-star-statement">North Star</a> — the direction in full, and the maintainer's posts behind these beliefs (in Korean)</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md">Usage guide</a> — install flags, scope, update, uninstall, per-CLI details, what gets written where</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/TRACKS.md">Tracks</a> — what each track pre-checks</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/COMPATIBILITY.md">Compatibility matrix</a> — every asset, its install method, which CLIs it reaches, and how it was verified</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/CONTEXT-FILES.md">Which file is whose</a> — <code>CLAUDE.md</code>, the anchor, <code>AGENTS.md</code>, and the other context files</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">Workflow guide</a> — the opt-in workflow bundles compared, and when you don't need one</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/decisions/">Decisions</a> — why the harness is shaped this way</li>
+    </ul>
   </section>
 
   <footer>
-    MIT · single-maintainer · early — honest feedback welcome.<br>
-    <a href="https://github.com/uzysjung/uzys-agent-harness">github.com/uzysjung/uzys-agent-harness</a> ·
+    MIT · <a href="https://github.com/uzysjung/uzys-agent-harness">github.com/uzysjung/uzys-agent-harness</a> ·
     <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">Security</a> ·
     <a href="/uzys-agent-harness/llms.txt">llms.txt</a>
   </footer>
