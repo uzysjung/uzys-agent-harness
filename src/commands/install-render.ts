@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { hasTrustEntry } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
  *
@@ -326,9 +328,9 @@ export function renderCliArtifacts(
   }
   log(unifiedSection(formatCliPhaseTitle(spec.cli)));
   log("");
+  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
   // AGENTS.md is shared across Codex/OpenCode — render once with shared note
   // #558 — 설치자 파일에 블록 하나만 더했으면(첫 접촉) 그렇게 말한다. 하네스가 만든 파일(절 모델)은 전과 같다.
-  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
   const agentsBlock = agentsMd?.model === "block" ? agentsMd.shared : null;
   if (agentsBlock) {
     // 리뷰 NOTE-2 — 설치자가 블록을 지워 excluded 면 파일에 블록이 없다. 있는 것만 말한다
@@ -584,7 +586,20 @@ export function renderFinalSummary(
   const codexTrusted =
     report.codexOptIn?.trustEntry.status === "registered" ||
     report.codexOptIn?.trustEntry.status === "already-present";
-  if (spec.cli.includes("codex") && !codexTrusted) {
+  // #637 — 플래그 없는 재설치는 codexOptIn 자체를 안 만들어, **이미 등록된** trust 를
+  // 확인하지 않고 안내를 되살렸다 — Codex 는 묻지도 않는데 "trust this folder" 를 말한다.
+  // 전역 config 의 해당 항목 존재를 직접 본다(등록 여부 판정은 trust-entry 의 SSOT).
+  const alreadyTrustedGlobally = (() => {
+    try {
+      const home = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+      const configPath = join(home, "config.toml");
+      if (!existsSync(configPath)) return false;
+      return hasTrustEntry(readFileSync(configPath, "utf8"), spec.projectDir);
+    } catch {
+      return false;
+    }
+  })();
+  if (spec.cli.includes("codex") && !codexTrusted && !alreadyTrustedGlobally) {
     // NEXT 값 열에 맞춘 이어지는 줄 — infoRow 의 들여쓰기 2 + 라벨 14 + 구분 공백 1.
     const cont = (text: string): string => `${" ".repeat(16)} ${text}`;
     log(
@@ -600,10 +615,14 @@ export function renderFinalSummary(
   }
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
-  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
+  // #636 — 하네스가 **새로 만든** CLAUDE.md 는 FILL 프롬프트를 갖고 태어나므로 그대로 안내한다.
+  // 사용자의 기존 파일(created === false)에 FILL 이 없다면 "없는 것을
+  // 채우라"고 안내할 수 없으니 뺀다. #608 — antigravity 단독은 AGENTS.md 를 아예 만들지
+  // 않으므로 scaffold 목록 자체에서 빠진다(scaffoldFilesForCli 가 codex·opencode 만 넣는다).
   const scaffoldFiles = scaffoldFilesForCli(spec.cli).filter(
     (f) =>
-      f !== "AGENTS.md" || agentsMd?.model !== "block" || hasFillPrompt(join(spec.projectDir, f)),
+      (f === "CLAUDE.md" && report.rootClaudeMd?.created === true) ||
+      hasFillPrompt(join(spec.projectDir, f)),
   );
   if (scaffoldFiles.length > 0) {
     // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
@@ -658,7 +677,9 @@ export function scaffoldFilesForCli(cli: ReadonlyArray<CliBase>): string[] {
   if (cli.includes("claude")) {
     files.push("CLAUDE.md");
   }
-  if (cli.some((target) => target !== "claude")) {
+  // #608 — AGENTS.md 를 만드는 것은 codex·opencode 뿐이다. antigravity 의 산출물은
+  // .agents/rules/uzys-harness.md(앵커·FILL 프롬프트 없음)라 이 안내의 대상이 아니다.
+  if (cli.includes("codex") || cli.includes("opencode")) {
     files.push("AGENTS.md");
   }
   return files;
@@ -1106,23 +1127,18 @@ function renderPhase1Rows(
     };
 
     if (cats.rules.length > 0) {
-      phase1Row(
-        "rules",
-        cats.rules.length,
-        "coding · git/PR · tests · ship checklist · MCP policy",
-        cats.rules,
-      );
+      // #618 — 정적 열거는 안 깔리는 룰 이름(tests·ship checklist)을 부른다. 같은 함수 주석이
+      // agents 라벨에 대해 밝힌 원칙("이름을 부르면 화면이 없는 자산을 계속 부른다")을 여기 적용:
+      // use-text 도 실제 설치 집합에서 조립한다.
+      phase1Row("rules", cats.rules.length, cats.rules.join(" · "), cats.rules);
     }
     if (cats.agents.length > 0) {
       // ADR-090 (#452) — 라벨을 자산 중립으로. 은퇴·강등으로 목록이 트랙마다 달라졌고, 이름을
       // 부르면 화면이 없는 자산을 계속 부른다(ADR-073 의 `/ecc:*` 와 같은 형태). 실제 이름은
       // `--verbose` 의 files 줄이 낸다.
-      phase1Row(
-        "agents",
-        cats.agents.length,
-        "independent verifier · implementation lane · domain lanes (track)",
-        cats.agents,
-      );
+      // #618 — 마찬가지로 실제 집합에서 조립(비즈니스 트랙에 없는 implementation lane 을
+      // 이름으로 부르던 것). --verbose 의 files 줄과 같은 원천이다.
+      phase1Row("agents", cats.agents.length, cats.agents.join(" · "), cats.agents);
     }
     if (cats.hooks.length > 0) {
       phase1Row("hooks", cats.hooks.length, "session-start · protect-files", cats.hooks);
