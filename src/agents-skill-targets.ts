@@ -72,6 +72,7 @@ function allowSkillCreation(
       const inTarget = roots.some((root) => absPath.startsWith(root));
       return writer.write(absPath, content, inTarget ? { ...opts, createInRefresh: true } : opts);
     },
+    skipOutside: (absPath) => writer.skipOutside(absPath),
     result: () => writer.result(),
   };
 }

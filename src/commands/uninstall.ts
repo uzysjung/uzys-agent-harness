@@ -37,7 +37,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { ADAPTERS } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
 import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
@@ -61,6 +61,7 @@ import {
   writeInstallLog,
 } from "../install-log.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
+import { isOutsideProject } from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
 import { excludedIds } from "../recorded.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
@@ -1218,18 +1219,6 @@ interface ExternalRemoval {
   unjudged: string[];
   /** 링크 대상이 프로젝트 밖이라 따라가지 않고 남긴 것 — 기록에 없는 경로는 건드리지 않는다(남김 + 대상 경로). */
   outside: Array<{ path: string; target: string }>;
-}
-
-/** 링크를 따라간 실체가 프로젝트 루트 밖인가 — realpath 기준(프로젝트 경로 자체가 링크여도 같은 잣대). */
-function isOutsideProject(projectDir: string, target: string): boolean {
-  let root = projectDir;
-  try {
-    root = realpathSync(projectDir);
-  } catch {
-    /* 루트를 못 풀면 원 경로로 비교한다 */
-  }
-  const rel = relative(root, target);
-  return rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 }
 
 /** 설치자 소유 절이 있는 유일한 외부 산출물 — codex · opencode transform 이 같은 이름으로 쓴다. */

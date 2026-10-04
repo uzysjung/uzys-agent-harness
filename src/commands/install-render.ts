@@ -41,6 +41,7 @@ import {
   type ProgressEvent,
 } from "../installer.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
+import type { OutsideLink } from "../outside-project.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
@@ -919,6 +920,8 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리. install · uninstall 과 같은 판정 · 같은 줄.
+    for (const row of outsideLinkRows(baseline.updateMode.outsideLinks ?? [])) log(row);
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
     // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
     if (baseline.updateMode.foreignOwned.length > 0) {
@@ -1100,6 +1103,8 @@ function renderPhase1Rows(
     if (j.backupAbs !== undefined) judgedBackups.add(j.backupAbs);
     log(judgedRow(j));
   }
+  // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리(링크 하나에 한 줄).
+  for (const row of outsideLinkRows(baseline.outsideLinks ?? [])) log(row);
   // 외부 CLI 산출물 · 링크 본문의 백업 — 판정 줄이 없는 쪽만(같은 백업을 두 번 말하지 않는다).
   if (baseline.backups) {
     for (const b of baseline.backups) {
@@ -1287,6 +1292,28 @@ export function judgedRow(j: JudgedWrite): string {
   return j.backup !== undefined
     ? `  ${c.green(symbol.success)} backed up  ${j.path} — ${j.line}`
     : `  ${c.yellow(symbol.skip)} ${j.path} — ${j.line}`;
+}
+
+/**
+ * #678 — 링크를 따라가면 프로젝트 밖이라 쓰지 않은 자리. **링크 하나에 한 줄**이다 — 폴더 링크 아래 파일이 여럿이어도
+ * 설치자가 할 일(그 링크를 실파일·실폴더로 바꾸기)은 하나다. 대상 경로를 함께 댄다: 그 파일이 바이트 그대로라는 사실을
+ * 설치자가 직접 확인할 자리다.
+ */
+export function outsideLinkRows(links: ReadonlyArray<OutsideLink>): string[] {
+  const groups = new Map<string, OutsideLink[]>();
+  for (const o of links) groups.set(o.link, [...(groups.get(o.link) ?? []), o]);
+  const rows: string[] = [];
+  for (const [link, group] of groups) {
+    const first = group[0];
+    if (first === undefined) continue;
+    const fileLink = group.length === 1 && first.path === link;
+    rows.push(
+      fileLink
+        ? `  ${c.yellow(symbol.skip)} ${link} — left as is: the link points outside the project (${first.linkTarget}). Not written; replace the link with a regular file to get the harness version.`
+        : `  ${c.yellow(symbol.skip)} ${link}/ — left as is: the link points outside the project (${first.linkTarget}), ${group.length} file(s) not written. Replace the link with a regular folder to get the harness version.`,
+    );
+  }
+  return rows;
 }
 
 /**

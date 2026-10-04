@@ -56,6 +56,7 @@ import {
   resolveRules,
 } from "./manifest.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
+import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
@@ -245,6 +246,11 @@ export interface BaselineReport {
   judged?: JudgedWrite[];
   /** #551 PR-3 — 함께 쓰는 파일(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 판정과 결과. */
   shared?: SharedWrite[];
+  /**
+   * #678 — 링크를 따라가면 프로젝트 밖이라 **쓰지 않은** 자리. 화면이 "남김 + 경로" 로 말한다(uninstall 과 같은 판정).
+   * 옵셔널 = update 경로는 `updateMode.outsideLinks` 에 싣고, 화면 픽스처는 싣지 않는다(없음 = 0건).
+   */
+  outsideLinks?: OutsideLink[];
 }
 
 export interface InstallReport {
@@ -298,6 +304,8 @@ export interface InstallReport {
   judged?: JudgedWrite[];
   /** #551 PR-3 — `BaselineReport.shared` 와 같다. */
   shared?: SharedWrite[];
+  /** #678 — `BaselineReport.outsideLinks` 와 같다. */
+  outsideLinks?: OutsideLink[];
   /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
   rootClaudeMd?: {
     tracks: ReadonlyArray<Track>;
@@ -439,6 +447,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
     externalForeignOwned,
+    externalOutside,
     sharedFiles: _sharedFiles,
     portions: cliPortions,
     portionPaths: cliPortionPaths,
@@ -522,6 +531,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     ],
     baselineLinked: linked.updated,
     baselineLinkedNotOurs: linked.notOurs,
+    outsideLinks: mergeOutside(ledger.outside, externalOutside, linked.outside),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -830,7 +840,7 @@ function installClaudeBaseline(
   // chmod +x on hook scripts (cp does not preserve exec bit when source is non-exec)
   const hookDir = join(projectDir, ".claude/hooks");
   if (existsSync(hookDir)) {
-    chmodHooksSync(hookDir);
+    chmodHooksSync(hookDir, projectDir);
   }
 
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
@@ -866,12 +876,17 @@ function installClaudeBaseline(
     manifestSpec.tracks,
     manifestSpec.selectedInternalSkills ?? [],
     harnessRoot,
+    writer,
   );
-  result.rootClaudeMd = {
-    tracks: manifestSpec.tracks,
-    created: rootClaudeMd.created,
-    seededFrom: rootClaudeMd.seededFrom,
-  };
+  // 밖 링크라 건너뛰었으면 "얹었다" 고 말하지 않는다 — 화면은 `outsideLinks` 줄 하나다.
+  result.rootClaudeMd =
+    rootClaudeMd === null
+      ? null
+      : {
+          tracks: manifestSpec.tracks,
+          created: rootClaudeMd.created,
+          seededFrom: rootClaudeMd.seededFrom,
+        };
   return result;
 }
 
@@ -1125,8 +1140,11 @@ function writeRootClaudeMd(
   tracks: ReadonlyArray<Track>,
   continuousSkills: ReadonlyArray<string>,
   harnessRoot: string,
-): { created: boolean; seededFrom: string | null } {
+  writer: InstallWriter,
+): { created: boolean; seededFrom: string | null } | null {
   const target = join(projectDir, "CLAUDE.md");
+  // #678 — 링크 너머가 프로젝트 밖이면 import 줄도 얹지 않는다(화면은 writer 의 `outside` 가 말한다).
+  if (writer.skipOutside(target)) return null;
   const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
   // #528 — 파일을 **새로 만들 때만** `AGENTS.md` 의 설치자 절을 옮겨 심는다. 이미 있으면 그
   // 본문이 이기고(우리는 마커 블록만 책임진다), 그때는 옮길 자리 자체가 없다.
@@ -1146,8 +1164,10 @@ function writeRootClaudeMd(
   return { created: existing === null, seededFrom: seeded === null ? null : "AGENTS.md" };
 }
 
-function chmodHooksSync(hookDir: string): void {
+function chmodHooksSync(hookDir: string, projectDir: string): void {
   for (const file of listHookFiles(hookDir)) {
+    // #678 — 실체가 프로젝트 밖이면 모드도 바꾸지 않는다(쓰지 않은 자리는 writer 가 이미 알렸다).
+    if (outsideProjectTarget(projectDir, file) !== null) continue;
     try {
       chmodSync(file, 0o755);
     } catch {
