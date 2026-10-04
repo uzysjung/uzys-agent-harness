@@ -88,6 +88,7 @@ import {
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
+import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
 import {
   createOutsideGuard,
   mergeOutside,
@@ -96,11 +97,13 @@ import {
 } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds, recorded } from "./recorded.js";
+import { claudeRecorded, claudeTargets, memoTargets } from "./track-heal.js";
 import { anyTrack } from "./track-match.js";
 import {
   type CliBase,
   DEFAULT_OPTIONS,
   type InstallSpec,
+  isTrack,
   TRACKS,
   type Track,
   UPDATE_GROUPS,
@@ -293,6 +296,12 @@ export interface UpdateModeReport {
    */
   installedNew: string[];
   /**
+   * #585 후속 — 트랙이 쌓인 뒤 이번에 이 CLI 자리에 **처음** 깐 기록 트랙의 몫(projectDir 상대 · 그 몫을 가져온 기록 트랙).
+   * 릴리즈가 더한 것(`installedNew`)과 원인이 다르다: 그 트랙은 다른 CLI 로만 깔렸고 기록이 트랙을 CLI 마다 나누지 않으므로
+   * update 가 이 CLI 에도 깐다. 판정 = `splitTrackFilled`. optional = 부재는 "없음".
+   */
+  installedForTracks?: Array<{ path: string; tracks: Track[] }>;
+  /**
    * **전에 깔아 줬는데 디스크에 없어서 다시 깐** 자산 (projectDir 상대경로).
    *
    * `installedNew` 와 가르는 이유는 원인이 다르기 때문이다 — 이쪽은 사용자가 지웠거나 유실된
@@ -344,6 +353,11 @@ export interface UpdateModeReport {
     how?: string;
     ids?: ReadonlyArray<string>;
   }>;
+  /**
+   * #677 — 기록에 하네스 몫으로 있지만 기록 트랙의 렌더 밖인 Antigravity 룰을 치웠다(고친 것은 그 파일 하나를 백업).
+   * optional = 부재는 "치운 것 없음".
+   */
+  outOfTrack?: OutOfTrackReclaim;
   /**
    * ADR-089 (#445) — `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id.
    *
@@ -676,6 +690,12 @@ export function runUpdateMode(
         excludedKeys: [],
         sharedLeft: [],
       };
+  // 4.1) #677 — 기록에 있으나 기록 트랙의 렌더 밖인 Antigravity 룰을 치운다(바로 위 외부 갱신이 다시 쓴 기록을 읽는다).
+  if (wants("external")) {
+    const outOfTrack = reclaimOutOfTrackRecorded(projectDir, outside);
+    if (outOfTrack.removed.length + outOfTrack.backedUp.length + outOfTrack.kept.length > 0)
+      report.outOfTrack = outOfTrack;
+  }
   report.externalUpdated = external.externalUpdated;
   if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
   report.restoredKeys = external.restoredKeys;
@@ -697,6 +717,10 @@ export function runUpdateMode(
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
   report.installedNew.push(...external.skillsInstalled, ...external.rulesInstalled);
   report.restored.push(...external.skillsRestored, ...external.rulesRestored);
+  // #585 후속 — 새로 깐 것 중 "기록 트랙의 몫을 이 CLI 에도 깐 것" 을 릴리즈 신규와 가른다(화면만 — 까는 것은 같다).
+  const split = splitTrackFilled(report.installedNew, logAtStart);
+  report.installedNew = split.release;
+  if (split.filled.length > 0) report.installedForTracks = split.filled;
   // 되살림 목록이 여기서 완성된다(파일 자산 · Claude 스킬 · 공유 자리 스킬). 인자를 정하는 트랙은
   // 되살릴 것을 정한 그 출처(설치 기록)다 — 화면 머리글의 트랙과 섞지 않는다.
   report.restoredWithout = restoredWithoutArgs(report.restored, installedTracks(projectDir));
@@ -761,6 +785,109 @@ export function runUpdateMode(
   if (noChecksum.length > 0) report.noChecksum = noChecksum;
   writeBackupList(projectDir, report.backups, new Set(noChecksum));
   return report;
+}
+
+/**
+ * #585 후속 — 이번에 새로 깐 것(`installedNew`) 가운데 **기록 트랙의 몫을 이 CLI 자리에 처음 깐 것**을 가른다.
+ *
+ * 기록은 트랙을 CLI 마다 나누지 않는다. 그래서 `install --track tooling`(claude) 뒤 `install --track data --cli codex` 를
+ * 하면 update 가 claude 자리에도 data 의 몫(`data-analyst.md` 등)을 깐다. 그것을 "added by this release" 라 부르면 거짓이다.
+ *
+ * 판정은 기록(실행 전 이 CLI 자리 경로)과 렌더(트랙별 대상)만 쓴다. 자리 F 를 가져오는 기록 트랙을 `by`, 나머지를 `others` 라
+ * 하면 — 이 자리에 트랙 몫이 깔린 흔적(공통 아닌 트랙 대상)은 있는데, `by` 만 가져오고 `others` 는 안 가져오는 기록 경로가 없을 때
+ * F 는 `by` 의 몫을 처음 깐 것이다. 그 밖(공통 자산 · `by` 의 흔적이 있음 · 흔적이 아예 없음 — 체크섬 이전 판)은 릴리즈 신규로 둔다.
+ * 기록 트랙이 하나면 `others` 가 비어 흔적이 곧 `by` 의 흔적이므로 늘 릴리즈 신규다.
+ */
+function splitTrackFilled(
+  installed: ReadonlyArray<string>,
+  log: InstallLog | null,
+): { release: string[]; filled: Array<{ path: string; tracks: Track[] }> } {
+  const release: string[] = [];
+  const filled: Array<{ path: string; tracks: Track[] }> = [];
+  const tracks = log === null ? [] : log.spec.tracks.filter(isTrack);
+  for (const path of installed) {
+    const slot = trackSlotOf(path, log);
+    const by = slot === null ? [] : fillingTracks(path, tracks, slot);
+    if (by.length > 0) filled.push({ path, tracks: by });
+    else release.push(path);
+  }
+  return { release, filled };
+}
+
+/** 한 CLI 자리 — 트랙이 그 자리에 가져오는 대상(렌더)과 실행 전 기록의 그 자리 경로. */
+interface TrackSlot {
+  targetsOf: (tracks: ReadonlyArray<Track>) => ReadonlySet<string>;
+  recorded: ReadonlySet<string>;
+}
+
+function fillingTracks(path: string, tracks: ReadonlyArray<Track>, slot: TrackSlot): Track[] {
+  const common = slot.targetsOf([]);
+  if (common.has(path)) return [];
+  const brings = (ts: ReadonlyArray<Track>, g: string): boolean =>
+    ts.some((t) => slot.targetsOf([t]).has(g));
+  // 이 자리에 트랙 몫이 깔린 흔적 — 실행 전 기록 중 공통 아닌 트랙 대상. 없으면(체크섬 이전 판 등) 말할 근거가 없다
+  const laid = [...slot.recorded].filter((g) => !common.has(g) && brings(tracks, g));
+  if (laid.length === 0) return [];
+  const by = tracks.filter((t) => slot.targetsOf([t]).has(path));
+  const others = tracks.filter((t) => !by.includes(t));
+  // F 를 가져오는 트랙들이 이 자리에 깔린 흔적 — 그 트랙들만 가져오는(나머지 기록 트랙은 안 가져오는) 기록 경로
+  const byLaid = laid.some((g) => brings(by, g) && !brings(others, g));
+  return byLaid ? [] : by;
+}
+
+const agentsRuleTargets = memoTargets((tracks) =>
+  resolveRules({ tracks }).map((r) => `.agents/rules/${r}.md`),
+);
+const sharedSkillTargets = memoTargets((tracks) =>
+  [...claudeTargets(tracks)]
+    .filter((t) => t.startsWith(".claude/skills/"))
+    .map((t) => `${SHARED_SKILLS_DIR}/${t.slice(".claude/skills/".length)}`),
+);
+
+/** 경로가 속한 CLI 자리. 트랙이 가져오지 않는 자리면 null. */
+function trackSlotOf(path: string, log: InstallLog | null): TrackSlot | null {
+  if (log === null) return null;
+  if (path.startsWith(".claude/")) {
+    return { targetsOf: claudeTargets, recorded: claudeRecorded(log) };
+  }
+  const external = log.externalFiles ?? [];
+  if (path.startsWith(".agents/rules/")) {
+    return { targetsOf: agentsRuleTargets, recorded: new Set(external.map((f) => f.path)) };
+  }
+  if (path.startsWith(`${SHARED_SKILLS_DIR}/`)) {
+    const ids = external.flatMap((f) => SHARED_SKILL_FILE.exec(f.path)?.[1] ?? []);
+    return {
+      targetsOf: sharedSkillTargets,
+      recorded: new Set(ids.map((id) => `${SHARED_SKILLS_DIR}/${id}`)),
+    };
+  }
+  return null;
+}
+
+/** #677 — 기록 트랙 · 깔린 CLI 의 렌더 밖인 기록 항목을 치우고, 치운(또는 이미 없던) 경로를 `externalFiles` 에서 뺀다. */
+function reclaimOutOfTrackRecorded(projectDir: string, outside: OutsideGuard): OutOfTrackReclaim {
+  const log = readInstallLog(projectDir);
+  const result = reclaimOutOfTrack({
+    projectDir,
+    log,
+    tracks: installedTracks(projectDir),
+    clis: log === null ? [] : installedClis(log),
+    excluded: excludedIds(log),
+    outside,
+  });
+  if (log !== null && result.forget.length > 0) {
+    const forget = new Set(result.forget);
+    const next: InstallLog = { ...log };
+    const kept = (log.externalFiles ?? []).filter((f) => !forget.has(f.path));
+    if (kept.length > 0) next.externalFiles = kept;
+    else delete next.externalFiles;
+    try {
+      writeInstallLog(projectDir, next);
+    } catch {
+      // 기록 실패가 update 자체를 실패시키지는 않는다 (refreshExternalCli 와 같은 방침).
+    }
+  }
+  return result;
 }
 
 /**

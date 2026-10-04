@@ -44,6 +44,7 @@ import {
   type ProgressEvent,
 } from "../installer.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
+import type { OutOfTrackReclaim } from "../out-of-track.js";
 import type { OutsideLink } from "../outside-project.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
@@ -283,20 +284,30 @@ export function renderUpdateSummary(
         : unmeasured === backups.length
           ? " — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits"
           : ` — ${unmeasured} had no checksum on record (marked noChecksum in the list), so those may not be your edits`;
+    // 리뷰 NOTE N1 — 트랙 밖 회수(#677)의 백업은 바꾸기 전이 아니라 지우기 전에 남긴 것이다 — 따로 센다
+    const removedBefore = report.updateMode?.outOfTrack?.backedUp.length ?? 0;
+    const how =
+      removedBefore === 0
+        ? "saved before replacing"
+        : removedBefore === backups.length
+          ? "saved before removing"
+          : `saved before replacing (${removedBefore} before removing)`;
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} file(s) saved before replacing, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) ${how}, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
-    log(
-      infoRow(
-        "NEXT",
-        unmeasured === backups.length
-          ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
-          : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
-      ),
-    );
+    // 지우기 전 백업만 있으면 "새 판에 다시 얹으라" 할 새 판이 없다 — 되돌리는 길은 그 파일의 줄이 말했다
+    if (removedBefore < backups.length)
+      log(
+        infoRow(
+          "NEXT",
+          unmeasured === backups.length
+            ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
+            : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+        ),
+      );
   }
   log("");
 }
@@ -884,6 +895,16 @@ function renderPhase1Rows(
     for (const path of baseline.updateMode.installedNew) {
       log(assetRow("success", path, "added by this release"));
     }
+    // #585 후속 — 릴리즈가 더한 것이 아니다: 기록에 있는 트랙이 다른 CLI 로만 깔려 있었고 update 가 이 CLI 에도 깔았다
+    for (const f of baseline.updateMode.installedForTracks ?? []) {
+      log(
+        assetRow(
+          "success",
+          f.path,
+          `recorded track ${f.tracks.join(", ")} — installed for this CLI too (it was installed for another CLI)`,
+        ),
+      );
+    }
     // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
     // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
     // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.
@@ -926,6 +947,8 @@ function renderPhase1Rows(
     for (const f of baseline.updateMode.restoredFiles ?? []) {
       log(assetRow("success", f.path, restoredFilePart(f)));
     }
+    // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
+    for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
     // ADR-099 R2 — update 도 install 과 같은 writer 로 루트 · `.claude/` 의 함께 쓰는 파일 몫을 쓴다 — 같은 행으로 말한다
     for (const f of baseline.updateMode.sharedWrites ?? []) {
       const row = sharedFileRow(f);
@@ -1264,6 +1287,8 @@ function renderPhase1Rows(
   }
   // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리(링크 하나에 한 줄).
   for (const row of outsideLinkRows(baseline.outsideLinks ?? [])) log(row);
+  // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다(백업 경로는 그 줄이 댄다)
+  for (const row of outOfTrackRows(baseline.outOfTrack)) log(row);
   // 외부 CLI 산출물 · 링크 본문의 백업 — 판정 줄이 없는 쪽만(같은 백업을 두 번 말하지 않는다).
   if (baseline.backups) {
     for (const b of baseline.backups) {
@@ -1463,6 +1488,48 @@ export function judgedRow(j: JudgedWrite): string {
  * 설치자가 할 일(그 링크를 실파일·실폴더로 바꾸기)은 하나다. 대상 경로를 함께 댄다: 그 파일이 바이트 그대로라는 사실을
  * 설치자가 직접 확인할 자리다.
  */
+/**
+ * #677 — 기록 트랙 밖이라 치운 하네스 파일. 고친 파일은 그 파일 하나의 백업 경로를 댄다. "your tracks" 라 하지 않고 **기록된
+ * 트랙**을 밝힌다 — 옛 판이 덮어쓴 기록을 근거로 되살리지 못한 경우(claude 없이 깐 트랙)는 #677 본래 대상과 기록으로 가를 수
+ * 없어서, 그 트랙을 골랐던 설치자가 되돌리는 명령을 같은 줄에 붙인다(리뷰 B1).
+ */
+export function outOfTrackRows(r: OutOfTrackReclaim | undefined): string[] {
+  if (r === undefined) return [];
+  const recorded = r.recordedTracks.join(", ");
+  const back = (path: string): string => {
+    const [first, ...rest] = r.bringBack[path] ?? [];
+    if (first === undefined) return "";
+    const or = rest.length > 0 ? ` (or ${rest.join(", ")})` : "";
+    return ` · if you picked ${first}${or} for Antigravity, bring it back: agent-harness install --track ${first} --cli antigravity`;
+  };
+  return [
+    // 리뷰 B2 — 지우지 않고 남겼다(claude 사본이 기록에 있다). 기록 트랙 밖이라 갱신되지 않는다는 사실과 기록하는 명령을 말한다
+    ...r.kept.map((path) => {
+      const [first, ...rest] = r.bringBack[path] ?? [];
+      const or = rest.length > 0 ? ` (or ${rest.join(", ")})` : "";
+      const record =
+        first === undefined
+          ? ""
+          : ` · if you picked ${first}${or}, record it so this rule is refreshed: agent-harness install --track ${first} --cli antigravity`;
+      return assetRow(
+        "skip",
+        path,
+        `not in the recorded tracks (${recorded}) — kept: its Claude Code copy is in the install record${record}`,
+      );
+    }),
+    ...r.removed.map((path) =>
+      assetRow("success", path, `not in the recorded tracks (${recorded}) — removed${back(path)}`),
+    ),
+    ...r.backedUp.map((b) =>
+      assetRow(
+        "success",
+        b.path,
+        `not in the recorded tracks (${recorded}) — you edited it, saved as ${shortenPath(b.backup)}, removed${back(b.path)}`,
+      ),
+    ),
+  ];
+}
+
 export function outsideLinkRows(links: ReadonlyArray<OutsideLink>): string[] {
   const groups = new Map<string, OutsideLink[]>();
   for (const o of links) groups.set(o.link, [...(groups.get(o.link) ?? []), o]);
