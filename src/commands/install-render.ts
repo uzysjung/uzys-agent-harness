@@ -218,9 +218,15 @@ export function createInstallRenderer(
         }
       },
       onAssetResult: (result) => {
-        const meta = result.ok
+        const base = result.ok
           ? formatAssetMeta(result.asset, result.version)
           : (result.message ?? "failed");
+        // #678 — 일부 CLI 자리만 밖이라 그 자리는 부르지 않았다 — 깔린 자리만 말한다.
+        const outsideNote =
+          result.ok && result.outside?.length
+            ? ` · ${result.outside.map((o) => `${o.root}/ left as is (links outside the project: ${o.target})`).join(" · ")}`
+            : "";
+        const meta = `${base}${outsideNote}`;
         log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
       },
     },
@@ -573,7 +579,24 @@ export function renderFinalSummary(
   log("");
   const primary = (spec.cli.includes("claude") ? "claude" : spec.cli[0]) ?? "claude";
   const label = CLI_SUMMARY_LABELS[primary];
-  log(infoRow("NEXT", `Open ${c.bold(label)} — installed rules & skills are now active`));
+  // #678 — 실제로 쓴 것만 "켜졌다" 고 말한다. Claude 몫을 하나도 못 썼으면(폴더가 밖 링크) 켜진 것이 없다.
+  const outside = report.outsideLinks ?? [];
+  const cats = report.categories;
+  const claudeNothing =
+    primary === "claude" &&
+    outside.length > 0 &&
+    cats !== undefined &&
+    cats.rules.length + cats.skills.length + cats.agents.length + cats.hooks.length === 0;
+  log(
+    infoRow(
+      "NEXT",
+      claudeNothing
+        ? `No harness rules or skills were written for ${c.bold(label)} — their folder links outside the project (see ⊘ above)`
+        : outside.length > 0
+          ? `Open ${c.bold(label)} — installed rules & skills are now active · ${outside.length} file(s) left outside the project (see ⊘ above)`
+          : `Open ${c.bold(label)} — installed rules & skills are now active`,
+    ),
+  );
   // #567 · ADR-097 결정 2 — Codex 는 룰(`AGENTS.md`)·스킬은 바로 읽지만 `.codex/config.toml` 은 이 폴더를
   // 신뢰해야 켠다(실측 Codex 0.125.0: trust 전 `codex mcp list` = 서버 0 · sandbox 설정 무시). 그 한 번의
   // 확인은 Codex 가 첫 실행에서 직접 묻는다. 이번 실행이 trust 항목을 이미 등록했으면 말할 것이 없다.

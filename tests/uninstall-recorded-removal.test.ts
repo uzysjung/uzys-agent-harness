@@ -20,6 +20,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -213,8 +214,11 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
   });
 
   it("스킬 자리가 프로젝트 밖으로 이어지는 링크면 따라가지 않고 남김 + 경로", () => {
-    symlinkSync(outsideDir, join(projectDir, ".agents"), "dir");
+    // ADR-098 — install 은 밖에 쓰지 않으므로, 깐 뒤에 `.agents` 를 밖으로 옮겨 링크한 상태를 만든다(기록은 하네스 몫을 가리킨다).
     install(["codex"]);
+    rmSync(outsideDir, { recursive: true, force: true });
+    renameSync(join(projectDir, ".agents"), outsideDir);
+    symlinkSync(outsideDir, join(projectDir, ".agents"), "dir");
     expect(existsSync(join(outsideDir, "skills/frontend-design/SKILL.md"))).toBe(true);
 
     const run = uninstall({ only: "frontend-design" });

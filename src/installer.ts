@@ -306,6 +306,8 @@ export interface InstallReport {
   shared?: SharedWrite[];
   /** #678 — `BaselineReport.outsideLinks` 와 같다. */
   outsideLinks?: OutsideLink[];
+  /** #678 — `BaselineReport.categories` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). NEXT 줄이 실제로 깐 것을 센다. */
+  categories?: BaselineCategoryCounts;
   /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
   rootClaudeMd?: {
     tracks: ReadonlyArray<Track>;
@@ -813,6 +815,8 @@ function installClaudeBaseline(
       continue;
     }
     if (entry.type === "file") {
+      // #678 — 실체가 밖이라 쓰지 않을 자리는 세지 않는다(화면 범주 줄 · 개수는 실제로 쓴 것만).
+      if (writer.skipOutside(target)) continue;
       if (entry.target === SETTINGS_TARGET) {
         // 함께 쓰는 파일 — 훅 스크립트가 다 깔린 뒤 하네스 몫만 쓴다(아래).
         settingsSource = source;
@@ -824,14 +828,21 @@ function installClaudeBaseline(
       // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
       // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다.
       // dir 엔트리는 전부 `.claude/skills/<id>` 다(manifest.ts #409 — 스킬은 디렉터리 단위로만).
+      let leftOutside = 0;
       for (const rel of listFilesRecursive(source)) {
         const slot = foreignOwnedTarget(projectDir, `${entry.target}/${rel}`);
         if (slot !== null) {
           if (!result.foreignOwned.includes(slot)) result.foreignOwned.push(slot);
           continue;
         }
+        // #678 — 밖이라 건너뛴 파일이 하나라도 있으면 그 스킬은 다 깔리지 않았다 — "깔렸다" 로 세지 않는다.
+        if (writer.skipOutside(join(projectDir, entry.target, rel))) {
+          leftOutside += 1;
+          continue;
+        }
         writer.harness(`${entry.target}/${rel}`, { source: join(source, rel) });
       }
+      if (leftOutside > 0) continue;
       result.dirsCopied += 1;
     }
     accumulateCategory(result.categories, entry);

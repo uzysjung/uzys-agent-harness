@@ -24,12 +24,9 @@ export interface OutsideLink {
 
 /** 링크를 따라간 실체가 프로젝트 루트 밖인가 — realpath 기준(프로젝트 경로 자체가 링크여도 같은 잣대). */
 export function isOutsideProject(projectDir: string, target: string): boolean {
-  let root = projectDir;
-  try {
-    root = realpathSync(projectDir);
-  } catch {
-    /* 루트를 못 풀면 원 경로로 비교한다 */
-  }
+  // 루트도 대상과 같은 방식으로 푼다 — 아직 없는 프로젝트 경로(`/tmp/x` → `/private/tmp/x`)에서 대상만 풀리면 전부 "밖" 으로 읽힌다.
+  // 못 풀면 원 경로로 비교한다.
+  const root = resolveWriteTarget(projectDir) ?? projectDir;
   const rel = relative(root, target);
   return rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 }
