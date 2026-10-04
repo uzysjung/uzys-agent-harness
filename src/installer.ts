@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
@@ -385,6 +385,20 @@ export function runInstall(ctx: InstallContext): InstallReport {
     [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
     spec.userOverride?.forceInclude ?? [],
   );
+  // #614 — 읽을 수 없는 settings.json 은 함께 쓰는 파일이다: 하네스 몫을 얹을 수 없으니 건드리지 않고(`--reinstall`
+  // 포함 — #574 와 같은 원칙) 훅이 배선되지 않았다는 사실과 할 일을 알리며 비정상 종료한다. 아무것도 쓰기 전에 멈춘다.
+  if (spec.cli.includes("claude")) {
+    const settingsPath = join(projectDir, ".claude", "settings.json");
+    if (existsSync(settingsPath)) {
+      try {
+        JSON.parse(readFileSync(settingsPath, "utf8"));
+      } catch {
+        throw new Error(
+          `${relative(process.cwd(), settingsPath)} is not valid JSON — left untouched, so no hooks were wired. Fix or delete that file, then run the install again`,
+        );
+      }
+    }
+  }
   const writer = createInstallWriter({ projectDir, previousLog, excluded });
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.

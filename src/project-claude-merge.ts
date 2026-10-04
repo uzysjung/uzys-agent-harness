@@ -295,13 +295,39 @@ export function upsertHarnessImport(existing: string | null, opts: MergeOptions)
  * @returns 회수 후 내용. 마커가 없으면 `null` (= 우리가 건드린 적 없다 → 파일을 만지지 않는다).
  */
 export function stripHarnessImport(text: string): string | null {
-  const start = text.indexOf(IMPORT_MARKER_START);
-  if (start === -1) return null;
-  const endAt = text.indexOf(IMPORT_MARKER_END, start);
-  if (endAt === -1) return null;
-  const before = text.slice(0, start).replace(/\n+$/, "\n");
-  const after = text.slice(endAt + IMPORT_MARKER_END.length).replace(/^\n+/, "");
-  return `${before}${after}`;
+  // #628 — 마커가 한쪽이라도 있으면 우리가 넣은 블록이 손상된 것이다 — 정리 대상.
+  // 양쪽 다 없는 파일만 "우리가 건드린 적 없다"(기존 계약: 건드리지 않는다).
+  if (!text.includes(IMPORT_MARKER_START) && !text.includes(IMPORT_MARKER_END)) return null;
+  const endsWithNewline = text.endsWith("\n");
+  const out: string[] = [];
+  const lines = text.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    if (line.includes(IMPORT_MARKER_START)) {
+      // 블록 끝까지 통째로 — 끝 마커가 없으면(끊어진 블록) 시작 줄만 걷고 아래 스캔이
+      // 남은 import 줄·고아 end 마커를 정리한다(#628: 앵커는 지워지므로 참조가 남으면 안 된다).
+      let j = i;
+      while (j < lines.length && !(lines[j] ?? "").includes(IMPORT_MARKER_END)) j++;
+      i = j < lines.length ? j + 1 : i + 1;
+      // #620 — 설치가 블록 **앞에** 넣은 빈 줄 하나만 되돌린다. 사용자의 원래 빈 줄을
+      // 지우지 않는다(이전 구현은 \n+ 를 통째로 접어 인접 빈 줄을 흡수했다).
+      if (out.length > 0 && out[out.length - 1] === "") out.pop();
+      continue;
+    }
+    if (line.includes(IMPORT_MARKER_END) || line.trim() === HARNESS_IMPORT_LINE) {
+      // 고아 end 마커 · 마커 밖의 중복 import 줄(#628 복제 블록의 잔여)
+      i++;
+      continue;
+    }
+    out.push(line);
+    i++;
+  }
+  // #620 — 파일 끝 개행 상태를 보존한다(강제로 붙이거나 떼지 않는다).
+  let result = out.join("\n");
+  if (endsWithNewline && result !== "" && !result.endsWith("\n")) result += "\n";
+  if (!endsWithNewline && result.endsWith("\n")) result = result.slice(0, -1);
+  return result === text ? null : result;
 }
 
 /**
