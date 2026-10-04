@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,7 +16,8 @@ import { type InstallReport, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { resolveRules } from "../src/manifest.js";
 import { residentCostFor } from "../src/resident-entries.js";
-import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
+import { DEFAULT_OPTIONS, type InstallSpec, type Track, type UpdateGroup } from "../src/types.js";
+import { buildUpdateSpec, runUpdateMode } from "../src/update-mode.js";
 
 /**
  * #615 — 설치 화면의 상주 비용 줄은 **이번에 실제로 깔린(그 CLI 가 읽는) 파일**을 센다.
@@ -188,5 +198,40 @@ describe("update 화면(CONTEXT 행)도 같은 판정이다", () => {
     const names = resolveRules({ tracks: ["tooling"] }).map((r) => `baseline:rules/${r}`);
     const { spec } = install("tooling", ["claude"], names);
     expect(contextRow(spec)).toContain("rules 0 ~0");
+  });
+});
+
+describe("사례 4 — update 의 CONTEXT 행은 갱신 뒤 디스크를 잰다", () => {
+  const tok = (p: string): number =>
+    existsSync(p) ? Math.ceil(readFileSync(p, "utf8").trim().length / 4) : 0;
+  const update = (projectDir: string, only?: UpdateGroup[]): string => {
+    runUpdateMode(projectDir, join(ROOT, "templates"), ROOT, {}, only);
+    const lines: string[] = [];
+    renderUpdateSummary(
+      (m) => lines.push(m),
+      buildUpdateSpec(projectDir, ["tooling"], only),
+      {} as InstallReport,
+    );
+    return /session-start context cost: [^\n]*/.exec(lines.join("\n"))?.[0] ?? "";
+  };
+
+  it("설치자가 키운 루트 CLAUDE.md 본문이 숫자에 들어간다", () => {
+    const { projectDir } = install("tooling", ["claude"]);
+    appendFileSync(join(projectDir, "CLAUDE.md"), `\n${"프로젝트 메모 ".repeat(1200)}\n`);
+    const expected =
+      tok(join(projectDir, "CLAUDE.md")) + tok(join(projectDir, "CLAUDE-uzys-harness.md"));
+    expect(update(projectDir)).toContain(`CLAUDE.md 2 ~${expected}]`);
+  });
+
+  it("기록된 빼기 + 손대지 않은 묶음: 룰 수·토큰이 디스크의 .claude/rules 와 같다", () => {
+    const [first] = resolveRules({ tracks: ["tooling"] }).map((r) => `baseline:rules/${r}`);
+    const { projectDir } = install("tooling", ["claude"], [first ?? ""]);
+    const rulesDir = join(projectDir, ".claude", "rules");
+    // 고른 묶음 밖(rules)이라 update 가 되돌리지 않는 설치자 편집 — 디스크가 템플릿과 다르다.
+    const [edited] = readdirSync(rulesDir);
+    appendFileSync(join(rulesDir, edited ?? ""), `\n${"추가 지시 ".repeat(400)}\n`);
+    const files = readdirSync(rulesDir).filter((n) => n.endsWith(".md"));
+    const tokens = files.reduce((s, n) => s + tok(join(rulesDir, n)), 0);
+    expect(update(projectDir, ["hooks"])).toContain(`rules ${files.length} ~${tokens} `);
   });
 });

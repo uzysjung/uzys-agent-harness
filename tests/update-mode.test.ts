@@ -789,6 +789,13 @@ describe("runUpdateMode (E2E with templates)", () => {
     expect(report.legacyAnchor).toBeNull();
   });
 
+  it("앵커 바이트가 이미 템플릿과 같으면 refreshed 로 보고하지 않는다 (#615 사례 4)", () => {
+    writeFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "template-CLAUDE\n");
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+    expect(report.claudeMdUpdated).toBe(false);
+    expect(report.anchorCreated).toBe(false);
+  });
+
   /** #480 ③ — 백업 목록: 화면 마지막 줄과 json 이 audit-harness-fit 에 넘길 증거다. */
   describe("백업 목록 (#480 ③)", () => {
     const listFile = (): string => join(projectDir, ".uzys-agent-harness/update-backups.json");

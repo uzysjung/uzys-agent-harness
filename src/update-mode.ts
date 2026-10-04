@@ -120,7 +120,7 @@ export interface UpdateModeReport {
   pruned: Record<string, string[]>;
   /** 제거된 stale hook ref 파일명 목록. */
   staleHookRefs: string[];
-  /** 갱신된 CLAUDE.md (true if updated). */
+  /** 앵커를 템플릿으로 **실제로 다시 썼다** — 바이트가 이미 같았으면 false (#615 사례 4). */
   claudeMdUpdated: boolean;
   /**
    * #480 ③ — 이번 update 가 남긴 백업 쌍(원본 ↔ `*.backup-<time>`, projectDir 상대경로). 화면
@@ -1233,8 +1233,9 @@ function syncHarnessAnchor(
         report.anchorBackedUp = true;
       }
       copyFileSync(templateMd, anchor);
+      // #615 사례 4 — 실제로 쓴 경우만 "refreshed" 다. 바이트가 같으면 아무 말도 하지 않는다.
+      report.claudeMdUpdated = true;
     }
-    report.claudeMdUpdated = true;
     // 갱신 뒤 기준선도 다시 찍는다 — 안 찍으면 다음 update 가 방금 놓은 최신판을 "사용자가
     // 고쳤다"로 읽어 매번 백업한다(전에는 생성 때 한 번만 기록했다).
     recordAnchorBaseline(projectDir, anchor);
