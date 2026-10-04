@@ -190,6 +190,8 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, upserted.text);
   }
+  // #600 — 몫은 쓴 자리에서 적는다. 변환이 뒤에서 던져도 이 몫은 기록에 남아 재실행 · uninstall 이 알아본다
+  writer.journal?.portions(path, portions, deleted);
   const action: SharedAction =
     onDisk === null ? "created" : upserted.text !== onDisk ? "updated" : "unchanged";
   // 구간·블록 이름은 하네스만 쓴다 — 렌더의 키가 그대로 kept 로 나왔으면 설치자 값이 아니라 남겨 둔 하네스 몫이다.
