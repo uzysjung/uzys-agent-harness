@@ -107,7 +107,11 @@ export interface CliTransformParams {
    * 이 저널로 그때까지 쓴 것을 기록한다. `done` 은 변환 하나가 **끝까지** 돈 CLI — 끝나지 않은 CLI 는 기록에
    * 깔린 CLI 로 적지 않는다(그 디렉터리를 하네스 것으로 주장하지 않는다).
    */
-  journal?: WriteJournal & { done(cli: CliBase): void };
+  journal?: WriteJournal & {
+    done(cli: CliBase): void;
+    /** 홈 Codex 설정에 trust 항목을 넣으려 한 결과 — 하네스가 실제로 넣었으면(`registered`) 중단 기록에도 남긴다. */
+    trust(report: CodexOptInReport): void;
+  };
 }
 
 /**
@@ -217,6 +221,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     // 안 줬으면 Codex 가 첫 실행에서 직접 묻는다("Trust and continue") — 설치 화면 NEXT 가 그걸 안내한다.
     if (codexTrust) {
       codexOptIn = runCodexOptIn({ projectDir });
+      journal?.trust(codexOptIn);
     }
     journal?.done("codex");
   }

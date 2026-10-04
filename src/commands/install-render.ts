@@ -1405,14 +1405,27 @@ export function renderInterruptedInstall(
   e: InstallInterruptedError,
   cwd: string = process.cwd(),
 ): void {
+  const replaced = e.backups.filter((b) => b.replaced);
+  // 백업 직후 쓰기가 실패한 자리 — 원본은 그대로이고 백업은 사본일 뿐이다. "replaced" 라고 하면 거짓이다.
+  const untouched = e.backups.filter((b) => !b.replaced);
+  const untouchedLines = (): void => {
+    if (untouched.length === 0) return;
+    err("  Backed up but not replaced — the original is unchanged:");
+    for (const b of untouched) err(`    ${b.original} (copy: ${b.copy})`);
+  };
   if (e.written.length === 0) {
-    err("  Nothing was written. Fix the cause above, then run the same install again.");
+    err(
+      untouched.length === 0
+        ? "  Nothing was written. Fix the cause above, then run the same install again."
+        : "  Nothing was installed. Fix the cause above, then run the same install again.",
+    );
+    untouchedLines();
     return;
   }
   const groups = new Map<string, number>();
   for (const path of e.written) {
     const slash = path.indexOf("/");
-    const key = slash > 0 && !path.endsWith(" (harness part)") ? path.slice(0, slash + 1) : path;
+    const key = slash > 0 && !path.endsWith(")") ? path.slice(0, slash + 1) : path;
     groups.set(key, (groups.get(key) ?? 0) + 1);
   }
   const { path, error } = e.record;
@@ -1424,13 +1437,19 @@ export function renderInterruptedInstall(
   for (const [key, n] of groups) {
     err(`    ${key.endsWith("/") ? `${key} (${n} file${n === 1 ? "" : "s"})` : key}`);
   }
-  if (e.backups.length > 0) {
+  if (replaced.length > 0) {
     err("  Your files it replaced were backed up first:");
-    for (const b of e.backups) err(`    ${b}`);
+    for (const b of replaced) err(`    ${b.copy}`);
   }
+  untouchedLines();
   if (path !== null) {
     err("  Fix the cause above, then either run the same install again to finish,");
-    err("  or remove what was written: agent-harness uninstall");
+    // 옛 설치 위에서 멈췄으면 uninstall 은 이번 몫만이 아니라 설치 전체(앞 실행분 포함)를 뺀다
+    err(
+      e.hadInstall
+        ? "  or remove the whole harness install (earlier runs included): agent-harness uninstall"
+        : "  or remove what was written: agent-harness uninstall",
+    );
   } else {
     err(
       `  ${c.yellow(`Could not record them (${error ?? "unknown error"}) — uninstall will not find them.`)}`,

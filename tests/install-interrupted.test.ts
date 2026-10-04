@@ -31,26 +31,28 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
   let projectDir: string;
 
-  const spec = (): InstallSpec => ({
+  const spec = (over: Partial<InstallSpec> = {}): InstallSpec => ({
     tracks: ["base"],
     options: { withCodexTrust: false },
     cli: ["claude", "codex"],
     projectDir,
+    ...over,
   });
-  const install = (): void => {
-    runInstall({ runExternal: null, harnessRoot: HARNESS_ROOT, projectDir, spec: spec() });
+  const install = (over: Partial<InstallSpec> = {}): void => {
+    runInstall({ runExternal: null, harnessRoot: HARNESS_ROOT, projectDir, spec: spec(over) });
   };
   /** 멈춘 install 을 돌린다. 판정은 각 테스트가 한다 — 여기서 타입을 단언하면 뒤 단언이 무는지 가려진다. */
-  const interrupted = (): InstallInterruptedError => {
+  const interrupted = (over: Partial<InstallSpec> = {}): InstallInterruptedError => {
     try {
-      install();
+      install(over);
     } catch (e) {
       return e as InstallInterruptedError;
     }
     throw new Error("픽스처 자기검증 실패 — install 이 멈추지 않았다");
   };
-  const uninstall = (): { code: number | null; errors: string[] } => {
+  const uninstall = (): { code: number | null; errors: string[]; out: string[] } => {
     const errors: string[] = [];
+    const out: string[] = [];
     let code: number | null = null;
     uninstallAction(
       { projectDir, yes: true },
@@ -59,12 +61,12 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
           code ??= c;
           return undefined as never;
         },
-        log: () => {},
+        log: (l: string) => out.push(l),
         err: (l: string) => errors.push(l),
         resolveHarnessRoot: () => HARNESS_ROOT,
       },
     );
-    return { code, errors };
+    return { code, errors, out };
   };
   const backups = (): string[] => listFilesRecursive(projectDir).filter((p) => /\.backup-/.test(p));
 
@@ -179,9 +181,9 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
   });
 
   describe("화면", () => {
-    const run = (): string[] => {
+    const run = (over: Partial<InstallSpec> = {}): string[] => {
       const errs: string[] = [];
-      executeSpec(spec(), {
+      executeSpec(spec(over), {
         log: () => {},
         err: (l) => errs.push(l),
         exit: () => undefined as never,
@@ -241,6 +243,167 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       });
       expect(lines.join("\n")).toMatch(
         /could not record this install \(EACCES: permission denied\) — uninstall and update will not see it/,
+      );
+    });
+  });
+
+  // PR #691 리뷰 HIGH-2 — 옛 설치 위에서 멈춘 경우. 이번 실행이 안 다시 쓴 옛 기록 항목이 중단 기록에서 사라지면
+  // 앞 설치분이 기록 밖으로 떨어진다(uninstall 이 못 걷는다).
+  describe("옛 설치 위에서 멈춘 install", () => {
+    it("앞 설치의 기록이 중단 뒤에도 그대로 남고, 화면은 uninstall 이 설치 전체를 뺀다고 말한다", () => {
+      install({ cli: ["claude"] });
+      const before = readInstallLog(projectDir);
+      expect(before?.policyFiles?.length ?? 0).toBeGreaterThan(0);
+      mkdirSync(join(projectDir, ".agents"));
+      writeFileSync(join(projectDir, ".agents/skills"), "mine\n");
+      const e = interrupted({ cli: ["codex"] });
+      expect(e).toBeInstanceOf(InstallInterruptedError);
+      const after = readInstallLog(projectDir);
+      // 이번 실행(codex 만)은 `.claude/` 를 다시 쓰지 않았다 — 남아 있으면 옛 기록에서 이어받은 것이다
+      expect(after?.policyFiles).toEqual(before?.policyFiles);
+      expect(after?.skillFiles).toEqual(before?.skillFiles);
+      expect(after?.templates.claudeDir).toBe(".claude/");
+      expect(after?.spec.clis).toEqual(["claude"]);
+      expect(after?.externalFiles?.map((f) => f.path)).toEqual(
+        expect.arrayContaining([...(before?.externalFiles ?? []).map((f) => f.path), "AGENTS.md"]),
+      );
+    });
+
+    it("화면: 옛 설치가 있었으면 uninstall 안내가 설치 전체를 뺀다고 분명히 한다", () => {
+      install({ cli: ["claude"] });
+      mkdirSync(join(projectDir, ".agents"));
+      writeFileSync(join(projectDir, ".agents/skills"), "mine\n");
+      const errs: string[] = [];
+      executeSpec(spec({ cli: ["codex"] }), {
+        log: () => {},
+        err: (l) => errs.push(l),
+        exit: () => undefined as never,
+        resolveHarnessRoot: () => HARNESS_ROOT,
+        runPipeline: (sp, root) =>
+          runInstall({ runExternal: null, harnessRoot: root, projectDir: sp.projectDir, spec: sp }),
+      });
+      const out = errs.join("\n");
+      expect(out).toMatch(
+        /remove the whole harness install \(earlier runs included\): agent-harness uninstall/,
+      );
+      expect(out).not.toMatch(/remove what was written/);
+    });
+  });
+
+  // PR #691 리뷰 M9 — `.claude/` 에 하네스 파일을 하나도 못 쓰고 멈췄으면 claude 를 깔린 CLI 로 적지 않는다.
+  // 적으면 uninstall 이 하네스가 한 파일도 안 쓴 설치자 `.claude/` 를 통째로 옮긴다.
+  it("`.claude/` 에 아무것도 못 쓰고 멈추면 claude 를 깔린 CLI 로 적지 않는다", () => {
+    // 룰을 전부 빼면 첫 쓰기는 앵커 · 헬퍼(`.claude/` 밖)이고, 그다음 에이전트 자리에서 멈춘다
+    mkdirSync(join(projectDir, ".claude/agents/reviewer.md"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/agents/reviewer.md/mine.txt"), "mine\n");
+    const rules = [
+      "change-management",
+      "doc-governance",
+      "git-policy",
+      "ship-checklist",
+      "test-policy",
+    ];
+    const e = interrupted({
+      cli: ["claude"],
+      baselineExclude: rules.map((r) => `baseline:rules/${r}`),
+    });
+    expect(e).toBeInstanceOf(InstallInterruptedError);
+    expect(e.written.some((p) => p.startsWith(".uzys-agent-harness/"))).toBe(true);
+    const log = readInstallLog(projectDir);
+    expect(log?.templates.claudeDir).toBeUndefined();
+    expect(log?.spec.clis ?? []).not.toContain("claude");
+  });
+
+  // PR #691 리뷰 HIGH-1 — `--with-codex-trust` 로 홈 파일에 넣은 trust 항목도 하네스가 쓴 것이다.
+  describe("홈 Codex trust 항목을 넣은 뒤 멈춘 install", () => {
+    let home: string;
+    let prevHome: string | undefined;
+    beforeEach(() => {
+      prevHome = process.env.HOME;
+      home = mkdtempSync(join(tmpdir(), "interrupted600-home-"));
+      process.env.HOME = home;
+      // opencode 변환이 codex(trust 등록) 뒤에 돈다 — 그 자리를 디렉터리로 막아 root 와 무관하게 멈춘다
+      mkdirSync(join(projectDir, "opencode.json"));
+    });
+    afterEach(() => {
+      if (prevHome === undefined) Reflect.deleteProperty(process.env, "HOME");
+      else process.env.HOME = prevHome;
+      rmSync(home, { recursive: true, force: true });
+    });
+    const trustSpec = (): Partial<InstallSpec> => ({
+      cli: ["codex", "opencode"],
+      options: { withCodexTrust: true },
+    });
+
+    it("기록 · 화면 · uninstall 안내에 그 항목이 있고, 재실행 뒤에도 하네스 몫으로 남는다", () => {
+      const e = interrupted(trustSpec());
+      expect(e).toBeInstanceOf(InstallInterruptedError);
+      const configPath = join(home, ".codex/config.toml");
+      expect(readFileSync(configPath, "utf8")).toContain(`[projects."${projectDir}"]`);
+      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir });
+      expect(e.written).toContain(`${configPath} (Codex trust entry for this folder)`);
+
+      // 원인을 치우고 다시 돌리면 opt-in 은 "already present" 다 — 기록은 앞 실행의 것을 이어받아야 한다
+      rmSync(join(projectDir, "opencode.json"), { recursive: true });
+      install(trustSpec());
+      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir });
+      const { out } = uninstall();
+      expect(out.join("\n")).toMatch(/Codex trust entry — remove by hand/);
+    });
+
+    it("이미 있던 항목은 설치자 몫이다 — 중단 기록에 적지 않는다", () => {
+      mkdirSync(join(home, ".codex"));
+      writeFileSync(
+        join(home, ".codex/config.toml"),
+        `[projects."${projectDir}"]\ntrust_level = "trusted"\n`,
+      );
+      interrupted(trustSpec());
+      expect(readInstallLog(projectDir)?.codexTrust).toBeUndefined();
+    });
+  });
+
+  // PR #691 리뷰 MEDIUM-1 — 백업을 만든 직후 쓰기가 실패하면 원본은 그대로다. "replaced" 라고 하면 거짓이다.
+  describe.skipIf(process.getuid?.() === 0)("백업 뒤 쓰기가 실패한 설치자 파일", () => {
+    const readOnlyRule = (name: string): void => {
+      mkdirSync(join(projectDir, ".claude/rules"), { recursive: true });
+      writeFileSync(join(projectDir, `.claude/rules/${name}.md`), "# mine\n");
+      chmodSync(join(projectDir, `.claude/rules/${name}.md`), 0o444);
+    };
+    const screen = (): string => {
+      const errs: string[] = [];
+      executeSpec(spec({ cli: ["claude"] }), {
+        log: () => {},
+        err: (l) => errs.push(l),
+        exit: () => undefined as never,
+        resolveHarnessRoot: () => HARNESS_ROOT,
+        runPipeline: (sp, root) =>
+          runInstall({ runExternal: null, harnessRoot: root, projectDir: sp.projectDir, spec: sp }),
+      });
+      return errs.join("\n");
+    };
+
+    it("첫 쓰기에서 멈추면 '아무것도 안 깔렸다' 와 함께 원본이 그대로이고 사본이 어디 있는지 말한다", () => {
+      readOnlyRule("change-management");
+      const out = screen();
+      expect(out).toMatch(/Nothing was installed\./);
+      expect(out).toMatch(
+        /Backed up but not replaced — the original is unchanged:\n {4}\.claude\/rules\/change-management\.md \(copy: \.claude\/rules\/change-management\.md\.backup-\S+\)/,
+      );
+      expect(readFileSync(join(projectDir, ".claude/rules/change-management.md"), "utf8")).toBe(
+        "# mine\n",
+      );
+    });
+
+    it("중간에서 멈추면 그 파일을 'replaced' 로 말하지 않는다", () => {
+      readOnlyRule("git-policy");
+      const out = screen();
+      expect(out).toMatch(/Already in place before it stopped/);
+      expect(out).not.toMatch(/Your files it replaced/);
+      expect(out).toMatch(
+        / {4}\.claude\/rules\/git-policy\.md \(copy: \.claude\/rules\/git-policy\.md\.backup-\S+\)/,
+      );
+      expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe(
+        "# mine\n",
       );
     });
   });

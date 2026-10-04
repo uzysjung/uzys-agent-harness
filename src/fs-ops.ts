@@ -224,6 +224,15 @@ export function backupFile(target: string, now: Date = new Date()): string {
 }
 
 /**
+ * #600 — `backupFile` 이 만든 이름에서 원본 경로를 되찾는다(`<file>.backup-<stamp>[-n]`). 이름 규칙을 아는 곳이
+ * 이 파일 하나라 여기 둔다. 그 모양이 아니면 `null`.
+ */
+export function backupOriginal(backupPath: string): string | null {
+  const m = /^(.+)\.backup-\d{8}T\d{6}(?:-\d+)?$/.exec(backupPath);
+  return m?.[1] ?? null;
+}
+
+/**
  * `dir` 아래 모든 파일의 상대 경로 (디렉터리 자체는 제외). 순서는 readdir 순.
  *
  * `readdirSync(dir, { recursive: true })` 를 안 쓰는 이유: 그 옵션은 Node 20.1.0 에 들어왔는데

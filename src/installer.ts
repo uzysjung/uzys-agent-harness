@@ -18,6 +18,7 @@ import {
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import {
   backupIfLossyUtf8,
+  backupOriginal,
   copyBackupDir,
   ensureProjectSkeleton,
   listFilesRecursive,
@@ -409,8 +410,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
   }
   const writer = createInstallWriter({ projectDir, previousLog, excluded });
   // #600 — 아래 어디서 던지든(EACCES · EISDIR · ENOTDIR …) 그때까지 쓴 하네스 몫을 기록에 남기고 화면에 알린다.
-  // 기록은 원래 맨 끝에만 쓰여, 중간에 멈추면 파일은 있는데 기록이 없는 상태가 남았다 — 재실행은 그 파일을 설치자
-  // 것으로 읽어 하나하나 백업하고, `uninstall` 은 "Nothing to uninstall" 로 거절했다.
+  // 기록은 원래 맨 끝에만 쓰여, 중간에 멈추면 파일은 있는데 기록이 없는 상태가 남았다 — `uninstall` 은 "Nothing to
+  // uninstall" 로 거절했고, 원인을 고쳐 다시 깔아도 멈춘 실행이 **만든** 파일(`.mcp.json` 등)은 설치자 것으로 읽혀
+  // 나중 uninstall 이 걷지 못했다.
   const journal = createInterruptJournal();
   const stage: InstallStage = {
     ciScaffold: null,
@@ -1074,12 +1076,23 @@ export class InstallInterruptedError extends Error {
     readonly written: ReadonlyArray<string>,
     /** 기록 결과 — 남겼으면 그 경로, 못 남겼으면 이유. 쓴 것이 없어 남길 것이 없었으면 둘 다 `null`. */
     readonly record: { path: string | null; error: string | null },
-    /** 멈추기 전에 설치자 파일을 덮으며 남긴 백업 — project 상대 경로. */
-    readonly backups: ReadonlyArray<string> = [],
+    /**
+     * 멈추기 전에 설치자 파일을 덮으려고 남긴 백업 — project 상대 경로. `replaced` = 그 뒤 원본 자리를 하네스 판으로
+     * 실제로 바꿨나. 백업 직후 쓰기가 실패하면 원본은 그대로이고 백업은 사본일 뿐이다(화면이 그렇게 말한다).
+     */
+    readonly backups: ReadonlyArray<InterruptedBackup> = [],
+    /** 이 실행 전에 이미 설치 기록이 있었나 — 그러면 `uninstall` 은 이번 몫이 아니라 설치 전체를 뺀다. */
+    readonly hadInstall = false,
   ) {
     super(message);
     this.name = "InstallInterruptedError";
   }
+}
+
+export interface InterruptedBackup {
+  original: string;
+  copy: string;
+  replaced: boolean;
 }
 
 /** #600 — 세 변환 · 링크 본문이 쓰는 즉시 받아 적는 저널(`owned-write` `WriteJournal`) + 끝까지 돈 CLI. */
@@ -1092,7 +1105,10 @@ interface InterruptJournal {
   ): void;
   backup(absPath: string): void;
   done(cli: CliBase): void;
+  trust(report: CodexOptInReport): void;
   readonly backups: string[];
+  /** 홈 Codex 설정 trust 항목 결과 — `--with-codex-trust` 로 opt-in 이 돈 경우만. */
+  codexOptIn: CodexOptInReport | null;
   readonly files: Map<string, string>;
   readonly shared: Map<string, { portions: InstallLogPortion[]; deleted: string[] }>;
   readonly completed: Set<CliBase>;
@@ -1103,17 +1119,22 @@ function createInterruptJournal(): InterruptJournal {
   const shared = new Map<string, { portions: InstallLogPortion[]; deleted: string[] }>();
   const completed = new Set<CliBase>();
   const backups: string[] = [];
-  return {
+  const journal: InterruptJournal = {
     files,
     shared,
     completed,
     backups,
+    codexOptIn: null,
+    trust: (report) => {
+      journal.codexOptIn = report;
+    },
     backup: (absPath) => backups.push(absPath),
     file: (f) => files.set(f.path, f.sha256),
     portions: (path, portions, deleted) =>
       shared.set(path, { portions: [...portions], deleted: [...deleted] }),
     done: (cli) => completed.add(cli),
   };
+  return journal;
 }
 
 /**
@@ -1155,12 +1176,21 @@ function recordInterruptedInstall(
     gitignoreNpxSkillsAdded: [],
   };
   const rootFiles = collectRootFiles(envFiles, stage.ciScaffold, ledger.shared);
+  // #644 규칙 그대로 — 하네스가 실제로 넣은 항목만 적는다(이미 있던 것은 설치자 몫). 적지 않으면 재실행이 그 항목을
+  // "already present" 로 읽어 영영 설치자 것이 되고, uninstall 이 그 자리를 안내하지 않는다.
+  const codexTrust = registeredTrust(journal.codexOptIn, ctx.projectDir);
   const written = writtenSoFar(ledger, cliFiles, rootFiles, stage.rootImportWritten);
-  const backups = [...own.backups, ...journal.backups].map((abs) =>
-    relative(ctx.projectDir, abs).split(sep).join("/"),
-  );
-  if (written.length === 0)
-    return new InstallInterruptedError(message, [], { path: null, error: null }, backups);
+  if (codexTrust) written.push(`${codexTrust.configPath} (Codex trust entry for this folder)`);
+  const projectRel = (abs: string): string => relative(ctx.projectDir, abs).split(sep).join("/");
+  const writtenSet = new Set(written);
+  const backups = [...own.backups, ...journal.backups].map((abs): InterruptedBackup => {
+    const original = projectRel(backupOriginal(abs) ?? abs);
+    return { original, copy: projectRel(abs), replaced: writtenSet.has(original) };
+  });
+  const hadInstall = previousLog !== null;
+  const interrupted = (record: InstallInterruptedError["record"]): InstallInterruptedError =>
+    new InstallInterruptedError(message, written, record, backups, hadInstall);
+  if (written.length === 0) return interrupted({ path: null, error: null });
   try {
     const base = buildInstallLog(
       { ...ctx.spec, cli },
@@ -1170,6 +1200,7 @@ function recordInterruptedInstall(
       previousLog,
       false,
       [...rootFiles, ...ledger.rootFiles],
+      codexTrust,
     );
     const path = writeInstallLog(
       ctx.projectDir,
@@ -1182,11 +1213,20 @@ function recordInterruptedInstall(
         excluded,
       }),
     );
-    return new InstallInterruptedError(message, written, { path, error: null }, backups);
+    return interrupted({ path, error: null });
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e);
-    return new InstallInterruptedError(message, written, { path: null, error: reason }, backups);
+    return interrupted({ path: null, error: e instanceof Error ? e.message : String(e) });
   }
+}
+
+/** #644 — 하네스가 실제로 더한 전역 trust 항목만 기록한다(이미 있던 것은 설치자 몫). 정상 · 중단 기록이 같이 쓴다. */
+function registeredTrust(
+  codexOptIn: CodexOptInReport | null,
+  projectDir: string,
+): InstallLog["codexTrust"] {
+  return codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
+    ? { configPath: codexOptIn.trustEntry.configPath, projectDir }
+    : undefined;
 }
 
 /** 이번 실행이 멈추기 전에 제자리에 둔 하네스 몫 — 경로 정렬. 설치자 파일에 몫만 더한 것은 ` (harness part)`. */
@@ -1241,10 +1281,7 @@ function writeInstallLogSafe(
       // `--reinstall` 도 `.claude/` 를 옮기지 않는다 — 이전 자산은 디스크에 그대로다
       false,
       [...rootFiles, ...ledger.rootFiles],
-      // #644 — 하네스가 실제로 더한 전역 trust 항목만 적는다(이미 있던 것은 설치자 몫).
-      codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
-        ? { configPath: codexOptIn.trustEntry.configPath, projectDir: ctx.projectDir }
-        : undefined,
+      registeredTrust(codexOptIn, ctx.projectDir),
     );
     writeInstallLog(
       ctx.projectDir,

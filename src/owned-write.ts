@@ -37,7 +37,8 @@ export interface WriteJournal {
     path: string,
     portions: ReadonlyArray<InstallLogPortion>,
     deleted: ReadonlyArray<string>,
-  ): void /** 설치자 파일을 덮기 전에 남긴 백업(절대경로) — 멈춘 화면이 "당신 파일은 여기 있다" 를 말한다. */;
+  ): void;
+  /** 설치자 파일을 덮기 전에 남긴 백업(절대경로) — 멈춘 화면이 "당신 파일은 여기 있다" 를 말한다. */
   backup(absPath: string): void;
 }
 
