@@ -170,7 +170,7 @@ describe("기록 없음 · 깨짐 — 세 명령이 같은 답 · 쓰기 0 (#595
     const { code, err } = run("update");
     expect(code).toBe(1);
     expect(err).toEqual([
-      `✗ install log is corrupted at ${join(dir, ".uzys-agent-harness/.harness-install.json")} — run install --reinstall to rebuild it`,
+      `✗ install log is corrupted at ${join(dir, ".uzys-agent-harness/.harness-install.json")} — if it holds git conflict markers, take one side whole; otherwise run install --reinstall (it forgets recorded exclusions and external assets)`,
     ]);
     expect(snapshot(dir)).toEqual(before);
   });
