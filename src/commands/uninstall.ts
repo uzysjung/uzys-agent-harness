@@ -45,7 +45,7 @@ import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
-import { backupDir, backupIfLossyUtf8 } from "../fs-ops.js";
+import { backupDir, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
 import {
   corruptedInstallLogMessage,
   hashContent,
@@ -523,6 +523,9 @@ function advisoryLines(
   // `.claude/settings.json` 같은 **안쪽** 파일이 "밖에 남는 것" 헤더 아래 나열된다 —
   // keep-templates 는 말 그대로 templates 를 남기는 것이라 안쪽은 헤더가 거짓말을 한다.
   lines.push(...rootFileAdvisoryLines(rootFiles, projectDir, keepTemplates));
+  // #570 — 하네스가 남긴 백업 산물(디렉터·파일) 공지. 색인(.uzys-agent-harness/)은 이번에
+  // 지워지므로, 남는 실물을 말하지 않으면 정체를 알 방법이 없다.
+  lines.push(...backupArtifactAdvisoryLines(projectDir));
   return lines;
 }
 
@@ -533,6 +536,37 @@ function advisoryLines(
  *
  * 규율: **예측이 아니라 현재 파일 상태를 읽어** 실재하는 것만 낸다.
  */
+
+/**
+ * #570 — 전량 uninstall 후 남을 백업 산물을 나열한다. 지우지 않는다(사용자 편집분이 들어
+ * 있을 수 있다) — "자동으로 지우지 않는다" 규칙의 백업 판. 대상: 루트의 `<dir>.backup-<ts>`
+ * 디렉터리 셋 + `.agents/` 아래 파일 백업(update 가 편집분을 보존하며 남긴 것).
+ */
+function backupArtifactAdvisoryLines(projectDir: string): string[] {
+  const stampRe = /\.backup-\d{8}T\d{6}$/;
+  const found: string[] = [];
+  for (const e of readdirSync(projectDir, { withFileTypes: true })) {
+    if ([".claude", ".codex", ".opencode"].some((d) => e.name.startsWith(`${d}.backup-`))) {
+      found.push(e.name);
+    } else if (e.isFile() && stampRe.test(e.name)) {
+      found.push(e.name);
+    }
+  }
+  const agents = join(projectDir, ".agents");
+  if (existsSync(agents)) {
+    for (const rel of listFilesRecursive(agents)) {
+      if (stampRe.test(rel)) found.push(`.agents/${rel}`);
+    }
+  }
+  if (found.length === 0) return [];
+  return [
+    c.yellow(
+      `[BACKUPS] 하네스가 남긴 백업 ${found.length}건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):`,
+    ),
+    ...found.sort().map((f) => c.dim(`  ${f}`)),
+  ];
+}
+
 function rootFileAdvisoryLines(
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   projectDir: string,

@@ -285,6 +285,38 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("하네스가 남긴 백업은 자동으로 지우지 않고 [BACKUPS] 로 이름을 알린다 (#570)", () => {
+    writeLog(tmpDir, { ...baseLog(), assets: [] });
+    mkdirSync(join(tmpDir, ".claude.backup-20260101T000000"));
+    mkdirSync(join(tmpDir, ".agents"));
+    writeFileSync(join(tmpDir, ".agents", "x.md.backup-20260101T000000"), "m");
+    const out: string[] = [];
+    const run = (): void =>
+      uninstallAction(
+        { projectDir: tmpDir },
+        {
+          log: (m: string) => out.push(m),
+          err: vi.fn(),
+          exit: vi.fn() as unknown as (code: number) => never,
+          spawn: vi.fn(() => ok()),
+          rm: vi.fn(),
+          moveAside: vi.fn(() => null),
+        },
+      );
+    run();
+    const text = out.join("\n");
+    expect(text).toContain("[BACKUPS]");
+    expect(text).toContain(".claude.backup-20260101T000000");
+    expect(text).toContain(".agents/x.md.backup-20260101T000000");
+    // 대조군 — 백업이 없으면 말하지 않는다.
+    rmSync(join(tmpDir, ".claude.backup-20260101T000000"), { recursive: true });
+    rmSync(join(tmpDir, ".agents"), { recursive: true });
+    out.length = 0;
+    run();
+    expect(out.join("\n")).not.toContain("[BACKUPS]");
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("--keep-templates → templates rm 호출 X, log 만 rm", () => {
     const log: InstallLog = {
       ...baseLog(),

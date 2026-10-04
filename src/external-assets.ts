@@ -61,7 +61,10 @@ export type ExternalAssetMethod =
         // 한국어 답변·글쓰기·번역·퇴고 — 뜻과 말투를 살리며 번역투·상투구·기계적 반복을 줄인다.
         | "natural-korean"
         // v26.108.0 — CI 스캐폴드 (.github/workflows fill-in 템플릿). ADR-037.
-        | "ci-scaffold";
+        | "ci-scaffold"
+        // #602 — 트랙 추종 UI 검수 스킬. .claude/ 전용 배선이 비-Claude 자리에 못 가던 것을
+        // internal 카탈로그로 편입해 해소.
+        | "ui-visual-review";
     };
 
 export type ExternalAssetCondition =
@@ -222,6 +225,22 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === Repo-bundled internal skills (uzys 1st-party, v26.87.0) ===
   // 2026-08-02 복원 (ADR-062) — 이관(ADR-060) 후 감사에서 본문 열화 104건(dropped 76 ·
   //   damaged 28)이 확인돼 9종을 이 리포 번들로 되돌렸다. 아래 10종 전부 `kind: "internal"`.
+  // #602 — ui-visual-review: TRACKS.md 가 말하는 트랙 추종 번들 스킬("follows the track, not
+  // the catalog"). internal 카탈로그 자산으로 등록해 selectedInternalSkills 흐름에 태우면
+  // .agents/skills(비-Claude 자리)에도 깔린다 — 종전의 .claude/ 전용 배선과 어긋나던 것.
+  {
+    id: "ui-visual-review",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "UI visual review — screenshot capture, baseline diff, and a review gate for UI changes (ships with UI tracks; ssr-htmx excluded)",
+    category: "frontend",
+    source: "uzys",
+    condition: {
+      kind: "any-track",
+      tracks: ["csr-supabase", "csr-fastify", "csr-fastapi", "ssr-nextjs", "full"],
+    },
+    method: { kind: "internal", key: "ui-visual-review" },
+  },
   {
     id: "compaction-handoff",
     tier: "official", // uzys 본 하네스 자체 템플릿
@@ -977,6 +996,10 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,
+  // #602 — 트랙을 따라가는 번들 스킬(csr-*·ssr-*·full). selectedInternalSkills 로 흘러야
+  // .agents/skills(비-Claude 자리)에도 깔린다 — manifest 의 UI_SKILL_DIRS 배선은 .claude/ 만
+  // 알아 TRACKS.md 와 어긋났다. 조건은 buildAssetSpec 이 UI 트랙으로 건다.
+  "ui-visual-review",
   "north-star",
   "gh-issue-workflow",
   "objective-brief",

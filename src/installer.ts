@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
@@ -385,6 +385,20 @@ export function runInstall(ctx: InstallContext): InstallReport {
     [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
     spec.userOverride?.forceInclude ?? [],
   );
+  // #614 — 읽을 수 없는 settings.json 은 함께 쓰는 파일이다: 하네스 몫을 얹을 수 없으니 건드리지 않고(`--reinstall`
+  // 포함 — #574 와 같은 원칙) 훅이 배선되지 않았다는 사실과 할 일을 알리며 비정상 종료한다. 아무것도 쓰기 전에 멈춘다.
+  if (spec.cli.includes("claude")) {
+    const settingsPath = join(projectDir, ".claude", "settings.json");
+    if (existsSync(settingsPath)) {
+      try {
+        JSON.parse(readFileSync(settingsPath, "utf8"));
+      } catch {
+        throw new Error(
+          `${relative(process.cwd(), settingsPath)} is not valid JSON — left untouched, so no hooks were wired. Fix or delete that file, then run the install again`,
+        );
+      }
+    }
+  }
   const writer = createInstallWriter({ projectDir, previousLog, excluded });
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
@@ -434,7 +448,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
     harnessRoot,
     projectDir,
     cli: spec.cli,
-    selectedInternalSkills: manifestSpec.selectedInternalSkills,
+    // B1(#673) — 옛 제외 기록(`baseline:skills/<id>`)도 이 거름을 거친다: `.claude/skills/` 와 같은 판정이라
+    // 비-Claude 자리(`.agents/skills/`)에도 뺀 스킬이 깔리지 않는다. 새 인자는 manifest 가 이미 뺀다.
+    selectedInternalSkills: manifestSpec.selectedInternalSkills.filter(
+      (id) => !isBaselineExcluded(`.claude/skills/${id}`, baselineExcluded),
+    ),
     // 룰 목록의 SSOT 는 하나다 — `.claude/rules/` 를 채우는 것과 같은 `resolveRules` 결과가
     // 나머지 세 CLI 로도 간다. 여기서 다시 고르면 CLI 마다 다른 룰이 깔린다.
     rules: resolveRules(manifestSpec).filter(
