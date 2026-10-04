@@ -448,7 +448,11 @@ export function runInstall(ctx: InstallContext): InstallReport {
     harnessRoot,
     projectDir,
     cli: spec.cli,
-    selectedInternalSkills: manifestSpec.selectedInternalSkills,
+    // B1(#673) — 옛 제외 기록(`baseline:skills/<id>`)도 이 거름을 거친다: `.claude/skills/` 와 같은 판정이라
+    // 비-Claude 자리(`.agents/skills/`)에도 뺀 스킬이 깔리지 않는다. 새 인자는 manifest 가 이미 뺀다.
+    selectedInternalSkills: manifestSpec.selectedInternalSkills.filter(
+      (id) => !isBaselineExcluded(`.claude/skills/${id}`, baselineExcluded),
+    ),
     // 룰 목록의 SSOT 는 하나다 — `.claude/rules/` 를 채우는 것과 같은 `resolveRules` 결과가
     // 나머지 세 CLI 로도 간다. 여기서 다시 고르면 CLI 마다 다른 룰이 깔린다.
     rules: resolveRules(manifestSpec).filter(
