@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -405,6 +406,52 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe(
         "# mine\n",
       );
+    });
+  });
+
+  // main 병합(ADR-098) — 링크 너머가 프로젝트 밖인 자리는 쓰지도 기록하지도 않는다. 멈춘 install 의 저널 · 장부도
+  // 같은 규칙이다: 밖이라 건너뛴 쓰기가 중단 기록에 하네스 몫으로 적히면 uninstall 이 남의 프로젝트와 함께 쓰는
+  // 자리를 하네스 것으로 다룬다.
+  describe("밖 링크 자리를 둔 채 멈춘 install", () => {
+    let elsewhere: string;
+    beforeEach(() => {
+      elsewhere = mkdtempSync(join(tmpdir(), "interrupted600-outside-"));
+      mkdirSync(join(elsewhere, "claude"));
+      mkdirSync(join(elsewhere, "codex"));
+      // `.claude` 폴더째(장부 쪽) · `.codex` 폴더째(변환 저널 쪽) 밖으로 링크하고, 뒤 단계(스킬 자리)에서 멈춘다
+      symlinkSync(join(elsewhere, "claude"), join(projectDir, ".claude"));
+      symlinkSync(join(elsewhere, "codex"), join(projectDir, ".codex"));
+      mkdirSync(join(projectDir, ".agents"));
+      writeFileSync(join(projectDir, ".agents/skills"), "mine\n");
+    });
+    afterEach(() => {
+      rmSync(elsewhere, { recursive: true, force: true });
+    });
+
+    it("중단 기록 · 화면에 밖 경로가 하나도 없고, 밖에는 아무것도 쓰지 않았다", () => {
+      const e = interrupted();
+      expect(e).toBeInstanceOf(InstallInterruptedError);
+      expect(e.message).toMatch(/ENOTDIR/);
+      // 픽스처 자기검증 — 기록이 실제로 남았다(빈 기록이라 0 인 것이 아니다)
+      expect(e.record.path).toBe(installLogPath(projectDir));
+      const log = readInstallLog(projectDir);
+      expect(log?.externalFiles?.map((f) => f.path)).toContain("AGENTS.md");
+
+      const outsidePrefix = (p: string): boolean =>
+        p.startsWith(".claude/") || p.startsWith(".codex/");
+      const recorded = [
+        ...(log?.policyFiles ?? []).map((f) => `.claude/${f.path}`),
+        ...(log?.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
+        ...(log?.externalFiles ?? []).map((f) => f.path),
+        ...(log?.portions ?? []).map((p) => p.path),
+        ...(log?.rootFiles ?? []).map((f) => f.path),
+      ];
+      expect(recorded.filter(outsidePrefix)).toEqual([]);
+      expect(log?.templates.claudeDir).toBeUndefined();
+      expect(log?.templates.codexDir).toBeUndefined();
+      expect(e.written.filter(outsidePrefix)).toEqual([]);
+      expect(e.backups).toEqual([]);
+      expect(listFilesRecursive(elsewhere)).toEqual([]);
     });
   });
 });
