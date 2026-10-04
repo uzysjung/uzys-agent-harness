@@ -4,6 +4,7 @@
 - Date: 2026-07-26
 - PR: #254
 - Issue: [#253](https://github.com/uzysjung/uzys-agent-harness/issues/253)
+- Amended-by: ADR-100 (Proposed — `.gitignore` 자동 등재 안 함 → 기록 폴더 안의 런타임 파일 두 줄만 등재. 기록 · 보조 스크립트는 커밋 대상)
 
 ## Context
 

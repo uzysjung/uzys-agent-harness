@@ -211,7 +211,7 @@ export interface BaselineReport {
     gitignoreEnvAdded: boolean;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
-     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * (`.factory/`, `.goose/`, 기록 폴더의 런타임 파일 둘 — ADR-100 전에는 `.uzys-agent-harness/` 폴더째).
      * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
      */
     gitignoreNpxSkillsAdded: string[];
@@ -387,7 +387,7 @@ export interface InstallReport {
     gitignoreEnvAdded: boolean;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
-     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * (`.factory/`, `.goose/`, 기록 폴더의 런타임 파일 둘 — ADR-100 전에는 `.uzys-agent-harness/` 폴더째).
      * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
      */
     gitignoreNpxSkillsAdded: string[];
@@ -1186,7 +1186,7 @@ function writeEnvironmentFiles(
     envExampleCreated,
     gitignoreEnvAdded: res.added.includes(".env"),
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3).
-    // 2026-08-02 — `.uzys-agent-harness/` 합류 (설치 로그 + 훅 차단 로그).
+    // ADR-100 — 기록 폴더의 런타임 파일 둘(훅 차단 로그 · update 백업 목록). 기록 자체는 커밋 대상이다.
     gitignoreNpxSkillsAdded: res.added.filter((line) => line !== ".env"),
   };
 }

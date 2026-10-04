@@ -131,7 +131,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode) w
 | `.claude/settings.json` | Hook registration, plus a status line that runs the third-party [`@owloops/claude-powerline`](https://www.npmjs.com/package/@owloops/claude-powerline) through `npx`, pinned to a version we checked (a newer release reaches you through a harness release, not on its own). A status line you already have is kept. Merged in place — see *Files you already have* below |
 | `CLAUDE.md` | **Yours.** A fill-in scaffold if it did not exist; otherwise untouched except for one import block at the end |
 | `CLAUDE-uzys-harness.md` | The harness's working-principles anchor. Owned by the harness, rewritten on `update` — keep your notes in `CLAUDE.md` |
-| `.uzys-agent-harness/` | CLI-neutral slot: the install record (`.harness-install.json`), three helper scripts the rules call by name (`protect-branch.sh`, `spec-drift-check.sh`, `check-absence.sh`), and the hook block log written at runtime. Added to `.gitignore` when that file exists |
+| `.uzys-agent-harness/` | CLI-neutral slot: the install record (`.harness-install.json`), three helper scripts the rules call by name (`protect-branch.sh`, `spec-drift-check.sh`, `check-absence.sh`), and the hook block log written at runtime. Commit it with the rest — only the hook block log and `update-backups.json` are added to `.gitignore` (when that file exists), so teammates who clone get the record ([teammates and fresh clones](#teammates-and-fresh-clones)) |
 | `.mcp.json` | MCP servers — `context7`, `github`, `chrome-devtools` on every track; `railway-mcp-server` on `csr-*`/`ssr-*`/`full`; `supabase` on `csr-supabase`/`full`. Merged with yours |
 | `.gitignore` · `.env.example` | Ignore lines for agent artifacts and `.env` appended when `.gitignore` exists; an example env file on `csr-supabase` / `full` |
 | `AGENTS.md` · `.codex/` · `opencode.json` · `.agents/` | Only for the CLIs you selected (table above) |
@@ -215,6 +215,14 @@ The harness never silently overwrites your config. Before replacing an editable 
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
 | `.opencode/commands/<id>.md` from an old OpenCode install | Backed up, then retired — OpenCode now reads `.agents/skills/` directly |
+
+### Teammates and fresh clones
+
+The harness keeps its install record in `.uzys-agent-harness/.harness-install.json`, next to its helper scripts, and that folder is meant to be committed — only `hook-blocks.log` and `update-backups.json` in it are ignored. A teammate who clones the repo gets the record with the files: `list`, `update` and `uninstall` answer exactly as on the machine that installed it, and the rules that call `.uzys-agent-harness/*.sh` work. Run `update` from one machine and commit the result (files and record together); everyone else pulls. `update` replaces a harness file a teammate edited (backup first, listed in the summary); to keep the team's edit, `git checkout` the file or re-apply it from the backup before committing. If two people update at once the record conflicts like any file — resolve it by taking either side whole (both are valid records); `install --reinstall` rebuilds from scratch and forgets recorded exclusions and external assets.
+
+The next `install` or `update` on a project set up by an earlier release takes the old `.uzys-agent-harness/` line out of `.gitignore`, adds the two runtime lines, and says `now ignores only the harness's runtime files — commit .uzys-agent-harness/ so teammates get the install record`. A `.uzys-agent-harness/` line you put there yourself is yours and stays — delete it to share the record.
+
+**Cloned a repo set up before 26.164?** Its `.gitignore` still hides the record, so your clone has harness files but no record. `list`, `update` and `uninstall` say so and change nothing (exit 1). Ask whoever installed it to run `install --track <t>` once (tracks: see `list` on their machine) and commit `.uzys-agent-harness/` — or delete the `.uzys-agent-harness/` line from `.gitignore` and commit the folder; after your next pull you are a normal install. To manage your copy on its own instead, run `install --track <t> --cli <c>` — files identical to the harness's are left alone, a file that differs is saved as `<file>.backup-<ts>` first, and shared files only get the harness's part ([installing into an existing project](#installing-into-an-existing-project)). If you did that and later pull a committed record, git stops on the untracked file — move yours away and pull again.
 
 ---
 
@@ -319,6 +327,8 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 **Plugin assets skipped with a warning** — the `claude` command was not found on your PATH. Install Claude Code first, then run the installer again with `--with <id>` for each plugin you wanted.
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
+
+**`update` says there is no install record but the files are here** — the repo was set up before the record was committed with the files, so your clone has the harness files but not the record. See [teammates and fresh clones](#teammates-and-fresh-clones).
 
 **A harness hook is not wired after `update`** — `update` wires the harness hooks into `settings.json` itself (your own keys and hooks stay). Earlier releases could not, and said *needs reinstall* — running `update` on a release that wires hooks is enough. A `settings.json` that is not valid JSON is left byte for byte: `update` says `could not read it` and `install` stops — fix or delete the file and run again. Hooks you dropped with `--without` stay unwired.
 

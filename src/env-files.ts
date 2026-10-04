@@ -52,10 +52,28 @@ const ENV_EXAMPLE_TRACKS: ReadonlyArray<Track> = ["csr-supabase", "full"];
 
 const GITIGNORE_ENV_COMMENT = "# Secret env (auto-added by agent-harness install)";
 
+/**
+ * ADR-100 — 설치 기록 폴더(`.uzys-agent-harness/`)는 하네스 파일과 함께 커밋된다. 그 안에서 기계마다 다른 런타임 파일
+ * 둘만 무시한다 — 훅 차단 로그 · 이번 update 의 백업 목록.
+ */
+export const HARNESS_RUNTIME_IGNORES = [
+  ".uzys-agent-harness/hook-blocks.log",
+  ".uzys-agent-harness/update-backups.json",
+] as const;
+
+/**
+ * 하네스가 전에 더했지만 더는 렌더하지 않는 줄 → 그때의 렌더 값. 옛 기록(몫 기록 이전)의 이관이 이 값으로 그 줄을
+ * 하네스 몫으로 알아본다(`legacyGitignoreSeed`) — 렌더에서 빠졌다고 못 알아보면 옛 줄이 설치자 것처럼 영영 남는다.
+ */
+export const RETIRED_GITIGNORE_LINES: ReadonlyMap<string, string> = new Map([
+  // ADR-100 — 폴더째 무시하던 줄(2026-08-02 · ADR-061). 기록을 클론에서 떼어 놓아 #658 을 만들었다
+  [".uzys-agent-harness/", ".uzys-agent-harness/"],
+]);
+
 const AGENT_ARTIFACT_DIRS = [
   ".factory/",
   ".goose/",
-  ".uzys-agent-harness/",
+  ...HARNESS_RUNTIME_IGNORES,
   // #657 — 하네스가 만드는 백업 디렉터·파일. gitignore 에 안 걸면 팀원의 `git add -A` 가
   // update 마다 백업을 커밋한다(#556 으로 no-op 사본은 없어지지만, 진짜 백업은 계속 생긴다).
   ".claude.backup-*/",
@@ -88,7 +106,8 @@ export function writeEnvExample(projectDir: string, tracks: ReadonlyArray<Track>
  *
  * - `.env` — 시크릿 파일을 커밋하지 않게.
  * - `.factory/` · `.goose/` — v0.8.0 `npx skills` 가 다중 CLI 로 깔 때 만드는 자리(사용자 보고 #3).
- * - `.uzys-agent-harness/` — 설치 기록 + 훅 차단 로그(2026-08-02). 계측이 남의 저장소를 더럽히면 안 된다.
+ * - `.uzys-agent-harness/hook-blocks.log` · `update-backups.json` — 그 폴더의 런타임 파일만. 기록과 보조 스크립트는
+ *   커밋돼 클론으로 함께 간다(ADR-100 — 전에는 폴더째 무시해 클론에 기록이 없었다, #658).
  *
  * 머리 주석은 묶음의 첫 줄(`.factory/`)에 딸린다 — 그 줄을 설치자가 이미 갖고 있으면 머리 없이 붙는다.
  */
