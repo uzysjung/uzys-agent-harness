@@ -644,25 +644,63 @@ function migrateAwayLegacyLog(projectDir: string): void {
 /**
  * 새 위치 → 구 위치 순으로 찾는다. 구 위치 폴백이 없으면 v26.134.1 이하로 설치한 사용자의
  * `list` / `uninstall` / `update` 가 전부 "install log not found" 로 죽는다.
+ *
+ * 상태 검출(state.ts)·렌더링 등 null 을 "설치 없음"으로 접는 호출자를 위해 종전 시그니처는
+ * 그대로 둔다(#640). 사용자 면 명령(list·uninstall)은 `readInstallLogStatus` 로 "없음"과
+ * "깨짐"을 구분해 말한다 — 파일이 있는데 "not found" 라고 진단하면 사용자는 원인(병합 충돌·
+ * 부분 기록·수동 편집)을 영원히 못 찾는다.
  */
 export function readInstallLog(projectDir: string): InstallLog | null {
+  return readInstallLogStatus(projectDir).log;
+}
+
+export type InstallLogStatus =
+  | { status: "missing"; log: null }
+  | { status: "corrupted"; log: null }
+  | { status: "ok"; log: InstallLog };
+
+/** #640 — 기록을 "없음 / 깨짐 / 정상"으로 구분해 낸다. */
+export function readInstallLogStatus(projectDir: string): InstallLogStatus {
   const path = [installLogPath(projectDir), legacyInstallLogPath(projectDir)].find((p) =>
     existsSync(p),
   );
-  if (!path) return null;
+  if (!path) return { status: "missing", log: null };
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as InstallLog;
-    // v26.68.0 — backward compat: method.kind "npm-global" → "npm" rename.
-    // v26.64.0 ~ v26.67.0 시점 install log 가 새 uninstall 에서 작동하도록 normalize.
-    if (Array.isArray(parsed.assets)) {
-      parsed.assets = parsed.assets.map((a) =>
-        (a.method as string) === "npm-global" ? { ...a, method: "npm" } : a,
-      );
-    }
-    return parsed;
+    parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch {
-    return null;
+    return { status: "corrupted", log: null };
   }
+  if (!isValidInstallLogShape(parsed)) return { status: "corrupted", log: null };
+  const log = parsed as InstallLog;
+  // v26.68.0 — backward compat: method.kind "npm-global" → "npm" rename.
+  // v26.64.0 ~ v26.67.0 시점 install log 가 새 uninstall 에서 작동하도록 normalize.
+  if (Array.isArray(log.assets)) {
+    log.assets = log.assets.map((a) =>
+      (a.method as string) === "npm-global" ? { ...a, method: "npm" } : a,
+    );
+  }
+  return { status: "ok", log };
+}
+
+/**
+ * #640 — 파싱은 되지만 필수 필드가 빠진 기록(shared 충돌·부분 기록·수동 편집)을 가려낸다.
+ * 아래 세 축은 list·uninstall·removeTemplates 가 무방비로 접근하던 곳 = 실제 크래시 지점.
+ */
+function isValidInstallLogShape(value: unknown): value is InstallLog {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const spec = v.spec as Record<string, unknown> | undefined;
+  if (typeof spec !== "object" || spec === null) return false;
+  if (!Array.isArray(spec.tracks)) return false;
+  if (!Array.isArray(v.assets)) return false;
+  if (typeof v.templates !== "object" || v.templates === null) return false;
+  return true;
+}
+
+/** #640 — "깨짐" 상태에서 사용자에게 보여줄 한 줄. 재구축 경로까지 말한다. */
+export function corruptedInstallLogMessage(projectDir: string): string {
+  return `install log is corrupted at ${installLogPath(projectDir)} — run install --reinstall to rebuild it`;
 }
 
 export function installLogPath(projectDir: string): string {

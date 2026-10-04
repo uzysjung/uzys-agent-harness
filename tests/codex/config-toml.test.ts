@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { readToml } from "../../src/adapters/toml-region.js";
-import { renderConfigToml } from "../../src/codex/config-toml.js";
+import { isChangedLegacyConfig, renderConfigToml } from "../../src/codex/config-toml.js";
 
 const TEMPLATE = `# Codex config — {PROJECT_NAME}
 project_dir = "{PROJECT_DIR}"
@@ -130,5 +130,61 @@ describe("renderConfigToml", () => {
       },
     });
     expect(out).toContain('[mcp_servers."weird name"]');
+  });
+});
+
+// #627 — 하네스가 내는 훅 등록은 현행 codex-cli 스키마(PascalCase + 중첩 hooks + command 문자열)여야
+// 실제로 발화한다. flat `session_start` 는 경고 없이 무시됐다. 구간 없는 옛 파일의 이행 판정
+// (isChangedLegacyConfig)은 양쪽 형식을 다 본다.
+describe("hooks 등록 형식 (#627)", () => {
+  it("배포 템플릿이 중첩 SessionStart 형식을 낸다 — command 는 문자열", () => {
+    const shipped = readFileSync(
+      join(__dirname, "../../templates/codex/config.toml.template"),
+      "utf8",
+    );
+    const out = renderConfigToml({
+      template: shipped,
+      projectName: "demo",
+      projectDir: "/p",
+    });
+    expect(out).toContain("[[hooks.SessionStart]]");
+    expect(out).toContain("[[hooks.SessionStart.hooks]]");
+    const parsed = readToml(out);
+    const events = (parsed?.hooks as Record<string, unknown> | undefined)?.SessionStart;
+    expect(Array.isArray(events)).toBe(true);
+    const items = (events as Array<{ hooks?: Array<{ command?: unknown; type?: unknown }> }>)[0]
+      ?.hooks;
+    expect(items?.[0]?.command).toBe("/p/.codex/hooks/session-start.sh");
+    expect(items?.[0]?.type).toBe("command");
+  });
+
+  it("flat session_start 는 템플릿에 더 이상 없다", () => {
+    const shipped = readFileSync(
+      join(__dirname, "../../templates/codex/config.toml.template"),
+      "utf8",
+    );
+    // 주석의 역사 언급은 남는다 — 테이블 선언이 실제로 없는지만 본다.
+    expect(shipped.match(/^\[\[hooks\.session_start\]\]/gm)).toBeNull();
+  });
+
+  it("isChangedLegacyConfig 가 옛 flat 형식의 하네스 훅도 알아본다", () => {
+    const legacyFlat = '[[hooks.session_start]]\ncommand = ["/p/.codex/hooks/session-start.sh"]\n';
+    expect(isChangedLegacyConfig(legacyFlat, undefined)).toBe(true);
+    expect(isChangedLegacyConfig('model = "o3"\n', undefined)).toBe(false);
+  });
+
+  it("isChangedLegacyConfig 가 중첩 형식의 하네스 훅도 알아본다", () => {
+    const nested = [
+      "[[hooks.SessionStart]]",
+      'name = "session-start"',
+      "[[hooks.SessionStart.hooks]]",
+      'command = "/p/.codex/hooks/session-start.sh"',
+      'type = "command"',
+      "",
+    ].join("\n");
+    expect(isChangedLegacyConfig(nested, undefined)).toBe(true);
+    // 남의 훅은 하네스 것이 아니다
+    const foreign = '[[hooks.SessionStart.hooks]]\ncommand = "/other/hook.sh"\n';
+    expect(isChangedLegacyConfig(foreign, undefined)).toBe(false);
   });
 });

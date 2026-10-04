@@ -250,7 +250,8 @@ export function renderUpdateSummary(
   log(infoRow("MODE", "update"));
   if (report.backup) {
     log(infoRow("BACKUP", shortenPath(report.backup)));
-    log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shortenPath(report.backup)} .claude`));
+    // #651 — 이 줄은 복사해 실행하는 명령이다: 축약 금지(전체 경로) + 인용 필수(공백 경로).
+    log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shellQuotePath(report.backup)} .claude`));
   }
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
@@ -1327,6 +1328,16 @@ export function shortenPath(p: string): string {
     return `…/${segs.slice(-3).join("/")}`;
   }
   return p;
+}
+
+/**
+ * #651 — 화면에 **실행할 명령**을 인쇄할 때의 경로 인용. POSIX sh 에서 안전한 작은따옴표
+ * 이스케이프다(`my proj` → `'my proj'`, 내부 따옴표도 안전). 표시용 축약(shortenPath)을
+ * 명령에 섞으면 존재하지 않는 경로(`…/seg`)가 되고, 인용이 없으면 공백 경로에서
+ * `rm -rf .claude` 만 성공하고 `mv` 가 죽어 .claude 가 복원 없이 사라진다.
+ */
+export function shellQuotePath(p: string): string {
+  return `'${p.replace(/'/g, `'\\''`)}'`;
 }
 
 /**
