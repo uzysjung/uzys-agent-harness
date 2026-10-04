@@ -63,7 +63,7 @@ export function projectAnchoredRef(command: string, claudeDir?: string): string 
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * settings.json 죽은 훅 참조 치유기 — update(#536) 와 install(#603) 이 같이 쓴다.
+ * settings.json 죽은 훅 참조 치유기(update #536) · 탐지기(install #603 — 알리기만).
  * update-mode.ts 에서 옮겼다: installer 가 import 하려는데 installer←update-mode 의존이
  * 이미 있어 반대 방향 import 는 순환이 된다. 판정(SSOT)도 여기(projectAnchoredRef)다.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -94,17 +94,18 @@ export function keepHookRef(hook: HookCommand, claudeDir: string, removed: strin
   return exists;
 }
 
-/**
- * settings.json 의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거.
- * USAGE: "Install and update both remove any settings.json hook entry whose script file is
- * missing, and note it in the summary." 반환값 = 지운 참조의 `.claude/` 상대경로.
- */
-export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
+interface HookScan {
+  settings: SettingsJson;
+  cleanedHooks: Record<string, HookEntry[]>;
+  removed: string[];
+}
+
+function scanStaleHookRefs(settingsPath: string, claudeDir: string): HookScan | null {
   let settings: SettingsJson;
   try {
     settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
   } catch {
-    return [];
+    return null;
   }
   const hookEvents = settings.hooks ?? {};
   const removed: string[] = [];
@@ -123,10 +124,27 @@ export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): str
       }))
       .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
   }
+  return { settings, cleanedHooks, removed };
+}
 
-  if (removed.length > 0) {
-    const next: SettingsJson = { ...settings, hooks: cleanedHooks };
+/**
+ * 읽기 전용 — 실존 파일 없는 hook script 참조를 **찾기만** 한다(`.claude/` 상대경로). install 은 기록에 없는
+ * 설치자 몫(팀이 커밋한 생성 스크립트 훅 등)을 지우지 않고 이것으로 알리기만 한다(#603 · B-666-1).
+ */
+export function findStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
+  return scanStaleHookRefs(settingsPath, claudeDir)?.removed ?? [];
+}
+
+/**
+ * settings.json 의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거 — **update 전용**.
+ * 반환값 = 지운 참조의 `.claude/` 상대경로.
+ */
+export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
+  const scan = scanStaleHookRefs(settingsPath, claudeDir);
+  if (scan === null) return [];
+  if (scan.removed.length > 0) {
+    const next: SettingsJson = { ...scan.settings, hooks: scan.cleanedHooks };
     writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
   }
-  return removed;
+  return scan.removed;
 }

@@ -16,6 +16,7 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -54,6 +55,7 @@ import {
   collectPolicyHashes,
   collectSkillHashes,
   hashContent,
+  INSTALL_LOG_DIR,
   type InstallLog,
   installedClis,
   isHarnessOwned as isOwnedByBaseline,
@@ -169,6 +171,8 @@ export interface UpdateModeReport {
    * 화면에 남기는 이유는 위와 같다 — 안 보이면 사용자는 "왜 이 스킬만 안 갱신되지"를 알 수 없다.
    */
   skillsSkippedLinks: string[];
+  /** #597 — 심볼릭 링크라 갱신하지 않고 남긴 CLI 중립 헬퍼(projectDir 상대경로). 링크 너머는 프로젝트 밖일 수 있다. */
+  helpersKept?: string[];
   /**
    * #524 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는 링크이고 그 공유
    * 본문을 이번 update 의 외부 변환이 갱신한 스킬 id. `skillsSkippedLinks` 에서 빠져 이리로 온다 —
@@ -539,7 +543,9 @@ export function runUpdateMode(
   //      결측 설치는 0단계 installNewAssets(#283) 가 이미 맡는다 — 이 단계의 공백은 **존재하지만
   //      옛 판**인 경우다(26.160.0 → 26.162.1 update 후에도 check-absence.sh 가 옛 판). 배포 룰이
   //      이 스크립트를 호출 지점으로 지목하므로 수정이 도달하지 않으면 게이트가 허위로 오래 산다.
-  if (logAtStart !== null) refreshNeutralHelpers(projectDir, templatesDir, logAtStart, report);
+  //      스크립트 묶음이라 룰과 같은 "rules" 그룹이다(`--only rules` 밖의 부분 갱신은 건드리지 않는다).
+  if (logAtStart !== null && wants("rules"))
+    refreshNeutralHelpers(projectDir, templatesDir, report);
 
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
@@ -795,7 +801,7 @@ function installNewAssets(
 const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
 
 /** 백업이 생길 수 있는 자리 — 하네스가 쓰는 디렉터리 + 루트의 앵커·AGENTS.md. */
-const BACKUP_SCAN_DIRS = [".claude", ".codex", ".opencode", ".agents"] as const;
+const BACKUP_SCAN_DIRS = [".claude", ".codex", ".opencode", ".agents", INSTALL_LOG_DIR] as const;
 
 /**
  * #480 ③ — 이번 실행이 남긴 백업 쌍. 만든 자리마다 경로를 모아 올리지 않고 **디스크를 본다**:
@@ -1621,28 +1627,61 @@ export function retireMcpAllowlist(projectDir: string, now: Date = new Date()): 
 function refreshNeutralHelpers(
   projectDir: string,
   templatesDir: string,
-  log: InstallLog,
   report: UpdateModeReport,
 ): void {
   const spec = buildAssetSpec({ tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS });
+  // 기록은 **디스크의 현재 값**에서 읽어 갱신한 헬퍼 항목만 바꿔 쓴다 — 실행 시작 스냅숏을 통째로
+  // 쓰면 앞단계가 갱신한 기준선이 되돌아간다(B-665-1). 기록 없던 옛 설치본도 이때 항목이 생긴다.
+  const refreshed = new Map<string, string>();
   for (const entry of buildManifest(spec)) {
     if (entry.type !== "file" || !isCliNeutralTarget(entry.target)) continue;
     if (!entry.applies(spec)) continue;
     const abs = join(projectDir, entry.target);
     const source = join(templatesDir, entry.source);
-    if (!existsSync(abs) || !existsSync(source)) continue;
-    const recorded = (log.externalFiles ?? []).find((f) => f.path === entry.target);
+    if (!existsSync(source)) continue;
+    let st: ReturnType<typeof lstatSync>;
+    try {
+      st = lstatSync(abs);
+    } catch {
+      continue; // 결측은 0단계가 채운다
+    }
+    // 링크 너머는 프로젝트 밖 설치자 파일일 수 있다 — 다른 쓰기 경로처럼 건너뛰고 알린다.
+    if (st.isSymbolicLink()) {
+      report.helpersKept = [...(report.helpersKept ?? []), entry.target];
+      continue;
+    }
+    if (!st.isFile()) continue;
+    const log = readInstallLog(projectDir);
+    const recorded = (log?.externalFiles ?? []).find((f) => f.path === entry.target);
     const diskSha = hashContent(readFileSync(abs, "utf8"));
-    const freshSha = hashContent(readFileSync(source, "utf8"));
-    if (diskSha === freshSha) continue;
+    const freshContent = readFileSync(source, "utf8");
+    const freshSha = hashContent(freshContent);
+    if (diskSha === freshSha) {
+      // 이미 최신판 — 기록이 없거나 옛 값이면 이어준다(다음 릴리즈에서 "고친 파일"로 오판하지 않게).
+      if (recorded?.sha256 !== freshSha) refreshed.set(entry.target, freshSha);
+      continue;
+    }
     // 기록에 없거나(26.160.0 등 옛 판이 헬퍼를 externalFiles 에 안 남겼다 — #597 의 핵심 인구)
     // 기록과 달라진(=사용자 편집) 디스크는 모두 L185-193 일반 정책으로: 백업 후 교체.
     // 0단계(#283)의 "이미 있는 파일은 덮어쓰지 않는다"는 여전히 성립 — 덮는 쪽은 이렇게
     // **판정하고 백업하는 경로**뿐이다.
     if (recorded === undefined || recorded.sha256 !== diskSha) backupFile(abs);
-    writeFileSync(abs, readFileSync(source, "utf8"), "utf8");
-    if (recorded) recorded.sha256 = freshSha;
+    writeFileSync(abs, freshContent, "utf8");
+    refreshed.set(entry.target, freshSha);
     report.updated[entry.target] = (report.updated[entry.target] ?? 0) + 1;
+  }
+  if (refreshed.size === 0) return;
+  const log = readInstallLog(projectDir);
+  if (log === null) return;
+  const next = (log.externalFiles ?? []).map((f) =>
+    refreshed.has(f.path) ? { ...f, sha256: refreshed.get(f.path) as string } : f,
+  );
+  for (const [path, sha256] of refreshed)
+    if (!next.some((f) => f.path === path)) next.push({ path, sha256 });
+  try {
+    writeInstallLog(projectDir, { ...log, externalFiles: next });
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다(다른 writeInstallLog 들과 같은 방침).
   }
 }
 

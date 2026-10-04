@@ -3,23 +3,26 @@
  *
  * - #601: update 가 설치된 트랙 밖의 룰(cli-development)을 AGENTS.md/.agents/rules 에
  *   새로 만들지 않는다 — install 과 같은 resolveRules SSOT.
- * - #603: install 도 settings.json 의 죽은 훅 참조를 지운다(USAGE L148 "both").
+ * - #603: install 은 settings.json 의 죽은 훅 참조를 지우지 않고 알리기만 한다(설치자 몫일 수 있다).
  * - #597: update 가 CLI 중립 헬퍼(.uzys-agent-harness/*.sh)를 현재 판으로 갱신 —
  *   기록 sha 그대로면 백업 없이, 사용자가 고쳤으면 백업 후.
  * - #639: 개명·은퇴 스킬 안내가 .agents/skills(비-Claude 슬롯)도 훑는다.
  */
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 import { runUpdateMode } from "../src/update-mode.js";
@@ -61,8 +64,8 @@ describe("#601 — update 가 트랙 밖 룰을 만들지 않는다", () => {
   });
 });
 
-describe("#603 — install 이 죽은 훅 참조를 지운다", () => {
-  it("스크립트 없는 참조를 지우고 보고한다", () => {
+describe("#603 — install 은 죽은 훅 참조를 지우지 않고 알리기만 한다", () => {
+  it("스크립트 없는 참조(설치자 몫)를 그대로 두고 보고한다", () => {
     install(["claude"]);
     const settingsPath = join(projectDir, ".claude", "settings.json");
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
@@ -87,8 +90,9 @@ describe("#603 — install 이 죽은 훅 참조를 지운다", () => {
     const after = JSON.parse(readFileSync(settingsPath, "utf8")) as {
       hooks?: Record<string, unknown>;
     };
-    expect(JSON.stringify(after.hooks)).not.toContain("ghost.sh");
-    expect(report.staleHookRefs ?? []).toContain("hooks/ghost.sh");
+    expect(JSON.stringify(after.hooks)).toContain("ghost.sh");
+    expect(report.keptHookRefs ?? []).toContain("hooks/ghost.sh");
+    expect(report.staleHookRefs ?? []).toEqual([]); // "removed" 행과 한 사실이 두 줄로 나오지 않는다
   });
 });
 
@@ -120,6 +124,79 @@ describe("#597 — update 가 CLI 중립 헬퍼를 갱신한다", () => {
     runUpdateMode(projectDir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
     // 결측 = #283 경로가 설치한다 (update 가 공유 파일을 안 만드는 ADR-049 와 다른, 헬퍼의 기존 계약)
     expect(existsSync(join(projectDir, ".uzys-agent-harness", "check-absence.sh"))).toBe(true);
+  });
+});
+
+const HELPER = ".uzys-agent-harness/check-absence.sh";
+const TEMPLATES = join(HARNESS_ROOT, "templates");
+
+function helperBackups(): string[] {
+  return readdirSync(join(projectDir, ".uzys-agent-harness")).filter((f) =>
+    f.startsWith("check-absence.sh.backup-"),
+  );
+}
+
+describe("#597 — 갱신한 헬퍼의 기록·링크·부분 갱신 (B-666 NOTE)", () => {
+  it("기록 없던 옛 설치본: 갱신 뒤 기록이 생겨 다음 릴리즈에서 다시 백업되지 않는다", () => {
+    install(["claude"]);
+    const helper = join(projectDir, HELPER);
+    const fresh = readFileSync(helper, "utf8");
+    // 26.160.0 시뮬레이션 — 옛 판 + 기록에 항목 없음
+    writeFileSync(helper, `${fresh}\n# OLD\n`, "utf8");
+    const log = readInstallLog(projectDir);
+    expect(log).not.toBeNull();
+    const logPath = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
+    const raw = JSON.parse(readFileSync(logPath, "utf8")) as {
+      externalFiles?: Array<{ path: string }>;
+    };
+    raw.externalFiles = (raw.externalFiles ?? []).filter((f) => f.path !== HELPER);
+    writeFileSync(logPath, JSON.stringify(raw, null, 2));
+
+    const first = runUpdateMode(projectDir, TEMPLATES, HARNESS_ROOT);
+    expect(helperBackups().length).toBe(1);
+    expect(first.backups.some((b) => b.path === HELPER)).toBe(true); // 백업했다는 사실이 화면 목록에 오른다
+    expect(readInstallLog(projectDir)?.externalFiles?.find((f) => f.path === HELPER)).toBeDefined();
+
+    // 다음 릴리즈에서 템플릿이 또 바뀐 상황 — 설치자는 안 고쳤다
+    const fakeTemplates = mkdtempSync(join(tmpdir(), "ah-tpl-"));
+    try {
+      cpSync(TEMPLATES, fakeTemplates, { recursive: true });
+      const tplPath = join(fakeTemplates, "scripts", "check-absence.sh");
+      writeFileSync(tplPath, `${readFileSync(tplPath, "utf8")}\n# NEXT RELEASE\n`, "utf8");
+      runUpdateMode(projectDir, fakeTemplates, HARNESS_ROOT);
+      expect(readFileSync(helper, "utf8")).toContain("# NEXT RELEASE");
+      expect(helperBackups().length).toBe(1); // 안 고친 헬퍼는 다시 백업되지 않는다
+    } finally {
+      rmSync(fakeTemplates, { recursive: true, force: true });
+    }
+  });
+
+  it("헬퍼가 링크면 프로젝트 밖 파일을 덮지 않고 남김으로 알린다", () => {
+    install(["claude"]);
+    const outside = mkdtempSync(join(tmpdir(), "ah-outside-"));
+    try {
+      const target = join(outside, "check-absence.sh");
+      writeFileSync(target, "# installer's own file\n", "utf8");
+      const helper = join(projectDir, HELPER);
+      rmSync(helper);
+      symlinkSync(target, helper);
+      const report = runUpdateMode(projectDir, TEMPLATES, HARNESS_ROOT);
+      expect(readFileSync(target, "utf8")).toBe("# installer's own file\n");
+      expect(report.helpersKept).toContain(HELPER);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("update --only rules 밖(hooks)의 부분 갱신은 헬퍼를 바꾸지 않는다", () => {
+    install(["claude"]);
+    const helper = join(projectDir, HELPER);
+    const fresh = readFileSync(helper, "utf8");
+    writeFileSync(helper, `${fresh}\n# OLD\n`, "utf8");
+    runUpdateMode(projectDir, TEMPLATES, HARNESS_ROOT, {}, ["hooks"]);
+    expect(readFileSync(helper, "utf8")).toContain("# OLD");
+    runUpdateMode(projectDir, TEMPLATES, HARNESS_ROOT, {}, ["rules"]);
+    expect(readFileSync(helper, "utf8")).toBe(fresh);
   });
 });
 

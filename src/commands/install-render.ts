@@ -24,7 +24,6 @@ import {
   infoRow,
   padDisplay,
   sectionHeader,
-  status,
   symbol,
   unifiedSection,
 } from "../design.js";
@@ -915,6 +914,16 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #597 — 링크라 갱신하지 않은 CLI 중립 헬퍼. 링크 너머는 프로젝트 밖일 수 있어 쓰지 않는다.
+    if (baseline.updateMode.helpersKept?.length) {
+      log(
+        assetRow(
+          "skip",
+          "helper is a link",
+          `${baseline.updateMode.helpersKept.join(", ")} · 링크라 갱신하지 않고 남겼다`,
+        ),
+      );
+    }
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
     // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
     if (baseline.updateMode.foreignOwned.length > 0) {
@@ -1105,12 +1114,16 @@ function renderPhase1Rows(
   }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
-  // #603 — install 치유가 지운 죽은 훅 참조 고지 (USAGE L148 "note it in the summary").
-  if (baseline.staleHookRefs?.length) {
+  // #603 — install 은 죽은 훅 참조를 지우지 않는다(설치자 몫일 수 있다). 한 줄로 알리기만 한다.
+  if (baseline.keptHookRefs?.length) {
     log(
-      `  ${status.failure("⊘")} ${c.bold("settings.json")} ${c.dim(
-        `stale hook refs removed — ${baseline.staleHookRefs.join(", ")}`,
-      )}`,
+      infoRow(
+        "HOOK",
+        c.yellow(
+          `settings.json 에 스크립트가 없는 훅 참조 ${baseline.keptHookRefs.length}건 — 지우지 않았다 ` +
+            `(${baseline.keptHookRefs.join(", ")})`,
+        ),
+      ),
     );
   }
   const cats = baseline.categories;
