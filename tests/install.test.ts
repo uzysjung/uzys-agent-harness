@@ -51,6 +51,8 @@ function pipelineFor(report: InstallReport) {
 }
 
 const fakeReport: InstallReport = {
+  // #636 — FILL 안내 판정이 '하네스가 새로 만든 CLAUDE.md' 신호를 본다(실제 파이프라인은 채움).
+  rootClaudeMd: { tracks: ["tooling"], created: true, seededFrom: null },
   filesCopied: 5,
   dirsCopied: 2,
   skipped: 0,

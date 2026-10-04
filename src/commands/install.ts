@@ -90,8 +90,23 @@ export function specFromOptions(options: InstallOptions): RunInstallResult {
       message: parsed.error ?? "Invalid --cli value",
     };
   }
-  const trackInputs = options.track ?? [];
+  // #613 — cac 는 absent 플래그를 "undefined" 문자열로, 빈 값을 mri 수치 강제로 "0" 으로
+  // 뒤트려 전달한다. 그대로 검증에 넘기면 "Unknown track: undefined" 라는, 사용자가 입력한
+  // 적 없는 값을 오류의 주어로 삼는다. 센티넬을 먼저 걷고 남은 것이 없으면 누락 안내로.
+  const trackInputs = (options.track ?? []).filter(
+    (t) =>
+      t !== undefined && t !== null && `${t}` !== "" && `${t}` !== "undefined" && `${t}` !== "0",
+  ) as string[];
   if (trackInputs.length === 0) {
+    if ((options.track ?? []).length > 0) {
+      return {
+        ok: false,
+        cli: parsed.targets,
+        warnings: parsed.warnings,
+        message:
+          "--track 값이 비어 있다 — 예: --track tooling (빈 문자열이 숫자 0 으로 해석될 수 있다)",
+      };
+    }
     return {
       ok: false,
       cli: parsed.targets,
@@ -101,7 +116,10 @@ export function specFromOptions(options: InstallOptions): RunInstallResult {
         "At least one --track is required (e.g. --track tooling)\n       Interactive wizard: run without subcommand → `agent-harness` (drop the `install` word)",
     };
   }
-  for (const t of trackInputs) {
+  // #617 — 트랙은 집합 의미다. `--track base --track base` 가 기록·list·CLAUDE.md 까지
+  // "base, base" 로 번지는데, `--cli` 는 dedup 된다(대칭 위반).
+  const uniqueTracks = [...new Set(trackInputs)];
+  for (const t of uniqueTracks) {
     if (!isTrack(t)) {
       return {
         ok: false,
@@ -216,7 +234,7 @@ export function installSpecFromOptions(
   // (`baseline:<kind>/<name>`). 위저드에서 체크를 풀 수 있는 것을 플래그로는 못 뺀다면 같은
   // 기능이 진입점마다 다른 것이고, 이 리포가 세 번 적발당한 표면 비대칭이다.
   const baselineIds = new Set(
-    listBaselineTargets({ tracks: (options.track as Track[]) ?? [] }).map((t) => t.id),
+    listBaselineTargets({ tracks: [...new Set(options.track ?? [])] as Track[] }).map((t) => t.id),
   );
   const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
 
@@ -257,7 +275,7 @@ export function installSpecFromOptions(
       : undefined;
 
   return {
-    tracks: (options.track as Track[]) ?? [],
+    tracks: [...new Set(options.track ?? [])] as Track[],
     ...(userOverride ? { userOverride } : {}),
     ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
