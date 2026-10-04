@@ -32,6 +32,40 @@ jobs:
       - name: 카탈로그 실설치 검증
         run: node scripts/verify-catalog.mjs
 
+      # #609 — 설치자의 Claude Code 상태 줄은 서드파티 패키지를 **고정한 판**으로 npx 실행한다(templates/settings.json).
+      # 고정은 "확인한 판만 사용자 세션에서 돈다" 를 위한 것이고, 대가는 새 판을 사람이 올려야 한다는 것이다 —
+      # 그걸 기억에 맡기지 않고 여기서 알린다. 새 판은 실패가 아니라 알림이라 job 을 실패시키지 않는다.
+      - name: statusLine 고정 판 점검 (새 판이면 이슈로 알림)
+        if: always()
+        continue-on-error: true # 이 점검의 네트워크 실패가 카탈로그 drift 이슈로 섞이지 않게
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pkg="@owloops/claude-powerline"
+          cmd=$(jq -r '.statusLine.command // ""' templates/settings.json)
+          pinned=""
+          if [[ "$cmd" =~ ${pkg}@([0-9][^[:space:]]*) ]]; then pinned="${BASH_REMATCH[1]}"; fi
+          latest=$(npm view "$pkg" version)
+          echo "pinned=$pinned latest=$latest"
+          if [ -z "$pinned" ]; then
+            echo "::warning::templates/settings.json 에서 고정 판을 찾지 못했다"
+            exit 0
+          fi
+          [ "$pinned" = "$latest" ] && exit 0
+          title="statusLine 새 판: ${pkg}@${latest} (고정 ${pinned})"
+          existing=$(gh issue list --state open --limit 200 --json number,title \
+            | jq -r --arg t "$title" 'map(select(.title == $t)) | first | .number // empty')
+          [ -n "$existing" ] && exit 0
+          body=$(printf '%s\n' \
+            "templates/settings.json 의 statusLine 이 \`${pkg}@${pinned}\` 로 고정돼 있고 npm 최신은 \`${latest}\` 다." \
+            "" \
+            "- 변경 내역을 보고(https://www.npmjs.com/package/${pkg}?activeTab=versions) 올릴지 정한다." \
+            "- 올리면 templates/settings.json 한 줄 + 다음 릴리즈. 설치본은 update 로 바뀐다(설치자가 그 줄을 고쳤으면 남는다)." \
+            "- 올리지 않기로 하면 이유를 코멘트로 남기고 닫는다.")
+          gh issue create --title "$title" --body "$body"
+
       # cron 실패는 아무도 보러 오지 않는다 — 2026-07-01 발동분이 설계된 drift 신호로 실패했는데
       # 알림 경로가 0 이라 사람에게 도달하지 않았다. 실패를 이슈로 밀어낸다.
       # 중복 방지: 같은 제목의 열린 이슈가 있으면 새로 만들지 않고 코멘트만 붙인다.
