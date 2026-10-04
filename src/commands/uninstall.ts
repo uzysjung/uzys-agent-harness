@@ -1379,7 +1379,7 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
     .option("--dry-run", "[Mode] List reverse steps without executing")
     .option(
       "--keep-templates",
-      "[Mode] Keep `.claude/`, `.codex/`, `.opencode/` templates (remove only external assets)",
+      "[Mode] Keep `.claude/`, `.codex/`, `.opencode/` templates (remove only external assets). Without a terminal it still needs --yes, --only, --cli or --dry-run",
     )
     .option(
       "--only <ids>",
@@ -1402,7 +1402,8 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
  * 들어가지 **않는** 조건은 전부 "사용자가 이미 무엇을 원하는지 말한 경우"다:
  *   `--only` = 뺄 대상을 지정함 · `--dry-run` = 미리보기 · `--yes` = 묻지 말라는 명시.
  * 그 외 TTY 라면 화면으로 들어간다 — 플래그 없는 `uninstall` 이 즉시 전량 삭제하던 것이
- * 이 명령에서 가장 위험한 기본값이었다. TTY 가 아니면(CI·파이프) 기존 동작 그대로다.
+ * 이 명령에서 가장 위험한 기본값이었다. TTY 가 아니면 이 함수는 false 지만, 플래그 없는 비TTY 실행은 dispatchUninstall 이
+ * 거부한다(#561 · lacksRemovalIntent).
  */
 export function shouldRunInteractive(options: UninstallOptions, isTty: boolean): boolean {
   if (!isTty) return false;
