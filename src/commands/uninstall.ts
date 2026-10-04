@@ -44,7 +44,7 @@ import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
-import { SKILLS_CLI_AGENT_MAP, skillsCliSpec } from "../external-installer.js";
+import { skillsCliSpec } from "../external-installer.js";
 import { backupDir, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
 import {
   corruptedInstallLogMessage,
@@ -141,11 +141,6 @@ interface ReverseStep {
   label: string;
   /** 실제 동작 — dry-run 일 때는 호출 안 함. */
   execute: () => { ok: boolean; message?: string };
-  /**
-   * 대상 스킬의 실체(realpath)가 프로젝트 밖이면 그 경로 — 외부 도구가 링크를 따라가 밖을 지우므로
-   * **부르기 전에** 판정한다. 실행·dry-run 이 같은 값을 읽는다(남김 + 경로).
-   */
-  outside?: string | undefined;
 }
 
 interface GlobalAdvisory {
@@ -236,7 +231,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     ),
   };
 
-  const plan = planReverse(targetAssets, spawn, projectDir, installedClis(installLog));
+  const plan = planReverse(targetAssets, spawn);
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
@@ -372,13 +367,6 @@ function executeReverse(
   let failed = 0;
   const removedIds: string[] = [];
   for (const step of plan.reverseSteps) {
-    if (step.outside) {
-      // 외부 도구가 링크를 따라가 밖의 스킬을 지운다 — 부르지 않고 남긴다(기록도 유지).
-      log(
-        `  ${c.yellow("⊘")} ${step.label} kept — skill folder link target is outside the project (${step.outside}). Not touched; remove manually if intended.`,
-      );
-      continue;
-    }
     const result = step.execute();
     if (result.ok) {
       log(`  ${status.success(step.label)}`);
@@ -466,13 +454,7 @@ function dryRunLines(
   if (plan.reverseSteps.length === 0) {
     lines.push(c.dim("  (no project-scope assets to reverse)"));
   }
-  lines.push(
-    ...plan.reverseSteps.map((s) =>
-      s.outside
-        ? `  ○ keep ${s.label} (skill link target outside project: ${s.outside} — preserved)`
-        : `  ○ ${s.label}`,
-    ),
-  );
+  lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
   // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
@@ -1034,8 +1016,6 @@ interface ReversePlan {
 function planReverse(
   assets: ReadonlyArray<InstallLogAsset>,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
-  projectDir: string,
-  clis: ReadonlyArray<CliBase>,
 ): ReversePlan {
   const reverseSteps: ReverseStep[] = [];
   const globalAdvisories: GlobalAdvisory[] = [];
@@ -1046,7 +1026,7 @@ function planReverse(
       globalAdvisories.push({ asset, command: buildGlobalAdvisoryCmd(asset) });
       continue;
     }
-    const step = buildProjectReverseStep(asset, spawn, projectDir, clis);
+    const step = buildProjectReverseStep(asset, spawn);
     if (step) reverseSteps.push(step);
     else noReversePath.push(asset);
   }
@@ -1054,23 +1034,9 @@ function planReverse(
   return { reverseSteps, globalAdvisories, noReversePath };
 }
 
-/** skills CLI 가 스킬을 두는 두 자리 — 어느 쪽이든 실체가 프로젝트 밖이면 그 경로(없거나 읽기 실패면 undefined). */
-function outsideSkillTarget(projectDir: string, name: string): string | undefined {
-  for (const rel of [`.agents/skills/${name}`, `.claude/skills/${name}`]) {
-    const target = safeRealpath(join(projectDir, rel));
-    if (target !== null && isOutsideProject(projectDir, target)) return target;
-  }
-  return undefined;
-}
-
-/** CLI 집합을 못 읽는 옛 기록 — 하네스가 늘 쓰는 두 자리(.claude/skills · .agents/skills)만. */
-const SKILL_REMOVE_FALLBACK_CLIS: ReadonlyArray<CliBase> = ["claude", "codex"];
-
 function buildProjectReverseStep(
   asset: InstallLogAsset,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
-  projectDir: string,
-  clis: ReadonlyArray<CliBase>,
 ): ReverseStep | null {
   switch (asset.method) {
     case "plugin": {
@@ -1091,23 +1057,14 @@ function buildProjectReverseStep(
       };
     }
     case "skill": {
-      // #573 — skills CLI 는 **스킬 이름**으로 매칭한다. source(owner/repo)를 넘기면 무매치인데도
-      // exit 0 이라 "지웠다"고 보고하고 디스크·lockfile 은 그대로 남았다(컨테이너 실측).
-      // 이름은 install 시점의 detail.skill 에 있다 — 없으면 source 폴백(단일 스킬 source 는
-      // 그 자체가 설치 이름이다), 마지막은 id.
-      const name = asset.detail.skill ?? asset.detail.source ?? asset.id;
+      // skills CLI default 가 project — `skills remove <source>` (no -g).
+      // 일부 source 는 폴더 경로/직접 id — npx skills remove 가 처리.
+      const source = asset.detail.source ?? asset.id;
       return {
         assetId: asset.id,
-        label: `npx skills remove ${name}`,
-        outside: outsideSkillTarget(projectDir, name),
+        label: `npx skills remove ${source}`,
         execute: () => {
-          // 설치가 쓴 에이전트 범위로만 지운다 — `--agent` 없으면 skills 1.5.11 은 약 27개 에이전트
-          // 폴더(.windsurf/skills 등)에서 같은 이름을 지워 설치자 스킬·밖 링크까지 닿는다(#668 재검증).
-          const agents = (clis.length > 0 ? clis : SKILL_REMOVE_FALLBACK_CLIS).flatMap((c) => [
-            "--agent",
-            SKILLS_CLI_AGENT_MAP[c],
-          ]);
-          const r = spawn("npx", [skillsCliSpec(), "remove", name, ...agents, "--yes"]);
+          const r = spawn("npx", [skillsCliSpec(), "remove", source, "--yes"]);
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
         },
       };

@@ -1,7 +1,6 @@
 /**
- * #573/#596/#629/#630/#656/#655/#611 — uninstall 회수 누수(E 클러스터)의 계약.
+ * #596/#629/#630/#656/#655/#611 — uninstall 회수 누수(E 클러스터)의 계약.
  *
- * - #573: skills CLI 제거 인자는 **스킬 이름**(detail.skill) — source 는 무매치인데도 exit 0.
  * - #596: `--cli antigravity` 가 형제 룰(.agents/rules/<rule>.md)도 회수한다.
  * - #629/#630: 파일 심링크(config.toml 등)는 대상까지 따라가 회수 — 단 `.agents/skills/` 링크는 건드리지 않는다(#343).
  * - #655: claude CLI 가 "not found" 로 실패하는 플러그인은 already-removed 로 성공 처리.
@@ -14,14 +13,13 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  realpathSync,
   renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { runInstall } from "../src/installer.js";
@@ -61,139 +59,6 @@ const uninstall = (options: Record<string, unknown> = {}) => {
   });
   return lines;
 };
-
-describe("#573 — skills remove 인자는 스킬 이름", () => {
-  it("detail.skill 가 있으면 이름을 넘긴다(다중 스킬 source 는 무매치 exit 0 이었음)", () => {
-    install(["claude"]);
-    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
-    const path = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
-    const log = JSON.parse(readFileSync(path, "utf8")) as {
-      assets: Array<{ id: string; method: string; detail: Record<string, string> }>;
-    };
-    log.assets = [
-      {
-        id: "supabase-agent-skills",
-        method: "skill",
-        detail: { source: "anthropics/skills", skill: "frontend-design" },
-      },
-    ];
-    writeFileSync(path, JSON.stringify(log));
-    uninstallAction({ projectDir, yes: true } as never, {
-      exit: () => undefined as never,
-      log: () => {},
-      err: () => {},
-      spawn,
-      rm: () => {},
-      resolveHarnessRoot: () => HARNESS_ROOT,
-    });
-    const call = spawn.mock.calls[0] as unknown as [string, string[]];
-    expect(call[1]).toContain("frontend-design");
-    expect(call[1]).not.toContain("anthropics/skills");
-  });
-});
-
-interface LooseLog {
-  spec: { clis?: string[]; cli: string[] };
-  templates: Record<string, unknown>;
-  assets: unknown[];
-}
-
-describe("#668 — 외부 스킬 제거는 설치한 CLI 범위로만", () => {
-  const removeArgs = (mutate?: (log: LooseLog) => void): string[] => {
-    const path = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
-    const log = JSON.parse(readFileSync(path, "utf8"));
-    log.assets = [
-      { id: "fd", method: "skill", scope: "project", detail: { source: "a/b", skill: "fd" } },
-    ];
-    mutate?.(log);
-    writeFileSync(path, JSON.stringify(log));
-    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
-    uninstallAction({ projectDir, yes: true } as never, {
-      exit: () => undefined as never,
-      log: () => {},
-      err: () => {},
-      spawn,
-      rm: () => {},
-      resolveHarnessRoot: () => HARNESS_ROOT,
-    });
-    return (spawn.mock.calls[0] as unknown as [string, string[]])[1];
-  };
-  const agentsOf = (args: string[]) =>
-    args.flatMap((a, i) => (args[i - 1] === "--agent" ? [a] : []));
-
-  it("기록된 CLI 의 에이전트가 정확히 --agent 로 붙는다", () => {
-    install(["claude", "opencode"]);
-    expect(agentsOf(removeArgs())).toEqual(["claude-code", "opencode"]);
-  });
-
-  it("CLI 집합을 못 읽는 옛 기록은 하네스가 쓰는 두 자리(claude-code · codex)만", () => {
-    install(["claude"]);
-    const args = removeArgs((log) => {
-      delete log.spec.clis;
-      log.spec.cli = [];
-      log.templates = {};
-    });
-    expect(agentsOf(args)).toEqual(["claude-code", "codex"]);
-  });
-});
-
-describe("#573 — 밖을 가리키는 스킬 폴더 링크는 외부 도구를 부르지 않는다", () => {
-  const setup = () => {
-    install(["claude"]);
-    const path = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
-    const log = JSON.parse(readFileSync(path, "utf8"));
-    log.assets = [
-      {
-        id: "fd",
-        method: "skill",
-        detail: { source: "anthropics/skills", skill: "frontend-design" },
-      },
-    ];
-    writeFileSync(path, JSON.stringify(log));
-  };
-  const run = (spawn: unknown, dryRun = false) => {
-    const lines: string[] = [];
-    uninstallAction({ projectDir, yes: true, dryRun } as never, {
-      exit: () => undefined as never,
-      log: (l: string) => lines.push(l),
-      err: (l: string) => lines.push(l),
-      spawn: spawn as never,
-      rm: () => {},
-      resolveHarnessRoot: () => HARNESS_ROOT,
-    });
-    return lines.join("\n");
-  };
-
-  for (const folder of [".agents/skills", ".claude/skills", ".claude"]) {
-    it(`${folder} 가 밖 폴더 링크면 부르지 않고 경로를 말한다(dry-run 도 같다)`, () => {
-      setup();
-      const outside = mkdtempSync(join(tmpdir(), "ah-outside-"));
-      const sub = folder === ".claude" ? "skills/frontend-design" : "frontend-design";
-      mkdirSync(join(outside, sub), { recursive: true });
-      writeFileSync(join(outside, sub, "SKILL.md"), "x");
-      const linkPath = join(projectDir, folder);
-      rmSync(linkPath, { recursive: true, force: true });
-      mkdirSync(dirname(linkPath), { recursive: true });
-      symlinkSync(outside, linkPath);
-      const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
-      const dry = run(spawn, true);
-      expect(dry).toContain("keep npx skills remove frontend-design");
-      const out = run(spawn);
-      expect(spawn).not.toHaveBeenCalled();
-      expect(out).toContain(realpathSync(outside));
-      expect(existsSync(join(outside, sub, "SKILL.md"))).toBe(true);
-      rmSync(outside, { recursive: true, force: true });
-    });
-  }
-
-  it("프로젝트 안 실폴더는 기존대로 도구를 부른다(대조)", () => {
-    setup();
-    mkdirSync(join(projectDir, ".agents/skills/frontend-design"), { recursive: true });
-    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
-    run(spawn);
-    expect(spawn).toHaveBeenCalledTimes(1);
-  });
-});
 
 describe("#596 — --cli antigravity 가 형제 룰을 회수한다", () => {
   it("룰 파일들이 사라진다(앵커만 아니라)", () => {

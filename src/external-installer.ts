@@ -268,7 +268,7 @@ function installOne(
  * 매핑 누락 시 `Invalid agents: claude` 로 exit 1 → 외부 사용자 (실사용 리포
  * reproduce 2026-05-06) 환경에서 7건 skill 자산 100% skip.
  */
-export const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
+const SKILLS_CLI_AGENT_MAP: Record<CliTargets[number], string> = {
   claude: "claude-code",
   codex: "codex",
   opencode: "opencode",
