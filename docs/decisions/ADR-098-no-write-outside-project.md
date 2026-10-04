@@ -1,8 +1,8 @@
 # ADR-098: 프로젝트 밖은 세 동작 모두 쓰지도 지우지도 않는다 — 링크로 이어진 자리 포함
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-04
-- PR: (머지 직전 채움)
+- PR: #688
 - Issue: #678 (uninstall 쪽은 #668 · v26.163.0)
 - Supersedes: ADR-062 의 "슬롯 밖 파일(`settings.json` · `rules/*.md`)을 공유 dotfiles 로 링크해 두면 **링크를 따라 쓴다**" 한 줄 한정 — 스킬 복원 결정과 스킬 슬롯 술어(`foreign-slot.ts`)는 그대로다
 - Context: 설치자가 하네스 폴더(`.claude/` · `.claude/rules/` · `.agents/rules/`)나 그 안 파일을 프로젝트 밖(dotfiles 등)으로
