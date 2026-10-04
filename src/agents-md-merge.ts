@@ -279,7 +279,61 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
     bodies.set(RULES_SECTION, refreshBlock(rulesNow, rulesNew, ANCHOR_BLOCK));
   }
 
-  return bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
+  const merged = bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
+  // #643 — 스켈리톤이 모르는 상위 절(사용자가 파일 끝에 붙인 `## My Team Conventions` 등)은
+  // 렌더에 자리가 없어 조용히 사라졌다. ADR-095 가 설치자 소유로 정한 것은 **아는 절들**이다 —
+  // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 파일 끝에 되살린다.
+  // 렌더(템플릿 골격)에 이미 있는 헤딩은 모르는 절이 아니다 — `names` 밖의 중첩 절
+  // (Project Context 안의 상시 스킬 안내 등)을 되살리면 중복이 된다.
+  // 아는 절 본문(`## Project Context`·`## Project Rules` 아래)으로 이미 보존된 절은 다시 모으지 않는다 —
+  // 모으면 update 마다 한 벌씩 늘어난다.
+  const mergedText = merged.replace(/\r/g, "");
+  const extras = extraTopLevelSections(existing, names, rendered, template).filter(
+    (e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")),
+  );
+  if (extras.length === 0) return merged;
+  return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
+    /\n+$/,
+    "\n",
+  );
+}
+
+/** 이름이 템플릿에 없는 `## ` 상위 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로. */
+function extraTopLevelSections(
+  existing: string,
+  names: ReadonlySet<string>,
+  rendered: string,
+  template: string,
+): string[][] {
+  const out: string[][] = [];
+  let current: string[] | null = null;
+  for (const line of existing.split("\n")) {
+    const bare = line.replace(/\r$/, "");
+    const name = /^## (.+?)\s*$/.exec(bare)?.[1];
+    if (name !== undefined) {
+      if (current !== null) out.push(current);
+      // 렌더·템플릿 어디에도 없는 헤딩만 사용자 절이다. 상시 스킬 안내 헤딩은 선택이 빠지면
+      // 렌더에서 사라지지만 하네스가 쓴 것이다(마커 안 절 — refreshBlock 이 되살릴지 지울지
+      // 정한다) — 되살리 대상에서 제외한다.
+      const harnessAuthored =
+        names.has(name) ||
+        rendered.includes(bare) ||
+        template.includes(bare) ||
+        line.trim() === CONTINUOUS_SKILLS_HEADING;
+      current = harnessAuthored ? null : [line];
+      continue;
+    }
+    if (current !== null) current.push(line);
+  }
+  if (current !== null) out.push(current);
+  // 끝의 빈 줄 껍데기는 되살릴 필요 없다 — 병합 결과가 정리한다.
+  return out
+    .map((lines) => {
+      const trimmed = [...lines];
+      while (trimmed.length > 1 && (trimmed.at(-1) ?? "").trim() === "") trimmed.pop();
+      return trimmed;
+    })
+    .filter((lines) => lines.length > 1 || /^## /.test(lines[0] ?? ""));
 }
 
 /** 절 본문에서 하네스 마커 블록 하나를 뺀 나머지 = 설치자가 적은 줄. 절이 없으면 빈 배열. */

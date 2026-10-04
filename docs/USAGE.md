@@ -54,7 +54,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` / `skills` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--project-dir <path>` | Where to install. Default: the current directory |
-| `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. `--track` is still required |
+| `--reinstall` | Rewrites the harness files in place. A harness file you edited is saved as `<file>.backup-<ts>` first; your own files stay where they are. Use when `.claude/` is damaged or missing. A `settings.json` that cannot be read is left untouched and the command stops with an error — fix or delete that file, then run it again. `--track` is still required |
 | `--verbose` | Print every file per category instead of counts |
 
 One flag selects *behaviour* rather than an asset:
@@ -236,7 +236,7 @@ Run it with no flags in a terminal — or choose **Uninstall** in the wizard's m
 - **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; templates stay. Disabled when no external assets are recorded.
 - **Remove everything** = `--yes`.
 
-The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes` — or when there is no terminal.
+The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes`. Without a terminal **and** without one of those flags, `uninstall` refuses and removes nothing — a pipe or CI run can no longer remove everything by default.
 
 | Flag | What |
 |---|---|
@@ -314,7 +314,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 **Plugin install fails with `marketplace not found`** — usually the marketplace was already added earlier; the installer retries the plugin step anyway. If the plugin itself still fails, remove old or broken entries from `~/.claude/plugins/installed_plugins.json` and try again.
 
-**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it rewrites every harness file, saving each one you edited as `<file>.backup-<ts>` first. `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
+**`update` says a hook needs reinstall** — run `install --track <your track> --cli <each installed CLI>` again — it rewrites `settings.json` and keeps everything else in place. Use `install --reinstall --track <your track>` only if `.claude/` itself is damaged — it rewrites every harness file, saving each one you edited as `<file>.backup-<ts>` first (a `settings.json` that is not valid JSON is not rewritten: the command stops, you fix or delete it and run again). `update` does not rewrite `settings.json`, so it cannot wire a new hook by itself.
 
 ---
 
