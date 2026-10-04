@@ -6,7 +6,7 @@
  * - #620: 블록 앞 사용자 빈 줄이 흡수되지 않는다(설치가 넣은 빈 줄 하나만 되돌린다) ·
  *   파일 끝 개행 상태를 보존한다.
  * - #643: 스켈리톤이 모르는 상위 절(## My Team Conventions)이 update 에서 사라지지 않는다.
- * - #614: --reinstall 이 파손 JSON settings.json 을 백업 후 새로 쓴다(훅 배선 복구).
+ * - #614: --reinstall 도 읽을 수 없는 settings.json 을 건드리지 않고 안내 + 비정상 종료한다.
  */
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -100,25 +100,58 @@ describe("#643 — 모르는 상위 절 보존", () => {
   });
 });
 
-describe("#614 — reinstall 이 파손 settings.json 을 고친다", () => {
-  it("백업 후 새로 써서 훅이 배선된다", () => {
+describe("#643 B1 — 아는 절 아래 설치자 절은 update 를 거듭해도 한 벌", () => {
+  const agents = () => join(projectDir, "AGENTS.md");
+  const count = () =>
+    readFileSync(agents(), "utf8").match(/^## My Team Conventions\r?$/gm)?.length ?? 0;
+  const update3 = () => {
+    for (let i = 0; i < 3; i++)
+      runUpdateMode(projectDir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
+  };
+  it.each(["## Project Context", "## Project Rules"])("%s 바로 앞에 넣은 절", (anchor) => {
+    install(["codex"]);
+    const t = readFileSync(agents(), "utf8");
+    writeFileSync(
+      agents(),
+      t.replace(anchor, `## My Team Conventions\n\n- team rule X\n\n${anchor}`),
+    );
+    const before = count();
+    update3();
+    expect(before).toBe(1);
+    expect(count()).toBe(1);
+  });
+  it.each(["## Project Context", "## Project Rules"])("%s 바로 아래에 넣은 절", (anchor) => {
+    install(["codex"]);
+    const t = readFileSync(agents(), "utf8");
+    writeFileSync(
+      agents(),
+      t.replace(`${anchor}\n`, `${anchor}\n\n## My Team Conventions\n\n- team rule X\n`),
+    );
+    update3();
+    expect(count()).toBe(1);
+    expect(readFileSync(agents(), "utf8").match(/team rule X/g)?.length).toBe(1);
+  });
+  it("파일 끝 절 · CRLF 파일", () => {
+    install(["codex"]);
+    const t = readFileSync(agents(), "utf8").replace(/\n/g, "\r\n");
+    writeFileSync(agents(), `${t}\r\n## My Team Conventions\r\n\r\n- team rule X\r\n`);
+    update3();
+    expect(count()).toBe(1);
+    expect(readFileSync(agents(), "utf8").match(/team rule X/g)?.length).toBe(1);
+  });
+});
+
+describe("#614 — 읽을 수 없는 settings.json 은 reinstall 도 건드리지 않고 비정상 종료한다", () => {
+  it.each(["reinstall", "add"])("%s: 바이트 그대로 · 안내 · throw(→ exit 1)", (mode) => {
     install(["claude"]);
     const settingsPath = join(projectDir, ".claude", "settings.json");
     writeFileSync(settingsPath, "{broken json,,,");
-    install(["claude"], "reinstall");
-    const after = JSON.parse(readFileSync(settingsPath, "utf8")) as {
-      hooks?: Record<string, unknown>;
-    };
-    expect(after.hooks?.SessionStart).toBeTruthy();
-    // 원본 파손분은 백업에 보존
-    const backup = join(projectDir, ".claude", "settings.json.backup-");
-    void backup;
-    const found = readdirSync(join(projectDir, ".claude")).filter((f) =>
-      f.startsWith("settings.json.backup-"),
+    expect(() => install(["claude"], mode)).toThrow(
+      /not valid JSON — left untouched.*run the install again/,
     );
-    expect(found.length).toBe(1);
-    expect(readFileSync(join(projectDir, ".claude", found[0] ?? ""), "utf8")).toBe(
-      "{broken json,,,",
-    );
+    expect(readFileSync(settingsPath, "utf8")).toBe("{broken json,,,");
+    expect(
+      readdirSync(join(projectDir, ".claude")).filter((f) => f.startsWith("settings.json.backup-")),
+    ).toEqual([]);
   });
 });

@@ -285,7 +285,12 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 파일 끝에 되살린다.
   // 렌더(템플릿 골격)에 이미 있는 헤딩은 모르는 절이 아니다 — `names` 밖의 중첩 절
   // (Project Context 안의 상시 스킬 안내 등)을 되살리면 중복이 된다.
-  const extras = extraTopLevelSections(existing, names, rendered, template);
+  // 아는 절 본문(`## Project Context`·`## Project Rules` 아래)으로 이미 보존된 절은 다시 모으지 않는다 —
+  // 모으면 update 마다 한 벌씩 늘어난다.
+  const mergedText = merged.replace(/\r/g, "");
+  const extras = extraTopLevelSections(existing, names, rendered, template).filter(
+    (e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")),
+  );
   if (extras.length === 0) return merged;
   return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
     /\n+$/,
@@ -303,7 +308,8 @@ function extraTopLevelSections(
   const out: string[][] = [];
   let current: string[] | null = null;
   for (const line of existing.split("\n")) {
-    const name = /^## (.+?)\s*$/.exec(line.replace(/\r$/, ""))?.[1];
+    const bare = line.replace(/\r$/, "");
+    const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
       // 렌더·템플릿 어디에도 없는 헤딩만 사용자 절이다. 상시 스킬 안내 헤딩은 선택이 빠지면
@@ -311,8 +317,8 @@ function extraTopLevelSections(
       // 정한다) — 되살리 대상에서 제외한다.
       const harnessAuthored =
         names.has(name) ||
-        rendered.includes(line) ||
-        template.includes(line) ||
+        rendered.includes(bare) ||
+        template.includes(bare) ||
         line.trim() === CONTINUOUS_SKILLS_HEADING;
       current = harnessAuthored ? null : [line];
       continue;
