@@ -11,9 +11,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readInstallLogStatus } from "../src/install-log.js";
 import { listAction } from "../src/commands/list.js";
 import { parseOnly } from "../src/commands/uninstall.js";
+import { readInstallLogStatus } from "../src/install-log.js";
 
 let dir: string;
 
@@ -57,7 +57,10 @@ describe("readInstallLogStatus — 없음/깨짐/정상 (#640)", () => {
 
   it.each([
     ["spec 결번", (v: Record<string, unknown>) => delete v.spec],
-    ["spec.tracks 결번", (v: Record<string, unknown>) => delete (v.spec as Record<string, unknown>).tracks],
+    [
+      "spec.tracks 결번",
+      (v: Record<string, unknown>) => delete (v.spec as Record<string, unknown>).tracks,
+    ],
     ["assets 결번", (v: Record<string, unknown>) => delete v.assets],
     ["templates 결번", (v: Record<string, unknown>) => delete v.templates],
   ])("파싱은 되지만 %s 이면 corrupted", (_label, mutate) => {
@@ -90,10 +93,7 @@ describe("parseOnly — 플래그 반복 정규화 (#612)", () => {
   });
 
   it("반복 플래그 배열 (cac 가 만드는 형태)", () => {
-    expect(parseOnly(["openspec", "agent-browser"])).toEqual([
-      "openspec",
-      "agent-browser",
-    ]);
+    expect(parseOnly(["openspec", "agent-browser"])).toEqual(["openspec", "agent-browser"]);
   });
 
   it("혼합: 쉼표 문자열 + 단일", () => {

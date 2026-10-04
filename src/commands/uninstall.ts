@@ -1207,7 +1207,8 @@ function removeExternalFiles(
       if (!lstatSync(abs).isFile()) continue;
       current = readFileSync(abs, "utf8");
     } catch {
-      kept.push(path);
+      // 읽지 못한 것은 "고쳤다"가 아니라 판정 불가다 — unjudged 로 보고한다.
+      unjudged.push(path);
       continue;
     }
     if (hashContent(current) !== sha256) {
@@ -1338,7 +1339,7 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
   }
   for (const path of external.unjudged) {
     lines.push(
-      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (template unreadable or write failed). Remove manually if intended.`,
+      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (a file or template could not be read, or the write failed). Remove manually if intended.`,
     );
   }
   for (const path of external.kept) {
