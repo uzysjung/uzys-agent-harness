@@ -93,7 +93,7 @@ To make one external asset available in every project, install it with its own t
 
 **An install made with Global before it was retired keeps working.** Its record says `global`, so `update` refreshes its assets with the global flags and `uninstall` lists them for you to remove by hand, as before — and `install --scope global` is still accepted in that project, so the repair and `RUNS AS` commands the screens print for it run as shown.
 
-`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched. Two exceptions: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` and isolates projects through the `projectPath` field of `installed_plugins.json`, and `--with-codex-trust` adds one trust entry for this folder to `~/.codex/config.toml`. *This project only* means *no other project is affected*, not *nothing outside this project is written*. That includes links: if `.claude/`, a rules folder, or a harness file is a link that resolves outside this project (a shared dotfiles folder, for example), `install`, `update`, and `uninstall` leave what it points to untouched and name the link and its target on screen — the harness files are not written there.
+`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched. Two exceptions: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` and isolates projects through the `projectPath` field of `installed_plugins.json`, and `--with-codex-trust` adds one trust entry for this folder to `~/.codex/config.toml`. *This project only* means *no other project is affected*, not *nothing outside this project is written*. That includes links: if `.claude/`, a rules folder, or a harness file is a link that resolves outside this project (a shared dotfiles folder, for example), `install`, `update`, and `uninstall` leave what it points to — and the link itself — untouched and name the link and its target on screen — the harness files are not written there.
 
 ### Multi-CLI install
 
@@ -210,7 +210,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 | An `AGENTS.md` the harness created, with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
 | `.claude/` on `install --reinstall` | Harness files are rewritten in place; one you edited is saved as `<file>.backup-<ts>` first. Your own files there stay |
-| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup |
+| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup. A link to outside the project stays as it is |
 | `.mcp.json` | Your servers are preserved and merged. `uninstall` removes only the servers the harness added — one you changed is left and named; a file the harness created is deleted once nothing else is in it |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
@@ -253,7 +253,7 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 What it can and cannot reverse:
 
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`). For skill packs the harness records which files `npx skills` put down and removes exactly those itself — a copy of the same skill that was already there (yours, or another agent's folder) stays; a file you changed is saved as `<file>.backup-<ts>` first; a file reached through a link to outside the project is left and named. Installs recorded before that file list existed are not removed — the screen names the folders left behind.
-- **Harness files** — `.claude/`, `.codex/` and `.opencode/` are not deleted: each is moved aside as `<dir>.backup-<ts>` with everything in it, so files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) are in the backup; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
+- **Harness files** — `.claude/`, `.codex/` and `.opencode/` are not deleted: each is moved aside as `<dir>.backup-<ts>` with everything in it, so files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) are in the backup. A folder that is a link to outside the project is not moved: the link stays in place and the screen names it with its target. In `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
 - **Global-scope assets** — listed for you to remove by hand.
 - **The Codex trust entry** that `--with-codex-trust` added to `~/.codex/config.toml` — listed with its path for you to remove by hand (a full `uninstall` and `--dry-run` print it; an entry that was already there before the install is yours and is not listed).
 - **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
@@ -275,12 +275,12 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 
 | File | Used by | Goes when |
 |---|---|---|
-| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup |
+| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup; a link to outside the project stays as it is |
 | `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
 | `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
-| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup |
+| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup; a link to outside the project stays as it is |
 | `opencode.json` | OpenCode | OpenCode is removed (kept if you edited it) |
-| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours |
+| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours; a link to outside the project stays as it is |
 | `.agents/rules/uzys-harness.md` | Antigravity | Antigravity is removed |
 | `AGENTS.md` | Codex, OpenCode | The last of them is removed — only the harness sections; your `## Project Context` / `## Project Rules` stay |
 | `.agents/skills/` (harness skills only) | Codex, OpenCode, Antigravity | The last of them is removed — skills you installed yourself stay |

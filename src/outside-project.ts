@@ -93,6 +93,20 @@ export function outsideProjectTarget(projectDir: string, abs: string): OutsideLi
   return { path: slash(rel), target, link: slash(link), linkTarget };
 }
 
+/**
+ * `rel` 자리 **자체**가 프로젝트 밖으로 나가는 링크인가 — 폴더째 옮기려는 자리(uninstall 의 `.codex` 등)용.
+ * 그 링크를 옮기면 설치자가 걸어 둔 링크가 프로젝트에서 사라진다(#692). 맞으면 그 자리, 아니면 null.
+ */
+export function outsideLinkAt(projectDir: string, rel: string): OutsideLink | null {
+  const abs = join(projectDir, rel);
+  try {
+    if (!lstatSync(abs, { throwIfNoEntry: false })?.isSymbolicLink()) return null;
+  } catch {
+    return null; // 판정할 수 없다 — 지금까지의 동작 그대로
+  }
+  return outsideProjectTarget(projectDir, abs);
+}
+
 /** 한 실행이 밖이라 건너뛴 자리를 모은다 — 쓰기 직전에 `skip(abs)` 를 부르고, true 면 쓰지 않는다. */
 export interface OutsideGuard {
   skip(abs: string): boolean;
