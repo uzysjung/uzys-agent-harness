@@ -156,6 +156,18 @@ describe("B2: 옛 판이 더한 기록 폴더 줄 — 다음 install · update �
     });
   }
 
+  it("옛 판 저장소에서 설치자가 폴더 줄을 손으로 지웠으면 update 가 되살리지 않는다 (NR-1 리뷰 N1)", () => {
+    seedOldInstall();
+    write(".gitignore", read(".gitignore").replace(`${DIR_LINE}\n`, ""));
+
+    const screen = run("update");
+
+    expect(gitignoreLines()).not.toContain(DIR_LINE);
+    for (const r of RUNTIME) expect(gitignoreLines()).toContain(r);
+    expect(screen).not.toMatch(/gitignore:\.uzys-agent-harness\/(?!\S)/);
+    expect(screen).not.toContain(NOTE); // 걷은 것이 아니다 — 이미 없었다
+  });
+
   it("설치자가 고친 줄(기록 sha 와 다름)은 kept — 남기고 그렇게 말한다 · 이관 안내는 내지 않는다", () => {
     // 옛 판이 딸린 주석과 함께 적은 몫을 설치자가 자기 주석으로 고친 상태
     seedOldInstall((t) => t.replace(`${DIR_LINE}\n`, `# mine — keep out of git\n${DIR_LINE}\n`));

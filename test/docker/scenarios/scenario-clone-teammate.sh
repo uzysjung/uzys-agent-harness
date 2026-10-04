@@ -10,6 +10,7 @@
 #   ③ 변형(N1): 원본에서 하네스 룰 하나를 고쳐 커밋 → 클론 pull → update: 그 파일 하나만 백업 · 작업트리 diff 1건 · 요약에 표시
 #   ④ 이관: 26.163.0 으로 깐 저장소에 이 판 install → `.gitignore` 의 폴더 줄이 런타임 두 줄로 바뀌고 화면이 말한다
 #      (26.163.0 은 npm 레지스트리에서 받는다 — 네트워크가 필요하다)
+#   ⑤ 대조: 기록을 지운 클론 → list · update · uninstall --yes 셋 다 exit 1 · 첫 줄 동일 · 트리 불변 (판정은 기록이 한다)
 
 set -euo pipefail
 
@@ -75,6 +76,25 @@ CHANGED="$(g status --porcelain)"
 grep -q "saved before replacing" /tmp/ct-update2.txt || {
   tail -30 /tmp/ct-update2.txt; fail "변형: 요약이 백업을 말하지 않는다"; }
 echo "✓ 변형: 동료가 고친 룰 → 백업 1건 · diff 1건(${RULE}) · 요약에 표시"
+
+# --- ⑤ 대조: 기록 없는 클론 — ② 의 초록이 "디스크에 파일이 있어서" 가 아님을 보인다 ---
+g clone -q "${ROOT}/origin" "${ROOT}/clone-norecord"
+cd "${ROOT}/clone-norecord"
+rm -rf .uzys-agent-harness
+tree_sha() { find . -path ./.git -prune -o -type f -print | LC_ALL=C sort | xargs sha256sum | sha256sum; }
+BEFORE="$(tree_sha)"
+FIRST=""
+for cmd in list update "uninstall --yes"; do
+  code=0
+  # shellcheck disable=SC2086 # cmd 는 단어 둘까지 — 의도적 분할
+  agent-harness ${cmd} >/tmp/ct-nr.txt 2>&1 || code=$?
+  [ "${code}" = "1" ] || { cat /tmp/ct-nr.txt; fail "대조: 기록 없는 클론에서 ${cmd} 가 exit ${code} (1 이어야 한다)"; }
+  line="$(grep -m1 . /tmp/ct-nr.txt)"
+  [ -z "${FIRST}" ] && FIRST="${line}"
+  [ "${line}" = "${FIRST}" ] || fail "대조: 첫 줄이 다르다 — '${FIRST}' vs '${line}'"
+done
+[ "$(tree_sha)" = "${BEFORE}" ] || fail "대조: 기록 없는 클론에서 세 명령이 디스크를 바꿨다"
+echo "✓ 대조: 기록 없는 클론 → 세 명령 exit 1 · 첫 줄 동일(${FIRST}) · 트리 불변"
 
 # --- ④ 이관: 26.163.0 으로 깐 저장소 ---
 mkdir -p "${ROOT}/old"

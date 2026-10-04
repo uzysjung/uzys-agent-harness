@@ -110,7 +110,7 @@ export function traceNoteLines(traces: ReadonlyArray<Trace>): string[] {
   const shown = traces.slice(0, 3).map((t) => t.path);
   return [
     `Harness files are here (${shown.join(", ")}${traces.length > 3 ? ", …" : ""}) but no record of installing them.`,
-    "Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once (tracks: see `list`) and commit .uzys-agent-harness/ — or delete the `.uzys-agent-harness/` line from .gitignore and commit the folder.",
+    "Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once (tracks: see `list`) and commit .uzys-agent-harness/ (if .gitignore still lists `.uzys-agent-harness/` after that, the line is theirs — delete it).",
   ];
 }
 
