@@ -885,7 +885,11 @@ function installClaudeBaseline(
   const rootClaudeMd = writeRootClaudeMd(
     projectDir,
     manifestSpec.tracks,
-    manifestSpec.selectedInternalSkills ?? [],
+    // ADR-085 · update(`upsertRootImport`)와 같은 판정 — 실제로 깔린 스킬만 안내한다. 밖 링크라 쓰지 않은
+    // 스킬(ADR-098)을 "installed" 라 적으면 다음 update 가 그 절을 걷어 내 두 동작이 서로 반대로 쓴다.
+    (manifestSpec.selectedInternalSkills ?? []).filter((id) =>
+      existsSync(join(projectDir, ".claude", "skills", id)),
+    ),
     harnessRoot,
     writer,
   );

@@ -14,6 +14,7 @@ import {
   symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { outsideProjectTarget } from "./outside-project.js";
 
 /** Ensure a directory exists, creating parents as needed. Idempotent. */
 export function ensureDir(path: string): void {
@@ -264,6 +265,8 @@ export function ensureProjectSkeleton(projectDir: string): void {
     "docs/decisions",
   ];
   for (const d of dirs) {
+    // ADR-098 — 실체가 프로젝트 밖(예: `.claude` → dotfiles)이면 빈 폴더도 만들지 않는다.
+    if (outsideProjectTarget(projectDir, join(projectDir, d)) !== null) continue;
     mkdirSync(join(projectDir, d), { recursive: true });
   }
 }

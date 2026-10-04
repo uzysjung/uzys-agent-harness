@@ -163,12 +163,17 @@ describe("#678 링크 너머가 프로젝트 밖이면 install · update 가 쓰
     const { report, screen } = run(["claude"], ["tooling"]);
 
     expect(tree(join(outDir, "claude")).size).toBe(0);
+    expect(readdirSync(join(outDir, "claude")), "빈 폴더도 만들지 않는다").toEqual([]);
     expect(report.categories?.rules).toEqual([]);
     expect(report.categories?.skills).toEqual([]);
     expect(screen).not.toMatch(/rules \(\d+\)/);
     expect(screen).not.toMatch(/skills \(\d+\)/);
     expect(screen).not.toContain("now active");
     expect(screen).toContain(".claude/ — left as is");
+    // 쓰지 않은 스킬을 루트 CLAUDE.md 가 "installed" 라 안내하지 않는다 — update 와 같은 판정(설치된 것만)
+    expect(readFileSync(join(projectDir, "CLAUDE.md"), "utf8")).not.toContain(
+      "Skills that apply continuously",
+    );
   });
 
   it("B3: `.claude/rules` 만 밖이면 rules 줄만 빠지고 나머지는 센다", () => {
