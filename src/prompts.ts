@@ -80,11 +80,8 @@ export interface Prompts {
     /** #533 — 이미 깔린 CLI. `selectTracks` 의 `installed` 와 같은 규약(표시만 — 잠금은 합집합). */
     installed?: ReadonlyArray<CliBase>,
   ) => Promise<CliTargets | null>;
-  /** #533 (D2) — `record` 는 메뉴 머리글이 읊는 설치 기록. 없으면 기록 없음으로 그린다. */
-  selectAction: (
-    state: DetectedInstall,
-    record?: InstallRecordView,
-  ) => Promise<RouterAction | null>;
+  /** #533 (D2) — `record` 는 메뉴 머리글이 읊는 설치 기록. */
+  selectAction: (state: DetectedInstall, record: InstallRecordView) => Promise<RouterAction | null>;
   confirmInstall: (summary: string) => Promise<boolean | null>;
   /**
    * #480 — update 위저드의 "무엇을 갱신할까" 체크박스. 옵셔널: 없는 구현(테스트 픽스처)은 전부

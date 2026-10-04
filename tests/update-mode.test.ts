@@ -27,6 +27,7 @@ import { DEFAULT_OPTIONS, UPDATE_GROUPS } from "../src/types.js";
 import {
   buildUpdateSpec,
   cleanStaleHookRefs,
+  collectRunBackups,
   keepHookRef,
   pruneOrphans,
   retireMcpAllowlist,
@@ -1942,5 +1943,31 @@ describe("스킬 기준선 갱신 (R-3a)", () => {
     runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(readInstallLog(projectDir)).toBeNull();
+  });
+});
+
+describe("collectRunBackups — 훑는 자리 (#622: CLI 소유 표에서 유도)", () => {
+  it("하네스 디렉터리 다섯 곳과 루트 1단의 백업을 모으고, 그 밖 디렉터리는 훑지 않는다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-run-backups-"));
+    try {
+      const stamp = ".backup-20261004T120000";
+      const files = [
+        `AGENTS.md${stamp}`,
+        `.claude/rules/a.md${stamp}`,
+        `.codex/hooks/b.sh${stamp}`,
+        `.opencode/c.md${stamp}`,
+        `.agents/skills/x/SKILL.md${stamp}`,
+        `.uzys-agent-harness/d.json${stamp}`,
+        `src/e.ts${stamp}`, // 하네스 자리가 아니다
+      ];
+      for (const rel of files) {
+        mkdirSync(join(dir, rel, ".."), { recursive: true });
+        writeFileSync(join(dir, rel), "x");
+      }
+      const got = collectRunBackups(dir, 0).map((b) => b.backup);
+      expect(got.sort()).toEqual(files.filter((f) => !f.startsWith("src/")).sort());
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

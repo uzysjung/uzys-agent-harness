@@ -189,30 +189,10 @@ function copyTreePreservingLinks(source: string, target: string): void {
 }
 
 /**
- * 사용자 편집 가능 파일(settings.json·CLAUDE.md)을 덮어쓰기 전 보호.
- * 기존 파일이 있고 새 내용과 다르면 timestamp 백업본을 만들고 그 경로를 반환한다.
- * 부재하거나 내용이 동일하면(idempotent 재설치) null — 불필요한 백업을 만들지 않는다.
- * audit SEC-1/CODE-2 — add 모드(.claude/ backup 없음)에서 통째 덮어쓰기로 인한 데이터 손실 방지.
- */
-export function backupFileIfChanged(
-  target: string,
-  newContent: string,
-  now: Date = new Date(),
-): string | null {
-  if (!existsSync(target)) {
-    return null;
-  }
-  if (readFileSync(target, "utf-8") === newContent) {
-    return null;
-  }
-  return backupFile(target, now);
-}
-
-/**
  * 기존 파일을 timestamp 백업본으로 복사하고 그 경로를 반환한다. **판정은 호출자 몫.**
  *
- * `backupFileIfChanged` 와 나뉜 이유는 술어가 다르기 때문이다: 저쪽은 "새 내용과 다른가",
- * update 의 스킬 갱신(ADR-046)은 "**설치 시점**과 다른가"로 판정한다. 하네스가 개선해서
+ * 판정을 여기 두지 않는 이유는 술어가 "새 내용과 다른가"가 아니기 때문이다 — update 의 스킬
+ * 갱신(ADR-046)은 "**설치 시점**과 다른가"로 판정한다. 하네스가 개선해서
  * 달라진 파일은 사용자가 안 건드렸으므로 백업 없이 덮어써야 하고, 내용 비교만으로는 그
  * 둘을 구분할 수 없다.
  *
