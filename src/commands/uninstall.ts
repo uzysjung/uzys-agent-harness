@@ -278,7 +278,9 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     selectedIds
       ? []
       : (installLog.rootFiles ?? []).filter(
-          (f) => !underAny(f.path, movedDirs) && !(ROOT_SHARED.includes(f.path) && !keepTemplates),
+          (f) =>
+            !underAny(f.path, movedDirs) &&
+            !((ROOT_SHARED.includes(f.path) || CLI_SHARED.includes(f.path)) && !keepTemplates),
         ),
     targetAssets,
     projectDir,
@@ -1278,7 +1280,8 @@ function stripCliShared(
         remnant: remnantFor(path, log, harnessRoot),
         remnantLine: remnantLine(path),
         write,
-        removeIfEmpty: ROOT_SHARED.includes(path) && created.has(path),
+        // ADR-099 R2 — 블록만 담아 다시 만든 `AGENTS.md`(첫 접촉 블록 모델)도 하네스가 만든 파일이다
+        removeIfEmpty: created.has(path),
       }),
     );
 }

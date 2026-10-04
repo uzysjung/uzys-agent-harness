@@ -504,7 +504,7 @@ export function buildInstallLog(
  * #551 — `displaced` 는 합치지 않고 **마지막 하나**만 둔다. `notes[0]` 이 되돌릴 백업 경로라, 합집합이면
  * 옛 백업을 가리키게 된다(설계 §1.2 "displaced 되돌리기 세부").
  */
-function mergeRootFiles(
+export function mergeRootFiles(
   previous: ReadonlyArray<InstallLogRootFile> | undefined,
   current: ReadonlyArray<InstallLogRootFile>,
 ): InstallLogRootFile[] {
@@ -598,16 +598,19 @@ export function isHarnessOwned(
  *
  * 이번 실행이 안 건드린 산출물(예: 지난번엔 opencode 도 깔았는데 이번엔 codex 만)은 디스크에
  * 그대로 있으므로 **이전 기록을 유지한다** — 지우면 다음 실행이 판정 불가로 떨어져 멀쩡한
- * 파일을 백업한다. 대신 디스크에서 사라진 항목은 뺀다. 기준선은 이력이 아니라 현재 상태다.
+ * 파일을 백업한다.
+ *
+ * **디스크에서 사라진 항목도 빼지 않는다**(ADR-099 R2) — 기록이 되살림의 근거다. 손으로 지운 하네스 파일은 빼기가 아니라
+ * 상태이고, 그 기록을 지우면 update 가 그 파일을 영영 되돌리지 못한다(#598 — AGENTS.md 가 기록에서도 사라졌다). 기록을 걷는
+ * 길은 따로 있다: 은퇴는 `harnessRemove` 의 `forget`, `uninstall --cli` 는 그 CLI 의 기록을 직접 걷는다.
  */
 export function mergeExternalFiles(
-  projectDir: string,
   previous: ReadonlyArray<InstallLogSkillFile> | undefined,
   current: ReadonlyArray<InstallLogSkillFile>,
 ): InstallLogSkillFile[] {
   const byPath = new Map<string, InstallLogSkillFile>();
   for (const file of [...(previous ?? []), ...current]) byPath.set(file.path, file);
-  return [...byPath.values()].filter((f) => existsSync(join(projectDir, f.path)));
+  return [...byPath.values()];
 }
 
 /**

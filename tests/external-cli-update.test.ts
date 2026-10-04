@@ -373,20 +373,21 @@ describe("update — 기준선이 왕복한다", () => {
     expect(after.map((f) => f.path)).toContain(legacyRel);
   });
 
-  it("디스크에서 사라진 산출물의 기준선은 유지되지 않는다 — 기준선은 이력이 아니라 현재 상태다", () => {
+  it("디스크에서 사라진 산출물의 기준선도 유지된다 — 기록이 되살림의 근거다 (ADR-099 R2 · #598)", () => {
     install(["claude", "codex"]);
     const goneRel = ".codex/removed-note.md";
     const log = readInstallLog(projectDir);
     if (!log) throw new Error("install log 가 없다 — 픽스처 전제가 깨졌다");
     writeInstallLog(projectDir, {
       ...log,
-      // 디스크에는 만들지 않는다 — 없는 파일의 해시가 기록에 남으면 그게 곧 거짓 기록이다.
+      // 디스크에는 만들지 않는다 — 손으로 지운 하네스 파일은 빼기가 아니라 상태다. 기록을 지우면 update 가 그 파일을 영영
+      // 되돌리지 못한다(#598 — AGENTS.md 가 기록에서도 사라졌다). 기록을 걷는 길은 은퇴(`forget`)와 `uninstall --cli` 다
       externalFiles: [...(log.externalFiles ?? []), { path: goneRel, sha256: hashContent("x") }],
     });
 
     update();
 
     const after = readInstallLog(projectDir)?.externalFiles ?? [];
-    expect(after.map((f) => f.path)).not.toContain(goneRel);
+    expect(after.map((f) => f.path)).toContain(goneRel);
   });
 });

@@ -55,6 +55,11 @@ export interface AntigravityTransformParams {
   refreshOnly?: boolean;
   /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
   journal?: WriteJournal;
+  /**
+   * ADR-099 R2 (#584) — 설치 기록(`installedClis`)이 Antigravity 를 깔린 CLI 로 말한다. refresh 모드에서 앵커와 형제 룰을
+   * **없어도 만드는** 근거다 — 디스크의 앵커 존재가 아니라 기록이 정한다(앵커를 지우면 룰까지 영영 못 받았다).
+   */
+  installedByRecord?: boolean;
 }
 
 export interface AntigravityTransformReport {
@@ -102,18 +107,20 @@ export function runAntigravityTransform(
   });
 
   // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  const rulesFile = writeRules(harnessRoot, projectDir, writer, skillIds);
+  //   ADR-099 R2 (#584) — 기록이 Antigravity 를 깔린 CLI 로 말하면 refresh 모드에서도 없으면 만든다.
+  const installedByRecord = params.installedByRecord === true;
+  const rulesFile = writeRules(harnessRoot, projectDir, writer, skillIds, installedByRecord);
 
   // 1a. 2026-08-12 — 배포 룰을 같은 워크스페이스 룰 디렉터리에 형제 파일로 놓는다.
   //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
   //   상한 — 배포 룰은 전부 그 아래다). 위 `uzys-harness.md` 는 이름과 달리 **앵커**라서,
   //   그것만으로는 룰이 도달하지 않았다.
   //
-  //   `createInRefresh` 를 켜는 근거는 **바로 위 줄의 반환값**이다. 앵커를 담당했다는 것은
-  //   이 프로젝트에 Antigravity 가 설치돼 있다는 뜻이고(refresh 모드에서 앵커가 없으면
-  //   `rulesFile === null`), 그때만 새 룰 파일을 만든다. 이 예외가 없으면 기존 설치자는
+  //   `createInRefresh` 를 켜는 근거는 **설치 기록**이다(ADR-099 R2 · #584). 전에는 바로 위 줄의 반환값(앵커를 담당했다)
+  //   하나였는데, 앵커를 지운 설치본은 그 근거가 사라져 앵커도 새 룰도 영영 못 받았다. 앵커 담당은 기록이 없는 옛
+  //   설치본(로그 없음 — update 가 CLI 전부를 넘긴다)의 근거로만 남는다. 이 예외가 없으면 기존 설치자는
   //   update 를 아무리 돌려도 룰을 못 받는다 — 없는 파일은 refresh 가 건너뛰기 때문이다.
-  const antigravityInstalled = rulesFile !== null;
+  const antigravityInstalled = installedByRecord || rulesFile !== null;
   const harnessRuleFiles: string[] = [];
   for (const rule of portRules(harnessRoot, rules)) {
     const target = join(projectDir, ".agents", "rules", `${rule.name}.md`);
@@ -158,6 +165,7 @@ function writeRules(
   projectDir: string,
   writer: OwnedWriter,
   selectedInternalSkills: ReadonlyArray<string>,
+  createInRefresh: boolean,
 ): string | null {
   const claudeMdPath = join(harnessRoot, "templates/CLAUDE.md");
   const templatePath = join(harnessRoot, "templates/antigravity/AGENTS.md.template");
@@ -186,5 +194,5 @@ function writeRules(
     .split("\n")
     .filter((l) => !/^<!-- uzys-harness:(?:anchor|skills):(?:start|end) -->$/.test(l.trim()))
     .join("\n");
-  return writer.write(target, withoutMarkers) ? target : null;
+  return writer.write(target, withoutMarkers, { createInRefresh }) ? target : null;
 }
