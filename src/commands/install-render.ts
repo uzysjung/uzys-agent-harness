@@ -377,7 +377,7 @@ export function renderCliArtifacts(
     // Codex global opt-in (D16) — config.toml trust entry, only when explicitly enabled.
     if (report.codexOptIn?.trustEntry.enabled) {
       const trust = report.codexOptIn.trustEntry;
-      const kind = trust.status === "error" ? "skip" : "success";
+      const kind = trust.status === "error" || trust.status === "unreadable" ? "skip" : "success";
       const meta =
         trust.status === "registered"
           ? '[projects."<dir>"] trust_level="trusted"'
