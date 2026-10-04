@@ -7,6 +7,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.163.0] — 2026-10-04 (깨지지 않고 · 화면이 사실대로 말한다 — 설치자 디스크 한 원칙 2단계)
+
+### Changed
+- **Codex 의 세션 시작 훅이 실제로 발화한다** (#627, PR #664). 전: `.codex/config.toml` 에 쓰던 `[[hooks.session_start]]` 가 현행 codex-cli(0.159.1)의 스키마와 달라 경고 없이 무시됐고 훅은 한 번도 실행되지 않았다. 후: `[[hooks.SessionStart]]` + `[[hooks.SessionStart.hooks]]` 중첩 형식으로 쓴다(codex 0.159.1 · 0.160.0 에서 발화 1회 실측). `timeout = 10` 은 그대로 둔다. **이미 깐 설치본은 `update` 한 번으로 새 형식이 된다**(26.162.1 → 이 판 실측 — 구간을 고치지 않았으면 백업 없이 제자리 갱신). 설치자가 그 구간을 고쳤으면 옛 형식이 남아 훅이 계속 돌지 않는다 — 안내는 #625 에서 다룬다.
+- **`ui-visual-review` 스킬이 트랙을 따라 4개 CLI 모두에 깔린다** (#602, PR #673). 전: `.claude/` 에만 깔려 Codex · OpenCode · Antigravity 는 받지 못했다. 후: csr 3종 · ssr-nextjs · full 이 `.agents/skills/` 에도 깐다(ssr-htmx · base 는 TRACKS.md 대로 제외). 비-Claude 설치 화면의 `skills` 개수가 실제 디렉터리 수와 같다. `--without ui-visual-review` 가 유효한 인자다.
+- **`engines.node` 하한이 `>=20.12.0` 이다** (#619, PR #673). 전: `>=20.0.0` 이라 했지만 번들이 `util.styleText`(20.12+)를 불러 20.11 에서 시작 시 크래시했다. README 문장도 같이 고쳤다.
+- **`update` 가 CLI 중립 헬퍼(`check-absence.sh` · `protect-branch.sh`)의 옛 판을 새 판으로 갱신한다** (#597, PR #666). 전: 빠진 것만 채워서 26.160.0 에서 깐 옛 판이 영구히 남았다(#581 수정이 도달하지 않음). 후: 기록대로 안 고친 파일은 백업 없이 교체, 기록 없거나 고친 파일은 `*.backup-<ts>` 로 하나만 남기고 교체.
+- **`update` 의 룰 목록이 설치한 트랙의 것이다** (#601, PR #666). 전: 6룰 전부 기준이라 data + Antigravity 설치에 `cli-development` 룰과 `AGENTS.md` 의 `## Shell Safety` 절이 생겼다. 후: 설치 때와 같은 목록.
+- **`install` 은 설치 기록에 없는 죽은 훅 참조를 지우지 않고 한 줄로 알린다** (#603, PR #666). 팀이 커밋한 `generated-*.sh` 배선 같은 설치자 몫이다. 지우는 치유는 전처럼 `update` 만 한다. 알림: `HOOK settings.json 에 스크립트가 없는 훅 참조 N건 — 지우지 않았다`.
+- **개명·은퇴 스킬 안내가 `.agents/skills` 도 본다** (#639, PR #666). 전: Claude 자리만 훑어 Codex 등의 옛 스킬을 안내하지 않았다.
+- **백업 규약** (PR #667). 이번 `update` 가 `.claude/` 를 바꾸지 않았으면 백업을 지운다 — 변경 없는 `update` 를 거듭해도 `.claude.backup-<ts>` 가 쌓이지 않는다(#556, 전: 실행마다 +1). `.gitignore` 에 백업 패턴 4종(`.claude.backup-*/` · `.codex.backup-*/` · `.opencode.backup-*/` · `*.backup-<stamp>T*`)을 더해 `git add -A` 가 백업을 커밋하지 않게 한다(#657). 전량 `uninstall` 이 남기는 백업을 `[BACKUPS]` 절에 이름과 함께 알린다 — 지우지는 않는다(#570).
+- **`uninstall` 이 터미널 없이 플래그 없이 실행되면 거부한다** (#561, PR #663). exit 1, 아무것도 바꾸지 않고 한 줄 안내. `--yes` · `--only` · `--cli` · `--dry-run` 은 종전대로.
+- **`uninstall` 이 링크를 따라가도 프로젝트 밖은 지우지 않는다** (#629 · #630, PR #668). 링크가 가리키는 실체가 프로젝트 밖이면(파일 링크 · 폴더 링크) 지우지도 다시 쓰지도 않고 "남김 + 경로" 로 알린다. 두 프로젝트가 같은 밖 폴더를 링크로 공유해도 한쪽 `uninstall` 이 다른 쪽 룰 · 설정을 지우지 않는다(전: 공유 룰 폴더면 B 의 룰 7개가 지워졌다). 프로젝트 안 링크는 따라가 하네스 몫을 걷는다.
+- 문서 정합 (PR #671): README · USAGE · llms.txt · COMPATIBILITY 가 실제 산출물과 플래그에 맞게 고쳐졌다 — `--with-codex-trust` 옵트인의 `~/.codex/` 쓰기 명시(#624), `.claude/` 밖 생성물 전체 목록(#621), `llms.txt` 의 실행 가능한 설치 명령과 은퇴 반영(#659), `uninstall`/`list` 의 `--project-dir`(#660), `baseline:skills` 제거(#652), 호환성 경고 문구(#661).
+
+### Fixed
+- **`install --reinstall` 도 읽을 수 없는 `.claude/settings.json` 에는 한 바이트도 쓰지 않는다** (#614, PR #669). 파손 JSON 이면 백업 · 재작성 없이 `left untouched … fix or delete that file, then run the install again` 안내와 함께 exit 1 — 고치거나 지운 뒤 다시 실행한다. 일반 install · add 도 같다. codex 만 고른 install 과 `update` 는 막지 않는다.
+- **`uninstall` 이 `AGENTS.md` · `CLAUDE.md` 에서 하네스 몫만 정확히 걷는다** (PR #669). 한쪽 마커만 남은 import 블록과 복제된 블록을 전부 걷고(#628), 설치가 넣은 빈 줄 하나만 되돌려 설치자의 빈 줄과 파일 끝 개행을 바꾸지 않는다(#620, `intro\n\n\n` 왕복 바이트 동일). `update` 가 `AGENTS.md` 의 설치자 상위 절(`## My Team Conventions` 등)을 파일 끝에 보존한다(#643, 전: 라이브에서 소실).
+- **어떤 오류도 스택트레이스로 보이지 않는다** (PR #662). 위치 인자 오타(`✗ ERROR: Unused args: \`oops\``, #654), 필수 필드가 빠진 설치 기록(`list` · `uninstall --dry-run` 이 TypeError → `install log is corrupted — run install --reinstall`, #640), `--only a --only b` 반복(#612), 쓰기 권한 없는 폴더의 `uninstall`(`✗ ERROR: EACCES …`, #565) 모두 한 줄 + exit 1. 읽지 못한 외부 파일은 지우지 않고 "판정 불가"로 보고한다.
+- **화면이 말한 `ROLLBACK` 명령을 그대로 실행하면 된다** (#651, PR #663). 전: 공백 있는 경로에서 `mv` 가 실패해 `.claude` 가 복원 없이 사라졌다. 후: 전체 경로 + POSIX 인용. UTF-8 이 아닌 `CLAUDE.md` 는 install · update · uninstall 이 쓰기 전에 원시 바이트로 백업하고 경고한다(#653). `protect-branch.sh` exit-3 안내 끝의 벌거벗은 `3` 제거(#648).
+- **CLI 를 뺀 일시 상태가 "사용자가 뺐다" 로 굳지 않는다** (#623 · #632, PR #665). `uninstall --cli codex` 뒤 재설치가 허위 `excluded` 때문에 0구간으로 끝나던 것, `update` 가 죽은 훅 참조를 치유한 뒤 다음 install 이 배선 복구를 "you removed — not added back" 으로 영구 거부하던 것.
+- **백업 복사가 안전하다** (PR #667). `cpSync` 대신 파일 단위 복사로 VirtioFS 바인드마운트의 EACCES 크래시와 부분 고아 백업이 없다, 실패는 `update failed — EACCES …` 로 말한다(#594). 직전 install 의 백업을 "이번 실행에서 고친 N 개" 로 거짓 보고하던 것(#646). USAGE 의 settings.json 백업 설명을 실제 동작(제자리 병합)으로 정정(#606).
+- **게이트 · 훅 스크립트** (PR #670): `spec-drift-check.sh` 가 들여쓴 · 탭 · 표 셀 안의 미완 항목을 잡고(#649, 전: 정상 exit 0), 검사한 파일이 0개면 `not examined` 로 경고하고 `jq` 부재도 알린다. `session-start.sh` 가 실제로 찾은 SPEC 경로를 안내한다(#635). `protect-files.sh` 가 `.envrc` · lock 9종 · 인증서/키 6종을 더 막는다(#604 · #634).
+- **화면이 실제와 같은 말을 한다** (PR #672 · #674): `--track` 값이 비면 누락 안내(전: `Unknown track: undefined`, #613), `--track base --track base` 중복 제거(#617), `--dry-run` 계획에 설치 기록 제거 단계 포함(#607), `--keep-templates` 잔여 헤더 정정(#626), 이미 신뢰 등록된 프로젝트의 재설치가 Codex trust 안내를 되풀이하지 않는다(#637); 룰·에이전트 요약이 실제 설치 목록으로 만들어지고(#618), Antigravity 단독에 없는 `AGENTS.md` 채우기를 안내하지 않으며(#608), 기존 `CLAUDE.md` 에 `FILL` 마커가 없으면 안내하지 않고(#636), 위저드가 Claude 전용 agents 를 이 조합에서 설치 안 됨으로 표시하고(#647), 지운 Antigravity 룰을 `update` 가 `was missing — reinstalled` 로 알린다(#638).
+- **`uninstall` 이 남기던 하네스 흔적을 걷고, 남는 것을 말한다** (PR #668). `uninstall --cli antigravity` 가 `.agents/rules/` 의 룰을 회수한다(#596, 전: 5~6개 잔여 — 전량 uninstall 과 비대칭). 걷어낸 `AGENTS.md` 에 하네스 문장인 "SCAFFOLD — not filled in yet" 배너가 남지 않는다(#656). claude CLI 로 이미 지운 플러그인을 "already removed" 로 보고 전량 uninstall 이 exit 1 로 막히지 않는다(#655 — `Plugin "<id>" not found in installed plugins` 문구로 한정, 그 밖의 실패는 그대로 exit 1). 자동으로 되돌릴 수 없는 자산(bmad-method 등)이 `.claude/` 밖에 만든 폴더를 직접 확인하라고 안내한다(#571, dry-run 포함). 전량 uninstall 뒤 비어 있는 `docs/decisions/` 를 치운다 — 설치자 ADR 이 있으면 남긴다(#611).
+
+### 알려진 한계 (후속 이슈)
+- 26.162.1 에서 훅 배선이 "빼기 기록" 으로 이미 굳은 설치본은 `update` 로 복구되지 않는다(#675).
+- `uninstall` 의 외부 스킬 제거(`npx skills remove`)는 아직 실제로 지우지 못하는데 화면은 지웠다고 말한다(#573). 이번 판에서 고치려 했으나 하네스가 깔지 않은 스킬까지 지우는 경로가 독립 재검증에서 세 번 나와 빼고 다시 설계한다.
+- `uninstall` 이 중간에 실패하면 외부 스킬만 먼저 지워진 상태가 남을 수 있다(#676).
+- Antigravity 에 이미 새어 든 `.agents/rules/cli-development.md` 는 `update` 뒤에도 남는다(#677).
+- `install` · `update` 는 아직 링크를 따라 프로젝트 밖 파일을 덮을 수 있다 — `uninstall` 쪽만 이번에 막았다(#678).
+- 릴리즈 CI 의 `ci` job 에 시간 제한이 없다(#679, 설치자 영향 없음).
+
 ## [v26.162.1] — 2026-09-27 (patch: 릴리즈 CI 테스트가 러너의 git 신원을 가정하던 것 — v26.162.0 을 이 판으로 게시)
 
 **v26.162.0 은 npm 에 게시되지 않았다** — 태그 CI 의 ubuntu 작업에서 테스트 2건이 red 였고 `needs: ci` 배선이
