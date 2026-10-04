@@ -245,7 +245,7 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 | Flag | What |
 |---|---|
 | `--dry-run` | Print the reverse steps, change nothing |
-| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/` |
+| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/`. A folder linked to outside the project is named with its target, not listed as safe to delete |
 | `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Templates untouched; the record keeps the rest |
 | `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
 | `--yes` | Skip the picker and remove everything |

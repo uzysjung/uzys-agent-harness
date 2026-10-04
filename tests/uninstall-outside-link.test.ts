@@ -191,6 +191,42 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     );
   });
 
+  it.each([
+    ["실행", false],
+    ["--dry-run", true],
+  ] as const)("--keep-templates(%s) — [LEFT] 가 밖 링크 너머 파일을 '삭제해도 안전'으로 나열하지 않고 남김 + 링크 → 대상을 말한다 (#694)", (_l, dryRun) => {
+    install(["claude"]);
+    const target = linkOutside(".claude");
+    const before = snapshot(target);
+
+    const out = run({ keepTemplates: true, yes: true, dryRun });
+
+    expect(out.code).toBe(0);
+    expectLinkKept(".claude", target);
+    expect(snapshot(target)).toEqual(before);
+    const left = out.text.slice(out.text.indexOf("[LEFT]"));
+    expect(left).toContain(
+      `.claude — left as is: the link points outside the project (.claude → ${target})`,
+    );
+    expect(left).toContain(".claude/settings.json");
+    // 밖 파일 어느 것도 "삭제해도 안전" 줄로 나오지 않는다 — 공유 dotfiles 면 다른 프로젝트의 설정이다.
+    expect(out.text).not.toMatch(
+      /\.claude\/\S* — 하네스가 생성 \(수정한 적 없으면 삭제해도 안전\)/,
+    );
+  });
+
+  it("회귀 — --keep-templates 에서 프로젝트 **안**의 `.claude/` 파일은 지금처럼 '삭제해도 안전'으로 나열한다", () => {
+    install(["claude"]);
+
+    const out = run({ keepTemplates: true, yes: true });
+
+    expect(out.code).toBe(0);
+    expect(out.text).toContain(
+      "· .claude/settings.json — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)",
+    );
+    expect(out.text).not.toContain("left as is");
+  });
+
   it("회귀 — 프로젝트 **안**을 가리키는 `.codex` 링크는 지금처럼 옮긴다", () => {
     install(["claude", "codex"]);
     renameSync(join(projectDir, ".codex"), join(projectDir, "shared-codex"));
