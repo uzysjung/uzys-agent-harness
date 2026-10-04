@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**35/50 assets are 🟢 verified by a real install; the remaining 15 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**35/51 assets are 🟢 verified by a real install; the remaining 16 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -46,7 +46,7 @@ We curate rather than scan, in four layers:
 
 1. **Trust tier.** Every asset is `official` (published by Anthropic or by this project),
    `vetted` (1,000+ GitHub stars and actively maintained), or `experimental` (below that
-   bar — opt-in only, and the installer warns). A monthly job re-reads real star counts and
+   bar — opt-in only; the wizard marks them with a ⚠ badge (non-interactive installs print no extra warning)). A monthly job re-reads real star counts and
    fails if a label has drifted from reality.
 2. **Upstream review.** Assets from an official marketplace inherit that marketplace's own
    screening. For those, we depend on the publisher.
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **50** (official 19 / vetted 29 / experimental 2) · 🟢 verified **35/50**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **51** (official 20 / vetted 29 / experimental 2) · 🟢 verified **35/51**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -99,11 +99,12 @@ stale row fails the build rather than misleading you.
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
 | `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | Claude Code (npx) | 🟢 Docker |
 
-#### 🎨 Frontend (10)
+#### 🎨 Frontend (11)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `tauri-desktop` | official | templates (`--with tauri-desktop`) | 4-CLI (templates) | 🟡 local |
+| `ui-visual-review` | official | templates (`--with ui-visual-review`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `frontend-design` | official | `anthropics/skills :: frontend-design` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `jakubkrehel-skills` | vetted | `jakubkrehel/skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `taste-skill` | vetted | `Leonxlnx/taste-skill :: design-taste-frontend` | 4-CLI (skills.sh --agent) | 🟢 Docker |

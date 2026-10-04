@@ -16,7 +16,7 @@ Works with **Claude Code** · **Codex** · **OpenCode** · **Antigravity**.
 
 ## Quick start
 
-You need Node 20 or newer. Run this in your project folder:
+You need Node 20.12 or newer. Run this in your project folder:
 
 ```bash
 npx -y @uzysjung/agent-harness
@@ -50,7 +50,7 @@ No terminal for the wizard (CI, containers, scripts)? Use flags: `install --trac
 | **Hooks** | Scripts your CLI runs on its own. Two, on Claude Code: one loads your spec and change log at session start; one blocks edits to `.env`, lock files, and certificates — the only thing in the harness that says "no", and it logs one line each time | Automatically, at session start or before an edit |
 | **Skills** | Step-by-step playbooks the agent opens when a task calls for them — the method skills written in this repo, plus the stack skills your track needs (for example React, shadcn, Supabase, Postgres on `csr-supabase`) | Only when relevant — a one-line description stays loaded, the body loads on use |
 | **Agents** | Helpers the main agent can hand work to: an independent `reviewer` on every track, `implementer` on dev tracks, `data-analyst` and `strategist` on the tracks that use them | When the main agent delegates |
-| **Anchor** | One working-principles file your CLI reads every session. Your own `CLAUDE.md` stays yours — the harness adds one import line and never touches the rest ([which file is whose](docs/CONTEXT-FILES.md)) | Every session |
+| **Anchor** | One working-principles file your CLI reads every session. Your own `CLAUDE.md` stays yours — the harness adds one marked import block (the `@CLAUDE-uzys-harness.md` reference and the skills guidance that follows it) and never touches the rest ([which file is whose](docs/CONTEXT-FILES.md)) | Every session |
 
 Four method skills go to every track: `north-star`, `objective-brief`, `gh-issue-workflow`, `audit-harness-fit`. Bundled skills can be added or dropped by name with `--with` / `--without`.
 
@@ -93,7 +93,7 @@ In a terminal, `uninstall` offers three choices — one CLI, selected assets, or
 
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing `.mcp.json` servers are merged, not replaced ([installing into an existing project](docs/USAGE.md#installing-into-an-existing-project)).
 
-**Your project only.** Nothing goes to `~/.codex/`, `~/.opencode/`, `~/.gemini/`, or global npm. Claude Code plugins are the one exception: the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` and isolates projects by metadata. Besides `.claude/`, install writes `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on Supabase tracks, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).
+**Your project only.** Nothing goes to `~/.opencode/`, `~/.gemini/`, or global npm. Two opt-in exceptions write outside the project: Claude Code plugins (the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` and isolates projects by metadata), and `--with-codex-trust`, which adds one `[projects]` trust entry to `~/.codex/config.toml` so Codex reads its project config ([details](docs/USAGE.md#scope)). Besides `.claude/`, install writes `CLAUDE.md`/`AGENTS.md` scaffolds and their harness anchor, `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on `csr-supabase` (and `full`), `.github/workflows/` only with `--with ci-scaffold`, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).
 
 ## Already using another tool?
 

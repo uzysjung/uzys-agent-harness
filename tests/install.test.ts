@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -758,6 +766,104 @@ describe("executeSpec", () => {
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".env.example"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".gitignore"));
+  });
+
+  describe("update 백업 정리 (#556) · 실패 라벨 (#594)", () => {
+    // 파이프라인이 시작 시 `.claude` 사본을 `.claude.backup-<ts>` 로 뜨는 것을 흉내낸다.
+    function setup(): { dir: string; backup: string } {
+      const dir = mkdtempSync(join(tmpdir(), "ch-bk556-"));
+      mkdirSync(join(dir, ".claude", "rules"), { recursive: true });
+      writeFileSync(join(dir, ".claude", "rules", "a.md"), "원본\n");
+      const backup = join(dir, ".claude.backup-20260101T000000");
+      mkdirSync(join(backup, "rules"), { recursive: true });
+      writeFileSync(join(backup, "rules", "a.md"), "원본\n");
+      return { dir, backup };
+    }
+    const run = (
+      dir: string,
+      backup: string,
+      mid: () => void,
+    ): { log: ReturnType<typeof vi.fn>; err: ReturnType<typeof vi.fn> } => {
+      const log = vi.fn();
+      const err = vi.fn();
+      const exit = vi.fn() as unknown as (code: number) => never;
+      const base = pipelineFor({ ...fakeReport, backup, mode: "update" });
+      const runPipeline = vi.fn((...a: Parameters<typeof base>) => {
+        mid();
+        return base(...a);
+      });
+      executeSpec(
+        { ...baseSpecFor(dir) },
+        { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h", mode: "update" },
+      );
+      return { log, err };
+    };
+    const baseSpecFor = (projectDir: string): InstallSpec => ({
+      tracks: ["tooling"],
+      options: { withCodexTrust: false },
+      cli: ["claude"],
+      projectDir,
+    });
+
+    it("`.claude` 를 안 고친 update 는 백업을 남기지 않는다", () => {
+      const { dir, backup } = setup();
+      const { log } = run(dir, backup, () => {});
+      expect(existsSync(backup)).toBe(false);
+      expect(log).not.toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("update 가 룰을 바꿨으면 백업이 남고 바뀌기 전 내용을 담는다", () => {
+      const { dir, backup } = setup();
+      run(dir, backup, () => writeFileSync(join(dir, ".claude", "rules", "a.md"), "갱신됨\n"));
+      expect(readFileSync(join(backup, "rules", "a.md"), "utf8")).toBe("원본\n");
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("파일이 새로 생기거나 심링크가 바뀌어도 변경으로 본다", () => {
+      const { dir, backup } = setup();
+      run(dir, backup, () => writeFileSync(join(dir, ".claude", "rules", "new.md"), "x"));
+      expect(existsSync(backup)).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("update 도중 실패하면 백업은 남고 'update failed' 로 말한다", () => {
+      const { dir, backup } = setup();
+      const log = vi.fn();
+      const err = vi.fn();
+      const exit = vi.fn() as unknown as (code: number) => never;
+      const runPipeline = vi.fn(() => {
+        throw new Error("EACCES boom");
+      });
+      executeSpec(baseSpecFor(dir), {
+        log,
+        err,
+        exit,
+        runPipeline,
+        resolveHarnessRoot: () => "/h",
+        mode: "update",
+      });
+      expect(exit).toHaveBeenCalledWith(1);
+      expect(err).toHaveBeenCalledWith(expect.stringContaining("update failed — EACCES boom"));
+      expect(err).not.toHaveBeenCalledWith(expect.stringContaining("install failed"));
+      expect(existsSync(backup)).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("install 실행의 실패는 'install failed' 그대로다 (대조군)", () => {
+      const err = vi.fn();
+      const exit = vi.fn() as unknown as (code: number) => never;
+      executeSpec(baseSpec, {
+        log: vi.fn(),
+        err,
+        exit,
+        runPipeline: vi.fn(() => {
+          throw new Error("boom");
+        }),
+        resolveHarnessRoot: () => "/h",
+      });
+      expect(err).toHaveBeenCalledWith(expect.stringContaining("install failed — boom"));
+    });
   });
 
   it("renders Update Mode summary when report.updateMode is present", () => {
