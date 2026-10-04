@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExternalAsset } from "../src/external-assets.js";
 import {
   type ExternalInstallerDeps,
-  formatSkippedReport,
   runExternalInstall,
   skillsCliSpec,
 } from "../src/external-installer.js";
@@ -432,33 +431,5 @@ describe("runExternalInstall — failure modes", () => {
       { spawn, assets: [TEST_ASSETS[0] as ExternalAsset] }, // tooling-only
     );
     expect(spawn).not.toHaveBeenCalled();
-  });
-});
-
-describe("formatSkippedReport", () => {
-  it("returns empty string when nothing skipped", () => {
-    expect(
-      formatSkippedReport({
-        attempted: [{ asset: TEST_ASSETS[0] as ExternalAsset, ok: true }],
-        succeeded: 1,
-        skipped: 0,
-        excludedByCli: [],
-      }),
-    ).toBe("");
-  });
-
-  it("lists failed asset ids + messages", () => {
-    const text = formatSkippedReport({
-      attempted: [
-        { asset: TEST_ASSETS[0] as ExternalAsset, ok: true },
-        { asset: TEST_ASSETS[3] as ExternalAsset, ok: false, message: "registry down" },
-      ],
-      succeeded: 1,
-      skipped: 1,
-      excludedByCli: [],
-    });
-    expect(text).toContain("npm-asset");
-    expect(text).toContain("registry down");
-    expect(text).toContain("1개 외부 자산");
   });
 });

@@ -5,8 +5,9 @@
  * 함수의 반환값을 실행한다 — 행동 하나 · 화면 한 줄 · 기록에 할 일 하나. **설계 §1.2 의 표가 SSOT 이고
  * 이 파일은 그 표를 옮긴 것이다**(`tests/judge.test.ts` 가 행마다 대조한다). 표와 코드가 갈리면 표가 이긴다.
  *
- * 아직 어느 동작도 이 함수를 부르지 않는다 — 배선은 설계 §9 PR-3(install · reinstall) · PR-5(update) ·
- * PR-7(uninstall). 동작 변경 0.
+ * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter`)와 함께 쓰는
+ * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함)가 부른다.
+ * uninstall 의 하네스 파일 제거와 `judgeDisplaced` 는 아직 이 함수를 타지 않는다 — 설계 §9 PR-7.
  */
 
 import { ADAPTERS } from "./adapters/index.js";
@@ -224,7 +225,8 @@ function advisory(input: JudgeInput): Judgement {
  * displaced 되돌리기 (설계 §1.2 "displaced 되돌리기 세부" · R3 · Q3)
  *
  * 하네스가 그 자리를 떠나는 모든 remove(uninstall · update 의 은퇴 회수 · `--reinstall` 의 기록 밖 회수 ·
- * `--cli`)가 **하네스 파일을 지운 뒤** 부른다.
+ * `--cli`)가 **하네스 파일을 지운 뒤** 부르게 될 판정이다. **아직 어느 동작도 부르지 않는다**(미배선) — 배선은
+ * 설계 §9 PR-7(uninstall 의 `displaced` 제자리 되돌리기, R3). 그 PR 의 재료라 지우지 않고 남긴다(#622).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface DisplacedInput {

@@ -1114,7 +1114,8 @@ function installClaudeBaseline(
     chmodHooksSync(hookDir, projectDir);
   }
 
-  // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
+  // `.claude/.installed-tracks` — 설치 상태 판정에는 쓰지 않는다(기록만 읽는다, #699). 기록이 없을 때(예: `.claude/` 는
+  // 커밋됐고 `.uzys-agent-harness/` 는 안 된 클론) 흔적으로만 읽어 `--track` 을 제안한다(`state.ts` collectTraces · #622).
   // 하네스 파일이라 같은 판정을 받는다 — 옛 판 기록엔 sha 가 없으므로 대상으로 알려 준다("no checksum").
   writer.harness(
     INSTALLED_TRACKS,

@@ -248,6 +248,8 @@ export async function runInteractiveUninstall(
   if (!isTty()) return { ok: false, reason: "no-tty" };
 
   const log = readLog(projectDir);
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어 — 호출자 둘(`dispatchUninstall` · 위저드)이
+  // `detectInstallState === "installed"` 뒤에만 이 화면을 연다.
   if (!log) return { ok: false, reason: "no-log" };
 
   if (!deps.embedded) prompts.intro("uzys-agent-harness · uninstall");
