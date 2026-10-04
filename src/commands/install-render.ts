@@ -51,6 +51,7 @@ import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merg
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
+import type { UpdateModeReport } from "../update-mode.js";
 
 /**
  * v26.78.1 — Summary `CLI` 행 라벨 (SSOT). spec.cli 에서 derive → 헤더와 일관.
@@ -80,6 +81,8 @@ export interface InstallRenderer {
   phase2HeaderPrinted(): boolean;
 }
 
+/** 옛 앵커(`.claude/CLAUDE.md`) 안내 — update(기록 있는 설치본)와 install(기록 없는 옛 판, #595)이 같은 문장을 쓴다. */
+const LEGACY_ANCHOR_NOTE = `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`;
 /**
  * install header (TARGET / TRACKS / CLI / OPTIONS / ASSETS) 렌더.
  * #560 — SCOPE 행은 없다. 하네스 파일은 늘 이 프로젝트에 쓰이고, 그 행의 Global 문구("writes to ~/.claude/")가 사실이 아니었다.
@@ -273,16 +276,26 @@ export function renderUpdateSummary(
   // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
+    // #557 — 기록에 체크섬이 없던 백업은 편집인지 모른다. 다 그렇다면 "다시 얹으라" 고 하지 않는다 — 얹을 편집이 없을 수 있다
+    const unmeasured = report.updateMode?.noChecksum?.length ?? 0;
+    const unmeasuredPart =
+      unmeasured === 0
+        ? ""
+        : unmeasured === backups.length
+          ? " — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits"
+          : ` — ${unmeasured} had no checksum on record (marked noChecksum in the list), so those may not be your edits`;
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) saved before replacing, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
     log(
       infoRow(
         "NEXT",
-        'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+        unmeasured === backups.length
+          ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
+          : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
       ),
     );
   }
@@ -531,6 +544,30 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
   return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
 }
 
+/**
+ * #625 — update 가 갈아 끼우지 않고 남긴 함께 쓰는 파일의 하네스 몫 한 줄. 고친 구간과 기록이 없어 모르는 구간을 가르고,
+ * 둘 다 이번 판을 못 받았다는 사실과 받는 길(그 구간을 지우고 update — 기록된 몫은 되돌리고 없던 몫은 새로 더한다)을 말한다.
+ */
+function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): string {
+  // #627 — 남긴 내용이 옛 훅 형식이면 편집이 살아 있어도 훅은 죽어 있다. 그 사실을 같은 줄에 붙인다
+  const legacy =
+    f.legacyHook === true
+      ? " · its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run"
+      : "";
+  if (f.left !== undefined) return assetRow("skip", f.path, `left — ${f.left}${legacy}`);
+  const parts: string[] = [];
+  if (f.edited.length > 0)
+    parts.push(`harness part left as you edited it: ${f.edited.join(" · ")}`);
+  if (f.unrecorded.length > 0)
+    parts.push(
+      `harness part left as is (no record of what the harness wrote): ${f.unrecorded.join(" · ")}`,
+    );
+  if (parts.length > 0)
+    parts.push("not updated to this release — delete that part and run update to take the new one");
+  if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(" · ")}`);
+  return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
+}
+
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
 function opencodeMcpPart(r: SharedWriteResult): string {
   const names = harnessKeysInFile(r)
@@ -692,6 +729,14 @@ export function renderFinalSummary(
         : "headless: agent-harness install … --with-codex-trust";
     log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
   }
+  // #625 — 폴더 trust 와 별개로 Codex 는 관리형이 아닌 훅을 **검토·승인**해야 돌린다(공식 문서 developers.openai.com/codex/hooks
+  // "Review and trust hooks": 훅 정의의 해시로 기록 · 바뀌면 다시 검토 · 시작 때 /hooks 를 열라고 경고). 하네스가 대신 승인하지
+  // 않는다 — 폴더를 이미 신뢰했어도 이 단계는 남으므로 codex 를 깔면 늘 말한다.
+  if (spec.cli.includes("codex")) {
+    log(
+      `${" ".repeat(16)} ${c.bold("Codex")} also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open ${c.bold("/hooks")} and trust it. The harness does not approve it for you.`,
+    );
+  }
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
   // #636 — 하네스가 **새로 만든** CLAUDE.md 는 FILL 프롬프트를 갖고 태어나므로 그대로 안내한다.
@@ -826,6 +871,8 @@ function renderPhase1Rows(
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
+    // #557 — 기록에 체크섬이 없어 편집 여부를 잴 수 없던 백업. 아래 "edited" 행들은 이것을 빼고 세고, 따로 한 줄로 말한다
+    const noChecksum = new Set(baseline.updateMode.noChecksum ?? []);
     if (baseline.backup) {
       log(assetRow("success", "backup", shortenPath(baseline.backup)));
     }
@@ -887,6 +934,9 @@ function renderPhase1Rows(
       const row = sharedFileRow(f);
       if (row !== null) log(row);
     }
+    // #625 — 외부 CLI 의 함께 쓰는 파일에서 남긴 하네스 몫. install 은 `sharedRow` 로 말하는데 update 는 이 결과를 버려
+    // 리전 안을 고친 설치자에게 아무 말도 안 했다 — 편집이 살았는지 · 그 구간이 이번 판을 못 받았는지 모른다
+    for (const f of baseline.updateMode.sharedLeft ?? []) log(sharedLeftRow(f));
     // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
     for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
       log(row);
@@ -917,7 +967,7 @@ function renderPhase1Rows(
       log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
     }
     // #480 — 편집분을 백업했다는 사실은 반드시 화면에 남긴다(룰 `edited policy files` 행과 같은 이유).
-    if (baseline.updateMode.anchorBackedUp) {
+    if (baseline.updateMode.anchorBackedUp && !noChecksum.has(HARNESS_ANCHOR_FILE)) {
       log(
         assetRow(
           "skip",
@@ -959,22 +1009,19 @@ function renderPhase1Rows(
     }
     // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
     if (baseline.updateMode.legacyAnchor) {
-      log(
-        assetRow(
-          "skip",
-          baseline.updateMode.legacyAnchor,
-          `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`,
-        ),
-      );
+      log(assetRow("skip", baseline.updateMode.legacyAnchor, LEGACY_ANCHOR_NOTE));
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
-    if (baseline.updateMode.skillsBackedUp.length > 0) {
+    const skillsEdited = baseline.updateMode.skillsBackedUp.filter(
+      (p) => !noChecksum.has(`.claude/skills/${p}`),
+    );
+    if (skillsEdited.length > 0) {
       log(
         assetRow(
           "skip",
           ".claude/skills edited files",
-          `${baseline.updateMode.skillsBackedUp.length} backed up as *.backup-<time>`,
+          `${skillsEdited.length} backed up as *.backup-<time>`,
         ),
       );
     }
@@ -1074,12 +1121,27 @@ function renderPhase1Rows(
     }
     // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
     // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
-    if (baseline.updateMode.policyBackedUp.length > 0) {
+    const policyEdited = baseline.updateMode.policyBackedUp.filter(
+      (p) => !noChecksum.has(`.claude/${p}`),
+    );
+    if (policyEdited.length > 0) {
       log(
         assetRow(
           "skip",
           "edited policy files",
-          `${baseline.updateMode.policyBackedUp.length} backed up as *.backup-<time>`,
+          `${policyEdited.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
+    // #557 — 체크섬 이전 옛 판의 첫 update 는 기록이 없어 다른 파일을 전부 한 번 백업한다. 그것을 "edited" 로 부르면
+    // 설치자는 하지 않은 편집을 찾아 헤맨다 — 잴 수 없었다고 말한다. `.mcp-allowlist` 는 은퇴 행이 이미 말한다
+    const unmeasured = [...noChecksum].filter((p) => p !== ".mcp-allowlist");
+    if (unmeasured.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "no checksum on record",
+          `${unmeasured.length} backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely`,
         ),
       );
     }
@@ -1110,12 +1172,13 @@ function renderPhase1Rows(
         ),
       );
     }
-    if (baseline.updateMode.externalBackedUp.length > 0) {
+    const externalEdited = baseline.updateMode.externalBackedUp.filter((p) => !noChecksum.has(p));
+    if (externalEdited.length > 0) {
       log(
         assetRow(
           "skip",
           "edited external CLI files",
-          `${baseline.updateMode.externalBackedUp.length} backed up as *.backup-<time>`,
+          `${externalEdited.length} backed up as *.backup-<time>`,
         ),
       );
     }
@@ -1321,6 +1384,10 @@ function renderPhase1Rows(
         TEMPLATES_COL,
       ),
     );
+  }
+  // #595 — 기록 없는 옛 판 설치본의 옛 앵커. update 가 기록 있는 설치본에 내는 줄과 같은 문장이다.
+  if (baseline.legacyAnchor) {
+    log(assetRow("skip", baseline.legacyAnchor, LEGACY_ANCHOR_NOTE, TEMPLATES_COL));
   }
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in). no-clobber: 기존 파일 보존은 skip 행으로
   //   정직 보고 (숨기면 "설치됨" 오인 — no-false-ship).

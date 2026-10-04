@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -227,7 +235,25 @@ describe("runInstall — mode dispatch", () => {
         spec: spec(["tooling"], {}, projectDir),
         mode: "update",
       }),
-    ).toThrow(/Update mode requires an existing install/);
+    ).toThrow(/Update mode requires an install record/);
+  });
+
+  it("mode=update 는 `.claude/` 가 있어도 기록이 없으면 아무것도 쓰기 전에 throw 한다 (#595)", () => {
+    mkdirSync(join(projectDir, ".claude/rules"), { recursive: true });
+    writeFileSync(join(projectDir, ".claude/.installed-tracks"), "tooling\n");
+    const before = readdirSync(projectDir).sort();
+    expect(() =>
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: spec(["tooling"], {}, projectDir),
+        mode: "update",
+      }),
+    ).toThrow(/Update mode requires an install record/);
+    // 백업 폴더(`.claude.backup-*`) · 앵커 · import 어느 것도 생기지 않는다 — 이게 #595 의 증상이었다
+    expect(readdirSync(projectDir).sort()).toEqual(before);
+    expect(readdirSync(join(projectDir, ".claude/rules"))).toEqual([]);
   });
 
   it("mode=update 는 `.claude/` 가 없어도 설치가 있으면 돈다 (codex 단독)", () => {

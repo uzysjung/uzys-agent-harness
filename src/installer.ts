@@ -39,6 +39,7 @@ import {
   type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
+  installLogPath,
   legacyDroppedKeys,
   legacyReleasedCatalog,
   mergeExternalFiles,
@@ -79,6 +80,7 @@ import {
 import { upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds } from "./recorded.js";
 import type { SharedWriteResult } from "./shared-write.js";
+import { detectInstallState, LEGACY_ANCHOR_FILE } from "./state.js";
 import {
   type CliBase,
   type InstallSpec,
@@ -267,6 +269,11 @@ export interface BaselineReport {
    */
   pendingKeyExcludes?: Array<{ id: string; path: string }>;
   /**
+   * #595 (설계 no-record §3) — 기록 없이 하네스 흔적과 함께 남은 옛 앵커(`.claude/CLAUDE.md`). 하네스는 관리하지 않는다 —
+   * 화면이 update 의 `legacyAnchor` 와 같은 문장으로 알린다. 없으면 생략.
+   */
+  legacyAnchor?: string;
+  /**
    * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
    * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
    */
@@ -357,6 +364,8 @@ export interface InstallReport {
    * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
    */
   pendingKeyExcludes?: Array<{ id: string; path: string }>;
+  /** #595 — 기록 없이 남은 옛 앵커. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  legacyAnchor?: string;
   /**
    * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
    * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
@@ -423,6 +432,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   // v26.123.0 (F-1a) — 추가 설치가 이전 설치 기록을 지우지 않도록 기존 로그를 먼저 읽는다.
   const previousLog = readInstallLog(projectDir);
+  // #595 — 기록 없는 옛 판 설치본의 옛 앵커는 install 화면이 알린다(update 는 기록 없으면 돌지 않는다). 흔적은 판정이 아니라
+  // 문장에만 쓴다 — 설치자 자기 `.claude/CLAUDE.md` 를 옛 앵커로 오판하지 않게 다른 하네스 흔적이 함께 있을 때만.
+  const legacyAnchor = mode === "update" ? null : legacyAnchorTrace(projectDir, ctx.spec);
 
   // Update mode pre-flight — 갱신할 **설치**가 있어야 한다. backup 전에 검증.
   //
@@ -433,23 +445,29 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // throw 하니, 비 Claude 단독 사용자는 새 자산을 받을 길이 재설치뿐이었다(독립 검증 C-2c).
   // 설치의 CLI 중립 증거는 install log 다.
   //
+  // #595 (설계 no-record §1) — **기록이 없거나 깨졌으면** 갱신할 설치가 아니다. `.claude/` · 메타파일 같은 디스크
+  // 흔적으로 진행하면 기록 없는 프로젝트에 백업 폴더 · 앵커 · import 를 쓴다. 명령 pre-flight(`detectInstallState`)가
+  // 먼저 막고, 여기는 그 밖의 호출부도 아무것도 쓰기 전에 멈추게 하는 엔진 쪽 같은 판정이다.
+  if (mode === "update" && previousLog === null) {
+    throw new Error(
+      `Update mode requires an install record at ${installLogPath(projectDir)} — run: agent-harness install --track <name>`,
+    );
+  }
   // 단, **claude 를 고른 설치인데 `.claude/` 가 없으면** 그건 정상 상태가 아니라 깨진 설치다 —
   // 그대로 진행하면 룰만 복원되고 `settings.json`·훅이 없는 반쪽 `.claude/` 가 만들어진다
   // (독립 재검증 M-R2). 그 경우는 예전처럼 막고 재설치로 보낸다.
-  const claudeWasSelected = previousLog !== null && installedClis(previousLog).includes("claude");
-  if (mode === "update" && !existsSync(claudeDir) && (previousLog === null || claudeWasSelected)) {
-    // 두 상황을 같은 문장으로 말하지 않는다 — 하나는 "깔린 게 없다", 다른 하나는 "깔렸는데
-    // 일부가 사라졌다"이고, 사용자가 할 일이 다르다. 후자를 "설치가 없다"고 하면 로그를 눈으로
-    // 본 사람은 도구가 틀렸다고 생각한다.
+  if (
+    mode === "update" &&
+    !existsSync(claudeDir) &&
+    installedClis(previousLog).includes("claude")
+  ) {
     throw new Error(
-      claudeWasSelected
-        ? `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`
-        : `Update mode requires an existing install at ${projectDir}`,
+      `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`,
     );
   }
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
-  if (mode === "update") {
+  if (mode === "update" && previousLog !== null) {
     return runUpdateInstall(
       ctx,
       templatesDir,
@@ -507,6 +525,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
       writer,
       journal,
       stage,
+      legacyAnchor,
     });
   } catch (e) {
     // ADR-099 — 중단 기록도 정상 기록과 같은 누적 spec · `excluded` 로 쓴다(빼기를 덮거나 되돌리지 않는다)
@@ -536,12 +555,13 @@ function runInstallStages(
     writer: InstallWriter;
     journal: InterruptJournal;
     stage: InstallStage;
+    legacyAnchor: string | null;
   },
 ): InstallReport {
   const { harnessRoot, projectDir, spec } = ctx;
   const { mode, templatesDir, previousLog, manifestSpec, baselineExcluded, excluded, writer } =
     args;
-  const { journal, stage } = args;
+  const { journal, stage, legacyAnchor } = args;
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
   // Codex/OpenCode 단독 사용자는 dead weight 회피.
@@ -685,6 +705,7 @@ function runInstallStages(
     excludedStillThere: excludedStillThere(projectDir, excluded, base.excludedOnDisk, previousLog),
     legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
     pendingKeyExcludes: pendingKeyExcludes(projectDir, spec.keyExclude ?? [], ledger.portionPaths),
+    ...(legacyAnchor ? { legacyAnchor } : {}),
     releasedThisRun: releasedThisRun({
       projectDir,
       spec,
@@ -743,6 +764,14 @@ function runInstallStages(
   return { ...baseline, external, staleHookRefs: [] };
 }
 
+/** #595 — 기록이 없고 옛 앵커가 다른 하네스 흔적과 함께 있으면 그 경로. Claude Code 를 고른 설치에서만. */
+function legacyAnchorTrace(projectDir: string, spec: InstallSpec): string | null {
+  if (!spec.cli.includes("claude")) return null;
+  const { state, traces } = detectInstallState(projectDir);
+  if (state !== "none" || traces.length < 2) return null;
+  return traces.some((t) => t.path === LEGACY_ANCHOR_FILE) ? LEGACY_ANCHOR_FILE : null;
+}
+
 /**
  * update 의 `.claude/` 사본(copy) — **update 전용**(설계 §9 PR-5 가 없앤다). install · `--reinstall` 은 폴더를
  * 옮기거나 복사하지 않는다(#551 PR-3).
@@ -750,15 +779,15 @@ function runInstallStages(
  * #536 — **Claude 가 깔린 집합에 없으면** `.claude/` 를 복사하지 않는다. 그 실행은 `.claude/` 를 한 글자도
  * 안 바꾸므로(update-mode `claudeManaged`) 백업할 것이 없고, 복사하면 설치자 소유 디렉터리의 사본이 실행마다
  * 쌓인다. 판정은 로그의 깔린 집합(`installedClis`)이다 — `spec.cli`(마지막 설치분)로 보면 claude 로 깔고 codex 를
- * 더한 설치본이 `[codex]` 로 읽혀 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 로그가 없는 레거시 설치본은
- * 이전과 같이 백업한다.
+ * 더한 설치본이 `[codex]` 로 읽혀 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 기록이 없으면 update 가 여기까지
+ * 오지 않는다(#595 — 기록 없는 설치본의 폴더 복사는 걷어냈다).
  */
 function resolveUpdateBackupPath(
   ctx: InstallContext,
   claudeDir: string,
-  previousLog: InstallLog | null,
+  previousLog: InstallLog,
 ): string | null {
-  const claudeUntouched = previousLog !== null && !installedClis(previousLog).includes("claude");
+  const claudeUntouched = !installedClis(previousLog).includes("claude");
   if (!(ctx.backup ?? !claudeUntouched)) return null;
   return copyBackupDir(claudeDir);
 }

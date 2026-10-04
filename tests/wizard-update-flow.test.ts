@@ -94,7 +94,16 @@ function writeLog(
 }
 
 function state(tracks: Track[] = ["tooling"]): DetectedInstall {
-  return { state: "existing", tracks, source: "install-log", hasClaudeDir: true };
+  return { state: "installed", log: null, tracks, hasClaudeDir: true, traces: [] };
+}
+
+/** 위저드에 주는 판정 — 트랙은 고정하고 기록은 그 프로젝트의 디스크에서 읽는다(판정 결과가 기록을 싣는다). */
+function detected(tracks: Track[] = ["tooling"], over: Partial<DetectedInstall> = {}) {
+  return (projectDir: string): DetectedInstall => ({
+    ...state(tracks),
+    log: readInstallLog(projectDir),
+    ...over,
+  });
 }
 
 function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
@@ -138,7 +147,7 @@ describe("Update 흐름 — 잠금 (D4)", () => {
     const selectCli = vi.fn(async () => ["opencode"] as CliTargets);
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectCli }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     expect(result.ok).toBe(true);
@@ -153,7 +162,7 @@ describe("Update 흐름 — 잠금 (D4)", () => {
     writeLog(dir, { tracks: ["tooling"] });
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectTracks: vi.fn(async () => ["data"] as Track[]) }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     expect(result.spec?.tracks).toEqual(["data", "tooling"]);
@@ -163,23 +172,47 @@ describe("Update 흐름 — 잠금 (D4)", () => {
     writeLog(dir, { tracks: ["base"] });
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectTracks: vi.fn(async () => ["csr-fastapi"] as Track[]) }),
-      detect: () => state(["base"]),
+      detect: detected(["base"]),
       isTty: () => true,
     });
     expect(result.spec?.tracks).toEqual(["base", "csr-fastapi"]);
   });
 
-  it("기록이 없는 옛 설치본은 CLI 를 잠그지 않는다 — 말할 수 없는 것을 잠그지 않는다 (D5)", async () => {
-    // 로그를 쓰지 않는다
-    const selectCli = vi.fn(async () => ["codex"] as CliTargets);
+  it("A5 · 기록이 없으면 Update 메뉴가 아니라 새 설치 흐름 — 흔적 안내 1회 · 트랙 기본값은 메타파일 (#595)", async () => {
+    // 로그를 쓰지 않는다 — `.claude/` 와 옛 메타파일만 있다(기록 전 판 · 기록을 잃은 클론)
+    writeFileSync(join(dir, ".claude/.installed-tracks"), "data\n");
+    const selectAction = vi.fn(async () => "update" as const);
+    const selectTracks = vi.fn(
+      async (initial?: Track[], _step?: unknown, _installed?: ReadonlyArray<Track>) =>
+        initial ?? (["tooling"] as Track[]),
+    );
+    const note = vi.fn();
     const result = await runInteractive(dir, {
-      prompts: makePrompts({ selectCli }),
-      detect: () => ({ ...state(), source: "legacy" }),
+      prompts: makePrompts({ selectAction, selectTracks, note }),
       isTty: () => true,
     });
-    expect((selectCli.mock.calls[0] as unknown[])?.[2]).toEqual([]);
-    expect(result.spec?.cli).toEqual(["codex"]);
-    expect(result.spec?.tracks).toEqual(["tooling"]); // 트랙은 감지된 것으로 잠근다
+    expect(selectAction).not.toHaveBeenCalled();
+    expect(selectTracks).toHaveBeenCalled();
+    expect(selectTracks.mock.calls[0]?.[0]).toEqual(["data"]);
+    expect(selectTracks.mock.calls[0]?.[2]).toBeUndefined(); // 잠긴 트랙 없음 — 새 설치다
+    expect(note).toHaveBeenCalledTimes(1);
+    expect(note.mock.calls[0]?.[0]).toContain("Harness files are here (.claude/.installed-tracks)");
+    expect(note.mock.calls[0]?.[0]).toContain("Cloned from a teammate?");
+    expect(result.mode).toBe("fresh");
+    expect(result.spec?.tracks).toEqual(["data"]);
+  });
+
+  it("깨진 기록이면 corrupted 줄만 보이고 끝낸다 — 메뉴 · 설치 흐름 없음 (#595)", async () => {
+    mkdirSync(dirname(installLogPath(dir)), { recursive: true });
+    writeFileSync(installLogPath(dir), "{ broken", "utf8");
+    const prompts = makePrompts();
+    const result = await runInteractive(dir, { prompts, isTty: () => true });
+    expect(result).toEqual({ ok: false, reason: "corrupted" });
+    expect(prompts.cancel).toHaveBeenCalledWith(
+      expect.stringContaining("install log is corrupted"),
+    );
+    expect(prompts.selectAction).not.toHaveBeenCalled();
+    expect(prompts.selectTracks).not.toHaveBeenCalled();
   });
 });
 
@@ -196,7 +229,7 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
     const confirmInstall = vi.fn(async (_s: string) => true);
     const result = await runInteractive(dir, {
       prompts: makePrompts({ confirmInstall }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     expect(result.mode).toBe("update");
@@ -212,7 +245,7 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
         selectCli: vi.fn(async () => ["claude", "opencode"] as CliTargets),
         confirmInstall,
       }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
@@ -234,7 +267,7 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
         ]),
         confirmInstall,
       }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
@@ -250,7 +283,7 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectInstallTargets }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     const initial = selectInstallTargets.mock.calls[0]?.[0] ?? [];
@@ -281,7 +314,7 @@ describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리�
     const confirmInstall = vi.fn(async (_s: string) => true);
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectInstallTargets, confirmInstall }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     expect(selectInstallTargets.mock.calls[0]?.[0]).not.toContain(`asset:${EXT}`);
@@ -301,7 +334,7 @@ describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리�
         ]),
         confirmInstall,
       }),
-      detect: () => state(),
+      detect: detected(),
       isTty: () => true,
     });
     const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
@@ -402,7 +435,7 @@ describe("깨진 설치 (D10) — 기록에 claude, `.claude/` 없음", () => {
     });
     await runInteractive(dir, {
       prompts: makePrompts({ selectAction }),
-      detect: () => ({ ...state(), hasClaudeDir: false }),
+      detect: detected(["tooling"], { hasClaudeDir: false }),
       isTty: () => true,
     });
     if (!seen) throw new Error("selectAction 이 기록을 받지 못했다");
@@ -417,7 +450,7 @@ describe("깨진 설치 (D10) — 기록에 claude, `.claude/` 없음", () => {
     writeLog(dir, {});
     const result = await runInteractive(dir, {
       prompts: makePrompts(),
-      detect: () => ({ ...state(), hasClaudeDir: false }),
+      detect: detected(["tooling"], { hasClaudeDir: false }),
       isTty: () => true,
     });
     expect(result.ok).toBe(false);
@@ -435,7 +468,7 @@ describe("깨진 설치 (D10) — 기록에 claude, `.claude/` 없음", () => {
           return "exit" as const;
         }),
       }),
-      detect: () => ({ ...state(), hasClaudeDir: false }),
+      detect: detected(["tooling"], { hasClaudeDir: false }),
       isTty: () => true,
     });
     expect(seen?.repair).toBeNull();

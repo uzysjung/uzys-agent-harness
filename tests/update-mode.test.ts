@@ -811,7 +811,9 @@ describe("runUpdateMode (E2E with templates)", () => {
         expect(existsSync(join(projectDir, b.backup))).toBe(true);
       }
       const json = JSON.parse(readFileSync(listFile(), "utf8")) as { backups: unknown[] };
-      expect(json.backups).toEqual(report.backups);
+      // #557 — 기준선 없는 레거시라 편집인지 모른다: 색인이 그 쌍마다 noChecksum 을 단다
+      expect(report.noChecksum).toEqual(paths);
+      expect(json.backups).toEqual(report.backups.map((b) => ({ ...b, noChecksum: true })));
     });
 
     it("백업이 없으면 목록 파일을 남기지 않는다 — 옛 목록은 '지금도 백업이 있다'로 읽힌다", () => {
@@ -1476,8 +1478,17 @@ describe("레거시 설치본 앵커 이행 (P5 · ADR-060)", () => {
       mkdirSync(join(projectDir, ".claude", d), { recursive: true });
     }
     writeFileSync(join(templatesDir, "CLAUDE.md"), "anchor-v2\n");
-    // 레거시 상태: 앵커가 `.claude/` 안에 있고 루트 앵커는 없다.
+    // 레거시 상태: 앵커가 `.claude/` 안에 있고 루트 앵커는 없다. 기록은 있다(v26.64–v26.139 — 이행은 기록 있는
+    // 설치본의 몫이다, #595).
     writeFileSync(join(projectDir, ".claude/CLAUDE.md"), "legacy-anchor-v1\n");
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
   });
   afterEach(() => {
     rmSync(projectDir, { recursive: true, force: true });
@@ -1554,6 +1565,19 @@ describe("레거시 설치본 앵커 이행 (P5 · ADR-060)", () => {
     expect(report.anchorCreated).toBe(true);
     expect(report.rootImportAdded, "이미 있는 import 를 또 얹었다").toBe(false);
     expect(readFileSync(rootPath(), "utf8"), "사용자 파일을 건드렸다").toBe(root);
+  });
+
+  it("기록이 없으면 앵커도 import 도 만들지 않는다 — 기록 없는 프로젝트는 install 몫이다 (#595)", () => {
+    rmSync(installLogPath(projectDir));
+    writeFileSync(rootPath(), USER_ROOT);
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.anchorCreated).toBe(false);
+    expect(report.rootImportAdded).toBe(false);
+    expect(existsSync(anchorPath())).toBe(false);
+    expect(readFileSync(rootPath(), "utf8")).toBe(USER_ROOT);
+    expect(readInstallLog(projectDir)).toBeNull();
   });
 
   it("이행은 1회 — 두 번째 update 는 갱신 경로로 떨어지고 import 는 1줄 그대로다", () => {

@@ -11,19 +11,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { isKeyId } from "../adapters/index.js";
-import { c, padDisplay, status } from "../design.js";
+import { c, padDisplay } from "../design.js";
 import { excludedStillThere } from "../excluded-still-there.js";
 import {
-  corruptedInstallLogMessage,
   hashContent,
   type InstallLog,
   type InstallLogAsset,
   type InstallLogRootFile,
   installedClis,
-  installLogPath,
-  readInstallLogStatus,
 } from "../install-log.js";
 import { excludedIds } from "../recorded.js";
+import { detectInstallState, reportNotInstalled } from "../state.js";
 
 export interface ListOptions {
   projectDir?: string;
@@ -41,18 +39,11 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
-  // #640 — "설치 없음"과 "기록 깨짐"을 구분한다. 파일이 있는데 not found 로 진단하면
-  // 사용자는 원인(병합 충돌·부분 기록·수동 편집)을 못 찾는다.
-  const statusResult = readInstallLogStatus(projectDir);
-  if (statusResult.status === "corrupted") {
-    err(c.red(`ERROR: ${corruptedInstallLogMessage(projectDir)}`));
-    exit(1);
-    return;
-  }
-  const installLog = statusResult.log;
-  if (!installLog) {
-    err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
-    err(c.dim("       Nothing installed here by agent-harness."));
+  // #640 — "설치 없음"과 "기록 깨짐"을 구분한다. #595 — 그 판정과 문장은 `update` · `uninstall` 과 같은 함수가 낸다.
+  const detected = detectInstallState(projectDir);
+  const installLog = detected.log;
+  if (detected.state !== "installed" || !installLog) {
+    reportNotInstalled(detected, projectDir, err);
     exit(1);
     return;
   }

@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { BASELINE_PREFIX, listBaselineTargets } from "./baseline-targets.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import {
@@ -9,7 +7,12 @@ import {
 } from "./commands/install.js";
 import { formatResidentCostLine, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
-import { type InstallLog, installedClis, readInstallLog } from "./install-log.js";
+import {
+  corruptedInstallLogMessage,
+  type InstallLog,
+  installedClis,
+  readInstallLog,
+} from "./install-log.js";
 import type { InstallMode } from "./installer.js";
 import {
   finalSelectedAssets,
@@ -25,7 +28,12 @@ import {
 import { excludedIds } from "./recorded.js";
 import { residentCostFor } from "./resident-entries.js";
 import { buildInstallRecordView } from "./router.js";
-import { type DetectedInstall, detectInstallState } from "./state.js";
+import {
+  type DetectedInstall,
+  detectInstallState,
+  suggestedTracks,
+  traceNoteLines,
+} from "./state.js";
 import {
   type CliBase,
   type CliTargets,
@@ -152,7 +160,7 @@ export interface InteractiveResult {
    * 함수**가 맡는다(`runUninstallScreen`) — 위저드 안에 삭제 판정의 사본을 두지 않는다.
    */
   uninstall?: boolean;
-  reason?: "no-tty" | "cancelled" | "disabled-action" | "exit";
+  reason?: "no-tty" | "cancelled" | "disabled-action" | "exit" | "corrupted";
   message?: string;
 }
 
@@ -321,9 +329,15 @@ export async function runInteractive(
   // 거짓을 말한 셈이다. 마커는 표시 전용이고 체크를 풀어도 제거되지 않는다 (제거 = `uninstall`).
   const installed = (deps.readInstalled ?? installedTargetState)(projectDir);
 
-  if (state.state === "existing") {
-    const log = readInstallLog(projectDir);
-    const record = buildInstallRecordView(state, log, existsSync(join(projectDir, ".claude")));
+  // #595 — 깨진 기록은 고를 것이 없다: `list` · `update` · `uninstall` 과 같은 줄을 보이고 끝낸다.
+  if (state.state === "corrupted") {
+    prompts.cancel(corruptedInstallLogMessage(projectDir));
+    return { ok: false, reason: "corrupted" };
+  }
+
+  if (state.state === "installed" && state.log) {
+    const log = state.log;
+    const record = buildInstallRecordView(state, log, state.hasClaudeDir);
     const action = await prompts.selectAction(state, record);
     if (action === null) {
       prompts.cancel("Cancelled.");
@@ -345,6 +359,10 @@ export async function runInteractive(
     return runUpdateFlow({ projectDir, state, log, prompts, installed });
   }
 
+  // #595 — 기록이 없으면 새 설치 흐름이다(흔적이 있어도). 흔적은 안내 두 줄과 트랙 기본 체크에만 쓴다(설계 no-record §3).
+  if (state.traces.length > 0) prompts.note?.(traceNoteLines(state.traces).join("\n"));
+  const suggested = suggestedTracks(state.traces);
+
   // #560 (ADR-097 결정 1) — Scope 단계는 없다. 새 설치는 항상 project 다.
   type Step = "tracks" | "cli" | "targets" | "confirm";
   let step: Step = "tracks";
@@ -354,7 +372,10 @@ export async function runInteractive(
 
   while (true) {
     if (step === "tracks") {
-      const result = await prompts.selectTracks(tracks ?? undefined, WIZARD.TRACKS);
+      const result = await prompts.selectTracks(
+        tracks ?? (suggested.length > 0 ? suggested : undefined),
+        WIZARD.TRACKS,
+      );
       if (result === null) {
         // Step 1 ESC = exit with cancel message (only step where ESC is "cancel")
         prompts.cancel("Cancelled.");

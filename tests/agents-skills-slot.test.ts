@@ -261,24 +261,23 @@ describe.each(SLOT_CLIS)("update — 새 번들 스킬이 공유 자리에 깔�
     expect(existsSync(slot(control))).toBe(true);
   });
 
-  it("④ 설치 기록이 없으면 만들지 않는다 — 무엇이 기본인지 모른다", () => {
+  it("④ 설치 기록이 없으면 만들지 않는다 — update 가 아무것도 쓰기 전에 거절한다 (#595)", () => {
     // 기록 없는 설치본에 update 가 닿는 형태 = `.claude/` 가 있는 레거시·클론(`.uzys-agent-harness/`
-    // 는 무시 목록이라 클론에 없다). `.claude/` 도 기록도 없으면 update 자체가 거절한다.
+    // 는 무시 목록이라 클론에 없다). 기록이 없으면 그 상태가 무엇이든 update 는 거절한다.
     install(["claude", cli]);
     const id = INSTALLED_IDS[0] as string;
     const control = otherThan(id);
     pretendNewInThisRelease(id);
-    // 대조군 — 다른 스킬을 옛 내용으로 두고, update 가 이 CLI 의 transform 을 실제로 돌렸는지 본다.
-    // (로그가 없으니 기준선도 없다 → 판정 불가 → 보수적 백업과 함께 최신판으로 간다.)
-    const controlFresh = readFileSync(slot(control), "utf8");
-    writeFileSync(slot(control), "# v26.1.0 시절 스킬 본문\n");
+    // 대조군 — 다른 스킬을 옛 내용으로 둔다. update 가 무엇이라도 돌았다면 이 파일이 최신판으로 간다.
+    const stale = "# v26.1.0 시절 스킬 본문\n";
+    writeFileSync(slot(control), stale);
     rmSync(installLogPath(projectDir));
     expect(readInstallLog(projectDir)).toBeNull(); // 전제
 
-    update(["claude", cli]);
+    expect(() => update(["claude", cli])).toThrow(/Update mode requires an install record/);
 
     expect(existsSync(join(projectDir, AGENTS_SKILLS, id))).toBe(false);
-    expect(readFileSync(slot(control), "utf8")).toBe(controlFresh);
+    expect(readFileSync(slot(control), "utf8")).toBe(stale);
   });
 
   it("⑤ 새로 깐 상시 스킬이 그 CLI 앵커의 안내에 실린다 (ADR-085 · S6)", () => {

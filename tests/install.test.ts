@@ -1938,4 +1938,23 @@ describe("renderFinalSummary NEXT row (audit UX-2)", () => {
     );
     expect(trusted).not.toContain("Trust and continue");
   });
+
+  // #625 — 폴더 trust 와 별개로 Codex 는 훅을 검토·승인해야 돌린다(공식 문서 Codex hooks "Review and trust hooks").
+  // 폴더를 이미 신뢰했어도 남는 단계라 codex 를 깔면 늘 말하고, 하네스가 대신 승인하지 않는다고 밝힌다.
+  it("codex 설치 → 훅 검토(/hooks)를 Codex 가 묻고 하네스는 대신 승인하지 않는다고 말한다", async () => {
+    const { renderFinalSummary } = await import("../src/commands/install-render.js");
+    const screen = (spec: InstallSpec, report: InstallReport = fakeReport): string => {
+      const lines: string[] = [];
+      renderFinalSummary((m) => lines.push(m), spec, report, false);
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+      return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+    };
+    const trusted = screen(
+      { ...toolingClaude, cli: ["codex"] },
+      { ...fakeReport, codexOptIn: { trustEntry: { enabled: true, status: "registered" } } },
+    );
+    expect(trusted).toContain("open /hooks and trust it");
+    expect(trusted).toContain("The harness does not approve it for you");
+    expect(screen(toolingClaude)).not.toContain("/hooks");
+  });
 });
