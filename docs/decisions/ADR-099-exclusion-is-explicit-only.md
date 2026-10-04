@@ -4,7 +4,7 @@
 - Date: 2026-10-04
 - PR: (머지 직전 채움)
 - Issue: #566 · #616 · #675 · #641 · #633 · #598 · #584
-- Supersedes: ADR-097 §6.2 ⓒ 의 "기록에 있는데 파일에 없는 키는 설치자가 지운 것 — update 는 되살리지 않고 `excluded` 에 자동 기록" 과 설계 Q4(파일째 지움 → `excluded`) 한정. `excluded` 한 목록 · 누적 · `--with` 로 해제는 그대로다.
+- Supersedes: ADR-097 §6.2 ⓒ 의 "기록에 있는데 파일에 없는 키는 설치자가 지운 것 — update 는 되살리지 않고 `excluded` 에 자동 기록" · 설계 Q4(파일째 지움 → `excluded`) · `one-principle-design-2026-09-27.md` §1.2 shared 행의 `deleted` · `exclude-portions` 두 칸(본문은 PR A 에서 함께 고친다) 한정. `excluded` 한 목록 · 누적 · `--with` 로 해제는 그대로다.
 - 설계 문서: `docs/plans/explicit-exclusion-design-2026-10-04.md`
 - Context: 하네스 몫이 디스크에서 사라지면, 파일(룰·스킬)은 update 가 되살리고(USAGE "not the same signal") 함께 쓰는 파일 안의
   몫은 "설치자가 뺐다" 로 자동 기록돼 영영 돌아오지 않았다. 그 추론이 설치자가 빼려 하지 않은 상태 — 훅 스크립트 삭제 뒤 update 의

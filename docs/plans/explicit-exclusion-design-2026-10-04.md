@@ -1,6 +1,6 @@
 # 빼기는 명시할 때만 — 사라진 하네스 몫은 되돌리고 알린다 (v26.164.0 설계)
 
-- 날짜: 2026-10-04 · 상태: 설계 2판(Fable 검증 1회 BLOCK 4 · NOTE 12 반영 — `.handoff/bounty-reviews/verify-excl-design.md`)
+- 날짜: 2026-10-04 · 상태: 설계 3판(Fable 검증 1회 BLOCK 4 · NOTE 12, 2회 BLOCK 2 · NOTE 7 — 검증자가 준 문장으로 반영. `.handoff/bounty-reviews/verify-excl-design{,-2}.md`)
 - 결정: 사용자 2026-10-04 "결정 3 추천대로" — 빼기는 `--without` 과 위저드 해제로만 기록하고, 사라진 하네스 부분은 **파일과 똑같이 update 가** 다시 넣고 알리며, 이미 잘못 굳은 기록은 한 번 풀어 준다.
 - 대상 이슈: #566 · #616 · #675 · #641 · #633 (빼기 기록) + #598 · #584 (사라진 하네스 파일 복원)
 - 근거 재현: `.handoff/recheck-26.163.0/recheck-a.md` · `recheck-b.md` — 26.163.0 에서 7건 모두 재현(26.162.1 과 동일 출력)
@@ -53,10 +53,16 @@
     (파일이 있을 때만)의 몫을 upsert 한다 — 지금 update 에는 이 세 파일의 쓰기 경로가 없다(`installer.ts` 의 세 `writer.shared` 호출뿐).
     그러면 `installNewAssets` 의 훅 `needsReinstall` 은 사라진다. `opencode.json` · `.codex/config.toml` · 첫 접촉 `AGENTS.md` 는 이미
     update 의 `refreshExternalCli` 가 쓴다.
+    - 자리: step 0 `installNewAssets`(훅 스크립트 복원) **뒤**, step 3 `cleanStaleHookRefs` **앞** — 정리기가 최종본을 보고, 렌더의
+      `hookInstalled(script)` 는 "복원 뒤 디스크에 있고 excluded 아님" 이다(스크립트 복원 전에 돌면 배선을 걷고 다음 실행에야 add — 2회).
+    - 입력: install 이 넘기는 `legacySeed`(settings.json) · `legacyMcpSeed`(`.mcp.json`)를 같이 넘긴다 — 없으면 옛 로그의 하네스 몫이
+      설치자 것(Q3)이 되어 영영 갱신되지 않는다.
+    - `--only` 묶음: settings.json → `hooks` · `.mcp.json` → `external`(Codex·OpenCode MCP 와 같은 원천) · `.gitignore` → `rules`.
   - **refreshOnly 가드**: update 에서 없는 파일을 만들지 않는 것은 `owned-write.ts` 의 `refreshOnly && !createInRefresh` 가드다.
     **기준선(`externalFiles` 기록)에 있는 경로는 없어도 만든다** — '기록에 있다' 가 그 CLI 의 설치 증거다(`createInRefresh` 와 같은 자리).
-    #584 체인(앵커 없음 → 룰도 못 받음)과 #598 이 이것으로 풀린다. `writeShared` 의 update 재생성(#633)도 이 규칙으로 실제로 쓰고, 쓰지
-    않았으면 `created` 라 보고하지 않는다.
+    #584 체인(앵커 없음 → 룰도 못 받음)과 #598 이 이것으로 풀린다. `writeShared` 의 update 재생성(#633) 조건 = `externalFiles` 에 경로가
+    있거나 `portions` 에 그 파일의 키가 있다 — `opencode.json` · `.codex/config.toml` · `AGENTS.md` 공통. 실제로 쓴 경우만 `created` 라
+    보고하고, 만든 파일은 `rootFiles.change = created` 로 적는다(install 쪽 `install-writes.ts` 와 같은 배선을 `shared-write.ts` 에 둔다).
   - **기록 필터**: `mergeExternalFiles` 의 `existsSync` 필터를 **세 필드 전부**(`policyFiles` · `skillFiles` · `externalFiles`)에서
     없앤다 — 기록이 되살림의 근거라는 규칙은 필드를 가리지 않는다(은퇴는 `harnessRemove` 의 `forget`, `uninstall --cli` 는 그 CLI 의
     기록을 직접 걷는다 — 손실 경로 없음, 검증 확인).
@@ -72,7 +78,12 @@
   skills/rules 필터) · update 의 세 독자(`installNewAssets` · `installNewSkillDirs` · `refreshExternalCli`) · `refreshExternalSkills` ·
   install 의 외부 자산 선택 · `agents-skill-targets.ts` · `resident-entries.ts` · 위저드 체크 해제 표시(`interactive.ts`) — install 은
   `cumulativeExcluded(previousLog, 이번 --without, 이번 --with)`, update 는 `excludedIds(log)`. `spec.baselineExclude` ·
-  `spec.skillExclude` 는 쓰기(옛 판 폴백)만 남기고 새 독자를 만들지 않는다.
+  `spec.skillExclude` 는 쓰기(옛 판 폴백)만 남기고 새 독자를 만들지 않는다. update 의 정책 파일 갱신(`updateDir` · `refreshPolicyBaseline`)
+  도 `excludedIds(log)` 의 대상을 건너뛴다 — 뺐지만 디스크에 남은 파일을 새 판으로 바꾸지 않는다(`judge` 의 `excluded → leave` 와 같다).
+  - **위저드 재체크**: 위저드는 확인 단계에서 **기록의 누적 빼기(`excludedIds(log)`)에 있는데 지금 체크된 id** 를 모두 `--with <id>` 로
+    낸다(번들 스킬 · baseline 공통 — `computeUserOverride` 의 '추천 대비 차이' 만으로는 재체크가 보이지 않는다). `RUNS AS` 줄에 그
+    `--with` 가 보이고 `installSpecFromOptions` 가 같은 입력을 받는다(D6). `classifyUpdateIntent` 의 해제 비교도 `excludedIds(log)` 기준.
+    테스트: 전에 `--without baseline:rules/x` 한 기록에서 위저드로 x 를 재체크 → 확인 화면에 `--with baseline:rules/x` · 설치 뒤 파일 존재.
   - 이미 깔린 것을 `--without` 으로 빼면 **지우지 않는다**. 화면: `⊘ <id> — excluded (still on disk — an earlier install put it there;
     the harness does not delete it. Remove the file yourself, or run uninstall)`. `uninstall --only <id>` 는 카탈로그 자산(`log.assets`)
     줄에만 적는다(baseline · 번들 스킬에는 적지 않는다 — `--only` 가 그 둘을 받게 하는 것은 이 설계 밖).
@@ -80,11 +91,16 @@
     N-f 대로 고쳤어도 뺀다 — 스크립트 참조라 남기면 죽은 참조).
 - **R4 `--with`·`--without` 은 화면이 보여 주는 모든 id 를 받는다** — 카탈로그 · `baseline:` · 번들 스킬 · 키 id. 키 id 검증은
   접두만이 아니라 **이번 렌더가 내는 키 id 집합**(`renderHarnessMcp` · `renderSettingsPortion` · codex 구간 `top`/`tables` · opencode
-  `mcp.<name>` · gitignore 줄 · `agents-md:agents`)과 대조한다 — 오타(`mcp:gitub`)는 지금처럼 `[WARN] Unknown … Skipping`.
+  `mcp.<name>` · gitignore 줄 · `agents-md:agents`)과 대조한다 — 렌더 집합은 **깔린 CLI 집합 ∪ 이번 `--cli`**, **기록 트랙 ∪ 이번
+  `--track`** 으로 계산한다(이번 `--cli` 에 없는 깔린 CLI 의 키도 받는다). 오타(`mcp:gitub`)는 지금처럼 `[WARN] Unknown … Skipping`.
 - **R5 굳은 기록은 1회 푼다.** 새 판이 처음 쓰는 기록에서 `excluded` 의 **키 id**(위 접두 집합)를 지우고 기록에 표시
   `excludedKeysMigrated: true` 를 남긴다 — 표시가 있는 기록에서는 다시 돌지 않는다(R4 로 명시한 키 id 를 지우지 않기 위해서다; 판정
   근거는 기록 — `log.version` 은 update 가 갱신하지 않아 쓸 수 없다). `--without` 이 키 id 를 받은 판은 없으므로(검증 G1 참) 표시
-  없는 기록의 키 id 는 전부 자동 추론이다. 카탈로그 · baseline · 번들 스킬 id 는 명시적 선택이라 남긴다. 화면 `↺ restored N harness
+  없는 기록의 키 id 는 전부 자동 추론이다. **키 아닌 id 는 마지막 설치가 실제로 존중한 것으로 맞춘다** — v26.162.0–26.163.0 은 기록만 누적하고 선택은 이번 플래그만 읽었으므로
+  `excluded` 에 남은 baseline·번들·카탈로그 id 가 설치자의 마지막 선택과 다를 수 있다(뺀 뒤 플래그 없는 재설치로 다시 깐 경우). 판정
+  근거는 전부 기록이다: baseline id 는 `spec.baselineExclude` 에 있는 것만, 번들 스킬 id 는 `spec.skillExclude` 에 있는 것만 남기고, 카탈로그
+  id 는 `log.assets` 에 깔렸다고 적힌 것을 지운다(마지막 설치가 깔았다 = 그때 뺀 것이 아니다). 표시가 있는 기록은 이 정리를 다시 하지
+  않는다 — 그 뒤의 `excluded ∩ assets` 는 R3 의 정당한 상태('뺐지만 지우지 않는다')다. 화면 `↺ restored N harness
   part(s) an earlier version had marked as removed — to drop one for good: install … --without <id>` 는 실제로 **되살린** 실행에서만 낸다.
 - **R6 같은 id 를 `--with` 와 `--without` 에 함께 주면 거절한다**(#616) — plain CLI 경로의 `executeSpec` 앞에서
   `✗ '<id>' is in both --with and --without — pick one` · exit 1, 아무것도 쓰지 않는다. `installSpecFromOptions` 안의 부수효과로
@@ -123,14 +139,14 @@
 
 | PR | 내용 | 이슈 | 의존 |
 |---|---|---|---|
-| A | R1(`deleted` 제거 + `planUpsert` 새 규칙 — 새로 지운 키도 1회에 돌아오게 여기서) · R3(독자 전부 누적) · R4 · R5 · R6 + judge/§1.2 표 · 문서 · ADR-099 Accepted | #616 #675 #641 #633(키) #566 | 없음 |
+| A | R1(`deleted` 제거 + `planUpsert` 새 규칙 — 새로 지운 키도 1회에 돌아오게 여기서) · R3(독자 전부 누적 + 위저드 재체크 + `updateDir`) · R4 · R5(키 id 지움 + 키 아닌 id 정리 — R3 전환과 반드시 같은 PR) · R6 + judge/§1.2 표 · 문서 · ADR-099 Accepted | #616 #675 #641 #633(키) #566 | 없음 |
 | B | R2 — update 의 함께 쓰는 파일 세 개 쓰기 · refreshOnly 가드 · 기록 필터 · AGENTS.md 두 모델 · 훅 스크립트 · `cleanStaleHookRefs` 범위 | #598 #584 #633(파일째) #675(배선) | A(같은 기록 쓰기 — 순차) |
 
 A 만 나간 중간 판도 설치자를 지금보다 불리하게 두지 않는다(검증 N5) — `settings.json` · `.mcp.json` 몫은 B 전까지 install 에서 돌아온다.
 
 ## 7. 이 설계 밖 (같은 마일스톤의 다른 묶음)
 
-#677(트랙 밖으로 새어 든 룰 회수) · #557(체크섬 없던 옛 판의 "edited" 문구) · #625(Codex 구간 편집 무음) · #595 · #658 · #585(기록 없는 프로젝트).
+#677(트랙 밖으로 새어 든 룰 회수) · #557(체크섬 없던 옛 판의 "edited" 문구) · #625(Codex 구간 편집 무음) · #595 · #658 · #585(기록 없는 프로젝트) · #600(설치 중단 — PR #691 로 따로 진행).
 
 ## 8. 가정 (검증 결과)
 
