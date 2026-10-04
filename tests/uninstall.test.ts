@@ -112,6 +112,8 @@ describe("uninstallAction", () => {
       skillsCliSpec(),
       "remove",
       "anthropics/skills",
+      "--agent",
+      "claude-code",
       "--yes",
     ]);
     rmSync(tmpDir, { recursive: true, force: true });
@@ -154,6 +156,8 @@ describe("uninstallAction", () => {
       skillsCliSpec(),
       "remove",
       "fallback-skill-id",
+      "--agent",
+      "claude-code",
       "--yes",
     ]);
     // npm-global: asset.id 로 fallback
@@ -1444,6 +1448,8 @@ describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", ()
       skillsCliSpec(),
       "remove",
       "vercel-labs/skills",
+      "--agent",
+      "claude-code",
       "--yes",
     ]);
     const output = logFn.mock.calls.flat().join("\n");
@@ -1469,6 +1475,8 @@ describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", ()
       skillsCliSpec(),
       "remove",
       "vercel-labs/skills",
+      "--agent",
+      "claude-code",
       "--yes",
     ]);
     const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;

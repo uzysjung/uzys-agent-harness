@@ -92,6 +92,51 @@ describe("#573 — skills remove 인자는 스킬 이름", () => {
   });
 });
 
+interface LooseLog {
+  spec: { clis?: string[]; cli: string[] };
+  templates: Record<string, unknown>;
+  assets: unknown[];
+}
+
+describe("#668 — 외부 스킬 제거는 설치한 CLI 범위로만", () => {
+  const removeArgs = (mutate?: (log: LooseLog) => void): string[] => {
+    const path = join(projectDir, ".uzys-agent-harness", ".harness-install.json");
+    const log = JSON.parse(readFileSync(path, "utf8"));
+    log.assets = [
+      { id: "fd", method: "skill", scope: "project", detail: { source: "a/b", skill: "fd" } },
+    ];
+    mutate?.(log);
+    writeFileSync(path, JSON.stringify(log));
+    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }) as never);
+    uninstallAction({ projectDir, yes: true } as never, {
+      exit: () => undefined as never,
+      log: () => {},
+      err: () => {},
+      spawn,
+      rm: () => {},
+      resolveHarnessRoot: () => HARNESS_ROOT,
+    });
+    return (spawn.mock.calls[0] as unknown as [string, string[]])[1];
+  };
+  const agentsOf = (args: string[]) =>
+    args.flatMap((a, i) => (args[i - 1] === "--agent" ? [a] : []));
+
+  it("기록된 CLI 의 에이전트가 정확히 --agent 로 붙는다", () => {
+    install(["claude", "opencode"]);
+    expect(agentsOf(removeArgs())).toEqual(["claude-code", "opencode"]);
+  });
+
+  it("CLI 집합을 못 읽는 옛 기록은 하네스가 쓰는 두 자리(claude-code · codex)만", () => {
+    install(["claude"]);
+    const args = removeArgs((log) => {
+      delete log.spec.clis;
+      log.spec.cli = [];
+      log.templates = {};
+    });
+    expect(agentsOf(args)).toEqual(["claude-code", "codex"]);
+  });
+});
+
 describe("#573 — 밖을 가리키는 스킬 폴더 링크는 외부 도구를 부르지 않는다", () => {
   const setup = () => {
     install(["claude"]);

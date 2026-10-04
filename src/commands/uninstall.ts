@@ -44,7 +44,7 @@ import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
-import { skillsCliSpec } from "../external-installer.js";
+import { SKILLS_CLI_AGENT_MAP, skillsCliSpec } from "../external-installer.js";
 import { backupDir, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
 import {
   corruptedInstallLogMessage,
@@ -236,7 +236,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     ),
   };
 
-  const plan = planReverse(targetAssets, spawn, projectDir);
+  const plan = planReverse(targetAssets, spawn, projectDir, installedClis(installLog));
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
@@ -1035,6 +1035,7 @@ function planReverse(
   assets: ReadonlyArray<InstallLogAsset>,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
   projectDir: string,
+  clis: ReadonlyArray<CliBase>,
 ): ReversePlan {
   const reverseSteps: ReverseStep[] = [];
   const globalAdvisories: GlobalAdvisory[] = [];
@@ -1045,7 +1046,7 @@ function planReverse(
       globalAdvisories.push({ asset, command: buildGlobalAdvisoryCmd(asset) });
       continue;
     }
-    const step = buildProjectReverseStep(asset, spawn, projectDir);
+    const step = buildProjectReverseStep(asset, spawn, projectDir, clis);
     if (step) reverseSteps.push(step);
     else noReversePath.push(asset);
   }
@@ -1062,10 +1063,14 @@ function outsideSkillTarget(projectDir: string, name: string): string | undefine
   return undefined;
 }
 
+/** CLI 집합을 못 읽는 옛 기록 — 하네스가 늘 쓰는 두 자리(.claude/skills · .agents/skills)만. */
+const SKILL_REMOVE_FALLBACK_CLIS: ReadonlyArray<CliBase> = ["claude", "codex"];
+
 function buildProjectReverseStep(
   asset: InstallLogAsset,
   spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
   projectDir: string,
+  clis: ReadonlyArray<CliBase>,
 ): ReverseStep | null {
   switch (asset.method) {
     case "plugin": {
@@ -1096,7 +1101,13 @@ function buildProjectReverseStep(
         label: `npx skills remove ${name}`,
         outside: outsideSkillTarget(projectDir, name),
         execute: () => {
-          const r = spawn("npx", [skillsCliSpec(), "remove", name, "--yes"]);
+          // 설치가 쓴 에이전트 범위로만 지운다 — `--agent` 없으면 skills 1.5.11 은 약 27개 에이전트
+          // 폴더(.windsurf/skills 등)에서 같은 이름을 지워 설치자 스킬·밖 링크까지 닿는다(#668 재검증).
+          const agents = (clis.length > 0 ? clis : SKILL_REMOVE_FALLBACK_CLIS).flatMap((c) => [
+            "--agent",
+            SKILLS_CLI_AGENT_MAP[c],
+          ]);
+          const r = spawn("npx", [skillsCliSpec(), "remove", name, ...agents, "--yes"]);
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
         },
       };
