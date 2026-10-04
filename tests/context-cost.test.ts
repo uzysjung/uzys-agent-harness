@@ -6,7 +6,6 @@ import { renderInstallHeader } from "../src/commands/install-render.js";
 import {
   assetDescriptorTokens,
   formatResidentCostLine,
-  landsOnDisk,
   residentCost,
 } from "../src/context-cost.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
@@ -168,15 +167,6 @@ describe("계획 상주 계측은 CLI 조합에서 디스크에 남는 것만 �
     const spec = specFor(["claude", "codex"]);
     expect(headerLine(spec)).toContain(`agents ${plannedAgents(spec)} ~`);
     expect(formatSummary(spec)).toContain(`agents ${plannedAgents(spec)} ~`);
-  });
-
-  it("landsOnDisk — 룰·스킬은 CLI 무관(AGENTS.md 인라인 · .agents/skills), 에이전트만 claude 에 묶인다", () => {
-    expect(landsOnDisk(".claude/rules/x.md", ["codex"])).toBe(true);
-    expect(landsOnDisk(".claude/skills/x", ["opencode"])).toBe(true);
-    expect(landsOnDisk(".claude/agents/x.md", ["codex"])).toBe(false);
-    expect(landsOnDisk(".claude/agents/x.md", ["antigravity"])).toBe(false);
-    expect(landsOnDisk(".claude/agents/x.md", ["claude"])).toBe(true);
-    expect(landsOnDisk(".claude/agents/x.md", ["codex", "claude"])).toBe(true);
   });
 });
 

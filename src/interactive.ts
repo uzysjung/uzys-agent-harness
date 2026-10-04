@@ -1,22 +1,16 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { BASELINE_PREFIX, isBaselineExcluded, listBaselineTargets } from "./baseline-targets.js";
+import { BASELINE_PREFIX, listBaselineTargets } from "./baseline-targets.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import {
   type InstallOptions,
   installCommandLine,
   installSpecFromOptions,
 } from "./commands/install.js";
-import {
-  formatResidentCostLine,
-  landsOnDisk,
-  residentCost,
-  summarizeContextCost,
-} from "./context-cost.js";
+import { formatResidentCostLine, summarizeContextCost } from "./context-cost.js";
 import { assetReachesCli, EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { type InstallLog, installedClis, readInstallLog } from "./install-log.js";
-import { buildManifestSpec, type InstallMode } from "./installer.js";
-import { buildManifest } from "./manifest.js";
+import type { InstallMode } from "./installer.js";
 import {
   finalSelectedAssets,
   groupAssetsByCategory,
@@ -28,6 +22,7 @@ import {
   type Prompts,
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
+import { residentCostFor } from "./resident-entries.js";
 import { buildInstallRecordView } from "./router.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
 import {
@@ -730,16 +725,8 @@ export function formatSummary(spec: InstallSpec): string {
     // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
     // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
     // #320 H1 — 헤더와 같은 이유로 **설치기와 같은 spec**(`buildManifestSpec`)으로 센다.
-    const assetSpec = buildManifestSpec(spec);
     const cost = formatResidentCostLine(
-      residentCost(
-        buildManifest(assetSpec).filter(
-          (e) =>
-            e.applies(assetSpec) &&
-            !isBaselineExcluded(e.target, baselineExcluded) &&
-            landsOnDisk(e.target, spec.cli),
-        ),
-      ),
+      residentCostFor(spec),
       summarizeContextCost(finalAssets).unmeasuredCount,
     );
     if (cost) lines.push(`  · ${cost}`);
