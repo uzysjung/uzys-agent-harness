@@ -18,6 +18,7 @@ import { type CodexTransformReport, runCodexTransform } from "./codex/transform.
 import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
 import { composeMcpJson, type McpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
+import { mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
@@ -42,6 +43,8 @@ export interface CliTransformResults {
    * 단계가 건너뛰었는지가 아니라 "어느 자리를 옮겨야 하는지"가 필요하다.
    */
   externalForeignOwned: string[];
+  /** #678 — 세 변환이 링크를 따라가면 프로젝트 밖이라 쓰지 않은 자리(경로당 하나). */
+  externalOutside: OutsideLink[];
   /**
    * #551 (ADR-097) — 함께 쓰는 파일(`.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md`)마다 이번 실행의
    * 판정·결과. 화면이 한 줄씩 읽는다.
@@ -160,6 +163,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalBackups: string[] = [];
   const externalBackedUp: string[] = [];
   const externalForeignOwned: string[] = [];
+  let externalOutside: OutsideLink[] = [];
   let externalUpdated = 0;
   const sharedFiles: SharedWriteResult[] = [];
   const absorbShared = (
@@ -185,6 +189,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       // 세 transform 이 같은 `.agents/skills/` 를 쓰므로 중복이 실제로 난다.
       if (!externalForeignOwned.includes(f)) externalForeignOwned.push(f);
     }
+    externalOutside = mergeOutside(externalOutside, report.ownership.outside ?? []);
     externalUpdated += report.ownership.updated;
   };
 
@@ -270,6 +275,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalUpdated,
     externalBackedUp,
     externalForeignOwned,
+    externalOutside,
     sharedFiles,
     portions: sharedFiles.flatMap((r) => r.portions ?? []),
     portionPaths: sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),

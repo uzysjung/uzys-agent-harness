@@ -74,6 +74,12 @@ import {
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
+import {
+  createOutsideGuard,
+  mergeOutside,
+  type OutsideGuard,
+  type OutsideLink,
+} from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds } from "./recorded.js";
 import { anyTrack } from "./track-match.js";
@@ -173,6 +179,11 @@ export interface UpdateModeReport {
   skillsSkippedLinks: string[];
   /** #597 — 심볼릭 링크라 갱신하지 않고 남긴 CLI 중립 헬퍼(projectDir 상대경로). 링크 너머는 프로젝트 밖일 수 있다. */
   helpersKept?: string[];
+  /**
+   * #678 — 링크를 따라가면 **프로젝트 밖**이라 쓰지도 · 백업하지도 · 지우지도 않은 자리(install · uninstall 과 같은
+   * 판정). 옵셔널 = 화면 픽스처가 안 싣는 축(없음 = 0건).
+   */
+  outsideLinks?: OutsideLink[];
   /**
    * #524 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는 링크이고 그 공유
    * 본문을 이번 update 의 외부 변환이 갱신한 스킬 id. `skillsSkippedLinks` 에서 빠져 이리로 온다 —
@@ -392,6 +403,8 @@ export function runUpdateMode(
   );
   // #480 — 고른 묶음만 돈다. 안 고르면(undefined) 전부 — 기존 호출부의 동작 그대로.
   const wants = (g: UpdateGroup): boolean => only === undefined || only.includes(g);
+  // #678 — 이 실행의 모든 쓰기가 같은 판정을 받는다: 실체가 프로젝트 밖이면 건너뛰고 여기에 모은다.
+  const outside = createOutsideGuard(projectDir);
   const report: UpdateModeReport = {
     updated: {},
     pruned: {},
@@ -427,7 +440,7 @@ export function runUpdateMode(
   // 0) 릴리즈로 **새로 생긴** 자산 설치 (#283). 정책 동기화보다 먼저 도는 이유는
   // `refreshPolicyBaseline` 이 아래에서 기준선을 다시 찍기 때문이다 — 순서를 뒤집으면 방금 깐
   // 파일이 기준선에 없어 다음 update 가 "사용자가 만든 파일"로 오판한다.
-  const fresh = installNewAssets(projectDir, templatesDir, wants);
+  const fresh = installNewAssets(projectDir, templatesDir, wants, outside);
   report.installedNew = fresh.installed;
   report.restored = fresh.restored;
   report.needsReinstall = fresh.needsReinstall;
@@ -453,7 +466,7 @@ export function runUpdateMode(
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
-    const ctx = { prefix: dir, baseline: policyBase };
+    const ctx = { prefix: dir, baseline: policyBase, outside };
     const synced = updateDir(target, source, ext, ctx);
     report.updated[label] = synced.updated;
     report.policyBackedUp.push(...synced.backedUp);
@@ -467,7 +480,7 @@ export function runUpdateMode(
     (d) => d.dir,
   );
   if (claudeManaged && syncedDirs.length > 0)
-    refreshPolicyBaseline(projectDir, templatesDir, syncedDirs);
+    refreshPolicyBaseline(projectDir, templatesDir, syncedDirs, outsidePaths(outside, ".claude/"));
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
@@ -479,6 +492,7 @@ export function runUpdateMode(
           skillBaseline(projectDir),
           new Date(),
           (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
+          outside,
         )
       : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
   if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
@@ -489,12 +503,13 @@ export function runUpdateMode(
   // `installNewAssets` 는 파일 자산만 다뤄, 기존 설치본은 새 스킬을 영영 못 받았다.
   const newSkills =
     claudeManaged && wants("new-skills")
-      ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir))
+      ? installNewSkillDirs(projectDir, templatesDir, installedTracks(projectDir), outside)
       : { installed: [], restored: [], foreignOwned: [] };
   report.installedNew.push(...newSkills.installed);
   report.restored.push(...newSkills.restored);
   const copiedSkills = [...newSkills.installed, ...newSkills.restored];
-  if (claudeManaged && wants("skills")) refreshSkillBaseline(projectDir, templatesDir);
+  if (claudeManaged && wants("skills"))
+    refreshSkillBaseline(projectDir, templatesDir, outsidePaths(outside, ".claude/skills/"));
   else if (claudeManaged && copiedSkills.length > 0)
     recordNewSkillBaseline(projectDir, templatesDir, copiedSkills);
 
@@ -518,7 +533,7 @@ export function runUpdateMode(
   // 무조건 훑어 적은 값이라 단서가 아니다, BLOCKER-5)
   // `spec.cli` 기반 판정과 같은 답을 내고, 디스크에 `.claude/` 가 있다는 사실은 들어오지 않는다.
   if (existsSync(claudeDir) && claudeManaged) {
-    if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report);
+    if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report, outside);
   }
 
   // 3) settings.json stale hook ref cleanup
@@ -527,7 +542,7 @@ export function runUpdateMode(
   // 생성물이라 클론에 아직 없다), 그 실행은 `.claude.backup-*` 도 만들지 않는다(installer
   // resolveBackupPath). 게이트가 없으면 설치자 훅 배선이 원본 없이 사라진다(실 CLI 재현).
   const settingsPath = join(claudeDir, "settings.json");
-  if (claudeManaged && wants("hooks") && existsSync(settingsPath)) {
+  if (claudeManaged && wants("hooks") && existsSync(settingsPath) && !outside.skip(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
     // #632 — 치유된 참조는 "스크립트가 없던 일시 상태"다. 몫 기록에 남겨 두면 다음 install 이
     // 그 훅을 "설치자가 뺀 것"(excluded)으로 읽어 복구를 영구 거부한다. 몫에서 걷어 첫 접촉으로
@@ -565,6 +580,7 @@ export function runUpdateMode(
         externalUpdated: 0,
         externalBackedUp: [],
         externalForeignOwned: [],
+        externalOutside: [],
         written: [],
         skillsInstalled: [],
         skillsRestored: [],
@@ -629,6 +645,9 @@ export function runUpdateMode(
     ).filter((id) => !skillRefresh.notInCatalog.includes(id)),
   ];
   report.externalSkillsUnknown = skillRefresh.unknown;
+
+  const outsideLinks = mergeOutside(outside.list(), external.externalOutside);
+  if (outsideLinks.length > 0) report.outsideLinks = outsideLinks;
 
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
   writeBackupList(projectDir, report.backups);
@@ -736,7 +755,8 @@ function demotedAgentFiles(claudeDir: string, tracks: ReadonlyArray<Track>): str
 function installNewAssets(
   projectDir: string,
   templatesDir: string,
-  wants: (g: UpdateGroup) => boolean = () => true,
+  wants: (g: UpdateGroup) => boolean,
+  outside: OutsideGuard,
 ): {
   installed: string[];
   restored: string[];
@@ -786,6 +806,8 @@ function installNewAssets(
     if (existsSync(target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
+    // #678 — 밖 폴더 링크 안에 새로 만드는 것도 밖에 쓰는 것이다.
+    if (outside.skip(target)) continue;
 
     if (entry.target.startsWith(".claude/")) {
       if (!claudeSelected) continue;
@@ -873,6 +895,7 @@ function installNewSkillDirs(
   projectDir: string,
   templatesDir: string,
   tracks: ReadonlyArray<Track>,
+  outside: OutsideGuard,
 ): { installed: string[]; restored: string[]; foreignOwned: string[] } {
   const installed: string[] = [];
   const restored: string[] = [];
@@ -906,6 +929,8 @@ function installNewSkillDirs(
     if (existsSync(target)) continue;
     const source = join(templatesDir, entry.source);
     if (!existsSync(source)) continue;
+    // #678 — 슬롯이 아직 없으니 그 안도 없다 — 슬롯 자리 하나로 판정한다.
+    if (outside.skip(target)) continue;
     copyDir(source, target, (rel) => foreignOwnedTarget(projectDir, `${entry.target}/${rel}`));
     if (priorIds.has(entry.target.slice(".claude/skills/".length))) restored.push(entry.target);
     else installed.push(entry.target);
@@ -984,6 +1009,7 @@ function syncHarnessAnchor(
   projectDir: string,
   templatesDir: string,
   report: UpdateModeReport,
+  outside: OutsideGuard,
   now: Date = new Date(),
 ): void {
   // 구 앵커는 **지우지 않고 알린다** — 사용자가 고쳤는지 판정할 근거가 update 에는 없다.
@@ -996,6 +1022,8 @@ function syncHarnessAnchor(
   if (!existsSync(templateMd)) return;
 
   const anchor = join(projectDir, HARNESS_ANCHOR_FILE);
+  // #678 — 앵커의 실체가 프로젝트 밖이면 앵커도 루트 import 도 건드리지 않는다.
+  if (outside.skip(anchor)) return;
   const existed = existsSync(anchor);
   if (existed) {
     // #480 — 룰·스킬과 같은 잣대(ADR-046): 설치 시점 sha 와 다르면 설치자가 고친 것이니 먼저
@@ -1020,13 +1048,13 @@ function syncHarnessAnchor(
     // (상시 스킬 안내 = 지금 깔린 스킬). upsert 는 내용이 같으면 입력을 그대로 돌려주므로 파일을
     // 만지지 않는다. 독립 리뷰(#433 B-1)가 이 분기가 빠져 있던 것을 실측으로 잡았다 — 그 전에는
     // 이행 분기에서만 불려 "현행화한다"는 단언이 정상 설치본에서 거짓이었다.
-    report.rootBlockRefreshed = upsertRootImport(projectDir);
+    report.rootBlockRefreshed = upsertRootImport(projectDir, outside);
     return;
   }
 
   copyFileSync(templateMd, anchor);
   report.anchorCreated = true;
-  report.rootImportAdded = upsertRootImport(projectDir);
+  report.rootImportAdded = upsertRootImport(projectDir, outside);
   // 이번에 만든 앵커는 install log 에 남긴다 — uninstall 이 회수를 주장하는 근거가 그 기록
   // 하나뿐이라(`commands/uninstall.ts` templates.rootClaudeMd), 빼면 아무도 못 지우는 파일을
   // 새로 만들어 놓는 셈이 된다. 로그가 없으면 만들지 않는다 (설치 기록 날조 금지 — 다른
@@ -1041,8 +1069,10 @@ function syncHarnessAnchor(
  * @returns 실제로 파일을 고쳤으면 true. 이미 import 가 살아 있으면 upsert 가 입력을 그대로
  *   돌려주고, 그때는 파일을 만지지 않는다.
  */
-function upsertRootImport(projectDir: string): boolean {
+function upsertRootImport(projectDir: string, outside: OutsideGuard): boolean {
   const target = join(projectDir, "CLAUDE.md");
+  if (outside.skip(target)) return false; // #678
+
   const existing = existsSync(target) ? readFileSync(target, "utf8") : null;
   const next = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
@@ -1188,6 +1218,8 @@ function refreshExternalCli(
   externalUpdated: number;
   externalBackedUp: string[];
   externalForeignOwned: string[];
+  /** #678 — 외부 변환이 실체가 프로젝트 밖이라 쓰지 않은 자리. */
+  externalOutside: OutsideLink[];
   /** 이번 실행이 담당한 산출물(projectDir 상대) — #524 링크 자리 행이 "갱신됐다"를 이걸로 판정한다. */
   written: string[];
   /** #550 — 이번 실행이 공유 자리에 **새로 만든** 스킬 중 기록에 없던 것 (`.agents/skills/<id>`). */
@@ -1295,6 +1327,7 @@ function refreshExternalCli(
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
     externalForeignOwned: result.externalForeignOwned,
+    externalOutside: result.externalOutside,
     written: result.externalFiles.map((f) => f.path),
     skillsInstalled,
     skillsRestored,
@@ -1312,6 +1345,8 @@ export interface PolicySyncCtx {
   prefix: string;
   /** 설치 시점 기준선 (`.claude/` 상대경로 → sha256). 빈 Map = 판정 불가. */
   baseline: ReadonlyMap<string, string>;
+  /** #678 — 실체가 프로젝트 밖인 파일은 쓰지도 · 백업하지도 · 지우지도 않는다. 없으면 판정하지 않는다(단위 테스트). */
+  outside?: OutsideGuard;
 }
 
 /**
@@ -1357,6 +1392,8 @@ export function updateDir(
     const sourceFile = join(source, file);
     if (!existsSync(sourceFile)) continue;
 
+    // #678 — 폴더 링크(`.claude/rules → 밖`)든 파일 링크든 실체가 밖이면 손대지 않는다(백업도 밖에 생겼다).
+    if (ctx.outside?.skip(targetFile)) continue;
     const next = readFileSync(sourceFile, "utf8");
     const current = readFileSync(targetFile, "utf8");
     if (current === next) continue; // 이미 최신 — 백업도 쓰기도 불필요
@@ -1409,6 +1446,8 @@ export function syncSkills(
    * **필수**다 — 옵셔널이면 다음 호출자가 조용히 빠뜨린다(`copyDir` 과 같은 이유).
    */
   foreignOf: (relInSkills: string) => string | null,
+  /** #678 — 실체가 프로젝트 밖인 파일은 쓰지도 · 백업하지도 · 지우지도 않는다. 없으면 판정하지 않는다(단위 테스트). */
+  outside?: OutsideGuard,
 ): {
   updated: number;
   backedUp: string[];
@@ -1447,6 +1486,7 @@ export function syncSkills(
         if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
         continue;
       }
+      if (outside?.skip(targetFile)) continue;
       const next = readFileSync(join(sourceDir, skill.name, rel), "utf8");
 
       if (!existsSync(targetFile)) {
@@ -1478,6 +1518,7 @@ export function syncSkills(
       if (bundled.has(rel) || basename(rel).includes(".backup-")) continue;
       if (foreignOf(`${skill.name}/${rel}`) !== null) continue;
       const targetFile = join(targetSkill, rel);
+      if (outside?.skip(targetFile)) continue;
       const recorded = baseline.get(`${skill.name}/${rel}`);
       if (recorded === undefined || hashContent(readFileSync(targetFile, "utf8")) !== recorded) {
         backupFile(targetFile, now);
@@ -1519,12 +1560,14 @@ function refreshPolicyBaseline(
   projectDir: string,
   templatesDir: string,
   /** #480 — 이번에 동기화한 디렉터리(`POLICY_DIRS` 의 `dir`). 안 주면 전부. */
-  dirs?: ReadonlyArray<string>,
+  dirs: ReadonlyArray<string> | undefined,
+  /** #678 — 실체가 프로젝트 밖이라 쓰지 않은 파일(`.claude/` 상대). 디스크로 다시 찍지 않고 앞 기록을 둔다. */
+  outside: ReadonlySet<string>,
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
   const inDirs = (path: string): boolean =>
-    dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`));
+    (dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`))) && !outside.has(path);
   const policyFiles = [
     ...(log.policyFiles ?? []).filter((f) => !inDirs(f.path)),
     ...collectPolicyHashes(projectDir, templatesDir).filter((f) => inDirs(f.path)),
@@ -1540,6 +1583,19 @@ function refreshPolicyBaseline(
 }
 
 /**
+ * #678 — 밖이라 쓰지 않은 자리를 기록 키(접두를 뗀 상대경로)로. 그 파일의 디스크 내용은 하네스가 놓은 것이 아니다 —
+ * 기준선으로 다시 찍으면 설치자 편집을 "하네스 판" 으로 기록해, 링크를 실파일로 바꾼 뒤의 update 가 백업 없이 덮는다.
+ */
+function outsidePaths(outside: OutsideGuard, prefix: string): ReadonlySet<string> {
+  return new Set(
+    outside
+      .list()
+      .filter((o) => o.path.startsWith(prefix))
+      .map((o) => o.path.slice(prefix.length)),
+  );
+}
+
+/**
  * 갱신 직후 기준선을 다시 찍는다.
  *
  * 이걸 빼면 다음 update 가 **방금 자기가 덮어쓴 파일**을 전부 "사용자가 고쳤다"로 오판해
@@ -1548,10 +1604,18 @@ function refreshPolicyBaseline(
  *
  * 로그가 없으면 **만들지 않는다** — update 가 설치 기록을 날조하면 uninstall 이 그걸 믿는다.
  */
-function refreshSkillBaseline(projectDir: string, templatesDir: string): void {
+function refreshSkillBaseline(
+  projectDir: string,
+  templatesDir: string,
+  /** #678 — 실체가 프로젝트 밖이라 쓰지 않은 파일(`.claude/skills/` 상대). 앞 기록을 그대로 둔다. */
+  outside: ReadonlySet<string>,
+): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
-  const skillFiles = collectSkillHashes(projectDir, templatesDir);
+  const skillFiles = [
+    ...collectSkillHashes(projectDir, templatesDir).filter((f) => !outside.has(f.path)),
+    ...(log.skillFiles ?? []).filter((f) => outside.has(f.path)),
+  ];
   const next: InstallLog = { ...log };
   if (skillFiles.length > 0) next.skillFiles = skillFiles;
   else delete next.skillFiles;
@@ -1591,6 +1655,7 @@ export function pruneOrphans(
       const targetFile = join(target, file);
       // 소유를 주장할 수 있는 것만 지운다. 기준선에 없으면 사용자가 만든 파일이다.
       if (!ctx.baseline.has(`${ctx.prefix}/${file}`)) continue;
+      if (ctx.outside?.skip(targetFile)) continue; // #678 — 밖의 실체는 지우지 않는다
       try {
         const current = readFileSync(targetFile, "utf8");
         if (!isHarnessOwned(ctx, file, current)) backupFile(targetFile, now);

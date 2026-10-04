@@ -30,6 +30,7 @@ import {
 } from "./install-log.js";
 import { judge, type Verdict } from "./judge.js";
 import { RETIRED_PATHS } from "./manifest.js";
+import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { excludedIds, type RecordedOptions, recorded } from "./recorded.js";
 
@@ -88,6 +89,8 @@ export interface WriteLedger {
   backups: string[];
   judged: JudgedWrite[];
   shared: SharedWrite[];
+  /** #678 — 링크를 따라가면 프로젝트 밖이라 쓰지 않은 자리. 기록도 하지 않는다(우리 것으로 삼지 않는다). */
+  outside: OutsideLink[];
 }
 
 export type HarnessSource = { source: string } | { content: string };
@@ -107,6 +110,8 @@ export interface SharedOptions {
 export interface InstallWriter {
   harness(path: string, from: HarnessSource, opts?: RecordedOptions): JudgedWrite | null;
   shared(path: string, render: ReadonlyMap<string, unknown>, opts?: SharedOptions): SharedWrite;
+  /** #678 — 이 writer 밖에서 쓰는 자리(루트 `CLAUDE.md`)도 같은 판정을 받는다. true 면 쓰지 않는다. */
+  skipOutside(abs: string): boolean;
   ledger(): WriteLedger;
 }
 
@@ -134,6 +139,7 @@ export function createInstallWriter(args: {
   const backups: string[] = [];
   const judged: JudgedWrite[] = [];
   const shared: SharedWrite[] = [];
+  const outside = createOutsideGuard(projectDir);
 
   const rel = (abs: string): string => relative(projectDir, abs).split(sep).join("/");
 
@@ -146,6 +152,8 @@ export function createInstallWriter(args: {
 
   function harness(path: string, from: HarnessSource, opts: RecordedOptions = {}) {
     const abs = join(projectDir, path);
+    // #678 — 실체가 프로젝트 밖이면 판정 전에 멈춘다: 쓰지도 · 백업하지도 · 기록하지도 않는다.
+    if (outside.skip(abs)) return null;
     const next = "source" in from ? readFileSync(from.source, "utf8") : from.content;
     const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
     const j = judge({
@@ -245,6 +253,8 @@ export function createInstallWriter(args: {
       return out;
     };
     if (disk === null && opts.onlyIfPresent) return result("leave", "");
+    // #678 — 하네스 파일과 같은 판정. 몫 기록은 그대로 둔다(이번에 판정하지 않았다) · 화면은 `outside` 가 말한다.
+    if (outside.skip(abs)) return result("leave", "");
     const j = judge({
       op: "write",
       kind: "shared",
@@ -297,6 +307,7 @@ export function createInstallWriter(args: {
   return {
     harness,
     shared: sharedWrite,
+    skipOutside: (abs) => outside.skip(abs),
     ledger: () => ({
       policyFiles: toFiles(policy),
       skillFiles: toFiles(skills),
@@ -309,6 +320,7 @@ export function createInstallWriter(args: {
       backups: [...backups],
       judged: [...judged],
       shared: [...shared],
+      outside: outside.list(),
     }),
   };
 }

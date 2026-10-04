@@ -126,6 +126,15 @@ describe("detectInstallState — .claude/ 없는 설치 (#253)", () => {
     expect(detectInstallState(dir).tracks).toEqual(["tooling"]);
   });
 
+  it("`.claude/` 는 있는데 메타파일이 없으면 기록의 트랙 — 룰 이름 추론보다 기록이 먼저다 (ADR-098 · `.claude` 밖 링크)", () => {
+    writeLog(["tooling"]);
+    mkdirSync(join(dir, ".claude"), { recursive: true }); // 룰도 메타파일도 없다 — 추론이면 []
+    const result = detectInstallState(dir);
+    expect(result.source).toBe("install-log");
+    expect(result.hasClaudeDir).toBe(true);
+    expect(result.tracks).toEqual(["tooling"]);
+  });
+
   it("로그도 `.claude/` 도 없으면 여전히 new", () => {
     expect(detectInstallState(dir).state).toBe("new");
   });

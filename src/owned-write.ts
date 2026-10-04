@@ -23,6 +23,7 @@ import {
   type InstallLogSkillFile,
   isHarnessOwned,
 } from "./install-log.js";
+import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 
 /**
  * #600 — 쓴 것을 **쓰는 그 자리에서** 받아 적는 곳. transform 의 결과(`result()`)는 transform 이 끝까지 돌아야
@@ -59,6 +60,11 @@ export interface OwnedWriteResult {
    * 백업까지 **그 저장소 안에** 떨궜다 — 사용자가 찾을 자리가 아니다 (ADR-062 와 같은 논거).
    */
   foreignOwned: string[];
+  /**
+   * #678 — 링크를 따라가면 **프로젝트 밖**이라 쓰지 않은 자리. 남의 도구 슬롯(`foreignOwned`)과 다른 사실이다 —
+   * 저쪽은 "그 자리가 남의 것", 이쪽은 "그 실체가 이 프로젝트 밖"이고 화면이 대상 경로를 함께 댄다.
+   */
+  outside?: OutsideLink[];
   /** 생성된 백업 파일의 절대경로 — 설치 화면의 `backup` 행이 이걸 쓴다. */
   backupPaths: string[];
   /**
@@ -88,6 +94,11 @@ export interface OwnedWriter {
    *   `chmodSync` 가 걸려 ENOENT 로 터진다.
    */
   write(absPath: string, content: string, opts?: WriteOptions): boolean;
+  /**
+   * #678 — 이 writer 를 거치지 않고 직접 쓰는 자리(설치자 파일에 몫만 더하는 `shared-write`)도 같은 판정을 받는다.
+   * true 면 실체가 프로젝트 밖이다 — 쓰지 말 것. 그 자리는 `result().outside` 에 실린다.
+   */
+  skipOutside(absPath: string): boolean;
   /** 이번 실행의 소유권 결과 — transform 이 그대로 report 에 실어 반환한다. */
   result(): OwnedWriteResult;
   /** #600 — 함께 쓰는 파일(`writeShared`)도 같은 저널에 적도록 넘긴다. 없으면 적지 않는다. */
@@ -148,6 +159,7 @@ export function createOwnedWriter(
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
   const foreignOwned: string[] = [];
+  const outside = createOutsideGuard(projectDir);
   let updated = 0;
 
   return {
@@ -160,6 +172,8 @@ export function createOwnedWriter(
         if (!foreignOwned.includes(foreign)) foreignOwned.push(foreign);
         return false;
       }
+      // #678 — 실체가 프로젝트 밖이면 쓰지도 · 백업하지도 · 기준선에 싣지도 않는다(같은 `false` 계약).
+      if (outside.skip(absPath)) return false;
       const digest = hashContent(content);
 
       if (!existsSync(absPath)) {
@@ -189,9 +203,11 @@ export function createOwnedWriter(
       return true;
     },
     ...(journal === undefined ? {} : { journal }),
+    skipOutside: (absPath) => outside.skip(absPath),
     result() {
       return {
         foreignOwned: [...foreignOwned],
+        outside: outside.list(),
         files: [...written].map(([path, sha256]) => ({ path, sha256 })),
         backedUp: [...backedUp],
         backupPaths: [...backupPaths],

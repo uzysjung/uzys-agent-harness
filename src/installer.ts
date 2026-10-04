@@ -58,6 +58,7 @@ import {
   resolveRules,
 } from "./manifest.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
+import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
 import {
   type CliBase,
@@ -254,6 +255,11 @@ export interface BaselineReport {
   judged?: JudgedWrite[];
   /** #551 PR-3 — 함께 쓰는 파일(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 판정과 결과. */
   shared?: SharedWrite[];
+  /**
+   * #678 — 링크를 따라가면 프로젝트 밖이라 **쓰지 않은** 자리. 화면이 "남김 + 경로" 로 말한다(uninstall 과 같은 판정).
+   * 옵셔널 = update 경로는 `updateMode.outsideLinks` 에 싣고, 화면 픽스처는 싣지 않는다(없음 = 0건).
+   */
+  outsideLinks?: OutsideLink[];
 }
 
 export interface InstallReport {
@@ -307,6 +313,10 @@ export interface InstallReport {
   judged?: JudgedWrite[];
   /** #551 PR-3 — `BaselineReport.shared` 와 같다. */
   shared?: SharedWrite[];
+  /** #678 — `BaselineReport.outsideLinks` 와 같다. */
+  outsideLinks?: OutsideLink[];
+  /** #678 — `BaselineReport.categories` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). NEXT 줄이 실제로 깐 것을 센다. */
+  categories?: BaselineCategoryCounts;
   /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
   rootClaudeMd?: {
     tracks: ReadonlyArray<Track>;
@@ -506,6 +516,7 @@ function runInstallStages(
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
     externalForeignOwned,
+    externalOutside,
     sharedFiles: _sharedFiles,
     portions: cliPortions,
     portionPaths: cliPortionPaths,
@@ -593,6 +604,7 @@ function runInstallStages(
     ],
     baselineLinked: linked.updated,
     baselineLinkedNotOurs: linked.notOurs,
+    outsideLinks: mergeOutside(ledger.outside, externalOutside, linked.outside),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -877,6 +889,8 @@ function installClaudeBaseline(
       continue;
     }
     if (entry.type === "file") {
+      // #678 — 실체가 밖이라 쓰지 않을 자리는 세지 않는다(화면 범주 줄 · 개수는 실제로 쓴 것만).
+      if (writer.skipOutside(target)) continue;
       if (entry.target === SETTINGS_TARGET) {
         // 함께 쓰는 파일 — 훅 스크립트가 다 깔린 뒤 하네스 몫만 쓴다(아래).
         settingsSource = source;
@@ -888,14 +902,21 @@ function installClaudeBaseline(
       // #343 — 디렉터리 자산은 **파일 단위로** 판정한다. 슬롯이 우리 것이어도 그 **안의 파일**이
       // 링크일 수 있고, 통짜 복사는 그것을 그대로 따라가 남의 파일을 덮었다.
       // dir 엔트리는 전부 `.claude/skills/<id>` 다(manifest.ts #409 — 스킬은 디렉터리 단위로만).
+      let leftOutside = 0;
       for (const rel of listFilesRecursive(source)) {
         const slot = foreignOwnedTarget(projectDir, `${entry.target}/${rel}`);
         if (slot !== null) {
           if (!result.foreignOwned.includes(slot)) result.foreignOwned.push(slot);
           continue;
         }
+        // #678 — 밖이라 건너뛴 파일이 하나라도 있으면 그 스킬은 다 깔리지 않았다 — "깔렸다" 로 세지 않는다.
+        if (writer.skipOutside(join(projectDir, entry.target, rel))) {
+          leftOutside += 1;
+          continue;
+        }
         writer.harness(`${entry.target}/${rel}`, { source: join(source, rel) });
       }
+      if (leftOutside > 0) continue;
       result.dirsCopied += 1;
     }
     accumulateCategory(result.categories, entry);
@@ -904,7 +925,7 @@ function installClaudeBaseline(
   // chmod +x on hook scripts (cp does not preserve exec bit when source is non-exec)
   const hookDir = join(projectDir, ".claude/hooks");
   if (existsSync(hookDir)) {
-    chmodHooksSync(hookDir);
+    chmodHooksSync(hookDir, projectDir);
   }
 
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
@@ -938,15 +959,25 @@ function installClaudeBaseline(
   const rootClaudeMd = writeRootClaudeMd(
     projectDir,
     manifestSpec.tracks,
-    manifestSpec.selectedInternalSkills ?? [],
+    // ADR-085 · update(`upsertRootImport`)와 같은 판정 — 실제로 깔린 스킬만 안내한다. 밖 링크라 쓰지 않은
+    // 스킬(ADR-098)을 "installed" 라 적으면 다음 update 가 그 절을 걷어 내 두 동작이 서로 반대로 쓴다.
+    (manifestSpec.selectedInternalSkills ?? []).filter((id) =>
+      existsSync(join(projectDir, ".claude", "skills", id)),
+    ),
     harnessRoot,
+    writer,
   );
-  result.rootClaudeMd = {
-    tracks: manifestSpec.tracks,
-    created: rootClaudeMd.created,
-    seededFrom: rootClaudeMd.seededFrom,
-  };
-  result.rootImportWritten = rootClaudeMd.written;
+  // 밖 링크라 건너뛰었으면 "얹었다" 고 말하지 않는다 — 화면은 `outsideLinks` 줄 하나다.
+  result.rootClaudeMd =
+    rootClaudeMd === null
+      ? null
+      : {
+          tracks: manifestSpec.tracks,
+          created: rootClaudeMd.created,
+          seededFrom: rootClaudeMd.seededFrom,
+        };
+  // #600 — 밖이라 건너뛰었으면 쓴 것이 아니다(중단 화면에 올리지 않는다).
+  result.rootImportWritten = rootClaudeMd?.written ?? false;
   return result;
 }
 
@@ -1382,8 +1413,11 @@ function writeRootClaudeMd(
   tracks: ReadonlyArray<Track>,
   continuousSkills: ReadonlyArray<string>,
   harnessRoot: string,
-): { created: boolean; seededFrom: string | null; written: boolean } {
+  writer: InstallWriter,
+): { created: boolean; seededFrom: string | null; written: boolean } | null {
   const target = join(projectDir, "CLAUDE.md");
+  // #678 — 링크 너머가 프로젝트 밖이면 import 줄도 얹지 않는다(화면은 writer 의 `outside` 가 말한다).
+  if (writer.skipOutside(target)) return null;
   const existing = existsSync(target) ? readFileSync(target, "utf-8") : null;
   // #528 — 파일을 **새로 만들 때만** `AGENTS.md` 의 설치자 절을 옮겨 심는다. 이미 있으면 그
   // 본문이 이기고(우리는 마커 블록만 책임진다), 그때는 옮길 자리 자체가 없다.
@@ -1407,8 +1441,10 @@ function writeRootClaudeMd(
   };
 }
 
-function chmodHooksSync(hookDir: string): void {
+function chmodHooksSync(hookDir: string, projectDir: string): void {
   for (const file of listHookFiles(hookDir)) {
+    // #678 — 실체가 프로젝트 밖이면 모드도 바꾸지 않는다(쓰지 않은 자리는 writer 가 이미 알렸다).
+    if (outsideProjectTarget(projectDir, file) !== null) continue;
     try {
       chmodSync(file, 0o755);
     } catch {

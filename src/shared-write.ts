@@ -125,6 +125,8 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     deleted: [],
     ...rest,
   });
+  // #678 — 실체가 프로젝트 밖이면 몫도 쓰지 않는다. 몫 기록은 그대로(`portions: null`) · 화면은 writer 의 `outside` 가 말한다.
+  if (writer.skipOutside(abs)) return result("skipped");
 
   const verdict = judge({
     op: "write",

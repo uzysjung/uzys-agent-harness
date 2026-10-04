@@ -228,6 +228,8 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
       const id = entry.slice(0, -3);
       if (!existsSync(join(harnessRoot, "templates/skills", id, "SKILL.md"))) continue;
       const victim = join(cmdDir, entry);
+      // #678 — 실체가 프로젝트 밖이면(`.opencode/commands` → dotfiles 등) 지우지도 백업하지도 않는다.
+      if (writer.skipOutside(victim)) continue;
       try {
         backupFile(victim);
         unlinkSync(victim);

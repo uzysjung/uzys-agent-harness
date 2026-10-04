@@ -16,6 +16,7 @@
 import { join } from "node:path";
 import { writeBundledSkillDirs } from "./codex/skills.js";
 import type { InstallLogSkillFile } from "./install-log.js";
+import type { OutsideLink } from "./outside-project.js";
 import { createOwnedWriter, type WriteJournal } from "./owned-write.js";
 
 export interface LinkedSkillBodies {
@@ -29,6 +30,8 @@ export interface LinkedSkillBodies {
   backupPaths: string[];
   /** 공유 본문 **안**이 남의 것(파일 링크 등)이라 쓰지 않은 자리. */
   foreignOwned: string[];
+  /** #678 — 공유 본문의 실체가 프로젝트 밖이라 쓰지 않은 자리. */
+  outside: OutsideLink[];
 }
 
 /**
@@ -63,5 +66,6 @@ export function refreshLinkedSkillBodies(params: {
     files: result.files,
     backupPaths: result.backupPaths,
     foreignOwned: result.foreignOwned,
+    outside: result.outside ?? [],
   };
 }
