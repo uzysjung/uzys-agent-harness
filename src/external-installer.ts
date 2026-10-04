@@ -22,7 +22,14 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { type InstallLog, installedClis, readInstallLog } from "./install-log.js";
+import { listFilesRecursive } from "./fs-ops.js";
+import {
+  hashContent,
+  type InstallLog,
+  type InstallLogSkillFile,
+  installedClis,
+  readInstallLog,
+} from "./install-log.js";
 import {
   type CliTargets,
   DEFAULT_OPTIONS,
@@ -73,6 +80,60 @@ export interface AssetInstallResult {
    * 그 외 method (skill, npx-run): 표준 metadata 없음 → undefined.
    */
   version?: string;
+  /**
+   * #573 — project scope `skill` 만. 이 호출 동안 도구(`npx skills add`)가 스킬 자리(`SKILL_ROOTS`)에 놓은 파일.
+   * uninstall 은 외부 도구의 에이전트 해석에 맡기지 않고 **기록된 이 경로만** 지운다. 판정은 호출 전후 비교다 —
+   * 디스크 존재는 소유의 근거가 아니므로(ADR-096) 호출 **전에** 있던 파일은 `created` 가 아니다.
+   */
+  files?: ToolFiles;
+}
+
+/**
+ * #573 — 도구 호출 한 번이 스킬 자리에 남긴 것. 경로는 project 상대.
+ * - `created` 호출 전에 없던 파일 — 도구가 이번에 놓았다.
+ * - `changed` 호출 전에도 있었고 내용이 바뀐 파일 — 기록이 이미 그 자산 것이라 말할 때만 sha 를 갱신한다
+ *   (`buildInstallLog`). 기록 없는 파일은 설치자 것일 수 있어 여기 있다는 이유로 소유하지 않는다.
+ */
+export interface ToolFiles {
+  created: InstallLogSkillFile[];
+  changed: InstallLogSkillFile[];
+}
+
+/**
+ * `npx skills add --agent … --copy` 가 사본을 놓는 자리 — claude-code 는 `.claude/skills/`, codex · opencode ·
+ * antigravity 는 공용 `.agents/skills/`(`SKILLS_CLI_AGENT_MAP` 주석). `--agent` 를 넘기지 않는 레거시 경로(`cli: []`)는
+ * 더 많은 도구 자리에 깔지만 그 자리는 기록하지 않는다 — 남는 것은 지우지 않는 쪽이다.
+ */
+const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
+
+/** 스킬 자리의 파일 → sha. 링크 자리는 건너뛴다(`listFilesRecursive` — 남의 설치 포인터는 우리 것이 아니다). */
+function snapshotSkillRoots(projectDir: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const root of SKILL_ROOTS) {
+    for (const rel of listFilesRecursive(join(projectDir, root))) {
+      const path = `${root}/${rel}`;
+      try {
+        out.set(path, hashContent(readFileSync(join(projectDir, path), "utf8")));
+      } catch {
+        /* 읽지 못한 파일은 소유를 주장할 근거가 없다 — 기록하지 않는다 */
+      }
+    }
+  }
+  return out;
+}
+
+function diffSnapshots(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+): ToolFiles {
+  const created: InstallLogSkillFile[] = [];
+  const changed: InstallLogSkillFile[] = [];
+  for (const [path, sha256] of after) {
+    const prior = before.get(path);
+    if (prior === undefined) created.push({ path, sha256 });
+    else if (prior !== sha256) changed.push({ path, sha256 });
+  }
+  return { created, changed };
 }
 
 export interface ExternalInstallReport {
@@ -220,8 +281,16 @@ function installOne(
   const { method } = asset;
   const cwd = ctx.projectDir;
   switch (method.kind) {
-    case "skill":
-      return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
+    case "skill": {
+      const args = buildSkillArgs(method, ctx.cli, ctx.scope);
+      // global 은 홈에 깐다 — 이 프로젝트에 놓은 것이 없다(되돌리기는 안내뿐, D16)
+      if (ctx.scope === "global") return runSpawn(asset, ctx.spawn, "npx", args, cwd);
+      const before = snapshotSkillRoots(cwd);
+      const result = runSpawn(asset, ctx.spawn, "npx", args, cwd);
+      return result.ok
+        ? { ...result, files: diffSnapshots(before, snapshotSkillRoots(cwd)) }
+        : result;
+    }
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
     case "npm": {

@@ -61,13 +61,13 @@ describe("#617 — 트랙 dedup", () => {
 });
 
 describe("#607/#626 — uninstall 안내", () => {
-  const install = () =>
+  const install = (track: "base" | "csr-supabase" = "base") =>
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: {
-        tracks: ["base"],
+        tracks: [track],
         options: { withCodexTrust: false },
         cli: ["claude"],
         projectDir,
@@ -98,7 +98,8 @@ describe("#607/#626 — uninstall 안내", () => {
   });
 
   it("기본 경로의 헤더는 그대로다(회귀 방지)", () => {
-    install();
+    // #569 — `.mcp.json` 은 이제 몫을 걷어 "남는 것" 이 아니다. 남는 루트 파일(스캐폴드 `.env.example`)이 있는 트랙으로 본다
+    install("csr-supabase");
     const lines = uninstall({ dryRun: true });
     expect(lines.join("\n")).toContain("`.claude/` 밖에 남는 것");
   });
