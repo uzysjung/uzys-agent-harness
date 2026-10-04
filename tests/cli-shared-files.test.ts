@@ -151,7 +151,15 @@ describe(".codex/config.toml — 설치자 파일에 하네스 몫(구간 둘)�
     expect(t.mcp_servers?.context7).toBeDefined(); // 하네스 서버
     expect(t.approval_policy).toBe("on-request");
     expect(t.sandbox_mode).toBe("workspace-write");
-    expect(t.hooks?.session_start).toHaveLength(1);
+    // #627 — 중첩 SessionStart 형식: 이벤트 1개, 그 안의 hooks 1개가 포팅 스크립트를 문자열 command 로 부른다.
+    const sessionStart = (t.hooks as Record<string, unknown> | undefined)?.SessionStart as
+      | Array<{ hooks?: Array<{ command?: unknown; type?: unknown }> }>
+      | undefined;
+    expect(sessionStart).toHaveLength(1);
+    expect(sessionStart?.[0]?.hooks?.[0]?.command).toBe(
+      `${projectDir}/.codex/hooks/session-start.sh`,
+    );
+    expect(sessionStart?.[0]?.hooks?.[0]?.type).toBe("command");
     expect(live.startsWith("# uzys-harness:top:start\n")).toBe(true);
     expect(live).toContain("# uzys-harness:tables:start");
     expect(backups()).toEqual([]);
@@ -272,7 +280,11 @@ describe(".codex/config.toml — 설치자 파일에 하네스 몫(구간 둘)�
     install(["codex"]);
 
     expect(read(".codex/config.toml")).toBe(fresh);
-    expect(toml().hooks?.session_start).toHaveLength(1);
+    const nested = (toml().hooks as Record<string, unknown> | undefined)?.SessionStart as
+      | Array<{ hooks?: unknown[] }>
+      | undefined;
+    expect(nested).toHaveLength(1);
+    expect(nested?.[0]?.hooks).toHaveLength(1);
     expect(backups()).toEqual([]);
   });
 

@@ -23,7 +23,8 @@ esac
 RULESET_NAME="default-branch protection"
 
 say() { printf '%s\n' "$*"; }
-die() { printf '%s\n' "$*" >&2; exit "${2:-1}"; }
+# #648 — $* 는 exit code 인자까지 메시지에 흘린다("… Rules. 3"). 첫 인자만 메시지로.
+die() { printf '%s\n' "$1" >&2; exit "${2:-1}"; }
 
 command -v gh >/dev/null 2>&1 || die "gh (GitHub CLI) not found — install it, or apply the same rules in the repo's web settings under Rules." 3
 gh auth status >/dev/null 2>&1 || die "gh is not authenticated — run: gh auth login" 3

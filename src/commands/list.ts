@@ -12,13 +12,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { c, padDisplay, status } from "../design.js";
 import {
+  corruptedInstallLogMessage,
   hashContent,
   type InstallLog,
   type InstallLogAsset,
   type InstallLogRootFile,
   installedClis,
   installLogPath,
-  readInstallLog,
+  readInstallLogStatus,
 } from "../install-log.js";
 
 export interface ListOptions {
@@ -37,7 +38,15 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
-  const installLog = readInstallLog(projectDir);
+  // #640 — "설치 없음"과 "기록 깨짐"을 구분한다. 파일이 있는데 not found 로 진단하면
+  // 사용자는 원인(병합 충돌·부분 기록·수동 편집)을 못 찾는다.
+  const statusResult = readInstallLogStatus(projectDir);
+  if (statusResult.status === "corrupted") {
+    err(c.red(`ERROR: ${corruptedInstallLogMessage(projectDir)}`));
+    exit(1);
+    return;
+  }
+  const installLog = statusResult.log;
   if (!installLog) {
     err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
     err(c.dim("       Nothing installed here by agent-harness."));
