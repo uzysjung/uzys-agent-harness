@@ -149,6 +149,18 @@ describe("B1 — 덮어쓰인 기록에서 정당한 룰을 지우지 않는다"
     );
     expect(raw().externalFiles?.map((f) => f.path)).toContain(RULE); // 남긴 것은 기록에서도 빼지 않는다
   });
+
+  it("남기기 대상이라도 설치자가 지웠으면 'kept' 라 하지 않는다 — 되살리지 않고 말하지 않으며 기록만 정리한다(리뷰 N1)", () => {
+    s3(noMetaSha);
+    rmSync(join(dir, RULE));
+
+    const screen = update();
+
+    expect(existsSync(join(dir, RULE))).toBe(false);
+    expect(screen).not.toContain("cli-development.md");
+    expect(raw().externalFiles?.map((f) => f.path)).not.toContain(RULE);
+    expect(update()).not.toContain("cli-development.md"); // 다음 실행도 조용하다
+  });
 });
 
 describe("B2 — 되살리는 트랙은 메타파일이 말한 것뿐이다(고르지 않은 트랙 · 서버를 더하지 않는다)", () => {

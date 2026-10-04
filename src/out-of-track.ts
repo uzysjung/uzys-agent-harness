@@ -80,15 +80,17 @@ export function reclaimOutOfTrack(args: {
     const name = AGENTS_RULE.exec(f.path)?.[1];
     if (name === undefined || name === ANCHOR_RULE || rendered.has(name)) continue;
     if (isBaselineExcluded(`.claude/rules/${name}.md`, args.excluded)) continue;
-    if (claudeCopy.has(`rules/${name}.md`)) {
-      out.kept.push(f.path);
-      out.bringBack[f.path] = tracksBringing(name);
-      continue;
-    }
     const abs = join(projectDir, f.path);
     if (args.outside.skip(abs)) continue;
     const stat = lstatSync(abs, { throwIfNoEntry: false });
     if (stat !== undefined && !stat.isFile()) continue; // 링크 · 디렉터리는 설치자 것이다
+    // 남기기는 **있는 파일**을 지우지 않는 보호다. 이미 없으면(설치자가 지웠다) 남길 것이 없다 — 아래 판정이 기록만 정리하고
+    // 말하지 않는다. 되살리지도 않는다: 기록 트랙의 렌더 밖이라 ADR-099 의 "사라진 하네스 몫" 이 아니다(리뷰 N1).
+    if (stat !== undefined && claudeCopy.has(`rules/${name}.md`)) {
+      out.kept.push(f.path);
+      out.bringBack[f.path] = tracksBringing(name);
+      continue;
+    }
     const disk = stat === undefined ? null : readFileSync(abs, "utf8");
     const verdict = judge({
       op: "remove",
