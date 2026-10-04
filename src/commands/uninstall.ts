@@ -45,6 +45,7 @@ import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
 import { backupDir, backupIfLossyUtf8 } from "../fs-ops.js";
 import {
+  corruptedInstallLogMessage,
   hashContent,
   INSTALL_LOG_DIR,
   type InstallLog,
@@ -54,7 +55,7 @@ import {
   installedClis,
   installLogPath,
   legacyInstallLogPath,
-  readInstallLog,
+  readInstallLogStatus,
   writeInstallLog,
 } from "../install-log.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
@@ -71,9 +72,10 @@ export interface UninstallOptions {
   keepTemplates?: boolean;
   /**
    * v26.123.0 (F-1c) — 항목별 제거. 쉼표 구분 자산 id.
-   * 지정 시 templates(`.claude/` 등)는 건드리지 않고, 로그도 지우지 않고 **남은 자산으로 다시 쓴다**.
+   * 지정 시 templates(`.claude/` 등)은 건드리지 않고, 로그도 지우지 않고 **남은 자산으로 다시 쓴다**.
+   * cac 는 플래그 반복(`--only a --only b`)을 배열로 전달하므로 둘 다 받는다(#612).
    */
-  only?: string;
+  only?: string | string[];
   /** v26.125.0 — 대화형 선택 화면을 건너뛰고 전량 제거 (비대화형 스크립트용). */
   yes?: boolean;
   /**
@@ -124,8 +126,9 @@ const MOVE_ASIDE_PREVIEW = (rel: string): string =>
 
 /** 기록된 템플릿 디렉터리 — 전량 제거가 옮겨 둘 자리. */
 function recordedTemplateDirs(log: InstallLog): string[] {
-  return [log.templates.claudeDir, log.templates.codexDir, log.templates.opencodeDir].filter(
-    (d): d is string => d !== undefined,
+  // #650 — 필드가 빠진 기록(버전 스큐·수동 편집)에서 무방비 접근으로 죽지 않는다.
+  return [log.templates?.claudeDir, log.templates?.codexDir, log.templates?.opencodeDir].filter(
+    (d): d is string => typeof d === "string",
   );
 }
 
@@ -162,7 +165,14 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const harnessRoot = (deps.resolveHarnessRoot ?? defaultHarnessRoot)();
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
-  const installLog = readInstallLog(projectDir);
+  // #640 — 깨진 기록(파싱은 되지만 필수 필드 결번)에서 TypeError 스택트레이스로 죽던 경로.
+  const logStatus = readInstallLogStatus(projectDir);
+  if (logStatus.status === "corrupted") {
+    err(c.red(`ERROR: ${corruptedInstallLogMessage(projectDir)}`));
+    exit(1);
+    return;
+  }
+  const installLog = logStatus.log;
   if (!installLog) {
     err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
     err(c.dim("       Was this project installed by agent-harness? Nothing to uninstall."));
@@ -1033,10 +1043,11 @@ function unknownIds(installLog: InstallLog, selectedIds: ReadonlyArray<string>):
 }
 
 /** `--only <a,b>` → ["a","b"]. 미지정이면 null (= 전량 제거, 기존 동작). */
-function parseOnly(only: string | undefined): string[] | null {
-  if (!only) return null;
-  const ids = only
-    .split(",")
+export function parseOnly(only: string | string[] | undefined): string[] | null {
+  // #612 — cac 는 플래그 반복을 배열로 준다. 배열·문자열·단일·혼합 전부 같은 곳에서 정규화한다.
+  const parts = Array.isArray(only) ? only : only !== undefined ? [only] : [];
+  const ids = parts
+    .flatMap((s) => s.split(","))
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   return ids.length > 0 ? ids : null;
@@ -1094,7 +1105,7 @@ function removeTemplates(
   // 남아 매 세션 끊긴 참조가 로드된다.
   const importStripped = stripRootImport(projectDir);
   // 하네스 앵커 파일 — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
-  const rootMd = log.templates.rootClaudeMd;
+  const rootMd = log.templates?.rootClaudeMd;
   if (rootMd) {
     if (rootClaudeMdModified(log, projectDir))
       return { rootClaudeMdKept: true, importStripped, external, moved };
@@ -1190,8 +1201,16 @@ function removeExternalFiles(
     // 일반 파일만 회수한다. `.agents/skills/<id>` 는 `npx skills add` 가 **심링크로** 깔아 두는
     // 자리이고(#343 실사용자 신고로 관측), 그 링크는 우리가 만든 것이 아니다. 안 걸러 두면
     // 내용이 우연히 같을 때 남의 설치 포인터를 지우고, 다를 때는 "네가 고쳤다"고 잘못 말한다.
-    if (!lstatSync(abs).isFile()) continue;
-    const current = readFileSync(abs, "utf8");
+    // #565 — lstat→read 사이 TOCTOU·EACCES 도 같은 망태로 흘린다(읽지 못한 것은 지우지 않는다).
+    let current: string;
+    try {
+      if (!lstatSync(abs).isFile()) continue;
+      current = readFileSync(abs, "utf8");
+    } catch {
+      // 읽지 못한 것은 "고쳤다"가 아니라 판정 불가다 — unjudged 로 보고한다.
+      unjudged.push(path);
+      continue;
+    }
     if (hashContent(current) !== sha256) {
       kept.push(path);
       continue;
@@ -1322,7 +1341,7 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
   }
   for (const path of external.unjudged) {
     lines.push(
-      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (template unreadable or write failed). Remove manually if intended.`,
+      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (a file or template could not be read, or the write failed). Remove manually if intended.`,
     );
   }
   for (const path of external.kept) {
