@@ -1,13 +1,21 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
+import {
+  ADAPTERS,
+  adapterFor,
+  excludedKeys,
+  isKeyId,
+  sharedPathOfKeyId,
+} from "./adapters/index.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
-import { isBaselineExcluded } from "./baseline-targets.js";
+import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { gitignoreRender, writeEnvExample } from "./env-files.js";
+import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -31,6 +39,8 @@ import {
   type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
+  legacyDroppedKeys,
+  legacyReleasedCatalog,
   mergeExternalFiles,
   readInstallLog,
   writeInstallLog,
@@ -38,7 +48,6 @@ import {
 import {
   composeWriterLog,
   createInstallWriter,
-  cumulativeExcluded,
   GITIGNORE_NOTE_PREFIX,
   type InstallWriter,
   type JudgedWrite,
@@ -47,8 +56,10 @@ import {
   legacySettingsSeed,
   renderSettingsPortion,
   type SharedWrite,
+  thisRunExclusions,
   type WriteLedger,
 } from "./install-writes.js";
+import { withoutAccepts } from "./key-ids.js";
 import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
   type AssetSpec,
@@ -60,6 +71,8 @@ import {
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
+import { excludedIds } from "./recorded.js";
+import type { SharedWriteResult } from "./shared-write.js";
 import {
   type CliBase,
   type InstallSpec,
@@ -232,6 +245,28 @@ export interface BaselineReport {
   /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
   baselineExcludedOnDisk: string[];
   /**
+   * ADR-099 R3 — 설치자가 뺐는데(누적 `excluded`) 앞 설치가 놓은 것이 그대로 있는 id. 하네스는 지우지 않는다 — 화면이
+   * id 마다 한 줄로 그 사실과 할 일을 말한다. 카탈로그 자산(`log.assets`)만 `uninstall --only <id>` 를 받는다.
+   */
+  excludedStillThere?: ExcludedStillThere[];
+  /**
+   * ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 하네스 키 중 이번 실행이 실제로 되살린 것(키 id). 기록만 풀고
+   * 되살리지 않았으면 비어 있다 — 화면은 되살린 실행에서만 말한다.
+   */
+  legacyRestored?: string[];
+  /**
+   * 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일을 이번 실행이 건드리지 않아 아직 적용되지 않은 것(기록은 됐다).
+   * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
+   */
+  pendingKeyExcludes?: Array<{ id: string; path: string }>;
+  /**
+   * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
+   * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
+   */
+  releasedThisRun?: Array<{ id: string; again: boolean; tail: string }>;
+  /** 설계 §2.2 규칙 2 — 옛 기록에서 "마지막 install 이 다시 깔았다" 로 판정해 푼 카탈로그 id. */
+  legacyReleasedCatalog?: string[];
+  /**
    * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
    * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
    */
@@ -301,6 +336,25 @@ export interface InstallReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineExcludedOnDisk: string[];
+  /** ADR-099 R3 — 뺐는데 그대로 있는 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  excludedStillThere?: ExcludedStillThere[];
+  /**
+   * ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 하네스 키 중 이번 실행이 실제로 되살린 것(키 id). 기록만 풀고
+   * 되살리지 않았으면 비어 있다 — 화면은 되살린 실행에서만 말한다.
+   */
+  legacyRestored?: string[];
+  /**
+   * 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일을 이번 실행이 건드리지 않아 아직 적용되지 않은 것(기록은 됐다).
+   * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
+   */
+  pendingKeyExcludes?: Array<{ id: string; path: string }>;
+  /**
+   * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
+   * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
+   */
+  releasedThisRun?: Array<{ id: string; again: boolean; tail: string }>;
+  /** 설계 §2.2 규칙 2 — 옛 기록에서 "마지막 install 이 다시 깔았다" 로 판정해 푼 카탈로그 id. */
+  legacyReleasedCatalog?: string[];
   /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineForeignOwned: string[];
   /** #524 — 링크를 통해 공유 본문을 갱신한 스킬 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
@@ -346,7 +400,7 @@ export interface InstallReport {
  *   update 단축 / claude baseline / CLI transforms / external / install log.
  */
 export function runInstall(ctx: InstallContext): InstallReport {
-  const { harnessRoot, projectDir, spec } = ctx;
+  const { harnessRoot, projectDir } = ctx;
   const mode: InstallMode = ctx.mode ?? "fresh";
   const templatesDir = join(harnessRoot, "templates");
 
@@ -392,18 +446,19 @@ export function runInstall(ctx: InstallContext): InstallReport {
     );
   }
 
+  // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
+  // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다.
+  // 설계 selection-record §3(사용자 요구 2026-10-04) — install 의 선택은 그 실행의 입력이고 기록의 최신 선택을 대체한다(R4 집합 안).
+  const { spec, excluded } = thisRunExclusions(
+    ctx.spec,
+    previousLog,
+    withoutAccepts(harnessRoot, ctx.spec, previousLog),
+  );
+  const runCtx: InstallContext = { ...ctx, spec };
   const manifestSpec = buildManifestSpec(spec);
 
-  // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
+  // 설치자가 **뺀** 트랙 자산(위저드 해제 · `--without baseline:…` — 누적). 비어 있으면 아무것도 안 거른다.
   const baselineExcluded = new Set(spec.baselineExclude ?? []);
-
-  // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
-  // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다. 설치자가 뺀 것은 누적한다(설계 §6.2 ⓒ).
-  const excluded = cumulativeExcluded(
-    previousLog,
-    [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
-    spec.userOverride?.forceInclude ?? [],
-  );
   // #614 — 읽을 수 없는 settings.json 은 함께 쓰는 파일이다: 하네스 몫을 얹을 수 없으니 건드리지 않고(`--reinstall`
   // 포함 — #574 와 같은 원칙) 훅이 배선되지 않았다는 사실과 할 일을 알리며 비정상 종료한다. 아무것도 쓰기 전에 멈춘다.
   if (spec.cli.includes("claude")) {
@@ -431,7 +486,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     rootImportWritten: false,
   };
   try {
-    return runInstallStages(ctx, {
+    return runInstallStages(runCtx, {
       mode,
       templatesDir,
       previousLog,
@@ -443,7 +498,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
       stage,
     });
   } catch (e) {
-    throw recordInterruptedInstall(ctx, e, { previousLog, excluded, writer, journal, stage });
+    // ADR-099 — 중단 기록도 정상 기록과 같은 누적 spec · `excluded` 로 쓴다(빼기를 덮거나 되돌리지 않는다)
+    throw recordInterruptedInstall(runCtx, e, { previousLog, excluded, writer, journal, stage });
   }
 }
 
@@ -517,10 +573,9 @@ function runInstallStages(
     externalBackedUp: _externalBackedUp,
     externalForeignOwned,
     externalOutside,
-    sharedFiles: _sharedFiles,
+    sharedFiles: cliSharedFiles,
     portions: cliPortions,
     portionPaths: cliPortionPaths,
-    deletedKeyIds: cliDeletedIds,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -572,7 +627,6 @@ function runInstallStages(
     ...writerLedger,
     portions: [...writerLedger.portions, ...cliPortions],
     portionPaths: [...writerLedger.portionPaths, ...cliPortionPaths],
-    deletedIds: [...writerLedger.deletedIds, ...cliDeletedIds],
   };
 
   const baseline: BaselineReport = {
@@ -598,6 +652,21 @@ function runInstallStages(
     shared: ledger.shared,
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
+    excludedStillThere: excludedStillThere(projectDir, excluded, base.excludedOnDisk, previousLog),
+    legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
+    pendingKeyExcludes: pendingKeyExcludes(projectDir, spec.keyExclude ?? [], ledger.portionPaths),
+    releasedThisRun: releasedThisRun({
+      projectDir,
+      spec,
+      manifestSpec,
+      previousLog,
+      excluded,
+      written: [
+        ...ledger.shared.flatMap((w) => [...w.restored, ...w.addedIds]),
+        ...cliSharedFiles.flatMap((r) => [...r.restored, ...r.added]),
+      ],
+    }),
+    legacyReleasedCatalog: [...legacyReleasedCatalog(previousLog)],
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
     baselineForeignOwned: [
       ...new Set([...base.foreignOwned, ...externalForeignOwned, ...linked.foreignOwned]),
@@ -704,6 +773,90 @@ function runUpdateInstall(
  * OptionFlags.withTauri/withUzysHarness boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
+/** 설계 selection-record §3 — 기록에서 뺐던 것 중 이번 install 이 빼지 않은 것과 그것이 지금 어떻게 됐는지. */
+function releasedThisRun(args: {
+  projectDir: string;
+  spec: InstallSpec;
+  manifestSpec: Required<AssetSpec>;
+  previousLog: InstallLog | null;
+  excluded: ReadonlySet<string>;
+  written: ReadonlyArray<string>;
+}): Array<{ id: string; again: boolean; tail: string }> {
+  const { projectDir, spec, manifestSpec, previousLog, excluded } = args;
+  const written = new Set(args.written);
+  const manifest = buildManifest(manifestSpec);
+  return [...excludedIds(previousLog)]
+    .filter((id) => !excluded.has(id))
+    .map((id) => {
+      if (isKeyId(id)) {
+        return { id, again: written.has(id), tail: "the next update puts it back" };
+      }
+      if (id.startsWith(BASELINE_PREFIX)) {
+        const again = manifest.some(
+          (e) =>
+            e.applies(manifestSpec) &&
+            classifyBaselineTarget(e.target)?.id === id &&
+            existsSync(join(projectDir, e.target)),
+        );
+        return { id, again, tail: "the harness manages it again" };
+      }
+      const again = isAssetSelected(id, {
+        tracks: spec.tracks,
+        options: spec.options,
+        ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+      });
+      // 기록에 깔렸다고 있거나(외부 자산) 스킬 자리에 있으면(번들) update 가 다시 관리한다
+      const recorded =
+        (previousLog?.assets.some((a) => a.id === id) ?? false) ||
+        [".claude/skills", ".agents/skills"].some((d) => existsSync(join(projectDir, d, id)));
+      return {
+        id,
+        again,
+        tail: recorded
+          ? "update keeps it current again"
+          : `it is opt-in — add it with --with ${id} if you want it`,
+      };
+    });
+}
+
+/** 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일(디스크에 있는)을 이번 실행이 판정하지 않은 것. */
+function pendingKeyExcludes(
+  projectDir: string,
+  keyExclude: ReadonlyArray<string>,
+  touched: ReadonlyArray<string>,
+): Array<{ id: string; path: string }> {
+  const done = new Set(touched);
+  return keyExclude.flatMap((id) => {
+    const path = sharedPathOfKeyId(id);
+    if (path === null || done.has(path) || !existsSync(join(projectDir, path))) return [];
+    // 리뷰 #693 B1 — 그 키 몫이 파일에 이미 없으면(전에 걷었다) "아직 적용 안 됨" 이 아니다. 못 읽으면 남은 것으로 본다.
+    const name = adapterFor(path);
+    const keys = [...excludedKeys(path, [id])];
+    const present =
+      name === null
+        ? null
+        : ADAPTERS[name].read(readFileSync(join(projectDir, path), "utf8"), keys, projectDir);
+    return present !== null && present.size === 0 ? [] : [{ id, path }];
+  });
+}
+
+/** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번 쓰기가 실제로 파일에 넣은 것. */
+export function legacyRestored(
+  previousLog: InstallLog | null,
+  writer: ReadonlyArray<SharedWrite>,
+  cli: ReadonlyArray<SharedWriteResult>,
+): string[] {
+  const dropped = new Set(legacyDroppedKeys(previousLog));
+  if (dropped.size === 0) return [];
+  const written = [
+    ...writer.flatMap((w) => [...w.restored, ...w.addedIds]),
+    ...cli.flatMap((r) => [...r.restored, ...r.added]),
+  ];
+  return [...new Set(written.filter((id) => dropped.has(id)))];
+}
+
+export type { ExcludedStillThere } from "./excluded-still-there.js";
+
 export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   // derive 본체는 `manifest.ts` 의 `buildAssetSpec` 하나다 (#320) — 계측 경로가 같은 것을 부른다.
   // 여기 다시 조립하면 그 순간 사본이 둘이 되고, 그게 #320 의 원인이었다.
@@ -1129,11 +1282,7 @@ export interface InterruptedBackup {
 /** #600 — 세 변환 · 링크 본문이 쓰는 즉시 받아 적는 저널(`owned-write` `WriteJournal`) + 끝까지 돈 CLI. */
 interface InterruptJournal {
   file(f: InstallLogSkillFile): void;
-  portions(
-    path: string,
-    portions: ReadonlyArray<InstallLogPortion>,
-    deleted: ReadonlyArray<string>,
-  ): void;
+  portions(path: string, portions: ReadonlyArray<InstallLogPortion>): void;
   backup(absPath: string): void;
   done(cli: CliBase): void;
   trust(report: CodexOptInReport): void;
@@ -1141,13 +1290,13 @@ interface InterruptJournal {
   /** 홈 Codex 설정 trust 항목 결과 — `--with-codex-trust` 로 opt-in 이 돈 경우만. */
   codexOptIn: CodexOptInReport | null;
   readonly files: Map<string, string>;
-  readonly shared: Map<string, { portions: InstallLogPortion[]; deleted: string[] }>;
+  readonly shared: Map<string, InstallLogPortion[]>;
   readonly completed: Set<CliBase>;
 }
 
 function createInterruptJournal(): InterruptJournal {
   const files = new Map<string, string>();
-  const shared = new Map<string, { portions: InstallLogPortion[]; deleted: string[] }>();
+  const shared = new Map<string, InstallLogPortion[]>();
   const completed = new Set<CliBase>();
   const backups: string[] = [];
   const journal: InterruptJournal = {
@@ -1161,8 +1310,7 @@ function createInterruptJournal(): InterruptJournal {
     },
     backup: (absPath) => backups.push(absPath),
     file: (f) => files.set(f.path, f.sha256),
-    portions: (path, portions, deleted) =>
-      shared.set(path, { portions: [...portions], deleted: [...deleted] }),
+    portions: (path, portions) => shared.set(path, [...portions]),
     done: (cli) => completed.add(cli),
   };
   return journal;
@@ -1192,9 +1340,8 @@ function recordInterruptedInstall(
   const own = run.writer.ledger();
   const ledger: WriteLedger = {
     ...own,
-    portions: [...own.portions, ...[...journal.shared.values()].flatMap((r) => r.portions)],
+    portions: [...own.portions, ...[...journal.shared.values()].flat()],
     portionPaths: [...own.portionPaths, ...journal.shared.keys()],
-    deletedIds: [...own.deletedIds, ...[...journal.shared.values()].flatMap((r) => r.deleted)],
   };
   const cliFiles = [...journal.files].map(([path, sha256]) => ({ path, sha256 }));
   const wroteClaude = own.policyFiles.length > 0 || own.skillFiles.length > 0;
@@ -1242,6 +1389,8 @@ function recordInterruptedInstall(
         ledger,
         cliFiles,
         excluded,
+        via: ctx.spec.selectionVia ?? "flag",
+        interrupted: true,
       }),
     );
     return interrupted({ path, error: null });
@@ -1323,6 +1472,7 @@ function writeInstallLogSafe(
         ledger,
         cliFiles,
         excluded,
+        via: ctx.spec.selectionVia ?? "flag",
       }),
     );
   } catch (e) {

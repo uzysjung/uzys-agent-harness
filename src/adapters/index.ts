@@ -2,9 +2,8 @@
  * 함께 쓰는 파일 → 어댑터 표 (#551 · ADR-097 §6.2). **이 표에 있는 경로가 `shared` 다** — 파일 종류는
  * 저장하지 않고 여기서 유도한다(설계 §1.2). 새 함께 쓰는 파일은 여기 한 줄, 새 형식이면 어댑터 하나.
  *
- * 키 id(`excluded` 에 적히는 이름)도 여기서 나온다. 설계가 이름을 정한 것은 넷(`mcp:` · `settings:` ·
- * `opencode:` · `gitignore:`)이고, 나머지 셋(`claude-md:` · `agents-md:` · `codex:`)은 같은 모양으로
- * 이 PR 이 붙인 이름이다 — `--with`/`--without` 이 받게 하는 것은 PR-5.
+ * 키 id(`excluded` 에 적히는 이름)도 여기서 나온다(표 자체는 `shared-files.ts`). 설치자가 `--with`/`--without` 으로
+ * 주는 키 id 는 이번 렌더가 내는 것과 대조한다(ADR-099 R4 — `key-ids.ts`).
  */
 
 import type { Adapter } from "../install-log.js";
@@ -12,9 +11,11 @@ import type { PortionAdapter } from "./contract.js";
 import { isContainerKey, jsonKeys } from "./json-keys.js";
 import { lines } from "./lines.js";
 import { markerMd } from "./marker-md.js";
+import { SHARED_FILES } from "./shared-files.js";
 import { tomlRegion } from "./toml-region.js";
 
 export type { PortionAdapter, StripResult, UpsertResult } from "./contract.js";
+export { isKeyId, KEY_ID_PREFIXES, SHARED_FILES, sharedPathOfKeyId } from "./shared-files.js";
 
 export const ADAPTERS: {
   "marker-md": PortionAdapter<string>;
@@ -26,24 +27,6 @@ export const ADAPTERS: {
   "json-keys": jsonKeys,
   "toml-region": tomlRegion,
   lines,
-};
-
-interface SharedFile {
-  adapter: Adapter;
-  /** 키 id 접두(`mcp:`) */
-  prefix: string;
-  /** 어댑터 키 안에서 id 로 옮길 때 떼는 머리(`.mcp.json` 의 `mcpServers.`) */
-  strip?: string;
-}
-
-export const SHARED_FILES: Readonly<Record<string, SharedFile>> = {
-  "CLAUDE.md": { adapter: "marker-md", prefix: "claude-md:" },
-  "AGENTS.md": { adapter: "marker-md", prefix: "agents-md:" },
-  ".claude/settings.json": { adapter: "json-keys", prefix: "settings:" },
-  ".mcp.json": { adapter: "json-keys", prefix: "mcp:", strip: "mcpServers." },
-  "opencode.json": { adapter: "json-keys", prefix: "opencode:" },
-  ".codex/config.toml": { adapter: "toml-region", prefix: "codex:" },
-  ".gitignore": { adapter: "lines", prefix: "gitignore:" },
 };
 
 /** 이 경로가 함께 쓰는 파일이면 그 어댑터, 아니면 null. */

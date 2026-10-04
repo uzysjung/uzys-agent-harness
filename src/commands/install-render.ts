@@ -37,6 +37,7 @@ import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
   buildManifestSpec,
+  type ExcludedStillThere,
   type InstallInterruptedError,
   type InstallMode,
   type InstallReport,
@@ -471,15 +472,26 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
     r.leftAsIs.length > 0
       ? "nothing written — yours stays"
       : "harness part already current — yours stays";
+  // 걷기만 한 실행은 "썼다" 고 하지 않고, 고친 값까지 걷었으면 "yours stays" 라 하지 않는다(리뷰 #693 NOTE-2)
+  const onlyRemoved =
+    r.removedOut.length > 0 && !r.replaced && r.added.length === 0 && r.restored.length === 0;
   const verb =
     r.action === "created"
       ? "wrote"
       : r.action === "updated"
-        ? "wrote the harness part — yours stays"
+        ? onlyRemoved
+          ? "removed the harness part"
+          : r.removedEdited.length > 0
+            ? "wrote the harness part"
+            : "wrote the harness part — yours stays"
         : unchanged;
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
   const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
-  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}`);
+  const restored = r.restored.length > 0 ? ` · ${restoredKeysPart(r.restored)}` : "";
+  const out = excludedKeyParts(r)
+    .map((p) => ` · ${p}`)
+    .join("");
+  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
@@ -504,7 +516,11 @@ function configRegionsPart(r: SharedWriteResult): string {
  * 남겨 둔 구간·블록(`leftAsIs`). 설치자가 지워 excluded 인 키는 어느 쪽에도 없다 — 없는 것을 있다고 말하지 않는다.
  */
 function harnessKeysInFile(r: SharedWriteResult): string[] {
-  return [...new Set([...(r.portions ?? []).map((p) => p.key), ...r.leftAsIs])];
+  // 파일에 없는 키(`missing`) · 설치자 값으로 말하는 키(`kept` — 리뷰 #693 LOW: 두 목록에 같은 키) · 뺐는데 고쳐 둔 키는 빼고 센다
+  const keptOut = new Set(r.keptOut.map((id) => id.slice(id.indexOf(":") + 1)));
+  const absent = new Set([...r.missing, ...r.kept, ...keptOut]);
+  const inFile = (r.portions ?? []).map((p) => p.key).filter((k) => !absent.has(k));
+  return [...new Set([...inFile, ...r.leftAsIs])];
 }
 
 /** 최종 Summary (STATUS / TRACKS / CLI / HOOK / WARN / OPT-IN / NEXT). */
@@ -814,10 +830,25 @@ function renderPhase1Rows(
         assetRow(
           "skip",
           "to keep it out",
-          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again`,
+          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
         ),
       );
     }
+    // ADR-099 §4 — 함께 쓰는 파일에서 사라진 하네스 몫을 되돌렸다. 손으로 지운 것은 빼기가 아니라서 되돌리고,
+    // 빼는 명령과 그 효과 범위(KEPT_OUT_SCOPE)를 같은 줄에 붙인다.
+    for (const r of baseline.updateMode.restoredKeys ?? []) {
+      log(assetRow("success", r.path, restoredKeysPart(r.ids)));
+    }
+    // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
+    for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
+      log(row);
+    for (const r of baseline.updateMode.excludedKeys ?? []) {
+      log(assetRow("success", r.path, excludedKeyParts(r).join(" · ")));
+    }
+    const legacy = legacyRestoredRow(baseline.updateMode.legacyRestored ?? []);
+    if (legacy !== null) log(legacy);
+    for (const row of legacyReleasedCatalogRows(baseline.updateMode.legacyReleasedCatalog ?? []))
+      log(row);
     // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
     // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
     if (baseline.updateMode.needsReinstall.length > 0) {
@@ -1209,24 +1240,16 @@ function renderPhase1Rows(
   // 2026-08-16 — 사용자가 3단계에서 **체크를 푼** 트랙 자산. 위 행들은 "무엇이 깔렸는가"만
   // 말하므로, 이 줄이 없으면 해제가 실제로 먹혔는지 화면에서 확인할 길이 없다. 0건이면 안 뜬다.
   // 이름을 전부 낸다 — 건수만 찍으면 어느 것이 빠졌는지 추적할 수 없다.
-  if (baseline.baselineExcluded.length > 0) {
-    // 디스크에 남은 것은 이름 옆에 표시한다. `add`·`reinstall` 은 이전 설치본을 지우지 않으므로
-    // 표시가 없으면 화면이 "빠졌다"고 말하는 동안 그 룰은 계속 상주한다 (체크 해제 ≠ 제거).
-    const onDisk = new Set(baseline.baselineExcludedOnDisk);
-    const names = baseline.baselineExcluded.map((t) => {
-      const name = t.replace(/^\.claude\//, "");
-      return onDisk.has(t) ? `${name} (still on disk)` : name;
-    });
-    log(
-      assetRow(
-        "skip",
-        "excluded by you",
-        onDisk.size > 0
-          ? `${names.length} — ${names.join(", ")} · "still on disk" = 이전 설치본이라 지우지 않는다 (제거: agent-harness uninstall)`
-          : `${names.length} — ${names.join(", ")}`,
-      ),
-    );
+  // 디스크에 남은 것은 아래 한 줄씩(ADR-099 R3) — 여기서는 실제로 빠진 것만 센다.
+  const onDisk = new Set(baseline.baselineExcludedOnDisk);
+  const gone = baseline.baselineExcluded.filter((t) => !onDisk.has(t));
+  if (gone.length > 0) {
+    const names = gone.map((t) => t.replace(/^\.claude\//, ""));
+    log(assetRow("skip", "excluded by you", `${names.length} — ${names.join(", ")}`));
   }
+  // ADR-099 R3 — 뺐는데 앞 설치가 놓은 것이 그대로 있다. 하네스는 빼기를 이유로 지우지 않으므로, 표시가 없으면 화면이
+  // "빠졌다" 고 말하는 동안 그 룰은 계속 상주한다(체크 해제 ≠ 제거). `uninstall --only` 는 카탈로그 자산만 받는다.
+  for (const row of excludedStillThereRows(baseline.excludedStillThere ?? [])) log(row);
   // #524 — 링크 자리의 공유 본문. update 와 같은 행을 쓴다(같은 자리를 명령마다 다르게 부르지 않는다).
   linkedSkillRows(log, baseline.baselineLinked ?? [], baseline.baselineLinkedNotOurs ?? []);
   // #343 — 자리가 남의 것이라 건너뛴 자산. 이 줄이 없으면 사용자는 자기가 3단계에서 고른
@@ -1312,6 +1335,15 @@ function renderPhase1Rows(
       ),
     );
   }
+  const legacy = legacyRestoredRow(baseline.legacyRestored ?? []);
+  if (legacy !== null) log(legacy);
+  for (const row of legacyReleasedCatalogRows(baseline.legacyReleasedCatalog ?? [])) log(row);
+  for (const row of releasedRows(baseline.releasedThisRun ?? [])) log(row);
+  for (const p of baseline.pendingKeyExcludes ?? []) {
+    log(
+      `  ${c.yellow(symbol.skip)} ${p.id} — excluded and recorded, not applied yet: this run did not touch ${p.path}. It is taken out on the next run that does (update, or install with that CLI)`,
+    );
+  }
   log("");
 }
 
@@ -1357,10 +1389,91 @@ export function sharedFileRow(f: SharedWrite): string | null {
   const parts = [f.line];
   if (f.added.length > 0) parts.push(`added: ${f.added.join(", ")}`);
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
-  if (f.deleted.length > 0) {
-    parts.push(`you removed: ${f.deleted.join(", ")} — not added back`);
-  }
+  if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
+  parts.push(...excludedKeyParts(f));
   return assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+}
+
+/**
+ * 리뷰 #693 NOTE-2 — 설치자가 `--without <키 id>` 로 뺀 하네스 몫을 이번에 실제로 어떻게 했는지. 걷었으면 걷었다고(고친
+ * 훅 핸들러를 걷었으면 그것도), 고쳐 둬서 남겼으면 남겼다고 — 빼기가 화면 어디서도 확인되지 않는 일이 없게.
+ */
+export function excludedKeyParts(f: {
+  removedOut: ReadonlyArray<string>;
+  removedEdited: ReadonlyArray<string>;
+  keptOut: ReadonlyArray<string>;
+}): string[] {
+  const parts: string[] = [];
+  if (f.removedOut.length > 0) {
+    const asked = f.removedOut.map((id) => `--without ${id}`).join(" ");
+    parts.push(`removed the harness part: ${f.removedOut.join(", ")} (you asked: ${asked})`);
+  }
+  if (f.removedEdited.length > 0) {
+    parts.push(
+      `your edits to ${f.removedEdited.join(", ")} went with it (a hook entry calls a harness script — left alone it would call a script that is no longer wired)`,
+    );
+  }
+  if (f.keptOut.length > 0) {
+    parts.push(
+      `left in place, no longer managed by the harness (excluded, but you edited it): ${f.keptOut.join(", ")}`,
+    );
+  }
+  return parts;
+}
+
+/** ADR-099 R3 — 뺐는데 그대로 있는 id 한 줄씩. */
+export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>): string[] {
+  // 리뷰 #693 NOTE-1 · 설계 selection-record §3 — 두 행동(다시 관리하기 · 치우기)이 다 보여야 한다. 다시 관리하는 길은
+  // `--without` 없이 install 하는 것이다(install 의 선택이 기록을 대체한다)
+  return items.map((e) =>
+    e.catalog
+      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${e.id}; add --with ${e.id} if it is opt-in) · remove it: agent-harness uninstall --only ${e.id}`
+      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${e.id}`,
+  );
+}
+
+/** 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않은 id 한 줄씩. */
+export function releasedRows(
+  items: ReadonlyArray<{ id: string; again: boolean; tail: string }>,
+): string[] {
+  return items.map((r) =>
+    r.again
+      ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
+      : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
+  );
+}
+
+/** 설계 selection-record §2.2 규칙 2 — 옛 기록에서 마지막 install 이 다시 깐 것으로 판정해 푼 카탈로그 id. */
+export function legacyReleasedCatalogRows(ids: ReadonlyArray<string>): string[] {
+  return ids.map(
+    (id) =>
+      `  ${c.green("↺")} ${id} — released: the last install re-added it (26.162–26.163 record)`,
+  );
+}
+
+/**
+ * 빼는 명령의 효과 범위 — 화면의 모든 "빼려면" 안내가 이 한 문구로 말한다(설계 selection-record §3: install 의 선택은 다음
+ * install 이 대체하고 update 는 지킨다). "영구히" 라 말하지 않는다 — 사실이 아니다.
+ */
+export const KEPT_OUT_SCOPE =
+  "kept out by update; a later install without that flag brings it back";
+
+/**
+ * ADR-099 §4 — 기록에 있는데 사라져 되돌린 하네스 키. 손으로 지운 것은 빼 달라는 신호가 아니라서 되돌리고, 빼는
+ * 명령(`--without <키 id>`)과 그 효과 범위를 같은 줄 끝에 흐리게 붙인다 — update 가 지키고, 다음 install 이 대체한다.
+ */
+export function restoredKeysPart(ids: ReadonlyArray<string>): string {
+  const drop = ids.map((id) => `--without ${id}`).join(" ");
+  return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
+}
+
+/**
+ * ADR-099 R5 — 옛 판(v26.162–26.163)이 "설치자가 뺐다" 로 자동 기록했던 하네스 키를 이번 실행이 실제로 되살렸으면 한 줄.
+ * 되살린 것이 없으면(기록만 풀렸다) 말하지 않는다.
+ */
+export function legacyRestoredRow(ids: ReadonlyArray<string>): string | null {
+  if (ids.length === 0) return null;
+  return `  ${c.green("↺")} restored ${ids.length} harness part(s) an earlier version had marked as removed (${ids.join(", ")}) — to drop one: install … --without <id> (${KEPT_OUT_SCOPE})`;
 }
 
 function formatOptions(spec: InstallSpec): string {

@@ -19,6 +19,7 @@ import { isBaselineExcluded } from "./baseline-targets.js";
 import { readInstallLog } from "./install-log.js";
 import { buildAssetSpec } from "./manifest.js";
 import type { OwnedWriter, WriteOptions } from "./owned-write.js";
+import { excludedIds } from "./recorded.js";
 import { DEFAULT_OPTIONS, TRACKS, type Track } from "./types.js";
 
 /**
@@ -40,10 +41,10 @@ function bundledSkillTargets(projectDir: string): string[] {
     (TRACKS as ReadonlyArray<string>).includes(t),
   );
   if (tracks.length === 0) return [];
-  const skillExcluded = new Set(log.spec.skillExclude ?? []);
-  const baselineExcluded = new Set(log.spec.baselineExclude ?? []);
+  // ADR-099 R3 — 기록의 누적 빼기(번들 스킬 id · `baseline:skills/<id>` 가 한 목록)
+  const excluded = excludedIds(log);
   return buildAssetSpec({ tracks, options: DEFAULT_OPTIONS }).selectedInternalSkills.filter(
-    (id) => !skillExcluded.has(id) && !isBaselineExcluded(`.claude/skills/${id}`, baselineExcluded),
+    (id) => !excluded.has(id) && !isBaselineExcluded(`.claude/skills/${id}`, excluded),
   );
 }
 

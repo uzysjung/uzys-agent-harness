@@ -9,8 +9,9 @@
  *   ⓐ 파일을 파싱하지 못하면 **한 바이트도 쓰지 않는다** — `{ ok: false }` (#574).
  *   ⓑ 몫은 키 단위. 키 sha = 기록 → 갱신/회수 · 다르면 남기고 알린다 · 기록에 없으면 설치자 것.
  *      설치 전에 이미 있던 키는 값이 하네스 판과 같아도 기록하지 않는다(Q3).
- *   ⓒ 기록에 있는데 파일에 없는 키 = 설치자가 지웠다 → 되살리지 않고 `deleted` 로 낸다(호출부가
- *      `excluded` 에 키 id 로 적는다, R2). excluded 키는 더하지 않는다.
+ *   ⓒ 기록에 있는데 파일에 없는 키는 **빼 달라는 신호가 아니다**(ADR-099 R1) — 렌더에 있으면 다시 더하고,
+ *      렌더에 없으면(설치자 값이 구간 밖에 있어 걸러짐 등) 아무것도 하지 않고 기록 sha 를 그대로 잇는다(되돌릴
+ *      근거). 빼기는 `excluded`(설치자가 `--without` · 위저드로 명시한 것)로만 정해진다 — excluded 키는 더하지 않는다.
  *   ⓓ strip 은 **기록된 키만** 뺀다 — 내용 식별은 쓰지 않는다(R3).
  */
 
@@ -56,10 +57,21 @@ export interface UpsertOk {
   changed: boolean;
   /** 쓴 뒤 이 파일에 대해 기록할 몫 전체. */
   portions: Map<string, string>;
-  /** 기록에 있었는데 파일에 없던 키 — 설치자가 지웠다. 되살리지 않았다 → 호출부가 excluded 로(R2). */
-  deleted: string[];
+  /** 기록에 있었는데 파일에 없어 이번에 되돌린 하네스 키(ADR-099 R1) — 화면이 `was missing — restored` 로 알린다. */
+  restored: string[];
+  /**
+   * 기록에 있고 파일에 없는데 이번 렌더에도 없어 되돌리지 못한 키 — `portions` 에 기록 sha 를 그대로 잇는다(되돌릴
+   * 근거). 파일에는 없으므로 화면은 이것을 "파일에 있는 하네스 몫" 으로 세지 않는다.
+   */
+  missing: string[];
   /** 설치자 값이 이겨 하네스 판을 쓰지 않은 키 — 화면이 "kept yours" 로 알린다. */
   kept: string[];
+  /** 파일에서 걷은 하네스 키(빼기 · 렌더에서 빠짐). 화면은 그중 `excluded` 인 것을 "걷었다" 로 말한다. */
+  removed: string[];
+  /** `removed` 중 설치자가 고친 값이었는데도 걷은 키(훅 핸들러 — N-f). 화면이 "고친 것도 걷혔다" 고 말한다. */
+  removedEdited: string[];
+  /** 기록 sha 그대로라 새 판으로 갈아 끼운 키. */
+  replaced: string[];
 }
 
 export interface StripOk {
@@ -108,7 +120,12 @@ export interface UpsertPlan {
   /** 하네스가 더는 렌더하지 않는(또는 excluded 가 된) 키를 뺀다. */
   remove: string[];
   kept: string[];
-  deleted: string[];
+  /** `add` 중 기록에 있던 키 — 사라졌던 하네스 몫을 되돌렸다(화면 `was missing — restored`). */
+  restored: string[];
+  /** 기록에 있고 파일에 없는데 렌더에도 없는 키 — 기록 sha 만 잇는다(`UpsertOk.missing`). */
+  missing: string[];
+  /** `remove` 중 지금 값이 기록 sha 와 달랐던 키(`alwaysStrip`) — `UpsertOk.removedEdited`. */
+  removedEdited: string[];
   portions: Map<string, string>;
 }
 
@@ -135,14 +152,20 @@ export function planUpsert(args: {
     add: [],
     remove: [],
     kept: [],
-    deleted: [],
+    restored: [],
+    missing: [],
+    removedEdited: [],
     portions: new Map(),
   };
   for (const [key, sha] of recorded) {
     const now = present.get(key);
     if (now === undefined) {
-      // ⓒ 설치자가 지웠다 — 되살리지 않는다. 이미 excluded 면 새로 알릴 것이 없다.
-      if (!excluded.has(key)) plan.deleted.push(key);
+      // ⓒ 사라진 하네스 몫 — 렌더에 있으면 아래 렌더 순회가 되돌린다(add). 렌더에 없으면 기록 sha 를 잇는다 —
+      // 단 설치자가 뺀(excluded) 키는 이제 하네스 몫이 아니라 잇지 않는다(파일에 없으니 걷을 것도 없다).
+      if (!render.has(key) && !excluded.has(key)) {
+        plan.missing.push(key);
+        plan.portions.set(key, sha);
+      }
       continue;
     }
     const next = render.get(key);
@@ -156,13 +179,20 @@ export function planUpsert(args: {
       }
     } else if (now === sha || alwaysStrip(key)) {
       plan.remove.push(key);
+      if (now !== sha) plan.removedEdited.push(key);
     } else {
       plan.kept.push(key);
       plan.portions.set(key, sha);
     }
   }
   for (const [key, sha] of render) {
-    if (recorded.has(key)) continue;
+    if (recorded.has(key)) {
+      if (present.has(key)) continue;
+      plan.add.push(key); // ⓒ 기록에 있는데 파일에 없다 — 되돌린다
+      plan.restored.push(key);
+      plan.portions.set(key, sha);
+      continue;
+    }
     if (present.has(key)) {
       plan.kept.push(key); // 설치 전부터 있던 키 — 설치자 것(Q3). 기록하지 않는다
     } else {

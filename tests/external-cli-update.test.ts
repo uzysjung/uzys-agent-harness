@@ -259,12 +259,25 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     update();
 
     expect(agents()).not.toContain("`user-centered-explanation`");
-    // 대조군 — 깔린 상시 스킬은 update 뒤에도 안내에 남는다(안내 자체가 사라진 것이 아니다).
+    // 뺀 스킬은 손으로 다시 놓아도 update 가 안내하지 않는다 — 빼기는 `--with` 로만 풀린다(ADR-099 R3)
     mkdirSync(join(projectDir, ".claude/skills/user-centered-explanation"), { recursive: true });
     writeFileSync(
       join(projectDir, ".claude/skills/user-centered-explanation/SKILL.md"),
       "---\nname: user-centered-explanation\n---\n",
     );
+    update();
+    expect(agents()).not.toContain("`user-centered-explanation`");
+    // 대조군 — `--with` 로 풀면 깔리고, 깔린 상시 스킬은 update 뒤에도 안내에 남는다(안내 자체가 사라진 것이 아니다)
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: {
+        ...spec(["claude", "codex"]),
+        userOverride: { forceInclude: ["user-centered-explanation"], forceExclude: [] },
+      },
+      mode: "add",
+      runExternal: null,
+    });
     update();
     expect(agents()).toContain("`user-centered-explanation`");
   });

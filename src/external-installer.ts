@@ -31,6 +31,7 @@ import {
   readInstallLog,
 } from "./install-log.js";
 import { outsideProjectTarget } from "./outside-project.js";
+import { excludedIds } from "./recorded.js";
 import {
   type CliTargets,
   DEFAULT_OPTIONS,
@@ -475,7 +476,11 @@ export function refreshExternalSkills(
   if (!log) {
     return { ...none, unknown: true };
   }
-  const installedIds = new Set(log.assets.filter((a) => a.method === "skill").map((a) => a.id));
+  // ADR-099 R3 — 설치자가 뺀 자산(누적 `excluded`)은 기록에 깔렸다고 남아 있어도 갱신하지도 되살리지도 않는다(#566)
+  const excluded = excludedIds(log);
+  const installedIds = new Set(
+    log.assets.filter((a) => a.method === "skill" && !excluded.has(a.id)).map((a) => a.id),
+  );
   const catalog = deps.assets ?? EXTERNAL_ASSETS;
   const targets = catalog.filter((a) => a.method.kind === "skill" && installedIds.has(a.id));
   // 기록에는 있는데 카탈로그에서 사라진 자산 — 갱신할 방법이 없다. 화면에 이름을 낸다.

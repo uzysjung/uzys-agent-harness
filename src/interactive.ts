@@ -22,6 +22,7 @@ import {
   type Prompts,
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
+import { excludedIds } from "./recorded.js";
 import { residentCostFor } from "./resident-entries.js";
 import { buildInstallRecordView } from "./router.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
@@ -211,13 +212,19 @@ export function classifyUpdateIntent(
   const recordClis = recordedClis(log);
   if (!sameSet(confirmed.tracks, recordTracks)) return "add";
   if (!sameSet(confirmed.cli, recordClis)) return "add";
+  // ADR-099 R3 — 해제 비교의 기준은 기록의 **누적** 빼기다(마지막 설치분이 아니다)
+  const out = excludedIds(log);
   const recorded = log?.assets ?? [];
   const covered = coveredByRecord(log, legacyTracks);
   const picked = new Set(confirmed.assetIds);
-  if (confirmed.assetIds.some((id) => !covered.has(id))) return "add";
-  if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id))) return "add";
-  if (!sameSet(confirmed.baselineExclude, log?.spec.baselineExclude ?? [])) return "add";
-  if (!sameSet(confirmed.skillExclude, log?.spec.skillExclude ?? [])) return "add";
+  if (confirmed.assetIds.some((id) => !covered.has(id) || out.has(id))) return "add";
+  if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id) && !out.has(a.id)))
+    return "add";
+  const offered = new Set(listBaselineTargets({ tracks: confirmed.tracks }).map((t) => t.id));
+  const recordedBaseline = [...out].filter((id) => offered.has(id));
+  if (!sameSet(confirmed.baselineExclude, recordedBaseline)) return "add";
+  const recordedSkills = [...out].filter((id) => BUNDLED_SKILLS.has(id));
+  if (!sameSet(confirmed.skillExclude, recordedSkills)) return "add";
   return "refresh";
 }
 
@@ -270,9 +277,9 @@ export function updateInitialSelection(
 ): InstallTargetId[] {
   const covered = coveredByRecord(log, legacyTracks);
   const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
+  // ADR-099 R3 — 기록의 누적 빼기(baseline · 번들 스킬 · 외부 자산)는 해제된 채로 보인다
   const excluded = new Set<string>([
-    ...(log?.spec.baselineExclude ?? []),
-    ...(log?.spec.skillExclude ?? []).map((id) => `asset:${id}`),
+    ...[...excludedIds(log)].map((id) => (id.startsWith(BASELINE_PREFIX) ? id : `asset:${id}`)),
     ...recommendedExternalAssets(recordTracks)
       .filter((id) => !covered.has(id))
       .map((id) => `asset:${id}`),
@@ -594,15 +601,22 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   }
 
   // add — install 엔진. spec 은 `install` 명령과 **같은 함수**가 같은 인자로 만든다(D6).
-  const without = [...(userOverride?.forceExclude ?? []), ...baselineExclude];
+  // 설계 selection-record §3 — install 의 선택은 그 실행의 입력이고 기록을 대체한다. 그래서 기록에서 뺀 것 중 **아직 해제된**
+  // id 는 `--without` 으로 다시 낸다(그 명령을 그대로 쳐도 같은 결과). 재체크는 명령에 안 나타난다 — 기본이 넣기다.
+  const withIds = [...(userOverride?.forceInclude ?? [])];
+  const without = [
+    ...new Set([
+      ...(userOverride?.forceExclude ?? []),
+      ...baselineExclude,
+      ...unchecked(log, tracks, assetIds, baselineIds),
+    ]),
+  ];
   const options: InstallOptions = {
     track: [...tracks],
     cli: [...cli],
     scope,
     projectDir,
-    ...(userOverride && userOverride.forceInclude.length > 0
-      ? { with: [...userOverride.forceInclude] }
-      : {}),
+    ...(withIds.length > 0 ? { with: withIds } : {}),
     ...(without.length > 0 ? { without } : {}),
   };
   const spec = installSpecFromOptions(options, [...cli], () => {});
@@ -640,6 +654,24 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   }
   prompts.outro(stepLabel(UPDATE_WIZARD.RUN, "Installing..."));
   return { ok: true, mode: "add", spec };
+}
+
+/**
+ * 설계 selection-record §3 — 기록의 최신 빼기(`excludedIds(log)`) 중 확인 화면에서 **아직 해제된** id. 위저드가 보여 주지 않는 키 id
+ * 는 늘 여기 든다(설치자가 체크할 수 없었으니 빼기를 이어 간다). baseline 은 이번 트랙이 내는 것만 — 밖의 것은 install 이 이어받는다.
+ */
+export function unchecked(
+  log: InstallLog | null,
+  tracks: ReadonlyArray<Track>,
+  assetIds: ReadonlyArray<string>,
+  baselineIds: ReadonlyArray<string>,
+): string[] {
+  const checked = new Set([...assetIds, ...baselineIds]);
+  const offered = new Set(listBaselineTargets({ tracks }).map((t) => t.id));
+  return [...excludedIds(log)]
+    .filter((id) => !checked.has(id))
+    .filter((id) => !id.startsWith(BASELINE_PREFIX) || offered.has(id))
+    .sort();
 }
 
 /**

@@ -1,11 +1,11 @@
 # ADR-097: 설치자 디스크는 한 원칙으로 — 판정 함수 하나 · 어댑터 4종 · 파일 단위 백업
 
-- Status: Accepted
+- Status: Accepted — §6.2 ⓒ(기록에 있는데 파일에 없는 키 → `excluded` 자동 기록)와 Q4 는 ADR-099 가 대체했다
 - Date: 2026-09-27 (5차 판 — 독립 검토 B1–B8 · R1–R5 · Q1–Q4 + 사용자 결정 1·2·7 반영)
 - PR: #575 (설계 · 결정) — 구현은 설계 §9 PR-1 ~ PR-10
 - Issue: #551 (하위 18건 — #556–#561 · #563–#574)
 - Supersedes: 사용자 결정 2026-09-27 "uninstall · `--reinstall` 은 CLI 폴더를 `<dir>.backup-<ts>` 로 옮긴다"(PR #554 · v26.161.0, ADR 없음 — `src/commands/uninstall.ts:100-124` 주석이 그 결정의 기록이다)
-- Amends: ADR-046 · ADR-047 · ADR-048(편집 판정·파일 단위 백업을 **uninstall 까지** 같은 표로; 첫 접촉은 §8 결정 7) · ADR-049(`refreshOnly` 유지, 폴더 백업 폐지) · ADR-074(두 제외 필드 → 한 목록 `excluded`, **누적** — "제외 없이 다시 깔면 돌아온다" 는 더는 참이 아니고 되돌리기는 `--with <id>` 하나다) · ADR-095(기록에 없는 `AGENTS.md` 는 루트 `CLAUDE.md` 모델) · ADR-096(`templates.*Dir` 미사용 — 깔린 CLI 집합 `clis` 와 소유 표는 그대로, `dir` 의 뜻만 경로 접두로) · ADR-002 D4(trust 등록은 Codex 자신의 프롬프트에 맡기고 `--with-codex-trust` 는 범위 조건 없는 옵션이 된다) · ADR-020(Global scope 선택지 삭제 — 항상 프로젝트; D16 의 "글로벌 자산은 안내만" 은 옛 global 설치본에 그대로). ADR-037 은 그대로다(스캐폴드 = advisory).
+- Amends: ADR-046 · ADR-047 · ADR-048(편집 판정·파일 단위 백업을 **uninstall 까지** 같은 표로; 첫 접촉은 §8 결정 7) · ADR-049(`refreshOnly` 유지, 폴더 백업 폐지) · ADR-074(두 제외 필드 → 한 목록 `excluded`, **누적** — "제외 없이 다시 깔면 돌아온다" 는 더는 참이 아니고 되돌리기는 `--with <id>` 하나다 · **ADR-099 가 선택 한 필드에 대해 대체**: install 의 입력이 최신 선택이라 ADR-074 의 원래 문장이 다시 참이다) · ADR-095(기록에 없는 `AGENTS.md` 는 루트 `CLAUDE.md` 모델) · ADR-096(`templates.*Dir` 미사용 — 깔린 CLI 집합 `clis` 와 소유 표는 그대로, `dir` 의 뜻만 경로 접두로) · ADR-002 D4(trust 등록은 Codex 자신의 프롬프트에 맡기고 `--with-codex-trust` 는 범위 조건 없는 옵션이 된다) · ADR-020(Global scope 선택지 삭제 — 항상 프로젝트; D16 의 "글로벌 자산은 안내만" 은 옛 global 설치본에 그대로). ADR-037 은 그대로다(스캐폴드 = advisory).
 - 설계 문서: `docs/plans/one-principle-design-2026-09-27.md`(파일 × 동작 표 · 이슈 대응 · 화면 · 이관 · 검증 · 사용자 결정)
 
 ## Context
@@ -76,7 +76,8 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
    안내한다. 로그 `scope: global` 인 옛 설치본은 update · uninstall 이 지금처럼 처리한다. `--with-codex-trust` 는 범위 조건 없는
    옵션이 된다(사용자 결정 2 — 자동 등록은 하지 않고 Codex 의 "Trust and continue" 프롬프트에 맡긴다).
 7. **제외는 한 목록이다.** `excluded` 가 baseline id · 번들 스킬 id · 외부 자산 id · 함께 쓰는 파일의 키 id 를 가리지 않고 담고,
-   install · update · uninstall 이 같은 목록을 읽는다. `excluded` 는 누적한다 — install 의 `--without` 은 더하고 `--with` 만 뺀다;
+   install · update · uninstall 이 같은 목록을 읽는다. `excluded` 는 누적한다 — install 의 `--without` 은 더하고 `--with` 만 뺀다
+   (**ADR-099 가 선택 한 필드에 대해 대체** — install 의 입력이 최신 선택이고 update · uninstall 은 읽기만 한다);
    어느 실행도 이 목록을 새로 계산해 덮지 않는다. `--with`·`--without` 은 모든 id 종류(카탈로그 · `baseline:` · 번들 스킬 · 키 id
    `mcp:` `settings:` `opencode:` `gitignore:`)를 받고, 위저드는 `excluded` 를 체크 해제 상태로 보여 준다. 이것은 ADR-074 "제외
    없이 다시 깔면 돌아온다" 를 바꾼다 — 되돌리기는 이제 `--with <id>` 하나다.

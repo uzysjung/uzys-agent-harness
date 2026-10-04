@@ -36,7 +36,6 @@ export type Verdict =
  * - `displaced`        `rootFiles.change = displaced`, 백업 없음 — 하네스 것으로 삼지 않는다(Q3)
  * - `displaced+sha`    `displaced`(notes[0] = 방금 만든 백업 경로) + 경로·sha(하네스가 자리를 잡았다)
  * - `forget`           경로 기록을 뺀다(하네스가 지웠다 · 이미 없다)
- * - `exclude-portions` 이 파일의 `portions` 키 전부를 키 id 로 `excluded` 에 옮긴다(설치자가 파일째 지웠다, Q4)
  * - `advisory`         `rootFiles.change = advisory` 로 경로만 적는다
  * - `created`          `rootFiles.change = created` — 하네스가 만든 함께 쓰는 파일(strip 뒤 남는 것이 없으면 파일째
  *                      지우는 근거, 설계 §1.2 shared 행). 몫 자체는 어댑터 결과의 `portions` 로 적는다
@@ -47,7 +46,6 @@ export type RecordEffect =
   | "displaced"
   | "displaced+sha"
   | "forget"
-  | "exclude-portions"
   | "advisory"
   | "created";
 
@@ -68,7 +66,7 @@ export interface JudgeInput {
    * 이것으로 본다(N-e). 모르면(도구가 쓸 내용) null — "다르다"로 본다.
    */
   next: string | null;
-  /** write 가 어느 동작인가 — 같은 칸 안에서 갈리는 곳(update 의 되살림 문구 · excluded · 함께 쓰는 파일의 부재)만 읽는다. 기본 install. */
+  /** write 가 어느 동작인가 — 같은 칸 안에서 갈리는 곳(update 의 되살림 문구 · excluded)만 읽는다. 기본 install. */
   run?: "install" | "update";
   /**
    * 이 항목이 `excluded` 에 있는가. write 는 기록 상태와 무관하게 쓰지 않는다(`leave`) — 표는 `sha · 디스크 없음`
@@ -77,8 +75,6 @@ export interface JudgeInput {
   excluded?: boolean;
   /** shared 전용 — 이 파일의 어댑터. 파싱 판정(#574)에 쓴다. */
   adapter?: Adapter;
-  /** shared 전용 — `portions` 에 이 파일의 키가 있는가(update · 디스크 없음 칸, Q4). */
-  hasPortions?: boolean;
 }
 
 export interface Judgement {
@@ -102,7 +98,6 @@ export const LINES = {
   noChecksumRemoved: "no checksum on record — saved a copy, removed from live",
   editedRemoved: "you edited it — saved as <file>.backup-<time>, removed from live",
   sharedCreated: "wrote (harness part only)",
-  sharedDeleted: "you deleted it — not recreated (install --with <id> brings its keys back)",
   upsert: "wrote the harness part — yours stays",
   strip: "removed the harness part — yours stays",
   scaffoldWrote: "wrote — yours from now on",
@@ -200,11 +195,8 @@ function shared(input: JudgeInput): Judgement {
   if (adapter === undefined) throw new Error("judge: a shared file needs its adapter");
   if (disk === null) {
     if (input.op === "remove") return j("leave", "", "keep");
-    // install 은 만든다. update 는 기록에 그 파일의 키가 있으면 설치자가 파일째 지운 것 — 만들지 않고
-    // 키 전부를 excluded 로(Q4). 기록에 키가 없을 때(릴리즈가 새로 더한 함께 쓰는 파일)만 만든다.
-    if (input.run === "update" && input.hasPortions) {
-      return j("leave", LINES.sharedDeleted, "exclude-portions");
-    }
+    // 파일이 없다 = 만든다. 파일째 사라진 것도 빼 달라는 신호가 아니다(ADR-099 — 빼기는 `--without` · 위저드로만).
+    // update 가 실제로 만드는지는 호출부의 refreshOnly 규칙이 정한다.
     return j("create", LINES.sharedCreated, "created");
   }
   if (ADAPTERS[adapter].read(disk) === null) {

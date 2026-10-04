@@ -39,9 +39,9 @@
 > (`CLAUDE.md`, `AGENTS.md`,
 > `.claude/settings.json`, `.mcp.json`, `.codex/config.toml`, `opencode.json`, `.gitignore`) it only adds its own part to,
 > refreshes that part, and removes that part — on the first install too; your keys, hooks, servers and sections stay, and
-> what you deleted from its part stays deleted (`install --with <id>` brings it back). (Deleting one of its own files is
-> different: `update` puts it back and tells you how to keep it out for good — `install … --without <id>`, e.g.
-> `--without baseline:agents/reviewer`.) Anything else not in its record it never
+> what you delete from its part by hand is put back, the same as one of its own files: the summary says so and tells you
+> how to keep it out for good — `install … --without <id>`, e.g. `--without mcp:github` or
+> `--without baseline:agents/reviewer` (ADR-099; `--with <id>` brings it back). Anything else not in its record it never
 > touches. Removing asks first; without a terminal it needs `--yes`. The harness's own files all go into this project;
 > plugins you pick live in Claude Code's plugin cache in your home, and `--with-codex-trust` adds one trust line to
 > `~/.codex/config.toml`. Every summary lists exactly what it wrote, refreshed, removed, backed up, kept, or left for you.
@@ -55,9 +55,9 @@
 > 은퇴시킬 때) 제자리로 되돌린다. 내용이 하네스 것과 같으면 그대로 둔다. CI 워크플로와
 > `.env.example` 스캐폴드는 쓰이는 순간부터 내 것이다 — 갱신도 삭제도 하지 않는다. **함께 쓰는 파일**(`CLAUDE.md`·`AGENTS.md`·
 > `.claude/settings.json`·`.mcp.json`·`.codex/config.toml`·`opencode.json`·`.gitignore`)에는 하네스 몫만
-> 더하고·바꾸고·뺀다 — 첫 설치도 마찬가지이고, 내 키·훅·서버·절은 그대로 남으며, 내가 하네스 몫에서 지운 것은 지운
-> 대로다(`install --with <id>` 로 되돌린다). (하네스 파일을 지우는 것은 다르다 — `update` 가 되돌려 놓고 영구히 빼는 법을
-> 알려 준다: `install … --without <id>`, 예 `--without baseline:agents/reviewer`.) 그 밖에 기록에 없는 것은 어떤 동작도
+> 더하고·바꾸고·뺀다 — 첫 설치도 마찬가지이고, 내 키·훅·서버·절은 그대로 남으며, 내가 하네스 몫에서 손으로 지운 것은
+> 하네스 파일과 같이 되돌려 놓고 영구히 빼는 법을 알려 준다: `install … --without <id>`, 예 `--without mcp:github` ·
+> `--without baseline:agents/reviewer`(ADR-099 — `--with <id>` 로 되돌린다). 그 밖에 기록에 없는 것은 어떤 동작도
 > 건드리지 않는다. 지울 때는 먼저 묻고, 터미널이 없으면 `--yes` 가 있어야
 > 한다. 하네스 파일은 전부 이 프로젝트 안에 쓴다 — 고른 플러그인은 Claude Code 의 홈 캐시에, `--with-codex-trust` 는
 > `~/.codex/config.toml` 에 신뢰 한 줄을 더한다. 화면은 실제로 쓴 것·갱신한 것·지운 것·백업한 것·남긴 것만 말한다.
@@ -130,8 +130,8 @@ type Verdict = "create" | "overwrite" | "backup+overwrite" | "leave" | "leave+ad
 | harness | sha | 있음 | 같다 | — | `leave` | `remove` |
 | harness | sha | 있음 | 다르다 | 같다 | `overwrite`(조용히) | `remove` |
 | harness | sha | 있음 | 다르다 | 다르다 | `backup+overwrite` | `backup+remove` (§8 결정 4 확정) |
-| shared | — | 없음 | — | — | **install** 은 `create` — 하네스 몫만 든 파일(컨텍스트 파일이면 스캐폴드 포함), `rootFiles.change = created`. **update** 는 `portions` 에 그 파일의 키가 있으면 설치자가 파일째 지운 것으로 보고, 그 키 전부를 `excluded` 로 옮기며 만들지 않는다; 기록에 그 파일 키가 없을 때(릴리즈가 새로 더한 함께 쓰는 파일)만 만든다(Q4) | (할 것 없음) |
-| shared | — | 있음 | — | — | 파싱 실패 → `leave+advise`(한 바이트도 안 쓴다, #574). 성공 → `upsert-portion`: 설치자 키가 이기고, **기록에 있는데 파일에 없는 키는 설치자가 지운 것 — 되살리지 않고 `excluded` 에 키 id 로 자동 기록**(R2); update 가 더하는 키 = 렌더에 있고 `portions` 에도 `excluded` 에도 없는 키 | 파싱 실패 → `leave+advise`. 성공 → `strip-portion`: **`portions` 에 기록된 키만**(내용 식별은 쓰지 않는다, R3) sha 가 그대로인 것을 뺀다(다르면 남기고 알린다, `excluded` 키는 건너뛴다); `created` 이고 남는 것이 없으면 파일째 `remove` |
+| shared | — | 없음 | — | — | `create` — 하네스 몫만 든 파일(컨텍스트 파일이면 스캐폴드 포함), `rootFiles.change = created`. 파일째 사라진 것도 빼기가 아니다 — `excluded` 에 옮기지 않는다(ADR-099 가 Q4 를 대체). update 가 실제로 만드는지는 호출부의 refreshOnly 규칙이 정한다(update 의 되살림은 ADR-099 R2) | (할 것 없음) |
+| shared | — | 있음 | — | — | 파싱 실패 → `leave+advise`(한 바이트도 안 쓴다, #574). 성공 → `upsert-portion`: 설치자 키가 이기고, **기록에 있는데 파일에 없는 키는 렌더에 있으면 되돌리고("was missing — restored"), 렌더에 없으면 기록 sha 를 잇는다**(ADR-099 R1 — 빼기는 설치자가 `--without` · 위저드로 명시한 `excluded` 로만 정해진다); 더하는 키 = 렌더에 있고 `excluded` 에 없는 키 | 파싱 실패 → `leave+advise`. 성공 → `strip-portion`: **`portions` 에 기록된 키만**(내용 식별은 쓰지 않는다, R3) sha 가 그대로인 것을 뺀다(다르면 남기고 알린다, `excluded` 키는 건너뛴다); `created` 이고 남는 것이 없으면 파일째 `remove` |
 | tool | — | — | — | — | 도구 실행 **전에** 기록 sha 와 다른 기록 파일을 백업(N5) → 도구 실행 → 도구가 만든 경로를 `externalFiles` 에 기록 | 도구의 되돌리기(설치 때와 같은 식별자, #573) → 남은 기록 파일에 harness 규칙 |
 | advisory | — | — | — | — | 경로만 기록 | `advise` — 경로를 화면에 |
 

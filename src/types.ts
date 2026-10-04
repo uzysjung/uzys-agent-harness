@@ -136,4 +136,13 @@ export interface InstallSpec {
    * 비어 있거나 없으면 트랙이 고른 것을 전부 깐다 — 즉 **기본 동작은 그대로**다.
    */
   baselineExclude?: ReadonlyArray<string>;
+  /**
+   * 설계 selection-record §1 — 이번 선택이 어디서 왔나(설치 기록 이력 `selections[].via`). 없으면 플래그.
+   */
+  selectionVia?: "flag" | "wizard";
+  /**
+   * ADR-099 R4 — `--without` 으로 받은 함께 쓰는 파일의 키 id(`mcp:github` · `settings:statusLine`). install 이
+   * `excluded` 에 더하고, 그 키는 기록 sha 와 같을 때만 파일에서 걷는다.
+   */
+  keyExclude?: ReadonlyArray<string>;
 }

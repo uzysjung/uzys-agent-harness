@@ -280,7 +280,13 @@ function writeConfigToml(args: {
       kept: [],
       leftAsIs: [],
       portions: null,
-      deleted: [],
+      restored: [],
+      added: [],
+      missing: [],
+      removedOut: [],
+      removedEdited: [],
+      keptOut: [],
+      replaced: false,
     };
   }
   return writeShared({

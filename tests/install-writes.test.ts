@@ -355,7 +355,8 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(keys).toContain("statusLine");
   });
 
-  it("설치자가 지운 하네스 훅은 되살리지 않고 excluded 에 적는다 — 그다음 install 에도(누적)", () => {
+  it("손으로 지운 하네스 훅은 다음 install 이 되돌리고 알린다 — 빼는 것은 `--without <키 id>` 뿐이고 다음 install 도 지킨다(ADR-099)", () => {
+    const HOOK = "settings:hooks.SessionStart#session-start.sh";
     install();
     const s = settings();
     s.hooks.SessionStart = [];
@@ -363,13 +364,53 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
 
     const { screen } = install();
 
-    expect(commands("SessionStart")).toEqual([]);
-    expect(log().excluded).toContain("settings:hooks.SessionStart#session-start.sh");
-    expect(screen).toContain("you removed: hooks.SessionStart#session-start.sh — not added back");
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(true);
+    expect(log().excluded ?? []).not.toContain(HOOK);
+    expect(screen).toContain(`was missing — restored: ${HOOK}`);
+    expect(screen).toContain(
+      `drop it: install … --without ${HOOK} — kept out by update; a later install without that flag brings it back`,
+    );
+    expect(screen).not.toContain("not added back");
 
+    // 명시적 빼기 — 훅 핸들러는 고쳤어도 뺀다(스크립트 참조라 남기면 죽은 참조, N-f). 화면이 그 사실을 말한다(리뷰 #693 NOTE-2)
+    const edited = settings();
+    const handler = edited.hooks.SessionStart?.[0]?.hooks?.[0] as { timeout?: number } | undefined;
+    if (handler) handler.timeout = 99;
+    write(SETTINGS, JSON.stringify(edited, null, 2));
+    const out = install({ keyExclude: [HOOK] }).screen;
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
+    expect(out).toContain(`removed the harness part: ${HOOK} (you asked: --without ${HOOK})`);
+    expect(out).toContain(`your edits to ${HOOK} went with it`);
+    expect(out).not.toMatch(/settings\.json\s+removed the harness part — yours stays/);
+    expect(out).toMatch(/settings\.json\s+removed the harness part ·/);
+    install({}, "update"); // update 는 선택을 읽기만 한다 — 지킨다
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
+    expect(log().excluded).toContain(HOOK);
+    // 설계 selection-record §3 — 플래그 없는 install 은 새 선택이다: 훅이 돌아오고 화면이 그렇게 말한다
+    const again = install().screen;
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(true);
+    expect(log().excluded ?? []).not.toContain(HOOK);
+    expect(again).toContain(
+      `↺ ${HOOK} — dropped earlier, installed again: this install did not pass --without ${HOOK}`,
+    );
+  });
+
+  it("리뷰 #693 NOTE-2 — 같은 실행에서 되돌린 것과 고친 훅을 걷은 것이 함께면 'yours stays' 라 하지 않는다", () => {
+    const HOOK = "settings:hooks.SessionStart#session-start.sh";
     install();
-    expect(commands("SessionStart")).toEqual([]);
-    expect(log().excluded).toContain("settings:hooks.SessionStart#session-start.sh");
+    const s = settings() as Settings & { statusLine?: unknown };
+    delete s.statusLine; // 손으로 지웠다 — 되돌아온다
+    const handler = s.hooks.SessionStart?.[0]?.hooks?.[0] as { timeout?: number } | undefined;
+    if (handler) handler.timeout = 99; // 고쳤다 — 그래도 걷힌다(N-f)
+    write(SETTINGS, JSON.stringify(s, null, 2));
+
+    const { screen } = install({ keyExclude: [HOOK] });
+
+    const row = screen.split("\n").find((l) => l.includes(".claude/settings.json")) ?? "";
+    expect(row).toContain("wrote the harness part ·");
+    expect(row).not.toContain("yours stays");
+    expect(row).toContain("was missing — restored: settings:statusLine");
+    expect(row).toContain(`your edits to ${HOOK} went with it`);
   });
 
   it("옛 판이 절대경로로 박은 하네스 훅을 알아본다 — 같은 훅을 두 번 부르지 않는다 (PR-1 인계 ①)", () => {
@@ -478,17 +519,49 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
     expect(report.mcpServers).not.toContain("context7");
   });
 
-  it("설치자가 지운 하네스 서버는 다음 install 이 되살리지 않는다", () => {
+  it("손으로 지운 하네스 서버는 다음 install 이 되돌린다 — 손으로 지운 것은 빼기가 아니다(ADR-099 R1)", () => {
     install();
     const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, unknown> };
     expect(mcp.mcpServers.context7).toBeDefined();
     delete mcp.mcpServers.context7;
     write(".mcp.json", JSON.stringify(mcp, null, 2));
 
-    install();
+    const { screen } = install();
 
-    expect((JSON.parse(read(".mcp.json")) as typeof mcp).mcpServers.context7).toBeUndefined();
-    expect(log().excluded).toContain("mcp:context7");
+    expect((JSON.parse(read(".mcp.json")) as typeof mcp).mcpServers.context7).toBeDefined();
+    expect(log().excluded ?? []).not.toContain("mcp:context7");
+    expect(screen).toContain("was missing — restored: mcp:context7");
+  });
+
+  it("`--without mcp:<name>` 은 기록 sha 와 같은 서버만 빼고 고친 서버는 남기고 알린다 · 다음 install 도 지킨다 · `--with` 로만 돌아온다", () => {
+    install();
+    const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> };
+    mcp.mcpServers.github = { ...mcp.mcpServers.github, env: { MINE: "1" } };
+    write(".mcp.json", JSON.stringify(mcp, null, 2));
+
+    const { screen } = install({ keyExclude: ["mcp:context7", "mcp:github"] });
+
+    const servers = () =>
+      (JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> })
+        .mcpServers;
+    expect(servers().context7).toBeUndefined(); // 기록 sha 그대로 — 뺐다
+    expect(servers().github?.env).toEqual({ MINE: "1" }); // 고쳤다 — 남겼다
+    // 리뷰 #693 NOTE-2 — 걷은 것과 남긴 것을 화면이 확인한다 · 같은 키가 "kept yours" 에 또 나오지 않는다
+    expect(screen).toContain(
+      "removed the harness part: mcp:context7 (you asked: --without mcp:context7)",
+    );
+    expect(screen).toContain(
+      "left in place, no longer managed by the harness (excluded, but you edited it): mcp:github",
+    );
+    expect(screen).not.toContain("kept yours: github");
+    expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:github"]));
+
+    install({}, "update"); // update 는 선택을 읽기만 한다
+    expect(servers().context7).toBeUndefined();
+
+    install({ keyExclude: ["mcp:github"] }); // 다음 install 의 입력이 새 선택 — context7 은 돌아온다
+    expect(servers().context7).toBeDefined();
+    expect(log().excluded).toEqual(["mcp:github"]);
   });
 
   it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {
@@ -583,8 +656,8 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
 
 /* ─── excluded 누적 ──────────────────────────────────────────────────────── */
 
-describe("excluded — 누적한다 (`--without` 은 더하고 `--with` 만 뺀다)", () => {
-  it("다시 깔아도 덮지 않고, `--with` 만 뺀다", () => {
+describe("excluded — install 의 입력이 최신 선택이다 (설계 selection-record §3)", () => {
+  it("update 는 지키고, 다음 install 은 그 실행의 `--without` 으로 대체한다", () => {
     const id = "ci-scaffold";
     install({
       baselineExclude: ["baseline:agents/implementer"],
@@ -592,12 +665,14 @@ describe("excluded — 누적한다 (`--without` 은 더하고 `--with` 만 뺀�
     });
     expect(log().excluded).toEqual(expect.arrayContaining(["baseline:agents/implementer", id]));
 
-    install();
+    install({}, "update");
     expect(log().excluded).toEqual(expect.arrayContaining(["baseline:agents/implementer", id]));
 
-    install({ userOverride: { forceInclude: [id], forceExclude: [] } });
-    expect(log().excluded).not.toContain(id);
-    expect(log().excluded).toContain("baseline:agents/implementer");
+    install({ baselineExclude: ["baseline:agents/implementer"] });
+    expect(log().excluded).toEqual(["baseline:agents/implementer"]);
+
+    install();
+    expect(log().excluded ?? []).toEqual([]);
   });
 });
 

@@ -10,7 +10,9 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { isKeyId } from "../adapters/index.js";
 import { c, padDisplay, status } from "../design.js";
+import { excludedStillThere } from "../excluded-still-there.js";
 import {
   corruptedInstallLogMessage,
   hashContent,
@@ -21,6 +23,7 @@ import {
   installLogPath,
   readInstallLogStatus,
 } from "../install-log.js";
+import { excludedIds } from "../recorded.js";
 
 export interface ListOptions {
   projectDir?: string;
@@ -87,11 +90,54 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
     for (const line of rootRows) log(line);
   }
 
+  // 설계 selection-record §1 — 무엇을 지금 빼 두었고, 언제 어떤 명령으로 빼고 되돌렸나
+  log("");
+  log(c.bold("  Selections"));
+  for (const line of formatSelectionRows(installLog, projectDir)) log(line);
+
   log("");
   log(c.dim("  remove one:  agent-harness uninstall --only <id>"));
   log(c.dim("  remove all:  agent-harness uninstall"));
   log("");
   exit(0);
+}
+
+/** `list` 가 보여 주는 이력 수 — 기록은 `SELECTIONS_MAX` 개까지 둔다. */
+const SELECTIONS_SHOWN = 10;
+
+/**
+ * 설계 selection-record §1 — 지금 빼 둔 id(종류 · 디스크에 남았나) + 최근 이력. 이력 한 줄 = 날짜 + 그 실행이 바꾼 것.
+ */
+export function formatSelectionRows(log: InstallLog, projectDir: string): string[] {
+  const rows: string[] = [];
+  const excluded = [...excludedIds(log)].sort();
+  if (excluded.length === 0) rows.push(c.dim("    excluded: (none)"));
+  const still = new Set(
+    excludedStillThere(projectDir, new Set(excluded), [], log).map((e) => e.id),
+  );
+  for (const id of excluded) {
+    const kind = id.startsWith("baseline:") ? "baseline" : isKeyId(id) ? "harness part" : "asset";
+    rows.push(`    ⊘ ${id}  ${c.dim(`(${kind}${still.has(id) ? " · still on disk" : ""})`)}`);
+  }
+  const history = (log.selections ?? []).slice(-SELECTIONS_SHOWN);
+  if (history.length > 0) rows.push(c.dim(`    history (latest ${history.length}):`));
+  for (const ev of history) {
+    const day = ev.at.slice(0, 10);
+    const parts: string[] = [];
+    if (ev.by === "migration") {
+      if (ev.released?.length) parts.push(`released ${ev.released.join(", ")}`);
+      if (ev.kept?.length) parts.push(`kept ${ev.kept.join(", ")}`);
+      rows.push(`      ${day}  migration (26.162–26.163 record): ${parts.join(" · ")}`);
+      continue;
+    }
+    if (ev.without?.length) parts.push(`--without ${ev.without.join(", ")}`);
+    if (ev.with?.length) parts.push(`re-added ${ev.with.join(", ")}`);
+    const tags = [ev.via === "wizard" ? "wizard" : "", ev.interrupted ? "interrupted" : ""]
+      .filter(Boolean)
+      .join(", ");
+    rows.push(`      ${day}  install ${parts.join(" · ")}${tags ? ` (${tags})` : ""}`);
+  }
+  return rows;
 }
 
 /** 자산 행 — id / method / scope / version. global 은 uninstall 이 자동 삭제하지 않으므로 표시한다. */

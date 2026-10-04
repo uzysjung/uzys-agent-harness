@@ -33,12 +33,8 @@ import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 export interface WriteJournal {
   /** 하네스 파일 하나를 썼다(같은 내용이라 기준선만 이었을 때도) — `result().files` 와 같은 항목. */
   file(f: InstallLogSkillFile): void;
-  /** 함께 쓰는 파일 하나의 몫을 판정해 썼다 — 이 경로의 몫 전체와 설치자가 지운 키 id. */
-  portions(
-    path: string,
-    portions: ReadonlyArray<InstallLogPortion>,
-    deleted: ReadonlyArray<string>,
-  ): void;
+  /** 함께 쓰는 파일 하나의 몫을 판정해 썼다 — 이 경로의 몫 전체(빼기는 기록하지 않는다 — ADR-099 R1). */
+  portions(path: string, portions: ReadonlyArray<InstallLogPortion>): void;
   /** 설치자 파일을 덮기 전에 남긴 백업(절대경로) — 멈춘 화면이 "당신 파일은 여기 있다" 를 말한다. */
   backup(absPath: string): void;
 }

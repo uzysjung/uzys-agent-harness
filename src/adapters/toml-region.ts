@@ -272,7 +272,11 @@ export const tomlRegion: PortionAdapter<string> = {
       text,
       changed: fresh || text !== base,
       portions: plan.portions,
-      deleted: plan.deleted,
+      restored: plan.restored,
+      missing: plan.missing,
+      removed: plan.remove,
+      removedEdited: plan.removedEdited,
+      replaced: plan.replace,
       kept: [...filtered.kept, ...plan.kept],
     };
   },

@@ -16,6 +16,8 @@ import { estimateTokens } from "../src/context-cost.js";
 import { type BaselineReport, type InstallReport, runInstall } from "../src/installer.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
 
+const HARNESS_ROOT = resolve(__dirname, "..");
+
 /**
  * Build a mock runPipeline that fires onProgress events from the supplied
  * report (so Phase 1 + Phase 2 streaming renders correctly in tests).
@@ -1700,28 +1702,91 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
   });
 
   /**
-   * 2026-08-16 (독립 리뷰 F7) — `--with baseline:<id>` 는 경고 없이 통과하고 아무 일도 안 했다.
-   * 두 플래그를 한 루프에서 검사하면서 `baselineIds.has(id)` 가 `--with` 에도 걸렸기 때문이다.
-   * **조용히 no-op 하는 지시**는 ADR-074 가 두 목록을 안 섞은 바로 그 이유다.
+   * ADR-099 R4 · 설계 selection-record §3 — `--with baseline:<id>` 는 화면이 보여 주는 id 라 받는다. install 의 선택은 그 실행의
+   * `--without` 이 전부라(기록을 대체) 따로 실을 것은 없다 — 효과는 "이번 빼기에 없음". 트랙에 없는 id 는 여전히 경고한다.
    */
-  it("--with baseline:<id> → 경고 (조용한 no-op 금지)", () => {
+  it("--with baseline:<id> 는 받는다(경고 없음 — 효과는 '이번 빼기에 없음') · 트랙 밖 id 는 경고", () => {
     const err = vi.fn();
+    const seen: InstallSpec[] = [];
     installAction(
       {
         cli: ["claude"],
         track: ["tooling"],
-        with: "baseline:rules/git-policy",
+        with: ["baseline:rules/git-policy", "baseline:rules/no-such-rule"],
         projectDir: "/tmp/p",
       },
       {
         log: vi.fn(),
         err,
         exit: vi.fn() as unknown as (code: number) => never,
-        runPipeline: pipelineFor(fakeReport),
+        runPipeline: (spec, ...rest) => {
+          seen.push(spec);
+          return pipelineFor(fakeReport)(spec, ...rest);
+        },
         resolveHarnessRoot: () => "/h",
       },
     );
-    expect(err).toHaveBeenCalledWith(expect.stringContaining("cannot be used with --with"));
+    expect(seen[0]?.baselineExclude ?? []).not.toContain("baseline:rules/git-policy");
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("'baseline:rules/no-such-rule'"));
+    expect(err).not.toHaveBeenCalledWith(expect.stringContaining("'baseline:rules/git-policy'"));
+  });
+
+  /** ADR-099 R6 (#616) — 같은 id 를 넣고 빼라고 하면 실행 전에 거절한다(아무것도 쓰지 않는다). */
+  it("같은 id 를 --with 와 --without 에 함께 주면 exit 1 · 파이프라인을 부르지 않는다", () => {
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = vi.fn();
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["base"],
+        with: ["model-orchestration", "railway-skills"],
+        without: "model-orchestration",
+        projectDir: "/tmp/p",
+      },
+      { log: vi.fn(), err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(runPipeline).not.toHaveBeenCalled();
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining("'model-orchestration' is in both --with and --without — pick one"),
+    );
+  });
+
+  /** ADR-099 R4 — 키 id 는 이번 렌더의 키 집합과 대조한다: 맞으면 받고 오타는 지금처럼 경고 · 건너뜀. */
+  it("--with/--without 은 렌더가 내는 키 id 를 받는다 — 오타는 Unknown 으로 건너뛴다", () => {
+    const err = vi.fn();
+    const seen: InstallSpec[] = [];
+    installAction(
+      {
+        cli: ["claude"],
+        track: ["tooling"],
+        without: ["mcp:github", "settings:statusLine", "mcp:gitub"],
+        with: ["mcp:context7"],
+        projectDir: "/tmp/p",
+      },
+      {
+        log: vi.fn(),
+        err,
+        exit: vi.fn() as unknown as (code: number) => never,
+        runPipeline: (spec, ...rest) => {
+          seen.push(spec);
+          return pipelineFor(fakeReport)(spec, ...rest);
+        },
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+    expect(seen[0]?.keyExclude).toEqual(["mcp:github", "settings:statusLine"]);
+    expect(seen[0]?.keyExclude).not.toContain("mcp:context7");
+    // 리뷰 #693 LOW — 받을 수 있는 키 id(같은 파일의 것)를 보인다
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Unknown key id 'mcp:gitub' (--without). Skipping. Key ids this install writes: mcp:",
+      ),
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("mcp:github"));
+    expect(err).not.toHaveBeenCalledWith(expect.stringContaining("railway-skills"));
+    expect(err).toHaveBeenCalledTimes(1);
   });
 
   it("--without baseline:<id> 는 그대로 통과한다 (음성 대조 — 위 경고가 과잉이 아님)", () => {

@@ -7,13 +7,14 @@
  * 한 파일에 대해 하는 일:
  *   1. 파일 단위 판정은 `judge`(shared 행) — 없으면 만들고(update 는 만들지 않는다 · ADR-049 `refreshOnly`), 못 읽으면
  *      한 바이트도 안 쓰고 이유를 말하고(#574), 읽히면 몫만 upsert 한다.
- *   2. 키 단위 판정은 어댑터(`planUpsert`) — 설치자 키가 이기고, 기록에 있는데 없는 키는 되살리지 않는다(R2).
+ *   2. 키 단위 판정은 어댑터(`planUpsert`) — 설치자 키가 이기고, 기록에 있는데 없는 키는 되돌린다(ADR-099 R1 —
+ *      빼기는 설치자가 `--without` · 위저드로 명시한 `excluded` 로만 정해진다).
  *   3. 쓰기: **하네스가 만든 파일**(기준선 sha 가 지금 디스크와 같다 · 이번에 만든다)만 `owned-write` 로 쓴다 — 그래야
  *      `externalFiles` 기준선이 이어져 지금의 uninstall 이 "안 고친 하네스 파일" 로 회수할 수 있다. 설치자 파일(기준선
  *      없음 · 다름)은 그 자리에 몫만 더해 직접 쓰고 기준선을 남기지 않는다 — 남기면 지금의 uninstall 이 그 파일을
  *      "하네스 것" 으로 읽고 **통째로** 지운다. 어느 쪽도 파일 백업을 만들지 않는다(몫만 바꾸므로 잃는 것이 없다).
  *
- * 기록(`portions` · 지운 키 → `excluded`)은 **돌려주기만** 한다 — 로그에 쓰는 것은 호출부(install 의
+ * 기록(`portions`)은 **돌려주기만** 한다 — 로그에 쓰는 것은 호출부(install 의
  * `composeWriterLog` · update 의 `refreshExternalCli`)다. uninstall 은 같은 기록으로 몫만 걷는다(`stripShared`, #551 R1).
  */
 
@@ -51,8 +52,8 @@ export interface SharedRecord {
  * - `created`   없던 파일을 하네스 몫(+ seed)으로 만들었다
  * - `updated`   있던 파일에 몫을 더하거나 바꿨다
  * - `unchanged` 이미 최신 — 쓰지 않았다
- * - `left`      쓰지 않고 남겼다(못 읽음 · 합친 결과가 안 읽힘 · 설치자가 파일째 지움 등) — `line` 이 이유
- * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049 · 설치자가 지운 파일도 — Q4 는 PR-5) — 알릴 것이 없다
+ * - `left`      쓰지 않고 남겼다(못 읽음 · 합친 결과가 안 읽힘) — `line` 이 이유
+ * - `skipped`   update 가 없는 파일을 만들지 않았다(ADR-049) — 알릴 것이 없다
  */
 export type SharedAction = "created" | "updated" | "unchanged" | "left" | "skipped";
 
@@ -71,8 +72,20 @@ export interface SharedWriteResult {
   leftAsIs: string[];
   /** 쓴 뒤 이 파일에 대해 기록할 몫 전체. `null` = 이번에 판정하지 않았다(기록을 그대로 둔다). */
   portions: InstallLogPortion[] | null;
-  /** 기록에 있었는데 파일에 없던 몫의 키 id — 설치자가 지웠다. 호출부가 `excluded` 에 적는다(R2). */
-  deleted: string[];
+  /** 기록에 있었는데 파일에 없어 이번에 되돌린 몫의 키 id(ADR-099 R1) — 화면이 `was missing — restored` 로 알린다. */
+  restored: string[];
+  /** 이번에 새로 더한 몫의 키 id(되돌린 것 제외) — 옛 판이 뺀 것으로 적었던 키를 되살렸는지 화면이 가른다(R5). */
+  added: string[];
+  /** `portions` 에 기록 sha 만 잇고 파일에는 없는 키(어댑터 키 — `UpsertOk.missing`). 화면은 파일에 있는 몫으로 세지 않는다. */
+  missing: string[];
+  /** 설치자가 뺀(`excluded`) 키 중 이번에 걷은 것 — 키 id(리뷰 #693 NOTE-2). */
+  removedOut: string[];
+  /** `removedOut` 중 고친 값이었는데도 걷은 것 — 키 id. */
+  removedEdited: string[];
+  /** 설치자가 뺐지만 고쳐 둬서 남긴 키 — 키 id. `kept` · `leftAsIs` 와 겹치지 않는다. */
+  keptOut: string[];
+  /** 새 판으로 갈아 끼운 키가 있었나 — 걷기만 한 실행을 "썼다" 고 하지 않으려고 화면이 본다. */
+  replaced: boolean;
 }
 
 export interface WriteSharedParams<V> {
@@ -122,7 +135,13 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     kept: [],
     leftAsIs: [],
     portions: null,
-    deleted: [],
+    restored: [],
+    added: [],
+    missing: [],
+    removedOut: [],
+    removedEdited: [],
+    keptOut: [],
+    replaced: false,
     ...rest,
   });
   // #678 — 실체가 프로젝트 밖이면 몫도 쓰지 않는다. 몫 기록은 그대로(`portions: null`) · 화면은 writer 의 `outside` 가 말한다.
@@ -136,21 +155,14 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     next: null,
     run: refreshOnly ? "update" : "install",
     adapter,
-    // 몫 기록이 없는 로그의 update 는 지운 파일을 "만들지 않는다" 쪽(아래 `skipped`)으로 간다. 어느 쪽이든 쓰지 않는다
-    hasPortions: recorded.size > 0,
   });
   switch (verdict.verdict) {
-    case "leave":
-      // update · 파일 없음 · 기록 있음. 설계는 이것을 "설치자가 파일째 지웠다 → 키 전부 excluded"(Q4)로 읽지만 **이 판은
-      // 그 칸을 켜지 않는다** — Q4 는 PR-5 에서 update 화면 줄(`you deleted it — not recreated`) · `--with <id>` 수용과
-      // 함께 켠다. 둘 없이 켜면 초기화하려고 파일을 지운 설치자가 update 한 번에 하네스 설정을 조용히 잃고 되찾을 길이
-      // 없다(리뷰 B1 — 다음 install 이 빈 config.toml 을 만들었다). 지금은 main 과 같이: 만들지 않고(ADR-049) · 지운
-      // 키로 적지 않고 · 몫 기록은 그대로 둔다(`portions: null`) — 다음 install 이 완전한 파일을 만든다.
-      return result("skipped");
     case "leave+advise":
       return result("left", { line: verdict.line });
     case "create":
-      if (refreshOnly) return result("skipped"); // update 는 없는 파일을 만들지 않는다(ADR-049)
+      // update 는 없는 파일을 만들지 않는다(ADR-049). 몫 기록은 그대로 둔다(`portions: null`) — 다음 install 이 완전한
+      // 파일을 만든다. 파일째 사라진 것을 update 가 되살리는 것은 ADR-099 R2(후속 PR).
+      if (refreshOnly) return result("skipped");
       break;
     case "upsert-portion":
       break;
@@ -181,10 +193,18 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     });
   }
   const portions = toPortions(path, upserted.portions);
-  const deleted = upserted.deleted.flatMap((k) => {
-    const id = keyId(path, k);
-    return id === null ? [] : [id];
-  });
+  const ids = (keys: Iterable<string>): string[] =>
+    [...keys].flatMap((k) => {
+      const id = keyId(path, k);
+      return id === null ? [] : [id];
+    });
+  const restoredKeys = new Set(upserted.restored);
+  // 새로 더한 키 = 쓴 뒤 몫에 있는데 쓰기 전 파일에 없던 것(되돌린 것은 위 `restored`). 파일을 새로 만들었으면 전부다
+  const added = ids(
+    [...upserted.portions.keys()].filter(
+      (k) => !restoredKeys.has(k) && (onDisk === null || !recorded.has(k)),
+    ),
+  );
   if (harnessMade) {
     // 하네스가 만든 파일 — writer 가 쓰고 기준선을 잇는다(같으면 쓰지 않고 기준선만)
     writer.write(abs, upserted.text);
@@ -193,7 +213,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     writeFileSync(abs, upserted.text);
   }
   // #600 — 몫은 쓴 자리에서 적는다. 변환이 뒤에서 던져도 이 몫은 기록에 남아 재실행 · uninstall 이 알아본다
-  writer.journal?.portions(path, portions, deleted);
+  writer.journal?.portions(path, portions);
   const action: SharedAction =
     onDisk === null ? "created" : upserted.text !== onDisk ? "updated" : "unchanged";
   // 구간·블록 이름은 하네스만 쓴다 — 렌더의 키가 그대로 kept 로 나왔으면 설치자 값이 아니라 남겨 둔 하네스 몫이다.
@@ -208,10 +228,22 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
       : new Map<string, string>();
   const sameAsRender = (k: string) => present.get(k) === jsonSha(render.get(k));
   return result(action, {
-    kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k)),
-    leftAsIs: upserted.kept.filter(isRegion),
+    kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k) && !excluded.has(k)),
+    leftAsIs: upserted.kept.filter((k) => isRegion(k) && !excluded.has(k)),
+    // 하네스가 만든 파일을 새로 쓴 경우(기준선 그대로) 어댑터는 빈 파일에서 시작해 걷은 것을 모른다 — 기록에 있던 뺀 키가 걷힌 것이다
+    removedOut: ids(
+      harnessMade && onDisk !== null
+        ? [...recorded.keys()].filter((k) => excluded.has(k))
+        : upserted.removed.filter((k) => excluded.has(k)),
+    ),
+    removedEdited: ids(upserted.removedEdited.filter((k) => excluded.has(k))),
+    keptOut: ids(upserted.kept.filter((k) => excluded.has(k))),
+    // 하네스가 만든 파일을 새로 쓴 경우 어댑터 계획이 빈 파일 기준이라 "바꿨다" 로 둔다(걷기만 했다고 단정하지 않는다)
+    replaced: upserted.replaced.length > 0 || (harnessMade && onDisk !== null),
     portions,
-    deleted,
+    restored: ids(upserted.restored),
+    added,
+    missing: upserted.missing,
   });
 }
 

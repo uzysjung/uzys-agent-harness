@@ -8,8 +8,10 @@
  */
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import packageJson from "../package.json";
+import { isKeyId } from "./adapters/shared-files.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import {
   type ExternalAsset,
@@ -262,6 +264,18 @@ export interface InstallLog {
    * (`excludedIds`, `src/recorded.ts`).
    */
   excluded?: ReadonlyArray<string>;
+  /**
+   * ADR-099 R5 — 옛 판(v26.162.0–26.163.0)이 `excluded` 에 자동으로 적은 것을 한 번 정리했다는 표시. 이 판은 기록을
+   * 읽는 순간 정리하고(`migrateExcluded`) 쓸 때 이 표시를 남긴다 — 표시가 있는 기록은 다시 정리하지 않는다(그 뒤
+   * `--without <키 id>` 로 명시한 빼기를 지우지 않기 위해서다). `log.version` 은 update 가 갱신하지 않아 쓸 수 없다.
+   */
+  excludedKeysMigrated?: true;
+  /**
+   * ADR-099 보강(설계 `docs/plans/selection-record-design-2026-10-04.md` §1) — 넣기·빼기 선택의 **이력**. `excluded` 가 최신
+   * 선택(SSOT)이고 이것은 그 선택이 언제 어떤 실행으로 바뀌었는지다. 한 항목 = `excluded` 가 실제로 바뀐 실행(효과분만) ·
+   * 최근 `SELECTIONS_MAX` 개. 부재 = 정상(옛 기록 · 바뀐 적 없음). `INSTALL_LOG_VERSION` 은 올리지 않는다.
+   */
+  selections?: ReadonlyArray<SelectionEvent>;
   /**
    * #551 (ADR-097 Q1) — 새 판(쓰는 순간 기록하는 writer)이 이 로그를 처음 쓸 때 적는 표시. 있으면
    * 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 에 거는 소유 필터를 더는 적용하지 않는다.
@@ -665,7 +679,9 @@ export function collectPolicyHashes(
 export function writeInstallLog(projectDir: string, log: InstallLog): string {
   const path = installLogPath(projectDir);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(log, null, 2)}\n`, "utf8");
+  // ADR-099 R5 — 이 판이 쓰는 기록은 모두 읽을 때 정리된 것(`migrateExcluded`)이거나 새 기록이다 — 표시를 남긴다
+  const marked: InstallLog = { ...log, excludedKeysMigrated: true };
+  writeFileSync(path, `${JSON.stringify(marked, null, 2)}\n`, "utf8");
   migrateAwayLegacyLog(projectDir);
   return path;
 }
@@ -724,7 +740,170 @@ export function readInstallLogStatus(projectDir: string): InstallLogStatus {
       (a.method as string) === "npm-global" ? { ...a, method: "npm" } : a,
     );
   }
-  return { status: "ok", log };
+  const migrated = migrateExcluded(log, projectDir);
+  if (migrated.droppedKeys.length > 0) {
+    LEGACY_RELEASED.set(migrated.log, {
+      released: migrated.droppedKeys,
+      catalog: migrated.releasedCatalog,
+    });
+  }
+  return { status: "ok", log: migrated.log };
+}
+
+/** 읽은 기록 → 그 기록을 읽을 때 옛 판 정리(R5 · 설계 §2.2)가 푼 것. 기록 파일에는 남지 않는다(화면용 — 이력은 `selections`). */
+const LEGACY_RELEASED = new WeakMap<InstallLog, { released: string[]; catalog: string[] }>();
+
+/**
+ * ADR-099 R5 — 이 기록을 읽을 때 옛 판의 자동 추론분 · 마지막 설치가 다시 깐 것이라 `excluded` 에서 푼 id 전부. 이번 실행이
+ * 그것을 실제로 되살렸는지 화면이 가르는 데만 쓴다(`↺ restored N harness part(s) an earlier version had marked as removed`).
+ */
+export function legacyDroppedKeys(log: InstallLog | null): ReadonlyArray<string> {
+  return log === null ? [] : (LEGACY_RELEASED.get(log)?.released ?? []);
+}
+
+/** 설계 §2.2 규칙 2 로 푼 카탈로그 id — 화면 `↺ <id> — released: the last install re-added it (26.162–26.163 record)`. */
+export function legacyReleasedCatalog(log: InstallLog | null): ReadonlyArray<string> {
+  return log === null ? [] : (LEGACY_RELEASED.get(log)?.catalog ?? []);
+}
+
+/** 넣기·빼기 선택 이력 한 항목(설계 §1). `with` = 이번에 `excluded` 에서 빠진 id · `without` = 새로 들어온 id. */
+export interface SelectionEvent {
+  at: string;
+  /** 이 항목을 쓴 하네스 판. */
+  harness: string;
+  by: "install" | "migration";
+  via?: "flag" | "wizard";
+  with?: ReadonlyArray<string>;
+  without?: ReadonlyArray<string>;
+  /** migration — 근거가 있어 푼 것. */
+  released?: ReadonlyArray<string>;
+  /** migration — 근거가 없어 뺀 채 둔 카탈로그 id. */
+  kept?: ReadonlyArray<string>;
+  /** #600 — 도중에 멈춘 install 의 기록. */
+  interrupted?: true;
+}
+
+/** 이력은 최근 이만큼만 둔다(≤ 15 KB) — 오래된 것부터 떨어진다. */
+export const SELECTIONS_MAX = 100;
+
+/** 지금 이 하네스 판 — 이력 항목의 `harness`. */
+export const HARNESS_VERSION: string = packageJson.version;
+
+/** 이력에 한 항목을 더한다 — 효과분(with · without · released · kept)이 모두 비면 기록을 그대로 둔다. */
+export function appendSelection(log: InstallLog, ev: SelectionEvent): InstallLog {
+  const empty = (a: ReadonlyArray<string> | undefined): boolean =>
+    a === undefined || a.length === 0;
+  if (empty(ev.with) && empty(ev.without) && empty(ev.released) && empty(ev.kept)) return log;
+  const clean: SelectionEvent = {
+    at: ev.at,
+    harness: ev.harness,
+    by: ev.by,
+    ...(ev.via !== undefined ? { via: ev.via } : {}),
+    ...(empty(ev.with) ? {} : { with: [...(ev.with ?? [])] }),
+    ...(empty(ev.without) ? {} : { without: [...(ev.without ?? [])] }),
+    ...(empty(ev.released) ? {} : { released: [...(ev.released ?? [])] }),
+    ...(empty(ev.kept) ? {} : { kept: [...(ev.kept ?? [])] }),
+    ...(ev.interrupted ? { interrupted: true as const } : {}),
+  };
+  return { ...log, selections: [...(log.selections ?? []), clean].slice(-SELECTIONS_MAX) };
+}
+
+/**
+ * 설계 §2.2 창 W — 옛 기록에서 "마지막 install 이 이 카탈로그 스킬을 썼다" 로 읽는 폭. X 를 쓴 뒤 `installedAt` 까지는 남은
+ * 외부 자산(스킬 1개 ≈5 s × 선택분 · npm 자산 상한 600 s)과 CLI 변환(초 단위)이다 — 10 분은 npm 상한 하나를 품는 크기다.
+ * 키우면 `install` → `install --without X` 를 연달아 한 설치자를 "다시 깔았다" 로 읽는 폭이 넓어지고(update 가 X 를 다시
+ * 갱신 · `--without X` 한 번으로 복귀), 줄이면 느린 네트워크의 "다시 깐" 설치자가 `⊘` 줄을 보고 install 을 한 번 더 한다.
+ */
+export const LEGACY_REINSTALL_WINDOW_MS = 600_000;
+
+/** 기록된 프로젝트 스킬 자산이 놓은 파일들(도구의 파일 기록 #573, 없으면 스킬 자리 두 곳의 파일 전부) — 없으면 빈 배열. */
+function assetFiles(projectDir: string, asset: InstallLogAsset): string[] {
+  if (asset.files !== undefined) {
+    return asset.files.map((f) => join(projectDir, f.path)).filter((p) => existsSync(p));
+  }
+  const dir = asset.detail.skill ?? asset.id;
+  return [".claude/skills", ".agents/skills"].flatMap((d) =>
+    listFilesRecursive(join(projectDir, d, dir)).map((rel) => join(projectDir, d, dir, rel)),
+  );
+}
+
+/**
+ * 설계 §2.2 — 옛 기록의 카탈로그 X(`assets ∩ excluded`)는 "깔았다가 마지막 install 에서 뺐다"(A2)와 "뺐다가 플래그 없이 다시
+ * 깔았다"(B)가 기록으로 같다. 묻지 않고 디스크 근거로 가른다: 폴더 없음 → 뺀 채(B 는 폴더가 있다) · 폴더 안 파일의 최대 mtime 이
+ * `installedAt` 직전 창 안 → 마지막 install 이 X 를 썼다 = 그 실행에 `--without X` 가 없었다 → 푼다 · 창보다 이르다 → 마지막
+ * install 은 X 를 안 썼다 → 뺀 채 · `installedAt` 뒤 → 그 뒤 다시 써졌다(163 의 update 등) → 근거 없음 → 뺀 채(화면이 할 일을 말한다).
+ */
+function legacyCatalogReleased(
+  projectDir: string,
+  log: InstallLog,
+  asset: InstallLogAsset,
+): boolean {
+  if (asset.method !== "skill" || asset.scope === "global") return false; // 디스크로 알 수 없다 — 근거 없음
+  const files = assetFiles(projectDir, asset);
+  if (files.length === 0) return false;
+  const t = Date.parse(log.installedAt);
+  if (Number.isNaN(t)) return false;
+  const m = Math.max(...files.map((f) => statSync(f).mtimeMs));
+  return m <= t && m >= t - LEGACY_REINSTALL_WINDOW_MS;
+}
+
+/**
+ * ADR-099 R5 · 설계 §2.2 — 옛 판(v26.162.0–26.163.0)이 굳힌 `excluded` 를 한 번 푼다. 표시(`excludedKeysMigrated`)가 있으면 그대로.
+ *
+ * - **키 id**(`SHARED_FILES` 접두 전부)는 푼다 — `--without` 이 키 id 를 받은 판은 없으므로(설계 G1) 표시 없는 기록의
+ *   키 id 는 전부 "기록에 있는데 파일에 없다" 의 자동 추론이다.
+ * - **baseline id** 는 `spec.baselineExclude`(마지막 설치의 플래그)에 있는 것만, **번들 스킬 id** 는 `spec.skillExclude` 에
+ *   있는 것만 남긴다 — 마지막 install 의 입력이 선택이다(설계 §3).
+ * - **카탈로그 id** 가 `log.assets` 에도 있으면 `legacyCatalogReleased`(폴더 · mtime 창)로 가른다. `projectDir` 이 없으면
+ *   디스크를 볼 수 없어 뺀 채 둔다.
+ * 판정은 이력에 `{by:"migration", released, kept}` 한 항목으로 남는다(기록을 다음에 쓸 때).
+ */
+export function migrateExcluded(
+  log: InstallLog,
+  projectDir?: string,
+): { log: InstallLog; droppedKeys: string[]; releasedCatalog: string[] } {
+  if (log.excludedKeysMigrated === true) return { log, droppedKeys: [], releasedCatalog: [] };
+  const baseline = new Set(log.spec.baselineExclude ?? []);
+  const skills = new Set(log.spec.skillExclude ?? []);
+  const released: string[] = [];
+  const releasedCatalog: string[] = [];
+  const keptCatalog: string[] = [];
+  const kept: string[] = [];
+  for (const id of log.excluded ?? []) {
+    if (isKeyId(id)) {
+      released.push(id);
+      continue;
+    }
+    if (id.startsWith("baseline:") && !baseline.has(id)) {
+      released.push(id);
+      continue;
+    }
+    if (BUNDLED_SKILL_IDS.has(id) && !skills.has(id)) {
+      released.push(id);
+      continue;
+    }
+    const asset = log.assets.find((a) => a.id === id);
+    if (asset !== undefined && !BUNDLED_SKILL_IDS.has(id) && !id.startsWith("baseline:")) {
+      if (projectDir !== undefined && legacyCatalogReleased(projectDir, log, asset)) {
+        released.push(id);
+        releasedCatalog.push(id);
+        continue;
+      }
+      keptCatalog.push(id);
+    }
+    kept.push(id);
+  }
+  let next: InstallLog = { ...log, excludedKeysMigrated: true };
+  if (kept.length > 0) next.excluded = kept;
+  else delete next.excluded;
+  next = appendSelection(next, {
+    at: new Date().toISOString(),
+    harness: HARNESS_VERSION,
+    by: "migration",
+    released,
+    kept: keptCatalog,
+  });
+  return { log: next, droppedKeys: released, releasedCatalog };
 }
 
 /**
