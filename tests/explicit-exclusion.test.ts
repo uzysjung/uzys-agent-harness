@@ -483,11 +483,12 @@ describe("V3 위저드 — 최신 선택을 미리 채우고, 아직 해제된 i
       ...overrides,
     };
   }
-  const detect = () => ({
-    state: "existing" as const,
+  const detect = (projectDir: string) => ({
+    state: "installed" as const,
+    log: readInstallLog(projectDir),
     tracks: ["tooling" as Track],
-    source: "install-log" as const,
     hasClaudeDir: true,
+    traces: [],
   });
   /** 위저드가 고른 spec 을 cli.ts 와 같은 경로(`executeSpec`, fromWizard)로 돌린다 — 외부 단계는 끈다. */
   function runWizardSpec(s: InstallSpec, mode: InstallMode | undefined, fromWizard = true): void {

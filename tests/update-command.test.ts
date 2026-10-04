@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,10 +19,11 @@ import { buildUpdateSpec } from "../src/update-mode.js";
 
 function fakeState(over: Partial<DetectedInstall> = {}): DetectedInstall {
   return {
-    state: "existing",
+    state: "installed",
+    log: null,
     tracks: ["tooling"],
-    source: "metafile",
     hasClaudeDir: true,
+    traces: [],
     ...over,
   };
 }
@@ -104,7 +105,7 @@ describe("update 명령 — 비대화형 진입점", () => {
         log: () => {},
         err: (m) => errs.push(m),
         exit,
-        detect: () => fakeState({ hasClaudeDir: false, state: "new", tracks: [] }),
+        detect: () => fakeState({ hasClaudeDir: false, state: "none", tracks: [] }),
         execute,
       },
     );
@@ -125,7 +126,7 @@ describe("update 명령 — 비대화형 진입점", () => {
         log: () => {},
         err: () => {},
         exit,
-        detect: () => fakeState({ hasClaudeDir: false, state: "existing", tracks: ["tooling"] }),
+        detect: () => fakeState({ hasClaudeDir: false, state: "installed", tracks: ["tooling"] }),
         execute,
       },
     );
@@ -236,17 +237,31 @@ describe("명령 계열 표면 대칭", () => {
 });
 
 describe("update 명령이 실제 디렉토리를 본다", () => {
-  it(".claude 가 있으면 진행, 없으면 차단 — 실 파일시스템 기준", () => {
+  it("설치 기록이 있어야 진행한다 — `.claude/` 만으로는 차단 (#595)", () => {
     const dir = mkdtempSync(join(tmpdir(), "update-fs-"));
     try {
       const exit = vi.fn() as unknown as (code: number) => never;
       const execute = vi.fn();
-      // .claude 부재
       updateAction({ projectDir: dir }, { log: () => {}, err: () => {}, exit, execute });
       expect(exit).toHaveBeenCalledWith(1);
 
-      // .claude 생성 후에는 파이프라인까지 간다
+      // `.claude/` 가 생겨도 기록이 없으면 그대로 차단 — 이게 #595 의 경로였다(설치로 오판 → 쓰고 exit 0)
       mkdirSync(join(dir, ".claude"), { recursive: true });
+      updateAction({ projectDir: dir }, { log: () => {}, err: () => {}, exit, execute });
+      expect(execute).not.toHaveBeenCalled();
+
+      mkdirSync(join(dir, ".uzys-agent-harness"), { recursive: true });
+      writeFileSync(
+        join(dir, ".uzys-agent-harness/.harness-install.json"),
+        JSON.stringify({
+          schemaVersion: 1,
+          installedAt: "2026-10-04T00:00:00.000Z",
+          scope: "project",
+          spec: { tracks: ["tooling"], cli: ["claude"] },
+          templates: { claudeDir: ".claude/" },
+          assets: [],
+        }),
+      );
       updateAction({ projectDir: dir }, { log: () => {}, err: () => {}, exit, execute });
       expect(execute).toHaveBeenCalledOnce();
     } finally {

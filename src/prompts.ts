@@ -8,6 +8,7 @@ import {
   groupMultiselect,
   intro,
   isCancel,
+  log,
   multiselect,
   outro,
   select,
@@ -55,6 +56,8 @@ export interface Prompts {
   intro: (msg: string) => void;
   outro: (msg: string) => void;
   cancel: (msg: string) => void;
+  /** #595 — 흐름을 멈추지 않는 안내 한 덩어리(기록 없는 흔적). 없는 구현은 생략한다. */
+  note?: (msg: string) => void;
 
   /**
    * v26.65.0 — step optional 두 번째 인자. 호출자가 `WIZARD.TRACKS` 전달 시 message 에
@@ -356,6 +359,7 @@ export const defaultPrompts: Prompts = {
   intro: (msg) => intro(msg),
   outro: (msg) => outro(msg),
   cancel: (msg) => cancel(msg),
+  note: (msg) => log.warn(msg),
 
   selectTracks: async (initial, step, installed = []) => {
     // v26.65.0 — step indicator SSOT (wizard-steps.ts). 5-step (1 tracks · 2 cli · 3 targets · 4 confirm · 5 installing — #560 Scope 단계 삭제).
