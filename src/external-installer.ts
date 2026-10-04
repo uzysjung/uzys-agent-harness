@@ -30,6 +30,7 @@ import {
   installedClis,
   readInstallLog,
 } from "./install-log.js";
+import { outsideProjectTarget } from "./outside-project.js";
 import {
   type CliTargets,
   DEFAULT_OPTIONS,
@@ -86,6 +87,11 @@ export interface AssetInstallResult {
    * 디스크 존재는 소유의 근거가 아니므로(ADR-096) 호출 **전에** 있던 파일은 `created` 가 아니다.
    */
   files?: ToolFiles;
+  /**
+   * #678 — 스킬 자리가 링크를 따라 **프로젝트 밖**으로 풀려 도구를 그 자리로 부르지 않은 것(설치 화면이 함께 말한다).
+   * `root` = project 상대 스킬 자리(`.claude/skills` 등), `target` = 그 자리가 풀린 절대경로.
+   */
+  outside?: ReadonlyArray<{ root: string; target: string }>;
 }
 
 /**
@@ -106,10 +112,19 @@ export interface ToolFiles {
  */
 const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
 
-/** 스킬 자리의 파일 → sha. 링크 자리는 건너뛴다(`listFilesRecursive` — 남의 설치 포인터는 우리 것이 아니다). */
+/** `npx skills add --agent <cli> --copy` 가 그 CLI 몫을 놓는 자리. */
+function skillRootOf(cli: CliTargets[number]): (typeof SKILL_ROOTS)[number] {
+  return cli === "claude" ? ".claude/skills" : ".agents/skills";
+}
+
+/**
+ * 스킬 자리의 파일 → sha. 링크 자리는 건너뛴다(`listFilesRecursive` — 남의 설치 포인터는 우리 것이 아니다).
+ * #678 — 자리 자체가 프로젝트 밖으로 풀리면 그 자리는 훑지 않는다 — 밖의 파일을 하네스 몫으로 기록하지 않는다.
+ */
 function snapshotSkillRoots(projectDir: string): Map<string, string> {
   const out = new Map<string, string>();
   for (const root of SKILL_ROOTS) {
+    if (outsideProjectTarget(projectDir, join(projectDir, root)) !== null) continue;
     for (const rel of listFilesRecursive(join(projectDir, root))) {
       const path = `${root}/${rel}`;
       try {
@@ -282,14 +297,37 @@ function installOne(
   const cwd = ctx.projectDir;
   switch (method.kind) {
     case "skill": {
-      const args = buildSkillArgs(method, ctx.cli, ctx.scope);
       // global 은 홈에 깐다 — 이 프로젝트에 놓은 것이 없다(되돌리기는 안내뿐, D16)
-      if (ctx.scope === "global") return runSpawn(asset, ctx.spawn, "npx", args, cwd);
+      if (ctx.scope === "global") {
+        return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
+      }
+      // #678 — 스킬 자리가 프로젝트 밖으로 풀리는 CLI 는 그 자리로 도구를 부르지 않는다(도구는 링크를 따라 밖에 쓴다).
+      // 남은 CLI 가 없으면 부르지 않는다. 에이전트 미지정(레거시 `cli: []`)은 두 자리 모두 쓰므로 하나라도 밖이면 부르지 않는다.
+      const outside = SKILL_ROOTS.flatMap((root) => {
+        const hit = outsideProjectTarget(cwd, join(cwd, root));
+        return hit === null ? [] : [{ root, target: hit.target }];
+      });
+      const outRoots = new Set(outside.map((o) => o.root));
+      const cli = ctx.cli.filter((c) => !outRoots.has(skillRootOf(c)));
+      if (outside.length > 0 && cli.length === 0) {
+        const where = outside.map((o) => `${o.root} → ${o.target}`).join(", ");
+        return {
+          asset,
+          ok: false,
+          message: `not installed — the skill folder links outside the project (${where}); left as is`,
+          outside,
+        };
+      }
+      const usedOutside = outside.filter((o) => ctx.cli.some((c) => skillRootOf(c) === o.root));
+      const args = buildSkillArgs(method, cli, ctx.scope);
       const before = snapshotSkillRoots(cwd);
       const result = runSpawn(asset, ctx.spawn, "npx", args, cwd);
-      return result.ok
-        ? { ...result, files: diffSnapshots(before, snapshotSkillRoots(cwd)) }
-        : result;
+      if (!result.ok) return result;
+      return {
+        ...result,
+        files: diffSnapshots(before, snapshotSkillRoots(cwd)),
+        ...(usedOutside.length > 0 ? { outside: usedOutside } : {}),
+      };
     }
     case "plugin":
       return installPlugin(asset, ctx.spawn, method, ctx.scope, cwd);
