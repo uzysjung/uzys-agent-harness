@@ -58,6 +58,8 @@ export interface CliTransformResults {
   portions: InstallLogPortion[];
   /** 판정한 파일의 경로 — `portions` 가 대신하는 범위. */
   portionPaths: string[];
+  /** ADR-099 R2 — refresh 모드(update)에서 기준선에 있는데 없어 되살린 산출물(project-relative, 중복 없음). */
+  restoredFiles: string[];
 }
 
 export interface CliTransformParams {
@@ -108,6 +110,11 @@ export interface CliTransformParams {
    * 이 저널로 그때까지 쓴 것을 기록한다. `done` 은 변환 하나가 **끝까지** 돈 CLI — 끝나지 않은 CLI 는 기록에
    * 깔린 CLI 로 적지 않는다(그 디렉터리를 하네스 것으로 주장하지 않는다).
    */
+  /**
+   * ADR-099 R2 (#584) — 설치 기록이 깔린 CLI 로 말하는 집합(`installedClis(log)`, update 가 넘긴다). refresh 모드에서 그 CLI 의
+   * 산출물을 없어도 만드는 근거다 — 지금은 Antigravity 앵커·룰이 쓴다. 기록이 없으면(옛 설치본) 비워 둔다.
+   */
+  recordedClis?: ReadonlyArray<CliBase>;
   journal?: WriteJournal & {
     done(cli: CliBase): void;
     /** 홈 Codex 설정에 trust 항목을 넣으려 한 결과 — 하네스가 실제로 넣었으면(`registered`) 중단 기록에도 남긴다. */
@@ -148,6 +155,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     refreshOnly = false,
     codexTrust = false,
     shared = {},
+    recordedClis = [],
     journal,
   } = params;
   const journalParam = journal === undefined ? {} : { journal };
@@ -163,6 +171,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalForeignOwned: string[] = [];
   let externalOutside: OutsideLink[] = [];
   let externalUpdated = 0;
+  const restoredFiles: string[] = [];
   const sharedFiles: SharedWriteResult[] = [];
   const absorbShared = (
     report: { ownership: OwnedWriteResult },
@@ -189,6 +198,8 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     }
     externalOutside = mergeOutside(externalOutside, report.ownership.outside ?? []);
     externalUpdated += report.ownership.updated;
+    for (const f of report.ownership.restored ?? [])
+      if (!restoredFiles.includes(f)) restoredFiles.push(f);
   };
 
   // #568 — 두 CLI 가 **한 값**을 받는다. 각자 렌더하면 같은 원천이어도 목록이 갈릴 자리가 생긴다.
@@ -257,6 +268,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       rules,
       baseline,
       refreshOnly,
+      installedByRecord: recordedClis.includes("antigravity"),
       ...journalParam,
     });
     absorb(antigravity);
@@ -277,5 +289,6 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     sharedFiles,
     portions: sharedFiles.flatMap((r) => r.portions ?? []),
     portionPaths: sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),
+    restoredFiles,
   };
 }

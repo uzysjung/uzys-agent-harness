@@ -601,28 +601,50 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
     expect(second.externalUpdated).toBe(writerCounted + 1);
   });
 
-  it("update 에서 설치자가 파일째 지웠으면 이 판은 만들지 않고 몫 기록을 그대로 둔다 — 파일째 되살림은 ADR-099 R2(후속)", () => {
+  it("update 에서 설치자가 파일째 지웠으면 기록(몫)을 근거로 템플릿 바탕 + 하네스 몫으로 다시 만든다 (ADR-099 R2 · #633)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     const first = run();
     rmSync(join(projectDir, "opencode.json"));
+    const refresh = (portions: InstallLogPortion[]) =>
+      runCliTransforms({
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        cli: ["opencode"],
+        selectedInternalSkills: [],
+        rules: ["git-policy"],
+        tracks: ["tooling"],
+        // 설치자 파일이었다 — 기준선에는 없다. 근거는 몫 기록 하나다
+        previousExternal: first.externalFiles.filter((f) => f.path !== "opencode.json"),
+        refreshOnly: true,
+        shared: { portions },
+      });
 
-    const second = runCliTransforms({
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      cli: ["opencode"],
-      selectedInternalSkills: [],
-      rules: ["git-policy"],
-      tracks: ["tooling"],
-      previousExternal: first.externalFiles,
-      refreshOnly: true,
-      shared: { portions: first.portions },
+    // 대조 — 기록이 없으면 update 는 여전히 만들지 않는다(ADR-049: 고르지 않은 것을 새로 깔지 않는다)
+    const none = refresh([]);
+    expect(none.sharedFiles.find((f) => f.path === "opencode.json")).toMatchObject({
+      action: "skipped",
+      portions: null,
     });
-
-    const r = second.sharedFiles.find((f) => f.path === "opencode.json");
-    // 판정하지 않았다 — 몫 기록은 그대로 둔다(portions null)
-    expect(r).toMatchObject({ action: "skipped", portions: null, restored: [] });
-    expect(second.portionPaths).not.toContain("opencode.json");
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
+
+    const second = refresh(first.portions);
+    const r = second.sharedFiles.find((f) => f.path === "opencode.json");
+    const recordedIds = first.portions
+      .filter((p) => p.path === "opencode.json" && !p.key.endsWith("{}"))
+      .map((p) => `opencode:${p.key}`);
+    expect(recordedIds.length).toBeGreaterThan(0);
+    expect(r).toMatchObject({ action: "created" });
+    expect([...(r?.restored ?? [])].sort()).toEqual([...recordedIds].sort());
+    expect(second.portionPaths).toContain("opencode.json");
+    // 첫 설치 생성과 같다 — 템플릿 바탕($schema 등) 위에 하네스 MCP 키
+    const json = JSON.parse(readFileSync(join(projectDir, "opencode.json"), "utf8")) as {
+      $schema?: string;
+      mcp?: Record<string, unknown>;
+    };
+    expect(json.$schema).toBe("https://opencode.ai/config.json");
+    expect(Object.keys(json.mcp ?? {}).sort()).toEqual(
+      recordedIds.map((id) => id.slice("opencode:mcp.".length)).sort(),
+    );
   });
 
   it("기록된 몫이 있으면 하네스 구간을 갱신한다 — 설치자가 구간 안을 고쳤으면 그 구간만 남기고 알린다", () => {
@@ -853,34 +875,43 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
 });
 
 describe("R2 — update 도 같은 왕복을 한다", () => {
-  it("B1 — 두 파일을 통째로 지우고(초기화) update → install 하면 완전한 파일이 다시 생기고 · excluded 에 안 든다 · 화면은 쓴 것만", () => {
+  it("B1 — 두 파일을 통째로 지우고(초기화) update 하면 기록대로 완전한 파일이 다시 생기고 · excluded 에 안 든다 · 화면이 되살렸다고 말한다 (ADR-099 R2 · #598)", () => {
     install(["codex", "opencode"]);
     const full = { toml: read(".codex/config.toml"), json: read("opencode.json") };
     rmSync(join(projectDir, ".codex/config.toml"));
     rmSync(join(projectDir, "opencode.json"));
 
-    update();
+    const lines: string[] = [];
+    const renderer = createInstallRenderer((m) => lines.push(m), spec(["claude"]), false);
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["claude"]),
+      mode: "update",
+      runExternal: null,
+      onProgress: (event) => renderer.callbacks.onProgress?.(event),
+    });
 
-    // update 는 없는 파일을 만들지 않는다(ADR-049) — 그리고 "설치자가 지웠다" 로 적지도 않는다
-    expect(existsSync(join(projectDir, ".codex/config.toml"))).toBe(false);
-    expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
-    expect(loggedExcluded().filter((id) => /^(codex|opencode):/.test(id))).toEqual([]);
-
-    const report = install(["codex", "opencode"]);
-
+    // 손으로 지운 것은 빼기가 아니다 — 기록(기준선)이 되살림의 근거다. "설치자가 지웠다" 로 적지도 않는다
     expect(read(".codex/config.toml")).toBe(full.toml);
     expect(read("opencode.json")).toBe(full.json);
-    expect(Object.keys(toml().mcp_servers ?? {}).sort()).toEqual([
-      "chrome-devtools",
-      "context7",
-      "github",
-    ]);
+    expect(loggedExcluded().filter((id) => /^(codex|opencode):/.test(id))).toEqual([]);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    const out = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+    expect(out).toMatch(
+      /\.codex\/config\.toml\s+was missing — restored — wrote \(harness part only\) \(drop this CLI for good: agent-harness uninstall --cli codex\)/,
+    );
+    expect(out).toMatch(
+      /opencode\.json\s+was missing — restored — created from template \(harness part \+ template defaults\) \(drop this CLI for good: agent-harness uninstall --cli opencode\)/,
+    );
+
+    // 다음 install 은 같은 파일을 그대로 둔다 — update 가 첫 설치와 같은 판을 만들었다
+    const report = install(["codex", "opencode"]);
+    expect(read(".codex/config.toml")).toBe(full.toml);
+    expect(read("opencode.json")).toBe(full.json);
     const rows = screen(["codex", "opencode"], report);
     expect(rows.find((l) => l.includes(".codex/config.toml"))).toContain(
       "harness regions: top · tables",
-    );
-    expect(rows.find((l) => l.includes("opencode.json"))).toContain(
-      "harness mcp: context7 · github · chrome-devtools",
     );
   });
 

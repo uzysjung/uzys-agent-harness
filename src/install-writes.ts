@@ -10,7 +10,7 @@
  *     않고 남긴다(#574). 기록에 있는데 사라진 하네스 키는 되돌린다(ADR-099 R1 — 빼기는 `--without` · 위저드로만).
  *
  * 기록은 여기서 모으고 `composeWriterLog` 가 옛 기록 위에 **누적**한다(`mergeExternalFiles` 규칙 — 디스크에서
- * 사라진 항목만 뺀다). 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 는 처음 쓸 때 소유 필터를 한 번
+ * 사라진 항목도 남긴다, ADR-099 R2). 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 는 처음 쓸 때 소유 필터를 한 번
  * 거쳐 이어받고 `records: "writer"` 를 적는다(Q1).
  */
 
@@ -19,6 +19,8 @@ import { dirname, join, relative, sep } from "node:path";
 import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters/index.js";
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import { BASELINE_PREFIX } from "./baseline-targets.js";
+import { renderHarnessMcp } from "./cli-transforms.js";
+import { gitignoreRender } from "./env-files.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
@@ -29,6 +31,7 @@ import {
   type InstallLogPortion,
   type InstallLogRootFile,
   type InstallLogSkillFile,
+  installedClis,
   mergeExternalFiles,
 } from "./install-log.js";
 import { judge, type Verdict } from "./judge.js";
@@ -36,7 +39,7 @@ import { RETIRED_PATHS } from "./manifest.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { excludedIds, type RecordedOptions, recorded } from "./recorded.js";
-import type { InstallSpec } from "./types.js";
+import type { InstallSpec, Track } from "./types.js";
 
 const CLAUDE_DIR = ".claude/";
 const SKILLS_DIR = ".claude/skills/";
@@ -111,6 +114,11 @@ export type HarnessSource = { source: string } | { content: string };
 export interface SharedOptions {
   /** 파일이 없으면 만들지 않는다(`.gitignore` — 지금처럼 있을 때만 줄을 더한다). */
   onlyIfPresent?: boolean;
+  /**
+   * 파일이 없으면 **기록에 이 파일이 있을 때만**(몫 · `rootFiles`) 만든다(update — ADR-099 R2). update 는 고르지 않은 것을
+   * 새로 깔지 않지만, 기록에 있는데 사라진 하네스 몫은 되돌린다 — '기록에 있다' 가 근거다.
+   */
+  onlyIfRecorded?: boolean;
   /**
    * 옛 로그(`records: "writer"` 없음)라 이 파일의 몫 기록이 없을 때 — 설계 §5 의 **내용 식별**로 찾은
    * 하네스 몫(key → sha). 여기서만 내용 식별을 쓴다(R3). 기록이 생긴 뒤로는 부르지 않는다.
@@ -269,6 +277,10 @@ export function createInstallWriter(args: {
       return out;
     };
     if (disk === null && opts.onlyIfPresent) return result("leave", "");
+    const recordedFile =
+      own.size > 0 ||
+      (previousLog?.rootFiles ?? []).some((f) => f.path === path && f.change !== "displaced");
+    if (disk === null && opts.onlyIfRecorded && !recordedFile) return result("leave", "");
     // #678 — 하네스 파일과 같은 판정. 몫 기록은 그대로 둔다(이번에 판정하지 않았다) · 화면은 `outside` 가 말한다.
     if (outside.skip(abs)) return result("leave", "");
     const j = judge({
@@ -290,6 +302,11 @@ export function createInstallWriter(args: {
     });
     // judge 가 이미 읽었다 — 여기서 못 읽는 것은 같은 입력에 대한 두 판정이 갈린 것이다
     if (!res.ok) return result("leave+advise", j.line);
+    // 없는 파일에 쓸 하네스 몫이 하나도 없으면(전부 `--without` · 렌더가 빔) 만들지 않는다 — `{}` 는 하네스 몫이 아니다.
+    // 기록도 건드리지 않는다(`shared-write.ts` 의 refresh 가드와 같은 규칙)
+    if (disk === null && ![...res.portions.keys()].some((k) => !isContainerKey(k))) {
+      return result("leave", "");
+    }
     if (res.changed) {
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, res.text);
@@ -477,7 +494,7 @@ export function inheritScanned(previous: InstallLog | null): {
 
 /**
  * 이번 실행의 기록을 옛 기록 위에 쌓는다. `base` 는 `buildInstallLog` 결과(spec · templates · assets · rootFiles).
- * 네 필드 모두 `mergeExternalFiles` 규칙(같은 경로면 이번 값 · 디스크에서 사라진 것만 뺀다)이다.
+ * 세 필드 모두 `mergeExternalFiles` 규칙(같은 경로면 이번 값 · 디스크에서 사라진 것도 남긴다 — ADR-099 R2)이다.
  */
 export function composeWriterLog(args: {
   projectDir: string;
@@ -492,19 +509,11 @@ export function composeWriterLog(args: {
   /** #600 — 도중에 멈춘 install 의 기록이다. */
   interrupted?: boolean;
 }): InstallLog {
-  const { projectDir, base, previous, ledger } = args;
+  const { base, previous, ledger } = args;
   const inherited = inheritScanned(previous);
-  const policyFiles = mergeExternalFiles(
-    join(projectDir, ".claude"),
-    inherited.policyFiles,
-    ledger.policyFiles,
-  );
-  const skillFiles = mergeExternalFiles(
-    join(projectDir, ".claude/skills"),
-    inherited.skillFiles,
-    ledger.skillFiles,
-  );
-  const externalFiles = mergeExternalFiles(projectDir, previous?.externalFiles, [
+  const policyFiles = mergeExternalFiles(inherited.policyFiles, ledger.policyFiles);
+  const skillFiles = mergeExternalFiles(inherited.skillFiles, ledger.skillFiles);
+  const externalFiles = mergeExternalFiles(previous?.externalFiles, [
     ...args.cliFiles,
     ...ledger.externalFiles,
   ]);
@@ -682,6 +691,74 @@ export function legacyMcpSeed(
   for (const key of present.keys()) seed.set(key, jsonSha(render.get(key)));
   seed.set("mcpServers{}", "legacy");
   return seed;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * 루트 · `.claude/` 의 함께 쓰는 파일 셋 — install 과 update 가 **같은 함수**로 쓴다(ADR-099 R2)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export const SETTINGS_TARGET = ".claude/settings.json";
+
+/**
+ * `.claude/settings.json` — 함께 쓰는 파일(`json-keys`). 템플릿을 **이번 선택으로** 렌더한 하네스 몫(훅 · statusLine)만
+ * 더하고, 설치자의 키·훅·statusLine·model 은 그대로 둔다(#563). 못 읽으면 한 바이트도 쓰지 않는다(#574).
+ * `projectDir` 는 필수다 — 옛 판이 절대경로로 박은 하네스 훅을 알아봐야 같은 훅이 두 번 돌지 않는다(PR-1 인계 ①).
+ */
+export function writeSettingsShared(
+  writer: InstallWriter,
+  templateText: string,
+  projectDir: string,
+  previousLog: InstallLog | null,
+  hookInstalled: (script: string) => boolean,
+  opts: Pick<SharedOptions, "onlyIfRecorded"> = {},
+): SharedWrite {
+  const render = renderSettingsPortion(templateText, hookInstalled);
+  const claudeWasInstalled = previousLog !== null && installedClis(previousLog).includes("claude");
+  return writer.shared(SETTINGS_TARGET, render, {
+    ...opts,
+    // 옛 판은 이 파일을 템플릿으로 통째 덮었다 — claude 를 깐 기록이 있을 때만 그 훅을 하네스 몫으로 찾는다
+    legacySeed: (text) =>
+      claudeWasInstalled ? legacySettingsSeed(text, render, projectDir) : new Map(),
+    createdNote: "Claude Code 설정 — 하네스 몫만(훅 · statusLine)",
+  });
+}
+
+/**
+ * `.mcp.json` — 함께 쓰는 파일(`json-keys`). 하네스 서버(템플릿 + 트랙 표 — Codex · OpenCode 와 같은 원천,
+ * #568)만 더한다. 설치자 서버와 같은 이름이면 설치자 것이 이긴다. 기록에 있는데 사라진 하네스 서버는 되돌린다
+ * (ADR-099 R1·R2 — 빼기는 `--without mcp:<name>` 으로만).
+ */
+export function writeMcpShared(
+  writer: InstallWriter,
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+  previousLog: InstallLog | null,
+  opts: Pick<SharedOptions, "onlyIfRecorded"> = {},
+): SharedWrite {
+  const servers = renderHarnessMcp(harnessRoot, tracks).mcpServers;
+  const render = new Map<string, unknown>(
+    Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, cfg]),
+  );
+  return writer.shared(".mcp.json", render, {
+    ...opts,
+    legacySeed: (text) => legacyMcpSeed(text, render, previousLog),
+    createdNote: "MCP 서버 정의 생성",
+  });
+}
+
+/**
+ * `.gitignore` — 함께 쓰는 파일(`lines`). **있을 때만** 하네스 줄을 더한다(설계 §2 행 15 — 없는 파일은 만들지 않는다).
+ * 설치자가 이미 둔 같은 줄은 설치자 것이다.
+ */
+export function writeGitignoreShared(
+  writer: InstallWriter,
+  previousLog: InstallLog | null,
+): SharedWrite {
+  const render = gitignoreRender();
+  return writer.shared(".gitignore", render, {
+    onlyIfPresent: true,
+    legacySeed: (text) => legacyGitignoreSeed(text, render, previousLog),
+  });
 }
 
 /** 옛 판 `.gitignore` 기록의 설명 머리 — `collectRootFiles` 가 적는 모양 그대로다. */

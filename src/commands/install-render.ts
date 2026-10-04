@@ -877,6 +877,15 @@ function renderPhase1Rows(
     for (const r of baseline.updateMode.restoredKeys ?? []) {
       log(assetRow("success", r.path, restoredKeysPart(r.ids)));
     }
+    // ADR-099 R2 — 기록에 있는데 파일째 사라진 CLI 산출물을 되살렸다. 빼는 길은 그 CLI 를 빼는 것 하나다
+    for (const f of baseline.updateMode.restoredFiles ?? []) {
+      log(assetRow("success", f.path, restoredFilePart(f)));
+    }
+    // ADR-099 R2 — update 도 install 과 같은 writer 로 루트 · `.claude/` 의 함께 쓰는 파일 몫을 쓴다 — 같은 행으로 말한다
+    for (const f of baseline.updateMode.sharedWrites ?? []) {
+      const row = sharedFileRow(f);
+      if (row !== null) log(row);
+    }
     // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
     for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
       log(row);
@@ -887,17 +896,6 @@ function renderPhase1Rows(
     if (legacy !== null) log(legacy);
     for (const row of legacyReleasedCatalogRows(baseline.updateMode.legacyReleasedCatalog ?? []))
       log(row);
-    // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
-    // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
-    if (baseline.updateMode.needsReinstall.length > 0) {
-      log(
-        assetRow(
-          "skip",
-          "needs reinstall",
-          `${baseline.updateMode.needsReinstall.join(", ")} · new in this release but update cannot wire them — run \`agent-harness install\` to get them`,
-        ),
-      );
-    }
     for (const [dir, removed] of Object.entries(baseline.updateMode.pruned)) {
       if (removed.length > 0) {
         log(assetRow("skip", `${dir} orphan prune`, `${removed.length} removed`));
@@ -1501,6 +1499,26 @@ export const KEPT_OUT_SCOPE =
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
   const drop = ids.map((id) => `--without ${id}`).join(" ");
   return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
+}
+
+/**
+ * ADR-099 R2 · §4 — 기록에 있는데 파일째 사라져 되살린 CLI 산출물. 손으로 지운 것은 빼기가 아니라서 되살리고, 빼는 길(그
+ * CLI 를 뺀다)을 같은 줄 끝에 흐리게 붙인다. 쓰는 CLI 를 모르면(옛 기록) 꼬리를 달지 않는다. 설치자 파일에 블록만 담아
+ * 되살렸으면(`ids` — 블록 모델 `AGENTS.md`) 빼는 길은 그 키 id 의 `--without` 이다(`restoredKeysPart` 와 같은 꼬리).
+ */
+export function restoredFilePart(f: {
+  clis: ReadonlyArray<string>;
+  how?: string;
+  ids?: ReadonlyArray<string>;
+}): string {
+  const how = f.how === undefined ? "" : ` — ${f.how}`;
+  const drop =
+    f.ids !== undefined && f.ids.length > 0
+      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${id}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
+      : f.clis.length === 0
+        ? ""
+        : ` ${c.dim(`(drop this CLI for good: ${f.clis.map((cli) => `agent-harness uninstall --cli ${cli}`).join(" and ")})`)}`;
+  return `was missing — restored${how}${drop}`;
 }
 
 /**

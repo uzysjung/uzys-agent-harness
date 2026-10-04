@@ -11,10 +11,10 @@ import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
-import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
+import { runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
-import { gitignoreRender, writeEnvExample } from "./env-files.js";
+import { writeEnvExample } from "./env-files.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
@@ -52,13 +52,13 @@ import {
   GITIGNORE_NOTE_PREFIX,
   type InstallWriter,
   type JudgedWrite,
-  legacyGitignoreSeed,
-  legacyMcpSeed,
-  legacySettingsSeed,
-  renderSettingsPortion,
+  SETTINGS_TARGET,
   type SharedWrite,
   thisRunExclusions,
   type WriteLedger,
+  writeGitignoreShared,
+  writeMcpShared,
+  writeSettingsShared,
 } from "./install-writes.js";
 import { withoutAccepts } from "./key-ids.js";
 import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
@@ -596,6 +596,7 @@ function runInstallStages(
     sharedFiles: cliSharedFiles,
     portions: cliPortions,
     portionPaths: cliPortionPaths,
+    restoredFiles: _restoredFiles,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -630,10 +631,7 @@ function runInstallStages(
     projectDir,
     ids: base.linkedSkills,
     baseline: new Map(
-      mergeExternalFiles(projectDir, previousLog?.externalFiles, externalFiles).map((f) => [
-        f.path,
-        f.sha256,
-      ]),
+      mergeExternalFiles(previousLog?.externalFiles, externalFiles).map((f) => [f.path, f.sha256]),
     ),
     journal,
   });
@@ -713,7 +711,14 @@ function runInstallStages(
     ledger,
     previousLog,
     excluded,
-    collectRootFiles(envFiles, ciScaffold, ledger.shared),
+    [
+      ...collectRootFiles(envFiles, ciScaffold, ledger.shared),
+      // ADR-099 R2 — 파일째 사라진 첫 접촉 블록 모델 `AGENTS.md` 를 블록만 담아 다시 만들었다(기준선 밖) — uninstall 이
+      // 블록을 걷고 남는 것이 없으면 파일째 지운다
+      ...cliSharedFiles
+        .filter((f) => f.createdAsRoot === true)
+        .map((f) => ({ path: f.path, change: "created" as const, notes: ["하네스 몫만(블록)"] })),
+    ],
     cliTransforms.codexOptIn,
   );
 
@@ -1005,7 +1010,6 @@ function installCliNeutralAssets(
 
 /** 훅 스크립트 자리 — settings.json 의 하네스 몫은 이번에 여기 깔린 스크립트만 부른다(설계 N13). */
 const HOOKS_PREFIX = ".claude/hooks/";
-const SETTINGS_TARGET = ".claude/settings.json";
 const INSTALLED_TRACKS = ".claude/.installed-tracks";
 
 /**
@@ -1164,9 +1168,8 @@ function installClaudeBaseline(
 }
 
 /**
- * `.claude/settings.json` — 함께 쓰는 파일(`json-keys`). 템플릿을 **이번 선택으로** 렌더한 하네스 몫(훅 · statusLine)만
- * 더하고, 설치자의 키·훅·statusLine·model 은 그대로 둔다(#563). 못 읽으면 한 바이트도 쓰지 않는다(#574).
- * `projectDir` 는 필수다 — 옛 판이 절대경로로 박은 하네스 훅을 알아봐야 같은 훅이 두 번 돌지 않는다(PR-1 인계 ①).
+ * `.claude/settings.json` · `.mcp.json` · `.gitignore` 의 몫 쓰기는 `install-writes.ts` 가 소유한다 — update 도 같은 함수를
+ * 부른다(ADR-099 R2). 여기서는 install 의 값만 넘긴다.
  */
 function writeSettingsPortion(
   writer: InstallWriter,
@@ -1175,37 +1178,23 @@ function writeSettingsPortion(
   previousLog: InstallLog | null,
   hookInstalled: (script: string) => boolean,
 ): SharedWrite {
-  const render = renderSettingsPortion(readFileSync(source, "utf8"), hookInstalled);
-  const claudeWasInstalled = previousLog !== null && installedClis(previousLog).includes("claude");
-  return writer.shared(SETTINGS_TARGET, render, {
-    // 옛 판은 이 파일을 템플릿으로 통째 덮었다 — claude 를 깐 기록이 있을 때만 그 훅을 하네스 몫으로 찾는다
-    legacySeed: (text) =>
-      claudeWasInstalled ? legacySettingsSeed(text, render, projectDir) : new Map(),
-    createdNote: "Claude Code 설정 — 하네스 몫만(훅 · statusLine)",
-  });
+  return writeSettingsShared(
+    writer,
+    readFileSync(source, "utf8"),
+    projectDir,
+    previousLog,
+    hookInstalled,
+  );
 }
 
-/**
- * `.mcp.json` — 함께 쓰는 파일(`json-keys`). 하네스 서버(템플릿 + 트랙 표 — Codex · OpenCode 와 같은 원천,
- * #568)만 더한다. 설치자 서버와 같은 이름이면 설치자 것이 이기고, 설치자가 지운 하네스 서버는 되살리지 않는다.
- *
- * @returns 쓴 뒤 파일에 있는 하네스 서버 이름(정렬) — 설치 화면 · 보고.
- */
+/** `.mcp.json` — 쓴 뒤 파일에 있는 하네스 서버 이름(정렬) — 설치 화면 · 보고. */
 function writeMcpPortion(
   writer: InstallWriter,
   harnessRoot: string,
   tracks: ReadonlyArray<Track>,
   previousLog: InstallLog | null,
 ): string[] {
-  const servers = renderHarnessMcp(harnessRoot, tracks).mcpServers;
-  const render = new Map<string, unknown>(
-    Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, cfg]),
-  );
-  const res = writer.shared(".mcp.json", render, {
-    legacySeed: (text) => legacyMcpSeed(text, render, previousLog),
-    createdNote: "MCP 서버 정의 생성",
-  });
-  return [...res.harness].sort();
+  return [...writeMcpShared(writer, harnessRoot, tracks, previousLog).harness].sort();
 }
 
 function installedTracksText(tracks: ReadonlyArray<string>): string {
@@ -1214,19 +1203,14 @@ function installedTracksText(tracks: ReadonlyArray<string>): string {
 
 /**
  * Environment files (F7/F8). `.env.example` 은 스캐폴드라 없을 때만 한 번 쓴다(ADR-037 · 결정 7). `.gitignore` 는
- * 함께 쓰는 파일(`lines`) — **있을 때만** 하네스 줄을 더한다(설계 §2 행 15 "지금도 줄 추가" — 없는 파일은 만들지
- * 않는다). 설치자가 이미 둔 같은 줄은 설치자 것이고, 설치자가 지운 하네스 줄은 되살리지 않는다.
+ * 함께 쓰는 파일(`lines`) — **있을 때만** 하네스 줄을 더한다(`writeGitignoreShared`).
  */
 function writeEnvironmentFiles(
   writer: InstallWriter,
   envExampleCreated: boolean,
   previousLog: InstallLog | null,
 ): BaselineReport["envFiles"] {
-  const render = gitignoreRender();
-  const res = writer.shared(".gitignore", render, {
-    onlyIfPresent: true,
-    legacySeed: (text) => legacyGitignoreSeed(text, render, previousLog),
-  });
+  const res = writeGitignoreShared(writer, previousLog);
   return {
     envExampleCreated,
     gitignoreEnvAdded: res.added.includes(".env"),

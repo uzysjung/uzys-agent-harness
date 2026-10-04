@@ -22,7 +22,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from "node:path";
 import type { PortionAdapter, PortionShas } from "./adapters/contract.js";
 import { ADAPTERS, adapterFor, excludedKeys, keyId } from "./adapters/index.js";
-import { jsonSha } from "./adapters/json-keys.js";
+import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import {
   AGENTS_BLOCK,
   AGENTS_BLOCK_NAME,
@@ -86,6 +86,11 @@ export interface SharedWriteResult {
   keptOut: string[];
   /** 새 판으로 갈아 끼운 키가 있었나 — 걷기만 한 실행을 "썼다" 고 하지 않으려고 화면이 본다. */
   replaced: boolean;
+  /**
+   * ADR-099 R2 — 없던 파일을 만들었는데 `externalFiles` 기준선에 싣지 않았다(첫 접촉 블록 모델 `AGENTS.md` — 파일째 하네스
+   * 것이 아니다). 호출부가 `rootFiles.change = created` 로 적는다 — uninstall 이 블록을 걷고 빈 파일이면 파일째 지운다.
+   */
+  createdAsRoot?: true;
 }
 
 export interface WriteSharedParams<V> {
@@ -103,6 +108,11 @@ export interface WriteSharedParams<V> {
   refreshOnly: boolean;
   /** 파일을 새로 만들 때만 하네스 몫 앞에 둘 본문(컨텍스트 파일의 스캐폴드 등) — 몫이 아니다. */
   seed?: string;
+  /**
+   * 없던 파일을 만들 때 `writer`(=`externalFiles` 기준선)로 쓸지. 기본 true — 하네스가 만든 파일이다. 첫 접촉 블록 모델
+   * `AGENTS.md` 는 false: 블록만 하네스 몫이라 기준선 대신 `rootFiles.change = created` 로 적는다(`createdAsRoot`).
+   */
+  ownCreated?: boolean;
 }
 
 function toPortions(path: string, portions: ReadonlyMap<string, string>): InstallLogPortion[] {
@@ -160,9 +170,10 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     case "leave+advise":
       return result("left", { line: verdict.line });
     case "create":
-      // update 는 없는 파일을 만들지 않는다(ADR-049). 몫 기록은 그대로 둔다(`portions: null`) — 다음 install 이 완전한
-      // 파일을 만든다. 파일째 사라진 것을 update 가 되살리는 것은 ADR-099 R2(후속 PR).
-      if (refreshOnly) return result("skipped");
+      // update 는 고르지 않은 CLI 의 파일을 만들지 않는다(ADR-049). 예외 = 기록이 그 파일을 하네스 몫으로 말한다(ADR-099 R2 ·
+      // #598 · #633): `externalFiles` 기준선에 경로가 있거나 `portions` 에 그 파일의 키가 있다 — 손으로 지운 것은 빼기가
+      // 아니라 상태다. 기록이 없으면 몫 기록은 그대로 둔다(`portions: null`).
+      if (refreshOnly && !baseline.has(path) && recorded.size === 0) return result("skipped");
       break;
     case "upsert-portion":
       break;
@@ -192,22 +203,43 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
       line: `could not merge it (${upserted.reason}) — harness part not added`,
     });
   }
+  // update 가 기록만 보고 되살리는데 쓸 하네스 몫이 하나도 없으면(전부 `--without`) 파일을 만들지 않는다 — seed 만 든 파일은
+  // 하네스 몫이 아니다
+  if (
+    onDisk === null &&
+    refreshOnly &&
+    ![...upserted.portions.keys()].some((k) => !isContainerKey(k))
+  ) {
+    return result("skipped");
+  }
   const portions = toPortions(path, upserted.portions);
   const ids = (keys: Iterable<string>): string[] =>
     [...keys].flatMap((k) => {
       const id = keyId(path, k);
       return id === null ? [] : [id];
     });
-  const restoredKeys = new Set(upserted.restored);
+  // 되돌린 키 — 어댑터가 되돌린 것 + 파일째 없어 새로 만들 때 다시 들어간 기록된 키(install-writes `sharedWrite` 와 같은 규칙)
+  const restoredKeys = new Set([
+    ...upserted.restored,
+    ...(onDisk === null
+      ? [...upserted.portions.keys()].filter((k) => recorded.has(k) && !isContainerKey(k))
+      : []),
+  ]);
   // 새로 더한 키 = 쓴 뒤 몫에 있는데 쓰기 전 파일에 없던 것(되돌린 것은 위 `restored`). 파일을 새로 만들었으면 전부다
   const added = ids(
     [...upserted.portions.keys()].filter(
       (k) => !restoredKeys.has(k) && (onDisk === null || !recorded.has(k)),
     ),
   );
-  if (harnessMade) {
-    // 하네스가 만든 파일 — writer 가 쓰고 기준선을 잇는다(같으면 쓰지 않고 기준선만)
-    writer.write(abs, upserted.text);
+  const ownCreated = params.ownCreated !== false;
+  if (onDisk === null && !ownCreated) {
+    // 첫 접촉 블록 모델 — 블록만 하네스 몫이다. 기준선에 싣지 않고 호출부가 `rootFiles.change = created` 로 적는다
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, upserted.text);
+  } else if (harnessMade) {
+    // 하네스가 만든 파일 — writer 가 쓰고 기준선을 잇는다(같으면 쓰지 않고 기준선만). 없던 파일은 위 `create` 판정이 이미
+    // 만들기로 정했다(update 의 되살림 포함) — writer 의 refresh 가드가 그 판정을 다시 뒤집지 않게 한다
+    writer.write(abs, upserted.text, { createInRefresh: true });
   } else if (upserted.changed) {
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, upserted.text);
@@ -241,9 +273,10 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     // 하네스가 만든 파일을 새로 쓴 경우 어댑터 계획이 빈 파일 기준이라 "바꿨다" 로 둔다(걷기만 했다고 단정하지 않는다)
     replaced: upserted.replaced.length > 0 || (harnessMade && onDisk !== null),
     portions,
-    restored: ids(upserted.restored),
+    restored: ids(restoredKeys),
     added,
     missing: upserted.missing,
+    ...(onDisk === null && !ownCreated ? { createdAsRoot: true as const } : {}),
   });
 }
 
@@ -266,14 +299,19 @@ function hasMarkerLine(disk: string, markers: ReadonlyArray<string>): boolean {
 
 /**
  * 어느 모델인가 — 판정 순서가 곧 규칙이다.
- * ① 파일이 없다 → 하네스가 만든다(`sections`)
+ * ① 파일이 없다 → 하네스가 만든다(`sections`). 단 기록이 블록 모델이었다(`portions` 에 `agents-md:*` 키가 있고 파일째
+ *    기록은 없다)면 `block` — 손으로 지운 설치자 파일을 하네스 파일로 바꿔 되살리지 않는다(ADR-099 R2 · #598)
  * ② 첫 접촉 블록이 있다 → `block`(한 번 블록으로 들어간 파일은 계속 블록 — 기록 여부와 무관하게)
  * ③ 하네스 기록(`externalFiles`)에 있다 → `sections`(옛 판이 만든 파일을 블록으로 읽으면 룰이 두 벌 들어간다, N-c)
  * ④ 절 모델의 조각 마커가 있다 → `sections`(기록을 잃은 하네스 파일 — 같은 이유)
  * ⑤ 그 밖 → `block`(#558)
  */
-export function agentsMdModel(disk: string | null, recordedByHarness: boolean): AgentsMdModel {
-  if (disk === null) return "sections";
+export function agentsMdModel(
+  disk: string | null,
+  recordedByHarness: boolean,
+  recordedBlock = false,
+): AgentsMdModel {
+  if (disk === null) return recordedBlock && !recordedByHarness ? "block" : "sections";
   if (hasMarkerLine(disk, [AGENTS_BLOCK.start, AGENTS_BLOCK.end])) return "block";
   if (recordedByHarness) return "sections";
   if (hasMarkerLine(disk, [ANCHOR_BLOCK.start, SKILLS_BLOCK.start])) return "sections";
@@ -303,7 +341,8 @@ export interface AgentsMdWriteResult {
 export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult {
   const abs = join(params.projectDir, AGENTS_MD);
   const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
-  if (agentsMdModel(disk, params.baseline.has(AGENTS_MD)) === "sections") {
+  const recordedBlock = (params.record.portions ?? []).some((p) => p.path === AGENTS_MD);
+  if (agentsMdModel(disk, params.baseline.has(AGENTS_MD), recordedBlock) === "sections") {
     params.writer.write(
       abs,
       mergeAgentsMd({ rendered: params.rendered, existing: disk, template: params.template }),
@@ -329,6 +368,8 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
     baseline: new Map(),
     writer: params.writer,
     refreshOnly: params.refreshOnly,
+    // 파일째 사라진 블록 모델 파일을 되살릴 때도 같다 — 블록만 담아 만들고 `rootFiles.change = created` 로 적는다
+    ownCreated: false,
   });
   return { model: "block", shared };
 }
