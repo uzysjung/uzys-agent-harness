@@ -1,4 +1,4 @@
 import { buildCli } from "./cli.js";
+import { runCli } from "./entrypoint.js";
 
-const cli = buildCli();
-cli.parse(process.argv);
+await runCli(buildCli(), process.argv);

@@ -1,4 +1,13 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+
+/** #657 — 백업 패턴 4종(테스트 기대치가 소스 목록과 함께 살아야 함). */
+const BACKUP_PATTERNS = [
+  ".claude.backup-*/",
+  ".codex.backup-*/",
+  ".opencode.backup-*/",
+  "*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*",
+] as const;
+
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -68,7 +77,13 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
   it("없는 줄만 붙이고 기존 줄은 그대로 둔다", () => {
     const { text, added } = apply("node_modules\ndist\n");
     expect(text.startsWith("node_modules\ndist\n")).toBe(true);
-    expect(added).toEqual([".env", ".factory/", ".goose/", ".uzys-agent-harness/"]);
+    expect(added).toEqual([
+      ".env",
+      ".factory/",
+      ".goose/",
+      ".uzys-agent-harness/",
+      ...BACKUP_PATTERNS,
+    ]);
     expect(text).toContain("# Secret env (auto-added by agent-harness install)\n.env\n");
     expect(text).toContain("auto-added by agent-harness");
   });
@@ -95,7 +110,12 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
   });
 
   it("partial — .factory/ 가 이미 있으면 나머지만 붙는다", () => {
-    expect(apply(".factory/\n").added).toEqual([".env", ".goose/", ".uzys-agent-harness/"]);
+    expect(apply(".factory/\n").added).toEqual([
+      ".env",
+      ".goose/",
+      ".uzys-agent-harness/",
+      ...BACKUP_PATTERNS,
+    ]);
   });
 
   /**
@@ -104,6 +124,9 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
    * 비용을 떠넘기는 형태라 패턴 누락을 여기서 단독으로 문다.
    */
   it("차단 로그 디렉터리가 반드시 포함된다 (계측이 사용자 리포를 더럽히지 않는다)", () => {
-    expect(apply(".env\n.factory/\n.goose/\n").added).toEqual([".uzys-agent-harness/"]);
+    expect(apply(".env\n.factory/\n.goose/\n").added).toEqual([
+      ".uzys-agent-harness/",
+      ...BACKUP_PATTERNS,
+    ]);
   });
 });
