@@ -26,6 +26,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { cleanStaleHookRefs } from "../src/hook-ref.js";
@@ -280,6 +281,65 @@ describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install �
     expect(mcpServers().length).toBeGreaterThan(0); // 대조 — 다른 하네스 서버는 돌아왔다
   });
 
+  it("하네스 몫을 전부 뺀 설치본 — 지운 `.mcp.json` · settings.json 을 `{}` 로 만들지 않고 썼다고도 말하지 않는다", () => {
+    install();
+    // 이 설치가 쓴 하네스 키 전부(값 키) — 키 id 로
+    const ids = (rawLog().portions ?? [])
+      .filter((p) => p.path === ".mcp.json" || p.path === ".claude/settings.json")
+      .filter((p) => !p.key.endsWith("{}") && !p.key.endsWith("[]"))
+      .map((p) =>
+        p.path === ".mcp.json" ? `mcp:${p.key.slice("mcpServers.".length)}` : `settings:${p.key}`,
+      );
+    expect(ids.some((id) => id.startsWith("mcp:"))).toBe(true); // 전제
+    expect(ids.some((id) => id.startsWith("settings:"))).toBe(true);
+    install(["claude"], { keyExclude: ids });
+    rmSync(join(projectDir, ".mcp.json"));
+    rmSync(join(projectDir, ".claude/settings.json"));
+
+    const { screen } = update();
+
+    expect(existsSync(join(projectDir, ".mcp.json"))).toBe(false);
+    expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
+    expect(screen).not.toMatch(/\.mcp\.json\s+wrote/);
+    expect(screen).not.toMatch(/\.claude\/settings\.json\s+wrote/);
+  });
+
+  it("install 도 같은 writer 다 — 서버를 전부 뺀 첫 설치는 `.mcp.json` 을 `{}` 로 만들지 않는다", () => {
+    const all = Object.keys(renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers).map(
+      (n) => `mcp:${n}`,
+    );
+    expect(all.length).toBeGreaterThan(0); // 전제
+
+    install(["claude"], { keyExclude: all });
+
+    expect(existsSync(join(projectDir, ".mcp.json"))).toBe(false);
+    expect((rawLog().rootFiles ?? []).map((f) => f.path)).not.toContain(".mcp.json");
+    // 대조 — 하나라도 남기면 만든다
+    rmSync(installLogPath(projectDir));
+    install(["claude"], { keyExclude: all.slice(1) });
+    expect(mcpServers()).toEqual([all[0]?.slice("mcp:".length)]);
+  });
+
+  it("기록에 `.mcp.json` 이 없는 설치본은 update 가 그 파일을 새로 만들지 않는다 (onlyIfRecorded)", () => {
+    install();
+    rmSync(join(projectDir, ".mcp.json"));
+    const log = rawLog();
+    writeFileSync(
+      installLogPath(projectDir),
+      JSON.stringify({
+        ...log,
+        portions: (log.portions ?? []).filter((p) => p.path !== ".mcp.json"),
+        rootFiles: (log.rootFiles ?? []).filter((f) => f.path !== ".mcp.json"),
+      }),
+    );
+
+    update();
+
+    expect(existsSync(join(projectDir, ".mcp.json"))).toBe(false);
+    // 대조 — 같은 writer 가 settings.json 은 기록대로 다룬다(update 가 이 단계를 돌았다)
+    expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(true);
+  });
+
   it("`.gitignore` 에서 지운 하네스 줄을 되돌린다 · 파일이 없으면 만들지 않는다", () => {
     put(".gitignore", "node_modules/\n");
     install();
@@ -379,6 +439,10 @@ describe("#598 — Codex 산출물을 지운 뒤 update 1회가 되돌린다", (
       expect.objectContaining({ path: "AGENTS.md", change: "created" }),
     );
     expect(screen).toMatch(/AGENTS\.md\s+was missing — restored — wrote the harness block only/);
+    // 블록 하나를 빼는 길은 그 키 id 다 — CLI 를 통째로 빼라고 하지 않는다(USAGE AGENTS.md 행 · 설계 §4)
+    const row = screen.split("\n").find((l) => l.includes("wrote the harness block only")) ?? "";
+    expect(row).toContain("(drop it: install … --without agents-md:agents — kept out by update;");
+    expect(row).not.toContain("uninstall --cli");
 
     const lines: string[] = [];
     uninstallAction(
@@ -430,9 +494,14 @@ describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가
       }),
     );
 
-    update();
+    const { screen } = update();
 
     expect(read(ANCHOR)).toBe(before.anchor);
     expect(read(RULE)).toBe(before.rule);
+    // 기록이 아니라 기록된 CLI 를 근거로 되살렸어도 화면이 말한다(리뷰 PR B NOTE-4)
+    expect(screen).toMatch(
+      /\.agents\/rules\/uzys-harness\.md\s+was missing — restored \(drop this CLI for good: agent-harness uninstall --cli antigravity\)/,
+    );
+    expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+was missing — reinstalled/);
   });
 });

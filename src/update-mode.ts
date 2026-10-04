@@ -314,12 +314,14 @@ export interface UpdateModeReport {
   sharedWrites?: ReadonlyArray<SharedWrite>;
   /**
    * ADR-099 R2 — 기록(`externalFiles` · `portions`)에 있는데 디스크에 없어 되살린 외부 CLI 산출물. `clis` = 그 파일을 쓰는
-   * 깔린 CLI(빼는 길 — `uninstall --cli <name>`), `how` = 파일째 새로 만든 함께 쓰는 파일이 무엇으로 채워졌나.
+   * 깔린 CLI(빼는 길 — `uninstall --cli <name>`), `how` = 파일째 새로 만든 함께 쓰는 파일이 무엇으로 채워졌나. `ids` = 설치자
+   * 파일에 블록만 담아 되살린 경우(블록 모델 `AGENTS.md`) 그 블록의 키 id — 빼는 길이 CLI 가 아니라 `--without <id>` 다.
    */
   restoredFiles?: ReadonlyArray<{
     path: string;
     clis: ReadonlyArray<CliBase>;
     how?: string;
+    ids?: ReadonlyArray<string>;
   }>;
   /**
    * ADR-089 (#445) — `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id.
@@ -1474,7 +1476,7 @@ function refreshExternalCli(
   /** ADR-099 R1 — 함께 쓰는 파일에서 사라져 되돌린 하네스 키(키 id), 파일별. */
   restoredKeys: Array<{ path: string; ids: string[] }>;
   /** ADR-099 R2 — 기록에 있는데 사라져 되살린 CLI 산출물(파일째). 스킬 · 뺄 수 있는 룰은 위 두 목록이 말한다. */
-  restoredFiles: Array<{ path: string; clis: CliBase[]; how?: string }>;
+  restoredFiles: Array<{ path: string; clis: CliBase[]; how?: string; ids?: string[] }>;
   /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번에 되살린 것. */
   legacyRestored: string[];
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
@@ -1576,6 +1578,7 @@ function refreshExternalCli(
     listBaselineTargets({ tracks: installedTracks(projectDir) }).map((t) => t.id),
   );
   const restoredCliPaths: string[] = [];
+  const antigravityRecorded = log !== null && installedClis(log).includes("antigravity");
   for (const f of result.externalFiles) {
     const id = SHARED_SKILL_MD.exec(f.path)?.[1];
     if (id === undefined || presentBefore.has(id)) continue;
@@ -1590,7 +1593,9 @@ function refreshExternalCli(
     // rulesBefore 는 파일명(.md 포함)을 담는다 — 캡처도 .md 포함으로 맞춘다(불일치 시 전부
     // restored 로 오판해 "지운 것이 없는데 되살림 행"이 났던 것이 이 테스트가 잡은 결함).
     if (m === null || rulesBefore.has(m[1] ?? "")) continue;
-    if (!priorPaths.has(f.path)) continue;
+    // ADR-099 R2 (#584) — 기록에서 경로가 빠졌어도(옛 판 update 가 걷었다) 기록이 antigravity 를 깔린 CLI 로 말하면 그 근거로
+    // 되살렸다 — 같은 줄로 말한다(리뷰 PR B NOTE-4)
+    if (!priorPaths.has(f.path) && !antigravityRecorded) continue;
     const into = ruleIds.has(`baseline:rules/${(m[1] ?? "").replace(/\.md$/, "")}`)
       ? rulesRestored
       : restoredCliPaths;
@@ -1610,6 +1615,8 @@ function refreshExternalCli(
       path: f.path,
       clis: cliArtifactOwners(f.path, installed),
       how: CREATED_SHARED_HOW[f.path] ?? "wrote (harness part only)",
+      // 블록 모델(설치자 파일에 하네스 블록만) — 빼는 길은 CLI 가 아니라 그 블록의 키 id 다(USAGE · 설계 §4, 리뷰 PR B NOTE-3)
+      ...(f.createdAsRoot === true ? { ids: [...f.restored, ...f.added] } : {}),
     })),
   ];
 

@@ -302,6 +302,11 @@ export function createInstallWriter(args: {
     });
     // judge 가 이미 읽었다 — 여기서 못 읽는 것은 같은 입력에 대한 두 판정이 갈린 것이다
     if (!res.ok) return result("leave+advise", j.line);
+    // 없는 파일에 쓸 하네스 몫이 하나도 없으면(전부 `--without` · 렌더가 빔) 만들지 않는다 — `{}` 는 하네스 몫이 아니다.
+    // 기록도 건드리지 않는다(`shared-write.ts` 의 refresh 가드와 같은 규칙)
+    if (disk === null && ![...res.portions.keys()].some((k) => !isContainerKey(k))) {
+      return result("leave", "");
+    }
     if (res.changed) {
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, res.text);

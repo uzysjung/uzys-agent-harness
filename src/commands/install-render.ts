@@ -1467,14 +1467,21 @@ export function restoredKeysPart(ids: ReadonlyArray<string>): string {
 
 /**
  * ADR-099 R2 · §4 — 기록에 있는데 파일째 사라져 되살린 CLI 산출물. 손으로 지운 것은 빼기가 아니라서 되살리고, 빼는 길(그
- * CLI 를 뺀다)을 같은 줄 끝에 흐리게 붙인다. 쓰는 CLI 를 모르면(옛 기록) 꼬리를 달지 않는다.
+ * CLI 를 뺀다)을 같은 줄 끝에 흐리게 붙인다. 쓰는 CLI 를 모르면(옛 기록) 꼬리를 달지 않는다. 설치자 파일에 블록만 담아
+ * 되살렸으면(`ids` — 블록 모델 `AGENTS.md`) 빼는 길은 그 키 id 의 `--without` 이다(`restoredKeysPart` 와 같은 꼬리).
  */
-export function restoredFilePart(f: { clis: ReadonlyArray<string>; how?: string }): string {
+export function restoredFilePart(f: {
+  clis: ReadonlyArray<string>;
+  how?: string;
+  ids?: ReadonlyArray<string>;
+}): string {
   const how = f.how === undefined ? "" : ` — ${f.how}`;
   const drop =
-    f.clis.length === 0
-      ? ""
-      : ` ${c.dim(`(drop this CLI for good: ${f.clis.map((cli) => `agent-harness uninstall --cli ${cli}`).join(" and ")})`)}`;
+    f.ids !== undefined && f.ids.length > 0
+      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${id}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
+      : f.clis.length === 0
+        ? ""
+        : ` ${c.dim(`(drop this CLI for good: ${f.clis.map((cli) => `agent-harness uninstall --cli ${cli}`).join(" and ")})`)}`;
   return `was missing — restored${how}${drop}`;
 }
 
