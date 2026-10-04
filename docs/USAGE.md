@@ -198,7 +198,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 
 | You already have… | What happens |
 |---|---|
-| `.claude/settings.json` with your own hooks or statusLine | Backed up to `settings.json.backup-<ts>`, then merged |
+| `.claude/settings.json` with your own hooks or statusLine | Merged in place — your keys and hooks win, the harness adds only its own part (#563). A settings file that cannot be read is left byte-for-byte untouched (#574) |
 | Root `CLAUDE.md` | Kept. One import block is appended; `update` and `uninstall` touch only that block |
 | An `AGENTS.md` you already wrote before installing | Kept byte for byte. The harness adds one `<!-- uzys-harness:agents -->` block at the end; `install` and `update` refresh only that block, and `uninstall` removes it. If you edit inside the block, it is left as it is and the summary says so; if you delete the block, it is not added back |
 | `opencode.json` | Your keys and servers stay. The harness adds only its MCP servers (`mcp.<name>`); a server of yours with the same name wins. `uninstall` removes the servers it added — ones you changed are left, and the summary says so. If the harness created the file, `uninstall` deletes it unless you changed it |

@@ -832,6 +832,19 @@ describe("runUpdateMode (E2E with templates)", () => {
       expect(existsSync(listFile())).toBe(false);
     });
 
+    it("실행 직전(1초 창 안)에 있던 백업은 이번 실행의 것으로 세지 않는다 (#646)", () => {
+      mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+      // 방금 만든 백업 = mtime 이 '지금' → mtime 슬랙(-1000ms)만으로는 걸러지지 않는다.
+      const justBefore = ".claude/rules/git-policy.md.backup-20260101T000000";
+      writeFileSync(join(projectDir, justBefore), "install 이 방금 남긴 백업\n");
+
+      const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+      expect(report.backups.map((b) => b.backup)).not.toContain(justBefore);
+      // 대조군 — 이번 실행이 만든 백업은 여전히 센다.
+      expect(report.backups.length).toBeGreaterThan(0);
+    });
+
     it("이전 실행의 백업은 세지 않는다 — 시작 시각 이전 mtime", () => {
       mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
       const stale = join(projectDir, ".claude/rules/git-policy.md.backup-20200101T000000");
