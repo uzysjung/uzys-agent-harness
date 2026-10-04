@@ -1,6 +1,12 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
-import { isKeyId, sharedPathOfKeyId } from "./adapters/index.js";
+import {
+  ADAPTERS,
+  adapterFor,
+  excludedKeys,
+  isKeyId,
+  sharedPathOfKeyId,
+} from "./adapters/index.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
@@ -441,9 +447,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   }
 
   // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
-  // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다. 설치자가 뺀 것은 누적한다(설계 §6.2 ⓒ).
-  // ADR-099 R3 — 누적한 빼기는 **선택에도** 걸린다: 이 아래 모든 선택(베이스라인 · 번들 스킬 · 외부 자산 · 기록)은
-  // 이번 플래그가 아니라 누적 결과를 담은 spec 을 읽는다. 전에 뺀 것은 `--with <id>` 로만 돌아온다.
+  // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다.
   // 설계 selection-record §3(사용자 요구 2026-10-04) — install 의 선택은 그 실행의 입력이고 기록의 최신 선택을 대체한다(R4 집합 안).
   const { spec, excluded } = thisRunExclusions(
     ctx.spec,
@@ -824,9 +828,15 @@ function pendingKeyExcludes(
   const done = new Set(touched);
   return keyExclude.flatMap((id) => {
     const path = sharedPathOfKeyId(id);
-    return path !== null && !done.has(path) && existsSync(join(projectDir, path))
-      ? [{ id, path }]
-      : [];
+    if (path === null || done.has(path) || !existsSync(join(projectDir, path))) return [];
+    // 리뷰 #693 B1 — 그 키 몫이 파일에 이미 없으면(전에 걷었다) "아직 적용 안 됨" 이 아니다. 못 읽으면 남은 것으로 본다.
+    const name = adapterFor(path);
+    const keys = [...excludedKeys(path, [id])];
+    const present =
+      name === null
+        ? null
+        : ADAPTERS[name].read(readFileSync(join(projectDir, path), "utf8"), keys, projectDir);
+    return present !== null && present.size === 0 ? [] : [{ id, path }];
   });
 }
 

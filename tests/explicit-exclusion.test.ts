@@ -318,6 +318,16 @@ describe("리뷰 #693 NOTE-2 · NOTE-3 — 키 빼기를 화면이 확인한다 
     expect(out).toContain("removed the harness part: codex:top (you asked: --without codex:top)");
   });
 
+  it("이미 걷힌 키를 다시 --without 으로 주면 '아직 적용 안 됨' 이라 말하지 않는다 (리뷰 #693 B1)", () => {
+    install({ cli: ["claude", "codex"], keyExclude: ["codex:top"] });
+    expect(readFileSync(abs(".codex/config.toml"), "utf8")).not.toContain("uzys-harness:top");
+
+    const { screen } = install({ cli: ["claude"], keyExclude: ["codex:top"] });
+
+    expect(screen).not.toContain("not applied yet");
+    expect(readInstallLog(projectDir)?.excluded).toContain("codex:top");
+  });
+
   it("상주 비용은 뺐지만 디스크에 남은 룰을 센다 — install 머리글 · update 요약이 같은 판정", () => {
     install();
     install({ baselineExclude: [RULE] });
@@ -783,8 +793,11 @@ describe("선택 기록 — 대체 범위 · opt-in · 효과분 · 옛 기록 �
       );
     });
 
-    it("창 상수는 10 분이다(근거는 install-log.ts 주석)", () => {
-      expect(LEGACY_REINSTALL_WINDOW_MS).toBe(600_000);
+    it("창 경계는 양끝 포함 — mtime = installedAt · installedAt − 창 은 푼다, 그 바깥 1 초는 뺀 채 (리뷰 #693 NOTE)", () => {
+      expect(judged(T).excluded).toEqual([]);
+      expect(judged(T - LEGACY_REINSTALL_WINDOW_MS).excluded).toEqual([]);
+      expect(judged(T + 1_000).excluded).toEqual([FD]);
+      expect(judged(T - LEGACY_REINSTALL_WINDOW_MS - 1_000).excluded).toEqual([FD]);
     });
   });
 
