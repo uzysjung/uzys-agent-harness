@@ -42,6 +42,36 @@ claude    # or codex / opencode / agy
 
 No terminal for the wizard (CI, containers, scripts)? Use flags: `install --track <name>` is the only required one — see [non-interactive install](docs/USAGE.md#non-interactive-install). Claude Code plugins need the `claude` command on your PATH; without it they are skipped with a warning.
 
+## Why uzys-agent-harness
+
+**North star: keep only the structure that helps you build better with an AI coding tool.** Give the agent a direction, a definition of done, and hard limits — not a script for work it can already decide how to do. Every always-loaded instruction costs context in every session, so each one has to earn its place. Four beliefs follow from that; under each is what makes it real here.
+
+**1. As models improve, the harness should improve with them — usually by asking for less.** Instructions written to patch an older model's weaknesses go stale. State the outcome that must hold, leave the method to the model, and re-check what is loaded when the model changes.
+*Here:* an instruction stays always-loaded only while there is an observation that the agent is slower or wrong without it; otherwise it becomes an on-demand skill or is retired. `audit-harness-fit` runs that check on your project — needless questions, repeated checks, conflicting decisions, procedures a better model no longer needs — and proposes the edit.
+
+**2. An agent needs a destination and guardrails, not a prompt for every step.** A prompt says what to do next; a north star says which way to go when the prompt is silent. With direction, acceptance criteria, and boundaries in place, the agent can work in a loop — try, check against the criteria, adjust — and bring back only the decisions that are yours.
+*Here:* three skills on every track — `north-star` (direction, will / won't, decision gates), `objective-brief` (invariants, success criteria, and boundaries for a delegated or multi-step task), `gh-issue-workflow` (the backlog in issues, so decisions outlive the chat). On Claude Code and Codex a session-start hook loads your spec and change log. The guardrails are few and mechanical: on Claude Code a hook blocks edits to `.env`, lock files, and certificates; a bundled script you run once applies a GitHub ruleset to your default branch; the anchor (the principles file your CLI reads every session) requires your approval for destructive or privileged actions, deployment, and shared-state writes. Inside those lines the agent decides; when it needs you, `user-centered-explanation` (dev tracks) brings context → problem → options → recommendation.
+
+**3. Always-loaded context is a budget, so the harness keeps cleaning itself.** A harness that only grows ends up slowing the agent it was meant to help. Don't let yesterday's useful workaround become tomorrow's permanent instruction.
+*Here:* step 4 of the wizard shows how much context your selection adds per session before you confirm. `update` refreshes what the harness installed, adds what a newer release introduced, removes rules and hooks a release retired, and names retired skills and agents still on disk rather than deleting them.
+
+**4. Different perspectives and different agents make better speed · cost · quality trade-offs.** The agent that built something should not be the one that judges it, and a large model is worth its cost only where a mistake is expensive.
+*Here:* rules and skills render for Claude Code, Codex, OpenCode, and Antigravity from one source, so switching tools keeps the vocabulary. `implementer` (dev tracks) builds and `reviewer` verifies — when a user-facing scene is complete, an agent that did not write the code runs it and decides. `multi-persona-review` (dev tracks) critiques one artifact from several user perspectives in parallel. Opt-in: `model-orchestration` (which model, how much reasoning, when to delegate — `--with model-orchestration`) and `external-model-consult` (a non-Claude second opinion or Korean phrasing; needs that provider's CLI — `--with external-model-consult`).
+
+### Compared with the alternatives
+
+| If you would otherwise… | What is different here |
+|---|---|
+| Write your own `CLAUDE.md` or `AGENTS.md` | Keep it — the harness adds one marked block and never touches the rest. Around it, the harness packages what a file alone does not enforce or maintain: hooks that actually block, a `reviewer` agent separate from the one that builds, and an install record so `update` and `uninstall` touch only what the harness put there |
+| Pick skills from a marketplace | If one skill is all you need, take just that one: every skill here installs on its own with `npx skills add`. The wizard is for the set a skill list does not carry — standing rules, hooks, agents, and the record that keeps them current across releases |
+| Use a harness with many rules | Fewer standing instructions, and step 4 shows their per-session cost before you confirm. The hard blocks are a hook on `.env`, lock files, and certificates (Claude Code) and the branch ruleset; everything else is the agent's call inside the anchor's approval boundary. For a fixed process, add `openspec` or `bmad-method` — both opt-in, compared in [WORKFLOWS.md](docs/WORKFLOWS.md) |
+
+### Evidence
+
+What is measured so far comes from this repository, which is the harness's own dogfood and its only measured sample. In the last audit, none of the 44 sentences in our rules was observed to change an agent's behaviour — gates, tests, and the independent reviewer caught the recorded incidents — so protection against irreversible damage lives in hooks and rulesets, not in sentences, and the same audit retired four skills and three agents that had no observation behind them ([ADR-090](docs/decisions/ADR-090-retire-unobserved-assets-and-demote-domain-agents.md)). Treat this as dogfood evidence, not a cross-project benchmark: it does not yet show faster development, lower model cost, or better results in other projects.
+
+The direction in full, and the maintainer's posts behind these beliefs (in Korean): [docs/NORTH_STAR.md §1](docs/NORTH_STAR.md#1-north-star-statement).
+
 ## What you get
 
 | Piece | What it is | When your agent reads it |
@@ -88,7 +118,7 @@ A **track** is a starting set for what you are building. It only pre-checks item
 | Remove everything, one CLI, or single assets | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>` · `--only <id>` · `--dry-run` to preview) |
 | Cloned a repo a teammate set up with the harness | Nothing — the install record is committed with the files. `list` shows it; `update` and `uninstall` work as on their machine ([teammates and fresh clones](docs/USAGE.md#teammates-and-fresh-clones)) |
 
-`update` refreshes what the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose — installing adds a CLI, and only `uninstall` takes one away. `update --only skills` limits it to one group.
+`update` refreshes what the harness installed, adds what a newer release introduced, and puts back harness parts that went missing — a hook script, a server in `.mcp.json`, a section of `AGENTS.md` — while what you dropped with `--without` stays out. It never installs a CLI you did not choose — installing adds a CLI, and only `uninstall` takes one away. `update --only skills` limits it to one group.
 
 In a terminal, `uninstall` offers three choices — one CLI, selected assets, or everything — and `--dry-run` shows the plan first. It never deletes `.claude/`, `.codex/`, or `.opencode/`: each is moved aside as `<dir>.backup-<ts>`, so files you put there yourself stay in the backup.
 
@@ -104,21 +134,6 @@ In a terminal, `uninstall` offers three choices — one CLI, selected assets, or
 | One skill from this repo, nothing else | `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` |
 
 Every skill this repo ships is installable on its own with the [skills CLI](https://github.com/vercel-labs/skills) — the same files the installer copies, `references/` included. `npx skills add uzysjung/uzys-agent-harness --list` shows the ids ([details](docs/USAGE.md#one-skill-without-the-harness)); they are also listed on [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness).
-
-## Why it is built this way
-
-Piling rules and skills onto an AI coding tool does not make it better: every always-loaded instruction costs context in every session, and telling a capable model how to do what it already does well only slows it down. So the harness keeps a principle only where the model is likely to slip, and takes it back out as models improve.
-
-| Common approach | This harness |
-|---|---|
-| Many "don't do X" and "always do Y" rules | Guidance states *what must be true* and leaves *how* to the model. Of the 44 sentences in our own rules, the number observed to change an agent's behaviour was zero — gates, tests, and an independent reviewer caught the incidents |
-| Prohibitions written as sentences | Irreversible damage is blocked by a mechanism: a hook stops edits to `.env` and key files, and a GitHub ruleset the harness helps you apply protects the default branch |
-| Assets pile up and stay | An asset stays only with an observation that the agent is slower or wrong without it; otherwise it moves to an on-demand skill or is retired — so `update` brings what was added *and* what was cut |
-| Fit is decided once, at install | `audit-harness-fit` keeps checking: needless questions, repeated checks, conflicting decisions, procedures a better model no longer needs — then proposes the edit |
-| Verify everything, every time | Verification runs when a user-facing scene is complete, by a separate agent that did not write the code and actually runs it — the lightest protection that reliably keeps what matters, not more guards |
-| Explanations in file names and functions | The agent explains from your user's side first (`user-centered-explanation`); approval requests arrive as context → problem → options → recommendation |
-
-The first question for any asset, in or out, is *does this help a person build better with an AI coding tool?* The long form is [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
 
 ## Vetting
 
