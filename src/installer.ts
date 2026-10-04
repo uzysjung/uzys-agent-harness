@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, join, relative, resolve, sep } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { isBaselineExcluded } from "./baseline-targets.js";
@@ -18,6 +18,7 @@ import {
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import {
   backupIfLossyUtf8,
+  backupOriginal,
   copyBackupDir,
   ensureProjectSkeleton,
   listFilesRecursive,
@@ -26,6 +27,7 @@ import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
   type InstallLog,
+  type InstallLogPortion,
   type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
@@ -58,7 +60,14 @@ import {
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
-import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
+import {
+  type CliBase,
+  type InstallSpec,
+  isCliBase,
+  type OptionFlags,
+  resolveScope,
+  type Track,
+} from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
 /**
@@ -410,6 +419,62 @@ export function runInstall(ctx: InstallContext): InstallReport {
     }
   }
   const writer = createInstallWriter({ projectDir, previousLog, excluded });
+  // #600 — 아래 어디서 던지든(EACCES · EISDIR · ENOTDIR …) 그때까지 쓴 하네스 몫을 기록에 남기고 화면에 알린다.
+  // 기록은 원래 맨 끝에만 쓰여, 중간에 멈추면 파일은 있는데 기록이 없는 상태가 남았다 — `uninstall` 은 "Nothing to
+  // uninstall" 로 거절했고, 원인을 고쳐 다시 깔아도 멈춘 실행이 **만든** 파일(`.mcp.json` 등)은 설치자 것으로 읽혀
+  // 나중 uninstall 이 걷지 못했다.
+  const journal = createInterruptJournal();
+  const stage: InstallStage = {
+    ciScaffold: null,
+    envExampleCreated: false,
+    envFiles: null,
+    rootImportWritten: false,
+  };
+  try {
+    return runInstallStages(ctx, {
+      mode,
+      templatesDir,
+      previousLog,
+      manifestSpec,
+      baselineExcluded,
+      excluded,
+      writer,
+      journal,
+      stage,
+    });
+  } catch (e) {
+    throw recordInterruptedInstall(ctx, e, { previousLog, excluded, writer, journal, stage });
+  }
+}
+
+/** #600 — 중단 기록이 읽는 단계 결과. 단계가 끝나야 채워진다(못 끝낸 단계는 초깃값 그대로). */
+interface InstallStage {
+  ciScaffold: CiScaffoldReport | null;
+  /** `.env.example` 을 이번에 만들었나 — `.gitignore` 쓰기보다 먼저라 따로 잡는다. */
+  envExampleCreated: boolean;
+  envFiles: BaselineReport["envFiles"] | null;
+  /** 루트 `CLAUDE.md` 에 import 줄을 이번에 써넣었나 — 마커로 걷히므로 기록은 필요 없고 화면만 말한다. */
+  rootImportWritten: boolean;
+}
+
+function runInstallStages(
+  ctx: InstallContext,
+  args: {
+    mode: InstallMode;
+    templatesDir: string;
+    previousLog: InstallLog | null;
+    manifestSpec: Required<AssetSpec>;
+    baselineExcluded: ReadonlySet<string>;
+    excluded: ReadonlySet<string>;
+    writer: InstallWriter;
+    journal: InterruptJournal;
+    stage: InstallStage;
+  },
+): InstallReport {
+  const { harnessRoot, projectDir, spec } = ctx;
+  const { mode, templatesDir, previousLog, manifestSpec, baselineExcluded, excluded, writer } =
+    args;
+  const { journal, stage } = args;
 
   // v0.8.0 — `.claude/` baseline은 spec.cli에 "claude" 포함 시에만 생성.
   // Codex/OpenCode 단독 사용자는 dead weight 회피.
@@ -427,6 +492,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
       // 돌던 탓에 이 자산들이 claude 설치에만 도달했는데, **배포 룰 본문이 이 스크립트들을
       // 호출 지점으로 지목한다** — 즉 없는 도구를 있다고 안내하고 있었다(#300 과 같은 형태).
       installCliNeutralAssets(manifestSpec, templatesDir, baselineExcluded, writer);
+  stage.rootImportWritten = base.rootImportWritten;
 
   // `.mcp.json` — 하네스 서버만 더한다(템플릿 + 트랙 표, Codex/OpenCode 와 같은 원천 #568). claude 무관.
   const mcp = writeMcpPortion(writer, harnessRoot, spec.tracks, previousLog);
@@ -440,6 +506,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   })
     ? installCiScaffold({ harnessRoot, projectDir, tracks: spec.tracks })
     : null;
+  stage.ciScaffold = ciScaffold;
 
   // v26.133.0 (ADR-048) — 외부 CLI transform 도 소유자 판정을 받는다. 기준선은 transform 이 **쓰면서
   // 만든 값**(`externalFiles`)이다 — 렌더 결과라 디스크를 훑어서는 무엇이 하네스 것인지 알 수 없다.
@@ -478,6 +545,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
     // 탄다: 앞 기록의 몫과 누적 제외 목록을 넘기고, 결과 몫 · 지운 키를 아래 기록(`composeWriterLog`)에 싣는다.
     // 안 실으면 다음 실행이 하네스 구간을 설치자 것으로 읽어 영영 갱신하지 못한다.
     shared: { portions: previousLog?.portions ?? [], excluded: [...excluded] },
+    journal,
   });
 
   // #524 — 링크 자리의 공유 본문. 외부 변환 **뒤에** 돈다: 그 결과를 기준선에 합쳐야 같은 실행에서
@@ -492,9 +560,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
         f.sha256,
       ]),
     ),
+    journal,
   });
 
-  const envFiles = writeEnvironmentFiles(writer, projectDir, spec.tracks, previousLog);
+  stage.envExampleCreated = writeEnvExample(projectDir, spec.tracks);
+  const envFiles = writeEnvironmentFiles(writer, stage.envExampleCreated, previousLog);
+  stage.envFiles = envFiles;
   const writerLedger = writer.ledger();
   // 두 쓰기 경로(PR-3 writer · CLI 변환)의 몫은 파일이 겹치지 않는다 — 경로 단위로 합쳐 한 기록으로 쓴다.
   const ledger: WriteLedger = {
@@ -684,6 +755,8 @@ interface ClaudeBaselineResult {
    * 넣지 않는다 — 그 본문은 외부 변환 뒤에 `refreshLinkedSkillBodies` 가 기록대로 판정한다.
    */
   linkedSkills: string[];
+  /** #600 — 이번에 루트 `CLAUDE.md` 에 import 줄을 써넣었나(중단 화면이 쓴 것으로 말한다). */
+  rootImportWritten: boolean;
 }
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
@@ -698,6 +771,7 @@ function emptyClaudeBaseline(): ClaudeBaselineResult {
     excludedOnDisk: [],
     foreignOwned: [],
     linkedSkills: [],
+    rootImportWritten: false,
   };
 }
 
@@ -902,6 +976,8 @@ function installClaudeBaseline(
           created: rootClaudeMd.created,
           seededFrom: rootClaudeMd.seededFrom,
         };
+  // #600 — 밖이라 건너뛰었으면 쓴 것이 아니다(중단 화면에 올리지 않는다).
+  result.rootImportWritten = rootClaudeMd?.written ?? false;
   return result;
 }
 
@@ -961,11 +1037,9 @@ function installedTracksText(tracks: ReadonlyArray<string>): string {
  */
 function writeEnvironmentFiles(
   writer: InstallWriter,
-  projectDir: string,
-  tracks: ReadonlyArray<Track>,
+  envExampleCreated: boolean,
   previousLog: InstallLog | null,
 ): BaselineReport["envFiles"] {
-  const envExampleCreated = writeEnvExample(projectDir, tracks);
   const render = gitignoreRender();
   const res = writer.shared(".gitignore", render, {
     onlyIfPresent: true,
@@ -1023,6 +1097,193 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
 }
 
 /**
+ * #600 — install 이 도중에 멈췄다. 메시지는 원래 오류 그대로이고(화면의 `install failed — <원인>` 줄), 그때까지 쓴
+ * 하네스 몫과 그것을 기록했는지를 싣는다 — 화면이 "무엇이 남았고 어떻게 정리하나" 를 이것으로 말한다.
+ */
+export class InstallInterruptedError extends Error {
+  constructor(
+    message: string,
+    /** 이번 실행이 멈추기 전에 쓴(또는 제자리에 둔) 하네스 몫 — project 상대 경로. 몫만 쓴 파일은 ` (harness part)`. */
+    readonly written: ReadonlyArray<string>,
+    /** 기록 결과 — 남겼으면 그 경로, 못 남겼으면 이유. 쓴 것이 없어 남길 것이 없었으면 둘 다 `null`. */
+    readonly record: { path: string | null; error: string | null },
+    /**
+     * 멈추기 전에 설치자 파일을 덮으려고 남긴 백업 — project 상대 경로. `replaced` = 그 뒤 원본 자리를 하네스 판으로
+     * 실제로 바꿨나. 백업 직후 쓰기가 실패하면 원본은 그대로이고 백업은 사본일 뿐이다(화면이 그렇게 말한다).
+     */
+    readonly backups: ReadonlyArray<InterruptedBackup> = [],
+    /** 이 실행 전에 이미 설치 기록이 있었나 — 그러면 `uninstall` 은 이번 몫이 아니라 설치 전체를 뺀다. */
+    readonly hadInstall = false,
+  ) {
+    super(message);
+    this.name = "InstallInterruptedError";
+  }
+}
+
+export interface InterruptedBackup {
+  original: string;
+  copy: string;
+  replaced: boolean;
+}
+
+/** #600 — 세 변환 · 링크 본문이 쓰는 즉시 받아 적는 저널(`owned-write` `WriteJournal`) + 끝까지 돈 CLI. */
+interface InterruptJournal {
+  file(f: InstallLogSkillFile): void;
+  portions(
+    path: string,
+    portions: ReadonlyArray<InstallLogPortion>,
+    deleted: ReadonlyArray<string>,
+  ): void;
+  backup(absPath: string): void;
+  done(cli: CliBase): void;
+  trust(report: CodexOptInReport): void;
+  readonly backups: string[];
+  /** 홈 Codex 설정 trust 항목 결과 — `--with-codex-trust` 로 opt-in 이 돈 경우만. */
+  codexOptIn: CodexOptInReport | null;
+  readonly files: Map<string, string>;
+  readonly shared: Map<string, { portions: InstallLogPortion[]; deleted: string[] }>;
+  readonly completed: Set<CliBase>;
+}
+
+function createInterruptJournal(): InterruptJournal {
+  const files = new Map<string, string>();
+  const shared = new Map<string, { portions: InstallLogPortion[]; deleted: string[] }>();
+  const completed = new Set<CliBase>();
+  const backups: string[] = [];
+  const journal: InterruptJournal = {
+    files,
+    shared,
+    completed,
+    backups,
+    codexOptIn: null,
+    trust: (report) => {
+      journal.codexOptIn = report;
+    },
+    backup: (absPath) => backups.push(absPath),
+    file: (f) => files.set(f.path, f.sha256),
+    portions: (path, portions, deleted) =>
+      shared.set(path, { portions: [...portions], deleted: [...deleted] }),
+    done: (cli) => completed.add(cli),
+  };
+  return journal;
+}
+
+/**
+ * #600 — 멈춘 install 의 기록. **쓰기 = 기록**을 중단에도 지킨다: 이번 실행이 쓴 것(writer 장부 + 변환 저널)만 옛
+ * 기록 위에 쌓아 쓰고, 지우지 않는다(되돌리기는 확인이 걸리는 지우는 동작이라 `uninstall` 의 몫이다).
+ *
+ * 깔린 CLI 로는 **끝까지 돈 것만** 적는다 — 멈춘 변환의 CLI 를 적으면 기록이 그 디렉터리(`.codex/` …)를 하네스
+ * 것으로 주장하고, `uninstall` 이 하네스가 한 글자도 안 쓴 설치자 디렉터리를 옮긴다. 그 변환이 쓴 파일은 저널로
+ * 하나씩 기록되므로 회수에는 지장이 없다. Claude 는 `.claude/` 에 하네스 파일을 하나라도 썼으면 적는다.
+ */
+function recordInterruptedInstall(
+  ctx: InstallContext,
+  error: unknown,
+  run: {
+    previousLog: InstallLog | null;
+    excluded: ReadonlySet<string>;
+    writer: InstallWriter;
+    journal: InterruptJournal;
+    stage: InstallStage;
+  },
+): InstallInterruptedError {
+  const message = error instanceof Error ? error.message : String(error);
+  const { previousLog, excluded, journal, stage } = run;
+  const own = run.writer.ledger();
+  const ledger: WriteLedger = {
+    ...own,
+    portions: [...own.portions, ...[...journal.shared.values()].flatMap((r) => r.portions)],
+    portionPaths: [...own.portionPaths, ...journal.shared.keys()],
+    deletedIds: [...own.deletedIds, ...[...journal.shared.values()].flatMap((r) => r.deleted)],
+  };
+  const cliFiles = [...journal.files].map(([path, sha256]) => ({ path, sha256 }));
+  const wroteClaude = own.policyFiles.length > 0 || own.skillFiles.length > 0;
+  const cli = ctx.spec.cli.filter((c) =>
+    c === "claude" ? wroteClaude : isCliBase(c) && journal.completed.has(c),
+  );
+  const envFiles = stage.envFiles ?? {
+    envExampleCreated: stage.envExampleCreated,
+    gitignoreEnvAdded: false,
+    gitignoreNpxSkillsAdded: [],
+  };
+  const rootFiles = collectRootFiles(envFiles, stage.ciScaffold, ledger.shared);
+  // #644 규칙 그대로 — 하네스가 실제로 넣은 항목만 적는다(이미 있던 것은 설치자 몫). 적지 않으면 재실행이 그 항목을
+  // "already present" 로 읽어 영영 설치자 것이 되고, uninstall 이 그 자리를 안내하지 않는다.
+  const codexTrust = registeredTrust(journal.codexOptIn, ctx.projectDir);
+  const written = writtenSoFar(ledger, cliFiles, rootFiles, stage.rootImportWritten);
+  if (codexTrust) written.push(`${codexTrust.configPath} (Codex trust entry for this folder)`);
+  const projectRel = (abs: string): string => relative(ctx.projectDir, abs).split(sep).join("/");
+  const writtenSet = new Set(written);
+  const backups = [...own.backups, ...journal.backups].map((abs): InterruptedBackup => {
+    const original = projectRel(backupOriginal(abs) ?? abs);
+    return { original, copy: projectRel(abs), replaced: writtenSet.has(original) };
+  });
+  const hadInstall = previousLog !== null;
+  const interrupted = (record: InstallInterruptedError["record"]): InstallInterruptedError =>
+    new InstallInterruptedError(message, written, record, backups, hadInstall);
+  if (written.length === 0) return interrupted({ path: null, error: null });
+  try {
+    const base = buildInstallLog(
+      { ...ctx.spec, cli },
+      null,
+      resolveScope(ctx.spec.scope),
+      ledger.anchor,
+      previousLog,
+      false,
+      [...rootFiles, ...ledger.rootFiles],
+      codexTrust,
+    );
+    const path = writeInstallLog(
+      ctx.projectDir,
+      composeWriterLog({
+        projectDir: ctx.projectDir,
+        base,
+        previous: previousLog,
+        ledger,
+        cliFiles,
+        excluded,
+      }),
+    );
+    return interrupted({ path, error: null });
+  } catch (e) {
+    return interrupted({ path: null, error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/** #644 — 하네스가 실제로 더한 전역 trust 항목만 기록한다(이미 있던 것은 설치자 몫). 정상 · 중단 기록이 같이 쓴다. */
+function registeredTrust(
+  codexOptIn: CodexOptInReport | null,
+  projectDir: string,
+): InstallLog["codexTrust"] {
+  return codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
+    ? { configPath: codexOptIn.trustEntry.configPath, projectDir }
+    : undefined;
+}
+
+/** 이번 실행이 멈추기 전에 제자리에 둔 하네스 몫 — 경로 정렬. 설치자 파일에 몫만 더한 것은 ` (harness part)`. */
+function writtenSoFar(
+  ledger: WriteLedger,
+  cliFiles: ReadonlyArray<InstallLogSkillFile>,
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
+  rootImportWritten: boolean,
+): string[] {
+  const files = new Set<string>([
+    ...ledger.policyFiles.map((f) => `.claude/${f.path}`),
+    ...ledger.skillFiles.map((f) => `.claude/skills/${f.path}`),
+    ...ledger.externalFiles.map((f) => f.path),
+    ...(ledger.anchor ? [ledger.anchor.path] : []),
+    ...cliFiles.map((f) => f.path),
+    ...rootFiles.filter((f) => f.change === "created").map((f) => f.path),
+    ...ledger.rootFiles.filter((f) => f.change === "created").map((f) => f.path),
+  ]);
+  const parts = new Set<string>(
+    [...ledger.portionPaths, ...rootFiles.map((f) => f.path)].filter((p) => !files.has(p)),
+  );
+  if (rootImportWritten) parts.add("CLAUDE.md");
+  return [...[...files], ...[...parts].map((p) => `${p} (harness part)`)].sort();
+}
+
+/**
  * Install log write — `.uzys-agent-harness/.harness-install.json` (자산 list + scope + timestamp,
  * uninstall command 의 source). 실패는 install 자체를 fail 시키지 않음 (D16 — install 성공 우선).
  *
@@ -1051,10 +1312,7 @@ function writeInstallLogSafe(
       // `--reinstall` 도 `.claude/` 를 옮기지 않는다 — 이전 자산은 디스크에 그대로다
       false,
       [...rootFiles, ...ledger.rootFiles],
-      // #644 — 하네스가 실제로 더한 전역 trust 항목만 적는다(이미 있던 것은 설치자 몫).
-      codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
-        ? { configPath: codexOptIn.trustEntry.configPath, projectDir: ctx.projectDir }
-        : undefined,
+      registeredTrust(codexOptIn, ctx.projectDir),
     );
     writeInstallLog(
       ctx.projectDir,
@@ -1156,7 +1414,7 @@ function writeRootClaudeMd(
   continuousSkills: ReadonlyArray<string>,
   harnessRoot: string,
   writer: InstallWriter,
-): { created: boolean; seededFrom: string | null } | null {
+): { created: boolean; seededFrom: string | null; written: boolean } | null {
   const target = join(projectDir, "CLAUDE.md");
   // #678 — 링크 너머가 프로젝트 밖이면 import 줄도 얹지 않는다(화면은 writer 의 `outside` 가 말한다).
   if (writer.skipOutside(target)) return null;
@@ -1176,7 +1434,11 @@ function writeRootClaudeMd(
     if (existing !== null) backupIfLossyUtf8(target);
     writeFileSync(target, content);
   }
-  return { created: existing === null, seededFrom: seeded === null ? null : "AGENTS.md" };
+  return {
+    created: existing === null,
+    seededFrom: seeded === null ? null : "AGENTS.md",
+    written: content !== existing,
+  };
 }
 
 function chmodHooksSync(hookDir: string, projectDir: string): void {

@@ -13,7 +13,11 @@ import { c, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { dirTreesIdentical } from "../fs-ops.js";
 import { readInstallLog } from "../install-log.js";
-import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
+import {
+  InstallInterruptedError,
+  type InstallReport,
+  runInstall as runInstallPipeline,
+} from "../installer.js";
 import {
   type CliTargets,
   type InstallScope,
@@ -28,6 +32,7 @@ import {
   renderCliArtifacts,
   renderFinalSummary,
   renderInstallHeader,
+  renderInterruptedInstall,
   renderUpdateSummary,
 } from "./install-render.js";
 
@@ -371,6 +376,7 @@ export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void
     // 못 본다. 이 catch 는 두 파이프라인을 함께 감싼다.
     const label = deps.mode === "update" ? "update failed" : "install failed";
     err(status.failure(c.red(`${label} — ${detail}`)));
+    if (e instanceof InstallInterruptedError) renderInterruptedInstall(err, e);
     exit(1);
     return;
   }

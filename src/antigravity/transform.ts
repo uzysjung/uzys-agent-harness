@@ -22,7 +22,12 @@ import { basename, join } from "node:path";
 import { agentsSkillSlot } from "../agents-skill-targets.js";
 import { renderAgentsMd } from "../codex/agents-md.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
-import { createOwnedWriter, type OwnedWriteResult, type OwnedWriter } from "../owned-write.js";
+import {
+  createOwnedWriter,
+  type OwnedWriteResult,
+  type OwnedWriter,
+  type WriteJournal,
+} from "../owned-write.js";
 import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
 import { portRules } from "../rules-port.js";
 
@@ -48,6 +53,8 @@ export interface AntigravityTransformParams {
    * antigravity 를 안 깐 프로젝트에서 돌려도 `.agents/rules/` 가 생기지 않는다.
    */
   refreshOnly?: boolean;
+  /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
+  journal?: WriteJournal;
 }
 
 export interface AntigravityTransformReport {
@@ -78,7 +85,10 @@ export function runAntigravityTransform(
     baseline,
     refreshOnly,
   } = params;
-  const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
+  const writer = createOwnedWriter(projectDir, baseline, {
+    refreshOnly: refreshOnly ?? false,
+    ...(params.journal === undefined ? {} : { journal: params.journal }),
+  });
 
   // 0. #532 (Epic #527 S3) — 새 릴리즈가 더한 번들 스킬(또는 설치자가 지운 자리)을 이 CLI 의
   //   스킬 자리에도 깐다. 대상 집합·생성 허가는 codex·opencode 와 **같은 모듈**이 정한다 —
