@@ -26,6 +26,7 @@ import {
   installedClis,
   readInstallLog,
 } from "./install-log.js";
+import { outsideLinkAt } from "./outside-project.js";
 import { CLI_BASE_LABELS } from "./prompts.js";
 import type { CliBase } from "./types.js";
 
@@ -168,6 +169,21 @@ function describeOwned(p: OwnedPath): string {
   return p.path;
 }
 
+/**
+ * #692 — 옮기지 않고 남길 CLI 폴더 자리(프로젝트 밖으로 나가는 링크). 확인 **전에** 말한다 — 엔진
+ * (`uninstall.ts` 의 폴더 옮기기)과 같은 판정(`outsideLinkAt`)을 쓴다.
+ */
+function keptLinkLines(projectDir: string, dirs: ReadonlyArray<string>): string[] {
+  return dirs.flatMap((d) => {
+    const o = outsideLinkAt(projectDir, d.replace(/\/+$/, ""));
+    return o
+      ? [
+          `  · ${o.link} stays — the link points outside the project (${o.link} → ${o.linkTarget}); not moved, nothing behind it removed`,
+        ]
+      : [];
+  });
+}
+
 /** CLI 하나를 뺄 때 **나가는 것** — 엔진과 같은 표·같은 함수(`removableFor`)에서 만든다. */
 function removalSummary(cli: CliBase, installed: ReadonlyArray<CliBase>): string[] {
   const remaining = installed.filter((c) => c !== cli);
@@ -194,6 +210,15 @@ function removalSummary(cli: CliBase, installed: ReadonlyArray<CliBase>): string
     `  · kept: ${[...kept, ".mcp.json", `install record (clis: ${remaining.join(", ")})`].join(" · ")}`,
   );
   return lines;
+}
+
+/** 그 CLI 를 빼면 옮길 CLI 폴더 — 엔진과 같은 표(`removableFor`). */
+function cliDirs(cli: CliBase, installed: ReadonlyArray<CliBase>): string[] {
+  const { exclusive, sharedNowUnowned } = removableFor(
+    cli,
+    installed.filter((c) => c !== cli),
+  );
+  return [...exclusive, ...sharedNowUnowned].filter((p) => p.kind === "dir").map((p) => p.path);
 }
 
 /** CLI 선택 화면의 행 — hint 는 그 CLI 를 빼면 무엇이 나가는지 한 줄. */
@@ -246,6 +271,12 @@ export async function runInteractiveUninstall(
         "Remove everything? This is the same as: agent-harness uninstall --yes",
         `  · ${log.assets.length} recorded asset(s) — only those with an automatic reverse path are removed`,
         "  · templates: CLI folders (.claude/ · .codex/ · .opencode/, whichever exist) are moved aside as <dir>.backup-<time> (your own files there stay in them)",
+        ...keptLinkLines(
+          projectDir,
+          [log.templates?.claudeDir, log.templates?.codexDir, log.templates?.opencodeDir].filter(
+            (d): d is string => typeof d === "string",
+          ),
+        ),
         "  · the install record goes too",
         "  · files outside (.mcp.json etc.) are not deleted — you get instructions instead",
       ].join("\n"),
@@ -299,6 +330,7 @@ async function pickCli(
     [
       `Remove ${cli}? This is the same as: agent-harness uninstall --cli ${cli}`,
       ...removalSummary(cli, clis),
+      ...keptLinkLines(projectDir, cliDirs(cli, clis)),
     ].join("\n"),
   );
   if (!ok) {

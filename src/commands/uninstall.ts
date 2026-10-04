@@ -8,7 +8,8 @@
  *      - scope=global: 안내만 (D16 — 글로벌 영역 자동 삭제 금지). 사용자가 직접 명령 실행.
  *   3. templates 폴더(`.claude/` · `.codex/` · `.opencode/`)는 지우지 않고 `<dir>.backup-<time>` 으로
  *      **옮겨 둔다**(사용자 결정 2026-09-27 — 설치자가 거기 둔 자기 파일을 백업 없이 지우지 않는다).
- *      `--keep-templates` 시 보존.
+ *      `--keep-templates` 시 보존. 그 자리가 프로젝트 밖으로 나가는 링크면 옮기지 않고 링크·그 아래를
+ *      그대로 둔 채 "남김 + 링크 → 대상" 을 말한다(#692 · ADR-098).
  *      외부 CLI 산출물은 기록(`externalFiles`)대로 회수하되 `AGENTS.md` 는 루트 `CLAUDE.md` 처럼
  *      하네스 절만 걷어내고 설치자 절을 남긴다 (#516).
  *   4. install log 자체도 함께 제거.
@@ -58,13 +59,14 @@ import {
   type InstallLogSkillFile,
   installedClis,
   installLogPath,
+  LEGACY_INSTALL_LOG_DIR,
   legacyInstallLogPath,
   readInstallLogStatus,
   writeInstallLog,
 } from "../install-log.js";
 import { legacyGitignoreSeed } from "../install-writes.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
-import { isOutsideProject } from "../outside-project.js";
+import { isOutsideProject, type OutsideLink, outsideLinkAt } from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
 import { excludedIds, kindOf } from "../recorded.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
@@ -121,6 +123,24 @@ export interface UninstallActionDeps {
 function templateDirPath(projectDir: string, rel: string): string {
   // 끝의 `/` 를 떼야 `<dir>.backup-*` 형제가 된다(붙이면 백업 자리가 디렉터리 안쪽을 가리킨다).
   return join(projectDir, rel.replace(/\/+$/, ""));
+}
+
+/**
+ * #692 — 옮길 CLI 폴더 자리가 프로젝트 밖으로 나가는 링크면 옮기지 않는다(ADR-098). 링크를 옮기면 설치자가 걸어 둔
+ * 링크가 프로젝트에서 사라지고, 그 너머는 이 프로젝트 기록 밖이다 — 링크도 그 아래도 그대로 두고 말한다.
+ */
+function outsideTemplateLink(projectDir: string, rel: string): OutsideLink | null {
+  return outsideLinkAt(projectDir, rel.replace(/\/+$/, ""));
+}
+
+/** 미리보기와 결과가 같은 줄을 쓴다 — 둘 다 "남김 + 링크 → 대상". */
+function keptOutsideLinkLine(o: OutsideLink): string {
+  return `  ${c.yellow("⊘")} ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}). Not moved, and nothing behind it is removed; clean up harness files there by hand if intended.`;
+}
+
+/** 남긴 링크 폴더 아래 파일은 폴더 줄이 이미 말했다 — 파일마다 다시 말하지 않는다. */
+function underKeptLink(path: string, kept: ReadonlyArray<OutsideLink>): boolean {
+  return kept.some((k) => path.startsWith(`${k.link}/`));
 }
 
 function movedAsideLine(projectDir: string, rel: string, backup: string): string {
@@ -317,13 +337,14 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       for (const r of sharedStrips) {
         if (r.removed.length > 0) journal.push(`removed the harness part from ${r.path}`);
       }
-      const { rootClaudeMdKept, importStripped, external, moved } = removeTemplates(
+      const { rootClaudeMdKept, importStripped, external, moved, keptLinks } = removeTemplates(
         templatesLog,
         projectDir,
         { rm: rmJ, moveAside: moveAsideJ },
         harnessRoot,
       );
       for (const m of moved) log(movedAsideLine(projectDir, m.rel, m.backup));
+      for (const o of keptLinks) log(keptOutsideLinkLine(o));
       // 셋 다 없는 설치(antigravity 단독)도 있다 — 아무 줄도 안 찍으면 templates 를 빠뜨린 것처럼 읽힌다.
       if (recordedTemplateDirs(installLog).length === 0) {
         log(`  ${status.success("templates removed: (none)")}`);
@@ -573,7 +594,10 @@ function settleLog(
     io.rm(join(projectDir, INSTALL_LOG_DIR));
     // v26.134.1 이하로 설치한 프로젝트의 잔재. keepTemplates 면 `.claude/` 가 살아남으므로
     // 여기서 안 지우면 다음 실행이 그 구 파일을 읽어 **이미 지운 자산을 다시 보고**한다.
-    io.rm(legacyInstallLogPath(projectDir));
+    // #692 — `.claude` 가 밖으로 나가는 링크면 그 폴더는 남는다 — 그 너머의 옛 기록은 이 프로젝트 것이라 할 수 없다.
+    if (outsideTemplateLink(projectDir, LEGACY_INSTALL_LOG_DIR) === null) {
+      io.rm(legacyInstallLogPath(projectDir));
+    }
     io.log(`  ${status.success("install log removed")}`);
   }
   return false;
@@ -608,7 +632,9 @@ function dryRunLines(
   if (!keepTemplates) {
     const dirs = recordedTemplateDirs(installLog);
     for (const rel of dirs) {
-      if (existsSync(join(projectDir, rel))) lines.push(MOVE_ASIDE_PREVIEW(rel));
+      const kept = outsideTemplateLink(projectDir, rel);
+      if (kept) lines.push(keptOutsideLinkLine(kept));
+      else if (existsSync(join(projectDir, rel))) lines.push(MOVE_ASIDE_PREVIEW(rel));
     }
     if (dirs.length === 0) lines.push("  ○ remove templates: (none)");
     const rootMd = installLog.templates.rootClaudeMd;
@@ -910,7 +936,9 @@ function removeCliDryRunLines(
   const { installLog, projectDir, harnessRoot } = ctx;
   const lines = [c.yellow("[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):"), ""];
   for (const dir of plan.dirs) {
-    if (existsSync(join(projectDir, dir))) lines.push(MOVE_ASIDE_PREVIEW(dir));
+    const kept = outsideTemplateLink(projectDir, dir);
+    if (kept) lines.push(keptOutsideLinkLine(kept));
+    else if (existsSync(join(projectDir, dir))) lines.push(MOVE_ASIDE_PREVIEW(dir));
   }
   lines.push(...previewExternalLines(plan.scoped, projectDir, harnessRoot));
   lines.push(
@@ -1033,7 +1061,13 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   }
 
   // 전용 디렉터리는 지우지 않고 옮겨 둔다(`templateDirPath` 주석) — 전량 경로와 같은 규칙.
+  // #692 — 밖으로 나가는 링크 자리는 옮기지 않는다(그 아래 기록은 `plan.scoped` 에 없다 — 폴더째 맡던 자리다).
   for (const dir of plan.dirs) {
+    const kept = outsideTemplateLink(projectDir, dir);
+    if (kept) {
+      io.log(keptOutsideLinkLine(kept));
+      continue;
+    }
     if (!existsSync(join(projectDir, dir))) continue;
     const backup = io.moveAside(templateDirPath(projectDir, dir));
     if (backup) io.log(movedAsideLine(projectDir, dir, backup));
@@ -1420,6 +1454,8 @@ function removeTemplates(
   external: ExternalRemoval;
   /** 옮겨 둔 템플릿 디렉터리와 그 백업 자리. 디스크에 없던 것은 빠진다. */
   moved: Array<{ rel: string; backup: string }>;
+  /** #692 — 밖으로 나가는 링크라 옮기지 않고 남긴 템플릿 디렉터리 자리. */
+  keptLinks: OutsideLink[];
 } {
   const { rm } = io;
   // #528 — `claudeDir` 는 claude 를 고른 설치에만 있다. 옛 로그는 고르지 않아도 적혀 있지만
@@ -1433,7 +1469,13 @@ function removeTemplates(
   const movedDirs = removedDirsList(log);
   const recovered = recoverMovedSymlinkTargets(log, projectDir, movedDirs, io.rm);
   const outsidePortions = recoverMovedSymlinkPortions(log, projectDir, movedDirs);
+  const keptLinks: OutsideLink[] = [];
   const moved = recordedTemplateDirs(log).flatMap((rel) => {
+    const kept = outsideTemplateLink(projectDir, rel);
+    if (kept) {
+      keptLinks.push(kept);
+      return [];
+    }
     const backup = io.moveAside(templateDirPath(projectDir, rel));
     return backup ? [{ rel, backup }] : [];
   });
@@ -1444,6 +1486,8 @@ function removeTemplates(
   for (const o of [...recovered.outside, ...outsidePortions]) {
     if (!external.outside.some((e) => e.path === o.path)) external.outside.push(o);
   }
+  // 남긴 링크 폴더 아래 기록 파일은 그 폴더 줄이 말한다 — 파일마다 "kept" 를 다시 말하지 않는다.
+  external.outside = external.outside.filter((o) => !underKeptLink(o.path, keptLinks));
   // 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스가 넣은 마커
   // import 블록만 도로 걷어낸다. 안 걷으면 앵커 파일을 지운 뒤 없는 파일을 가리키는 import 가
   // 남아 매 세션 끊긴 참조가 로드된다.
@@ -1452,10 +1496,10 @@ function removeTemplates(
   const rootMd = log.templates?.rootClaudeMd;
   if (rootMd) {
     if (rootClaudeMdModified(log, projectDir))
-      return { rootClaudeMdKept: true, importStripped, external, moved };
+      return { rootClaudeMdKept: true, importStripped, external, moved, keptLinks };
     rm(join(projectDir, rootMd.path));
   }
-  return { rootClaudeMdKept: false, importStripped, external, moved };
+  return { rootClaudeMdKept: false, importStripped, external, moved, keptLinks };
 }
 
 /** `removeExternalFiles` 의 결과 — 화면이 지운 것과 남긴 것을 나눠 말할 수 있어야 한다. */
