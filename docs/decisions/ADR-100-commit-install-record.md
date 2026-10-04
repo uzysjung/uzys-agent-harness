@@ -1,8 +1,8 @@
 # ADR-100: 설치 기록을 저장소에 싣는다 — `.gitignore` 는 기록 폴더의 런타임 파일 둘만 무시한다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-04
-- PR: (머지 직전에 채운다)
+- PR: #702
 - Issue: #658
 - Amends: ADR-050 §적용 범위의 "`.gitignore` — 새 디렉터리를 자동 등재하지 않는다" (그 뒤 ADR-061 이 디렉터리째 등재했고, 이 ADR 이 폴더 줄을 걷고 런타임 파일 두 줄만 등재한다) · ADR-061 Decision 2 의 "gitignore 패턴에 `.uzys-agent-harness/` 추가" (차단 로그를 무시한다는 목적은 그대로 — 대상을 폴더에서 로그 파일로 좁힌다)
 - 설계 문서: `docs/plans/no-record-project-design-2026-10-04.md` §2 · §5 · §6 NR-2 (검증 `verify-no-record-design.md` B1 · B2 · N1–N5 반영)
