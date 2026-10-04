@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { InstallLog } from "../src/install-log.js";
 import { computeUserOverride, formatSummary, runInteractive } from "../src/interactive.js";
 import { recommendedExternalAssets } from "../src/preset-recommend.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
@@ -25,17 +26,29 @@ function makePrompts(overrides: Partial<Prompts> = {}): Prompts {
 }
 
 const newState: DetectedInstall = {
-  state: "new",
+  state: "none",
+  log: null,
   tracks: [],
-  source: "none",
   hasClaudeDir: false,
+  traces: [],
+};
+
+/** 판정이 싣는 기록 — 위저드는 디스크를 다시 읽지 않고 이것을 쓴다(#595). */
+const existingLog: InstallLog = {
+  schemaVersion: 1,
+  installedAt: "2026-10-04T00:00:00.000Z",
+  scope: "project",
+  spec: { tracks: ["tooling"], cli: ["claude"] },
+  templates: { claudeDir: ".claude/" },
+  assets: [],
 };
 
 const existingState: DetectedInstall = {
-  state: "existing",
+  state: "installed",
+  log: existingLog,
   tracks: ["tooling"],
-  source: "metafile",
   hasClaudeDir: true,
+  traces: [],
 };
 
 const ALL_FALSE_OPTIONS: OptionFlags = {

@@ -1248,13 +1248,15 @@ function syncHarnessAnchor(
     return;
   }
 
+  // #595 — 이행은 **기록 있는** 옛 앵커 설치본(v26.64–v26.139) 몫이다. 기록이 없으면 앵커도 import 도 만들지 않는다 —
+  // 만들면 uninstall 이 회수할 근거 없는 파일이 생기고, 기록 없는 프로젝트는 install 로 보낸다(설계 no-record §4).
+  if (readInstallLog(projectDir) === null) return;
   copyFileSync(templateMd, anchor);
   report.anchorCreated = true;
   report.rootImportAdded = upsertRootImport(projectDir, outside);
   // 이번에 만든 앵커는 install log 에 남긴다 — uninstall 이 회수를 주장하는 근거가 그 기록
   // 하나뿐이라(`commands/uninstall.ts` templates.rootClaudeMd), 빼면 아무도 못 지우는 파일을
-  // 새로 만들어 놓는 셈이 된다. 로그가 없으면 만들지 않는다 (설치 기록 날조 금지 — 다른
-  // 기준선 갱신과 같은 방침).
+  // 새로 만들어 놓는 셈이 된다.
   recordAnchorBaseline(projectDir, anchor);
 }
 

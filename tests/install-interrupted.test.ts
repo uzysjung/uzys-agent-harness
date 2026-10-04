@@ -130,7 +130,7 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       unreadableConfig();
       interrupted();
       const { code, errors } = uninstall();
-      expect(errors.join("\n")).not.toMatch(/install log not found/);
+      expect(errors.join("\n")).not.toMatch(/No install record|No harness install found/);
       expect(code).toBe(0);
       for (const p of ["AGENTS.md", "CLAUDE-uzys-harness.md", ".mcp.json", ".claude"]) {
         expect(existsSync(join(projectDir, p)), p).toBe(false);

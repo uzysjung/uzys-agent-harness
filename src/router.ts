@@ -120,19 +120,3 @@ export function buildRouterChoices(
     },
   ];
 }
-
-export function summarizeState(state: DetectedInstall): string {
-  if (state.state === "new") {
-    return "No prior install detected — new install flow.";
-  }
-  const trackList = state.tracks.length > 0 ? state.tracks.join(", ") : "(no tracks resolved)";
-  const sourceLabel =
-    state.source === "metafile"
-      ? "via .claude/.installed-tracks"
-      : state.source === "legacy"
-        ? "via legacy rules/*.md heuristic"
-        : state.source === "install-log"
-          ? "via .uzys-agent-harness/ install log"
-          : "via no source";
-  return `Existing install detected ${sourceLabel}. Tracks: ${trackList}.`;
-}
