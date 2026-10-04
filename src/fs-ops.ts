@@ -14,6 +14,7 @@ import {
   symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { outsideProjectTarget } from "./outside-project.js";
 
 /** Ensure a directory exists, creating parents as needed. Idempotent. */
 export function ensureDir(path: string): void {
@@ -139,6 +140,8 @@ export function backupDir(target: string, now: Date = new Date()): string | null
  * | target 자체가 링크 (`.claude` → 공유 dotfiles) | **실체를 복사** | 링크를 복사하면 update 가 그 링크를 통해 원본을 덮는 순간 백업이 가리키는 내용도 같이 바뀐다 — 되돌릴 수 없는 백업 |
  * | 안쪽 링크 (`skills/<id>` → `npx skills add` 저장소) | **링크인 채로** | 남의 저장소를 백업에 복제해 넣지 않는다. 끊어진 링크(스킬을 지운 뒤)에서도 죽지 않는다 |
  *
+ * (#678 · ADR-098 이후 install · update 는 밖 실체에 쓰지 않는다 — 이 표는 백업의 의미만 정한다.)
+ *
  * 최상위를 `realpathSync` 로 풀어 넘긴다. `dereference: true` 로도 이 케이스는 통과하지만
  * 그 옵션에 기대지 않는다 — 문서상 의미("심볼릭 링크를 따라간다")와 실측(Node 26.5.0 에선
  * 안쪽 링크를 풀지 않았다)이 갈리는 옵션이라, 버전이 바뀌면 위 표의 두 번째 행이 조용히
@@ -262,6 +265,8 @@ export function ensureProjectSkeleton(projectDir: string): void {
     "docs/decisions",
   ];
   for (const d of dirs) {
+    // ADR-098 — 실체가 프로젝트 밖(예: `.claude` → dotfiles)이면 빈 폴더도 만들지 않는다.
+    if (outsideProjectTarget(projectDir, join(projectDir, d)) !== null) continue;
     mkdirSync(join(projectDir, d), { recursive: true });
   }
 }

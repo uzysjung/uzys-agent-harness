@@ -49,6 +49,17 @@ export function detectInstallState(projectDir: string): DetectedInstall {
       const tracks = readMetafile(metaPath);
       return { state: "existing", tracks, source: "metafile", hasClaudeDir: true };
     }
+    // ADR-098 — `.claude` 가 프로젝트 밖 링크면 install 은 이 메타파일을 쓰지 않는다. 그때 설치 기록이 있으면
+    // 그 트랙이 답이다(하네스 몫은 기록이 정한다) — 룰 이름 추론은 기록이 없는 옛 설치본 전용이다.
+    const log = readInstallLog(projectDir);
+    if (log) {
+      return {
+        state: "existing",
+        tracks: tracksFromLog(log.spec.tracks),
+        source: "install-log",
+        hasClaudeDir: true,
+      };
+    }
     const tracks = inferFromLegacySignatures(projectDir);
     return { state: "existing", tracks, source: "legacy", hasClaudeDir: true };
   }

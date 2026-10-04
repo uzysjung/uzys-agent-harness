@@ -90,7 +90,7 @@ To make one external asset available in every project, install it with its own t
 
 **An install made with Global before it was retired keeps working.** Its record says `global`, so `update` refreshes its assets with the global flags and `uninstall` lists them for you to remove by hand, as before — and `install --scope global` is still accepted in that project, so the repair and `RUNS AS` commands the screens print for it run as shown.
 
-`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched. Two exceptions: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` and isolates projects through the `projectPath` field of `installed_plugins.json`, and `--with-codex-trust` adds one trust entry for this folder to `~/.codex/config.toml`. *This project only* means *no other project is affected*, not *nothing outside this project is written*.
+`~/.codex/`, `~/.opencode/`, `~/.gemini/`, and `npm root -g` are not touched. Two exceptions: the `claude` CLI writes its plugin cache and marketplaces under `~/.claude/plugins/` and isolates projects through the `projectPath` field of `installed_plugins.json`, and `--with-codex-trust` adds one trust entry for this folder to `~/.codex/config.toml`. *This project only* means *no other project is affected*, not *nothing outside this project is written*. That includes links: if `.claude/`, a rules folder, or a harness file is a link that resolves outside this project (a shared dotfiles folder, for example), `install`, `update`, and `uninstall` leave what it points to untouched and name the link and its target on screen — the harness files are not written there.
 
 ### Multi-CLI install
 

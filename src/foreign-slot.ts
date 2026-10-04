@@ -10,8 +10,9 @@ import { join } from "node:path";
  * `.agents/skills/` 는 두 명령 어느 쪽에서도 판정을 안 받아 조용히 덮고 있었다.
  *
  * **적용 범위는 스킬 슬롯뿐이다.** `.claude/settings.json` · `.claude/rules/*.md` 처럼 슬롯 밖
- * 파일을 사용자가 공유 dotfiles 로 링크해 두는 것은 지원 케이스이고(`fs-ops.ts` copyBackupDir
- * 주석), 거기까지 넓히면 정상 설치가 통째로 건너뛰어진다.
+ * 파일의 링크는 "남의 자리" 로 보지 않는다 — 실체가 프로젝트 **안**이면 따라가 쓰고, **밖**이면
+ * 쓰지 않는다(#678 · 판정 SSOT = `outside-project.ts`). 거기까지 이 술어로 넓히면 프로젝트 안
+ * 링크까지 통째로 건너뛰어진다.
  */
 
 /**

@@ -324,8 +324,8 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     expect(report.updateMode?.skillsSkippedLinks).toContain(id);
   });
 
-  it("`.claude` 자체가 심링크인 공유 dotfiles 설치는 막지 않는다 (가드가 넓지 않다)", () => {
-    // `fs-ops.ts` 가 지원 케이스로 명시한 모양이다. 여기까지 막으면 정상 설치가 통째로 멈춘다.
+  it("`.claude` 자체가 밖 dotfiles 로의 심링크면 설치는 끝까지 가되 그 안에 쓰지 않는다 (ADR-098 · 슬롯 가드는 넓지 않다)", () => {
+    // ADR-098 전에는 따라 쓰는 지원 구성이었다. 지금은 밖이라 쓰지 않고 "남김 + 경로" — 남의 자리(foreignOwned)로 부르지는 않는다.
     const shared = join(foreignRepo, "shared-dotfiles-claude");
     mkdirSync(shared, { recursive: true });
     symlinkSync(shared, join(projectDir, ".claude"));
@@ -333,8 +333,14 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
     const report = install();
 
     expect(report.baselineForeignOwned).toHaveLength(0);
-    expect(report.dirsCopied).toBeGreaterThanOrEqual(clean.dirs - 1);
-    expect(existsSync(join(shared, "skills"))).toBe(true);
+    expect(report.dirsCopied).toBe(0);
+    expect(report.outsideLinks?.every((o) => o.link === ".claude")).toBe(true);
+    expect(report.outsideLinks?.length).toBeGreaterThan(0);
+    // 밖에는 파일이 하나도 없다(빈 뼈대 폴더만 — ADR-098 Consequences 의 "빈 폴더 mkdir")
+    const files = readdirSync(shared, { recursive: true, withFileTypes: true }).filter((e) =>
+      e.isFile(),
+    );
+    expect(files).toEqual([]);
   });
 
   it("디렉터리 자산(스킬 대부분)도 **그 안의 파일**이 링크면 따라 쓰지 않는다", () => {
