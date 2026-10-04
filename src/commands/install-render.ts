@@ -885,6 +885,16 @@ function renderPhase1Rows(
     for (const path of baseline.updateMode.installedNew) {
       log(assetRow("success", path, "added by this release"));
     }
+    // #585 후속 — 릴리즈가 더한 것이 아니다: 기록에 있는 트랙이 다른 CLI 로만 깔려 있었고 update 가 이 CLI 에도 깔았다
+    for (const f of baseline.updateMode.installedForTracks ?? []) {
+      log(
+        assetRow(
+          "success",
+          f.path,
+          `recorded track ${f.tracks.join(", ")} — installed for this CLI too (it was installed for another CLI)`,
+        ),
+      );
+    }
     // 원인이 다르면 문구도 달라야 한다. 이쪽은 전에 깔아 준 적이 있는 파일이라 사용자가
     // 지웠을 수 있다 — "이번 릴리즈에 추가됨"이라고 적으면 그 사용자에게는 거짓말이고,
     // 자기가 지운 파일이 왜 돌아왔는지 추적할 단서가 사라진다.

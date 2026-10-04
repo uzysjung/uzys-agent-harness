@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readInstallLog } from "../src/install-log.js";
+import { createInstallRenderer } from "../src/commands/install-render.js";
+import { type InstallLog, installLogPath, readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { runInteractive } from "../src/interactive.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
@@ -52,9 +53,8 @@ describe("#585 — 기록 트랙 누적", () => {
     expect(log?.spec.tracks).toEqual(["data", "tooling"]);
     expect(log?.spec.clis).toEqual(["claude", "codex"]);
 
-    // codex 단독 실행은 `.claude/` 를 건드리지 않는다 — 감지 트랙(메타파일)은 tooling 그대로
+    // 화면이 읽는 트랙은 기록 하나다(#699 NR-1) — 누적된 기록이면 머리글 · update 헤더가 둘 다 말한다
     const state = detectInstallState(dir);
-    expect(state.tracks).toEqual(["tooling"]);
     const header = describeInstall(state, buildInstallRecordView(state, log ?? null, true));
     expect(header).toContain("Installed here: tracks data, tooling ·");
     expect(buildUpdateSpec(dir, state.tracks).tracks).toEqual(["data", "tooling"]);
@@ -78,5 +78,58 @@ describe("#585 — 기록 트랙 누적", () => {
     expect(readInstallLog(dir)?.spec.tracks).toEqual(["data", "tooling"]);
     expect(readFileSync(join(dir, ".claude/.installed-tracks"), "utf8")).toBe("data\ntooling\n");
     expect(detectInstallState(dir).tracks).toEqual(["data", "tooling"]);
+  });
+
+  /** update 1회 — 색을 벗긴 화면. */
+  const update = (): string => {
+    const lines: string[] = [];
+    const spec = buildUpdateSpec(dir, detectInstallState(dir).tracks);
+    const renderer = createInstallRenderer((m) => lines.push(m), spec, false);
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      spec,
+      mode: "update",
+      onProgress: (event) => renderer.callbacks.onProgress?.(event),
+    });
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+  };
+  const line = (screen: string, path: string): string =>
+    screen.split("\n").find((l) => l.includes(`${path} `)) ?? "";
+
+  it("트랙이 쌓인 뒤 update 가 다른 CLI 자리에 채운 기록 트랙의 몫은 그 트랙을 말한다 — 릴리즈 신규라 하지 않는다", () => {
+    install(["tooling"], ["claude"]);
+    install(["data"], ["antigravity"]);
+
+    const screen = update();
+
+    // 까는 것은 그대로다 — 화면만 다르다
+    expect(existsSync(join(dir, ".claude/agents/data-analyst.md"))).toBe(true);
+    expect(existsSync(join(dir, ".agents/rules/cli-development.md"))).toBe(true);
+    for (const [path, track] of [
+      [".claude/agents/data-analyst.md", "data"],
+      [".agents/rules/cli-development.md", "tooling"],
+    ] as const) {
+      expect(line(screen, path)).toContain(`recorded track ${track} — installed for this CLI too`);
+      expect(line(screen, path)).not.toContain("added by this release");
+    }
+  });
+
+  it("이 CLI 에 이미 깔린 트랙에 새로 생긴 파일은 여전히 'added by this release' 다", () => {
+    install(["tooling"], ["claude"]);
+    // 이 릴리즈가 처음 더한 파일처럼 만든다 — 디스크에도 기록에도 없다(tooling 의 다른 몫은 기록에 있다)
+    const NEW = "rules/test-policy.md";
+    rmSync(join(dir, ".claude", NEW));
+    const log = JSON.parse(readFileSync(installLogPath(dir), "utf8")) as InstallLog;
+    const policyFiles = (log.policyFiles ?? []).filter((f) => f.path !== NEW);
+    writeFileSync(installLogPath(dir), JSON.stringify({ ...log, policyFiles }));
+
+    const screen = update();
+
+    expect(existsSync(join(dir, ".claude", NEW))).toBe(true);
+    expect(line(screen, `.claude/${NEW}`)).toContain("added by this release");
+    expect(screen).not.toContain("installed for this CLI too");
   });
 });
