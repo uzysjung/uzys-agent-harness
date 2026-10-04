@@ -11,8 +11,9 @@
 #   ③ #558 `AGENTS.md` — `## Project Context` · `## Project Rules` 를 채운 파일에 설치 → 두 절의 설치자 문장이 남고
 #      하네스 몫은 블록 하나.
 #   ④ #551 R1 · R2 생애주기 — 세 파일을 가진 프로젝트에 첫 접촉 install → 트랙 추가 install(하네스 구간·키에 새 서버,
-#      실 codex · opencode 가 봄) → 설치자가 하네스 구간 안을 고치고 하네스 서버 하나를 지움 → update(고친 것 남고 지운 것
-#      안 돌아옴 · 기록에 excluded) → uninstall(AGENTS.md 원본 바이트 · opencode.json 설치자 서버만 — 실 opencode 가 봄).
+#      실 codex · opencode 가 봄) → 설치자가 하네스 구간 안을 고치고 하네스 서버 하나를 지움 → update(고친 것 남고 지운
+#      서버는 되살리며 `--without` 을 말함 — ADR-099) → `--without` 으로 빼고 다시 지움 → update(안 되살림 · 기록에 excluded)
+#      → uninstall(AGENTS.md 원본 바이트 · opencode.json 설치자 서버만 — 실 opencode 가 봄).
 
 set -uo pipefail # set -e 제외: 판정마다 failed 를 모은다.
 
@@ -282,14 +283,46 @@ else
   echo "FAIL: update 가 하네스 구간 안의 설치자 편집을 되돌렸다"
   failed=1
 fi
-if jq -e '.mcp | has("github")' opencode.json >/dev/null; then
-  echo "FAIL: update 가 설치자가 지운 하네스 서버(github)를 되살렸다 (R2)"
+# ADR-099 — 손으로 지운 것은 빼기가 아니다. update 는 기록에 있는 하네스 서버를 되살리고, 빼는 명령을 말한다.
+if ! jq -e '.mcp | has("github")' opencode.json >/dev/null; then
+  echo "FAIL: update 가 설치자가 지운 하네스 서버(github)를 되살리지 않았다 (ADR-099)"
   failed=1
-elif jq -e '.excluded | index("opencode:mcp.github")' "${LOG4}" >/dev/null; then
-  echo "✓ update 가 지운 서버를 되살리지 않고 기록(excluded)에 적었다"
+elif ! grep -q 'was missing — restored: .*opencode:mcp.github' /tmp/lifecycle-update.log \
+  || ! grep -qF -- '--without opencode:mcp.github' /tmp/lifecycle-update.log; then
+  echo "FAIL: 되살린 사실이나 빼는 명령(--without opencode:mcp.github)을 화면이 말하지 않는다"
+  grep -n 'opencode.json' /tmp/lifecycle-update.log | head -5
+  failed=1
+elif jq -e '(.excluded // []) | index("opencode:mcp.github")' "${LOG4}" >/dev/null; then
+  echo "FAIL: update 가 손으로 지운 서버를 excluded 에 적었다 — 빼기는 명시할 때만이다 (ADR-099)"
+  failed=1
 else
-  echo "FAIL: 지운 서버가 excluded 에 없다 — 다음 install 이 되살린다"
+  echo "✓ update 가 지운 하네스 서버(github)를 되살리고 빼는 명령(--without)을 말한다 · excluded 에 안 적는다"
+fi
+
+# 안 되는 쪽: 화면이 말한 대로 --without 으로 빼고 지우면 update 는 되살리지 않는다.
+agent-harness install --track tooling --track csr-fastapi --cli codex --cli opencode --with-codex-trust --scope project \
+  --without opencode:mcp.github >/tmp/lifecycle-without.log 2>&1 || {
+  echo "FAIL: --without opencode:mcp.github install 실패"
+  tail -30 /tmp/lifecycle-without.log
+  exit 1
+}
+jq 'del(.mcp.github)' opencode.json >opencode.json.tmp && mv opencode.json.tmp opencode.json
+agent-harness update >/tmp/lifecycle-update2.log 2>&1 || {
+  echo "FAIL: --without 뒤 update 실패"
+  tail -30 /tmp/lifecycle-update2.log
+  exit 1
+}
+if jq -e '.mcp | has("github")' opencode.json >/dev/null; then
+  echo "FAIL: --without 으로 뺀 하네스 서버(github)를 update 가 되살렸다 — 설치자의 명시적 빼기를 무시했다"
   failed=1
+elif ! jq -e '.mcp | has("context7") and has("myown")' opencode.json >/dev/null; then
+  echo "FAIL: 대조군 — 빼지 않은 하네스 서버(context7)나 설치자 서버(myown)가 사라졌다: $(jq -c '.mcp | keys' opencode.json)"
+  failed=1
+elif ! jq -e '(.excluded // []) | index("opencode:mcp.github")' "${LOG4}" >/dev/null; then
+  echo "FAIL: --without 으로 뺀 서버가 excluded 에 없다 — 기록이 빼기를 모른다"
+  failed=1
+else
+  echo "✓ --without 으로 뺀 서버는 update 가 되살리지 않는다 · excluded 에 있다 (대조군 context7 · myown 유지)"
 fi
 codex mcp list >/dev/null 2>&1 && echo "✓ update 뒤에도 실 codex 가 설정을 받는다" || {
   echo "FAIL: update 뒤 codex 가 설정을 거절했다"
