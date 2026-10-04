@@ -35,8 +35,11 @@ export function residentEntries(spec: InstallSpec): ResidentEntry[] {
     }
     if (e.target.startsWith(".claude/skills/")) {
       if (hasClaude) return !isBaselineExcluded(e.target, excluded);
+      // 설치기는 `selectedInternalSkills` 에서 해제분을 걸러 transform 에 준다(#673) — 같은 조건.
       const id = /^\.claude\/skills\/([^/]+)/.exec(e.target)?.[1];
-      return id !== undefined && bundled.has(id);
+      return (
+        id !== undefined && bundled.has(id) && !isBaselineExcluded(`.claude/skills/${id}`, excluded)
+      );
     }
     return true;
   });

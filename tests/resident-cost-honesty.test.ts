@@ -102,6 +102,22 @@ describe("사례 2 — 스킬 수 = 실제로 그 CLI 자리에 깔린 수", () 
   });
 });
 
+describe("사례 2 — claude 없이 뺀 스킬도 비용에서 빠진다", () => {
+  it("csr-fastify + codex 에서 번들 스킬 하나를 빼면 디스크 = 헤더 = 위저드", () => {
+    const { projectDir: full } = install("csr-fastify", ["codex"]);
+    const victim = subdirs(join(full, ".agents/skills")).find((id) =>
+      existsSync(join(ROOT, "templates", "skills", id)),
+    );
+    expect(victim, "대조군: .agents/skills 에 번들 스킬이 있어야 뺄 수 있다").toBeDefined();
+    const { projectDir, spec } = install("csr-fastify", ["codex"], [`baseline:skills/${victim}`]);
+    const onDisk = subdirs(join(projectDir, ".agents/skills"));
+    expect(onDisk, "대조군: 설치기가 정말 뺐다").not.toContain(victim);
+    expect(residentCostFor(spec).items.skills).toBe(onDisk.length);
+    expect(headerLine(spec)).toContain(`skills ${onDisk.length} ~`);
+    expect(formatSummary(spec)).toContain(`skills ${onDisk.length} ~`);
+  });
+});
+
 describe("사례 3 — --without 로 뺀 룰은 비용에서도 빠진다", () => {
   const allRules = (track: Track): string[] =>
     resolveRules({ tracks: [track] }).map((r) => `baseline:rules/${r}`);
