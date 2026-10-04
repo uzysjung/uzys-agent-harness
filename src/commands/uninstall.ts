@@ -64,7 +64,12 @@ import {
 } from "../install-log.js";
 import { legacyGitignoreSeed } from "../install-writes.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
-import { isOutsideProject, type OutsideLink, outsideLinkAt } from "../outside-project.js";
+import {
+  isOutsideProject,
+  type OutsideLink,
+  outsideLinkAt,
+  outsideProjectTarget,
+} from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
 import { excludedIds, kindOf } from "../recorded.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
@@ -770,10 +775,26 @@ function rootFileAdvisoryLines(
     : "[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):";
   const present = rootFiles.filter((f) => existsSync(join(projectDir, f.path)));
   if (present.length === 0) return [];
+  // #694 — 프로젝트 밖으로 나가는 링크 너머 파일은 "삭제해도 안전" 으로 나열하지 않는다. 공유 dotfiles 면 다른
+  // 프로젝트의 설정이다 — 링크 자리 하나로 묶어 남김 + 링크 → 대상을 말한다(ADR-098 · #692 와 같은 판정).
+  const outside = new Map<string, { link: OutsideLink; files: string[] }>();
+  const inside = present.filter((f) => {
+    const o = outsideProjectTarget(projectDir, join(projectDir, f.path));
+    if (o === null) return true;
+    const group = outside.get(o.link) ?? { link: o, files: [] };
+    group.files.push(f.path);
+    outside.set(o.link, group);
+    return false;
+  });
   return [
     "",
     c.yellow(header),
-    ...present.flatMap((f) => [
+    ...[...outside.values()].map(({ link: o, files }) =>
+      c.dim(
+        `  · ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}); harness files there: ${files.join(" · ")} (other projects linked to it may use them)`,
+      ),
+    ),
+    ...inside.flatMap((f) => [
       c.dim(`  · ${f.path} — ${rootFileMeaning(f, projectDir)}`),
       // displaced 의 notes 는 백업 경로 하나 — 위 줄이 이미 댔다
       ...(f.change !== "displaced" && f.notes.length > 0

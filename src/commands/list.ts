@@ -59,9 +59,12 @@ export function listAction(options: ListOptions = {}, deps: ListActionDeps = {})
   log(c.dim(`  cli:       ${installedClis(installLog).join(", ") || "(none)"}`));
   log("");
 
-  log(c.bold(`  Assets (${installLog.assets.length})`));
+  // #615 사례 5 — 이 수는 **설치가 끝난 외부 도구**(플러그인 · npx 등, `uninstall --only <id>` 의 입력)다.
+  // 설치 화면의 `ASSETS N selected` 는 카탈로그에서 고른 수라 번들 스킬이 섞인다 — 같은 "Assets" 로
+  // 부르면 10 을 고른 설치자가 여기서 0 을 보고 설치가 실패했다고 읽는다. 번들 스킬은 하네스 파일이다.
+  log(c.bold(`  External assets (${installLog.assets.length})`));
   if (installLog.assets.length === 0) {
-    log(c.dim("    (none — 내부 템플릿만 설치됨)"));
+    log(c.dim("    (none — 번들 스킬은 하네스 파일로 깔린다 · 아래 목록)"));
   }
   for (const line of formatAssetRows(installLog.assets)) {
     log(line);

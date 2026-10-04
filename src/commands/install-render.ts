@@ -265,7 +265,7 @@ export function renderUpdateSummary(
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
   const cost = formatResidentCostLine(
-    residentCostFor(spec, residentEntriesOnDisk(spec)),
+    residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
     summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
   );
   if (cost) log(infoRow("CONTEXT", cost));
@@ -291,32 +291,68 @@ export function renderUpdateSummary(
 }
 
 /**
- * update 가 재는 상주 엔트리 — **에이전트만 디스크에서** 읽는다 (#458).
+ * update 가 재는 상주 엔트리 — claude 자리의 룰·스킬·에이전트를 **갱신 뒤 디스크에서** 읽는다
+ * (#458 · #615 사례 4).
  *
- * 나머지(룰·스킬·CLAUDE.md)는 update 가 방금 배포판으로 동기화한 것이라 계획 = 디스크다.
- * 에이전트만 갈리는 이유는 **트랙 조건화(ADR-090)와 은퇴(ADR-089)가 파일을 안 지우기 때문**이다:
- * manifest 에는 없는데 파일은 남아 descriptor 가 매 세션 상주한다. 그 차이를 안 반영하면 화면이
- * 실제보다 작은 숫자를 내고, 바로 그 숫자를 근거로 "지워도 된다" 안내가 붙는 화면이다.
+ * 계획(manifest)과 디스크가 갈리는 경우가 실재한다: 트랙 조건화(ADR-090)·은퇴(ADR-089)는 파일을
+ * 안 지우고, `--only` 로 고르지 않은 묶음과 프로젝트 밖 링크(#678)는 옛 판 그대로 남고, 설치자가
+ * 고친 파일·직접 넣은 파일도 매 세션 상주한다. 화면이 계획을 재면 바로 그 차이가 빠진다.
+ *  - 룰·에이전트: 폴더의 `.md` 전부(설치자 것 포함 — 상주하는 것은 상주한다). 백업 `*.backup-*` 는 아니다.
+ *  - 스킬: 계획한 번들 스킬 중 **디스크에 있는 것**을 디스크 판으로. 폴더 전부를 세지 않는 이유는
+ *    외부 스킬이 같은 폴더에 깔리고 그쪽은 `external unmeasured` 로 따로 세기 때문이다(두 번 세지 않는다).
+ * claude 가 없는 설치는 계획 그대로다 — 그 CLI 의 산출물은 `AGENTS.md` 한 파일에 룰을 인라인으로
+ * 담는 등 이 단위로 갈라 잴 수 없다.
  */
 function residentEntriesOnDisk(
   spec: InstallSpec,
 ): Array<{ source: string; target: string; file?: string }> {
   const planned = residentEntries(spec);
-  const agentsDir = join(spec.projectDir, ".claude", "agents");
   // claude 가 없으면 `.claude/` 를 만든 적이 없다 — 남의 `.claude/agents/` 는 이 설치의 상주가 아니다.
-  const onDisk =
-    spec.cli.includes("claude") && existsSync(agentsDir)
-      ? readdirSync(agentsDir, { withFileTypes: true })
+  if (!spec.cli.includes("claude")) {
+    return planned.filter((e) => !e.target.startsWith(".claude/agents/"));
+  }
+  const mdFiles = (kind: "rules" | "agents") => {
+    const dir = join(spec.projectDir, ".claude", kind);
+    return existsSync(dir)
+      ? readdirSync(dir, { withFileTypes: true })
           .filter((e) => e.isFile() && e.name.endsWith(".md"))
           .map((e) => ({
-            source: `agents/${e.name}`,
-            target: `.claude/agents/${e.name}`,
-            // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 descriptor 도,
-            // 배포판에 더는 없는 에이전트도 실제로 상주하는 것은 이쪽이다.
-            file: join(agentsDir, e.name),
+            source: `${kind}/${e.name}`,
+            target: `.claude/${kind}/${e.name}`,
+            // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 본문도,
+            // 배포판에 더는 없는 파일도 실제로 상주하는 것은 이쪽이다.
+            file: join(dir, e.name),
           }))
       : [];
-  return [...planned.filter((e) => !e.target.startsWith(".claude/agents/")), ...onDisk];
+  };
+  const skills = planned
+    .filter((e) => e.target.startsWith(".claude/skills/"))
+    .map((e) => ({ ...e, file: join(spec.projectDir, e.target) }))
+    .filter((e) => existsSync(e.file));
+  return [
+    ...planned.filter(
+      (e) =>
+        !e.target.startsWith(".claude/rules/") &&
+        !e.target.startsWith(".claude/agents/") &&
+        !e.target.startsWith(".claude/skills/"),
+    ),
+    ...mdFiles("rules"),
+    ...skills,
+    ...mdFiles("agents"),
+  ];
+}
+
+/**
+ * update 뒤 CLAUDE.md 행이 잴 파일 (#615 사례 4) — claude 가 매 세션 읽는 앵커 · 루트 `CLAUDE.md` ·
+ * 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 — 지우지 않으므로 계속 읽힌다).
+ * 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면 키운 본문이 화면에서 사라진다.
+ * claude 가 없으면 undefined — `AGENTS.md` 는 룰을 인라인으로 품어 룰 행과 겹친다(위 함수와 같은 이유).
+ */
+function contextFilesOnDisk(spec: InstallSpec): string[] | undefined {
+  if (!spec.cli.includes("claude")) return undefined;
+  return [HARNESS_ANCHOR_FILE, "CLAUDE.md", join(".claude", "CLAUDE.md")].map((f) =>
+    join(spec.projectDir, f),
+  );
 }
 
 /**
