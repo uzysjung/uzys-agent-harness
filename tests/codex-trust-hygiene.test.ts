@@ -12,9 +12,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderCliArtifacts } from "../src/commands/install-render.js";
+import { renderCliArtifacts, renderFinalSummary } from "../src/commands/install-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { readInstallLog } from "../src/install-log.js";
+import { readInstallLog, writeInstallLog } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
@@ -73,7 +73,14 @@ function screen(spec: InstallSpec, report: InstallReport): string {
   return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-function uninstall(extra: { dryRun?: boolean } = {}): string {
+function finalSummary(spec: InstallSpec, report: InstallReport): string {
+  const lines: string[] = [];
+  renderFinalSummary((m) => lines.push(m), spec, report, false);
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+  return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+function uninstall(extra: { dryRun?: boolean; only?: string } = {}): string {
   const lines: string[] = [];
   uninstallAction(
     { projectDir, ...extra },
@@ -109,6 +116,10 @@ describe("파싱 불가인 전역 config — 쓰지 않고 이유를 말한다 (
     // 쓰지 않았으니 하네스 몫이 아니다 — uninstall 이 있지도 않은 항목을 안내하지 않는다
     expect(readInstallLog(projectDir)?.codexTrust).toBeUndefined();
     expect(uninstall({ dryRun: true })).not.toContain("Codex trust entry");
+    // 실패한 플래그를 다음 단계로 다시 권하지 않는다
+    const next = finalSummary(spec, report);
+    expect(next).toContain("fix ~/.codex/config.toml");
+    expect(next).not.toContain("(headless: agent-harness install … --with-codex-trust)");
   });
 });
 
@@ -147,6 +158,27 @@ describe("uninstall — trust 항목을 손수 지울 목록에 올린다 (#644 
     expect(real).toContain(configPath);
     expect(real).toContain(`[projects."${projectDir}"]`);
     expect(readFileSync(configPath).equals(registered)).toBe(true);
+  });
+
+  it("--only 는 자산만 다룬다 — 전역 trust 안내를 내지 않는다", () => {
+    install(true);
+    const log = readInstallLog(projectDir);
+    if (log === null) throw new Error("대조군: 설치 기록이 있어야 한다");
+    // 외부 자산 설치는 이 테스트에서 돌리지 않는다 — --only 가 고를 자산 하나를 기록에 둔다.
+    writeInstallLog(projectDir, {
+      ...log,
+      assets: [
+        {
+          id: "demo-npm",
+          category: "tool",
+          method: "npm",
+          scope: "project",
+          detail: { pkg: "demo" },
+        },
+      ],
+    });
+    expect(uninstall({ dryRun: true })).toContain("Codex trust entry");
+    expect(uninstall({ dryRun: true, only: "demo-npm" })).not.toContain("Codex trust entry");
   });
 
   it("플래그 없이 깐 설치나 설치자가 손으로 trust 한 항목은 올리지 않는다 — 기록이 정한다", () => {

@@ -251,6 +251,7 @@ What it can and cannot reverse:
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`, skill directories).
 - **Harness files** — `.claude/`, `.codex/` and `.opencode/` are not deleted: each is moved aside as `<dir>.backup-<ts>` with everything in it, so files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) are in the backup; in `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
 - **Global-scope assets** — listed for you to remove by hand.
+- **The Codex trust entry** that `--with-codex-trust` added to `~/.codex/config.toml` — listed with its path for you to remove by hand (a full `uninstall` and `--dry-run` print it; an entry that was already there before the install is yours and is not listed).
 - **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
 - **Root files** — `.mcp.json`, `.gitignore`, `.env.example`, `.github/workflows/` are **listed and left in place**, labelled created or merged, because your own content may be in them.
 
