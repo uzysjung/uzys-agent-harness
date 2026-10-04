@@ -7,14 +7,13 @@
  * - #607: uninstall --dry-run 계획에 설치 기록 제거 스텝이 있다(실행이 수행하는 마지막 단계).
  * - #626: --keep-templates 의 잔여 안내 헤더가 ".claude/ 밖" 을 참말로 만든다.
  */
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installSpecFromOptions, specFromOptions } from "../src/commands/install.js";
-import { runInstall } from "../src/installer.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { readInstallLog } from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -35,7 +34,7 @@ describe("#613 — 센티널 트랙 값의 오류 문구", () => {
     expect(r.message).toContain("--track");
   });
 
-  it("눇값(숫자 0 센티널)은 \"Unknown track: 0\" 이 아니다", () => {
+  it('눇값(숫자 0 센티널)은 "Unknown track: 0" 이 아니다', () => {
     const r = specFromOptions({ track: ["0"] as never, cli: ["claude"] });
     expect(r.ok).toBe(false);
     expect(r.message).not.toContain("Unknown track: 0");
@@ -67,7 +66,12 @@ describe("#607/#626 — uninstall 안내", () => {
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      spec: { tracks: ["base"], options: { withCodexTrust: false }, cli: ["claude"], projectDir } as InstallSpec,
+      spec: {
+        tracks: ["base"],
+        options: { withCodexTrust: false },
+        cli: ["claude"],
+        projectDir,
+      } as InstallSpec,
     });
   const uninstall = (options: Record<string, unknown>) => {
     const lines: string[] = [];
