@@ -33,7 +33,7 @@ Run the wizard again on an installed project and it shows what is installed — 
 - **Add nothing** and it does exactly what [`update`](#update) does.
 - **Add a track, a CLI, or an asset** and it does exactly what `install --track … --cli …` does with the combined set — new files arrive, installed ones are refreshed, edited ones are backed up. The confirm screen prints that command on a `RUNS AS` line.
 - **A checked box means the asset is there after the run.** A recommended asset that is not installed — dropped at install time, failed to install, or new in this release — starts unchecked; check it and the run becomes the `install …` above.
-- **An installed CLI cannot be dropped here** (projects with an install record). Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
+- **An installed track or CLI cannot be dropped here** (projects with an install record). The record adds up every track and CLI any install added — `install --track data --cli codex` on a project installed with `--track tooling` records both tracks, and the next `update` brings every installed CLI to both. Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
 
 **Uninstall** opens the same screen as [`uninstall`](#uninstall). If the record says Claude Code is installed but `.claude/` is gone, the menu shows a one-line repair command (`install --reinstall --track … --cli claude --scope …`) and Update stays disabled until you run it.
 
@@ -194,7 +194,7 @@ The harness keeps a checksum of every file it writes, so `install` and `update` 
 - **Edited by you** → your version is saved as `<file>.backup-<ts>` and the newer version takes its place. The summary shows the count and writes the list to `.uzys-agent-harness/update-backups.json`. To carry your edits onto the new version, ask the `audit-harness-fit` skill to re-apply them from the backup.
 - **No checksum on record** (installed before checksums existed) → anything that differs is backed up once; later runs are precise.
 
-`update` is more careful about deleting than about replacing: it deletes a policy file only when the record proves the harness installed it. That is how a retired rule is cleaned up without touching a rule *you* wrote. Inside a skill directory, files that are not part of the current bundle are removed; they are backed up first unless they are exactly what the harness originally wrote. This keeps old, unused files from piling up in a skill.
+`update` is more careful about deleting than about replacing: it deletes a policy file only when the record proves the harness installed it. That is how a retired rule is cleaned up without touching a rule *you* wrote. The same goes for a harness rule recorded outside your tracks — releases before v26.163.0 could put `cli-development` into Antigravity's `.agents/rules/` for any track: `update` and `install` remove it (one you edited is saved as `<file>.backup-<ts>` first) and say `not part of your tracks — removed`. A rule you dropped with `--without` stays where it is. Inside a skill directory, files that are not part of the current bundle are removed; they are backed up first unless they are exactly what the harness originally wrote. This keeps old, unused files from piling up in a skill.
 
 ### Installing into an existing project
 

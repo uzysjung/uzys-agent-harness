@@ -30,6 +30,8 @@ export interface InstallRecordView {
   scope: InstallScope | null;
   /** 깨진 설치의 복구 명령 (D10). `null` = 정상. */
   repair: string | null;
+  /** #585 — 기록의 트랙(누적). 비었거나 없으면 머리글은 감지한 트랙을 말한다. */
+  tracks?: ReadonlyArray<string>;
 }
 
 export const NO_RECORD: InstallRecordView = { clis: null, scope: null, repair: null };
@@ -53,6 +55,7 @@ export function buildInstallRecordView(
     clis,
     scope: log.scope,
     repair: broken ? repairCommand(log, state.tracks) : null,
+    tracks: log.spec.tracks.filter(isTrack),
   };
 }
 
@@ -75,7 +78,10 @@ export function describeInstall(
   state: DetectedInstall,
   record: InstallRecordView = NO_RECORD,
 ): string {
-  const tracks = state.tracks.length > 0 ? state.tracks.join(", ") : "(none detected)";
+  // #585 — 기록이 있으면 기록의 트랙을 말한다(`.claude/.installed-tracks` 는 claude 를 깐 실행만 적는다)
+  const shown =
+    record.tracks !== undefined && record.tracks.length > 0 ? record.tracks : state.tracks;
+  const tracks = shown.length > 0 ? shown.join(", ") : "(none detected)";
   if (record.clis === null) return `Installed here (no record): tracks ${tracks} · CLI unknown`;
   const clis = record.clis.length > 0 ? record.clis.join(", ") : "(none)";
   const head = `Installed here: tracks ${tracks} · CLI ${clis} · scope ${record.scope}   (record: ${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME})`;

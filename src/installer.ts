@@ -69,7 +69,13 @@ import {
   resolveRules,
 } from "./manifest.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
-import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
+import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
+import {
+  createOutsideGuard,
+  mergeOutside,
+  type OutsideLink,
+  outsideProjectTarget,
+} from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds } from "./recorded.js";
 import type { SharedWriteResult } from "./shared-write.js";
@@ -77,6 +83,7 @@ import {
   type CliBase,
   type InstallSpec,
   isCliBase,
+  isTrack,
   type OptionFlags,
   resolveScope,
   type Track,
@@ -295,6 +302,8 @@ export interface BaselineReport {
    * 옵셔널 = update 경로는 `updateMode.outsideLinks` 에 싣고, 화면 픽스처는 싣지 않는다(없음 = 0건).
    */
   outsideLinks?: OutsideLink[];
+  /** #677 — 기록 트랙(누적) 밖이라 치운 하네스 파일. 부재 = 치운 것 없음. */
+  outOfTrack?: OutOfTrackReclaim;
 }
 
 export interface InstallReport {
@@ -369,6 +378,8 @@ export interface InstallReport {
   shared?: SharedWrite[];
   /** #678 — `BaselineReport.outsideLinks` 와 같다. */
   outsideLinks?: OutsideLink[];
+  /** #677 — `BaselineReport.outOfTrack` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). */
+  outOfTrack?: OutOfTrackReclaim;
   /** #678 — `BaselineReport.categories` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). NEXT 줄이 실제로 깐 것을 센다. */
   categories?: BaselineCategoryCounts;
   /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
@@ -616,6 +627,27 @@ function runInstallStages(
     journal,
   });
 
+  // #677 — 기록에 있으나 이 실행 뒤의 기록 트랙(이전 ∪ 이번) · 깔린 CLI 의 렌더 밖인 하네스 룰을 치운다. 이번 실행의 렌더만
+  // 보면 앞 설치가 깐 트랙의 룰을 지운다 — 누적 트랙으로 판정한다.
+  const reclaimOutside = createOutsideGuard(projectDir);
+  const outOfTrack = reclaimOutOfTrack({
+    projectDir,
+    log: previousLog,
+    tracks: [...new Set([...(previousLog?.spec.tracks ?? []).filter(isTrack), ...spec.tracks])],
+    clis: [...new Set([...installedClis(previousLog), ...spec.cli])],
+    excluded,
+    outside: reclaimOutside,
+  });
+  // 치운(또는 이미 없던) 경로는 기록에서 뺀다 — 아래 기록 합성이 앞 기록의 `externalFiles` 를 이어받기 때문이다.
+  const forgotten = new Set(outOfTrack.forget);
+  const logBase: InstallLog | null =
+    previousLog === null || forgotten.size === 0
+      ? previousLog
+      : {
+          ...previousLog,
+          externalFiles: (previousLog.externalFiles ?? []).filter((f) => !forgotten.has(f.path)),
+        };
+
   stage.envExampleCreated = writeEnvExample(projectDir, spec.tracks);
   const envFiles = writeEnvironmentFiles(writer, stage.envExampleCreated, previousLog);
   stage.envFiles = envFiles;
@@ -671,7 +703,13 @@ function runInstallStages(
     ],
     baselineLinked: linked.updated,
     baselineLinkedNotOurs: linked.notOurs,
-    outsideLinks: mergeOutside(ledger.outside, externalOutside, linked.outside),
+    outsideLinks: mergeOutside(
+      ledger.outside,
+      externalOutside,
+      linked.outside,
+      reclaimOutside.list(),
+    ),
+    ...(outOfTrack.removed.length + outOfTrack.backedUp.length > 0 ? { outOfTrack } : {}),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━
@@ -688,7 +726,7 @@ function runInstallStages(
     [...externalFiles, ...linked.files],
     external,
     ledger,
-    previousLog,
+    logBase,
     excluded,
     [
       ...collectRootFiles(envFiles, ciScaffold, ledger.shared),
@@ -1087,9 +1125,15 @@ function installClaudeBaseline(
 
   // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
   // 하네스 파일이라 같은 판정을 받는다 — 옛 판 기록엔 sha 가 없으므로 대상으로 알려 준다("no checksum").
+  // #585 — 설치 기록과 같은 누적 트랙(이전 기록 ∪ 이번 실행)을 적는다. 이번 실행분만 적으면 기록과 갈린다.
   writer.harness(
     INSTALLED_TRACKS,
-    { content: installedTracksText(manifestSpec.tracks) },
+    {
+      content: installedTracksText([
+        ...(previousLog?.spec.tracks ?? []).filter(isTrack),
+        ...manifestSpec.tracks,
+      ]),
+    },
     { isTarget: (p) => p === INSTALLED_TRACKS },
   );
 

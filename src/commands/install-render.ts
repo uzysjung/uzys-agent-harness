@@ -44,6 +44,7 @@ import {
   type ProgressEvent,
 } from "../installer.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
+import type { OutOfTrackReclaim } from "../out-of-track.js";
 import type { OutsideLink } from "../outside-project.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
@@ -879,6 +880,8 @@ function renderPhase1Rows(
     for (const f of baseline.updateMode.restoredFiles ?? []) {
       log(assetRow("success", f.path, restoredFilePart(f)));
     }
+    // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
+    for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
     // ADR-099 R2 — update 도 install 과 같은 writer 로 루트 · `.claude/` 의 함께 쓰는 파일 몫을 쓴다 — 같은 행으로 말한다
     for (const f of baseline.updateMode.sharedWrites ?? []) {
       const row = sharedFileRow(f);
@@ -1201,6 +1204,8 @@ function renderPhase1Rows(
   }
   // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리(링크 하나에 한 줄).
   for (const row of outsideLinkRows(baseline.outsideLinks ?? [])) log(row);
+  // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다(백업 경로는 그 줄이 댄다)
+  for (const row of outOfTrackRows(baseline.outOfTrack)) log(row);
   // 외부 CLI 산출물 · 링크 본문의 백업 — 판정 줄이 없는 쪽만(같은 백업을 두 번 말하지 않는다).
   if (baseline.backups) {
     for (const b of baseline.backups) {
@@ -1396,6 +1401,21 @@ export function judgedRow(j: JudgedWrite): string {
  * 설치자가 할 일(그 링크를 실파일·실폴더로 바꾸기)은 하나다. 대상 경로를 함께 댄다: 그 파일이 바이트 그대로라는 사실을
  * 설치자가 직접 확인할 자리다.
  */
+/** #677 — 기록 트랙 밖이라 치운 하네스 파일. 고친 파일은 그 파일 하나의 백업 경로를 댄다. */
+export function outOfTrackRows(r: OutOfTrackReclaim | undefined): string[] {
+  if (r === undefined) return [];
+  return [
+    ...r.removed.map((path) => assetRow("success", path, "not part of your tracks — removed")),
+    ...r.backedUp.map((b) =>
+      assetRow(
+        "success",
+        b.path,
+        `not part of your tracks — you edited it, saved as ${shortenPath(b.backup)}, removed`,
+      ),
+    ),
+  ];
+}
+
 export function outsideLinkRows(links: ReadonlyArray<OutsideLink>): string[] {
   const groups = new Map<string, OutsideLink[]>();
   for (const o of links) groups.set(o.link, [...(groups.get(o.link) ?? []), o]);

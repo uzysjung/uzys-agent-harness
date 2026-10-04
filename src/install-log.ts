@@ -20,7 +20,7 @@ import {
 } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
 import { listFilesRecursive } from "./fs-ops.js";
-import { type CliBase, type InstallScope, type InstallSpec, isCliBase } from "./types.js";
+import { type CliBase, type InstallScope, type InstallSpec, isCliBase, isTrack } from "./types.js";
 
 export const INSTALL_LOG_FILENAME = ".harness-install.json";
 /**
@@ -143,6 +143,11 @@ export interface InstallLog {
   scope: InstallScope;
   /** install 시 spec 요약 (tracks/cli — uninstall reasoning 용) */
   spec: {
+    /**
+     * #585 — **이 프로젝트에 깔린 트랙 집합**(누적, 정렬). `clis` 와 같은 규칙이다 — install 은 더하기만 하고, 트랙을
+     * 빼는 명령은 없다(전량 uninstall 이 기록째 지운다). 마지막 설치분으로 덮던 탓에 claude 없이 다른 트랙으로 CLI 를
+     * 더 깔면 claude 로 깐 트랙이 기록에서 사라져, 아무것도 안 바꾼 Update 가 추가 설치로 돌았다.
+     */
     tracks: ReadonlyArray<string>;
     /**
      * **마지막 설치가 고른 CLI**. 누적하지 않는다 — 설치 화면·`list` 의 표시용이다.
@@ -170,7 +175,7 @@ export interface InstallLog {
      * 다시 유도할 뿐이라 사용자가 뺀 룰·에이전트를 되살리고, 화면엔 *"added by this release"*
      * 라고 적는다 — 같은 릴리즈에서 방금 설치한 파일인데도. 독립 리뷰가 실측으로 잡았다.
      *
-     * `tracks`·`cli` 와 같이 **누적하지 않는다**: install 은 매번 이 목록대로 다시 거르므로
+     * `cli` 와 같이 **누적하지 않는다**: install 은 매번 이 목록대로 다시 거르므로
      * 로그는 마지막 설치가 실제로 한 일이어야 한다. 제외 없이 다시 깔면 파일이 돌아오고,
      * 그때 기록이 남아 있으면 로그가 디스크와 다른 말을 한다.
      */
@@ -427,9 +432,8 @@ const BUNDLED_SKILL_IDS: ReadonlySet<string> = new Set(INTERNAL_BUNDLED_SKILL_ID
  * 나중에 `install --with <id>` 를 한 번만 해도 1회차 자산이 기록에서 사라지고 **uninstall 이
  * 그걸 못 찾아 남긴다**. 디스크에는 남아 있는데 기록에는 없는 = 로그가 거짓이 되는 상태.
  *
- * 누적 대상은 uninstall 이 실제로 읽는 두 필드뿐이다 (`assets` · `templates`). `spec`(tracks/cli)은
- * 누적하지 않는다: `.claude/` 가 backup 으로 밀리는 설치(reinstall)에선 이전 트랙 파일이 실제로
- * 사라져 합집합이 거짓이 된다. 게다가 uninstall 은 `spec` 을 읽지 않는다 (표시용).
+ * `spec.cli` 는 누적하지 않는다(마지막 설치분 — 표시용). `spec.tracks` · `spec.clis` 는 누적한다(#528 · #585) — install
+ * 은 이전 트랙 파일을 지우지 않고 `--reinstall` 도 `.claude/` 를 옮기지 않으므로(#551 PR-3) 합집합이 디스크와 같다.
  *
  * `claudeDirMovedAside` = 이번 설치가 `.claude/` 를 backup 으로 rename 했는가. 그 경우
  * **`.claude/` 안에 살던 이전 자산은 실제로 사라졌으므로 누적에서 뺀다** — 안 빼면 F-1a 를
@@ -465,12 +469,17 @@ export function buildInstallLog(
   // 이유: 밀려나는 것은 `.claude/` 뿐이고 다른 CLI 의 산출물(`AGENTS.md`·`.opencode/`)은
   // 그대로 디스크에 남기 때문이다. 빼는 경로는 `uninstall --cli <name>` 하나다.
   const clis = sortClis([...installedClis(previous ?? null), ...spec.cli.filter(isCliBase)]);
+  // #585 — 트랙도 CLI 와 같이 더해지기만 한다. 이전 기록 중 지금 어휘에 없는 트랙(폐기)은 이어받지 않는다 — 읽는 쪽이
+  // 어차피 거르고, 남기면 영영 기록에 붙어 다닌다.
+  const tracks = [
+    ...new Set([...(previous?.spec.tracks ?? []).filter(isTrack), ...spec.tracks]),
+  ].sort();
   const log: InstallLog = {
     schemaVersion: INSTALL_LOG_VERSION,
     installedAt: new Date().toISOString(),
     scope,
     spec: {
-      tracks: spec.tracks,
+      tracks,
       cli: spec.cli,
       clis,
       ...(spec.baselineExclude && spec.baselineExclude.length > 0

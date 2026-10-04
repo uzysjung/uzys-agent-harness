@@ -285,11 +285,26 @@ describe("buildInstallLog — 이전 로그 누적 (F-1a)", () => {
     expect(second.templates.rootClaudeMd?.sha256).toBe("new");
   });
 
-  it("spec(tracks/cli)은 누적하지 않는다 — reinstall 이 이전 트랙 파일을 실제로 지우므로", () => {
+  it("#585 — spec.tracks 는 CLI 처럼 누적한다(install 은 이전 트랙 파일을 지우지 않는다) · spec.cli 는 마지막 설치분", () => {
     const first = buildInstallLog(mkSpec({ tracks: ["tooling"] }), null, "project");
-    const second = buildInstallLog(mkSpec({ tracks: ["data"] }), null, "project", null, first);
+    const second = buildInstallLog(
+      mkSpec({ tracks: ["data"], cli: ["codex"] }),
+      null,
+      "project",
+      null,
+      first,
+    );
 
-    expect(second.spec.tracks).toEqual(["data"]);
+    expect(second.spec.tracks).toEqual(["data", "tooling"]);
+    expect(second.spec.cli).toEqual(["codex"]);
+  });
+
+  it("#585 — 지금 어휘에 없는 옛 트랙은 이어받지 않는다", () => {
+    const first = buildInstallLog(mkSpec({ tracks: ["tooling"] }), null, "project");
+    const legacy = { ...first, spec: { ...first.spec, tracks: ["tooling", "retired-track"] } };
+    const second = buildInstallLog(mkSpec({ tracks: ["data"] }), null, "project", null, legacy);
+
+    expect(second.spec.tracks).toEqual(["data", "tooling"]);
   });
 });
 

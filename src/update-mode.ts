@@ -87,6 +87,7 @@ import {
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
+import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
 import {
   createOutsideGuard,
   mergeOutside,
@@ -100,6 +101,7 @@ import {
   type CliBase,
   DEFAULT_OPTIONS,
   type InstallSpec,
+  isTrack,
   TRACKS,
   type Track,
   UPDATE_GROUPS,
@@ -324,6 +326,11 @@ export interface UpdateModeReport {
     ids?: ReadonlyArray<string>;
   }>;
   /**
+   * #677 — 기록에 하네스 몫으로 있지만 기록 트랙의 렌더 밖인 Antigravity 룰을 치웠다(고친 것은 그 파일 하나를 백업).
+   * optional = 부재는 "치운 것 없음".
+   */
+  outOfTrack?: OutOfTrackReclaim;
+  /**
    * ADR-089 (#445) — `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id.
    *
    * **지우지 않는다** — 사용자가 그 파일을 고쳤는지 update 시점엔 판정할 수 없다(`legacyAnchor`
@@ -378,8 +385,11 @@ export function buildUpdateSpec(
   // #528 (재리뷰 NOTE-F) — 화면 머리글의 `CLI` 는 깔린 집합이다. 고정 `["claude"]` 는 codex 단독
   // 설치본의 update 도 "CLI claude" 라고 적었다. 로그가 없으면(레거시) 이전과 같이 claude.
   const clis = log === null ? [] : installedClis(log);
+  // #585 — 머리글의 트랙도 기록이 말한다. update 가 실제로 갱신하는 트랙이 기록 트랙이다(`installedTracks`) — 감지한
+  // 트랙(`.claude/.installed-tracks`)은 claude 를 깐 실행만 적어 CLI 를 더한 설치에서 기록보다 좁을 수 있다.
+  const recordTracks = log === null ? [] : log.spec.tracks.filter(isTrack);
   const spec: InstallSpec = {
-    tracks: [...tracks],
+    tracks: recordTracks.length > 0 ? [...recordTracks] : [...tracks],
     options: DEFAULT_OPTIONS,
     cli: clis.length > 0 ? [...clis] : ["claude"],
     projectDir,
@@ -652,6 +662,11 @@ export function runUpdateMode(
         legacyRestored: [],
         excludedKeys: [],
       };
+  // 4.1) #677 — 기록에 있으나 기록 트랙의 렌더 밖인 Antigravity 룰을 치운다(바로 위 외부 갱신이 다시 쓴 기록을 읽는다).
+  if (wants("external")) {
+    const outOfTrack = reclaimOutOfTrackRecorded(projectDir, outside);
+    if (outOfTrack.removed.length + outOfTrack.backedUp.length > 0) report.outOfTrack = outOfTrack;
+  }
   report.externalUpdated = external.externalUpdated;
   report.restoredKeys = external.restoredKeys;
   report.restoredFiles = external.restoredFiles;
@@ -732,6 +747,32 @@ export function runUpdateMode(
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
   writeBackupList(projectDir, report.backups);
   return report;
+}
+
+/** #677 — 기록 트랙 · 깔린 CLI 의 렌더 밖인 기록 항목을 치우고, 치운(또는 이미 없던) 경로를 `externalFiles` 에서 뺀다. */
+function reclaimOutOfTrackRecorded(projectDir: string, outside: OutsideGuard): OutOfTrackReclaim {
+  const log = readInstallLog(projectDir);
+  const result = reclaimOutOfTrack({
+    projectDir,
+    log,
+    tracks: installedTracks(projectDir),
+    clis: log === null ? [] : installedClis(log),
+    excluded: excludedIds(log),
+    outside,
+  });
+  if (log !== null && result.forget.length > 0) {
+    const forget = new Set(result.forget);
+    const next: InstallLog = { ...log };
+    const kept = (log.externalFiles ?? []).filter((f) => !forget.has(f.path));
+    if (kept.length > 0) next.externalFiles = kept;
+    else delete next.externalFiles;
+    try {
+      writeInstallLog(projectDir, next);
+    } catch {
+      // 기록 실패가 update 자체를 실패시키지는 않는다 (refreshExternalCli 와 같은 방침).
+    }
+  }
+  return result;
 }
 
 /**
