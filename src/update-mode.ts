@@ -32,6 +32,7 @@ import {
   listBaselineTargets,
 } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
+import { hasLegacyHarnessHook } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
   CONTINUOUS_SKILLS,
@@ -129,6 +130,26 @@ export interface UpdateModeReport {
    * 규약을 심지 않는다(사용자 정정 2026-09-20) — 증거를 내는 쪽이 하네스다.
    */
   backups: Array<{ path: string; backup: string }>;
+  /**
+   * #557 — `backups` 중 **실행 시작 때 기록에 체크섬이 없던** 원본(projectDir 상대경로). 편집 여부를 잴 수 없어 한 번
+   * 보수적으로 백업한 것이라 "당신이 고쳤다" 고 부르지 않는다 — 대개 릴리즈 사이 템플릿 변경분이다(체크섬 이전 옛 판의 첫
+   * update). 기록 sha 와 디스크가 달랐던 것(진짜 편집)은 여기 없다. optional = 손으로 만드는 리포트 stub 은 "없음".
+   */
+  noChecksum?: string[];
+  /**
+   * #625 — 외부 CLI 의 함께 쓰는 파일(`.codex/config.toml` · 첫 접촉 `AGENTS.md` · `opencode.json`)에서 갈아 끼우지 않고
+   * **남긴** 하네스 몫. `edited` = 기록 sha 와 달라 설치자가 고친 구간 · `unrecorded` = 기록이 없어 하네스가 쓴 그대로인지
+   * 모르는 구간 · `kept` = 설치자 값이 이긴 키 · `left` = 파일째 쓰지 않은 이유. 백업은 없다 — 덮어쓴 것이 없다(계약 ⓑ).
+   */
+  sharedLeft?: ReadonlyArray<{
+    path: string;
+    edited: ReadonlyArray<string>;
+    unrecorded: ReadonlyArray<string>;
+    kept: ReadonlyArray<string>;
+    left?: string;
+    /** `.codex/config.toml` 에 남은 하네스 훅이 옛 flat 형식이라 현행 Codex 가 무시한다(`hasLegacyHarnessHook`). */
+    legacyHook?: true;
+  }>;
   /**
    * #480 — 설치자가 고르지 않아 **건드리지 않은** 묶음 (`update --only` · 위저드 체크박스).
    * 화면에 낸다 — 안 보이면 "update 를 돌렸는데 룰이 그대로다"가 결함으로 읽힌다.
@@ -651,8 +672,10 @@ export function runUpdateMode(
         restoredFiles: [],
         legacyRestored: [],
         excludedKeys: [],
+        sharedLeft: [],
       };
   report.externalUpdated = external.externalUpdated;
+  if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
   report.restoredKeys = external.restoredKeys;
   report.restoredFiles = external.restoredFiles;
   report.excludedKeys = external.excludedKeys;
@@ -730,8 +753,38 @@ export function runUpdateMode(
   if (outsideLinks.length > 0) report.outsideLinks = outsideLinks;
 
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
-  writeBackupList(projectDir, report.backups);
+  // #557 — 백업을 만드는 자리마다 사유를 올리지 않고(`collectRunBackups` 와 같은 이유) 실행 시작 때의 기록 하나로 가른다
+  const onRecord = checksumOnRecord(logAtStart);
+  const noChecksum = report.backups.map((b) => b.path).filter((p) => !onRecord(p));
+  if (noChecksum.length > 0) report.noChecksum = noChecksum;
+  writeBackupList(projectDir, report.backups, new Set(noChecksum));
   return report;
+}
+
+/**
+ * #557 — 그 파일의 체크섬이 기록에 있었는가(projectDir 상대경로). 백업 판정들이 읽는 기준선 넷을 한 집합으로 본다 —
+ * 정책(`policyFiles`, `.claude/` 상대) · 스킬(`skillFiles`, `.claude/skills/` 상대) · 앵커(`templates.rootClaudeMd`) ·
+ * 외부 산출물·헬퍼(`externalFiles`). 기록이 없던 파일이 백업됐다면 편집 여부를 잴 수 없었던 것이다.
+ */
+function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
+  if (log === null) return () => false;
+  const paths = new Set<string>([
+    ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
+    ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
+    ...(log.externalFiles ?? []).map((f) => f.path),
+  ]);
+  const anchor = log.templates.rootClaudeMd;
+  if (anchor !== undefined) paths.add(anchor.path);
+  return (path) => paths.has(path);
+}
+
+/** #625 — 디스크의 그 파일에 옛 flat 하네스 훅만 있나(`hasLegacyHarnessHook`). 못 읽으면 false. */
+function legacyHookOnDisk(projectDir: string, rel: string): boolean {
+  try {
+    return hasLegacyHarnessHook(readFileSync(join(projectDir, rel), "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1064,6 +1117,8 @@ export function collectRunBackups(
 function writeBackupList(
   projectDir: string,
   backups: ReadonlyArray<{ path: string; backup: string }>,
+  /** #557 — 기록에 체크섬이 없던 원본. 그 쌍에 `noChecksum: true` 를 붙인다 — 다시 얹을 편집이 없을 수 있다. */
+  noChecksum: ReadonlySet<string> = new Set(),
 ): void {
   const dir = join(projectDir, ".uzys-agent-harness");
   const file = join(dir, "update-backups.json");
@@ -1075,7 +1130,15 @@ function writeBackupList(
     if (!existsSync(dir)) return;
     writeFileSync(
       file,
-      `${JSON.stringify({ updatedAt: new Date().toISOString(), note: "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 당신의 편집분. 편집을 새 판에 다시 얹으려면 두 파일의 diff 를 보라.", backups }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          updatedAt: new Date().toISOString(),
+          note: "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 바꾸기 전 판. noChecksum 이 없는 쌍은 기록과 달라진 파일 = 당신의 편집분이다 — 새 판에 다시 얹으려면 두 파일의 diff 를 보라. noChecksum: true 인 쌍은 옛 판이 체크섬을 기록하지 않아 비교 없이 한 번 백업한 것 — 대개 릴리즈 사이 템플릿 변경분이라 당신의 편집이 아닐 수 있다.",
+          backups: backups.map((b) => (noChecksum.has(b.path) ? { ...b, noChecksum: true } : b)),
+        },
+        null,
+        2,
+      )}\n`,
     );
   } catch {
     // 목록 기록 실패가 update 자체를 실패시키지는 않는다.
@@ -1492,6 +1555,8 @@ function refreshExternalCli(
     removedEdited: string[];
     keptOut: string[];
   }>;
+  /** #625 — 갈아 끼우지 않고 남긴 하네스 몫, 파일별(`UpdateModeReport.sharedLeft`). */
+  sharedLeft: NonNullable<UpdateModeReport["sharedLeft"]>;
 } {
   const log = readInstallLog(projectDir);
   // ADR-099 R3 — 기록의 누적 빼기
@@ -1661,6 +1726,26 @@ function refreshExternalCli(
           .filter((id) => dropped.has(id)),
       ),
     ],
+    // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
+    // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
+    sharedLeft: result.sharedFiles
+      .filter((f) => f.action === "left" || f.leftAsIs.length + f.kept.length > 0)
+      .map((f) => {
+        const recordedKeys = new Set(
+          (log?.portions ?? []).filter((p) => p.path === f.path).map((p) => p.key),
+        );
+        return {
+          path: f.path,
+          edited: f.leftAsIs.filter((k) => recordedKeys.has(k)),
+          unrecorded: f.leftAsIs.filter((k) => !recordedKeys.has(k)),
+          kept: [...f.kept],
+          ...(f.action === "left" ? { left: f.line } : {}),
+          // #625 — 남긴 구간이 옛 훅 형식이면 현행 Codex 가 무시해 세션 시작 훅이 돌지 않는다(#627) — 화면이 덧붙인다
+          ...(f.path === ".codex/config.toml" && legacyHookOnDisk(projectDir, f.path)
+            ? { legacyHook: true as const }
+            : {}),
+        };
+      }),
   };
 }
 
