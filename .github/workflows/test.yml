@@ -16,6 +16,9 @@ jobs:
   ci:
     name: TypeScript CI (typecheck + lint + test:coverage + build)
     runs-on: ${{ matrix.os }}
+    # #679 — 멈춘 테스트(예: 동기 copyFile 이 FIFO 에 막힘 — vitest timeout 이 못 끊는다)가 GitHub 기본 360분을
+    # 다 쓰고서야 실패하지 않게 한다. 실측 2026-10-04 v26.163.0: ubuntu 50초 · macOS 31초 — 15분이면 여유가 크다.
+    timeout-minutes: 15
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -94,6 +97,8 @@ jobs:
   docker-e2e:
     name: 설치 E2E (컨테이너 · 게시 차단)
     runs-on: ubuntu-latest
+    # #679 — 같은 이유(실측 49초).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - name: ①ⓐ 템플릿 복사 + ⓑ 외부 스킬이 4 CLI 자리에 실재하는가

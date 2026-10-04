@@ -51,6 +51,14 @@ export interface InstallLogAsset {
   detail: Record<string, string>;
   /** installed 시점 version (detectVersion 결과, 없으면 undefined). */
   version?: string;
+  /**
+   * #573 — 이 자산의 도구가 **이 프로젝트에 놓은 파일**(project 상대 경로 + 놓은 순간의 sha). 지금은 project scope
+   * `skill` 만 적는다. uninstall 은 이 경로만 지운다(설치자가 고친 파일은 그 파일 하나를 백업한 뒤) — 외부 도구의
+   * 제거 명령에 맡기면 그 도구가 고른 범위(다른 에이전트 자리의 설치자 사본까지)를 지웠다.
+   * **부재 = 이 필드 이전의 기록** — 무엇을 놓았는지 모르므로 uninstall 은 지우지 않고 남는 것을 알린다.
+   * 빈 배열 = 놓은 것이 없다고 기록됐다. `INSTALL_LOG_VERSION` 은 올리지 않는다(부재를 정상으로 읽는 관행).
+   */
+  files?: ReadonlyArray<InstallLogSkillFile>;
 }
 
 /**
@@ -329,11 +337,37 @@ function sortClis(clis: ReadonlyArray<CliBase>): CliBase[] {
 export function buildAssetEntries(
   report: ExternalInstallReport | null,
   scope: InstallScope,
+  previous?: ReadonlyArray<InstallLogAsset>,
 ): InstallLogAsset[] {
   if (!report) return [];
   return report.attempted
     .filter((r) => r.ok)
-    .map((r) => assetToLogEntry(r.asset, scope, r.version));
+    .map((r) => {
+      const entry = assetToLogEntry(r.asset, scope, r.version);
+      if (r.files === undefined) return entry;
+      const recordedBefore = previous?.find((a) => a.id === r.asset.id);
+      // 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 다시 깔아도 "모름" 그대로 둔다 — 옛 판이 놓은 파일은
+      // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
+      // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
+      if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
+      return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
+    });
+}
+
+/**
+ * #573 — 같은 자산을 다시 깔 때의 파일 기록. 이번에 새로 놓인 파일(`created`)을 더하고, 이미 이 자산 것으로 적힌
+ * 파일은 도구가 다시 쓴 값(`changed`)으로 sha 를 잇는다. 기록에 없던 파일은 이번에 바뀌었어도 소유하지 않는다 —
+ * 호출 전부터 있던 파일은 설치자 것일 수 있다(디스크 존재 ≠ 소유, ADR-096).
+ */
+function mergeToolFiles(
+  prior: ReadonlyArray<InstallLogSkillFile> | undefined,
+  run: { created: ReadonlyArray<InstallLogSkillFile>; changed: ReadonlyArray<InstallLogSkillFile> },
+): InstallLogSkillFile[] {
+  const changed = new Map(run.changed.map((f) => [f.path, f.sha256]));
+  const byPath = new Map<string, string>();
+  for (const f of prior ?? []) byPath.set(f.path, changed.get(f.path) ?? f.sha256);
+  for (const f of run.created) byPath.set(f.path, f.sha256);
+  return [...byPath].map(([path, sha256]) => ({ path, sha256 }));
 }
 
 function assetToLogEntry(
@@ -435,7 +469,7 @@ export function buildInstallLog(
     templates: { ...previous?.templates, ...templates },
     assets: mergeAssets(
       claudeDirMovedAside ? previous?.assets?.filter(survivesClaudeDirRename) : previous?.assets,
-      buildAssetEntries(external, scope),
+      buildAssetEntries(external, scope, previous?.assets),
     ),
   };
   // 루트 파일은 `.claude/` 밖이라 backup rename 과 무관하게 살아남는다 → 무조건 누적.

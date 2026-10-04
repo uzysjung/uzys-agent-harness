@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { skillsCliSpec } from "../src/external-installer.js";
 import {
   hashContent,
   INSTALL_LOG_DIR,
@@ -83,7 +82,7 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("project-scope skill → npx skills remove 호출", () => {
+  it("project-scope skill → 외부 도구를 부르지 않는다 (#573 — 기록된 경로만 하네스가 지운다)", () => {
     const log: InstallLog = {
       ...baseLog(),
       assets: [
@@ -93,6 +92,7 @@ describe("uninstallAction", () => {
           method: "skill",
           scope: "project",
           detail: { source: "anthropics/skills" },
+          files: [],
         },
       ],
     };
@@ -108,12 +108,7 @@ describe("uninstallAction", () => {
         rm: vi.fn(),
       },
     );
-    expect(spawn).toHaveBeenCalledWith("npx", [
-      skillsCliSpec(),
-      "remove",
-      "anthropics/skills",
-      "--yes",
-    ]);
+    expect(spawn).not.toHaveBeenCalled();
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -149,13 +144,6 @@ describe("uninstallAction", () => {
         rm: vi.fn(),
       },
     );
-    // skill: asset.id 로 fallback
-    expect(spawn).toHaveBeenCalledWith("npx", [
-      skillsCliSpec(),
-      "remove",
-      "fallback-skill-id",
-      "--yes",
-    ]);
     // npm-global: asset.id 로 fallback
     expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"]);
     rmSync(tmpDir, { recursive: true, force: true });
@@ -1341,20 +1329,27 @@ describe("uninstallAction — 루트 파일 안내 (F-1f)", () => {
     writeFileSync(join(tmpDir, ".github/workflows/ci.yml"), "on: push\n", "utf8");
 
     const out = run();
-    expect(out).toContain(".mcp.json");
     expect(out).toContain(".github/workflows/ci.yml");
-    // 병합 파일은 "직접 확인", 하네스 생성 파일은 "삭제해도 안전" — 처리 방법이 다르므로 구분한다.
-    expect(out).toMatch(/\.mcp\.json[\s\S]*병합/);
-    expect(out).toMatch(/ci\.yml[\s\S]*안전/);
+    // #569 — 스캐폴드는 쓰는 순간 설치자 것이다. "지워도 안전" 이라 해 놓고 안 지우던 말 대신 "yours now".
+    expect(out).toMatch(/ci\.yml[\s\S]*yours now/);
+    expect(out).not.toContain("삭제해도 안전");
+    // #569 — `.mcp.json` 은 하네스 몫을 걷는 대상이라 "남는 것" 으로 다시 나열하지 않는다(하네스 몫이 없으면 말할 것도 없다).
+    expect(out).not.toMatch(/· \.mcp\.json/);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
   it("로그에 있어도 디스크에 없으면 안내하지 않는다 — 없는 파일을 손보라고 시키지 않는다", () => {
-    writeLog(tmpDir, logWithRootFiles());
-    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8"); // ci.yml 은 만들지 않는다
+    writeLog(tmpDir, {
+      ...logWithRootFiles(),
+      rootFiles: [
+        { path: ".env.example", change: "created", notes: ["Supabase 토큰 가이드"] },
+        { path: ".github/workflows/ci.yml", change: "created", notes: ["CI 워크플로 스캐폴드"] },
+      ],
+    });
+    writeFileSync(join(tmpDir, ".env.example"), "A=\n", "utf8"); // ci.yml 은 만들지 않는다
 
     const out = run();
-    expect(out).toContain(".mcp.json");
+    expect(out).toContain(".env.example");
     expect(out).not.toContain("ci.yml");
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1372,9 +1367,10 @@ describe("uninstallAction — 루트 파일 안내 (F-1f)", () => {
 
   it("dry-run 도 같은 안내를 낸다 — 미리보기가 실제와 다르면 미리보기가 아니다", () => {
     writeLog(tmpDir, logWithRootFiles());
-    writeFileSync(join(tmpDir, ".mcp.json"), "{}", "utf8");
+    mkdirSync(join(tmpDir, ".github/workflows"), { recursive: true });
+    writeFileSync(join(tmpDir, ".github/workflows/ci.yml"), "on: push\n", "utf8");
 
-    expect(run({ dryRun: true })).toContain(".mcp.json");
+    expect(run({ dryRun: true })).toMatch(/ci\.yml[\s\S]*yours now/);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -1440,13 +1436,11 @@ describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", ()
       "project",
       "ecc@ecc",
     ]);
-    expect(spawn).toHaveBeenCalledWith("npx", [
-      skillsCliSpec(),
-      "remove",
-      "vercel-labs/skills",
-      "--yes",
-    ]);
+    // #573 — 파일 목록이 없는 옛 기록의 스킬은 외부 도구를 부르지 않고 남는 것을 말한다
+    expect(spawn).not.toHaveBeenCalledWith("npx", expect.anything());
     const output = logFn.mock.calls.flat().join("\n");
+    expect(output).toContain("find-skills (skill)");
+    expect(output).toContain("not on record");
     // global + 되돌리기 경로 없음 → 안내만. 문구가 `undefined` 로 새면 여기서 잡힌다.
     expect(output).toContain("ecc-prune");
     expect(output).toContain("(no standard reverse — manual)");
@@ -1465,14 +1459,11 @@ describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", ()
       { log: vi.fn(), err: errFn, exit, spawn, rm: vi.fn() },
     );
     expect(errFn.mock.calls.flat().join("\n")).not.toContain("not found in install log");
-    expect(spawn).toHaveBeenCalledWith("npx", [
-      skillsCliSpec(),
-      "remove",
-      "vercel-labs/skills",
-      "--yes",
-    ]);
+    // #573 — 옛 기록이라 지운 것이 없다 → 기록에 남기고(다시 시도할 근거) 실패로 말한다
+    expect(spawn).not.toHaveBeenCalled();
     const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;
-    expect(after.assets.map((a) => a.id)).toEqual(["ecc-plugin", "ecc-prune"]);
+    expect(after.assets.map((a) => a.id)).toEqual(["ecc-plugin", "find-skills", "ecc-prune"]);
+    expect(exit).toHaveBeenCalledWith(1);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
