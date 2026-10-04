@@ -18,7 +18,8 @@
 #      화면·백업 목록이 그 백업을 알린다 (#597 — 하네스 파일 원칙)
 #   ⑤ 트랙 밖 룰은 들이지 않는다 (Track 혼입 방지)
 #   ⑥ codex 전용 설치본에 `.claude/` 를 들이지 않는다 (독립 리뷰 HIGH-1)
-#   ⑦ 배선할 수 없는 훅은 깔지 않고 재설치를 안내한다 (독립 리뷰 HIGH-2)
+#   ⑦ 지운 훅은 update 가 파일과 settings.json 배선을 함께 되돌리고 빼는 명령을 말한다 —
+#      `--without` 으로 뺀 훅은 되돌리지 않는다 (ADR-099 · 배선 없는 훅 파일은 어느 쪽에도 없다)
 
 set -euo pipefail
 
@@ -230,26 +231,61 @@ if [[ ! -f "${CODEX_PROJ}/.claude/agents/my-own.md" ]]; then
 fi
 echo "✓ ⑥ codex 전용 설치본에 .claude/ 미유입 (사용자 자기 파일은 보존)"
 
-# --- ⑦ 배선할 수 없는 훅은 깔지 않고 재설치를 안내한다 (독립 리뷰 HIGH-2) ---
+# --- ⑦ 지운 훅은 배선과 함께 되돌리고, --without 으로 뺀 훅은 그대로 둔다 (ADR-099) ---
+# 옛 계약(독립 리뷰 HIGH-2)은 "배선할 수 없으니 깔지 말고 재설치 안내" 였다. ADR-099 PR B(#698) 뒤
+# update 는 settings.json 의 하네스 몫을 install 과 같은 writer 로 쓴다 — 그래서 지운 훅은 파일 ·
+# 배선을 함께 되돌린다. HIGH-2 가 막던 것(배선 없는 훅 파일)은 두 갈래 모두에서 계속 단언한다.
+hook_wired() { # <settings.json> <script name> — 그 스크립트를 부르는 훅 명령이 있는가
+  jq -e --arg s "$2" '[.hooks // {} | .. | .command? // empty | select(contains($s))] | length > 0' "$1" >/dev/null 2>&1
+}
 cd "${PROJ}"
 HOOK="${PROJ}/.claude/hooks/session-start.sh"
-if [[ ! -f "${HOOK}" ]]; then
-  echo "FAIL: 전제 실패 — install 이 훅을 안 깔았다"
+SETTINGS="${PROJ}/.claude/settings.json"
+if [[ ! -f "${HOOK}" ]] || ! hook_wired "${SETTINGS}" session-start.sh; then
+  echo "FAIL: 전제 실패 — install 이 훅을 안 깔았거나 배선하지 않았다"
   exit 1
 fi
 rm -f "${HOOK}"
 agent-harness update >/tmp/hook-update.txt 2>&1
 
-if [[ -f "${HOOK}" ]]; then
-  echo "FAIL: update 가 훅 파일을 깔았다 — settings.json 배선이 없어 영영 안 도는 상태다"
-  exit 1
-fi
-if ! grep -q "needs reinstall" /tmp/hook-update.txt; then
-  echo "FAIL: 재설치 안내가 없다 — 사용자는 최신 상태라고 믿는다"
+if [[ ! -f "${HOOK}" ]]; then
+  echo "FAIL: update 가 기록에 있는 훅을 되돌리지 않았다 (ADR-099)"
   tail -30 /tmp/hook-update.txt
   exit 1
 fi
-echo "✓ ⑦ 배선 불가 훅은 미설치 + 재설치 안내"
+if ! hook_wired "${SETTINGS}" session-start.sh; then
+  echo "FAIL: update 가 훅 파일만 깔았다 — settings.json 배선이 없어 영영 안 도는 상태다"
+  exit 1
+fi
+if ! grep -q "session-start.sh .*was missing" /tmp/hook-update.txt \
+  || ! grep -qF -- "--without baseline:hooks/session-start" /tmp/hook-update.txt; then
+  echo "FAIL: 되돌린 사실이나 빼는 명령을 화면이 말하지 않는다 — 지운 설치자는 왜 돌아왔는지 모른다"
+  tail -30 /tmp/hook-update.txt
+  exit 1
+fi
+echo "✓ ⑦ 지운 훅 — update 가 파일 · 배선을 함께 되돌리고 빼는 명령(--without)을 말한다"
+
+# 안 되는 쪽: 화면이 말한 대로 --without 으로 빼고 지우면 update 는 되돌리지 않는다.
+agent-harness install --track tooling --scope project --without baseline:hooks/session-start >/tmp/hook-without.txt 2>&1 || {
+  echo "FAIL: --without 재설치가 실패했다"
+  tail -30 /tmp/hook-without.txt
+  exit 1
+}
+rm -f "${HOOK}"
+agent-harness update >/tmp/hook-update2.txt 2>&1
+if [[ -f "${HOOK}" ]]; then
+  echo "FAIL: --without 으로 뺀 훅을 update 가 되살렸다 — 설치자의 명시적 빼기를 무시했다"
+  exit 1
+fi
+if hook_wired "${SETTINGS}" session-start.sh; then
+  echo "FAIL: 뺀 훅의 배선이 settings.json 에 남았다 — 없는 스크립트를 부른다"
+  exit 1
+fi
+if ! hook_wired "${SETTINGS}" protect-files.sh; then
+  echo "FAIL: 대조군 — 빼지 않은 protect-files 배선이 사라졌다. 탐지기나 settings.json 이 깨졌다"
+  exit 1
+fi
+echo "✓ ⑦ --without 으로 뺀 훅 — update 가 파일도 배선도 되돌리지 않는다 (대조군 protect-files 배선은 그대로)"
 
 echo ""
 echo "PASS: scenario-update-new-assets (전항 ①~⑦)"
