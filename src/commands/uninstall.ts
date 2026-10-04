@@ -31,11 +31,13 @@ import {
   lstatSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { ADAPTERS } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
 import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
@@ -382,6 +384,15 @@ function executeReverse(
   const tail = logSurvives ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
   for (const asset of plan.noReversePath) {
     log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`);
+    // #571 — 이 부류(npx-run)는 .claude/ 밖에도 파일을 만든다. "무엇을 손수 지워야 하는지"를
+    // 말하지 않으면 사용자는 남은 디렉터의 정체를 알 방법이 없다(USAGE L254 약속의 이행).
+    if (asset.method === "npx-run") {
+      log(
+        c.dim(
+          `    ↳ .claude/ 밖에 만든 파일(예: _bmad/ · _openspec/)은 직접 확인 후 지운다 — 기록에 없다`,
+        ),
+      );
+    }
   }
   return { succeeded, failed, removedIds };
 }
@@ -449,9 +460,12 @@ function dryRunLines(
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
   lines.push("  ○ remove install record (.uzys-agent-harness/ — 로그·헬퍼 스크립트·차단 로그)");
   lines.push(
-    ...plan.noReversePath.map((a) =>
+    ...plan.noReversePath.flatMap((a) => [
       c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
-    ),
+      ...(a.method === "npx-run"
+        ? [c.dim("    ↳ .claude/ 밖에 만든 파일(예: _bmad/ · _openspec/)은 직접 확인 후 지운다")]
+        : []),
+    ]),
   );
   if (!keepTemplates) {
     const dirs = recordedTemplateDirs(installLog);
@@ -1032,7 +1046,13 @@ function buildProjectReverseStep(
         label: `claude plugin uninstall --scope project ${pluginId}`,
         execute: () => {
           const r = spawn("claude", ["plugin", "uninstall", "--scope", "project", pluginId]);
-          return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
+          if (r.status === 0) return { ok: true };
+          // #655 — 사용자가 claude CLI 로 이미 지운 플러그인은 "not found" 로 실패한다.
+          // 이것을 실패로 세면 기록에서 빼질 수 없는 막다길이 되고, 전량 uninstall 도
+          // 다 지워놓고 exit 1 로 끝난다. 이미 없다는 것은 목표 상태 — 성공으로 센다.
+          const out = `${r.stderr || ""}\n${r.stdout || ""}`;
+          if (/Plugin ".*" not found in installed plugins/.test(out)) return { ok: true };
+          return { ok: false, message: (r.stderr || "").trim() };
         },
       };
     }
@@ -1134,11 +1154,24 @@ function removeTemplates(
   // 그때도 디렉터리가 없으면 `backupDir` 이 null 을 내고 넘긴다.
   // 사용자 결정 2026-09-27 — 지우지 않고 옮겨 둔다(`templateDirPath` 주석). 기록 파일 회수보다
   // **먼저** 옮긴다 — 그 안의 기록 파일은 디렉터리와 함께 백업으로 간다(아래 부재 = 정상).
+  // #630 — 옮길 디렉터 안의 **파일 심링크**는 실체가 디렉터 밖에 산다(.codex/config.toml →
+  // 프로젝트의 실제 파일). 디렉터를 통째로 옮기면 링크만 옮겨가고 대상에 하네스 리전이 남는다 —
+  // 옮기기 **전에** 대상을 회수한다: externalFiles 기록은 무편집=삭제·편집=보존,
+  // portions(shared) 기록은 stripShared 로 하네스 몫만 걷는다(쓰기는 링크를 따라 대상에 반영).
+  const movedDirs = removedDirsList(log);
+  const recovered = recoverMovedSymlinkTargets(log, projectDir, movedDirs, io.rm);
+  const outsidePortions = recoverMovedSymlinkPortions(log, projectDir, movedDirs);
   const moved = recordedTemplateDirs(log).flatMap((rel) => {
     const backup = io.moveAside(templateDirPath(projectDir, rel));
     return backup ? [{ rel, backup }] : [];
   });
   const external = removeExternalFiles(log, projectDir, rm, harnessRoot);
+  external.removed.push(...recovered.removed);
+  external.kept.push(...recovered.kept);
+  // 같은 링크가 externalFiles·portions 양쪽에 기록돼 있어도 "남김" 은 경로당 한 줄이다.
+  for (const o of [...recovered.outside, ...outsidePortions]) {
+    if (!external.outside.some((e) => e.path === o.path)) external.outside.push(o);
+  }
   // 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스가 넣은 마커
   // import 블록만 도로 걷어낸다. 안 걷으면 앵커 파일을 지운 뒤 없는 파일을 가리키는 import 가
   // 남아 매 세션 끊긴 참조가 로드된다.
@@ -1162,6 +1195,20 @@ interface ExternalRemoval {
   stripped: string[];
   /** #516 — 절 경계를 판정할 수 없어(템플릿 불가·쓰기 실패) 통째로 남긴 것. 편집분과는 다른 사유다. */
   unjudged: string[];
+  /** 링크 대상이 프로젝트 밖이라 따라가지 않고 남긴 것 — 기록에 없는 경로는 건드리지 않는다(남김 + 대상 경로). */
+  outside: Array<{ path: string; target: string }>;
+}
+
+/** 링크를 따라간 실체가 프로젝트 루트 밖인가 — realpath 기준(프로젝트 경로 자체가 링크여도 같은 잣대). */
+function isOutsideProject(projectDir: string, target: string): boolean {
+  let root = projectDir;
+  try {
+    root = realpathSync(projectDir);
+  } catch {
+    /* 루트를 못 풀면 원 경로로 비교한다 */
+  }
+  const rel = relative(root, target);
+  return rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 }
 
 /** 설치자 소유 절이 있는 유일한 외부 산출물 — codex · opencode transform 이 같은 이름으로 쓴다. */
@@ -1188,6 +1235,122 @@ function readAgentsMdTemplate(harnessRoot: string, log: InstallLog): string | nu
  * 기준선과 같은 `AGENTS.md` 를 어떻게 할지 — 실행과 dry-run 이 **같은 술어**를 쓴다.
  * `null` = 하네스 것뿐이라 파일째 삭제, 문자열 = 그 내용으로 다시 써서 설치자 절을 남긴다.
  */
+
+/**
+ * #656 — 하네스 제거 후 남는 스캐폴드 배너를 정정한다. 배너 문장("SCAFFOLD — not filled in
+ * yet…")은 하네스가 쓴 것이므로 지워도 사용자 몫이 아니다 — 그대로 두면 하네스가 없는
+ * 프로젝트가 "아직 안 채웠다"고 계속 주장한다.
+ */
+
+/**
+ * #630 — portions(shared) 파일이 옮길 디렉터 안의 심링크일 때, 대상에서 하네스 몫을 걷는다.
+ * `stripShared` 의 읽기·쓰기는 링크를 따라가므로 moveAside **전**에 부르면 대상이 정리된다.
+ */
+function recoverMovedSymlinkPortions(
+  log: InstallLog,
+  projectDir: string,
+  dirs: ReadonlyArray<string>,
+): Array<{ path: string; target: string }> {
+  const outside: Array<{ path: string; target: string }> = [];
+  const paths = new Set((log.portions ?? []).map((p) => p.path));
+  for (const path of paths) {
+    if (path.startsWith(".agents/skills/")) continue;
+    if (!dirs.some((d) => path.startsWith(d))) continue;
+    const abs = join(projectDir, path);
+    if (!safeIsSymlink(abs)) continue;
+    // 프로젝트 밖 실체는 다시 쓰지 않는다 — 두 프로젝트가 같은 dotfile 을 가리켜도 한쪽 uninstall 이
+    // 다른 쪽 설정을 걷지 않는다. 대신 남겼다고 말한다.
+    const target = safeRealpath(abs);
+    if (target !== null && isOutsideProject(projectDir, target)) {
+      outside.push({ path, target });
+      continue;
+    }
+    stripShared({
+      projectDir,
+      path,
+      portions: log.portions ?? [],
+      excluded: [...excludedIds(log)],
+      remnant: () => [],
+      remnantLine: () => "",
+      write: true,
+    });
+  }
+  return outside;
+}
+
+/** removeTemplates 가 옮길 디렉터 목록(기록 템플릿 디렉터 — 백업 이동 대상과 같은 집합). */
+function removedDirsList(log: InstallLog): string[] {
+  return recordedTemplateDirs(log);
+}
+
+/**
+ * #630 — 디렉터 이동 대상 안의 파일 심링크가 가리키는 **밖의 실체**를 회수한다.
+ * 판정은 removeExternalFiles 와 같다: 기록 sha 그대로면 삭제, 바뀌었으면 보존(kept).
+ * `.agents/skills/` 는 대상 디렉터에 없고(#343 남의 포인터) 여기서도 배제한다.
+ */
+function recoverMovedSymlinkTargets(
+  log: InstallLog,
+  projectDir: string,
+  dirs: ReadonlyArray<string>,
+  rm: (path: string) => void,
+): { removed: string[]; kept: string[]; outside: Array<{ path: string; target: string }> } {
+  const removed: string[] = [];
+  const kept: string[] = [];
+  const outside: Array<{ path: string; target: string }> = [];
+  for (const { path, sha256 } of log.externalFiles ?? []) {
+    if (path.startsWith(".agents/skills/")) continue;
+    if (!dirs.some((d) => path.startsWith(d))) continue;
+    const abs = join(projectDir, path);
+    if (!safeIsSymlink(abs)) continue;
+    let target: string;
+    try {
+      target = realpathSync(abs);
+      if (!statSync(target).isFile()) continue;
+    } catch {
+      continue;
+    }
+    if (isOutsideProject(projectDir, target)) {
+      outside.push({ path, target });
+      continue;
+    }
+    try {
+      if (hashContent(readFileSync(target, "utf8")) !== sha256) {
+        kept.push(path); // 편집분 — 보존
+        continue;
+      }
+      rm(target);
+      removed.push(path);
+    } catch {
+      kept.push(path);
+    }
+  }
+  return { removed, kept, outside };
+}
+
+function safeRealpath(abs: string): string | null {
+  try {
+    return realpathSync(abs);
+  } catch {
+    return null;
+  }
+}
+
+/** lstat 실패(부재·권한)는 "심링크 아님"으로 접는다 — 판정 보조일 뿐이다. */
+function safeIsSymlink(abs: string): boolean {
+  try {
+    return lstatSync(abs).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+function neutralizeScaffoldBanner(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !line.includes("SCAFFOLD — not filled in yet"))
+    .join("\n");
+}
+
 function agentsMdRemainder(
   current: string,
   harnessRoot: string,
@@ -1233,20 +1396,37 @@ function removeExternalFiles(
   const kept: string[] = [];
   const stripped: string[] = [];
   const unjudged: string[] = [];
+  const outside: Array<{ path: string; target: string }> = [];
   for (const { path, sha256 } of log.externalFiles ?? []) {
     const abs = join(projectDir, path);
     // `.claude/`·`.codex/`·`.opencode/` 아래 것은 위에서 이미 사라졌다 — 부재는 정상이다.
+    // 심링크였던 자리의 실체 회수는 moveAside 직전에 recoverMovedSymlinkTargets 가 맡는다(#630).
     if (!existsSync(abs)) continue;
     // 일반 파일만 회수한다. `.agents/skills/<id>` 는 `npx skills add` 가 **심링크로** 깔아 두는
     // 자리이고(#343 실사용자 신고로 관측), 그 링크는 우리가 만든 것이 아니다. 안 걸러 두면
     // 내용이 우연히 같을 때 남의 설치 포인터를 지우고, 다를 때는 "네가 고쳤다"고 잘못 말한다.
-    // #565 — lstat→read 사이 TOCTOU·EACCES 도 같은 망태로 흘린다(읽지 못한 것은 지우지 않는다).
+    // #629/#630 — **파일을 가리키는** 심링크 중 `.agents/skills/` 밖의 것은 install 이 링크를
+    // 따라 썼으므로 회수도 따라간다: 대상에서 하네스 몫을 걷고 링크 포인터를 함께 정리한다.
+    // `.agents/skills/<id>` 의 링크는 `npx skills` 가 만든 **남의 설치 포인터**(#343) — 파일을
+    // 가리키더라도 무조건 건드리지 않는다(이 두 계약을 한 술어로 나눈 것이 이 조건이다).
+    // #565 — lstat→read 사이 TOCTOU·EACCES 도 같은 망태로 흘린다: 읽지 못한 것은 "고쳤다"가 아니라
+    // 판정 불가라 지우지 않고 unjudged 로 보고한다.
     let current: string;
+    let effective = abs;
+    const foreignSkillSlot = path.startsWith(".agents/skills/");
     try {
-      if (!lstatSync(abs).isFile()) continue;
-      current = readFileSync(abs, "utf8");
+      const isLink = lstatSync(abs).isSymbolicLink();
+      if (isLink && foreignSkillSlot) continue; // #343 — 남의 설치 포인터는 건드리지 않는다
+      // 실체의 실제 위치 하나로 판정한다 — 파일 링크든 상위 폴더 링크든(`.agents/rules → 밖`) 같다.
+      const resolved = realpathSync(abs);
+      if (!statSync(resolved).isFile()) continue;
+      if (isOutsideProject(projectDir, resolved)) {
+        outside.push({ path, target: resolved });
+        continue;
+      }
+      if (isLink) effective = resolved;
+      current = readFileSync(effective, "utf8");
     } catch {
-      // 읽지 못한 것은 "고쳤다"가 아니라 판정 불가다 — unjudged 로 보고한다.
       unjudged.push(path);
       continue;
     }
@@ -1262,7 +1442,11 @@ function removeExternalFiles(
       }
       if (verdict.remainder !== null) {
         try {
-          writeFileSync(abs, verdict.remainder, "utf8");
+          // #656 — 걷어낸 뒤에도 스캐폴드 배너가 남으면 그 문장은 이제 거짓이다(하네스가
+          // 없는데 "not filled in yet" 를 계속 주장). 배너는 하네스가 쓴 문장이므로 정정한다 —
+          // 사용자 본문은 그대로. sha 일치가 "하네스 렌더 뿐"을 뜻하지 않는 이유는 #516: update
+          // 가 사용자 절을 보존해 재쓴 파일도 sha 가 일치한다(통째 삭제 불가의 원천).
+          writeFileSync(effective, neutralizeScaffoldBanner(verdict.remainder), "utf8");
           stripped.push(path);
         } catch {
           // 쓰기 실패는 남긴 것과 같다 — 파일은 그대로 있고, 지웠다고 말하지 않는다.
@@ -1271,11 +1455,28 @@ function removeExternalFiles(
         continue;
       }
     }
-    rm(abs);
+    rm(effective);
+    if (effective !== abs) {
+      // 심링크 경로였다 — 대상을 정리했으니 링크 포인터도 걷는다(#629).
+      try {
+        rm(abs);
+      } catch {
+        /* 링크 제거 실패가 대상 정리를 무효화하지 않는다 */
+      }
+    }
     removed.push(path);
   }
   for (const path of removed) pruneEmptyDirsUpward(projectDir, dirname(join(projectDir, path)));
-  return { removed, kept, stripped, unjudged };
+  // #611 — install 스켈리톤이 만든 빈 docs/decisions 도 걷는다(기록 밖이라 잔여 보고에 안
+  // 올랐다). 비었을 때만 — 사용자가 ADR 을 넣었다면 그냥 둔다.
+  const decisions = join(projectDir, "docs", "decisions");
+  try {
+    if (existsSync(decisions) && readdirSync(decisions).length === 0)
+      rmSync(decisions, { recursive: true });
+  } catch {
+    /* 걷지 못한 빈 디렉터는 무해하다 */
+  }
+  return { removed, kept, stripped, unjudged, outside };
 }
 
 /**
@@ -1337,12 +1538,28 @@ function previewExternalLines(
   let removable = 0;
   for (const { path, sha256 } of installLog.externalFiles ?? []) {
     const abs = join(projectDir, path);
-    if (underAny(path, movedDirs)) continue;
+    const underMoved = underAny(path, movedDirs);
+    const isLink = !underMoved || existsSync(abs) ? safeIsSymlink(abs) : false;
+    if (underMoved && !isLink) continue;
     if (!existsSync(abs)) continue;
-    // 실행 경로와 **같은 술어**다 — 심링크(`npx skills` 가 깐 `.agents/skills/<id>`)는 회수
-    // 대상이 아니다. 이 줄이 없으면 미리보기만 그것을 세어 예고한 수와 실제가 갈린다(N5).
-    if (!lstatSync(abs).isFile()) continue;
-    const current = readFileSync(abs, "utf8");
+    // 실행 경로와 **같은 술어**다 — 심링크 중 파일을 가리키는 것도 `.agents/skills/` 밖일 때만
+    // 따라가 회수 대상으로 센다(#629/#630). 스킬 슬롯의 링크(#343 남의 포인터)는 세지 않는다.
+    let effective = abs;
+    const foreignSkillSlot = path.startsWith(".agents/skills/");
+    try {
+      const isLinkPath = lstatSync(abs).isSymbolicLink();
+      if (isLinkPath && foreignSkillSlot) continue;
+      const resolved = realpathSync(abs);
+      if (!statSync(resolved).isFile()) continue;
+      if (isOutsideProject(projectDir, resolved)) {
+        lines.push(`  ○ keep ${path} (link target outside project: ${resolved} — preserved)`);
+        continue;
+      }
+      if (isLinkPath) effective = resolved;
+    } catch {
+      continue;
+    }
+    const current = readFileSync(effective, "utf8");
     if (hashContent(current) !== sha256) {
       lines.push(`  ○ keep ${path} (modified since install — preserved)`);
       continue;
@@ -1382,6 +1599,25 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
     lines.push(
       `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (a file or template could not be read, or the write failed). Remove manually if intended.`,
     );
+  }
+  // 같은 폴더 링크 아래 여러 파일이면 폴더 단위 한 줄(경로 + 개수)로 묶는다.
+  const outsideGroups = new Map<string, Array<{ path: string; target: string }>>();
+  for (const o of external.outside) {
+    const key = `${dirname(o.path)}\0${dirname(o.target)}`;
+    outsideGroups.set(key, [...(outsideGroups.get(key) ?? []), o]);
+  }
+  for (const group of outsideGroups.values()) {
+    const first = group[0];
+    if (!first) continue;
+    if (group.length === 1) {
+      lines.push(
+        `  ${c.yellow("⊘")} ${first.path} kept — link target is outside the project (${first.target}). Not touched; remove manually if intended.`,
+      );
+    } else {
+      lines.push(
+        `  ${c.yellow("⊘")} ${dirname(first.path)}/ kept ${group.length} file(s) — link target is outside the project (${dirname(first.target)}). Not touched; remove manually if intended.`,
+      );
+    }
   }
   for (const path of external.kept) {
     lines.push(
