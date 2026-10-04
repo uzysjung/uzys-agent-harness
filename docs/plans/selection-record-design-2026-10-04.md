@@ -20,7 +20,7 @@ A 와 B 가 둘 다 성립하는 이유 한 줄: **install 만 선택을 쓰고(
 
 ## 1. 보관 형식 (1판 그대로 채택)
 
-**설치 기록 `.uzys-agent-harness/.harness-install.json` 안의 두 필드.** 최신 상태 = 기존 `excluded`(SSOT · 독자 `excludedIds` 무변경), 이력 = 새 `selections`. 별도 파일(한 사실 두 곳 · #600/#640/ADR-098 두 벌 · 기록 없는데 선택 파일만 남아 fresh install 에 옛 빼기 적용)과 YAML(의존성 0 저장소에 파서 도입, 이득 없음 — 사람이 읽는 면은 `list`)은 기각. `.uzys-agent-harness/` 는 gitignore 라 선택은 클론 단위(기존 성질).
+**설치 기록 `.uzys-agent-harness/.harness-install.json` 안의 두 필드.** 최신 상태 = 기존 `excluded`(SSOT · 독자 `excludedIds` 무변경), 이력 = 새 `selections`. 별도 파일(한 사실 두 곳 · #600/#640/ADR-098 두 벌 · 기록 없는데 선택 파일만 남아 fresh install 에 옛 빼기 적용)과 YAML(의존성 0 저장소에 파서 도입, 이득 없음 — 사람이 읽는 면은 `list`)은 기각. `.uzys-agent-harness/` 는 gitignore 라 선택은 클론 단위(기존 성질). — **정정(ADR-100):** 그 폴더는 이제 커밋 대상이라 선택은 저장소 단위다.
 
 ```json
 "excluded": ["frontend-design", "baseline:rules/git-policy"],

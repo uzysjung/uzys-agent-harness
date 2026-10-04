@@ -944,9 +944,13 @@ function isValidInstallLogShape(value: unknown): value is InstallLog {
   return true;
 }
 
-/** #640 — "깨짐" 상태에서 사용자에게 보여줄 한 줄. 재구축 경로까지 말한다. */
+/**
+ * #640 — "깨짐" 상태에서 사용자에게 보여줄 한 줄. 되살리는 길까지 말한다. ADR-100 — 기록이 커밋되면 깨짐의 흔한 원인은 병합
+ * 충돌이고, 그때는 한쪽을 통째로 고르는 것이 기록을 잃지 않는 길이다. `--reinstall` 은 기록 없이 다시 만들어 빼기 · 외부
+ * 자산을 잊으므로 그 대가를 같은 줄에서 말한다.
+ */
 export function corruptedInstallLogMessage(projectDir: string): string {
-  return `install log is corrupted at ${installLogPath(projectDir)} — run install --reinstall to rebuild it`;
+  return `install log is corrupted at ${installLogPath(projectDir)} — if it holds git conflict markers, take one side whole; otherwise run install --reinstall (it forgets recorded exclusions and external assets)`;
 }
 
 export function installLogPath(projectDir: string): string {

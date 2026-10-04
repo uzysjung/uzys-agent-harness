@@ -162,7 +162,7 @@ describe("notInstalledLines — 세 명령이 함께 쓰는 문장 (설계 no-re
   it("corrupted = 한 줄 · installed = 없음", () => {
     put(".uzys-agent-harness/.harness-install.json", "{");
     expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([
-      `install log is corrupted at ${logAt()} — run install --reinstall to rebuild it`,
+      `install log is corrupted at ${logAt()} — if it holds git conflict markers, take one side whole; otherwise run install --reinstall (it forgets recorded exclusions and external assets)`,
     ]);
     writeLog(["tooling"]);
     expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([]);
