@@ -45,7 +45,7 @@ import {
   linksToProjectSharedSkill,
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
-import { backupFile, copyDir, listFilesRecursive } from "./fs-ops.js";
+import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
 import { cleanStaleHookRefs, keepHookRef } from "./hook-ref.js";
 
 // 치유기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
@@ -524,6 +524,10 @@ export function runUpdateMode(
   const settingsPath = join(claudeDir, "settings.json");
   if (claudeManaged && wants("hooks") && existsSync(settingsPath)) {
     report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
+    // #632 — 치유된 참조는 "스크립트가 없던 일시 상태"다. 몫 기록에 남겨 두면 다음 install 이
+    // 그 훅을 "설치자가 뺀 것"(excluded)으로 읽어 복구를 영구 거부한다. 몫에서 걷어 첫 접촉으로
+    // 되돌린다 — 스크립트가 돌아오면(재설치) 배선이 다시 생긴다.
+    if (report.staleHookRefs.length > 0) dropHealedHookPortions(projectDir, report.staleHookRefs);
   }
 
   // 3.5) `.mcp-allowlist` 회수 (ADR-072). 3) 바로 뒤인 이유는 같은 은퇴의 나머지 절반이기
@@ -1042,6 +1046,8 @@ function upsertRootImport(projectDir: string): boolean {
     ),
   });
   if (next === existing) return false;
+  // #653 — 비UTF-8 바이트가 섞인 기존 파일을 문자열 왕복으로 덮기 전에 원시 바이트를 보존한다.
+  if (existing !== null) backupIfLossyUtf8(target);
   writeFileSync(target, next);
   return true;
 }
@@ -1695,4 +1701,37 @@ function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): st
     /\s+/g,
     " ",
   );
+}
+
+/**
+ * #632 — `cleanStaleHookRefs` 가 지운 훅 참조의 몫 기록을 걷는다. 훅 몫의 key 는
+ * `hooks.<Event>#<script>` 형태라 스크립트 파일명(`#` 뒤)으로 짝을 맞춘다. 빼기 기록에
+ * 이미 굳은 같은 키도 함께 지운다(치유 전 판에서 굳은 흔적).
+ *
+ * 쓰기 원본은 **디스크의 현재 기록**이다 — 실행 시작 시점 스냅숏(`logAtStart`)을 통째로 쓰면
+ * 앞단계(스킬·정책 기준선 갱신)가 방금 쓴 값이 되돌아간다(B-665-1). 뒷단계는 각자 디스크에서 새로 읽는다.
+ */
+function dropHealedHookPortions(projectDir: string, healedFiles: ReadonlyArray<string>): void {
+  // 치유자는 `.claude/` 기준 상대경로(hooks/session-start.sh)를, 몫 key 는 파일명만(# 뒤) 쓴다 —
+  // basename 으로 짝 맞춘다. hooks/ 디렉터리 안 스크립트명은 유일하므로 안전하다.
+  const healed = new Set(healedFiles.map((f) => f.split("/").pop() ?? f));
+  const isHealedKey = (key: string) => {
+    const at = key.lastIndexOf("#");
+    return at !== -1 && healed.has(key.slice(at + 1));
+  };
+  const log = readInstallLog(projectDir);
+  if (log === null) return;
+  const portions = (log.portions ?? []).filter(
+    (p) => !(p.path === join(".claude", "settings.json") && isHealedKey(p.key)),
+  );
+  const excluded = (log.excluded ?? []).filter((id) => !isHealedKey(id.replace(/^settings:/, "")));
+  if (portions.length > 0) log.portions = portions;
+  else delete log.portions;
+  if (excluded.length > 0) log.excluded = excluded;
+  else delete log.excluded;
+  try {
+    writeInstallLog(projectDir, log);
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다(위 writeInstallLog 들과 같은 방침).
+  }
 }
