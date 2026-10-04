@@ -1,5 +1,8 @@
-import { isBaselineExcluded } from "./baseline-targets.js";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type ResidentCost, residentCost } from "./context-cost.js";
+import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
 import { buildManifestSpec } from "./installer.js";
 import { buildManifest } from "./manifest.js";
 import type { InstallSpec } from "./types.js";
@@ -23,8 +26,17 @@ export type ResidentEntry = { source: string; target: string; file?: string };
  *    목록으로 적지 않고 설치기가 쓰는 같은 입력으로 묻는다.
  */
 export function residentEntries(spec: InstallSpec): ResidentEntry[] {
-  const assetSpec = buildManifestSpec(spec);
-  const excluded = new Set(spec.baselineExclude ?? []);
+  // 리뷰 #693 NOTE-3 — 뺐어도 디스크에 남아 있으면 매 세션 읽힌다(하네스는 빼기를 이유로 지우지 않는다) — 센다.
+  // 번들 스킬은 선택(`forceExclude`)에서, baseline 은 제외 목록에서 디스크에 있는 것을 덜어 낸다
+  const skillThere = (id: string): boolean =>
+    INTERNAL_BUNDLED_SKILL_IDS.includes(id) &&
+    [".claude/skills", ".agents/skills"].some((d) => existsSync(join(spec.projectDir, d, id)));
+  const forceExclude = (spec.userOverride?.forceExclude ?? []).filter((id) => !skillThere(id));
+  const assetSpec = buildManifestSpec(
+    spec.userOverride ? { ...spec, userOverride: { ...spec.userOverride, forceExclude } } : spec,
+  );
+  const there = onDiskTargets(spec, assetSpec);
+  const excluded = new Set((spec.baselineExclude ?? []).filter((id) => !there.has(id)));
   const hasClaude = spec.cli.includes("claude");
   const bundled = new Set(assetSpec.selectedInternalSkills ?? []);
   return buildManifest(assetSpec).filter((e) => {
@@ -51,4 +63,18 @@ export function residentCostFor(
   entries: ReadonlyArray<ResidentEntry> = residentEntries(spec),
 ): ResidentCost {
   return residentCost(entries, undefined, spec.cli);
+}
+
+/** 리뷰 #693 NOTE-3 — 이 spec 의 baseline 대상 중 지금 디스크에 있는 것의 baseline id. */
+function onDiskTargets(
+  spec: InstallSpec,
+  assetSpec: ReturnType<typeof buildManifestSpec>,
+): Set<string> {
+  const out = new Set<string>();
+  for (const e of buildManifest(assetSpec)) {
+    if (!e.applies(assetSpec)) continue;
+    const t = classifyBaselineTarget(e.target);
+    if (t !== null && existsSync(join(spec.projectDir, e.target))) out.add(t.id);
+  }
+  return out;
 }

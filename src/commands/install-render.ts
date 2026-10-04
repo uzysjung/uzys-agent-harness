@@ -472,16 +472,26 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
     r.leftAsIs.length > 0
       ? "nothing written — yours stays"
       : "harness part already current — yours stays";
+  // 걷기만 한 실행은 "썼다" 고 하지 않고, 고친 값까지 걷었으면 "yours stays" 라 하지 않는다(리뷰 #693 NOTE-2)
+  const onlyRemoved =
+    r.removedOut.length > 0 && !r.replaced && r.added.length === 0 && r.restored.length === 0;
   const verb =
     r.action === "created"
       ? "wrote"
       : r.action === "updated"
-        ? "wrote the harness part — yours stays"
+        ? onlyRemoved
+          ? "removed the harness part"
+          : r.removedEdited.length > 0
+            ? "wrote the harness part"
+            : "wrote the harness part — yours stays"
         : unchanged;
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
   const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
   const restored = r.restored.length > 0 ? ` · ${restoredKeysPart(r.restored)}` : "";
-  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}`);
+  const out = excludedKeyParts(r)
+    .map((p) => ` · ${p}`)
+    .join("");
+  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
@@ -506,7 +516,9 @@ function configRegionsPart(r: SharedWriteResult): string {
  * 남겨 둔 구간·블록(`leftAsIs`). 설치자가 지워 excluded 인 키는 어느 쪽에도 없다 — 없는 것을 있다고 말하지 않는다.
  */
 function harnessKeysInFile(r: SharedWriteResult): string[] {
-  const absent = new Set(r.missing);
+  // 파일에 없는 키(`missing`) · 설치자 값으로 말하는 키(`kept` — 리뷰 #693 LOW: 두 목록에 같은 키) · 뺐는데 고쳐 둔 키는 빼고 센다
+  const keptOut = new Set(r.keptOut.map((id) => id.slice(id.indexOf(":") + 1)));
+  const absent = new Set([...r.missing, ...r.kept, ...keptOut]);
   const inFile = (r.portions ?? []).map((p) => p.key).filter((k) => !absent.has(k));
   return [...new Set([...inFile, ...r.leftAsIs])];
 }
@@ -826,6 +838,12 @@ function renderPhase1Rows(
     // 영구히 빼는 명령을 같은 줄에 붙인다.
     for (const r of baseline.updateMode.restoredKeys ?? []) {
       log(assetRow("success", r.path, restoredKeysPart(r.ids)));
+    }
+    // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
+    for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
+      log(row);
+    for (const r of baseline.updateMode.excludedKeys ?? []) {
+      log(assetRow("success", r.path, excludedKeyParts(r).join(" · ")));
     }
     const legacy = legacyRestoredRow(baseline.updateMode.legacyRestored ?? []);
     if (legacy !== null) log(legacy);
@@ -1317,6 +1335,11 @@ function renderPhase1Rows(
   }
   const legacy = legacyRestoredRow(baseline.legacyRestored ?? []);
   if (legacy !== null) log(legacy);
+  for (const p of baseline.pendingKeyExcludes ?? []) {
+    log(
+      `  ${c.yellow(symbol.skip)} ${p.id} — excluded and recorded, not applied yet: this run did not touch ${p.path}. It is taken out on the next run that does (update, or install with that CLI)`,
+    );
+  }
   log("");
 }
 
@@ -1363,15 +1386,44 @@ export function sharedFileRow(f: SharedWrite): string | null {
   if (f.added.length > 0) parts.push(`added: ${f.added.join(", ")}`);
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
   if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
+  parts.push(...excludedKeyParts(f));
   return assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+}
+
+/**
+ * 리뷰 #693 NOTE-2 — 설치자가 `--without <키 id>` 로 뺀 하네스 몫을 이번에 실제로 어떻게 했는지. 걷었으면 걷었다고(고친
+ * 훅 핸들러를 걷었으면 그것도), 고쳐 둬서 남겼으면 남겼다고 — 빼기가 화면 어디서도 확인되지 않는 일이 없게.
+ */
+export function excludedKeyParts(f: {
+  removedOut: ReadonlyArray<string>;
+  removedEdited: ReadonlyArray<string>;
+  keptOut: ReadonlyArray<string>;
+}): string[] {
+  const parts: string[] = [];
+  if (f.removedOut.length > 0) {
+    const asked = f.removedOut.map((id) => `--without ${id}`).join(" ");
+    parts.push(`removed the harness part: ${f.removedOut.join(", ")} (you asked: ${asked})`);
+  }
+  if (f.removedEdited.length > 0) {
+    parts.push(
+      `your edits to ${f.removedEdited.join(", ")} went with it (a hook entry calls a harness script — left alone it would call a script that is no longer wired)`,
+    );
+  }
+  if (f.keptOut.length > 0) {
+    parts.push(
+      `left in place, no longer managed by the harness (excluded, but you edited it): ${f.keptOut.join(", ")}`,
+    );
+  }
+  return parts;
 }
 
 /** ADR-099 R3 — 뺐는데 그대로 있는 id 한 줄씩. */
 export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>): string[] {
+  // 리뷰 #693 NOTE-1 — 두 행동(계속 쓰기 · 치우기)이 다 보여야 한다. 계속 쓰고 싶은 설치자를 지우는 쪽으로만 이끌지 않는다
   return items.map((e) =>
     e.catalog
-      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still installed — an earlier install put it there; the harness does not remove it. Remove it with: agent-harness uninstall --only ${e.id})`
-      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall)`,
+      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). Keep it managed: install … --with ${e.id} · remove it: agent-harness uninstall --only ${e.id}`
+      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · keep it managed: install … --with ${e.id}`,
   );
 }
 

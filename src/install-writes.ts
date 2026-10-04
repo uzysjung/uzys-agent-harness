@@ -73,6 +73,12 @@ export interface SharedWrite {
   restored: string[];
   /** `added` 의 키 id — 옛 판이 뺀 것으로 적었던 키를 되살렸는지(R5) 가른다. */
   addedIds: string[];
+  /** 설치자가 뺀(`excluded`) 키 중 이번에 파일에서 걷은 것 — 키 id. 화면이 "걷었다" 고 확인한다(리뷰 #693 NOTE-2). */
+  removedOut: string[];
+  /** `removedOut` 중 설치자가 고친 값이었는데도 걷은 것(훅 핸들러 — 스크립트 참조라 남기면 죽은 참조, N-f). */
+  removedEdited: string[];
+  /** 설치자가 뺐지만 고쳐 둬서 남긴 키 — 키 id. 하네스는 더 관리하지 않는다. `kept` 와 겹치지 않는다. */
+  keptOut: string[];
 }
 
 export interface WriteLedger {
@@ -252,6 +258,9 @@ export function createInstallWriter(args: {
         kept: [],
         restored: [],
         addedIds: [],
+        removedOut: [],
+        removedEdited: [],
+        keptOut: [],
         ...extra,
       };
       shared.push(out);
@@ -300,9 +309,26 @@ export function createInstallWriter(args: {
     const absent = new Set(res.missing);
     const valueKeys = [...res.portions.keys()].filter((k) => !isContainerKey(k) && !absent.has(k));
     const addedKeys = valueKeys.filter((k) => !rec.has(k));
+    const ids = (keys: Iterable<string>): string[] =>
+      [...keys].flatMap((k) => keyId(path, k) ?? []);
+    // 설치자가 뺀 키 — 걷은 것 · 고쳐 둬서 남긴 것을 따로 말한다(리뷰 #693 NOTE-2)
+    const out = excludedKeys(path, excluded);
+    const removedOut = res.removed.filter((k) => out.has(k));
+    const removedEdited = res.removedEdited.filter((k) => out.has(k));
+    const keptOut = res.kept.filter((k) => out.has(k));
+    // 걷기만 한 실행은 "썼다" 고 하지 않는다. 고친 값까지 걷었으면 "yours stays" 라 하지 않는다
+    const onlyRemoved =
+      disk !== null &&
+      res.removed.length > 0 &&
+      res.replaced.length === 0 &&
+      addedKeys.length === 0 &&
+      restoredKeys.size === 0;
+    const wrote = onlyRemoved ? "removed the harness part" : j.line;
     // 바뀐 것이 없으면 "썼다" 고 하지 않는다 — 하네스 몫이 이미 있거나, 설치자 것이 그 자리를 다 채웠다
     const line = res.changed
-      ? j.line
+      ? removedEdited.length > 0
+        ? wrote.replace(" — yours stays", "")
+        : wrote
       : valueKeys.length > 0
         ? "kept — the harness part is already in place"
         : "nothing written — yours already has these";
@@ -310,9 +336,12 @@ export function createInstallWriter(args: {
       changed: res.changed,
       harness: names(valueKeys),
       added: names(addedKeys),
-      kept: names(res.kept),
+      kept: names(res.kept.filter((k) => !out.has(k))),
       restored,
-      addedIds: addedKeys.flatMap((k) => keyId(path, k) ?? []),
+      addedIds: ids(addedKeys),
+      removedOut: ids(removedOut),
+      removedEdited: ids(removedEdited),
+      keptOut: ids(keptOut),
     });
   }
 

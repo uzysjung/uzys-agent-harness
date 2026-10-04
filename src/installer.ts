@@ -1,14 +1,16 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
+import { sharedPathOfKeyId } from "./adapters/index.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
-import { classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
+import { isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { gitignoreRender, writeEnvExample } from "./env-files.js";
-import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "./external-assets.js";
+import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
+import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
@@ -27,7 +29,6 @@ import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
   type InstallLog,
-  type InstallLogAsset,
   type InstallLogPortion,
   type InstallLogRootFile,
   type InstallLogSkillFile,
@@ -245,6 +246,11 @@ export interface BaselineReport {
    */
   legacyRestored?: string[];
   /**
+   * 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일을 이번 실행이 건드리지 않아 아직 적용되지 않은 것(기록은 됐다).
+   * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
+   */
+  pendingKeyExcludes?: Array<{ id: string; path: string }>;
+  /**
    * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
    * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
    */
@@ -321,6 +327,11 @@ export interface InstallReport {
    * 되살리지 않았으면 비어 있다 — 화면은 되살린 실행에서만 말한다.
    */
   legacyRestored?: string[];
+  /**
+   * 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일을 이번 실행이 건드리지 않아 아직 적용되지 않은 것(기록은 됐다).
+   * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
+   */
+  pendingKeyExcludes?: Array<{ id: string; path: string }>;
   /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineForeignOwned: string[];
   /** #524 — 링크를 통해 공유 본문을 갱신한 스킬 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
@@ -617,6 +628,7 @@ function runInstallStages(
     baselineExcludedOnDisk: base.excludedOnDisk,
     excludedStillThere: excludedStillThere(projectDir, excluded, base.excludedOnDisk, previousLog),
     legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
+    pendingKeyExcludes: pendingKeyExcludes(projectDir, spec.keyExclude ?? [], ledger.portionPaths),
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
     baselineForeignOwned: [
       ...new Set([...base.foreignOwned, ...externalForeignOwned, ...linked.foreignOwned]),
@@ -723,6 +735,21 @@ function runUpdateInstall(
  * OptionFlags.withTauri/withUzysHarness boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
+/** 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일(디스크에 있는)을 이번 실행이 판정하지 않은 것. */
+function pendingKeyExcludes(
+  projectDir: string,
+  keyExclude: ReadonlyArray<string>,
+  touched: ReadonlyArray<string>,
+): Array<{ id: string; path: string }> {
+  const done = new Set(touched);
+  return keyExclude.flatMap((id) => {
+    const path = sharedPathOfKeyId(id);
+    return path !== null && !done.has(path) && existsSync(join(projectDir, path))
+      ? [{ id, path }]
+      : [];
+  });
+}
+
 /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번 쓰기가 실제로 파일에 넣은 것. */
 export function legacyRestored(
   previousLog: InstallLog | null,
@@ -738,55 +765,7 @@ export function legacyRestored(
   return [...new Set(written.filter((id) => dropped.has(id)))];
 }
 
-/** ADR-099 R3 — 뺐는데 앞 설치가 놓은 것이 그대로 있는 id 하나. `catalog` = 외부 자산(`uninstall --only` 를 받는다). */
-export interface ExcludedStillThere {
-  id: string;
-  catalog: boolean;
-}
-
-/**
- * ADR-099 R3 — 누적 `excluded` 중 앞 설치가 놓은 것이 아직 있는 것. 하네스는 빼기를 이유로 지우지 않으므로(체크 해제 ≠
- * 제거) 화면이 말해야 한다: baseline 은 디스크에 남은 대상, 번들 스킬은 스킬 자리, 카탈로그 자산은 설치 기록.
- */
-function excludedStillThere(
-  projectDir: string,
-  excluded: ReadonlySet<string>,
-  baselineOnDisk: ReadonlyArray<string>,
-  previousLog: InstallLog | null,
-): ExcludedStillThere[] {
-  const out: ExcludedStillThere[] = [];
-  const add = (id: string, catalog: boolean): void => {
-    if (!out.some((e) => e.id === id)) out.push({ id, catalog });
-  };
-  for (const target of baselineOnDisk) {
-    const t = classifyBaselineTarget(target);
-    if (t !== null) add(t.id, false);
-  }
-  for (const id of excluded) {
-    if (INTERNAL_BUNDLED_SKILL_IDS.includes(id)) {
-      const there = [".claude/skills", ".agents/skills"].some((d) =>
-        existsSync(join(projectDir, d, id)),
-      );
-      if (there) add(id, false);
-    } else {
-      const asset = previousLog?.assets.find((a) => a.id === id);
-      if (asset !== undefined && assetStillThere(projectDir, asset)) add(id, true);
-    }
-  }
-  return out;
-}
-
-/**
- * 기록된 외부 자산이 아직 이 프로젝트에 있는가 — 프로젝트 스킬은 디스크로 본다(도구가 놓은 파일 기록 #573, 없으면 스킬
- * 자리). 플러그인 · npm 같은 프로젝트 밖 자산은 디스크로 알 수 없어 기록을 따른다.
- */
-function assetStillThere(projectDir: string, asset: InstallLogAsset): boolean {
-  if (asset.method !== "skill" || asset.scope === "global") return true;
-  if (asset.files !== undefined)
-    return asset.files.some((f) => existsSync(join(projectDir, f.path)));
-  const dir = asset.detail.skill ?? asset.id;
-  return [".claude/skills", ".agents/skills"].some((d) => existsSync(join(projectDir, d, dir)));
-}
+export type { ExcludedStillThere } from "./excluded-still-there.js";
 
 export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   // derive 본체는 `manifest.ts` 의 `buildAssetSpec` 하나다 (#320) — 계측 경로가 같은 것을 부른다.

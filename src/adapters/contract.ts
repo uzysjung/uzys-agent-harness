@@ -66,6 +66,12 @@ export interface UpsertOk {
   missing: string[];
   /** 설치자 값이 이겨 하네스 판을 쓰지 않은 키 — 화면이 "kept yours" 로 알린다. */
   kept: string[];
+  /** 파일에서 걷은 하네스 키(빼기 · 렌더에서 빠짐). 화면은 그중 `excluded` 인 것을 "걷었다" 로 말한다. */
+  removed: string[];
+  /** `removed` 중 설치자가 고친 값이었는데도 걷은 키(훅 핸들러 — N-f). 화면이 "고친 것도 걷혔다" 고 말한다. */
+  removedEdited: string[];
+  /** 기록 sha 그대로라 새 판으로 갈아 끼운 키. */
+  replaced: string[];
 }
 
 export interface StripOk {
@@ -118,6 +124,8 @@ export interface UpsertPlan {
   restored: string[];
   /** 기록에 있고 파일에 없는데 렌더에도 없는 키 — 기록 sha 만 잇는다(`UpsertOk.missing`). */
   missing: string[];
+  /** `remove` 중 지금 값이 기록 sha 와 달랐던 키(`alwaysStrip`) — `UpsertOk.removedEdited`. */
+  removedEdited: string[];
   portions: Map<string, string>;
 }
 
@@ -146,6 +154,7 @@ export function planUpsert(args: {
     kept: [],
     restored: [],
     missing: [],
+    removedEdited: [],
     portions: new Map(),
   };
   for (const [key, sha] of recorded) {
@@ -170,6 +179,7 @@ export function planUpsert(args: {
       }
     } else if (now === sha || alwaysStrip(key)) {
       plan.remove.push(key);
+      if (now !== sha) plan.removedEdited.push(key);
     } else {
       plan.kept.push(key);
       plan.portions.set(key, sha);

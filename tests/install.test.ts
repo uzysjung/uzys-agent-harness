@@ -1779,7 +1779,14 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
     );
     expect(seen[0]?.keyExclude).toEqual(["mcp:github", "settings:statusLine"]);
     expect(seen[0]?.releaseExclude).toEqual(["mcp:context7"]);
-    expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown asset id 'mcp:gitub'"));
+    // 리뷰 #693 LOW — 받을 수 있는 키 id(같은 파일의 것)를 보인다
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Unknown key id 'mcp:gitub' (--without). Skipping. Key ids this install writes: mcp:",
+      ),
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("mcp:github"));
+    expect(err).not.toHaveBeenCalledWith(expect.stringContaining("railway-skills"));
     expect(err).toHaveBeenCalledTimes(1);
   });
 

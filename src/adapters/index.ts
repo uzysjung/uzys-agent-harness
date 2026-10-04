@@ -15,7 +15,7 @@ import { SHARED_FILES } from "./shared-files.js";
 import { tomlRegion } from "./toml-region.js";
 
 export type { PortionAdapter, StripResult, UpsertResult } from "./contract.js";
-export { isKeyId, KEY_ID_PREFIXES, SHARED_FILES } from "./shared-files.js";
+export { isKeyId, KEY_ID_PREFIXES, SHARED_FILES, sharedPathOfKeyId } from "./shared-files.js";
 
 export const ADAPTERS: {
   "marker-md": PortionAdapter<string>;

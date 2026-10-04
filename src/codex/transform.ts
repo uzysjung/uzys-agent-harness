@@ -283,6 +283,10 @@ function writeConfigToml(args: {
       restored: [],
       added: [],
       missing: [],
+      removedOut: [],
+      removedEdited: [],
+      keptOut: [],
+      replaced: false,
     };
   }
   return writeShared({

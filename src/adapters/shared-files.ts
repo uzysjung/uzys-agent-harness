@@ -33,3 +33,10 @@ export const KEY_ID_PREFIXES: ReadonlyArray<string> = Object.values(SHARED_FILES
 export function isKeyId(id: string): boolean {
   return KEY_ID_PREFIXES.some((p) => id.startsWith(p));
 }
+
+/** 키 id 가 가리키는 함께 쓰는 파일(project 상대) — 키 id 가 아니면 null. */
+export function sharedPathOfKeyId(id: string): string | null {
+  for (const [path, file] of Object.entries(SHARED_FILES))
+    if (id.startsWith(file.prefix)) return path;
+  return null;
+}

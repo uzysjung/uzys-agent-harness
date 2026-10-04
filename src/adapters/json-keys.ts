@@ -377,6 +377,9 @@ export const jsonKeys: PortionAdapter<unknown> = {
       portions: plan.portions,
       restored,
       missing,
+      removed: plan.remove,
+      removedEdited: plan.removedEdited,
+      replaced: plan.replace,
       kept,
     };
   },

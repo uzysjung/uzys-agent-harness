@@ -37,6 +37,7 @@ import { withRecordedExclusions } from "../src/install-writes.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import { runInteractive } from "../src/interactive.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
+import { residentEntries } from "../src/resident-entries.js";
 import type { CliTargets, InstallSpec, Track } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
@@ -81,6 +82,22 @@ function install(over: Partial<InstallSpec> = {}): { report: InstallReport; scre
   return { report, screen };
 }
 
+/** update 를 화면과 함께 돌린다 — 색을 벗긴 출력. */
+function updateScreen(): string {
+  const lines: string[] = [];
+  const renderer = createInstallRenderer((m) => lines.push(m), spec(), false);
+  runInstall({
+    runExternal: null,
+    harnessRoot: HARNESS_ROOT,
+    projectDir,
+    spec: spec(),
+    mode: "update",
+    onProgress: (event) => renderer.callbacks.onProgress?.(event),
+  });
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+  return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 function update(): InstallReport {
   return runInstall({
     runExternal: null,
@@ -112,8 +129,10 @@ describe("R3 — 기록된 빼기는 선택에도 걸린다", () => {
     // 이미 깔린 것은 지우지 않고, 화면이 그 사실과 할 일을 말한다
     expect(existsSync(abs(RULE_FILE))).toBe(true);
     expect(screen).toContain(
-      `${RULE} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall)`,
+      `${RULE} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · keep it managed: install … --with ${RULE}`,
     );
+    // update 도 같은 줄로 말한다(리뷰 #693 NOTE-1)
+    expect(updateScreen()).toContain(`${RULE} — excluded (still on disk`);
     expect(screen).not.toContain(`uninstall --only ${RULE}`);
 
     rmSync(abs(RULE_FILE));
@@ -226,10 +245,12 @@ describe("R3 — 기록된 빼기는 선택에도 걸린다", () => {
       excluded: ["frontend-design"],
     });
     mkdirSync(abs(".claude/skills/frontend-design"), { recursive: true });
-    const LINE = "frontend-design — excluded (still installed";
-    expect(install().screen).toContain(
-      `${LINE} — an earlier install put it there; the harness does not remove it. Remove it with: agent-harness uninstall --only frontend-design)`,
-    );
+    const LINE =
+      "frontend-design — excluded, so the harness no longer updates it (still installed)";
+    // 리뷰 #693 NOTE-1 — 계속 쓰기 · 치우기 두 행동이 다 보인다 · update 도 같은 줄
+    const both = `${LINE}. Keep it managed: install … --with frontend-design · remove it: agent-harness uninstall --only frontend-design`;
+    expect(install().screen).toContain(both);
+    expect(updateScreen()).toContain(both);
     rmSync(abs(".claude/skills/frontend-design"), { recursive: true });
     expect(install().screen).not.toContain(LINE);
     const header = buildUpdateSpec(projectDir, ["tooling"]);
@@ -250,6 +271,47 @@ describe("R3 — 기록된 빼기는 선택에도 걸린다", () => {
       log,
     );
     expect(both.excluded.has("railway-skills")).toBe(true);
+  });
+});
+
+describe("리뷰 #693 NOTE-2 · NOTE-3 — 키 빼기를 화면이 확인한다 · 뺐어도 디스크에 있으면 상주로 센다", () => {
+  it("이번 --cli 밖 파일의 키 id 는 기록하고 '아직 적용 안 됨' 을 말한다 · 다음 update 가 걷고 그렇게 말한다", () => {
+    install({ cli: ["claude", "codex"] });
+    expect(readFileSync(abs(".codex/config.toml"), "utf8")).toContain("# uzys-harness:top:start");
+
+    const { screen } = install({ cli: ["claude"], keyExclude: ["codex:top"] });
+
+    expect(screen).toContain(
+      "codex:top — excluded and recorded, not applied yet: this run did not touch .codex/config.toml",
+    );
+    expect(readFileSync(abs(".codex/config.toml"), "utf8")).toContain("# uzys-harness:top:start");
+    expect(readInstallLog(projectDir)?.excluded).toContain("codex:top");
+
+    const out = updateScreen();
+    expect(readFileSync(abs(".codex/config.toml"), "utf8")).not.toContain("uzys-harness:top");
+    expect(out).toContain("removed the harness part: codex:top (you asked: --without codex:top)");
+  });
+
+  it("상주 비용은 뺐지만 디스크에 남은 룰을 센다 — install 머리글 · update 요약이 같은 판정", () => {
+    install();
+    install({ baselineExclude: [RULE] });
+    const counted = (s: InstallSpec) => residentEntries(s).map((e) => e.target);
+    expect(counted(spec({ baselineExclude: [RULE] }))).toContain(RULE_FILE);
+    expect(counted(buildUpdateSpec(projectDir, ["tooling"]))).toContain(RULE_FILE);
+    rmSync(abs(RULE_FILE));
+    expect(counted(spec({ baselineExclude: [RULE] }))).not.toContain(RULE_FILE);
+    expect(counted(buildUpdateSpec(projectDir, ["tooling"]))).not.toContain(RULE_FILE);
+  });
+
+  it("뺀 번들 스킬도 디스크에 남아 있으면 상주로 센다", () => {
+    const skill = "audit-harness-fit";
+    install();
+    install({ userOverride: { forceInclude: [], forceExclude: [skill] } });
+    const counted = () =>
+      residentEntries(buildUpdateSpec(projectDir, ["tooling"])).map((e) => e.target);
+    expect(counted().some((t) => t.startsWith(`.claude/skills/${skill}`))).toBe(true);
+    rmSync(abs(`.claude/skills/${skill}`), { recursive: true });
+    expect(counted().some((t) => t.startsWith(`.claude/skills/${skill}`))).toBe(false);
   });
 });
 

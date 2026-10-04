@@ -78,6 +78,14 @@ export interface SharedWriteResult {
   added: string[];
   /** `portions` 에 기록 sha 만 잇고 파일에는 없는 키(어댑터 키 — `UpsertOk.missing`). 화면은 파일에 있는 몫으로 세지 않는다. */
   missing: string[];
+  /** 설치자가 뺀(`excluded`) 키 중 이번에 걷은 것 — 키 id(리뷰 #693 NOTE-2). */
+  removedOut: string[];
+  /** `removedOut` 중 고친 값이었는데도 걷은 것 — 키 id. */
+  removedEdited: string[];
+  /** 설치자가 뺐지만 고쳐 둬서 남긴 키 — 키 id. `kept` · `leftAsIs` 와 겹치지 않는다. */
+  keptOut: string[];
+  /** 새 판으로 갈아 끼운 키가 있었나 — 걷기만 한 실행을 "썼다" 고 하지 않으려고 화면이 본다. */
+  replaced: boolean;
 }
 
 export interface WriteSharedParams<V> {
@@ -130,6 +138,10 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     restored: [],
     added: [],
     missing: [],
+    removedOut: [],
+    removedEdited: [],
+    keptOut: [],
+    replaced: false,
     ...rest,
   });
   // #678 — 실체가 프로젝트 밖이면 몫도 쓰지 않는다. 몫 기록은 그대로(`portions: null`) · 화면은 writer 의 `outside` 가 말한다.
@@ -216,8 +228,18 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
       : new Map<string, string>();
   const sameAsRender = (k: string) => present.get(k) === jsonSha(render.get(k));
   return result(action, {
-    kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k)),
-    leftAsIs: upserted.kept.filter(isRegion),
+    kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k) && !excluded.has(k)),
+    leftAsIs: upserted.kept.filter((k) => isRegion(k) && !excluded.has(k)),
+    // 하네스가 만든 파일을 새로 쓴 경우(기준선 그대로) 어댑터는 빈 파일에서 시작해 걷은 것을 모른다 — 기록에 있던 뺀 키가 걷힌 것이다
+    removedOut: ids(
+      harnessMade && onDisk !== null
+        ? [...recorded.keys()].filter((k) => excluded.has(k))
+        : upserted.removed.filter((k) => excluded.has(k)),
+    ),
+    removedEdited: ids(upserted.removedEdited.filter((k) => excluded.has(k))),
+    keptOut: ids(upserted.kept.filter((k) => excluded.has(k))),
+    // 하네스가 만든 파일을 새로 쓴 경우 어댑터 계획이 빈 파일 기준이라 "바꿨다" 로 둔다(걷기만 했다고 단정하지 않는다)
+    replaced: upserted.replaced.length > 0 || (harnessMade && onDisk !== null),
     portions,
     restored: ids(upserted.restored),
     added,

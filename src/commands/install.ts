@@ -285,6 +285,10 @@ export function installSpecFromOptions(
   const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
   for (const id of forceInclude) {
     if (validIds.has(id) || releasableBaseline.has(id) || isRenderedKey(id)) continue;
+    if (isKeyId(id)) {
+      err(c.yellow(unknownKeyWarning(id, "--with", renderedKeys ?? keyIds())));
+      continue;
+    }
     err(
       c.yellow(
         id.startsWith(BASELINE_PREFIX)
@@ -295,6 +299,10 @@ export function installSpecFromOptions(
   }
   for (const id of forceExclude) {
     if (validIds.has(id) || baselineIds.has(id) || isRenderedKey(id)) continue;
+    if (isKeyId(id)) {
+      err(c.yellow(unknownKeyWarning(id, "--without", renderedKeys ?? keyIds())));
+      continue;
+    }
     // 갈림은 **id 의 생김새**로 한다(사유가 아니다 — 오타와 트랙 밖은 여기서 구분되지 않는다).
     // `baseline:` 꼴이면 이 트랙의 후보 전체를 함께 보여 주는 편이 카탈로그 전체를 쏟는 것보다
     // 낫다. 반대로 카탈로그 id 오타에 baseline 목록을 보이면 엉뚱한 곳을 뒤지게 된다.
@@ -466,6 +474,18 @@ function resolveScopeOption(value: string | undefined, err: (msg: string) => voi
   if (isInstallScope(value)) return value;
   err(c.yellow(`[WARN] Unknown --scope value '${value}' (expected: project). Using project.`));
   return "project";
+}
+
+/**
+ * 리뷰 #693 LOW — 키 모양 오타는 카탈로그 목록이 아니라 받을 수 있는 키 id 를 보인다(같은 파일의 것 · 없으면 전부).
+ */
+function unknownKeyWarning(id: string, flag: string, keys: ReadonlySet<string>): string {
+  const prefix = id.slice(0, id.indexOf(":") + 1);
+  const same = [...keys].filter((k) => k.startsWith(prefix)).sort();
+  const shown = same.length > 0 ? same : [...keys].sort();
+  return shown.length > 0
+    ? `[WARN] Unknown key id '${id}' (${flag}). Skipping. Key ids this install writes: ${shown.join(", ")}`
+    : `[WARN] Unknown key id '${id}' (${flag}). Skipping. This install writes no harness part with that name`;
 }
 
 /** ADR-099 R6 — `--with` 와 `--without` 에 함께 들어온 id. */

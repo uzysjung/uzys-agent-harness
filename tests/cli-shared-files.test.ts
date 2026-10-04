@@ -785,6 +785,32 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     expect(loggedExcluded()).toEqual(["agents-md:agents"]);
   });
 
+  it("리뷰 #693 NOTE-2 · LOW — `--without` 으로 걷은 키를 확인하고, 고쳐 둬서 남긴 키는 한 목록에만 나온다", () => {
+    install(["opencode"]);
+    const json = JSON.parse(read("opencode.json")) as {
+      mcp: Record<string, Record<string, unknown>>;
+    };
+    json.mcp.github = { ...json.mcp.github, enabled: false };
+    put("opencode.json", JSON.stringify(json, null, 2));
+
+    const report = install(["opencode"], ["tooling"], {
+      keyExclude: ["opencode:mcp.github", "opencode:mcp.context7"],
+    });
+
+    const row = screen(["opencode"], report).find((l) => l.includes("opencode.json")) ?? "";
+    expect(row).toContain(
+      "removed the harness part: opencode:mcp.context7 (you asked: --without opencode:mcp.context7)",
+    );
+    expect(row).toContain(
+      "left in place, no longer managed by the harness (excluded, but you edited it): opencode:mcp.github",
+    );
+    expect(row).toMatch(/harness mcp: chrome-devtools(?! · github)/);
+    expect(row).not.toContain("kept yours");
+    expect(row).toMatch(/opencode\.json\s+removed the harness part · harness mcp/); // 걷기만 했다 — "썼다" 가 아니다
+    expect(JSON.parse(read("opencode.json")).mcp.github.enabled).toBe(false);
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7");
+  });
+
   it("설치자가 뺀 블록 · 구간은 화면도 '있다' 고 말하지 않는다 (리뷰 NOTE-2)", () => {
     put(".codex/config.toml", INSTALLER_TOML);
     put("AGENTS.md", INSTALLER_AGENTS);

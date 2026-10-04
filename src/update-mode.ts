@@ -32,6 +32,7 @@ import {
   listBaselineTargets,
 } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
+import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
   CONTINUOUS_SKILLS,
   EXTERNAL_ASSETS,
@@ -282,6 +283,15 @@ export interface UpdateModeReport {
    * 키(키 id), 파일별. optional = 부재는 "되돌린 것 없음"(손으로 만드는 리포트 stub 이 여럿이다).
    */
   restoredKeys?: ReadonlyArray<{ path: string; ids: ReadonlyArray<string> }>;
+  /** 리뷰 #693 NOTE-1 — 뺐는데 앞 설치가 놓은 것이 아직 있는 id(install 화면과 같은 판정 · 같은 줄). */
+  excludedStillThere?: ReadonlyArray<ExcludedStillThere>;
+  /** 리뷰 #693 NOTE-2 — 설치자가 뺀 키를 이번 update 가 걷었거나(고친 것 포함) 고쳐 둬서 남긴 것, 파일별. */
+  excludedKeys?: ReadonlyArray<{
+    path: string;
+    removedOut: ReadonlyArray<string>;
+    removedEdited: ReadonlyArray<string>;
+    keptOut: ReadonlyArray<string>;
+  }>;
   /** ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 키 중 이번 update 가 실제로 되살린 것. */
   legacyRestored?: ReadonlyArray<string>;
   /**
@@ -599,9 +609,17 @@ export function runUpdateMode(
         rulesRestored: [],
         restoredKeys: [],
         legacyRestored: [],
+        excludedKeys: [],
       };
   report.externalUpdated = external.externalUpdated;
   report.restoredKeys = external.restoredKeys;
+  report.excludedKeys = external.excludedKeys;
+  report.excludedStillThere = excludedStillThere(
+    projectDir,
+    excludedIds(logAtStart),
+    claudeManaged ? excludedBaselineOnDisk(projectDir, logAtStart) : [],
+    logAtStart,
+  );
   report.legacyRestored = external.legacyRestored;
   report.externalBackedUp = external.externalBackedUp;
   // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
@@ -1157,6 +1175,21 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  * 나가는 유일한 경로다.
  */
 /** 디스크 기준으로 지금 깔린 번들 스킬 — update 는 선택 목록의 사본을 두지 않는다(ADR-085). */
+/** 리뷰 #693 NOTE-1 — 기록 트랙의 baseline 대상 중 설치자가 뺐는데 디스크에 남은 것(install 의 `excludedOnDisk` 와 같은 판정). */
+function excludedBaselineOnDisk(projectDir: string, log: InstallLog | null): string[] {
+  const excluded = excludedIds(log);
+  if (excluded.size === 0) return [];
+  const spec = buildAssetSpec({ tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS });
+  return buildManifest(spec)
+    .filter(
+      (e) =>
+        e.applies(spec) &&
+        isBaselineExcluded(e.target, excluded) &&
+        existsSync(join(projectDir, e.target)),
+    )
+    .map((e) => e.target);
+}
+
 /** ADR-099 R3 — 설치자가 뺀 스킬인가: 번들 스킬 id(#505) 또는 `baseline:skills/<id>`(ADR-074), 누적 기록으로. */
 function excludedSkillOf(log: InstallLog | null): (id: string) => boolean {
   const excluded = excludedIds(log);
@@ -1254,6 +1287,13 @@ function refreshExternalCli(
   restoredKeys: Array<{ path: string; ids: string[] }>;
   /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번에 되살린 것. */
   legacyRestored: string[];
+  /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
+  excludedKeys: Array<{
+    path: string;
+    removedOut: string[];
+    removedEdited: string[];
+    keptOut: string[];
+  }>;
 } {
   const log = readInstallLog(projectDir);
   // ADR-099 R3 — 기록의 누적 빼기
@@ -1363,6 +1403,14 @@ function refreshExternalCli(
     restoredKeys: result.sharedFiles
       .filter((f) => f.restored.length > 0)
       .map((f) => ({ path: f.path, ids: [...f.restored] })),
+    excludedKeys: result.sharedFiles
+      .filter((f) => f.removedOut.length + f.keptOut.length > 0)
+      .map((f) => ({
+        path: f.path,
+        removedOut: [...f.removedOut],
+        removedEdited: [...f.removedEdited],
+        keptOut: [...f.keptOut],
+      })),
     legacyRestored: [
       ...new Set(
         result.sharedFiles

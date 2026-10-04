@@ -370,12 +370,38 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(screen).toContain(`drop for good: install … --without ${HOOK}`);
     expect(screen).not.toContain("not added back");
 
-    // 명시적 빼기 — 훅 핸들러는 고쳤어도 뺀다(스크립트 참조라 남기면 죽은 참조, N-f)
-    install({ keyExclude: [HOOK] });
+    // 명시적 빼기 — 훅 핸들러는 고쳤어도 뺀다(스크립트 참조라 남기면 죽은 참조, N-f). 화면이 그 사실을 말한다(리뷰 #693 NOTE-2)
+    const edited = settings();
+    const handler = edited.hooks.SessionStart?.[0]?.hooks?.[0] as { timeout?: number } | undefined;
+    if (handler) handler.timeout = 99;
+    write(SETTINGS, JSON.stringify(edited, null, 2));
+    const out = install({ keyExclude: [HOOK] }).screen;
     expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
+    expect(out).toContain(`removed the harness part: ${HOOK} (you asked: --without ${HOOK})`);
+    expect(out).toContain(`your edits to ${HOOK} went with it`);
+    expect(out).not.toMatch(/settings\.json\s+removed the harness part — yours stays/);
+    expect(out).toMatch(/settings\.json\s+removed the harness part ·/);
     install();
     expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
     expect(log().excluded).toContain(HOOK);
+  });
+
+  it("리뷰 #693 NOTE-2 — 같은 실행에서 되돌린 것과 고친 훅을 걷은 것이 함께면 'yours stays' 라 하지 않는다", () => {
+    const HOOK = "settings:hooks.SessionStart#session-start.sh";
+    install();
+    const s = settings() as Settings & { statusLine?: unknown };
+    delete s.statusLine; // 손으로 지웠다 — 되돌아온다
+    const handler = s.hooks.SessionStart?.[0]?.hooks?.[0] as { timeout?: number } | undefined;
+    if (handler) handler.timeout = 99; // 고쳤다 — 그래도 걷힌다(N-f)
+    write(SETTINGS, JSON.stringify(s, null, 2));
+
+    const { screen } = install({ keyExclude: [HOOK] });
+
+    const row = screen.split("\n").find((l) => l.includes(".claude/settings.json")) ?? "";
+    expect(row).toContain("wrote the harness part ·");
+    expect(row).not.toContain("yours stays");
+    expect(row).toContain("was missing — restored: settings:statusLine");
+    expect(row).toContain(`your edits to ${HOOK} went with it`);
   });
 
   it("옛 판이 절대경로로 박은 하네스 훅을 알아본다 — 같은 훅을 두 번 부르지 않는다 (PR-1 인계 ①)", () => {
@@ -511,7 +537,14 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
         .mcpServers;
     expect(servers().context7).toBeUndefined(); // 기록 sha 그대로 — 뺐다
     expect(servers().github?.env).toEqual({ MINE: "1" }); // 고쳤다 — 남겼다
-    expect(screen).toContain("kept yours: github");
+    // 리뷰 #693 NOTE-2 — 걷은 것과 남긴 것을 화면이 확인한다 · 같은 키가 "kept yours" 에 또 나오지 않는다
+    expect(screen).toContain(
+      "removed the harness part: mcp:context7 (you asked: --without mcp:context7)",
+    );
+    expect(screen).toContain(
+      "left in place, no longer managed by the harness (excluded, but you edited it): mcp:github",
+    );
+    expect(screen).not.toContain("kept yours: github");
     expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:github"]));
 
     install();
