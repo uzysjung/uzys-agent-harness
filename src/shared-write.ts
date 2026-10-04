@@ -17,7 +17,7 @@
  * `composeWriterLog` · update 의 `refreshExternalCli`)다. uninstall 은 같은 기록으로 몫만 걷는다(`stripShared`, #551 R1).
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { PortionAdapter, PortionShas } from "./adapters/contract.js";
 import { ADAPTERS, adapterFor, excludedKeys, keyId } from "./adapters/index.js";
@@ -316,6 +316,8 @@ export interface SharedStripResult {
   kept: string[];
   /** 걷은 뒤에도 이 파일에 남는 기록된 몫(= `kept`) — 로그가 남는 경로(`--cli`)가 이어 적는다. */
   portions: InstallLogPortion[];
+  /** #569 — 하네스가 만든 파일에 몫밖에 없어 파일째 지웠다(미리보기면 지울 것이다). */
+  fileRemoved?: boolean;
 }
 
 export interface StripSharedParams {
@@ -333,6 +335,11 @@ export interface StripSharedParams {
   remnantLine: (names: ReadonlyArray<string>) => string;
   /** false = 미리보기(쓰지 않는다). 판정은 같다. */
   write: boolean;
+  /**
+   * #569 · 설계 §1.2 shared 행 — 하네스가 **만든** 파일(`rootFiles.change === "created"`)이면, 몫을 걷고 남는 것이 없을 때
+   * 파일째 지운다. 설치자 파일에는 넘기지 않는다(빈 파일이라도 설치자가 둔 것이다).
+   */
+  removeIfEmpty?: boolean;
 }
 
 export function stripShared(params: StripSharedParams): SharedStripResult {
@@ -385,11 +392,14 @@ export function stripShared(params: StripSharedParams): SharedStripResult {
       portions: toPortions(path, recorded),
     });
   }
-  if (params.write && res.changed) writeFileSync(abs, res.text);
+  const fileRemoved = params.removeIfEmpty === true && res.removed.length > 0 && res.empty;
+  if (params.write && fileRemoved) rmSync(abs);
+  else if (params.write && res.changed) writeFileSync(abs, res.text);
   const action = res.removed.length > 0 ? "removed" : res.kept.length > 0 ? "left" : "none";
   return out(action, {
     removed: res.removed,
     kept: res.kept,
     portions: toPortions(path, res.portions),
+    ...(fileRemoved ? { fileRemoved } : {}),
   });
 }

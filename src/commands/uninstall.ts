@@ -27,7 +27,9 @@
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
 import {
+  accessSync,
   existsSync,
+  constants as fsConstants,
   lstatSync,
   readdirSync,
   readFileSync,
@@ -38,14 +40,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { ADAPTERS } from "../adapters/index.js";
+import { ADAPTERS, keyId } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
 import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
-import { skillsCliSpec } from "../external-installer.js";
-import { backupDir, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
+import { gitignoreRender } from "../env-files.js";
+import { backupDir, backupFile, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
 import {
   corruptedInstallLogMessage,
   hashContent,
@@ -60,9 +62,10 @@ import {
   readInstallLogStatus,
   writeInstallLog,
 } from "../install-log.js";
+import { legacyGitignoreSeed } from "../install-writes.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
-import { excludedIds } from "../recorded.js";
+import { excludedIds, kindOf } from "../recorded.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { CLI_BASES, type CliBase, isCliBase, isTrack } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
@@ -139,8 +142,10 @@ interface ReverseStep {
   assetId: string;
   /** 사람이 읽는 라벨 (한 줄) */
   label: string;
-  /** 실제 동작 — dry-run 일 때는 호출 안 함. */
-  execute: () => { ok: boolean; message?: string };
+  /**
+   * 실제 동작 — dry-run 일 때는 호출 안 함. `notes` = 라벨 아래 덧붙일 줄(백업한 파일 · 남긴 파일 — #573).
+   */
+  execute: () => { ok: boolean; message?: string; notes?: string[] };
 }
 
 interface GlobalAdvisory {
@@ -218,9 +223,18 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // #551 PR-3 — 기록에 옮겨 둘 디렉터리 안의 항목(`.claude/settings.json` created · displaced)이 생겼다. 그 자리는
   // 디렉터리와 함께 백업으로 가므로 "남는 것" 으로 예고하지 않는다(실행 뒤 안내는 원래 부재로 걸렀다).
   const movedDirs = keepTemplates ? [] : recordedTemplateDirs(installLog);
-  const rootFiles = selectedIds
-    ? []
-    : (installLog.rootFiles ?? []).filter((f) => !underAny(f.path, movedDirs));
+  // #569 — 루트의 함께 쓰는 파일(`.mcp.json` · `.gitignore`)은 이제 하네스 몫을 걷는다 — 걷은 것·남긴 것은 걷는 줄이
+  // 말하므로 "남는 것" 으로 다시 나열하지 않는다. `--keep-templates` 는 걷지 않으므로 그대로 나열한다.
+  const sharedPaths = keepTemplates ? [] : [...CLI_SHARED, ...ROOT_SHARED];
+  const rootFiles = withSkillsLock(
+    selectedIds
+      ? []
+      : (installLog.rootFiles ?? []).filter(
+          (f) => !underAny(f.path, movedDirs) && !(ROOT_SHARED.includes(f.path) && !keepTemplates),
+        ),
+    targetAssets,
+    projectDir,
+  );
   // #551 PR-3 — install 이 `.uzys-agent-harness/` 의 하네스 스크립트를 `externalFiles` 에 적는다. 그 디렉터리는
   // 기록 파일과 함께 통째로 지워지므로(`settleLog`) 여기서 따로 회수·보고하지 않는다 — 따로 보고하면 고친 파일을
   // "kept" 라 말한 뒤 디렉터리째 지운다. 파일 단위 회수는 설계 §9 PR-7.
@@ -233,7 +247,21 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     ),
   };
 
-  const plan = planReverse(targetAssets, spawn);
+  // #676 — 지운 것을 셈해 둔다. 중간에 멈추면 이미 한 일을 이 목록으로 말한다.
+  const journal: string[] = [];
+  let filesRemoved = 0;
+  const rmJ = (path: string): void => {
+    rm(path);
+    filesRemoved += 1;
+  };
+  const moveAsideJ = (path: string): string | null => {
+    const backup = moveAside(path);
+    if (backup)
+      journal.push(`moved ${relative(projectDir, path)} aside → ${relative(projectDir, backup)}`);
+    return backup;
+  };
+
+  const plan = planReverse(targetAssets, { spawn, projectDir, rm: rmJ, movedDirs });
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
@@ -244,6 +272,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       keepTemplates,
       rootFiles,
       harnessRoot,
+      sharedPaths,
       globalTrust,
     )) {
       log(line);
@@ -252,39 +281,84 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
+  // #676 — 되돌릴 수 없는 제거(플러그인 · npm · 스킬 파일)보다 **먼저** 로컬 사전 조건을 본다. 쓸 수 없는 자리가 하나라도
+  // 있으면 아무것도 하지 않고 멈춘다 — 앞의 제거만 끝나고 백업 생성에서 죽으면 반쯤 지운 프로젝트가 남는다.
+  const blocked = unwritablePaths({
+    projectDir,
+    installLog: templatesLog,
+    targetAssets,
+    selectedIds,
+    keepTemplates,
+    movedDirs,
+    sharedPaths,
+  });
+  if (blocked.length > 0) {
+    err(status.failure(c.red("ERROR: uninstall cannot write here — nothing was removed:")));
+    for (const p of blocked) err(c.dim(`       · ${p === "." ? "the project folder" : p}`));
+    err(c.dim("       Fix the permissions, then run the same command again."));
+    exit(1);
+    return;
+  }
+
   // 두 사실을 분리해서 쓴다 — 셋을 하나로 묶다 리뷰 3라운드 내리 회귀가 났다.
   //   `.claude/` 가 남는가  = keepTemplates   (수기 안내 대상 여부)
   //   install log 가 남는가 = `--only` 인가    (settleLog: --only 만 재기록, 나머지는 삭제)
   const logSurvives = selectedIds !== null;
 
-  const { succeeded, failed, removedIds } = executeReverse(plan, log, logSurvives);
-
-  if (!keepTemplates) {
-    // #551 R1 · 리뷰 NOTE-3 — 함께 쓰는 파일의 하네스 블록은 루트 `CLAUDE.md` import 블록보다 **먼저** 걷는다(붙인 순서의
-    // 역순). `AGENTS.md` 가 `CLAUDE.md` 로의 링크면 한 파일에 두 블록이 붙는데, import 를 먼저 걷으면 그 둘레 빈 줄이
-    // 정리돼 뒤 블록을 걷을 때 설치자 원본의 끝 개행까지 빠진다.
-    const sharedStrips = stripCliShared(installLog, projectDir, harnessRoot, CLI_SHARED, true);
-    const { rootClaudeMdKept, importStripped, external, moved } = removeTemplates(
-      templatesLog,
-      projectDir,
-      { rm, moveAside },
-      harnessRoot,
+  let reversed: ReturnType<typeof executeReverse>;
+  try {
+    reversed = executeReverse(plan, log, logSurvives, journal);
+    if (!keepTemplates) {
+      // #551 R1 · 리뷰 NOTE-3 — 함께 쓰는 파일의 하네스 블록은 루트 `CLAUDE.md` import 블록보다 **먼저** 걷는다(붙인
+      // 순서의 역순). `AGENTS.md` 가 `CLAUDE.md` 로의 링크면 한 파일에 두 블록이 붙는데, import 를 먼저 걷으면 그 둘레
+      // 빈 줄이 정리돼 뒤 블록을 걷을 때 설치자 원본의 끝 개행까지 빠진다.
+      const sharedStrips = stripCliShared(installLog, projectDir, harnessRoot, sharedPaths, true);
+      for (const r of sharedStrips) {
+        if (r.removed.length > 0) journal.push(`removed the harness part from ${r.path}`);
+      }
+      const { rootClaudeMdKept, importStripped, external, moved } = removeTemplates(
+        templatesLog,
+        projectDir,
+        { rm: rmJ, moveAside: moveAsideJ },
+        harnessRoot,
+      );
+      for (const m of moved) log(movedAsideLine(projectDir, m.rel, m.backup));
+      // 셋 다 없는 설치(antigravity 단독)도 있다 — 아무 줄도 안 찍으면 templates 를 빠뜨린 것처럼 읽힌다.
+      if (recordedTemplateDirs(installLog).length === 0) {
+        log(`  ${status.success("templates removed: (none)")}`);
+      }
+      for (const line of externalRemovalLines(external)) log(line);
+      for (const line of sharedStripLines(sharedStrips, false)) log(line);
+      if (importStripped) {
+        log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
+      }
+      if (rootClaudeMdKept) {
+        const kept = installLog.templates.rootClaudeMd?.path ?? "CLAUDE.md";
+        log(
+          `  ${c.yellow("⊘")} ${kept} kept — modified since install. Remove manually if intended.`,
+        );
+      }
+    }
+  } catch (e) {
+    // #676 — 사전 조건을 통과하고도 중간에 멈췄다(디스크 가득 · 경합). 이미 한 일을 말하고 기록은 남긴다 — 같은 명령을
+    // 다시 돌리면 끝난 단계는 할 일이 없어 지나가고 나머지가 이어진다.
+    err(
+      status.failure(
+        c.red(`ERROR: uninstall stopped partway — ${e instanceof Error ? e.message : String(e)}`),
+      ),
     );
-    for (const m of moved) log(movedAsideLine(projectDir, m.rel, m.backup));
-    // 셋 다 없는 설치(antigravity 단독)도 있다 — 아무 줄도 안 찍으면 templates 를 빠뜨린 것처럼 읽힌다.
-    if (recordedTemplateDirs(installLog).length === 0) {
-      log(`  ${status.success("templates removed: (none)")}`);
-    }
-    for (const line of externalRemovalLines(external)) log(line);
-    for (const line of sharedStripLines(sharedStrips, false)) log(line);
-    if (importStripped) {
-      log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
-    }
-    if (rootClaudeMdKept) {
-      const kept = installLog.templates.rootClaudeMd?.path ?? "CLAUDE.md";
-      log(`  ${c.yellow("⊘")} ${kept} kept — modified since install. Remove manually if intended.`);
-    }
+    err(c.dim("       Already done:"));
+    const done = [...journal, ...(filesRemoved > 0 ? [`removed ${filesRemoved} file(s)`] : [])];
+    for (const line of done.length > 0 ? done : ["(nothing)"]) err(c.dim(`         · ${line}`));
+    err(
+      c.dim(
+        `       The install record is kept (${installLogPath(projectDir)}) — fix the cause and run the same command again.`,
+      ),
+    );
+    exit(1);
+    return;
   }
+  const { succeeded, failed, removedIds } = reversed;
 
   const logWriteFailed = settleLog(
     { installLog, projectDir, selectedIds, removedIds },
@@ -317,6 +391,65 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   log("");
   log(outcome.line);
   exit(outcome.code);
+}
+
+/**
+ * #676 — 이번 실행이 바꿀 자리 중 쓸 수 없는 것(project 상대, `.` = 프로젝트 폴더). 실행과 같은 대상을 본다:
+ * 전량이면 프로젝트 폴더(템플릿 디렉터리를 옮기고 설치 기록을 지운다) · `--only` 면 설치 기록 폴더 · npm 자산이면
+ * 프로젝트 폴더(`package.json`) · 기록된 도구 파일과 `.agents/` 하네스 파일은 그 파일이 든 폴더 · 몫을 걷을 함께 쓰는
+ * 파일은 그 파일. 프로젝트 밖 링크 너머는 건드리지 않으므로 보지 않는다. 없는 자리는 할 일이 없어 보지 않는다.
+ */
+function unwritablePaths(ctx: {
+  projectDir: string;
+  installLog: InstallLog;
+  targetAssets: ReadonlyArray<InstallLogAsset>;
+  selectedIds: string[] | null;
+  keepTemplates: boolean;
+  movedDirs: ReadonlyArray<string>;
+  sharedPaths: ReadonlyArray<string>;
+}): string[] {
+  const { projectDir, installLog } = ctx;
+  const need = new Set<string>();
+  need.add(ctx.selectedIds ? INSTALL_LOG_DIR : ".");
+  const project = ctx.targetAssets.filter((a) => a.scope === "project");
+  if (project.some((a) => a.method === "npm")) need.add(".");
+  const parentOf = (path: string): void => {
+    const abs = join(projectDir, path);
+    if (!safeExists(abs)) return;
+    const real = safeRealpath(abs);
+    if (real !== null && isOutsideProject(projectDir, real)) return;
+    need.add(dirname(path));
+  };
+  for (const a of project)
+    if (a.method === "skill") for (const f of a.files ?? []) parentOf(f.path);
+  if (!ctx.keepTemplates) {
+    const recordedShared = new Set((installLog.portions ?? []).map((p) => p.path));
+    for (const p of ctx.sharedPaths) {
+      if (recordedShared.has(p) && existsSync(join(projectDir, p))) need.add(p);
+    }
+    for (const f of installLog.externalFiles ?? []) {
+      if (!underAny(f.path, ctx.movedDirs)) parentOf(f.path);
+    }
+    if (hasRootImport(projectDir)) need.add("CLAUDE.md");
+  }
+  return [...need].filter((p) => {
+    try {
+      accessSync(join(projectDir, p), fsConstants.W_OK);
+      return false;
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code !== "ENOENT";
+    }
+  });
+}
+
+/** lstat 기준 존재 — 끊어진 링크도 "있다"(지울 대상이 그 자리에 있다). */
+function safeExists(abs: string): boolean {
+  try {
+    lstatSync(abs);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -371,6 +504,7 @@ function executeReverse(
   plan: ReversePlan,
   log: (msg: string) => void,
   logSurvives: boolean,
+  journal?: string[],
 ): { succeeded: number; failed: number; removedIds: string[] } {
   let succeeded = 0;
   let failed = 0;
@@ -380,11 +514,13 @@ function executeReverse(
     if (result.ok) {
       log(`  ${status.success(step.label)}`);
       removedIds.push(step.assetId);
+      journal?.push(`removed ${step.assetId}`);
       succeeded++;
     } else {
       log(`  ${c.yellow("⊘")} ${step.label}  (${result.message ?? "failed"})`);
       failed++;
     }
+    for (const note of result.notes ?? []) log(c.dim(`    ↳ ${note}`));
   }
   // 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가
   // 아무것도 안 한 실행에 붙어 거짓 보고가 된다 (no-false-ship).
@@ -393,15 +529,7 @@ function executeReverse(
   const tail = logSurvives ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
   for (const asset of plan.noReversePath) {
     log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`);
-    // #571 — 이 부류(npx-run)는 .claude/ 밖에도 파일을 만든다. "무엇을 손수 지워야 하는지"를
-    // 말하지 않으면 사용자는 남은 디렉터의 정체를 알 방법이 없다(USAGE L254 약속의 이행).
-    if (asset.method === "npx-run") {
-      log(
-        c.dim(
-          `    ↳ .claude/ 밖에 만든 파일(예: _bmad/ · _openspec/)은 직접 확인 후 지운다 — 기록에 없다`,
-        ),
-      );
-    }
+    for (const hint of plan.hints.get(asset.id) ?? []) log(c.dim(`    ↳ ${hint}`));
   }
   return { succeeded, failed, removedIds };
 }
@@ -458,6 +586,7 @@ function dryRunLines(
   keepTemplates: boolean,
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   harnessRoot: string,
+  sharedPaths: ReadonlyArray<string>,
   globalTrust: InstallLog["codexTrust"],
 ): string[] {
   const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
@@ -472,9 +601,7 @@ function dryRunLines(
   lines.push(
     ...plan.noReversePath.flatMap((a) => [
       c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
-      ...(a.method === "npx-run"
-        ? [c.dim("    ↳ .claude/ 밖에 만든 파일(예: _bmad/ · _openspec/)은 직접 확인 후 지운다")]
-        : []),
+      ...(plan.hints.get(a.id) ?? []).map((h) => c.dim(`    ↳ ${h}`)),
     ]),
   );
   if (!keepTemplates) {
@@ -499,7 +626,7 @@ function dryRunLines(
     lines.push(...previewExternalLines(installLog, projectDir, harnessRoot, dirs));
     lines.push(
       ...sharedStripLines(
-        stripCliShared(installLog, projectDir, harnessRoot, CLI_SHARED, false),
+        stripCliShared(installLog, projectDir, harnessRoot, sharedPaths, false),
         true,
       ),
     );
@@ -618,6 +745,15 @@ function rootFileAdvisoryLines(
  * displaced 의 `notes[0]` 은 비켜 둔 설치자 원본의 백업 경로다 — 실재할 때만 그 자리를 댄다.
  */
 function rootFileMeaning(f: InstallLogRootFile, projectDir: string): string {
+  // #610 — 하네스가 아니라 `npx skills` 가 쓰는 잠금 파일이다. 하네스는 남의 도구 파일 내용을 고치지 않는다
+  if (f.path === SKILLS_LOCK) {
+    return "written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills";
+  }
+  // #569 — 스캐폴드(`.env.example` · `.github/workflows/*`)는 쓰는 순간 설치자 것이다(결정 7). 옛 로그는 `created` 로
+  // 적었다 — 기록 값이 아니라 경로로 가른다(`kindOf`). "지워도 안전" 이라 해 놓고 안 지우던 말을 바로잡는다
+  if (f.change !== "displaced" && kindOf(null, f.path) === "advisory") {
+    return "yours now — a scaffold the harness handed over; it is never removed";
+  }
   switch (f.change) {
     case "created":
       return "하네스가 생성 (수정한 적 없으면 삭제해도 안전)";
@@ -847,6 +983,13 @@ function settleCliLog(
     },
     templates: { ...installLog.templates },
   };
+  // #573 — 옮겨 둔 디렉터리(`.claude/` 등) 아래 도구 파일 기록도 뺀다. 그 파일은 디렉터리와 함께 백업으로 갔다 —
+  // 남겨 두면 나중에 설치자가 같은 자리에 둔 같은 내용의 사본을 전량 uninstall 이 하네스 것으로 읽고 지운다.
+  next.assets = installLog.assets.map((a) =>
+    a.files === undefined
+      ? a
+      : { ...a, files: a.files.filter((f) => !underAny(f.path, removedDirs)) },
+  );
   const field = TEMPLATE_DIR_FIELD[target];
   if (field) delete next.templates[field];
   if (anchorRemoved) delete next.templates.rootClaudeMd;
@@ -938,6 +1081,37 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
  */
 const CLI_SHARED: ReadonlyArray<string> = ["AGENTS.md", "opencode.json"];
 
+/**
+ * #569 — 루트의 함께 쓰는 파일. install · update 가 하네스 몫만 더하므로 uninstall 도 **기록된 몫만** 뺀다(설치자 서버 ·
+ * 줄은 남는다). 몫 기록이 없는 옛 설치본은 지우지 않고 남은 하네스 몫으로 보이는 것을 알린다. 하네스가 **만든** 파일
+ * (`rootFiles.change === "created"`)은 몫을 걷고 남는 것이 없으면 파일째 지운다.
+ */
+const ROOT_SHARED: ReadonlyArray<string> = [".mcp.json", ".gitignore"];
+
+/** #610 — `npx skills` 가 프로젝트 루트에 쓰는 잠금 파일. */
+const SKILLS_LOCK = "skills-lock.json";
+
+/**
+ * #610 — 이번에 빼는 자산에 project scope 스킬이 있고 잠금 파일이 디스크에 있으면, 남는 것 안내에 그 파일을 더한다.
+ * 내용은 고치지 않는다 — 외부 도구의 파일이다. 기록에 이미 있으면 그 줄을 쓴다.
+ */
+function withSkillsLock(
+  rootFiles: ReadonlyArray<InstallLogRootFile>,
+  assets: ReadonlyArray<InstallLogAsset>,
+  projectDir: string,
+): InstallLogRootFile[] {
+  const out = [...rootFiles];
+  const skills = assets.some((a) => a.method === "skill" && a.scope === "project");
+  if (
+    skills &&
+    !out.some((f) => f.path === SKILLS_LOCK) &&
+    existsSync(join(projectDir, SKILLS_LOCK))
+  ) {
+    out.push({ path: SKILLS_LOCK, change: "advisory", notes: [] });
+  }
+  return out;
+}
+
 /** 몫 기록이 없을 때 남은 하네스 몫을 **알리기만** 하는 식별(지우지 않는다 — 기록 없이 지우면 설치자 것을 지울 수 있다). */
 function remnantFor(
   path: string,
@@ -945,6 +1119,26 @@ function remnantFor(
   harnessRoot: string,
 ): (disk: string) => string[] {
   const clis = installedClis(log);
+  if (path === ".gitignore") {
+    // 옛 판이 `rootFiles.notes` 에 적은 줄 중 하네스 판(딸린 주석 포함) 그대로 남은 것
+    return (disk) => [...legacyGitignoreSeed(disk, gitignoreRender(), log).keys()];
+  }
+  if (path === ".mcp.json") {
+    // 이름만으로는 설치자 서버와 못 가른다 — 값까지 지금 하네스 렌더와 같은 것만 알린다
+    return (disk) => {
+      let servers: Record<string, unknown>;
+      try {
+        servers = renderHarnessMcp(harnessRoot, log.spec.tracks.filter(isTrack)).mcpServers;
+      } catch {
+        return [];
+      }
+      const render = new Map(Object.entries(servers).map(([n, v]) => [`mcpServers.${n}`, v]));
+      const present = ADAPTERS["json-keys"].read(disk, render.keys()) ?? new Map<string, string>();
+      return [...present]
+        .filter(([k, sha]) => sha === jsonSha(render.get(k)))
+        .map(([k]) => k.slice("mcpServers.".length));
+    };
+  }
   if (path === AGENTS_MD) {
     if (!clis.includes("codex") && !clis.includes("opencode")) return () => [];
     // 블록 마커는 하네스만 쓴다 — 있으면 하네스 블록이다
@@ -968,6 +1162,14 @@ function remnantFor(
 }
 
 function remnantLine(path: string): (names: ReadonlyArray<string>) => string {
+  if (path === ".mcp.json") {
+    return (names) =>
+      `may still hold the harness's MCP servers (not on record): ${names.join(" · ")} — delete them by hand if they are not yours`;
+  }
+  if (path === ".gitignore") {
+    return (names) =>
+      `may still hold lines the harness added (not on record): ${names.join(" · ")} — delete them by hand if they are not yours`;
+  }
   return path === AGENTS_MD
     ? () =>
         "the harness block is not on record (written before the harness recorded its part) — delete the <!-- uzys-harness:agents --> block by hand if you want it gone"
@@ -983,6 +1185,10 @@ function stripCliShared(
   write: boolean,
 ): SharedStripResult[] {
   const harnessMade = new Set((log.externalFiles ?? []).map((f) => f.path));
+  // #569 — 루트 함께 쓰는 파일을 하네스가 만들었으면 몫만 남은 파일째 지운다(설계 §1.2 shared 행)
+  const created = new Set(
+    (log.rootFiles ?? []).filter((f) => f.change === "created").map((f) => f.path),
+  );
   return paths
     .filter((path) => !harnessMade.has(path))
     .map((path) =>
@@ -994,6 +1200,7 @@ function stripCliShared(
         remnant: remnantFor(path, log, harnessRoot),
         remnantLine: remnantLine(path),
         write,
+        removeIfEmpty: ROOT_SHARED.includes(path) && created.has(path),
       }),
     );
 }
@@ -1002,9 +1209,21 @@ function stripCliShared(
 function sharedStripLines(results: ReadonlyArray<SharedStripResult>, preview: boolean): string[] {
   const lines: string[] = [];
   for (const r of results) {
-    const names = (keys: ReadonlyArray<string>) =>
-      keys.map((k) => (k === AGENTS_BLOCK_NAME ? "harness block" : k)).join(" · ");
-    if (r.removed.length > 0) {
+    // 화면 이름 — 키 id 에서 파일 접두를 뗀 것(`mcpServers.github` → `github`). 빈 컨테이너 키는 이름이 아니다
+    const display = (k: string): string[] => {
+      if (k === AGENTS_BLOCK_NAME) return ["harness block"];
+      if (!ROOT_SHARED.includes(r.path)) return [k];
+      const id = keyId(r.path, k);
+      return id === null ? [] : [id.slice(id.indexOf(":") + 1)];
+    };
+    const names = (keys: ReadonlyArray<string>) => keys.flatMap(display).join(" · ");
+    if (r.fileRemoved) {
+      lines.push(
+        preview
+          ? `  ○ remove ${r.path} (the harness created it and only its part is in it)`
+          : `  ${status.success(`${r.path} — removed (the harness created it and only its part was in it)`)}`,
+      );
+    } else if (r.removed.length > 0) {
       // 블록은 이름이 곧 전부다 · 키는 무엇을 걷었는지 이름을 댄다
       const which = r.path === AGENTS_MD ? "" : `: ${names(r.removed)}`;
       const what = r.path === AGENTS_MD ? "the harness block" : "the harness part";
@@ -1028,37 +1247,68 @@ interface ReversePlan {
   reverseSteps: ReverseStep[];
   globalAdvisories: GlobalAdvisory[];
   /**
-   * 자동 되돌리기 경로가 없는 자산 (npx-run / legacy shell-script / internal). 전량 uninstall 에선
-   * `.claude/` 통째 제거가 덮지만, `--only` 에선 **아무 일도 안 일어난다** — 그래서 따로 센다.
+   * 자동 되돌리기 경로가 없는 자산 (npx-run / legacy shell-script / internal · 파일 목록이 기록에 없는 옛 skill).
+   * 전량 uninstall 에선 `.claude/` 통째 제거가 덮지만, `--only` 에선 **아무 일도 안 일어난다** — 그래서 따로 센다.
    */
   noReversePath: InstallLogAsset[];
+  /** `noReversePath` 자산마다 남는 것을 말하는 줄 — 실행과 미리보기가 같은 줄을 낸다. */
+  hints: Map<string, string[]>;
 }
 
-function planReverse(
-  assets: ReadonlyArray<InstallLogAsset>,
-  spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
-): ReversePlan {
+interface ReverseCtx {
+  spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
+  projectDir: string;
+  rm: (path: string) => void;
+  /** 먼저 옮겨 둘 템플릿 디렉터리 — 그 안의 남는 것은 백업으로 가므로 "남는다" 고 하지 않는다. */
+  movedDirs: ReadonlyArray<string>;
+}
+
+function planReverse(assets: ReadonlyArray<InstallLogAsset>, ctx: ReverseCtx): ReversePlan {
   const reverseSteps: ReverseStep[] = [];
   const globalAdvisories: GlobalAdvisory[] = [];
   const noReversePath: InstallLogAsset[] = [];
+  const hints = new Map<string, string[]>();
 
   for (const asset of assets) {
     if (asset.scope === "global") {
       globalAdvisories.push({ asset, command: buildGlobalAdvisoryCmd(asset) });
       continue;
     }
-    const step = buildProjectReverseStep(asset, spawn);
+    const step = buildProjectReverseStep(asset, ctx);
     if (step) reverseSteps.push(step);
-    else noReversePath.push(asset);
+    else {
+      noReversePath.push(asset);
+      hints.set(asset.id, noReverseHints(asset, ctx));
+    }
   }
 
-  return { reverseSteps, globalAdvisories, noReversePath };
+  return { reverseSteps, globalAdvisories, noReversePath, hints };
 }
 
-function buildProjectReverseStep(
-  asset: InstallLogAsset,
-  spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>,
-): ReverseStep | null {
+/** 되돌리지 못한 자산이 남기는 것 — 무엇을 손수 확인해야 하는지 말하지 않으면 남은 디렉터의 정체를 알 길이 없다. */
+function noReverseHints(asset: InstallLogAsset, ctx: ReverseCtx): string[] {
+  // #571 — 이 부류(npx-run)는 .claude/ 밖에도 파일을 만든다(USAGE L254 약속의 이행).
+  if (asset.method === "npx-run") {
+    return [".claude/ 밖에 만든 파일(예: _bmad/ · _openspec/)은 직접 확인 후 지운다 — 기록에 없다"];
+  }
+  if (asset.method !== "skill") return [];
+  // #573 — 파일 목록이 없는 옛 기록. 무엇을 놓았는지 모르므로 지우지 않고, 그 스킬 이름의 자리 중 실재하는 것을 댄다
+  const name = asset.detail.skill;
+  const left =
+    name === undefined
+      ? []
+      : [".claude/skills", ".agents/skills"]
+          .map((root) => `${root}/${name}/`)
+          .filter((p) => !underAny(p, ctx.movedDirs) && existsSync(join(ctx.projectDir, p)));
+  return [
+    left.length > 0
+      ? `files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`
+      : "files it put down are not on record (installed by an older version) — nothing removed",
+  ];
+}
+
+function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): ReverseStep | null {
+  const { spawn } = ctx;
   switch (asset.method) {
     case "plugin": {
       const pluginId = asset.detail.pluginId ?? asset.id;
@@ -1078,16 +1328,15 @@ function buildProjectReverseStep(
       };
     }
     case "skill": {
-      // skills CLI default 가 project — `skills remove <source>` (no -g).
-      // 일부 source 는 폴더 경로/직접 id — npx skills remove 가 처리.
-      const source = asset.detail.source ?? asset.id;
+      // #573 — 외부 도구의 제거 명령(`npx skills remove`)에 맡기지 않는다. 그 도구는 이름으로 찾고 자기 에이전트 해석으로
+      // 범위를 정해, 하네스가 깐 적 없는 사본(다른 에이전트 자리 · 링크 너머 공유 폴더)까지 지웠다. **설치 기록에 적힌
+      // 경로만** 하네스가 직접 지운다. 기록이 없으면(옛 판) 지우지 않는다 — `noReverseHints` 가 남는 것을 말한다.
+      const files = asset.files;
+      if (files === undefined) return null;
       return {
         assetId: asset.id,
-        label: `npx skills remove ${source}`,
-        execute: () => {
-          const r = spawn("npx", [skillsCliSpec(), "remove", source, "--yes"]);
-          return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
-        },
+        label: `remove ${asset.id} — ${files.length} file(s) on record`,
+        execute: () => removeToolFiles(files, ctx.projectDir, ctx.rm),
       };
     }
     case "npm": {
@@ -1144,7 +1393,8 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
       return `claude plugin uninstall --scope user ${pid}`;
     }
     case "skill": {
-      const s = asset.detail.source ?? asset.id;
+      // #573 — skills CLI 는 설치 목록을 스킬 **이름**으로 찾는다. 소스 저장소 경로를 주면 "No matching skills" 로 끝난다
+      const s = asset.detail.skill ?? asset.detail.source ?? asset.id;
       return `npx skills remove -g ${s}`;
     }
     case "npm": {
@@ -1498,6 +1748,59 @@ function removeExternalFiles(
     /* 걷지 못한 빈 디렉터는 무해하다 */
   }
   return { removed, kept, stripped, unjudged, outside };
+}
+
+/**
+ * #573 — 외부 도구가 놓은 파일을 **기록된 경로만** 지운다(설계 §1.2 harness 행의 `remove` 규칙).
+ *
+ * - 기록 sha 그대로 → 지운다. 다르면(설치자가 고쳤다) **그 파일 하나**를 `<file>.backup-<ts>` 로 남기고 지운다.
+ * - 링크를 따라간 실체가 프로젝트 밖이면 따라가지 않고 남긴다 — 그 폴더를 같이 쓰는 다른 프로젝트의 것이다.
+ * - 기록된 자리가 지금은 링크면 남긴다 — 도구가 놓은 사본이 아니다(설치자·다른 도구가 바꿔 놓았다).
+ * - 이미 없으면 할 일이 없다(다시 실행해도 같은 결과 — #676).
+ *
+ * 읽지 못했거나 백업·삭제가 실패한 파일은 남기고 `ok: false` — `--only` 는 기록을 남겨 다시 시도할 수 있게 한다.
+ */
+function removeToolFiles(
+  files: ReadonlyArray<InstallLogSkillFile>,
+  projectDir: string,
+  rm: (path: string) => void,
+): { ok: boolean; message?: string; notes: string[] } {
+  const notes: string[] = [];
+  const removed: string[] = [];
+  let failed = 0;
+  for (const { path, sha256 } of files) {
+    const abs = join(projectDir, path);
+    let isLink: boolean;
+    try {
+      isLink = lstatSync(abs).isSymbolicLink();
+    } catch {
+      continue; // 이미 없다
+    }
+    const real = safeRealpath(abs);
+    if (real !== null && isOutsideProject(projectDir, real)) {
+      notes.push(`left ${path} — link target is outside the project (${real})`);
+      continue;
+    }
+    if (isLink) {
+      notes.push(`left ${path} — it is a link now, not the copy that was installed`);
+      continue;
+    }
+    try {
+      if (hashContent(readFileSync(abs, "utf8")) !== sha256) {
+        const backup = backupFile(abs);
+        notes.push(`backed up ${path} → ${relative(projectDir, backup)} (changed since install)`);
+      }
+      rm(abs);
+      removed.push(path);
+    } catch (e) {
+      failed += 1;
+      notes.push(`left ${path} — ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  for (const path of removed) pruneEmptyDirsUpward(projectDir, dirname(join(projectDir, path)));
+  return failed > 0
+    ? { ok: false, message: `${failed} file(s) could not be removed`, notes }
+    : { ok: true, notes };
 }
 
 /**
