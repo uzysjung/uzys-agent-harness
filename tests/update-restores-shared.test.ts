@@ -476,6 +476,10 @@ describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가
       /\.agents\/rules\/uzys-harness\.md\s+was missing — restored \(drop this CLI for good: agent-harness uninstall --cli antigravity\)/,
     );
     expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+was missing — reinstalled/);
+    // 기록에 있던 자리다 — 릴리즈가 더한 것이라 말하지 않는다
+    expect(screen).not.toMatch(
+      /\.agents\/rules\/(uzys-harness|git-policy)\.md\s+added by this release/,
+    );
   });
 
   it("기록에서 두 파일이 빠진 설치본(옛 판 update 가 걷었다)도 기록된 CLI 를 근거로 돌아온다", () => {
@@ -498,10 +502,33 @@ describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가
 
     expect(read(ANCHOR)).toBe(before.anchor);
     expect(read(RULE)).toBe(before.rule);
-    // 기록이 아니라 기록된 CLI 를 근거로 되살렸어도 화면이 말한다(리뷰 PR B NOTE-4)
-    expect(screen).toMatch(
-      /\.agents\/rules\/uzys-harness\.md\s+was missing — restored \(drop this CLI for good: agent-harness uninstall --cli antigravity\)/,
+    // 기록이 아니라 기록된 CLI 를 근거로 만들었어도 화면이 말한다(리뷰 PR B NOTE-4). 기록에 없던 자리는 릴리즈가 새로 더한 룰과
+    // 구분되지 않는다 — claude 쪽과 같이 "added by this release" 로 말하고 "was missing" 이라 하지 않는다
+    expect(screen).toMatch(/\.agents\/rules\/uzys-harness\.md\s+added by this release/);
+    expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+added by this release/);
+    expect(screen).not.toMatch(/\.agents\/rules\/(uzys-harness|git-policy)\.md\s+was missing/);
+  });
+
+  it("릴리즈가 더한 룰(디스크에도 기록에도 없던 자리)은 'added by this release' 로 말한다 — 지운 적 없는 것을 되살렸다고 하지 않는다", () => {
+    install(["antigravity"]);
+    // 이 판의 룰 하나를 '아직 없던 릴리즈' 상태로 만든다 — 파일도 기록도 없다(옛 판에서 올라온 설치본과 같은 입력)
+    rmSync(join(projectDir, RULE));
+    const log = rawLog();
+    writeFileSync(
+      installLogPath(projectDir),
+      JSON.stringify({
+        ...log,
+        externalFiles: (log.externalFiles ?? []).filter((f) => f.path !== RULE),
+      }),
     );
-    expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+was missing — reinstalled/);
+
+    const { screen } = update();
+
+    expect(existsSync(join(projectDir, RULE))).toBe(true);
+    expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+added by this release/);
+    expect(screen).not.toMatch(/\.agents\/rules\/git-policy\.md\s+was missing/);
+    expect(screen).not.toContain("to keep it out");
+    // 다음 update 는 기록에 생긴 자리라 아무 줄도 내지 않는다
+    expect(update().screen).not.toMatch(/\.agents\/rules\/git-policy\.md/);
   });
 });

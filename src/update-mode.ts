@@ -646,6 +646,7 @@ export function runUpdateMode(
         skillsInstalled: [],
         skillsRestored: [],
         rulesRestored: [],
+        rulesInstalled: [],
         restoredKeys: [],
         restoredFiles: [],
         legacyRestored: [],
@@ -669,7 +670,7 @@ export function runUpdateMode(
   report.externalBackedUp = external.externalBackedUp;
   // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
-  report.installedNew.push(...external.skillsInstalled);
+  report.installedNew.push(...external.skillsInstalled, ...external.rulesInstalled);
   report.restored.push(...external.skillsRestored, ...external.rulesRestored);
   // 되살림 목록이 여기서 완성된다(파일 자산 · Claude 스킬 · 공유 자리 스킬). 인자를 정하는 트랙은
   // 되살릴 것을 정한 그 출처(설치 기록)다 — 화면 머리글의 트랙과 섞지 않는다.
@@ -1474,6 +1475,8 @@ function refreshExternalCli(
   skillsRestored: string[];
   /** #638 — antigravity 룰(.agents/rules/<name>.md)의 되살림(스킬과 같은 신호). */
   rulesRestored: string[];
+  /** antigravity 룰 · 앵커 중 기록에 없던 자리를 이번에 만든 것 — "added by this release"(claude 쪽 `installed` 와 같은 신호). */
+  rulesInstalled: string[];
   /** ADR-099 R1 — 함께 쓰는 파일에서 사라져 되돌린 하네스 키(키 id), 파일별. */
   restoredKeys: Array<{ path: string; ids: string[] }>;
   /** ADR-099 R2 — 기록에 있는데 사라져 되살린 CLI 산출물(파일째). 스킬 · 뺄 수 있는 룰은 위 두 목록이 말한다. */
@@ -1574,6 +1577,7 @@ function refreshExternalCli(
   const skillsInstalled: string[] = [];
   const skillsRestored: string[] = [];
   const rulesRestored: string[] = [];
+  const rulesInstalled: string[] = [];
   // 뺄 수 있는 룰(`baseline:rules/<name>`)은 `restored` 행이 빼는 인자와 함께 말한다 — 그 밖(앵커)은 CLI 산출물 행이다
   const ruleIds = new Set(
     listBaselineTargets({ tracks: installedTracks(projectDir) }).map((t) => t.id),
@@ -1594,9 +1598,12 @@ function refreshExternalCli(
     // rulesBefore 는 파일명(.md 포함)을 담는다 — 캡처도 .md 포함으로 맞춘다(불일치 시 전부
     // restored 로 오판해 "지운 것이 없는데 되살림 행"이 났던 것이 이 테스트가 잡은 결함).
     if (m === null || rulesBefore.has(m[1] ?? "")) continue;
-    // ADR-099 R2 (#584) — 기록에서 경로가 빠졌어도(옛 판 update 가 걷었다) 기록이 antigravity 를 깔린 CLI 로 말하면 그 근거로
-    // 되살렸다 — 같은 줄로 말한다(리뷰 PR B NOTE-4)
-    if (!priorPaths.has(f.path) && !antigravityRecorded) continue;
+    // 기록에 없던 자리 — 기록된 CLI 를 근거로 이번에 만들었다(ADR-099 R2 · #584). claude 쪽(`installNewAssets`)과 같은 규칙으로
+    // "added by this release" 라 말한다: 릴리즈가 더한 룰이 흔한 경우다. 기록을 잃은 옛 앵커가 이 줄로 나오는 것은 감수한다
+    if (!priorPaths.has(f.path)) {
+      if (antigravityRecorded && !rulesInstalled.includes(f.path)) rulesInstalled.push(f.path);
+      continue;
+    }
     const into = ruleIds.has(`baseline:rules/${(m[1] ?? "").replace(/\.md$/, "")}`)
       ? rulesRestored
       : restoredCliPaths;
@@ -1631,6 +1638,7 @@ function refreshExternalCli(
     skillsInstalled,
     skillsRestored,
     rulesRestored,
+    rulesInstalled,
     // 파일째 새로 만든 것은 `restoredFiles` 한 줄이 말한다 — 같은 파일을 두 줄로 말하지 않는다
     restoredKeys: result.sharedFiles
       .filter((f) => f.restored.length > 0 && !createdPaths.has(f.path))
