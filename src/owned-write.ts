@@ -64,6 +64,11 @@ export interface OwnedWriteResult {
   /** 생성된 백업 파일의 절대경로 — 설치 화면의 `backup` 행이 이걸 쓴다. */
   backupPaths: string[];
   /**
+   * ADR-099 R2 — refresh 모드(update)에서 기준선(`externalFiles` 기록)에 있는데 디스크에 없어 **되살린** 파일
+   * (project-relative). 손으로 지운 것은 빼기가 아니다 — update 화면이 `was missing — restored` 로 알린다.
+   */
+  restored?: string[];
+  /**
    * 실제로 디스크가 바뀐 파일 수 (신규 + 내용이 달라 덮어쓴 것). 이미 최신이라 아무것도 안 한
    * 파일은 세지 않는다 — update 화면이 "N files updated" 로 쓰므로, 안 한 일을 셌다가는
    * 매번 같은 숫자가 떠서 갱신이 일어난 것처럼 보인다.
@@ -77,7 +82,7 @@ export interface OwnedWriter {
    *
    * | 디스크 vs 기준선 | 뜻 | 처리 |
    * |---|---|---|
-   * | 파일 없음 | 신규 | 그냥 쓴다 (refresh 모드에서는 **건너뛴다**) |
+   * | 파일 없음 | 신규 | 그냥 쓴다 (refresh 모드에서는 **건너뛴다** — 기준선에 있는 경로는 되살린다, ADR-099 R2) |
    * | 내용 동일 | 이미 최신 | 아무것도 안 한다 (백업도 쓰기도) |
    * | 기준선과 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
    * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
@@ -155,6 +160,7 @@ export function createOwnedWriter(
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
   const foreignOwned: string[] = [];
+  const restored: string[] = [];
   const outside = createOutsideGuard(projectDir);
   let updated = 0;
 
@@ -175,11 +181,14 @@ export function createOwnedWriter(
       if (!existsSync(absPath)) {
         // refresh 모드: 없는 파일은 사용자가 안 고른 것 → 새로 깔지 않는다.
         // 기준선에도 넣지 않는다 — 디스크에 없는 파일의 해시를 기록하면 그게 곧 거짓 기록이다.
-        // 예외 = `createInRefresh` (호출부가 그 CLI 의 설치 증거를 이미 잡은 경우).
-        if (refreshOnly && !opts?.createInRefresh) return false;
+        // 예외 ⓐ `createInRefresh` (호출부가 그 CLI 의 설치 증거를 이미 잡은 경우) ⓑ **기준선에 있는 경로**(ADR-099 R2) —
+        // '기록에 있다' 가 그 CLI 의 설치 증거다. 손으로 지운 것은 빼기가 아니라 되살린다(빼기는 `uninstall --cli`).
+        const recordedPath = baseline.has(rel);
+        if (refreshOnly && !opts?.createInRefresh && !recordedPath) return false;
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, content);
         updated++;
+        if (refreshOnly && recordedPath) restored.push(rel);
       } else {
         const current = readFileSync(absPath, "utf8");
         if (current !== content) {
@@ -208,6 +217,7 @@ export function createOwnedWriter(
         backedUp: [...backedUp],
         backupPaths: [...backupPaths],
         updated,
+        restored: [...restored],
       };
     },
   };

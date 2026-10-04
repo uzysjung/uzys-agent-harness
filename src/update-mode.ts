@@ -48,7 +48,15 @@ import {
 } from "./foreign-slot.js";
 import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
 import { cleanStaleHookRefs, keepHookRef } from "./hook-ref.js";
-import { withRecordedExclusions } from "./install-writes.js";
+import {
+  createInstallWriter,
+  SETTINGS_TARGET,
+  type SharedWrite,
+  withRecordedExclusions,
+  writeGitignoreShared,
+  writeMcpShared,
+  writeSettingsShared,
+} from "./install-writes.js";
 
 // 치유기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
 export { cleanStaleHookRefs, keepHookRef };
@@ -64,6 +72,7 @@ import {
   legacyDroppedKeys,
   legacyReleasedCatalog,
   mergeExternalFiles,
+  mergeRootFiles,
   POLICY_DIRS,
   readInstallLog,
   writeInstallLog,
@@ -85,7 +94,7 @@ import {
   type OutsideLink,
 } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
-import { excludedIds } from "./recorded.js";
+import { excludedIds, recorded } from "./recorded.js";
 import { anyTrack } from "./track-match.js";
 import {
   type CliBase,
@@ -298,13 +307,20 @@ export interface UpdateModeReport {
   /** ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 키 중 이번 update 가 실제로 되살린 것. */
   legacyRestored?: ReadonlyArray<string>;
   /**
-   * 이 릴리즈에 새로 생겼지만 **update 가 깔 수 없는** 자산 (projectDir 상대경로).
-   *
-   * 훅과 `settings.json` 이 그쪽이다 — 훅은 `settings.json` 의 배선이 있어야 발화하는데 update 는
-   * 그 파일을 동기화하지 않는다(죽은 참조를 지울 뿐이다). 파일만 놓고 "추가됨"이라 보고하면
-   * 안 도는 기능을 받았다고 읽히므로(거짓출하), 깔지 않고 **재설치가 필요하다는 사실을 낸다.**
+   * ADR-099 R2 — 이번 update 가 install 과 같은 writer 로 쓴 루트 · `.claude/` 의 함께 쓰는 파일(`.claude/settings.json` ·
+   * `.mcp.json` · `.gitignore`) 중 **말할 것이 있는** 것(바꿨다 · 못 읽어 남겼다 · 뺀 키를 걷었다/남겼다). install 화면의 같은
+   * 행(`sharedFileRow`)으로 낸다. optional = 부재는 "말할 것 없음"(손으로 만드는 리포트 stub 이 여럿이다).
    */
-  needsReinstall: string[];
+  sharedWrites?: ReadonlyArray<SharedWrite>;
+  /**
+   * ADR-099 R2 — 기록(`externalFiles` · `portions`)에 있는데 디스크에 없어 되살린 외부 CLI 산출물. `clis` = 그 파일을 쓰는
+   * 깔린 CLI(빼는 길 — `uninstall --cli <name>`), `how` = 파일째 새로 만든 함께 쓰는 파일이 무엇으로 채워졌나.
+   */
+  restoredFiles?: ReadonlyArray<{
+    path: string;
+    clis: ReadonlyArray<CliBase>;
+    how?: string;
+  }>;
   /**
    * ADR-089 (#445) — `.claude/agents/` 에 남아 있는 **은퇴한** 에이전트 id.
    *
@@ -455,7 +471,6 @@ export function runUpdateMode(
     foreignOwned: [],
     installedNew: [],
     restored: [],
-    needsReinstall: [],
     retiredAgents: [],
     demotedAgents: [],
     mcpAllowlistRetired: null,
@@ -467,7 +482,6 @@ export function runUpdateMode(
   const fresh = installNewAssets(projectDir, templatesDir, wants, outside);
   report.installedNew = fresh.installed;
   report.restored = fresh.restored;
-  report.needsReinstall = fresh.needsReinstall;
 
   // #528 재리뷰 BLOCKER-4 — `.claude/` 를 만지는 단계 전부(정책 동기화 · 기준선 기록 · 스킬 · 새
   // 스킬 · 앵커)는 **claude 가 깔린 집합에 있을 때만** 돈다. 로그가 없는 레거시 설치본은 이전과
@@ -561,14 +575,34 @@ export function runUpdateMode(
     if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report, outside);
   }
 
+  // 2.5) 함께 쓰는 파일 셋(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 하네스 몫 — install 과 **같은 writer**
+  //      (ADR-099 R2). 기록에 있는데 사라진 몫(훅 배선 · 하네스 서버 · 줄)을 되돌리고 설치자 키는 그대로 둔다.
+  //      자리가 정해져 있다: 0단계(훅 스크립트 되살림) **뒤** — 렌더의 `hookInstalled` 가 되살린 뒤 디스크를 읽는다 —
+  //      3단계(죽은 참조 정리) **앞** — 정리기가 최종본을 본다. 정리가 먼저면 배선을 걷고 다음 실행에야 더한다(2회).
+  const sharedWrites = writeUpdateSharedFiles({
+    projectDir,
+    harnessRoot,
+    templatesDir,
+    wants,
+    claudeManaged,
+    droppedKeys: legacyDroppedKeys(logAtStart),
+  });
+
   // 3) settings.json stale hook ref cleanup
   // #536 리뷰 BLOCKER-1 — 이 단계도 `.claude/` 를 **고친다**(항목 삭제 + 재서식). claude 가 깔린
   // 집합에 없으면 그 `settings.json` 은 설치자 것이고(예: 팀이 커밋한 Claude Code 훅 — 스크립트는
   // 생성물이라 클론에 아직 없다), 그 실행은 `.claude.backup-*` 도 만들지 않는다(installer
   // resolveBackupPath). 게이트가 없으면 설치자 훅 배선이 원본 없이 사라진다(실 CLI 재현).
+  // ADR-099 R2 — **기록된 하네스 훅 스크립트의 참조는 정리하지 않는다**: 그 스크립트는 0단계가 되살리고 배선은 2.5단계의
+  // writer 가 소유한다(빼기는 `--without baseline:hooks/…` → writer 가 걷는다). 정리기는 기록에 없는 스크립트 참조에만
+  // 손댄다 — 기록된 참조를 걷던 것이 #675(배선 영구 미복구)의 첫 고리였다.
   const settingsPath = join(claudeDir, "settings.json");
   if (claudeManaged && wants("hooks") && existsSync(settingsPath) && !outside.skip(settingsPath)) {
-    report.staleHookRefs = cleanStaleHookRefs(settingsPath, claudeDir);
+    report.staleHookRefs = cleanStaleHookRefs(
+      settingsPath,
+      claudeDir,
+      recordedHarnessHook(projectDir, logAtStart),
+    );
     // #632 — 치유된 참조는 "스크립트가 없던 일시 상태"다. 몫 기록에 남겨 두면 다음 install 이
     // 그 훅을 "설치자가 뺀 것"(excluded)으로 읽어 복구를 영구 거부한다. 몫에서 걷어 첫 접촉으로
     // 되돌린다 — 스크립트가 돌아오면(재설치) 배선이 다시 생긴다.
@@ -600,7 +634,7 @@ export function runUpdateMode(
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
-    ? refreshExternalCli(projectDir, harnessRoot)
+    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart))
     : {
         externalUpdated: 0,
         externalBackedUp: [],
@@ -611,12 +645,15 @@ export function runUpdateMode(
         skillsRestored: [],
         rulesRestored: [],
         restoredKeys: [],
+        restoredFiles: [],
         legacyRestored: [],
         excludedKeys: [],
       };
   report.externalUpdated = external.externalUpdated;
   report.restoredKeys = external.restoredKeys;
+  report.restoredFiles = external.restoredFiles;
   report.excludedKeys = external.excludedKeys;
+  report.sharedWrites = sharedWrites.writes;
   report.legacyReleasedCatalog = [...legacyReleasedCatalog(logAtStart)];
   report.excludedStillThere = excludedStillThere(
     projectDir,
@@ -624,7 +661,9 @@ export function runUpdateMode(
     claudeManaged ? excludedBaselineOnDisk(projectDir, logAtStart) : [],
     logAtStart,
   );
-  report.legacyRestored = external.legacyRestored;
+  report.legacyRestored = [
+    ...new Set([...sharedWrites.legacyRestored, ...external.legacyRestored]),
+  ];
   report.externalBackedUp = external.externalBackedUp;
   // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
@@ -684,12 +723,122 @@ export function runUpdateMode(
   ];
   report.externalSkillsUnknown = skillRefresh.unknown;
 
-  const outsideLinks = mergeOutside(outside.list(), external.externalOutside);
+  const outsideLinks = mergeOutside(outside.list(), sharedWrites.outside, external.externalOutside);
   if (outsideLinks.length > 0) report.outsideLinks = outsideLinks;
 
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
   writeBackupList(projectDir, report.backups);
   return report;
+}
+
+/**
+ * ADR-099 R2 — 0단계가 되살리는 **기록된 하네스 훅 스크립트**인가(`.claude/` 상대경로). 죽은 참조 정리기가 이것을 건너뛴다 —
+ * 그 배선은 함께 쓰는 파일 writer 가 소유한다. 은퇴한 훅 · 뺀 훅 · 기록에 없는 스크립트(팀이 커밋한 생성 스크립트 배선)는
+ * 그대로 정리 대상이다(#536 · #603 · #632).
+ */
+function recordedHarnessHook(
+  projectDir: string,
+  log: InstallLog | null,
+): (relPath: string) => boolean {
+  const excluded = excludedIds(log);
+  const targets = new Set(
+    trackOnlyFileAssets(installedTracks(projectDir))
+      .map((e) => e.target)
+      .filter((t) => t.startsWith(".claude/hooks/") && !isBaselineExcluded(t, excluded)),
+  );
+  return (rel) => {
+    const target = `.claude/${rel}`;
+    return targets.has(target) && recorded(log, target).state !== "none";
+  };
+}
+
+/**
+ * ADR-099 R2 — update 가 install 과 **같은 writer**(`createInstallWriter` · `writer.shared`)로 루트 · `.claude/` 의 함께 쓰는
+ * 파일 셋에 하네스 몫을 쓴다. 기록에 있는데 사라진 몫은 되돌리고, 설치자 키·줄은 그대로 두고, 설치자가 뺀 것(`excluded`)은
+ * 되살리지 않는다(R3). 기록이 없는 설치본(로그 없음)은 건드리지 않는다 — 무엇이 하네스 몫인지 근거가 없다.
+ *
+ * - `.claude/settings.json` — claude 가 깔린 집합 · `--only hooks`. 렌더의 `hookInstalled` = 이 트랙의 훅 · 빼지 않음 ·
+ *   (0단계가 되살린 뒤) 디스크에 있음 — install 과 같은 술어
+ * - `.mcp.json` — 기록 트랙 · `--only external`(Codex · OpenCode MCP 와 같은 원천)
+ * - `.gitignore` — 파일이 있을 때만 · `--only rules`
+ *
+ * 없는 파일은 기록이 근거일 때만 만든다 — update 는 고르지 않은 것을 새로 깔지 않는다: `settings.json` 은 기록이 claude 를
+ * 깔린 CLI 로 말할 때(install 이 늘 쓴다), `.mcp.json` 은 기록에 그 파일(몫 · `rootFiles`)이 있을 때(`onlyIfRecorded`).
+ * 옛 로그(몫 기록 이전)는 install 처럼 내용 식별(`legacySeed`)로 하네스 몫을 찾는다 — 안 넘기면 옛 판의 하네스 몫이 설치자
+ * 것(Q3)이 되어 영영 갱신되지 않는다.
+ */
+function writeUpdateSharedFiles(args: {
+  projectDir: string;
+  harnessRoot: string;
+  templatesDir: string;
+  wants: (g: UpdateGroup) => boolean;
+  claudeManaged: boolean;
+  /** 옛 판이 자동으로 뺐다고 적었던 키(R5) — 실행 시작 때 읽은 기록의 것(뒤 단계가 기록을 다시 쓰면 사라진다). */
+  droppedKeys: ReadonlyArray<string>;
+}): { writes: SharedWrite[]; legacyRestored: string[]; outside: OutsideLink[] } {
+  const { projectDir, harnessRoot, templatesDir, wants } = args;
+  const log = readInstallLog(projectDir);
+  if (log === null) return { writes: [], legacyRestored: [], outside: [] };
+  const excluded = excludedIds(log);
+  const writer = createInstallWriter({ projectDir, previousLog: log, excluded });
+  const tracks = installedTracks(projectDir);
+  const settingsSource = join(templatesDir, "settings.json");
+  if (args.claudeManaged && wants("hooks") && existsSync(settingsSource)) {
+    const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
+    const manifest = buildManifest(spec);
+    writeSettingsShared(
+      writer,
+      readFileSync(settingsSource, "utf8"),
+      projectDir,
+      log,
+      (script) => {
+        const target = `.claude/hooks/${script}`;
+        return (
+          manifest.some((e) => e.target === target && e.applies(spec)) &&
+          !isBaselineExcluded(target, excluded) &&
+          existsSync(join(projectDir, target))
+        );
+      },
+      // 기록이 claude 를 깔린 CLI 로 말한다 = install 이 이 파일을 썼다 — 없으면 만든다(훅 배선이 여기 산다)
+    );
+  }
+  if (wants("external")) writeMcpShared(writer, harnessRoot, tracks, log, { onlyIfRecorded: true });
+  if (wants("rules")) writeGitignoreShared(writer, log);
+  const ledger = writer.ledger();
+  if (ledger.portionPaths.length > 0 || ledger.rootFiles.length > 0) {
+    // 판정한 경로의 몫만 갈아 끼운다(install 의 `composeWriterLog` 와 같은 규칙). 만든 파일은 `rootFiles.change = created`
+    // — uninstall 이 몫을 걷고 남는 것이 없으면 파일째 지운다(#569). `excluded` 는 바꾸지 않는다(R1)
+    const touched = new Set(ledger.portionPaths);
+    const portions = [
+      ...(log.portions ?? []).filter((p) => !touched.has(p.path)),
+      ...ledger.portions,
+    ];
+    const rootFiles = mergeRootFiles(log.rootFiles, ledger.rootFiles);
+    const next: InstallLog = { ...log };
+    if (portions.length > 0) next.portions = portions;
+    else delete next.portions;
+    if (rootFiles.length > 0) next.rootFiles = rootFiles;
+    try {
+      writeInstallLog(projectDir, next);
+    } catch {
+      // 기록 실패가 update 자체를 실패시키지는 않는다(다른 writeInstallLog 들과 같은 방침).
+    }
+  }
+  const dropped = new Set(args.droppedKeys);
+  return {
+    // 말할 것이 있는 파일만 — 이미 최신인 파일까지 매 update 화면에 올리지 않는다
+    writes: ledger.shared.filter(
+      (w) =>
+        w.changed ||
+        w.verdict === "leave+advise" ||
+        w.keptOut.length > 0 ||
+        w.removedOut.length > 0,
+    ),
+    legacyRestored: [
+      ...new Set(ledger.shared.flatMap((w) => [...w.restored, ...w.addedIds])),
+    ].filter((id) => dropped.has(id)),
+    outside: ledger.outside,
+  };
 }
 
 /**
@@ -778,16 +927,15 @@ function demotedAgentFiles(claudeDir: string, tracks: ReadonlyArray<Track>): str
  * 그 술어가 없으면 codex 전용 설치본에 `.claude/` 하네스가 통째로 들어가고, 그중 `settings.json`
  * 은 훅 배선과 외부 실행까지 딸려 온다 — 고른 적 없는 CLI 의 설정이다.
  *
- * **훅과 settings.json 은 대상이 아니다.** 훅은 파일만으로는 안 돈다: `settings.json` 의 배선이
- * 있어야 발화하는데 update 는 그 파일을 동기화하지 않는다(`cleanStaleHookRefs` 로 죽은 참조를
- * 지울 뿐이다). 깔아 놓고 "추가됨"이라 보고하면 사용자는 안 도는 기능을 받았다고 읽는다 —
- * `hook-wiring-parity` 가 templates 쪽에서 막는 바로 그 상태를 update 가 만드는 셈이다.
- * 대신 **재설치가 필요하다고 알린다**(`needsReinstall`).
+ * **훅 스크립트는 깔고, `settings.json` 은 통째로 쓰지 않는다.** 훅은 파일만으로는 안 돈다: `settings.json` 의 배선이
+ * 있어야 발화한다. 그 배선은 같은 실행의 몫 쓰기(`writeUpdateSharedFiles` — install 과 같은 writer)가 이 단계 **뒤에**
+ * 둔다 — 렌더의 `hookInstalled(script)` 가 "여기서 깐 뒤 디스크에 있고 빼지 않았다" 를 읽는다(ADR-099 R2). 전에는
+ * update 가 그 파일을 쓰지 않아 훅을 깔지 않고 재설치가 필요하다고만 알렸다(#675 — 그 사이 배선이 굳었다).
  *
  * **사용자가 해제한 자산은 다시 깔지 않는다** (ADR-074). 이 목록을 안 보면 이 함수가 곧
  * 해제의 취소 장치가 된다 — 트랙에서 manifest 를 다시 유도할 뿐이라 뺀 룰·에이전트가 돌아오고,
  * 화면은 그것을 *"added by this release"* 로 보고한다(같은 릴리즈에서 방금 설치한 파일인데도).
- * 게다가 되살아나는 종류가 룰·에이전트뿐이라(스킬은 `dir` 엔트리, 훅은 `needsReinstall`)
+ * 게다가 되살아나는 종류가 룰·에이전트뿐이라(스킬은 `dir` 엔트리, 훅은 그때 재설치 안내뿐)
  * 사용자는 "해제"가 무슨 뜻인지 모델을 세울 수조차 없다.
  */
 function installNewAssets(
@@ -798,12 +946,10 @@ function installNewAssets(
 ): {
   installed: string[];
   restored: string[];
-  needsReinstall: string[];
   foreignOwned: string[];
 } {
   const installed: string[] = [];
   const restored: string[] = [];
-  const needsReinstall: string[] = [];
   const foreignOwned: string[] = [];
   const log = readInstallLog(projectDir);
   // 기록이 없으면 `.claude/` 를 건드리지 않는다 — 고르지 않은 CLI 의 자산을 들이는 쪽이
@@ -817,6 +963,13 @@ function installNewAssets(
   // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
   // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
   const priorBaseline = policyBaseline(projectDir);
+  // 훅 스크립트는 `settings.json` 몫 기록(`hooks.<Event>#<script>`)도 "전에 깔았다" 의 근거다 — 옛 판 update 는 스크립트가
+  // 없는 디스크로 기준선을 다시 찍어 `policyFiles` 에서 지웠다(#675). 그 배선 기록이 남아 있으면 되살림이지 신규가 아니다
+  const wiredBefore = new Set(
+    (log?.portions ?? [])
+      .filter((p) => p.path === SETTINGS_TARGET)
+      .flatMap((p) => p.key.split("#")[1]?.replace(/\{\}$/, "") ?? []),
+  );
 
   for (const entry of trackOnlyFileAssets(installedTracks(projectDir))) {
     // #480 — 파일 자산의 묶음: 훅·settings 는 "hooks", 나머지(룰·에이전트·명령·스크립트)는 "rules".
@@ -850,21 +1003,22 @@ function installNewAssets(
 
     if (entry.target.startsWith(".claude/")) {
       if (!claudeSelected) continue;
-      // 배선이 있어야 사는 자산 — 파일만 놓으면 침묵하는 거짓 설치가 된다.
-      if (entry.target.startsWith(".claude/hooks/") || entry.target === ".claude/settings.json") {
-        needsReinstall.push(entry.target);
-        continue;
-      }
+      // `settings.json` 은 함께 쓰는 파일이다 — 통째 복사하지 않고 같은 실행의 몫 쓰기(`writeUpdateSharedFiles`)가 하네스
+      // 몫만 쓴다. 훅 스크립트는 여기서 깔고, 그 배선도 그 단계가 둔다(ADR-099 R2 — 전에는 "재설치가 필요하다" 고만 했다)
+      if (entry.target === SETTINGS_TARGET) continue;
     }
 
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(source, target);
     // `policyFiles` 키는 `.claude/` 상대다 (`rules/git-policy.md`).
     const recordedAs = entry.target.startsWith(".claude/") ? entry.target.slice(8) : entry.target;
-    if (priorBaseline.has(recordedAs)) restored.push(entry.target);
+    const wired =
+      entry.target.startsWith(".claude/hooks/") &&
+      wiredBefore.has(entry.target.slice(".claude/hooks/".length));
+    if (priorBaseline.has(recordedAs) || wired) restored.push(entry.target);
     else installed.push(entry.target);
   }
-  return { installed, restored, needsReinstall, foreignOwned };
+  return { installed, restored, foreignOwned };
 }
 
 /** `backupFile` 이 만드는 이름 — `<원본>.backup-<YYYYMMDDTHHMMSS>[-n]` (`fs-ops.ts` claimBackupPath). */
@@ -1250,7 +1404,11 @@ function restoredWithoutArgs(
       out[path] = skill;
       continue;
     }
-    const target = classifyBaselineTarget(path);
+    // #638 — Antigravity 룰 자리(`.agents/rules/<name>.md`)는 `.claude/rules/<name>.md` 와 같은 baseline 룰이다
+    const agentsRule = /^\.agents\/rules\/([^/]+\.md)$/.exec(path)?.[1];
+    const target = classifyBaselineTarget(
+      agentsRule === undefined ? path : `.claude/rules/${agentsRule}`,
+    );
     if (target !== null && baselineIds.has(target.id)) out[path] = target.id;
   }
   return out;
@@ -1270,9 +1428,35 @@ function sharedSkillIdsOnDisk(projectDir: string): ReadonlySet<string> {
   return new Set(readdirSync(root).filter((id) => existsSync(join(root, id, "SKILL.md"))));
 }
 
+/**
+ * ADR-099 R2 — 파일째 새로 만든 함께 쓰는 파일이 무엇으로 채워졌나(화면). `opencode.json` 은 첫 설치와 같이 템플릿 바탕
+ * (`$schema` 등) 위에 몫을 얹는다 — 바탕이 없는 `.codex/config.toml` 과 가른다(설계 §2 R2 · G3).
+ */
+const CREATED_SHARED_HOW: Readonly<Record<string, string>> = {
+  "opencode.json": "created from template (harness part + template defaults)",
+  ".codex/config.toml": "wrote (harness part only)",
+  "AGENTS.md": "wrote the harness block only",
+};
+
+/** CLI 산출물을 쓰는 깔린 CLI — 화면의 "빼려면 `uninstall --cli <name>`". `AGENTS.md` 는 codex · opencode 가 함께 쓴다. */
+function cliArtifactOwners(path: string, installed: ReadonlyArray<CliBase>): CliBase[] {
+  const owners: CliBase[] = path.startsWith(".codex/")
+    ? ["codex"]
+    : path === "opencode.json" || path.startsWith(".opencode/")
+      ? ["opencode"]
+      : path === "AGENTS.md"
+        ? ["codex", "opencode"]
+        : path.startsWith(".agents/rules/")
+          ? ["antigravity"]
+          : [];
+  return owners.filter((c) => installed.includes(c));
+}
+
 function refreshExternalCli(
   projectDir: string,
   harnessRoot: string,
+  /** 옛 판이 자동으로 뺐다고 적었던 키(R5) — 실행 시작 때 읽은 기록의 것(앞 단계가 기록을 다시 쓰면 사라진다). */
+  droppedKeys: ReadonlyArray<string>,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -1289,6 +1473,8 @@ function refreshExternalCli(
   rulesRestored: string[];
   /** ADR-099 R1 — 함께 쓰는 파일에서 사라져 되돌린 하네스 키(키 id), 파일별. */
   restoredKeys: Array<{ path: string; ids: string[] }>;
+  /** ADR-099 R2 — 기록에 있는데 사라져 되살린 CLI 산출물(파일째). 스킬 · 뺄 수 있는 룰은 위 두 목록이 말한다. */
+  restoredFiles: Array<{ path: string; clis: CliBase[]; how?: string }>;
   /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번에 되살린 것. */
   legacyRestored: string[];
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
@@ -1337,8 +1523,10 @@ function refreshExternalCli(
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
     // #551 R2 — 함께 쓰는 파일(`.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md`)의 몫 왕복. install 과
-    // 같은 입력(앞 기록의 몫 · 설치자가 뺀 것)을 넘겨야 설치자가 지운 하네스 구간·키·블록을 되살리지 않는다.
+    // 같은 입력(앞 기록의 몫 · 설치자가 뺀 것)을 넘겨야 설치자가 `--without` 으로 뺀 하네스 구간·키·블록을 되살리지 않는다.
     shared: { portions: log?.portions ?? [], excluded: [...excludedIds(log)] },
+    // ADR-099 R2 (#584) — 기록이 깔린 CLI 로 말하면 그 CLI 의 앵커·룰을 없어도 만든다(디스크의 앵커 존재가 아니라 기록)
+    recordedClis: log === null ? [] : installedClis(log),
   });
 
   // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금
@@ -1346,7 +1534,7 @@ function refreshExternalCli(
   // 이번에 안 건드린 산출물의 기록은 `mergeExternalFiles` 가 유지한다 (지우면 그 파일들이
   // 다음 실행에서 판정 불가로 떨어진다). 로그가 없으면 만들지 않는다 — 설치 기록 날조 금지.
   if (log) {
-    const merged = mergeExternalFiles(projectDir, log.externalFiles, result.externalFiles);
+    const merged = mergeExternalFiles(log.externalFiles, result.externalFiles);
     const next: InstallLog = { ...log };
     if (merged.length > 0) next.externalFiles = merged;
     else delete next.externalFiles;
@@ -1360,6 +1548,12 @@ function refreshExternalCli(
     ];
     if (portions.length > 0) next.portions = portions;
     else delete next.portions;
+    // ADR-099 R2 — 기준선 밖에 새로 만든 파일(첫 접촉 블록 모델 `AGENTS.md`)은 `rootFiles.change = created` 로 적는다 —
+    // uninstall 이 블록을 걷고 남는 것이 없으면 파일째 지운다
+    const created = result.sharedFiles
+      .filter((f) => f.createdAsRoot === true)
+      .map((f) => ({ path: f.path, change: "created" as const, notes: ["하네스 몫만(블록)"] }));
+    if (created.length > 0) next.rootFiles = mergeRootFiles(log.rootFiles, created);
     try {
       writeInstallLog(projectDir, next);
     } catch {
@@ -1377,6 +1571,11 @@ function refreshExternalCli(
   const skillsInstalled: string[] = [];
   const skillsRestored: string[] = [];
   const rulesRestored: string[] = [];
+  // 뺄 수 있는 룰(`baseline:rules/<name>`)은 `restored` 행이 빼는 인자와 함께 말한다 — 그 밖(앵커)은 CLI 산출물 행이다
+  const ruleIds = new Set(
+    listBaselineTargets({ tracks: installedTracks(projectDir) }).map((t) => t.id),
+  );
+  const restoredCliPaths: string[] = [];
   for (const f of result.externalFiles) {
     const id = SHARED_SKILL_MD.exec(f.path)?.[1];
     if (id === undefined || presentBefore.has(id)) continue;
@@ -1391,10 +1590,30 @@ function refreshExternalCli(
     // rulesBefore 는 파일명(.md 포함)을 담는다 — 캡처도 .md 포함으로 맞춘다(불일치 시 전부
     // restored 로 오판해 "지운 것이 없는데 되살림 행"이 났던 것이 이 테스트가 잡은 결함).
     if (m === null || rulesBefore.has(m[1] ?? "")) continue;
-    if (priorPaths.has(f.path) && !rulesRestored.includes(f.path)) rulesRestored.push(f.path);
+    if (!priorPaths.has(f.path)) continue;
+    const into = ruleIds.has(`baseline:rules/${(m[1] ?? "").replace(/\.md$/, "")}`)
+      ? rulesRestored
+      : restoredCliPaths;
+    if (!into.includes(f.path)) into.push(f.path);
   }
+  // ADR-099 R2 — 그 밖에 기록(기준선 · 몫)만 보고 되살린 산출물. 공유 스킬 · 룰 자리는 위에서 말했다
+  const createdShared = result.sharedFiles.filter((f) => f.action === "created");
+  const createdPaths = new Set(createdShared.map((f) => f.path));
+  for (const path of result.restoredFiles) {
+    if (path.startsWith(".agents/") || createdPaths.has(path)) continue;
+    if (!restoredCliPaths.includes(path)) restoredCliPaths.push(path);
+  }
+  const installed = installedCliTargets(log);
+  const restoredFiles = [
+    ...restoredCliPaths.map((path) => ({ path, clis: cliArtifactOwners(path, installed) })),
+    ...createdShared.map((f) => ({
+      path: f.path,
+      clis: cliArtifactOwners(f.path, installed),
+      how: CREATED_SHARED_HOW[f.path] ?? "wrote (harness part only)",
+    })),
+  ];
 
-  const dropped = new Set(legacyDroppedKeys(log));
+  const dropped = new Set(droppedKeys);
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
@@ -1404,9 +1623,11 @@ function refreshExternalCli(
     skillsInstalled,
     skillsRestored,
     rulesRestored,
+    // 파일째 새로 만든 것은 `restoredFiles` 한 줄이 말한다 — 같은 파일을 두 줄로 말하지 않는다
     restoredKeys: result.sharedFiles
-      .filter((f) => f.restored.length > 0)
+      .filter((f) => f.restored.length > 0 && !createdPaths.has(f.path))
       .map((f) => ({ path: f.path, ids: [...f.restored] })),
+    restoredFiles,
     excludedKeys: result.sharedFiles
       .filter((f) => f.removedOut.length + f.keptOut.length > 0)
       .map((f) => ({
@@ -1885,8 +2106,8 @@ function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): st
 
 /**
  * #632 — `cleanStaleHookRefs` 가 지운 훅 참조의 몫 기록을 걷는다. 훅 몫의 key 는
- * `hooks.<Event>#<script>` 형태라 스크립트 파일명(`#` 뒤)으로 짝을 맞춘다. 빼기 기록에
- * 이미 굳은 같은 키도 함께 지운다(치유 전 판에서 굳은 흔적).
+ * `hooks.<Event>#<script>` 형태라 스크립트 파일명(`#` 뒤)으로 짝을 맞춘다. 빼기 기록(`excluded`)은 건드리지 않는다 —
+ * update 는 선택을 읽기만 한다(ADR-099 R1). 옛 판이 굳힌 키 id 는 기록을 읽을 때 R5 가 푼다.
  *
  * 쓰기 원본은 **디스크의 현재 기록**이다 — 실행 시작 시점 스냅숏(`logAtStart`)을 통째로 쓰면
  * 앞단계(스킬·정책 기준선 갱신)가 방금 쓴 값이 되돌아간다(B-665-1). 뒷단계는 각자 디스크에서 새로 읽는다.
@@ -1904,11 +2125,8 @@ function dropHealedHookPortions(projectDir: string, healedFiles: ReadonlyArray<s
   const portions = (log.portions ?? []).filter(
     (p) => !(p.path === join(".claude", "settings.json") && isHealedKey(p.key)),
   );
-  const excluded = (log.excluded ?? []).filter((id) => !isHealedKey(id.replace(/^settings:/, "")));
   if (portions.length > 0) log.portions = portions;
   else delete log.portions;
-  if (excluded.length > 0) log.excluded = excluded;
-  else delete log.excluded;
   try {
     writeInstallLog(projectDir, log);
   } catch {

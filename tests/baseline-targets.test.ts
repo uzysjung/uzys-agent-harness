@@ -286,7 +286,6 @@ describe("설치에 실제로 먹히는가 (E2E)", () => {
       const report = installThenUpdate();
       expect(report.updateMode?.installedNew ?? []).toEqual([]);
       expect(report.updateMode?.restored ?? []).toEqual([]);
-      expect(report.updateMode?.needsReinstall ?? []).toEqual([]);
     });
 
     it("음성 대조 — 해제하지 않은 자산은 지워도 update 가 되살린다", () => {

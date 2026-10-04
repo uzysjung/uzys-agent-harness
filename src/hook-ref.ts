@@ -100,7 +100,11 @@ interface HookScan {
   removed: string[];
 }
 
-function scanStaleHookRefs(settingsPath: string, claudeDir: string): HookScan | null {
+function scanStaleHookRefs(
+  settingsPath: string,
+  claudeDir: string,
+  spare?: (relPath: string) => boolean,
+): HookScan | null {
   let settings: SettingsJson;
   try {
     settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
@@ -120,7 +124,12 @@ function scanStaleHookRefs(settingsPath: string, claudeDir: string): HookScan | 
       .filter((entry) => Array.isArray(entry?.hooks))
       .map((entry) => ({
         ...entry,
-        hooks: entry.hooks.filter((hook) => keepHookRef(hook, claudeDir, removed)),
+        hooks: entry.hooks.filter(
+          (hook) =>
+            // `spare` 가 고른 참조(기록된 하네스 스크립트 — update 가 되살리고 배선은 writer 가 소유한다)는 판정하지 않는다
+            spare?.(projectAnchoredRef(hook?.command ?? "", claudeDir) ?? "") === true ||
+            keepHookRef(hook, claudeDir, removed),
+        ),
       }))
       .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
   }
@@ -138,9 +147,16 @@ export function findStaleHookRefs(settingsPath: string, claudeDir: string): stri
 /**
  * settings.json 의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거 — **update 전용**.
  * 반환값 = 지운 참조의 `.claude/` 상대경로.
+ *
+ * @param spare `.claude/` 상대경로를 받아 true 면 그 참조는 판정하지 않고 둔다 — update 는 **기록된 하네스 훅 스크립트**를
+ *   넘긴다(ADR-099 R2: 그 스크립트는 update 가 되살리고 배선은 함께 쓰는 파일 writer 가 소유한다). 생략하면 전부 판정한다.
  */
-export function cleanStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
-  const scan = scanStaleHookRefs(settingsPath, claudeDir);
+export function cleanStaleHookRefs(
+  settingsPath: string,
+  claudeDir: string,
+  spare?: (relPath: string) => boolean,
+): string[] {
+  const scan = scanStaleHookRefs(settingsPath, claudeDir, spare);
   if (scan === null) return [];
   if (scan.removed.length > 0) {
     const next: SettingsJson = { ...scan.settings, hooks: scan.cleanedHooks };

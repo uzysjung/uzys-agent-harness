@@ -158,8 +158,25 @@ describe("#632 — 치유 뒤 기록은 이 실행이 갱신한 기준선을 보
       for (const f of readdirSync(join(projectDir, ".claude", "hooks"))) {
         unlinkSync(join(projectDir, ".claude", "hooks", f));
       }
+      // ADR-099 R2 — 기록된 하네스 훅은 update 가 되살리므로 치유 대상이 아니다. 치유는 기록에 없는 스크립트 참조(팀이
+      // 커밋한 생성 스크립트 배선 등)에만 일어난다 — 그런 참조 하나를 둬 치유가 실제로 일어나게 한다
+      const settingsPath = join(projectDir, ".claude", "settings.json");
+      const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+        hooks?: Record<string, unknown[]>;
+      };
+      settings.hooks = {
+        ...settings.hooks,
+        Stop: [
+          {
+            hooks: [
+              { type: "command", command: "bash $CLAUDE_PROJECT_DIR/.claude/hooks/generated-x.sh" },
+            ],
+          },
+        ],
+      };
+      writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
       const first = runUpdateMode(projectDir, nextTemplates, HARNESS_ROOT);
-      expect(first.staleHookRefs.length).toBeGreaterThan(0); // 치유가 실제로 일어났다
+      expect(first.staleHookRefs).toEqual(["hooks/generated-x.sh"]); // 치유가 실제로 일어났다 — 기록 밖 참조만
       expect(mismatches()).toEqual([]);
 
       const second = runUpdateMode(projectDir, nextTemplates, HARNESS_ROOT);

@@ -283,7 +283,7 @@ describe("쓰기 = 기록 — 디스크를 훑지 않는다", () => {
     expect(paths).not.toContain("agents/data-analyst.md");
   });
 
-  it("누적 — 이번에 안 쓴 기록은 남고, 디스크에서 사라진 것만 빠진다", () => {
+  it("누적 — 이번에 안 쓴 기록은 남고, 디스크에서 사라진 것도 남는다 (ADR-099 R2 — 기록이 되살림의 근거)", () => {
     install({ tracks: ["tooling", "data"] });
     expect(log().policyFiles?.map((f) => f.path)).toContain("agents/data-analyst.md");
 
@@ -292,7 +292,7 @@ describe("쓰기 = 기록 — 디스크를 훑지 않는다", () => {
 
     rmSync(join(projectDir, ".claude/agents/data-analyst.md"));
     install({ tracks: ["tooling"] });
-    expect(log().policyFiles?.map((f) => f.path)).not.toContain("agents/data-analyst.md");
+    expect(log().policyFiles?.map((f) => f.path)).toContain("agents/data-analyst.md");
   });
 });
 

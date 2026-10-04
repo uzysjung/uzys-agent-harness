@@ -1,4 +1,5 @@
 import {
+  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -1167,16 +1168,31 @@ describe("신규 자산 설치 (#283)", () => {
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
   });
 
-  it("훅은 깔지 않고 재설치를 안내한다 — 배선 없는 훅은 파일만 늘고 실행은 0이다", () => {
-    // update 는 `.claude/settings.json` 을 동기화하지 않는다(죽은 참조 제거만 한다). 그래서
-    // 훅 파일만 놓으면 영영 안 도는데 화면은 "추가됨"이라 적는다 — 거짓출하 형태다.
+  it("훅은 깔고 settings.json 에 배선한다 — 배선 없는 훅은 파일만 늘고 실행은 0이다 (ADR-099 R2)", () => {
+    // 전에는 update 가 `.claude/settings.json` 을 쓰지 않아 훅을 깔지 않고 재설치를 안내했다. 이제 install 과 같은 writer 로
+    // 하네스 몫을 쓰므로, 스크립트를 깐 같은 실행이 배선까지 둔다 — 파일만 늘고 안 도는 상태가 생기지 않는다.
     writeFileSync(join(templatesDir, "hooks/session-start.sh"), "echo hook\n");
+    copyFileSync(
+      join(HARNESS_ROOT, "templates/settings.json"),
+      join(templatesDir, "settings.json"),
+    );
 
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
-    expect(existsSync(join(projectDir, ".claude/hooks/session-start.sh"))).toBe(false);
-    expect(report.installedNew).not.toContain(".claude/hooks/session-start.sh");
-    expect(report.needsReinstall).toContain(".claude/hooks/session-start.sh");
+    expect(readFileSync(join(projectDir, ".claude/hooks/session-start.sh"), "utf8")).toBe(
+      "echo hook\n",
+    );
+    expect(report.installedNew).toContain(".claude/hooks/session-start.sh");
+    const settings = JSON.parse(
+      readFileSync(join(projectDir, ".claude/settings.json"), "utf8"),
+    ) as { hooks?: Record<string, Array<{ hooks: Array<{ command: string }> }>> };
+    const commands = Object.values(settings.hooks ?? {}).flatMap((groups) =>
+      groups.flatMap((g) => g.hooks.map((h) => h.command)),
+    );
+    // 깐 스크립트만 배선한다 — 이 릴리즈에 없는 스크립트(protect-files)를 부르는 참조는 쓰지 않는다
+    expect(commands.some((c) => c.includes(".claude/hooks/session-start.sh"))).toBe(true);
+    expect(commands.some((c) => c.includes("protect-files.sh"))).toBe(false);
+    expect(report.sharedWrites?.map((w) => w.path)).toContain(".claude/settings.json");
   });
 
   it("이 설치의 조건에 안 맞는 자산은 들이지 않는다 — update 는 그 선택을 되묻지 않는다", () => {
