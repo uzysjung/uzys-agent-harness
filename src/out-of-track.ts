@@ -36,6 +36,12 @@ export interface OutOfTrackReclaim {
   backedUp: Array<{ path: string; backup: string }>;
   /** 기록(`externalFiles`)에서 뺄 경로 — 지웠거나 이미 없었다. */
   forget: string[];
+  /**
+   * 기록 트랙 밖이지만 **같은 룰의 claude 자리 사본이 기록에 있어** 남긴 경로(리뷰 B1 · B2). 옛 판이 덮어쓴 기록에서 그 트랙을
+   * 되살릴 근거가 없을 때 정당한 룰을 지우지 않는 보호다 — 남기기만 하므로 넓은 근거를 써도 아무것도 더 깔리지 않는다.
+   * 기록 트랙 밖이라 갱신되지 않는다 — 화면이 그 트랙을 기록하는 명령을 말한다.
+   */
+  kept: string[];
   /** 판정에 쓴 기록 트랙 — 화면이 "your tracks" 가 아니라 이 목록을 밝힌다(리뷰 B1). */
   recordedTracks: Track[];
   /**
@@ -61,16 +67,24 @@ export function reclaimOutOfTrack(args: {
     removed: [],
     backedUp: [],
     forget: [],
+    kept: [],
     recordedTracks: [...args.tracks].sort(),
     bringBack: {},
   };
   const { log, projectDir } = args;
   if (log === null || args.tracks.length === 0 || !args.clis.includes("antigravity")) return out;
   const rendered = new Set(resolveRules({ tracks: args.tracks }));
+  // claude 레인은 처음부터 트랙 룰(`resolveRules`)만 깔았다 — 같은 룰의 claude 사본이 기록에 있으면 그 트랙은 깔렸던 것이다
+  const claudeCopy = new Set((log.policyFiles ?? []).map((p) => p.path));
   for (const f of log.externalFiles ?? []) {
     const name = AGENTS_RULE.exec(f.path)?.[1];
     if (name === undefined || name === ANCHOR_RULE || rendered.has(name)) continue;
     if (isBaselineExcluded(`.claude/rules/${name}.md`, args.excluded)) continue;
+    if (claudeCopy.has(`rules/${name}.md`)) {
+      out.kept.push(f.path);
+      out.bringBack[f.path] = tracksBringing(name);
+      continue;
+    }
     const abs = join(projectDir, f.path);
     if (args.outside.skip(abs)) continue;
     const stat = lstatSync(abs, { throwIfNoEntry: false });

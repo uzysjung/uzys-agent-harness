@@ -730,7 +730,9 @@ function runInstallStages(
       linked.outside,
       reclaimOutside.list(),
     ),
-    ...(outOfTrack.removed.length + outOfTrack.backedUp.length > 0 ? { outOfTrack } : {}),
+    ...(outOfTrack.removed.length + outOfTrack.backedUp.length + outOfTrack.kept.length > 0
+      ? { outOfTrack }
+      : {}),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━

@@ -1503,6 +1503,20 @@ export function outOfTrackRows(r: OutOfTrackReclaim | undefined): string[] {
     return ` · if you picked ${first}${or} for Antigravity, bring it back: agent-harness install --track ${first} --cli antigravity`;
   };
   return [
+    // 리뷰 B2 — 지우지 않고 남겼다(claude 사본이 기록에 있다). 기록 트랙 밖이라 갱신되지 않는다는 사실과 기록하는 명령을 말한다
+    ...r.kept.map((path) => {
+      const [first, ...rest] = r.bringBack[path] ?? [];
+      const or = rest.length > 0 ? ` (or ${rest.join(", ")})` : "";
+      const record =
+        first === undefined
+          ? ""
+          : ` · if you picked ${first}${or}, record it so this rule is refreshed: agent-harness install --track ${first} --cli antigravity`;
+      return assetRow(
+        "skip",
+        path,
+        `not in the recorded tracks (${recorded}) — kept: its Claude Code copy is in the install record${record}`,
+      );
+    }),
     ...r.removed.map((path) =>
       assetRow("success", path, `not in the recorded tracks (${recorded}) — removed${back(path)}`),
     ),

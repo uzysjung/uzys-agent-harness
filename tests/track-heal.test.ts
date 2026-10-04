@@ -56,13 +56,12 @@ function run(s: InstallSpec, mode: InstallMode = "add"): string {
 const update = (): string => run(buildUpdateSpec(dir, detectInstallState(dir).tracks), "update");
 const raw = (): InstallLog => JSON.parse(readFileSync(installLogPath(dir), "utf8")) as InstallLog;
 
-/** 26.162.1 이 남긴 모습 — 트랙만 마지막 install 의 것으로 덮였다(디스크 · 파일 기록은 그대로). 표시도 없다. */
-function truncate(over: (log: InstallLog) => InstallLog = (l) => l): void {
+/** 26.162.1 이 남긴 모습 — 트랙만 마지막 install 의 것으로 덮였다(디스크 · 파일 기록은 그대로). */
+function truncate(to: Track[] = ["data"], over: (log: InstallLog) => InstallLog = (l) => l): void {
   const log = raw();
-  const { tracksHealed: _t, ...rest } = log;
   writeFileSync(
     installLogPath(dir),
-    JSON.stringify(over({ ...rest, spec: { ...rest.spec, tracks: ["data"] } })),
+    JSON.stringify(over({ ...log, spec: { ...log.spec, tracks: to } })),
   );
 }
 
@@ -70,13 +69,25 @@ function truncate(over: (log: InstallLog) => InstallLog = (l) => l): void {
 function s3(over?: (log: InstallLog) => InstallLog): void {
   run(spec(["tooling"], ["claude", "antigravity"]));
   run(spec(["data"], ["codex"]));
-  truncate(over);
+  truncate(["data"], over);
   expect(raw().spec.tracks).toEqual(["data"]); // 전제
   expect(existsSync(join(dir, RULE))).toBe(true);
 }
 
+/** 메타파일의 sha 기록을 지운다 — 기록이 그 내용을 보증하지 않으니 트랙을 되살릴 근거가 없다. */
+const noMetaSha = (l: InstallLog): InstallLog => ({
+  ...l,
+  policyFiles: (l.policyFiles ?? []).filter((f) => f.path !== ".installed-tracks"),
+});
+
+const mcpServers = (): string[] =>
+  Object.keys(
+    (JSON.parse(readFileSync(join(dir, ".mcp.json"), "utf8")) as { mcpServers?: object })
+      .mcpServers ?? {},
+  ).sort();
+
 describe("B1 — 덮어쓰인 기록에서 정당한 룰을 지우지 않는다", () => {
-  it("S3 update — 룰이 남고, 머리글·헤더·기록이 data, tooling 을 말하고, 표시가 남는다", () => {
+  it("S3 update — sha 로 보증된 메타파일로 tooling 을 되살린다: 룰이 남고, 머리글·헤더·기록이 data, tooling 을 말한다", () => {
     s3();
     const state = detectInstallState(dir);
     expect(state.tracks).toEqual(["data", "tooling"]);
@@ -93,7 +104,6 @@ describe("B1 — 덮어쓰인 기록에서 정당한 룰을 지우지 않는다"
       "tooling",
     ]);
     expect(raw().spec.tracks).toEqual(["data", "tooling"]);
-    expect(raw().tracksHealed).toBe(true);
   });
 
   it("S3b install --track data --cli codex 재추가도 지우지 않는다", () => {
@@ -126,41 +136,57 @@ describe("B1 — 덮어쓰인 기록에서 정당한 룰을 지우지 않는다"
     expect(existsSync(join(dir, RULE))).toBe(true);
   });
 
-  it("근거 하나로도 되살린다 — 메타파일만(기록에 sha) · claude 자리 파일만(writer 기록)", () => {
-    // 파일 근거를 지운다(cli-development 의 claude 기록) — 메타파일만 남는다
-    s3((l) => ({
-      ...l,
-      policyFiles: (l.policyFiles ?? []).filter((f) => f.path !== "rules/cli-development.md"),
-    }));
-    expect(readInstallLog(dir)?.spec.tracks).toEqual(["data", "tooling"]);
+  it("메타파일 근거가 없으면 트랙은 되살리지 않되, claude 사본이 기록에 있는 룰은 남기고 그 사실을 말한다(B2 — 남기기만 한다)", () => {
+    s3(noMetaSha);
+    expect(readInstallLog(dir)?.spec.tracks).toEqual(["data"]);
 
+    const screen = update();
+
+    expect(existsSync(join(dir, RULE))).toBe(true);
+    expect(raw().spec.tracks).toEqual(["data"]); // 아무것도 더하지 않았다
+    expect(screen).toMatch(
+      /cli-development\.md\s+not in the recorded tracks \(data\) — kept: its Claude Code copy is in the install record · if you picked tooling \(or full\), record it so this rule is refreshed: agent-harness install --track tooling --cli antigravity/,
+    );
+    expect(raw().externalFiles?.map((f) => f.path)).toContain(RULE); // 남긴 것은 기록에서도 빼지 않는다
+  });
+});
+
+describe("B2 — 되살리는 트랙은 메타파일이 말한 것뿐이다(고르지 않은 트랙 · 서버를 더하지 않는다)", () => {
+  /** 덮이지 않은 기록에서 같은 두 install 뒤 update 한 결과 — 대조군. */
+  function control(first: Track, second: Track): { tracks: string[]; mcp: string[] } {
+    run(spec([first], ["claude"]));
+    run(spec([second], ["codex"]));
+    update();
+    const out = { tracks: [...raw().spec.tracks], mcp: mcpServers() };
     rmSync(dir, { recursive: true, force: true });
     dir = mkdtempSync(join(tmpdir(), "ah-track-heal-"));
-    // 메타파일의 sha 기록을 지운다 — 기록이 보증하지 않으니 근거가 아니다. claude 자리 파일만 남는다
-    s3((l) => ({
-      ...l,
-      policyFiles: (l.policyFiles ?? []).filter((f) => f.path !== ".installed-tracks"),
-    }));
-    expect(readInstallLog(dir)?.spec.tracks).toEqual(["data", "tooling"]); // full 로 넓히지 않는다
-  });
+    return out;
+  }
 
-  it("claude 자리 파일 근거는 쓰는 순간 적은 기록만 — 옛 스캔 기록(records 없음)은 근거가 아니다", () => {
-    s3((l) => {
-      const { records: _r, ...rest } = l;
-      return {
-        ...rest,
-        policyFiles: (l.policyFiles ?? []).filter((f) => f.path !== ".installed-tracks"),
-      };
+  for (const [first, second] of [
+    ["csr-fastify", "data"],
+    ["base", "executive"],
+  ] as const) {
+    it(`${first}(claude) → ${second}(codex), 기록이 [${second}] 로 덮였다 → update: 트랙·.mcp.json 이 덮이지 않은 기록과 같다`, () => {
+      const want = control(first, second);
+      expect(want.tracks).toEqual([first, second].sort()); // 전제
+
+      run(spec([first], ["claude"]));
+      run(spec([second], ["codex"]));
+      truncate([second]);
+      update();
+
+      expect(raw().spec.tracks).toEqual(want.tracks);
+      expect(mcpServers()).toEqual(want.mcp);
     });
-    expect(readInstallLog(dir)?.spec.tracks).toEqual(["data"]);
-  });
+  }
 });
 
 describe("B1 — 근거가 없으면 지우되, 기록된 트랙과 되돌리는 명령을 말한다", () => {
   it("claude 없이 antigravity 로 tooling → codex 로 data(덮인 기록): 지우고 화면이 사실대로 말한다 · 그 명령이 되돌린다", () => {
     run(spec(["tooling"], ["antigravity"]));
     run(spec(["data"], ["codex"]));
-    truncate();
+    truncate(["data"]);
 
     const screen = update();
 
@@ -182,8 +208,7 @@ describe("B1 — 근거가 없으면 지우되, 기록된 트랙과 되돌리는
     writeFileSync(join(dir, RULE), text);
     const log = raw();
     const externalFiles = [...(log.externalFiles ?? []), { path: RULE, sha256: hashContent(text) }];
-    const { tracksHealed: _t, ...rest } = log;
-    writeFileSync(installLogPath(dir), JSON.stringify({ ...rest, externalFiles }));
+    writeFileSync(installLogPath(dir), JSON.stringify({ ...log, externalFiles }));
 
     update();
 

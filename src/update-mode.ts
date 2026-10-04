@@ -693,7 +693,8 @@ export function runUpdateMode(
   // 4.1) #677 — 기록에 있으나 기록 트랙의 렌더 밖인 Antigravity 룰을 치운다(바로 위 외부 갱신이 다시 쓴 기록을 읽는다).
   if (wants("external")) {
     const outOfTrack = reclaimOutOfTrackRecorded(projectDir, outside);
-    if (outOfTrack.removed.length + outOfTrack.backedUp.length > 0) report.outOfTrack = outOfTrack;
+    if (outOfTrack.removed.length + outOfTrack.backedUp.length + outOfTrack.kept.length > 0)
+      report.outOfTrack = outOfTrack;
   }
   report.externalUpdated = external.externalUpdated;
   if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
