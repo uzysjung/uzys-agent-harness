@@ -91,10 +91,14 @@ describe("marker-md — 루트 CLAUDE.md · AGENTS.md 블록", () => {
     expect(stripOk(md, edited, u.portions).text).toBe(edited); // 고친 블록은 strip 도 남긴다
   });
 
-  it("기록에 있는 블록을 설치자가 지웠으면 되살리지 않고 deleted 로 낸다(R2)", () => {
+  it("기록에 있는 블록이 사라졌으면 되돌리고 restored 로 낸다 — 손으로 지운 것은 빼기가 아니다(ADR-099 R1)", () => {
     const u = upsertOk(md, "# P\n", render);
     const again = upsertOk(md, "# P\n", render, u.portions);
-    expect(again).toMatchObject({ text: "# P\n", changed: false, deleted: ["import"] });
+    expect(again).toMatchObject({ text: u.text, changed: true, restored: ["import"] });
+    expect(again.portions.get("import")).toBe(u.portions.get("import"));
+    // 빼기는 excluded(설치자가 명시한 것)로만 — 그때는 되돌리지 않는다
+    const out = upsertOk(md, "# P\n", render, u.portions, new Set(["import"]));
+    expect(out).toMatchObject({ text: "# P\n", changed: false, restored: [] });
   });
 
   it("기록에 없는 같은 이름 블록은 설치자 것 — 쓰지도 빼지도 않는다(Q3)", () => {
@@ -223,14 +227,14 @@ describe("json-keys — .mcp.json · opencode.json · .claude/settings.json", ()
     expect(parsed.hooks.SessionStart).toHaveLength(1);
   });
 
-  it("R2 — 지운 서버는 되살리지 않고 deleted → 키 id `mcp:<name>`", () => {
+  it("ADR-099 R1 — 지운 서버는 되돌리고 restored → 키 id `mcp:<name>`", () => {
     const u = upsertOk(js, "{}", mcpRender);
     const gone = JSON.parse(u.text);
     delete gone.mcpServers.github;
     const again = upsertOk(js, JSON.stringify(gone), mcpRender, u.portions);
-    expect(again.deleted).toEqual(["mcpServers.github"]);
-    expect(JSON.parse(again.text).mcpServers.github).toBeUndefined();
-    expect(again.deleted.map((k) => keyId(".mcp.json", k))).toEqual(["mcp:github"]);
+    expect(again.restored).toEqual(["mcpServers.github"]);
+    expect(JSON.parse(again.text).mcpServers.github).toEqual(JSON.parse(u.text).mcpServers.github);
+    expect(again.restored.map((k) => keyId(".mcp.json", k))).toEqual(["mcp:github"]);
   });
 
   it("파일이 없으면 하네스 몫만 — strip 하면 비어 empty", () => {
@@ -311,14 +315,16 @@ describe("lines — .gitignore", () => {
     expect(stripOk(ln, u.text, u.portions).text).toBe("# mine\n.env\n");
   });
 
-  it("딸린 주석을 설치자가 고쳤으면 남기고 알린다 · 줄을 지웠으면 deleted(R2)", () => {
+  it("딸린 주석을 설치자가 고쳤으면 남기고 알린다 · 줄을 지웠으면 되돌린다(ADR-099 R1)", () => {
     const u = upsertOk(ln, "x\n", render);
     const edited = u.text.replace("# Secret env", "# my secrets");
     const s = stripOk(ln, edited, u.portions);
     expect(s.kept).toEqual([".env"]);
     expect(s.text).toContain(".env");
     const gone = u.text.replace(".factory/\n", "");
-    expect(upsertOk(ln, gone, render, u.portions).deleted).toEqual([".factory/"]);
+    const back = upsertOk(ln, gone, render, u.portions);
+    expect(back.restored).toEqual([".factory/"]);
+    expect(back.text).toMatch(/^\.factory\/$/m);
   });
 
   it("파일이 없으면 몫만 — strip 하면 비어 empty", () => {
@@ -362,6 +368,27 @@ describe("toml-region — .codex/config.toml", () => {
     '[[hooks.session_start]]\ncommand = ["mine.sh"]\n',
     'approval_policy = "never"\n[sandbox_workspace_write]\nnetwork_access = false\n',
   ];
+
+  it("#641 — 구간 마커를 잠시 망가뜨렸다 되돌려도 구간 내용을 잃지 않는다(ADR-099 R1 · 설계 §3)", () => {
+    const u = upsertOk(tr, "", render);
+    const topSha = u.portions.get("top");
+    expect(topSha).toBeDefined();
+    // ② 마커 두 줄을 대문자로 — 구간 `top` 이 안 보인다. 그 안의 키는 구간 밖 설치자 값으로 읽혀 렌더에서 걸러진다
+    const broken = u.text
+      .replace("# uzys-harness:top:start", "# UZYS-HARNESS:TOP:START")
+      .replace("# uzys-harness:top:end", "# UZYS-HARNESS:TOP:END");
+    const during = upsertOk(tr, broken, render, u.portions);
+    expect(during.changed).toBe(false); // 두 번째 top 을 붙이지 않는다
+    expect(during.missing).toEqual(["top"]);
+    expect(during.portions.get("top")).toBe(topSha); // 기록 sha 를 잇는다(되돌릴 근거)
+    // ③ 마커를 되돌린다 — 이번 기록으로 다시 돌려도 구간 내용(approval_policy · sandbox_mode)이 남는다
+    const after = upsertOk(tr, u.text, render, during.portions);
+    expect(after.text).toBe(u.text);
+    expect(tomlMeaning(after.text)).toMatchObject({
+      approval_policy: "on-request",
+      sandbox_mode: "workspace-write",
+    });
+  });
 
   it.each(
     originals.map((x) => [JSON.stringify(x), x]),

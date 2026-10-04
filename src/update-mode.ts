@@ -47,6 +47,7 @@ import {
 } from "./foreign-slot.js";
 import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
 import { cleanStaleHookRefs, keepHookRef } from "./hook-ref.js";
+import { withRecordedExclusions } from "./install-writes.js";
 
 // 치유기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
 export { cleanStaleHookRefs, keepHookRef };
@@ -59,6 +60,7 @@ import {
   type InstallLog,
   installedClis,
   isHarnessOwned as isOwnedByBaseline,
+  legacyDroppedKeys,
   mergeExternalFiles,
   POLICY_DIRS,
   readInstallLog,
@@ -276,6 +278,13 @@ export interface UpdateModeReport {
    */
   restoredWithout?: Readonly<Record<string, string>>;
   /**
+   * ADR-099 R1 · §4 — 함께 쓰는 파일(`AGENTS.md` · `.codex/config.toml` · `opencode.json`)에서 사라져 이번에 되돌린 하네스
+   * 키(키 id), 파일별. optional = 부재는 "되돌린 것 없음"(손으로 만드는 리포트 stub 이 여럿이다).
+   */
+  restoredKeys?: ReadonlyArray<{ path: string; ids: ReadonlyArray<string> }>;
+  /** ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 키 중 이번 update 가 실제로 되살린 것. */
+  legacyRestored?: ReadonlyArray<string>;
+  /**
    * 이 릴리즈에 새로 생겼지만 **update 가 깔 수 없는** 자산 (projectDir 상대경로).
    *
    * 훅과 `settings.json` 이 그쪽이다 — 훅은 `settings.json` 의 배선이 있어야 발화하는데 update 는
@@ -338,7 +347,7 @@ export function buildUpdateSpec(
   // #528 (재리뷰 NOTE-F) — 화면 머리글의 `CLI` 는 깔린 집합이다. 고정 `["claude"]` 는 codex 단독
   // 설치본의 update 도 "CLI claude" 라고 적었다. 로그가 없으면(레거시) 이전과 같이 claude.
   const clis = log === null ? [] : installedClis(log);
-  return {
+  const spec: InstallSpec = {
     tracks: [...tracks],
     options: DEFAULT_OPTIONS,
     cli: clis.length > 0 ? [...clis] : ["claude"],
@@ -349,6 +358,8 @@ export function buildUpdateSpec(
       ? { updateOnly: [...only] }
       : {}),
   };
+  // ADR-099 R3 — 머리글(자산 수 · 상주 비용)도 기록된 빼기를 따른다. 뺀 자산을 "selected" 로 세지 않는다
+  return withRecordedExclusions(spec, log).spec;
 }
 
 /**
@@ -466,7 +477,7 @@ export function runUpdateMode(
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
-    const ctx = { prefix: dir, baseline: policyBase, outside };
+    const ctx = { prefix: dir, baseline: policyBase, outside, excluded: excludedIds(logAtStart) };
     const synced = updateDir(target, source, ext, ctx);
     report.updated[label] = synced.updated;
     report.policyBackedUp.push(...synced.backedUp);
@@ -493,6 +504,7 @@ export function runUpdateMode(
           new Date(),
           (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
           outside,
+          excludedSkillOf(logAtStart),
         )
       : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
   if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
@@ -585,8 +597,12 @@ export function runUpdateMode(
         skillsInstalled: [],
         skillsRestored: [],
         rulesRestored: [],
+        restoredKeys: [],
+        legacyRestored: [],
       };
   report.externalUpdated = external.externalUpdated;
+  report.restoredKeys = external.restoredKeys;
+  report.legacyRestored = external.legacyRestored;
   report.externalBackedUp = external.externalBackedUp;
   // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
@@ -774,7 +790,8 @@ function installNewAssets(
   // 풀고 opencode 를 더한 로그는 `spec.cli` 가 `["opencode"]` 로 덮여, 첫 설치의 앵커 기록이
   // 그대로 남아 있는데도 새 릴리즈의 Claude 자산을 못 받았다(실측 2026-09-21).
   const claudeSelected = installedClis(log).includes("claude");
-  const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
+  // ADR-099 R3 — 기록의 **누적** 빼기(마지막 설치의 플래그가 아니다)
+  const baselineExcluded = excludedIds(log);
   // 전에 깔아 준 적이 있는가 — "이번 릴리즈 신규"와 "사용자가 지운 것"을 가르는 유일한 신호다.
   // 디스크만 보면 둘이 같아 보이고, 그 둘을 한 문구로 보고하면 한쪽에는 거짓말이 된다.
   const priorBaseline = policyBaseline(projectDir);
@@ -904,11 +921,10 @@ function installNewSkillDirs(
   // #550 — 전에 깔아 준 적이 있는가(`skillFiles` 기준선에 그 id 의 파일이 있는가). 파일 자산의
   // `installNewAssets` 와 같은 신호다 — 없으면 이 릴리즈의 추가, 있으면 설치자가 지운 것의 되살림.
   const priorIds = new Set((log?.skillFiles ?? []).map((f) => f.path.split("/")[0] ?? ""));
-  const excluded = new Set(log?.spec.baselineExclude ?? []);
-  // #505 — 번들 스킬 해제는 자산 id 로 기록된다(`skillExclude`). baseline 자산과 목록이 달라
-  // `isBaselineExcluded` 로는 안 걸린다 — 그래서 `--without <skill>` 로 뺀 스킬이 update 마다
-  // 되돌아왔다. 옛 로그(필드 없음)는 빈 집합이라 동작이 그대로다.
-  const skillExcluded = new Set(log?.spec.skillExclude ?? []);
+  // ADR-099 R3 — 기록의 누적 빼기. baseline id(`baseline:skills/<id>`)와 번들 스킬 id(#505 — 자산 id 로 기록된다)가
+  // 한 목록에 있다 — 앞은 `isBaselineExcluded` 로, 뒤는 id 로 본다.
+  const excluded = excludedIds(log);
+  const skillExcluded = excluded;
   // #528 — 같은 이유로 `spec.cli` 가 아니라 깔린 집합을 본다. 로그가 없는 레거시 설치본은
   // 이전과 같이 claude 로 다룬다(`.claude/skills/` 가 그 설치본의 유일한 스킬 자리였다).
   if (log !== null && !installedClis(log).includes("claude"))
@@ -1141,6 +1157,12 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  * 나가는 유일한 경로다.
  */
 /** 디스크 기준으로 지금 깔린 번들 스킬 — update 는 선택 목록의 사본을 두지 않는다(ADR-085). */
+/** ADR-099 R3 — 설치자가 뺀 스킬인가: 번들 스킬 id(#505) 또는 `baseline:skills/<id>`(ADR-074), 누적 기록으로. */
+function excludedSkillOf(log: InstallLog | null): (id: string) => boolean {
+  const excluded = excludedIds(log);
+  return (id) => excluded.has(id) || isBaselineExcluded(`.claude/skills/${id}`, excluded);
+}
+
 function installedBundledSkills(projectDir: string): string[] {
   return INTERNAL_BUNDLED_SKILL_IDS.filter(
     (id) =>
@@ -1228,9 +1250,14 @@ function refreshExternalCli(
   skillsRestored: string[];
   /** #638 — antigravity 룰(.agents/rules/<name>.md)의 되살림(스킬과 같은 신호). */
   rulesRestored: string[];
+  /** ADR-099 R1 — 함께 쓰는 파일에서 사라져 되돌린 하네스 키(키 id), 파일별. */
+  restoredKeys: Array<{ path: string; ids: string[] }>;
+  /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번에 되살린 것. */
+  legacyRestored: string[];
 } {
   const log = readInstallLog(projectDir);
-  const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
+  // ADR-099 R3 — 기록의 누적 빼기
+  const baselineExcluded = excludedIds(log);
   const presentBefore = sharedSkillIdsOnDisk(projectDir);
   // #638 — .agents/rules/ 의 실행 전 디스크 상태(루프 회복 판정용. 스킬의 presentBefore 와 같은 역할).
   const rulesBefore = new Set<string>();
@@ -1250,7 +1277,10 @@ function refreshExternalCli(
     // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
     // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
     // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
-    selectedInternalSkills: installedBundledSkills(projectDir),
+    // ADR-099 R3 — 뺀 스킬은 디스크에 남아 있어도 갱신하지도 안내하지도 않는다(install 이 내는 것과 같은 목록)
+    selectedInternalSkills: installedBundledSkills(projectDir).filter(
+      (id) => !excludedSkillOf(log)(id),
+    ),
     // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. ALL_RULES 문서는
     // "refreshOnly 가 디스크로 대신 판정한다"고 했지만 렌더 경로(AGENTS.md 절 · antigravity 룰
     // 생성)는 디스크 게이트가 없어, data 트랙 설치에서 update 만으로 cli-development(제6룰)가
@@ -1277,8 +1307,8 @@ function refreshExternalCli(
     if (merged.length > 0) next.externalFiles = merged;
     else delete next.externalFiles;
     // #551 R2 — 몫도 같은 이유로 다시 적는다: 갱신한 구간의 sha 를 안 적으면 다음 install 이 그 구간을 "설치자가
-    // 고쳤다" 로 읽고 영영 남긴다. 규칙은 install 의 `composeWriterLog` 와 같다 — 판정한 경로만 갈아 끼우고, 설치자가
-    // 지운 키는 `excluded` 에 **더한다**(덮어쓰지 않는다).
+    // 고쳤다" 로 읽고 영영 남긴다. 규칙은 install 의 `composeWriterLog` 와 같다 — 판정한 경로만 갈아 끼운다.
+    // `excluded` 는 update 가 더하지도 빼지도 않는다(ADR-099 R1 — 쓰는 곳은 install 의 `--without`/`--with` 와 위저드뿐).
     const touched = new Set(result.portionPaths);
     const portions = [
       ...(log.portions ?? []).filter((p) => !touched.has(p.path)),
@@ -1286,9 +1316,6 @@ function refreshExternalCli(
     ];
     if (portions.length > 0) next.portions = portions;
     else delete next.portions;
-    const excluded = [...new Set([...(log.excluded ?? []), ...result.deletedKeyIds])];
-    if (excluded.length > 0) next.excluded = excluded;
-    else delete next.excluded;
     try {
       writeInstallLog(projectDir, next);
     } catch {
@@ -1323,6 +1350,7 @@ function refreshExternalCli(
     if (priorPaths.has(f.path) && !rulesRestored.includes(f.path)) rulesRestored.push(f.path);
   }
 
+  const dropped = new Set(legacyDroppedKeys(log));
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
@@ -1332,6 +1360,16 @@ function refreshExternalCli(
     skillsInstalled,
     skillsRestored,
     rulesRestored,
+    restoredKeys: result.sharedFiles
+      .filter((f) => f.restored.length > 0)
+      .map((f) => ({ path: f.path, ids: [...f.restored] })),
+    legacyRestored: [
+      ...new Set(
+        result.sharedFiles
+          .flatMap((f) => [...f.restored, ...f.added])
+          .filter((id) => dropped.has(id)),
+      ),
+    ],
   };
 }
 
@@ -1347,6 +1385,11 @@ export interface PolicySyncCtx {
   baseline: ReadonlyMap<string, string>;
   /** #678 — 실체가 프로젝트 밖인 파일은 쓰지도 · 백업하지도 · 지우지도 않는다. 없으면 판정하지 않는다(단위 테스트). */
   outside?: OutsideGuard;
+  /**
+   * ADR-099 R3 — 설치자가 뺀 것(`excludedIds(log)`). 뺐지만 디스크에 남은 파일은 새 판으로 바꾸지 않는다(`judge` 의
+   * `excluded → leave` 와 같다). 없으면 판정하지 않는다(단위 테스트).
+   */
+  excluded?: ReadonlySet<string>;
 }
 
 /**
@@ -1394,6 +1437,7 @@ export function updateDir(
 
     // #678 — 폴더 링크(`.claude/rules → 밖`)든 파일 링크든 실체가 밖이면 손대지 않는다(백업도 밖에 생겼다).
     if (ctx.outside?.skip(targetFile)) continue;
+    if (ctx.excluded && isBaselineExcluded(`.claude/${ctx.prefix}/${file}`, ctx.excluded)) continue;
     const next = readFileSync(sourceFile, "utf8");
     const current = readFileSync(targetFile, "utf8");
     if (current === next) continue; // 이미 최신 — 백업도 쓰기도 불필요
@@ -1448,6 +1492,8 @@ export function syncSkills(
   foreignOf: (relInSkills: string) => string | null,
   /** #678 — 실체가 프로젝트 밖인 파일은 쓰지도 · 백업하지도 · 지우지도 않는다. 없으면 판정하지 않는다(단위 테스트). */
   outside?: OutsideGuard,
+  /** ADR-099 R3 — 설치자가 뺀 스킬 id 인가. 뺐지만 디스크에 남은 스킬은 새 판으로 바꾸지 않는다. */
+  excludedSkill?: (id: string) => boolean,
 ): {
   updated: number;
   backedUp: string[];
@@ -1476,6 +1522,7 @@ export function syncSkills(
       continue;
     }
     if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
+    if (excludedSkill?.(skill.name)) continue;
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
       const targetFile = join(targetSkill, rel);
@@ -1566,8 +1613,12 @@ function refreshPolicyBaseline(
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
+  // ADR-099 R3 — 뺀 파일은 갱신하지 않았다(`updateDir`) — 디스크로 다시 찍지 않고 앞 기록을 둔다(밖 링크와 같은 이유)
+  const excluded = excludedIds(log);
   const inDirs = (path: string): boolean =>
-    (dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`))) && !outside.has(path);
+    (dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`))) &&
+    !outside.has(path) &&
+    !isBaselineExcluded(`.claude/${path}`, excluded);
   const policyFiles = [
     ...(log.policyFiles ?? []).filter((f) => !inDirs(f.path)),
     ...collectPolicyHashes(projectDir, templatesDir).filter((f) => inDirs(f.path)),
@@ -1612,9 +1663,13 @@ function refreshSkillBaseline(
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
+  // ADR-099 R3 — 뺀 스킬은 갱신하지 않았다(`syncSkills`) — 밖 링크와 같이 앞 기록을 둔다
+  const excludedSkill = excludedSkillOf(log);
+  const keepPrior = (path: string): boolean =>
+    outside.has(path) || excludedSkill(path.split("/")[0] ?? "");
   const skillFiles = [
-    ...collectSkillHashes(projectDir, templatesDir).filter((f) => !outside.has(f.path)),
-    ...(log.skillFiles ?? []).filter((f) => outside.has(f.path)),
+    ...collectSkillHashes(projectDir, templatesDir).filter((f) => !keepPrior(f.path)),
+    ...(log.skillFiles ?? []).filter((f) => keepPrior(f.path)),
   ];
   const next: InstallLog = { ...log };
   if (skillFiles.length > 0) next.skillFiles = skillFiles;

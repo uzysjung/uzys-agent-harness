@@ -6,14 +6,17 @@
 import { rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isKeyId } from "../adapters/index.js";
 import { BASELINE_PREFIX, listBaselineTargets } from "../baseline-targets.js";
 import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { dirTreesIdentical } from "../fs-ops.js";
-import { readInstallLog } from "../install-log.js";
+import { installedClis, readInstallLog } from "../install-log.js";
+import { withRecordedExclusions } from "../install-writes.js";
 import { type InstallReport, runInstall as runInstallPipeline } from "../installer.js";
+import { renderedKeyIds } from "../key-ids.js";
 import {
   type CliTargets,
   type InstallScope,
@@ -179,7 +182,18 @@ export function installAction(options: InstallOptions, deps: InstallActionDeps =
     return;
   }
 
-  const spec = installSpecFromOptions(options, validated.cli, err);
+  // ADR-099 R6 (#616) — 같은 id 를 넣고 빼라고 하면 어느 쪽인지 정하지 않는다. 아무것도 쓰기 전에 멈춘다.
+  // `installSpecFromOptions` 안이 아니라 여기인 이유: 위저드도 그 함수를 부르는데 위저드는 이 상태를 만들 수 없다.
+  const both = conflictingIds(options);
+  if (both.length > 0) {
+    for (const id of both) {
+      err(status.failure(c.red(`'${id}' is in both --with and --without — pick one`)));
+    }
+    exit(1);
+    return;
+  }
+
+  const spec = installSpecFromOptions(options, validated.cli, err, resolveHarnessRoot());
 
   executeSpec(spec, {
     log,
@@ -228,36 +242,54 @@ export function installSpecFromOptions(
   options: InstallOptions,
   cli: CliTargets,
   err: (msg: string) => void,
+  /**
+   * ADR-099 R4 — 키 id(`mcp:github`)를 이번 렌더와 대조할 하네스 루트. 없으면(위저드 — 키 id 를 내지 않는다, 설계 G2)
+   * 키 id 는 모르는 id 로 경고하고 건너뛴다.
+   */
+  harnessRoot?: string,
 ): InstallSpec {
   // v26.47.0 — Phase C full: --with/--without repeatable → userOverride.
   const forceInclude = normalizeRepeatable(options.with);
   const forceExclude = normalizeRepeatable(options.without);
-  // 2026-08-16 — `--without` 는 두 목록을 받는다: 외부 자산 id 와 트랙 baseline id
-  // (`baseline:<kind>/<name>`). 위저드에서 체크를 풀 수 있는 것을 플래그로는 못 뺀다면 같은
-  // 기능이 진입점마다 다른 것이고, 이 리포가 세 번 적발당한 표면 비대칭이다.
-  const baselineIds = new Set(
-    listBaselineTargets({ tracks: [...new Set(options.track ?? [])] as Track[] }).map((t) => t.id),
-  );
-  const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
+  const tracks = [...new Set(options.track ?? [])] as Track[];
+  // ADR-099 R4 — 두 플래그는 화면이 보여 주는 모든 id 를 받는다: 카탈로그(번들 스킬 포함) · `baseline:` · 키 id.
+  // `--with` 의 baseline · 키 id 는 기록된 빼기를 푸는 일만 한다(기본으로 깔리는 것이라 "추가" 할 것은 없다).
+  // 기록 트랙 · 깔린 CLI 의 것도 받는다 — 이번 실행에 안 넣었어도 화면이 보여 준 id 다.
+  const record = readInstallLog(resolve(options.projectDir ?? process.cwd()));
+  const recordTracks = (record?.spec.tracks ?? []).filter(isTrack);
+  // 2026-08-16 — `--without` 는 외부 자산 id 와 트랙 baseline id(`baseline:<kind>/<name>`)를 받는다. 위저드에서 체크를
+  // 풀 수 있는 것을 플래그로는 못 뺀다면 같은 기능이 진입점마다 다른 것이고, 이 리포가 세 번 적발당한 표면 비대칭이다.
+  const baselineIds = new Set(listBaselineTargets({ tracks }).map((t) => t.id));
+  const releasableBaseline = new Set([
+    ...baselineIds,
+    ...listBaselineTargets({ tracks: recordTracks }).map((t) => t.id),
+  ]);
+  const keyIds = (): ReadonlySet<string> => {
+    if (harnessRoot === undefined) return new Set();
+    const clis = [...new Set([...(record ? installedClis(record) : []), ...cli])];
+    return renderedKeyIds(harnessRoot, [...new Set([...recordTracks, ...tracks])], clis);
+  };
+  let renderedKeys: ReadonlySet<string> | undefined;
+  const isRenderedKey = (id: string): boolean => {
+    if (!isKeyId(id)) return false;
+    renderedKeys ??= keyIds();
+    return renderedKeys.has(id);
+  };
 
   // v26.49.0 — unknown asset id validation (silent ignore 방지).
   const validIds = new Set(EXTERNAL_ASSETS.map((a) => a.id));
-  // `--with` 는 baseline id 를 받지 않는다 — 트랙 baseline 은 이미 기본 설치라 "추가"할 것이
-  // 없다. 그런데 두 플래그를 한 루프에서 검사하던 탓에 `--with baseline:<id>` 가 경고 없이
-  // 통과하고 아무 일도 안 했다: **조용히 no-op 하는 지시**는 ADR-074 가 두 목록을 안 섞은
-  // 바로 그 이유다.
   for (const id of forceInclude) {
-    if (validIds.has(id)) continue;
+    if (validIds.has(id) || releasableBaseline.has(id) || isRenderedKey(id)) continue;
     err(
       c.yellow(
         id.startsWith(BASELINE_PREFIX)
-          ? `[WARN] '${id}' cannot be used with --with — track baseline assets install by default. Use --without to drop one.`
+          ? `[WARN] '${id}' is not installed by the recorded or selected track(s) — nothing to bring back. Available: ${[...releasableBaseline].sort().join(", ")}`
           : `[WARN] Unknown asset id '${id}' (--with). Skipping. Use one of: ${[...validIds].sort().join(", ")}`,
       ),
     );
   }
   for (const id of forceExclude) {
-    if (validIds.has(id) || baselineIds.has(id)) continue;
+    if (validIds.has(id) || baselineIds.has(id) || isRenderedKey(id)) continue;
     // 갈림은 **id 의 생김새**로 한다(사유가 아니다 — 오타와 트랙 밖은 여기서 구분되지 않는다).
     // `baseline:` 꼴이면 이 트랙의 후보 전체를 함께 보여 주는 편이 카탈로그 전체를 쏟는 것보다
     // 낫다. 반대로 카탈로그 id 오타에 baseline 목록을 보이면 엉뚱한 곳을 뒤지게 된다.
@@ -269,6 +301,11 @@ export function installSpecFromOptions(
       ),
     );
   }
+  const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
+  const keyExclude = forceExclude.filter((id) => !validIds.has(id) && isRenderedKey(id));
+  const releaseExclude = forceInclude.filter(
+    (id) => !validIds.has(id) && (releasableBaseline.has(id) || isRenderedKey(id)),
+  );
   const filteredInclude = forceInclude.filter((id) => validIds.has(id));
   const filteredExclude = forceExclude.filter((id) => validIds.has(id));
   const userOverride =
@@ -277,9 +314,11 @@ export function installSpecFromOptions(
       : undefined;
 
   return {
-    tracks: [...new Set(options.track ?? [])] as Track[],
+    tracks,
     ...(userOverride ? { userOverride } : {}),
     ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
+    ...(releaseExclude.length > 0 ? { releaseExclude } : {}),
+    ...(keyExclude.length > 0 ? { keyExclude } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
     //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
     options: {
@@ -340,7 +379,13 @@ export interface ExecuteSpecDeps {
  * report. Shared by the `install` flag-mode command and the default
  * (interactive) action so both have identical post-install output.
  */
-export function executeSpec(spec: InstallSpec, deps: ExecuteSpecDeps = {}): void {
+export function executeSpec(requested: InstallSpec, deps: ExecuteSpecDeps = {}): void {
+  // ADR-099 R3 — 기록된 빼기는 이번 설치도 지킨다. 화면(머리글 · 자산 수 · 상주 비용)이 실제로 깔릴 것을 말하도록
+  // 파이프라인과 같은 누적 결과로 그린다(파이프라인도 같은 함수를 다시 걸고, 결과는 같다).
+  const spec =
+    deps.mode === "update"
+      ? requested
+      : withRecordedExclusions(requested, readInstallLog(requested.projectDir)).spec;
   const log = deps.log ?? console.log;
   const err = deps.err ?? console.error;
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
@@ -415,6 +460,12 @@ function resolveScopeOption(value: string | undefined, err: (msg: string) => voi
   if (isInstallScope(value)) return value;
   err(c.yellow(`[WARN] Unknown --scope value '${value}' (expected: project). Using project.`));
   return "project";
+}
+
+/** ADR-099 R6 — `--with` 와 `--without` 에 함께 들어온 id. */
+export function conflictingIds(options: Pick<InstallOptions, "with" | "without">): string[] {
+  const without = new Set(normalizeRepeatable(options.without));
+  return normalizeRepeatable(options.with).filter((id) => without.has(id));
 }
 
 /**

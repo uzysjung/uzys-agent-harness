@@ -58,8 +58,6 @@ export interface CliTransformResults {
   portions: InstallLogPortion[];
   /** 판정한 파일의 경로 — `portions` 가 대신하는 범위. */
   portionPaths: string[];
-  /** 설치자가 하네스 몫에서 지운 키 id(`codex:tables` · `opencode:mcp.github` …) — 로그 `excluded` 에 **더한다**(R2 · Q2). */
-  deletedKeyIds: string[];
 }
 
 export interface CliTransformParams {
@@ -260,6 +258,5 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     sharedFiles,
     portions: sharedFiles.flatMap((r) => r.portions ?? []),
     portionPaths: sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),
-    deletedKeyIds: [...new Set(sharedFiles.flatMap((r) => r.deleted))],
   };
 }

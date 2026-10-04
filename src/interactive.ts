@@ -22,6 +22,7 @@ import {
   type Prompts,
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
+import { excludedIds } from "./recorded.js";
 import { residentCostFor } from "./resident-entries.js";
 import { buildInstallRecordView } from "./router.js";
 import { type DetectedInstall, detectInstallState } from "./state.js";
@@ -211,13 +212,19 @@ export function classifyUpdateIntent(
   const recordClis = recordedClis(log);
   if (!sameSet(confirmed.tracks, recordTracks)) return "add";
   if (!sameSet(confirmed.cli, recordClis)) return "add";
+  // ADR-099 R3 — 해제 비교의 기준은 기록의 **누적** 빼기다(마지막 설치분이 아니다)
+  const out = excludedIds(log);
   const recorded = log?.assets ?? [];
   const covered = coveredByRecord(log, legacyTracks);
   const picked = new Set(confirmed.assetIds);
-  if (confirmed.assetIds.some((id) => !covered.has(id))) return "add";
-  if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id))) return "add";
-  if (!sameSet(confirmed.baselineExclude, log?.spec.baselineExclude ?? [])) return "add";
-  if (!sameSet(confirmed.skillExclude, log?.spec.skillExclude ?? [])) return "add";
+  if (confirmed.assetIds.some((id) => !covered.has(id) || out.has(id))) return "add";
+  if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id) && !out.has(a.id)))
+    return "add";
+  const offered = new Set(listBaselineTargets({ tracks: confirmed.tracks }).map((t) => t.id));
+  const recordedBaseline = [...out].filter((id) => offered.has(id));
+  if (!sameSet(confirmed.baselineExclude, recordedBaseline)) return "add";
+  const recordedSkills = [...out].filter((id) => BUNDLED_SKILLS.has(id));
+  if (!sameSet(confirmed.skillExclude, recordedSkills)) return "add";
   return "refresh";
 }
 
@@ -270,9 +277,9 @@ export function updateInitialSelection(
 ): InstallTargetId[] {
   const covered = coveredByRecord(log, legacyTracks);
   const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
+  // ADR-099 R3 — 기록의 누적 빼기(baseline · 번들 스킬 · 외부 자산)는 해제된 채로 보인다
   const excluded = new Set<string>([
-    ...(log?.spec.baselineExclude ?? []),
-    ...(log?.spec.skillExclude ?? []).map((id) => `asset:${id}`),
+    ...[...excludedIds(log)].map((id) => (id.startsWith(BASELINE_PREFIX) ? id : `asset:${id}`)),
     ...recommendedExternalAssets(recordTracks)
       .filter((id) => !covered.has(id))
       .map((id) => `asset:${id}`),
@@ -594,15 +601,17 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   }
 
   // add — install 엔진. spec 은 `install` 명령과 **같은 함수**가 같은 인자로 만든다(D6).
+  // ADR-099 R3 — 기록에서 뺀 것을 다시 체크했으면 `--with <id>` 로 낸다. 추천 대비 차이(`computeUserOverride`)만으로는
+  // 재체크가 보이지 않고, 누적 빼기는 `--with` 로만 풀린다.
+  const recheck = rechecked(log, assetIds, baselineIds);
+  const withIds = [...new Set([...(userOverride?.forceInclude ?? []), ...recheck])];
   const without = [...(userOverride?.forceExclude ?? []), ...baselineExclude];
   const options: InstallOptions = {
     track: [...tracks],
     cli: [...cli],
     scope,
     projectDir,
-    ...(userOverride && userOverride.forceInclude.length > 0
-      ? { with: [...userOverride.forceInclude] }
-      : {}),
+    ...(withIds.length > 0 ? { with: withIds } : {}),
     ...(without.length > 0 ? { without } : {}),
   };
   const spec = installSpecFromOptions(options, [...cli], () => {});
@@ -640,6 +649,19 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   }
   prompts.outro(stepLabel(UPDATE_WIZARD.RUN, "Installing..."));
   return { ok: true, mode: "add", spec };
+}
+
+/**
+ * ADR-099 R3 — 기록의 누적 빼기(`excludedIds(log)`)에 있는데 지금 체크된 id — 번들 스킬 · 외부 자산(`asset:` 를 뗀 id)과
+ * baseline id 공통. 위저드는 이것을 `--with <id>` 로 낸다.
+ */
+export function rechecked(
+  log: InstallLog | null,
+  assetIds: ReadonlyArray<string>,
+  baselineIds: ReadonlyArray<string>,
+): string[] {
+  const checked = new Set([...assetIds, ...baselineIds]);
+  return [...excludedIds(log)].filter((id) => checked.has(id)).sort();
 }
 
 /**

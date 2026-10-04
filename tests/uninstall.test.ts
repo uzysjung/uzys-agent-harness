@@ -1056,7 +1056,12 @@ describe("uninstallAction — 로그 재기록 · 미리보기 · 실패 처리"
       },
     );
     const after = JSON.parse(readFileSync(installLogPath(tmpDir), "utf8")) as InstallLog;
-    expect({ ...after, assets: [] }).toEqual({ ...richLog(), assets: [] });
+    // 이 판이 쓰는 기록은 R5 정리 표시를 단다(ADR-099) — 그 밖의 필드는 그대로
+    expect({ ...after, assets: [] }).toEqual({
+      ...richLog(),
+      assets: [],
+      excludedKeysMigrated: true,
+    });
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

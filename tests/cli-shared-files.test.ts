@@ -23,7 +23,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ADAPTERS } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
 import { runCliTransforms } from "../src/cli-transforms.js";
-import { renderCliArtifacts, renderFinalSummary } from "../src/commands/install-render.js";
+import {
+  createInstallRenderer,
+  renderCliArtifacts,
+  renderFinalSummary,
+} from "../src/commands/install-render.js";
 import { hashContent, type InstallLogPortion, readInstallLog } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import { createOwnedWriter } from "../src/owned-write.js";
@@ -56,11 +60,15 @@ function spec(cli: CliBase[]): InstallSpec {
   return { tracks: ["tooling"], options: { withCodexTrust: false }, cli, projectDir };
 }
 
-function install(cli: CliBase[], tracks: InstallSpec["tracks"] = ["tooling"]): InstallReport {
+function install(
+  cli: CliBase[],
+  tracks: InstallSpec["tracks"] = ["tooling"],
+  extra: Partial<InstallSpec> = {},
+): InstallReport {
   return runInstall({
     harnessRoot: HARNESS_ROOT,
     projectDir,
-    spec: { ...spec(cli), tracks },
+    spec: { ...spec(cli), tracks, ...extra },
     mode: "add",
     runExternal: null,
   });
@@ -503,7 +511,7 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
 
 /* ─── runCliTransforms — 기록에 넘길 몫 ──────────────────────────────────── */
 
-describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키를 돌려준다", () => {
+describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려준다", () => {
   function run(shared?: { portions?: InstallLogPortion[]; excluded?: string[] }) {
     return runCliTransforms({
       harnessRoot: HARNESS_ROOT,
@@ -537,10 +545,10 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
         }[p.path],
       );
     }
-    expect(r.deletedKeyIds).toEqual([]);
+    expect(r.sharedFiles.flatMap((f) => f.restored)).toEqual([]);
   });
 
-  it("기록에 있는데 파일에 없는 몫 = 설치자가 지웠다 — 되살리지 않고 키 id 로 돌려준다(R2)", () => {
+  it("기록에 있는데 파일에 없는 몫은 되돌리고 키 id 로 알린다 — 손으로 지운 것은 빼기가 아니다(ADR-099 R1)", () => {
     put(".codex/config.toml", INSTALLER_TOML);
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     const first = run();
@@ -554,12 +562,22 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
 
     const second = run({ portions: first.portions });
 
-    expect(second.deletedKeyIds.sort()).toEqual(["codex:tables", "opencode:mcp.github"]);
-    expect(read(".codex/config.toml")).not.toContain("uzys-harness:tables");
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
-    expect(second.portions.map((p) => p.key)).not.toContain("mcp.github");
+    expect(second.sharedFiles.flatMap((f) => f.restored).sort()).toEqual([
+      "codex:tables",
+      "opencode:mcp.github",
+    ]);
+    expect(read(".codex/config.toml")).toContain("uzys-harness:tables");
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+    expect(second.portions.map((p) => p.key)).toContain("mcp.github");
     // 설치자 것은 그대로
     expect(toml().mcp_servers?.myown).toBeDefined();
+    // 설치자가 명시로 뺀 키(`--without`)는 되돌리지 않는다
+    const json2 = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
+    delete json2.mcp.github;
+    put("opencode.json", JSON.stringify(json2));
+    const third = run({ portions: second.portions, excluded: ["opencode:mcp.github"] });
+    expect(third.sharedFiles.flatMap((f) => f.restored)).toEqual([]);
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
   });
 
   it("설치자 파일에 직접 쓴 갱신도 update 갱신 수에 센다 — 기준선(`externalFiles`)에는 남기지 않는다", () => {
@@ -583,7 +601,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     expect(second.externalUpdated).toBe(writerCounted + 1);
   });
 
-  it("update 에서 설치자가 파일째 지웠으면 만들지 않고 · 지운 키로도 적지 않는다 — Q4 는 PR-5 에서 화면 줄 · --with 와 함께 (리뷰 B1)", () => {
+  it("update 에서 설치자가 파일째 지웠으면 이 판은 만들지 않고 몫 기록을 그대로 둔다 — 파일째 되살림은 ADR-099 R2(후속)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     const first = run();
     rmSync(join(projectDir, "opencode.json"));
@@ -601,9 +619,8 @@ describe("runCliTransforms 가 세 어댑터의 몫과 설치자가 지운 키�
     });
 
     const r = second.sharedFiles.find((f) => f.path === "opencode.json");
-    // 판정하지 않았다 — 몫 기록은 그대로 두고(portions null) 설치자가 지운 키로 적지 않는다
-    expect(r).toMatchObject({ action: "skipped", portions: null, deleted: [] });
-    expect(second.deletedKeyIds).toEqual([]);
+    // 판정하지 않았다 — 몫 기록은 그대로 둔다(portions null)
+    expect(r).toMatchObject({ action: "skipped", portions: null, restored: [] });
     expect(second.portionPaths).not.toContain("opencode.json");
     expect(existsSync(join(projectDir, "opencode.json"))).toBe(false);
   });
@@ -733,34 +750,47 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     expect(row).toContain("harness part left as is: top");
   });
 
-  it("설치자가 하네스 키 · 블록을 지우면 excluded 에 들고 다음 install 이 되살리지 않는다", () => {
+  it("설치자가 하네스 키 · 블록을 손으로 지우면 다음 install 이 되돌린다 — `--without <키 id>` 로 빼야 빠진다(ADR-099)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     put("AGENTS.md", INSTALLER_AGENTS);
     install(["opencode"]);
+    const withBlock = read("AGENTS.md");
     const json = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
     delete json.mcp.github;
     put("opencode.json", JSON.stringify(json));
     put("AGENTS.md", INSTALLER_AGENTS); // 블록째 지웠다
 
-    install(["opencode"]);
-    install(["opencode"]);
+    const report = install(["opencode"]);
 
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+    expect(read("AGENTS.md")).toBe(withBlock);
+    expect(loggedExcluded()).toEqual([]);
+    const rows = screen(["opencode"], report);
+    const row = rows.find((l) => l.includes("opencode.json")) ?? "";
+    expect(row).toContain("was missing — restored: opencode:mcp.github");
+    expect(row).toContain("drop for good: install … --without opencode:mcp.github");
+
+    // 명시적 빼기 — 기록 sha 와 같은 키만 걷고, 다음 설치들이 지킨다
+    install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github", "agents-md:agents"] });
+    install(["opencode"]);
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
     expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("context7");
     expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
     expect(loggedExcluded()).toEqual(
       expect.arrayContaining(["opencode:mcp.github", "agents-md:agents"]),
     );
+    // `--with <키 id>` 로만 돌아온다
+    install(["opencode"], ["tooling"], { releaseExclude: ["opencode:mcp.github"] });
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+    expect(loggedExcluded()).toEqual(["agents-md:agents"]);
   });
 
-  it("설치자가 지운 블록 · 구간은 화면도 '있다' 고 말하지 않는다 (리뷰 NOTE-2)", () => {
+  it("설치자가 뺀 블록 · 구간은 화면도 '있다' 고 말하지 않는다 (리뷰 NOTE-2)", () => {
     put(".codex/config.toml", INSTALLER_TOML);
     put("AGENTS.md", INSTALLER_AGENTS);
     install(["codex"]);
-    const toml0 = read(".codex/config.toml");
-    put(".codex/config.toml", toml0.slice(0, toml0.indexOf("# uzys-harness:tables:start")));
-    put("AGENTS.md", INSTALLER_AGENTS);
-    install(["codex"]); // 지운 것이 excluded 에 든다
+    // 명시적 빼기 — 기록 sha 그대로인 구간 · 블록은 걷힌다
+    install(["codex"], ["tooling"], { keyExclude: ["codex:tables", "agents-md:agents"] });
 
     const report = install(["codex"]);
 
@@ -827,13 +857,11 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
   it("update 는 앞서 적힌 excluded 를 덮지 않고 잇는다 (리뷰 NOTE-1 · MUT-E)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     install(["opencode"]);
-    const json = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
-    delete json.mcp.github;
-    put("opencode.json", JSON.stringify(json));
-    install(["opencode"]); // 여기서 opencode:mcp.github 가 excluded 에 든다
+    install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github"] });
     expect(loggedExcluded()).toContain("opencode:mcp.github"); // 전제
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github"); // 전제
 
-    update(); // 이번 update 는 새로 지운 것이 없다
+    update();
 
     expect(loggedExcluded()).toContain("opencode:mcp.github");
     install(["opencode"]);
@@ -855,23 +883,35 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
     expect(after).toEqual(before);
   });
 
-  it("update 가 설치자가 지운 하네스 구간 · 블록을 되살리지 않고 excluded 에 적는다", () => {
+  it("update 가 설치자가 손으로 지운 하네스 구간 · 블록을 되돌리고 excluded 에는 적지 않는다(ADR-099 R1)", () => {
     put(".codex/config.toml", INSTALLER_TOML);
     put("AGENTS.md", INSTALLER_AGENTS);
     install(["codex"]);
-    const toml0 = read(".codex/config.toml");
-    put(".codex/config.toml", toml0.slice(0, toml0.indexOf("# uzys-harness:tables:start")));
+    const full = { toml: read(".codex/config.toml"), agents: read("AGENTS.md") };
+    put(".codex/config.toml", full.toml.slice(0, full.toml.indexOf("# uzys-harness:tables:start")));
     put("AGENTS.md", INSTALLER_AGENTS);
 
-    update();
+    const before = readToml(full.toml);
+    const lines: string[] = [];
+    const renderer = createInstallRenderer((m) => lines.push(m), spec(["claude"]), false);
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["claude"]),
+      mode: "update",
+      runExternal: null,
+      onProgress: (event) => renderer.callbacks.onProgress?.(event),
+    });
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    const screen = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+    expect(screen).toContain("was missing — restored: codex:tables");
+    expect(screen).toContain("drop for good: install … --without codex:tables");
+    expect(screen).toContain("was missing — restored: agents-md:agents");
 
-    expect(read(".codex/config.toml")).not.toContain("uzys-harness:tables");
-    expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
-    expect(loggedExcluded()).toEqual(expect.arrayContaining(["codex:tables", "agents-md:agents"]));
-    // 다음 install 도 되살리지 않는다 — 누적이 이어진다
-    install(["codex"]);
-    expect(read(".codex/config.toml")).not.toContain("uzys-harness:tables");
-    expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
+    expect(read(".codex/config.toml")).toContain("# uzys-harness:tables:start");
+    expect(toml()).toEqual(before); // 공백 줄 하나 말고는 같은 파일 — 파싱 동치
+    expect(read("AGENTS.md")).toBe(full.agents);
+    expect(loggedExcluded()).toEqual([]);
   });
 
   it("update 가 갈아 끼운 구간의 sha 를 다시 적는다 — 다음 install 이 그 구간을 'left as is' 로 굳히지 않는다", () => {

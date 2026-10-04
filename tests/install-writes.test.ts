@@ -355,7 +355,8 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(keys).toContain("statusLine");
   });
 
-  it("설치자가 지운 하네스 훅은 되살리지 않고 excluded 에 적는다 — 그다음 install 에도(누적)", () => {
+  it("손으로 지운 하네스 훅은 다음 install 이 되돌리고 알린다 — 빼는 것은 `--without <키 id>` 뿐이고 다음 install 도 지킨다(ADR-099)", () => {
+    const HOOK = "settings:hooks.SessionStart#session-start.sh";
     install();
     const s = settings();
     s.hooks.SessionStart = [];
@@ -363,13 +364,18 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
 
     const { screen } = install();
 
-    expect(commands("SessionStart")).toEqual([]);
-    expect(log().excluded).toContain("settings:hooks.SessionStart#session-start.sh");
-    expect(screen).toContain("you removed: hooks.SessionStart#session-start.sh — not added back");
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(true);
+    expect(log().excluded ?? []).not.toContain(HOOK);
+    expect(screen).toContain(`was missing — restored: ${HOOK}`);
+    expect(screen).toContain(`drop for good: install … --without ${HOOK}`);
+    expect(screen).not.toContain("not added back");
 
+    // 명시적 빼기 — 훅 핸들러는 고쳤어도 뺀다(스크립트 참조라 남기면 죽은 참조, N-f)
+    install({ keyExclude: [HOOK] });
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
     install();
-    expect(commands("SessionStart")).toEqual([]);
-    expect(log().excluded).toContain("settings:hooks.SessionStart#session-start.sh");
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
+    expect(log().excluded).toContain(HOOK);
   });
 
   it("옛 판이 절대경로로 박은 하네스 훅을 알아본다 — 같은 훅을 두 번 부르지 않는다 (PR-1 인계 ①)", () => {
@@ -478,17 +484,42 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
     expect(report.mcpServers).not.toContain("context7");
   });
 
-  it("설치자가 지운 하네스 서버는 다음 install 이 되살리지 않는다", () => {
+  it("손으로 지운 하네스 서버는 다음 install 이 되돌린다 — 손으로 지운 것은 빼기가 아니다(ADR-099 R1)", () => {
     install();
     const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, unknown> };
     expect(mcp.mcpServers.context7).toBeDefined();
     delete mcp.mcpServers.context7;
     write(".mcp.json", JSON.stringify(mcp, null, 2));
 
-    install();
+    const { screen } = install();
 
-    expect((JSON.parse(read(".mcp.json")) as typeof mcp).mcpServers.context7).toBeUndefined();
-    expect(log().excluded).toContain("mcp:context7");
+    expect((JSON.parse(read(".mcp.json")) as typeof mcp).mcpServers.context7).toBeDefined();
+    expect(log().excluded ?? []).not.toContain("mcp:context7");
+    expect(screen).toContain("was missing — restored: mcp:context7");
+  });
+
+  it("`--without mcp:<name>` 은 기록 sha 와 같은 서버만 빼고 고친 서버는 남기고 알린다 · 다음 install 도 지킨다 · `--with` 로만 돌아온다", () => {
+    install();
+    const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> };
+    mcp.mcpServers.github = { ...mcp.mcpServers.github, env: { MINE: "1" } };
+    write(".mcp.json", JSON.stringify(mcp, null, 2));
+
+    const { screen } = install({ keyExclude: ["mcp:context7", "mcp:github"] });
+
+    const servers = () =>
+      (JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> })
+        .mcpServers;
+    expect(servers().context7).toBeUndefined(); // 기록 sha 그대로 — 뺐다
+    expect(servers().github?.env).toEqual({ MINE: "1" }); // 고쳤다 — 남겼다
+    expect(screen).toContain("kept yours: github");
+    expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:github"]));
+
+    install();
+    expect(servers().context7).toBeUndefined();
+
+    install({ releaseExclude: ["mcp:context7"] });
+    expect(servers().context7).toBeDefined();
+    expect(log().excluded).not.toContain("mcp:context7");
   });
 
   it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {

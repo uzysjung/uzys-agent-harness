@@ -2,13 +2,13 @@ import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, join, relative, resolve } from "node:path";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
-import { isBaselineExcluded } from "./baseline-targets.js";
+import { classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { gitignoreRender, writeEnvExample } from "./env-files.js";
-import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
+import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
@@ -26,9 +26,11 @@ import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
   type InstallLog,
+  type InstallLogAsset,
   type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
+  legacyDroppedKeys,
   mergeExternalFiles,
   readInstallLog,
   writeInstallLog,
@@ -36,7 +38,6 @@ import {
 import {
   composeWriterLog,
   createInstallWriter,
-  cumulativeExcluded,
   GITIGNORE_NOTE_PREFIX,
   type InstallWriter,
   type JudgedWrite,
@@ -46,6 +47,7 @@ import {
   renderSettingsPortion,
   type SharedWrite,
   type WriteLedger,
+  withRecordedExclusions,
 } from "./install-writes.js";
 import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
@@ -58,6 +60,7 @@ import {
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
+import type { SharedWriteResult } from "./shared-write.js";
 import { type InstallSpec, type OptionFlags, resolveScope, type Track } from "./types.js";
 import { runUpdateMode, type UpdateModeReport } from "./update-mode.js";
 
@@ -223,6 +226,16 @@ export interface BaselineReport {
   /** `baselineExcluded` 중 **디스크에 그대로 남은** 것 (`add`·`reinstall`). 화면이 이걸 표시한다. */
   baselineExcludedOnDisk: string[];
   /**
+   * ADR-099 R3 — 설치자가 뺐는데(누적 `excluded`) 앞 설치가 놓은 것이 그대로 있는 id. 하네스는 지우지 않는다 — 화면이
+   * id 마다 한 줄로 그 사실과 할 일을 말한다. 카탈로그 자산(`log.assets`)만 `uninstall --only <id>` 를 받는다.
+   */
+  excludedStillThere?: ExcludedStillThere[];
+  /**
+   * ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 하네스 키 중 이번 실행이 실제로 되살린 것(키 id). 기록만 풀고
+   * 되살리지 않았으면 비어 있다 — 화면은 되살린 실행에서만 말한다.
+   */
+  legacyRestored?: string[];
+  /**
    * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
    * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
    */
@@ -292,6 +305,13 @@ export interface InstallReport {
   baselineExcluded: string[];
   /** `baselineExcluded` 중 디스크에 남은 것. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineExcludedOnDisk: string[];
+  /** ADR-099 R3 — 뺐는데 그대로 있는 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
+  excludedStillThere?: ExcludedStillThere[];
+  /**
+   * ADR-099 R5 — 옛 판이 "설치자가 뺐다" 로 자동 기록했던 하네스 키 중 이번 실행이 실제로 되살린 것(키 id). 기록만 풀고
+   * 되살리지 않았으면 비어 있다 — 화면은 되살린 실행에서만 말한다.
+   */
+  legacyRestored?: string[];
   /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineForeignOwned: string[];
   /** #524 — 링크를 통해 공유 본문을 갱신한 스킬 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
@@ -337,7 +357,7 @@ export interface InstallReport {
  *   update 단축 / claude baseline / CLI transforms / external / install log.
  */
 export function runInstall(ctx: InstallContext): InstallReport {
-  const { harnessRoot, projectDir, spec } = ctx;
+  const { harnessRoot, projectDir } = ctx;
   const mode: InstallMode = ctx.mode ?? "fresh";
   const templatesDir = join(harnessRoot, "templates");
 
@@ -383,18 +403,16 @@ export function runInstall(ctx: InstallContext): InstallReport {
     );
   }
 
-  const manifestSpec = buildManifestSpec(spec);
-
-  // 위저드 3단계에서 사용자가 **해제한** 트랙 자산. 비어 있으면(기본) 아무것도 안 거른다.
-  const baselineExcluded = new Set(spec.baselineExclude ?? []);
-
   // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
   // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다. 설치자가 뺀 것은 누적한다(설계 §6.2 ⓒ).
-  const excluded = cumulativeExcluded(
-    previousLog,
-    [...baselineExcluded, ...(spec.userOverride?.forceExclude ?? [])],
-    spec.userOverride?.forceInclude ?? [],
-  );
+  // ADR-099 R3 — 누적한 빼기는 **선택에도** 걸린다: 이 아래 모든 선택(베이스라인 · 번들 스킬 · 외부 자산 · 기록)은
+  // 이번 플래그가 아니라 누적 결과를 담은 spec 을 읽는다. 전에 뺀 것은 `--with <id>` 로만 돌아온다.
+  const { spec, excluded } = withRecordedExclusions(ctx.spec, previousLog);
+  const runCtx: InstallContext = { ...ctx, spec };
+  const manifestSpec = buildManifestSpec(spec);
+
+  // 설치자가 **뺀** 트랙 자산(위저드 해제 · `--without baseline:…` — 누적). 비어 있으면 아무것도 안 거른다.
+  const baselineExcluded = new Set(spec.baselineExclude ?? []);
   // #614 — 읽을 수 없는 settings.json 은 함께 쓰는 파일이다: 하네스 몫을 얹을 수 없으니 건드리지 않고(`--reinstall`
   // 포함 — #574 와 같은 원칙) 훅이 배선되지 않았다는 사실과 할 일을 알리며 비정상 종료한다. 아무것도 쓰기 전에 멈춘다.
   if (spec.cli.includes("claude")) {
@@ -450,10 +468,9 @@ export function runInstall(ctx: InstallContext): InstallReport {
     externalBackedUp: _externalBackedUp,
     externalForeignOwned,
     externalOutside,
-    sharedFiles: _sharedFiles,
+    sharedFiles: cliSharedFiles,
     portions: cliPortions,
     portionPaths: cliPortionPaths,
-    deletedKeyIds: cliDeletedIds,
     ...cliTransforms
   } = runCliTransforms({
     harnessRoot,
@@ -501,7 +518,6 @@ export function runInstall(ctx: InstallContext): InstallReport {
     ...writerLedger,
     portions: [...writerLedger.portions, ...cliPortions],
     portionPaths: [...writerLedger.portionPaths, ...cliPortionPaths],
-    deletedIds: [...writerLedger.deletedIds, ...cliDeletedIds],
   };
 
   const baseline: BaselineReport = {
@@ -527,6 +543,8 @@ export function runInstall(ctx: InstallContext): InstallReport {
     shared: ledger.shared,
     baselineExcluded: base.excluded,
     baselineExcludedOnDisk: base.excludedOnDisk,
+    excludedStillThere: excludedStillThere(projectDir, excluded, base.excludedOnDisk, previousLog),
+    legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
     baselineForeignOwned: [
       ...new Set([...base.foreignOwned, ...externalForeignOwned, ...linked.foreignOwned]),
@@ -540,12 +558,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
   ctx.onProgress?.({ type: "baseline-complete", baseline });
 
   // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
-  const external = runExternalPhase(ctx);
+  const external = runExternalPhase(runCtx);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // #551 PR-3 — 쓰기 = 기록. 이번 실행이 쓴 경로·sha 를 옛 기록 위에 누적한다(디스크 스캔 없음).
   writeInstallLogSafe(
-    ctx,
+    runCtx,
     // 링크 본문의 기준선도 같은 필드다 — 같은 경로면 뒤(이번에 쓴 값)가 이긴다.
     [...externalFiles, ...linked.files],
     external,
@@ -633,6 +651,71 @@ function runUpdateInstall(
  * OptionFlags.withTauri/withUzysHarness boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
+/** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번 쓰기가 실제로 파일에 넣은 것. */
+export function legacyRestored(
+  previousLog: InstallLog | null,
+  writer: ReadonlyArray<SharedWrite>,
+  cli: ReadonlyArray<SharedWriteResult>,
+): string[] {
+  const dropped = new Set(legacyDroppedKeys(previousLog));
+  if (dropped.size === 0) return [];
+  const written = [
+    ...writer.flatMap((w) => [...w.restored, ...w.addedIds]),
+    ...cli.flatMap((r) => [...r.restored, ...r.added]),
+  ];
+  return [...new Set(written.filter((id) => dropped.has(id)))];
+}
+
+/** ADR-099 R3 — 뺐는데 앞 설치가 놓은 것이 그대로 있는 id 하나. `catalog` = 외부 자산(`uninstall --only` 를 받는다). */
+export interface ExcludedStillThere {
+  id: string;
+  catalog: boolean;
+}
+
+/**
+ * ADR-099 R3 — 누적 `excluded` 중 앞 설치가 놓은 것이 아직 있는 것. 하네스는 빼기를 이유로 지우지 않으므로(체크 해제 ≠
+ * 제거) 화면이 말해야 한다: baseline 은 디스크에 남은 대상, 번들 스킬은 스킬 자리, 카탈로그 자산은 설치 기록.
+ */
+function excludedStillThere(
+  projectDir: string,
+  excluded: ReadonlySet<string>,
+  baselineOnDisk: ReadonlyArray<string>,
+  previousLog: InstallLog | null,
+): ExcludedStillThere[] {
+  const out: ExcludedStillThere[] = [];
+  const add = (id: string, catalog: boolean): void => {
+    if (!out.some((e) => e.id === id)) out.push({ id, catalog });
+  };
+  for (const target of baselineOnDisk) {
+    const t = classifyBaselineTarget(target);
+    if (t !== null) add(t.id, false);
+  }
+  for (const id of excluded) {
+    if (INTERNAL_BUNDLED_SKILL_IDS.includes(id)) {
+      const there = [".claude/skills", ".agents/skills"].some((d) =>
+        existsSync(join(projectDir, d, id)),
+      );
+      if (there) add(id, false);
+    } else {
+      const asset = previousLog?.assets.find((a) => a.id === id);
+      if (asset !== undefined && assetStillThere(projectDir, asset)) add(id, true);
+    }
+  }
+  return out;
+}
+
+/**
+ * 기록된 외부 자산이 아직 이 프로젝트에 있는가 — 프로젝트 스킬은 디스크로 본다(도구가 놓은 파일 기록 #573, 없으면 스킬
+ * 자리). 플러그인 · npm 같은 프로젝트 밖 자산은 디스크로 알 수 없어 기록을 따른다.
+ */
+function assetStillThere(projectDir: string, asset: InstallLogAsset): boolean {
+  if (asset.method !== "skill" || asset.scope === "global") return true;
+  if (asset.files !== undefined)
+    return asset.files.some((f) => existsSync(join(projectDir, f.path)));
+  const dir = asset.detail.skill ?? asset.id;
+  return [".claude/skills", ".agents/skills"].some((d) => existsSync(join(projectDir, d, dir)));
+}
+
 export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
   // derive 본체는 `manifest.ts` 의 `buildAssetSpec` 하나다 (#320) — 계측 경로가 같은 것을 부른다.
   // 여기 다시 조립하면 그 순간 사본이 둘이 되고, 그게 #320 의 원인이었다.

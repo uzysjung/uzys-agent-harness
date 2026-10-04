@@ -7,7 +7,7 @@
  *     첫 접촉(기록 없음 + 다른 내용) · 설치자가 고친 파일 · sha 없는 옛 기록은 **그 파일 하나**를
  *     `<file>.backup-<ts>` 로 남기고 최신판을 쓴다. 폴더 단위 백업·이동은 없다.
  *   - **함께 쓰는 파일** — 어댑터(`src/adapters/`)로 하네스 몫만 더하고 바꾼다. 읽지 못하면 한 바이트도 쓰지
- *     않고 남긴다(#574). 설치자가 지운 하네스 키는 되살리지 않고 `excluded` 로 옮긴다(R2).
+ *     않고 남긴다(#574). 기록에 있는데 사라진 하네스 키는 되돌린다(ADR-099 R1 — 빼기는 `--without` · 위저드로만).
  *
  * 기록은 여기서 모으고 `composeWriterLog` 가 옛 기록 위에 **누적**한다(`mergeExternalFiles` 규칙 — 디스크에서
  * 사라진 항목만 뺀다). 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 는 처음 쓸 때 소유 필터를 한 번
@@ -16,8 +16,9 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
-import { ADAPTERS, excludedKeys, keyId, SHARED_FILES } from "./adapters/index.js";
+import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters/index.js";
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
+import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
@@ -33,6 +34,7 @@ import { RETIRED_PATHS } from "./manifest.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { excludedIds, type RecordedOptions, recorded } from "./recorded.js";
+import type { InstallSpec } from "./types.js";
 
 const CLAUDE_DIR = ".claude/";
 const SKILLS_DIR = ".claude/skills/";
@@ -64,8 +66,13 @@ export interface SharedWrite {
   added: string[];
   /** 설치자 값이 이겨 하네스 판을 쓰지 않은 키. */
   kept: string[];
-  /** 기록에 있는데 파일에 없던 키 — 설치자가 지웠다. 되살리지 않고 `excluded` 에 적었다(키 id). */
-  deleted: string[];
+  /**
+   * 기록에 있는데 파일에 없어 이번에 되돌린 하네스 키 — **키 id**(`mcp:github`). 화면이 `was missing — restored` 와
+   * 영구히 빼는 명령(`--without <id>`)을 함께 말한다(ADR-099 R1 · §4).
+   */
+  restored: string[];
+  /** `added` 의 키 id — 옛 판이 뺀 것으로 적었던 키를 되살렸는지(R5) 가른다. */
+  addedIds: string[];
 }
 
 export interface WriteLedger {
@@ -83,8 +90,6 @@ export interface WriteLedger {
   portions: InstallLogPortion[];
   /** `portions` 를 새로 적은 경로 — 누적 때 옛 몫을 이 경로만 갈아 끼운다. */
   portionPaths: string[];
-  /** 설치자가 지운 하네스 키 id(`mcp:github` …) — `excluded` 에 더한다. */
-  deletedIds: string[];
   /** 만든 백업 파일의 절대경로. */
   backups: string[];
   judged: JudgedWrite[];
@@ -135,7 +140,6 @@ export function createInstallWriter(args: {
   const rootFiles: InstallLogRootFile[] = [];
   const portions: InstallLogPortion[] = [];
   const portionPaths: string[] = [];
-  const deletedIds: string[] = [];
   const backups: string[] = [];
   const judged: JudgedWrite[] = [];
   const shared: SharedWrite[] = [];
@@ -246,7 +250,8 @@ export function createInstallWriter(args: {
         harness: [],
         added: [],
         kept: [],
-        deleted: [],
+        restored: [],
+        addedIds: [],
         ...extra,
       };
       shared.push(out);
@@ -262,7 +267,6 @@ export function createInstallWriter(args: {
       disk,
       next: null,
       adapter: file.adapter,
-      hasPortions: own.size > 0,
     });
     if (j.verdict === "leave+advise") return result(j.verdict, j.line); // #574 — 한 바이트도 안 쓴다
     const rec =
@@ -283,12 +287,19 @@ export function createInstallWriter(args: {
     for (const [key, sha256] of res.portions) {
       portions.push({ path, adapter: file.adapter, key, sha256 });
     }
-    const deleted = res.deleted.flatMap((k) => keyId(path, k) ?? []);
-    deletedIds.push(...deleted);
+    // 되돌린 키 — 어댑터가 되돌린 것 + 파일째 없어 새로 만들 때 다시 들어간 기록된 키
+    const restoredKeys = new Set([
+      ...res.restored,
+      ...(disk === null ? [...res.portions.keys()].filter((k) => rec.has(k)) : []),
+    ]);
+    const restored = [...restoredKeys].flatMap((k) => keyId(path, k) ?? []);
     if (j.record === "created") {
       rootFiles.push({ path, change: "created", notes: [opts.createdNote ?? "하네스 몫만"] });
     }
-    const valueKeys = [...res.portions.keys()].filter((k) => !isContainerKey(k));
+    // 파일에 있는 몫만 — 기록 sha 만 이은 키(`missing`)는 파일에 없다
+    const absent = new Set(res.missing);
+    const valueKeys = [...res.portions.keys()].filter((k) => !isContainerKey(k) && !absent.has(k));
+    const addedKeys = valueKeys.filter((k) => !rec.has(k));
     // 바뀐 것이 없으면 "썼다" 고 하지 않는다 — 하네스 몫이 이미 있거나, 설치자 것이 그 자리를 다 채웠다
     const line = res.changed
       ? j.line
@@ -298,9 +309,10 @@ export function createInstallWriter(args: {
     return result(j.verdict, line, {
       changed: res.changed,
       harness: names(valueKeys),
-      added: names(valueKeys.filter((k) => !rec.has(k))),
+      added: names(addedKeys),
       kept: names(res.kept),
-      deleted: deleted.map((id) => id.slice(file.prefix.length)),
+      restored,
+      addedIds: addedKeys.flatMap((k) => keyId(path, k) ?? []),
     });
   }
 
@@ -316,7 +328,6 @@ export function createInstallWriter(args: {
       rootFiles: [...rootFiles],
       portions: [...portions],
       portionPaths: [...portionPaths],
-      deletedIds: [...deletedIds],
       backups: [...backups],
       judged: [...judged],
       shared: [...shared],
@@ -334,8 +345,8 @@ function toFiles(m: ReadonlyMap<string, string>): InstallLogSkillFile[] {
  * ──────────────────────────────────────────────────────────────────────────── */
 
 /**
- * 이번 실행 뒤의 `excluded`. 옛 기록(`excluded` + 옛 두 필드의 합집합) ∪ 이번 `--without` ∪ 설치자가 지운 키
- * − 이번 `--with`. 어느 실행도 이 목록을 새로 계산해 덮지 않는다.
+ * 이번 실행 뒤의 `excluded`. 옛 기록(`excluded` + 옛 두 필드의 합집합) ∪ 이번 `--without` − 이번 `--with`.
+ * 어느 실행도 이 목록을 새로 계산해 덮지 않고, 설치자가 명시하지 않은 것은 더하지 않는다(ADR-099 R1).
  */
 export function cumulativeExcluded(
   previous: InstallLog | null,
@@ -345,6 +356,48 @@ export function cumulativeExcluded(
   const out = new Set([...excludedIds(previous), ...add]);
   for (const id of remove) out.delete(id);
   return out;
+}
+
+/**
+ * ADR-099 R3 — 기록된 빼기를 **선택에도** 건다. 이번 플래그(`--without` 더하기 · `--with` 빼기)를 기록의 누적 `excluded` 에
+ * 얹고, 그 결과를 spec 의 선택 입력(`baselineExclude` · `userOverride.forceExclude`)으로 되돌려 쓴다 — 그래서 베이스라인 ·
+ * 번들 스킬 · 외부 자산을 고르는 모든 독자가 spec 하나만 읽고도 누적을 따른다(새 독자를 따로 두지 않는다).
+ *
+ * 같은 spec 에 다시 걸어도 결과가 같다(누적에 누적을 얹어도 같은 집합) — 화면 머리글과 설치 파이프라인이 각자 불러도 된다.
+ */
+export function withRecordedExclusions(
+  spec: InstallSpec,
+  previous: InstallLog | null,
+): { spec: InstallSpec; excluded: Set<string> } {
+  const add = [
+    ...(spec.baselineExclude ?? []),
+    ...(spec.userOverride?.forceExclude ?? []),
+    ...(spec.keyExclude ?? []),
+  ];
+  // 같은 id 가 양쪽에 오면 빼기가 이긴다(`forceExclude > forceInclude` — 명령은 R6 로 이 상태를 미리 거절한다)
+  const adding = new Set(add);
+  const release = [...(spec.userOverride?.forceInclude ?? []), ...(spec.releaseExclude ?? [])];
+  const excluded = cumulativeExcluded(
+    previous,
+    add,
+    release.filter((id) => !adding.has(id)),
+  );
+  const baselineExclude = [...excluded].filter((id) => id.startsWith(BASELINE_PREFIX));
+  const forceExclude = [...excluded].filter(
+    (id) => !id.startsWith(BASELINE_PREFIX) && !isKeyId(id),
+  );
+  const forceInclude = spec.userOverride?.forceInclude ?? [];
+  const { baselineExclude: _b, userOverride: _u, ...rest } = spec;
+  return {
+    spec: {
+      ...rest,
+      ...(forceInclude.length > 0 || forceExclude.length > 0
+        ? { userOverride: { forceInclude: [...forceInclude], forceExclude } }
+        : {}),
+      ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
+    },
+    excluded,
+  };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -405,7 +458,7 @@ export function composeWriterLog(args: {
     ...(previous?.portions ?? []).filter((p) => !touched.has(p.path)),
     ...ledger.portions,
   ];
-  const excluded = [...new Set([...args.excluded, ...ledger.deletedIds])];
+  const excluded = [...args.excluded];
   const log: InstallLog = { ...base, records: "writer" };
   delete log.policyFiles;
   delete log.skillFiles;

@@ -327,13 +327,15 @@ describe("judge — harness 파일(설계 §1.2 표)", () => {
 describe("judge — 함께 쓰는 파일(설계 §1.2 shared 행)", () => {
   const base = { kind: "shared" as const, rec: NONE, next: "{}\n", adapter: "json-keys" as const };
 
-  it("디스크 없음: install 은 create · update 는 기록에 키가 있으면 만들지 않고 excluded 로(Q4) · 없으면 create · remove 는 할 것 없음", () => {
-    expect(judge({ ...base, op: "write", disk: null, run: "install" }).verdict).toBe("create");
-    const deleted = judge({ ...base, op: "write", disk: null, run: "update", hasPortions: true });
-    expect([deleted.verdict, deleted.record]).toEqual(["leave", "exclude-portions"]);
-    expect(
-      judge({ ...base, op: "write", disk: null, run: "update", hasPortions: false }).verdict,
-    ).toBe("create");
+  it("디스크 없음: write 는 install · update 모두 create(파일째 사라진 것도 빼기가 아니다 — ADR-099) · remove 는 할 것 없음", () => {
+    expect(judge({ ...base, op: "write", disk: null, run: "install" })).toMatchObject({
+      verdict: "create",
+      record: "created",
+    });
+    expect(judge({ ...base, op: "write", disk: null, run: "update" })).toMatchObject({
+      verdict: "create",
+      record: "created",
+    });
     expect(judge({ ...base, op: "remove", disk: null }).verdict).toBe("leave");
   });
 
@@ -390,7 +392,7 @@ describe("judge — advisory(스캐폴드 · 도구 산출물)", () => {
 });
 
 describe("judge — R2 · R3 (배선 전이라 판정 수준에서)", () => {
-  it("R2 — 설치자가 지운 하네스 키는 excluded 로 가고 다음 update 에도 돌아오지 않는다", () => {
+  it("ADR-099 R1 — 손으로 지운 하네스 키는 되돌린다 · 설치자가 뺀(excluded) 키만 돌아오지 않는다", () => {
     const path = ".mcp.json";
     const render = new Map<string, unknown>([["mcpServers.github", { command: "gh" }]]);
     const first = jsonKeysAdapter.upsert("{}", {
@@ -407,22 +409,26 @@ describe("judge — R2 · R3 (배선 전이라 판정 수준에서)", () => {
       excluded: new Set(),
     });
     if (!second.ok) throw new Error("unexpected");
-    expect(second.deleted).toEqual(["mcpServers.github"]);
-    expect(second.text).toBe(afterDelete); // 되살리지 않았다
-    const excluded = second.deleted.map((k) => keyId(path, k));
-    expect(excluded).toEqual(["mcp:github"]);
-    // 두 번째 update — 기록에서 빠진 키를 "신규"로 읽어 되살리지 않는다(excluded 가 막는다)
+    expect(second.restored).toEqual(["mcpServers.github"]);
+    expect(second.text).toBe(first.text); // 되돌렸다
+    expect(second.restored.map((k) => keyId(path, k))).toEqual(["mcp:github"]);
+    // 설치자가 `--without mcp:github` 로 뺐다 — 파일에서 걷히고(기록 sha 그대로) 다음 실행도 되살리지 않는다
+    const out = excludedKeys(path, ["mcp:github"]);
     const third = jsonKeysAdapter.upsert(second.text, {
       render,
       recorded: second.portions,
-      excluded: excludedKeys(
-        path,
-        excluded.filter((x): x is string => x !== null),
-      ),
+      excluded: out,
     });
     if (!third.ok) throw new Error("unexpected");
-    expect(third.text).toBe(afterDelete);
-    expect(third.deleted).toEqual([]);
+    expect(JSON.parse(third.text).mcpServers?.github).toBeUndefined();
+    const fourth = jsonKeysAdapter.upsert(third.text, {
+      render,
+      recorded: third.portions,
+      excluded: out,
+    });
+    if (!fourth.ok) throw new Error("unexpected");
+    expect(fourth.text).toBe(third.text);
+    expect(fourth.restored).toEqual([]);
   });
 
   it("R3 — 첫 접촉으로 비켜 둔 설치자 파일은 하네스가 떠난 뒤 제자리다", () => {

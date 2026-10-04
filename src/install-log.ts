@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isKeyId } from "./adapters/shared-files.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
 import {
   type ExternalAsset,
@@ -262,6 +263,12 @@ export interface InstallLog {
    * (`excludedIds`, `src/recorded.ts`).
    */
   excluded?: ReadonlyArray<string>;
+  /**
+   * ADR-099 R5 — 옛 판(v26.162.0–26.163.0)이 `excluded` 에 자동으로 적은 것을 한 번 정리했다는 표시. 이 판은 기록을
+   * 읽는 순간 정리하고(`migrateExcluded`) 쓸 때 이 표시를 남긴다 — 표시가 있는 기록은 다시 정리하지 않는다(그 뒤
+   * `--without <키 id>` 로 명시한 빼기를 지우지 않기 위해서다). `log.version` 은 update 가 갱신하지 않아 쓸 수 없다.
+   */
+  excludedKeysMigrated?: true;
   /**
    * #551 (ADR-097 Q1) — 새 판(쓰는 순간 기록하는 writer)이 이 로그를 처음 쓸 때 적는 표시. 있으면
    * 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 에 거는 소유 필터를 더는 적용하지 않는다.
@@ -665,7 +672,9 @@ export function collectPolicyHashes(
 export function writeInstallLog(projectDir: string, log: InstallLog): string {
   const path = installLogPath(projectDir);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(log, null, 2)}\n`, "utf8");
+  // ADR-099 R5 — 이 판이 쓰는 기록은 모두 읽을 때 정리된 것(`migrateExcluded`)이거나 새 기록이다 — 표시를 남긴다
+  const marked: InstallLog = { ...log, excludedKeysMigrated: true };
+  writeFileSync(path, `${JSON.stringify(marked, null, 2)}\n`, "utf8");
   migrateAwayLegacyLog(projectDir);
   return path;
 }
@@ -724,7 +733,53 @@ export function readInstallLogStatus(projectDir: string): InstallLogStatus {
       (a.method as string) === "npm-global" ? { ...a, method: "npm" } : a,
     );
   }
-  return { status: "ok", log };
+  const migrated = migrateExcluded(log);
+  if (migrated.droppedKeys.length > 0) LEGACY_DROPPED.set(migrated.log, migrated.droppedKeys);
+  return { status: "ok", log: migrated.log };
+}
+
+/** 읽은 기록 → 그 기록을 읽을 때 R5 가 `excluded` 에서 지운 키 id. 기록 파일에는 남지 않는다(화면용). */
+const LEGACY_DROPPED = new WeakMap<InstallLog, ReadonlyArray<string>>();
+
+/**
+ * ADR-099 R5 — 이 기록을 읽을 때 옛 판의 자동 추론분이라 `excluded` 에서 지운 키 id. 이번 실행이 그 키를 실제로 되살렸는지
+ * 화면이 가르는 데만 쓴다(`↺ restored N harness part(s) an earlier version had marked as removed`).
+ */
+export function legacyDroppedKeys(log: InstallLog | null): ReadonlyArray<string> {
+  return log === null ? [] : (LEGACY_DROPPED.get(log) ?? []);
+}
+
+/**
+ * ADR-099 R5 — 옛 판(v26.162.0–26.163.0)이 굳힌 `excluded` 를 한 번 푼다. 표시(`excludedKeysMigrated`)가 있으면 그대로.
+ *
+ * - **키 id**(`SHARED_FILES` 접두 전부)는 지운다 — `--without` 이 키 id 를 받은 판은 없으므로(설계 G1) 표시 없는 기록의
+ *   키 id 는 전부 "기록에 있는데 파일에 없다" 의 자동 추론이다.
+ * - **baseline id** 는 `spec.baselineExclude`(마지막 설치의 플래그)에 있는 것만, **번들 스킬 id** 는 `spec.skillExclude` 에
+ *   있는 것만 남긴다 — 그 판들은 기록만 누적하고 선택은 이번 플래그만 읽었다. 뺀 뒤 플래그 없이 다시 깐 설치자의
+ *   마지막 선택은 "깔기" 다.
+ * - 그 밖(카탈로그 자산 id 등)은 그대로 둔다. 설계는 "`log.assets` 에 깔렸다고 적힌 카탈로그 id 를 지운다" 지만
+ *   `log.assets` 는 누적이라(`mergeAssets`) 전에 깔았다가 마지막 설치에서 `--without` 으로 뺀 자산도 거기 있다 — 기록으로는
+ *   둘을 가를 수 없어 이 판은 손대지 않는다(구현 보고에 결정 대기로 올림).
+ */
+export function migrateExcluded(log: InstallLog): { log: InstallLog; droppedKeys: string[] } {
+  if (log.excludedKeysMigrated === true) return { log, droppedKeys: [] };
+  const baseline = new Set(log.spec.baselineExclude ?? []);
+  const skills = new Set(log.spec.skillExclude ?? []);
+  const droppedKeys: string[] = [];
+  const kept: string[] = [];
+  for (const id of log.excluded ?? []) {
+    if (isKeyId(id)) {
+      droppedKeys.push(id);
+      continue;
+    }
+    if (id.startsWith("baseline:") && !baseline.has(id)) continue;
+    if (BUNDLED_SKILL_IDS.has(id) && !skills.has(id)) continue;
+    kept.push(id);
+  }
+  const next: InstallLog = { ...log, excludedKeysMigrated: true };
+  if (kept.length > 0) next.excluded = kept;
+  else delete next.excluded;
+  return { log: next, droppedKeys };
 }
 
 /**

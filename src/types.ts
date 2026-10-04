@@ -136,4 +136,15 @@ export interface InstallSpec {
    * 비어 있거나 없으면 트랙이 고른 것을 전부 깐다 — 즉 **기본 동작은 그대로**다.
    */
   baselineExclude?: ReadonlyArray<string>;
+  /**
+   * ADR-099 R4 — `--with` 로 받은 id 중 **기록된 빼기를 푸는 것만** 하는 것: `baseline:<kind>/<name>` 과 함께 쓰는
+   * 파일의 키 id(`mcp:github`). 카탈로그·번들 스킬 id 는 `userOverride.forceInclude` 로 간다. install 이
+   * `excluded` 에서 뺀다(`cumulativeExcluded`).
+   */
+  releaseExclude?: ReadonlyArray<string>;
+  /**
+   * ADR-099 R4 — `--without` 으로 받은 함께 쓰는 파일의 키 id(`mcp:github` · `settings:statusLine`). install 이
+   * `excluded` 에 더하고, 그 키는 기록 sha 와 같을 때만 파일에서 걷는다.
+   */
+  keyExclude?: ReadonlyArray<string>;
 }

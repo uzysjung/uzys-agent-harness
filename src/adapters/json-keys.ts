@@ -346,9 +346,19 @@ export const jsonKeys: PortionAdapter<unknown> = {
     for (const k of plan.remove) deleteKey(root, k, claudeDir, owned.has(k));
     for (const k of plan.replace) writeKey(root, k, render.get(k), created, claudeDir);
     const kept = [...plan.kept];
+    const restored = [...plan.restored];
+    const missing = [...plan.missing];
     for (const k of plan.add) {
       if (!writeKey(root, k, render.get(k), created, claudeDir)) {
-        plan.portions.delete(k);
+        // 컨테이너 모양이 달라 못 썼다 — 기록에 있던 키면 그 sha 를 잇는다(되돌릴 근거, ADR-099 R1)
+        const prior = recordedValues.get(k);
+        if (prior === undefined) plan.portions.delete(k);
+        else {
+          plan.portions.set(k, prior);
+          missing.push(k);
+        }
+        const r = restored.indexOf(k);
+        if (r >= 0) restored.splice(r, 1);
         kept.push(k);
       }
     }
@@ -365,7 +375,8 @@ export const jsonKeys: PortionAdapter<unknown> = {
       text: changed ? serialize(root) : (existing ?? ""),
       changed,
       portions: plan.portions,
-      deleted: plan.deleted,
+      restored,
+      missing,
       kept,
     };
   },

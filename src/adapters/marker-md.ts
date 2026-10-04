@@ -94,7 +94,8 @@ export const markerMd: PortionAdapter<string> = {
       text,
       changed: fresh || text !== base,
       portions: plan.portions,
-      deleted: plan.deleted,
+      restored: plan.restored,
+      missing: plan.missing,
       kept: plan.kept,
     };
   },
