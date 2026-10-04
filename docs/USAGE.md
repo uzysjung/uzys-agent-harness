@@ -125,7 +125,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode) w
 | `.claude/agents/*.md` | `reviewer` always; `implementer` on dev tracks; `data-analyst` on `data`/`full`; `strategist` on `executive`/`full` |
 | `.claude/hooks/*.sh` | Two hooks: `session-start.sh`, `protect-files.sh` — see [Hooks](#hooks) |
 | `.claude/skills/<id>/` | The harness's own skills plus the ones your track pre-checked — whole directories, `references/` included |
-| `.claude/settings.json` | Hook registration. Your existing file is backed up first |
+| `.claude/settings.json` | Hook registration, plus a status line that runs the third-party [`@owloops/claude-powerline`](https://www.npmjs.com/package/@owloops/claude-powerline) through `npx`, pinned to a version we checked (a newer release reaches you through a harness release, not on its own). A status line you already have is kept. Merged in place — see *Files you already have* below |
 | `CLAUDE.md` | **Yours.** A fill-in scaffold if it did not exist; otherwise untouched except for one import block at the end |
 | `CLAUDE-uzys-harness.md` | The harness's working-principles anchor. Owned by the harness, rewritten on `update` — keep your notes in `CLAUDE.md` |
 | `.uzys-agent-harness/` | CLI-neutral slot: the install record (`.harness-install.json`), three helper scripts the rules call by name (`protect-branch.sh`, `spec-drift-check.sh`, `check-absence.sh`), and the hook block log written at runtime. Added to `.gitignore` when that file exists |
