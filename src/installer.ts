@@ -288,6 +288,12 @@ export interface InstallReport {
   judged?: JudgedWrite[];
   /** #551 PR-3 — `BaselineReport.shared` 와 같다. */
   shared?: SharedWrite[];
+  /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
+  rootClaudeMd?: {
+    tracks: ReadonlyArray<Track>;
+    created: boolean;
+    seededFrom?: string | null;
+  } | null;
   /** Install mode dispatched (echo of ctx.mode, default "fresh"). */
   mode: InstallMode;
   /** Environment file generation results (always present). */

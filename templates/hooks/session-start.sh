@@ -16,10 +16,18 @@ else
 fi
 
 # 1. SPEC 존재 여부 확인
+SPEC_PATH=""
+for f in "docs/SPEC.md" "SPEC.md"; do
+  if [ -f "$f" ]; then SPEC_PATH="$f"; break; fi
+done
 SPEC_EXISTS="false"
-if [ -f "docs/SPEC.md" ] || [ -f "SPEC.md" ]; then
-  SPEC_EXISTS="true"
-fi
+[ -n "$SPEC_PATH" ] && SPEC_EXISTS="true"
+# #635 — 안내는 감지한 실제 경로로. 루트 SPEC.md 레이아웃에서 docs/SPEC.md 를 안내하면
+# 존재하지 않는 파일을 첫 명령으로 읽게 한다(형제 헬퍼 spec-drift-check 의 first_existing 과 같은 판정).
+CHANGELOG_EXISTS="false"
+for c in "docs/CHANGELOG.md" "CHANGELOG.md"; do
+  if [ -f "$c" ]; then CHANGELOG_EXISTS="true"; break; fi
+done
 
 # 2. 이전 세션이 남긴 고아 프로세스 감지
 #
@@ -104,7 +112,10 @@ fi
 # `hookSpecificOutput.{additionalContext|initialUserMessage}` 다.
 # 조용히 버려지는 출력은 컨텍스트 비용이 0 인 대신 기능도 0 이다.
 if [ "$SPEC_EXISTS" = "true" ]; then
-  MSG="Session started. Branch: $BRANCH. SPEC exists — read docs/SPEC.md first (Persistent Anchor). Check Change Log and current Phase before starting work.${ORPHAN_NOTE}"
+  # #635 — Change Log 안내는 실존할 때만(없으면 매 세션 헛된 조회를 시킨다 — 감지도 안 하던 것).
+  CHANGELOG_NOTE=""
+  [ "$CHANGELOG_EXISTS" = "true" ] && CHANGELOG_NOTE=" Check Change Log and current Phase before starting work."
+  MSG="Session started. Branch: $BRANCH. SPEC exists — read ${SPEC_PATH} first (Persistent Anchor).${CHANGELOG_NOTE}${ORPHAN_NOTE}"
 else
   MSG="Session started. Branch: $BRANCH. No SPEC found.${ORPHAN_NOTE}"
 fi
