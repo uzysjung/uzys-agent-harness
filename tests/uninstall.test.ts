@@ -47,7 +47,9 @@ describe("uninstallAction", () => {
     const exit = vi.fn() as unknown as (code: number) => never;
     uninstallAction({ projectDir: tmpDir }, { log: vi.fn(), err, exit });
     expect(exit).toHaveBeenCalledWith(1);
-    expect(err).toHaveBeenCalledWith(expect.stringContaining("install log not found"));
+    expect(err).toHaveBeenCalledWith(
+      expect.stringContaining(`No harness install found at ${tmpDir}`),
+    );
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

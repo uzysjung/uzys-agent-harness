@@ -50,7 +50,6 @@ import { c, status } from "../design.js";
 import { gitignoreRender } from "../env-files.js";
 import { backupDir, backupFile, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
 import {
-  corruptedInstallLogMessage,
   hashContent,
   INSTALL_LOG_DIR,
   type InstallLog,
@@ -61,7 +60,6 @@ import {
   installLogPath,
   LEGACY_INSTALL_LOG_DIR,
   legacyInstallLogPath,
-  readInstallLogStatus,
   writeInstallLog,
 } from "../install-log.js";
 import { legacyGitignoreSeed } from "../install-writes.js";
@@ -70,6 +68,7 @@ import { isOutsideProject, type OutsideLink, outsideLinkAt } from "../outside-pr
 import { stripHarnessImport } from "../project-claude-merge.js";
 import { excludedIds, kindOf } from "../recorded.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
+import { detectInstallState, reportNotInstalled } from "../state.js";
 import { CLI_BASES, type CliBase, isCliBase, isTrack } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
 import { defaultHarnessRoot } from "./install.js";
@@ -216,16 +215,11 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
   // #640 — 깨진 기록(파싱은 되지만 필수 필드 결번)에서 TypeError 스택트레이스로 죽던 경로.
-  const logStatus = readInstallLogStatus(projectDir);
-  if (logStatus.status === "corrupted") {
-    err(c.red(`ERROR: ${corruptedInstallLogMessage(projectDir)}`));
-    exit(1);
-    return;
-  }
-  const installLog = logStatus.log;
-  if (!installLog) {
-    err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
-    err(c.dim("       Was this project installed by agent-harness? Nothing to uninstall."));
+  // #595 — 판정과 문장은 `list` · `update` 와 같은 함수가 낸다.
+  const detected = detectInstallState(projectDir);
+  const installLog = detected.log;
+  if (detected.state !== "installed" || !installLog) {
+    reportNotInstalled(detected, projectDir, err);
     exit(1);
     return;
   }
@@ -2087,6 +2081,13 @@ export function shouldRunInteractive(options: UninstallOptions, isTty: boolean):
 
 /* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive·lacksRemovalIntent, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
 async function dispatchUninstall(options: UninstallOptions): Promise<void> {
+  // #595 — 설치가 아니면 터미널·플래그를 묻기 전에 `list` · `update` 와 같은 줄로 끝낸다.
+  const projectDir = resolve(options.projectDir ?? process.cwd());
+  const detected = detectInstallState(projectDir);
+  if (detected.state !== "installed") {
+    reportNotInstalled(detected, projectDir, console.error);
+    process.exit(1);
+  }
   // #561 — 터미널 없는 환경(파이프·CI)에서 플래그 없이 실행되면 확인 없이 전량 제거되던
   // 기본값을 거부로 바꾼다. USAGE "Nothing happens until you confirm" 의 비TTY 판이다.
   if (!process.stdin.isTTY && lacksRemovalIntent(options)) {
@@ -2103,7 +2104,7 @@ async function dispatchUninstall(options: UninstallOptions): Promise<void> {
     uninstallAction(options);
     return;
   }
-  await runUninstallScreen(resolve(options.projectDir ?? process.cwd()));
+  await runUninstallScreen(projectDir);
 }
 
 /**
@@ -2130,10 +2131,7 @@ export async function runUninstallScreen(
   const picked = await runInteractiveUninstall(projectDir, opts);
   if (!picked.ok || !picked.options) {
     if (picked.reason === "no-log") {
-      console.error(
-        status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)),
-      );
-      console.error(c.dim("       Nothing installed here by agent-harness."));
+      reportNotInstalled(detectInstallState(projectDir), projectDir, console.error);
       process.exit(1);
     }
     // no-tty 는 위 분기에서 이미 걸러졌고, 나머지(cancelled/nothing-selected)는 정상 종료다.
