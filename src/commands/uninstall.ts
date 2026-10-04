@@ -133,9 +133,31 @@ function outsideTemplateLink(projectDir: string, rel: string): OutsideLink | nul
   return outsideLinkAt(projectDir, rel.replace(/\/+$/, ""));
 }
 
-/** 미리보기와 결과가 같은 줄을 쓴다 — 둘 다 "남김 + 링크 → 대상". */
-function keptOutsideLinkLine(o: OutsideLink): string {
-  return `  ${c.yellow("⊘")} ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}). Not moved, and nothing behind it is removed; clean up harness files there by hand if intended.`;
+/**
+ * 미리보기와 결과가 같은 줄을 쓴다 — 둘 다 "남김 + 링크 → 대상". 링크 아래 기록된 하네스 파일도 댄다(#692 리뷰
+ * NOTE-1): 전량 uninstall 은 같은 실행에서 기록을 지우므로, 설치자가 손으로 정리할 근거는 이 줄뿐이다.
+ */
+function keptOutsideLinkLine(o: OutsideLink, log: InstallLog): string {
+  const head = `  ${c.yellow("⊘")} ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}). Not moved, and nothing behind it is removed`;
+  const files = recordedUnder(log, o.link);
+  if (files.length === 0) return `${head}; clean up harness files there by hand if intended.`;
+  const shown = files.slice(0, KEPT_LINK_FILES_SHOWN).join(" · ");
+  const more =
+    files.length > KEPT_LINK_FILES_SHOWN ? ` +${files.length - KEPT_LINK_FILES_SHOWN} more` : "";
+  return `${head}; harness files there on record: ${shown}${more} — clean them up by hand if intended.`;
+}
+
+const KEPT_LINK_FILES_SHOWN = 3;
+
+/** 기록된 하네스 파일 중 `link` 아래 것(project 상대) — 정책·번들 스킬 기록은 `.claude/` 상대라 접두를 붙인다. */
+function recordedUnder(log: InstallLog, link: string): string[] {
+  const paths = [
+    ...(log.externalFiles ?? []).map((f) => f.path),
+    ...(log.portions ?? []).map((p) => p.path),
+    ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
+    ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
+  ];
+  return [...new Set(paths.filter((p) => p.startsWith(`${link}/`)))].sort();
 }
 
 /** 남긴 링크 폴더 아래 파일은 폴더 줄이 이미 말했다 — 파일마다 다시 말하지 않는다. */
@@ -344,7 +366,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
         harnessRoot,
       );
       for (const m of moved) log(movedAsideLine(projectDir, m.rel, m.backup));
-      for (const o of keptLinks) log(keptOutsideLinkLine(o));
+      for (const o of keptLinks) log(keptOutsideLinkLine(o, installLog));
       // 셋 다 없는 설치(antigravity 단독)도 있다 — 아무 줄도 안 찍으면 templates 를 빠뜨린 것처럼 읽힌다.
       if (recordedTemplateDirs(installLog).length === 0) {
         log(`  ${status.success("templates removed: (none)")}`);
@@ -633,7 +655,7 @@ function dryRunLines(
     const dirs = recordedTemplateDirs(installLog);
     for (const rel of dirs) {
       const kept = outsideTemplateLink(projectDir, rel);
-      if (kept) lines.push(keptOutsideLinkLine(kept));
+      if (kept) lines.push(keptOutsideLinkLine(kept, installLog));
       else if (existsSync(join(projectDir, rel))) lines.push(MOVE_ASIDE_PREVIEW(rel));
     }
     if (dirs.length === 0) lines.push("  ○ remove templates: (none)");
@@ -937,7 +959,7 @@ function removeCliDryRunLines(
   const lines = [c.yellow("[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):"), ""];
   for (const dir of plan.dirs) {
     const kept = outsideTemplateLink(projectDir, dir);
-    if (kept) lines.push(keptOutsideLinkLine(kept));
+    if (kept) lines.push(keptOutsideLinkLine(kept, installLog));
     else if (existsSync(join(projectDir, dir))) lines.push(MOVE_ASIDE_PREVIEW(dir));
   }
   lines.push(...previewExternalLines(plan.scoped, projectDir, harnessRoot));
@@ -1065,7 +1087,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   for (const dir of plan.dirs) {
     const kept = outsideTemplateLink(projectDir, dir);
     if (kept) {
-      io.log(keptOutsideLinkLine(kept));
+      io.log(keptOutsideLinkLine(kept, installLog));
       continue;
     }
     if (!existsSync(join(projectDir, dir))) continue;

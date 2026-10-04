@@ -108,6 +108,10 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(out.text).toContain(
       `⊘ .codex — left as is: the link points outside the project (.codex → ${target})`,
     );
+    // 같은 실행에서 기록이 지워진다 — 링크 아래 남는 하네스 파일을 그 줄이 댄다(리뷰 NOTE-1).
+    expect(out.text).toContain(
+      "harness files there on record: .codex/config.toml · .codex/hooks/session-start.sh — clean them up by hand",
+    );
     // 폴더 줄 하나로 말한다 — 그 아래 파일마다 "kept" 를 다시 늘어놓지 않는다.
     expect(out.text).not.toMatch(/\.codex\/\S* kept/);
     // 일반 폴더는 그대로 옮겨진다.
@@ -177,6 +181,10 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(snapshot(target)).toEqual(before);
     expect(out.text).toContain(
       `⊘ .claude — left as is: the link points outside the project (.claude → ${target})`,
+    );
+    // 정책·번들 스킬 기록(`.claude/` 상대)도 링크 아래 경로로 대고, 많으면 앞 몇 개 + 남은 수로 줄인다.
+    expect(out.text).toMatch(
+      /harness files there on record: \.claude\/\S+ · \.claude\/\S+ · \.claude\/\S+ \+\d+ more/,
     );
     expect(out.text).toContain(
       "left .claude/skills/sk/SKILL.md — link target is outside the project",
