@@ -770,17 +770,17 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     expect(row).toContain("was missing — restored: opencode:mcp.github");
     expect(row).toContain("drop for good: install … --without opencode:mcp.github");
 
-    // 명시적 빼기 — 기록 sha 와 같은 키만 걷고, 다음 설치들이 지킨다
+    // 명시적 빼기 — 기록 sha 와 같은 키만 걷고, update 가 지킨다
     install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github", "agents-md:agents"] });
-    install(["opencode"]);
+    update();
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
     expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("context7");
     expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
     expect(loggedExcluded()).toEqual(
       expect.arrayContaining(["opencode:mcp.github", "agents-md:agents"]),
     );
-    // `--with <키 id>` 로만 돌아온다
-    install(["opencode"], ["tooling"], { releaseExclude: ["opencode:mcp.github"] });
+    // 설계 selection-record §3 — 다음 install 의 입력이 새 선택이다: 하나만 다시 빼면 다른 하나는 돌아온다
+    install(["opencode"], ["tooling"], { keyExclude: ["agents-md:agents"] });
     expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
     expect(loggedExcluded()).toEqual(["agents-md:agents"]);
   });
@@ -815,10 +815,12 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     put(".codex/config.toml", INSTALLER_TOML);
     put("AGENTS.md", INSTALLER_AGENTS);
     install(["codex"]);
-    // 명시적 빼기 — 기록 sha 그대로인 구간 · 블록은 걷힌다
+    // 명시적 빼기 — 기록 sha 그대로인 구간 · 블록은 걷힌다(같은 선택의 재설치도 그대로)
     install(["codex"], ["tooling"], { keyExclude: ["codex:tables", "agents-md:agents"] });
 
-    const report = install(["codex"]);
+    const report = install(["codex"], ["tooling"], {
+      keyExclude: ["codex:tables", "agents-md:agents"],
+    });
 
     const rows = screen(["codex"], report);
     const agents = rows.find((l) => l.includes("AGENTS.md")) ?? "";
@@ -888,9 +890,9 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github"); // 전제
 
     update();
+    update();
 
     expect(loggedExcluded()).toContain("opencode:mcp.github");
-    install(["opencode"]);
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
   });
 

@@ -14,13 +14,14 @@ import { c, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
 import { dirTreesIdentical } from "../fs-ops.js";
 import { installedClis, readInstallLog } from "../install-log.js";
-import { withRecordedExclusions } from "../install-writes.js";
+import { thisRunExclusions } from "../install-writes.js";
 import {
   InstallInterruptedError,
   type InstallReport,
   runInstall as runInstallPipeline,
 } from "../installer.js";
-import { renderedKeyIds } from "../key-ids.js";
+import { renderedKeyIds, withoutAccepts } from "../key-ids.js";
+import { excludedIds } from "../recorded.js";
 import {
   type CliTargets,
   type InstallScope,
@@ -270,7 +271,9 @@ export function installSpecFromOptions(
     ...listBaselineTargets({ tracks: recordTracks }).map((t) => t.id),
   ]);
   const keyIds = (): ReadonlySet<string> => {
-    if (harnessRoot === undefined) return new Set();
+    // 위저드는 하네스 루트를 넘기지 않는다 — 기록에 적힌 키 id(전에 받은 것)만 받는다. 위저드가 아직 해제된 키를 `--without` 으로
+    // 이어 내야 그 install 이 기록의 키 빼기를 조용히 풀지 않는다(설계 selection-record §3 위저드)
+    if (harnessRoot === undefined) return new Set([...excludedIds(record)].filter(isKeyId));
     const clis = [...new Set([...(record ? installedClis(record) : []), ...cli])];
     return renderedKeyIds(harnessRoot, [...new Set([...recordTracks, ...tracks])], clis);
   };
@@ -316,9 +319,8 @@ export function installSpecFromOptions(
   }
   const baselineExclude = forceExclude.filter((id) => baselineIds.has(id));
   const keyExclude = forceExclude.filter((id) => !validIds.has(id) && isRenderedKey(id));
-  const releaseExclude = forceInclude.filter(
-    (id) => !validIds.has(id) && (releasableBaseline.has(id) || isRenderedKey(id)),
-  );
+  // `--with baseline:` · `--with <키 id>` 는 받되(R4) 효과는 "이번 빼기에 없음" 뿐이다 — install 의 선택이 기록을 대체하므로
+  // 따로 실을 것이 없다(설계 selection-record §3).
   const filteredInclude = forceInclude.filter((id) => validIds.has(id));
   const filteredExclude = forceExclude.filter((id) => validIds.has(id));
   const userOverride =
@@ -330,7 +332,6 @@ export function installSpecFromOptions(
     tracks,
     ...(userOverride ? { userOverride } : {}),
     ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
-    ...(releaseExclude.length > 0 ? { releaseExclude } : {}),
     ...(keyExclude.length > 0 ? { keyExclude } : {}),
     // v26.81.0 (ADR-022, BREAKING) — 자산 1:1 boolean 13종 삭제. 자산 선택은 위
     //   userOverride(--with <id>)로 일원화. 잔존 = 설치 동작 옵션만.
@@ -393,17 +394,24 @@ export interface ExecuteSpecDeps {
  * (interactive) action so both have identical post-install output.
  */
 export function executeSpec(requested: InstallSpec, deps: ExecuteSpecDeps = {}): void {
-  // ADR-099 R3 — 기록된 빼기는 이번 설치도 지킨다. 화면(머리글 · 자산 수 · 상주 비용)이 실제로 깔릴 것을 말하도록
-  // 파이프라인과 같은 누적 결과로 그린다(파이프라인도 같은 함수를 다시 걸고, 결과는 같다).
+  const resolveHarnessRoot = deps.resolveHarnessRoot ?? defaultHarnessRoot;
+  // 설계 selection-record §3 — install 의 선택 = 이번 입력(R4 집합 밖은 기록을 이어받는다). 화면(머리글 · 자산 수 · 상주 비용)이
+  // 실제로 깔릴 것을 말하도록 파이프라인과 같은 함수로 그린다(파이프라인도 같은 함수를 다시 걸고, 결과는 같다).
+  const previous = readInstallLog(requested.projectDir);
+  // 이력(`selections[].via`)이 이 선택이 어디서 왔는지 적는다 — 위저드가 고른 spec 은 `RUNS AS` 명령과 같은 것이라(D6) 여기서 단다
+  const tagged: InstallSpec = { ...requested, selectionVia: deps.fromWizard ? "wizard" : "flag" };
   const spec =
     deps.mode === "update"
       ? requested
-      : withRecordedExclusions(requested, readInstallLog(requested.projectDir)).spec;
+      : thisRunExclusions(
+          tagged,
+          previous,
+          withoutAccepts(resolveHarnessRoot(), requested, previous),
+        ).spec;
   const log = deps.log ?? console.log;
   const err = deps.err ?? console.error;
   const exit = deps.exit ?? ((code: number) => process.exit(code) as never);
   const runPipeline = deps.runPipeline ?? defaultRunPipeline;
-  const resolveHarnessRoot = deps.resolveHarnessRoot ?? defaultHarnessRoot;
 
   // v26.63.0 — wizard 모드는 header (TARGET ~ ASSETS) 출력 skip — Step 3/4 에서 이미 표시.
   //   non-interactive (--track ...) 모드는 기존 header 유지 — 사용자 spec 확인 cue 필요.

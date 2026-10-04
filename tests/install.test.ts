@@ -1702,11 +1702,10 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
   });
 
   /**
-   * ADR-099 R4 — `--with baseline:<id>` 는 기록된 빼기를 푸는 지시다(누적 빼기는 `--with` 로만 풀린다). 2026-08-16 의
-   * "조용한 no-op" 은 빼기가 누적되지 않던 때의 판정이었다 — 이제 spec 의 `releaseExclude` 로 간다. 트랙에 없는 id 는
-   * 여전히 경고한다.
+   * ADR-099 R4 · 설계 selection-record §3 — `--with baseline:<id>` 는 화면이 보여 주는 id 라 받는다. install 의 선택은 그 실행의
+   * `--without` 이 전부라(기록을 대체) 따로 실을 것은 없다 — 효과는 "이번 빼기에 없음". 트랙에 없는 id 는 여전히 경고한다.
    */
-  it("--with baseline:<id> → 기록된 빼기를 푸는 releaseExclude 로 · 트랙 밖 id 는 경고", () => {
+  it("--with baseline:<id> 는 받는다(경고 없음 — 효과는 '이번 빼기에 없음') · 트랙 밖 id 는 경고", () => {
     const err = vi.fn();
     const seen: InstallSpec[] = [];
     installAction(
@@ -1727,7 +1726,7 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
         resolveHarnessRoot: () => "/h",
       },
     );
-    expect(seen[0]?.releaseExclude).toEqual(["baseline:rules/git-policy"]);
+    expect(seen[0]?.baselineExclude ?? []).not.toContain("baseline:rules/git-policy");
     expect(err).toHaveBeenCalledWith(expect.stringContaining("'baseline:rules/no-such-rule'"));
     expect(err).not.toHaveBeenCalledWith(expect.stringContaining("'baseline:rules/git-policy'"));
   });
@@ -1778,7 +1777,7 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
       },
     );
     expect(seen[0]?.keyExclude).toEqual(["mcp:github", "settings:statusLine"]);
-    expect(seen[0]?.releaseExclude).toEqual(["mcp:context7"]);
+    expect(seen[0]?.keyExclude).not.toContain("mcp:context7");
     // 리뷰 #693 LOW — 받을 수 있는 키 id(같은 파일의 것)를 보인다
     expect(err).toHaveBeenCalledWith(
       expect.stringContaining(

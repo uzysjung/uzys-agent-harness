@@ -62,6 +62,7 @@ import {
   installedClis,
   isHarnessOwned as isOwnedByBaseline,
   legacyDroppedKeys,
+  legacyReleasedCatalog,
   mergeExternalFiles,
   POLICY_DIRS,
   readInstallLog,
@@ -283,6 +284,8 @@ export interface UpdateModeReport {
    * 키(키 id), 파일별. optional = 부재는 "되돌린 것 없음"(손으로 만드는 리포트 stub 이 여럿이다).
    */
   restoredKeys?: ReadonlyArray<{ path: string; ids: ReadonlyArray<string> }>;
+  /** 설계 selection-record §2.2 규칙 2 — 옛 기록에서 마지막 install 이 다시 깐 것으로 판정해 푼 카탈로그 id. */
+  legacyReleasedCatalog?: ReadonlyArray<string>;
   /** 리뷰 #693 NOTE-1 — 뺐는데 앞 설치가 놓은 것이 아직 있는 id(install 화면과 같은 판정 · 같은 줄). */
   excludedStillThere?: ReadonlyArray<ExcludedStillThere>;
   /** 리뷰 #693 NOTE-2 — 설치자가 뺀 키를 이번 update 가 걷었거나(고친 것 포함) 고쳐 둬서 남긴 것, 파일별. */
@@ -614,6 +617,7 @@ export function runUpdateMode(
   report.externalUpdated = external.externalUpdated;
   report.restoredKeys = external.restoredKeys;
   report.excludedKeys = external.excludedKeys;
+  report.legacyReleasedCatalog = [...legacyReleasedCatalog(logAtStart)];
   report.excludedStillThere = excludedStillThere(
     projectDir,
     excludedIds(logAtStart),

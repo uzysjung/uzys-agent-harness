@@ -381,9 +381,16 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(out).toContain(`your edits to ${HOOK} went with it`);
     expect(out).not.toMatch(/settings\.json\s+removed the harness part — yours stays/);
     expect(out).toMatch(/settings\.json\s+removed the harness part ·/);
-    install();
+    install({}, "update"); // update 는 선택을 읽기만 한다 — 지킨다
     expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
     expect(log().excluded).toContain(HOOK);
+    // 설계 selection-record §3 — 플래그 없는 install 은 새 선택이다: 훅이 돌아오고 화면이 그렇게 말한다
+    const again = install().screen;
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(true);
+    expect(log().excluded ?? []).not.toContain(HOOK);
+    expect(again).toContain(
+      `↺ ${HOOK} — dropped earlier, installed again: this install did not pass --without ${HOOK}`,
+    );
   });
 
   it("리뷰 #693 NOTE-2 — 같은 실행에서 되돌린 것과 고친 훅을 걷은 것이 함께면 'yours stays' 라 하지 않는다", () => {
@@ -547,12 +554,12 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
     expect(screen).not.toContain("kept yours: github");
     expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:github"]));
 
-    install();
+    install({}, "update"); // update 는 선택을 읽기만 한다
     expect(servers().context7).toBeUndefined();
 
-    install({ releaseExclude: ["mcp:context7"] });
+    install({ keyExclude: ["mcp:github"] }); // 다음 install 의 입력이 새 선택 — context7 은 돌아온다
     expect(servers().context7).toBeDefined();
-    expect(log().excluded).not.toContain("mcp:context7");
+    expect(log().excluded).toEqual(["mcp:github"]);
   });
 
   it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {
@@ -647,8 +654,8 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
 
 /* ─── excluded 누적 ──────────────────────────────────────────────────────── */
 
-describe("excluded — 누적한다 (`--without` 은 더하고 `--with` 만 뺀다)", () => {
-  it("다시 깔아도 덮지 않고, `--with` 만 뺀다", () => {
+describe("excluded — install 의 입력이 최신 선택이다 (설계 selection-record §3)", () => {
+  it("update 는 지키고, 다음 install 은 그 실행의 `--without` 으로 대체한다", () => {
     const id = "ci-scaffold";
     install({
       baselineExclude: ["baseline:agents/implementer"],
@@ -656,12 +663,14 @@ describe("excluded — 누적한다 (`--without` 은 더하고 `--with` 만 뺀�
     });
     expect(log().excluded).toEqual(expect.arrayContaining(["baseline:agents/implementer", id]));
 
-    install();
+    install({}, "update");
     expect(log().excluded).toEqual(expect.arrayContaining(["baseline:agents/implementer", id]));
 
-    install({ userOverride: { forceInclude: [id], forceExclude: [] } });
-    expect(log().excluded).not.toContain(id);
-    expect(log().excluded).toContain("baseline:agents/implementer");
+    install({ baselineExclude: ["baseline:agents/implementer"] });
+    expect(log().excluded).toEqual(["baseline:agents/implementer"]);
+
+    install();
+    expect(log().excluded ?? []).toEqual([]);
   });
 });
 

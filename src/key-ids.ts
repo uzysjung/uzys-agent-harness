@@ -11,15 +11,18 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { keyId } from "./adapters/index.js";
+import { isKeyId, keyId } from "./adapters/index.js";
 import { TOP_REGION } from "./adapters/toml-region.js";
 import { AGENTS_BLOCK_NAME } from "./agents-md-merge.js";
+import { listBaselineTargets } from "./baseline-targets.js";
 import { renderHarnessMcp } from "./cli-transforms.js";
 import { TABLES_REGION } from "./codex/config-toml.js";
 import { gitignoreRender } from "./env-files.js";
+import { EXTERNAL_ASSETS } from "./external-assets.js";
+import { type InstallLog, installedClis } from "./install-log.js";
 import { renderSettingsPortion } from "./install-writes.js";
 import { renderOpencodeMcp } from "./opencode/opencode-json.js";
-import type { CliBase, Track } from "./types.js";
+import { type CliBase, type InstallSpec, isTrack, type Track } from "./types.js";
 
 export function renderedKeyIds(
   harnessRoot: string,
@@ -50,4 +53,29 @@ export function renderedKeyIds(
   }
   if (clis.includes("codex") || clis.includes("opencode")) add("AGENTS.md", AGENTS_BLOCK_NAME);
   return out;
+}
+
+/**
+ * 설계 `selection-record-design-2026-10-04.md` §3 — install 이 `--without` 으로 받을 수 있는 id 인가(R4 집합): 카탈로그(번들
+ * 스킬 포함) · 이번 트랙의 baseline · 깔린 CLI ∪ 이번 `--cli`, 기록 트랙 ∪ 이번 `--track` 의 렌더 키 id. install 의 선택은 이 집합
+ * 안에서 기록을 대체하고, 밖은 이어받는다. 키 집합은 처음 필요할 때 한 번 렌더한다.
+ */
+export function withoutAccepts(
+  harnessRoot: string,
+  spec: Pick<InstallSpec, "tracks" | "cli">,
+  previous: InstallLog | null,
+): (id: string) => boolean {
+  const catalog = new Set(EXTERNAL_ASSETS.map((a) => a.id));
+  const baseline = new Set(listBaselineTargets({ tracks: spec.tracks }).map((t) => t.id));
+  let keys: Set<string> | undefined;
+  return (id) => {
+    if (catalog.has(id) || baseline.has(id)) return true;
+    if (!isKeyId(id)) return false;
+    if (keys === undefined) {
+      const recordTracks = (previous?.spec.tracks ?? []).filter(isTrack);
+      const clis = [...new Set([...(previous ? installedClis(previous) : []), ...spec.cli])];
+      keys = renderedKeyIds(harnessRoot, [...new Set([...recordTracks, ...spec.tracks])], clis);
+    }
+    return keys.has(id);
+  };
 }

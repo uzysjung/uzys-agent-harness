@@ -9,8 +9,10 @@
 ## 0. 설치자에게 무엇이 달라지는가
 
 **손으로 지운 것은 "빼 달라" 는 신호가 아니다 — 파일이든, 내 파일 안의 하네스 부분이든 같다.** update 와 install 은 사라진
-하네스 몫을 되돌리고 화면에 "되돌렸다 · 영구히 빼려면 …" 을 말한다. 빼기는 `--without <id>` 와 위저드 체크 해제로만 기록되고
-`--with <id>` 로만 풀린다. 그리고 **기록된 빼기는 다음 설치들이 모두 지킨다**(ADR-097 결정 7 의 누적 규칙이 이제 선택에도 걸린다).
+하네스 몫을 되돌리고 화면에 "되돌렸다 · 영구히 빼려면 …" 을 말한다. 빼기는 `--without <id>` 와 위저드 체크 해제로만 기록된다.
+**install 의 선택은 그 실행의 입력이고 기록의 최신 선택을 대체한다 — update · uninstall 은 읽기만 한다**(사용자 요구 2026-10-04,
+선택 기록 설계 `docs/plans/selection-record-design-2026-10-04.md` §3 이 이 문서의 R1·R3·R5 선택 규칙을 대체했다 — 그 설계가 SSOT). 그래서 `--without X` 는 다음 install 까지
+update 가 지키고, 플래그 없는 다음 install 은 X 를 다시 깐다.
 
 | 이슈 | 설치자가 한 일 | 지금 | 이 설계 뒤 |
 |---|---|---|---|
@@ -24,7 +26,8 @@
 
 **감수하는 것:**
 - 일부러 `.mcp.json` 에서 하네스 서버를(또는 `AGENTS.md` 블록을) 지운 설치자는 **다음 update** 에 그것이 돌아온다 — 화면이 같은 줄에 영구히 빼는 명령을 말한다.
-- **install 동작 변화**: 전에 `--without baseline:<id>` 로 뺀 것을 플래그 없이 다시 install 하면 지금은 되살아나지만, 이 설계 뒤에는 되살아나지 않는다. 되살리려면 `--with baseline:<id>`.
+- (선택 기록 설계 `docs/plans/selection-record-design-2026-10-04.md` 로 대체 — 플래그 없는 재설치는 전에 뺀 것을 다시 깔고 `↺ … dropped earlier, installed again` 줄로 말한다.
+  ADR-074 의 "제외 없이 다시 깔면 돌아온다" 가 다시 참이다.)
 - update 가 `settings.json` · `.mcp.json` · `.gitignore` 의 **하네스 몫을 쓴다**(지금은 install 만 쓴다). 설치자 키는 지금 install 처럼 그대로다. USAGE 의 "`update` does not rewrite `settings.json`" 은 "`update` adds the harness part back" 이 된다.
 
 ## 1. 원칙
@@ -39,7 +42,8 @@
 어디에도 접두를 옮겨 적지 않고 그 표에서 유도한다(지금 7종: `claude-md:` `agents-md:` `settings:` `mcp:` `opencode:` `codex:`
 `gitignore:`). R5 가 지우는 것 · R4 가 받는 것 · R2 의 restored 줄이 찍는 것은 같은 집합이고, 개별 id 는 `keyId` 로 만든다.
 
-- **R1 쓰는 곳은 둘뿐.** `excluded` 에 더하는 것은 install 의 `--without <id>` 와 위저드 체크 해제뿐, 빼는 것은 `--with <id>` 뿐이다.
+- **R1 쓰는 곳은 install 하나.** install 이 그 실행의 입력(`--without <id>` · 위저드 해제)으로 `excluded` 를 다시 쓰고(R4 집합 밖은
+  이어받는다), update · uninstall 은 바꾸지 않는다(선택 기록 설계 `docs/plans/selection-record-design-2026-10-04.md` §3). 사라짐을 빼기로 추론하지 않는다는 핵심은 그대로다.
   어댑터의 "기록에 있는데 파일에 없는 키" 는 더는 `excluded` 로 가지 않고, **`deleted` 개념을 계약에서 지운다**(남기면 다음 사람이 다시
   잇는다): `adapters/contract.ts`(UpsertResult · planUpsert) · `install-writes.ts`(`deletedIds` · ledger) · `shared-write.ts` ·
   `cli-transforms.ts`(`deletedKeyIds`) · `installer.ts`(합치는 자리) · `update-mode.ts`(기록 쓰기) · `install-render.ts`(`you removed: …
@@ -73,7 +77,9 @@
   - **Claude 훅 스크립트**: 기록된 하네스 훅 스크립트(`recorded(log, ".claude/hooks/<script>")`)가 없으면 update 가 되돌리고 배선을
     둔다(update 단계 순서상 `installNewAssets` 가 정리 단계보다 앞이다). `cleanStaleHookRefs` 는 **기록에 없는** 스크립트 참조에만
     적용한다(#603 · #632 · #665 불변식은 그대로 — 검증 확인).
-- **R3 `excluded` 에 있는 것은 깔지도 되살리지도 갱신하지도 않는다.** 독자는 모두 누적 결과를 읽는다: install 의 베이스라인 선택
+- **R3 `excluded` 에 있는 것은 깔지도 되살리지도 갱신하지도 않는다.** update · uninstall 의 독자는 기록의 최신 선택을 읽고, install 의
+  선택은 **이번 입력**이다(선택 기록 설계 `docs/plans/selection-record-design-2026-10-04.md` §3 이 아래 "install 은 `cumulativeExcluded`" 와 "위저드 재체크 → `--with`" 를 대체했다 —
+  install 은 `thisRunExclusions`, 위저드는 아직 해제된 id 를 `--without` 으로 낸다). 독자 목록: install 의 베이스라인 선택
   (`installer.ts` 의 `baselineExcluded` 와 그것을 받는 `installClaudeBaseline` · `installCliNeutralAssets` · `runCliTransforms` 의
   skills/rules 필터) · update 의 세 독자(`installNewAssets` · `installNewSkillDirs` · `refreshExternalCli`) · `refreshExternalSkills` ·
   install 의 외부 자산 선택 · `agents-skill-targets.ts` · `resident-entries.ts` · 위저드 체크 해제 표시(`interactive.ts`) — install 은
@@ -93,7 +99,8 @@
   접두만이 아니라 **이번 렌더가 내는 키 id 집합**(`renderHarnessMcp` · `renderSettingsPortion` · codex 구간 `top`/`tables` · opencode
   `mcp.<name>` · gitignore 줄 · `agents-md:agents`)과 대조한다 — 렌더 집합은 **깔린 CLI 집합 ∪ 이번 `--cli`**, **기록 트랙 ∪ 이번
   `--track`** 으로 계산한다(이번 `--cli` 에 없는 깔린 CLI 의 키도 받는다). 오타(`mcp:gitub`)는 지금처럼 `[WARN] Unknown … Skipping`.
-- **R5 굳은 기록은 1회 푼다.** 새 판이 처음 쓰는 기록에서 `excluded` 의 **키 id**(위 접두 집합)를 지우고 기록에 표시
+- **R5 굳은 기록은 1회 푼다**(카탈로그 id 판정과 이력은 선택 기록 설계 `docs/plans/selection-record-design-2026-10-04.md` §2.2 가 대체 — 아래 "카탈로그 id 는 정리하지 않는다" 는
+  더는 현행이 아니다: 폴더 유무 + mtime 창으로 1회 판정해 `selections` 에 `{by:"migration", released, kept}` 로 남긴다). 새 판이 처음 쓰는 기록에서 `excluded` 의 **키 id**(위 접두 집합)를 지우고 기록에 표시
   `excludedKeysMigrated: true` 를 남긴다 — 표시가 있는 기록에서는 다시 돌지 않는다(R4 로 명시한 키 id 를 지우지 않기 위해서다; 판정
   근거는 기록 — `log.version` 은 update 가 갱신하지 않아 쓸 수 없다). `--without` 이 키 id 를 받은 판은 없으므로(검증 G1 참) 표시
   없는 기록의 키 id 는 전부 자동 추론이다. **키 아닌 id 는 마지막 설치가 실제로 존중한 것으로 맞춘다** — v26.162.0–26.163.0 은 기록만 누적하고 선택은 이번 플래그만 읽었으므로

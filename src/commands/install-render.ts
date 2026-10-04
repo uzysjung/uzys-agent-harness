@@ -847,6 +847,8 @@ function renderPhase1Rows(
     }
     const legacy = legacyRestoredRow(baseline.updateMode.legacyRestored ?? []);
     if (legacy !== null) log(legacy);
+    for (const row of legacyReleasedCatalogRows(baseline.updateMode.legacyReleasedCatalog ?? []))
+      log(row);
     // 깔지 **못한** 것은 더 크게 말해야 한다. 훅은 배선이 있어야 발화하는데 update 는
     // settings.json 을 동기화하지 않는다 — 조용하면 사용자는 최신 상태라고 믿는다.
     if (baseline.updateMode.needsReinstall.length > 0) {
@@ -1335,6 +1337,8 @@ function renderPhase1Rows(
   }
   const legacy = legacyRestoredRow(baseline.legacyRestored ?? []);
   if (legacy !== null) log(legacy);
+  for (const row of legacyReleasedCatalogRows(baseline.legacyReleasedCatalog ?? [])) log(row);
+  for (const row of releasedRows(baseline.releasedThisRun ?? [])) log(row);
   for (const p of baseline.pendingKeyExcludes ?? []) {
     log(
       `  ${c.yellow(symbol.skip)} ${p.id} — excluded and recorded, not applied yet: this run did not touch ${p.path}. It is taken out on the next run that does (update, or install with that CLI)`,
@@ -1419,11 +1423,31 @@ export function excludedKeyParts(f: {
 
 /** ADR-099 R3 — 뺐는데 그대로 있는 id 한 줄씩. */
 export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>): string[] {
-  // 리뷰 #693 NOTE-1 — 두 행동(계속 쓰기 · 치우기)이 다 보여야 한다. 계속 쓰고 싶은 설치자를 지우는 쪽으로만 이끌지 않는다
+  // 리뷰 #693 NOTE-1 · 설계 selection-record §3 — 두 행동(다시 관리하기 · 치우기)이 다 보여야 한다. 다시 관리하는 길은
+  // `--without` 없이 install 하는 것이다(install 의 선택이 기록을 대체한다)
   return items.map((e) =>
     e.catalog
-      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). Keep it managed: install … --with ${e.id} · remove it: agent-harness uninstall --only ${e.id}`
-      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · keep it managed: install … --with ${e.id}`,
+      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${e.id}; add --with ${e.id} if it is opt-in) · remove it: agent-harness uninstall --only ${e.id}`
+      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${e.id}`,
+  );
+}
+
+/** 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않은 id 한 줄씩. */
+export function releasedRows(
+  items: ReadonlyArray<{ id: string; again: boolean; tail: string }>,
+): string[] {
+  return items.map((r) =>
+    r.again
+      ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
+      : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
+  );
+}
+
+/** 설계 selection-record §2.2 규칙 2 — 옛 기록에서 마지막 install 이 다시 깐 것으로 판정해 푼 카탈로그 id. */
+export function legacyReleasedCatalogRows(ids: ReadonlyArray<string>): string[] {
+  return ids.map(
+    (id) =>
+      `  ${c.green("↺")} ${id} — released: the last install re-added it (26.162–26.163 record)`,
   );
 }
 

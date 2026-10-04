@@ -601,11 +601,16 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
   }
 
   // add — install 엔진. spec 은 `install` 명령과 **같은 함수**가 같은 인자로 만든다(D6).
-  // ADR-099 R3 — 기록에서 뺀 것을 다시 체크했으면 `--with <id>` 로 낸다. 추천 대비 차이(`computeUserOverride`)만으로는
-  // 재체크가 보이지 않고, 누적 빼기는 `--with` 로만 풀린다.
-  const recheck = rechecked(log, assetIds, baselineIds);
-  const withIds = [...new Set([...(userOverride?.forceInclude ?? []), ...recheck])];
-  const without = [...(userOverride?.forceExclude ?? []), ...baselineExclude];
+  // 설계 selection-record §3 — install 의 선택은 그 실행의 입력이고 기록을 대체한다. 그래서 기록에서 뺀 것 중 **아직 해제된**
+  // id 는 `--without` 으로 다시 낸다(그 명령을 그대로 쳐도 같은 결과). 재체크는 명령에 안 나타난다 — 기본이 넣기다.
+  const withIds = [...(userOverride?.forceInclude ?? [])];
+  const without = [
+    ...new Set([
+      ...(userOverride?.forceExclude ?? []),
+      ...baselineExclude,
+      ...unchecked(log, tracks, assetIds, baselineIds),
+    ]),
+  ];
   const options: InstallOptions = {
     track: [...tracks],
     cli: [...cli],
@@ -652,16 +657,21 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
 }
 
 /**
- * ADR-099 R3 — 기록의 누적 빼기(`excludedIds(log)`)에 있는데 지금 체크된 id — 번들 스킬 · 외부 자산(`asset:` 를 뗀 id)과
- * baseline id 공통. 위저드는 이것을 `--with <id>` 로 낸다.
+ * 설계 selection-record §3 — 기록의 최신 빼기(`excludedIds(log)`) 중 확인 화면에서 **아직 해제된** id. 위저드가 보여 주지 않는 키 id
+ * 는 늘 여기 든다(설치자가 체크할 수 없었으니 빼기를 이어 간다). baseline 은 이번 트랙이 내는 것만 — 밖의 것은 install 이 이어받는다.
  */
-export function rechecked(
+export function unchecked(
   log: InstallLog | null,
+  tracks: ReadonlyArray<Track>,
   assetIds: ReadonlyArray<string>,
   baselineIds: ReadonlyArray<string>,
 ): string[] {
   const checked = new Set([...assetIds, ...baselineIds]);
-  return [...excludedIds(log)].filter((id) => checked.has(id)).sort();
+  const offered = new Set(listBaselineTargets({ tracks }).map((t) => t.id));
+  return [...excludedIds(log)]
+    .filter((id) => !checked.has(id))
+    .filter((id) => !id.startsWith(BASELINE_PREFIX) || offered.has(id))
+    .sort();
 }
 
 /**

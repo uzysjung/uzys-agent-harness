@@ -1,9 +1,9 @@
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
-import { sharedPathOfKeyId } from "./adapters/index.js";
+import { isKeyId, sharedPathOfKeyId } from "./adapters/index.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
-import { isBaselineExcluded } from "./baseline-targets.js";
+import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
 import { renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
@@ -34,6 +34,7 @@ import {
   type InstallLogSkillFile,
   installedClis,
   legacyDroppedKeys,
+  legacyReleasedCatalog,
   mergeExternalFiles,
   readInstallLog,
   writeInstallLog,
@@ -49,9 +50,10 @@ import {
   legacySettingsSeed,
   renderSettingsPortion,
   type SharedWrite,
+  thisRunExclusions,
   type WriteLedger,
-  withRecordedExclusions,
 } from "./install-writes.js";
+import { withoutAccepts } from "./key-ids.js";
 import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
   type AssetSpec,
@@ -63,6 +65,7 @@ import {
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink, outsideProjectTarget } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
+import { excludedIds } from "./recorded.js";
 import type { SharedWriteResult } from "./shared-write.js";
 import {
   type CliBase,
@@ -251,6 +254,13 @@ export interface BaselineReport {
    */
   pendingKeyExcludes?: Array<{ id: string; path: string }>;
   /**
+   * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
+   * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
+   */
+  releasedThisRun?: Array<{ id: string; again: boolean; tail: string }>;
+  /** 설계 §2.2 규칙 2 — 옛 기록에서 "마지막 install 이 다시 깔았다" 로 판정해 푼 카탈로그 id. */
+  legacyReleasedCatalog?: string[];
+  /**
    * #343 — 깔릴 자리가 디렉터리가 아니라 건너뛴 대상 (`.claude/` 포함 상대경로).
    * 화면에 이름을 내지 않으면 사용자는 **고른 자산이 왜 없는지** 알 방법이 없다.
    */
@@ -332,6 +342,13 @@ export interface InstallReport {
    * 화면이 "다음에 그 파일을 쓰는 실행에서 걷힌다" 고 말한다 — 조용히 다음 update 에 적용되지 않게.
    */
   pendingKeyExcludes?: Array<{ id: string; path: string }>;
+  /**
+   * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
+   * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
+   */
+  releasedThisRun?: Array<{ id: string; again: boolean; tail: string }>;
+  /** 설계 §2.2 규칙 2 — 옛 기록에서 "마지막 install 이 다시 깔았다" 로 판정해 푼 카탈로그 id. */
+  legacyReleasedCatalog?: string[];
   /** 자리가 디렉터리가 아니라 건너뛴 대상. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   baselineForeignOwned: string[];
   /** #524 — 링크를 통해 공유 본문을 갱신한 스킬 id. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
@@ -427,7 +444,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
   // 첫 접촉 · 고친 파일은 **그 파일 하나**만 백업한다. 설치자가 뺀 것은 누적한다(설계 §6.2 ⓒ).
   // ADR-099 R3 — 누적한 빼기는 **선택에도** 걸린다: 이 아래 모든 선택(베이스라인 · 번들 스킬 · 외부 자산 · 기록)은
   // 이번 플래그가 아니라 누적 결과를 담은 spec 을 읽는다. 전에 뺀 것은 `--with <id>` 로만 돌아온다.
-  const { spec, excluded } = withRecordedExclusions(ctx.spec, previousLog);
+  // 설계 selection-record §3(사용자 요구 2026-10-04) — install 의 선택은 그 실행의 입력이고 기록의 최신 선택을 대체한다(R4 집합 안).
+  const { spec, excluded } = thisRunExclusions(
+    ctx.spec,
+    previousLog,
+    withoutAccepts(harnessRoot, ctx.spec, previousLog),
+  );
   const runCtx: InstallContext = { ...ctx, spec };
   const manifestSpec = buildManifestSpec(spec);
 
@@ -629,6 +651,18 @@ function runInstallStages(
     excludedStillThere: excludedStillThere(projectDir, excluded, base.excludedOnDisk, previousLog),
     legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
     pendingKeyExcludes: pendingKeyExcludes(projectDir, spec.keyExclude ?? [], ledger.portionPaths),
+    releasedThisRun: releasedThisRun({
+      projectDir,
+      spec,
+      manifestSpec,
+      previousLog,
+      excluded,
+      written: [
+        ...ledger.shared.flatMap((w) => [...w.restored, ...w.addedIds]),
+        ...cliSharedFiles.flatMap((r) => [...r.restored, ...r.added]),
+      ],
+    }),
+    legacyReleasedCatalog: [...legacyReleasedCatalog(previousLog)],
     // `.claude/` baseline 과 외부 CLI 산출물의 같은 판정을 **한 목록으로** 낸다.
     baselineForeignOwned: [
       ...new Set([...base.foreignOwned, ...externalForeignOwned, ...linked.foreignOwned]),
@@ -735,6 +769,52 @@ function runUpdateInstall(
  * OptionFlags.withTauri/withUzysHarness boolean 자리를 카탈로그 선택
  * (wizard 체크 / --with <id> → forceInclude)으로 대체 (manifest 필드명은 유지).
  */
+/** 설계 selection-record §3 — 기록에서 뺐던 것 중 이번 install 이 빼지 않은 것과 그것이 지금 어떻게 됐는지. */
+function releasedThisRun(args: {
+  projectDir: string;
+  spec: InstallSpec;
+  manifestSpec: Required<AssetSpec>;
+  previousLog: InstallLog | null;
+  excluded: ReadonlySet<string>;
+  written: ReadonlyArray<string>;
+}): Array<{ id: string; again: boolean; tail: string }> {
+  const { projectDir, spec, manifestSpec, previousLog, excluded } = args;
+  const written = new Set(args.written);
+  const manifest = buildManifest(manifestSpec);
+  return [...excludedIds(previousLog)]
+    .filter((id) => !excluded.has(id))
+    .map((id) => {
+      if (isKeyId(id)) {
+        return { id, again: written.has(id), tail: "the next update puts it back" };
+      }
+      if (id.startsWith(BASELINE_PREFIX)) {
+        const again = manifest.some(
+          (e) =>
+            e.applies(manifestSpec) &&
+            classifyBaselineTarget(e.target)?.id === id &&
+            existsSync(join(projectDir, e.target)),
+        );
+        return { id, again, tail: "the harness manages it again" };
+      }
+      const again = isAssetSelected(id, {
+        tracks: spec.tracks,
+        options: spec.options,
+        ...(spec.userOverride ? { userOverride: spec.userOverride } : {}),
+      });
+      // 기록에 깔렸다고 있거나(외부 자산) 스킬 자리에 있으면(번들) update 가 다시 관리한다
+      const recorded =
+        (previousLog?.assets.some((a) => a.id === id) ?? false) ||
+        [".claude/skills", ".agents/skills"].some((d) => existsSync(join(projectDir, d, id)));
+      return {
+        id,
+        again,
+        tail: recorded
+          ? "update keeps it current again"
+          : `it is opt-in — add it with --with ${id} if you want it`,
+      };
+    });
+}
+
 /** 리뷰 #693 NOTE-2 — 이번 `--without <키 id>` 중 그 파일(디스크에 있는)을 이번 실행이 판정하지 않은 것. */
 function pendingKeyExcludes(
   projectDir: string,
@@ -1299,6 +1379,8 @@ function recordInterruptedInstall(
         ledger,
         cliFiles,
         excluded,
+        via: ctx.spec.selectionVia ?? "flag",
+        interrupted: true,
       }),
     );
     return interrupted({ path, error: null });
@@ -1380,6 +1462,7 @@ function writeInstallLogSafe(
         ledger,
         cliFiles,
         excluded,
+        via: ctx.spec.selectionVia ?? "flag",
       }),
     );
   } catch (e) {

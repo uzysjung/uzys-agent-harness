@@ -22,6 +22,8 @@ import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
+  appendSelection,
+  HARNESS_VERSION,
   hashContent,
   type InstallLog,
   type InstallLogPortion,
@@ -388,29 +390,10 @@ export function cumulativeExcluded(
 }
 
 /**
- * ADR-099 R3 — 기록된 빼기를 **선택에도** 건다. 이번 플래그(`--without` 더하기 · `--with` 빼기)를 기록의 누적 `excluded` 에
- * 얹고, 그 결과를 spec 의 선택 입력(`baselineExclude` · `userOverride.forceExclude`)으로 되돌려 쓴다 — 그래서 베이스라인 ·
- * 번들 스킬 · 외부 자산을 고르는 모든 독자가 spec 하나만 읽고도 누적을 따른다(새 독자를 따로 두지 않는다).
- *
- * 같은 spec 에 다시 걸어도 결과가 같다(누적에 누적을 얹어도 같은 집합) — 화면 머리글과 설치 파이프라인이 각자 불러도 된다.
+ * 빼기 집합 → spec 의 선택 입력(`baselineExclude` · `userOverride.forceExclude`). 베이스라인 · 번들 스킬 · 외부 자산을 고르는
+ * 독자가 spec 하나만 읽게 한다(새 독자를 따로 두지 않는다). `forceInclude` 는 그대로다.
  */
-export function withRecordedExclusions(
-  spec: InstallSpec,
-  previous: InstallLog | null,
-): { spec: InstallSpec; excluded: Set<string> } {
-  const add = [
-    ...(spec.baselineExclude ?? []),
-    ...(spec.userOverride?.forceExclude ?? []),
-    ...(spec.keyExclude ?? []),
-  ];
-  // 같은 id 가 양쪽에 오면 빼기가 이긴다(`forceExclude > forceInclude` — 명령은 R6 로 이 상태를 미리 거절한다)
-  const adding = new Set(add);
-  const release = [...(spec.userOverride?.forceInclude ?? []), ...(spec.releaseExclude ?? [])];
-  const excluded = cumulativeExcluded(
-    previous,
-    add,
-    release.filter((id) => !adding.has(id)),
-  );
+function specWithExclusions(spec: InstallSpec, excluded: ReadonlySet<string>): InstallSpec {
   const baselineExclude = [...excluded].filter((id) => id.startsWith(BASELINE_PREFIX));
   const forceExclude = [...excluded].filter(
     (id) => !id.startsWith(BASELINE_PREFIX) && !isKeyId(id),
@@ -418,15 +401,54 @@ export function withRecordedExclusions(
   const forceInclude = spec.userOverride?.forceInclude ?? [];
   const { baselineExclude: _b, userOverride: _u, ...rest } = spec;
   return {
-    spec: {
-      ...rest,
-      ...(forceInclude.length > 0 || forceExclude.length > 0
-        ? { userOverride: { forceInclude: [...forceInclude], forceExclude } }
-        : {}),
-      ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
-    },
-    excluded,
+    ...rest,
+    ...(forceInclude.length > 0 || forceExclude.length > 0
+      ? { userOverride: { forceInclude: [...forceInclude], forceExclude } }
+      : {}),
+    ...(baselineExclude.length > 0 ? { baselineExclude } : {}),
   };
+}
+
+/**
+ * **update** 의 선택 — 기록의 최신 빼기를 읽기만 한다(ADR-099 · 설계 `selection-record-design-2026-10-04.md` §3). 이번 플래그가
+ * 있으면 얹지만 update 에는 플래그가 없다. 같은 spec 에 다시 걸어도 결과가 같다.
+ */
+export function withRecordedExclusions(
+  spec: InstallSpec,
+  previous: InstallLog | null,
+): { spec: InstallSpec; excluded: Set<string> } {
+  const excluded = cumulativeExcluded(
+    previous,
+    [
+      ...(spec.baselineExclude ?? []),
+      ...(spec.userOverride?.forceExclude ?? []),
+      ...(spec.keyExclude ?? []),
+    ],
+    [],
+  );
+  return { spec: specWithExclusions(spec, excluded), excluded };
+}
+
+/**
+ * **install** 의 선택 = 그 실행의 입력(설계 §3 · 사용자 요구 2026-10-04). 끝난 뒤의 `excluded` 는 이번 실행이 뺀 것이고, 기록의
+ * 최신 선택을 **대체**한다 — 플래그 없는 install 은 전에 뺀 것을 다시 깐다. 대체 범위 = 그 실행이 `--without` 으로 받을 수 있는
+ * id 집합(`accepts` — R4: 카탈로그 · 번들 스킬 · 이번 트랙의 baseline · 깔린 CLI ∪ 이번 `--cli` 의 키 id). 그 밖의 id(이번 트랙에
+ * 없는 트랙의 baseline 등)는 기록을 그대로 이어받는다 — 이번 실행이 말할 수 없었던 것은 선택이 아니다.
+ *
+ * 같은 id 가 `--with` 와 `--without` 에 함께 오면 빼기가 이긴다(명령은 R6 로 미리 거절한다). 같은 spec 에 다시 걸어도 같다.
+ */
+export function thisRunExclusions(
+  spec: InstallSpec,
+  previous: InstallLog | null,
+  accepts: (id: string) => boolean,
+): { spec: InstallSpec; excluded: Set<string> } {
+  const excluded = new Set([
+    ...[...excludedIds(previous)].filter((id) => !accepts(id)),
+    ...(spec.baselineExclude ?? []),
+    ...(spec.userOverride?.forceExclude ?? []),
+    ...(spec.keyExclude ?? []),
+  ]);
+  return { spec: specWithExclusions(spec, excluded), excluded };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -465,6 +487,10 @@ export function composeWriterLog(args: {
   /** 외부 CLI 변환 · 링크 본문이 쓴 것 — 같은 `externalFiles` 필드다. */
   cliFiles: ReadonlyArray<InstallLogSkillFile>;
   excluded: ReadonlySet<string>;
+  /** 이력 항목의 경로 — 플래그 · 위저드. 기본 플래그. */
+  via?: "flag" | "wizard";
+  /** #600 — 도중에 멈춘 install 의 기록이다. */
+  interrupted?: boolean;
 }): InstallLog {
   const { projectDir, base, previous, ledger } = args;
   const inherited = inheritScanned(previous);
@@ -494,14 +520,30 @@ export function composeWriterLog(args: {
   delete log.externalFiles;
   delete log.portions;
   delete log.excluded;
-  return {
+  delete log.selections;
+  const composed: InstallLog = {
     ...log,
     ...(policyFiles.length > 0 ? { policyFiles } : {}),
     ...(skillFiles.length > 0 ? { skillFiles } : {}),
     ...(externalFiles.length > 0 ? { externalFiles } : {}),
     ...(portions.length > 0 ? { portions } : {}),
     ...(excluded.length > 0 ? { excluded } : {}),
+    ...(previous?.selections && previous.selections.length > 0
+      ? { selections: previous.selections }
+      : {}),
   };
+  // 설계 §1 — 이력은 `excluded` 가 실제로 바뀐 실행만(효과분). 비교 기준은 기록의 최신 선택(`excludedIds`, 옛 두 필드 포함)
+  const before = excludedIds(previous);
+  const after = new Set(excluded);
+  return appendSelection(composed, {
+    at: new Date().toISOString(),
+    harness: HARNESS_VERSION,
+    by: "install",
+    via: args.via ?? "flag",
+    with: [...before].filter((id) => !after.has(id)),
+    without: excluded.filter((id) => !before.has(id)),
+    ...(args.interrupted ? { interrupted: true as const } : {}),
+  });
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

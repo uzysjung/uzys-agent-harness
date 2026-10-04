@@ -137,11 +137,9 @@ export interface InstallSpec {
    */
   baselineExclude?: ReadonlyArray<string>;
   /**
-   * ADR-099 R4 — `--with` 로 받은 id 중 **기록된 빼기를 푸는 것만** 하는 것: `baseline:<kind>/<name>` 과 함께 쓰는
-   * 파일의 키 id(`mcp:github`). 카탈로그·번들 스킬 id 는 `userOverride.forceInclude` 로 간다. install 이
-   * `excluded` 에서 뺀다(`cumulativeExcluded`).
+   * 설계 selection-record §1 — 이번 선택이 어디서 왔나(설치 기록 이력 `selections[].via`). 없으면 플래그.
    */
-  releaseExclude?: ReadonlyArray<string>;
+  selectionVia?: "flag" | "wizard";
   /**
    * ADR-099 R4 — `--without` 으로 받은 함께 쓰는 파일의 키 id(`mcp:github` · `settings:statusLine`). install 이
    * `excluded` 에 더하고, 그 키는 기록 sha 와 같을 때만 파일에서 걷는다.
