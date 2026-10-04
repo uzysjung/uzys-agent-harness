@@ -230,3 +230,27 @@ export function ensureProjectSkeleton(projectDir: string): void {
     mkdirSync(join(projectDir, d), { recursive: true });
   }
 }
+
+/**
+ * #653 — 유효하지 않은 UTF-8 바이트가 섞인 파일을 문자열 왕복(read-utf8 → write-utf8)으로
+ * 다시 쓰면 해당 바이트가 영구 변형되고, uninstall 로는 원본으로 돌아오지 않는다.
+ * 루트 `CLAUDE.md` 의 마커 삽입/제거 경로가 이 왕복을 쓰므로, **변형이 일어나기 전에** 원시
+ * 바이트를 옆에 백업해 둔다. 무경고 변형이 아니라 "백업했음 + 원인"을 사용자에게 말한다.
+ *
+ * 문자열로 다시 조립한 뒤에도 바이트가 동일한 파일(정상 UTF-8)은 아무것도 하지 않는다.
+ */
+export function backupIfLossyUtf8(target: string, now: Date = new Date()): string | null {
+  if (!existsSync(target)) return null;
+  let raw: Buffer;
+  try {
+    raw = readFileSync(target);
+  } catch {
+    return null;
+  }
+  if (Buffer.from(raw.toString("utf8")).equals(raw)) return null;
+  const backup = backupFile(target, now);
+  console.error(
+    `⚠ ${target} contains bytes that are not valid UTF-8 — rewriting would alter them permanently. Original bytes saved as ${backup}`,
+  );
+  return backup;
+}
