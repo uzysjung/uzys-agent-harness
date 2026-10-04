@@ -51,8 +51,8 @@ export async function defaultAction(deps: DefaultActionDeps = {}): Promise<void>
     if (result.message) {
       err(result.message);
     }
-    // exit-code mapping: no-tty=2; cancelled/exit/disabled/declined=0
-    exit(result.reason === "no-tty" ? 2 : 0);
+    // exit-code mapping: no-tty=2; corrupted=1 (#595 — `list`·`update`·`uninstall` 과 같은 판정); cancelled/exit/disabled/declined=0
+    exit(result.reason === "no-tty" ? 2 : result.reason === "corrupted" ? 1 : 0);
     return;
   }
   if (!result.spec) {

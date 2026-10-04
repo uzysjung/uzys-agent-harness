@@ -7,6 +7,7 @@
  *
  * 동작: 기존 설치를 감지해 위저드의 update 액션과 **동일한 spec**(`buildUpdateSpec`)으로
  * `mode: "update"` 파이프라인을 돈다. 백업은 update mode 가 자동으로 뜬다 (`.claude.backup-*`).
+ * 설치 기록이 없거나 깨졌으면 `list` · `uninstall` 과 같은 줄로 거절하고 아무것도 쓰지 않는다(#595).
  *
  * 하지 않는 것: track 추가(=`install`), 자산 재설치, 대화형 확인. update 는 이미 깔린
  * 정책 파일만 최신판으로 맞춘다.
@@ -14,7 +15,7 @@
 
 import { resolve } from "node:path";
 import { c, status } from "../design.js";
-import { type DetectedInstall, detectInstallState } from "../state.js";
+import { type DetectedInstall, detectInstallState, reportNotInstalled } from "../state.js";
 import { type InstallSpec, UPDATE_GROUPS } from "../types.js";
 import { buildUpdateSpec, parseUpdateOnly } from "../update-mode.js";
 import { type ExecuteSpecDeps, executeSpec } from "./install.js";
@@ -45,12 +46,10 @@ export function updateAction(options: UpdateOptions = {}, deps: UpdateActionDeps
 
   // Pre-flight: 갱신할 대상이 없으면 조용히 성공하지 않는다. 파이프라인도 같은 조건에서
   // throw 하지만, 그건 "install failed" 로 렌더돼 원인이 안 보인다.
-  // v26.135.0 (#253) — 판정 기준이 `.claude/` 존재에서 **설치 여부**로 바뀌었다. update 는
-  // v26.134.0(ADR-049)부터 외부 CLI 산출물도 갱신하므로, `.claude/` 없는 opencode/codex 단독
-  // 설치도 정당한 update 대상이다. `.claude/` 로 막으면 갱신할 게 있는데 거절한다.
-  if (state.state === "new") {
-    err(status.failure(c.red(`No harness install found at ${projectDir}`)));
-    err(c.dim("  Run `agent-harness install --track <name>` first."));
+  // #595 — 판정은 설치 기록 하나다(`detectInstallState`). `.claude/` 나 메타파일이 있다고 설치로 보면
+  // 기록 없는 프로젝트에 백업 폴더 · 앵커 · import 를 쓰고 성공한다 — 그 화면을 `list` · `uninstall` 과 맞춘다.
+  if (state.state !== "installed") {
+    reportNotInstalled(state, projectDir, err);
     exit(1);
     return;
   }

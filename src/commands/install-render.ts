@@ -80,6 +80,8 @@ export interface InstallRenderer {
   phase2HeaderPrinted(): boolean;
 }
 
+/** 옛 앵커(`.claude/CLAUDE.md`) 안내 — update(기록 있는 설치본)와 install(기록 없는 옛 판, #595)이 같은 문장을 쓴다. */
+const LEGACY_ANCHOR_NOTE = `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`;
 /**
  * install header (TARGET / TRACKS / CLI / OPTIONS / ASSETS) 렌더.
  * #560 — SCOPE 행은 없다. 하네스 파일은 늘 이 프로젝트에 쓰이고, 그 행의 Global 문구("writes to ~/.claude/")가 사실이 아니었다.
@@ -991,13 +993,7 @@ function renderPhase1Rows(
     }
     // 구 앵커는 지우지 않는다(사용자 편집 여부 판정 불가) — 대신 죽은 사본이라는 사실을 알린다.
     if (baseline.updateMode.legacyAnchor) {
-      log(
-        assetRow(
-          "skip",
-          baseline.updateMode.legacyAnchor,
-          `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`,
-        ),
-      );
+      log(assetRow("skip", baseline.updateMode.legacyAnchor, LEGACY_ANCHOR_NOTE));
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
@@ -1370,6 +1366,10 @@ function renderPhase1Rows(
         TEMPLATES_COL,
       ),
     );
+  }
+  // #595 — 기록 없는 옛 판 설치본의 옛 앵커. update 가 기록 있는 설치본에 내는 줄과 같은 문장이다.
+  if (baseline.legacyAnchor) {
+    log(assetRow("skip", baseline.legacyAnchor, LEGACY_ANCHOR_NOTE, TEMPLATES_COL));
   }
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in). no-clobber: 기존 파일 보존은 skip 행으로
   //   정직 보고 (숨기면 "설치됨" 오인 — no-false-ship).

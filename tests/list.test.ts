@@ -44,10 +44,11 @@ describe("listAction", () => {
     return { output: [...log.mock.calls, ...err.mock.calls].flat().join("\n"), exit };
   }
 
-  it("log 없으면 exit 1 + 어디를 봤는지 명시 (조용한 빈 출력 금지)", () => {
+  it("log 없으면 exit 1 + 다음 행동 안내 (조용한 빈 출력 금지 · #595 — update · uninstall 과 같은 줄)", () => {
     const { output, exit } = run();
     expect(exit).toHaveBeenCalledWith(1);
-    expect(output).toContain("install log not found");
+    expect(output).toContain(`No harness install found at ${tmpDir}`);
+    expect(output).toContain("agent-harness install --track <name>");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

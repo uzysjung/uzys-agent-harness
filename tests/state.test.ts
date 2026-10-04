@@ -2,121 +2,115 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { detectInstallState } from "../src/state.js";
+import { detectInstallState, notInstalledLines, suggestedTracks } from "../src/state.js";
 
-describe("detectInstallState", () => {
-  let dir: string;
+let dir: string;
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), "ch-state-"));
+});
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
 
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-state-"));
-  });
+function put(rel: string, content = ""): void {
+  mkdirSync(join(dir, rel, ".."), { recursive: true });
+  writeFileSync(join(dir, rel), content, "utf8");
+}
 
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
+function writeLog(tracks: string[], cli: string[] = ["opencode"]): void {
+  put(
+    ".uzys-agent-harness/.harness-install.json",
+    JSON.stringify({
+      schemaVersion: 1,
+      installedAt: "2026-07-26T00:00:00.000Z",
+      scope: "project",
+      spec: { tracks, cli },
+      templates: { claudeDir: ".claude/" },
+      assets: [],
+    }),
+  );
+}
 
-  it("returns state=new when .claude/ does not exist", () => {
+/**
+ * #595 (설계 no-record §1) — 판정 입력은 설치 기록 하나다. 디스크 흔적은 `traces` 로만 나오고 `state` 를 바꾸지 않는다.
+ */
+describe("detectInstallState — 기록이 정한다 (#595)", () => {
+  it("A1 · `.claude/` + 메타파일 + 옛 트랙 룰이 있어도 기록이 없으면 none — 흔적에는 나온다", () => {
+    put(".claude/.installed-tracks", "tooling\n");
+    put(".claude/rules/cli-development.md", "# rule\n");
     const result = detectInstallState(dir);
-    expect(result.state).toBe("new");
+    expect(result.state).toBe("none");
+    expect(result.log).toBeNull();
     expect(result.tracks).toEqual([]);
-    expect(result.source).toBe("none");
-    expect(result.hasClaudeDir).toBe(false);
+    expect(result.hasClaudeDir).toBe(true);
+    expect(result.traces.map((t) => t.path)).toEqual([
+      ".claude/.installed-tracks",
+      ".claude/rules/cli-development.md",
+    ]);
+    expect(suggestedTracks(result.traces)).toEqual(["tooling"]);
   });
 
-  it("reads .claude/.installed-tracks when present (metafile source)", () => {
-    mkdirSync(join(dir, ".claude"), { recursive: true });
-    writeFileSync(join(dir, ".claude/.installed-tracks"), "tooling\ncsr-fastapi\n");
+  it("#595 재현 — 자기 CLAUDE.md + settings.local.json 만 있으면 none · 흔적 없음", () => {
+    put("CLAUDE.md", "# my project\n");
+    put(".claude/settings.local.json", "{}\n");
     const result = detectInstallState(dir);
-    expect(result.state).toBe("existing");
-    expect(result.source).toBe("metafile");
-    expect(result.tracks).toEqual(["csr-fastapi", "tooling"]);
+    expect(result.state).toBe("none");
+    expect(result.traces).toEqual([]);
   });
 
-  it("dedupes + sorts tracks from metafile", () => {
-    mkdirSync(join(dir, ".claude"), { recursive: true });
-    writeFileSync(join(dir, ".claude/.installed-tracks"), "tooling tooling\ndata\ntooling\n");
-    const result = detectInstallState(dir);
-    expect(result.tracks).toEqual(["data", "tooling"]);
+  it("하네스 표시가 있는 루트 파일 · 옛 앵커는 흔적이다", () => {
+    put("CLAUDE.md", "# mine\n<!-- uzys-harness:import:start -->\n@CLAUDE-uzys-harness.md\n");
+    put("CLAUDE-uzys-harness.md", "# anchor\n");
+    put("AGENTS.md", "<!-- uzys-harness:agents:start -->\nx\n<!-- uzys-harness:agents:end -->\n");
+    put(".agents/rules/uzys-harness.md", "x\n");
+    put(".claude/CLAUDE.md", "# old anchor\n");
+    expect(detectInstallState(dir).traces.map((t) => t.path)).toEqual([
+      "CLAUDE-uzys-harness.md",
+      "CLAUDE.md",
+      "AGENTS.md",
+      ".agents/rules/uzys-harness.md",
+      ".claude/CLAUDE.md",
+    ]);
   });
 
-  it("ignores unknown tokens in metafile", () => {
-    mkdirSync(join(dir, ".claude"), { recursive: true });
-    writeFileSync(join(dir, ".claude/.installed-tracks"), "tooling unknown\nbogus\n");
+  it("메타파일 제안은 중복 제거 · 정렬 · 모르는 낱말 버림", () => {
+    put(".claude/.installed-tracks", "tooling tooling\ndata bogus\n");
+    expect(suggestedTracks(detectInstallState(dir).traces)).toEqual(["data", "tooling"]);
+  });
+
+  it("기록이 있으면 installed — 트랙은 기록에서(메타파일이 달라도)", () => {
+    writeLog(["tooling"], ["claude"]);
+    put(".claude/.installed-tracks", "data\n");
     const result = detectInstallState(dir);
+    expect(result.state).toBe("installed");
+    expect(result.log?.spec.tracks).toEqual(["tooling"]);
     expect(result.tracks).toEqual(["tooling"]);
+    expect(result.traces).toEqual([]);
   });
 
-  it("falls back to legacy rules/*.md heuristic when metafile missing", () => {
+  it("깨진 기록은 corrupted — `.claude/` 가 있어도", () => {
+    put(".uzys-agent-harness/.harness-install.json", "<<<<<<< HEAD\n{");
     mkdirSync(join(dir, ".claude/rules"), { recursive: true });
-    writeFileSync(join(dir, ".claude/rules/htmx.md"), "");
-    writeFileSync(join(dir, ".claude/rules/cli-development.md"), "");
     const result = detectInstallState(dir);
-    expect(result.source).toBe("legacy");
-    expect(result.tracks).toEqual(["ssr-htmx", "tooling"]);
+    expect(result.state).toBe("corrupted");
+    expect(result.log).toBeNull();
+    expect(result.traces).toEqual([]);
   });
 
-  it("legacy: pyside6.md OR data-analysis.md both map to data (deduped)", () => {
-    mkdirSync(join(dir, ".claude/rules"), { recursive: true });
-    writeFileSync(join(dir, ".claude/rules/pyside6.md"), "");
-    writeFileSync(join(dir, ".claude/rules/data-analysis.md"), "");
+  it("아무것도 없으면 none · 흔적 없음", () => {
     const result = detectInstallState(dir);
-    expect(result.tracks).toEqual(["data"]);
-  });
-
-  it("legacy: returns empty tracks when rules/ missing entirely", () => {
-    mkdirSync(join(dir, ".claude"), { recursive: true });
-    const result = detectInstallState(dir);
-    expect(result.state).toBe("existing");
-    expect(result.source).toBe("legacy");
-    expect(result.tracks).toEqual([]);
-  });
-
-  it("legacy: returns existing-but-empty when rules dir present but no signatures match", () => {
-    mkdirSync(join(dir, ".claude/rules"), { recursive: true });
-    writeFileSync(join(dir, ".claude/rules/random.md"), "");
-    const result = detectInstallState(dir);
-    expect(result.state).toBe("existing");
-    expect(result.source).toBe("legacy");
-    expect(result.tracks).toEqual([]);
+    expect(result).toMatchObject({ state: "none", tracks: [], hasClaudeDir: false, traces: [] });
   });
 });
 
 /**
- * v26.135.0 (#253) — `.claude/` 부재 ≠ 미설치.
- *
- * opencode/codex 단독 설치는 `.claude/` 를 만들지 않는다. 여기서 "new" 를 돌려주면 위저드가
- * 기설치 프로젝트를 새 설치 흐름으로 태우고, `update` 는 갱신할 게 있는데도 거절한다.
+ * v26.135.0 (#253) — `.claude/` 부재 ≠ 미설치. opencode/codex 단독 설치는 `.claude/` 를 만들지 않는다.
  */
 describe("detectInstallState — .claude/ 없는 설치 (#253)", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-state-nolog-"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  function writeLog(tracks: string[]): void {
-    mkdirSync(join(dir, ".uzys-agent-harness"), { recursive: true });
-    writeFileSync(
-      join(dir, ".uzys-agent-harness", ".harness-install.json"),
-      JSON.stringify({
-        schemaVersion: 1,
-        installedAt: "2026-07-26T00:00:00.000Z",
-        scope: "project",
-        spec: { tracks, cli: ["opencode"] },
-        templates: { claudeDir: ".claude/" },
-        assets: [],
-      }),
-      "utf8",
-    );
-  }
-
-  it("설치 로그만 있어도 existing — opencode 단독 설치가 '미설치'로 보이면 안 된다", () => {
+  it("설치 로그만 있어도 installed — opencode 단독 설치가 '미설치'로 보이면 안 된다", () => {
     writeLog(["tooling"]);
     const result = detectInstallState(dir);
-    expect(result.state).toBe("existing");
-    expect(result.source).toBe("install-log");
+    expect(result.state).toBe("installed");
     expect(result.hasClaudeDir).toBe(false);
     expect(result.tracks).toEqual(["tooling"]);
   });
@@ -125,17 +119,52 @@ describe("detectInstallState — .claude/ 없는 설치 (#253)", () => {
     writeLog(["tooling", "no-such-track"]);
     expect(detectInstallState(dir).tracks).toEqual(["tooling"]);
   });
+});
 
-  it("`.claude/` 는 있는데 메타파일이 없으면 기록의 트랙 — 룰 이름 추론보다 기록이 먼저다 (ADR-098 · `.claude` 밖 링크)", () => {
-    writeLog(["tooling"]);
-    mkdirSync(join(dir, ".claude"), { recursive: true }); // 룰도 메타파일도 없다 — 추론이면 []
-    const result = detectInstallState(dir);
-    expect(result.source).toBe("install-log");
-    expect(result.hasClaudeDir).toBe(true);
-    expect(result.tracks).toEqual(["tooling"]);
+describe("notInstalledLines — 세 명령이 함께 쓰는 문장 (설계 no-record §1)", () => {
+  const logAt = (): string => join(dir, ".uzys-agent-harness/.harness-install.json");
+
+  it("흔적 없음 = 두 줄", () => {
+    expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([
+      `No harness install found at ${dir}`,
+      "Run `agent-harness install --track <name>` first.",
+    ]);
   });
 
-  it("로그도 `.claude/` 도 없으면 여전히 new", () => {
-    expect(detectInstallState(dir).state).toBe("new");
+  it("흔적 있음 = 네 줄 · 마지막 줄이 메타파일의 트랙을 제안한다", () => {
+    put(".claude/.installed-tracks", "tooling\n");
+    put(".claude/CLAUDE.md", "# old\n");
+    const lines = notInstalledLines(detectInstallState(dir), dir);
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe(`No install record at ${logAt()}`);
+    expect(lines[1]).toBe(
+      "Harness files are here (.claude/.installed-tracks, .claude/CLAUDE.md) but no record of installing them.",
+    );
+    expect(lines[2]).toContain(
+      "Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once",
+    );
+    expect(lines[3]).toBe(
+      "To make this copy managed on its own: agent-harness install --track tooling",
+    );
+  });
+
+  it("흔적이 셋을 넘으면 셋만 나열하고 줄임표 · 메타파일이 없으면 --track <t>", () => {
+    for (const r of ["htmx", "nextjs", "pyside6", "cli-development"]) put(`.claude/rules/${r}.md`);
+    const lines = notInstalledLines(detectInstallState(dir), dir);
+    expect(lines[1]).toContain(
+      "(.claude/rules/htmx.md, .claude/rules/nextjs.md, .claude/rules/pyside6.md, …)",
+    );
+    expect(lines[3]).toBe(
+      "To make this copy managed on its own: agent-harness install --track <t>",
+    );
+  });
+
+  it("corrupted = 한 줄 · installed = 없음", () => {
+    put(".uzys-agent-harness/.harness-install.json", "{");
+    expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([
+      `install log is corrupted at ${logAt()} — run install --reinstall to rebuild it`,
+    ]);
+    writeLog(["tooling"]);
+    expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([]);
   });
 });
