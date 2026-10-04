@@ -143,6 +143,8 @@ export function assetCostRows(
 export interface ResidentCost {
   rules: number;
   projectClaudeMd: number;
+  /** `projectClaudeMd`/`items.claudeMd` 가 가리키는 **실제 파일 이름** — CLI 따라 `CLAUDE.md` · `AGENTS.md` (#615). */
+  contextFile: string;
   skillDescriptors: number;
   agentDescriptors: number;
   total: number;
@@ -180,9 +182,11 @@ export function makeResidentCost(base: {
   agentDescriptors: number;
   items: ResidentItemCount;
   perSkillDescriptor?: Readonly<Record<string, number>>;
+  contextFile?: string;
 }): ResidentCost {
   return {
     ...base,
+    contextFile: base.contextFile ?? "CLAUDE.md",
     perSkillDescriptor: base.perSkillDescriptor ?? {},
     total: base.rules + base.projectClaudeMd + base.skillDescriptors + base.agentDescriptors,
     directive: {
@@ -229,6 +233,25 @@ function descriptorTokens(path: string): number {
 }
 
 /**
+ * 앵커(원칙 본문 + 프로젝트 맥락 스캐폴드)가 **어느 파일에 어떤 모양으로** 깔리는가 (#615).
+ * 정의의 출처는 `docs/CONTEXT-FILES.md` §3 — 여기서 새로 정하지 않는다.
+ */
+function anchorSurface(cli: CliTargets): {
+  label: string;
+  files: 1 | 2;
+  scaffold: "claude" | "agents-md" | "antigravity-rule";
+} {
+  if (cli.includes("claude") || cli.length === 0) {
+    return { label: "CLAUDE.md", files: 2, scaffold: "claude" };
+  }
+  // codex · opencode 는 같은 `AGENTS.md` 를 쓴다 — 둘이 섞여도 한 파일이다.
+  if (cli.includes("codex") || cli.includes("opencode")) {
+    return { label: "AGENTS.md", files: 1, scaffold: "agents-md" };
+  }
+  return { label: ".agents/rules/uzys-harness.md", files: 1, scaffold: "antigravity-rule" };
+}
+
+/**
  * 설치 계획(manifest 엔트리)에서 상주 비용을 실측. `applies` 로 이미 걸러진 엔트리를 받으므로
  * **트랙별 실제 설치분**이 반영된다 (templates/ 전체 합계 같은 부풀린 수치가 아니다).
  *
@@ -237,23 +260,10 @@ function descriptorTokens(path: string): number {
  * 계획으로 재면 화면 숫자가 그 설치본의 실제보다 작다. 파일 자산은 파일 경로, `skills` 는
  * 디렉터리 경로를 준다(엔트리 `source` 와 같은 단위). 안 주면 지금처럼 `templates/<source>` 다.
  */
-/**
- * 계획(manifest) 엔트리 중 **그 CLI 조합에서 실제로 디스크에 남는** 것인가 (#476).
- *
- * `.claude/agents/` 는 Claude Code 서브에이전트 파일이고 다른 CLI 산출물로 변환되지 않는다 —
- * claude 를 안 고른 설치는 `.claude/` 자체를 만들지 않는다(`installer.ts` baseline 분기). 계획으로
- * 재던 헤더·wizard confirm 은 그 파일을 셌고, 같은 설치의 update 화면(디스크 실측, #458)은 0 을
- * 냈다 — 실측: codex 단독 tooling 에서 헤더 `agents 2 ~192` · update `agents 0 ~0`. 룰은 AGENTS.md
- * 에 인라인되고 스킬은 `.agents/skills/` descriptor 로 남으므로 그대로 센다.
- */
-export function landsOnDisk(target: string, cli: CliTargets): boolean {
-  if (target.startsWith(".claude/agents/")) return cli.includes("claude");
-  return true;
-}
-
 export function residentCost(
   entries: ReadonlyArray<{ source: string; target: string; file?: string }>,
   root: string = resolveBundleRoot(),
+  cli: CliTargets = ["claude"],
 ): ResidentCost {
   const tpl = (source: string): string => join(root, "templates", source);
   const measured = (e: { source: string; file?: string }): string => e.file ?? tpl(e.source);
@@ -296,18 +306,28 @@ export function residentCost(
   // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 2줄(프로젝트명·트랙)은
   // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
   const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));
+  // #615 — **그 CLI 가 실제로 읽는 앵커 파일**을 잰다. claude 를 안 고른 설치는 루트 `CLAUDE.md` 도
+  // `CLAUDE-uzys-harness.md` 도 만들지 않는다(`docs/CONTEXT-FILES.md` §3): Codex · OpenCode 는
+  // `AGENTS.md` 한 파일에, Antigravity 는 `.agents/rules/uzys-harness.md` 한 파일에 같은 앵커 본문 +
+  // 같은 스캐폴드를 담는다. 그래서 그 경우는 **파일 1개**이고 이름이 CLI 따라 바뀐다 — 상수
+  // `CLAUDE.md 2` 를 그대로 찍던 것이 사례 1 이다. claude 가 섞이면 claude 몫이 기준이다(다른 CLI 의
+  // 앵커를 더하지 않는다 — 비용은 세션 하나가 무는 값이다).
+  const surface = anchorSurface(cli);
+  // ②는 claude 에서는 루트 `CLAUDE.md`, 나머지에서는 앵커 파일 안의 `{PROJECT_CONTEXT}` 다.
   // ADR-085 — 스캐폴드 뒤에 붙는 상시 스킬 안내까지 잰다. 전 스킬 선택 기준(상한) — 안내는
   // 깔린 스킬만 적으므로 실제 설치본은 이보다 작거나 같다.
   const projectScaffold = estimateTokens(
     withContinuousSkillsNote(
-      renderFillScaffold(),
+      renderFillScaffold(surface.scaffold),
       CONTINUOUS_SKILLS.map((s) => s.id),
     ).trim().length,
   );
   const projectClaudeMd = harnessAnchor + projectScaffold;
   // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
   // 스캐폴드는 코드 생성물이라 부재할 수 없다.
-  const claudeMdItems = (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
+  // claude 는 두 파일(앵커 + 루트 CLAUDE.md), 나머지는 한 파일이다.
+  const claudeMdItems =
+    surface.files === 1 ? 1 : (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
   // 축은 `makeResidentCost` 하나가 derive 한다 — 여기서 다시 조립하면 사본이 둘이 된다.
   return makeResidentCost({
     rules,
@@ -315,6 +335,7 @@ export function residentCost(
     skillDescriptors,
     agentDescriptors,
     perSkillDescriptor: perSkill,
+    contextFile: surface.label,
     items: {
       rules: ruleItems,
       skills: skillItems,
@@ -389,7 +410,7 @@ export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number)
   // "깎으면 안 불린다"로 판단이 다르다. 갈라 보여 주는 이유가 그것이다.
   const parts = [
     `directives ${r.directive.items} ~${r.directive.tokens}`,
-    `[rules ${r.items.rules} ~${r.rules} · CLAUDE.md ${r.items.claudeMd} ~${r.projectClaudeMd}]`,
+    `[rules ${r.items.rules} ~${r.rules} · ${r.contextFile} ${r.items.claudeMd} ~${r.projectClaudeMd}]`,
     `triggers ${r.firing.items} ~${r.firing.tokens}`,
     `[skills ${r.items.skills} ~${r.skillDescriptors} · agents ${r.items.agents} ~${r.agentDescriptors}]`,
   ].join(" · ");

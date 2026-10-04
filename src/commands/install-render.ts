@@ -12,12 +12,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
-import {
-  formatResidentCostLine,
-  landsOnDisk,
-  residentCost,
-  summarizeContextCost,
-} from "../context-cost.js";
+import { formatResidentCostLine, summarizeContextCost } from "../context-cost.js";
 import {
   assetRow,
   c,
@@ -45,9 +40,10 @@ import {
   type InstallReport,
   type ProgressEvent,
 } from "../installer.js";
-import { buildManifest, RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
+import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
+import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 
@@ -143,13 +139,8 @@ export function renderInstallHeader(
     // 디스크에 남아 매 세션 상주하는데 계획에는 없어서, 설치자는 실제보다 작은 숫자를 본다
     // (실측: 화면 agents 2 · 디스크 4). 갱신 **후 디스크**로 잰 줄을 `renderUpdateSummary` 가 낸다.
     if (mode !== "update") {
-      const assetSpec = buildManifestSpec(spec);
       const cost = formatResidentCostLine(
-        residentCost(
-          buildManifest(assetSpec).filter(
-            (e) => e.applies(assetSpec) && landsOnDisk(e.target, spec.cli),
-          ),
-        ),
+        residentCostFor(spec),
         summarizeContextCost(finalAssets).unmeasuredCount,
       );
       if (cost) log(`              ${c.dim(`· ${cost}`)}`);
@@ -256,7 +247,7 @@ export function renderUpdateSummary(
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
   const cost = formatResidentCostLine(
-    residentCost(residentEntriesOnDisk(spec)),
+    residentCostFor(spec, residentEntriesOnDisk(spec)),
     summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
   );
   if (cost) log(infoRow("CONTEXT", cost));
@@ -292,20 +283,21 @@ export function renderUpdateSummary(
 function residentEntriesOnDisk(
   spec: InstallSpec,
 ): Array<{ source: string; target: string; file?: string }> {
-  const assetSpec = buildManifestSpec(spec);
-  const planned = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
+  const planned = residentEntries(spec);
   const agentsDir = join(spec.projectDir, ".claude", "agents");
-  const onDisk = existsSync(agentsDir)
-    ? readdirSync(agentsDir, { withFileTypes: true })
-        .filter((e) => e.isFile() && e.name.endsWith(".md"))
-        .map((e) => ({
-          source: `agents/${e.name}`,
-          target: `.claude/agents/${e.name}`,
-          // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 descriptor 도,
-          // 배포판에 더는 없는 에이전트도 실제로 상주하는 것은 이쪽이다.
-          file: join(agentsDir, e.name),
-        }))
-    : [];
+  // claude 가 없으면 `.claude/` 를 만든 적이 없다 — 남의 `.claude/agents/` 는 이 설치의 상주가 아니다.
+  const onDisk =
+    spec.cli.includes("claude") && existsSync(agentsDir)
+      ? readdirSync(agentsDir, { withFileTypes: true })
+          .filter((e) => e.isFile() && e.name.endsWith(".md"))
+          .map((e) => ({
+            source: `agents/${e.name}`,
+            target: `.claude/agents/${e.name}`,
+            // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 descriptor 도,
+            // 배포판에 더는 없는 에이전트도 실제로 상주하는 것은 이쪽이다.
+            file: join(agentsDir, e.name),
+          }))
+      : [];
   return [...planned.filter((e) => !e.target.startsWith(".claude/agents/")), ...onDisk];
 }
 
