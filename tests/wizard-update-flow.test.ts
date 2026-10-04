@@ -558,9 +558,11 @@ describe("깨진 설치 — 화면과 엔진이 같은 기록으로 판정한다
         projectDir: dir,
       },
     });
-  const screenSaysBroken = (): boolean =>
-    buildInstallRecordView(state(), readInstallLog(dir), existsSync(join(dir, ".claude")))
-      .repair !== null;
+  const screenSaysBroken = (): boolean => {
+    const log = readInstallLog(dir);
+    if (log === null) throw new Error("픽스처에 설치 기록이 없다 — 메뉴는 기록이 있을 때만 뜬다");
+    return buildInstallRecordView(state(), log, existsSync(join(dir, ".claude"))).repair !== null;
+  };
   const engineSaysBroken = (): boolean => {
     try {
       run("update", ["claude", "codex"]);

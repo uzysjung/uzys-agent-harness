@@ -1522,8 +1522,18 @@ export function sharedFileRow(f: SharedWrite): string | null {
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
   if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
   parts.push(...excludedKeyParts(f));
-  return assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+  const row = assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+  // ADR-100 — 기록 폴더를 통째로 무시하던 줄을 걷었다: 그 폴더가 이제 커밋 대상이라는 것을 같은 자리에서 말한다
+  if (f.path === ".gitignore" && (f.retired ?? []).includes(GITIGNORE_RECORD_DIR_LINE)) {
+    return `${row}\n${assetRow("success", f.path, GITIGNORE_RECORD_DIR_NOTE, 28)}`;
+  }
+  return row;
 }
+
+/** ADR-100 — 옛 판이 `.gitignore` 에 더하던, 설치 기록 폴더를 통째로 무시하는 줄. */
+const GITIGNORE_RECORD_DIR_LINE = ".uzys-agent-harness/";
+const GITIGNORE_RECORD_DIR_NOTE =
+  "now ignores only the harness's runtime files — commit .uzys-agent-harness/ so teammates get the install record";
 
 /**
  * 리뷰 #693 NOTE-2 — 설치자가 `--without <키 id>` 로 뺀 하네스 몫을 이번에 실제로 어떻게 했는지. 걷었으면 걷었다고(고친

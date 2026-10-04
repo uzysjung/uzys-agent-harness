@@ -86,6 +86,7 @@ A **track** is a starting set for what you are building. It only pre-checks item
 | Bring it to the current release | `npx -y @uzysjung/agent-harness update` |
 | Add another CLI later | `npx -y @uzysjung/agent-harness install --track <your track> --cli <new cli>` |
 | Remove everything, one CLI, or single assets | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>` · `--only <id>` · `--dry-run` to preview) |
+| Cloned a repo a teammate set up with the harness | Nothing — the install record is committed with the files. `list` shows it; `update` and `uninstall` work as on their machine ([teammates and fresh clones](docs/USAGE.md#teammates-and-fresh-clones)) |
 
 `update` refreshes what the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose — installing adds a CLI, and only `uninstall` takes one away. `update --only skills` limits it to one group.
 

@@ -75,12 +75,12 @@ export function updateAction(options: UpdateOptions = {}, deps: UpdateActionDeps
   });
 }
 
+/** `update --help` 의 명령 설명 — 갱신 묶음(`UPDATE_GROUPS`)에서 유도한다. 손으로 적은 목록은 묶음보다 적었다(#622). */
+export const UPDATE_COMMAND_DESCRIPTION = `Refresh installed harness files (${UPDATE_GROUPS.join(" / ")})`;
+
 export function registerUpdateCommand(cli: import("../cli.js").Cli): void {
   cli
-    .command(
-      "update",
-      "Refresh installed policy files (rules / agents / commands / hooks / skills)",
-    )
+    .command("update", UPDATE_COMMAND_DESCRIPTION)
     .option("--project-dir <path>", "[Project] Target project directory", {
       default: process.cwd(),
     })

@@ -2,8 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { UPDATE_COMMAND_DESCRIPTION } from "../src/commands/update.js";
 import { EXTERNAL_ASSETS } from "../src/external-assets";
 import { buildRouterChoices } from "../src/router.js";
+import { UPDATE_GROUPS } from "../src/types.js";
 import { runUpdateMode } from "../src/update-mode.js";
 
 // WHY: ADR-022(v26.81.0, BREAKING) 가 자산 1:1 opt-in 플래그 13종(--with-ecc 등)을
@@ -91,9 +93,11 @@ describe("update hint 가 실제 갱신 대상을 광고한다 (derive)", () => 
       );
 
       const hint =
-        buildRouterChoices({ tracks: ["tooling"], cli: [], hasClaudeDir: true } as never).find(
-          (c) => c.value === "update",
-        )?.hint ?? "";
+        buildRouterChoices({ tracks: ["tooling"], cli: [], hasClaudeDir: true } as never, {
+          clis: ["claude"],
+          scope: "project",
+          repair: null,
+        }).find((c) => c.value === "update")?.hint ?? "";
 
       for (const dir of touched) {
         // `.claude/commands/uzys` 는 hint 에서 "commands" 로 불린다 — 세그먼트 중 하나라도
@@ -108,5 +112,28 @@ describe("update hint 가 실제 갱신 대상을 광고한다 (derive)", () => 
       rmSync(projectDir, { recursive: true, force: true });
       rmSync(templatesDir, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * #622 — 위 derive 는 `.claude/` 아래 디렉터리만 본다. 앵커 · 다른 CLI 산출물 · 외부 스킬 · 새 스킬은
+ * 그 밖이라 hint 가 말하지 않아도 통과했다. 갱신 묶음(`UPDATE_GROUPS`)에서 유도한다 — 묶음 이름의
+ * 낱말(`new-skills` → new · skills)이 hint 에 있어야 한다. 묶음이 늘면 자동으로 문다.
+ */
+describe("update hint 가 갱신 묶음을 전부 말한다 (UPDATE_GROUPS derive)", () => {
+  it("묶음 이름의 낱말이 hint 에 모두 있다", () => {
+    const hint = (
+      buildRouterChoices({ tracks: ["tooling"], cli: [], hasClaudeDir: true } as never, {
+        clis: ["claude"],
+        scope: "project",
+        repair: null,
+      }).find((c) => c.value === "update")?.hint ?? ""
+    ).toLowerCase();
+    const missing = UPDATE_GROUPS.flatMap((g) => g.split("-")).filter((w) => !hint.includes(w));
+    expect(missing, `hint 가 말하지 않는 묶음 낱말 — hint: "${hint}"`).toEqual([]);
+  });
+
+  it("`update --help` 명령 설명도 묶음을 전부 말한다", () => {
+    expect(UPDATE_GROUPS.filter((g) => !UPDATE_COMMAND_DESCRIPTION.includes(g))).toEqual([]);
   });
 });

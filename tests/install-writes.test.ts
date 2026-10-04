@@ -32,6 +32,9 @@ const BACKUP_PATTERNS = [
   "*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*",
 ] as const;
 
+/** ADR-100 — 기록 폴더 안에서 무시하는 런타임 파일 둘. */
+const RUNTIME = [".uzys-agent-harness/hook-blocks.log", ".uzys-agent-harness/update-backups.json"];
+
 const HARNESS_ROOT = resolve(__dirname, "..");
 
 /**
@@ -616,11 +619,12 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
 
     expect(read(".gitignore").startsWith("node_modules\n.env\n")).toBe(true);
     const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
-    expect(keys).toEqual([".factory/", ".goose/", ".uzys-agent-harness/", ...BACKUP_PATTERNS]);
+    // ADR-100 — 기록은 키 순으로 정렬돼 쓰인다(같은 내용이면 같은 바이트) — 집합으로 본다
+    expect(keys.sort()).toEqual([".factory/", ".goose/", ...RUNTIME, ...BACKUP_PATTERNS].sort());
     expect(report.envFiles.gitignoreEnvAdded).toBe(false);
   });
 
-  it("옛 판이 더한 줄을 몫으로 이어받는다 — 딸린 주석이 두 번 붙지 않는다", () => {
+  it("옛 판이 더한 줄을 몫으로 이어받는다 — 딸린 주석이 두 번 붙지 않고, 기록 폴더 줄은 걷는다 (B2 · 옛 기록)", () => {
     const old =
       "node_modules\n\n# Secret env (auto-added by agent-harness install)\n.env\n\n" +
       "# agent CLI / harness 자동 생성물 (auto-added by agent-harness)\n.factory/\n.goose/\n.uzys-agent-harness/\n";
@@ -639,18 +643,20 @@ describe("`.gitignore` — 있을 때만 하네스 줄을 더한다", () => {
       }),
     );
 
-    install();
+    const { screen } = install();
 
-    // #657 — 옛 판이 붙인 줄은 그대로(주석도 두 번 안 붙는다) 이어받고, 이 판이 새로 정의한
-    // 백업 패턴은 같은 머리글 아래에 더해진다. "이어받기"는 "새 줄 추가 금지"가 아니다.
+    // #657 — 옛 판이 붙인 줄은 그대로(주석도 두 번 안 붙는다) 이어받고, 이 판이 새로 정의한 줄은 같은 머리글 아래에
+    // 더해진다. ADR-100 — 렌더에서 빠진 기록 폴더 줄은 옛 기록의 설명으로 알아보고 걷는다(설치자 줄로 남기지 않는다)
     const after = read(".gitignore");
-    expect(after.startsWith(old.replace(/\n$/, ""))).toBe(true);
-    for (const pat of BACKUP_PATTERNS) expect(after).toContain(pat);
+    expect(after.startsWith(old.replace(".uzys-agent-harness/\n", ""))).toBe(true);
+    expect(after.split("\n")).not.toContain(".uzys-agent-harness/");
+    for (const pat of [...RUNTIME, ...BACKUP_PATTERNS]) expect(after).toContain(pat);
     expect(after.match(/auto-added by agent-harness( install)?\)/g)?.length).toBe(2); // 주석 중복 없음
     const keys = (log().portions ?? []).filter((p) => p.path === ".gitignore").map((p) => p.key);
     expect(keys.sort()).toEqual(
-      [...[".env", ".factory/", ".goose/", ".uzys-agent-harness/"], ...BACKUP_PATTERNS].sort(),
+      [...[".env", ".factory/", ".goose/"], ...RUNTIME, ...BACKUP_PATTERNS].sort(),
     );
+    expect(screen).toContain("commit .uzys-agent-harness/ so teammates get the install record");
   });
 });
 

@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-02
 - PR: #268
+- Amended-by: ADR-100 (Accepted, #702 — Decision 2 의 gitignore 패턴 `.uzys-agent-harness/` → `.uzys-agent-harness/hook-blocks.log` · `update-backups.json`. 차단 로그를 무시하는 목적은 그대로, 기록은 클론으로 간다)
 - Context: 사용자 지시 "룰·훅이 밥값을 하는지 공식 문서 근거로 판정 → 개발 사본·배포 템플릿
   양쪽 동일 정리, 밥값을 하더라도 최대한 간결하게"(2026-08-02). 백로그 #261-2 의 실행.
   판정 기준은 Anthropic 공식 문서 원문 인용으로 확보했다

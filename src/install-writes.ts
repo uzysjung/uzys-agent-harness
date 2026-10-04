@@ -20,7 +20,7 @@ import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { renderHarnessMcp } from "./cli-transforms.js";
-import { gitignoreRender } from "./env-files.js";
+import { gitignoreRender, RETIRED_GITIGNORE_LINES } from "./env-files.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
@@ -84,6 +84,11 @@ export interface SharedWrite {
   removedEdited: string[];
   /** 설치자가 뺐지만 고쳐 둬서 남긴 키 — 키 id. 하네스는 더 관리하지 않는다. `kept` 와 겹치지 않는다. */
   keptOut: string[];
+  /**
+   * 하네스가 더는 렌더하지 않아 이번에 걷은 키(설치자가 뺀 것 제외) — 화면용 짧은 이름. 부재 = 없음. 화면이 바뀐 까닭을
+   * 덧붙일 때 쓴다(`.gitignore` 의 `.uzys-agent-harness/` → 런타임 파일 두 줄, ADR-100).
+   */
+  retired?: string[];
 }
 
 export interface WriteLedger {
@@ -351,7 +356,9 @@ export function createInstallWriter(args: {
       : valueKeys.length > 0
         ? "kept — the harness part is already in place"
         : "nothing written — yours already has these";
+    const retired = names(res.removed.filter((k) => !out.has(k) && !render.has(k)));
     return result(j.verdict, line, {
+      ...(retired.length > 0 ? { retired } : {}),
       changed: res.changed,
       harness: names(valueKeys),
       added: names(addedKeys),
@@ -780,11 +787,16 @@ export function legacyGitignoreSeed(
       .filter((n) => n.startsWith(GITIGNORE_NOTE_PREFIX))
       .flatMap((n) => n.slice(GITIGNORE_NOTE_PREFIX.length).split(", ")),
   );
-  const candidates = [...render.keys()].filter((k) => noted.has(k));
+  // 더는 렌더하지 않는 옛 줄(ADR-100)도 그때의 값으로 알아본다 — 그래야 upsert 가 걷고 uninstall 이 알린다
+  const lineValue = (key: string): string | undefined =>
+    render.get(key) ?? RETIRED_GITIGNORE_LINES.get(key);
+  const candidates = [...render.keys(), ...RETIRED_GITIGNORE_LINES.keys()].filter((k) =>
+    noted.has(k),
+  );
   const present = ADAPTERS.lines.read(text, candidates) ?? new Map();
   const seed = new Map<string, string>();
   for (const key of present.keys()) {
-    const value = render.get(key);
+    const value = lineValue(key);
     if (value !== undefined) seed.set(key, hashContent(value));
   }
   return seed;

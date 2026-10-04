@@ -220,7 +220,7 @@ export interface BaselineReport {
     gitignoreEnvAdded: boolean;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
-     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * (`.factory/`, `.goose/`, 기록 폴더의 런타임 파일 둘 — ADR-100 전에는 `.uzys-agent-harness/` 폴더째).
      * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
      */
     gitignoreNpxSkillsAdded: string[];
@@ -407,7 +407,7 @@ export interface InstallReport {
     gitignoreEnvAdded: boolean;
     /**
      * v0.8.0 — `.gitignore`에 추가된 자동 생성물 디렉토리 패턴
-     * (`.factory/`, `.goose/`, 2026-08-02부터 `.uzys-agent-harness/`).
+     * (`.factory/`, `.goose/`, 기록 폴더의 런타임 파일 둘 — ADR-100 전에는 `.uzys-agent-harness/` 폴더째).
      * 필드명은 v0.8.0 당시 범위(npx skills)를 그대로 쓴다 — 개명은 표면 3곳을 함께 건드린다.
      */
     gitignoreNpxSkillsAdded: string[];
@@ -1152,7 +1152,8 @@ function installClaudeBaseline(
     chmodHooksSync(hookDir, projectDir);
   }
 
-  // Write metadata file used by detect_install_state on next run (.claude/.installed-tracks).
+  // `.claude/.installed-tracks` — 설치 상태 판정에는 쓰지 않는다(기록만 읽는다, #699). 기록이 없을 때(예: `.claude/` 는
+  // 커밋됐고 `.uzys-agent-harness/` 는 안 된 클론) 흔적으로만 읽어 `--track` 을 제안한다(`state.ts` collectTraces · #622).
   // 하네스 파일이라 같은 판정을 받는다 — 옛 판 기록엔 sha 가 없으므로 대상으로 알려 준다("no checksum").
   // #585 — 설치 기록과 같은 누적 트랙(이전 기록 ∪ 이번 실행)을 적는다. 이번 실행분만 적으면 기록과 갈린다.
   writer.harness(
@@ -1259,7 +1260,7 @@ function writeEnvironmentFiles(
     envExampleCreated,
     gitignoreEnvAdded: res.added.includes(".env"),
     // v0.8.0 — `.factory/`, `.goose/` ignore (npx skills universal install 사용자 #3).
-    // 2026-08-02 — `.uzys-agent-harness/` 합류 (설치 로그 + 훅 차단 로그).
+    // ADR-100 — 기록 폴더의 런타임 파일 둘(훅 차단 로그 · update 백업 목록). 기록 자체는 커밋 대상이다.
     gitignoreNpxSkillsAdded: res.added.filter((line) => line !== ".env"),
   };
 }

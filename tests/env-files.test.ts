@@ -8,6 +8,9 @@ const BACKUP_PATTERNS = [
   "*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*",
 ] as const;
 
+/** ADR-100 — 기록 폴더 안에서 무시하는 런타임 파일 둘(기대치는 소스 목록을 가져다 쓰지 않는다). */
+const RUNTIME = [".uzys-agent-harness/hook-blocks.log", ".uzys-agent-harness/update-backups.json"];
+
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -77,13 +80,7 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
   it("없는 줄만 붙이고 기존 줄은 그대로 둔다", () => {
     const { text, added } = apply("node_modules\ndist\n");
     expect(text.startsWith("node_modules\ndist\n")).toBe(true);
-    expect(added).toEqual([
-      ".env",
-      ".factory/",
-      ".goose/",
-      ".uzys-agent-harness/",
-      ...BACKUP_PATTERNS,
-    ]);
+    expect(added).toEqual([".env", ".factory/", ".goose/", ...RUNTIME, ...BACKUP_PATTERNS]);
     expect(text).toContain("# Secret env (auto-added by agent-harness install)\n.env\n");
     expect(text).toContain("auto-added by agent-harness");
   });
@@ -110,23 +107,18 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
   });
 
   it("partial — .factory/ 가 이미 있으면 나머지만 붙는다", () => {
-    expect(apply(".factory/\n").added).toEqual([
-      ".env",
-      ".goose/",
-      ".uzys-agent-harness/",
-      ...BACKUP_PATTERNS,
-    ]);
+    expect(apply(".factory/\n").added).toEqual([".env", ".goose/", ...RUNTIME, ...BACKUP_PATTERNS]);
   });
 
   /**
-   * 2026-08-02 — 훅 차단 로그(`.uzys-agent-harness/hook-blocks.log`)가 설치 사용자 리포에서
-   * 추적되면, 차단이 일어날 때마다 남의 저장소에 커밋 대상이 늘어난다. 계측이 사용자에게
-   * 비용을 떠넘기는 형태라 패턴 누락을 여기서 단독으로 문다.
+   * ADR-100 (#658) — 설치 기록 폴더는 커밋 대상이다: 폴더째 무시하면 클론에 기록이 없어 동료의 `list`·`update`·`uninstall`
+   * 이 "설치 없음" 이 된다. 그 안에서 기계마다 다른 런타임 파일 둘(훅 차단 로그 · update 백업 목록)만 무시한다 — 계측이
+   * 남의 저장소에 커밋 대상을 늘리면 안 된다(2026-08-02).
    */
-  it("차단 로그 디렉터리가 반드시 포함된다 (계측이 사용자 리포를 더럽히지 않는다)", () => {
-    expect(apply(".env\n.factory/\n.goose/\n").added).toEqual([
-      ".uzys-agent-harness/",
-      ...BACKUP_PATTERNS,
-    ]);
+  it("B1: 기록 폴더 줄은 없고, 그 안의 런타임 파일 두 줄만 있다", () => {
+    const keys = [...gitignoreRender().keys()];
+    expect(keys).not.toContain(".uzys-agent-harness/");
+    expect(keys).toEqual(expect.arrayContaining(RUNTIME));
+    expect(apply(".env\n.factory/\n.goose/\n").added).toEqual([...RUNTIME, ...BACKUP_PATTERNS]);
   });
 });

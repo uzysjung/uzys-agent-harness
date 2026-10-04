@@ -692,10 +692,30 @@ export function writeInstallLog(projectDir: string, log: InstallLog): string {
   const path = installLogPath(projectDir);
   mkdirSync(dirname(path), { recursive: true });
   // ADR-099 R5 — 이 판이 쓰는 기록은 모두 읽을 때 정리된 것(`migrateExcluded`)이거나 새 기록이다 — 표시를 남긴다
-  const marked: InstallLog = { ...log, excludedKeysMigrated: true };
+  const marked: InstallLog = { ...normalizeLogOrder(log), excludedKeysMigrated: true };
   writeFileSync(path, `${JSON.stringify(marked, null, 2)}\n`, "utf8");
   migrateAwayLegacyLog(projectDir);
   return path;
+}
+
+/**
+ * ADR-100 — 기록은 저장소에 커밋된다. 경로 배열을 path(+key) 로 정렬해 같은 내용이면 같은 바이트가 되게 한다 — install 은
+ * 쓴 순서로, update 는 디렉터리를 읽은 순서로 적어, 같은 판 update 가 순서만 바꾼 diff 를 팀원마다 커밋 후보로 남겼다.
+ * 정렬은 안정이라 같은 path(+key) 항목끼리의 순서(뒤 것이 이기는 읽기)는 그대로다. `sortClis` 와 같은 이유다.
+ */
+function normalizeLogOrder(log: InstallLog): InstallLog {
+  const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  const byPath = <T extends { path: string }>(xs: ReadonlyArray<T>): T[] =>
+    [...xs].sort((a, b) => cmp(a.path, b.path));
+  const out: InstallLog = { ...log };
+  if (log.policyFiles !== undefined) out.policyFiles = byPath(log.policyFiles);
+  if (log.skillFiles !== undefined) out.skillFiles = byPath(log.skillFiles);
+  if (log.externalFiles !== undefined) out.externalFiles = byPath(log.externalFiles);
+  if (log.rootFiles !== undefined) out.rootFiles = byPath(log.rootFiles);
+  if (log.portions !== undefined) {
+    out.portions = [...log.portions].sort((a, b) => cmp(a.path, b.path) || cmp(a.key, b.key));
+  }
+  return out;
 }
 
 /**
@@ -933,9 +953,13 @@ function isValidInstallLogShape(value: unknown): value is InstallLog {
   return true;
 }
 
-/** #640 — "깨짐" 상태에서 사용자에게 보여줄 한 줄. 재구축 경로까지 말한다. */
+/**
+ * #640 — "깨짐" 상태에서 사용자에게 보여줄 한 줄. 되살리는 길까지 말한다. ADR-100 — 기록이 커밋되면 깨짐의 흔한 원인은 병합
+ * 충돌이고, 그때는 한쪽을 통째로 고르는 것이 기록을 잃지 않는 길이다. `--reinstall` 은 기록 없이 다시 만들어 빼기 · 외부
+ * 자산을 잊으므로 그 대가를 같은 줄에서 말한다.
+ */
 export function corruptedInstallLogMessage(projectDir: string): string {
-  return `install log is corrupted at ${installLogPath(projectDir)} — run install --reinstall to rebuild it`;
+  return `install log is corrupted at ${installLogPath(projectDir)} — if it holds git conflict markers, take one side whole; otherwise run install --reinstall (it forgets recorded exclusions and external assets)`;
 }
 
 export function installLogPath(projectDir: string): string {
