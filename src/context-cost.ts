@@ -259,11 +259,16 @@ function anchorSurface(cli: CliTargets): {
  * 재야 한다: 트랙에서 강등·은퇴한 에이전트는 manifest 에 없는데 파일은 남아 매 세션 상주하므로,
  * 계획으로 재면 화면 숫자가 그 설치본의 실제보다 작다. 파일 자산은 파일 경로, `skills` 는
  * 디렉터리 경로를 준다(엔트리 `source` 와 같은 단위). 안 주면 지금처럼 `templates/<source>` 다.
+ *
+ * `contextFiles` 는 같은 탈출구의 CLAUDE.md 행 판이다 (#615 사례 4). update 가 끝난 뒤에는 앵커와
+ * 루트 `CLAUDE.md` 가 디스크에 있고, 설치자가 키운 본문까지 매 세션 읽힌다 — 템플릿 상수로 재면
+ * 그 본문이 빠진다. 주면 그 파일들(있는 것만)을 재고, 안 주면 지금처럼 템플릿 + 스캐폴드다.
  */
 export function residentCost(
   entries: ReadonlyArray<{ source: string; target: string; file?: string }>,
   root: string = resolveBundleRoot(),
   cli: CliTargets = ["claude"],
+  contextFiles?: ReadonlyArray<string>,
 ): ResidentCost {
   const tpl = (source: string): string => join(root, "templates", source);
   const measured = (e: { source: string; file?: string }): string => e.file ?? tpl(e.source);
@@ -322,12 +327,18 @@ export function residentCost(
       CONTINUOUS_SKILLS.map((s) => s.id),
     ).trim().length,
   );
-  const projectClaudeMd = harnessAnchor + projectScaffold;
   // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
   // 스캐폴드는 코드 생성물이라 부재할 수 없다.
   // claude 는 두 파일(앵커 + 루트 CLAUDE.md), 나머지는 한 파일이다.
+  const onDisk = contextFiles?.map(fileTokens).filter((t) => t > 0);
+  const projectClaudeMd =
+    onDisk === undefined ? harnessAnchor + projectScaffold : onDisk.reduce((a, b) => a + b, 0);
   const claudeMdItems =
-    surface.files === 1 ? 1 : (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
+    onDisk !== undefined
+      ? onDisk.length
+      : surface.files === 1
+        ? 1
+        : (harnessAnchor > 0 ? 1 : 0) + (projectScaffold > 0 ? 1 : 0);
   // 축은 `makeResidentCost` 하나가 derive 한다 — 여기서 다시 조립하면 사본이 둘이 된다.
   return makeResidentCost({
     rules,
