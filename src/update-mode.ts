@@ -542,13 +542,14 @@ export function runUpdateMode(
         written: [],
         skillsInstalled: [],
         skillsRestored: [],
+        rulesRestored: [],
       };
   report.externalUpdated = external.externalUpdated;
   report.externalBackedUp = external.externalBackedUp;
   // #550 — 공유 자리에 새로 생긴 스킬도 `.claude/skills/` 와 같은 행으로 이름을 댄다. 파일 수
   // (`externalUpdated`)에만 섞으면 설치자는 지운 스킬이 돌아온 것을 모른다.
   report.installedNew.push(...external.skillsInstalled);
-  report.restored.push(...external.skillsRestored);
+  report.restored.push(...external.skillsRestored, ...external.rulesRestored);
   // 되살림 목록이 여기서 완성된다(파일 자산 · Claude 스킬 · 공유 자리 스킬). 인자를 정하는 트랙은
   // 되살릴 것을 정한 그 출처(설치 기록)다 — 화면 머리글의 트랙과 섞지 않는다.
   report.restoredWithout = restoredWithoutArgs(report.restored, installedTracks(projectDir));
@@ -1149,10 +1150,22 @@ function refreshExternalCli(
   skillsInstalled: string[];
   /** #550 — 같은 것 중 **전에 깔아 준 기록이 있는** 것 = 설치자가 지운 것의 되살림. */
   skillsRestored: string[];
+  /** #638 — antigravity 룰(.agents/rules/<name>.md)의 되살림(스킬과 같은 신호). */
+  rulesRestored: string[];
 } {
   const log = readInstallLog(projectDir);
   const baselineExcluded = new Set(log?.spec.baselineExclude ?? []);
   const presentBefore = sharedSkillIdsOnDisk(projectDir);
+  // #638 — .agents/rules/ 의 실행 전 디스크 상태(루프 회복 판정용. 스킬의 presentBefore 와 같은 역할).
+  const rulesBefore = new Set<string>();
+  const rulesDir = join(projectDir, ".agents", "rules");
+  if (existsSync(rulesDir)) {
+    try {
+      for (const f of readdirSync(rulesDir)) rulesBefore.add(f);
+    } catch {
+      /* 못 읽으면 비어 있던 것으로 — restored 가 아닌 installed 로만 분류된다(보수 방향) */
+    }
+  }
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
@@ -1207,14 +1220,25 @@ function refreshExternalCli(
   const priorIds = new Set(
     (log?.externalFiles ?? []).map((f) => SHARED_SKILL_FILE.exec(f.path)?.[1]).filter(Boolean),
   );
+  const priorPaths = new Set((log?.externalFiles ?? []).map((f) => f.path));
   const skillsInstalled: string[] = [];
   const skillsRestored: string[] = [];
+  const rulesRestored: string[] = [];
   for (const f of result.externalFiles) {
     const id = SHARED_SKILL_MD.exec(f.path)?.[1];
     if (id === undefined || presentBefore.has(id)) continue;
     const slot = `${SHARED_SKILLS_DIR}/${id}`;
     const into = priorIds.has(id) ? skillsRestored : skillsInstalled;
     if (!into.includes(slot)) into.push(slot);
+  }
+  // #638 — antigravity 룰(.agents/rules/<name>.md)도 스킬과 같은 신호로 가른다: 실행 전 디스크에
+  // 없었는데 기록에 있었으면 restored, 없었으면 installed. 스킬만 되살림 행을 받던 비대칭 해소.
+  for (const f of result.externalFiles) {
+    const m = /^\.agents\/rules\/([^/]+\.md)$/.exec(f.path);
+    // rulesBefore 는 파일명(.md 포함)을 담는다 — 캡처도 .md 포함으로 맞춘다(불일치 시 전부
+    // restored 로 오판해 "지운 것이 없는데 되살림 행"이 났던 것이 이 테스트가 잡은 결함).
+    if (m === null || rulesBefore.has(m[1] ?? "")) continue;
+    if (priorPaths.has(f.path) && !rulesRestored.includes(f.path)) rulesRestored.push(f.path);
   }
 
   return {
@@ -1224,6 +1248,7 @@ function refreshExternalCli(
     written: result.externalFiles.map((f) => f.path),
     skillsInstalled,
     skillsRestored,
+    rulesRestored,
   };
 }
 
