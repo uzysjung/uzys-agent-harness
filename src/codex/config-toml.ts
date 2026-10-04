@@ -35,13 +35,30 @@ const HARNESS_HOOK = /(?:^|\/)\.codex\/hooks\/session-start\.sh$/;
 function callsHarnessHook(parsed: Record<string, unknown>): boolean {
   const hooks = parsed.hooks;
   if (typeof hooks !== "object" || hooks === null) return false;
-  const entries = (hooks as Record<string, unknown>).session_start;
-  if (!Array.isArray(entries)) return false;
-  return entries.some((entry) => {
-    const command = (entry as { command?: unknown } | null)?.command;
-    const parts = Array.isArray(command) ? command : [command];
-    return parts.some((c) => typeof c === "string" && HARNESS_HOOK.test(c));
-  });
+  const record = hooks as Record<string, unknown>;
+  // #627 — 옛 판(flat `session_start`, command 배열)과 현행(중첩 `SessionStart.hooks`) 둘 다 본다.
+  // 구간 없는 옛 파일의 이행 판정에 쓰이므로 옛 형식 감지는 계속 필요하다.
+  if (flatHookCommands(record.session_start).some((c) => HARNESS_HOOK.test(c))) return true;
+  const nested = record.SessionStart;
+  // `[[hooks.SessionStart]]` 가 있으면 배열 — 하네스 산출물의 형태. 부모 없이
+  // `[[hooks.SessionStart.hooks]]` 만 손으로 쓴 파일은 객체로 파싱되므로 그것도 본다.
+  const events = Array.isArray(nested) ? nested : [nested];
+  return events.some((event) =>
+    flatHookCommands((event as { hooks?: unknown } | null)?.hooks).some((c) =>
+      HARNESS_HOOK.test(c),
+    ),
+  );
+}
+
+/** 훅 항목 배열에서 command 필드(문자열·배열 양쪽)를 꺼낸다. */
+function flatHookCommands(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .flatMap((entry) => {
+      const command = (entry as { command?: unknown } | null)?.command;
+      return Array.isArray(command) ? command : [command];
+    })
+    .filter((c): c is string => typeof c === "string");
 }
 
 /**

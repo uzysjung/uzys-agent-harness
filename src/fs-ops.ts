@@ -1,14 +1,17 @@
+import { createHash } from "node:crypto";
 import {
   copyFileSync,
-  cpSync,
   existsSync,
   constants as fsConstants,
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   renameSync,
   rmdirSync,
+  rmSync,
+  symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -146,8 +149,40 @@ export function copyBackupDir(target: string, now: Date = new Date()): string | 
     return null;
   }
   const backup = claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) => mkdirSync(c));
-  cpSync(realpathSync(target), backup, { recursive: true });
+  // #594 — 통짜 cpSync(recursive) 는 VirtioFS(도커 바인드마운트) 등 공유 FS 에서 EACCES 로
+  // 죽고 부분 복사 고아를 남긴다. 파일 단위 순회로 바꾸되 cpSync 의 **심링크 계약은 계속
+  // 지킨다** — 링크는 링크로 보존하고(남의 저장소를 복제하지 않는다, backup-symlink 계약),
+  // 끊어진 링크도 죽지 않고 옮긴다.
+  // #594 — 도중에 실패하면 반쯤 만든 백업을 남기지 않고(고아 + 안내 없음) 원인을 한 줄로 알린다.
+  try {
+    copyTreePreservingLinks(realpathSync(target), backup);
+  } catch (e: unknown) {
+    rmSync(backup, { recursive: true, force: true });
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new Error(`backup of ${target} failed, partial copy removed — ${detail}`);
+  }
   return backup;
+}
+
+/**
+ * #594 — 백업용 디렉터 복사: 파일은 copyFile, 디렉터는 재귀, 심볼릭 링크는 **링크 그대로**
+ * (cpSync 의 기본 동작과 같다). listFilesRecursive 기반 copyDir 은 링크를 풀어버려 남의
+ * 저장소를 통째로 복제하므로 여기에 쓸 수 없다.
+ */
+function copyTreePreservingLinks(source: string, target: string): void {
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const src = join(source, entry.name);
+    const dst = join(target, entry.name);
+    if (entry.isSymbolicLink()) {
+      // 끊어진 링크도 readlink 자체는 되므로 링크로 보존된다 — 풀지 않는다.
+      symlinkSync(readlinkSync(src), dst);
+      continue;
+    }
+    if (entry.isDirectory()) copyTreePreservingLinks(src, dst);
+    else if (entry.isFile()) copyFile(src, dst);
+    // FIFO·소켓·장치는 건너뛴다 — copyFile 이 FIFO 에서 영원히 멈춘다.
+  }
 }
 
 /**
@@ -229,4 +264,66 @@ export function ensureProjectSkeleton(projectDir: string): void {
   for (const d of dirs) {
     mkdirSync(join(projectDir, d), { recursive: true });
   }
+}
+
+/**
+ * #556 — 두 디렉터 트리가 내용 기준 동일한가 (경로 집합 + 파일별 sha). update 가 시작 시 만든
+ * `.claude.backup-<ts>` 가 실행 끝까지 원본과 동일하다면 이번 실행은 `.claude/` 를 하나도 안
+ * 고친 것이다 — 그 백업은 아무것도 지키지 않으므로 지운다(실행마다 쌓이는 것이 #556).
+ */
+export function dirTreesIdentical(a: string, b: string): boolean {
+  if (!existsSync(a) || !existsSync(b)) return false;
+  // 파일은 바이트 해시(손실 디코딩 없음), 심링크는 링크 대상 문자열로 비교한다 —
+  // 링크가 사라지거나 바뀐 변경도 "변경 있음"으로 본다.
+  const signature = (
+    root: string,
+    rel = "",
+    out = new Map<string, string>(),
+  ): Map<string, string> => {
+    for (const e of readdirSync(join(root, rel), { withFileTypes: true })) {
+      const r = rel === "" ? e.name : `${rel}/${e.name}`;
+      if (e.isSymbolicLink()) out.set(r, `link:${readlinkSync(join(root, r))}`);
+      else if (e.isDirectory()) signature(root, r, out);
+      else if (e.isFile()) {
+        out.set(
+          r,
+          createHash("sha256")
+            .update(readFileSync(join(root, r)))
+            .digest("hex"),
+        );
+      }
+    }
+    return out;
+  };
+  const sa = signature(a);
+  const sb = signature(b);
+  if (sa.size !== sb.size) return false;
+  for (const [rel, sha] of sa) {
+    if (sb.get(rel) !== sha) return false;
+  }
+  return true;
+}
+
+/**
+ * #653 — 유효하지 않은 UTF-8 바이트가 섞인 파일을 문자열 왕복(read-utf8 → write-utf8)으로
+ * 다시 쓰면 해당 바이트가 영구 변형되고, uninstall 로는 원본으로 돌아오지 않는다.
+ * 루트 `CLAUDE.md` 의 마커 삽입/제거 경로가 이 왕복을 쓰므로, **변형이 일어나기 전에** 원시
+ * 바이트를 옆에 백업해 둔다. 무경고 변형이 아니라 "백업했음 + 원인"을 사용자에게 말한다.
+ *
+ * 문자열로 다시 조립한 뒤에도 바이트가 동일한 파일(정상 UTF-8)은 아무것도 하지 않는다.
+ */
+export function backupIfLossyUtf8(target: string, now: Date = new Date()): string | null {
+  if (!existsSync(target)) return null;
+  let raw: Buffer;
+  try {
+    raw = readFileSync(target);
+  } catch {
+    return null;
+  }
+  if (Buffer.from(raw.toString("utf8")).equals(raw)) return null;
+  const backup = backupFile(target, now);
+  console.error(
+    `⚠ ${target} contains bytes that are not valid UTF-8 — rewriting would alter them permanently. Original bytes saved as ${backup}`,
+  );
+  return backup;
 }

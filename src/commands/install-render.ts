@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+import { hasTrustEntry } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
  *
@@ -248,7 +250,8 @@ export function renderUpdateSummary(
   log(infoRow("MODE", "update"));
   if (report.backup) {
     log(infoRow("BACKUP", shortenPath(report.backup)));
-    log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shortenPath(report.backup)} .claude`));
+    // #651 — 이 줄은 복사해 실행하는 명령이다: 축약 금지(전체 경로) + 인용 필수(공백 경로).
+    log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shellQuotePath(report.backup)} .claude`));
   }
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
@@ -258,13 +261,14 @@ export function renderUpdateSummary(
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
-  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다.
+  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다. "edited" 라고 부르지 않는다: 기록이 없던
+  // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} edited file(s) kept as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
     log(
@@ -325,9 +329,9 @@ export function renderCliArtifacts(
   }
   log(unifiedSection(formatCliPhaseTitle(spec.cli)));
   log("");
+  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
   // AGENTS.md is shared across Codex/OpenCode — render once with shared note
   // #558 — 설치자 파일에 블록 하나만 더했으면(첫 접촉) 그렇게 말한다. 하네스가 만든 파일(절 모델)은 전과 같다.
-  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
   const agentsBlock = agentsMd?.model === "block" ? agentsMd.shared : null;
   if (agentsBlock) {
     // 리뷰 NOTE-2 — 설치자가 블록을 지워 excluded 면 파일에 블록이 없다. 있는 것만 말한다
@@ -583,7 +587,20 @@ export function renderFinalSummary(
   const codexTrusted =
     report.codexOptIn?.trustEntry.status === "registered" ||
     report.codexOptIn?.trustEntry.status === "already-present";
-  if (spec.cli.includes("codex") && !codexTrusted) {
+  // #637 — 플래그 없는 재설치는 codexOptIn 자체를 안 만들어, **이미 등록된** trust 를
+  // 확인하지 않고 안내를 되살렸다 — Codex 는 묻지도 않는데 "trust this folder" 를 말한다.
+  // 전역 config 의 해당 항목 존재를 직접 본다(등록 여부 판정은 trust-entry 의 SSOT).
+  const alreadyTrustedGlobally = (() => {
+    try {
+      const home = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+      const configPath = join(home, "config.toml");
+      if (!existsSync(configPath)) return false;
+      return hasTrustEntry(readFileSync(configPath, "utf8"), spec.projectDir);
+    } catch {
+      return false;
+    }
+  })();
+  if (spec.cli.includes("codex") && !codexTrusted && !alreadyTrustedGlobally) {
     // NEXT 값 열에 맞춘 이어지는 줄 — infoRow 의 들여쓰기 2 + 라벨 14 + 구분 공백 1.
     const cont = (text: string): string => `${" ".repeat(16)} ${text}`;
     log(
@@ -599,10 +616,14 @@ export function renderFinalSummary(
   }
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
-  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
+  // #636 — 하네스가 **새로 만든** CLAUDE.md 는 FILL 프롬프트를 갖고 태어나므로 그대로 안내한다.
+  // 사용자의 기존 파일(created === false)에 FILL 이 없다면 "없는 것을
+  // 채우라"고 안내할 수 없으니 뺀다. #608 — antigravity 단독은 AGENTS.md 를 아예 만들지
+  // 않으므로 scaffold 목록 자체에서 빠진다(scaffoldFilesForCli 가 codex·opencode 만 넣는다).
   const scaffoldFiles = scaffoldFilesForCli(spec.cli).filter(
     (f) =>
-      f !== "AGENTS.md" || agentsMd?.model !== "block" || hasFillPrompt(join(spec.projectDir, f)),
+      (f === "CLAUDE.md" && report.rootClaudeMd?.created === true) ||
+      hasFillPrompt(join(spec.projectDir, f)),
   );
   if (scaffoldFiles.length > 0) {
     // ADR-084 — `audit-harness-fit` 의 populate 모드가 같은 스캐폴드를 리포 근거로 채운다.
@@ -657,7 +678,9 @@ export function scaffoldFilesForCli(cli: ReadonlyArray<CliBase>): string[] {
   if (cli.includes("claude")) {
     files.push("CLAUDE.md");
   }
-  if (cli.some((target) => target !== "claude")) {
+  // #608 — AGENTS.md 를 만드는 것은 codex·opencode 뿐이다. antigravity 의 산출물은
+  // .agents/rules/uzys-harness.md(앵커·FILL 프롬프트 없음)라 이 안내의 대상이 아니다.
+  if (cli.includes("codex") || cli.includes("opencode")) {
     files.push("AGENTS.md");
   }
   return files;
@@ -893,6 +916,16 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #597 — 링크라 갱신하지 않은 CLI 중립 헬퍼. 링크 너머는 프로젝트 밖일 수 있어 쓰지 않는다.
+    if (baseline.updateMode.helpersKept?.length) {
+      log(
+        assetRow(
+          "skip",
+          "helper is a link",
+          `${baseline.updateMode.helpersKept.join(", ")} · 링크라 갱신하지 않고 남겼다`,
+        ),
+      );
+    }
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
     // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
     if (baseline.updateMode.foreignOwned.length > 0) {
@@ -1030,7 +1063,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · .claude/skills/${id} 는 지워도 된다`,
+              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         } else if (RETIRED_SKILL_IDS.includes(id)) {
@@ -1038,7 +1071,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+              `${id} · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         }
@@ -1083,6 +1116,18 @@ function renderPhase1Rows(
   }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
+  // #603 — install 은 죽은 훅 참조를 지우지 않는다(설치자 몫일 수 있다). 한 줄로 알리기만 한다.
+  if (baseline.keptHookRefs?.length) {
+    log(
+      infoRow(
+        "HOOK",
+        c.yellow(
+          `settings.json 에 스크립트가 없는 훅 참조 ${baseline.keptHookRefs.length}건 — 지우지 않았다 ` +
+            `(${baseline.keptHookRefs.join(", ")})`,
+        ),
+      ),
+    );
+  }
   const cats = baseline.categories;
   if (cats) {
     // v26.63.0 — files 라인은 verbose 옵션 시만. 기본은 카운트 + use 1 줄.
@@ -1097,23 +1142,18 @@ function renderPhase1Rows(
     };
 
     if (cats.rules.length > 0) {
-      phase1Row(
-        "rules",
-        cats.rules.length,
-        "coding · git/PR · tests · ship checklist · MCP policy",
-        cats.rules,
-      );
+      // #618 — 정적 열거는 안 깔리는 룰 이름(tests·ship checklist)을 부른다. 같은 함수 주석이
+      // agents 라벨에 대해 밝힌 원칙("이름을 부르면 화면이 없는 자산을 계속 부른다")을 여기 적용:
+      // use-text 도 실제 설치 집합에서 조립한다.
+      phase1Row("rules", cats.rules.length, cats.rules.join(" · "), cats.rules);
     }
     if (cats.agents.length > 0) {
       // ADR-090 (#452) — 라벨을 자산 중립으로. 은퇴·강등으로 목록이 트랙마다 달라졌고, 이름을
       // 부르면 화면이 없는 자산을 계속 부른다(ADR-073 의 `/ecc:*` 와 같은 형태). 실제 이름은
       // `--verbose` 의 files 줄이 낸다.
-      phase1Row(
-        "agents",
-        cats.agents.length,
-        "independent verifier · implementation lane · domain lanes (track)",
-        cats.agents,
-      );
+      // #618 — 마찬가지로 실제 집합에서 조립(비즈니스 트랙에 없는 implementation lane 을
+      // 이름으로 부르던 것). --verbose 의 files 줄과 같은 원천이다.
+      phase1Row("agents", cats.agents.length, cats.agents.join(" · "), cats.agents);
     }
     if (cats.hooks.length > 0) {
       phase1Row("hooks", cats.hooks.length, "session-start · protect-files", cats.hooks);
@@ -1311,6 +1351,16 @@ export function shortenPath(p: string): string {
     return `…/${segs.slice(-3).join("/")}`;
   }
   return p;
+}
+
+/**
+ * #651 — 화면에 **실행할 명령**을 인쇄할 때의 경로 인용. POSIX sh 에서 안전한 작은따옴표
+ * 이스케이프다(`my proj` → `'my proj'`, 내부 따옴표도 안전). 표시용 축약(shortenPath)을
+ * 명령에 섞으면 존재하지 않는 경로(`…/seg`)가 되고, 인용이 없으면 공백 경로에서
+ * `rm -rf .claude` 만 성공하고 `mv` 가 죽어 .claude 가 복원 없이 사라진다.
+ */
+export function shellQuotePath(p: string): string {
+  return `'${p.replace(/'/g, `'\\''`)}'`;
 }
 
 /**
