@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createInstallRenderer } from "../src/commands/install-render.js";
+import { createInstallRenderer, renderUpdateSummary } from "../src/commands/install-render.js";
 import { hashContent, type InstallLog, installLogPath } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec, Track } from "../src/types.js";
@@ -62,6 +62,7 @@ function run(mode: "update" | "add", tracks: Track[] = ["data"]) {
     mode,
     onProgress: (event) => renderer.callbacks.onProgress?.(event),
   });
+  if (mode === "update") renderUpdateSummary((m) => lines.push(m), s, report);
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
   const screen = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
   return { report, screen };
@@ -101,7 +102,9 @@ describe("#677 — 기록에 있으나 기록 트랙 밖인 하네스 룰은 upd
     expect(readdirSync(join(projectDir, ".agents/rules")).sort()).toEqual(
       before.filter((n) => n !== "cli-development.md"),
     );
-    expect(screen).toMatch(/cli-development\.md\s+not part of your tracks — removed/);
+    expect(screen).toMatch(
+      /cli-development\.md\s+not in the recorded tracks \(data\) — removed · if you picked tooling/,
+    );
   });
 
   it("설치자가 고쳤으면 그 파일 하나만 백업한 뒤 치운다", () => {
@@ -119,8 +122,11 @@ describe("#677 — 기록에 있으나 기록 트랙 밖인 하네스 룰은 upd
     expect(readFileSync(join(projectDir, ".agents/rules", saved[0] ?? ""), "utf8")).toBe(edited);
     expect(report.updateMode?.outOfTrack?.backedUp.map((b) => b.path)).toEqual([LEAKED]);
     expect(screen).toMatch(
-      /cli-development\.md\s+not part of your tracks — you edited it, saved as .+\.backup-\d{8}T\d{6}, removed/,
+      /cli-development\.md\s+not in the recorded tracks \(data\) — you edited it, saved as .+\.backup-\d{8}T\d{6}, removed · if you picked tooling/,
     );
+    // 리뷰 N1 — 회수 백업은 "지우기 전" 이다 · 다시 얹을 새 판이 없으니 NEXT 를 내지 않는다
+    expect(screen).toMatch(/BACKUPS\s+1 file\(s\) saved before removing/);
+    expect(screen).not.toContain("re-apply your edits");
   });
 
   it("이미 없으면 기록만 뺀다 — 화면은 말하지 않는다", () => {
@@ -132,7 +138,7 @@ describe("#677 — 기록에 있으나 기록 트랙 밖인 하네스 룰은 upd
 
     expect(recordedPaths()).not.toContain(LEAKED);
     expect(report.updateMode?.outOfTrack).toBeUndefined();
-    expect(screen).not.toContain("not part of your tracks");
+    expect(screen).not.toContain("not in the recorded tracks");
   });
 
   it("install 도 같은 판정으로 치운다(누적 트랙 기준)", () => {
@@ -144,7 +150,7 @@ describe("#677 — 기록에 있으나 기록 트랙 밖인 하네스 룰은 upd
     expect(existsSync(join(projectDir, LEAKED))).toBe(false);
     expect(recordedPaths()).not.toContain(LEAKED);
     expect(report.outOfTrack?.removed).toEqual([LEAKED]);
-    expect(screen).toMatch(/cli-development\.md\s+not part of your tracks — removed/);
+    expect(screen).toMatch(/cli-development\.md\s+not in the recorded tracks \(data\) — removed/);
   });
 });
 

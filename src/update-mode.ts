@@ -97,6 +97,7 @@ import {
 } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds, recorded } from "./recorded.js";
+import { claudeRecorded, claudeTargets, memoTargets } from "./track-heal.js";
 import { anyTrack } from "./track-match.js";
 import {
   type CliBase,
@@ -833,25 +834,6 @@ function fillingTracks(path: string, tracks: ReadonlyArray<Track>, slot: TrackSl
   return byLaid ? [] : by;
 }
 
-function memoTargets(
-  render: (tracks: ReadonlyArray<Track>) => Iterable<string>,
-): (tracks: ReadonlyArray<Track>) => ReadonlySet<string> {
-  const cache = new Map<string, ReadonlySet<string>>();
-  return (tracks) => {
-    const key = [...tracks].sort().join(",");
-    const hit = cache.get(key) ?? new Set(render(tracks));
-    cache.set(key, hit);
-    return hit;
-  };
-}
-
-/** claude 자리(파일 자산 · 번들 스킬 디렉터리) — manifest 렌더. */
-const claudeTargets = memoTargets((tracks) => {
-  const spec = buildAssetSpec({ tracks, options: DEFAULT_OPTIONS });
-  return buildManifest(spec)
-    .filter((e) => e.applies(spec) && (e.type === "file" || e.target.startsWith(".claude/skills/")))
-    .map((e) => e.target);
-});
 const agentsRuleTargets = memoTargets((tracks) =>
   resolveRules({ tracks }).map((r) => `.agents/rules/${r}.md`),
 );
@@ -865,11 +847,7 @@ const sharedSkillTargets = memoTargets((tracks) =>
 function trackSlotOf(path: string, log: InstallLog | null): TrackSlot | null {
   if (log === null) return null;
   if (path.startsWith(".claude/")) {
-    const recorded = new Set([
-      ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
-      ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path.split("/")[0] ?? ""}`),
-    ]);
-    return { targetsOf: claudeTargets, recorded };
+    return { targetsOf: claudeTargets, recorded: claudeRecorded(log) };
   }
   const external = log.externalFiles ?? [];
   if (path.startsWith(".agents/rules/")) {

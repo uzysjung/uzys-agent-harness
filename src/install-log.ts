@@ -20,6 +20,7 @@ import {
 } from "./external-assets.js";
 import type { ExternalInstallReport } from "./external-installer.js";
 import { listFilesRecursive } from "./fs-ops.js";
+import { healRecordedTracks } from "./track-heal.js";
 import { type CliBase, type InstallScope, type InstallSpec, isCliBase, isTrack } from "./types.js";
 
 export const INSTALL_LOG_FILENAME = ".harness-install.json";
@@ -275,6 +276,11 @@ export interface InstallLog {
    * `--without <키 id>` 로 명시한 빼기를 지우지 않기 위해서다). `log.version` 은 update 가 갱신하지 않아 쓸 수 없다.
    */
   excludedKeysMigrated?: true;
+  /**
+   * #585 후속(리뷰 B1) — 옛 판이 덮어쓴 `spec.tracks` 를 기록 안의 근거로 한 번 되살렸다는 표시(`healRecordedTracks`,
+   * `src/track-heal.ts`). 이 판의 기록은 트랙을 누적하므로 잘리지 않는다 — 쓸 때 늘 붙인다(`excludedKeysMigrated` 와 같다).
+   */
+  tracksHealed?: true;
   /**
    * ADR-099 보강(설계 `docs/plans/selection-record-design-2026-10-04.md` §1) — 넣기·빼기 선택의 **이력**. `excluded` 가 최신
    * 선택(SSOT)이고 이것은 그 선택이 언제 어떤 실행으로 바뀌었는지다. 한 항목 = `excluded` 가 실제로 바뀐 실행(효과분만) ·
@@ -692,7 +698,12 @@ export function writeInstallLog(projectDir: string, log: InstallLog): string {
   const path = installLogPath(projectDir);
   mkdirSync(dirname(path), { recursive: true });
   // ADR-099 R5 — 이 판이 쓰는 기록은 모두 읽을 때 정리된 것(`migrateExcluded`)이거나 새 기록이다 — 표시를 남긴다
-  const marked: InstallLog = { ...normalizeLogOrder(log), excludedKeysMigrated: true };
+  // #585 후속 — 트랙도 누적된 기록(또는 읽을 때 되살린 기록)이다 — 다시 되살리지 않게 표시한다
+  const marked: InstallLog = {
+    ...normalizeLogOrder(log),
+    excludedKeysMigrated: true,
+    tracksHealed: true,
+  };
   writeFileSync(path, `${JSON.stringify(marked, null, 2)}\n`, "utf8");
   migrateAwayLegacyLog(projectDir);
   return path;
@@ -779,7 +790,11 @@ export function readInstallLogStatus(projectDir: string): InstallLogStatus {
       catalog: migrated.releasedCatalog,
     });
   }
-  return { status: "ok", log: migrated.log };
+  // #585 후속(리뷰 B1) — 옛 판이 덮어쓴 트랙을 기록 안의 근거로 되살린다(읽는 쪽 전부가 같은 트랙을 본다)
+  return {
+    status: "ok",
+    log: healRecordedTracks(migrated.log, projectDir, installedClis(migrated.log)),
+  };
 }
 
 /** 읽은 기록 → 그 기록을 읽을 때 옛 판 정리(R5 · 설계 §2.2)가 푼 것. 기록 파일에는 남지 않는다(화면용 — 이력은 `selections`). */

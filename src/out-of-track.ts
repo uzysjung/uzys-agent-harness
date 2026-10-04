@@ -23,7 +23,7 @@ import type { InstallLog } from "./install-log.js";
 import { judge } from "./judge.js";
 import { resolveRules } from "./manifest.js";
 import type { OutsideGuard } from "./outside-project.js";
-import type { CliBase, Track } from "./types.js";
+import { type CliBase, TRACKS, type Track } from "./types.js";
 
 const AGENTS_RULE = /^\.agents\/rules\/([^/]+)\.md$/;
 /** Antigravity 앵커 — 트랙과 무관하게 늘 렌더된다. */
@@ -36,6 +36,13 @@ export interface OutOfTrackReclaim {
   backedUp: Array<{ path: string; backup: string }>;
   /** 기록(`externalFiles`)에서 뺄 경로 — 지웠거나 이미 없었다. */
   forget: string[];
+  /** 판정에 쓴 기록 트랙 — 화면이 "your tracks" 가 아니라 이 목록을 밝힌다(리뷰 B1). */
+  recordedTracks: Track[];
+  /**
+   * 지운(또는 백업하고 지운) 경로마다 그 룰을 가져오는 트랙(룰이 적은 트랙 먼저). 기록이 잘렸는데 근거가 없어 되살리지 못한
+   * 경우(claude 없이 깐 트랙)와 #677 본래 대상은 기록으로 가를 수 없다 — 화면이 되돌리는 명령을 이 트랙으로 말한다.
+   */
+  bringBack: Record<string, Track[]>;
 }
 
 export function reclaimOutOfTrack(args: {
@@ -50,7 +57,13 @@ export function reclaimOutOfTrack(args: {
   outside: OutsideGuard;
   now?: Date;
 }): OutOfTrackReclaim {
-  const out: OutOfTrackReclaim = { removed: [], backedUp: [], forget: [] };
+  const out: OutOfTrackReclaim = {
+    removed: [],
+    backedUp: [],
+    forget: [],
+    recordedTracks: [...args.tracks].sort(),
+    bringBack: {},
+  };
   const { log, projectDir } = args;
   if (log === null || args.tracks.length === 0 || !args.clis.includes("antigravity")) return out;
   const rendered = new Set(resolveRules({ tracks: args.tracks }));
@@ -71,6 +84,9 @@ export function reclaimOutOfTrack(args: {
       next: null,
     });
     if (verdict.record === "forget") out.forget.push(f.path);
+    if (verdict.verdict === "remove" || verdict.verdict === "backup+remove") {
+      out.bringBack[f.path] = tracksBringing(name);
+    }
     if (verdict.verdict === "remove") {
       rmSync(abs);
       out.removed.push(f.path);
@@ -81,4 +97,12 @@ export function reclaimOutOfTrack(args: {
     }
   }
   return out;
+}
+
+/** 이 룰을 가져오는 트랙 — 룰이 적은(좁은) 트랙 먼저. `full` 처럼 넓은 트랙을 되돌리는 명령의 첫 후보로 내지 않는다. */
+function tracksBringing(rule: string): Track[] {
+  const size = (t: Track): number => resolveRules({ tracks: [t] }).length;
+  return TRACKS.filter((t) => resolveRules({ tracks: [t] }).includes(rule)).sort(
+    (a, b) => size(a) - size(b),
+  );
 }

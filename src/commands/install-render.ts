@@ -284,20 +284,30 @@ export function renderUpdateSummary(
         : unmeasured === backups.length
           ? " — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits"
           : ` — ${unmeasured} had no checksum on record (marked noChecksum in the list), so those may not be your edits`;
+    // 리뷰 NOTE N1 — 트랙 밖 회수(#677)의 백업은 바꾸기 전이 아니라 지우기 전에 남긴 것이다 — 따로 센다
+    const removedBefore = report.updateMode?.outOfTrack?.backedUp.length ?? 0;
+    const how =
+      removedBefore === 0
+        ? "saved before replacing"
+        : removedBefore === backups.length
+          ? "saved before removing"
+          : `saved before replacing (${removedBefore} before removing)`;
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} file(s) saved before replacing, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) ${how}, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
-    log(
-      infoRow(
-        "NEXT",
-        unmeasured === backups.length
-          ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
-          : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
-      ),
-    );
+    // 지우기 전 백업만 있으면 "새 판에 다시 얹으라" 할 새 판이 없다 — 되돌리는 길은 그 파일의 줄이 말했다
+    if (removedBefore < backups.length)
+      log(
+        infoRow(
+          "NEXT",
+          unmeasured === backups.length
+            ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
+            : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+        ),
+      );
   }
   log("");
 }
@@ -1478,16 +1488,29 @@ export function judgedRow(j: JudgedWrite): string {
  * 설치자가 할 일(그 링크를 실파일·실폴더로 바꾸기)은 하나다. 대상 경로를 함께 댄다: 그 파일이 바이트 그대로라는 사실을
  * 설치자가 직접 확인할 자리다.
  */
-/** #677 — 기록 트랙 밖이라 치운 하네스 파일. 고친 파일은 그 파일 하나의 백업 경로를 댄다. */
+/**
+ * #677 — 기록 트랙 밖이라 치운 하네스 파일. 고친 파일은 그 파일 하나의 백업 경로를 댄다. "your tracks" 라 하지 않고 **기록된
+ * 트랙**을 밝힌다 — 옛 판이 덮어쓴 기록을 근거로 되살리지 못한 경우(claude 없이 깐 트랙)는 #677 본래 대상과 기록으로 가를 수
+ * 없어서, 그 트랙을 골랐던 설치자가 되돌리는 명령을 같은 줄에 붙인다(리뷰 B1).
+ */
 export function outOfTrackRows(r: OutOfTrackReclaim | undefined): string[] {
   if (r === undefined) return [];
+  const recorded = r.recordedTracks.join(", ");
+  const back = (path: string): string => {
+    const [first, ...rest] = r.bringBack[path] ?? [];
+    if (first === undefined) return "";
+    const or = rest.length > 0 ? ` (or ${rest.join(", ")})` : "";
+    return ` · if you picked ${first}${or} for Antigravity, bring it back: agent-harness install --track ${first} --cli antigravity`;
+  };
   return [
-    ...r.removed.map((path) => assetRow("success", path, "not part of your tracks — removed")),
+    ...r.removed.map((path) =>
+      assetRow("success", path, `not in the recorded tracks (${recorded}) — removed${back(path)}`),
+    ),
     ...r.backedUp.map((b) =>
       assetRow(
         "success",
         b.path,
-        `not part of your tracks — you edited it, saved as ${shortenPath(b.backup)}, removed`,
+        `not in the recorded tracks (${recorded}) — you edited it, saved as ${shortenPath(b.backup)}, removed${back(b.path)}`,
       ),
     ),
   ];

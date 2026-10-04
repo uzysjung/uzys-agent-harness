@@ -55,7 +55,7 @@ describe("#585 — 기록 트랙 누적", () => {
 
     // 화면이 읽는 트랙은 기록 하나다(#699 NR-1) — 누적된 기록이면 머리글 · update 헤더가 둘 다 말한다
     const state = detectInstallState(dir);
-    const header = describeInstall(state, buildInstallRecordView(state, log ?? null, true));
+    const header = describeInstall(state, buildInstallRecordView(state, log as InstallLog, true));
     expect(header).toContain("Installed here: tracks data, tooling ·");
     expect(buildUpdateSpec(dir, state.tracks).tracks).toEqual(["data", "tooling"]);
 
