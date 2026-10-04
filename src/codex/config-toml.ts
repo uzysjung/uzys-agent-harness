@@ -50,6 +50,23 @@ function callsHarnessHook(parsed: Record<string, unknown>): boolean {
   );
 }
 
+/**
+ * #625 — 파일에 옛 판의 하네스 훅 등록(flat `[[hooks.session_start]]`, command 배열)이 있나. 현행 템플릿은
+ * `[[hooks.SessionStart]]` + 중첩 `[[hooks.SessionStart.hooks]]` 이고(#627 · 5be0f56), 현행 Codex 는 옛 형식을 경고 없이
+ * 무시해 훅이 돌지 않는다. update 가 그 구간을 남길 때 화면이 이 사실을 덧붙인다. 같은 파일에 현행 형식의 하네스 훅도
+ * 있으면 훅은 그쪽으로 돈다 — "돌지 않는다" 가 거짓이 되므로 false. 못 읽는 파일도 false.
+ */
+export function hasLegacyHarnessHook(disk: string): boolean {
+  const parsed = readToml(disk);
+  const hooks = parsed?.hooks;
+  if (parsed === null || typeof hooks !== "object" || hooks === null) return false;
+  const flat = flatHookCommands((hooks as Record<string, unknown>).session_start).some((c) =>
+    HARNESS_HOOK.test(c),
+  );
+  const { session_start: _flat, ...rest } = hooks as Record<string, unknown>;
+  return flat && !callsHarnessHook({ ...parsed, hooks: rest });
+}
+
 /** 훅 항목 배열에서 command 필드(문자열·배열 양쪽)를 꺼낸다. */
 function flatHookCommands(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

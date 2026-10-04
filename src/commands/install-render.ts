@@ -548,7 +548,12 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
  * 둘 다 이번 판을 못 받았다는 사실과 받는 길(그 구간을 지우고 update — 기록된 몫은 되돌리고 없던 몫은 새로 더한다)을 말한다.
  */
 function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): string {
-  if (f.left !== undefined) return assetRow("skip", f.path, `left — ${f.left}`);
+  // #627 — 남긴 내용이 옛 훅 형식이면 편집이 살아 있어도 훅은 죽어 있다. 그 사실을 같은 줄에 붙인다
+  const legacy =
+    f.legacyHook === true
+      ? " · its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run"
+      : "";
+  if (f.left !== undefined) return assetRow("skip", f.path, `left — ${f.left}${legacy}`);
   const parts: string[] = [];
   if (f.edited.length > 0)
     parts.push(`harness part left as you edited it: ${f.edited.join(" · ")}`);
@@ -559,7 +564,7 @@ function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): 
   if (parts.length > 0)
     parts.push("not updated to this release — delete that part and run update to take the new one");
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(" · ")}`);
-  return assetRow("skip", f.path, parts.join(" · "));
+  return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
@@ -722,6 +727,14 @@ export function renderFinalSummary(
         ? "headless: fix ~/.codex/config.toml (not valid TOML), then run with --with-codex-trust again"
         : "headless: agent-harness install … --with-codex-trust";
     log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
+  }
+  // #625 — 폴더 trust 와 별개로 Codex 는 관리형이 아닌 훅을 **검토·승인**해야 돌린다(공식 문서 developers.openai.com/codex/hooks
+  // "Review and trust hooks": 훅 정의의 해시로 기록 · 바뀌면 다시 검토 · 시작 때 /hooks 를 열라고 경고). 하네스가 대신 승인하지
+  // 않는다 — 폴더를 이미 신뢰했어도 이 단계는 남으므로 codex 를 깔면 늘 말한다.
+  if (spec.cli.includes("codex")) {
+    log(
+      `${" ".repeat(16)} ${c.bold("Codex")} also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open ${c.bold("/hooks")} and trust it. The harness does not approve it for you.`,
+    );
   }
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)

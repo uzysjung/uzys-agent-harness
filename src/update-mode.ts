@@ -32,6 +32,7 @@ import {
   listBaselineTargets,
 } from "./baseline-targets.js";
 import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
+import { hasLegacyHarnessHook } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
   CONTINUOUS_SKILLS,
@@ -146,6 +147,8 @@ export interface UpdateModeReport {
     unrecorded: ReadonlyArray<string>;
     kept: ReadonlyArray<string>;
     left?: string;
+    /** `.codex/config.toml` 에 남은 하네스 훅이 옛 flat 형식이라 현행 Codex 가 무시한다(`hasLegacyHarnessHook`). */
+    legacyHook?: true;
   }>;
   /**
    * #480 — 설치자가 고르지 않아 **건드리지 않은** 묶음 (`update --only` · 위저드 체크박스).
@@ -773,6 +776,15 @@ function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
   const anchor = log.templates.rootClaudeMd;
   if (anchor !== undefined) paths.add(anchor.path);
   return (path) => paths.has(path);
+}
+
+/** #625 — 디스크의 그 파일에 옛 flat 하네스 훅만 있나(`hasLegacyHarnessHook`). 못 읽으면 false. */
+function legacyHookOnDisk(projectDir: string, rel: string): boolean {
+  try {
+    return hasLegacyHarnessHook(readFileSync(join(projectDir, rel), "utf8"));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1728,6 +1740,10 @@ function refreshExternalCli(
           unrecorded: f.leftAsIs.filter((k) => !recordedKeys.has(k)),
           kept: [...f.kept],
           ...(f.action === "left" ? { left: f.line } : {}),
+          // #625 — 남긴 구간이 옛 훅 형식이면 현행 Codex 가 무시해 세션 시작 훅이 돌지 않는다(#627) — 화면이 덧붙인다
+          ...(f.path === ".codex/config.toml" && legacyHookOnDisk(projectDir, f.path)
+            ? { legacyHook: true as const }
+            : {}),
         };
       }),
   };

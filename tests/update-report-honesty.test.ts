@@ -11,6 +11,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { hasLegacyHarnessHook } from "../src/codex/config-toml.js";
 import { createInstallRenderer, renderUpdateSummary } from "../src/commands/install-render.js";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
@@ -132,11 +133,37 @@ describe("#625 — 고친 .codex/config.toml 하네스 리전을 남기고 updat
     ]);
     expect(screen).toMatch(/\.codex\/config\.toml\s+harness part left as you edited it: top/);
     expect(screen).toContain("not updated to this release");
+    // 대조 — 훅이 현행 형식이면 '옛 형식' 덧붙임이 없다
+    expect(screen).not.toContain("old format");
     // 정책 — 함께 쓰는 파일의 하네스 몫은 남기고 말한다(백업 · 색인은 바꾼 파일에만)
     expect(readdirSync(join(projectDir, ".codex")).filter((f) => f.includes(".backup-"))).toEqual(
       [],
     );
     expect(existsSync(join(projectDir, ".uzys-agent-harness/update-backups.json"))).toBe(false);
+  });
+
+  it("남긴 리전의 훅이 옛 [[hooks.session_start]] 형식이면 '현행 Codex 가 무시해 훅이 돌지 않는다' 를 덧붙인다 (#627)", () => {
+    install(["codex"]);
+    // 옛 판(5be0f56 이전) 템플릿의 등록 형식 — flat 이벤트 + command 배열
+    const nested =
+      /\[\[hooks\.SessionStart\]\]\nname = "session-start"\n\n\[\[hooks\.SessionStart\.hooks\]\]\ncommand = "([^"]+)"\n/;
+    const before = read(CONFIG);
+    expect(before).toMatch(nested);
+    put(
+      CONFIG,
+      before.replace(nested, '[[hooks.session_start]]\nname = "session-start"\ncommand = ["$1"]\n'),
+    );
+
+    const { report, screen } = update(["codex"]);
+
+    expect(read(CONFIG)).toContain("[[hooks.session_start]]");
+    expect(report.updateMode?.sharedLeft).toEqual([
+      { path: CONFIG, edited: ["tables"], unrecorded: [], kept: [], legacyHook: true },
+    ]);
+    expect(screen).toMatch(/harness part left as you edited it: tables/);
+    expect(screen).toContain(
+      "its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run",
+    );
   });
 
   it("같은 줄 — 설치자가 쓴 AGENTS.md 의 하네스 블록 안을 고쳐도 남기고 말한다", () => {
@@ -164,5 +191,26 @@ describe("#625 — 고친 .codex/config.toml 하네스 리전을 남기고 updat
 
     expect(report.updateMode?.sharedLeft).toBeUndefined();
     expect(screen).not.toContain("harness part left");
+  });
+});
+
+describe("hasLegacyHarnessHook — '훅이 돌지 않는다' 가 참인 경우만 (#627 형식 차이)", () => {
+  const FLAT =
+    '[[hooks.session_start]]\nname = "session-start"\ncommand = ["/p/.codex/hooks/session-start.sh"]\n';
+  const NESTED =
+    '[[hooks.SessionStart]]\nname = "session-start"\n\n[[hooks.SessionStart.hooks]]\ncommand = "/p/.codex/hooks/session-start.sh"\ntype = "command"\n';
+
+  it("옛 flat 하네스 훅만 있으면 true", () => {
+    expect(hasLegacyHarnessHook(FLAT)).toBe(true);
+  });
+  it("현행 중첩 하네스 훅이 함께 있으면 false — 훅은 그쪽으로 돈다", () => {
+    expect(hasLegacyHarnessHook(`${FLAT}\n${NESTED}`)).toBe(false);
+  });
+  it("현행 형식만 · 하네스 훅이 아닌 flat 항목 · 못 읽는 파일은 false", () => {
+    expect(hasLegacyHarnessHook(NESTED)).toBe(false);
+    expect(
+      hasLegacyHarnessHook(FLAT.replace("/p/.codex/hooks/session-start.sh", "/x/mine.sh")),
+    ).toBe(false);
+    expect(hasLegacyHarnessHook("[[hooks.session_start\n")).toBe(false);
   });
 });

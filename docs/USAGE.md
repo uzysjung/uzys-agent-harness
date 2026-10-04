@@ -149,6 +149,8 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode) w
 
 `protect-files.sh` is the only hook that blocks anything. Each time it blocks an edit, it appends one tab-separated line — date, hook, target — to `.uzys-agent-harness/hook-blocks.log`. If that log line cannot be written, the edit is still blocked. These hooks are Claude Code's. Codex receives `session-start.sh` ported into `.codex/hooks/`; the file-protection hook does not reach it, because Codex's hook API cannot intercept file edits ([ADR-002](decisions/ADR-002-codex-hook-gap.md)) — on Codex the `.env` protection is a rule, not a block. OpenCode and Antigravity have no hook mechanism the harness writes to.
 
+On Codex the ported `session-start.sh` runs only after you review and trust it — separately from trusting the folder. On first launch Codex warns that hooks need review; open `/hooks` and trust it there. The harness does not approve it for you, and Codex asks again whenever the hook changes ([Codex hooks](https://developers.openai.com/codex/hooks)).
+
 If a harness hook script goes missing, `update` puts it back and keeps its `settings.json` entry. An entry whose script is not the harness's and is missing is removed by `update` and only reported by `install` — a hook pointing at a missing file would otherwise fail on every edit.
 
 ### Slash commands
