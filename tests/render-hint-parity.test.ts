@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { UPDATE_COMMAND_DESCRIPTION } from "../src/commands/update.js";
 import { EXTERNAL_ASSETS } from "../src/external-assets";
 import { buildRouterChoices } from "../src/router.js";
 import { UPDATE_GROUPS } from "../src/types.js";
@@ -130,5 +131,9 @@ describe("update hint 가 갱신 묶음을 전부 말한다 (UPDATE_GROUPS deriv
     ).toLowerCase();
     const missing = UPDATE_GROUPS.flatMap((g) => g.split("-")).filter((w) => !hint.includes(w));
     expect(missing, `hint 가 말하지 않는 묶음 낱말 — hint: "${hint}"`).toEqual([]);
+  });
+
+  it("`update --help` 명령 설명도 묶음을 전부 말한다", () => {
+    expect(UPDATE_GROUPS.filter((g) => !UPDATE_COMMAND_DESCRIPTION.includes(g))).toEqual([]);
   });
 });

@@ -397,7 +397,7 @@ export function buildUpdateSpec(
 ): InstallSpec {
   const log = readInstallLog(projectDir);
   // #528 (재리뷰 NOTE-F) — 화면 머리글의 `CLI` 는 깔린 집합이다. 고정 `["claude"]` 는 codex 단독
-  // 설치본의 update 도 "CLI claude" 라고 적었다. 로그가 없으면(레거시) 이전과 같이 claude.
+  // 설치본의 update 도 "CLI claude" 라고 적었다. 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(빈 집합).
   const clis = log === null ? [] : installedClis(log);
   const spec: InstallSpec = {
     tracks: [...tracks],
@@ -513,6 +513,8 @@ export function runUpdateMode(
   // `policyFiles` 를 기록하며, 같은 실행의 뒤 단계가 그 기록으로 claude 를 유도해 스킬 11종과
   // 앵커까지 깐다 — 그 뒤 `uninstall --cli claude` 가 설치자 파일을 함께 지운다(컨테이너 실측).
   const logAtStart = readInstallLog(projectDir);
+  // 이 실행의 `logAtStart === null` 분기 전부 — 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어다.
+  // 엔진(`runUpdateMode`)을 직접 부르는 테스트가 그 동작을 단언하므로 남긴다(#622).
   const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
   report.claudeUnrecorded =
     !claudeManaged && logAtStart !== null && existsSync(claudeDir)
@@ -767,6 +769,7 @@ export function runUpdateMode(
  * 외부 산출물·헬퍼(`externalFiles`). 기록이 없던 파일이 백업됐다면 편집 여부를 잴 수 없었던 것이다.
  */
 function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
   if (log === null) return () => false;
   const paths = new Set<string>([
     ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
@@ -834,6 +837,7 @@ function writeUpdateSharedFiles(args: {
 }): { writes: SharedWrite[]; legacyRestored: string[]; outside: OutsideLink[] } {
   const { projectDir, harnessRoot, templatesDir, wants } = args;
   const log = readInstallLog(projectDir);
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(PR B 와 같은 판단).
   if (log === null) return { writes: [], legacyRestored: [], outside: [] };
   const excluded = excludedIds(log);
   const writer = createInstallWriter({ projectDir, previousLog: log, excluded });
@@ -1449,7 +1453,7 @@ function installedBundledSkills(projectDir: string): string[] {
  * 존재로는 못 가르기 때문이었다. 그 판정이 이제 로그 한 필드로 합쳐졌고, 옛 로그는 같은 두
  * 필드를 포함한 유도 규칙이 덮는다(그래서 #514 가 고친 증상은 그대로 막힌다).
  *
- * **로그가 없으면 전부** — 레거시 설치본이다. 그때는 `refreshOnly` 의 디스크 판정이 대신한다.
+ * **로그가 없으면 전부** — `refreshOnly` 의 디스크 판정이 대신한다. 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
  */
 function installedCliTargets(log: InstallLog | null): ReadonlyArray<CliBase> {
   if (log === null) return ALL_CLI_TARGETS;
@@ -1610,6 +1614,7 @@ function refreshExternalCli(
     // 같은 입력(앞 기록의 몫 · 설치자가 뺀 것)을 넘겨야 설치자가 `--without` 으로 뺀 하네스 구간·키·블록을 되살리지 않는다.
     shared: { portions: log?.portions ?? [], excluded: [...excludedIds(log)] },
     // ADR-099 R2 (#584) — 기록이 깔린 CLI 로 말하면 그 CLI 의 앵커·룰을 없어도 만든다(디스크의 앵커 존재가 아니라 기록)
+    // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(빈 집합).
     recordedClis: log === null ? [] : installedClis(log),
   });
 
@@ -2193,6 +2198,7 @@ function refreshNeutralHelpers(
   }
   if (refreshed.size === 0) return;
   const log = readInstallLog(projectDir);
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
   if (log === null) return;
   const next = (log.externalFiles ?? []).map((f) =>
     refreshed.has(f.path) ? { ...f, sha256: refreshed.get(f.path) as string } : f,
@@ -2235,6 +2241,7 @@ function dropHealedHookPortions(projectDir: string, healedFiles: ReadonlyArray<s
     return at !== -1 && healed.has(key.slice(at + 1));
   };
   const log = readInstallLog(projectDir);
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
   if (log === null) return;
   const portions = (log.portions ?? []).filter(
     (p) => !(p.path === join(".claude", "settings.json") && isHealedKey(p.key)),

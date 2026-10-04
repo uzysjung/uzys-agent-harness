@@ -473,6 +473,7 @@ export function refreshExternalSkills(
 ): ExternalSkillRefresh {
   const none = { attempted: 0, refreshed: 0, failed: [] as const, notInCatalog: [] as const };
   const log = (deps.readLog ?? readInstallLog)(projectDir);
+  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어("판정 불가").
   if (!log) {
     return { ...none, unknown: true };
   }
