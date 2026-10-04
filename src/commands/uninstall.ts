@@ -45,8 +45,9 @@ import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { renderHarnessMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
 import { skillsCliSpec } from "../external-installer.js";
-import { backupDir } from "../fs-ops.js";
+import { backupDir, backupIfLossyUtf8 } from "../fs-ops.js";
 import {
+  corruptedInstallLogMessage,
   hashContent,
   INSTALL_LOG_DIR,
   type InstallLog,
@@ -56,7 +57,7 @@ import {
   installedClis,
   installLogPath,
   legacyInstallLogPath,
-  readInstallLog,
+  readInstallLogStatus,
   writeInstallLog,
 } from "../install-log.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
@@ -73,9 +74,10 @@ export interface UninstallOptions {
   keepTemplates?: boolean;
   /**
    * v26.123.0 (F-1c) — 항목별 제거. 쉼표 구분 자산 id.
-   * 지정 시 templates(`.claude/` 등)는 건드리지 않고, 로그도 지우지 않고 **남은 자산으로 다시 쓴다**.
+   * 지정 시 templates(`.claude/` 등)은 건드리지 않고, 로그도 지우지 않고 **남은 자산으로 다시 쓴다**.
+   * cac 는 플래그 반복(`--only a --only b`)을 배열로 전달하므로 둘 다 받는다(#612).
    */
-  only?: string;
+  only?: string | string[];
   /** v26.125.0 — 대화형 선택 화면을 건너뛰고 전량 제거 (비대화형 스크립트용). */
   yes?: boolean;
   /**
@@ -126,8 +128,9 @@ const MOVE_ASIDE_PREVIEW = (rel: string): string =>
 
 /** 기록된 템플릿 디렉터리 — 전량 제거가 옮겨 둘 자리. */
 function recordedTemplateDirs(log: InstallLog): string[] {
-  return [log.templates.claudeDir, log.templates.codexDir, log.templates.opencodeDir].filter(
-    (d): d is string => d !== undefined,
+  // #650 — 필드가 빠진 기록(버전 스큐·수동 편집)에서 무방비 접근으로 죽지 않는다.
+  return [log.templates?.claudeDir, log.templates?.codexDir, log.templates?.opencodeDir].filter(
+    (d): d is string => typeof d === "string",
   );
 }
 
@@ -164,7 +167,14 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const harnessRoot = (deps.resolveHarnessRoot ?? defaultHarnessRoot)();
 
   const projectDir = resolve(options.projectDir ?? process.cwd());
-  const installLog = readInstallLog(projectDir);
+  // #640 — 깨진 기록(파싱은 되지만 필수 필드 결번)에서 TypeError 스택트레이스로 죽던 경로.
+  const logStatus = readInstallLogStatus(projectDir);
+  if (logStatus.status === "corrupted") {
+    err(c.red(`ERROR: ${corruptedInstallLogMessage(projectDir)}`));
+    exit(1);
+    return;
+  }
+  const installLog = logStatus.log;
   if (!installLog) {
     err(status.failure(c.red(`ERROR: install log not found at ${installLogPath(projectDir)}`)));
     err(c.dim("       Was this project installed by agent-harness? Nothing to uninstall."));
@@ -793,8 +803,13 @@ function settleCliLog(
   // #551 R1 — 몫을 판정한 파일은 걷고 남은 몫(설치자가 고친 키 · 못 읽어 남긴 몫)만 이어 적는다. 판정하지 않은
   // 파일(다른 CLI 가 아직 쓰는 자리 · 하네스가 만든 파일)의 몫은 그대로다.
   const touched = new Set(shared.map((r) => r.path));
+  // #623 — externalFiles 와 같은 규칙: 옮겨 둔 디렉터리(예: `.codex/`) 아래 몫은 이 CLI 것이었다.
+  // 남겨 두면 사용자가 자체 config.toml 을 새로 만들 때 "설치자가 지운 몫"(excluded)으로 읽혀
+  // 재설치가 아무 리전도 못 넣고 허위 excluded 까지 기록된다.
   const portions = [
-    ...(installLog.portions ?? []).filter((p) => !touched.has(p.path)),
+    ...(installLog.portions ?? []).filter(
+      (p) => !touched.has(p.path) && !underAny(p.path, removedDirs),
+    ),
     ...shared.flatMap((r) => r.portions),
   ];
   if (portions.length > 0) next.portions = portions;
@@ -1055,10 +1070,11 @@ function unknownIds(installLog: InstallLog, selectedIds: ReadonlyArray<string>):
 }
 
 /** `--only <a,b>` → ["a","b"]. 미지정이면 null (= 전량 제거, 기존 동작). */
-function parseOnly(only: string | undefined): string[] | null {
-  if (!only) return null;
-  const ids = only
-    .split(",")
+export function parseOnly(only: string | string[] | undefined): string[] | null {
+  // #612 — cac 는 플래그 반복을 배열로 준다. 배열·문자열·단일·혼합 전부 같은 곳에서 정규화한다.
+  const parts = Array.isArray(only) ? only : only !== undefined ? [only] : [];
+  const ids = parts
+    .flatMap((s) => s.split(","))
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
   return ids.length > 0 ? ids : null;
@@ -1120,13 +1136,16 @@ function removeTemplates(
   const external = removeExternalFiles(log, projectDir, rm, harnessRoot);
   external.removed.push(...recovered.removed);
   external.kept.push(...recovered.kept);
-  external.outside.push(...recovered.outside, ...outsidePortions);
+  // 같은 링크가 externalFiles·portions 양쪽에 기록돼 있어도 "남김" 은 경로당 한 줄이다.
+  for (const o of [...recovered.outside, ...outsidePortions]) {
+    if (!external.outside.some((e) => e.path === o.path)) external.outside.push(o);
+  }
   // 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스가 넣은 마커
   // import 블록만 도로 걷어낸다. 안 걷으면 앵커 파일을 지운 뒤 없는 파일을 가리키는 import 가
   // 남아 매 세션 끊긴 참조가 로드된다.
   const importStripped = stripRootImport(projectDir);
   // 하네스 앵커 파일 — install 원본 그대로일 때만 삭제. 사용자가 수정했으면 보존.
-  const rootMd = log.templates.rootClaudeMd;
+  const rootMd = log.templates?.rootClaudeMd;
   if (rootMd) {
     if (rootClaudeMdModified(log, projectDir))
       return { rootClaudeMdKept: true, importStripped, external, moved };
@@ -1358,23 +1377,25 @@ function removeExternalFiles(
     // 따라 썼으므로 회수도 따라간다: 대상에서 하네스 몫을 걷고 링크 포인터를 함께 정리한다.
     // `.agents/skills/<id>` 의 링크는 `npx skills` 가 만든 **남의 설치 포인터**(#343) — 파일을
     // 가리키더라도 무조건 건드리지 않는다(이 두 계약을 한 술어로 나눈 것이 이 조건이다).
-    // #565 — 읽다 실패하는 것은 지우지 않고 kept 로 흘린다.
+    // #565 — lstat→read 사이 TOCTOU·EACCES 도 같은 망태로 흘린다: 읽지 못한 것은 "고쳤다"가 아니라
+    // 판정 불가라 지우지 않고 unjudged 로 보고한다.
     let current: string;
     let effective = abs;
     const foreignSkillSlot = path.startsWith(".agents/skills/");
     try {
-      if (lstatSync(abs).isSymbolicLink() && !foreignSkillSlot) {
-        const resolved = realpathSync(abs);
-        if (!statSync(resolved).isFile()) continue;
-        if (isOutsideProject(projectDir, resolved)) {
-          outside.push({ path, target: resolved });
-          continue;
-        }
-        effective = resolved;
-      } else if (!lstatSync(abs).isFile()) continue;
+      const isLink = lstatSync(abs).isSymbolicLink();
+      if (isLink && foreignSkillSlot) continue; // #343 — 남의 설치 포인터는 건드리지 않는다
+      // 실체의 실제 위치 하나로 판정한다 — 파일 링크든 상위 폴더 링크든(`.agents/rules → 밖`) 같다.
+      const resolved = realpathSync(abs);
+      if (!statSync(resolved).isFile()) continue;
+      if (isOutsideProject(projectDir, resolved)) {
+        outside.push({ path, target: resolved });
+        continue;
+      }
+      if (isLink) effective = resolved;
       current = readFileSync(effective, "utf8");
     } catch {
-      kept.push(path);
+      unjudged.push(path);
       continue;
     }
     if (hashContent(current) !== sha256) {
@@ -1461,6 +1482,8 @@ function stripRootImport(projectDir: string): boolean {
   const stripped = current === null ? null : stripHarnessImport(current);
   if (stripped === null) return false;
   try {
+    // #653 — 비UTF-8 바이트가 섞인 파일을 문자열 왕복으로 재작성 전에 원시 바이트를 보존한다.
+    backupIfLossyUtf8(join(projectDir, "CLAUDE.md"));
     writeFileSync(join(projectDir, "CLAUDE.md"), stripped, "utf8");
     return true;
   } catch {
@@ -1492,15 +1515,15 @@ function previewExternalLines(
     let effective = abs;
     const foreignSkillSlot = path.startsWith(".agents/skills/");
     try {
-      if (lstatSync(abs).isSymbolicLink() && !foreignSkillSlot) {
-        const resolved = realpathSync(abs);
-        if (!statSync(resolved).isFile()) continue;
-        if (isOutsideProject(projectDir, resolved)) {
-          lines.push(`  ○ keep ${path} (link target outside project: ${resolved} — preserved)`);
-          continue;
-        }
-        effective = resolved;
-      } else if (!lstatSync(abs).isFile()) continue;
+      const isLinkPath = lstatSync(abs).isSymbolicLink();
+      if (isLinkPath && foreignSkillSlot) continue;
+      const resolved = realpathSync(abs);
+      if (!statSync(resolved).isFile()) continue;
+      if (isOutsideProject(projectDir, resolved)) {
+        lines.push(`  ○ keep ${path} (link target outside project: ${resolved} — preserved)`);
+        continue;
+      }
+      if (isLinkPath) effective = resolved;
     } catch {
       continue;
     }
@@ -1542,7 +1565,7 @@ function externalRemovalLines(external: ExternalRemoval): string[] {
   }
   for (const path of external.unjudged) {
     lines.push(
-      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (template unreadable or write failed). Remove manually if intended.`,
+      `  ${c.yellow("⊘")} ${path} kept — harness sections could not be separated (a file or template could not be read, or the write failed). Remove manually if intended.`,
     );
   }
   for (const { path, target } of external.outside) {
@@ -1604,7 +1627,7 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
     .option("--dry-run", "[Mode] List reverse steps without executing")
     .option(
       "--keep-templates",
-      "[Mode] Keep `.claude/`, `.codex/`, `.opencode/` templates (remove only external assets)",
+      "[Mode] Keep `.claude/`, `.codex/`, `.opencode/` templates (remove only external assets). Without a terminal it still needs --yes, --only, --cli or --dry-run",
     )
     .option(
       "--only <ids>",
@@ -1627,7 +1650,8 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
  * 들어가지 **않는** 조건은 전부 "사용자가 이미 무엇을 원하는지 말한 경우"다:
  *   `--only` = 뺄 대상을 지정함 · `--dry-run` = 미리보기 · `--yes` = 묻지 말라는 명시.
  * 그 외 TTY 라면 화면으로 들어간다 — 플래그 없는 `uninstall` 이 즉시 전량 삭제하던 것이
- * 이 명령에서 가장 위험한 기본값이었다. TTY 가 아니면(CI·파이프) 기존 동작 그대로다.
+ * 이 명령에서 가장 위험한 기본값이었다. TTY 가 아니면 이 함수는 false 지만, 플래그 없는 비TTY 실행은 dispatchUninstall 이
+ * 거부한다(#561 · lacksRemovalIntent).
  */
 export function shouldRunInteractive(options: UninstallOptions, isTty: boolean): boolean {
   if (!isTty) return false;
@@ -1636,13 +1660,38 @@ export function shouldRunInteractive(options: UninstallOptions, isTty: boolean):
   return options.only === undefined && options.cli === undefined;
 }
 
-/* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
+/* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive·lacksRemovalIntent, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
 async function dispatchUninstall(options: UninstallOptions): Promise<void> {
+  // #561 — 터미널 없는 환경(파이프·CI)에서 플래그 없이 실행되면 확인 없이 전량 제거되던
+  // 기본값을 거부로 바꾼다. USAGE "Nothing happens until you confirm" 의 비TTY 판이다.
+  if (!process.stdin.isTTY && lacksRemovalIntent(options)) {
+    console.error(
+      status.failure(
+        c.red(
+          "ERROR: no terminal and no flag saying what to remove — nothing was done. Pass --yes (remove everything), --only <ids>, --cli <name>, or --dry-run.",
+        ),
+      ),
+    );
+    process.exit(1);
+  }
   if (!shouldRunInteractive(options, Boolean(process.stdin.isTTY))) {
     uninstallAction(options);
     return;
   }
   await runUninstallScreen(resolve(options.projectDir ?? process.cwd()));
+}
+
+/**
+ * #561 — 사용자가 "무엇을 지우겠다"고 말한 플래그가 하나도 없는가.
+ * USAGE L239 가 말하는 네 가지(--only · --cli · --dry-run · --yes)만 의사 표현으로 친다.
+ */
+export function lacksRemovalIntent(options: UninstallOptions): boolean {
+  return (
+    options.yes === undefined &&
+    options.dryRun === undefined &&
+    options.only === undefined &&
+    options.cli === undefined
+  );
 }
 
 /**

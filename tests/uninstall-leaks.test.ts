@@ -12,6 +12,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -218,6 +219,8 @@ describe("#629/#630 — 링크 따라가기: 프로젝트 안은 회수, 밖은 
     const out = uninstall().join("\n");
     expect(readFileSync(real).equals(before)).toBe(true);
     expect(out).toContain(real);
+    // externalFiles·portions 양쪽에 기록돼도 남김 줄은 한 번이다
+    expect(out.split(real).length - 1).toBe(1);
   });
 
   it("이동 대상 디렉터 밖 자리(.agents/rules)의 링크도 대상이 밖이면 지우지 않는다", () => {
@@ -232,5 +235,19 @@ describe("#629/#630 — 링크 따라가기: 프로젝트 안은 회수, 밖은 
     expect(existsSync(real)).toBe(true);
     expect(readFileSync(real).equals(before)).toBe(true);
     expect(out).toContain(real);
+  });
+
+  it("상위 **폴더** 링크가 밖을 가리켜도(.agents/rules → 밖) 그 안의 하네스 룰은 지우지 않는다", () => {
+    install(["claude", "antigravity"]);
+    const dir = join(projectDir, ".agents", "rules");
+    const realDir = join(outsideDir, "rules");
+    renameSync(dir, realDir);
+    symlinkSync(realDir, dir);
+    const snap = () => readdirSync(realDir).map((f) => [f, readFileSync(join(realDir, f), "utf8")]);
+    const before = snap();
+    expect(before.length).toBeGreaterThan(0);
+    const out = uninstall().join("\n");
+    expect(snap()).toEqual(before);
+    expect(out).toContain(realDir);
   });
 });

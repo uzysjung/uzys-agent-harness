@@ -1179,16 +1179,26 @@ describe("신규 자산 설치 (#283)", () => {
     expect(report.installedNew).toContain(".claude/agents/reviewer.md");
   });
 
-  it("이미 있는 파일은 덮어쓰지 않는다 — 갱신은 편집분 판정을 하는 경로의 몫이다", () => {
+  it("이미 있는 파일은 0단계가 덮지 않는다 — 갱신(3.8단계)이 백업을 담보하고 교체한다 (#597)", () => {
     mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
     writeFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "내가 고친 것\n");
 
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
-    expect(readFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "utf8")).toBe(
+    // 0단계(#283)는 여전히 안 덮는다 — 설치 목록에 오르지 않는다.
+    expect(report.installedNew).not.toContain(".uzys-agent-harness/protect-branch.sh");
+    // 3.8단계(#597)가 판정 경로의 몫을 한다: 기록에 없는 내용은 편집분으로 보고
+    // 백업에 보존한 뒤 최신판으로 교체한다 (L185-193 일반 정책).
+    expect(
+      readFileSync(join(projectDir, ".uzys-agent-harness/protect-branch.sh"), "utf8"),
+    ).not.toBe("내가 고친 것\n");
+    const backups = readdirSync(join(projectDir, ".uzys-agent-harness")).filter((f) =>
+      f.startsWith("protect-branch.sh.backup-"),
+    );
+    expect(backups.length).toBe(1);
+    expect(readFileSync(join(projectDir, ".uzys-agent-harness", backups[0] ?? ""), "utf8")).toBe(
       "내가 고친 것\n",
     );
-    expect(report.installedNew).not.toContain(".uzys-agent-harness/protect-branch.sh");
     // 0건 함정 방지 — 기능이 꺼져도 위 단언은 통과한다. 같은 실행에서 **없던 것**은
     // 실제로 깔렸는지 함께 본다.
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
