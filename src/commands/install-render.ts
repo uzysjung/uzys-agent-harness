@@ -261,13 +261,14 @@ export function renderUpdateSummary(
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
-  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다.
+  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다. "edited" 라고 부르지 않는다: 기록이 없던
+  // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} edited file(s) kept as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
     log(
@@ -915,6 +916,16 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #597 — 링크라 갱신하지 않은 CLI 중립 헬퍼. 링크 너머는 프로젝트 밖일 수 있어 쓰지 않는다.
+    if (baseline.updateMode.helpersKept?.length) {
+      log(
+        assetRow(
+          "skip",
+          "helper is a link",
+          `${baseline.updateMode.helpersKept.join(", ")} · 링크라 갱신하지 않고 남겼다`,
+        ),
+      );
+    }
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
     // `.claude/skills linked` 와 나눠 내는 이유는 자리가 달라서다 — 옮겨야 할 경로를 그대로 낸다.
     if (baseline.updateMode.foreignOwned.length > 0) {
@@ -1052,7 +1063,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · .claude/skills/${id} 는 지워도 된다`,
+              `${id} 는 ${renamedTo} 가 됐다 · ${renamedTo} 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         } else if (RETIRED_SKILL_IDS.includes(id)) {
@@ -1060,7 +1071,7 @@ function renderPhase1Rows(
             assetRow(
               "skip",
               "skills",
-              `${id} · 이 릴리즈에서 은퇴 — .claude/skills/${id} 를 지워도 된다`,
+              `${id} · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 ${id} 는 지워도 된다`,
             ),
           );
         }
@@ -1105,6 +1116,18 @@ function renderPhase1Rows(
   }
   // v26.57.1 (F2) — multi-line 구조 (header + use + files). visual hierarchy + width-safe.
   // 사용자 image 검증 (2026-05-17): 단일 라인 description 이 width 좁을 때 wrap → 들여쓰기 깨짐.
+  // #603 — install 은 죽은 훅 참조를 지우지 않는다(설치자 몫일 수 있다). 한 줄로 알리기만 한다.
+  if (baseline.keptHookRefs?.length) {
+    log(
+      infoRow(
+        "HOOK",
+        c.yellow(
+          `settings.json 에 스크립트가 없는 훅 참조 ${baseline.keptHookRefs.length}건 — 지우지 않았다 ` +
+            `(${baseline.keptHookRefs.join(", ")})`,
+        ),
+      ),
+    );
+  }
   const cats = baseline.categories;
   if (cats) {
     // v26.63.0 — files 라인은 verbose 옵션 시만. 기본은 카운트 + use 1 줄.

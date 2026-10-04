@@ -22,6 +22,7 @@ import {
   ensureProjectSkeleton,
   listFilesRecursive,
 } from "./fs-ops.js";
+import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
   type InstallLog,
@@ -170,6 +171,8 @@ export interface BaselineReport {
   filesCopied: number;
   dirsCopied: number;
   skipped: number;
+  /** #603 — install 이 settings.json 에서 **발견만 하고 지우지 않은** 죽은 훅 참조(.claude/ 상대경로). 설치자 몫일 수 있다. */
+  keptHookRefs?: string[];
   backup: string | null;
   installedTracks: string[];
   mcpServers: string[];
@@ -271,6 +274,8 @@ export interface InstallReport {
    * 설계 N13). install 에서는 항상 `[]`.
    */
   staleHookRefs: string[];
+  /** #603 — install 이 발견만 하고 지우지 않은 죽은 훅 참조(`.claude/` 상대경로). 화면은 한 줄로 알린다. */
+  keptHookRefs?: string[];
   /**
    * 2026-08-16 — 사용자가 위저드 3단계에서 **체크를 푼** 트랙 자산의 대상 경로.
    *
@@ -471,6 +476,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
   };
 
   const baseline: BaselineReport = {
+    ...(base.keptHookRefs.length > 0 ? { keptHookRefs: base.keptHookRefs } : {}),
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
     skipped: base.skipped,
@@ -608,6 +614,8 @@ export function buildManifestSpec(spec: InstallSpec): Required<AssetSpec> {
 
 /** `.claude/` baseline (manifest copy) 결과. claude 미선택 시 emptyClaudeBaseline(). */
 interface ClaudeBaselineResult {
+  /** #603 — install 이 발견만 하고 남긴 죽은 훅 참조. */
+  keptHookRefs: string[];
   filesCopied: number;
   dirsCopied: number;
   skipped: number;
@@ -649,6 +657,7 @@ interface ClaudeBaselineResult {
 
 function emptyClaudeBaseline(): ClaudeBaselineResult {
   return {
+    keptHookRefs: [],
     filesCopied: 0,
     dirsCopied: 0,
     skipped: 0,
@@ -822,6 +831,14 @@ function installClaudeBaseline(
         existsSync(join(projectDir, target))
       );
     });
+    // #603 — 죽은 훅 참조는 **지우지 않고 알리기만** 한다. install 시점의 설치 기록에 없는 참조는 설치자 몫이다
+    // (팀이 커밋한 `generated-*.sh` 배선 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). 지우는 치유는 update 몫.
+    result.keptHookRefs.push(
+      ...findStaleHookRefs(
+        join(projectDir, ".claude", "settings.json"),
+        join(projectDir, ".claude"),
+      ),
+    );
   }
 
   // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
