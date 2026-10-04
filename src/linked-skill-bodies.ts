@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { writeBundledSkillDirs } from "./codex/skills.js";
 import type { InstallLogSkillFile } from "./install-log.js";
 import type { OutsideLink } from "./outside-project.js";
-import { createOwnedWriter } from "./owned-write.js";
+import { createOwnedWriter, type WriteJournal } from "./owned-write.js";
 
 export interface LinkedSkillBodies {
   /** 공유 본문을 최신 포팅판으로 맞춘 id (이미 최신이라 쓰지 않은 것 포함). */
@@ -49,11 +49,13 @@ export function refreshLinkedSkillBodies(params: {
   projectDir: string;
   ids: ReadonlyArray<string>;
   baseline: ReadonlyMap<string, string>;
+  /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
+  journal?: WriteJournal;
 }): LinkedSkillBodies {
-  const { harnessRoot, projectDir, ids, baseline } = params;
+  const { harnessRoot, projectDir, ids, baseline, journal } = params;
   const bodyKey = (id: string): string => `.agents/skills/${id}/SKILL.md`;
   const ours = ids.filter((id) => baseline.has(bodyKey(id)));
-  const writer = createOwnedWriter(projectDir, baseline);
+  const writer = createOwnedWriter(projectDir, baseline, journal === undefined ? {} : { journal });
   const written = new Set(
     writeBundledSkillDirs({ harnessRoot, projectDir, skillIds: ours, writer }),
   );

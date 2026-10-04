@@ -9,7 +9,7 @@ import { hasTrustEntry } from "../codex/trust-entry.js";
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
 import { formatResidentCostLine, summarizeContextCost } from "../context-cost.js";
@@ -19,6 +19,7 @@ import {
   infoRow,
   padDisplay,
   sectionHeader,
+  status,
   symbol,
   unifiedSection,
 } from "../design.js";
@@ -37,6 +38,7 @@ import {
   type BaselineReport,
   buildManifestSpec,
   type ExcludedStillThere,
+  type InstallInterruptedError,
   type InstallMode,
   type InstallReport,
   type ProgressEvent,
@@ -168,6 +170,12 @@ export function createInstallRenderer(
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
         renderPhase1Rows(log, event.baseline, verbose);
+      } else if (event.type === "install-log-error") {
+        // #600 — 파일은 다 깔렸는데 기록을 못 남겼다. 침묵하면 `uninstall` · `update` 가 이 설치를 못 보는 이유를
+        // 설치자가 알 길이 없다.
+        log(
+          `  ${status.warn(c.yellow(`could not record this install (${event.message}) — uninstall and update will not see it. Fix the cause, then run the same install again`))}`,
+        );
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
@@ -1465,4 +1473,69 @@ export function formatCliPhaseTitle(targets: CliTargets): string {
   if (targets.includes("opencode")) labels.push("OpenCode");
   if (targets.includes("antigravity")) labels.push("Antigravity");
   return labels.length > 0 ? `${labels.join(" + ")} artifacts` : "CLI artifacts";
+}
+
+/**
+ * #600 — install 이 도중에 멈춘 뒤의 안내. 무엇이 이미 깔렸는지(최상위 자리별로 묶어) · 그것을 기록했는지 · 어떻게
+ * 마저 깔거나 걷는지를 말한다. 전에는 `install failed — <원인>` 한 줄뿐이라 설치자는 반쯤 깔린 프로젝트를 하네스
+ * 명령으로 정리할 수 있는지조차 알 수 없었다.
+ */
+export function renderInterruptedInstall(
+  err: (msg: string) => void,
+  e: InstallInterruptedError,
+  cwd: string = process.cwd(),
+): void {
+  const replaced = e.backups.filter((b) => b.replaced);
+  // 백업 직후 쓰기가 실패한 자리 — 원본은 그대로이고 백업은 사본일 뿐이다. "replaced" 라고 하면 거짓이다.
+  const untouched = e.backups.filter((b) => !b.replaced);
+  const untouchedLines = (): void => {
+    if (untouched.length === 0) return;
+    err("  Backed up but not replaced — the original is unchanged:");
+    for (const b of untouched) err(`    ${b.original} (copy: ${b.copy})`);
+  };
+  if (e.written.length === 0) {
+    err(
+      untouched.length === 0
+        ? "  Nothing was written. Fix the cause above, then run the same install again."
+        : "  Nothing was installed. Fix the cause above, then run the same install again.",
+    );
+    untouchedLines();
+    return;
+  }
+  const groups = new Map<string, number>();
+  for (const path of e.written) {
+    const slash = path.indexOf("/");
+    const key = slash > 0 && !path.endsWith(")") ? path.slice(0, slash + 1) : path;
+    groups.set(key, (groups.get(key) ?? 0) + 1);
+  }
+  const { path, error } = e.record;
+  err(
+    path !== null
+      ? `  Already in place before it stopped — recorded in ${relative(cwd, path) || path}:`
+      : "  Already in place before it stopped:",
+  );
+  for (const [key, n] of groups) {
+    err(`    ${key.endsWith("/") ? `${key} (${n} file${n === 1 ? "" : "s"})` : key}`);
+  }
+  if (replaced.length > 0) {
+    err("  Your files it replaced were backed up first:");
+    for (const b of replaced) err(`    ${b.copy}`);
+  }
+  untouchedLines();
+  if (path !== null) {
+    err("  Fix the cause above, then either run the same install again to finish,");
+    // 옛 설치 위에서 멈췄으면 uninstall 은 이번 몫만이 아니라 설치 전체(앞 실행분 포함)를 뺀다
+    err(
+      e.hadInstall
+        ? "  or remove the whole harness install (earlier runs included): agent-harness uninstall"
+        : "  or remove what was written: agent-harness uninstall",
+    );
+  } else {
+    err(
+      `  ${c.yellow(`Could not record them (${error ?? "unknown error"}) — uninstall will not find them.`)}`,
+    );
+    err(
+      "  Fix the cause above, then run the same install again — files already in place are kept or backed up, never lost.",
+    );
+  }
 }

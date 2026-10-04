@@ -19,7 +19,7 @@ import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
 import { composeMcpJson, type McpJson } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink } from "./outside-project.js";
-import type { OwnedWriteResult } from "./owned-write.js";
+import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
@@ -103,6 +103,16 @@ export interface CliTransformParams {
    * 하네스 파일 말고는 하네스 구간·키를 갈아 끼우지 않고 남긴다(`shared-write.ts` `SharedRecord`).
    */
   shared?: SharedRecord;
+  /**
+   * #600 — 세 변환이 쓰는 즉시 받아 적을 곳(install). 변환이 중간에 던지면 결과가 돌아오지 않으므로 install 은
+   * 이 저널로 그때까지 쓴 것을 기록한다. `done` 은 변환 하나가 **끝까지** 돈 CLI — 끝나지 않은 CLI 는 기록에
+   * 깔린 CLI 로 적지 않는다(그 디렉터리를 하네스 것으로 주장하지 않는다).
+   */
+  journal?: WriteJournal & {
+    done(cli: CliBase): void;
+    /** 홈 Codex 설정에 trust 항목을 넣으려 한 결과 — 하네스가 실제로 넣었으면(`registered`) 중단 기록에도 남긴다. */
+    trust(report: CodexOptInReport): void;
+  };
 }
 
 /**
@@ -138,7 +148,9 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     refreshOnly = false,
     codexTrust = false,
     shared = {},
+    journal,
   } = params;
+  const journalParam = journal === undefined ? {} : { journal };
 
   // v26.133.0 (ADR-048) — 기준선을 transform 사이로 **이어준다**. codex 와 opencode 는 같은
   // `AGENTS.md` 를, codex 와 antigravity 는 같은 `.agents/skills/<id>/SKILL.md` 를 쓴다.
@@ -204,6 +216,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       // 쓰면 codex 판은 어차피 같은 실행 안에서 덮였고(최종 파일 = opencode 판), 매 실행 codex 가
       // opencode 판을 자기 판으로 뒤집는 한 번의 쓰기가 설치자 편집분을 백업으로 쌓았다.
       writeAgentsMd: !cli.includes("opencode"),
+      ...journalParam,
     });
     absorb(codex);
     absorbShared(codex, [codex.agentsMd?.shared, codex.configToml]);
@@ -211,7 +224,9 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     // 안 줬으면 Codex 가 첫 실행에서 직접 묻는다("Trust and continue") — 설치 화면 NEXT 가 그걸 안내한다.
     if (codexTrust) {
       codexOptIn = runCodexOptIn({ projectDir });
+      journal?.trust(codexOptIn);
     }
+    journal?.done("codex");
   }
 
   let opencode: OpencodeTransformReport | null = null;
@@ -225,9 +240,11 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
+      ...journalParam,
     });
     absorb(opencode);
     absorbShared(opencode, [opencode.agentsMd?.shared, opencode.opencodeJson]);
+    journal?.done("opencode");
   }
 
   // v26.66.0 — Antigravity transform: `.agents/rules/uzys-harness.md` + dev-method skills.
@@ -240,8 +257,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       rules,
       baseline,
       refreshOnly,
+      ...journalParam,
     });
     absorb(antigravity);
+    journal?.done("antigravity");
   }
 
   return {

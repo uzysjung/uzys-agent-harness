@@ -10,6 +10,7 @@
  */
 
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -430,3 +431,56 @@ describe("R3 — 위저드 재체크는 `--with <id>` 로 낸다", () => {
     expect(result.mode).toBe("update");
   });
 });
+
+/**
+ * #600 × ADR-099 — 도중에 멈춘 install 의 중단 기록도 정상 기록과 **같은 규칙**의 `excluded` 를 쓴다: 옛 판 자동 추론분은
+ * 풀리고(R5), 이번 `--without` 은 더해지고(누적), 손으로 지운 키는 들어가지 않는다(R1). 선택 입력(spec)도 같은 누적판이다.
+ * 읽을 수 없는 `.codex/config.toml` 로 멈춘다 — root 는 권한을 무시하므로 재현이 안 된다.
+ */
+describe.skipIf(process.getuid?.() === 0)(
+  "#600 중단 기록의 excluded 는 정상 경로와 같은 규칙",
+  () => {
+    it("163 모양 기록 위에서 멈춰도 — 자동 추론 키는 풀리고 · 이번 --without 은 더해지고 · 누적 빼기는 남는다", () => {
+      install({ cli: ["claude", "codex"] });
+      // 26.163.0 이 남긴 모양: github 서버를 손으로 지웠고 그것이 excluded 에 키 id 로 굳었다 · 표시 없음
+      const mcp = JSON.parse(readFileSync(abs(".mcp.json"), "utf8"));
+      delete mcp.mcpServers.github;
+      writeFileSync(abs(".mcp.json"), JSON.stringify(mcp, null, 2));
+      const log = rawLog();
+      const { excludedKeysMigrated: _m, ...unmarked } = log;
+      putRawLog({
+        ...unmarked,
+        spec: { ...log.spec, baselineExclude: [RULE] },
+        portions: (log.portions ?? []).filter((p) => p.key !== "mcpServers.github"),
+        excluded: ["mcp:github", RULE, "baseline:rules/doc-governance"],
+      });
+      const expected = withRecordedExclusions(
+        spec({ cli: ["claude", "codex"], keyExclude: ["mcp:context7"] }),
+        readInstallLog(projectDir),
+      );
+      writeFileSync(abs(".codex/config.toml"), "ok = true\n");
+      chmodSync(abs(".codex/config.toml"), 0);
+      try {
+        let stopped = false;
+        try {
+          install({ cli: ["claude", "codex"], keyExclude: ["mcp:context7"] });
+        } catch (e) {
+          stopped = (e as Error).name === "InstallInterruptedError";
+        }
+        expect(stopped).toBe(true); // 픽스처 자기검증 — 정말 멈췄다
+      } finally {
+        chmodSync(abs(".codex/config.toml"), 0o644);
+      }
+
+      const after = rawLog();
+      expect([...(after.excluded ?? [])].sort()).toEqual([...expected.excluded].sort());
+      expect([...(after.excluded ?? [])].sort()).toEqual(["mcp:context7", RULE].sort());
+      expect(after.excludedKeysMigrated).toBe(true);
+      expect(after.spec.baselineExclude).toEqual(expected.spec.baselineExclude);
+      // R1 — 손으로 지웠던 github 는 되돌아왔고 빼기로 적히지 않았다 · 이번에 뺀 context7 은 걷혔다
+      const servers = JSON.parse(readFileSync(abs(".mcp.json"), "utf8")).mcpServers;
+      expect(servers.github).toBeDefined();
+      expect(servers.context7).toBeUndefined();
+    });
+  },
+);

@@ -24,7 +24,7 @@ import { seedAgentsMdProjectContext } from "../anchor-seed.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
 import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
-import { createOwnedWriter, type OwnedWriteResult } from "../owned-write.js";
+import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "../owned-write.js";
 import { renderFillScaffold } from "../project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../rules-port.js";
 import {
@@ -71,6 +71,8 @@ export interface OpencodeTransformParams {
    * `SharedRecord`). 생략 = 몫 기록 없음 — 하네스 키를 갈아 끼우지 않고 남긴다.
    */
   shared?: SharedRecord;
+  /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
+  journal?: WriteJournal;
 }
 
 export interface OpencodeTransformReport {
@@ -113,7 +115,10 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     refreshOnly,
     shared = {},
   } = params;
-  const writer = createOwnedWriter(projectDir, baseline, { refreshOnly: refreshOnly ?? false });
+  const writer = createOwnedWriter(projectDir, baseline, {
+    refreshOnly: refreshOnly ?? false,
+    ...(params.journal === undefined ? {} : { journal: params.journal }),
+  });
 
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const agentsTemplate = readRequired(join(harnessRoot, "templates/opencode/AGENTS.md.template"));

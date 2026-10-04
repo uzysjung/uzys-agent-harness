@@ -17,8 +17,27 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, sep } from "node:path";
 import { foreignOwnedTarget } from "./foreign-slot.js";
 import { backupFile } from "./fs-ops.js";
-import { hashContent, type InstallLogSkillFile, isHarnessOwned } from "./install-log.js";
+import {
+  hashContent,
+  type InstallLogPortion,
+  type InstallLogSkillFile,
+  isHarnessOwned,
+} from "./install-log.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
+
+/**
+ * #600 — 쓴 것을 **쓰는 그 자리에서** 받아 적는 곳. transform 의 결과(`result()`)는 transform 이 끝까지 돌아야
+ * 나오므로, 중간에 던지면(EACCES · ENOTDIR …) 그때까지 쓴 파일이 기록 밖에 남는다. install 은 이 저널로 중단된
+ * 실행의 기록을 남겨 같은 install 재실행 · `uninstall` 이 그 파일을 하네스 몫으로 알아보게 한다.
+ */
+export interface WriteJournal {
+  /** 하네스 파일 하나를 썼다(같은 내용이라 기준선만 이었을 때도) — `result().files` 와 같은 항목. */
+  file(f: InstallLogSkillFile): void;
+  /** 함께 쓰는 파일 하나의 몫을 판정해 썼다 — 이 경로의 몫 전체(빼기는 기록하지 않는다 — ADR-099 R1). */
+  portions(path: string, portions: ReadonlyArray<InstallLogPortion>): void;
+  /** 설치자 파일을 덮기 전에 남긴 백업(절대경로) — 멈춘 화면이 "당신 파일은 여기 있다" 를 말한다. */
+  backup(absPath: string): void;
+}
 
 /**
  * 한 transform 실행의 소유권 결과. **세 transform 이 같은 타입을 반환한다** — 필드가 늘 때
@@ -78,6 +97,8 @@ export interface OwnedWriter {
   skipOutside(absPath: string): boolean;
   /** 이번 실행의 소유권 결과 — transform 이 그대로 report 에 실어 반환한다. */
   result(): OwnedWriteResult;
+  /** #600 — 함께 쓰는 파일(`writeShared`)도 같은 저널에 적도록 넘긴다. 없으면 적지 않는다. */
+  readonly journal?: WriteJournal;
 }
 
 /**
@@ -110,6 +131,8 @@ export interface WriteOptions {
 export interface OwnedWriterOptions {
   now?: Date;
   refreshOnly?: boolean;
+  /** #600 — 쓰는 즉시 받아 적을 곳(install). update 는 넘기지 않는다. */
+  journal?: WriteJournal;
 }
 
 /**
@@ -127,7 +150,7 @@ export function createOwnedWriter(
   baseline: ReadonlyMap<string, string>,
   options: OwnedWriterOptions = {},
 ): OwnedWriter {
-  const { now = new Date(), refreshOnly = false } = options;
+  const { now = new Date(), refreshOnly = false, journal } = options;
   const written = new Map<string, string>();
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
@@ -161,8 +184,10 @@ export function createOwnedWriter(
         const current = readFileSync(absPath, "utf8");
         if (current !== content) {
           if (!isHarnessOwned(baseline, rel, current)) {
-            backupPaths.push(backupFile(absPath, now));
+            const backup = backupFile(absPath, now);
+            backupPaths.push(backup);
             backedUp.push(rel);
+            journal?.backup(backup);
           }
           writeFileSync(absPath, content);
           updated++;
@@ -170,8 +195,10 @@ export function createOwnedWriter(
       }
 
       written.set(rel, digest);
+      journal?.file({ path: rel, sha256: digest });
       return true;
     },
+    ...(journal === undefined ? {} : { journal }),
     skipOutside: (absPath) => outside.skip(absPath),
     result() {
       return {
