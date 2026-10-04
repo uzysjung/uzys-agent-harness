@@ -769,12 +769,13 @@ describe("uninstallAction", () => {
       ],
     };
     writeLog(tmpDir, log);
-    const spawn = vi.fn(() => fail("plugin not found"));
+    // #655 — "not found" 는 이제 already-removed 성공 경로다. fail-loud 계약은 다른 실패(EACCES)로 pin.
+    const spawn = vi.fn(() => fail("EACCES: permission denied"));
     const exit = vi.fn() as unknown as (code: number) => never;
     const logFn = vi.fn();
     uninstallAction({ projectDir: tmpDir }, { log: logFn, err: vi.fn(), exit, spawn, rm: vi.fn() });
     expect(exit).toHaveBeenCalledWith(1);
-    expect(logFn.mock.calls.flat().join("\n")).toContain("plugin not found");
+    expect(logFn.mock.calls.flat().join("\n")).toContain("EACCES: permission denied");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 });
@@ -860,7 +861,7 @@ describe("uninstallAction — --only (항목별 제거)", () => {
         log: vi.fn(),
         err: vi.fn(),
         exit: vi.fn() as unknown as (code: number) => never,
-        spawn: vi.fn(() => fail("plugin not found")),
+        spawn: vi.fn(() => fail("EACCES: permission denied")),
         rm: vi.fn(),
       },
     );
