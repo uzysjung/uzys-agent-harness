@@ -50,6 +50,7 @@ import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merg
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
+import type { UpdateModeReport } from "../update-mode.js";
 
 /**
  * v26.78.1 — Summary `CLI` 행 라벨 (SSOT). spec.cli 에서 derive → 헤더와 일관.
@@ -272,16 +273,26 @@ export function renderUpdateSummary(
   // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
+    // #557 — 기록에 체크섬이 없던 백업은 편집인지 모른다. 다 그렇다면 "다시 얹으라" 고 하지 않는다 — 얹을 편집이 없을 수 있다
+    const unmeasured = report.updateMode?.noChecksum?.length ?? 0;
+    const unmeasuredPart =
+      unmeasured === 0
+        ? ""
+        : unmeasured === backups.length
+          ? " — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits"
+          : ` — ${unmeasured} had no checksum on record (marked noChecksum in the list), so those may not be your edits`;
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) saved before replacing, as *.backup-<time>${unmeasuredPart} · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
     log(
       infoRow(
         "NEXT",
-        'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+        unmeasured === backups.length
+          ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
+          : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
       ),
     );
   }
@@ -528,6 +539,25 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
     .map((p) => ` · ${p}`)
     .join("");
   return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
+}
+
+/**
+ * #625 — update 가 갈아 끼우지 않고 남긴 함께 쓰는 파일의 하네스 몫 한 줄. 고친 구간과 기록이 없어 모르는 구간을 가르고,
+ * 둘 다 이번 판을 못 받았다는 사실과 받는 길(그 구간을 지우고 update — 기록된 몫은 되돌리고 없던 몫은 새로 더한다)을 말한다.
+ */
+function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): string {
+  if (f.left !== undefined) return assetRow("skip", f.path, `left — ${f.left}`);
+  const parts: string[] = [];
+  if (f.edited.length > 0)
+    parts.push(`harness part left as you edited it: ${f.edited.join(" · ")}`);
+  if (f.unrecorded.length > 0)
+    parts.push(
+      `harness part left as is (no record of what the harness wrote): ${f.unrecorded.join(" · ")}`,
+    );
+  if (parts.length > 0)
+    parts.push("not updated to this release — delete that part and run update to take the new one");
+  if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(" · ")}`);
+  return assetRow("skip", f.path, parts.join(" · "));
 }
 
 /** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
@@ -825,6 +855,8 @@ function renderPhase1Rows(
 ): void {
   // Update mode rows
   if (baseline.updateMode) {
+    // #557 — 기록에 체크섬이 없어 편집 여부를 잴 수 없던 백업. 아래 "edited" 행들은 이것을 빼고 세고, 따로 한 줄로 말한다
+    const noChecksum = new Set(baseline.updateMode.noChecksum ?? []);
     if (baseline.backup) {
       log(assetRow("success", "backup", shortenPath(baseline.backup)));
     }
@@ -884,6 +916,9 @@ function renderPhase1Rows(
       const row = sharedFileRow(f);
       if (row !== null) log(row);
     }
+    // #625 — 외부 CLI 의 함께 쓰는 파일에서 남긴 하네스 몫. install 은 `sharedRow` 로 말하는데 update 는 이 결과를 버려
+    // 리전 안을 고친 설치자에게 아무 말도 안 했다 — 편집이 살았는지 · 그 구간이 이번 판을 못 받았는지 모른다
+    for (const f of baseline.updateMode.sharedLeft ?? []) log(sharedLeftRow(f));
     // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
     for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
       log(row);
@@ -914,7 +949,7 @@ function renderPhase1Rows(
       log(assetRow("success", HARNESS_ANCHOR_FILE, "refreshed from template"));
     }
     // #480 — 편집분을 백업했다는 사실은 반드시 화면에 남긴다(룰 `edited policy files` 행과 같은 이유).
-    if (baseline.updateMode.anchorBackedUp) {
+    if (baseline.updateMode.anchorBackedUp && !noChecksum.has(HARNESS_ANCHOR_FILE)) {
       log(
         assetRow(
           "skip",
@@ -966,12 +1001,15 @@ function renderPhase1Rows(
     }
     // v26.126.0 (R-3a) — 편집분을 백업했다는 사실은 **반드시 화면에 남긴다**. 갱신 건수만 보이면
     // 사용자는 자기가 고친 내용이 어디로 갔는지 알 수 없고, 그게 R-3a 를 만든 침묵과 같은 실패다.
-    if (baseline.updateMode.skillsBackedUp.length > 0) {
+    const skillsEdited = baseline.updateMode.skillsBackedUp.filter(
+      (p) => !noChecksum.has(`.claude/skills/${p}`),
+    );
+    if (skillsEdited.length > 0) {
       log(
         assetRow(
           "skip",
           ".claude/skills edited files",
-          `${baseline.updateMode.skillsBackedUp.length} backed up as *.backup-<time>`,
+          `${skillsEdited.length} backed up as *.backup-<time>`,
         ),
       );
     }
@@ -1071,12 +1109,27 @@ function renderPhase1Rows(
     }
     // v26.132.0 (ADR-047) — 룰·훅 편집분도 같은 이유로 노출. 자산 종류에 따라 보이고 안 보이면
     // 사용자는 "룰은 백업 안 되나 보다"로 학습한다.
-    if (baseline.updateMode.policyBackedUp.length > 0) {
+    const policyEdited = baseline.updateMode.policyBackedUp.filter(
+      (p) => !noChecksum.has(`.claude/${p}`),
+    );
+    if (policyEdited.length > 0) {
       log(
         assetRow(
           "skip",
           "edited policy files",
-          `${baseline.updateMode.policyBackedUp.length} backed up as *.backup-<time>`,
+          `${policyEdited.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
+    // #557 — 체크섬 이전 옛 판의 첫 update 는 기록이 없어 다른 파일을 전부 한 번 백업한다. 그것을 "edited" 로 부르면
+    // 설치자는 하지 않은 편집을 찾아 헤맨다 — 잴 수 없었다고 말한다. `.mcp-allowlist` 는 은퇴 행이 이미 말한다
+    const unmeasured = [...noChecksum].filter((p) => p !== ".mcp-allowlist");
+    if (unmeasured.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "no checksum on record",
+          `${unmeasured.length} backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely`,
         ),
       );
     }
@@ -1107,12 +1160,13 @@ function renderPhase1Rows(
         ),
       );
     }
-    if (baseline.updateMode.externalBackedUp.length > 0) {
+    const externalEdited = baseline.updateMode.externalBackedUp.filter((p) => !noChecksum.has(p));
+    if (externalEdited.length > 0) {
       log(
         assetRow(
           "skip",
           "edited external CLI files",
-          `${baseline.updateMode.externalBackedUp.length} backed up as *.backup-<time>`,
+          `${externalEdited.length} backed up as *.backup-<time>`,
         ),
       );
     }

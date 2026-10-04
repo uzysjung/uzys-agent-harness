@@ -811,7 +811,9 @@ describe("runUpdateMode (E2E with templates)", () => {
         expect(existsSync(join(projectDir, b.backup))).toBe(true);
       }
       const json = JSON.parse(readFileSync(listFile(), "utf8")) as { backups: unknown[] };
-      expect(json.backups).toEqual(report.backups);
+      // #557 — 기준선 없는 레거시라 편집인지 모른다: 색인이 그 쌍마다 noChecksum 을 단다
+      expect(report.noChecksum).toEqual(paths);
+      expect(json.backups).toEqual(report.backups.map((b) => ({ ...b, noChecksum: true })));
     });
 
     it("백업이 없으면 목록 파일을 남기지 않는다 — 옛 목록은 '지금도 백업이 있다'로 읽힌다", () => {
