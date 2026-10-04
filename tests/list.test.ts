@@ -163,7 +163,9 @@ describe("listAction", () => {
   it("자산이 0개여도 크래시 없이 (none) 으로 보고한다", () => {
     writeLog(tmpDir, baseLog());
     const { output, exit } = run();
-    expect(output).toContain("Assets (0)");
+    // #615 사례 5 — 설치 화면의 `ASSETS N selected`(카탈로그 선택 수)와 다른 집합이라 이름도 다르다.
+    expect(output).toContain("External assets (0)");
+    expect(output).not.toMatch(/^\s*Assets \(/m);
     expect(exit).toHaveBeenCalledWith(0);
     rmSync(tmpDir, { recursive: true, force: true });
   });

@@ -57,12 +57,16 @@ export function residentEntries(spec: InstallSpec): ResidentEntry[] {
   });
 }
 
-/** `residentEntries` 로 센 상주 비용. `entries` 는 update 가 에이전트를 디스크 실측으로 바꿀 때만 준다. */
+/**
+ * `residentEntries` 로 센 상주 비용. `entries` · `contextFiles` 는 update 가 갱신 뒤 디스크를 잴 때만
+ * 준다(#458 · #615 사례 4) — 계약은 `residentCost` 의 같은 이름 인자.
+ */
 export function residentCostFor(
   spec: InstallSpec,
   entries: ReadonlyArray<ResidentEntry> = residentEntries(spec),
+  contextFiles?: ReadonlyArray<string>,
 ): ResidentCost {
-  return residentCost(entries, undefined, spec.cli);
+  return residentCost(entries, undefined, spec.cli, contextFiles);
 }
 
 /** 리뷰 #693 NOTE-3 — 이 spec 의 baseline 대상 중 지금 디스크에 있는 것의 baseline id. */
