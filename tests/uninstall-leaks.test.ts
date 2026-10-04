@@ -8,7 +8,16 @@
  * - #656: 걷어낸 AGENTS.md 에 거짓 스캐폴드 배너("not filled in yet")가 남지 않는다.
  * - #611: 전량 uninstall 후 빈 docs/decisions 디렉터를 걷는다.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,7 +120,13 @@ describe("#655 — not-found 플러그인은 already-removed 로 성공", () => 
       exit,
       log: (l: string) => lines.push(l),
       err: (l: string) => lines.push(l),
-      spawn: () => ({ status: 1, stdout: "", stderr: "plugin not found: gone@mp" }) as never,
+      spawn: () =>
+        ({
+          status: 1,
+          stdout: "",
+          stderr:
+            '✘ Failed to uninstall plugin "gone@mp": Plugin "gone@mp" not found in installed plugins',
+        }) as never,
       resolveHarnessRoot: () => HARNESS_ROOT,
     });
     expect(exit).not.toHaveBeenCalledWith(1);
@@ -142,5 +157,80 @@ describe("#611 — 빈 docs/decisions 회수", () => {
     expect(existsSync(join(projectDir, "docs/decisions"))).toBe(true);
     uninstall();
     expect(existsSync(join(projectDir, "docs/decisions"))).toBe(false);
+  });
+});
+
+describe("#629/#630 — 링크 따라가기: 프로젝트 안은 회수, 밖은 남김", () => {
+  let outsideDir: string;
+  beforeEach(() => {
+    outsideDir = mkdtempSync(join(tmpdir(), "ah-leaks-outside-"));
+  });
+  afterEach(() => {
+    rmSync(outsideDir, { recursive: true, force: true });
+  });
+
+  const hook = () => join(projectDir, ".codex", "hooks", "session-start.sh");
+  const config = () => join(projectDir, ".codex", "config.toml");
+  /** 실파일을 `dest` 로 옮기고 그 자리에 링크를 둔다 — 링크 대상 내용은 install 이 쓴 그대로다. */
+  const relink = (link: string, dest: string) => {
+    mkdirSync(join(dest, ".."), { recursive: true });
+    renameSync(link, dest);
+    symlinkSync(dest, link);
+  };
+
+  it("프로젝트 안 대상으로 이어진 링크는 따라가 하네스 파일을 회수하고 집계에 든다", () => {
+    install(["claude", "codex"]);
+    const real = join(projectDir, "sub", "real-session-start.sh");
+    relink(hook(), real);
+    const out = uninstall().join("\n");
+    expect(existsSync(real)).toBe(false);
+    expect(out).toMatch(/CLI outputs removed: \d+ file/);
+  });
+
+  it("프로젝트 안 대상으로 이어진 config.toml 은 하네스 구간을 걷는다", () => {
+    install(["claude", "codex"]);
+    const real = join(projectDir, "sub", "real.toml");
+    relink(config(), real);
+    writeFileSync(real, `${readFileSync(real, "utf8")}\n# mine\n[user]\nkeep = true\n`);
+    uninstall();
+    const after = existsSync(real) ? readFileSync(real, "utf8") : "";
+    expect(after).toContain("keep = true");
+    expect(after).not.toMatch(/uzys|harness/i);
+  });
+
+  it("프로젝트 밖 대상 파일 링크는 바이트 그대로 남고 보고에 경로가 나온다", () => {
+    install(["claude", "codex"]);
+    const real = join(outsideDir, "shared-hook.sh");
+    relink(hook(), real);
+    const before = readFileSync(real);
+    const out = uninstall().join("\n");
+    expect(existsSync(real)).toBe(true);
+    expect(readFileSync(real).equals(before)).toBe(true);
+    expect(out).toContain(real);
+    expect(out).toMatch(/outside the project/);
+  });
+
+  it("프로젝트 밖 대상의 config.toml 은 하네스 구간을 걷지 않고 남김으로 보고한다", () => {
+    install(["claude", "codex"]);
+    const real = join(outsideDir, "shared.toml");
+    relink(config(), real);
+    const before = readFileSync(real);
+    const out = uninstall().join("\n");
+    expect(readFileSync(real).equals(before)).toBe(true);
+    expect(out).toContain(real);
+  });
+
+  it("이동 대상 디렉터 밖 자리(.agents/rules)의 링크도 대상이 밖이면 지우지 않는다", () => {
+    install(["claude", "antigravity"]);
+    const link = join(projectDir, ".agents", "rules", "git-policy.md");
+    const real = join(outsideDir, "rule.md");
+    rmSync(real, { force: true });
+    renameSync(link, real);
+    symlinkSync(real, link);
+    const before = readFileSync(real);
+    const out = uninstall().join("\n");
+    expect(existsSync(real)).toBe(true);
+    expect(readFileSync(real).equals(before)).toBe(true);
+    expect(out).toContain(real);
   });
 });
