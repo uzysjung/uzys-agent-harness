@@ -210,7 +210,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 | An `AGENTS.md` the harness created, with your `## Project Context` / `## Project Rules` filled in | Kept. `update` rewrites only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Copied to `.claude.backup-<ts>`; the original is updated in place |
 | `.claude/` on `install --reinstall` | Harness files are rewritten in place; one you edited is saved as `<file>.backup-<ts>` first. Your own files there stay |
-| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup |
+| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup. A link to outside the project stays as it is |
 | `.mcp.json` | Your servers are preserved and merged. `uninstall` removes only the servers the harness added — one you changed is left and named; a file the harness created is deleted once nothing else is in it |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
@@ -278,7 +278,7 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 | `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup |
 | `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
 | `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
-| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup |
+| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup; a link to outside the project stays as it is |
 | `opencode.json` | OpenCode | OpenCode is removed (kept if you edited it) |
 | `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours |
 | `.agents/rules/uzys-harness.md` | Antigravity | Antigravity is removed |
