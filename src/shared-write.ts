@@ -160,7 +160,6 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
   // 내용이 없고, 그래야 옛 판이 통째로 쓴 파일(구간 도입 전 `config.toml`)도 새 형식으로 옮겨지고 seed 도 최신판이 된다
   const harnessMade = onDisk === null || baseline.get(path) === hashContent(onDisk);
   const existing = harnessMade ? null : onDisk;
-
   // 어댑터 넷은 값 형식만 다르다 — 이 파일의 어댑터는 경로가 정하고, 렌더는 호출부가 그 형식으로 만든다
   const impl = ADAPTERS[adapter] as unknown as PortionAdapter<V>;
   // `json-keys` 는 seed 를 받지 않는다(빈 객체에서 시작) — 새로 만들 때는 seed 를 "있던 내용" 으로 넘겨 그 위에

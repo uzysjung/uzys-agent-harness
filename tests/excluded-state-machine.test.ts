@@ -12,7 +12,9 @@
  *   2. 치유된 훅 참조는 몫 기록에서 걷혀 첫 접촉으로 돌아온다(#632)
  */
 
+import { createHash } from "node:crypto";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -116,5 +118,56 @@ describe("#632 — 치유된 훅 참조가 빼기 기록으로 굳지 않는다"
     expect(existsSync(join(projectDir, ".claude", "hooks", "session-start.sh"))).toBe(true);
     expect(settings.hooks?.SessionStart).toBeTruthy();
     expect(settings.hooks?.PreToolUse).toBeTruthy();
+  });
+});
+
+// B-665-1 — 치유가 일어난 update 가 같은 실행 앞단계의 기준선 갱신을 되돌리지 않는다.
+describe("#632 — 치유 뒤 기록은 이 실행이 갱신한 기준선을 보존한다", () => {
+  const sha = (p: string) => createHash("sha256").update(readFileSync(p)).digest("hex");
+  // skillFiles 경로는 `.claude/skills/` 기준, policyFiles 는 `.claude/` 기준이다
+  const mismatches = (): string[] => {
+    const log = readInstallLog(projectDir);
+    const rows = [
+      ...(log?.skillFiles ?? []).map((r) => ({
+        abs: join(projectDir, ".claude", "skills", r.path),
+        sha: r.sha256,
+      })),
+      ...(log?.policyFiles ?? []).map((r) => ({
+        abs: join(projectDir, ".claude", r.path),
+        sha: r.sha256,
+      })),
+    ];
+    expect(rows.length).toBeGreaterThan(10); // 대조 대상이 실제로 있다
+    return rows.filter((r) => existsSync(r.abs) && r.sha !== sha(r.abs)).map((r) => r.abs);
+  };
+
+  it("템플릿 스킬·룰이 바뀐 릴리즈 + 훅 스크립트 삭제 → 기록 sha == 디스크, 다음 update 에 오탐 백업 없음", () => {
+    install(["claude"]);
+    expect(mismatches()).toEqual([]);
+
+    // "다음 릴리즈": 템플릿 사본의 스킬 1개·룰 1개를 바꾼다
+    const nextTemplates = join(projectDir, "..", `${projectDir.split("/").pop()}-next-templates`);
+    cpSync(join(HARNESS_ROOT, "templates"), nextTemplates, { recursive: true });
+    try {
+      const skill = join(nextTemplates, "skills", "audit-harness-fit", "SKILL.md");
+      writeFileSync(skill, `${readFileSync(skill, "utf8")}\n<!-- next release -->\n`);
+      const rulesDir = join(nextTemplates, "rules");
+      const rule = join(rulesDir, readdirSync(rulesDir).sort()[0] as string);
+      writeFileSync(rule, `${readFileSync(rule, "utf8")}\n<!-- next release -->\n`);
+
+      for (const f of readdirSync(join(projectDir, ".claude", "hooks"))) {
+        unlinkSync(join(projectDir, ".claude", "hooks", f));
+      }
+      const first = runUpdateMode(projectDir, nextTemplates, HARNESS_ROOT);
+      expect(first.staleHookRefs.length).toBeGreaterThan(0); // 치유가 실제로 일어났다
+      expect(mismatches()).toEqual([]);
+
+      const second = runUpdateMode(projectDir, nextTemplates, HARNESS_ROOT);
+      expect(JSON.stringify(second)).not.toMatch(/edited/);
+      const backups = readdirSync(join(projectDir, ".claude", "skills", "audit-harness-fit"));
+      expect(backups.filter((f) => f.includes(".backup-"))).toEqual([]);
+    } finally {
+      rmSync(nextTemplates, { recursive: true, force: true });
+    }
   });
 });
