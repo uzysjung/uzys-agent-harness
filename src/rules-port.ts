@@ -8,7 +8,8 @@
  *
  * 여기 있는 것은 **한 벌의 변환 규칙**이다. CLI 별 목적지는 각 transform 이 정한다:
  *   - Antigravity → `.agents/rules/<name>.md` (워크스페이스 룰, 네이티브)
- *   - OpenCode    → `.opencode/rules/<name>.md` + `opencode.json` `instructions` 글롭
+ *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록 — `opencode.json` `instructions`
+ *                   글롭은 룰을 병합하지 않는다)
  *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐)
  */
 

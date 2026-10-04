@@ -766,18 +766,3 @@ function getNpmGlobalRoot(spawn: NonNullable<ExternalInstallerDeps["spawn"]>): s
   return undefined;
 }
 /* v8 ignore stop */
-
-/**
- * 누락(skip) 자산 목록을 사용자 보고용 텍스트로 포맷.
- */
-export function formatSkippedReport(report: ExternalInstallReport): string {
-  const failed = report.attempted.filter((r) => !r.ok);
-  if (failed.length === 0) return "";
-  const lines = failed.map((r) => `  • ${r.asset.id} — ${r.message ?? "failed"}`);
-  return [
-    `${failed.length}개 외부 자산이 설치되지 않았습니다 (warn-skip):`,
-    ...lines,
-    "",
-    "Manual install or retry needed. See docs/REFERENCE.md or README.md for details.",
-  ].join("\n");
-}

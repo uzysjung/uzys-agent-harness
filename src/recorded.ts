@@ -18,7 +18,8 @@
  * 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전 판(#557). `claudeManaged`(`update-mode.ts`)를 다른
  * CLI 로 일반화한 것이다(A8). 새 판 로그에서는 생기지 않는다(쓰면 적으므로).
  *
- * 아직 어느 동작도 부르지 않는다 — 배선은 설계 §9 PR-3 이후. 동작 변경 0.
+ * 배선: `recorded()` 는 install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts`)와 update 의 대상
+ * 선정(`update-mode.ts`)이, `kindOf` 는 uninstall 이, `excludedIds` 는 install · update · uninstall · list 가 부른다.
  */
 
 import { adapterFor } from "./adapters/index.js";
