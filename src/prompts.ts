@@ -251,6 +251,8 @@ export function buildPageGroups(
    */
   baselineKinds: ReadonlyArray<BaselineKind> = [],
   baselineTargets: ReadonlyArray<BaselineTarget> = [],
+  /** #647 — 이번에 고른 CLI 집합(agents 프리체크의 도달 불가 고지용). 기본은 claude 단독(기존 호출 호환). */
+  cliSet: ReadonlySet<string> = new Set(["claude"]),
 ): { groups: Record<string, PageItem[]>; flatItems: PageItem[] } {
   const installedMark = (value: string): string => (installedSet.has(value) ? "  ● installed" : "");
   const groups: Record<string, PageItem[]> = {};
@@ -258,11 +260,20 @@ export function buildPageGroups(
   for (const kind of baselineKinds) {
     const items: PageItem[] = baselineTargets
       .filter((t) => t.kind === kind)
-      .map((t) => ({
-        value: t.id,
-        label: `    ${t.name}${installedMark(t.id)}`,
-        ...(t.hint ? { hint: t.hint } : {}),
-      }));
+      .map((t) => {
+        // #647 — agents 는 .claude/ 전용 자리다. claude 를 안 고른 조합에서 프리체크로 보이기만
+        // 하면 "고른 것 19개"에 세다가 0개가 깔리는 무음 불일치가 된다 — 외부 자산의
+        // "outside reach" 공개와 같은 한 줄로 사유를 밝힌다(체크 상태는 그대로: 최종 결정은 사용자).
+        const claudeOnlyNote =
+          t.kind === "agents" && !cliSet.has("claude")
+            ? "  ⚠ claude 전용 — 이 CLI 조합에서는 설치되지 않는다"
+            : "";
+        return {
+          value: t.id,
+          label: `    ${t.name}${installedMark(t.id)}${claudeOnlyNote}`,
+          ...(t.hint ? { hint: t.hint } : {}),
+        };
+      });
     if (items.length === 0) continue;
     groups[BASELINE_TITLES[kind]] = items;
     flatItems.push(...items);
@@ -494,6 +505,7 @@ export const defaultPrompts: Prompts = {
           installedSet,
           page.baseline ?? [],
           baselineTargets,
+          new Set(recap?.cli ?? []),
         );
         // 항목이 0개인 페이지는 건너뛴다 — 빈 화면에서 Enter 를 치게 만들 이유가 없다.
         //
