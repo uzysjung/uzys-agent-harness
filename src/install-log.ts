@@ -757,9 +757,9 @@ export function legacyDroppedKeys(log: InstallLog | null): ReadonlyArray<string>
  * - **baseline id** 는 `spec.baselineExclude`(마지막 설치의 플래그)에 있는 것만, **번들 스킬 id** 는 `spec.skillExclude` 에
  *   있는 것만 남긴다 — 그 판들은 기록만 누적하고 선택은 이번 플래그만 읽었다. 뺀 뒤 플래그 없이 다시 깐 설치자의
  *   마지막 선택은 "깔기" 다.
- * - 그 밖(카탈로그 자산 id 등)은 그대로 둔다. 설계는 "`log.assets` 에 깔렸다고 적힌 카탈로그 id 를 지운다" 지만
- *   `log.assets` 는 누적이라(`mergeAssets`) 전에 깔았다가 마지막 설치에서 `--without` 으로 뺀 자산도 거기 있다 — 기록으로는
- *   둘을 가를 수 없어 이 판은 손대지 않는다(구현 보고에 결정 대기로 올림).
+ * - 그 밖(카탈로그 자산 id 등)은 그대로 둔다(설계 R5 · 결정 2026-10-04). `log.assets` 는 누적이라(`mergeAssets`) 전에
+ *   깔았다가 마지막 설치에서 `--without` 으로 뺀 자산도 거기 있다 — 기록으로는 "다시 깔았다" 와 가를 수 없고, 지우면 명시적
+ *   빼기를 조용히 뒤집는다. 남겨 두면 화면이 `excluded (still installed …)` 로 말하고 `--with <id>` 로 풀린다.
  */
 export function migrateExcluded(log: InstallLog): { log: InstallLog; droppedKeys: string[] } {
   if (log.excludedKeysMigrated === true) return { log, droppedKeys: [] };

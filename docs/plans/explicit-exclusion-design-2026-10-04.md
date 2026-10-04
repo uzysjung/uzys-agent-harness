@@ -97,10 +97,14 @@
   `excludedKeysMigrated: true` 를 남긴다 — 표시가 있는 기록에서는 다시 돌지 않는다(R4 로 명시한 키 id 를 지우지 않기 위해서다; 판정
   근거는 기록 — `log.version` 은 update 가 갱신하지 않아 쓸 수 없다). `--without` 이 키 id 를 받은 판은 없으므로(검증 G1 참) 표시
   없는 기록의 키 id 는 전부 자동 추론이다. **키 아닌 id 는 마지막 설치가 실제로 존중한 것으로 맞춘다** — v26.162.0–26.163.0 은 기록만 누적하고 선택은 이번 플래그만 읽었으므로
-  `excluded` 에 남은 baseline·번들·카탈로그 id 가 설치자의 마지막 선택과 다를 수 있다(뺀 뒤 플래그 없는 재설치로 다시 깐 경우). 판정
-  근거는 전부 기록이다: baseline id 는 `spec.baselineExclude` 에 있는 것만, 번들 스킬 id 는 `spec.skillExclude` 에 있는 것만 남기고, 카탈로그
-  id 는 `log.assets` 에 깔렸다고 적힌 것을 지운다(마지막 설치가 깔았다 = 그때 뺀 것이 아니다). 표시가 있는 기록은 이 정리를 다시 하지
-  않는다 — 그 뒤의 `excluded ∩ assets` 는 R3 의 정당한 상태('뺐지만 지우지 않는다')다. 화면 `↺ restored N harness
+  `excluded` 에 남은 baseline·번들 id 가 설치자의 마지막 선택과 다를 수 있다(뺀 뒤 플래그 없는 재설치로 다시 깐 경우). 판정
+  근거는 전부 기록이다: baseline id 는 `spec.baselineExclude` 에 있는 것만, 번들 스킬 id 는 `spec.skillExclude` 에 있는 것만 남긴다 —
+  두 필드가 마지막 설치의 플래그다. **카탈로그 id 는 정리하지 않고 그대로 둔다**(구현 중 결정 2026-10-04): `log.assets` 는 누적이라
+  (`mergeAssets` — 앞 설치의 항목을 남긴다) "기록에 깔렸다" 가 "마지막 설치가 깔았다" 가 아니다. 전에 깔았다가 마지막 설치에서
+  `--without` 으로 뺀 자산(#566 의 순서)도 `assets` 에 남으므로, `assets` 로 지우면 그 명시적 빼기를 조용히 뒤집는다 — 반대 경우(뺀 뒤
+  플래그 없이 다시 깐 설치자)와 기록이 같아 가를 수 없다. 남겨 두면 다시 깐 설치자는 매 설치 화면에 `⊘ <id> — excluded (still
+  installed … uninstall --only <id>)` 를 보고 `--with <id>` 한 번으로 푼다 — 틀린 쪽이 화면에 보이는 쪽을 골랐다. 표시가 있는 기록은 이
+  정리를 다시 하지 않는다 — 그 뒤의 `excluded ∩ assets` 는 R3 의 정당한 상태('뺐지만 지우지 않는다')다. 화면 `↺ restored N harness
   part(s) an earlier version had marked as removed — to drop one for good: install … --without <id>` 는 실제로 **되살린** 실행에서만 낸다.
 - **R6 같은 id 를 `--with` 와 `--without` 에 함께 주면 거절한다**(#616) — plain CLI 경로의 `executeSpec` 앞에서
   `✗ '<id>' is in both --with and --without — pick one` · exit 1, 아무것도 쓰지 않는다. `installSpecFromOptions` 안의 부수효과로
