@@ -260,13 +260,14 @@ export function renderUpdateSummary(
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
-  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다.
+  // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다. "edited" 라고 부르지 않는다: 기록이 없던
+  // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
     log(
       infoRow(
         "BACKUPS",
-        `${backups.length} edited file(s) kept as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
+        `${backups.length} file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json`,
       ),
     );
     log(

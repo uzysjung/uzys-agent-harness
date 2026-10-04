@@ -1621,8 +1621,8 @@ export function retireMcpAllowlist(projectDir: string, now: Date = new Date()): 
  * 규칙은 배포 파일의 일반 정책(L185-193)과 같다:
  *   - 기록 sha 그대로(=아무도 안 고침) → 백업 없이 교체
  *   - 사용자가 고친 판본 → `backupFile` 로 옆에 보존 후 교체
- * 기록의 externalFiles sha 도 그 자리에서 이어준다(#632 교훈: logAtStart 를 고쳐야 뒷단계
- * 재기록이 옛 값을 되살리지 않는다).
+ * 기록의 externalFiles sha 도 그 자리에서 이어준다 — 디스크의 현재 기록을 다시 읽어 그 항목만
+ * 고쳐 쓴다(실행 시작 스냅숏을 고쳐 통째로 쓰면 앞단계의 기준선이 되돌아간다, B-665-1).
  */
 function refreshNeutralHelpers(
   projectDir: string,
