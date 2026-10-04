@@ -345,8 +345,12 @@ export function buildAssetEntries(
     .map((r) => {
       const entry = assetToLogEntry(r.asset, scope, r.version);
       if (r.files === undefined) return entry;
-      const prior = previous?.find((a) => a.id === r.asset.id)?.files;
-      return { ...entry, files: mergeToolFiles(prior, r.files) };
+      const recordedBefore = previous?.find((a) => a.id === r.asset.id);
+      // 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 다시 깔아도 "모름" 그대로 둔다 — 옛 판이 놓은 파일은
+      // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
+      // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
+      if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
+      return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
 }
 

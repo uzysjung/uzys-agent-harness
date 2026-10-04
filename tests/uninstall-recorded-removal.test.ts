@@ -252,6 +252,24 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
     expect(run.code).toBe(1); // 지운 것이 없다 — 성공이라 하지 않는다
   });
 
+  it("옛 기록 위에서 다시 깔아도 '모름' 은 '0개' 가 되지 않는다 — 남는 자리를 계속 말한다 (PR #686 리뷰 B1)", () => {
+    install(["codex"]);
+    const log = readInstallLog(projectDir) as InstallLog;
+    writeFileSync(
+      join(projectDir, ".uzys-agent-harness/.harness-install.json"),
+      JSON.stringify({ ...log, assets: log.assets.map(({ files: _f, ...a }) => a) }),
+    );
+    install(["codex"]); // 새 판으로 재설치 — 옛 판이 놓은 파일은 호출 전부터 있어 이번 비교에 안 잡힌다
+
+    const asset = readInstallLog(projectDir)?.assets.find((a) => a.id === "frontend-design");
+    expect(asset, "대조군: 재설치 뒤에도 자산 기록이 있다").toBeDefined();
+    expect(asset?.files).toBeUndefined();
+    const run = uninstall({ only: "frontend-design" });
+    expect(existsSync(join(projectDir, ".agents/skills/frontend-design/SKILL.md"))).toBe(true);
+    expect(run.out).toContain("not on record");
+    expect(run.code).toBe(1);
+  });
+
   it("--cli claude 는 .claude 아래 도구 파일 기록을 뺀다 — 디렉터리와 함께 백업으로 갔다", () => {
     install(["claude", "codex"]);
     const run = uninstall({ cli: "claude" });
