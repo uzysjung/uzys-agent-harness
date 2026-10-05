@@ -8,7 +8,9 @@
  * 네 번째 재발이다. 겸사로 `update-mode.ts` → `installer.ts` 순환 import 도 생기지 않는다.
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { keyId } from "./adapters/index.js";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -16,11 +18,21 @@ import {
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
 import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
-import { composeMcpJson, type McpJson } from "./mcp-merge.js";
+import {
+  composeMcpJson,
+  droppedMcpServers,
+  type McpChoice,
+  type McpJson,
+  parseTrackMcpMap,
+  selectableMcpServers,
+  selectedMcpServers,
+  type TrackMcpRow,
+} from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
+import { anyTrack } from "./track-match.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
 /** Codex / OpenCode / Antigravity per-CLI transforms (+ `--with-codex-trust` opt-in) 결과. */
@@ -75,11 +87,11 @@ export interface CliTransformParams {
    */
   rules: ReadonlyArray<string>;
   /**
-   * #568 — 이 설치의 트랙. Codex · OpenCode 의 MCP 서버를 Claude `.mcp.json` 과 같은 원천(템플릿 +
-   * 트랙 표, `renderHarnessMcp`)에서 렌더하는 데 쓴다. **required** — 빠뜨린 호출부가 조용히 기본
-   * 서버만 받으면 트랙 서버(railway 등)가 그 경로에서만 사라진다(`baseline` 과 같은 이유).
+   * #568 — 이 실행의 하네스 MCP 서버(`renderHarnessMcp`). Codex · OpenCode 가 Claude `.mcp.json` 과 **같은 값**을 받는다 —
+   * 호출부가 한 번 렌더해 `.mcp.json` 쓰기와 여기에 함께 넘긴다(#709: 트랙 + 선택, 각자 렌더하면 선택이 갈릴 자리가 생긴다).
+   * **required** — 빠뜨린 호출부가 조용히 기본 서버만 받으면 트랙 서버(railway 등)가 그 경로에서만 사라진다.
    */
-  tracks: ReadonlyArray<Track>;
+  mcp: McpJson;
   /** install log 의 `externalFiles`. 없으면 빈 배열 = 판정 불가 → 보수적 백업. */
   previousExternal: ReadonlyArray<InstallLogSkillFile>;
   /**
@@ -123,18 +135,83 @@ export interface CliTransformParams {
 }
 
 /**
- * #568 — 하네스가 이 트랙에 까는 MCP 서버(템플릿 `templates/mcp.json` + `templates/track-mcp-map.tsv`).
+ * #568 — 하네스가 이 설치에 까는 MCP 서버(템플릿 `templates/mcp.json` + `templates/track-mcp-map.tsv`).
  *
  * Claude `.mcp.json` 을 만드는 `composeMcpJson` 과 **같은 함수**를 설치자 파일 없이 부른다 — 설치자
  * 파일과 합치기 **전**의 하네스 몫이다. Codex · OpenCode 는 예전에 하네스 루트의 `.mcp.json` 을 읽었는데,
  * 그 파일은 npm 패키지(`files`)에 없어 게시판에서는 OpenCode 의 `mcp` 가 늘 비었다.
+ *
+ * #709 (ADR-101) — 트랙 표의 기본 행 ∪ **선택된 행**(`selectedMcpServers` — 이번 선택 · 기록, 뺀 것 제외). 트랙만 보는
+ * 렌더 경로는 두지 않는다 — 그런 자리가 하나라도 남으면 거기서만 기록된 선택 서버가 사라진다.
  */
-export function renderHarnessMcp(harnessRoot: string, tracks: ReadonlyArray<Track>): McpJson {
+export function renderHarnessMcp(harnessRoot: string, choice: McpChoice): McpJson {
   return composeMcpJson({
+    ...mcpSources(harnessRoot),
+    tracks: choice.spec.tracks,
+    chosen: (rows) => selectedMcpServers(rows, choice),
+    dropped: (rows) => droppedMcpServers(rows, choice.excluded),
+  });
+}
+
+/**
+ * #709 리뷰 NOTE 7 — 이 트랙의 **기본 행**인 고를 수 있는 MCP 서버의 자산 id. 위저드 3단계가 이것을 체크된 채 보인다 — 트랙 표가
+ * 실제로 까는 것이 미체크(⚠ experimental)로 보이면 화면이 결과와 다르다. 체크를 풀면 명시적 빼기(`--without <id>`)다.
+ */
+export function trackDefaultMcpAssetIds(
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+): string[] {
+  const rows = trackRows(harnessRoot);
+  const selectable = selectableMcpServers(rows);
+  return rows.flatMap((r) => {
+    const id = selectable.get(r.name);
+    return id !== undefined && anyTrack(tracks, r.pattern) ? [id] : [];
+  });
+}
+
+function trackRows(harnessRoot: string): TrackMcpRow[] {
+  const { trackMapPath } = mcpSources(harnessRoot);
+  return existsSync(trackMapPath) ? parseTrackMcpMap(readFileSync(trackMapPath, "utf8")) : [];
+}
+
+/**
+ * #709 설계 NOTE-1 — 트랙 기본 행 ∪ **고를 수 있는 행 전부**. 몫 기록이 없는 옛 설치본에서 하네스 서버를 **값으로**
+ * 알아보는 자리(uninstall 잔존 안내)만 쓴다 — 그 기록엔 선택이 없으니 고를 수 있었던 것 전부와 대조한다(지우지 않는다).
+ */
+export function renderEverySelectableMcp(
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+): McpJson {
+  return composeMcpJson({
+    ...mcpSources(harnessRoot),
+    tracks,
+    chosen: (rows) => [...selectableMcpServers(rows).keys()],
+  });
+}
+
+/**
+ * #709 — `.mcp.json` 어댑터에 넘기는 빼기 집합: `excluded` ∪ { 자산 id 로 뺀 선택 행의 키 id(`mcp:<name>`) }. 자산 id 로 뺀
+ * 서버를 화면이 "retired(하네스가 더는 안 깐다)" 가 아니라 "dropped" 로 말하고, 기본 행이 있는 트랙에서도 걷게 한다.
+ * **기록에는 싣지 않는다** — 실으면 `--with <id>` 가 자산 id 만 풀어 키 빼기가 영영 남는다.
+ */
+export function adapterExcluded(
+  harnessRoot: string,
+  excluded: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const rows = trackRows(harnessRoot);
+  const out = new Set(excluded);
+  for (const [name, assetId] of selectableMcpServers(rows)) {
+    const id = keyId(".mcp.json", `mcpServers.${name}`);
+    if (excluded.has(assetId) && id !== null) out.add(id);
+  }
+  return out;
+}
+
+function mcpSources(harnessRoot: string): { templateMcpPath: string; trackMapPath: string } {
+  return {
     templateMcpPath: join(harnessRoot, "templates/mcp.json"),
     trackMapPath: join(harnessRoot, "templates/track-mcp-map.tsv"),
-    tracks,
-  });
+  };
 }
 
 /**
@@ -150,7 +227,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     cli,
     selectedInternalSkills,
     rules,
-    tracks,
+    mcp,
     previousExternal,
     refreshOnly = false,
     codexTrust = false,
@@ -202,14 +279,6 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       if (!restoredFiles.includes(f)) restoredFiles.push(f);
   };
 
-  // #568 — 두 CLI 가 **한 값**을 받는다. 각자 렌더하면 같은 원천이어도 목록이 갈릴 자리가 생긴다.
-  // 둘 다 안 고른 설치에서는 템플릿을 읽지 않는다(처음 필요할 때 한 번 렌더).
-  let mcp: McpJson | undefined;
-  const harnessMcp = (): McpJson => {
-    mcp ??= renderHarnessMcp(harnessRoot, tracks);
-    return mcp;
-  };
-
   let codex: CodexTransformReport | null = null;
   let codexOptIn: CodexOptInReport | null = null;
   if (cli.includes("codex")) {
@@ -219,7 +288,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       projectDir,
       selectedInternalSkills,
       rules,
-      mcp: harnessMcp(),
+      mcp,
       baseline,
       refreshOnly,
       shared,
@@ -247,7 +316,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       projectDir,
       selectedInternalSkills,
       rules,
-      mcp: harnessMcp(),
+      mcp,
       baseline,
       refreshOnly,
       shared,

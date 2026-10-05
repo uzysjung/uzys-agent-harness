@@ -59,6 +59,7 @@ const REPO_OVERRIDE: Record<string, string> = {
   "agent-browser": "vercel-labs/agent-browser", // npm
   openspec: "Fission-AI/OpenSpec", // npm (v26.75.0)
   "bmad-method": "bmad-code-org/BMAD-METHOD", // npx-run (v26.75.0)
+  "railway-mcp-server": "railwayapp/railway-mcp-server", // internal — 트랙 표 MCP 행(#709)
 };
 
 /** "https://github.com/owner/repo" 또는 "owner/repo[/...]" → "owner/repo". 실패 시 null. */

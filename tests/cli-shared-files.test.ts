@@ -33,6 +33,7 @@ import { type InstallReport, runInstall } from "../src/installer.js";
 import { createOwnedWriter } from "../src/owned-write.js";
 import { writeShared } from "../src/shared-write.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
+import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -483,7 +484,7 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
       cli: ["codex"],
       selectedInternalSkills: [],
       rules: ["doc-governance"],
-      tracks: ["tooling"],
+      mcp: trackOnlyMcp(HARNESS_ROOT, ["tooling"]),
       previousExternal: [{ path: "AGENTS.md", sha256: hashContent(withBlock) }],
       shared: { portions: portionsOf("AGENTS.md", withBlock) },
     });
@@ -519,7 +520,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
       cli: ["codex", "opencode"],
       selectedInternalSkills: [],
       rules: ["git-policy"],
-      tracks: ["tooling"],
+      mcp: trackOnlyMcp(HARNESS_ROOT, ["tooling"]),
       previousExternal: [],
       ...(shared ? { shared } : {}),
     });
@@ -589,7 +590,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
       cli: ["codex"],
       selectedInternalSkills: [],
       rules: ["doc-governance"], // 룰이 바뀐 릴리즈 — 블록이 바뀐다
-      tracks: ["tooling"],
+      mcp: trackOnlyMcp(HARNESS_ROOT, ["tooling"]),
       previousExternal: first.externalFiles,
       shared: { portions: first.portions },
     });
@@ -612,7 +613,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
         cli: ["opencode"],
         selectedInternalSkills: [],
         rules: ["git-policy"],
-        tracks: ["tooling"],
+        mcp: trackOnlyMcp(HARNESS_ROOT, ["tooling"]),
         // 설치자 파일이었다 — 기준선에는 없다. 근거는 몫 기록 하나다
         previousExternal: first.externalFiles.filter((f) => f.path !== "opencode.json"),
         refreshOnly: true,
@@ -657,7 +658,7 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
         cli: ["codex"],
         selectedInternalSkills: [],
         rules: ["git-policy"],
-        tracks,
+        mcp: trackOnlyMcp(HARNESS_ROOT, tracks),
         previousExternal: first.externalFiles,
         shared: { portions },
       });

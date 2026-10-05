@@ -96,6 +96,22 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("railway-skills");
   });
 
+  // #709 (ADR-101) — 트랙 기본값은 스택이 정한다: ssr-nextjs 는 Vercel CLI 를 미리 받고, UI 가 없는 data · tooling 은
+  //   frontend-design 을 받지 않는다. full 은 그대로(ADR-063 — deploy CLI 는 트랙 합집합에 안 든다).
+  it("#709 — ssr-nextjs 는 vercel-cli 를 받는다 · data/tooling 은 frontend-design 을 안 받는다 · full 은 vercel-cli 를 안 받는다", () => {
+    expect(runForTrack(["ssr-nextjs"]).ids).toContain("vercel-cli");
+    for (const t of ["data", "tooling"] as const)
+      expect(runForTrack([t]).ids, `${t} 가 frontend-design 을 받았다`).not.toContain(
+        "frontend-design",
+      );
+    expect(runForTrack(["full"]).ids).not.toContain("vercel-cli");
+    // 대조군 — UI 트랙은 그대로 받는다
+    expect(runForTrack(["csr-fastapi"]).ids).toContain("frontend-design");
+    expect(runForTrack(["full"]).ids).toContain("frontend-design");
+    // 명시적 opt-in 은 UI 없는 트랙에서도 된다(고를 수는 있다)
+    expect(runForTrack(["data"], {}, ["frontend-design"]).ids).toContain("frontend-design");
+  });
+
   it("ssr-htmx: 트랙 조건 자산 없음 — dev baseline 만 (v26.106.0 ADR-035, impeccable opt-in)", () => {
     const { ids } = runForTrack(["ssr-htmx"]);
     // v26.71.1 — railway-skills(T3) opt-in only → default 제외.

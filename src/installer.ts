@@ -11,7 +11,7 @@ import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
-import { runCliTransforms } from "./cli-transforms.js";
+import { adapterExcluded, renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { writeEnvExample } from "./env-files.js";
@@ -69,6 +69,7 @@ import {
   isCliNeutralTarget,
   resolveRules,
 } from "./manifest.js";
+import type { McpJson } from "./mcp-merge.js";
 import type { OpencodeTransformReport } from "./opencode/transform.js";
 import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
 import {
@@ -502,7 +503,12 @@ export function runInstall(ctx: InstallContext): InstallReport {
       }
     }
   }
-  const writer = createInstallWriter({ projectDir, previousLog, excluded });
+  // #709 — 자산 id 로 뺀 선택 MCP 서버는 `.mcp.json` 어댑터에 키 빼기로도 알린다(기록에는 싣지 않는다)
+  const writer = createInstallWriter({
+    projectDir,
+    previousLog,
+    excluded: adapterExcluded(harnessRoot, excluded),
+  });
   // #600 — 아래 어디서 던지든(EACCES · EISDIR · ENOTDIR …) 그때까지 쓴 하네스 몫을 기록에 남기고 화면에 알린다.
   // 기록은 원래 맨 끝에만 쓰여, 중간에 멈추면 파일은 있는데 기록이 없는 상태가 남았다 — `uninstall` 은 "Nothing to
   // uninstall" 로 거절했고, 원인을 고쳐 다시 깔아도 멈춘 실행이 **만든** 파일(`.mcp.json` 등)은 설치자 것으로 읽혀
@@ -582,7 +588,9 @@ function runInstallStages(
   stage.rootImportWritten = base.rootImportWritten;
 
   // `.mcp.json` — 하네스 서버만 더한다(템플릿 + 트랙 표, Codex/OpenCode 와 같은 원천 #568). claude 무관.
-  const mcp = writeMcpPortion(writer, harnessRoot, spec.tracks, previousLog);
+  // #709 — 트랙 기본 행 ∪ 이번 선택 · 기록된 선택 행. **한 번 렌더해** `.mcp.json` 과 Codex · OpenCode 가 같은 값을 받는다.
+  const harnessMcp = renderHarnessMcp(harnessRoot, { spec, excluded, previousLog });
+  const mcp = writeMcpPortion(writer, harnessMcp, previousLog);
 
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in 전용). `.github/` 은 CLI-agnostic 이라
   // claude baseline 조건 밖에서 설치. 기존 워크플로 파일은 절대 덮어쓰지 않는다.
@@ -623,8 +631,8 @@ function runInstallStages(
     rules: resolveRules(manifestSpec).filter(
       (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
     ),
-    // #568 — Codex · OpenCode 의 MCP 서버는 `.mcp.json` 과 같은 원천(템플릿 + 이 트랙 표)에서 온다.
-    tracks: spec.tracks,
+    // #568 — Codex · OpenCode 의 MCP 서버는 `.mcp.json` 에 쓴 것과 같은 값이다.
+    mcp: harnessMcp,
     previousExternal: previousLog?.externalFiles ?? [],
     // ADR-097 결정 2 — 범위 조건 없이 `--with-codex-trust` 하나로 정한다.
     codexTrust: spec.options.withCodexTrust,
@@ -1237,11 +1245,10 @@ function writeSettingsPortion(
 /** `.mcp.json` — 쓴 뒤 파일에 있는 하네스 서버 이름(정렬) — 설치 화면 · 보고. */
 function writeMcpPortion(
   writer: InstallWriter,
-  harnessRoot: string,
-  tracks: ReadonlyArray<Track>,
+  harnessMcp: McpJson,
   previousLog: InstallLog | null,
 ): string[] {
-  return [...writeMcpShared(writer, harnessRoot, tracks, previousLog).harness].sort();
+  return [...writeMcpShared(writer, harnessMcp, previousLog).harness].sort();
 }
 
 function installedTracksText(tracks: ReadonlyArray<string>): string {

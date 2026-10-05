@@ -14,14 +14,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { runCodexTransform } from "../src/codex/transform.js";
 import type { InstallLogSkillFile } from "../src/install-log.js";
 import { runOpencodeTransform } from "../src/opencode/transform.js";
+import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 /** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
-const HARNESS_MCP = renderHarnessMcp(HARNESS_ROOT, ["tooling"]);
+const HARNESS_MCP = trackOnlyMcp(HARNESS_ROOT, ["tooling"]);
 /** 렌더된 `AGENTS.md` 의 최상위 절 — 템플릿과 같아야 한다(이름이 바뀌면 여기서 먼저 터진다). */
 const SECTIONS = [
   "Project Context",
