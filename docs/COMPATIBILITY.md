@@ -125,7 +125,7 @@ stale row fails the build rather than misleading you.
 | `supabase-agent-skills` | vetted | `supabase@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `postgres-best-practices` | vetted | `postgres-best-practices@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `railway-skills` | experimental | `railway@railway-skills` | Claude Code (plugin) | 🟢 Docker |
-| `railway-mcp-server` | experimental | templates (`--with railway-mcp-server`) | 4-CLI (templates) | 🟡 local |
+| `railway-mcp-server` | experimental | templates (`--with railway-mcp-server`) | claude+codex+opencode (templates) | 🟡 local |
 
 #### 📊 Data (1)
 

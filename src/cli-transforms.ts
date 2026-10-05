@@ -20,16 +20,19 @@ import { type CodexTransformReport, runCodexTransform } from "./codex/transform.
 import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
 import {
   composeMcpJson,
+  droppedMcpServers,
   type McpChoice,
   type McpJson,
   parseTrackMcpMap,
   selectableMcpServers,
   selectedMcpServers,
+  type TrackMcpRow,
 } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
+import { anyTrack } from "./track-match.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
 /** Codex / OpenCode / Antigravity per-CLI transforms (+ `--with-codex-trust` opt-in) 결과. */
@@ -146,7 +149,29 @@ export function renderHarnessMcp(harnessRoot: string, choice: McpChoice): McpJso
     ...mcpSources(harnessRoot),
     tracks: choice.spec.tracks,
     chosen: (rows) => selectedMcpServers(rows, choice),
+    dropped: (rows) => droppedMcpServers(rows, choice.excluded),
   });
+}
+
+/**
+ * #709 리뷰 NOTE 7 — 이 트랙의 **기본 행**인 고를 수 있는 MCP 서버의 자산 id. 위저드 3단계가 이것을 체크된 채 보인다 — 트랙 표가
+ * 실제로 까는 것이 미체크(⚠ experimental)로 보이면 화면이 결과와 다르다. 체크를 풀면 명시적 빼기(`--without <id>`)다.
+ */
+export function trackDefaultMcpAssetIds(
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+): string[] {
+  const rows = trackRows(harnessRoot);
+  const selectable = selectableMcpServers(rows);
+  return rows.flatMap((r) => {
+    const id = selectable.get(r.name);
+    return id !== undefined && anyTrack(tracks, r.pattern) ? [id] : [];
+  });
+}
+
+function trackRows(harnessRoot: string): TrackMcpRow[] {
+  const { trackMapPath } = mcpSources(harnessRoot);
+  return existsSync(trackMapPath) ? parseTrackMcpMap(readFileSync(trackMapPath, "utf8")) : [];
 }
 
 /**
@@ -173,8 +198,7 @@ export function adapterExcluded(
   harnessRoot: string,
   excluded: ReadonlySet<string>,
 ): ReadonlySet<string> {
-  const { trackMapPath } = mcpSources(harnessRoot);
-  const rows = existsSync(trackMapPath) ? parseTrackMcpMap(readFileSync(trackMapPath, "utf8")) : [];
+  const rows = trackRows(harnessRoot);
   const out = new Set(excluded);
   for (const [name, assetId] of selectableMcpServers(rows)) {
     const id = keyId(".mcp.json", `mcpServers.${name}`);

@@ -483,6 +483,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     category: "backend",
     source: "railwayapp",
     condition: { kind: "opt-in" },
+    // #709 리뷰 NOTE 3 — `.mcp.json` · Codex `[mcp_servers]` · `opencode.json` `mcp` 만 받는다. Antigravity 변환에는 MCP 가 없다
+    //   (internal 기본값 = 4 CLI 는 과대 표기).
+    cliSupportOverride: ["claude", "codex", "opencode"],
     method: { kind: "internal", key: "railway-mcp-server" },
   },
 

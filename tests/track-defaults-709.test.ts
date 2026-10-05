@@ -137,6 +137,19 @@ describe("T4 — 하네스 MCP 렌더 = 트랙 기본 행 ∪ 선택된 행", ()
     }
   });
 
+  // 리뷰 NOTE 1 — 렌더는 세 자리가 같이 받는 한 값이다. 기본 행이 렌더에 남으면 Codex · OpenCode 에는 뺀 서버가 계속 간다
+  it("명시한 빼기는 트랙 기본 행도 렌더에서 뺀다(csr-fastapi · 자산 id · 키 id) — 대조군: 빼지 않으면 기본 행이 있다", () => {
+    for (const out of [RAILWAY, RAILWAY_KEY]) {
+      expect(
+        render({ spec: spec(["csr-fastapi"]), excluded: new Set([out]), previousLog: null }),
+        out,
+      ).not.toContain(RAILWAY);
+    }
+    expect(
+      render({ spec: spec(["csr-fastapi"]), excluded: new Set(), previousLog: null }),
+    ).toContain(RAILWAY);
+  });
+
   it("어댑터 빼기 집합: 자산 id 로 뺀 선택 서버에 키 id 를 더한다 — 다른 id 에는 키를 지어내지 않는다", () => {
     expect([...adapterExcluded(HARNESS_ROOT, new Set([RAILWAY]))].sort()).toEqual(
       [RAILWAY, RAILWAY_KEY].sort(),
@@ -268,13 +281,22 @@ describe("T8 — 명시한 빼기를 지킨다", () => {
     expect(railwayIn()).toEqual(NOWHERE);
   });
 
-  it("기본 행이 있는 트랙(csr-fastapi)에서도 --without railway-mcp-server 가 .mcp.json 에서 걷는다", () => {
-    install(["csr-fastapi"]);
-    install(["csr-fastapi"], withoutRailway);
-    expect(railwayIn().mcp).toBe(false);
-    install(["csr-fastapi"], {}, "update");
-    expect(railwayIn().mcp).toBe(false);
-  });
+  // 리뷰 NOTE 1 — 같은 명시적 빼기가 트랙에 따라 닿는 범위가 다르면 안 된다: 기본 행 트랙에서도 세 자리 모두에서 빠진다.
+  //   키 id(`--without mcp:railway-mcp-server`)도 같은 규칙이다(`droppedMcpServers`).
+  for (const [label, over] of [
+    ["--without railway-mcp-server", withoutRailway],
+    ["--without mcp:railway-mcp-server", { keyExclude: [RAILWAY_KEY] }],
+  ] as const) {
+    it(`기본 행이 있는 트랙(csr-fastapi)에서도 ${label} 가 .mcp.json · Codex · OpenCode 모두에서 걷고, update 가 되살리지 않는다`, () => {
+      install(["csr-fastapi"]);
+      expect(railwayIn()).toEqual(EVERYWHERE); // 전제
+      const report = install(["csr-fastapi"], over);
+      expect(railwayIn()).toEqual(NOWHERE);
+      expect(mcpWrite(report)?.removedOut).toContain(RAILWAY_KEY); // 화면은 "dropped"
+      install(["csr-fastapi"], {}, "update");
+      expect(railwayIn()).toEqual(NOWHERE);
+    });
+  }
 
   it("ⓐ 옛 키 빼기(mcp:railway-mcp-server)가 기록된 ssr-nextjs 설치본 — update 가 되돌리지 않는다", () => {
     install(["ssr-nextjs"]);
@@ -310,6 +332,29 @@ describe("T11 — --with/--without mcp:railway-mcp-server 는 기록이 있을 �
 });
 
 /* ─── T9ⓐ — 첫 설치 위저드 3단계 ──────────────────────────────────────────── */
+
+describe("리뷰 NOTE 7 — 트랙 표가 railway 를 기본으로 까는 트랙에서는 3단계가 그것을 체크한 채 보이고, 풀면 뺀다", () => {
+  it("csr-* · ssr-htmx · full 은 체크된 채 시작 — ssr-nextjs 단독은 미체크", () => {
+    for (const t of ["csr-supabase", "csr-fastify", "csr-fastapi", "ssr-htmx", "full"] as const)
+      expect(initialTargetSelection([t], []), t).toContain(`asset:${RAILWAY}`);
+    expect(initialTargetSelection(["ssr-nextjs"], [])).not.toContain(`asset:${RAILWAY}`);
+  });
+
+  it("그대로 두면 덧붙는 플래그가 없고, 풀면 --without railway-mcp-server 와 같다 — 설치 결과 세 자리 모두에서 빠진다", () => {
+    const initial = initialTargetSelection(["csr-fastapi"], [])
+      .filter((t) => t.startsWith("asset:"))
+      .map((t) => t.slice("asset:".length));
+    expect(computeUserOverride(["csr-fastapi"], initial)).toBeUndefined();
+    const override = computeUserOverride(
+      ["csr-fastapi"],
+      initial.filter((id) => id !== RAILWAY),
+    );
+    expect(override?.forceExclude).toEqual([RAILWAY]);
+    expect(override?.forceInclude).toEqual([]);
+    install(["csr-fastapi"], { ...(override ? { userOverride: override } : {}) });
+    expect(railwayIn()).toEqual(NOWHERE);
+  });
+});
 
 describe("T9ⓐ — ssr-nextjs 첫 설치 3단계: vercel-cli 는 체크 · railway 는 미체크, 체크하면 고른 것이다", () => {
   it("초기 체크와 체크 결과", () => {

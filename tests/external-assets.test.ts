@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  assetCliSupport,
   assetTrustTier,
   DEV_METHOD_SKILL_IDS,
   EXTERNAL_ASSETS,
@@ -278,6 +279,8 @@ describe("#709 — 트랙 기본값 · railway-mcp-server 선택 항목", () => 
     expect(assetTrustTier("railway-mcp-server")).toBe("experimental");
     expect(INTERNAL_BUNDLED_SKILL_IDS).not.toContain("railway-mcp-server");
     expect(DEV_METHOD_SKILL_IDS).not.toContain("railway-mcp-server");
+    // 리뷰 NOTE 3 — MCP 를 받는 CLI 는 셋이다(Antigravity 변환에는 MCP 가 없다)
+    expect([...assetCliSupport(a)].sort()).toEqual(["claude", "codex", "opencode"]);
     // 서버 정의는 트랙 표 한 곳 — key 가 그 행 이름이어야 선택이 렌더에 닿는다
     const rows = parseTrackMcpMap(
       readFileSync(join(REPO_ROOT, "templates", "track-mcp-map.tsv"), "utf8"),

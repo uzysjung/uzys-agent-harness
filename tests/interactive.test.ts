@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { InstallLog } from "../src/install-log.js";
-import { computeUserOverride, formatSummary, runInteractive } from "../src/interactive.js";
-import { recommendedExternalAssets } from "../src/preset-recommend.js";
+import {
+  computeUserOverride,
+  formatSummary,
+  initialTargetSelection,
+  runInteractive,
+} from "../src/interactive.js";
 import type { InstallTargetId, Prompts } from "../src/prompts.js";
 import type { DetectedInstall } from "../src/state.js";
 import type { CliTargets, OptionFlags, Track } from "../src/types.js";
@@ -461,8 +465,11 @@ describe("computeUserOverride", () => {
   // 추천 기준선은 **카탈로그에서 derive** 한다 — 여기 id 를 적어두면 자산이 하나 들고 날
   // 때마다 두 번째 사본이 썩는다(#454). 이 블록이 재는 것은 목록의 내용이 아니라
   // 선택분과 추천분의 **diff 규칙**이다.
-  // #709 — frontend-design 을 추천하는 UI 트랙으로 잰다(tooling 은 더는 추천하지 않는다).
-  const UI_RECOMMENDED = [...recommendedExternalAssets(["csr-fastapi"])];
+  // #709 — frontend-design 을 추천하는 UI 트랙으로 잰다(tooling 은 더는 추천하지 않는다). 기준선은 위저드가 **체크한 채 시작하는**
+  //   자산이다 — 카탈로그 추천 ∪ 트랙 표의 기본 MCP 행(리뷰 NOTE 7: csr-* 의 railway-mcp-server).
+  const UI_RECOMMENDED = initialTargetSelection(["csr-fastapi"], [])
+    .filter((t) => t.startsWith("asset:"))
+    .map((t) => t.slice("asset:".length));
 
   it("selections == recommended → undefined (no override)", () => {
     // 전제 확인: 추천이 비면 아래 diff 단언들이 전부 헛통과한다.

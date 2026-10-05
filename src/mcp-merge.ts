@@ -64,12 +64,17 @@ export function mergeMcpServers(
   tracks: ReadonlyArray<Track>,
   /** #709 — 트랙 패턴 밖이어도 넣을 행 이름(`selectedMcpServers`). 기본 행과 겹치면 한 항목이다. */
   chosen: ReadonlyArray<string> = [],
+  /** #709 리뷰 NOTE 1 — 설치자가 명시적으로 뺀 행 이름(`droppedMcpServers`). 기본 행이어도 넣지 않는다. */
+  dropped: ReadonlyArray<string> = [],
 ): McpJson {
   const out: McpJson = {
     ...base,
     mcpServers: { ...base.mcpServers },
   };
   for (const row of rows) {
+    if (dropped.includes(row.name)) {
+      continue;
+    }
     if (!anyTrack(tracks, row.pattern) && !chosen.includes(row.name)) {
       continue;
     }
@@ -99,11 +104,13 @@ export function composeMcpJson(opts: {
   tracks: ReadonlyArray<Track>;
   /** #709 — 트랙 패턴 밖에서 넣을 행 이름을 표에서 고른다(`selectedMcpServers` · uninstall 은 고를 수 있는 행 전부). */
   chosen: (rows: ReadonlyArray<TrackMcpRow>) => ReadonlyArray<string>;
+  /** #709 리뷰 NOTE 1 — 기본 행이어도 뺄 행 이름. 없으면 아무것도 안 뺀다. */
+  dropped?: (rows: ReadonlyArray<TrackMcpRow>) => ReadonlyArray<string>;
 }): McpJson {
   const base = JSON.parse(readFileSync(opts.templateMcpPath, "utf8")) as McpJson;
   const mapRaw = existsSync(opts.trackMapPath) ? readFileSync(opts.trackMapPath, "utf8") : "";
   const rows = parseTrackMcpMap(mapRaw);
-  return mergeMcpServers(base, rows, opts.tracks, opts.chosen(rows));
+  return mergeMcpServers(base, rows, opts.tracks, opts.chosen(rows), opts.dropped?.(rows) ?? []);
 }
 
 /**
@@ -132,7 +139,7 @@ export interface McpChoice {
 /**
  * #709 — 트랙 패턴 밖에서 이번 렌더에 넣을 선택 행 이름. 둘 다 만족해야 한다:
  *
- * ⓐ 설치자가 빼지 않았다 — 자산 id(`railway-mcp-server`)로도 키 id(`mcp:railway-mcp-server`, ADR-099 R4)로도.
+ * ⓐ 설치자가 빼지 않았다 — 자산 id(`railway-mcp-server`)로도 키 id(`mcp:railway-mcp-server`, ADR-099 R4)로도(`droppedMcpServers`).
  * ⓑ 이번 실행이 골랐거나(위저드 체크 · `--with`), **기록**이 그 서버를 하네스 몫으로 적었다(`.mcp.json` 몫). 디스크
  *    존재는 근거가 아니다(ADR-096) — 기록 조항이 없으면 렌더에 없는 기록 키를 `planUpsert` 가 지운다(조용한 삭제).
  */
@@ -140,14 +147,32 @@ export function selectedMcpServers(rows: ReadonlyArray<TrackMcpRow>, choice: Mcp
   const recorded = new Set(
     (choice.previousLog?.portions ?? []).filter((p) => p.path === ".mcp.json").map((p) => p.key),
   );
+  const dropped = new Set(droppedMcpServers(rows, choice.excluded));
   const out: string[] = [];
   for (const [name, assetId] of selectableMcpServers(rows)) {
+    if (dropped.has(name)) continue;
     const key = `mcpServers.${name}`;
-    const id = keyId(".mcp.json", key);
-    if (choice.excluded.has(assetId) || (id !== null && choice.excluded.has(id))) continue;
     if (isAssetSelected(assetId, choice.spec) || recorded.has(key)) out.push(name);
   }
   return out;
+}
+
+/**
+ * #709 리뷰 NOTE 1 — 설치자가 명시적으로 뺀 고를 수 있는 행: 자산 id(`railway-mcp-server`) 또는 키 id(`mcp:railway-mcp-server`).
+ * **트랙 기본 행이어도** 렌더에서 뺀다 — 렌더는 `.mcp.json` · Codex · OpenCode 가 같이 받으므로 명시한 빼기가 트랙과 무관하게 세
+ * 자리 모두에 닿는다. 키 id 도 같은 규칙이다: 키 id 를 `.mcp.json` 에만 걸면 기본 행이 아닌 트랙에서는 다음 실행에 몫 기록이 사라져
+ * 결국 세 자리 모두에서 빠지므로(선택 조항 ⓑ 가 근거를 잃는다), 트랙에 따라 결과가 갈린다.
+ */
+export function droppedMcpServers(
+  rows: ReadonlyArray<TrackMcpRow>,
+  excluded: ReadonlySet<string>,
+): string[] {
+  return [...selectableMcpServers(rows)]
+    .filter(([name, assetId]) => {
+      const id = keyId(".mcp.json", `mcpServers.${name}`);
+      return excluded.has(assetId) || (id !== null && excluded.has(id));
+    })
+    .map(([name]) => name);
 }
 
 /**
