@@ -1,8 +1,8 @@
 # ADR-101: 트랙 기본값은 스택이 정한다 — data·tooling 의 frontend-design 해제 · ssr-nextjs 의 Vercel 기본 · MCP 서버의 선택 경로
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-05
-- PR: TBD
+- PR: #710
 - Issue: #709
 - Amends: ADR-063 의 `vercel-cli` 한 줄(opt-in → `ssr-nextjs` 미리 체크). ADR-063 의 나머지(railway-skills · supabase-cli ·
   finance-skills · product-skills opt-in)와 ADR-035(netlify opt-in)는 그대로다.
