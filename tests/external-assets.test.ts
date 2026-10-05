@@ -306,8 +306,8 @@ describe("#709 — 트랙 기본값 · railway-mcp-server 선택 항목", () => 
     ).toBe(true);
   });
 
-  it("vercel-cli 는 ssr-nextjs 에서만 미리 체크된다(full · csr-* 은 아니다)", () => {
-    expect(find("vercel-cli").condition).toEqual({ kind: "any-track", tracks: ["ssr-nextjs"] });
+  it("vercel-cli 는 어느 트랙에서도 미리 체크되지 않는다 — opt-in (ADR-063 · #715)", () => {
+    expect(find("vercel-cli").condition).toEqual({ kind: "opt-in" });
   });
 
   it("frontend-design 은 UI 가 있는 트랙(csr-* · ssr-* · full)만 미리 체크한다 — data · tooling · base 는 아니다", () => {

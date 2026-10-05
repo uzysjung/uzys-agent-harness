@@ -356,10 +356,10 @@ describe("리뷰 NOTE 7 — 트랙 표가 railway 를 기본으로 까는 트랙
   });
 });
 
-describe("T9ⓐ — ssr-nextjs 첫 설치 3단계: vercel-cli 는 체크 · railway 는 미체크, 체크하면 고른 것이다", () => {
+describe("T9ⓐ — ssr-nextjs 첫 설치 3단계: vercel-cli · railway 둘 다 미체크, 체크하면 고른 것이다 (#715)", () => {
   it("초기 체크와 체크 결과", () => {
     const initial = initialTargetSelection(["ssr-nextjs"], []);
-    expect(initial).toContain("asset:vercel-cli");
+    expect(initial).not.toContain("asset:vercel-cli");
     expect(initial).not.toContain(`asset:${RAILWAY}`);
     const checked = [...recommendedExternalAssets(["ssr-nextjs"]), RAILWAY];
     expect(computeUserOverride(["ssr-nextjs"], checked)?.forceInclude).toEqual([RAILWAY]);
