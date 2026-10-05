@@ -275,7 +275,15 @@ export function installSpecFromOptions(
     // 이어 내야 그 install 이 기록의 키 빼기를 조용히 풀지 않는다(설계 selection-record §3 위저드)
     if (harnessRoot === undefined) return new Set([...excludedIds(record)].filter(isKeyId));
     const clis = [...new Set([...(record ? installedClis(record) : []), ...cli])];
-    return renderedKeyIds(harnessRoot, [...new Set([...recordTracks, ...tracks])], clis);
+    return renderedKeyIds(
+      harnessRoot,
+      {
+        tracks: [...new Set([...recordTracks, ...tracks])],
+        forceInclude: forceInclude.filter((id) => validIds.has(id)),
+        previous: record,
+      },
+      clis,
+    );
   };
   let renderedKeys: ReadonlySet<string> | undefined;
   const isRenderedKey = (id: string): boolean => {

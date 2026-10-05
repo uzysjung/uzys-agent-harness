@@ -105,6 +105,7 @@ describe("composeMcpJson", () => {
       templateMcpPath: join(dir, "mcp.json"),
       trackMapPath: join(dir, "track-mcp-map.tsv"),
       tracks: ["full"],
+      chosen: () => [],
     });
     expect(Object.keys(out.mcpServers).sort()).toEqual([
       "context7",
@@ -122,6 +123,7 @@ describe("composeMcpJson", () => {
       templateMcpPath: join(dir, "mcp.json"),
       trackMapPath: join(dir, "no-such.tsv"),
       tracks: ["full"],
+      chosen: () => [],
     });
     expect(Object.keys(out.mcpServers)).toEqual(["context7"]);
   });

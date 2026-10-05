@@ -16,7 +16,7 @@
 #      하네스 writer 가 건너뛴다. `skills update` 서브명령을 쓰면 실제로 강등된다
 #      (독립 리뷰 CRITICAL, 2026-08-27 실측)
 #   ④ claude 단독 설치에 **`.agents/` 가 생기지 않는다** — 고른 적 없는 CLI 자산 금지(ADR-031)
-#   ⑤ 설치 기록이 없으면 화면이 **판정 불가**를 말한다 (조용한 무동작 금지)
+#   ⑤ 설치 기록이 없으면 exit 1 · 화면이 **기록 없음**을 말한다 · 한 바이트도 안 쓴다 (조용한 무동작 금지 · #595)
 #   ⑥ update 화면에 external skills 행이 뜬다
 #
 # **대상 스킬을 열거하지 않는다** — 설치 기록에서 derive 한다. 여기 이름을 적으면 카탈로그가
@@ -168,17 +168,35 @@ for d in "${SOLO}"/.claude/skills/*; do
 done
 echo "✓ claude 단독: update 가 .agents/ 를 만들지 않고 슬롯도 디렉터리로 유지"
 
-# ───────────────── C. 설치 기록이 없으면 판정 불가를 말한다 ─────────────────
+# ───────────────── C. 설치 기록이 없으면 거절하고 말한다 (#595) ─────────────────
+# #595 뒤 기록 없는 update 는 판정 하나로 거절한다 — exit 1 · stderr 첫 줄 `No install record` · 쓰기 0.
+# 스킬 사본이 깔린 자리에서도 같은 답인지를 본다(기록 없는 빈 폴더는 scenario-no-record-plain 이 본다).
 cd "${SOLO}"
-mv "${SOLO}/${LOG_REL}" "${SOLO}/harness-install.json.moved"
-agent-harness update > "${SOLO}/update-nolog.txt" 2>&1 || true
-mv "${SOLO}/harness-install.json.moved" "${SOLO}/${LOG_REL}"
-if ! grep -q "판정할 수 없다" "${SOLO}/update-nolog.txt"; then
-  echo "FAIL: 설치 기록이 없는데 화면이 아무 말도 안 한다 — 조용한 무동작이다"
-  cat "${SOLO}/update-nolog.txt"
+mv "${SOLO}/${LOG_REL}" /tmp/harness-install.json.moved
+snap_solo() { (cd "${SOLO}" && find . -type d | sort && find . -type f -exec sha256sum {} + | sort); }
+BEFORE_NOLOG=$(snap_solo)
+set +e
+agent-harness update > /tmp/update-nolog.txt 2>&1
+RC_NOLOG=$?
+set -e
+AFTER_NOLOG=$(snap_solo)
+mv /tmp/harness-install.json.moved "${SOLO}/${LOG_REL}"
+if [[ "${RC_NOLOG}" -ne 1 ]]; then
+  echo "FAIL: 설치 기록이 없는데 update 가 exit ${RC_NOLOG} — 거절하지 않았다 (기대 1)"
+  cat /tmp/update-nolog.txt
   exit 1
 fi
-echo "✓ 설치 기록이 없으면 화면이 판정 불가를 말한다"
+if ! grep -q "No install record" /tmp/update-nolog.txt; then
+  echo "FAIL: 설치 기록이 없는데 화면이 아무 말도 안 한다 — 조용한 무동작이다"
+  cat /tmp/update-nolog.txt
+  exit 1
+fi
+if [[ "${AFTER_NOLOG}" != "${BEFORE_NOLOG}" ]]; then
+  echo "FAIL: 기록 없는 update 가 디스크를 바꿨다 — 거절한다면서 썼다"
+  diff <(echo "${BEFORE_NOLOG}") <(echo "${AFTER_NOLOG}") | head -20 || true
+  exit 1
+fi
+echo "✓ 설치 기록이 없으면 exit 1 · 화면이 'No install record' 를 말한다 · 트리 불변"
 
 # ───────── D. 글로벌 설치본 — 화면이 실제 쓰는 자리를 말하는가 ─────────
 # update 는 설치 기록의 스코프를 그대로 쓴다(`-g`). 그래서 글로벌 설치본에서는 홈에 쓴다.

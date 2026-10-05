@@ -5,11 +5,12 @@
 #   <mcp_name>	<track_pattern>	<command>	<args_json>
 #
 # - mcp_name: .mcp.json의 mcpServers[키]
-# - track_pattern: any_track 패턴 (csr-*|full 같은 bash glob)
+# - track_pattern: any_track 패턴 (csr-*|full 같은 bash glob). 패턴은 **기본** 트랙이다 — 같은 이름의
+#   카탈로그 `internal` 자산이 있으면 그 서버는 어느 트랙에서든 `--with <id>`/위저드로 고를 수 있다(#709)
 # - command: 실행 명령 (npx 등)
 # - args_json: jq 인자 배열 (JSON 형식)
 #
 # 신규 MCP 추가 시: 이 파일에 1줄 추가만 하면 setup-harness.sh 수정 불필요.
 # 주석 (#) 라인은 무시.
-railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|ssr-nextjs|full	npx	["-y", "@railway/mcp-server"]
+railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|full	npx	["-y", "@railway/mcp-server"]
 supabase	csr-supabase|full	npx	["-y", "@supabase/mcp-server"]

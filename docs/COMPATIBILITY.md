@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**35/51 assets are 🟢 verified by a real install; the remaining 16 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**35/52 assets are 🟢 verified by a real install; the remaining 17 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **51** (official 20 / vetted 29 / experimental 2) · 🟢 verified **35/51**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **52** (official 20 / vetted 29 / experimental 3) · 🟢 verified **35/52**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -115,7 +115,7 @@ stale row fails the build rather than misleading you.
 | `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `game-engine` | vetted | `github/awesome-copilot :: game-engine` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
-#### 🗄️ Backend (6)
+#### 🗄️ Backend (7)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -125,6 +125,7 @@ stale row fails the build rather than misleading you.
 | `supabase-agent-skills` | vetted | `supabase@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `postgres-best-practices` | vetted | `postgres-best-practices@supabase-agent-skills` | Claude Code (plugin) | 🟢 Docker |
 | `railway-skills` | experimental | `railway@railway-skills` | Claude Code (plugin) | 🟢 Docker |
+| `railway-mcp-server` | experimental | templates (`--with railway-mcp-server`) | claude+codex+opencode (templates) | 🟡 local |
 
 #### 📊 Data (1)
 
