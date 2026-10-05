@@ -157,16 +157,16 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `csr-supabase` | Vite + React + Supabase | `frontend-design`, `react-best-practices`, `shadcn-ui`, `supabase-agent-skills`, `postgres-best-practices` |
 | `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
-| `ssr-nextjs` | Next.js (App Router) | `vercel-cli`, `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `ssr-htmx` | htmx + FastAPI | `frontend-design` |
 | `data` | Python data work (DuckDB, PySide6) | `anthropic-data-plugin` |
 | `tooling` | Bash and Markdown projects with no app stack | None |
-| `full` | Every dev track, plus documents | All of the above except `vercel-cli`, plus `anthropic-document-skills` |
+| `full` | Every dev track, plus documents | All of the above, plus `anthropic-document-skills` |
 | `executive` | Proposals, due diligence, decks, financial models | `anthropic-document-skills` |
 | `project-management` | PM work | None (`product-skills` available) |
 | `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-MCP servers come too. Every track gets `context7` (current library docs), `github`, and `chrome-devtools`. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` for deployment, and `csr-supabase` adds `supabase`. `full` gets both. `ssr-nextjs` gets the Vercel CLI by default, and Railway MCP only if you pick it.
+MCP servers come too. Every track gets `context7` (current library docs), `github`, and `chrome-devtools`. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` for deployment, and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it.
 
 More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 
