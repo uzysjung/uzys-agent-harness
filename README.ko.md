@@ -182,9 +182,9 @@ MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브�
 
 트랙별 전체 구성은 [docs/TRACKS.md](docs/TRACKS.md)에, 항목별 출처와 설치 방식, 지원 도구는 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)에 있다.
 
-## 매일 쓰는 명령
+## 주요 명령어
 
-| 하고 싶은 일 | 명령 |
+| 하고 싶은 일 | 명령어 |
 |---|---|
 | 설치된 항목 보기 | `npx -y @uzysjung/agent-harness list` |
 | 최신 버전으로 업데이트 | `npx -y @uzysjung/agent-harness update` |
