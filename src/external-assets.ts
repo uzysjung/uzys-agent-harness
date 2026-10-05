@@ -13,7 +13,7 @@
  */
 
 import type { Category, Source } from "./categories.js";
-import { hasDevTrack } from "./track-match.js";
+import { hasDevTrack, hasUiTrack } from "./track-match.js";
 import { CLI_BASES, type CliTargets, type OptionFlags, TRACKS, type Track } from "./types.js";
 
 export type ExternalAssetMethod =
@@ -64,7 +64,10 @@ export type ExternalAssetMethod =
         | "ci-scaffold"
         // #602 — 트랙 추종 UI 검수 스킬. .claude/ 전용 배선이 비-Claude 자리에 못 가던 것을
         // internal 카탈로그로 편입해 해소.
-        | "ui-visual-review";
+        | "ui-visual-review"
+        // #709 (ADR-101) — 트랙 표(`templates/track-mcp-map.tsv`)의 같은 이름 행을 어느 트랙에서든 고르게 한다.
+        //   번들 스킬이 아니다 — `.mcp.json` 렌더(`selectedMcpServers`)가 읽는다.
+        | "railway-mcp-server";
     };
 
 export type ExternalAssetCondition =
@@ -119,12 +122,11 @@ export type TrustTier = "official" | "vetted" | "experimental";
 
 /** csr-*|ssr-nextjs|full per bash setup-harness.sh L1041 (ssr-htmx 제외 — htmx는 React 미사용). */
 /**
- * #456 (사용자 결정 B, 2026-09-20) — dev 트랙 중 **스택이 있는** 것. `base` 는 "원칙·방법론·테스트
- * 스킬만" 이라 스택 무관 개발 도구(frontend-design · agent-browser)도 기본 선택에서
- * 뺀다 — 자동으로 딸려 오면 설치자가 매번 체크를 풀어야 한다. 열거하지 않고 `hasDevTrack` 에서
- * 유도한다 — 트랙이 늘어도 여기가 뒤처지지 않는다.
+ * #709 (ADR-101) — 스택에 **UI 가 있는** 트랙(csr-* · ssr-* · full). frontend-design 처럼 UI 를 만드는 도구는
+ * 이 트랙에서만 미리 체크한다 — `base` 에 이어(#456 결정 B) UI 가 없는 `data` · `tooling` 도 뺀다. 열거하지 않고
+ * `hasUiTrack` 에서 유도한다 — 트랙이 늘어도 여기가 뒤처지지 않는다.
  */
-const DEV_TRACKS_WITH_STACK: Track[] = TRACKS.filter((t) => t !== "base" && hasDevTrack([t]));
+const UI_TRACKS: Track[] = TRACKS.filter((t) => hasUiTrack([t]));
 
 const CSR_SSR_NEXTJS_FULL: Track[] = [
   "csr-supabase",
@@ -469,17 +471,34 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "railway@railway-skills",
     },
   },
+  // #709 (ADR-101) — Railway MCP 서버의 **선택** 경로. 서버 정의는 트랙 표(`templates/track-mcp-map.tsv`)의 같은 이름
+  //   행 하나다(key === 행 이름). 그 행의 패턴이 기본 트랙(csr-* · ssr-htmx · full)을 정하고, 이 항목은 그 밖의 트랙
+  //   (ssr-nextjs 등)에서 위저드 체크 · `--with` 로 고르게 한다. experimental 이라 조건으로는 미리 체크되지 않는다.
+  //   상류 repo 는 archived — Railway 의 현행 경로(`railway mcp`)로 행 명령을 바꾸는 일은 별도 이슈.
+  {
+    id: "railway-mcp-server",
+    tier: "experimental", // railwayapp/railway-mcp-server 190★ · archived (월간 trust-tier-drift 가 REPO_OVERRIDE 로 감시)
+    description:
+      "Railway MCP server (`npx -y @railway/mcp-server`) in `.mcp.json` — already on by default on csr-*, ssr-htmx and full; check it to add it on any other track (e.g. ssr-nextjs). Upstream repo is archived; Railway's current route is `railway mcp` (opt-in)",
+    category: "backend",
+    source: "railwayapp",
+    condition: { kind: "opt-in" },
+    // #709 리뷰 NOTE 3 — `.mcp.json` · Codex `[mcp_servers]` · `opencode.json` `mcp` 만 받는다. Antigravity 변환에는 MCP 가 없다
+    //   (internal 기본값 = 4 CLI 는 과대 표기).
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "railway-mcp-server" },
+  },
 
   // === csr-supabase|full CLI ===
   {
     id: "vercel-cli",
     tier: "vetted", // vercel/vercel 15k
     description:
-      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel",
+      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel. Pre-checked on ssr-nextjs. `vercel mcp` then wires Vercel's official MCP (OAuth) into Claude Code",
     category: "backend",
     source: "vercel",
-    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
-    condition: { kind: "opt-in" },
+    // 2026-10-05 #709 · ADR-101 — ssr-nextjs 기본(ADR-063 의 opt-in 을 이 트랙에 한해 고친다). full 은 그대로 opt-in
+    condition: { kind: "any-track", tracks: ["ssr-nextjs"] },
     method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
   },
   {
@@ -509,6 +528,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === UI tracks (csr-*|ssr-*|full) ===
   // v26.92.0 — frontend-design (Anthropic official).
   //   사용자 결정: has-dev-track 기본추천 (모든 개발 트랙, executive 제외).
+  //   #709 (ADR-101) — UI 가 있는 트랙만(`UI_TRACKS`). data · tooling 은 미리 체크하지 않는다.
   //   category=frontend (UI 자산, wizard 그룹).
   //
   // 2026-08-26 (#344) — **plugin → skill.** 배달 방식이 도달 CLI 를 정한다(assetCliSupport):
@@ -524,7 +544,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       "frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system",
     category: "frontend",
     source: "anthropics",
-    condition: { kind: "any-track", tracks: DEV_TRACKS_WITH_STACK },
+    condition: { kind: "any-track", tracks: UI_TRACKS },
     method: { kind: "skill", source: "anthropics/skills", skill: "frontend-design" },
   },
   // 2026-08-02 정비 — 프론트엔드 품질 3종 (사용자 지시). 전부 opt-in: frontend-design 이 기본
@@ -576,9 +596,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // found" 가 됐다(#420) — 지금은 SKILL.md 의 `name:`(`preline-theme-generator`)으로 맞춘다(실측
   // 2026-09-20: 옛 이름 exit 1 · 새 이름 설치 완료). 이름이 바뀌면 월 1회 catalog-verify 가 잡는다.
   //
-  // 같은 날 조사한 flowbite 는 **넣지 않는다**: 에이전트용 제공물이 MCP 서버뿐인데, 이 저장소의
-  // `.mcp.json` 조립은 트랙 조건만 읽어 opt-in 경로가 없다 — 넣으면 해당 트랙 전원에게 항상
+  // 같은 날 조사한 flowbite 는 **넣지 않는다**: 에이전트용 제공물이 MCP 서버뿐인데, 그때 이 저장소의
+  // `.mcp.json` 조립은 트랙 조건만 읽어 opt-in 경로가 없었다 — 넣으면 해당 트랙 전원에게 항상
   // 켜진다. 안 쓰는 사람에게 MCP 툴 스키마만큼의 상주 비용을 물리는 형태라 기각(사용자 확정).
+  // #709 (ADR-101) 부터는 카탈로그 `internal` 항목으로 opt-in 경로가 있다(`railway-mcp-server`). flowbite 는
+  // 그 경로로 다시 심사할 수 있다 — 이 변경은 넣지 않는다.
   {
     id: "preline",
     tier: "vetted", // htmlstreamofficial/preline 6,386 (2026-08-16)

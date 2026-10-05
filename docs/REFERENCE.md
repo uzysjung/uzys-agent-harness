@@ -30,8 +30,8 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 `base` / `csr-*`(csr-supabase · csr-fastify · csr-fastapi) / `ssr-*`(ssr-htmx · ssr-nextjs) / `data` /
 `tooling` / `full`(= 모든 dev 트랙의 합) / `executive` / `project-management` / `growth-marketing`.
 
-**dev 트랙** = base + csr-* + ssr-* + data + tooling + full. `base` 는 dev 이지만 스택 전용 자산과
-`frontend-design` 의 사전 선택에서 빠진다 — 그 조건은 `DEV_TRACKS_WITH_STACK`(= base 를 뺀 dev 트랙)이다. 방법론 스킬의 조건 `has-dev-track` 은 base 를 포함한다.
+**dev 트랙** = base + csr-* + ssr-* + data + tooling + full. `base` 는 dev 이지만 스택 전용 자산에서 빠진다.
+`frontend-design` 은 UI 가 있는 트랙만 사전 선택한다 — 그 조건은 `UI_TRACKS`(= csr-* · ssr-* · full, #709)이다. 방법론 스킬의 조건 `has-dev-track` 은 base 를 포함한다.
 
 ## 3. 외부 자산 — 설치 방식 4종
 
@@ -66,7 +66,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 | **context7** | 항상 | `npx -y @upstash/context7-mcp@latest` |
 | **github** | 항상 | `npx -y @modelcontextprotocol/server-github` |
 | **chrome-devtools** | 항상 | `npx -y chrome-devtools-mcp@latest` |
-| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · ssr-nextjs · full | `npx -y @railway/mcp-server` |
+| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | `npx -y @railway/mcp-server` |
 | **supabase** | csr-supabase · full | `npx -y @supabase/mcp-server` |
 
 항상 설치되는 3종의 SSOT 는 `templates/mcp.json` 이고, 조건부는 tsv 에 한 줄을 추가해 확장한다(조립

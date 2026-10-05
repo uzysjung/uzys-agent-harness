@@ -59,14 +59,20 @@ const A_BASELINE = listBaselineTargets({ tracks: ["tooling"] })[0]?.id ?? "";
 const NOT_RECOMMENDED = "railway-skills";
 const assetOf = (id: string) => EXTERNAL_ASSETS.find((a) => a.id === id);
 /**
- * tooling 추천 중 **외부 설치 단계를 타고 claude 에 닿는** 자산 — 설치되면 기록 `assets` 에 남는 것.
+ * UI 트랙 추천 중 **외부 설치 단계를 타고 claude 에 닿는** 자산 — 설치되면 기록 `assets` 에 남는 것.
  * 기록에 없으면 설치 때 뺐거나 실패했거나 새 릴리즈가 더한 것이다(리뷰 B2). 카탈로그에서 뽑는다.
  */
-const TOOLING_EXTERNAL_REC = TOOLING_REC.filter((id) => {
+/**
+ * #709 — 외부 추천 표본은 UI 트랙에서 뽑는다: tooling · data 는 이제 claude 에 닿는 외부 자산(frontend-design)을 미리
+ * 체크하지 않는다. 표본 트랙도 카탈로그에서 유도한 추천으로 쓴다.
+ */
+const UI_TRACK: Track = "csr-fastapi";
+const UI_REC = recommendedExternalAssets([UI_TRACK]);
+const UI_EXTERNAL_REC = UI_REC.filter((id) => {
   const a = assetOf(id);
   return a !== undefined && a.method.kind !== "internal" && assetReachesCli(a, ["claude"]);
 });
-const TOOLING_INTERNAL_REC = TOOLING_REC.filter((id) => assetOf(id)?.method.kind === "internal");
+const UI_INTERNAL_REC = UI_REC.filter((id) => assetOf(id)?.method.kind === "internal");
 const logAsset = (id: string): InstallLog["assets"][number] => ({
   id,
   category: "dev-tools",
@@ -300,11 +306,11 @@ describe("Update 흐름 — 엔진 선택 (D6 · D7)", () => {
  */
 describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리뷰 B2)", () => {
   let dir = "";
-  const EXT = TOOLING_EXTERNAL_REC[0] ?? "";
+  const EXT = UI_EXTERNAL_REC[0] ?? "";
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "wiz-b2-"));
     mkdirSync(join(dir, ".claude"));
-    writeLog(dir, {}); // assets [] — 추천 외부 자산이 기록에 없다
+    writeLog(dir, { tracks: [UI_TRACK] }); // assets [] — 추천 외부 자산이 기록에 없다
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -314,7 +320,7 @@ describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리�
     const confirmInstall = vi.fn(async (_s: string) => true);
     const result = await runInteractive(dir, {
       prompts: makePrompts({ selectInstallTargets, confirmInstall }),
-      detect: detected(),
+      detect: detected([UI_TRACK]),
       isTty: () => true,
     });
     expect(selectInstallTargets.mock.calls[0]?.[0]).not.toContain(`asset:${EXT}`);
@@ -334,12 +340,12 @@ describe("Update 흐름 — 추천됐지만 기록에 없는 외부 자산 (리�
         ]),
         confirmInstall,
       }),
-      detect: detected(),
+      detect: detected([UI_TRACK]),
       isTty: () => true,
     });
     const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
     expect(result.mode).toBe("add");
-    expect(summary).toMatch(/RUNS AS\s+agent-harness install --track tooling --cli claude/);
+    expect(summary).toMatch(/RUNS AS\s+agent-harness install --track csr-fastapi --cli claude/);
     expect(result.spec?.userOverride?.forceExclude ?? []).not.toContain(EXT);
     expect(result.spec).toEqual(specFromRunsAs(summary, dir));
   });
@@ -350,22 +356,22 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
     schemaVersion: 1,
     installedAt: "x",
     scope: "project",
-    spec: { tracks: ["tooling"], cli: ["claude"], clis: ["claude"] },
+    spec: { tracks: [UI_TRACK], cli: ["claude"], clis: ["claude"] },
     templates: {},
     // 추천 외부 자산은 설치됐다(기록에 있다) — 아래 "기록과 같다"의 기준선.
-    assets: [...TOOLING_EXTERNAL_REC, NOT_RECOMMENDED].map(logAsset),
+    assets: [...UI_EXTERNAL_REC, NOT_RECOMMENDED].map(logAsset),
     ...over,
   });
   const same: UpdateSelection = {
-    tracks: ["tooling"],
+    tracks: [UI_TRACK],
     cli: ["claude"],
-    assetIds: [...TOOLING_REC, NOT_RECOMMENDED],
+    assetIds: [...UI_REC, NOT_RECOMMENDED],
     baselineExclude: [],
     skillExclude: [],
   };
 
   it("기록과 같으면 refresh — 번들 스킬(assets 에 안 남는 내장 자산)이 체크돼 있어도", () => {
-    expect(TOOLING_EXTERNAL_REC.length).toBeGreaterThan(0); // 전제: 아래 ③ 케이스가 헛통과하지 않게
+    expect(UI_EXTERNAL_REC.length).toBeGreaterThan(0); // 전제: 아래 ③ 케이스가 헛통과하지 않게
     expect(classifyUpdateIntent(log(), same)).toBe("refresh");
   });
 
@@ -401,7 +407,7 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
     ["① 트랙을 더했다", { tracks: ["data", "tooling"] as Track[] }],
     ["② CLI 를 더했다", { cli: ["claude", "codex"] as const }],
     ["③ 기록도 추천도 아닌 자산을 체크했다", { assetIds: [...same.assetIds, "tauri-desktop"] }],
-    ["③ 기록된 자산의 체크를 풀었다", { assetIds: [...TOOLING_REC] }],
+    ["③ 기록된 자산의 체크를 풀었다", { assetIds: [...UI_REC] }],
     ["④ baseline 해제가 바뀌었다", { baselineExclude: [A_BASELINE] }],
     ["⑤ 번들 스킬 해제가 바뀌었다", { skillExclude: [A_SKILL] }],
   ] as const)("%s → add", (_label, over) => {
@@ -410,10 +416,10 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
 
   it("기록이 없으면 감지된 트랙 · claude 를 기준으로 본다 (buildUpdateSpec 과 같은 기준)", () => {
     // 기록이 없으니 기록된 외부 자산도 없다 — Step 3 는 내장 추천만 체크한 채 시작한다.
-    const legacy = { ...same, assetIds: [...TOOLING_INTERNAL_REC] };
-    expect(classifyUpdateIntent(null, legacy, ["tooling"])).toBe("refresh");
-    expect(classifyUpdateIntent(null, { ...legacy, cli: ["codex"] }, ["tooling"])).toBe("add");
-    expect(classifyUpdateIntent(null, { ...legacy, assetIds: [...TOOLING_REC] }, ["tooling"])).toBe(
+    const legacy = { ...same, assetIds: [...UI_INTERNAL_REC] };
+    expect(classifyUpdateIntent(null, legacy, [UI_TRACK])).toBe("refresh");
+    expect(classifyUpdateIntent(null, { ...legacy, cli: ["codex"] }, [UI_TRACK])).toBe("add");
+    expect(classifyUpdateIntent(null, { ...legacy, assetIds: [...UI_REC] }, [UI_TRACK])).toBe(
       "add",
     );
   });
@@ -609,5 +615,60 @@ describe("깨진 설치 — 화면과 엔진이 같은 기록으로 판정한다
     rmSync(join(dir, ".claude"), { recursive: true, force: true });
     expect(screenSaysBroken()).toBe(true);
     expect(engineSaysBroken()).toBe(true);
+  });
+});
+
+/**
+ * #709 T9ⓑ — 옛 ssr-nextjs 설치본(railway 가 기본이던 판)의 `.mcp.json` railway 몫은 외부 설치 기록(`assets`)에 없다. 3단계는
+ * 기록된 몫으로 그것을 **체크된 채** 보이고(체크 = 확인 뒤 디스크에 있다), 그대로 두면 refresh · 풀면 `--without` 으로 뺀다.
+ */
+describe("#709 — 기록된 railway 몫은 Update 3단계에 체크된 채 보인다", () => {
+  const HARNESS_ROOT = resolve(__dirname, "..");
+  const RAILWAY = "railway-mcp-server";
+  let dir = "";
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "wiz-709-"));
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      runExternal: null,
+      spec: {
+        tracks: ["ssr-nextjs"],
+        options: { withCodexTrust: false },
+        cli: ["claude"],
+        projectDir: dir,
+        userOverride: { forceInclude: [RAILWAY], forceExclude: [] },
+      },
+    });
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("그대로 두면 체크된 채 시작하고 refresh 다", async () => {
+    const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => initial);
+    const result = await runInteractive(dir, {
+      prompts: makePrompts({ selectInstallTargets }),
+      detect: detected(["ssr-nextjs"]),
+      isTty: () => true,
+    });
+    expect(selectInstallTargets.mock.calls[0]?.[0]).toContain(`asset:${RAILWAY}`);
+    expect(result.mode).toBe("update");
+  });
+
+  it("체크를 풀면 add 이고 RUNS AS 가 --without railway-mcp-server 를 낸다", async () => {
+    const confirmInstall = vi.fn(async (_s: string) => true);
+    const result = await runInteractive(dir, {
+      prompts: makePrompts({
+        selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
+          initial.filter((t) => t !== `asset:${RAILWAY}`),
+        ),
+        confirmInstall,
+      }),
+      detect: detected(["ssr-nextjs"]),
+      isTty: () => true,
+    });
+    const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
+    expect(result.mode).toBe("add");
+    expect(summary).toContain(`--without ${RAILWAY}`);
+    expect(result.spec?.userOverride?.forceExclude).toContain(RAILWAY);
   });
 });

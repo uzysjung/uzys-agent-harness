@@ -19,7 +19,6 @@ import { dirname, join, relative, sep } from "node:path";
 import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters/index.js";
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import { BASELINE_PREFIX } from "./baseline-targets.js";
-import { renderHarnessMcp } from "./cli-transforms.js";
 import { gitignoreRender, RETIRED_GITIGNORE_LINES } from "./env-files.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
@@ -36,10 +35,11 @@ import {
 } from "./install-log.js";
 import { judge, type Verdict } from "./judge.js";
 import { RETIRED_PATHS } from "./manifest.js";
+import type { McpJson } from "./mcp-merge.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { excludedIds, type RecordedOptions, recorded } from "./recorded.js";
-import type { InstallSpec, Track } from "./types.js";
+import type { InstallSpec } from "./types.js";
 
 const CLAUDE_DIR = ".claude/";
 const SKILLS_DIR = ".claude/skills/";
@@ -737,12 +737,12 @@ export function writeSettingsShared(
  */
 export function writeMcpShared(
   writer: InstallWriter,
-  harnessRoot: string,
-  tracks: ReadonlyArray<Track>,
+  /** 이 실행의 하네스 서버(`renderHarnessMcp` — 트랙 + 선택). Codex · OpenCode 에 넘긴 것과 같은 값이다(#709). */
+  mcp: McpJson,
   previousLog: InstallLog | null,
   opts: Pick<SharedOptions, "onlyIfRecorded"> = {},
 ): SharedWrite {
-  const servers = renderHarnessMcp(harnessRoot, tracks).mcpServers;
+  const servers = mcp.mcpServers;
   const render = new Map<string, unknown>(
     Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, cfg]),
   );

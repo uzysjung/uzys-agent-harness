@@ -45,7 +45,7 @@ import { ADAPTERS, keyId } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
 import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
-import { renderHarnessMcp } from "../cli-transforms.js";
+import { renderEverySelectableMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
 import { gitignoreRender } from "../env-files.js";
 import { backupDir, backupFile, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
@@ -1202,7 +1202,8 @@ function remnantFor(
     return (disk) => {
       let servers: Record<string, unknown>;
       try {
-        servers = renderHarnessMcp(harnessRoot, log.spec.tracks.filter(isTrack)).mcpServers;
+        // #709 NOTE-1 — 몫 기록이 없어 무엇을 골랐는지 모른다: 고를 수 있었던 서버 전부와 값으로 대조한다(알리기만)
+        servers = renderEverySelectableMcp(harnessRoot, log.spec.tracks.filter(isTrack)).mcpServers;
       } catch {
         return [];
       }
@@ -1226,7 +1227,9 @@ function remnantFor(
   return (disk) => {
     let render: Map<string, unknown>;
     try {
-      render = renderOpencodeMcp(renderHarnessMcp(harnessRoot, log.spec.tracks.filter(isTrack)));
+      render = renderOpencodeMcp(
+        renderEverySelectableMcp(harnessRoot, log.spec.tracks.filter(isTrack)),
+      );
     } catch {
       return [];
     }
