@@ -122,10 +122,14 @@ describe("runInteractive", () => {
 
   it("v26.54.0 — asset unchecked from recommended → userOverride.forceExclude", async () => {
     // T3 는 추천에서 빠지므로 uncheck 시나리오는 추천 자산(frontend-design)으로 만든다.
+    // #709 — frontend-design 은 UI 트랙에서만 추천된다(tooling 은 아니다) — UI 트랙을 고른다.
     const selectInstallTargets = vi.fn(async (initial: ReadonlyArray<InstallTargetId>) =>
       initial.filter((t) => t !== "asset:frontend-design"),
     );
-    const prompts = makePrompts({ selectInstallTargets });
+    const prompts = makePrompts({
+      selectTracks: vi.fn(async () => ["csr-fastapi"] as Track[]),
+      selectInstallTargets,
+    });
     const result = await runInteractive("/tmp/proj", {
       prompts,
       detect: () => newState,
@@ -457,19 +461,20 @@ describe("computeUserOverride", () => {
   // 추천 기준선은 **카탈로그에서 derive** 한다 — 여기 id 를 적어두면 자산이 하나 들고 날
   // 때마다 두 번째 사본이 썩는다(#454). 이 블록이 재는 것은 목록의 내용이 아니라
   // 선택분과 추천분의 **diff 규칙**이다.
-  const TOOLING_RECOMMENDED = [...recommendedExternalAssets(["tooling"])];
+  // #709 — frontend-design 을 추천하는 UI 트랙으로 잰다(tooling 은 더는 추천하지 않는다).
+  const UI_RECOMMENDED = [...recommendedExternalAssets(["csr-fastapi"])];
 
   it("selections == recommended → undefined (no override)", () => {
     // 전제 확인: 추천이 비면 아래 diff 단언들이 전부 헛통과한다.
-    expect(TOOLING_RECOMMENDED.length).toBeGreaterThan(0);
-    // v26.71.0 — tooling 추천은 vetted/official 만 (T3 제외).
-    expect(computeUserOverride(["tooling"] as Track[], TOOLING_RECOMMENDED)).toBeUndefined();
+    expect(UI_RECOMMENDED.length).toBeGreaterThan(0);
+    // v26.71.0 — 추천은 vetted/official 만 (T3 제외).
+    expect(computeUserOverride(["csr-fastapi"] as Track[], UI_RECOMMENDED)).toBeUndefined();
   });
 
   it("forceExclude — 추천에서 unchecked", () => {
     // 추천 집합에서 frontend-design 을 uncheck → forceExclude.
-    const without = TOOLING_RECOMMENDED.filter((id) => id !== "frontend-design");
-    const result = computeUserOverride(["tooling"] as Track[], without);
+    const without = UI_RECOMMENDED.filter((id) => id !== "frontend-design");
+    const result = computeUserOverride(["csr-fastapi"] as Track[], without);
     expect(result).toBeDefined();
     expect(result?.forceExclude).toEqual(["frontend-design"]);
     expect(result?.forceInclude).toEqual([]);
@@ -477,21 +482,21 @@ describe("computeUserOverride", () => {
 
   it("forceInclude — 추천 외 추가 선택", () => {
     // v26.71.0 — 새 추천(vetted) + railway-skills(T3, 추천 외) 추가 → forceInclude.
-    const withRailway = [...TOOLING_RECOMMENDED, "railway-skills"];
-    const result = computeUserOverride(["tooling"] as Track[], withRailway);
+    const withRailway = [...UI_RECOMMENDED, "railway-skills"];
+    const result = computeUserOverride(["csr-fastapi"] as Track[], withRailway);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
     expect(result?.forceExclude).toEqual([]);
   });
 
   it("mix — include + exclude 동시", () => {
     const mixed = ["frontend-design", "railway-skills"];
-    const result = computeUserOverride(["tooling"] as Track[], mixed);
+    const result = computeUserOverride(["csr-fastapi"] as Track[], mixed);
     expect(result?.forceInclude).toEqual(["railway-skills"]);
     expect(result?.forceExclude.length).toBeGreaterThan(0);
   });
 
   it("empty selection on track with recommendations → forceExclude all", () => {
-    const result = computeUserOverride(["tooling"] as Track[], []);
+    const result = computeUserOverride(["csr-fastapi"] as Track[], []);
     expect(result?.forceInclude).toEqual([]);
     expect(result?.forceExclude.length).toBeGreaterThan(0);
   });

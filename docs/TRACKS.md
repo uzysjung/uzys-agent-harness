@@ -36,8 +36,8 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 | **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
 | **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
 | **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` | — |
-| **Dev tools** | `frontend-design` (all dev tracks except `base`) | — |
-| **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-*`/`full`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
+| **Dev tools** | `frontend-design` (`csr-*` · `ssr-*` · `full`) | — |
+| **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-htmx`/`full` — any track can add it with `--with railway-mcp-server`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
 
 The method skills are built into this repo — written and maintained here, bundled as templates, no separate download. They install as native skills on all four CLIs: Claude Code reads `.claude/skills/`, and Codex, OpenCode, and Antigravity read the same `.agents/skills/<id>/`. Each can be dropped with `--without <id>` — or installed alone, without the harness, with `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` ([how](USAGE.md#one-skill-without-the-harness)).
 
@@ -88,7 +88,9 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `supabase-agent-skills` | RLS, auth, edge functions, realtime (Supabase official) | `csr-supabase` · `full` |
 | `postgres-best-practices` | Schema, index, and query patterns (Supabase official) | `csr-supabase` · `full` |
 | `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
-| `supabase-cli` · `vercel-cli` · `netlify-cli` | The deploy CLI as a `devDependency`. Pick the one your project deploys to | opt-in |
+| `railway-mcp-server` | Railway MCP server in `.mcp.json` (and Codex · OpenCode) — ⚠ experimental, upstream archived | opt-in (default on `csr-*`/`ssr-htmx`/`full`) |
+| `vercel-cli` | The Vercel deploy CLI as a `devDependency`; `vercel mcp` then wires Vercel's official MCP | `ssr-nextjs` |
+| `supabase-cli` · `netlify-cli` | The deploy CLI as a `devDependency`. Pick the one your project deploys to | opt-in |
 
 ### Bundled stack skill
 

@@ -26,7 +26,6 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { cleanStaleHookRefs } from "../src/hook-ref.js";
@@ -34,6 +33,7 @@ import { type InstallLog, installLogPath, readInstallLog } from "../src/install-
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 import { runUpdateMode } from "../src/update-mode.js";
+import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 /** 외부 스킬 갱신은 네트워크를 탄다 — 이 파일은 그 경로를 보지 않는다. */
@@ -305,7 +305,7 @@ describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install �
   });
 
   it("install 도 같은 writer 다 — 서버를 전부 뺀 첫 설치는 `.mcp.json` 을 `{}` 로 만들지 않는다", () => {
-    const all = Object.keys(renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers).map(
+    const all = Object.keys(trackOnlyMcp(HARNESS_ROOT, ["tooling"]).mcpServers).map(
       (n) => `mcp:${n}`,
     );
     expect(all.length).toBeGreaterThan(0); // 전제

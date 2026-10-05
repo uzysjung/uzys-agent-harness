@@ -2,13 +2,13 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderHarnessMcp } from "../../src/cli-transforms.js";
 import { runCodexTransform } from "../../src/codex/transform.js";
 import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
+import { trackOnlyMcp } from "../helpers/harness-mcp.js";
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
 /** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
-const HARNESS_MCP = renderHarnessMcp(HARNESS_ROOT, ["tooling"]);
+const HARNESS_MCP = trackOnlyMcp(HARNESS_ROOT, ["tooling"]);
 
 describe("runCodexTransform (E2E against templates/)", () => {
   let project: string;

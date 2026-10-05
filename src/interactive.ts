@@ -14,6 +14,7 @@ import {
   readInstallLog,
 } from "./install-log.js";
 import type { InstallMode } from "./installer.js";
+import { recordedMcpAssetIds } from "./mcp-merge.js";
 import {
   finalSelectedAssets,
   groupAssetsByCategory,
@@ -126,9 +127,11 @@ export interface InstalledTargetState {
 export function installedTargetState(projectDir: string): InstalledTargetState {
   const log = readInstallLog(projectDir);
   if (!log) return { installed: [], projectScoped: [] };
+  // #709 — 기록된 `.mcp.json` 몫의 선택 서버(`railway-mcp-server`)도 깔린 project 자산이다(외부 설치 기록엔 안 남는다)
+  const mcp = recordedMcpAssetIds(log);
   return {
-    installed: log.assets.map((a) => a.id),
-    projectScoped: log.assets.filter((a) => a.scope !== "global").map((a) => a.id),
+    installed: [...log.assets.map((a) => a.id), ...mcp],
+    projectScoped: [...log.assets.filter((a) => a.scope !== "global").map((a) => a.id), ...mcp],
   };
 }
 
@@ -228,6 +231,8 @@ export function classifyUpdateIntent(
   if (confirmed.assetIds.some((id) => !covered.has(id) || out.has(id))) return "add";
   if (recorded.some((a) => a.scope !== "global" && !picked.has(a.id) && !out.has(a.id)))
     return "add";
+  // #709 — 기록된 선택 MCP 서버의 체크를 풀었다 = 빼기(install 엔진만 기록한다)
+  if (recordedMcpAssetIds(log).some((id) => !picked.has(id) && !out.has(id))) return "add";
   const offered = new Set(listBaselineTargets({ tracks: confirmed.tracks }).map((t) => t.id));
   const recordedBaseline = [...out].filter((id) => offered.has(id));
   if (!sameSet(confirmed.baselineExclude, recordedBaseline)) return "add";
@@ -253,7 +258,11 @@ function recordedClis(log: InstallLog | null): CliBase[] {
 function coveredByRecord(log: InstallLog | null, legacyTracks: ReadonlyArray<Track>): Set<string> {
   const recordTracks = (log ? log.spec.tracks : legacyTracks).filter(isTrack);
   const clis = recordedClis(log);
-  const covered = new Set<string>((log?.assets ?? []).map((a) => a.id));
+  const covered = new Set<string>([
+    ...(log?.assets ?? []).map((a) => a.id),
+    // #709 — 기록된 선택 MCP 서버는 refresh 가 그대로 둔다(`.mcp.json` 몫 기록)
+    ...recordedMcpAssetIds(log),
+  ]);
   for (const id of recommendedExternalAssets(recordTracks)) {
     const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
     if (!asset || asset.method.kind === "internal" || !assetReachesCli(asset, clis)) {
@@ -630,6 +639,8 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
       ...(userOverride?.forceExclude ?? []),
       ...baselineExclude,
       ...unchecked(log, tracks, assetIds, baselineIds),
+      // #709 — 기록된 선택 MCP 서버의 체크를 풀었으면 뺀다(opt-in 이라 추천 대비 빼기에 안 든다)
+      ...recordedMcpAssetIds(log).filter((id) => !assetIds.includes(id)),
     ]),
   ];
   const options: InstallOptions = {

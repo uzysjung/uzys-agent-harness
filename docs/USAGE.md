@@ -50,7 +50,7 @@ npx -y @uzysjung/agent-harness install --track <name> [--cli <cli>]... [--with <
 | `--track <name>` (repeatable) | **Required.** One of the [tracks](TRACKS.md) |
 | `--cli <claude\|codex\|opencode\|antigravity>` (repeatable) | Target CLI. Default `claude` |
 | `--scope project` | The only choice, and the default. `global` is refused on a new install — see [Scope](#scope) |
-| `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md). Also accepts a `baseline:<kind>/<name>` or a key id (below) — those are installed by default, so it just means "not dropped this time" |
+| `--with <asset-id>` (repeatable) | Add an asset the track did not pre-check. Ids are the first column of the [compatibility matrix](COMPATIBILITY.md). Also accepts a `baseline:<kind>/<name>` or a key id (below) — those are installed by default, so it just means "not dropped this time". An MCP server your track does not install is added by its catalog id, not a key id — e.g. `--with railway-mcp-server` (see [TRACKS](TRACKS.md)) |
 | `--without <asset-id>` (repeatable) | Drop a pre-checked asset |
 | `--without baseline:<kind>/<name>` (repeatable) | Drop a track baseline item — `rules` / `agents` / `hooks` (e.g. `--without baseline:rules/git-policy`). Same items as the first two wizard pages |
 | `--without <key id>` (repeatable) | Drop one harness part from a file you share with the harness — e.g. `mcp:github` (a server in `.mcp.json`), `settings:statusLine`, `settings:hooks.SessionStart#session-start.sh`, `opencode:mcp.github`, `codex:top`, `agents-md:agents`, `gitignore:.env`. Only ids the harness would write for your tracks and CLIs are accepted; a typo is reported and skipped. A part you edited is left in place and the summary says so |
@@ -132,7 +132,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode) w
 | `CLAUDE.md` | **Yours.** A fill-in scaffold if it did not exist; otherwise untouched except for one import block at the end |
 | `CLAUDE-uzys-harness.md` | The harness's working-principles anchor. Owned by the harness, rewritten on `update` — keep your notes in `CLAUDE.md` |
 | `.uzys-agent-harness/` | CLI-neutral slot: the install record (`.harness-install.json`), three helper scripts the rules call by name (`protect-branch.sh`, `spec-drift-check.sh`, `check-absence.sh`), and the hook block log written at runtime. Commit it with the rest — only the hook block log and `update-backups.json` are added to `.gitignore` (when that file exists), so teammates who clone get the record ([teammates and fresh clones](#teammates-and-fresh-clones)) |
-| `.mcp.json` | MCP servers — `context7`, `github`, `chrome-devtools` on every track; `railway-mcp-server` on `csr-*`/`ssr-*`/`full`; `supabase` on `csr-supabase`/`full`. Merged with yours |
+| `.mcp.json` | MCP servers — `context7`, `github`, `chrome-devtools` on every track; `railway-mcp-server` on `csr-*`/`ssr-htmx`/`full` (any track can add it with `--with railway-mcp-server`); `supabase` on `csr-supabase`/`full`. Merged with yours |
 | `.gitignore` · `.env.example` | Ignore lines for agent artifacts and `.env` appended when `.gitignore` exists; an example env file on `csr-supabase` / `full` |
 | `AGENTS.md` · `.codex/` · `opencode.json` · `.agents/` | Only for the CLIs you selected (table above) |
 | `.github/workflows/` | Only with `--with ci-scaffold`. Never overwrites an existing workflow file |
@@ -315,10 +315,11 @@ Two opt-in workflow packs remain in the catalog, `openspec` and `bmad-method` �
 
 Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises here:
 
-- **No deploy CLI is pre-checked on any track.** `supabase-cli`, `vercel-cli`, and `netlify-cli` each install a CLI package as a `devDependency`, so pick the one your project deploys to. `csr-supabase` still pre-checks the Supabase *skills*.
-- **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills, `frontend-design`).
+- **`vercel-cli` is pre-checked on `ssr-nextjs` (#709); `supabase-cli` and `netlify-cli` stay opt-in.** Each installs a CLI package as a `devDependency`, so keep the one your project deploys to (`--without vercel-cli` if it is not Vercel). `csr-supabase` still pre-checks the Supabase *skills*.
+- **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills; `frontend-design` is not pre-checked — `--with frontend-design` adds it).
 - **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` and `product-skills` are opt-in on any track.
-- **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app.
+- **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app. `frontend-design` is not pre-checked on either — `--with frontend-design` adds it.
+- An asset you added with `--with` reaches a CLI you add later only if you pass `--with` again, or check it in the wizard.
 - `ssr-htmx` stays server-side — no React assets.
 
 ---

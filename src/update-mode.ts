@@ -32,7 +32,12 @@ import {
   listBaselineTargets,
 } from "./baseline-targets.js";
 import { CLI_OWNERSHIP } from "./cli-ownership.js";
-import { ALL_CLI_TARGETS, runCliTransforms } from "./cli-transforms.js";
+import {
+  ALL_CLI_TARGETS,
+  adapterExcluded,
+  renderHarnessMcp,
+  runCliTransforms,
+} from "./cli-transforms.js";
 import { hasLegacyHarnessHook } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
@@ -88,6 +93,7 @@ import {
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
+import type { McpJson } from "./mcp-merge.js";
 import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
 import {
   createOutsideGuard,
@@ -618,6 +624,13 @@ export function runUpdateMode(
   //      (ADR-099 R2). 기록에 있는데 사라진 몫(훅 배선 · 하네스 서버 · 줄)을 되돌리고 설치자 키는 그대로 둔다.
   //      자리가 정해져 있다: 0단계(훅 스크립트 되살림) **뒤** — 렌더의 `hookInstalled` 가 되살린 뒤 디스크를 읽는다 —
   //      3단계(죽은 참조 정리) **앞** — 정리기가 최종본을 본다. 정리가 먼저면 배선을 걷고 다음 실행에야 더한다(2회).
+  // #709 — 하네스 MCP 서버는 **한 번** 렌더해 `.mcp.json`(2.5단계)과 Codex · OpenCode(4단계)가 같은 값을 받는다. 기록 트랙의
+  //   기본 행 ∪ 기록된 선택 행(`.mcp.json` 몫), 기록된 빼기 제외 — 실행 시작 때 읽은 기록으로(2.5단계가 기록을 다시 쓴다).
+  const harnessMcp = renderHarnessMcp(harnessRoot, {
+    spec: { tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS },
+    excluded: excludedIds(logAtStart),
+    previousLog: logAtStart,
+  });
   const sharedWrites = writeUpdateSharedFiles({
     projectDir,
     harnessRoot,
@@ -625,6 +638,7 @@ export function runUpdateMode(
     wants,
     claudeManaged,
     droppedKeys: legacyDroppedKeys(logAtStart),
+    harnessMcp,
   });
 
   // 3) settings.json stale hook ref cleanup
@@ -673,7 +687,7 @@ export function runUpdateMode(
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
-    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart))
+    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart), harnessMcp)
     : {
         externalUpdated: 0,
         externalBackedUp: [],
@@ -961,13 +975,19 @@ function writeUpdateSharedFiles(args: {
   claudeManaged: boolean;
   /** 옛 판이 자동으로 뺐다고 적었던 키(R5) — 실행 시작 때 읽은 기록의 것(뒤 단계가 기록을 다시 쓰면 사라진다). */
   droppedKeys: ReadonlyArray<string>;
+  /** #709 — 이 실행의 하네스 MCP 서버(Codex · OpenCode 와 같은 값). */
+  harnessMcp: McpJson;
 }): { writes: SharedWrite[]; legacyRestored: string[]; outside: OutsideLink[] } {
   const { projectDir, harnessRoot, templatesDir, wants } = args;
   const log = readInstallLog(projectDir);
   // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(PR B 와 같은 판단).
   if (log === null) return { writes: [], legacyRestored: [], outside: [] };
   const excluded = excludedIds(log);
-  const writer = createInstallWriter({ projectDir, previousLog: log, excluded });
+  const writer = createInstallWriter({
+    projectDir,
+    previousLog: log,
+    excluded: adapterExcluded(harnessRoot, excluded),
+  });
   const tracks = installedTracks(projectDir);
   const settingsSource = join(templatesDir, "settings.json");
   if (args.claudeManaged && wants("hooks") && existsSync(settingsSource)) {
@@ -989,7 +1009,7 @@ function writeUpdateSharedFiles(args: {
       // 기록이 claude 를 깔린 CLI 로 말한다 = install 이 이 파일을 썼다 — 없으면 만든다(훅 배선이 여기 산다)
     );
   }
-  if (wants("external")) writeMcpShared(writer, harnessRoot, tracks, log, { onlyIfRecorded: true });
+  if (wants("external")) writeMcpShared(writer, args.harnessMcp, log, { onlyIfRecorded: true });
   if (wants("rules")) writeGitignoreShared(writer, log);
   const ledger = writer.ledger();
   if (ledger.portionPaths.length > 0 || ledger.rootFiles.length > 0) {
@@ -1668,6 +1688,8 @@ function refreshExternalCli(
   harnessRoot: string,
   /** 옛 판이 자동으로 뺐다고 적었던 키(R5) — 실행 시작 때 읽은 기록의 것(앞 단계가 기록을 다시 쓰면 사라진다). */
   droppedKeys: ReadonlyArray<string>,
+  /** #709 — `.mcp.json` 에 쓴 것과 같은 하네스 MCP 서버. */
+  harnessMcp: McpJson,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -1733,8 +1755,8 @@ function refreshExternalCli(
     rules: resolveRules({ tracks: installedTracks(projectDir) }).filter(
       (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
     ),
-    // #568 — MCP 서버의 트랙은 설치 기록에서(기록이 없으면 기본 서버만 — 지어내지 않는다).
-    tracks: installedTracks(projectDir),
+    // #568 — MCP 서버는 `.mcp.json` 과 같은 값(기록 트랙 · 기록된 선택 — 기록이 없으면 기본 서버만, 지어내지 않는다).
+    mcp: harnessMcp,
     previousExternal: log?.externalFiles ?? [],
     refreshOnly: true,
     // #551 R2 — 함께 쓰는 파일(`.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md`)의 몫 왕복. install 과

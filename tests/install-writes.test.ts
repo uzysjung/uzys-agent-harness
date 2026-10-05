@@ -10,7 +10,6 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHarnessMcp } from "../src/cli-transforms.js";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { listAction } from "../src/commands/list.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
@@ -23,6 +22,7 @@ import {
 } from "../src/install-log.js";
 import { type InstallMode, type InstallReport, runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
+import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
 /** #657 — 백업 패턴 4종(테스트 기대치가 소스 목록과 함께 살아야 함). */
 const BACKUP_PATTERNS = [
@@ -568,7 +568,7 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
   });
 
   it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {
-    const servers = renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
+    const servers = trackOnlyMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
     const edited = { ...servers, context7: { ...servers.context7, env: { MY_KEY: "mine" } } };
     write(".mcp.json", JSON.stringify({ mcpServers: edited }, null, 2));
     writeLog(
@@ -591,7 +591,7 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
   });
 
   it("옛 판이 병합한 설치자 `.mcp.json` 의 같은 이름 서버는 설치자 것으로 둔다", () => {
-    const servers = renderHarnessMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
+    const servers = trackOnlyMcp(HARNESS_ROOT, ["tooling"]).mcpServers;
     write(".mcp.json", JSON.stringify({ mcpServers: servers }, null, 2));
     writeLog(
       legacyLog({ rootFiles: [{ path: ".mcp.json", change: "modified", notes: ["병합"] }] }),

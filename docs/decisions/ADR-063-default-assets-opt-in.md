@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-02
 - PR: #270
+- Amended by: ADR-101 (vercel-cli 한정 — `ssr-nextjs` 에서 미리 체크. railway-skills · supabase-cli · finance-skills · product-skills 는 그대로 opt-in)
 - Context: 사용자 지시(2026-08-02) — "railway-skills supabase-cli vercel-cli opt-in /
   finance-skills product-skills opt-in". ADR-058 방향(필요한 틀만 남긴다)의 카탈로그 축 적용이며,
   ADR-035(배포 CLI 중복 해소 — netlify opt-in)와 같은 결의 후속이다. 5종의 현행 조건:

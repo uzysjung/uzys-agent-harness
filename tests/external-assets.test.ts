@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -13,6 +13,9 @@ import {
   shouldInstallAsset,
   TRUST_TIER,
 } from "../src/external-assets.js";
+import { selectExternalTargets } from "../src/external-installer.js";
+import { parseTrackMcpMap } from "../src/mcp-merge.js";
+import { hasUiTrack } from "../src/track-match.js";
 import { DEFAULT_OPTIONS, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 const NO_OPTIONS: OptionFlags = { ...DEFAULT_OPTIONS };
@@ -257,6 +260,59 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
         userOverride: { forceInclude: ["ci-scaffold"], forceExclude: [] },
       }),
     ).toBe(true);
+  });
+});
+
+// #709 (ADR-101) — 트랙 기본값은 스택이 정한다 + MCP 서버의 선택 경로.
+describe("#709 — 트랙 기본값 · railway-mcp-server 선택 항목", () => {
+  const find = (id: string): ExternalAsset => {
+    const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+    if (!a) throw new Error(`${id} missing`);
+    return a;
+  };
+
+  it("railway-mcp-server: opt-in internal(key = id) · experimental · 번들 스킬이 아니고 외부 설치 단계에 안 든다", () => {
+    const a = find("railway-mcp-server");
+    expect(a.condition.kind).toBe("opt-in");
+    expect(a.method).toEqual({ kind: "internal", key: "railway-mcp-server" });
+    expect(assetTrustTier("railway-mcp-server")).toBe("experimental");
+    expect(INTERNAL_BUNDLED_SKILL_IDS).not.toContain("railway-mcp-server");
+    expect(DEV_METHOD_SKILL_IDS).not.toContain("railway-mcp-server");
+    // 서버 정의는 트랙 표 한 곳 — key 가 그 행 이름이어야 선택이 렌더에 닿는다
+    const rows = parseTrackMcpMap(
+      readFileSync(join(REPO_ROOT, "templates", "track-mcp-map.tsv"), "utf8"),
+    );
+    expect(rows.map((r) => r.name)).toContain("railway-mcp-server");
+    // 외부 설치(spawn) 대상이 아니다 — 골라도
+    const { targets } = selectExternalTargets(EXTERNAL_ASSETS, {
+      tracks: ["ssr-nextjs"],
+      options: NO_OPTIONS,
+      cli: ["claude", "codex", "opencode", "antigravity"],
+      userOverride: { forceInclude: ["railway-mcp-server"], forceExclude: [] },
+    });
+    expect(targets.map((t) => t.id)).not.toContain("railway-mcp-server");
+    // 조건으로는 어느 트랙에서도 미리 체크되지 않는다 — forceInclude 로만
+    for (const t of TRACKS)
+      expect(shouldInstallAsset(a, { tracks: [t], options: NO_OPTIONS }), t).toBe(false);
+    expect(
+      shouldInstallAsset(a, {
+        tracks: ["ssr-nextjs"],
+        options: NO_OPTIONS,
+        userOverride: { forceInclude: ["railway-mcp-server"], forceExclude: [] },
+      }),
+    ).toBe(true);
+  });
+
+  it("vercel-cli 는 ssr-nextjs 에서만 미리 체크된다(full · csr-* 은 아니다)", () => {
+    expect(find("vercel-cli").condition).toEqual({ kind: "any-track", tracks: ["ssr-nextjs"] });
+  });
+
+  it("frontend-design 은 UI 가 있는 트랙(csr-* · ssr-* · full)만 미리 체크한다 — data · tooling · base 는 아니다", () => {
+    const c = find("frontend-design").condition;
+    expect(c.kind).toBe("any-track");
+    const tracks = c.kind === "any-track" ? [...c.tracks].sort() : [];
+    expect(tracks).toEqual(TRACKS.filter((t) => hasUiTrack([t])).sort());
+    for (const t of ["data", "tooling", "base"] as const) expect(tracks).not.toContain(t);
   });
 });
 
