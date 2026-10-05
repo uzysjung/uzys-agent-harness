@@ -175,7 +175,7 @@ More external assets are never pre-checked but can be added at step 3 or with `-
 
 Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's source, install method, and supported tools are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-## Day to day
+## Main commands
 
 | You want to… | Run |
 |---|---|
