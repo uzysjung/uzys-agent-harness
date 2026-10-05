@@ -494,11 +494,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "vercel-cli",
     tier: "vetted", // vercel/vercel 15k
     description:
-      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel. Pre-checked on ssr-nextjs. `vercel mcp` then wires Vercel's official MCP (OAuth) into Claude Code",
+      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel. `vercel mcp` then wires Vercel's official MCP (OAuth) into Claude Code",
     category: "backend",
     source: "vercel",
-    // 2026-10-05 #709 · ADR-101 — ssr-nextjs 기본(ADR-063 의 opt-in 을 이 트랙에 한해 고친다). full 은 그대로 opt-in
-    condition: { kind: "any-track", tracks: ["ssr-nextjs"] },
+    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063). #709 가 ssr-nextjs 기본으로 바꿨다가 #715 에서 되돌렸다 —
+    //   설치자 package.json 에 의존성을 더하고(에이전트는 npx 로 쓸 수 있다) login 없이는 쓸 것이 없으며 핀이 낡는다.
+    //   Next.js 의 Vercel 기본은 공식 MCP(#711)로 채운다.
+    condition: { kind: "opt-in" },
     method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
   },
   {

@@ -4,6 +4,7 @@
 - Date: 2026-10-05
 - PR: #710
 - Issue: #709
+- Superseded in part by: ADR-102 (결정 2 — `vercel-cli` 는 다시 opt-in. 나머지 결정은 현행)
 - Amends: ADR-063 의 `vercel-cli` 한 줄(opt-in → `ssr-nextjs` 미리 체크). ADR-063 의 나머지(railway-skills · supabase-cli ·
   finance-skills · product-skills opt-in)와 ADR-035(netlify opt-in)는 그대로다.
 - 설계 문서: `docs/plans/track-defaults-709-design.md` (설계 검증 반영 절 포함)
@@ -24,7 +25,7 @@ Railway MCP 는 트랙 표(`templates/track-mcp-map.tsv`)의 한 행이고, 위�
 
 1. `frontend-design` 의 조건 = UI 가 있는 트랙(`csr-*` · `ssr-*` · `full` — `hasUiTrack` 에서 유도한 `UI_TRACKS`). #456 결정 B
    ("스택 없는 dev 트랙은 스택 무관 개발 도구를 기본에서 뺀다")를 "UI 가 없는 스택 트랙도 뺀다"로 좁힌 것이다.
-2. `vercel-cli` 의 조건 = `any-track: ["ssr-nextjs"]`. `full` 에는 넣지 않는다(③). Vercel MCP 자체는 넣지 않는다 — 원격(HTTP) +
+2. ~~`vercel-cli` 의 조건 = `any-track: ["ssr-nextjs"]`.~~ **ADR-102 가 철회 — 다시 opt-in.** `full` 에는 넣지 않는다(③). Vercel MCP 자체는 넣지 않는다 — 원격(HTTP) +
    OAuth 서버라 이 저장소의 stdio 전용 `.mcp.json` 조립으로는 표현되지 않는다. 설치자는 `vercel mcp` 로 공식 경로를 붙인다.
 3. **MCP 서버의 선택 경로**: 카탈로그 `internal` 자산의 `key` 가 트랙 표 행 이름이면 그 서버는 어느 트랙에서든 고를 수 있다.
    첫 항목 = `railway-mcp-server`(experimental — 상류 repo archived · 190★, 월간 trust-tier-drift 가 감시). 트랙 표 railway 행의

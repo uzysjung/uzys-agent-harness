@@ -96,10 +96,11 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("railway-skills");
   });
 
-  // #709 (ADR-101) — 트랙 기본값은 스택이 정한다: ssr-nextjs 는 Vercel CLI 를 미리 받고, UI 가 없는 data · tooling 은
-  //   frontend-design 을 받지 않는다. full 은 그대로(ADR-063 — deploy CLI 는 트랙 합집합에 안 든다).
-  it("#709 — ssr-nextjs 는 vercel-cli 를 받는다 · data/tooling 은 frontend-design 을 안 받는다 · full 은 vercel-cli 를 안 받는다", () => {
-    expect(runForTrack(["ssr-nextjs"]).ids).toContain("vercel-cli");
+  // #709 (ADR-101) — 트랙 기본값은 스택이 정한다: UI 가 없는 data · tooling 은 frontend-design 을 받지 않는다.
+  //   #715 — vercel-cli 는 어느 트랙에서도 미리 받지 않는다(ADR-063 그대로). 고르면 들어간다.
+  it("#709 #715 — data/tooling 은 frontend-design 을 안 받는다 · ssr-nextjs · full 은 vercel-cli 를 미리 받지 않는다", () => {
+    expect(runForTrack(["ssr-nextjs"]).ids).not.toContain("vercel-cli");
+    expect(runForTrack(["ssr-nextjs"], {}, ["vercel-cli"]).ids).toContain("vercel-cli");
     for (const t of ["data", "tooling"] as const)
       expect(runForTrack([t]).ids, `${t} 가 frontend-design 을 받았다`).not.toContain(
         "frontend-design",
