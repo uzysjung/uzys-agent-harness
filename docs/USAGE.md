@@ -315,7 +315,7 @@ Two opt-in workflow packs remain in the catalog, `openspec` and `bmad-method` �
 
 Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises here:
 
-- **`vercel-cli` is pre-checked on `ssr-nextjs` (#709); `supabase-cli` and `netlify-cli` stay opt-in.** Each installs a CLI package as a `devDependency`, so keep the one your project deploys to (`--without vercel-cli` if it is not Vercel). `csr-supabase` still pre-checks the Supabase *skills*.
+- **`vercel-cli`, `supabase-cli`, and `netlify-cli` are opt-in on every track (ADR-063 · ADR-102).** Each installs a CLI package as a `devDependency`, so add only the one your project deploys to (`--with vercel-cli`); your agent can also run them through `npx` without installing. `csr-supabase` still pre-checks the Supabase *skills*.
 - **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills; `frontend-design` is not pre-checked — `--with frontend-design` adds it).
 - **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` and `product-skills` are opt-in on any track.
 - **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app. `frontend-design` is not pre-checked on either — `--with frontend-design` adds it.
