@@ -1,6 +1,12 @@
 # uzys-agent-harness
 
-A CLI that installs a harness for AI coding agents (Claude Code, Codex, OpenCode, Antigravity). A harness is the set of files an agent works from: working principles and a few short rules it reads every session, skills (task guides) it opens only when needed, hooks the tool runs on its own, and subagents such as a reviewer.
+**One command sets up an AI coding agent that works better as models get smarter.**
+
+If you have kept adding rules to Claude Code or Codex, you have probably seen this. The instruction file keeps growing, and the agent skips half of it. When a new model ships, the rules you wrote to stop the old model's mistakes start getting in the way.
+
+uzys-agent-harness doesn't pile up rules. It tells the agent what to base its judgment on, what result to deliver, and which lines it must not cross and why, then leaves the rest to the model. Because the model isn't boxed in by rules, a better model can put its full ability to work.
+
+One command installs rules and skills for your stack, plus third-party skills that come from official repositories or passed this project's vetting. On Claude Code you also get hooks that stop costly mistakes and a reviewer agent kept separate from the one that writes the code. Works with Claude Code, Codex, OpenCode, and Antigravity.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/tags)
@@ -14,9 +20,7 @@ A CLI that installs a harness for AI coding agents (Claude Code, Codex, OpenCode
 
 ## Philosophy and direction
 
-Models keep getting smarter. But if what you give an agent is a list of dos and don'ts, the model stays bound to that list however good it gets. Instructions written to stop an older model's mistakes end up holding a newer one back.
-
-This harness goes the other way. Instead of spelling out each step, it tells the agent how to make judgment calls, what result it should deliver, and where the limits are and why. Inside those limits, the model decides. The direction is that the same rules and skills produce better results as models improve.
+Give an agent a list of dos and don'ts and it stays inside that list however good the model gets. So this harness doesn't spell out each step. It gives judgment criteria, a goal, and limits, and lets the model find its own way inside them. It follows five principles.
 
 ### Judgment criteria, not checklists
 
@@ -50,14 +54,14 @@ An agent checking its own work tends to miss things. On Claude Code, a `reviewer
 
 The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
 
-## What you get from using it
+## Why use it
 
 - **Your instruction files stop growing.** Only a few short rules are read every session, and longer procedures open only when needed. You see the per-session token cost before you install.
 - **You don't have to direct every step.** With a goal, a finish line, and limits in place, you can hand the agent bigger pieces of work.
-- **Irreversible mistakes are blocked by mechanisms.** On Claude Code a hook blocks edits to `.env`, and running the bundled script once puts protection rules on your GitHub default branch.
-- **You don't have to take "done" on faith.** On Claude Code, the agent that checks is not the agent that built.
-- **Switching or mixing tools keeps the same standards.** All four tools get rules and skills generated from one source.
-- **It goes in and comes out cleanly.** Every installed file is recorded, so `update` and `uninstall` touch only what the harness added. Uninstalling returns your `CLAUDE.md` to how it was before.
+- **A few hard-to-undo mistakes are blocked by mechanisms.** On Claude Code a hook blocks edits to `.env`, and running the bundled script once puts protection rules on your GitHub default branch.
+- **Review goes to a separate agent.** On Claude Code, an agent other than the one that wrote the code checks the result.
+- **Switching or mixing tools keeps the same rules and skills.** All four tools get them generated from one source.
+- **It goes in and comes out cleanly.** Every installed file is recorded, so `update` and `uninstall` touch only what the harness added. Uninstalling removes only the harness's block from your `CLAUDE.md`.
 
 If you want to trust your AI coding agent with more, and spend less time rewriting instruction files every time the model changes, start here.
 
