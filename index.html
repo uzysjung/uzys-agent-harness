@@ -197,15 +197,15 @@
       <article class="card">
         <span class="n">4</span>
         <h3>Several viewpoints and several agents balance speed, cost, and quality</h3>
-        <p>The agent that built something doesn't judge its own work. Review goes to another agent, and when it helps, the work is examined through several users' eyes or a model from another vendor gives a second opinion.</p>
-        <p><strong>Each task gets a fitting model and reasoning effort: light work fast and cheap, important work done carefully.</strong></p>
+        <p>The agent that built something doesn't judge its own work. Review goes to another agent, and dev tracks also get a skill that examines the work from several user perspectives (personas).</p>
+        <p><strong>With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.</strong></p>
       </article>
     </div>
   </section>
 
   <section aria-labelledby="what-h">
     <h2 id="what-h">What you get</h2>
-    <p>One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your <code>CLAUDE.md</code> gets one marked block and nothing else is touched; uninstalling removes only what the harness added.</p>
+    <p>One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your <code>CLAUDE.md</code> gets one block marked with comments and nothing else is touched. On uninstall, shared files such as <code>CLAUDE.md</code> and <code>.mcp.json</code> lose only the harness's part.</p>
     <div class="clis" aria-label="Supported tools">
       <span class="lbl">Works with</span>
       <span class="chip">Claude Code</span>
@@ -213,7 +213,7 @@
       <span class="chip">OpenCode</span>
       <span class="chip">Antigravity</span>
     </div>
-    <p class="muted small" style="margin-top:12px;">Hooks and the reviewer agent run on Claude Code.</p>
+    <p class="muted small" style="margin-top:12px;">The hook that blocks file edits and the reviewer agent run on Claude Code.</p>
   </section>
 
   <section id="install" class="cta" aria-labelledby="install-h">
@@ -222,23 +222,24 @@
     <div class="cmd" aria-label="Install command">npx -y @uzysjung/agent-harness</div>
 
     <h3>The wizard asks five things</h3>
-<pre class="block">1/5  Tracks          what you are building (your stack). Items that fit it are pre-checked
+<pre class="block">1/5  Tracks          what you are building (a dev stack or a kind of work). Items that fit are pre-checked
 2/5  CLI             one or more of claude / codex / opencode / antigravity
 3/5  Install items   review the pre-checked items; drop or add anything
 4/5  Confirm         a summary, and how many tokens your selection adds per session
 5/5  Installing</pre>
-    <p class="small">Picking a stack pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one stack. Without the wizard, <code>--with &lt;id&gt;</code> and <code>--without &lt;id&gt;</code> make the same choices.</p>
+    <p class="small">Picking a track pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one track. Without the wizard, <code>--with &lt;id&gt;</code> and <code>--without &lt;id&gt;</code> make the same choices.</p>
 
     <h3>Then open your tool in the same folder</h3>
     <p class="small">The rules and skills apply from the first session:</p>
-<pre class="block">claude    # or codex / opencode / agy</pre>
+<pre class="block">claude    # or codex / opencode / agy (Antigravity)</pre>
 
     <h3>First thing to do</h3>
-    <p class="small">The install adds blank sections about your project to <code>CLAUDE.md</code> (or <code>AGENTS.md</code>). Tell your agent once:</p>
+    <p class="small">If your project had no <code>CLAUDE.md</code> (or <code>AGENTS.md</code>), the install creates one with blank sections about your project. Tell your agent once, and it reads the code and fills them in:</p>
 <pre class="block prompt">Use the audit-harness-fit skill to read the code and fill in the project sections.</pre>
-    <p class="small">It reads the repository and fills them in. Say the same thing later to check whether the setup still fits your project.</p>
+    <p class="small">Later, to check whether the setup still fits your project, use the same skill:</p>
+<pre class="block prompt">Use the audit-harness-fit skill to check whether the current setup fits this project.</pre>
 
-    <p class="cmdnote">No terminal for the wizard (CI, containers, scripts)? Use flags. The only required one is <code>install --track &lt;name&gt;</code> (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#non-interactive-install">non-interactive install</a>). Claude Code plugins need the <code>claude</code> command on your PATH. Without it they are skipped with a warning.</p>
+    <p class="cmdnote">No terminal for the wizard (CI, containers, scripts)? Run <code>install</code> with just <code>--track &lt;name&gt;</code> (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#non-interactive-install">installing without the wizard</a>). Claude Code plugins need the <code>claude</code> command on your PATH. Without it they are skipped with a warning.</p>
     <img class="demo" src="https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif" alt="agent-harness demo: one-command install of AI-coding rules and skills" loading="lazy">
   </section>
 
@@ -295,8 +296,8 @@
 │   └── settings.json         registers the hooks (merged with yours)
 ├── .mcp.json                 MCP servers: context7 (current library docs), github, and more (merged with yours)
 └── .uzys-agent-harness/      the install record and helper scripts</pre>
-    <p>All of it stays inside your project. Commit it like any other file, and teammates who clone the repo get the same setup.</p>
-    <p>Every track gets four skills for setting and keeping direction: <code>north-star</code> (what the project is for and what it won't do), <code>objective-brief</code> (one task's goal, definition of done, and limits), <code>gh-issue-workflow</code> (decisions kept in GitHub issues, not in chat), and <code>audit-harness-fit</code> (checks whether the setup fits your project). Your track adds stack skills on top (see <a href="#stacks-h">supported stacks</a>). The full file list is in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#what-the-harness-writes">what the harness writes</a>.</p>
+    <p>All of these files live inside your project. Commit it like any other file, and teammates who clone the repo get the same setup.</p>
+    <p>Every track gets four skills for setting and keeping direction: <code>north-star</code> (what the project is for and what it won't do), <code>objective-brief</code> (one task's goal, definition of done, and limits), <code>gh-issue-workflow</code> (decisions kept in GitHub issues, not in chat), and <code>audit-harness-fit</code> (checks whether the setup fits your project). Your track adds stack skills on top (see <a href="#stacks-h">supported stacks</a>). The full file list is in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#what-the-harness-writes">files the harness creates</a>.</p>
     <h3>What each tool gets</h3>
     <div class="tbl">
       <table class="reach">
@@ -314,12 +315,12 @@
 
   <section aria-labelledby="stacks-h">
     <h2 id="stacks-h">Supported stacks and the skills that come with them</h2>
-    <p>Picking a stack (track) pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">SECURITY.md</a>).</p>
+    <p>A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">SECURITY.md</a>).</p>
     <div class="tbl">
       <table class="stack">
         <thead><tr><th scope="col">Track</th><th scope="col">Stack</th><th scope="col">Pre-checked external skills and tools</th></tr></thead>
         <tbody>
-          <tr><td data-label="Track"><code>base</code></td><td data-label="Stack">No stack yet</td><td data-label="Pre-checked">None (common rules and method skills only)</td></tr>
+          <tr><td data-label="Track"><code>base</code></td><td data-label="Stack">No stack yet</td><td data-label="Pre-checked">None (common rules and the core skills only)</td></tr>
           <tr><td data-label="Track"><code>csr-supabase</code></td><td data-label="Stack">Vite + React + Supabase</td><td data-label="Pre-checked"><code>frontend-design</code>, <code>react-best-practices</code>, <code>shadcn-ui</code>, <code>supabase-agent-skills</code>, <code>postgres-best-practices</code></td></tr>
           <tr><td data-label="Track"><code>csr-fastify</code></td><td data-label="Stack">Vite + React + Fastify</td><td data-label="Pre-checked"><code>frontend-design</code>, <code>react-best-practices</code>, <code>shadcn-ui</code></td></tr>
           <tr><td data-label="Track"><code>csr-fastapi</code></td><td data-label="Stack">Vite + React + FastAPI</td><td data-label="Pre-checked"><code>frontend-design</code>, <code>react-best-practices</code>, <code>shadcn-ui</code></td></tr>
@@ -327,7 +328,7 @@
           <tr><td data-label="Track"><code>ssr-htmx</code></td><td data-label="Stack">htmx + FastAPI</td><td data-label="Pre-checked"><code>frontend-design</code></td></tr>
           <tr><td data-label="Track"><code>data</code></td><td data-label="Stack">Python data work (DuckDB, PySide6)</td><td data-label="Pre-checked"><code>frontend-design</code>, <code>anthropic-data-plugin</code></td></tr>
           <tr><td data-label="Track"><code>tooling</code></td><td data-label="Stack">Bash and Markdown projects with no app stack</td><td data-label="Pre-checked"><code>frontend-design</code></td></tr>
-          <tr><td data-label="Track"><code>full</code></td><td data-label="Stack">Every dev track</td><td data-label="Pre-checked">All of the above, plus <code>anthropic-document-skills</code></td></tr>
+          <tr><td data-label="Track"><code>full</code></td><td data-label="Stack">Every dev track, plus documents</td><td data-label="Pre-checked">All of the above, plus <code>anthropic-document-skills</code></td></tr>
           <tr><td data-label="Track"><code>executive</code></td><td data-label="Stack">Proposals, due diligence, decks, financial models</td><td data-label="Pre-checked"><code>anthropic-document-skills</code></td></tr>
           <tr><td data-label="Track"><code>project-management</code></td><td data-label="Stack">PM work</td><td data-label="Pre-checked">None (<code>product-skills</code> available)</td></tr>
           <tr><td data-label="Track"><code>growth-marketing</code></td><td data-label="Stack">Growth and content marketing</td><td data-label="Pre-checked">None (<code>marketingskills</code> available)</td></tr>
@@ -357,15 +358,15 @@
           <tr><td data-label="You want to…">Bring it to the current release</td><td data-label="Run"><code>npx -y @uzysjung/agent-harness update</code></td></tr>
           <tr><td data-label="You want to…">Add another tool later</td><td data-label="Run"><code>npx -y @uzysjung/agent-harness install --track &lt;your track&gt; --cli &lt;new cli&gt;</code></td></tr>
           <tr><td data-label="You want to…">Remove everything, one tool, or single assets</td><td data-label="Run"><code>npx -y @uzysjung/agent-harness uninstall</code> (<code>--cli &lt;name&gt;</code> · <code>--only &lt;id&gt;</code> · <code>--dry-run</code> to preview)</td></tr>
-          <tr><td data-label="You want to…">Cloned a repo a teammate set up with the harness</td><td data-label="Run">Nothing. The install record is committed with the files. <code>list</code> shows it; <code>update</code> and <code>uninstall</code> work as on their machine (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#teammates-and-fresh-clones">teammates and fresh clones</a>)</td></tr>
+          <tr><td data-label="You want to…">Cloned a repo a teammate set up with the harness</td><td data-label="Run">Nothing on the harness side. The install record is committed with the files, so <code>list</code> shows it and <code>update</code> and <code>uninstall</code> work as on their machine. The Claude Code plugin cache and the Codex trust entry live outside the project, so they don't come with the clone (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#teammates-and-fresh-clones">what cloning teammates should know</a>)</td></tr>
         </tbody>
       </table>
     </div>
     <p><code>update</code> refreshes what the harness installed, adds what a newer release introduced, and puts back harness files that went missing, such as a hook script, a server in <code>.mcp.json</code>, or a section of <code>AGENTS.md</code>. What you dropped on purpose with <code>--without</code> stays out. It never installs a tool you did not choose. <code>update --only skills</code> limits it to one group.</p>
-    <p>In a terminal, <code>uninstall</code> offers three choices (one tool, selected assets, or everything), and <code>--dry-run</code> shows the plan first. It never deletes <code>.claude/</code>, <code>.codex/</code>, or <code>.opencode/</code>: each is moved aside as <code>&lt;dir&gt;.backup-&lt;ts&gt;</code>, so files you put there yourself stay in the backup.</p>
+    <p>In a terminal, <code>uninstall</code> offers three choices (one tool, selected assets, or everything), and <code>--dry-run</code> shows the plan first. When you remove everything, <code>.claude/</code>, <code>.codex/</code>, and <code>.opencode/</code> are not deleted but renamed to something like <code>.claude.backup-&lt;time&gt;</code>. Files you put in them move along, so take back what you need from the backup.</p>
     <ul class="plain">
       <li><strong>Safe on an existing project.</strong> Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing <code>.mcp.json</code> servers are merged, not replaced (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#installing-into-an-existing-project">installing into an existing project</a>).</li>
-      <li><strong>Your project only.</strong> Nothing goes to <code>~/.opencode/</code>, <code>~/.gemini/</code>, or global npm. Two opt-in exceptions write outside the project: Claude Code plugins (the <code>claude</code> CLI keeps its plugin cache under <code>~/.claude/plugins/</code>), and <code>--with-codex-trust</code>, which adds one trust entry to <code>~/.codex/config.toml</code> so Codex reads its project config (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#scope">details</a>).</li>
+      <li><strong>Your project only.</strong> Nothing goes to <code>~/.opencode/</code>, <code>~/.gemini/</code>, or global npm. There are two exceptions: Claude Code plugins (the <code>claude</code> CLI keeps its plugin cache under <code>~/.claude/plugins/</code>), and <code>--with-codex-trust</code>, which adds one trust entry to <code>~/.codex/config.toml</code> so Codex reads its project config (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#scope">when it writes outside the project</a>).</li>
     </ul>
   </section>
 
@@ -377,7 +378,7 @@
         <tbody>
           <tr>
             <td data-label="If you currently…"><strong>Write your own <code>CLAUDE.md</code> or <code>AGENTS.md</code></strong></td>
-            <td data-label="How this is different">Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: a hook that actually blocks, a reviewer separate from the agent that builds, and an install record so <code>update</code> and <code>uninstall</code> touch only what the harness put there.</td>
+            <td data-label="How this is different">Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that actually blocks and a reviewer separate from the agent that builds; and an install record so <code>update</code> changes only what the harness put there.</td>
           </tr>
           <tr>
             <td data-label="If you currently…"><strong>Pick skills from a marketplace</strong></td>
@@ -398,7 +399,7 @@
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md">Usage guide</a>: install flags, scope, update, uninstall, per-CLI details, what gets written where</li>
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/TRACKS.md">Tracks</a>: what each track pre-checks</li>
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/COMPATIBILITY.md">Compatibility matrix</a>: every asset, its install method, which CLIs it reaches, and how it was verified</li>
-      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/CONTEXT-FILES.md">Which file is whose</a>: <code>CLAUDE.md</code>, the anchor, <code>AGENTS.md</code>, and the other context files</li>
+      <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/CONTEXT-FILES.md">Which file is whose</a>: <code>CLAUDE.md</code>, <code>CLAUDE-uzys-harness.md</code>, <code>AGENTS.md</code>, and the other instruction files</li>
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">Workflow guide</a>: the opt-in workflow bundles compared, and when you don't need one</li>
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">Security</a>: what vetting covers, what it doesn't, how to report</li>
       <li><a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/NORTH_STAR.md">North Star</a> · <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/decisions/">decisions</a>: why the harness is shaped this way</li>
