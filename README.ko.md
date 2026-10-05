@@ -164,21 +164,21 @@ your-project/
 | `csr-supabase` | Vite + React + Supabase | `frontend-design`, `react-best-practices`, `shadcn-ui`, `supabase-agent-skills`, `postgres-best-practices` |
 | `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
-| `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-nextjs` | Next.js (App Router) | `vercel-cli`, `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `ssr-htmx` | htmx + FastAPI | `frontend-design` |
-| `data` | Python 데이터 작업 (DuckDB, PySide6) | `frontend-design`, `anthropic-data-plugin` |
-| `tooling` | 앱 스택 없는 Bash·Markdown 프로젝트 | `frontend-design` |
-| `full` | 개발 트랙 전부와 문서 작업 | 위 항목 전부 + `anthropic-document-skills` |
+| `data` | Python 데이터 작업 (DuckDB, PySide6) | `anthropic-data-plugin` |
+| `tooling` | 앱 스택 없는 Bash·Markdown 프로젝트 | 없음 |
+| `full` | 개발 트랙 전부와 문서 작업 | `vercel-cli`를 뺀 위 항목 전부 + `anthropic-document-skills` |
 | `executive` | 제안서, 실사, 발표 자료, 재무 모델 | `anthropic-document-skills` |
 | `project-management` | PM 업무 | 없음 (`product-skills` 선택 가능) |
 | `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
-MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서), `github`, `chrome-devtools`가 들어가고, 웹 앱 트랙(`csr-*`, `ssr-*`)에는 `railway-mcp-server`가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다.
+MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서), `github`, `chrome-devtools`가 들어가고, `csr-*`와 `ssr-htmx` 트랙에는 배포용 `railway-mcp-server`가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`는 Vercel CLI가 기본이고, Railway MCP는 직접 고르면 들어간다.
 
 미리 체크되지는 않지만 3단계나 `--with <id>`로 더할 수 있는 것도 있다.
 
 - 프론트엔드·디자인: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
-- 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-skills`
+- 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `railway-skills`
 - 보안 리뷰: `security-guidance`, `trailofbits-skills`
 - 제품·마케팅·재무: `product-skills`, `marketingskills`, `finance-skills`
 - 발표·영상: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills` 등
