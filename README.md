@@ -1,10 +1,6 @@
 # uzys-agent-harness
 
-A CLI that installs a harness for AI coding agents (Claude Code, Codex, OpenCode, Antigravity) into your project. A harness is the set of files an agent works from: working principles (one file of judgment criteria) and a few short rules for areas like git, testing, and shipping, all read every session; skills (task guides) it opens only when needed; hooks the tool runs on its own; and subagents such as a reviewer.
-
-This harness has almost no lists of dos and don'ts. It explains how to make judgment calls, what a good result looks like, and where the limits are and why. Decisions inside those limits are left to the model. The aim is that the same rules and skills give better results as models get smarter.
-
-Installing, updating, and removing it is one command each.
+A CLI that installs a harness for AI coding agents (Claude Code, Codex, OpenCode, Antigravity). A harness is the set of files an agent works from: working principles and a few short rules it reads every session, skills (task guides) it opens only when needed, hooks the tool runs on its own, and subagents such as a reviewer.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/tags)
@@ -16,43 +12,58 @@ Installing, updating, and removing it is one command each.
 
 ---
 
-## How it's built
+## Philosophy and direction
+
+Models keep getting smarter. But if what you give an agent is a list of dos and don'ts, the model stays bound to that list however good it gets. Instructions written to stop an older model's mistakes end up holding a newer one back.
+
+This harness goes the other way. Instead of spelling out each step, it tells the agent how to make judgment calls, what result it should deliver, and where the limits are and why. Inside those limits, the model decides. The direction is that the same rules and skills produce better results as models improve.
 
 ### Judgment criteria, not checklists
 
-If you fix a procedure, the model follows it even on work where it doesn't fit. So the harness doesn't set procedures. It says what to weigh when deciding. The working-principles file opens with: "These are shared decision principles, not a fixed workflow."
+If you fix a procedure, the model follows it even where it doesn't fit. So the harness doesn't set procedures. It says what to weigh when deciding.
 
 A typical rule:
 
 > Add unit tests for every change and get a review before every commit.
 
-This harness:
+This harness's working principles:
 
 > Choose the depth, timing, and combination of testing, review, and release checks according to actual impact, uncertainty, recovery cost, and existing evidence.
 
 Under the first rule, fixing a typo takes the same steps as changing billing logic. The second gives the model a reason to treat them differently. It doesn't mean testing less. It lets the model judge how much is needed.
 
-### The goal and the finish line come first
+### Goal and finish line first
 
-Instead of prescribing a method, the harness tells the model what done looks like. The `north-star` skill records what the project is for and what it won't do. The `objective-brief` skill does the same for a single task: its goal, completion criteria, and boundaries. Methods are not fixed. If there is a better path to the same result, the model can take it.
+Instead of prescribing a method, the harness first says what done looks like. The `north-star` skill records what the project is for and what it won't do. The `objective-brief` skill does the same for each task: its goal, completion criteria, and boundaries. Methods are not fixed. If there is a better path to the same result, the model can take it.
 
 ### Limits come with reasons, and very few are enforced
 
-Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when the work you handed over doesn't cover them. Routine progress inside that work is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script puts protection rules on your GitHub default branch.
+Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script puts protection rules on your GitHub default branch.
 
-### Instructions the model no longer needs come out
+### What the model now does well comes out of the instructions
 
-Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So the wizard shows how many tokens your selection adds to every session before you install, and the `audit-harness-fit` skill looks for instructions your project no longer needs and for procedures that make the agent check the same thing over and over, then suggests what to change.
+Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
 
 ### The agent that builds is not the one that checks
 
-An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort per task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
+An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
 
-The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md) (installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`), and the project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
+The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
+
+## What you get from using it
+
+- **Your instruction files stop growing.** Only a few short rules are read every session, and longer procedures open only when needed. You see the per-session token cost before you install.
+- **You don't have to direct every step.** With a goal, a finish line, and limits in place, you can hand the agent bigger pieces of work.
+- **Irreversible mistakes are blocked by mechanisms.** On Claude Code a hook blocks edits to `.env`, and running the bundled script once puts protection rules on your GitHub default branch.
+- **You don't have to take "done" on faith.** On Claude Code, the agent that checks is not the agent that built.
+- **Switching or mixing tools keeps the same standards.** All four tools get rules and skills generated from one source.
+- **It goes in and comes out cleanly.** Every installed file is recorded, so `update` and `uninstall` touch only what the harness added. Uninstalling returns your `CLAUDE.md` to how it was before.
+
+If you want to trust your AI coding agent with more, and spend less time rewriting instruction files every time the model changes, start here.
 
 ## Quick start
 
-You need Node 20.12 or newer. Run this in your project folder:
+You need Node.js 20.12 or newer. Run this in your project folder:
 
 ```bash
 npx -y @uzysjung/agent-harness
@@ -61,12 +72,14 @@ npx -y @uzysjung/agent-harness
 The wizard asks five things:
 
 ```
-1/5  Tracks          what you are building (a stack). This only pre-checks items
+1/5  Tracks          what you are building (your stack). Items that fit it are pre-checked
 2/5  CLI             one or more of claude / codex / opencode / antigravity
-3/5  Install items   items for your track are pre-checked. Uncheck what you don't want
+3/5  Install items   review the pre-checked items; drop or add anything
 4/5  Confirm         a summary, and how many tokens your selection adds per session
 5/5  Installing
 ```
+
+Picking a stack pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one stack. Without the wizard, `--with <id>` and `--without <id>` make the same choices.
 
 Then open your AI coding tool in the same folder. The rules and skills apply from the first session:
 
@@ -104,7 +117,7 @@ your-project/
 
 All of it stays inside your project. Commit it like any other file, and teammates who clone the repo get the same setup.
 
-Every track gets four skills for setting and keeping direction: `north-star` (what the project is for and what it won't do), `objective-brief` (one task's goal, definition of done, and limits), `gh-issue-workflow` (decisions kept in GitHub issues, not in chat), and `audit-harness-fit` (checks whether the setup fits your project). Your track adds stack skills. `csr-supabase`, for example, gets React, shadcn, Supabase, and Postgres skills. Add or drop any bundled skill by name with `--with` / `--without`. The full file list is in [what the harness writes](docs/USAGE.md#what-the-harness-writes).
+Every track gets four skills for setting and keeping direction: `north-star` (what the project is for and what it won't do), `objective-brief` (one task's goal, definition of done, and limits), `gh-issue-workflow` (decisions kept in GitHub issues, not in chat), and `audit-harness-fit` (checks whether the setup fits your project). Your track adds stack skills on top (see [supported stacks](#supported-stacks-and-the-skills-that-come-with-them)). The full file list is in [what the harness writes](docs/USAGE.md#what-the-harness-writes).
 
 What each tool gets:
 
@@ -117,18 +130,37 @@ What each tool gets:
 
 Plugins are a Claude Code feature, so only Claude Code gets them. Rules and skills come from the same source, so they say the same thing in every tool. What a tool can block on its own differs.
 
-## Pick a track
+## Supported stacks and the skills that come with them
 
-A **track** is a starting set for what you are building. It only pre-checks items at step 3 — you can uncheck anything, and pick more than one track.
+Picking a stack (track) pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting ([SECURITY.md](SECURITY.md)).
 
-- **No stack yet** — `base`: principles, method skills, and testing rules; nothing stack-specific (every dev track already includes it)
-- **Frontend + backend** — `csr-supabase` · `csr-fastify` · `csr-fastapi` · `ssr-nextjs` · `ssr-htmx`
-- **Data** — `data`
-- **Business** — `executive` · `project-management` · `growth-marketing`
-- **Meta** — `tooling`: Bash and Markdown projects with no app stack
-- **Everything** — `full`
+| Track | Stack | Pre-checked external skills and tools |
+|---|---|---|
+| `base` | No stack yet | None (common rules and method skills only) |
+| `csr-supabase` | Vite + React + Supabase | `frontend-design`, `react-best-practices`, `shadcn-ui`, `supabase-agent-skills`, `postgres-best-practices` |
+| `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-htmx` | htmx + FastAPI | `frontend-design` |
+| `data` | Python data work (DuckDB, PySide6) | `frontend-design`, `anthropic-data-plugin` |
+| `tooling` | Bash and Markdown projects with no app stack | `frontend-design` |
+| `full` | Every dev track | All of the above, plus `anthropic-document-skills` |
+| `executive` | Proposals, due diligence, decks, financial models | `anthropic-document-skills` |
+| `project-management` | PM work | None (`product-skills` available) |
+| `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-[What each track installs →](docs/TRACKS.md)
+MCP servers come too. Every track gets `context7` (current library docs), `github`, and `chrome-devtools`. Web app tracks (`csr-*`, `ssr-*`) add `railway-mcp-server`, and `csr-supabase` adds `supabase`. `full` gets both.
+
+More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
+
+- Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
+- Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-skills`
+- Security review: `security-guidance`, `trailofbits-skills`
+- Product, marketing, finance: `product-skills`, `marketingskills`, `finance-skills`
+- Slides and video: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills`, and more
+- Teams that want a fixed development process: `openspec`, `bmad-method` (compared in [WORKFLOWS.md](docs/WORKFLOWS.md))
+
+Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's source, install method, and supported tools are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## Day to day
 

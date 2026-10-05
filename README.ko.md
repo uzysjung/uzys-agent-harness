@@ -1,10 +1,6 @@
 # uzys-agent-harness
 
-AI 코딩 에이전트(Claude Code, Codex, OpenCode, Antigravity)용 하네스를 프로젝트에 설치하는 도구다. 하네스는 에이전트가 일할 때 기준으로 삼는 파일 묶음이다. 매 세션 읽는 작업 원칙(판단 기준을 담은 파일 하나)과 짧은 룰(git, 테스트, 배포 같은 영역별 기준), 필요할 때만 여는 스킬(작업 안내서), 도구가 알아서 실행하는 훅, reviewer 같은 서브에이전트로 이뤄진다.
-
-이 하네스에는 "이건 해라, 저건 하지 마라" 식의 목록이 거의 없다. 대신 어떻게 판단할지, 어떤 결과가 좋은 결과인지, 넘으면 안 되는 선이 어디이고 왜 그런지를 설명하고, 그 안의 결정은 모델에게 맡긴다. 모델이 똑똑해질수록 같은 룰과 스킬로 더 좋은 결과를 내는 것, 이것이 이 하네스가 추구하는 방향이다.
-
-설치, 업데이트, 삭제는 각각 명령 하나로 한다.
+AI 코딩 에이전트(Claude Code, Codex, OpenCode, Antigravity)에 하네스를 설치해 주는 도구다. 하네스란 에이전트가 일할 때 기준으로 삼는 파일 묶음을 말한다. 매 세션 읽는 작업 원칙과 짧은 룰, 필요할 때만 꺼내 보는 스킬(작업 안내서), 도구가 알아서 실행하는 훅, reviewer 같은 서브에이전트가 여기에 들어간다.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/tags)
@@ -16,73 +12,90 @@ AI 코딩 에이전트(Claude Code, Codex, OpenCode, Antigravity)용 하네스�
 
 ---
 
-## 어떻게 만드는가
+## 철학과 방향
 
-### 할 일 목록 대신 판단 기준을 적는다
+모델은 계속 똑똑해진다. 그런데 에이전트에게 "이건 해라, 저건 하지 마라" 식의 목록을 주면, 모델이 아무리 좋아져도 그 목록 안에서만 움직인다. 예전 모델의 실수를 막으려고 적어 둔 지시가 나중에는 오히려 발목을 잡는다.
 
-절차를 정해 두면 모델은 그 절차가 맞지 않는 작업에서도 그대로 따른다. 그래서 이 하네스는 순서를 정하지 않고, 무엇을 따져서 정할지를 적는다. 작업 원칙 파일의 첫 문장도 "고정된 작업 순서가 아니라 함께 쓰는 판단 원칙"이다.
+이 하네스는 반대로 간다. 할 일을 하나하나 정해 주지 않는다. 대신 무엇을 기준으로 판단할지, 어떤 결과를 내야 하는지, 넘으면 안 되는 선이 어디이고 왜 그런지를 알려 준다. 그 테두리 안에서는 모델이 스스로 방법을 찾는다. 모델이 좋아질수록 같은 룰과 스킬에서 더 좋은 결과가 나오게 하려는 것이다.
 
-예를 들어 흔한 룰은 이렇게 쓴다.
+### 목록 대신 판단 기준을 준다
+
+절차를 못 박아 두면 모델은 맞지 않는 일에서도 그 절차를 그대로 따른다. 그래서 이 하네스는 순서를 정하지 않고, 무엇을 따져 보고 정하면 되는지를 적는다.
+
+흔히 보는 룰은 이렇다.
 
 > 모든 변경에 단위 테스트를 추가하고, 커밋 전에는 반드시 리뷰를 받는다.
 
-이 하네스의 작업 원칙은 이렇게 쓴다.
+이 하네스의 작업 원칙은 이렇다.
 
-> 테스트, 리뷰, 릴리즈 점검의 깊이와 시점은 변경의 실제 영향, 불확실성, 되돌리는 비용, 이미 있는 근거에 맞춰 고른다.
+> 테스트와 리뷰를 언제, 얼마나 깊게 할지는 변경이 미치는 영향, 불확실성, 되돌리는 데 드는 비용, 이미 확보한 근거를 종합해 정한다.
 
-앞의 룰을 따르면 오타 하나를 고칠 때도 결제 로직을 바꿀 때와 같은 절차를 밟는다. 뒤의 원칙은 두 작업을 다르게 다룰 근거를 준다. 테스트를 줄이라는 말이 아니라, 필요한 만큼을 모델이 판단하게 하는 것이다.
+앞의 룰대로라면 오타 하나를 고칠 때도 결제 로직을 바꿀 때와 똑같은 절차를 밟아야 한다. 뒤의 원칙을 따르면 일의 경중에 따라 다르게 다룰 수 있다. 테스트를 생략하라는 뜻이 아니라, 얼마나 필요한지를 모델이 직접 판단하게 하는 것이다.
 
-### 목표와 완료 기준을 먼저 잡는다
+### 목표와 완료 기준부터 잡는다
 
-방법을 지정하는 대신, 어떤 상태가 되면 끝난 것인지를 알려 준다. `north-star` 스킬은 프로젝트가 무엇을 위해 있고 무엇은 하지 않을지를 정리하고, `objective-brief` 스킬은 작업 하나의 목표와 완료 기준, 경계를 정리한다. 방법은 고정하지 않는다. 같은 결과에 이르는 더 나은 길이 보이면 모델이 그 길을 택하면 된다.
+일하는 방법을 정해 주는 대신, 어떤 상태가 되면 끝난 것인지부터 정한다. `north-star` 스킬로 프로젝트가 왜 있고 무엇은 하지 않을지를 정리하고, `objective-brief` 스킬로 작업마다 목표와 완료 기준, 경계를 정리한다. 방법은 정해 두지 않는다. 같은 결과에 이르는 더 좋은 길이 있으면 모델이 그 길로 가면 된다.
 
-### 경계는 이유와 함께 적고, 기계적으로 막는 것은 최소로 한다
+### 경계는 이유와 함께 알려 주고, 강제로 막는 것은 최소로 한다
 
-넘으면 안 되는 선은 분명하게 적는다. 되돌리기 어려운 삭제, 배포, 여러 사람이 함께 쓰는 저장소나 데이터베이스에 기록하는 작업은 맡긴 일의 범위를 벗어나면 먼저 묻게 한다. 맡긴 범위 안의 일상적인 진행은 매번 묻지 않고 끝까지 하도록 한다. 강제로 막는 장치는 두 가지뿐이다. Claude Code에서 `.env`, lock 파일, 인증서 편집을 막는 훅이 있고, GitHub 기본 브랜치에 보호 규칙을 거는 스크립트가 있다.
+넘으면 안 되는 선은 분명히 적는다. 되돌리기 어려운 삭제나 배포, 여러 사람이 함께 쓰는 저장소나 데이터베이스에 기록하는 일은 맡긴 범위를 벗어나면 먼저 묻게 한다. 맡긴 범위 안의 일은 매번 묻지 않고 끝까지 하도록 한다. 강제로 막는 장치는 두 가지뿐이다. 하나는 Claude Code에서 `.env`, lock 파일, 인증서를 고치지 못하게 막는 훅이고, 다른 하나는 GitHub 기본 브랜치에 보호 규칙을 거는 스크립트다.
 
 ### 모델이 잘하게 된 일은 지시에서 뺀다
 
-매 세션 읽는 지시는 그만큼 컨텍스트를 차지한다. 예전 모델의 약점을 메우려고 넣은 지시가 더 나은 모델에게는 방해가 되기도 한다. 그래서 설치 위저드는 선택한 항목 때문에 매 세션 늘어나는 토큰 수를 설치 전에 보여 주고, `audit-harness-fit` 스킬은 내 프로젝트에서 더는 필요 없어진 지시나 같은 확인을 여러 번 하게 만드는 절차를 찾아 고칠 곳을 제안한다.
+매 세션 읽는 지시는 그만큼 컨텍스트를 차지한다. 예전 모델의 약점을 메우려던 지시는 더 나은 모델에게 방해가 되기도 한다. 그래서 설치할 때는 고른 항목 때문에 매 세션 토큰이 얼마나 늘어나는지 먼저 보여 준다. 설치한 뒤에는 `audit-harness-fit` 스킬이 내 프로젝트에서 더는 필요 없는 지시나 똑같은 확인을 되풀이하게 만드는 절차를 찾아, 고칠 곳을 알려 준다.
 
 ### 만드는 에이전트와 검사하는 에이전트를 나눈다
 
-자기가 한 작업을 자기가 검사하면 놓치기 쉽다. Claude Code에서는 코드를 작성하지 않은 `reviewer` 서브에이전트가 테스트나 앱을 직접 실행해 결과를 검사한다. 선택 스킬 `model-orchestration`을 더하면 에이전트가 작업마다 모델과 추론 강도를 고른다. 가벼운 작업은 빠르고 싸게, 판단할 것이 많은 작업은 더 강한 설정으로 맡겨 속도와 비용, 품질 사이의 균형을 맞춘다.
+자기가 한 일을 자기가 검사하면 놓치기 쉽다. Claude Code에서는 코드를 짜지 않은 `reviewer` 서브에이전트가 테스트나 앱을 직접 돌려 보고 결과를 검사한다. 선택 스킬인 `model-orchestration`을 더하면 에이전트가 일마다 어떤 모델에게 얼마나 깊이 생각하게 할지 고른다. 가벼운 일은 빠르고 싸게, 판단할 게 많은 일은 더 강한 모델에게 맡겨 속도와 비용, 품질 사이에서 균형을 잡는다.
 
-작업 원칙 전문은 [templates/CLAUDE.md](templates/CLAUDE.md)(설치하면 `CLAUDE-uzys-harness.md`로 놓이고 내 `CLAUDE.md`가 한 줄로 불러온다), 방향 문서는 [docs/NORTH_STAR.md](docs/NORTH_STAR.md)에 있다.
+작업 원칙 전문은 [templates/CLAUDE.md](templates/CLAUDE.md)에서 볼 수 있다. 설치하면 이 파일이 `CLAUDE-uzys-harness.md`라는 이름으로 들어가고, 내 `CLAUDE.md`는 한 줄로 이 파일을 불러온다. 프로젝트의 방향은 [docs/NORTH_STAR.md](docs/NORTH_STAR.md)에 정리해 두었다.
+
+## 그래서 쓰면 이런 점이 좋다
+
+- **지시 파일이 불어나지 않는다.** 매 세션 읽는 것은 짧은 룰 몇 개뿐이고, 긴 절차는 필요할 때만 연다. 설치하기 전에 세션마다 늘어나는 토큰 수도 확인할 수 있다.
+- **일일이 지시하지 않아도 된다.** 목표와 완료 기준, 경계가 정해져 있으니 에이전트에게 일을 더 크게 맡길 수 있다.
+- **되돌릴 수 없는 사고는 장치로 막는다.** Claude Code에서는 훅이 `.env` 편집을 막고, 함께 들어 있는 스크립트를 한 번 실행하면 GitHub 기본 브랜치에 보호 규칙이 걸린다.
+- **"다 됐어요"를 그대로 믿지 않아도 된다.** Claude Code에서는 만든 에이전트와 검사하는 에이전트가 다르다.
+- **도구를 바꾸거나 섞어 써도 기준이 같다.** 네 도구 모두 같은 원본에서 만든 룰과 스킬을 받는다.
+- **넣고 빼기가 깔끔하다.** 설치한 파일을 모두 기록해 두기 때문에 업데이트나 삭제를 해도 하네스가 넣은 것만 바뀐다. 하네스를 지우면 내 `CLAUDE.md`도 설치 전 모습으로 돌아온다.
+
+AI 코딩 에이전트에게 일을 더 믿고 맡기고 싶다면, 모델이 바뀔 때마다 지시 파일을 고치는 수고를 덜고 싶다면 이 하네스로 시작해 보자.
 
 ## 빠른 시작
 
-Node.js 20.12 이상이 필요하다. 프로젝트 폴더에서 다음 명령어를 실행한다.
+Node.js 20.12 이상이 필요하다. 프로젝트 폴더에서 다음 명령을 실행한다.
 
 ```bash
 npx -y @uzysjung/agent-harness
 ```
 
-대화형 마법사가 다섯 단계로 설정을 진행한다.
+설치 마법사가 다섯 단계로 묻는다.
 
 ```
-1/5  Tracks          프로젝트 기술 스택을 선택한다(관련 항목을 미리 체크해 주는 역할).
-2/5  CLI             claude / codex / opencode / antigravity 중 하나 이상을 고른다.
-3/5  Install items   선택한 트랙에 맞춰 항목이 체크되어 있다. 불필요한 항목은 해제한다.
-4/5  Confirm         설치 요약과, 이번 설정으로 매 세션 늘어나는 토큰 수를 확인한다.
+1/5  Tracks          무엇을 만드는지 고른다(스택). 고른 스택에 맞는 항목이 미리 체크된다
+2/5  CLI             claude / codex / opencode / antigravity 중 하나 이상을 고른다
+3/5  Install items   미리 체크된 항목을 보고 빼거나 더한다
+4/5  Confirm         요약과, 이 선택으로 매 세션 늘어나는 토큰 수를 확인한다
 5/5  Installing
 ```
 
-설치가 끝나면 같은 폴더에서 AI 코딩 도구를 실행한다. 첫 세션부터 룰과 스킬이 바로 적용된다.
+스택을 고르면 그 스택에 맞는 룰과 스킬, 외부 도구가 미리 체크된다. 어디까지나 추천이다. 3단계에서 무엇을 넣고 뺄지는 모두 직접 정하면 되고, 스택을 여러 개 골라도 된다. 마법사 없이 설치할 때도 `--with <id>`와 `--without <id>`로 똑같이 고를 수 있다.
+
+설치가 끝나면 같은 폴더에서 AI 코딩 도구를 연다. 첫 세션부터 룰과 스킬이 적용된다.
 
 ```bash
 claude    # 또는 codex / opencode / agy
 ```
 
-**설치 후 처음 할 일.** `CLAUDE.md`(또는 `AGENTS.md`)에 프로젝트를 설명하는 빈칸이 생성된다. 에이전트에게 다음처럼 지시한다.
+**설치 후 처음 할 일.** `CLAUDE.md`(또는 `AGENTS.md`)에 내 프로젝트를 설명하는 빈칸이 생긴다. 에이전트에게 이렇게 한 번 말하면 된다.
 
 ```
 audit-harness-fit 스킬로 코드를 읽고 프로젝트 설명 빈칸을 채워 줘.
 ```
 
-에이전트가 저장소를 분석해 빈칸을 채운다. 나중에 이 지시를 다시 내리면, 현재 설정이 프로젝트에 계속 적합한지 점검해 준다.
+에이전트가 저장소를 읽고 빈칸을 채운다. 나중에 같은 말을 다시 하면 지금 설정이 프로젝트에 여전히 맞는지 점검해 준다.
 
-CI, 컨테이너, 스크립트처럼 대화형 마법사를 쓸 수 없는 환경에서는 플래그로 설치한다. 필수 플래그는 `install --track <name>` 하나다([비대화형 설치](docs/USAGE.md#non-interactive-install)). Claude Code 플러그인은 환경 변수 PATH에 `claude` 명령어가 있어야 설치되며, 없으면 경고를 남기고 건너뛴다.
+CI, 컨테이너, 스크립트처럼 마법사를 띄울 수 없는 곳에서는 플래그로 설치한다. 꼭 필요한 플래그는 `install --track <name>` 하나다([비대화형 설치](docs/USAGE.md#non-interactive-install)). Claude Code 플러그인은 PATH에 `claude` 명령이 있어야 설치되고, 없으면 경고만 남기고 건너뛴다.
 
 ## 설치되는 것
 
@@ -91,29 +104,29 @@ Claude Code에 개발 트랙으로 설치하면 프로젝트 폴더에 다음 �
 ```
 your-project/
 ├── CLAUDE.md                 내 파일. 끝에 하네스 블록 하나만 추가된다(없으면 새로 만든다).
-├── CLAUDE-uzys-harness.md    에이전트가 매 세션 읽는 작업 원칙이다.
+├── CLAUDE-uzys-harness.md    에이전트가 매 세션 읽는 작업 원칙.
 ├── .claude/
-│   ├── rules/                짧은 룰 파일들. 에이전트가 매 세션 읽는다.
-│   ├── skills/               작업 안내서. 에이전트는 평소 한 줄 설명만 읽고, 필요할 때 본문을 연다.
-│   ├── agents/               메인 에이전트가 작업을 위임하는 서브에이전트(reviewer, implementer 등).
+│   ├── rules/                짧은 룰 파일. 매 세션 읽는다.
+│   ├── skills/               작업 안내서. 평소에는 한 줄 설명만 읽고, 필요할 때 본문을 연다.
+│   ├── agents/               메인 에이전트가 일을 넘기는 서브에이전트(reviewer, implementer 등).
 │   ├── hooks/                도구가 자동으로 실행하는 훅 스크립트(세션 시작, 파일 보호).
-│   └── settings.json         훅 등록 파일(기존 설정과 병합된다).
-├── .mcp.json                 context7(최신 라이브러리 문서), github 등 MCP 서버 설정(기존 설정과 병합된다).
-└── .uzys-agent-harness/      설치 기록과 보조 스크립트를 담은 폴더.
+│   └── settings.json         훅을 등록한다. 기존 설정과 합친다.
+├── .mcp.json                 context7(최신 라이브러리 문서), github 등 MCP 서버. 기존 설정과 합친다.
+└── .uzys-agent-harness/      설치 기록과 보조 스크립트.
 ```
 
-모든 파일은 프로젝트 내부에만 저장된다. 이를 다른 파일처럼 커밋하면, 저장소를 클론한 팀원도 같은 설정을 공유한다.
+파일은 모두 프로젝트 안에만 생긴다. 다른 파일처럼 커밋해 두면 저장소를 클론한 팀원도 같은 설정을 쓴다.
 
-어느 트랙을 선택하든 작업 방향을 잡는 기본 스킬 네 가지가 포함된다.
+어느 트랙을 고르든 일의 방향을 잡아 주는 기본 스킬 네 개가 들어간다.
 
 - `north-star`: 프로젝트 목적과 하지 않을 일
 - `objective-brief`: 개별 작업의 목표, 완료 기준, 제약 사항
-- `gh-issue-workflow`: 결정을 채팅 대신 GitHub 이슈에 기록
+- `gh-issue-workflow`: 결정 사항을 채팅이 아니라 GitHub 이슈에 남김
 - `audit-harness-fit`: 현재 설정이 프로젝트에 맞는지 점검
 
-여기에 선택한 트랙에 따라 기술 스택 스킬이 추가된다. 예를 들어 `csr-supabase` 트랙은 React, shadcn, Supabase, Postgres 스킬을 포함한다. `--with`나 `--without` 플래그에 스킬 이름을 적어 개별적으로 더하거나 뺄 수 있다. 전체 파일 목록은 [하네스가 쓰는 파일](docs/USAGE.md#what-the-harness-writes)에서 확인한다.
+여기에 트랙별 스택 스킬이 더해진다(아래 [지원하는 스택](#지원하는-스택과-함께-제공하는-스킬) 참고). 전체 파일 목록은 [하네스가 쓰는 파일](docs/USAGE.md#what-the-harness-writes)에 있다.
 
-도구별 지원 범위는 다음과 같다.
+도구마다 받는 것은 다음과 같다.
 
 | 도구 | 룰 | 스킬 | 훅 | 서브에이전트 | 플러그인 |
 |---|---|---|---|---|---|
@@ -122,56 +135,75 @@ your-project/
 | OpenCode | ✓ (`AGENTS.md` 안에 포함) | ✓ | — | — | — |
 | Antigravity | ✓ | ✓ | — | — | — |
 
-플러그인은 Claude Code의 고유 기능이므로 Claude Code에만 설치된다. 룰과 스킬은 동일한 원본을 사용하므로 어떤 도구에서든 내용이 같다. 단, 도구 자체가 지원하는 제어(차단) 기능의 범위는 도구마다 다르다.
+플러그인은 Claude Code에만 있는 기능이라 Claude Code에만 설치된다. 룰과 스킬은 같은 원본에서 만들기 때문에 어느 도구에서나 내용이 같다. 다만 도구가 스스로 막아 줄 수 있는 범위는 도구마다 다르다.
 
-## 트랙 고르기
+## 지원하는 스택과 함께 제공하는 스킬
 
-**트랙**은 프로젝트 성격에 맞춰 미리 구성한 기본 설정 묶음이다. 설치 마법사 3단계에서 관련 항목을 자동 체크해 주는 역할만 하므로, 필요 없는 항목은 해제하거나 여러 트랙을 중복 선택해도 된다.
+스택(트랙)을 고르면 아래 외부 스킬과 도구가 미리 체크된다. 미리 체크되는 것은 모두 공식 저장소이거나 이 프로젝트의 검증 기준을 통과한 저장소다([SECURITY.md](SECURITY.md)).
 
-- **스택 미정** — `base`: 기본 원칙, 방법론 스킬, 테스트 룰을 제공한다. 특정 기술 스택에 얽매이지 않는다(다른 모든 개발 트랙에도 기본으로 포함된다).
-- **프론트엔드 + 백엔드** — `csr-supabase` · `csr-fastify` · `csr-fastapi` · `ssr-nextjs` · `ssr-htmx`
-- **데이터** — `data`
-- **비즈니스** — `executive` · `project-management` · `growth-marketing`
-- **메타** — `tooling`: 특정 앱 기술 스택이 없는 Bash나 Markdown 프로젝트용
-- **전부** — `full`
+| 트랙 | 스택 | 미리 체크되는 외부 스킬·도구 |
+|---|---|---|
+| `base` | 스택 미정 | 없음 (공통 룰과 방법론 스킬만) |
+| `csr-supabase` | Vite + React + Supabase | `frontend-design`, `react-best-practices`, `shadcn-ui`, `supabase-agent-skills`, `postgres-best-practices` |
+| `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-htmx` | htmx + FastAPI | `frontend-design` |
+| `data` | Python 데이터 작업 (DuckDB, PySide6) | `frontend-design`, `anthropic-data-plugin` |
+| `tooling` | 앱 스택 없는 Bash·Markdown 프로젝트 | `frontend-design` |
+| `full` | 개발 트랙 전부 | 위 항목 전부 + `anthropic-document-skills` |
+| `executive` | 제안서, 실사, 발표 자료, 재무 모델 | `anthropic-document-skills` |
+| `project-management` | PM 업무 | 없음 (`product-skills` 선택 가능) |
+| `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
-[트랙별 설치 항목 확인하기 →](docs/TRACKS.md)
+MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서), `github`, `chrome-devtools`가 들어가고, 웹 앱 트랙(`csr-*`, `ssr-*`)에는 `railway-mcp-server`가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다.
+
+미리 체크되지는 않지만 3단계나 `--with <id>`로 더할 수 있는 것도 있다.
+
+- 프론트엔드·디자인: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
+- 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-skills`
+- 보안 리뷰: `security-guidance`, `trailofbits-skills`
+- 제품·마케팅·재무: `product-skills`, `marketingskills`, `finance-skills`
+- 발표·영상: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills` 등
+- 정해진 개발 절차가 필요한 팀: `openspec`, `bmad-method` ([WORKFLOWS.md](docs/WORKFLOWS.md)에서 비교)
+
+트랙별 전체 구성은 [docs/TRACKS.md](docs/TRACKS.md)에, 항목별 출처와 설치 방식, 지원 도구는 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)에 있다.
 
 ## 매일 쓰는 명령
 
-| 하고 싶은 일 | 실행할 명령어 |
+| 하고 싶은 일 | 명령 |
 |---|---|
-| 이 프로젝트에 설치된 항목 확인 | `npx -y @uzysjung/agent-harness list` |
-| 최신 릴리스로 업데이트 | `npx -y @uzysjung/agent-harness update` |
-| 나중에 다른 도구 추가 | `npx -y @uzysjung/agent-harness install --track <내 트랙> --cli <새 CLI>` |
-| 도구 하나, 개별 자산, 또는 전체 삭제 | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>`, `--only <id>`, 설치 전 미리보기 `--dry-run`) |
-| 팀원이 하네스 설정이 포함된 저장소를 클론했을 때 | 추가 작업이 필요 없다. 파일과 설치 기록이 커밋되어 있어 `list`로 확인할 수 있고, 팀원의 기기에서도 `update`와 `uninstall`이 동일하게 작동한다([팀원 및 새 클론](docs/USAGE.md#teammates-and-fresh-clones)). |
+| 설치된 항목 보기 | `npx -y @uzysjung/agent-harness list` |
+| 최신 버전으로 업데이트 | `npx -y @uzysjung/agent-harness update` |
+| 다른 도구 추가 | `npx -y @uzysjung/agent-harness install --track <내 트랙> --cli <새 CLI>` |
+| 전부, 도구 하나, 항목 일부 지우기 | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>`, `--only <id>`, 지우기 전에 미리 보기 `--dry-run`) |
+| 팀원이 하네스를 설치해 둔 저장소를 클론했을 때 | 따로 할 일이 없다. 설치 기록이 파일과 함께 커밋돼 있어서 `list`로 바로 확인할 수 있고, `update`와 `uninstall`도 팀원 컴퓨터에서와 똑같이 동작한다([팀원과 새 클론](docs/USAGE.md#teammates-and-fresh-clones)). |
 
-`update` 명령어는 하네스가 설치한 항목을 갱신하고, 새 릴리스에 추가된 기능을 반영하며, 유실된 하네스 파일(훅 스크립트, `.mcp.json`의 서버 설정, `AGENTS.md`의 일부 섹션 등)을 복구한다. `--without` 플래그로 제외했던 항목은 계속 제외 상태를 유지하며, 사용자가 선택하지 않은 도구는 절대 설치하지 않는다. `update --only skills`처럼 특정 그룹만 업데이트하도록 제한할 수도 있다.
+`update`는 하네스가 설치한 것을 새 버전으로 바꾸고, 새 버전에 추가된 것을 넣고, 없어진 하네스 파일(훅 스크립트, `.mcp.json`의 서버, `AGENTS.md`의 하네스 절 등)을 되살린다. `--without`으로 일부러 뺀 항목은 계속 빠져 있고, 고르지 않은 도구는 설치하지 않는다. `update --only skills`처럼 한 묶음만 업데이트할 수도 있다.
 
-터미널에서 `uninstall`을 실행하면 삭제 대상(도구 하나, 선택한 자산, 전체)을 선택할 수 있다. `--dry-run`을 쓰면 삭제 계획을 미리 보여 준다. 이 명령어는 `.claude/`, `.codex/`, `.opencode/` 폴더를 직접 지우지 않고 `<dir>.backup-<ts>` 형태로 백업하므로, 사용자가 직접 추가한 파일은 안전하게 보존된다.
+터미널에서 `uninstall`을 실행하면 무엇을 지울지(도구 하나, 고른 항목, 전부) 고를 수 있고, `--dry-run`을 붙이면 지우기 전에 계획을 먼저 보여 준다. `.claude/`, `.codex/`, `.opencode/` 폴더는 지우지 않고 `<dir>.backup-<ts>`로 옮겨 두기 때문에, 내가 그 안에 넣어 둔 파일도 백업에 남는다.
 
-**기존 프로젝트에도 안전하다.** 사용자가 고친 파일을 교체할 때는 먼저 같은 폴더에 타임스탬프가 찍힌 백업 파일을 만들고 경로를 안내한다. 사용자가 직접 작성하거나 수정한 파일은 백업 없이 지우지 않으며, 기존 `.mcp.json` 서버 설정도 교체 대신 병합 방식을 따른다([기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project)).
+**이미 진행 중인 프로젝트에 설치해도 된다.** 내가 고친 파일을 바꿔야 할 때는 같은 폴더에 시간이 적힌 백업을 먼저 만들고 그 경로를 알려 준다. 내가 쓰거나 고친 파일은 백업 없이 지우지 않고, 기존 `.mcp.json`의 서버도 덮어쓰지 않고 합친다([기존 프로젝트에 설치하기](docs/USAGE.md#installing-into-an-existing-project)).
 
-**내 프로젝트에만 적용된다.** `~/.opencode/`, `~/.gemini/` 폴더나 전역 npm에는 어떤 파일도 기록하지 않는다. 단, 명시적으로 동의했을 때 프로젝트 외부에 설정이 쓰이는 예외가 두 가지 있다. 하나는 Claude Code 플러그인(`claude` CLI가 플러그인 캐시를 `~/.claude/plugins/`에 저장함)이고, 다른 하나는 Codex가 프로젝트 설정을 읽도록 허용하기 위해 `~/.codex/config.toml`에 신뢰(trust) 항목을 추가하는 `--with-codex-trust` 옵션이다([자세히](docs/USAGE.md#scope)).
+**프로젝트 밖은 건드리지 않는다.** `~/.opencode/`, `~/.gemini/`, 전역 npm에는 아무것도 쓰지 않는다. 예외는 직접 고른 경우의 두 가지뿐이다. Claude Code 플러그인을 설치하면 `claude` CLI가 플러그인 캐시를 `~/.claude/plugins/`에 두고, `--with-codex-trust`를 쓰면 Codex가 프로젝트 설정을 읽을 수 있도록 `~/.codex/config.toml`에 신뢰 항목 하나를 추가한다([자세히](docs/USAGE.md#scope)).
 
 ## 이미 다른 방법을 쓰고 있다면
 
 | 지금 이렇게 하고 있다면 | 이 하네스와 다른 점 |
 |---|---|
-| `CLAUDE.md`나 `AGENTS.md`를 직접 쓴다 | 기존 파일은 유지된다. 하네스는 표시된 블록 하나만 덧붙이고 나머지는 건드리지 않는다. 파일 하나로 불가능한 기능(실제 차단용 훅, 작업과 검토를 분리한 서브에이전트, `update`·`uninstall` 이 하네스가 넣은 것만 건드리게 하는 설치 기록)을 더해 준다. |
-| 마켓플레이스에서 스킬을 골라 쓴다 | 스킬 하나만 필요하다면 단건으로 설치하면 된다. `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` (id 목록은 `--list` 플래그나 [skills.sh](https://skills.sh/uzysjung/uzys-agent-harness)에서 확인한다). 하네스 설치 마법사는 단순 스킬 추가를 넘어 상시 룰, 훅, 서브에이전트, 그리고 이를 최신으로 유지하는 설치 기록 관리를 위해 쓴다. |
-| 룰이 많은 다른 하네스를 쓴다 | 상시 지시 사항을 최소화하여, 설치 전에 매 세션 소모되는 토큰 수를 미리 보여 준다. 정해진 순서대로 개발해야 한다면 외부 워크플로 키트인 `openspec`이나 `bmad-method`를 추가로 쓸 수 있다. 둘 다 선택 사항이며 [WORKFLOWS.md](docs/WORKFLOWS.md)에서 비교할 수 있다. |
+| `CLAUDE.md`나 `AGENTS.md`를 직접 쓴다 | 그 파일은 그대로 둔다. 하네스는 표시해 둔 블록 하나만 붙이고 나머지는 건드리지 않는다. 대신 파일 하나로는 할 수 없는 것을 더해 준다. 실제로 막는 훅, 만드는 에이전트와 따로 있는 검사 에이전트, 그리고 업데이트와 삭제가 하네스가 넣은 것만 건드리게 하는 설치 기록이다. |
+| 마켓플레이스에서 스킬을 골라 쓴다 | 스킬 하나만 필요하면 그것만 받으면 된다. `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` (id 목록은 `--list`나 [skills.sh](https://skills.sh/uzysjung/uzys-agent-harness)에서 볼 수 있다). 설치 마법사는 스킬 목록만으로는 채울 수 없는 것, 곧 매 세션 읽는 룰과 훅, 서브에이전트, 그리고 이것들을 최신으로 유지하는 설치 기록을 위한 것이다. |
+| 룰이 많은 다른 하네스를 쓴다 | 매 세션 읽는 지시가 적고, 설치 전에 세션마다 드는 토큰 수를 보여 준다. 정해진 순서대로 개발하는 방식이 필요하면 외부 워크플로 키트인 `openspec`이나 `bmad-method`를 더하면 된다. 둘 다 선택이며 [WORKFLOWS.md](docs/WORKFLOWS.md)에 비교해 두었다. |
 
 ## 문서
 
-- [사용 안내](docs/USAGE.md) — 설치 플래그, 적용 범위, update, uninstall 명령어, CLI 환경별 세부 사항, 생성되는 파일의 용도와 위치
-- [트랙](docs/TRACKS.md) — 트랙 선택 시 자동 체크되는 항목 목록
-- [호환성 표](docs/COMPATIBILITY.md) — 자산별 설치 방식, 지원하는 CLI, 검증 방법
+- [사용 안내](docs/USAGE.md) — 설치 플래그, 설치 범위, update와 uninstall, 도구별 세부 사항, 생기는 파일과 위치
+- [트랙](docs/TRACKS.md) — 트랙마다 미리 체크되는 항목
+- [호환성 표](docs/COMPATIBILITY.md) — 항목별 설치 방식, 지원 도구, 검증 방법
 - [어느 파일이 누구 것인가](docs/CONTEXT-FILES.md) — `CLAUDE.md`, 앵커, `AGENTS.md` 등 컨텍스트 파일 설명
-- [워크플로 안내](docs/WORKFLOWS.md) — 선택해서 추가할 수 있는 외부 워크플로 키트 비교 및 사용 가이드
+- [워크플로 안내](docs/WORKFLOWS.md) — 골라서 더할 수 있는 외부 워크플로 키트 비교, 필요 없는 경우
 - [보안](SECURITY.md) — 외부 자산 검증이 확인하는 것과 확인하지 않는 것, 취약점 신고 방법
-- [North Star](docs/NORTH_STAR.md) · [결정 기록](docs/decisions/) — 하네스 설계 철학과 아키텍처 결정 배경
+- [North Star](docs/NORTH_STAR.md) · [결정 기록](docs/decisions/) — 설계 철학과 주요 결정의 배경
 
 ## License
 
