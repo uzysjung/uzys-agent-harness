@@ -1,71 +1,40 @@
 # uzys-agent-harness
 
-**One command sets up an AI coding agent that works better as models get smarter.**
-
-If you have kept adding rules to Claude Code or Codex, you have probably seen this. The instruction file keeps growing, and the agent skips half of it. When a new model ships, the rules you wrote to stop the old model's mistakes start getting in the way.
-
-uzys-agent-harness doesn't pile up rules. It tells the agent what to base its judgment on, what result to deliver, and which lines it must not cross and why, then leaves the rest to the model. Because the model isn't boxed in by rules, a better model can put its full ability to work.
-
-One command installs rules and skills for your stack, plus third-party skills that come from official repositories or passed this project's vetting. On Claude Code you also get hooks that stop costly mistakes and a reviewer agent kept separate from the one that writes the code. Works with Claude Code, Codex, OpenCode, and Antigravity.
+**A harness that helps your AI coding agent work smarter, and work better as models improve.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/tags)
 [![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
-![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
-
 🇰🇷 [한국어](./README.ko.md)
 
 ---
 
-## Philosophy and direction
+If you have kept adding rules to Claude Code or Codex, you have probably run into this. The instruction file keeps growing, and the agent misses more and more of it. Even when a new model ships, the rules you wrote to stop the old model's mistakes get in its way.
 
-Give an agent a list of dos and don'ts and it stays inside that list however good the model gets. So this harness doesn't spell out each step. It gives judgment criteria, a goal, and limits, and lets the model find its own way inside them. It follows five principles.
+uzys-agent-harness doesn't tie the agent down with a list of rules. It builds the agent's working environment on four ideas.
 
-### Judgment criteria, not checklists
+### 1. As models get better, the harness gets better with them
 
-If you fix a procedure, the model follows it even where it doesn't fit. So the harness doesn't set procedures. It says what to weigh when deciding.
+Instead of piling up dos and don'ts, it tells the agent what to base its judgment on and which lines it must not cross. For example, instead of "add tests to every change," it says "decide how deeply to verify based on the change's impact and the cost of undoing it." Instructions for things the model now does well on its own come out. So when a new model arrives, the agent can use what it can do instead of being held back by old rules.
 
-A typical rule:
+### 2. With a direction and limits, the agent goes further on its own
 
-> Add unit tests for every change and get a review before every commit.
+Before work is handed over, the project's direction, the task's definition of done, and the lines not to cross are set first. With those to check against, the agent tries, checks its work, and fixes it, again and again, on its own. It can work longer without step-by-step direction, and it is told to ask you only about the decisions that are yours.
 
-This harness's working principles:
+### 3. The harness stays light
 
-> Choose the depth, timing, and combination of testing, review, and release checks according to actual impact, uncertainty, recovery cost, and existing evidence.
+Every instruction the agent reads each session takes up context, and as they pile up the important ones get buried. So only short rules are read every session, and longer procedures are opened only when needed. Each release drops what is no longer useful, and you can find and drop stale instructions in your own project too. The point is to keep the agent focused on the instructions it actually needs.
 
-Under the first rule, fixing a typo takes the same steps as changing billing logic. The second gives the model a reason to treat them differently. It doesn't mean testing less. It lets the model judge how much is needed.
+### 4. Several viewpoints and several agents balance speed, cost, and quality
 
-### Goal and finish line first
+The agent that built something doesn't judge its own work. Review goes to another agent, and when it helps, the work is examined through several users' eyes or a model from another vendor gives a second opinion. Each task gets a fitting model and reasoning effort: light work fast and cheap, important work done carefully.
 
-Instead of prescribing a method, the harness first says what done looks like. The `north-star` skill records what the project is for and what it won't do. The `objective-brief` skill does the same for each task: its goal, completion criteria, and boundaries. Methods are not fixed. If there is a better path to the same result, the model can take it.
+One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your `CLAUDE.md` gets one marked block and nothing else is touched; uninstalling removes only what the harness added. Works with Claude Code, Codex, OpenCode, and Antigravity; hooks and the reviewer agent run on Claude Code.
 
-### Limits come with reasons, and very few are enforced
+## Install it now
 
-Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script puts protection rules on your GitHub default branch.
-
-### What the model now does well comes out of the instructions
-
-Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
-
-### The agent that builds is not the one that checks
-
-An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
-
-The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
-
-## Why use it
-
-- **Your instruction files stop growing.** Only a few short rules are read every session, and longer procedures open only when needed. You see the per-session token cost before you install.
-- **You don't have to direct every step.** With a goal, a finish line, and limits in place, you can hand the agent bigger pieces of work.
-- **A few hard-to-undo mistakes are blocked by mechanisms.** On Claude Code a hook blocks edits to `.env`, and running the bundled script once puts protection rules on your GitHub default branch.
-- **Review goes to a separate agent.** On Claude Code, an agent other than the one that wrote the code checks the result.
-- **Switching or mixing tools keeps the same rules and skills.** All four tools get them generated from one source.
-- **It goes in and comes out cleanly.** Every installed file is recorded, so `update` and `uninstall` touch only what the harness added. Uninstalling removes only the harness's block from your `CLAUDE.md`.
-
-If you want to trust your AI coding agent with more, and spend less time rewriting instruction files every time the model changes, start here.
-
-## Quick start
+![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
 
 You need Node.js 20.12 or newer. Run this in your project folder:
 
@@ -100,6 +69,46 @@ Use the audit-harness-fit skill to read the code and fill in the project section
 It reads the repository and fills them in. Say the same thing later to check whether the setup still fits your project.
 
 No terminal for the wizard (CI, containers, scripts)? Use flags. The only required one is `install --track <name>` ([non-interactive install](docs/USAGE.md#non-interactive-install)). Claude Code plugins need the `claude` command on your PATH. Without it they are skipped with a warning.
+
+---
+
+## In detail
+
+From here on: how the ideas above are put into practice, what gets installed, and which stacks are supported.
+
+## How the principles are built in
+
+### Judgment criteria, not checklists
+
+If you fix a procedure, the model follows it even where it doesn't fit. So the harness doesn't set procedures. It says what to weigh when deciding.
+
+A typical rule:
+
+> Add unit tests for every change and get a review before every commit.
+
+This harness's working principles:
+
+> Choose the depth, timing, and combination of testing, review, and release checks according to actual impact, uncertainty, recovery cost, and existing evidence.
+
+Under the first rule, fixing a typo takes the same steps as changing billing logic. The second gives the model a reason to treat them differently. It doesn't mean testing less. It lets the model judge how much is needed.
+
+### Goal and finish line first
+
+Instead of prescribing a method, the harness first says what done looks like. The `north-star` skill records what the project is for and what it won't do. The `objective-brief` skill does the same for each task: its goal, completion criteria, and boundaries. Methods are not fixed. If there is a better path to the same result, the model can take it.
+
+### Limits come with reasons, and very few are enforced
+
+Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script puts protection rules on your GitHub default branch.
+
+### What the model now does well comes out of the instructions
+
+Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
+
+### The agent that builds is not the one that checks
+
+An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
+
+The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
 
 ## What gets installed
 
