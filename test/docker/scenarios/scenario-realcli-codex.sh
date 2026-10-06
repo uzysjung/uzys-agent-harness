@@ -30,7 +30,8 @@ failed=0
 echo "── Tier A: harness project-scope write ──"
 # `--with uzys-harness` 를 뺐다 — 그 자산은 ADR-023 에서 없어져 지금은 `[WARN] Unknown asset id`
 # 만 찍히고 건너뛴다. 죽은 플래그를 남기면 다음 사람이 이 시나리오의 범위를 오해한다.
-agent-harness install --track tooling --cli codex --scope project >/tmp/install-codex.log 2>&1 \
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+agent-harness install --track tooling --with frontend-design --cli codex --scope project >/tmp/install-codex.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-codex.log; exit 1; }
 
 missing=0
