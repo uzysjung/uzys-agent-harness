@@ -62,7 +62,8 @@ for cli in ${CLI_LIST}; do
   rm -rf "${PROJ}"; mkdir -p "${PROJ}"
   cd "${PROJ}" || { echo "FAIL: cd ${PROJ}"; failed=1; continue; }
 
-  agent-harness install --track tooling --cli "${cli}" --scope project \
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+  agent-harness install --track tooling --with frontend-design --cli "${cli}" --scope project \
     >"/tmp/single-${cli}.log" 2>&1
   code=$?
   if [[ "${code}" -ne 0 ]]; then

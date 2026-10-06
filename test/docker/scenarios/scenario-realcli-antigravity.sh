@@ -38,7 +38,8 @@ echo ""
 # ── Tier A: harness project-scope write ──
 echo "── Tier A: harness project-scope write ──"
 # `--with uzys-harness` 를 뺐다 — ADR-023 으로 없어진 자산이라 지금은 경고만 찍고 건너뛴다.
-agent-harness install --track tooling --cli antigravity --scope project >/tmp/install-agy.log 2>&1 \
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+agent-harness install --track tooling --with frontend-design --cli antigravity --scope project >/tmp/install-agy.log 2>&1 \
   || { echo "FAIL: install 실패"; cat /tmp/install-agy.log; exit 1; }
 
 missing=0

@@ -41,7 +41,8 @@ shape() {
 PROJ=/tmp/proj-upd-skills
 rm -rf "${PROJ}"; mkdir -p "${PROJ}"; cd "${PROJ}"
 
-agent-harness install --track tooling --scope project --cli claude --cli codex >/dev/null
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+agent-harness install --track tooling --with frontend-design --scope project --cli claude --cli codex >/dev/null
 
 if [[ ! -f "${PROJ}/${LOG_REL}" ]]; then
   echo "FAIL: 설치 기록이 없다 — 이 시나리오가 검증할 대상이 없다"
@@ -141,7 +142,8 @@ echo "✓ update 화면에 external skills 행이 뜬다"
 # ───────────────────── B. claude 단독 — .agents 금지 ─────────────────────
 SOLO=/tmp/proj-upd-skills-solo
 rm -rf "${SOLO}"; mkdir -p "${SOLO}"; cd "${SOLO}"
-agent-harness install --track tooling --scope project --cli claude >/dev/null
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+agent-harness install --track tooling --with frontend-design --scope project --cli claude >/dev/null
 
 if [[ -e "${SOLO}/.agents" ]]; then
   echo "FAIL: claude 단독 install 이 .agents/ 를 만들었다 — 이 시나리오의 전제가 깨졌다"
@@ -206,10 +208,10 @@ GLB=/tmp/proj-upd-skills-global
 rm -rf "${GLB}"; mkdir -p "${GLB}"; cd "${GLB}"
 # 새 설치는 Global 을 받지 않는다(#560). 옛 Global 설치본 = project 설치 뒤 기록 scope 를 global 로 —
 # 그러면 install 이 같은 플래그를 받아 외부 자산을 홈에 다시 깐다(옛 판이 남긴 상태와 같은 모양).
-agent-harness install --track tooling --cli claude >/dev/null 2>&1
+agent-harness install --track tooling --with frontend-design --cli claude >/dev/null 2>&1
 GLOG="${GLB}/.uzys-agent-harness/.harness-install.json"
 jq '.scope = "global"' "${GLOG}" > "${GLOG}.tmp" && mv "${GLOG}.tmp" "${GLOG}"
-agent-harness install --track tooling --scope global --cli claude >/dev/null 2>&1
+agent-harness install --track tooling --with frontend-design --scope global --cli claude >/dev/null 2>&1
 
 GSKILL="${HOME}/.claude/skills/frontend-design/SKILL.md"
 if [[ ! -f "${GSKILL}" ]]; then
