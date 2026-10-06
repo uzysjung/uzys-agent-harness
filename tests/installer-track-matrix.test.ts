@@ -98,19 +98,25 @@ describe("Track matrix — assets called per track", () => {
 
   // #709 (ADR-101) — 트랙 기본값은 스택이 정한다: UI 가 없는 data · tooling 은 frontend-design 을 받지 않는다.
   //   #715 — vercel-cli 는 어느 트랙에서도 미리 받지 않는다(ADR-063 그대로). 고르면 들어간다.
-  it("#709 #715 — data/tooling 은 frontend-design 을 안 받는다 · ssr-nextjs · full 은 vercel-cli 를 미리 받지 않는다", () => {
+  //   설치를 트랙마다 따로 돌리므로 it 을 나눈다 — 한 it 에 7회를 몰면 커버리지 측정 중 5초 제한을 넘는다.
+  it("#715 — ssr-nextjs 는 vercel-cli 를 미리 받지 않고, 고르면 받는다", () => {
     expect(runForTrack(["ssr-nextjs"]).ids).not.toContain("vercel-cli");
     expect(runForTrack(["ssr-nextjs"], {}, ["vercel-cli"]).ids).toContain("vercel-cli");
+  });
+
+  it("#709 — data/tooling 은 frontend-design 을 안 받는다 · 고르면 받는다", () => {
     for (const t of ["data", "tooling"] as const)
       expect(runForTrack([t]).ids, `${t} 가 frontend-design 을 받았다`).not.toContain(
         "frontend-design",
       );
-    expect(runForTrack(["full"]).ids).not.toContain("vercel-cli");
-    // 대조군 — UI 트랙은 그대로 받는다
-    expect(runForTrack(["csr-fastapi"]).ids).toContain("frontend-design");
-    expect(runForTrack(["full"]).ids).toContain("frontend-design");
-    // 명시적 opt-in 은 UI 없는 트랙에서도 된다(고를 수는 있다)
     expect(runForTrack(["data"], {}, ["frontend-design"]).ids).toContain("frontend-design");
+  });
+
+  it("#709 #715 대조군 — UI 트랙은 frontend-design 을 받고 full 도 vercel-cli 는 미리 받지 않는다", () => {
+    expect(runForTrack(["csr-fastapi"]).ids).toContain("frontend-design");
+    const full = runForTrack(["full"]).ids;
+    expect(full).toContain("frontend-design");
+    expect(full).not.toContain("vercel-cli");
   });
 
   it("ssr-htmx: 트랙 조건 자산 없음 — dev baseline 만 (v26.106.0 ADR-035, impeccable opt-in)", () => {
