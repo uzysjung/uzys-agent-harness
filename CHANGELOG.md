@@ -7,6 +7,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.164.0] — 2026-10-06 (갱신은 조용하고 · 빼면 깨끗이 빠진다 — 설치자 디스크 한 원칙 3단계)
+
+### Changed
+- **빼기는 명시할 때만 기록되고, 기록된 빼기는 모든 설치가 지킨다** (ADR-099, PR #693 · #698).
+  - 전: 하네스 몫이 디스크에서 사라지면 "설치자가 뺐다"로 추론해 영구히 되살리지 않았다(#641 · #633 · #675). `--without` 은 그 실행에만 걸려 다음 플래그 없는 install · update 가 다시 깔았다(#566).
+  - 후: 빼기는 `--without <id>` 와 위저드 체크 해제만 기록한다. install 의 선택이 기록의 최신 선택을 대체하고, update · uninstall 은 그 선택을 지킨다. 손으로 지운 하네스 몫은 `update` 한 번이 되돌리고 `was missing — restored` 로 알린다.
+  - 대상: 훅 스크립트와 settings.json 배선 · `.mcp.json` 서버 · AGENTS.md · `.codex/config.toml` · `opencode.json` · Antigravity 앵커와 룰 · `.gitignore` 줄(#598 · #584 · #675).
+  - 26.162.1 에서 "빼기 기록"으로 굳은 훅 배선도 이 판 update 1회로 복구된다.
+  - `--with` · `--without` 이 `baseline:` id 와 함께 쓰는 파일의 키 id(`mcp:github` · `agents-md:agents` 등)를 받는다. 같은 id 를 둘 다에 주면 거절한다(#616).
+  - 선택 이력이 설치 기록 `selections` 에 남고 `list` 가 보여 준다.
+  - 하네스 몫이 0개면 파일을 만들지 않는다(전: `{}` 파일).
+- **설치 기록을 저장소에 싣는다 — 팀원은 클론만으로 관리 상태가 된다** (ADR-100, #658, PR #702).
+  - 하네스의 `.gitignore` 몫이 `.uzys-agent-harness/` 폴더 대신 런타임 파일 두 개(`hook-blocks.log` · `update-backups.json`)만 무시한다. 설치 기록과 보조 스크립트를 커밋하면 클론한 팀원의 `list` · `update` · `uninstall` 이 같은 답을 낸다.
+  - 같은 판 update 는 기록 바이트를 바꾸지 않는다.
+  - 기존 저장소는 다음 install · update 가 줄을 바꾸고 "commit .uzys-agent-harness/" 를 안내한다.
+  - 팀 단위 결과: 팀원이 플래그 없이 `install` 하면 팀의 빼기가 풀리고 `↺` 로 표시된다. README · USAGE "Teammates and fresh clones".
+- **설치 기록이 없는 프로젝트에서는 `list` · `update` · `uninstall` 이 같은 답을 내고 아무것도 쓰지 않는다** (#595, PR #699).
+  - 전: 하네스를 깐 적 없는 프로젝트에서 `update` 가 exit 0 으로 하네스를 깔았고, `uninstall` 로는 되돌릴 수 없었다.
+  - 후: 세 명령이 같은 첫 줄과 exit 1 로 끝난다. 하네스 흔적이 보이면 `install --track <t>` 를 제안한다.
+  - 기록이 깨졌으면 "충돌 표지가 있으면 한쪽을 통째로 고른다 · 아니면 `install --reinstall`(기록된 빼기 · 외부 자산을 잊는다)" 를 안내한다.
+  - 기록이 생기기 전 판(npm 미게시)을 위한 추론 경로를 걷어냈다.
+  - **문구 변경**: `ERROR: install log not found` → `✗ No harness install found` 다. exit code 는 같다.
+- **설치 기록의 트랙이 덮이지 않고 쌓인다** (#585 · #677, PR #703).
+  - 다른 트랙으로 CLI 를 더 깔아도 기록이 `[data, tooling]` 처럼 누적되고, 무변경 Update 는 update 로 돈다.
+  - 옛 판이 트랙 밖에 깐 하네스 룰(Antigravity `cli-development.md`)을 update 가 치운다. 고친 파일은 하나만 백업한다.
+  - 옛 판이 덮어쓴 기록은 기록 안의 근거로 한 번 되살린다.
+- **링크 너머가 프로젝트 밖이면 install · update · uninstall 셋 다 쓰지도 지우지도 않는다** (ADR-098, #678 · #692 · #694, PR #688 · #695 · #696).
+  - 화면은 "남김 + `링크 → 대상`" 과 그 아래 하네스 파일 목록을 말한다. 밖을 가리키는 `.codex` · `.opencode` · `.claude` 링크 자체도 백업 이름으로 옮기지 않는다.
+  - `--keep-templates` 안내는 밖 파일을 "삭제해도 안전"이라 하지 않는다.
+- **상태 줄 패키지(`@owloops/claude-powerline`)를 확인한 판 `1.32.1` 로 고정한다** (#609, PR #689). 새 판은 월간 점검이 이슈로 알린다.
+- **트랙 기본값이 스택에 맞게 바뀐다 — 기존 설치는 그대로** (#709 · #715, PR #710 · #716, ADR-101 · ADR-102).
+  - 새 설치: `data`·`tooling` 은 `frontend-design` 을 미리 체크하지 않는다. `ssr-nextjs` 에서 Railway MCP(`railway-mcp-server`)는 직접 고를 때만 들어간다. 다른 트랙은 그대로다. `vercel-cli` 는 모든 트랙에서 계속 opt-in 이다(#715, PR #716, ADR-102 — Next.js 의 Vercel 기본은 공식 MCP #711 로).
+  - Railway MCP 를 위저드 3단계와 `--with`/`--without railway-mcp-server` 로 고를 수 있다. 직접 빼면 `.mcp.json`·Codex·OpenCode 세 곳에서 모두 빠진다(예전 `--without mcp:railway-mcp-server` 도 같다).
+  - 이미 받은 `frontend-design`·Railway 서버는 update·재설치·CLI 추가 뒤에도 남는다.
+  - 후속: Vercel 공식 MCP(#711) · 보관된 `@railway/mcp-server` 교체(#712) · MCP 서버 카탈로그화(#713) · vercel 핀 갱신(#714).
+- **README 와 랜딩 페이지를 처음 보는 사람 기준으로 다시 쓴다** (#704 · #705, PR #706 · #707).
+  - 순서: 한 줄 약속 → 겪는 문제 → 철학 4가지(모델과 함께 발전 · 방향과 경계로 스스로 루프 · 늘 가볍게 · 여러 관점과 에이전트로 속도·비용·품질)와 각각 에이전트가 어떻게 달라지는지 → 지금 설치하기 → 자세히 알아보기.
+  - 새 절: 지원 스택과 트랙별로 미리 체크되는 외부 스킬 표, "추천은 미리 체크하고 선택은 전부 직접".
+  - `docs/NORTH_STAR.md` §1 에 철학 4가지를 기존 Pillar·자산과 잇는 표를 더했다.
+
+### Fixed
+- **update 화면이 원인을 사실대로 말한다** (#557 · #625, PR #700).
+  - 체크섬을 기록하지 않던 옛 판의 첫 update 는 `no checksum on record N` 으로 따로 센다(전: "당신이 편집함" + 다시 얹으라는 안내).
+  - 고친 `.codex/config.toml` 하네스 구간은 `harness part left as you edited it` 로 알린다. 그 구간이 옛 훅 형식이면 돌지 않는다는 것도 함께 말한다.
+  - codex 를 깔면 첫 실행 때 Codex 가 `/hooks` 에서 훅 검토를 묻는다고 안내한다.
+- **상주 비용 줄이 실제 디스크를 센다** (#615, PR #683 · #697). 이번에 깐 파일만 세고, update 는 갱신 뒤 디스크로 잰다. 바이트가 같은 앵커를 `refreshed` 라 하지 않는다. `list` 의 `Assets` 는 `External assets` 로 바뀐다.
+- **도중에 멈춘 install 이 쓴 것을 기록한다** (#600, PR #691). 다시 실행하거나 uninstall 하면 정리된다.
+- **uninstall 이 하네스가 넣은 것만 기록대로 뺀다** (#573 · #569 · #676 · #610, PR #686). 대상은 외부 스킬 경로 · 루트 함께 쓰는 파일 몫이고, 사전 점검을 거친다.
+- **Codex 전역 trust 항목** (#644, PR #684). 깨진 `~/.codex/config.toml` 에는 쓰지 않는다. uninstall 은 손수 지울 항목으로 알린다.
+- 위저드 Update 메뉴와 `update --help` 가 실제 갱신 묶음 전부를 말한다(#622, PR #701). 릴리즈 신호용 도커 시나리오 3개를 이 판의 계약(빼기는 명시할 때만 · 기록 없는 프로젝트는 아무것도 쓰지 않음)으로 다시 쟀다(#595, PR #708). USAGE 가 install 재실행이 실제로 하는 일을 적는다(#599, PR #690). 릴리즈 CI job 에 15분 제한을 둔다(#679, PR #687).
+
+### 알려진 한계 (후속 이슈)
+- 26.163.0 이하 update 가 이미 지운 Codex 쪽 기록은 근거가 없어 되살리지 못한다.
+- claude 없는 설치의 update 비용 줄과 install 헤더는 아직 계획 기준이다(#615, v26.165.0).
+- `--with-codex-trust` 의 TOML 표기 차이 · 특수 문자 경로(#685).
+
 ## [v26.163.0] — 2026-10-04 (깨지지 않고 · 화면이 사실대로 말한다 — 설치자 디스크 한 원칙 2단계)
 
 ### Changed
