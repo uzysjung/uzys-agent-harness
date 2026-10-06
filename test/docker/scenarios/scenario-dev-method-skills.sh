@@ -73,7 +73,8 @@ assert_absent() {
 PROJ=/tmp/proj-devmethod
 rm -rf "${PROJ}"; mkdir -p "${PROJ}"; cd "${PROJ}" || { echo "FAIL: cd"; exit 1; }
 LOG=/tmp/devmethod-install.log
-agent-harness install --track tooling \
+# tooling 은 #709(ADR-101)부터 외부 스킬을 미리 받지 않는다 — 외부 스킬 도달을 보려고 frontend-design 을 고른다.
+agent-harness install --track tooling --with frontend-design \
   --cli claude --cli codex --cli opencode --cli antigravity \
   --scope project >"${LOG}" 2>&1 || { echo "FAIL: install 실패"; cat "${LOG}"; exit 1; }
 
