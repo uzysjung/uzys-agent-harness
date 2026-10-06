@@ -1,137 +1,216 @@
 # uzys-agent-harness
 
-Give your AI coding tool the few rules, hooks, and skills it actually needs — and nothing it doesn't. One wizard installs a vetted set for your stack, scoped to your project.
-
-Works with **Claude Code** · **Codex** · **OpenCode** · **Antigravity**.
+**A harness that helps your AI coding agent work smarter, and work better as models improve.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/github/v/tag/uzysjung/uzys-agent-harness?label=version)](https://github.com/uzysjung/uzys-agent-harness/tags)
 [![CI](https://github.com/uzysjung/uzys-agent-harness/actions/workflows/test.yml/badge.svg)](https://github.com/uzysjung/uzys-agent-harness/actions)
 
-![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
-
 🇰🇷 [한국어](./README.ko.md)
 
 ---
 
-## Quick start
+If you have kept adding rules to Claude Code or Codex, you have probably run into this. The instruction file keeps growing, and the agent misses more and more of it. Even when a new model ships, the rules you wrote to stop the old model's mistakes get in its way.
 
-You need Node 20.12 or newer. Run this in your project folder:
+uzys-agent-harness doesn't tie the agent down with a list of rules. It builds the agent's working environment on four ideas.
+
+### 1. As models get better, the harness gets better with them
+
+Instead of piling up dos and don'ts, it tells the agent what to base its judgment on and which lines it must not cross. For example, instead of "add tests to every change," it says "decide how deeply to verify based on the change's impact and the cost of undoing it." Instructions for things the model now does well on its own come out. So when a new model arrives, the agent can use what it can do instead of being held back by old rules.
+
+### 2. With a direction and limits, the agent goes further on its own
+
+Before work is handed over, the project's direction, the task's definition of done, and the lines not to cross are set first. With those to check against, the agent tries, checks its work, and fixes it, again and again, on its own. It can work longer without step-by-step direction, and it is told to ask you only about the decisions that are yours.
+
+### 3. The harness stays light
+
+Every instruction the agent reads each session takes up context, and as they pile up the important ones get buried. So only short rules are read every session, and longer procedures are opened only when needed. Each release drops what is no longer useful, and you can find and drop stale instructions in your own project too. The point is to keep the agent focused on the instructions it actually needs.
+
+### 4. Several viewpoints and several agents balance speed, cost, and quality
+
+The agent that built something doesn't judge its own work. Review goes to another agent, and dev tracks also get a skill that examines the work from several user perspectives (personas). With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.
+
+One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your `CLAUDE.md` gets one block marked with comments and nothing else is touched. On uninstall, shared files such as `CLAUDE.md` and `.mcp.json` lose only the harness's part. Works with Claude Code, Codex, OpenCode, and Antigravity; the hook that blocks file edits and the reviewer agent run on Claude Code.
+
+## Install it now
+
+![agent-harness demo — one-command install of vetted AI-coding skills & plugins](https://raw.githubusercontent.com/uzysjung/uzys-agent-harness/main/docs/assets/agent-harness-demo.gif)
+
+You need Node.js 20.12 or newer. Run this in your project folder:
 
 ```bash
 npx -y @uzysjung/agent-harness
 ```
 
-The wizard asks five things:
+The wizard has five steps:
 
 ```
-1/5  Tracks          what you are building (a stack) — this only pre-checks items
-2/5  CLI             claude / codex / opencode / antigravity — one or more
-3/5  Install items   everything is pre-checked for your track; uncheck what you don't want
-4/5  Confirm         summary, plus how much context your selection adds to each session
+1/5  Tracks          what you are building (a dev stack or a kind of work). Items that fit are pre-checked
+2/5  CLI             one or more of claude / codex / opencode / antigravity
+3/5  Install items   review the pre-checked items; drop or add anything
+4/5  Confirm         a summary, and how many tokens your selection adds per session
 5/5  Installing
 ```
 
-Then open your AI coding tool in the same folder. The rules and skills are live from the first session:
+Picking a track pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one track. Without the wizard, `--with <id>` and `--without <id>` make the same choices.
+
+Then open your AI coding tool in the same folder. The rules and skills apply from the first session:
 
 ```bash
-claude    # or codex / opencode / agy
+claude    # or codex / opencode / agy (Antigravity)
 ```
 
-**First thing to do.** The install leaves a `CLAUDE.md` (or `AGENTS.md`) with blank sections about *your* project. Ask your agent to run the `audit-harness-fit` skill once — it reads the repository and fills those sections from the code. Run it again later to check whether the harness still fits.
+**First thing to do.** If your project had no `CLAUDE.md` (or `AGENTS.md`), the install creates one with blank sections about your project. Tell your agent once, and it reads the code and fills them in:
 
-No terminal for the wizard (CI, containers, scripts)? Use flags: `install --track <name>` is the only required one — see [non-interactive install](docs/USAGE.md#non-interactive-install). Claude Code plugins need the `claude` command on your PATH; without it they are skipped with a warning.
+```
+Use the audit-harness-fit skill to read the code and fill in the project sections.
+```
 
-## What you get
+Later, to check whether the setup still fits your project, use the same skill:
 
-| Piece | What it is | When your agent reads it |
+```
+Use the audit-harness-fit skill to check whether the current setup fits this project.
+```
+
+No terminal for the wizard (CI, containers, scripts)? Run `install` with just `--track <name>` ([installing without the wizard](docs/USAGE.md#non-interactive-install)). Claude Code plugins need the `claude` command on your PATH. Without it they are skipped with a warning.
+
+---
+
+## In detail
+
+From here on: how the four ideas above are put into practice, what gets installed, and which stacks are supported.
+
+## How the ideas are built in
+
+### Judgment criteria, not checklists
+
+If you fix a procedure, the model follows it even where it doesn't fit. So the harness doesn't set procedures. It says what to weigh when deciding.
+
+A typical rule:
+
+> Add unit tests for every change and get a review before every commit.
+
+This harness's working principles:
+
+> Choose the depth, timing, and combination of testing, review, and release checks according to actual impact, uncertainty, recovery cost, and existing evidence.
+
+Under the first rule, fixing a typo takes the same steps as changing billing logic. The second gives the model a reason to treat them differently. It doesn't mean testing less. It lets the model judge how much is needed.
+
+### Goal and finish line first
+
+Instead of prescribing a method, the harness first says what done looks like. The `north-star` skill records what the project is for and what it won't do. The `objective-brief` skill does the same for each task: its goal, completion criteria, and boundaries. Methods are not fixed. If there is a better path to the same result, the model can take it.
+
+### Limits come with reasons, and very few are enforced
+
+Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script, when you run it once, puts protection rules on your GitHub default branch.
+
+### What the model now does well comes out of the instructions
+
+Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
+
+### The agent that builds is not the one that checks
+
+An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
+
+The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
+
+## What gets installed
+
+With Claude Code on a dev track, your project gets:
+
+```
+your-project/
+├── CLAUDE.md                 yours. One harness block is added at the end (created if missing)
+├── CLAUDE-uzys-harness.md    working principles the agent reads every session
+├── .claude/
+│   ├── rules/                short rule files, read every session
+│   ├── skills/               guides. Only a one-line description is read until one is used
+│   ├── agents/               reviewer, implementer: subagents the main agent hands work to
+│   ├── hooks/                session start, file protection. Claude Code runs them itself
+│   └── settings.json         registers the hooks (merged with yours)
+├── .mcp.json                 MCP servers: context7 (current library docs), github, and more (merged with yours)
+└── .uzys-agent-harness/      the install record and helper scripts
+```
+
+All of these files live inside your project. Commit it like any other file, and teammates who clone the repo get the same setup.
+
+Every track gets four skills for setting and keeping direction: `north-star` (what the project is for and what it won't do), `objective-brief` (one task's goal, definition of done, and limits), `gh-issue-workflow` (decisions kept in GitHub issues, not in chat), and `audit-harness-fit` (checks whether the setup fits your project). Your track adds stack skills on top (see [supported stacks](#supported-stacks-and-the-skills-that-come-with-them)). The full file list is in [files the harness creates](docs/USAGE.md#what-the-harness-writes).
+
+What each tool gets:
+
+| Tool | Rules | Skills | Hooks | Subagents | Plugins |
+|---|---|---|---|---|---|
+| Claude Code | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Codex | ✓ (in `AGENTS.md`) | ✓ | session start only | — | — |
+| OpenCode | ✓ (in `AGENTS.md`) | ✓ | — | — | — |
+| Antigravity | ✓ | ✓ | — | — | — |
+
+Plugins are a Claude Code feature, so only Claude Code gets them. Rules and skills come from the same source, so they say the same thing in every tool. What a tool can block on its own differs.
+
+## Supported stacks and the skills that come with them
+
+A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting ([SECURITY.md](SECURITY.md)).
+
+| Track | Stack | Pre-checked external skills and tools |
 |---|---|---|
-| **Rules** | Six short files: git policy, change management, documentation, testing, shipping, CLI development. Dev tracks get five; `tooling` and `full` add the sixth; business tracks get the three that apply to any project | Every session |
-| **Hooks** | Scripts your CLI runs on its own. Two, on Claude Code: one loads your spec and change log at session start; one blocks edits to `.env`, lock files, and certificates — the only thing in the harness that says "no", and it logs one line each time | Automatically, at session start or before an edit |
-| **Skills** | Step-by-step playbooks the agent opens when a task calls for them — the method skills written in this repo, plus the stack skills your track needs (for example React, shadcn, Supabase, Postgres on `csr-supabase`) | Only when relevant — a one-line description stays loaded, the body loads on use |
-| **Agents** | Helpers the main agent can hand work to: an independent `reviewer` on every track, `implementer` on dev tracks, `data-analyst` and `strategist` on the tracks that use them | When the main agent delegates |
-| **Anchor** | One working-principles file your CLI reads every session. Your own `CLAUDE.md` stays yours — the harness adds one marked import block (the `@CLAUDE-uzys-harness.md` reference and the skills guidance that follows it) and never touches the rest ([which file is whose](docs/CONTEXT-FILES.md)) | Every session |
+| `base` | No stack yet | None (common rules and the core skills only) |
+| `csr-supabase` | Vite + React + Supabase | `frontend-design`, `react-best-practices`, `shadcn-ui`, `supabase-agent-skills`, `postgres-best-practices` |
+| `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
+| `ssr-htmx` | htmx + FastAPI | `frontend-design` |
+| `data` | Python data work (DuckDB, PySide6) | `anthropic-data-plugin` |
+| `tooling` | Bash and Markdown projects with no app stack | None |
+| `full` | Every dev track, plus documents | All of the above, plus `anthropic-document-skills` |
+| `executive` | Proposals, due diligence, decks, financial models | `anthropic-document-skills` |
+| `project-management` | PM work | None (`product-skills` available) |
+| `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-Four method skills go to every track: `north-star`, `objective-brief`, `gh-issue-workflow`, `audit-harness-fit`. Bundled skills can be added or dropped by name with `--with` / `--without`.
+MCP servers come too. Every track gets `context7` (current library docs), `github`, and `chrome-devtools`. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` for deployment, and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it.
 
-What reaches which CLI:
+More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 
-| CLI | Rules | Skills | Hooks | Plugins |
-|---|---|---|---|---|
-| Claude Code | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ (in `AGENTS.md`) | ✓ | session start only | — |
-| OpenCode | ✓ (in `AGENTS.md`) | ✓ | — | — |
-| Antigravity | ✓ | ✓ | — | — |
+- Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
+- Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `railway-skills`
+- Security review: `security-guidance`, `trailofbits-skills`
+- Product, marketing, finance: `product-skills`, `marketingskills`, `finance-skills`
+- Slides and video: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills`, and more
+- Teams that want a fixed development process: `openspec`, `bmad-method` (compared in [WORKFLOWS.md](docs/WORKFLOWS.md))
 
-Plugins are Claude Code's own mechanism, so they are Claude-only. Skills and rules render for all four from the same source, so they stay consistent across tools.
+Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's source, install method, and supported tools are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
-## Pick a track
-
-A **track** is a starting set for what you are building. It only pre-checks items at step 3 — you can uncheck anything, and pick more than one track.
-
-- **No stack yet** — `base`: principles, method skills, and testing rules; nothing stack-specific (every dev track already includes it)
-- **Frontend + backend** — `csr-supabase` · `csr-fastify` · `csr-fastapi` · `ssr-nextjs` · `ssr-htmx`
-- **Data** — `data`
-- **Business** — `executive` · `project-management` · `growth-marketing`
-- **Meta** — `tooling`: Bash and Markdown projects with no app stack
-- **Everything** — `full`
-
-[What each track installs →](docs/TRACKS.md)
-
-## Day to day
+## Main commands
 
 | You want to… | Run |
 |---|---|
 | See what this project got | `npx -y @uzysjung/agent-harness list` |
 | Bring it to the current release | `npx -y @uzysjung/agent-harness update` |
-| Add another CLI later | `npx -y @uzysjung/agent-harness install --track <your track> --cli <new cli>` |
-| Remove everything, one CLI, or single assets | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>` · `--only <id>` · `--dry-run` to preview) |
-| Cloned a repo a teammate set up with the harness | Nothing — the install record is committed with the files. `list` shows it; `update` and `uninstall` work as on their machine ([teammates and fresh clones](docs/USAGE.md#teammates-and-fresh-clones)) |
+| Add another tool later | `npx -y @uzysjung/agent-harness install --track <your track> --cli <new cli>` |
+| Remove everything, one tool, or single assets | `npx -y @uzysjung/agent-harness uninstall` (`--cli <name>` · `--only <id>` · `--dry-run` to preview) |
+| Cloned a repo a teammate set up with the harness | Nothing on the harness side. The install record is committed with the files, so `list` shows it and `update` and `uninstall` work as on their machine. The Claude Code plugin cache and the Codex trust entry live outside the project, so they don't come with the clone ([what cloning teammates should know](docs/USAGE.md#teammates-and-fresh-clones)) |
 
-`update` refreshes what the harness installed, adds skills a newer release introduced, and tells you when something (a new hook) needs a reinstall instead. It never installs a CLI you did not choose — installing adds a CLI, and only `uninstall` takes one away. `update --only skills` limits it to one group.
+`update` refreshes what the harness installed, adds what a newer release introduced, and puts back harness files that went missing — a hook script, a server in `.mcp.json`, a section of `AGENTS.md`. What you dropped on purpose with `--without` stays out. It never installs a tool you did not choose. `update --only skills` limits it to one group.
 
-In a terminal, `uninstall` offers three choices — one CLI, selected assets, or everything — and `--dry-run` shows the plan first. It never deletes `.claude/`, `.codex/`, or `.opencode/`: each is moved aside as `<dir>.backup-<ts>`, so files you put there yourself stay in the backup.
+In a terminal, `uninstall` offers three choices (one tool, selected assets, or everything), and `--dry-run` shows the plan first. When you remove everything, `.claude/`, `.codex/`, and `.opencode/` are not deleted but renamed to something like `.claude.backup-<time>`. Files you put in them move along, so take back what you need from the backup.
 
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing `.mcp.json` servers are merged, not replaced ([installing into an existing project](docs/USAGE.md#installing-into-an-existing-project)).
 
-**Your project only.** Nothing goes to `~/.opencode/`, `~/.gemini/`, or global npm. Two opt-in exceptions write outside the project: Claude Code plugins (the `claude` CLI keeps its plugin cache under `~/.claude/plugins/` and isolates projects by metadata), and `--with-codex-trust`, which adds one `[projects]` trust entry to `~/.codex/config.toml` so Codex reads its project config ([details](docs/USAGE.md#scope)). Besides `.claude/`, install writes `CLAUDE.md`/`AGENTS.md` scaffolds and their harness anchor, `.mcp.json`, a few `.gitignore` lines (when that file exists), an `.env.example` on `csr-supabase` (and `full`), `.github/workflows/` only with `--with ci-scaffold`, and its own record at `.uzys-agent-harness/` — [the full list](docs/USAGE.md#what-the-harness-writes).
+**Your project only.** Nothing goes to `~/.opencode/`, `~/.gemini/`, or global npm. There are two exceptions: Claude Code plugins (the `claude` CLI keeps its plugin cache under `~/.claude/plugins/`), and `--with-codex-trust`, which adds one trust entry to `~/.codex/config.toml` so Codex reads its project config ([when it writes outside the project](docs/USAGE.md#scope)).
 
-## Already using another tool?
+## Already using something else?
 
-| You want… | Use |
+| If you currently… | How this is different |
 |---|---|
-| The whole harness — rules, hooks, agents, and the skills your stack calls for | The wizard above |
-| One skill from this repo, nothing else | `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` |
-
-Every skill this repo ships is installable on its own with the [skills CLI](https://github.com/vercel-labs/skills) — the same files the installer copies, `references/` included. `npx skills add uzysjung/uzys-agent-harness --list` shows the ids ([details](docs/USAGE.md#one-skill-without-the-harness)); they are also listed on [skills.sh/uzysjung/uzys-agent-harness](https://skills.sh/uzysjung/uzys-agent-harness).
-
-## Why it is built this way
-
-Piling rules and skills onto an AI coding tool does not make it better: every always-loaded instruction costs context in every session, and telling a capable model how to do what it already does well only slows it down. So the harness keeps a principle only where the model is likely to slip, and takes it back out as models improve.
-
-| Common approach | This harness |
-|---|---|
-| Many "don't do X" and "always do Y" rules | Guidance states *what must be true* and leaves *how* to the model. Of the 44 sentences in our own rules, the number observed to change an agent's behaviour was zero — gates, tests, and an independent reviewer caught the incidents |
-| Prohibitions written as sentences | Irreversible damage is blocked by a mechanism: a hook stops edits to `.env` and key files, and a GitHub ruleset the harness helps you apply protects the default branch |
-| Assets pile up and stay | An asset stays only with an observation that the agent is slower or wrong without it; otherwise it moves to an on-demand skill or is retired — so `update` brings what was added *and* what was cut |
-| Fit is decided once, at install | `audit-harness-fit` keeps checking: needless questions, repeated checks, conflicting decisions, procedures a better model no longer needs — then proposes the edit |
-| Verify everything, every time | Verification runs when a user-facing scene is complete, by a separate agent that did not write the code and actually runs it — the lightest protection that reliably keeps what matters, not more guards |
-| Explanations in file names and functions | The agent explains from your user's side first (`user-centered-explanation`); approval requests arrive as context → problem → options → recommendation |
-
-The first question for any asset, in or out, is *does this help a person build better with an AI coding tool?* The long form is [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
-
-## Vetting
-
-An external asset is **vetted** when it has at least 1,000 GitHub stars, is not archived, and its install command has been run and checked in an isolated environment. Two monthly CI jobs re-check the stars and the install path. Vetting is **not** a line-by-line security audit and does not scan asset contents for prompt injection. npm and npx assets are pinned to a version; plugin and skill assets resolve to upstream HEAD.
-
-At step 3, `★ official` marks Anthropic-official marketplaces and this harness's own assets, and `⚠ experimental` marks assets under 1,000 stars — never pre-checked, added only by you. Vetted assets carry no badge. Tiers inform; they never block. Treat installed assets like any other third-party dependency: [SECURITY.md](SECURITY.md).
+| Write your own `CLAUDE.md` or `AGENTS.md` | Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that actually blocks and a reviewer separate from the agent that builds; and an install record so `update` changes only what the harness put there. |
+| Pick skills from a marketplace | If you only need one skill, take just that one: `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` (see ids with `--list`, or on [skills.sh](https://skills.sh/uzysjung/uzys-agent-harness)). The wizard is for what a skill list doesn't cover: standing rules, hooks, subagents, and the record that keeps them current. |
+| Use another harness with many rules | Fewer standing instructions, and you see their per-session token cost before you install. If you want a fixed, step-by-step process, add the third-party workflow kits `openspec` or `bmad-method`. Both are optional and compared in [WORKFLOWS.md](docs/WORKFLOWS.md). |
 
 ## Docs
 
 - [Usage guide](docs/USAGE.md) — install flags, scope, update, uninstall, per-CLI details, what gets written where
 - [Tracks](docs/TRACKS.md) — what each track pre-checks
 - [Compatibility matrix](docs/COMPATIBILITY.md) — every asset, its install method, which CLIs it reaches, and how it was verified
-- [Which file is whose](docs/CONTEXT-FILES.md) — `CLAUDE.md`, the anchor, `AGENTS.md`, and the other context files
+- [Which file is whose](docs/CONTEXT-FILES.md) — `CLAUDE.md`, `CLAUDE-uzys-harness.md`, `AGENTS.md`, and the other instruction files
 - [Workflow guide](docs/WORKFLOWS.md) — the opt-in workflow bundles compared, and when you don't need one
 - [Security](SECURITY.md) — what vetting covers, what it doesn't, how to report
 - [North Star](docs/NORTH_STAR.md) · [decisions](docs/decisions/) — why the harness is shaped this way

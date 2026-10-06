@@ -50,6 +50,24 @@ not enforced configuration. To block an action, use a PreToolUse hook instead."*
 
 > 이 Statement 를 떠받치는 전략 축과 모듈 매핑은 **§3 Pillars** 참조.
 
+### 서비스 방향성·철학 4가지 (메인테이너 확정 2026-10-04 · #704)
+
+README 가 설치자에게 "왜 이 하네스인가"를 말할 때 쓰는 뼈대다. 각 축의 사실은 **이미 있는 자리가
+SSOT** 이고 여기서는 가리키기만 한다(doc-governance). 원문 출처는 메인테이너 블로그 —
+[지시문 재점검](https://dyld.kr/blog/astra-trim-agent-instructions) ·
+[북극성·AC·가드레일](https://dyld.kr/blog/north-star-for-autonomous-ai-coding) ·
+[Prompt → Loop → Graph](https://dyld.kr/blog/from-prompt-to-loop-and-graph).
+
+| 축 | 한 줄 | 이미 있는 자리 |
+|---|---|---|
+| **① 모델이 발전하면 하네스도 같이 발전한다** | 옛 모델의 약점을 메우던 지시는 다시 재고 빼거나 완화한다. 결과와 경계는 분명히 하고 방법은 모델에 맡긴다 | §1 "기준선이 움직인다" · "상주의 근거" 행 · §3 서두 상주 입증 책임(ADR-053 → 054 정정) · §4.1 sunset · §4.2 "모델이 이미 지키는 것을 규칙으로 다시 쓰기" 안 함 · 자산 audit-harness-fit |
+| **② 북극성과 가드레일로 루프 엔지니어링을 지원한다** | 방향(North Star) · 완료 기준(AC) · 넘을 수 없는 경계(Guardrail)를 세워 에이전트가 기준 안에서 스스로 판단하며 수렴하게 한다. Prompt → Loop → Graph | Pillar 1 · §4.1 "Deterministic Harness — 차단은 비가역 손상에만" · §4.2 "AI 단독 자동화" 안 함(인간 결정 게이트 유지) · 자산 north-star · objective-brief · gh-issue-workflow · 훅 session-start · protect-files · 스크립트 protect-branch · 배포 앵커 §6(승인 경계) |
+| **③ 하네스를 지속적으로 클린징한다** | 상주 지시는 관측으로 입증해야 남고, 근거를 못 대면 스킬로 내려가거나 은퇴한다. `update` 는 더해진 것과 빠진 것을 함께 가져온다 | Pillar 2 · §1 "상주의 근거" · §2 Directive Cost / Firing Surface · §4.1 컨텍스트 이코노미 · 차단 기록 · 첫 전수 적용 = ADR-090 · 위저드 4단계의 상주 비용 표시 · `update` 의 고아 룰·훅 정리와 은퇴 자산 안내 |
+| **④ 다면 페르소나와 여러 AI 코딩 에이전트의 협업으로 속도·경제성·품질의 최적 트레이드오프를 찾는다** | 4-CLI 동등성 · 만든 레인이 판정하지 않는 레인 분리 · 다면 리뷰 · 모델 오케스트레이션 · 외부 모델 상담 | Pillar 3 · Pillar 1 의 "인사이트 레이어"(오케스트레이션 노하우 · cross-CLI · 다중 페르소나 검증, ADR-032) · 레인 원칙 ADR-054 · 자산 reviewer · implementer · multi-persona-review · opt-in model-orchestration · external-model-consult |
+
+새 Pillar 는 만들지 않는다 — 네 축이 Pillar 1~3 에 전부 매핑된다. ④ 의 "최적 트레이드오프"는
+**가설**이다(측정 표본은 이 리포뿐 — 위 측정 한계 각주).
+
 ---
 
 ## 2. North Star Metric (NSM)
@@ -530,16 +548,8 @@ Plan/Define 단계에서 "이 작업이 ①/②/③ 중 어디이고, 앞 순위
 그쪽 ADR 이 SSOT 다. 여기에는 **현행 판정에 필요한 최근 1건**만 둔다(이력이 본문의 4분의 1을
 차지해 판정하려면 그것을 통과해야 했다 — `doc-governance` §현행 vs archive).
 
-- **2026-07-27**: **Major CR — 1차 지표를 경제성(양)에서 진실성으로 (ADR-058)**. 사용자 방향 지시
-  *"핵심 원칙을 지키고 과신해서 실수하지 않도록 … 개발 속도도 지키고 높은 품질을 안전하게
-  딜리버리"* + *"너무 디테일하게 옥죄는 것만 존재한다"*. ⓐ **Statement 교체** — 설치는 수단,
-  목적은 "사실을 알고 시작 + 만든 레인이 아닌 것이 잡음". §3 이 2026-06-06 에 이미 "설치 =
-  table-stakes" 로 판정하고 §1 만 안 고쳐 1년 넘게 공존하던 모순을 종결. ⓑ **1차 NSM 교체** —
-  무게이트 주장 수(→0) + 게이트에 물린 사실 수(→증가) + 미파싱 토큰 수(공시). 근거: 사고
-  검출의 주어가 룰·프로즈면 **0건**, 게이트·독립 레인·사용자면 7건. 옛 축(Resident Item Count·
-  Token Cost)은 **부수 축으로 존속**하고 집행 게이트도 유지 — 처분을 안 정하면 게이트가 옛
-  지표를 계속 집행한다. ⓒ **차단은 비가역 손상에만**(Will) — 옛 문안이 옛 지표의 굿하트 탈출구를
-  상시 명령했다(룰→훅 이동 시 두 축 동시 초록, 하네스는 더 차단적). ⓓ §4.1 의 "감산이 기본값"
-  삭제 — §3 서두가 2026-07-26 에 이미 정정했는데 판정 목록만 3개월 반대를 지시했다. ⓔ sunset 을
-  **임계값 대신 입력(근거·측정일·모델 3필드)** 부터 만드는 형태로 교체 — "나중에 재평가"가 세 번
-  불발했다(HITO·JAR·분기 1회). ⓕ §8 이력을 archive 로 격리.
+- **2026-10-04**: **Clarification — §1 에 서비스 방향성·철학 4가지를 명시 (#704)**. 메인테이너 확정
+  (모델 발전 동반 · 북극성+가드레일로 루프 엔지니어링 · 지속 클린징 · 다면 페르소나·멀티 에이전트
+  협업으로 속도·경제성·품질 트레이드오프). NSM · Phase · Won't · Statement 는 불변이고 새 Pillar 도
+  없다 — 네 축을 기존 Pillar·Will·자산에 매핑만 했다. README 두 판의 "Why uzys-agent-harness" 절이
+  이 표를 설치자 언어로 옮긴 것이다. 직전 항목(2026-07-27 · ADR-058)은 archive 로.
