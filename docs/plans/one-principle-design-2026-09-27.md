@@ -192,7 +192,7 @@ type Verdict = "create" | "overwrite" | "backup+overwrite" | "leave" | "leave+ad
 | 19 | `.codex/config.toml` (`codex/transform.ts:158-167`, `codex/config-toml.ts`) | **shared** `toml-region` | P **≠**(#563 교체→병합) | P **≠** | P **≠**(지금은 통째 갱신) | P **≠** | S; `created` 면 X **≠**(폴더 이동) | S **≠** | — |
 | 20 | `.codex/hooks/session-start.sh` (`codex/transform.ts:170-183`) | harness | W | W | R | W | X **≠** | X **≠** | — |
 | 21 | `.agents/skills/<id>/**` 번들 (`codex/skills.ts:84-119`, 3 CLI 공유) | harness(파일 단위) | W | W | R + 릴리즈 신규(`agents-skill-targets.ts`) | W | X(지금도 sha) | X(마지막 사용자) | — |
-| 22 | `.agents/rules/uzys-harness.md` (`antigravity/transform.ts:146-180`) | harness | W | W | R | W | X | X | — |
+| 22 | `.agents/rules/uzys-harness.md` — **은퇴(ADR-103)**: 기록에 있으면 install · update 가 한 번 옮겨 심고 치운다(`antigravity/retire-anchor.ts`) | harness | W | W | R | W | X | X | — |
 | 23 | `.agents/rules/<r>.md` (`antigravity/transform.ts:108-114`) | harness | W | W | R | W | X | X | — |
 | 24 | `opencode.json` (`opencode/transform.ts:147-148`, `opencode-json.ts`) | **shared** `json-keys` | P **≠**(#563) | P **≠** | P **≠** | P **≠** | S(첫 접촉 = 기록된 `mcp.<name>` 만, PR-4b); 하네스가 만든 파일은 지금처럼 기준선 그대로면 X · 고쳤으면 통째로 남김(몫 strip 은 PR-7) | S(같은 규칙, PR-4b) | — |
 | 25 | `.opencode/` 디렉터리 (기록 `templates.opencodeDir`, `install-log.ts:173`) | — | ∅ **≠**(#559 — 기록에서 뺀다) | ∅ | — | ∅ | — **≠**(지금은 이동) | — | — |

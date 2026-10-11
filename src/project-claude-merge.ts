@@ -146,7 +146,7 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
   "installed-assets": {
     title: "Installed Harness Assets",
     prompt:
-      "List the harness assets installed in this project (rules / skills / agents / commands) and add one line each on when to reach for it here. Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent) and list ONLY assets whose file exists on disk — do not invent any. Do NOT restate the harness's working principles (they live in this project's harness anchor and rules layer) — cross-reference them instead. Delete this comment when done.",
+      "List the harness assets installed in this project (rules / skills / agents / commands) and add one line each on when to reach for it here. Verify against the harness folders this CLI reads (.claude/rules/ · .claude/skills/ · .claude/agents/ for Claude Code; AGENTS.md § Harness Rules · .agents/skills/ for Codex and OpenCode; .agents/rules/ · .agents/skills/ for Antigravity) and list ONLY assets whose file exists on disk — do not invent any. Do NOT restate the harness's working principles (they live in this project's harness anchor and rules layer) — cross-reference them instead. Delete this comment when done.",
     placeholder: "the installed rules/skills/agents/commands and when to use each",
   },
   boundaries: {
@@ -174,7 +174,7 @@ const FILL_SPECS: Record<FillSection, FillSpec> = {
  * AGENTS.md was told the principles live somewhere else, so they went looking for a file that a
  * Codex-only install does not even have.
  */
-export type ScaffoldSurface = "claude" | "agents-md" | "antigravity-rule";
+export type ScaffoldSurface = "claude" | "agents-md";
 
 /**
  * The anchor sentence, true for the file it is rendered into.
@@ -188,8 +188,7 @@ function anchorLine(surface: ScaffoldSurface): string {
   if (surface === "claude") {
     return `> The working principles live in this project's harness anchor \`${HARNESS_ANCHOR_FILE}\`, imported at the bottom of this file. Everything above that import is **project-specific context only**.`;
   }
-  const self = surface === "antigravity-rule" ? "`.agents/rules/uzys-harness.md`" : "`AGENTS.md`";
-  return `> **This file (${self}) is the harness anchor** — it carries the working principles in full, further down. Only the \`## …\` sections immediately below are project-specific context for you to fill in.`;
+  return `> **This file (\`AGENTS.md\`) is the harness anchor** — it carries the working principles in full, further down. Only the \`## …\` sections immediately below are project-specific context for you to fill in.`;
 }
 
 /** Visible (rendered-markdown) banner — HTML FILL comments are invisible in a preview, so this
@@ -214,6 +213,98 @@ export function renderFillScaffold(surface: ScaffoldSurface = "claude"): string 
     return `## ${spec.title}\n\n<!-- FILL:${id} — ${spec.prompt} -->\n\n_(not filled yet — ${spec.placeholder})_`;
   });
   return `${scaffoldBanner(surface)}\n\n${blocks.join("\n\n")}`;
+}
+
+/** 스캐폴드 배너를 알아보는 표식. 배너 문구가 바뀌어도 이 문장은 배너의 정체다. */
+export const SCAFFOLD_MARK = "SCAFFOLD — not filled in yet";
+/** 루트 `CLAUDE.md` 머리의 설치 메타 한 줄 (`mergeProjectClaude`). */
+const TRACK_NOTE_MARK = "Active track(s):";
+
+/**
+ * **하네스가 쓴 인용문 블록만** 뗀다 — 스캐폴드 배너와 트랙 안내.
+ *
+ * 인용문 run 을 통째로 보고 그 안에 하네스 표식이 있을 때만 뗀다. 설치자가 적어 둔 인용문
+ * (프로젝트 한 줄 소개 같은 것)은 표식이 없으니 그대로 남는다. 앞머리만 보지 않고 전체를 훑는다 —
+ * 설치자가 H1 바로 뒤에 자기 인용문을 끼우면 하네스 앞머리가 그 아래로 밀린다(#305).
+ */
+export function dropHarnessQuoteBlocks(lines: ReadonlyArray<string>): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (!(lines[i] ?? "").trim().startsWith(">")) {
+      out.push(lines[i] ?? "");
+      i += 1;
+      continue;
+    }
+    let end = i;
+    while (end < lines.length && (lines[end] ?? "").trim().startsWith(">")) end++;
+    const run = lines.slice(i, end);
+    const text = run.join("\n");
+    if (!text.includes(SCAFFOLD_MARK) && !text.includes(TRACK_NOTE_MARK)) out.push(...run);
+    i = end;
+  }
+  return out;
+}
+
+/**
+ * 상시 스킬 안내 조각(ADR-085)이 끝나는 줄 — 헤딩 다음부터 빈 줄 · 소개 문장 · `- \`id\` — …` 항목만 조각으로
+ * 친다. 그 밖의 첫 줄이 설치자 텍스트의 시작이다(#503 독립 리뷰 B1 — 안내 *뒤*에 적은 설치자 문단을 조각으로
+ * 삼키지 않는다). 마커 없는 옛 판에서 조각을 찾는 단서도 이것 하나다.
+ */
+export function continuousNoteEnd(lines: ReadonlyArray<string>, headingAt: number): number {
+  let i = headingAt + 1;
+  while (i < lines.length) {
+    const l = (lines[i] ?? "").replace(/\r$/, "").trim();
+    const isNote = l === "" || l.startsWith("- `") || l.startsWith("These installed skills apply");
+    if (!isNote) break;
+    i++;
+  }
+  return i;
+}
+
+/** 마커 유무와 무관하게 상시 스킬 안내 조각을 뗀다 — 옛 Antigravity 앵커는 마커를 걷어 썼다. */
+export function dropContinuousSkillsNote(lines: ReadonlyArray<string>): string[] {
+  const at = lines.findIndex((l) => l.replace(/\r$/, "").trim() === CONTINUOUS_SKILLS_HEADING);
+  if (at === -1) return [...lines];
+  return [...lines.slice(0, at), ...lines.slice(continuousNoteEnd(lines, at))];
+}
+
+/** `<!-- FILL:… -->` 주석 줄(여러 줄이면 `-->` 까지)을 뗀다. */
+function dropFillComments(lines: ReadonlyArray<string>): string[] {
+  const out: string[] = [];
+  let inFill = false;
+  for (const line of lines) {
+    if (!inFill && line.trim().startsWith("<!-- FILL:")) inFill = true;
+    if (inFill) {
+      if (line.includes("-->")) inFill = false;
+      continue;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+/** 비교용 — 하네스가 쓴 줄(배너 · 트랙 안내 · FILL 주석 · 상시 스킬 안내)과 빈 줄 · 줄 끝 공백을 뺀 나머지. */
+function scaffoldComparable(lines: ReadonlyArray<string>): string[] {
+  return dropFillComments(dropContinuousSkillsNote(dropHarnessQuoteBlocks(lines)))
+    .map((l) => l.replace(/\r$/, "").trimEnd())
+    .filter((l) => l.trim() !== "");
+}
+
+/**
+ * 프로젝트 맥락 본문이 **손대지 않은 스캐폴드**인가 — 설치자가 채운 것이 없는가 (v26.165.0 독립 검증 BLOCKER-2).
+ *
+ * 하네스가 쓴 줄을 **양쪽(디스크 본문 · 기준 스캐폴드)에서 뗀 뒤** 비교한다. 바이트 비교로 두면 FILL 프롬프트
+ * 문구를 고친 릴리즈가 옛 판으로 깐 모든 안 채운 스캐폴드를 "채웠다" 로 읽고, 옛 Antigravity 앵커의 마커 없는
+ * 상시 스킬 안내가 설치자 글로 읽힌다. 남는 비교 대상은 절 제목과 `_(not filled yet — …)_` 자리표시자다 —
+ * 설치자가 "Delete this comment when done" 대로 주석만 지운 상태도 같은 뜻이라 "안 채움" 이다.
+ *
+ * 앵커 씨 뿌리기(`anchor-seed.ts`) · uninstall 의 `AGENTS.md` 걷기 · 옛 Antigravity 앵커 은퇴가 이 함수 하나를
+ * 쓴다 — 판정이 갈리면 "옮겼다/채웠다" 가 서로 다른 답을 낸다.
+ */
+export function isUnfilledScaffold(body: ReadonlyArray<string>): boolean {
+  const pristine = scaffoldComparable(renderFillScaffold("agents-md").split("\n"));
+  return scaffoldComparable(body).join("\n") === pristine.join("\n");
 }
 
 export interface MergeOptions {

@@ -268,7 +268,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: ["/p/.codex/hooks/a.sh", "/p/.codex/hooks/b.sh"],
         skillFiles: ["/p/.agents/skills/uzys-spec/SKILL.md"],
@@ -288,7 +287,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       opencode: {
-        agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         skillFiles: Array.from({ length: 6 }, (_, i) => `/p/.agents/skills/s-${i}/SKILL.md`),
         retiredCommands: [],
@@ -325,14 +323,12 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
       opencode: {
-        agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         skillFiles: [],
         retiredCommands: [],
@@ -352,7 +348,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
@@ -375,7 +370,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       opencode: {
-        agentsMdPath: "/p/AGENTS.md",
         opencodeJsonPath: "/p/opencode.json",
         skillFiles: [],
         retiredCommands: [],
@@ -406,8 +400,7 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       antigravity: {
-        rulesFile: "/p/.agents/rules/uzys-harness.md",
-        harnessRuleFiles: [],
+        harnessRuleFiles: ["/p/.agents/rules/git-policy.md"],
         skillFiles: ["/p/.agents/skills/compaction-handoff/SKILL.md"],
         ownership: { files: [], backedUp: [], backupPaths: [], updated: 0, foreignOwned: [] },
       },
@@ -423,9 +416,10 @@ describe("executeSpec", () => {
     expect(cliRow).not.toContain("Claude");
     // 산출물 섹션 헤더 + rules/skills 행 (6-Gate workflows 제거 — project context rules + dev-method skills).
     expect(lines.some((l) => l.includes("Antigravity artifacts"))).toBe(true);
-    expect(lines.some((l) => l.includes(".agents/rules/") && l.includes("uzys-harness.md"))).toBe(
-      true,
-    );
+    // ADR-103 — 룰 행은 frontmatter 붙은 룰만 센다(옛 앵커 파일은 은퇴 — 원칙·맥락은 AGENTS.md 행이 말한다).
+    const rulesRow = lines.find((l) => l.includes(".agents/rules/")) ?? "";
+    expect(rulesRow).toContain("1 harness rule");
+    expect(rulesRow).not.toContain("uzys-harness.md");
     // ADR-086 — 이제 디렉터리째 간다. 라벨도 파일이 아니라 디렉터리다.
     // 옛 라벨의 진부분 문자열이라 includes 로는 회귀를 못 문다 — 뒤에 SKILL 이 오면 실패해야 한다.
     expect(lines.some((l) => /\.agents\/skills\/<id>\/(?!SKILL)/.test(l))).toBe(true);
@@ -463,7 +457,7 @@ describe("executeSpec", () => {
       },
     );
     const onDisk = readdirSync(join(projectDir, ".agents/rules")).length;
-    expect(onDisk).toBeGreaterThan(1); // 픽스처 자기검증 — 앵커 말고도 룰 파일이 있어야 재현이다
+    expect(onDisk).toBeGreaterThan(1); // 픽스처 자기검증 — 룰 파일이 여럿 있어야 재현이다
     const row = lines.find((l) => /\.agents\/rules\/\s/.test(l)) ?? "";
     expect(Number(/\.agents\/rules\/\s+(\d+) /.exec(row)?.[1])).toBe(onDisk);
     rmSync(projectDir, { recursive: true, force: true });
@@ -735,7 +729,6 @@ describe("executeSpec", () => {
         excludedByCli: [],
       },
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
@@ -1403,7 +1396,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
@@ -1427,7 +1419,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],
@@ -1450,7 +1441,6 @@ describe("executeSpec", () => {
     const runPipeline = pipelineFor({
       ...fakeReport,
       codex: {
-        agentsMdPath: "/p/AGENTS.md",
         configTomlPath: "/p/.codex/config.toml",
         hookFiles: [],
         skillFiles: [],

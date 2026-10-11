@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   FILL_SECTIONS,
+  isUnfilledScaffold,
   mergeProjectClaude,
   renderFillScaffold,
   scaffoldBanner,
   stripHarnessImport,
   TRACK_DISPLAY_NAMES,
   upsertHarnessImport,
+  withContinuousSkillsNote,
 } from "../src/project-claude-merge.js";
 
 describe("renderFillScaffold — the shared project-context scaffold", () => {
@@ -43,7 +45,8 @@ describe("renderFillScaffold — the shared project-context scaffold", () => {
     );
     expect(claude).toContain("project-specific context only");
 
-    for (const surface of ["agents-md", "antigravity-rule"] as const) {
+    // ADR-103 — Antigravity 도 `AGENTS.md` 를 앵커로 읽는다(옛 `antigravity-rule` 표면은 은퇴).
+    for (const surface of ["agents-md"] as const) {
       const b = scaffoldBanner(surface);
       // 그 파일이 앵커다 — 딴 데를 가리키면 없는 파일로 보낸다.
       expect(b, `${surface}: 자기가 앵커임을 말해야 한다`).toContain("is the harness anchor");
@@ -56,7 +59,64 @@ describe("renderFillScaffold — the shared project-context scaffold", () => {
     }
     // 자기 파일 이름을 스스로 부른다 (다른 표면 이름을 부르면 지시대상이 흔들린다).
     expect(scaffoldBanner("agents-md")).toContain("`AGENTS.md`");
-    expect(scaffoldBanner("antigravity-rule")).toContain(".agents/rules/uzys-harness.md");
+  });
+
+  // #631 둘째 축 — 네 표면이 같은 스캐폴드를 받으므로 FILL 안내 한 문장이 네 CLI 의 실제 자리를 말해야 한다.
+  //   전에는 `.claude/rules/*.md …` 만 말해 Antigravity 단독 설치에는 없는 경로로 보냈다.
+  it("installed-assets FILL 이 CLI 마다 실제로 읽는 자리를 댄다 (#631)", () => {
+    const fill = renderFillScaffold("agents-md")
+      .split("\n")
+      .find((l) => l.startsWith("<!-- FILL:installed-assets"));
+    expect(fill).toBeDefined();
+    expect(fill).toContain(".agents/rules/");
+    expect(fill).toContain("AGENTS.md § Harness Rules");
+    expect(fill).toContain(".claude/rules/");
+    expect(fill).not.toContain("(or this CLI's equivalent)");
+  });
+});
+
+/**
+ * v26.165.0 독립 검증 BLOCKER-2 — "채웠는가" 는 하네스가 쓴 줄(배너 · FILL 주석 · 상시 스킬 안내)을 뗀 뒤 판정한다.
+ * FILL 문구를 바꾼 이 릴리즈가 옛 판의 안 채운 스캐폴드를 "채웠다" 로 읽으면, 옛 스캐폴드가 설치자 글로 옮겨 가고
+ * uninstall 이 스캐폴드만 든 파일을 남긴다.
+ */
+describe("isUnfilledScaffold — 하네스 줄을 뗀 뒤 판정한다 (BLOCKER-2)", () => {
+  /** v26.164.0 판 FILL 문구 — 이 릴리즈가 바꾸기 전의 바이트. */
+  const OLD_FILL =
+    "Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent) and list";
+  const NEW_FILL = "Verify against the harness folders this CLI reads";
+
+  function oldScaffold(): string {
+    const now = renderFillScaffold("agents-md");
+    const at = now.indexOf(NEW_FILL);
+    expect(at, "픽스처 자기검증 — 지금 판에 새 문구가 있어야 옛 판을 재현한다").toBeGreaterThan(-1);
+    const end = now.indexOf(" and list", at) + " and list".length;
+    return `${now.slice(0, at)}${OLD_FILL}${now.slice(end)}`;
+  }
+
+  it("옛 문구 스캐폴드(안 채움)는 안 채운 것이다", () => {
+    expect(oldScaffold()).toContain("(or this CLI's equivalent)");
+    expect(isUnfilledScaffold(oldScaffold().split("\n"))).toBe(true);
+  });
+
+  it("마커 없는 상시 스킬 안내가 붙어 있어도 안 채운 것이다", () => {
+    const withNote = withContinuousSkillsNote(oldScaffold(), ["user-centered-explanation"]);
+    expect(withNote).toContain("## Skills that apply continuously");
+    expect(isUnfilledScaffold(withNote.split("\n"))).toBe(true);
+  });
+
+  it("FILL 주석만 지우고 자리표시자를 남긴 것도 안 채운 것이다", () => {
+    const noComments = renderFillScaffold("agents-md")
+      .split("\n")
+      .filter((l) => !l.startsWith("<!-- FILL:"));
+    expect(isUnfilledScaffold(noComments)).toBe(true);
+  });
+
+  it("설치자 문장이 한 줄이라도 있으면 채운 것이다 — 안내 뒤에 적은 문단도", () => {
+    const filled = `${renderFillScaffold("agents-md")}\n\nWe ship on Fridays.`;
+    expect(isUnfilledScaffold(filled.split("\n"))).toBe(false);
+    const afterNote = `${withContinuousSkillsNote(renderFillScaffold("agents-md"), ["user-centered-explanation"])}\n\nWe ship on Fridays.`;
+    expect(isUnfilledScaffold(afterNote.split("\n"))).toBe(false);
   });
 });
 

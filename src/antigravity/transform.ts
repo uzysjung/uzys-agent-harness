@@ -1,38 +1,32 @@
 /**
  * Antigravity transform — v26.66.0 (skills/workflows) + v26.69.0 (rules).
  *
- * Google Antigravity 2.0 (I/O 2026-05-19) 공식 spec (codelabs):
+ * Google Antigravity 공식 spec (https://antigravity.google/docs/rules, 확인 2026-10-11):
  *   - Workspace skills:    .agents/skills/<name>/SKILL.md       (Anthropic skill format — codex 와 공유)
- *   - Workspace workflows: .agents/workflows/<name>.md          (`/<name>` 슬래시로 호출)
- *   - Workspace rules:     .agents/rules/<name>.md              (디렉토리, plain markdown)
+ *   - Workspace rules:     .agents/rules/<name>.md              (**YAML frontmatter 의 `trigger` 필수** — 없으면
+ *                                                               Antigravity 가 조용히 버린다, #631)
+ *   - Workspace root:      AGENTS.md                            (frontmatter 없이 always_on — IDE · CLI 모두)
  *   - Global rules:        ~/.gemini/GEMINI.md                   (사용자 글로벌 — harness 미터치)
- *   - Global skills:       ~/.gemini/antigravity/skills/         (Phase C opt-in — antigravity/opt-in.ts)
  *
  * 본 transform 의 책임 (모두 project-scope):
- *   1. `.agents/rules/uzys-harness.md` — project context (CLAUDE.md → Antigravity rule).
- *      foundational context (CLAUDE.md/AGENTS.md 처럼 항상 작성).
- *      cli=antigravity 단독 선택 시 이게 없으면 Antigravity 가 프로젝트 컨벤션을 모름.
+ *   1. `.agents/rules/<룰>.md` — 배포 룰. frontmatter 를 붙여 쓴다(Claude `paths:` 가 있던 룰은 `trigger: glob`).
  *   2. `.agents/skills/<id>/**` — dev-method skills 디렉터리 전체 (frontmatter 보존, codex 와 공유).
+ *
+ * 원칙·프로젝트 맥락(앵커)은 여기서 쓰지 않는다 — 루트 `AGENTS.md` 를 세 CLI 공용 렌더 주체
+ * (`agents-md-transform.ts`)가 깔린 집합으로 쓴다(ADR-103). 옛 앵커 `.agents/rules/uzys-harness.md` 의 은퇴는
+ * `retire-anchor.ts` 가 맡는다.
  *
  * SAFETY: `~/.gemini/` 글로벌 write 없음.
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { agentsSkillSlot } from "../agents-skill-targets.js";
-import { renderAgentsMd } from "../codex/agents-md.js";
 import { writeBundledSkillDirs } from "../codex/skills.js";
-import {
-  createOwnedWriter,
-  type OwnedWriteResult,
-  type OwnedWriter,
-  type WriteJournal,
-} from "../owned-write.js";
-import { renderFillScaffold, withContinuousSkillsNote } from "../project-claude-merge.js";
-import { portRules } from "../rules-port.js";
+import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "../owned-write.js";
+import { type PortedRule, portRules } from "../rules-port.js";
 
 export interface AntigravityTransformParams {
-  /** harness root (templates/CLAUDE.md source 위치). */
+  /** harness root (templates/ 위치). */
   harnessRoot: string;
   /** 사용자 프로젝트 root. `.agents/` 가 만들어질 위치. */
   projectDir: string;
@@ -56,16 +50,14 @@ export interface AntigravityTransformParams {
   /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
   journal?: WriteJournal;
   /**
-   * ADR-099 R2 (#584) — 설치 기록(`installedClis`)이 Antigravity 를 깔린 CLI 로 말한다. refresh 모드에서 앵커와 형제 룰을
-   * **없어도 만드는** 근거다 — 디스크의 앵커 존재가 아니라 기록이 정한다(앵커를 지우면 룰까지 영영 못 받았다).
+   * ADR-099 R2 (#584) — 설치 기록(`installedClis`)이 Antigravity 를 깔린 CLI 로 말한다. refresh 모드에서 룰을
+   * **없어도 만드는** 근거다 — 디스크 존재가 아니라 기록이 정한다.
    */
   installedByRecord?: boolean;
 }
 
 export interface AntigravityTransformReport {
-  /** v26.69.0 — 작성된 **앵커** 파일 경로 (.agents/rules/uzys-harness.md). null = template 부재. */
-  rulesFile: string | null;
-  /** 2026-08-12 — 작성된 배포 룰 경로 (.agents/rules/<name>.md). 앵커와 형제. */
+  /** 2026-08-12 — 작성된 배포 룰 경로 (.agents/rules/<name>.md). */
   harnessRuleFiles: string[];
   /**
    * `.agents/skills/<id>/` 에 쓴 **모든** 파일 경로 — `SKILL.md` + 형제(references/scripts 등).
@@ -74,6 +66,17 @@ export interface AntigravityTransformReport {
   skillFiles: ReadonlyArray<string>;
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
+}
+
+/**
+ * #631 — Antigravity 워크스페이스 룰의 frontmatter. 공식 문서: "Every `.md` file inside `rules/` must start with YAML
+ * frontmatter declaring a valid `trigger`" — 없으면 조용히 버린다. Claude `paths:` 가 있던 룰은 같은 뜻의 `glob`
+ * (`globs` 는 쉼표 구분, `*` 로 시작하는 패턴이라 큰따옴표), 나머지는 매 턴 상주(`always_on`) — 룰은 대원칙 층이다
+ * (ADR-071). `description` 은 넣지 않는다(권장일 뿐이고 룰마다 새 문장을 쓰는 것은 자산 본문 변경이다).
+ */
+export function antigravityFrontmatter(rule: Pick<PortedRule, "paths">): string {
+  if (rule.paths.length === 0) return "---\ntrigger: always_on\n---\n\n";
+  return `---\ntrigger: glob\nglobs: "${rule.paths.join(", ")}"\n---\n\n`;
 }
 
 /**
@@ -98,7 +101,6 @@ export function runAntigravityTransform(
   // 0. #532 (Epic #527 S3) — 새 릴리즈가 더한 번들 스킬(또는 설치자가 지운 자리)을 이 CLI 의
   //   스킬 자리에도 깐다. 대상 집합·생성 허가는 codex·opencode 와 **같은 모듈**이 정한다 —
   //   세 CLI 가 같은 `.agents/skills/` 를 쓰므로 판정이 셋이면 한 update 안에서 갈린다.
-  //   이 목록이 1 의 상시 스킬 안내에도 들어간다(ADR-085 — 이번에 만든 것까지).
   const { skillIds, skillWriter } = agentsSkillSlot({
     projectDir,
     selectedInternalSkills,
@@ -106,36 +108,25 @@ export function runAntigravityTransform(
     writer,
   });
 
-  // 1. .agents/rules/uzys-harness.md — project context (CLAUDE.md → Antigravity rule, 항상).
-  //   ADR-099 R2 (#584) — 기록이 Antigravity 를 깔린 CLI 로 말하면 refresh 모드에서도 없으면 만든다.
-  const installedByRecord = params.installedByRecord === true;
-  const rulesFile = writeRules(harnessRoot, projectDir, writer, skillIds, installedByRecord);
-
-  // 1a. 2026-08-12 — 배포 룰을 같은 워크스페이스 룰 디렉터리에 형제 파일로 놓는다.
-  //   Antigravity 는 `.agents/rules/*.md` 를 네이티브로 읽으므로 변환이 필요 없다(파일당 12,000자
-  //   상한 — 배포 룰은 전부 그 아래다). 위 `uzys-harness.md` 는 이름과 달리 **앵커**라서,
-  //   그것만으로는 룰이 도달하지 않았다.
-  //
-  //   `createInRefresh` 를 켜는 근거는 **설치 기록**이다(ADR-099 R2 · #584). 전에는 바로 위 줄의 반환값(앵커를 담당했다)
-  //   하나였는데, 앵커를 지운 설치본은 그 근거가 사라져 앵커도 새 룰도 영영 못 받았다. 앵커 담당은 기록이 없는 옛
-  //   설치본(로그 없음 — update 가 CLI 전부를 넘긴다)의 근거로만 남는다. 이 예외가 없으면 기존 설치자는
-  //   update 를 아무리 돌려도 룰을 못 받는다 — 없는 파일은 refresh 가 건너뛰기 때문이다.
-  const antigravityInstalled = installedByRecord || rulesFile !== null;
+  // 1. 2026-08-12 — 배포 룰을 워크스페이스 룰 디렉터리에 놓는다(파일 하나 24,000 bytes 상한 — 배포 룰은 전부 그 아래다).
+  //   #631 — frontmatter 를 붙인다. 이전 판은 본문만 써서 Antigravity 가 일곱 파일을 전부 버렸다.
+  //   `createInRefresh` 의 근거는 **설치 기록**이다(ADR-099 R2 · #584) — 앵커 존재를 근거로 쓰던 경로는 앵커와 함께
+  //   은퇴했다(ADR-103). 기록이 없는 옛 설치본은 update 진입 판정(#699)이 먼저 거절한다.
+  const antigravityInstalled = params.installedByRecord === true;
   const harnessRuleFiles: string[] = [];
   for (const rule of portRules(harnessRoot, rules)) {
     const target = join(projectDir, ".agents", "rules", `${rule.name}.md`);
-    if (!writer.write(target, `${rule.body}\n`, { createInRefresh: antigravityInstalled })) {
+    const content = `${antigravityFrontmatter(rule)}${rule.body}\n`;
+    if (!writer.write(target, content, { createInRefresh: antigravityInstalled })) {
       continue;
     }
     harnessRuleFiles.push(target);
   }
 
-  // 1b. v26.87.0 — dev-method skills → .agents/skills/<id>/ (frontmatter 보존).
-  //   renderBundledSkill 이 source frontmatter(name: <id>)를 보존.
+  // 2. v26.87.0 — dev-method skills → .agents/skills/<id>/ (frontmatter 보존).
   //   2026-09-13 (#431) — `SKILL.md` 한 파일이 아니라 디렉터리 전체다. 루프는 세 transform
   //   공용 helper 가 소유한다(codex·opencode 와 같은 산출물).
-  //   #532 — `skillWriter` 가 refreshOnly 에서도 **대상 집합의 자리만** 만들게 한다
-  //   (증거·범위는 `agents-skill-targets.ts`).
+  //   #532 — `skillWriter` 가 refreshOnly 에서도 **대상 집합의 자리만** 만들게 한다.
   const skillFiles = writeBundledSkillDirs({
     harnessRoot,
     projectDir,
@@ -144,55 +135,8 @@ export function runAntigravityTransform(
   });
 
   return {
-    rulesFile,
     harnessRuleFiles,
     skillFiles,
     ownership: writer.result(),
   };
-}
-
-/**
- * v26.69.0 — `.agents/rules/uzys-harness.md` 작성. CLAUDE.md → Antigravity workspace rule.
- *
- * Source: templates/CLAUDE.md (전문) + templates/antigravity/AGENTS.md.template.
- * v26.70.0 — renderAgentsMd 재사용 (codex/opencode 와 동일 전문 embed). `{PROJECT_RULES}` 에
- * CLAUDE.md 본문 전체 삽입 + `/uzys:` → `/uzys-` rename.
- *
- * template 또는 CLAUDE.md 부재 시 null (graceful — install 진행).
- */
-function writeRules(
-  harnessRoot: string,
-  projectDir: string,
-  writer: OwnedWriter,
-  selectedInternalSkills: ReadonlyArray<string>,
-  createInRefresh: boolean,
-): string | null {
-  const claudeMdPath = join(harnessRoot, "templates/CLAUDE.md");
-  const templatePath = join(harnessRoot, "templates/antigravity/AGENTS.md.template");
-  if (!existsSync(claudeMdPath) || !existsSync(templatePath)) {
-    return null;
-  }
-  const claudeMd = readFileSync(claudeMdPath, "utf8");
-  const template = readFileSync(templatePath, "utf8");
-  const target = join(projectDir, ".agents", "rules", "uzys-harness.md");
-  const rulesOut = renderAgentsMd({
-    template,
-    claudeMd,
-    projectName: basename(projectDir),
-    // ADR-085 — 상시 스킬 안내는 앵커가 아니라 여기(프로젝트 맥락)에, 깔린 것만.
-    projectContext: withContinuousSkillsNote(
-      renderFillScaffold("antigravity-rule"),
-      selectedInternalSkills,
-    ),
-  });
-  // 사용자가 채운 rules 파일을 재설치(add 모드) 덮어쓰기 전 보존 — 루트 CLAUDE.md 와 대칭.
-  // v26.133.0 (ADR-048) — 내용 비교에서 소유자 판정으로 (릴리즈마다 백업 쌓임 방지).
-  // refresh 모드가 건너뛰면 null — 안 만든 파일을 만들었다고 보고하지 않는다.
-  // #503 — `renderAgentsMd` 가 AGENTS.md 병합용 마커를 넣지만 이 파일은 통째로 하네스 소유라
-  // 병합이 없다. 뜻 없는 주석 줄이 상주하지 않게 걷어낸다.
-  const withoutMarkers = rulesOut
-    .split("\n")
-    .filter((l) => !/^<!-- uzys-harness:(?:anchor|skills):(?:start|end) -->$/.test(l.trim()))
-    .join("\n");
-  return writer.write(target, withoutMarkers, { createInRefresh }) ? target : null;
 }

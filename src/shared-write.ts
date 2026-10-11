@@ -330,6 +330,15 @@ export interface WriteAgentsMdParams {
   baseline: ReadonlyMap<string, string>;
   record: SharedRecord;
   refreshOnly: boolean;
+  /**
+   * ADR-099 R2 — 기록이 이 파일을 읽는 CLI 를 깔린 것으로 말하면 refresh 에서도 없으면 만든다(절 모델). v26.165.0 부터
+   * Antigravity 도 이 파일을 읽으므로 26.164.0 이하 Antigravity 설치본의 첫 update 가 여기서 파일을 만든다.
+   */
+  createInRefresh?: boolean;
+  /** `mergeAgentsMd` 의 같은 이름 — 손대지 않은 `## Project Context` 를 렌더의 씨로 바꾼다(ADR-103). */
+  replaceUnfilledContext?: boolean;
+  /** `mergeAgentsMd` 의 같은 이름 — 하네스가 쓸 수 있는 룰 제목(리뷰 #735). */
+  harnessRuleHeadings?: ReadonlySet<string>;
 }
 
 export interface AgentsMdWriteResult {
@@ -345,7 +354,16 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
   if (agentsMdModel(disk, params.baseline.has(AGENTS_MD), recordedBlock) === "sections") {
     params.writer.write(
       abs,
-      mergeAgentsMd({ rendered: params.rendered, existing: disk, template: params.template }),
+      mergeAgentsMd({
+        rendered: params.rendered,
+        existing: disk,
+        template: params.template,
+        ...(params.replaceUnfilledContext === true ? { replaceUnfilledContext: true } : {}),
+        ...(params.harnessRuleHeadings === undefined
+          ? {}
+          : { harnessRuleHeadings: params.harnessRuleHeadings }),
+      }),
+      params.createInRefresh === true ? { createInRefresh: true } : undefined,
     );
     return { model: "sections", shared: null };
   }

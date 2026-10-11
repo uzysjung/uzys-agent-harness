@@ -74,7 +74,8 @@ describe.each(["codex", "opencode", "antigravity"] as const)("사례 1 — %s �
     // 대조군: 디스크에 CLAUDE 계열이 정말 없다.
     expect(existsSync(join(projectDir, "CLAUDE.md"))).toBe(false);
     expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
-    const anchor = cli === "antigravity" ? ".agents/rules/uzys-harness.md" : "AGENTS.md";
+    // ADR-103 — 세 CLI 모두 루트 `AGENTS.md` 를 앵커로 읽는다(옛 Antigravity 앵커 파일은 은퇴)
+    const anchor = "AGENTS.md";
     expect(existsSync(join(projectDir, anchor))).toBe(true);
 
     const cost = residentCostFor(spec);
@@ -297,7 +298,7 @@ describe.each(["codex", "opencode"] as const)("남은 틈 ① — %s 단독 upda
 });
 
 describe("남은 틈 ① — antigravity 단독 update", () => {
-  it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 uzys-harness.md 디스크", () => {
+  it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 AGENTS.md 디스크 (ADR-103)", () => {
     const { projectDir } = install("tooling", ["antigravity"]);
     const rulesDir = join(projectDir, ".agents", "rules");
     writeFileSync(join(rulesDir, "mine.md"), `# 우리 팀 룰\n\n${MEMO}\n`);
@@ -305,12 +306,11 @@ describe("남은 틈 ① — antigravity 단독 update", () => {
     expect(existsSync(join(rulesDir, "mine.md")), "대조군: update 가 설치자 룰을 남겼다").toBe(
       true,
     );
-    const files = readdirSync(rulesDir).filter((n) => n.endsWith(".md") && n !== "uzys-harness.md");
+    const files = readdirSync(rulesDir).filter((n) => n.endsWith(".md"));
     const tokens = files.reduce((s, n) => s + tokensOf(join(rulesDir, n)), 0);
     expect(row).toContain(`rules ${files.length} ~${tokens} `);
-    expect(row).toContain(
-      `.agents/rules/uzys-harness.md 1 ~${tokensOf(join(rulesDir, "uzys-harness.md"))}]`,
-    );
+    // Antigravity 만이면 룰은 `AGENTS.md` 본문이 아니라 `.agents/rules/` 에 있다 — 두 번 세지 않는다
+    expect(row).toContain(`AGENTS.md 1 ~${tokensOf(join(projectDir, "AGENTS.md"))}`);
   });
 });
 

@@ -26,6 +26,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
 import {
   classifyBaselineTarget,
   isBaselineExcluded,
@@ -35,6 +36,7 @@ import { CLI_OWNERSHIP } from "./cli-ownership.js";
 import {
   ALL_CLI_TARGETS,
   adapterExcluded,
+  type CliTransformResults,
   renderHarnessMcp,
   runCliTransforms,
 } from "./cli-transforms.js";
@@ -106,6 +108,7 @@ import { excludedIds, recorded } from "./recorded.js";
 import { claudeRecorded, claudeTargets, memoTargets } from "./track-heal.js";
 import { anyTrack } from "./track-match.js";
 import {
+  CLI_BASES,
   type CliBase,
   DEFAULT_OPTIONS,
   type InstallSpec,
@@ -361,6 +364,13 @@ export interface UpdateModeReport {
     how?: string;
     ids?: ReadonlyArray<string>;
   }>;
+  /** ADR-103 — 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)를 은퇴시켰다. 부재 = 기록에 앵커가 없었다. */
+  anchorRetired?: AnchorRetireResult;
+  /**
+   * ADR-103 — 이 update 가 `AGENTS.md` 를 새로 만들었거나(기록에 없던 파일 — 26.164.0 이하 Antigravity 설치본의 첫 update)
+   * 다른 앵커의 설치자 글을 옮겨 심었다. 부재 = 둘 다 아니다(갱신은 파일 수가 말한다).
+   */
+  agentsMd?: { created: boolean; clis: CliBase[]; seededFrom: string | null };
   /**
    * #677 — 기록에 하네스 몫으로 있지만 기록 트랙의 렌더 밖인 Antigravity 룰을 치웠다(고친 것은 그 파일 하나를 백업).
    * optional = 부재는 "치운 것 없음".
@@ -703,6 +713,8 @@ export function runUpdateMode(
         restoredKeys: [],
         restoredFiles: [],
         legacyRestored: [],
+        anchorRetired: null,
+        agentsMd: null,
         excludedKeys: [],
         sharedLeft: [],
       };
@@ -713,6 +725,8 @@ export function runUpdateMode(
       report.outOfTrack = outOfTrack;
   }
   report.externalUpdated = external.externalUpdated;
+  if (external.anchorRetired !== null) report.anchorRetired = external.anchorRetired;
+  if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
   if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
   report.restoredKeys = external.restoredKeys;
   report.restoredFiles = external.restoredFiles;
@@ -1597,6 +1611,32 @@ function excludedSkillOf(log: InstallLog | null): (id: string) => boolean {
   return (id) => excluded.has(id) || isBaselineExcluded(`.claude/skills/${id}`, excluded);
 }
 
+/**
+ * update 가 외부 CLI 렌더(스킬 자리 · `AGENTS.md`)에 넘기는 **기록 기반 입력** — `uninstall --cli` 의 `AGENTS.md` 재렌더(C-3)도
+ * 이 값을 쓴다. 둘이 다르면 uninstall 이 쓴 바이트를 다음 update 가 다른 판으로 바꿔 쓴다(설치자가 고친 파일이면 백업).
+ */
+export function recordedRenderInputs(
+  projectDir: string,
+  log: InstallLog | null,
+): { selectedInternalSkills: string[]; rules: string[] } {
+  const excluded = excludedIds(log);
+  return {
+    // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
+    // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
+    // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
+    // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
+    // ADR-099 R3 — 뺀 스킬은 디스크에 남아 있어도 갱신하지도 안내하지도 않는다(install 이 내는 것과 같은 목록)
+    selectedInternalSkills: installedBundledSkills(projectDir).filter(
+      (id) => !excludedSkillOf(log)(id),
+    ),
+    // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. 렌더 경로(AGENTS.md 절 · antigravity 룰 생성)는
+    // 디스크 게이트가 없어, data 트랙 설치에서 update 만으로 cli-development(제6룰)가 생겼다.
+    rules: resolveRules({ tracks: installedTracks(projectDir) }).filter(
+      (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, excluded),
+    ),
+  };
+}
+
 function installedBundledSkills(projectDir: string): string[] {
   return INTERNAL_BUNDLED_SKILL_IDS.filter(
     (id) =>
@@ -1681,18 +1721,39 @@ const CREATED_SHARED_HOW: Readonly<Record<string, string>> = {
   "AGENTS.md": "wrote the harness block only",
 };
 
-/** CLI 산출물을 쓰는 깔린 CLI — 화면의 "빼려면 `uninstall --cli <name>`". `AGENTS.md` 는 codex · opencode 가 함께 쓴다. */
+/**
+ * CLI 산출물을 쓰는 깔린 CLI — 화면의 "빼려면 `uninstall --cli <name>`". `AGENTS.md` 는 비-Claude CLI 셋이 함께 읽는다
+ * (ADR-103) — 소유 표(`cli-ownership.ts`)에서 유도한다(열거 사본을 두지 않는다).
+ */
 function cliArtifactOwners(path: string, installed: ReadonlyArray<CliBase>): CliBase[] {
   const owners: CliBase[] = path.startsWith(".codex/")
     ? ["codex"]
     : path === "opencode.json" || path.startsWith(".opencode/")
       ? ["opencode"]
       : path === "AGENTS.md"
-        ? ["codex", "opencode"]
+        ? CLI_BASES.filter((c) => CLI_OWNERSHIP[c].some((o) => o.path === "AGENTS.md"))
         : path.startsWith(".agents/rules/")
           ? ["antigravity"]
           : [];
   return owners.filter((c) => installed.includes(c));
+}
+
+/**
+ * ADR-103 — update 화면이 `AGENTS.md` 에 대해 따로 말할 것: 기록에 없던 파일을 새로 만들었다(되살림은 `restoredFiles` 가
+ * 말한다) · 다른 앵커의 글을 옮겨 심었다. 둘 다 아니면 `null`.
+ */
+function agentsMdNews(
+  report: CliTransformResults["agentsMd"],
+  existedBefore: boolean,
+  priorPaths: ReadonlySet<string>,
+): { created: boolean; clis: CliBase[]; seededFrom: string | null } | null {
+  if (report === null) return null;
+  const created =
+    !existedBefore &&
+    !priorPaths.has("AGENTS.md") &&
+    report.ownership.files.some((f) => f.path === "AGENTS.md");
+  if (!created && report.agentsMdSeededFrom === null) return null;
+  return { created, clis: [...report.clis], seededFrom: report.agentsMdSeededFrom };
 }
 
 function refreshExternalCli(
@@ -1724,6 +1785,10 @@ function refreshExternalCli(
   restoredFiles: Array<{ path: string; clis: CliBase[]; how?: string; ids?: string[] }>;
   /** ADR-099 R5 — 옛 판이 자동으로 뺐다고 적었던 키 중 이번에 되살린 것. */
   legacyRestored: string[];
+  /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과(기록에 앵커가 없었으면 `null`). */
+  anchorRetired: AnchorRetireResult | null;
+  /** ADR-103 — `UpdateModeReport.agentsMd` 와 같다(없으면 `null`). */
+  agentsMd: { created: boolean; clis: CliBase[]; seededFrom: string | null } | null;
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
   excludedKeys: Array<{
     path: string;
@@ -1735,8 +1800,6 @@ function refreshExternalCli(
   sharedLeft: NonNullable<UpdateModeReport["sharedLeft"]>;
 } {
   const log = readInstallLog(projectDir);
-  // ADR-099 R3 — 기록의 누적 빼기
-  const baselineExcluded = excludedIds(log);
   const presentBefore = sharedSkillIdsOnDisk(projectDir);
   // #638 — .agents/rules/ 의 실행 전 디스크 상태(루프 회복 판정용. 스킬의 presentBefore 와 같은 역할).
   const rulesBefore = new Set<string>();
@@ -1748,25 +1811,13 @@ function refreshExternalCli(
       /* 못 읽으면 비어 있던 것으로 — restored 가 아닌 installed 로만 분류된다(보수 방향) */
     }
   }
+  const agentsMdBefore = existsSync(join(projectDir, "AGENTS.md"));
   const result = runCliTransforms({
     harnessRoot,
     projectDir,
     cli: installedCliTargets(log),
-    // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
-    // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
-    // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
-    // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
-    // ADR-099 R3 — 뺀 스킬은 디스크에 남아 있어도 갱신하지도 안내하지도 않는다(install 이 내는 것과 같은 목록)
-    selectedInternalSkills: installedBundledSkills(projectDir).filter(
-      (id) => !excludedSkillOf(log)(id),
-    ),
-    // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. ALL_RULES 문서는
-    // "refreshOnly 가 디스크로 대신 판정한다"고 했지만 렌더 경로(AGENTS.md 절 · antigravity 룰
-    // 생성)는 디스크 게이트가 없어, data 트랙 설치에서 update 만으로 cli-development(제6룰)가
-    // 생겼다. claude 레인은 처음부터 resolveRules 로 흐르므로 이쪽만 맞춘다.
-    rules: resolveRules({ tracks: installedTracks(projectDir) }).filter(
-      (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
-    ),
+    // 스킬(디스크에 있는 것만) · 룰(기록 트랙) — `uninstall --cli` 의 `AGENTS.md` 재렌더와 같은 값(`recordedRenderInputs`)
+    ...recordedRenderInputs(projectDir, log),
     // #568 — MCP 서버는 `.mcp.json` 과 같은 값(기록 트랙 · 기록된 선택 — 기록이 없으면 기본 서버만, 지어내지 않는다).
     mcp: harnessMcp,
     previousExternal: log?.externalFiles ?? [],
@@ -1784,8 +1835,17 @@ function refreshExternalCli(
   // 이번에 안 건드린 산출물의 기록은 `mergeExternalFiles` 가 유지한다 (지우면 그 파일들이
   // 다음 실행에서 판정 불가로 떨어진다). 로그가 없으면 만들지 않는다 — 설치 기록 날조 금지.
   if (log) {
-    const merged = mergeExternalFiles(log.externalFiles, result.externalFiles);
-    const next: InstallLog = { ...log };
+    // ADR-103 — 은퇴한 옛 Antigravity 앵커는 기록에서 뺀다. 그 경로가 `spec.clis` 없는 옛 로그의 antigravity 유도 근거이므로
+    // 빼기 **전** 집합을 같은 기록 쓰기에서 `spec.clis` 로 적는다(BLOCKER-1 — update 의 다른 기록 쓰기는 `spec` 을 건드리지
+    // 않으므로 이 자리가 유일한 이행점이다. `buildInstallLog` 가 install 에서 하는 1회 이행을 대신한다, ADR-096 D3).
+    const retiredPath = result.anchorRetired?.forget === true ? result.anchorRetired.path : null;
+    const merged = mergeExternalFiles(log.externalFiles, result.externalFiles).filter(
+      (f) => f.path !== retiredPath,
+    );
+    const next: InstallLog =
+      retiredPath === null
+        ? { ...log }
+        : { ...log, spec: { ...log.spec, clis: [...installedClis(log)] } };
     if (merged.length > 0) next.externalFiles = merged;
     else delete next.externalFiles;
     // #551 R2 — 몫도 같은 이유로 다시 적는다: 갱신한 구간의 sha 를 안 적으면 다음 install 이 그 구간을 "설치자가
@@ -1903,6 +1963,8 @@ function refreshExternalCli(
           .filter((id) => dropped.has(id)),
       ),
     ],
+    anchorRetired: result.anchorRetired,
+    agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
     // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
     // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
     sharedLeft: result.sharedFiles

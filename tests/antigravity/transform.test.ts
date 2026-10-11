@@ -1,92 +1,58 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runAntigravityTransform } from "../../src/antigravity/transform.js";
+import { stripClaudeFrontmatter } from "../../src/rules-port.js";
 import { expectedSkillRelFiles, firstSkillIdWithReferences } from "../helpers/bundled-skill-dir.js";
-
-// rule-ref:frozen-file — 아래 SAMPLE_CLAUDE_MD 의 `Rule N` 은 임베드 렌더를 시험하는 **합성
-// fixture** 다(앵커 지목이 아니다). 줄 단위 표식을 쓰면 표식이 템플릿 리터럴 안으로 들어가
-// fixture 내용을 바꿔 버려 같은 fixture 를 쓰는 단언이 다른 것을 재게 된다.
 
 const HARNESS_ROOT = resolve(__dirname, "../..");
 
-describe("runAntigravityTransform — rules (v26.69.0, project context)", () => {
-  let harnessRoot = "";
+/** 이전 판(v26.164.0)이 쓰던 본문 — 원본에서 Claude frontmatter 만 벗긴 것 + 끝 줄바꿈. */
+function previousBody(rule: string): string {
+  const source = readFileSync(join(HARNESS_ROOT, "templates/rules", `${rule}.md`), "utf8");
+  return `${stripClaudeFrontmatter(source)}\n`;
+}
+
+// #631 — Antigravity 는 `trigger` frontmatter 가 없는 `.agents/rules/*.md` 를 조용히 버린다(공식 문서, 2026-10-11).
+describe("runAntigravityTransform — rules carry Antigravity trigger frontmatter (#631)", () => {
   let projectDir = "";
 
   beforeEach(() => {
-    harnessRoot = mkdtempSync(join(tmpdir(), "agy-harness-"));
     projectDir = mkdtempSync(join(tmpdir(), "agy-proj-"));
-
-    // Mock templates/CLAUDE.md + templates/antigravity/AGENTS.md.template (rules source)
-    mkdirSync(join(harnessRoot, "templates"), { recursive: true });
-    writeFileSync(
-      join(harnessRoot, "templates/CLAUDE.md"),
-      [
-        "# Project CLAUDE.md",
-        "## Rule 1 — Think",
-        "rule one body",
-        "## Rule 2 — Simplicity",
-        "rule two body — see /uzys:spec",
-      ].join("\n"),
-    );
-    const agTplDir = join(harnessRoot, "templates/antigravity");
-    mkdirSync(agTplDir, { recursive: true });
-    writeFileSync(
-      join(agTplDir, "AGENTS.md.template"),
-      [
-        "# {PROJECT_NAME} — Antigravity Agent Guide",
-        "## Project Context",
-        "{PROJECT_CONTEXT}",
-        "## Project Rules",
-        "{PROJECT_RULES}",
-      ].join("\n"),
-    );
   });
-
-  function cleanup() {
-    rmSync(harnessRoot, { recursive: true, force: true });
+  afterEach(() => {
     rmSync(projectDir, { recursive: true, force: true });
-  }
-
-  // rules (.agents/rules/uzys-harness.md) is ALWAYS written — project context, not gated.
-  it("writes .agents/rules/uzys-harness.md; no selected skills → skillFiles empty", () => {
-    const report = runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
-    expect(report.rulesFile).toBe(join(projectDir, ".agents/rules/uzys-harness.md"));
-    expect(existsSync(report.rulesFile as string)).toBe(true);
-    expect(report.skillFiles).toHaveLength(0);
-    cleanup();
   });
 
-  it("rules 가 CLAUDE.md 전문 embed + project name 치환 + 슬래시 rename + h1 strip", () => {
-    runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
-    const rules = readFileSync(join(projectDir, ".agents/rules/uzys-harness.md"), "utf8");
-    // CLAUDE.md 전문 (Rule 1~2) embed
-    expect(rules).toContain("rule one body");
-    expect(rules).toContain("rule two body");
-    expect(rules).toContain("Rule 1 — Think");
-    // CLAUDE.md 의 h1 ("# Project CLAUDE.md") 은 strip (템플릿 h1 만)
-    expect(rules).not.toContain("# Project CLAUDE.md");
-    expect(rules).toContain("Antigravity Agent Guide");
-    // /uzys: → /uzys- rename (Antigravity filename 기반 호출 정합)
-    expect(rules).toContain("/uzys-spec");
-    expect(rules).not.toContain("/uzys:spec");
-    // project-context 스캐폴드 주입 ({PROJECT_CONTEXT} → renderFillScaffold())
-    expect(rules).toContain("<!-- FILL:stack —");
-    expect(rules).not.toContain("{PROJECT_CONTEXT}");
-    // #503 리뷰 N2 — AGENTS.md 병합용 마커는 통째로 하네스 소유인 이 파일에 상주하지 않는다.
-    expect(rules).not.toContain("<!-- uzys-harness:");
-    cleanup();
+  it("paths 가 없던 룰은 always_on, Claude paths 가 있던 룰은 glob + globs — 본문은 이전 판과 바이트 동일", () => {
+    runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      rules: ["git-policy", "cli-development"],
+      baseline: new Map(),
+    });
+    const always = readFileSync(join(projectDir, ".agents/rules/git-policy.md"), "utf8");
+    const glob = readFileSync(join(projectDir, ".agents/rules/cli-development.md"), "utf8");
+    const alwaysHead = "---\ntrigger: always_on\n---\n\n";
+    const globHead = '---\ntrigger: glob\nglobs: "**/*.sh, **/*.bash"\n---\n\n';
+    expect(always.startsWith(alwaysHead)).toBe(true);
+    expect(glob.startsWith(globHead)).toBe(true);
+    expect(always.slice(alwaysHead.length)).toBe(previousBody("git-policy"));
+    expect(glob.slice(globHead.length)).toBe(previousBody("cli-development"));
   });
 
-  it("CLAUDE.md 또는 template 부재 시 rulesFile = null (graceful — install 진행)", () => {
-    rmSync(join(harnessRoot, "templates/antigravity"), { recursive: true, force: true });
-    const report = runAntigravityTransform({ harnessRoot, projectDir, baseline: new Map() });
-    expect(report.rulesFile).toBeNull();
-    // rules 부재여도 transform 자체는 끝까지 진행 (skills 는 selected 없으니 0).
+  it("옛 앵커 .agents/rules/uzys-harness.md 는 만들지 않는다 — 원칙·맥락은 루트 AGENTS.md 가 맡는다 (ADR-103)", () => {
+    const report = runAntigravityTransform({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      rules: ["git-policy"],
+      baseline: new Map(),
+    });
+    expect(existsSync(join(projectDir, ".agents/rules/uzys-harness.md"))).toBe(false);
+    expect("rulesFile" in report).toBe(false);
+    expect(report.harnessRuleFiles).toEqual([join(projectDir, ".agents/rules/git-policy.md")]);
     expect(report.skillFiles).toHaveLength(0);
-    cleanup();
   });
 });
 

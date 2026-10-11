@@ -1,6 +1,7 @@
 import {
   existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -11,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { installedClis, readInstallLog } from "../src/install-log.js";
+import { hashContent, installedClis, readInstallLog, writeInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 
@@ -72,6 +73,29 @@ describe("#528 uninstall --cli", () => {
   };
 
   const has = (rel: string): boolean => existsSync(join(projectDir, rel));
+  const agents = (): string => readFileSync(join(projectDir, "AGENTS.md"), "utf8");
+  const fillContext = (line: string): void => {
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      agents().replace("## Project Context\n", `## Project Context\n\n${line}\n`),
+    );
+  };
+  const update = (): void => {
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      mode: "update",
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: ["claude"],
+        projectDir,
+      } satisfies InstallSpec,
+    });
+  };
+  const agentsBackups = (): string[] =>
+    readdirSync(projectDir).filter((f) => f.startsWith("AGENTS.md.backup"));
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), "un528-"));
@@ -154,6 +178,140 @@ describe("#528 uninstall --cli", () => {
     const remainder = readFileSync(agentsPath, "utf8");
     expect(remainder).toContain("결제 정산 배치");
     expect(remainder).not.toContain("## Harness Rules");
+  });
+
+  // C-T3 (#642-2) — 빠지는 CLI 의 몫(제목의 이름 · 1차 방어 줄)이 다음 update 까지 남던 것을 그 자리에서 다시 렌더한다.
+  it("--cli opencode: AGENTS.md 가 그 자리에서 codex 판으로 — 설치자 문장 그대로 · 이어서 update 해도 백업 0 (C-T3)", () => {
+    install(["claude", "codex", "opencode"]);
+    fillContext("우리 팀은 정산 배치를 돌린다.");
+    expect(agents()).toContain("Agent Guide (Codex · OpenCode)"); // 대조군
+
+    const run = removeCli("opencode");
+
+    expect(run.code).toBe(0);
+    const after = agents();
+    expect(after).toContain("# ");
+    expect(after.split("\n")[0]).toContain("Agent Guide (Codex)");
+    expect(after.split("\n")[0]).not.toContain("OpenCode");
+    expect(after).not.toContain("OpenCode `permission`");
+    expect(after).toContain("## Session Start");
+    expect(after).toContain("우리 팀은 정산 배치를 돌린다.");
+    expect(run.lines.join("\n")).toContain(
+      "AGENTS.md — re-rendered for Codex (your sections kept)",
+    );
+    // 기록 기준선도 새 판이다 — 안 그러면 다음 update 가 방금 쓴 바이트를 "고쳤다" 로 읽고 백업한다(#550 형태)
+    const sha = (readInstallLog(projectDir)?.externalFiles ?? []).find(
+      (f) => f.path === "AGENTS.md",
+    )?.sha256;
+    expect(sha).toBe(hashContent(after));
+    // 설치자가 기록 뒤에 고친 파일이라 다시 쓰기 전에 그 파일 하나를 백업했다 — update 와 같은 규칙(ADR-048)
+    const backupsAfterUninstall = agentsBackups();
+    expect(backupsAfterUninstall).toHaveLength(1);
+
+    update();
+    // 음성 대조 — uninstall 이 쓴 바이트가 update 가 낼 바이트와 같다(같은 입력): 새 백업 0 · 파일 그대로
+    expect(agentsBackups()).toEqual(backupsAfterUninstall);
+    expect(agents()).toBe(after);
+  });
+
+  it("--cli codex: opencode 가 남으면 ## Session Start 가 빠지고 제목은 OpenCode — 설치자 문장 그대로 (C-T4)", () => {
+    install(["claude", "codex", "opencode"]);
+    fillContext("우리 팀은 정산 배치를 돌린다.");
+
+    expect(removeCli("codex").code).toBe(0);
+
+    const after = agents();
+    expect(after.split("\n")[0]).toContain("Agent Guide (OpenCode)");
+    expect(after).not.toContain("## Session Start");
+    expect(after).not.toContain("project_doc_max_bytes");
+    expect(after).toContain("우리 팀은 정산 배치를 돌린다.");
+  });
+
+  // B-T10 — Antigravity 룰은 회수, `AGENTS.md` 는 codex 가 아직 읽으므로 남고 codex 판으로 다시 렌더된다.
+  it("--cli antigravity: .agents/rules/ 는 회수 · AGENTS.md 는 codex 판으로 남는다 · 스킬 자리 유지 (B-T10)", () => {
+    install(["claude", "codex", "antigravity"]);
+    expect(agents().split("\n")[0]).toContain("Agent Guide (Codex · Antigravity)"); // 대조군
+    expect(readdirSync(join(projectDir, ".agents/rules")).length).toBeGreaterThan(0);
+
+    const run = removeCli("antigravity");
+
+    expect(run.code).toBe(0);
+    expect(has(".agents/rules") && readdirSync(join(projectDir, ".agents/rules")).length > 0).toBe(
+      false,
+    );
+    expect(agents().split("\n")[0]).toContain("Agent Guide (Codex)");
+    expect(agents().split("\n")[0]).not.toContain("Antigravity");
+    expect(has(".agents/skills")).toBe(true);
+    expect(readInstallLog(projectDir)?.spec.clis).toEqual(["claude", "codex"]);
+  });
+
+  // 리뷰 #735 BLOCKER — 하네스 룰 절 **바로 뒤**(`## Session Start` 앞)에 설치자가 적은 절은 위치가 아니라 정체로 가른다:
+  //   하네스가 쓴 룰 제목이 아니면 설치자 절이다. update · uninstall --cli 뒤에도 AGENTS.md 에 남아야 한다(백업에만 남으면 손실).
+  it("하네스 룰 바로 뒤에 적은 설치자 절은 update 2회 · uninstall --cli 뒤에도 AGENTS.md 에 남는다", () => {
+    install(["claude", "codex", "opencode"]);
+    const TEAM = "## Team rules\n\nTEAM-RULES-TEXT — 리뷰는 두 명이 본다.";
+    expect(agents()).toContain("\n## Session Start\n"); // 대조군 — 끼울 자리가 있다
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      agents().replace("\n## Session Start\n", `\n${TEAM}\n\n## Session Start\n`),
+    );
+
+    update();
+    expect(agents()).toContain(TEAM);
+    const afterFirst = agents();
+    const backupsAfterFirst = agentsBackups();
+    update();
+    // 이어진 update 는 원인이 없다 — 새 백업 0 · 파일 그대로
+    expect(agentsBackups()).toEqual(backupsAfterFirst);
+    expect(agents()).toBe(afterFirst);
+
+    expect(removeCli("opencode").code).toBe(0);
+    expect(agents()).toContain(TEAM);
+    expect(agentsBackups()).toEqual(backupsAfterFirst);
+  });
+
+  // #642 — 남는 집합이 Antigravity 뿐이면 인라인 룰 절이 없다. 옛 판의 룰 제목(`## Git Safety` 등)이 "설치자 절" 로 되살아나면
+  //   Antigravity 가 룰을 두 번(.agents/rules/ + AGENTS.md) 읽고, 그 뒤 update 도 영영 걷지 못한다. 설치자가 끝에 붙인 절은 남는다(#643).
+  it("--cli codex: Antigravity 만 남으면 인라인 룰 제목이 남지 않는다 · 설치자가 끝에 붙인 절은 남는다", () => {
+    install(["claude", "codex", "antigravity"]);
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      `${agents().replace(/\n+$/, "\n")}\n## My Team Conventions\n\n금요일에는 배포하지 않는다.\n`,
+    );
+    expect(agents()).toContain("## Git Safety"); // 대조군 — 인라인 룰이 있었다
+
+    expect(removeCli("codex").code).toBe(0);
+
+    const after = agents();
+    expect(after.split("\n")[0]).toContain("Agent Guide (Antigravity)");
+    for (const ruleTitle of ["## Git Safety", "## Documentation Boundaries", "## Harness Rules"]) {
+      expect(after, ruleTitle).not.toContain(ruleTitle);
+    }
+    expect(after).toContain("## My Team Conventions\n\n금요일에는 배포하지 않는다.");
+  });
+
+  // BLOCKER-2 대조군 — FILL 문구를 바꾼 이 릴리즈에서도, 옛 문구로 깐 **안 채운** 파일은 "채웠다" 가 아니다: 마지막
+  //   사용자가 나가면 파일째 지운다(스캐폴드만 든 파일을 남기지 않는다).
+  it("옛 FILL 문구의 안 채운 AGENTS.md 는 마지막 사용자가 나가면 파일째 지운다 (BLOCKER-2)", () => {
+    install(["claude", "codex"]);
+    const now = agents();
+    const at = now.indexOf("Verify against the harness folders this CLI reads");
+    expect(at, "픽스처 자기검증 — 새 문구가 있어야 옛 판을 재현한다").toBeGreaterThan(-1);
+    const end = now.indexOf(" and list", at);
+    const old = `${now.slice(0, at)}Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent)${now.slice(end)}`;
+    writeFileSync(join(projectDir, "AGENTS.md"), old);
+    // 26.164.0 이 이 바이트를 썼다 — 기록 sha 도 그 바이트다(설치자는 아무것도 안 고쳤다)
+    const log = readInstallLog(projectDir);
+    if (log === null) throw new Error("기록이 없다");
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: (log.externalFiles ?? []).map((f) =>
+        f.path === "AGENTS.md" ? { ...f, sha256: hashContent(old) } : f,
+      ),
+    });
+
+    expect(removeCli("codex").code).toBe(0);
+    expect(has("AGENTS.md")).toBe(false);
   });
 
   it("claude 를 빼면 `.claude/` 와 앵커는 가고 루트 `CLAUDE.md` 는 본문만 남는다", () => {

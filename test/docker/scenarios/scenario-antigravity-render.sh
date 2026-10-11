@@ -39,8 +39,13 @@ assert_grep() {
 
 echo "── 산출물 섹션 (R2: antigravity invisible 이던 버그) ──"
 assert_grep "Antigravity artifacts" "산출물 섹션 헤더 노출"
-# #564 — 룰 행은 폴더 하나로 이번 실행이 쓴 파일 수와 앵커를 함께 말한다(`.agents/rules/  7 files · uzys-harness.md from …`).
-assert_grep "\.agents/rules/ +[0-9]+ files? · uzys-harness\.md" "rules 행 노출 (쓴 파일 수 + 앵커)"
+# #564 — 룰 행은 이번 실행이 쓴 파일 수를 말한다. ADR-103 — 옛 앵커(uzys-harness.md)는 은퇴했고 원칙·맥락은 AGENTS.md 행이 말한다.
+assert_grep "\.agents/rules/ +[0-9]+ harness rules? \(with Antigravity trigger frontmatter\)" "rules 행 노출 (쓴 룰 수 · frontmatter)"
+assert_grep "AGENTS\.md +from CLAUDE-uzys-harness\.md \(Antigravity\)" "AGENTS.md 행 노출 (Antigravity 앵커)"
+if grep -q "uzys-harness\.md from" "${LOG}"; then
+  echo "  ✗ FAIL: 옛 앵커 파일을 썼다고 말한다 (ADR-103 — 은퇴)"
+  failed=1
+fi
 # ADR-086 — 라벨이 파일이 아니라 디렉터리(`<id>/`)다. 스킬이 디렉터리째 나간다.
 # 옛 라벨(`<id>/SKILL.md`)의 진부분 문자열로 물면 회귀를 못 잡는다(재리뷰 N-1) — 뒤에 SKILL 이 없어야 한다.
 assert_grep "\.agents/skills/<id>/([^S]|$)" "skills 행 노출 (디렉터리 라벨)"

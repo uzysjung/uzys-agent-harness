@@ -89,6 +89,23 @@ describe("#528 앵커 씨 뿌리기", () => {
     expect(agents).toContain("_(not filled yet");
   });
 
+  // v26.165.0 독립 검증 BLOCKER-2 대조군 — FILL 문구를 바꾼 릴리즈에서 옛 문구로 깐 **안 채운** 루트 CLAUDE.md 가
+  //   "채웠다" 로 읽혀 옛 스캐폴드가 새 AGENTS.md 로 퍼지면 안 된다.
+  it("옛 FILL 문구의 안 채운 스캐폴드는 옮기지 않는다 (BLOCKER-2)", () => {
+    install(["claude"]);
+    const path = join(projectDir, "CLAUDE.md");
+    const now = readFileSync(path, "utf8");
+    const at = now.indexOf("Verify against the harness folders this CLI reads");
+    expect(at, "픽스처 자기검증 — 새 문구가 있어야 옛 판을 재현한다").toBeGreaterThan(-1);
+    const end = now.indexOf(" and list", at);
+    writeFileSync(
+      path,
+      `${now.slice(0, at)}Verify against .claude/rules/*.md, .claude/skills/, .claude/agents/, .claude/commands/ (or this CLI's equivalent)${now.slice(end)}`,
+    );
+
+    expect(seedAgentsMdProjectContext(projectDir)).toBeNull();
+  });
+
   it("이미 있는 앵커는 건드리지 않는다 — 씨는 태어날 때만 뿌린다", () => {
     install(["claude", "codex"]);
     fill("AGENTS.md", "## Project Context", "AGENTS 쪽에 적은 줄.");

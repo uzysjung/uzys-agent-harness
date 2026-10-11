@@ -29,23 +29,19 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     rmSync(project, { recursive: true, force: true });
   });
 
-  it("produces AGENTS.md + opencode.json (no dev-method skills → no skill files)", () => {
+  it("produces opencode.json (no dev-method skills → no skill files); AGENTS.md is not its job (#642)", () => {
     const report = runOpencodeTransform({
       harnessRoot: HARNESS_ROOT,
       mcp: HARNESS_MCP,
       projectDir: project,
       baseline: new Map(),
     });
-    expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.opencodeJsonPath)).toBe(true);
     // 스킬은 selectedInternalSkills 에서만 나온다 — 여기선 0건.
     expect(report.skillFiles).toHaveLength(0);
     expect(report.retiredCommands).toHaveLength(0);
-
-    // Invariant: no Claude-namespace colon-slash (/uzys:) leaks into OpenCode output.
-    const agents = readFileSync(report.agentsMdPath, "utf8");
-    expect(agents).not.toContain("/uzys:");
-    expect(agents).toContain("OpenCode");
+    // #642 — `AGENTS.md` 는 깔린 집합으로 렌더하는 주체 하나(`agents-md-transform.ts`)가 쓴다.
+    expect(existsSync(join(project, "AGENTS.md"))).toBe(false);
 
     const opencode = JSON.parse(readFileSync(report.opencodeJsonPath, "utf8"));
     expect(opencode.$schema).toBe("https://opencode.ai/config.json");

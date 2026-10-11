@@ -101,14 +101,14 @@ function isResidentDoc(target: string): boolean {
 /**
  * 다른 세 CLI 의 상주 앵커 **껍데기** (#295).
  *
- * WHY: Codex · OpenCode · Antigravity 의 `AGENTS.md` 는 `templates/<cli>/AGENTS.md.template` 이
- * `CLAUDE.md` 본문을 **감싸서** 만들어진다(`src/<cli>/agents-md.ts`). 감싸는 쪽 산문은 manifest
+ * WHY: Codex · OpenCode · Antigravity 의 `AGENTS.md` 는 `templates/AGENTS.md.template` 이
+ * `CLAUDE.md` 본문을 **감싸서** 만들어진다(`src/agents-md-render.ts` — #642 부터 템플릿은 하나다). 감싸는 쪽 산문은 manifest
  * target 이 아니라서 위 `isResidentDoc` 로는 영영 안 잡혔다 — 그런데 그 껍데기는 우리가 쓴
  * 프로즈이고, 그 CLI 를 고른 사람이 **매 세션 전문을 문다.** 껍데기에 조건절 없는 지목을 한 줄
  * 쓰면 아무도 안 막는 상태였다.
  *
- * 여기서도 CLI 를 열거하지 않는다 — 디렉터리를 훑어 `AGENTS.md.template` 을 전부 집는다.
- * 새 CLI 가 붙어도 게이트를 고칠 필요가 없다.
+ * 여기서도 CLI 를 열거하지 않는다 — 공용 템플릿과, 혹시 다시 생길 CLI 별 사본(`templates/<cli>/`)을
+ * 함께 훑는다. 사본이 생겨도 게이트를 고칠 필요가 없다.
  *
  * 설치 트랙은 **전 트랙**이다: 껍데기는 트랙과 무관하게 그 CLI 를 고르면 나간다. 따라서
  * 껍데기가 부르는 자산은 **모든 트랙에** 있어야 하고, 아니면 부재를 명시해야 한다.
@@ -117,9 +117,12 @@ function isResidentDoc(target: string): boolean {
  * `.claude/rules/*.md` 로 검사되므로 치환하면 같은 위반을 두 번 세게 된다.
  */
 function anchorShellSources(): string[] {
-  return readdirSync(TEMPLATES, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => `${d.name}/AGENTS.md.template`)
+  return [
+    "AGENTS.md.template",
+    ...readdirSync(TEMPLATES, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => `${d.name}/AGENTS.md.template`),
+  ]
     .filter((rel) => existsSync(join(TEMPLATES, rel)))
     .sort();
 }
@@ -388,7 +391,7 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     // 하한은 **0-match 함정을 막는 canary 이지 커버리지 최소선이 아니다** — 상주 문서 모수가
     // 21(룰 20 + 앵커) → 9(룰 8 + 앵커) → 8(룰 7 + 앵커, #284) → 7(룰 6 + 앵커, 2026-08-12 에
     // `playwright-launch` 가 스킬로 이동)로 줄었다.
-    expect(docTracks.size).toBeGreaterThan(9); // 모수 10 = 룰 6 + 앵커 1 + 껍데기 3 (#295)
+    expect(docTracks.size).toBeGreaterThan(7); // 모수 8 = 룰 6 + 앵커 1 + 껍데기 1 (#295 · #642 — 템플릿 하나)
     // 전 트랙 상주 문서가 존재해야 이 게이트가 노리는 비대칭(전 트랙 문서 → 일부 트랙 자산)이 성립.
     expect([...docTracks.values()].some((s) => s.size === TRACKS.length)).toBe(true);
 
@@ -408,7 +411,7 @@ describe("상주 문서가 지목하는 자산의 도달 가능성", () => {
     expect(
       shells.length,
       "AGENTS.md 껍데기 템플릿을 하나도 못 찾았다 — 훑기 경로가 깨졌다",
-    ).toBeGreaterThan(2);
+    ).toBeGreaterThan(0);
     for (const rel of shells) {
       expect(
         docTracks.get(rel)?.size,

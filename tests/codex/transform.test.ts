@@ -21,21 +21,18 @@ describe("runCodexTransform (E2E against templates/)", () => {
     rmSync(project, { recursive: true, force: true });
   });
 
-  it("produces Codex baseline — AGENTS.md + config.toml + ported hooks (slash + env rename)", () => {
+  it("produces Codex baseline — config.toml + ported hooks (env rename); AGENTS.md is not its job (#642)", () => {
     const report = runCodexTransform({
       harnessRoot: HARNESS_ROOT,
       mcp: HARNESS_MCP,
       projectDir: project,
       baseline: new Map(),
     });
-    expect(existsSync(report.agentsMdPath)).toBe(true);
     expect(existsSync(report.configTomlPath)).toBe(true);
     // HOOK_NAMES = [session-start] — v26.115.0(ADR-043)에서 hito-counter 제거.
     expect(report.hookFiles).toHaveLength(1);
-
-    // Invariant: no Claude-namespace colon-slash (/uzys:) leaks into Codex output.
-    const agents = readFileSync(report.agentsMdPath, "utf8");
-    expect(agents).not.toContain("/uzys:");
+    // #642 — `AGENTS.md` 는 깔린 집합으로 렌더하는 주체 하나(`agents-md-transform.ts`)가 쓴다.
+    expect(existsSync(join(project, "AGENTS.md"))).toBe(false);
 
     const config = readFileSync(report.configTomlPath, "utf8");
     expect(config).toContain("[[hooks.SessionStart]]");
@@ -74,30 +71,6 @@ describe("runCodexTransform (E2E against templates/)", () => {
     // 2026-08-02 정비 (ADR-060) — 표본이 이관된 두 스킬에서 잔존 번들 스킬로 바뀌었다.
     //   검증 대상은 라우팅(선택된 id 만 native .agents/skills/ 로 렌더)이지 특정 스킬이 아니다.
     const DEV_METHOD = ["compaction-handoff", "recurrence-prevention"];
-
-    // ADR-085 — 상시 스킬 안내는 AGENTS.md 프로젝트 맥락에, 깔린 것만.
-    it("상시 스킬을 골랐을 때만 AGENTS.md 에 안내 절이 붙는다", () => {
-      const NOTE = "## Skills that apply continuously";
-      runCodexTransform({
-        harnessRoot: HARNESS_ROOT,
-        mcp: HARNESS_MCP,
-        projectDir: project,
-        selectedInternalSkills: ["user-centered-explanation", ...DEV_METHOD],
-        baseline: new Map(),
-      });
-      const withNote = readFileSync(join(project, "AGENTS.md"), "utf8");
-      expect(withNote).toContain(NOTE);
-      expect(withNote).toContain("`user-centered-explanation`");
-      expect(withNote).not.toContain("`compaction-handoff`"); // 상시 스킬이 아니다
-      runCodexTransform({
-        harnessRoot: HARNESS_ROOT,
-        mcp: HARNESS_MCP,
-        projectDir: project,
-        selectedInternalSkills: DEV_METHOD,
-        baseline: new Map(),
-      });
-      expect(readFileSync(join(project, "AGENTS.md"), "utf8")).not.toContain(NOTE);
-    });
 
     it("selectedInternalSkills 주어지면 native .agents/skills/<id>/SKILL.md 로 렌더", () => {
       const report = runCodexTransform({

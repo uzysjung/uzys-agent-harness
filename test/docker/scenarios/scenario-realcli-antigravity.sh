@@ -45,14 +45,22 @@ agent-harness install --track tooling --with frontend-design --cli antigravity -
 missing=0
 check_file() { [[ -f "$1" ]] || { echo "FAIL: $1 없음"; missing=1; }; }
 
-# ① 앵커 룰 + 배포 룰이 항목 단위로 옮겨졌는가. 기대 목록은 배포 룰 디렉터리에서 유도한다.
-check_file "${PROJ}/.agents/rules/uzys-harness.md"
+# ① 앵커(루트 AGENTS.md — ADR-103) + 배포 룰이 항목 단위로 옮겨졌는가. 기대 목록은 배포 룰 디렉터리에서 유도한다.
+check_file "${PROJ}/AGENTS.md"
+[[ -e "${PROJ}/.agents/rules/uzys-harness.md" ]] && { echo "FAIL: 은퇴한 옛 앵커가 생겼다 (ADR-103)"; missing=1; }
 RULE_SRC=/work/templates/rules
 RULE_COUNT=0
 for f in "${RULE_SRC}"/*.md; do
   [[ -e "${f}" ]] || continue
   RULE_COUNT=$((RULE_COUNT + 1))
   check_file "${PROJ}/.agents/rules/$(basename "${f}")"
+  # #631 — Antigravity 는 `trigger` frontmatter 가 없는 룰을 조용히 버린다. 첫 줄 `---` · 둘째 줄 `trigger:` 여야 읽힌다.
+  RULE_DST="${PROJ}/.agents/rules/$(basename "${f}")"
+  if [[ -f "${RULE_DST}" ]]; then
+    [[ "$(sed -n 1p "${RULE_DST}")" == "---" ]] || { echo "FAIL: ${RULE_DST} 첫 줄이 --- 가 아니다 (#631)"; missing=1; }
+    sed -n 2p "${RULE_DST}" | grep -qE '^trigger: (always_on|glob)$' \
+      || { echo "FAIL: ${RULE_DST} 에 trigger frontmatter 가 없다 (#631)"; missing=1; }
+  fi
 done
 if [[ "${RULE_COUNT}" -eq 0 ]]; then
   echo "FAIL: ${RULE_SRC} 에서 룰을 하나도 못 읽었다 — 이 판정은 무효다"
@@ -79,7 +87,7 @@ else
 fi
 
 if [[ "${missing}" -eq 0 ]]; then
-  echo "✓ Tier A: .agents/rules(앵커 + 배포 룰 ${RULE_COUNT}종) + .agents/skills 정상 write"
+  echo "✓ Tier A: AGENTS.md(앵커) + .agents/rules(배포 룰 ${RULE_COUNT}종 · trigger frontmatter) + .agents/skills 정상 write"
   echo "  rules:  $(ls "${PROJ}/.agents/rules" 2>/dev/null | tr '\n' ' ')"
   echo "  skills: $(ls "${PROJ}/.agents/skills" 2>/dev/null | tr '\n' ' ')"
 else
@@ -113,6 +121,13 @@ SKILLS_OUT=$(timeout 20 agy skills list 2>&1 | head -c 1500 || timeout 20 agy sk
 echo "${SKILLS_OUT}" | sed 's/^/    /'
 if echo "${SKILLS_OUT}" | grep -qiE "uzys"; then
   echo "    → uzys skill 노출 (인식!)"
+fi
+
+echo "  [probe 4b] agy rules 열거 시도 (있으면) — #631 frontmatter 뒤 룰이 로드되는지의 증거(로그 문자열은 실측 뒤 확정)"
+RULES_OUT=$(cd "${PROJ}" && (timeout 20 agy rules list 2>&1 | head -c 1500 || timeout 20 agy rule list 2>&1 | head -c 1500) || true)
+echo "${RULES_OUT}" | sed 's/^/    /'
+if echo "${RULES_OUT}" | grep -qiE "git-policy|doc-governance|cli-development"; then
+  echo "    → 하네스 룰 노출 (인식!)"
 fi
 
 echo "  [probe 5] agy --print (비대화형) — auth 벽 확인"

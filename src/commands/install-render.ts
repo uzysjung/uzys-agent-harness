@@ -11,8 +11,9 @@ import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import type { AnchorRetireResult } from "../antigravity/retire-anchor.js";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
-import { targetsInclude } from "../cli-targets.js";
+import { CLI_DISPLAY_NAMES, targetsInclude } from "../cli-targets.js";
 import {
   anchorSurface,
   formatResidentCostLine,
@@ -61,16 +62,10 @@ import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js"
 import type { UpdateModeReport } from "../update-mode.js";
 
 /**
- * v26.78.1 — Summary `CLI` 행 라벨 (SSOT). spec.cli 에서 derive → 헤더와 일관.
- * 이전 pairwise if-chain 은 codex/opencode 만 열거해 `--cli antigravity` 가 "Claude" 로
- * 잘못 출력 (R2). 4 base 전부 매핑.
+ * v26.78.1 — Summary `CLI` 행 라벨. spec.cli 에서 derive → 헤더와 일관. 표시명 SSOT 는
+ * `cli-targets.ts` 다(#642 — `AGENTS.md` 제목도 같은 이름을 쓴다).
  */
-const CLI_SUMMARY_LABELS: Record<CliBase, string> = {
-  claude: "Claude",
-  codex: "Codex",
-  opencode: "OpenCode",
-  antigravity: "Antigravity",
-};
+const CLI_SUMMARY_LABELS: Record<CliBase, string> = CLI_DISPLAY_NAMES;
 
 /** Callbacks for progressive rendering during runInstall (avoids "Phase 1 silence" UX). */
 export interface PipelineCallbacks {
@@ -360,12 +355,14 @@ function residentEntriesOnDisk(
           }))
       : [];
   };
+  // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이면 `.agents/rules/`
+  // 파일이다(옛 앵커 이름은 은퇴 대상이라 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
   const rules =
     surface === "claude"
       ? mdFiles(join(".claude", "rules"), "rules")
-      : surface === "antigravity-rule"
-        ? mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md")
-        : planned.filter((e) => e.target.startsWith(".claude/rules/"));
+      : rulesInline(spec.cli)
+        ? planned.filter((e) => e.target.startsWith(".claude/rules/"))
+        : mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md");
   const slot = hasClaude ? join(".claude", "skills") : join(".agents", "skills");
   const skills = planned
     .filter((e) => e.target.startsWith(".claude/skills/"))
@@ -394,17 +391,15 @@ function residentEntriesOnDisk(
  *  - claude: 앵커 · 루트 `CLAUDE.md` · 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 —
  *    지우지 않으므로 계속 읽힌다). 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면
  *    키운 본문이 화면에서 사라진다.
- *  - Codex · OpenCode: `AGENTS.md` 통째 — 하네스 절 · 인라인 룰 · 설치자 절이 한 파일에 섞여 있다.
- *  - Antigravity: `.agents/rules/uzys-harness.md`.
+ *  - Codex · OpenCode · Antigravity: `AGENTS.md` 통째 — 하네스 절 · (Codex · OpenCode 면) 인라인 룰 · 설치자 절이
+ *    한 파일에 섞여 있다(ADR-103 — Antigravity 의 옛 앵커 파일은 은퇴했다).
  */
 function contextFilesOnDisk(spec: InstallSpec): string[] {
   const surface = anchorSurface(spec.cli).scaffold;
   const files =
     surface === "claude"
       ? [HARNESS_ANCHOR_FILE, "CLAUDE.md", join(".claude", "CLAUDE.md")]
-      : surface === "agents-md"
-        ? ["AGENTS.md"]
-        : [join(".agents", "rules", "uzys-harness.md")];
+      : ["AGENTS.md"];
   return files.map((f) => join(spec.projectDir, f));
 }
 
@@ -415,7 +410,7 @@ function contextFilesOnDisk(spec: InstallSpec): string[] {
  * 남아 있을 수 있어 "planned" 라고 붙인다.
  */
 function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCost {
-  if (anchorSurface(spec.cli).scaffold !== "agents-md") return cost;
+  if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec.cli)) return cost;
   const rendered = spec.updateOnly === undefined || spec.updateOnly.includes("external");
   return makeResidentCost({
     ...cost,
@@ -423,6 +418,11 @@ function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCos
     rulesInline: rendered ? "rendered" : "planned",
     contextNote: "whole file, incl. your text",
   });
+}
+
+/** 룰이 `AGENTS.md` 본문에 인라인으로 들어가는 집합인가 — Codex · OpenCode 가 있을 때(`agents-md-render.ts`). */
+function rulesInline(cli: CliTargets): boolean {
+  return cli.includes("codex") || cli.includes("opencode");
 }
 
 /**
@@ -435,18 +435,23 @@ export function renderCliArtifacts(
   spec: InstallSpec,
   report: InstallReport,
 ): void {
-  const hasArtifacts = Boolean(report.codex || report.opencode || report.antigravity);
+  const agentsReport = report.agentsMd ?? null;
+  const hasArtifacts = Boolean(
+    report.codex || report.opencode || report.antigravity || agentsReport,
+  );
+  // #642 — 이번에 고르지 않았어도 기록된 CLI 의 `AGENTS.md` 를 다시 렌더했으면(`install --cli claude` 등) 그 줄을 낸다
+  const shown = [...spec.cli, ...(agentsReport?.clis ?? [])];
   const cliSelected =
-    targetsInclude(spec.cli, "codex") ||
-    targetsInclude(spec.cli, "opencode") ||
-    targetsInclude(spec.cli, "antigravity");
+    targetsInclude(shown, "codex") ||
+    targetsInclude(shown, "opencode") ||
+    targetsInclude(shown, "antigravity");
   if (!hasArtifacts || !cliSelected) {
     return;
   }
-  log(unifiedSection(formatCliPhaseTitle(spec.cli)));
+  log(unifiedSection(formatCliPhaseTitle(shown)));
   log("");
-  const agentsMd = report.opencode?.agentsMd ?? report.codex?.agentsMd ?? null;
-  // AGENTS.md is shared across Codex/OpenCode — render once with shared note
+  const agentsMd = agentsReport?.agentsMd ?? null;
+  // #642 — AGENTS.md 는 깔린 비-Claude CLI 집합이 함께 읽는 한 파일이다 — 한 줄로, 집합의 이름을 댄다.
   // #558 — 설치자 파일에 블록 하나만 더했으면(첫 접촉) 그렇게 말한다. 하네스가 만든 파일(절 모델)은 전과 같다.
   const agentsBlock = agentsMd?.model === "block" ? agentsMd.shared : null;
   if (agentsBlock) {
@@ -458,15 +463,17 @@ export function renderCliArtifacts(
         : "no harness block in the file (your text kept as-is)",
     );
     if (row) log(row);
-  } else if (report.codex && report.opencode) {
-    log(assetRow("success", "AGENTS.md", "shared (Codex + OpenCode)"));
-  } else if (report.codex || report.opencode) {
-    log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}`));
+  } else if (agentsReport && agentsReport.clis.length > 1) {
+    const names = agentsReport.clis.map((c) => CLI_DISPLAY_NAMES[c]).join(" · ");
+    log(assetRow("success", "AGENTS.md", `shared (${names})`));
+  } else if (agentsReport) {
+    const only = agentsReport.clis[0];
+    const who = only === undefined ? "" : ` (${CLI_DISPLAY_NAMES[only]})`;
+    log(assetRow("success", "AGENTS.md", `from ${HARNESS_ANCHOR_FILE}${who}`));
   }
   // #528 — 새로 만든 앵커에 다른 앵커의 설치자 절을 옮겨 심었으면 말한다. 조용히 옮기면
   // 설치자는 자기 문장이 두 파일에 생긴 것을 모르고, 어느 쪽을 고쳐야 하는지도 모른다.
-  const agentsSeededFrom =
-    report.codex?.agentsMdSeededFrom ?? report.opencode?.agentsMdSeededFrom ?? null;
+  const agentsSeededFrom = agentsReport?.agentsMdSeededFrom ?? null;
   if (agentsSeededFrom) {
     log(
       assetRow(
@@ -541,26 +548,24 @@ export function renderCliArtifacts(
       );
     }
   }
-  // v26.78.1 (R2) — Antigravity 산출물: rules (항상) + dev-method skills.
-  // #564 — 숫자는 **이번 실행이 쓴 것**(변환 반환값 — writer 가 받아 기록에 적은 경로)에서 센다. 앵커 한 줄만
-  //   적던 탓에 같은 폴더에 쓴 배포 룰(`harnessRuleFiles`)이 화면에서 빠졌다(csr-fastapi: 디스크 6 · 화면 1).
+  // v26.78.1 (R2) — Antigravity 산출물: rules + dev-method skills. 원칙·맥락은 위 `AGENTS.md` 줄이 말한다(ADR-103).
+  // #564 — 숫자는 **이번 실행이 쓴 것**(변환 반환값 — writer 가 받아 기록에 적은 경로)에서 센다.
   if (report.antigravity) {
-    const anchor = report.antigravity.rulesFile;
     const rules = report.antigravity.harnessRuleFiles.length;
-    const total = (anchor ? 1 : 0) + rules;
-    if (total > 0) {
-      const parts = [
-        ...(anchor ? [`uzys-harness.md from ${HARNESS_ANCHOR_FILE}`] : []),
-        ...(rules > 0 ? [`${rules} harness rule${rules === 1 ? "" : "s"}`] : []),
-      ];
+    if (rules > 0) {
       log(
         assetRow(
           "success",
           ".agents/rules/",
-          `${total} file${total === 1 ? "" : "s"} · ${parts.join(" + ")}`,
+          `${rules} harness rule${rules === 1 ? "" : "s"} (with Antigravity trigger frontmatter)`,
         ),
       );
     }
+  }
+  // ADR-103 — 옛 Antigravity 앵커를 은퇴시켰으면(기록에 있던 경우만) 실제로 한 일을 한 줄로
+  const retired = anchorRetireRow(report.anchorRetired ?? null);
+  if (retired) log(retired);
+  if (report.antigravity) {
     // 스킬 수는 이미 변환이 쓴 파일(`skillFiles`)의 `<id>` 수다. 같은 폴더에 외부 skill 팩(`npx skills`)도
     //   들어가므로 "bundled" 로 이 줄이 무엇을 세는지 밝힌다 — 팩은 External assets 절이 한 줄씩 말한다.
     if (report.antigravity.skillFiles.length > 0) {
@@ -574,6 +579,25 @@ export function renderCliArtifacts(
     }
   }
   log("");
+}
+
+/** ADR-103 — update 가 `AGENTS.md` 를 새로 만들었거나 다른 앵커의 설치자 글을 옮겨 심었으면 그 한 줄. */
+export function agentsMdNewsRow(n: UpdateModeReport["agentsMd"]): string | null {
+  if (n === undefined) return null;
+  const names = n.clis.map((c) => CLI_DISPLAY_NAMES[c]).join(" · ");
+  const seeded = n.seededFrom === null ? "" : `Project Context seeded from ${n.seededFrom}`;
+  if (!n.created) return seeded === "" ? null : assetRow("success", "AGENTS.md", seeded);
+  return assetRow(
+    "success",
+    "AGENTS.md",
+    `created (${names})${seeded === "" ? "" : ` · ${seeded}`}`,
+  );
+}
+
+/** ADR-103 — 옛 Antigravity 앵커 은퇴 한 줄(install · update 공통). 말할 것이 없으면(이미 없었다) `null`. */
+export function anchorRetireRow(r: AnchorRetireResult | null): string | null {
+  if (r === null || r.line === "") return null;
+  return assetRow(r.action === "removed" ? "success" : "skip", r.path, r.line);
 }
 
 /**
@@ -823,8 +847,7 @@ export function renderFinalSummary(
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
   // #636 — 하네스가 **새로 만든** CLAUDE.md 는 FILL 프롬프트를 갖고 태어나므로 그대로 안내한다.
   // 사용자의 기존 파일(created === false)에 FILL 이 없다면 "없는 것을
-  // 채우라"고 안내할 수 없으니 뺀다. #608 — antigravity 단독은 AGENTS.md 를 아예 만들지
-  // 않으므로 scaffold 목록 자체에서 빠진다(scaffoldFilesForCli 가 codex·opencode 만 넣는다).
+  // 채우라"고 안내할 수 없으니 뺀다(#608 · ADR-103 — 비-Claude CLI 는 `AGENTS.md` 하나를 앵커로 읽는다).
   const scaffoldFiles = scaffoldFilesForCli(spec.cli).filter(
     (f) =>
       (f === "CLAUDE.md" && report.rootClaudeMd?.created === true) ||
@@ -883,9 +906,9 @@ export function scaffoldFilesForCli(cli: ReadonlyArray<CliBase>): string[] {
   if (cli.includes("claude")) {
     files.push("CLAUDE.md");
   }
-  // #608 — AGENTS.md 를 만드는 것은 codex·opencode 뿐이다. antigravity 의 산출물은
-  // .agents/rules/uzys-harness.md(앵커·FILL 프롬프트 없음)라 이 안내의 대상이 아니다.
-  if (cli.includes("codex") || cli.includes("opencode")) {
+  // #608 — AGENTS.md 를 만드는 것은 비-Claude CLI 다. ADR-103 부터 Antigravity 도 이 파일을 앵커로 읽는다
+  // (옛 `.agents/rules/uzys-harness.md` 는 은퇴) — 그 FILL 도 이 안내의 대상이다.
+  if (cli.includes("codex") || cli.includes("opencode") || cli.includes("antigravity")) {
     files.push("AGENTS.md");
   }
   return files;
@@ -1019,6 +1042,11 @@ function renderPhase1Rows(
     for (const f of baseline.updateMode.restoredFiles ?? []) {
       log(assetRow("success", f.path, restoredFilePart(f)));
     }
+    // ADR-103 — `AGENTS.md` 를 새로 만들었거나 다른 앵커의 글을 옮겨 심었다 · 옛 Antigravity 앵커를 은퇴시켰다
+    const agentsNews = agentsMdNewsRow(baseline.updateMode.agentsMd);
+    if (agentsNews) log(agentsNews);
+    const retired = anchorRetireRow(baseline.updateMode.anchorRetired ?? null);
+    if (retired) log(retired);
     // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
     for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
     // ADR-099 R2 — update 도 install 과 같은 writer 로 루트 · `.claude/` 의 함께 쓰는 파일 몫을 쓴다 — 같은 행으로 말한다

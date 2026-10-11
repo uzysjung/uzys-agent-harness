@@ -23,6 +23,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
+import type { AgentsMdCli } from "../src/agents-md-render.js";
+import { runAgentsMdTransform } from "../src/agents-md-transform.js";
 import { runCodexTransform } from "../src/codex/transform.js";
 import { hashContent, type InstallLogSkillFile, readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
@@ -64,6 +66,18 @@ function codex(baseline: ReadonlyMap<string, string>) {
     mcp: HARNESS_MCP,
     projectDir,
     selectedInternalSkills: SKILLS,
+    baseline,
+  });
+}
+
+/** #642 — `AGENTS.md` 는 렌더 주체 하나가 깔린 집합으로 쓴다. */
+function agents(clis: ReadonlyArray<AgentsMdCli>, baseline: ReadonlyMap<string, string>) {
+  return runAgentsMdTransform({
+    harnessRoot: HARNESS_ROOT,
+    projectDir,
+    clis,
+    selectedInternalSkills: SKILLS,
+    rules: [],
     baseline,
   });
 }
@@ -179,22 +193,21 @@ describe("opencode transform — 소유자 판정", () => {
   });
 });
 
-describe("AGENTS.md — 두 transform 이 같은 파일을 쓴다", () => {
-  it("codex 직후 opencode 를 돌려도 AGENTS.md 백업이 생기지 않는다", () => {
-    // 같은 install 안에서 codex 가 쓴 AGENTS.md 를 opencode 가 다시 쓴다. 앞 단계가 쓴 것은
-    // 하네스 것이므로, 이걸 '사용자 편집'으로 오판하면 **매 설치마다** 백업이 생긴다.
-    const first = codex(new Map());
-    const second = opencode(baselineOf(first.ownership.files));
+describe("AGENTS.md — 집합이 바뀌어도 같은 파일 하나 (#642)", () => {
+  it("codex 판 위에 codex+opencode 판을 써도 AGENTS.md 백업이 생기지 않는다", () => {
+    // 앞 실행이 쓴 것은 하네스 것이므로, 이걸 '사용자 편집'으로 오판하면 **CLI 를 더할 때마다** 백업이 생긴다.
+    const first = agents(["codex"], new Map());
+    const second = agents(["codex", "opencode"], baselineOf(first.ownership.files));
 
     expect(second.ownership.backedUp).not.toContain("AGENTS.md");
     expect(backupsIn(projectDir)).toHaveLength(0);
   });
 
   it("사용자가 채운 AGENTS.md 는 보존된다", () => {
-    const first = codex(new Map());
+    const first = agents(["codex"], new Map());
     edit(join(projectDir, "AGENTS.md"), "# 우리 팀 규칙\n");
 
-    const second = codex(baselineOf(first.ownership.files));
+    const second = agents(["codex"], baselineOf(first.ownership.files));
 
     expect(second.ownership.backedUp).toContain("AGENTS.md");
     expect(backupsIn(projectDir)).toHaveLength(1);

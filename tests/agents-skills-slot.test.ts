@@ -51,7 +51,8 @@ const SLOT_CLIS: ReadonlyArray<CliBase> = ["codex", "opencode", "antigravity"];
 const ANCHOR: Record<string, string> = {
   codex: "AGENTS.md",
   opencode: "AGENTS.md",
-  antigravity: ".agents/rules/uzys-harness.md",
+  // ADR-103 — Antigravity 도 루트 `AGENTS.md` 를 앵커로 읽는다(옛 `.agents/rules/uzys-harness.md` 는 은퇴).
+  antigravity: "AGENTS.md",
 };
 
 let projectDir: string;
@@ -355,9 +356,11 @@ describe("update — 기존 산출물 회귀 대조군", () => {
     expect(report.updateMode?.externalBackedUp ?? []).toEqual([]);
   });
 
-  it("antigravity: 룰 파일(앵커) 옛 판은 백업 없이 최신판으로 갱신된다", () => {
+  it("antigravity: 룰 파일 옛 판은 백업 없이 최신판으로 갱신된다", () => {
     install(["antigravity"]);
-    const rel = ANCHOR.antigravity as string;
+    const first = readdirSync(join(projectDir, ".agents/rules")).sort()[0];
+    expect(first, "픽스처 자기검증 — 룰 파일이 깔려 있어야 한다").toBeDefined();
+    const rel = `.agents/rules/${first}`;
     const fresh = readFileSync(join(projectDir, rel), "utf8");
     pretendHarnessOwned(rel, "# v26.1.0 시절 룰 파일\n");
 

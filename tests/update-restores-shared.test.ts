@@ -459,7 +459,8 @@ describe("#598 — Codex 산출물을 지운 뒤 update 1회가 되돌린다", (
 });
 
 describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가 되돌린다", () => {
-  const ANCHOR = ".agents/rules/uzys-harness.md";
+  // ADR-103 — Antigravity 의 앵커는 루트 `AGENTS.md` 다(옛 `.agents/rules/uzys-harness.md` 는 은퇴).
+  const ANCHOR = "AGENTS.md";
   const RULE = ".agents/rules/git-policy.md";
 
   it("앵커 · git-policy 가 돌아온다 — 화면이 둘 다 말한다", () => {
@@ -473,13 +474,12 @@ describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가
     expect(read(ANCHOR)).toBe(before.anchor);
     expect(read(RULE)).toBe(before.rule);
     expect(screen).toMatch(
-      /\.agents\/rules\/uzys-harness\.md\s+was missing — restored \(drop this CLI for good: agent-harness uninstall --cli antigravity\)/,
+      /AGENTS\.md\s+was missing — restored \(drop this CLI for good: agent-harness uninstall --cli antigravity\)/,
     );
     expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+was missing — reinstalled/);
     // 기록에 있던 자리다 — 릴리즈가 더한 것이라 말하지 않는다
-    expect(screen).not.toMatch(
-      /\.agents\/rules\/(uzys-harness|git-policy)\.md\s+added by this release/,
-    );
+    expect(screen).not.toMatch(/\.agents\/rules\/git-policy\.md\s+added by this release/);
+    expect(screen).not.toMatch(/AGENTS\.md\s+created/);
   });
 
   it("기록에서 두 파일이 빠진 설치본(옛 판 update 가 걷었다)도 기록된 CLI 를 근거로 돌아온다", () => {
@@ -504,9 +504,9 @@ describe("#584 — Antigravity 앵커와 형제 룰을 지운 뒤 update 1회가
     expect(read(RULE)).toBe(before.rule);
     // 기록이 아니라 기록된 CLI 를 근거로 만들었어도 화면이 말한다(리뷰 PR B NOTE-4). 기록에 없던 자리는 릴리즈가 새로 더한 룰과
     // 구분되지 않는다 — claude 쪽과 같이 "added by this release" 로 말하고 "was missing" 이라 하지 않는다
-    expect(screen).toMatch(/\.agents\/rules\/uzys-harness\.md\s+added by this release/);
+    expect(screen).toMatch(/AGENTS\.md\s+created \(Antigravity\)/);
     expect(screen).toMatch(/\.agents\/rules\/git-policy\.md\s+added by this release/);
-    expect(screen).not.toMatch(/\.agents\/rules\/(uzys-harness|git-policy)\.md\s+was missing/);
+    expect(screen).not.toMatch(/(AGENTS|\.agents\/rules\/git-policy)\.md\s+was missing/);
   });
 
   it("릴리즈가 더한 룰(디스크에도 기록에도 없던 자리)은 'added by this release' 로 말한다 — 지운 적 없는 것을 되살렸다고 하지 않는다", () => {

@@ -16,7 +16,8 @@
 #      "was missing" + 영구히 빼는 `--without <id>` 안내 (#550)
 #   ④ `uninstall --cli codex` — `.codex/` 만 회수, `.agents/skills` · `AGENTS.md` 는 남는다
 #   ⑤ `uninstall --cli opencode` — `opencode.json` 회수, `.agents/skills` 는 antigravity 가 쓰니 남고,
-#      `AGENTS.md` 는 마지막 사용자가 나가므로 #516 규칙(하네스 절 제거 · 설치자 절 유지)
+#      `AGENTS.md` 는 antigravity 가 아직 읽으므로(ADR-103) 그 자리에서 Antigravity 판으로 다시 렌더된다(#642 C-3 —
+#      하네스 절은 남는 집합 판 · 설치자 절 유지)
 #   ⑥ `uninstall --cli antigravity` — 마지막 CLI 라 **거절**되고 파일은 그대로다(L0 규칙)
 #
 # **스킬 이름을 적지 않는다** — 설치 결과에서 고른다. 이름을 박으면 카탈로그가 바뀌는 순간
@@ -256,26 +257,44 @@ if [[ -e "${PROJ}/opencode.json" ]]; then
   echo "FAIL: opencode.json 이 남았다 — opencode 전용 자리다"
   exit 1
 fi
-for kept in "${SKILLS}/${GONE_ID}/SKILL.md" "${SKILLS}/${STALE_ID}/SKILL.md" \
-  "${PROJ}/.agents/rules/uzys-harness.md"; do
+for kept in "${SKILLS}/${GONE_ID}/SKILL.md" "${SKILLS}/${STALE_ID}/SKILL.md"; do
   if [[ ! -e "${kept}" ]]; then
     echo "FAIL: ${kept} 가 사라졌다 — antigravity 가 아직 쓴다 (S5)"
     exit 1
   fi
 done
-# AGENTS.md 의 마지막 사용자(opencode)가 나갔다 — 하네스 절만 걷어내고 설치자 절을 남긴다(#516).
+if ! ls "${PROJ}"/.agents/rules/*.md >/dev/null 2>&1; then
+  echo "FAIL: .agents/rules/ 의 룰이 사라졌다 — antigravity 가 아직 쓴다"
+  exit 1
+fi
+# ADR-103 · #642 C-3 — antigravity 가 아직 AGENTS.md 를 읽는다: 남는 집합(Antigravity) 판으로 그 자리에서 다시 렌더 · 설치자 절 유지.
 if [[ ! -f "${AGENTS}" ]] || ! grep -qF "${MARK}" "${AGENTS}"; then
-  echo "FAIL: AGENTS.md 의 설치자 문단이 사라졌다 (#516)"
+  echo "FAIL: AGENTS.md 의 설치자 문단이 사라졌다"
   tail -30 "${OUT}/uninst-opencode.txt"
   exit 1
 fi
-for needle in '## Harness Rules' '<!-- uzys-harness:'; do
+if ! head -1 "${AGENTS}" | grep -qF "Agent Guide (Antigravity)"; then
+  echo "FAIL: AGENTS.md 제목이 남는 집합(Antigravity) 판이 아니다 — 빠진 CLI 의 판이 남았다 (#642-2)"
+  head -1 "${AGENTS}"
+  exit 1
+fi
+# Antigravity 는 룰을 .agents/rules/ 에서 읽는다 — 인라인 룰 절은 없고, 원칙(앵커 블록)은 남는다
+for needle in '## Harness Rules' '## Git Safety'; do
   if grep -qF "${needle}" "${AGENTS}"; then
-    echo "FAIL: AGENTS.md 에 '${needle}' 가 남았다 — 마지막 사용자가 나갔는데 하네스 몫이 남는다"
+    echo "FAIL: AGENTS.md 에 '${needle}' 가 남았다 — 룰을 인라인으로 읽는 CLI 가 남지 않았다(옛 판 룰 제목이 설치자 절로 되살아났다)"
     exit 1
   fi
 done
-echo "✓ ⑤ uninstall --cli opencode — opencode.json 회수 · .agents/skills 유지 · AGENTS.md 하네스 절만 제거"
+if ! grep -qF '<!-- uzys-harness:anchor:start -->' "${AGENTS}"; then
+  echo "FAIL: AGENTS.md 에서 하네스 원칙이 사라졌다 — antigravity 가 아직 읽는다"
+  exit 1
+fi
+if ! grep -qF "re-rendered for Antigravity" "${OUT}/uninst-opencode.txt"; then
+  echo "FAIL: 화면이 AGENTS.md 재렌더를 말하지 않았다"
+  tail -30 "${OUT}/uninst-opencode.txt"
+  exit 1
+fi
+echo "✓ ⑤ uninstall --cli opencode — opencode.json 회수 · .agents/skills 유지 · AGENTS.md 는 Antigravity 판으로 재렌더"
 
 # ───────────────────────── ⑥ uninstall --cli antigravity (마지막 CLI) ─────────────────────────
 tree_digest() {

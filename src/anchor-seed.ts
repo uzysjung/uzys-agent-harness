@@ -19,17 +19,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { projectContextInstallerLines } from "./agents-md-merge.js";
+import { AGENTS_MD_TEMPLATE } from "./agents-md-render.js";
 import {
-  renderFillScaffold,
+  dropHarnessQuoteBlocks,
+  isUnfilledScaffold,
   type ScaffoldSurface,
   scaffoldBanner,
   stripHarnessImport,
 } from "./project-claude-merge.js";
-
-/** 스캐폴드 배너를 알아보는 표식. 배너 문구가 바뀌어도 이 문장은 배너의 정체다. */
-const SCAFFOLD_MARK = "SCAFFOLD — not filled in yet";
-/** 루트 `CLAUDE.md` 머리의 설치 메타 한 줄 (`mergeProjectClaude`). */
-const TRACK_NOTE_MARK = "Active track(s):";
 
 function readIfExists(path: string): string | null {
   if (!existsSync(path)) return null;
@@ -40,35 +37,6 @@ function readIfExists(path: string): string | null {
   }
 }
 
-/**
- * **하네스가 쓴 인용문 블록만** 뗀다 — 스캐폴드 배너와 트랙 안내.
- *
- * 인용문 run 을 통째로 보고 그 안에 하네스 표식이 있을 때만 뗀다. 설치자가 적어 둔 인용문
- * (프로젝트 한 줄 소개 같은 것)은 표식이 없으니 그대로 남는다.
- *
- * **앞머리만 보지 않고 전체를 훑는 이유**: 설치자가 H1 바로 뒤에 자기 인용문을 끼우면 하네스
- * 앞머리가 그 아래로 밀린다. "앞의 run 만" 보면 거기서 멈춰 배너가 딸려 가고, 그 배너는 목적지
- * 파일에서 **없는 파일을 가리킨다**(#305). 표식으로 고르면 위치에 기대지 않는다.
- */
-function dropHarnessQuoteBlocks(lines: ReadonlyArray<string>): string[] {
-  const out: string[] = [];
-  let i = 0;
-  while (i < lines.length) {
-    if (!(lines[i] ?? "").trim().startsWith(">")) {
-      out.push(lines[i] ?? "");
-      i += 1;
-      continue;
-    }
-    let end = i;
-    while (end < lines.length && (lines[end] ?? "").trim().startsWith(">")) end++;
-    const run = lines.slice(i, end);
-    const text = run.join("\n");
-    if (!text.includes(SCAFFOLD_MARK) && !text.includes(TRACK_NOTE_MARK)) out.push(...run);
-    i = end;
-  }
-  return out;
-}
-
 /** 맨 앞 H1 한 줄을 뗀다 — 제목은 목적지 파일이 자기 것을 갖는다. */
 function dropTitle(lines: ReadonlyArray<string>): string[] {
   const out = [...lines];
@@ -77,19 +45,8 @@ function dropTitle(lines: ReadonlyArray<string>): string[] {
   return out;
 }
 
-/** 비교·판정용 정규화 — 빈 줄과 줄 끝 공백은 "내용"이 아니다. */
-function compact(lines: ReadonlyArray<string>): string[] {
-  return lines.map((l) => l.replace(/\r$/, "").trimEnd()).filter((l) => l.trim() !== "");
-}
-
-/** 손대지 않은 스캐폴드인가 — 그렇다면 옮길 내용이 없다(빈 껍데기를 옮기는 것은 소음이다). */
-function isPristineScaffold(body: ReadonlyArray<string>, surface: ScaffoldSurface): boolean {
-  const pristine = compact(dropHarnessQuoteBlocks(renderFillScaffold(surface).split("\n")));
-  return compact(body).join("\n") === pristine.join("\n");
-}
-
 /** 목적지 배너 + 옮겨 온 본문. 옮길 것이 없으면 `null`. */
-function compose(body: ReadonlyArray<string>, into: ScaffoldSurface): string | null {
+export function compose(body: ReadonlyArray<string>, into: ScaffoldSurface): string | null {
   const trimmed = [...body];
   while (trimmed.length > 0 && (trimmed.at(-1) ?? "").trim() === "") trimmed.pop();
   while (trimmed.length > 0 && (trimmed[0] ?? "").trim() === "") trimmed.shift();
@@ -108,16 +65,16 @@ export function seedAgentsMdProjectContext(projectDir: string): string | null {
   if (root === null) return null;
   const withoutImport = stripHarnessImport(root) ?? root;
   const body = dropHarnessQuoteBlocks(dropTitle(withoutImport.split("\n")));
-  if (isPristineScaffold(body, "claude")) return null;
+  // 손대지 않은 스캐폴드면 옮길 내용이 없다(빈 껍데기를 옮기는 것은 소음이다) — 판정은 `isUnfilledScaffold` 하나
+  if (isUnfilledScaffold(body)) return null;
   return compose(body, "agents-md");
 }
 
 /**
  * 새 루트 `CLAUDE.md` 의 프로젝트 맥락에 넣을 본문 — `AGENTS.md` 의 `## Project Context` 에서.
  *
- * 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3). 두 CLI 판 템플릿은
- * 설치자 소유 절 이름이 같으므로 어느 쪽을 읽어도 경계가 같다 — `uninstall` 의
- * `readAgentsMdTemplate` 주석과 같은 근거다. 템플릿을 못 읽으면 `null`(경계를 모르면 옮기지 않는다).
+ * 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3) — 템플릿은 하나다(#642).
+ * 템플릿을 못 읽으면 `null`(경계를 모르면 옮기지 않는다).
  */
 export function seedRootClaudeProjectContext(
   projectDir: string,
@@ -125,13 +82,11 @@ export function seedRootClaudeProjectContext(
 ): string | null {
   const agents = readIfExists(join(projectDir, "AGENTS.md"));
   if (agents === null) return null;
-  const template =
-    readIfExists(join(harnessRoot, "templates/codex/AGENTS.md.template")) ??
-    readIfExists(join(harnessRoot, "templates/opencode/AGENTS.md.template"));
+  const template = readIfExists(join(harnessRoot, AGENTS_MD_TEMPLATE));
   if (template === null) return null;
   const installer = projectContextInstallerLines({ existing: agents, template });
   if (installer === null) return null;
   const body = dropHarnessQuoteBlocks(installer);
-  if (isPristineScaffold(body, "agents-md")) return null;
+  if (isUnfilledScaffold(body)) return null;
   return compose(body, "claude");
 }

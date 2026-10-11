@@ -163,7 +163,8 @@ describe("excludedIds · ownersOf · kindOf", () => {
   it("ownersOf — 소유 표의 경로 접두(N3)", () => {
     expect(ownersOf(".claude/rules/x.md")).toEqual(["claude"]);
     expect(ownersOf(".agents/skills/x/SKILL.md")).toEqual(["codex", "opencode", "antigravity"]);
-    expect(ownersOf("AGENTS.md")).toEqual(["codex", "opencode"]);
+    // ADR-103 — Antigravity 도 `AGENTS.md` 를 앵커로 읽는다
+    expect(ownersOf("AGENTS.md")).toEqual(["codex", "opencode", "antigravity"]);
     expect(ownersOf("src/index.ts")).toEqual([]);
   });
 

@@ -14,14 +14,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { runCodexTransform } from "../src/codex/transform.js";
+import type { AgentsMdCli } from "../src/agents-md-render.js";
+import { runAgentsMdTransform } from "../src/agents-md-transform.js";
 import type { InstallLogSkillFile } from "../src/install-log.js";
-import { runOpencodeTransform } from "../src/opencode/transform.js";
-import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
-/** #568 — 변환은 MCP 서버를 호출부에서 받는다(설치기와 같은 원천). */
-const HARNESS_MCP = trackOnlyMcp(HARNESS_ROOT, ["tooling"]);
 /** 렌더된 `AGENTS.md` 의 최상위 절 — 템플릿과 같아야 한다(이름이 바뀌면 여기서 먼저 터진다). */
 const SECTIONS = [
   "Project Context",
@@ -60,11 +57,16 @@ interface RunOpts {
   refreshOnly?: boolean;
 }
 
-function codex(baseline: ReadonlyMap<string, string>, opts: RunOpts = {}) {
-  return runCodexTransform({
+/** #642 — `AGENTS.md` 는 렌더 주체 하나(`runAgentsMdTransform`)가 깔린 집합으로 쓴다. */
+function render(
+  clis: ReadonlyArray<AgentsMdCli>,
+  baseline: ReadonlyMap<string, string>,
+  opts: RunOpts = {},
+) {
+  return runAgentsMdTransform({
     harnessRoot: HARNESS_ROOT,
-    mcp: HARNESS_MCP,
     projectDir: project,
+    clis,
     baseline,
     rules: opts.rules ?? ["git-policy"],
     selectedInternalSkills: opts.skills ?? ["user-centered-explanation"],
@@ -72,16 +74,8 @@ function codex(baseline: ReadonlyMap<string, string>, opts: RunOpts = {}) {
   });
 }
 
-function opencode(baseline: ReadonlyMap<string, string>, opts: RunOpts = {}) {
-  return runOpencodeTransform({
-    harnessRoot: HARNESS_ROOT,
-    mcp: HARNESS_MCP,
-    projectDir: project,
-    baseline,
-    rules: opts.rules ?? ["git-policy"],
-    selectedInternalSkills: opts.skills ?? ["user-centered-explanation"],
-    refreshOnly: opts.refreshOnly ?? false,
-  });
+function codex(baseline: ReadonlyMap<string, string>, opts: RunOpts = {}) {
+  return render(["codex"], baseline, opts);
 }
 
 /** 절 경계는 **알려진 최상위 절 이름**으로만 — 본문(스캐폴드·앵커·룰)에도 `## ` 가 있다. */
@@ -199,18 +193,18 @@ describe("AGENTS.md — 설치자가 채운 절은 재렌더를 넘긴다 (#503)
     expect(after).toContain("<!-- uzys-harness:anchor:start -->");
   });
 
-  it("codex + opencode 조합 — 뒤에 도는 transform 도 설치자 절을 이어받는다", () => {
+  it("집합이 바뀌어도(codex → codex+opencode → codex) 설치자 절을 이어받는다", () => {
     const first = codex(new Map());
     const edited = prependToSection(read(), "Project Context", "두 CLI 를 같이 쓴다.");
     writeFileSync(agentsPath(), edited);
 
-    // installer 는 두 transform 사이에 기준선을 이어 준다(cli-transforms `absorb`).
+    // installer 는 실행 사이에 기준선을 이어 준다(cli-transforms `absorb`).
     const base = new Map(baselineOf(first.ownership.files));
-    const second = opencode(base, { refreshOnly: true });
+    const second = render(["codex", "opencode"], base, { refreshOnly: true });
     for (const f of second.ownership.files) base.set(f.path, f.sha256);
 
     expect(section(read(), "Project Context")).toContain("두 CLI 를 같이 쓴다.");
-    // opencode 판이 자리를 차지해도(문서화된 동작) 룰 절은 살아 있다.
+    // 집합 판(#642) — 룰 절은 살아 있다.
     expect(section(read(), "Harness Rules")).toContain("## Git Safety");
 
     codex(base, { refreshOnly: true });

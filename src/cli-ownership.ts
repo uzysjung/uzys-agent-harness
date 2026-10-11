@@ -5,7 +5,7 @@
  * `removeExternalFiles` 의 기록 순회, 그리고 각 transform 이 쓰는 자리. 전량 uninstall 만
  * 있을 때는 셋이 같은 답을 낼 필요가 없었다 — 전부 지우니까. **CLI 하나만 빼는 순간**
  * 답이 갈린다: `.agents/skills/` 는 codex 를 빼도 opencode 가 남아 있으면 남아야 하고,
- * `AGENTS.md` 는 둘 다 나갈 때만 정리 대상이다. 그 판단은 한 표에서만 나와야 한다.
+ * `AGENTS.md` 는 그것을 읽는 비-Claude CLI 가 다 나갈 때만 정리 대상이다(ADR-103 — 남으면 남는 집합으로 다시 렌더). 그 판단은 한 표에서만 나와야 한다.
  *
  * **전용(exclusive)** = 이 CLI 만 쓰는 자리. 그 CLI 가 나가면 함께 나간다.
  * **공유(shared)** = 다른 CLI 와 나눠 쓰는 자리. **남는 CLI 중 사용자가 하나도 없을 때만** 나간다.
@@ -60,22 +60,22 @@ export const CLI_OWNERSHIP: Record<CliBase, ReadonlyArray<OwnedPath>> = {
   ],
   codex: [
     { path: ".codex/", kind: "dir", sharedWith: [] },
-    { path: "AGENTS.md", kind: "recorded", sharedWith: ["opencode"] },
+    { path: "AGENTS.md", kind: "recorded", sharedWith: ["opencode", "antigravity"] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["opencode", "antigravity"] },
     ...SHARED_BY_ALL("codex"),
   ],
   opencode: [
     { path: ".opencode/", kind: "dir", sharedWith: [] },
     { path: "opencode.json", kind: "recorded", sharedWith: [] },
-    { path: "AGENTS.md", kind: "recorded", sharedWith: ["codex"] },
+    { path: "AGENTS.md", kind: "recorded", sharedWith: ["codex", "antigravity"] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["codex", "antigravity"] },
     ...SHARED_BY_ALL("opencode"),
   ],
   antigravity: [
-    { path: ".agents/rules/uzys-harness.md", kind: "recorded", sharedWith: [] },
-    // #596 — 앵커뿐 아니라 **형제 룰 파일들**도 antigravity 소유다(transform 이 externalFiles 에
-    // 기록한다). 소유 표가 앵커 하나만 알아서 --cli antigravity 가 룰을 회수하지도 보고하지도
-    // 않았다(전량 uninstall 은 회수함 — 유일한 누수 경로).
+    // ADR-103 — Antigravity 도 루트 `AGENTS.md` 를 앵커로 읽는다(옛 앵커 `.agents/rules/uzys-harness.md` 는 은퇴 — 은퇴 전
+    // 설치본의 그 기록은 아래 접두 행이 덮는다).
+    { path: "AGENTS.md", kind: "recorded", sharedWith: ["codex", "opencode"] },
+    // #596 — 룰 파일들도 antigravity 소유다(transform 이 externalFiles 에 기록한다).
     { path: ".agents/rules/", kind: "recorded", sharedWith: [] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["codex", "opencode"] },
     ...SHARED_BY_ALL("antigravity"),
