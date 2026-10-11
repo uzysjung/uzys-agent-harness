@@ -5,6 +5,7 @@
 - PR: #304
 - Supersedes: ADR-070 (도달 범위로 소유권을 가르는 판정 기준)
 - 관련: ADR-067(룰 최소 판단) · ADR-068(앵커 7원칙) · 이슈 #300
+- Amended by: ADR-103 (2026-10-11, PR #735) — Antigravity 행 — 앵커는 `AGENTS.md`, 룰은 `.agents/rules/` 에 trigger frontmatter; 파일당 상한 24,000 bytes
 
 ## Context
 

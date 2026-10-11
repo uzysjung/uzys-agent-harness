@@ -1,8 +1,8 @@
 # ADR-103: `AGENTS.md` 는 비-Claude CLI 전부의 공유 앵커 — 깔린 집합으로 렌더하고, Antigravity 앵커 파일은 은퇴하며, Antigravity 룰은 frontmatter 를 단다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-11
-- PR: (머지 직전에 채운다)
+- PR: #735
 - Issue: #631 · #645 · #642
 - Amends: ADR-071(Antigravity 행 — 룰 자리는 `.agents/rules/` 그대로, 앵커는 `AGENTS.md`; 파일당 상한 "12,000자" → 24,000 bytes) ·
   ADR-096 D7(씨 뿌리기 출처에 옛 Antigravity 앵커 추가) · ADR-095(절 모델의 템플릿이 하나) · ADR-048/049(Antigravity 산출물 목록)

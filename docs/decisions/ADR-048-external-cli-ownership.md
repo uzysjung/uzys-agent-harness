@@ -4,6 +4,7 @@
 - Date: 2026-07-20
 - PR: (이 PR)
 - Extends: ADR-047 (정책 파일 소유자 판정) · ADR-046 (하네스/사용자 파일 경계)
+- Amended by: ADR-103 (2026-10-11, PR #735) — Antigravity 산출물 목록 — 앵커 파일 `.agents/rules/uzys-harness.md` 은퇴, 원칙·맥락은 루트 `AGENTS.md`
 
 ## Context
 

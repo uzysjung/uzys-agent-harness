@@ -5,6 +5,7 @@
 - PR: (이 PR)
 - Extends: ADR-048 (외부 CLI 소유자 판정) · ADR-047 · ADR-046
 - Amended by: #514 (2026-09-21) — codex · opencode 한 쌍만 설치 로그(`templates.codexDir` · `opencodeDir`)로 가른다. 아래 §Decision 끝 문단.
+- Amended by: ADR-103 (2026-10-11, PR #735) — Antigravity 산출물 목록 — 앵커 파일 은퇴
 
 ## Context
 

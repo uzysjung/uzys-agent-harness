@@ -1,10 +1,11 @@
 # ADR-096: 깔린 CLI 집합은 설치 로그의 `clis` 하나가 SSOT 다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-21
-- PR: (미정)
+- PR: #535
 - Amends: ADR-049 (외부 CLI 산출물 갱신 — 대상 CLI 판정 근거를 `refreshOnly` + `templates.*Dir` 에서 `clis` 로 옮긴다)
 - Issue: #528 (Epic #527)
+- Amended by: ADR-103 (2026-10-11, PR #735) — D7 씨 뿌리기 출처에 옛 Antigravity 앵커 추가
 
 ## Context
 
