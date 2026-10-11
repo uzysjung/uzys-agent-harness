@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.165.0] — 2026-10-11 (깐 것이 각 CLI 에서 그대로 동작한다)
+
+### Changed
+- **Antigravity 가 하네스 룰과 원칙을 실제로 읽는다 — 앵커 파일은 은퇴하고 루트 `AGENTS.md` 로** (#631 · #645, PR #735, ADR-103).
+  - 전: `.agents/rules/*.md` 에 Antigravity 공식 스펙이 요구하는 `trigger` frontmatter 가 없어 Antigravity 가 룰을 읽지 않고 버렸다. 앵커 `.agents/rules/uzys-harness.md` 에 채운 프로젝트 맥락은 update 마다 빈칸으로 돌아갔다.
+  - 후: 룰은 `trigger: always_on`(`cli-development` 는 `trigger: glob` + 셸 파일 글롭)으로 읽힌다. 원칙과 프로젝트 맥락은 Antigravity 가 frontmatter 없이 늘 읽는 루트 `AGENTS.md` 에 있고, Codex · OpenCode 와 같은 절 모델이라 update 가 채운 내용을 보존한다.
+  - 이미 깐 설치본: 첫 update 가 옛 앵커를 치우고, 앵커에 채운 글을 `AGENTS.md` 의 `## Project Context` 로 한 번 옮긴다(원본은 백업 1건). 안 채운 앵커는 백업 없이 치운다.
+  - FILL 안내가 네 CLI 가 실제로 읽는 자리를 말한다(전: Antigravity 단독 설치에 없는 `.claude/` 경로).
+- **공유 `AGENTS.md` 가 깔린 비-Claude CLI 조합을 따른다** (#642, PR #735, ADR-103).
+  - 전: Codex 와 OpenCode 를 함께 깔면 항상 OpenCode 판이라 Codex 고유 안내(Session Start 등)가 빠졌고, `uninstall --cli opencode` 뒤에도 OpenCode 판이 다음 update 까지 남았다.
+  - 후: 템플릿 하나를 깔린 CLI 조합으로 렌더한다. `uninstall --cli` 는 남은 조합으로 그 자리에서 다시 쓴다.
+  - `## Project Context` 를 채운 설치자는 이 판의 첫 update 와 `uninstall --cli` 재작성 때 `AGENTS.md` 백업을 1건 받는다(파일 단위 소유 판정, ADR-048). 파일 안의 설치자 절은 그대로 남는다.
+- **Codex 설정이 경고를 만들지 않고 설치자 훅·전역 설정을 건드리지 않는다** (#724 · #605 · #685, PR #732).
+  - 전: 설치본이 `[features] codex_hooks`(옛 이름)와 `child_agents_md`(Codex 가 모르는 키)를 써서 Codex 가 시작할 때마다 경고했다. 설치자 `[[hooks]]` 배열이 있으면 하네스 SessionStart 훅이 그 원소 안으로 들어가 무효가 됐다. `--with-codex-trust` 가 다른 TOML 표기로 이미 있는 trust 항목·특수 문자 경로에서 `~/.codex/config.toml` 을 깨고 ✓ 라고 말했다.
+  - 후: `[features]` 표를 템플릿에서 뺀다(켜던 키는 전부 기본값이 켜짐). 손대지 않은 설치본은 update 한 번으로 경고가 사라지고, 그 구간을 고친 설치본에는 install · update 화면이 지울 줄을 ⚠ 로 알린다. 설치자 값이 바뀌게 되는 하네스 항목은 넣지 않고 `kept yours` 로 말한다. trust 는 파서로 기존 항목을 판정해 덮지 않고, 덧붙인 결과가 다시 읽히지 않으면 한 바이트도 쓰지 않는다. `untrusted` 로 둔 폴더는 그대로 둔다.
+- **설치·update 비용 줄이 claude 없는 설치와 기존 본문에서도 디스크를 말한다** (#615, PR #730). Antigravity 는 룰·앵커를 하나씩 재고, Codex · OpenCode 는 `AGENTS.md` 를 통째로 재 `whole file, incl. your text` 로 표시한다. install 헤더는 루트 `CLAUDE.md` 의 설치 뒤 모습을 잰다. 재지 못하는 이미 있는 `AGENTS.md` 본문은 `planned, not counting text already in AGENTS.md` 라벨로 알린다.
+
+### Fixed
+- **경로에 `"` · `\` 가 든 프로젝트에서도 Codex 설치가 끝까지 간다** (#733, PR #734). 프로젝트 `.codex/config.toml` 의 `writable_roots` 와 훅 경로를 TOML 문자열 규칙으로 쓴다. Windows 실기는 미검증.
+- **uninstall 이 `AGENTS.md` 에 설치자가 덧붙인 절을 지우지 않는다** (#736, PR #738). 전: 마지막 비-Claude CLI 를 빼거나 전체 uninstall 하면 Project Context · Project Rules 밖에 덧붙인 절(`## Team rules` 등)이 백업 없이 사라졌고, Project Context 를 안 채웠으면 파일이 통째로 지워졌다(26.164.0 포함 기존 동작). 후: update 와 같은 기준으로 하네스 몫(하네스 절 · 하네스 룰 제목 · `<!-- uzys-harness:… -->` 블록)만 빼고 나머지 절은 남긴다. 설치자 몫이 하나도 없을 때만 파일을 지운다.
+
+### 알려진 한계
+- 배포 룰과 제목이 똑같은 설치자 절(`## Testing` 등)은 `AGENTS.md` update 에서 하네스 룰로 읽힌다(26.164.0 과 같다).
+
 ## [v26.164.0] — 2026-10-06 (갱신은 조용하고 · 빼면 깨끗이 빠진다 — 설치자 디스크 한 원칙 3단계)
 
 ### Changed
