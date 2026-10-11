@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { readToml, TOP_REGION } from "../adapters/toml-region.js";
 import { hashContent } from "../install-log.js";
 import type { McpJson } from "../mcp-merge.js";
+import { tomlBasicString } from "./trust-entry.js";
 
 /** 표 구간 이름 — `toml-region` 은 `top` 만 파일 맨 앞에 두고 나머지 이름은 파일 끝에 둔다. */
 export const TABLES_REGION = "tables";
@@ -140,7 +141,9 @@ export interface RenderConfigTomlParams {
 export function renderConfigToml(params: RenderConfigTomlParams): string {
   const substituted = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
-    .replaceAll("{PROJECT_DIR}", params.projectDir)
+    // #733 — `{PROJECT_DIR}` 는 템플릿에서 늘 기본 문자열(`"…"`) 안에 있다. 경로의 `"` · `\` 를 #685 trust 키와 같은
+    // 규칙으로 이스케이프한다(따옴표 쌍은 템플릿 몫이라 벗긴다). 그대로 넣으면 렌더가 TOML 이 아니어서 설치가 멈춘다.
+    .replaceAll("{PROJECT_DIR}", tomlBasicString(params.projectDir).slice(1, -1))
     .replaceAll("{GITHUB_TOKEN}", "${GITHUB_TOKEN}");
 
   if (!params.mcp) {
