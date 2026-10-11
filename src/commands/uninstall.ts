@@ -77,6 +77,7 @@ import {
 } from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
 import { excludedIds, kindOf } from "../recorded.js";
+import { ruleHeadings } from "../rules-port.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
 import { CLI_BASES, type CliBase, isCliBase, isTrack } from "../types.js";
@@ -1796,7 +1797,14 @@ function agentsMdRemainder(
 ): { ok: true; remainder: string | null } | { ok: false } {
   const template = readAgentsMdTemplate(harnessRoot);
   if (template === null) return { ok: false };
-  return { ok: true, remainder: stripHarnessFromAgentsMd({ existing: current, template }) };
+  return {
+    ok: true,
+    remainder: stripHarnessFromAgentsMd({
+      existing: current,
+      template,
+      harnessRuleHeadings: ruleHeadings(harnessRoot),
+    }),
+  };
 }
 
 /**
