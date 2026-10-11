@@ -683,12 +683,14 @@ describe("선택 기록 — 대체 범위 · opt-in · 효과분 · 옛 기록 �
   });
 
   it("V5 — opt-in 을 `--with` 로 깔고 `--without` 한 뒤 플래그 없는 install: 빼기가 풀리고(↺ 변형) update 가 다시 관리한다", () => {
-    const X = "model-orchestration"; // tooling 기본 밖(opt-in) 번들 스킬
-    install({ userOverride: { forceInclude: [X], forceExclude: [] } });
-    install({ userOverride: { forceInclude: [], forceExclude: [X] } });
+    // ADR-105 (#726) — model-orchestration 이 dev 트랙 기본이 됐다. "트랙 기본 밖" 전제를 지키려고 트랙을 executive 로 잰다.
+    const X = "model-orchestration"; // executive 기본 밖 번들 스킬
+    const tracks: Track[] = ["executive"];
+    install({ tracks, userOverride: { forceInclude: [X], forceExclude: [] } });
+    install({ tracks, userOverride: { forceInclude: [], forceExclude: [X] } });
     expect(rawLog().excluded).toEqual([X]);
 
-    const { screen } = install();
+    const { screen } = install({ tracks });
     expect(rawLog().excluded ?? []).toEqual([]);
     expect(screen).toContain(
       `↺ ${X} — no longer excluded: update keeps it current again (this install did not pass --without ${X})`,

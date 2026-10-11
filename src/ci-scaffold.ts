@@ -5,10 +5,12 @@
  * (docs/plans/lifecycle-codification-2026-07-18.md ② — CI 0 인 실프로젝트가 갭의 존재 증명).
  *
  * 본 하네스가 `.claude/` 밖에 쓰는 첫 자산 — 안전 계약 2가지:
- *   1. opt-in 전용 (`--with ci-scaffold` / wizard 체크) — 무인지 설치 없음.
+ *   1. 개발 트랙 기본 (ADR-105, #726 — 전에는 opt-in 전용이었다) · 빼려면 `--without ci-scaffold`.
+ *      없을 때만 쓰고, 쓴 파일은 설치 화면에 이름을 낸다.
  *   2. **기존 파일 절대 덮어쓰지 않음** — 이미 존재하는 워크플로 파일은 skip 하고
  *      `skippedExisting` 으로 정직 보고 (manifest copyFile 의 무조건 overwrite 와 다른 이유).
- *      uninstall 도 `.github/` 를 건드리지 않는다 (install-log 미기록 — 설치 후 사용자 소유물).
+ *      uninstall 도 `.github/` 를 지우지 않는다 (기록은 `rootFiles` 에 남기되 안내만 — 쓰는 순간
+ *      설치자 소유물).
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";

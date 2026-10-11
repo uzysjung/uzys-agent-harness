@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-20
 - PR: #507
+- Amended by: ADR-104 (카탈로그에서 뺀 외부 자산을 update 화면이 플러그인 포함 자산마다 말한다 — 지우지 않는 규율은 그대로)
 - Supersedes: ADR-019(cherry-pick ↔ plugin 게이팅)의 ECC 축 · ADR-021 큐레이션 세트 중 워크플로 4종 · ADR-039(feature-dev) · ADR-073 의 전제(ECC 플러그인 존속)
 
 ## Context

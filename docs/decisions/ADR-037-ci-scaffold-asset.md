@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-18
 - PR: #221
+- Amended by: ADR-105 (§3ⓐ opt-in 전용 → 개발 트랙 기본. ⓑ 덮어쓰기 금지 · ⓒ uninstall 미접촉은 그대로)
 - Context: 사용자 지시(2026-07-18): "BDD/TDD 등 만들어진 테스트케이스는 CI 로 깃헙에 등록해서
   검증하게 하는 것" 이 하네스에 녹아야 한다. 실무 감사 결과: GoalTrack 은 ci.yml/e2e.yml 로
   전 구간 계측(실 Postgres 서비스 컨테이너 + RLS 게이트 + Playwright), dyld_vantage 는

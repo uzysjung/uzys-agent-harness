@@ -28,7 +28,7 @@ uzys-agent-harness는 에이전트를 규칙 목록으로 묶지 않는다. 대�
 
 ### 4. 여러 관점과 여러 에이전트로 속도, 비용, 품질을 맞춘다
 
-스스로 하는 점검과 독립 검토를 나눈다. 중요한 변경은 결과물을 만들지 않은 다른 에이전트가 검토하고, 개발 트랙에는 여러 사용자 입장(페르소나)에서 결과물을 따져 보는 스킬도 들어간다. 선택 스킬을 더하면 작업마다 어울리는 모델과 추론 강도를 골라 가벼운 일은 빠르고 싸게, 중요한 일은 꼼꼼하게 처리하고, 다른 회사의 모델에게 의견을 물을 수도 있다.
+스스로 하는 점검과 독립 검토를 나눈다. 중요한 변경은 결과물을 만들지 않은 다른 에이전트가 검토하고, 개발 트랙에는 여러 사용자 입장(페르소나)에서 결과물을 따져 보는 스킬도 들어간다. 개발 트랙에는 작업마다 어울리는 모델과 추론 강도를 골라 가벼운 일은 빠르고 싸게, 중요한 일은 꼼꼼하게 처리하게 하는 스킬도 들어가고, 그 회사의 CLI 가 있으면 다른 회사의 모델에게 의견을 물을 수도 있다.
 
 이 네 가지를 담은 룰과 스킬, 그리고 프로젝트 스택에 맞는 외부 스킬(공식 저장소이거나, 출처와 인기도, 설치 경로를 확인해 고른 것)을 명령 하나로 설치한다. 내 `CLAUDE.md`에는 주석으로 표시한 블록 하나만 붙고 나머지는 건드리지 않는다. 지울 때도 `CLAUDE.md`나 `.mcp.json` 같은 공용 파일에서는 하네스가 넣은 부분만 빠진다. Claude Code, Codex, OpenCode, Antigravity에서 쓸 수 있고, 파일 편집을 막는 훅과 검토 에이전트는 Claude Code에서 동작한다.
 
@@ -110,7 +110,7 @@ CI, 컨테이너, 스크립트처럼 마법사를 띄울 수 없는 곳에서는
 
 ### 만드는 에이전트와 검사하는 에이전트를 나눈다
 
-자기가 한 일을 자기가 검사하면 놓치기 쉽다. Claude Code에서는 코드를 짜지 않은 `reviewer` 서브에이전트가 테스트나 앱을 직접 돌려 보고 결과를 검사한다. 선택 스킬인 `model-orchestration`을 더하면 에이전트가 일마다 어떤 모델에게 얼마나 깊이 생각하게 할지 고른다. 가벼운 일은 빠르고 싸게, 판단할 게 많은 일은 더 강한 모델에게 맡겨 속도와 비용, 품질 사이에서 균형을 잡는다.
+자기가 한 일을 자기가 검사하면 놓치기 쉽다. Claude Code에서는 코드를 짜지 않은 `reviewer` 서브에이전트가 테스트나 앱을 직접 돌려 보고 결과를 검사한다. 개발 트랙에는 `model-orchestration` 스킬이 들어가 에이전트가 일마다 어떤 모델에게 얼마나 깊이 생각하게 할지 고른다. 가벼운 일은 빠르고 싸게, 판단할 게 많은 일은 더 강한 모델에게 맡겨 속도와 비용, 품질 사이에서 균형을 잡는다.
 
 작업 원칙 전문은 [templates/CLAUDE.md](templates/CLAUDE.md)에서 볼 수 있다. 설치하면 이 파일이 `CLAUDE-uzys-harness.md`라는 이름으로 들어가고, 내 `CLAUDE.md`는 한 줄로 이 파일을 불러온다. 프로젝트의 방향은 [docs/NORTH_STAR.md](docs/NORTH_STAR.md)에 정리해 두었다.
 
@@ -170,7 +170,7 @@ your-project/
 | `tooling` | 앱 스택 없는 Bash·Markdown 프로젝트 | 없음 |
 | `full` | 개발 트랙 전부와 문서 작업 | 위 항목 전부 + `anthropic-document-skills` |
 | `executive` | 제안서, 실사, 발표 자료, 재무 모델 | `anthropic-document-skills` |
-| `project-management` | PM 업무 | 없음 (`product-skills` 선택 가능) |
+| `project-management` | PM 업무 | 없음 |
 | `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
 MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서), `github`, `chrome-devtools`가 들어가고, `csr-*`와 `ssr-htmx` 트랙에는 배포용 `railway-mcp-server`가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다.
@@ -179,9 +179,9 @@ MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브�
 
 - 프론트엔드·디자인: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
 - 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `railway-skills`
-- 보안 리뷰: `security-guidance`, `trailofbits-skills`
-- 제품·마케팅·재무: `product-skills`, `marketingskills`, `finance-skills`
-- 발표·영상: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills` 등
+- 보안 리뷰: `security-guidance`, `claude-security`
+- 마케팅·재무: `marketingskills`, `finance-skills`
+- 발표·영상: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills` 등
 - 정해진 개발 절차가 필요한 팀: `openspec`, `bmad-method` ([WORKFLOWS.md](docs/WORKFLOWS.md)에서 비교)
 
 트랙별 전체 구성은 [docs/TRACKS.md](docs/TRACKS.md)에, 항목별 출처와 설치 방식, 지원 도구는 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)에 있다.

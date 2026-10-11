@@ -63,7 +63,7 @@ SSOT** 이고 여기서는 가리키기만 한다(doc-governance). 원문 출처
 | **① 모델이 발전하면 하네스도 같이 발전한다** | 옛 모델의 약점을 메우던 지시는 다시 재고 빼거나 완화한다. 결과와 경계는 분명히 하고 방법은 모델에 맡긴다 | §1 "기준선이 움직인다" · "상주의 근거" 행 · §3 서두 상주 입증 책임(ADR-053 → 054 정정) · §4.1 sunset · §4.2 "모델이 이미 지키는 것을 규칙으로 다시 쓰기" 안 함 · 자산 audit-harness-fit |
 | **② 북극성과 가드레일로 루프 엔지니어링을 지원한다** | 방향(North Star) · 완료 기준(AC) · 넘을 수 없는 경계(Guardrail)를 세워 에이전트가 기준 안에서 스스로 판단하며 수렴하게 한다. Prompt → Loop → Graph | Pillar 1 · §4.1 "Deterministic Harness — 차단은 비가역 손상에만" · §4.2 "AI 단독 자동화" 안 함(인간 결정 게이트 유지) · 자산 north-star · objective-brief · gh-issue-workflow · 훅 session-start · protect-files · 스크립트 protect-branch · 배포 앵커 §6(승인 경계) |
 | **③ 하네스를 지속적으로 클린징한다** | 상주 지시는 관측으로 입증해야 남고, 근거를 못 대면 스킬로 내려가거나 은퇴한다. `update` 는 더해진 것과 빠진 것을 함께 가져온다 | Pillar 2 · §1 "상주의 근거" · §2 Directive Cost / Firing Surface · §4.1 컨텍스트 이코노미 · 차단 기록 · 첫 전수 적용 = ADR-090 · 위저드 4단계의 상주 비용 표시 · `update` 의 고아 룰·훅 정리와 은퇴 자산 안내 |
-| **④ 다면 페르소나와 여러 AI 코딩 에이전트의 협업으로 속도·경제성·품질의 최적 트레이드오프를 찾는다** | 4-CLI 동등성 · 만든 레인이 판정하지 않는 레인 분리 · 다면 리뷰 · 모델 오케스트레이션 · 외부 모델 상담 | Pillar 3 · Pillar 1 의 "인사이트 레이어"(오케스트레이션 노하우 · cross-CLI · 다중 페르소나 검증, ADR-032) · 레인 원칙 ADR-054 · 자산 reviewer · implementer · multi-persona-review · opt-in model-orchestration · external-model-consult |
+| **④ 다면 페르소나와 여러 AI 코딩 에이전트의 협업으로 속도·경제성·품질의 최적 트레이드오프를 찾는다** | 4-CLI 동등성 · 만든 레인이 판정하지 않는 레인 분리 · 다면 리뷰 · 모델 오케스트레이션 · 외부 모델 상담 | Pillar 3 · Pillar 1 의 "인사이트 레이어"(오케스트레이션 노하우 · cross-CLI · 다중 페르소나 검증, ADR-032) · 레인 원칙 ADR-054 · 자산 reviewer · implementer · multi-persona-review · 개발 트랙 기본 model-orchestration · external-model-consult |
 
 새 Pillar 는 만들지 않는다 — 네 축이 Pillar 1~3 에 전부 매핑된다. ④ 의 "최적 트레이드오프"는
 **가설**이다(측정 표본은 이 리포뿐 — 위 측정 한계 각주).
@@ -131,9 +131,11 @@ SSOT** 이고 여기서는 가리키기만 한다(doc-governance). 원문 출처
 
 
 > **현재 상태 (2026-10-11, ADR-083 축 분리 뒤)**: `npm run cost:report` 실측(tooling 트랙) —
-> **지시문 8개 ~3,801**(적정성 축 — 조용한 증가만 차단) · **발화 표면 12개 ~1,393**(유지 축, 스킬별 상한만) ·
-> 합계 20개 ~5,194 이 설치자가 실제로 무는 전부다.
-> 내역: rules 6개 ~1,501 · CLAUDE.md 2개 ~2,300 · skill 10개 ~1,201 · agent 2개 ~192.
+> **지시문 8개 ~3,801**(적정성 축 — 조용한 증가만 차단) · **발화 표면 15개 ~1,698**(유지 축, 스킬별 상한만) ·
+> 합계 23개 ~5,499 이 설치자가 실제로 무는 전부다.
+> 내역: rules 6개 ~1,501 · CLAUDE.md 2개 ~2,300 · skill 13개 ~1,506 · agent 2개 ~192.
+> (2026-10-11 ⓞ skill +3개 +305 — model-orchestration · external-model-consult · natural-korean 을 opt-in 에서 개발
+> 트랙 기본으로 옮겼다(#726 · ADR-105). 사용자 결정에 따른 의도적 갱신. 직전 발화 표면 ~1,393 · 합계 ~5,194.)
 > (2026-10-11 ⓝ CLAUDE.md +31 — 스캐폴드 `installed-assets` FILL 안내가 `.claude/` 경로만 말하던 것을 네 CLI 가 실제로
 > 읽는 자리로 바꿨다(#631 · ADR-103 — 같은 스캐폴드가 네 표면에 나가므로 한 문장이 네 CLI 를 말해야 한다). 설계 결정에
 > 따른 의도적 갱신. 직전 지시문 ~3,770 · 합계 ~5,163.)

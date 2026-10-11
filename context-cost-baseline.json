@@ -15,8 +15,8 @@
         "tokens": 3689
       },
       "firing": {
-        "items": 12,
-        "tokens": 1393
+        "items": 15,
+        "tokens": 1698
       }
     },
     "tooling": {
@@ -25,8 +25,8 @@
         "tokens": 3801
       },
       "firing": {
-        "items": 12,
-        "tokens": 1393
+        "items": 15,
+        "tokens": 1698
       }
     },
     "csr-supabase": {
@@ -35,8 +35,8 @@
         "tokens": 3881
       },
       "firing": {
-        "items": 13,
-        "tokens": 1514
+        "items": 16,
+        "tokens": 1819
       }
     },
     "csr-fastify": {
@@ -45,8 +45,8 @@
         "tokens": 3881
       },
       "firing": {
-        "items": 13,
-        "tokens": 1514
+        "items": 16,
+        "tokens": 1819
       }
     },
     "csr-fastapi": {
@@ -55,8 +55,8 @@
         "tokens": 3881
       },
       "firing": {
-        "items": 13,
-        "tokens": 1514
+        "items": 16,
+        "tokens": 1819
       }
     },
     "ssr-htmx": {
@@ -65,8 +65,8 @@
         "tokens": 3881
       },
       "firing": {
-        "items": 12,
-        "tokens": 1393
+        "items": 15,
+        "tokens": 1698
       }
     },
     "ssr-nextjs": {
@@ -75,8 +75,8 @@
         "tokens": 3881
       },
       "firing": {
-        "items": 13,
-        "tokens": 1514
+        "items": 16,
+        "tokens": 1819
       }
     },
     "data": {
@@ -85,8 +85,8 @@
         "tokens": 3689
       },
       "firing": {
-        "items": 13,
-        "tokens": 1465
+        "items": 16,
+        "tokens": 1770
       }
     },
     "executive": {
@@ -105,8 +105,8 @@
         "tokens": 3993
       },
       "firing": {
-        "items": 15,
-        "tokens": 1675
+        "items": 18,
+        "tokens": 1980
       }
     },
     "project-management": {

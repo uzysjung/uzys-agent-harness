@@ -1,4 +1,4 @@
-# ci.yml — CI scaffold installed by @uzysjung/agent-harness (`--with ci-scaffold`).
+# ci.yml — CI scaffold installed by @uzysjung/agent-harness (`ci-scaffold`, default on development tracks — skip it with `--without ci-scaffold`).
 # Fill-in template: replace the FILL markers with your project's commands, then commit.
 # Re-installs never overwrite this file once it exists — it is yours after install.
 #
