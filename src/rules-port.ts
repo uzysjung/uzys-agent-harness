@@ -13,7 +13,7 @@
  *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐)
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /** 룰 하나의 이식 결과. `name` 은 확장자 없는 파일명 그대로다. */
@@ -78,6 +78,26 @@ export function portRules(harnessRoot: string, ruleNames: ReadonlyArray<string>)
     ported.push({ name, body: stripClaudeFrontmatter(source), paths: claudePaths(source) });
   }
   return ported;
+}
+
+/**
+ * 리뷰 #735 — 하네스가 `## Harness Rules` 에 쓸 수 있는 룰 제목 전체: 배포 룰 **전부**(트랙 무관)를 `renderRulesBlock` 으로
+ * 렌더했을 때의 `## ` 줄. 병합이 "렌더에서 빠진 룰 제목" 과 "설치자가 같은 자리에 적은 절" 을 내용으로 가르는 근거다.
+ * 열거하지 않고 디렉터리에서 유도한다 — 룰이 늘어도 고칠 곳이 없다.
+ */
+export function ruleHeadings(harnessRoot: string): ReadonlySet<string> {
+  const dir = join(harnessRoot, "templates/rules");
+  if (!existsSync(dir)) return new Set();
+  const names = readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => f.slice(0, -3));
+  const block = renderRulesBlock(portRules(harnessRoot, names));
+  return new Set(
+    block
+      .split("\n")
+      .filter((l) => /^## /.test(l))
+      .map((l) => l.trim()),
+  );
 }
 
 /**

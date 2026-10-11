@@ -130,7 +130,13 @@ function legacyRule(name: string): string {
  * 지금 판으로 깐 뒤 26.164.0 이 남긴 모양으로 되돌린다: `AGENTS.md` 는 (antigravity 단독이면) 없었고, 앵커 · 옛 룰 본문이
  * 기록 sha 와 함께 있고, 로그에 `spec.clis` 가 없다(v26.160.1 이하로 깔고 update 만 해 온 설치본 — BLOCKER-1 의 인구).
  */
-function make164(opts: { cli: CliBase[]; filledAnchor: boolean; keepAgentsMd?: boolean }): void {
+function make164(opts: {
+  cli: CliBase[];
+  filledAnchor: boolean;
+  keepAgentsMd?: boolean;
+  /** 마지막 install 의 `spec.cli` — 생략하면 `cli`. antigravity 를 빼면 그 CLI 는 앵커 경로로만 유도된다. */
+  lastCli?: CliBase[];
+}): void {
   install(opts.cli);
   const log = readInstallLog(projectDir) as InstallLog;
   const files = new Map((log.externalFiles ?? []).map((f) => [f.path, f.sha256]));
@@ -150,7 +156,7 @@ function make164(opts: { cli: CliBase[]; filledAnchor: boolean; keepAgentsMd?: b
   const { clis: _clis, ...oldSpec } = log.spec;
   writeInstallLog(projectDir, {
     ...log,
-    spec: { ...oldSpec, cli: opts.cli },
+    spec: { ...oldSpec, cli: opts.lastCli ?? opts.cli },
     externalFiles: [...files].map(([path, sha256]) => ({ path, sha256 })),
   });
   // 픽스처 자기검증 — 옛 로그다: 필드가 없고, antigravity 는 앵커 경로로만 유도된다
@@ -158,6 +164,11 @@ function make164(opts: { cli: CliBase[]; filledAnchor: boolean; keepAgentsMd?: b
   expect(written.spec.clis).toBeUndefined();
   expect(installedClis(written)).toContain("antigravity");
 }
+
+/** 리뷰 #735 M-2 — 쓰기 한 번이면 기록 sha = 디스크 바이트다(변환 뒤에 다시 고쳐 쓰면 갈린다). */
+const recordMatchesDisk = (rel: string): boolean =>
+  (readInstallLog(projectDir)?.externalFiles ?? []).find((f) => f.path === rel)?.sha256 ===
+  hashContent(read(rel));
 
 const projectContext = (text: string): string => {
   const start = text.indexOf("## Project Context\n");
@@ -174,6 +185,10 @@ describe("ADR-103 — 26.164.0 Antigravity 설치본의 update 한 번", () => {
     expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(true);
     const agents = read("AGENTS.md");
     expect(projectContext(agents)).toContain(FILLED);
+    // 리뷰 #735 — 부분만 채운 앵커의 남은 FILL 안내는 지금 판 문구로 옮겨진다(옛 `.claude/rules/*.md …` 문구가 따라오지 않는다)
+    expect(agents).not.toContain("(or this CLI's equivalent)");
+    // BLOCKER-3 — 1차 update 직후 기록 sha == 디스크(같은 판 두 번째 update 는 고정점이라 이 결함을 못 문다)
+    expect(recordMatchesDisk("AGENTS.md")).toBe(true);
     // 옛 앵커의 마커 없는 안내가 설치자 글로 옮겨 가 두 벌이 되지 않는다(BLOCKER-2)
     expect(agents.split(NOTE_HEADING).length - 1).toBe(1);
     expect(existsSync(join(projectDir, ANCHOR))).toBe(false);
@@ -266,6 +281,67 @@ describe("ADR-103 — 26.164.0 Antigravity 설치본의 update 한 번", () => {
     expect(read(ANCHOR)).toBe(mine);
     expect(backupsOf(".agents/rules", "uzys-harness.md")).toEqual([]);
     expect(screen).not.toContain("uzys-harness.md");
+  });
+
+  it("codex+antigravity · 앵커만 채웠다 → 이미 있는 AGENTS.md 의 빈 절이 그 글을 받는다 · 기록 sha = 디스크 (ⓑ · BLOCKER-3)", () => {
+    make164({ cli: ["codex", "antigravity"], filledAnchor: true, keepAgentsMd: true });
+
+    update();
+
+    expect(projectContext(read("AGENTS.md"))).toContain(FILLED);
+    expect(recordMatchesDisk("AGENTS.md")).toBe(true);
+    expect(backupsOf(".", "AGENTS.md")).toEqual([]);
+    expect(backupsOf(".agents/rules", "uzys-harness.md")).toHaveLength(1);
+  });
+
+  // 리뷰 #735 M-1 — 마지막 install 의 spec.cli 에 antigravity 가 없는 옛 로그(antigravity 는 앵커 경로로만 유도된다)에서
+  //   install 이 앵커를 은퇴시키면 그 install 이 spec.clis 를 적어야 다음 실행이 antigravity 를 잃지 않는다.
+  it("install 경로: 앵커로만 유도되던 antigravity 가 은퇴 뒤에도 기록에 남는다 (BLOCKER-1 · install)", () => {
+    make164({
+      cli: ["codex", "antigravity"],
+      lastCli: ["codex"],
+      filledAnchor: false,
+      keepAgentsMd: true,
+    });
+
+    install(["claude"]);
+
+    const log = readInstallLog(projectDir) as InstallLog;
+    expect((log.externalFiles ?? []).map((f) => f.path)).not.toContain(ANCHOR);
+    expect(log.spec.clis).toContain("antigravity");
+    update();
+    expect(read("AGENTS.md").split("\n")[0]).toContain("Antigravity");
+  });
+
+  // 리뷰 #735 BLOCKER — 26.164.0 판 codex 설치본에서 설치자가 인라인 룰 **바로 뒤**에 적은 절은 update 2회 뒤에도 남는다.
+  it("26.164.0 판 AGENTS.md 의 인라인 룰 뒤 설치자 절 → update 2회 뒤에도 남는다 · 이어진 update 백업 0", () => {
+    make164({ cli: ["codex", "antigravity"], filledAnchor: false, keepAgentsMd: true });
+    const TEAM = "## Team rules\n\nTEAM-RULES-TEXT — 리뷰는 두 명이 본다.";
+    // 26.164.0 판 제목 — 그 판이 쓴 바이트(기록 sha)는 설치자 절이 없는 판이다
+    const harnessWrote = read("AGENTS.md").replace(
+      /^# .*\n/,
+      `# ${basename(projectDir)} — Codex Agent Guide\n`,
+    );
+    const log = readInstallLog(projectDir) as InstallLog;
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: (log.externalFiles ?? []).map((f) =>
+        f.path === "AGENTS.md" ? { ...f, sha256: hashContent(harnessWrote) } : f,
+      ),
+    });
+    expect(harnessWrote).toContain("\n## Session Start\n"); // 대조군 — 끼울 자리가 있다
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      harnessWrote.replace("\n## Session Start\n", `\n${TEAM}\n\n## Session Start\n`),
+    );
+
+    update();
+    expect(read("AGENTS.md")).toContain(TEAM);
+    const after = read("AGENTS.md");
+    const backups = backupsOf(".", "AGENTS.md");
+    update();
+    expect(read("AGENTS.md")).toBe(after);
+    expect(backupsOf(".", "AGENTS.md")).toEqual(backups);
   });
 
   it("install(--reinstall 포함)도 같은 함수로 은퇴시키고 spec.clis 를 이어 적는다", () => {

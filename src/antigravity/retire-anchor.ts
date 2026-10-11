@@ -29,6 +29,7 @@ import {
   dropContinuousSkillsNote,
   dropHarnessQuoteBlocks,
   isUnfilledScaffold,
+  renderFillScaffold,
 } from "../project-claude-merge.js";
 
 /**
@@ -84,7 +85,26 @@ export function readLegacyAntigravityContext(
   if (lines === null) return null;
   const body = dropContinuousSkillsNote(dropHarnessQuoteBlocks(lines));
   if (isUnfilledScaffold(body)) return null;
-  return compose(body, "agents-md");
+  return compose(currentFillPrompts(body), "agents-md");
+}
+
+/**
+ * 리뷰 #735 — 부분만 채운 앵커를 옮길 때 남은 절의 `<!-- FILL:<id> — … -->` 안내는 **지금 판 문구**로 바꾼다. 옛 판 문구
+ * (`.claude/rules/*.md … (or this CLI's equivalent)` — #631 둘째 축)가 따라오면 Antigravity 단독 설치에 없는 경로를 보라고 한다.
+ * 한 줄짜리 FILL 주석만 바꾼다(하네스가 쓴 형태) — 설치자가 고친 여러 줄 주석은 그대로 둔다.
+ */
+function currentFillPrompts(body: ReadonlyArray<string>): string[] {
+  const fillId = (l: string): string | null =>
+    /^<!-- FILL:([a-z-]+) — .*-->$/.exec(l.trim())?.[1] ?? null;
+  const current = new Map<string, string>();
+  for (const l of renderFillScaffold("agents-md").split("\n")) {
+    const id = fillId(l);
+    if (id !== null) current.set(id, l);
+  }
+  return body.map((l) => {
+    const id = fillId(l);
+    return id === null ? l : (current.get(id) ?? l);
+  });
 }
 
 export interface AnchorRetireResult {

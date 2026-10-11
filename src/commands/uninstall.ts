@@ -1085,7 +1085,7 @@ function rerenderLines(r: AgentsMdTransformReport): string[] {
       : [`  ${status.success(`AGENTS.md — re-rendered for ${names} (your sections kept)`)}`];
   for (const b of r.ownership.backedUp) {
     lines.push(
-      `  ${c.yellow("⊘")} ${b} — you edited a harness section; saved a copy as ${b}.backup-<time>`,
+      `  ${c.yellow("⊘")} ${b} — changed since the harness last wrote it; saved a copy as ${b}.backup-<time> · your sections are kept`,
     );
   }
   return lines;

@@ -23,7 +23,7 @@ import { seedAgentsMdProjectContext } from "./anchor-seed.js";
 import { ensureDir } from "./fs-ops.js";
 import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "./owned-write.js";
 import { renderFillScaffold } from "./project-claude-merge.js";
-import { portRules, renderRulesBlock } from "./rules-port.js";
+import { portRules, renderRulesBlock, ruleHeadings } from "./rules-port.js";
 import { type AgentsMdWriteResult, type SharedRecord, writeAgentsMd } from "./shared-write.js";
 
 export interface AgentsMdTransformParams {
@@ -122,6 +122,7 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     refreshOnly,
     ...(params.installedByRecord === true ? { createInRefresh: true } : {}),
     ...(legacy !== null && fromRoot === null ? { replaceUnfilledContext: true } : {}),
+    harnessRuleHeadings: ruleHeadings(harnessRoot),
   });
   return {
     agentsMdPath,

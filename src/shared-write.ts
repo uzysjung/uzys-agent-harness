@@ -337,6 +337,8 @@ export interface WriteAgentsMdParams {
   createInRefresh?: boolean;
   /** `mergeAgentsMd` 의 같은 이름 — 손대지 않은 `## Project Context` 를 렌더의 씨로 바꾼다(ADR-103). */
   replaceUnfilledContext?: boolean;
+  /** `mergeAgentsMd` 의 같은 이름 — 하네스가 쓸 수 있는 룰 제목(리뷰 #735). */
+  harnessRuleHeadings?: ReadonlySet<string>;
 }
 
 export interface AgentsMdWriteResult {
@@ -357,6 +359,9 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
         existing: disk,
         template: params.template,
         ...(params.replaceUnfilledContext === true ? { replaceUnfilledContext: true } : {}),
+        ...(params.harnessRuleHeadings === undefined
+          ? {}
+          : { harnessRuleHeadings: params.harnessRuleHeadings }),
       }),
       params.createInRefresh === true ? { createInRefresh: true } : undefined,
     );

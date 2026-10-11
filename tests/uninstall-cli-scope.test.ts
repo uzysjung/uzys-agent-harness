@@ -245,6 +245,31 @@ describe("#528 uninstall --cli", () => {
     expect(readInstallLog(projectDir)?.spec.clis).toEqual(["claude", "codex"]);
   });
 
+  // 리뷰 #735 BLOCKER — 하네스 룰 절 **바로 뒤**(`## Session Start` 앞)에 설치자가 적은 절은 위치가 아니라 정체로 가른다:
+  //   하네스가 쓴 룰 제목이 아니면 설치자 절이다. update · uninstall --cli 뒤에도 AGENTS.md 에 남아야 한다(백업에만 남으면 손실).
+  it("하네스 룰 바로 뒤에 적은 설치자 절은 update 2회 · uninstall --cli 뒤에도 AGENTS.md 에 남는다", () => {
+    install(["claude", "codex", "opencode"]);
+    const TEAM = "## Team rules\n\nTEAM-RULES-TEXT — 리뷰는 두 명이 본다.";
+    expect(agents()).toContain("\n## Session Start\n"); // 대조군 — 끼울 자리가 있다
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      agents().replace("\n## Session Start\n", `\n${TEAM}\n\n## Session Start\n`),
+    );
+
+    update();
+    expect(agents()).toContain(TEAM);
+    const afterFirst = agents();
+    const backupsAfterFirst = agentsBackups();
+    update();
+    // 이어진 update 는 원인이 없다 — 새 백업 0 · 파일 그대로
+    expect(agentsBackups()).toEqual(backupsAfterFirst);
+    expect(agents()).toBe(afterFirst);
+
+    expect(removeCli("opencode").code).toBe(0);
+    expect(agents()).toContain(TEAM);
+    expect(agentsBackups()).toEqual(backupsAfterFirst);
+  });
+
   // #642 — 남는 집합이 Antigravity 뿐이면 인라인 룰 절이 없다. 옛 판의 룰 제목(`## Git Safety` 등)이 "설치자 절" 로 되살아나면
   //   Antigravity 가 룰을 두 번(.agents/rules/ + AGENTS.md) 읽고, 그 뒤 update 도 영영 걷지 못한다. 설치자가 끝에 붙인 절은 남는다(#643).
   it("--cli codex: Antigravity 만 남으면 인라인 룰 제목이 남지 않는다 · 설치자가 끝에 붙인 절은 남는다", () => {

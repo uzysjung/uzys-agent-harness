@@ -244,6 +244,12 @@ export interface MergeAgentsMdParams {
    * 쓰기는 이 결과 한 번 — 기록 sha 가 최종 바이트라 다음 update 가 "고쳤다" 로 읽지 않는다.
    */
   replaceUnfilledContext?: boolean;
+  /**
+   * 리뷰 #735 — 하네스가 `## Harness Rules` 에 쓸 수 있는 룰 제목 전체(`ruleHeadings` — 배포 룰 전부의 `## ` 줄). 렌더에서
+   * 빠진 룰 제목(Antigravity 만 남은 집합 · 더 좁은 트랙)을 설치자 절로 되살리지 않는 근거다. **위치가 아니라 정체**로
+   * 가른다 — 같은 자리에 설치자가 적은 `## Team rules` 는 이 집합에 없으므로 설치자 절로 남는다. 생략 = 빈 집합.
+   */
+  harnessRuleHeadings?: ReadonlySet<string>;
 }
 
 /**
@@ -287,9 +293,13 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   // 아는 절 본문(`## Project Context`·`## Project Rules` 아래)으로 이미 보존된 절은 다시 모으지 않는다 —
   // 모으면 update 마다 한 벌씩 늘어난다.
   const mergedText = merged.replace(/\r/g, "");
-  const extras = extraTopLevelSections(existing, names, rendered, template).filter(
-    (e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")),
-  );
+  const extras = extraTopLevelSections(
+    existing,
+    names,
+    rendered,
+    template,
+    params.harnessRuleHeadings ?? new Set(),
+  ).filter((e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")));
   if (extras.length === 0) return merged;
   return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
     /\n+$/,
@@ -303,11 +313,13 @@ function extraTopLevelSections(
   names: ReadonlySet<string>,
   rendered: string,
   template: string,
+  harnessRuleHeadings: ReadonlySet<string>,
 ): string[][] {
   const out: string[][] = [];
   let current: string[] | null = null;
-  // 하네스 소유 절 `## Harness Rules` 안 — 인라인 룰은 h1 을 h2 로 낮춰 들어오므로(`renderRulesBlock`) 그 절 안의 `## ` 는
-  // 하네스가 쓴 룰 제목이다. 렌더에서 빠지면(Antigravity 만 남은 집합 · 트랙 밖 룰) 사용자 절로 되살리지 않는다(#642).
+  // `## Harness Rules` 안의 `## ` 중 **하네스가 쓴 룰 제목**(배포 룰의 제목 · 소제목)만 하네스 것이다 — 렌더에서 빠지면
+  // (Antigravity 만 남은 집합 · 트랙 밖 룰) 설치자 절로 되살리지 않는다(#642). 같은 자리라도 그 집합에 없는 제목은
+  // 설치자가 이어 쓴 절이다(템플릿 안내문이 그 자리에 이어 쓰라고 한다) — 되살린다(리뷰 #735 BLOCKER).
   let inHarnessRules = false;
   for (const line of existing.split("\n")) {
     const bare = line.replace(/\r$/, "");
@@ -320,7 +332,7 @@ function extraTopLevelSections(
       // 정한다) — 되살리 대상에서 제외한다.
       const harnessAuthored =
         names.has(name) ||
-        inHarnessRules ||
+        (inHarnessRules && harnessRuleHeadings.has(bare.trim())) ||
         rendered.includes(bare) ||
         template.includes(bare) ||
         line.trim() === CONTINUOUS_SKILLS_HEADING;
