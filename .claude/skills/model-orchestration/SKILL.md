@@ -50,6 +50,11 @@ cannot settle.
 Choose from actual capabilities and task evidence rather than fixed vendor-role
 assignments or universal effort floors. Honor explicit model, effort, budget,
 and data-processing constraints. Adapt when capabilities or evidence change.
+Where the project keeps a measured ledger of model and effort outcomes (seeded by
+the `external-model-consult` skill's `references/model-evidence.md` where installed,
+accumulated in the project's `docs/model-evidence.md`), read its dated entries as
+that evidence and say when none applies; do not infer a routing from model names
+or recency.
 
 For planning and design, keep drafting in the session when context continuity is
 valuable. Use another capable model for problem framing, a first draft, alternative

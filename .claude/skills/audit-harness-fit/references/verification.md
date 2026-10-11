@@ -148,6 +148,11 @@ a different model label alone does not supply it. Keep required review pending w
 no suitable route is available, identify an allowed alternative, and continue work
 that does not depend on the unmet gate. This guidance adds no universal review gate.
 
+When the route question is which model or effort to use and no entry in the
+project's model-evidence ledger covers the task type, propose a bounded comparison
+under that ledger's entry conditions rather than deciding from model names; record
+the result there. This is on request only — it adds no recurring comparison.
+
 ## Demonstrate improvement honestly
 
 Distinguish a well-supported guidance proposal from observed improvement in delivery.

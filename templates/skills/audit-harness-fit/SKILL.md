@@ -31,7 +31,7 @@ criteria and authority boundaries are not lowered on that basis.
 |---|---|---|
 | Audit, reconcile, or propose improvements | [Audit](references/audit.md) | Read-only findings and proposed edits |
 | Bring project guidance / memory into line with named authoritative sources | [Audit § Reconcile principles](references/audit.md#reconcile-principles-across-sources), then [Apply](references/apply.md) | Precedence table, complete statement ledger, fixes within the delegated authority |
-| A full audit, or testing / usage-scene / execution-route (delegation) advice | [Verification](references/verification.md), plus Audit for findings | Propose outcome-based implementation, sufficient verification, and a suitable route |
+| A full audit, or testing / usage-scene / execution-route (delegation) advice (including which model or effort fits a task) | [Verification](references/verification.md), plus Audit for findings | Propose outcome-based implementation, sufficient verification, and a suitable route |
 | Apply, remove, merge, relocate, or conduct an authorized trial | [Apply](references/apply.md); Audit only for unresolved findings | Make bounded local changes; distinguish trials from adoption |
 | Fill or refresh project context | [Populate](references/populate.md) | Edit only authorized project-context sections |
 
@@ -40,7 +40,11 @@ answers, and valid approvals. An audit or preview stays read-only; an explicit
 no-edit request includes report files. Where editing authority is unresolved,
 provide a proposal and continue independent authorized work. README and evals
 are maintainer resources, outside the normal execution path. Ordinary development
-requests stay on their existing workflow.
+requests stay on their existing workflow. For an audit-and-apply cycle, ask once at
+the start how many audit → apply rounds to run — default 2–3 when the user states
+no preference, because the first apply usually exposes findings the read-only audit
+could not see — then run them without re-asking, and hand the accumulated change to
+the project's normal PR / merge / verification path **once**, not per round.
 
 ## Audit contract
 
