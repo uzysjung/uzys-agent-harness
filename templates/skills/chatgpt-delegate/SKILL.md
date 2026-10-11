@@ -1,6 +1,15 @@
 ---
 name: chatgpt-delegate
-description: 브라우저 자동화로 ChatGPT(chatgpt.com)에 접속해 소프트웨어 설계·기획·검증 작업을 위임하고, 완성된 응답을 받아와 정리해 주는 스킬. 사용자가 현재 쓰는 일반 Google Chrome의 기존 연결과 로그인 세션을 사용한다. 사용자가 "ChatGPT에 맡겨줘", "챗지피티한테 물어봐", "GPT한테 설계 맡겨줘", "chatgpt로 검증해 줘", "오픈AI 모델한테 기획 위임해" 등 ChatGPT에 작업을 맡기려는 모든 상황에서 사용한다. 젠스파크 위임(genspark-delegate)의 ChatGPT 버전.
+description: >-
+  Delegates software design, planning, or review work to ChatGPT (chatgpt.com)
+  through the user's already-connected, logged-in regular Chrome, then collects
+  and summarizes the finished answer. Asks one model by default — the current
+  Latest model, keeping the current thinking effort unless the request sets one
+  — and records the model and effort actually shown. Needs a browser tool in
+  the current runtime and the user's logged-in browser. Use for "ChatGPT에
+  맡겨줘", "챗지피티한테 물어봐", "GPT한테 설계 맡겨줘", "chatgpt로 검증해 줘",
+  or "ask ChatGPT". Never opens another profile, copies cookies, picks a locked
+  model, or automates login, 2FA, or payment.
 ---
 
 # ChatGPT 위임
@@ -90,17 +99,19 @@ genspark-delegate와 동일하고, 접속 대상과 UI 사실만 ChatGPT다. 현
 
 ## 4. 채팅 열기 + 모델·사고강도 설정
 
-### 기본 정책 (사용자 지정 유지)
+### 기본 정책 (요청에 지정이 있으면 그것이 우선)
 
-- 기본은 **“Latest”에 해당하는 현재 모델 + “Extra High”**다. Latest는 특정 버전에
-  고정된 이름이 아니다. 현재 목록의 Latest 또는 최신 기본 모델 표시와 선택 상태를 확인하고
-  실제 UI 이름을 기록한다. 대응이 불분명하면 임의 버전을 고르지 말고 상태를 보고한다.
-- **모델과 사고 강도를 각각 확인한다.** 컴포저의 “Thinking effort Extra High”만 보고
-  기본 모델도 선택돼 있다고 추론하지 않는다. 이미 같은 탭·대화에서 둘을 확인했고 상태가
+- 모델은 현재 목록의 **“Latest”**(최신 기본) 표시로 확인하고 실제 UI 이름을 기록한다.
+  Latest는 특정 버전에 고정된 이름이 아니다. 대응이 불분명하면 임의 버전을 고르지 말고
+  상태를 보고한다.
+- 사고 강도는 사용자가 지정하지 않으면 **현재 설정을 유지하고 실제 값을 기록한다.** 높은
+  강도가 필요하면 brief가 지정한다.
+- **모델과 사고 강도를 각각 확인한다.** 컴포저의 사고 강도 표시만 보고 기본 모델도
+  선택돼 있다고 추론하지 않는다. 이미 같은 탭·대화에서 둘을 확인했고 상태가
   바뀌지 않았으면 다시 메뉴를 열 필요는 없다.
-- 아키텍처 전면 재설계·장기 전략 같은 깊은 검토에서는 사용자가 선호한 Pro 계열을
-  고려할 수 있다. 사용자가 지정했더라도 현재 메뉴에서 정확한 모델명과 이용 가능 여부를
-  확인한다. **Locked/disabled 또는 “opens access options” 항목은 선택하지 않는다.**
+- 아키텍처 전면 재설계·장기 전략 같은 깊은 검토에서 사용자가 Pro 계열 등 다른 모델을
+  지정한 경우에는 그 모델을 쓴다. 지정됐더라도 현재 메뉴에서 정확한 모델명과 이용 가능
+  여부를 확인한다. **Locked/disabled 또는 “opens access options” 항목은 선택하지 않는다.**
   잠긴 항목은 사용할 모델이 아니라 접근/구독 안내다. 구매·업그레이드·멤버십 변경 없이
   불가 사유를 보고하고, 이미 승인된 기본 모델 범위에서만 진행한다. 사용자가 특정 모델만
   지정했다면 그 호출을 중단하며 기본 모델로 돌리지 않는다.
@@ -172,6 +183,7 @@ genspark-delegate와 동일하고, 접속 대상과 UI 사실만 ChatGPT다. 현
    `scratch` 아래 고유한 실행 디렉터리에 저장하고 요약과 링크를 전달한다. 파일명은
    `{service}-{topic}-{model}-{request-id}.md`처럼 구분하며 기존 파일을
    덮어쓰지 않는다. 저장은 현재 파일 권한 안에서만 하며, 권한이 없으면 본문을 반환한다.
+   그 디렉터리가 `.gitignore`에 없으면 커밋되지 않게 사용자에게 알린다.
    스킬의 참고 파일·스크립트가 있으면 현재 작업 디렉터리가 아닌 이 `SKILL.md` 위치를
    기준으로 찾는다.
 4. 응답별 실제 모델·사고 강도·완료/부분/오류 상태·원본 대화 링크와 근거를 붙인다.

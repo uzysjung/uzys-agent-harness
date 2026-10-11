@@ -1,6 +1,15 @@
 ---
 name: gemini-delegate
-description: 브라우저 자동화로 Gemini(gemini.google.com)에 접속해 설계·기획·검증·한국어 문장 다듬기 작업을 위임하고, 완성된 응답을 받아와 정리해 주는 스킬. 기본은 3.8 Flash와 3.1 Pro에 각각 문의하고, 한국어 다듬기·문구 교정은 3.1 Pro를 주력으로 쓴다. 사용자가 현재 쓰는 일반 Google Chrome의 기존 연결과 로그인 세션을 사용한다. 사용자가 "Gemini에 맡겨줘", "제미나이한테 물어봐", "Gemini로 다듬어 줘", "3.1 Pro로 한국어 교정해 줘", "gemini로 검증해 줘" 등 Gemini에 작업을 맡기려는 모든 상황에서 사용한다. genspark·chatgpt 위임 스킬의 Gemini 버전.
+description: >-
+  Delegates design, planning, review, or Korean-polishing work to Gemini
+  (gemini.google.com) through the user's already-connected, logged-in regular
+  Chrome, then collects and summarizes the finished answer. By default asks the
+  two model tiers the current UI offers (one fast, one strongest) in separate
+  new chats; a single-model request asks one. Needs a browser tool in the
+  current runtime and the user's logged-in browser. Use for "Gemini에 맡겨줘",
+  "제미나이한테 물어봐", "Gemini로 다듬어 줘", "gemini로 검증해 줘", or
+  "ask Gemini". Never opens another profile, copies cookies, picks a locked
+  model, or automates login, 2FA, or payment.
 ---
 
 # Gemini 위임
@@ -14,11 +23,11 @@ description: 브라우저 자동화로 Gemini(gemini.google.com)에 접속해 �
 1. 위임 프롬프트 조립
 2. 현재 사용 중인 Chrome 연결 → Gemini 열기
 3. 로그인 확인
-4. 모델 선택(기본 3.8 Flash·3.1 Pro 각각)
+4. 모델 선택(기본: 현재 메뉴의 빠른 모델·고성능 모델 각각)
 5. 프롬프트 전송 → 완료 대기
 6. 응답 추출 → 사용자에게 전달
 
-진행 상황은 비기술 용어로 사용자에게 보고한다("Gemini를 열고 있어요", "3.1 Pro가 작성 중이에요").
+진행 상황은 비기술 용어로 사용자에게 보고한다("Gemini를 열고 있어요", "고성능 모델이 작성 중이에요").
 
 ## 요청별 실행 범위
 
@@ -93,20 +102,21 @@ description: 브라우저 자동화로 Gemini(gemini.google.com)에 접속해 �
 
 ## 4. 모델 선택
 
-### 기본 문의 (사용자 지정 유지)
+### 기본 문의 (요청에 지정이 있으면 그것이 우선)
 
-일반 단독 호출은 **3.8 Flash와 3.1 Pro에 같은 프롬프트를 각각 새 대화로** 보낸다.
-Flash를 먼저 전송하고 Pro를 이어 전송하되, 첫 응답 완료를 기다릴 필요는 없다.
+일반 단독 호출은 **현재 메뉴의 빠른 모델 1개와 고성능 모델 1개에 같은 프롬프트를 각각 새
+대화로** 보낸다. 빠른 모델을 먼저 전송하고 고성능 모델을 이어 전송하되, 첫 응답 완료를 기다릴
+필요는 없다.
 두 응답을 모델별로 요약하고 차이를 함께 전달한다.
 
-- **한국어 다듬기·문구 교정·표현 톤도 기본 두 모델을 사용한다.** 3.1 Pro를 주력 후보로,
-  Flash를 비교용으로 제시한다. “Pro로만”처럼 사용자가 한 모델을 지정한 경우에만 하나로
+- **한국어 다듬기·문구 교정·표현 톤도 기본 두 모델을 사용한다.** 고성능 모델을 주력 후보로,
+  빠른 모델을 비교용으로 제시한다. “Pro로만”처럼 사용자가 한 모델을 지정한 경우에만 하나로
   줄인다. 실행 요청에 단일 모델이 지정된 경우에도 같다.
 - 한쪽이 목록에 없거나 잠겨 있으면 그 모델은 불가로 보고하고, 원래 요청에 포함된 다른
   모델로 진행할 수 있다. 이름이 다른 모델로 자동 대체하지 않는다.
 - 기본 이중 문의는 사용자가 승인한 동작이며 두 응답의 사용량을 소모한다.
 - Gemini 사고 강도는 모델과 별개다. 사용자가 강도를 지정하지 않았으면 현재 설정을
-  유지하고 실제 값을 기록한다. Pro를 골랐다고 High라고 추론하지 않는다.
+  유지하고 실제 값을 기록한다. 고성능 모델을 골랐다고 높은 강도라고 추론하지 않는다.
 
 ### UI 관찰과 확인
 
@@ -174,12 +184,13 @@ Flash를 먼저 전송하고 Pro를 이어 전송하되, 첫 응답 완료를 �
    `scratch` 아래 고유한 실행 디렉터리에 저장하고 요약과 링크를 전달한다. 파일명은
    `{service}-{topic}-{model}-{request-id}.md`처럼 구분하며 기존 파일을
    덮어쓰지 않는다. 저장은 현재 파일 권한 안에서만 하며, 권한이 없으면 본문을 반환한다.
+   그 디렉터리가 `.gitignore`에 없으면 커밋되지 않게 사용자에게 알린다.
    스킬의 참고 파일·스크립트가 있으면 현재 작업 디렉터리가 아닌 이 `SKILL.md` 위치를
    기준으로 찾는다.
 4. 응답별 실제 모델·사고 강도·완료/부분/오류 상태·원본 대화 링크와 근거를 붙인다.
 
-5. 기본 이중 문의는 모델별 응답·차이·공통점을 구분한다. 한국어 다듬기는 Pro를 주력
-   후보로 제시하고 Flash는 비교용으로 남긴다. 후속 문의는 해당 작업 대화를 이어 쓰되
+5. 기본 이중 문의는 모델별 응답·차이·공통점을 구분한다. 한국어 다듬기는 고성능 모델을 주력
+   후보로 제시하고 빠른 모델은 비교용으로 남긴다. 후속 문의는 해당 작업 대화를 이어 쓰되
    단일 모델 지정이 없으면 기본 두 모델 범위를 유지한다.
 
 ## 실패 대응 공통 규칙

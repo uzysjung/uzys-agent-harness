@@ -9,8 +9,9 @@
 ## 스킬 찾기
 
 1. 세션에 노출된 스킬 목록과 사용자가 지정한 경로에서 해당 `SKILL.md`를 찾는다.
-2. 사용자 설치는 보통 `~/.agents/skills/<name>/SKILL.md`이다. Claude Code는
-   `~/.claude/skills/<name>/SKILL.md`로도 노출한다. 같은 실경로의 링크는 같은 스킬이다.
+2. 프로젝트 설치는 `.claude/skills/<name>/SKILL.md`(Claude Code)와
+   `.agents/skills/<name>/SKILL.md`(Codex · OpenCode · Antigravity) 두 자리, 사용자 설치는
+   `~/.agents/skills` · `~/.claude/skills`이다. 같은 실경로의 링크는 같은 스킬이다.
 3. `external-model-consult`는 사용자 또는 프로젝트 스킬일 수 있다. 실제로 읽은
    `SKILL.md`의 부모 디렉터리를 기준으로 `scripts/`와 `references/`를 찾는다.
    현재 작업 디렉터리의 `.claude/skills`를 무조건 가정하지 않는다.
@@ -22,7 +23,7 @@
 
 | 경로 | 사용할 작업 | 확인할 점 |
 |---|---|---|
-| `gemini-delegate` | Gemini 웹의 독립 제안·비평·수정 | 상위 지정이 있으면 기본 Flash+Pro 이중 문의 대신 지정 1회. 모델과 사고 강도를 별도로 기록 |
+| `gemini-delegate` | Gemini 웹의 독립 제안·비평·수정 | 상위 지정이 있으면 기본 이중 문의(빠른 모델 + 고성능 모델) 대신 지정 1회. 모델과 사고 강도를 별도로 기록 |
 | `chatgpt-delegate` | ChatGPT 웹의 독립 제안·비평·수정 | Latest를 고정 ID로 해석하지 않음. Extra High는 모델명이 아님 |
 | `genspark-delegate` | 이용 가능한 실제 모델의 제안·비평·수정 | 서비스 이름을 모델로 세지 않음. 잠긴 항목은 구독 화면이며 호출 대상이 아님. 토론에 이미지 생성 모드를 쓰지 않음 |
 | `external-model-consult` Mode P | Gemini/승인된 다른 계열의 계획·설계 비평 | 번들 wrapper 사용. 실제 모델은 CLI의 resolved model 출력으로 확인. 1회의 다중 페르소나는 1모델 |
@@ -75,8 +76,8 @@ Mode P는 계획·설계 비평, Mode S는 문안 구조 정리이며 임의의 
 Codex 모델을 override하는 조건도 존중한다. 토론에 필요한 모델을 해당 모드로 부를 수 없다면
 조건을 몰래 바꾸지 말고 맞는 다른 승인 경로를 고른다.
 
-호출 전 남은 예산을 확인하고 `GEMINI_CONSULT_TIMEOUT` 또는 `CODEX_CONSULT_TIMEOUT`을
-이번 호출의 허용 대기 이하인 양의 정수로 설정한다. 인증·쿼터·모델 불가·timeout·거절은 부분
+호출 전 남은 예산을 확인하고, 하위 스킬이 문서화한 호출 timeout 설정을 이번 호출의 허용
+대기 이하로 둔다(설정 이름은 그 스킬의 `SKILL.md`가 기준이다). 인증·쿼터·모델 불가·timeout·거절은 부분
 출력과 함께 조정자가 기록한다. 재시도, 대체 모델, 대기 연장, 사용자에게 필요한 질문도 조정자가
 기존 승인·모델 고정·남은 예산 아래 한 번에 결정한다. 단독 사용 때의 fallback 제안을 별도 실행자가
 자동 수행하게 맡기지 않는다. 하위의 시크릿·권한·sandbox 보호는 그대로 적용하며 조언을 자동 적용하지 않는다.
@@ -85,6 +86,10 @@ Codex 모델을 override하는 조건도 존중한다. 토론에 필요한 모�
 
 - 사용자 일반 Chrome의 기존 연결/로그인을 쓴다. 현재 허용된 도구가 우선하며 Codex의
   CUA와 Claude의 Chrome 연동은 도구 이름과 API가 다르다. 문서 예시 API가 설치를 보장하지 않는다.
+- Codex **CLI**와 IDE 확장에는 브라우저 도구가 없다(공식 문서, 2026-10-11 확인). 거기서는
+  브라우저 위임 경로를 `unavailable_tool`로 기록하고 CLI 경로(`external-model-consult`)만 쓴다.
+  Codex 앱(ChatGPT 데스크톱)은 Settings > Computer Use의 브라우저 확장으로 연다. 앱의 내장
+  Browser는 일반 브라우저와 분리된 프로필이라, 로그인된 서비스 위임은 Chrome 확장 경로다.
 - 한 조정자가 탭 선택·모델 변경·입력·전송을 직렬로 한다. 각 서비스의 생성 대기는 겹쳐도 된다.
   네이티브 서브에이전트는 자료 검증/문서 검토를 맡을 수 있지만 같은 Chrome의 병렬 조작자는 아니다.
 - 전송 직후 입력창이 그대로여도 중복 전송하지 않는다. 해당 사용자 메시지의 추가와 생성
@@ -105,7 +110,7 @@ Codex 모델을 override하는 조건도 존중한다. 토론에 필요한 모�
 - 남은 실제 모델이 하나면 단일 모델 결과/부분 완료라고 알린다. 승인된 대체 모델이 있으면
   남은 예산 안에서 사용하되 모델 변경을 공개한다. 다중 모델 검증 성공이라고 보고하지 않는다.
 
-## 2026-10-10 설치·UI 기준
+## 설치 자리와 브라우저 전제
 
 [Codex 공식 문서](https://learn.chatgpt.com/docs/build-skills)는 사용자 경로
 `$HOME/.agents/skills`와 심볼릭 링크를 지원한다.
@@ -113,7 +118,24 @@ Codex 모델을 override하는 조건도 존중한다. 토론에 필요한 모�
 `~/.claude/skills`를 사용한다. Claude Code Desktop의 Code 화면과 CLI를 대상으로 한다.
 일반 Claude 대화/Cowork의 클라우드 환경에 로컬 스킬이 그대로 전달된다는 뜻은 아니다.
 
-이 설치의 공유 원본은 `~/.agents/skills`이고 Claude 경로는 그 디렉터리를 가리키는 링크다.
-스킬 발견과 브라우저 연결은 별개다. Codex CLI 또는 Claude Code에서 실제 브라우저 도구가
-노출되어 있어야 웹 위임을 실행할 수 있다. Claude의 연결 조건은
-[Chrome 공식 문서](https://code.claude.com/docs/en/chrome)를 확인한다. 스킬만으로 연동을 설치하지 않는다.
+하네스 설치본은 프로젝트의 `.claude/skills/<id>/`(Claude Code)와 `.agents/skills/<id>/`(Codex ·
+OpenCode · Antigravity)에 같은 스킬을 둔다. 사용자 범위(`~/.claude/skills` · `~/.agents/skills`)에
+두는 것은 설치자의 선택이다. 같은 실경로의 링크는 같은 스킬이다.
+
+스킬 발견과 브라우저 연결은 별개다. 현재 런타임에 실제 브라우저 도구가 노출되어 있어야 웹
+위임을 실행할 수 있다. Claude의 연결 조건은
+[Chrome 공식 문서](https://code.claude.com/docs/en/chrome)를 확인한다 — 요약하면 Claude in Chrome
+확장 1.0.36 이상 · Anthropic 직접 플랜 · `/login` 세션(API 키·setup-token 세션에서는 꺼진다) ·
+CLI는 `--chrome` 또는 `/chrome`으로 켠다 · Desktop의 Code 탭은 설정돼 있으면 Chrome 확장을 쓴다.
+스킬만으로 연동을 설치하지 않는다.
+
+아래 표의 **문서**는 공식 문서로 확인한 것(2026-10-11), **미확인**은 확인하지 않은 것이다.
+실행 시 현재 런타임의 도구 목록이 이 표보다 우선한다.
+
+| 표면 | 스킬 발견 | 브라우저 위임(로그인된 웹 서비스) |
+|---|---|---|
+| Claude Code CLI · Desktop Code 탭 | 문서 — 프로젝트 `.claude/skills`, 개인 `~/.claude/skills` | 문서 — 위 Chrome 조건을 갖추면 가능. Desktop 내장 Browser 패널은 로그인 없는 별도 프로필 |
+| Claude 일반 대화 · Cowork · 클라우드 세션 | 문서 — 로컬 `~/.claude/skills`를 읽지 않는다 | 이 스킬의 범위 밖 |
+| Codex CLI · IDE 확장 | 문서 — `.agents/skills`(현재·상위·저장소 루트), `$HOME/.agents/skills` | 문서 — **불가**. `unavailable_tool` |
+| Codex 앱(ChatGPT 데스크톱) | 문서 — CLI와 같은 규칙 | 문서 — Computer Use의 Chrome 확장 경로. 사이트별 허용 |
+| OpenCode · Antigravity | `.agents/skills`에 놓인다(하네스 설치) | **미확인** — 런타임 도구 목록으로 먼저 확인 |

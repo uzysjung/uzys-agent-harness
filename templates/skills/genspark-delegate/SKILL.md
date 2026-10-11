@@ -1,14 +1,25 @@
 ---
 name: genspark-delegate
-description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스킬. 두 가지 기능 — ① AI 채팅에서 GPT-6 Sol과 Opus 5.5에 소프트웨어 설계·기획 작업을 위임하고 완성된 응답을 받아와 정리, ② AI Image(/ai_image)에서 GPT Image 2.5·Nano Banana 2 등으로 이미지를 생성하고 파일로 다운로드. 사용자가 현재 쓰는 일반 Google Chrome의 기존 연결과 로그인 세션을 사용한다. 사용자가 "젠스파크에 맡겨줘", "젠스파크 Opus로 설계해 줘", "젠스파크 GPT로 물어봐", "젠스파크로 이미지 만들어줘", "GPT Image로 그려줘", "나노바나나로 이미지 생성해", "젠스파크 이미지 다운로드", "agent-browser로 젠스파크" 등 젠스파크에 작업을 맡기려는 모든 상황에서 사용한다.
+description: >-
+  Uses Genspark (genspark.ai) through the user's already-connected, logged-in
+  regular Chrome for two separate jobs: (1) AI Chat — delegate software design
+  or planning to the chat models the service currently offers (by default two
+  models from different families, each in a new chat) and collect the answers;
+  (2) AI Image — generate images with the image models the service currently
+  offers and download the files. Chat approval does not cover image
+  generation. Needs a browser tool in the current runtime and the user's
+  logged-in browser. Use for "젠스파크에 맡겨줘", "젠스파크로 설계해 줘",
+  "젠스파크로 물어봐", "젠스파크로 이미지 만들어줘", "젠스파크 이미지 다운로드",
+  or "ask Genspark". Never opens another profile, copies cookies, picks a locked
+  model, or automates login, 2FA, payment, or membership changes.
 ---
 
 # Genspark 위임 (AI 채팅 + AI 이미지)
 
 브라우저로 젠스파크에 접속해 두 가지 일을 한다:
 
-- **AI 채팅 위임** — GPT-6 Sol·Opus 5.5에 각각 설계·기획을 위임하고 응답 회수
-- **AI 이미지 생성** — /ai_image에서 GPT Image 2.5·Nano Banana 2 등으로 이미지를 만들고 다운로드
+- **AI 채팅 위임** — 현재 메뉴에서 고른 서로 다른 계열의 모델 2개에 각각 설계·기획을 위임하고 응답 회수
+- **AI 이미지 생성** — /ai_image에서 현재 제공되는 이미지 모델로 이미지를 만들고 다운로드
 
 현재 사용 중인 일반 Chrome에서 진행한다.
 
@@ -17,11 +28,11 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
 1. 위임 프롬프트 조립
 2. 현재 사용 중인 Chrome 연결 → 젠스파크 열기
 3. 로그인 확인
-4. AI 채팅 열기 + 모델 선택(GPT-6 Sol·Opus 5.5 각각)
+4. AI 채팅 열기 + 모델 선택(서로 다른 계열 2개 각각)
 5. 프롬프트 전송 → 완료 대기
 6. 응답 추출 → 사용자에게 전달
 
-진행 상황은 비기술 용어로 사용자에게 보고한다("젠스파크를 열고 있어요", "Opus가 작성 중이에요, 3분 째").
+진행 상황은 비기술 용어로 사용자에게 보고한다("젠스파크를 열고 있어요", "두 번째 모델이 작성 중이에요, 3분 째").
 
 ## 요청별 실행 범위
 
@@ -94,13 +105,14 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
 
 ## 4. AI 채팅 열기 + 모델 선택
 
-### 기본 문의 (사용자 지정 유지)
+### 기본 문의 (요청에 지정이 있으면 그것이 우선)
 
-일반 단독 호출은 **GPT-6 Sol과 Claude Opus 5.5에 같은 프롬프트를 각각 새 대화로**
-보낸다. GPT-6 Sol을 먼저 전송하고 Opus를 이어 전송하되 첫 응답 완료를 기다릴 필요는
-없다. 두 응답을 모델별로 요약하고 의견이 갈리는 지점을 전달한다.
+일반 단독 호출은 **현재 메뉴에서 이용 가능한 서로 다른 계열의 모델 2개에 같은 프롬프트를
+각각 새 대화로** 보낸다. 고른 두 모델과 이유를 먼저 알린다. 첫 모델을 전송하고 둘째를 이어
+전송하되 첫 응답 완료를 기다릴 필요는 없다. 두 응답을 모델별로 요약하고 의견이 갈리는 지점을
+전달한다.
 
-- 사용자나 승인된 실행 요청이 “Opus로만”처럼 한 모델을 지정하면 그 모델만 문의한다.
+- 사용자나 승인된 실행 요청이 “이 모델로만”처럼 한 모델을 지정하면 그 모델만 문의한다.
 - 한쪽이 목록에 없거나 잠김/비활성이면 불가 사유를 보고하고, 원래 요청에 포함된 다른
   모델로 진행할 수 있다. 최신 버전이나 다른 계열로 임의 대체하지 않는다.
 - **Locked/disabled 항목과 “Reactivate membership”은 이용 가능한 모델 선택이 아니다.**
@@ -116,7 +128,7 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
    상태를 확인한 뒤 선택한다. 선택 표시와 입력창 옆 실제 모델명이 맞는지 확인한다.
 3. 2026-10-10 읽기 전용 관찰에서 GPT-6 Sol은 선택 가능했고 Claude Opus 5.5는
    disabled였으며 “Reactivate membership”이 보였다. GPT-6.1 Sol 같은 다른 항목도
-   있었지만 기존 사용자 선호를 대신하지 않는다. 이 기록을 다른 계정의 현재 상태로
+   있었지만 요청에 지정된 모델을 대신하지 않는다. 이 기록을 다른 계정의 현재 상태로
    일반화하지 말고 실행 시 다시 확인한다.
 4. 메뉴가 입력창을 덮으면 지원되는 닫기 동작을 사용하고 실제 닫힘을 확인한다. 과거에는
    Escape가 듣지 않고 모델 트리거 재클릭으로 닫혔지만, 이를 모든 도구의 제약으로 보지 않는다.
@@ -218,7 +230,7 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
 
 ---
 
-# AI 이미지 생성 (GPT Image 2.5 / Nano Banana 2)
+# AI 이미지 생성
 
 `https://www.genspark.ai/ai_image`에서 이미지를 생성해 파일로 받아온다. 현재 런타임이
 이미지 생성 도구를 지정하면 그 규칙이 우선한다. 이 경로의 사용이 허용된 경우 아래를 따른다.
@@ -226,20 +238,16 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
 
 1. 이미지 프롬프트 준비
 2. /ai_image 열기
-3. 모델 선택 (GPT Image 2.5 / Nano Banana 2 등)
+3. 모델 선택 (현재 화면의 이미지 모델)
 4. (선택) Setting·Auto Style 등 옵션 조정
 5. 프롬프트 입력 → 생성
 6. 완료 대기 → 이미지 다운로드
 
 ## 과거 UI 관찰 (2026-09, 실행 시 재확인)
 
-- **입력창**: `textarea.search-input`. placeholder는 로테이션되므로 placeholder가 아니라
-  태그/role로 찾는다.
-- **툴바**: `.model-selector` 안에 pill들이 나란히 있다 — 첫 번째 `.model-button`이 현재
-  모델 pill, 이어서 Setting(비율 등), Auto Style, Camera, Auto Prompt.
-- **모델 목록**: pill 클릭으로 열림. 항목은 `.row` 안에 `.model-name` + 설명 + 우측 radio
-  `input`. 선택하면 패널이 자동으로 닫히고 pill 표시가 바뀐다(채팅 드롭다운과 다르게
-  닫기 재클릭 불필요).
+- 입력창·모델 pill·Setting 등 툴바·모델 목록의 위치는 과거 관찰이다 — 현재 snapshot에서
+  role/태그로 다시 찾는다. placeholder는 로테이션되므로 찾는 기준으로 쓰지 않는다. 당시에는
+  모델을 고르면 패널이 자동으로 닫혔다(채팅 드롭다운과 다름).
 - **모델명 실제 표기**: "GPT Image 2.5"(GPT-Image 2.5 아님), "Nano Banana 2". 그 외
   GPT Image 2, Bytedance Seedream 5.0 Pro, Nano Banana 2 Flash Lite, Qwen Image 3,
   Nano Banana Pro, Grok Imagine Image 2.0, Flux 2/Pro/Max, Z-Image Turbo 등.
@@ -257,7 +265,7 @@ description: 브라우저 자동화로 젠스파크(genspark.ai)를 쓰는 스�
 2. **페이지 열기** — 현재 연결된 일반 Chrome에서 `https://www.genspark.ai/ai_image`를 연다.
    로그인 확인은 채팅 워크플로의 3단계와 동일. 별도 이미지 생성용 브라우저를 띄우지 않는다.
 3. **모델 선택** — 현재 화면에서 모델과 이용 가능 여부를 확인한다. 사용자가 지정하지
-   않았고 기존 선호도 없으면 물어보며, “GPT Image 2.5”와 “Nano Banana 2”는 기존 후보다.
+   않았으면 현재 목록에서 후보를 보여 주고 묻는다.
    잠긴/비활성 모델은 선택하지 않는다. 선택 후 실제 표시와 패널 닫힘을 확인한다.
 4. **옵션(선택)** — Setting pill에서 화면 비율 등을 조정할 수 있다. 사용자가 요구할 때만
    건드리고, 조정 후 패널이 닫히는지 확인한다.

@@ -1,10 +1,14 @@
 ---
 name: multi-model-debate
 description: >-
-  여러 AI 모델로 한 주제를 독립 분석하고, 중요한 이견을 상호 반박한 뒤 근거를 검증해
-  추천안과 남은 불확실성을 정리한다. "모델끼리 토론", "여러 AI로 반박 검증",
-  "Gemini·ChatGPT·Genspark로 교차 검토", "다중 모델로 최선의 안 도출" 요청에 사용한다.
-  단일 모델 질문, 단순 사실 조회, 모의 페르소나 토론에는 적용하지 않는다.
+  Runs a debate between two or three different real models: independent
+  answers first, then only the decision-relevant disagreements are
+  cross-examined and checked against sources, calculations, or tests, ending
+  in a recommendation with the uncertainty that remains. Use for "모델끼리 토론",
+  "여러 AI로 반박 검증", "Gemini·ChatGPT·Genspark로 교차 검토",
+  "다중 모델로 최선의 안 도출", "multi-model debate", or "cross-check this
+  with several models". Not for single-model questions, simple lookups, or
+  simulated persona panels (multi-persona-review).
 ---
 
 # 다중 모델 토론·검증
@@ -61,8 +65,8 @@ brief는 사용자 목적·필수 제약의 기준점이다. 동료의 제안이
 
 시작 시 참여 모델, 선택 이유, 대략의 진행 범위를 한두 문장으로 알린다. 기본 작업 예산은
 초기 2~3회 + 쟁점 교차 검토 2~3회 + 필요한 표적 검증/수정이며 **외부 호출 총 8회·25분**을
-계획 상한으로 삼는다. 이는 연구가 증명한 최적값이 아닌 사용자 기본(2~3모델)에 맞춘 운영
-기본값이다. 주제나 사용자의 예산에 맞춰 시작 전에 조정한다. 토큰/요금이 보이지 않는 웹은
+계획 상한으로 삼는다. 이는 연구가 증명한 최적값이 아닌 운영 기본값이며, 설치자가 brief에서
+조정한다. 주제나 사용자의 예산에 맞춰 시작 전에 조정한다. 토큰/요금이 보이지 않는 웹은
 호출 수와 경과 시간을 기록하고 정확한 비용을 만들지 않는다. 상한 증액은 임의로 하지 않는다.
 
 ## 3. 독립 제안을 먼저 보존한다
