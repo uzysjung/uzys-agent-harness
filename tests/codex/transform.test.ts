@@ -38,7 +38,7 @@ describe("runCodexTransform (E2E against templates/)", () => {
     expect(agents).not.toContain("/uzys:");
 
     const config = readFileSync(report.configTomlPath, "utf8");
-    expect(config).toContain("[features]");
+    expect(config).toContain("[[hooks.SessionStart]]");
     expect(config).toContain("[mcp_servers.");
 
     // Ported hooks rename CLAUDE_PROJECT_DIR → CODEX_PROJECT_DIR.

@@ -8,10 +8,11 @@
  *
  * 개발자의 실제 `~/.codex` 를 건드리지 않도록 HOME 을 임시 폴더로 바꾼다(`runCodexOptIn` 은 `homedir()` 를 쓴다).
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { hasTrustEntry } from "../src/codex/trust-entry.js";
 import { renderCliArtifacts, renderFinalSummary } from "../src/commands/install-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { readInstallLog, writeInstallLog } from "../src/install-log.js";
@@ -95,6 +96,9 @@ function uninstall(extra: { dryRun?: boolean; only?: string } = {}): string {
   return lines.join("\n");
 }
 
+/** 하네스가 쓰는 trust 키 — Codex `project_trust_key` 와 같은 정규화 경로(macOS 임시 폴더는 `/private/var/…`). */
+const trustKey = (): string => realpathSync.native(projectDir);
+
 const BROKEN = 'model = "gpt-5"\n[projects.\n  = nope ===\n';
 
 describe("파싱 불가인 전역 config — 쓰지 않고 이유를 말한다 (#644 ②)", () => {
@@ -123,6 +127,44 @@ describe("파싱 불가인 전역 config — 쓰지 않고 이유를 말한다 (
   });
 });
 
+describe("#685 — 안전하게 못 넣거나 설치자가 untrusted 로 둔 폴더: 쓰지 않고 화면이 손으로 할 일을 말한다", () => {
+  it("인라인 projects 표 — 바이트 불변 · ✓ 아님 · NEXT 가 넣을 항목을 키째 말한다 · 기록 없음", () => {
+    putConfig('projects = { "/other" = { trust_level = "trusted" } }\n');
+    const before = readFileSync(configPath);
+
+    const { spec, report } = install(true);
+
+    expect(readFileSync(configPath).equals(before)).toBe(true);
+    expect(report.codexOptIn?.trustEntry.status).toBe("error");
+    const row = screen(spec, report)
+      .split("\n")
+      .find((l) => l.includes("config.toml trust entry"));
+    expect(row).not.toContain("✓");
+    expect(row).toContain("left untouched");
+    expect(finalSummary(spec, report)).toContain(
+      `add [projects."${trustKey()}"] trust_level = "trusted" to ~/.codex/config.toml by hand`,
+    );
+    expect(readInstallLog(projectDir)?.codexTrust).toBeUndefined();
+  });
+
+  it("untrusted — 덮지 않는다 · ✓ 아님 · Codex 가 이 폴더 설정을 안 켜므로 NEXT 의 trust 안내가 그대로 나온다", () => {
+    const content = `[projects."${projectDir}"]\ntrust_level = "untrusted"\n`;
+    putConfig(content);
+
+    const { spec, report } = install(true);
+
+    expect(readFileSync(configPath, "utf8")).toBe(content);
+    expect(report.codexOptIn?.trustEntry.status).toBe("left");
+    const row = screen(spec, report)
+      .split("\n")
+      .find((l) => l.includes("config.toml trust entry"));
+    expect(row).not.toContain("✓");
+    expect(row).toContain('trust_level = "untrusted"');
+    expect(finalSummary(spec, report)).toContain('"Trust and continue"');
+    expect(readInstallLog(projectDir)?.codexTrust).toBeUndefined();
+  });
+});
+
 describe("정상 config — 등록·멱등 (회귀 없음)", () => {
   it("설치자 항목을 보존한 채 한 번 등록하고 ✓ 로 말한다 · 다시 설치해도 중복 append 가 없다", () => {
     putConfig('[projects."/other"]\ntrust_level = "trusted"\n');
@@ -132,13 +174,16 @@ describe("정상 config — 등록·멱등 (회귀 없음)", () => {
     expect(screen(first.spec, first.report)).toContain("✓");
     const afterFirst = readFileSync(configPath, "utf8");
     expect(afterFirst).toContain('[projects."/other"]');
-    expect(afterFirst.split(`[projects."${projectDir}"]`)).toHaveLength(2);
+    expect(afterFirst.split(`[projects."${trustKey()}"]`)).toHaveLength(2);
+    // Codex 는 정규화 경로 · 받은 경로 둘 다 조회한다 — 받은 경로로 물어도 이미 trusted 다(#685 A-T14)
+    expect(hasTrustEntry(afterFirst, projectDir)).toBe(true);
 
     const second = install(true);
     expect(second.report.codexOptIn?.trustEntry.status).toBe("already-present");
     expect(readFileSync(configPath, "utf8")).toBe(afterFirst);
     // 두 번째 실행(already-present)이 첫 실행의 기록을 지우지 않는다
-    expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir });
+    // 기록은 쓴 키(정규화 경로) — uninstall 의 "손수 지울 것" 이 실제 파일에 있는 키를 찍는다
+    expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir: trustKey() });
   });
 });
 
@@ -150,13 +195,13 @@ describe("uninstall — trust 항목을 손수 지울 목록에 올린다 (#644 
     const dry = uninstall({ dryRun: true });
     expect(dry).toContain("Codex trust entry — remove by hand");
     expect(dry).toContain(configPath);
-    expect(dry).toContain(`[projects."${projectDir}"]`);
+    expect(dry).toContain(`[projects."${trustKey()}"]`);
     expect(readFileSync(configPath).equals(registered)).toBe(true);
 
     const real = uninstall();
     expect(real).toContain("Codex trust entry — remove by hand");
     expect(real).toContain(configPath);
-    expect(real).toContain(`[projects."${projectDir}"]`);
+    expect(real).toContain(`[projects."${trustKey()}"]`);
     expect(readFileSync(configPath).equals(registered)).toBe(true);
   });
 

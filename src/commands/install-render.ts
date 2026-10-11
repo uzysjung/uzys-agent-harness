@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
-import { hasTrustEntry } from "../codex/trust-entry.js";
+import { retiredFeaturesLeftBehind } from "../codex/config-toml.js";
+import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
  *
@@ -481,6 +482,11 @@ export function renderCliArtifacts(
       ? sharedRow(report.codex.configToml, configRegionsPart(report.codex.configToml))
       : assetRow("success", ".codex/config.toml", "settings + [mcp_servers.*]");
     if (configRow) log(configRow);
+    // #724 — 갈아 끼우지 못한 하네스 구간에 옛 [features] 키가 남았으면 Codex 경고의 출처와 지울 자리를 말한다
+    const retired = report.codex.configToml
+      ? retiredFeaturesLeftBehind(spec.projectDir, report.codex.configToml)
+      : [];
+    if (retired.length > 0) log(retiredFeaturesRow(".codex/config.toml", retired));
     log(assetRow("success", ".codex/hooks/", `${report.codex.hookFiles.length} files`));
     if (report.codex.skillFiles.length > 0) {
       log(
@@ -494,7 +500,10 @@ export function renderCliArtifacts(
     // Codex global opt-in (D16) — config.toml trust entry, only when explicitly enabled.
     if (report.codexOptIn?.trustEntry.enabled) {
       const trust = report.codexOptIn.trustEntry;
-      const kind = trust.status === "error" || trust.status === "unreadable" ? "skip" : "success";
+      const kind =
+        trust.status === "error" || trust.status === "unreadable" || trust.status === "left"
+          ? "skip"
+          : "success";
       const meta =
         trust.status === "registered"
           ? '[projects."<dir>"] trust_level="trusted"'
@@ -599,6 +608,15 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
     .map((p) => ` · ${p}`)
     .join("");
   return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
+}
+
+/**
+ * #724 — Codex 가 매 세션 경고하는 옛 `[features]` 키가 남은 자리 한 줄. 키가 하네스 구간 안이든(옛 판이 쓰고 설치자가
+ * 구간을 고쳤다) 밖이든 참이 되게 쓴다 — 구간 안이면 그 구간을 지우고 update 하면 새 판(키 없음)을 받는다.
+ */
+function retiredFeaturesRow(path: string, keys: ReadonlyArray<string>): string {
+  const meta = `[features] ${keys.join(" · ")} make${keys.length === 1 ? "s" : ""} Codex warn at every start ("deprecated" / "ignoring unrecognized configuration") — delete those lines; if they sit inside the harness region, delete the whole region and run update`;
+  return `  ${c.yellow(symbol.warn)} ${path.padEnd(40, " ")} ${c.dim(meta)}`;
 }
 
 /**
@@ -780,10 +798,17 @@ export function renderFinalSummary(
       ),
     );
     // #644 — 방금 `--with-codex-trust` 가 전역 config 를 못 읽어 쓰지 않았으면 같은 플래그를 다시 권하지 않는다.
+    // #685 — 안전하게 덧붙이지 못했거나(error) 설치자가 이 폴더를 trusted 가 아닌 값으로 둔(left) 경우도 같다 — 손수 할 일을 말한다
+    const trust = report.codexOptIn?.trustEntry;
+    const entry = `[projects.${tomlBasicString(trust?.key ?? spec.projectDir)}]`;
     const headless =
-      report.codexOptIn?.trustEntry.status === "unreadable"
+      trust?.status === "unreadable"
         ? "headless: fix ~/.codex/config.toml (not valid TOML), then run with --with-codex-trust again"
-        : "headless: agent-harness install … --with-codex-trust";
+        : trust?.status === "error"
+          ? `headless: add ${entry} trust_level = "trusted" to ~/.codex/config.toml by hand (the harness could not append it safely)`
+          : trust?.status === "left"
+            ? `headless: ~/.codex/config.toml already has ${entry} with a trust_level other than "trusted" — the harness left your setting; change it by hand`
+            : "headless: agent-harness install … --with-codex-trust";
     log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
   }
   // #625 — 폴더 trust 와 별개로 Codex 는 관리형이 아닌 훅을 **검토·승인**해야 돌린다(공식 문서 developers.openai.com/codex/hooks
@@ -1003,7 +1028,10 @@ function renderPhase1Rows(
     }
     // #625 — 외부 CLI 의 함께 쓰는 파일에서 남긴 하네스 몫. install 은 `sharedRow` 로 말하는데 update 는 이 결과를 버려
     // 리전 안을 고친 설치자에게 아무 말도 안 했다 — 편집이 살았는지 · 그 구간이 이번 판을 못 받았는지 모른다
-    for (const f of baseline.updateMode.sharedLeft ?? []) log(sharedLeftRow(f));
+    for (const f of baseline.updateMode.sharedLeft ?? []) {
+      log(sharedLeftRow(f));
+      if (f.retiredFeatures !== undefined) log(retiredFeaturesRow(f.path, f.retiredFeatures));
+    }
     // 리뷰 #693 NOTE-1 — update 도 install 과 같은 줄로 말한다(뺐지만 남은 것은 더 갱신하지 않는다)
     for (const row of excludedStillThereRows(baseline.updateMode.excludedStillThere ?? []))
       log(row);
