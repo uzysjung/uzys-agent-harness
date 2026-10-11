@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-12
-- PR: (PR 생성 후 채움)
+- PR: #757
 - Issue: #728
 - Amends: ADR-094 Decision 2 의 마지막 문장("배포판 Delivery 룰의 '배포 전 독립 검증' 문장은 설치자 프로젝트
   일반론이라 그대로 둔다") — #728 사용자 결정으로 그 배포판 문장을 위험 기준으로 바꾼다. Decision 1 · 3 과
