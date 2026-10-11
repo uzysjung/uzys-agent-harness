@@ -1,6 +1,6 @@
 # ADR-107: 검증 깊이는 단계가 아니라 위험으로 — 배포판 Delivery 룰 문구 · audit-harness-fit 라운드
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-12
 - PR: #757
 - Issue: #728
