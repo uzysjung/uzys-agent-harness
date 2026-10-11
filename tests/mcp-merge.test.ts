@@ -8,6 +8,7 @@ import {
   mergeMcpServers,
   parseTrackMcpMap,
   type TrackMcpRow,
+  toClaudeServer,
 } from "../src/mcp-merge.js";
 
 const SAMPLE_MAP = `# header
@@ -44,13 +45,88 @@ describe("parseTrackMcpMap", () => {
     const bad = "name\tpattern\tnpx\t[not json]";
     expect(parseTrackMcpMap(bad)).toEqual([]);
   });
+
+  // #711 (ADR-106) — 3열이 리터럴 `url` 이면 원격 행. 4열은 객체이고 url 은 https 여야 한다
+  it("reads a `url` row as a remote server — with and without a bearer env", () => {
+    const rows = parseTrackMcpMap(
+      [
+        'vercel\t-\turl\t{"url":"https://mcp.vercel.com"}',
+        'github-mcp\t-\turl\t{"url":"https://api.githubcopilot.com/mcp/","bearerEnv":"GITHUB_PAT"}',
+      ].join("\n"),
+    );
+    expect(rows).toEqual([
+      { name: "vercel", pattern: "-", server: { type: "http", url: "https://mcp.vercel.com" } },
+      {
+        name: "github-mcp",
+        pattern: "-",
+        server: {
+          type: "http",
+          url: "https://api.githubcopilot.com/mcp/",
+          auth: { bearerEnv: "GITHUB_PAT" },
+        },
+      },
+    ]);
+  });
+
+  it("drops a `url` row whose 4th column is not an https object or whose env name is not a name", () => {
+    for (const bad of [
+      'x\t-\turl\t["https://a"]',
+      'x\t-\turl\t{"url":"http://a"}',
+      'x\t-\turl\t{"url":"https://a","bearerEnv":"$(rm -rf)"}',
+      "x\t-\turl\tnot json",
+    ]) {
+      expect(parseTrackMcpMap(bad)).toEqual([]);
+    }
+  });
+});
+
+describe("toClaudeServer", () => {
+  it("writes the env var name into the header, never a value", () => {
+    expect(
+      toClaudeServer({ type: "http", url: "https://h/", auth: { bearerEnv: "GITHUB_PAT" } }),
+    ).toEqual({
+      type: "http",
+      url: "https://h/",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 파일에 쓰는 리터럴 — Claude Code 가 실행 때 펼친다
+      headers: { Authorization: "Bearer ${GITHUB_PAT}" },
+    });
+    expect(toClaudeServer({ type: "http", url: "https://h/" })).toEqual({
+      type: "http",
+      url: "https://h/",
+    });
+    expect(toClaudeServer({ command: "npx", args: ["-y", "a"] })).toEqual({
+      type: "stdio",
+      command: "npx",
+      args: ["-y", "a"],
+    });
+  });
 });
 
 describe("mergeMcpServers", () => {
   const rows: TrackMcpRow[] = [
-    { name: "railway-mcp-server", pattern: "csr-*|full", command: "npx", args: ["-y", "x"] },
-    { name: "supabase", pattern: "csr-supabase", command: "npx", args: ["-y", "y"] },
+    {
+      name: "railway-mcp-server",
+      pattern: "csr-*|full",
+      server: { type: "stdio", command: "npx", args: ["-y", "x"] },
+    },
+    {
+      name: "supabase",
+      pattern: "csr-supabase",
+      server: { type: "stdio", command: "npx", args: ["-y", "y"] },
+    },
+    // #711 — 기본 트랙이 없는 행(`-`)은 트랙만으로는 안 들어가고 `chosen` 으로만 들어간다
+    { name: "vercel", pattern: "-", server: { type: "http", url: "https://mcp.vercel.com" } },
   ];
+
+  it("a `-` row is never a track default — only `chosen` brings it in", () => {
+    for (const track of ["csr-supabase", "full", "tooling", "executive"] as const) {
+      expect(mergeMcpServers(BASE, rows, [track]).mcpServers.vercel).toBeUndefined();
+    }
+    expect(mergeMcpServers(BASE, rows, ["tooling"], ["vercel"]).mcpServers.vercel).toEqual({
+      type: "http",
+      url: "https://mcp.vercel.com",
+    });
+  });
 
   it("adds servers whose pattern matches selected tracks", () => {
     const out = mergeMcpServers(BASE, rows, ["csr-supabase"]);
@@ -75,7 +151,7 @@ describe("mergeMcpServers", () => {
       },
     };
     const out = mergeMcpServers(customized, rows, ["full"]);
-    expect(out.mcpServers["railway-mcp-server"]?.command).toBe("kept");
+    expect(out.mcpServers["railway-mcp-server"]).toMatchObject({ command: "kept" });
   });
 
   it("strips _comment marker", () => {

@@ -537,34 +537,37 @@ describe("`.mcp.json` — 하네스 서버만 · 못 읽으면 한 바이트도 
   });
 
   it("`--without mcp:<name>` 은 기록 sha 와 같은 서버만 빼고 고친 서버는 남기고 알린다 · 다음 install 도 지킨다 · `--with` 로만 돌아온다", () => {
-    install();
+    install({ tracks: ["csr-supabase"] }); // #722 — 두 번째 하네스 서버 = supabase(고를 수 없는 트랙 행)
     const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> };
-    mcp.mcpServers.github = { ...mcp.mcpServers.github, env: { MINE: "1" } };
+    mcp.mcpServers.supabase = { ...mcp.mcpServers.supabase, env: { MINE: "1" } };
     write(".mcp.json", JSON.stringify(mcp, null, 2));
 
-    const { screen } = install({ keyExclude: ["mcp:context7", "mcp:github"] });
+    const { screen } = install({
+      tracks: ["csr-supabase"],
+      keyExclude: ["mcp:context7", "mcp:supabase"],
+    });
 
     const servers = () =>
       (JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, { env?: unknown }> })
         .mcpServers;
     expect(servers().context7).toBeUndefined(); // 기록 sha 그대로 — 뺐다
-    expect(servers().github?.env).toEqual({ MINE: "1" }); // 고쳤다 — 남겼다
+    expect(servers().supabase?.env).toEqual({ MINE: "1" }); // 고쳤다 — 남겼다
     // 리뷰 #693 NOTE-2 — 걷은 것과 남긴 것을 화면이 확인한다 · 같은 키가 "kept yours" 에 또 나오지 않는다
     expect(screen).toContain(
       "removed the harness part: mcp:context7 (you asked: --without mcp:context7)",
     );
     expect(screen).toContain(
-      "left in place, no longer managed by the harness (excluded, but you edited it): mcp:github",
+      "left in place, no longer managed by the harness (excluded, but you edited it): mcp:supabase",
     );
-    expect(screen).not.toContain("kept yours: github");
-    expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:github"]));
+    expect(screen).not.toContain("kept yours: supabase");
+    expect(log().excluded).toEqual(expect.arrayContaining(["mcp:context7", "mcp:supabase"]));
 
     install({}, "update"); // update 는 선택을 읽기만 한다
     expect(servers().context7).toBeUndefined();
 
-    install({ keyExclude: ["mcp:github"] }); // 다음 install 의 입력이 새 선택 — context7 은 돌아온다
+    install({ tracks: ["csr-supabase"], keyExclude: ["mcp:supabase"] }); // 다음 install 의 입력이 새 선택 — context7 은 돌아온다
     expect(servers().context7).toBeDefined();
-    expect(log().excluded).toEqual(["mcp:github"]);
+    expect(log().excluded).toEqual(["mcp:supabase"]);
   });
 
   it("옛 판이 만든 `.mcp.json` 의 하네스 서버를 몫으로 이어받는다 — 설치자가 고친 서버는 덮지 않는다", () => {

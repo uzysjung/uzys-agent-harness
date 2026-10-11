@@ -300,7 +300,11 @@ export function buildPageGroups(
         tier === "official"
           ? "  ★ official"
           : tier === "experimental"
-            ? "  ⚠ experimental (opt-in)"
+            ? // #713 — 트랙 기본으로 체크된 experimental(트랙 표의 railway 행)을 "opt-in" 이라 부르면 화면이 체크 상태와 어긋난다.
+              //   이미 깔린 것은 `● installed` 가 말하므로 여기서는 이번 트랙의 기본만 가른다.
+              initialSet.has(`asset:${a.id}`) && !installedSet.has(`asset:${a.id}`)
+              ? "  ⚠ experimental (default on your tracks)"
+              : "  ⚠ experimental (opt-in)"
             : "";
       items.push({
         value: `asset:${a.id}`,

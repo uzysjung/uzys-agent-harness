@@ -128,7 +128,7 @@ your-project/
 │   ├── agents/               메인 에이전트가 일을 넘기는 서브에이전트(reviewer, implementer 등).
 │   ├── hooks/                도구가 자동으로 실행하는 훅 스크립트(세션 시작, 파일 보호).
 │   └── settings.json         훅을 등록한다. 기존 설정과 합친다.
-├── .mcp.json                 context7(최신 라이브러리 문서), github 등 MCP 서버. 기존 설정과 합친다.
+├── .mcp.json                 context7(최신 라이브러리 문서)와 트랙별 MCP 서버. 기존 설정과 합친다.
 └── .uzys-agent-harness/      설치 기록과 보조 스크립트.
 ```
 
@@ -173,12 +173,12 @@ your-project/
 | `project-management` | PM 업무 | 없음 (`product-skills` 선택 가능) |
 | `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
-MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서), `github`, `chrome-devtools`가 들어가고, `csr-*`와 `ssr-htmx` 트랙에는 배포용 `railway-mcp-server`가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다.
+MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서)가 들어가고, 웹 트랙(`csr-*`, `ssr-*`, `full`)에는 Google 사용 통계를 끈 `chrome-devtools`가 더해진다. `csr-*`와 `ssr-htmx` 트랙에는 `railway-mcp-server`(Railway 원격 서버 — 처음 쓸 때 로그인한다)가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다. Vercel·GitHub 공식 원격 서버(`vercel`, `github-mcp`)는 미리 체크되지 않는다 — `--with`로 더한다.
 
 미리 체크되지는 않지만 3단계나 `--with <id>`로 더할 수 있는 것도 있다.
 
 - 프론트엔드·디자인: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
-- 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `railway-skills`
+- 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
 - 보안 리뷰: `security-guidance`, `trailofbits-skills`
 - 제품·마케팅·재무: `product-skills`, `marketingskills`, `finance-skills`
 - 발표·영상: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills` 등

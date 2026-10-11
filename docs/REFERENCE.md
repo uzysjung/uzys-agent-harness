@@ -61,16 +61,21 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 
 `.mcp.json` 은 **모든 트랙**에 생성·병합되고, 트랙 조건부 항목은 `templates/track-mcp-map.tsv` 가 정한다.
 
-| MCP | 조건 | 명령 |
+| MCP | 조건 | 정의 |
 |---|---|---|
 | **context7** | 항상 | `npx -y @upstash/context7-mcp@latest` |
-| **github** | 항상 | `npx -y @modelcontextprotocol/server-github` |
-| **chrome-devtools** | 항상 | `npx -y chrome-devtools-mcp@latest` |
-| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | `npx -y @railway/mcp-server` |
+| **chrome-devtools** | csr-* · ssr-* · full (선택: `--with chrome-devtools` — 어느 트랙이든) | `npx -y chrome-devtools-mcp@latest --no-usage-statistics` |
+| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | 원격 `https://mcp.railway.com` (첫 사용 때 OAuth 로그인) |
 | **supabase** | csr-supabase · full | `npx -y @supabase/mcp-server` |
+| **vercel** | 선택만(`--with vercel`) | 원격 `https://mcp.vercel.com` (첫 사용 때 OAuth 로그인) |
+| **github-mcp** | 선택만(`--with github-mcp`) | 원격 `https://api.githubcopilot.com/mcp/` — 환경변수 `GITHUB_PAT` 의 토큰을 `Authorization: Bearer` 로(파일에는 변수 이름만) |
 
-항상 설치되는 3종의 SSOT 는 `templates/mcp.json` 이고, 조건부는 tsv 에 한 줄을 추가해 확장한다(조립
-코드는 손대지 않는다). MCP 서버는 카탈로그 자산이 아니라 `.mcp.json` 항목이라 trust tier 가 없다.
+항상 설치되는 것의 SSOT 는 `templates/mcp.json` 이고, 트랙 조건부·선택 서버는 tsv 에 한 줄을 추가해 확장한다(조립
+코드는 손대지 않는다). 패턴이 `-` 인 행은 어느 트랙의 기본도 아니다. 고를 수 있는 서버(위 "선택")는 같은 이름의 카탈로그
+`internal` 자산이 있어 trust tier 를 갖고, 나머지(context7 · supabase)는 `.mcp.json` 항목이라 tier 가 없다. 원격 서버는
+`.mcp.json`(`type: "http"`) · Codex(`url` · `bearer_token_env_var`) · OpenCode(`type: "remote"`) 가 각자 형식으로 받고,
+Antigravity 변환에는 MCP 가 없다. 옛 `github`(`@modelcontextprotocol/server-github`)는 은퇴했다 — update 가 하네스가 쓴 그대로인
+항목을 걷고 화면이 말한다(ADR-106).
 
 ## 5. 에이전트 (`templates/agents/`)
 

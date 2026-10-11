@@ -75,7 +75,10 @@ describe("#568 — 패키지 산출물 기준에서 세 CLI 가 같은 MCP 서�
       });
 
       const claude = JSON.parse(readFileSync(join(projectDir, ".mcp.json"), "utf8")) as {
-        mcpServers: Record<string, { command: string; args: string[] }>;
+        mcpServers: Record<
+          string,
+          { type: "stdio"; command: string; args: string[] } | { type: "http"; url: string }
+        >;
       };
       const expected = Object.keys(claude.mcpServers).sort();
       // 모집단 0 은 "같다"가 아니라 "아무것도 안 쟀다"다.
@@ -86,18 +89,121 @@ describe("#568 — 패키지 산출물 기준에서 세 CLI 가 같은 MCP 서�
       };
       expect(Object.keys(opencode.mcp).sort()).toEqual(expected);
       // OpenCode 는 Claude 형식({type:"stdio", command, args})을 설정 오류로 거절한다(실측
-      // opencode 1.18.32: "Configuration is invalid"). 서버마다 local + 명령 배열이어야 켜진다.
+      // opencode 1.18.32: "Configuration is invalid"). 서버마다 local + 명령 배열 · 원격은 remote + url 이어야 켜진다.
       for (const [name, cfg] of Object.entries(claude.mcpServers)) {
-        expect(opencode.mcp[name]).toEqual({
-          type: "local",
-          command: [cfg.command, ...cfg.args],
-        });
+        expect(opencode.mcp[name]).toEqual(
+          cfg.type === "http"
+            ? { type: "remote", url: cfg.url }
+            : { type: "local", command: [cfg.command, ...cfg.args] },
+        );
       }
 
       const toml = readFileSync(join(projectDir, ".codex/config.toml"), "utf8");
       expect(codexServerNames(toml).sort()).toEqual(expected);
     });
   }
+
+  // #722 · #712 (ADR-106) — 어느 트랙에도 옛 github 는 없다 · chrome-devtools 는 웹 트랙만 · railway 는 세 자리 모두 원격
+  it("csr-fastapi: railway is Railway's remote server in all three · chrome-devtools runs with usage statistics off · no github", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "ch-mcpsrc-remote-"));
+    projects.push(projectDir);
+    runInstall({
+      runExternal: null,
+      harnessRoot,
+      projectDir,
+      spec: {
+        tracks: ["csr-fastapi"],
+        options: { ...DEFAULT_OPTIONS },
+        cli: ["claude", "codex", "opencode"],
+        projectDir,
+      },
+    });
+    const claude = JSON.parse(readFileSync(join(projectDir, ".mcp.json"), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(claude.mcpServers["railway-mcp-server"]).toEqual({
+      type: "http",
+      url: "https://mcp.railway.com",
+    });
+    expect(claude.mcpServers["chrome-devtools"]).toEqual({
+      type: "stdio",
+      command: "npx",
+      args: ["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"],
+    });
+    expect(claude.mcpServers.github).toBeUndefined();
+    const opencode = JSON.parse(readFileSync(join(projectDir, "opencode.json"), "utf8")) as {
+      mcp: Record<string, unknown>;
+    };
+    expect(opencode.mcp["railway-mcp-server"]).toEqual({
+      type: "remote",
+      url: "https://mcp.railway.com",
+    });
+    const toml = readFileSync(join(projectDir, ".codex/config.toml"), "utf8");
+    expect(toml).toContain('[mcp_servers.railway-mcp-server]\nurl = "https://mcp.railway.com"');
+    expect(toml).not.toMatch(/^\[mcp_servers\.github\]$/m);
+  });
+
+  it("tooling: no chrome-devtools and no github in any of the three", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "ch-mcpsrc-tooling-"));
+    projects.push(projectDir);
+    runInstall({
+      runExternal: null,
+      harnessRoot,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS },
+        cli: ["claude", "codex", "opencode"],
+        projectDir,
+      },
+    });
+    const claude = JSON.parse(readFileSync(join(projectDir, ".mcp.json"), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(Object.keys(claude.mcpServers)).toEqual(["context7"]);
+    const toml = readFileSync(join(projectDir, ".codex/config.toml"), "utf8");
+    expect(codexServerNames(toml)).toEqual(["context7"]);
+  });
+
+  // #722 (ADR-106) — GitHub 공식 서버는 PAT 를 **환경변수 이름으로만** 받는다. 세 자리의 인증 형식이 각 CLI 공식 형식 그대로다
+  it("--with github-mcp: each CLI gets its own bearer-env form, byte for byte", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "ch-mcpsrc-gh-"));
+    projects.push(projectDir);
+    runInstall({
+      runExternal: null,
+      harnessRoot,
+      projectDir,
+      spec: {
+        tracks: ["tooling"],
+        options: { ...DEFAULT_OPTIONS },
+        cli: ["claude", "codex", "opencode"],
+        projectDir,
+        userOverride: { forceInclude: ["github-mcp"], forceExclude: [] },
+      },
+    });
+    const claude = JSON.parse(readFileSync(join(projectDir, ".mcp.json"), "utf8")) as {
+      mcpServers: Record<string, unknown>;
+    };
+    expect(claude.mcpServers["github-mcp"]).toEqual({
+      type: "http",
+      url: "https://api.githubcopilot.com/mcp/",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 파일에 쓰는 리터럴 — Claude Code 가 실행 때 펼친다
+      headers: { Authorization: "Bearer ${GITHUB_PAT}" },
+    });
+    const opencode = JSON.parse(readFileSync(join(projectDir, "opencode.json"), "utf8")) as {
+      mcp: Record<string, unknown>;
+    };
+    expect(opencode.mcp["github-mcp"]).toEqual({
+      type: "remote",
+      url: "https://api.githubcopilot.com/mcp/",
+      oauth: false,
+      headers: { Authorization: "Bearer {env:GITHUB_PAT}" },
+    });
+    const toml = readFileSync(join(projectDir, ".codex/config.toml"), "utf8");
+    expect(toml).toContain(
+      '[mcp_servers.github-mcp]\nurl = "https://api.githubcopilot.com/mcp/"\nbearer_token_env_var = "GITHUB_PAT"',
+    );
+  });
 
   // update 는 트랙을 인자로 받지 않는다 — 설치 기록의 트랙으로 렌더해야 트랙 서버(railway)가 update 뒤에도
   // 남는다. 여기 update 의 spec 트랙(tooling)은 일부러 기록(csr-fastapi)과 다르게 둔다.

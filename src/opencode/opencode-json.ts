@@ -27,10 +27,23 @@ interface OpencodeLocalMcp {
   environment?: Record<string, string>;
 }
 
+/**
+ * OpenCode `McpRemoteConfig` — 우리가 쓰는 필드만(#711 · ADR-106). 헤더 인증 서버는 `oauth: false` — 401 을 보고 OAuth 를
+ * 시작하지 않게 한다(공식: "Disable automatic OAuth … for servers that authenticate via static API keys or custom headers").
+ */
+interface OpencodeRemoteMcp {
+  type: "remote";
+  url: string;
+  oauth?: false;
+  headers?: Record<string, string>;
+}
+
+type OpencodeMcp = OpencodeLocalMcp | OpencodeRemoteMcp;
+
 interface OpencodeConfig {
   $schema?: string;
   instructions?: string[];
-  mcp?: Record<string, OpencodeLocalMcp>;
+  mcp?: Record<string, OpencodeMcp>;
   command?: Record<string, unknown>;
   agent?: Record<string, unknown>;
   plugin?: string[];
@@ -38,8 +51,21 @@ interface OpencodeConfig {
   [key: string]: unknown;
 }
 
-/** Claude `.mcp.json` 형식 서버 하나 → OpenCode `McpLocalConfig`. */
-function toLocal(cfg: McpJson["mcpServers"][string]): OpencodeLocalMcp {
+/**
+ * 하네스 서버 하나 → OpenCode 형식. stdio → `McpLocalConfig`, 원격 → `McpRemoteConfig`. 토큰은 `{env:NAME}` 치환으로만 —
+ * 값은 파일에 쓰지 않는다(OpenCode 가 실행 때 읽는다, 미설정이면 빈 문자열).
+ */
+function toOpencode(cfg: McpJson["mcpServers"][string]): OpencodeMcp {
+  if (cfg.type === "http") {
+    return cfg.auth === undefined
+      ? { type: "remote", url: cfg.url }
+      : {
+          type: "remote",
+          url: cfg.url,
+          oauth: false,
+          headers: { Authorization: `Bearer {env:${cfg.auth.bearerEnv}}` },
+        };
+  }
   const local: OpencodeLocalMcp = { type: "local", command: [cfg.command, ...cfg.args] };
   if (cfg.env && Object.keys(cfg.env).length > 0) local.environment = { ...cfg.env };
   return local;
@@ -50,9 +76,9 @@ function toLocal(cfg: McpJson["mcpServers"][string]): OpencodeLocalMcp {
  * 더한다 — 템플릿의 나머지 키(`$schema` · `agent` · `permission` …)는 하네스가 파일을 **새로 만들 때만** 바탕(seed)으로
  * 깔리고, 그 순간부터 설치자 것이다.
  */
-export function renderOpencodeMcp(mcp: McpJson): Map<string, OpencodeLocalMcp> {
+export function renderOpencodeMcp(mcp: McpJson): Map<string, OpencodeMcp> {
   return new Map(
-    Object.entries(mcp.mcpServers).map(([name, cfg]) => [`mcp.${name}`, toLocal(cfg)]),
+    Object.entries(mcp.mcpServers).map(([name, cfg]) => [`mcp.${name}`, toOpencode(cfg)]),
   );
 }
 
@@ -66,7 +92,7 @@ export function renderOpencodeJson(params: RenderOpencodeJsonParams): string {
 
   if (params.mcp) {
     config.mcp = Object.fromEntries(
-      Object.entries(params.mcp.mcpServers).map(([name, cfg]) => [name, toLocal(cfg)]),
+      Object.entries(params.mcp.mcpServers).map(([name, cfg]) => [name, toOpencode(cfg)]),
     );
   }
 

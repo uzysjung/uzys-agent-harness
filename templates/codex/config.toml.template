@@ -58,6 +58,3 @@ timeout = 10
 # MCP Servers — 설치기가 이 아래에 이 프로젝트 트랙의 서버를 붙인다
 # 원천 = templates/mcp.json + templates/track-mcp-map.tsv (Claude .mcp.json 과 같다, #568)
 # ============================================================
-# github MCP 에 토큰을 줄 때 (필요 시 활성화):
-# [mcp_servers.github]
-# env = { GITHUB_PERSONAL_ACCESS_TOKEN = "{GITHUB_TOKEN}" }

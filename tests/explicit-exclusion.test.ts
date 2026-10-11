@@ -440,32 +440,34 @@ describe("R5 — 옛 판(26.162–26.163)이 굳힌 기록을 한 번 푼다", (
   });
 
   it("163 이 굳힌 하네스 서버를 이 판 install 1회가 되살리고 '↺ restored' 를 말한다 · 기록에 표시가 남는다", () => {
-    install();
-    // 26.163.0 이 남긴 모양 — 파일에서 사라졌고, 몫에서 빠졌고, excluded 에 키 id 가 적혔고, 표시가 없다
+    install({ tracks: ["csr-supabase"] });
+    // 26.163.0 이 남긴 모양(#722 뒤로는 옛 github 대신 supabase — 고를 수 없는 트랙 행) — 파일에서 사라졌고, 몫에서 빠졌고, excluded 에 키 id 가 적혔고, 표시가 없다
     const mcp = JSON.parse(readFileSync(abs(".mcp.json"), "utf8"));
-    delete mcp.mcpServers.github;
+    delete mcp.mcpServers.supabase;
     writeFileSync(abs(".mcp.json"), JSON.stringify(mcp, null, 2));
     const log = rawLog();
     const { excludedKeysMigrated: _m, ...unmarked } = log;
     putRawLog({
       ...unmarked,
-      portions: (log.portions ?? []).filter((p) => p.key !== "mcpServers.github"),
-      excluded: ["mcp:github"],
+      portions: (log.portions ?? []).filter((p) => p.key !== "mcpServers.supabase"),
+      excluded: ["mcp:supabase"],
     });
-    expect(legacyDroppedKeys(readInstallLog(projectDir))).toEqual(["mcp:github"]); // 전제
+    expect(legacyDroppedKeys(readInstallLog(projectDir))).toEqual(["mcp:supabase"]); // 전제
 
-    const { report, screen } = install();
+    const { report, screen } = install({ tracks: ["csr-supabase"] });
 
-    expect(JSON.parse(readFileSync(abs(".mcp.json"), "utf8")).mcpServers.github).toBeDefined();
-    expect(report.legacyRestored).toEqual(["mcp:github"]);
+    expect(JSON.parse(readFileSync(abs(".mcp.json"), "utf8")).mcpServers.supabase).toBeDefined();
+    expect(report.legacyRestored).toEqual(["mcp:supabase"]);
     expect(screen).toContain(
-      "restored 1 harness part(s) an earlier version had marked as removed (mcp:github) — to drop one: install … --without <id> (kept out by update; a later install without that flag brings it back)",
+      "restored 1 harness part(s) an earlier version had marked as removed (mcp:supabase) — to drop one: install … --without <id> (kept out by update; a later install without that flag brings it back)",
     );
     expect(rawLog().excludedKeysMigrated).toBe(true);
-    expect(rawLog().excluded ?? []).not.toContain("mcp:github");
+    expect(rawLog().excluded ?? []).not.toContain("mcp:supabase");
 
     // 되살린 것이 없는 실행은 그 줄을 내지 않는다
-    expect(install().screen).not.toContain("an earlier version had marked as removed");
+    expect(install({ tracks: ["csr-supabase"] }).screen).not.toContain(
+      "an earlier version had marked as removed",
+    );
   });
 });
 
@@ -544,7 +546,7 @@ describe("V3 위저드 — 최신 선택을 미리 채우고, 아직 해제된 i
 
   it("(b) 그대로 두고 트랙을 더하면 RUNS AS 가 `--without` 을 이어 낸다(위저드에 안 보이는 키 id 포함) — 그 문자열로 친 결과와 기록이 같다", async () => {
     install();
-    install({ baselineExclude: [RULE], keyExclude: ["mcp:github"] });
+    install({ baselineExclude: [RULE], keyExclude: ["mcp:context7"] });
     const confirmInstall = vi.fn(async (_s: string) => true);
     const result = await runInteractive(projectDir, {
       prompts: makePrompts({
@@ -557,7 +559,7 @@ describe("V3 위저드 — 최신 선택을 미리 채우고, 아직 해제된 i
     const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
     const runsAs = summary.split("\n").find((l) => l.includes("RUNS AS")) ?? "";
     expect(runsAs).toContain(`--without ${RULE}`);
-    expect(runsAs).toContain("--without mcp:github");
+    expect(runsAs).toContain("--without mcp:context7");
     expect(result.mode).toBe("add");
     // biome-ignore lint/style/noNonNullAssertion: 위에서 add 확인
     runWizardSpec(result.spec!, result.mode);
@@ -576,7 +578,7 @@ describe("V3 위저드 — 최신 선택을 미리 채우고, 아직 해제된 i
     const flagSpec = installSpecFromOptions(options, ["claude"], () => {}, HARNESS_ROOT);
     runWizardSpec(flagSpec, "add", false);
     expect(rawLog().excluded).toEqual(viaWizard);
-    expect(rawLog().excluded).toEqual(expect.arrayContaining([RULE, "mcp:github"]));
+    expect(rawLog().excluded).toEqual(expect.arrayContaining([RULE, "mcp:context7"]));
   });
 
   it("재체크하지 않으면 해제는 그대로고 엔진은 refresh 다 — 기록의 최신 선택이 기준", async () => {
@@ -601,21 +603,25 @@ describe.skipIf(process.getuid?.() === 0)(
   "#600 중단 기록의 excluded 는 정상 경로와 같은 규칙",
   () => {
     it("163 모양 기록 위에서 멈춰도 — 자동 추론 키는 풀리고 · 선택은 이번 입력 · 이력에 interrupted", () => {
-      install({ cli: ["claude", "codex"] });
-      // 26.163.0 이 남긴 모양: github 서버를 손으로 지웠고 그것이 excluded 에 키 id 로 굳었다 · 표시 없음
+      install({ cli: ["claude", "codex"], tracks: ["csr-supabase"] });
+      // 26.163.0 이 남긴 모양: supabase 서버를 손으로 지웠고 그것이 excluded 에 키 id 로 굳었다 · 표시 없음
       const mcp = JSON.parse(readFileSync(abs(".mcp.json"), "utf8"));
-      delete mcp.mcpServers.github;
+      delete mcp.mcpServers.supabase;
       writeFileSync(abs(".mcp.json"), JSON.stringify(mcp, null, 2));
       const log = rawLog();
       const { excludedKeysMigrated: _m, ...unmarked } = log;
       putRawLog({
         ...unmarked,
         spec: { ...log.spec, baselineExclude: [RULE] },
-        portions: (log.portions ?? []).filter((p) => p.key !== "mcpServers.github"),
-        excluded: ["mcp:github", RULE, "baseline:rules/doc-governance"],
+        portions: (log.portions ?? []).filter((p) => p.key !== "mcpServers.supabase"),
+        excluded: ["mcp:supabase", RULE, "baseline:rules/doc-governance"],
       });
       const before = readInstallLog(projectDir);
-      const input = spec({ cli: ["claude", "codex"], keyExclude: ["mcp:context7"] });
+      const input = spec({
+        cli: ["claude", "codex"],
+        tracks: ["csr-supabase"],
+        keyExclude: ["mcp:context7"],
+      });
       const expected = thisRunExclusions(
         input,
         before,
@@ -626,7 +632,11 @@ describe.skipIf(process.getuid?.() === 0)(
       try {
         let stopped = false;
         try {
-          install({ cli: ["claude", "codex"], keyExclude: ["mcp:context7"] });
+          install({
+            cli: ["claude", "codex"],
+            tracks: ["csr-supabase"],
+            keyExclude: ["mcp:context7"],
+          });
         } catch (e) {
           stopped = (e as Error).name === "InstallInterruptedError";
         }
@@ -647,9 +657,9 @@ describe.skipIf(process.getuid?.() === 0)(
         interrupted: true,
       });
       expect(after.spec.baselineExclude).toEqual(expected.spec.baselineExclude);
-      // R1 — 손으로 지웠던 github 는 되돌아왔고 빼기로 적히지 않았다 · 이번에 뺀 context7 은 걷혔다
+      // R1 — 손으로 지웠던 supabase 는 되돌아왔고 빼기로 적히지 않았다 · 이번에 뺀 context7 은 걷혔다
       const servers = JSON.parse(readFileSync(abs(".mcp.json"), "utf8")).mcpServers;
-      expect(servers.github).toBeDefined();
+      expect(servers.supabase).toBeDefined();
       expect(servers.context7).toBeUndefined();
     });
   },

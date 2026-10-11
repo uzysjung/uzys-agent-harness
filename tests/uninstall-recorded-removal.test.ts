@@ -321,14 +321,14 @@ describe("#569 — 루트의 함께 쓰는 파일은 기록된 하네스 몫만 
     put(".mcp.json", MINE_MCP);
     install(["claude"], { spawn: null });
     const cfg = JSON.parse(read(".mcp.json"));
-    cfg.mcpServers.github = { command: "my-github" };
+    cfg.mcpServers.context7 = { command: "my-context7" };
     put(".mcp.json", JSON.stringify(cfg, null, 2));
 
     const run = uninstall();
 
     const after = JSON.parse(read(".mcp.json")).mcpServers;
-    expect(Object.keys(after).sort()).toEqual(["github", "mine"]);
-    expect(run.out).toMatch(/\.mcp\.json — kept github: changed since install/);
+    expect(Object.keys(after).sort()).toEqual(["context7", "mine"]);
+    expect(run.out).toMatch(/\.mcp\.json — kept context7: changed since install/);
   });
 
   it(".env.example 은 지우지 않고 'yours now' 로 말한다", () => {

@@ -558,27 +558,27 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
     const tomlNow = read(".codex/config.toml");
     put(".codex/config.toml", tomlNow.slice(0, tomlNow.indexOf("# uzys-harness:tables:start")));
     const json = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
-    delete json.mcp.github;
+    delete json.mcp.context7;
     put("opencode.json", JSON.stringify(json));
 
     const second = run({ portions: first.portions });
 
     expect(second.sharedFiles.flatMap((f) => f.restored).sort()).toEqual([
       "codex:tables",
-      "opencode:mcp.github",
+      "opencode:mcp.context7",
     ]);
     expect(read(".codex/config.toml")).toContain("uzys-harness:tables");
-    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
-    expect(second.portions.map((p) => p.key)).toContain("mcp.github");
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("context7");
+    expect(second.portions.map((p) => p.key)).toContain("mcp.context7");
     // 설치자 것은 그대로
     expect(toml().mcp_servers?.myown).toBeDefined();
     // 설치자가 명시로 뺀 키(`--without`)는 되돌리지 않는다
     const json2 = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
-    delete json2.mcp.github;
+    delete json2.mcp.context7;
     put("opencode.json", JSON.stringify(json2));
-    const third = run({ portions: second.portions, excluded: ["opencode:mcp.github"] });
+    const third = run({ portions: second.portions, excluded: ["opencode:mcp.context7"] });
     expect(third.sharedFiles.flatMap((f) => f.restored)).toEqual([]);
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7");
   });
 
   it("설치자 파일에 직접 쓴 갱신도 update 갱신 수에 센다 — 기준선(`externalFiles`)에는 남기지 않는다", () => {
@@ -684,10 +684,10 @@ describe("runCliTransforms 가 세 어댑터의 몫과 되돌린 키를 돌려�
 
   it("excluded 의 키는 더하지 않는다", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
-    const r = run({ excluded: ["opencode:mcp.github", "codex:top"] });
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
+    const r = run({ excluded: ["opencode:mcp.context7", "codex:top"] });
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7");
     expect(read(".codex/config.toml")).not.toContain("uzys-harness:top");
-    expect(r.portions.map((p) => p.key)).not.toContain("mcp.github");
+    expect(r.portions.map((p) => p.key)).not.toContain("mcp.context7");
   });
 });
 
@@ -776,50 +776,52 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
   it("설치자가 하네스 키 · 블록을 손으로 지우면 다음 install 이 되돌린다 — `--without <키 id>` 로 빼야 빠진다(ADR-099)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     put("AGENTS.md", INSTALLER_AGENTS);
-    install(["opencode"]);
+    install(["opencode"], ["csr-fastapi"]);
     const withBlock = read("AGENTS.md");
     const json = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
-    delete json.mcp.github;
+    delete json.mcp["chrome-devtools"];
     put("opencode.json", JSON.stringify(json));
     put("AGENTS.md", INSTALLER_AGENTS); // 블록째 지웠다
 
-    const report = install(["opencode"]);
+    const report = install(["opencode"], ["csr-fastapi"]);
 
-    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("chrome-devtools");
     expect(read("AGENTS.md")).toBe(withBlock);
     expect(loggedExcluded()).toEqual([]);
     const rows = screen(["opencode"], report);
     const row = rows.find((l) => l.includes("opencode.json")) ?? "";
-    expect(row).toContain("was missing — restored: opencode:mcp.github");
+    expect(row).toContain("was missing — restored: opencode:mcp.chrome-devtools");
     expect(row).toContain(
-      "drop it: install … --without opencode:mcp.github — kept out by update; a later install without that flag brings it back",
+      "drop it: install … --without opencode:mcp.chrome-devtools — kept out by update; a later install without that flag brings it back",
     );
 
     // 명시적 빼기 — 기록 sha 와 같은 키만 걷고, update 가 지킨다
-    install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github", "agents-md:agents"] });
+    install(["opencode"], ["csr-fastapi"], {
+      keyExclude: ["opencode:mcp.chrome-devtools", "agents-md:agents"],
+    });
     update();
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("chrome-devtools");
     expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("context7");
     expect(read("AGENTS.md")).toBe(INSTALLER_AGENTS);
     expect(loggedExcluded()).toEqual(
-      expect.arrayContaining(["opencode:mcp.github", "agents-md:agents"]),
+      expect.arrayContaining(["opencode:mcp.chrome-devtools", "agents-md:agents"]),
     );
     // 설계 selection-record §3 — 다음 install 의 입력이 새 선택이다: 하나만 다시 빼면 다른 하나는 돌아온다
-    install(["opencode"], ["tooling"], { keyExclude: ["agents-md:agents"] });
-    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+    install(["opencode"], ["csr-fastapi"], { keyExclude: ["agents-md:agents"] });
+    expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("chrome-devtools");
     expect(loggedExcluded()).toEqual(["agents-md:agents"]);
   });
 
   it("리뷰 #693 NOTE-2 · LOW — `--without` 으로 걷은 키를 확인하고, 고쳐 둬서 남긴 키는 한 목록에만 나온다", () => {
-    install(["opencode"]);
+    install(["opencode"], ["csr-fastapi"]);
     const json = JSON.parse(read("opencode.json")) as {
       mcp: Record<string, Record<string, unknown>>;
     };
-    json.mcp.github = { ...json.mcp.github, enabled: false };
+    json.mcp["chrome-devtools"] = { ...json.mcp["chrome-devtools"], enabled: false };
     put("opencode.json", JSON.stringify(json, null, 2));
 
-    const report = install(["opencode"], ["tooling"], {
-      keyExclude: ["opencode:mcp.github", "opencode:mcp.context7"],
+    const report = install(["opencode"], ["csr-fastapi"], {
+      keyExclude: ["opencode:mcp.chrome-devtools", "opencode:mcp.context7"],
     });
 
     const row = screen(["opencode"], report).find((l) => l.includes("opencode.json")) ?? "";
@@ -827,12 +829,12 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
       "removed the harness part: opencode:mcp.context7 (you asked: --without opencode:mcp.context7)",
     );
     expect(row).toContain(
-      "left in place, no longer managed by the harness (excluded, but you edited it): opencode:mcp.github",
+      "left in place, no longer managed by the harness (excluded, but you edited it): opencode:mcp.chrome-devtools",
     );
-    expect(row).toMatch(/harness mcp: chrome-devtools(?! · github)/);
+    expect(row).toMatch(/harness mcp: railway-mcp-server(?! · chrome-devtools)/);
     expect(row).not.toContain("kept yours");
     expect(row).toMatch(/opencode\.json\s+removed the harness part · harness mcp/); // 걷기만 했다 — "썼다" 가 아니다
-    expect(JSON.parse(read("opencode.json")).mcp.github.enabled).toBe(false);
+    expect(JSON.parse(read("opencode.json")).mcp["chrome-devtools"].enabled).toBe(false);
     expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7");
   });
 
@@ -866,11 +868,7 @@ describe("R2 — install 이 몫을 기록하고 다음 실행이 그 기록으�
     expect(read(".codex/config.toml")).toBe(before.toml);
     expect(read("opencode.json")).toBe(before.json);
     expect(loggedExcluded()).toEqual([]);
-    expect([...loggedPortions("opencode.json").keys()].sort()).toEqual([
-      "mcp.chrome-devtools",
-      "mcp.context7",
-      "mcp.github",
-    ]);
+    expect([...loggedPortions("opencode.json").keys()].sort()).toEqual(["mcp.context7"]);
     expect([...loggedPortions(".codex/config.toml").keys()].sort()).toEqual(["tables", "top"]);
   });
 });
@@ -919,15 +917,15 @@ describe("R2 — update 도 같은 왕복을 한다", () => {
   it("update 는 앞서 적힌 excluded 를 덮지 않고 잇는다 (리뷰 NOTE-1 · MUT-E)", () => {
     put("opencode.json", JSON.stringify(INSTALLER_OPENCODE));
     install(["opencode"]);
-    install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.github"] });
-    expect(loggedExcluded()).toContain("opencode:mcp.github"); // 전제
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github"); // 전제
+    install(["opencode"], ["tooling"], { keyExclude: ["opencode:mcp.context7"] });
+    expect(loggedExcluded()).toContain("opencode:mcp.context7"); // 전제
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7"); // 전제
 
     update();
     update();
 
-    expect(loggedExcluded()).toContain("opencode:mcp.github");
-    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("github");
+    expect(loggedExcluded()).toContain("opencode:mcp.context7");
+    expect(JSON.parse(read("opencode.json")).mcp).not.toHaveProperty("context7");
   });
 
   it("update 는 판정하지 않은 파일(.mcp.json · settings.json)의 몫 기록을 그대로 둔다 (리뷰 NOTE-1 · MUT-G)", () => {

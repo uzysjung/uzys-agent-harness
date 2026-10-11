@@ -128,7 +128,7 @@ your-project/
 │   ├── agents/               reviewer, implementer: subagents the main agent hands work to
 │   ├── hooks/                session start, file protection. Claude Code runs them itself
 │   └── settings.json         registers the hooks (merged with yours)
-├── .mcp.json                 MCP servers: context7 (current library docs), github, and more (merged with yours)
+├── .mcp.json                 MCP servers: context7 (current library docs) and more by track (merged with yours)
 └── .uzys-agent-harness/      the install record and helper scripts
 ```
 
@@ -166,12 +166,12 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `project-management` | PM work | None (`product-skills` available) |
 | `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-MCP servers come too. Every track gets `context7` (current library docs), `github`, and `chrome-devtools`. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` for deployment, and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it.
+MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`.
 
 More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 
 - Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
-- Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `railway-skills`
+- Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
 - Security review: `security-guidance`, `trailofbits-skills`
 - Product, marketing, finance: `product-skills`, `marketingskills`, `finance-skills`
 - Slides and video: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills`, and more

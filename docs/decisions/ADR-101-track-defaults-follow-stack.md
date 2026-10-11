@@ -5,6 +5,7 @@
 - PR: #710
 - Issue: #709
 - Superseded in part by: ADR-102 (결정 2 — `vercel-cli` 는 다시 opt-in. 나머지 결정은 현행)
+- Amended by: ADR-106 (결정 2 의 Vercel MCP 미포함 · 결정 3 의 railway 행 정의와 tier 근거 repo · 결정 6 의 배지 문구 · Consequences 의 "옛 기록 … 관리 밖" 한 문장)
 - Amends: ADR-063 의 `vercel-cli` 한 줄(opt-in → `ssr-nextjs` 미리 체크). ADR-063 의 나머지(railway-skills · supabase-cli ·
   finance-skills · product-skills opt-in)와 ADR-035(netlify opt-in)는 그대로다.
 - 설계 문서: `docs/plans/track-defaults-709-design.md` (설계 검증 반영 절 포함)

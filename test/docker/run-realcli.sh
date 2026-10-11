@@ -36,7 +36,7 @@ case "${1:-all}" in
   build)
     build
     ;;
-  codex|antigravity|opencode|shared-files)
+  codex|antigravity|opencode|shared-files|update-mcp-167)
     build
     run_scenario "$1"
     ;;

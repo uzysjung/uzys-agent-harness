@@ -39,6 +39,7 @@ import {
   type CliTransformResults,
   renderHarnessMcp,
   runCliTransforms,
+  trackDefaultMcpNames,
 } from "./cli-transforms.js";
 import { hasLegacyHarnessHook, retiredFeaturesLeftBehind } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
@@ -354,6 +355,14 @@ export interface UpdateModeReport {
    */
   sharedWrites?: ReadonlyArray<SharedWrite>;
   /**
+   * #711 · 설계 검증 B2 — 이번 update 가 `.mcp.json` 에 **새로 더했거나 갈아 끼운** 원격(HTTP) 서버와 깔린 CLI. 요약의 NEXT 가
+   * 첫 사용 로그인 · 토큰 안내를 낸다. 아무것도 안 바뀐 update 에는 없다(매번 뜨지 않게). optional = 부재는 "없음".
+   */
+  remoteMcp?: {
+    servers: ReadonlyArray<{ name: string; bearerEnv?: string }>;
+    clis: ReadonlyArray<CliBase>;
+  };
+  /**
    * ADR-099 R2 — 기록(`externalFiles` · `portions`)에 있는데 디스크에 없어 되살린 외부 CLI 산출물. `clis` = 그 파일을 쓰는
    * 깔린 CLI(빼는 길 — `uninstall --cli <name>`), `how` = 파일째 새로 만든 함께 쓰는 파일이 무엇으로 채워졌나. `ids` = 설치자
    * 파일에 블록만 담아 되살린 경우(블록 모델 `AGENTS.md`) 그 블록의 키 id — 빼는 길이 CLI 가 아니라 `--without <id>` 다.
@@ -642,6 +651,8 @@ export function runUpdateMode(
     spec: { tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS },
     excluded: excludedIds(logAtStart),
     previousLog: logAtStart,
+    // #722 (ADR-106) — 옛 로그면 하네스가 만든 `.mcp.json` 에서 하네스 값 그대로인 고를 수 있는 서버를 선택으로 본다
+    projectDir,
   });
   const sharedWrites = writeUpdateSharedFiles({
     projectDir,
@@ -732,6 +743,13 @@ export function runUpdateMode(
   report.restoredFiles = external.restoredFiles;
   report.excludedKeys = external.excludedKeys;
   report.sharedWrites = sharedWrites.writes;
+  const remoteMcp = changedRemoteMcp(sharedWrites.writes);
+  if (remoteMcp.length > 0) {
+    report.remoteMcp = {
+      servers: remoteMcp,
+      clis: logAtStart === null ? [] : installedClis(logAtStart),
+    };
+  }
   report.legacyReleasedCatalog = [...legacyReleasedCatalog(logAtStart)];
   report.excludedStillThere = excludedStillThere(
     projectDir,
@@ -1035,7 +1053,15 @@ function writeUpdateSharedFiles(args: {
       // 기록이 claude 를 깔린 CLI 로 말한다 = install 이 이 파일을 썼다 — 없으면 만든다(훅 배선이 여기 산다)
     );
   }
-  if (wants("external")) writeMcpShared(writer, args.harnessMcp, log, { onlyIfRecorded: true });
+  if (wants("external")) {
+    writeMcpShared(
+      writer,
+      args.harnessMcp,
+      log,
+      { onlyIfRecorded: true },
+      { tracks, names: trackDefaultMcpNames(harnessRoot, tracks) },
+    );
+  }
   if (wants("rules")) writeGitignoreShared(writer, log);
   const ledger = writer.ledger();
   if (ledger.portionPaths.length > 0 || ledger.rootFiles.length > 0) {
@@ -1754,6 +1780,16 @@ function agentsMdNews(
     report.ownership.files.some((f) => f.path === "AGENTS.md");
   if (!created && report.agentsMdSeededFrom === null) return null;
   return { created, clis: [...report.clis], seededFrom: report.agentsMdSeededFrom };
+}
+
+/** 설계 검증 B2 — 이번에 `.mcp.json` 에 더했거나 갈아 끼운 원격 서버(첫 사용 안내 대상). */
+function changedRemoteMcp(
+  writes: ReadonlyArray<SharedWrite>,
+): Array<{ name: string; bearerEnv?: string }> {
+  const mcp = writes.find((w) => w.path === ".mcp.json");
+  if (mcp === undefined) return [];
+  const changed = new Set([...mcp.added, ...(mcp.replaced ?? [])]);
+  return (mcp.remote ?? []).filter((r) => changed.has(r.name));
 }
 
 function refreshExternalCli(

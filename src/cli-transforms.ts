@@ -197,6 +197,26 @@ export function trackDefaultMcpAssetIds(
   });
 }
 
+/**
+ * #722 (설계 검증 B3) — 이 트랙의 **기본 행** 서버 이름(트랙 표 패턴이 맞는 행 · 템플릿 서버). 화면이 기록으로 남은 서버를
+ * 갈아 끼울 때 "이 트랙의 기본이 아니다" 를 가른다 — 렌더(`renderHarnessMcp`)와 같은 표를 읽는다.
+ */
+export function trackDefaultMcpNames(
+  harnessRoot: string,
+  tracks: ReadonlyArray<Track>,
+): Set<string> {
+  const { templateMcpPath } = mcpSources(harnessRoot);
+  const base = existsSync(templateMcpPath)
+    ? Object.keys((JSON.parse(readFileSync(templateMcpPath, "utf8")) as McpJson).mcpServers)
+    : [];
+  return new Set([
+    ...base,
+    ...trackRows(harnessRoot)
+      .filter((r) => anyTrack(tracks, r.pattern))
+      .map((r) => r.name),
+  ]);
+}
+
 function trackRows(harnessRoot: string): TrackMcpRow[] {
   const { trackMapPath } = mcpSources(harnessRoot);
   return existsSync(trackMapPath) ? parseTrackMcpMap(readFileSync(trackMapPath, "utf8")) : [];

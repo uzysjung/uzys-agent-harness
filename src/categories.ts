@@ -81,6 +81,8 @@ export const SOURCE_LABELS = {
   github: "GitHub",
   // 2026-08-17 — Claude-Code-Game-Studios (23,924★ 실측, MIT).
   Donchitos: "Donchitos",
+  // #722 — Chrome DevTools MCP (ChromeDevTools/chrome-devtools-mcp 53k★ 실측 2026-10-11).
+  ChromeDevTools: "ChromeDevTools",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

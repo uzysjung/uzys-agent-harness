@@ -1,16 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { keyId } from "./adapters/index.js";
+import { jsonSha } from "./adapters/json-keys.js";
 import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import type { InstallLog } from "./install-log.js";
+import { priorMcpValues } from "./mcp-prior.js";
 import { anyTrack } from "./track-match.js";
 import type { Track } from "./types.js";
 
-export interface McpServerConfig {
-  type?: "stdio" | "http";
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-}
+/**
+ * 하네스 MCP 서버 하나 — 내부 모델(#711 · ADR-106). 세 렌더러(`.mcp.json` · Codex · OpenCode)가 각자 형식으로 낸다.
+ * - stdio: 지금까지의 모양(Claude `.mcp.json` 형식과 같다)
+ * - http: 원격(Streamable HTTP) 서버. `auth.bearerEnv` = `Authorization: Bearer` 를 **환경변수 이름**으로만 둔다 — 값은 어느
+ *   파일에도 쓰지 않는다(Claude `${VAR}` · Codex `bearer_token_env_var` · OpenCode `{env:VAR}` 가 실행 때 읽는다).
+ */
+export type McpServerConfig =
+  | { type?: "stdio"; command: string; args: string[]; env?: Record<string, string> }
+  | { type: "http"; url: string; auth?: { bearerEnv: string } };
 
 export interface McpJson {
   mcpServers: Record<string, McpServerConfig>;
@@ -19,12 +25,34 @@ export interface McpJson {
 
 export interface TrackMcpRow {
   name: string;
+  /** 기본 트랙 패턴. `-` 는 어떤 트랙과도 맞지 않는다 — 같은 이름의 카탈로그 `internal` 자산으로만 고른다. */
   pattern: string;
-  command: string;
-  args: string[];
+  server: McpServerConfig;
 }
 
-/** Parse `templates/track-mcp-map.tsv` (tab-separated, comment-aware). */
+/** 환경변수 이름 — 파일에 쓰는 것은 이 이름뿐이라 셸이 그대로 읽는 모양만 받는다. */
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** 원격 행의 4열(`{"url":"https://…","bearerEnv"?:"NAME"}`) — 아니면 null(행을 버린다). */
+function parseRemote(raw: string): McpServerConfig | null {
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
+  const { url, bearerEnv } = v as { url?: unknown; bearerEnv?: unknown };
+  if (typeof url !== "string" || !url.startsWith("https://")) return null;
+  if (bearerEnv === undefined) return { type: "http", url };
+  if (typeof bearerEnv !== "string" || !ENV_NAME.test(bearerEnv)) return null;
+  return { type: "http", url, auth: { bearerEnv } };
+}
+
+/**
+ * Parse `templates/track-mcp-map.tsv` (tab-separated, comment-aware). 3열이 리터럴 `url` 이면 원격 행이다(4열 = JSON 객체).
+ * 깨진 행은 버린다.
+ */
 export function parseTrackMcpMap(raw: string): TrackMcpRow[] {
   const rows: TrackMcpRow[] = [];
   for (const line of raw.split(/\r?\n/)) {
@@ -40,6 +68,11 @@ export function parseTrackMcpMap(raw: string): TrackMcpRow[] {
     if (!name || !pattern || !command) {
       continue;
     }
+    if (command === "url") {
+      const server = parseRemote(argsJson ?? "");
+      if (server !== null) rows.push({ name, pattern, server });
+      continue;
+    }
     let args: unknown;
     try {
       args = JSON.parse(argsJson ?? "[]");
@@ -49,9 +82,32 @@ export function parseTrackMcpMap(raw: string): TrackMcpRow[] {
     if (!Array.isArray(args) || !args.every((a) => typeof a === "string")) {
       continue;
     }
-    rows.push({ name, pattern, command, args: args as string[] });
+    rows.push({ name, pattern, server: { type: "stdio", command, args: args as string[] } });
   }
   return rows;
+}
+
+/**
+ * 내부 모델 → Claude Code `.mcp.json` 값. `.mcp.json` 에 쓰는 자리 · 그 값과 대조하는 자리(옛 로그 식별 · uninstall 잔존
+ * 안내)만 이것을 거친다. 원격은 `type: "http"` 가 필수다(공식: `url` 만 있고 `type` 이 없으면 설정 오류).
+ */
+export function toClaudeServer(cfg: McpServerConfig): Record<string, unknown> {
+  if (cfg.type === "http") {
+    return cfg.auth === undefined
+      ? { type: "http", url: cfg.url }
+      : {
+          type: "http",
+          url: cfg.url,
+          headers: { Authorization: `Bearer \${${cfg.auth.bearerEnv}}` },
+        };
+  }
+  const out: Record<string, unknown> = {
+    type: cfg.type ?? "stdio",
+    command: cfg.command,
+    args: cfg.args,
+  };
+  if (cfg.env && Object.keys(cfg.env).length > 0) out.env = { ...cfg.env };
+  return out;
 }
 
 /**
@@ -82,11 +138,7 @@ export function mergeMcpServers(
       // Preserve existing — do not overwrite user customizations.
       continue;
     }
-    out.mcpServers[row.name] = {
-      type: "stdio",
-      command: row.command,
-      args: row.args,
-    };
+    out.mcpServers[row.name] = row.server;
   }
   // Strip _comment marker (parity with the bash `jq 'del(._comment)'`).
   delete out._comment;
@@ -134,6 +186,11 @@ export interface McpChoice {
   /** 이 실행 뒤의 누적 빼기(install = `thisRunExclusions`, update = 기록의 `excludedIds`). */
   excluded: ReadonlySet<string>;
   previousLog: InstallLog | null;
+  /**
+   * #722 (ADR-106, 설계 검증 B1 ⓐ) — 옛 로그(몫 기록 전)의 `.mcp.json` 을 읽을 프로젝트. 주면 하네스가 **만든** 그 파일에 하네스가
+   * 쓴 값 그대로 남은 고를 수 있는 서버를 기록된 몫처럼 선택으로 본다(`legacyMcpServers`). 생략 = 그 근거를 쓰지 않는다.
+   */
+  projectDir?: string;
 }
 
 /**
@@ -147,14 +204,67 @@ export function selectedMcpServers(rows: ReadonlyArray<TrackMcpRow>, choice: Mcp
   const recorded = new Set(
     (choice.previousLog?.portions ?? []).filter((p) => p.path === ".mcp.json").map((p) => p.key),
   );
+  const legacy = new Set(
+    choice.projectDir === undefined
+      ? []
+      : legacyMcpServers(choice.projectDir, choice.previousLog, rows),
+  );
   const dropped = new Set(droppedMcpServers(rows, choice.excluded));
   const out: string[] = [];
   for (const [name, assetId] of selectableMcpServers(rows)) {
     if (dropped.has(name)) continue;
     const key = `mcpServers.${name}`;
-    if (isAssetSelected(assetId, choice.spec) || recorded.has(key)) out.push(name);
+    if (isAssetSelected(assetId, choice.spec) || recorded.has(key) || legacy.has(name)) {
+      out.push(name);
+    }
   }
   return out;
+}
+
+/**
+ * #722 (ADR-106, 설계 검증 B1 ⓐ) — 옛 로그(몫 기록 전 · v26.161 이하)에서 **값으로** 알아본 하네스 서버 중 고를 수 있는 행의
+ * 이름. 근거는 `legacyMcpSeed` 와 같다: 기록이 하네스가 그 파일을 **만들었다**고 말하고(`rootFiles.change === "created"`), 값이
+ * 하네스가 쓴 것(지금 행 · `PRIOR_MCP_SERVERS`)과 같다. 디스크 존재만으로는 고르지 않는다(ADR-096).
+ *
+ * 이것을 선택으로 넘기는 이유: 기록 있는 설치본은 기록된 몫(ⓑ)으로 같은 서버를 남기고 갈아 끼운다. 옛 로그만 이 근거가 없어
+ * 걷거나 관리 밖에 두면 같은 디스크가 이전 판에 따라 다른 결과를 받는다(루트 CLAUDE.md §설치자 디스크 한 원칙).
+ */
+export function legacyMcpServers(
+  projectDir: string,
+  previousLog: InstallLog | null,
+  rows: ReadonlyArray<TrackMcpRow>,
+): string[] {
+  if (previousLog === null || previousLog.records === "writer") return [];
+  if ((previousLog.portions ?? []).some((p) => p.path === ".mcp.json")) return [];
+  const created = (previousLog.rootFiles ?? []).some(
+    (f) => f.path === ".mcp.json" && f.change === "created",
+  );
+  if (!created) return [];
+  const servers = readMcpServers(join(projectDir, ".mcp.json"));
+  if (servers === null) return [];
+  const out: string[] = [];
+  for (const name of selectableMcpServers(rows).keys()) {
+    if (!Object.hasOwn(servers, name)) continue;
+    const disk = jsonSha(servers[name]);
+    const row = rows.find((r) => r.name === name);
+    const known = [...(row ? [row.server] : []), ...priorMcpValues(name)];
+    if (known.some((v) => jsonSha(toClaudeServer(v)) === disk)) out.push(name);
+  }
+  return out;
+}
+
+/** `.mcp.json` 의 `mcpServers` — 없거나 못 읽으면 null(아무것도 알아보지 않는다). */
+function readMcpServers(path: string): Record<string, unknown> | null {
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const servers = (parsed as { mcpServers?: unknown }).mcpServers;
+    if (servers === null || typeof servers !== "object" || Array.isArray(servers)) return null;
+    return servers as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 /**
