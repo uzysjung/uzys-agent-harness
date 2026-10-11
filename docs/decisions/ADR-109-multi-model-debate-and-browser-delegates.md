@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-12
-- PR: (미정)
+- PR: #759
 - Issue: #729
 - Amends: ADR-105 결정 2 의 "has-dev-track 수단" 범주(external-model-consult · natural-korean 와 같은 부류)에
   multi-model-debate 를 더한다. #489 가 agent-browser 를 opt-in 으로 내린 논거(외부 전제 · 설치 비용)를 브라우저 위임 3종에 재사용한다.
