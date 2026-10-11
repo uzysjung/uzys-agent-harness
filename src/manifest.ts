@@ -101,8 +101,12 @@ const DEV_RULES = ["test-policy", "ship-checklist"];
 // 2026-08-12 — `playwright-launch` 제거(사용자 결정). 남은 것은 브라우저 금지문이었는데,
 //   그 룰 본문이 스스로 "절차는 `ui-visual-review` 스킬이 SSOT" 라고 적고 있었다. 금지와 절차가
 //   한 자리에 있는 편이 낫다고 판단해 스킬로 합쳤고, 발화가 늦는 위험은 스킬 description 이
-//   "브라우저를 여는 어떤 방법이든 그 전에 읽어라"로 흡수한다. UI 트랙 전용 룰은 이제 없다.
-const UI_RULES: string[] = [];
+//   "브라우저를 여는 어떤 방법이든 그 전에 읽어라"로 흡수한다.
+// 2026-10-11 (#725 · #717) — `ui-components`: React·Next.js UI 는 shadcn/ui 로 만들고
+//   `@shadcn/lint` 로 검사한다. 아래 2026-08-02 에 뺀 shadcn 룰과 축이 다르다 — 그건 모델이 이미
+//   아는 사용법이었고, 이건 **모델이 모르는 새 도구**(2026-09 출시)와 **사용자가 고른 스택**이다.
+//   `paths:` 로 `.tsx`/`.jsx` 를 만질 때만 싣는다(Claude Code · Antigravity).
+const UI_RULES: string[] = ["ui-components"];
 
 // 2026-08-02 정비 — 기술스택 상세 룰(shadcn·nextjs·htmx·pyside6·database·api-contract·
 //   data-analysis·tauri)을 배포에서 뺐다. 모델이 이미 아는 것을 상주로 부담시키던 자리다.

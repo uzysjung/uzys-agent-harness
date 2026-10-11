@@ -27,10 +27,10 @@ const NO_EXTERNAL = null;
  * Per-track expected files (subset — proves Track-pattern routing in manifest.ts).
  *
  * 2026-08-02 정비 — 기술스택 상세 룰 8종이 배포에서 빠졌다.
- * 2026-08-12 — `playwright-launch` 가 스킬로 흡수돼 **UI 트랙 전용 룰 축이 없어졌다.** 남은
- * 라우팅 축은 dev 룰(test-policy·ship-checklist = executive 제외) · tooling/full 의
- * cli-development · MCP 매핑 셋이다. UI 트랙 행은 그래서 dev 룰 + MCP 로 구분을 증명한다 —
- * 전 트랙 공통 룰만 적으면 이 표가 라우팅을 더 이상 증명하지 못한다.
+ * 2026-08-12 — `playwright-launch` 가 스킬로 흡수돼 UI 트랙 전용 룰 축이 한동안 비었다. 라우팅
+ * 축은 dev 룰(test-policy·ship-checklist = executive 제외) · tooling/full 의 cli-development ·
+ * MCP 매핑 셋이었다. 2026-10-11 (#725) 에 `ui-components` 로 UI 룰 축이 다시 생겼고, 그 축의
+ * 양·음 판정은 아래 "UI 트랙 룰 라우팅" 이 맡는다.
  */
 const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
   // #456 — dev 룰은 받되 cli-development 는 없다 (tooling 과의 차이가 곧 base 의 정의)
@@ -131,6 +131,46 @@ describe("track-specific skills routing", () => {
         spec: buildSpec(["data"], other),
       });
       expect(existsSync(join(other, ".claude/skills/ui-visual-review"))).toBe(false);
+    } finally {
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
+});
+
+// #725 · #717 — `ui-components`(shadcn/ui + @shadcn/lint) 는 UI 트랙(`hasUiTrack`)에만 깔린다.
+describe("UI 트랙 룰 라우팅", () => {
+  let projectDir: string;
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "ch-uirule-"));
+  });
+  afterEach(() => {
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("ssr-nextjs 는 ui-components 룰을 깔고, tooling 은 안 깐다", () => {
+    runInstall({
+      runExternal: NO_EXTERNAL,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: buildSpec(["ssr-nextjs"], projectDir),
+    });
+    const rule = join(projectDir, ".claude/rules/ui-components.md");
+    expect(existsSync(rule)).toBe(true);
+    expect(readFileSync(rule, "utf8")).toBe(
+      readFileSync(join(HARNESS_ROOT, "templates/rules/ui-components.md"), "utf8"),
+    );
+
+    const other = mkdtempSync(join(tmpdir(), "ch-uirule-tooling-"));
+    try {
+      runInstall({
+        runExternal: NO_EXTERNAL,
+        harnessRoot: HARNESS_ROOT,
+        projectDir: other,
+        spec: buildSpec(["tooling"], other),
+      });
+      // 대조군 — 같은 설치가 tooling 룰은 깔았다(빈 rules 디렉터리로 통과하지 않게).
+      expect(existsSync(join(other, ".claude/rules/cli-development.md"))).toBe(true);
+      expect(existsSync(join(other, ".claude/rules/ui-components.md"))).toBe(false);
     } finally {
       rmSync(other, { recursive: true, force: true });
     }

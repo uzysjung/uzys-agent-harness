@@ -31,7 +31,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 
 | | Dev tracks | Business tracks |
 |---|---|---|
-| **Rules** | git policy · change management · doc governance · test policy · ship checklist (+ CLI development on `tooling` and `full`) | git policy · change management · doc governance |
+| **Rules** | git policy · change management · doc governance · test policy · ship checklist (+ CLI development on `tooling` and `full`; + UI components — build React/Next.js UI with shadcn/ui and check it with `@shadcn/lint` — on `csr-*`, `ssr-*`, and `full`) | git policy · change management · doc governance |
 | **Hooks** | session start · protect files | same |
 | **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
 | **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
