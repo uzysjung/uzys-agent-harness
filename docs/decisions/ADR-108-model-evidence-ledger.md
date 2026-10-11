@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-12
-- PR: (채움 예정)
+- PR: #758
 - Issue: #681 · #727 · #729(`external-model-consult` 제안분)
 - 설계 문서: `docs/plans/v26.168.0-model-routing-design.md` §2 · §3 · §5.5 · 검증 `docs/plans/v26.168.0-model-routing-design-verify.md`
 
