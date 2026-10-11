@@ -59,7 +59,7 @@ import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merg
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
-import type { UpdateModeReport } from "../update-mode.js";
+import type { CatalogRemoved, UpdateModeReport } from "../update-mode.js";
 
 /**
  * v26.78.1 — Summary `CLI` 행 라벨. spec.cli 에서 derive → 헤더와 일관. 표시명 SSOT 는
@@ -1338,6 +1338,9 @@ function renderPhase1Rows(
           : `${failed.map((f) => f.id).join(", ")} (${failed.length}건) · 예: ${head.message}`;
       log(assetRow("skip", "external skills", `${meta} · 다음 update 에서 다시 시도한다`));
     }
+    // ADR-104 (#726) — 이 릴리즈가 카탈로그에서 뺀 자산(설치 기록 기준). 자산마다 한 줄: 무엇이 됐는지 · 깐 것은 남는다 ·
+    // 새 것 받기 · 옛 것 치우기. 아래 일반 줄에는 이 id 가 들어가지 않는다(update-mode 가 뺀다).
+    for (const row of catalogRemovedRows(baseline.updateMode.catalogRemoved ?? [])) log(row);
     // 기록에는 있는데 카탈로그에서 사라진 자산 — "갱신했다"에 섞이면 사용자는 일부만 갱신된
     // 것을 모른다.
     //
@@ -1767,6 +1770,39 @@ export function excludedKeyParts(f: {
     );
   }
   return parts;
+}
+
+/**
+ * ADR-104 (#726) — 카탈로그에서 뺀 자산 한 줄씩. 지우지 않으므로 "깐 것은 그대로 남는다"를 말하고, 두 행동(새 것 받기 ·
+ * 옛 것 치우기)을 명령으로 준다. skill 은 update 가 갱신하던 것이라 갱신 중단을 함께 말한다 — 플러그인은 하네스가 원래
+ * 갱신하지 않았으니 말하지 않는다. 대체 자산이 이 설치본의 CLI 에 안 닿으면 받는 명령 대신 그 사실을 말한다.
+ */
+export function catalogRemovedRows(items: ReadonlyArray<CatalogRemoved>): string[] {
+  return items.map((e) => {
+    const parts: string[] = [
+      e.replacedBy === undefined ? "카탈로그에서 빠졌다" : `${e.replacedBy} 로 바뀌었다`,
+      e.method === "skill"
+        ? "깐 것은 그대로 남고 update 가 더는 갱신하지 않는다"
+        : "깐 것은 그대로 남는다",
+    ];
+    if (e.replacedBy !== undefined) {
+      if (e.replacementReaches === false) {
+        const next = EXTERNAL_ASSETS.find((a) => a.id === e.replacedBy);
+        const only = next
+          ? assetCliSupport(next)
+              .map((cli) => CLI_DISPLAY_NAMES[cli])
+              .join(" · ")
+          : "다른 CLI";
+        parts.push(`${e.replacedBy} 는 ${only} 전용이라 이 설치본의 CLI 에는 깔리지 않는다`);
+      } else {
+        parts.push(`새 것은 agent-harness install --with ${e.replacedBy}`);
+      }
+      parts.push(`옛 것을 치우려면 agent-harness uninstall --only ${e.id}`);
+    } else {
+      parts.push(`치우려면 agent-harness uninstall --only ${e.id}`);
+    }
+    return assetRow("skip", e.id, parts.join(" · "));
+  });
 }
 
 /** ADR-099 R3 — 뺐는데 그대로 있는 id 한 줄씩. */

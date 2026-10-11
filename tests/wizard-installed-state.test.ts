@@ -41,10 +41,10 @@ describe("installedTargetState — 설치 상태 조회", () => {
   });
 
   it("project scope 는 표시 + 사전 체크 양쪽에 들어간다", () => {
-    writeLog(dir, [asset("trailofbits-skills", "project")]);
+    writeLog(dir, [asset("claude-security", "project")]);
     expect(installedTargetState(dir)).toEqual({
-      installed: ["trailofbits-skills"],
-      projectScoped: ["trailofbits-skills"],
+      installed: ["claude-security"],
+      projectScoped: ["claude-security"],
     });
     rmSync(dir, { recursive: true, force: true });
   });
@@ -78,9 +78,9 @@ describe("buildPageGroups — installed 마커", () => {
     const { flatItems } = buildPageGroups(
       ["dev-tools"],
       new Set<string>(),
-      new Set(["asset:trailofbits-skills"]),
+      new Set(["asset:claude-security"]),
     );
-    const row = flatItems.find((i) => i.value === "asset:trailofbits-skills");
+    const row = flatItems.find((i) => i.value === "asset:claude-security");
     expect(row?.label).toContain("installed");
   });
 

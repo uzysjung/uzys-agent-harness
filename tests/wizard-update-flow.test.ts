@@ -375,6 +375,20 @@ describe("classifyUpdateIntent — 조건 하나라도 바뀌면 add, 애매하�
     expect(classifyUpdateIntent(log(), same)).toBe("refresh");
   });
 
+  // #726 (ADR-104) — 카탈로그에서 빠진 자산(기록에 남음)은 행이 없어 해제할 수 없다. 선택에 그 id 가 그대로 남아야
+  //   "기록된 자산의 체크를 풀었다 → add" 가 오발하지 않는다(computeUserOverride 는 그 id 를 걸러도 선택은 거르지 않는다).
+  it("#726 — 기록에 빠진 자산이 있고 아무것도 안 바꾼 선택은 refresh", () => {
+    const withRemoved = log({
+      assets: [...UI_EXTERNAL_REC, NOT_RECOMMENDED, "product-skills"].map(logAsset),
+    });
+    expect(
+      classifyUpdateIntent(withRemoved, {
+        ...same,
+        assetIds: [...same.assetIds, "product-skills"],
+      }),
+    ).toBe("refresh");
+  });
+
   it("③ 기록에 없는 추천 외부 자산을 체크했다(설치 때 뺐거나 실패했다) → add — refresh 는 그걸 깔지 않는다", () => {
     const unrecorded = log({ assets: [logAsset(NOT_RECOMMENDED)] });
     expect(classifyUpdateIntent(unrecorded, same)).toBe("add");

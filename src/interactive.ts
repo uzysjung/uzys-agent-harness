@@ -770,7 +770,12 @@ export function computeUserOverride(
   const recommended = new Set(wizardRecommended(tracks));
   const selected = new Set(assetIds);
   const forceExclude = [...recommended].filter((id) => !selected.has(id)).sort();
-  const forceInclude = [...selected].filter((id) => !recommended.has(id)).sort();
+  // #726 (ADR-104) — 선택에는 기록에서 온 **카탈로그 밖 id**(빠진 자산)가 섞인다(행이 없어 해제할 수도 없다). 그 id 를
+  // 넘기면 확인 화면이 "selected"·"+User added" 로 적는데 아무것도 깔리지 않는다 — 카탈로그 id 만 넘긴다.
+  // 선택 자체(`assetIds`)는 그대로 둔다: `classifyUpdateIntent` 가 기록된 자산을 그 안에서 찾는다.
+  const forceInclude = [...selected]
+    .filter((id) => !recommended.has(id) && EXTERNAL_ASSETS.some((a) => a.id === id))
+    .sort();
   if (forceInclude.length === 0 && forceExclude.length === 0) return undefined;
   return { forceInclude, forceExclude };
 }

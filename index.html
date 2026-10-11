@@ -198,7 +198,7 @@
         <span class="n">4</span>
         <h3>Several viewpoints and several agents balance speed, cost, and quality</h3>
         <p>Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas).</p>
-        <p><strong>With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.</strong></p>
+        <p><strong>Dev tracks also get skills that give each task a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and, if you have that vendor's CLI, let a model from another vendor give a second opinion.</strong></p>
       </article>
     </div>
   </section>
@@ -276,7 +276,7 @@
 
     <div class="sub">
       <h3>The agent that builds is not the one that checks</h3>
-      <p>An agent checking its own work tends to miss things. On Claude Code, a <code>reviewer</code> subagent that didn't write the code runs your tests or the app and checks the result. With the optional <code>model-orchestration</code> skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.</p>
+      <p>An agent checking its own work tends to miss things. On Claude Code, a <code>reviewer</code> subagent that didn't write the code runs your tests or the app and checks the result. On dev tracks, the <code>model-orchestration</code> skill also has the agent pick the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.</p>
     </div>
 
     <p class="muted small" style="margin-top:18px;">The full working principles are in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/templates/CLAUDE.md">templates/CLAUDE.md</a>. They are installed as <code>CLAUDE-uzys-harness.md</code> and pulled in by one line in your <code>CLAUDE.md</code>. The project's direction is in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/NORTH_STAR.md">docs/NORTH_STAR.md</a>.</p>
@@ -330,7 +330,7 @@
           <tr><td data-label="Track"><code>tooling</code></td><td data-label="Stack">Bash and Markdown projects with no app stack</td><td data-label="Pre-checked">None</td></tr>
           <tr><td data-label="Track"><code>full</code></td><td data-label="Stack">Every dev track, plus documents</td><td data-label="Pre-checked">All of the above, plus <code>anthropic-document-skills</code></td></tr>
           <tr><td data-label="Track"><code>executive</code></td><td data-label="Stack">Proposals, due diligence, decks, financial models</td><td data-label="Pre-checked"><code>anthropic-document-skills</code></td></tr>
-          <tr><td data-label="Track"><code>project-management</code></td><td data-label="Stack">PM work</td><td data-label="Pre-checked">None (<code>product-skills</code> available)</td></tr>
+          <tr><td data-label="Track"><code>project-management</code></td><td data-label="Stack">PM work</td><td data-label="Pre-checked">None</td></tr>
           <tr><td data-label="Track"><code>growth-marketing</code></td><td data-label="Stack">Growth and content marketing</td><td data-label="Pre-checked">None (<code>marketingskills</code> available)</td></tr>
         </tbody>
       </table>
@@ -340,9 +340,9 @@
     <ul class="plain">
       <li><strong>Frontend and design:</strong> <code>web-design-guidelines</code>, <code>taste-skill</code>, <code>jakubkrehel-skills</code>, <code>preline</code>, <code>scroll-world</code></li>
       <li><strong>Deployment:</strong> <code>vercel-cli</code>, <code>netlify-cli</code>, <code>supabase-cli</code>, <code>railway-mcp-server</code>, <code>vercel</code>, <code>railway-skills</code></li>
-      <li><strong>Security review:</strong> <code>security-guidance</code>, <code>trailofbits-skills</code></li>
-      <li><strong>Product, marketing, finance:</strong> <code>product-skills</code>, <code>marketingskills</code>, <code>finance-skills</code></li>
-      <li><strong>Slides and video:</strong> <code>frontend-slides</code>, <code>marp-slide</code>, <code>revealjs</code>, <code>remotion</code>, <code>gsap-skills</code>, and more</li>
+      <li><strong>Security review:</strong> <code>security-guidance</code>, <code>claude-security</code></li>
+      <li><strong>Marketing and finance:</strong> <code>marketingskills</code>, <code>finance-skills</code></li>
+      <li><strong>Slides and video:</strong> <code>frontend-slides</code>, <code>marp-slide</code>, <code>hyperframes</code>, <code>remotion</code>, <code>gsap-skills</code>, and more</li>
       <li><strong>Teams that want a fixed development process:</strong> <code>openspec</code>, <code>bmad-method</code> (compared in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">WORKFLOWS.md</a>)</li>
     </ul>
     <p class="muted small">Each track's full set is in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/TRACKS.md">docs/TRACKS.md</a>. Every asset's source, install method, and supported tools are in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/COMPATIBILITY.md">docs/COMPATIBILITY.md</a>.</p>

@@ -160,21 +160,19 @@ describe("Track matrix — assets called per track", () => {
     expect(ids).not.toContain("openspec");
   });
 
-  it("--with trailofbits-skills adds Trail of Bits (any track)", () => {
-    const { ids } = runForTrack(["tooling"], {}, ["trailofbits-skills"]);
-    expect(ids).toContain("trailofbits-skills");
-    const { ids: idsExec } = runForTrack(["executive"], {}, ["trailofbits-skills"]);
-    expect(idsExec).toContain("trailofbits-skills");
+  // #726 (ADR-104) — trailofbits-skills · product-skills 판이 자산과 함께 빠졌다. 교체본이 같은 계약을 잰다.
+  it("--with claude-security adds Claude Security (any track)", () => {
+    const { ids } = runForTrack(["tooling"], {}, ["claude-security"]);
+    expect(ids).toContain("claude-security");
+    const { ids: idsExec } = runForTrack(["executive"], {}, ["claude-security"]);
+    expect(idsExec).toContain("claude-security");
+    const { ids: idsDefault } = runForTrack(["tooling"], {});
+    expect(idsDefault).not.toContain("claude-security");
   });
 });
 
 // === v0.5.0 — 신규 Track 매핑 검증 (P2-T4 합집합 회귀 + P3-T2 신규 Track) ===
 describe("Track matrix — v0.5.0 신규 Track", () => {
-  it("--with product-skills 는 여전히 설치 (강등이지 삭제가 아니다 — ADR-063)", () => {
-    const { ids } = runForTrack(["project-management"], {}, ["product-skills"]);
-    expect(ids).toContain("product-skills");
-  });
-
   // 2026-08-02 정비(ADR-060) 회귀 — north-star·gh-issue-workflow 는 COMMON_SKILL_DIRS(전 트랙
   // 무조건 설치)에서 카탈로그로 옮겼다. 조건 표현이 트랙 하나라도 빠뜨리면 그 트랙 설치자는
   // 조용히 잃는다 (리뷰 P1-3 이 지적한 강등 금지 — 이 테스트가 그 결정을 지킨다).
@@ -190,7 +188,10 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
   // 신설 자산만 이 검사를 빠져나가는 두 번째 경로가 생긴다.
   // ADR-064 — `audit-harness-fit` 신설분도 같은 단언에 넣는다. 근거는 위 AC9 와 같다:
   // 목록을 나누면 신설 자산만 이 검사를 빠져나가는 경로가 또 생긴다.
-  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙 · opt-in", () => {
+  // ADR-105 (#726) — model-orchestration · external-model-consult · natural-korean 이 opt-in 에서 dev 트랙
+  //   기본으로 옮겼다. opt-in 번들 스킬은 이제 없다 — "opt-in 은 트랙만으로 안 깔린다" 계약은 외부 자산
+  //   쪽(`external-assets.test.ts` 의 claude-security 게이팅)이 계속 문다.
+  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙", () => {
     const allTrack = ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"];
     const devOnly = [
       "user-centered-explanation",
@@ -198,8 +199,17 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
       "multi-persona-review",
       "recurrence-prevention",
       "compaction-handoff",
+      "model-orchestration",
+      "external-model-consult",
+      "natural-korean",
     ];
-    const optIn = ["model-orchestration", "external-model-consult"];
+    // ci-scaffold 는 번들 스킬이 아니라 `.github/workflows/` 를 쓰는 자산이다 — 선택만 트랙 전수로 잰다.
+    for (const t of TRACKS) {
+      expect(
+        isAssetSelected("ci-scaffold", { tracks: [t], options: { ...DEFAULT_OPTIONS } }),
+        `${t}: ci-scaffold 기본 여부가 dev 트랙과 다르다`,
+      ).toBe(hasDevTrack([t]));
+    }
     for (const t of TRACKS) {
       const ctx = { tracks: [t], options: { ...DEFAULT_OPTIONS } };
       // installer.ts 의 selectedInternalSkills 와 같은 계산.
@@ -218,11 +228,6 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
       for (const id of devOnly) {
         expect(selected.includes(id), `${t}: ${id} dev-track 게이팅 불일치`).toBe(isDev);
         expect(copied(id), `${t}: ${id} 복사 여부가 선택과 불일치`).toBe(isDev);
-      }
-      // opt-in 은 트랙만으론 절대 안 깔린다 — 되면 사용자가 안 고른 자산을 설치하는 것이다.
-      for (const id of optIn) {
-        expect(selected, `${t}: opt-in ${id} 가 트랙만으로 설치된다`).not.toContain(id);
-        expect(copied(id), `${t}: opt-in ${id} 가 트랙만으로 복사된다`).toBe(false);
       }
     }
   });

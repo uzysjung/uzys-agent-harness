@@ -11,6 +11,7 @@ import {
   experimentalOptInCandidates,
   filterApplicableAssets,
   INTERNAL_BUNDLED_SKILL_IDS,
+  REMOVED_CATALOG_ASSETS,
   shouldInstallAsset,
   TRUST_TIER,
 } from "../src/external-assets.js";
@@ -129,9 +130,54 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).toContain("frontend-design");
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).toContain("railway-skills");
-    expect(ids).toContain("trailofbits-skills");
+    expect(ids).toContain("claude-security");
     // v26.87.0 — 번들 internal skills (uzys 1st-party).
     for (const id of DEV_METHOD_SKILL_IDS) expect(ids).toContain(id);
+  });
+
+  // ADR-104 (#726, 사용자 결정 2026-10-11) — 삭제 3 · 교체 2. 표본은 손으로 적는다 — `REMOVED_CATALOG_ASSETS`
+  //   에서 유도하면 그 표에서 한 줄을 빼도 초록이다(ADR-090 Consequences).
+  it("#726 — 빠진 5종은 카탈로그에 없고, 교체 2종은 공식 마켓플레이스 플러그인(opt-in)이다", () => {
+    const ids = EXTERNAL_ASSETS.map((a) => a.id);
+    for (const gone of [
+      "product-skills",
+      "agentmemory",
+      "revealjs",
+      "trailofbits-skills",
+      "web-video-presentation",
+    ]) {
+      expect(ids, `${gone} 는 카탈로그에서 빠졌다`).not.toContain(gone);
+    }
+    for (const [id, pluginId, source] of [
+      ["claude-security", "claude-security@claude-plugins-official", "anthropics"],
+      ["hyperframes", "hyperframes@claude-plugins-official", "heygen-com"],
+    ] as const) {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      if (!a) throw new Error(`${id} missing`);
+      expect(a.method).toEqual({
+        kind: "plugin",
+        marketplace: "anthropics/claude-plugins-official",
+        pluginId,
+      });
+      expect(a.tier).toBe("official");
+      expect(a.condition.kind).toBe("opt-in");
+      expect(a.source).toBe(source);
+    }
+  });
+
+  it("#726 — REMOVED_CATALOG_ASSETS: 손으로 적은 5종 · 키는 카탈로그 밖 · replacedBy 는 카탈로그 안", () => {
+    expect(REMOVED_CATALOG_ASSETS).toEqual({
+      "product-skills": {},
+      agentmemory: {},
+      revealjs: {},
+      "trailofbits-skills": { replacedBy: "claude-security" },
+      "web-video-presentation": { replacedBy: "hyperframes" },
+    });
+    const ids = new Set(EXTERNAL_ASSETS.map((a) => a.id));
+    for (const [id, { replacedBy }] of Object.entries(REMOVED_CATALOG_ASSETS)) {
+      expect(ids.has(id), `${id} 가 카탈로그에 되살아났다`).toBe(false);
+      if (replacedBy !== undefined) expect(ids.has(replacedBy), replacedBy).toBe(true);
+    }
   });
 
   // 2026-08-02 복원 (ADR-062) — ADR-060 이 이관했던 uzys 방법론 스킬 9종이 이 리포 번들로
@@ -238,29 +284,28 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
   });
 
   // v26.108.0 (ADR-037, 라이프사이클 자산화 ②) — ci-scaffold: `.claude/` 밖(.github/)에 쓰는
-  //   첫 자산. Promise=Impl: opt-in 전용(무인지 설치 0)이어야 하고, 스킬이 아니므로
-  //   INTERNAL_BUNDLED_SKILL_IDS(스킬 dir copy + 4-CLI 렌더 대상)에 끼어들면 안 된다 —
-  //   끼면 존재하지 않는 templates/skills/ci-scaffold 를 복사하려다 silent skip 된다.
-  it("ci-scaffold: opt-in internal (uzys), NOT a bundled skill", () => {
+  //   첫 자산. 스킬이 아니므로 INTERNAL_BUNDLED_SKILL_IDS(스킬 dir copy + 4-CLI 렌더 대상)에
+  //   끼어들면 안 된다 — 끼면 존재하지 않는 templates/skills/ci-scaffold 를 복사하려다 silent skip 된다.
+  // ADR-105 (#726) — opt-in 전용 → 개발 트랙 기본. executive 계열에는 안 깔리고 `--without` 으로 뺀다.
+  it("ci-scaffold: has-dev-track internal (uzys), NOT a bundled skill", () => {
     const a = EXTERNAL_ASSETS.find((x) => x.id === "ci-scaffold");
     if (!a) throw new Error("ci-scaffold missing");
     expect(assetTrustTier("ci-scaffold")).toBe("official");
     expect(a.source).toBe("uzys");
     expect(a.category).toBe("workflow");
-    expect(a.condition.kind).toBe("opt-in");
-    expect(a.description).toContain("opt-in");
+    expect(a.condition.kind).toBe("has-dev-track");
     expect(a.method.kind).toBe("internal");
     expect(INTERNAL_BUNDLED_SKILL_IDS).not.toContain("ci-scaffold");
     expect(DEV_METHOD_SKILL_IDS).not.toContain("ci-scaffold");
-    // opt-in ⇒ 트랙만으론 절대 미설치 (dev 트랙 포함) — forceInclude 시에만.
-    expect(shouldInstallAsset(a, { tracks: ["full"], options: NO_OPTIONS })).toBe(false);
+    expect(shouldInstallAsset(a, { tracks: ["full"], options: NO_OPTIONS })).toBe(true);
+    expect(shouldInstallAsset(a, { tracks: ["executive"], options: NO_OPTIONS })).toBe(false);
     expect(
       shouldInstallAsset(a, {
         tracks: ["full"],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: ["ci-scaffold"], forceExclude: [] },
+        userOverride: { forceInclude: [], forceExclude: ["ci-scaffold"] },
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -345,18 +390,18 @@ describe("shouldInstallAsset — track conditions", () => {
 
   // v26.81.0 (ADR-022) — flag 게이팅 → opt-in(forceInclude) 게이팅으로 의미 전환.
   //   WHY: condition 만으론 절대 미설치(무단 설치 금지), --with <id>/wizard 체크로만 활성.
-  //   #492 — 이 계약을 ecc-plugin 으로 재던 판이 은퇴했다. 바로 아래 trailofbits-skills 가
-  //   같은 계약을 문다(자산만 다르고 판정은 동일).
+  //   #492 — 이 계약을 ecc-plugin 으로 재던 판이 은퇴했다. #726 — trailofbits-skills 가 빠지고
+  //   교체본 claude-security 가 같은 계약을 문다(자산만 다르고 판정은 동일).
 
-  it("Trail of Bits is gated on `--with trailofbits-skills` (opt-in)", () => {
-    const tob = EXTERNAL_ASSETS.find((a) => a.id === "trailofbits-skills");
-    if (!tob) throw new Error("trailofbits missing");
-    expect(shouldInstallAsset(tob, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
+  it("claude-security is gated on `--with claude-security` (opt-in)", () => {
+    const sec = EXTERNAL_ASSETS.find((a) => a.id === "claude-security");
+    if (!sec) throw new Error("claude-security missing");
+    expect(shouldInstallAsset(sec, { tracks: ["tooling"], options: NO_OPTIONS })).toBe(false);
     expect(
-      shouldInstallAsset(tob, {
+      shouldInstallAsset(sec, {
         tracks: ["tooling"],
         options: NO_OPTIONS,
-        userOverride: { forceInclude: ["trailofbits-skills"], forceExclude: [] },
+        userOverride: { forceInclude: ["claude-security"], forceExclude: [] },
       }),
     ).toBe(true);
   });
@@ -397,9 +442,9 @@ describe("filterApplicableAssets", () => {
       options: NO_OPTIONS,
     });
     const ids = apps.map((a) => a.id);
-    // 옵션 gated 는 제외 (bmad, tob 등)
+    // 옵션 gated 는 제외 (bmad, claude-security 등)
     expect(ids).not.toContain("bmad-method");
-    expect(ids).not.toContain("trailofbits-skills");
+    expect(ids).not.toContain("claude-security");
     // Track 매트릭스의 vetted/official 자산은 포함
     expect(ids).toContain("anthropic-data-plugin");
     expect(ids).not.toContain("railway-skills"); // v26.71.1 — T3 experimental opt-in only (PRD R6)
@@ -407,7 +452,6 @@ describe("filterApplicableAssets", () => {
     expect(ids).not.toContain("vercel-cli");
     expect(ids).not.toContain("supabase-cli");
     expect(ids).not.toContain("finance-skills");
-    expect(ids).not.toContain("product-skills");
     expect(ids).toContain("anthropic-document-skills");
   });
 
@@ -417,13 +461,13 @@ describe("filterApplicableAssets", () => {
       tracks: ["tooling"] as Track[],
       options: NO_OPTIONS,
       userOverride: {
-        forceInclude: ["bmad-method", "trailofbits-skills", "openspec"],
+        forceInclude: ["bmad-method", "claude-security", "openspec"],
         forceExclude: [],
       },
     });
     const ids = apps.map((a) => a.id);
     expect(ids).toContain("bmad-method");
-    expect(ids).toContain("trailofbits-skills");
+    expect(ids).toContain("claude-security");
     expect(ids).toContain("openspec");
   });
 });
@@ -431,15 +475,10 @@ describe("filterApplicableAssets", () => {
 describe("ADR-063 opt-in 강등 자산", () => {
   // 2026-08-02 사용자 결정 (ADR-063) — 5자산이 트랙 기본에서 opt-in 으로 내려갔다.
   //   강등이지 삭제가 아니므로 **--with(=forceInclude)로는 여전히 설치된다** — 이 절반이
-  //   없으면 "카탈로그에서 삭제"와 구분되지 않는다.
-  it("ADR-063 5자산: --with 로는 설치된다 (강등 ≠ 삭제)", () => {
-    const optedOut = [
-      "railway-skills",
-      "vercel-cli",
-      "supabase-cli",
-      "finance-skills",
-      "product-skills",
-    ];
+  //   없으면 "카탈로그에서 삭제"와 구분되지 않는다. ADR-104 (#726) — 그중 product-skills 는 이후
+  //   카탈로그에서 빠졌다(사용자 결정 2026-10-11). 남은 4자산이 이 계약을 문다.
+  it("ADR-063 남은 4자산: --with 로는 설치된다 (강등 ≠ 삭제)", () => {
+    const optedOut = ["railway-skills", "vercel-cli", "supabase-cli", "finance-skills"];
     for (const id of optedOut) {
       const a = EXTERNAL_ASSETS.find((x) => x.id === id);
       if (!a) throw new Error(`${id} missing`); // 삭제가 아니라 강등이다 — 카탈로그에 남아야 한다

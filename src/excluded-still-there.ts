@@ -7,7 +7,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { classifyBaselineTarget } from "./baseline-targets.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { INTERNAL_BUNDLED_SKILL_IDS, REMOVED_CATALOG_ASSETS } from "./external-assets.js";
 import type { InstallLog, InstallLogAsset } from "./install-log.js";
 
 /** ADR-099 R3 — 뺐는데 앞 설치가 놓은 것이 그대로 있는 id 하나. `catalog` = 외부 자산(`uninstall --only` 를 받는다). */
@@ -41,6 +41,9 @@ export function excludedStillThere(
       );
       if (there) add(id, false);
     } else {
+      // ADR-104 (#726) — 카탈로그에서 뺀 자산은 이 줄이 권하는 `--with <id>` 를 이제 `Unknown asset id` 로 거절한다.
+      // update 의 전용 줄(`catalogRemoved`)이 말한다. 새 install 은 그 id 의 `--without` 을 기록하지 않으므로 옛 기록용이다.
+      if (Object.hasOwn(REMOVED_CATALOG_ASSETS, id)) continue;
       const asset = previousLog?.assets.find((a) => a.id === id);
       if (asset !== undefined && assetStillThere(projectDir, asset)) add(id, true);
     }

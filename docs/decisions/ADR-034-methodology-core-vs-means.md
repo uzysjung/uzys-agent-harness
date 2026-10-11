@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-18
 - PR: #217
+- Amended by: ADR-105 (model-orchestration · external-model-consult 를 opt-in 에서 개발 트랙 기본으로 — §2 의 수단 계층 opt-in 과 §4 의 "외부 CLI 의존 pre-check 승격 안 함"을 이 둘에 한해 뒤집는다)
 - Context: 사용자 지시(2026-07-17, Lean 큐 ⑥): "내가 만든 스킬 중 하네스 엔지니어링 내용 —
   목표·스코프·논스코프 정하고 ADR, 결함 보고·재발방지 대책 — 은 전반적인 **방법론**이니까 묶어서
   **필수**로 제공하자. 그리고 agy, codex, model-policy 는 **수단**인 것 같아. 하지만 난 **권장**."

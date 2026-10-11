@@ -28,7 +28,7 @@ Every instruction the agent reads each session takes up context, and as they pil
 
 ### 4. Several viewpoints and several agents balance speed, cost, and quality
 
-Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas). With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.
+Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas). Dev tracks also get skills that give each task a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and, if you have that vendor's CLI, let a model from another vendor give a second opinion.
 
 One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories, or picked after checking their source, popularity, and install path). Your `CLAUDE.md` gets one block marked with comments and nothing else is touched. On uninstall, shared files such as `CLAUDE.md` and `.mcp.json` lose only the harness's part. Works with Claude Code, Codex, OpenCode, and Antigravity; the hook that blocks file edits and the reviewer agent run on Claude Code.
 
@@ -110,7 +110,7 @@ Every instruction read each session takes up context, and instructions written f
 
 ### The agent that builds is not the one that checks
 
-An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. With the optional `model-orchestration` skill, the agent also picks the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
+An agent checking its own work tends to miss things. On Claude Code, a `reviewer` subagent that didn't write the code runs your tests or the app and checks the result. On dev tracks, the `model-orchestration` skill also has the agent pick the model and reasoning effort for each task: fast and cheap for light work, stronger where more judgment is needed. That is how speed, cost, and quality get balanced.
 
 The full working principles are in [templates/CLAUDE.md](templates/CLAUDE.md). They are installed as `CLAUDE-uzys-harness.md` and pulled in by one line in your `CLAUDE.md`. The project's direction is in [docs/NORTH_STAR.md](docs/NORTH_STAR.md).
 
@@ -163,7 +163,7 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `tooling` | Bash and Markdown projects with no app stack | None |
 | `full` | Every dev track, plus documents | All of the above, plus `anthropic-document-skills` |
 | `executive` | Proposals, due diligence, decks, financial models | `anthropic-document-skills` |
-| `project-management` | PM work | None (`product-skills` available) |
+| `project-management` | PM work | None |
 | `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
 MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`.
@@ -172,9 +172,9 @@ More external assets are never pre-checked but can be added at step 3 or with `-
 
 - Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
 - Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
-- Security review: `security-guidance`, `trailofbits-skills`
-- Product, marketing, finance: `product-skills`, `marketingskills`, `finance-skills`
-- Slides and video: `frontend-slides`, `marp-slide`, `revealjs`, `remotion`, `gsap-skills`, and more
+- Security review: `security-guidance`, `claude-security`
+- Marketing and finance: `marketingskills`, `finance-skills`
+- Slides and video: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills`, and more
 - Teams that want a fixed development process: `openspec`, `bmad-method` (compared in [WORKFLOWS.md](docs/WORKFLOWS.md))
 
 Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's source, install method, and supported tools are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).

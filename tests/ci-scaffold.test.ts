@@ -77,7 +77,8 @@ describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () 
   });
 });
 
-describe("runInstall × ci-scaffold (opt-in 게이팅 + CLI-무관)", () => {
+// ADR-105 (#726) — opt-in 전용 → 개발 트랙 기본. executive 계열은 안 쓰고, `--without` 으로 뺀다.
+describe("runInstall × ci-scaffold (개발 트랙 기본 + CLI-무관)", () => {
   let projectDir: string;
 
   beforeEach(() => {
@@ -96,11 +97,36 @@ describe("runInstall × ci-scaffold (opt-in 게이팅 + CLI-무관)", () => {
     ...over,
   });
 
-  it("opt-in 미선택 시 .github/ 에 아무것도 쓰지 않는다", () => {
+  it("executive 트랙(개발 트랙 아님)은 .github/ 에 아무것도 쓰지 않는다", () => {
+    const report = runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec({ tracks: ["executive"] }),
+      runExternal: null,
+    });
+    expect(report.ciScaffold).toBeNull();
+    expect(existsSync(join(projectDir, ".github"))).toBe(false);
+  });
+
+  it("개발 트랙(ssr-nextjs) 기본 설치는 ci.yml · e2e.yml 을 쓴다", () => {
     const report = runInstall({
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: spec(),
+      runExternal: null,
+    });
+    expect(report.ciScaffold?.written).toEqual(
+      expect.arrayContaining([".github/workflows/ci.yml", ".github/workflows/e2e.yml"]),
+    );
+    expect(existsSync(join(projectDir, ".github/workflows/ci.yml"))).toBe(true);
+    expect(existsSync(join(projectDir, ".github/workflows/e2e.yml"))).toBe(true);
+  });
+
+  it("--without ci-scaffold (forceExclude) 면 개발 트랙에서도 쓰지 않는다", () => {
+    const report = runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec({ userOverride: { forceInclude: [], forceExclude: ["ci-scaffold"] } }),
       runExternal: null,
     });
     expect(report.ciScaffold).toBeNull();

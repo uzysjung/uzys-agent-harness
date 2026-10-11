@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**35/55 assets are 🟢 verified by a real install; the remaining 20 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**32/52 assets are 🟢 verified by a real install; the remaining 20 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **55** (official 20 / vetted 32 / experimental 3) · 🟢 verified **35/55**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **52** (official 22 / vetted 28 / experimental 2) · 🟢 verified **32/52**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -142,7 +142,7 @@ stale row fails the build rather than misleading you.
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (8)
+#### 🛡️ Dev Tools (7)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -151,11 +151,10 @@ stale row fails the build rather than misleading you.
 | `external-model-consult` | official | templates (`--with external-model-consult`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
+| `claude-security` | official | `claude-security@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `github-mcp` | vetted | templates (`--with github-mcp`) | claude+codex+opencode (templates) | 🟡 local |
-| `product-skills` | vetted | `product-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
-| `trailofbits-skills` | vetted | `differential-review@trailofbits` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🧠 Understanding (5)
+#### 🧠 Understanding (4)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -163,19 +162,17 @@ stale row fails the build rather than misleading you.
 | `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | 4-CLI (npm) | 🟢 registry |
 | `claude-video` | vetted | `watch@claude-video` | Claude Code (plugin) | 🟢 Docker |
 | `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code (plugin) | 🟢 Docker |
-| `agentmemory` | vetted | `agentmemory@agentmemory` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🎬 Visual & Media (7)
+#### 🎬 Visual & Media (6)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
+| `hyperframes` | official | `hyperframes@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `frontend-slides` | vetted | `frontend-slides@frontend-slides` | Claude Code (plugin) | 🟢 Docker |
 | `marp-slide` | vetted | `softaworks/agent-toolkit :: marp-slide` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `gsap-skills` | vetted | `gsap-skills@gsap-skills` | Claude Code (plugin) | 🟢 Docker |
 | `remotion` | vetted | `remotion-dev/skills :: remotion-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `ppt-master` | vetted | `hugohe3/ppt-master :: ppt-master` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `web-video-presentation` | vetted | `ConardLi/garden-skills :: web-video-presentation` | 4-CLI (skills.sh --agent) | 🟢 Docker |
-| `revealjs` | experimental | `ryanbbrown/revealjs-skill :: revealjs` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 <!-- AUTO-GEN:CATALOG:END -->
 

@@ -44,9 +44,11 @@ import {
 import { hasLegacyHarnessHook, retiredFeaturesLeftBehind } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
+  assetReachesCli,
   CONTINUOUS_SKILLS,
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
+  REMOVED_CATALOG_ASSETS,
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "./external-assets.js";
@@ -76,6 +78,7 @@ import {
   collectSkillHashes,
   hashContent,
   type InstallLog,
+  type InstallLogMethod,
   installedClis,
   isHarnessOwned as isOwnedByBaseline,
   legacyDroppedKeys,
@@ -285,6 +288,12 @@ export interface UpdateModeReport {
    * 화면에 낸다 — 침묵하면 사용자는 깔린 것 중 일부만 갱신됐다는 사실을 알 수 없다.
    */
   externalSkillsNotInCatalog: ReadonlyArray<string>;
+  /**
+   * ADR-104 (#726) — 설치 기록에 남은 **카탈로그에서 뺀 자산**(`REMOVED_CATALOG_ASSETS`). 자산마다 한 줄로 말한다 —
+   * 위 `externalSkillsNotInCatalog` 에는 넣지 않는다(한 자산에 두 줄이 나오지 않게). 플러그인도 여기 든다(종전엔 무음).
+   * optional = 부재는 "없음"(손으로 만드는 리포트 stub 이 여럿이다).
+   */
+  catalogRemoved?: ReadonlyArray<CatalogRemoved>;
   /**
    * 설치 기록이 없어 **무엇을 갱신해야 하는지 판정할 수 없었다** (레거시 설치본).
    *
@@ -813,6 +822,10 @@ export function runUpdateMode(
   // 훑으므로 번들 스킬(`method: "internal"`)은 기록에 그 부류로 남지 않는다 — 그쪽만 보면
   // 옛 이름의 디렉터리를 그대로 들고 있는 설치자에게 화면이 한 마디도 안 한다.
   // 지우지는 않는다(ADR-046 — 스킬 디렉터리 안에는 사용자 파일이 섞인다). 말해 주고 손은 사용자가.
+  // ADR-104 (#726) — 카탈로그에서 뺀 자산은 기록에서만 고르고(디스크 아님) 전용 줄로 말한다. 일반 줄에서는 뺀다.
+  const removedOnRecord = wants("external") ? catalogRemovedOnRecord(logAtStart) : [];
+  if (removedOnRecord.length > 0) report.catalogRemoved = removedOnRecord;
+  const saidAsRemoved = new Set(removedOnRecord.map((e) => e.id));
   report.externalSkillsNotInCatalog = [
     ...skillRefresh.notInCatalog,
     ...staleSkillDirs(
@@ -820,7 +833,7 @@ export function runUpdateMode(
       claudeDir,
       logAtStart === null ? [] : installedClis(logAtStart),
     ).filter((id) => !skillRefresh.notInCatalog.includes(id)),
-  ];
+  ].filter((id) => !saidAsRemoved.has(id));
   report.externalSkillsUnknown = skillRefresh.unknown;
 
   const outsideLinks = mergeOutside(outside.list(), sharedWrites.outside, external.externalOutside);
@@ -1098,6 +1111,41 @@ function writeUpdateSharedFiles(args: {
     ].filter((id) => dropped.has(id)),
     outside: ledger.outside,
   };
+}
+
+/** ADR-104 (#726) — 설치 기록에 남은 카탈로그 퇴출 자산 하나. 화면 문구는 `install-render` 가 정한다. */
+export interface CatalogRemoved {
+  id: string;
+  /** 기록된 설치 방식 — skill 이면 "update 가 더는 갱신하지 않는다"를 말한다(플러그인은 원래 갱신 대상이 아니었다). */
+  method: InstallLogMethod;
+  /** 대체 자산 id(교체일 때만). */
+  replacedBy?: string;
+  /** 대체 자산이 이 설치본의 CLI(`installedClis`)에 닿는가. 대체가 없으면 부재. */
+  replacementReaches?: boolean;
+}
+
+/**
+ * ADR-104 (#726) — 설치 기록에서 `REMOVED_CATALOG_ASSETS` 에 든 id 를 고른다. **기록만 본다** — 같은 이름의 디렉터리가
+ * 디스크에 있어도 기록에 없으면 설치자가 하네스 밖에서 깐 것일 수 있다(디스크 존재 ≠ 소유, ADR-096). `excluded` 여부와
+ * 무관하다 — 뺀 채 남은 것도 같은 줄로 말한다(그쪽 줄은 `excludedStillThere` 가 건너뛴다).
+ */
+export function catalogRemovedOnRecord(log: InstallLog | null): CatalogRemoved[] {
+  if (log === null) return [];
+  const clis = installedClis(log);
+  const out: CatalogRemoved[] = [];
+  for (const a of log.assets) {
+    if (!Object.hasOwn(REMOVED_CATALOG_ASSETS, a.id)) continue;
+    if (out.some((e) => e.id === a.id)) continue;
+    const replacedBy = REMOVED_CATALOG_ASSETS[a.id]?.replacedBy;
+    const entry: CatalogRemoved = { id: a.id, method: a.method };
+    if (replacedBy !== undefined) {
+      entry.replacedBy = replacedBy;
+      const next = EXTERNAL_ASSETS.find((e) => e.id === replacedBy);
+      if (next !== undefined) entry.replacementReaches = assetReachesCli(next, clis);
+    }
+    out.push(entry);
+  }
+  return out;
 }
 
 /**
