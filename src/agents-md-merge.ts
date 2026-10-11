@@ -388,6 +388,48 @@ export interface StripAgentsMdParams {
   existing: string;
   /** 절 이름의 SSOT — 이 파일을 렌더한 그 템플릿. */
   template: string;
+  /**
+   * #736 — 하네스가 `## Harness Rules` 에 쓸 수 있는 룰 제목 전체(`ruleHeadings`). 병합의 같은 이름 인자와 같은 판정이다:
+   * 그 자리의 `## ` 중 이 집합에 든 것만 하네스 것이고, 나머지는 설치자가 이어 쓴 절이다. 생략 = 빈 집합.
+   */
+  harnessRuleHeadings?: ReadonlySet<string>;
+}
+
+/**
+ * #736 — 하네스 절 자리(`## Harness Rules` · `## Session Start` · `## Protected Files` · 파일 끝)에 설치자가 적은 `## ` 절을
+ * [헤딩 포함 줄 배열] 단위로 원래 순서대로. update 가 `extraTopLevelSections` 로 살려 둔 절이 여기 든다 — 걷기가 이 절을
+ * 모르면 uninstall 이 그 글을 지운다(파일째이거나 그 절만).
+ *
+ * 하네스 것 = 템플릿의 절 이름 · `## Harness Rules` 안의 하네스 룰 제목. 그 밖의 `## ` 는 설치자 절이다(정체로 가른다 —
+ * 위치가 아니다). `## Project Context` · `## Project Rules` 본문은 `installerLines` 가 맡으므로 여기서 세지 않는다.
+ */
+function installerSectionsInHarnessArea(
+  existing: string,
+  names: ReadonlySet<string>,
+  harnessRuleHeadings: ReadonlySet<string>,
+): string[][] {
+  const out: string[][] = [];
+  let current: string[] | null = null;
+  let region: string | null = null;
+  for (const line of existing.split("\n")) {
+    const bare = line.replace(/\r$/, "");
+    const name = /^## (.+?)\s*$/.exec(bare)?.[1];
+    if (name !== undefined) {
+      if (current !== null) out.push(current);
+      current = null;
+      if (names.has(name)) {
+        region = name;
+        continue;
+      }
+      if (region === CONTEXT_SECTION || region === RULES_SECTION) continue;
+      const harnessRule = region === HARNESS_RULES_SECTION && harnessRuleHeadings.has(bare.trim());
+      if (!harnessRule) current = [bare];
+      continue;
+    }
+    if (current !== null) current.push(bare);
+  }
+  if (current !== null) out.push(current);
+  return out.map(trimTrailingBlanks);
 }
 
 /**
@@ -397,12 +439,13 @@ export interface StripAgentsMdParams {
  * 쓰면서(#503) 그 문장이 기준선 sha 안으로 들어갔고, uninstall 은 "기준선과 같으면 우리 것"으로
  * 보고 파일을 통째로 지웠다 — 설치자가 채운 `## Project Context` 가 살아 있는 파일에서 사라졌다.
  *
- * 남기는 것 = 제목 줄 + `## Project Context` · `## Project Rules` 의 설치자 줄(마커 블록은 뺀다).
+ * 남기는 것 = 제목 줄 + `## Project Context` · `## Project Rules` 의 설치자 줄(마커 블록은 뺀다) + 하네스 절 자리에
+ * 설치자가 적은 `## ` 절(#736 — `installerSectionsInHarnessArea`).
  * 걷어내는 것 = 하네스 소유 절 전부(`## Harness Rules` · `## Session Start` · `## Protected Files`)와
  * 두 마커 블록. 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3).
  *
  * @returns 남길 내용. 설치자가 아무것도 안 채웠으면(Project Context 가 스캐폴드 그대로이고
- *   Project Rules 에 덧쓴 줄이 없으면) `null` = 파일째 삭제. **마커가 없는 파일도 `null`** — 병합
+ *   Project Rules 에 덧쓴 줄이 없고 덧붙인 절도 없으면) `null` = 파일째 삭제. **마커가 없는 파일도 `null`** — 병합
  *   모델 이전 렌더라 설치자 줄이 섞여 있을 수 없고, 그 파일의 소유는 기준선 sha 가 그대로 말한다
  *   (호출부는 sha 가 다르면 이 함수를 부르지 않고 파일을 남긴다).
  */
@@ -419,12 +462,21 @@ export function stripHarnessFromAgentsMd(params: StripAgentsMdParams): string | 
   // 옛 판의 안 채운 파일을 "채웠다" 로 읽으면 스캐폴드만 든 파일이 남는다.
   const contextFilled = !isUnfilledScaffold(context);
   const rulesFilled = compact(rules).length > 0;
-  if (!contextFilled && !rulesFilled) return null;
+  const extras = installerSectionsInHarnessArea(
+    existing,
+    names,
+    params.harnessRuleHeadings ?? new Set(),
+  );
+  if (!contextFilled && !rulesFilled && extras.length === 0) return null;
 
   const out: string[] = [];
   const title = (lines[0] ?? "").replace(/\r$/, "");
   if (/^# /.test(title)) out.push(title, "");
-  out.push(`## ${CONTEXT_SECTION}`, "", ...trimBlankEdges(context), "");
+  // 안 채운 스캐폴드는 하네스가 쓴 글이다 — 남길 설치자 몫이 덧붙인 절뿐이면 Project Context 를 싣지 않는다.
+  if (contextFilled || rulesFilled) {
+    out.push(`## ${CONTEXT_SECTION}`, "", ...trimBlankEdges(context), "");
+  }
   if (rulesFilled) out.push(`## ${RULES_SECTION}`, "", ...trimBlankEdges(rules), "");
+  for (const section of extras) out.push(...section, "");
   return out.join("\n");
 }
