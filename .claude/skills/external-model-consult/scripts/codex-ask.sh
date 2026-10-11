@@ -17,7 +17,7 @@
 #             5 image mode produced no files · 124 timed out ·
 #             otherwise codex's own exit code.
 #
-# Guardrails: throwaway temp cwd (the repo is NEVER in Codex's workspace);
+# Guardrails: throwaway temp cwd (does not start in the repo; not read isolation);
 # read-only sandbox for text; workspace-write only for image mode, scoped to
 # the temp dir with shell network access pinned off; ephemeral session; env
 # stripped to an allowlist; secret-shaped prompts refused before sending.
@@ -79,8 +79,9 @@ if [ "${#ATTACH[@]}" -gt 0 ]; then
   done
 fi
 
-# Neutral cwd → codex can't see the current repo. The final-message file lives
-# OUTSIDE the workdir so every file left inside is agent-generated output.
+# Neutral cwd avoids starting in the repo; it does not block absolute-path reads
+# or global configuration. The final-message file lives OUTSIDE the workdir so
+# every file left inside is agent-generated output.
 WORKDIR="$(mktemp -d)"
 MSGFILE="$(mktemp)"
 trap 'rm -rf "$WORKDIR" "$MSGFILE"' EXIT

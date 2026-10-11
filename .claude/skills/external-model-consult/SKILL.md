@@ -1,19 +1,15 @@
 ---
 name: external-model-consult
 description: >-
-  Consult a second, non-Claude model through a bundled wrapper for four things:
-  (1) natural, native-sounding KOREAN phrasing via Google Gemini — copy, UI microcopy,
-  marketing text; (2) a MULTI-PERSONA / second-opinion review of a design, plan or spec;
-  (3) CONCISE, well-STRUCTURED writing via OpenAI Codex — tightening prose, restructuring
-  a doc; and (4) IMAGE GENERATION as real image files on disk (not labeled diagrams —
-  use Mermaid). Fire it when Korean reads translated, or when you would otherwise
-  hand-write polished Korean yourself. Triggers on "어색해", "자연스럽게 다듬어줘",
-  "gemini 한테 물어봐", "nano banana", "제3자 관점", "codex한테 물어봐",
-  "간결하게 정리해줘", "이미지 만들어줘", and in English "ask gemini", "ask codex",
-  "generate an image". Returns candidates to choose from; never auto-applies. Do NOT use
-  for deterministic transforms (rename, reformat, sort), labeled diagrams, internal logs
-  or identifiers, anything needing repo secrets, a native subagent panel
-  (`multi-persona-review`), or when the user explicitly wants YOUR answer.
+  Uses bundled CLI wrappers for Gemini Korean copywriting/polishing and
+  different-model critiques of designs, plans, or specs; Codex prose
+  tightening/restructuring; and image-file generation (Codex default;
+  Gemini for Gemini/Nano Banana requests). Use for polished user-facing
+  Korean, translated-sounding text, substantive concision/structure work,
+  image requests, or asking Gemini/Codex: "자연스럽게 다듬어줘", "제3자 관점",
+  "간결하게 정리해줘", "이미지 만들어줘". Returns candidates or image files;
+  never auto-applies. Not for deterministic edits, labeled diagrams,
+  logs/identifiers, secrets, native persona panels, or requests for your own answer.
 ---
 
 # external-model-consult
@@ -28,8 +24,9 @@ the source of truth and the user makes the final call.
 
 - **Korean phrasing.** Claude's Korean often reads translated and stiff; the
   installing user's standing preference is Gemini's more idiomatic Korean (a
-  preference judgment, not a benchmark). For user-facing copy (brochure hero,
-  UI microcopy, toasts, marketing) that difference is the whole point.
+  preference judgment, not a benchmark — evidence: none, ledger `E-NONE-korean`,
+  a re-measurement candidate). For user-facing copy (brochure hero, UI microcopy,
+  toasts, marketing) that difference is the whole point.
 - **Second opinion.** A different model with different blind spots is a cheap way
   to stress-test a plan/spec/design before committing — especially adversarial
   or persona-based critique.
@@ -41,12 +38,15 @@ the source of truth and the user makes the final call.
 
 ## Which provider — the division of labor is the decision rule
 
-| 필요한 것 | Provider | 왜 |
-|---|---|---|
-| 한국어 뉘앙스·카피 (Mode K) | **Gemini** (`gemini-ask.sh`) | 이 스킬의 전제. Claude 로 되돌리면 존재 이유가 사라진다 |
-| 멀티페르소나 / 제3자 비평 (Mode P) | **Gemini** | 비-Claude 관점이 목적. 네이티브 병렬 패널은 `multi-persona-review` |
-| 간결화·재구조화 (Mode S) | **Codex** (`codex-ask.sh`) | 문장을 예쁘게가 아니라 **짧고 구조 있게** |
-| 이미지 생성 (Mode I) | **Codex 기본** / Gemini 옵션 | codex 는 OS 샌드박스 아래 OUT_DIR 로 직접 쓴다. "Nano Banana"·Gemini 풍을 요청하면 Gemini |
+| 필요한 것 | Provider | 왜 | 근거 |
+|---|---|---|---|
+| 한국어 뉘앙스·카피 (Mode K) | **Gemini** (`gemini-ask.sh`) | 이 스킬의 전제. Claude 로 되돌리면 존재 이유가 사라진다 | 없음 — 선호 판단 (`E-NONE-korean`) |
+| 멀티페르소나 / 제3자 비평 (Mode P) | **Gemini** | 비-Claude 관점이 목적. 네이티브 병렬 패널은 `multi-persona-review` | 없음 — 설계 판단 (`E-NONE-persona`) |
+| 간결화·재구조화 (Mode S) | **Codex** (`codex-ask.sh`) | 문장을 예쁘게가 아니라 **짧고 구조 있게** | 없음 — 설계 판단 (`E-NONE-concision`) |
+| 이미지 생성 (Mode I) | **Codex 기본** / Gemini 옵션 | codex 는 OS 샌드박스 아래 OUT_DIR 로 직접 쓴다. "Nano Banana"·Gemini 풍을 요청하면 Gemini | 없음 — 운영 사실만 (`E-NONE-image`) |
+
+근거 열은 [references/model-evidence.md](references/model-evidence.md) 의 항목 ID 다. 모델 이름과
+측정값은 그 대장이 소유하고, 이 표는 적지 않는다.
 
 한 텍스트에 **구조와 뉘앙스가 둘 다** 필요하면 순서가 있다: **Codex 로 구조를 먼저 잡고,
 그 결과를 Gemini 로 표현을 다듬는다.** 반대로 하면 다듬은 문장이 재구조화에서 다시 깨진다.
@@ -78,36 +78,43 @@ on their behalf.
 ## How to call it
 
 Prefer the **bundled wrappers** — they encode every guardrail in one place
-(neutral temp cwd so the repo is NOT pulled into the agent's workspace, sandbox
-pins, env allowlist, secret-shaped-prompt refusal, portable timeout, correct flag
-order, artifact collection). They ship next to this SKILL.md when the harness
-installs the skill directory. Run via `bash` (no execute-bit assumption):
+(neutral temp cwd to avoid starting in the project workspace, sandbox pins,
+env allowlist, secret-shaped-prompt refusal, portable timeout, correct flag
+order, artifact collection). The temp cwd is not a filesystem read boundary.
+The wrappers ship beside this SKILL.md in `scripts/`.
+
+`<skill-dir>` below is **the directory of the SKILL.md you are actually reading** —
+not the current project directory, and not an assumed `.claude/skills` path.
+Claude Code exposes it as `${CLAUDE_SKILL_DIR}`; a project install on Codex,
+OpenCode, or Antigravity places it at `.agents/skills/external-model-consult`.
+Confirm both wrappers exist under `<skill-dir>/scripts/` before calling, and run
+them via `bash` (no execute-bit assumption):
 
 ```bash
-# Gemini — Korean copy / persona review (project scope; user scope = ~/.claude/...):
-bash .claude/skills/external-model-consult/scripts/gemini-ask.sh "PROMPT"
+# Gemini — Korean copy / persona review (same paths in project or user scope):
+bash "<skill-dir>/scripts/gemini-ask.sh" "PROMPT"
 # multi-line via stdin (never parses the prompt as options):
-bash .claude/skills/external-model-consult/scripts/gemini-ask.sh <<'EOF'
+bash "<skill-dir>/scripts/gemini-ask.sh" <<'EOF'
 ...multi-line prompt...
 EOF
 # -t TIER picks a model FAMILY (pro is the default; see "Which tier"):
-bash .claude/skills/external-model-consult/scripts/gemini-ask.sh -t claude "PROMPT"
+bash "<skill-dir>/scripts/gemini-ask.sh" -t claude "PROMPT"
 # -m SLUG skips tier resolution — read the slug out of `agy models`, never type
 # one from memory (agy rejects a retired model outright):
-bash .claude/skills/external-model-consult/scripts/gemini-ask.sh -m SLUG "PROMPT"
+bash "<skill-dir>/scripts/gemini-ask.sh" -m SLUG "PROMPT"
 # -g OUT_DIR = image mode; files are collected into OUT_DIR:
-bash .claude/skills/external-model-consult/scripts/gemini-ask.sh -g ./scratch "PROMPT"
+bash "<skill-dir>/scripts/gemini-ask.sh" -g ./scratch "PROMPT"
 
 # Codex — concise rewrite / restructure:
-bash .claude/skills/external-model-consult/scripts/codex-ask.sh "PROMPT"
+bash "<skill-dir>/scripts/codex-ask.sh" "PROMPT"
 # -g OUT_DIR = image mode (workspace-write scoped to a temp dir, network pinned off):
-bash .claude/skills/external-model-consult/scripts/codex-ask.sh -g ./scratch "PROMPT"
+bash "<skill-dir>/scripts/codex-ask.sh" -g ./scratch "PROMPT"
 # -i FILE attaches an input image (screenshot to describe, reference to redraw):
-bash .claude/skills/external-model-consult/scripts/codex-ask.sh -i shot.png "PROMPT"
+bash "<skill-dir>/scripts/codex-ask.sh" -i shot.png "PROMPT"
 # -m MODEL overrides the model — only when the USER names one:
-bash .claude/skills/external-model-consult/scripts/codex-ask.sh -m MODEL_ID "PROMPT"
+bash "<skill-dir>/scripts/codex-ask.sh" -m MODEL_ID "PROMPT"
 # `--` ends option parsing for a prompt that itself starts with a dash:
-bash .claude/skills/external-model-consult/scripts/codex-ask.sh -- "-dash prompt"
+bash "<skill-dir>/scripts/codex-ask.sh" -- "-dash prompt"
 ```
 
 **Leave codex's `-m` off by default.** With no `-m` the wrapper passes no model
@@ -115,6 +122,8 @@ flag at all, so codex uses whatever the user's own config selects — that track
 model upgrades for free, while a model id written down here goes stale and pins
 the user to a retired model. Codex has no `models` subcommand to enumerate
 against; the model it actually used is printed on **stderr** (`model: …`).
+(Evidence: none — a staleness design judgment; no measurement says one Codex
+model beats another, ledger `E-NONE-codex-model`.)
 
 **Output contract.** stdout carries only the model's reply, wrapped in
 `<untrusted-gemini-output>` / `<untrusted-codex-output>` tags. stderr carries
@@ -128,10 +137,12 @@ Calls block synchronously; both wrappers cap a call at **300s**
 image generation ~60–90s and up. Raise your shell tool's own timeout for image
 calls (often shorter than the wrapper's cap) and warn the user about the wait.
 
-**If the wrapper file isn't present** — on some CLIs the harness installs only
-this SKILL.md, not the sidecar scripts — fall back to
-[references/direct-calls.md](references/direct-calls.md), which reproduces the
-same guardrails inline.
+**If the wrapper files aren't present** — the harness installs the whole skill
+directory on every CLI, so this means a hand-copied or partial SKILL.md — prefer
+restoring the complete folder. Otherwise use
+[references/direct-calls.md](references/direct-calls.md) for CLI mechanics and
+its missing-safeguard checklist. Those short examples do not reproduce every
+wrapper guardrail. Read references relative to this SKILL.md, not the caller's cwd.
 
 ## Guardrails (these are the point of the skill)
 
@@ -143,8 +154,12 @@ same guardrails inline.
   `--dangerously-skip-permissions`. Codex runs `-s read-only` for text and
   `-s workspace-write` (scoped to a throwaway dir, with
   `sandbox_workspace_write.network_access=false`) for images — that restricts
-  *writes*, not *reads*, and anything its shell reads reaches the provider as
-  session context. The neutral temp cwd is what keeps your repo out of both.
+  *writes*, not *reads*. File content read by the agent can reach the provider as
+  session context. A neutral temp cwd avoids starting in the project workspace;
+  it does not prevent reading the repo by an absolute path or loading global
+  settings/instructions. `HOME` and, when set, `CODEX_HOME` remain available for
+  normal CLI configuration and authentication. Do not claim read isolation or
+  send local paths as an invitation to inspect files beyond the supplied context.
 - **Env allowlist.** The wrappers run the CLI under `env -i` with only
   `PATH · HOME · TERM · LANG` (plus `LC_ALL`, `HTTP_PROXY`, `HTTPS_PROXY`,
   `NO_PROXY`, `CODEX_HOME` when set) — so ambient tokens (`GH_TOKEN`, `AWS_*`,
@@ -170,7 +185,8 @@ same guardrails inline.
 ## Which tier — `pro` / `claude` (Gemini side)
 
 `-t ` picks a model **family**; the concrete model is resolved from `agy models`
-on every call, so nothing here pins a version. Two measured facts shape the policy:
+on every call, so nothing here pins a version. Two measured facts shape the policy
+(ledger `E-2026-07-26-01` — one account, one observation):
 
 - **A tier name tells you nothing about recency.** The families do not share a
   version line — measured 2026-07-26, the fast family was two generations ahead of
@@ -189,13 +205,17 @@ for: it exists because a second model's *judgment* is worth an external round-tr
 critique that finds what you missed. Those are exactly the calls where a cheaper
 tier costs you the thing you came for, and a round-trip you have to redo is more
 expensive than the one you did right. If a call is routine enough that a fast tier
-would do, it probably shouldn't be an external call at all.
+would do, it probably shouldn't be an external call at all. This rule is a design
+judgment about not redoing an expensive round-trip — there is no quality
+measurement behind it (evidence: none, ledger `E-NONE-pro`); the two operational
+facts above are `E-2026-07-26-01`.
 
 **`-t claude`** — agy also serves Claude models. Reach for it when the Gemini
 quota is spent and the work can't wait for the reset; when you want a **fresh,
-uncontaminated read** (the call carries no repo, no conversation history, and none
-of the framing you already committed to — when you suspect your own framing is the
-problem, that beats a different vendor); or when you are **running on Antigravity**,
+separate read** (the wrapper does not deliberately attach the repo or this
+conversation history, but the prompt's framing and CLI global settings can still
+influence the answer — when you suspect your framing is the problem, provide a
+neutral brief); or when you are **running on Antigravity**,
 where you already are Gemini and the Claude tier is the outside opinion.
 
 **Not for Mode K.** So when the Gemini pool is empty, **Korean copy waits.** Do not
@@ -205,6 +225,19 @@ to tell it apart from a Gemini answer. Report the refusal and the reset time, sa
 Korean phrasing is unavailable until then, and let the user decide — write it
 themselves, wait, or raise the subscription. An answer the user cannot trust is
 worth less than a clearly stated gap. (Modes P/S/I have no such premise.)
+
+**Evidence for these choices — and for Claude model × effort.** Each selection
+rule in this skill names its entry in
+[references/model-evidence.md](references/model-evidence.md) or says there is
+none. This skill does not call Claude models, but choosing a model and effort at
+delegation time is one decision, so the same ledger holds the Claude-side
+measurements too (`E-2026-10-04-01` — one implementation task, lower-bound cost —
+plus `planned` entries for task types nobody has measured). Read that seed together
+with the project's own `docs/model-evidence.md` (for the same task type the project
+entry wins). When no entry covers the task, say so instead of inferring from model
+names or recency. Re-measure only on request, following the ledger's entry
+procedure, and append the result to the project ledger — never edit the seed. This
+section names no models; the ledger owns them.
 
 ## Modes
 
@@ -273,12 +306,13 @@ without telling the user why.**
   round-trip costs more than answering directly.
 - Internal logs, code identifiers, dev comments — not user-facing, don't polish.
 - A native parallel-persona panel — `multi-persona-review` where installed.
-- Reviewing this repo's code — the repo never enters the provider's workspace
-  through this skill; use the normal review flow.
-- Handing an external CLI actual implementation work in your repo — the guarantee
-  that makes this skill safe is that the repo never enters the provider's
-  workspace, and an executor needs the opposite. That lane, its predicates, and
-  its one-time user approval belong to `model-orchestration` where installed.
+- Reviewing this repo's code — these wrappers receive a narrow supplied prompt
+  and start outside the repo; use the normal review flow for repository inspection.
+- Handing an external CLI actual implementation work in your repo — this skill
+  is an advisory/generation route, not authorization to inspect or modify a project.
+  The temp cwd is not a read-isolation guarantee. The implementation lane, its
+  predicates, and its one-time user approval belong to `model-orchestration`
+  where installed.
 - Anything needing repo secrets, or when the user explicitly wants *your* answer.
 
 ## References
@@ -289,3 +323,7 @@ without telling the user why.**
 - [references/direct-calls.md](references/direct-calls.md) — wrapper-free
   invocations for both providers, with the flag-order and variadic-argument
   gotchas that make a naive call silently do the wrong thing.
+- [references/model-evidence.md](references/model-evidence.md) — dated
+  measurements behind each model / tier / effort choice (or the "no evidence"
+  marker), the entry format, and the re-measurement procedure for appending to
+  the project's `docs/model-evidence.md`.

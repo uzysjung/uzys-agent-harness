@@ -1,21 +1,28 @@
 # Direct calls (no wrapper)
 
-On CLIs where the harness installs only `SKILL.md` and not the `scripts/` sidecar,
-fall back to these. They reproduce the wrapper's guardrails inline — the neutral
-throwaway cwd, the explicit binary resolution, and the subshell. **Everything the
-wrapper does that you skip here is a guardrail you are choosing to drop.**
+The harness installs the whole skill directory, `scripts/` included, on every CLI.
+When the wrappers are missing anyway (a hand-copied or partial SKILL.md), prefer
+restoring the complete skill folder; use these only as CLI-mechanics examples.
+The short examples below show a neutral throwaway cwd, explicit binary
+resolution, and a subshell; they do **not** reproduce the wrappers' environment
+allowlist, secret-shaped-prompt gate, timeout, or all image-mode restrictions.
+Preserve those existing safeguards before making a direct call; a missing script
+is not permission to drop them. Resolve this reference and the `scripts/`
+directory from `<skill-dir>` — the directory of the SKILL.md actually read — not
+the current project directory.
 
-Two notes before either block:
+Notes before either block:
 
-- Never run these from the repo root. `agy` and `codex` are *agents*: a bare run in
-  the project dir pulls repo files into their workspace and ships them to the
-  provider.
+- Never run these from the repo root. `agy` and `codex` are *agents*: starting in
+  the project can expose repo context to the provider. A neutral cwd reduces this
+  ambient context but does not block absolute-path reads or global configuration.
+  Read-only mode restricts writes; it does not isolate filesystem reads.
 - Keep the `cd` inside `( )`. In an interactive terminal a bare `cd` persists after
   the block and silently relocates every later command.
 - Consulting the same model you are running on is usually circular. On Antigravity
-  you already are Gemini; on the Codex CLI you already are codex. A fresh isolated
-  session is only worth it deliberately (e.g. for an uncontaminated second read, or
-  a guaranteed read-only sandbox).
+  you already are Gemini; on the Codex CLI you already are codex. A fresh session
+  is only worth it deliberately (e.g. a separate brief without this conversation's
+  history). It is not guaranteed independent of prompt framing or global settings.
 
 ## Gemini (`agy`) — text
 
@@ -70,7 +77,9 @@ only and collect from the artifact store afterwards:
 
 ## Codex — image generation
 
-`workspace-write` is scoped to the throwaway dir, **never** the repo:
+The requested `workspace-write` working directory is the throwaway dir, not the
+repo. This does not prevent repo reads; retain the wrapper's shell-network and
+other image-mode safeguards before using a direct invocation:
 
 ```bash
 (

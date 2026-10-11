@@ -23,8 +23,8 @@
 #             5 image mode produced no files · 124 timed out ·
 #             otherwise agy's own exit code.
 #
-# Guardrails: runs from a throwaway temp dir so the current repo is NOT added
-# to agy's workspace and shipped to Google; env stripped to an allowlist;
+# Guardrails: starts from a throwaway temp dir rather than the project workspace;
+# this does not block absolute-path reads or global config. Env stripped to an allowlist;
 # secret-shaped prompts refused. Image mode NEVER uses
 # --dangerously-skip-permissions — agy has no OS sandbox, its permission system
 # IS the sandbox. Instead the prompt forbids shell saves (which headless mode
@@ -106,7 +106,7 @@ if [ -n "$OUTDIR" ]; then
   MARKER="$(mktemp)"
 fi
 
-# Neutral cwd → agy won't pull the current repo into its workspace context.
+# Neutral cwd avoids starting in the repo; it is not a filesystem read boundary.
 WORKDIR="$(mktemp -d)"
 MSGFILE="$(mktemp)"
 MODELS_ERR=""
