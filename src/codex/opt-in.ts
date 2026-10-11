@@ -16,8 +16,10 @@ export interface CodexOptInReport {
   /** ~/.codex/config.toml trust entry 등록 결과 */
   trustEntry: {
     enabled: boolean;
-    status: "registered" | "already-present" | "unreadable" | "error" | "skipped";
+    status: "registered" | "already-present" | "left" | "unreadable" | "error" | "skipped";
     message?: string;
+    /** #685 — 이 폴더의 trust 키(Codex 가 쓰는 정규화 경로). 기록 · 손수 넣을 안내가 이 값을 찍는다. */
+    key?: string;
     /** 항목을 넣은(또는 넣으려던) 전역 파일 — uninstall 안내가 그 자리를 가리킨다(#644). */
     configPath?: string;
   };
@@ -41,6 +43,7 @@ export function runCodexOptIn(ctx: CodexOptInContext): CodexOptInReport {
       status: result.status,
       configPath,
       ...(result.message ? { message: result.message } : {}),
+      ...(result.key ? { key: result.key } : {}),
     },
   };
 }

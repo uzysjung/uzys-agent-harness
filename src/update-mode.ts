@@ -40,7 +40,7 @@ import {
   renderHarnessMcp,
   runCliTransforms,
 } from "./cli-transforms.js";
-import { hasLegacyHarnessHook } from "./codex/config-toml.js";
+import { hasLegacyHarnessHook, retiredFeaturesLeftBehind } from "./codex/config-toml.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
   CONTINUOUS_SKILLS,
@@ -161,6 +161,8 @@ export interface UpdateModeReport {
     left?: string;
     /** `.codex/config.toml` 에 남은 하네스 훅이 옛 flat 형식이라 현행 Codex 가 무시한다(`hasLegacyHarnessHook`). */
     legacyHook?: true;
+    /** #724 — 갈아 끼우지 못한 `.codex/config.toml` 에 남은, Codex 가 경고하는 옛 `[features]` 키(`retiredFeatureKeys`). */
+    retiredFeatures?: ReadonlyArray<string>;
   }>;
   /**
    * #480 — 설치자가 고르지 않아 **건드리지 않은** 묶음 (`update --only` · 위저드 체크박스).
@@ -934,6 +936,16 @@ function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
   const anchor = log.templates.rootClaudeMd;
   if (anchor !== undefined) paths.add(anchor.path);
   return (path) => paths.has(path);
+}
+
+/** #724 — `.codex/config.toml` 을 갈아 끼우지 못한 실행에서 남은 옛 `[features]` 키 — 없으면 필드째 뺀다. */
+function retiredFeaturesPart(
+  projectDir: string,
+  f: { path: string; action: string; leftAsIs: ReadonlyArray<string> },
+): { retiredFeatures?: ReadonlyArray<string> } {
+  if (f.path !== ".codex/config.toml") return {};
+  const keys = retiredFeaturesLeftBehind(projectDir, f);
+  return keys.length > 0 ? { retiredFeatures: keys } : {};
 }
 
 /** #625 — 디스크의 그 파일에 옛 flat 하네스 훅만 있나(`hasLegacyHarnessHook`). 못 읽으면 false. */
@@ -1971,6 +1983,7 @@ function refreshExternalCli(
           ...(f.path === ".codex/config.toml" && legacyHookOnDisk(projectDir, f.path)
             ? { legacyHook: true as const }
             : {}),
+          ...retiredFeaturesPart(projectDir, f),
         };
       }),
   };

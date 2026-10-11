@@ -1496,13 +1496,19 @@ function recordInterruptedInstall(
   }
 }
 
-/** #644 — 하네스가 실제로 더한 전역 trust 항목만 기록한다(이미 있던 것은 설치자 몫). 정상 · 중단 기록이 같이 쓴다. */
+/**
+ * #644 — 하네스가 실제로 더한 전역 trust 항목만 기록한다(이미 있던 것은 설치자 몫). 정상 · 중단 기록이 같이 쓴다.
+ * #685 — 기록하는 키는 **쓴 키**(Codex 와 같은 정규화 경로)다 — uninstall 이 손수 지울 항목으로 그 키를 찍는다.
+ */
 function registeredTrust(
   codexOptIn: CodexOptInReport | null,
   projectDir: string,
 ): InstallLog["codexTrust"] {
   return codexOptIn?.trustEntry.status === "registered" && codexOptIn.trustEntry.configPath
-    ? { configPath: codexOptIn.trustEntry.configPath, projectDir }
+    ? {
+        configPath: codexOptIn.trustEntry.configPath,
+        projectDir: codexOptIn.trustEntry.key ?? projectDir,
+      }
     : undefined;
 }
 

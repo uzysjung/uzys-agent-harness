@@ -49,6 +49,7 @@ import { type AgentsMdTransformReport, runAgentsMdTransform } from "../agents-md
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
 import { CLI_DISPLAY_NAMES } from "../cli-targets.js";
 import { renderEverySelectableMcp } from "../cli-transforms.js";
+import { tomlBasicString } from "../codex/trust-entry.js";
 import { c, status } from "../design.js";
 import { gitignoreRender } from "../env-files.js";
 import { backupDir, backupFile, backupIfLossyUtf8, listFilesRecursive } from "../fs-ops.js";
@@ -706,7 +707,7 @@ function advisoryLines(
       "",
       c.yellow("[GLOBAL] Codex trust entry — remove by hand (never deleted automatically):"),
       c.dim(`  · ${globalTrust.configPath}`),
-      c.dim(`      [projects."${globalTrust.projectDir}"]`),
+      c.dim(`      [projects.${tomlBasicString(globalTrust.projectDir)}]`),
     );
   }
   if (plan.globalAdvisories.length > 0) {

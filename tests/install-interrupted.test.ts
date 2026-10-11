@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -344,14 +345,16 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       const e = interrupted(trustSpec());
       expect(e).toBeInstanceOf(InstallInterruptedError);
       const configPath = join(home, ".codex/config.toml");
-      expect(readFileSync(configPath, "utf8")).toContain(`[projects."${projectDir}"]`);
-      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir });
+      // #685 — 키는 Codex 가 쓰는 정규화 경로(macOS 임시 폴더 = `/private/var/…`)이고 기록도 그 키다
+      const key = realpathSync.native(projectDir);
+      expect(readFileSync(configPath, "utf8")).toContain(`[projects."${key}"]`);
+      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir: key });
       expect(e.written).toContain(`${configPath} (Codex trust entry for this folder)`);
 
       // 원인을 치우고 다시 돌리면 opt-in 은 "already present" 다 — 기록은 앞 실행의 것을 이어받아야 한다
       rmSync(join(projectDir, "opencode.json"), { recursive: true });
       install(trustSpec());
-      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir });
+      expect(readInstallLog(projectDir)?.codexTrust).toEqual({ configPath, projectDir: key });
       const { out } = uninstall();
       expect(out.join("\n")).toMatch(/Codex trust entry — remove by hand/);
     });

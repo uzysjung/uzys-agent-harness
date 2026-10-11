@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -24,7 +24,8 @@ describe("runCodexOptIn — trust entry", () => {
     expect(report.trustEntry.enabled).toBe(true);
     expect(report.trustEntry.status).toBe("registered");
     const toml = readFileSync(join(codexHome, "config.toml"), "utf8");
-    expect(toml).toContain(`[projects."${projectDir}"]`);
+    // #685 — 키는 Codex 가 쓰는 것과 같은 정규화 경로다
+    expect(toml).toContain(`[projects."${realpathSync.native(projectDir)}"]`);
     expect(toml).toContain('trust_level = "trusted"');
   });
 
@@ -43,6 +44,6 @@ describe("runCodexOptIn — trust entry", () => {
     runCodexOptIn({ projectDir, codexHome });
     const toml = readFileSync(join(codexHome, "config.toml"), "utf8");
     expect(toml).toContain('[projects."/other/project"]'); // preserved
-    expect(toml).toContain(`[projects."${projectDir}"]`); // added
+    expect(toml).toContain(`[projects."${realpathSync.native(projectDir)}"]`); // added
   });
 });

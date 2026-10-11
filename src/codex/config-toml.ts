@@ -6,9 +6,12 @@
  * 들어간다(`toml-region` 어댑터). 하네스가 새로 만드는 파일도 같은 두 구간뿐이다.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { readToml, TOP_REGION } from "../adapters/toml-region.js";
 import { hashContent } from "../install-log.js";
 import type { McpJson } from "../mcp-merge.js";
+import { tomlBasicString } from "./trust-entry.js";
 
 /** 표 구간 이름 — `toml-region` 은 `top` 만 파일 맨 앞에 두고 나머지 이름은 파일 끝에 둔다. */
 export const TABLES_REGION = "tables";
@@ -67,6 +70,35 @@ export function hasLegacyHarnessHook(disk: string): boolean {
   return flat && !callsHarnessHook({ ...parsed, hooks: rest });
 }
 
+/** #724 — 옛 판 템플릿이 `[features]` 에 넣던 키 중 Codex 가 매 세션 경고하는 둘(deprecated · unrecognized). */
+const RETIRED_FEATURE_KEYS = ["codex_hooks", "child_agents_md"] as const;
+
+/**
+ * #724 — 파일의 `[features]` 에 Codex 가 경고하는 옛 키가 남았나 — 있는 이름만 돌려준다. 못 읽는 파일은 `[]`.
+ * 현행 템플릿은 `[features]` 를 쓰지 않으니 이 키는 갈아 끼우지 못한 옛 구간(또는 설치자)의 것이다.
+ */
+export function retiredFeatureKeys(disk: string): string[] {
+  const features = readToml(disk)?.features;
+  if (typeof features !== "object" || features === null || Array.isArray(features)) return [];
+  return RETIRED_FEATURE_KEYS.filter((k) => Object.hasOwn(features, k));
+}
+
+/**
+ * #724 — 이번 실행이 `.codex/config.toml` 의 하네스 표 구간을 갈아 끼우지 못했으면(파일째 남김 · 구간을 남김) 디스크에
+ * 남은 옛 `[features]` 키. 갈아 끼웠으면 새 렌더에 그 표가 없으니 말할 것이 없다(`[]`). install · update 화면이 같이 쓴다.
+ */
+export function retiredFeaturesLeftBehind(
+  projectDir: string,
+  r: { action: string; leftAsIs: ReadonlyArray<string> },
+): string[] {
+  if (r.action !== "left" && !r.leftAsIs.includes(TABLES_REGION)) return [];
+  try {
+    return retiredFeatureKeys(readFileSync(join(projectDir, ".codex/config.toml"), "utf8"));
+  } catch {
+    return [];
+  }
+}
+
 /** 훅 항목 배열에서 command 필드(문자열·배열 양쪽)를 꺼낸다. */
 function flatHookCommands(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -109,7 +141,9 @@ export interface RenderConfigTomlParams {
 export function renderConfigToml(params: RenderConfigTomlParams): string {
   const substituted = params.template
     .replaceAll("{PROJECT_NAME}", params.projectName)
-    .replaceAll("{PROJECT_DIR}", params.projectDir)
+    // #733 — `{PROJECT_DIR}` 는 템플릿에서 늘 기본 문자열(`"…"`) 안에 있다. 경로의 `"` · `\` 를 #685 trust 키와 같은
+    // 규칙으로 이스케이프한다(따옴표 쌍은 템플릿 몫이라 벗긴다). 그대로 넣으면 렌더가 TOML 이 아니어서 설치가 멈춘다.
+    .replaceAll("{PROJECT_DIR}", tomlBasicString(params.projectDir).slice(1, -1))
     .replaceAll("{GITHUB_TOKEN}", "${GITHUB_TOKEN}");
 
   if (!params.mcp) {
