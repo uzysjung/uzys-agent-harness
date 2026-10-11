@@ -1,0 +1,4 @@
+interface:
+  display_name: "다중 모델 토론·검증"
+  short_description: "서로 다른 모델의 독립 의견과 근거 검증으로 결론 도출"
+  default_prompt: "$multi-model-debate 이 주제를 서로 다른 모델 2~3개로 검토하고, 중요한 쟁점만 반박·검증해서 추천안을 정리해 줘."
