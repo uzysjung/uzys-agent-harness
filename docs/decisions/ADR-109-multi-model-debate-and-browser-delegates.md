@@ -1,10 +1,10 @@
 # ADR-109: 외부 모델 토론 · 브라우저 위임 스킬 편입 — 책임 경계 · 기본/opt-in · 브라우저 전제는 CLI 가 정한다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-12
 - PR: #759
 - Issue: #729
-- Amends: ADR-105 결정 2 의 "has-dev-track 수단" 범주(external-model-consult · natural-korean 와 같은 부류)에
+- Amends: ADR-105 결정 1·2 의 "has-dev-track 수단" 범주(external-model-consult · natural-korean 와 같은 부류)에
   multi-model-debate 를 더한다. #489 가 agent-browser 를 opt-in 으로 내린 논거(외부 전제 · 설치 비용)를 브라우저 위임 3종에 재사용한다.
 - 설계 문서: `docs/plans/v26.168.0-model-routing-design.md` §5.1–5.8 · §6 PR-C · 검증 `docs/plans/v26.168.0-model-routing-design-verify.md`
 
@@ -52,8 +52,8 @@ Gemini · ChatGPT · Genspark 웹에 일을 맡기는 `gemini-delegate` · `chat
 
 ## Consequences
 
-- **상주 비용(tooling, `npm run cost:report`)**: 발화 표면 15개 ~1,698 → 16개 ~1,842(+1개 +144), 지시문 축 변화 없음(8개 ~3,801),
-  합계 23개 ~5,499 → 24개 ~5,643. 다른 개발 트랙도 같은 +1개 +144. 브라우저 3종은 opt-in 이라 트랙 상주에 들지 않지만
+- **상주 비용(tooling, `npm run cost:report`)**: 발화 표면 15개 ~1,698 → 16개 ~1,842(+1개 +144), 지시문 축은 이 PR 에서 변화 없음(8개 ~3,830 — ADR-107 의 +29 반영 뒤),
+  합계 23개 ~5,528 → 24개 ~5,672. 다른 개발 트랙도 같은 +1개 +144. 브라우저 3종은 opt-in 이라 트랙 상주에 들지 않지만
   `context-cost-baseline.json.skillDescriptors` 에는 번들 전부로 등재된다(상한 ratchet 모집단).
 - **기존 설치본**: 설치 기록에 개발 트랙이 있으면 `update` 한 번으로 `multi-model-debate` 를 `.claude/skills/` 와 `.agents/skills/`
   양쪽에 받는다(#480 ① · #530 S3 기존 경로, 누적 `excluded` 존중 — `--without multi-model-debate` 기록이면 받지 않는다).

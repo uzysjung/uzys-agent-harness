@@ -32,6 +32,8 @@
 
 역할은 모델 브랜드에 영구 고정하지 않는다. 다만 하위 스킬이 정한 작업 범위와 사용자의
 모델 선호는 존중한다. 예를 들어 Mode S를 임의의 코드 실행/설계 토론 wrapper로 확장하지 않는다.
+토론 참여자로 Codex(`codex-ask.sh`)를 쓸 때는 Mode P(계획·설계 비평) 형태로 부른다 — 위 표의 "승인된 다른
+계열"이 이것이고, `external-model-consult`의 두 CLI만 설치돼 있어도 서로 다른 실제 모델 2개가 이렇게 성립한다.
 
 ## 조정자가 보내는 계약
 
@@ -126,7 +128,7 @@ OpenCode · Antigravity)에 같은 스킬을 둔다. 사용자 범위(`~/.claude
 위임을 실행할 수 있다. Claude의 연결 조건은
 [Chrome 공식 문서](https://code.claude.com/docs/en/chrome)를 확인한다 — 요약하면 Claude in Chrome
 확장 1.0.36 이상 · Anthropic 직접 플랜 · `/login` 세션(API 키·setup-token 세션에서는 꺼진다) ·
-CLI는 `--chrome` 또는 `/chrome`으로 켠다 · Desktop의 Code 탭은 설정돼 있으면 Chrome 확장을 쓴다.
+CLI는 `--chrome` 또는 `/chrome`으로 켠다(`/chrome`에서 기본으로 켜 둘 수 있다) · Desktop의 Code 탭은 설정돼 있으면 Chrome 확장을 쓴다.
 스킬만으로 연동을 설치하지 않는다.
 
 아래 표의 **문서**는 공식 문서로 확인한 것(2026-10-11), **미확인**은 확인하지 않은 것이다.
