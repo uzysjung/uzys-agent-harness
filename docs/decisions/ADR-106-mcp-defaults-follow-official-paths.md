@@ -1,8 +1,8 @@
 # ADR-106: MCP 기본은 현행 공식 경로가 정한다 — 원격(HTTP) 서버 지원 · github 기본 제거와 공식 서버 opt-in · chrome-devtools 웹 트랙 한정 · Railway 원격 교체 · Vercel opt-in
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-11
-- PR: (머지 때 채운다)
+- PR: #750
 - Issue: #722 · #711 · #712 · #713 · #714
 - Amends: ADR-101 결정 2(Vercel MCP 를 넣지 않는다 — stdio 전용 조립) · 결정 3(railway 행의 정의와 tier 근거 repo) · 결정 6(배지
   문구) · Consequences 의 "몫 기록이 없는 옛 기록 … 설치자 것으로 분류돼 그대로 남는다(관리 밖)" 한 문장. ADR-102 의 "Next.js 의
