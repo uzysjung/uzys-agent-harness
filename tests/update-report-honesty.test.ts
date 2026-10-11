@@ -11,8 +11,13 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ADAPTERS } from "../src/adapters/index.js";
 import { hasLegacyHarnessHook } from "../src/codex/config-toml.js";
-import { createInstallRenderer, renderUpdateSummary } from "../src/commands/install-render.js";
+import {
+  createInstallRenderer,
+  renderCliArtifacts,
+  renderUpdateSummary,
+} from "../src/commands/install-render.js";
 import { type InstallLog, installLogPath } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
@@ -191,6 +196,82 @@ describe("#625 — 고친 .codex/config.toml 하네스 리전을 남기고 updat
 
     expect(report.updateMode?.sharedLeft).toBeUndefined();
     expect(screen).not.toContain("harness part left");
+  });
+});
+
+describe("#724 — 옛 판이 쓴 [features] 키(Codex 경고의 원인)를 update 가 걷거나, 못 걷으면 어디를 지울지 말한다", () => {
+  const CONFIG = ".codex/config.toml";
+  const WARN = "codex_hooks · child_agents_md make Codex warn";
+  // 26.164.0 템플릿의 [features] 표 — 하네스 표 구간(`tables`) 안에 있었다
+  const OLD_FEATURES =
+    "[features]\ncodex_hooks = true\nmulti_agent = true\nplugins = true\ntool_search = true\nskill_mcp_dependency_install = true\nchild_agents_md = false\n";
+
+  /** 26.164.0 이 깐 상태 — 표 구간에 [features] 가 있고 기록 sha 가 그 구간과 같다. */
+  function installAs164(): void {
+    install(["codex"]);
+    const text = read(CONFIG).replace(
+      "# uzys-harness:tables:end",
+      `${OLD_FEATURES}# uzys-harness:tables:end`,
+    );
+    put(CONFIG, text);
+    const sha = ADAPTERS["toml-region"].read(text)?.get("tables");
+    if (sha === undefined) throw new Error("픽스처 전제가 깨졌다 — tables 구간이 없다");
+    const log = JSON.parse(readFileSync(installLogPath(projectDir), "utf8")) as InstallLog;
+    const portions = (log.portions ?? []).map((p) =>
+      p.path === CONFIG && p.key === "tables" ? { ...p, sha256: sha } : p,
+    );
+    expect(portions.some((p) => p.path === CONFIG && p.key === "tables" && p.sha256 === sha)).toBe(
+      true,
+    );
+    writeFileSync(installLogPath(projectDir), `${JSON.stringify({ ...log, portions }, null, 2)}\n`);
+  }
+
+  it("손대지 않은 구간 — update 한 번으로 [features] 가 사라지고 경고 줄은 없다", () => {
+    installAs164();
+    expect(read(CONFIG)).toContain("child_agents_md");
+
+    const { report, screen } = update(["codex"]);
+
+    expect(read(CONFIG)).not.toContain("[features]");
+    expect(report.updateMode?.sharedLeft).toBeUndefined();
+    expect(screen).not.toContain("make Codex warn");
+  });
+
+  it("구간 안을 고친 설치자 — 파일은 그대로 · 화면이 어느 키를 지울지 말한다", () => {
+    installAs164();
+    put(CONFIG, read(CONFIG).replace("multi_agent = true", "multi_agent = true # mine"));
+    const before = read(CONFIG);
+
+    const { report, screen } = update(["codex"]);
+
+    expect(read(CONFIG)).toBe(before);
+    expect(report.updateMode?.sharedLeft?.[0]?.retiredFeatures).toEqual([
+      "codex_hooks",
+      "child_agents_md",
+    ]);
+    expect(screen).toMatch(
+      /⚠ \.codex\/config\.toml\s+\[features\] codex_hooks · child_agents_md make Codex warn/,
+    );
+  });
+
+  it("install 을 다시 돌려도 같은 줄을 말한다(표면 대칭)", () => {
+    installAs164();
+    put(CONFIG, read(CONFIG).replace("multi_agent = true", "multi_agent = true # mine"));
+
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(["codex"]),
+      mode: "add",
+    });
+    const lines: string[] = [];
+    renderCliArtifacts((m) => lines.push(m), spec(["codex"]), report);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    const screen = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+
+    expect(read(CONFIG)).toContain("child_agents_md");
+    expect(screen).toContain(WARN);
   });
 });
 

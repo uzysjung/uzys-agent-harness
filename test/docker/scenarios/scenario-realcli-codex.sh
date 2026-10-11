@@ -116,6 +116,33 @@ echo "${LOGS}" | tr -d '\000' | grep -oiE "(zz-sentinel-[a-z]+|uzys-[a-z]+|${PRO
 
 echo "  [probe 3] auth 상태 (TUI 가 login 벽인지)"
 echo "${LOGS}" | tr -d '\000' | grep -iE "login|sign in|authenticate|api key|not logged|unauthorized|ChatGPT" | head -3 | sed 's/^/    /' || echo "    (auth 관련 로그 없음)"
+
+# #724 — 하네스 .codex/config.toml 이 Codex 기동 경고("ignoring … unrecognized configuration" · deprecated)를 만들지 않는가.
+#   부재는 대조군과 함께만 판정한다: 일부러 [features] child_agents_md 를 둔 두 번째 프로젝트(양성)에서 같은 탐지가
+#   경고를 잡아야 첫 프로젝트의 "없음" 이 증거다. 프로젝트 설정은 trust 뒤에만 읽히므로 격리 CODEX_HOME 에 둘 다 등록한다.
+echo "  [probe 4] #724 — 하네스 config.toml 이 Codex 설정 경고를 만드는가 (canary 대조)"
+CANARY=/tmp/proj-codex-canary
+rm -rf "${CANARY}"
+mkdir -p "${CANARY}/.codex"
+printf '[features]\nchild_agents_md = false\ncodex_hooks = true\n' > "${CANARY}/.codex/config.toml"
+printf '[projects."%s"]\ntrust_level = "trusted"\n\n[projects."%s"]\ntrust_level = "trusted"\n' \
+  "$(realpath "${PROJ}")" "$(realpath "${CANARY}")" >> "${ISO_HOME}/config.toml"
+WARN_RE='unrecognized configuration|is deprecated'
+capture_start() { # $1 = 프로젝트 · $2 = 캡처 파일
+  rm -f "$2"
+  ( cd "$1" && timeout 8 script -qec "codex" "$2" </dev/null >/dev/null 2>&1 || true ) || true
+  tr -d '\000' < "$2" 2>/dev/null || true
+}
+CANARY_OUT=$(capture_start "${CANARY}" /tmp/codex-cap-canary.txt)
+HARNESS_OUT=$(capture_start "${PROJ}" /tmp/codex-cap-harness.txt)
+if ! grep -qiE "${WARN_RE}" <<<"${CANARY_OUT}"; then
+  echo "    → 무효: 양성 대조(child_agents_md)에서도 경고를 못 잡았다 — 이 실행의 '없음' 은 증거가 아니다"
+elif grep -qiE "${WARN_RE}" <<<"${HARNESS_OUT}"; then
+  echo "    → 하네스 프로젝트에서 설정 경고 검출:"
+  printf '%s' "${HARNESS_OUT}" | grep -iE "${WARN_RE}" | head -5 | sed 's/^/      /'
+else
+  echo "    → 하네스 프로젝트: 설정 경고 없음 (양성 대조는 경고를 냈다)"
+fi
 echo ""
 
 echo "── 요약 ──"

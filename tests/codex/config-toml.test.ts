@@ -38,13 +38,17 @@ describe("renderConfigToml", () => {
     expect(out).toContain("/p");
   });
 
-  it("preserves the [features] block", () => {
-    const out = renderConfigToml({
-      template: TEMPLATE,
-      projectName: "demo",
-      projectDir: "/p",
-    });
-    expect(out).toContain("codex_hooks = true");
+  // #724 — 켜던 키는 전부 Codex 기본값(true)이거나 Codex 가 모르는 키(`child_agents_md`)·옛 이름(`codex_hooks`)이라
+  // 매 세션 경고만 만들었다. 표째 없으면 설치자의 전역 [features] 결정도 덮지 않는다.
+  it("the shipped template sets no [features] — no Codex startup warning comes from the harness part", () => {
+    const shipped = readFileSync(
+      join(__dirname, "../../templates/codex/config.toml.template"),
+      "utf8",
+    );
+    const out = renderConfigToml({ template: shipped, projectName: "demo", projectDir: "/p" });
+    expect(readToml(out)?.features).toBeUndefined();
+    expect(out).not.toContain("codex_hooks");
+    expect(out).not.toContain("child_agents_md");
   });
 
   it("appends one [mcp_servers.X] block per supplied server", () => {

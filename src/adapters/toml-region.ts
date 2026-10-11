@@ -13,6 +13,9 @@
  *   - 충돌: 구간 밖(설치자 것)을 파싱한 객체에 렌더 항목의 키 경로가 명시 · 암묵 · 인라인 · 점 키 어느 형태로든 있으면
  *     그 항목을 구간에서 뺀다(설치자 값 우선, `kept` 로 알린다). 경로가 없어도 그 항목을 더한 문서가 파싱되지 않으면
  *     (닫힌 인라인 표를 넓히는 등) 같이 뺀다. `[[배열 표]]` 는 더하기라 경로 충돌로 보지 않는다.
+ *   - 설치자 값 불변(#605 · ADR-097 §6.2 ⓑ): 그 항목을 더한 문서에서 설치자의 값이 하나라도 달라지면 뺀다 — 배열은
+ *     **끝에 붙는 것만** 더하기다(설치자 `[[hooks]]` 원소 안으로 하네스 표가 들어가면 뺀다). 뺀 항목을 경로 접두로
+ *     갖는 같은 구간의 뒤 항목도 함께 뺀다 — 부모 없이 자식만 들어가면 뜻이 달라진다.
  *   - 사후 검증: 쓴 결과를 다시 파싱해 실패하면 쓰지 않는다(`ok:false`).
  *   - 기존 파일이 파싱되지 않으면 unreadable — 한 바이트도 쓰지 않는다(#574).
  */
@@ -147,6 +150,52 @@ function segment(body: string): Item[] {
   return items;
 }
 
+/** 값이 같은가 — 표는 키 집합까지, 배열은 길이까지. 날짜는 표기로(`TomlDate` 는 객체라 참조로 비교하면 늘 다르다). */
+function same(a: unknown, b: unknown): boolean {
+  if (a instanceof Date || b instanceof Date) {
+    return a instanceof Date && b instanceof Date && a.toISOString() === b.toISOString();
+  }
+  if (Array.isArray(a)) {
+    return Array.isArray(b) && a.length === b.length && a.every((v, i) => same(v, b[i]));
+  }
+  if (isTable(a)) {
+    const keys = Object.keys(a);
+    return (
+      isTable(b) &&
+      keys.length === Object.keys(b).length &&
+      keys.every((k) => Object.hasOwn(b, k) && same(a[k], b[k]))
+    );
+  }
+  return Object.is(a, b);
+}
+
+/**
+ * #605 — 설치자 것(`before`)이 합친 문서(`after`)에 그대로 남는가. 표는 키마다 재귀(형제 키가 늘어나는 것은 괜찮다),
+ * 배열은 앞부분이 그대로이고 끝에 붙는 것만 허용, 그 밖은 같은 값.
+ */
+function unchangedUnder(before: unknown, after: unknown): boolean {
+  if (isTable(before)) {
+    return (
+      isTable(after) &&
+      Object.keys(before).every(
+        (k) => Object.hasOwn(after, k) && unchangedUnder(before[k], after[k]),
+      )
+    );
+  }
+  if (Array.isArray(before)) {
+    return (
+      Array.isArray(after) &&
+      after.length >= before.length &&
+      before.every((v, i) => same(v, after[i]))
+    );
+  }
+  return same(before, after);
+}
+
+function startsWith(path: ReadonlyArray<string>, prefix: ReadonlyArray<string>): boolean {
+  return prefix.length > 0 && prefix.length <= path.length && prefix.every((s, i) => path[i] === s);
+}
+
 function hasPath(obj: Table, path: ReadonlyArray<string>): boolean {
   let cur: unknown = obj;
   for (const seg of path) {
@@ -181,19 +230,27 @@ function filterRender(
       throw new Error(`toml-region: region ${name} must start with a [table] header`);
     }
     const mine: string[] = [];
+    const dropped: string[][] = [];
     for (const item of items) {
+      if (dropped.some((p) => startsWith(item.path, p))) {
+        // 부모가 빠진 자식(`[[hooks.SessionStart.hooks]]`) — 혼자 들어가면 부모가 배열 아닌 표로 태어난다
+        kept.push(item.name);
+        continue;
+      }
       const taken = item.header !== "array" && hasPath(installer, item.path);
       side.push(item.text);
-      if (taken || readToml(doc()) === null) {
+      const merged = taken ? null : readToml(doc());
+      if (merged === null || !unchangedUnder(installer, merged)) {
         side.pop();
         kept.push(item.name);
+        dropped.push(item.path);
         continue;
       }
       mine.push(item.text);
     }
     if (mine.length > 0) out.set(name, mine.join("\n"));
   }
-  return { render: out, kept };
+  return { render: out, kept: [...new Set(kept)] };
 }
 
 function regionText(name: string, body: string): string {

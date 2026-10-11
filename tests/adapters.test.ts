@@ -7,9 +7,12 @@
  *   ③ strip 은 기록된 키만 뺀다 — 설치자 것은 이름·값이 하네스 것과 같아도 남는다(Q3 · R3)
  */
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ADAPTERS, adapterFor, excludedKeys, keyId, SHARED_FILES } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
+import { configRegions, renderConfigToml } from "../src/codex/config-toml.js";
 
 const none = new Set<string>();
 const fresh = new Map<string, string>();
@@ -471,6 +474,57 @@ describe("toml-region — .codex/config.toml", () => {
     expect(u.text.match(/^approval_policy/gm)).toHaveLength(1);
     expect(u.text.match(/^\[\[hooks\.session_start\]\]/gm)).toHaveLength(2);
     expect(u.text).toContain('sandbox_mode = "workspace-write"');
+  });
+
+  describe("#605 — 하네스 훅 항목은 설치자 값을 바꾸면 넣지 않는다 · 배열 끝에 붙는 것만 더하기다", () => {
+    const tables = configRegions(
+      renderConfigToml({
+        template: readFileSync(
+          resolve(__dirname, "../templates/codex/config.toml.template"),
+          "utf8",
+        ),
+        projectName: "p",
+        projectDir: "/work",
+      }),
+    );
+    const hooksTable = (text: string) => (tomlMeaning(text) as { hooks?: unknown }).hooks;
+
+    it("설치자 `[[hooks]]` 배열 — 그 원소 안으로 들어가지 않고 kept yours 로 두 항목을 말한다", () => {
+      const x = '[[hooks]]\nevent = "session_end"\ncommand = "my-own-hook.sh"\n';
+      const u = upsertOk(tr, x, tables);
+      expect(u.kept).toEqual(
+        expect.arrayContaining(["[[hooks.SessionStart]]", "[[hooks.SessionStart.hooks]]"]),
+      );
+      expect(hooksTable(u.text)).toEqual(hooksTable(x)); // 원소 0 에 SessionStart 가 생기지 않는다
+      expect(tomlMeaning(u.text)).toMatchObject({
+        sandbox_workspace_write: { network_access: true },
+      });
+    });
+
+    it("대조군 — 설치자 `[hooks]` 의 형제 이벤트 배열은 그대로 두고 하네스 SessionStart 를 더한다", () => {
+      const x =
+        '[hooks]\n[[hooks.PreToolUse]]\nmatcher = "Bash"\n[[hooks.PreToolUse.hooks]]\ncommand = "guard.sh"\n';
+      const u = upsertOk(tr, x, tables);
+      expect(u.kept).not.toContain("[[hooks.SessionStart]]");
+      const hooks = hooksTable(u.text) as Record<string, unknown>;
+      expect(hooks.PreToolUse).toEqual((hooksTable(x) as Record<string, unknown>).PreToolUse);
+      expect(hooks.SessionStart).toHaveLength(1);
+    });
+
+    it("대조군 — 설치자 자기 `[[hooks.SessionStart]]` 끝에 하네스 group 이 두 번째 원소로 붙는다", () => {
+      const x =
+        '[[hooks.SessionStart]]\nmatcher = "startup"\n[[hooks.SessionStart.hooks]]\ncommand = "mine.sh"\n';
+      const u = upsertOk(tr, x, tables);
+      expect(u.kept).toEqual([]);
+      const start = (hooksTable(u.text) as { SessionStart: unknown[] }).SessionStart;
+      expect(start).toHaveLength(2);
+      expect(start[0]).toEqual((hooksTable(x) as { SessionStart: unknown[] }).SessionStart[0]);
+    });
+
+    it("날짜 값을 가진 설치자 파일 — 값이 같으면 '바뀜' 으로 읽지 않는다", () => {
+      const x = "[meta]\nsince = 2026-01-02\n";
+      expect(upsertOk(tr, x, tables).kept).toEqual([]);
+    });
   });
 
   it("strip 은 기록된 구간만 — 설치자 표는 남는다 · 고친 구간은 남기고 알린다", () => {

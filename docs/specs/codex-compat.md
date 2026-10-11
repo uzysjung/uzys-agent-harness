@@ -79,6 +79,10 @@ NORTH_STAR §5 4-gate + CLAUDE.md P2(Simplicity First) 우선.
 | **OQ5** Hook 우회 범위 | **Resolved — 우회 불필요** | Codex 0.124.0 `codex_hooks=stable` 실측. 포맷 변환(TOML ↔ JSON)만 필요. ADR-002 v2 참조. ApplyPatch 예외만 sandbox로 이관 (Issue #16732) |
 | **OQ6** subagent SOD | **Closed — 가능** | `multi_agent=stable, enabled`. `spawn_agent / wait_agent / close_agent` 공식 지원. Claude `context: fork` 대응 |
 
+**현행(2026-10-11, #724)**: 설치 템플릿 `config.toml.template` 은 `[features]` 표를 쓰지 않는다. 위 OQ1 · OQ5 · OQ6 의
+기능은 Codex 기본값(true)이고, 옛 템플릿의 `codex_hooks`(deprecated — 정식 이름 `hooks`) · `child_agents_md`(레지스트리에 없는 키)는
+매 세션 경고만 만들었다. 갈아 끼우지 못한 옛 구간에 두 키가 남으면 install · update 화면이 지울 자리를 말한다.
+
 **신규 OQ (Phase F 이후 결정)**:
 
 - **OQ7**: Issue #17532 (인터랙티브 세션에서 프로젝트 hook 무시) 현재 버전 영향 여부 → Phase F 실측

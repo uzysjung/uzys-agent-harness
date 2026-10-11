@@ -23,7 +23,7 @@
  *
  * 실제 spawn은 mock (runExternal=null) — 외부 자산 호출 차단.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -255,8 +255,9 @@ describe("Matrix invariants — cross-cutting", () => {
           },
         });
         expect(report.codexOptIn?.trustEntry.status).toBe("registered");
+        // #685 — 키는 Codex 가 쓰는 정규화 경로다
         expect(readFileSync(join(home, ".codex/config.toml"), "utf8")).toContain(
-          `[projects."${projectDir}"]`,
+          `[projects."${realpathSync.native(projectDir)}"]`,
         );
       });
     }

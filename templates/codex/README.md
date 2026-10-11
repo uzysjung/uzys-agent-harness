@@ -2,7 +2,7 @@
 
 > **Linked SPEC**: `docs/specs/codex-compat.md` Phase B
 > **Linked ADR**: `docs/decisions/ADR-002-codex-hook-gap.md` v2
-> **Codex Version**: 0.124.0+ (`codex_hooks=stable, multi_agent=stable, plugins=stable` 전제)
+> **Codex Version**: 0.124.0+ (훅 · multi_agent · plugins 는 Codex 기본값 true 인 stable 기능 — `config.toml.template` 은 `[features]` 를 쓰지 않는다. 옛 키 `codex_hooks` 는 deprecated, `child_agents_md` 는 Codex 가 모르는 키라 매 세션 경고를 만들었다 — #724)
 
 ## 목적
 
