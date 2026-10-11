@@ -174,13 +174,13 @@
     <div class="ideas">
       <article class="card">
         <span class="n">1</span>
-        <h3>As models get better, the harness gets better with them</h3>
+        <h3>Built so better models aren't held back</h3>
         <p>Instead of piling up dos and don'ts, it tells the agent what to base its judgment on and which lines it must not cross. For example:</p>
         <div class="pair">
           <div><span class="tag">Instead of</span>"Add tests to every change."</div>
           <div class="yes"><span class="tag">It says</span>"Decide how deeply to verify based on the change's impact and the cost of undoing it."</div>
         </div>
-        <p>Instructions for things the model now does well on its own come out. <strong>So when a new model arrives, the agent can use what it can do instead of being held back by old rules.</strong></p>
+        <p>Instructions for things the model now does well on its own come out. <strong>The aim is that when a new model arrives, old rules don't stand in the way of what it can do.</strong> A skill that finds stale instructions in your own project is included too.</p>
       </article>
       <article class="card">
         <span class="n">2</span>
@@ -197,7 +197,7 @@
       <article class="card">
         <span class="n">4</span>
         <h3>Several viewpoints and several agents balance speed, cost, and quality</h3>
-        <p>The agent that built something doesn't judge its own work. Review goes to another agent, and dev tracks also get a skill that examines the work from several user perspectives (personas).</p>
+        <p>Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas).</p>
         <p><strong>With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.</strong></p>
       </article>
     </div>
@@ -205,7 +205,7 @@
 
   <section aria-labelledby="what-h">
     <h2 id="what-h">What you get</h2>
-    <p>One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your <code>CLAUDE.md</code> gets one block marked with comments and nothing else is touched. On uninstall, shared files such as <code>CLAUDE.md</code> and <code>.mcp.json</code> lose only the harness's part.</p>
+    <p>One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories, or picked after checking their source, popularity, and install path). Your <code>CLAUDE.md</code> gets one block marked with comments and nothing else is touched. On uninstall, shared files such as <code>CLAUDE.md</code> and <code>.mcp.json</code> lose only the harness's part.</p>
     <div class="clis" aria-label="Supported tools">
       <span class="lbl">Works with</span>
       <span class="chip">Claude Code</span>
@@ -225,12 +225,12 @@
 <pre class="block">1/5  Tracks          what you are building (a dev stack or a kind of work). Items that fit are pre-checked
 2/5  CLI             one or more of claude / codex / opencode / antigravity
 3/5  Install items   review the pre-checked items; drop or add anything
-4/5  Confirm         a summary, and how many tokens your selection adds per session
+4/5  Confirm         a summary, and an estimate of the tokens the harness adds per session
 5/5  Installing</pre>
     <p class="small">Picking a track pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one track. Without the wizard, <code>--with &lt;id&gt;</code> and <code>--without &lt;id&gt;</code> make the same choices.</p>
 
     <h3>Then open your tool in the same folder</h3>
-    <p class="small">The rules and skills apply from the first session:</p>
+    <p class="small">The rules and skills are read from the first session. On Codex, the project settings (MCP and hooks) turn on only after you trust the folder ("Trust and continue"):</p>
 <pre class="block">claude    # or codex / opencode / agy (Antigravity)</pre>
 
     <h3>First thing to do</h3>
@@ -266,12 +266,12 @@
 
     <div class="sub">
       <h3>Limits come with reasons, and very few are enforced</h3>
-      <p>Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to <code>.env</code>, lock files, and certificates, and a bundled script puts protection rules on your GitHub default branch.</p>
+      <p>Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook stops the file-edit tools from changing <code>.env</code>, lock files, and certificates (it does not stop shell commands from changing them, or anything from reading them), and a bundled script puts protection rules on your GitHub default branch.</p>
     </div>
 
     <div class="sub">
       <h3>What the model now does well comes out of the instructions</h3>
-      <p>Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the <code>audit-harness-fit</code> skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.</p>
+      <p>Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows an estimate of how many tokens the harness's instructions add to every session. Third-party skills are not counted in that number. After you install, the <code>audit-harness-fit</code> skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.</p>
     </div>
 
     <div class="sub">
@@ -315,7 +315,7 @@
 
   <section aria-labelledby="stacks-h">
     <h2 id="stacks-h">Supported stacks and the skills that come with them</h2>
-    <p>A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">SECURITY.md</a>).</p>
+    <p>A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository, or from one picked after checking its source, popularity, and install path. That does not vouch for the safety of its contents or the quality of what it produces (<a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/SECURITY.md">SECURITY.md</a>).</p>
     <div class="tbl">
       <table class="stack">
         <thead><tr><th scope="col">Track</th><th scope="col">Stack</th><th scope="col">Pre-checked external skills and tools</th></tr></thead>
@@ -378,7 +378,7 @@
         <tbody>
           <tr>
             <td data-label="If you currently…"><strong>Write your own <code>CLAUDE.md</code> or <code>AGENTS.md</code></strong></td>
-            <td data-label="How this is different">Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that actually blocks and a reviewer separate from the agent that builds; and an install record so <code>update</code> changes only what the harness put there.</td>
+            <td data-label="How this is different">Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that blocks edits to protected files and a reviewer separate from the agent that builds; and an install record so <code>update</code> changes only what the harness put there.</td>
           </tr>
           <tr>
             <td data-label="If you currently…"><strong>Pick skills from a marketplace</strong></td>
@@ -386,11 +386,20 @@
           </tr>
           <tr>
             <td data-label="If you currently…"><strong>Use another harness with many rules</strong></td>
-            <td data-label="How this is different">Fewer standing instructions, and you see their per-session token cost before you install. If you want a fixed, step-by-step process, add the third-party workflow kits <code>openspec</code> or <code>bmad-method</code>. Both are optional and compared in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">WORKFLOWS.md</a>.</td>
+            <td data-label="How this is different">Only a few short rules are read every session; longer procedures are read when needed. You see an estimate of their per-session token cost before you install. If you want a fixed, step-by-step process, add the third-party workflow kits <code>openspec</code> or <code>bmad-method</code>. Both are optional and compared in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/WORKFLOWS.md">WORKFLOWS.md</a>.</td>
           </tr>
         </tbody>
       </table>
     </div>
+  </section>
+
+  <section aria-labelledby="nofit-h">
+    <h2 id="nofit-h">When this harness is not a fit</h2>
+    <ul class="plain">
+      <li><strong>You need a fixed procedure followed step by step.</strong> This harness gives judgment criteria instead of procedures and leaves the decisions to the model. If an audit or regulation requires fixed steps, add a workflow kit such as <code>openspec</code> or <code>bmad-method</code>, or write those steps as your own rules.</li>
+      <li><strong>You use a small model you can't trust with judgment calls.</strong> Instructions that give criteria rather than steps pay off when the model can make the call itself.</li>
+      <li><strong>You want numbers on the benefit before you adopt it.</strong> This project's tests check that installing and file handling work as intended. There are no measurements yet comparing development results with and without the harness.</li>
+    </ul>
   </section>
 
   <section aria-labelledby="more-h">

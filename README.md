@@ -14,13 +14,13 @@ If you have kept adding rules to Claude Code or Codex, you have probably run int
 
 uzys-agent-harness doesn't tie the agent down with a list of rules. It builds the agent's working environment on four ideas.
 
-### 1. As models get better, the harness gets better with them
+### 1. Built so better models aren't held back
 
-Instead of piling up dos and don'ts, it tells the agent what to base its judgment on and which lines it must not cross. For example, instead of "add tests to every change," it says "decide how deeply to verify based on the change's impact and the cost of undoing it." Instructions for things the model now does well on its own come out. So when a new model arrives, the agent can use what it can do instead of being held back by old rules.
+Instead of piling up dos and don'ts, it tells the agent what to base its judgment on and which lines it must not cross. For example, instead of "add tests to every change," it says "decide how deeply to verify based on the change's impact and the cost of undoing it." Instructions for things the model now does well on its own come out. The aim is that when a new model arrives, old rules don't stand in the way of what it can do, and a skill is included that finds stale instructions in your own project so you can trim them.
 
 ### 2. With a direction and limits, the agent goes further on its own
 
-Before work is handed over, the project's direction, the task's definition of done, and the lines not to cross are set first. With those to check against, the agent tries, checks its work, and fixes it, again and again, on its own. It can work longer without step-by-step direction, and it is told to ask you only about the decisions that are yours.
+Before work is handed over, the project's direction, the task's definition of done, and the lines not to cross are set first. With those to check against, the agent tries, checks its work, and fixes it, again and again, on its own. The aim is to cut down on step-by-step direction and to have the agent ask you only about the decisions that are yours.
 
 ### 3. The harness stays light
 
@@ -28,9 +28,9 @@ Every instruction the agent reads each session takes up context, and as they pil
 
 ### 4. Several viewpoints and several agents balance speed, cost, and quality
 
-The agent that built something doesn't judge its own work. Review goes to another agent, and dev tracks also get a skill that examines the work from several user perspectives (personas). With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.
+Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas). With the optional skills, each task gets a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and a model from another vendor can give a second opinion.
 
-One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories or ones that passed this project's vetting). Your `CLAUDE.md` gets one block marked with comments and nothing else is touched. On uninstall, shared files such as `CLAUDE.md` and `.mcp.json` lose only the harness's part. Works with Claude Code, Codex, OpenCode, and Antigravity; the hook that blocks file edits and the reviewer agent run on Claude Code.
+One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories, or picked after checking their source, popularity, and install path). Your `CLAUDE.md` gets one block marked with comments and nothing else is touched. On uninstall, shared files such as `CLAUDE.md` and `.mcp.json` lose only the harness's part. Works with Claude Code, Codex, OpenCode, and Antigravity; the hook that blocks file edits and the reviewer agent run on Claude Code.
 
 ## Install it now
 
@@ -48,13 +48,13 @@ The wizard has five steps:
 1/5  Tracks          what you are building (a dev stack or a kind of work). Items that fit are pre-checked
 2/5  CLI             one or more of claude / codex / opencode / antigravity
 3/5  Install items   review the pre-checked items; drop or add anything
-4/5  Confirm         a summary, and how many tokens your selection adds per session
+4/5  Confirm         a summary, and an estimate of the tokens the harness adds per session
 5/5  Installing
 ```
 
 Picking a track pre-checks the rules, skills, and external tools that fit it. That is only a recommendation. At step 3 you decide everything that goes in or stays out, and you can pick more than one track. Without the wizard, `--with <id>` and `--without <id>` make the same choices.
 
-Then open your AI coding tool in the same folder. The rules and skills apply from the first session:
+Then open your AI coding tool in the same folder. The rules and skills are read from the first session. On Codex, the project settings (MCP and hooks) turn on only after you trust the folder ("Trust and continue"):
 
 ```bash
 claude    # or codex / opencode / agy (Antigravity)
@@ -102,11 +102,11 @@ Instead of prescribing a method, the harness first says what done looks like. Th
 
 ### Limits come with reasons, and very few are enforced
 
-Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook blocks edits to `.env`, lock files, and certificates, and a bundled script, when you run it once, puts protection rules on your GitHub default branch.
+Hard limits are written down plainly. Destructive actions, deployments, and writes to anything other people share, such as a repository or a database, need your approval when they go beyond the work you handed over. Routine work inside that scope is meant to go ahead without repeated check-ins. Only two things are enforced mechanically: on Claude Code, a hook stops the file-edit tools from changing `.env`, lock files, and certificates (it does not stop shell commands from changing them, or anything from reading them), and a bundled script, when you run it once, puts protection rules on your GitHub default branch.
 
 ### What the model now does well comes out of the instructions
 
-Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows how many tokens your selection adds to every session. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
+Every instruction read each session takes up context, and instructions written for an older model's weak spots can get in a newer model's way. So before you install, the wizard shows an estimate of how many tokens the harness's instructions add to every session. Third-party skills are not counted in that number. After you install, the `audit-harness-fit` skill finds instructions your project no longer needs, and procedures that make the agent check the same thing over and over, then suggests what to change.
 
 ### The agent that builds is not the one that checks
 
@@ -149,7 +149,7 @@ Plugins are a Claude Code feature, so only Claude Code gets them. Rules and skil
 
 ## Supported stacks and the skills that come with them
 
-A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository or one that passed this project's vetting ([SECURITY.md](SECURITY.md)).
+A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository, or from one picked after checking its source, popularity, and install path. That does not vouch for the safety of its contents or the quality of what it produces ([SECURITY.md](SECURITY.md)).
 
 | Track | Stack | Pre-checked external skills and tools |
 |---|---|---|
@@ -201,9 +201,15 @@ In a terminal, `uninstall` offers three choices (one tool, selected assets, or e
 
 | If you currently… | How this is different |
 |---|---|
-| Write your own `CLAUDE.md` or `AGENTS.md` | Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that actually blocks and a reviewer separate from the agent that builds; and an install record so `update` changes only what the harness put there. |
+| Write your own `CLAUDE.md` or `AGENTS.md` | Keep it. The harness adds one marked block and leaves the rest alone. It adds what a single file can't: on Claude Code, a hook that blocks edits to protected files and a reviewer separate from the agent that builds; and an install record so `update` changes only what the harness put there. |
 | Pick skills from a marketplace | If you only need one skill, take just that one: `npx skills add uzysjung/uzys-agent-harness --skill <id> -a claude-code` (see ids with `--list`, or on [skills.sh](https://skills.sh/uzysjung/uzys-agent-harness)). The wizard is for what a skill list doesn't cover: standing rules, hooks, subagents, and the record that keeps them current. |
-| Use another harness with many rules | Fewer standing instructions, and you see their per-session token cost before you install. If you want a fixed, step-by-step process, add the third-party workflow kits `openspec` or `bmad-method`. Both are optional and compared in [WORKFLOWS.md](docs/WORKFLOWS.md). |
+| Use another harness with many rules | Only a few short rules are read every session; longer procedures are read when needed. You see an estimate of their per-session token cost before you install. If you want a fixed, step-by-step process, add the third-party workflow kits `openspec` or `bmad-method`. Both are optional and compared in [WORKFLOWS.md](docs/WORKFLOWS.md). |
+
+## When this harness is not a fit
+
+- **You need a fixed procedure followed step by step.** This harness gives judgment criteria instead of procedures and leaves the decisions to the model. If an audit or regulation requires fixed steps, add a workflow kit such as `openspec` or `bmad-method`, or write those steps as your own rules.
+- **You use a small model you can't trust with judgment calls.** Instructions that give criteria rather than steps pay off when the model can make the call itself.
+- **You want numbers on the benefit before you adopt it.** This project's tests check that installing and file handling work as intended. There are no measurements yet comparing development results with and without the harness.
 
 ## Docs
 
