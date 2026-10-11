@@ -9,6 +9,7 @@
  *   B  설치자가 고친 옛 github — 남긴다(kept yours) · 새 github-mcp 는 어디에도 안 생긴다
  *   C  옛 로그(몫 기록 전) — 같은 디스크가 A 와 같은 결과를 받는다(B1 ⓐ)
  *   C' 옛 로그 · ssr-nextjs 의 옛 railway(#710 전 기본) — 걷히지 않고 원격으로 갈아 끼운다(B1 ⓓ)
+ *      옛 로그의 걷기·고르기는 하네스가 만든 파일 기록 + 하네스가 쓴 값과 바이트 동일일 때만 — 설치자가 고친 값 · 설치자 파일은 그대로
  *   B2 update 화면이 원격 서버 첫 사용 로그인 안내(NEXT)를 낸다
  *   B3 비웹 트랙에 기록으로 남은 chrome-devtools — "이 트랙의 기본이 아니다 · 빼는 명령" 을 말한다
  *   E  `--without mcp:github` 은 이제 모르는 키 id 다
@@ -247,6 +248,25 @@ describe("B — 설치자가 옛 github 항목을 고친 설치본", () => {
     expect(opencodeMcp()["github-mcp"]).toBeUndefined();
     expect(codexToml()).not.toContain("github-mcp");
   });
+
+  it("설치 전부터 설치자 파일에 있던 github 는 옛 하네스 값과 바이트가 같아도 걷지 않는다 — 하네스 몫으로 기록된 적이 없다", () => {
+    const OLD_GITHUB = {
+      type: "stdio",
+      command: "npx",
+      args: ["-y", "@modelcontextprotocol/server-github"],
+    };
+    writeFileSync(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify({ mcpServers: { github: OLD_GITHUB } }, null, 2),
+    );
+    oldInstall(["tooling"], ["claude"]);
+    expect((log().portions ?? []).some((p) => p.key === "mcpServers.github")).toBe(false); // 전제
+
+    const { screen } = update();
+
+    expect(mcpJson().github).toEqual(OLD_GITHUB);
+    expect(screen).not.toContain("retired: github");
+  });
 });
 
 describe("C — 옛 로그(몫 기록 전)는 같은 디스크에서 A 와 같은 결과를 받는다 (설계 검증 B1 ⓐ)", () => {
@@ -290,8 +310,8 @@ describe("C — 옛 로그(몫 기록 전)는 같은 디스크에서 A 와 같�
     expect(screen).toContain("not a default on ssr-nextjs");
   });
 
-  it("옛 로그라도 설치자가 만든 `.mcp.json` 이면(만든 기록 없음) 아무것도 걷거나 고르지 않는다", () => {
-    oldInstall(["tooling"], ["claude"]);
+  it("옛 로그라도 설치자가 만든 `.mcp.json` 이면(만든 기록 없음) 아무것도 걷거나 고르지 않는다 — Codex · OpenCode 에도 더하지 않는다", () => {
+    oldInstall(["tooling"]);
     const l = log();
     const { records: _r, portions: _p, ...rest } = l;
     writeFileSync(
@@ -307,6 +327,47 @@ describe("C — 옛 로그(몫 기록 전)는 같은 디스크에서 A 와 같�
 
     expect(mcpJson().github).toEqual(before.github);
     expect(mcpJson()["chrome-devtools"]).toEqual(before["chrome-devtools"]);
+    // 설치자 파일의 같은 이름은 선택 근거가 아니다 — tooling 기본이 아닌 chrome 을 다른 두 자리에 깔지 않는다
+    expect(opencodeMcp()["chrome-devtools"]).toBeUndefined();
+    expect(codexToml()).not.toContain("chrome-devtools");
+  });
+
+  it("옛 로그 · 하네스가 만든 `.mcp.json` 이라도 설치자가 고친 github(토큰 env)는 걷지 않는다 — 걷는 것은 하네스가 쓴 값 그대로일 때뿐", () => {
+    // 옛 github 는 토큰 없이는 쓸모가 없어, 실제로 쓰던 설치자는 env 를 더했다 — 이 편집이 지우는 경로가 지켜야 할 대표 사례다
+    oldInstall(["tooling"], ["claude"]);
+    const raw = JSON.parse(read(".mcp.json")) as {
+      mcpServers: Record<string, Record<string, unknown>>;
+    };
+    raw.mcpServers.github = {
+      ...raw.mcpServers.github,
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "x" },
+    };
+    writeFileSync(join(projectDir, ".mcp.json"), JSON.stringify(raw, null, 2));
+    toLegacyLog();
+
+    const { screen } = update();
+
+    expect(mcpJson().github?.env).toEqual({ GITHUB_PERSONAL_ACCESS_TOKEN: "x" });
+    expect(screen).not.toContain("retired: github");
+  });
+
+  it("옛 로그 · 하네스가 만든 `.mcp.json` 에서 설치자가 고친 chrome-devtools 는 선택 근거가 아니다 — 그대로 두고 Codex · OpenCode 에 더하지 않는다", () => {
+    oldInstall(["tooling"]);
+    const raw = JSON.parse(read(".mcp.json")) as {
+      mcpServers: Record<string, Record<string, unknown>>;
+    };
+    raw.mcpServers["chrome-devtools"] = {
+      ...raw.mcpServers["chrome-devtools"],
+      args: ["-y", "chrome-devtools-mcp@0.1.0"],
+    };
+    writeFileSync(join(projectDir, ".mcp.json"), JSON.stringify(raw, null, 2));
+    toLegacyLog();
+
+    update();
+
+    expect(mcpJson()["chrome-devtools"]?.args).toEqual(["-y", "chrome-devtools-mcp@0.1.0"]);
+    expect(opencodeMcp()["chrome-devtools"]).toBeUndefined();
+    expect(codexToml()).not.toContain("chrome-devtools");
   });
 });
 

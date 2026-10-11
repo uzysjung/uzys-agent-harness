@@ -68,6 +68,9 @@ full)의 기본이고 Google 사용 통계를 끈다(`--no-usage-statistics`), �
 - **ADR-101 Consequences 개정**: 몫 기록이 없는 옛 기록(v26.161 이하)에서 하네스가 만든 `.mcp.json` 에 하네스가 쓴 값 그대로 남은
   고를 수 있는 서버(예: #710 전 ssr-nextjs 기본이던 railway)는 **여전히 남는다** — 다만 "관리 밖" 이 아니라 기록된 몫과 같이 다뤄
   새 값(원격)으로 갈아 끼우고 그 뒤로는 기록이 이어진다. 값이 다르면(설치자가 고침) 종전대로 건드리지 않는다.
+- 옛 로그에서는 남길 서버를 **기록이 아니라 하네스가 썼던 값과의 대조**로 알아본다 — 그래서 첫 update 의 "kept because your install
+  record has it" 은 옛 로그에선 문자 그대로가 아니고(기록된 것은 "하네스가 만든 파일" 까지), 위저드 3단계는 그 서버를 한 번 미체크로
+  보인다. 그 실행부터 몫이 기록돼 이후엔 맞다. 이 대조(만든 기록 · 바이트 동일)는 `tests/mcp-migration-167.test.ts` C 절이 문다.
 - 기록에 `excluded: mcp:chrome-devtools`(키 id) 가 있는 설치본은 이 판의 update 뒤 Codex · OpenCode 에서도 chrome-devtools 가 빠진다
   (ADR-101 결정 5 — 고를 수 있는 서버의 키 id 빼기는 세 자리에 닿는다. 종전엔 `.mcp.json` 에서만 뺐다).
 - `--without mcp:github` 은 이제 모르는 키 id 다(렌더 집합 밖).
