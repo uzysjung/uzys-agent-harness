@@ -13,6 +13,13 @@ unchanged full audit. Check current wording and user worktree edits so the appro
 patch still has the intended meaning. Continue independent authorized changes when
 one finding remains unresolved; defer the disputed unit instead of the whole task.
 
+Rounds: an audit-and-apply request is one unit of work. Agree the round count up
+front (2–3 by default); each round re-audits only the sources the previous apply
+changed and their dependents. Do not open a PR, request review, or merge between
+rounds — those belong to the project's delivery policy and happen once after the
+last round, with the accumulated diff and the per-round findings as its evidence.
+A later round may stop early when a re-audit finds nothing material; say so.
+
 ## Preserve ownership and recovery
 
 Identify project-owned prose, harness-owned assets, generated output, and managed
