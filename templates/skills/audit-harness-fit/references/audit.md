@@ -27,8 +27,18 @@ supports routing assessment, not a claim about the full skill body. Missing runt
 traces limit loading claims while still allowing supported content findings.
 
 Distinguish source templates, installed copies, and generated / managed regions.
-Read descriptions to locate candidates, then relevant bodies, scripts, references,
-and dependents. Expand along actual references and overlapping scopes when needed
+
+Start from the always-applied layer: AGENTS.md / CLAUDE.md, imports, rules, hooks
+and their settings, and the principles they state. That layer runs every session,
+so its findings matter most. Installed skills are tools the user chose; audit them
+at their seams with that layer — descriptions and routing, places where a rule,
+hook, or principle names or depends on a skill, and skill text that contradicts,
+duplicates, or overrides it. Read a skill's body, scripts, or references only when
+such a seam, a finding, or the user's request leads there; do not sweep every
+installed skill body by default, and report uninspected bodies as not inspected.
+The statement ledger covers the always-applied layer and the seams.
+
+Follow a seam into the relevant bodies, scripts, references, and dependents. Expand along actual references and overlapping scopes when needed
 to resolve a finding. Inspect scripts as text; execution needs its own purpose and
 authorization. Bound conclusions to inspected material.
 
