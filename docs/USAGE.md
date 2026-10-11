@@ -135,7 +135,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode / 
 | `.mcp.json` | MCP servers — `context7`, `github`, `chrome-devtools` on every track; `railway-mcp-server` on `csr-*`/`ssr-htmx`/`full` (any track can add it with `--with railway-mcp-server`); `supabase` on `csr-supabase`/`full`. Merged with yours |
 | `.gitignore` · `.env.example` | Ignore lines for agent artifacts and `.env` appended when `.gitignore` exists; an example env file on `csr-supabase` / `full` |
 | `AGENTS.md` · `.codex/` · `opencode.json` · `.agents/` | Only for the CLIs you selected (table above) |
-| `.github/workflows/` | Only with `--with ci-scaffold`. Never overwrites an existing workflow file |
+| `.github/workflows/` | On dev tracks by default (`ci-scaffold`; skip it with `--without ci-scaffold`). Written only when the file does not exist yet — never overwrites an existing workflow file |
 | `skills-lock.json` | Written by `npx skills` (not by the harness) when a skill pack is installed. The harness never edits it; `uninstall` leaves it and names it |
 
 `list` shows the root files it created or merged, so you can tell which ones were yours before the install.
@@ -317,7 +317,7 @@ Asset-by-asset detail per track is in [TRACKS.md](TRACKS.md). Only the surprises
 
 - **`vercel-cli`, `supabase-cli`, and `netlify-cli` are opt-in on every track (ADR-063 · ADR-102).** Each installs a CLI package as a `devDependency`, so add only the one your project deploys to (`--with vercel-cli`); your agent can also run them through `npx` without installing. `csr-supabase` still pre-checks the Supabase *skills*.
 - **`data`** pre-checks one data-specific asset, `anthropic-data-plugin`; the rest is the dev-track set (method skills; `frontend-design` is not pre-checked — `--with frontend-design` adds it).
-- **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` and `product-skills` are opt-in on any track.
+- **`executive`** pre-checks `anthropic-document-skills` and brings the `strategist` agent, which carries the evidence and consistency standards for research, decks, and models. `finance-skills` is opt-in on any track.
 - **`base`** and **`tooling`** carry no stack assets; the method skills work the same for a CLI tool or a Markdown project as for an app. `frontend-design` is not pre-checked on either — `--with frontend-design` adds it.
 - An asset you added with `--with` reaches a CLI you add later only if you pass `--with` again, or check it in the wizard.
 - `ssr-htmx` stays server-side — no React assets.

@@ -171,15 +171,16 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
 ];
 
 /**
- * 50 자산 매트릭스. bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
+ * 외부 자산 매트릭스. bash setup-harness.sh@911c246~1 L791~1067 + 1320~1370 동등.
  *
- * 이 수는 `tests/docs-supply-chain.test.ts` 가 `EXTERNAL_ASSETS.length` 와 대조하므로
- * 조용히 썩지 않는다. **들어오고 나간 이력은 여기 쌓지 않는다** — 그건 ADR·CHANGELOG 것이고,
- * 여기 쌓이면 다음 사람이 카탈로그 대신 이력을 읽는다(#492 직전까지 11줄이 그랬다).
- * 최근 변경: #492 — 관측 없는 자산 11종 은퇴 + ECC 축 제거.
+ * 자산 수는 여기 적지 않는다 — SSOT 는 `EXTERNAL_ASSETS.length` 이고 사람이 읽는 수는
+ * `docs/COMPATIBILITY.md` 서문이다(`tests/docs-supply-chain.test.ts` 가 대조). 여기 세어 적은
+ * 수는 두 번째 사본이라 썩는다(#726 때 "50" 이 실제 52 였다). **들어오고 나간 이력은 여기
+ * 쌓지 않는다** — 그건 ADR·CHANGELOG 것이고, 여기 쌓이면 다음 사람이 카탈로그 대신 이력을
+ * 읽는다(#492 직전까지 11줄이 그랬다). 빠진 자산을 기존 설치본에 말하는 표는 `REMOVED_CATALOG_ASSETS`.
  *
  * 호출 순서: data → dev-baseline → railway → supabase-cli → dev-tools →
- * supabase-skills → react/ui → next → executive → GSD → ToB.
+ * supabase-skills → react/ui → next → executive → GSD → security.
  */
 export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // === data Track ===
@@ -211,16 +212,17 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // v26.108.0 (ADR-037, 라이프사이클 자산화 ②) — CI 스캐폴드: `.github/workflows/` fill-in
   //   워크플로(tag-트리거 CI + 실DB 서비스 컨테이너 + coverage 게이트 + Playwright E2E).
   //   실무 CI 패턴의 도메인 중립 일반화 (CI 부재 프로젝트의 갭이 계기). `.claude/` 밖에
-  //   쓰는 첫 자산 — opt-in 전용 + 기존 워크플로 파일은 절대 덮어쓰지 않는다 (src/ci-scaffold.ts,
+  //   쓰는 첫 자산 — 기존 워크플로 파일은 절대 덮어쓰지 않는다 (src/ci-scaffold.ts,
   //   manifest 경유 아님 — CLI 선택과 무관하게 설치되는 CLI-agnostic 산출물).
+  // ADR-105 (#726, 사용자 결정 2026-10-11) — opt-in 전용 → 개발 트랙 기본. 없을 때만 쓰는 계약은 그대로.
   {
     id: "ci-scaffold",
     tier: "official", // uzys 본 하네스 자체 템플릿
     description:
-      "CI scaffold — .github/workflows fill-in templates (tag-triggered CI + real-DB service container + coverage gate + Playwright E2E); never overwrites existing workflow files (opt-in)",
+      "CI scaffold — .github/workflows fill-in templates (tag-triggered CI + real-DB service container + coverage gate + Playwright E2E); writes only when the file is absent, never overwrites existing workflow files",
     category: "workflow",
     source: "uzys",
-    condition: { kind: "opt-in" },
+    condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "ci-scaffold" },
   },
 
@@ -330,10 +332,11 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "model-orchestration",
     tier: "official", // uzys 자사 스킬 리포
     description:
-      "Model orchestration — decompose work by capability and route independent, bounded tasks to available agents while preserving ownership, permissions, and verification. Model names are Claude Code vocabulary; on other CLIs the same split maps onto that vendor's tiers (opt-in — recommended)",
+      "Model orchestration — decompose work by capability and route independent, bounded tasks to available agents while preserving ownership, permissions, and verification. Model names are Claude Code vocabulary; on other CLIs the same split maps onto that vendor's tiers",
     category: "workflow",
     source: "uzys",
-    condition: { kind: "opt-in" },
+    // ADR-105 (#726) — opt-in → 개발 트랙 기본.
+    condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "model-orchestration" },
   },
   {
@@ -342,10 +345,12 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "external-model-consult",
     tier: "official", // uzys 자사 스킬 리포
     description:
-      "External model consult — ask an available external model/provider for an independent draft, critique, or provider-only output such as image generation (opt-in — recommended; requires that provider's CLI)",
+      "External model consult — ask an available external model/provider for an independent draft, critique, or provider-only output such as image generation (requires that provider's CLI)",
     category: "dev-tools",
     source: "uzys",
-    condition: { kind: "opt-in" },
+    // ADR-105 (#726) — opt-in → 개발 트랙 기본. 설치는 디렉터리 복사뿐이라 provider CLI 가 없어도
+    //   설치는 성공한다 — 없으면 실행 시점에 래퍼가 멈추고 스킬이 "설치·로그인은 사용자 몫"을 알린다.
+    condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "external-model-consult" },
   },
   {
@@ -400,8 +405,9 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   },
 
   {
-    // 트랙과 무관한 글쓰기 규율이라 어느 트랙에서도 고를 수 있고, 어느 트랙에도 자동으로는
-    //   안 깔린다(opt-in). 한국어로 쓰지 않는 사용자에게 기본 설치되면 그대로 낭비다.
+    // 트랙과 무관한 글쓰기 규율이다. ADR-105 (#726, 사용자 결정 2026-10-11) — opt-in → 개발 트랙
+    //   기본. 한국어로 쓰지 않는 설치자에게는 descriptor 상주가 낭비라는 대가를 받아들였다
+    //   (빼려면 `--without natural-korean`).
     // user-centered-explanation 과의 경계: 저쪽은 **무엇을 어떤 형식으로 말할지**(설명·승인
     //   요청의 구조)이고, 이쪽은 **한국어로 쓰는 행위 자체**(답변·글쓰기·번역·퇴고)의 표현이다.
     // #428 — 전신 `humanize-korean`(#355, 진단-우선 퇴고)을 개명·교체했다. 범위가 퇴고에서
@@ -410,10 +416,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "natural-korean",
     tier: "official", // uzys 자사 스킬
     description:
-      "Natural Korean — write, answer, translate, and revise in Korean that reads as Korean: keep meaning and register, cut translationese, needless English, stock phrases, and mechanical repetition; fix only what is actually awkward (opt-in)",
+      "Natural Korean — write, answer, translate, and revise in Korean that reads as Korean: keep meaning and register, cut translationese, needless English, stock phrases, and mechanical repetition; fix only what is actually awkward",
     category: "workflow",
     source: "uzys",
-    condition: { kind: "opt-in" },
+    condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "natural-korean" },
   },
 
@@ -683,20 +689,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "understand-anything@understand-anything",
     },
   },
-  {
-    id: "agentmemory",
-    tier: "vetted", // rohitg00/agentmemory 21k
-    description:
-      "AgentMemory — a separate memory server (MCP + hooks) that persists state across sessions; the runtime server is its own install (npx @agentmemory/agentmemory). Check first whether your CLI's own memory and project records already cover it",
-    category: "understanding",
-    source: "rohitg00",
-    condition: { kind: "opt-in" },
-    method: {
-      kind: "plugin",
-      marketplace: "rohitg00/agentmemory",
-      pluginId: "agentmemory@agentmemory",
-    },
-  },
 
   // === Visual & Media (v26.85.0) — 코드-퍼스트 제작 자산. 전부 opt-in. ===
   // Docker 실설치 검증 PASS (실 claude 2.1.177): plugin install / npx skills add resolve 확인.
@@ -764,24 +756,22 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     method: { kind: "skill", source: "hugohe3/ppt-master", skill: "ppt-master" },
   },
   {
-    id: "web-video-presentation",
-    tier: "vetted", // ConardLi/garden-skills 8.4k
+    // ADR-104 (#726) — web-video-presentation 의 교체. plugin 인 이유: skill 방식이면 상류 CLI 가
+    //   작업 중 `npx hyperframes skills update`/`init` 으로 같은 스킬 디렉터리를 다시 쓰고 prune 해
+    //   설치 기록(#573 sha)과 어긋난다. plugin 모드는 그 런타임 설치를 상류가 스스로 금한다.
+    //   Anthropic 공식 마켓플레이스 항목(sha 고정 URL 소스, 내용 저자 HeyGen) — 그래서 tier official.
+    id: "hyperframes",
+    tier: "official", // anthropics/claude-plugins-official 등재 (heygen-com/hyperframes)
     description:
-      "web-video-presentation — click-driven 16:9 web decks that play like video, with optional TTS narration. Keeps a step-by-step approval procedure; use for narrated web presentations",
+      "HyperFrames — write video as HTML and render it to MP4 (headless Chrome + FFmpeg): narrated explainers, slideshow-style decks, captions and voice-over. Rendering needs Node 22+ and FFmpeg",
     category: "visual-media",
-    source: "ConardLi",
+    source: "heygen-com",
     condition: { kind: "opt-in" },
-    method: { kind: "skill", source: "ConardLi/garden-skills", skill: "web-video-presentation" },
-  },
-  {
-    id: "revealjs",
-    tier: "experimental", // ryanbbrown/revealjs-skill 347 (<1000 → experimental, opt-in + 경고)
-    description:
-      "reveal.js — HTML presentations with themes, code highlighting, and speaker notes, no build step. Overlaps the other HTML deck assets; pick it when you specifically need reveal.js templates or compatibility",
-    category: "visual-media",
-    source: "ryanbbrown",
-    condition: { kind: "opt-in" },
-    method: { kind: "skill", source: "ryanbbrown/revealjs-skill", skill: "revealjs" },
+    method: {
+      kind: "plugin",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "hyperframes@claude-plugins-official",
+    },
   },
 
   // === Supabase agent-skills (csr-supabase|full) ===
@@ -913,26 +903,6 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
 
-  // === Project Management Track (v0.5.0) ===
-  // SPEC §3.5 — product-skills: has-dev-track + project-management 합집합 (executive/growth-marketing 제외).
-  {
-    id: "product-skills",
-    tier: "vetted", // alirezarezvani 16k
-    description:
-      "product-skills — RICE prioritization, PRD, interview analysis, design tokens, project scaffolding (15 skills with Python tools). Pick it for product-management work, and use the tools you need",
-    category: "dev-tools",
-    source: "alirezarezvani",
-    // v26.106.0 (ADR-035, 사용자 승인 C): dev 8트랙 기본에서 제외 — PM 스킬 15종은 PM 트랙 목적
-    //   자산. dev 트랙은 wizard 체크 / --with 로 opt-in.
-    // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063)
-    condition: { kind: "opt-in" },
-    method: {
-      kind: "plugin",
-      marketplace: "alirezarezvani/claude-skills",
-      pluginId: "product-skills@claude-code-skills",
-    },
-  },
-
   // === Growth Marketing Track (v0.5.0) ===
   // 2026-08-02 정비 — alirezarezvani 번들 4종(c-level·business-growth·pm·marketing) +
   //   research-summarizer 제거. 남는 마케팅 번들은 아래 coreyhaines31/marketingskills 하나로,
@@ -967,24 +937,38 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
 
   // === Option-gated ===
   {
-    // v26.39.2 fix — marketplace name = "trailofbits" (NOT "trailofbits-skills") +
-    // "trailofbits-skills" plugin 자체가 존재하지 않음. marketplace 안에 14+ 개별 plugin.
-    // 단일 대표 plugin = `differential-review` (코드 변경 보안 리뷰, 가장 보편).
-    // 추가 plugin 원하는 사용자는: `claude plugin install <name>@trailofbits` (예: audit-context-building)
-    id: "trailofbits-skills",
-    tier: "vetted", // trailofbits/skills 5.5k (CC-BY-SA — 출처 신뢰)
+    // ADR-104 (#726) — trailofbits-skills(differential-review)의 교체. Anthropic 공식 플러그인.
+    //   `git push` 에 훅을 걸고 스캔이 시간·토큰을 쓰므로 opt-in 이다.
+    id: "claude-security",
+    tier: "official", // anthropics/claude-plugins-official 등재 (./plugins/claude-security)
     description:
-      "Trail of Bits differential-review — security review of a change: history, call impact, attack scenarios, verification scope. For security-relevant changes, not every PR",
+      "Claude Security — on-request vulnerability scan of a branch, PR, or commit diff; a verifier agent challenges each finding and results are tallied in code; asks you to confirm the cost before it starts. For a light diff check, the built-in /security-review is enough",
     category: "dev-tools",
-    source: "trailofbits",
+    source: "anthropics",
     condition: { kind: "opt-in" },
     method: {
       kind: "plugin",
-      marketplace: "trailofbits/skills",
-      pluginId: "differential-review@trailofbits",
+      marketplace: "anthropics/claude-plugins-official",
+      pluginId: "claude-security@claude-plugins-official",
     },
   },
 ];
+
+/**
+ * ADR-104 (#726) — 카탈로그에서 빠진 외부 자산. **설치 기록에** 이 id 가 남은 설치본에게 update 화면이
+ * 할 말을 정한다(자산마다 한 줄 — 빠졌다/바뀌었다 · 깐 것은 남는다 · 새 것 받기 · 옛 것 치우기).
+ *
+ * 기록에서만 고른다 — 디스크 존재는 소유의 증거가 아니다(ADR-096). 같은 이름을 설치자가 하네스 밖에서
+ * 직접 깔았을 수 있어서 `RETIRED_SKILL_IDS`(디스크로 찾는다, 번들 스킬 전용)와 가른다. 지우지 않는다
+ * (ADR-093). `replacedBy` 는 지금 카탈로그에 실재해야 한다(🧪 `tests/external-assets.test.ts`).
+ */
+export const REMOVED_CATALOG_ASSETS: Readonly<Record<string, { replacedBy?: string }>> = {
+  "product-skills": {},
+  agentmemory: {},
+  revealjs: {},
+  "trailofbits-skills": { replacedBy: "claude-security" },
+  "web-video-presentation": { replacedBy: "hyperframes" },
+};
 
 /**
  * v26.87.0 — dev-method skill ids (uzys 1st-party, internal templates). installer 의
@@ -993,10 +977,10 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
  *
  * 2026-08-02 복원 (ADR-062) — 이관(ADR-060)으로 1종까지 줄었던 목록이 6종으로 돌아왔다.
  * 멤버십 기준은 **`condition.kind === "has-dev-track"` 인 번들 방법론 스킬**이다 (그 불변식을
- * `tests/external-assets.test.ts` 가 단언한다). 전 트랙(any-track)·opt-in 번들 스킬은 여기
- * 들어오지 않는다 — 조건이 섞이면 wizard 번들이 부분집합이 되어 사용자가 안 고른 자산을
- * 설치한다 (`tests/wizard-bundle.test.ts` 의 recommended ∩ members ∈ {∅, 전체}).
- * 현재 dev-method skills 5종.
+ * `tests/external-assets.test.ts` 가 단언한다). 역은 성립하지 않는다 — has-dev-track 번들 스킬이라도
+ * 방법론이 아니면(self-hosted-github-runner 런북 · model-orchestration · external-model-consult ·
+ * natural-korean 수단, ADR-105) 여기 넣지 않는다. 이 목록은 설치 여부를 정하지 않는다(설치 선택은
+ * `INTERNAL_BUNDLED_SKILL_IDS` + 각 condition) — 문서 수치·테스트가 쓰는 분류다.
  */
 export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
   "compaction-handoff",
@@ -1007,16 +991,15 @@ export const DEV_METHOD_SKILL_IDS: ReadonlyArray<string> = [
 ];
 
 /**
- * v26.95.0 — ALL repo-bundled internal skill ids (dev-method + opt-in advisors). Bundling is
+ * v26.95.0 — ALL repo-bundled internal skill ids (dev-method + other bundled skills). Bundling is
  * condition-agnostic: manifest Claude dir-copy, the 3 non-Claude CLI transforms, and
  * gen-compatibility iterate THIS superset so every bundled skill renders across CLIs; each entry's
  * `condition` (has-dev-track vs opt-in) still gates whether it actually installs. Kept separate
  * from `DEV_METHOD_SKILL_IDS` so "dev-method" keeps meaning the has-dev-track methodology skills.
  *
- * 2026-08-02 복원 (ADR-062) — superset 이 다시 진부분집합이 됐다. dev-method 6종에 더해
- * 전 트랙 2종(north-star·gh-issue-workflow)과 opt-in 2종(model-orchestration·
- * external-model-consult)이 번들이다. 이 4종은 `DEV_METHOD_SKILL_IDS` 의 has-dev-track
- * 불변식을 깨거나(전자) wizard 번들을 부분집합으로 만들기(후자) 때문에 여기에만 있다.
+ * 2026-08-02 복원 (ADR-062) — superset 이 다시 진부분집합이 됐다. dev-method 에 더해 전 트랙
+ * 번들(north-star·gh-issue-workflow 등)과 방법론이 아닌 has-dev-track 번들(model-orchestration·
+ * external-model-consult·natural-korean·self-hosted-github-runner, ADR-105)이 여기에만 있다.
  */
 export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   ...DEV_METHOD_SKILL_IDS,

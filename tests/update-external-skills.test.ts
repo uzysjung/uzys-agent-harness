@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
+import { excludedStillThere } from "../src/excluded-still-there.js";
 import { RENAMED_SKILL_IDS, RETIRED_SKILL_IDS } from "../src/external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -14,7 +15,12 @@ import { type InstallLog, writeInstallLog } from "../src/install-log.js";
 import type { BaselineReport } from "../src/installer.js";
 import { RETIRED_AGENT_IDS, RETIRED_AGENTS, TRACK_AGENTS } from "../src/manifest.js";
 import type { InstallSpec } from "../src/types.js";
-import { buildUpdateSpec, runUpdateMode, type UpdateModeReport } from "../src/update-mode.js";
+import {
+  buildUpdateSpec,
+  catalogRemovedOnRecord,
+  runUpdateMode,
+  type UpdateModeReport,
+} from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
@@ -610,6 +616,156 @@ describe("화면 — 외부 스킬은 외부 CLI 산출물과 다른 행이다",
     const out = lines({ externalUpdated: 3 });
     expect(out).toMatch(/external CLI artifacts/);
     expect(out).not.toMatch(/external skills/);
+  });
+
+  // ADR-104 (#726) — 카탈로그에서 뺀 자산은 자산마다 한 줄: 무엇이 됐나 · 깐 것은 남는다 · 새 것 받기 · 옛 것 치우기.
+  it("#726 — 빠진 자산마다 정확히 한 줄 · 교체는 새 id 받는 명령 · 전부 uninstall --only · skill 만 갱신 중단을 말한다", () => {
+    const out = lines({
+      catalogRemoved: [
+        { id: "product-skills", method: "plugin" },
+        { id: "agentmemory", method: "plugin" },
+        { id: "revealjs", method: "skill" },
+        {
+          id: "trailofbits-skills",
+          method: "plugin",
+          replacedBy: "claude-security",
+          replacementReaches: true,
+        },
+        {
+          id: "web-video-presentation",
+          method: "skill",
+          replacedBy: "hyperframes",
+          replacementReaches: true,
+        },
+      ],
+    });
+    const rows = out.split("\n");
+    const rowOf = (id: string): string => {
+      const hit = rows.filter((l) => l.includes(id));
+      expect(hit, `${id} 줄 수`).toHaveLength(1);
+      return hit[0] as string;
+    };
+    for (const id of ["product-skills", "agentmemory", "revealjs"]) {
+      const row = rowOf(id);
+      expect(row).toContain("카탈로그에서 빠졌다");
+      expect(row).toContain("그대로 남");
+      expect(row).toContain(`agent-harness uninstall --only ${id}`);
+      expect(row).not.toContain("install --with");
+    }
+    for (const [id, next] of [
+      ["trailofbits-skills", "claude-security"],
+      ["web-video-presentation", "hyperframes"],
+    ] as const) {
+      const row = rowOf(id);
+      expect(row).toContain(`${next} 로 바뀌었다`);
+      expect(row).toContain(`agent-harness install --with ${next}`);
+      expect(row).toContain(`agent-harness uninstall --only ${id}`);
+    }
+    // 플러그인은 하네스가 원래 갱신하지 않았다 — "갱신 중단"은 skill 에만 맞는 말이다.
+    expect(rowOf("revealjs")).toContain("더는 갱신하지 않는다");
+    expect(rowOf("web-video-presentation")).toContain("더는 갱신하지 않는다");
+    expect(rowOf("product-skills")).not.toContain("갱신");
+    expect(rowOf("trailofbits-skills")).not.toContain("갱신");
+    // 일반 줄은 나오지 않는다(update-mode 가 그 목록에서 뺀다 — 여기선 비어 있다).
+    expect(out).not.toContain("카탈로그에 없어 갱신 대상이 아니다");
+  });
+
+  it("#726 — 대체 자산이 이 설치본의 CLI 에 안 닿으면 받는 명령 대신 그 사실을 말한다", () => {
+    const out = lines({
+      catalogRemoved: [
+        {
+          id: "web-video-presentation",
+          method: "skill",
+          replacedBy: "hyperframes",
+          replacementReaches: false,
+        },
+      ],
+    });
+    expect(out).toContain("hyperframes 는 Claude 전용이라 이 설치본의 CLI 에는 깔리지 않는다");
+    expect(out).not.toContain("install --with hyperframes");
+    expect(out).toContain("agent-harness uninstall --only web-video-presentation");
+  });
+});
+
+describe("#726 (ADR-104) — 카탈로그에서 뺀 자산은 설치 기록에서 골라 전용 줄로 말한다", () => {
+  const templatesDir = join(__dirname, "..", "templates");
+  const harnessRoot = join(__dirname, "..");
+  const REMOVED = [
+    { id: "product-skills", method: "plugin" },
+    { id: "agentmemory", method: "plugin" },
+    { id: "trailofbits-skills", method: "plugin" },
+    { id: "revealjs", method: "skill" },
+    { id: "web-video-presentation", method: "skill" },
+  ];
+
+  function projectWith(log: InstallLog): string {
+    const d = tmpProject();
+    mkdirSync(join(d, ".claude", "rules"), { recursive: true });
+    writeFileSync(join(d, ".claude", "rules", "git-policy.md"), "old\n");
+    writeInstallLog(d, log);
+    return d;
+  }
+
+  it("기록의 5종(plugin 3 · skill 2)이 전용 목록에 오르고 일반 '카탈로그에 없어' 목록에는 없다", () => {
+    const dir = projectWith(fakeLog(REMOVED));
+    // 실 refresh 를 쓴다 — 카탈로그 밖 skill 은 그쪽 `notInCatalog` 로도 올라오므로 빼는 배선까지 문다(대상이 없어 spawn 은 없다).
+    const report = runUpdateMode(dir, templatesDir, harnessRoot);
+    expect(report.catalogRemoved).toEqual([
+      { id: "product-skills", method: "plugin" },
+      { id: "agentmemory", method: "plugin" },
+      {
+        id: "trailofbits-skills",
+        method: "plugin",
+        replacedBy: "claude-security",
+        replacementReaches: true,
+      },
+      { id: "revealjs", method: "skill" },
+      {
+        id: "web-video-presentation",
+        method: "skill",
+        replacedBy: "hyperframes",
+        replacementReaches: true,
+      },
+    ]);
+    for (const { id } of REMOVED) expect(report.externalSkillsNotInCatalog).not.toContain(id);
+  });
+
+  it("기록에 없고 디스크에만 있는 revealjs 는 말하지 않는다 — 설치자가 하네스 밖에서 깐 것일 수 있다(ADR-096)", () => {
+    const dir = projectWith(fakeLog([]));
+    for (const slot of [".claude/skills", ".agents/skills"]) {
+      mkdirSync(join(dir, slot, "revealjs"), { recursive: true });
+      writeFileSync(join(dir, slot, "revealjs", "SKILL.md"), "---\nname: revealjs\n---\n");
+    }
+    const report = runUpdateMode(dir, templatesDir, harnessRoot);
+    expect(report.catalogRemoved ?? []).toEqual([]);
+    expect(report.externalSkillsNotInCatalog).not.toContain("revealjs");
+  });
+
+  it("codex 전용 설치본의 web-video-presentation — 대체(hyperframes, Claude 전용)가 닿지 않는다고 판정한다", () => {
+    const log: InstallLog = {
+      ...fakeLog([{ id: "web-video-presentation", method: "skill" }]),
+      spec: { tracks: ["tooling"], cli: ["codex"], clis: ["codex"] },
+      templates: {},
+    };
+    expect(catalogRemovedOnRecord(log)).toEqual([
+      {
+        id: "web-video-presentation",
+        method: "skill",
+        replacedBy: "hyperframes",
+        replacementReaches: false,
+      },
+    ]);
+  });
+
+  it("빼 둔(excluded) 채 남은 삭제 자산에는 `--with <id>` 를 권하지 않는다 — 그 플래그는 이제 거절된다", () => {
+    const dir = tmpProject();
+    const log: InstallLog = {
+      ...fakeLog([{ id: "product-skills", method: "plugin" }]),
+      excluded: ["product-skills"],
+    };
+    expect(excludedStillThere(dir, new Set(["product-skills"]), [], log)).toEqual([]);
+    // 같은 기록이어도 전용 줄은 나온다(excluded 와 무관).
+    expect(catalogRemovedOnRecord(log).map((e) => e.id)).toEqual(["product-skills"]);
   });
 });
 

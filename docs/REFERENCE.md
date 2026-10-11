@@ -22,7 +22,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 미리 체크하는 것은 4종(`supabase-agent-skills` · `postgres-best-practices` · `react-best-practices` ·
 `shadcn-ui`)뿐이고 나머지는 `opt-in` 이다. tier 가 사전 체크에 하는 일은
 하나다: `experimental` 은 트랙이 맞아도 제외된다(`src/preset-recommend.ts` 가 트랙 필터 뒤에
-적용). 현행 `experimental` 2종(`railway-skills` · `revealjs`)은 둘 다 `opt-in` 이라 지금 걸리는
+적용). 현행 `experimental` 2종(`railway-skills` · `railway-mcp-server`)은 둘 다 `opt-in` 이라 지금 걸리는
 자산은 없다. `trust-tier-drift.yml` 이 월 1회 star 를 재측정하며, 라벨이 실제와 다르면 그 워크플로가 실패한다.
 
 ## 2. 트랙
@@ -35,7 +35,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 
 ## 3. 외부 자산 — 설치 방식 4종
 
-자산별 목록은 여기 두지 않는다(50종 전체 = [COMPATIBILITY.md](COMPATIBILITY.md), 트랙별 묶음 =
+자산별 목록은 여기 두지 않는다(49종 전체 = [COMPATIBILITY.md](COMPATIBILITY.md), 트랙별 묶음 =
 [TRACKS.md](TRACKS.md)). 여기 남기는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다 — "내 머신에서
 무슨 일이 일어나는가"에 대한 답이다. 배선 SSOT = `src/external-installer.ts`.
 

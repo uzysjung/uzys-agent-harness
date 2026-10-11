@@ -35,7 +35,8 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 | **Hooks** | session start · protect files | same |
 | **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
 | **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
-| **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` | — |
+| **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` · `model-orchestration` · `external-model-consult` · `natural-korean` | — |
+| **CI scaffold** | GitHub Actions fill-in templates under `.github/workflows/`, written only when the file does not exist yet (see [below](#workflow-bundles)) | — |
 | **Dev tools** | `frontend-design` (`csr-*` · `ssr-*` · `full`) | — |
 | **MCP servers** (`.mcp.json`) | `context7` · `github` · `chrome-devtools` (+ `railway-mcp-server` on `csr-*`/`ssr-htmx`/`full` — any track can add it with `--with railway-mcp-server`, `supabase` on `csr-supabase`/`full`) | `context7` · `github` · `chrome-devtools` |
 
@@ -53,14 +54,9 @@ The method skills are built into this repo — written and maintained here, bund
 | `recurrence-prevention` | When the same defect comes back: confirm it really recurred, decide whether it was a simple slip or a harness problem, then repair or replace the countermeasure — a note, a rule, or a structural gate — based on evidence |
 | `compaction-handoff` | Before the agent's context is compacted (its working memory trimmed): save durable state, a git snapshot, and one resume point |
 | `self-hosted-github-runner` | When hosted runners stop (billing, quota, outage): run the repo's existing workflow files on a Docker self-hosted runner instead of copying CI steps into a script |
-
-Three more bundled skills are **opt-in on any track** — recommended, not required:
-
-| Skill | What it does | Add with |
-|---|---|---|
-| `model-orchestration` | Which model, how much reasoning effort, and when to delegate — reuse context first, add workers or independent review only when their contribution justifies the cost | `--with model-orchestration` |
-| `external-model-consult` | Ask a non-Claude model (Gemini via `agy`, or Codex) for natural Korean phrasing, a second opinion, concise restructuring, or image generation. Needs that provider's CLI at runtime | `--with external-model-consult` |
-| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keeps meaning and register, removes translationese. Sibling of `user-centered-explanation`: that one decides *what* to say, this one *how the Korean is written* | `--with natural-korean` |
+| `model-orchestration` | Which model, how much reasoning effort, and when to delegate — reuse context first, add workers or independent review only when their contribution justifies the cost |
+| `external-model-consult` | Ask a non-Claude model (Gemini via `agy`, or Codex) for natural Korean phrasing, a second opinion, concise restructuring, or image generation. Installing it always succeeds; at run time it needs that provider's CLI and login, and tells you so when they are missing |
+| `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keeps meaning and register, removes translationese. Sibling of `user-centered-explanation`: that one decides *what* to say, this one *how the Korean is written*. If you never write Korean, drop it with `--without natural-korean` |
 
 ---
 
@@ -103,14 +99,13 @@ One more skill ships inside the harness and follows the track, not the catalog �
 | `anthropic-data-plugin` | Visualization + SQL exploration (Anthropic official) | `data` · `full` |
 | `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring (Anthropic official) | `executive` · `full` |
 | `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) | opt-in |
-| `product-skills` | RICE, PRD, agile PO, UX research, SaaS scaffolder (15 skills) | opt-in |
 | `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) | opt-in |
 
-The `project-management` and `growth-marketing` tracks pre-check no external asset of their own; add `product-skills` and `marketingskills` if you want them.
+The `project-management` and `growth-marketing` tracks pre-check no external asset of their own; add `marketingskills` if you want it.
 
 ### Dev tools, understanding, visual
 
-All opt-in, on any track: `security-guidance` · `trailofbits-skills` (security review) — `agent-browser` · `claude-video` · `understand-anything` · `agentmemory` (understanding) — `frontend-slides` · `marp-slide` · `gsap-skills` · `remotion` · `ppt-master` · `web-video-presentation` · `revealjs` (visual & media) — `game-engine`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
+All opt-in, on any track: `security-guidance` · `claude-security` (security review) — `agent-browser` · `claude-video` · `understand-anything` (understanding) — `frontend-slides` · `marp-slide` · `gsap-skills` · `remotion` · `ppt-master` · `hyperframes` (visual & media; `hyperframes` renders HTML to MP4 and is a Claude Code plugin) — `game-engine`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
 
 ### Workflow bundles
 
@@ -121,4 +116,4 @@ Both opt-in. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't 
 | `openspec` | Spec-driven changes to an existing codebase (propose → apply → archive) — a team contract, for teams that adopted it | Fission-AI |
 | `bmad-method` | Multi-agent agile workflow (PM / Architect / Dev) — for team-scale delivery with fixed roles | bmad-code-org |
 
-**CI scaffold** (`--with ci-scaffold`, this project): fill-in GitHub Actions templates — tag-triggered CI, a real-database service container, a coverage gate, Playwright E2E on UI tracks — matched to your tracks (node / python / both). The only asset that writes under `.github/`, and it never overwrites an existing workflow file; `uninstall` leaves `.github/` alone.
+**CI scaffold** (`ci-scaffold`, this project — on by default for dev tracks; skip it with `--without ci-scaffold`): fill-in GitHub Actions templates — tag-triggered CI, a real-database service container, a coverage gate, Playwright E2E on UI tracks — matched to your tracks (node / python / both). The only asset that writes under `.github/`: it writes only files that do not exist yet and never overwrites an existing workflow file; `uninstall` leaves `.github/` alone. The workflows run only after you commit them. `update` does not add them to an existing install — run `install` again to get them.

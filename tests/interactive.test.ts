@@ -487,6 +487,26 @@ describe("computeUserOverride", () => {
     expect(result?.forceInclude).toEqual([]);
   });
 
+  // #726 (ADR-104) — 기록에서 온 카탈로그 밖 id(빠진 자산)는 아무것도 깔지 않는다. forceInclude 로 넘기면 확인 화면이
+  //   "selected"·"+User added" 로 거짓말을 한다.
+  it("#726 — 카탈로그 밖 id 는 forceInclude 에 들지 않고 확인 화면에도 안 나온다", () => {
+    const tracks = ["csr-fastapi"] as Track[];
+    const withRemoved = [...UI_RECOMMENDED, "railway-skills", "product-skills"];
+    const result = computeUserOverride(tracks, withRemoved);
+    expect(result?.forceInclude).toEqual(["railway-skills"]);
+    const summary = formatSummary({
+      tracks,
+      options: ALL_FALSE_OPTIONS,
+      cli: ["claude"],
+      projectDir: "/p",
+      ...(result ? { userOverride: result } : {}),
+    });
+    expect(summary).toContain("railway-skills");
+    expect(summary).not.toContain("product-skills");
+    // 카탈로그 밖 id 하나만 남은 선택은 override 자체가 없다.
+    expect(computeUserOverride(tracks, [...UI_RECOMMENDED, "product-skills"])).toBeUndefined();
+  });
+
   it("forceInclude — 추천 외 추가 선택", () => {
     // v26.71.0 — 새 추천(vetted) + railway-skills(T3, 추천 외) 추가 → forceInclude.
     const withRailway = [...UI_RECOMMENDED, "railway-skills"];
