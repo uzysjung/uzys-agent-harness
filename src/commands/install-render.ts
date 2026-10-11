@@ -12,7 +12,13 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { targetsInclude } from "../cli-targets.js";
-import { formatResidentCostLine, summarizeContextCost } from "../context-cost.js";
+import {
+  anchorSurface,
+  formatResidentCostLine,
+  makeResidentCost,
+  type ResidentCost,
+  summarizeContextCost,
+} from "../context-cost.js";
 import {
   assetRow,
   c,
@@ -267,7 +273,10 @@ export function renderUpdateSummary(
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
   const cost = formatResidentCostLine(
-    residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
+    rulesInsideAgentsMd(
+      spec,
+      residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
+    ),
     summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
   );
   if (cost) log(infoRow("CONTEXT", cost));
@@ -313,44 +322,59 @@ export function renderUpdateSummary(
 }
 
 /**
- * update 가 재는 상주 엔트리 — claude 자리의 룰·스킬·에이전트를 **갱신 뒤 디스크에서** 읽는다
- * (#458 · #615 사례 4).
+ * update 가 재는 상주 엔트리 — 룰·스킬·에이전트를 **갱신 뒤 디스크에서** 읽는다
+ * (#458 · #615 사례 4 · 남은 틈 ①).
  *
  * 계획(manifest)과 디스크가 갈리는 경우가 실재한다: 트랙 조건화(ADR-090)·은퇴(ADR-089)는 파일을
  * 안 지우고, `--only` 로 고르지 않은 묶음과 프로젝트 밖 링크(#678)는 옛 판 그대로 남고, 설치자가
  * 고친 파일·직접 넣은 파일도 매 세션 상주한다. 화면이 계획을 재면 바로 그 차이가 빠진다.
- *  - 룰·에이전트: 폴더의 `.md` 전부(설치자 것 포함 — 상주하는 것은 상주한다). 백업 `*.backup-*` 는 아니다.
- *  - 스킬: 계획한 번들 스킬 중 **디스크에 있는 것**을 디스크 판으로. 폴더 전부를 세지 않는 이유는
- *    외부 스킬이 같은 폴더에 깔리고 그쪽은 `external unmeasured` 로 따로 세기 때문이다(두 번 세지 않는다).
- * claude 가 없는 설치는 계획 그대로다 — 그 CLI 의 산출물은 `AGENTS.md` 한 파일에 룰을 인라인으로
- * 담는 등 이 단위로 갈라 잴 수 없다.
+ *  - 룰: 그 CLI 가 읽는 룰 폴더의 `.md` 전부(설치자 것 포함 — 상주하는 것은 상주한다). 백업
+ *    `*.backup-*` 는 아니다. claude = `.claude/rules/`, Antigravity = `.agents/rules/`(앵커 파일 제외 —
+ *    그건 CLAUDE.md 행이 잰다). Codex · OpenCode 는 룰 폴더가 없고 룰이 `AGENTS.md` 본문에 인라인이다
+ *    — 룰마다 갈라 잴 수 없어 수는 계획 엔트리로 두고 토큰은 `AGENTS.md` 통째 숫자에 맡긴다
+ *    (`rulesInsideAgentsMd`).
+ *  - 스킬: 계획한 번들 스킬 중 **그 CLI 자리(`.claude/skills` · `.agents/skills`)에 있는 것**을 디스크
+ *    판으로. 폴더 전부를 세지 않는 이유는 외부 스킬이 같은 폴더에 깔리고 그쪽은 `external unmeasured`
+ *    로 따로 세기 때문이다(두 번 세지 않는다).
+ *  - 에이전트: claude 만 — `.claude/agents/` 의 `.md` 전부. 다른 CLI 로는 변환되지 않는다(#476).
  */
 function residentEntriesOnDisk(
   spec: InstallSpec,
 ): Array<{ source: string; target: string; file?: string }> {
   const planned = residentEntries(spec);
-  // claude 가 없으면 `.claude/` 를 만든 적이 없다 — 남의 `.claude/agents/` 는 이 설치의 상주가 아니다.
-  if (!spec.cli.includes("claude")) {
-    return planned.filter((e) => !e.target.startsWith(".claude/agents/"));
-  }
-  const mdFiles = (kind: "rules" | "agents") => {
-    const dir = join(spec.projectDir, ".claude", kind);
-    return existsSync(dir)
-      ? readdirSync(dir, { withFileTypes: true })
-          .filter((e) => e.isFile() && e.name.endsWith(".md"))
+  const hasClaude = spec.cli.includes("claude");
+  const surface = anchorSurface(spec.cli).scaffold;
+  const mdFiles = (dir: string, kind: "rules" | "agents", skip?: string) => {
+    const abs = join(spec.projectDir, dir);
+    return existsSync(abs)
+      ? readdirSync(abs, { withFileTypes: true })
+          .filter((e) => e.isFile() && e.name.endsWith(".md") && e.name !== skip)
           .map((e) => ({
             source: `${kind}/${e.name}`,
+            // `target` 은 `residentCost` 의 분류 키다 — 실제 자리는 `file` 이 말한다.
             target: `.claude/${kind}/${e.name}`,
             // 배포판이 아니라 **이 프로젝트의 파일**을 잰다 — 사용자가 고친 본문도,
             // 배포판에 더는 없는 파일도 실제로 상주하는 것은 이쪽이다.
-            file: join(dir, e.name),
+            file: join(abs, e.name),
           }))
       : [];
   };
+  const rules =
+    surface === "claude"
+      ? mdFiles(join(".claude", "rules"), "rules")
+      : surface === "antigravity-rule"
+        ? mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md")
+        : planned.filter((e) => e.target.startsWith(".claude/rules/"));
+  const slot = hasClaude ? join(".claude", "skills") : join(".agents", "skills");
   const skills = planned
     .filter((e) => e.target.startsWith(".claude/skills/"))
-    .map((e) => ({ ...e, file: join(spec.projectDir, e.target) }))
+    .map((e) => ({
+      ...e,
+      file: join(spec.projectDir, slot, e.target.slice(".claude/skills/".length)),
+    }))
     .filter((e) => existsSync(e.file));
+  // claude 가 없으면 `.claude/` 를 만든 적이 없다 — 남의 `.claude/agents/` 는 이 설치의 상주가 아니다.
+  const agents = hasClaude ? mdFiles(join(".claude", "agents"), "agents") : [];
   return [
     ...planned.filter(
       (e) =>
@@ -358,23 +382,46 @@ function residentEntriesOnDisk(
         !e.target.startsWith(".claude/agents/") &&
         !e.target.startsWith(".claude/skills/"),
     ),
-    ...mdFiles("rules"),
+    ...rules,
     ...skills,
-    ...mdFiles("agents"),
+    ...agents,
   ];
 }
 
 /**
- * update 뒤 CLAUDE.md 행이 잴 파일 (#615 사례 4) — claude 가 매 세션 읽는 앵커 · 루트 `CLAUDE.md` ·
- * 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 — 지우지 않으므로 계속 읽힌다).
- * 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면 키운 본문이 화면에서 사라진다.
- * claude 가 없으면 undefined — `AGENTS.md` 는 룰을 인라인으로 품어 룰 행과 겹친다(위 함수와 같은 이유).
+ * update 뒤 CLAUDE.md 행이 잴 파일 (#615 사례 4 · 남은 틈 ①) — 그 CLI 가 매 세션 읽는 앵커 파일.
+ *  - claude: 앵커 · 루트 `CLAUDE.md` · 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 —
+ *    지우지 않으므로 계속 읽힌다). 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면
+ *    키운 본문이 화면에서 사라진다.
+ *  - Codex · OpenCode: `AGENTS.md` 통째 — 하네스 절 · 인라인 룰 · 설치자 절이 한 파일에 섞여 있다.
+ *  - Antigravity: `.agents/rules/uzys-harness.md`.
  */
-function contextFilesOnDisk(spec: InstallSpec): string[] | undefined {
-  if (!spec.cli.includes("claude")) return undefined;
-  return [HARNESS_ANCHOR_FILE, "CLAUDE.md", join(".claude", "CLAUDE.md")].map((f) =>
-    join(spec.projectDir, f),
-  );
+function contextFilesOnDisk(spec: InstallSpec): string[] {
+  const surface = anchorSurface(spec.cli).scaffold;
+  const files =
+    surface === "claude"
+      ? [HARNESS_ANCHOR_FILE, "CLAUDE.md", join(".claude", "CLAUDE.md")]
+      : surface === "agents-md"
+        ? ["AGENTS.md"]
+        : [join(".agents", "rules", "uzys-harness.md")];
+  return files.map((f) => join(spec.projectDir, f));
+}
+
+/**
+ * #615 남은 틈 ① — Codex · OpenCode 의 룰은 `AGENTS.md` 안에 있다. 그 파일을 통째로 쟀으니 룰 토큰을
+ * 따로 더하면 두 번 센다 — 룰 토큰을 빼고 "파일 안에 있다"고 말한다. 룰 **수**는 계획 엔트리다: 이번
+ * update 가 외부 변환을 돌렸으면(`--only` 로 빼지 않았으면) 방금 그 수대로 다시 썼고, 안 돌렸으면 옛 판이
+ * 남아 있을 수 있어 "planned" 라고 붙인다.
+ */
+function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCost {
+  if (anchorSurface(spec.cli).scaffold !== "agents-md") return cost;
+  const rendered = spec.updateOnly === undefined || spec.updateOnly.includes("external");
+  return makeResidentCost({
+    ...cost,
+    rules: 0,
+    rulesInline: rendered ? "rendered" : "planned",
+    contextNote: "whole file, incl. your text",
+  });
 }
 
 /**

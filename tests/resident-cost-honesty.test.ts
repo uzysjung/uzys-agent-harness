@@ -235,3 +235,135 @@ describe("사례 4 — update 의 CONTEXT 행은 갱신 뒤 디스크를 잰다"
     expect(update(projectDir, ["hooks"])).toContain(`rules ${files.length} ~${tokens} `);
   });
 });
+
+/** #615 남은 틈 — 토큰 근사는 `estimateTokens` 와 같은 식(chars/4, 올림)이다. */
+const tokensOf = (p: string): number =>
+  existsSync(p) ? Math.ceil(readFileSync(p, "utf8").trim().length / 4) : 0;
+
+const runAt = (projectDir: string, spec: InstallSpec): void => {
+  runInstall({
+    harnessRoot: ROOT,
+    projectDir,
+    spec,
+    mode: "add",
+    runExternal: () => ({ attempted: [], succeeded: 0, skipped: 0, excludedByCli: [] }),
+  });
+};
+
+const updateRow = (projectDir: string, only?: UpdateGroup[]): string => {
+  runUpdateMode(projectDir, join(ROOT, "templates"), ROOT, {}, only);
+  const lines: string[] = [];
+  renderUpdateSummary(
+    (m) => lines.push(m),
+    buildUpdateSpec(projectDir, ["tooling"], only),
+    {} as InstallReport,
+  );
+  return /session-start context cost: [^\n]*/.exec(lines.join("\n"))?.[0] ?? "";
+};
+
+const MEMO = "우리 서비스 메모 ".repeat(800);
+
+const fillAgentsMdContext = (projectDir: string): string => {
+  const path = join(projectDir, "AGENTS.md");
+  const before = readFileSync(path, "utf8");
+  expect(before, "대조군: 설치자 절이 있어야 채울 수 있다").toContain("## Project Context\n");
+  writeFileSync(path, before.replace("## Project Context\n", `## Project Context\n\n${MEMO}\n`));
+  return path;
+};
+
+describe.each(["codex", "opencode"] as const)("남은 틈 ① — %s 단독 update", (cli) => {
+  it("AGENTS.md 를 통째로 디스크에서 재고, 룰은 그 안에 있다고 말한다(두 번 세지 않는다)", () => {
+    const { projectDir, spec } = install("tooling", [cli]);
+    const agentsMd = fillAgentsMdContext(projectDir);
+    const row = updateRow(projectDir);
+    expect(readFileSync(agentsMd, "utf8"), "대조군: update 가 설치자 본문을 남겼다").toContain(
+      MEMO.trim(),
+    );
+    const whole = tokensOf(agentsMd);
+    const rules = residentCostFor(spec).items.rules;
+    expect(rules, "대조군: 룰이 인라인으로 들어가는 설치다").toBeGreaterThan(0);
+    expect(row).toContain(`directives ${rules + 1} ~${whole} `);
+    expect(row).toContain(
+      `[rules ${rules} inside AGENTS.md · AGENTS.md 1 ~${whole} whole file, incl. your text]`,
+    );
+  });
+
+  it("--only 로 AGENTS.md 를 다시 안 쓴 update 는 룰 수가 계획 값이라고 붙인다", () => {
+    const { projectDir } = install("tooling", [cli]);
+    const row = updateRow(projectDir, ["hooks"]);
+    expect(row).toMatch(/rules \d+ inside AGENTS\.md \(planned count\)/);
+    expect(row).toContain(`AGENTS.md 1 ~${tokensOf(join(projectDir, "AGENTS.md"))} whole file`);
+  });
+});
+
+describe("남은 틈 ① — antigravity 단독 update", () => {
+  it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 uzys-harness.md 디스크", () => {
+    const { projectDir } = install("tooling", ["antigravity"]);
+    const rulesDir = join(projectDir, ".agents", "rules");
+    writeFileSync(join(rulesDir, "mine.md"), `# 우리 팀 룰\n\n${MEMO}\n`);
+    const row = updateRow(projectDir);
+    expect(existsSync(join(rulesDir, "mine.md")), "대조군: update 가 설치자 룰을 남겼다").toBe(
+      true,
+    );
+    const files = readdirSync(rulesDir).filter((n) => n.endsWith(".md") && n !== "uzys-harness.md");
+    const tokens = files.reduce((s, n) => s + tokensOf(join(rulesDir, n)), 0);
+    expect(row).toContain(`rules ${files.length} ~${tokens} `);
+    expect(row).toContain(
+      `.agents/rules/uzys-harness.md 1 ~${tokensOf(join(rulesDir, "uzys-harness.md"))}]`,
+    );
+  });
+});
+
+describe("남은 틈 ② — install 헤더는 설치 뒤에도 읽힐 설치자 본문을 잰다", () => {
+  const specAt = (projectDir: string, cli: InstallSpec["cli"]): InstallSpec => ({
+    tracks: ["tooling"],
+    options: DEFAULT_OPTIONS,
+    cli,
+    projectDir,
+  });
+  const fresh = (): string => {
+    const d = mkdtempSync(join(tmpdir(), "resident-honesty-"));
+    dirs.push(d);
+    return d;
+  };
+  const wizardLine = (s: InstallSpec): string =>
+    /session-start context cost: [^\n]*/.exec(formatSummary(s))?.[0] ?? "<없음>";
+  const claudeMdOnDisk = (projectDir: string): number =>
+    tokensOf(join(projectDir, "CLAUDE.md")) + tokensOf(join(projectDir, "CLAUDE-uzys-harness.md"));
+
+  it("기존 루트 CLAUDE.md: 설치 전 헤더·위저드 숫자 = 설치 뒤 디스크(앵커 + 루트)", () => {
+    const projectDir = fresh();
+    writeFileSync(join(projectDir, "CLAUDE.md"), `# 우리 프로젝트\n\n${MEMO}\n`);
+    const s = specAt(projectDir, ["claude"]);
+    const header = headerLine(s);
+    const wizard = wizardLine(s);
+    runAt(projectDir, s);
+    expect(readFileSync(join(projectDir, "CLAUDE.md"), "utf8"), "대조군: 본문 보존").toContain(
+      MEMO.trim(),
+    );
+    expect(header).toContain(`CLAUDE.md 2 ~${claudeMdOnDisk(projectDir)}]`);
+    expect(wizard).toContain(`CLAUDE.md 2 ~${claudeMdOnDisk(projectDir)}]`);
+  });
+
+  it("AGENTS.md 에서 옮겨 심어 태어나는 루트 CLAUDE.md 도 설치 전에 같은 숫자를 낸다", () => {
+    const projectDir = fresh();
+    runAt(projectDir, specAt(projectDir, ["codex"]));
+    fillAgentsMdContext(projectDir);
+    const s = specAt(projectDir, ["claude", "codex"]);
+    const header = headerLine(s);
+    runAt(projectDir, s);
+    expect(readFileSync(join(projectDir, "CLAUDE.md"), "utf8"), "대조군: 옮겨 심었다").toContain(
+      MEMO.trim(),
+    );
+    expect(header).toContain(`CLAUDE.md 2 ~${claudeMdOnDisk(projectDir)}]`);
+  });
+
+  it("codex: 이미 있는 AGENTS.md 의 본문은 못 잰다고 말한다 — 새 프로젝트에는 붙이지 않는다", () => {
+    const projectDir = fresh();
+    const s = specAt(projectDir, ["codex"]);
+    expect(headerLine(s), "대조군: 아직 AGENTS.md 가 없다").not.toContain("not counting");
+    runAt(projectDir, s);
+    expect(headerLine(s)).toContain("planned, not counting text already in AGENTS.md]");
+    expect(wizardLine(s)).toContain("planned, not counting text already in AGENTS.md]");
+  });
+});

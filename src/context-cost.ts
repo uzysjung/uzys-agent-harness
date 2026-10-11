@@ -145,6 +145,13 @@ export interface ResidentCost {
   projectClaudeMd: number;
   /** `projectClaudeMd`/`items.claudeMd` 가 가리키는 **실제 파일 이름** — CLI 따라 `CLAUDE.md` · `AGENTS.md` (#615). */
   contextFile: string;
+  /**
+   * #615 남은 틈 ① — 룰이 `contextFile` 안에 인라인으로 들어 있어 **그 파일 토큰에 이미 포함**됐다
+   * (`rules` 토큰은 0). `"planned"` = 이번 실행이 그 파일을 다시 쓰지 않아 룰 수가 계획 값이다.
+   */
+  rulesInline?: "rendered" | "planned";
+  /** #615 남은 틈 — `contextFile` 숫자가 무엇을 쟀는지(또는 못 쟀는지) 화면에 붙이는 한 구절. */
+  contextNote?: string;
   skillDescriptors: number;
   agentDescriptors: number;
   total: number;
@@ -183,6 +190,8 @@ export function makeResidentCost(base: {
   items: ResidentItemCount;
   perSkillDescriptor?: Readonly<Record<string, number>>;
   contextFile?: string;
+  rulesInline?: "rendered" | "planned";
+  contextNote?: string;
 }): ResidentCost {
   return {
     ...base,
@@ -236,7 +245,7 @@ function descriptorTokens(path: string): number {
  * 앵커(원칙 본문 + 프로젝트 맥락 스캐폴드)가 **어느 파일에 어떤 모양으로** 깔리는가 (#615).
  * 정의의 출처는 `docs/CONTEXT-FILES.md` §3 — 여기서 새로 정하지 않는다.
  */
-function anchorSurface(cli: CliTargets): {
+export function anchorSurface(cli: CliTargets): {
   label: string;
   files: 1 | 2;
   scaffold: "claude" | "agents-md" | "antigravity-rule";
@@ -263,12 +272,13 @@ function anchorSurface(cli: CliTargets): {
  * `contextFiles` 는 같은 탈출구의 CLAUDE.md 행 판이다 (#615 사례 4). update 가 끝난 뒤에는 앵커와
  * 루트 `CLAUDE.md` 가 디스크에 있고, 설치자가 키운 본문까지 매 세션 읽힌다 — 템플릿 상수로 재면
  * 그 본문이 빠진다. 주면 그 파일들(있는 것만)을 재고, 안 주면 지금처럼 템플릿 + 스캐폴드다.
+ * 아직 디스크에 없는 내용(설치 전 헤더가 예측한 루트 `CLAUDE.md`, #615 남은 틈 ②)은 `{ text }` 로 준다.
  */
 export function residentCost(
   entries: ReadonlyArray<{ source: string; target: string; file?: string }>,
   root: string = resolveBundleRoot(),
   cli: CliTargets = ["claude"],
-  contextFiles?: ReadonlyArray<string>,
+  contextFiles?: ReadonlyArray<string | { text: string }>,
 ): ResidentCost {
   const tpl = (source: string): string => join(root, "templates", source);
   const measured = (e: { source: string; file?: string }): string => e.file ?? tpl(e.source);
@@ -330,7 +340,9 @@ export function residentCost(
   // 토큰이 0 인 쪽은 항목도 0 (한쪽만 세면 그게 곧 drift). 앵커는 부재할 수 있고,
   // 스캐폴드는 코드 생성물이라 부재할 수 없다.
   // claude 는 두 파일(앵커 + 루트 CLAUDE.md), 나머지는 한 파일이다.
-  const onDisk = contextFiles?.map(fileTokens).filter((t) => t > 0);
+  const onDisk = contextFiles
+    ?.map((f) => (typeof f === "string" ? fileTokens(f) : estimateTokens(f.text.trim().length)))
+    .filter((t) => t > 0);
   const projectClaudeMd =
     onDisk === undefined ? harnessAnchor + projectScaffold : onDisk.reduce((a, b) => a + b, 0);
   const claudeMdItems =
@@ -419,9 +431,14 @@ export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number)
   // directives 는 우리가 쓴 상시 지시문, triggers 는 스킬·에이전트가 발화하려고 상주시키는
   // descriptor 다. **둘 다 작을수록 좋은 값이 아니다** — 앞은 "불필요한 것이 있나", 뒤는
   // "깎으면 안 불린다"로 판단이 다르다. 갈라 보여 주는 이유가 그것이다.
+  // #615 남은 틈 — 룰이 앵커 파일 안에 인라인이면 토큰은 그 파일 숫자에 들어 있다(두 번 세지 않는다).
+  const rules = r.rulesInline
+    ? `rules ${r.items.rules} inside ${r.contextFile}${r.rulesInline === "planned" ? " (planned count)" : ""}`
+    : `rules ${r.items.rules} ~${r.rules}`;
+  const note = r.contextNote ? ` ${r.contextNote}` : "";
   const parts = [
     `directives ${r.directive.items} ~${r.directive.tokens}`,
-    `[rules ${r.items.rules} ~${r.rules} · ${r.contextFile} ${r.items.claudeMd} ~${r.projectClaudeMd}]`,
+    `[${rules} · ${r.contextFile} ${r.items.claudeMd} ~${r.projectClaudeMd}${note}]`,
     `triggers ${r.firing.items} ~${r.firing.tokens}`,
     `[skills ${r.items.skills} ~${r.skillDescriptors} · agents ${r.items.agents} ~${r.agentDescriptors}]`,
   ].join(" · ");
