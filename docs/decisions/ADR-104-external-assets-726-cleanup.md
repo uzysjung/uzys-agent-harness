@@ -1,8 +1,8 @@
 # ADR-104: 외부 자산 5종 정리 — 삭제 3 · 교체 2, 기존 설치본은 남기고 update 화면이 자산마다 말한다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-11
-- PR: (머지 때 채운다)
+- PR: #745
 - Issue: #726
 - Amends: ADR-063(product-skills — "카탈로그 삭제 기각, opt-in 으로 존치"를 삭제로) · ADR-093(퇴역 규율은 그대로 따르되, update 가 플러그인 퇴역분도 말하게 넓힌다)
 

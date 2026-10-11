@@ -1,8 +1,8 @@
 # ADR-105: uzys 자작 4종을 개발 트랙 기본으로 — ci-scaffold opt-in 계약 개정
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-11
-- PR: (머지 때 채운다)
+- PR: #745
 - Issue: #726
 - Amends: ADR-037 §3ⓐ(ci-scaffold opt-in 전용 → 개발 트랙 기본) · ADR-034 §2 · §4(수단 계층 opt-in · "외부 CLI 의존 pre-check 승격 안 함"을 model-orchestration · external-model-consult 에 한해 뒤집는다)
 
