@@ -67,7 +67,11 @@ export type ExternalAssetMethod =
         | "ui-visual-review"
         // #709 (ADR-101) — 트랙 표(`templates/track-mcp-map.tsv`)의 같은 이름 행을 어느 트랙에서든 고르게 한다.
         //   번들 스킬이 아니다 — `.mcp.json` 렌더(`selectedMcpServers`)가 읽는다.
-        | "railway-mcp-server";
+        | "railway-mcp-server"
+        // #722 · #711 (ADR-106) — 같은 경로의 MCP 서버 행: 웹 트랙 기본 chrome-devtools · 기본 없는 원격 서버 둘.
+        | "chrome-devtools"
+        | "github-mcp"
+        | "vercel";
     };
 
 export type ExternalAssetCondition =
@@ -480,12 +484,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   // #709 (ADR-101) — Railway MCP 서버의 **선택** 경로. 서버 정의는 트랙 표(`templates/track-mcp-map.tsv`)의 같은 이름
   //   행 하나다(key === 행 이름). 그 행의 패턴이 기본 트랙(csr-* · ssr-htmx · full)을 정하고, 이 항목은 그 밖의 트랙
   //   (ssr-nextjs 등)에서 위저드 체크 · `--with` 로 고르게 한다. experimental 이라 조건으로는 미리 체크되지 않는다.
-  //   상류 repo 는 archived — Railway 의 현행 경로(`railway mcp`)로 행 명령을 바꾸는 일은 별도 이슈.
+  //   #712 (ADR-106) — 행이 Railway 공식 원격 서버(`https://mcp.railway.com`, OAuth)로 바뀌었다. 이름 · 키 id 는 그대로라 기록이
+  //   이어져 update 가 같은 키를 갈아 끼운다.
   {
     id: "railway-mcp-server",
-    tier: "experimental", // railwayapp/railway-mcp-server 190★ · archived (월간 trust-tier-drift 가 REPO_OVERRIDE 로 감시)
+    tier: "experimental", // railwayapp/cli 621★ (원격 서버에 공개 저장소가 따로 없다 — 같은 벤더의 CLI 를 감시, REPO_OVERRIDE)
     description:
-      "Railway MCP server (`npx -y @railway/mcp-server`) in `.mcp.json` — already on by default on csr-*, ssr-htmx and full; check it to add it on any other track (e.g. ssr-nextjs). Upstream repo is archived; Railway's current route is `railway mcp` (opt-in)",
+      "Railway's official remote MCP (https://mcp.railway.com, signs in with OAuth on first use) in .mcp.json, Codex and OpenCode — default on csr-* · ssr-htmx · full; check it to add it on any other track",
     category: "backend",
     source: "railwayapp",
     condition: { kind: "opt-in" },
@@ -494,20 +499,60 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     cliSupportOverride: ["claude", "codex", "opencode"],
     method: { kind: "internal", key: "railway-mcp-server" },
   },
+  // #711 (ADR-106) — Vercel 공식 원격 MCP. 트랙 표 행의 패턴은 `-`(기본 트랙 없음) — 어느 트랙에서도 미리 체크하지 않는다
+  //   (사용자 확정 2026-10-11 "opt-in", ssr-nextjs 포함). Antigravity 는 MCP 를 받지 않는다(Vercel 승인 클라이언트에도 없다).
+  {
+    id: "vercel",
+    tier: "vetted", // Vercel MCP 에 공개 저장소가 따로 없다 — 같은 벤더의 vercel/vercel 16k 를 감시(REPO_OVERRIDE)
+    description:
+      "Vercel's official remote MCP (https://mcp.vercel.com, signs in with OAuth on first use) in .mcp.json, Codex and OpenCode. Only if this project deploys to Vercel",
+    category: "backend",
+    source: "vercel",
+    condition: { kind: "opt-in" },
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "vercel" },
+  },
+  // #722 (ADR-106) — GitHub 공식 원격 MCP 의 opt-in 경로. 기본에서 뺀 옛 `github`(@modelcontextprotocol/server-github, 상류
+  //   deprecated)와 **다른 이름**이다 — 같은 이름이면 옛 설치본의 기록된 몫이 선택으로 읽혀 PAT 없는 설치자에게 매 세션 실패하는
+  //   서버가 조용히 깔린다. 인증 = 환경변수 GITHUB_PAT(파일에는 이름만).
+  {
+    id: "github-mcp",
+    tier: "vetted", // github/github-mcp-server 33.5k (REPO_OVERRIDE)
+    description:
+      "GitHub's official remote MCP server (api.githubcopilot.com) in .mcp.json, Codex and OpenCode — needs a GitHub personal access token in GITHUB_PAT in the shell you start the CLI from. Not needed when the agent uses the gh CLI",
+    category: "dev-tools",
+    source: "github",
+    condition: { kind: "opt-in" },
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "github-mcp" },
+  },
+  // #722 (ADR-106) — Chrome DevTools MCP. 트랙 표 행이 웹 트랙(csr-* · ssr-* · full)의 기본이고, 이 항목은 그 밖의 트랙에서
+  //   고르게 한다. Google 사용 통계는 행의 `--no-usage-statistics` 로 끈다.
+  {
+    id: "chrome-devtools",
+    tier: "vetted", // ChromeDevTools/chrome-devtools-mcp 53k (REPO_OVERRIDE)
+    description:
+      "Chrome DevTools MCP — browser automation, console, network and performance tools for the agent. Default on csr-* · ssr-* · full; check it to add it on any other track. Google's usage statistics are turned off (--no-usage-statistics)",
+    category: "understanding",
+    source: "ChromeDevTools",
+    condition: { kind: "opt-in" },
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "chrome-devtools" },
+  },
 
   // === csr-supabase|full CLI ===
   {
     id: "vercel-cli",
-    tier: "vetted", // vercel/vercel 15k
+    tier: "vetted", // vercel/vercel 16k
     description:
-      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel. `vercel mcp` then wires Vercel's official MCP (OAuth) into Claude Code",
+      "Vercel CLI — the real deploy tool as a devDependency (global under --scope global). Only if this project deploys to Vercel. Non-interactive `vercel link`/deploy needs `--scope` when your account has several teams (55.0.0+)",
     category: "backend",
     source: "vercel",
     // 2026-08-02 사용자 결정: 트랙 기본 → opt-in (ADR-063). #709 가 ssr-nextjs 기본으로 바꿨다가 #715 에서 되돌렸다 —
     //   설치자 package.json 에 의존성을 더하고(에이전트는 npx 로 쓸 수 있다) login 없이는 쓸 것이 없으며 핀이 낡는다.
-    //   Next.js 의 Vercel 기본은 공식 MCP(#711)로 채운다.
+    //   Vercel 공식 MCP 도 opt-in 이다(`vercel` 항목, #711 · ADR-106 — 사용자 확정 2026-10-11).
     condition: { kind: "opt-in" },
-    method: { kind: "npm", pkg: "vercel", version: "54.17.3" },
+    method: { kind: "npm", pkg: "vercel", version: "63.1.2" },
   },
   {
     // v26.106.0 (ADR-035, 사용자 승인 B): 배포 CLI 2종 동시 기본의 중복 해소 — npm dl 실측 10.11:1

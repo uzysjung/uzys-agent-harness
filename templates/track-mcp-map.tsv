@@ -2,15 +2,20 @@
 # v26.12.0 — setup-harness.sh의 .mcp.json 조립 case문 외재화
 #
 # 형식 (탭 구분):
-#   <mcp_name>	<track_pattern>	<command>	<args_json>
+#   <mcp_name>	<track_pattern>	<command|url>	<args_json|remote_json>
 #
 # - mcp_name: .mcp.json의 mcpServers[키]
 # - track_pattern: any_track 패턴 (csr-*|full 같은 bash glob). 패턴은 **기본** 트랙이다 — 같은 이름의
-#   카탈로그 `internal` 자산이 있으면 그 서버는 어느 트랙에서든 `--with <id>`/위저드로 고를 수 있다(#709)
-# - command: 실행 명령 (npx 등)
-# - args_json: jq 인자 배열 (JSON 형식)
+#   카탈로그 `internal` 자산이 있으면 그 서버는 어느 트랙에서든 `--with <id>`/위저드로 고를 수 있다(#709).
+#   `-` = 어느 트랙에서도 기본이 아니다 — 같은 이름의 카탈로그 internal 자산으로만 고른다(#722 · ADR-106)
+# - command: 실행 명령 (npx 등). 리터럴 `url` 이면 원격(Streamable HTTP) 행이다
+# - args_json: jq 인자 배열 (JSON 형식). 원격 행은 {"url":"https://…","bearerEnv":"ENV_NAME"?} —
+#   bearerEnv 는 Authorization: Bearer 를 그 환경변수에서 읽게 한다. 값은 어느 파일에도 쓰지 않는다
 #
 # 신규 MCP 추가 시: 이 파일에 1줄 추가만 하면 setup-harness.sh 수정 불필요.
 # 주석 (#) 라인은 무시.
-railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|full	npx	["-y", "@railway/mcp-server"]
+railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|full	url	{"url":"https://mcp.railway.com"}
 supabase	csr-supabase|full	npx	["-y", "@supabase/mcp-server"]
+chrome-devtools	csr-*|ssr-*|full	npx	["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
+vercel	-	url	{"url":"https://mcp.vercel.com"}
+github-mcp	-	url	{"url":"https://api.githubcopilot.com/mcp/","bearerEnv":"GITHUB_PAT"}

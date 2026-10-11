@@ -294,7 +294,7 @@
 │   ├── agents/               reviewer, implementer: subagents the main agent hands work to
 │   ├── hooks/                session start, file protection. Claude Code runs them itself
 │   └── settings.json         registers the hooks (merged with yours)
-├── .mcp.json                 MCP servers: context7 (current library docs), github, and more (merged with yours)
+├── .mcp.json                 MCP servers: context7 (current library docs) and more by track (merged with yours)
 └── .uzys-agent-harness/      the install record and helper scripts</pre>
     <p>All of these files live inside your project. Commit it like any other file, and teammates who clone the repo get the same setup.</p>
     <p>Every track gets four skills for setting and keeping direction: <code>north-star</code> (what the project is for and what it won't do), <code>objective-brief</code> (one task's goal, definition of done, and limits), <code>gh-issue-workflow</code> (decisions kept in GitHub issues, not in chat), and <code>audit-harness-fit</code> (checks whether the setup fits your project). Your track adds stack skills on top (see <a href="#stacks-h">supported stacks</a>). The full file list is in <a href="https://github.com/uzysjung/uzys-agent-harness/blob/main/docs/USAGE.md#what-the-harness-writes">files the harness creates</a>.</p>
@@ -335,11 +335,11 @@
         </tbody>
       </table>
     </div>
-    <p>MCP servers come too. Every track gets <code>context7</code> (current library docs), <code>github</code>, and <code>chrome-devtools</code>. The <code>csr-*</code> and <code>ssr-htmx</code> tracks add <code>railway-mcp-server</code> for deployment, and <code>csr-supabase</code> adds <code>supabase</code>. <code>full</code> gets both. On <code>ssr-nextjs</code>, Railway MCP is not a default; pick it if you want it.</p>
+    <p>MCP servers come too. Every track gets <code>context7</code> (current library docs). Web tracks (<code>csr-*</code>, <code>ssr-*</code>, <code>full</code>) add <code>chrome-devtools</code>, with Google's usage statistics turned off. The <code>csr-*</code> and <code>ssr-htmx</code> tracks add <code>railway-mcp-server</code> (Railway's remote server — you sign in on first use), and <code>csr-supabase</code> adds <code>supabase</code>. <code>full</code> gets both. On <code>ssr-nextjs</code>, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (<code>vercel</code>, <code>github-mcp</code>) are never pre-checked — add them with <code>--with</code>.</p>
     <p>More external assets are never pre-checked but can be added at step 3 or with <code>--with &lt;id&gt;</code>:</p>
     <ul class="plain">
       <li><strong>Frontend and design:</strong> <code>web-design-guidelines</code>, <code>taste-skill</code>, <code>jakubkrehel-skills</code>, <code>preline</code>, <code>scroll-world</code></li>
-      <li><strong>Deployment:</strong> <code>vercel-cli</code>, <code>netlify-cli</code>, <code>supabase-cli</code>, <code>railway-mcp-server</code>, <code>railway-skills</code></li>
+      <li><strong>Deployment:</strong> <code>vercel-cli</code>, <code>netlify-cli</code>, <code>supabase-cli</code>, <code>railway-mcp-server</code>, <code>vercel</code>, <code>railway-skills</code></li>
       <li><strong>Security review:</strong> <code>security-guidance</code>, <code>claude-security</code></li>
       <li><strong>Marketing and finance:</strong> <code>marketingskills</code>, <code>finance-skills</code></li>
       <li><strong>Slides and video:</strong> <code>frontend-slides</code>, <code>marp-slide</code>, <code>hyperframes</code>, <code>remotion</code>, <code>gsap-skills</code>, and more</li>

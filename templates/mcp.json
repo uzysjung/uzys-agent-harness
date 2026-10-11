@@ -1,20 +1,10 @@
 {
-  "_comment": "프로젝트 .mcp.json 템플릿. setup-harness.sh가 Track별로 조건부 항목을 동적 추가한다. 글로벌 ~/.claude/는 절대 건드리지 않음.",
+  "_comment": "프로젝트 .mcp.json 의 모든 트랙 기본 서버. 트랙별 · 고를 수 있는 서버는 track-mcp-map.tsv 가 더한다. 글로벌 ~/.claude/는 절대 건드리지 않음.",
   "mcpServers": {
     "context7": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"]
-    },
-    "github": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"]
-    },
-    "chrome-devtools": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest"]
     }
   }
 }

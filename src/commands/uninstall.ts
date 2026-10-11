@@ -68,6 +68,8 @@ import {
   writeInstallLog,
 } from "../install-log.js";
 import { legacyGitignoreSeed } from "../install-writes.js";
+import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
+import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
 import {
   isOutsideProject,
@@ -1296,17 +1298,18 @@ function remnantFor(
   if (path === ".mcp.json") {
     // 이름만으로는 설치자 서버와 못 가른다 — 값까지 지금 하네스 렌더와 같은 것만 알린다
     return (disk) => {
-      let servers: Record<string, unknown>;
+      let servers: McpJson["mcpServers"];
       try {
         // #709 NOTE-1 — 몫 기록이 없어 무엇을 골랐는지 모른다: 고를 수 있었던 서버 전부와 값으로 대조한다(알리기만)
         servers = renderEverySelectableMcp(harnessRoot, log.spec.tracks.filter(isTrack)).mcpServers;
       } catch {
         return [];
       }
-      const render = new Map(Object.entries(servers).map(([n, v]) => [`mcpServers.${n}`, v]));
-      const present = ADAPTERS["json-keys"].read(disk, render.keys()) ?? new Map<string, string>();
+      // #722 (ADR-106) — 지금 렌더 값 + 하네스가 **전에** 쓴 값(`PRIOR_MCP_SERVERS` — 옛 github · 옛 railway 등)과 대조한다
+      const known = knownServerValues(servers, (v) => toClaudeServer(v));
+      const present = ADAPTERS["json-keys"].read(disk, known.keys()) ?? new Map<string, string>();
       return [...present]
-        .filter(([k, sha]) => sha === jsonSha(render.get(k)))
+        .filter(([k, sha]) => known.get(k)?.has(sha) === true)
         .map(([k]) => k.slice("mcpServers.".length));
     };
   }
@@ -1321,17 +1324,40 @@ function remnantFor(
   if (!clis.includes("opencode")) return () => [];
   // 이름만으로는 설치자 서버와 못 가른다 — 값까지 지금 하네스 렌더와 같은 것만 알린다
   return (disk) => {
-    let render: Map<string, unknown>;
+    let known: Map<string, Set<string>>;
     try {
-      render = renderOpencodeMcp(
-        renderEverySelectableMcp(harnessRoot, log.spec.tracks.filter(isTrack)),
+      known = knownServerValues(
+        renderEverySelectableMcp(harnessRoot, log.spec.tracks.filter(isTrack)).mcpServers,
+        (v) => [...renderOpencodeMcp({ mcpServers: { x: v } }).values()][0],
+        "mcp.",
       );
     } catch {
       return [];
     }
-    const present = ADAPTERS["json-keys"].read(disk, render.keys()) ?? new Map<string, string>();
-    return [...present].filter(([k, sha]) => sha === jsonSha(render.get(k))).map(([k]) => k);
+    const present = ADAPTERS["json-keys"].read(disk, known.keys()) ?? new Map<string, string>();
+    return [...present].filter(([k, sha]) => known.get(k)?.has(sha) === true).map(([k]) => k);
   };
+}
+
+/**
+ * 잔존 안내가 알아보는 하네스 값 — 키 → 값 sha 집합. 지금 렌더(`servers`) ∪ 하네스가 전에 쓴 값(`PRIOR_MCP_SERVERS`). `form` 이
+ * 그 파일의 형식으로 바꾼다(`.mcp.json` = Claude · `opencode.json` = OpenCode). 알리기만 하는 자리라 넓게 대조해도 지우지 않는다.
+ */
+function knownServerValues(
+  servers: McpJson["mcpServers"],
+  form: (v: McpServerConfig) => unknown,
+  prefix = "mcpServers.",
+): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const add = (name: string, v: McpServerConfig): void => {
+    const key = `${prefix}${name}`;
+    const set = out.get(key) ?? new Set<string>();
+    set.add(jsonSha(form(v)));
+    out.set(key, set);
+  };
+  for (const [name, v] of Object.entries(servers)) add(name, v);
+  for (const p of PRIOR_MCP_SERVERS) add(p.name, p.value);
+  return out;
 }
 
 function remnantLine(path: string): (names: ReadonlyArray<string>) => string {

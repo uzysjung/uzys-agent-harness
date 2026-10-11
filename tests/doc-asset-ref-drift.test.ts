@@ -9,6 +9,7 @@ import {
   INTERNAL_BUNDLED_SKILL_IDS,
 } from "../src/external-assets.js";
 import { buildManifest } from "../src/manifest.js";
+import { repoForAsset } from "../src/trust-tier-drift.js";
 import { CLI_BASES, INSTALL_SCOPES, TRACKS } from "../src/types.js";
 
 /**
@@ -101,8 +102,8 @@ const NOT_OUR_ASSET_REPO: ReadonlyMap<string, string> = new Map([
   ["mikeyobrien/ralph-orchestrator", "같은 사유 — 큐레이션 세트 미포함"],
   ["ghuntley/loom", 'proprietary("do not use") — 명시적 제외'],
   // MCP 서버의 upstream. `.mcp.json` 항목이라 카탈로그 자산이 아니고 `tier` 도 없다 — 이름의
-  // SSOT 는 `templates/mcp.json` 의 패키지 인자이지 저장소 경로가 아니다.
-  ["ChromeDevTools/chrome-devtools-mcp", "MCP 서버 upstream — 카탈로그 자산 아님"],
+  // SSOT 는 `templates/mcp.json` 의 패키지 인자이지 저장소 경로가 아니다. (#722 — chrome-devtools 는 카탈로그
+  // 자산이 되어 이 목록에서 빠졌다: 저장소는 `REPO_OVERRIDE` 가 안다 → `repoMatchesAsset`)
   ["modelcontextprotocol/servers", "MCP 서버 upstream — 카탈로그 자산 아님"],
   // 셋째. 앞의 둘과 달리 이건 이전 판본에서 **조용히 통과**했다 — 카탈로그 파일에
   // `@upstash/context7-mcp` 라는 패키지 문자열이 있어 부분 문자열 대조에 걸렸기 때문이다.
@@ -461,6 +462,10 @@ function repoMatchesAsset(token: string): boolean {
   if (owner === "" || name === "") return false;
   const lcOwner = owner.toLowerCase();
   const lcName = name.toLowerCase();
+  // #722 — 카탈로그가 감시 저장소로 **값으로** 아는 것(`repoForAsset` — method 유도 ∪ `REPO_OVERRIDE`). 원격 MCP 처럼
+  //   method 에 저장소가 없는 자산의 정당한 출처 링크(`ChromeDevTools/chrome-devtools-mcp`)가 여기서 맞는다.
+  if (EXTERNAL_ASSETS.some((a) => repoForAsset(a)?.toLowerCase() === token.toLowerCase()))
+    return true;
   for (const a of EXTERNAL_ASSETS) {
     if (a.source.toLowerCase() !== lcOwner) continue;
     if (a.id.toLowerCase() === lcName) return true;

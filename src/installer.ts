@@ -13,7 +13,12 @@ import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
-import { adapterExcluded, renderHarnessMcp, runCliTransforms } from "./cli-transforms.js";
+import {
+  adapterExcluded,
+  renderHarnessMcp,
+  runCliTransforms,
+  trackDefaultMcpNames,
+} from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
 import { writeEnvExample } from "./env-files.js";
@@ -605,8 +610,12 @@ function runInstallStages(
 
   // `.mcp.json` — 하네스 서버만 더한다(템플릿 + 트랙 표, Codex/OpenCode 와 같은 원천 #568). claude 무관.
   // #709 — 트랙 기본 행 ∪ 이번 선택 · 기록된 선택 행. **한 번 렌더해** `.mcp.json` 과 Codex · OpenCode 가 같은 값을 받는다.
-  const harnessMcp = renderHarnessMcp(harnessRoot, { spec, excluded, previousLog });
-  const mcp = writeMcpPortion(writer, harnessMcp, previousLog);
+  // #722 (ADR-106) — 옛 로그면 하네스가 만든 `.mcp.json` 에서 하네스 값 그대로인 고를 수 있는 서버를 선택으로 본다(`projectDir`)
+  const harnessMcp = renderHarnessMcp(harnessRoot, { spec, excluded, previousLog, projectDir });
+  const mcp = writeMcpPortion(writer, harnessMcp, previousLog, {
+    tracks: spec.tracks,
+    names: trackDefaultMcpNames(harnessRoot, spec.tracks),
+  });
 
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in 전용). `.github/` 은 CLI-agnostic 이라
   // claude baseline 조건 밖에서 설치. 기존 워크플로 파일은 절대 덮어쓰지 않는다.
@@ -1277,8 +1286,9 @@ function writeMcpPortion(
   writer: InstallWriter,
   harnessMcp: McpJson,
   previousLog: InstallLog | null,
+  defaults: { tracks: ReadonlyArray<string>; names: ReadonlySet<string> },
 ): string[] {
-  return [...writeMcpShared(writer, harnessMcp, previousLog).harness].sort();
+  return [...writeMcpShared(writer, harnessMcp, previousLog, {}, defaults).harness].sort();
 }
 
 function installedTracksText(tracks: ReadonlyArray<string>): string {

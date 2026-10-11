@@ -71,7 +71,7 @@ function install(cli: CliBase[]): void {
     harnessRoot: HARNESS_ROOT,
     projectDir,
     spec: {
-      tracks: ["tooling"],
+      tracks: ["csr-supabase"], // #722 — 하네스가 opencode.json 에 쓰는 서버가 있는 트랙(옛 github 대신 supabase)
       options: { withCodexTrust: false },
       cli,
       projectDir,
@@ -110,7 +110,7 @@ function firstContact(): void {
   install(["codex", "opencode"]);
   // 전제 — 하네스 몫이 실제로 들어갔다
   expect(read("AGENTS.md")).toContain("<!-- uzys-harness:agents:start -->");
-  expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("github");
+  expect(JSON.parse(read("opencode.json")).mcp).toHaveProperty("supabase");
 }
 
 describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1)", () => {
@@ -123,7 +123,7 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(JSON.parse(read("opencode.json"))).toEqual(INSTALLER_OPENCODE);
     expect(run.lines).toContain("  ✓ AGENTS.md — removed the harness block (yours stays)");
     expect(run.lines.find((l) => l.includes("opencode.json — removed the harness part"))).toContain(
-      "mcp.github",
+      "mcp.supabase",
     );
     expect(run.lines.join("\n")).not.toContain("mcp.context7 ·");
     expect(run.code).toBe(0);
@@ -148,18 +148,18 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     const json = JSON.parse(read("opencode.json")) as {
       mcp: Record<string, { environment?: object }>;
     };
-    const github = json.mcp.github;
-    if (github === undefined) throw new Error("전제가 깨졌다");
-    github.environment = { GITHUB_TOKEN: "mine" };
+    const supabase = json.mcp.supabase;
+    if (supabase === undefined) throw new Error("전제가 깨졌다");
+    supabase.environment = { GITHUB_TOKEN: "mine" };
     put("opencode.json", JSON.stringify(json));
 
     const run = uninstall();
 
     const after = JSON.parse(read("opencode.json")) as { mcp: Record<string, unknown> };
-    expect(after.mcp.github).toMatchObject({ environment: { GITHUB_TOKEN: "mine" } });
+    expect(after.mcp.supabase).toMatchObject({ environment: { GITHUB_TOKEN: "mine" } });
     expect(after.mcp).not.toHaveProperty("chrome-devtools");
     expect(
-      run.lines.some((l) => l.includes("opencode.json — kept mcp.github: changed since install")),
+      run.lines.some((l) => l.includes("opencode.json — kept mcp.supabase: changed since install")),
     ).toBe(true);
   });
 
@@ -182,7 +182,7 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(text).toContain("left  AGENTS.md — the harness block is not on record");
     // 이름이 같아도 값이 하네스 렌더와 다른 설치자 서버(context7)는 하네스 것이라 말하지 않는다
     const oc = run.lines.find((l) => l.includes("left  opencode.json")) ?? "";
-    expect(oc).toContain("mcp.github");
+    expect(oc).toContain("mcp.supabase");
     expect(oc).not.toContain("mcp.context7");
   });
 
@@ -217,9 +217,9 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     const json = JSON.parse(read("opencode.json")) as {
       mcp: Record<string, { environment?: object }>;
     };
-    const github = json.mcp.github;
-    if (github === undefined) throw new Error("전제가 깨졌다");
-    github.environment = { GITHUB_TOKEN: "mine" };
+    const supabase = json.mcp.supabase;
+    if (supabase === undefined) throw new Error("전제가 깨졌다");
+    supabase.environment = { GITHUB_TOKEN: "mine" };
     put("opencode.json", JSON.stringify(json));
 
     uninstall({ cli: "opencode" });
@@ -227,8 +227,8 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     const kept = (readInstallLog(projectDir)?.portions ?? []).filter(
       (p) => p.path === "opencode.json",
     );
-    expect(kept.map((p) => p.key)).toEqual(["mcp.github"]);
-    expect(JSON.parse(read("opencode.json")).mcp.github).toMatchObject({
+    expect(kept.map((p) => p.key)).toEqual(["mcp.supabase"]);
+    expect(JSON.parse(read("opencode.json")).mcp.supabase).toMatchObject({
       environment: { GITHUB_TOKEN: "mine" },
     });
   });

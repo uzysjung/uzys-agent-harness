@@ -20,6 +20,7 @@ import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { gitignoreRender, RETIRED_GITIGNORE_LINES } from "./env-files.js";
+import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { backupFile, copyFile } from "./fs-ops.js";
 import { projectAnchoredRef } from "./hook-ref.js";
 import {
@@ -35,7 +36,8 @@ import {
 } from "./install-log.js";
 import { judge, type Verdict } from "./judge.js";
 import { RETIRED_PATHS } from "./manifest.js";
-import type { McpJson } from "./mcp-merge.js";
+import { type McpJson, toClaudeServer } from "./mcp-merge.js";
+import { PRIOR_MCP_SERVERS, priorMcpValues, retiredMcpNames } from "./mcp-prior.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { excludedIds, type RecordedOptions, recorded } from "./recorded.js";
@@ -89,6 +91,18 @@ export interface SharedWrite {
    * 덧붙일 때 쓴다(`.gitignore` 의 `.uzys-agent-harness/` → 런타임 파일 두 줄, ADR-100).
    */
   retired?: string[];
+  /**
+   * #722 (ADR-106) — 기록 sha 그대로라 새 판으로 갈아 끼운 키(화면용 짧은 이름). 부재 = 없음. 화면은 `.mcp.json` 에서만
+   * `updated: <name> (<까닭>)` 로 말한다 — 갈아 끼운 서버가 화면 어디에도 안 나오면 설치자는 무엇이 바뀌었는지 모른다.
+   */
+  replaced?: string[];
+  /** #722 — 이름 → 화면이 `updated` · `retired` 옆에 붙이는 까닭(`PRIOR_MCP_SERVERS` · 트랙 기본 여부에서). */
+  notes?: Record<string, string>;
+  /**
+   * #711 — 쓴 뒤 파일에 있는 하네스 서버 중 원격(HTTP) 서버. `bearerEnv` 가 있으면 토큰 환경변수, 없으면 첫 사용 때 로그인
+   * (OAuth). 화면 NEXT 가 첫 사용 안내를 이것으로 낸다.
+   */
+  remote?: Array<{ name: string; bearerEnv?: string }>;
 }
 
 export interface WriteLedger {
@@ -357,8 +371,10 @@ export function createInstallWriter(args: {
         ? "kept — the harness part is already in place"
         : "nothing written — yours already has these";
     const retired = names(res.removed.filter((k) => !out.has(k) && !render.has(k)));
+    const replaced = names(res.replaced);
     return result(j.verdict, line, {
       ...(retired.length > 0 ? { retired } : {}),
+      ...(replaced.length > 0 ? { replaced } : {}),
       changed: res.changed,
       harness: names(valueKeys),
       added: names(addedKeys),
@@ -694,8 +710,20 @@ export function legacyMcpSeed(
     (f) => f.path === ".mcp.json" && f.change === "created",
   );
   if (!created) return seed;
-  const present = ADAPTERS["json-keys"].read(text, render.keys()) ?? new Map();
-  for (const key of present.keys()) seed.set(key, jsonSha(render.get(key)));
+  // #722 (ADR-106) — 하네스가 **전에** 쓴 값(`PRIOR_MCP_SERVERS`)도 알아본다. 렌더에 있는 서버: 디스크가 옛 값 그대로면 그
+  // sha 로 적어 새 값으로 갈아 끼운다(렌더 sha 로만 적으면 옛 값이 "설치자가 고친 것" 으로 읽혀 `kept yours` 라고 거짓 보고한다).
+  // 렌더에 없는 서버는 **은퇴한 이름만**, 옛 값 그대로일 때만 적는다 — 그래야 upsert 가 걷는다. 살아 있는 이름은 선택
+  // 근거로만 쓴다(`legacyMcpServers` — 렌더에 들어와 위 경로를 탄다)
+  const retired = retiredMcpNames().map((n) => `mcpServers.${n}`);
+  const candidates = [...render.keys(), ...retired.filter((k) => !render.has(k))];
+  const present = ADAPTERS["json-keys"].read(text, candidates) ?? new Map();
+  for (const [key, disk] of present) {
+    const prior = priorMcpValues(key.slice("mcpServers.".length))
+      .map((v) => jsonSha(toClaudeServer(v)))
+      .find((sha) => sha === disk);
+    if (render.has(key)) seed.set(key, prior ?? jsonSha(render.get(key)));
+    else if (prior !== undefined) seed.set(key, prior);
+  }
   seed.set("mcpServers{}", "legacy");
   return seed;
 }
@@ -741,16 +769,47 @@ export function writeMcpShared(
   mcp: McpJson,
   previousLog: InstallLog | null,
   opts: Pick<SharedOptions, "onlyIfRecorded"> = {},
+  /**
+   * #722 (설계 검증 B3) — 화면용: 이 실행의 트랙과 그 트랙의 **기본 행** 서버 이름(`trackDefaultMcpNames`). 기록으로 남은
+   * 서버를 갈아 끼울 때 "이 트랙의 기본이 아니다 · 빼는 명령" 을 덧붙인다. 생략 = 덧붙이지 않는다.
+   */
+  defaults?: { tracks: ReadonlyArray<string>; names: ReadonlySet<string> },
 ): SharedWrite {
   const servers = mcp.mcpServers;
   const render = new Map<string, unknown>(
-    Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, cfg]),
+    Object.entries(servers).map(([name, cfg]) => [`mcpServers.${name}`, toClaudeServer(cfg)]),
   );
-  return writer.shared(".mcp.json", render, {
+  const res = writer.shared(".mcp.json", render, {
     ...opts,
     legacySeed: (text) => legacyMcpSeed(text, render, previousLog),
     createdNote: "MCP 서버 정의 생성",
   });
+  // 화면에만 쓰는 필드 — writer 가 기록에 넣은 같은 객체에 덧붙인다(기록 · 판정은 위에서 끝났다)
+  const inFile = new Set(res.harness);
+  const replaced = res.replaced ?? [];
+  const notes: Record<string, string> = {};
+  for (const p of PRIOR_MCP_SERVERS) {
+    if (p.retired !== undefined && (res.retired ?? []).includes(p.name)) notes[p.name] = p.retired;
+    if (p.updated !== undefined && replaced.includes(p.name)) notes[p.name] = p.updated;
+  }
+  if (defaults !== undefined) {
+    for (const name of replaced) {
+      const assetId = EXTERNAL_ASSETS.find(
+        (a) => a.method.kind === "internal" && a.method.key === name,
+      )?.id;
+      if (assetId === undefined || defaults.names.has(name)) continue;
+      const why = `not a default on ${defaults.tracks.join(", ")} — kept because your install record has it; drop it: agent-harness install … --without ${assetId}`;
+      notes[name] = notes[name] === undefined ? why : `${notes[name]}; ${why}`;
+    }
+  }
+  const remote = Object.entries(servers).flatMap(([name, cfg]) =>
+    cfg.type === "http" && inFile.has(name)
+      ? [cfg.auth === undefined ? { name } : { name, bearerEnv: cfg.auth.bearerEnv }]
+      : [],
+  );
+  if (Object.keys(notes).length > 0) res.notes = notes;
+  if (remote.length > 0) res.remote = remote;
+  return res;
 }
 
 /**

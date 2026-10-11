@@ -252,32 +252,32 @@ describe("#675 — 훅 스크립트를 지운 뒤 update 1회가 스크립트와
 
 describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install 과 같은 writer 로 쓴다", () => {
   it("손으로 지운 하네스 서버 · 파일째 지운 `.mcp.json` 을 되돌린다 — 설치자 서버는 그대로", () => {
-    install();
+    install(["claude"], { tracks: ["csr-supabase"] }); // #722 — 옛 github 대신 supabase(고를 수 없는 트랙 행)
     const servers = mcpServers();
-    expect(servers).toContain("github"); // 전제
+    expect(servers).toContain("supabase"); // 전제
     const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, unknown> };
-    delete mcp.mcpServers.github;
+    delete mcp.mcpServers.supabase;
     mcp.mcpServers.mine = { command: "node", args: ["mine.js"] };
     put(".mcp.json", JSON.stringify(mcp, null, 2));
 
     const first = update();
     expect(mcpServers()).toEqual([...servers, "mine"].sort());
-    expect(first.screen).toContain("was missing — restored: mcp:github");
+    expect(first.screen).toContain("was missing — restored: mcp:supabase");
 
     rmSync(join(projectDir, ".mcp.json"));
     update();
     expect(mcpServers()).toEqual(servers);
   });
 
-  it("`--without mcp:github` 한 설치본은 update 뒤에도 github 가 없다 (R3 — 빼기는 지킨다)", () => {
-    install(["claude"], { keyExclude: ["mcp:github"] });
-    expect(mcpServers()).not.toContain("github"); // 전제
+  it("`--without mcp:supabase` 한 설치본은 update 뒤에도 supabase 가 없다 (R3 — 빼기는 지킨다)", () => {
+    install(["claude"], { tracks: ["csr-supabase"], keyExclude: ["mcp:supabase"] });
+    expect(mcpServers()).not.toContain("supabase"); // 전제
 
     update();
-    expect(mcpServers()).not.toContain("github");
+    expect(mcpServers()).not.toContain("supabase");
     rmSync(join(projectDir, ".mcp.json"));
     update();
-    expect(mcpServers()).not.toContain("github");
+    expect(mcpServers()).not.toContain("supabase");
     expect(mcpServers().length).toBeGreaterThan(0); // 대조 — 다른 하네스 서버는 돌아왔다
   });
 
@@ -357,13 +357,13 @@ describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install �
 
   it("`--only` 묶음 — settings.json 은 hooks · .mcp.json 은 external · .gitignore 는 rules 가 고를 때만 쓴다", () => {
     put(".gitignore", "node_modules/\n");
-    install();
+    install(["claude"], { tracks: ["csr-supabase"] }); // #722 — 옛 github 대신 supabase(고를 수 없는 트랙 행)
     const full = { wired: wiredScripts(), servers: mcpServers(), gitignore: read(".gitignore") };
     const s = settings();
     delete s.hooks;
     put(".claude/settings.json", JSON.stringify(s, null, 2));
     const mcp = JSON.parse(read(".mcp.json")) as { mcpServers: Record<string, unknown> };
-    delete mcp.mcpServers.github;
+    delete mcp.mcpServers.supabase;
     put(".mcp.json", JSON.stringify(mcp, null, 2));
     put(".gitignore", "node_modules/\n");
     const templates = join(HARNESS_ROOT, "templates");
@@ -371,11 +371,11 @@ describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install �
     runUpdateMode(projectDir, templates, HARNESS_ROOT, {}, ["rules"]);
     expect(read(".gitignore")).toBe(full.gitignore);
     expect(wiredScripts()).toEqual([]);
-    expect(mcpServers()).not.toContain("github");
+    expect(mcpServers()).not.toContain("supabase");
 
     runUpdateMode(projectDir, templates, HARNESS_ROOT, {}, ["hooks"]);
     expect(wiredScripts()).toEqual(full.wired);
-    expect(mcpServers()).not.toContain("github");
+    expect(mcpServers()).not.toContain("supabase");
 
     runUpdateMode(projectDir, templates, HARNESS_ROOT, { refreshSkills: noRefresh }, ["external"]);
     expect(mcpServers()).toEqual(full.servers);

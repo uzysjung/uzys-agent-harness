@@ -276,6 +276,12 @@ export function renderUpdateSummary(
     summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
   );
   if (cost) log(infoRow("CONTEXT", cost));
+  // 설계 검증 B2 — update 가 원격 MCP 서버를 더했거나 갈아 끼웠으면(예: railway 가 원격으로) 첫 사용 안내를 같은 문장으로
+  const remote = report.updateMode?.remoteMcp;
+  const remoteLines = remote === undefined ? [] : remoteMcpNextLines(remote.servers, remote.clis);
+  remoteLines.forEach((line, i) => {
+    log(i === 0 ? infoRow("NEXT", line) : `${" ".repeat(16)} ${line}`);
+  });
   // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
   // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다. "edited" 라고 부르지 않는다: 기록이 없던
   // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
@@ -843,6 +849,9 @@ export function renderFinalSummary(
       `${" ".repeat(16)} ${c.bold("Codex")} also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open ${c.bold("/hooks")} and trust it. The harness does not approve it for you.`,
     );
   }
+  // #711 — 이번 렌더에 원격 MCP 서버가 있으면 첫 사용 로그인 · 토큰 안내
+  const remote = (report.shared ?? []).find((f) => f.path === ".mcp.json")?.remote ?? [];
+  for (const line of remoteMcpNextLines(remote, spec.cli)) log(`${" ".repeat(16)} ${line}`);
   // #551 리뷰 N2 — 첫 접촉 `AGENTS.md`(설치자 파일 + 하네스 블록)에는 스캐폴드를 넣지 않는다. 그 파일에 FILL 이 실제로
   // 없으면 FILL 안내에서 뺀다(안 쓴 것을 쓴 것처럼 알리지 않는다)
   // #636 — 하네스가 **새로 만든** CLAUDE.md 는 FILL 프롬프트를 갖고 태어나므로 그대로 안내한다.
@@ -1662,6 +1671,8 @@ export function sharedFileRow(f: SharedWrite): string | null {
   if (f.verdict === "leave+advise") return `  ${c.yellow(symbol.skip)} left  ${f.path} — ${f.line}`;
   const parts = [f.line];
   if (f.added.length > 0) parts.push(`added: ${f.added.join(", ")}`);
+  // #722 (ADR-106) — `.mcp.json` 은 갈아 끼운 서버 · 걷은 은퇴 서버를 이름과 까닭으로 말한다(update 뒤 무엇이 바뀌었는지)
+  if (f.path === ".mcp.json") parts.push(...mcpChangeParts(f));
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
   if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
   parts.push(...excludedKeyParts(f));
@@ -1671,6 +1682,62 @@ export function sharedFileRow(f: SharedWrite): string | null {
     return `${row}\n${assetRow("success", f.path, GITIGNORE_RECORD_DIR_NOTE, 28)}`;
   }
   return row;
+}
+
+/**
+ * #722 (ADR-106) — `.mcp.json` 에서 이번에 갈아 끼운 서버(`updated: name (까닭)`)와 하네스가 더는 깔지 않아 걷은 서버
+ * (`retired: name — 까닭`). 까닭은 `writeMcpShared` 가 붙인 것(`PRIOR_MCP_SERVERS` · 트랙 기본 여부)이고 없으면 이름만 낸다.
+ */
+function mcpChangeParts(f: SharedWrite): string[] {
+  const why = (name: string): string | undefined => f.notes?.[name];
+  const parts: string[] = [];
+  const replaced = f.replaced ?? [];
+  if (replaced.length > 0) {
+    parts.push(
+      `updated: ${replaced.map((n) => (why(n) === undefined ? n : `${n} (${why(n)})`)).join(", ")}`,
+    );
+  }
+  for (const n of f.retired ?? []) {
+    parts.push(why(n) === undefined ? `retired: ${n}` : `retired: ${n} — ${why(n)}`);
+  }
+  return parts;
+}
+
+/**
+ * #711 · 설계 검증 B2 — 원격(HTTP) MCP 서버의 첫 사용 안내(NEXT 이어지는 줄). install 은 이번 렌더에 원격 서버가 있을 때,
+ * update 는 이번에 더했거나 갈아 끼운 원격 서버가 있을 때 같은 줄을 낸다. 줄은 그 서버를 읽는 CLI 것만 — 문장은 각 CLI 공식
+ * 문서(Claude `claude mcp login` · Codex `codex mcp login` · OpenCode `opencode mcp auth`)를 옮겼다. 토큰 서버(`bearerEnv`)는
+ * 로그인하지 않는다 — 그 환경변수를 CLI 를 띄우는 셸에 둔다.
+ */
+export function remoteMcpNextLines(
+  servers: ReadonlyArray<{ name: string; bearerEnv?: string }>,
+  clis: ReadonlyArray<string>,
+): string[] {
+  const reads = clis.filter((c) => c === "claude" || c === "codex" || c === "opencode");
+  if (servers.length === 0 || reads.length === 0) return [];
+  const oauth = servers.filter((s) => s.bearerEnv === undefined).map((s) => s.name);
+  const lines: string[] = [];
+  const one = oauth[0];
+  if (one !== undefined) {
+    lines.push(`Remote MCP servers sign in on first use — ${oauth.join(" · ")}`);
+    if (reads.includes("claude"))
+      lines.push(
+        `  Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login ${one})`,
+      );
+    if (reads.includes("codex"))
+      lines.push(
+        `  Codex: ${oauth.map((n) => `codex mcp login ${n}`).join(" · ")} (after trusting this folder)`,
+      );
+    if (reads.includes("opencode"))
+      lines.push(`  OpenCode: opens the browser by itself (or: opencode mcp auth ${one})`);
+  }
+  for (const s of servers) {
+    if (s.bearerEnv === undefined) continue;
+    lines.push(
+      `${s.name} needs ${s.bearerEnv} in the shell you start the CLI from — a GitHub personal access token (fine-grained: https://github.com/settings/personal-access-tokens/new). The harness writes only the variable name, never the token`,
+    );
+  }
+  return lines;
 }
 
 /** ADR-100 — 옛 판이 `.gitignore` 에 더하던, 설치 기록 폴더를 통째로 무시하는 줄. */

@@ -59,7 +59,11 @@ const REPO_OVERRIDE: Record<string, string> = {
   "agent-browser": "vercel-labs/agent-browser", // npm
   openspec: "Fission-AI/OpenSpec", // npm (v26.75.0)
   "bmad-method": "bmad-code-org/BMAD-METHOD", // npx-run (v26.75.0)
-  "railway-mcp-server": "railwayapp/railway-mcp-server", // internal — 트랙 표 MCP 행(#709)
+  // internal — 트랙 표 MCP 행(#709 · #722). 원격 서버에 공개 저장소가 따로 없으면 같은 벤더의 공개 저장소를 감시한다(ADR-106)
+  "railway-mcp-server": "railwayapp/cli",
+  "chrome-devtools": "ChromeDevTools/chrome-devtools-mcp",
+  "github-mcp": "github/github-mcp-server",
+  vercel: "vercel/vercel",
 };
 
 /** "https://github.com/owner/repo" 또는 "owner/repo[/...]" → "owner/repo". 실패 시 null. */

@@ -143,8 +143,7 @@ export function renderConfigToml(params: RenderConfigTomlParams): string {
     .replaceAll("{PROJECT_NAME}", params.projectName)
     // #733 — `{PROJECT_DIR}` 는 템플릿에서 늘 기본 문자열(`"…"`) 안에 있다. 경로의 `"` · `\` 를 #685 trust 키와 같은
     // 규칙으로 이스케이프한다(따옴표 쌍은 템플릿 몫이라 벗긴다). 그대로 넣으면 렌더가 TOML 이 아니어서 설치가 멈춘다.
-    .replaceAll("{PROJECT_DIR}", tomlBasicString(params.projectDir).slice(1, -1))
-    .replaceAll("{GITHUB_TOKEN}", "${GITHUB_TOKEN}");
+    .replaceAll("{PROJECT_DIR}", tomlBasicString(params.projectDir).slice(1, -1));
 
   if (!params.mcp) {
     return substituted;
@@ -157,6 +156,14 @@ function renderMcpServers(mcp: McpJson): string {
   // "갱신했다"로 센다. 원천도 이제 `.mcp.json` 이 아니라 템플릿 + 트랙 표다(`renderHarnessMcp`).
   const blocks = Object.entries(mcp.mcpServers).map(([name, cfg]) => {
     const lines = [`[mcp_servers.${quoteIfNeeded(name)}]`];
+    // #711 (ADR-106) — 원격(Streamable HTTP) 서버. 토큰은 환경변수 **이름**만 쓴다(`bearer_token_env_var` — "The actual secret
+    // value must be provided via the environment"). 평문 `bearer_token` 필드는 쓰지 않는다.
+    if (cfg.type === "http") {
+      lines.push(`url = ${jsonString(cfg.url)}`);
+      if (cfg.auth !== undefined)
+        lines.push(`bearer_token_env_var = ${jsonString(cfg.auth.bearerEnv)}`);
+      return lines.join("\n");
+    }
     lines.push(`command = ${jsonString(cfg.command)}`);
     lines.push(`args = ${JSON.stringify(cfg.args)}`);
     if (cfg.env && Object.keys(cfg.env).length > 0) {

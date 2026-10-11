@@ -6,6 +6,7 @@
 - Issue: #715
 - Supersedes: ADR-101 의 결정 2(`vercel-cli` 를 `ssr-nextjs` 에서 미리 체크)만. ADR-101 의 나머지(frontend-design 조건 · railway-mcp-server
   선택 경로 · 렌더 규칙 · 명시한 빼기 · 위저드 체크)는 그대로다. ADR-063 의 `vercel-cli` opt-in 이 다시 현행이다.
+- Amended by: ADR-106 ("Next.js 의 Vercel 기본은 공식 MCP(#711)로 채운다" → Vercel 공식 원격 MCP 도 어느 트랙에서나 opt-in, 사용자 확정 2026-10-11)
 
 ## Context
 

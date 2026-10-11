@@ -1743,8 +1743,8 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
     installAction(
       {
         cli: ["claude"],
-        track: ["tooling"],
-        without: ["mcp:github", "settings:statusLine", "mcp:gitub"],
+        track: ["csr-supabase"],
+        without: ["mcp:supabase", "settings:statusLine", "mcp:supabse"],
         with: ["mcp:context7"],
         projectDir: "/tmp/p",
       },
@@ -1759,15 +1759,15 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
         resolveHarnessRoot: () => HARNESS_ROOT,
       },
     );
-    expect(seen[0]?.keyExclude).toEqual(["mcp:github", "settings:statusLine"]);
+    expect(seen[0]?.keyExclude).toEqual(["mcp:supabase", "settings:statusLine"]);
     expect(seen[0]?.keyExclude).not.toContain("mcp:context7");
     // 리뷰 #693 LOW — 받을 수 있는 키 id(같은 파일의 것)를 보인다
     expect(err).toHaveBeenCalledWith(
       expect.stringContaining(
-        "Unknown key id 'mcp:gitub' (--without). Skipping. Key ids this install writes: mcp:",
+        "Unknown key id 'mcp:supabse' (--without). Skipping. Key ids this install writes: mcp:",
       ),
     );
-    expect(err).toHaveBeenCalledWith(expect.stringContaining("mcp:github"));
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("mcp:supabase"));
     expect(err).not.toHaveBeenCalledWith(expect.stringContaining("railway-skills"));
     expect(err).toHaveBeenCalledTimes(1);
   });
