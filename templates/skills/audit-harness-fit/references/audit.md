@@ -28,15 +28,17 @@ traces limit loading claims while still allowing supported content findings.
 
 Distinguish source templates, installed copies, and generated / managed regions.
 
-Start from the always-applied layer: AGENTS.md / CLAUDE.md, imports, rules, hooks
-and their settings, and the principles they state. That layer runs every session,
-so its findings matter most. Installed skills are tools the user chose; audit them
-at their seams with that layer — descriptions and routing, places where a rule,
-hook, or principle names or depends on a skill, and skill text that contradicts,
-duplicates, or overrides it. Read a skill's body, scripts, or references only when
-such a seam, a finding, or the user's request leads there; do not sweep every
-installed skill body by default, and report uninspected bodies as not inspected.
-The statement ledger covers the always-applied layer and the seams.
+Start from instruction and execution entry points: AGENTS.md / CLAUDE.md, imports,
+rules, hooks and their settings, and the principles they state — accounting for
+conditional loading (scoped rules) and triggers (hook events). Installed skills are
+capabilities the user chose, not automatically authoritative or safe. Inspect their
+connections to those entry points: descriptions, routing, and places where an entry
+point names or depends on a skill. Follow a connection or finding into the relevant
+skill body, scripts, or references; do not scan every installed skill body merely to
+search for hypothetical conflicts. Before modifying or relying on a skill, inspect its
+authority claims and side-effecting execution path. Report uninspected bodies as not
+inspected, never as compliant. The statement ledger is complete for the inspected
+sources and connections only.
 
 Follow a seam into the relevant bodies, scripts, references, and dependents. Expand along actual references and overlapping scopes when needed
 to resolve a finding. Inspect scripts as text; execution needs its own purpose and

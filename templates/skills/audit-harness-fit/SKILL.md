@@ -41,17 +41,18 @@ no-edit request includes report files. Where editing authority is unresolved,
 provide a proposal and continue independent authorized work. README and evals
 are maintainer resources, outside the normal execution path. Ordinary development
 requests stay on their existing workflow. For an audit-and-apply cycle, ask once at
-the start how many audit → apply rounds to run — default 2–3 when the user states
-no preference, because the first apply usually exposes findings the read-only audit
-could not see — then run them without re-asking, and hand the accumulated change to
-the project's normal PR / merge / verification path **once**, not per round.
+the start for the maximum number of audit → apply rounds (2–3 when the user states
+no preference), then run up to that count without re-asking. The count does not
+grant edit or merge authority. Hand the accumulated change to the project's normal
+PR / merge / verification path **once**, not per round.
 
 ## Audit contract
 
 A full audit covers these concerns; a narrower request keeps its stated scope.
-Coverage starts from the always-applied layer — instruction files, rules, hooks, and
-the principles they state. Installed skills are the user's chosen tools: audit them
-where they connect to that layer, not body by body (Audit § Establish coverage).
+Coverage starts from instruction and execution entry points — instruction files,
+rules, hooks, and the principles they state, with their loading conditions and
+triggers. Installed skills are the user's chosen tools: audit them where they
+connect to those entry points, not body by body (Audit § Establish coverage).
 
 
 1. Questions, research, and rechecks: useful triggers, evidence reuse, and stop conditions.
