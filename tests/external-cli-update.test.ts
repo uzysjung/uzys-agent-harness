@@ -263,6 +263,30 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     expect(after).toContain("MY-CONTEXT-LINE");
   });
 
+  // v26.165.0 NOTE-5 — install 의 AGENTS.md 집합에 이번 선택 밖의 기록 CLI(codex)가 들면, 그 파일의 룰은 기록 트랙 ∪ 이번
+  //   트랙으로 렌더한다. 이번 트랙만 넣으면 다음 update 까지 Codex 가 dev 트랙 룰(`## Testing` 등)을 잃는다.
+  it("기록된 codex 의 AGENTS.md 를 다른 트랙의 claude install 이 다시 쓸 때 룰은 누적 트랙이다 (NOTE-5)", () => {
+    install(["codex"]); // tooling — dev 룰(`test-policy`)을 받는다
+    const agents = join(projectDir, "AGENTS.md");
+    expect(readFileSync(agents, "utf8")).toContain("## Testing"); // 대조군
+
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: { ...spec(["claude"]), tracks: ["executive"] },
+      mode: "add",
+      runExternal: null,
+    });
+
+    // 룰은 하네스 절(`## Harness Rules` ~ `## Session Start`) 안에 있어야 한다 — 그 밖에 남은 제목은 옛 판의 잔재다
+    const after = readFileSync(agents, "utf8");
+    const rules = after.slice(
+      after.indexOf("## Harness Rules\n"),
+      after.indexOf("## Session Start\n"),
+    );
+    expect(rules).toContain("## Testing");
+  });
+
   it("AGENTS.md 의 상시 스킬 안내는 update 뒤에도 깔린 스킬만 적는다 (#505 · ADR-085)", () => {
     // `--without` 으로 뺀 상시 스킬 — update 가 목록 전체를 넘기면 안내가 "열어라"고 적는다(실측).
     runInstall({

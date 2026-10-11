@@ -245,6 +245,26 @@ describe("#528 uninstall --cli", () => {
     expect(readInstallLog(projectDir)?.spec.clis).toEqual(["claude", "codex"]);
   });
 
+  // #642 — 남는 집합이 Antigravity 뿐이면 인라인 룰 절이 없다. 옛 판의 룰 제목(`## Git Safety` 등)이 "설치자 절" 로 되살아나면
+  //   Antigravity 가 룰을 두 번(.agents/rules/ + AGENTS.md) 읽고, 그 뒤 update 도 영영 걷지 못한다. 설치자가 끝에 붙인 절은 남는다(#643).
+  it("--cli codex: Antigravity 만 남으면 인라인 룰 제목이 남지 않는다 · 설치자가 끝에 붙인 절은 남는다", () => {
+    install(["claude", "codex", "antigravity"]);
+    writeFileSync(
+      join(projectDir, "AGENTS.md"),
+      `${agents().replace(/\n+$/, "\n")}\n## My Team Conventions\n\n금요일에는 배포하지 않는다.\n`,
+    );
+    expect(agents()).toContain("## Git Safety"); // 대조군 — 인라인 룰이 있었다
+
+    expect(removeCli("codex").code).toBe(0);
+
+    const after = agents();
+    expect(after.split("\n")[0]).toContain("Agent Guide (Antigravity)");
+    for (const ruleTitle of ["## Git Safety", "## Documentation Boundaries", "## Harness Rules"]) {
+      expect(after, ruleTitle).not.toContain(ruleTitle);
+    }
+    expect(after).toContain("## My Team Conventions\n\n금요일에는 배포하지 않는다.");
+  });
+
   // BLOCKER-2 대조군 — FILL 문구를 바꾼 이 릴리즈에서도, 옛 문구로 깐 **안 채운** 파일은 "채웠다" 가 아니다: 마지막
   //   사용자가 나가면 파일째 지운다(스캐폴드만 든 파일을 남기지 않는다).
   it("옛 FILL 문구의 안 채운 AGENTS.md 는 마지막 사용자가 나가면 파일째 지운다 (BLOCKER-2)", () => {

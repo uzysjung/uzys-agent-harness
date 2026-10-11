@@ -30,7 +30,9 @@
    기록된 CLI(ADR-096 D2 — install 도 누적).
 2. **`uninstall --cli <x>` 는 `AGENTS.md` 를 읽는 CLI 가 남으면 그 집합으로 그 자리에서 다시 렌더한다**(update 와 같은 입력 —
    다음 update 가 같은 바이트를 낸다). 빠지는 CLI 의 몫은 절이 아니라 문장 단위로 섞여 있어 strip 으로 표현되지 않는다 — 남는
-   집합으로의 재렌더가 "하네스 몫만 뺀다" 의 가장 단순한 구현이다. 설치자 절은 `mergeAgentsMd` 가 잇는다.
+   집합으로의 재렌더가 "하네스 몫만 뺀다" 의 가장 단순한 구현이다. 설치자 절은 `mergeAgentsMd` 가 잇는다. 옛 판
+   `## Harness Rules` 안의 인라인 룰 제목(h2)은 렌더에서 빠져도 설치자 절(#643 의 "모르는 절")로 되살리지 않는다 — 안 그러면
+   Antigravity 만 남은 집합에서 룰이 `AGENTS.md` 에 영영 남는다.
 3. **Antigravity 의 앵커는 루트 `AGENTS.md` 다.** 옛 앵커 `.agents/rules/uzys-harness.md` 는 더는 만들지 않는다(사용자 결정
    2026-10-11). 기록에 그 파일이 있으면 install · update(`--reinstall` 포함)가 같은 함수로 **한 번** 은퇴시킨다
    (`src/antigravity/retire-anchor.ts`):

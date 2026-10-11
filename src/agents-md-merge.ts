@@ -51,6 +51,8 @@ export const AGENTS_BLOCK = marker(AGENTS_BLOCK_NAME);
 /** 설치자 소유 절 — 이 둘만 디스크 본문을 이어받는다. 템플릿의 절 이름과 같아야 한다. */
 const CONTEXT_SECTION = "Project Context";
 const RULES_SECTION = "Project Rules";
+/** 하네스 소유 절 — 인라인 룰이 사는 자리(그 안의 `## ` 는 룰 제목이다). */
+const HARNESS_RULES_SECTION = "Harness Rules";
 
 /** 하네스 조각을 마커로 감싼다 — 감싸야 다음 렌더가 그 조각만 갈아 끼울 수 있다. */
 export function wrapHarnessBlock(m: HarnessBlockMarker, body: string): string {
@@ -304,16 +306,21 @@ function extraTopLevelSections(
 ): string[][] {
   const out: string[][] = [];
   let current: string[] | null = null;
+  // 하네스 소유 절 `## Harness Rules` 안 — 인라인 룰은 h1 을 h2 로 낮춰 들어오므로(`renderRulesBlock`) 그 절 안의 `## ` 는
+  // 하네스가 쓴 룰 제목이다. 렌더에서 빠지면(Antigravity 만 남은 집합 · 트랙 밖 룰) 사용자 절로 되살리지 않는다(#642).
+  let inHarnessRules = false;
   for (const line of existing.split("\n")) {
     const bare = line.replace(/\r$/, "");
     const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
+      if (names.has(name)) inHarnessRules = name === HARNESS_RULES_SECTION;
       // 렌더·템플릿 어디에도 없는 헤딩만 사용자 절이다. 상시 스킬 안내 헤딩은 선택이 빠지면
       // 렌더에서 사라지지만 하네스가 쓴 것이다(마커 안 절 — refreshBlock 이 되살릴지 지울지
       // 정한다) — 되살리 대상에서 제외한다.
       const harnessAuthored =
         names.has(name) ||
+        inHarnessRules ||
         rendered.includes(bare) ||
         template.includes(bare) ||
         line.trim() === CONTINUOUS_SKILLS_HEADING;

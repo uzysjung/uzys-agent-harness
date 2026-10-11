@@ -279,10 +279,12 @@ if ! head -1 "${AGENTS}" | grep -qF "Agent Guide (Antigravity)"; then
   exit 1
 fi
 # Antigravity 는 룰을 .agents/rules/ 에서 읽는다 — 인라인 룰 절은 없고, 원칙(앵커 블록)은 남는다
-if grep -qF '## Harness Rules' "${AGENTS}"; then
-  echo "FAIL: AGENTS.md 에 '## Harness Rules' 가 남았다 — 룰을 인라인으로 읽는 CLI 가 남지 않았다"
-  exit 1
-fi
+for needle in '## Harness Rules' '## Git Safety'; do
+  if grep -qF "${needle}" "${AGENTS}"; then
+    echo "FAIL: AGENTS.md 에 '${needle}' 가 남았다 — 룰을 인라인으로 읽는 CLI 가 남지 않았다(옛 판 룰 제목이 설치자 절로 되살아났다)"
+    exit 1
+  fi
+done
 if ! grep -qF '<!-- uzys-harness:anchor:start -->' "${AGENTS}"; then
   echo "FAIL: AGENTS.md 에서 하네스 원칙이 사라졌다 — antigravity 가 아직 읽는다"
   exit 1
