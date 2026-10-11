@@ -7,7 +7,9 @@ import {
   isKeyId,
   sharedPathOfKeyId,
 } from "./adapters/index.js";
+import type { AgentsMdTransformReport } from "./agents-md-transform.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
+import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
 import type { AntigravityTransformReport } from "./antigravity/transform.js";
 import { BASELINE_PREFIX, classifyBaselineTarget, isBaselineExcluded } from "./baseline-targets.js";
 import { type CiScaffoldReport, installCiScaffold } from "./ci-scaffold.js";
@@ -214,6 +216,13 @@ export interface BaselineReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
+  /**
+   * #642 (ADR-103) — 루트 `AGENTS.md` 를 깔린 비-Claude CLI 집합으로 렌더한 결과. 옵셔널 = 화면 픽스처는 싣지 않는다
+   * (없음 = 이 실행이 쓰지 않았다).
+   */
+  agentsMd?: AgentsMdTransformReport | null;
+  /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과. 옵셔널 = 없음(기록에 앵커가 없었다). */
+  anchorRetired?: AnchorRetireResult | null;
   updateMode: UpdateModeReport | null;
   mode: InstallMode;
   envFiles: {
@@ -329,6 +338,13 @@ export interface InstallReport {
   opencode: OpencodeTransformReport | null;
   /** v26.66.0 — Present when spec.cli includes "antigravity". */
   antigravity: AntigravityTransformReport | null;
+  /**
+   * #642 (ADR-103) — 루트 `AGENTS.md` 를 깔린 비-Claude CLI 집합으로 렌더한 결과. 옵셔널 = 화면 픽스처는 싣지 않는다
+   * (없음 = 이 실행이 쓰지 않았다).
+   */
+  agentsMd?: AgentsMdTransformReport | null;
+  /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과. 옵셔널 = 없음(기록에 앵커가 없었다). */
+  anchorRetired?: AnchorRetireResult | null;
   /** v26.108.0 (ADR-037) — CI 스캐폴드 결과 (opt-in 미선택 시 null). */
   ciScaffold: CiScaffoldReport | null;
   /** External install report (claude plugin / npm -g / npx skills). null when disabled or empty. */
@@ -631,9 +647,16 @@ function runInstallStages(
     rules: resolveRules(manifestSpec).filter(
       (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded),
     ),
+    // v26.165.0 NOTE-5 — `AGENTS.md` 가 이번 선택 밖의 기록 CLI 몫까지 다시 렌더될 때의 룰: 기록 트랙 ∪ 이번 트랙(update 와 같은 식)
+    cumulativeRules: resolveRules({
+      ...manifestSpec,
+      tracks: [...new Set([...(previousLog?.spec.tracks ?? []).filter(isTrack), ...spec.tracks])],
+    }).filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
     // #568 — Codex · OpenCode 의 MCP 서버는 `.mcp.json` 에 쓴 것과 같은 값이다.
     mcp: harnessMcp,
     previousExternal: previousLog?.externalFiles ?? [],
+    // #642 (ADR-096 D2) — CLI 집합은 누적이다: 기록된 CLI 도 `AGENTS.md` 집합에 들어간다(`--reinstall` 도 누적)
+    recordedClis: previousLog === null ? [] : installedClis(previousLog),
     // ADR-097 결정 2 — 범위 조건 없이 `--with-codex-trust` 하나로 정한다.
     codexTrust: spec.options.withCodexTrust,
     // #551 R2 — `.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md` 의 몫도 `.mcp.json` 과 같은 왕복을
@@ -667,12 +690,19 @@ function runInstallStages(
     outside: reclaimOutside,
   });
   // 치운(또는 이미 없던) 경로는 기록에서 뺀다 — 아래 기록 합성이 앞 기록의 `externalFiles` 를 이어받기 때문이다.
-  const forgotten = new Set(outOfTrack.forget);
+  // ADR-103 — 은퇴한 옛 Antigravity 앵커도 같다. 그 경로가 옛 로그(`spec.clis` 없음)의 antigravity 유도 근거이므로 빼기 **전**
+  // 집합을 `spec.clis` 로 적는다(BLOCKER-1) — `buildInstallLog` 가 그 값을 이어받는다.
+  const anchorRetired = cliTransforms.anchorRetired;
+  const forgotten = new Set([
+    ...outOfTrack.forget,
+    ...(anchorRetired?.forget === true ? [anchorRetired.path] : []),
+  ]);
   const logBase: InstallLog | null =
     previousLog === null || forgotten.size === 0
       ? previousLog
       : {
           ...previousLog,
+          spec: { ...previousLog.spec, clis: [...installedClis(previousLog)] },
           externalFiles: (previousLog.externalFiles ?? []).filter((f) => !forgotten.has(f.path)),
         };
 

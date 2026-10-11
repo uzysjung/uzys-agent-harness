@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { portRules, renderRulesBlock, stripClaudeFrontmatter } from "../src/rules-port.js";
+import {
+  claudePaths,
+  portRules,
+  renderRulesBlock,
+  stripClaudeFrontmatter,
+} from "../src/rules-port.js";
 
 /**
  * 룰을 비 Claude CLI 로 옮길 때의 **변환 규칙**.
@@ -56,6 +61,25 @@ describe("portRules — 배포 룰 전량", () => {
 
   it("원본에 없는 이름은 조용히 건너뛴다 (설치를 세우지 않는다)", () => {
     expect(portRules(ROOT, ["없는-룰", ...ALL]).length).toBe(ALL.length);
+  });
+
+  // #631 — Antigravity 가 같은 뜻의 `trigger: glob` 으로 받으려면 Claude `paths:` 값을 잃지 않아야 한다.
+  it("Claude paths: 값을 읽어 둔다 — 리스트형은 패턴들, 없으면 빈 배열", () => {
+    const byName = new Map(
+      portRules(ROOT, ["cli-development", "git-policy"]).map((r) => [r.name, r]),
+    );
+    expect(byName.get("cli-development")?.paths).toEqual(["**/*.sh", "**/*.bash"]);
+    expect(byName.get("git-policy")?.paths).toEqual([]);
+  });
+});
+
+describe("claudePaths — 받는 두 형태만", () => {
+  it("단일 문자열형", () => {
+    expect(claudePaths('---\npaths: "**/*.py"\n---\n# x\n')).toEqual(["**/*.py"]);
+  });
+  it("frontmatter 가 없거나 paths 가 없으면 빈 배열(= 상시 룰)", () => {
+    expect(claudePaths("# x\n")).toEqual([]);
+    expect(claudePaths("---\nname: x\n---\n# x\n")).toEqual([]);
   });
 });
 

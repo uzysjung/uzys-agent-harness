@@ -52,7 +52,8 @@ describe("CONTEXT-FILES.md ↔ 코드 정합성", () => {
     for (const needle of [
       HARNESS_ANCHOR_FILE,
       "AGENTS.md",
-      ".agents/rules/uzys-harness.md",
+      // ADR-103 — Antigravity 의 앵커도 `AGENTS.md` 다. 룰 자리는 `.agents/rules/`
+      ".agents/rules/",
       ".claude/rules/",
     ]) {
       expect(DOC, `${needle} 가 문서에 없다`).toContain(needle);

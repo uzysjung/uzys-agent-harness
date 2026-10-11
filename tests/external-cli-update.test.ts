@@ -211,14 +211,14 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     const agents = join(projectDir, "AGENTS.md");
     // 시나리오 자기검증 — Codex 판에만 있는 절이 처음부터 있어야 "사라졌다"를 잴 수 있다.
     expect(readFileSync(agents, "utf8")).toContain("## Session Start");
-    expect(readFileSync(agents, "utf8")).toContain("Codex Agent Guide");
+    expect(readFileSync(agents, "utf8")).toContain("Agent Guide (Codex)");
 
     update();
 
     const after = readFileSync(agents, "utf8");
     expect(after).toContain("## Session Start");
-    expect(after).toContain("Codex Agent Guide");
-    expect(after).not.toContain("OpenCode Agent Guide");
+    expect(after).toContain("Agent Guide (Codex)");
+    expect(after).not.toContain("OpenCode `permission`");
     // 판이 안 바뀌었으니 백업도 없다 — 바뀌면 편집분 백업이 1건 생기던 것이 #514 의 화면 증상이다.
     expect(rootBackupsFor("AGENTS.md")).toEqual([]);
   });
@@ -236,8 +236,31 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
     expect(readFileSync(join(projectDir, ".codex/config.toml"), "utf8")).not.toContain(
       "# stale codex",
     );
-    // 두 CLI 가 다 깔린 파일은 뒤에 도는 OpenCode 판(문서화된 동작).
-    expect(readFileSync(join(projectDir, "AGENTS.md"), "utf8")).toContain("OpenCode Agent Guide");
+    // #642 — 두 CLI 가 다 깔린 파일은 집합 판이다(한 판이 이기지 않는다).
+    expect(readFileSync(join(projectDir, "AGENTS.md"), "utf8")).toContain(
+      "Agent Guide (Codex · OpenCode)",
+    );
+  });
+
+  // C-T2 (#642-1) — codex 설치본에 opencode 를 **더하는 install 만으로** Codex 몫이 빠졌다(제목 `OpenCode Agent Guide`,
+  //   `## Session Start` 삭제, 32 KiB 안내 삭제). codex 는 여전히 깔려 있는데 조용히.
+  it("codex 설치본에 install --cli opencode 를 더해도 Codex 몫이 남는다 — 집합 판 (C-T2)", () => {
+    install(["codex"]);
+    const agents = join(projectDir, "AGENTS.md");
+    const filled = readFileSync(agents, "utf8").replace(
+      "## Project Context\n",
+      "## Project Context\n\nMY-CONTEXT-LINE\n",
+    );
+    writeFileSync(agents, filled);
+
+    install(["opencode"]);
+
+    const after = readFileSync(agents, "utf8");
+    expect(after).toContain("## Session Start");
+    expect(after).toContain("project_doc_max_bytes");
+    expect(after).toContain("Agent Guide (Codex · OpenCode)");
+    expect(after).not.toContain("OpenCode Agent Guide");
+    expect(after).toContain("MY-CONTEXT-LINE");
   });
 
   it("AGENTS.md 의 상시 스킬 안내는 update 뒤에도 깔린 스킬만 적는다 (#505 · ADR-085)", () => {

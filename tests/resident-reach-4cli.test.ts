@@ -178,8 +178,8 @@ describe("탐지기 자기검증", () => {
  * `Skills that apply continuously` 를 설치기가 **깔린 스킬만** 골라 프로젝트 맥락에 쓴다. 생성물이라
  * 템플릿 파일을 훑는 reachability 게이트의 모집단 밖이고, 도달은 여기서 실설치로 잰다.
  *
- * 자리: Claude Code 는 루트 `CLAUDE.md` 의 관리 블록(그 파일이 앵커를 import 한다), Codex·OpenCode 는
- * `AGENTS.md`, Antigravity 는 `.agents/rules/`. tooling 트랙은 `user-centered-explanation`
+ * 자리: Claude Code 는 루트 `CLAUDE.md` 의 관리 블록(그 파일이 앵커를 import 한다), Codex·OpenCode·Antigravity 는
+ * `AGENTS.md`(ADR-103 — Antigravity 의 옛 앵커 파일은 은퇴). tooling 트랙은 `user-centered-explanation`
  * (has-dev-track)을 항상 깔므로 안내가 있어야 하고, 상시 스킬을 전부 빼면(음성 대조) 안내 절이
  * 한 CLI 에도 없어야 한다.
  */
@@ -189,7 +189,7 @@ describe("상시 스킬 안내가 4 CLI 전부에 도달한다 — 깔린 것만
     claude: (f) => f === "CLAUDE.md",
     codex: (f) => f === "AGENTS.md",
     opencode: (f) => f === "AGENTS.md",
-    antigravity: (f) => f.startsWith(".agents/rules/"),
+    antigravity: (f) => f === "AGENTS.md",
   };
   const noteReaches = (inst: Installed, cli: CliBase): boolean =>
     [...inst.text].some(([p, body]) => NOTE_DESTINATION[cli](p) && body.includes(NOTE));
@@ -352,10 +352,17 @@ describe("각 CLI 의 배선이 실재하는 파일을 가리킨다", () => {
     }
   });
 
-  it("Antigravity: 룰이 워크스페이스 룰 디렉터리에 앵커와 형제로 놓인다", () => {
-    const files = installed.get("antigravity")?.files ?? [];
-    expect(files).toContain(".agents/rules/uzys-harness.md"); // 앵커
-    expect(files.filter((f) => f.startsWith(".agents/rules/")).length).toBeGreaterThan(3);
+  it("Antigravity: 룰은 trigger frontmatter 를 단 워크스페이스 룰 · 앵커는 루트 AGENTS.md (#631 · ADR-103)", () => {
+    const inst = installed.get("antigravity");
+    const files = inst?.files ?? [];
+    expect(files).toContain("AGENTS.md"); // 앵커 — Antigravity 가 frontmatter 없이 always_on 으로 읽는 자리
+    expect(files).not.toContain(".agents/rules/uzys-harness.md");
+    const rules = files.filter((f) => f.startsWith(".agents/rules/"));
+    expect(rules.length).toBeGreaterThan(3);
+    // frontmatter 가 없는 룰은 Antigravity 가 조용히 버린다 — 하나라도 빠지면 그 룰은 도달하지 않는다
+    for (const f of rules) {
+      expect(inst?.text.get(f) ?? "", f).toMatch(/^---\ntrigger: (always_on|glob)\n/);
+    }
   });
 
   it("Codex: 룰이 AGENTS.md 본문에 들어가고 32 KiB 예산에 여유가 남는다", () => {
@@ -436,16 +443,16 @@ describe("update 를 돌려도 룰이 남는다 / 없던 룰은 새로 받는다
   }
 
   it("이 릴리즈 이전 설치자도 update 로 새 룰을 받는다 (없던 파일을 만든다)", () => {
-    // 구버전 상태 재현: Antigravity 는 앵커만 있고 형제 룰 파일이 없었다. `refreshOnly` 는
-    // 없는 파일을 건너뛰므로, 예외가 없으면 이 사용자는 재설치 전에는 룰을 영영 못 받는다.
+    // 구버전 상태 재현: Antigravity 룰 파일이 없었다. `refreshOnly` 는 없는 파일을 건너뛰므로, 기록된 CLI 라는
+    // 근거(ADR-099 R2)가 없으면 이 사용자는 재설치 전에는 룰을 영영 못 받는다.
     const fresh = install(["antigravity"], "upd-legacy");
     for (const f of fresh.files.filter((p) => p.startsWith(".agents/rules/"))) {
-      if (f !== ".agents/rules/uzys-harness.md") rmSync(join(fresh.dir, f));
+      rmSync(join(fresh.dir, f));
     }
     expect(
       walk(fresh.dir).filter((f) => f.startsWith(".agents/rules/")),
-      "구버전 재현 실패 — 앵커만 남겨야 한다",
-    ).toEqual([".agents/rules/uzys-harness.md"]);
+      "구버전 재현 실패 — 룰 파일이 하나도 없어야 한다",
+    ).toEqual([]);
 
     const after = update(fresh.dir);
     for (const [rule, needle] of RULE_CANARIES) {

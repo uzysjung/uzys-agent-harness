@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { isKeyId, keyId } from "./adapters/index.js";
 import { TOP_REGION } from "./adapters/toml-region.js";
 import { AGENTS_BLOCK_NAME } from "./agents-md-merge.js";
+import { isAgentsMdCli } from "./agents-md-render.js";
 import { listBaselineTargets } from "./baseline-targets.js";
 import { renderHarnessMcp } from "./cli-transforms.js";
 import { TABLES_REGION } from "./codex/config-toml.js";
@@ -76,7 +77,8 @@ export function renderedKeyIds(
   if (clis.includes("opencode")) {
     for (const key of renderOpencodeMcp(mcp).keys()) add("opencode.json", key);
   }
-  if (clis.includes("codex") || clis.includes("opencode")) add("AGENTS.md", AGENTS_BLOCK_NAME);
+  // ADR-103 — Antigravity 도 `AGENTS.md` 를 앵커로 읽는다(첫 접촉 블록 모델의 `--without agents-md:agents` 가 셋 모두에서 받아진다)
+  if (clis.some(isAgentsMdCli)) add("AGENTS.md", AGENTS_BLOCK_NAME);
   return out;
 }
 

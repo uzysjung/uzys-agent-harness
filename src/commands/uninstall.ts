@@ -44,7 +44,10 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { ADAPTERS, keyId } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
 import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
+import { AGENTS_MD_TEMPLATE, agentsMdClis, isAgentsMdCli } from "../agents-md-render.js";
+import { type AgentsMdTransformReport, runAgentsMdTransform } from "../agents-md-transform.js";
 import { type OwnedPath, removableFor } from "../cli-ownership.js";
+import { CLI_DISPLAY_NAMES } from "../cli-targets.js";
 import { renderEverySelectableMcp } from "../cli-transforms.js";
 import { c, status } from "../design.js";
 import { gitignoreRender } from "../env-files.js";
@@ -60,6 +63,7 @@ import {
   installLogPath,
   LEGACY_INSTALL_LOG_DIR,
   legacyInstallLogPath,
+  mergeExternalFiles,
   writeInstallLog,
 } from "../install-log.js";
 import { legacyGitignoreSeed } from "../install-writes.js";
@@ -76,6 +80,7 @@ import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
 import { CLI_BASES, type CliBase, isCliBase, isTrack } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
+import { recordedRenderInputs } from "../update-mode.js";
 import { defaultHarnessRoot } from "./install.js";
 
 export interface UninstallOptions {
@@ -921,6 +926,8 @@ function underAny(path: string, owned: ReadonlyArray<string>): boolean {
 
 /** 회수 대상을 `kind` 별로 나눈 것 — dry-run 과 실행이 같은 목록을 읽는다. */
 interface CliRemovalPlan {
+  /** 빼는 CLI. */
+  target: CliBase;
   dirs: string[];
   /** #551 R1 — 몫만 걷는 CLI 쪽 함께 쓰는 파일(이 CLI 가 마지막 사용자인 것만). */
   shared: string[];
@@ -942,6 +949,7 @@ function planCliRemoval(
     (f) => underAny(f.path, recorded),
   );
   return {
+    target,
     dirs: owned.filter((o) => o.kind === "dir").map((o) => o.path),
     shared: CLI_SHARED.filter((p) => recorded.includes(p)),
     scoped: { ...installLog, externalFiles: scopedFiles },
@@ -997,7 +1005,88 @@ function removeCliDryRunLines(
   if (plan.importBlock && hasRootImport(projectDir)) {
     lines.push("  ○ strip harness @import from CLAUDE.md (본문 보존)");
   }
+  const rerender = agentsMdRerenderSet(plan.target, remaining, installLog, projectDir);
+  if (rerender !== null) {
+    lines.push(`  ○ would re-render AGENTS.md for ${displayNames(rerender)} (your sections kept)`);
+  }
   lines.push(`  ○ install log updated (clis: ${remaining.join(", ")})`, "");
+  return lines;
+}
+
+function displayNames(clis: ReadonlyArray<CliBase>): string {
+  return clis.map((c) => CLI_DISPLAY_NAMES[c]).join(" · ");
+}
+
+/**
+ * C-3 (#642) — `uninstall --cli <x>` 뒤 `AGENTS.md` 를 남는 집합으로 다시 렌더할 집합. 빠지는 CLI 의 몫(제목의 이름 ·
+ * `## Session Start` · 안내 문단)은 절이 아니라 문장 단위로 섞여 있어 strip 으로 표현되지 않는다 — 남는 집합으로 다시
+ * 렌더하는 것이 그 몫만 빼는 가장 단순한 구현이다(설치자 절은 `mergeAgentsMd` 가 잇는다).
+ *
+ * 조건: 빠지는 CLI 가 이 파일을 읽었고 · 남는 집합에 읽는 CLI 가 있고(없으면 회수 경로 — #516) · 파일이 하네스 기록에
+ * 있다(절 모델 `externalFiles` 또는 블록 모델 `portions`) · 파일이 있다. 기록 밖 파일에는 몫을 새로 더하지 않는다.
+ */
+function agentsMdRerenderSet(
+  target: CliBase,
+  remaining: ReadonlyArray<CliBase>,
+  log: InstallLog,
+  projectDir: string,
+): CliBase[] | null {
+  if (!isAgentsMdCli(target)) return null;
+  const set = agentsMdClis(remaining);
+  if (set.length === 0) return null;
+  const recorded =
+    (log.externalFiles ?? []).some((f) => f.path === AGENTS_MD) ||
+    (log.portions ?? []).some((p) => p.path === AGENTS_MD);
+  if (!recorded || !existsSync(join(projectDir, AGENTS_MD))) return null;
+  return set;
+}
+
+/**
+ * C-3 실행 — update 와 **같은 입력**(`recordedRenderInputs` · 기록의 기준선 · 몫)으로 렌더한다. 그래야 다음 update 가 같은
+ * 바이트를 내고 조용하다(독립 검증 NOTE-8 — C-T3 의 "이어서 update 해도 백업 0건" 이 그 대조다).
+ */
+function rerenderAgentsMd(ctx: RemoveCliCtx, set: ReadonlyArray<CliBase>): AgentsMdTransformReport {
+  const { installLog, projectDir, harnessRoot } = ctx;
+  return runAgentsMdTransform({
+    harnessRoot,
+    projectDir,
+    clis: agentsMdClis(set),
+    ...recordedRenderInputs(projectDir, installLog),
+    baseline: new Map((installLog.externalFiles ?? []).map((f) => [f.path, f.sha256])),
+    refreshOnly: true,
+    installedByRecord: true,
+    shared: { portions: installLog.portions ?? [], excluded: [...excludedIds(installLog)] },
+  });
+}
+
+/** 재렌더 결과를 기록에 싣는다 — 안 실으면 다음 update 가 방금 쓴 바이트를 "설치자가 고쳤다" 로 읽어 백업한다(#550 형태). */
+function withRerender(next: InstallLog, r: AgentsMdTransformReport): InstallLog {
+  const out: InstallLog = { ...next };
+  const files = mergeExternalFiles(next.externalFiles, r.ownership.files);
+  if (files.length > 0) out.externalFiles = files;
+  const block = r.agentsMd.shared;
+  if (block !== null && block.portions !== null) {
+    const portions = [
+      ...(next.portions ?? []).filter((p) => p.path !== AGENTS_MD),
+      ...block.portions,
+    ];
+    if (portions.length > 0) out.portions = portions;
+    else delete out.portions;
+  }
+  return out;
+}
+
+function rerenderLines(r: AgentsMdTransformReport): string[] {
+  const names = displayNames(r.clis);
+  const lines =
+    r.agentsMd.model === "block"
+      ? [`  ${status.success(`AGENTS.md — harness block re-rendered for ${names} (yours stays)`)}`]
+      : [`  ${status.success(`AGENTS.md — re-rendered for ${names} (your sections kept)`)}`];
+  for (const b of r.ownership.backedUp) {
+    lines.push(
+      `  ${c.yellow("⊘")} ${b} — you edited a harness section; saved a copy as ${b}.backup-<time>`,
+    );
+  }
   return lines;
 }
 
@@ -1121,9 +1210,14 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
     io.log(`  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`);
   }
   const anchorRemoved = plan.anchor ? removeHarnessAnchor(ctx, io) : false;
+  // C-3 (#642) — `AGENTS.md` 를 읽는 CLI 가 남으면 그 집합으로 그 자리에서 다시 렌더한다(update 까지 옛 판이 남지 않는다)
+  const rerenderSet = agentsMdRerenderSet(target, remaining, installLog, projectDir);
+  const rerender = rerenderSet === null ? null : rerenderAgentsMd(ctx, rerenderSet);
+  if (rerender !== null) for (const line of rerenderLines(rerender)) io.log(line);
 
   const recovered = new Set([...external.removed, ...external.stripped]);
-  const next = settleCliLog(ctx, target, remaining, recovered, anchorRemoved, plan.dirs, shared);
+  const settled = settleCliLog(ctx, target, remaining, recovered, anchorRemoved, plan.dirs, shared);
+  const next = rerender === null ? settled : withRerender(settled, rerender);
   try {
     io.writeLog(projectDir, next);
     io.log(`  ${status.success(`install log updated (clis: ${remaining.join(", ")})`)}`);
@@ -1215,7 +1309,7 @@ function remnantFor(
     };
   }
   if (path === AGENTS_MD) {
-    if (!clis.includes("codex") && !clis.includes("opencode")) return () => [];
+    if (!clis.some(isAgentsMdCli)) return () => [];
     // 블록 마커는 하네스만 쓴다 — 있으면 하네스 블록이다
     return (disk) =>
       ADAPTERS["marker-md"].read(disk, [AGENTS_BLOCK_NAME])?.has(AGENTS_BLOCK_NAME)
@@ -1562,17 +1656,14 @@ interface ExternalRemoval {
 const AGENTS_MD = "AGENTS.md";
 
 /**
- * `AGENTS.md` 를 렌더한 템플릿 — 절 경계의 SSOT(ADR-095 D3). 두 CLI 가 같은 파일을 쓰고
- * opencode transform 이 뒤에 돌아 그 판이 남으므로 opencode 가 깔려 있으면 그 템플릿이다.
- * 두 템플릿은 설치자 소유 절 이름(`## Project Context` · `## Project Rules`)이 같고 codex 판의
- * 절 이름이 opencode 판을 포함하므로, 로그와 디스크의 판이 어긋나도(#514 이전 update 를 거친
- * codex 단독 설치본) 경계 판정은 같다 — 독립 리뷰 N2 실측.
+ * `AGENTS.md` 를 렌더한 템플릿 — 절 경계의 SSOT(ADR-095 D3). 템플릿은 하나다(#642 · ADR-103) — 옛 CLI 판 두 템플릿의
+ * 절 이름은 모두 이 템플릿의 절 이름에 들어 있으므로 옛 판으로 쓴 파일도 경계 판정이 같다. 기록의
+ * `templates.opencodeDir` 는 더는 읽지 않는다(ADR-097 Consequences 의 남은 자리).
  * 못 읽으면 `null` — 그때는 경계를 판정할 수 없으니 파일을 남긴다(지우는 쪽으로 넘어가지 않는다).
  */
-function readAgentsMdTemplate(harnessRoot: string, log: InstallLog): string | null {
-  const flavor = log.templates.opencodeDir ? "opencode" : "codex";
+function readAgentsMdTemplate(harnessRoot: string): string | null {
   try {
-    return readFileSync(join(harnessRoot, "templates", flavor, "AGENTS.md.template"), "utf8");
+    return readFileSync(join(harnessRoot, AGENTS_MD_TEMPLATE), "utf8");
   } catch {
     return null;
   }
@@ -1701,9 +1792,8 @@ function neutralizeScaffoldBanner(text: string): string {
 function agentsMdRemainder(
   current: string,
   harnessRoot: string,
-  log: InstallLog,
 ): { ok: true; remainder: string | null } | { ok: false } {
-  const template = readAgentsMdTemplate(harnessRoot, log);
+  const template = readAgentsMdTemplate(harnessRoot);
   if (template === null) return { ok: false };
   return { ok: true, remainder: stripHarnessFromAgentsMd({ existing: current, template }) };
 }
@@ -1782,7 +1872,7 @@ function removeExternalFiles(
       continue;
     }
     if (path === AGENTS_MD) {
-      const verdict = agentsMdRemainder(current, harnessRoot, log);
+      const verdict = agentsMdRemainder(current, harnessRoot);
       if (!verdict.ok) {
         unjudged.push(path);
         continue;
@@ -1965,7 +2055,7 @@ function previewExternalLines(
       continue;
     }
     if (path === AGENTS_MD) {
-      const verdict = agentsMdRemainder(current, harnessRoot, installLog);
+      const verdict = agentsMdRemainder(current, harnessRoot);
       if (!verdict.ok) {
         lines.push(`  ○ keep ${path} (harness sections could not be separated — preserved)`);
         continue;

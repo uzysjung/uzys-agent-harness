@@ -20,8 +20,9 @@
 
 import {
   CONTINUOUS_SKILLS_HEADING,
+  continuousNoteEnd,
+  isUnfilledScaffold,
   renderContinuousSkillsNote,
-  renderFillScaffold,
 } from "./project-claude-merge.js";
 
 export interface HarnessBlockMarker {
@@ -170,25 +171,10 @@ function refreshBlock(
     return fresh === null ? [...kept, ""] : [...kept, "", ...fresh, ""];
   }
   const head = trimTrailingBlanks(existing.slice(0, legacyAt));
-  const tail = existing.slice(legacyNoteEnd(existing, legacyAt));
+  const tail = existing.slice(continuousNoteEnd(existing, legacyAt));
   while (tail.length > 0 && (tail[0] ?? "").trim() === "") tail.shift();
   const body = fresh === null ? [...head] : [...head, "", ...fresh];
   return tail.length > 0 ? [...body, "", ...tail] : [...body, ""];
-}
-
-/**
- * 마커 없는 옛 안내 조각(ADR-085)이 끝나는 줄 — 헤딩 다음부터 빈 줄 · 소개 문장 · `- \`id\` — …`
- * 항목만 조각으로 친다. 그 밖의 첫 줄이 설치자 텍스트의 시작이다.
- */
-function legacyNoteEnd(lines: ReadonlyArray<string>, headingAt: number): number {
-  let i = headingAt + 1;
-  while (i < lines.length) {
-    const l = (lines[i] ?? "").replace(/\r$/, "").trim();
-    const isNote = l === "" || l.startsWith("- `") || l.startsWith("These installed skills apply");
-    if (!isNote) break;
-    i++;
-  }
-  return i;
 }
 
 /** 앵커 제목을 못 읽었을 때 — `templates/CLAUDE.md` 의 첫 줄과 같은 말. */
@@ -249,6 +235,13 @@ export interface MergeAgentsMdParams {
   existing: string | null;
   /** 절 이름의 SSOT. 렌더에 쓴 그 템플릿을 그대로 넘긴다. */
   template: string;
+  /**
+   * v26.165.0 (ADR-103 · 독립 검증 BLOCKER-3) — 디스크의 `## Project Context` 가 **손대지 않은 스캐폴드**
+   * (`isUnfilledScaffold`)면 이어받지 않고 렌더의 절(= 호출부가 넣은 씨)로 바꾼다. 옛 Antigravity 앵커에 채운 글을
+   * 이미 있는 `AGENTS.md` 로 한 번 옮겨 심는 자리다. 채워져 있으면 그대로 이어받는다(두 문장을 합치지 않는다).
+   * 쓰기는 이 결과 한 번 — 기록 sha 가 최종 바이트라 다음 update 가 "고쳤다" 로 읽지 않는다.
+   */
+  replaceUnfilledContext?: boolean;
 }
 
 /**
@@ -263,7 +256,11 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
 
   const contextNow = sectionBody(existing, names, CONTEXT_SECTION);
   const contextNew = sectionBody(rendered, names, CONTEXT_SECTION);
-  if (contextNow !== null && contextNew !== null) {
+  const seedOverUnfilled =
+    params.replaceUnfilledContext === true &&
+    contextNow !== null &&
+    isUnfilledScaffold(installerLines(contextNow, SKILLS_BLOCK));
+  if (contextNow !== null && contextNew !== null && !seedOverUnfilled) {
     bodies.set(
       CONTEXT_SECTION,
       refreshBlock(contextNow, contextNew, SKILLS_BLOCK, CONTINUOUS_SKILLS_HEADING),
@@ -399,8 +396,9 @@ export function stripHarnessFromAgentsMd(params: StripAgentsMdParams): string | 
   const names = sectionNames(template);
   const context = installerLines(sectionBody(existing, names, CONTEXT_SECTION), SKILLS_BLOCK);
   const rules = installerLines(sectionBody(existing, names, RULES_SECTION), ANCHOR_BLOCK);
-  const scaffold = compact(renderFillScaffold("agents-md").split("\n"));
-  const contextFilled = compact(context).join("\n") !== scaffold.join("\n");
+  // BLOCKER-2 — 하네스가 쓴 줄(배너 · FILL 주석 · 상시 스킬 안내)을 뗀 뒤 판정한다. FILL 문구가 바뀐 릴리즈에서
+  // 옛 판의 안 채운 파일을 "채웠다" 로 읽으면 스캐폴드만 든 파일이 남는다.
+  const contextFilled = !isUnfilledScaffold(context);
   const rulesFilled = compact(rules).length > 0;
   if (!contextFilled && !rulesFilled) return null;
 

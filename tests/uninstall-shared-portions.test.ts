@@ -186,15 +186,23 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     expect(oc).not.toContain("mcp.context7");
   });
 
-  it("--cli opencode 는 opencode.json 만 걷는다 — codex 가 아직 쓰는 AGENTS.md 는 남기고 그 몫 기록도 이어간다", () => {
+  it("--cli opencode 는 opencode.json 을 걷고 · codex 가 아직 쓰는 AGENTS.md 블록은 codex 판으로 다시 렌더한다 (C-T5 · #642)", () => {
     firstContact();
     const agents = read("AGENTS.md");
+    // 대조군 — 두 CLI 가 깔린 판의 블록에는 OpenCode 의 1차 방어 줄이 있다
+    expect(agents).toContain("OpenCode `permission`");
 
     const run = uninstall({ cli: "opencode" });
 
     expect(run.code).toBe(0);
     expect(JSON.parse(read("opencode.json"))).toEqual(INSTALLER_OPENCODE);
-    expect(read("AGENTS.md")).toBe(agents);
+    const after = read("AGENTS.md");
+    // 설치자 본문은 바이트 그대로 · 블록은 하나 · 블록은 남는 집합(codex) 판이다
+    expect(after.startsWith(INSTALLER_AGENTS)).toBe(true);
+    expect(after.match(/<!-- uzys-harness:agents:start -->/g)).toHaveLength(1);
+    expect(after).toContain("## Session Start");
+    expect(after).not.toContain("OpenCode `permission`");
+    expect(run.lines.join("\n")).toContain("AGENTS.md — harness block re-rendered for Codex");
     const portions = readInstallLog(projectDir)?.portions ?? [];
     expect(portions.some((p) => p.path === "opencode.json")).toBe(false);
     expect(portions.some((p) => p.path === "AGENTS.md" && p.key === "agents")).toBe(true);

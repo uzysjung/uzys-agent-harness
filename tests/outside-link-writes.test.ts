@@ -1,7 +1,6 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import {
   chmodSync,
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -124,7 +123,10 @@ describe("#678 링크 너머가 프로젝트 밖이면 install · update 가 쓰
     expect(backupsIn(outDir)).toEqual([]);
     expect(report.outsideLinks?.map((o) => o.path)).toContain(".agents/rules/git-policy.md");
     // 같은 폴더의 다른 룰은 프로젝트 안이라 평소대로 깔린다 — 설치 전체를 건너뛰는 회귀를 문다
-    expect(existsSync(join(projectDir, ".agents/rules/uzys-harness.md"))).toBe(true);
+    const others = readdirSync(join(projectDir, ".agents/rules")).filter(
+      (f) => f !== "git-policy.md",
+    );
+    expect(others.length).toBeGreaterThan(0);
     expect(screen).toContain(".agents/rules/git-policy.md — left as is");
     expect(screen).toContain(outFile);
   });

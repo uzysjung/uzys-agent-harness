@@ -20,6 +20,34 @@ import { join } from "node:path";
 export interface PortedRule {
   name: string;
   body: string;
+  /**
+   * Claude `paths:` 의 패턴(없으면 빈 배열) — Antigravity 가 같은 뜻의 `trigger: glob` + `globs:` 로 받는다(#631).
+   * Codex · OpenCode 는 인라인이라 쓰지 않는다.
+   */
+  paths: string[];
+}
+
+/**
+ * Claude frontmatter 의 `paths:` 값 — 리스트(`- "<glob>"`)와 단일 문자열 두 형태만 받는다(배포 룰이 쓰는 형태).
+ * YAML 파서를 들이지 않는다: 그 두 형태 밖이면 빈 배열(= 상시 룰) — 틀리는 방향이 "더 자주 읽힌다" 라 안전하다.
+ */
+export function claudePaths(source: string): string[] {
+  if (!source.startsWith("---\n")) return [];
+  const end = source.indexOf("\n---", 4);
+  if (end === -1) return [];
+  const lines = source.slice(4, end).split("\n");
+  const unquote = (v: string): string => v.trim().replace(/^(["'])(.*)\1$/, "$2");
+  const at = lines.findIndex((l) => /^paths:/.test(l));
+  if (at === -1) return [];
+  const inline = (lines[at] ?? "").slice("paths:".length).trim();
+  if (inline !== "") return [unquote(inline)].filter((p) => p !== "");
+  const out: string[] = [];
+  for (const l of lines.slice(at + 1)) {
+    const m = /^\s+-\s+(.+)$/.exec(l);
+    if (m === null) break;
+    out.push(unquote(m[1] ?? ""));
+  }
+  return out.filter((p) => p !== "");
 }
 
 /**
@@ -27,9 +55,8 @@ export interface PortedRule {
  *
  * `paths:` 는 Claude Code 의 조건부 로드 키다(`cli-development` 이 유일한 사용처). 다른 CLI 는
  * 그 키를 모르므로 본문 맨 앞에 남으면 **그냥 이상한 텍스트**가 되고, Codex 처럼 AGENTS.md
- * 한복판에 끼워 넣는 경우엔 문서를 깨뜨린다. 벗겨서 상시 룰로 보낸다 — 그 대가로 세 CLI 에서
- * 그 룰이 항상 상주하지만, 문서에 확인되지 않은 활성 문법을 추측해 쓰는 것보다는 낫다.
- * (Antigravity 는 glob 활성 모드가 있다고 문서가 말하지만 frontmatter 문법을 공개하지 않는다.)
+ * 한복판에 끼워 넣는 경우엔 문서를 깨뜨린다. 벗겨서 Codex · OpenCode 에는 상시 룰로 보낸다.
+ * Antigravity 는 같은 뜻을 자기 frontmatter(`trigger: glob`)로 받는다 — 값은 `claudePaths` 가 읽어 둔다(#631).
  */
 export function stripClaudeFrontmatter(source: string): string {
   if (!source.startsWith("---\n")) return source.trim();
@@ -47,7 +74,8 @@ export function portRules(harnessRoot: string, ruleNames: ReadonlyArray<string>)
   for (const name of ruleNames) {
     const src = join(harnessRoot, "templates/rules", `${name}.md`);
     if (!existsSync(src)) continue;
-    ported.push({ name, body: stripClaudeFrontmatter(readFileSync(src, "utf8")) });
+    const source = readFileSync(src, "utf8");
+    ported.push({ name, body: stripClaudeFrontmatter(source), paths: claudePaths(source) });
   }
   return ported;
 }

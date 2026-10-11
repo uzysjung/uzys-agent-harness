@@ -26,6 +26,17 @@ export const CLI_BASE_SORT_ORDER: Record<CliBase, number> = {
   antigravity: 3,
 };
 
+/**
+ * CLI 표시명 SSOT — 설치 화면 요약(`CLI` 행)과 `AGENTS.md` 제목(`{CLI_NAMES}`)이 같은 이름을 쓴다.
+ * 사본을 두면 한쪽만 바뀐다.
+ */
+export const CLI_DISPLAY_NAMES: Record<CliBase, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  opencode: "OpenCode",
+  antigravity: "Antigravity",
+};
+
 export interface ParseCliTargetsResult {
   ok: boolean;
   targets: CliTargets;

@@ -3,9 +3,9 @@
  */
 import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { renameSlashes } from "../agents-md-render.js";
 import { listFilesRecursive } from "../fs-ops.js";
 import type { OwnedWriter } from "../owned-write.js";
-import { renameSlashes } from "./agents-md.js";
 
 /**
  * v26.87.0 — render a bundled, already-complete SKILL.md (dev-method skills) for a

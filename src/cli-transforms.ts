@@ -11,6 +11,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { keyId } from "./adapters/index.js";
+import { agentsMdClis } from "./agents-md-render.js";
+import {
+  type AgentsMdTransformReport,
+  LEGACY_ANTIGRAVITY_ANCHOR,
+  runAgentsMdTransform,
+} from "./agents-md-transform.js";
+import {
+  type AnchorRetireResult,
+  readLegacyAntigravityContext,
+  retireAntigravityAnchor,
+} from "./antigravity/retire-anchor.js";
 import {
   type AntigravityTransformReport,
   runAntigravityTransform,
@@ -29,7 +40,7 @@ import {
   type TrackMcpRow,
 } from "./mcp-merge.js";
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
-import { mergeOutside, type OutsideLink } from "./outside-project.js";
+import { createOutsideGuard, mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
 import { anyTrack } from "./track-match.js";
@@ -41,6 +52,16 @@ export interface CliTransformResults {
   codexOptIn: CodexOptInReport | null;
   opencode: OpencodeTransformReport | null;
   antigravity: AntigravityTransformReport | null;
+  /**
+   * #642 (ADR-103) — 루트 `AGENTS.md` 를 깔린 비-Claude CLI 집합으로 렌더한 결과. 집합이 비면(claude 단독) `null`.
+   * codex · opencode 변환은 이 파일을 더는 쓰지 않는다 — 화면은 이것 하나를 읽는다.
+   */
+  agentsMd: AgentsMdTransformReport | null;
+  /**
+   * ADR-103 — 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)를 은퇴시켰으면 그 결과. 기록에 앵커가 없으면 `null`.
+   * `forget` 이면 호출부가 같은 기록 쓰기에서 `externalFiles` 에서 빼고 `spec.clis` 를 적는다(BLOCKER-1).
+   */
+  anchorRetired: AnchorRetireResult | null;
   /** v26.133.0 (ADR-048) — 세 transform 이 쓴 산출물의 기준선 (install log `externalFiles`). */
   externalFiles: InstallLogSkillFile[];
   /** v26.133.0 (ADR-048) — 사용자 편집분이라 만든 백업 파일 경로. 설치 화면에 노출한다. */
@@ -86,6 +107,13 @@ export interface CliTransformParams {
    * 형태다 — 무엇을 깔지는 installer 가 정하고, 어디에 놓을지는 각 transform 이 정한다.
    */
   rules: ReadonlyArray<string>;
+  /**
+   * v26.165.0 독립 검증 NOTE-5 — 기록 트랙 ∪ 이번 트랙의 룰(`excluded` 제외). `AGENTS.md` 집합이 이번 `cli` 밖의 기록
+   * CLI 를 포함하면(예: `install --cli claude --track data` 가 기록된 codex 의 `AGENTS.md` 를 다시 렌더) 그 파일의
+   * `## Harness Rules` 는 이것으로 렌더한다 — 이번 트랙만 넣으면 다음 update 까지 그 CLI 가 룰을 잃는다.
+   * 생략 = `rules` 그대로(update 는 이미 누적 트랙으로 `rules` 를 만든다).
+   */
+  cumulativeRules?: ReadonlyArray<string>;
   /**
    * #568 — 이 실행의 하네스 MCP 서버(`renderHarnessMcp`). Codex · OpenCode 가 Claude `.mcp.json` 과 **같은 값**을 받는다 —
    * 호출부가 한 번 렌더해 `.mcp.json` 쓰기와 여기에 함께 넘긴다(#709: 트랙 + 선택, 각자 렌더하면 선택이 갈릴 자리가 생긴다).
@@ -236,6 +264,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     journal,
   } = params;
   const journalParam = journal === undefined ? {} : { journal };
+  // ADR-103 · BLOCKER-3 — 옛 Antigravity 앵커에 채운 글은 **변환 전에** 읽어 `AGENTS.md` 쓰기에 씨로 넘긴다(쓰기 한 번 =
+  // 기록 sha 가 최종 바이트). 기록에 앵커가 없으면 `null` — 디스크에만 있는 같은 이름의 파일은 설치자 것이다.
+  const legacyContext = readLegacyAntigravityContext(projectDir, previousExternal);
+  const outside = createOutsideGuard(projectDir);
 
   // v26.133.0 (ADR-048) — 기준선을 transform 사이로 **이어준다**. codex 와 opencode 는 같은
   // `AGENTS.md` 를, codex 와 antigravity 는 같은 `.agents/skills/<id>/SKILL.md` 를 쓴다.
@@ -287,19 +319,14 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       harnessRoot,
       projectDir,
       selectedInternalSkills,
-      rules,
       mcp,
       baseline,
       refreshOnly,
       shared,
-      // #550 — 같은 `AGENTS.md` 를 한 실행에서 쓰는 쪽은 하나다. opencode 가 뒤에서 자기 템플릿으로
-      // 쓰면 codex 판은 어차피 같은 실행 안에서 덮였고(최종 파일 = opencode 판), 매 실행 codex 가
-      // opencode 판을 자기 판으로 뒤집는 한 번의 쓰기가 설치자 편집분을 백업으로 쌓았다.
-      writeAgentsMd: !cli.includes("opencode"),
       ...journalParam,
     });
     absorb(codex);
-    absorbShared(codex, [codex.agentsMd?.shared, codex.configToml]);
+    absorbShared(codex, [codex.configToml]);
     // ADR-097 결정 2 — 범위와 무관하게 `--with-codex-trust` 를 준 경우에만 홈 파일에 한 줄을 더한다.
     // 안 줬으면 Codex 가 첫 실행에서 직접 묻는다("Trust and continue") — 설치 화면 NEXT 가 그걸 안내한다.
     if (codexTrust) {
@@ -315,7 +342,6 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       harnessRoot,
       projectDir,
       selectedInternalSkills,
-      rules,
       mcp,
       baseline,
       refreshOnly,
@@ -323,11 +349,11 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       ...journalParam,
     });
     absorb(opencode);
-    absorbShared(opencode, [opencode.agentsMd?.shared, opencode.opencodeJson]);
+    absorbShared(opencode, [opencode.opencodeJson]);
     journal?.done("opencode");
   }
 
-  // v26.66.0 — Antigravity transform: `.agents/rules/uzys-harness.md` + dev-method skills.
+  // v26.66.0 — Antigravity transform: `.agents/rules/<룰>.md`(frontmatter, #631) + dev-method skills.
   let antigravity: AntigravityTransformReport | null = null;
   if (cli.includes("antigravity")) {
     antigravity = runAntigravityTransform({
@@ -344,11 +370,52 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     journal?.done("antigravity");
   }
 
+  // #642 (ADR-103) — 루트 `AGENTS.md` 는 세 변환 **뒤에** 한 번, 이 실행의 집합으로 쓴다. 집합 = 이번 선택 ∪ 기록된 CLI
+  // (ADR-096 D2 — CLI 집합은 누적이고 `--reinstall` 도 누적). 한 판이 이기던 구조(#550 의 "쓰는 쪽은 하나")가 사라진다.
+  const agentsSet = agentsMdClis([...cli, ...recordedClis]);
+  let agentsMd: AgentsMdTransformReport | null = null;
+  if (agentsSet.length > 0) {
+    const beyondThisRun = agentsSet.some((c) => !cli.includes(c));
+    agentsMd = runAgentsMdTransform({
+      harnessRoot,
+      projectDir,
+      clis: agentsSet,
+      selectedInternalSkills,
+      rules: beyondThisRun && params.cumulativeRules !== undefined ? params.cumulativeRules : rules,
+      baseline,
+      refreshOnly,
+      // ADR-099 R2 — 기록이 이 파일을 읽는 CLI 를 깔린 것으로 말하면 없어도 만든다(26.164.0 이하 Antigravity 단독 설치본은
+      // 첫 update 에 이 파일이 생긴다)
+      installedByRecord: agentsSet.some((c) => recordedClis.includes(c)),
+      shared,
+      legacyContext,
+      ...journalParam,
+    });
+    absorb(agentsMd);
+    absorbShared(agentsMd, [agentsMd.agentsMd.shared]);
+  }
+
+  // ADR-103 — 지우기 토막은 `AGENTS.md` 쓰기 **뒤**다: 옮겨 심은 것을 확인한 뒤에 원본을 치운다.
+  const anchorRetired = retireAntigravityAnchor({
+    projectDir,
+    previous: previousExternal,
+    outside,
+    hadContent: legacyContext !== null,
+    moved: agentsMd?.agentsMdSeededFrom === LEGACY_ANTIGRAVITY_ANCHOR,
+  });
+  if (anchorRetired?.backup) {
+    externalBackups.push(anchorRetired.backup);
+    externalBackedUp.push(anchorRetired.path);
+  }
+  externalOutside = mergeOutside(externalOutside, outside.list());
+
   return {
     codex,
     codexOptIn,
     opencode,
     antigravity,
+    agentsMd,
+    anchorRetired,
     externalFiles,
     externalBackups,
     externalUpdated,

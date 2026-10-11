@@ -15,7 +15,7 @@ your-project/
 ├── CLAUDE.md                    ← 당신 것.  프로젝트 이야기를 여기 씁니다
 │                                   (마지막에 아래 파일을 끌어오는 한 줄만 하네스가 얹습니다)
 ├── CLAUDE-uzys-harness.md       ← 하네스 것. 작업 원칙. update 가 갱신합니다
-├── AGENTS.md                    ← Codex · OpenCode 가 읽는 자리 (아래 §3)
+├── AGENTS.md                    ← Codex · OpenCode · Antigravity 가 읽는 자리 (아래 §3)
 ├── .claude/
 │   ├── rules/*.md               ← 하네스 것. 룰
 │   ├── agents/*.md              ← 하네스 것. 리뷰·구현 레인
@@ -24,7 +24,7 @@ your-project/
 │   └── settings.json            ← 하네스가 씁니다 (훅 배선). 설치 때 병합하며, 고쳤으면 백업을 남깁니다
 ├── .uzys-agent-harness/         ← 하네스 것. 설치 기록 · 룰이 부르는 스크립트 3종 · 훅 차단 로그
 ├── .agents/skills/*/            ← Codex · OpenCode · Antigravity 가 함께 읽는 스킬 (아래 §3)
-└── .agents/rules/*.md           ← Antigravity 가 읽는 자리 (아래 §3)
+└── .agents/rules/*.md           ← Antigravity 가 읽는 룰 자리 (아래 §3)
 ```
 
 ## 2. `CLAUDE.md` 와 `CLAUDE-uzys-harness.md` — 왜 두 개인가
@@ -85,17 +85,20 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 | Claude Code | `CLAUDE-uzys-harness.md` (루트 `CLAUDE.md` 의 `@import` 로) | `.claude/rules/*.md` |
 | Codex | `AGENTS.md` | **같은 `AGENTS.md`** 의 `## Harness Rules` 절 |
 | OpenCode | `AGENTS.md` | **같은 `AGENTS.md`** 의 `## Harness Rules` 절 |
-| Antigravity | `.agents/rules/uzys-harness.md` | `.agents/rules/*.md` |
+| Antigravity | `AGENTS.md` | `.agents/rules/*.md` (Antigravity 가 요구하는 trigger frontmatter 를 단 판) |
 
-Codex 와 OpenCode 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 두 도구를 모두 설치했다면 나중에 실행된
-쪽의 판이 남습니다. 어느 쪽이든 같은 룰 절(`## Harness Rules`)을 담습니다.
+Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 그 파일은 깔린 도구 집합으로
+만들어집니다 — 제목에 그 도구들의 이름이 붙고, Codex 의 `## Session Start` 와 룰 절(`## Harness Rules`)은
+그것이 필요한 도구가 깔려 있을 때만 들어갑니다(Antigravity 는 룰을 `.agents/rules/` 에서 읽습니다).
+v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에
+채워 둔 글을 `AGENTS.md` 의 `## Project Context` 로 한 번 옮기고 파일을 치웁니다(ADR-103).
 
 **공유 파일은 마지막 도구가 나갈 때까지 남습니다.** `uninstall --cli <이름>` 으로 도구 하나를 뺄 때,
 그 도구만 쓰는 자리는 함께 사라지지만 아래 자리는 쓰는 도구가 하나라도 남아 있으면 그대로입니다.
 
 | 공유 자리 | 함께 쓰는 도구 | 언제 사라지나 |
 |---|---|---|
-| `AGENTS.md` | Codex · OpenCode | 둘 다 빠질 때. 그때도 여러분이 채운 두 절은 파일에 남습니다 |
+| `AGENTS.md` | Codex · OpenCode · Antigravity | 셋 다 빠질 때. 그때도 여러분이 채운 두 절은 파일에 남습니다. 하나라도 남으면 그 자리에서 남는 도구 판으로 다시 씁니다 |
 | `.agents/skills/` | Codex · OpenCode · Antigravity | 셋 다 빠질 때 |
 | `.mcp.json` · `.uzys-agent-harness/` | 네 도구 전부 | 도구 하나를 빼는 것으로는 안 사라집니다 — 전량 `uninstall` 의 몫입니다 |
 

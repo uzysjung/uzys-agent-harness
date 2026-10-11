@@ -248,16 +248,13 @@ function descriptorTokens(path: string): number {
 export function anchorSurface(cli: CliTargets): {
   label: string;
   files: 1 | 2;
-  scaffold: "claude" | "agents-md" | "antigravity-rule";
+  scaffold: "claude" | "agents-md";
 } {
   if (cli.includes("claude") || cli.length === 0) {
     return { label: "CLAUDE.md", files: 2, scaffold: "claude" };
   }
-  // codex · opencode 는 같은 `AGENTS.md` 를 쓴다 — 둘이 섞여도 한 파일이다.
-  if (cli.includes("codex") || cli.includes("opencode")) {
-    return { label: "AGENTS.md", files: 1, scaffold: "agents-md" };
-  }
-  return { label: ".agents/rules/uzys-harness.md", files: 1, scaffold: "antigravity-rule" };
+  // 비-Claude CLI 는 같은 `AGENTS.md` 를 읽는다 — 섞여도 한 파일이다(ADR-103: Antigravity 의 옛 앵커 파일은 은퇴).
+  return { label: "AGENTS.md", files: 1, scaffold: "agents-md" };
 }
 
 /**
@@ -322,9 +319,8 @@ export function residentCost(
   // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
   const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));
   // #615 — **그 CLI 가 실제로 읽는 앵커 파일**을 잰다. claude 를 안 고른 설치는 루트 `CLAUDE.md` 도
-  // `CLAUDE-uzys-harness.md` 도 만들지 않는다(`docs/CONTEXT-FILES.md` §3): Codex · OpenCode 는
-  // `AGENTS.md` 한 파일에, Antigravity 는 `.agents/rules/uzys-harness.md` 한 파일에 같은 앵커 본문 +
-  // 같은 스캐폴드를 담는다. 그래서 그 경우는 **파일 1개**이고 이름이 CLI 따라 바뀐다 — 상수
+  // `CLAUDE-uzys-harness.md` 도 만들지 않는다(`docs/CONTEXT-FILES.md` §3): Codex · OpenCode · Antigravity 는
+  // `AGENTS.md` 한 파일에 앵커 본문 + 스캐폴드를 담는다(ADR-103). 그래서 그 경우는 **파일 1개**이고 이름이 CLI 따라 바뀐다 — 상수
   // `CLAUDE.md 2` 를 그대로 찍던 것이 사례 1 이다. claude 가 섞이면 claude 몫이 기준이다(다른 CLI 의
   // 앵커를 더하지 않는다 — 비용은 세션 하나가 무는 값이다).
   const surface = anchorSurface(cli);

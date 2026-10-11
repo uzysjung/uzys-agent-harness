@@ -96,14 +96,15 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       expect(e).toBeInstanceOf(InstallInterruptedError);
       expect(e.message).toMatch(/EACCES/);
       expect(e.record.path).toBe(installLogPath(projectDir));
-      expect(e.written).toContain("AGENTS.md");
       expect(e.written.some((p) => p.startsWith(".claude/rules/"))).toBe(true);
+      // #642 — `AGENTS.md` 는 세 변환이 끝난 **뒤** 집합으로 쓴다 — 변환이 멈췄으면 아직 쓰지 않았다(쓴 것만 기록에 있다)
+      expect(e.written).not.toContain("AGENTS.md");
+      expect(existsSync(join(projectDir, "AGENTS.md"))).toBe(false);
 
       const log = readInstallLog(projectDir);
       expect(log?.spec.clis).toEqual(["claude"]);
       // codex 를 적으면 uninstall 이 하네스가 한 글자도 안 쓴 설치자 `.codex/` 를 통째로 옮긴다
       expect(log?.templates.codexDir).toBeUndefined();
-      expect(log?.externalFiles?.map((f) => f.path)).toContain("AGENTS.md");
     });
 
     it("원인을 고치고 같은 install 을 다시 돌리면 마저 깔린다 — 그 뒤 uninstall 도 앞 실행이 만든 파일까지 걷는다", () => {
@@ -156,7 +157,7 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       expect(e.message).toMatch(/ENOTDIR/);
       const log = readInstallLog(projectDir);
       expect(log?.externalFiles?.map((f) => f.path)).toEqual(
-        expect.arrayContaining(["AGENTS.md", ".codex/config.toml"]),
+        expect.arrayContaining([".codex/config.toml", ".codex/hooks/session-start.sh"]),
       );
       expect(log?.portions?.some((p) => p.path === ".codex/config.toml")).toBe(true);
       expect(readFileSync(join(projectDir, ".agents/skills"), "utf8")).toBe(MINE);
@@ -210,7 +211,7 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
         /Already in place before it stopped — recorded in .*\.harness-install\.json/,
       );
       expect(out).toMatch(/\.claude\/ \(\d+ files\)/);
-      expect(out).toMatch(/^ {4}AGENTS\.md$/m);
+      expect(out).toMatch(/^ {4}\.codex\/ \(\d+ files?\)$/m);
       expect(out).toMatch(/^ {4}CLAUDE\.md \(harness part\)$/m);
       expect(out).toMatch(/run the same install again/);
       expect(out).toMatch(/agent-harness uninstall/);
@@ -266,7 +267,10 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       expect(after?.templates.claudeDir).toBe(".claude/");
       expect(after?.spec.clis).toEqual(["claude"]);
       expect(after?.externalFiles?.map((f) => f.path)).toEqual(
-        expect.arrayContaining([...(before?.externalFiles ?? []).map((f) => f.path), "AGENTS.md"]),
+        expect.arrayContaining([
+          ...(before?.externalFiles ?? []).map((f) => f.path),
+          ".codex/config.toml",
+        ]),
       );
     });
 
@@ -435,7 +439,7 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       // 픽스처 자기검증 — 기록이 실제로 남았다(빈 기록이라 0 인 것이 아니다)
       expect(e.record.path).toBe(installLogPath(projectDir));
       const log = readInstallLog(projectDir);
-      expect(log?.externalFiles?.map((f) => f.path)).toContain("AGENTS.md");
+      expect(log?.rootFiles?.length ?? 0).toBeGreaterThan(0);
 
       const outsidePrefix = (p: string): boolean =>
         p.startsWith(".claude/") || p.startsWith(".codex/");

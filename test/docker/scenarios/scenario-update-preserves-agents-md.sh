@@ -94,7 +94,8 @@ if ! grep -qF '## Session Start' "${AGENTS}"; then
   head -3 "${AGENTS}"
   exit 1
 fi
-if ! grep -q 'Codex Agent Guide' "${AGENTS}"; then
+# #642 — 제목은 깔린 집합으로 렌더된다(`<name> — Agent Guide (Codex)`)
+if ! head -1 "${AGENTS}" | grep -qF 'Agent Guide (Codex)'; then
   echo "FAIL: 제목이 Codex 판이 아니다 (#514)"
   head -3 "${AGENTS}"
   exit 1

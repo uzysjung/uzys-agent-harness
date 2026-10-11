@@ -438,7 +438,7 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
       expect(live, needle).toContain(needle);
     }
     expect(backups()).toEqual([]);
-    expect(report.codex?.agentsMd?.model).toBe("block");
+    expect(report.agentsMd?.agentsMd.model).toBe("block");
     const row = screen(["codex"], report).find((l) => l.includes("AGENTS.md")) ?? "";
     expect(row).toContain("one harness block at the end (your text kept as-is)");
   });
@@ -495,7 +495,7 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
   it("하네스가 만든 파일은 전과 같은 절 모델이다 — 마커 조각 · 절이 그대로", () => {
     const report = install(["codex"]);
     const live = read("AGENTS.md");
-    expect(report.codex?.agentsMd?.model).toBe("sections");
+    expect(report.agentsMd?.agentsMd.model).toBe("sections");
     expect(live).toContain("<!-- uzys-harness:anchor:start -->");
     expect(live).not.toContain("uzys-harness:agents");
   });
@@ -505,7 +505,7 @@ describe("AGENTS.md — 기록에 없는 설치자 파일은 본문 그대로 + 
     const before = read("AGENTS.md");
     rmSync(join(projectDir, ".uzys-agent-harness"), { recursive: true, force: true }); // 로그가 사라졌다
     const report = install(["codex"]);
-    expect(report.codex?.agentsMd?.model).toBe("sections");
+    expect(report.agentsMd?.agentsMd.model).toBe("sections");
     expect(read("AGENTS.md")).toBe(before);
   });
 });

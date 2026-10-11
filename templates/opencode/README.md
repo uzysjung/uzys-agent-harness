@@ -6,7 +6,7 @@
 이 디렉토리는 OpenCode CLI 호환 자산을 생성하기 위한 **마스터 템플릿**이다. Claude Code SSOT(`.claude/`, `.mcp.json`, `templates/CLAUDE.md`)로부터 transform 모듈이 다음 출력을 생성:
 
 ```
-<project>/AGENTS.md                              ← AGENTS.md.template + CLAUDE.md
+<project>/AGENTS.md                              ← ../AGENTS.md.template(세 CLI 공용) + CLAUDE.md
 <project>/opencode.json                          ← opencode.json.template + .mcp.json
 ```
 
@@ -14,7 +14,6 @@
 
 | 파일 | 용도 | Phase |
 |------|------|-------|
-| `AGENTS.md.template` | 프로젝트 root AGENTS.md 마스터 | B1 (현재) / C1 transform |
 | `opencode.json.template` | `opencode.json` 마스터 ($schema + mcp + command + agent + plugin + permission) | B3 |
 
 ## 디자인 결정
