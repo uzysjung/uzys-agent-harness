@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.168.0] — 2026-10-12 (에이전트가 모델·검증 깊이를 알맞게 고른다)
+
+### Added
+- **여러 실제 모델로 토론하는 `multi-model-debate` 스킬 — 개발 트랙 기본** (#729, PR #759, ADR-109).
+  - 서로 다른 실제 모델 2~3개가 각자 제안하고, 중요한 이견만 교차 반박한 뒤 원문·계산·테스트로 확인해 통합한다. 참여자 · 라운드 · 예산 · 재시도 · 대체 모델 · 주제 이탈 처리는 이 스킬만 정한다. 한 모델이 여러 페르소나를 연기한 결과는 다중 모델 검증으로 세지 않는다.
+  - `external-model-consult` 의 Gemini · Codex CLI 만 있어도 서로 다른 모델 2개로 돈다.
+  - 이미 깐 설치본: 설치 기록에 개발 트랙이 있으면 `update` 한 번으로 받는다. `--without multi-model-debate` 기록이 있으면 받지 않는다.
+- **브라우저 위임 스킬 3종 `gemini-delegate` · `chatgpt-delegate` · `genspark-delegate` — opt-in** (#729, PR #759, ADR-109). 설치자가 로그인한 Chrome 으로 각 서비스에 일을 맡기고 응답·상태를 회수한다. 잠긴 모델을 고르지 않고, 지정 모델을 몰래 바꾸지 않고, 중복 전송 · 다른 프로필 · 쿠키 복사로 진행하지 않는다. `--with <id>` 나 위저드 체크로만 깔린다. 실행은 그 CLI 에 브라우저 도구가 있을 때만 된다 — Claude Code(Chrome 확장) · Codex 앱. Codex CLI 에는 브라우저가 없다.
+- **모델 실측 대장** (#681 · #727, PR #758, ADR-108). `external-model-consult/references/model-evidence.md` 에 날짜 · 측정 방법 · 한계가 붙은 관측이 함께 깔린다. 스킬의 모델 선택 문장마다 대장 항목 또는 "근거 없음"이 붙는다. 설치자는 같은 절차(같은 브리프 · 블라인드 채점 · 쉬운 과제와 가벼운 모델부터)로 다시 재서 `docs/model-evidence.md` 에 덧붙인다 — 이 파일은 install · update · uninstall 이 만들지도 고치지도 지우지도 않는다. 재측정은 요청이 있을 때만 하고 자동 반복하지 않는다.
+
+### Changed
+- **배포 룰: 독립 검증을 배포 단계라는 이유로 다시 걸지 않는다** (#728, PR #757, ADR-107). 전: "배포 전에 풀 테스트 · E2E · 독립 검증을 거친다". 후: 풀 테스트 · E2E · 같은 산출물 배포 · 배포 뒤 실환경 확인은 그대로, 독립 검증은 머지 전과 같은 기준(영향 · 불확실성 · 복구 비용 · 이미 있는 증거)으로 판단한다. 룰은 네 CLI 모두 다음 update 로 받는다.
+- **`audit-harness-fit`: 라운드 수를 처음에 한 번 묻는다** (#728, PR #757). 감사 → 적용을 정한 횟수(선호가 없으면 2~3)만큼 돈 뒤 PR · 머지 · 검증은 한 번으로 모은다. 라운드 사이에는 PR 을 열지 않는다.
+
+### Fixed
+- **Codex · OpenCode · Antigravity 설치본에서 `external-model-consult` 예시가 없는 경로를 가리키던 결함** (#729, PR #758). 예시가 `.claude/skills/...` 고정 경로였다. 이제 "읽고 있는 SKILL.md 의 폴더" 기준이고 Claude Code 는 `${CLAUDE_SKILL_DIR}` 로 채워진다.
+
+### 알려진 한계
+- 실제 브라우저 위임 · 실제 토론 · provider CLI 실호출은 미검증 — 스킬 안착(설치 · update · uninstall)만 Docker 로 확인했다. 사용자 범위(`~/.claude/skills` 등) 설치·발견은 정적 확인만(하네스는 프로젝트 안에만 깐다).
+- 개발 트랙 상주 비용 +1 스킬 설명(~+144 토큰) · 룰 문구 +29 토큰.
+- update 위저드가 `--with` 로 깐 opt-in 번들 스킬을 체크 해제로 보여 준다(#760). 기록에 없는 같은 이름의 설치자 스킬 폴더를 update 가 백업 후 덮는다(#761). `.claude/` 폴더째 백업(update) · 이동(uninstall)은 그대로다(#746).
+
 ## [v26.167.0] — 2026-10-11 (고른 MCP·외부 스킬이 지금도 쓸 만하다)
 
 ### Changed
