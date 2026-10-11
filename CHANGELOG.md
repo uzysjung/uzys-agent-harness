@@ -7,6 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.167.0] — 2026-10-11 (고른 MCP·외부 스킬이 지금도 쓸 만하다)
+
+### Changed
+- **기본 MCP 를 현행 공식 경로로** (#722 · #711 · #712 · #713 · #714, PR #750, ADR-106).
+  - 전: 모든 트랙에 `github`(npm 에서 지원 종료된 옛 서버 · 토큰 미연결이라 공개 저장소 조회만 됨)와 `chrome-devtools`(Google 사용 통계 수집 켜짐)가 들어갔다. railway 는 지원 종료된 `@railway/mcp-server` 를 썼다.
+  - 후: 모든 트랙 = `context7`. 웹 트랙(`csr-*` · `ssr-*` · `full`)에 `chrome-devtools`(`--no-usage-statistics`). railway 는 Railway 공식 원격 서버. 새 opt-in 원격 서버 `vercel` · `github-mcp`(GitHub 공식 — 파일에는 `GITHUB_PAT` 변수 이름만 쓴다). Claude Code · Codex · OpenCode 에 각자 형식으로 들어가고 Antigravity 는 제외. 처음 쓸 때 로그인 안내를 install · update 화면이 보여 준다.
+  - 이미 깐 설치본: update 가 옛 `github` 를 하네스가 쓴 값 그대로일 때만 걷고 `--with github-mcp` 를 안내한다. 고쳤으면 `kept yours`. `chrome-devtools` · railway 는 남기고 새 정의로 바꾼다(비웹 트랙은 기본이 아니게 됐다는 것과 빼는 명령을 함께 말한다).
+  - `vercel-cli` 핀 54.17.3 → 63.1.2.
+- **외부 자산 정리 — 카탈로그 52 → 49(+ MCP 선택 항목 3 = 52)** (#726, PR #745, ADR-104 · ADR-105).
+  - 삭제: `product-skills` · `agentmemory` · `revealjs`. 교체: `trailofbits-skills` → `claude-security`, `web-video-presentation` → `hyperframes`(둘 다 Anthropic 공식 마켓플레이스 plugin, opt-in). `marp-slide` · `finance-skills` 는 그대로.
+  - 개발 트랙 기본에 uzys 스킬 `ci-scaffold` · `model-orchestration` · `external-model-consult` · `natural-korean`(`tauri-desktop` 은 opt-in).
+  - 이미 깐 설치본: update 가 아무것도 지우지 않는다. 설치 기록에 있는 빠진 자산마다 무엇이 됐는지 · 새 것 받는 명령 · 옛 것 치우는 명령을 한 줄씩 말한다.
+- **UI 트랙에 `ui-components` 룰** (#725 · #717, PR #744). React · Next.js UI 는 shadcn/ui 로 만들고 공식 린터 `@shadcn/lint` 로 검사한다(`npx shadcn lint` 는 없다). 없으면 에이전트가 첫 UI 작업 때 설치하고 켤 규칙을 제안해 확인받는다. 다른 UI 라이브러리 · Tailwind v3 프로젝트는 바꾸기 전에 묻는다. Claude Code 는 `.tsx` · `.jsx` 를 만질 때만 싣는다.
+- **`gh-issue-workflow` 스킬: GitHub 작업 기본 경로는 `gh`** (#748, PR #749).
+
+### Fixed
+- 위저드 확인 화면이 카탈로그에서 빠진 자산을 "+User added" 로 적던 결함 (#726, PR #745).
+
+### 알려진 한계
+- 원격 MCP 의 실계정 OAuth · PAT 로그인은 미검증.
+- update 가 Claude Code 설치본의 `.claude/` 를 통째로 백업하는 기존 동작이 남아 있다(#746).
+
 ## [v26.166.0] — 2026-10-11 (README 가 이 도구를 사실대로 말한다)
 
 ### Changed
