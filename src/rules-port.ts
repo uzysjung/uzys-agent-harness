@@ -53,7 +53,7 @@ export function claudePaths(source: string): string[] {
 /**
  * Claude Code 전용 frontmatter 를 벗긴다.
  *
- * `paths:` 는 Claude Code 의 조건부 로드 키다(`cli-development` 이 유일한 사용처). 다른 CLI 는
+ * `paths:` 는 Claude Code 의 조건부 로드 키다(`cli-development` · `ui-components` 가 쓴다). 다른 CLI 는
  * 그 키를 모르므로 본문 맨 앞에 남으면 **그냥 이상한 텍스트**가 되고, Codex 처럼 AGENTS.md
  * 한복판에 끼워 넣는 경우엔 문서를 깨뜨린다. 벗겨서 Codex · OpenCode 에는 상시 룰로 보낸다.
  * Antigravity 는 같은 뜻을 자기 frontmatter(`trigger: glob`)로 받는다 — 값은 `claudePaths` 가 읽어 둔다(#631).

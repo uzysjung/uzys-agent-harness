@@ -111,10 +111,12 @@ nextjs-turbopack · market-research · investor-materials · investor-outreach)�
 
 ## 7. 룰 · 훅 · 스크립트 · 템플릿
 
-**룰** (`templates/rules/`) 6 파일 — `git-policy` · `change-management` · `doc-governance` 는 전 트랙,
-`test-policy` · `ship-checklist` 는 dev 트랙, `cli-development` 는 tooling · full. 배선 SSOT =
-`src/manifest.ts` 의 `COMMON_RULES` · `DEV_RULES` · `TRACK_RULES` → `resolveRules()`. UI 트랙 전용 룰은
-없다(`UI_RULES` 는 빈 배열로 자리만 남겼다). 기술스택 상세 룰을 배포에서 뺀 경위는 ADR-060.
+**룰** (`templates/rules/`) 7 파일 — `git-policy` · `change-management` · `doc-governance` 는 전 트랙,
+`test-policy` · `ship-checklist` 는 dev 트랙, `cli-development` 는 tooling · full, `ui-components`
+(React·Next.js UI 는 shadcn/ui 로 만들고 `@shadcn/lint` 로 검사) 는 csr-* · ssr-* · full. 배선 SSOT =
+`src/manifest.ts` 의 `COMMON_RULES` · `DEV_RULES` · `UI_RULES` · `TRACK_RULES` → `resolveRules()`.
+`paths:` 로 지연 로드하는 룰은 `cli-development`(`*.sh`·`*.bash`) · `ui-components`(`*.tsx`·`*.jsx`) 둘이다.
+기술스택 상세 룰을 배포에서 뺀 경위는 ADR-060, `ui-components` 를 다시 넣은 근거는 #725 · #717.
 
 **훅** (`templates/hooks/`) 2 파일 — `session-start` · `protect-files`. 차단하는 훅은 `protect-files`
 하나이고 exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에 `날짜 · 훅 · 대상` 한 줄을 남긴다(ADR-061).
