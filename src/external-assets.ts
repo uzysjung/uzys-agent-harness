@@ -52,6 +52,11 @@ export type ExternalAssetMethod =
         | "gh-issue-workflow"
         | "model-orchestration"
         | "external-model-consult"
+        // #729 (ADR-109) — 여러 실제 모델의 토론(개발 트랙 기본)과 브라우저 위임 3종(opt-in).
+        | "multi-model-debate"
+        | "gemini-delegate"
+        | "chatgpt-delegate"
+        | "genspark-delegate"
         // 위임·설계·다단계 작업의 요청을 canonical 브리프 형태로 정규화.
         | "objective-brief"
         // 설치된 상주 조종층(앵커·룰·훅·permissions·descriptor)의 밥값 감사 — 자기유지 루프.
@@ -356,6 +361,53 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     //   설치는 성공한다 — 없으면 실행 시점에 래퍼가 멈추고 스킬이 "설치·로그인은 사용자 몫"을 알린다.
     condition: { kind: "has-dev-track" },
     method: { kind: "internal", key: "external-model-consult" },
+  },
+  {
+    // #729 (ADR-109) — 토론 정책(참여자 · 독립성 · 라운드 · 예산 · 재시도 · 대체 · 복귀 · 통합)은 이 스킬만
+    //   소유한다. 하위 경로(external-model-consult · 브라우저 위임 3종)는 실행 매개변수와 결과·상태만 맡는다.
+    // has-dev-track 인 이유: 브라우저 전제가 없다 — external-model-consult 의 CLI 둘만으로 "서로 다른 실제 모델 2개"가
+    //   성립하고, 없는 경로는 실행 시점에 unavailable 로 기록한다. DEV_METHOD 에 넣지 않는다(수단 — ADR-105 D2).
+    id: "multi-model-debate",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Multi-model debate — two or three different real models answer independently, then only decision-relevant disagreements are cross-examined and checked; uses whichever installed routes are available (external-model-consult CLIs or the browser delegates)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "has-dev-track" },
+    method: { kind: "internal", key: "multi-model-debate" },
+  },
+  // #729 (ADR-109, 사용자 결정 2026-10-12) — 브라우저 위임 3종은 opt-in. 실행 전제(브라우저 도구 · 로그인된 브라우저 ·
+  //   그 서비스 계정)가 하네스 밖에 있고 Codex CLI 에는 브라우저가 없다(공식 문서). #489 가 agent-browser 를 opt-in 으로
+  //   내린 축과 같다. 설치는 디렉터리 복사뿐이다 — `--with <id>` · 위저드 체크로 켠다.
+  {
+    id: "gemini-delegate",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Gemini delegate — hand design, review, or Korean polishing to Gemini on the web and collect the answer (needs a browser tool + your logged-in browser)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "gemini-delegate" },
+  },
+  {
+    id: "chatgpt-delegate",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "ChatGPT delegate — hand design, planning, or review to ChatGPT on the web and collect the answer (needs a browser tool + your logged-in browser)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "chatgpt-delegate" },
+  },
+  {
+    id: "genspark-delegate",
+    tier: "official", // uzys 자사 스킬
+    description:
+      "Genspark delegate — hand design or planning to Genspark AI Chat, or generate and download images with AI Image (needs a browser tool + your logged-in browser)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "genspark-delegate" },
   },
   {
     // 복원 9종이 아니라 신설이다 — 이관 이력이 없다.
@@ -1060,6 +1112,11 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "external-model-consult",
   "self-hosted-github-runner",
   "natural-korean",
+  // #729 (ADR-109) — 토론(개발 트랙 기본) + 브라우저 위임 3종(opt-in). condition 이 설치를 가른다.
+  "multi-model-debate",
+  "gemini-delegate",
+  "chatgpt-delegate",
+  "genspark-delegate",
 ];
 
 /**

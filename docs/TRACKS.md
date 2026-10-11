@@ -35,7 +35,7 @@ See the [README](../README.md) for the overview, the [usage guide](USAGE.md) for
 | **Hooks** | session start · protect files | same |
 | **Agents** | `reviewer` · `implementer` (+ `data-analyst` on `data`/`full`, `strategist` on `executive`/`full`) | `reviewer` (+ `strategist` on `executive`) |
 | **Skills on every track** | `north-star` · `objective-brief` · `gh-issue-workflow` · `audit-harness-fit` | same |
-| **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` · `model-orchestration` · `external-model-consult` · `natural-korean` | — |
+| **Method skills** | `user-centered-explanation` · `audit-service-gaps` · `multi-persona-review` · `recurrence-prevention` · `compaction-handoff` · `self-hosted-github-runner` · `model-orchestration` · `external-model-consult` · `natural-korean` · `multi-model-debate` | — |
 | **CI scaffold** | GitHub Actions fill-in templates under `.github/workflows/`, written only when the file does not exist yet (see [below](#workflow-bundles)) | — |
 | **Dev tools** | `frontend-design` (`csr-*` · `ssr-*` · `full`) | — |
 | **MCP servers** (`.mcp.json`) | `context7` (+ `chrome-devtools` on `csr-*`/`ssr-*`/`full`, `railway-mcp-server` on `csr-*`/`ssr-htmx`/`full`, `supabase` on `csr-supabase`/`full` — any track can add `chrome-devtools` or `railway-mcp-server` with `--with`, and `vercel` or `github-mcp` with `--with` on any track) | `context7` |
@@ -57,6 +57,9 @@ The method skills are built into this repo — written and maintained here, bund
 | `model-orchestration` | Which model, how much reasoning effort, and when to delegate — reuse context first, add workers or independent review only when their contribution justifies the cost |
 | `external-model-consult` | Ask a non-Claude model (Gemini via `agy`, or Codex) for natural Korean phrasing, a second opinion, concise restructuring, or image generation. Installing it always succeeds; at run time it needs that provider's CLI and login, and tells you so when they are missing |
 | `natural-korean` | Write, answer, translate, and revise in Korean that reads as Korean — keeps meaning and register, removes translationese. Sibling of `user-centered-explanation`: that one decides *what* to say, this one *how the Korean is written*. If you never write Korean, drop it with `--without natural-korean` |
+| `multi-model-debate` | Has two or three different real models answer independently, then cross-examines only the disagreements that change the decision and checks them against sources, calculations, or tests. Uses whichever routes you have — `external-model-consult`'s CLIs alone give two different models; a missing route is reported, not faked |
+
+Three more built-in skills are **opt-in on every track**: `gemini-delegate` · `chatgpt-delegate` · `genspark-delegate` hand work to Gemini, ChatGPT, or Genspark on the web through your own logged-in Chrome (Genspark also generates images). Installing them only copies files; running them needs a browser tool in your CLI — Claude Code with Claude in Chrome, or the Codex app; the Codex CLI has no browser — and your signed-in account. Add them at step 3 or with `--with <id>`.
 
 ---
 

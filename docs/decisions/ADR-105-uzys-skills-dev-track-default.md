@@ -4,6 +4,7 @@
 - Date: 2026-10-11
 - PR: #745
 - Issue: #726
+- Amended by: ADR-109 (결정 2 의 has-dev-track 수단 범주에 multi-model-debate 추가 — #729)
 - Amends: ADR-037 §3ⓐ(ci-scaffold opt-in 전용 → 개발 트랙 기본) · ADR-034 §2 · §4(수단 계층 opt-in · "외부 CLI 의존 pre-check 승격 안 함"을 model-orchestration · external-model-consult 에 한해 뒤집는다)
 
 ## Context

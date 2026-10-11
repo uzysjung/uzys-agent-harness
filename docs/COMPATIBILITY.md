@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**32/52 assets are 🟢 verified by a real install; the remaining 20 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**32/56 assets are 🟢 verified by a real install; the remaining 24 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **52** (official 22 / vetted 28 / experimental 2) · 🟢 verified **32/52**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **56** (official 26 / vetted 28 / experimental 2) · 🟢 verified **32/56**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -142,13 +142,17 @@ stale row fails the build rather than misleading you.
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (7)
+#### 🛡️ Dev Tools (11)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `audit-service-gaps` | official | templates (`--with audit-service-gaps`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `multi-persona-review` | official | templates (`--with multi-persona-review`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `external-model-consult` | official | templates (`--with external-model-consult`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `multi-model-debate` | official | templates (`--with multi-model-debate`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `gemini-delegate` | official | templates (`--with gemini-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `chatgpt-delegate` | official | templates (`--with chatgpt-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `genspark-delegate` | official | templates (`--with genspark-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `claude-security` | official | `claude-security@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
