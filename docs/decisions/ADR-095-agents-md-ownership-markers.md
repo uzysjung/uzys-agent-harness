@@ -9,6 +9,7 @@
   에서 손으로 옮겨야 했다(#503). 루트 `CLAUDE.md` 는 import 마커 블록만 갱신하고 본문을 남기는 모델
   (`project-claude-merge.ts`)이라 두 표면이 비대칭이었다.
 - Decision:
+- Amended by: ADR-103 (2026-10-11, PR #735) — 절 모델의 템플릿이 하나 — 깔린 비-Claude CLI 집합으로 렌더
   1. `AGENTS.md` 의 **설치자 소유 절** = `## Project Context` · `## Project Rules`. 렌더는 이 두 절의 본문을
      디스크에서 이어받는다(`src/agents-md-merge.ts`). 나머지 절(제목 · `## Harness Rules` · `## Session Start` ·
      `## Protected Files`)은 하네스 소유라 매번 최신판.
