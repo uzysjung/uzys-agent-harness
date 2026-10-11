@@ -189,9 +189,10 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
   // ADR-064 — `audit-harness-fit` 신설분도 같은 단언에 넣는다. 근거는 위 AC9 와 같다:
   // 목록을 나누면 신설 자산만 이 검사를 빠져나가는 경로가 또 생긴다.
   // ADR-105 (#726) — model-orchestration · external-model-consult · natural-korean 이 opt-in 에서 dev 트랙
-  //   기본으로 옮겼다. opt-in 번들 스킬은 이제 없다 — "opt-in 은 트랙만으로 안 깔린다" 계약은 외부 자산
-  //   쪽(`external-assets.test.ts` 의 claude-security 게이팅)이 계속 문다.
-  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙", () => {
+  //   기본으로 옮겼다.
+  // ADR-109 (#729) — multi-model-debate 는 dev 트랙 기본, 브라우저 위임 3종은 opt-in 번들 스킬로 들어왔다.
+  //   opt-in 번들 스킬이 다시 생겼으니 "트랙만으로는 안 깔리고 --with 로만 깔린다"를 여기서 다시 문다.
+  it("번들 스킬은 선언된 도달 범위대로 깔린다 — 전 트랙 · dev 트랙 · opt-in", () => {
     const allTrack = ["north-star", "gh-issue-workflow", "objective-brief", "audit-harness-fit"];
     const devOnly = [
       "user-centered-explanation",
@@ -202,7 +203,9 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
       "model-orchestration",
       "external-model-consult",
       "natural-korean",
+      "multi-model-debate",
     ];
+    const optIn = ["gemini-delegate", "chatgpt-delegate", "genspark-delegate"];
     // ci-scaffold 는 번들 스킬이 아니라 `.github/workflows/` 를 쓰는 자산이다 — 선택만 트랙 전수로 잰다.
     for (const t of TRACKS) {
       expect(
@@ -228,6 +231,24 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
       for (const id of devOnly) {
         expect(selected.includes(id), `${t}: ${id} dev-track 게이팅 불일치`).toBe(isDev);
         expect(copied(id), `${t}: ${id} 복사 여부가 선택과 불일치`).toBe(isDev);
+      }
+      // opt-in 은 트랙만으론 절대 안 깔린다 — 되면 사용자가 안 고른 자산을 설치하는 것이다.
+      for (const id of optIn) {
+        expect(selected, `${t}: opt-in ${id} 가 트랙만으로 설치된다`).not.toContain(id);
+        expect(copied(id), `${t}: opt-in ${id} 가 트랙만으로 복사된다`).toBe(false);
+      }
+      // --with <id>(위저드 체크와 같은 forceInclude)로는 어느 트랙에서든 선택·복사된다.
+      const withCtx = { ...ctx, userOverride: { forceInclude: [...optIn], forceExclude: [] } };
+      const withSelected = INTERNAL_BUNDLED_SKILL_IDS.filter((id) => isAssetSelected(id, withCtx));
+      const withManifest = buildManifest({ tracks: [t], selectedInternalSkills: withSelected });
+      for (const id of optIn) {
+        expect(withSelected, `${t}: --with ${id} 가 선택되지 않는다`).toContain(id);
+        expect(
+          withManifest
+            .find((e) => e.source === `skills/${id}`)
+            ?.applies({ tracks: [t], selectedInternalSkills: withSelected }),
+          `${t}: --with ${id} 가 선택됐는데 manifest 가 복사하지 않는다`,
+        ).toBe(true);
       }
     }
   });

@@ -68,6 +68,7 @@ AC 가 전부 `[x]` 가 되면 이 파일을 `docs/archive/` 로 옮기고 다�
 
 | 날짜 | 유형 | 변경 |
 |---|---|---|
+| 2026-10-12 | Major | Non-Goals "기본 설치 항목 재정의" 경계 접촉 — 개발 트랙 기본에 `multi-model-debate` 를 더하고 브라우저 위임 3종(gemini · chatgpt · genspark-delegate)을 opt-in 으로 들였다(v26.168.0 사용자 결정, #729 · ADR-109). **Non-Goals 줄 자체는 그대로** |
 | 2026-10-11 | Major | Non-Goals "기본 설치 항목 재정의" 경계를 **MCP 기본 서버에 한해** 넘었다 — github 기본 제거 · chrome-devtools 웹 트랙 한정 · Railway 원격 교체 · Vercel/GitHub 공식 원격 opt-in(사용자 결정 #722 댓글 2026-10-11, ADR-106). 그 밖의 기본 설치 항목 경계는 그대로 |
 | 2026-10-11 | Major | Non-Goals "기본 설치 항목 재정의" 경계 접촉 — 개발 트랙 기본에 uzys 자작 4종을 더하고 외부 자산 5종을 정리했다(v26.167.0 사용자 결정, #726 · ADR-104 · ADR-105). 이 사이클(F) 범위 밖에서 진행된 변경이라는 기록. **Non-Goals 줄 자체는 그대로** |
 | 2026-09-21 | Major | DO NOT CHANGE 의 보존 앵커 줄 — 불변 보증 수단을 해시 테스트에서 git 이력으로(사용자 결정, #454 판정 표 §6). **불변 약속 자체는 그대로** |

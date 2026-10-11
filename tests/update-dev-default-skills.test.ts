@@ -42,9 +42,9 @@ function run(mode: "add" | "update", s: InstallSpec): InstallReport {
   return runInstall({ harnessRoot: HARNESS_ROOT, projectDir, spec: s, mode, runExternal: null });
 }
 
-/** 세 스킬이 없던 옛 판 설치본처럼 만든다 — 디스크와 기준선 양쪽에서 뺀다. */
-function pretendOlderRelease(): void {
-  for (const id of THREE) {
+/** 주어진 스킬이 없던 옛 판 설치본처럼 만든다 — 디스크와 기준선 양쪽에서 뺀다. */
+function pretendOlderRelease(ids: ReadonlyArray<string> = THREE): void {
+  for (const id of ids) {
     for (const slot of [".claude/skills", ".agents/skills"]) {
       rmSync(join(projectDir, slot, id), { recursive: true, force: true });
     }
@@ -52,7 +52,7 @@ function pretendOlderRelease(): void {
   const log = readInstallLog(projectDir);
   if (!log) throw new Error("install log 가 없다 — 픽스처 전제가 깨졌다");
   const ours = (p: string): boolean =>
-    THREE.some((id) => p.startsWith(`${id}/`) || p.startsWith(`.agents/skills/${id}/`) || p === id);
+    ids.some((id) => p.startsWith(`${id}/`) || p.startsWith(`.agents/skills/${id}/`) || p === id);
   writeInstallLog(projectDir, {
     ...log,
     ...(log.skillFiles ? { skillFiles: log.skillFiles.filter((f) => !ours(f.path)) } : {}),
@@ -109,6 +109,62 @@ describe("#726 — 개발 트랙 기존 설치본은 update 로 세 스킬을 �
       expect(existsSync(join(projectDir, slot, "natural-korean")), slot).toBe(false);
       expect(existsSync(join(projectDir, slot, "model-orchestration")), slot).toBe(true);
       expect(existsSync(join(projectDir, slot, "external-model-consult")), slot).toBe(true);
+    }
+  });
+});
+
+/**
+ * #729 (ADR-109) — multi-model-debate 가 개발 트랙 기본으로 들어왔다. 같은 두 경로(#480 ① · #530 S3)로 옛 설치본이
+ * `update` 한 번에 받는다 — 사이드카(references/ · agents/openai.yaml)까지 두 자리에. 브라우저 위임 3종은 opt-in 이라
+ * 기록에 없으면 `update` 가 깔지 않는다.
+ */
+describe("#729 — multi-model-debate 는 update 로 두 자리에 오고, 브라우저 위임 3종은 오지 않는다", () => {
+  const DEBATE = ["multi-model-debate"] as const;
+  const BROWSER = ["gemini-delegate", "chatgpt-delegate", "genspark-delegate"] as const;
+  const SIDECARS = ["SKILL.md", "references/adapters.md", "agents/openai.yaml"] as const;
+
+  it("tooling · claude + codex: 옛 설치본이 사이드카까지 두 자리에 받는다", () => {
+    run("add", spec(["tooling"], ["claude", "codex"]));
+    pretendOlderRelease(DEBATE);
+    expect(existsSync(join(projectDir, ".claude/skills/multi-model-debate"))).toBe(false);
+
+    const report = run("update", spec(["tooling"], ["claude", "codex"]));
+    for (const slot of [".claude/skills", ".agents/skills"]) {
+      for (const f of SIDECARS) {
+        expect(existsSync(join(projectDir, slot, "multi-model-debate", f)), `${slot} ${f}`).toBe(
+          true,
+        );
+      }
+      for (const id of BROWSER) {
+        expect(existsSync(join(projectDir, slot, id)), `${slot} ${id}`).toBe(false);
+      }
+    }
+    expect(added(report)).toEqual(
+      expect.arrayContaining([
+        ".claude/skills/multi-model-debate",
+        ".agents/skills/multi-model-debate",
+      ]),
+    );
+  });
+
+  it("`--without multi-model-debate` 로 뺀 설치본은 받지 않는다", () => {
+    run("add", spec(["tooling"], ["claude", "codex"], ["multi-model-debate"]));
+    pretendOlderRelease(DEBATE);
+    run("update", spec(["tooling"], ["claude", "codex"]));
+    for (const slot of [".claude/skills", ".agents/skills"]) {
+      expect(existsSync(join(projectDir, slot, "multi-model-debate")), slot).toBe(false);
+    }
+  });
+
+  it("--with 로 고른 브라우저 위임 스킬은 두 자리에 깔린다(opt-in 경로)", () => {
+    run("add", {
+      ...spec(["tooling"], ["claude", "codex"]),
+      userOverride: { forceInclude: [...BROWSER], forceExclude: [] },
+    });
+    for (const slot of [".claude/skills", ".agents/skills"]) {
+      for (const id of BROWSER) {
+        expect(existsSync(join(projectDir, slot, id, "SKILL.md")), `${slot} ${id}`).toBe(true);
+      }
     }
   });
 });

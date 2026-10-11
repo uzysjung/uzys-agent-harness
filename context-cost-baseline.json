@@ -15,8 +15,8 @@
         "tokens": 3718
       },
       "firing": {
-        "items": 15,
-        "tokens": 1698
+        "items": 16,
+        "tokens": 1842
       }
     },
     "tooling": {
@@ -25,8 +25,8 @@
         "tokens": 3830
       },
       "firing": {
-        "items": 15,
-        "tokens": 1698
+        "items": 16,
+        "tokens": 1842
       }
     },
     "csr-supabase": {
@@ -35,8 +35,8 @@
         "tokens": 3910
       },
       "firing": {
-        "items": 16,
-        "tokens": 1819
+        "items": 17,
+        "tokens": 1963
       }
     },
     "csr-fastify": {
@@ -45,8 +45,8 @@
         "tokens": 3910
       },
       "firing": {
-        "items": 16,
-        "tokens": 1819
+        "items": 17,
+        "tokens": 1963
       }
     },
     "csr-fastapi": {
@@ -55,8 +55,8 @@
         "tokens": 3910
       },
       "firing": {
-        "items": 16,
-        "tokens": 1819
+        "items": 17,
+        "tokens": 1963
       }
     },
     "ssr-htmx": {
@@ -65,8 +65,8 @@
         "tokens": 3910
       },
       "firing": {
-        "items": 15,
-        "tokens": 1698
+        "items": 16,
+        "tokens": 1842
       }
     },
     "ssr-nextjs": {
@@ -75,8 +75,8 @@
         "tokens": 3910
       },
       "firing": {
-        "items": 16,
-        "tokens": 1819
+        "items": 17,
+        "tokens": 1963
       }
     },
     "data": {
@@ -85,8 +85,8 @@
         "tokens": 3718
       },
       "firing": {
-        "items": 16,
-        "tokens": 1770
+        "items": 17,
+        "tokens": 1914
       }
     },
     "executive": {
@@ -105,8 +105,8 @@
         "tokens": 4022
       },
       "firing": {
-        "items": 18,
-        "tokens": 1980
+        "items": 19,
+        "tokens": 2124
       }
     },
     "project-management": {
@@ -144,6 +144,10 @@
     "model-orchestration": 95,
     "external-model-consult": 171,
     "self-hosted-github-runner": 78,
-    "natural-korean": 39
+    "natural-korean": 39,
+    "multi-model-debate": 144,
+    "gemini-delegate": 168,
+    "chatgpt-delegate": 172,
+    "genspark-delegate": 207
   }
 }
