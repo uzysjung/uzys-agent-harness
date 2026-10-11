@@ -48,7 +48,11 @@ the project's normal PR / merge / verification path **once**, not per round.
 
 ## Audit contract
 
-A full audit covers these concerns; a narrower request keeps its stated scope:
+A full audit covers these concerns; a narrower request keeps its stated scope.
+Coverage starts from the always-applied layer — instruction files, rules, hooks, and
+the principles they state. Installed skills are the user's chosen tools: audit them
+where they connect to that layer, not body by body (Audit § Establish coverage).
+
 
 1. Questions, research, and rechecks: useful triggers, evidence reuse, and stop conditions.
 2. Conflicts and changed decisions: confirmed intent, actual implementation, and authority —
