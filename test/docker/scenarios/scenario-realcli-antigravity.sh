@@ -52,6 +52,11 @@ RULE_SRC=/work/templates/rules
 RULE_COUNT=0
 for f in "${RULE_SRC}"/*.md; do
   [[ -e "${f}" ]] || continue
+  # UI 트랙 전용 룰(src/manifest.ts UI_RULES)은 이 시나리오의 tooling 트랙에 깔리면 안 된다 — 없어야 맞다.
+  if [[ "$(basename "${f}")" == "ui-components.md" ]]; then
+    [[ -e "${PROJ}/.agents/rules/ui-components.md" ]] && { echo "FAIL: UI 트랙 전용 룰이 tooling 에 깔렸다"; missing=1; }
+    continue
+  fi
   RULE_COUNT=$((RULE_COUNT + 1))
   check_file "${PROJ}/.agents/rules/$(basename "${f}")"
   # #631 — Antigravity 는 `trigger` frontmatter 가 없는 룰을 조용히 버린다. 첫 줄 `---` · 둘째 줄 `trigger:` 여야 읽힌다.
