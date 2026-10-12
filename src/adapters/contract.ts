@@ -80,6 +80,8 @@ export interface StripOk {
   changed: boolean;
   /** 뺀 키. */
   removed: string[];
+  /** `removed` 중 지금 값이 기록 sha 와 달랐던 키(`alwaysStrip` — 훅 핸들러). 호출부가 걷기 전에 파일을 백업한다(#800). */
+  removedEdited: string[];
   /** 기록에 있지만 설치자가 고쳐서 남긴 키 — 화면이 알린다. */
   kept: string[];
   /** strip 뒤에도 남는 몫(= `kept`). 기록은 이것만 이어간다. */
@@ -205,6 +207,8 @@ export function planUpsert(args: {
 
 export interface StripPlan {
   remove: string[];
+  /** `remove` 중 지금 값이 기록 sha 와 달랐던 키(`alwaysStrip`) — `StripOk.removedEdited`. */
+  removedEdited: string[];
   kept: string[];
   portions: Map<string, string>;
 }
@@ -217,13 +221,14 @@ export function planStrip(args: {
   alwaysStrip?: (key: string) => boolean;
 }): StripPlan {
   const alwaysStrip = args.alwaysStrip ?? (() => false);
-  const plan: StripPlan = { remove: [], kept: [], portions: new Map() };
+  const plan: StripPlan = { remove: [], removedEdited: [], kept: [], portions: new Map() };
   for (const [key, sha] of args.recorded) {
     if (args.excluded.has(key)) continue;
     const now = args.present.get(key);
     if (now === undefined) continue;
     if (now === sha || alwaysStrip(key)) {
       plan.remove.push(key);
+      if (now !== sha) plan.removedEdited.push(key);
     } else {
       plan.kept.push(key);
       plan.portions.set(key, sha);

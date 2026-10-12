@@ -153,6 +153,7 @@ export const lines: PortionAdapter<string> = {
       text,
       changed: text !== existing,
       removed: plan.remove,
+      removedEdited: plan.removedEdited,
       kept: plan.kept,
       portions: plan.portions,
       empty: text.trim() === "",

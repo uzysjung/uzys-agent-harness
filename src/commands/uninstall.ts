@@ -1344,11 +1344,15 @@ function sharedStripLines(results: ReadonlyArray<SharedStripResult>, preview: bo
       return id === null ? [] : [id.slice(id.indexOf(":") + 1)];
     };
     const names = (keys: ReadonlyArray<string>) => keys.flatMap(display).join(" · ");
+    // #800 — 설치자가 고친 몫까지 걷었으면 "하네스 몫만 있었다" · "yours stays" 라 하지 않고 백업을 댄다
+    const stays = r.edited === undefined ? " (yours stays)" : "";
     if (r.fileRemoved) {
+      const only = (verb: string) =>
+        r.edited === undefined ? ` and only its part ${verb} in it` : "";
       lines.push(
         preview
-          ? `  ○ remove ${r.path} (the harness created it and only its part is in it)`
-          : `  ${status.success(`${r.path} — removed (the harness created it and only its part was in it)`)}`,
+          ? `  ○ remove ${r.path} (the harness created it${only("is")})`
+          : `  ${status.success(`${r.path} — removed (the harness created it${only("was")})`)}`,
       );
     } else if (r.removed.length > 0) {
       // 블록은 이름이 곧 전부다 · 키는 무엇을 걷었는지 이름을 댄다
@@ -1356,8 +1360,17 @@ function sharedStripLines(results: ReadonlyArray<SharedStripResult>, preview: bo
       const what = r.path === AGENTS_MD ? "the harness block" : "the harness part";
       lines.push(
         preview
-          ? `  ○ remove ${what} from ${r.path}${which} (yours stays)`
-          : `  ${status.success(`${r.path} — removed ${what}${which} (yours stays)`)}`,
+          ? `  ○ remove ${what} from ${r.path}${which}${stays}`
+          : `  ${status.success(`${r.path} — removed ${what}${which}${stays}`)}`,
+      );
+    }
+    if (r.edited !== undefined) {
+      const n = r.edited.keys.length;
+      const edited = `you had edited ${n} harness hook line${n === 1 ? "" : "s"} (${names(r.edited.keys)})`;
+      lines.push(
+        preview
+          ? `  ○ ${r.path} — ${edited} — a copy is saved first as ${r.edited.backup}`
+          : `  ${c.yellow("⊘")} ${r.path} — ${edited} — your edit is in the copy: ${r.edited.backup}`,
       );
     }
     if (r.kept.length > 0) {

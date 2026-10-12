@@ -19,7 +19,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import type { PortionAdapter, PortionShas } from "./adapters/contract.js";
 import { ADAPTERS, adapterFor, excludedKeys, keyId } from "./adapters/index.js";
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
@@ -33,6 +33,7 @@ import {
   SKILLS_BLOCK,
   withoutAgentsBlock,
 } from "./agents-md-merge.js";
+import { backupFile } from "./fs-ops.js";
 import { hashContent, type InstallLogPortion } from "./install-log.js";
 import { judge } from "./judge.js";
 import type { OwnedWriter } from "./owned-write.js";
@@ -447,6 +448,11 @@ export interface SharedStripResult {
   removed: string[];
   /** 기록에 있지만 설치자가 고쳐 남긴 키. */
   kept: string[];
+  /**
+   * #800 — `removed` 중 설치자가 고쳤는데도 걷은 키(훅 핸들러 — 남기면 사라진 스크립트를 부른다, N-f)와, 걷기 전에 만든 그 파일의
+   * 백업 1개(프로젝트 상대 — 미리보기면 이름 규약). 고친 것을 걷지 않았으면 둘 다 없다.
+   */
+  edited?: { keys: string[]; backup: string };
   /** 걷은 뒤에도 이 파일에 남는 기록된 몫(= `kept`) — 로그가 남는 경로(`--cli`)가 이어 적는다. */
   portions: InstallLogPortion[];
   /** #569 — 하네스가 만든 파일에 몫밖에 없어 파일째 지웠다(미리보기면 지울 것이다). */
@@ -526,6 +532,16 @@ export function stripShared(params: StripSharedParams): SharedStripResult {
     });
   }
   const fileRemoved = params.removeIfEmpty === true && res.removed.length > 0 && res.empty;
+  // #800 — 설치자가 고친 하네스 몫까지 걷는다: 하네스 파일과 같은 규칙으로 걷기 전에 그 파일 하나를 백업한다
+  const edited =
+    res.removedEdited.length === 0
+      ? undefined
+      : {
+          keys: res.removedEdited,
+          backup: params.write
+            ? relative(projectDir, backupFile(abs)).split(sep).join("/")
+            : `${path}.backup-<time>`,
+        };
   if (params.write && fileRemoved) rmSync(abs);
   else if (params.write && res.changed) writeFileSync(abs, res.text);
   const action = res.removed.length > 0 ? "removed" : res.kept.length > 0 ? "left" : "none";
@@ -533,6 +549,7 @@ export function stripShared(params: StripSharedParams): SharedStripResult {
     removed: res.removed,
     kept: res.kept,
     portions: toPortions(path, res.portions),
+    ...(edited === undefined ? {} : { edited }),
     ...(fileRemoved ? { fileRemoved } : {}),
   });
 }
