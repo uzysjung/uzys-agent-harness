@@ -251,5 +251,9 @@ describe("#780 — 외부 스킬 첫 추가는 그 자리의 설치자 파일을
     addSkill();
     expect(slotBackups()).toEqual([]);
     expect(displacedIn(log())).toEqual([]);
+    // 호출 전부터 있던 설치자 파일이라 자산 몫으로 적지 않는다 — uninstall 이 지우지 않는다
+    const files = (log().assets.find((a) => a.id === FD.id)?.files ?? []).map((f) => f.path);
+    expect(files).not.toContain(SKILL);
+    expect(files).toContain(`${AGENTS_SLOT}/SKILL.md`);
   });
 });

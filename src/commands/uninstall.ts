@@ -66,7 +66,6 @@ import {
   listFilesRecursive,
   PROJECT_SKELETON_DIRS,
 } from "../fs-ops.js";
-import { HOLD_DIR, leftoverHoldLine, settleLeftoverHolds } from "../held-files.js";
 import { removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
@@ -262,11 +261,6 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  // #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본을 다른 일보다 먼저 정리한다. 사본은 기록 폴더 안에 있어 그 폴더를
-  // 지우기 전이어야 한다. 하나라도 옮기지 못하면 아무것도 지우지 않고 멈춘다 — 지우면 그 사본이 기록 폴더와 함께 사라진다.
-  if (!settleLeftoverBeforeUninstall(projectDir, options.dryRun === true, { log, err, exit }))
-    return;
-
   // #528 — CLI 하나만 빼는 경로. 전량 제거와 술어가 달라(표 기반) 이 자리에서 갈린다.
   if (options.cli !== undefined) {
     removeCliAction(
@@ -432,33 +426,6 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   log("");
   log(outcome.line);
   exit(outcome.code);
-}
-
-/**
- * #780 — 끊긴 실행이 남긴 보존 자리(`held-files.ts`)를 정리하고 파일마다 한 줄로 말한다. 계속해도 되면 true. 옮기지 못한
- * 사본이 있으면 멈춘다(false) — uninstall 은 기록 폴더를 통째로 지우는데 그 사본이 그 안에 있다. dry-run 은 판정만 말한다.
- */
-function settleLeftoverBeforeUninstall(
-  projectDir: string,
-  dryRun: boolean,
-  io: { log: (l: string) => void; err: (l: string) => void; exit: (code: number) => never },
-): boolean {
-  const leftover = settleLeftoverHolds(projectDir, { dryRun });
-  for (const h of leftover) {
-    const line = leftoverHoldLine(h, dryRun);
-    if (line !== null) io.log(`  ${status.warn(c.yellow(line))}`);
-  }
-  if (dryRun || !leftover.some((h) => h.outcome === "kept")) return true;
-  io.err(
-    status.failure(
-      c.red(
-        `ERROR: uninstall stopped — a copy of your file kept in ${HOLD_DIR}/ could not be put back, and removing the install record would delete it. Nothing was removed.`,
-      ),
-    ),
-  );
-  io.err(c.dim("       Fix the cause above, then run the same command again."));
-  io.exit(1);
-  return false;
 }
 
 /**
@@ -1626,14 +1593,13 @@ interface HarnessRemoval {
   /**
    * #774 (ADR-111) — 옛 판이 바이트 그대로 쓴 `AGENTS.md` 몫(지문 일치 절 · 옛 하네스 파일)을 걷었다. 걷기 전 파일 1회 백업
    * (`backup` — 미리보기면 이름 규약). `fileRemoved` = 설치자 몫이 없어 파일째 지웠다. `keptEdited` = 이름은 하네스 절인데 설치자가
-   * 고쳐 남긴 절의 제목 · `recognized` = 걷은 것이 전부 지문 일치였다(거짓이면 화면이 "nothing of yours" 를 말하지 않는다).
+   * 고쳐 남긴 절의 제목. 화면은 "설치자 몫이 없었다" 고 단언하지 않는다 — 백업 위치만 말한다(리뷰 r2 MEDIUM-1: 제목 한 줄 편집도 판정 밖이다).
    */
   legacyAgentsMd: Array<{
     path: string;
     backup: string;
     fileRemoved: boolean;
     keptEdited: string[];
-    recognized: boolean;
   }>;
   /** 읽지 못해(권한 · 디렉터리 · 템플릿 없음 · 쓰기 실패) 판정하지 않고 남긴 것. */
   unjudged: string[];
@@ -2223,8 +2189,7 @@ function harnessRemovalLines(
     );
   }
   for (const l of r.legacyAgentsMd) {
-    // #774 — "nothing of yours" 는 걷은 것이 전부 지문 일치였을 때만 말한다. 이름은 하네스 절인데 설치자가 고친 절은 남기고 그 사실을 말한다
-    const nothingOfYours = l.recognized ? ", nothing of yours in it" : "";
+    // #774 — 이름은 하네스 절인데 설치자가 고친 절은 남기고 그 사실을 말한다. 파일째 지울 때 "설치자 몫이 없었다" 는 단언하지 않는다
     const kept =
       l.keptEdited.length > 0
         ? ` · kept ${l.keptEdited.length} section(s) you edited (${l.keptEdited.join(" · ")})`
@@ -2232,13 +2197,13 @@ function harnessRemovalLines(
     if (preview) {
       lines.push(
         l.fileRemoved
-          ? `  ○ remove ${l.path} (written by an older harness version${nothingOfYours} — a copy is saved first)`
+          ? `  ○ remove ${l.path} (written by an older harness version — a copy is saved first)`
           : `  ○ remove the harness sections written by an older version from ${l.path} — yours stays${kept} (a copy is saved first)`,
       );
     } else {
       lines.push(
         l.fileRemoved
-          ? `  ${status.success(`removed  ${l.path} (written by an older harness version${nothingOfYours} — saved a copy: ${l.backup})`)}`
+          ? `  ${status.success(`removed  ${l.path} (written by an older harness version — saved a copy: ${l.backup})`)}`
           : `  ${status.success(`${l.path} — removed the harness sections written by an older version — yours stays${kept} (saved a copy: ${l.backup})`)}`,
       );
     }
@@ -2582,7 +2547,6 @@ function removeLegacyAgentsMd(
     backup,
     fileRemoved: strip.remainder === null,
     keptEdited: strip.keptEdited,
-    recognized: strip.recognized,
   });
   out.forgotten.add(path);
   // `--cli` 가 이 파일을 "판정한 파일" 로 읽어 몫 기록(옛 블록)을 비우게 — 남는 하네스 몫은 없다

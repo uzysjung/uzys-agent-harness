@@ -387,7 +387,7 @@ describe("#774 uninstall — 옛 판 `AGENTS.md`", () => {
     expect(existsSync(agentsPath())).toBe(false);
     expect(backupText()).toEqual([V100]);
     expect(screen).toContain(
-      "removed  AGENTS.md (written by an older harness version, nothing of yours in it — saved a copy:",
+      "removed  AGENTS.md (written by an older harness version — saved a copy:",
     );
   });
 
@@ -546,7 +546,7 @@ describe("#774 하네스 이름 절 안의 설치자 편집", () => {
     expect(existsSync(agentsPath())).toBe(false);
     expect(backupText()).toEqual([V150]);
     expect(screen).toContain(
-      "removed  AGENTS.md (written by an older harness version, nothing of yours in it — saved a copy:",
+      "removed  AGENTS.md (written by an older harness version — saved a copy:",
     );
   });
 
@@ -580,7 +580,7 @@ describe("#774 하네스 이름 절 안의 설치자 편집", () => {
 
     expect(existsSync(agentsPath())).toBe(false);
     expect(backupText()).toEqual([v95]);
-    expect(screen).toContain("nothing of yours in it");
+    expect(screen).not.toContain("nothing of yours");
   });
 
   it('⑮ 첫 접촉 블록을 함께 걷어 파일을 지우면 "nothing of yours" 라고 말하지 않는다 — 블록 안 줄은 지문이 가르지 못한다', () => {

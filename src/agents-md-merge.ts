@@ -615,11 +615,6 @@ export interface AgentsMdStripResult {
    * 절로 남긴** 것의 제목(사용자 결정 ⓓ). 화면이 "고친 절 N 개를 남겼다" 고 말한다.
    */
   keptEdited: string[];
-  /**
-   * #774 — 걷은 것이 **전부** 지문 일치(또는 기록 sha · 안 채운 스캐폴드)였다. 거짓이면 걷은 바이트 중 판정하지 않은 것이 있다(v26.169
-   * update 가 붙인 첫 접촉 블록 — 그 안의 설치자 줄은 지문이 가르지 못한다) — 화면이 "nothing of yours" 를 말하지 않는다.
-   */
-  recognized: boolean;
 }
 
 /**
@@ -655,11 +650,10 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
         legacyRemoved: false,
         legacySections: 0,
         keptEdited: [],
-        recognized: true,
       };
     }
     const body = withoutAgentsBlock(existing);
-    return stripLegacyAgentsMd(body, names, headings, body === existing);
+    return stripLegacyAgentsMd(body, names, headings);
   }
   const context = installerLines(sectionBody(existing, names, CONTEXT_SECTION), SKILLS_BLOCK);
   const rules = installerLines(sectionBody(existing, names, RULES_SECTION), ANCHOR_BLOCK);
@@ -672,7 +666,6 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
     legacyRemoved: extras.legacy > 0,
     legacySections: extras.legacy,
     keptEdited: [],
-    recognized: true,
   };
   if (!contextFilled && !rulesFilled && extras.sections.length === 0) {
     return { remainder: null, ...legacy };
@@ -695,14 +688,11 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
  * 꼬리 · 하네스 이름 절의 옛 렌더)은 하네스 것이고, 지문이 다른 절은 — 이름이 하네스 것(`Session Start` · `Project Rules` 머리말 ·
  * 하네스 룰 제목)이어도 — 설치자가 쓰거나 고친 절로 남는다(사용자 결정 ⓓ). `## Project Context` 는 안 채운 스캐폴드면 걷고, 채웠으면
  * 하네스 배너만 떼고 남긴다. 남는 것이 없으면 `null`(파일째 삭제). 어느 쪽이든 옛 판 바이트를 걷으므로 `legacyRemoved` 는 참이다.
- *
- * @param blockFree 첫 접촉 블록이 없던 파일이다 — 있었으면 그 블록 안은 지문이 가르지 않고 걷혔다(`recognized` 거짓).
  */
 function stripLegacyAgentsMd(
   existing: string,
   names: ReadonlySet<string>,
   headings: ReadonlySet<string>,
-  blockFree: boolean,
 ): AgentsMdStripResult {
   // `## Project Context` 가 없던 판(v26.70~v26.95)은 채울 자리도 없었다 — 빈 본문을 "채웠다" 로 읽지 않는다
   const contextBody = sectionBody(existing, names, CONTEXT_SECTION);
@@ -713,7 +703,6 @@ function stripLegacyAgentsMd(
     legacyRemoved: true,
     legacySections: extras.legacy,
     keptEdited: extras.keptEdited,
-    recognized: blockFree,
   };
   if (!contextFilled && extras.sections.length === 0) return { remainder: null, ...result };
   const out: string[] = [];

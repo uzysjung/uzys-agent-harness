@@ -358,12 +358,6 @@ export function buildAssetEntries(
   report: ExternalInstallReport | null,
   scope: InstallScope,
   previous?: ReadonlyArray<InstallLogAsset>,
-  /**
-   * #780 — 이번 호출 전에 설치자 파일이 있던 자리를 비켜 두고(`rootFiles.change = displaced`) 도구 바이트가 앉은 경로.
-   * 그 경로의 `changed` 는 기록이 없어도 그 자산 것이다 — 안 그러면 uninstall 이 그 파일을 안 지워 자리가 안 비고
-   * 원본을 되돌리지 못한다.
-   */
-  displacedPaths: ReadonlySet<string> = new Set(),
 ): InstallLogAsset[] {
   if (!report) return [];
   return report.attempted
@@ -376,10 +370,7 @@ export function buildAssetEntries(
       // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
       // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
       if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
-      return {
-        ...entry,
-        files: mergeToolFiles(recordedBefore?.files, r.files, displacedPaths),
-      };
+      return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
 }
 
@@ -391,14 +382,11 @@ export function buildAssetEntries(
 function mergeToolFiles(
   prior: ReadonlyArray<InstallLogSkillFile> | undefined,
   run: { created: ReadonlyArray<InstallLogSkillFile>; changed: ReadonlyArray<InstallLogSkillFile> },
-  displacedPaths: ReadonlySet<string>,
 ): InstallLogSkillFile[] {
   const changed = new Map(run.changed.map((f) => [f.path, f.sha256]));
   const byPath = new Map<string, string>();
   for (const f of prior ?? []) byPath.set(f.path, changed.get(f.path) ?? f.sha256);
   for (const f of run.created) byPath.set(f.path, f.sha256);
-  // #780 — 설치자 원본을 백업으로 비켜 둔 자리에 도구가 쓴 파일은 이 자산 것이다
-  for (const f of run.changed) if (displacedPaths.has(f.path)) byPath.set(f.path, f.sha256);
   return [...byPath].map(([path, sha256]) => ({ path, sha256 }));
 }
 
@@ -505,13 +493,7 @@ export function buildInstallLog(
     templates: { ...previous?.templates, ...templates },
     assets: mergeAssets(
       claudeDirMovedAside ? previous?.assets?.filter(survivesClaudeDirRename) : previous?.assets,
-      buildAssetEntries(
-        external,
-        scope,
-        previous?.assets,
-        // #780 — 이번 실행이 비켜 둔 자리. 그 자리를 도구가 바꿨으면 지금 바이트는 도구 것이다
-        new Set(rootFiles.filter((f) => f.change === "displaced").map((f) => f.path)),
-      ),
+      buildAssetEntries(external, scope, previous?.assets),
     ),
   };
   // 루트 파일은 `.claude/` 밖이라 backup rename 과 무관하게 살아남는다 → 무조건 누적.
