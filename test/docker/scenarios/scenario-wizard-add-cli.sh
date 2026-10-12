@@ -54,10 +54,12 @@ WIZARD_PID=$!
 exec 3>"${FIFO}"
 
 plain() { sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "${OUT}"; }
+# 화면 대조는 `grep … <(plain)` 으로 한다 — `plain | grep -q` 는 grep 이 먼저 끝나면 sed 가 SIGPIPE(141)로 죽고
+# pipefail 이 그 파이프라인을 실패로 바꿔, 문구가 있는데도 FAIL 이 난다(#785).
 
 wait_for() {
   local pattern="$1" tries=0
-  until plain | grep -qE -- "${pattern}"; do
+  until grep -qE -- "${pattern}" <(plain); do
     tries=$((tries + 1))
     if [[ "${tries}" -gt 300 ]]; then
       echo "FAIL: 위저드 화면에 '${pattern}' 이 30초 안에 안 나왔다"
@@ -84,7 +86,7 @@ key ' ' # OpenCode 체크
 key '\r'
 
 wait_for "Page 1/[0-9]+"
-PAGES=$(plain | grep -oE "Page 1/[0-9]+" | head -1 | cut -d/ -f2)
+PAGES=$(grep -m1 -oE "Page 1/[0-9]+" <(plain) | cut -d/ -f2)
 echo "✓ 자산 페이지 ${PAGES}장 (화면에서 읽음)"
 for n in $(seq 1 "${PAGES}"); do
   wait_for "Page ${n}/${PAGES}"
@@ -134,12 +136,12 @@ LINKS=$(find "${PROJ}/.claude/skills" -mindepth 1 -maxdepth 1 -type l | wc -l)
 echo "  · 관측: .claude/skills/ 링크 ${LINKS}개 (A 의 링크 자리)"
 
 # --- ③ 화면 ---
-if ! plain | grep -qF "Claude Code   ● installed"; then
+if ! grep -qF "Claude Code   ● installed" <(plain); then
   echo "FAIL: Step 2 화면에 'Claude Code   ● installed' 가 없다"
   plain | grep -n "Step 2" | head -5
   exit 1
 fi
-if ! plain | grep -qE "RUNS AS +agent-harness install --track tooling --cli claude --cli opencode"; then
+if ! grep -qE "RUNS AS +agent-harness install --track tooling --cli claude --cli opencode" <(plain); then
   echo "FAIL: 확인 화면에 RUNS AS install 명령이 없다"
   plain | grep -n "RUNS AS" | head -5
   exit 1

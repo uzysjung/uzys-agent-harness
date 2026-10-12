@@ -56,7 +56,7 @@ plain_out() { sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' /tmp/update-out.txt; }
 
 wait_for() {
   local pattern="$1" tries=0
-  until plain_out | grep -qE -- "${pattern}"; do
+  until grep -qE -- "${pattern}" <(plain_out); do
     tries=$((tries + 1))
     if [[ "${tries}" -gt 300 ]]; then
       echo "FAIL: 위저드 화면에 '${pattern}' 이 30초 안에 안 나왔다"
@@ -101,7 +101,7 @@ run_update() {
 
   # update 가 실제로 돌았는지부터 확인한다 — 안 돌았는데 "백업 없음"을 통과로 읽으면
   # 이 시나리오는 아무것도 검증하지 않으면서 green 이 된다.
-  if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q "Update complete"; then
+  if ! grep -q "Update complete" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt); then
     echo "FAIL: update 가 실행되지 않았다 (위저드 구동 실패 — pty 입력 확인 필요)"
     sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | tail -20
     exit 1
@@ -135,9 +135,9 @@ LIST="${PROJ}/.uzys-agent-harness/update-backups.json"
 [[ -f "${LIST}" ]] || { echo "FAIL: update-backups.json 이 없다 — 백업이 있었는데 목록이 안 남았다"; exit 1; }
 jq -e --arg p "${TARGET#${PROJ}/}" '.backups[] | select(.path == $p)' "${LIST}" >/dev/null \
   || { echo "FAIL: 목록에 백업된 파일(${TARGET#${PROJ}/})이 없다"; cat "${LIST}"; exit 1; }
-sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q "BACKUPS" \
+grep -q "BACKUPS" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt) \
   || { echo "FAIL: Update 요약에 BACKUPS 행이 없다"; exit 1; }
-sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q "audit-harness-fit" \
+grep -q "audit-harness-fit" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt) \
   || { echo "FAIL: Update 요약이 다음 행동(audit-harness-fit)을 지목하지 않는다"; exit 1; }
 echo "✓ 백업 목록 파일 + 다음 행동 안내"
 
@@ -149,7 +149,7 @@ fi
 echo "✓ 최신판이 자리를 차지 (편집분은 백업으로)"
 
 # 화면에 skills 행이 떠야 한다 — 갱신하고도 안 알리는 침묵이 애초의 R-3a 였다.
-if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q '\.claude/skills'; then
+if ! grep -q '\.claude/skills' <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt); then
   echo "FAIL: Update 요약에 .claude/skills 행이 없다 (사용자가 갱신 사실을 알 수 없다)"
   exit 1
 fi
@@ -199,7 +199,7 @@ if ! ls "${TARGET_DIR}"/my-notes.md.backup-* >/dev/null 2>&1; then
   exit 1
 fi
 echo "✓ 사용자 파일은 백업 뒤 삭제"
-if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt | grep -q 'not in bundle'; then
+if ! grep -q 'not in bundle' <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/update-out.txt); then
   echo "FAIL: Update 요약에 삭제 행이 없다 (조용히 지우면 사용자는 파일이 왜 없어졌는지 모른다)"
   exit 1
 fi
