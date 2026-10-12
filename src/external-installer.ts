@@ -27,6 +27,7 @@ import {
   buildAssetEntries,
   hashContent,
   type InstallLog,
+  type InstallLogAsset,
   type InstallLogSkillFile,
   installedClis,
   readInstallLog,
@@ -499,9 +500,10 @@ export function refreshExternalSkills(
   // 하네스 파일(기록 sha 와 다름)은 그 파일 하나를 백업하고, 안 고친 파일은 조용히 갱신되며, 설치자 파일(기록 밖 —
   // 노트 · 앞선 update 의 백업)은 제자리로 되돌린다. 화면·목록은 `collectRunBackups` 가 디스크에서 줍는다.
   const targetIds = new Set(targets.map((a) => a.id));
-  const held = log.assets
-    .filter((a) => targetIds.has(a.id))
-    .flatMap((a) => holdSlotFiles(projectDir, a.files));
+  const settle = holdSkillSlots(
+    projectDir,
+    log.assets.filter((a) => targetIds.has(a.id)),
+  );
   const report = (deps.run ?? runExternalInstall)(
     {
       tracks: log.spec.tracks as ReadonlyArray<Track>,
@@ -522,7 +524,7 @@ export function refreshExternalSkills(
       ...(deps.warn ? { warn: deps.warn } : {}),
     },
   );
-  for (const h of held) settleHeld(h);
+  settle();
   // #770 — 도구가 다시 쓴 sha 로 기준선을 잇는다. 안 이으면 상류가 바뀐 다음 update 가 안 고친 파일을 "고쳤다" 로 백업한다.
   recordRefreshedFiles(projectDir, log, report, deps.writeLog ?? writeInstallLog);
   return {
@@ -534,6 +536,19 @@ export function refreshExternalSkills(
     notInCatalog,
     unknown: false,
   };
+}
+
+/**
+ * #770 (ADR-097 결정 3·5) — 외부 스킬 도구(`npx skills add --copy`)를 다시 부르기 **전에** 기록된 자산들의 스킬 폴더를 들고,
+ * 호출 **뒤에** 부를 판정 함수를 돌려준다(돌려받는 값 = 이번에 남긴 백업의 절대 경로). update 의 갱신과 install 재실행이
+ * 같은 도구 호출이라 이 한 함수를 함께 쓴다 — 한쪽만 고치면 다른 쪽이 편집 · 노트 · 앞선 백업을 다시 지운다.
+ */
+export function holdSkillSlots(
+  projectDir: string,
+  assets: ReadonlyArray<InstallLogAsset>,
+): () => string[] {
+  const held = assets.flatMap((a) => holdSlotFiles(projectDir, a.files));
+  return () => held.flatMap((h) => settleHeld(h) ?? []);
 }
 
 /** #770 — 도구 호출 전에 들고 있는 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일. */
@@ -579,20 +594,20 @@ function holdSlotFiles(
  * #770 — 도구 호출 뒤. 그대로면(호출 실패 등) 아무것도 안 한다. 지워진 설치자 파일은 제자리로 되돌리고, 바뀌었거나
  * 지워진 고친 하네스 파일과 상류 파일에 덮인 설치자 파일은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다.
  */
-function settleHeld(h: HeldFile): void {
+function settleHeld(h: HeldFile): string | null {
   let now: Buffer | null = null;
   try {
     now = readFileSync(h.abs);
   } catch {
     /* 도구가 지웠다 */
   }
-  if (now?.equals(h.content)) return;
+  if (now?.equals(h.content)) return null;
   if (!h.recorded && now === null) {
     mkdirSync(dirname(h.abs), { recursive: true });
     writeFileSync(h.abs, h.content);
-    return;
+    return null;
   }
-  backupContent(h.abs, h.content);
+  return backupContent(h.abs, h.content);
 }
 
 /** #770 — 갱신한 자산의 `files` 를 이번 호출의 결과로 잇는다(install 의 `buildAssetEntries` 와 같은 병합). 바뀐 것이 없으면 쓰지 않는다. */

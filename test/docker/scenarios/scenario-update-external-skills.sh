@@ -169,6 +169,50 @@ if [[ "$(cat "${NOTE}" 2>/dev/null)" != "installer note" ]]; then
 fi
 echo "✓ 두 번째 update — 앞선 백업·설치자 노트가 남고, 안 고친 파일은 새 백업 없이 갱신된다 (#770)"
 
+# --- ②''' #770 HIGH-1 — install 재실행도 같은 도구 호출이다. 고친 파일은 그 파일 하나로 백업되고, 노트·앞선 백업은
+#          제자리에 남고, 안 고친 사본(.agents)은 새 백업 없이 갱신된다 ---
+MARK2="MUTATED-BEFORE-REINSTALL-770"
+printf '\n%s\n' "${MARK2}" >> "${CLAUDE_SLOT}/SKILL.md"
+NOTE2="${CLAUDE_SLOT}/my-notes2.md"
+echo "installer note 2" > "${NOTE2}"
+if ! grep -q "${MARK2}" "${CLAUDE_SLOT}/SKILL.md"; then
+  echo "FAIL: install 재실행 전 변이가 안 걸렸다 — 이 실행은 무효다"
+  exit 1
+fi
+BAKS_BEFORE_RE=$(find "${CLAUDE_SLOT}" "${AGENTS_SLOT}" -name '*.backup-*' | sort)
+agent-harness install --track tooling --with frontend-design --scope project --cli claude --cli codex \
+  > "${PROJ}/reinstall-out.txt" 2>&1 || {
+  echo "FAIL: install 재실행이 실패했다"; tail -30 "${PROJ}/reinstall-out.txt"; exit 1
+}
+for b in ${BAKS_BEFORE_RE}; do
+  if [[ ! -f "${b}" ]]; then
+    echo "FAIL: install 재실행이 앞선 백업 ${b} 를 지웠다 (#770 HIGH-1)"
+    exit 1
+  fi
+done
+for n in "${NOTE}" "${NOTE2}"; do
+  if [[ ! -f "${n}" ]]; then
+    echo "FAIL: install 재실행이 스킬 폴더의 설치자 노트 ${n} 를 지웠다 (#770 HIGH-1)"
+    exit 1
+  fi
+done
+NEW_BAKS=$(comm -13 <(echo "${BAKS_BEFORE_RE}") <(find "${CLAUDE_SLOT}" "${AGENTS_SLOT}" -name '*.backup-*' | sort))
+if [[ "$(printf '%s' "${NEW_BAKS}" | grep -c .)" -ne 1 ]] || [[ "${NEW_BAKS}" != "${CLAUDE_SLOT}/SKILL.md.backup-"* ]] \
+  || ! grep -q "${MARK2}" "${NEW_BAKS}"; then
+  echo "FAIL: install 재실행 뒤 새 백업이 고친 ${CLAUDE_SLOT}/SKILL.md 하나가 아니다 (#770 HIGH-1) — 새 백업: [${NEW_BAKS}]"
+  exit 1
+fi
+if grep -q "${MARK2}" "${CLAUDE_SLOT}/SKILL.md"; then
+  echo "FAIL: install 재실행 뒤에도 고친 SKILL.md 가 상류판이 아니다"
+  exit 1
+fi
+if ! grep -q "$(basename "${NEW_BAKS}")" "${PROJ}/reinstall-out.txt"; then
+  echo "FAIL: install 화면이 남긴 백업을 말하지 않는다 (#770 HIGH-1)"
+  grep -n "backup" "${PROJ}/reinstall-out.txt" || echo "  (backup 행 자체가 없다)"
+  exit 1
+fi
+echo "✓ install 재실행 — 고친 SKILL.md 만 백업되고 화면이 말하며, 노트·앞선 백업은 남는다 (#770 HIGH-1)"
+
 # --- ③ update 후에도 디렉터리인가 (심링크 강등 금지) ---
 for p in "${CLAUDE_SLOT}" "${AGENTS_SLOT}"; do
   s="$(shape "${p}")"
