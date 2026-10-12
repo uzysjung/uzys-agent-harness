@@ -8,7 +8,7 @@
  * **옛 스캔 필드 필터(Q1).** v26.161.0 까지의 `policyFiles`·`skillFiles` 는 설치 뒤 디스크를 훑어 템플릿과 이름이
  * 같은 파일을 적은 값이라 설치자 파일이 섞여 있다(BLOCKER-5 · B2). 로그에 `records: "writer"` 가 없으면 그 두 필드의
  * 항목은 셋을 다 만족할 때만 기록으로 읽는다: ① claude 가 깔린 CLI 집합에 있다 ② 경로가 기록 트랙에서 나오는 하네스
- * 대상이다(manifest — 번들 스킬은 옵션 선택이 기록에 없으므로 전부) **이거나 하네스가 배포했다가 은퇴시킨 경로다
+ * 대상이다(manifest — 번들 스킬은 옵션 선택이 기록에 없으므로 전부 · 디렉터리 대상은 번들 템플릿에 있는 파일만) **이거나 하네스가 배포했다가 은퇴시킨 경로다
  * (`RETIRED_PATHS` — 옛 판 전용의 닫힌 목록)** ③ `excluded` 에 없다. 걸린 항목은 "기록 없음" — 지우지 않는 쪽이다.
  * 은퇴 경로의 옛 스캔 sha 는 하네스 내용의 증거가 아니므로 "기록 있음 · sha 없음" 으로 읽는다 — update 와 uninstall 이
  * 모두 `backup+remove` 로 치운다(#551 리뷰 B3). writer 가 이어받은 은퇴 항목도 같게 읽는다. 새 판이 쓴 기록
@@ -25,10 +25,14 @@
  * `excludedIds` 는 install · update · uninstall · list 가 부른다.
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { adapterFor } from "./adapters/index.js";
 import { classifyBaselineTarget } from "./baseline-targets.js";
 import { CLI_OWNERSHIP } from "./cli-ownership.js";
+import { resolveBundleRoot } from "./context-cost.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { listFilesRecursive } from "./fs-ops.js";
 import { type InstallLog, installedClis, POLICY_DIRS } from "./install-log.js";
 import type { FileKind, Recorded } from "./judge.js";
 import { buildManifest, RETIRED_PATHS } from "./manifest.js";
@@ -64,8 +68,13 @@ export function ownersOf(path: string): CliBase[] {
 }
 
 /**
- * 기록 트랙으로 하네스가 쓰는 대상인가 — manifest 에서 유도(파일은 같은 경로, 디렉터리는 그 아래).
- * 번들 스킬은 옵션 선택이 기록에 없으므로 전부 대상으로 본다(설계 §1.2).
+ * 기록 트랙으로 하네스가 쓰는 대상인가 — manifest 에서 유도(파일은 같은 경로, 디렉터리는 **그 아래 번들 템플릿에 있는
+ * 파일**). 번들 스킬은 옵션 선택이 기록에 없으므로 전부 대상으로 본다(설계 §1.2).
+ *
+ * 디렉터리를 접두로만 보면 안 된다(PR-D 리뷰 BLOCKER-1): v26.126–v26.153 의 `collectSkillHashes` 는 `.claude/skills/`
+ * 아래 **모든 파일**을 sha 로 적었다(템플릿 필터는 #477 · v26.154.0 부터). 번들 스킬 폴더에 설치자가 둔 노트가 그 sha
+ * 그대로 "하네스 파일" 이 되면 uninstall 은 백업 없이 지우고 update 는 백업 없이 번들 밖 파일로 치운다. 그 시절 스캔이
+ * 걸렀어야 할 조건(#477 — 템플릿에 그 파일이 있는가)을 여기서 건다.
  */
 export function isRecordedTrackTarget(log: InstallLog, path: string): boolean {
   return recordedTrackTargets(log)(path);
@@ -82,8 +91,38 @@ export function recordedTrackTargets(log: InstallLog): (path: string) => boolean
   };
   // manifest 는 모든 항목을 `applies` 술어와 함께 낸다 — 기록 트랙에 걸리는 것만 대상이다
   const entries = buildManifest(spec).filter((e) => e.applies(spec));
+  const templates = join(resolveBundleRoot(), "templates");
   return (path) =>
-    entries.some((e) => (e.type === "dir" ? path.startsWith(`${e.target}/`) : e.target === path));
+    entries.some((e) =>
+      e.type === "dir"
+        ? path.startsWith(`${e.target}/`) &&
+          existsSync(join(templates, e.source, path.slice(e.target.length + 1)))
+        : e.target === path,
+    );
+}
+
+/**
+ * 기록 트랙의 `.claude/` 하네스 자리 전부(파일 대상 · 디렉터리 대상의 번들 템플릿 파일 · 은퇴 경로) — 프로젝트 상대.
+ * 스캔 필드가 아예 없는 옛 로그(v26.125.0 이하 — `policyFiles` · `skillFiles` 도입 전)는 기록이 하네스 파일을 열거하지
+ * 못한다. uninstall 은 이 목록을 후보로 넣고 `recorded()` 가 `no-sha`(필드 없음) · `none`(필드 있음 — 하네스가 쓴 적 없는
+ * 자리)을 가른다(PR-D 리뷰 N1 · 설계 §2.3 #3 ⓐ).
+ */
+export function recordedTrackSpots(log: InstallLog): string[] {
+  const spec = {
+    tracks: log.spec.tracks.filter(isTrack),
+    selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
+  };
+  const templates = join(resolveBundleRoot(), "templates");
+  const out: string[] = [];
+  for (const e of buildManifest(spec)) {
+    if (!e.applies(spec) || !e.target.startsWith(CLAUDE_DIR)) continue;
+    if (e.type === "file") out.push(e.target);
+    else
+      for (const rel of listFilesRecursive(join(templates, e.source)))
+        out.push(`${e.target}/${rel}`);
+  }
+  for (const p of RETIRED_PATHS) out.push(`${CLAUDE_DIR}${p}`);
+  return out;
 }
 
 /** 하네스가 배포했다가 은퇴시킨 `.claude/` 정책 파일인가(`RETIRED_PATHS` 는 `.claude/` 상대). */
@@ -153,7 +192,8 @@ export function recorded(
   const owners = ownersOf(path);
   const ownedByLog = owners.some((c) => clis.includes(c));
   const claudePath = path.startsWith(CLAUDE_DIR);
-  if (ownedByLog && isTarget(path) && (!claudePath || legacyOwned())) {
+  // `.claude/` 은 옛 스캔 필터와 같은 잣대(은퇴 경로 포함 — 필드가 없던 판도 은퇴 파일을 깔았다), 그 밖은 대상 술어
+  if (ownedByLog && (claudePath ? legacyOwned() : isTarget(path))) {
     // #761 B3 · B-1 — 기록 필드가 있는데 그 경로가 없으면 하네스가 쓴 적 없는 자리다(체크섬 시대의 스캔은 템플릿에 있는 이름의
     // 파일을 전부 적었고, `externalFiles` 는 쓰는 순간 적었다). 로그 수준 `no-sha` 는 그 필드가 아예 없는 옛 로그 · 범위 밖
     // (`.installed-tracks`)에만 둔다

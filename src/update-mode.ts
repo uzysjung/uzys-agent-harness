@@ -2399,8 +2399,12 @@ export function syncSkills(
       if (foreignOf(`${skill.name}/${rel}`) !== null) continue;
       const targetFile = join(targetSkill, rel);
       if (outside?.skip(targetFile)) continue;
-      const recorded = baseline.get(`${skill.name}/${rel}`);
-      if (recorded === undefined || hashContent(readFileSync(targetFile, "utf8")) !== recorded) {
+      // 기록 상태는 위 갱신과 같은 접근자로 읽는다 — 옛 스캔(v26.126–153)이 sha 로 적은 설치자 파일은 `recorded()` 가
+      // "기록 없음" 으로 읽어 백업한다(PR-D 리뷰 BLOCKER-1 — 기준선 Map 을 그대로 읽으면 백업 없이 지웠다)
+      const rec =
+        opts.recordOf?.(`.claude/skills/${skill.name}/${rel}`) ??
+        baselineRecord(baseline, `${skill.name}/${rel}`);
+      if (rec.state !== "sha" || hashContent(readFileSync(targetFile, "utf8")) !== rec.sha256) {
         backupFile(targetFile, now);
         backedUp.push(`${skill.name}/${rel}`);
       }

@@ -65,6 +65,7 @@ import {
 import {
   hashContent,
   INSTALL_LOG_DIR,
+  INSTALL_LOG_FILENAME,
   type InstallLog,
   type InstallLogAsset,
   type InstallLogRootFile,
@@ -94,7 +95,14 @@ import {
   outsideProjectTarget,
 } from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
-import { excludedIds, kindOf, ownersOf, recorded, recordedTrackTargets } from "../recorded.js";
+import {
+  excludedIds,
+  kindOf,
+  ownersOf,
+  recorded,
+  recordedTrackSpots,
+  recordedTrackTargets,
+} from "../recorded.js";
 import { ruleHeadings } from "../rules-port.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
@@ -1479,6 +1487,8 @@ function buildGlobalAdvisoryCmd(asset: InstallLogAsset): string {
  * ──────────────────────────────────────────────────────────────────────────── */
 
 const CLAUDE_DIR = ".claude/";
+/** 옛 위치의 설치 기록(v26.134.1 이하) — project 상대. */
+const LEGACY_LOG = `${LEGACY_INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`;
 const SKILLS_DIR = ".claude/skills/";
 /** CLI 폴더 — 회수 뒤 남은 설치자 파일을 이름으로 말하는 자리다(통째로 다루지 않는다). */
 const CLI_FOLDERS: ReadonlyArray<string> = [".claude", ".codex", ".opencode"];
@@ -1628,6 +1638,9 @@ function harnessCandidates(log: InstallLog): string[] {
       .filter((p) => !p.startsWith(`${INSTALL_LOG_DIR}/`)),
     // 어느 필드에도 적힌 적 없는 옛 판의 하네스 파일 — `isTarget` 이 알려 준다(A8 · install 과 같은 방식)
     INSTALLED_TRACKS,
+    // 스캔 필드가 아예 없는 옛 로그(v26.125.0 이하)는 필드가 하네스 파일을 열거하지 못한다 — manifest 의 하네스 자리 ·
+    // 은퇴 경로를 후보로 넣고 `recorded()` 가 가른다(필드 없음 → `no-sha` · 필드 있음 → 기록에 없으면 `none`, PR-D 리뷰 N1)
+    ...(log.records === "writer" ? [] : recordedTrackSpots(log)),
   ];
   return [...new Set(paths)].filter((p) => kindOf(log, p) === "harness");
 }
@@ -2038,12 +2051,20 @@ function leftFolderLines(
     r.unjudged.includes(full) ||
     r.kept.includes(full) ||
     r.outside.some((o) => o.path === full || full.startsWith(`${o.link}/`));
+  // 새 판 기록(`records: "writer"`)은 하네스가 쓴 것을 전부 적었다 — 남은 것은 설치자 것이다. 옛 판 기록은 그 판이 깐 것을
+  // 다 적지 않았다(은퇴한 스킬 · 강등된 에이전트 · 옛 커맨드) — 남은 것을 설치자 것이라 단정하지 않는다(PR-D 리뷰 N1)
+  const whose =
+    log.records === "writer"
+      ? "of yours"
+      : "not on the install record — yours, or left by an older harness version";
   const lines: string[] = [];
   for (const dir of scope.folders) {
     if (outsideLinkAt(projectDir, dir) !== null) continue; // 밖 링크 줄이 이미 말했다
     const entries = new Map<string, string>();
     for (const n of yoursUnder(projectDir, dir)) {
       const full = `${dir}/${n.name}`;
+      // 옛 위치의 설치 기록(`.claude/.harness-install.json`)은 하네스 것이다 — `settleLog` 가 지운다
+      if (full === LEGACY_LOG) continue;
       if (!gone.has(full) && !assetFiles.has(full) && !said(full)) entries.set(n.name, n.shown);
     }
     for (const p of back)
@@ -2052,7 +2073,7 @@ function leftFolderLines(
     if (shown.length === 0) continue;
     const head = shown.slice(0, LEFT_FILES_SHOWN).join(" · ");
     const more = shown.length > LEFT_FILES_SHOWN ? ` +${shown.length - LEFT_FILES_SHOWN} more` : "";
-    const what = `${dir}/ — ${shown.length} file(s) of yours: ${head}${more}`;
+    const what = `${dir}/ — ${shown.length} file(s) ${whose}: ${head}${more}`;
     lines.push(preview ? `  ○ leave ${what}` : `  ${c.yellow("⊘")} left  ${what}`);
   }
   return lines;
