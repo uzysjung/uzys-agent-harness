@@ -70,7 +70,7 @@ done
 # ③ 설치자 문단
 grep -qF "${MARK}" "${AGENTS}" || { echo "FAIL: 설치자 문단이 사라졌다"; exit 1; }
 # ④ 화면
-sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/uninstall-cli-shared-out.txt | grep -qF "AGENTS.md — re-rendered for Codex (your sections kept)" || {
+grep -qF "AGENTS.md — re-rendered for Codex (your sections kept)" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/uninstall-cli-shared-out.txt) || {
   echo "FAIL: 화면이 AGENTS.md 재렌더를 말하지 않았다"
   tail -30 /tmp/uninstall-cli-shared-out.txt
   exit 1

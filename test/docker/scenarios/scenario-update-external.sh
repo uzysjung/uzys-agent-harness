@@ -99,7 +99,7 @@ fi
 echo "✓ 편집분은 백업으로, 최신판이 자리에 (ADR-046 승계)"
 
 # ⑤ 화면에 외부 CLI 행이 떠야 한다
-if ! sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/upd-ext.txt | grep -q 'external CLI'; then
+if ! grep -q 'external CLI' <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/upd-ext.txt); then
   echo "FAIL: Update 요약에 external CLI 행이 없다 (사용자가 갱신 사실을 알 수 없다)"
   sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/upd-ext.txt | tail -25
   exit 1

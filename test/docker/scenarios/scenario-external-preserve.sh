@@ -100,7 +100,7 @@ if [[ "$(jq '.mcp // {} | length' "${OCJSON}")" -eq 0 ]]; then
   echo "FAIL: opencode.json — 하네스 MCP 키가 없다"
   exit 1
 fi
-if find "${PROJ}" -maxdepth 1 -name 'opencode.json.backup-*' | grep -q .; then
+if [[ -n "$(find "${PROJ}" -maxdepth 1 -name 'opencode.json.backup-*')" ]]; then
   echo "FAIL: opencode.json — 함께 쓰는 파일인데 백업이 생겼다"
   exit 1
 fi
