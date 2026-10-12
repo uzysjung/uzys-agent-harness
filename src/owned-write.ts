@@ -145,6 +145,12 @@ export interface WriteOptions {
    * 증거 없이 쓰면 안 깐 CLI 에 디렉터리가 생겨 `refreshOnly` 자체가 무의미해진다.
    */
   createInRefresh?: boolean;
+  /**
+   * #774 (ADR-111) — 기준선 그대로인 하네스 파일이라도 바꾸기 **전** `.backup-<stamp>` 1회를 남긴다. 이번 쓰기가 옛 판이 바이트
+   * 그대로 쓴 몫(현행 번들에 없어 다시 깔아도 돌아오지 않는다)을 떨어뜨릴 때 호출부가 켠다. 설치자 편집이 아니므로 `backedUp` 에는
+   * 싣지 않는다(화면이 "edited" 라 부르지 않게) — 백업 경로만 남긴다.
+   */
+  backupFirst?: boolean;
 }
 
 export interface OwnedWriterOptions {
@@ -234,6 +240,10 @@ export function createOwnedWriter(
               const backupRel = relative(projectDir, backup).split(sep).join("/");
               displace({ path: rel, change: "displaced", notes: [backupRel] });
             } else backedUp.push(rel);
+          } else if (opts?.backupFirst === true) {
+            const backup = backupFile(absPath, now);
+            backupPaths.push(backup);
+            journal?.backup(backup);
           }
           writeFileSync(absPath, content);
           updated++;

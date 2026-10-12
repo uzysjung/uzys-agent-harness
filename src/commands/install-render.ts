@@ -1336,6 +1336,18 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #774 (N3) — 옛 판이 바이트 그대로 쓴 `AGENTS.md` 절을 뺐다. 기록 sha 그대로라 조용히 덮던 자리 — 사라진 절을 말하고
+    // 백업이 있다고 알린다(ADR-111)
+    const legacyDropped = baseline.updateMode.agentsMdLegacyDropped ?? 0;
+    if (legacyDropped > 0) {
+      log(
+        assetRow(
+          "success",
+          "AGENTS.md",
+          `removed ${legacyDropped} section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)`,
+        ),
+      );
+    }
     const externalEdited = baseline.updateMode.externalBackedUp.filter((p) => !noChecksum.has(p));
     if (externalEdited.length > 0) {
       log(

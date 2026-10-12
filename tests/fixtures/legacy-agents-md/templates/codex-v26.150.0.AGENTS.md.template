@@ -1,0 +1,82 @@
+# {PROJECT_NAME} — Codex Agent Guide
+
+> **Generated from**: `templates/CLAUDE.md` (4-CLI 단일 원본) via `scripts/claude-to-codex.sh` (Phase C)
+> **Codex Version**: 0.124.0+
+> **Linked SPEC**: `docs/specs/codex-compat.md`
+
+## Project Context
+
+{PROJECT_CONTEXT}
+
+## Project Rules
+
+{PROJECT_RULES}
+
+## Harness Rules
+
+> Codex 는 룰 디렉터리가 없고 `AGENTS.md` 계층만 읽는다. 그래서 하네스가 설치한 룰이 여기 본문으로
+> 들어온다. 이 프로젝트에서만 지킬 규칙을 세우면 이 문서에 이어 쓴다.
+>
+> 하위 디렉터리 `AGENTS.md` 로 범위를 좁히는 것도 되지만, Codex 는 **합친 크기**가
+> `project_doc_max_bytes`(기본 32 KiB)에 닿으면 **거기서 읽기를 멈춘다** — 뒤에 오는 파일이
+> 조용히 빠지고, 하위 파일이 뒤에 온다. 나눠 쓰기 전에 총량을 먼저 본다.
+
+{HARNESS_RULES}
+
+## Session Start
+
+매 세션 시작 시:
+1. `docs/SPEC.md` 및 `docs/specs/*.md` 재참조 (Persistent Anchor)
+2. `docs/todo.md` 현재 Phase 확인
+
+`session_start` hook이 자동 수행. Hook 실패 시 수동 수행.
+
+## Protected Files (DO NOT EDIT)
+
+Codex `sandbox_mode = "workspace-write"` + `approval_policy = "on-request"` 가 1차 방어. LLM 추가 준수:
+
+- `.env*`
+- `**/credentials.json`
+- `*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `uv.lock`
+- `.git/` 내부 파일 (커밋 메시지/hook 제외)
+- `~/.codex/`, `~/.claude/` 글로벌 (D16 보호)
+
+보호 영역 이슈 발견 시 **보고만**. 직접 수정 금지.
+
+## Git Policy
+
+- 코드/문서 변경 시 **즉시 commit**. "나중에 한꺼번에" 금지.
+- `main` 직접 커밋 금지. feature branch 사용.
+- Conventional Commits — `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci)
+
+## Agents (subagent, multi_agent stable)
+
+| Agent | Model | 역할 |
+|-------|-------|------|
+| reviewer | opus | 검증 전용 (SOD). 5축 리뷰 |
+| data-analyst | opus | Python / DuckDB / Trino / ML / PySide6 |
+| strategist | opus | 제안서 / DD / PPT / 경쟁분석 / 재무모델 |
+| code-reviewer | sonnet | 일상적 코드 리뷰 |
+| security-reviewer | sonnet | OWASP Top 10, 보안 패턴 |
+
+subagent 호출은 `spawn_agent / wait_agent / close_agent` 툴. 부모 컨텍스트 격리.
+
+## Hooks 현황 (Codex 0.124.0 실측 제약)
+
+- `pre_tool_use` / `post_tool_use` — **Bash 툴 한정 발화** (Issue #16732). ApplyPatch(파일 쓰기) 가로채기는 불가. `sandbox_mode` + `approval_policy`로 대체 보호.
+- 프로젝트 `.codex/config.toml` 훅은 사용자 `~/.codex/config.toml`에 trust entry 등록된 경우에만 로드.
+- 인터랙티브 세션 hook 로딩 bug (Issue #17532) 존재 가능 — `codex exec` 비대화형은 정상.
+
+## Experience Accumulation
+
+- Codex `memories` feature (experimental) — Claude auto memory 유사
+- 검증된 learning만 Rules 승격
+
+## Context Management
+
+- SPEC/PRD 매 세션 시작 시 재참조 (Persistent Anchor)
+- `child_agents_md` feature flag는 **under development, disabled** — AGENTS.md 디렉토리 계층 merge 사용 불가. 글로벌 `~/.codex/AGENTS.md` + 프로젝트 `AGENTS.md` 2단만 사용.
+
+---
+
+*이 문서는 자동 생성됨. 수동 편집 시 `scripts/claude-to-codex.sh` 재실행이 덮어쓸 수 있음. 원본은 `templates/CLAUDE.md` (claude 설치본은 루트 `CLAUDE-uzys-harness.md`).*

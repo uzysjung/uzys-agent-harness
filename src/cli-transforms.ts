@@ -464,7 +464,11 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalOutside,
     sharedFiles,
     portions: sharedFiles.flatMap((r) => r.portions ?? []),
-    portionPaths: sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),
+    // #774 (N2) — 블록 모델이던 `AGENTS.md` 를 절 모델로 바꿨으면 그 파일의 몫 기록을 비운다(판정한 경로 · 몫 없음)
+    portionPaths: [
+      ...sharedFiles.filter((r) => r.portions !== null).map((r) => r.path),
+      ...(agentsMd?.agentsMd.blockRecordDropped === true ? ["AGENTS.md"] : []),
+    ],
     restoredFiles,
   };
 }

@@ -415,6 +415,10 @@ export interface UpdateModeReport {
    */
   agentsMd?: { created: boolean; clis: CliBase[]; seededFrom: string | null };
   /**
+   * #774 (ADR-111) — `AGENTS.md` 에서 옛 판이 바이트 그대로 쓴 절을 되살리지 않고 뺀 수(쓰기 전 1회 백업). 부재 = 0.
+   */
+  agentsMdLegacyDropped?: number;
+  /**
    * #677 — 기록에 하네스 몫으로 있지만 기록 트랙의 렌더 밖인 Antigravity 룰을 치웠다(고친 것은 그 파일 하나를 백업).
    * optional = 부재는 "치운 것 없음".
    */
@@ -818,6 +822,7 @@ export function runUpdateMode(
         anchorRetired: null,
         anchorDisplaced: [],
         agentsMd: null,
+        agentsMdLegacyDropped: 0,
         excludedKeys: [],
         sharedLeft: [],
       };
@@ -834,6 +839,9 @@ export function runUpdateMode(
   report.externalUpdated = external.externalUpdated;
   if (external.anchorRetired !== null) report.anchorRetired = external.anchorRetired;
   if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
+  if (external.agentsMdLegacyDropped > 0) {
+    report.agentsMdLegacyDropped = external.agentsMdLegacyDropped;
+  }
   if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
   report.restoredKeys = external.restoredKeys;
   report.restoredFiles = external.restoredFiles;
@@ -2020,6 +2028,8 @@ function refreshExternalCli(
   anchorDisplaced: DisplacedOutcome[];
   /** ADR-103 — `UpdateModeReport.agentsMd` 와 같다(없으면 `null`). */
   agentsMd: { created: boolean; clis: CliBase[]; seededFrom: string | null } | null;
+  /** #774 — `UpdateModeReport.agentsMdLegacyDropped` 와 같다. */
+  agentsMdLegacyDropped: number;
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
   excludedKeys: Array<{
     path: string;
@@ -2213,6 +2223,7 @@ function refreshExternalCli(
     anchorRetired: result.anchorRetired,
     anchorDisplaced,
     agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
+    agentsMdLegacyDropped: result.agentsMd?.agentsMd.droppedLegacySections ?? 0,
     // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
     // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
     sharedLeft: result.sharedFiles
