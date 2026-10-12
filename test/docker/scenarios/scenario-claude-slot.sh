@@ -10,8 +10,8 @@
 #   ① `install --cli claude`(add) 가 링크가 가리키는 공유 본문을 **포팅판** 최신으로 맞춘다 — 링크는
 #      그대로, 백업 0, 화면에 'linked · updated via', 기록(externalFiles) sha 갱신
 #   ② `update` 가 백업 파일을 만들지 않고, 화면이 그 자리를 'owned by another tool' 이 아니라
-#      'linked · updated via' 로 말한다. `.claude/` 를 실제로 고친 update 라 `.claude.backup-*` 은 1
-#      (대조군 — 되돌림 지점. #556 이후 아무것도 안 고친 update 는 사본을 남기지 않는다)
+#      'linked · updated via' 로 말한다. `.claude/` 를 실제로 고친 update 여도 `.claude.backup-*` 은 0
+#      (#746 — update 는 폴더 사본을 뜨지 않는다. 고친 하네스 파일만 그 파일 하나로 백업한다)
 #   ③ `uninstall --cli claude` 뒤 `.claude/` 없음 · 공유 본문 유지 · 루트 `CLAUDE.md` 설치자 본문 유지 ·
 #      로그 clis = ["codex"]
 #   ④ 그 뒤 설치자가 `.claude/` 를 다시 가져도(Claude Code 의 settings.local.json · 팀 훅이 든
@@ -119,9 +119,9 @@ no_backup_files "install --cli claude"
 echo "✓ ① 본문 = 포팅판 최신 · 링크 유지 · 'linked · updated via' 행 · 기록 sha 갱신 · 백업 0"
 
 # --- ② update ---
-# #556 — update 는 `.claude/` 를 하나도 안 고쳤으면 시작 때 만든 사본을 지운다. ④ 의 "사본이 안
-# 늘었다"가 탐지기 고장과 구분되려면 여기서 사본 1개가 실제로 잡혀야 하므로, 하네스 룰 하나를
-# 지워 이번 update 가 `.claude/` 를 확실히 고치게(복구) 만든다.
+# #746 — update 는 `.claude/` 를 고친 실행이어도 폴더 사본을 뜨지 않는다. "고칠 것이 없어 사본이
+# 0" 과 구분되도록 하네스 룰 하나를 지워 이번 update 가 `.claude/` 를 확실히 고치게(복구) 만들고,
+# 그래도 `.claude.backup-*` 이 0 인지 본다(아래 no_backup_files).
 RULE="${PROJ}/.claude/rules/git-policy.md"
 [[ -f "${RULE}" ]] || { echo "FAIL: 전제 — install 이 ${RULE} 를 안 깔았다"; exit 1; }
 rm -f "${RULE}"
@@ -150,11 +150,11 @@ if [[ ! -s "${RULE}" ]]; then
   exit 1
 fi
 COPIES=$(count_claude_copies)
-if [[ "${COPIES}" -ne 1 ]]; then
-  echo "FAIL: .claude/ 를 고친 update 의 .claude.backup-* 이 ${COPIES}개다 — 대조군(되돌림 지점 1개)이 성립하지 않는다"
+if [[ "${COPIES}" -ne 0 ]]; then
+  echo "FAIL: .claude/ 를 고친 update 가 .claude.backup-* 을 ${COPIES}개 만들었다 — update 는 폴더 사본을 뜨지 않는다 (#746)"
   exit 1
 fi
-echo "✓ ② update — 백업 파일 0 · 'linked · updated via' 행 · 'owned by another tool' 에 없음 · 룰 복구 · .claude 사본 1 (대조군)"
+echo "✓ ② update — 백업 파일 0 · 'linked · updated via' 행 · 'owned by another tool' 에 없음 · 룰 복구 · .claude 사본 0 (#746)"
 
 # --- ③ uninstall --cli claude ---
 set +e

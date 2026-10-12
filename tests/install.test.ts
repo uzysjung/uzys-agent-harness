@@ -1,12 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -31,7 +23,6 @@ function pipelineFor(report: InstallReport) {
       baselineExcluded: [],
       baselineExcludedOnDisk: [],
       baselineForeignOwned: [],
-      backup: report.backup,
       installedTracks: report.installedTracks,
       mcpServers: report.mcpServers,
       codex: report.codex,
@@ -69,7 +60,6 @@ const fakeReport: InstallReport = {
   baselineExcluded: [],
   baselineExcludedOnDisk: [],
   baselineForeignOwned: [],
-  backup: null,
   installedTracks: ["tooling"],
   mcpServers: ["context7"],
   codex: null,
@@ -216,18 +206,6 @@ describe("installAction", () => {
     //   은퇴). 자산 선택은 `--with <id>`(userOverride) 경로다.
   });
 
-  it("logs backup path when pipeline returns one", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({ ...fakeReport, backup: "/backup/.claude.bak" });
-    installAction(
-      { cli: ["claude"], track: ["tooling"] },
-      { log, exit, runPipeline, resolveHarnessRoot: () => "/h" },
-    );
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("/backup/.claude.bak"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("/backup/.claude.bak"));
-  });
-
   it("logs '(none)' for MCP servers when list is empty", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
@@ -307,14 +285,6 @@ describe("executeSpec", () => {
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
     // skipped row is rendered with `assetRow("skip", ...)` → contains the count
     expect(log).toHaveBeenCalledWith(expect.stringContaining("skipped"));
-  });
-
-  it("logs Backup info when report.backup present", () => {
-    const log = vi.fn();
-    const exit = vi.fn() as unknown as (code: number) => never;
-    const runPipeline = pipelineFor({ ...fakeReport, backup: "/p/.claude.backup-123" });
-    executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("/p/.claude.backup-123"));
   });
 
   it("renders 'Claude · Codex · OpenCode' line for cli=all", () => {
@@ -763,36 +733,7 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining(".gitignore"));
   });
 
-  describe("update 백업 정리 (#556) · 실패 라벨 (#594)", () => {
-    // 파이프라인이 시작 시 `.claude` 사본을 `.claude.backup-<ts>` 로 뜨는 것을 흉내낸다.
-    function setup(): { dir: string; backup: string } {
-      const dir = mkdtempSync(join(tmpdir(), "ch-bk556-"));
-      mkdirSync(join(dir, ".claude", "rules"), { recursive: true });
-      writeFileSync(join(dir, ".claude", "rules", "a.md"), "원본\n");
-      const backup = join(dir, ".claude.backup-20260101T000000");
-      mkdirSync(join(backup, "rules"), { recursive: true });
-      writeFileSync(join(backup, "rules", "a.md"), "원본\n");
-      return { dir, backup };
-    }
-    const run = (
-      dir: string,
-      backup: string,
-      mid: () => void,
-    ): { log: ReturnType<typeof vi.fn>; err: ReturnType<typeof vi.fn> } => {
-      const log = vi.fn();
-      const err = vi.fn();
-      const exit = vi.fn() as unknown as (code: number) => never;
-      const base = pipelineFor({ ...fakeReport, backup, mode: "update" });
-      const runPipeline = vi.fn((...a: Parameters<typeof base>) => {
-        mid();
-        return base(...a);
-      });
-      executeSpec(
-        { ...baseSpecFor(dir) },
-        { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h", mode: "update" },
-      );
-      return { log, err };
-    };
+  describe("update 실패 라벨 (#594)", () => {
     const baseSpecFor = (projectDir: string): InstallSpec => ({
       tracks: ["tooling"],
       options: { withCodexTrust: false },
@@ -800,30 +741,8 @@ describe("executeSpec", () => {
       projectDir,
     });
 
-    it("`.claude` 를 안 고친 update 는 백업을 남기지 않는다", () => {
-      const { dir, backup } = setup();
-      const { log } = run(dir, backup, () => {});
-      expect(existsSync(backup)).toBe(false);
-      expect(log).not.toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
-      rmSync(dir, { recursive: true, force: true });
-    });
-
-    it("update 가 룰을 바꿨으면 백업이 남고 바뀌기 전 내용을 담는다", () => {
-      const { dir, backup } = setup();
-      run(dir, backup, () => writeFileSync(join(dir, ".claude", "rules", "a.md"), "갱신됨\n"));
-      expect(readFileSync(join(backup, "rules", "a.md"), "utf8")).toBe("원본\n");
-      rmSync(dir, { recursive: true, force: true });
-    });
-
-    it("파일이 새로 생기거나 심링크가 바뀌어도 변경으로 본다", () => {
-      const { dir, backup } = setup();
-      run(dir, backup, () => writeFileSync(join(dir, ".claude", "rules", "new.md"), "x"));
-      expect(existsSync(backup)).toBe(true);
-      rmSync(dir, { recursive: true, force: true });
-    });
-
-    it("update 도중 실패하면 백업은 남고 'update failed' 로 말한다", () => {
-      const { dir, backup } = setup();
+    it("update 도중 실패하면 'update failed' 로 말한다", () => {
+      const dir = mkdtempSync(join(tmpdir(), "ch-upd594-"));
       const log = vi.fn();
       const err = vi.fn();
       const exit = vi.fn() as unknown as (code: number) => never;
@@ -841,7 +760,6 @@ describe("executeSpec", () => {
       expect(exit).toHaveBeenCalledWith(1);
       expect(err).toHaveBeenCalledWith(expect.stringContaining("update failed — EACCES boom"));
       expect(err).not.toHaveBeenCalledWith(expect.stringContaining("install failed"));
-      expect(existsSync(backup)).toBe(true);
       rmSync(dir, { recursive: true, force: true });
     });
 
@@ -866,7 +784,6 @@ describe("executeSpec", () => {
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
       ...fakeReport,
-      backup: "/p/.claude.backup-2026",
       mode: "update",
       updateMode: {
         updated: { ".claude/rules": 5, ".claude/agents": 0, ".claude/hooks": 2 },
@@ -909,7 +826,8 @@ describe("executeSpec", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Update Mode"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("Update complete"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("5 files updated"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
+    // #746 — update 는 `.claude/` 폴더 사본을 뜨지 않으므로 되돌림 명령 행도 없다.
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("CLAUDE-uzys-harness.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
@@ -922,7 +840,6 @@ describe("executeSpec", () => {
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
       ...fakeReport,
-      backup: "/p/.claude.backup-2026",
       mode: "update",
       updateMode: {
         updated: {},
@@ -1115,20 +1032,14 @@ describe("executeSpec", () => {
   });
 
   /**
-   * M-1 (표면 대칭) — update 분기도 **어느 파일이 지워졌는지** 보여준다.
-   *
-   * fresh 분기는 이미 경로를 나열한다(위 `"fresh 분기가 …"`). 그 테스트가 경로 나열을 요구하며
-   * 든 논거가 *"건수만으로는 사용자가 자기 훅이 사라진 이유를 추적할 방법이 없다"* 인데,
-   * **그 논거는 update 에 더 강하게 적용된다** — install 은 `settings.json` 을 템플릿으로
-   * 덮어써서 치유기가 보는 것이 우리 템플릿 내용뿐이지만, update 는 사용자가 손댄
-   * `settings.json` 을 **제자리에서** 고치는 유일한 경로다. 즉 사용자 자신이 적어 넣은 훅이
-   * 실제로 사라질 수 있는 쪽은 update 다.
+   * M-1 (표면 대칭) — update 분기도 **어느 참조인지** 보여준다. #746 리뷰 BLOCKER-1 뒤로 update 는 기록 밖 참조를
+   * 지우지 않고 남기므로(설치자 몫), 화면은 실제로 한 일("left")과 경로를 말한다 — "removed" 라 적으면 거짓이다.
    *
    * `feedback_surface_symmetry`: 한 축이 계열 일부에만 있으면 **빠진 쪽이 입증 책임**을 진다.
    *
    * 참조를 **2건** 넣는다 — 1건이면 `slice(0, 1)` 같은 절단을 통과시킨다.
    */
-  it("update 분기도 제거된 stale hook ref 를 경로까지 노출한다 (fresh 와 같은 정보량)", () => {
+  it("update 분기는 남긴 stale hook ref 를 경로까지 노출한다 — 지웠다고 말하지 않는다", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
@@ -1177,7 +1088,8 @@ describe("executeSpec", () => {
       .map((args) => String(args[0]))
       .find((l) => l.includes("stale hook refs"));
     expect(row, "update 분기에 stale hook ref 행이 없다").toBeDefined();
-    expect(row).toContain("2 removed");
+    expect(row).toContain("2 left (yours");
+    expect(row).not.toContain("removed");
     // 경로 나열 — 건수만 찍으면 사용자는 자기 훅이 왜 사라졌는지 추적할 수 없다.
     expect(
       row,

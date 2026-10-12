@@ -3,8 +3,7 @@
  * 화면 출력(헤더/Phase rows/산출물/Summary)은 `install-render.ts` 로 분리.
  */
 
-import { rmSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isKeyId } from "../adapters/index.js";
 import { BASELINE_PREFIX, listBaselineTargets } from "../baseline-targets.js";
@@ -12,7 +11,6 @@ import type { Cli } from "../cli.js";
 import { parseCliTargets } from "../cli-targets.js";
 import { c, status, unifiedSection } from "../design.js";
 import { EXTERNAL_ASSETS } from "../external-assets.js";
-import { dirTreesIdentical } from "../fs-ops.js";
 import { installedClis, readInstallLog } from "../install-log.js";
 import { thisRunExclusions } from "../install-writes.js";
 import {
@@ -448,22 +446,6 @@ export function executeSpec(requested: InstallSpec, deps: ExecuteSpecDeps = {}):
     if (e instanceof InstallInterruptedError) renderInterruptedInstall(err, e);
     exit(1);
     return;
-  }
-
-  // #556 — update 가 시작 시 만든 `.claude.backup-<ts>` 가 끝까지 원본과 동일하면 이번 실행은
-  // `.claude/` 를 하나도 안 고친 것이다. 그 백업은 아무것도 지키지 않으므로 지우고 보고에서도
-  // 뺀다 — 실행마다 쌓이는 무의미한 사본이 이 이슈의 본체다. (백업은 변경 '전' 내용을 담으므로,
-  // 트리가 동일하다는 것은 변경이 없었다는 것과 정확히 동치다.)
-  if (deps.mode === "update" && report.backup !== null) {
-    const liveClaude = join(spec.projectDir, ".claude");
-    if (dirTreesIdentical(liveClaude, report.backup)) {
-      try {
-        rmSync(report.backup, { recursive: true, force: true });
-        report.backup = null;
-      } catch {
-        /* 지우지 못한 백업은 그냥 둔다 — 보존 방향의 실패라 해롭지 않다. */
-      }
-    }
   }
 
   // Update mode 단축 출력 — manifest copy / external 모두 skip

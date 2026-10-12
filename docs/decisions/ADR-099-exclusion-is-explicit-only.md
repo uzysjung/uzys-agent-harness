@@ -25,5 +25,5 @@
   USAGE 의 `AGENTS.md` "블록을 지우면 다시 넣지 않는다" · "`update` does not rewrite `settings.json`" 문장이 바뀐다.
   ADR-074 의 "제외 없이 다시 깔면 돌아온다" 가 다시 참이고 모든 id 종류로 넓어진다 — CI · 스크립트가 install 을 반복하면 매번 플래그를
   다시 줘야 하고, 갱신만 하려면 update 를 쓴다. 다중 CLI 설치자가 `install --cli claude` 만 돌려도 codex 키 빼기가 풀린다(화면이 미리 말한다).
-  `cleanStaleHookRefs` 는 기록에 없는 스크립트 참조에만 남는다. 어댑터 계약의 `deleted` 와
+  `cleanStaleHookRefs` 는 기록에 없는 스크립트 참조에만 남는다(v26.169.0 #746 에서 바뀜 — update 도 install(#603)처럼 기록 밖 죽은 참조를 지우지 않고 알리기만 한다. 예외는 템플릿 이력에 실재한 은퇴 하네스 배선의 닫힌 목록 `RETIRED_HOOK_WIRING_REFS` 뿐이다. ADR-097 결정 4 적용 · 리뷰 `docs/plans/v26.169.0-reviews/pr-c-746-review-r3.md`). 어댑터 계약의 `deleted` 와
   judge 의 `exclude-portions` 는 없어진다(one-principle-design §1.2 표 갱신).

@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
@@ -6,12 +5,8 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  readlinkSync,
-  realpathSync,
   renameSync,
   rmdirSync,
-  rmSync,
-  symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
@@ -122,70 +117,9 @@ export function backupDir(target: string, now: Date = new Date()): string | null
   rmdirSync(backup);
   // 심볼릭 링크는 **풀지 않는다**. rename 은 옮기는 것이라 target 이 링크면 링크가 통째로
   // 백업 자리로 가고, 재설치는 빈 자리에 새 실체 디렉터리를 만든다 — 링크도 링크가 가리키던
-  // 내용도 그대로 남는다. (copyBackupDir 은 원본을 계속 쓰면서 복사하므로 판단이 반대다.)
+  // 내용도 그대로 남는다.
   renameSync(target, backup);
   return backup;
-}
-
-/**
- * Copy backup — original target preserved (for in-place update mode).
- * bash setup-harness.sh L477 `cp -R .claude "$BACKUP_DIR"` 등가.
- *
- * 무엇을 보존하려는 백업인가: **update 직전 상태로 되돌아갈 수 있게 하는 스냅샷**. 원본은
- * 그 자리에 남아 계속 덮어써지므로, 백업은 그 시점 **내용**을 들고 있어야 의미가 있다.
- * 그래서 최상위와 안쪽 링크의 처리가 갈린다:
- *
- * | 대상 | 처리 | 왜 |
- * |---|---|---|
- * | target 자체가 링크 (`.claude` → 공유 dotfiles) | **실체를 복사** | 링크를 복사하면 update 가 그 링크를 통해 원본을 덮는 순간 백업이 가리키는 내용도 같이 바뀐다 — 되돌릴 수 없는 백업 |
- * | 안쪽 링크 (`skills/<id>` → `npx skills add` 저장소) | **링크인 채로** | 남의 저장소를 백업에 복제해 넣지 않는다. 끊어진 링크(스킬을 지운 뒤)에서도 죽지 않는다 |
- *
- * (#678 · ADR-098 이후 install · update 는 밖 실체에 쓰지 않는다 — 이 표는 백업의 의미만 정한다.)
- *
- * 최상위를 `realpathSync` 로 풀어 넘긴다. `dereference: true` 로도 이 케이스는 통과하지만
- * 그 옵션에 기대지 않는다 — 문서상 의미("심볼릭 링크를 따라간다")와 실측(Node 26.5.0 에선
- * 안쪽 링크를 풀지 않았다)이 갈리는 옵션이라, 버전이 바뀌면 위 표의 두 번째 행이 조용히
- * 뒤집힌다. "최상위만 실체로"는 옵션이 아니라 코드로 적는다.
- */
-export function copyBackupDir(target: string, now: Date = new Date()): string | null {
-  if (!existsSync(target)) {
-    return null;
-  }
-  const backup = claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) => mkdirSync(c));
-  // #594 — 통짜 cpSync(recursive) 는 VirtioFS(도커 바인드마운트) 등 공유 FS 에서 EACCES 로
-  // 죽고 부분 복사 고아를 남긴다. 파일 단위 순회로 바꾸되 cpSync 의 **심링크 계약은 계속
-  // 지킨다** — 링크는 링크로 보존하고(남의 저장소를 복제하지 않는다, backup-symlink 계약),
-  // 끊어진 링크도 죽지 않고 옮긴다.
-  // #594 — 도중에 실패하면 반쯤 만든 백업을 남기지 않고(고아 + 안내 없음) 원인을 한 줄로 알린다.
-  try {
-    copyTreePreservingLinks(realpathSync(target), backup);
-  } catch (e: unknown) {
-    rmSync(backup, { recursive: true, force: true });
-    const detail = e instanceof Error ? e.message : String(e);
-    throw new Error(`backup of ${target} failed, partial copy removed — ${detail}`);
-  }
-  return backup;
-}
-
-/**
- * #594 — 백업용 디렉터 복사: 파일은 copyFile, 디렉터는 재귀, 심볼릭 링크는 **링크 그대로**
- * (cpSync 의 기본 동작과 같다). listFilesRecursive 기반 copyDir 은 링크를 풀어버려 남의
- * 저장소를 통째로 복제하므로 여기에 쓸 수 없다.
- */
-function copyTreePreservingLinks(source: string, target: string): void {
-  mkdirSync(target, { recursive: true });
-  for (const entry of readdirSync(source, { withFileTypes: true })) {
-    const src = join(source, entry.name);
-    const dst = join(target, entry.name);
-    if (entry.isSymbolicLink()) {
-      // 끊어진 링크도 readlink 자체는 되므로 링크로 보존된다 — 풀지 않는다.
-      symlinkSync(readlinkSync(src), dst);
-      continue;
-    }
-    if (entry.isDirectory()) copyTreePreservingLinks(src, dst);
-    else if (entry.isFile()) copyFile(src, dst);
-    // FIFO·소켓·장치는 건너뛴다 — copyFile 이 FIFO 에서 영원히 멈춘다.
-  }
 }
 
 /**
@@ -196,8 +130,7 @@ function copyTreePreservingLinks(source: string, target: string): void {
  * 달라진 파일은 사용자가 안 건드렸으므로 백업 없이 덮어써야 하고, 내용 비교만으로는 그
  * 둘을 구분할 수 없다.
  *
- * 심볼릭 링크는 **실체 내용으로** 백업된다 (`copyFileSync` 가 링크를 따라간다) — `copyBackupDir`
- * 최상위와 같은 잣대다. 호출자는 백업 직후 같은 경로를 덮어쓰는데, 그 쓰기도 링크를 따라가
+ * 심볼릭 링크는 **실체 내용으로** 백업된다 (`copyFileSync` 가 링크를 따라간다). 호출자는 백업 직후 같은 경로를 덮어쓰는데, 그 쓰기도 링크를 따라가
  * 링크 대상을 바꾼다. 링크 사본을 남기면 백업이 가리키는 내용도 같이 바뀌어 아무것도 못 지킨다.
  */
 export function backupFile(target: string, now: Date = new Date()): string {
@@ -258,44 +191,6 @@ export function ensureProjectSkeleton(projectDir: string): void {
     if (outsideProjectTarget(projectDir, join(projectDir, d)) !== null) continue;
     mkdirSync(join(projectDir, d), { recursive: true });
   }
-}
-
-/**
- * #556 — 두 디렉터 트리가 내용 기준 동일한가 (경로 집합 + 파일별 sha). update 가 시작 시 만든
- * `.claude.backup-<ts>` 가 실행 끝까지 원본과 동일하다면 이번 실행은 `.claude/` 를 하나도 안
- * 고친 것이다 — 그 백업은 아무것도 지키지 않으므로 지운다(실행마다 쌓이는 것이 #556).
- */
-export function dirTreesIdentical(a: string, b: string): boolean {
-  if (!existsSync(a) || !existsSync(b)) return false;
-  // 파일은 바이트 해시(손실 디코딩 없음), 심링크는 링크 대상 문자열로 비교한다 —
-  // 링크가 사라지거나 바뀐 변경도 "변경 있음"으로 본다.
-  const signature = (
-    root: string,
-    rel = "",
-    out = new Map<string, string>(),
-  ): Map<string, string> => {
-    for (const e of readdirSync(join(root, rel), { withFileTypes: true })) {
-      const r = rel === "" ? e.name : `${rel}/${e.name}`;
-      if (e.isSymbolicLink()) out.set(r, `link:${readlinkSync(join(root, r))}`);
-      else if (e.isDirectory()) signature(root, r, out);
-      else if (e.isFile()) {
-        out.set(
-          r,
-          createHash("sha256")
-            .update(readFileSync(join(root, r)))
-            .digest("hex"),
-        );
-      }
-    }
-    return out;
-  };
-  const sa = signature(a);
-  const sb = signature(b);
-  if (sa.size !== sb.size) return false;
-  for (const [rel, sha] of sa) {
-    if (sb.get(rel) !== sha) return false;
-  }
-  return true;
 }
 
 /**
