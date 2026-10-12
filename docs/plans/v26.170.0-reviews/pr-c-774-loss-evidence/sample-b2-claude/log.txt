@@ -1,0 +1,9 @@
+old-install exit=0
+old-install agents-backups=0
+claude-only: copied other project's old codex AGENTS.md
+u1 exit=0
+u1 agents-backups=0
+u2 exit=0
+u2 agents-backups=0
+un exit=0
+un agents-backups=0

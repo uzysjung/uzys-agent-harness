@@ -1345,6 +1345,30 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #774 (N3) — 옛 판이 바이트 그대로 쓴 `AGENTS.md` 절을 뺐다. 기록 sha 그대로라 조용히 덮던 자리 — 사라진 절을 말하고
+    // 백업이 있다고 알린다(ADR-111)
+    const legacyDropped = baseline.updateMode.agentsMdLegacyDropped ?? 0;
+    if (legacyDropped > 0) {
+      log(
+        assetRow(
+          "success",
+          "AGENTS.md",
+          `removed ${legacyDropped} section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)`,
+        ),
+      );
+    }
+    // #774 — 옛 판의 하네스 이름 절(`Session Start` …)을 설치자가 고쳤다. 절 모델에서 그 절은 하네스 몫이라 지금 판으로 바뀐다 —
+    // 고친 글이 라이브에서 빠지므로 그 글이 어디 있는지 말한다(사용자 결정 ⓓ)
+    const legacyEdited = baseline.updateMode.agentsMdLegacyEdited ?? [];
+    if (legacyEdited.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "AGENTS.md",
+          `${legacyEdited.length} harness section(s) you had edited (${legacyEdited.join(" · ")}) now hold the current version — your edit is in the copy AGENTS.md.backup-<time>`,
+        ),
+      );
+    }
     const externalEdited = baseline.updateMode.externalBackedUp.filter((p) => !noChecksum.has(p));
     if (externalEdited.length > 0) {
       log(

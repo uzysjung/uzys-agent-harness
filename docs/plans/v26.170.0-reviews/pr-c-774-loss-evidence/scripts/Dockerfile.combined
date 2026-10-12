@@ -1,0 +1,7 @@
+FROM uzys-r774b-main AS m
+FROM uzys-r774b-pr
+USER root
+COPY --from=m /usr/local/lib/node_modules/@uzysjung/agent-harness /opt/main-harness
+RUN printf '#!/bin/sh\nexec node /opt/main-harness/dist/index.js "$@"\n' > /usr/local/bin/ah-main && chmod +x /usr/local/bin/ah-main
+RUN for v in 26.100.0 26.125.0 26.132.0 26.140.0 26.150.0 26.153.0 26.160.0; do mkdir -p /opt/old/$v && npm install --no-audit --no-fund --prefix /opt/old/$v @uzysjung/agent-harness@$v >/dev/null 2>&1 && ls /opt/old/$v/node_modules/.bin/ ; done
+USER uzys

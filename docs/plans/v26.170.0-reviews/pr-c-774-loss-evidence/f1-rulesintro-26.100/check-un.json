@@ -1,0 +1,15 @@
+{
+ "label": "un",
+ "agentsLive": false,
+ "liveHeadings": 0,
+ "agentsBackups": 1,
+ "blocks": {
+  "RULESINTRO": "BACKUP"
+ },
+ "staleOldSections": [],
+ "oldPreambleLive": false,
+ "lostTokens": [],
+ "backupOnlyTokens": [
+  "MINE-RULESINTRO"
+ ]
+}

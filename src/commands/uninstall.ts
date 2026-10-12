@@ -44,7 +44,12 @@ import {
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { ADAPTERS, keyId, SHARED_FILES } from "../adapters/index.js";
 import { jsonSha } from "../adapters/json-keys.js";
-import { AGENTS_BLOCK_NAME, stripHarnessFromAgentsMd } from "../agents-md-merge.js";
+import {
+  AGENTS_BLOCK_NAME,
+  type AgentsMdStripResult,
+  isLegacyHarnessAgentsMd,
+  stripAgentsMd,
+} from "../agents-md-merge.js";
 import { AGENTS_MD_TEMPLATE, agentsMdClis, isAgentsMdCli } from "../agents-md-render.js";
 import { type AgentsMdTransformReport, runAgentsMdTransform } from "../agents-md-transform.js";
 import { removableFor } from "../cli-ownership.js";
@@ -983,8 +988,20 @@ function agentsMdRerenderSet(
   const recorded =
     (log.externalFiles ?? []).some((f) => f.path === AGENTS_MD) ||
     (log.portions ?? []).some((p) => p.path === AGENTS_MD);
-  if (!recorded || !existsSync(join(projectDir, AGENTS_MD))) return null;
+  if (!existsSync(join(projectDir, AGENTS_MD))) return null;
+  // #774 (N13-7) — 기록 없는 옛 판의 하네스 `AGENTS.md`(머리 지문)도 다시 렌더한다 — 안 그러면 옛 파일 전체가 남는다
+  if (!recorded && !isLegacyHarnessAgentsMd(readTextOrEmpty(join(projectDir, AGENTS_MD)))) {
+    return null;
+  }
   return set;
+}
+
+function readTextOrEmpty(abs: string): string {
+  try {
+    return readFileSync(abs, "utf8");
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -1011,10 +1028,17 @@ function withRerender(next: InstallLog, r: AgentsMdTransformReport): InstallLog 
   const files = mergeExternalFiles(next.externalFiles, r.ownership.files);
   if (files.length > 0) out.externalFiles = files;
   const block = r.agentsMd.shared;
-  if (block !== null && block.portions !== null) {
+  // #774 (N2) — 블록 모델이던 옛 하네스 파일을 절 모델로 바꿨으면 그 파일의 몫 기록은 빈다
+  const blockPortions =
+    block !== null && block.portions !== null
+      ? block.portions
+      : r.agentsMd.blockRecordDropped === true
+        ? []
+        : null;
+  if (blockPortions !== null) {
     const portions = [
       ...(next.portions ?? []).filter((p) => p.path !== AGENTS_MD),
-      ...block.portions,
+      ...blockPortions,
     ];
     if (portions.length > 0) out.portions = portions;
     else delete out.portions;
@@ -1556,6 +1580,17 @@ interface HarnessRemoval {
   stripped: string[];
   /** 하네스가 만든 `AGENTS.md` 인데 그 뒤 바뀌어 남긴 것(#516 — 설치자 절이 섞여 통째 판정을 못 한다). */
   kept: string[];
+  /**
+   * #774 (ADR-111) — 옛 판이 바이트 그대로 쓴 `AGENTS.md` 몫(지문 일치 절 · 옛 하네스 파일)을 걷었다. 걷기 전 파일 1회 백업
+   * (`backup` — 미리보기면 이름 규약). `fileRemoved` = 설치자 몫이 없어 파일째 지웠다. `keptEdited` = 이름은 하네스 절인데 설치자가
+   * 고쳐 남긴 절의 제목. 화면은 "설치자 몫이 없었다" 고 단언하지 않는다 — 백업 위치만 말한다(리뷰 r2 MEDIUM-1: 제목 한 줄 편집도 판정 밖이다).
+   */
+  legacyAgentsMd: Array<{
+    path: string;
+    backup: string;
+    fileRemoved: boolean;
+    keptEdited: string[];
+  }>;
   /** 읽지 못해(권한 · 디렉터리 · 템플릿 없음 · 쓰기 실패) 판정하지 않고 남긴 것. */
   unjudged: string[];
   /** 실체가 프로젝트 밖이라 건드리지 않은 것(ADR-098). */
@@ -1600,6 +1635,7 @@ function removeHarnessFiles(
     forgotten: new Set(),
     stripped: [],
     kept: [],
+    legacyAgentsMd: [],
     unjudged: [],
     outside: [],
     displaced: [],
@@ -1834,6 +1870,11 @@ function stripSharedFiles(
     if (sha !== undefined && removeHarnessMadeShared(path, sha, projectDir, io, out, pruneFrom)) {
       continue;
     }
+    // ⓐ₀ #774 — 기록(`externalFiles`)에 없는 옛 판의 하네스 `AGENTS.md`(v26.83~v26.132 블록 모델 · v26.169 update 가 블록을 붙인
+    // 것 포함, N2). 위 `relevant()` 안이다 — 이 파일을 읽는 CLI 가 기록에 없으면 읽지도 않는다(B2)
+    if (path === AGENTS_MD && sha === undefined) {
+      if (removeUnrecordedLegacyAgentsMd(path, projectDir, io, out, pruneFrom)) continue;
+    }
     const r = stripShared({
       projectDir,
       path,
@@ -1879,9 +1920,20 @@ function removeHarnessMadeShared(
     return true;
   }
   if (hashContent(current) !== sha) {
-    // #516 — 절 모델 `AGENTS.md` 는 설치자 절을 담는다: 통째 판정을 하지 않고 남긴다(지금 규칙 그대로)
+    // #516 — 절 모델 `AGENTS.md` 는 설치자 절을 담는다: 통째 판정을 하지 않고 남긴다(지금 규칙 그대로). #774 — 마커 없는 옛 판의
+    // 하네스 파일(머리 지문)은 하네스 절을 걷고 설치자 절만 남긴다(1회 백업). 마커 있는 파일은 그대로 남긴다
     if (path === AGENTS_MD) {
-      out.kept.push(path);
+      const verdict = isLegacyHarnessAgentsMd(current)
+        ? agentsMdRemainder(current, io.harnessRoot)
+        : null;
+      if (verdict?.ok === true && verdict.strip.legacyRemoved) {
+        removeLegacyAgentsMd(path, abs, effective, verdict.strip, {
+          projectDir,
+          io,
+          out,
+          pruneFrom,
+        });
+      } else out.kept.push(path);
       return true;
     }
     out.forgotten.add(path); // 이제 설치자 파일이다 — 남는 몫은 몫 기록이 말한다
@@ -1892,6 +1944,11 @@ function removeHarnessMadeShared(
     const verdict = agentsMdRemainder(current, io.harnessRoot);
     if (!verdict.ok) {
       out.unjudged.push(path);
+      return true;
+    }
+    // #774 — 걷을 것에 옛 판의 하네스 바이트(꼬리 절 · 옛 파일)가 들었다 — 1회 백업 뒤 걷는다(ADR-111)
+    if (verdict.strip.legacyRemoved) {
+      removeLegacyAgentsMd(path, abs, effective, verdict.strip, { projectDir, io, out, pruneFrom });
       return true;
     }
     if (verdict.remainder !== null) {
@@ -2030,6 +2087,26 @@ function harnessRemovalLines(
         ? `  ○ strip harness sections from ${path} (본문 보존)`
         : `  ${status.success(`${path} — harness sections removed (본문 보존)`)}`,
     );
+  }
+  for (const l of r.legacyAgentsMd) {
+    // #774 — 이름은 하네스 절인데 설치자가 고친 절은 남기고 그 사실을 말한다. 파일째 지울 때 "설치자 몫이 없었다" 는 단언하지 않는다
+    const kept =
+      l.keptEdited.length > 0
+        ? ` · kept ${l.keptEdited.length} section(s) you edited (${l.keptEdited.join(" · ")})`
+        : "";
+    if (preview) {
+      lines.push(
+        l.fileRemoved
+          ? `  ○ remove ${l.path} (written by an older harness version — a copy is saved first)`
+          : `  ○ remove the harness sections written by an older version from ${l.path} — yours stays${kept} (a copy is saved first)`,
+      );
+    } else {
+      lines.push(
+        l.fileRemoved
+          ? `  ${status.success(`removed  ${l.path} (written by an older harness version — saved a copy: ${l.backup})`)}`
+          : `  ${status.success(`${l.path} — removed the harness sections written by an older version — yours stays${kept} (saved a copy: ${l.backup})`)}`,
+      );
+    }
   }
   for (const path of r.unjudged) {
     lines.push(
@@ -2280,22 +2357,92 @@ function neutralizeScaffoldBanner(text: string): string {
 
 /**
  * 기준선과 같은 `AGENTS.md` 를 어떻게 할지 — 실행과 dry-run 이 **같은 술어**를 쓴다.
- * `null` = 하네스 것뿐이라 파일째 삭제, 문자열 = 그 내용으로 다시 써서 설치자 절을 남긴다.
+ * `null` = 하네스 것뿐이라 파일째 삭제, 문자열 = 그 내용으로 다시 써서 설치자 절을 남긴다. `strip.legacyRemoved` = 걷을 것에 옛 판의
+ * 하네스 바이트가 들었다(#774 — 호출부가 1회 백업).
  */
 function agentsMdRemainder(
   current: string,
   harnessRoot: string,
-): { ok: true; remainder: string | null } | { ok: false } {
+): { ok: true; remainder: string | null; strip: AgentsMdStripResult } | { ok: false } {
   const template = readAgentsMdTemplate(harnessRoot);
   if (template === null) return { ok: false };
-  return {
-    ok: true,
-    remainder: stripHarnessFromAgentsMd({
-      existing: current,
-      template,
-      harnessRuleHeadings: ruleHeadings(harnessRoot),
-    }),
-  };
+  const strip = stripAgentsMd({
+    existing: current,
+    template,
+    harnessRuleHeadings: ruleHeadings(harnessRoot),
+  });
+  return { ok: true, remainder: strip.remainder, strip };
+}
+
+/**
+ * ⓐ₀ #774 — 기록에 없는 `AGENTS.md` 가 옛 판의 하네스 파일(머리 지문)이면 하네스 몫을 걷는다. 아니면 `false`(지금 길 — 첫 접촉 블록
+ * 몫 걷기 · 알리기).
+ */
+function removeUnrecordedLegacyAgentsMd(
+  path: string,
+  projectDir: string,
+  io: RemovalIo,
+  out: HarnessRemoval,
+  pruneFrom: string[],
+): boolean {
+  const abs = join(projectDir, path);
+  let effective = abs;
+  let current: string;
+  try {
+    const real = realpathSync(abs);
+    if (!statSync(real).isFile()) return false;
+    if (lstatSync(abs).isSymbolicLink()) effective = real;
+    current = readFileSync(effective, "utf8");
+  } catch {
+    return false; // 없거나 못 읽는다 — 지금 길이 판정한다
+  }
+  if (!isLegacyHarnessAgentsMd(current)) return false;
+  const verdict = agentsMdRemainder(current, io.harnessRoot);
+  if (!verdict.ok) {
+    out.unjudged.push(path);
+    return true;
+  }
+  removeLegacyAgentsMd(path, abs, effective, verdict.strip, { projectDir, io, out, pruneFrom });
+  return true;
+}
+
+/**
+ * #774 (ADR-111) — 옛 판의 하네스 바이트가 든 `AGENTS.md` 를 걷는다: **먼저 파일 1회 백업**, 그다음 설치자 몫만 남겨 쓰거나(배너 정정
+ * — #656) 남는 것이 없으면 지운다. 백업이 실패하면 아무것도 하지 않고 남긴다(손실보다 남김).
+ */
+function removeLegacyAgentsMd(
+  path: string,
+  abs: string,
+  effective: string,
+  strip: AgentsMdStripResult,
+  ctx: { projectDir: string; io: RemovalIo; out: HarnessRemoval; pruneFrom: string[] },
+): void {
+  const { projectDir, io, out } = ctx;
+  let backup = `${path}.backup-<time>`;
+  try {
+    if (io.write) {
+      backup = relative(projectDir, backupFile(effective)).split(sep).join("/");
+      if (strip.remainder !== null) {
+        writeFileSync(effective, neutralizeScaffoldBanner(strip.remainder), "utf8");
+      } else {
+        if (effective !== abs) io.rm(abs);
+        io.rm(effective);
+      }
+    }
+  } catch {
+    out.unjudged.push(path); // 백업 · 쓰기 실패는 남긴 것과 같다
+    return;
+  }
+  if (strip.remainder === null) ctx.pruneFrom.push(path);
+  out.legacyAgentsMd.push({
+    path,
+    backup,
+    fileRemoved: strip.remainder === null,
+    keptEdited: strip.keptEdited,
+  });
+  out.forgotten.add(path);
+  // `--cli` 가 이 파일을 "판정한 파일" 로 읽어 몫 기록(옛 블록)을 비우게 — 남는 하네스 몫은 없다
+  out.shared.push({ path, action: "none", line: "", removed: [], kept: [], portions: [] });
 }
 
 /**
