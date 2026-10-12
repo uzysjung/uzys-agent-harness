@@ -1616,14 +1616,13 @@ interface HarnessRemoval {
   /**
    * #774 (ADR-111) — 옛 판이 바이트 그대로 쓴 `AGENTS.md` 몫(지문 일치 절 · 옛 하네스 파일)을 걷었다. 걷기 전 파일 1회 백업
    * (`backup` — 미리보기면 이름 규약). `fileRemoved` = 설치자 몫이 없어 파일째 지웠다. `keptEdited` = 이름은 하네스 절인데 설치자가
-   * 고쳐 남긴 절의 제목 · `recognized` = 걷은 것이 전부 지문 일치였다(거짓이면 화면이 "nothing of yours" 를 말하지 않는다).
+   * 고쳐 남긴 절의 제목. 화면은 "설치자 몫이 없었다" 고 단언하지 않는다 — 백업 위치만 말한다(리뷰 r2 MEDIUM-1: 제목 한 줄 편집도 판정 밖이다).
    */
   legacyAgentsMd: Array<{
     path: string;
     backup: string;
     fileRemoved: boolean;
     keptEdited: string[];
-    recognized: boolean;
   }>;
   /** 읽지 못해(권한 · 디렉터리 · 템플릿 없음 · 쓰기 실패) 판정하지 않고 남긴 것. */
   unjudged: string[];
@@ -2123,8 +2122,7 @@ function harnessRemovalLines(
     );
   }
   for (const l of r.legacyAgentsMd) {
-    // #774 — "nothing of yours" 는 걷은 것이 전부 지문 일치였을 때만 말한다. 이름은 하네스 절인데 설치자가 고친 절은 남기고 그 사실을 말한다
-    const nothingOfYours = l.recognized ? ", nothing of yours in it" : "";
+    // #774 — 이름은 하네스 절인데 설치자가 고친 절은 남기고 그 사실을 말한다. 파일째 지울 때 "설치자 몫이 없었다" 는 단언하지 않는다
     const kept =
       l.keptEdited.length > 0
         ? ` · kept ${l.keptEdited.length} section(s) you edited (${l.keptEdited.join(" · ")})`
@@ -2132,13 +2130,13 @@ function harnessRemovalLines(
     if (preview) {
       lines.push(
         l.fileRemoved
-          ? `  ○ remove ${l.path} (written by an older harness version${nothingOfYours} — a copy is saved first)`
+          ? `  ○ remove ${l.path} (written by an older harness version — a copy is saved first)`
           : `  ○ remove the harness sections written by an older version from ${l.path} — yours stays${kept} (a copy is saved first)`,
       );
     } else {
       lines.push(
         l.fileRemoved
-          ? `  ${status.success(`removed  ${l.path} (written by an older harness version${nothingOfYours} — saved a copy: ${l.backup})`)}`
+          ? `  ${status.success(`removed  ${l.path} (written by an older harness version — saved a copy: ${l.backup})`)}`
           : `  ${status.success(`${l.path} — removed the harness sections written by an older version — yours stays${kept} (saved a copy: ${l.backup})`)}`,
       );
     }
@@ -2474,7 +2472,6 @@ function removeLegacyAgentsMd(
     backup,
     fileRemoved: strip.remainder === null,
     keptEdited: strip.keptEdited,
-    recognized: strip.recognized,
   });
   out.forgotten.add(path);
   // `--cli` 가 이 파일을 "판정한 파일" 로 읽어 몫 기록(옛 블록)을 비우게 — 남는 하네스 몫은 없다
