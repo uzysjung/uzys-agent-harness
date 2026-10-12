@@ -1,0 +1,59 @@
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/p-26.125.0-A
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       12 selected
+              · understanding: agent-browser
+              · workflow: asis-tobe-decision, compaction-handoff, northstar-roadmap, recurrence-prevention
+              · dev-tools: find-skills, gap-analysis-e2e, harness-health-audit, karpathy-coder, multi-persona-review, ultracode-service-audit
+              · frontend: frontend-design
+              · session-start context cost: ~6075 tokens/session (rules ~3972 · CLAUDE.md ~938 · skills ~550 · agents ~615 · 4 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (10)                   coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (8)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (5)                    session-start · spec-drift · checkpoint · mcp-pre-exec (security)
+  ✓ commands (1)                 /ecc:* (ECC plugin OFF fallback)
+  ✓ skills (16)                  north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+  ✓ .mcp-allowlist               3 servers (D35 opt-in gate)
+
+  · ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (4) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          plugin · frontend-design@claude-plugins-official
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+    ✓ karpathy-coder                           plugin · karpathy-coder@claude-code-skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from .claude/CLAUDE.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             8 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ OPT-IN       1 experimental available — add with --with <id>: playwright-skill
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+

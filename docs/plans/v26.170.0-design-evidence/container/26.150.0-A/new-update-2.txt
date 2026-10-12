@@ -1,0 +1,36 @@
+Updating installed harness files in /tmp/p-26.150.0-A
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/p-26.150.0-A
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ⊘ same as the harness version              2 kept — already the same as the harness version (left yours in place) · .claude/agents/data-analyst.md, .claude/agents/strategist.md
+  ✓ external skills                          1 refreshed from upstream
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   clear-korean-communication 는 user-centered-explanation 가 됐다 · user-centered-explanation 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 clear-korean-communication 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   task-brief 는 objective-brief 가 됐다 · objective-brief 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 task-brief 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 27 items resident · ~5958 tokens/session (directives 9 ~3955 · [rules 7 ~1533 · CLAUDE.md 2 ~2422] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+

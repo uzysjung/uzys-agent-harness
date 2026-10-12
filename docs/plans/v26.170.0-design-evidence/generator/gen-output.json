@@ -1,0 +1,27 @@
+{
+  "rangeFrom": "26.70.0",
+  "rangeTo": "26.169.0",
+  "versions": 114,
+  "first": "26.70.0",
+  "last": "26.169.0",
+  "fileRowsScanned": 8914,
+  "filePaths": 152,
+  "filePairs": 372,
+  "filePathsNotCurrent": 94,
+  "filePairsNotCurrent": 157,
+  "sectionKeys": 37,
+  "preambleKeys": 6,
+  "trailerKeys": 6,
+  "hookRefs": [
+    "hooks/agentshield-gate.sh",
+    "hooks/gate-check.sh",
+    "hooks/hito-counter.sh",
+    "hooks/mcp-pre-exec.sh",
+    "hooks/protect-files.sh",
+    "hooks/session-start.sh",
+    "hooks/task-brief-nudge.sh",
+    "skills/strategic-compact/suggest-compact.sh"
+  ],
+  "statusLines": 2,
+  "outBytes": 40715
+}

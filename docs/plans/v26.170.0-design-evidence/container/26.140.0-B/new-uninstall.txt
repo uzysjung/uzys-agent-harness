@@ -1,0 +1,57 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T09:21:45.376Z
+  scope:     project
+  assets:    4
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 30 harness file(s) · .codex/ 1 · .agents/ 8
+  ✓ backed up  .claude/rules/code-style.md — no checksum on record — saved a copy, removed from live (.claude/rules/code-style.md.backup-20261012T092146)
+  ✓ backed up  .claude/rules/error-handling.md — no checksum on record — saved a copy, removed from live (.claude/rules/error-handling.md.backup-20261012T092146)
+  ✓ backed up  .claude/rules/gates-taxonomy.md — no checksum on record — saved a copy, removed from live (.claude/rules/gates-taxonomy.md.backup-20261012T092146)
+  ✓ backed up  .claude/rules/git-policy.md — you edited it — saved as .claude/rules/git-policy.md.backup-20261012T092146, removed from live
+  ✓ backed up  .claude/rules/no-false-ship.md — no checksum on record — saved a copy, removed from live (.claude/rules/no-false-ship.md.backup-20261012T092146)
+  ✓ backed up  .claude/rules/test-policy.md — you edited it — saved as .claude/rules/test-policy.md.backup-20261012T092146, removed from live
+  ✓ backed up  .claude/agents/build-error-resolver.md — no checksum on record — saved a copy, removed from live (.claude/agents/build-error-resolver.md.backup-20261012T092146)
+  ✓ backed up  .claude/agents/code-reviewer.md — no checksum on record — saved a copy, removed from live (.claude/agents/code-reviewer.md.backup-20261012T092146)
+  ✓ backed up  .claude/agents/plan-checker.md — no checksum on record — saved a copy, removed from live (.claude/agents/plan-checker.md.backup-20261012T092146)
+  ✓ backed up  .claude/agents/security-reviewer.md — no checksum on record — saved a copy, removed from live (.claude/agents/security-reviewer.md.backup-20261012T092146)
+  ✓ backed up  .claude/agents/silent-failure-hunter.md — no checksum on record — saved a copy, removed from live (.claude/agents/silent-failure-hunter.md.backup-20261012T092146)
+  ✓ backed up  .claude/hooks/checkpoint-snapshot.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/checkpoint-snapshot.sh.backup-20261012T092146)
+  ✓ backed up  .claude/hooks/mcp-pre-exec.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/mcp-pre-exec.sh.backup-20261012T092146)
+  ✓ backed up  .claude/hooks/spec-drift-check.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/spec-drift-check.sh.backup-20261012T092146)
+  ✓ CLAUDE.md removed
+  ⊘ AGENTS.md kept — modified since install. Remove manually if intended.
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ⊘ left  .claude/settings.json — may still hold the harness's hooks (not on record): hooks.SessionStart#session-start.sh · hooks.PreToolUse#protect-files.sh · hooks.PreToolUse#mcp-pre-exec.sh — delete them by hand if they are not yours
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 45 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: CLAUDE.md · agents/data-analyst.md · agents/strategist.md +42 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .mcp-allowlist — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)
+      MCP allowlist (3 server)
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 14건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .claude/agents/build-error-resolver.md.backup-20261012T092146
+  .claude/agents/code-reviewer.md.backup-20261012T092146
+  .claude/agents/plan-checker.md.backup-20261012T092146
+  .claude/agents/security-reviewer.md.backup-20261012T092146
+  .claude/agents/silent-failure-hunter.md.backup-20261012T092146
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261012T092146
+  .claude/hooks/mcp-pre-exec.sh.backup-20261012T092146
+  .claude/hooks/spec-drift-check.sh.backup-20261012T092146
+  .claude/rules/code-style.md.backup-20261012T092146
+  .claude/rules/error-handling.md.backup-20261012T092146
+  .claude/rules/gates-taxonomy.md.backup-20261012T092146
+  .claude/rules/git-policy.md.backup-20261012T092146
+  .claude/rules/no-false-ship.md.backup-20261012T092146
+  .claude/rules/test-policy.md.backup-20261012T092146
+
+✓ uninstall complete (3 asset(s))

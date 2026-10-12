@@ -1,0 +1,54 @@
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/p-26.150.0-A
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       14 selected
+              · understanding: agent-browser
+              · workflow: audit-harness-fit, clear-korean-communication, compaction-handoff, gh-issue-workflow, north-star, recurrence-prevention, task-brief
+              · dev-tools: audit-service-gaps, find-skills, multi-persona-review, self-hosted-github-runner, verification-loop
+              · frontend: frontend-design
+              · session-start context cost: 34 items resident · ~7838 tokens/session (directives 8 ~4314 · [rules 6 ~1360 · CLAUDE.md 2 ~2954] · triggers 26 ~3524 · [skills 17 ~2799 · agents 9 ~725] · 3 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (9)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (3)                    session-start · protect-files · task-brief-nudge
+  ✓ skills (17)                  spec-scaling · deep-research · ui-visual-review · eval-harness (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+  · ECC plugin not selected — cherry-pick fallback active
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (3) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             11 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+

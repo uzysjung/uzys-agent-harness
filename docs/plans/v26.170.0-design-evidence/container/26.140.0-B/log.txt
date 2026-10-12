@@ -1,0 +1,10 @@
+### 26.140.0 B install(old)
+old install exit=0
+uninstall exit=0
+MINE markers after uninstall:
+./.claude/rules/git-policy.md.backup-20261012T092146
+./.claude/rules/my-rule.md
+./.claude/rules/test-policy.md.backup-20261012T092146
+./.claude/skills/mine/SKILL.md
+./.claude/skills/north-star/my-notes.md
+./AGENTS.md

@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-12T09:21:34.786Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude",
+      "codex"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "codexDir": ".codex/",
+    "rootClaudeMd": {
+      "path": "CLAUDE.md",
+      "sha256": "c7115400790b8737305bdf53a5a12a49acaa9e7bf3c45514ab1d18eb2ee1e046"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "anthropics/claude-plugins-official",
+        "pluginId": "frontend-design@claude-plugins-official"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "karpathy-coder",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "karpathy-coder@claude-code-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    },
+    {
+      "path": ".mcp-allowlist",
+      "change": "created",
+      "notes": [
+        "MCP allowlist (3 server)"
+      ]
+    }
+  ]
+}

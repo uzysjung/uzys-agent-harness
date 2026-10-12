@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-12T09:21:45.376Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude",
+      "codex"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "codexDir": ".codex/",
+    "rootClaudeMd": {
+      "path": "CLAUDE.md",
+      "sha256": "6c40616879fdfb530bbd6cf22d38640d6bc9a9af70cb855021ac299b056c5bef"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "anthropics/claude-plugins-official",
+        "pluginId": "frontend-design@claude-plugins-official"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "karpathy-coder",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "karpathy-coder@claude-code-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    },
+    {
+      "path": ".mcp-allowlist",
+      "change": "created",
+      "notes": [
+        "MCP allowlist (3 server)"
+      ]
+    }
+  ],
+  "skillFiles": [
+    {
+      "path": "agent-introspection-debugging/SKILL.md",
+      "sha256": "aff0d52785d3013d9f98de95ca778bfcab7c566db20352ead42852a1659292d2"
+    },
+    {
+      "path": "asis-tobe-decision/SKILL.md",
+      "sha256": "8880ea604b8458acd30b8dc515efc54a6a1640590c572d5f4be7034cbd2d7242"
+    },
+    {
+      "path": "compaction-handoff/SKILL.md",
+      "sha256": "b484a4408f25f4b78bf2e7cd88b1b3fec7b969d6c4a03de8a3b8e072719fc74f"
+    },
+    {
+      "path": "continuous-learning-v2/SKILL.md",
+      "sha256": "75485ddb37e2d1d6f056b404d9939bf46a2b409b1286aec209a510112e5b64b1"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer-loop.sh",
+      "sha256": "25ceefcc260c3599b6d12148d1a573110ace3091c723bdee3a3cf10692e5d4e2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer.md",
+      "sha256": "320d50ff2965efeabd6f07c2be134e11da160293e958c1bc27c309d613839ad2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/session-guardian.sh",
+      "sha256": "ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c"
+    },
+    {
+      "path": "continuous-learning-v2/agents/start-observer.sh",
+      "sha256": "6b1966e38eb0c96d61de5d204b87097592884364be59e5bea6007289e8068936"
+    },
+    {
+      "path": "continuous-learning-v2/config.json",
+      "sha256": "6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970"
+    },
+    {
+      "path": "continuous-learning-v2/hooks/observe.sh",
+      "sha256": "e632c2f486248b8b141059c23586d5ca0187df8c34f53d7597cd845713e06948"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/detect-project.sh",
+      "sha256": "a39677edd0ce1deb7628ed31610baafc16090a710233963d2b6a55db64167cf9"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/instinct-cli.py",
+      "sha256": "0b060a762f0fc4ad56e45cbaa14c14fb9ab3f468763f6a32a17bb864fbd3fc30"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/lib/homunculus-dir.sh",
+      "sha256": "99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/migrate-homunculus.sh",
+      "sha256": "34f121c143a676d330f06209618aae8cb08f8155298cb5fa70c893314bf9b303"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/test_parse_instinct.py",
+      "sha256": "acf556e8a8023347b35988bb490927a4e9f65f2579b03f26cad610687656605b"
+    },
+    {
+      "path": "deep-research/SKILL.md",
+      "sha256": "b852bebb31908f352c5397bde6de06ee7ca3c0e1c866fae4dedbd5c4fbb27323"
+    },
+    {
+      "path": "deep-research/agents/openai.yaml",
+      "sha256": "cb877e559cfe405d0e12bfc9bcaef657ab05a30ef698e6f3e486e39c5e0a6d2d"
+    },
+    {
+      "path": "eval-harness/SKILL.md",
+      "sha256": "12399b9de9e044273fd4dd6a8177bc4f17db008a33df83557ef56770b1466a56"
+    },
+    {
+      "path": "eval-harness/agents/openai.yaml",
+      "sha256": "6f2c19eb59062ca776286c2f6a6a7f1b552b4f927a2b48de888a7dbb2eeec6bd"
+    },
+    {
+      "path": "gap-analysis-e2e/SKILL.md",
+      "sha256": "739e9a181eac99c749b585fc4f2b64a30dcd4783083422afde64ea85a9a2b062"
+    },
+    {
+      "path": "gh-issue-workflow/ISSUE.template.md",
+      "sha256": "c30fbe41d1d6ca15a82c031441c8b20a6db20cabd3d52c9c2c7ec70ca97d60fa"
+    },
+    {
+      "path": "gh-issue-workflow/SKILL.md",
+      "sha256": "00dc33d939b034dac6c653a07a64da5b362e350bd9133def2f11420c94353008"
+    },
+    {
+      "path": "harness-health-audit/SKILL.md",
+      "sha256": "b481d7844303896a24a3a95269a035ee57690d8c15c5ad5e85f16227fa5f7f27"
+    },
+    {
+      "path": "harness-health-audit/scripts/observation-digest.mjs",
+      "sha256": "7c9c42fed4c3ab1a0df6363386c34e03776a53f6b32aa1bef3c6899dcd77aa5f"
+    },
+    {
+      "path": "multi-persona-review/SKILL.md",
+      "sha256": "b23879e303b7d0c95d30a9369f20b1928f93c24114b891a29f8bb17816cfac20"
+    },
+    {
+      "path": "north-star/NORTH_STAR.template.md",
+      "sha256": "401ac922beb41b5b3c6d19313d5a46184cc90808aa330e0e288108355b5f8aff"
+    },
+    {
+      "path": "north-star/SKILL.md",
+      "sha256": "5b1f8176bb264e5a426594704e640eb69605d6482d6ba93f53329e9fe08dadcb"
+    },
+    {
+      "path": "northstar-roadmap/SKILL.md",
+      "sha256": "9a632a49e6bbf877fee61d448046444d57127b75b4f76f9b8ddf8946c8b7990b"
+    },
+    {
+      "path": "recurrence-prevention/SKILL.md",
+      "sha256": "8a26b9d530305497fe11b39e31eb7806d835953c2585fc15fcf51488d7fe6279"
+    },
+    {
+      "path": "spec-scaling/SKILL.md",
+      "sha256": "93fe3ed443754bd368a45e71145434c1fd7efd349e25b0179bbb63774ac4ca0e"
+    },
+    {
+      "path": "strategic-compact/SKILL.md",
+      "sha256": "6bfc63c380eb89886335ad033f759a4ff3f1b1ae2c5a143598bb628e38c6e769"
+    },
+    {
+      "path": "strategic-compact/suggest-compact.sh",
+      "sha256": "62af1630b000713842e363447675ad5a94f72cddf47241df68fc9883de686689"
+    },
+    {
+      "path": "ultracode-service-audit/SKILL.md",
+      "sha256": "c7ca76cbda2f8d6b5750b68f524c92927ea375fb47a910ed02332e3a6fa1bca0"
+    },
+    {
+      "path": "verification-loop/SKILL.md",
+      "sha256": "41f481c1146b0b29ecbcf5c633090a6db3749ca4a814499d72b5b8941db694f5"
+    },
+    {
+      "path": "verification-loop/agents/openai.yaml",
+      "sha256": "1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3"
+    }
+  ],
+  "policyFiles": [
+    {
+      "path": "rules/change-management.md",
+      "sha256": "62b7932f691664459d2d7b0971c6aaee22cfeb5f9103ca1145cc55631a072077"
+    },
+    {
+      "path": "rules/cli-development.md",
+      "sha256": "b116324d53c7ed3b36d51474f17bd61eede610dff7abea4d3533656dd5cf9a34"
+    },
+    {
+      "path": "rules/code-style.md",
+      "sha256": "2e67fc49d4c8eacaa6dac9064cf566d7f3039509a5b6c5f03b5b2126b0043def"
+    },
+    {
+      "path": "rules/doc-governance.md",
+      "sha256": "8d508bf15bbc1e87b8d0820a6e54a6d5de4b243ae8859ee98b6657d60dfbc7c7"
+    },
+    {
+      "path": "rules/error-handling.md",
+      "sha256": "5ea6a188e3a925d5f1f38c1defb766bf71af7a408b58ecce208c7fd3059aa843"
+    },
+    {
+      "path": "rules/gates-taxonomy.md",
+      "sha256": "8a5162bd03f20c92230e2bd84a879de5f5d24a5746e6489f3dc895891055f4a2"
+    },
+    {
+      "path": "rules/git-policy.md",
+      "sha256": "421e837c323bed48fd7e51d02e3c27dd479037d67ecce9dbcc0da3b8c1e764b3"
+    },
+    {
+      "path": "rules/no-false-ship.md",
+      "sha256": "9098f58fe799367cb6cfc02779715b02c4f0a2e5c24539fb2d65f5eb36332762"
+    },
+    {
+      "path": "rules/ship-checklist.md",
+      "sha256": "27d3885cc3944a1a4d92dbd8e0d51ac943d7971d2284db77244deafe007c2906"
+    },
+    {
+      "path": "rules/test-policy.md",
+      "sha256": "a106e6952520eaa2cebedb9a20a47ee12a8bd0069639077f324cc1d93e3d5501"
+    },
+    {
+      "path": "agents/build-error-resolver.md",
+      "sha256": "a050a74ed31acba06b36e8c34bc35bc0e684b6b7ab01c891dfc2d13ba94f9824"
+    },
+    {
+      "path": "agents/code-reviewer.md",
+      "sha256": "e112e5e0bbc501788e8a3bfd2771d34e31a8564bbd87391bff7401af1509782c"
+    },
+    {
+      "path": "agents/data-analyst.md",
+      "sha256": "1d75c07c51b8a000e536cd8a1c23e0609d93ea51b02cd48f9877610082cb2475"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "ba0ee71bf5ae6f8aeb461b0d6161fe0869a7c45820d49145b2abf27264af7dd2"
+    },
+    {
+      "path": "agents/plan-checker.md",
+      "sha256": "f605005ba6ebf1e3494e47e257d68a2d34317d15a47b5c8b52317d9cf914b004"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "1a0153a7fcc8a170f3f08f2a4e392ca72117d413d690441b930028ce923a6094"
+    },
+    {
+      "path": "agents/security-reviewer.md",
+      "sha256": "eacaa50c2b2fdee398ba2e3c896c018ea8887d34701e5b841278ea2c1472cc19"
+    },
+    {
+      "path": "agents/silent-failure-hunter.md",
+      "sha256": "004ce0389356e0666d80c89cef39ad895ab326b3f7d19d34d23c70ab249a795d"
+    },
+    {
+      "path": "agents/strategist.md",
+      "sha256": "b217c7bd273e672de44d4df123201cc5c10203fa9bafad84a370d4b7d32b7fc6"
+    },
+    {
+      "path": "hooks/checkpoint-snapshot.sh",
+      "sha256": "f86e7f445cad48569353b9cbce6e162074fdb5224f4b0781734f5a200b94868c"
+    },
+    {
+      "path": "hooks/mcp-pre-exec.sh",
+      "sha256": "3a7b64149a45dca9e1c15a793e1e84cc28d1f7675d7b519c38cf4b4b27ef5219"
+    },
+    {
+      "path": "hooks/protect-files.sh",
+      "sha256": "f18aef8b355be30afc14e097e8f152a0f00351342e9c1505859f400b445af242"
+    },
+    {
+      "path": "hooks/session-start.sh",
+      "sha256": "dfad4b1add755a7efa89cacd370ba418c629f64911d1e0da1bcb19502bbc5948"
+    },
+    {
+      "path": "hooks/spec-drift-check.sh",
+      "sha256": "1c7c81e4009866b204e03fd7c4eac87a1b66d7b467a747393dca2bab6793eee2"
+    }
+  ],
+  "externalFiles": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "cb9cc80b88aaf61c82ccfe8a5b75d585f59c9fb2c5f86f5f938f3eefaa446419"
+    },
+    {
+      "path": ".codex/config.toml",
+      "sha256": "3cd87e5d08080df01ea5c0ec3de5377c31468de00e0407cc99250b46ef6152cc"
+    },
+    {
+      "path": ".codex/hooks/session-start.sh",
+      "sha256": "dfad4b1add755a7efa89cacd370ba418c629f64911d1e0da1bcb19502bbc5948"
+    },
+    {
+      "path": ".agents/skills/multi-persona-review/SKILL.md",
+      "sha256": "b23879e303b7d0c95d30a9369f20b1928f93c24114b891a29f8bb17816cfac20"
+    },
+    {
+      "path": ".agents/skills/gap-analysis-e2e/SKILL.md",
+      "sha256": "739e9a181eac99c749b585fc4f2b64a30dcd4783083422afde64ea85a9a2b062"
+    },
+    {
+      "path": ".agents/skills/ultracode-service-audit/SKILL.md",
+      "sha256": "c7ca76cbda2f8d6b5750b68f524c92927ea375fb47a910ed02332e3a6fa1bca0"
+    },
+    {
+      "path": ".agents/skills/asis-tobe-decision/SKILL.md",
+      "sha256": "8880ea604b8458acd30b8dc515efc54a6a1640590c572d5f4be7034cbd2d7242"
+    },
+    {
+      "path": ".agents/skills/compaction-handoff/SKILL.md",
+      "sha256": "b484a4408f25f4b78bf2e7cd88b1b3fec7b969d6c4a03de8a3b8e072719fc74f"
+    },
+    {
+      "path": ".agents/skills/northstar-roadmap/SKILL.md",
+      "sha256": "9a632a49e6bbf877fee61d448046444d57127b75b4f76f9b8ddf8946c8b7990b"
+    },
+    {
+      "path": ".agents/skills/harness-health-audit/SKILL.md",
+      "sha256": "b481d7844303896a24a3a95269a035ee57690d8c15c5ad5e85f16227fa5f7f27"
+    },
+    {
+      "path": ".agents/skills/recurrence-prevention/SKILL.md",
+      "sha256": "8a26b9d530305497fe11b39e31eb7806d835953c2585fc15fcf51488d7fe6279"
+    }
+  ]
+}

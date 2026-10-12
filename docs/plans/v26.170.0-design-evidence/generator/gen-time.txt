@@ -1,0 +1,1 @@
+node gen-legacy-fingerprints.mjs "$S/legacy-fingerprints.ts" > "$S/gen.json"  25.69s user 20.34s system 84% cpu 54.199 total

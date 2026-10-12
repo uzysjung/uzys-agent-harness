@@ -1,0 +1,12 @@
+### 26.125.0 A install(old)
+old install exit=0
+update1 exit=0
+update2 exit=0
+uninstall exit=0
+MINE markers after uninstall:
+./.claude/rules/git-policy.md.backup-20261012T092131
+./.claude/rules/my-rule.md
+./.claude/rules/test-policy.md.backup-20261012T092131
+./.claude/skills/mine/SKILL.md
+./.claude/skills/north-star/my-notes.md.backup-20261012T092131
+./AGENTS.md
