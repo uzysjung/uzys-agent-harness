@@ -32,12 +32,10 @@ import {
   existsSync,
   constants as fsConstants,
   lstatSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
-  renameSync,
   rmdirSync,
   rmSync,
   statSync,
@@ -54,6 +52,7 @@ import { CLI_DISPLAY_NAMES } from "../cli-targets.js";
 import { renderEverySelectableMcp } from "../cli-transforms.js";
 import { tomlBasicString } from "../codex/trust-entry.js";
 import { c, status } from "../design.js";
+import { type DisplacedOutcome, restoreDisplaced, withoutRestored } from "../displaced.js";
 import { gitignoreRender } from "../env-files.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
@@ -85,7 +84,7 @@ import {
   SETTINGS_TARGET,
 } from "../install-writes.js";
 import { INSTALLED_TRACKS, installedTracksText } from "../installer.js";
-import { judge, judgeDisplaced } from "../judge.js";
+import { judge } from "../judge.js";
 import { RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
 import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
@@ -1051,11 +1050,8 @@ function settleCliLog(
   if (survivors.length > 0) next.externalFiles = survivors;
   else delete next.externalFiles;
   // #761 — 되돌렸거나 되돌릴 근거가 없어진 displaced 기록을 뺀다(자리가 막혀 못 되돌린 것은 남긴다 — 다음 회수가 다시 본다)
-  const settled = new Set(done.displaced.filter((d) => d.forget).map((d) => d.path));
   if (installLog.rootFiles !== undefined) {
-    next.rootFiles = installLog.rootFiles.filter(
-      (f) => !(f.change === "displaced" && settled.has(f.path)),
-    );
+    next.rootFiles = withoutRestored(installLog.rootFiles, done.displaced);
   }
   // #551 R1 — 몫을 판정한 파일은 걷고 남은 몫(설치자가 고친 키 · 못 읽어 남긴 몫)만 이어 적는다. 판정하지 않은
   // 파일(다른 CLI 가 아직 쓰는 자리 · 밖 링크라 남긴 파일)의 몫은 그대로다. 파일째 지운 것은 남는 몫이 없다(#623 — 남겨 두면
@@ -1521,16 +1517,6 @@ const FULL_SCOPE: RemovalScope = {
   anchor: true,
 };
 
-interface DisplacedOutcome {
-  path: string;
-  /** 비켜 둔 설치자 원본의 백업(project 상대). 없으면 null(내용이 하네스 판과 같아 그대로 두었던 자리). */
-  backup: string | null;
-  verdict: "restore" | "advise" | "leave";
-  line: string;
-  /** 이 displaced 기록을 지운다. */
-  forget: boolean;
-}
-
 /** `removeHarnessFiles` 의 결과 — 실행과 미리보기가 같은 판정을 읽는다. */
 interface HarnessRemoval {
   /** 지운 하네스 파일(project 상대) — 그 파일 하나를 백업하고 지운 것도 든다. */
@@ -1613,8 +1599,15 @@ function removeHarnessFiles(
     const anchorPath = log.templates?.rootClaudeMd?.path;
     if (out.anchor.removed && anchorPath !== undefined) out.removedAnchor = anchorPath;
   }
-  // ⓒ displaced — 하네스 판을 지운 **뒤**, 기록을 지우기 **전**(`settleLog`)에
-  restoreDisplaced(log, projectDir, scope, io, out);
+  // ⓒ displaced — 하네스 판을 지운 **뒤**, 기록을 지우기 **전**(`settleLog`)에. 미리보기는 "이번에 지울 하네스 판" 을 빈 자리로 친다
+  out.displaced = restoreDisplaced(log, projectDir, {
+    has: scope.has,
+    willBeGone: new Set([
+      ...out.removed,
+      ...(out.removedAnchor === undefined ? [] : [out.removedAnchor]),
+    ]),
+    write: io.write,
+  });
   // ⓓ 빈 디렉터리 — 지운 파일의 부모 + install 이 기록 없이 만든 뼈대(B2). 비어 있을 때만 걷힌다
   if (io.write) {
     for (const p of pruneFrom) pruneEmptyDirsUpward(projectDir, dirname(join(projectDir, p)));
@@ -1900,46 +1893,6 @@ function removeHarnessMadeShared(
   out.forgotten.add(path);
   pruneFrom.push(path);
   return true;
-}
-
-/**
- * ⓒ displaced — 하네스가 자리를 빌렸던 설치자 파일(백업)을 원래 이름으로 되돌린다(ADR-097 결정 3 · R3 · `judgeDisplaced`).
- * 자리가 비지 않았거나 백업이 없으면 되돌리지 않고 말한다. 미리보기는 "이번에 지울 하네스 판" 을 빈 자리로 친다.
- */
-function restoreDisplaced(
-  log: InstallLog,
-  projectDir: string,
-  scope: RemovalScope,
-  io: RemovalIo,
-  out: HarnessRemoval,
-): void {
-  const willBeGone = new Set([
-    ...out.removed,
-    ...(out.removedAnchor === undefined ? [] : [out.removedAnchor]),
-  ]);
-  for (const f of log.rootFiles ?? []) {
-    if (f.change !== "displaced" || !scope.has(f.path)) continue;
-    const slot = join(projectDir, f.path);
-    // 하네스는 밖에 쓰지 않았다 — 그 자리의 말은 밖 링크 줄이 한다
-    if (outsideProjectTarget(projectDir, slot) !== null) continue;
-    const backup = f.notes[0] ?? null;
-    const d = judgeDisplaced({
-      backup,
-      backupExists: backup !== null && safeExists(join(projectDir, backup)),
-      slotEmpty: !safeExists(slot) || (!io.write && willBeGone.has(f.path)),
-    });
-    if (io.write && d.verdict === "restore" && backup !== null) {
-      mkdirSync(dirname(slot), { recursive: true });
-      renameSync(join(projectDir, backup), slot);
-    }
-    out.displaced.push({
-      path: f.path,
-      backup,
-      verdict: d.verdict,
-      line: d.line,
-      forget: d.record === "forget",
-    });
-  }
 }
 
 /** 화면 묶음 — `.claude/rules/x.md` → `.claude/` · 루트 파일은 그 이름. */

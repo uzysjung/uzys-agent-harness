@@ -44,6 +44,7 @@ import {
   trackDefaultMcpNames,
 } from "./cli-transforms.js";
 import { hasLegacyHarnessHook, retiredFeaturesLeftBehind } from "./codex/config-toml.js";
+import { type DisplacedOutcome, restoreDisplaced, withoutRestored } from "./displaced.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import {
   assetReachesCli,
@@ -404,6 +405,11 @@ export interface UpdateModeReport {
   /** ADR-103 — 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)를 은퇴시켰다. 부재 = 기록에 앵커가 없었다. */
   anchorRetired?: AnchorRetireResult;
   /**
+   * #782 — 이 update 가 떠난 하네스 자리(은퇴 회수 · 트랙 밖 룰 · 옛 Antigravity 앵커) 중 설치자 원본을 비켜 두었던 자리
+   * (`displaced`)의 되돌리기 결과. 부재 = 그런 자리가 없었다.
+   */
+  displacedRestored?: DisplacedOutcome[];
+  /**
    * ADR-103 — 이 update 가 `AGENTS.md` 를 새로 만들었거나(기록에 없던 파일 — 26.164.0 이하 Antigravity 설치본의 첫 update)
    * 다른 앵커의 설치자 글을 옮겨 심었다. 부재 = 둘 다 아니다(갱신은 파일 수가 말한다).
    */
@@ -597,6 +603,8 @@ export function runUpdateMode(
   // 1) 정책 디렉터리 동기화 — 대상 목록은 POLICY_DIRS 가 SSOT (install-log.ts).
   // v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 기준선은 install log 의 policyFiles.
   const policyBase = policyBaseline(projectDir);
+  // #782 — 은퇴 회수로 지운 자리(프로젝트 상대). 하네스가 그 자리를 빌렸으면(`displaced`) 설치자 원본을 되돌린다
+  const prunedPaths = new Set<string>();
   for (const { dir, ext } of POLICY_DIRS) {
     if (!claudeManaged || !wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const target = join(claudeDir, dir);
@@ -616,6 +624,7 @@ export function runUpdateMode(
     report.policyBackedUp.push(...synced.backedUp);
     claudeDisplaced.push(...synced.displaced);
     report.pruned[label] = pruneOrphans(target, source, ext, ctx);
+    for (const f of report.pruned[label]) prunedPaths.add(`${label}/${f}`);
   }
   // 기준선은 **동기화한 디렉터리만** 다시 찍는다 — 건너뛴 디렉터리의 사용자 편집을 지금 디스크
   // 그대로 "하네스가 놓아둔 것"으로 기록하면 다음 update 가 백업 없이 덮어쓴다(리뷰 ⓒ). 반대로
@@ -632,6 +641,13 @@ export function runUpdateMode(
       outsidePaths(outside, ".claude/"),
       notOursUnder(claudeDisplaced, ".claude/"),
     );
+  // #782 — 은퇴 회수가 떠난 자리에 설치자 원본을 되돌린다. 기준선 재기록 **뒤**인 이유: 그 함수의 은퇴 자리 이어 적기
+  // (`retiredClaims`)가 디스크에 있는 은퇴 경로 파일을 하네스 것으로 적는다 — 되돌린 설치자 파일이 거기 걸리면 안 된다.
+  // 기록 정리는 아래 `recordDisplaced` 의 같은 쓰기에서 한다
+  const prunedRestored =
+    logAtStart === null || prunedPaths.size === 0
+      ? []
+      : restoreDisplaced(logAtStart, projectDir, { has: (p) => prunedPaths.has(p), write: true });
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
@@ -685,7 +701,9 @@ export function runUpdateMode(
   else if (claudeManaged && copiedSkills.length > 0)
     recordNewSkillBaseline(projectDir, templatesDir, copiedSkills);
   // #761 — 첫 접촉 자리를 기록에 합친다(기준선 재기록 뒤 · 외부 갱신 앞 — 외부 갱신은 이 기록을 읽고 이어 쓴다)
-  if (claudeDisplaced.length > 0) recordDisplaced(projectDir, claudeDisplaced);
+  // #782 — 되돌린 displaced 기록도 같은 쓰기에서 뺀다
+  if (claudeDisplaced.length > 0 || prunedRestored.length > 0)
+    recordDisplaced(projectDir, claudeDisplaced, prunedRestored);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
   //
@@ -798,16 +816,21 @@ export function runUpdateMode(
         restoredFiles: [],
         legacyRestored: [],
         anchorRetired: null,
+        anchorDisplaced: [],
         agentsMd: null,
         excludedKeys: [],
         sharedLeft: [],
       };
   // 4.1) #677 — 기록에 있으나 기록 트랙의 렌더 밖인 Antigravity 룰을 치운다(바로 위 외부 갱신이 다시 쓴 기록을 읽는다).
+  const outOfTrackRestored: DisplacedOutcome[] = [];
   if (wants("external")) {
-    const outOfTrack = reclaimOutOfTrackRecorded(projectDir, outside);
+    const { reclaim: outOfTrack, displaced } = reclaimOutOfTrackRecorded(projectDir, outside);
     if (outOfTrack.removed.length + outOfTrack.backedUp.length + outOfTrack.kept.length > 0)
       report.outOfTrack = outOfTrack;
+    outOfTrackRestored.push(...displaced);
   }
+  const displacedRestored = [...prunedRestored, ...external.anchorDisplaced, ...outOfTrackRestored];
+  if (displacedRestored.length > 0) report.displacedRestored = displacedRestored;
   report.externalUpdated = external.externalUpdated;
   if (external.anchorRetired !== null) report.anchorRetired = external.anchorRetired;
   if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
@@ -1000,8 +1023,14 @@ function trackSlotOf(path: string, log: InstallLog | null): TrackSlot | null {
   return null;
 }
 
-/** #677 — 기록 트랙 · 깔린 CLI 의 렌더 밖인 기록 항목을 치우고, 치운(또는 이미 없던) 경로를 `externalFiles` 에서 뺀다. */
-function reclaimOutOfTrackRecorded(projectDir: string, outside: OutsideGuard): OutOfTrackReclaim {
+/**
+ * #677 — 기록 트랙 · 깔린 CLI 의 렌더 밖인 기록 항목을 치우고, 치운(또는 이미 없던) 경로를 `externalFiles` 에서 뺀다.
+ * #782 — 치운 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본을 되돌리고 그 기록을 같은 쓰기에서 뺀다.
+ */
+function reclaimOutOfTrackRecorded(
+  projectDir: string,
+  outside: OutsideGuard,
+): { reclaim: OutOfTrackReclaim; displaced: DisplacedOutcome[] } {
   const log = readInstallLog(projectDir);
   const result = reclaimOutOfTrack({
     projectDir,
@@ -1011,19 +1040,25 @@ function reclaimOutOfTrackRecorded(projectDir: string, outside: OutsideGuard): O
     excluded: excludedIds(log),
     outside,
   });
+  const left = new Set([...result.removed, ...result.backedUp.map((b) => b.path)]);
+  const displaced =
+    log === null || left.size === 0
+      ? []
+      : restoreDisplaced(log, projectDir, { has: (p) => left.has(p), write: true });
   if (log !== null && result.forget.length > 0) {
     const forget = new Set(result.forget);
     const next: InstallLog = { ...log };
     const kept = (log.externalFiles ?? []).filter((f) => !forget.has(f.path));
     if (kept.length > 0) next.externalFiles = kept;
     else delete next.externalFiles;
+    if (displaced.some((d) => d.forget)) next.rootFiles = withoutRestored(log.rootFiles, displaced);
     try {
       writeInstallLog(projectDir, next);
     } catch {
       // 기록 실패가 update 자체를 실패시키지는 않는다 (refreshExternalCli 와 같은 방침).
     }
   }
-  return result;
+  return { reclaim: result, displaced };
 }
 
 /**
@@ -1981,6 +2016,8 @@ function refreshExternalCli(
   legacyRestored: string[];
   /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과(기록에 앵커가 없었으면 `null`). */
   anchorRetired: AnchorRetireResult | null;
+  /** #782 — 은퇴한 앵커 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본 되돌리기 결과. */
+  anchorDisplaced: DisplacedOutcome[];
   /** ADR-103 — `UpdateModeReport.agentsMd` 와 같다(없으면 `null`). */
   agentsMd: { created: boolean; clis: CliBase[]; seededFrom: string | null } | null;
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
@@ -2027,6 +2064,13 @@ function refreshExternalCli(
     owned: recordedOwner(log),
   });
 
+  // #782 — 은퇴한 옛 앵커 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본을 되돌린다 — 지운 뒤 · 아래 기록 쓰기 앞
+  const anchorPath = result.anchorRetired?.action === "removed" ? result.anchorRetired.path : null;
+  const anchorDisplaced =
+    log === null || anchorPath === null
+      ? []
+      : restoreDisplaced(log, projectDir, { has: (p) => p === anchorPath, write: true });
+
   // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금
   // 자기가 덮어쓴 파일을 "사용자가 고쳤다"로 오판해 백업을 매번 쌓는다.
   // 이번에 안 건드린 산출물의 기록은 `mergeExternalFiles` 가 유지한다 (지우면 그 파일들이
@@ -2063,6 +2107,9 @@ function refreshExternalCli(
     // #761 — 세 변환이 첫 접촉으로 비켜 둔 설치자 파일도 같은 자리에 — 하네스가 떠날 때 되돌리는 근거다
     const roots = [...created, ...withoutLostBackups(log.rootFiles, result.displaced ?? [])];
     if (roots.length > 0) next.rootFiles = mergeRootFiles(log.rootFiles, roots);
+    // #782 — 되돌린(또는 되돌릴 근거가 없어진) 앵커 자리의 displaced 기록을 같은 쓰기에서 뺀다
+    if (anchorDisplaced.some((d) => d.forget))
+      next.rootFiles = withoutRestored(next.rootFiles, anchorDisplaced);
     try {
       writeInstallLog(projectDir, next);
     } catch {
@@ -2164,6 +2211,7 @@ function refreshExternalCli(
       ),
     ],
     anchorRetired: result.anchorRetired,
+    anchorDisplaced,
     agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
     // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
     // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
@@ -2504,14 +2552,24 @@ function withoutLostBackups(
   return add.filter((f) => f.notes.length > 0 || !backedUp.has(f.path));
 }
 
-/** #761 — `.claude/` 첫 접촉 자리를 기록의 `rootFiles` 에 합친다. 로그가 없으면 만들지 않는다(설치 기록 날조 금지). */
-function recordDisplaced(projectDir: string, displaced: ReadonlyArray<InstallLogRootFile>): void {
+/**
+ * #761 — `.claude/` 첫 접촉 자리를 기록의 `rootFiles` 에 합친다. 로그가 없으면 만들지 않는다(설치 기록 날조 금지).
+ * #782 — 은퇴 회수 뒤 되돌린 displaced 기록(`restored`)도 같은 쓰기에서 뺀다. 기록은 **여기서 다시 읽는다** — 앞 단계
+ * (`refreshPolicyBaseline` · `refreshSkillBaseline`)가 그 사이 기록을 다시 썼다.
+ */
+function recordDisplaced(
+  projectDir: string,
+  displaced: ReadonlyArray<InstallLogRootFile>,
+  restored: ReadonlyArray<DisplacedOutcome> = [],
+): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
   const add = withoutLostBackups(log.rootFiles, displaced);
-  if (add.length === 0) return;
+  const settles = restored.some((d) => d.forget);
+  if (add.length === 0 && !settles) return;
+  const merged = add.length === 0 ? [...(log.rootFiles ?? [])] : mergeRootFiles(log.rootFiles, add);
   try {
-    writeInstallLog(projectDir, { ...log, rootFiles: mergeRootFiles(log.rootFiles, add) });
+    writeInstallLog(projectDir, { ...log, rootFiles: withoutRestored(merged, restored) });
   } catch {
     // 기록 실패가 update 자체를 실패시키지는 않는다 (다른 기준선 갱신과 같은 방침).
   }

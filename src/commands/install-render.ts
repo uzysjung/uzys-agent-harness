@@ -31,6 +31,7 @@ import {
   symbol,
   unifiedSection,
 } from "../design.js";
+import type { DisplacedOutcome } from "../displaced.js";
 import {
   assetCliSupport,
   assetReachesCli,
@@ -1077,6 +1078,8 @@ function renderPhase1Rows(
     if (retired) log(retired);
     // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
     for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
+    // #782 — 하네스가 떠난 자리(은퇴 회수 · 트랙 밖 룰 · 옛 앵커)에 설치자 원본을 되돌렸다
+    for (const row of displacedRows(baseline.updateMode.displacedRestored)) log(row);
     // ADR-099 R2 — update 도 install 과 같은 writer 로 루트 · `.claude/` 의 함께 쓰는 파일 몫을 쓴다 — 같은 행으로 말한다
     for (const f of baseline.updateMode.sharedWrites ?? []) {
       const row = sharedFileRow(f);
@@ -1445,6 +1448,8 @@ function renderPhase1Rows(
   for (const row of outsideLinkRows(baseline.outsideLinks ?? [])) log(row);
   // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다(백업 경로는 그 줄이 댄다)
   for (const row of outOfTrackRows(baseline.outOfTrack)) log(row);
+  // #782 — 하네스가 떠난 자리(트랙 밖 룰 · 옛 앵커)에 설치자 원본을 되돌렸다
+  for (const row of displacedRows(baseline.displacedRestored)) log(row);
   // 외부 CLI 산출물 · 링크 본문의 백업 — 판정 줄이 없는 쪽만(같은 백업을 두 번 말하지 않는다).
   if (baseline.backups) {
     for (const b of baseline.backups) {
@@ -1646,6 +1651,20 @@ export function judgedRow(j: JudgedWrite): string {
  * 트랙**을 밝힌다 — 옛 판이 덮어쓴 기록을 근거로 되살리지 못한 경우(claude 없이 깐 트랙)는 #677 본래 대상과 기록으로 가를 수
  * 없어서, 그 트랙을 골랐던 설치자가 되돌리는 명령을 같은 줄에 붙인다(리뷰 B1).
  */
+/**
+ * #782 — 하네스가 떠난 자리를 빌렸던(`displaced`) 설치자 원본의 되돌리기. 되돌렸으면 백업 경로와 함께 · 못 되돌렸으면 그
+ * 까닭(`judgeDisplaced` 의 줄) · 할 것이 없었으면 말하지 않는다. uninstall 의 같은 줄과 같은 동사(`put back`)다.
+ */
+export function displacedRows(outcomes: ReadonlyArray<DisplacedOutcome> | undefined): string[] {
+  return (outcomes ?? []).flatMap((d) =>
+    d.verdict === "restore"
+      ? [assetRow("success", d.path, `yours — put back (from ${d.backup})`)]
+      : d.verdict === "advise"
+        ? [assetRow("skip", d.path, d.line)]
+        : [],
+  );
+}
+
 export function outOfTrackRows(r: OutOfTrackReclaim | undefined): string[] {
   if (r === undefined) return [];
   const recorded = r.recordedTracks.join(", ");
