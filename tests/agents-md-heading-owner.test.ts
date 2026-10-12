@@ -148,6 +148,32 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
     expect(agents()).toBe(after);
   });
 
+  it("마커 없는 옛 판(v26.160.0 이전)의 `## Project Rules` 에 설치자가 적은 `## My rules` 절은 update 뒤에도 파일에 남는다 (ADR-097 결정 4)", () => {
+    run();
+    const harnessWrote = agents()
+      .replace(`${ANCHOR_BLOCK.start}\n`, "")
+      .replace(`${ANCHOR_BLOCK.end}\n`, "")
+      .replace(/<!-- uzys-harness:skills:(start|end) -->\n/g, "");
+    expect(harnessWrote, "픽스처 자기검증 — 마커 없는 옛 판").not.toContain("<!-- uzys-harness:");
+    recordAsHarnessWritten(harnessWrote);
+    const MINE = "## My rules\n\nMY-RULES-TEXT — 배포는 금요일에 하지 않는다.";
+    expect(harnessWrote, "픽스처 자기검증 — 끼울 자리가 있다").toContain("\n## Harness Rules\n");
+    writeFileSync(
+      agentsPath(),
+      harnessWrote.replace("\n## Harness Rules\n", `\n${MINE}\n\n## Harness Rules\n`),
+    );
+
+    run("update");
+    const after = agents();
+    expect(after).toContain(MINE);
+    // 되살린 자리는 다른 설치자 절과 같다 — 파일 끝. 앵커 제목은 한 벌만(옛 본문의 하네스 제목은 되살리지 않는다)
+    expect(after.trimEnd().endsWith("MY-RULES-TEXT — 배포는 금요일에 하지 않는다.")).toBe(true);
+    expect(after.split("\n## 1. Understand what success means\n").length - 1).toBe(1);
+
+    run("update");
+    expect(agents()).toBe(after);
+  });
+
   it("앵커 제목이 바뀐 판에서 update — 옛 앵커 절이 파일 끝에 되살아나지 않는다", () => {
     run();
     const NOW = "## 1. Understand what success means";

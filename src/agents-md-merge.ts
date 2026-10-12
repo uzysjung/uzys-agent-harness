@@ -280,8 +280,13 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   // 마커 없는 옛 설치본의 `## Project Rules` 는 통째로 하네스가 렌더한 앵커 본문이고, 어디까지가
   // 설치자가 덧쓴 줄인지 판정할 근거가 없다 — 그때는 최신판으로 간다(편집분은 `owned-write` 의
   // `.backup-<stamp>` 에 남는다). 마커가 있는 판부터는 블록만 갈아 끼우므로 덧쓴 줄이 남는다.
+  // 다만 그 본문 안에 설치자가 적은 `## ` 절은 라이브에 남긴다(ADR-097 결정 4 · #739) — 렌더의 같은 절에 없는 제목이
+  // 그것이다(집합 대조). 아래 `extraTopLevelSections` 가 다른 설치자 절과 같이 파일 끝에 되살린다.
+  let replacedRulesHeadings: ReadonlySet<string> | null = null;
   if (rulesNow !== null && rulesNew !== null && blockRange(rulesNow, ANCHOR_BLOCK) !== null) {
     bodies.set(RULES_SECTION, refreshBlock(rulesNow, rulesNew, ANCHOR_BLOCK));
+  } else if (rulesNow !== null && rulesNew !== null) {
+    replacedRulesHeadings = headingLines(rulesNew);
   }
 
   const merged = bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
@@ -297,6 +302,7 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
     names,
     rendered,
     params.harnessRuleHeadings ?? new Set(),
+    replacedRulesHeadings,
   ).filter((e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")));
   if (extras.length === 0) return merged;
   return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
@@ -336,18 +342,27 @@ export function headingOwner(
   return "installer";
 }
 
-/** 렌더의 `## Harness Rules` 절에 든 `## ` 제목 — 병합이 하네스 룰 제목으로 더 넘기는 몫. */
-function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set<string> {
-  const body = sectionBody(rendered, names, HARNESS_RULES_SECTION) ?? [];
+/** 절 본문 줄들 중 `## ` 제목 줄(끝 공백을 뗀 것). */
+function headingLines(body: ReadonlyArray<string>): Set<string> {
   return new Set(body.filter((l) => /^## /.test(l)).map((l) => l.replace(/\r$/, "").trim()));
 }
 
-/** 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다. */
+/** 렌더의 `## Harness Rules` 절에 든 `## ` 제목 — 병합이 하네스 룰 제목으로 더 넘기는 몫. */
+function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set<string> {
+  return headingLines(sectionBody(rendered, names, HARNESS_RULES_SECTION) ?? []);
+}
+
+/**
+ * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다.
+ * `replacedRulesHeadings` 가 있으면 `## Project Rules` 본문을 통째로 갈아 끼우는 중이다(마커 없는 옛 판) — 그 본문의
+ * `## ` 중 이 집합(렌더의 같은 절 제목)에 없는 것도 설치자 절로 모은다.
+ */
 function extraTopLevelSections(
   existing: string,
   names: ReadonlySet<string>,
   rendered: string,
   harnessRuleHeadings: ReadonlySet<string>,
+  replacedRulesHeadings: ReadonlySet<string> | null,
 ): string[][] {
   // 하네스 룰 제목 = 넘겨받은 배포 룰 제목 전부(렌더에서 빠진 룰도 설치자 절로 되살리지 않는다 — #642) ∪ 이번 렌더의
   // 룰 제목(호출부가 집합을 생략해도 지금 렌더한 룰은 하네스 것이다).
@@ -365,7 +380,12 @@ function extraTopLevelSections(
       if (current !== null) out.push(current);
       if (names.has(name)) region = name;
       const owner = headingOwner(bare, { region, names, harnessHeadings });
-      current = owner === "installer" ? [line] : null;
+      const replacedBody =
+        owner === "body" &&
+        region === RULES_SECTION &&
+        replacedRulesHeadings !== null &&
+        !replacedRulesHeadings.has(bare.trim());
+      current = owner === "installer" || replacedBody ? [line] : null;
       continue;
     }
     if (current !== null) current.push(line);
