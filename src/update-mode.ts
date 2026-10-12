@@ -60,7 +60,7 @@ import {
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
 import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
-import { findStaleHookRefs, keepHookRef } from "./hook-ref.js";
+import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
   SETTINGS_TARGET,
@@ -97,6 +97,7 @@ import {
   buildManifest,
   isCliNeutralTarget,
   RETIRED_AGENT_IDS,
+  RETIRED_HOOK_WIRING_REFS,
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
@@ -138,6 +139,11 @@ export interface UpdateModeReport {
   pruned: Record<string, string[]>;
   /** 스크립트가 없는데 **지우지 않고 남긴** 기록 밖 훅 참조(`.claude/` 상대경로) — 설치자 몫이다(#746 리뷰 BLOCKER-1). */
   staleHookRefs: string[];
+  /**
+   * #746 재리뷰 B-1 — 옛 템플릿이 깐 은퇴 하네스 배선(`RETIRED_HOOK_WIRING_REFS`) 중 스크립트가 없어 **걷은** 참조
+   * (`.claude/` 상대경로). 하네스 몫이라 `staleHookRefs`(설치자 몫 · 남김)와 겹치지 않는다. optional = 리포트 stub 은 "없음".
+   */
+  retiredHookRefsRemoved?: string[];
   /** 앵커를 템플릿으로 **실제로 다시 썼다** — 바이트가 이미 같았으면 false (#615 사례 4). */
   claudeMdUpdated: boolean;
   /**
@@ -680,8 +686,17 @@ export function runUpdateMode(
   // 설치자 몫이다(팀이 커밋한 훅 — 스크립트는 생성물이라 클론에 아직 없다). update 는 폴더 사본을 뜨지 않으므로(#746)
   // 지우면 그 항목의 원본이 어디에도 안 남는다(#746 리뷰 BLOCKER-1). 함께 쓰는 파일의 설치자 몫은 건드리지 않는다(ADR-097 결정 4).
   // claude 가 깔린 집합에 없으면 그 `settings.json` 은 통째로 설치자 것이라 알리지도 않는다(#536 리뷰 BLOCKER-1).
+  // 예외 하나(#746 재리뷰 B-1): 옛 템플릿이 `.claude/hooks/` 밖 스크립트로 깐 은퇴 배선은 기록 밖이어도 하네스 몫이다 —
+  // 닫힌 목록(`RETIRED_HOOK_WIRING_REFS`)에 든 참조 중 스크립트가 없는 핸들러만 걷는다. 기록 모양(옛 로그 · writer)과
+  // 무관하게 매 update 가 본다 — 옛 로그 몫 찾기는 첫 writer 실행에서만 돌아 이미 옮겨진 설치본을 덮지 못한다.
+  // 걷은 뒤에 탐지한다 — 걷은 참조가 "left (yours …)" 로 다시 나오지 않게.
   const settingsPath = join(claudeDir, "settings.json");
   if (claudeManaged && wants("hooks") && existsSync(settingsPath) && !outside.skip(settingsPath)) {
+    report.retiredHookRefsRemoved = removeRetiredHookRefs(
+      settingsPath,
+      claudeDir,
+      RETIRED_HOOK_WIRING_REFS,
+    );
     report.staleHookRefs = findStaleHookRefs(
       settingsPath,
       claudeDir,

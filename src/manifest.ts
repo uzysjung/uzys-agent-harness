@@ -283,6 +283,28 @@ export const RETIRED_PATHS: ReadonlyArray<string> = [
 ];
 
 /**
+ * 옛 템플릿(`templates/settings.json`)이 `.claude/hooks/` **밖**의 스크립트로 배선했다가 은퇴시킨 하네스 훅 참조 —
+ * `.claude/` 상대경로(`projectAnchoredRef` 의 반환 형태).
+ *
+ * 왜 있나 (#746 재리뷰 B-1): 그 배선은 하네스가 깔았는데 옛 로그 몫 찾기(`legacySettingsSeed`)는 `hooks/` 아래만
+ * 알아보므로 기록 밖에 남는다. update 3단계는 기록 밖 죽은 참조를 설치자 몫으로 보고 알리기만 하니(#746 리뷰
+ * BLOCKER-1), 이 목록이 없으면 은퇴한 하네스 배선이 영구히 남고 화면이 그것을 "yours" 라고 부른다. update 는 이 목록의
+ * 참조 중 **스크립트가 없는 것**만 걷는다(`removeRetiredHookRefs`) — 스크립트가 있으면 설치자가 스킬을 남겨 쓰는 중이다.
+ *
+ * **닫힌 목록이다.** 출처 = `git log -p -- templates/settings.json` 의 `$CLAUDE_PROJECT_DIR/.claude/` 앵커 command 중
+ * `hooks/` 밖인 것 전부(2026-10-12 확인, 2개). 현행 템플릿 렌더는 `hooks/` 밖 핸들러를 거부하므로(`install-writes`
+ * 의 settings 렌더가 throw) 앞으로 늘지 않는다. 목록 밖의 기록 밖 참조는 계속 알리기만 한다.
+ */
+export const RETIRED_HOOK_WIRING_REFS: ReadonlyArray<string> = [
+  // 6617766 (2026-04-14, phase4b) 배선 → c8fdef1 (2026-05-03, CL-v2 observer 중복 fire 제거) 제거.
+  // PreToolUse · PostToolUse 각각 matcher "*" 묶음 하나 — `observe.sh pre|post`, async.
+  "skills/continuous-learning-v2/hooks/observe.sh",
+  // 5defc58 (2026-04-14, wire strategic-compact) 배선 → a125453 (2026-09-13, #444 스킬 3종 은퇴) 제거.
+  // PreToolUse 의 protect-files 묶음 안 두 번째 핸들러, async.
+  "skills/strategic-compact/suggest-compact.sh",
+];
+
+/**
  * 은퇴 판정용 에이전트 id — `RETIRED_PATHS` 에서 derive 한다(은퇴 목록이 둘로 갈라지지 않게). 대안 문구는
  * `RETIRED_AGENTS` 가 갖고, 두 목록의 id 가 같은지는 `tests/recorded.test.ts` 가 문다.
  */

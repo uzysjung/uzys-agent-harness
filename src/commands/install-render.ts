@@ -1271,6 +1271,17 @@ function renderPhase1Rows(
     }
     // #746 리뷰 BLOCKER-1 — update 는 기록 밖 죽은 훅 참조를 **지우지 않는다**(설치자 몫 · install #603 과 같다).
     // 실제로 한 일(남겼다)과 어느 참조인지를 경로로 말한다 — 건수만 찍으면 설치자는 무엇을 볼지 모른다.
+    // #746 재리뷰 B-1 — 옛 템플릿이 깐 은퇴 하네스 배선은 하네스 몫이라 걷었다. 설치자 몫("yours")과 한 줄에 섞지 않는다.
+    const retiredRefs = baseline.updateMode.retiredHookRefsRemoved ?? [];
+    if (retiredRefs.length > 0) {
+      log(
+        assetRow(
+          "success",
+          "settings.json retired hook refs",
+          `${retiredRefs.length} removed (harness wiring from an earlier release; script gone: ${retiredRefs.join(", ")})`,
+        ),
+      );
+    }
     const staleRefs = baseline.updateMode.staleHookRefs;
     if (staleRefs.length > 0) {
       log(

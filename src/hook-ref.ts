@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -64,6 +64,7 @@ export function projectAnchoredRef(command: string, claudeDir?: string): string 
 
 /* ────────────────────────────────────────────────────────────────────────────
  * settings.json 죽은 훅 참조 탐지기 — install(#603) · update(#746 리뷰 BLOCKER-1) 모두 **알리기만** 한다.
+ * 예외 하나: 옛 템플릿이 깐 은퇴 배선의 닫힌 목록은 update 가 하네스 몫으로 걷는다(`removeRetiredHookRefs`, #746 재리뷰 B-1).
  * update-mode.ts 에서 옮겼다: installer 가 import 하려는데 installer←update-mode 의존이
  * 이미 있어 반대 방향 import 는 순환이 된다. 판정(SSOT)도 여기(projectAnchoredRef)다.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -126,4 +127,49 @@ export function findStaleHookRefs(
     }
   }
   return stale;
+}
+
+/**
+ * update 전용 — `refs`(하네스가 깔았다가 은퇴시킨 배선의 닫힌 목록, `RETIRED_HOOK_WIRING_REFS`)를 부르는 핸들러 중
+ * **스크립트가 없는 것**만 걷는다(#746 재리뷰 B-1). 하네스 몫만 빼는 것이다(ADR-097 결정 4) — 같은 묶음의 다른 핸들러
+ * (하네스 protect-files · 설치자 핸들러)는 남기고, 이 제거로 빈 묶음만 치운다. 목록 밖 참조는 판정하지 않는다
+ * (`findStaleHookRefs` 가 알리기만 한다). 걷은 것이 없으면 파일을 쓰지 않는다.
+ *
+ * @returns 걷은 참조의 `.claude/` 상대경로(중복 없이).
+ */
+export function removeRetiredHookRefs(
+  settingsPath: string,
+  claudeDir: string,
+  refs: ReadonlyArray<string>,
+): string[] {
+  let settings: SettingsJson;
+  try {
+    settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
+  } catch {
+    return [];
+  }
+  const removed: string[] = [];
+  const isRetiredDead = (hook: HookCommand): boolean => {
+    const rel = projectAnchoredRef(hook?.command ?? "", claudeDir);
+    if (rel === undefined || !refs.includes(rel) || existsSync(join(claudeDir, rel))) return false;
+    if (!removed.includes(rel)) removed.push(rel);
+    return true;
+  };
+  const hooks: Record<string, HookEntry[]> = {};
+  for (const [event, entries] of Object.entries(settings.hooks ?? {})) {
+    if (!Array.isArray(entries)) {
+      hooks[event] = entries; // non-array event — 그대로
+      continue;
+    }
+    hooks[event] = entries.flatMap((entry) => {
+      if (!Array.isArray(entry?.hooks)) return [entry];
+      const kept = entry.hooks.filter((hook) => !isRetiredDead(hook));
+      if (kept.length === entry.hooks.length) return [entry];
+      return kept.length > 0 ? [{ ...entry, hooks: kept }] : []; // 이 제거로 빈 묶음만 치운다
+    });
+  }
+  if (removed.length > 0) {
+    writeFileSync(settingsPath, `${JSON.stringify({ ...settings, hooks }, null, 2)}\n`);
+  }
+  return removed;
 }

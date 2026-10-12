@@ -261,6 +261,83 @@ describe("#675 — 훅 스크립트를 지운 뒤 update 1회가 스크립트와
     expect(hookScripts()).toEqual(scripts);
     expect(wiredScripts()).toEqual([...wired, "team-generated-guard.sh"].sort());
   });
+
+  // #746 재리뷰 B-1 — 옛 템플릿(2026-04-14~09-13)은 `.claude/hooks/` 밖 스킬 스크립트를 배선했다. 그 배선은 기록 밖이어도
+  // 하네스 몫이다(닫힌 목록 `RETIRED_HOOK_WIRING_REFS`). 화면이 "지워도 된다" 고 한 스킬 폴더를 지운 뒤 update 가 그 배선을
+  // 걷고 "yours" 라고 부르지 않는다. 기록 모양(옛 로그 · 이미 writer 로 옮겨진 것)과 무관하다.
+  it.each([
+    "legacy",
+    "writer",
+  ] as const)("옛 템플릿이 깐 은퇴 스킬 훅 배선은 스크립트가 사라지면 update 가 걷는다 — 같은 묶음의 protect-files · 설치자 핸들러는 남는다 (기록: %s)", (shape) => {
+    install();
+    if (shape === "legacy") {
+      const { records, portions, excludedKeysMigrated, selections, ...old } = rawLog();
+      writeFileSync(installLogPath(projectDir), JSON.stringify(old, null, 2));
+    } else {
+      expect(rawLog().records).toBe("writer"); // 전제 — 이미 writer 모양
+    }
+    const suggest = {
+      type: "command",
+      command: 'bash "$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh"',
+      async: true,
+      timeout: 5,
+    };
+    const observe = {
+      matcher: "*",
+      hooks: [
+        {
+          type: "command",
+          command:
+            'bash "$CLAUDE_PROJECT_DIR/.claude/skills/continuous-learning-v2/hooks/observe.sh" post',
+          async: true,
+          timeout: 10,
+        },
+      ],
+    };
+    const mine = { type: "command", command: "node scripts/my-check.js" };
+    const s = settings();
+    const group = s.hooks?.PreToolUse?.find((g) =>
+      g.hooks.some((h) => h.command.includes("protect-files.sh")),
+    );
+    expect(group).toBeDefined(); // 전제 — 옛 템플릿과 같은 protect-files 묶음
+    group?.hooks.push(suggest, mine);
+    s.hooks = { ...s.hooks, PostToolUse: [...(s.hooks?.PostToolUse ?? []), observe] };
+    put(".claude/settings.json", JSON.stringify(s, null, 2));
+    const skill = join(projectDir, ".claude/skills/strategic-compact");
+    mkdirSync(skill, { recursive: true });
+    writeFileSync(join(skill, "suggest-compact.sh"), "#!/bin/bash\nexit 0\n");
+
+    // ① 스크립트가 있으면 걷지 않는다 — 설치자가 스킬을 남겨 쓰는 중일 수 있다
+    const first = update();
+    expect(read(".claude/settings.json")).toContain("suggest-compact.sh");
+    expect(first.report.updateMode?.retiredHookRefsRemoved).toEqual([
+      "skills/continuous-learning-v2/hooks/observe.sh",
+    ]);
+
+    // ② 화면이 "지워도 된다" 고 한 폴더를 지우고 update
+    rmSync(skill, { recursive: true, force: true });
+    const { report, screen } = update();
+
+    const text = read(".claude/settings.json");
+    expect(text).not.toContain("suggest-compact.sh");
+    expect(text).not.toContain("observe.sh");
+    const after = settings().hooks?.PreToolUse?.find((g) =>
+      g.hooks.some((h) => h.command.includes("protect-files.sh")),
+    );
+    expect(after?.hooks.map((h) => h.command)).toEqual([
+      'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh"',
+      mine.command,
+    ]);
+    expect(JSON.stringify(after?.hooks[1])).toBe(JSON.stringify(mine));
+    expect(report.updateMode?.retiredHookRefsRemoved).toEqual([
+      "skills/strategic-compact/suggest-compact.sh",
+    ]);
+    expect(report.updateMode?.staleHookRefs).toEqual([]);
+    expect(screen).toMatch(
+      /settings\.json retired hook refs\s+1 removed \(harness wiring from an earlier release; script gone: skills\/strategic-compact\/suggest-compact\.sh\)/,
+    );
+    expect(screen).not.toMatch(/yours/);
+  });
 });
 
 describe("update 가 `.mcp.json` · `.gitignore` 의 하네스 몫을 install 과 같은 writer 로 쓴다", () => {
