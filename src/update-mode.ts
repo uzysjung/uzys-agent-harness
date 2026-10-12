@@ -5,7 +5,8 @@
  * Source: bash setup-harness.sh@911c246~1 L460~573 (update mode 113 LOC)
  *
  * Update 모드 동작:
- *   1. backup: .claude/ → .claude.backup-<timestamp>/
+ *   1. backup: 파일 단위 — 설치자가 고친 하네스 파일만 `<file>.backup-<timestamp>` 로 남긴다(목록 =
+ *      `.uzys-agent-harness/update-backups.json`). `.claude/` 폴더 통째 사본은 없다(#746 · ADR-097 결정 3)
  *   2. update_dir: target에 이미 존재하는 파일만 templates로 덮어쓰기 (Track 혼입 방지)
  *   3. prune_orphans: templates에 없는데 target에 있는 파일 제거 (예: 폐기된 rule)
  *   4. clean_stale_hook_refs: settings.json hook 참조 중 실존 파일 없는 것 제거
@@ -676,8 +677,8 @@ export function runUpdateMode(
   // 3) settings.json stale hook ref cleanup
   // #536 리뷰 BLOCKER-1 — 이 단계도 `.claude/` 를 **고친다**(항목 삭제 + 재서식). claude 가 깔린
   // 집합에 없으면 그 `settings.json` 은 설치자 것이고(예: 팀이 커밋한 Claude Code 훅 — 스크립트는
-  // 생성물이라 클론에 아직 없다), 그 실행은 `.claude.backup-*` 도 만들지 않는다(installer
-  // resolveBackupPath). 게이트가 없으면 설치자 훅 배선이 원본 없이 사라진다(실 CLI 재현).
+  // 생성물이라 클론에 아직 없다). update 는 폴더 사본을 뜨지 않으므로(#746) 게이트가 없으면 설치자 훅
+  // 배선이 원본 없이 사라진다(실 CLI 재현).
   // ADR-099 R2 — **기록된 하네스 훅 스크립트의 참조는 정리하지 않는다**: 그 스크립트는 0단계가 되살리고 배선은 2.5단계의
   // writer 가 소유한다(빼기는 `--without baseline:hooks/…` → writer 가 걷는다). 정리기는 기록에 없는 스크립트 참조에만
   // 손댄다 — 기록된 참조를 걷던 것이 #675(배선 영구 미복구)의 첫 고리였다.

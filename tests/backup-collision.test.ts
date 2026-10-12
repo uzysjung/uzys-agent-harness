@@ -2,10 +2,9 @@
  * 같은 초에 백업이 두 번 나면 어떻게 되나 — R-3m.
  *
  * 백업 경로는 `<target>.backup-<stamp>` 이고 stamp 는 **초 해상도**다 (`fs-ops.ts` formatStamp).
- * 사용자가 `update` 를 연달아 돌리면 같은 이름이 두 번 나오는데, 그때 세 함수가 서로 다르게
- * 망가져 있었다:
+ * 사용자가 `update` 를 연달아 돌리면 같은 이름이 두 번 나오는데, 그때 함수마다 다르게
+ * 망가져 있었다(update 의 `.claude/` 폴더 사본은 #746 에서 없앴다 — update 의 백업은 파일 단위뿐이다):
  *
- *   - `copyBackupDir` (update 의 `.claude/` 스냅샷) → 조용히 앞선 백업을 **덮는다**
  *   - `backupFile`    (사용자 편집 파일 보존)      → 조용히 앞선 백업을 **덮는다**
  *   - `backupDir`     (재설치의 `.claude/` 밀어내기) → ENOTEMPTY 로 **죽는다**
  *
@@ -29,7 +28,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupDir, backupFile, copyBackupDir } from "../src/fs-ops.js";
+import { backupDir, backupFile } from "../src/fs-ops.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
@@ -55,19 +54,6 @@ function seedDir(name: string, content: string): string {
 }
 
 describe("fs-ops — 같은 stamp 로 두 번 백업 (R-3m)", () => {
-  it("copyBackupDir: 두 번째 백업이 첫 스냅샷을 덮지 않는다", () => {
-    const target = seedDir("payload", "사용자가 고친 내용");
-
-    const first = copyBackupDir(target, SAME_SECOND);
-    writeFileSync(join(target, "note.md"), "하네스가 덮어쓴 내용");
-    const second = copyBackupDir(target, SAME_SECOND);
-
-    expect(second).not.toBe(first);
-    // 이게 깨지면 백업본에 "지키려던 원본" 대신 덮어쓴 내용이 들어 있다 = 보호 실패.
-    expect(readFileSync(join(`${first}`, "note.md"), "utf8")).toBe("사용자가 고친 내용");
-    expect(readFileSync(join(`${second}`, "note.md"), "utf8")).toBe("하네스가 덮어쓴 내용");
-  });
-
   it("backupDir: 같은 초에 두 번 밀어내도 ENOTEMPTY 로 죽지 않는다", () => {
     const target = seedDir("payload", "1회차");
 
@@ -113,7 +99,7 @@ describe("fs-ops — 같은 stamp 로 두 번 백업 (R-3m)", () => {
  * 위 단위 테스트는 헬퍼가 고쳐졌음만 보인다. `update` 가 실제로 그 경로를 타는지는 별개다
  * (한 경로의 증거를 다른 경로에 전용하지 않는다 — no-false-ship).
  */
-describe("update — 같은 초에 두 번 돌려도 첫 스냅샷이 살아남는다 (R-3m)", () => {
+describe("update — 같은 초에 두 번 돌려도 첫 파일 백업이 살아남는다 (R-3m · #746)", () => {
   let projectDir: string;
 
   beforeEach(() => {
@@ -134,7 +120,7 @@ describe("update — 같은 초에 두 번 돌려도 첫 스냅샷이 살아남�
     };
   }
 
-  it("두 번째 update 가 첫 update 의 .claude 백업을 덮어쓰지 않는다", () => {
+  it("고친 룰은 그 파일 하나만 백업된다 — 두 번째 update 가 첫 백업을 덮지 않고, .claude 폴더 사본은 없다", () => {
     runInstall({
       harnessRoot: HARNESS_ROOT,
       projectDir,
@@ -142,22 +128,25 @@ describe("update — 같은 초에 두 번 돌려도 첫 스냅샷이 살아남�
       mode: "add",
       runExternal: null,
     });
-    // update 가 손대지 않는 사용자 파일 — 백업 스냅샷의 세대를 구분하는 표식으로 쓴다.
-    const marker = join(projectDir, ".claude/my-notes.md");
-    writeFileSync(marker, "1세대");
+    const rule = join(projectDir, ".claude/rules/git-policy.md");
+    const shipped = readFileSync(rule, "utf8");
+    // update 가 손대지 않는 설치자 파일 — 폴더 사본이 없으니 이 파일은 제자리에서만 산다.
+    const mine = join(projectDir, ".claude/settings.local.json");
+    writeFileSync(mine, '{"permissions":{"allow":["Bash(ls)"]}}');
 
-    // 실제 sleep 없이 두 실행을 같은 초에 묶는다 (resolveBackupPath 는 new Date() 를 직접 읽는다).
+    // 실제 sleep 없이 두 실행을 같은 초에 묶는다 (backupFile 은 new Date() 를 직접 읽는다).
     vi.useFakeTimers();
     vi.setSystemTime(SAME_SECOND);
-    const first = runInstall({
+    writeFileSync(rule, "1세대 — 설치자 편집");
+    runInstall({
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: spec(),
       mode: "update",
       runExternal: null,
     });
-    writeFileSync(marker, "2세대");
-    const second = runInstall({
+    writeFileSync(rule, "2세대 — 설치자 편집");
+    runInstall({
       harnessRoot: HARNESS_ROOT,
       projectDir,
       spec: spec(),
@@ -165,13 +154,17 @@ describe("update — 같은 초에 두 번 돌려도 첫 스냅샷이 살아남�
       runExternal: null,
     });
 
-    expect(first.backup).not.toBeNull();
-    expect(second.backup).not.toBe(first.backup);
-    // 덮어쓰기가 나면 여기가 "2세대" — 사용자가 첫 update 직전 상태로 못 돌아간다.
-    expect(readFileSync(join(`${first.backup}`, "my-notes.md"), "utf8")).toBe("1세대");
-    expect(readFileSync(join(`${second.backup}`, "my-notes.md"), "utf8")).toBe("2세대");
-    // 백업이 둘 다 남았는지 — 이름이 겹치면 디렉터리가 하나만 보인다.
-    const snapshots = readdirSync(projectDir).filter((f) => f.startsWith(".claude.backup-"));
-    expect(snapshots).toHaveLength(2);
+    const rulesDir = join(projectDir, ".claude/rules");
+    const backups = readdirSync(rulesDir).filter((f) => f.startsWith("git-policy.md.backup-"));
+    // 덮어쓰기가 나면 백업이 하나뿐이거나 둘 다 "2세대" — 첫 편집이 사라진다.
+    expect(backups).toHaveLength(2);
+    expect(backups.map((b) => readFileSync(join(rulesDir, b), "utf8")).sort()).toEqual([
+      "1세대 — 설치자 편집",
+      "2세대 — 설치자 편집",
+    ]);
+    expect(readFileSync(rule, "utf8")).toBe(shipped);
+    // #746 — update 는 `.claude/` 를 통째로 복사하지 않는다. 설치자 파일은 제자리 그대로다.
+    expect(readdirSync(projectDir).filter((f) => f.startsWith(".claude.backup-"))).toEqual([]);
+    expect(readFileSync(mine, "utf8")).toBe('{"permissions":{"allow":["Bash(ls)"]}}');
   });
 });

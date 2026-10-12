@@ -261,11 +261,6 @@ export function renderUpdateSummary(
   log("");
   log(infoRow("STATUS", c.green("Update complete")));
   log(infoRow("MODE", "update"));
-  if (report.backup) {
-    log(infoRow("BACKUP", shortenPath(report.backup)));
-    // #651 — 이 줄은 복사해 실행하는 명령이다: 축약 금지(전체 경로) + 인용 필수(공백 경로).
-    log(infoRow("ROLLBACK", `rm -rf .claude && mv ${shellQuotePath(report.backup)} .claude`));
-  }
   // #458 — 상주 계측은 **갱신이 끝난 뒤** 낸다. 헤더 자리(계획)에서 옮겨온 이유는 위 주석에.
   // 문구는 헤더·wizard 와 같은 `formatResidentCostLine` 하나에서 온다 (표면별 조립 금지).
   const cost = formatResidentCostLine(
@@ -987,9 +982,6 @@ function renderPhase1Rows(
   if (baseline.updateMode) {
     // #557 — 기록에 체크섬이 없어 편집 여부를 잴 수 없던 백업. 아래 "edited" 행들은 이것을 빼고 세고, 따로 한 줄로 말한다
     const noChecksum = new Set(baseline.updateMode.noChecksum ?? []);
-    if (baseline.backup) {
-      log(assetRow("success", "backup", shortenPath(baseline.backup)));
-    }
     for (const [dir, count] of Object.entries(baseline.updateMode.updated)) {
       if (count > 0) log(assetRow("success", dir, `${count} files updated`));
     }
@@ -1543,9 +1535,6 @@ function renderPhase1Rows(
         TEMPLATES_COL,
       ),
     );
-  }
-  if (baseline.backup) {
-    log(assetRow("success", "backup", shortenPath(baseline.backup), TEMPLATES_COL));
   }
   // #551 PR-3 — 함께 쓰는 파일은 판정에서 나온 줄로 말한다(하네스 몫만 썼는지 · 못 읽어 남겼는지).
   const shared = baseline.shared;
