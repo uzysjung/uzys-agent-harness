@@ -55,11 +55,13 @@ const GITIGNORE_ENV_COMMENT = "# Secret env (auto-added by agent-harness install
 
 /**
  * ADR-100 — 설치 기록 폴더(`.uzys-agent-harness/`)는 하네스 파일과 함께 커밋된다. 그 안에서 기계마다 다른 런타임 파일
- * 둘만 무시한다 — 훅 차단 로그 · 이번 update 의 백업 목록.
+ * 셋만 무시한다 — 훅 차단 로그 · 이번 update 의 백업 목록 · 끊긴 실행의 보존 사본(#780).
  */
 export const HARNESS_RUNTIME_IGNORES = [
   ".uzys-agent-harness/hook-blocks.log",
   ".uzys-agent-harness/update-backups.json",
+  // #780 — 끊긴 실행이 남긴 보존 사본(`src/held-files.ts`). 다음 실행이 정리하지만 그 사이 커밋되지 않게
+  ".uzys-agent-harness/held/",
 ] as const;
 
 /**

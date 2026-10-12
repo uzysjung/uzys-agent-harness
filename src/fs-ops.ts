@@ -5,7 +5,6 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
@@ -120,14 +119,14 @@ export function backupFile(target: string, now: Date = new Date()): string {
 }
 
 /**
- * #770 — `backupFile` 과 같은 이름 규칙으로 **미리 읽어 둔 내용**을 백업으로 쓴다. 쓰기 주체가 폴더째 지우고 다시
- * 만드는 외부 도구(`npx skills add --copy` 는 스킬 폴더를 새로 만든다 — 컨테이너 실측)면 호출 전에 옆에 둔 백업이
- * 함께 지워지므로, 내용을 들고 있다가 호출 뒤에 쓴다.
+ * #780 — `backupFile` 과 같은 이름 규칙으로 **다른 자리에 떠 둔 사본**(`source`)을 `target` 의 백업으로 쓴다. 외부 스킬
+ * 도구는 스킬 폴더를 새로 만들어 옆에 둔 백업까지 지우므로, 호출 전에 보존 자리(`held-files.ts`)에 사본을 떠 두었다가
+ * 호출 뒤에 쓴다.
  */
-export function backupContent(target: string, content: Buffer, now: Date = new Date()): string {
+export function backupFromCopy(target: string, source: string, now: Date = new Date()): string {
   mkdirSync(dirname(target), { recursive: true });
   return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) =>
-    writeFileSync(c, content, { flag: "wx" }),
+    copyFileSync(source, c, fsConstants.COPYFILE_EXCL),
   );
 }
 
@@ -160,7 +159,8 @@ export function listFilesRecursive(dir: string, prefix = ""): string[] {
   return out;
 }
 
-function formatStamp(now: Date): string {
+/** 백업 이름의 시각 조각(`YYYYMMDDTHHMMSS`, UTC) — 보존 자리(`held-files.ts`)도 같은 시각으로 이름 붙인다. */
+export function formatStamp(now: Date): string {
   return now
     .toISOString()
     .replace(/[-:]/g, "")

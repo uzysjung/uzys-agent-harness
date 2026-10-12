@@ -11,6 +11,7 @@
  *   - update 의 트랙 밖 룰 회수 — `update-mode.ts` `reclaimOutOfTrackRecorded`
  *   - update 의 옛 Antigravity 앵커 은퇴 — `update-mode.ts` `refreshExternalCli`
  *   - install · `--reinstall` 의 트랙 밖 룰 회수와 옛 Antigravity 앵커 은퇴 — `installer.ts`
+ *   - `uninstall --only <외부 스킬>` — `commands/uninstall.ts` (그 자산을 처음 더할 때 상류 파일에 덮인 설치자 파일, #780)
  * 기록 정리(`withoutRestored`)는 호출부가 자기 기록 쓰기에 끼운다.
  */
 

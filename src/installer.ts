@@ -31,6 +31,7 @@ import {
   holdSkillSlots,
   runExternalInstall,
   selectExternalTargets,
+  skillSlotsFor,
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import {
@@ -39,6 +40,7 @@ import {
   ensureProjectSkeleton,
   listFilesRecursive,
 } from "./fs-ops.js";
+import { type LeftoverHold, settleLeftoverHolds } from "./held-files.js";
 import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
@@ -183,9 +185,17 @@ export type ProgressEvent =
    * External install phase finished (with report). `backups` = #770 HIGH-1 — 외부 스킬을 다시 받기 전에 설치자가 고친
    * 파일 · 상류에 덮인 설치자 파일을 남긴 `<file>.backup-<시각>` (절대 경로).
    */
-  | { type: "external-complete"; report: ExternalInstallReport; backups?: ReadonlyArray<string> }
+  | {
+      type: "external-complete";
+      report: ExternalInstallReport;
+      backups?: ReadonlyArray<string>;
+      /** #780 — 상류 파일에 덮여 백업으로 비켜 둔 설치자 파일(project 상대 · 백업도 project 상대). uninstall 이 되돌린다. */
+      displaced?: ReadonlyArray<{ path: string; backup: string }>;
+    }
   /** v26.64.0 — install log write 실패 (non-fatal). */
-  | { type: "install-log-error"; message: string };
+  | { type: "install-log-error"; message: string }
+  /** #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본을 이번 실행 첫머리에 정리했다(파일마다 한 줄). */
+  | { type: "held-settled"; held: ReadonlyArray<LeftoverHold> };
 
 /**
  * v0.6.1 — Phase 1 output 카테고리별 분류. install renderer가 각 카테고리별로 row를 출력한다.
@@ -490,6 +500,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
       `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`,
     );
   }
+
+  // #780 — 끊긴 실행(Ctrl-C · 예외)이 외부 스킬 도구 앞에서 떠 둔 사본이 남았으면 다른 일보다 먼저 정리한다(`held-files.ts`).
+  const leftover = settleLeftoverHolds(projectDir);
+  if (leftover.length > 0) ctx.onProgress?.({ type: "held-settled", held: leftover });
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update" && previousLog !== null) {
@@ -801,7 +815,11 @@ function runInstallStages(
   ctx.onProgress?.({ type: "baseline-complete", baseline });
 
   // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
-  const { report: external, backups: externalSkillBackups } = runExternalPhase(ctx, previousLog);
+  const {
+    report: external,
+    backups: externalSkillBackups,
+    displaced: externalSkillDisplaced,
+  } = runExternalPhase(ctx, previousLog);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // #551 PR-3 — 쓰기 = 기록. 이번 실행이 쓴 경로·sha 를 옛 기록 위에 누적한다(디스크 스캔 없음).
@@ -823,6 +841,8 @@ function runInstallStages(
       // #761 — 외부 변환 · 링크 본문이 첫 접촉으로 비켜 둔 설치자 파일. 하네스가 떠날 때 되돌리는 근거다
       ...cliDisplaced,
       ...linked.displaced,
+      // #780 — 외부 스킬 도구가 덮은 설치자 파일. 그 자리의 도구 파일은 `buildAssetEntries` 가 이 경로로 자산 몫에 넣는다
+      ...externalSkillDisplaced,
     ],
     cliTransforms.codexOptIn,
   );
@@ -1327,9 +1347,9 @@ function writeEnvironmentFiles(
 function runExternalPhase(
   ctx: InstallContext,
   previousLog: InstallLog | null,
-): { report: ExternalInstallReport | null; backups: string[] } {
+): { report: ExternalInstallReport | null; backups: string[]; displaced: InstallLogRootFile[] } {
   if (ctx.runExternal === null) {
-    return { report: null, backups: [] };
+    return { report: null, backups: [], displaced: [] };
   }
   const { projectDir, spec } = ctx;
   const runExt = ctx.runExternal ?? runExternalInstall;
@@ -1355,22 +1375,47 @@ function runExternalPhase(
   ctx.onProgress?.({ type: "external-start", assetCount: targets.length });
   // #770 HIGH-1 (ADR-097 결정 3·5) — 재실행이면 이미 깐 스킬을 같은 도구로 다시 받는다. 도구가 스킬 폴더를 새로 만들어
   // 설치자가 고친 파일 · 노트 · update 가 남긴 백업을 지우므로 update 와 같은 함수로 호출 전에 들고 호출 뒤에 판정한다.
-  const skillIds = new Set(targets.filter((a) => a.method.kind === "skill").map((a) => a.id));
-  const settle = holdSkillSlots(
-    projectDir,
-    (previousLog?.assets ?? []).filter((a) => a.method === "skill" && skillIds.has(a.id)),
+  // #780 — 처음 더하는 자산도 같다: 기록이 없으니 그 자산이 쓸 자리(`skillSlotsFor`)를 들어 그 자리의 설치자 파일을 지킨다.
+  const skills = targets.filter((a) => a.method.kind === "skill");
+  const skillIds = new Set(skills.map((a) => a.id));
+  const settle = holdSkillSlots(projectDir, {
+    recorded: (previousLog?.assets ?? []).filter((a) => a.method === "skill" && skillIds.has(a.id)),
+    slots: skillSlotsFor(skills, spec.cli, { log: previousLog, scope: spec.scope }),
+    log: previousLog,
+  });
+  let external: ExternalInstallReport;
+  try {
+    external = runExt(
+      { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
+      externalDeps,
+    );
+  } catch (e) {
+    // #780 — 도구 단계가 예외로 끝났다. 든 파일을 제자리로 되돌린다 — 되돌리지 못한 사본은 보존 자리에 남아 다음 실행이 정리한다
+    try {
+      settle("all");
+    } catch {
+      // 원래 예외가 원인이다 — 판정 실패는 보존 자리의 사본이 덮는다
+    }
+    throw e;
+  }
+  // 리뷰 MEDIUM-1 — 도구가 실패한 자산(비영 종료 · 시간 초과)은 기록에 남지 않는다. 그 자리의 원본을 displaced 로 적으면
+  // "uninstall 이 되돌린다" 를 지킬 수 없으니 바로 제자리로 되돌린다
+  const failedSkills = external.attempted.filter((r) => !r.ok).map((r) => r.asset);
+  const { backups, displaced } = settle(
+    skillSlotsFor(failedSkills, spec.cli, { log: previousLog, scope: spec.scope }),
   );
-  const external = runExt(
-    { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
-    externalDeps,
-  );
-  const backups = settle();
+  // 화면의 백업 행은 고친 기록 파일의 백업만 — 비켜 둔 설치자 파일은 따로 "had a file with this name" 으로 말한다
+  const displacedBackups = new Set(displaced.map((f) => join(projectDir, f.notes[0] ?? "")));
+  const editBackups = backups.filter((b) => !displacedBackups.has(b));
   ctx.onProgress?.({
     type: "external-complete",
     report: external,
-    ...(backups.length > 0 ? { backups } : {}),
+    ...(editBackups.length > 0 ? { backups: editBackups } : {}),
+    ...(displaced.length > 0
+      ? { displaced: displaced.map((f) => ({ path: f.path, backup: f.notes[0] ?? "" })) }
+      : {}),
   });
-  return { report: external, backups };
+  return { report: external, backups, displaced };
 }
 
 /**
