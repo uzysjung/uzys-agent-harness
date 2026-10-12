@@ -143,6 +143,39 @@ describe("#782 — update 의 은퇴 회수가 떠난 자리에 설치자 원본
       /\.claude\/rules\/git-policy\.md\s+yours — put back \(from \.claude\/rules\/git-policy\.md\.backup-\d{8}T\d{6}\)/,
     );
   });
+
+  it("①′ 실제 은퇴 목록(RETIRED_PATHS)의 자리 — 되돌린 원본을 다음 update 가 하네스 몫으로 적거나 다시 치우지 않는다", () => {
+    // 되돌리기는 `refreshPolicyBaseline` 뒤에 돈다 — 앞에서 돌면 `retiredClaims` 가 되돌린 설치자 파일을 기준선에
+    // 하네스 몫으로 적고, 다음 update 의 은퇴 회수가 그것을 백업으로 옮긴다(#788 리뷰 MEDIUM-1). ① 의 git-policy 는
+    // 은퇴 목록에 없어 이 순서를 물지 않는다.
+    run("add", ["tooling"], ["claude"]);
+    const P = ".claude/rules/nextjs.md";
+    const harness = "# old harness nextjs rule\n";
+    const BK = `${P}.backup-20261001T000000`;
+    writeFileSync(join(projectDir, P), harness);
+    writeFileSync(join(projectDir, BK), MINE);
+    const l = log();
+    writeInstallLog(projectDir, {
+      ...l,
+      policyFiles: [
+        ...(l.policyFiles ?? []),
+        { path: "rules/nextjs.md", sha256: hashContent(harness) },
+      ],
+      rootFiles: [...(l.rootFiles ?? []), { path: P, change: "displaced", notes: [BK] }],
+    });
+
+    run("update", ["tooling"], ["claude"]);
+    expect(read(P)).toBe(MINE);
+    expect(displacedAt(P)).toEqual([]);
+    expect((log().policyFiles ?? []).map((f) => f.path)).not.toContain("rules/nextjs.md");
+    // 은퇴 목록 자리라 회수가 치운 하네스 판은 사본을 남긴다 — 설치자 원본이 아니다
+    const after1 = backupsOf(P);
+    for (const b of after1) expect(read(`.claude/rules/${b}`)).toBe(harness);
+
+    run("update", ["tooling"], ["claude"]);
+    expect(read(P)).toBe(MINE);
+    expect(backupsOf(P)).toEqual(after1);
+  });
 });
 
 describe("#782 — 트랙 밖 룰 회수가 떠난 자리에 설치자 원본을 되돌린다(update · --reinstall)", () => {

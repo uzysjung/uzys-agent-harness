@@ -1,5 +1,5 @@
 /**
- * displaced 되돌리기 — 하네스가 자리를 떠나는 모든 remove 가 쓰는 함수 하나 (#782 · ADR-097 결정 3 · `judgeDisplaced`).
+ * displaced 되돌리기 — 하네스가 자리를 떠나는 remove 가 쓰는 함수 하나 — #477 스킬 폴더 안 정리는 예외(원본은 백업에 남고 uninstall 이 되돌린다) (#782 · ADR-097 결정 3 · `judgeDisplaced`).
  *
  * 하네스 자산과 같은 이름의 설치자 파일이 있던 자리에 하네스 판을 쓰면 그 원본을 백업하고 기록에 `rootFiles.change =
  * displaced`(`notes[0]` = 백업 경로)로 적는다. 하네스가 그 자리를 떠나면(파일을 지운 뒤) 원본을 원래 이름으로 되돌린다 —
