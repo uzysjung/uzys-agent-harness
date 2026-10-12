@@ -288,16 +288,14 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   // #643 — 스켈리톤이 모르는 상위 절(사용자가 파일 끝에 붙인 `## My Team Conventions` 등)은
   // 렌더에 자리가 없어 조용히 사라졌다. ADR-095 가 설치자 소유로 정한 것은 **아는 절들**이다 —
   // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 파일 끝에 되살린다.
-  // 렌더(템플릿 골격)에 이미 있는 헤딩은 모르는 절이 아니다 — `names` 밖의 중첩 절
-  // (Project Context 안의 상시 스킬 안내 등)을 되살리면 중복이 된다.
-  // 아는 절 본문(`## Project Context`·`## Project Rules` 아래)으로 이미 보존된 절은 다시 모으지 않는다 —
-  // 모으면 update 마다 한 벌씩 늘어난다.
+  // 어느 절이 설치자 것인지는 uninstall 의 걷기와 같은 판정(`headingOwner`)이 정한다(#739). 아는 절 본문
+  // (`## Project Context`·`## Project Rules` 아래)의 `## ` 는 그 본문의 소유 규칙(마커 블록)이 맡으므로 다시 모으지 않는다 —
+  // 모으면 update 마다 한 벌씩 늘거나, 옛 판 앵커·스캐폴드 제목이 파일 끝에 되살아난다.
   const mergedText = merged.replace(/\r/g, "");
   const extras = extraTopLevelSections(
     existing,
     names,
     rendered,
-    template,
     params.harnessRuleHeadings ?? new Set(),
   ).filter((e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")));
   if (extras.length === 0) return merged;
@@ -307,36 +305,67 @@ export function mergeAgentsMd(params: MergeAgentsMdParams): string {
   );
 }
 
-/** 이름이 템플릿에 없는 `## ` 상위 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로. */
+/** `headingOwner` 의 판정 — 하네스 것 · 설치자 것 · 아는 절 본문(그 절의 소유 규칙이 맡는다). */
+export type HeadingOwner = "harness" | "installer" | "body";
+
+/**
+ * #739 — `AGENTS.md` 의 `## ` 줄 하나가 누구 것인가. update 의 병합(`extraTopLevelSections`)과 uninstall 의 걷기
+ * (`installerSectionsInHarnessArea`)가 **이 함수 하나**로 가른다 — 한쪽만 바뀌면 #736 처럼 설치자 글이 사라진다.
+ *
+ * - 템플릿의 절 이름 → `harness`(절 경계)
+ * - `## Project Context` · `## Project Rules` 안 → `body`(그 절 본문 — 소유는 마커 블록 · `installerLines` 가 정한다)
+ * - `## Harness Rules` 안이고 하네스 룰 제목 집합에 든다 → `harness`(정체로 가른다 — 위치가 아니다, 리뷰 #735)
+ * - 그 밖 → `installer`
+ *
+ * @param bare 줄 끝 `\r` 을 뗀 줄. `region` 은 호출부가 줄을 훑으며 넘기는 직전 절 이름(아직 없으면 `null`).
+ */
+export function headingOwner(
+  bare: string,
+  ctx: {
+    region: string | null;
+    names: ReadonlySet<string>;
+    harnessHeadings: ReadonlySet<string>;
+  },
+): HeadingOwner {
+  const name = /^## (.+?)\s*$/.exec(bare)?.[1];
+  if (name !== undefined && ctx.names.has(name)) return "harness";
+  if (ctx.region === CONTEXT_SECTION || ctx.region === RULES_SECTION) return "body";
+  if (ctx.region === HARNESS_RULES_SECTION && ctx.harnessHeadings.has(bare.trim())) {
+    return "harness";
+  }
+  return "installer";
+}
+
+/** 렌더의 `## Harness Rules` 절에 든 `## ` 제목 — 병합이 하네스 룰 제목으로 더 넘기는 몫. */
+function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set<string> {
+  const body = sectionBody(rendered, names, HARNESS_RULES_SECTION) ?? [];
+  return new Set(body.filter((l) => /^## /.test(l)).map((l) => l.replace(/\r$/, "").trim()));
+}
+
+/** 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다. */
 function extraTopLevelSections(
   existing: string,
   names: ReadonlySet<string>,
   rendered: string,
-  template: string,
   harnessRuleHeadings: ReadonlySet<string>,
 ): string[][] {
+  // 하네스 룰 제목 = 넘겨받은 배포 룰 제목 전부(렌더에서 빠진 룰도 설치자 절로 되살리지 않는다 — #642) ∪ 이번 렌더의
+  // 룰 제목(호출부가 집합을 생략해도 지금 렌더한 룰은 하네스 것이다).
+  const harnessHeadings = new Set([
+    ...harnessRuleHeadings,
+    ...renderedRuleHeadings(rendered, names),
+  ]);
   const out: string[][] = [];
   let current: string[] | null = null;
-  // `## Harness Rules` 안의 `## ` 중 **하네스가 쓴 룰 제목**(배포 룰의 제목 · 소제목)만 하네스 것이다 — 렌더에서 빠지면
-  // (Antigravity 만 남은 집합 · 트랙 밖 룰) 설치자 절로 되살리지 않는다(#642). 같은 자리라도 그 집합에 없는 제목은
-  // 설치자가 이어 쓴 절이다(템플릿 안내문이 그 자리에 이어 쓰라고 한다) — 되살린다(리뷰 #735 BLOCKER).
-  let inHarnessRules = false;
+  let region: string | null = null;
   for (const line of existing.split("\n")) {
     const bare = line.replace(/\r$/, "");
     const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
-      if (names.has(name)) inHarnessRules = name === HARNESS_RULES_SECTION;
-      // 렌더·템플릿 어디에도 없는 헤딩만 사용자 절이다. 상시 스킬 안내 헤딩은 선택이 빠지면
-      // 렌더에서 사라지지만 하네스가 쓴 것이다(마커 안 절 — refreshBlock 이 되살릴지 지울지
-      // 정한다) — 되살리 대상에서 제외한다.
-      const harnessAuthored =
-        names.has(name) ||
-        (inHarnessRules && harnessRuleHeadings.has(bare.trim())) ||
-        rendered.includes(bare) ||
-        template.includes(bare) ||
-        line.trim() === CONTINUOUS_SKILLS_HEADING;
-      current = harnessAuthored ? null : [line];
+      if (names.has(name)) region = name;
+      const owner = headingOwner(bare, { region, names, harnessHeadings });
+      current = owner === "installer" ? [line] : null;
       continue;
     }
     if (current !== null) current.push(line);
@@ -416,14 +445,9 @@ function installerSectionsInHarnessArea(
     const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
-      current = null;
-      if (names.has(name)) {
-        region = name;
-        continue;
-      }
-      if (region === CONTEXT_SECTION || region === RULES_SECTION) continue;
-      const harnessRule = region === HARNESS_RULES_SECTION && harnessRuleHeadings.has(bare.trim());
-      if (!harnessRule) current = [bare];
+      if (names.has(name)) region = name;
+      const owner = headingOwner(bare, { region, names, harnessHeadings: harnessRuleHeadings });
+      current = owner === "installer" ? [bare] : null;
       continue;
     }
     if (current !== null) current.push(bare);

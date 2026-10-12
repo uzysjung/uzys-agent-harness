@@ -313,6 +313,31 @@ describe("ADR-103 — 26.164.0 Antigravity 설치본의 update 한 번", () => {
     expect(read("AGENTS.md").split("\n")[0]).toContain("Antigravity");
   });
 
+  // #739 — 씨가 스캐폴드 제목 없이 쓴 글이면, 갈아 끼워진 안 채운 스캐폴드 6절이 파일 끝에 붙지 않는다(병합의 부분 문자열
+  //   대조가 그 제목을 "렌더에 없는 설치자 절" 로 읽었다).
+  it("codex+antigravity · 앵커에 스캐폴드를 지우고 글만 썼다 → AGENTS.md 의 빈 스캐폴드가 파일 끝에 되살아나지 않는다 (#739)", () => {
+    make164({ cli: ["codex", "antigravity"], filledAnchor: true, keepAgentsMd: true });
+    const anchor = read(ANCHOR);
+    const start = anchor.indexOf("## Project Context\n\n") + "## Project Context\n\n".length;
+    const end = anchor.indexOf(NOTE_HEADING);
+    expect(start > 0 && end > start, "픽스처 자기검증 — 스캐폴드 자리").toBe(true);
+    writeFileSync(
+      join(projectDir, ANCHOR),
+      `${anchor.slice(0, start)}${FILLED}\n\n${anchor.slice(end)}`,
+    );
+    expect(read("AGENTS.md"), "픽스처 자기검증 — AGENTS.md 는 안 채운 스캐폴드").toContain(
+      "## Identity & Purpose",
+    );
+
+    update();
+
+    const agents = read("AGENTS.md");
+    expect(projectContext(agents)).toContain(FILLED);
+    expect(agents).not.toContain("## Identity & Purpose");
+    expect(agents).not.toContain("_(not filled yet");
+    expect(recordMatchesDisk("AGENTS.md")).toBe(true);
+  });
+
   // 리뷰 #735 BLOCKER — 26.164.0 판 codex 설치본에서 설치자가 인라인 룰 **바로 뒤**에 적은 절은 update 2회 뒤에도 남는다.
   it("26.164.0 판 AGENTS.md 의 인라인 룰 뒤 설치자 절 → update 2회 뒤에도 남는다 · 이어진 update 백업 0", () => {
     make164({ cli: ["codex", "antigravity"], filledAnchor: false, keepAgentsMd: true });
