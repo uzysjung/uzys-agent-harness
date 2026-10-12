@@ -9,11 +9,7 @@ const BACKUP_PATTERNS = [
 ] as const;
 
 /** ADR-100 — 기록 폴더 안에서 무시하는 런타임 파일 둘(기대치는 소스 목록을 가져다 쓰지 않는다). */
-const RUNTIME = [
-  ".uzys-agent-harness/hook-blocks.log",
-  ".uzys-agent-harness/update-backups.json",
-  ".uzys-agent-harness/held/",
-];
+const RUNTIME = [".uzys-agent-harness/hook-blocks.log", ".uzys-agent-harness/update-backups.json"];
 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -119,7 +115,7 @@ describe(".gitignore 하네스 몫 — gitignoreRender + lines 어댑터", () =>
    * 이 "설치 없음" 이 된다. 그 안에서 기계마다 다른 런타임 파일 둘(훅 차단 로그 · update 백업 목록)만 무시한다 — 계측이
    * 남의 저장소에 커밋 대상을 늘리면 안 된다(2026-08-02).
    */
-  it("B1: 기록 폴더 줄은 없고, 그 안의 런타임 줄만 있다", () => {
+  it("B1: 기록 폴더 줄은 없고, 그 안의 런타임 파일 두 줄만 있다", () => {
     const keys = [...gitignoreRender().keys()];
     expect(keys).not.toContain(".uzys-agent-harness/");
     expect(keys).toEqual(expect.arrayContaining(RUNTIME));

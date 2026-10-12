@@ -33,11 +33,7 @@ const BACKUP_PATTERNS = [
 ] as const;
 
 /** ADR-100 — 기록 폴더 안에서 무시하는 런타임 파일 둘. */
-const RUNTIME = [
-  ".uzys-agent-harness/hook-blocks.log",
-  ".uzys-agent-harness/update-backups.json",
-  ".uzys-agent-harness/held/",
-];
+const RUNTIME = [".uzys-agent-harness/hook-blocks.log", ".uzys-agent-harness/update-backups.json"];
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 

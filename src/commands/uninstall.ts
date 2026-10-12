@@ -66,7 +66,6 @@ import {
   listFilesRecursive,
   PROJECT_SKELETON_DIRS,
 } from "../fs-ops.js";
-import { HOLD_DIR, leftoverHoldLine, settleLeftoverHolds } from "../held-files.js";
 import { removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
@@ -256,11 +255,6 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  // #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본을 다른 일보다 먼저 정리한다. 사본은 기록 폴더 안에 있어 그 폴더를
-  // 지우기 전이어야 한다. 하나라도 옮기지 못하면 아무것도 지우지 않고 멈춘다 — 지우면 그 사본이 기록 폴더와 함께 사라진다.
-  if (!settleLeftoverBeforeUninstall(projectDir, options.dryRun === true, { log, err, exit }))
-    return;
-
   // #528 — CLI 하나만 빼는 경로. 전량 제거와 술어가 달라(표 기반) 이 자리에서 갈린다.
   if (options.cli !== undefined) {
     removeCliAction(
@@ -426,33 +420,6 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   log("");
   log(outcome.line);
   exit(outcome.code);
-}
-
-/**
- * #780 — 끊긴 실행이 남긴 보존 자리(`held-files.ts`)를 정리하고 파일마다 한 줄로 말한다. 계속해도 되면 true. 옮기지 못한
- * 사본이 있으면 멈춘다(false) — uninstall 은 기록 폴더를 통째로 지우는데 그 사본이 그 안에 있다. dry-run 은 판정만 말한다.
- */
-function settleLeftoverBeforeUninstall(
-  projectDir: string,
-  dryRun: boolean,
-  io: { log: (l: string) => void; err: (l: string) => void; exit: (code: number) => never },
-): boolean {
-  const leftover = settleLeftoverHolds(projectDir, { dryRun });
-  for (const h of leftover) {
-    const line = leftoverHoldLine(h, dryRun);
-    if (line !== null) io.log(`  ${status.warn(c.yellow(line))}`);
-  }
-  if (dryRun || !leftover.some((h) => h.outcome === "kept")) return true;
-  io.err(
-    status.failure(
-      c.red(
-        `ERROR: uninstall stopped — a copy of your file kept in ${HOLD_DIR}/ could not be put back, and removing the install record would delete it. Nothing was removed.`,
-      ),
-    ),
-  );
-  io.err(c.dim("       Fix the cause above, then run the same command again."));
-  io.exit(1);
-  return false;
 }
 
 /**
