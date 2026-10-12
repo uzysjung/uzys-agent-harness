@@ -186,7 +186,7 @@ if ls -d "${PROJ}"/.claude.backup-* >/dev/null 2>&1; then
   exit 1
 fi
 SCREEN=$(sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "${WORK}/uninstall-claude.txt")
-if ! grep -qF "left  .claude/ — 1 file(s) of yours: settings.local.json" <<<"${SCREEN}"; then
+if ! grep -qF "left  .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.local.json" <<<"${SCREEN}"; then
   echo "FAIL: 화면이 남긴 설치자 파일을 이름으로 말하지 않았다"
   tail -20 "${WORK}/uninstall-claude.txt"
   exit 1

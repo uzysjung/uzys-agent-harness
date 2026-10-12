@@ -62,6 +62,7 @@ import {
   listFilesRecursive,
   PROJECT_SKELETON_DIRS,
 } from "../fs-ops.js";
+import { removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
   INSTALL_LOG_DIR,
@@ -85,6 +86,7 @@ import {
 } from "../install-writes.js";
 import { INSTALLED_TRACKS, installedTracksText } from "../installer.js";
 import { judge, judgeDisplaced } from "../judge.js";
+import { RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
 import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
@@ -1549,6 +1551,8 @@ interface HarnessRemoval {
   displaced: DisplacedOutcome[];
   /** 함께 쓰는 파일의 몫 걷기 결과. */
   shared: SharedStripResult[];
+  /** `.claude/settings.json` 에서 걷은(미리보기면 걷을) 은퇴 하네스 훅 배선(`RETIRED_HOOK_WIRING_REFS` — `.claude/` 상대). */
+  retiredWiring: string[];
   /** 루트 `CLAUDE.md` 의 하네스 import 블록을 걷었다(미리보기면 걷을 것이 있다). */
   importStripped: boolean;
   /** 하네스 앵커 — 지웠는가(기록을 뺄지 정한다) · 화면 줄. */
@@ -1585,6 +1589,7 @@ function removeHarnessFiles(
     outside: [],
     displaced: [],
     shared: [],
+    retiredWiring: [],
     importStripped: false,
     anchor: { removed: false, lines: [] },
   };
@@ -1639,7 +1644,8 @@ function harnessCandidates(log: InstallLog): string[] {
     // 어느 필드에도 적힌 적 없는 옛 판의 하네스 파일 — `isTarget` 이 알려 준다(A8 · install 과 같은 방식)
     INSTALLED_TRACKS,
     // 스캔 필드가 아예 없는 옛 로그(v26.125.0 이하)는 필드가 하네스 파일을 열거하지 못한다 — manifest 의 하네스 자리 ·
-    // 은퇴 경로를 후보로 넣고 `recorded()` 가 가른다(필드 없음 → `no-sha` · 필드 있음 → 기록에 없으면 `none`, PR-D 리뷰 N1)
+    // 은퇴 경로를 후보로 넣고 `recorded()` 가 가른다(필드 없음 → `no-sha` · 필드 있음 → 기록에 없으면 `none`, PR-D 리뷰 N1).
+    // 그 은퇴 자리는 새 install · update 가 필드를 쓸 때 `policyFiles` 로 이어받는다(`retiredClaims` — 재리뷰 BLOCKER-1 ②)
     ...(log.records === "writer" ? [] : recordedTrackSpots(log)),
   ];
   return [...new Set(paths)].filter((p) => kindOf(log, p) === "harness");
@@ -1790,6 +1796,16 @@ function stripSharedFiles(
         out.outside.push(o);
         continue;
       }
+    }
+    // 옛 템플릿이 `.claude/hooks/` 밖 스크립트로 깐 은퇴 배선 — 몫 기록에 없어도 하네스 몫이다(닫힌 목록). update 와 같은 함수로
+    // 걷는다. 스크립트가 남아 있어도 걷는다 — 남기면 은퇴 스킬 폴더의 스크립트를 계속 부른다(PR-D 재리뷰 NOTE-B)
+    if (path === SETTINGS_TARGET && safeExists(abs)) {
+      out.retiredWiring = removeRetiredHookRefs(
+        abs,
+        join(projectDir, ".claude"),
+        RETIRED_HOOK_WIRING_REFS,
+        { evenIfScriptExists: true, write: io.write },
+      );
     }
     const sha = made.get(path);
     if (sha !== undefined && removeHarnessMadeShared(path, sha, projectDir, io, out, pruneFrom)) {
@@ -2010,6 +2026,14 @@ function harnessRemovalLines(
       `  ${c.yellow("⊘")} ${path} kept — modified since install. Remove manually if intended.`,
     );
   }
+  if (r.retiredWiring.length > 0) {
+    const refs = r.retiredWiring.join(" · ");
+    lines.push(
+      preview
+        ? `  ○ remove retired harness hook wiring from ${SETTINGS_TARGET}: ${refs}`
+        : `  ${status.success(`${SETTINGS_TARGET} — removed retired harness hook wiring: ${refs}`)}`,
+    );
+  }
   lines.push(...sharedStripLines(r.shared, preview));
   lines.push(...leftFolderLines(r, log, projectDir, scope, preview));
   return lines;
@@ -2051,12 +2075,10 @@ function leftFolderLines(
     r.unjudged.includes(full) ||
     r.kept.includes(full) ||
     r.outside.some((o) => o.path === full || full.startsWith(`${o.link}/`));
-  // 새 판 기록(`records: "writer"`)은 하네스가 쓴 것을 전부 적었다 — 남은 것은 설치자 것이다. 옛 판 기록은 그 판이 깐 것을
-  // 다 적지 않았다(은퇴한 스킬 · 강등된 에이전트 · 옛 커맨드) — 남은 것을 설치자 것이라 단정하지 않는다(PR-D 리뷰 N1)
+  // 기록에 없는 파일을 설치자 것이라 단정하지 않는다 — 옛 판은 자기가 깐 것을 다 적지 않았고(은퇴한 스킬 · 강등된 에이전트 · 옛
+  // 커맨드), 그 위에서 새 판이 쓴 기록(`records: "writer"`)도 그것을 이어받지 못한다(PR-D 리뷰 N1 · 재리뷰 BLOCKER-1 ①)
   const whose =
-    log.records === "writer"
-      ? "of yours"
-      : "not on the install record — yours, or left by an older harness version";
+    "not on the install record — yours, or left by an older harness version; delete by hand any that are not yours";
   const lines: string[] = [];
   for (const dir of scope.folders) {
     if (outsideLinkAt(projectDir, dir) !== null) continue; // 밖 링크 줄이 이미 말했다

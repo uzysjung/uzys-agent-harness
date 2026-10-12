@@ -193,9 +193,118 @@ describe("N1 — 기록 필드가 없는 옛 설치본(v26.125.0 이하)의 unin
     // 기록이 다 적지 못한 옛 판 — 남은 것을 설치자 것이라 단정하지 않는다. 지운 기록 파일은 남은 목록에 없다
     expect(out.text).not.toContain("of yours");
     expect(out.text).toMatch(
-      /left {2}\.claude\/ — \d+ file\(s\) not on the install record — yours, or left by an older harness version: commands\/ecc\/plan\.md · commands\/mine\/deploy\.md/,
+      /left {2}\.claude\/ — \d+ file\(s\) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: commands\/ecc\/plan\.md · commands\/mine\/deploy\.md/,
     );
     expect(out.text).not.toContain(".harness-install.json");
     expect(existsSync(legacyInstallLogPath(projectDir))).toBe(false);
+  });
+});
+
+/**
+ * PR-D 재리뷰(`pr-d-746-review-r2.md`) BLOCKER-1 · NOTE-B — 옛 판 위에서 **새 판을 한 번 돌린 뒤** uninstall.
+ *
+ * 설치자에게 달라지는 것: 필드 없는 옛 설치본(v26.125.0 이하) 위에서 새 판 install · update 를 한 번이라도 돌리면, 그 뒤 uninstall 이
+ * 은퇴한 하네스 룰 · 훅 · 에이전트를 라이브에 남겨 다음 Claude Code 세션이 계속 로드했고, 화면은 남은 옛 하네스 파일을 "file(s) of
+ * yours" 라 불렀다. 이제 은퇴 자리는 그 파일 하나를 백업하고 회수되고, 남는 것은 기록에 없다는 사실과 직접 지우라는 안내로 말한다.
+ * 은퇴 하네스 훅 배선(`suggest-compact.sh`)도 settings.json 에서 걷혀 은퇴 스킬 폴더의 스크립트를 더는 부르지 않는다.
+ */
+describe("재리뷰 BLOCKER-1 — 필드 없는 옛 기록 → 새 판 install · update → uninstall", () => {
+  const RETIRED_RULE = ".claude/rules/code-style.md";
+  const RETIRED_HOOK = ".claude/hooks/spec-drift-check.sh";
+  const RETIRED_AGENT = ".claude/agents/code-reviewer.md";
+  const EDITED_BODY = "# old harness rule\n<!-- my edit -->\n";
+
+  /** v26.125.0 설치본 — 그 판이 깐 은퇴 룰(설치자가 고침) · 훅 · 에이전트 · 목록 밖 옛 커맨드 · 설치자 파일, 필드 없는 기록. */
+  function oldInstall(): void {
+    install(["claude"]);
+    put(RETIRED_RULE, EDITED_BODY);
+    put(RETIRED_HOOK, "#!/bin/sh\n");
+    put(RETIRED_AGENT, "# old harness agent\n");
+    put(".claude/commands/ecc/plan.md", "# old harness command\n");
+    put(".claude/commands/mine/deploy.md", "# my command\n");
+    const l = currentLog();
+    delete l.records;
+    delete l.policyFiles;
+    delete l.skillFiles;
+    delete l.externalFiles;
+    delete l.portions;
+    writeInstallLog(projectDir, l);
+    renameSync(installLogPath(projectDir), legacyInstallLogPath(projectDir));
+  }
+
+  function expectRetiredGone(out: { text: string; code: number | null }): void {
+    expect(out.code).toBe(0);
+    for (const p of [RETIRED_RULE, RETIRED_HOOK, RETIRED_AGENT])
+      expect(existsSync(abs(p))).toBe(false);
+    // sha 로 판정할 수 없는 은퇴 자리 — 고친 내용은 그 파일 하나의 백업에 남는다
+    expect(survives(RETIRED_RULE, EDITED_BODY)).toBe(true);
+    expect(read(".claude/commands/mine/deploy.md")).toBe("# my command\n");
+    // 목록 밖 옛 하네스 파일(#781)은 남되 "당신 파일" 이라 부르지 않는다 — 기록에 없다는 사실과 직접 지우라는 안내
+    expect(out.text).not.toContain("of yours");
+    expect(out.text).toContain(
+      "not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: commands/ecc/plan.md · commands/mine/deploy.md",
+    );
+  }
+
+  it("새 install(add) 을 거친 writer 기록 — 은퇴 룰 · 훅 · 에이전트가 라이브에 남지 않는다", () => {
+    oldInstall();
+    install(["claude"]);
+    expect(currentLog().records).toBe("writer");
+
+    expectRetiredGone(uninstall({ yes: true }));
+  });
+
+  it("새 update 를 거친 기록 — 같다", () => {
+    oldInstall();
+    install(["claude"], "update");
+
+    expectRetiredGone(uninstall({ yes: true }));
+  });
+
+  it("이어받은 은퇴 자리를 다음 update 가 치울 때도 고친 내용은 그 파일 하나의 백업에 남는다", () => {
+    oldInstall();
+    install(["claude"]); // writer 기록이 은퇴 자리를 디스크 그대로의 sha 로 이어받는다
+    install(["claude"], "update");
+
+    expect(existsSync(abs(RETIRED_RULE))).toBe(false);
+    expect(survives(RETIRED_RULE, EDITED_BODY)).toBe(true);
+  });
+});
+
+describe("재리뷰 NOTE-B — uninstall 이 settings.json 의 은퇴 하네스 훅 배선을 걷는다", () => {
+  const SCRIPT = ".claude/skills/strategic-compact/suggest-compact.sh";
+  const RETIRED_CMD =
+    'bash "$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh"';
+  type Settings = {
+    hooks: Record<string, Array<{ matcher?: string; hooks: Array<{ command: string }> }>>;
+  };
+
+  it("스크립트가 남아 있어도 닫힌 목록의 배선은 걷고 · 목록 밖 설치자 훅은 그대로 둔다", () => {
+    install(["claude"]);
+    put(SCRIPT, "#!/bin/bash\nexit 0\n"); // 은퇴 스킬 폴더 — 기록에 없어 uninstall 뒤에도 남는다
+    const settings = JSON.parse(read(".claude/settings.json")) as Settings;
+    settings.hooks.PreToolUse = [
+      ...(settings.hooks.PreToolUse ?? []),
+      { matcher: "*", hooks: [{ command: RETIRED_CMD }] },
+      { matcher: "Bash", hooks: [{ command: "echo mine" }] },
+    ];
+    put(".claude/settings.json", JSON.stringify(settings, null, 2));
+
+    const preview = uninstall({ yes: true, dryRun: true });
+    expect(preview.text).toContain(
+      "○ remove retired harness hook wiring from .claude/settings.json: skills/strategic-compact/suggest-compact.sh",
+    );
+    expect(read(".claude/settings.json")).toContain("suggest-compact.sh"); // 미리보기는 쓰지 않는다
+
+    const out = uninstall({ yes: true });
+
+    expect(out.code).toBe(0);
+    expect(existsSync(abs(SCRIPT))).toBe(true);
+    const after = read(".claude/settings.json");
+    expect(after).not.toContain("suggest-compact.sh");
+    expect(after).toContain("echo mine");
+    expect(out.text).toContain(
+      ".claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh",
+    );
   });
 });

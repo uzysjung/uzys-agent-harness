@@ -151,7 +151,7 @@ describe("전량 uninstall — 하네스 파일만 하나씩, 설치자 파일�
       expect(existsSync(abs(gone)), gone).toBe(false);
     expect(existsSync(abs(".claude"))).toBe(true); // 설치자 파일 때문에 남는다
     expect(out.text).toContain(
-      "left  .claude/ — 2 file(s) of yours: commands/mine/deploy.md · settings.local.json",
+      "left  .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: commands/mine/deploy.md · settings.local.json",
     );
     expect(out.text).toContain("settings.local.json");
     expect(out.text).toContain("backed up  .claude/rules/test-policy.md — you edited it");
@@ -259,7 +259,9 @@ describe("함께 쓰는 파일 — 몫만 걷는다 (§2.4 3 · 4 · 9 · B1)", 
     expect(after.hooks.PreToolUse).toEqual(mine.hooks.PreToolUse);
     expect(read(".claude/settings.json")).not.toMatch(/\.claude\/hooks\//);
     expect(out.text).toContain(".claude/settings.json — removed the harness part");
-    expect(out.text).toContain("left  .claude/ — 1 file(s) of yours: settings.json");
+    expect(out.text).toContain(
+      "left  .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json",
+    );
   });
 
   it("하네스가 만든 settings.json 에 몫밖에 없으면 파일째 지운다", () => {
@@ -348,11 +350,15 @@ describe("--dry-run 이 말한 것과 실행 결과가 같다 (§2.4 6)", () => 
       preview,
     );
     expect(planned?.[1]).toBe(String(recordedClaude));
-    expect(preview).toContain("○ leave .claude/ — 2 file(s) of yours:");
+    expect(preview).toContain(
+      "○ leave .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours:",
+    );
 
     const run = uninstall({ yes: true }).text;
     expect(run).toContain(`removed  .claude/ ${recordedClaude} harness file(s)`);
-    expect(run).toContain("left  .claude/ — 2 file(s) of yours:");
+    expect(run).toContain(
+      "left  .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours:",
+    );
   });
 });
 
