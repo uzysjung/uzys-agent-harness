@@ -92,7 +92,7 @@ Jay의 멀티 역할(CEO/CTO/CISO/CPO/CSO/데이터 사이언티스트)과 멀�
 |------|------|------|
 | react-best-practices | `npx skills add vercel-labs/agent-skills --skill react-best-practices` | Vercel |
 | shadcn-ui | `npx skills add shadcn/ui` | shadcn |
-| MCP: Supabase (csr-supabase만) | `claude mcp add supabase -- npx -y @supabase/mcp-server` | Supabase 공식 |
+| MCP: Supabase (csr-supabase만) | `claude mcp add --transport http supabase https://mcp.supabase.com/mcp` | Supabase 공식 |
 | Rules: shadcn.md, api-contract.md, tauri.md | 자체 작성 | std-dev-boilerplate 참조 |
 | Rules: database.md (csr-fastify, csr-fastapi) | 자체 작성 | std-dev-boilerplate 참조 |
 

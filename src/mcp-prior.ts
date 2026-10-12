@@ -37,6 +37,12 @@ export const PRIOR_MCP_SERVERS: ReadonlyArray<PriorMcpServer> = [
     updated: "now Railway's remote server — sign in on first use, see NEXT",
   },
   {
+    // #766 — `@supabase/mcp-server` 는 npm 에 없는 이름이라(404) 서버가 뜬 적이 없다
+    name: "supabase",
+    value: { type: "stdio", command: "npx", args: ["-y", "@supabase/mcp-server"] },
+    updated: "now Supabase's remote server — sign in on first use, see NEXT",
+  },
+  {
     name: "chrome-devtools",
     value: { type: "stdio", command: "npx", args: ["-y", "chrome-devtools-mcp@latest"] },
     updated: "usage statistics off",
