@@ -1,0 +1,25 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T11:32:33.795Z
+  scope:     project
+  assets:    5
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project product-skills@claude-code-skills
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ AGENTS.md — removed the harness sections written by an older version — yours stays (saved a copy: AGENTS.md.backup-20261012T113234)
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ⊘ left  .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: rules/my-rule.md · skills/mine/SKILL.md
+  ⊘ left  .codex/ — 3 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml · hooks/hito-counter.sh · hooks/session-start.sh
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 1건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  AGENTS.md.backup-20261012T113234
+
+✓ uninstall complete (4 asset(s))

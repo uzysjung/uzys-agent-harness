@@ -1,0 +1,43 @@
+Updating installed harness files in /tmp/r3/26.140.0-codex-sessedit-A
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/r3/26.140.0-codex-sessedit-A
+  ▸ TRACKS       tooling
+  ▸ CLI          codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .uzys-agent-harness/protect-branch.sh    added by this release
+  ✓ .uzys-agent-harness/spec-drift-check.sh  added by this release
+  ✓ .uzys-agent-harness/check-absence.sh     added by this release
+  ✓ .agents/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/audit-service-gaps        added by this release
+  ✓ .agents/skills/north-star                added by this release
+  ✓ .agents/skills/gh-issue-workflow         added by this release
+  ✓ .agents/skills/objective-brief           added by this release
+  ✓ .agents/skills/audit-harness-fit         added by this release
+  ✓ .agents/skills/model-orchestration       added by this release
+  ✓ .agents/skills/external-model-consult    added by this release
+  ✓ .agents/skills/self-hosted-github-runner added by this release
+  ✓ .agents/skills/natural-korean            added by this release
+  ✓ .agents/skills/multi-model-debate        added by this release
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ⊘ .mcp-allowlist                           retired · the hook that read it is gone — backed up as …/r3/26.140.0-codex-sessedit-A/.mcp-allowlist.backup-20261012T114512
+  ✓ external CLI artifacts                   44 files updated
+  ✓ AGENTS.md                                removed 13 section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)
+  ⊘ edited external CLI files                1 backed up as *.backup-<time>
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 21 items resident · ~5813 tokens/session (directives 7 ~4163 · [rules 6 inside AGENTS.md · AGENTS.md 1 ~4163 whole file, incl. your text] · triggers 14 ~1650 · [skills 14 ~1650 · agents 0 ~0] · 1 external asset unmeasured)
+  ▸ BACKUPS      2 file(s) saved before replacing, as *.backup-<time> — 1 had no checksum on record (marked noChecksum in the list), so those may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"
+

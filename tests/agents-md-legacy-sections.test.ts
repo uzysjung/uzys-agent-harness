@@ -52,6 +52,12 @@ const V140 = fixture("v26.140.0-codex.AGENTS.md");
 const V140_V169 = fixture("v26.140.0-codex-after-v26.169-update.AGENTS.md");
 /** v26.153.0 · codex — 꼬리 없음 · 마커 없음 · 머리 블록인용 없음. */
 const V153 = fixture("v26.153.0-codex.AGENTS.md");
+/** v26.150.0 · codex · tooling — 절 모델 · 인라인 룰(`## Harness Rules` 안 `## Shell Safety` …) · 꼬리 절(컨테이너 실설치본). */
+const V150 = fixture("v26.150.0-codex.AGENTS.md");
+/** PR #789 손실 탐색 실측(`f1-sessedit-26.140`) — v26.140 설치 뒤 `## Session Start` 끝에 설치자 한 줄. */
+const V140_SESSEDIT = fixture("v26.140.0-codex-sessedit.AGENTS.md");
+/** PR #789 손실 탐색 실측(`f1-rulesintro-26.100`) — v26.100 설치 뒤 `## Project Rules` 머리말에 설치자 한 줄. */
+const V100_RULESINTRO = fixture("v26.100.0-codex-rulesintro.AGENTS.md");
 
 const MINE = "## My Team Rules\n\nMINE-SECTION\n";
 /** 옛 판 꼬리 절 제목 — 옛 템플릿이 `## Session Start` 뒤에 쓴 하네스 절(지문 일치). */
@@ -464,5 +470,131 @@ describe("#774 uninstall — 옛 판 `AGENTS.md`", () => {
     expect(log().externalFiles?.find((f) => f.path === "AGENTS.md")?.sha256).toBe(
       hashContent(after),
     );
+  });
+});
+
+/**
+ * PR #789 리뷰 HIGH — 하네스 **이름 절**(`## Session Start` · `## Project Rules` 머리말 · 인라인 룰 `## Shell Safety` …) 안에 설치자가 적은
+ * 줄. 전에는 이름으로 걷혀 uninstall 이 파일을 지우며 "nothing of yours in it" 이라고 말했다(줄은 백업에만). 이제 이름 절도 옛 렌더
+ * 바이트로 가른다 — 다르면 설치자가 고친 절로 남고(사용자 결정 ⓓ), 화면은 남긴 것을 말한다. update 는 그 절을 현행 판으로 바꾸고
+ * 1회 백업 + 화면 한 줄로 고친 글의 자리를 말한다(ADR-111 결정 4).
+ */
+describe("#774 하네스 이름 절 안의 설치자 편집", () => {
+  /** 리뷰어의 `mut3.mjs hredit` 와 같은 자리 — 그 절 끝(빈 줄 앞)에 한 줄. */
+  function withLineAtEndOf(text: string, heading: string, line: string): string {
+    const lines = text.split("\n");
+    const at = lines.indexOf(heading);
+    expect(at, `픽스처 자기검증 — ${heading}`).toBeGreaterThan(0);
+    let j = at + 1;
+    while (j < lines.length && !/^## /.test(lines[j] ?? "")) j++;
+    j--;
+    while ((lines[j] ?? "").trim() === "") j--;
+    lines.splice(j + 1, 0, line);
+    return lines.join("\n");
+  }
+
+  it("⑪ v26.140 `## Session Start` 에 한 줄 → 바로 uninstall: 그 절은 라이브에 남고 나머지 옛 몫은 빠진다 · 백업 1 · 화면이 남긴 절을 말한다", () => {
+    oldSectionModel(V140);
+    writeFileSync(agentsPath(), V140_SESSEDIT);
+
+    const screen = uninstall();
+
+    const left = agents();
+    expect(left).toContain("4. MINE-SESSEDIT: `npm ci` before anything else");
+    expect(headings(left)).toEqual(["## Session Start"]);
+    expectNoOldHarness(left);
+    expect(backupText()).toEqual([V140_SESSEDIT]);
+    expect(screen).toContain("yours stays · kept 1 section(s) you edited (Session Start)");
+    expect(screen).not.toContain("nothing of yours");
+  });
+
+  it("⑫ v26.100(블록 모델 · 기록 없음) `## Project Rules` 머리말에 한 줄 → 바로 uninstall: 머리말 절이 라이브에 남는다 · 옛 앵커 절은 빠진다", () => {
+    oldFieldless(V100_RULESINTRO);
+
+    const screen = uninstall();
+
+    const left = agents();
+    expect(left).toContain("MINE-RULESINTRO: team rule — never deploy on Friday.");
+    expect(headings(left)).toEqual(["## Project Rules"]);
+    expectNoOldHarness(left);
+    expect(backupText()).toEqual([V100_RULESINTRO]);
+    expect(screen).toContain("kept 1 section(s) you edited (Project Rules)");
+    expect(screen).not.toContain("nothing of yours");
+  });
+
+  it("⑬ v26.150 인라인 룰 `## Shell Safety` 에 한 줄 → 바로 uninstall: 그 룰 절만 라이브에 남는다 · 다른 룰 · 꼬리 · 안내는 빠진다", () => {
+    const edited = withLineAtEndOf(V150, "## Shell Safety", "- MINE-HREDIT: never pipe curl to sh");
+    oldSectionModel(V150);
+    writeFileSync(agentsPath(), edited);
+
+    const screen = uninstall();
+
+    const left = agents();
+    expect(left).toContain("- MINE-HREDIT: never pipe curl to sh");
+    expect(headings(left)).toEqual(["## Shell Safety"]);
+    expect(left).not.toContain("Codex 는 룰 디렉터리가 없고");
+    expectNoOldHarness(left);
+    expect(backupText()).toEqual([edited]);
+    expect(screen).toContain("kept 1 section(s) you edited (Shell Safety)");
+  });
+
+  it("⑬′ v26.150 무편집 → 바로 uninstall: 이름 절(머리말 · 안내 · 인라인 룰 · Session Start)까지 옛 렌더 바이트로 알아봐 파일째 지운다 · 백업 1", () => {
+    oldSectionModel(V150);
+
+    const screen = uninstall();
+
+    expect(existsSync(agentsPath())).toBe(false);
+    expect(backupText()).toEqual([V150]);
+    expect(screen).toContain(
+      "removed  AGENTS.md (written by an older harness version, nothing of yours in it — saved a copy:",
+    );
+  });
+
+  it("⑭ update 는 고친 이름 절을 현행 판으로 바꾼다 — 고친 글은 백업 1 에 있고 화면이 그 사실을 말한다 · 2회차 조용", () => {
+    oldSectionModel(V140);
+    writeFileSync(agentsPath(), V140_SESSEDIT);
+
+    const screen = run(["claude", "codex"], "update");
+
+    const after = agents();
+    expect(after).not.toContain("MINE-SESSEDIT");
+    expectNoOldHarness(after);
+    expect(backupText()).toEqual([V140_SESSEDIT]);
+    expect(screen).toContain(
+      "1 harness section(s) you had edited (Session Start) now hold the current version — your edit is in the copy AGENTS.md.backup-<time>",
+    );
+
+    const again = run(["claude", "codex"], "update");
+
+    expect(agents()).toBe(after);
+    expect(backups()).toHaveLength(1);
+    expect(again).not.toContain("you had edited");
+  });
+
+  it("⑯ `## Project Context` 가 없던 판(v26.83~v26.95) 무편집 → 바로 uninstall: 빈 Project Context 껍데기를 남기지 않고 파일째 지운다 · 백업 1", () => {
+    const v95 = fixture("v26.95.0-codex.AGENTS.md");
+    expect(v95, "픽스처 자기검증 — 채울 자리가 없던 판").not.toContain("## Project Context");
+    oldFieldless(v95);
+
+    const screen = uninstall();
+
+    expect(existsSync(agentsPath())).toBe(false);
+    expect(backupText()).toEqual([v95]);
+    expect(screen).toContain("nothing of yours in it");
+  });
+
+  it('⑮ 첫 접촉 블록을 함께 걷어 파일을 지우면 "nothing of yours" 라고 말하지 않는다 — 블록 안 줄은 지문이 가르지 못한다', () => {
+    const noMine = V100_V169.replace(`${MINE}\n`, "");
+    expect(noMine, "픽스처 자기검증").not.toContain("MINE-SECTION");
+    oldBlockUpdatedByV169(noMine);
+
+    const screen = uninstall();
+
+    expect(existsSync(agentsPath())).toBe(false);
+    expect(backupText()).toEqual([noMine]);
+    expect(screen).toContain(
+      "removed  AGENTS.md (written by an older harness version — saved a copy:",
+    );
+    expect(screen).not.toContain("nothing of yours");
   });
 });

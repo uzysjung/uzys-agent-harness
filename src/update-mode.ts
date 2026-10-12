@@ -419,6 +419,10 @@ export interface UpdateModeReport {
    */
   agentsMdLegacyDropped?: number;
   /**
+   * #774 — 옛 판 `AGENTS.md` 에서 설치자가 고친 하네스 이름 절(제목)을 지금 판으로 바꿨다(쓰기 전 1회 백업). 부재 = 없음.
+   */
+  agentsMdLegacyEdited?: string[];
+  /**
    * #677 — 기록에 하네스 몫으로 있지만 기록 트랙의 렌더 밖인 Antigravity 룰을 치웠다(고친 것은 그 파일 하나를 백업).
    * optional = 부재는 "치운 것 없음".
    */
@@ -823,6 +827,7 @@ export function runUpdateMode(
         anchorDisplaced: [],
         agentsMd: null,
         agentsMdLegacyDropped: 0,
+        agentsMdLegacyEdited: [],
         excludedKeys: [],
         sharedLeft: [],
       };
@@ -841,6 +846,9 @@ export function runUpdateMode(
   if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
   if (external.agentsMdLegacyDropped > 0) {
     report.agentsMdLegacyDropped = external.agentsMdLegacyDropped;
+  }
+  if (external.agentsMdLegacyEdited.length > 0) {
+    report.agentsMdLegacyEdited = external.agentsMdLegacyEdited;
   }
   if (external.sharedLeft.length > 0) report.sharedLeft = external.sharedLeft;
   report.restoredKeys = external.restoredKeys;
@@ -2030,6 +2038,8 @@ function refreshExternalCli(
   agentsMd: { created: boolean; clis: CliBase[]; seededFrom: string | null } | null;
   /** #774 — `UpdateModeReport.agentsMdLegacyDropped` 와 같다. */
   agentsMdLegacyDropped: number;
+  /** #774 — `UpdateModeReport.agentsMdLegacyEdited` 와 같다. */
+  agentsMdLegacyEdited: string[];
   /** 리뷰 #693 NOTE-2 — 뺀 키를 걷었거나 남긴 것, 파일별. */
   excludedKeys: Array<{
     path: string;
@@ -2224,6 +2234,7 @@ function refreshExternalCli(
     anchorDisplaced,
     agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
     agentsMdLegacyDropped: result.agentsMd?.agentsMd.droppedLegacySections ?? 0,
+    agentsMdLegacyEdited: result.agentsMd?.agentsMd.editedLegacySections ?? [],
     // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
     // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
     sharedLeft: result.sharedFiles

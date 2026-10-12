@@ -1348,6 +1348,18 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #774 — 옛 판의 하네스 이름 절(`Session Start` …)을 설치자가 고쳤다. 절 모델에서 그 절은 하네스 몫이라 지금 판으로 바뀐다 —
+    // 고친 글이 라이브에서 빠지므로 그 글이 어디 있는지 말한다(사용자 결정 ⓓ)
+    const legacyEdited = baseline.updateMode.agentsMdLegacyEdited ?? [];
+    if (legacyEdited.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "AGENTS.md",
+          `${legacyEdited.length} harness section(s) you had edited (${legacyEdited.join(" · ")}) now hold the current version — your edit is in the copy AGENTS.md.backup-<time>`,
+        ),
+      );
+    }
     const externalEdited = baseline.updateMode.externalBackedUp.filter((p) => !noChecksum.has(p));
     if (externalEdited.length > 0) {
       log(

@@ -69,6 +69,16 @@ const splitSections = (lines) => {
   if (cur) secs.push(cur);
   return secs;
 };
+/** 옛 렌더(`renderAgentsMd` · `renameSlashes`, v26.70~v26.159 `src/codex/agents-md.ts`)와 같은 슬래시 이름 바꾸기 — 파일 전체에 걸렸다. */
+const renameSlashes = (text) => text.replaceAll("/uzys:", "/uzys-");
+/** 옛 렌더의 `{PROJECT_RULES}` 값 — 앵커의 첫 h1 줄을 떼고 trim. */
+const anchorBody = (claudeMd) => claudeMd.replace(/^#\s+.*\r?\n/, "").trim();
+/** 옛 `rules-port.ts`(v26.147~v26.159 동일)의 `stripClaudeFrontmatter` 와 같은 규칙. */
+const stripFrontmatter = (source) => {
+  if (!source.startsWith("---\n")) return source.trim();
+  const end = source.indexOf("\n---", 4);
+  return end === -1 ? source.trim() : source.slice(end + 4).trim();
+};
 /** 주석에 싣는 헤딩 — 템플릿 리터럴 안이라 백틱 · `${` 를 무해하게. */
 const note = (s) => s.replace(/`/g, "'").replace(/\$\{/g, "$ {").replace(/\r/g, "");
 
@@ -99,6 +109,7 @@ const addFile = (p, s) => {
 const agentsSections = new Map(); // 지문 → 주석
 const preambles = new Map();
 const anchorSections = new Map();
+const namedSections = new Map(); // 하네스 이름 절(템플릿 제목 절 · 인라인 룰 절)의 옛 렌더 바이트 — 지문 → 주석
 const hookRefs = new Set();
 const statusLines = new Map(); // sha256(JSON.stringify(statusLine)) → 주석
 
@@ -111,7 +122,14 @@ for (const v of versions) {
       const [meta, path] = l.split("\t");
       return { blob: meta.split(" ")[2], path };
     });
+  const pre = inRange(v, RANGE_FROM, PRE_MARKER_TO);
+  let anchor = null;
+  const agentsTemplates = [];
+  const ruleSources = [];
   for (const { blob, path } of tree) {
+    if (pre && path === "templates/CLAUDE.md") anchor = readBlob(blob).toString();
+    if (pre && AGENTS_TEMPLATE.test(path)) agentsTemplates.push(readBlob(blob).toString());
+    if (pre && /^templates\/rules\/[^/]+\.md$/.test(path)) ruleSources.push(readBlob(blob).toString());
     for (const [src, dst] of FILE_DIRS) {
       if (path.startsWith(src)) addFile(dst + path.slice(src.length), contentSha(blob));
     }
@@ -154,6 +172,44 @@ for (const v of versions) {
       if (head.some((l) => l.trim() !== "")) {
         const k = sectionKey(head);
         if (!preambles.has(k)) preambles.set(k, `${head.find((l) => l.trim() !== "")} (${v})`);
+      }
+    }
+  }
+  // 하네스 이름 절 — 템플릿이 제목을 정한 절(`Project Rules` 머리말 · `Harness Rules` 안내 · `Session Start` …)과 인라인 룰 절.
+  // 옛 렌더가 쓴 바이트를 그대로 다시 만든다: `{PROJECT_RULES}` = 같은 판의 앵커 본문 · `{HARNESS_RULES}` 는 비우고(룰 절은 아래에서
+  // 따로) · 파일 전체에 `/uzys:` → `/uzys-`. 자리표시자가 남은 절(`{PROJECT_CONTEXT}` · 제목)은 지문이 될 수 없다. 이름 절이 아닌 절
+  // (앵커 하위 절)은 앵커 지문이 맡고, 위 꼬리 절 지문과 바이트가 같은 절은 거기 이미 있다 — 둘 다 여기 싣지 않는다.
+  if (pre && anchor !== null) {
+    const body = anchorBody(anchor);
+    for (const template of agentsTemplates) {
+      const own = new Set(
+        splitSections(template.split("\n"))
+          .filter((s) => !s.some((l) => /\{[A-Z_]+\}/.test(l)))
+          .map(sectionKey),
+      );
+      const names = new Set([...template.matchAll(/^## .+$/gm)].map((m) => m[0]));
+      const rendered = renameSlashes(
+        template.replaceAll("{PROJECT_RULES}", body).replaceAll("{HARNESS_RULES}", ""),
+      );
+      for (const s of splitSections(rendered.split("\n"))) {
+        if (!names.has(s[0]) || s.some((l) => /\{[A-Z_]+\}/.test(l))) continue;
+        const k = sectionKey(s);
+        if (!own.has(k) && !namedSections.has(k)) namedSections.set(k, `${s[0]} (${v})`);
+      }
+    }
+    // 인라인 룰 — 옛 codex 렌더(`renderRulesBlock`)는 룰마다 앞머리를 떼고 첫 h1 을 `## ` 로 낮춰 `\n\n---\n\n` 으로 이었다. 룰의
+    // 마지막 절은 다음 룰 앞이면 `---` 를 달고 끝 룰이면 달지 않는다 — 두 모양 다 싣는다.
+    if (agentsTemplates.some((t) => t.includes("{HARNESS_RULES}"))) {
+      for (const source of ruleSources) {
+        const ported = renameSlashes(stripFrontmatter(source).replace(/^#\s+/, "## "));
+        const secs = splitSections(ported.split("\n"));
+        for (const [i, s] of secs.entries()) {
+          const shapes = i === secs.length - 1 ? [s, [...s, "", "---"]] : [s];
+          for (const shape of shapes) {
+            const k = sectionKey(shape);
+            if (!namedSections.has(k)) namedSections.set(k, `${s[0]} (rule ${v})`);
+          }
+        }
       }
     }
   }
@@ -232,6 +288,13 @@ export function isLegacyHarnessFile(path: string, sha256: string): boolean {
 /** 마커 이전 \`AGENTS.md.template\`(codex · opencode · antigravity)의 자리표시자 없는 \`## \` 절 (${agentsSections.size}). */
 export const LEGACY_AGENTS_MD_SECTION_KEYS: ReadonlySet<string> = keySet(${block(keyRows(agentsSections))});
 
+/**
+ * 하네스 **이름 절**의 옛 렌더 바이트 (${namedSections.size}) — 템플릿이 제목을 정한 절(\`## Project Rules\` 머리말 · \`## Harness Rules\` 안내 ·
+ * \`## Session Start\` …, 같은 판의 앵커 본문을 넣고 \`/uzys:\` → \`/uzys-\` 를 건 모양)과 인라인 룰 절(v26.147~ codex). 이름이 하네스 것이어도
+ * 바이트가 여기 없으면 설치자가 고친 절이다 — uninstall 은 남긴다(사용자 결정 ⓓ).
+ */
+export const LEGACY_AGENTS_MD_NAMED_KEYS: ReadonlySet<string> = keySet(${block(keyRows(namedSections))});
+
 /** 같은 템플릿의 머리(제목 다음 블록인용) — \`legacyPreambleKey\` 로 대조한다 (${preambles.size}). */
 export const LEGACY_AGENTS_MD_PREAMBLE_KEYS: ReadonlySet<string> = keySet(${block(keyRows(preambles))});
 
@@ -262,6 +325,7 @@ console.log(
       agentsMdSectionKeys: agentsSections.size,
       preambleKeys: preambles.size,
       anchorSectionKeys: anchorSections.size,
+      namedSectionKeys: namedSections.size,
       hookRefs: [...hookRefs].sort(),
       statusLines: statusLines.size,
       outBytes: Buffer.byteLength(out),

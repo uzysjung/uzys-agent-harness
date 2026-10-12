@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { isLegacyHarnessAgentsMd } from "../src/agents-md-merge.js";
 import {
   isLegacyHarnessFile,
+  LEGACY_AGENTS_MD_NAMED_KEYS,
   LEGACY_AGENTS_MD_PREAMBLE_KEYS,
   LEGACY_AGENTS_MD_SECTION_KEYS,
   LEGACY_HARNESS_FILES,
@@ -26,13 +27,15 @@ const sha = (text: string): string => createHash("sha256").update(text).digest("
  * "같음" 이다 — 생성물에서 한 줄이라도 빠지거나 더해지면 여기서 빨개진다.
  */
 describe("#774 옛 판 하네스 지문 — 생성물", () => {
-  it("ⓐ 집합 크기가 설계 실측과 같다 (152 경로 · 372 쌍 · 37 · 6 · 53 · 8 · 2)", () => {
+  it("ⓐ 집합 크기가 설계 실측과 같다 (152 경로 · 372 쌍 · 37 · 6 · 53 · 이름 절 50 · 8 · 2)", () => {
     const pairs = [...LEGACY_HARNESS_FILES.values()].reduce((n, s) => n + s.size, 0);
     expect(LEGACY_HARNESS_FILES.size).toBe(152);
     expect(pairs).toBe(372);
     expect(LEGACY_AGENTS_MD_SECTION_KEYS.size).toBe(37);
     expect(LEGACY_AGENTS_MD_PREAMBLE_KEYS.size).toBe(6);
     expect(RETIRED_ANCHOR_SECTION_KEYS.size).toBe(53);
+    // PR #789 리뷰 HIGH — 하네스 이름 절(`Project Rules` 머리말 · `Harness Rules` 안내 · 인라인 룰 절 · 슬래시 이름을 바꾼 템플릿 절)
+    expect(LEGACY_AGENTS_MD_NAMED_KEYS.size).toBe(50);
     expect([...LEGACY_HOOK_REFS].sort()).toEqual([
       "hooks/agentshield-gate.sh",
       "hooks/gate-check.sh",
@@ -77,8 +80,9 @@ describe("#774 옛 판 하네스 지문 — 생성물", () => {
     expect(isLegacyHarnessFile(".claude/skills/other/SKILL.md", skill)).toBe(false);
   });
 
-  it("ⓒ 설치자가 한 줄 고친 바이트는 못 알아본다 — 현행 룰 + `MINE-EDIT`", () => {
-    const rule = readFileSync(join(ROOT, "templates/rules/git-policy.md"), "utf8");
+  it("ⓒ 설치자가 한 줄 고친 바이트는 못 알아본다 — v26.169.0 룰 + `MINE-EDIT`", () => {
+    // 고정 바이트(`git show v26.169.0:templates/rules/git-policy.md`) — 현행 배포 룰을 고쳐도 이 테스트는 지문과 무관하게 깨지지 않는다
+    const rule = readFileSync(join(FIXTURES, "git-policy-v26.169.0.md"), "utf8");
     expect(isLegacyHarnessFile(".claude/rules/git-policy.md", sha(rule)), "픽스처 자기검증").toBe(
       true,
     );

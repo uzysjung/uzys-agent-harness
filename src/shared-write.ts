@@ -358,6 +358,11 @@ export interface AgentsMdWriteResult {
    */
   droppedLegacySections?: number;
   /**
+   * #774 — 옛 판 파일에서 설치자가 고친 하네스 이름 절(`Session Start` · `Project Rules` 머리말 …)의 제목. 절 모델에서 그 절은 하네스
+   * 몫이라 지금 판으로 바뀐다 — 쓰기 전 1회 백업을 남겼고 update 화면이 "고친 절은 백업에 있다" 고 말한다.
+   */
+  editedLegacySections?: string[];
+  /**
    * #774 (N2) — 블록 모델 기록(`portions` 의 `AGENTS.md` 몫)이 있던 파일을 절 모델로 바꿨다. 호출부는 이 파일의 몫 기록을
    * 비운다 — 남겨 두면 uninstall 이 이미 없는 블록을 찾는다.
    */
@@ -385,16 +390,18 @@ export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult 
         : { harnessRuleHeadings: params.harnessRuleHeadings }),
     });
     const dropped = merged.droppedLegacySections;
+    const edited = merged.editedLegacySections;
     params.writer.write(abs, merged.text, {
       ...(params.createInRefresh === true ? { createInRefresh: true } : {}),
-      // ADR-111 — 떨어뜨린 절은 현행 번들에 없는 바이트다: 기준선 그대로인 파일이라도 1회 백업
-      ...(dropped > 0 ? { backupFirst: true } : {}),
+      // ADR-111 — 떨어뜨린 절은 현행 번들에 없는 바이트다 · 고친 이름 절은 설치자 글이다: 기준선 그대로인 파일이라도 1회 백업
+      ...(dropped > 0 || edited.length > 0 ? { backupFirst: true } : {}),
     });
     if (recordedBlock) params.writer.journal?.portions(AGENTS_MD, []);
     return {
       model: "sections",
       shared: null,
       ...(dropped > 0 ? { droppedLegacySections: dropped } : {}),
+      ...(edited.length > 0 ? { editedLegacySections: edited } : {}),
       ...(recordedBlock ? { blockRecordDropped: true as const } : {}),
     };
   }

@@ -19,6 +19,7 @@
  */
 
 import {
+  LEGACY_AGENTS_MD_NAMED_KEYS,
   LEGACY_AGENTS_MD_PREAMBLE_KEYS,
   LEGACY_AGENTS_MD_SECTION_KEYS,
   legacyPreambleKey,
@@ -147,13 +148,17 @@ function trimTrailingBlanks(lines: ReadonlyArray<string>): string[] {
 
 /**
  * #774 — 옛 판이 바이트 그대로 쓴 `## ` 절인가: #739 앵커 절(`RETIRED_ANCHOR_SECTION_KEYS`) ∪ 마커 이전 `AGENTS.md.template` 의
- * 절(`LEGACY_AGENTS_MD_SECTION_KEYS` — `Session Start` 뒤 꼬리 절 등). 어디 있든 하네스가 쓴 것이다 — 설치자가 한 줄이라도
- * 고쳤으면 지문이 달라 설치자 절로 남는다(잃는 쪽보다 남는 쪽). 소유 근거가 아니라 걷을 근거다(ADR-111): 걷는 쓰기는 호출부가
- * 파일 1회 백업을 남긴다.
+ * 절(`LEGACY_AGENTS_MD_SECTION_KEYS` — `Session Start` 뒤 꼬리 절 등) ∪ 하네스 이름 절의 옛 렌더(`LEGACY_AGENTS_MD_NAMED_KEYS` —
+ * `Project Rules` 머리말 · `Harness Rules` 안내 · 인라인 룰 절). 어디 있든 하네스가 쓴 것이다 — 설치자가 한 줄이라도 고쳤으면 지문이
+ * 달라 설치자 절로 남는다(잃는 쪽보다 남는 쪽). 소유 근거가 아니라 걷을 근거다(ADR-111): 걷는 쓰기는 호출부가 파일 1회 백업을 남긴다.
  */
 function isLegacyHarnessSection(lines: ReadonlyArray<string>): boolean {
   const key = legacySectionKey(lines);
-  return RETIRED_ANCHOR_SECTION_KEYS.has(key) || LEGACY_AGENTS_MD_SECTION_KEYS.has(key);
+  return (
+    RETIRED_ANCHOR_SECTION_KEYS.has(key) ||
+    LEGACY_AGENTS_MD_SECTION_KEYS.has(key) ||
+    LEGACY_AGENTS_MD_NAMED_KEYS.has(key)
+  );
 }
 
 /**
@@ -316,12 +321,20 @@ export interface MergeAgentsMdResult {
    * `AGENTS.md.backup-<시각>` 1회를 남긴다(ADR-111 — 현행 번들에 없는 바이트라 다시 깔아도 돌아오지 않는다).
    */
   droppedLegacySections: number;
+  /**
+   * #774 — 옛 판 파일(`isLegacyHarnessAgentsMd`)의 하네스 이름 절 중 설치자가 고친 것(바이트가 옛 렌더와 다르다)의 제목. 절 모델에서
+   * 이 절은 하네스 몫이라 지금 판으로 바뀐다 — 비어 있지 않으면 호출부가 쓰기 전 1회 백업을 남기고 화면이 "고친 절은 백업에 있다" 고
+   * 말한다(ADR-111). 옛 판 파일이 아니면 빈 배열.
+   */
+  editedLegacySections: string[];
 }
 
 /** `mergeAgentsMd` 와 같은 병합 — 떨어뜨린 옛 하네스 절 수까지 돌려준다. */
 export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsMdResult {
   const { rendered, existing, template } = params;
-  if (existing === null) return { text: rendered, droppedLegacySections: 0 };
+  if (existing === null) {
+    return { text: rendered, droppedLegacySections: 0, editedLegacySections: [] };
+  }
   const names = sectionNames(template);
   const bodies = new Map<string, string[]>();
 
@@ -368,16 +381,27 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
     replacedRulesHeadings,
   );
   const droppedLegacySections = candidates.legacy;
+  // #774 — 옛 판 파일의 하네스 이름 절을 설치자가 고쳤으면(옛 렌더 바이트와 다르다) 지금 판으로 바뀌는 사실을 호출부가 말하게 한다.
+  // uninstall 의 걷기와 같은 판정이다(그쪽은 남긴다 — 바꿔 쓸 지금 판이 없다)
+  const editedLegacySections = isLegacyHarnessAgentsMd(existing)
+    ? installerSectionsInHarnessArea(
+        existing,
+        names,
+        new Set([...(params.harnessRuleHeadings ?? []), ...renderedRuleHeadings(rendered, names)]),
+        true,
+      ).keptEdited
+    : [];
   const extras = candidates.sections.filter(
     (e) => !mergedText.includes(e.join("\n").replace(/\r/g, "")),
   );
-  if (extras.length === 0) return { text: merged, droppedLegacySections };
+  if (extras.length === 0) return { text: merged, droppedLegacySections, editedLegacySections };
   return {
     text: `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
       /\n+$/,
       "\n",
     ),
     droppedLegacySections,
+    editedLegacySections,
   };
 }
 
@@ -528,17 +552,19 @@ export interface StripAgentsMdParams {
  * 위치가 아니다). `## Project Context` · `## Project Rules` 본문은 `installerLines` 가 맡으므로 여기서 세지 않는다.
  *
  * #774 — 병합(`extraTopLevelSections`)과 같은 지문으로 옛 판이 바이트 그대로 쓴 절은 걷는다(`legacy` 로 센다 — 호출부가 1회
- * 백업). `legacyRules` = 마커 이전 판의 파일이라 `## Project Rules` 본문이 통째로 옛 앵커다 — 그 안의 `## ` 도 후보로 본다
- * (지문 일치 = 앵커 절 · 불일치 = 설치자 절).
+ * 백업). `legacyFile` = 마커 이전 판의 파일이다: 하네스 **이름 절**(템플릿 제목 절 — `## Project Rules` 머리말 · `## Harness Rules`
+ * 안내 · `## Session Start` · 그리고 하네스 룰 제목 절)도 이름이 아니라 바이트로 가른다 — 옛 렌더 그대로(지문 일치)면 걷고, 다르면
+ * 설치자가 고친 절로 남기고 `keptEdited` 에 제목을 싣는다(사용자 결정 ⓓ "설치자가 고친 절은 남는다"). `## Project Rules` 본문의 `## `
+ * 는 옛 앵커 절 후보다(지문 일치 = 앵커 절 · 불일치 = 설치자 절). `## Project Context` 본문은 호출부가 맡는다.
  */
 function installerSectionsInHarnessArea(
   existing: string,
   names: ReadonlySet<string>,
   harnessRuleHeadings: ReadonlySet<string>,
-  legacyRules = false,
-): { sections: string[][]; legacy: number } {
-  const out: string[][] = [];
-  let current: string[] | null = null;
+  legacyFile = false,
+): { sections: string[][]; legacy: number; keptEdited: string[] } {
+  const out: Array<{ lines: string[]; named: boolean }> = [];
+  let current: { lines: string[]; named: boolean } | null = null;
   let region: string | null = null;
   for (const line of existing.split("\n")) {
     const bare = line.replace(/\r$/, "");
@@ -547,17 +573,30 @@ function installerSectionsInHarnessArea(
       if (current !== null) out.push(current);
       if (names.has(name)) region = name;
       const owner = headingOwner(bare, { region, names, harnessHeadings: harnessRuleHeadings });
-      const rulesBody = legacyRules && owner === "body" && region === RULES_SECTION;
-      current = owner === "installer" || rulesBody ? [bare] : null;
+      if (!legacyFile) current = owner === "installer" ? { lines: [bare], named: false } : null;
+      else if (region === CONTEXT_SECTION) current = null;
+      else current = { lines: [bare], named: owner === "harness" };
       continue;
     }
-    if (current !== null) current.push(bare);
+    if (current !== null) current.lines.push(bare);
   }
   if (current !== null) out.push(current);
-  return {
-    sections: out.filter((lines) => !isLegacyHarnessSection(lines)).map(trimTrailingBlanks),
-    legacy: out.filter(isLegacyHarnessSection).length,
-  };
+  const sections: string[][] = [];
+  const keptEdited: string[] = [];
+  let legacy = 0;
+  for (const { lines, named } of out) {
+    if (isLegacyHarnessSection(lines)) {
+      legacy++;
+      continue;
+    }
+    if (named) {
+      // 본문이 빈 이름 절(머리말 없는 앵커의 `## Project Rules`)은 걷을 것도 남길 것도 없다
+      if (lines.slice(1).every((l) => l.trim() === "")) continue;
+      keptEdited.push((lines[0] ?? "").replace(/^## /, "").trim());
+    }
+    sections.push(trimTrailingBlanks(lines));
+  }
+  return { sections, legacy, keptEdited };
 }
 
 /** `stripAgentsMd` 의 결과. */
@@ -571,6 +610,16 @@ export interface AgentsMdStripResult {
   legacyRemoved: boolean;
   /** 걷은 옛 하네스 절 수(지문 일치) — 화면이 센다. */
   legacySections: number;
+  /**
+   * #774 — 하네스 이름 절(`Session Start` · `Project Rules` 머리말 · 하네스 룰 제목 절 …)인데 바이트가 옛 렌더와 달라 **설치자가 고친
+   * 절로 남긴** 것의 제목(사용자 결정 ⓓ). 화면이 "고친 절 N 개를 남겼다" 고 말한다.
+   */
+  keptEdited: string[];
+  /**
+   * #774 — 걷은 것이 **전부** 지문 일치(또는 기록 sha · 안 채운 스캐폴드)였다. 거짓이면 걷은 바이트 중 판정하지 않은 것이 있다(v26.169
+   * update 가 붙인 첫 접촉 블록 — 그 안의 설치자 줄은 지문이 가르지 못한다) — 화면이 "nothing of yours" 를 말하지 않는다.
+   */
+  recognized: boolean;
 }
 
 /**
@@ -601,9 +650,16 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
   const headings = params.harnessRuleHeadings ?? new Set<string>();
   if (blockRange(lines, ANCHOR_BLOCK) === null && blockRange(lines, SKILLS_BLOCK) === null) {
     if (!isLegacyHarnessAgentsMd(existing)) {
-      return { remainder: null, legacyRemoved: false, legacySections: 0 };
+      return {
+        remainder: null,
+        legacyRemoved: false,
+        legacySections: 0,
+        keptEdited: [],
+        recognized: true,
+      };
     }
-    return stripLegacyAgentsMd(withoutAgentsBlock(existing), names, headings);
+    const body = withoutAgentsBlock(existing);
+    return stripLegacyAgentsMd(body, names, headings, body === existing);
   }
   const context = installerLines(sectionBody(existing, names, CONTEXT_SECTION), SKILLS_BLOCK);
   const rules = installerLines(sectionBody(existing, names, RULES_SECTION), ANCHOR_BLOCK);
@@ -612,7 +668,12 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
   const contextFilled = !isUnfilledScaffold(context);
   const rulesFilled = compact(rules).length > 0;
   const extras = installerSectionsInHarnessArea(existing, names, headings);
-  const legacy = { legacyRemoved: extras.legacy > 0, legacySections: extras.legacy };
+  const legacy = {
+    legacyRemoved: extras.legacy > 0,
+    legacySections: extras.legacy,
+    keptEdited: [],
+    recognized: true,
+  };
   if (!contextFilled && !rulesFilled && extras.sections.length === 0) {
     return { remainder: null, ...legacy };
   }
@@ -630,20 +691,30 @@ export function stripAgentsMd(params: StripAgentsMdParams): AgentsMdStripResult 
 }
 
 /**
- * #774 — 마커 이전 판의 하네스 `AGENTS.md`(머리 지문 일치, 첫 접촉 블록은 뗀 본문)를 걷는다: 머리 블록인용 · 템플릿 이름의 절
- * (`Session Start` · `Protected Files` …) · `## Harness Rules` 의 하네스 룰 · 지문 일치 절(앵커 · 꼬리)은 하네스 것이고, 지문이
- * 다른 절은 설치자 절로 남는다. `## Project Context` 는 안 채운 스캐폴드면 걷고, 채웠으면 하네스 배너만 떼고 남긴다. 남는 것이
- * 없으면 `null`(파일째 삭제). 어느 쪽이든 옛 판 바이트를 걷으므로 `legacyRemoved` 는 참이다.
+ * #774 — 마커 이전 판의 하네스 `AGENTS.md`(머리 지문 일치, 첫 접촉 블록은 뗀 본문)를 걷는다: 머리 블록인용과 지문 일치 절(앵커 ·
+ * 꼬리 · 하네스 이름 절의 옛 렌더)은 하네스 것이고, 지문이 다른 절은 — 이름이 하네스 것(`Session Start` · `Project Rules` 머리말 ·
+ * 하네스 룰 제목)이어도 — 설치자가 쓰거나 고친 절로 남는다(사용자 결정 ⓓ). `## Project Context` 는 안 채운 스캐폴드면 걷고, 채웠으면
+ * 하네스 배너만 떼고 남긴다. 남는 것이 없으면 `null`(파일째 삭제). 어느 쪽이든 옛 판 바이트를 걷으므로 `legacyRemoved` 는 참이다.
+ *
+ * @param blockFree 첫 접촉 블록이 없던 파일이다 — 있었으면 그 블록 안은 지문이 가르지 않고 걷혔다(`recognized` 거짓).
  */
 function stripLegacyAgentsMd(
   existing: string,
   names: ReadonlySet<string>,
   headings: ReadonlySet<string>,
+  blockFree: boolean,
 ): AgentsMdStripResult {
-  const context = dropHarnessQuoteBlocks(sectionBody(existing, names, CONTEXT_SECTION) ?? []);
-  const contextFilled = !isUnfilledScaffold(context);
+  // `## Project Context` 가 없던 판(v26.70~v26.95)은 채울 자리도 없었다 — 빈 본문을 "채웠다" 로 읽지 않는다
+  const contextBody = sectionBody(existing, names, CONTEXT_SECTION);
+  const context = dropHarnessQuoteBlocks(contextBody ?? []);
+  const contextFilled = contextBody !== null && !isUnfilledScaffold(context);
   const extras = installerSectionsInHarnessArea(existing, names, headings, true);
-  const result = { legacyRemoved: true, legacySections: extras.legacy };
+  const result = {
+    legacyRemoved: true,
+    legacySections: extras.legacy,
+    keptEdited: extras.keptEdited,
+    recognized: blockFree,
+  };
   if (!contextFilled && extras.sections.length === 0) return { remainder: null, ...result };
   const out: string[] = [];
   const title = (existing.split("\n")[0] ?? "").replace(/\r$/, "");

@@ -477,6 +477,64 @@ d1affcbe314d8ccd39ca956d467fbd43bcc859b4ffc23bf1d1f8f2f0a3e10f4e ## Context Mana
 55412b2ae275e9660f09c7cc286d3e92236e4ae61626cbf68727ae222edcb0e0 ## Protected Files (26.151.0)
 `);
 
+/**
+ * 하네스 **이름 절**의 옛 렌더 바이트 (50) — 템플릿이 제목을 정한 절(`## Project Rules` 머리말 · `## Harness Rules` 안내 ·
+ * `## Session Start` …, 같은 판의 앵커 본문을 넣고 `/uzys:` → `/uzys-` 를 건 모양)과 인라인 룰 절(v26.147~ codex). 이름이 하네스 것이어도
+ * 바이트가 여기 없으면 설치자가 고친 절이다 — uninstall 은 남긴다(사용자 결정 ⓓ).
+ */
+export const LEGACY_AGENTS_MD_NAMED_KEYS: ReadonlySet<string> = keySet(`
+92dce1a73d484490c943ec3418f10b2370079ae42aa8d93159596f45d12e699a ## Project Rules (26.70.0)
+f59bdc7177a12aa86f235ada16b2407c40bd55ae9de8e96a851b77571bdde989 ## Command Reference (Antigravity workflows) (26.70.0)
+c7f9fa755bd66d80c2df496c6c759e8accd736cd8fef64460feb7ae9cd4c8006 ## Context Management (26.70.0)
+dc030a35a6e638aba5447b4d4e79ae028fafd1419fbae872b902661fa7787a58 ## Command Reference (Codex slash) (26.70.0)
+df73823c02e6eee000388444964acfec233ffeec0e20fdc5d31eb018d2ca93c1 ## Context Management (26.77.0)
+6c900db77cb104f400091b44a7414e96427003860306a3007651b7a8b91a547c ## Project Rules (26.140.0)
+d9e3680462e64506ba4ef2df4f12e666855c3f458c1feeeeb623d62de2a5fa17 ## Project Rules (26.145.0)
+2da8ca3600045d85a9607ce270f9bc2d77b5ee54fe80cd0765caf7658f51127c ## Harness Rules (26.147.0)
+bbe5e1d9d368b15221269319b53dde4f87424904b80cd5af46a28de3d8ac923d ## Harness Rules (26.147.0)
+41eae7d6a8bb327e71cea2dbaa331d808f879b5ff4074c0bbdbb90bcfe066d9f ## Change Boundaries (rule 26.147.0)
+bef15b624ea34d08dc5833ceacd710f3c687385050958e5cd103378cf2fcf457 ## Change Boundaries (rule 26.147.0)
+9648c5a118c77a23a1a04ddcacd7708be162d65587769d47f51d2405b74c2f72 ## Shell Safety (rule 26.147.0)
+c2dee88e05c98e1482c99c1c01f59cafc6c6816fda1269d68179707f4ede0b8f ## Shell Safety (rule 26.147.0)
+a6c3b31f60c80906e8bdb7a5ba699a4c1062b2e2f3e94f9f56b5064f74a722ef ## Documentation Boundaries (rule 26.147.0)
+b8fbe3bb2d5d790015ddbcff85c68922a122d91705e1cc946a14b30480bfb22b ## Documentation Boundaries (rule 26.147.0)
+0a0b44e4c8d10aca52f63a4dba40d9166ea067eb1599886f850dc37ec2bba2f2 ## Git Safety (rule 26.147.0)
+05efdb03d3e9d9fbcfd652ddf778d25bb1ab5ce237dd33f17b0be82cad08db5b ## Session Cleanup (rule 26.147.0)
+10bdfa993f15639a319e852cf59f7b279b7397d26a94c54e6ca6a94416cc6834 ## Enforcement (rule 26.147.0)
+b72afd685f3c63e481dc856890c8a9d89c4e36ca3163ab172661e9fd5c3658a5 ## Enforcement (rule 26.147.0)
+126a9a57aa42007c9c0bd3cb7f0ce75f2ad6a7497b464e7f6c7f45f3ae5f40d2 ## Delivery (rule 26.147.0)
+edfa8459a9863e355a080c759419f6f5ffb0ebd5fc418914fd38d79622e73131 ## Delivery (rule 26.147.0)
+55295cda2a572e0aab061449248123d9d43543b3045b1b156b95fe2fb6aae509 ## Testing (rule 26.147.0)
+6364a5d8727d33db914c7d7a1ac4108cff9ed1dbefffb212bd84c1fcd7584284 ## Testing (rule 26.147.0)
+8d407c73c2de630d77d605447f605a6a2511fc4598d500ac7a1ff1374e2e457d ## Delivery (rule 26.148.0)
+2c3f8e7c8408f103006e4ef8029dce4da1995bca01bd1e6baf7ca3f4e46e58fa ## Delivery (rule 26.148.0)
+ae930fa7c8fa6f942d20715a51de43f33461aa5589f469f13a31ab90da1904e7 ## Delivery (rule 26.149.0)
+5b97fa550beb24e86c04af7fba2c97d8ff51702fd25abf223d97350db2a19ff1 ## Delivery (rule 26.149.0)
+e9b5814787b1e1cc066c217da0e344604477edfc0eb17304a5aeca73b0846637 ## Testing (rule 26.149.0)
+bafced984a2acf13f6fc7a3ca7c79edb99b5cecd4b21e351bd093f260d32fb02 ## Testing (rule 26.149.0)
+4972faf000e3433c0c07f7bb36e6b0463453be308dea31cfc177d692e23e3700 ## Project Rules (26.151.0)
+381a1d00394f803118575ecde42946585466c2da2ec36239fd6208a3c1b6bab8 ## Change Boundaries (rule 26.151.0)
+1a9dda0c66c7d82bdeb29c169f749a44c03b9bc112b3a1146898826b7d77b04e ## Change Boundaries (rule 26.151.0)
+e0d9ecb6916b563cfd0eaaf3f977106826136c4aaef518e705508c60f17b3cac ## Shell Safety (rule 26.151.0)
+053642f8951a2da28bca7d8d985a01c8fc2a6a91223a8cdfcd5e7ba5ef78af62 ## Shell Safety (rule 26.151.0)
+6543ff93b6c1f27f6d76f2a2a7599fd7ed0d1004f5419d5082321d1f4729bd1e ## Documentation Boundaries (rule 26.151.0)
+1741bf4e931d799c850ae45944ac2a9985800240d011a670ddb9400013b14856 ## Documentation Boundaries (rule 26.151.0)
+e527b3630786a074e321e1375b44f0870df3f7d4f124d5fdca9bbbd7e66f9315 ## Session Cleanup (rule 26.151.0)
+8ec2a06cfe3fa51e8187b218c290cf9ddc7680eac85427e2f6cf2a4a1a03ed4c ## Delivery (rule 26.151.0)
+d7fad0202a32aedb45717177ef9d3647109a0e77ee13f37b4c4a42f892182d4c ## Delivery (rule 26.151.0)
+2332b78bb1eb206ba1b08e28b3114d4919fb1384a9a5378f55dead61fdc3105a ## Testing (rule 26.151.0)
+d172feb48f54338d5d81e8b390debe3537538f0d2214f51e590272547e113cd2 ## Testing (rule 26.151.0)
+99bdd67b5ae37c10588f4ff852525ebe2ab59368723f56bd317818a89161c59a ## Change Boundaries (rule 26.152.0)
+a07c989310055284328b4ca441e201740fc8158a38572e56ec9968dac44ced13 ## Change Boundaries (rule 26.152.0)
+e4d2c89e6c2189748bef2dccf8eb506b7f8cf264d5bf8626fbe4446c330e0b63 ## Shell Safety (rule 26.152.0)
+028c8514fa466e7f053088e37968ef07ce1bcb08d4c224e76ec807d0f01e4449 ## Shell Safety (rule 26.152.0)
+9f0ac9e1c32c486e4f318061e3be3c853217d03b3f837b6c6e425f016c8707e9 ## Documentation Boundaries (rule 26.152.0)
+992ca24bd1f15314fb53943af2856af73f0d31ad8c6cf98b25b840ebd017b86a ## Documentation Boundaries (rule 26.152.0)
+49ec458da7c57727c16ec8ffa01cb2e2631eb769f6041b3bc07d912ec1a2994b ## Project Rules (26.153.0)
+155abf346fea6c63a081d4db1a1e44d537c4a94a479a2affc96345b18928fde3 ## Testing (rule 26.157.0)
+675da728d15da072c17fe5e9ba3ca8b21811e99a09f390fed4a53f19dd12c555 ## Testing (rule 26.157.0)
+`);
+
 /** 같은 템플릿의 머리(제목 다음 블록인용) — `legacyPreambleKey` 로 대조한다 (6). */
 export const LEGACY_AGENTS_MD_PREAMBLE_KEYS: ReadonlySet<string> = keySet(`
 720645dd313be16e6204290bfe0451fb237f77b8a7498a8a8af77dfc44ac0828 > **Generated from**: '.claude/CLAUDE.md' via TS CLI 'src/antigravity/transform.ts' (26.70.0)
