@@ -40,11 +40,11 @@ answers, and valid approvals. An audit or preview stays read-only; an explicit
 no-edit request includes report files. Where editing authority is unresolved,
 provide a proposal and continue independent authorized work. README and evals
 are maintainer resources, outside the normal execution path. Ordinary development
-requests stay on their existing workflow. For an audit-and-apply cycle, ask once at
-the start for the maximum number of audit → apply rounds (2–3 when the user states
-no preference), then run up to that count without re-asking. The count does not
-grant edit or merge authority. Hand the accumulated change to the project's normal
-PR / merge / verification path **once**, not per round.
+requests stay on their existing workflow. For an audit-and-apply cycle, follow
+[Apply](references/apply.md) for identify → fix rounds, round counts, and stopping
+conditions. Rounds do not grant edit or merge authority. Hand the accumulated change
+to the project's normal PR / merge / verification path **once** at the end,
+preserving any policy-required intermediate checkpoints.
 
 ## Audit contract
 
@@ -57,7 +57,9 @@ connect to those entry points, not body by body (Audit § Establish coverage).
 
 1. Questions, research, and rechecks: useful triggers, evidence reuse, and stop conditions.
 2. Conflicts and changed decisions: confirmed intent, actual implementation, and authority —
-   across sources, by a complete statement ledger rather than spot reading.
+   across sources within the coverage established in
+   [Audit § Establish coverage](references/audit.md#establish-coverage),
+   by a complete statement ledger rather than spot reading.
 3. Instruction value and autonomy: useful project context, proportionate procedures,
    missing enablers, and fit to demonstrated model and tool capabilities.
 4. Context efficiency: current actionable guidance, with long rationale and history on demand.

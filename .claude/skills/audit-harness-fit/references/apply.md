@@ -13,15 +13,23 @@ unchanged full audit. Check current wording and user worktree edits so the appro
 patch still has the intended meaning. Continue independent authorized changes when
 one finding remains unresolved; defer the disputed unit instead of the whole task.
 
-Rounds: an audit-and-apply request is one unit of work. Agree the maximum round
-count up front (2–3 by default). Each round re-audits the sources the previous apply
-changed, the authoritative sources and dependents they relate to, and unresolved
-material findings — not unaffected parts of the full audit. A newly found change
-outside the delegated authority stays a proposal. Run focused checks during rounds
-when a change needs them; do not open a PR, request review, or merge between
-rounds — those belong to the project's delivery policy and happen once after the
-last round, with the accumulated diff and the per-round findings as its evidence.
-Stop early when a re-audit finds nothing material; say so.
+Rounds: an audit-and-apply request is one unit of work, run as identify → fix
+rounds — two to three by default, or the count the user gives, without asking
+whether to start each round. Each subsequent round re-audits the sources the
+previous apply changed, the authoritative sources and dependents they relate
+to, and unresolved material findings — not unaffected parts of the full audit.
+A newly found change outside the delegated authority stays a proposal.
+Run focused checks during rounds when a change needs them, preserving any
+policy-required intermediate checkpoints. Do not introduce a per-round PR,
+review, or merge cycle; use the project's final delivery path once, with the
+accumulated diff and the per-round findings as its evidence.
+Base the stopping decision on a focused reassessment of the latest changes
+and unresolved material findings. Stop early when that reassessment finds
+nothing material. Beyond the default rounds, continue only for a concrete,
+authorized next step likely to make material progress within scope,
+respecting any explicit user limit; otherwise stop and report remaining
+proposals, deferrals, or evidence limits. State the reason for continuing;
+a repeated finding alone does not justify another round.
 
 ## Preserve ownership and recovery
 
