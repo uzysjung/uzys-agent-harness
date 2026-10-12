@@ -15,7 +15,7 @@
  */
 import { join } from "node:path";
 import { writeBundledSkillDirs } from "./codex/skills.js";
-import type { InstallLogSkillFile } from "./install-log.js";
+import type { InstallLogRootFile, InstallLogSkillFile } from "./install-log.js";
 import type { OutsideLink } from "./outside-project.js";
 import { createOwnedWriter, type WriteJournal } from "./owned-write.js";
 
@@ -28,6 +28,8 @@ export interface LinkedSkillBodies {
   files: InstallLogSkillFile[];
   /** 설치자가 고친 본문이라 남긴 백업의 절대경로. */
   backupPaths: string[];
+  /** #761 — 기준선에 없던 형제 파일(첫 접촉)을 비켜 둔 자리 — 기록의 `rootFiles` 로 간다. */
+  displaced: InstallLogRootFile[];
   /** 공유 본문 **안**이 남의 것(파일 링크 등)이라 쓰지 않은 자리. */
   foreignOwned: string[];
   /** #678 — 공유 본문의 실체가 프로젝트 밖이라 쓰지 않은 자리. */
@@ -65,6 +67,7 @@ export function refreshLinkedSkillBodies(params: {
     notOurs: ids.filter((id) => !baseline.has(bodyKey(id))),
     files: result.files,
     backupPaths: result.backupPaths,
+    displaced: result.displaced ?? [],
     foreignOwned: result.foreignOwned,
     outside: result.outside ?? [],
   };

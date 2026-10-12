@@ -16,7 +16,7 @@
 
 import { join, sep } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
-import { readInstallLog } from "./install-log.js";
+import { type InstallLog, readInstallLog } from "./install-log.js";
 import { buildAssetSpec } from "./manifest.js";
 import type { OwnedWriter, WriteOptions } from "./owned-write.js";
 import { excludedIds } from "./recorded.js";
@@ -33,9 +33,14 @@ import { DEFAULT_OPTIONS, TRACKS, type Track } from "./types.js";
  * **설치 기록이 없거나 트랙을 모르면 빈 배열이다.** 무엇이 기본인지 모르는 채로 만들면
  * "안 고른 것은 안 만든다"가 무너진다 — 레거시(로그 없는) 설치본에서 `refreshOnly` 가
  * 디스크로 대신하던 판정을 여기서 깨뜨리지 않기 위한 보수적 기본값이다.
+ *
+ * #761 — update 의 갱신 대상(`recordedBundledSkills`, `update-mode.ts`)도 이 목록을 "이번 릴리즈 기본" 으로 쓴다.
+ * `log` 를 넘기면 디스크의 기록을 다시 읽지 않는다.
  */
-function bundledSkillTargets(projectDir: string): string[] {
-  const log = readInstallLog(projectDir);
+export function bundledSkillTargets(
+  projectDir: string,
+  log: InstallLog | null = readInstallLog(projectDir),
+): string[] {
   if (log === null) return [];
   const tracks = log.spec.tracks.filter((t): t is Track =>
     (TRACKS as ReadonlyArray<string>).includes(t),

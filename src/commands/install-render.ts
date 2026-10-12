@@ -51,6 +51,7 @@ import {
   type InstallReport,
   type ProgressEvent,
 } from "../installer.js";
+import { LINES } from "../judge.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import type { OutOfTrackReclaim } from "../out-of-track.js";
 import type { OutsideLink } from "../outside-project.js";
@@ -305,7 +306,9 @@ export function renderUpdateSummary(
       ),
     );
     // 지우기 전 백업만 있으면 "새 판에 다시 얹으라" 할 새 판이 없다 — 되돌리는 길은 그 파일의 줄이 말했다
-    if (removedBefore < backups.length)
+    // #761 — 같은 이름의 설치자 파일(첫 접촉) 백업도 다시 얹을 "편집" 이 아니다 — 위 행이 "yours, put back on uninstall" 이라 말했다
+    const displacedN = report.updateMode?.displaced?.length ?? 0;
+    if (removedBefore + displacedN < backups.length)
       log(
         infoRow(
           "NEXT",
@@ -973,6 +976,21 @@ function linkedSkillRows(
  * Phase 1 rows 출력. baseline-complete progress event에서 호출 — 외부 자산 설치
  * 시작 전 즉시 화면에 표시되어야 한다 (멈춰 보임 방지).
  */
+/**
+ * #761 — update 의 첫 접촉 행: 하네스 자리에 있던 같은 이름의 설치자 파일을 백업하고 최신판을 뒀다(ADR-097 결정 7).
+ * `LINES.hadFile` 과 같은 말이다 — 설치자가 하네스 파일을 고친 것이 아니므로 "edited" 라 부르지 않는다.
+ */
+function hadFileRow(log: (msg: string) => void, area: string, paths: ReadonlyArray<string>): void {
+  if (paths.length === 0) return;
+  log(
+    assetRow(
+      "skip",
+      `${area} had files with these names`,
+      `${paths.length} backed up as *.backup-<time> — yours, put back on uninstall · ${paths.join(", ")}`,
+    ),
+  );
+}
+
 function renderPhase1Rows(
   log: (msg: string) => void,
   baseline: BaselineReport,
@@ -982,6 +1000,13 @@ function renderPhase1Rows(
   if (baseline.updateMode) {
     // #557 — 기록에 체크섬이 없어 편집 여부를 잴 수 없던 백업. 아래 "edited" 행들은 이것을 빼고 세고, 따로 한 줄로 말한다
     const noChecksum = new Set(baseline.updateMode.noChecksum ?? []);
+    // #761 — 첫 접촉(같은 이름의 설치자 파일)은 편집이 아니다 — 자리마다 "edited" 행과 갈라 따로 말한다
+    const displaced = baseline.updateMode.displaced ?? [];
+    const displacedSkills = displaced.filter((p) => p.startsWith(".claude/skills/"));
+    const displacedPolicy = displaced.filter(
+      (p) => p.startsWith(".claude/") && !p.startsWith(".claude/skills/"),
+    );
+    const displacedExternal = displaced.filter((p) => !p.startsWith(".claude/"));
     for (const [dir, count] of Object.entries(baseline.updateMode.updated)) {
       if (count > 0) log(assetRow("success", dir, `${count} files updated`));
     }
@@ -1149,6 +1174,7 @@ function renderPhase1Rows(
         ),
       );
     }
+    hadFileRow(log, ".claude/skills", displacedSkills);
     // #477 — 번들에서 사라진 파일을 지웠다는 사실도 화면에 남긴다. 조용히 지우면 사용자는
     // 파일이 왜 없어졌는지 모르고, 안 지우면 옛 서식이 디스크에 남는다 — 둘 다 침묵이 문제다.
     if (baseline.updateMode.skillsPruned.length > 0) {
@@ -1257,6 +1283,7 @@ function renderPhase1Rows(
         ),
       );
     }
+    hadFileRow(log, "policy files", displacedPolicy);
     // #557 — 체크섬 이전 옛 판의 첫 update 는 기록이 없어 다른 파일을 전부 한 번 백업한다. 그것을 "edited" 로 부르면
     // 설치자는 하지 않은 편집을 찾아 헤맨다 — 잴 수 없었다고 말한다. `.mcp-allowlist` 는 은퇴 행이 이미 말한다
     const unmeasured = [...noChecksum].filter((p) => p !== ".mcp-allowlist");
@@ -1311,6 +1338,18 @@ function renderPhase1Rows(
           "skip",
           "edited external CLI files",
           `${externalEdited.length} backed up as *.backup-<time>`,
+        ),
+      );
+    }
+    hadFileRow(log, "external CLI files", displacedExternal);
+    // #761 Q3 — 같은 이름에 내용까지 하네스 판과 같던 설치자 파일. 매 update 같은 줄이 나므로 한 행으로 묶는다(N9)
+    const displacedSame = baseline.updateMode.displacedSame ?? [];
+    if (displacedSame.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          "same as the harness version",
+          `${displacedSame.length} ${LINES.sameAsHarness} · ${displacedSame.join(", ")}`,
         ),
       );
     }

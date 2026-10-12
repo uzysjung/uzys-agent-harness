@@ -44,6 +44,8 @@ export interface AgentsMdTransformParams {
   /** 첫 접촉 블록 모델의 앞 기록(`SharedRecord`). */
   shared?: SharedRecord;
   journal?: WriteJournal;
+  /** #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`OwnedWriterOptions.owned`). */
+  owned?: (rel: string) => boolean;
   /**
    * 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)에 설치자가 채운 Project Context — 배너를 붙여 둔 씨
    * (`readLegacyAntigravityContext`). 없거나 안 채웠으면 `null`. 루트 `CLAUDE.md` 씨 다음 순위다(ADR-103).
@@ -75,6 +77,7 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
   const writer = createOwnedWriter(projectDir, baseline, {
     refreshOnly,
     ...(params.journal === undefined ? {} : { journal: params.journal }),
+    ...(params.owned === undefined ? {} : { owned: params.owned }),
   });
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const template = readRequired(join(harnessRoot, AGENTS_MD_TEMPLATE));

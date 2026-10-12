@@ -78,6 +78,8 @@ function dropChecksums(): void {
   const log = JSON.parse(readFileSync(installLogPath(projectDir), "utf8")) as InstallLog;
   delete log.policyFiles;
   delete log.skillFiles;
+  // 체크섬 이전 판은 쓰기 기록(`records: "writer"`)도 없었다 — 남겨 두면 "기록 있음 · 경로 없음"(첫 접촉, #761)이 된다
+  delete log.records;
   writeFileSync(installLogPath(projectDir), `${JSON.stringify(log, null, 2)}\n`);
 }
 

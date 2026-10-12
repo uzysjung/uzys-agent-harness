@@ -26,9 +26,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentsMdCli } from "../src/agents-md-render.js";
 import { runAgentsMdTransform } from "../src/agents-md-transform.js";
 import { runCodexTransform } from "../src/codex/transform.js";
-import { hashContent, type InstallLogSkillFile, readInstallLog } from "../src/install-log.js";
+import {
+  hashContent,
+  type InstallLog,
+  type InstallLogSkillFile,
+  readInstallLog,
+} from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { runOpencodeTransform } from "../src/opencode/transform.js";
+import { recordedOwner } from "../src/recorded.js";
 import type { InstallSpec } from "../src/types.js";
 import { trackOnlyMcp } from "./helpers/harness-mcp.js";
 
@@ -60,15 +66,29 @@ function edit(abs: string, content: string): void {
   writeFileSync(abs, content);
 }
 
-function codex(baseline: ReadonlyMap<string, string>) {
+function codex(baseline: ReadonlyMap<string, string>, owned?: (rel: string) => boolean) {
   return runCodexTransform({
     harnessRoot: HARNESS_ROOT,
     mcp: HARNESS_MCP,
     projectDir,
     selectedInternalSkills: SKILLS,
     baseline,
+    ...(owned === undefined ? {} : { owned }),
   });
 }
+
+/**
+ * #761 B-1 — v26.132.x 이하 설치본의 기록: codex 가 깔렸다고 말하지만 `externalFiles`(외부 기준선) 필드가 아예 없다.
+ * 기준선이 빈 것은 "하네스가 쓴 적 없다" 가 아니라 "그 판은 적지 않았다" 다 — `recordedOwner` 가 그 경로를 하네스 것으로 읽는다.
+ */
+const LEGACY_LOG: InstallLog = {
+  schemaVersion: 1,
+  installedAt: "2026-07-01T00:00:00.000Z",
+  scope: "project",
+  spec: { tracks: ["tooling"], cli: ["codex"] },
+  templates: {},
+  assets: [],
+};
 
 /** #642 — `AGENTS.md` 는 렌더 주체 하나가 깔린 집합으로 쓴다. */
 function agents(clis: ReadonlyArray<AgentsMdCli>, baseline: ReadonlyMap<string, string>) {
@@ -125,18 +145,29 @@ describe("codex transform — 소유자 판정", () => {
 
     // 기준선을 못 받은 상태로 재실행 = v26.132.x 이하로 깔린 설치의 첫 재설치.
     // 사용자 편집인지 하네스 구버전인지 구분할 근거가 없으므로 잃지 않는 쪽을 택한다.
-    const second = codex(new Map());
+    const second = codex(new Map(), recordedOwner(LEGACY_LOG));
 
-    expect(second.ownership.backedUp).toContain(".codex/hooks/session-start.sh");
+    // #761 B-1 — 기록이 하네스 것이라 말하는 자리라 첫 접촉(displaced)이 아니다: 백업 1회 뒤 하네스 판 · 기준선에 싣는다
+    const hook = ".codex/hooks/session-start.sh";
+    expect(second.ownership.backedUp).toContain(hook);
+    expect(second.ownership.displaced ?? []).toEqual([]);
+    expect(second.ownership.files.map((f) => f.path)).toContain(hook);
+    expect(backupsIn(join(projectDir, ".codex/hooks"))).toHaveLength(1);
   });
 
   it("기준선이 없어도 내용이 같으면 백업하지 않는다 — 잃을 편집분이 없다", () => {
     // 레거시라고 무조건 백업하면 v26.132.x 이하 전 사용자의 첫 재설치에서 산출물 전체가
     // 백업으로 복제된다. '판정 불가 → 보수적 백업'은 **내용이 다를 때** 적용되는 규칙이다.
     codex(new Map());
-    const second = codex(new Map());
+    const second = codex(new Map(), recordedOwner(LEGACY_LOG));
 
     expect(second.ownership.backedUp).toEqual([]);
+    // #761 B-1 — 같은 내용은 하네스 것으로 다시 적는다(기록에서 빠지면 uninstall 이 치우지 못한다). `config.toml` 은 함께 쓰는
+    // 파일이라 기준선 없이는 몫만 쓰고 파일째 기준선에 싣지 않는다(#563 — 이 판정과 무관)
+    expect(second.ownership.displaced ?? []).toEqual([]);
+    const files = second.ownership.files.map((f) => f.path);
+    expect(files).toContain(".codex/hooks/session-start.sh");
+    expect(files).toContain(".agents/skills/compaction-handoff/SKILL.md");
   });
 
   it("사용자가 고친 스킬은 같은 보호를 받는다 · config.toml 은 함께 쓰는 파일이라 고친 내용이 라이브에 남는다(#563)", () => {

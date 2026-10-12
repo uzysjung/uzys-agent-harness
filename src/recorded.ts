@@ -16,7 +16,9 @@
  *
  * **"기록 있음 · sha 없음"(`no-sha`)** = 로그가 그 경로의 소유 CLI 를 말하고(`cli-ownership.ts` 표 — 경로 접두)
  * 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전 판(#557). `claudeManaged`(`update-mode.ts`)를 다른
- * CLI 로 일반화한 것이다(A8). 새 판 로그에서는 생기지 않는다(쓰면 적으므로).
+ * CLI 로 일반화한 것이다(A8). 새 판 로그에서는 생기지 않는다(쓰면 적으므로). 그 경로를 담는 기록(`.claude/` = 스캔
+ * 필드 · 외부 CLI 자리 = `externalFiles` — 단위는 `scanFieldOf`)이 **아예 없을 때만**이다 — 기록이 있는데 경로가 없으면 하네스가
+ * 쓴 적 없는 자리라 `none`(첫 접촉, #761 B3 · B-1 · B-2).
  *
  * 배선: `recorded()` 는 install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts`)와 update 의 대상
  * 선정(`update-mode.ts`)이, `kindOf` 는 uninstall 이, `excludedIds` 는 install · update · uninstall · list 가 부른다.
@@ -26,7 +28,7 @@ import { adapterFor } from "./adapters/index.js";
 import { classifyBaselineTarget } from "./baseline-targets.js";
 import { CLI_OWNERSHIP } from "./cli-ownership.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
-import { type InstallLog, installedClis } from "./install-log.js";
+import { type InstallLog, installedClis, POLICY_DIRS } from "./install-log.js";
 import type { FileKind, Recorded } from "./judge.js";
 import { buildManifest, RETIRED_PATHS } from "./manifest.js";
 import { CLI_BASES, type CliBase, isTrack } from "./types.js";
@@ -65,15 +67,22 @@ export function ownersOf(path: string): CliBase[] {
  * 번들 스킬은 옵션 선택이 기록에 없으므로 전부 대상으로 본다(설계 §1.2).
  */
 export function isRecordedTrackTarget(log: InstallLog, path: string): boolean {
+  return recordedTrackTargets(log)(path);
+}
+
+/**
+ * `isRecordedTrackTarget` 의 술어를 한 번 만든다 — 파일마다 부르는 호출부(update 의 `.claude/` 갱신)가 manifest 를 파일
+ * 수만큼 다시 짓지 않게 `RecordedOptions.isTarget` 으로 넘긴다(#761 N4).
+ */
+export function recordedTrackTargets(log: InstallLog): (path: string) => boolean {
   const spec = {
     tracks: log.spec.tracks.filter(isTrack),
     selectedInternalSkills: INTERNAL_BUNDLED_SKILL_IDS,
   };
   // manifest 는 모든 항목을 `applies` 술어와 함께 낸다 — 기록 트랙에 걸리는 것만 대상이다
-  return buildManifest(spec).some(
-    (e) =>
-      e.applies(spec) && (e.type === "dir" ? path.startsWith(`${e.target}/`) : e.target === path),
-  );
+  const entries = buildManifest(spec).filter((e) => e.applies(spec));
+  return (path) =>
+    entries.some((e) => (e.type === "dir" ? path.startsWith(`${e.target}/`) : e.target === path));
 }
 
 /** 하네스가 배포했다가 은퇴시킨 `.claude/` 정책 파일인가(`RETIRED_PATHS` 는 `.claude/` 상대). */
@@ -143,8 +152,55 @@ export function recorded(
   const owners = ownersOf(path);
   const ownedByLog = owners.some((c) => clis.includes(c));
   const claudePath = path.startsWith(CLAUDE_DIR);
-  if (ownedByLog && isTarget(path) && (!claudePath || legacyOwned())) return { state: "no-sha" };
+  if (ownedByLog && isTarget(path) && (!claudePath || legacyOwned())) {
+    // #761 B3 · B-1 — 기록 필드가 있는데 그 경로가 없으면 하네스가 쓴 적 없는 자리다(체크섬 시대의 스캔은 템플릿에 있는 이름의
+    // 파일을 전부 적었고, `externalFiles` 는 쓰는 순간 적었다). 로그 수준 `no-sha` 는 그 필드가 아예 없는 옛 로그 · 범위 밖
+    // (`.installed-tracks`)에만 둔다
+    if (scanFieldOf(log, path) === "present") return { state: "none" };
+    return { state: "no-sha" };
+  }
   return { state: "none" };
+}
+
+/**
+ * 이 경로를 담는 기록이 로그에 있는가 — 단위는 **그 자리를 한 번에 다 적는 쓰기의 단위**다. 필드가 있다는 것만으로는 부족하다:
+ * 부분 update(`--only`)가 없던 필드를 일부만 담아 만든다(#761 B-2 — `--only rules` 의 헬퍼만 든 `externalFiles` · `--only hooks` 의
+ * `hooks/` 만 든 `policyFiles`). 그 필드를 "다 훑은 기록" 으로 읽으면 나머지 하네스 산출물이 첫 접촉이 된다.
+ *
+ * - `.claude/skills/` — `skillFiles`(스캔 범위 = `collectSkillHashes`, `.claude/skills/` 전부). 일부만 담는 쓰기
+ *   (`recordNewSkillBaseline`)는 필드가 없으면 만들지 않는다
+ * - 외부 CLI 만 쓰는 자리(소유 표에 claude 가 없는 경로 — `.agents/` · `.codex/` · `AGENTS.md` …) — `externalFiles` 에 **그런 자리의
+ *   항목이 하나라도** 있는가(v26.133.0 부터 외부 변환이 렌더 전부를 적는다, B-1). CLI 중립 헬퍼(`.uzys-agent-harness/`)는 claude 도
+ *   소유하므로 세지 않는다
+ * - `.claude/` 정책 파일 — `policyFiles` 에 **같은 `POLICY_DIRS` 디렉터리의 항목이 하나라도** 있는가(update 는 디렉터리 단위로 다시 찍는다)
+ *
+ * 범위 밖이면 `outside`.
+ */
+function scanFieldOf(log: InstallLog, path: string): "present" | "absent" | "outside" {
+  const present = (yes: boolean) => (yes ? "present" : "absent");
+  if (path.startsWith(SKILLS_DIR)) return present(log.skillFiles !== undefined);
+  if (isExternalOnly(path))
+    return present((log.externalFiles ?? []).some((f) => isExternalOnly(f.path)));
+  const policy = POLICY_DIRS.find(
+    ({ dir, ext }) => path.startsWith(`${CLAUDE_DIR}${dir}/`) && path.endsWith(ext),
+  );
+  if (policy === undefined) return "outside";
+  return present((log.policyFiles ?? []).some((f) => f.path.startsWith(`${policy.dir}/`)));
+}
+
+/** 외부 CLI 만 쓰는 자리 — 소유 표에 CLI 가 있고 그중에 claude 가 없다. */
+function isExternalOnly(path: string): boolean {
+  const owners = ownersOf(path);
+  return owners.length > 0 && !owners.includes("claude");
+}
+
+/**
+ * 외부 CLI 렌더(owned-writer)용 — 기준선(`externalFiles`) 밖 경로를 기록이 하네스 것이라 말하는가(`recorded()` 가 `none` 이
+ * 아니다). writer 가 렌더하는 경로는 그 자체로 하네스 대상이다. 외부 기록이 아예 없던 옛 판(≤v26.132)의 산출물이 여기서
+ * `no-sha` 로 읽혀 첫 접촉(displaced)이 되지 않는다 — `.claude/` 쪽 B3 와 같은 판정이다(#761 B-1).
+ */
+export function recordedOwner(log: InstallLog | null): (path: string) => boolean {
+  return (path) => recorded(log, path, { isTarget: () => true }).state !== "none";
 }
 
 /**

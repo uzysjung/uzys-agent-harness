@@ -28,7 +28,7 @@ import {
 } from "./antigravity/transform.js";
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
-import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
+import type { InstallLogPortion, InstallLogRootFile, InstallLogSkillFile } from "./install-log.js";
 import {
   composeMcpJson,
   droppedMcpServers,
@@ -68,8 +68,13 @@ export interface CliTransformResults {
   externalBackups: string[];
   /** v26.134.0 (ADR-049) — 실제로 디스크가 바뀐 파일 수. update 화면의 카운트. */
   externalUpdated: number;
-  /** v26.134.0 (ADR-049) — 백업된 사용자 편집분의 project-relative 경로. */
+  /** v26.134.0 (ADR-049) — 백업된 사용자 편집분의 project-relative 경로. 첫 접촉은 `displaced` 다(#761). */
   externalBackedUp: string[];
+  /**
+   * #761 — 세 변환이 기준선에 없는 자리에서 만난 설치자 파일(첫 접촉, `OwnedWriteResult.displaced` · 경로당 하나).
+   * 호출부(install · update)가 기록의 `rootFiles` 에 합친다. optional = 손으로 만드는 결과 stub 은 "없음".
+   */
+  displaced?: InstallLogRootFile[];
   /**
    * #343 — 다른 도구가 소유한 스킬 슬롯이라 쓰지 않은 자리 (`.agents/skills/<id>` 등).
    * `.claude/` baseline 의 같은 판정과 **한 줄로 합쳐** 화면에 낸다 — 사용자에게는 어느
@@ -155,6 +160,11 @@ export interface CliTransformParams {
    * 산출물을 없어도 만드는 근거다 — 지금은 Antigravity 앵커·룰이 쓴다. 기록이 없으면(옛 설치본) 비워 둔다.
    */
   recordedClis?: ReadonlyArray<CliBase>;
+  /**
+   * #761 B-1 — 기준선(`previousExternal`) 밖이어도 기록이 하네스 것이라 말하는 경로(`recordedOwner(log)`). 외부 기록이 아예
+   * 없던 옛 판의 산출물을 첫 접촉(displaced)으로 적지 않게 한다. 생략 = 기준선만 본다.
+   */
+  owned?: (rel: string) => boolean;
   journal?: WriteJournal & {
     done(cli: CliBase): void;
     /** 홈 Codex 설정에 trust 항목을 넣으려 한 결과 — 하네스가 실제로 넣었으면(`registered`) 중단 기록에도 남긴다. */
@@ -282,8 +292,12 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     shared = {},
     recordedClis = [],
     journal,
+    owned,
   } = params;
-  const journalParam = journal === undefined ? {} : { journal };
+  const writerParams = {
+    ...(journal === undefined ? {} : { journal }),
+    ...(owned === undefined ? {} : { owned }),
+  };
   // ADR-103 · BLOCKER-3 — 옛 Antigravity 앵커에 채운 글은 **변환 전에** 읽어 `AGENTS.md` 쓰기에 씨로 넘긴다(쓰기 한 번 =
   // 기록 sha 가 최종 바이트). 기록에 앵커가 없으면 `null` — 디스크에만 있는 같은 이름의 파일은 설치자 것이다.
   const legacyContext = readLegacyAntigravityContext(projectDir, previousExternal);
@@ -298,6 +312,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalBackups: string[] = [];
   const externalBackedUp: string[] = [];
   const externalForeignOwned: string[] = [];
+  const displaced = new Map<string, InstallLogRootFile>();
   let externalOutside: OutsideLink[] = [];
   let externalUpdated = 0;
   const restoredFiles: string[] = [];
@@ -321,6 +336,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     }
     externalBackups.push(...report.ownership.backupPaths);
     externalBackedUp.push(...report.ownership.backedUp);
+    // 같은 `.agents/skills/` 를 여러 변환이 쓴다 — 앞 변환이 백업한 자리를 뒤 변환은 기준선으로 알아본다. 경로당 첫 판정이 이긴다
+    // (뒤 변환의 "같은 내용 · 백업 없음" 이 앞 변환의 백업 기록을 덮지 않게)
+    for (const f of report.ownership.displaced ?? [])
+      if (!displaced.has(f.path)) displaced.set(f.path, f);
     for (const f of report.ownership.foreignOwned) {
       // 세 transform 이 같은 `.agents/skills/` 를 쓰므로 중복이 실제로 난다.
       if (!externalForeignOwned.includes(f)) externalForeignOwned.push(f);
@@ -343,7 +362,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(codex);
     absorbShared(codex, [codex.configToml]);
@@ -366,7 +385,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(opencode);
     absorbShared(opencode, [opencode.opencodeJson]);
@@ -384,7 +403,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       installedByRecord: recordedClis.includes("antigravity"),
-      ...journalParam,
+      ...writerParams,
     });
     absorb(antigravity);
     journal?.done("antigravity");
@@ -409,7 +428,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       installedByRecord: agentsSet.some((c) => recordedClis.includes(c)),
       shared,
       legacyContext,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(agentsMd);
     absorbShared(agentsMd, [agentsMd.agentsMd.shared]);
@@ -440,6 +459,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalBackups,
     externalUpdated,
     externalBackedUp,
+    displaced: [...displaced.values()],
     externalForeignOwned,
     externalOutside,
     sharedFiles,

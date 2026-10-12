@@ -61,6 +61,8 @@ export interface OpencodeTransformParams {
   shared?: SharedRecord;
   /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
   journal?: WriteJournal;
+  /** #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`OwnedWriterOptions.owned`). */
+  owned?: (rel: string) => boolean;
 }
 
 export interface OpencodeTransformReport {
@@ -94,6 +96,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   const writer = createOwnedWriter(projectDir, baseline, {
     refreshOnly: refreshOnly ?? false,
     ...(params.journal === undefined ? {} : { journal: params.journal }),
+    ...(params.owned === undefined ? {} : { owned: params.owned }),
   });
 
   const opencodeTemplate = readRequired(
