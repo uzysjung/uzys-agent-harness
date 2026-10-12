@@ -38,10 +38,11 @@ skill body, scripts, or references; do not scan every installed skill body merel
 search for hypothetical conflicts. Before modifying or relying on a skill, inspect its
 authority claims and side-effecting execution path. Report uninspected bodies as not
 inspected, never as compliant. The statement ledger is complete for the inspected
-sources and connections only.
+portions of in-scope sources and connections; unread in-scope material remains an
+explicit coverage gap.
 
-Follow a seam into the relevant bodies, scripts, references, and dependents. Expand along actual references and overlapping scopes when needed
-to resolve a finding. Inspect scripts as text; execution needs its own purpose and
+Expand along actual references into relevant dependents and overlapping scopes when
+needed to resolve a finding. Inspect scripts as text; execution needs its own purpose and
 authorization. Bound conclusions to inspected material.
 
 Use accessible corrections, accepted decisions, implementation, and checks. Code

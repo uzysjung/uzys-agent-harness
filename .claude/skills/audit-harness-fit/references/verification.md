@@ -151,8 +151,9 @@ that does not depend on the unmet gate. This guidance adds no universal review g
 When the route question is which model or effort to use, an entry in the project's
 model-evidence ledger applies only when its task, environment, and model/effort are
 comparable (check its limits and staleness). Otherwise propose a bounded comparison
-under that ledger's entry conditions rather than deciding from model names, recommend
-among configurations that meet the quality bar, and record the result there. This is on request only — it adds no recurring comparison.
+under that ledger's entry conditions rather than deciding from model names. Recommend
+among configurations with evidence of meeting the quality bar; conduct comparisons
+only under valid evaluation authorization and record observed results there. This is on request only — it adds no recurring comparison.
 
 ## Demonstrate improvement honestly
 
