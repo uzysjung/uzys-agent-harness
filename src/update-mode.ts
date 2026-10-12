@@ -111,7 +111,7 @@ import {
   type OutsideLink,
 } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
-import { excludedIds, recorded, recordedTrackTargets } from "./recorded.js";
+import { excludedIds, recorded, recordedOwner, recordedTrackTargets } from "./recorded.js";
 import { claudeRecorded, claudeTargets, memoTargets } from "./track-heal.js";
 import { anyTrack } from "./track-match.js";
 import {
@@ -772,7 +772,13 @@ export function runUpdateMode(
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
-    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart), harnessMcp)
+    ? refreshExternalCli(
+        projectDir,
+        harnessRoot,
+        legacyDroppedKeys(logAtStart),
+        harnessMcp,
+        recordedOwner(logAtStart),
+      )
     : {
         externalUpdated: 0,
         externalBackedUp: [],
@@ -1940,6 +1946,11 @@ function refreshExternalCli(
   droppedKeys: ReadonlyArray<string>,
   /** #709 — `.mcp.json` 에 쓴 것과 같은 하네스 MCP 서버. */
   harnessMcp: McpJson,
+  /**
+   * #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`recordedOwner`). **실행 시작 때 읽은 기록**으로 만든다 — 앞 단계
+   * (`refreshNeutralHelpers`)가 헬퍼 항목만 담은 `externalFiles` 를 새로 적으면 "외부 기록이 아예 없던 옛 판" 을 알아볼 수 없다.
+   */
+  owned: (rel: string) => boolean,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -2007,6 +2018,8 @@ function refreshExternalCli(
     // ADR-099 R2 (#584) — 기록이 깔린 CLI 로 말하면 그 CLI 의 앵커·룰을 없어도 만든다(디스크의 앵커 존재가 아니라 기록)
     // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(빈 집합).
     recordedClis: log === null ? [] : installedClis(log),
+    // #761 B-1 — 외부 기록이 아예 없던 옛 판의 산출물은 첫 접촉이 아니라 체크섬 없는 하네스 파일이다(install 과 같은 판정)
+    owned,
   });
 
   // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금

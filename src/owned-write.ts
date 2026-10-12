@@ -100,6 +100,7 @@ export interface OwnedWriter {
    * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
    * | 기록 없음 · 다르다 | 첫 접촉(설치자 파일) | `.backup-<stamp>` 남기고 최신판을 자리에 · `displaced`(notes = 백업) |
    * | 기록 없음 · 같다 | 첫 접촉 · 이미 하네스 판 | 아무것도 안 한다 · `displaced`(백업 없음) — 하네스 것으로 적지 않는다 |
+   * | 기준선 없음 · `owned` | 체크섬 없는 하네스 파일(옛 판) | 같으면 기준선만 · 다르면 `.backup-<stamp>` 뒤 최신판(`backedUp`) |
    *
    * @returns 이 경로를 이번에 담당했는가. `false` 는 **안 썼다**는 뜻이고 경우는 둘이다 —
    *   refresh 모드에서 없는 파일을 건너뛴 경우, 그리고 #343 이후 **남의 도구가 소유한 슬롯**인 경우.
@@ -151,6 +152,12 @@ export interface OwnedWriterOptions {
   refreshOnly?: boolean;
   /** #600 — 쓰는 즉시 받아 적을 곳(install). update 는 넘기지 않는다. */
   journal?: WriteJournal;
+  /**
+   * #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`recordedOwner(log)` — 외부 기록이 아예 없던 옛 판의 산출물은
+   * `no-sha`). 그 자리는 첫 접촉이 아니라 체크섬 없는 하네스 파일이다: 같으면 기준선에 싣고, 다르면 1회 백업 뒤 `backedUp`.
+   * 생략 = 기준선만 본다(로그 없는 엔진 호출).
+   */
+  owned?: (rel: string) => boolean;
 }
 
 /**
@@ -168,7 +175,7 @@ export function createOwnedWriter(
   baseline: ReadonlyMap<string, string>,
   options: OwnedWriterOptions = {},
 ): OwnedWriter {
-  const { now = new Date(), refreshOnly = false, journal } = options;
+  const { now = new Date(), refreshOnly = false, journal, owned = () => false } = options;
   const written = new Map<string, string>();
   const backedUp: string[] = [];
   const backupPaths: string[] = [];
@@ -209,9 +216,9 @@ export function createOwnedWriter(
         if (refreshOnly && recordedPath) restored.push(rel);
       } else {
         const current = readFileSync(absPath, "utf8");
-        // #761 — 기준선에 없는 자리 = 첫 접촉(설치자 파일). 고친 것(기준선과 다름)과 가른다 — 화면이 "edited" 라 부르지 않고
-        // 하네스가 떠날 때 되돌릴 근거(`displaced`)를 남긴다.
-        const firstContact = !baseline.has(rel);
+        // #761 — 기록에 없는 자리 = 첫 접촉(설치자 파일). 고친 것(기준선과 다름)과 가른다 — 화면이 "edited" 라 부르지 않고
+        // 하네스가 떠날 때 되돌릴 근거(`displaced`)를 남긴다. 기준선 밖이어도 기록이 하네스 것이라 말하면(B-1 · 옛 판) 아니다.
+        const firstContact = !baseline.has(rel) && !owned(rel);
         if (current === content && firstContact) {
           // Q3 — 같은 내용이면 설치자 것을 그대로 둔다. 기준선에 싣지 않는다(하네스 것으로 삼지 않는다). 그래도 이 경로를
           // **담당했다**(`true`) — `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).

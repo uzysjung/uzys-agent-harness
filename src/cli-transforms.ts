@@ -160,6 +160,11 @@ export interface CliTransformParams {
    * 산출물을 없어도 만드는 근거다 — 지금은 Antigravity 앵커·룰이 쓴다. 기록이 없으면(옛 설치본) 비워 둔다.
    */
   recordedClis?: ReadonlyArray<CliBase>;
+  /**
+   * #761 B-1 — 기준선(`previousExternal`) 밖이어도 기록이 하네스 것이라 말하는 경로(`recordedOwner(log)`). 외부 기록이 아예
+   * 없던 옛 판의 산출물을 첫 접촉(displaced)으로 적지 않게 한다. 생략 = 기준선만 본다.
+   */
+  owned?: (rel: string) => boolean;
   journal?: WriteJournal & {
     done(cli: CliBase): void;
     /** 홈 Codex 설정에 trust 항목을 넣으려 한 결과 — 하네스가 실제로 넣었으면(`registered`) 중단 기록에도 남긴다. */
@@ -287,8 +292,12 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     shared = {},
     recordedClis = [],
     journal,
+    owned,
   } = params;
-  const journalParam = journal === undefined ? {} : { journal };
+  const writerParams = {
+    ...(journal === undefined ? {} : { journal }),
+    ...(owned === undefined ? {} : { owned }),
+  };
   // ADR-103 · BLOCKER-3 — 옛 Antigravity 앵커에 채운 글은 **변환 전에** 읽어 `AGENTS.md` 쓰기에 씨로 넘긴다(쓰기 한 번 =
   // 기록 sha 가 최종 바이트). 기록에 앵커가 없으면 `null` — 디스크에만 있는 같은 이름의 파일은 설치자 것이다.
   const legacyContext = readLegacyAntigravityContext(projectDir, previousExternal);
@@ -353,7 +362,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(codex);
     absorbShared(codex, [codex.configToml]);
@@ -376,7 +385,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(opencode);
     absorbShared(opencode, [opencode.opencodeJson]);
@@ -394,7 +403,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       installedByRecord: recordedClis.includes("antigravity"),
-      ...journalParam,
+      ...writerParams,
     });
     absorb(antigravity);
     journal?.done("antigravity");
@@ -419,7 +428,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       installedByRecord: agentsSet.some((c) => recordedClis.includes(c)),
       shared,
       legacyContext,
-      ...journalParam,
+      ...writerParams,
     });
     absorb(agentsMd);
     absorbShared(agentsMd, [agentsMd.agentsMd.shared]);

@@ -86,7 +86,7 @@ import {
   outsideProjectTarget,
 } from "./outside-project.js";
 import { upsertHarnessImport } from "./project-claude-merge.js";
-import { excludedIds } from "./recorded.js";
+import { excludedIds, recordedOwner } from "./recorded.js";
 import type { SharedWriteResult } from "./shared-write.js";
 import { detectInstallState, LEGACY_ANCHOR_FILE } from "./state.js";
 import {
@@ -667,6 +667,8 @@ function runInstallStages(
     previousExternal: previousLog?.externalFiles ?? [],
     // #642 (ADR-096 D2) — CLI 집합은 누적이다: 기록된 CLI 도 `AGENTS.md` 집합에 들어간다(`--reinstall` 도 누적)
     recordedClis: previousLog === null ? [] : installedClis(previousLog),
+    // #761 B-1 — 외부 기록이 아예 없던 옛 판의 산출물은 첫 접촉이 아니라 체크섬 없는 하네스 파일이다(`.claude/` B3 와 같은 판정)
+    owned: recordedOwner(previousLog),
     // ADR-097 결정 2 — 범위 조건 없이 `--with-codex-trust` 하나로 정한다.
     codexTrust: spec.options.withCodexTrust,
     // #551 R2 — `.codex/config.toml` · `opencode.json` · 첫 접촉 `AGENTS.md` 의 몫도 `.mcp.json` 과 같은 왕복을

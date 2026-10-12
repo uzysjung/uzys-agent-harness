@@ -16,8 +16,9 @@
  *
  * **"기록 있음 · sha 없음"(`no-sha`)** = 로그가 그 경로의 소유 CLI 를 말하고(`cli-ownership.ts` 표 — 경로 접두)
  * 위 필터는 통과하는데 파일별 sha 만 없는 상태 — 체크섬 도입 전 판(#557). `claudeManaged`(`update-mode.ts`)를 다른
- * CLI 로 일반화한 것이다(A8). 새 판 로그에서는 생기지 않는다(쓰면 적으므로). `.claude/` 경로는 그 경로를 담는 스캔 필드가
- * **아예 없을 때만**이다 — 필드가 있는데 경로가 없으면 하네스가 쓴 적 없는 자리라 `none`(첫 접촉, #761 B3).
+ * CLI 로 일반화한 것이다(A8). 새 판 로그에서는 생기지 않는다(쓰면 적으므로). 그 경로를 담는 기록 필드(`.claude/` = 스캔
+ * 필드 · 외부 CLI 자리 = `externalFiles`)가 **아예 없을 때만**이다 — 필드가 있는데 경로가 없으면 하네스가 쓴 적 없는 자리라
+ * `none`(첫 접촉, #761 B3 · B-1).
  *
  * 배선: `recorded()` 는 install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts`)와 update 의 대상
  * 선정(`update-mode.ts`)이, `kindOf` 는 uninstall 이, `excludedIds` 는 install · update · uninstall · list 가 부른다.
@@ -152,8 +153,9 @@ export function recorded(
   const ownedByLog = owners.some((c) => clis.includes(c));
   const claudePath = path.startsWith(CLAUDE_DIR);
   if (ownedByLog && isTarget(path) && (!claudePath || legacyOwned())) {
-    // #761 B3 — 스캔 필드가 있는데 그 경로가 없으면 하네스가 쓴 적 없는 자리다(체크섬 시대의 스캔은 템플릿에 있는 이름의
-    // 파일을 전부 적었다). 로그 수준 `no-sha` 는 그 필드가 아예 없는 옛 로그 · 스캔 범위 밖(`.installed-tracks`)에만 둔다
+    // #761 B3 · B-1 — 기록 필드가 있는데 그 경로가 없으면 하네스가 쓴 적 없는 자리다(체크섬 시대의 스캔은 템플릿에 있는 이름의
+    // 파일을 전부 적었고, `externalFiles` 는 쓰는 순간 적었다). 로그 수준 `no-sha` 는 그 필드가 아예 없는 옛 로그 · 범위 밖
+    // (`.installed-tracks`)에만 둔다
     if (scanFieldOf(log, path) === "present") return { state: "none" };
     return { state: "no-sha" };
   }
@@ -161,16 +163,29 @@ export function recorded(
 }
 
 /**
- * 이 `.claude/` 경로를 담는 옛 스캔 필드(`skillFiles` · `policyFiles`)가 로그에 있는가. 스캔 범위 = `collectSkillHashes`
- * (`.claude/skills/` 전부) · `collectPolicyHashes`(`POLICY_DIRS` 의 디렉터리 · 확장자). 범위 밖이면 `outside`.
+ * 이 경로를 담는 기록 필드가 로그에 있는가. `.claude/` 는 옛 스캔 필드(`skillFiles` · `policyFiles` — 스캔 범위 =
+ * `collectSkillHashes`(`.claude/skills/` 전부) · `collectPolicyHashes`(`POLICY_DIRS` 의 디렉터리 · 확장자)), 외부 CLI 만 쓰는
+ * 자리(소유 표에 claude 가 없는 경로 — `.agents/` · `.codex/` · `AGENTS.md` …)는 `externalFiles`(v26.133.0 부터, B-1). 범위 밖이면 `outside`.
  */
 function scanFieldOf(log: InstallLog, path: string): "present" | "absent" | "outside" {
   if (path.startsWith(SKILLS_DIR)) return log.skillFiles === undefined ? "absent" : "present";
+  const owners = ownersOf(path);
+  if (owners.length > 0 && !owners.includes("claude"))
+    return log.externalFiles === undefined ? "absent" : "present";
   const inPolicy = POLICY_DIRS.some(
     ({ dir, ext }) => path.startsWith(`${CLAUDE_DIR}${dir}/`) && path.endsWith(ext),
   );
   if (!inPolicy) return "outside";
   return log.policyFiles === undefined ? "absent" : "present";
+}
+
+/**
+ * 외부 CLI 렌더(owned-writer)용 — 기준선(`externalFiles`) 밖 경로를 기록이 하네스 것이라 말하는가(`recorded()` 가 `none` 이
+ * 아니다). writer 가 렌더하는 경로는 그 자체로 하네스 대상이다. 외부 기록이 아예 없던 옛 판(≤v26.132)의 산출물이 여기서
+ * `no-sha` 로 읽혀 첫 접촉(displaced)이 되지 않는다 — `.claude/` 쪽 B3 와 같은 판정이다(#761 B-1).
+ */
+export function recordedOwner(log: InstallLog | null): (path: string) => boolean {
+  return (path) => recorded(log, path, { isTarget: () => true }).state !== "none";
 }
 
 /**

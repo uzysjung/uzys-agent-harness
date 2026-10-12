@@ -49,6 +49,8 @@ export interface AntigravityTransformParams {
   refreshOnly?: boolean;
   /** #600 — 쓰는 즉시 받아 적을 곳(install 의 중단 기록). */
   journal?: WriteJournal;
+  /** #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`OwnedWriterOptions.owned`). */
+  owned?: (rel: string) => boolean;
   /**
    * ADR-099 R2 (#584) — 설치 기록(`installedClis`)이 Antigravity 를 깔린 CLI 로 말한다. refresh 모드에서 룰을
    * **없어도 만드는** 근거다 — 디스크 존재가 아니라 기록이 정한다.
@@ -96,6 +98,7 @@ export function runAntigravityTransform(
   const writer = createOwnedWriter(projectDir, baseline, {
     refreshOnly: refreshOnly ?? false,
     ...(params.journal === undefined ? {} : { journal: params.journal }),
+    ...(params.owned === undefined ? {} : { owned: params.owned }),
   });
 
   // 0. #532 (Epic #527 S3) — 새 릴리즈가 더한 번들 스킬(또는 설치자가 지운 자리)을 이 CLI 의
