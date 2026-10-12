@@ -406,6 +406,7 @@ export const jsonKeys: PortionAdapter<unknown> = {
       text: changed ? serialize(root) : existing,
       changed,
       removed: plan.remove,
+      removedEdited: plan.removedEdited,
       kept: plan.kept,
       portions: plan.portions,
       empty: Object.keys(root).length === 0,
