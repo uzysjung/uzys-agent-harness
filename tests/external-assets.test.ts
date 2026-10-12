@@ -122,8 +122,12 @@ describe("external-assets EXTERNAL_ASSETS catalog", () => {
     expect(ids).toContain("objective-brief");
     expect(ids).toContain("audit-harness-fit");
     expect(ids).toContain("security-guidance");
-    // context7 플러그인 = 미등록 (mcp.json/codex config 템플릿이 이미 기본 wiring — 중복 등록 방지).
-    expect(ids).not.toContain("context7");
+    // context7 플러그인 = 미등록 (트랙 표가 이미 기본 wiring — 중복 등록 방지, ADR-039). #751 의 `context7` 항목은
+    // 그 같은 트랙 표 행을 고르는 internal 항목이라 서버를 한 벌 더 깔지 않는다 — 플러그인 경로가 아님만 지킨다.
+    expect(EXTERNAL_ASSETS.find((a) => a.id === "context7")?.method).toEqual({
+      kind: "internal",
+      key: "context7",
+    });
     // v26.108.0 (ADR-037) — ci-scaffold (opt-in internal, .github/workflows fill-in 템플릿).
     expect(ids).toContain("ci-scaffold");
     // v26.92.0 — frontend-design (Anthropic official, has-dev-track 기본추천).

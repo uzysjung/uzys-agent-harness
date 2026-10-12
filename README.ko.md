@@ -173,7 +173,7 @@ your-project/
 | `project-management` | PM 업무 | 없음 |
 | `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
-MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서)가 들어가고, 웹 트랙(`csr-*`, `ssr-*`, `full`)에는 Google 사용 통계를 끈 `chrome-devtools`가 더해진다. `csr-*`와 `ssr-htmx` 트랙에는 `railway-mcp-server`(Railway 원격 서버 — 처음 쓸 때 로그인한다)가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다. Vercel·GitHub 공식 원격 서버(`vercel`, `github-mcp`)는 미리 체크되지 않는다 — `--with`로 더한다.
+MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서)가 들어가고, 웹 트랙(`csr-*`, `ssr-*`, `full`)에는 Google 사용 통계를 끈 `chrome-devtools`가 더해진다. `csr-*`와 `ssr-htmx` 트랙에는 `railway-mcp-server`(Railway 원격 서버 — 처음 쓸 때 로그인한다)가, `csr-supabase`에는 `supabase`가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다. Vercel·GitHub 공식 원격 서버(`vercel`, `github-mcp`)는 미리 체크되지 않는다 — `--with`로 더한다. 서버마다 위저드 3단계에 한 줄씩 보이고, 체크를 풀거나 `--without <이름>`(예: `--without context7`)을 주면 `.mcp.json`·Codex·OpenCode 에서 빠진다.
 
 미리 체크되지는 않지만 3단계나 `--with <id>`로 더할 수 있는 것도 있다.
 

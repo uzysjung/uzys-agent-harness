@@ -64,6 +64,9 @@ const REPO_OVERRIDE: Record<string, string> = {
   "chrome-devtools": "ChromeDevTools/chrome-devtools-mcp",
   "github-mcp": "github/github-mcp-server",
   vercel: "vercel/vercel",
+  // #751 — 남은 기본 서버 둘
+  context7: "upstash/context7",
+  supabase: "supabase/mcp",
 };
 
 /** "https://github.com/owner/repo" 또는 "owner/repo[/...]" → "owner/repo". 실패 시 null. */

@@ -83,6 +83,8 @@ export const SOURCE_LABELS = {
   Donchitos: "Donchitos",
   // #722 — Chrome DevTools MCP (ChromeDevTools/chrome-devtools-mcp 53k★ 실측 2026-10-11).
   ChromeDevTools: "ChromeDevTools",
+  // #751 — Context7 MCP (upstash/context7 62.9k★ 실측 2026-10-12).
+  upstash: "upstash",
   // #726 — HyperFrames (Anthropic 공식 마켓플레이스 등재, 내용 저자 HeyGen).
   "heygen-com": "heygen-com",
   uzys: "this project",

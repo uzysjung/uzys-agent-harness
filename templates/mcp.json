@@ -1,10 +1,4 @@
 {
-  "_comment": "프로젝트 .mcp.json 의 모든 트랙 기본 서버. 트랙별 · 고를 수 있는 서버는 track-mcp-map.tsv 가 더한다. 글로벌 ~/.claude/는 절대 건드리지 않음.",
-  "mcpServers": {
-    "context7": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"]
-    }
-  }
+  "_comment": "프로젝트 .mcp.json 의 바탕. 하네스 서버는 전부 track-mcp-map.tsv 한 곳이 정한다(모든 트랙 기본 = 패턴 `*`, #751) — 그래야 위저드 · --without <id> 로 고르고 뺄 수 있다. 글로벌 ~/.claude/는 절대 건드리지 않음.",
+  "mcpServers": {}
 }

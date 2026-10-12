@@ -35,7 +35,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 
 ## 3. 외부 자산 — 설치 방식 4종
 
-자산별 목록은 여기 두지 않는다(52종 전체 = [COMPATIBILITY.md](COMPATIBILITY.md), 트랙별 묶음 =
+자산별 목록은 여기 두지 않는다(58종 전체 = [COMPATIBILITY.md](COMPATIBILITY.md), 트랙별 묶음 =
 [TRACKS.md](TRACKS.md)). 여기 남기는 것은 **각 방식이 실제로 어떤 명령을 실행하는가**다 — "내 머신에서
 무슨 일이 일어나는가"에 대한 답이다. 배선 SSOT = `src/external-installer.ts`.
 
@@ -63,16 +63,16 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 
 | MCP | 조건 | 정의 |
 |---|---|---|
-| **context7** | 항상 | `npx -y @upstash/context7-mcp@latest` |
+| **context7** | 모든 트랙(빼기: `--without context7` · 위저드 체크 해제) | `npx -y @upstash/context7-mcp@latest` |
 | **chrome-devtools** | csr-* · ssr-* · full (선택: `--with chrome-devtools` — 어느 트랙이든) | `npx -y chrome-devtools-mcp@latest --no-usage-statistics` |
 | **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | 원격 `https://mcp.railway.com` (첫 사용 때 OAuth 로그인) |
-| **supabase** | csr-supabase · full | `npx -y @supabase/mcp-server` |
+| **supabase** | csr-supabase · full (선택: `--with supabase` — 어느 트랙이든) | `npx -y @supabase/mcp-server` |
 | **vercel** | 선택만(`--with vercel`) | 원격 `https://mcp.vercel.com` (첫 사용 때 OAuth 로그인) |
 | **github-mcp** | 선택만(`--with github-mcp`) | 원격 `https://api.githubcopilot.com/mcp/` — 환경변수 `GITHUB_PAT` 의 토큰을 `Authorization: Bearer` 로(파일에는 변수 이름만) |
 
-항상 설치되는 것의 SSOT 는 `templates/mcp.json` 이고, 트랙 조건부·선택 서버는 tsv 에 한 줄을 추가해 확장한다(조립
-코드는 손대지 않는다). 패턴이 `-` 인 행은 어느 트랙의 기본도 아니다. 고를 수 있는 서버(위 "선택")는 같은 이름의 카탈로그
-`internal` 자산이 있어 trust tier 를 갖고, 나머지(context7 · supabase)는 `.mcp.json` 항목이라 tier 가 없다. 원격 서버는
+하네스 서버의 SSOT 는 tsv 하나다 — 서버를 늘릴 때 한 줄을 추가한다(조립 코드는 손대지 않는다). 패턴 `*` 은 모든 트랙의
+기본이고(#751 — context7. `templates/mcp.json` 은 빈 바탕), `-` 인 행은 어느 트랙의 기본도 아니다. 모든 행에 같은 이름의 카탈로그
+`internal` 자산이 있어 trust tier 를 갖고, 위저드 3단계에 한 줄씩 보이며 `--with`/`--without <id>` 로 고르고 뺀다. 원격 서버는
 `.mcp.json`(`type: "http"`) · Codex(`url` · `bearer_token_env_var`) · OpenCode(`type: "remote"`) 가 각자 형식으로 받고,
 Antigravity 변환에는 MCP 가 없다. 옛 `github`(`@modelcontextprotocol/server-github`)는 은퇴했다 — update 가 하네스가 쓴 그대로인
 항목을 걷고 화면이 말한다(ADR-106).
