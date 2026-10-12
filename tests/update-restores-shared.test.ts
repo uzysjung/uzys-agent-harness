@@ -28,7 +28,7 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { cleanStaleHookRefs } from "../src/hook-ref.js";
+import { findStaleHookRefs } from "../src/hook-ref.js";
 import { type InstallLog, installLogPath, readInstallLog } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
@@ -208,45 +208,58 @@ describe("#675 — 훅 스크립트를 지운 뒤 update 1회가 스크립트와
     for (const p of paths) expect(report.updateMode?.installedNew).not.toContain(p);
   });
 
-  it("정리기는 `spare` 가 고른 참조(기록된 하네스 훅)를 판정하지 않는다 — 그 배선은 writer 가 소유한다", () => {
+  it("탐지기는 `spare` 가 고른 참조(기록된 하네스 훅)를 판정하지 않고 · 파일을 쓰지 않는다", () => {
     const claudeDir = join(projectDir, ".claude");
     const settingsPath = join(claudeDir, "settings.json");
     mkdirSync(claudeDir, { recursive: true });
     const ref = (script: string) => ({
       hooks: [{ type: "command", command: `bash $CLAUDE_PROJECT_DIR/.claude/hooks/${script}` }],
     });
-    writeFileSync(
-      settingsPath,
-      JSON.stringify({
-        hooks: { SessionStart: [ref("harness.sh")], Stop: [ref("generated-x.sh")] },
-      }),
-    );
+    const text = JSON.stringify({
+      hooks: { SessionStart: [ref("harness.sh")], Stop: [ref("generated-x.sh")] },
+    });
+    writeFileSync(settingsPath, text);
 
-    const removed = cleanStaleHookRefs(
-      settingsPath,
-      claudeDir,
-      (rel) => rel === "hooks/harness.sh",
-    );
+    const stale = findStaleHookRefs(settingsPath, claudeDir, (rel) => rel === "hooks/harness.sh");
 
-    expect(removed).toEqual(["hooks/generated-x.sh"]);
-    const after = JSON.parse(readFileSync(settingsPath, "utf8")) as Settings;
-    expect(after.hooks?.SessionStart?.[0]?.hooks[0]?.command).toContain("harness.sh");
-    expect(after.hooks?.Stop ?? []).toEqual([]);
+    expect(stale).toEqual(["hooks/generated-x.sh"]);
+    expect(readFileSync(settingsPath, "utf8")).toBe(text);
   });
 
-  it("기록에 없는 스크립트를 부르는 죽은 참조는 전처럼 걷는다 (#536 · #603 — update 의 치유)", () => {
+  // #746 리뷰 BLOCKER-1 — update 가 폴더 사본을 안 뜨므로 기록 밖 항목을 지우면 원본이 어디에도 안 남는다.
+  // install(#603)과 같이 지우지 않고 알리기만 한다. 같은 실행에서 기록된 하네스 훅은 전처럼 되살리고 알리지 않는다(대조).
+  it("기록에 없는 스크립트를 부르는 설치자 훅은 바이트 그대로 남고 화면이 한 줄로 알린다 — 하네스 훅은 전처럼 되살린다", () => {
     install();
-    const s = settings();
-    s.hooks = {
-      ...s.hooks,
-      Stop: [{ hooks: [{ command: "bash $CLAUDE_PROJECT_DIR/.claude/hooks/generated-x.sh" }] }],
+    const scripts = hookScripts();
+    const wired = wiredScripts();
+    expect(scripts.length).toBeGreaterThan(0); // 전제 — 대조할 하네스 훅이 있다
+    const mine = {
+      matcher: "Bash",
+      hooks: [
+        {
+          type: "command",
+          command:
+            'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/team-generated-guard.sh" --strict --team-flag',
+          timeout: 7,
+        },
+      ],
     };
+    const s = settings();
+    s.hooks = { ...s.hooks, Stop: [mine] };
     put(".claude/settings.json", JSON.stringify(s, null, 2));
+    for (const f of scripts) unlinkSync(join(projectDir, ".claude/hooks", f));
 
-    const { report } = update();
+    const { report, screen } = update();
 
-    expect(report.updateMode?.staleHookRefs).toEqual(["hooks/generated-x.sh"]);
-    expect(settings().hooks?.Stop ?? []).toEqual([]);
+    expect(JSON.stringify(settings().hooks?.Stop)).toBe(JSON.stringify([mine]));
+    expect(report.updateMode?.staleHookRefs).toEqual(["hooks/team-generated-guard.sh"]);
+    expect(screen).toMatch(
+      /settings\.json stale hook refs\s+1 left \(yours — not in the install record; script missing: hooks\/team-generated-guard\.sh\)/,
+    );
+    expect(screen).not.toMatch(/stale hook refs.*removed/);
+    // 대조 — 기록된 하네스 훅: 스크립트가 돌아오고 배선이 그대로이며 알림 목록에 안 든다
+    expect(hookScripts()).toEqual(scripts);
+    expect(wiredScripts()).toEqual([...wired, "team-generated-guard.sh"].sort());
   });
 });
 

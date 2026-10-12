@@ -119,9 +119,9 @@ no_backup_files "install --cli claude"
 echo "✓ ① 본문 = 포팅판 최신 · 링크 유지 · 'linked · updated via' 행 · 기록 sha 갱신 · 백업 0"
 
 # --- ② update ---
-# #556 — update 는 `.claude/` 를 하나도 안 고쳤으면 시작 때 만든 사본을 지운다. ④ 의 "사본이 안
-# 늘었다"가 탐지기 고장과 구분되려면 여기서 사본 1개가 실제로 잡혀야 하므로, 하네스 룰 하나를
-# 지워 이번 update 가 `.claude/` 를 확실히 고치게(복구) 만든다.
+# #746 — update 는 `.claude/` 를 고친 실행이어도 폴더 사본을 뜨지 않는다. "고칠 것이 없어 사본이
+# 0" 과 구분되도록 하네스 룰 하나를 지워 이번 update 가 `.claude/` 를 확실히 고치게(복구) 만들고,
+# 그래도 `.claude.backup-*` 이 0 인지 본다(아래 no_backup_files).
 RULE="${PROJ}/.claude/rules/git-policy.md"
 [[ -f "${RULE}" ]] || { echo "FAIL: 전제 — install 이 ${RULE} 를 안 깔았다"; exit 1; }
 rm -f "${RULE}"

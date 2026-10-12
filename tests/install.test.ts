@@ -1032,20 +1032,14 @@ describe("executeSpec", () => {
   });
 
   /**
-   * M-1 (표면 대칭) — update 분기도 **어느 파일이 지워졌는지** 보여준다.
-   *
-   * fresh 분기는 이미 경로를 나열한다(위 `"fresh 분기가 …"`). 그 테스트가 경로 나열을 요구하며
-   * 든 논거가 *"건수만으로는 사용자가 자기 훅이 사라진 이유를 추적할 방법이 없다"* 인데,
-   * **그 논거는 update 에 더 강하게 적용된다** — install 은 `settings.json` 을 템플릿으로
-   * 덮어써서 치유기가 보는 것이 우리 템플릿 내용뿐이지만, update 는 사용자가 손댄
-   * `settings.json` 을 **제자리에서** 고치는 유일한 경로다. 즉 사용자 자신이 적어 넣은 훅이
-   * 실제로 사라질 수 있는 쪽은 update 다.
+   * M-1 (표면 대칭) — update 분기도 **어느 참조인지** 보여준다. #746 리뷰 BLOCKER-1 뒤로 update 는 기록 밖 참조를
+   * 지우지 않고 남기므로(설치자 몫), 화면은 실제로 한 일("left")과 경로를 말한다 — "removed" 라 적으면 거짓이다.
    *
    * `feedback_surface_symmetry`: 한 축이 계열 일부에만 있으면 **빠진 쪽이 입증 책임**을 진다.
    *
    * 참조를 **2건** 넣는다 — 1건이면 `slice(0, 1)` 같은 절단을 통과시킨다.
    */
-  it("update 분기도 제거된 stale hook ref 를 경로까지 노출한다 (fresh 와 같은 정보량)", () => {
+  it("update 분기는 남긴 stale hook ref 를 경로까지 노출한다 — 지웠다고 말하지 않는다", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const runPipeline = pipelineFor({
@@ -1094,7 +1088,8 @@ describe("executeSpec", () => {
       .map((args) => String(args[0]))
       .find((l) => l.includes("stale hook refs"));
     expect(row, "update 분기에 stale hook ref 행이 없다").toBeDefined();
-    expect(row).toContain("2 removed");
+    expect(row).toContain("2 left (yours");
+    expect(row).not.toContain("removed");
     // 경로 나열 — 건수만 찍으면 사용자는 자기 훅이 왜 사라졌는지 추적할 수 없다.
     expect(
       row,

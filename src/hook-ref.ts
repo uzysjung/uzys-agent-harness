@@ -1,10 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
  * 훅 command 가 **이 프로젝트의** `.claude/` 아래 스크립트를 부르는가 — 판정 한 곳 (#551).
  *
- * `update-mode.ts` 의 죽은 참조 치유기(`keepHookRef`)와 함께 쓰는 파일 어댑터(`adapters/json-keys.ts` 의
+ * 죽은 참조 탐지기(`keepHookRef` · `findStaleHookRefs`)와 함께 쓰는 파일 어댑터(`adapters/json-keys.ts` 의
  * settings.json 훅 핸들러 식별)가 같은 규칙을 써야 한다 — 둘이 갈라지면 한쪽이 홈 `~/.claude/` 의 설치자
  * 훅을 하네스 것으로 읽는다(H-2 · #551 리뷰 B1). 그래서 치유기 안에 살던 함수를 그대로 옮겨 왔다.
  */
@@ -63,7 +63,7 @@ export function projectAnchoredRef(command: string, claudeDir?: string): string 
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * settings.json 죽은 훅 참조 치유기(update #536) · 탐지기(install #603 — 알리기만).
+ * settings.json 죽은 훅 참조 탐지기 — install(#603) · update(#746 리뷰 BLOCKER-1) 모두 **알리기만** 한다.
  * update-mode.ts 에서 옮겼다: installer 가 import 하려는데 installer←update-mode 의존이
  * 이미 있어 반대 방향 import 는 순환이 된다. 판정(SSOT)도 여기(projectAnchoredRef)다.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -94,73 +94,36 @@ export function keepHookRef(hook: HookCommand, claudeDir: string, removed: strin
   return exists;
 }
 
-interface HookScan {
-  settings: SettingsJson;
-  cleanedHooks: Record<string, HookEntry[]>;
-  removed: string[];
-}
-
-function scanStaleHookRefs(
-  settingsPath: string,
-  claudeDir: string,
-  spare?: (relPath: string) => boolean,
-): HookScan | null {
-  let settings: SettingsJson;
-  try {
-    settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
-  } catch {
-    return null;
-  }
-  const hookEvents = settings.hooks ?? {};
-  const removed: string[] = [];
-  const cleanedHooks: Record<string, HookEntry[]> = {};
-
-  for (const [eventName, eventEntries] of Object.entries(hookEvents)) {
-    if (!Array.isArray(eventEntries)) {
-      cleanedHooks[eventName] = eventEntries; // non-array event — 그대로 보존
-      continue;
-    }
-    cleanedHooks[eventName] = eventEntries
-      .filter((entry) => Array.isArray(entry?.hooks))
-      .map((entry) => ({
-        ...entry,
-        hooks: entry.hooks.filter(
-          (hook) =>
-            // `spare` 가 고른 참조(기록된 하네스 스크립트 — update 가 되살리고 배선은 writer 가 소유한다)는 판정하지 않는다
-            spare?.(projectAnchoredRef(hook?.command ?? "", claudeDir) ?? "") === true ||
-            keepHookRef(hook, claudeDir, removed),
-        ),
-      }))
-      .filter((entry) => entry.hooks.length > 0); // stale 제거 후 hooks 빈 entry 제거
-  }
-  return { settings, cleanedHooks, removed };
-}
-
 /**
- * 읽기 전용 — 실존 파일 없는 hook script 참조를 **찾기만** 한다(`.claude/` 상대경로). install 은 기록에 없는
- * 설치자 몫(팀이 커밋한 생성 스크립트 훅 등)을 지우지 않고 이것으로 알리기만 한다(#603 · B-666-1).
- */
-export function findStaleHookRefs(settingsPath: string, claudeDir: string): string[] {
-  return scanStaleHookRefs(settingsPath, claudeDir)?.removed ?? [];
-}
-
-/**
- * settings.json 의 PreToolUse/PostToolUse hooks 중 실존 파일 없는 hook script 참조 제거 — **update 전용**.
- * 반환값 = 지운 참조의 `.claude/` 상대경로.
+ * 읽기 전용 — 실존 파일 없는 hook script 참조를 **찾기만** 한다(`.claude/` 상대경로). 기록에 없는 참조는 설치자 몫이다
+ * (팀이 커밋한 생성 스크립트 훅 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). 지우면 원본이 어디에도 안 남으므로
+ * install(#603 · B-666-1)도 update(#746 — 폴더 사본이 없어져 되살릴 길이 없다)도 지우지 않고 이것으로 알리기만 한다.
+ * 하네스가 기록한 훅의 배선은 함께 쓰는 파일 writer 가 소유한다(ADR-099 R2).
  *
- * @param spare `.claude/` 상대경로를 받아 true 면 그 참조는 판정하지 않고 둔다 — update 는 **기록된 하네스 훅 스크립트**를
- *   넘긴다(ADR-099 R2: 그 스크립트는 update 가 되살리고 배선은 함께 쓰는 파일 writer 가 소유한다). 생략하면 전부 판정한다.
+ * @param spare `.claude/` 상대경로를 받아 true 면 그 참조는 판정하지 않는다 — update 는 **기록된 하네스 훅 스크립트**를
+ *   넘긴다(0단계가 되살리고 배선은 writer 가 소유한다). 생략하면 전부 판정한다.
  */
-export function cleanStaleHookRefs(
+export function findStaleHookRefs(
   settingsPath: string,
   claudeDir: string,
   spare?: (relPath: string) => boolean,
 ): string[] {
-  const scan = scanStaleHookRefs(settingsPath, claudeDir, spare);
-  if (scan === null) return [];
-  if (scan.removed.length > 0) {
-    const next: SettingsJson = { ...scan.settings, hooks: scan.cleanedHooks };
-    writeFileSync(settingsPath, `${JSON.stringify(next, null, 2)}\n`);
+  let settings: SettingsJson;
+  try {
+    settings = JSON.parse(readFileSync(settingsPath, "utf8")) as SettingsJson;
+  } catch {
+    return [];
   }
-  return scan.removed;
+  const stale: string[] = [];
+  for (const eventEntries of Object.values(settings.hooks ?? {})) {
+    if (!Array.isArray(eventEntries)) continue; // non-array event — 판정 대상 아님
+    for (const entry of eventEntries) {
+      if (!Array.isArray(entry?.hooks)) continue;
+      for (const hook of entry.hooks) {
+        if (spare?.(projectAnchoredRef(hook?.command ?? "", claudeDir) ?? "") === true) continue;
+        keepHookRef(hook, claudeDir, stale);
+      }
+    }
+  }
+  return stale;
 }

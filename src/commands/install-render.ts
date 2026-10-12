@@ -1269,18 +1269,15 @@ function renderPhase1Rows(
         ),
       );
     }
-    // M-1 (표면 대칭) — fresh 분기(`renderFinalSummary`)와 **같은 정보량**으로 어느 파일이
-    // 지워졌는지 나열한다. 논거는 update 쪽이 더 강하다: install 은 settings.json 을 템플릿으로
-    // 덮어쓰지만 update 는 사용자가 손댄 settings.json 을 **제자리에서** 고치는 유일한 경로라,
-    // 사용자 자신이 적어 넣은 훅이 실제로 사라질 수 있는 쪽이다. 건수만 찍으면 그 사용자는
-    // 자기 훅이 왜 없어졌는지 추적할 방법이 없다.
+    // #746 리뷰 BLOCKER-1 — update 는 기록 밖 죽은 훅 참조를 **지우지 않는다**(설치자 몫 · install #603 과 같다).
+    // 실제로 한 일(남겼다)과 어느 참조인지를 경로로 말한다 — 건수만 찍으면 설치자는 무엇을 볼지 모른다.
     const staleRefs = baseline.updateMode.staleHookRefs;
     if (staleRefs.length > 0) {
       log(
         assetRow(
           "skip",
           "settings.json stale hook refs",
-          `${staleRefs.length} removed (${staleRefs.join(", ")})`,
+          `${staleRefs.length} left (yours — not in the install record; script missing: ${staleRefs.join(", ")})`,
         ),
       );
     }
