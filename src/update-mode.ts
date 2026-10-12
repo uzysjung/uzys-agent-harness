@@ -64,6 +64,7 @@ import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
+  retiredClaims,
   SETTINGS_TARGET,
   type SharedWrite,
   withRecordedExclusions,
@@ -83,7 +84,6 @@ import {
   type InstallLogMethod,
   type InstallLogRootFile,
   installedClis,
-  isHarnessOwned as isOwnedByBaseline,
   legacyDroppedKeys,
   legacyReleasedCatalog,
   mergeExternalFiles,
@@ -1406,13 +1406,13 @@ function installNewAssets(
 }
 
 /** `backupFile` 이 만드는 이름 — `<원본>.backup-<YYYYMMDDTHHMMSS>[-n]` (`fs-ops.ts` claimBackupPath). */
-const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
+export const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
 
 /**
  * 백업이 생길 수 있는 자리 — 하네스가 쓰는 디렉터리(`CLI_OWNERSHIP` 의 디렉터리 경로의 맨 앞 칸에서 유도한다 —
  * 수기 사본을 두면 표에 자리가 늘 때 여기만 빠진다, #622) + 루트의 앵커·AGENTS.md(아래 루트 1단 훑기).
  */
-const BACKUP_SCAN_DIRS: ReadonlyArray<string> = [
+export const BACKUP_SCAN_DIRS: ReadonlyArray<string> = [
   ...new Set(
     Object.values(CLI_OWNERSHIP)
       .flat()
@@ -2216,17 +2216,6 @@ export interface PolicySyncCtx {
 }
 
 /**
- * 디스크 내용이 하네스가 놓아둔 것 그대로인가.
- *
- * v26.134.0 — 판정식 자체는 `install-log.ts` 의 `isHarnessOwned` **하나뿐**이고 여기서는
- * 키 조립(`<prefix>/<rel>`)만 한다. ADR-048 이 "술어는 한 곳에"라고 적고도 이 파일에 사본이
- * 남아 있었다 — 소유 판정은 사용자 파일 삭제 여부를 가르므로 두 벌이 갈리면 피해가 크다.
- */
-function isHarnessOwned(ctx: PolicySyncCtx, rel: string, current: string): boolean {
-  return isOwnedByBaseline(ctx.baseline, `${ctx.prefix}/${rel}`, current);
-}
-
-/**
  * target 에 이미 있는 파일만 templates 기준으로 갱신한다 (Track 혼입 방지).
  *
  * v26.132.0 (ADR-047) — 사용자 편집분 판정이 붙었다. 그 전까지는 `copyFileSync` 로 무조건
@@ -2399,8 +2388,12 @@ export function syncSkills(
       if (foreignOf(`${skill.name}/${rel}`) !== null) continue;
       const targetFile = join(targetSkill, rel);
       if (outside?.skip(targetFile)) continue;
-      const recorded = baseline.get(`${skill.name}/${rel}`);
-      if (recorded === undefined || hashContent(readFileSync(targetFile, "utf8")) !== recorded) {
+      // 기록 상태는 위 갱신과 같은 접근자로 읽는다 — 옛 스캔(v26.126–153)이 sha 로 적은 설치자 파일은 `recorded()` 가
+      // "기록 없음" 으로 읽어 백업한다(PR-D 리뷰 BLOCKER-1 — 기준선 Map 을 그대로 읽으면 백업 없이 지웠다)
+      const rec =
+        opts.recordOf?.(`.claude/skills/${skill.name}/${rel}`) ??
+        baselineRecord(baseline, `${skill.name}/${rel}`);
+      if (rec.state !== "sha" || hashContent(readFileSync(targetFile, "utf8")) !== rec.sha256) {
         backupFile(targetFile, now);
         backedUp.push(`${skill.name}/${rel}`);
       }
@@ -2560,12 +2553,14 @@ function refreshPolicyBaseline(
     (dirs === undefined || dirs.some((d) => path.startsWith(`${d}/`))) &&
     !outside.has(path) &&
     !isBaselineExcluded(`.claude/${path}`, excluded);
-  const policyFiles = [
+  const rewritten = [
     ...(log.policyFiles ?? []).filter((f) => !inDirs(f.path)),
     ...collectPolicyHashes(projectDir, templatesDir).filter(
       (f) => inDirs(f.path) && !notOurs.has(f.path),
     ),
   ];
+  // PR-D 재리뷰 BLOCKER-1 ② — 필드 없는 옛 로그가 하네스 것으로 읽던 은퇴 자리를 이어 적는다(install 의 writer 기록과 같은 함수)
+  const policyFiles = [...rewritten, ...retiredClaims(log, projectDir, rewritten)];
   const next: InstallLog = { ...log };
   if (policyFiles.length > 0) next.policyFiles = policyFiles;
   else delete next.policyFiles;
@@ -2663,11 +2658,18 @@ export function pruneOrphans(
     if (!existsSync(sourceFile)) {
       const targetFile = join(target, file);
       // 소유를 주장할 수 있는 것만 지운다. 기준선에 없으면 사용자가 만든 파일이다.
-      if (!ctx.baseline.has(`${ctx.prefix}/${file}`)) continue;
+      const key = `${ctx.prefix}/${file}`;
+      if (!ctx.baseline.has(key)) continue;
       if (ctx.outside?.skip(targetFile)) continue; // #678 — 밖의 실체는 지우지 않는다
       try {
         const current = readFileSync(targetFile, "utf8");
-        if (!isHarnessOwned(ctx, file, current)) backupFile(targetFile, now);
+        // 기준선 sha 가 같아도 `updateDir` · `syncSkills` 와 같은 접근자(`recorded()`)가 `no-sha` 라 읽는 자리는 백업한다 — 은퇴
+        // 자리(`RETIRED_PATHS`)의 옛 스캔 · 옛 로그에서 이어받은 항목(`retiredClaims`)의 sha 는 하네스 내용의 증거가 아니다(#551
+        // 리뷰 B3 · PR-D 재리뷰 BLOCKER-1). 기록이 없으면(엔진 직접 호출) 기준선 sha 그대로
+        const owned =
+          ctx.baseline.get(key) === hashContent(current) &&
+          ctx.recordOf?.(`.claude/${key}`).state !== "no-sha";
+        if (!owned) backupFile(targetFile, now);
         unlinkSync(targetFile);
         removed.push(file);
       } catch {

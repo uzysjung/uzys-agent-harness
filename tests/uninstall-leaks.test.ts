@@ -154,7 +154,7 @@ describe("#629/#630 — 링크 따라가기: 프로젝트 안은 회수, 밖은 
     relink(hook(), real);
     const out = uninstall().join("\n");
     expect(existsSync(real)).toBe(false);
-    expect(out).toMatch(/CLI outputs removed: \d+ file/);
+    expect(out).toMatch(/removed {2}.*\.codex\/ \d+/);
   });
 
   it("프로젝트 안 대상으로 이어진 config.toml 은 하네스 구간을 걷는다", () => {

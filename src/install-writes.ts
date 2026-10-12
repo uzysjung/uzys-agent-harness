@@ -14,7 +14,7 @@
  * 거쳐 이어받고 `records: "writer"` 를 적는다(Q1).
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { ADAPTERS, excludedKeys, isKeyId, keyId, SHARED_FILES } from "./adapters/index.js";
 import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
@@ -498,8 +498,13 @@ export function thisRunExclusions(
 /**
  * 옛 판이 디스크를 훑어 적은 `policyFiles`·`skillFiles` 를 **한 번** 거른다(Q1) — `recorded()` 가 기록으로
  * 읽는 것만 남긴다. 새 판이 적은 로그(`records: "writer"`)는 그대로다.
+ *
+ * `projectDir` 를 주면 옛 로그가 필드 없이 기록으로 읽는 은퇴 자리(`retiredClaims`)도 이어받는다.
  */
-export function inheritScanned(previous: InstallLog | null): {
+export function inheritScanned(
+  previous: InstallLog | null,
+  projectDir?: string,
+): {
   policyFiles: InstallLogSkillFile[];
   skillFiles: InstallLogSkillFile[];
 } {
@@ -509,10 +514,41 @@ export function inheritScanned(previous: InstallLog | null): {
   if (previous.records === "writer")
     return { policyFiles: [...policyFiles], skillFiles: [...skillFiles] };
   const owned = (full: string) => recorded(previous, full).state !== "none";
+  const kept = policyFiles.filter((f) => owned(`${CLAUDE_DIR}${f.path}`));
   return {
-    policyFiles: policyFiles.filter((f) => owned(`${CLAUDE_DIR}${f.path}`)),
+    policyFiles:
+      projectDir === undefined ? kept : [...kept, ...retiredClaims(previous, projectDir, kept)],
     skillFiles: skillFiles.filter((f) => owned(`${SKILLS_DIR}${f.path}`)),
   };
+}
+
+/**
+ * 옛 로그가 기록으로 읽는데(`recorded()` 가 `none` 이 아니다) 필드에 적혀 있지 않은 은퇴 자리(`RETIRED_PATHS`) 중 디스크에 있는 것.
+ *
+ * 왜 (PR-D 재리뷰 BLOCKER-1 ②): 필드가 없던 판(v26.125.0 이하)의 은퇴 룰 · 훅 · 에이전트는 로그 수준 `no-sha` 로만 하네스 것이다
+ * — 필드가 없다는 사실 자체가 근거다. 새 install(writer 기록) · update(`policyFiles` 를 지금 템플릿으로 채운다)가 필드를 쓰면 그
+ * 근거가 사라져 그 뒤 uninstall 이 그 자리를 "기록 없음" 으로 읽어 라이브에 남기고, 다음 Claude Code 세션이 계속 로드한다. 그래서
+ * 필드를 쓰는 두 곳이 이것을 이어 적는다. 이어받은 항목의 sha 는 하네스 내용의 증거가 아니다 — `recorded()` 는 은퇴 자리를 sha 와
+ * 무관하게 `no-sha` 로 읽어 update(`pruneOrphans`) · uninstall 이 그 파일 하나를 백업하고 치운다(옛 스캔 항목과 같다).
+ */
+export function retiredClaims(
+  previous: InstallLog,
+  projectDir: string,
+  kept: ReadonlyArray<InstallLogSkillFile>,
+): InstallLogSkillFile[] {
+  const have = new Set(kept.map((f) => f.path));
+  const out: InstallLogSkillFile[] = [];
+  for (const p of RETIRED_PATHS) {
+    if (have.has(p) || recorded(previous, `${CLAUDE_DIR}${p}`).state === "none") continue;
+    const abs = join(projectDir, CLAUDE_DIR, p);
+    try {
+      if (!statSync(abs).isFile()) continue;
+      out.push({ path: p, sha256: hashContent(readFileSync(abs, "utf8")) });
+    } catch {
+      // 없다 · 읽지 못한다 — 이어받지 않는다(지우지 않는 쪽)
+    }
+  }
+  return out;
 }
 
 /**
@@ -533,7 +569,7 @@ export function composeWriterLog(args: {
   interrupted?: boolean;
 }): InstallLog {
   const { base, previous, ledger } = args;
-  const inherited = inheritScanned(previous);
+  const inherited = inheritScanned(previous, args.projectDir);
   const policyFiles = mergeExternalFiles(inherited.policyFiles, ledger.policyFiles);
   const skillFiles = mergeExternalFiles(inherited.skillFiles, ledger.skillFiles);
   const externalFiles = mergeExternalFiles(previous?.externalFiles, [

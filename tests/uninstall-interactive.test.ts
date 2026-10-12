@@ -217,9 +217,12 @@ describe("buildUninstallModeChoices — 엔진이 거절할 선택을 미리 보
 });
 
 describe("buildCliRows — 무엇이 나가는지는 엔진과 같은 표(removableFor)에서", () => {
-  it("claude 행은 `.claude/` 를 지우지 않고 옮긴다고 말한다", () => {
+  it("claude 행은 `.claude/` 를 통째로 옮기지 않고 하네스 파일만 하나씩 뺀다고 말한다 (#746)", () => {
     const claude = buildCliRows(["claude", "opencode"]).find((r) => r.value === "claude");
-    expect(claude?.hint).toContain(".claude.backup-<time>");
+    expect(claude?.hint).toContain(
+      ".claude/ harness files, one by one (your own files there stay)",
+    );
+    expect(claude?.hint).not.toContain("backup-<time>");
   });
 
   it("공유 자리는 다른 CLI 가 쓰면 나가는 목록에 없다", () => {
@@ -255,7 +258,8 @@ describe("shouldRunInteractive — 언제 화면으로 들어가는가", () => {
     expect(shouldRunInteractive({ yes: true }, true)).toBe(false);
   });
 
-  it("--keep-templates 만 준 경우는 대상을 지정한 게 아니라 화면으로 들어간다", () => {
-    expect(shouldRunInteractive({ keepTemplates: true }, true)).toBe(true);
+  it("--keep-templates 는 화면으로 들여보내지 않는다 — 엔진이 거절하고 같은 일을 하는 명령을 알려야 한다 (#746)", () => {
+    // 화면으로 들어가면 고른 옵션이 그 플래그를 덮어 거절 안내가 나오지 않는다(플래그가 조용히 사라진다)
+    expect(shouldRunInteractive({ keepTemplates: true }, true)).toBe(false);
   });
 });

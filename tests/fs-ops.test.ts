@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { backupDir, copyDir, copyFile, ensureProjectSkeleton } from "../src/fs-ops.js";
+import { copyDir, copyFile, ensureProjectSkeleton } from "../src/fs-ops.js";
 
 describe("fs-ops", () => {
   let dir: string;
@@ -77,21 +77,6 @@ describe("fs-ops", () => {
     expect(() => copyDir(join(dir, "missing"), join(dir, "out"), () => null)).toThrow(
       /Source dir not found/,
     );
-  });
-
-  it("backupDir returns null when target missing", () => {
-    expect(backupDir(join(dir, "absent"))).toBeNull();
-  });
-
-  it("backupDir renames an existing dir to .backup-<stamp>", () => {
-    mkdirSync(join(dir, "target"));
-    writeFileSync(join(dir, "target/keep.txt"), "k");
-    const fixed = new Date(Date.UTC(2026, 4, 25, 12, 34, 56)); // 2026-05-25T12:34:56Z
-    const result = backupDir(join(dir, "target"), fixed);
-    expect(result).toMatch(/target\.backup-/);
-    expect(existsSync(join(dir, "target"))).toBe(false);
-    expect(existsSync(`${result}`)).toBe(true);
-    expect(readFileSync(join(`${result}`, "keep.txt"), "utf8")).toBe("k");
   });
 
   it("ensureProjectSkeleton creates the expected .claude/ subtree", () => {

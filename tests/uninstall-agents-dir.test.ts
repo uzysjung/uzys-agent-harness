@@ -3,6 +3,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -81,7 +82,7 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
       const lines = uninstall();
 
       expect(existsSync(join(projectDir, ".agents"))).toBe(false);
-      expect(lines.join("\n")).toContain("CLI outputs removed");
+      expect(lines.join("\n")).toMatch(/removed {2}\.agents\/ \d+ harness file\(s\)/);
     });
   }
 
@@ -112,7 +113,7 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
     }
   });
 
-  it("사용자가 고친 산출물은 남기고 그 사실을 화면에 낸다", () => {
+  it("사용자가 고친 산출물은 그 파일 하나를 백업하고 지운다 — 화면이 백업 자리를 댄다 (결정 4 · #746)", () => {
     install("antigravity");
     const edited = join(projectDir, ".agents/rules/git-policy.md");
     expect(existsSync(edited)).toBe(true);
@@ -120,8 +121,17 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
 
     const lines = uninstall();
 
-    expect(readFileSync(edited, "utf-8")).toBe("# 내가 고친 룰\n");
-    expect(lines.join("\n")).toContain(".agents/rules/git-policy.md kept");
+    expect(existsSync(edited)).toBe(false);
+    const backups = readdirSync(join(projectDir, ".agents/rules")).filter((f) =>
+      f.startsWith("git-policy.md.backup-"),
+    );
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(projectDir, ".agents/rules", backups[0] ?? ""), "utf-8")).toBe(
+      "# 내가 고친 룰\n",
+    );
+    expect(lines.join("\n")).toContain(
+      `backed up  .agents/rules/git-policy.md — you edited it — saved as .agents/rules/${backups[0]}, removed from live`,
+    );
   });
 
   it("우리가 안 쓴 파일은 지우지 않는다 — `.agents/` 는 npx skills 와 공유한다", () => {
@@ -161,7 +171,7 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
 
     const lines = uninstall();
 
-    expect(lines.join("\n")).not.toContain("CLI outputs removed");
+    expect(lines.join("\n")).not.toMatch(/removed {2}\.agents\//);
     expect(lines.join("\n")).not.toContain("kept — modified since install");
   });
 
@@ -173,7 +183,7 @@ describe("#350 uninstall 이 .agents/ 산출물을 회수한다", () => {
       { exit: () => undefined as never, log: (l: string) => preview.push(l) },
     );
 
-    expect(preview.join("\n")).toMatch(/remove \d+ CLI output file\(s\)/);
+    expect(preview.join("\n")).toMatch(/remove \d+ harness file\(s\) under \.agents\//);
     // 미리보기는 아무것도 안 바꾼다.
     expect(existsSync(join(projectDir, ".agents"))).toBe(true);
   });

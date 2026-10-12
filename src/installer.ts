@@ -1078,7 +1078,7 @@ function installCliNeutralAssets(
 
 /** 훅 스크립트 자리 — settings.json 의 하네스 몫은 이번에 여기 깔린 스크립트만 부른다(설계 N13). */
 const HOOKS_PREFIX = ".claude/hooks/";
-const INSTALLED_TRACKS = ".claude/.installed-tracks";
+export const INSTALLED_TRACKS = ".claude/.installed-tracks";
 
 /**
  * `.claude/` baseline — manifest 의 하네스 파일을 판정대로 쓴다 + hook chmod + `.installed-tracks` +
@@ -1272,7 +1272,8 @@ function writeMcpPortion(
   return [...writeMcpShared(writer, harnessMcp, previousLog, {}, defaults).harness].sort();
 }
 
-function installedTracksText(tracks: ReadonlyArray<string>): string {
+/** `.claude/.installed-tracks` 의 내용 — uninstall 이 옛 로그의 이 파일을 "하네스 판 그대로인가" 로 판정할 때도 쓴다. */
+export function installedTracksText(tracks: ReadonlyArray<string>): string {
   return `${[...new Set(tracks)].sort().join("\n")}\n`;
 }
 

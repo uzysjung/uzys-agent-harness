@@ -130,7 +130,7 @@ interface Run {
 
 function uninstall(
   extra: { dryRun?: boolean; only?: string; cli?: string } = {},
-  deps: { moveAside?: (p: string) => string | null; spawn?: ReturnType<typeof vi.fn> } = {},
+  deps: { rm?: (p: string) => void; spawn?: ReturnType<typeof vi.fn> } = {},
 ): Run {
   const lines: string[] = [];
   let code: number | null = null;
@@ -148,7 +148,7 @@ function uninstall(
       err: (l: string) => lines.push(l.replace(/\x1b\[[0-9;]*m/g, "")),
       spawn: spawn as never,
       resolveHarnessRoot: () => HARNESS_ROOT,
-      ...(deps.moveAside ? { moveAside: deps.moveAside } : {}),
+      ...(deps.rm ? { rm: deps.rm } : {}),
     },
   );
   return { out: lines.join("\n"), code };
@@ -274,14 +274,27 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
     expect(run.code).toBe(1);
   });
 
-  it("--cli claude 는 .claude 아래 도구 파일 기록을 뺀다 — 디렉터리와 함께 백업으로 갔다", () => {
+  it("--cli claude 는 자산을 건드리지 않는다 — `.claude/` 쪽 도구 사본과 기록이 남고 `--only` 로 빼는 길을 말한다 (A1 · N8 · #746)", () => {
     install(["claude", "codex"]);
     const run = uninstall({ cli: "claude" });
     expect(run.code).toBe(0);
+    expect(existsSync(join(projectDir, ".claude/skills/frontend-design/SKILL.md"))).toBe(true);
     expect(fdFiles().sort()).toEqual([
       ".agents/skills/frontend-design/SKILL.md",
       ".agents/skills/frontend-design/refs/typography.md",
+      ".claude/skills/frontend-design/SKILL.md",
+      ".claude/skills/frontend-design/refs/typography.md",
     ]);
+    expect(run.out).toContain(
+      "left  .claude/skills/frontend-design (asset frontend-design) — remove with: agent-harness uninstall --only frontend-design",
+    );
+    // 도구 사본은 "설치자 파일" 로 세지 않는다 — 자산 줄이 말한다
+    expect(run.out).not.toMatch(/left {2}\.claude\/ — .*frontend-design/);
+
+    // 그 길이 실제로 동작한다 — 기록이 남아 있으므로 `--only` 가 기록된 경로만 지운다
+    const only = uninstall({ only: "frontend-design" });
+    expect(only.code).toBe(0);
+    expect(existsSync(join(projectDir, ".claude/skills/frontend-design"))).toBe(false);
   });
 });
 
@@ -382,11 +395,15 @@ describe("#676 — 지우기 전에 쓸 수 있는지 먼저 본다 · 멈추면
 
   it("중간에 멈추면 이미 한 일을 말하고 기록을 남긴다 — 다시 돌리면 나머지가 이어진다", () => {
     install(["claude", "codex"]);
-    const failing = (): string | null => {
-      throw new Error("EACCES: permission denied, mkdir '.claude.backup-x'");
+    // 자산 되돌리기(도구 파일 rm)는 통과하고, 그 뒤 하네스 파일 회수에서 디스크가 거절한다(경합 · 권한)
+    const failing = (p: string): void => {
+      if (p.includes(`${join(".claude", "rules")}`)) {
+        throw new Error("EACCES: permission denied, unlink '.claude/rules/x.md'");
+      }
+      rmSync(p, { recursive: true, force: true });
     };
 
-    const run = uninstall({}, { moveAside: failing });
+    const run = uninstall({}, { rm: failing });
 
     expect(run.code).toBe(1);
     expect(run.out).toContain("stopped partway");
