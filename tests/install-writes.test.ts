@@ -318,7 +318,7 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
   };
   const settings = (): Settings => JSON.parse(read(SETTINGS)) as Settings;
   const commands = (event: string): string[] =>
-    (settings().hooks[event] ?? []).flatMap((g) => g.hooks.map((h) => h.command));
+    (settings().hooks?.[event] ?? []).flatMap((g) => g.hooks.map((h) => h.command));
 
   it.each<[string, InstallMode | undefined]>([
     ["첫 install", undefined],
@@ -382,7 +382,7 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     const out = install({ keyExclude: [HOOK] }).screen;
     expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
     expect(out).toContain(`removed the harness part: ${HOOK} (you asked: --without ${HOOK})`);
-    expect(out).toContain(`your edits to ${HOOK} went with it`);
+    expect(out).toContain(`your edits to ${HOOK} are in the copy: .claude/settings.json.backup-`);
     expect(out).not.toMatch(/settings\.json\s+removed the harness part — yours stays/);
     expect(out).toMatch(/settings\.json\s+removed the harness part ·/);
     install({}, "update"); // update 는 선택을 읽기만 한다 — 지킨다
@@ -395,6 +395,45 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(again).toContain(
       `↺ ${HOOK} — dropped earlier, installed again: this install did not pass --without ${HOOK}`,
     );
+  });
+
+  it("#800 — `--without` 이 설치자가 고친 하네스 훅 줄을 걷을 때는 settings.json 을 한 번 백업하고 화면이 그 백업을 댄다 · 안 고친 줄은 백업하지 않는다", () => {
+    const HOOK = "settings:hooks.PreToolUse#protect-files.sh";
+    install();
+    const s = settings();
+    const handler = (s.hooks.PreToolUse ?? [])
+      .flatMap((g) => g.hooks)
+      .find((h) => h.command.includes("protect-files.sh"));
+    if (!handler) throw new Error("protect-files 훅이 없다 — 시나리오 전제가 깨졌다");
+    handler.command = `${handler.command} && bash ./scripts/team-guard.sh # MINE-CHAIN`;
+    const editedCommand = handler.command;
+    write(SETTINGS, JSON.stringify(s, null, 2));
+    expect(backupsOf(SETTINGS)).toEqual([]);
+
+    const { report, screen } = install({ keyExclude: [HOOK] });
+
+    // 라이브는 깨끗하다 — 사라진 스크립트를 부르는 줄이 남지 않는다
+    expect(commands("PreToolUse").some((c) => c.includes("protect-files.sh"))).toBe(false);
+    // 고친 명령은 백업 하나에 바이트 그대로 남는다
+    const copies = backupsOf(SETTINGS);
+    expect(copies).toHaveLength(1);
+    const copy = copies[0] as string;
+    const saved = JSON.parse(read(copy)) as Settings;
+    expect((saved.hooks.PreToolUse ?? []).flatMap((g) => g.hooks).map((h) => h.command)).toContain(
+      editedCommand,
+    );
+    // 화면은 "went with it" 이 아니라 백업 자리를 댄다 · 같은 백업을 두 줄로 말하지 않는다
+    expect(screen).toContain(`your edits to ${HOOK} are in the copy: ${copy}`);
+    expect(screen).not.toContain("went with it");
+    expect(screen.split(basename(copy)).length - 1).toBe(1);
+    expect(report.backups ?? []).toContain(join(projectDir, copy));
+
+    // 대조 — 고치지 않은 줄을 빼면 백업이 생기지 않는다
+    const HOOK2 = "settings:hooks.SessionStart#session-start.sh";
+    const plain = install({ keyExclude: [HOOK, HOOK2] }).screen;
+    expect(commands("SessionStart").some((c) => c.includes("session-start.sh"))).toBe(false);
+    expect(plain).toContain(`removed the harness part: ${HOOK2}`);
+    expect(backupsOf(SETTINGS)).toEqual(copies);
   });
 
   it("리뷰 #693 NOTE-2 — 같은 실행에서 되돌린 것과 고친 훅을 걷은 것이 함께면 'yours stays' 라 하지 않는다", () => {
@@ -412,7 +451,7 @@ describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
     expect(row).toContain("wrote the harness part ·");
     expect(row).not.toContain("yours stays");
     expect(row).toContain("was missing — restored: settings:statusLine");
-    expect(row).toContain(`your edits to ${HOOK} went with it`);
+    expect(row).toContain(`your edits to ${HOOK} are in the copy: .claude/settings.json.backup-`);
   });
 
   it("옛 판이 절대경로로 박은 하네스 훅을 알아본다 — 같은 훅을 두 번 부르지 않는다 (PR-1 인계 ①)", () => {
