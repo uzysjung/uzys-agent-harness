@@ -21,6 +21,7 @@ import {
 } from "./cli-transforms.js";
 import type { CodexOptInReport } from "./codex/opt-in.js";
 import type { CodexTransformReport } from "./codex/transform.js";
+import { type DisplacedOutcome, restoreDisplaced, withoutRestored } from "./displaced.js";
 import { writeEnvExample } from "./env-files.js";
 import { type ExcludedStillThere, excludedStillThere } from "./excluded-still-there.js";
 import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
@@ -322,6 +323,11 @@ export interface BaselineReport {
   outsideLinks?: OutsideLink[];
   /** #677 — 기록 트랙(누적) 밖이라 치운 하네스 파일. 부재 = 치운 것 없음. */
   outOfTrack?: OutOfTrackReclaim;
+  /**
+   * #782 — 이 실행이 떠난 하네스 자리(트랙 밖 룰 · 옛 Antigravity 앵커) 중 설치자 원본을 비켜 두었던 자리(`displaced`)의
+   * 되돌리기 결과. 부재 = 그런 자리가 없었다.
+   */
+  displacedRestored?: DisplacedOutcome[];
 }
 
 export interface InstallReport {
@@ -406,6 +412,8 @@ export interface InstallReport {
   outsideLinks?: OutsideLink[];
   /** #677 — `BaselineReport.outOfTrack` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). */
   outOfTrack?: OutOfTrackReclaim;
+  /** #782 — `BaselineReport.displacedRestored` 와 같다. */
+  displacedRestored?: DisplacedOutcome[];
   /** #678 — `BaselineReport.categories` 와 같다(런타임은 `{...baseline}` 로 이미 흐른다). NEXT 줄이 실제로 깐 것을 센다. */
   categories?: BaselineCategoryCounts;
   /** #636 — `BaselineReport.rootClaudeMd` 와 같다: CLAUDE.md 를 하네스가 새로 만들었는가(FILL 안내 판정). */
@@ -700,6 +708,17 @@ function runInstallStages(
     ...outOfTrack.forget,
     ...(anchorRetired?.forget === true ? [anchorRetired.path] : []),
   ]);
+  // #782 — 하네스가 떠난 자리(트랙 밖 룰 · 옛 앵커)를 빌렸으면(`displaced`) 설치자 원본을 되돌린다. 기록 정리는 앞 기록의
+  // `rootFiles` 에서 한다 — `buildInstallLog` 가 그 값을 `mergeRootFiles` 로 이어받는다
+  const left = new Set([
+    ...outOfTrack.removed,
+    ...outOfTrack.backedUp.map((b) => b.path),
+    ...(anchorRetired?.action === "removed" ? [anchorRetired.path] : []),
+  ]);
+  const displacedRestored =
+    previousLog === null || left.size === 0
+      ? []
+      : restoreDisplaced(previousLog, projectDir, { has: (p) => left.has(p), write: true });
   const logBase: InstallLog | null =
     previousLog === null || forgotten.size === 0
       ? previousLog
@@ -707,6 +726,9 @@ function runInstallStages(
           ...previousLog,
           spec: { ...previousLog.spec, clis: [...installedClis(previousLog)] },
           externalFiles: (previousLog.externalFiles ?? []).filter((f) => !forgotten.has(f.path)),
+          ...(displacedRestored.some((d) => d.forget)
+            ? { rootFiles: withoutRestored(previousLog.rootFiles, displacedRestored) }
+            : {}),
         };
 
   stage.envExampleCreated = writeEnvExample(projectDir, spec.tracks);
@@ -772,6 +794,7 @@ function runInstallStages(
     ...(outOfTrack.removed.length + outOfTrack.backedUp.length + outOfTrack.kept.length > 0
       ? { outOfTrack }
       : {}),
+    ...(displacedRestored.length > 0 ? { displacedRestored } : {}),
   };
 
   // ━━━ Baseline complete — emit progress event so renderer can show Phase 1 rows ━━━

@@ -7,8 +7,9 @@
  *
  * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter`)와 함께 쓰는
  * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함), update 의 `.claude/` 정책·스킬
- * 갱신(`update-mode.ts` `updateDir` · `syncSkills` — #761), uninstall(전량 · `--cli`)의 하네스 파일 · 앵커 회수와
- * `judgeDisplaced` 되돌리기(`commands/uninstall.ts` `removeHarnessFiles` — #746 · #761)가 부른다.
+ * 갱신(`update-mode.ts` `updateDir` · `syncSkills` — #761), uninstall(전량 · `--cli`)의 하네스 파일 · 앵커 회수
+ * (`commands/uninstall.ts` `removeHarnessFiles` — #746 · #761)가 부른다. `judgeDisplaced` 되돌리기는 `displaced.ts` 하나가
+ * 부르고 하네스가 자리를 떠나는 모든 remove 가 그 함수를 쓴다(#782).
  */
 
 import { ADAPTERS } from "./adapters/index.js";
@@ -225,9 +226,10 @@ function advisory(input: JudgeInput): Judgement {
 /* ────────────────────────────────────────────────────────────────────────────
  * displaced 되돌리기 (설계 §1.2 "displaced 되돌리기 세부" · R3 · Q3)
  *
- * 하네스가 그 자리를 떠나는 모든 remove(uninstall · update 의 은퇴 회수 · `--reinstall` 의 기록 밖 회수 ·
- * `--cli`)가 **하네스 파일을 지운 뒤** 부르는 판정이다. 배선: uninstall 전량 · `--cli`(`commands/uninstall.ts`
- * `restoreDisplaced` — #746 · #761). update 의 은퇴 회수 · `--reinstall` 의 기록 밖 회수는 아직 부르지 않는다(설계 v26.169.0 §13 ①).
+ * 하네스가 그 자리를 떠나는 모든 remove 가 **하네스 파일을 지운 뒤** 부르는 판정이다. 배선(`displaced.ts`
+ * `restoreDisplaced` 하나 — #782): uninstall 전량 · `--cli`(`commands/uninstall.ts` `removeHarnessFiles`) · update 의 은퇴 회수
+ * (`update-mode.ts` `pruneOrphans` 뒤) · 트랙 밖 룰 회수(`reclaimOutOfTrackRecorded`) · 옛 Antigravity 앵커 은퇴
+ * (`refreshExternalCli`) · install · `--reinstall` 의 트랙 밖 룰 회수와 옛 앵커 은퇴(`installer.ts`).
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface DisplacedInput {
