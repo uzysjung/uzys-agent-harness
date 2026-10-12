@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { LEGACY_HOOK_COMMANDS } from "./legacy-fingerprints.js";
 
 /**
  * 훅 command 가 **이 프로젝트의** `.claude/` 아래 스크립트를 부르는가 — 판정 한 곳 (#551).
@@ -60,6 +61,23 @@ export function projectAnchoredRef(command: string, claudeDir?: string): string 
     }
   }
   return undefined;
+}
+
+/** 옛 템플릿 훅 줄(`LEGACY_HOOK_COMMANDS`)이 부르는 참조(`.claude/` 상대) — 같은 생성물에서 유도한다. */
+export const LEGACY_HOOK_REFS: ReadonlyArray<string> = [...LEGACY_HOOK_COMMANDS].flatMap(
+  (c) => projectAnchoredRef(c) ?? [],
+);
+
+/**
+ * #781 — 이 훅 줄을 옛 하네스 줄로 볼 수 있는가. 옛 바이트를 아는 참조(태그 114판의 8가지)는 **그 바이트 그대로일 때만** — 설치자가
+ * 고치거나 자기 명령을 이어 붙인 줄은 참조가 같아도 설치자 줄이다. 생성 범위 이전 배선(`observe.sh` · `checkpoint-snapshot.sh` 등,
+ * npm 게시 전)은 바이트를 몰라 참조로 본다. update 의 옛 몫 찾기(`legacySettingsSeed`)와 걷기(`removeRetiredHookRefs`)가 이 판정 하나를 쓴다.
+ */
+export function isLegacyHookLine(command: unknown, claudeDir?: string): boolean {
+  if (typeof command !== "string") return false;
+  const ref = projectAnchoredRef(command, claudeDir);
+  if (ref === undefined) return false;
+  return !LEGACY_HOOK_REFS.includes(ref) || LEGACY_HOOK_COMMANDS.has(command);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -155,6 +173,7 @@ export function removeRetiredHookRefs(
   const isRetiredDead = (hook: HookCommand): boolean => {
     const rel = projectAnchoredRef(hook?.command ?? "", claudeDir);
     if (rel === undefined || !refs.includes(rel)) return false;
+    if (!isLegacyHookLine(hook?.command, claudeDir)) return false; // #781 — 고친 줄은 설치자 줄이다
     if (opts.evenIfScriptExists !== true && existsSync(join(claudeDir, rel))) return false;
     if (!removed.includes(rel)) removed.push(rel);
     return true;

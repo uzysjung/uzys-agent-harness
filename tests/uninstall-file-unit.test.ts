@@ -346,7 +346,7 @@ describe("--dry-run 이 말한 것과 실행 결과가 같다 (§2.4 6)", () => 
     expect(recordedPresent(before).filter((p) => p.startsWith(".claude/"))).toHaveLength(
       recordedClaude,
     ); // 무변경
-    const planned = /○ remove (\d+) harness file\(s\) under \.claude\/ \(1 you edited/.exec(
+    const planned = /○ remove (\d+) harness file\(s\) under \.claude\/ \(1 with a copy saved/.exec(
       preview,
     );
     expect(planned?.[1]).toBe(String(recordedClaude));

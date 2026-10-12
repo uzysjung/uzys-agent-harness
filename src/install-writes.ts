@@ -22,7 +22,7 @@ import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { gitignoreRender, RETIRED_GITIGNORE_LINES } from "./env-files.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
 import { backupFile, copyFile } from "./fs-ops.js";
-import { projectAnchoredRef } from "./hook-ref.js";
+import { isLegacyHookLine, projectAnchoredRef } from "./hook-ref.js";
 import {
   appendSelection,
   HARNESS_VERSION,
@@ -698,6 +698,7 @@ export function legacySettingsSeed(
   text: string,
   render: ReadonlyMap<string, unknown>,
   projectDir: string,
+  opts: { edited?: boolean } = {},
 ): Map<string, string> {
   const seed = new Map<string, string>();
   let root: unknown;
@@ -708,6 +709,7 @@ export function legacySettingsSeed(
   }
   const claudeDir = join(projectDir, ".claude");
   const candidates = new Set([...render.keys()].filter((k) => k.startsWith("hooks.")));
+  const legacyLines = new Set<string>(); // 옛 하네스 줄로 볼 수 있는 핸들러의 키(`isLegacyHookLine`)
   const hooks = isObject(root) && isObject(root.hooks) ? root.hooks : {};
   for (const [event, groups] of Object.entries(hooks)) {
     if (!Array.isArray(groups)) continue;
@@ -715,14 +717,18 @@ export function legacySettingsSeed(
       if (!isObject(group) || !Array.isArray(group.hooks)) continue;
       for (const handler of group.hooks) {
         const script = hookScript(handler, claudeDir);
-        if (script !== null && RETIRED_PATHS.includes(`hooks/${script}`)) {
-          candidates.add(`hooks.${event}#${script}`);
-        }
+        if (script === null) continue;
+        const key = `hooks.${event}#${script}`;
+        if (RETIRED_PATHS.includes(`hooks/${script}`)) candidates.add(key);
+        if (isObject(handler) && isLegacyHookLine(handler.command, claudeDir)) legacyLines.add(key);
       }
     }
   }
   const present = ADAPTERS["json-keys"].read(text, candidates, projectDir) ?? new Map();
   for (const [key, sha] of present) {
+    // #781 — 옛 템플릿 바이트 그대로인 줄만 하네스 몫이다. 고친 줄을 몫으로 적으면 다음 걷기가 설치자 몫까지 통째로 뺀다
+    // (`alwaysStrip`). `edited` 는 알리기만 하는 uninstall 안내용 — 고친 줄도 "하네스 훅이 남았을 수 있다" 로 낸다
+    if (!legacyLines.has(key) && opts.edited !== true) continue;
     const rendered = render.get(key);
     const handler =
       isObject(rendered) && Array.isArray(rendered.hooks) ? rendered.hooks[0] : undefined;

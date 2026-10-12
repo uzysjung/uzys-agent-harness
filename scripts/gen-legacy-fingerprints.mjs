@@ -110,7 +110,7 @@ const agentsSections = new Map(); // 지문 → 주석
 const preambles = new Map();
 const anchorSections = new Map();
 const namedSections = new Map(); // 하네스 이름 절(템플릿 제목 절 · 인라인 룰 절)의 옛 렌더 바이트 — 지문 → 주석
-const hookRefs = new Set();
+const hookCommands = new Set(); // 옛 템플릿 훅 핸들러의 command 원문(바이트 그대로)
 const statusLines = new Map(); // sha256(JSON.stringify(statusLine)) → 주석
 
 for (const v of versions) {
@@ -152,8 +152,7 @@ for (const v of versions) {
       for (const ev of Object.values(s.hooks ?? {}))
         for (const e of ev)
           for (const h of e.hooks ?? []) {
-            const m = /\$CLAUDE_PROJECT_DIR\/\.claude\/([^"']+)/.exec(h.command ?? "");
-            if (m) hookRefs.add(m[1]);
+            if (/\$CLAUDE_PROJECT_DIR\/\.claude\//.test(h.command ?? "")) hookCommands.add(h.command);
           }
       if (s.statusLine !== undefined) {
         const k = sha(JSON.stringify(s.statusLine));
@@ -304,8 +303,16 @@ export const LEGACY_AGENTS_MD_PREAMBLE_KEYS: ReadonlySet<string> = keySet(${bloc
  */
 export const RETIRED_ANCHOR_SECTION_KEYS: ReadonlySet<string> = keySet(${block(keyRows(anchorSections))});
 
-/** 옛 \`templates/settings.json\` 이 \`$CLAUDE_PROJECT_DIR/.claude/\` 로 배선한 훅 참조(\`.claude/\` 상대, ${hookRefs.size}). */
-export const LEGACY_HOOK_REFS: ReadonlySet<string> = keySet(${block([...hookRefs].sort())});
+/**
+ * 옛 \`templates/settings.json\` 이 \`$CLAUDE_PROJECT_DIR/.claude/\` 로 배선한 훅 핸들러의 command 원문 (${hookCommands.size}). 이 문자열과
+ * 바이트로 같은 줄만 옛 하네스 줄이다 — 설치자가 한 글자라도 고쳤으면 설치자 줄이다(#781).
+ */
+export const LEGACY_HOOK_COMMANDS: ReadonlySet<string> = new Set([
+${[...hookCommands]
+  .sort()
+  .map((c) => `  '${c}',`)
+  .join("\n")}
+]);
 
 /** 옛 템플릿 \`statusLine\` 값의 \`sha256(JSON.stringify(value))\` (${statusLines.size}). */
 export const LEGACY_STATUSLINE_VALUES: ReadonlySet<string> = keySet(${block(keyRows(statusLines))});
@@ -326,7 +333,7 @@ console.log(
       preambleKeys: preambles.size,
       anchorSectionKeys: anchorSections.size,
       namedSectionKeys: namedSections.size,
-      hookRefs: [...hookRefs].sort(),
+      hookCommands: [...hookCommands].sort(),
       statusLines: statusLines.size,
       outBytes: Buffer.byteLength(out),
     },

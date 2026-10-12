@@ -9,7 +9,7 @@ import {
   LEGACY_AGENTS_MD_PREAMBLE_KEYS,
   LEGACY_AGENTS_MD_SECTION_KEYS,
   LEGACY_HARNESS_FILES,
-  LEGACY_HOOK_REFS,
+  LEGACY_HOOK_COMMANDS,
   LEGACY_STATUSLINE_VALUES,
   legacyPreambleKey,
   RETIRED_ANCHOR_SECTION_KEYS,
@@ -36,16 +36,19 @@ describe("#774 옛 판 하네스 지문 — 생성물", () => {
     expect(RETIRED_ANCHOR_SECTION_KEYS.size).toBe(53);
     // PR #789 리뷰 HIGH — 하네스 이름 절(`Project Rules` 머리말 · `Harness Rules` 안내 · 인라인 룰 절 · 슬래시 이름을 바꾼 템플릿 절)
     expect(LEGACY_AGENTS_MD_NAMED_KEYS.size).toBe(50);
-    expect([...LEGACY_HOOK_REFS].sort()).toEqual([
-      "hooks/agentshield-gate.sh",
-      "hooks/gate-check.sh",
-      "hooks/hito-counter.sh",
-      "hooks/mcp-pre-exec.sh",
-      "hooks/protect-files.sh",
-      "hooks/session-start.sh",
-      "hooks/task-brief-nudge.sh",
-      "skills/strategic-compact/suggest-compact.sh",
-    ]);
+    // #781 리뷰 — 114판 전체의 옛 훅 줄은 8가지 모양뿐이고 전부 `bash "$CLAUDE_PROJECT_DIR/.claude/<참조>"` 그대로다
+    expect([...LEGACY_HOOK_COMMANDS].sort()).toEqual(
+      [
+        "hooks/agentshield-gate.sh",
+        "hooks/gate-check.sh",
+        "hooks/hito-counter.sh",
+        "hooks/mcp-pre-exec.sh",
+        "hooks/protect-files.sh",
+        "hooks/session-start.sh",
+        "hooks/task-brief-nudge.sh",
+        "skills/strategic-compact/suggest-compact.sh",
+      ].map((r) => `bash "$CLAUDE_PROJECT_DIR/.claude/${r}"`),
+    );
     expect(LEGACY_STATUSLINE_VALUES.size).toBe(2);
     // 렌더본(`templates/codex/hooks/**` → `.codex/hooks/`)은 입력에서 뺐다 — 템플릿과 바이트가 달라 지문이 될 수 없다
     expect([...LEGACY_HARNESS_FILES.keys()].every((p) => p.startsWith(".claude/"))).toBe(true);

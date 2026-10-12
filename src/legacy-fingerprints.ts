@@ -605,17 +605,20 @@ f22a5a13c5ed8460c9370212d91354d0fea2fefc7f420a1eb3088504ae8da6c0 ## 4. Verify ou
 79797568bb71bd0f7b14393f72e61721a4bfe99ecfb6126ffa38a6c03c53d765 ## 6. Act within clear authority (26.153.0)
 `);
 
-/** 옛 `templates/settings.json` 이 `$CLAUDE_PROJECT_DIR/.claude/` 로 배선한 훅 참조(`.claude/` 상대, 8). */
-export const LEGACY_HOOK_REFS: ReadonlySet<string> = keySet(`
-hooks/agentshield-gate.sh
-hooks/gate-check.sh
-hooks/hito-counter.sh
-hooks/mcp-pre-exec.sh
-hooks/protect-files.sh
-hooks/session-start.sh
-hooks/task-brief-nudge.sh
-skills/strategic-compact/suggest-compact.sh
-`);
+/**
+ * 옛 `templates/settings.json` 이 `$CLAUDE_PROJECT_DIR/.claude/` 로 배선한 훅 핸들러의 command 원문 (8). 이 문자열과
+ * 바이트로 같은 줄만 옛 하네스 줄이다 — 설치자가 한 글자라도 고쳤으면 설치자 줄이다(#781).
+ */
+export const LEGACY_HOOK_COMMANDS: ReadonlySet<string> = new Set([
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/agentshield-gate.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/gate-check.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/hito-counter.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/mcp-pre-exec.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-files.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/task-brief-nudge.sh"',
+  'bash "$CLAUDE_PROJECT_DIR/.claude/skills/strategic-compact/suggest-compact.sh"',
+]);
 
 /** 옛 템플릿 `statusLine` 값의 `sha256(JSON.stringify(value))` (2). */
 export const LEGACY_STATUSLINE_VALUES: ReadonlySet<string> = keySet(`
