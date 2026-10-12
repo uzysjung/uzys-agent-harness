@@ -1,0 +1,14 @@
+26.125.0 old install exit=0
+dry-run exit=0
+dry-run disk unchanged: yes
+uninstall exit=0
+fp-match live before: 74  after: 0
+backups after: 58
+MINE markers (live or backup):
+./.claude/hooks/mine.sh
+./.claude/rules/git-policy.md.backup-20261012T123137
+./.claude/rules/my-rule.md
+./.claude/skills/mine/SKILL.md
+./.claude/skills/north-star/my-notes.md
+settings hooks after:
+["bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/mine.sh\""]

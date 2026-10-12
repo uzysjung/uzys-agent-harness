@@ -1,0 +1,31 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T12:31:40.659Z
+  scope:     project
+  assets:    4
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  ○ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ○ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ○ npm uninstall --save-dev agent-browser
+  ○ remove install record (.uzys-agent-harness/ — 로그·헬퍼 스크립트·차단 로그)
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ○ remove 69 harness file(s) under .claude/ (52 you edited → saved beside as *.backup-<time>)
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove 8 harness file(s) under .agents/
+  ○ remove CLAUDE.md
+  ○ remove AGENTS.md (written by an older harness version, nothing of yours in it — a copy is saved first)
+  ○ remove harness hook wiring from an older version (script gone) from .claude/settings.json: hooks/session-start.sh · hooks/protect-files.sh · hooks/mcp-pre-exec.sh
+  ○ remove retired harness hook wiring from .claude/settings.json: skills/strategic-compact/suggest-compact.sh
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ leave .claude/ — 6 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: hooks/mine.sh · rules/my-rule.md · settings.json +3 more
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .mcp-allowlist — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)
+      MCP allowlist (3 server)
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+

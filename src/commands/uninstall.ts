@@ -91,6 +91,11 @@ import {
 } from "../install-writes.js";
 import { INSTALLED_TRACKS, installedTracksText } from "../installer.js";
 import { judge } from "../judge.js";
+import {
+  isLegacyHarnessFile,
+  LEGACY_HARNESS_FILES,
+  LEGACY_HOOK_REFS,
+} from "../legacy-fingerprints.js";
 import { RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
 import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
@@ -104,6 +109,7 @@ import {
 import { stripHarnessImport } from "../project-claude-merge.js";
 import {
   excludedIds,
+  isExcludedPath,
   kindOf,
   ownersOf,
   recorded,
@@ -489,6 +495,7 @@ function unwritablePaths(ctx: {
       if (made.has(p)) parentOf(p);
     }
     for (const p of harnessCandidates(installLog)) parentOf(p);
+    for (const p of legacyFileCandidates()) parentOf(p);
     for (const f of installLog.rootFiles ?? []) if (f.change === "displaced") parentOf(f.path);
     if (hasRootImport(projectDir)) need.add("CLAUDE.md");
   }
@@ -1247,16 +1254,19 @@ function remnantFor(
   log: InstallLog,
   harnessRoot: string,
   projectDir: string,
+  wiringGone: ReadonlyArray<string> = [],
 ): (disk: string) => string[] {
   const clis = installedClis(log);
   if (path === SETTINGS_TARGET) {
+    // #781 — ⓑ″ 가 걷은(미리보기면 걷을) 옛 훅 줄은 "남았다" 로 세지 않는다
+    const gone = (k: string): boolean => wiringGone.includes(`hooks/${k.split("#")[1] ?? ""}`);
     // 옛 판은 이 파일을 템플릿으로 통째 덮었다 — 하네스 훅 스크립트를 부르는 핸들러를 update 와 같은 식별(`legacySettingsSeed`)로 알린다
     return (disk) => {
       try {
         const template = readFileSync(join(harnessRoot, "templates", "settings.json"), "utf8");
         const render = renderSettingsPortion(template, () => true);
         return [...legacySettingsSeed(disk, render, projectDir).keys()].filter(
-          (k) => !k.endsWith("{}"),
+          (k) => !k.endsWith("{}") && !gone(k),
         );
       } catch {
         return [];
@@ -1635,6 +1645,11 @@ interface HarnessRemoval {
   shared: SharedStripResult[];
   /** `.claude/settings.json` 에서 걷은(미리보기면 걷을) 은퇴 하네스 훅 배선(`RETIRED_HOOK_WIRING_REFS` — `.claude/` 상대). */
   retiredWiring: string[];
+  /**
+   * #781 — 몫 기록 없는 `.claude/settings.json` 에서 걷은(미리보기면 걷을) 옛 템플릿 훅 배선(`LEGACY_HOOK_REFS` — `.claude/` 상대).
+   * 이번 실행 뒤 스크립트가 없는 것만이다.
+   */
+  legacyWiring: string[];
   /** 루트 `CLAUDE.md` 의 하네스 import 블록을 걷었다(미리보기면 걷을 것이 있다). */
   importStripped: boolean;
   /** 하네스 앵커 — 지웠는가(기록을 뺄지 정한다) · 화면 줄. */
@@ -1653,7 +1668,8 @@ interface RemovalIo {
 }
 
 /**
- * 순서(설계 §2.3 "전량 uninstall 의 순서" ③): ⓐ 함께 쓰는 파일의 몫 → ⓑ 기록된 하네스 파일 → ⓔ 루트 `CLAUDE.md` import
+ * 순서(설계 §2.3 "전량 uninstall 의 순서" ③ · v26.170.0 §4.4): ⓑ 기록된 하네스 파일 → ⓑ′ 옛 판 지문 파일 → ⓑ″ 옛 훅 줄 →
+ * ⓐ 함께 쓰는 파일의 몫(ⓑ″ 가 걷은 줄을 남은 훅 안내가 다시 세지 않게 그 뒤로) → ⓔ 루트 `CLAUDE.md` import
  * 블록 → 앵커 → ⓒ displaced 되돌리기 → ⓓ 빈 디렉터리. 설계 표는 ⓔ 를 맨 뒤에 적었지만 앵커 자리도 하네스가 빌린 자리일 수
  * 있어(설치자가 같은 이름의 파일을 두었다 — `rootFiles` displaced) 되돌리기보다 **앞**이어야 한다. 아니면 자리가 막혀 못 되돌린다.
  */
@@ -1675,19 +1691,32 @@ function removeHarnessFiles(
     displaced: [],
     shared: [],
     retiredWiring: [],
+    legacyWiring: [],
     importStripped: false,
     anchor: { removed: false, lines: [] },
   };
   const pruneFrom: string[] = [];
-  // ⓐ 함께 쓰는 파일은 어느 기록 필드에 있든 몫만 걷는다(B1 · #13) — 루트 `CLAUDE.md` import 블록보다 **먼저**(붙인 순서의
-  // 역순, #551 R1 NOTE-3: `AGENTS.md` 가 `CLAUDE.md` 로의 링크면 한 파일에 두 블록이 붙는다)
-  stripSharedFiles(log, projectDir, scope.shared, io, out, pruneFrom);
   // ⓑ 기록된 하네스 파일 — 판정 함수 하나(결정 4: 안 고친 것은 지우고 · 고친 것은 그 파일 하나를 백업하고 지운다)
   const isTarget = harnessTargets(log);
-  for (const path of harnessCandidates(log)) {
+  const candidates = harnessCandidates(log);
+  for (const path of candidates) {
     if (scope.has(path))
       removeRecordedFile(path, { log, projectDir, io, out, isTarget, pruneFrom });
   }
+  // ⓑ′ #781 (ADR-111) — 기록이 열거하지 못한 옛 판의 하네스 파일(은퇴 스킬 · 옛 커맨드 · 강등 에이전트 · 옛 앵커 ·
+  // `.agents/skills` 사본). 같은 함수가 지문으로 가른다 — 기록이 말하는 자리(sha · 앵커 · 외부 기록)는 ⓑ · ⓔ 의 몫이다
+  const judged = new Set(candidates);
+  for (const path of legacyFileCandidates()) {
+    if (judged.has(path) || !scope.has(path) || !safeExists(join(projectDir, path))) continue;
+    if (recorded(log, path, { isTarget }).state !== "none") continue;
+    removeRecordedFile(path, { log, projectDir, io, out, isTarget, pruneFrom });
+  }
+  // ⓑ″ #781 — 몫 기록 없는 `settings.json` 의 옛 템플릿 훅 줄. ⓑ · ⓑ′ **뒤**라야 스크립트가 남는지 안다
+  out.legacyWiring = removeLegacyHookWiring(log, projectDir, scope, io, out.removed);
+  // ⓐ 함께 쓰는 파일은 어느 기록 필드에 있든 몫만 걷는다(B1 · #13) — 루트 `CLAUDE.md` import 블록보다 **먼저**(붙인 순서의
+  // 역순, #551 R1 NOTE-3: `AGENTS.md` 가 `CLAUDE.md` 로의 링크면 한 파일에 두 블록이 붙는다). ⓑ″ 뒤라야 남은 훅 안내가 걷은 줄을
+  // 다시 세지 않는다(#781)
+  stripSharedFiles(log, projectDir, scope.shared, io, out, pruneFrom);
   // ⓔ 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스 import 블록만 걷는다. 안 걷으면 앵커를 지운 뒤
   // 없는 파일을 가리키는 import 가 매 세션 로드된다. import 를 앵커보다 **먼저** 걷는다(반대면 잠깐이라도 끊긴 import 가 남는다)
   if (scope.importBlock) {
@@ -1824,12 +1853,20 @@ function removeRecordedFile(
     out.unjudged.push(path); // #565 — 읽지 못한 것은 "고쳤다" 가 아니라 판정 불가다
     return;
   }
+  const rec = recorded(log, path, { isTarget: ctx.isTarget });
+  // #781 (ADR-111) — 옛 판이 바이트 그대로 깐 파일(지문). 소유 근거가 아니다 — 현행 번들 자리(다시 깔면 현행 판으로 채워진다)는
+  // 백업 없이, 그 밖은 백업하고 치운다. 기록이 없는 자리는 그 자리를 쓰는 CLI 가 깔렸고 설치자가 빼지도 비켜 두지도 않았을 때만
+  const legacy =
+    rec.state !== "sha" &&
+    isLegacyHarnessFile(path, hashContent(disk)) &&
+    (rec.state === "no-sha" || mayReclaimLegacy(log, path));
+  const inBundle = legacy && ctx.isTarget(bundlePath(path));
   const verdict = judge({
     op: "remove",
     kind: "harness",
-    rec: recorded(log, path, { isTarget: ctx.isTarget }),
+    rec: legacy ? { state: "no-sha" } : rec,
     disk,
-    next: templateNext(io.harnessRoot, log, path),
+    next: legacy ? (inBundle ? disk : null) : templateNext(io.harnessRoot, log, path),
   });
   // leave = 기록 없음(옛 스캔 필터에 걸린 설치자 파일) — 건드리지 않는다
   if (verdict.verdict !== "remove" && verdict.verdict !== "backup+remove") return;
@@ -1847,7 +1884,70 @@ function removeRecordedFile(
   out.removed.push(path);
   out.forgotten.add(path);
   ctx.pruneFrom.push(path);
-  if (backup !== null) out.backedUp.push({ path, backup, line: verdict.line });
+  if (backup !== null)
+    out.backedUp.push({ path, backup, line: legacy && !inBundle ? LEGACY_SAVED : verdict.line });
+}
+
+const LEGACY_SAVED =
+  "older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live";
+
+/** ⓑ′ 후보 — 지문이 아는 경로 전부와 옛 codex 변환이 번들 스킬을 복사해 둔 `.agents/skills/` 자리. */
+function legacyFileCandidates(): string[] {
+  return [...LEGACY_HARNESS_FILES.keys()].flatMap((p) =>
+    p.startsWith(SKILLS_DIR) ? [p, `.agents/skills/${p.slice(SKILLS_DIR.length)}`] : [p],
+  );
+}
+
+/** `.agents/skills/<rel>` 은 현행 설치가 `.claude/skills/<rel>` 과 같은 번들로 채운다 — 번들 · 제외 판정은 그 이름으로. */
+function bundlePath(path: string): string {
+  return path.startsWith(".agents/skills/")
+    ? `${SKILLS_DIR}${path.slice(".agents/skills/".length)}`
+    : path;
+}
+
+/**
+ * 기록이 없는 자리의 지문 회수 문(B2 · N7) — 그 자리를 쓰는 CLI 가 기록에 있고, 설치자가 뺀 자산(`excluded`)이 아니고, 하네스가
+ * 비켜 둔 설치자 파일(`displaced`)의 자리가 아닐 때만.
+ */
+function mayReclaimLegacy(log: InstallLog, path: string): boolean {
+  const clis = installedClis(log);
+  if (!ownersOf(path).some((c) => clis.includes(c))) return false;
+  if (isExcludedPath(bundlePath(path), excludedIds(log))) return false;
+  return !(log.rootFiles ?? []).some((f) => f.path === path && f.change === "displaced");
+}
+
+/**
+ * ⓑ″ #781 — 몫 기록이 없는 `.claude/settings.json`(옛 판이 템플릿으로 통째 쓴 파일)에서 옛 템플릿 훅 줄을 걷는다. 이번 실행 뒤
+ * 스크립트가 없는 참조만 — 이번에 지운 스크립트(`removed`)는 미리보기에서도 없는 것으로 친다. 스크립트가 남으면(설치자가 같은
+ * 이름으로 둔 것) 줄도 남는다. `RETIRED_HOOK_WIRING_REFS` 는 ⓐ 가 따로 걷는다(N8).
+ */
+function removeLegacyHookWiring(
+  log: InstallLog,
+  projectDir: string,
+  scope: RemovalScope,
+  io: RemovalIo,
+  removed: ReadonlyArray<string>,
+): string[] {
+  if (!scope.has(SETTINGS_TARGET) || !installedClis(log).includes("claude")) return [];
+  if ((log.portions ?? []).some((p) => p.path === SETTINGS_TARGET)) return [];
+  const abs = join(projectDir, SETTINGS_TARGET);
+  if (!safeExists(abs) || outsideProjectTarget(projectDir, abs) !== null) return [];
+  const claudeDir = join(projectDir, ".claude");
+  const gone = new Set(removed);
+  const refs = [...LEGACY_HOOK_REFS].filter((r) => !RETIRED_HOOK_WIRING_REFS.includes(r));
+  const goneNow = refs.filter((r) => gone.has(`${CLAUDE_DIR}${r}`));
+  return [
+    ...removeRetiredHookRefs(abs, claudeDir, goneNow, {
+      evenIfScriptExists: true,
+      write: io.write,
+    }),
+    ...removeRetiredHookRefs(
+      abs,
+      claudeDir,
+      refs.filter((r) => !goneNow.includes(r)),
+      { evenIfScriptExists: false, write: io.write },
+    ),
+  ];
 }
 
 /**
@@ -1914,7 +2014,7 @@ function stripSharedFiles(
       path,
       portions: log.portions ?? [],
       excluded: [...excludedIds(log)],
-      remnant: remnantFor(path, log, io.harnessRoot, projectDir),
+      remnant: remnantFor(path, log, io.harnessRoot, projectDir, out.legacyWiring),
       remnantLine: remnantLine(path),
       write: io.write,
       // 하네스가 만든 파일(#569 `created` · #13 `externalFiles`)은 몫을 걷고 남는 것이 없으면 파일째 지운다
@@ -2091,7 +2191,7 @@ function harnessRemovalLines(
   if (preview) {
     for (const [top, g] of groups) {
       const edited =
-        g.backedUp > 0 ? ` (${g.backedUp} you edited → saved beside as *.backup-<time>)` : "";
+        g.backedUp > 0 ? ` (${g.backedUp} with a copy saved beside as *.backup-<time>)` : "";
       lines.push(`  ○ remove ${g.removed} harness file(s) under ${top}${edited}`);
     }
   } else if (groups.size > 0) {
@@ -2154,6 +2254,14 @@ function harnessRemovalLines(
   for (const path of r.kept) {
     lines.push(
       `  ${c.yellow("⊘")} ${path} kept — modified since install. Remove manually if intended.`,
+    );
+  }
+  if (r.legacyWiring.length > 0) {
+    const refs = r.legacyWiring.join(" · ");
+    lines.push(
+      preview
+        ? `  ○ remove harness hook wiring from an older version (script gone) from ${SETTINGS_TARGET}: ${refs}`
+        : `  ${status.success(`${SETTINGS_TARGET} — removed harness hook wiring from an older version (script gone): ${refs}`)}`,
     );
   }
   if (r.retiredWiring.length > 0) {

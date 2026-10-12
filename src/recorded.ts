@@ -130,7 +130,7 @@ function isRetiredPath(path: string): boolean {
   return path.startsWith(CLAUDE_DIR) && RETIRED_PATHS.includes(path.slice(CLAUDE_DIR.length));
 }
 
-function isExcludedPath(path: string, excluded: ReadonlySet<string>): boolean {
+export function isExcludedPath(path: string, excluded: ReadonlySet<string>): boolean {
   const baseline = classifyBaselineTarget(path);
   if (baseline === null) return false;
   return excluded.has(baseline.id) || (baseline.kind === "skills" && excluded.has(baseline.name));
