@@ -1,6 +1,6 @@
 /**
  * #780 리뷰 BLOCKER · MEDIUM-1 · MEDIUM-2 — 외부 스킬 도구(`npx skills add --copy`) 앞에서 지킬 설치자 파일은 **실행이 어디서
- * 끊겨도** 잃지 않는다. 호출 전에 자리 옆 평범한 백업 폴더(`<자리>.backup-<시각>/`, 같은 상대 경로)로 옮기고, 호출 뒤에
+ * 끊겨도** 잃지 않는다. 호출 전에 자리 옆 평범한 백업 폴더(`<스킬 루트>.backup-<시각>/<id>/`, 같은 상대 경로)로 옮기고, 호출 뒤에
  * 제자리로 되돌리거나 백업으로 남긴다. 끊기면 파일은 그 폴더에 그대로 있다 — 되살리는 코드가 따로 없다.
  *   P-A  도구가 폴더를 지운 뒤 예외 → 원본이 제자리로(작은 파일 · 1 MiB 초과 둘 다) · update 경로도 같다
  *   P-E  판정 도중 실패(자리 쓰기 불가) → 파일이 백업 폴더에 바이트까지 남고 오류가 그 폴더를 말한다
@@ -81,14 +81,17 @@ function ok(status = 0): SpawnSyncReturns<string> {
   return { pid: 0, output: [], stdout: "", stderr: "", status, signal: null };
 }
 
-/** 자리 옆 백업 폴더(`<자리>.backup-<시각>`) — 설치자가 찾을 경로라 이름 규칙을 글자 그대로 쓴다. */
+/** 스킬 루트 밖 백업 폴더(`<루트>.backup-<시각>/<id>`) — 설치자가 찾을 경로라 이름 규칙을 글자 그대로 쓴다. */
 function asideDirs(slot: string): string[] {
-  const dir = dirname(slot);
-  const name = slot.slice(dir.length + 1);
-  if (!has(dir)) return [];
-  return readdirSync(join(projectDir, dir))
+  const root = dirname(slot);
+  const id = slot.slice(root.length + 1);
+  const parent = dirname(root);
+  const name = root.slice(parent.length + 1);
+  if (!has(parent)) return [];
+  return readdirSync(join(projectDir, parent))
     .filter((n) => new RegExp(`^${name}\\.backup-\\d{8}T\\d{6}$`).test(n))
-    .map((n) => `${dir}/${n}`);
+    .map((n) => `${parent}/${n}/${id}`)
+    .filter((d) => has(d));
 }
 
 /** 원래 경로(`rel`)의 파일이 그 자리의 백업 폴더 안 같은 상대 경로에 있는 바이트. */
@@ -251,7 +254,7 @@ describe("#780 BLOCKER — 도구 앞에서 든 파일은 실행이 끊겨도 �
       placeInstallerFiles();
       // 도구가 폴더를 새로 만든 뒤 자리를 잠근다 — 되돌리기 · 백업 쓰기가 EACCES 로 실패한다
       expect(() => addSkill({ after: () => chmodSync(join(projectDir, SLOT), 0o555) })).toThrow(
-        /they stay in \.claude\/skills\/frontend-design\.backup-\d{8}T\d{6}\//,
+        /they stay in \.claude\/skills\.backup-\d{8}T\d{6}\//,
       );
       chmodSync(join(projectDir, SLOT), 0o755);
       expect(asideBytes(SLOT, MINE).toString()).toBe("mine note\n");

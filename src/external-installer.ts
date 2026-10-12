@@ -569,8 +569,8 @@ export function refreshExternalSkills(
 
 /**
  * #770 · #780 (ADR-097 결정 3·5·7) — 외부 스킬 도구(`npx skills add --copy`)는 스킬 폴더를 **새로 만든다**. 그래서 부르기
- * **전에** 이번에 도구가 쓸 스킬 자리의 지킬 파일(설치자 파일 · 고친 하네스 파일)을 그 자리 옆 평범한 백업 폴더
- * `<자리>.backup-<시각>/`(같은 상대 경로)로 **옮기고**, 호출 **뒤에** 부를 판정 함수를 돌려준다. update 의 갱신 · install
+ * **전에** 이번에 도구가 쓸 스킬 자리의 지킬 파일(설치자 파일 · 고친 하네스 파일)을 스킬 루트 밖 평범한 백업 폴더
+ * `<스킬 루트>.backup-<시각>/<id>/`(같은 상대 경로)로 **옮기고**, 호출 **뒤에** 부를 판정 함수를 돌려준다. update 의 갱신 · install
  * 재실행 · 기존 설치본에 처음 더하기가 같은 도구 호출이라 이 한 함수를 함께 쓴다.
  *
  * 실행이 어디서 끊겨도(Ctrl-C · 예외 · 판정 도중 실패) 옮긴 파일은 그 백업 폴더에 그대로 남는다 — 되살리는 코드가 따로
@@ -599,12 +599,14 @@ export function holdSkillSlots(
   const moved: AsideFile[] = [];
   try {
     for (const f of slotFilesToKeep(projectDir, hold)) {
-      let dir = asides.get(f.slot);
+      // 스킬 루트 밖(`.claude/skills.backup-<시각>/<id>/…`) — 루트 안에 두면 끊긴 실행이 남긴 폴더를 CLI 가 스킬로 읽는다
+      const root = dirname(f.slot);
+      let dir = asides.get(root);
       if (dir === undefined) {
-        dir = claimBackupDir(join(projectDir, f.slot), now);
-        asides.set(f.slot, dir);
+        dir = claimBackupDir(join(projectDir, root), now);
+        asides.set(root, dir);
       }
-      const aside = join(dir, f.rel.slice(f.slot.length + 1));
+      const aside = join(dir, f.rel.slice(root.length + 1));
       mkdirSync(dirname(aside), { recursive: true });
       renameSync(f.abs, aside);
       moved.push({ ...f, aside });
