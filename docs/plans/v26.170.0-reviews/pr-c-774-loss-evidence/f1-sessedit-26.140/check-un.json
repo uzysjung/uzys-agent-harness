@@ -1,0 +1,15 @@
+{
+ "label": "un",
+ "agentsLive": false,
+ "liveHeadings": 0,
+ "agentsBackups": 1,
+ "blocks": {
+  "SESSEDIT": "BACKUP"
+ },
+ "staleOldSections": [],
+ "oldPreambleLive": false,
+ "lostTokens": [],
+ "backupOnlyTokens": [
+  "MINE-SESSEDIT"
+ ]
+}

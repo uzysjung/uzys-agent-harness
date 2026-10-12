@@ -10,7 +10,11 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { anchorTitle, withMarkedContinuousSkillsNote } from "./agents-md-merge.js";
+import {
+  anchorTitle,
+  isLegacyHarnessAgentsMd,
+  withMarkedContinuousSkillsNote,
+} from "./agents-md-merge.js";
 import {
   AGENTS_MD_TEMPLATE,
   type AgentsMdCli,
@@ -74,10 +78,19 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
   const { harnessRoot, projectDir, baseline, shared = {} } = params;
   const refreshOnly = params.refreshOnly === true;
   const clis = agentsMdClis(params.clis);
+  const agentsMdPath = join(projectDir, "AGENTS.md");
+  const exists = existsSync(agentsMdPath);
+  const diskBefore = exists ? readFileSync(agentsMdPath, "utf8") : null;
+  // #774 (설계 §13 B3) — 기록이 말하지 않아도 옛 판의 하네스 `AGENTS.md`(머리 지문)는 첫 접촉(설치자 파일 · `displaced`)이 아니라
+  // 체크섬 없는 하네스 파일로 쓴다: 1회 백업 뒤 절 모델로 바꾸고 기준선에 싣는다. v26.169 update 가 블록을 붙인 파일(N2)은
+  // `recordedOwner` 가 `none` 이라 이 술어가 없으면 displaced 로 적혀 uninstall 이 옛 파일을 "제자리로" 되살린다.
+  const legacyAgentsMd = diskBefore !== null && isLegacyHarnessAgentsMd(diskBefore);
+  const owned = (rel: string): boolean =>
+    params.owned?.(rel) === true || (rel === "AGENTS.md" && legacyAgentsMd);
   const writer = createOwnedWriter(projectDir, baseline, {
     refreshOnly,
     ...(params.journal === undefined ? {} : { journal: params.journal }),
-    ...(params.owned === undefined ? {} : { owned: params.owned }),
+    owned,
   });
   const claudeMd = readRequired(join(harnessRoot, "templates/CLAUDE.md"));
   const template = readRequired(join(harnessRoot, AGENTS_MD_TEMPLATE));
@@ -89,8 +102,6 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     writer,
   });
 
-  const agentsMdPath = join(projectDir, "AGENTS.md");
-  const exists = existsSync(agentsMdPath);
   const creates = !exists && (!refreshOnly || params.installedByRecord === true);
   const legacy = params.legacyContext ?? null;
   // #528 — **새로 만드는 순간에만** 루트 `CLAUDE.md` 의 설치자 절을 옮겨 심는다. 옛 Antigravity 앵커의 글은 그 다음
@@ -113,7 +124,6 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     harnessRules: renderRulesBlock(portRules(harnessRoot, params.rules)),
     clis,
   });
-  const diskBefore = exists ? readFileSync(agentsMdPath, "utf8") : null;
   const agentsMd = writeAgentsMd({
     projectDir,
     rendered,

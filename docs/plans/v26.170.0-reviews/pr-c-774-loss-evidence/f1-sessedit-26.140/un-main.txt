@@ -1,0 +1,22 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T11:45:19.691Z
+  scope:     project
+  assets:    2
+
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .codex/ 1 harness file(s) · .agents/ 8
+  ⊘ AGENTS.md kept — modified since install. Remove manually if intended.
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .mcp-allowlist — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)
+      MCP allowlist (3 server)
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (1 asset(s))

@@ -27,9 +27,11 @@ import {
   AGENTS_BLOCK,
   AGENTS_BLOCK_NAME,
   ANCHOR_BLOCK,
-  mergeAgentsMd,
+  isLegacyHarnessAgentsMd,
+  mergeAgentsMdDetailed,
   renderAgentsBlock,
   SKILLS_BLOCK,
+  withoutAgentsBlock,
 } from "./agents-md-merge.js";
 import { hashContent, type InstallLogPortion } from "./install-log.js";
 import { judge } from "./judge.js";
@@ -301,9 +303,12 @@ function hasMarkerLine(disk: string, markers: ReadonlyArray<string>): boolean {
  * 어느 모델인가 — 판정 순서가 곧 규칙이다.
  * ① 파일이 없다 → 하네스가 만든다(`sections`). 단 기록이 블록 모델이었다(`portions` 에 `agents-md:*` 키가 있고 파일째
  *    기록은 없다)면 `block` — 손으로 지운 설치자 파일을 하네스 파일로 바꿔 되살리지 않는다(ADR-099 R2 · #598)
- * ② 첫 접촉 블록이 있다 → `block`(한 번 블록으로 들어간 파일은 계속 블록 — 기록 여부와 무관하게)
+ * ② 첫 접촉 블록이 있다 → `block`(한 번 블록으로 들어간 파일은 계속 블록 — 기록 여부와 무관하게). 단 블록 밖 본문이 옛 판의
+ *    하네스 파일(④′)이면 아니다 — v26.169 update 가 옛 하네스 파일을 설치자 파일로 읽고 블록을 붙인 것이다(#774 N2 · ②′)
  * ③ 하네스 기록(`externalFiles`)에 있다 → `sections`(옛 판이 만든 파일을 블록으로 읽으면 룰이 두 벌 들어간다, N-c)
  * ④ 절 모델의 조각 마커가 있다 → `sections`(기록을 잃은 하네스 파일 — 같은 이유)
+ * ④′ 마커 이전 판의 하네스 파일이다(`isLegacyHarnessAgentsMd` — 머리 지문) → `sections`(#774 — 기록 필드가 없던 v26.83~v26.132
+ *    설치본. 블록으로 읽으면 옛 파일 전체 + 새 블록이 매 세션 상주한다). 쓰기는 1회 백업을 남긴다(ADR-111)
  * ⑤ 그 밖 → `block`(#558)
  */
 export function agentsMdModel(
@@ -312,9 +317,11 @@ export function agentsMdModel(
   recordedBlock = false,
 ): AgentsMdModel {
   if (disk === null) return recordedBlock && !recordedByHarness ? "block" : "sections";
-  if (hasMarkerLine(disk, [AGENTS_BLOCK.start, AGENTS_BLOCK.end])) return "block";
+  const legacy = isLegacyHarnessAgentsMd(disk);
+  if (hasMarkerLine(disk, [AGENTS_BLOCK.start, AGENTS_BLOCK.end]) && !legacy) return "block";
   if (recordedByHarness) return "sections";
   if (hasMarkerLine(disk, [ANCHOR_BLOCK.start, SKILLS_BLOCK.start])) return "sections";
+  if (legacy) return "sections";
   return "block";
 }
 
@@ -345,27 +352,58 @@ export interface AgentsMdWriteResult {
   model: AgentsMdModel;
   /** `block` 모델의 몫 쓰기 결과. `sections` 는 `null` — owned-write 가 파일째 기준선을 남긴다. */
   shared: SharedWriteResult | null;
+  /**
+   * #774 — 옛 판이 바이트 그대로 쓴 절을 되살리지 않고 떨어뜨린 수(`sections` 만). 0 보다 크면 쓰기 전 1회 백업을 남겼다 —
+   * update 화면이 `removed N section(s) written by an older harness version` 으로 말한다.
+   */
+  droppedLegacySections?: number;
+  /**
+   * #774 — 옛 판 파일에서 설치자가 고친 하네스 이름 절(`Session Start` · `Project Rules` 머리말 …)의 제목. 절 모델에서 그 절은 하네스
+   * 몫이라 지금 판으로 바뀐다 — 쓰기 전 1회 백업을 남겼고 update 화면이 "고친 절은 백업에 있다" 고 말한다.
+   */
+  editedLegacySections?: string[];
+  /**
+   * #774 (N2) — 블록 모델 기록(`portions` 의 `AGENTS.md` 몫)이 있던 파일을 절 모델로 바꿨다. 호출부는 이 파일의 몫 기록을
+   * 비운다 — 남겨 두면 uninstall 이 이미 없는 블록을 찾는다.
+   */
+  blockRecordDropped?: true;
 }
 
 export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult {
   const abs = join(params.projectDir, AGENTS_MD);
   const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
   const recordedBlock = (params.record.portions ?? []).some((p) => p.path === AGENTS_MD);
-  if (agentsMdModel(disk, params.baseline.has(AGENTS_MD), recordedBlock) === "sections") {
-    params.writer.write(
-      abs,
-      mergeAgentsMd({
-        rendered: params.rendered,
-        existing: disk,
-        template: params.template,
-        ...(params.replaceUnfilledContext === true ? { replaceUnfilledContext: true } : {}),
-        ...(params.harnessRuleHeadings === undefined
-          ? {}
-          : { harnessRuleHeadings: params.harnessRuleHeadings }),
-      }),
-      params.createInRefresh === true ? { createInRefresh: true } : undefined,
-    );
-    return { model: "sections", shared: null };
+  const recordedByHarness = params.baseline.has(AGENTS_MD);
+  if (agentsMdModel(disk, recordedByHarness, recordedBlock) === "sections") {
+    // #774 ④′ — 기록 없는 옛 하네스 파일: 안 채운 옛 스캐폴드는 렌더로 바꾼다(N4 — 채운 절은 그대로 이어받는다)
+    const legacyUnrecorded = disk !== null && !recordedByHarness && isLegacyHarnessAgentsMd(disk);
+    const merged = mergeAgentsMdDetailed({
+      rendered: params.rendered,
+      // N2 — 첫 접촉 블록은 떼고 병합한다(블록 안은 지금 렌더가 다시 쓴다)
+      existing: disk === null ? null : withoutAgentsBlock(disk),
+      template: params.template,
+      ...(params.replaceUnfilledContext === true || legacyUnrecorded
+        ? { replaceUnfilledContext: true }
+        : {}),
+      ...(params.harnessRuleHeadings === undefined
+        ? {}
+        : { harnessRuleHeadings: params.harnessRuleHeadings }),
+    });
+    const dropped = merged.droppedLegacySections;
+    const edited = merged.editedLegacySections;
+    params.writer.write(abs, merged.text, {
+      ...(params.createInRefresh === true ? { createInRefresh: true } : {}),
+      // ADR-111 — 떨어뜨린 절은 현행 번들에 없는 바이트다 · 고친 이름 절은 설치자 글이다: 기준선 그대로인 파일이라도 1회 백업
+      ...(dropped > 0 || edited.length > 0 ? { backupFirst: true } : {}),
+    });
+    if (recordedBlock) params.writer.journal?.portions(AGENTS_MD, []);
+    return {
+      model: "sections",
+      shared: null,
+      ...(dropped > 0 ? { droppedLegacySections: dropped } : {}),
+      ...(edited.length > 0 ? { editedLegacySections: edited } : {}),
+      ...(recordedBlock ? { blockRecordDropped: true as const } : {}),
+    };
   }
   const shared = writeShared({
     projectDir: params.projectDir,

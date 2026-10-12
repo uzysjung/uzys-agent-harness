@@ -9,68 +9,11 @@
  * **고정 목록이다** — v26.160.0 부터는 앵커가 마커 안에 있어 이 경로를 타지 않으므로 새 판이 나와도 늘지 않는다.
  * 지문 = sha256(절 줄들의 끝 공백 제거 · 끝 빈 줄 제거 · "\n" 으로 이음). 뽑은 방법 = 위 태그 범위의 `templates/CLAUDE.md`
  * 를 같은 규칙으로 절로 나눠 해시(`retiredAnchorSectionKey`).
+ *
+ * #774 (ADR-111) — 목록과 지문 함수는 생성물 `src/legacy-fingerprints.ts`(생성기 `scripts/gen-legacy-fingerprints.mjs`)가 SSOT 다.
+ * 여기서는 기존 이름으로 다시 내보낸다 — 손목록 53개가 생성 집합과 같음은 `tests/legacy-fingerprints.test.ts` 가 못 박는다.
  */
-import { createHash } from "node:crypto";
-
-/** 절(헤딩 포함 줄 배열)의 지문 — 아래 목록을 뽑은 규칙과 같다. */
-export function retiredAnchorSectionKey(lines: ReadonlyArray<string>): string {
-  const out = lines.map((l) => l.replace(/\r$/, "").trimEnd());
-  while (out.length > 1 && out.at(-1) === "") out.pop();
-  return createHash("sha256").update(out.join("\n")).digest("hex");
-}
-
-export const RETIRED_ANCHOR_SECTION_KEYS: ReadonlySet<string> = new Set([
-  "522bac15bc17949697e291b837c0d9624f5e0c7666400a3baf94cdef7cfab8b5", // ## Rule 1 — Think Before Coding
-  "ea10b7cd9b84a71949a071fae15256f490b3fe407159d7bddcf3f882310fa835", // ## Rule 2 — Simplicity First
-  "c486465d9554f2de1711cd056437f6a95a5d3243264b82d29a6957f24b5a6de3", // ## Rule 3 — Surgical Changes
-  "3d080574cc7ae81eda75c4aa019445b38b6f69c5f9eeeda9097e10b6041e7e94", // ## Rule 4 — Goal-Driven Execution
-  "11e43547f6b1613a5dabb3edaf5131d696a3fd375b3c22558f03555a0f5cf2ef", // ## Rule 5 — Use the model only for judgment calls
-  "60d91718de6ae16ec86b50e7c9a939a6ca5fc0721422b592700cc9972f55aca2", // ## Rule 6 — Token budgets are not advisory
-  "9d482c7307cbcb02acc6fb35cd57b24baa9fce04528e2bd21e1e877603f8b85b", // ## Rule 7 — Surface conflicts, don't average them
-  "abca09f13833ce18bd0ffc0793d59780c35447ca79c2a512afcbc9d7a7116ed8", // ## Rule 8 — Read before you write
-  "5b4eae6c3dc2d92cfb1772889650882a4a2115f08a36602da9a1d96697059b91", // ## Rule 9 — Tests verify intent, not just behavior
-  "632670b8897dc373d4a12f611c2436d9a8e86d8cdab917eecabc4bf2a56f8030", // ## Rule 10 — Checkpoint after every significant step
-  "252e99f25b05a47e5ce884ac9f1e1d34156116b9a76331e2510b1354a6c98cd4", // ## Rule 11 — Match the codebase's conventions, even if you disagree
-  "c28a12b589b6576379793c51fd01dbfaf91d391ac773f84ae0477ddb60a1e3e8", // ## Rule 12 — Fail loud
-  "72feaf96f998989351f8083edb891c7b0c3bccca65dbea2732fb2864b8f98bd4", // ## 의사결정 및 컨펌 요청 시
-  "95c932ecb4f4fdcdd8d483f9d02166b906f6eb045ef33ee474a16913d0c3e6cd", // ## Phase/작업 완료 시 Self-Audit 실행:
-  "c7f9fa755bd66d80c2df496c6c759e8accd736cd8fef64460feb7ae9cd4c8006", // ## Context Management
-  "6ec0b415a8f86c9940bccd3e6db895ea4a110185e76fef223a348f9553fd897c", // ## Rule 12 — Fail loud
-  "a78f0ffa6b51c9b45c964ecb92db951534336f7e558a3d39d11f015ee6c3466c", // ## Anti-Patterns (Forbidden)
-  "50d00a511e87571d7ff85f6584b87b9f5c2eef06122d8ac5fdccf3f047643f12", // ## When Requesting Decisions or Confirmation
-  "574519e07f48bcc04f0e3d505c0f9c157ddd426b5eda2baa99656cd4712dad2b", // ## Run Self-Audit on Phase/Task Completion
-  "df73823c02e6eee000388444964acfec233ffeec0e20fdc5d31eb018d2ca93c1", // ## Context Management
-  "8f49f0a592575a65eadd3e33950c96616223aa8bb116707103affeef71db28c6", // ## Delegate the Building, Keep the Deciding
-  "6115eccc3b2702f436a9db7d6af9803fa7b1fbf7b9ff1110ea658fadd67ec5ea", // ## 1. Think before coding
-  "15b120395ec8e757ecbe3e65775371a9120953617fb37eb062e0c176b52f045a", // ## 2. Prefer the simplest sufficient solution
-  "cc466b4781444ca54aedebd20ba3aa531c3aa84cc438953df84b133bd32a0e1e", // ## 3. Make surgical changes and preserve existing work
-  "f6d1f6f02cb3c19e61becf329f20335c54e684bccb06b33e4b7f66eb49f9c6b6", // ## 4. Define success before editing
-  "372bf30b282b861c6a89e355c94ffd239bb0202e2ef928f8af99d640579710f0", // ## 5. Report evidence, not confidence
-  "66ca0e3aae98d24c65afbc418645df29d8c570be81918c42192eb1beecd21f23", // ## 6. Do not cross high-impact boundaries alone
-  "9c6c27eb57a9790273fa3fdf0df3628d927b025f870f09933692d1b522d73a25", // ## Decisions and explanations
-  "922d100c2dc6ef8a53989a920c3554afa7efd148255bc144412403c0289439e6", // ## Decisions and explanations
-  "330a67775a28557431aebf36a44018fc5194a4b929bf2cf95184b1f0828a6360", // ## 1. Understand First
-  "3b2f0147dc7bd0f01fd12485790199ef4ee96a6b723e244ffbf3dc96933a1ab8", // ## 2. Define Success and Keep It Simple
-  "8802fb25c05879c98dbf8407001d239c410d25b4fa2521b11d9d7cc108f73b29", // ## 3. Preserve Sound Boundaries
-  "1d0d9bf05d8870dd0dc62e388ceffc98923f1dd2074ef8038f80a50c9b5b9a81", // ## 4. Make Surgical Changes
-  "05e08e2318061141464ae714d6770d35527576affa787740d9c6d9345d3462dd", // ## 5. Verify and Review
-  "7b39f1f92a72517d6ae52599becfef29f675e48185a3483dc993d7accd4aee7c", // ## 6. Protect High-Impact Boundaries
-  "d5d93c55de33e4cdcb38f76c6d6d70a6e0beac7a176c8aa1daa09905ccc5fe39", // ## 7. Report Evidence
-  "cefc8bb6194d4f1b6302345e96ffb3a28b8b992032fd40f9f5b4f18997657e7a", // ## Presenting a decision
-  "7385ff5df34148278a8f4b164c11ba5f9355626abcc13a822dd1ebb206321c2f", // ## Skills that apply continuously
-  "ad9fd1ff225c57c9801a7d7472bf4ddf9c952c602f4a93eae86fbcb3bcf468bc", // ## 7. Report Evidence
-  "868fe823fc40011d08816c9f1105ef6df7ca7f2479779303ce9583bba1ce6e0d", // ## Skills that apply continuously
-  "3f8259ca7c92d79cca1a36bba38f36d4ef5a96fd6cafbd0edb5a79492082f46f", // ## Presenting a decision
-  "ecfdcd50e97723af77cfe6889bbad784cdeb86dd0c52af3ff98ddf6adf80f445", // ## 1. Resolve what matters, then act
-  "9321cb1312a080bcf560940b8f86d3d59b39c667add4b8f3ad785ddae9bc8b20", // ## 2. Choose the simplest sufficient solution
-  "a4c345996a8578cc24b62fde27084e5848a61e4a40d91b0c72a95da46203b43c", // ## 3. Keep changes focused and preserve existing work
-  "1adbf1bf88bb8288744e1c1d73518ffdec12a5b668d5a225e2bedd006844466c", // ## 4. Define success and verify proportionally
-  "7636e57a877d54039f0c2829fde84202c65378bd36b8c8abb7274a29eaa5f8ac", // ## 5. Report evidence and stop unproductive loops
-  "ddf2be9e04c04bf53ad9b5476e45639b33a60bf49bd3a83835796632052b17b4", // ## 6. Keep authority explicit
-  "16b0edc0f4886a9f9ec94e6fb97206c385286b2c9d5563b2324b7a2f4a434435", // ## 1. Understand what success means
-  "b10ab1eafe25bb7ba3b20b907b1d7eedde03e52fbd49905f24e192e30b4e1b9a", // ## 2. Choose and adapt the approach
-  "69bcfb8b37ac184b1a30945a0dea59108ef1242c2f40fb778be118cbd524aea7", // ## 3. Keep changes focused and coherent
-  "f22a5a13c5ed8460c9370212d91354d0fea2fefc7f420a1eb3088504ae8da6c0", // ## 4. Verify outcomes in proportion to consequences
-  "7a335cde69e8055ee5e137a9a5c09fd7f7c2e551ab099a2cda87f0c3dcd95a19", // ## 5. Let evidence determine readiness
-  "79797568bb71bd0f7b14393f72e61721a4bfe99ecfb6126ffa38a6c03c53d765", // ## 6. Act within clear authority
-]);
+export {
+  legacySectionKey as retiredAnchorSectionKey,
+  RETIRED_ANCHOR_SECTION_KEYS,
+} from "./legacy-fingerprints.js";

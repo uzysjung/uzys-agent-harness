@@ -1,0 +1,31 @@
+Updating installed harness files in /tmp/r/26.100.0-codex-C
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/r/26.100.0-codex-C
+  ▸ TRACKS       tooling
+  ▸ CLI          codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⊘ .codex/config.toml                       left — written by an earlier harness version and changed since — left as is; harness part not added · its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run
+  ⚠ .codex/config.toml                       [features] codex_hooks · child_agents_md make Codex warn at every start ("deprecated" / "ignoring unrecognized configuration") — delete those lines; if they sit inside the harness region, delete the whole region and run update
+  ⊘ .claude/                                 present but not recorded as installed — left untouched. If its rules/ · agents/ · hooks/ · skills/ came from this tool (you did not write them), run `agent-harness install --track tooling --cli claude --scope project` once to re-record them and updates resume; otherwise this directory is yours
+  ⊘ no checksum on record                    1 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+  ✓ external CLI artifacts                   1 files updated
+  ✓ AGENTS.md                                removed 19 section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)
+  ⊘ product-skills                           카탈로그에서 빠졌다 · 깐 것은 그대로 남는다 · 치우려면 agent-harness uninstall --only product-skills
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 21 items resident · ~6059 tokens/session (directives 7 ~4409 · [rules 6 inside AGENTS.md · AGENTS.md 1 ~4409 whole file, incl. your text] · triggers 14 ~1650 · [skills 14 ~1650 · agents 0 ~0] · 1 external asset unmeasured)
+  ▸ BACKUPS      1 file(s) saved before replacing, as *.backup-<time> — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"
+
