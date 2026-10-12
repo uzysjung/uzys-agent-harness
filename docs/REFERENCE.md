@@ -66,7 +66,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 | **context7** | 모든 트랙(빼기: `--without context7` · 위저드 체크 해제) | `npx -y @upstash/context7-mcp@latest` |
 | **chrome-devtools** | csr-* · ssr-* · full (선택: `--with chrome-devtools` — 어느 트랙이든) | `npx -y chrome-devtools-mcp@latest --no-usage-statistics` |
 | **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | 원격 `https://mcp.railway.com` (첫 사용 때 OAuth 로그인) |
-| **supabase** | csr-supabase · full (선택: `--with supabase` — 어느 트랙이든) | `npx -y @supabase/mcp-server` |
+| **supabase** | csr-supabase · full (선택: `--with supabase` — 어느 트랙이든) | 원격 `https://mcp.supabase.com/mcp` (첫 사용 때 OAuth 로그인) |
 | **vercel** | 선택만(`--with vercel`) | 원격 `https://mcp.vercel.com` (첫 사용 때 OAuth 로그인) |
 | **github-mcp** | 선택만(`--with github-mcp`) | 원격 `https://api.githubcopilot.com/mcp/` — 환경변수 `GITHUB_PAT` 의 토큰을 `Authorization: Bearer` 로(파일에는 변수 이름만) |
 
