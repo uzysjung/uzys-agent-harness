@@ -24,6 +24,7 @@ import {
   isUnfilledScaffold,
   renderContinuousSkillsNote,
 } from "./project-claude-merge.js";
+import { RETIRED_ANCHOR_SECTION_KEYS, retiredAnchorSectionKey } from "./retired-anchor-sections.js";
 
 export interface HarnessBlockMarker {
   start: string;
@@ -355,7 +356,8 @@ function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set
 /**
  * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다.
  * `replacedRulesHeadings` 가 있으면 `## Project Rules` 본문을 통째로 갈아 끼우는 중이다(마커 없는 옛 판) — 그 본문의
- * `## ` 중 이 집합(렌더의 같은 절 제목)에 없는 것도 설치자 절로 모은다.
+ * `## ` 중 이 집합(렌더의 같은 절 제목)에 없는 것도 설치자 절로 모은다. 단 옛 판 앵커 절과 바이트가 같은 절은 하네스가
+ * 쓰고 은퇴시킨 것이다 — 되살리지 않는다(`RETIRED_ANCHOR_SECTION_KEYS`).
  */
 function extraTopLevelSections(
   existing: string,
@@ -371,6 +373,7 @@ function extraTopLevelSections(
     ...renderedRuleHeadings(rendered, names),
   ]);
   const out: string[][] = [];
+  const replacedSections = new Set<string[]>();
   let current: string[] | null = null;
   let region: string | null = null;
   for (const line of existing.split("\n")) {
@@ -386,6 +389,7 @@ function extraTopLevelSections(
         replacedRulesHeadings !== null &&
         !replacedRulesHeadings.has(bare.trim());
       current = owner === "installer" || replacedBody ? [line] : null;
+      if (replacedBody && current !== null) replacedSections.add(current);
       continue;
     }
     if (current !== null) current.push(line);
@@ -393,6 +397,11 @@ function extraTopLevelSections(
   if (current !== null) out.push(current);
   // 끝의 빈 줄 껍데기는 되살릴 필요 없다 — 병합 결과가 정리한다.
   return out
+    .filter(
+      (lines) =>
+        !replacedSections.has(lines) ||
+        !RETIRED_ANCHOR_SECTION_KEYS.has(retiredAnchorSectionKey(lines)),
+    )
     .map((lines) => {
       const trimmed = [...lines];
       while (trimmed.length > 1 && (trimmed.at(-1) ?? "").trim() === "") trimmed.pop();

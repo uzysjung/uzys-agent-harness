@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -8,6 +8,7 @@ import {
   stripHarnessFromAgentsMd,
   wrapHarnessBlock,
 } from "../src/agents-md-merge.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
 import {
   hashContent,
   type InstallLog,
@@ -31,7 +32,12 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
   it("설치자 절 셋(Harness Rules 안 · Session Start 뒤 · 파일 끝) — update 가 되살리는 절 = uninstall 이 남기는 절", () => {
     const rules = ruleHeadings(HARNESS_ROOT);
     expect(rules.has("## Testing"), "픽스처 자기검증 — 실제 배포 룰 제목").toBe(true);
-    const doc = (harnessRules: string, sessionStart: string, tail: string): string =>
+    const doc = (
+      harnessRules: string,
+      sessionStart: string,
+      tail: string,
+      anchorHeading = "## 1. Principle",
+    ): string =>
       [
         "# P — Agent Guide (Codex)",
         "",
@@ -41,7 +47,7 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
         "",
         "## Project Rules",
         "",
-        wrapHarnessBlock(ANCHOR_BLOCK, "# Working Principles\n\n## 1. Principle\n\nbody"),
+        wrapHarnessBlock(ANCHOR_BLOCK, `# Working Principles\n\n${anchorHeading}\n\nbody`),
         "",
         "## Harness Rules",
         "",
@@ -61,6 +67,9 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
       "## Testing\n\nrule body\n\n## Test\n\nTEST-TEXT",
       "start here\n\n## Release notes\n\nRELEASE-TEXT",
       "\n## Git\n\nGIT-TEXT\n",
+      // 옛 판 앵커 제목(본문 절 안) — 두 경로 모두 본문 소유 규칙에 맡겨야 한다. 병합 호출부가 절(region)을 잘못 넘기면
+      // 이 제목을 설치자 절로 되살려 걷기와 갈린다(리뷰 NOTE-2)
+      "## 1. Old principle",
     );
     const headings = (text: string): string[] => text.split("\n").filter((l) => /^## /.test(l));
 
@@ -172,6 +181,88 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
 
     run("update");
     expect(agents()).toBe(after);
+  });
+
+  /**
+   * v26.151.0·v26.152.0(npm 게시본)이 남긴 마커 없는 `AGENTS.md` — `## Project Rules` 에 그 판의 앵커 본문이 마커 없이 들어 있다.
+   * 앵커 본문 = 그 판의 `templates/CLAUDE.md`(첫 h1 제거). 그 바이트를 하네스가 썼다고 기록한다.
+   */
+  const OLD_ANCHOR_FIRST = "## 1. Resolve what matters, then act";
+  const NOW_ANCHOR_FIRST = "## 1. Understand what success means";
+  const writeLegacy152 = (): string => {
+    run();
+    const anchorBody = (md: string): string => md.replace(/^#\s+.*\r?\n/, "").trim();
+    const now = anchorBody(readFileSync(join(HARNESS_ROOT, "templates/CLAUDE.md"), "utf8"));
+    const old = anchorBody(
+      readFileSync(join(HARNESS_ROOT, "tests/fixtures/anchor-v26.152.0.md"), "utf8"),
+    );
+    const legacy = agents()
+      .replace(/<!-- uzys-harness:[a-z]+:(start|end) -->\n/g, "")
+      .replace(now, old);
+    expect(legacy, "픽스처 자기검증 — 마커 없는 옛 판").not.toContain("<!-- uzys-harness:");
+    expect(legacy, "픽스처 자기검증 — v26.152 앵커").toContain(`\n${OLD_ANCHOR_FIRST}\n`);
+    expect(legacy).not.toContain(NOW_ANCHOR_FIRST);
+    recordAsHarnessWritten(legacy);
+    return legacy;
+  };
+  const uninstallAll = (): void => {
+    uninstallAction(
+      { projectDir, yes: true },
+      {
+        exit: () => undefined as never,
+        log: () => {},
+        err: () => {},
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+  };
+
+  it("v26.152 이 남긴 마커 없는 AGENTS.md 를 고치지 않고 update — 은퇴한 옛 6원칙이 파일에 남지 않는다 · uninstall 이 파일째 지운다", () => {
+    writeLegacy152();
+
+    run("update");
+    const after = agents();
+    expect(after).not.toContain(OLD_ANCHOR_FIRST);
+    expect(after).not.toContain("## 6. Keep authority explicit");
+    expect(after.split(`\n${NOW_ANCHOR_FIRST}\n`).length - 1).toBe(1);
+    run("update");
+    expect(agents()).toBe(after);
+
+    uninstallAll();
+    expect(existsSync(agentsPath())).toBe(false);
+  });
+
+  it("v26.152 이 남긴 마커 없는 AGENTS.md 의 Project Rules 에 설치자가 적은 `## My rules` — update 뒤 그 절만 남고 옛 6원칙은 없다", () => {
+    const legacy = writeLegacy152();
+    const MINE = "## My rules\n\nMY-RULES-TEXT — 배포는 금요일에 하지 않는다.";
+    writeFileSync(
+      agentsPath(),
+      legacy.replace("\n## Harness Rules\n", `\n${MINE}\n\n## Harness Rules\n`),
+    );
+
+    run("update");
+    const after = agents();
+    expect(after).toContain(MINE);
+    expect(after).not.toContain(OLD_ANCHOR_FIRST);
+    expect(after.split(`\n${NOW_ANCHOR_FIRST}\n`).length - 1).toBe(1);
+    run("update");
+    expect(agents()).toBe(after);
+  });
+
+  it("v26.152 앵커 절 본문에 설치자가 한 줄을 더했으면 — 그 절은 설치자 글로 남는다(제목만 같다고 지우지 않는다)", () => {
+    const legacy = writeLegacy152();
+    const ADDED = "MINE-ADDED-LINE — 우리 팀은 금요일 배포 금지.";
+    expect(legacy, "픽스처 자기검증 — 덧쓸 자리").toContain("\n## Harness Rules\n");
+    writeFileSync(
+      agentsPath(),
+      legacy.replace("\n## Harness Rules\n", `\n${ADDED}\n\n## Harness Rules\n`),
+    );
+
+    run("update");
+    const after = agents();
+    expect(after).toContain(ADDED);
+    expect(after).toContain("## 6. Keep authority explicit");
+    expect(after).not.toContain(OLD_ANCHOR_FIRST);
   });
 
   it("앵커 제목이 바뀐 판에서 update — 옛 앵커 절이 파일 끝에 되살아나지 않는다", () => {
