@@ -131,15 +131,15 @@ export function installedTargetState(projectDir: string): InstalledTargetState {
   if (!log) return { installed: [], projectScoped: [] };
   // #709 — 기록된 `.mcp.json` 몫의 선택 서버(`railway-mcp-server`)도 깔린 project 자산이다(외부 설치 기록엔 안 남는다)
   const mcp = recordedMcpAssetIds(log);
-  // #760 — 번들 스킬도 외부 설치 기록(`assets`)에 안 남는다. 기록 범위는 로그 하나의 범위다
+  // #760 — 번들 스킬도 외부 설치 기록(`assets`)에 안 남는다. 옛 전역 범위 기록이어도 번들 스킬은 언제나 프로젝트 안에
+  // 깔렸다(ADR-097 결정 6 — 전역은 외부 설치기만) — 범위로 거르면 손대지 않은 Update 가 해제로 읽힌다(#760 리뷰 BLOCKER-1)
   const skills = recordedBundledSkillIds(log);
-  const projectSkills = log.scope === "global" ? [] : skills;
   return {
     installed: [...log.assets.map((a) => a.id), ...mcp, ...skills],
     projectScoped: [
       ...log.assets.filter((a) => a.scope !== "global").map((a) => a.id),
       ...mcp,
-      ...projectSkills,
+      ...skills,
     ],
   };
 }

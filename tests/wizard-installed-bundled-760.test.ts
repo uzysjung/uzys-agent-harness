@@ -116,6 +116,20 @@ describe("#760 — 위저드 Update 흐름", () => {
     expect(result.mode).toBe("update");
   });
 
+  it("옛 전역 범위 기록도 그대로 두면 refresh 다 — 번들 스킬은 범위와 무관하게 프로젝트 안에 깔린다", async () => {
+    install(["claude"]);
+    const log = readInstallLog(dir) as InstallLog;
+    writeFileSync(installLogPath(dir), JSON.stringify({ ...log, scope: "global" }), "utf8");
+    const confirmInstall = vi.fn(async (_s: string) => true);
+    const result = await runInteractive(dir, {
+      prompts: prompts({ confirmInstall }),
+      detect: detected(["tooling"]),
+      isTty: () => true,
+    });
+    expect(result.mode).toBe("update");
+    expect(confirmInstall.mock.calls[0]?.[0] ?? "").not.toContain(`--without ${PICKED}`);
+  });
+
   it("체크를 풀면 add 이고 RUNS AS 가 --without gemini-delegate 를 낸다", async () => {
     install(["claude"]);
     const confirmInstall = vi.fn(async (_s: string) => true);
