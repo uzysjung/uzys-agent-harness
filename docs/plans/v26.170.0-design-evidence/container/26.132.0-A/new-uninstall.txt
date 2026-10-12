@@ -1,0 +1,50 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T09:21:37.146Z
+  scope:     project
+  assets:    4
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 52 harness file(s) · .agents/ 41 · .codex/ 1
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ⊘ .claude/agents/strategist.md — not put back — the spot is taken; your earlier file is at .claude/agents/strategist.md.backup-20261012T092137
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ✓ AGENTS.md — removed the harness block (yours stays)
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 44 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: CLAUDE.md · agents/data-analyst.md · agents/strategist.md +41 more
+  ⊘ left  .codex/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 21건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .agents/skills/compaction-handoff/SKILL.md.backup-20261012T092137
+  .agents/skills/multi-persona-review/SKILL.md.backup-20261012T092137
+  .agents/skills/recurrence-prevention/SKILL.md.backup-20261012T092137
+  .claude/agents/build-error-resolver.md.backup-20261012T092137
+  .claude/agents/code-reviewer.md.backup-20261012T092137
+  .claude/agents/plan-checker.md.backup-20261012T092137
+  .claude/agents/security-reviewer.md.backup-20261012T092137
+  .claude/agents/silent-failure-hunter.md.backup-20261012T092137
+  .claude/agents/strategist.md.backup-20261012T092137
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261012T092137
+  .claude/hooks/mcp-pre-exec.sh.backup-20261012T092137
+  .claude/hooks/spec-drift-check.sh.backup-20261012T092137
+  .claude/rules/code-style.md.backup-20261012T092137
+  .claude/rules/error-handling.md.backup-20261012T092137
+  .claude/rules/gates-taxonomy.md.backup-20261012T092137
+  .claude/rules/git-policy.md.backup-20261012T092137
+  .claude/rules/no-false-ship.md.backup-20261012T092137
+  .claude/rules/test-policy.md.backup-20261012T092137
+  .claude/skills/north-star/my-notes.md.backup-20261012T092137
+  .codex/hooks/session-start.sh.backup-20261012T092137
+  .mcp-allowlist.backup-20261012T092137
+
+✓ uninstall complete (3 asset(s))

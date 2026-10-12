@@ -1,0 +1,400 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-12T09:21:50.437Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude",
+      "codex"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "codexDir": ".codex/",
+    "rootClaudeMd": {
+      "path": "CLAUDE-uzys-harness.md",
+      "sha256": "16347e86e7c1699db212586685a640135891ec5787ba486e0a12562d85bc9b60"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "anthropics/skills",
+        "skill": "frontend-design"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    }
+  ],
+  "skillFiles": [
+    {
+      "path": "agent-introspection-debugging/SKILL.md",
+      "sha256": "aff0d52785d3013d9f98de95ca778bfcab7c566db20352ead42852a1659292d2"
+    },
+    {
+      "path": "audit-harness-fit/SKILL.md",
+      "sha256": "85c489aec23eb0b9f907c3b10395dabbe03add8300f6d365e886e02f833fd769"
+    },
+    {
+      "path": "audit-harness-fit/references/official-criteria.md",
+      "sha256": "b80c77f12fdf1752f671eb1c0f8edb6f4f34c3777d6753b9af713f91cff77222"
+    },
+    {
+      "path": "audit-service-gaps/SKILL.md",
+      "sha256": "ba9ac6df2315538935aff945f25a7596b3a9e478c4cdcb3a218ff404f4b612d7"
+    },
+    {
+      "path": "audit-service-gaps/references/modes-and-evidence.md",
+      "sha256": "fa73b3edf2c55f5caf47f1f2d930d8c2ccd737af0a2def5f40a1db942029275d"
+    },
+    {
+      "path": "audit-service-gaps/references/worked-example.md",
+      "sha256": "e5f31f498e864dcaabe2a0d6a05fe1d64cd8be6a1b79a18de78bcbb42e06d658"
+    },
+    {
+      "path": "clear-korean-communication/SKILL.md",
+      "sha256": "fe480eb8357a79abcc1f6c5954c61f0a8b3e7479b9835b7fbdead18a9dac4b46"
+    },
+    {
+      "path": "clear-korean-communication/references/pre-send-checklist.md",
+      "sha256": "65f93177e9a442332c2c90f4e905c4d558b6349e47d5c86eee7705b76b71a1b9"
+    },
+    {
+      "path": "clear-korean-communication/references/why-it-works.md",
+      "sha256": "d4439db6a1765fab5fa6875d0528fe715366c270ea35853ad8bb1404388200cb"
+    },
+    {
+      "path": "clear-korean-communication/references/worked-examples.md",
+      "sha256": "d53369cf02c62147510bae3a0cfa878ce89013bed11a30c32cc675dd0a0df825"
+    },
+    {
+      "path": "compaction-handoff/SKILL.md",
+      "sha256": "42d8300cddc4bbe78b353c8ff846b5fd8ed2b4a68f1998982900fd31596c1755"
+    },
+    {
+      "path": "continuous-learning-v2/SKILL.md",
+      "sha256": "75485ddb37e2d1d6f056b404d9939bf46a2b409b1286aec209a510112e5b64b1"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer-loop.sh",
+      "sha256": "25ceefcc260c3599b6d12148d1a573110ace3091c723bdee3a3cf10692e5d4e2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer.md",
+      "sha256": "320d50ff2965efeabd6f07c2be134e11da160293e958c1bc27c309d613839ad2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/session-guardian.sh",
+      "sha256": "ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c"
+    },
+    {
+      "path": "continuous-learning-v2/agents/start-observer.sh",
+      "sha256": "6b1966e38eb0c96d61de5d204b87097592884364be59e5bea6007289e8068936"
+    },
+    {
+      "path": "continuous-learning-v2/config.json",
+      "sha256": "6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970"
+    },
+    {
+      "path": "continuous-learning-v2/hooks/observe.sh",
+      "sha256": "e632c2f486248b8b141059c23586d5ca0187df8c34f53d7597cd845713e06948"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/detect-project.sh",
+      "sha256": "a39677edd0ce1deb7628ed31610baafc16090a710233963d2b6a55db64167cf9"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/instinct-cli.py",
+      "sha256": "0b060a762f0fc4ad56e45cbaa14c14fb9ab3f468763f6a32a17bb864fbd3fc30"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/lib/homunculus-dir.sh",
+      "sha256": "99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/migrate-homunculus.sh",
+      "sha256": "34f121c143a676d330f06209618aae8cb08f8155298cb5fa70c893314bf9b303"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/test_parse_instinct.py",
+      "sha256": "acf556e8a8023347b35988bb490927a4e9f65f2579b03f26cad610687656605b"
+    },
+    {
+      "path": "deep-research/SKILL.md",
+      "sha256": "b852bebb31908f352c5397bde6de06ee7ca3c0e1c866fae4dedbd5c4fbb27323"
+    },
+    {
+      "path": "deep-research/agents/openai.yaml",
+      "sha256": "cb877e559cfe405d0e12bfc9bcaef657ab05a30ef698e6f3e486e39c5e0a6d2d"
+    },
+    {
+      "path": "eval-harness/SKILL.md",
+      "sha256": "12399b9de9e044273fd4dd6a8177bc4f17db008a33df83557ef56770b1466a56"
+    },
+    {
+      "path": "eval-harness/agents/openai.yaml",
+      "sha256": "6f2c19eb59062ca776286c2f6a6a7f1b552b4f927a2b48de888a7dbb2eeec6bd"
+    },
+    {
+      "path": "find-skills/SKILL.md",
+      "sha256": "c00eeea0e13e74fe4a9d84ba0a8542205a1b736d65f13134fe1a6647eb14976f"
+    },
+    {
+      "path": "frontend-design/LICENSE.txt",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "frontend-design/SKILL.md",
+      "sha256": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3"
+    },
+    {
+      "path": "gh-issue-workflow/ISSUE.template.md",
+      "sha256": "6c897058f7cfbc7b3eb5a3688f21a106fda39b7ded0f05570cff349214aca427"
+    },
+    {
+      "path": "gh-issue-workflow/SKILL.md",
+      "sha256": "0b1ce6a696c1388e928240ec787b449dd0b0a92749789fe28f8627fbb9aee880"
+    },
+    {
+      "path": "gh-issue-workflow/references/hierarchy.md",
+      "sha256": "0e16e38d5919e5eed0aa044899895fb13c3846a333f3470d8001bda09ba959c4"
+    },
+    {
+      "path": "gh-issue-workflow/references/operating-model.md",
+      "sha256": "c6feec997887d05d3385441258c464609e52c4bbebb7c0b7390a5d6016ad9a0a"
+    },
+    {
+      "path": "gh-issue-workflow/references/readiness.md",
+      "sha256": "08df321b014d96f8d5b5e0c7af7f36d09d719fb098bdaec7928af4a77c1866cb"
+    },
+    {
+      "path": "multi-persona-review/SKILL.md",
+      "sha256": "17f9f1a0c224168fb4c773f87f8ad84a4d7db9082088e096262aa71e1916f0f6"
+    },
+    {
+      "path": "multi-persona-review/references/reviewer-design.md",
+      "sha256": "4afc9d327f91139b4d272a54e1b1992766b7e0482b4479c76ca9b5284e28d7c8"
+    },
+    {
+      "path": "multi-persona-review/references/worked-example.md",
+      "sha256": "95b48adac8ae5a91cb60fb9d5c32c90365734225775f0f85f26fb72404345943"
+    },
+    {
+      "path": "north-star/NORTH_STAR.template.md",
+      "sha256": "741efd7d4c477f95ecd1fca85656d4582a694b3753ece77378ddab8ba0f0b69e"
+    },
+    {
+      "path": "north-star/SKILL.md",
+      "sha256": "fa4427fb57243aed96d639362d97c69202170dfa949bfb0818f4600b1cd8432f"
+    },
+    {
+      "path": "north-star/references/roadmap-method.md",
+      "sha256": "fd58a20159eb0b14b69781ea2536be1fdebd78c9eb83658c2b76de78efd21bab"
+    },
+    {
+      "path": "recurrence-prevention/SKILL.md",
+      "sha256": "62fe94e2cd34d9c3c40871766619d5c37c957e89247c5d281e62c85de51326de"
+    },
+    {
+      "path": "recurrence-prevention/references/failure-analysis.md",
+      "sha256": "1dd840db9a2bc662ec9688833988d93e80d0be245e7edd727c2d065a9d7d9eca"
+    },
+    {
+      "path": "self-hosted-github-runner/SKILL.md",
+      "sha256": "4e5b86b9c7c8527599cfd8be61f4ed3ab67d439bb791f4068d85e52c9327e5df"
+    },
+    {
+      "path": "spec-scaling/SKILL.md",
+      "sha256": "93fe3ed443754bd368a45e71145434c1fd7efd349e25b0179bbb63774ac4ca0e"
+    },
+    {
+      "path": "strategic-compact/SKILL.md",
+      "sha256": "6bfc63c380eb89886335ad033f759a4ff3f1b1ae2c5a143598bb628e38c6e769"
+    },
+    {
+      "path": "strategic-compact/suggest-compact.sh",
+      "sha256": "62af1630b000713842e363447675ad5a94f72cddf47241df68fc9883de686689"
+    },
+    {
+      "path": "task-brief/SKILL.md",
+      "sha256": "0859fc0b6cf760edb83b4c41cb8156cc90b7c62f1d5b5dd364acd4c5f7935cc2"
+    },
+    {
+      "path": "verification-loop/SKILL.md",
+      "sha256": "1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2"
+    },
+    {
+      "path": "verification-loop/agents/openai.yaml",
+      "sha256": "1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3"
+    },
+    {
+      "path": "verification-loop/references/tracks.md",
+      "sha256": "de11792d447c2e8ea67e8367c6655bd94646b1ba3f29184c4521cae01facc6ec"
+    }
+  ],
+  "policyFiles": [
+    {
+      "path": "rules/change-management.md",
+      "sha256": "d2977a144259dc744835d9bb6c3cfa8d1b390f5393c34d883ba0f67a6bc4dc3e"
+    },
+    {
+      "path": "rules/cli-development.md",
+      "sha256": "cc0545a04706c18304eb92c365d691986d511f02436f405894306e829b4f5b8e"
+    },
+    {
+      "path": "rules/doc-governance.md",
+      "sha256": "7a79bba801a1fb3695566bc19c9bd2f89456219560d76ac4f2bcf405c238b6a1"
+    },
+    {
+      "path": "rules/git-policy.md",
+      "sha256": "e1ebe8b7abf6e61015bef44c6f848f13ae8cafe16384b765b35905efecf0a21b"
+    },
+    {
+      "path": "rules/ship-checklist.md",
+      "sha256": "1b42169da6e29bfee8ea695831154f672d7cabd8816d1993678c4955a43ed1e4"
+    },
+    {
+      "path": "rules/test-policy.md",
+      "sha256": "9f1e71e12db41a3b20653854c66adcb224c47e86d6a5815d3b7002418cae458b"
+    },
+    {
+      "path": "agents/build-error-resolver.md",
+      "sha256": "a050a74ed31acba06b36e8c34bc35bc0e684b6b7ab01c891dfc2d13ba94f9824"
+    },
+    {
+      "path": "agents/code-reviewer.md",
+      "sha256": "e112e5e0bbc501788e8a3bfd2771d34e31a8564bbd87391bff7401af1509782c"
+    },
+    {
+      "path": "agents/data-analyst.md",
+      "sha256": "1d75c07c51b8a000e536cd8a1c23e0609d93ea51b02cd48f9877610082cb2475"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a12f9132a55526208837e4960c96705df595c0e1cc2870eba1e56f2a87632de1"
+    },
+    {
+      "path": "agents/plan-checker.md",
+      "sha256": "86ad22297e6f1d75d42146685d759af10698cf763feb1c9484d1f0437262e833"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "1a0153a7fcc8a170f3f08f2a4e392ca72117d413d690441b930028ce923a6094"
+    },
+    {
+      "path": "agents/security-reviewer.md",
+      "sha256": "eacaa50c2b2fdee398ba2e3c896c018ea8887d34701e5b841278ea2c1472cc19"
+    },
+    {
+      "path": "agents/silent-failure-hunter.md",
+      "sha256": "004ce0389356e0666d80c89cef39ad895ab326b3f7d19d34d23c70ab249a795d"
+    },
+    {
+      "path": "agents/strategist.md",
+      "sha256": "b217c7bd273e672de44d4df123201cc5c10203fa9bafad84a370d4b7d32b7fc6"
+    },
+    {
+      "path": "hooks/protect-files.sh",
+      "sha256": "0190071614b9466bd4f29189b99f839eceecb08b480f397e5937f8087e6aac08"
+    },
+    {
+      "path": "hooks/session-start.sh",
+      "sha256": "490b1d99f6d901d63e48a8122d67225f5c48cc835db0f410fed91c364666ba2e"
+    },
+    {
+      "path": "hooks/task-brief-nudge.sh",
+      "sha256": "a5bca92a610efab0d770c96e12d3f6996cb184ae0175005724635a9a920fefac"
+    }
+  ],
+  "externalFiles": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "050792a61a439fca644dd3569b12920c1ca0555d8803c4fe56e50ce76489025d"
+    },
+    {
+      "path": ".codex/config.toml",
+      "sha256": "164d17e3b5735c78469c2e862eb0cd0584e360120e8f95a08074c14a819ca19f"
+    },
+    {
+      "path": ".codex/hooks/session-start.sh",
+      "sha256": "490b1d99f6d901d63e48a8122d67225f5c48cc835db0f410fed91c364666ba2e"
+    },
+    {
+      "path": ".agents/skills/compaction-handoff/SKILL.md",
+      "sha256": "42d8300cddc4bbe78b353c8ff846b5fd8ed2b4a68f1998982900fd31596c1755"
+    },
+    {
+      "path": ".agents/skills/clear-korean-communication/SKILL.md",
+      "sha256": "fe480eb8357a79abcc1f6c5954c61f0a8b3e7479b9835b7fbdead18a9dac4b46"
+    },
+    {
+      "path": ".agents/skills/audit-service-gaps/SKILL.md",
+      "sha256": "ba9ac6df2315538935aff945f25a7596b3a9e478c4cdcb3a218ff404f4b612d7"
+    },
+    {
+      "path": ".agents/skills/multi-persona-review/SKILL.md",
+      "sha256": "17f9f1a0c224168fb4c773f87f8ad84a4d7db9082088e096262aa71e1916f0f6"
+    },
+    {
+      "path": ".agents/skills/recurrence-prevention/SKILL.md",
+      "sha256": "62fe94e2cd34d9c3c40871766619d5c37c957e89247c5d281e62c85de51326de"
+    },
+    {
+      "path": ".agents/skills/verification-loop/SKILL.md",
+      "sha256": "1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2"
+    },
+    {
+      "path": ".agents/skills/north-star/SKILL.md",
+      "sha256": "fa4427fb57243aed96d639362d97c69202170dfa949bfb0818f4600b1cd8432f"
+    },
+    {
+      "path": ".agents/skills/gh-issue-workflow/SKILL.md",
+      "sha256": "0b1ce6a696c1388e928240ec787b449dd0b0a92749789fe28f8627fbb9aee880"
+    },
+    {
+      "path": ".agents/skills/task-brief/SKILL.md",
+      "sha256": "0859fc0b6cf760edb83b4c41cb8156cc90b7c62f1d5b5dd364acd4c5f7935cc2"
+    },
+    {
+      "path": ".agents/skills/audit-harness-fit/SKILL.md",
+      "sha256": "85c489aec23eb0b9f907c3b10395dabbe03add8300f6d365e886e02f833fd769"
+    },
+    {
+      "path": ".agents/skills/self-hosted-github-runner/SKILL.md",
+      "sha256": "4e5b86b9c7c8527599cfd8be61f4ed3ab67d439bb791f4068d85e52c9327e5df"
+    }
+  ]
+}

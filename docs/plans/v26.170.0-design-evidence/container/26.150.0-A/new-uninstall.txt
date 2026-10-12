@@ -1,0 +1,41 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T09:21:50.437Z
+  scope:     project
+  assets:    3
+
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 52 harness file(s) · .agents/ 44 · .codex/ 1
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ⊘ .claude/agents/strategist.md — not put back — the spot is taken; your earlier file is at .claude/agents/strategist.md.backup-20261012T092150
+  ✓ AGENTS.md — harness sections removed (본문 보존)
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 37 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: agents/data-analyst.md · agents/strategist.md · hooks/mine.sh +34 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 12건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .claude/agents/build-error-resolver.md.backup-20261012T092150
+  .claude/agents/code-reviewer.md.backup-20261012T092150
+  .claude/agents/plan-checker.md.backup-20261012T092150
+  .claude/agents/security-reviewer.md.backup-20261012T092150
+  .claude/agents/silent-failure-hunter.md.backup-20261012T092150
+  .claude/agents/strategist.md.backup-20261012T092150
+  .claude/hooks/task-brief-nudge.sh.backup-20261012T092150
+  .claude/rules/git-policy.md.backup-20261012T092150
+  .claude/rules/test-policy.md.backup-20261012T092150
+  .claude/skills/audit-harness-fit/references/official-criteria.md.backup-20261012T092150
+  .claude/skills/north-star/my-notes.md.backup-20261012T092150
+  AGENTS.md.backup-20261012T092151
+
+✓ uninstall complete (1 asset(s))

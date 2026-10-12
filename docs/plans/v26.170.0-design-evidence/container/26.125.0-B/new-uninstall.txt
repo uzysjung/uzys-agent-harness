@@ -1,0 +1,84 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-12T09:21:34.786Z
+  scope:     project
+  assets:    4
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 29 harness file(s)
+  ✓ backed up  .claude/rules/change-management.md — no checksum on record — saved a copy, removed from live (.claude/rules/change-management.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/cli-development.md — no checksum on record — saved a copy, removed from live (.claude/rules/cli-development.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/doc-governance.md — no checksum on record — saved a copy, removed from live (.claude/rules/doc-governance.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/git-policy.md — no checksum on record — saved a copy, removed from live (.claude/rules/git-policy.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/ship-checklist.md — no checksum on record — saved a copy, removed from live (.claude/rules/ship-checklist.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/test-policy.md — no checksum on record — saved a copy, removed from live (.claude/rules/test-policy.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/reviewer.md — no checksum on record — saved a copy, removed from live (.claude/agents/reviewer.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/compaction-handoff/SKILL.md — no checksum on record — saved a copy, removed from live (.claude/skills/compaction-handoff/SKILL.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/multi-persona-review/SKILL.md — no checksum on record — saved a copy, removed from live (.claude/skills/multi-persona-review/SKILL.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/recurrence-prevention/SKILL.md — no checksum on record — saved a copy, removed from live (.claude/skills/recurrence-prevention/SKILL.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/north-star/NORTH_STAR.template.md — no checksum on record — saved a copy, removed from live (.claude/skills/north-star/NORTH_STAR.template.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/north-star/SKILL.md — no checksum on record — saved a copy, removed from live (.claude/skills/north-star/SKILL.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/gh-issue-workflow/ISSUE.template.md — no checksum on record — saved a copy, removed from live (.claude/skills/gh-issue-workflow/ISSUE.template.md.backup-20261012T092135)
+  ✓ backed up  .claude/skills/gh-issue-workflow/SKILL.md — no checksum on record — saved a copy, removed from live (.claude/skills/gh-issue-workflow/SKILL.md.backup-20261012T092135)
+  ✓ backed up  .claude/hooks/session-start.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/session-start.sh.backup-20261012T092135)
+  ✓ backed up  .claude/hooks/protect-files.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/protect-files.sh.backup-20261012T092135)
+  ✓ backed up  .claude/rules/code-style.md — no checksum on record — saved a copy, removed from live (.claude/rules/code-style.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/error-handling.md — no checksum on record — saved a copy, removed from live (.claude/rules/error-handling.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/gates-taxonomy.md — no checksum on record — saved a copy, removed from live (.claude/rules/gates-taxonomy.md.backup-20261012T092135)
+  ✓ backed up  .claude/rules/no-false-ship.md — no checksum on record — saved a copy, removed from live (.claude/rules/no-false-ship.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/build-error-resolver.md — no checksum on record — saved a copy, removed from live (.claude/agents/build-error-resolver.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/code-reviewer.md — no checksum on record — saved a copy, removed from live (.claude/agents/code-reviewer.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/plan-checker.md — no checksum on record — saved a copy, removed from live (.claude/agents/plan-checker.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/security-reviewer.md — no checksum on record — saved a copy, removed from live (.claude/agents/security-reviewer.md.backup-20261012T092135)
+  ✓ backed up  .claude/agents/silent-failure-hunter.md — no checksum on record — saved a copy, removed from live (.claude/agents/silent-failure-hunter.md.backup-20261012T092135)
+  ✓ backed up  .claude/hooks/checkpoint-snapshot.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/checkpoint-snapshot.sh.backup-20261012T092135)
+  ✓ backed up  .claude/hooks/mcp-pre-exec.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/mcp-pre-exec.sh.backup-20261012T092135)
+  ✓ backed up  .claude/hooks/spec-drift-check.sh — no checksum on record — saved a copy, removed from live (.claude/hooks/spec-drift-check.sh.backup-20261012T092135)
+  ✓ CLAUDE.md removed
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ⊘ left  .claude/settings.json — may still hold the harness's hooks (not on record): hooks.SessionStart#session-start.sh · hooks.PreToolUse#protect-files.sh · hooks.PreToolUse#mcp-pre-exec.sh — delete them by hand if they are not yours
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ⊘ left  .claude/ — 45 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: CLAUDE.md · agents/data-analyst.md · agents/strategist.md +42 more
+  ⊘ left  .codex/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml · hooks/session-start.sh
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .mcp-allowlist — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)
+      MCP allowlist (3 server)
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 28건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .claude/agents/build-error-resolver.md.backup-20261012T092135
+  .claude/agents/code-reviewer.md.backup-20261012T092135
+  .claude/agents/plan-checker.md.backup-20261012T092135
+  .claude/agents/reviewer.md.backup-20261012T092135
+  .claude/agents/security-reviewer.md.backup-20261012T092135
+  .claude/agents/silent-failure-hunter.md.backup-20261012T092135
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261012T092135
+  .claude/hooks/mcp-pre-exec.sh.backup-20261012T092135
+  .claude/hooks/protect-files.sh.backup-20261012T092135
+  .claude/hooks/session-start.sh.backup-20261012T092135
+  .claude/hooks/spec-drift-check.sh.backup-20261012T092135
+  .claude/rules/change-management.md.backup-20261012T092135
+  .claude/rules/cli-development.md.backup-20261012T092135
+  .claude/rules/code-style.md.backup-20261012T092135
+  .claude/rules/doc-governance.md.backup-20261012T092135
+  .claude/rules/error-handling.md.backup-20261012T092135
+  .claude/rules/gates-taxonomy.md.backup-20261012T092135
+  .claude/rules/git-policy.md.backup-20261012T092135
+  .claude/rules/no-false-ship.md.backup-20261012T092135
+  .claude/rules/ship-checklist.md.backup-20261012T092135
+  .claude/rules/test-policy.md.backup-20261012T092135
+  .claude/skills/compaction-handoff/SKILL.md.backup-20261012T092135
+  .claude/skills/gh-issue-workflow/ISSUE.template.md.backup-20261012T092135
+  .claude/skills/gh-issue-workflow/SKILL.md.backup-20261012T092135
+  .claude/skills/multi-persona-review/SKILL.md.backup-20261012T092135
+  .claude/skills/north-star/NORTH_STAR.template.md.backup-20261012T092135
+  .claude/skills/north-star/SKILL.md.backup-20261012T092135
+  .claude/skills/recurrence-prevention/SKILL.md.backup-20261012T092135
+
+✓ uninstall complete (3 asset(s))
