@@ -27,6 +27,7 @@ import { EXTERNAL_ASSETS, isAssetSelected } from "./external-assets.js";
 import {
   type ExternalInstallerDeps,
   type ExternalInstallReport,
+  holdSkillSlots,
   runExternalInstall,
   selectExternalTargets,
 } from "./external-installer.js";
@@ -177,8 +178,11 @@ export type ProgressEvent =
   | { type: "baseline-complete"; baseline: BaselineReport }
   /** External install phase about to begin. */
   | { type: "external-start"; assetCount: number }
-  /** External install phase finished (with report). */
-  | { type: "external-complete"; report: ExternalInstallReport }
+  /**
+   * External install phase finished (with report). `backups` = #770 HIGH-1 — 외부 스킬을 다시 받기 전에 설치자가 고친
+   * 파일 · 상류에 덮인 설치자 파일을 남긴 `<file>.backup-<시각>` (절대 경로).
+   */
+  | { type: "external-complete"; report: ExternalInstallReport; backups?: ReadonlyArray<string> }
   /** v26.64.0 — install log write 실패 (non-fatal). */
   | { type: "install-log-error"; message: string };
 
@@ -774,7 +778,7 @@ function runInstallStages(
   ctx.onProgress?.({ type: "baseline-complete", baseline });
 
   // ━━━ External assets (claude plugin / npm -g / npx skills) ━━━
-  const external = runExternalPhase(ctx);
+  const { report: external, backups: externalSkillBackups } = runExternalPhase(ctx, previousLog);
 
   // ━━━ v26.64.0 (ADR-020) — Install log write ━━━
   // #551 PR-3 — 쓰기 = 기록. 이번 실행이 쓴 경로·sha 를 옛 기록 위에 누적한다(디스크 스캔 없음).
@@ -801,7 +805,15 @@ function runInstallStages(
   );
 
   // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
-  return { ...baseline, external, staleHookRefs: [] };
+  return {
+    ...baseline,
+    // #770 HIGH-1 — 외부 스킬을 다시 받으며 남긴 백업은 Phase 1 행 뒤에 생긴다 — 보고에도 싣는다
+    ...(externalSkillBackups.length > 0
+      ? { backups: [...(baseline.backups ?? []), ...externalSkillBackups] }
+      : {}),
+    external,
+    staleHookRefs: [],
+  };
 }
 
 /** #595 — 기록이 없고 옛 앵커가 다른 하네스 흔적과 함께 있으면 그 경로. Claude Code 를 고른 설치에서만. */
@@ -1288,9 +1300,12 @@ function writeEnvironmentFiles(
  * Default = real runExternalInstall. Tests inject mock or `null` to skip.
  * log/warn은 silent (renderer가 onAssetStart/Result로 스트리밍).
  */
-function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
+function runExternalPhase(
+  ctx: InstallContext,
+  previousLog: InstallLog | null,
+): { report: ExternalInstallReport | null; backups: string[] } {
   if (ctx.runExternal === null) {
-    return null;
+    return { report: null, backups: [] };
   }
   const { projectDir, spec } = ctx;
   const runExt = ctx.runExternal ?? runExternalInstall;
@@ -1312,17 +1327,26 @@ function runExternalPhase(ctx: InstallContext): ExternalInstallReport | null {
   // v26.102.0 (ADR-031) — 헤더 카운트 = 실제 시도될 자산 수. runExternalInstall 과 **같은
   // selector** 를 호출해 "External assets (N)" 의 N 이 시도 목록과 구조적으로 일치
   // (이전엔 internal 8종을 포함해 dev 트랙 전부에서 헤더가 과대였다 — SOD 리뷰 F1 실측).
-  const applicableCount = selectExternalTargets(EXTERNAL_ASSETS, {
-    ...filterCtx,
-    cli: spec.cli,
-  }).targets.length;
-  ctx.onProgress?.({ type: "external-start", assetCount: applicableCount });
+  const { targets } = selectExternalTargets(EXTERNAL_ASSETS, { ...filterCtx, cli: spec.cli });
+  ctx.onProgress?.({ type: "external-start", assetCount: targets.length });
+  // #770 HIGH-1 (ADR-097 결정 3·5) — 재실행이면 이미 깐 스킬을 같은 도구로 다시 받는다. 도구가 스킬 폴더를 새로 만들어
+  // 설치자가 고친 파일 · 노트 · update 가 남긴 백업을 지우므로 update 와 같은 함수로 호출 전에 들고 호출 뒤에 판정한다.
+  const skillIds = new Set(targets.filter((a) => a.method.kind === "skill").map((a) => a.id));
+  const settle = holdSkillSlots(
+    projectDir,
+    (previousLog?.assets ?? []).filter((a) => a.method === "skill" && skillIds.has(a.id)),
+  );
   const external = runExt(
     { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
     externalDeps,
   );
-  ctx.onProgress?.({ type: "external-complete", report: external });
-  return external;
+  const backups = settle();
+  ctx.onProgress?.({
+    type: "external-complete",
+    report: external,
+    ...(backups.length > 0 ? { backups } : {}),
+  });
+  return { report: external, backups };
 }
 
 /**

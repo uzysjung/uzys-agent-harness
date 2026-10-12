@@ -189,6 +189,8 @@ export function createInstallRenderer(
         log("");
         phase2HeaderPrinted = true;
       } else if (event.type === "external-complete") {
+        // #770 HIGH-1 — 외부 스킬을 다시 받기 전에 남긴 백업. Phase 1 행이 이미 나간 뒤라 여기서 같은 행으로 말한다.
+        for (const b of event.backups ?? []) log(assetRow("success", "backup", shortenPath(b)));
         // v26.102.0 (ADR-031, Batch3) — CLI 도달 불가로 시도조차 안 한 자산 고지.
         // 침묵 제외는 "4-CLI 지원" 광고와 실동작의 어긋남을 숨긴다 (no-false-ship).
         // 어휘 주의: "skipped"(설치 실패)와 구분해 "not installed" 사용, 사유는 각 자산의
