@@ -40,6 +40,7 @@ import {
   ensureProjectSkeleton,
   listFilesRecursive,
 } from "./fs-ops.js";
+import { type LeftoverHold, settleLeftoverHolds } from "./held-files.js";
 import { findStaleHookRefs } from "./hook-ref.js";
 import {
   buildInstallLog,
@@ -192,7 +193,9 @@ export type ProgressEvent =
       displaced?: ReadonlyArray<{ path: string; backup: string }>;
     }
   /** v26.64.0 — install log write 실패 (non-fatal). */
-  | { type: "install-log-error"; message: string };
+  | { type: "install-log-error"; message: string }
+  /** #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본을 이번 실행 첫머리에 정리했다(파일마다 한 줄). */
+  | { type: "held-settled"; held: ReadonlyArray<LeftoverHold> };
 
 /**
  * v0.6.1 — Phase 1 output 카테고리별 분류. install renderer가 각 카테고리별로 row를 출력한다.
@@ -497,6 +500,10 @@ export function runInstall(ctx: InstallContext): InstallReport {
       `Update mode found a broken install at ${projectDir} — this project installed Claude Code assets but \`.claude/\` is gone. Reinstall instead: agent-harness install --track <name>`,
     );
   }
+
+  // #780 — 끊긴 실행(Ctrl-C · 예외)이 외부 스킬 도구 앞에서 떠 둔 사본이 남았으면 다른 일보다 먼저 정리한다(`held-files.ts`).
+  const leftover = settleLeftoverHolds(projectDir);
+  if (leftover.length > 0) ctx.onProgress?.({ type: "held-settled", held: leftover });
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update" && previousLog !== null) {
@@ -1376,11 +1383,27 @@ function runExternalPhase(
     slots: skillSlotsFor(skills, spec.cli, { log: previousLog, scope: spec.scope }),
     log: previousLog,
   });
-  const external = runExt(
-    { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
-    externalDeps,
+  let external: ExternalInstallReport;
+  try {
+    external = runExt(
+      { ...filterCtx, cli: spec.cli, projectDir, ...(spec.scope ? { scope: spec.scope } : {}) },
+      externalDeps,
+    );
+  } catch (e) {
+    // #780 — 도구 단계가 예외로 끝났다. 든 파일을 제자리로 되돌린다 — 되돌리지 못한 사본은 보존 자리에 남아 다음 실행이 정리한다
+    try {
+      settle("all");
+    } catch {
+      // 원래 예외가 원인이다 — 판정 실패는 보존 자리의 사본이 덮는다
+    }
+    throw e;
+  }
+  // 리뷰 MEDIUM-1 — 도구가 실패한 자산(비영 종료 · 시간 초과)은 기록에 남지 않는다. 그 자리의 원본을 displaced 로 적으면
+  // "uninstall 이 되돌린다" 를 지킬 수 없으니 바로 제자리로 되돌린다
+  const failedSkills = external.attempted.filter((r) => !r.ok).map((r) => r.asset);
+  const { backups, displaced } = settle(
+    skillSlotsFor(failedSkills, spec.cli, { log: previousLog, scope: spec.scope }),
   );
-  const { backups, displaced } = settle();
   // 화면의 백업 행은 고친 기록 파일의 백업만 — 비켜 둔 설치자 파일은 따로 "had a file with this name" 으로 말한다
   const displacedBackups = new Set(displaced.map((f) => join(projectDir, f.notes[0] ?? "")));
   const editBackups = backups.filter((b) => !displacedBackups.has(b));

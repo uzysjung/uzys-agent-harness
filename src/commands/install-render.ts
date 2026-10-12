@@ -42,6 +42,7 @@ import {
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
+import { leftoverHoldLine } from "../held-files.js";
 import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
@@ -184,6 +185,12 @@ export function createInstallRenderer(
         log(
           `  ${status.warn(c.yellow(`could not record this install (${event.message}) — uninstall and update will not see it. Fix the cause, then run the same install again`))}`,
         );
+      } else if (event.type === "held-settled") {
+        // #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본 — 무엇이 어디로 갔는지 파일마다 한 줄
+        for (const h of event.held) {
+          const line = leftoverHoldLine(h);
+          if (line !== null) log(`  ${status.warn(c.yellow(line))}`);
+        }
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
