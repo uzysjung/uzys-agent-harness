@@ -132,6 +132,17 @@ export function backupContent(target: string, content: Buffer, now: Date = new D
 }
 
 /**
+ * #780 — `backupFile` 과 같은 이름 규칙으로 **다른 자리에 옮겨 둔 사본**(`source`)을 `target` 의 백업으로 쓴다. 메모리에
+ * 들기엔 큰 파일을 도구 호출 전에 스킬 자리 밖으로 복사해 두었다가(도구가 폴더째 새로 만들어도 남는다) 호출 뒤에 쓴다.
+ */
+export function backupFromCopy(target: string, source: string, now: Date = new Date()): string {
+  mkdirSync(dirname(target), { recursive: true });
+  return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) =>
+    copyFileSync(source, c, fsConstants.COPYFILE_EXCL),
+  );
+}
+
+/**
  * #600 — `backupFile` 이 만든 이름에서 원본 경로를 되찾는다(`<file>.backup-<stamp>[-n]`). 이름 규칙을 아는 곳이
  * 이 파일 하나라 여기 둔다. 그 모양이 아니면 `null`.
  */

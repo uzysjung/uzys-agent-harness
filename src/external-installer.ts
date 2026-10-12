@@ -11,9 +11,22 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  readSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join, relative, sep } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import {
   assetReachesCli,
@@ -22,19 +35,21 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { backupContent, listFilesRecursive } from "./fs-ops.js";
+import { backupContent, backupFromCopy, listFilesRecursive } from "./fs-ops.js";
 import {
   buildAssetEntries,
   hashContent,
   type InstallLog,
   type InstallLogAsset,
+  type InstallLogRootFile,
   type InstallLogSkillFile,
   installedClis,
+  mergeRootFiles,
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { excludedIds } from "./recorded.js";
+import { excludedIds, recorded } from "./recorded.js";
 import {
   type CliTargets,
   DEFAULT_OPTIONS,
@@ -500,10 +515,12 @@ export function refreshExternalSkills(
   // 하네스 파일(기록 sha 와 다름)은 그 파일 하나를 백업하고, 안 고친 파일은 조용히 갱신되며, 설치자 파일(기록 밖 —
   // 노트 · 앞선 update 의 백업)은 제자리로 되돌린다. 화면·목록은 `collectRunBackups` 가 디스크에서 줍는다.
   const targetIds = new Set(targets.map((a) => a.id));
-  const settle = holdSkillSlots(
-    projectDir,
-    log.assets.filter((a) => targetIds.has(a.id)),
-  );
+  const clis = [...installedClis(log)] as CliTargets;
+  const settle = holdSkillSlots(projectDir, {
+    recorded: log.assets.filter((a) => targetIds.has(a.id)),
+    slots: skillSlotsFor(targets, clis, { log, scope: log.scope }),
+    log,
+  });
   const report = (deps.run ?? runExternalInstall)(
     {
       tracks: log.spec.tracks as ReadonlyArray<Track>,
@@ -512,7 +529,7 @@ export function refreshExternalSkills(
       // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
       // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
       // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
-      cli: [...installedClis(log)] as CliTargets,
+      cli: clis,
       userOverride: { forceInclude: [...installedIds], forceExclude: [] },
       scope: log.scope,
       projectDir,
@@ -524,9 +541,10 @@ export function refreshExternalSkills(
       ...(deps.warn ? { warn: deps.warn } : {}),
     },
   );
-  settle();
+  const { displaced } = settle();
   // #770 — 도구가 다시 쓴 sha 로 기준선을 잇는다. 안 이으면 상류가 바뀐 다음 update 가 안 고친 파일을 "고쳤다" 로 백업한다.
-  recordRefreshedFiles(projectDir, log, report, deps.writeLog ?? writeInstallLog);
+  // #780 — 상류 파일에 덮여 비켜 둔 설치자 파일(`displaced`)도 같은 쓰기로 적는다 — uninstall 이 그 원본을 되돌린다
+  recordRefreshedFiles(projectDir, log, report, displaced, deps.writeLog ?? writeInstallLog);
   return {
     attempted: report.attempted.length,
     refreshed: report.succeeded,
@@ -539,75 +557,209 @@ export function refreshExternalSkills(
 }
 
 /**
- * #770 (ADR-097 결정 3·5) — 외부 스킬 도구(`npx skills add --copy`)를 다시 부르기 **전에** 기록된 자산들의 스킬 폴더를 들고,
- * 호출 **뒤에** 부를 판정 함수를 돌려준다(돌려받는 값 = 이번에 남긴 백업의 절대 경로). update 의 갱신과 install 재실행이
- * 같은 도구 호출이라 이 한 함수를 함께 쓴다 — 한쪽만 고치면 다른 쪽이 편집 · 노트 · 앞선 백업을 다시 지운다.
+ * #770 · #780 (ADR-097 결정 3·5·7) — 외부 스킬 도구(`npx skills add --copy`)를 부르기 **전에** 이번에 도구가 쓸 스킬 자리의
+ * 파일을 들고, 호출 **뒤에** 부를 판정 함수를 돌려준다. update 의 갱신 · install 재실행 · 기존 설치본에 처음 더하기가 같은
+ * 도구 호출이라 이 한 함수를 함께 쓴다 — 한쪽만 고치면 다른 쪽이 편집 · 노트 · 앞선 백업 · 설치자 파일을 다시 지운다.
+ *
+ * `recorded` = 기록에 있는 이번 대상 자산(그 `files` 가 기록 sha 다) · `slots` = 이번 대상이 쓸 자리(`skillSlotsFor` —
+ * 처음 더하는 자산은 기록이 없어 이것만이 자리를 말한다) · `log` = 기록(하네스 · 다른 자산 것이라 말하는 경로는 들지 않는다).
  */
 export function holdSkillSlots(
   projectDir: string,
-  assets: ReadonlyArray<InstallLogAsset>,
-): () => string[] {
-  const held = assets.flatMap((a) => holdSlotFiles(projectDir, a.files));
-  return () => held.flatMap((h) => settleHeld(h) ?? []);
+  hold: {
+    recorded: ReadonlyArray<InstallLogAsset>;
+    slots: ReadonlyArray<string>;
+    log: InstallLog | null;
+  },
+): () => SettledSlots {
+  const held = holdSlotFiles(projectDir, hold);
+  return () => {
+    const out: SettledSlots = { backups: [], displaced: [] };
+    try {
+      for (const h of held.files) {
+        const r = settleHeld(projectDir, h);
+        if (r === null) continue;
+        out.backups.push(r.backup);
+        if (r.displaced !== null) out.displaced.push(r.displaced);
+      }
+    } finally {
+      if (held.spillDir !== null) rmSync(held.spillDir, { recursive: true, force: true });
+    }
+    return out;
+  };
 }
 
-/** #770 — 도구 호출 전에 들고 있는 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일. */
-interface HeldFile {
-  abs: string;
-  content: Buffer;
-  recorded: boolean;
+/** 도구 호출 뒤 판정의 결과 — `backups` = 이번에 남긴 백업(절대 경로) · `displaced` = 상류 파일에 덮여 비켜 둔 설치자 파일. */
+export interface SettledSlots {
+  backups: string[];
+  displaced: InstallLogRootFile[];
 }
 
 /**
- * #770 — 한 자산의 스킬 폴더(기록된 파일의 `<root>/skills/<id>`)에서 지켜야 할 파일 — 고친 하네스 파일과 기록 밖 파일.
- * 기록이 없는 자산(`files` 부재 — 옛 판)은 폴더를 모르므로 들지 않는다. 프로젝트 밖으로 풀리는 폴더는 도구도 쓰지 않는다(#678).
+ * #780 — 이번 대상 외부 스킬 자산이 도구 호출로 쓸 스킬 자리(project 상대). `method.skill` 이 있으면 이번 CLI 마다
+ * `<root>/<skill>` · 없으면(소스 전체를 까는 자산) 두 루트 전체. global 은 홈에 깔아 프로젝트 자리를 쓰지 않는다.
+ * 옛 판이 깐 자산(기록은 있는데 `files` 가 없다)은 폴더 안의 무엇이 도구 것인지 몰라 들지 않는다 — `buildAssetEntries` 와
+ * 같은 판정이다(들면 상류가 바꾼 옛 도구 파일을 "설치자 원본" 으로 되살린다).
+ */
+export function skillSlotsFor(
+  assets: ReadonlyArray<ExternalAsset>,
+  clis: ReadonlyArray<CliTargets[number]>,
+  ctx: { log: InstallLog | null; scope: InstallScope | undefined },
+): string[] {
+  if (resolveScope(ctx.scope) === "global") return [];
+  const roots = clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
+  const out = new Set<string>();
+  for (const a of assets) {
+    if (a.method.kind !== "skill") continue;
+    const prior = ctx.log?.assets.find((r) => r.id === a.id);
+    if (prior !== undefined && prior.files === undefined) continue;
+    const skill = a.method.skill;
+    for (const root of roots) out.add(skill === undefined ? root : `${root}/${skill}`);
+  }
+  return [...out];
+}
+
+/** 메모리에 드는 파일 하나의 상한 — 넘는 것은 호출 전에 스킬 자리 밖으로 복사해 둔다(N12 · 설계 §13 B4). 보호 상한이 아니다. */
+const HOLD_IN_MEMORY_MAX = 1024 * 1024;
+
+/**
+ * 도구 호출 전에 들고 있는 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일.
+ * 내용은 `content`(메모리) 또는 `spill`(스킬 자리 밖 사본 — 1 MiB 초과, 도구가 폴더째 새로 만들어도 남는다) 중 하나에 있다.
+ */
+interface HeldFile {
+  abs: string;
+  rel: string;
+  recorded: boolean;
+  content: Buffer | null;
+  spill: string | null;
+}
+
+/**
+ * 자리마다 지켜야 할 파일 — 고친 기록 파일과 기록 밖 파일(기록 sha 와 같은 파일은 도구가 갱신해도 된다). 기록이 하네스
+ * 것(`recorded()`)이거나 다른 자산 것이라 말하는 경로는 설치자 파일이 아니라 들지 않는다. 프로젝트 밖으로 풀리는 자리는
+ * 도구도 쓰지 않는다(#678).
  */
 function holdSlotFiles(
   projectDir: string,
-  files: ReadonlyArray<InstallLogSkillFile> | undefined,
-): HeldFile[] {
-  if (files === undefined) return [];
-  const sha = new Map(files.map((f) => [f.path, f.sha256]));
-  const slots = new Set(files.map((f) => f.path.split("/").slice(0, 3).join("/")));
-  const out: HeldFile[] = [];
+  hold: {
+    recorded: ReadonlyArray<InstallLogAsset>;
+    slots: ReadonlyArray<string>;
+    log: InstallLog | null;
+  },
+): { files: HeldFile[]; spillDir: string | null } {
+  const mine = hold.recorded.flatMap((a) => a.files ?? []);
+  const sha = new Map(mine.map((f) => [f.path, f.sha256]));
+  const targetIds = new Set(hold.recorded.map((a) => a.id));
+  const others = new Set(
+    (hold.log?.assets ?? [])
+      .filter((a) => !targetIds.has(a.id))
+      .flatMap((a) => (a.files ?? []).map((f) => f.path)),
+  );
+  const slots = new Set([
+    ...mine.map((f) => f.path.split("/").slice(0, 3).join("/")),
+    ...hold.slots,
+  ]);
+  const files: HeldFile[] = [];
+  let spillDir: string | null = null;
+  const seen = new Set<string>();
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
     for (const rel of listFilesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
-      const abs = join(projectDir, path);
-      let content: Buffer;
-      try {
-        content = readFileSync(abs);
-      } catch {
-        continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
-      }
+      if (seen.has(path)) continue;
+      seen.add(path);
       const recordedSha = sha.get(path);
-      if (recordedSha === undefined) out.push({ abs, content, recorded: false });
-      else if (hashContent(content.toString("utf8")) !== recordedSha)
-        out.push({ abs, content, recorded: true });
+      if (
+        recordedSha === undefined &&
+        (others.has(path) || recorded(hold.log, path).state !== "none")
+      )
+        continue;
+      const abs = join(projectDir, path);
+      try {
+        if (statSync(abs).size > HOLD_IN_MEMORY_MAX) {
+          // 메모리에 들지 않는다 — 기록 sha 대조도 건너뛰고(고쳤는지 모른다 = 지킨다) 자리 밖에 사본을 둔다
+          spillDir ??= mkdtempSync(join(tmpdir(), "uzys-skill-hold-"));
+          const spill = join(spillDir, String(files.length));
+          copyFileSync(abs, spill);
+          files.push({ abs, rel: path, recorded: recordedSha !== undefined, content: null, spill });
+          continue;
+        }
+        const content = readFileSync(abs);
+        if (recordedSha === undefined)
+          files.push({ abs, rel: path, recorded: false, content, spill: null });
+        else if (hashContent(content.toString("utf8")) !== recordedSha)
+          files.push({ abs, rel: path, recorded: true, content, spill: null });
+      } catch {
+        // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
+      }
     }
   }
-  return out;
+  return { files, spillDir };
 }
 
 /**
- * #770 — 도구 호출 뒤. 그대로면(호출 실패 등) 아무것도 안 한다. 지워진 설치자 파일은 제자리로 되돌리고, 바뀌었거나
- * 지워진 고친 하네스 파일과 상류 파일에 덮인 설치자 파일은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다.
+ * 도구 호출 뒤 한 파일. 그대로면(호출 실패 등) 아무것도 안 한다. 지워진 설치자 파일은 제자리로 되돌린다(백업 없음).
+ * 바뀌었거나 지워진 고친 하네스 파일은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다. **상류 파일에 덮인 설치자
+ * 파일**도 백업하고 `displaced`(notes[0] = 백업)로 적는다 — 그 자산이 자리를 떠나면(uninstall) 원본이 돌아온다(#780).
  */
-function settleHeld(h: HeldFile): string | null {
-  let now: Buffer | null = null;
+function settleHeld(
+  projectDir: string,
+  h: HeldFile,
+): { backup: string; displaced: InstallLogRootFile | null } | null {
+  let gone = false;
+  let same = false;
   try {
-    now = readFileSync(h.abs);
+    same =
+      h.content !== null
+        ? readFileSync(h.abs).equals(h.content)
+        : sameBytes(h.abs, h.spill as string);
   } catch {
-    /* 도구가 지웠다 */
+    gone = true; // 도구가 지웠다
   }
-  if (now?.equals(h.content)) return null;
-  if (!h.recorded && now === null) {
+  if (same) return null;
+  if (!h.recorded && gone) {
     mkdirSync(dirname(h.abs), { recursive: true });
-    writeFileSync(h.abs, h.content);
+    if (h.content !== null) writeFileSync(h.abs, h.content);
+    else moveFile(h.spill as string, h.abs);
     return null;
   }
-  return backupContent(h.abs, h.content);
+  const backup =
+    h.content !== null ? backupContent(h.abs, h.content) : backupFromCopy(h.abs, h.spill as string);
+  if (h.recorded || gone) return { backup, displaced: null };
+  const backupRel = relative(projectDir, backup).split(sep).join("/");
+  return { backup, displaced: { path: h.rel, change: "displaced", notes: [backupRel] } };
+}
+
+/** 두 파일의 바이트가 같은가 — 큰 파일을 통째로 메모리에 올리지 않고 조각으로 비교한다. */
+function sameBytes(a: string, b: string): boolean {
+  if (statSync(a).size !== statSync(b).size) return false;
+  const fa = openSync(a, "r");
+  const fb = openSync(b, "r");
+  try {
+    const ba = Buffer.alloc(64 * 1024);
+    const bb = Buffer.alloc(64 * 1024);
+    for (;;) {
+      const na = readSync(fa, ba, 0, ba.length, null);
+      const nb = readSync(fb, bb, 0, bb.length, null);
+      if (na !== nb) return false;
+      if (na === 0) return true;
+      if (!ba.subarray(0, na).equals(bb.subarray(0, nb))) return false;
+    }
+  } finally {
+    closeSync(fa);
+    closeSync(fb);
+  }
+}
+
+/** 사본을 제자리로 — 임시 폴더가 다른 볼륨이면 rename 이 안 되어 복사 뒤 지운다. */
+function moveFile(from: string, to: string): void {
+  try {
+    renameSync(from, to);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "EXDEV") throw e;
+    copyFileSync(from, to);
+    rmSync(from, { force: true });
+  }
 }
 
 /** #770 — 갱신한 자산의 `files` 를 이번 호출의 결과로 잇는다(install 의 `buildAssetEntries` 와 같은 병합). 바뀐 것이 없으면 쓰지 않는다. */
@@ -615,14 +767,15 @@ function recordRefreshedFiles(
   projectDir: string,
   log: InstallLog,
   report: ExternalInstallReport,
+  displaced: ReadonlyArray<InstallLogRootFile>,
   writeLog: (projectDir: string, log: InstallLog) => void,
 ): void {
   const next = new Map(
-    buildAssetEntries(report, log.scope, log.assets)
+    buildAssetEntries(report, log.scope, log.assets, new Set(displaced.map((f) => f.path)))
       .filter((e) => e.files !== undefined)
       .map((e) => [e.id, e.files]),
   );
-  let changed = false;
+  let changed = displaced.length > 0;
   const assets = log.assets.map((a) => {
     const files = next.get(a.id);
     if (files === undefined || JSON.stringify(files) === JSON.stringify(a.files)) return a;
@@ -631,7 +784,11 @@ function recordRefreshedFiles(
   });
   if (!changed) return;
   try {
-    writeLog(projectDir, { ...log, assets });
+    writeLog(projectDir, {
+      ...log,
+      assets,
+      ...(displaced.length > 0 ? { rootFiles: mergeRootFiles(log.rootFiles, displaced) } : {}),
+    });
   } catch {
     // 기록 실패가 update 자체를 실패시키지는 않는다(update-mode 의 다른 writeInstallLog 들과 같은 방침).
   }

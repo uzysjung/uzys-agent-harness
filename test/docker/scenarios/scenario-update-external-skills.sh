@@ -330,5 +330,99 @@ if [[ "${WROTE_HOME}" -eq 1 ]] && ! grep -q "SCOPE.*Global" "${GLB}/update-out.t
 fi
 echo "✓ 글로벌 설치본: 홈을 갱신하고 화면도 Global 이라고 말한다"
 
+# ───────── E. #780 — 기존 설치본에 외부 스킬을 **처음** 더해도 그 자리의 설치자 파일을 잃지 않는다 ─────────
+# 실 도구(`npx skills add --copy`)는 스킬 폴더를 새로 만든다(770b 리뷰 S5 — mock 으로는 재현되지 않는다). 그래서 첫 추가도
+# 호출 전에 자리를 들고 호출 뒤에 판정해야 한다: 상류와 같은 이름(SKILL.md)으로 덮인 파일은 백업 + displaced 기록,
+# 상류에 없는 이름은 제자리, uninstall(`--only` · 전량)이 원본을 되돌린다.
+FIRST=/tmp/proj-upd-skills-first-add
+rm -rf "${FIRST}"; mkdir -p "${FIRST}"; cd "${FIRST}"
+agent-harness install --track tooling --scope project --cli claude --cli codex >/dev/null
+if jq -e '.assets[] | select(.id == "frontend-design")' "${FIRST}/${LOG_REL}" >/dev/null; then
+  echo "FAIL: 외부 스킬 없이 깐 설치본에 frontend-design 이 이미 있다 — E 단계의 전제가 없다"
+  exit 1
+fi
+FC="${FIRST}/.claude/skills/frontend-design"
+FA="${FIRST}/.agents/skills/frontend-design"
+place_mine() {
+  mkdir -p "${FC}" "${FA}"
+  echo "MINE-780 skill" > "${FC}/SKILL.md"
+  echo "MINE-780 note" > "${FC}/mine.md"
+  echo "MINE-780 agents note" > "${FA}/mine.md"
+}
+check_first_add() {
+  local out="$1"
+  if grep -q "MINE-780" "${FC}/SKILL.md"; then
+    echo "FAIL: 도구가 SKILL.md 를 덮지 않았다 — 이 실행은 E 의 장면(상류와 같은 이름)을 재지 않는다"
+    exit 1
+  fi
+  local baks
+  baks=$(find "${FC}" -maxdepth 1 -name 'SKILL.md.backup-*')
+  if [[ "$(printf '%s' "${baks}" | grep -c .)" -ne 1 ]] || ! grep -q "MINE-780 skill" "${baks}"; then
+    echo "FAIL: 상류에 덮인 설치자 SKILL.md 가 백업 하나로 남지 않았다 (#780) — 찾은 백업: [${baks}]"
+    ls -la "${FC}"
+    exit 1
+  fi
+  if [[ "$(cat "${FC}/mine.md" 2>/dev/null)" != "MINE-780 note" ]] \
+    || [[ "$(cat "${FA}/mine.md" 2>/dev/null)" != "MINE-780 agents note" ]]; then
+    echo "FAIL: 상류에 없는 이름의 설치자 파일이 첫 추가 뒤 사라졌다 (#780)"
+    ls -la "${FC}" "${FA}" 2>&1 || true
+    exit 1
+  fi
+  if ! jq -e '.rootFiles[] | select(.path == ".claude/skills/frontend-design/SKILL.md" and .change == "displaced")' \
+    "${FIRST}/${LOG_REL}" >/dev/null; then
+    echo "FAIL: 덮인 SKILL.md 가 displaced 로 기록되지 않았다 — uninstall 이 되돌릴 근거가 없다 (#780)"
+    jq -c '.rootFiles' "${FIRST}/${LOG_REL}"
+    exit 1
+  fi
+  if ! grep -q "had a file with this name" "${out}"; then
+    echo "FAIL: install 화면이 덮인 설치자 파일을 말하지 않는다 (#780)"
+    grep -n "backup\|frontend-design" "${out}" || true
+    exit 1
+  fi
+}
+check_put_back() {
+  local what="$1"
+  if [[ "$(cat "${FC}/SKILL.md" 2>/dev/null)" != "MINE-780 skill" ]] || [[ "$(cat "${FC}/mine.md" 2>/dev/null)" != "MINE-780 note" ]] \
+    || [[ "$(cat "${FA}/mine.md" 2>/dev/null)" != "MINE-780 agents note" ]]; then
+    echo "FAIL: ${what} 뒤 설치자 파일이 제자리가 아니다 (#780)"
+    ls -la "${FC}" "${FA}" 2>&1 || true
+    exit 1
+  fi
+  if [[ -n "$(find "${FC}" "${FA}" -name '*.backup-*' 2>/dev/null)" ]]; then
+    echo "FAIL: ${what} 뒤 백업이 남았다 — 되돌리기가 rename 이 아니었다 (#780)"
+    exit 1
+  fi
+}
+
+place_mine
+agent-harness install --track tooling --with frontend-design --scope project --cli claude --cli codex \
+  > "${FIRST}/first-add-out.txt" 2>&1 || {
+  echo "FAIL: 첫 추가 install 이 실패했다"; tail -30 "${FIRST}/first-add-out.txt"; exit 1
+}
+check_first_add "${FIRST}/first-add-out.txt"
+echo "✓ 첫 추가 — 덮인 SKILL.md 는 백업 + displaced, 상류에 없는 이름은 제자리, 화면이 말한다 (#780)"
+
+agent-harness uninstall --only frontend-design > "${FIRST}/only-out.txt" 2>&1 || {
+  echo "FAIL: uninstall --only 가 실패했다"; tail -30 "${FIRST}/only-out.txt"; exit 1
+}
+check_put_back "uninstall --only frontend-design"
+if jq -e '.rootFiles[]? | select(.change == "displaced" and (.path | startswith(".claude/skills/frontend-design/")))' \
+  "${FIRST}/${LOG_REL}" >/dev/null; then
+  echo "FAIL: uninstall --only 가 되돌린 displaced 를 기록에서 빼지 않았다 (#780)"
+  exit 1
+fi
+echo "✓ uninstall --only — SKILL.md 원본이 제자리로 돌아오고 기록에서 displaced 가 빠진다 (#780)"
+
+agent-harness install --track tooling --with frontend-design --scope project --cli claude --cli codex \
+  > "${FIRST}/second-add-out.txt" 2>&1 || {
+  echo "FAIL: 두 번째 첫 추가가 실패했다"; tail -30 "${FIRST}/second-add-out.txt"; exit 1
+}
+check_first_add "${FIRST}/second-add-out.txt"
+agent-harness uninstall --yes > "${FIRST}/uninstall-out.txt" 2>&1 || {
+  echo "FAIL: uninstall --yes 가 실패했다"; tail -30 "${FIRST}/uninstall-out.txt"; exit 1
+}
+check_put_back "uninstall --yes"
+echo "✓ uninstall(전량) — SKILL.md 원본이 제자리로 돌아온다 (#780)"
+
 echo ""
 echo "▸ scenario-update-external-skills PASS"

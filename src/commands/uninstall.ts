@@ -338,9 +338,21 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const logSurvives = selectedIds !== null;
 
   let reversed: ReturnType<typeof executeReverse>;
+  // #780 — `--only` 가 자산을 지운 뒤 되돌린 displaced 자리. 기록 정리는 `settleLog` 가 한다
+  let onlyDisplaced: DisplacedOutcome[] = [];
   try {
     reversed = executeReverse(plan, log, logSurvives, journal);
-    if (!assetsOnly) {
+    if (assetsOnly) {
+      const removed = new Set(reversed.removedIds);
+      onlyDisplaced = restoreDisplaced(installLog, projectDir, {
+        has: inAssetSlots(installLog.assets.filter((a) => removed.has(a.id))),
+        write: true,
+      });
+      for (const d of onlyDisplaced) {
+        if (d.verdict === "restore") journal.push(`put back ${d.path}`);
+      }
+      for (const line of displacedLines(onlyDisplaced, false)) log(line);
+    } else {
       const done = removeHarnessFiles(installLog, projectDir, FULL_SCOPE, {
         rm: rmJ,
         write: true,
@@ -379,7 +391,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   const { succeeded, failed, removedIds } = reversed;
 
   const logWriteFailed = settleLog(
-    { installLog, projectDir, selectedIds, removedIds },
+    { installLog, projectDir, selectedIds, removedIds, displaced: onlyDisplaced },
     { log, err, rm, writeLog },
   );
 
@@ -551,6 +563,8 @@ function settleLog(
     projectDir: string;
     selectedIds: string[] | null;
     removedIds: string[];
+    /** #780 — `--only` 가 되돌린 displaced 자리. 되돌렸거나 백업이 없는 것은 기록에서 뺀다. */
+    displaced: ReadonlyArray<DisplacedOutcome>;
   },
   io: {
     log: (msg: string) => void;
@@ -564,8 +578,12 @@ function settleLog(
     // v26.123.0 (F-1c) — 로그를 지우는 게 아니라 **되돌린 것만 빼고 다시 쓴다**.
     // 실패한 항목은 남긴다 — 실제로 안 지워진 걸 기록에서 지우면 그게 곧 거짓 기록이다.
     const remaining = installLog.assets.filter((a) => !removedIds.includes(a.id));
+    // #780 — 원본 기록의 `rootFiles` 에 건다(N13-3 — 화면용으로 비운 `--only` 의 루트 파일 목록과 섞지 않는다)
+    const rootFiles = ctx.displaced.some((d) => d.forget)
+      ? { rootFiles: withoutRestored(installLog.rootFiles, ctx.displaced) }
+      : {};
     try {
-      io.writeLog(projectDir, { ...installLog, assets: remaining });
+      io.writeLog(projectDir, { ...installLog, assets: remaining, ...rootFiles });
       io.log(`  ${status.success(`install log updated (${remaining.length} asset(s) remain)`)}`);
     } catch (e) {
       // 되돌리기는 이미 끝난 뒤다 — 스택트레이스로 죽으면 무엇이 지워졌는지도 사라진다.
@@ -624,8 +642,17 @@ function dryRunLines(
       rm: () => {},
       write: false,
       harnessRoot,
+      assetFilesGone: plannedAssetFiles(plan, installLog),
     });
     lines.push(...harnessRemovalLines(preview, installLog, projectDir, FULL_SCOPE, true));
+  } else {
+    // #780 — `--only` 도 그 자산이 비켜 둔 설치자 파일을 되돌린다. 실행과 같은 함수로 판정한다
+    const preview = restoreDisplaced(installLog, projectDir, {
+      has: inAssetSlots(plannedAssets(plan, installLog)),
+      willBeGone: new Set(plannedAssetFiles(plan, installLog)),
+      write: false,
+    });
+    lines.push(...displacedLines(preview, true));
   }
   lines.push(...advisoryLines(plan, projectDir, rootFiles, globalTrust), "");
   return lines;
@@ -1552,6 +1579,8 @@ interface RemovalIo {
   /** false = 미리보기(쓰지 않는다). 판정은 같다. */
   write: boolean;
   harnessRoot: string;
+  /** #780 — 미리보기 전용: 이 실행이 하네스 파일보다 먼저 지울 외부 스킬 자산 파일(빈 자리로 친다). */
+  assetFilesGone?: ReadonlyArray<string>;
 }
 
 /**
@@ -1605,6 +1634,7 @@ function removeHarnessFiles(
     willBeGone: new Set([
       ...out.removed,
       ...(out.removedAnchor === undefined ? [] : [out.removedAnchor]),
+      ...(io.assetFilesGone ?? []),
     ]),
     write: io.write,
   });
@@ -1901,6 +1931,53 @@ function topOf(path: string): string {
   return i < 0 ? path : `${path.slice(0, i)}/`;
 }
 
+/** displaced 되돌리기의 화면 줄 — 전량 · `--only` 가 같은 말을 쓴다. */
+function displacedLines(displaced: ReadonlyArray<DisplacedOutcome>, preview: boolean): string[] {
+  const lines: string[] = [];
+  const restore = displaced.filter((d) => d.verdict === "restore");
+  if (preview && restore.length > 0) {
+    lines.push(
+      `  ○ put back ${restore.length} file(s) of yours (displaced): ${restore.map((d) => d.path).join(" · ")}`,
+    );
+  }
+  for (const d of displaced) {
+    if (d.verdict === "restore" && !preview) {
+      lines.push(`  ${status.success(`put back  ${d.path} (from ${d.backup})`)}`);
+    } else if (d.verdict === "advise") {
+      lines.push(`  ${c.yellow("⊘")} ${d.path} — ${d.line}`);
+    }
+  }
+  return lines;
+}
+
+/** 이 실행이 되돌리려는 project scope 스킬 자산 — 미리보기는 계획된 단계를 다 성공한 것으로 친다. */
+function plannedAssets(plan: ReversePlan, log: InstallLog): InstallLogAsset[] {
+  const ids = new Set(plan.reverseSteps.map((s) => s.assetId));
+  return log.assets.filter((a) => ids.has(a.id));
+}
+
+/** 이 실행이 지울 외부 스킬 자산 파일(project 상대). */
+function plannedAssetFiles(plan: ReversePlan, log: InstallLog): string[] {
+  return plannedAssets(plan, log).flatMap((a) =>
+    a.method === "skill" && a.scope === "project" ? (a.files ?? []).map((f) => f.path) : [],
+  );
+}
+
+/**
+ * #780 — 외부 스킬 자산이 떠나는 자리(기록 파일의 `<root>/skills/<id>/`) 술어. `--only` 의 displaced 되돌리기 범위다 —
+ * 그 자산을 처음 더할 때 상류 파일에 덮인 설치자 파일이 그 자리에 `displaced` 로 적혀 있다.
+ */
+function inAssetSlots(assets: ReadonlyArray<InstallLogAsset>): (path: string) => boolean {
+  const slots = new Set(
+    assets.flatMap((a) =>
+      a.method === "skill" && a.scope === "project"
+        ? (a.files ?? []).map((f) => `${f.path.split("/").slice(0, 3).join("/")}/`)
+        : [],
+    ),
+  );
+  return (path) => [...slots].some((s) => path.startsWith(s));
+}
+
 /** 실행과 미리보기가 같은 결과(`HarnessRemoval`)를 말한다. */
 function harnessRemovalLines(
   r: HarnessRemoval,
@@ -1946,19 +2023,7 @@ function harnessRemovalLines(
     );
   }
   lines.push(...r.anchor.lines);
-  const restore = r.displaced.filter((d) => d.verdict === "restore");
-  if (preview && restore.length > 0) {
-    lines.push(
-      `  ○ put back ${restore.length} file(s) of yours (displaced): ${restore.map((d) => d.path).join(" · ")}`,
-    );
-  }
-  for (const d of r.displaced) {
-    if (d.verdict === "restore" && !preview) {
-      lines.push(`  ${status.success(`put back  ${d.path} (from ${d.backup})`)}`);
-    } else if (d.verdict === "advise") {
-      lines.push(`  ${c.yellow("⊘")} ${d.path} — ${d.line}`);
-    }
-  }
+  lines.push(...displacedLines(r.displaced, preview));
   for (const path of r.stripped) {
     lines.push(
       preview
