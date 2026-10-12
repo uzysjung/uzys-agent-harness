@@ -33,6 +33,13 @@ Treat methods as replaceable. Improve or replace them when new evidence,
 capabilities, or circumstances offer a better path to the same required outcomes
 and protections.
 
+For multi-part work, derive user or operational outcomes from the current request and
+applicable plans, designs, or agreed briefs. Divide them into coherent units described
+well enough to start and verify without re-deriving the plan; sequence by dependencies
+and agreed priorities. Where authorized, preserve material decisions and acceptance
+evidence in existing project records, and judge completion by evidenced required results
+and protections rather than closed units.
+
 ## 3. Keep changes focused and coherent
 
 Let scope follow what the requested outcome genuinely needs, including necessary
