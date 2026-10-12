@@ -1,0 +1,1 @@
+README의 오타 하나 고쳐줘: recieve → receive
