@@ -42,6 +42,7 @@ import {
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
 import type { AssetInstallResult } from "../external-installer.js";
+import { leftoverHoldLine } from "../held-files.js";
 import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
@@ -184,6 +185,12 @@ export function createInstallRenderer(
         log(
           `  ${status.warn(c.yellow(`could not record this install (${event.message}) — uninstall and update will not see it. Fix the cause, then run the same install again`))}`,
         );
+      } else if (event.type === "held-settled") {
+        // #780 — 끊긴 실행이 외부 스킬 도구 앞에서 떠 둔 사본 — 무엇이 어디로 갔는지 파일마다 한 줄
+        for (const h of event.held) {
+          const line = leftoverHoldLine(h);
+          if (line !== null) log(`  ${status.warn(c.yellow(line))}`);
+        }
       } else if (event.type === "external-start" && event.assetCount > 0) {
         // v26.63.0 — phaseHeader → unifiedSection. count 헤더에 inline 표시.
         log(unifiedSection(`External assets (${event.assetCount})`));
@@ -192,6 +199,15 @@ export function createInstallRenderer(
       } else if (event.type === "external-complete") {
         // #770 HIGH-1 — 외부 스킬을 다시 받기 전에 남긴 백업. Phase 1 행이 이미 나간 뒤라 여기서 같은 행으로 말한다.
         for (const b of event.backups ?? []) log(assetRow("success", "backup", shortenPath(b)));
+        // #780 — 외부 스킬 자리에 있던 같은 이름의 설치자 파일을 상류 파일이 덮었다 — 백업했고 uninstall 이 되돌린다
+        for (const d of event.displaced ?? [])
+          log(
+            assetRow(
+              "skip",
+              d.path,
+              `had a file with this name — saved as ${d.backup}, put back on uninstall`,
+            ),
+          );
         // v26.102.0 (ADR-031, Batch3) — CLI 도달 불가로 시도조차 안 한 자산 고지.
         // 침묵 제외는 "4-CLI 지원" 광고와 실동작의 어긋남을 숨긴다 (no-false-ship).
         // 어휘 주의: "skipped"(설치 실패)와 구분해 "not installed" 사용, 사유는 각 자산의
