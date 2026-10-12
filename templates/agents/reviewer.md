@@ -94,7 +94,7 @@ git log --oneline -10
 [CRITICAL] Title
 File: path/to/file.ts:42
 Issue: 설명
-Fix: 코드 예시 포함한 해결 방안
+Fix: 해결 방향
 
 [HIGH] Title
 File: path/to/file.ts:78
@@ -122,7 +122,6 @@ Fix: 해결 방안
 
 ## Anti-Patterns (하지 말 것)
 
-- 구현 제안하지 않는다 — 이슈만 식별하고, 수정은 구현 에이전트가 한다.
+- 코드를 쓰지 않는다 — Fix 는 방향만 적고, 수정은 구현 에이전트가 한다.
 - "전반적으로 잘 되었습니다" 같은 빈말 금지 — 구체적 관찰만.
 - LGTM을 쉽게 내리지 않는다 — 기준을 통과해야만 승인.
-- 변경되지 않은 코드를 리뷰하지 않는다 (CRITICAL 보안 제외).
