@@ -34,7 +34,6 @@ import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js
 import {
   backupIfLossyUtf8,
   backupOriginal,
-  copyBackupDir,
   ensureProjectSkeleton,
   listFilesRecursive,
 } from "./fs-ops.js";
@@ -143,12 +142,6 @@ export interface InstallContext {
    */
   mode?: InstallMode;
   /**
-   * **update 전용** — `.claude/` 사본(`.claude.backup-<ts>`)을 뜰지. 기본은 update 이고 claude 가 깔린 설치.
-   * install · `--reinstall` 은 폴더를 옮기거나 복사하지 않는다 — 고친 파일만 그 파일 하나를 백업한다(#551 PR-3).
-   * update 의 폴더 사본은 설계 §9 PR-5 가 없앤다.
-   */
-  backup?: boolean;
-  /**
    * External install (claude plugin / npm -g / npx skills) injection point.
    * Default: real `runExternalInstall`. Tests inject mock to avoid real spawn.
    * Pass `null` to disable external install entirely.
@@ -213,7 +206,6 @@ export interface BaselineReport {
   skipped: number;
   /** #603 — install 이 settings.json 에서 **발견만 하고 지우지 않은** 죽은 훅 참조(.claude/ 상대경로). 설치자 몫일 수 있다. */
   keptHookRefs?: string[];
-  backup: string | null;
   installedTracks: string[];
   mcpServers: string[];
   codex: CodexTransformReport | null;
@@ -332,7 +324,6 @@ export interface InstallReport {
   filesCopied: number;
   dirsCopied: number;
   skipped: number;
-  backup: string | null;
   installedTracks: string[];
   mcpServers: string[];
   /** Present when spec.cli includes "codex". */
@@ -490,11 +481,7 @@ export function runInstall(ctx: InstallContext): InstallReport {
 
   // Update mode 단축 — 정책 파일만 갱신하고 종료 (manifest copy / external 모두 skip)
   if (mode === "update" && previousLog !== null) {
-    return runUpdateInstall(
-      ctx,
-      templatesDir,
-      resolveUpdateBackupPath(ctx, claudeDir, previousLog),
-    );
+    return runUpdateInstall(ctx, templatesDir);
   }
 
   // #551 PR-3 — 쓰기는 전부 판정 함수(`judge`)를 탄다. 폴더를 옮기거나 복사하지 않는다(`--reinstall` 포함) —
@@ -734,8 +721,6 @@ function runInstallStages(
     filesCopied: base.filesCopied,
     dirsCopied: base.dirsCopied,
     skipped: base.skipped,
-    // #551 PR-3 — install · `--reinstall` 은 폴더를 옮기지 않는다. 백업은 파일마다 `backups`/`judged` 에 있다.
-    backup: null,
     installedTracks: [...spec.tracks].sort(),
     mcpServers: mcp,
     ...cliTransforms,
@@ -828,36 +813,15 @@ function legacyAnchorTrace(projectDir: string, spec: InstallSpec): string | null
 }
 
 /**
- * update 의 `.claude/` 사본(copy) — **update 전용**(설계 §9 PR-5 가 없앤다). install · `--reinstall` 은 폴더를
- * 옮기거나 복사하지 않는다(#551 PR-3).
- *
- * #536 — **Claude 가 깔린 집합에 없으면** `.claude/` 를 복사하지 않는다. 그 실행은 `.claude/` 를 한 글자도
- * 안 바꾸므로(update-mode `claudeManaged`) 백업할 것이 없고, 복사하면 설치자 소유 디렉터리의 사본이 실행마다
- * 쌓인다. 판정은 로그의 깔린 집합(`installedClis`)이다 — `spec.cli`(마지막 설치분)로 보면 claude 로 깔고 codex 를
- * 더한 설치본이 `[codex]` 로 읽혀 실제로 갱신되는 `.claude/` 의 백업을 잃는다. 기록이 없으면 update 가 여기까지
- * 오지 않는다(#595 — 기록 없는 설치본의 폴더 복사는 걷어냈다).
- */
-function resolveUpdateBackupPath(
-  ctx: InstallContext,
-  claudeDir: string,
-  previousLog: InstallLog,
-): string | null {
-  const claudeUntouched = !installedClis(previousLog).includes("claude");
-  if (!(ctx.backup ?? !claudeUntouched)) return null;
-  return copyBackupDir(claudeDir);
-}
-
-/**
  * Update mode 단축 경로 — manifest copy 는 건너뛴다.
  *
  * 갱신 대상은 ⓐ 정책 파일 ⓑ 외부 CLI 산출물(ADR-049) ⓒ **설치 기록에 적힌 외부 스킬**(#374).
  * 세 번째가 오래 빠져 있었고, 그동안 화면은 다 갱신된 것처럼 보였다.
+ *
+ * #746 — `.claude/` 를 통째로 복사하지 않는다(ADR-097 결정 3). 설치자가 고친 하네스 파일은 갱신 경로가
+ * 그 파일 하나만 `<file>.backup-<ts>` 로 남기고(`update-backups.json` 이 목록), 설치자 파일은 건드리지 않는다.
  */
-function runUpdateInstall(
-  ctx: InstallContext,
-  templatesDir: string,
-  backupPath: string | null,
-): InstallReport {
+function runUpdateInstall(ctx: InstallContext, templatesDir: string): InstallReport {
   const updateReport = runUpdateMode(
     ctx.projectDir,
     templatesDir,
@@ -872,7 +836,6 @@ function runUpdateInstall(
     baselineExcluded: [],
     baselineExcludedOnDisk: [],
     baselineForeignOwned: [],
-    backup: backupPath,
     installedTracks: [...ctx.spec.tracks].sort(),
     mcpServers: [],
     codex: null,

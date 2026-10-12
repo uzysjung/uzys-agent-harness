@@ -14,6 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { findStaleHookRefs } from "../src/hook-ref.js";
 import {
   collectSkillHashes,
   hashContent,
@@ -27,7 +28,6 @@ import { upsertHarnessImport } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, UPDATE_GROUPS } from "../src/types.js";
 import {
   buildUpdateSpec,
-  cleanStaleHookRefs,
   collectRunBackups,
   keepHookRef,
   pruneOrphans,
@@ -151,7 +151,7 @@ describe("pruneOrphans", () => {
  * 그래서 계약이 두 곳 바뀐다:
  *   ① 두 번째 인자가 `.claude/hooks/` → **`.claude/` 자신**. 존재 확인이 hooks 밖으로 나가야 한다.
  *   ② `removed` 원소가 파일명 → **`.claude/` 기준 상대경로**. 렌더가 이 값을 그대로 사용자에게
- *      보여주는데(`src/commands/install-render.ts` "stale hook refs · N removed"),
+ *      보여주는데(`src/commands/install-render.ts` "stale hook refs · N left"),
  *      파일명만 찍히면 어느 것이 지워졌는지 못 찾는다.
  *
  * 넓히지 **않는** 경계: `.claude/` 밖 참조는 부재여도 보존한다. 사용자 자기 스크립트를 치유기가
@@ -223,10 +223,11 @@ describe("retireMcpAllowlist (ADR-072)", () => {
   });
 });
 
-describe("cleanStaleHookRefs", () => {
+describe("findStaleHookRefs", () => {
   let dir: string;
   let claudeDir: string;
   let settingsPath: string;
+  let written: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "ch-st-"));
     claudeDir = join(dir, ".claude");
@@ -244,42 +245,43 @@ describe("cleanStaleHookRefs", () => {
 
   /** PreToolUse 한 entry 에 command 들을 담은 settings.json 을 쓴다. */
   function writeSettings(commands: string[]): void {
-    writeFileSync(
-      settingsPath,
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Write|Edit",
-              hooks: commands.map((command) => ({ type: "command", command })),
-            },
-          ],
-        },
-      }),
-    );
+    written = JSON.stringify({
+      hooks: {
+        PreToolUse: [
+          {
+            matcher: "Write|Edit",
+            hooks: commands.map((command) => ({ type: "command", command })),
+          },
+        ],
+      },
+    });
+    writeFileSync(settingsPath, written);
   }
 
-  /** 정리 후 남은 command 목록. */
+  /** 탐지기는 읽기만 한다 — settings.json 이 쓴 그대로다(#603 · #746 리뷰 BLOCKER-1: 기록 밖 참조는 설치자 몫). */
+  function expectUntouched(): void {
+    expect(readFileSync(settingsPath, "utf8")).toBe(written);
+  }
+
+  /** 남은 command 목록. */
   function remainingCommands(): string[] {
     const after = JSON.parse(readFileSync(settingsPath, "utf8"));
     return (after.hooks.PreToolUse[0]?.hooks ?? []).map((h: { command: string }) => h.command);
   }
 
-  it("removes hook refs whose script file is missing", () => {
+  it("reports hook refs whose script file is missing — and leaves settings.json as is", () => {
     writeFileSync(join(claudeDir, "hooks/alive.sh"), "");
     writeSettings([ref("hooks/alive.sh"), ref("hooks/dead.sh")]);
 
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
 
     expect(removed).toEqual(["hooks/dead.sh"]);
-    const cmds = remainingCommands();
-    expect(cmds.some((c: string) => c.includes("alive.sh"))).toBe(true);
-    expect(cmds.some((c: string) => c.includes("dead.sh"))).toBe(false);
+    expectUntouched();
   });
 
   it("returns empty when settings.json malformed", () => {
     writeFileSync(settingsPath, "{ not json");
-    expect(cleanStaleHookRefs(settingsPath, claudeDir)).toEqual([]);
+    expect(findStaleHookRefs(settingsPath, claudeDir)).toEqual([]);
   });
 
   it("preserves non-hook commands (e.g. statusLine)", () => {
@@ -297,34 +299,11 @@ describe("cleanStaleHookRefs", () => {
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
     expect(removed).toEqual([]);
   });
 
-  // characterization — 리팩터 전 현재 동작 고정 (엣지케이스 회귀 방지)
-  it("entry 의 hooks 가 모두 stale 이면 entry 자체 제거, 다른 top-level 키는 보존", () => {
-    writeFileSync(
-      settingsPath,
-      JSON.stringify({
-        statusLine: { type: "command", command: "npx powerline" },
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Bash",
-              hooks: [{ type: "command", command: ref("hooks/dead.sh") }],
-            },
-          ],
-        },
-      }),
-    );
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
-    expect(removed).toEqual(["hooks/dead.sh"]);
-    const after = JSON.parse(readFileSync(settingsPath, "utf8"));
-    expect(after.hooks.PreToolUse).toEqual([]); // hooks 빈 entry 통째 제거
-    expect(after.statusLine).toEqual({ type: "command", command: "npx powerline" }); // 보존
-  });
-
-  it("non-array hook event 는 write 발생 시에도 그대로 보존", () => {
+  it("non-array hook event 는 건너뛰고 나머지 참조를 판정한다", () => {
     writeFileSync(
       settingsPath,
       JSON.stringify({
@@ -339,23 +318,21 @@ describe("cleanStaleHookRefs", () => {
         },
       }),
     );
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
-    expect(removed).toEqual(["hooks/dead.sh"]); // stale 제거로 write 트리거
-    const after = JSON.parse(readFileSync(settingsPath, "utf8"));
-    expect(after.hooks.WeirdEvent).toBe("not-an-array-value"); // non-array event 불변
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
+    expect(removed).toEqual(["hooks/dead.sh"]); // non-array event 를 만나도 판정을 멈추지 않는다
   });
 
   // ── M-1: `hooks/` 밖 `.claude/**` 참조 ────────────────────────────────────────
   // 이 4건이 이 결함의 본체다. 위 5건은 넓힌 술어가 **기존 동작을 회귀시키지 않는지**를 지킨다.
 
-  it("스킬 디렉터리 안의 스크립트 참조도 부재면 제거한다 (settings.json 이 스킬보다 넓게 깔린다)", () => {
+  it("스킬 디렉터리 안의 스크립트 참조도 부재면 잡는다 (settings.json 이 스킬보다 넓게 깔린다)", () => {
     // withEcc=true 설치가 정확히 이 상태다: settings.json 은 있고 스킬 디렉터리는 없다.
     writeSettings([ref("skills/sidecar-skill/suggest.sh")]);
 
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
 
     expect(removed).toEqual(["skills/sidecar-skill/suggest.sh"]);
-    expect(remainingCommands()).toEqual([]);
+    expectUntouched();
   });
 
   it("같은 참조라도 파일이 실재하면 보존한다 (치유기가 멀쩡한 훅을 뜯으면 안 된다)", () => {
@@ -364,10 +341,10 @@ describe("cleanStaleHookRefs", () => {
     writeFileSync(join(claudeDir, "skills/sidecar-skill/suggest.sh"), "#!/bin/bash\n");
     writeSettings([ref("skills/sidecar-skill/suggest.sh")]);
 
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
 
     expect(removed).toEqual([]);
-    expect(remainingCommands()).toHaveLength(1);
+    expectUntouched();
   });
 
   it("`.claude/` 밖 참조는 부재여도 보존한다 — 사용자 자기 스크립트다 (경계를 넓히지 않는다)", () => {
@@ -379,7 +356,7 @@ describe("cleanStaleHookRefs", () => {
     ];
     writeSettings(outside);
 
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
 
     expect(removed).toEqual([]);
     expect(remainingCommands()).toEqual(outside);
@@ -391,10 +368,10 @@ describe("cleanStaleHookRefs", () => {
     writeFileSync(join(claudeDir, "hooks/dup.sh"), "");
     writeSettings([ref("hooks/dup.sh"), ref("skills/demo/dup.sh")]);
 
-    const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+    const removed = findStaleHookRefs(settingsPath, claudeDir);
 
     expect(removed).toEqual(["skills/demo/dup.sh"]);
-    expect(remainingCommands()).toEqual([ref("hooks/dup.sh")]);
+    expectUntouched();
   });
 
   // ── H-2: `.claude/` 라는 이름이 가리키는 대상이 **둘**이다 ────────────────────
@@ -420,7 +397,7 @@ describe("cleanStaleHookRefs", () => {
     // 셸이 확장하는 표기라 형태를 바꾸면 테스트 대상 자체가 바뀐다.
     // biome-ignore-start lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
     /**
-     * 이 프로젝트에 앵커된 참조 = 판정 대상. 부재면 제거되어야 한다.
+     * 이 프로젝트에 앵커된 참조 = 판정 대상. 부재면 잡혀야 한다.
      *
      * command 를 **함수로** 담는다: `it.each` 의 표는 수집 시점에 평가되는데 `claudeDir` 은
      * `beforeEach` 에서 만들어지는 temp dir 이라, 문자열로 담으면 `undefined/...` 가 박힌다.
@@ -486,17 +463,17 @@ describe("cleanStaleHookRefs", () => {
       expect(removed).toEqual([]);
     });
 
-    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
+    // ── 진입점 2: `findStaleHookRefs` (실제 settings.json 을 읽는 쪽 — install · update 가 부른다) ────
 
-    it("cleanStaleHookRefs: 앵커된 것만 지우고 나머지 command 는 그대로 남긴다", () => {
+    it("findStaleHookRefs: 앵커된 것만 잡고 파일은 그대로 둔다", () => {
       const preserved = notAnchored.map(([, command]) => command);
       writeSettings([...anchored.map(([, build]) => build(claudeDir)), ...preserved]);
 
-      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+      const removed = findStaleHookRefs(settingsPath, claudeDir);
 
       expect(removed).toEqual(anchored.map(([, , relPath]) => relPath));
       // 보존 대상은 **원문 그대로** 남아야 한다. 하나라도 빠지면 사용자 훅이 사라진 것이다.
-      expect(remainingCommands()).toEqual(preserved);
+      expectUntouched();
     });
   });
 
@@ -589,19 +566,19 @@ describe("cleanStaleHookRefs", () => {
       expect(removed).toEqual([]);
     });
 
-    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
-    it("cleanStaleHookRefs: 접두사 함정 참조를 보존하면서 진짜 죽은 참조만 지운다", () => {
+    // ── 진입점 2: `findStaleHookRefs` (실제 settings.json 을 읽는 쪽 — install · update 가 부른다) ────
+    it("findStaleHookRefs: 접두사 함정 참조는 빼고 진짜 죽은 참조만 잡는다", () => {
       writeFileSync(join(claudeDir, "hooks/run.shell"), "");
       writeFileSync(join(claudeDir, "hooks/x.sh.bak"), "");
       writeFileSync(join(claudeDir, "hooks/alive.sh"), "");
       const preserved = [ref("hooks/run.shell"), ref("hooks/x.sh.bak"), ref("hooks/alive.sh")];
       writeSettings([...preserved, ref("hooks/dead.sh")]);
 
-      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+      const removed = findStaleHookRefs(settingsPath, claudeDir);
 
       expect(removed).toEqual(["hooks/dead.sh"]);
       // 보존 대상은 **원문 그대로** — 하나라도 빠지면 동작하던 훅이 사용자 설정에서 사라진 것이다.
-      expect(remainingCommands()).toEqual(preserved);
+      expectUntouched();
     });
   });
 
@@ -631,7 +608,7 @@ describe("cleanStaleHookRefs", () => {
     // biome-ignore-start lint/suspicious/noTemplateCurlyInString: 훅 command 원문 (셸 변수 표기)
 
     /**
-     * 앵커가 **토큰 시작**에 있는 형태 = 판정 대상. 부재면 제거되어야 한다.
+     * 앵커가 **토큰 시작**에 있는 형태 = 판정 대상. 부재면 잡혀야 한다.
      *
      * 시작 경계를 조이는 구현이 반대로 **너무 조여** 진짜 참조를 놓치면 치유기가 통째로 죽는다.
      * 인용부호 뒤 · 공백 뒤 · command 맨 앞 셋을 다 세워 그 회귀를 막는다.
@@ -734,20 +711,20 @@ describe("cleanStaleHookRefs", () => {
       expect(removed).toEqual([]);
     });
 
-    // ── 진입점 2: `cleanStaleHookRefs` (실제 settings.json 을 고쳐 쓰는 쪽) ────
+    // ── 진입점 2: `findStaleHookRefs` (실제 settings.json 을 읽는 쪽 — install · update 가 부른다) ────
 
-    it("cleanStaleHookRefs: 토큰 중간 앵커는 보존하고 진짜 죽은 참조만 지운다", () => {
+    it("findStaleHookRefs: 토큰 중간 앵커는 빼고 진짜 죽은 참조만 잡는다", () => {
       const preserved = [
         `bash "${mountedHookScript()}"`,
         ...midToken.map(([, build]) => build(claudeDir)),
       ];
       writeSettings([...preserved, `bash "${claudeDir}/hooks/dead.sh"`]);
 
-      const removed = cleanStaleHookRefs(settingsPath, claudeDir);
+      const removed = findStaleHookRefs(settingsPath, claudeDir);
 
       expect(removed).toEqual(["hooks/dead.sh"]);
       // 보존 대상은 **원문 그대로** — 하나라도 빠지면 사용자 훅이 조용히 사라진 것이다.
-      expect(remainingCommands()).toEqual(preserved);
+      expectUntouched();
     });
   });
 });

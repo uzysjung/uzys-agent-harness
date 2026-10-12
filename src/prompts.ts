@@ -446,7 +446,7 @@ export const defaultPrompts: Prompts = {
         {
           value: "hooks" as const,
           label: "Hooks · settings.json",
-          hint: "stale hook refs cleaned",
+          hint: "harness hook wiring · dead refs reported, not removed",
         },
         {
           value: "external" as const,

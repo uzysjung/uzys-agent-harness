@@ -296,7 +296,7 @@ describe("Claude 자리 — 링크 스킬 · 백업 규약 (#529 · #524 · #536
     });
   });
 
-  describe("⑤ Claude 가 깔리지 않은 update 는 `.claude` 통째 사본을 만들지 않는다 (#536-1)", () => {
+  describe("⑤ update 는 `.claude` 통째 사본을 만들지 않는다 (#536-1 · #746)", () => {
     const claudeCopies = (): string[] =>
       readdirSync(projectDir).filter((f) => f.startsWith(".claude.backup-"));
 
@@ -332,8 +332,6 @@ describe("Claude 자리 — 링크 스킬 · 백업 규약 (#529 · #524 · #536
 
       const report = update();
 
-      // 음성 대조: installer.ts resolveBackupPath 의 `claudeUntouched` 를 되돌리면 사본 단언이 red.
-      expect(report.backup).toBeNull();
       expect(claudeCopies()).toEqual([]);
       expect(readFileSync(join(projectDir, ".claude/settings.local.json"), "utf8")).toBe("{}\n");
       // 음성 대조: update-mode.ts 3단계의 `claudeManaged` 게이트를 되돌리면 아래 둘이 red — 사본이
@@ -342,17 +340,26 @@ describe("Claude 자리 — 링크 스킬 · 백업 규약 (#529 · #524 · #536
       expect(report.updateMode?.staleHookRefs).toEqual([]);
     });
 
-    it("대조군 — claude 로 깔고 codex 를 더한 설치본(`spec.cli` = [codex])은 사본 1개", () => {
-      // 판정이 `spec.cli`(마지막 설치분)를 읽으면 여기서 0 이 된다 — 실제로 갱신되는 `.claude/` 의
-      // 되돌림 지점을 잃는다. 깔린 집합(`clis`)으로 판정해야 1.
+    it("claude 로 깔고 codex 를 더한 설치본(`.claude/` 가 실제로 갱신된다)도 사본 0 — 고친 룰만 파일 하나로 백업", () => {
       install(["claude"]);
       install(["codex"], "add");
       expect(log().spec.cli).toEqual(["codex"]);
+      const rule = join(projectDir, ".claude/rules/git-policy.md");
+      const shipped = readFileSync(rule, "utf8");
+      writeFileSync(rule, "설치자 편집\n");
 
-      const report = update();
+      update();
 
-      expect(report.backup).not.toBeNull();
-      expect(claudeCopies()).toHaveLength(1);
+      // #746 — 예전엔 여기서 사본이 1개 생겼다(깔린 집합에 claude 가 있으면 폴더째 복사).
+      expect(claudeCopies()).toEqual([]);
+      expect(readFileSync(rule, "utf8")).toBe(shipped);
+      const backups = readdirSync(join(projectDir, ".claude/rules")).filter((f) =>
+        f.startsWith("git-policy.md.backup-"),
+      );
+      expect(backups).toHaveLength(1);
+      expect(readFileSync(join(projectDir, ".claude/rules", backups[0] ?? ""), "utf8")).toBe(
+        "설치자 편집\n",
+      );
     });
   });
 

@@ -169,7 +169,7 @@ describe("installer (integration with templates/)", () => {
     expect(readFileSync(rootMd, "utf8")).toBe(afterFirst);
   });
 
-  it("backup 옵션은 install 에서 `.claude/` 를 옮기지 않는다 — 폴더 단위 백업은 update 전용 (#551 PR-3)", () => {
+  it("두 번째 install 은 `.claude/` 를 옮기거나 복사하지 않는다 — 폴더 단위 백업 없음 (#551 PR-3 · #746)", () => {
     runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
@@ -183,11 +183,10 @@ describe("installer (integration with templates/)", () => {
         projectDir,
       },
     });
-    const second = runInstall({
+    runInstall({
       runExternal: null,
       harnessRoot: HARNESS_ROOT,
       projectDir,
-      backup: true,
       spec: {
         tracks: ["tooling"],
         options: {
@@ -197,7 +196,6 @@ describe("installer (integration with templates/)", () => {
         projectDir,
       },
     });
-    expect(second.backup).toBeNull();
     expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
     expect(existsSync(join(projectDir, ".claude/rules"))).toBe(true);
   });

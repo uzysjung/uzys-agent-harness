@@ -204,14 +204,13 @@ describe("하네스 파일 쓰기가 판정을 탄다 — 첫 접촉 · 고친 �
     const edited = read(anchor);
     write(".claude/settings.local.json", '{"permissions":{"allow":["Bash(make)"]}}\n');
 
-    const { report, screen } = install({}, "reinstall");
+    const { screen } = install({}, "reinstall");
 
     expect(read(anchor)).toBe(template("CLAUDE.md"));
     const [backup = ""] = backupsOf(anchor);
     expect(read(backup), "고친 앵커가 백업 없이 사라졌다(#572)").toBe(edited);
     expect(screen).toContain(`backed up  ${anchor} — you edited it — saved as ${backup}`);
     // 폴더 이동 없음 — 설치자 파일은 제자리
-    expect(report.backup).toBeNull();
     expect(claudeDirBackups()).toEqual([]);
     expect(read(".claude/settings.local.json")).toBe('{"permissions":{"allow":["Bash(make)"]}}\n');
     expect(log().templates.rootClaudeMd?.sha256).toBe(hashContent(template("CLAUDE.md")));
