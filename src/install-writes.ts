@@ -365,7 +365,8 @@ export function createInstallWriter(args: {
     // 설치자가 뺀 키 — 걷은 것 · 고쳐 둬서 남긴 것을 따로 말한다(리뷰 #693 NOTE-2)
     const out = excludedKeys(path, excluded);
     const removedOut = res.removed.filter((k) => out.has(k));
-    const removedEdited = res.removedEdited.filter((k) => out.has(k));
+    // #800 — 고친 몫을 걷었으면 뺀 키든 은퇴한 배선이든 같다 — 백업에 있다고 말한다
+    const removedEdited = res.removedEdited;
     const keptOut = res.kept.filter((k) => out.has(k));
     // 걷기만 한 실행은 "썼다" 고 하지 않는다. 고친 값까지 걷었으면 "yours stays" 라 하지 않는다
     const onlyRemoved =

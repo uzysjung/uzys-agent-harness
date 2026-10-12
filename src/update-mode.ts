@@ -1091,6 +1091,8 @@ function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
     ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
     ...(log.externalFiles ?? []).map((f) => f.path),
     ...log.assets.flatMap((a) => a.files ?? []).map((f) => f.path),
+    // #800 — 함께 쓰는 파일은 몫마다 sha 가 있다 — 그 백업은 설치자 편집이 확실하다
+    ...(log.portions ?? []).map((p) => p.path),
   ]);
   const anchor = log.templates.rootClaudeMd;
   if (anchor !== undefined) paths.add(anchor.path);
