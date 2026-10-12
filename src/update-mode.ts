@@ -1029,7 +1029,8 @@ function reclaimOutOfTrackRecorded(projectDir: string, outside: OutsideGuard): O
 /**
  * #557 — 그 파일의 체크섬이 기록에 있었는가(projectDir 상대경로). 백업 판정들이 읽는 기준선 넷을 한 집합으로 본다 —
  * 정책(`policyFiles`, `.claude/` 상대) · 스킬(`skillFiles`, `.claude/skills/` 상대) · 앵커(`templates.rootClaudeMd`) ·
- * 외부 산출물·헬퍼(`externalFiles`). 기록이 없던 파일이 백업됐다면 편집 여부를 잴 수 없었던 것이다.
+ * 외부 산출물·헬퍼(`externalFiles`) · 외부 도구가 놓은 스킬 파일(`assets[].files`, #770).
+ * 기록이 없던 파일이 백업됐다면 편집 여부를 잴 수 없었던 것이다.
  */
 function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
   // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
@@ -1038,6 +1039,7 @@ function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
     ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
     ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
     ...(log.externalFiles ?? []).map((f) => f.path),
+    ...log.assets.flatMap((a) => a.files ?? []).map((f) => f.path),
   ]);
   const anchor = log.templates.rootClaudeMd;
   if (anchor !== undefined) paths.add(anchor.path);

@@ -88,7 +88,7 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `postgres-best-practices` | Schema, index, and query patterns (Supabase official) | `csr-supabase` · `full` |
 | `railway-skills` | Railway deploy and project/service/env management — ⚠ experimental | opt-in |
 | `railway-mcp-server` | Railway's official remote MCP (`https://mcp.railway.com`) in `.mcp.json`, Codex and OpenCode — sign in on first use · ⚠ experimental | opt-in (default on `csr-*`/`ssr-htmx`/`full`) |
-| `supabase` | Supabase MCP server in `.mcp.json`, Codex and OpenCode | opt-in (default on `csr-supabase`/`full`) |
+| `supabase` | Supabase's official remote MCP (`https://mcp.supabase.com/mcp`) in `.mcp.json`, Codex and OpenCode — sign in on first use | opt-in (default on `csr-supabase`/`full`) |
 | `vercel` | Vercel's official remote MCP (`https://mcp.vercel.com`) in `.mcp.json`, Codex and OpenCode — sign in on first use | opt-in |
 | `vercel-cli` | The Vercel deploy CLI as a `devDependency` | opt-in |
 | `supabase-cli` · `netlify-cli` | The deploy CLI as a `devDependency`. Pick the one your project deploys to | opt-in |

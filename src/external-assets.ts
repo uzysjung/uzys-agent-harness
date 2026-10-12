@@ -613,7 +613,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "supabase",
     tier: "vetted", // supabase/mcp 2.9k (REPO_OVERRIDE)
     description:
-      "Supabase MCP server in .mcp.json, Codex and OpenCode. Default on csr-supabase · full; check it to add it on any other track. Only if this project uses Supabase",
+      "Supabase's official remote MCP (https://mcp.supabase.com/mcp, signs in with OAuth on first use) in .mcp.json, Codex and OpenCode. Default on csr-supabase · full; check it to add it on any other track. Only if this project uses Supabase",
     category: "backend",
     source: "supabase",
     condition: { kind: "opt-in" },

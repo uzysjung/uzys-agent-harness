@@ -20,8 +20,9 @@ import type { Track } from "./types.js";
 const ENV_EXAMPLE_BODY = `# .env.example — csr-supabase Track
 # Copy to .env (gitignored) and fill in values: cp .env.example .env
 
-# ===== Supabase Management API (MCP server용) =====
-# Personal Access Token — @supabase/mcp-server가 프로젝트 생성/마이그레이션/Edge Functions 배포에 사용
+# ===== Supabase Management API =====
+# MCP 서버(https://mcp.supabase.com/mcp)는 첫 사용 때 브라우저 OAuth 로그인 — 이 토큰이 필요 없다.
+# Personal Access Token — 로컬 stdio 서버(@supabase/mcp-server-supabase)나 CI 처럼 브라우저 로그인이 안 되는 곳에서만
 # 발급: https://supabase.com/dashboard/account/tokens
 SUPABASE_ACCESS_TOKEN=
 
