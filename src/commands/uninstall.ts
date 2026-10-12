@@ -66,7 +66,7 @@ import {
   listFilesRecursive,
   PROJECT_SKELETON_DIRS,
 } from "../fs-ops.js";
-import { removeRetiredHookRefs } from "../hook-ref.js";
+import { LEGACY_HOOK_REFS, removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
   INSTALL_LOG_DIR,
@@ -90,11 +90,7 @@ import {
 } from "../install-writes.js";
 import { INSTALLED_TRACKS, installedTracksText } from "../installer.js";
 import { judge } from "../judge.js";
-import {
-  isLegacyHarnessFile,
-  LEGACY_HARNESS_FILES,
-  LEGACY_HOOK_REFS,
-} from "../legacy-fingerprints.js";
+import { isLegacyHarnessFile, LEGACY_HARNESS_FILES } from "../legacy-fingerprints.js";
 import { RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
 import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
@@ -1232,7 +1228,7 @@ function remnantFor(
       try {
         const template = readFileSync(join(harnessRoot, "templates", "settings.json"), "utf8");
         const render = renderSettingsPortion(template, () => true);
-        return [...legacySettingsSeed(disk, render, projectDir).keys()].filter(
+        return [...legacySettingsSeed(disk, render, projectDir, { edited: true }).keys()].filter(
           (k) => !k.endsWith("{}") && !gone(k),
         );
       } catch {
@@ -1883,7 +1879,7 @@ function mayReclaimLegacy(log: InstallLog, path: string): boolean {
 }
 
 /**
- * ⓑ″ #781 — 몫 기록이 없는 `.claude/settings.json`(옛 판이 템플릿으로 통째 쓴 파일)에서 옛 템플릿 훅 줄을 걷는다. 이번 실행 뒤
+ * ⓑ″ #781 — 몫 기록이 없는 `.claude/settings.json`(옛 판이 템플릿으로 통째 쓴 파일)에서 옛 템플릿 훅 줄(바이트 그대로)을 걷는다. 이번 실행 뒤
  * 스크립트가 없는 참조만 — 이번에 지운 스크립트(`removed`)는 미리보기에서도 없는 것으로 친다. 스크립트가 남으면(설치자가 같은
  * 이름으로 둔 것) 줄도 남는다. `RETIRED_HOOK_WIRING_REFS` 는 ⓐ 가 따로 걷는다(N8).
  */
@@ -1899,21 +1895,13 @@ function removeLegacyHookWiring(
   const abs = join(projectDir, SETTINGS_TARGET);
   if (!safeExists(abs) || outsideProjectTarget(projectDir, abs) !== null) return [];
   const claudeDir = join(projectDir, ".claude");
-  const gone = new Set(removed);
-  const refs = [...LEGACY_HOOK_REFS].filter((r) => !RETIRED_HOOK_WIRING_REFS.includes(r));
-  const goneNow = refs.filter((r) => gone.has(`${CLAUDE_DIR}${r}`));
-  return [
-    ...removeRetiredHookRefs(abs, claudeDir, goneNow, {
-      evenIfScriptExists: true,
-      write: io.write,
-    }),
-    ...removeRetiredHookRefs(
-      abs,
-      claudeDir,
-      refs.filter((r) => !goneNow.includes(r)),
-      { evenIfScriptExists: false, write: io.write },
-    ),
-  ];
+  const gone = LEGACY_HOOK_REFS.filter(
+    (r) =>
+      !RETIRED_HOOK_WIRING_REFS.includes(r) &&
+      (removed.includes(`${CLAUDE_DIR}${r}`) || !safeExists(join(claudeDir, r))),
+  );
+  // 옛 템플릿 바이트 그대로인 줄만 걷힌다(`removeRetiredHookRefs` 안의 `isLegacyHookLine`) — 고친 줄은 ⓐ 의 안내로 남는다
+  return removeRetiredHookRefs(abs, claudeDir, gone, { evenIfScriptExists: true, write: io.write });
 }
 
 /**

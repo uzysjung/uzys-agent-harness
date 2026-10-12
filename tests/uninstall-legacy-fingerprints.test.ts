@@ -377,3 +377,102 @@ describe("⑥ ⑦ `--cli` 범위 · dry-run", () => {
     expect(hookScripts()).toEqual(["mine.sh"]);
   });
 });
+
+/**
+ * #781 리뷰 BLOCKER — 설치자가 옛 하네스 훅 줄에 자기 명령을 이어 붙였거나 고쳤으면 그 줄은 설치자 것이다. 참조(경로)가 같아도
+ * 옛 템플릿 바이트와 다르면 uninstall(바로 · `--cli`)도 update 의 몫 찾기도 건드리지 않는다 — 고친 줄은 그대로 남고, 남은 하네스
+ * 훅이 있을 수 있다는 안내로 떨어진다. 바이트 그대로인 옛 줄은 여전히 걷힌다.
+ */
+describe("⑫ 고친 옛 훅 줄은 설치자 줄이다 — 바이트 그대로인 줄만 걷는다", () => {
+  const ORIG = (script: string): string => `bash "$CLAUDE_PROJECT_DIR/.claude/hooks/${script}"`;
+  const GUARD = `${ORIG("protect-files.sh")} && bash ./scripts/team-guard.sh`;
+  const MCP = `${ORIG("mcp-pre-exec.sh")} && bash ./scripts/team-guard.sh`;
+  const SESSION = ORIG("session-start.sh");
+
+  const commands = (): string[] => {
+    const s = JSON.parse(read(".claude/settings.json")) as {
+      hooks?: Record<string, Array<{ hooks: Array<{ command: string }> }>>;
+    };
+    return Object.values(s.hooks ?? {})
+      .flat()
+      .flatMap((g) => g.hooks.map((h) => h.command));
+  };
+
+  /** 26.125 템플릿 훅 셋 중 protect-files · mcp-pre-exec(은퇴) 줄 끝에 설치자 명령을 이어 붙였다. session-start 는 그대로. */
+  function putEditedOldSettings(): void {
+    putOldSettings();
+    put(
+      ".claude/settings.json",
+      read(".claude/settings.json")
+        .replace(JSON.stringify(ORIG("protect-files.sh")), JSON.stringify(GUARD))
+        .replace(JSON.stringify(ORIG("mcp-pre-exec.sh")), JSON.stringify(MCP)),
+    );
+    expect(commands()).toEqual(expect.arrayContaining([GUARD, MCP, SESSION])); // 전제
+  }
+
+  it.each([
+    ["바로 uninstall", {}],
+    ["--cli claude", { cli: "claude" }],
+  ] as const)("%s — 고친 두 줄은 바이트 그대로 남고 안내가 붙는다 · 그대로인 session-start 줄은 걷힌다", (_, opts) => {
+    install(["claude", "codex"]);
+    putEditedOldSettings();
+    toFieldless();
+
+    const out = uninstall({ yes: true, ...opts });
+
+    expect(out.code).toBe(0);
+    const left = commands();
+    expect(left).toContain(GUARD);
+    expect(left).toContain(MCP);
+    expect(left).not.toContain(SESSION);
+    expect(out.text).toContain(
+      ".claude/settings.json — removed harness hook wiring from an older version (script gone): hooks/session-start.sh",
+    );
+    expect(out.text).toMatch(/may still hold the harness's hooks.*protect-files/);
+  });
+
+  it("옛 판 → update → uninstall — update 가 고친 줄을 하네스 몫으로 적지 않아 uninstall 뒤에도 남는다", () => {
+    install(["claude"]);
+    putEditedOldSettings();
+    toFieldless();
+
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      mode: "update",
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: ["claude"],
+        projectDir,
+      },
+    });
+    expect(commands()).toEqual(expect.arrayContaining([GUARD, MCP]));
+    const keys = (currentLog().portions ?? [])
+      .filter((p) => p.path === ".claude/settings.json")
+      .map((p) => p.key);
+    expect(keys).not.toContain("hooks.PreToolUse#protect-files.sh");
+    expect(keys).not.toContain("hooks.PreToolUse#mcp-pre-exec.sh");
+
+    const out = uninstall({ yes: true });
+
+    expect(out.code).toBe(0);
+    const left = commands();
+    expect(left).toContain(GUARD);
+    expect(left).toContain(MCP);
+    expect(left).not.toContain(SESSION); // 바이트 그대로인 줄은 update 가 몫으로 적었고 uninstall 이 걷는다
+  });
+
+  it("claude 를 깐 적 없는 기록(codex 단독)이면 스크립트가 없어도 옛 훅 줄을 읽지도 않는다 (B2)", () => {
+    install(["codex"]);
+    putOldSettings(); // 바이트 그대로인 옛 줄 · 스크립트 없음
+    toFieldless();
+    const before = read(".claude/settings.json");
+
+    const out = uninstall({ yes: true });
+
+    expect(out.code).toBe(0);
+    expect(read(".claude/settings.json")).toBe(before);
+  });
+});
