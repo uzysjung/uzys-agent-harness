@@ -198,7 +198,7 @@ describe("runInstall — mode dispatch", () => {
     rmSync(projectDir, { recursive: true, force: true });
   });
 
-  it("mode=update returns updateMode report + skips manifest copy + auto-backup", async () => {
+  it("mode=update returns updateMode report + skips manifest copy + no .claude folder copy", async () => {
     // 첫 install로 .claude/ 만들기
     runInstall({
       runExternal: null,
@@ -216,7 +216,8 @@ describe("runInstall — mode dispatch", () => {
     });
     expect(report.mode).toBe("update");
     expect(report.updateMode).not.toBeNull();
-    expect(report.backup).toMatch(/\.claude\.backup-/);
+    // #746 — update 는 `.claude/` 를 통째로 복사하지 않는다(고친 파일만 그 파일 하나로 백업).
+    expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
     expect(report.filesCopied).toBe(0); // manifest copy skipped
     expect(report.envFiles.envExampleCreated).toBe(false);
   });
@@ -293,7 +294,6 @@ describe("runInstall — mode dispatch", () => {
       mode: "reinstall",
     });
     expect(report.mode).toBe("reinstall");
-    expect(report.backup).toBeNull();
     expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
     expect(readFileSync(join(projectDir, ".claude/settings.local.json"), "utf8")).toBe(
       '{"permissions":{}}\n',
@@ -315,7 +315,7 @@ describe("runInstall — mode dispatch", () => {
       mode: "add",
     });
     expect(report.mode).toBe("add");
-    expect(report.backup).toBeNull();
+    expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
   });
 
   it("default mode=fresh does NOT create backup", () => {
@@ -326,7 +326,7 @@ describe("runInstall — mode dispatch", () => {
       spec: spec(["tooling"], {}, projectDir),
     });
     expect(report.mode).toBe("fresh");
-    expect(report.backup).toBeNull();
+    expect(readdirSync(projectDir).filter((n) => n.startsWith(".claude.backup-"))).toEqual([]);
   });
 
   /**

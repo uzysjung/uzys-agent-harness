@@ -213,7 +213,9 @@ recurrence-prevention 사다리상 구조 게이트 단계.
       부수로 `runCliTransforms` 를 `src/cli-transforms.ts` 로 빼 install/update 가 **한 도구**를
       공유하게 했고, `update-mode.ts` 에 남아 있던 `isHarnessOwned` 사본을 지웠다
       (ADR-048 이 "술어는 한 곳에"라 적고도 2벌이던 상태).
-- [ ] R-3m **같은 초에 `update` 를 두 번 돌리면 백업 경로가 충돌해 크래시** — `.claude.backup-<stamp>`
+- [x] ~~R-3m 같은 초에 `update` 를 두 번 돌리면 백업 경로가 충돌해 크래시~~ (2026-10-12 소멸 — #746 이
+      update 의 `.claude/` 폴더 사본 자체를 없앴다. 파일 백업의 같은 초 충돌은 `claimBackupPath` 가 접미사로
+      풀고 `tests/backup-collision.test.ts` 가 update 경로로 문다. 아래는 당시 기록) — `.claude.backup-<stamp>`
       의 stamp 가 초 단위라 이름이 겹치고, `.claude/skills/<id>` 가 외부 설치기(`npx skills add`)가
       만든 **심볼릭 링크**일 때 `cpSync` 가 EINVAL(`cannot copy ... to a subdirectory of self`)로
       죽는다. 2026-07-20 R-3j-A 의 Docker 시나리오를 쓰다 발견했고, **v26.133.0 게시본에서도

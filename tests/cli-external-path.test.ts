@@ -259,7 +259,6 @@ describe("배제 고지 렌더 — 침묵 제외 금지의 실행 증거 (SOD �
         baselineExcluded: [],
         baselineExcludedOnDisk: [],
         baselineForeignOwned: [],
-        backup: null,
         installedTracks: ["tooling"],
         mcpServers: [],
         codex: null,

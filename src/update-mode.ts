@@ -5,7 +5,8 @@
  * Source: bash setup-harness.sh@911c246~1 L460~573 (update mode 113 LOC)
  *
  * Update 모드 동작:
- *   1. backup: .claude/ → .claude.backup-<timestamp>/
+ *   1. backup: 파일 단위 — 설치자가 고친 하네스 파일만 `<file>.backup-<timestamp>` 로 남긴다(목록 =
+ *      `.uzys-agent-harness/update-backups.json`). `.claude/` 폴더 통째 사본은 없다(#746 · ADR-097 결정 3)
  *   2. update_dir: target에 이미 존재하는 파일만 templates로 덮어쓰기 (Track 혼입 방지)
  *   3. prune_orphans: templates에 없는데 target에 있는 파일 제거 (예: 폐기된 rule)
  *   4. clean_stale_hook_refs: settings.json hook 참조 중 실존 파일 없는 것 제거
@@ -59,7 +60,7 @@ import {
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
 import { backupFile, backupIfLossyUtf8, copyDir, listFilesRecursive } from "./fs-ops.js";
-import { cleanStaleHookRefs, keepHookRef } from "./hook-ref.js";
+import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
   SETTINGS_TARGET,
@@ -70,8 +71,8 @@ import {
   writeSettingsShared,
 } from "./install-writes.js";
 
-// 치유기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
-export { cleanStaleHookRefs, keepHookRef };
+// 탐지기·판정은 hook-ref.ts 가 SSOT — 기존 import 경로(update-mode) 호환용 재수출.
+export { keepHookRef };
 
 import {
   collectPolicyHashes,
@@ -96,6 +97,7 @@ import {
   buildManifest,
   isCliNeutralTarget,
   RETIRED_AGENT_IDS,
+  RETIRED_HOOK_WIRING_REFS,
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
@@ -135,8 +137,13 @@ export interface UpdateModeReport {
   updated: Record<string, number>;
   /** 제거된 orphan 파일명 목록 (디렉토리별). */
   pruned: Record<string, string[]>;
-  /** 제거된 stale hook ref 파일명 목록. */
+  /** 스크립트가 없는데 **지우지 않고 남긴** 기록 밖 훅 참조(`.claude/` 상대경로) — 설치자 몫이다(#746 리뷰 BLOCKER-1). */
   staleHookRefs: string[];
+  /**
+   * #746 재리뷰 B-1 — 옛 템플릿이 깐 은퇴 하네스 배선(`RETIRED_HOOK_WIRING_REFS`) 중 스크립트가 없어 **걷은** 참조
+   * (`.claude/` 상대경로). 하네스 몫이라 `staleHookRefs`(설치자 몫 · 남김)와 겹치지 않는다. optional = 리포트 stub 은 "없음".
+   */
+  retiredHookRefsRemoved?: string[];
   /** 앵커를 템플릿으로 **실제로 다시 썼다** — 바이트가 이미 같았으면 false (#615 사례 4). */
   claudeMdUpdated: boolean;
   /**
@@ -653,7 +660,7 @@ export function runUpdateMode(
   // 2.5) 함께 쓰는 파일 셋(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 하네스 몫 — install 과 **같은 writer**
   //      (ADR-099 R2). 기록에 있는데 사라진 몫(훅 배선 · 하네스 서버 · 줄)을 되돌리고 설치자 키는 그대로 둔다.
   //      자리가 정해져 있다: 0단계(훅 스크립트 되살림) **뒤** — 렌더의 `hookInstalled` 가 되살린 뒤 디스크를 읽는다 —
-  //      3단계(죽은 참조 정리) **앞** — 정리기가 최종본을 본다. 정리가 먼저면 배선을 걷고 다음 실행에야 더한다(2회).
+  //      3단계(죽은 참조 알림) **앞** — 탐지기가 최종본을 본다.
   // #709 — 하네스 MCP 서버는 **한 번** 렌더해 `.mcp.json`(2.5단계)과 Codex · OpenCode(4단계)가 같은 값을 받는다. 기록 트랙의
   //   기본 행 ∪ 기록된 선택 행(`.mcp.json` 몫), 기록된 빼기 제외 — 실행 시작 때 읽은 기록으로(2.5단계가 기록을 다시 쓴다).
   const harnessMcp = renderHarnessMcp(harnessRoot, {
@@ -673,25 +680,28 @@ export function runUpdateMode(
     harnessMcp,
   });
 
-  // 3) settings.json stale hook ref cleanup
-  // #536 리뷰 BLOCKER-1 — 이 단계도 `.claude/` 를 **고친다**(항목 삭제 + 재서식). claude 가 깔린
-  // 집합에 없으면 그 `settings.json` 은 설치자 것이고(예: 팀이 커밋한 Claude Code 훅 — 스크립트는
-  // 생성물이라 클론에 아직 없다), 그 실행은 `.claude.backup-*` 도 만들지 않는다(installer
-  // resolveBackupPath). 게이트가 없으면 설치자 훅 배선이 원본 없이 사라진다(실 CLI 재현).
-  // ADR-099 R2 — **기록된 하네스 훅 스크립트의 참조는 정리하지 않는다**: 그 스크립트는 0단계가 되살리고 배선은 2.5단계의
-  // writer 가 소유한다(빼기는 `--without baseline:hooks/…` → writer 가 걷는다). 정리기는 기록에 없는 스크립트 참조에만
-  // 손댄다 — 기록된 참조를 걷던 것이 #675(배선 영구 미복구)의 첫 고리였다.
+  // 3) settings.json 죽은 훅 참조 — **알리기만** 한다(install #603 과 같다).
+  // ADR-099 R2 — 기록된 하네스 훅 스크립트의 참조는 판정하지 않는다: 그 스크립트는 0단계가 되살리고 배선은 2.5단계의
+  // writer 가 소유한다(빼기는 `--without baseline:hooks/…` → writer 가 걷는다). 그러니 여기 남는 것은 정의상 기록 밖 —
+  // 설치자 몫이다(팀이 커밋한 훅 — 스크립트는 생성물이라 클론에 아직 없다). update 는 폴더 사본을 뜨지 않으므로(#746)
+  // 지우면 그 항목의 원본이 어디에도 안 남는다(#746 리뷰 BLOCKER-1). 함께 쓰는 파일의 설치자 몫은 건드리지 않는다(ADR-097 결정 4).
+  // claude 가 깔린 집합에 없으면 그 `settings.json` 은 통째로 설치자 것이라 알리지도 않는다(#536 리뷰 BLOCKER-1).
+  // 예외 하나(#746 재리뷰 B-1): 옛 템플릿이 `.claude/hooks/` 밖 스크립트로 깐 은퇴 배선은 기록 밖이어도 하네스 몫이다 —
+  // 닫힌 목록(`RETIRED_HOOK_WIRING_REFS`)에 든 참조 중 스크립트가 없는 핸들러만 걷는다. 기록 모양(옛 로그 · writer)과
+  // 무관하게 매 update 가 본다 — 옛 로그 몫 찾기는 첫 writer 실행에서만 돌아 이미 옮겨진 설치본을 덮지 못한다.
+  // 걷은 뒤에 탐지한다 — 걷은 참조가 "left (yours …)" 로 다시 나오지 않게.
   const settingsPath = join(claudeDir, "settings.json");
   if (claudeManaged && wants("hooks") && existsSync(settingsPath) && !outside.skip(settingsPath)) {
-    report.staleHookRefs = cleanStaleHookRefs(
+    report.retiredHookRefsRemoved = removeRetiredHookRefs(
+      settingsPath,
+      claudeDir,
+      RETIRED_HOOK_WIRING_REFS,
+    );
+    report.staleHookRefs = findStaleHookRefs(
       settingsPath,
       claudeDir,
       recordedHarnessHook(projectDir, logAtStart),
     );
-    // #632 — 치유된 참조는 "스크립트가 없던 일시 상태"다. 몫 기록에 남겨 두면 다음 install 이
-    // 그 훅을 "설치자가 뺀 것"(excluded)으로 읽어 복구를 영구 거부한다. 몫에서 걷어 첫 접촉으로
-    // 되돌린다 — 스크립트가 돌아오면(재설치) 배선이 다시 생긴다.
-    if (report.staleHookRefs.length > 0) dropHealedHookPortions(projectDir, report.staleHookRefs);
   }
 
   // 3.5) `.mcp-allowlist` 회수 (ADR-072). 3) 바로 뒤인 이유는 같은 은퇴의 나머지 절반이기
@@ -989,9 +999,9 @@ function legacyHookOnDisk(projectDir: string, rel: string): boolean {
 }
 
 /**
- * ADR-099 R2 — 0단계가 되살리는 **기록된 하네스 훅 스크립트**인가(`.claude/` 상대경로). 죽은 참조 정리기가 이것을 건너뛴다 —
- * 그 배선은 함께 쓰는 파일 writer 가 소유한다. 은퇴한 훅 · 뺀 훅 · 기록에 없는 스크립트(팀이 커밋한 생성 스크립트 배선)는
- * 그대로 정리 대상이다(#536 · #603 · #632).
+ * ADR-099 R2 — 0단계가 되살리는 **기록된 하네스 훅 스크립트**인가(`.claude/` 상대경로). 죽은 참조 탐지기가 이것을 건너뛴다 —
+ * 그 배선은 함께 쓰는 파일 writer 가 소유한다. 기록에 없는 스크립트(팀이 커밋한 생성 스크립트 배선)는 지우지 않고
+ * 알리는 대상이다(#603 · #746 리뷰 BLOCKER-1).
  */
 function recordedHarnessHook(
   projectDir: string,
@@ -2530,35 +2540,4 @@ function recordClaudeCommand(log: InstallLog, tracks: ReadonlyArray<string>): st
     /\s+/g,
     " ",
   );
-}
-
-/**
- * #632 — `cleanStaleHookRefs` 가 지운 훅 참조의 몫 기록을 걷는다. 훅 몫의 key 는
- * `hooks.<Event>#<script>` 형태라 스크립트 파일명(`#` 뒤)으로 짝을 맞춘다. 빼기 기록(`excluded`)은 건드리지 않는다 —
- * update 는 선택을 읽기만 한다(ADR-099 R1). 옛 판이 굳힌 키 id 는 기록을 읽을 때 R5 가 푼다.
- *
- * 쓰기 원본은 **디스크의 현재 기록**이다 — 실행 시작 시점 스냅숏(`logAtStart`)을 통째로 쓰면
- * 앞단계(스킬·정책 기준선 갱신)가 방금 쓴 값이 되돌아간다(B-665-1). 뒷단계는 각자 디스크에서 새로 읽는다.
- */
-function dropHealedHookPortions(projectDir: string, healedFiles: ReadonlyArray<string>): void {
-  // 치유자는 `.claude/` 기준 상대경로(hooks/session-start.sh)를, 몫 key 는 파일명만(# 뒤) 쓴다 —
-  // basename 으로 짝 맞춘다. hooks/ 디렉터리 안 스크립트명은 유일하므로 안전하다.
-  const healed = new Set(healedFiles.map((f) => f.split("/").pop() ?? f));
-  const isHealedKey = (key: string) => {
-    const at = key.lastIndexOf("#");
-    return at !== -1 && healed.has(key.slice(at + 1));
-  };
-  const log = readInstallLog(projectDir);
-  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
-  if (log === null) return;
-  const portions = (log.portions ?? []).filter(
-    (p) => !(p.path === join(".claude", "settings.json") && isHealedKey(p.key)),
-  );
-  if (portions.length > 0) log.portions = portions;
-  else delete log.portions;
-  try {
-    writeInstallLog(projectDir, log);
-  } catch {
-    // 기록 실패가 update 자체를 실패시키지는 않는다(위 writeInstallLog 들과 같은 방침).
-  }
 }

@@ -6,7 +6,8 @@
  * 아니라 명령 계열의 비대칭이다 — 빠진 쪽이 사유를 대야 한다 (사용자 지시 2026-07-20).
  *
  * 동작: 기존 설치를 감지해 위저드의 update 액션과 **동일한 spec**(`buildUpdateSpec`)으로
- * `mode: "update"` 파이프라인을 돈다. 백업은 update mode 가 자동으로 뜬다 (`.claude.backup-*`).
+ * `mode: "update"` 파이프라인을 돈다. 백업은 파일 단위다 — 설치자가 고친 하네스 파일만
+ * `<file>.backup-*` 로 남는다(`update-backups.json`이 목록. 폴더 사본은 없다, #746).
  * 설치 기록이 없거나 깨졌으면 `list` · `uninstall` 과 같은 줄로 거절하고 아무것도 쓰지 않는다(#595).
  *
  * 하지 않는 것: track 추가(=`install`), 자산 재설치, 대화형 확인. update 는 이미 깔린
