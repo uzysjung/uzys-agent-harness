@@ -169,7 +169,7 @@ describe("#770 — update 의 외부 스킬 갱신은 고친 파일 하나만 �
     put(dir, CLAUDE_REF, "my edited reference\n");
     refreshExternalSkills(dir, {
       spawn: (cmd) => {
-        if (cmd === "npx") rmSync(join(dir, CLAUDE_REF));
+        if (cmd === "npx") rmSync(join(dir, CLAUDE_REF), { force: true });
         return {
           pid: 0,
           output: [],
