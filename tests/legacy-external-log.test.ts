@@ -22,7 +22,7 @@ import {
   readInstallLog,
 } from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
-import type { CliTargets, InstallSpec } from "../src/types.js";
+import type { CliTargets, InstallSpec, UpdateGroup } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 const CLIS: CliTargets = ["claude", "codex"];
@@ -37,11 +37,12 @@ afterEach(() => {
   rmSync(projectDir, { recursive: true, force: true });
 });
 
-const spec = (): InstallSpec => ({
+const spec = (only?: UpdateGroup[]): InstallSpec => ({
   tracks: ["tooling"],
   options: { withCodexTrust: false },
   cli: CLIS,
   projectDir,
+  ...(only === undefined ? {} : { updateOnly: only }),
 });
 const read = (rel: string): string => readFileSync(join(projectDir, rel), "utf8");
 const log = (): InstallLog => {
@@ -66,8 +67,11 @@ const hookBackups = (): string[] =>
     f.startsWith("session-start.sh.backup-"),
   );
 
-/** 지금 판으로 깐 뒤 외부 기록이 없던 판(≤v26.132)의 로그 모양으로 만든다 — 훅 하나는 그 판의 바이트다. */
-function legacyInstall(): void {
+/**
+ * 지금 판으로 깐 뒤 외부 기록이 없던 판(≤v26.132)의 로그 모양으로 만든다 — 훅 하나는 그 판의 바이트다.
+ * `drop` 은 더 옛 판의 모양 — `policyFiles` 는 v26.132.0 · `skillFiles` 는 v26.126.0 부터 적었다.
+ */
+function legacyInstall(drop: ReadonlyArray<"policyFiles" | "skillFiles"> = []): void {
   runInstall({
     runExternal: null,
     harnessRoot: HARNESS_ROOT,
@@ -76,22 +80,26 @@ function legacyInstall(): void {
     mode: "add",
   });
   const { externalFiles: _e, records: _r, portions: _p, ...rest } = log();
+  for (const field of drop) delete rest[field];
   writeFileSync(installLogPath(projectDir), JSON.stringify(rest), "utf8");
   writeFileSync(join(projectDir, HOOK), OLD_HOOK);
 }
 
-function runWithScreen(mode: "update" | "reinstall"): { report: InstallReport; screen: string } {
+function runWithScreen(
+  mode: "update" | "reinstall",
+  only?: UpdateGroup[],
+): { report: InstallReport; screen: string } {
   const lines: string[] = [];
-  const renderer = createInstallRenderer((m) => lines.push(m), spec(), false);
+  const renderer = createInstallRenderer((m) => lines.push(m), spec(only), false);
   const report = runInstall({
     runExternal: null,
     harnessRoot: HARNESS_ROOT,
     projectDir,
-    spec: spec(),
+    spec: spec(only),
     mode,
     onProgress: (event) => renderer.callbacks.onProgress?.(event),
   });
-  if (mode === "update") renderUpdateSummary((m) => lines.push(m), spec(), report);
+  if (mode === "update") renderUpdateSummary((m) => lines.push(m), spec(only), report);
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
   return { report, screen: lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "") };
 }
@@ -148,5 +156,70 @@ describe("#761 B-1 — 외부 기록이 없는 옛 로그: 하네스 산출물�
     expectHarnessRecorded();
     uninstall();
     expect(filesUnder(".agents")).toEqual([]);
+  });
+});
+
+/**
+ * #761 B-2 — 부분 update(`--only`)가 옛 로그에 **없던 기록 필드를 일부만 담아** 만든 뒤의 일반 update · reinstall.
+ *
+ * `--only rules` 는 헬퍼(`.uzys-agent-harness/*.sh`)만 든 `externalFiles` 를, `--only rules`/`--only hooks` 는 동기화한
+ * 디렉터리만 든 `policyFiles` 를, `--only new-skills` 는 새로 깐 스킬만 든 `skillFiles` 를 남긴다. 그 필드를 "그 판이 다
+ * 훑어 적은 기록" 으로 읽으면 나머지 하네스 산출물이 첫 접촉(displaced)이 되어 uninstall 뒤에 남는다. main 과 같이
+ * displaced 0 · uninstall 뒤 `.agents/` 0개여야 한다.
+ */
+describe("#761 B-2 — 옛 로그에 부분 update 를 먼저 돌려도 하네스 산출물은 하네스 것이다", () => {
+  const displacedAll = (): string[] =>
+    (log().rootFiles ?? []).filter((f) => f.change === "displaced").map((f) => f.path);
+
+  it.each([
+    ["rules"],
+    ["hooks"],
+  ] as UpdateGroup[][])("update --only %s → update ×2 → uninstall: displaced 0 · 두 번째 update 조용 · .agents/ 0개", (group) => {
+    legacyInstall(["policyFiles"]);
+    runWithScreen("update", [group]);
+
+    const { screen } = runWithScreen("update");
+
+    expectHarnessRecorded();
+    expect(displacedAll()).toEqual([]);
+    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("same as the harness version");
+
+    const again = runWithScreen("update").screen;
+    expect(again).not.toContain("had files with these names");
+    expect(again).not.toContain("same as the harness version");
+    expect(displacedAll()).toEqual([]);
+
+    uninstall();
+    expect(filesUnder(".agents")).toEqual([]);
+  });
+
+  it("update --only rules → reinstall → uninstall: displaced 0 · .agents/ 0개", () => {
+    legacyInstall(["policyFiles"]);
+    runWithScreen("update", ["rules"]);
+
+    runWithScreen("reinstall");
+
+    expectHarnessRecorded();
+    expect(displacedAll()).toEqual([]);
+    uninstall();
+    expect(filesUnder(".agents")).toEqual([]);
+  });
+
+  it("update --only new-skills(스킬 하나를 새로 깜) → update: .claude/skills 의 하네스 스킬은 displaced 가 아니다", () => {
+    legacyInstall(["skillFiles"]);
+    const skillsDir = join(projectDir, ".claude/skills");
+    const [gone, ...rest] = readdirSync(skillsDir).sort();
+    expect(rest.length).toBeGreaterThan(0);
+    rmSync(join(skillsDir, gone as string), { recursive: true });
+
+    const partial = runWithScreen("update", ["new-skills"]).report;
+    expect(partial.updateMode?.installedNew).toContain(`.claude/skills/${gone}`);
+
+    const { screen } = runWithScreen("update");
+
+    expect(displacedAll()).toEqual([]);
+    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("same as the harness version");
   });
 });

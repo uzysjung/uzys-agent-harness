@@ -772,13 +772,7 @@ export function runUpdateMode(
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
-    ? refreshExternalCli(
-        projectDir,
-        harnessRoot,
-        legacyDroppedKeys(logAtStart),
-        harnessMcp,
-        recordedOwner(logAtStart),
-      )
+    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart), harnessMcp)
     : {
         externalUpdated: 0,
         externalBackedUp: [],
@@ -1540,6 +1534,9 @@ function recordNewSkillBaseline(
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
+  // #761 B-2 — 필드가 없던 옛 로그(≤v26.125)에 새 스킬만 든 `skillFiles` 를 만들면 `recorded()` 가 그 필드를 "다 훑은 기록" 으로
+  // 읽어 나머지 하네스 스킬을 첫 접촉으로 비켜 둔다. 다음 스킬 갱신(`refreshSkillBaseline`)이 전부 적는다
+  if (log.skillFiles === undefined) return;
   const ids = new Set(targets.map((t) => t.slice(".claude/skills/".length)));
   const added = collectSkillHashes(projectDir, templatesDir).filter((f) =>
     ids.has(f.path.split("/")[0] ?? ""),
@@ -1946,11 +1943,6 @@ function refreshExternalCli(
   droppedKeys: ReadonlyArray<string>,
   /** #709 — `.mcp.json` 에 쓴 것과 같은 하네스 MCP 서버. */
   harnessMcp: McpJson,
-  /**
-   * #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`recordedOwner`). **실행 시작 때 읽은 기록**으로 만든다 — 앞 단계
-   * (`refreshNeutralHelpers`)가 헬퍼 항목만 담은 `externalFiles` 를 새로 적으면 "외부 기록이 아예 없던 옛 판" 을 알아볼 수 없다.
-   */
-  owned: (rel: string) => boolean,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -2018,8 +2010,9 @@ function refreshExternalCli(
     // ADR-099 R2 (#584) — 기록이 깔린 CLI 로 말하면 그 CLI 의 앵커·룰을 없어도 만든다(디스크의 앵커 존재가 아니라 기록)
     // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어(빈 집합).
     recordedClis: log === null ? [] : installedClis(log),
-    // #761 B-1 — 외부 기록이 아예 없던 옛 판의 산출물은 첫 접촉이 아니라 체크섬 없는 하네스 파일이다(install 과 같은 판정)
-    owned,
+    // #761 B-1 — 외부 기록이 아예 없던 옛 판의 산출물은 첫 접촉이 아니라 체크섬 없는 하네스 파일이다(install 과 같은 판정).
+    // 앞 단계(`refreshNeutralHelpers`)가 헬퍼만 든 `externalFiles` 를 적어도 같은 답이다 — 헬퍼는 외부 자리로 세지 않는다(B-2)
+    owned: recordedOwner(log),
   });
 
   // 기준선 재기록 — `refreshPolicyBaseline` 과 같은 이유로 필수다. 빼면 다음 update 가 방금

@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   collectSkillHashes,
   hashContent,
+  type InstallLog,
   installLogPath,
   readInstallLog,
   writeInstallLog,
@@ -873,7 +874,7 @@ describe("runUpdateMode (E2E with templates)", () => {
 
   /** #480 ① — 설치자가 고른 묶음만 갱신한다. 룰·앵커를 고친 설치자가 스킬만 받고 싶을 때 쓴다. */
   describe("update --only (#480 ①)", () => {
-    const withLog = (): void => {
+    const withLog = (extra: Partial<InstallLog> = {}): void => {
       writeInstallLog(projectDir, {
         schemaVersion: 1,
         installedAt: new Date(0).toISOString(),
@@ -882,6 +883,7 @@ describe("runUpdateMode (E2E with templates)", () => {
         templates: { claudeDir: ".claude" },
         assets: [],
         policyFiles: [{ path: "rules/orphan-rule.md", sha256: hashContent("stale\n") }],
+        ...extra,
       });
     };
 
@@ -935,7 +937,9 @@ describe("runUpdateMode (E2E with templates)", () => {
     });
 
     it("new-skills — 이 트랙이 기본으로 받는 번들 스킬 중 디스크에 없는 것을 깔고 기준선에 더한다", () => {
-      withLog();
+      // 기준선 필드가 있는 로그(v26.126.0+) — 필드가 없던 옛 로그에는 일부만 든 필드를 만들지 않는다(#761 B-2,
+      // `legacy-external-log.test.ts`)
+      withLog({ skillFiles: [{ path: "other-skill/SKILL.md", sha256: hashContent("x\n") }] });
       // 기본 선택 스킬 id 는 열거하지 않고 manifest 에서 뽑는다 — 열거는 자산 하나가 지워지면 썩는다
       const spec = buildAssetSpec({ tracks: ["tooling"], options: DEFAULT_OPTIONS });
       const entry = buildManifest(spec).find(

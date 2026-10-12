@@ -139,6 +139,13 @@ describe("recorded — 기록 있음 · sha 없음(#557 · A8)", () => {
     expect(recorded(l, GIT_POLICY)).toEqual({ state: "none" });
   });
 
+  // #761 B-2 — update 는 정책 기준선을 디렉터리 단위로 다시 찍는다(`--only hooks` 면 `hooks/` 만). 필드가 없던 옛 로그에 그렇게
+  // 생긴 필드는 다른 디렉터리의 기록이 아니다
+  it("B-2 — 다른 디렉터리 항목만 든 policyFiles 는 그 디렉터리의 기록이 아니다 — no-sha", () => {
+    const l = log({ policyFiles: [{ path: "hooks/session-start.sh", sha256: "x" }] });
+    expect(recorded(l, GIT_POLICY)).toEqual({ state: "no-sha" });
+  });
+
   it("스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles)", () => {
     const skill = ".claude/skills/north-star/SKILL.md";
     expect(recorded(log(), skill)).toEqual({ state: "no-sha" }); // 대조군 — 필드 없음
@@ -182,10 +189,22 @@ describe("recordedOwner — 외부 기록 필드가 없는 옛 로그(B-1)", () 
   it("필드가 있는데 경로가 없으면 none — 첫 접촉", () => {
     const l = log({
       spec: { cli: ["claude", "codex"] },
-      externalFiles: [{ path: ".uzys-agent-harness/check-absence.sh", sha256: "x" }],
+      externalFiles: [
+        { path: ".uzys-agent-harness/check-absence.sh", sha256: "x" },
+        { path: ".agents/skills/other/SKILL.md", sha256: "y" },
+      ],
     });
     expect(recordedOwner(l)(SKILL)).toBe(false);
     expect(recorded(l, SKILL, { isTarget: () => true })).toEqual({ state: "none" });
+  });
+
+  it("B-2 — 헬퍼만 든 externalFiles(옛 로그에 `--only rules` 가 만든 것)는 외부 자리의 기록이 아니다 — no-sha", () => {
+    const l = log({
+      spec: { cli: ["claude", "codex"] },
+      externalFiles: [{ path: ".uzys-agent-harness/check-absence.sh", sha256: "x" }],
+    });
+    expect(recordedOwner(l)(SKILL)).toBe(true);
+    expect(recorded(l, SKILL, { isTarget: () => true })).toEqual({ state: "no-sha" });
   });
 
   it("writer 로그 · 그 CLI 가 기록에 없는 로그 · 로그 없음은 none", () => {
