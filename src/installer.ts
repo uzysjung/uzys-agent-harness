@@ -635,6 +635,7 @@ function runInstallStages(
     externalBackups,
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
+    displaced: cliDisplaced = [],
     externalForeignOwned,
     externalOutside,
     sharedFiles: cliSharedFiles,
@@ -805,6 +806,9 @@ function runInstallStages(
       ...cliSharedFiles
         .filter((f) => f.createdAsRoot === true)
         .map((f) => ({ path: f.path, change: "created" as const, notes: ["하네스 몫만(블록)"] })),
+      // #761 — 외부 변환 · 링크 본문이 첫 접촉으로 비켜 둔 설치자 파일. 하네스가 떠날 때 되돌리는 근거다
+      ...cliDisplaced,
+      ...linked.displaced,
     ],
     cliTransforms.codexOptIn,
   );
@@ -1399,6 +1403,9 @@ interface InterruptJournal {
   readonly files: Map<string, string>;
   readonly shared: Map<string, InstallLogPortion[]>;
   readonly completed: Set<CliBase>;
+  /** #761 — 첫 접촉으로 비켜 둔 자리(`rootFiles.change = displaced`). 경로당 첫 판정. */
+  displaced(f: InstallLogRootFile): void;
+  readonly displacedFiles: Map<string, InstallLogRootFile>;
 }
 
 function createInterruptJournal(): InterruptJournal {
@@ -1406,11 +1413,16 @@ function createInterruptJournal(): InterruptJournal {
   const shared = new Map<string, InstallLogPortion[]>();
   const completed = new Set<CliBase>();
   const backups: string[] = [];
+  const displacedFiles = new Map<string, InstallLogRootFile>();
   const journal: InterruptJournal = {
     files,
     shared,
     completed,
     backups,
+    displacedFiles,
+    displaced: (f) => {
+      if (!displacedFiles.has(f.path)) displacedFiles.set(f.path, f);
+    },
     codexOptIn: null,
     trust: (report) => {
       journal.codexOptIn = report;
@@ -1484,7 +1496,7 @@ function recordInterruptedInstall(
       ledger.anchor,
       previousLog,
       false,
-      [...rootFiles, ...ledger.rootFiles],
+      [...rootFiles, ...ledger.rootFiles, ...journal.displacedFiles.values()],
       codexTrust,
     );
     const path = writeInstallLog(

@@ -6,7 +6,8 @@
  * 이 파일은 그 표를 옮긴 것이다**(`tests/judge.test.ts` 가 행마다 대조한다). 표와 코드가 갈리면 표가 이긴다.
  *
  * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter`)와 함께 쓰는
- * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함)가 부른다.
+ * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함), update 의 `.claude/` 정책·스킬
+ * 갱신(`update-mode.ts` `updateDir` · `syncSkills` — #761)이 부른다.
  * uninstall 의 하네스 파일 제거와 `judgeDisplaced` 는 아직 이 함수를 타지 않는다 — 설계 §9 PR-7.
  */
 

@@ -9,11 +9,25 @@
  * 되어 되살림(`restored`) 경로를 재게 된다.
  */
 
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readInstallLog, writeInstallLog } from "../src/install-log.js";
+import { createInstallRenderer, renderUpdateSummary } from "../src/commands/install-render.js";
+import {
+  type InstallLog,
+  installLogPath,
+  readInstallLog,
+  writeInstallLog,
+} from "../src/install-log.js";
 import { type InstallReport, runInstall } from "../src/installer.js";
 import type { CliTargets, InstallSpec, Track } from "../src/types.js";
 
@@ -166,5 +180,180 @@ describe("#729 — multi-model-debate 는 update 로 두 자리에 오고, 브�
         expect(existsSync(join(projectDir, slot, id, "SKILL.md")), `${slot} ${id}`).toBe(true);
       }
     }
+  });
+});
+
+/**
+ * #761 (ADR-097 결정 7 · 설계 v26.169.0 §3.3) — 같은 이름의 설치자 파일을 update 가 처음 만났다(첫 접촉).
+ *
+ * 장면: #729 첨부를 손으로 `.claude/skills/<id>/` · `.agents/skills/<id>/` 에 복사해 쓰던 설치자가, 그 이름이 개발 트랙 기본이
+ * 된 판으로 update 한다. 하네스 판이 자리를 잡는 것은 같고(결정 7), 달라지는 것은 ① 원본 백업이 기록에 `displaced` 로 남아
+ * 하네스가 떠날 때 되돌릴 근거가 되고 ② 화면이 "고쳤다(edited)" 가 아니라 "같은 이름의 파일이 있었다" 고 말한다.
+ * 갱신 대상은 기록 + 이번 릴리즈 기본이다 — 기본이 아닌(opt-in) 이름의 손수 만든 폴더는 디스크에 있어도 건드리지 않는다.
+ */
+describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 update 가 displaced 로 적는다", () => {
+  const DEBATE = "multi-model-debate";
+  const OPT_IN = "gemini-delegate";
+  const MINE = "MINE — my own copy\n";
+  const SLOTS = [".claude/skills", ".agents/skills"] as const;
+  const CLIS: CliTargets = ["claude", "codex"];
+
+  const abs = (rel: string): string => join(projectDir, rel);
+  const read = (rel: string): string => readFileSync(abs(rel), "utf8");
+  const put = (rel: string, text: string): void => {
+    mkdirSync(dirname(abs(rel)), { recursive: true });
+    writeFileSync(abs(rel), text);
+  };
+  const backupsOf = (rel: string): string[] => {
+    const dir = dirname(abs(rel));
+    if (!existsSync(dir)) return [];
+    const base = rel.slice(rel.lastIndexOf("/") + 1);
+    return readdirSync(dir).filter((f) => f.startsWith(`${base}.backup-`));
+  };
+  const log = (): InstallLog => {
+    const l = readInstallLog(projectDir);
+    if (!l) throw new Error("install log missing");
+    return l;
+  };
+  const displacedOf = (path: string) =>
+    (log().rootFiles ?? []).filter((f) => f.path === path && f.change === "displaced");
+
+  /** 이 판으로 update — 보고 · 진행 화면 · 요약. */
+  function updateWithScreen(): { report: InstallReport; screen: string } {
+    const lines: string[] = [];
+    const s = spec(["tooling"], CLIS);
+    const renderer = createInstallRenderer((m) => lines.push(m), s, false);
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: s,
+      mode: "update",
+      onProgress: (event) => renderer.callbacks.onProgress?.(event),
+    });
+    renderUpdateSummary((m) => lines.push(m), s, report);
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+    return { report, screen: lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "") };
+  }
+
+  /** 몫 기록 전의 옛 로그(v26.161 이하) 모양으로 — `records` · `portions` 를 지운다(`skillFiles` 등 나머지는 그대로). */
+  function toLegacyLog(): void {
+    const { records: _r, portions: _p, ...rest } = log();
+    writeFileSync(installLogPath(projectDir), JSON.stringify(rest), "utf8");
+  }
+
+  /** ① 의 디스크 — 그 스킬이 없던 옛 판 설치본에 손수 만든 `SKILL.md` 두 자리. */
+  function handMadeDebate(): void {
+    run("add", spec(["tooling"], CLIS));
+    pretendOlderRelease([DEBATE]);
+    for (const slot of SLOTS) put(`${slot}/${DEBATE}/SKILL.md`, MINE);
+  }
+
+  function expectDisplacedBoth(screen: string): void {
+    for (const slot of SLOTS) {
+      const rel = `${slot}/${DEBATE}/SKILL.md`;
+      expect(read(rel), rel).not.toBe(MINE); // 하네스 판이 자리를 잡았다(결정 7)
+      const backups = backupsOf(rel);
+      expect(backups, rel).toHaveLength(1);
+      expect(read(`${slot}/${DEBATE}/${backups[0]}`), rel).toBe(MINE);
+      const [entry, ...more] = displacedOf(rel);
+      expect(more, rel).toEqual([]);
+      expect(entry?.notes, rel).toEqual([`${slot}/${DEBATE}/${backups[0]}`]);
+    }
+    // 하네스 판이 자리를 잡았으니 sha 도 적혔다(`displaced+sha`)
+    expect(log().skillFiles?.some((f) => f.path === `${DEBATE}/SKILL.md`)).toBe(true);
+    expect(log().externalFiles?.some((f) => f.path === `.agents/skills/${DEBATE}/SKILL.md`)).toBe(
+      true,
+    );
+    expect(screen).toContain(".claude/skills had files with these names");
+    expect(screen).toContain("external CLI files had files with these names");
+    expect(screen).not.toContain("edited files");
+    expect(screen).not.toContain("edited external CLI files");
+    expect(screen).not.toContain("no checksum");
+    // 설치자 자기 파일의 백업은 새 판에 다시 얹을 편집이 아니다
+    expect(screen).not.toContain("to re-apply your edits");
+  }
+
+  it("① 기본 스킬과 같은 이름의 손수 만든 폴더 → 백업 · 하네스 판 · displaced 2건 · 화면 'had files with these names'", () => {
+    handMadeDebate();
+    const { screen } = updateWithScreen();
+    expectDisplacedBoth(screen);
+  });
+
+  it("④ 옛 로그(records 없음 · skillFiles 있음)에서도 ① 과 같다 — B3 좁히기", () => {
+    handMadeDebate();
+    toLegacyLog();
+    const { screen } = updateWithScreen();
+    expectDisplacedBoth(screen);
+  });
+
+  it("② opt-in 이름의 손수 만든 폴더는 대상이 아니다 — 바이트 그대로 · 백업 0 · 기록 없음 · 화면 언급 없음", () => {
+    run("add", spec(["tooling"], CLIS));
+    for (const slot of SLOTS) put(`${slot}/${OPT_IN}/SKILL.md`, MINE);
+
+    const { screen } = updateWithScreen();
+
+    for (const slot of SLOTS) {
+      const rel = `${slot}/${OPT_IN}/SKILL.md`;
+      expect(read(rel), rel).toBe(MINE);
+      expect(backupsOf(rel), rel).toEqual([]);
+      expect(displacedOf(rel), rel).toEqual([]);
+    }
+    expect(log().skillFiles?.some((f) => f.path.startsWith(`${OPT_IN}/`))).toBe(false);
+    expect(log().externalFiles?.some((f) => f.path.includes(`/${OPT_IN}/`))).toBe(false);
+    expect(screen).not.toContain(OPT_IN);
+  });
+
+  it("③ 내용이 하네스 판과 같은 손수 둔 파일 → 백업 0 · displaced(notes 없음) · 하네스 기록에는 없다(Q3)", () => {
+    run("add", spec(["tooling"], CLIS));
+    const harness = new Map(SLOTS.map((slot) => [slot, read(`${slot}/${DEBATE}/SKILL.md`)]));
+    pretendOlderRelease([DEBATE]);
+    for (const slot of SLOTS) put(`${slot}/${DEBATE}/SKILL.md`, harness.get(slot) ?? "");
+
+    const { screen } = updateWithScreen();
+
+    for (const slot of SLOTS) {
+      const rel = `${slot}/${DEBATE}/SKILL.md`;
+      expect(read(rel), rel).toBe(harness.get(slot));
+      expect(backupsOf(rel), rel).toEqual([]);
+      expect(
+        displacedOf(rel).map((f) => f.notes),
+        rel,
+      ).toEqual([[]]);
+    }
+    expect(log().skillFiles?.some((f) => f.path === `${DEBATE}/SKILL.md`)).toBe(false);
+    expect(log().externalFiles?.some((f) => f.path === `.agents/skills/${DEBATE}/SKILL.md`)).toBe(
+      false,
+    );
+    // 형제 파일은 하네스가 새로 깔았다 — 하네스 것이다
+    expect(log().skillFiles?.some((f) => f.path === `${DEBATE}/references/adapters.md`)).toBe(true);
+    expect(screen).toContain("same as the harness version");
+    expect(screen).not.toContain("had files with these names");
+  });
+
+  it("ⓑ 이번 릴리즈의 신규 룰과 같은 이름의 손수 만든 룰 → updateDir 경로에서도 백업 · displaced · 화면 같은 말", () => {
+    const RULE = ".claude/rules/git-policy.md";
+    run("add", spec(["tooling"], CLIS));
+    // 그 룰이 없던 옛 판 설치본 — 디스크와 기준선에서 뺀다
+    rmSync(abs(RULE));
+    const l = log();
+    writeInstallLog(projectDir, {
+      ...l,
+      ...(l.policyFiles
+        ? { policyFiles: l.policyFiles.filter((f) => f.path !== "rules/git-policy.md") }
+        : {}),
+    });
+    put(RULE, MINE);
+
+    const { screen } = updateWithScreen();
+
+    expect(read(RULE)).not.toBe(MINE);
+    const backups = backupsOf(RULE);
+    expect(backups).toHaveLength(1);
+    expect(read(`.claude/rules/${backups[0]}`)).toBe(MINE);
+    expect(displacedOf(RULE).map((f) => f.notes)).toEqual([[`.claude/rules/${backups[0]}`]]);
+    expect(log().policyFiles?.some((f) => f.path === "rules/git-policy.md")).toBe(true);
+    expect(screen).toContain("policy files had files with these names");
+    expect(screen).not.toContain("edited policy files");
   });
 });

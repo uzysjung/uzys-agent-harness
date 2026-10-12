@@ -1894,6 +1894,8 @@ describe("스킬 기준선 갱신 (R-3a)", () => {
       spec: { tracks: ["tooling"], cli: ["claude"] },
       templates: { claudeDir: ".claude/" },
       assets: [],
+      // #761 — 지금 판의 기록(쓰기 = 기록). 옛 스캔 로그면 `demo` 는 번들 이름이 아니라 소유 필터에 걸린다(기록 없음)
+      records: "writer",
       skillFiles: [{ path: "demo/SKILL.md", sha256: hashContent("v1\n") }],
     });
   }

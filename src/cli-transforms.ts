@@ -28,7 +28,7 @@ import {
 } from "./antigravity/transform.js";
 import { type CodexOptInReport, runCodexOptIn } from "./codex/opt-in.js";
 import { type CodexTransformReport, runCodexTransform } from "./codex/transform.js";
-import type { InstallLogPortion, InstallLogSkillFile } from "./install-log.js";
+import type { InstallLogPortion, InstallLogRootFile, InstallLogSkillFile } from "./install-log.js";
 import {
   composeMcpJson,
   droppedMcpServers,
@@ -68,8 +68,13 @@ export interface CliTransformResults {
   externalBackups: string[];
   /** v26.134.0 (ADR-049) — 실제로 디스크가 바뀐 파일 수. update 화면의 카운트. */
   externalUpdated: number;
-  /** v26.134.0 (ADR-049) — 백업된 사용자 편집분의 project-relative 경로. */
+  /** v26.134.0 (ADR-049) — 백업된 사용자 편집분의 project-relative 경로. 첫 접촉은 `displaced` 다(#761). */
   externalBackedUp: string[];
+  /**
+   * #761 — 세 변환이 기준선에 없는 자리에서 만난 설치자 파일(첫 접촉, `OwnedWriteResult.displaced` · 경로당 하나).
+   * 호출부(install · update)가 기록의 `rootFiles` 에 합친다. optional = 손으로 만드는 결과 stub 은 "없음".
+   */
+  displaced?: InstallLogRootFile[];
   /**
    * #343 — 다른 도구가 소유한 스킬 슬롯이라 쓰지 않은 자리 (`.agents/skills/<id>` 등).
    * `.claude/` baseline 의 같은 판정과 **한 줄로 합쳐** 화면에 낸다 — 사용자에게는 어느
@@ -298,6 +303,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   const externalBackups: string[] = [];
   const externalBackedUp: string[] = [];
   const externalForeignOwned: string[] = [];
+  const displaced = new Map<string, InstallLogRootFile>();
   let externalOutside: OutsideLink[] = [];
   let externalUpdated = 0;
   const restoredFiles: string[] = [];
@@ -321,6 +327,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     }
     externalBackups.push(...report.ownership.backupPaths);
     externalBackedUp.push(...report.ownership.backedUp);
+    // 같은 `.agents/skills/` 를 여러 변환이 쓴다 — 앞 변환이 백업한 자리를 뒤 변환은 기준선으로 알아본다. 경로당 첫 판정이 이긴다
+    // (뒤 변환의 "같은 내용 · 백업 없음" 이 앞 변환의 백업 기록을 덮지 않게)
+    for (const f of report.ownership.displaced ?? [])
+      if (!displaced.has(f.path)) displaced.set(f.path, f);
     for (const f of report.ownership.foreignOwned) {
       // 세 transform 이 같은 `.agents/skills/` 를 쓰므로 중복이 실제로 난다.
       if (!externalForeignOwned.includes(f)) externalForeignOwned.push(f);
@@ -440,6 +450,7 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     externalBackups,
     externalUpdated,
     externalBackedUp,
+    displaced: [...displaced.values()],
     externalForeignOwned,
     externalOutside,
     sharedFiles,

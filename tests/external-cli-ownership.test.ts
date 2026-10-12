@@ -127,7 +127,13 @@ describe("codex transform — 소유자 판정", () => {
     // 사용자 편집인지 하네스 구버전인지 구분할 근거가 없으므로 잃지 않는 쪽을 택한다.
     const second = codex(new Map());
 
-    expect(second.ownership.backedUp).toContain(".codex/hooks/session-start.sh");
+    // #761 — 기준선에 없는 자리는 "고쳤다" 가 아니라 첫 접촉이다: 백업은 같고, 기록할 곳이 `displaced`(notes = 백업)로 바뀐다
+    const hook = ".codex/hooks/session-start.sh";
+    expect(second.ownership.backedUp).not.toContain(hook);
+    const [entry] = (second.ownership.displaced ?? []).filter((f) => f.path === hook);
+    expect(entry?.change).toBe("displaced");
+    expect(entry?.notes[0]).toMatch(/^\.codex\/hooks\/session-start\.sh\.backup-/);
+    expect(backupsIn(join(projectDir, ".codex/hooks"))).toHaveLength(1);
   });
 
   it("기준선이 없어도 내용이 같으면 백업하지 않는다 — 잃을 편집분이 없다", () => {

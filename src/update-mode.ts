@@ -26,6 +26,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { bundledSkillTargets } from "./agents-skill-targets.js";
 import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
 import {
   classifyBaselineTarget,
@@ -79,6 +80,7 @@ import {
   hashContent,
   type InstallLog,
   type InstallLogMethod,
+  type InstallLogRootFile,
   installedClis,
   isHarnessOwned as isOwnedByBaseline,
   legacyDroppedKeys,
@@ -89,6 +91,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
+import { judge, type Recorded } from "./judge.js";
 import {
   type AssetEntry,
   type AssetSpec,
@@ -108,7 +111,7 @@ import {
   type OutsideLink,
 } from "./outside-project.js";
 import { HARNESS_ANCHOR_FILE, upsertHarnessImport } from "./project-claude-merge.js";
-import { excludedIds, recorded } from "./recorded.js";
+import { excludedIds, recorded, recordedTrackTargets } from "./recorded.js";
 import { claudeRecorded, claudeTargets, memoTargets } from "./track-heal.js";
 import { anyTrack } from "./track-match.js";
 import {
@@ -259,6 +262,15 @@ export interface UpdateModeReport {
    * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
    */
   policyBackedUp: string[];
+  /**
+   * #761 (ADR-097 결정 7) — 기록에 없는 자리에 있던 설치자 파일(첫 접촉)을 백업하고 하네스 판을 둔 경로(projectDir 상대 ·
+   * `.claude/` · `.agents/` 등). 설치자가 하네스 파일을 **고친** 것이 아니라 같은 이름의 자기 파일이라 `edited` 행에 섞지
+   * 않는다 — 기록의 `rootFiles` 에 `displaced`(notes = 백업)로 적혀 하네스가 떠날 때 되돌리는 근거가 된다.
+   * optional = 부재는 "없음"(손으로 만드는 리포트 stub 이 여럿이다).
+   */
+  displaced?: string[];
+  /** #761 Q3 — 첫 접촉인데 내용이 하네스 판과 같아 그대로 둔 설치자 파일(projectDir 상대). 하네스 것으로 적지 않는다. */
+  displacedSame?: string[];
   /**
    * v26.134.0 (R-3j-A · ADR-049) — 갱신된 외부 CLI 산출물 수
    * (`.codex/` · `.opencode/` · `.agents/` · `AGENTS.md` · `opencode.json`).
@@ -566,6 +578,10 @@ export function runUpdateMode(
   // 이 실행의 `logAtStart === null` 분기 전부 — 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어다.
   // 엔진(`runUpdateMode`)을 직접 부르는 테스트가 그 동작을 단언하므로 남긴다(#622).
   const claudeManaged = logAtStart === null || installedClis(logAtStart).includes("claude");
+  // #761 — `.claude/` 갱신의 기록 상태는 install 과 같은 접근자(`recorded()`)로 읽는다 — 기록에 없는 자리 = 첫 접촉(displaced).
+  // 대상 술어는 한 번만 만든다(N4). 기록이 없으면(엔진 직접 호출) 기준선 Map 판정 그대로(A7).
+  const recordOf = recordedStateOf(logAtStart);
+  const claudeDisplaced: InstallLogRootFile[] = [];
   report.claudeUnrecorded =
     !claudeManaged && logAtStart !== null && existsSync(claudeDir)
       ? recordClaudeCommand(logAtStart, installedTracks(projectDir))
@@ -579,10 +595,19 @@ export function runUpdateMode(
     const target = join(claudeDir, dir);
     const source = join(templatesDir, dir);
     const label = `.claude/${dir}`;
-    const ctx = { prefix: dir, baseline: policyBase, outside, excluded: excludedIds(logAtStart) };
+    const ctx: PolicySyncCtx = {
+      prefix: dir,
+      baseline: policyBase,
+      outside,
+      excluded: excludedIds(logAtStart),
+      // 0단계가 방금 깐 파일은 기록 전이지만 하네스 것이다 — 첫 접촉으로 읽지 않는다
+      justWritten: new Set(fresh.installed),
+      ...(recordOf === undefined ? {} : { recordOf }),
+    };
     const synced = updateDir(target, source, ext, ctx);
     report.updated[label] = synced.updated;
     report.policyBackedUp.push(...synced.backedUp);
+    claudeDisplaced.push(...synced.displaced);
     report.pruned[label] = pruneOrphans(target, source, ext, ctx);
   }
   // 기준선은 **동기화한 디렉터리만** 다시 찍는다 — 건너뛴 디렉터리의 사용자 편집을 지금 디스크
@@ -593,10 +618,18 @@ export function runUpdateMode(
     (d) => d.dir,
   );
   if (claudeManaged && syncedDirs.length > 0)
-    refreshPolicyBaseline(projectDir, templatesDir, syncedDirs, outsidePaths(outside, ".claude/"));
+    refreshPolicyBaseline(
+      projectDir,
+      templatesDir,
+      syncedDirs,
+      outsidePaths(outside, ".claude/"),
+      notOursUnder(claudeDisplaced, ".claude/"),
+    );
 
   // 1.5) `.claude/skills/` — v26.126.0 (R-3a · ADR-046).
   // 위 4개와 달리 스킬은 디렉터리 단위라 재귀가 필요하고, 사용자 편집분 판정이 붙는다.
+  // #761 — 갱신 대상은 디스크가 아니라 기록 + 이번 릴리즈 기본(ADR-097 D2 · ADR-096 D6). 기록이 없으면 디스크(A7).
+  const skillTargets = logAtStart === null ? undefined : recordedSkillIds(projectDir, logAtStart);
   const skillSync =
     claudeManaged && wants("skills")
       ? syncSkills(
@@ -607,8 +640,20 @@ export function runUpdateMode(
           (relInSkills) => foreignOwnedTarget(projectDir, `.claude/skills/${relInSkills}`),
           outside,
           excludedSkillOf(logAtStart),
+          {
+            ...(recordOf === undefined ? {} : { recordOf }),
+            ...(skillTargets === undefined ? {} : { targets: skillTargets }),
+          },
         )
-      : { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
+      : {
+          updated: 0,
+          backedUp: [],
+          skippedLinks: [],
+          foreignOwned: [],
+          pruned: [],
+          displaced: [],
+        };
+  claudeDisplaced.push(...skillSync.displaced);
   if (wants("skills")) report.updated[".claude/skills"] = skillSync.updated;
   report.skillsBackedUp = skillSync.backedUp;
   report.skillsSkippedLinks = skillSync.skippedLinks;
@@ -623,9 +668,17 @@ export function runUpdateMode(
   report.restored.push(...newSkills.restored);
   const copiedSkills = [...newSkills.installed, ...newSkills.restored];
   if (claudeManaged && wants("skills"))
-    refreshSkillBaseline(projectDir, templatesDir, outsidePaths(outside, ".claude/skills/"));
+    refreshSkillBaseline(
+      projectDir,
+      templatesDir,
+      outsidePaths(outside, ".claude/skills/"),
+      skillTargets,
+      notOursUnder(claudeDisplaced, ".claude/skills/"),
+    );
   else if (claudeManaged && copiedSkills.length > 0)
     recordNewSkillBaseline(projectDir, templatesDir, copiedSkills);
+  // #761 — 첫 접촉 자리를 기록에 합친다(기준선 재기록 뒤 · 외부 갱신 앞 — 외부 갱신은 이 기록을 읽고 이어 쓴다)
+  if (claudeDisplaced.length > 0) recordDisplaced(projectDir, claudeDisplaced);
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
   //
@@ -723,6 +776,7 @@ export function runUpdateMode(
     : {
         externalUpdated: 0,
         externalBackedUp: [],
+        displaced: [],
         externalForeignOwned: [],
         externalOutside: [],
         written: [],
@@ -839,10 +893,21 @@ export function runUpdateMode(
   const outsideLinks = mergeOutside(outside.list(), sharedWrites.outside, external.externalOutside);
   if (outsideLinks.length > 0) report.outsideLinks = outsideLinks;
 
+  // #761 — 첫 접촉(`.claude/` · 외부 산출물). 백업한 것은 "had a file with this name", 같아서 둔 것은 "kept" 로 말한다
+  const displacedAll = [...claudeDisplaced, ...external.displaced];
+  const displacedMoved = displacedAll.filter((f) => f.notes.length > 0).map((f) => f.path);
+  const displacedSame = displacedAll.filter((f) => f.notes.length === 0).map((f) => f.path);
+  if (displacedMoved.length > 0) report.displaced = displacedMoved;
+  if (displacedSame.length > 0) report.displacedSame = displacedSame;
+
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
   // #557 — 백업을 만드는 자리마다 사유를 올리지 않고(`collectRunBackups` 와 같은 이유) 실행 시작 때의 기록 하나로 가른다
+  // #761 — 첫 접촉 백업은 기록에 없던 것이 맞지만 "체크섬이 없었다" 가 아니다 — 설치자 파일이었다(위 `displaced`)
   const onRecord = checksumOnRecord(logAtStart);
-  const noChecksum = report.backups.map((b) => b.path).filter((p) => !onRecord(p));
+  const firstContact = new Set(displacedMoved);
+  const noChecksum = report.backups
+    .map((b) => b.path)
+    .filter((p) => !onRecord(p) && !firstContact.has(p));
   if (noChecksum.length > 0) report.noChecksum = noChecksum;
   writeBackupList(projectDir, report.backups, new Set(noChecksum));
   return report;
@@ -1695,12 +1760,12 @@ export function recordedRenderInputs(
 ): { selectedInternalSkills: string[]; rules: string[] } {
   const excluded = excludedIds(log);
   return {
-    // 스킬은 **디스크에 있는 것만** 넘긴다. 스킬 *파일*은 전체 목록을 넘겨도 refreshOnly 가
-    // 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
-    // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 판정은
-    // `upsertRootImport` 와 같다 — `.claude/skills/<id>` 또는 `.agents/skills/<id>` 가 있으면 깔린 것.
+    // 스킬은 **기록 + 이번 릴리즈 기본**만 넘긴다(#761 — `recordedBundledSkills`). 스킬 *파일*은 전체 목록을 넘겨도
+    // refreshOnly 가 없는 것을 건너뛰지만, `AGENTS.md` 의 상시 스킬 안내(ADR-085)는 이 목록 그대로 렌더돼
+    // `--without` 으로 뺀 스킬(#505)·opt-in 스킬을 "열어라"고 적었다(실측 2026-09-21). 디스크에 같은 이름의 폴더가
+    // 있다는 것은 그 스킬을 깔았다는 증거가 아니다(ADR-096 D6) — 손으로 만든 opt-in 이름 폴더를 덮지 않는다.
     // ADR-099 R3 — 뺀 스킬은 디스크에 남아 있어도 갱신하지도 안내하지도 않는다(install 이 내는 것과 같은 목록)
-    selectedInternalSkills: installedBundledSkills(projectDir).filter(
+    selectedInternalSkills: recordedBundledSkills(projectDir, log).filter(
       (id) => !excludedSkillOf(log)(id),
     ),
     // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. 렌더 경로(AGENTS.md 절 · antigravity 룰 생성)는
@@ -1711,13 +1776,41 @@ export function recordedRenderInputs(
   };
 }
 
-function installedBundledSkills(projectDir: string): string[] {
-  return INTERNAL_BUNDLED_SKILL_IDS.filter(
-    (id) =>
-      existsSync(join(projectDir, ".claude/skills", id)) ||
-      existsSync(join(projectDir, ".agents/skills", id)),
-  );
+/**
+ * #761 — update 가 갱신하는 번들 스킬(ADR-097 D2 "기록 항목 + 릴리즈 신규(excluded 제외)"): `skillFiles` 의 id(옛 로그는
+ * `recorded()` 필터 통과분) ∪ `externalFiles` 가 `.agents/skills/<id>/` 아래 가진 id ∪ 이번 릴리즈의 트랙 기본
+ * (`bundledSkillTargets` — 뺀 것 제외). 디스크 존재는 근거가 아니다(ADR-096 D6) — 손으로 만든 opt-in 이름 폴더는 대상이
+ * 아니다. 기록이 없으면(엔진 직접 호출 — CLI 경로로는 도달 불가, #699) 디스크로 판정한다(A7).
+ */
+function recordedBundledSkills(projectDir: string, log: InstallLog | null): string[] {
+  if (log === null) {
+    return INTERNAL_BUNDLED_SKILL_IDS.filter(
+      (id) =>
+        existsSync(join(projectDir, ".claude/skills", id)) ||
+        existsSync(join(projectDir, ".agents/skills", id)),
+    );
+  }
+  const ids = recordedSkillIds(projectDir, log);
+  return INTERNAL_BUNDLED_SKILL_IDS.filter((id) => ids.has(id));
 }
+
+/** `recordedBundledSkills` 의 id 집합(번들 목록으로 거르기 전) — `.claude/skills/` 갱신(`syncSkills`)의 대상이다. */
+function recordedSkillIds(projectDir: string, log: InstallLog): Set<string> {
+  const isTarget = recordedTrackTargets(log);
+  const ids = new Set<string>(bundledSkillTargets(projectDir, log));
+  for (const f of log.skillFiles ?? []) {
+    const id = f.path.split("/")[0] ?? "";
+    if (recorded(log, `.claude/skills/${f.path}`, { isTarget }).state !== "none") ids.add(id);
+  }
+  for (const f of log.externalFiles ?? []) {
+    const id = SHARED_SKILL_ID.exec(f.path)?.[1];
+    if (id !== undefined) ids.add(id);
+  }
+  return ids;
+}
+
+/** `.agents/skills/<id>/…` 의 id. */
+const SHARED_SKILL_ID = /^\.agents\/skills\/([^/]+)\//;
 
 /**
  * #528 — 갱신 대상 CLI 는 **설치 로그의 `clis` 하나**가 말한다(`installedClis`).
@@ -1850,6 +1943,8 @@ function refreshExternalCli(
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
+  /** #761 — 외부 변환이 첫 접촉으로 비켜 둔 설치자 파일(기록의 `rootFiles` 에 이미 합쳤다). */
+  displaced: InstallLogRootFile[];
   externalForeignOwned: string[];
   /** #678 — 외부 변환이 실체가 프로젝트 밖이라 쓰지 않은 자리. */
   externalOutside: OutsideLink[];
@@ -1947,7 +2042,9 @@ function refreshExternalCli(
     const created = result.sharedFiles
       .filter((f) => f.createdAsRoot === true)
       .map((f) => ({ path: f.path, change: "created" as const, notes: ["하네스 몫만(블록)"] }));
-    if (created.length > 0) next.rootFiles = mergeRootFiles(log.rootFiles, created);
+    // #761 — 세 변환이 첫 접촉으로 비켜 둔 설치자 파일도 같은 자리에 — 하네스가 떠날 때 되돌리는 근거다
+    const roots = [...created, ...withoutLostBackups(log.rootFiles, result.displaced ?? [])];
+    if (roots.length > 0) next.rootFiles = mergeRootFiles(log.rootFiles, roots);
     try {
       writeInstallLog(projectDir, next);
     } catch {
@@ -2020,6 +2117,7 @@ function refreshExternalCli(
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
+    displaced: result.displaced ?? [],
     externalForeignOwned: result.externalForeignOwned,
     externalOutside: result.externalOutside,
     written: result.externalFiles.map((f) => f.path),
@@ -2090,6 +2188,13 @@ export interface PolicySyncCtx {
    * `excluded → leave` 와 같다). 없으면 판정하지 않는다(단위 테스트).
    */
   excluded?: ReadonlySet<string>;
+  /**
+   * #761 — 경로(projectDir 상대) 하나의 기록 상태(`recorded()`). 있으면 install 과 같은 표(`judge`)로 판정한다 — 기록에 없는
+   * 자리는 첫 접촉(displaced). 없으면 `baseline` 으로 — 있으면 sha · 없으면 sha 없음(단위 테스트 · 로그 없는 엔진, A7).
+   */
+  recordOf?: (projectRel: string) => Recorded;
+  /** #761 — 이번 실행이 방금 깐 파일(projectDir 상대 — 0단계 `installNewAssets`). 기록 전이지만 하네스 것이라 판정하지 않는다. */
+  justWritten?: ReadonlySet<string>;
 }
 
 /**
@@ -2117,6 +2222,10 @@ function isHarnessOwned(ctx: PolicySyncCtx, rel: string, current: string): boole
  *
  * 내용 비교로 대신할 수 없다: 하네스가 개선해서 달라진 파일도 "다르다"로 잡혀 릴리즈마다
  * 전 사용자에게 백업본이 쌓인다 (`fs-ops.ts` backupFile 주석과 같은 이유).
+ *
+ * #761 — 판정은 install 과 같은 `judge` 표다(`judgedUpdateWrite`). 기록(`ctx.recordOf`)에 없는 자리의 설치자 파일은
+ * 편집이 아니라 첫 접촉이다: 다르면 백업하고 최신판이 자리를 잡되(결정 7) `displaced`(notes = 백업)로 돌려주고, 같으면
+ * 그대로 두고 `displaced`(백업 없음)로 돌려준다 — `backedUp` 에는 넣지 않는다.
  */
 export function updateDir(
   target: string,
@@ -2124,10 +2233,12 @@ export function updateDir(
   ext: string,
   ctx: PolicySyncCtx,
   now: Date = new Date(),
-): { updated: number; backedUp: string[] } {
-  if (!existsSync(target) || !existsSync(source)) return { updated: 0, backedUp: [] };
+): { updated: number; backedUp: string[]; displaced: InstallLogRootFile[] } {
+  if (!existsSync(target) || !existsSync(source))
+    return { updated: 0, backedUp: [], displaced: [] };
   let updated = 0;
   const backedUp: string[] = [];
+  const displaced: InstallLogRootFile[] = [];
 
   for (const file of readdirSync(target)) {
     if (!file.endsWith(ext)) continue;
@@ -2137,19 +2248,18 @@ export function updateDir(
 
     // #678 — 폴더 링크(`.claude/rules → 밖`)든 파일 링크든 실체가 밖이면 손대지 않는다(백업도 밖에 생겼다).
     if (ctx.outside?.skip(targetFile)) continue;
-    if (ctx.excluded && isBaselineExcluded(`.claude/${ctx.prefix}/${file}`, ctx.excluded)) continue;
+    const projectRel = `.claude/${ctx.prefix}/${file}`;
+    if (ctx.excluded && isBaselineExcluded(projectRel, ctx.excluded)) continue;
+    if (ctx.justWritten?.has(projectRel)) continue;
     const next = readFileSync(sourceFile, "utf8");
-    const current = readFileSync(targetFile, "utf8");
-    if (current === next) continue; // 이미 최신 — 백업도 쓰기도 불필요
-
-    if (!isHarnessOwned(ctx, file, current)) {
-      backupFile(targetFile, now);
-      backedUp.push(`${ctx.prefix}/${file}`);
-    }
-    writeFileSync(targetFile, next);
-    updated++;
+    const rec = ctx.recordOf?.(projectRel) ?? baselineRecord(ctx.baseline, `${ctx.prefix}/${file}`);
+    const w = judgedUpdateWrite(targetFile, rec, next, now);
+    if (w.changed) updated++;
+    if (w.kind === "edited") backedUp.push(`${ctx.prefix}/${file}`);
+    const d = displacedEntry(w, projectRel, targetFile);
+    if (d !== null) displaced.push(d);
   }
-  return { updated, backedUp };
+  return { updated, backedUp, displaced };
 }
 
 /**
@@ -2194,20 +2304,34 @@ export function syncSkills(
   outside?: OutsideGuard,
   /** ADR-099 R3 — 설치자가 뺀 스킬 id 인가. 뺐지만 디스크에 남은 스킬은 새 판으로 바꾸지 않는다. */
   excludedSkill?: (id: string) => boolean,
+  /**
+   * #761 — `recordOf`: 파일(projectDir 상대) 하나의 기록 상태 — 있으면 `updateDir` 과 같이 `judge` 표로 첫 접촉을 가른다.
+   * `targets`: 갱신할 스킬 id(기록 + 이번 릴리즈 기본). 없으면 디스크에 있는 것 전부(단위 테스트 · 로그 없는 엔진, A7).
+   */
+  opts: { recordOf?: (projectRel: string) => Recorded; targets?: ReadonlySet<string> } = {},
 ): {
   updated: number;
   backedUp: string[];
   skippedLinks: string[];
   foreignOwned: string[];
   pruned: string[];
+  displaced: InstallLogRootFile[];
 } {
   if (!existsSync(targetDir) || !existsSync(sourceDir))
-    return { updated: 0, backedUp: [], skippedLinks: [], foreignOwned: [], pruned: [] };
+    return {
+      updated: 0,
+      backedUp: [],
+      skippedLinks: [],
+      foreignOwned: [],
+      pruned: [],
+      displaced: [],
+    };
   let updated = 0;
   const backedUp: string[] = [];
   const skippedLinks: string[] = [];
   const foreignOwned: string[] = [];
   const pruned: string[] = [];
+  const displaced: InstallLogRootFile[] = [];
 
   for (const skill of readdirSync(sourceDir, { withFileTypes: true })) {
     if (!skill.isDirectory()) continue;
@@ -2221,7 +2345,9 @@ export function syncSkills(
       skippedLinks.push(skill.name);
       continue;
     }
-    if (!existsSync(targetSkill)) continue; // 사용자가 선택하지 않은 스킬 — 새로 깔지 않는다
+    // #761 — 대상은 기록 + 이번 릴리즈 기본이다. 디스크에 같은 이름의 폴더가 있다는 것은 깔았다는 증거가 아니다(ADR-096 D6)
+    if (opts.targets !== undefined && !opts.targets.has(skill.name)) continue;
+    if (!existsSync(targetSkill)) continue; // 대상인데 없으면 `installNewSkillDirs` 가 깐다 — 여기서는 만들지 않는다
     if (excludedSkill?.(skill.name)) continue;
 
     for (const rel of listFilesRecursive(join(sourceDir, skill.name))) {
@@ -2235,25 +2361,14 @@ export function syncSkills(
       }
       if (outside?.skip(targetFile)) continue;
       const next = readFileSync(join(sourceDir, skill.name, rel), "utf8");
-
-      if (!existsSync(targetFile)) {
-        // 스킬 안에 새로 생긴 파일 (예: references/ 추가) — 스킬 자체는 이미 설치돼 있다.
-        mkdirSync(dirname(targetFile), { recursive: true });
-        writeFileSync(targetFile, next);
-        updated++;
-        continue;
-      }
-
-      const current = readFileSync(targetFile, "utf8");
-      if (current === next) continue; // 이미 최신 — 백업도 갱신도 불필요
-
-      const recorded = baseline.get(`${skill.name}/${rel}`);
-      if (recorded === undefined || hashContent(current) !== recorded) {
-        backupFile(targetFile, now);
-        backedUp.push(`${skill.name}/${rel}`);
-      }
-      writeFileSync(targetFile, next);
-      updated++;
+      // 스킬 안에 새로 생긴 파일(예: references/ 추가)은 `create` — 스킬 자체는 이미 설치돼 있다
+      const projectRel = `.claude/skills/${skill.name}/${rel}`;
+      const rec = opts.recordOf?.(projectRel) ?? baselineRecord(baseline, `${skill.name}/${rel}`);
+      const w = judgedUpdateWrite(targetFile, rec, next, now);
+      if (w.changed) updated++;
+      if (w.kind === "edited") backedUp.push(`${skill.name}/${rel}`);
+      const d = displacedEntry(w, projectRel, targetFile);
+      if (d !== null) displaced.push(d);
     }
 
     // #477 — 번들 목록이 곧 "최신본이 가져야 할 파일" 이다. 그 밖의 파일은 지운다 — 결과는
@@ -2282,7 +2397,113 @@ export function syncSkills(
         rmdirSync(d);
     }
   }
-  return { updated, backedUp, skippedLinks, foreignOwned, pruned };
+  return { updated, backedUp, skippedLinks, foreignOwned, pruned, displaced };
+}
+
+/**
+ * #761 — `.claude/` 하네스 파일 한 개의 update 쓰기. install 의 `install-writes.ts` harness 와 **같은 표**(`judge`)를 타고
+ * verdict 를 그대로 실행한다. `kind` 가 화면·기록이 가를 결과다: `edited` = 기록과 달라 백업(편집 · 체크섬 없음 둘 다 —
+ * 실행 시작 때의 기록이 화면에서 가른다, #557) · `displaced` = 첫 접촉이라 백업하고 최신판이 자리를 잡았다 ·
+ * `displacedSame` = 첫 접촉인데 이미 하네스 판이라 그대로 뒀다(하네스 것으로 삼지 않는다, Q3).
+ */
+function judgedUpdateWrite(
+  abs: string,
+  rec: Recorded,
+  next: string,
+  now: Date,
+): {
+  kind: "same" | "written" | "edited" | "displaced" | "displacedSame";
+  changed: boolean;
+  backup?: string;
+} {
+  const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
+  const j = judge({ op: "write", kind: "harness", rec, disk, next, run: "update" });
+  let backup: string | undefined;
+  switch (j.verdict) {
+    case "leave":
+      break;
+    case "create":
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, next);
+      break;
+    case "overwrite":
+      writeFileSync(abs, next);
+      break;
+    case "backup+overwrite":
+      backup = backupFile(abs, now);
+      writeFileSync(abs, next);
+      break;
+    default:
+      throw new Error(`update: '${j.verdict}' is not a write verdict (${abs})`);
+  }
+  const changed = j.verdict !== "leave";
+  if (j.record === "displaced") return { kind: "displacedSame", changed };
+  if (backup === undefined) return { kind: changed ? "written" : "same", changed };
+  return { kind: j.record === "displaced+sha" ? "displaced" : "edited", changed, backup };
+}
+
+/** 첫 접촉 결과를 기록의 `rootFiles` 항목으로. 백업 경로는 projectDir 상대(`<file>.backup-<time>` — 원본 옆에 생긴다). */
+function displacedEntry(
+  w: ReturnType<typeof judgedUpdateWrite>,
+  projectRel: string,
+  abs: string,
+): InstallLogRootFile | null {
+  if (w.kind === "displacedSame") return { path: projectRel, change: "displaced", notes: [] };
+  if (w.kind !== "displaced" || w.backup === undefined) return null;
+  const backupRel = `${projectRel}${w.backup.slice(abs.length)}`;
+  return { path: projectRel, change: "displaced", notes: [backupRel] };
+}
+
+/** 기록 접근자 없이 기준선 Map 만 있을 때의 상태 — 있으면 sha · 없으면 sha 없음(종전의 "기록 없음 → 보수적 백업"). */
+function baselineRecord(baseline: ReadonlyMap<string, string>, key: string): Recorded {
+  const sha256 = baseline.get(key);
+  return sha256 === undefined ? { state: "no-sha" } : { state: "sha", sha256 };
+}
+
+/** #761 — update 의 `.claude/` 기록 접근자. 기록이 없으면 `undefined`(호출부가 기준선 Map 으로 판정한다, A7). */
+function recordedStateOf(log: InstallLog | null): ((projectRel: string) => Recorded) | undefined {
+  if (log === null) return undefined;
+  const isTarget = recordedTrackTargets(log);
+  return (projectRel) => recorded(log, projectRel, { isTarget });
+}
+
+/** 첫 접촉인데 그대로 둔(백업 없는) 자리 — `prefix` 를 뗀 기록 키. 기준선 재기록이 이 파일을 하네스 것으로 적지 않게 한다. */
+function notOursUnder(
+  displaced: ReadonlyArray<InstallLogRootFile>,
+  prefix: string,
+): ReadonlySet<string> {
+  return new Set(
+    displaced
+      .filter((f) => f.notes.length === 0 && f.path.startsWith(prefix))
+      .map((f) => f.path.slice(prefix.length)),
+  );
+}
+
+/**
+ * 같은 경로에 이미 백업을 가리키는 `displaced` 기록이 있으면 "백업 없는 displaced" 로 덮지 않는다 — `mergeRootFiles` 는
+ * displaced 를 마지막 하나로 바꾸므로, 그대로 합치면 되돌릴 백업의 위치를 잃는다.
+ */
+function withoutLostBackups(
+  prior: ReadonlyArray<InstallLogRootFile> | undefined,
+  add: ReadonlyArray<InstallLogRootFile>,
+): InstallLogRootFile[] {
+  const backedUp = new Set(
+    (prior ?? []).filter((f) => f.change === "displaced" && f.notes.length > 0).map((f) => f.path),
+  );
+  return add.filter((f) => f.notes.length > 0 || !backedUp.has(f.path));
+}
+
+/** #761 — `.claude/` 첫 접촉 자리를 기록의 `rootFiles` 에 합친다. 로그가 없으면 만들지 않는다(설치 기록 날조 금지). */
+function recordDisplaced(projectDir: string, displaced: ReadonlyArray<InstallLogRootFile>): void {
+  const log = readInstallLog(projectDir);
+  if (!log) return;
+  const add = withoutLostBackups(log.rootFiles, displaced);
+  if (add.length === 0) return;
+  try {
+    writeInstallLog(projectDir, { ...log, rootFiles: mergeRootFiles(log.rootFiles, add) });
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다 (다른 기준선 갱신과 같은 방침).
+  }
 }
 
 /** 설치 시점 기준선을 Map 으로. 기록이 없으면 빈 Map — 그때는 보수적 백업으로 폴백한다. */
@@ -2310,6 +2531,8 @@ function refreshPolicyBaseline(
   dirs: ReadonlyArray<string> | undefined,
   /** #678 — 실체가 프로젝트 밖이라 쓰지 않은 파일(`.claude/` 상대). 디스크로 다시 찍지 않고 앞 기록을 둔다. */
   outside: ReadonlySet<string>,
+  /** #761 Q3 — 첫 접촉인데 같아서 그대로 둔 설치자 파일(`.claude/` 상대). 하네스 것으로 적지 않는다. */
+  notOurs: ReadonlySet<string> = new Set(),
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
@@ -2321,7 +2544,9 @@ function refreshPolicyBaseline(
     !isBaselineExcluded(`.claude/${path}`, excluded);
   const policyFiles = [
     ...(log.policyFiles ?? []).filter((f) => !inDirs(f.path)),
-    ...collectPolicyHashes(projectDir, templatesDir).filter((f) => inDirs(f.path)),
+    ...collectPolicyHashes(projectDir, templatesDir).filter(
+      (f) => inDirs(f.path) && !notOurs.has(f.path),
+    ),
   ];
   const next: InstallLog = { ...log };
   if (policyFiles.length > 0) next.policyFiles = policyFiles;
@@ -2360,6 +2585,13 @@ function refreshSkillBaseline(
   templatesDir: string,
   /** #678 — 실체가 프로젝트 밖이라 쓰지 않은 파일(`.claude/skills/` 상대). 앞 기록을 그대로 둔다. */
   outside: ReadonlySet<string>,
+  /**
+   * #761 — 이번에 갱신 대상이던 스킬 id(기록 + 이번 릴리즈 기본). 그 밖의 폴더는 같은 이름이어도 하네스가 쓰지 않았으니
+   * 적지 않는다. 없으면 디스크 전부(로그 없는 엔진 — 그때는 이 함수가 기록을 쓰지 않는다).
+   */
+  targets?: ReadonlySet<string>,
+  /** #761 Q3 — 첫 접촉인데 같아서 그대로 둔 설치자 파일(`.claude/skills/` 상대). 하네스 것으로 적지 않는다. */
+  notOurs: ReadonlySet<string> = new Set(),
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
@@ -2367,8 +2599,12 @@ function refreshSkillBaseline(
   const excludedSkill = excludedSkillOf(log);
   const keepPrior = (path: string): boolean =>
     outside.has(path) || excludedSkill(path.split("/")[0] ?? "");
+  const ours = (path: string): boolean =>
+    (targets === undefined || targets.has(path.split("/")[0] ?? "")) && !notOurs.has(path);
   const skillFiles = [
-    ...collectSkillHashes(projectDir, templatesDir).filter((f) => !keepPrior(f.path)),
+    ...collectSkillHashes(projectDir, templatesDir).filter(
+      (f) => !keepPrior(f.path) && ours(f.path),
+    ),
     ...(log.skillFiles ?? []).filter((f) => keepPrior(f.path)),
   ];
   const next: InstallLog = { ...log };

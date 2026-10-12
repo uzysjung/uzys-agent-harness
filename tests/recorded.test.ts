@@ -133,6 +133,25 @@ describe("recorded — 기록 있음 · sha 없음(#557 · A8)", () => {
     expect(recorded(log({ records: "writer" }), GIT_POLICY)).toEqual({ state: "none" });
   });
 
+  // #761 B3 — 스캔 필드가 있는데 그 경로가 없으면 하네스가 쓴 적 없는 자리(첫 접촉). 위 `log()` 픽스처는 필드 자체가 없다
+  it("스캔 필드가 있는데 경로가 없으면 none — 정책(policyFiles)", () => {
+    const l = log({ policyFiles: [{ path: "rules/test-policy.md", sha256: "x" }] });
+    expect(recorded(l, GIT_POLICY)).toEqual({ state: "none" });
+  });
+
+  it("스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles)", () => {
+    const skill = ".claude/skills/north-star/SKILL.md";
+    expect(recorded(log(), skill)).toEqual({ state: "no-sha" }); // 대조군 — 필드 없음
+    const l = log({ skillFiles: [{ path: "spec-scaling/SKILL.md", sha256: "x" }] });
+    expect(recorded(l, skill)).toEqual({ state: "none" });
+  });
+
+  it("스캔 범위 밖(.installed-tracks)은 필드가 있어도 isTarget 으로 no-sha(A8)", () => {
+    const tracks = ".claude/.installed-tracks";
+    const l = log({ policyFiles: [{ path: "rules/test-policy.md", sha256: "x" }] });
+    expect(recorded(l, tracks, { isTarget: (p) => p === tracks })).toEqual({ state: "no-sha" });
+  });
+
   it("다른 CLI 경로는 호출부가 대상 목록을 줄 때만 no-sha — 모르면 none(안전한 쪽)", () => {
     const codex = log({ spec: { cli: ["codex"] } });
     const hook = ".codex/hooks/session-start.sh";

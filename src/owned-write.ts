@@ -20,6 +20,7 @@ import { backupFile } from "./fs-ops.js";
 import {
   hashContent,
   type InstallLogPortion,
+  type InstallLogRootFile,
   type InstallLogSkillFile,
   isHarnessOwned,
 } from "./install-log.js";
@@ -37,6 +38,8 @@ export interface WriteJournal {
   portions(path: string, portions: ReadonlyArray<InstallLogPortion>): void;
   /** 설치자 파일을 덮기 전에 남긴 백업(절대경로) — 멈춘 화면이 "당신 파일은 여기 있다" 를 말한다. */
   backup(absPath: string): void;
+  /** #761 — 첫 접촉 자리(`rootFiles.change = displaced`). 멈춘 실행의 기록도 되돌리기 근거를 잃지 않는다. */
+  displaced?(f: InstallLogRootFile): void;
 }
 
 /**
@@ -46,8 +49,17 @@ export interface WriteJournal {
 export interface OwnedWriteResult {
   /** 이번 실행이 쓴 산출물의 기준선 (projectDir 상대경로 → sha256). install log 에 실린다. */
   files: InstallLogSkillFile[];
-  /** 사용자 편집분이라 백업한 **원본**의 project-relative 경로 — 사용자가 알아보는 이름. */
+  /**
+   * 사용자 편집분이라 백업한 **원본**의 project-relative 경로 — 사용자가 알아보는 이름. 기준선에 **있는** 경로만이다 —
+   * 기준선에 없는 자리(첫 접촉)는 고친 것이 아니라 설치자 파일이라 `displaced` 로 간다(#761).
+   */
   backedUp: string[];
+  /**
+   * #761 (ADR-097 결정 7) — 기준선에 없는 자리에 있던 설치자 파일(첫 접촉). 다르면 `notes[0]` = 백업(project-relative)이고
+   * 하네스 판이 자리를 잡는다(`files` 에도 든다) · 같으면 백업 없이 그대로 두고 하네스 것으로 삼지 않는다(Q3 — `files` 에 없다).
+   * 기록의 `rootFiles` 로 가서 하네스가 떠날 때 되돌리는 근거가 된다. optional = 손으로 만드는 결과 stub 은 "없음".
+   */
+  displaced?: InstallLogRootFile[];
   /**
    * #343 — 다른 도구가 소유한 스킬 슬롯이라 **쓰지 않은** 자리 (project-relative).
    *
@@ -86,7 +98,8 @@ export interface OwnedWriter {
    * | 내용 동일 | 이미 최신 | 아무것도 안 한다 (백업도 쓰기도) |
    * | 기준선과 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
    * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
-   * | 기록 없음 | 판정 불가 | 보수적으로 백업 |
+   * | 기록 없음 · 다르다 | 첫 접촉(설치자 파일) | `.backup-<stamp>` 남기고 최신판을 자리에 · `displaced`(notes = 백업) |
+   * | 기록 없음 · 같다 | 첫 접촉 · 이미 하네스 판 | 아무것도 안 한다 · `displaced`(백업 없음) — 하네스 것으로 적지 않는다 |
    *
    * @returns 이 경로를 이번에 담당했는가. `false` 는 **안 썼다**는 뜻이고 경우는 둘이다 —
    *   refresh 모드에서 없는 파일을 건너뛴 경우, 그리고 #343 이후 **남의 도구가 소유한 슬롯**인 경우.
@@ -161,7 +174,12 @@ export function createOwnedWriter(
   const backupPaths: string[] = [];
   const foreignOwned: string[] = [];
   const restored: string[] = [];
+  const displaced = new Map<string, InstallLogRootFile>();
   const outside = createOutsideGuard(projectDir);
+  const displace = (f: InstallLogRootFile): void => {
+    displaced.set(f.path, f);
+    journal?.displaced?.(f);
+  };
   let updated = 0;
 
   return {
@@ -191,12 +209,24 @@ export function createOwnedWriter(
         if (refreshOnly && recordedPath) restored.push(rel);
       } else {
         const current = readFileSync(absPath, "utf8");
+        // #761 — 기준선에 없는 자리 = 첫 접촉(설치자 파일). 고친 것(기준선과 다름)과 가른다 — 화면이 "edited" 라 부르지 않고
+        // 하네스가 떠날 때 되돌릴 근거(`displaced`)를 남긴다.
+        const firstContact = !baseline.has(rel);
+        if (current === content && firstContact) {
+          // Q3 — 같은 내용이면 설치자 것을 그대로 둔다. 기준선에 싣지 않는다(하네스 것으로 삼지 않는다). 그래도 이 경로를
+          // **담당했다**(`true`) — `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
+          displace({ path: rel, change: "displaced", notes: [] });
+          return true;
+        }
         if (current !== content) {
           if (!isHarnessOwned(baseline, rel, current)) {
             const backup = backupFile(absPath, now);
             backupPaths.push(backup);
-            backedUp.push(rel);
             journal?.backup(backup);
+            if (firstContact) {
+              const backupRel = relative(projectDir, backup).split(sep).join("/");
+              displace({ path: rel, change: "displaced", notes: [backupRel] });
+            } else backedUp.push(rel);
           }
           writeFileSync(absPath, content);
           updated++;
@@ -218,6 +248,7 @@ export function createOwnedWriter(
         backupPaths: [...backupPaths],
         updated,
         restored: [...restored],
+        displaced: [...displaced.values()],
       };
     },
   };
