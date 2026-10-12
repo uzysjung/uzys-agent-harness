@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// d170 설계 초안 — 옛 게시판의 하네스 지문 생성기(동결 데이터). 입력 = git 태그 ∩ npm 게시 버전.
+// d170 설계 초안(검증 반영판 N5) — 옛 판의 하네스 지문 생성기(동결 데이터). 입력 = git 태그 v26.70.0~v26.169.0 양끝 고정(교집합을 취하지 않는다 — 26.70~26.82 미게시 태그 포함).
 // 출력 = src/legacy-fingerprints.ts 모양의 TS 소스(여기서는 scratchpad 로). 실행: node gen-legacy-fingerprints.mjs <out.ts>
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,10 +10,12 @@ const sha = (buf) => createHash("sha256").update(buf).digest("hex");
 const cmp = (a, b) => { const A = a.split(".").map(Number), B = b.split(".").map(Number); for (let i = 0; i < 3; i++) if (A[i] !== B[i]) return A[i] - B[i]; return 0; };
 // 입력 범위 = git 태그 v26.70.0 이상 전부(PR-A 지문과 같은 하한 — npm 게시 전 `npx github:` 배포판 26.70~26.82 포함). 게시판과 태그 내용이 같음은 설계 §3 증거.
 const RANGE_FROM = process.env.RANGE_FROM ?? "26.70.0";
+// 상한 고정 — v26.170.0 태그가 생겨도 집합이 변하지 않아야 PR-C 의 재생산 검사(cmp)가 유지된다(검증 N5). v26.170 부터는 쓰는 순간 기록한다.
+const RANGE_TO = process.env.RANGE_TO ?? "26.169.0";
 const tags = new Set(git("tag", "-l").toString().split("\n").filter(Boolean));
-const versions = [...tags].filter((t) => /^v26\./.test(t)).map((t) => t.slice(1)).filter((v) => cmp(v, RANGE_FROM) >= 0).sort(cmp);
-// ① .claude/ 하네스 파일 (path → sha 집합) — templates/{rules,agents,commands,hooks,skills}/** 전부 + CLAUDE.md(옛 앵커 .claude/CLAUDE.md) + codex/hooks/** (.codex/hooks)
-const FILE_DIRS = [["templates/rules/", ".claude/rules/"], ["templates/agents/", ".claude/agents/"], ["templates/commands/", ".claude/commands/"], ["templates/hooks/", ".claude/hooks/"], ["templates/skills/", ".claude/skills/"], ["templates/codex/hooks/", ".codex/hooks/"]];
+const versions = [...tags].filter((t) => /^v26\./.test(t)).map((t) => t.slice(1)).filter((v) => cmp(v, RANGE_FROM) >= 0 && cmp(v, RANGE_TO) <= 0).sort(cmp);
+// ① .claude/ 하네스 파일 (path → sha 집합) — templates/{rules,agents,commands,hooks,skills}/** 전부 + CLAUDE.md(옛 앵커 .claude/CLAUDE.md). `templates/codex/hooks/**` 는 렌더본이라 바이트가 안 맞아 입력에서 뺀다(설계 §3.1 · 검증 N5).
+const FILE_DIRS = [["templates/rules/", ".claude/rules/"], ["templates/agents/", ".claude/agents/"], ["templates/commands/", ".claude/commands/"], ["templates/hooks/", ".claude/hooks/"], ["templates/skills/", ".claude/skills/"]];
 const files = new Map(); // target path → Set(sha)
 const add = (p, s) => { if (!files.has(p)) files.set(p, new Set()); files.get(p).add(s); };
 // ② AGENTS.md 옛 템플릿 절 지문(마커 전 판 ≤ 26.159) — 자리표시자 없는 절만. 지문 규칙 = retiredAnchorSectionKey 와 같다
@@ -51,8 +53,8 @@ for (const v of versions) {
   }
 }
 const pairs = [...files].reduce((n, [, s]) => n + s.size, 0);
-const notCurrent = [...files].filter(([p]) => { const rel = p.replace(/^\.claude\//, "templates/").replace(/^\.codex\/hooks\//, "templates/codex/hooks/"); return !(p === ".claude/CLAUDE.md") && !existsSync(`${REPO}/${rel}`); });
-let out = `// 생성물 — scripts/gen-legacy-fingerprints.mjs (입력: git 태그 ∩ npm 게시판 ${versions[0]}~${versions.at(-1)}, ${versions.length}판). 손으로 고치지 않는다.\n`;
+const notCurrent = [...files].filter(([p]) => { const rel = p.replace(/^\.claude\//, "templates/"); return p === ".claude/CLAUDE.md" || !existsSync(`${REPO}/${rel}`); });
+let out = `// 생성물 — scripts/gen-legacy-fingerprints.mjs (입력: git 태그 v${RANGE_FROM}~v${RANGE_TO} 양끝 고정, 실제 ${versions[0]}~${versions.at(-1)} ${versions.length}판). 손으로 고치지 않는다.\n`;
 out += `export const LEGACY_HARNESS_FILES: ReadonlyMap<string, ReadonlySet<string>> = new Map([\n`;
 for (const [p, s] of [...files].sort()) out += `  [${JSON.stringify(p)}, new Set([${[...s].map((x) => `"${x}"`).join(", ")}])],\n`;
 out += `]);\nexport const LEGACY_AGENTS_MD_SECTION_KEYS: ReadonlySet<string> = new Set([\n`;
@@ -62,4 +64,4 @@ for (const [k, c] of preambles) out += `  "${k}", // ${c.replace(/\n/g, " ")}\n`
 out += `]);\nexport const LEGACY_HOOK_REFS: ReadonlySet<string> = new Set(${JSON.stringify([...hookRefs].sort(), null, 2)});\n`;
 out += `export const LEGACY_STATUSLINE_VALUES: ReadonlySet<string> = new Set(${JSON.stringify([...statusLines].map((s) => sha(s)), null, 2)}); // sha256(JSON.stringify(statusLine))\n`;
 writeFileSync(process.argv[2], out);
-console.log(JSON.stringify({ versions: versions.length, first: versions[0], last: versions.at(-1), fileRowsScanned: fileRows, filePaths: files.size, filePairs: pairs, filePathsNotCurrent: notCurrent.length, filePairsNotCurrent: notCurrent.reduce((n, [, s]) => n + s.size, 0), sectionKeys: sections.size, preambleKeys: preambles.size, trailerKeys: trailers.size, hookRefs: [...hookRefs].sort(), statusLines: statusLines.size, outBytes: Buffer.byteLength(out) }, null, 2));
+console.log(JSON.stringify({ rangeFrom: RANGE_FROM, rangeTo: RANGE_TO, versions: versions.length, first: versions[0], last: versions.at(-1), fileRowsScanned: fileRows, filePaths: files.size, filePairs: pairs, filePathsNotCurrent: notCurrent.length, filePairsNotCurrent: notCurrent.reduce((n, [, s]) => n + s.size, 0), sectionKeys: sections.size, preambleKeys: preambles.size, trailerKeys: trailers.size, hookRefs: [...hookRefs].sort(), statusLines: statusLines.size, outBytes: Buffer.byteLength(out) }, null, 2));

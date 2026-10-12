@@ -1,4 +1,4 @@
-// 생성물 — scripts/gen-legacy-fingerprints.mjs (입력: git 태그 ∩ npm 게시판 26.70.0~26.169.0, 114판). 손으로 고치지 않는다.
+// 생성물 — scripts/gen-legacy-fingerprints.mjs (입력: git 태그 v26.70.0~v26.169.0 양끝 고정, 실제 26.70.0~26.169.0 114판). 손으로 고치지 않는다.
 export const LEGACY_HARNESS_FILES: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   [".claude/CLAUDE.md", new Set(["c8a0f19e0c84faec6fc0a999efbf205d72270a1f8bcb8d28894d564431405b52", "c833b9a2b3e762563bdf8984520257579408de387ce3021ac2c606551f39aa75", "5a167acf64d246b278f878228f07cf76fe2a808e201d3d82c1c0274f50d736de", "7fbfe6999a82a880a3a0d34bdaf8e263cfd9c927ef5fb33873059182094d3f7f", "1dc65a4d8c0f2c47d541852f767d85dca41637d7b4009db6dbf41a0beb20ff68", "db2c8bc13b4d9882c71ab1977e5fc5aa66fb031d5943faba587ce9eba100a0b8", "dca32656dfd75c8676504836501607b7c821115a6dd14cba7baafb5c631cb1ff", "3aeeea1767e0f910adff08340895a524df829240df93d298bb3d0e327d0711e0", "16347e86e7c1699db212586685a640135891ec5787ba486e0a12562d85bc9b60", "71db56ff054601a03f8e287a965c1eb1be64d9db1fccc3b03c1f499c2f23119a", "d92c6bbc4c2c1c7a2547e697f7f128b7918d4e2062c9af958b729e7cb0c58308", "7f94cca4a8ca2f257164ba9b44360d10f99030d3b636c667f65fd0a1771e123c"])],
   [".claude/agents/build-error-resolver.md", new Set(["28597d1e97a68701999704b789a97a20a28b121b7c27ee6a6e80ab43bcd514b8", "a050a74ed31acba06b36e8c34bc35bc0e684b6b7ab01c891dfc2d13ba94f9824", "59f9eb1ae55c6a943d43610cc4e74d05018d681758ac19cb31d874c51605914e"])],
@@ -152,11 +152,6 @@ export const LEGACY_HARNESS_FILES: ReadonlyMap<string, ReadonlySet<string>> = ne
   [".claude/skills/verification-loop/SKILL.md", new Set(["01a9ae310ad4426bb05660dda6cefdeaac9513417585c09c8bb1b94738649a78", "41f481c1146b0b29ecbcf5c633090a6db3749ca4a814499d72b5b8941db694f5", "566fc81da559464d70af80a125dac60991ba5e26464643886c1dee04dd78db95", "1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2"])],
   [".claude/skills/verification-loop/agents/openai.yaml", new Set(["1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3"])],
   [".claude/skills/verification-loop/references/tracks.md", new Set(["de11792d447c2e8ea67e8367c6655bd94646b1ba3f29184c4521cae01facc6ec"])],
-  [".codex/hooks/README.md", new Set(["328888d0bc7b05896c1bd23dc06145f55823e02666d0cc117fdd6d6fe6bc7720", "230ac7214d979f134ccb8e0f5da81efead8cc9a1cdd9703d6a8849b4cfbc8119", "7c2a2ed02c21ab75268ab3e99c456d3ad2d2204f989476266b0784383a797fd8"])],
-  [".codex/hooks/gate-check.sh", new Set(["58eb90095316b0e5dd8938efc4f55d09ba9b4d91bea59f242838aff41838eaa6"])],
-  [".codex/hooks/hito-counter.sh", new Set(["bda7ab91907d2ab6b005e36c86bb11e0f0b9ac963b53f8ac1ea4b25380e90807"])],
-  [".codex/hooks/session-start.sh", new Set(["15a3b9fa1b1c059a6c260c0fbc22688d81bcf7a405897ea91fe41d3d754fb870"])],
-  [".codex/hooks/uncommitted-check.sh", new Set(["143545394f1dfeefc9d50f262ca62b2008175cd8c122118ffda615ecb57f5be8"])],
 ]);
 export const LEGACY_AGENTS_MD_SECTION_KEYS: ReadonlySet<string> = new Set([
   "241678cd4951efaf8ee7bb0059e739c397af6b90b75fea636361501b7ae1cbe7", // ## Workflow Gates (26.70.0)

@@ -1,13 +1,13 @@
-26.100.0-B: candidates=42 exactMatch=39 knownPathOtherBytes=2 unknownPath=1
-   ~ other bytes: .codex/hooks/hito-counter.sh
-   ~ other bytes: .codex/hooks/session-start.sh
+26.100.0-B: candidates=42 exactMatch=39 knownPathOtherBytes=0 unknownPath=3
    ? unknown path: .agents/skills/find-skills/SKILL.md
-26.125.0-B: candidates=49 exactMatch=47 knownPathOtherBytes=1 unknownPath=1
-   ~ other bytes: .codex/hooks/session-start.sh
+   ? unknown path: .codex/hooks/hito-counter.sh
+   ? unknown path: .codex/hooks/session-start.sh
+26.125.0-B: candidates=49 exactMatch=47 knownPathOtherBytes=0 unknownPath=2
    ? unknown path: .agents/skills/find-skills/SKILL.md
-26.132.0-B: candidates=49 exactMatch=47 knownPathOtherBytes=1 unknownPath=1
-   ~ other bytes: .codex/hooks/session-start.sh
+   ? unknown path: .codex/hooks/session-start.sh
+26.132.0-B: candidates=49 exactMatch=47 knownPathOtherBytes=0 unknownPath=2
    ? unknown path: .agents/skills/find-skills/SKILL.md
+   ? unknown path: .codex/hooks/session-start.sh
 26.140.0-B: candidates=40 exactMatch=39 knownPathOtherBytes=0 unknownPath=1
    ? unknown path: .agents/skills/find-skills/SKILL.md
 26.150.0-B: candidates=37 exactMatch=31 knownPathOtherBytes=0 unknownPath=6
@@ -19,15 +19,15 @@
    ? unknown path: .claude/skills/frontend-design/SKILL.md
 26.125.0-A: candidates=45 exactMatch=44 knownPathOtherBytes=0 unknownPath=1
    ? unknown path: .agents/skills/find-skills/SKILL.md
-26.100.0-A: candidates=38 exactMatch=36 knownPathOtherBytes=1 unknownPath=1
-   ~ other bytes: .codex/hooks/hito-counter.sh
+26.100.0-A: candidates=38 exactMatch=36 knownPathOtherBytes=0 unknownPath=2
    ? unknown path: .agents/skills/find-skills/SKILL.md
-26.125.0-B: candidates=78 exactMatch=75 knownPathOtherBytes=1 unknownPath=2
-   ~ other bytes: .codex/hooks/session-start.sh
+   ? unknown path: .codex/hooks/hito-counter.sh
+--- snap-0 (설치 직후) 대조
+26.125.0-B: candidates=78 exactMatch=75 knownPathOtherBytes=0 unknownPath=3
    ? unknown path: .agents/skills/find-skills/SKILL.md
    ? unknown path: .claude/.installed-tracks
-26.150.0-B: candidates=85 exactMatch=77 knownPathOtherBytes=1 unknownPath=7
-   ~ other bytes: .codex/hooks/session-start.sh
+   ? unknown path: .codex/hooks/session-start.sh
+26.150.0-B: candidates=85 exactMatch=77 knownPathOtherBytes=0 unknownPath=8
    ? unknown path: .agents/skills/find-skills/SKILL.md
    ? unknown path: .agents/skills/frontend-design/LICENSE.txt
    ? unknown path: .agents/skills/frontend-design/SKILL.md
@@ -35,3 +35,4 @@
    ? unknown path: .claude/skills/find-skills/SKILL.md
    ? unknown path: .claude/skills/frontend-design/LICENSE.txt
    ? unknown path: .claude/skills/frontend-design/SKILL.md
+   ? unknown path: .codex/hooks/session-start.sh
