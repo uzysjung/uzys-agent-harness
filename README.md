@@ -166,7 +166,7 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `project-management` | PM work | None |
 | `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`.
+MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase`. `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`. Each server is a row in step 3 of the wizard: uncheck it or pass `--without <name>` (e.g. `--without context7`) to leave it out of `.mcp.json`, Codex and OpenCode.
 
 More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 

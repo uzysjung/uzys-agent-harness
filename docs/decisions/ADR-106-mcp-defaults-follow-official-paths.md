@@ -73,6 +73,7 @@ full)의 기본이고 Google 사용 통계를 끈다(`--no-usage-statistics`), �
   보인다. 그 실행부터 몫이 기록돼 이후엔 맞다. 이 대조(만든 기록 · 바이트 동일)는 `tests/mcp-migration-167.test.ts` C 절이 문다.
 - 기록에 `excluded: mcp:chrome-devtools`(키 id) 가 있는 설치본은 이 판의 update 뒤 Codex · OpenCode 에서도 chrome-devtools 가 빠진다
   (ADR-101 결정 5 — 고를 수 있는 서버의 키 id 빼기는 세 자리에 닿는다. 종전엔 `.mcp.json` 에서만 뺐다).
+- (#751 · v26.169.0) context7 · supabase 도 카탈로그 항목이 되어 같은 규칙을 탄다 — 기록에 `excluded: mcp:context7` 이 있는 설치본은 다음 update 뒤 Codex · OpenCode 에서도 context7 이 빠진다(하네스 값 그대로인 것만 · 설치자가 고친 값은 남는다). context7 정의는 `templates/mcp.json` 에서 `track-mcp-map.tsv` 의 `*` 행으로 옮겼고 새 설치 결과는 같다
 - `--without mcp:github` 은 이제 모르는 키 id 다(렌더 집합 밖).
 - 원격 서버는 첫 사용 때 로그인(OAuth)이 필요하다 — 실계정 통과는 이 판에서 검증하지 않았다(조사 Caveats).
 - 카탈로그 총계 **+3**(github-mcp · vercel · chrome-devtools). 절대값은 `npm run gen:compat` 이 정한다(병행 레인 #726 과 머지 순서

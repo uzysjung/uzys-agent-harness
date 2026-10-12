@@ -76,7 +76,10 @@ export type ExternalAssetMethod =
         // #722 · #711 (ADR-106) — 같은 경로의 MCP 서버 행: 웹 트랙 기본 chrome-devtools · 기본 없는 원격 서버 둘.
         | "chrome-devtools"
         | "github-mcp"
-        | "vercel";
+        | "vercel"
+        // #751 — 남은 기본 서버 둘도 같은 경로: 모든 트랙 기본 context7(패턴 `*`) · csr-supabase · full 기본 supabase.
+        | "context7"
+        | "supabase";
     };
 
 export type ExternalAssetCondition =
@@ -591,6 +594,32 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     cliSupportOverride: ["claude", "codex", "opencode"],
     method: { kind: "internal", key: "chrome-devtools" },
   },
+  // #751 — Context7 MCP. 트랙 표 행의 패턴 `*` 가 모든 트랙의 기본이라 위저드 3단계에 늘 체크된 채 보이고, 풀거나
+  //   `--without context7` 이면 `.mcp.json` · Codex · OpenCode 세 자리에서 빠진다(#709 · #722 와 같은 경로). 기본값은 그대로다.
+  {
+    id: "context7",
+    tier: "vetted", // upstash/context7 62.9k (REPO_OVERRIDE)
+    description:
+      "Context7 MCP — current, version-specific library docs for the agent, in .mcp.json, Codex and OpenCode. Default on every track; uncheck it to leave it out",
+    category: "understanding",
+    source: "upstash",
+    condition: { kind: "opt-in" },
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "context7" },
+  },
+  // #751 — Supabase MCP. 트랙 표 행이 csr-supabase · full 의 기본이고, 이 항목은 그 밖의 트랙에서 고르게 · 기본 트랙에서
+  //   빼게 한다. 서버 정의(명령 · 인자)는 트랙 표 한 곳이다.
+  {
+    id: "supabase",
+    tier: "vetted", // supabase/mcp 2.9k (REPO_OVERRIDE)
+    description:
+      "Supabase MCP server in .mcp.json, Codex and OpenCode. Default on csr-supabase · full; check it to add it on any other track. Only if this project uses Supabase",
+    category: "backend",
+    source: "supabase",
+    condition: { kind: "opt-in" },
+    cliSupportOverride: ["claude", "codex", "opencode"],
+    method: { kind: "internal", key: "supabase" },
+  },
 
   // === csr-supabase|full CLI ===
   {
@@ -739,7 +768,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
       pluginId: "security-guidance@claude-plugins-official",
     },
   },
-  // v26.110.0 (ADR-039) — context7 플러그인은 **미등록** (검토 후 철회): templates/mcp.json ·
+  // v26.110.0 (ADR-039) — context7 플러그인은 **미등록** (검토 후 철회): 트랙 표(#751 전 templates/mcp.json) ·
   //   codex config.toml.template · opencode 설정이 이미 @upstash/context7-mcp 를 기본 wiring —
   //   플러그인 추가 = 동일 서버 중복 등록이고 도달 범위도 더 좁다(plugin=claude-only vs
   //   템플릿=claude+codex+opencode). "문서 조회 기본 제공" 요구는 기충족.

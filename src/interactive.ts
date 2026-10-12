@@ -28,7 +28,7 @@ import {
   type Prompts,
   VISIBLE_OPTION_DEFS,
 } from "./prompts.js";
-import { excludedIds } from "./recorded.js";
+import { excludedIds, recorded } from "./recorded.js";
 import { residentCostFor } from "./resident-entries.js";
 import { buildInstallRecordView } from "./router.js";
 import {
@@ -131,10 +131,32 @@ export function installedTargetState(projectDir: string): InstalledTargetState {
   if (!log) return { installed: [], projectScoped: [] };
   // #709 — 기록된 `.mcp.json` 몫의 선택 서버(`railway-mcp-server`)도 깔린 project 자산이다(외부 설치 기록엔 안 남는다)
   const mcp = recordedMcpAssetIds(log);
+  // #760 — 번들 스킬도 외부 설치 기록(`assets`)에 안 남는다. 옛 전역 범위 기록이어도 번들 스킬은 언제나 프로젝트 안에
+  // 깔렸다(ADR-097 결정 6 — 전역은 외부 설치기만) — 범위로 거르면 손대지 않은 Update 가 해제로 읽힌다(#760 리뷰 BLOCKER-1)
+  const skills = recordedBundledSkillIds(log);
   return {
-    installed: [...log.assets.map((a) => a.id), ...mcp],
-    projectScoped: [...log.assets.filter((a) => a.scope !== "global").map((a) => a.id), ...mcp],
+    installed: [...log.assets.map((a) => a.id), ...mcp, ...skills],
+    projectScoped: [
+      ...log.assets.filter((a) => a.scope !== "global").map((a) => a.id),
+      ...mcp,
+      ...skills,
+    ],
   };
+}
+
+/**
+ * #760 — 기록이 깔렸다고 말하는 번들 스킬 id. 번들 스킬은 외부 설치 기록(`assets`)이 아니라 파일 기준선에 남는다 —
+ * Claude 는 `skillFiles`(`.claude/skills/<id>/…`), Codex · OpenCode · Antigravity 는 `externalFiles`(`.agents/skills/<id>/…`).
+ * 판정은 기록 접근자 `recorded()` 하나로 한다(옛 스캔 필드 필터 포함 — 설치자 동명 파일을 하네스 것으로 읽지 않는다).
+ * 파일별 sha 가 있는 것만 센다: 로그 수준 소유(`no-sha`)는 "그 CLI 가 깔렸다"이지 "이 스킬이 깔렸다"가 아니다.
+ */
+function recordedBundledSkillIds(log: InstallLog | null): string[] {
+  if (log === null) return [];
+  return INTERNAL_BUNDLED_SKILL_IDS.filter((id) =>
+    [`.claude/skills/${id}/SKILL.md`, `.agents/skills/${id}/SKILL.md`].some(
+      (path) => recorded(log, path).state === "sha",
+    ),
+  );
 }
 
 /**
@@ -249,6 +271,8 @@ export function classifyUpdateIntent(
     return "add";
   // #709 — 기록된 선택 MCP 서버의 체크를 풀었다 = 빼기(install 엔진만 기록한다)
   if (recordedMcpAssetIds(log).some((id) => !picked.has(id) && !out.has(id))) return "add";
+  // #760 — 기록된 번들 스킬(opt-in 포함)의 체크를 풀었다 = 빼기. 추천 밖이라 `skillExclude` 비교에 안 잡힌다
+  if (recordedBundledSkillIds(log).some((id) => !picked.has(id) && !out.has(id))) return "add";
   const offered = new Set(listBaselineTargets({ tracks: confirmed.tracks }).map((t) => t.id));
   const recordedBaseline = [...out].filter((id) => offered.has(id));
   if (!sameSet(confirmed.baselineExclude, recordedBaseline)) return "add";
@@ -279,6 +303,8 @@ function coveredByRecord(log: InstallLog | null, legacyTracks: ReadonlyArray<Tra
     // #709 — 기록된 선택 MCP 서버 · 기록 트랙의 기본 MCP 행은 refresh 가 그대로 둔다(`.mcp.json` 몫 기록 · 트랙 표)
     ...recordedMcpAssetIds(log),
     ...trackDefaultMcpAssetIds(resolveBundleRoot(), recordTracks),
+    // #760 — 기록된 번들 스킬은 refresh 가 그대로 갱신한다(`skillFiles` · `externalFiles` 기준선)
+    ...recordedBundledSkillIds(log),
   ]);
   for (const id of recommendedExternalAssets(recordTracks)) {
     const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
@@ -665,6 +691,8 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
       ...unchecked(log, tracks, assetIds, baselineIds),
       // #709 — 기록된 선택 MCP 서버의 체크를 풀었으면 뺀다(opt-in 이라 추천 대비 빼기에 안 든다)
       ...recordedMcpAssetIds(log).filter((id) => !assetIds.includes(id)),
+      // #760 — 기록된 번들 스킬(opt-in 포함)의 체크를 풀었으면 뺀다 — 같은 이유
+      ...recordedBundledSkillIds(log).filter((id) => !assetIds.includes(id)),
     ]),
   ];
   const options: InstallOptions = {

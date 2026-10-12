@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**32/56 assets are 🟢 verified by a real install; the remaining 24 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**32/58 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **56** (official 26 / vetted 28 / experimental 2) · 🟢 verified **32/56**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **58** (official 26 / vetted 30 / experimental 2) · 🟢 verified **32/58**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -115,11 +115,12 @@ stale row fails the build rather than misleading you.
 | `web-design-guidelines` | vetted | `vercel-labs/agent-skills :: web-design-guidelines` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `game-engine` | vetted | `github/awesome-copilot :: game-engine` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
-#### 🗄️ Backend (8)
+#### 🗄️ Backend (9)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `vercel` | vetted | templates (`--with vercel`) | claude+codex+opencode (templates) | 🟡 local |
+| `supabase` | vetted | templates (`--with supabase`) | claude+codex+opencode (templates) | 🟡 local |
 | `vercel-cli` | vetted | `vercel@63.1.2` (npm) | 4-CLI (npm) | 🟢 registry |
 | `netlify-cli` | vetted | `netlify-cli@26.1.0` (npm) | 4-CLI (npm) | 🟢 registry |
 | `supabase-cli` | vetted | `supabase@2.108.0` (npm) | 4-CLI (npm) | 🟢 registry |
@@ -158,11 +159,12 @@ stale row fails the build rather than misleading you.
 | `claude-security` | official | `claude-security@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `github-mcp` | vetted | templates (`--with github-mcp`) | claude+codex+opencode (templates) | 🟡 local |
 
-#### 🧠 Understanding (4)
+#### 🧠 Understanding (5)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
 | `chrome-devtools` | vetted | templates (`--with chrome-devtools`) | claude+codex+opencode (templates) | 🟡 local |
+| `context7` | vetted | templates (`--with context7`) | claude+codex+opencode (templates) | 🟡 local |
 | `agent-browser` | vetted | `agent-browser@0.31.0` (npm) | 4-CLI (npm) | 🟢 registry |
 | `claude-video` | vetted | `watch@claude-video` | Claude Code (plugin) | 🟢 Docker |
 | `understand-anything` | vetted | `understand-anything@understand-anything` | Claude Code (plugin) | 🟢 Docker |
