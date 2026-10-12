@@ -490,3 +490,85 @@ describe("새 설치 — 트랙별 기본 MCP", () => {
       expect(servers["railway-mcp-server"]).toEqual(RAILWAY_NOW);
   });
 });
+
+/**
+ * #766 — 옛 supabase(`@supabase/mcp-server`)는 npm 에 없는 이름이라 서버가 뜬 적이 없다. 새 설치는 Supabase 공식 원격
+ * 서버를 받고, 기존 설치본은 하네스가 쓴 그대로인 옛 값만 원격으로 갈아 끼운다 — 설치자가 고친 값은 남는다(ADR-106).
+ */
+const SUPABASE_NOW = { type: "http", url: "https://mcp.supabase.com/mcp" };
+const SUPABASE_OPENCODE_NOW = { type: "remote", url: "https://mcp.supabase.com/mcp" };
+const SUPABASE_CODEX_NOW = '[mcp_servers.supabase]\nurl = "https://mcp.supabase.com/mcp"';
+const SUPABASE_OLD_ARGS = ["-y", "@supabase/mcp-server"];
+
+/** `.mcp.json` 의 supabase 에 설치자 편집(env)을 얹는다 — 옛 stdio 를 토큰으로 돌려 보려던 설치자의 모양. */
+function editSupabase(): void {
+  const raw = JSON.parse(read(".mcp.json")) as {
+    mcpServers: Record<string, Record<string, unknown>>;
+  };
+  expect(raw.mcpServers.supabase?.args).toEqual(SUPABASE_OLD_ARGS); // 전제 — 옛 판이 깔았다
+  raw.mcpServers.supabase = { ...raw.mcpServers.supabase, env: { SUPABASE_ACCESS_TOKEN: "x" } };
+  writeFileSync(join(projectDir, ".mcp.json"), JSON.stringify(raw, null, 2));
+}
+
+describe("#766 — supabase 는 공식 원격 서버로", () => {
+  it("새 설치 csr-supabase: 세 자리의 supabase 가 원격 항목이고 요약 NEXT 의 로그인 안내에 든다", () => {
+    const s = spec(["csr-supabase"]);
+    const report = runInstall({ runExternal: null, harnessRoot: REPO_ROOT, projectDir, spec: s });
+    expect(mcpJson().supabase).toEqual(SUPABASE_NOW);
+    expect(opencodeMcp().supabase).toEqual(SUPABASE_OPENCODE_NOW);
+    expect(codexToml()).toContain(SUPABASE_CODEX_NOW);
+    const lines: string[] = [];
+    renderFinalSummary((m) => lines.push(m), s, report, false);
+    const screen = strip(lines.join("\n"));
+    expect(screen).toContain(
+      "Remote MCP servers sign in on first use — railway-mcp-server · supabase",
+    );
+    expect(screen).toContain("codex mcp login supabase");
+  });
+
+  it("기록 있는 설치본: 하네스가 쓴 그대로인 옛 supabase 는 세 자리에서 원격으로 갈아 끼우고 화면이 말한다", () => {
+    oldInstall(["csr-supabase"]);
+    expect(mcpJson().supabase?.args).toEqual(SUPABASE_OLD_ARGS); // 전제
+
+    const { screen } = update();
+
+    expect(mcpJson().supabase).toEqual(SUPABASE_NOW);
+    expect(opencodeMcp().supabase).toEqual(SUPABASE_OPENCODE_NOW);
+    expect(codexToml()).toContain(SUPABASE_CODEX_NOW);
+    expect(screen).toContain(
+      "supabase (now Supabase's remote server — sign in on first use, see NEXT)",
+    );
+    expect(screen).toContain("codex mcp login supabase");
+    expect(screen).not.toContain("kept yours: supabase");
+  });
+
+  it("기록 있는 설치본: 설치자가 고친 supabase(env 추가)는 남기고 kept yours 로 말한다", () => {
+    oldInstall(["csr-supabase"], ["claude"]);
+    editSupabase();
+
+    const { screen } = update();
+
+    expect(mcpJson().supabase?.env).toEqual({ SUPABASE_ACCESS_TOKEN: "x" });
+    expect(mcpJson().supabase?.args).toEqual(SUPABASE_OLD_ARGS);
+    expect(screen).toContain("kept yours: supabase");
+  });
+
+  it("옛 로그(몫 기록 전): 옛 값 그대로인 supabase 는 원격으로 갈아 끼우고 · 설치자가 고친 것은 남긴다", () => {
+    oldInstall(["csr-supabase"], ["claude"]);
+    toLegacyLog();
+    const { screen } = update();
+    expect(mcpJson().supabase).toEqual(SUPABASE_NOW);
+    expect(screen).toContain("supabase (now Supabase's remote server");
+    expect(screen).not.toContain("kept yours: supabase");
+
+    rmSync(projectDir, { recursive: true, force: true });
+    projectDir = mkdtempSync(join(tmpdir(), "ah-167-"));
+    oldInstall(["csr-supabase"], ["claude"]);
+    editSupabase();
+    toLegacyLog();
+    const { screen: s2 } = update();
+    expect(mcpJson().supabase?.env).toEqual({ SUPABASE_ACCESS_TOKEN: "x" });
+    expect(mcpJson().supabase?.args).toEqual(SUPABASE_OLD_ARGS);
+    expect(s2).not.toContain("now Supabase's remote server");
+  });
+});
