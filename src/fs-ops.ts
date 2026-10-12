@@ -7,6 +7,7 @@ import {
   readFileSync,
   renameSync,
   rmdirSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
@@ -136,6 +137,18 @@ export function backupDir(target: string, now: Date = new Date()): string | null
 export function backupFile(target: string, now: Date = new Date()): string {
   return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) =>
     copyFileSync(target, c, fsConstants.COPYFILE_EXCL),
+  );
+}
+
+/**
+ * #770 — `backupFile` 과 같은 이름 규칙으로 **미리 읽어 둔 내용**을 백업으로 쓴다. 쓰기 주체가 폴더째 지우고 다시
+ * 만드는 외부 도구(`npx skills add --copy` 는 스킬 폴더를 새로 만든다 — 컨테이너 실측)면 호출 전에 옆에 둔 백업이
+ * 함께 지워지므로, 내용을 들고 있다가 호출 뒤에 쓴다.
+ */
+export function backupContent(target: string, content: Buffer, now: Date = new Date()): string {
+  mkdirSync(dirname(target), { recursive: true });
+  return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) =>
+    writeFileSync(c, content, { flag: "wx" }),
   );
 }
 

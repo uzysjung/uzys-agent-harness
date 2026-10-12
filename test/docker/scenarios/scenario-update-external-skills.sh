@@ -120,6 +120,55 @@ if [[ "${REMAIN}" -ne 0 ]]; then
 fi
 echo "✓ update 가 두 사본을 모두 상류판으로 되돌렸다"
 
+# --- ②' #770 — 고친 사본은 그 파일 하나로 백업되고, 화면·목록이 말한다. 안 고친 파일은 백업이 없다 ---
+for f in "${CLAUDE_SLOT}/SKILL.md" "${AGENTS_SLOT}/SKILL.md"; do
+  BAKS=$(find "$(dirname "${f}")" -maxdepth 1 -name 'SKILL.md.backup-*')
+  if [[ "$(printf '%s' "${BAKS}" | grep -c .)" -ne 1 ]] || ! grep -q "${MARK}" "${BAKS}"; then
+    echo "FAIL: 고친 ${f} 의 편집이 백업으로 남지 않았다 (#770) — 찾은 백업: [${BAKS}]"
+    exit 1
+  fi
+done
+OTHER_BAKS=$(find "${CLAUDE_SLOT}" "${AGENTS_SLOT}" -name '*.backup-*' ! -name 'SKILL.md.backup-*')
+if [[ -n "${OTHER_BAKS}" ]]; then
+  echo "FAIL: 안 고친 파일까지 백업했다 (#770)"
+  echo "${OTHER_BAKS}"
+  exit 1
+fi
+if ! grep -q "BACKUPS" "${OUT}" || grep -q "no checksum on record" "${OUT}"; then
+  echo "FAIL: update 화면이 백업을 말하지 않거나 '체크섬 없음' 으로 말한다 (#770)"
+  grep -E "BACKUPS" "${OUT}" || echo "  (BACKUPS 행 자체가 없다)"
+  exit 1
+fi
+LIST="${PROJ}/.uzys-agent-harness/update-backups.json"
+for rel in ".claude/skills/${SLOT}/SKILL.md" ".agents/skills/${SLOT}/SKILL.md"; do
+  if ! jq -e --arg p "${rel}" '.backups[] | select(.path == $p and (.noChecksum | not))' "${LIST}" >/dev/null; then
+    echo "FAIL: update-backups.json 에 ${rel} 쌍이 없거나 noChecksum 이다 (#770)"
+    cat "${LIST}" 2>&1 || true
+    exit 1
+  fi
+done
+echo "✓ 고친 SKILL.md 두 사본만 *.backup-<시각> 으로 남고 화면·목록이 그것을 말한다 (#770)"
+
+# --- ②'' #770 — 다시 update 해도 설치자 파일(노트 · 앞선 백업)은 그대로고, 안 고친 파일은 새 백업 없이 갱신된다 ---
+# skills CLI 는 스킬 폴더를 새로 만든다(실측) — 폴더 안의 기록 밖 파일이 지워지면 앞 단계의 백업도 다음 update 에 사라진다.
+NOTE="${CLAUDE_SLOT}/my-notes.md"
+echo "installer note" > "${NOTE}"
+BAKS_BEFORE=$(find "${CLAUDE_SLOT}" "${AGENTS_SLOT}" -name '*.backup-*' | sort)
+agent-harness update > "${PROJ}/update-out-2.txt" 2>&1 || {
+  echo "FAIL: 두 번째 update 가 실패했다"; tail -30 "${PROJ}/update-out-2.txt"; exit 1
+}
+BAKS_AFTER=$(find "${CLAUDE_SLOT}" "${AGENTS_SLOT}" -name '*.backup-*' | sort)
+if [[ "${BAKS_AFTER}" != "${BAKS_BEFORE}" ]]; then
+  echo "FAIL: 두 번째 update 뒤 백업 목록이 바뀌었다 — 앞선 백업이 지워졌거나 안 고친 파일을 백업했다 (#770)"
+  echo "before: ${BAKS_BEFORE}"; echo "after:  ${BAKS_AFTER}"
+  exit 1
+fi
+if [[ "$(cat "${NOTE}" 2>/dev/null)" != "installer note" ]]; then
+  echo "FAIL: 스킬 폴더의 설치자 노트가 update 뒤 사라졌다 (#770)"
+  exit 1
+fi
+echo "✓ 두 번째 update — 앞선 백업·설치자 노트가 남고, 안 고친 파일은 새 백업 없이 갱신된다 (#770)"
+
 # --- ③ update 후에도 디렉터리인가 (심링크 강등 금지) ---
 for p in "${CLAUDE_SLOT}" "${AGENTS_SLOT}"; do
   s="$(shape "${p}")"

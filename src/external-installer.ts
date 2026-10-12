@@ -11,9 +11,9 @@
  */
 
 import { type SpawnSyncReturns, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import {
   assetReachesCli,
@@ -22,13 +22,15 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { listFilesRecursive } from "./fs-ops.js";
+import { backupContent, listFilesRecursive } from "./fs-ops.js";
 import {
+  buildAssetEntries,
   hashContent,
   type InstallLog,
   type InstallLogSkillFile,
   installedClis,
   readInstallLog,
+  writeInstallLog,
 } from "./install-log.js";
 import { outsideProjectTarget } from "./outside-project.js";
 import { excludedIds } from "./recorded.js";
@@ -469,6 +471,8 @@ export function refreshExternalSkills(
     readLog?: (projectDir: string) => InstallLog | null;
     /** 실 설치 주입점 (테스트용). 기본 `runExternalInstall`. */
     run?: typeof runExternalInstall;
+    /** 설치 기록 쓰기 주입점 (테스트용). 기본 `writeInstallLog`. */
+    writeLog?: (projectDir: string, log: InstallLog) => void;
   } = {},
 ): ExternalSkillRefresh {
   const none = { attempted: 0, refreshed: 0, failed: [] as const, notInCatalog: [] as const };
@@ -490,6 +494,14 @@ export function refreshExternalSkills(
   if (targets.length === 0) {
     return { ...none, notInCatalog, unknown: false };
   }
+  // #770 (ADR-097 결정 3·5) — 도구(`npx skills add --copy`)는 스킬 폴더를 **새로 만든다**(컨테이너 실측: 폴더 안의
+  // 기록 밖 파일이 사라진다). 그래서 호출 **전에** 그 폴더의 내용을 들고 있다가 호출 **뒤에** 판정한다 — 설치자가 고친
+  // 하네스 파일(기록 sha 와 다름)은 그 파일 하나를 백업하고, 안 고친 파일은 조용히 갱신되며, 설치자 파일(기록 밖 —
+  // 노트 · 앞선 update 의 백업)은 제자리로 되돌린다. 화면·목록은 `collectRunBackups` 가 디스크에서 줍는다.
+  const targetIds = new Set(targets.map((a) => a.id));
+  const held = log.assets
+    .filter((a) => targetIds.has(a.id))
+    .flatMap((a) => holdSlotFiles(projectDir, a.files));
   const report = (deps.run ?? runExternalInstall)(
     {
       tracks: log.spec.tracks as ReadonlyArray<Track>,
@@ -510,6 +522,9 @@ export function refreshExternalSkills(
       ...(deps.warn ? { warn: deps.warn } : {}),
     },
   );
+  for (const h of held) settleHeld(h);
+  // #770 — 도구가 다시 쓴 sha 로 기준선을 잇는다. 안 이으면 상류가 바뀐 다음 update 가 안 고친 파일을 "고쳤다" 로 백업한다.
+  recordRefreshedFiles(projectDir, log, report, deps.writeLog ?? writeInstallLog);
   return {
     attempted: report.attempted.length,
     refreshed: report.succeeded,
@@ -519,6 +534,92 @@ export function refreshExternalSkills(
     notInCatalog,
     unknown: false,
   };
+}
+
+/** #770 — 도구 호출 전에 들고 있는 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일. */
+interface HeldFile {
+  abs: string;
+  content: Buffer;
+  recorded: boolean;
+}
+
+/**
+ * #770 — 한 자산의 스킬 폴더(기록된 파일의 `<root>/skills/<id>`)에서 지켜야 할 파일 — 고친 하네스 파일과 기록 밖 파일.
+ * 기록이 없는 자산(`files` 부재 — 옛 판)은 폴더를 모르므로 들지 않는다. 프로젝트 밖으로 풀리는 폴더는 도구도 쓰지 않는다(#678).
+ */
+function holdSlotFiles(
+  projectDir: string,
+  files: ReadonlyArray<InstallLogSkillFile> | undefined,
+): HeldFile[] {
+  if (files === undefined) return [];
+  const sha = new Map(files.map((f) => [f.path, f.sha256]));
+  const slots = new Set(files.map((f) => f.path.split("/").slice(0, 3).join("/")));
+  const out: HeldFile[] = [];
+  for (const slot of slots) {
+    if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
+    for (const rel of listFilesRecursive(join(projectDir, slot))) {
+      const path = `${slot}/${rel}`;
+      const abs = join(projectDir, path);
+      let content: Buffer;
+      try {
+        content = readFileSync(abs);
+      } catch {
+        continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
+      }
+      const recordedSha = sha.get(path);
+      if (recordedSha === undefined) out.push({ abs, content, recorded: false });
+      else if (hashContent(content.toString("utf8")) !== recordedSha)
+        out.push({ abs, content, recorded: true });
+    }
+  }
+  return out;
+}
+
+/**
+ * #770 — 도구 호출 뒤. 그대로면(호출 실패 등) 아무것도 안 한다. 지워진 설치자 파일은 제자리로 되돌리고, 바뀌었거나
+ * 지워진 고친 하네스 파일과 상류 파일에 덮인 설치자 파일은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다.
+ */
+function settleHeld(h: HeldFile): void {
+  let now: Buffer | null = null;
+  try {
+    now = readFileSync(h.abs);
+  } catch {
+    /* 도구가 지웠다 */
+  }
+  if (now?.equals(h.content)) return;
+  if (!h.recorded && now === null) {
+    mkdirSync(dirname(h.abs), { recursive: true });
+    writeFileSync(h.abs, h.content);
+    return;
+  }
+  backupContent(h.abs, h.content);
+}
+
+/** #770 — 갱신한 자산의 `files` 를 이번 호출의 결과로 잇는다(install 의 `buildAssetEntries` 와 같은 병합). 바뀐 것이 없으면 쓰지 않는다. */
+function recordRefreshedFiles(
+  projectDir: string,
+  log: InstallLog,
+  report: ExternalInstallReport,
+  writeLog: (projectDir: string, log: InstallLog) => void,
+): void {
+  const next = new Map(
+    buildAssetEntries(report, log.scope, log.assets)
+      .filter((e) => e.files !== undefined)
+      .map((e) => [e.id, e.files]),
+  );
+  let changed = false;
+  const assets = log.assets.map((a) => {
+    const files = next.get(a.id);
+    if (files === undefined || JSON.stringify(files) === JSON.stringify(a.files)) return a;
+    changed = true;
+    return { ...a, files };
+  });
+  if (!changed) return;
+  try {
+    writeLog(projectDir, { ...log, assets });
+  } catch {
+    // 기록 실패가 update 자체를 실패시키지는 않는다(update-mode 의 다른 writeInstallLog 들과 같은 방침).
+  }
 }
 
 /**
