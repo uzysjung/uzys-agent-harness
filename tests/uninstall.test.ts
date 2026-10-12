@@ -1,5 +1,5 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -241,15 +241,21 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("default 모드 → templates 회수 (claudeDir + codexDir + opencodeDir 모두 옮겨 둔다)", () => {
+  it("default 모드 → 기록된 하네스 파일만 하나씩 회수 — CLI 폴더는 통째로 지우거나 옮기지 않는다 (#746)", () => {
+    const rule = "# rule\n";
     const log: InstallLog = {
       ...baseLog(),
+      records: "writer",
       assets: [],
+      spec: { tracks: ["tooling"], cli: ["claude", "codex"] },
       templates: { claudeDir: ".claude/", codexDir: ".codex/", opencodeDir: ".opencode/" },
+      policyFiles: [{ path: "rules/x.md", sha256: hashContent(rule) }],
     };
     writeLog(tmpDir, log);
+    mkdirSync(join(tmpDir, ".claude", "rules"), { recursive: true });
+    writeFileSync(join(tmpDir, ".claude", "rules", "x.md"), rule);
+    writeFileSync(join(tmpDir, ".claude", "settings.local.json"), "{}\n");
     const rm = vi.fn();
-    const moveAside = vi.fn(() => null);
     uninstallAction(
       { projectDir: tmpDir },
       {
@@ -258,19 +264,18 @@ describe("uninstallAction", () => {
         exit: vi.fn() as unknown as (code: number) => never,
         spawn: vi.fn(() => ok()),
         rm,
-        moveAside,
       },
     );
     const rmPaths = rm.mock.calls.map((c) => c[0] as string);
-    // 사용자 결정 2026-09-27 — CLI 디렉터리는 지우지 않고 `<dir>.backup-<time>` 으로 옮겨 둔다
-    // (`.claude/` → 같은 날 `.codex/` · `.opencode/` 로 확장, #533 리뷰 B3).
+    expect(rmPaths).toContain(join(tmpDir, ".claude", "rules", "x.md"));
+    // 설치자 파일 · CLI 폴더 자체는 rm 대상이 아니다
     for (const dir of [".claude", ".codex", ".opencode"]) {
-      expect(moveAside).toHaveBeenCalledWith(join(tmpDir, dir));
+      expect(rmPaths).not.toContain(join(tmpDir, dir));
       expect(rmPaths).not.toContain(join(tmpDir, `${dir}/`));
     }
-    // v26.135.0 (#253) — 로그는 이제 `.claude/` 밖이라 templates 제거에 딸려가지 않는다.
-    // 여기서 명시적으로 지우지 않으면 uninstall 후 `.uzys-agent-harness/` 가 남아
-    // "전부 지웠다"가 거짓이 되고, 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다.
+    expect(rmPaths).not.toContain(join(tmpDir, ".claude", "settings.local.json"));
+    // v26.135.0 (#253) — 로그는 `.claude/` 밖이다. 여기서 명시적으로 지우지 않으면 uninstall 후
+    // `.uzys-agent-harness/` 가 남아 "전부 지웠다"가 거짓이 되고, 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다.
     expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -290,45 +295,44 @@ describe("uninstallAction", () => {
           exit: vi.fn() as unknown as (code: number) => never,
           spawn: vi.fn(() => ok()),
           rm: vi.fn(),
-          moveAside: vi.fn(() => null),
         },
       );
+    // #746 — `.claude/` 는 더는 통째로 가지 않는다: 그 안의 파일 백업도 같은 절에 나온다(update 와 같은 자리 집합)
+    mkdirSync(join(tmpDir, ".claude", "rules"), { recursive: true });
+    writeFileSync(join(tmpDir, ".claude", "rules", "x.md.backup-20260101T000000"), "m");
     run();
     const text = out.join("\n");
     expect(text).toContain("[BACKUPS]");
     expect(text).toContain(".claude.backup-20260101T000000");
     expect(text).toContain(".agents/x.md.backup-20260101T000000");
+    expect(text).toContain(".claude/rules/x.md.backup-20260101T000000");
     // 대조군 — 백업이 없으면 말하지 않는다.
     rmSync(join(tmpDir, ".claude.backup-20260101T000000"), { recursive: true });
     rmSync(join(tmpDir, ".agents"), { recursive: true });
+    rmSync(join(tmpDir, ".claude"), { recursive: true });
     out.length = 0;
     run();
     expect(out.join("\n")).not.toContain("[BACKUPS]");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("--keep-templates → templates rm 호출 X, log 만 rm", () => {
-    const log: InstallLog = {
+  it("--keep-templates → 거절(exit 1) · rm 0회 · 같은 일을 하는 --only 를 알린다 (#746 · ADR-097 결정 6)", () => {
+    writeLog(tmpDir, {
       ...baseLog(),
-      assets: [],
-      templates: { claudeDir: ".claude/", codexDir: ".codex/" },
-    };
-    writeLog(tmpDir, log);
+      assets: [{ id: "a", category: "c", method: "npm", scope: "project", detail: { pkg: "a" } }],
+    });
     const rm = vi.fn();
+    const spawn = vi.fn(() => ok());
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
     uninstallAction(
       { projectDir: tmpDir, keepTemplates: true },
-      {
-        log: vi.fn(),
-        err: vi.fn(),
-        exit: vi.fn() as unknown as (code: number) => never,
-        spawn: vi.fn(() => ok()),
-        rm,
-      },
+      { log: vi.fn(), err, exit, spawn, rm },
     );
-    const rmPaths = rm.mock.calls.map((c) => c[0] as string);
-    expect(rmPaths).not.toContain(join(tmpDir, ".claude/"));
-    expect(rmPaths).not.toContain(join(tmpDir, ".codex/"));
-    expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(rm).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+    expect(err.mock.calls.flat().join("\n")).toContain("agent-harness uninstall --only a");
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -692,6 +696,42 @@ describe("uninstallAction", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  it("하네스 앵커를 설치자가 고쳤으면 그 파일 하나를 백업하고 지운다 (결정 4 · #746)", () => {
+    const content = "# harness anchor\n원칙 본문\n";
+    writeLog(tmpDir, {
+      ...baseLog(),
+      templates: {
+        claudeDir: ".claude/",
+        rootClaudeMd: { path: "CLAUDE-uzys-harness.md", sha256: hashContent(content) },
+      },
+    });
+    writeFileSync(join(tmpDir, "CLAUDE-uzys-harness.md"), `${content}my note\n`, "utf8");
+    const rm = vi.fn();
+    const logFn = vi.fn();
+    uninstallAction(
+      { projectDir: tmpDir },
+      {
+        log: logFn,
+        err: vi.fn(),
+        exit: vi.fn() as unknown as (code: number) => never,
+        spawn: vi.fn(() => ok()),
+        rm,
+      },
+    );
+    expect(rm.mock.calls.map((c) => c[0] as string)).toContain(
+      join(tmpDir, "CLAUDE-uzys-harness.md"),
+    );
+    const backups = readdirSync(tmpDir).filter((f) =>
+      f.startsWith("CLAUDE-uzys-harness.md.backup-"),
+    );
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(tmpDir, backups[0] ?? ""), "utf8")).toContain("my note");
+    expect(logFn.mock.calls.flat().join("\n")).toContain(
+      "backed up  CLAUDE-uzys-harness.md — you edited it",
+    );
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
   it("루트 CLAUDE.md 는 지우지 않고 import 블록만 회수 — 사용자 본문 무손실", () => {
     const userBody = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
     const installed = upsertHarnessImport(userBody, { projectName: "p", tracks: ["tooling"] });
@@ -891,10 +931,16 @@ describe("uninstallAction — --only (항목별 제거)", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("--only 없이는 기존대로 전량 제거 + templates 회수 (`.claude/` 는 옮겨 둔다 — 2026-09-27)", () => {
-    writeLog(tmpDir, twoAssetLog());
+  it("--only 없이는 기존대로 전량 제거 — 기록된 하네스 파일까지 회수한다", () => {
+    const rule = "# rule\n";
+    writeLog(tmpDir, {
+      ...twoAssetLog(),
+      records: "writer",
+      policyFiles: [{ path: "rules/x.md", sha256: hashContent(rule) }],
+    });
+    mkdirSync(join(tmpDir, ".claude", "rules"), { recursive: true });
+    writeFileSync(join(tmpDir, ".claude", "rules", "x.md"), rule);
     const rm = vi.fn();
-    const moveAside = vi.fn(() => null);
     uninstallAction(
       { projectDir: tmpDir },
       {
@@ -903,10 +949,9 @@ describe("uninstallAction — --only (항목별 제거)", () => {
         exit: vi.fn() as unknown as (code: number) => never,
         spawn: vi.fn(() => ok()),
         rm,
-        moveAside,
       },
     );
-    expect(moveAside).toHaveBeenCalledWith(join(tmpDir, ".claude"));
+    expect(rm).toHaveBeenCalledWith(join(tmpDir, ".claude", "rules", "x.md"));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -1120,13 +1165,13 @@ describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (
     },
   ];
 
-  it("--keep-templates + global 자산뿐이어도 exit 0 (로그 제거라는 실제 작업을 한다)", () => {
+  it("전량 uninstall + global 자산뿐이어도 exit 0 (로그 제거라는 실제 작업을 한다)", () => {
     writeLog(tmpDir, { ...baseLog(), assets: GLOBAL_ONLY });
     const rm = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     const logFn = vi.fn();
     uninstallAction(
-      { projectDir: tmpDir, keepTemplates: true },
+      { projectDir: tmpDir },
       { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm },
     );
     expect(rm).toHaveBeenCalledWith(join(tmpDir, INSTALL_LOG_DIR));
@@ -1179,13 +1224,10 @@ describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (
 });
 
 /**
- * v26.123.0 3차 검증 반영 (SOD R1/R2) — 세 사실을 하나로 묶다 3라운드 내리 회귀가 났다.
- * 분리해서 고정한다:
- *   `.claude/` 가 남는가  = keepTemplates  (수기 안내 대상 여부)
- *   install log 가 남는가 = `--only` 인가   (--only 만 재기록, 나머지는 삭제)
- * 특히 `--keep-templates` 는 `.claude/` 를 남기면서 로그는 지운다 — 그 조합이 매번 새는 자리였다.
+ * v26.123.0 3차 검증 반영 (SOD R1/R2) — install log 가 남는가 = `--only` 인가. `--keep-templates`(하네스 파일을 남기면서
+ * 로그는 지우던 조합)는 v26.169.0 에서 없어졌다(#746 — 거절 테스트는 위 describe).
  */
-describe("uninstallAction — keepTemplates 와 log 생존은 다른 사실이다 (SOD R1/R2)", () => {
+describe("uninstallAction — log 생존은 `--only` 하나가 정한다 (SOD R1/R2)", () => {
   let tmpDir = "";
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), "harness-logsurvives-"));
@@ -1221,49 +1263,10 @@ describe("uninstallAction — keepTemplates 와 log 생존은 다른 사실이�
     return { output: logFn.mock.calls.flat().join("\n"), code, rm };
   }
 
-  it("--keep-templates 로 되돌릴 수 없는 project 자산만 남으면 성공이라 하지 않는다", () => {
-    // 여기서 로그가 지워지므로 재시도로 복구할 수 없다 — 성공으로 보고하면 사용자는
-    // 디스크에 남은 자산을 기록 없이 떠안는다 (F-1a 가 없애려던 바로 그 상태).
-    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
-    const { output, code } = run({ projectDir: tmpDir, keepTemplates: true });
-    expect(output).not.toContain("uninstall complete");
-    expect(code).toBe(1);
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it("--keep-templates 로 로그가 지워질 때 '기록 유지'라고 말하지 않는다", () => {
-    writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
-    const { output, rm } = run({ projectDir: tmpDir, keepTemplates: true });
-    expect(rm).toHaveBeenCalledWith(join(tmpDir, INSTALL_LOG_DIR));
-    expect(output).toContain("자동 되돌리기 경로 없음");
-    expect(output).not.toContain("기록 유지");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
   it("--only 로 같은 자산을 지정하면 로그가 남으므로 '기록 유지'가 참이다", () => {
     writeLog(tmpDir, { ...baseLog(), assets: NO_REVERSE_PROJECT_ASSET });
     const { output } = run({ projectDir: tmpDir, only: "bmad" });
     expect(output).toContain("기록 유지");
-    rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  it("--keep-templates + global 자산뿐이면 성공이다 — 정확한 수기 명령을 줬으므로", () => {
-    // 경계: R1 수정이 F4 를 되돌리지 않았는지. global 은 안내할 명령이 있고 D16 설계대로다.
-    writeLog(tmpDir, {
-      ...baseLog(),
-      assets: [
-        {
-          id: "g1",
-          category: "dev-tools",
-          method: "plugin",
-          scope: "global",
-          detail: { marketplace: "mp", pluginId: "g1@mp" },
-        },
-      ],
-    });
-    const { output, code } = run({ projectDir: tmpDir, keepTemplates: true });
-    expect(output).toContain("[GLOBAL]");
-    expect(code).toBe(0);
     rmSync(tmpDir, { recursive: true, force: true });
   });
 

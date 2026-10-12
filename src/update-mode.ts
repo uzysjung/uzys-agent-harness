@@ -1404,13 +1404,13 @@ function installNewAssets(
 }
 
 /** `backupFile` 이 만드는 이름 — `<원본>.backup-<YYYYMMDDTHHMMSS>[-n]` (`fs-ops.ts` claimBackupPath). */
-const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
+export const BACKUP_SUFFIX = /\.backup-\d{8}T\d{6}(-\d+)?$/;
 
 /**
  * 백업이 생길 수 있는 자리 — 하네스가 쓰는 디렉터리(`CLI_OWNERSHIP` 의 디렉터리 경로의 맨 앞 칸에서 유도한다 —
  * 수기 사본을 두면 표에 자리가 늘 때 여기만 빠진다, #622) + 루트의 앵커·AGENTS.md(아래 루트 1단 훑기).
  */
-const BACKUP_SCAN_DIRS: ReadonlyArray<string> = [
+export const BACKUP_SCAN_DIRS: ReadonlyArray<string> = [
   ...new Set(
     Object.values(CLI_OWNERSHIP)
       .flat()

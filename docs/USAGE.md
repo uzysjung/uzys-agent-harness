@@ -213,7 +213,7 @@ The harness never silently overwrites your config. Before replacing an editable 
 | An `AGENTS.md` the harness created, with your `## Project Context` / `## Project Rules` filled in | Kept. `install`, `update` and `uninstall --cli` (when another CLI still reads it) rewrite only the harness sections and the `<!-- uzys-harness:… -->` blocks inside yours; `uninstall` removes exactly those and leaves your two sections in the file (the file is deleted only if you never filled it in; a file you edited after the last `update` is kept whole, as before). One exception: a project installed before those markers existed (v26.159.0 or earlier) loses its `## Project Rules` additions to the backup on the first `update` only — `## Project Context` survives even that one |
 | `.claude/` on `update` | Harness files in it are refreshed in place; one you edited is saved as `<file>.backup-<ts>` first (`.uzys-agent-harness/update-backups.json` lists them). Your own files there are not touched |
 | `.claude/` on `install --reinstall` | Harness files are rewritten in place; one you edited is saved as `<file>.backup-<ts>` first. Your own files there stay |
-| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Renamed to `<dir>.backup-<ts>` — your own files there (`settings.local.json`, your commands, MCP servers you added to `.codex/config.toml`) stay in the backup. A link to outside the project stays as it is |
+| `.claude/`, `.codex/`, `.opencode/` on `uninstall` (everything, or `--cli` for that CLI) | Only the harness files in them are removed (one you edited is saved as `<file>.backup-<ts>` first); your own files (`settings.local.json`, your commands, servers you added to `.codex/config.toml`) stay in place, a file of yours the harness had replaced is put back, and a folder left empty is removed. A link to outside the project stays as it is |
 | `.mcp.json` | Your servers are preserved and merged. `uninstall` removes only the servers the harness added — one you changed is left and named; a file the harness created is deleted once nothing else is in it |
 | A harness rule, agent, hook, or skill file **you edited** | `<file>.backup-<ts>`, then the newer version |
 | A rule or hook **you wrote yourself** | Left alone |
@@ -242,13 +242,13 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 ### `uninstall`
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--keep-templates] [--only <ids>] [--cli <name>] [--yes] [--project-dir <path>]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--only <ids>] [--cli <name>] [--yes] [--project-dir <path>]
 ```
 
 Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with three choices, each the same as a flag:
 
 - **Remove one CLI** = `--cli <name>`. Disabled when only one CLI is installed.
-- **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; templates stay. Disabled when no external assets are recorded.
+- **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; harness files stay. Disabled when no external assets are recorded.
 - **Remove everything** = `--yes`.
 
 The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes`. Without a terminal **and** without one of those flags, `uninstall` refuses and removes nothing — a pipe or CI run can no longer remove everything by default. Without an install record, or with one it cannot read, it removes nothing and exits `1` with the same message as `list` and `update`.
@@ -256,15 +256,15 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 | Flag | What |
 |---|---|
 | `--dry-run` | Print the reverse steps, change nothing |
-| `--keep-templates` | Remove external assets but keep `.claude/`, `.codex/`, `.opencode/`. A folder linked to outside the project is named with its target, not listed as safe to delete |
-| `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Templates untouched; the record keeps the rest |
+| `--keep-templates` | Removed in v26.169.0; the command prints the `--only <ids>` that does the same |
+| `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Harness files untouched; the record keeps the rest |
 | `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
 | `--yes` | Skip the picker and remove everything |
 
 What it can and cannot reverse:
 
 - **Project-scope assets** — removed (`claude plugin uninstall --scope project`, `npm uninstall`). For skill packs the harness records which files `npx skills` put down and removes exactly those itself — a copy of the same skill that was already there (yours, or another agent's folder) stays; a file you changed is saved as `<file>.backup-<ts>` first; a file reached through a link to outside the project is left and named. Installs recorded before that file list existed are not removed — the screen names the folders left behind.
-- **Harness files** — `.claude/`, `.codex/` and `.opencode/` are not deleted: each is moved aside as `<dir>.backup-<ts>` with everything in it, so files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) are in the backup. A folder that is a link to outside the project is not moved: the link stays in place and the screen names it with its target. In `.agents/` only the files the harness wrote are removed, because that directory is shared with skills you installed yourself. `CLAUDE-uzys-harness.md` is removed; in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards.
+- **Harness files** — only the files the install record says the harness wrote are removed, one by one, in `.claude/`, `.codex/`, `.opencode/` and `.agents/`. A harness file you edited is saved beside itself as `<file>.backup-<ts>` first and removed from live. Files you put there yourself (`settings.local.json`, your own commands, MCP servers added to `.codex/config.toml`) stay where they are, and the screen names them (`left  .claude/ — 2 file(s) of yours: …`). A file of yours the harness had replaced (it had the same name as a harness file — backed up on install or `update`) is put back under its own name. A folder left empty is removed; a folder that is a link to outside the project is not touched — the link stays and the screen names it with its target. `CLAUDE-uzys-harness.md` is removed the same way (saved first if you edited it); in your `CLAUDE.md` only the import block is cut out, so a file that was yours before the install is byte-identical afterwards. A shared file the harness created and you later edited (`opencode.json`, `.codex/config.toml`) loses only the harness part; the rest — now yours — stays (`removed the harness part … (yours stays)`).
 - **Global-scope assets** — listed for you to remove by hand.
 - **The Codex trust entry** that `--with-codex-trust` added to `~/.codex/config.toml` — listed with its path for you to remove by hand (a full `uninstall` and `--dry-run` print it; an entry that was already there before the install is yours and is not listed).
 - **Assets with no automated reverse** (the `npx-run` kind) — reported as such. Delete anything they wrote outside `.claude/` yourself (BMAD's `_bmad/`, for example).
@@ -286,20 +286,20 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 
 | File | Used by | Goes when |
 |---|---|---|
-| `.claude/` | Claude Code | Claude Code is removed — moved aside as `.claude.backup-<ts>`, so your own files there stay in the backup; a link to outside the project stays as it is |
-| `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (kept if you edited it) |
+| `.claude/` | Claude Code | Claude Code is removed: the harness files in it, one by one; yours stay. A link to outside the project stays as it is |
+| `CLAUDE-uzys-harness.md` | Claude Code | Claude Code is removed (saved as `<file>.backup-<ts>` first if you edited it) |
 | `CLAUDE.md` | Claude Code | Claude Code is removed — only the import block is cut; your text stays |
-| `.codex/` | Codex | Codex is removed — moved aside as `.codex.backup-<ts>`, so MCP servers you added to `config.toml` stay in the backup; a link to outside the project stays as it is |
-| `opencode.json` | OpenCode | OpenCode is removed (kept if you edited it) |
-| `.opencode/` | OpenCode | OpenCode is removed — moved aside as `.opencode.backup-<ts>`. The harness no longer writes there, so what is in it is yours; a link to outside the project stays as it is |
+| `.codex/` | Codex | Codex is removed: the harness files in it, one by one; the harness part of `config.toml` is cut out, your servers stay. A link to outside the project stays as it is |
+| `opencode.json` | OpenCode | OpenCode is removed — only the harness part; if you edited the file, your keys stay |
+| `.opencode/` | OpenCode | Nothing — the harness has not written there since v26.148, so what is in it is yours (a command an older release wrote there is removed only if the install record has it) |
 | `.agents/rules/` (harness rules only) | Antigravity | Antigravity is removed |
 | `AGENTS.md` | Codex, OpenCode, Antigravity | While one of them stays, it is rewritten right away for the ones left (`re-rendered for …`) — your sections stay. The last of them is removed — only the harness sections; your `## Project Context` / `## Project Rules` stay |
 | `.agents/skills/` (harness skills only) | Codex, OpenCode, Antigravity | The last of them is removed — skills you installed yourself stay |
 | `.mcp.json`, `.uzys-agent-harness/` | Every CLI | Never by `--cli` |
 
-- **Nothing you put there is deleted.** A harness file outside those directories that you edited since the install is kept in place and named on screen; the CLI directories themselves go to a backup, whole. Run `--dry-run` first to see the list.
-- **Installed assets (`list`) are not touched** — they are not owned by a CLI. Use `--only <ids>` for those.
-- **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only` or `--keep-templates`.
+- **Nothing you put there is deleted.** A harness file you edited is saved beside itself as `<file>.backup-<ts>` and removed. Run `--dry-run` first to see the list.
+- **Installed assets (`list`) are not touched** — they are not owned by a CLI, even when a copy sits in that CLI's folder (the screen names it with the `--only <id>` that removes it). Use `--only <ids>` for those.
+- **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only`.
 
 The record (`clis` in `.uzys-agent-harness/.harness-install.json`) is what every command reads to know which CLIs this project has — `list` prints it, and `update` refreshes exactly that set, including assets a new release adds.
 

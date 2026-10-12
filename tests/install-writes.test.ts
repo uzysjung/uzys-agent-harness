@@ -720,9 +720,10 @@ describe("list · uninstall 이 displaced 를 사실대로 부른다", () => {
     const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     expect(listed).toMatch(new RegExp(`${esc(ANCHOR)}\\s+비켜 둠\\s+${esc(backup)}`));
 
+    // #761 (3) — uninstall 은 앵커를 지운 뒤 비켜 둔 설치자 파일을 원래 이름으로 되돌리고 그 사실을 말한다
     const lines: string[] = [];
     uninstallAction(
-      { projectDir, keepTemplates: true },
+      { projectDir, yes: true },
       {
         log: (l: string) => lines.push(l),
         err: (l: string) => lines.push(l),
@@ -730,12 +731,12 @@ describe("list · uninstall 이 displaced 를 사실대로 부른다", () => {
         resolveHarnessRoot: () => HARNESS_ROOT,
       },
     );
-    expect(lines.join("\n")).toContain(
-      `${ANCHOR} — 하네스가 쓴 자리 — 원래 있던 설치자 파일은 ${backup} 에 있다`,
-    );
+    expect(lines.join("\n")).toContain(`put back  ${ANCHOR} (from ${backup})`);
+    expect(readFileSync(join(projectDir, ANCHOR), "utf8")).toBe("# my own anchor-named notes\n");
+    expect(existsSync(join(projectDir, backup))).toBe(false);
   });
 
-  it("uninstall --dry-run 은 옮겨 둘 `.claude/` 안의 기록을 '남는 것' 으로 예고하지 않는다", () => {
+  it("uninstall --dry-run 은 `.claude/` 안의 기록을 '남는 것' 으로 예고하지 않고 되돌릴 설치자 파일을 말한다 (#746)", () => {
     write(".claude/rules/git-policy.md", "# mine\n");
     install();
     expect(log().rootFiles?.map((f) => f.path)).toEqual(
@@ -753,7 +754,8 @@ describe("list · uninstall 이 displaced 를 사실대로 부른다", () => {
       },
     );
     const out = lines.join("\n");
-    expect(out).toContain("move .claude/ aside");
+    expect(out).toContain("○ put back 1 file(s) of yours (displaced): .claude/rules/git-policy.md");
+    expect(out).not.toContain("aside");
     expect(out).not.toMatch(/· \.claude\//);
   });
 });

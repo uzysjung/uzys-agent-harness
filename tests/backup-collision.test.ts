@@ -3,10 +3,9 @@
  *
  * 백업 경로는 `<target>.backup-<stamp>` 이고 stamp 는 **초 해상도**다 (`fs-ops.ts` formatStamp).
  * 사용자가 `update` 를 연달아 돌리면 같은 이름이 두 번 나오는데, 그때 함수마다 다르게
- * 망가져 있었다(update 의 `.claude/` 폴더 사본은 #746 에서 없앴다 — update 의 백업은 파일 단위뿐이다):
+ * 망가져 있었다(폴더 단위 백업은 #746 에서 update · uninstall 모두 없앴다 — 백업은 파일 단위뿐이다):
  *
  *   - `backupFile`    (사용자 편집 파일 보존)      → 조용히 앞선 백업을 **덮는다**
- *   - `backupDir`     (재설치의 `.claude/` 밀어내기) → ENOTEMPTY 로 **죽는다**
  *
  * 덮어쓰기 쪽이 더 나쁘다: 백업은 "사용자가 고친 걸 지키려고" 만드는 건데, 두 번째 실행이
  * 지키려던 원본 대신 **이미 하네스가 덮어쓴 내용**을 백업본 자리에 넣는다. 즉 보호 장치가
@@ -16,19 +15,11 @@
  * 남아 있다"** 이다.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backupDir, backupFile } from "../src/fs-ops.js";
+import { backupFile } from "../src/fs-ops.js";
 import { runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
@@ -46,27 +37,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function seedDir(name: string, content: string): string {
-  const target = join(dir, name);
-  mkdirSync(target, { recursive: true });
-  writeFileSync(join(target, "note.md"), content);
-  return target;
-}
-
 describe("fs-ops — 같은 stamp 로 두 번 백업 (R-3m)", () => {
-  it("backupDir: 같은 초에 두 번 밀어내도 ENOTEMPTY 로 죽지 않는다", () => {
-    const target = seedDir("payload", "1회차");
-
-    const first = backupDir(target, SAME_SECOND);
-    seedDir("payload", "2회차");
-    const second = backupDir(target, SAME_SECOND);
-
-    expect(second).not.toBe(first);
-    expect(existsSync(target)).toBe(false);
-    expect(readFileSync(join(`${first}`, "note.md"), "utf8")).toBe("1회차");
-    expect(readFileSync(join(`${second}`, "note.md"), "utf8")).toBe("2회차");
-  });
-
   it("backupFile: 두 번째 백업이 첫 백업본을 덮지 않는다", () => {
     const target = join(dir, "settings.json");
     writeFileSync(target, '{"by":"user"}');

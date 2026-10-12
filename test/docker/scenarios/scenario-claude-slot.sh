@@ -12,8 +12,9 @@
 #   ② `update` 가 백업 파일을 만들지 않고, 화면이 그 자리를 'owned by another tool' 이 아니라
 #      'linked · updated via' 로 말한다. `.claude/` 를 실제로 고친 update 여도 `.claude.backup-*` 은 0
 #      (#746 — update 는 폴더 사본을 뜨지 않는다. 고친 하네스 파일만 그 파일 하나로 백업한다)
-#   ③ `uninstall --cli claude` 뒤 `.claude/` 없음 · 공유 본문 유지 · 루트 `CLAUDE.md` 설치자 본문 유지 ·
-#      로그 clis = ["codex"]
+#   ③ `uninstall --cli claude` 뒤 `.claude/` 에 하네스 파일 없음 — 남는 것은 설치자가 건 슬롯 링크뿐(#746 B4: 링크를
+#      따라가지 않는다 — 따라가면 남는 codex 의 본문을 지운다) · `.claude.backup-*` 0 · 공유 본문 유지 · 루트 `CLAUDE.md`
+#      설치자 본문 유지 · 로그 clis = ["codex"]
 #   ④ 그 뒤 설치자가 `.claude/` 를 다시 가져도(Claude Code 의 settings.local.json · 팀 훅이 든
 #      settings.json) update 가 통째 사본(`.claude.backup-*`)을 더 쌓지 않고(#536-1) 그 파일들을
 #      바이트 그대로 둔다(리뷰 BLOCKER-1 — 사본이 없는 실행이라 바뀌면 원본이 없다)
@@ -166,8 +167,21 @@ if [[ "${RC}" -ne 0 ]]; then
   tail -30 "${OUT}/uninstall.txt"
   exit 1
 fi
-if [[ -e "${PROJ}/.claude" ]]; then
-  echo "FAIL: .claude/ 가 남았다 — claude 전용 자리가 회수되지 않았다"
+# #746 — 하네스 파일은 하나씩 회수되고 설치자 링크(슬롯)만 남는다. 폴더를 통째로 옮기지 않는다
+LEFT_REGULAR=$(find "${PROJ}/.claude" -type f 2>&1)
+if [[ -n "${LEFT_REGULAR}" ]]; then
+  echo "FAIL: .claude/ 에 하네스 파일이 남았다 — claude 전용 자리가 회수되지 않았다"
+  echo "${LEFT_REGULAR}" | head -10
+  exit 1
+fi
+LEFT_LINKS=$(find "${PROJ}/.claude" -type l | sed "s|^${PROJ}/.claude/skills/||" | sort | tr '\n' ' ')
+WANT_LINKS=$(printf '%s\n' "${LINKED[@]}" | sort | tr '\n' ' ')
+if [[ "${LEFT_LINKS}" != "${WANT_LINKS}" ]]; then
+  echo "FAIL: .claude/ 에 남은 링크가 설치자가 건 슬롯 링크와 다르다 — 남음: ${LEFT_LINKS} / 기대: ${WANT_LINKS}"
+  exit 1
+fi
+if [[ "$(count_claude_copies)" -ne 0 ]]; then
+  echo "FAIL: uninstall --cli claude 가 .claude.backup-* 폴더를 만들었다 — 폴더 단위 이동은 없다 (#746)"
   exit 1
 fi
 if [[ ! -f "${BODY}" ]] || ! cmp -s "${BODY}" "${OUT}/ported.md"; then
@@ -183,7 +197,7 @@ if [[ "${CLIS}" != '["codex"]' ]]; then
   echo "FAIL: 로그 clis 가 [\"codex\"] 가 아니다 — 실제: ${CLIS}"
   exit 1
 fi
-echo "✓ ③ uninstall --cli claude — .claude/ 없음 · 공유 본문 유지 · 루트 CLAUDE.md 설치자 본문 유지 · clis=[\"codex\"]"
+echo "✓ ③ uninstall --cli claude — .claude/ 하네스 파일 0 · 설치자 링크 ${#LINKED[@]}개만 · 사본 0 · 공유 본문 유지 · 루트 CLAUDE.md 설치자 본문 유지 · clis=[\"codex\"]"
 
 # --- ④ #536-1 — claude 가 없는 설치본의 설치자 .claude/ 는 update 가 복사하지 않는다 ---
 mkdir -p "${PROJ}/.claude"

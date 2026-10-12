@@ -21,16 +21,16 @@ import { CLI_BASES, type CliBase } from "./types.js";
 /**
  * 회수 방식. 같은 "우리 것"이라도 되돌리는 절차가 다르다.
  *
- * - `dir` — 하네스 전용 디렉터리. 통째로 rm 한다 (`removeTemplates` 가 하던 그것).
- * - `recorded` — 설치 로그 `externalFiles` 기준선(sha)이 소유를 말하는 자리. 파일 하나이거나
- *   `/` 로 끝나는 **접두 디렉터리**다. `.agents/` 를 통째로 지우지 않는 이유는
- *   `removeExternalFiles` 주석 참조 — 그 자리는 `npx skills` 와 공유한다.
+ * - `recorded` — 설치 기록(`policyFiles` · `skillFiles` · `externalFiles` · `rootFiles` displaced)이 소유를 말하는
+ *   자리. 파일 하나이거나 `/` 로 끝나는 **접두 디렉터리**다. 그 아래에서 기록된 파일만 하나씩 회수하고 설치자 파일은
+ *   제자리에 둔다 — CLI 폴더(`.claude/` · `.codex/` · `.opencode/`)도 통째로 지우거나 옮기지 않는다(#746 · ADR-097 결정 3).
+ *   `.agents/` 는 `npx skills` 와도 공유한다.
  * - `anchor` — 하네스 앵커 파일. 소유 판정은 `templates.rootClaudeMd` 의 sha.
  * - `import-block` — 설치자 소유 파일 안의 마커 블록만. 파일은 절대 지우지 않는다.
  * - `keep` — 우리가 만들었을 수 있지만 **CLI 제거로는 건드리지 않는 자리**. 전 CLI 공유이고
  *   설치자 내용이 섞이거나(`.mcp.json`) 설치 기록 자체(`.uzys-agent-harness/`)다.
  */
-export type OwnedPathKind = "dir" | "recorded" | "anchor" | "import-block" | "keep";
+export type OwnedPathKind = "recorded" | "anchor" | "import-block" | "keep";
 
 export interface OwnedPath {
   /** projectDir 상대 경로. 디렉터리는 `/` 로 끝난다. */
@@ -53,19 +53,19 @@ const SHARED_BY_ALL = (self: CliBase): OwnedPath[] => [
 /** Epic #527 의 표 그대로. 자리를 옮기거나 더할 때 고치는 곳은 여기 하나다. */
 export const CLI_OWNERSHIP: Record<CliBase, ReadonlyArray<OwnedPath>> = {
   claude: [
-    { path: ".claude/", kind: "dir", sharedWith: [] },
+    { path: ".claude/", kind: "recorded", sharedWith: [] },
     { path: HARNESS_ANCHOR_FILE, kind: "anchor", sharedWith: [] },
     { path: "CLAUDE.md", kind: "import-block", sharedWith: [] },
     ...SHARED_BY_ALL("claude"),
   ],
   codex: [
-    { path: ".codex/", kind: "dir", sharedWith: [] },
+    { path: ".codex/", kind: "recorded", sharedWith: [] },
     { path: "AGENTS.md", kind: "recorded", sharedWith: ["opencode", "antigravity"] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["opencode", "antigravity"] },
     ...SHARED_BY_ALL("codex"),
   ],
   opencode: [
-    { path: ".opencode/", kind: "dir", sharedWith: [] },
+    { path: ".opencode/", kind: "recorded", sharedWith: [] },
     { path: "opencode.json", kind: "recorded", sharedWith: [] },
     { path: "AGENTS.md", kind: "recorded", sharedWith: ["codex", "antigravity"] },
     { path: ".agents/skills/", kind: "recorded", sharedWith: ["codex", "antigravity"] },

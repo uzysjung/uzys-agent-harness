@@ -5,7 +5,7 @@
  *   오류의 주어로 삼지 않는다.
  * - #617: --track 중복이 dedup 돼 기록·스펙에 한 번만 남는다(--cli 와 대칭).
  * - #607: uninstall --dry-run 계획에 설치 기록 제거 스텝이 있다(실행이 수행하는 마지막 단계).
- * - #626: --keep-templates 의 잔여 안내 헤더가 ".claude/ 밖" 을 참말로 만든다.
+ * - #626: (--keep-templates 가 v26.169.0 에서 없어져 그 헤더 변형도 없어졌다 — #746)
  */
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -88,13 +88,6 @@ describe("#607/#626 — uninstall 안내", () => {
     install();
     const lines = uninstall({ dryRun: true });
     expect(lines.join("\n")).toContain("remove install record");
-  });
-
-  it("#626 keep-templates 잔여 안내 헤더가 '밖' 을 말하지 않는다", () => {
-    install();
-    const lines = uninstall({ yes: true, keepTemplates: true });
-    expect(lines.join("\n")).not.toContain("`.claude/` 밖에 남는 것");
-    expect(lines.join("\n")).toMatch(/남는 것/);
   });
 
   it("기본 경로의 헤더는 그대로다(회귀 방지)", () => {

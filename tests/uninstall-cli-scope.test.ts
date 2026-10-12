@@ -365,7 +365,7 @@ describe("#528 uninstall --cli", () => {
     expect(has(".codex")).toBe(true);
   });
 
-  it("`--only` · `--keep-templates` 와는 조합할 수 없다", () => {
+  it("`--only` 와는 조합할 수 없다 · `--keep-templates` 는 없어진 플래그라 먼저 거절된다(#746)", () => {
     install(["claude", "codex"]);
 
     expect(removeCli("codex", { only: "openspec" }).code).toBe(1);
@@ -383,8 +383,9 @@ describe("#528 uninstall --cli", () => {
     const run = removeCli("codex", { dryRun: true });
 
     expect(run.code).toBe(0);
-    // 사용자 결정 2026-09-27 — CLI 디렉터리는 지우지 않고 옮겨 둔다(#533 리뷰 B3). 예고도 그 말을 한다.
-    expect(run.lines.join("\n")).toContain("move .codex/ aside");
+    // #746 — CLI 디렉터리를 통째로 다루지 않는다: 기록된 하네스 파일만 하나씩 지운다고 예고한다
+    expect(run.lines.join("\n")).toMatch(/○ remove \d+ harness file\(s\) under \.codex\//);
+    expect(run.lines.join("\n")).not.toContain("aside");
     expect(has(".codex")).toBe(true);
     expect(has("AGENTS.md")).toBe(true);
     expect(
@@ -409,8 +410,10 @@ describe("#528 uninstall --cli", () => {
     const preview = removeCli("codex", { dryRun: true });
     const run = removeCli("codex");
 
-    const previewed = /remove (\d+) CLI output file/.exec(preview.lines.join("\n"))?.[1];
-    const removed = /CLI outputs removed: (\d+) file/.exec(run.lines.join("\n"))?.[1];
+    const previewed = /remove (\d+) harness file\(s\) under \.agents\//.exec(
+      preview.lines.join("\n"),
+    )?.[1];
+    const removed = /removed {2}.*?\.agents\/ (\d+)/.exec(run.lines.join("\n"))?.[1];
     expect(previewed).toBeDefined();
     expect(previewed).toBe(removed);
     // 링크 자체는 양쪽 다 건드리지 않는다.

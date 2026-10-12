@@ -191,7 +191,7 @@ Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's sour
 
 `update` refreshes what the harness installed, adds what a newer release introduced, and puts back harness files that went missing — a hook script, a server in `.mcp.json`, a section of `AGENTS.md`. What you dropped on purpose with `--without` stays out. It never installs a tool you did not choose. `update --only skills` limits it to one group.
 
-In a terminal, `uninstall` offers three choices (one tool, selected assets, or everything), and `--dry-run` shows the plan first. When you remove everything, `.claude/`, `.codex/`, and `.opencode/` are not deleted but renamed to something like `.claude.backup-<time>`. Files you put in them move along, so take back what you need from the backup.
+In a terminal, `uninstall` offers three choices (one tool, selected assets, or everything), and `--dry-run` shows the plan first. When you remove everything, only the files the harness wrote are removed, one by one; your own files in `.claude/`, `.codex/` and `.opencode/` stay where they are, and a file of yours the harness had replaced is put back.
 
 **Safe on an existing project.** Before replacing a file you edited, the harness writes a timestamped backup next to it and prints the path. Nothing you wrote or edited is deleted without a backup beside it, and your existing `.mcp.json` servers are merged, not replaced ([installing into an existing project](docs/USAGE.md#installing-into-an-existing-project)).
 

@@ -13,6 +13,7 @@ import {
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -265,17 +266,21 @@ describe("uninstall — 첫 접촉 파일의 하네스 몫만 걷는다 (#551 R1
     );
   });
 
-  it("하네스가 만든 opencode.json 은 지금의 회수 그대로 — 설치자가 고쳤으면 통째로 남긴다(몫을 걷지 않는다)", () => {
+  it("하네스가 만든 opencode.json 을 설치자가 고쳤으면 하네스 몫만 걷고 설치자 키는 라이브 — 통째 삭제 · 백업 없음 (B1 #13 · #746)", () => {
     install(["opencode"]);
     const json = JSON.parse(read("opencode.json")) as Record<string, unknown>;
     put("opencode.json", JSON.stringify({ ...json, myKey: true }, null, 2));
-    const edited = read("opencode.json");
 
     const run = uninstall();
 
-    expect(read("opencode.json")).toBe(edited);
-    expect(run.lines.join("\n")).toContain("opencode.json kept — modified since install");
-    expect(run.lines.join("\n")).not.toContain("opencode.json — removed the harness part");
+    const after = JSON.parse(read("opencode.json")) as Record<string, unknown>;
+    expect(after.myKey).toBe(true);
+    expect(Object.keys((after.mcp as Record<string, unknown> | undefined) ?? {})).toEqual([]);
+    expect(run.lines.join("\n")).toContain("opencode.json — removed the harness part");
+    expect(run.lines.join("\n")).not.toContain("opencode.json kept");
+    expect(readdirSync(projectDir).filter((f) => f.startsWith("opencode.json.backup-"))).toEqual(
+      [],
+    );
   });
 
   it("AGENTS.md 가 CLAUDE.md 로의 링크여도 두 블록을 걷은 뒤 원본과 바이트 동일 (리뷰 NOTE-3)", () => {

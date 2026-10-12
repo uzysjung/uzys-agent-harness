@@ -12,8 +12,8 @@
  * 본 모듈은 **선택만** 한다 — 판정과 되돌리기는 기존 `uninstallAction` 이 그대로 한다. 세 모드가
  * 각각 기존 엔진 하나에 1:1 로 대응하므로 새로운 파괴적 조합이 생기지 않는다:
  *   CLI 하나   → `--cli <name>` (그 CLI 전용 자리 + 마지막 사용자가 된 공유 자리)
- *   선택 제거  → `--only <ids>` (templates 유지, 로그는 남은 자산으로 재기록)
- *   전량 제거  → 플래그 없음  (templates 포함 — `.claude/` · `.codex/` · `.opencode/` 는 백업으로 옮긴다)
+ *   선택 제거  → `--only <ids>` (하네스 파일 유지, 로그는 남은 자산으로 재기록)
+ *   전량 제거  → 플래그 없음  (하네스 파일은 하나씩 회수 — `.claude/` · `.codex/` · `.opencode/` 의 설치자 파일은 제자리)
  * 화면의 `disabled`(CLI 가 하나 · 자산이 0)는 미리보기일 뿐이다 — 마지막 CLI · 빈 목록 · 없는 id 의
  * 거절은 엔진 pre-flight 가 그대로 한다.
  */
@@ -145,23 +145,31 @@ export function buildUninstallModeChoices(
       label: "Remove selected assets",
       hint:
         assetCount > 0
-          ? `pick from the ${assetCount} external assets; templates (.claude/ etc.) stay`
+          ? `pick from the ${assetCount} external assets; harness files stay`
           : "no external assets recorded",
       enabled: assetCount > 0,
     },
     {
       value: "all",
       label: "Remove everything",
-      hint: "assets + templates + the install record — CLI folders (.claude/ · .codex/ · .opencode/, whichever exist) are moved aside as <dir>.backup-<time>",
+      hint: "assets + harness files + the install record — harness files are removed one by one; your own files in .claude/ · .codex/ · .opencode/ stay",
       enabled: true,
     },
   ];
 }
 
-/** 소유 표의 한 자리를 사람이 읽는 말로. CLI 디렉터리는 지우지 않고 옮긴다(사용자 결정 2026-09-27). */
+/** CLI 폴더 — 통째로 다루지 않는다. 그 아래 하네스 파일만 하나씩 회수하고 설치자 파일은 제자리에 둔다(#746). */
+const CLI_FOLDERS: ReadonlyArray<string> = [".claude/", ".codex/", ".opencode/"];
+const FOLDER_CLI: Readonly<Record<string, CliBase>> = {
+  ".claude/": "claude",
+  ".codex/": "codex",
+  ".opencode/": "opencode",
+};
+
+/** 소유 표의 한 자리를 사람이 읽는 말로. */
 function describeOwned(p: OwnedPath): string {
-  if (p.kind === "dir") {
-    return `${p.path} → moved aside as ${p.path.replace(/\/+$/, "")}.backup-<time> (your own files there stay in it)`;
+  if (CLI_FOLDERS.includes(p.path)) {
+    return `${p.path} harness files, one by one (your own files there stay)`;
   }
   if (p.kind === "import-block") return `the import block in ${p.path} (your text stays)`;
   if (p.path === "AGENTS.md") return "AGENTS.md harness sections (your ## Project Context stays)";
@@ -170,15 +178,15 @@ function describeOwned(p: OwnedPath): string {
 }
 
 /**
- * #692 — 옮기지 않고 남길 CLI 폴더 자리(프로젝트 밖으로 나가는 링크). 확인 **전에** 말한다 — 엔진
- * (`uninstall.ts` 의 폴더 옮기기)과 같은 판정(`outsideLinkAt`)을 쓴다.
+ * #692 — 건드리지 않고 남길 CLI 폴더 자리(프로젝트 밖으로 나가는 링크). 확인 **전에** 말한다 — 엔진
+ * (`uninstall.ts` 의 밖 링크 판정 · ADR-098)과 같은 판정(`outsideLinkAt`)을 쓴다.
  */
 function keptLinkLines(projectDir: string, dirs: ReadonlyArray<string>): string[] {
   return dirs.flatMap((d) => {
     const o = outsideLinkAt(projectDir, d.replace(/\/+$/, ""));
     return o
       ? [
-          `  · ${o.link} stays — the link points outside the project (${o.link} → ${o.linkTarget}); not moved, nothing behind it removed`,
+          `  · ${o.link} stays — the link points outside the project (${o.link} → ${o.linkTarget}); nothing behind it is removed`,
         ]
       : [];
   });
@@ -212,13 +220,15 @@ function removalSummary(cli: CliBase, installed: ReadonlyArray<CliBase>): string
   return lines;
 }
 
-/** 그 CLI 를 빼면 옮길 CLI 폴더 — 엔진과 같은 표(`removableFor`). */
+/** 그 CLI 를 빼면 하네스 파일을 회수할 CLI 폴더 — 엔진과 같은 표(`removableFor`). */
 function cliDirs(cli: CliBase, installed: ReadonlyArray<CliBase>): string[] {
   const { exclusive, sharedNowUnowned } = removableFor(
     cli,
     installed.filter((c) => c !== cli),
   );
-  return [...exclusive, ...sharedNowUnowned].filter((p) => p.kind === "dir").map((p) => p.path);
+  return [...exclusive, ...sharedNowUnowned]
+    .filter((p) => CLI_FOLDERS.includes(p.path))
+    .map((p) => p.path);
 }
 
 /** CLI 선택 화면의 행 — hint 는 그 CLI 를 빼면 무엇이 나가는지 한 줄. */
@@ -272,12 +282,10 @@ export async function runInteractiveUninstall(
       [
         "Remove everything? This is the same as: agent-harness uninstall --yes",
         `  · ${log.assets.length} recorded asset(s) — only those with an automatic reverse path are removed`,
-        "  · templates: CLI folders (.claude/ · .codex/ · .opencode/, whichever exist) are moved aside as <dir>.backup-<time> (your own files there stay in them)",
+        "  · harness files are removed one by one; your own files in .claude/ · .codex/ · .opencode/ stay (a file of yours the harness had replaced is put back)",
         ...keptLinkLines(
           projectDir,
-          [log.templates?.claudeDir, log.templates?.codexDir, log.templates?.opencodeDir].filter(
-            (d): d is string => typeof d === "string",
-          ),
+          CLI_FOLDERS.filter((d) => FOLDER_CLI[d] !== undefined && clis.includes(FOLDER_CLI[d])),
         ),
         "  · the install record goes too",
         "  · files outside (.mcp.json etc.) are not deleted — you get instructions instead",

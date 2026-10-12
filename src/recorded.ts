@@ -20,8 +20,9 @@
  * 필드 · 외부 CLI 자리 = `externalFiles` — 단위는 `scanFieldOf`)이 **아예 없을 때만**이다 — 기록이 있는데 경로가 없으면 하네스가
  * 쓴 적 없는 자리라 `none`(첫 접촉, #761 B3 · B-1 · B-2).
  *
- * 배선: `recorded()` 는 install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts`)와 update 의 대상
- * 선정(`update-mode.ts`)이, `kindOf` 는 uninstall 이, `excludedIds` 는 install · update · uninstall · list 가 부른다.
+ * 배선: `recorded()` 는 install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts`) · update 의 대상
+ * 선정(`update-mode.ts`) · uninstall 의 하네스 파일 회수(`commands/uninstall.ts` — #746)가, `kindOf` 는 uninstall 이,
+ * `excludedIds` 는 install · update · uninstall · list 가 부른다.
  */
 
 import { adapterFor } from "./adapters/index.js";

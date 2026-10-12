@@ -7,26 +7,17 @@
  *
  * | 함수 | 원본이 이후 어떻게 되나 | 그래서 링크를 |
  * |---|---|---|
- * | `backupDir` | 통째로 옮겨진다(rename) | **푼다는 개념이 없다** — 링크째 옮기면 원본이 그대로 보존된다 |
  * | `backupFile` | 링크를 따라 덮어써진다 | **푼다** — 실체 내용을 떠 놔야 지켜진다 |
  *
  * 그래서 여기서 무는 것은 "죽지 않는다"가 아니라 **"백업을 만든 뒤 원본을 덮어써도 백업 내용이
  * 그대로다"** — 백업의 존재 이유 자체다.
  */
 
-import {
-  lstatSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { backupDir, backupFile } from "../src/fs-ops.js";
+import { backupFile } from "../src/fs-ops.js";
 
 const FIXED = new Date(Date.UTC(2026, 6, 26, 12, 34, 56));
 
@@ -38,22 +29,6 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
-});
-
-describe("backupDir — 링크는 링크째 옮긴다", () => {
-  it("target 이 링크면 백업 자리에 링크가 가고, 가리키던 내용은 건드려지지 않는다", () => {
-    const store = join(root, "dotfiles", "claude");
-    mkdirSync(store, { recursive: true });
-    writeFileSync(join(store, "keep.md"), "사용자 저장소");
-    const claude = join(root, ".claude");
-    symlinkSync(store, claude, "dir");
-
-    const backup = backupDir(claude, FIXED);
-
-    // 실체를 복사해 버리면 재설치 후 사용자의 링크 구성이 사라진다 — rename 은 그럴 이유가 없다.
-    expect(lstatSync(`${backup}`).isSymbolicLink()).toBe(true);
-    expect(readFileSync(join(store, "keep.md"), "utf8")).toBe("사용자 저장소");
-  });
 });
 
 describe("backupFile — 링크 파일은 실체 내용으로 뜬다", () => {

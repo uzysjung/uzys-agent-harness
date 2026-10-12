@@ -120,8 +120,8 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
       // 몫만 걷은 빈 파일을 남긴다
       expect(uninstall().code).toBe(0);
       expect(existsSync(join(projectDir, ".mcp.json"))).toBe(false);
-      // 이번엔 codex 까지 깔린 설치라 지금의 uninstall 은 `.codex/` 를 통째로 옮겨 둔다(#686 의 동작 — 이 이슈 밖).
-      // 설치자 줄은 그 백업 안에 산다: 잃지 않았다
+      // 이번엔 codex 까지 깔린 설치다 — uninstall 은 `.codex/config.toml` 의 하네스 몫만 걷고(#746) 설치자 줄은 제자리에
+      // 남는다: 잃지 않았다
       const kept = readdirSync(projectDir)
         .filter((n) => n.startsWith(".codex"))
         .map((d) => readFileSync(join(projectDir, d, "config.toml"), "utf8"));

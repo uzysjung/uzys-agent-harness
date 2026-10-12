@@ -25,8 +25,8 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 
 /**
  * #692 — 설치자가 `.claude` · `.codex` · `.opencode` 를 프로젝트 밖(dotfiles 등)으로 링크해 두었으면 uninstall 은
- * 그 링크를 `<dir>.backup-<ts>` 로 옮기지 않는다. 옮기면 프로젝트에서 링크가 사라져 그 CLI 가 공유 설정을 못 읽는다.
- * 링크도 그 아래도 그대로 두고, 확인 전 화면과 결과 화면이 "남김 + 링크 → 대상" 을 말한다(ADR-098 과 같은 판정).
+ * 그 링크 너머를 건드리지 않는다. 링크도 그 아래도 그대로 두고, 확인 전 화면과 결과 화면이 "남김 + 링크 → 대상" 을
+ * 말한다(ADR-098 과 같은 판정). #746 뒤로는 CLI 폴더를 통째로 옮기지 않으므로 판정 단위가 "회수할 기록 경로의 실체" 다.
  */
 describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 옮기지 않는다 (#692)", () => {
   let projectDir = "";
@@ -114,8 +114,9 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     );
     // 폴더 줄 하나로 말한다 — 그 아래 파일마다 "kept" 를 다시 늘어놓지 않는다.
     expect(out.text).not.toMatch(/\.codex\/\S* kept/);
-    // 일반 폴더는 그대로 옮겨진다.
-    expect(backups(".claude")).toHaveLength(1);
+    // 일반 폴더는 하네스 파일만 하나씩 회수된다 — 설치자 파일이 없으면 비어 걷힌다(옮기지 않는다, #746)
+    expect(backups(".claude")).toEqual([]);
+    expect(existsSync(join(projectDir, ".claude"))).toBe(false);
   });
 
   it("--dry-run(전량) — 계획 화면이 같은 줄을 말하고 옮기겠다고 하지 않는다", () => {
@@ -127,8 +128,9 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(out.text).toContain(
       `⊘ .codex — left as is: the link points outside the project (.codex → ${target})`,
     );
-    expect(out.text).not.toContain("move .codex/ aside");
-    expect(out.text).toContain("move .claude/ aside");
+    expect(out.text).not.toContain("aside");
+    expect(out.text).not.toMatch(/○ remove \d+ harness file\(s\) under \.codex\//);
+    expect(out.text).toMatch(/○ remove \d+ harness file\(s\) under \.claude\//);
   });
 
   it.each([
@@ -194,40 +196,28 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
   it.each([
     ["실행", false],
     ["--dry-run", true],
-  ] as const)("--keep-templates(%s) — [LEFT] 가 밖 링크 너머 파일을 '삭제해도 안전'으로 나열하지 않고 남김 + 링크 → 대상을 말한다 (#694)", (_l, dryRun) => {
+  ] as const)("전량 uninstall(%s) — 밖 링크 `.claude` 너머 파일을 '삭제해도 안전'으로 나열하지 않고 남김 + 링크 → 대상을 말한다 (#694 · #746)", (_l, dryRun) => {
     install(["claude"]);
     const target = linkOutside(".claude");
     const before = snapshot(target);
 
-    const out = run({ keepTemplates: true, yes: true, dryRun });
+    const out = run({ yes: true, dryRun });
 
     expect(out.code).toBe(0);
     expectLinkKept(".claude", target);
     expect(snapshot(target)).toEqual(before);
-    const left = out.text.slice(out.text.indexOf("[LEFT]"));
-    expect(left).toContain(
+    expect(out.text).toContain(
       `.claude — left as is: the link points outside the project (.claude → ${target})`,
     );
-    expect(left).toContain(".claude/settings.json");
     // 밖 파일 어느 것도 "삭제해도 안전" 줄로 나오지 않는다 — 공유 dotfiles 면 다른 프로젝트의 설정이다.
     expect(out.text).not.toMatch(
       /\.claude\/\S* — 하네스가 생성 \(수정한 적 없으면 삭제해도 안전\)/,
     );
+    // 밖이라 지우지 않는 것을 "설치자 파일이 남는다" 로 다시 세지 않는다
+    expect(out.text).not.toContain("left  .claude/");
   });
 
-  it("회귀 — --keep-templates 에서 프로젝트 **안**의 `.claude/` 파일은 지금처럼 '삭제해도 안전'으로 나열한다", () => {
-    install(["claude"]);
-
-    const out = run({ keepTemplates: true, yes: true });
-
-    expect(out.code).toBe(0);
-    expect(out.text).toContain(
-      "· .claude/settings.json — 하네스가 생성 (수정한 적 없으면 삭제해도 안전)",
-    );
-    expect(out.text).not.toContain("left as is");
-  });
-
-  it("회귀 — 프로젝트 **안**을 가리키는 `.codex` 링크는 지금처럼 옮긴다", () => {
+  it("회귀 — 프로젝트 **안**을 가리키는 `.codex` 링크는 따라가 파일 단위로 회수하고 링크는 남는다 (#746)", () => {
     install(["claude", "codex"]);
     renameSync(join(projectDir, ".codex"), join(projectDir, "shared-codex"));
     symlinkSync("shared-codex", join(projectDir, ".codex"));
@@ -235,10 +225,11 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     const out = run({ yes: true });
 
     expect(out.code).toBe(0);
-    expect(existsSync(join(projectDir, ".codex"))).toBe(false);
-    const [backup] = backups(".codex");
-    if (!backup) throw new Error("안을 가리키는 링크가 옮겨지지 않았다");
-    expect(readlinkSync(join(projectDir, backup))).toBe("shared-codex");
+    expect(lstatSync(join(projectDir, ".codex")).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(join(projectDir, ".codex"))).toBe("shared-codex");
+    // 하네스가 쓴 것(config.toml · hooks/)은 실체에서 회수됐다
+    expect(readdirSync(join(projectDir, "shared-codex"))).toEqual([]);
+    expect(backups(".codex")).toEqual([]);
     expect(out.text).not.toContain("left as is");
   });
 

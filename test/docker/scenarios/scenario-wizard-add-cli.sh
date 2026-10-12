@@ -15,8 +15,8 @@
 #   ③ 화면에 Claude Code `● installed` 와 `RUNS AS agent-harness install --track tooling --cli claude --cli opencode`
 #   ④ 새 릴리즈 자산 모사(.claude/rules/git-policy.md 삭제) → `agent-harness update` 가 되살린다
 #      (Claude 자산이 여전히 갱신 대상이다)
-#   ⑤ `uninstall --cli claude` 는 `.claude/` 를 지우지 않고 `.claude.backup-*` 로 옮긴다 — 설치자 파일 보존
-#      (사용자 결정 2026-09-27)
+#   ⑤ `uninstall --cli claude` 는 `.claude/` 를 통째로 옮기지 않고 하네스 파일만 하나씩 지운다 — 설치자 파일
+#      (`settings.local.json`)은 바이트 그대로 제자리 · `.claude.backup-*` 0 · 화면이 남긴 파일을 이름으로 말한다(#746)
 #   ⑤-b Claude 를 뺀 뒤에도 `agent-harness update` 가 돈다 — 남은 OpenCode 자산을 갱신하고, 방금 뺀
 #      Claude 를 다시 깔라고 하지 않으며 `.claude/` 를 되살리지 않는다(#533 리뷰 B1)
 #   ⑥ 대조군 — 남은 opencode 를 `--cli` 로 빼는 것은 거절된다(마지막 CLI)
@@ -160,7 +160,7 @@ if [[ ! -f "${PROJ}/.claude/rules/git-policy.md" ]]; then
 fi
 echo "✓ ④ update 가 .claude/rules/git-policy.md 를 되살린다"
 
-# --- ⑤ uninstall --cli claude — .claude/ 는 백업으로 옮긴다 ---
+# --- ⑤ uninstall --cli claude — 하네스 파일만 하나씩, 설치자 파일은 제자리 (#746) ---
 MINE='{ "permissions": { "allow": ["Bash(make build)"] } }'
 printf '%s\n' "${MINE}" > "${PROJ}/.claude/settings.local.json"
 set +e
@@ -172,28 +172,34 @@ if [[ "${RC}" -ne 0 ]]; then
   tail -30 "${WORK}/uninstall-claude.txt"
   exit 1
 fi
-if [[ -e "${PROJ}/.claude" ]]; then
-  echo "FAIL: uninstall --cli claude 뒤에도 .claude/ 가 남았다"
+if ! grep -qxF "${MINE}" "${PROJ}/.claude/settings.local.json"; then
+  echo "FAIL: 설치자 파일(.claude/settings.local.json)이 제자리에 바이트 그대로 있지 않다"
   exit 1
 fi
-# 백업 자리는 uninstall 이 화면에 말한 것을 읽는다 — 앞의 update 도 `.claude.backup-*` 사본을 남기므로
-# 디렉터리 이름으로 고르면 엉뚱한 백업을 볼 수 있다.
-BACKUP_NAME=$(sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "${WORK}/uninstall-claude.txt" | grep -oE 'moved aside → \.claude\.backup-[^ ]+' | head -1 | sed 's/^moved aside → //')
-BACKUP="${PROJ}/${BACKUP_NAME}"
-if [[ -z "${BACKUP_NAME}" ]]; then
-  echo "FAIL: uninstall --cli claude 가 백업 자리를 말하지 않았다"
+LEFT_FILES=$(cd "${PROJ}/.claude" && find . \( -type f -o -type l \) | sed 's|^\./||' | sort | tr '\n' ' ')
+if [[ "${LEFT_FILES}" != "settings.local.json " ]]; then
+  echo "FAIL: .claude/ 에 하네스 파일이 남았다 — 설치자 파일만 남아야 한다: ${LEFT_FILES}"
+  exit 1
+fi
+if ls -d "${PROJ}"/.claude.backup-* >/dev/null 2>&1; then
+  echo "FAIL: uninstall --cli claude 가 .claude.backup-* 폴더를 만들었다 — 폴더 단위 이동은 없어야 한다 (#746)"
+  exit 1
+fi
+SCREEN=$(sed 's/\x1b\[[0-9;?]*[a-zA-Z]//g' "${WORK}/uninstall-claude.txt")
+if ! grep -qF "left  .claude/ — 1 file(s) of yours: settings.local.json" <<<"${SCREEN}"; then
+  echo "FAIL: 화면이 남긴 설치자 파일을 이름으로 말하지 않았다"
   tail -20 "${WORK}/uninstall-claude.txt"
   exit 1
 fi
-if ! grep -qF "${MINE}" "${BACKUP}/settings.local.json"; then
-  echo "FAIL: .claude.backup-* 안에 설치자 파일(settings.local.json)이 없다 — 백업 없이 사라졌다"
+if grep -qF "moved aside" <<<"${SCREEN}"; then
+  echo "FAIL: 화면이 폴더를 옮겼다고 말한다"
   exit 1
 fi
 if [[ ! -e "${PROJ}/opencode.json" || ! -e "${PROJ}/AGENTS.md" ]]; then
   echo "FAIL: claude 를 뺐는데 OpenCode 산출물(opencode.json · AGENTS.md)이 사라졌다"
   exit 1
 fi
-echo "✓ ⑤ uninstall --cli claude — .claude/ → $(basename "${BACKUP}") (settings.local.json 보존) · opencode.json 유지"
+echo "✓ ⑤ uninstall --cli claude — 하네스 파일만 회수 · settings.local.json 제자리 · .claude.backup-* 0 · opencode.json 유지"
 
 # --- ⑤-b Claude 를 뺀 뒤 update (리뷰 B1) ---
 # 남은 CLI(OpenCode)의 공유 스킬 본문을 옛 판으로 흉내 낸다 — update 가 그것을 최신판으로 되돌리면
@@ -218,11 +224,12 @@ if grep -qF "stale copy from an older release" "${SHARED_SKILL}"; then
   echo "FAIL: update 가 남은 OpenCode 의 공유 스킬(.agents/skills)을 갱신하지 않았다"
   exit 1
 fi
-if [[ -e "${PROJ}/.claude" ]]; then
-  echo "FAIL: update 가 방금 뺀 Claude 의 .claude/ 를 되살렸다"
+LEFT_AFTER=$(cd "${PROJ}/.claude" && find . \( -type f -o -type l \) | sed 's|^\./||' | sort | tr '\n' ' ')
+if [[ "${LEFT_AFTER}" != "settings.local.json " ]]; then
+  echo "FAIL: update 가 방금 뺀 Claude 의 하네스 파일을 .claude/ 에 되살렸다: ${LEFT_AFTER}"
   exit 1
 fi
-echo "✓ ⑤-b Claude 를 뺀 뒤 update exit 0 — OpenCode 공유 스킬 갱신 · 재설치 권유 없음 · .claude/ 미생성"
+echo "✓ ⑤-b Claude 를 뺀 뒤 update exit 0 — OpenCode 공유 스킬 갱신 · 재설치 권유 없음 · .claude/ 에 하네스 파일 미생성"
 
 # --- ⑥ 대조군 — 마지막 CLI 는 거절 ---
 set +e

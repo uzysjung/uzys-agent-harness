@@ -5,8 +5,6 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
-  rmdirSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
@@ -104,25 +102,6 @@ function claimBackupPath(base: string, claim: (candidate: string) => void): stri
 }
 
 /**
- * Move an existing directory to a timestamped backup sibling.
- * Returns the backup path, or null when nothing to back up.
- */
-export function backupDir(target: string, now: Date = new Date()): string | null {
-  if (!existsSync(target)) {
-    return null;
-  }
-  const backup = claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) => mkdirSync(c));
-  // 선점은 빈 디렉터리로 해 두고, 옮기기 직전에 치운다. 존재하는 디렉터리로의 rename 은
-  // POSIX 에선 (비어 있으면) 통하지만 Windows 는 거부하므로 양쪽 다 되게 rmdir 을 먼저 한다.
-  rmdirSync(backup);
-  // 심볼릭 링크는 **풀지 않는다**. rename 은 옮기는 것이라 target 이 링크면 링크가 통째로
-  // 백업 자리로 가고, 재설치는 빈 자리에 새 실체 디렉터리를 만든다 — 링크도 링크가 가리키던
-  // 내용도 그대로 남는다.
-  renameSync(target, backup);
-  return backup;
-}
-
-/**
  * 기존 파일을 timestamp 백업본으로 복사하고 그 경로를 반환한다. **판정은 호출자 몫.**
  *
  * 판정을 여기 두지 않는 이유는 술어가 "새 내용과 다른가"가 아니기 때문이다 — update 의 스킬
@@ -177,16 +156,21 @@ function formatStamp(now: Date): string {
 }
 
 /** Create a project skeleton: <project>/.claude/{commands/uzys,rules,skills,agents,hooks}. */
+/**
+ * install 이 기록 없이 만드는 빈 뼈대 — uninstall 은 같은 목록을 빈 디렉터리 걷기의 시작점으로 쓴다(#746 · 설계 §2.3 #8 ⓑ).
+ * 비어 있을 때만 걷힌다 — 설치자가 무엇이든 넣었으면 남는다.
+ */
+export const PROJECT_SKELETON_DIRS: ReadonlyArray<string> = [
+  ".claude/commands/uzys",
+  ".claude/rules",
+  ".claude/skills",
+  ".claude/agents",
+  ".claude/hooks",
+  "docs/decisions",
+];
+
 export function ensureProjectSkeleton(projectDir: string): void {
-  const dirs = [
-    ".claude/commands/uzys",
-    ".claude/rules",
-    ".claude/skills",
-    ".claude/agents",
-    ".claude/hooks",
-    "docs/decisions",
-  ];
-  for (const d of dirs) {
+  for (const d of PROJECT_SKELETON_DIRS) {
     // ADR-098 — 실체가 프로젝트 밖(예: `.claude` → dotfiles)이면 빈 폴더도 만들지 않는다.
     if (outsideProjectTarget(projectDir, join(projectDir, d)) !== null) continue;
     mkdirSync(join(projectDir, d), { recursive: true });
