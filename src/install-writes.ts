@@ -84,6 +84,12 @@ export interface SharedWrite {
   removedOut: string[];
   /** `removedOut` 중 설치자가 고친 값이었는데도 걷은 것(훅 핸들러 — 스크립트 참조라 남기면 죽은 참조, N-f). */
   removedEdited: string[];
+  /**
+   * #800 — 고친 하네스 몫을 걷기 전에 만든 이 파일의 백업 1개 — project 상대(화면) · 절대(`backups` 와 짝). 고친 것을 걷지
+   * 않았으면 없다.
+   */
+  backup?: string;
+  backupAbs?: string;
   /** 설치자가 뺐지만 고쳐 둬서 남긴 키 — 키 id. 하네스는 더 관리하지 않는다. `kept` 와 겹치지 않는다. */
   keptOut: string[];
   /**
@@ -326,7 +332,14 @@ export function createInstallWriter(args: {
     if (disk === null && ![...res.portions.keys()].some((k) => !isContainerKey(k))) {
       return result("leave", "");
     }
+    let backupAbs: string | undefined;
     if (res.changed) {
+      // #800 — 고친 하네스 몫(훅 핸들러 — 남기면 사라진 스크립트를 부른다, N-f)을 걷을 때는 하네스 파일과 같은 규칙: 쓰기 전에
+      // 그 파일 하나를 백업한다. 고치지 않은 몫만 걷으면 잃을 것이 없어 백업하지 않는다
+      if (disk !== null && res.removedEdited.length > 0) {
+        backupAbs = backupFile(abs, now);
+        backups.push(backupAbs);
+      }
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, res.text);
     }
@@ -352,7 +365,8 @@ export function createInstallWriter(args: {
     // 설치자가 뺀 키 — 걷은 것 · 고쳐 둬서 남긴 것을 따로 말한다(리뷰 #693 NOTE-2)
     const out = excludedKeys(path, excluded);
     const removedOut = res.removed.filter((k) => out.has(k));
-    const removedEdited = res.removedEdited.filter((k) => out.has(k));
+    // #800 — 고친 몫을 걷었으면 뺀 키든 은퇴한 배선이든 같다 — 백업에 있다고 말한다
+    const removedEdited = res.removedEdited;
     const keptOut = res.kept.filter((k) => out.has(k));
     // 걷기만 한 실행은 "썼다" 고 하지 않는다. 고친 값까지 걷었으면 "yours stays" 라 하지 않는다
     const onlyRemoved =
@@ -373,6 +387,7 @@ export function createInstallWriter(args: {
     const retired = names(res.removed.filter((k) => !out.has(k) && !render.has(k)));
     const replaced = names(res.replaced);
     return result(j.verdict, line, {
+      ...(backupAbs === undefined ? {} : { backup: rel(backupAbs), backupAbs }),
       ...(retired.length > 0 ? { retired } : {}),
       ...(replaced.length > 0 ? { replaced } : {}),
       changed: res.changed,

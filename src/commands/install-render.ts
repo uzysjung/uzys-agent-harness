@@ -1477,6 +1477,10 @@ function renderPhase1Rows(
     if (j.backupAbs !== undefined) judgedBackups.add(j.backupAbs);
     log(judgedRow(j));
   }
+  // #800 — 함께 쓰는 파일의 줄이 백업 자리를 이미 댄다(`excludedKeyParts`)
+  for (const f of baseline.shared ?? []) {
+    if (f.backupAbs !== undefined && f.removedEdited.length > 0) judgedBackups.add(f.backupAbs);
+  }
   // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리(링크 하나에 한 줄).
   for (const row of outsideLinkRows(baseline.outsideLinks ?? [])) log(row);
   // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다(백업 경로는 그 줄이 댄다)
@@ -1843,6 +1847,8 @@ export function excludedKeyParts(f: {
   removedOut: ReadonlyArray<string>;
   removedEdited: ReadonlyArray<string>;
   keptOut: ReadonlyArray<string>;
+  /** #800 — 고친 몫을 걷기 전에 만든 그 파일의 백업(project 상대). */
+  backup?: string;
 }): string[] {
   const parts: string[] = [];
   if (f.removedOut.length > 0) {
@@ -1850,8 +1856,9 @@ export function excludedKeyParts(f: {
     parts.push(`removed the harness part: ${f.removedOut.join(", ")} (you asked: ${asked})`);
   }
   if (f.removedEdited.length > 0) {
+    const where = f.backup === undefined ? "went with it" : `are in the copy: ${f.backup}`;
     parts.push(
-      `your edits to ${f.removedEdited.join(", ")} went with it (a hook entry calls a harness script — left alone it would call a script that is no longer wired)`,
+      `your edits to ${f.removedEdited.join(", ")} ${where} (a hook entry calls a harness script — left alone it would call a script that is no longer wired)`,
     );
   }
   if (f.keptOut.length > 0) {
