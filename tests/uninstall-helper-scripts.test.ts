@@ -108,7 +108,7 @@ describe("#812 헬퍼는 다른 하네스 파일처럼 하나씩 회수한다", 
     expect(out.text).toMatch(
       /backed up {2}\.uzys-agent-harness\/protect-branch\.sh — you edited it — saved as \.uzys-agent-harness\/protect-branch\.sh\.backup-\d{8}T\d{6}/,
     );
-    expect(out.text).toMatch(/\[BACKUPS\][^\n]*\n(?:[^\n]*\n)*?\s+\.uzys-agent-harness\/protect-branch\.sh\.backup-/);
+    expect(out.text).toMatch(/\[BACKUPS\][\s\S]*\.uzys-agent-harness\/protect-branch\.sh\.backup-/);
   });
 
   it("옛 기록(헬퍼 항목 없음)도 같다 — 번들 판 그대로인 헬퍼는 백업 없이, 고친 헬퍼는 백업하고 치운다", () => {

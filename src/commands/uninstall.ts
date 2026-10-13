@@ -609,7 +609,10 @@ function settleLog(
     if (outsideLinkAt(projectDir, INSTALL_LOG_DIR) !== null) io.rm(recordDir);
     else {
       // 런타임 파일 = `.gitignore` 가 무시하는 그 둘(차단 로그 · update 백업 목록 — ADR-100)
-      for (const rel of [`${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`, ...HARNESS_RUNTIME_IGNORES]) {
+      for (const rel of [
+        `${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`,
+        ...HARNESS_RUNTIME_IGNORES,
+      ]) {
         io.rm(join(projectDir, rel));
       }
       pruneEmptyDirsUpward(projectDir, recordDir);
@@ -646,7 +649,9 @@ function dryRunLines(
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
   // #812 — 헬퍼 스크립트는 위 하네스 파일 줄이 센다(고친 것은 백업) — 여기는 기록 · 런타임 파일뿐이다
-  lines.push("  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)");
+  lines.push(
+    "  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)",
+  );
   lines.push(
     ...plan.noReversePath.flatMap((a) => [
       c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
