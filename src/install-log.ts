@@ -585,25 +585,6 @@ export function hashContent(content: string): string {
 }
 
 /**
- * 디스크 내용이 하네스가 놓아둔 것 그대로인가 (v26.133.0 · ADR-048).
- *
- * **기록이 없으면 소유를 주장할 수 없다 → false.** 이 기본값이 뒤집히면 사용자 파일을
- * 하네스 것으로 오인해 백업 없이 밀거나 지운다.
- *
- * 판정식이 세 곳(install · update · 외부 CLI transform)에서 각자 살면 한 곳만 고쳐졌을 때
- * 조용히 갈린다 — 소유 판정은 사용자 파일 삭제 여부를 가르므로 갈리면 피해가 크다.
- * 그래서 술어는 여기 하나만 둔다 (`no-false-ship.md` §Drift 구조 차단).
- */
-export function isHarnessOwned(
-  baseline: ReadonlyMap<string, string>,
-  key: string,
-  current: string,
-): boolean {
-  const recorded = baseline.get(key);
-  return recorded !== undefined && recorded === hashContent(current);
-}
-
-/**
  * 외부 CLI 기준선 누적 (v26.133.0 · ADR-048).
  *
  * 이번 실행이 안 건드린 산출물(예: 지난번엔 opencode 도 깔았는데 이번엔 codex 만)은 디스크에

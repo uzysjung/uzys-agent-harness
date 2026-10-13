@@ -5,7 +5,8 @@
  * 함수의 반환값을 실행한다 — 행동 하나 · 화면 한 줄 · 기록에 할 일 하나. **설계 §1.2 의 표가 SSOT 이고
  * 이 파일은 그 표를 옮긴 것이다**(`tests/judge.test.ts` 가 행마다 대조한다). 표와 코드가 갈리면 표가 이긴다.
  *
- * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter`)와 함께 쓰는
+ * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter` · 외부 CLI 산출물은
+ * `owned-write.ts` `createOwnedWriter` — #797)와 함께 쓰는
  * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함), update 의 `.claude/` 정책·스킬
  * 갱신(#761 · #796 부터 같은 writer — `update-mode.ts` `updateHarnessFiles`), uninstall(전량 · `--cli`)의 하네스 파일 · 앵커 회수
  * (`commands/uninstall.ts` `removeHarnessFiles` — #746 · #761)가 부른다. `judgeDisplaced` 되돌리기는 `displaced.ts` 하나가
