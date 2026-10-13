@@ -126,3 +126,7 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
   #560 은 이 결정으로 닫힌다.
 - 측정: 다음 탐색 테스트(같은 프로토콜)에서 "같은 파일 · 다른 규칙" 발견 수 = 0 이 목표. 지금은 18.
 - `.codex/config.toml` 판정에 `smol-toml`(의존성 0 · BSD-3)을 번들한다 — 런타임 의존성 2 → 3.
+- 판정 표에 `harness · no-sha · 디스크 없음` 행을 더했다(#796 PR-0, Minor CR) — `create`, update 문구는 "wrote (new in this release)".
+  sha 칸("was missing — restored")에 접혀 있던 자리다. 같은 PR 에서 "기록이 그 자리를 다 적었나"(`scanFieldOf`)를 스킬은 폴더 단위로
+  읽고 은퇴 경로 항목은 세지 않는다 — 옛 스캔 로그 + 항목 없는 번들 스킬 폴더 한 장면에서 install · uninstall 판정이 첫 접촉에서
+  `no-sha`(1회 백업)로 바뀐다(설계 `docs/plans/796-one-writer-design.md` 검증 반영 N2).

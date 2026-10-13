@@ -126,6 +126,7 @@ type Verdict = "create" | "overwrite" | "backup+overwrite" | "leave" | "leave+ad
 | harness | none | 있음 | 다르다 | — | `backup+overwrite`(결정 7 확정 — 최신판이 자리를 잡는다), 문구 "had a file with this name — saved as <file>.backup-<ts>"(편집이라 부르지 않는다); 백업 경로를 `rootFiles.change = displaced` 로 기록 | (uninstall 은 `displaced` 기록이 있는 자리를 하네스 파일 제거 뒤 **제자리로 되돌린다** — 하네스는 그 자리를 빌렸을 뿐이다, R3. 백업이 이미 없으면 그 사실을 말한다) |
 | harness | no-sha | 있음 | 같다 | — | `leave`, 기록에 sha 추가 | `remove`(내용이 하네스 것 그대로) |
 | harness | no-sha | 있음 | 다르다 | — | `backup+overwrite`, 문구 "no checksum on record — saved a copy once"(#557, 편집이라 부르지 않는다) | `backup+remove` |
+| harness | no-sha | 없음 | — | — | `create` · 문구 install "wrote" · update "wrote (new in this release)" — 파일별 기록이 없던 옛 판의 부재는 되살림의 근거가 아니다(ADR-096 D6 · #796 설계 §5.6) | 기록만 정리(`keep`) |
 | harness | sha | 없음 | — | — | install: `create` · update: `create` 를 "was missing — restored" 로(`excluded` 면 `leave`) | 기록만 정리 |
 | harness | sha | 있음 | 같다 | — | `leave` | `remove` |
 | harness | sha | 있음 | 다르다 | 같다 | `overwrite`(조용히) | `remove` |

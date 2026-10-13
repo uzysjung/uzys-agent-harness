@@ -41,9 +41,11 @@ interface Row {
   next?: string | null;
   verdict: Verdict;
   record?: RecordEffect;
+  /** 같은 칸 안에서 문구만 갈리는 행(install · update)에서 단언한다. */
+  line?: string;
 }
 
-/** §1.2 표 — harness(와 파일 단위 tool) 9행 × op 2열. */
+/** §1.2 표 — harness(와 파일 단위 tool) 10행 × op 2열. */
 const HARNESS: Row[] = [
   // none · 없음 → write: create · remove: (할 것 없음)
   {
@@ -139,6 +141,39 @@ const HARNESS: Row[] = [
     op: "remove",
     verdict: "backup+remove",
     record: "forget",
+  },
+  // no-sha · 없음 → write: create(install "wrote" · update "new in this release" — 열거하지 못하는 기록의 부재는 되살림의
+  // 근거가 아니다, #796 설계 §5.6) · remove: 기록만 정리(keep)
+  {
+    row: "no-sha/없음",
+    kind: "harness",
+    rec: NO_SHA,
+    disk: null,
+    op: "write",
+    run: "install",
+    verdict: "create",
+    record: "sha",
+    line: LINES.wrote,
+  },
+  {
+    row: "no-sha/없음",
+    kind: "harness",
+    rec: NO_SHA,
+    disk: null,
+    op: "write",
+    run: "update",
+    verdict: "create",
+    record: "sha",
+    line: LINES.newInRelease,
+  },
+  {
+    row: "no-sha/없음",
+    kind: "harness",
+    rec: NO_SHA,
+    disk: null,
+    op: "remove",
+    verdict: "leave",
+    record: "keep",
   },
   // sha · 없음 → install: create · update: create(restored) · excluded 면 leave · remove: 기록만 정리
   {
@@ -258,6 +293,7 @@ describe("judge — harness 파일(설계 §1.2 표)", () => {
     const got = run(r);
     expect(got.verdict).toBe(r.verdict);
     if (r.record) expect(got.record).toBe(r.record);
+    if (r.line !== undefined) expect(got.line).toBe(r.line);
   });
 
   it("tool 파일은 파일 단위로 같은 규칙이다 — 도구 실행 전 기록 sha 와 다른 기록 파일만 백업(N5)", () => {

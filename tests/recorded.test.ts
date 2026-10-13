@@ -146,11 +146,32 @@ describe("recorded — 기록 있음 · sha 없음(#557 · A8)", () => {
     expect(recorded(l, GIT_POLICY)).toEqual({ state: "no-sha" });
   });
 
-  it("스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles)", () => {
+  // #796 설계 §3.3 · §1.2 ⑧ — 스킬은 폴더 단위로 "다 적었다" 를 읽는다. 다른 스킬만 든 skillFiles(부분 기록)는 이 스킬의 기록이
+  // 아니다 — 읽으면 다음 update 가 옛 하네스 스킬을 첫 접촉으로 백업·displaced 하고 uninstall 이 옛 하네스 바이트를 되돌린다
+  it("스킬은 폴더 단위 — 같은 스킬의 다른 파일만 적혔으면 none · 다른 스킬 항목만이면 no-sha", () => {
     const skill = ".claude/skills/north-star/SKILL.md";
     expect(recorded(log(), skill)).toEqual({ state: "no-sha" }); // 대조군 — 필드 없음
-    const l = log({ skillFiles: [{ path: "spec-scaling/SKILL.md", sha256: "x" }] });
-    expect(recorded(l, skill)).toEqual({ state: "none" });
+    const sameSkill = log({
+      skillFiles: [{ path: "north-star/references/roadmap-method.md", sha256: "x" }],
+    });
+    expect(recorded(sameSkill, skill)).toEqual({ state: "none" });
+    const otherSkill = log({ skillFiles: [{ path: "spec-scaling/SKILL.md", sha256: "x" }] });
+    expect(recorded(otherSkill, skill)).toEqual({ state: "no-sha" });
+  });
+
+  // #796 BLOCKER-1 — 은퇴 경로 항목(옛 스캔 · `retiredClaims` 가 이어 적은 것)은 그 디렉터리를 훑은 기록이 아니다. `--only hooks`
+  // 가 `rules/nextjs.md` 하나를 이어 적은 policyFiles 가 하네스 룰 전부를 첫 접촉으로 뒤집으면 안 된다
+  it("BLOCKER-1 — 은퇴 경로 항목만 든 policyFiles 는 그 디렉터리의 기록이 아니다 — no-sha", () => {
+    const claimOnly = log({ policyFiles: [{ path: "rules/nextjs.md", sha256: "x" }] });
+    expect(recorded(claimOnly, GIT_POLICY)).toEqual({ state: "no-sha" });
+    // 대조군 — 같은 디렉터리의 은퇴 아닌 항목이 있으면 다 훑은 기록이다
+    const scanned = log({
+      policyFiles: [
+        { path: "rules/nextjs.md", sha256: "x" },
+        { path: "rules/test-policy.md", sha256: "y" },
+      ],
+    });
+    expect(recorded(scanned, GIT_POLICY)).toEqual({ state: "none" });
   });
 
   it("스캔 범위 밖(.installed-tracks)은 필드가 있어도 isTarget 으로 no-sha(A8)", () => {

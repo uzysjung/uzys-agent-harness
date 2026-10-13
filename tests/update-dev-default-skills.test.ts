@@ -280,11 +280,32 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expectDisplacedBoth(screen);
   });
 
-  it("④ 옛 로그(records 없음 · skillFiles 있음)에서도 ① 과 같다 — B3 좁히기", () => {
+  // #796 검증 N2 — `skillFiles` 는 스킬 폴더 단위로 "다 적었다" 를 읽는다. 옛 스캔 로그에 그 스킬 폴더의 항목이 하나도 없으면 그 폴더는
+  // 기록이 열거하지 못한 자리라 `no-sha`(체크섬 없는 1회 백업)이지 첫 접촉이 아니다 — 설치자 바이트는 백업에 남고(손실 없음) uninstall
+  // 은 되돌리지 않는다. `.agents/skills/` 는 `externalFiles` 단위 그대로라 ① 과 같다
+  it("④ 옛 로그(records 없음 · skillFiles 있음) — `.claude/skills` 는 체크섬 없는 1회 백업 · `.agents/skills` 는 ① 과 같다", () => {
     handMadeDebate();
     toLegacyLog();
     const { screen } = updateWithScreen();
-    expectDisplacedBoth(screen);
+
+    const claude = `.claude/skills/${DEBATE}/SKILL.md`;
+    expect(read(claude)).not.toBe(MINE);
+    const backups = backupsOf(claude);
+    expect(backups).toHaveLength(1);
+    expect(read(`.claude/skills/${DEBATE}/${backups[0]}`)).toBe(MINE);
+    expect(displacedOf(claude)).toEqual([]);
+    expect(log().skillFiles?.some((f) => f.path === `${DEBATE}/SKILL.md`)).toBe(true);
+    expect(screen).toContain("no checksum on record");
+    expect(screen).not.toContain(".claude/skills had files with these names");
+
+    const agents = `.agents/skills/${DEBATE}/SKILL.md`;
+    const agentBackups = backupsOf(agents);
+    expect(agentBackups).toHaveLength(1);
+    expect(read(`.agents/skills/${DEBATE}/${agentBackups[0]}`)).toBe(MINE);
+    expect(displacedOf(agents).map((f) => f.notes)).toEqual([
+      [`.agents/skills/${DEBATE}/${agentBackups[0]}`],
+    ]);
+    expect(screen).toContain("external CLI files had files with these names");
   });
 
   it("② opt-in 이름의 손수 만든 폴더는 대상이 아니다 — 바이트 그대로 · 백업 0 · 기록 없음 · 화면 언급 없음", () => {
