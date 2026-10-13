@@ -256,8 +256,8 @@ describe("#678 링크 너머가 프로젝트 밖이면 install · update 가 쓰
     const [edited, removed] = readdirSync(outSkills);
     if (edited === undefined || removed === undefined)
       throw new Error("스킬이 둘 이상 깔려야 한다");
-    writeFileSync(join(outSkills, edited, "SKILL.md"), USER); // syncSkills 쓰기
-    writeFileSync(join(outSkills, edited, "extra.md"), "mine\n"); // syncSkills 정리
+    writeFileSync(join(outSkills, edited, "SKILL.md"), USER); // update 스킬 쓰기
+    writeFileSync(join(outSkills, edited, "extra.md"), "mine\n"); // update 스킬 정리(#477)
     rmSync(join(outSkills, removed), { recursive: true }); // installNewSkillDirs 되살림
     const recordedSha = () =>
       readInstallLog(projectDir)?.skillFiles?.find((f) => f.path === `${edited}/SKILL.md`)?.sha256;

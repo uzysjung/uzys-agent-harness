@@ -1,0 +1,12 @@
+./.claude/agents/my-agent.md
+./.claude/agents/strategist.md
+./.claude/hooks/mine.sh
+./.claude/rules/database.md
+./.claude/rules/my-rule.md
+./.claude/rules/ui-components.md
+./.claude/settings.json
+./.claude/skills/frontend-design/LICENSE.txt
+./.claude/skills/frontend-design/SKILL.md
+./.claude/skills/mine/SKILL.md
+./CLAUDE.md
+./skills-lock.json

@@ -1,0 +1,14 @@
+./.claude/agents/implementer.md
+./.claude/agents/my-agent.md
+./.claude/hooks/mine.sh
+./.claude/rules/database.md
+./.claude/rules/my-rule.md
+./.claude/rules/ui-components.md
+./.claude/settings.json
+./.claude/skills/find-skills/SKILL.md
+./.claude/skills/mine/SKILL.md
+./CLAUDE.md
+./node_modules/.package-lock.json
+./package-lock.json
+./package.json
+./skills-lock.json

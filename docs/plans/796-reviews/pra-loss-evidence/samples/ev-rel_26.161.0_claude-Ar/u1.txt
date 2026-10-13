@@ -1,0 +1,45 @@
+Updating installed harness files in /tmp/r/26.161.0-claude-Ar
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/r/26.161.0-claude-Ar
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  ✓ .claude/rules                            4 files updated
+  ✓ .claude/agents                           3 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           7 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    1 files updated
+  ✓ .uzys-agent-harness/spec-drift-check.sh  1 files updated
+  ✓ .uzys-agent-harness/check-absence.sh     1 files updated
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ⊘ .claude/skills edited files              1 backed up as *.backup-<time>
+  ⊘ .claude/skills had files with these names 1 backed up as *.backup-<time> — yours, put back on uninstall · .claude/skills/natural-korean/SKILL.md
+  ✓ .claude/skills not in bundle             3 files deleted · compaction-handoff/refs/mine.md, natural-korean/notes.md, north-star/my-notes.md
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ⊘ edited policy files                      4 backed up as *.backup-<time>
+  ⊘ policy files had files with these names  2 backed up as *.backup-<time> — yours, put back on uninstall · .claude/rules/ui-components.md, .claude/agents/strategist.md
+  ⊘ no checksum on record                    6 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+  ✓ external skills                          1 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 29 items resident · ~6084 tokens/session (directives 11 ~4153 · [rules 9 ~1729 · CLAUDE.md 2 ~2424] · triggers 18 ~1931 · [skills 14 ~1650 · agents 4 ~281] · 1 external asset unmeasured)
+  ▸ BACKUPS      14 file(s) saved before replacing, as *.backup-<time> — 6 had no checksum on record (marked noChecksum in the list), so those may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"
+

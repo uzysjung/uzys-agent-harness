@@ -9,7 +9,7 @@
  *   ⓑ 없던 산출물은 만들어지지 않는다 (update 가 안 고른 CLI/스킬을 깔면 안 된다)
  *
  * ⓑ 를 빼면 claude 만 쓰는 사용자가 `update` 한 번에 `.codex/`·`opencode.json` 을 받는다 —
- * `.claude/` 쪽 `updateDir` 이 "target 에 이미 있는 파일만"으로 오래 지켜 온 규율과 같다.
+ * `.claude/` 쪽 update 가 "target 에 이미 있는 파일만"으로 오래 지켜 온 규율과 같다(#796 PR-A 뒤로는 install 과 같은 writer).
  */
 
 import {

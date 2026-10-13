@@ -1,0 +1,38 @@
+Updating installed harness files in /tmp/r/26.100.0-claude-D
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/r/26.100.0-claude-D
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⊘ .claude/rules orphan prune               4 removed
+  ⊘ .claude/agents orphan prune              5 removed
+  ⊘ .claude/hooks orphan prune               4 removed
+  ⊘ .claude/CLAUDE.md                        legacy anchor · no longer updated — content now in CLAUDE-uzys-harness.md; delete it when you no longer need it
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ⊘ product-skills                           카탈로그에서 빠졌다 · 깐 것은 그대로 남는다 · 치우려면 agent-harness uninstall --only product-skills
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 30 items resident · ~6875 tokens/session (directives 11 ~4872 · [rules 8 ~1537 · CLAUDE.md 3 ~3335] · triggers 19 ~2003 · [skills 14 ~1650 · agents 5 ~353] · 1 external asset unmeasured)
+  ▸ BACKUPS      13 file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"
+

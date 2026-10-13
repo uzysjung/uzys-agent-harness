@@ -1220,16 +1220,6 @@ function renderPhase1Rows(
         ),
       );
     }
-    // #597 — 링크라 갱신하지 않은 CLI 중립 헬퍼. 링크 너머는 프로젝트 밖일 수 있어 쓰지 않는다.
-    if (baseline.updateMode.helpersKept?.length) {
-      log(
-        assetRow(
-          "skip",
-          "helper is a link",
-          `${baseline.updateMode.helpersKept.join(", ")} · 링크라 갱신하지 않고 남겼다`,
-        ),
-      );
-    }
     // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리. install · uninstall 과 같은 판정 · 같은 줄.
     for (const row of outsideLinkRows(baseline.updateMode.outsideLinks ?? [])) log(row);
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.

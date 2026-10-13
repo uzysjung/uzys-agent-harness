@@ -104,7 +104,7 @@ export interface InstallLogSkillFile {
 /**
  * v26.132.0 (ADR-047) — update 가 동기화하는 정책 디렉터리. **이 목록이 SSOT 다.**
  *
- * `runUpdateMode` 의 동기화 대상과 `collectPolicyHashes` 의 기준선 범위가 같은 목록에서
+ * update 의 은퇴 회수(`pruneOrphans`)와 기록 접근자(`recorded()` 의 디렉터리 단위)가 같은 목록에서
  * 나와야 한다. 두 곳에 따로 적으면 한쪽에만 디렉터리가 추가됐을 때 조용히 갈리고, 그러면
  * **기준선 없는 디렉터리가 생겨 그 안의 파일이 전부 "판정 불가"로 떨어진다** — 이 repo 가
  * 반복해서 당한 "열거 사본" 실패 모드다 (`no-false-ship.md` "게이트는 열거하지 말고 훑어라").
@@ -602,62 +602,6 @@ export function mergeExternalFiles(
   const byPath = new Map<string, InstallLogSkillFile>();
   for (const file of [...(previous ?? []), ...current]) byPath.set(file.path, file);
   return [...byPath.values()];
-}
-
-/**
- * `.claude/skills/` 전체를 훑어 파일별 sha256 스냅샷을 만든다 (v26.126.0 · ADR-046).
- *
- * **복사가 끝난 뒤에 호출해야 한다.** 이 값이 "하네스가 놓아둔 내용"의 기준선이 되고, 다음
- * update 는 디스크가 이것과 다른지로 사용자 편집을 판정한다. 복사 **전에** 부르면 옛 내용이
- * 기준선이 돼 다음 update 가 멀쩡한 파일을 전부 "사용자가 고쳤다"로 오판한다.
- *
- * 누적하지 않고 **매번 통째로 교체**한다 (`rootFiles` 와 반대다) — 이건 이력이 아니라 현재
- * 디스크 상태의 스냅샷이고, 지워진 파일의 해시가 남으면 그 자체로 거짓 기록이 된다.
- * 디스크 전체가 아니라 **번들에 있는 파일만** 담는다 (#477, 아래 주석).
- */
-export function collectSkillHashes(
-  projectDir: string,
-  templatesDir: string,
-): InstallLogSkillFile[] {
-  const skillsDir = join(projectDir, ".claude/skills");
-  // #477 — 소유 판정은 `collectPolicyHashes` 와 같이 **templates 에 그 파일이 있는가**다. 디스크에만
-  // 있는 파일(사용자가 스킬 디렉터리에 둔 것)을 기준선에 넣으면 다음 update 의 prune 이 그걸
-  // "하네스가 깔았던 것"으로 읽어 파일별 백업 없이 지운다 — 독립 리뷰가 install 재실행 경로에서
-  // 실증했다. 이 필터가 사용자 파일의 파일별 백업을 지키는 마지막 문이다.
-  return listFilesRecursive(skillsDir)
-    .filter((rel) => existsSync(join(templatesDir, "skills", rel)))
-    .map((rel) => ({
-      path: rel,
-      sha256: hashContent(readFileSync(join(skillsDir, rel), "utf8")),
-    }));
-}
-
-/**
- * 정책 파일 기준선 스냅샷 (v26.132.0 · ADR-047). `collectSkillHashes` 와 같은 규율:
- * **복사가 끝난 뒤** 호출해야 이 값이 "하네스가 놓아둔 내용"의 기준선이 된다.
- *
- * 소유 판정은 **templates 에 그 파일이 있는가**로 한다. 디스크에만 있는 파일은 사용자가
- * 만든 것이므로 기준선에 넣지 않는다 — 넣으면 다음 update 의 prune 이 그걸 "하네스가 깔았던
- * 것"으로 읽고 지운다. 즉 이 필터가 사용자 파일 삭제를 막는 마지막 문이다.
- */
-export function collectPolicyHashes(
-  projectDir: string,
-  templatesDir: string,
-): InstallLogSkillFile[] {
-  const out: InstallLogSkillFile[] = [];
-  for (const { dir, ext } of POLICY_DIRS) {
-    const targetDir = join(projectDir, ".claude", dir);
-    const sourceDir = join(templatesDir, dir);
-    for (const rel of listFilesRecursive(targetDir)) {
-      if (!rel.endsWith(ext)) continue;
-      if (!existsSync(join(sourceDir, rel))) continue; // 사용자가 만든 파일 — 소유 주장 안 함
-      out.push({
-        path: `${dir}/${rel}`,
-        sha256: hashContent(readFileSync(join(targetDir, rel), "utf8")),
-      });
-    }
-  }
-  return out;
 }
 
 /**

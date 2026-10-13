@@ -8,7 +8,7 @@
  * 배선: install · `--reinstall` · update 의 하네스 파일 쓰기(`install-writes.ts` `createInstallWriter` · 외부 CLI 산출물은
  * `owned-write.ts` `createOwnedWriter` — #797)와 함께 쓰는
  * 파일의 몫 쓰기·걷기(`shared-write.ts` `writeShared` · `stripShared` — uninstall 의 몫 걷기 포함), update 의 `.claude/` 정책·스킬
- * 갱신(`update-mode.ts` `updateDir` · `syncSkills` — #761), uninstall(전량 · `--cli`)의 하네스 파일 · 앵커 회수
+ * 갱신(#761 · #796 부터 같은 writer — `update-mode.ts` `updateHarnessFiles`), uninstall(전량 · `--cli`)의 하네스 파일 · 앵커 회수
  * (`commands/uninstall.ts` `removeHarnessFiles` — #746 · #761)가 부른다. `judgeDisplaced` 되돌리기는 `displaced.ts` 하나가
  * 부르고 하네스가 자리를 떠나는 모든 remove 가 그 함수를 쓴다(#782).
  */

@@ -282,6 +282,15 @@ describe("runUpdateMode 배선 — 갱신이 실제로 update 안에서 일어�
     const d = tmpProject();
     mkdirSync(join(d, ".claude", "rules"), { recursive: true });
     writeFileSync(join(d, ".claude", "rules", "git-policy.md"), "old\n");
+    // 체크섬 이전 옛 판의 기록 — 하네스 파일 갱신은 기록이 근거다(#796 · 기록 없음은 CLI 가 거절, #699)
+    writeInstallLog(d, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
     return d;
   }
 

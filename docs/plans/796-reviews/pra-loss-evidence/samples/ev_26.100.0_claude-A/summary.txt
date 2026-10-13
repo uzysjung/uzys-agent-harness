@@ -1,0 +1,154 @@
+## step=markers
+TOK MINE-AGENT LIVE live=[./.claude/agents/implementer.md ./.claude/agents/my-agent.md ] bk=[]
+TOK MINE-AGENTHN-implementer.md LIVE live=[./.claude/agents/implementer.md ] bk=[]
+TOK MINE-EDAGENT LIVE live=[./.claude/agents/reviewer.md ] bk=[]
+TOK MINE-EDHOOK LIVE live=[./.claude/hooks/session-start.sh ] bk=[]
+TOK MINE-EDRETAGENT LIVE live=[./.claude/agents/code-reviewer.md ] bk=[]
+TOK MINE-EDRETIRED LIVE live=[./.claude/rules/code-style.md ] bk=[]
+TOK MINE-EDRULE LIVE live=[./.claude/rules/git-policy.md ] bk=[]
+TOK MINE-EDSKILL LIVE live=[./.claude/skills/north-star/SKILL.md ] bk=[]
+TOK MINE-EDTEST LIVE live=[./.claude/rules/test-policy.md ] bk=[]
+TOK MINE-HOOKLINE LIVE live=[./.claude/settings.json ] bk=[]
+TOK MINE-HOOKSCRIPT LIVE live=[./.claude/hooks/mine.sh ] bk=[]
+TOK MINE-NOTE LIVE live=[./.claude/skills/compaction-handoff/refs/mine.md ./.claude/skills/north-star/my-notes.md ] bk=[]
+TOK MINE-NOTE2 LIVE live=[./.claude/skills/compaction-handoff/refs/mine.md ] bk=[]
+TOK MINE-OWNRETIRED LIVE live=[./.claude/rules/database.md ] bk=[]
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md ./.claude/rules/doc-governance.md ./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-RULEHN-doc-governance.md LIVE live=[./.claude/rules/doc-governance.md ] bk=[]
+TOK MINE-RULEHN-ui LIVE live=[./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/objective-brief/SKILL.md ./.claude/skills/objective-brief/notes.md ./.claude/skills/mine/SKILL.md ./.claude/skills/ui-visual-review/SKILL.md ] bk=[]
+TOK MINE-SKILLHN-objective-brief LIVE live=[./.claude/skills/objective-brief/SKILL.md ] bk=[]
+TOK MINE-SKILLHN-uvr LIVE live=[./.claude/skills/ui-visual-review/SKILL.md ] bk=[]
+TOK MINE-SKILLHNX-objective-brief LIVE live=[./.claude/skills/objective-brief/notes.md ] bk=[]
+REC records=- keys=["assets","installedAt","schemaVersion","scope","spec","templates"]
+RETIRED-CLAIMS: 
+BACKUPS total=0
+## step=u1
+TOK MINE-AGENT LIVE live=[./.claude/agents/my-agent.md ] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-AGENTHN-implementer.md BACKUP live=[] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261013T070138 ]
+TOK MINE-EDHOOK BACKUP live=[] bk=[./.claude/hooks/session-start.sh.backup-20261013T070138 ]
+TOK MINE-EDRETAGENT LIVE live=[./.claude/agents/code-reviewer.md ] bk=[]
+TOK MINE-EDRETIRED LIVE live=[./.claude/rules/code-style.md ] bk=[]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/git-policy.md.backup-20261013T070138 ]
+TOK MINE-EDSKILL BACKUP live=[] bk=[./.claude/skills/north-star/SKILL.md.backup-20261013T070138 ]
+TOK MINE-EDTEST BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261013T070138 ]
+TOK MINE-HOOKLINE LIVE live=[./.claude/settings.json ] bk=[]
+TOK MINE-HOOKSCRIPT LIVE live=[./.claude/hooks/mine.sh ] bk=[]
+TOK MINE-NOTE BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ./.claude/skills/north-star/my-notes.md.backup-20261013T070138 ]
+TOK MINE-NOTE2 BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ]
+TOK MINE-OWNRETIRED LIVE live=[./.claude/rules/database.md ] bk=[]
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md ./.claude/rules/ui-components.md ] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-doc-governance.md BACKUP live=[] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-ui LIVE live=[./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md ./.claude/skills/ui-visual-review/SKILL.md ] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-uvr LIVE live=[./.claude/skills/ui-visual-review/SKILL.md ] bk=[]
+TOK MINE-SKILLHNX-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+REC records=- keys=["assets","excludedKeysMigrated","externalFiles","installedAt","policyFiles","portions","schemaVersion","scope","skillFiles","spec","templates"]
+MINEREC .claude/agents/code-reviewer.md recsha=same
+MINEREC .claude/rules/code-style.md recsha=same
+MINEREC .claude/rules/database.md recsha=same
+MINEPATH-IN-HARNESS-REC .claude/rules/doc-governance.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/implementer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/objective-brief/SKILL.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/database.md live-has-MINE=y
+MINEPATH-IN-HARNESS-REC .claude/rules/git-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/test-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/reviewer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/hooks/session-start.sh live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/north-star/SKILL.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/code-style.md live-has-MINE=y
+MINEPATH-IN-HARNESS-REC .claude/agents/code-reviewer.md live-has-MINE=y
+RETIRED-CLAIMS: rules/code-style.md rules/error-handling.md rules/gates-taxonomy.md agents/code-reviewer.md hooks/hito-counter.sh 
+BACKUPS total=23
+## step=u2
+TOK MINE-AGENT LIVE live=[./.claude/agents/my-agent.md ] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-AGENTHN-implementer.md BACKUP live=[] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261013T070138 ]
+TOK MINE-EDHOOK BACKUP live=[] bk=[./.claude/hooks/session-start.sh.backup-20261013T070138 ]
+TOK MINE-EDRETAGENT BACKUP live=[] bk=[./.claude/agents/code-reviewer.md.backup-20261013T070141 ]
+TOK MINE-EDRETIRED BACKUP live=[] bk=[./.claude/rules/code-style.md.backup-20261013T070141 ]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/git-policy.md.backup-20261013T070138 ]
+TOK MINE-EDSKILL BACKUP live=[] bk=[./.claude/skills/north-star/SKILL.md.backup-20261013T070138 ]
+TOK MINE-EDTEST BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261013T070138 ]
+TOK MINE-HOOKLINE LIVE live=[./.claude/settings.json ] bk=[]
+TOK MINE-HOOKSCRIPT LIVE live=[./.claude/hooks/mine.sh ] bk=[]
+TOK MINE-NOTE BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ./.claude/skills/north-star/my-notes.md.backup-20261013T070138 ]
+TOK MINE-NOTE2 BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ]
+TOK MINE-OWNRETIRED BACKUP live=[] bk=[./.claude/rules/database.md.backup-20261013T070141 ]
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md ./.claude/rules/ui-components.md ] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-doc-governance.md BACKUP live=[] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-ui LIVE live=[./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md ./.claude/skills/ui-visual-review/SKILL.md ] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-uvr LIVE live=[./.claude/skills/ui-visual-review/SKILL.md ] bk=[]
+TOK MINE-SKILLHNX-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+REC records=- keys=["assets","excludedKeysMigrated","externalFiles","installedAt","policyFiles","portions","schemaVersion","scope","skillFiles","spec","templates"]
+MINEPATH-IN-HARNESS-REC .claude/rules/doc-governance.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/implementer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/objective-brief/SKILL.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/git-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/test-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/reviewer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/hooks/session-start.sh live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/north-star/SKILL.md live-has-MINE=n
+RETIRED-CLAIMS: 
+BACKUPS total=36
+## step=u3
+TOK MINE-AGENT LIVE live=[./.claude/agents/my-agent.md ] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-AGENTHN-implementer.md BACKUP live=[] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261013T070138 ]
+TOK MINE-EDHOOK BACKUP live=[] bk=[./.claude/hooks/session-start.sh.backup-20261013T070138 ]
+TOK MINE-EDRETAGENT BACKUP live=[] bk=[./.claude/agents/code-reviewer.md.backup-20261013T070141 ]
+TOK MINE-EDRETIRED BACKUP live=[] bk=[./.claude/rules/code-style.md.backup-20261013T070141 ]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/git-policy.md.backup-20261013T070138 ]
+TOK MINE-EDSKILL BACKUP live=[] bk=[./.claude/skills/north-star/SKILL.md.backup-20261013T070138 ]
+TOK MINE-EDTEST BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261013T070138 ]
+TOK MINE-HOOKLINE LIVE live=[./.claude/settings.json ] bk=[]
+TOK MINE-HOOKSCRIPT LIVE live=[./.claude/hooks/mine.sh ] bk=[]
+TOK MINE-NOTE BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ./.claude/skills/north-star/my-notes.md.backup-20261013T070138 ]
+TOK MINE-NOTE2 BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ]
+TOK MINE-OWNRETIRED BACKUP live=[] bk=[./.claude/rules/database.md.backup-20261013T070141 ]
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md ./.claude/rules/ui-components.md ] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-doc-governance.md BACKUP live=[] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-ui LIVE live=[./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md ./.claude/skills/ui-visual-review/SKILL.md ] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-uvr LIVE live=[./.claude/skills/ui-visual-review/SKILL.md ] bk=[]
+TOK MINE-SKILLHNX-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+REC records=- keys=["assets","excludedKeysMigrated","externalFiles","installedAt","policyFiles","portions","schemaVersion","scope","skillFiles","spec","templates"]
+MINEPATH-IN-HARNESS-REC .claude/rules/doc-governance.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/implementer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/objective-brief/SKILL.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/git-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/rules/test-policy.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/agents/reviewer.md live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/hooks/session-start.sh live-has-MINE=n
+MINEPATH-IN-HARNESS-REC .claude/skills/north-star/SKILL.md live-has-MINE=n
+RETIRED-CLAIMS: 
+BACKUPS total=35
+## step=un
+TOK MINE-AGENT LIVE live=[./.claude/agents/my-agent.md ] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-AGENTHN-implementer.md BACKUP live=[] bk=[./.claude/agents/implementer.md.backup-20261013T070138 ]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261013T070138 ]
+TOK MINE-EDHOOK BACKUP live=[] bk=[./.claude/hooks/session-start.sh.backup-20261013T070138 ]
+TOK MINE-EDRETAGENT BACKUP live=[] bk=[./.claude/agents/code-reviewer.md.backup-20261013T070141 ]
+TOK MINE-EDRETIRED BACKUP live=[] bk=[./.claude/rules/code-style.md.backup-20261013T070141 ]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/git-policy.md.backup-20261013T070138 ]
+TOK MINE-EDSKILL BACKUP live=[] bk=[./.claude/skills/north-star/SKILL.md.backup-20261013T070138 ]
+TOK MINE-EDTEST BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261013T070138 ]
+TOK MINE-HOOKLINE LIVE live=[./.claude/settings.json ] bk=[]
+TOK MINE-HOOKSCRIPT LIVE live=[./.claude/hooks/mine.sh ] bk=[]
+TOK MINE-NOTE BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ./.claude/skills/north-star/my-notes.md.backup-20261013T070138 ]
+TOK MINE-NOTE2 BACKUP live=[] bk=[./.claude/skills/compaction-handoff/refs/mine.md.backup-20261013T070138 ]
+TOK MINE-OWNRETIRED BACKUP live=[] bk=[./.claude/rules/database.md.backup-20261013T070141 ]
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md ./.claude/rules/ui-components.md ] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-doc-governance.md BACKUP live=[] bk=[./.claude/rules/doc-governance.md.backup-20261013T070138 ]
+TOK MINE-RULEHN-ui LIVE live=[./.claude/rules/ui-components.md ] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md ] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ./.claude/skills/ui-visual-review/SKILL.md.backup-20261013T070147 ]
+TOK MINE-SKILLHN-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/SKILL.md.backup-20261013T070138 ]
+TOK MINE-SKILLHN-uvr BACKUP live=[] bk=[./.claude/skills/ui-visual-review/SKILL.md.backup-20261013T070147 ]
+TOK MINE-SKILLHNX-objective-brief BACKUP live=[] bk=[./.claude/skills/objective-brief/notes.md.backup-20261013T070138 ]
+REC none
+BACKUPS total=67

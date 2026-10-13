@@ -1,0 +1,50 @@
+26.100.0 claude-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude+codex-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude+codex-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude+codex-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude+codex-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.100.0 claude+codex-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude+codex-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude+codex-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude+codex-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude+codex-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.125.0 claude+codex-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude+codex-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude+codex-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude+codex-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude+codex-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude+codex-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude+codex-A | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude+codex-D | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude+codex-H | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude+codex-N | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.150.0 claude+codex-S | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.161.0 claude-A | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude-D | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude-H | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude-N | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude-S | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude+codex-A | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude+codex-D | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude+codex-H | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude+codex-N | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same
+26.161.0 claude+codex-S | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same

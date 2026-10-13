@@ -5,7 +5,7 @@
  *
  * `update` 는 `refreshOnly` 로 "디스크에 이미 있는 파일만" 갱신한다(ADR-049). 그 판정이
  * 새 릴리즈가 **더한** 번들 스킬에는 반대로 작동한다 — 파일이 없는 이유가 "안 골라서"가 아니라
- * "그때는 없던 자산이라서"인데 update 가 영영 건너뛴다. `.claude/` 쪽은 `installNewSkillDirs`
+ * "그때는 없던 자산이라서"인데 update 가 영영 건너뛴다. `.claude/` 쪽은 `updateHarnessTargets`(update-mode)
  * 가 따로 깔아 주지만 그 함수는 **claude 가 깔린 집합에 있을 때 `.claude/skills/` 만** 본다 —
  * Epic #527 S3 가 "확인된 결함"으로 지목한 자리가 여기다.
  *
@@ -26,8 +26,8 @@ import { DEFAULT_OPTIONS, TRACKS, type Track } from "./types.js";
  * 이 프로젝트가 가져야 할 번들 스킬 id.
  *
  * 판정을 새로 만들지 않고 **기존 것을 부른다**: 트랙 구성이 기본 옵션으로 고르는 번들 스킬
- * (`buildAssetSpec` 의 `selectedInternalSkills` — `installNewSkillDirs` 가 manifest `applies`
- * 로 재는 것과 같은 판정) 에서 설치 때 해제한 것(`skillExclude` #505 · `baselineExclude`
+ * (`buildAssetSpec` 의 `selectedInternalSkills` — manifest `applies` 로 재는 것과 같은 판정 — `.claude/skills/` 의 "이번
+ * 릴리즈 기본" 도 이 목록이다) 에서 설치 때 해제한 것(`skillExclude` #505 · `baselineExclude`
  * ADR-074)을 뺀다.
  *
  * **설치 기록이 없거나 트랙을 모르면 빈 배열이다.** 무엇이 기본인지 모르는 채로 만들면

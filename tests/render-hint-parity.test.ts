@@ -1,9 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { UPDATE_COMMAND_DESCRIPTION } from "../src/commands/update.js";
 import { EXTERNAL_ASSETS } from "../src/external-assets";
+import { listFilesRecursive } from "../src/fs-ops.js";
+import { POLICY_DIRS } from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
 import { buildRouterChoices } from "../src/router.js";
 import { UPDATE_GROUPS } from "../src/types.js";
 import { runUpdateMode } from "../src/update-mode.js";
@@ -66,21 +69,32 @@ describe("update hint 가 실제 갱신 대상을 광고한다 (derive)", () => 
     const templatesDir = mkdtempSync(join(tmpdir(), "hint-derive-t-"));
     try {
       // update 가 손댈 수 있는 자리를 전부 만들어 둔다 — 비어 있으면 그 대상이 report 에
-      // 안 잡혀서, 게이트가 "언급 안 해도 통과"로 새어 나간다.
-      for (const d of ["rules", "agents", "commands/uzys", "hooks", "skills/demo"]) {
-        mkdirSync(join(templatesDir, d), { recursive: true });
-        mkdirSync(join(projectDir, ".claude", d), { recursive: true });
+      // 안 잡혀서, 게이트가 "언급 안 해도 통과"로 새어 나간다. 지금 판으로 깔고(기록이 갱신의 근거다 — #796), 다음 릴리즈는
+      // 번들 사본에서 깔린 자리마다 파일 하나씩 고친 것이다.
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: {
+          tracks: ["tooling"],
+          options: { withCodexTrust: false },
+          cli: ["claude"],
+          projectDir,
+        },
+      });
+      cpSync(join(HARNESS_ROOT, "templates"), templatesDir, { recursive: true });
+      // 번들에 있는 자리만 — 번들에 없는 자리(지금은 `commands/uzys`)는 update 가 쓸 것이 없다
+      const slots = [...POLICY_DIRS.map((p) => p.dir), "skills"].filter((d) =>
+        existsSync(join(templatesDir, d)),
+      );
+      for (const d of slots) {
+        const installed = listFilesRecursive(join(projectDir, ".claude", d)).find((rel) =>
+          existsSync(join(templatesDir, d, rel)),
+        );
+        expect(installed, `.claude/${d} 에 깔린 하네스 파일이 없다 — 픽스처 전제`).toBeDefined();
+        const source = join(templatesDir, d, installed as string);
+        writeFileSync(source, `${readFileSync(source, "utf8")}\n# next release\n`);
       }
-      writeFileSync(join(templatesDir, "rules/r.md"), "new");
-      writeFileSync(join(projectDir, ".claude/rules/r.md"), "old");
-      writeFileSync(join(templatesDir, "agents/a.md"), "new");
-      writeFileSync(join(projectDir, ".claude/agents/a.md"), "old");
-      writeFileSync(join(templatesDir, "commands/uzys/c.md"), "new");
-      writeFileSync(join(projectDir, ".claude/commands/uzys/c.md"), "old");
-      writeFileSync(join(templatesDir, "hooks/h.sh"), "new");
-      writeFileSync(join(projectDir, ".claude/hooks/h.sh"), "old");
-      writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "new");
-      writeFileSync(join(projectDir, ".claude/skills/demo/SKILL.md"), "old");
 
       const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
       const touched = Object.entries(report.updated)

@@ -1,0 +1,25 @@
+ver|cs|flow|LOST|backupOnlyAfterUn|installerContentRecordedAsHarness(step:path)|records|retiredClaims(1st update)|newBackups|nonzeroExit
+26.100.0|claude|P1|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST NOTE NOTE2 OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr SKILLHNX-objective-brief |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=12 un=51 |-
+26.100.0|claude|P1m|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST NOTE NOTE2 OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr SKILLHNX-objective-brief |-|records=- |0|o1=12 un=51 |-
+26.100.0|claude|P2|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=0 un=53 |-
+26.100.0|claude|P2m|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr |-|records=- |0|o1=0 un=53 |-
+26.100.0|claude|P3|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=4 un=52 |-
+26.100.0|claude|P3m|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=4 un=52 |-
+26.100.0|claude|P4|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md SKILLHN-objective-brief SKILLHN-uvr |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=9 un=48 |-
+26.100.0|claude|P4m|-|AGENTHN-implementer.md EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST OWNRETIRED RULEHN-doc-governance.md RULEHN-ui SKILLHN-objective-brief SKILLHN-uvr |o1:.claude/agents/code-reviewer.md o1:.claude/rules/code-style.md o1:.claude/rules/database.md |records=- |5|o1=11 un=46 |-
+26.132.0|claude|P1|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST NOTE NOTE2 SKILLHN-objective-brief SKILLHN-uvr SKILLHNX-objective-brief |-|records=- |4|o1=6 un=56 |-
+26.132.0|claude|P1m|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST NOTE NOTE2 SKILLHN-objective-brief SKILLHN-uvr SKILLHNX-objective-brief |-|records=- |4|o1=6 un=56 |-
+26.132.0|claude|P2|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST SKILLHN-objective-brief SKILLHN-uvr |-|records=- |4|o1=0 un=58 |-
+26.132.0|claude|P2m|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST SKILLHN-objective-brief SKILLHN-uvr |-|records=- |4|o1=0 un=58 |-
+26.132.0|claude|P3|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST SKILLHN-objective-brief SKILLHN-uvr |-|records=- |4|o1=6 un=54 |-
+26.132.0|claude|P3m|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST SKILLHN-objective-brief SKILLHN-uvr |-|records=- |4|o1=6 un=54 |-
+26.132.0|claude|P4|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST SKILLHN-objective-brief SKILLHN-uvr |-|records=- |0|o1=14 un=46 |-
+26.132.0|claude|P4m|-|EDAGENT EDHOOK EDRETAGENT EDRETIRED EDRULE EDSKILL EDTEST RULEHN-ui SKILLHN-objective-brief SKILLHN-uvr |-|records=- |0|o1=16 un=44 |-
+26.161.0|claude|P1|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST NOTE NOTE2 SKILLHN-natural-korean SKILLHN-uvr SKILLHNX-natural-korean |-|records=- |0|o1=6 un=5 |-
+26.161.0|claude|P1m|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST NOTE NOTE2 SKILLHN-natural-korean SKILLHN-uvr SKILLHNX-natural-korean |-|records=- |0|o1=6 un=5 |-
+26.161.0|claude|P2|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=0 un=7 |-
+26.161.0|claude|P2m|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=0 un=7 |-
+26.161.0|claude|P3|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=2 un=6 |-
+26.161.0|claude|P3m|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=2 un=6 |-
+26.161.0|claude|P4|MINE-EDHELPER |EDAGENT EDHOOK EDRULE EDSKILL EDTEST SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=7 un=4 |-
+26.161.0|claude|P4m|MINE-EDHELPER |AGENTHN-strategist.md EDAGENT EDHOOK EDRULE EDSKILL EDTEST RULEHN-ui SKILLHN-natural-korean SKILLHN-uvr |-|records=- |0|o1=9 un=4 |-

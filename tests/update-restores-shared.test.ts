@@ -187,7 +187,10 @@ describe("#675 — 훅 스크립트를 지운 뒤 update 1회가 스크립트와
     );
   });
 
-  it("옛 판 update 가 스크립트 기준선을 지운 설치본도 되살림으로 말한다 — 배선 기록이 '전에 깔았다' 의 근거다", () => {
+  // #796 §1.2 ⑤ (감수) — 배선 기록(`settings.json` 몫)으로 스크립트 파일의 기록을 대신 말하던 교차 추론은 없앴다. 기록이 그 파일을
+  // 열거하지 않으니 1회 "new in this release" 로 말한다 — 디스크 결과(스크립트 · 배선이 돌아온다)는 같고, 그 뒤로는 기록이 맞다.
+  // 이 기록 모양을 만들던 재스캔이 사라져 새로 생기지 않는다.
+  it("옛 판 update 가 스크립트 기준선을 지운 설치본도 스크립트와 배선을 되돌린다 — 화면은 1회 '새 파일' 로 말한다", () => {
     install();
     const scripts = hookScripts();
     for (const f of scripts) unlinkSync(join(projectDir, ".claude/hooks", f));
@@ -204,8 +207,13 @@ describe("#675 — 훅 스크립트를 지운 뒤 update 1회가 스크립트와
     const { report } = update();
 
     const paths = scripts.map((f) => `.claude/hooks/${f}`);
-    expect(report.updateMode?.restored).toEqual(expect.arrayContaining(paths));
-    for (const p of paths) expect(report.updateMode?.installedNew).not.toContain(p);
+    expect(hookScripts()).toEqual(scripts);
+    expect(wiredScripts()).toEqual(scripts);
+    expect(report.updateMode?.installedNew).toEqual(expect.arrayContaining(paths));
+    for (const p of paths) expect(report.updateMode?.restored).not.toContain(p);
+    // 기록이 다시 맞다 — 다음에 지우면 "was missing — restored" 다
+    const recorded = (readInstallLog(projectDir)?.policyFiles ?? []).map((f) => f.path);
+    for (const f of scripts) expect(recorded).toContain(`hooks/${f}`);
   });
 
   it("탐지기는 `spare` 가 고른 참조(기록된 하네스 훅)를 판정하지 않고 · 파일을 쓰지 않는다", () => {

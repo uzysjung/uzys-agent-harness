@@ -1,0 +1,10 @@
+[agent-harness] recorded uvr files: 1
+[agent-harness] update exit=0 dir=.claude/skills/ui-visual-review
+  ✓ .claude/skills/ui-visual-review          was missing — reinstalled
+  ⊘ to keep it out                           deleting is undone by the next update — re-run `agent-harness install` with your usual flags plus --without ui-visual-review, then delete it again (kept out by update; a later install without that flag brings it back)
+[agent-harness] u2 backups: 0
+[agent-harness] after uninstall uvr: absent
+[ah-main] recorded uvr files: 1
+[ah-main] update exit=0 dir=absent
+[ah-main] u2 backups: 0
+[ah-main] after uninstall uvr: absent
