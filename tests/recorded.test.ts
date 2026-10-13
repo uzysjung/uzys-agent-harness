@@ -146,17 +146,13 @@ describe("recorded — 기록 있음 · sha 없음(#557 · A8)", () => {
     expect(recorded(l, GIT_POLICY)).toEqual({ state: "no-sha" });
   });
 
-  // #796 설계 §3.3 · §1.2 ⑧ — 스킬은 폴더 단위로 "다 적었다" 를 읽는다. 다른 스킬만 든 skillFiles(부분 기록)는 이 스킬의 기록이
-  // 아니다 — 읽으면 다음 update 가 옛 하네스 스킬을 첫 접촉으로 백업·displaced 하고 uninstall 이 옛 하네스 바이트를 되돌린다
-  it("스킬은 폴더 단위 — 같은 스킬의 다른 파일만 적혔으면 none · 다른 스킬 항목만이면 no-sha", () => {
+  // #761 B3 — 옛 스캔은 `.claude/skills/` 를 한 번에 다 적었다. 다른 스킬만 든 skillFiles 에서 이 스킬 항목이 없으면 하네스가 깔지 않은
+  // 자리다(손으로 만든 폴더 → 첫 접촉). #796 PR-0 이 폴더 단위로 바꿔 no-sha 로 뒤집혔던 것을 되돌린다(pra-review-loss HIGH-1)
+  it("스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles)", () => {
     const skill = ".claude/skills/north-star/SKILL.md";
     expect(recorded(log(), skill)).toEqual({ state: "no-sha" }); // 대조군 — 필드 없음
-    const sameSkill = log({
-      skillFiles: [{ path: "north-star/references/roadmap-method.md", sha256: "x" }],
-    });
-    expect(recorded(sameSkill, skill)).toEqual({ state: "none" });
-    const otherSkill = log({ skillFiles: [{ path: "spec-scaling/SKILL.md", sha256: "x" }] });
-    expect(recorded(otherSkill, skill)).toEqual({ state: "no-sha" });
+    const l = log({ skillFiles: [{ path: "spec-scaling/SKILL.md", sha256: "x" }] });
+    expect(recorded(l, skill)).toEqual({ state: "none" });
   });
 
   // #796 BLOCKER-1 — 은퇴 경로 항목(옛 스캔 · `retiredClaims` 가 이어 적은 것)은 그 디렉터리를 훑은 기록이 아니다. `--only hooks`

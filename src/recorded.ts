@@ -208,9 +208,11 @@ export function recorded(
  * 부분 update(`--only`)가 없던 필드를 일부만 담아 만든다(#761 B-2 — `--only rules` 의 헬퍼만 든 `externalFiles` · `--only hooks` 의
  * `hooks/` 만 든 `policyFiles`). 그 필드를 "다 훑은 기록" 으로 읽으면 나머지 하네스 산출물이 첫 접촉이 된다.
  *
- * - `.claude/skills/<id>/` — `skillFiles` 에 **같은 스킬 폴더의 항목이 하나라도** 있는가. writer 는 스킬 하나의 파일을 같은
- *   실행에서 다 판정하고, 옛 스캔(v26.126–161)은 깔린 스킬마다 항목을 남겼다 — 폴더 단위로 읽어도 옛 스캔엔 같은 답이고,
- *   다른 스킬만 적은 부분 기록이 이 스킬을 첫 접촉으로 뒤집지 않는다(#796 설계 §1.2 ⑧ · §3.3)
+ * - `.claude/skills/` — `skillFiles` 필드가 있는가. 옛 스캔(v26.126–161 · 그 뒤 update 의 재스캔)은 `.claude/skills/` 를 한 번에
+ *   다 적었으므로, 항목이 없는 스킬 폴더는 하네스가 깔지 않은 자리다 — 설치자가 손으로 만든 폴더면 첫 접촉(displaced · 되돌림)이고,
+ *   하네스가 쓴 적 없는 이름이면 uninstall 이 건드리지 않는다. 폴더 단위로 읽으면 이 둘이 `no-sha` 로 뒤집혔다(#796 PR-0 회귀 ·
+ *   pra-review-loss HIGH-1). 필드가 없던 로그에 일부만 담긴 필드가 생기는 길(`--only new-skills`, 설계 §1.2 ⑧)은 쓰는 쪽이
+ *   막는다 — update 는 있는 스킬 폴더를 다 돌지 않은 실행에서 이 필드를 새로 만들지 않는다(`recordHarnessWrites`)
  * - 외부 CLI 만 쓰는 자리(소유 표에 claude 가 없는 경로 — `.agents/` · `.codex/` · `AGENTS.md` …) — `externalFiles` 에 **그런 자리의
  *   항목이 하나라도** 있는가(v26.133.0 부터 외부 변환이 렌더 전부를 적는다, B-1). CLI 중립 헬퍼(`.uzys-agent-harness/`)는 claude 도
  *   소유하므로 세지 않는다
@@ -222,10 +224,7 @@ export function recorded(
  */
 function scanFieldOf(log: InstallLog, path: string): "present" | "absent" | "outside" {
   const present = (yes: boolean) => (yes ? "present" : "absent");
-  if (path.startsWith(SKILLS_DIR)) {
-    const folder = `${path.slice(SKILLS_DIR.length).split("/")[0]}/`;
-    return present((log.skillFiles ?? []).some((f) => f.path.startsWith(folder)));
-  }
+  if (path.startsWith(SKILLS_DIR)) return present(log.skillFiles !== undefined);
   if (isExternalOnly(path))
     return present((log.externalFiles ?? []).some((f) => isExternalOnly(f.path)));
   const policy = POLICY_DIRS.find(

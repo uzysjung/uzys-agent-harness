@@ -134,9 +134,9 @@ describe("#796 ⓒ — 필드 없는 옛 로그 + --only new-skills 뒤 update �
 
     const partial = update(["new-skills"]);
     expect(partial.installedNew).toContain(`.claude/skills/${fresh}`);
-    // 새 스킬은 쓴 순간 기록된다 — 부분 기록이다(다른 스킬은 열거하지 않는다)
-    expect(skillFilesOf(fresh as string).length).toBeGreaterThan(0);
-    expect(skillFilesOf(old as string)).toEqual([]);
+    // 있는 스킬 폴더를 다 돌지 않은 실행은 없던 `skillFiles` 를 만들지 않는다 — 만들면 새 스킬만 든 부분 기록이 되고, 읽는 쪽은
+    // 필드가 있으면 `.claude/skills/` 를 다 적은 기록으로 읽어 `old` 를 첫 접촉으로 뒤집는다
+    expect(readInstallLog(projectDir)?.skillFiles).toBeUndefined();
 
     const next = update();
 

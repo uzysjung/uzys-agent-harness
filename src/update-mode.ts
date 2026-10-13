@@ -1397,6 +1397,7 @@ function updateHarnessFiles(args: {
     prunedPolicy,
     prunedSkill: new Set(skillPrune.pruned),
     restored,
+    walkedSkills: wants("skills"),
   });
 
   // 화면 필드 — 오늘과 같은 뜻으로 원장에서(#796 §5.4)
@@ -1487,10 +1488,15 @@ function recordHarnessWrites(
     /** `.claude/skills/` 상대 */
     prunedSkill: ReadonlySet<string>;
     restored: ReadonlyArray<DisplacedOutcome>;
+    /** 이번 실행이 있는 스킬 폴더를 다 돌았나(`skills` 묶음) — 아니면 없던 `skillFiles` 를 새로 만들지 않는다. */
+    walkedSkills: boolean;
   },
 ): void {
   const log = readInstallLog(projectDir);
   if (!log) return;
+  // 읽는 쪽(`recorded` 의 `scanFieldOf`)은 `skillFiles` 가 있으면 `.claude/skills/` 를 다 적은 기록으로 읽는다. 필드가 없던 옛 로그에
+  // `--only new-skills` 가 새 스킬만 담은 필드를 만들면 옛 하네스 스킬이 다음 update 에서 첫 접촉(displaced)으로 뒤집힌다(#796 §1.2 ⑧)
+  const skillLedger = log.skillFiles === undefined && !x.walkedSkills ? [] : ledger.skillFiles;
   const policy = mergeExternalFiles(log.policyFiles, ledger.policyFiles).filter(
     (f) => !x.prunedPolicy.has(f.path),
   );
@@ -1501,7 +1507,7 @@ function recordHarnessWrites(
       ...policy,
       ...x.claims.filter((c) => !x.prunedPolicy.has(c.path) && !have.has(c.path)),
     ],
-    skillFiles: mergeExternalFiles(log.skillFiles, ledger.skillFiles).filter(
+    skillFiles: mergeExternalFiles(log.skillFiles, skillLedger).filter(
       (f) => !x.prunedSkill.has(f.path),
     ),
     externalFiles: mergeExternalFiles(log.externalFiles, ledger.externalFiles),
