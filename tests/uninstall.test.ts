@@ -275,8 +275,9 @@ describe("uninstallAction", () => {
     }
     expect(rmPaths).not.toContain(join(tmpDir, ".claude", "settings.local.json"));
     // v26.135.0 (#253) — 로그는 `.claude/` 밖이다. 여기서 명시적으로 지우지 않으면 uninstall 후
-    // `.uzys-agent-harness/` 가 남아 "전부 지웠다"가 거짓이 되고, 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다.
-    expect(rmPaths).toContain(join(tmpDir, INSTALL_LOG_DIR));
+    // 다음 실행이 그 로그로 이미 지운 자산을 다시 보고한다. #812 — 폴더째가 아니라 기록 파일을 지운다(헬퍼 백업이 휩쓸리지 않게)
+    expect(rmPaths).toContain(installLogPath(tmpDir));
+    expect(rmPaths).not.toContain(join(tmpDir, INSTALL_LOG_DIR));
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -1174,7 +1175,7 @@ describe("uninstallAction — nothingDone 은 --only 경로에만 적용된다 (
       { projectDir: tmpDir },
       { log: logFn, err: vi.fn(), exit, spawn: vi.fn(() => ok()), rm },
     );
-    expect(rm).toHaveBeenCalledWith(join(tmpDir, INSTALL_LOG_DIR));
+    expect(rm).toHaveBeenCalledWith(installLogPath(tmpDir));
     expect(logFn.mock.calls.flat().join("\n")).not.toContain("아무것도 자동 제거되지 않았다");
     expect(exit).toHaveBeenCalledWith(0);
     rmSync(tmpDir, { recursive: true, force: true });
