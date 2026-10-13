@@ -22,8 +22,8 @@ import {
   type InstallLogPortion,
   type InstallLogRootFile,
   type InstallLogSkillFile,
-  isHarnessOwned,
 } from "./install-log.js";
+import { judge, type Recorded } from "./judge.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 
 /**
@@ -90,17 +90,9 @@ export interface OwnedWriteResult {
 
 export interface OwnedWriter {
   /**
-   * 소유자 판정을 거쳐 쓴다.
-   *
-   * | 디스크 vs 기준선 | 뜻 | 처리 |
-   * |---|---|---|
-   * | 파일 없음 | 신규 | 그냥 쓴다 (refresh 모드에서는 **건너뛴다** — 기준선에 있는 경로는 되살린다, ADR-099 R2) |
-   * | 내용 동일 | 이미 최신 | 아무것도 안 한다 (백업도 쓰기도) |
-   * | 기준선과 같다 | 사용자가 안 고쳤다 | 조용히 덮어쓴다 |
-   * | 기준선과 다르다 | 사용자가 고쳤다 | `.backup-<stamp>` 남기고 최신판을 자리에 |
-   * | 기록 없음 · 다르다 | 첫 접촉(설치자 파일) | `.backup-<stamp>` 남기고 최신판을 자리에 · `displaced`(notes = 백업) |
-   * | 기록 없음 · 같다 | 첫 접촉 · 이미 하네스 판 | 아무것도 안 한다 · `displaced`(백업 없음) — 하네스 것으로 적지 않는다 |
-   * | 기준선 없음 · `owned` | 체크섬 없는 하네스 파일(옛 판) | 같으면 기준선만 · 다르면 `.backup-<stamp>` 뒤 최신판(`backedUp`) |
+   * 소유자 판정을 거쳐 쓴다 — 판정은 ADR-097 표(`judge`, `kind: "harness"`) 하나다(#797). 기록 상태는 기준선에 있으면
+   * `sha` · `owned` 면 `no-sha`(체크섬 없는 옛 판) · 아니면 `none`(첫 접촉 → `displaced`). refresh 모드에서 없는 파일은
+   * **건너뛴다** — 기준선에 있는 경로만 되살린다(ADR-099 R2).
    *
    * @returns 이 경로를 이번에 담당했는가. `false` 는 **안 썼다**는 뜻이고 경우는 둘이다 —
    *   refresh 모드에서 없는 파일을 건너뛴 경우, 그리고 #343 이후 **남의 도구가 소유한 슬롯**인 경우.
@@ -207,51 +199,49 @@ export function createOwnedWriter(
       }
       // #678 — 실체가 프로젝트 밖이면 쓰지도 · 백업하지도 · 기준선에 싣지도 않는다(같은 `false` 계약).
       if (outside.skip(absPath)) return false;
-      const digest = hashContent(content);
-
-      if (!existsSync(absPath)) {
-        // refresh 모드: 없는 파일은 사용자가 안 고른 것 → 새로 깔지 않는다.
-        // 기준선에도 넣지 않는다 — 디스크에 없는 파일의 해시를 기록하면 그게 곧 거짓 기록이다.
-        // 예외 ⓐ `createInRefresh` (호출부가 그 CLI 의 설치 증거를 이미 잡은 경우) ⓑ **기준선에 있는 경로**(ADR-099 R2) —
-        // '기록에 있다' 가 그 CLI 의 설치 증거다. 손으로 지운 것은 빼기가 아니라 되살린다(빼기는 `uninstall --cli`).
-        const recordedPath = baseline.has(rel);
-        if (refreshOnly && !opts?.createInRefresh && !recordedPath) return false;
+      const recordedSha = baseline.get(rel);
+      // 기록 상태 — 기준선에 있으면 sha · 기준선 밖이어도 기록이 하네스 것이라 말하면(B-1 · 옛 판) no-sha · 아니면 첫 접촉.
+      const rec: Recorded =
+        recordedSha !== undefined
+          ? { state: "sha", sha256: recordedSha }
+          : { state: owned(rel) ? "no-sha" : "none" };
+      const disk = existsSync(absPath) ? readFileSync(absPath, "utf8") : null;
+      // refresh 모드: 없는 파일은 사용자가 안 고른 것 → 새로 깔지 않는다(판정이 아니라 대상 선택). 예외 ⓐ `createInRefresh`
+      // (호출부가 그 CLI 의 설치 증거를 이미 잡은 경우) ⓑ **기준선에 있는 경로**(ADR-099 R2) — '기록에 있다' 가 그 CLI 의
+      // 설치 증거다. 손으로 지운 것은 빼기가 아니라 되살린다(빼기는 `uninstall --cli`).
+      if (disk === null && refreshOnly && !opts?.createInRefresh && rec.state !== "sha")
+        return false;
+      const { verdict, record } = judge({ op: "write", kind: "harness", rec, disk, next: content });
+      let backupRel: string | null = null;
+      // #774 (ADR-111) `backupFirst` — 기준선 그대로인 파일을 덮기 전 1회. 판정이 아니라 실행 방식이라 `overwrite` 에서만 읽는다.
+      if (
+        verdict === "backup+overwrite" ||
+        (verdict === "overwrite" && opts?.backupFirst === true)
+      ) {
+        const backup = backupFile(absPath, now);
+        backupPaths.push(backup);
+        journal?.backup(backup);
+        backupRel = relative(projectDir, backup).split(sep).join("/");
+        // 고친 것(sha) · 체크섬 없는 옛 판(no-sha) — 화면이 `checksumOnRecord` 로 다시 가른다. 첫 접촉은 `displaced` 로 간다.
+        if (verdict === "backup+overwrite" && rec.state !== "none") backedUp.push(rel);
+      }
+      // #761 — 첫 접촉 자리는 하네스가 떠날 때 되돌릴 근거(`displaced`). Q3 같음 = 백업 없이 두고 하네스 것으로 적지 않는다 —
+      // 그래도 이 경로를 **담당했다**(`true`): `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
+      // 쓰기 **전에** 적는다 — 덮어쓰기가 실패해 설치가 멈춰도 기록이 백업 자리를 가리킨다(PR #810 리뷰 MEDIUM).
+      if (record === "displaced" || record === "displaced+sha") {
+        displace({ path: rel, change: "displaced", notes: backupRel === null ? [] : [backupRel] });
+      }
+      if (verdict !== "leave") {
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, content);
         updated++;
-        if (refreshOnly && recordedPath) restored.push(rel);
-      } else {
-        const current = readFileSync(absPath, "utf8");
-        // #761 — 기록에 없는 자리 = 첫 접촉(설치자 파일). 고친 것(기준선과 다름)과 가른다 — 화면이 "edited" 라 부르지 않고
-        // 하네스가 떠날 때 되돌릴 근거(`displaced`)를 남긴다. 기준선 밖이어도 기록이 하네스 것이라 말하면(B-1 · 옛 판) 아니다.
-        const firstContact = !baseline.has(rel) && !owned(rel);
-        if (current === content && firstContact) {
-          // Q3 — 같은 내용이면 설치자 것을 그대로 둔다. 기준선에 싣지 않는다(하네스 것으로 삼지 않는다). 그래도 이 경로를
-          // **담당했다**(`true`) — `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
-          displace({ path: rel, change: "displaced", notes: [] });
-          return true;
-        }
-        if (current !== content) {
-          if (!isHarnessOwned(baseline, rel, current)) {
-            const backup = backupFile(absPath, now);
-            backupPaths.push(backup);
-            journal?.backup(backup);
-            if (firstContact) {
-              const backupRel = relative(projectDir, backup).split(sep).join("/");
-              displace({ path: rel, change: "displaced", notes: [backupRel] });
-            } else backedUp.push(rel);
-          } else if (opts?.backupFirst === true) {
-            const backup = backupFile(absPath, now);
-            backupPaths.push(backup);
-            journal?.backup(backup);
-          }
-          writeFileSync(absPath, content);
-          updated++;
-        }
+        if (refreshOnly && verdict === "create" && rec.state === "sha") restored.push(rel);
       }
-
-      written.set(rel, digest);
-      journal?.file({ path: rel, sha256: digest });
+      if (record === "sha" || record === "displaced+sha") {
+        const digest = hashContent(content);
+        written.set(rel, digest);
+        journal?.file({ path: rel, sha256: digest });
+      }
       return true;
     },
     ...(journal === undefined ? {} : { journal }),
