@@ -382,3 +382,20 @@ PR-0 추가 ≈ 30(writer 20 · judge 4 · recorded 3 · 테스트 밖).
 8. **PR-A 테스트 재작성 범위** — 로그 없이 `runUpdateMode` 를 부르는 E2E 테스트(47 − 14) 중 `.claude/` 갱신을 단언하는 것이 몇 건인지 세지 않았다(앵커 이행 테스트가 다수라 본다). 구현 전에 세어 PR-A 의 크기를 확정해 달라.
 9. **`occupiedByNonDirectory` 와 `foreignOwnedTarget` 의 순서** — 오늘 `syncSkills` 는 `occupiedByNonDirectory` 를 `existsSync` 보다 **먼저** 본다(깨진 링크, :2423-2429). 대상 선정 ②가 그 순서를 지키는지 구현 리뷰 체크에 넣어 달라.
 10. 크기 추정(§7)의 "추가 ≈ 275" 는 추정이다. 구현 diff 가 이것을 넘으면 어느 경우가 되돌아왔는지 먼저 묻기 바란다.
+
+---
+
+## 검증 반영 (`796-one-writer-design-verify.md` — 이 절이 앞 절의 해당 문장을 대체한다)
+
+검증: BLOCK 2건(둘 다 검증자 문장으로 닫힘) · NOTE 12건. 사용자 결정 필요 항목 없음. 두 BLOCKER 는 검증자가 준 문장을 그대로 넣는다 — 설계 재검증은 걸지 않고 PR 리뷰가 단언으로 확인한다.
+
+| 항목 | 반영(대체하는 자리) | 담는 PR |
+|---|---|---|
+| **BLOCKER-1** 부분 실행(`--only`)의 `retiredClaims` 가 안 쓴 디렉터리를 "기록 있음"으로 뒤집는다 — **오늘 코드에서도 `--only hooks` 로 재현**(P1: 하네스 룰 6개가 displaced/displacedSame 로 적힘) | §3.3 에 추가: `scanFieldOf` 의 정책 분기도 같은 교정을 받는다 — `RETIRED_PATHS` 에 든 항목(옛 스캔 · `retiredClaims` 가 이어 적은 것)은 "그 디렉터리를 훑은 기록"의 증거로 세지 않는다: `present(policyFiles.some(f => f.path.startsWith(dir/) && !RETIRED_PATHS.includes(f.path)))`. claim 은 은퇴 자리 하나의 소유 근거이지 디렉터리 열거의 근거가 아니다(기록을 고치지 말고 잘못 읽는 쪽을 고친다). 테스트: `policyFiles` 에 은퇴 항목만 있으면 그 디렉터리의 다른 대상은 `no-sha`(claim 을 세면 `none`) | PR-0 |
+| **BLOCKER-2** §5.2 ② 대상 id 에 은퇴 스킬이 들어와 #477 정리가 은퇴 스킬 폴더를 비운다 | §5.2 ② 첫 줄 교체: 번들 스킬 — id 집합 = `recordedSkillIds(...)` ∩ 이번 번들에 폴더가 있는 id(`existsSync(join(templatesDir, "skills", id))`) — 오늘 `syncSkills` 가 템플릿 디렉터리를 도는 것과 같은 범위. 은퇴 스킬 폴더는 대상이 아니고 #477 정리도 돌지 않는다(ADR-111 결정 5 · `staleSkillDirs` 안내 그대로). 테스트: writer 로그 + 기록된 스킬 id 가 번들에서 빠진 "다음 릴리즈"로 update → 그 폴더의 파일이 하나도 지워지지 않고 안내 행만 난다 | PR-A |
+| N1 | §1.2 에 ⑨ 추가: 기존 파일 갱신 대상이 "디스크 ∩ 템플릿 이름"에서 "기록 트랙 대상"으로 좁아진다 — 트랙 밖 같은 이름 설치자 파일을 더는 덮지 않고, 옛 판이 깐 트랙 밖 하네스 파일은 안내 + uninstall 지문이 치운다. ADR-097 D2 "displaced 자리" 는 "그중 이번 트랙 대상인 것"으로 읽는다. 이미 생긴 잠복 상태(트랙 밖 자리 displaced+sha 인데 `recorded()` 가 none)는 별도 이슈 | PR-A · 이슈 |
+| N2 | §3.3 ⓑ 정정: `tests/recorded.test.ts:149-154` 가 뒤집힌다 — "다른 스킬 항목만 → no-sha · 같은 스킬의 다른 파일 없음 → none" 으로 재작성. PR-0 의 "install 동작 변화 0" → "S2–S4 로그 + 항목 없는 번들 id 폴더 한 장면에서 install · uninstall 판정이 바뀐다(백업에 남아 손실 없음)" | PR-0 |
+| N4 · N9 | 헬퍼 링크 테스트 단언 `helpersKept` → `outsideLinks` · "로그 없음 → `.claude/` 단계 건너뜀"에 헬퍼(`.uzys-agent-harness/*.sh`)도 포함 | PR-A |
+| N6 · N7 | ① 감수 범위에 "옛 스캔이 적은 opt-in id 도 되살림 집합에 든다" 한 줄 · §3.5 에 "S2–S4 raw 항목은 update 로 남고 다음 install 이 1회 정리" 명시 | 문서 |
+| N8 · N10 · N11 | PR-A 착수 때 `runUpdateMode(` 직접 호출 12파일 81회부터 센다 · ② 는 `occupiedByNonDirectory` 를 먼저 · PR-A ⓓ 는 "없으면 실패" 열에서 본문으로 | PR-A |
+| N3 · N5 · N12 | 설계 그대로(검증자 확인) | — |
