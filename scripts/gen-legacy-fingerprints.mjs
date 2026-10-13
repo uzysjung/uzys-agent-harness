@@ -21,13 +21,18 @@ const RANGE_FROM = "26.70.0";
 const RANGE_TO = "26.169.0";
 /** 마커(#503) 이전 판 — 앵커 절 · `AGENTS.md` 템플릿 절 · 머리 지문의 상한. 그 뒤 판은 마커가 하네스 몫을 말한다. */
 const PRE_MARKER_TO = "26.159.0";
-/** 옛 판이 `.claude/` 아래로 그대로 복사한 템플릿 자리. `templates/codex/hooks/**` 는 렌더본이라 바이트가 안 맞아 넣지 않는다. */
+/**
+ * 옛 판이 그대로 복사한 템플릿 자리. `templates/codex/hooks/**` 는 렌더본이라 바이트가 안 맞아 넣지 않는다.
+ * 헬퍼(`templates/scripts/*` → `.uzys-agent-harness/`)는 v26.141 부터 manifest 가 1:1 로 `copyFile` 했다(#812 — 옛 기록은 헬퍼를
+ * 적지 않아 `no-sha` 이고 옛 바이트가 현행 번들과 달라, 지문 없이는 손대지 않은 헬퍼마다 백업이 남았다).
+ */
 const FILE_DIRS = [
   ["templates/rules/", ".claude/rules/"],
   ["templates/agents/", ".claude/agents/"],
   ["templates/commands/", ".claude/commands/"],
   ["templates/hooks/", ".claude/hooks/"],
   ["templates/skills/", ".claude/skills/"],
+  ["templates/scripts/", ".uzys-agent-harness/"],
 ];
 const AGENTS_TEMPLATE = /^templates\/(codex|opencode|antigravity)\/AGENTS\.md\.template$/;
 
@@ -263,7 +268,7 @@ function keySet(text: string): ReadonlySet<string> {
 const FILES = ${block(sortedFiles.flatMap(([p, s]) => [...s].map((x) => `${p} ${x}`)))};
 
 /**
- * 옛 판이 \`.claude/\` 아래로 **그대로 복사**해 둔 하네스 파일 — 경로(프로젝트 상대) → 그 경로가 가졌던 바이트의 sha256 전부
+ * 옛 판이 \`.claude/\` · \`.uzys-agent-harness/\` 아래로 **그대로 복사**해 둔 하네스 파일 — 경로(프로젝트 상대) → 그 경로가 가졌던 바이트의 sha256 전부
  * (${sortedFiles.length} 경로 · ${pairs} 쌍). \`.agents/skills/<rel>\` 은 \`isLegacyHarnessFile\` 이 \`.claude/skills/<rel>\` 로 조회한다.
  */
 export const LEGACY_HARNESS_FILES: ReadonlyMap<string, ReadonlySet<string>> = (() => {

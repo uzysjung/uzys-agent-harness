@@ -185,6 +185,76 @@ describe("#812 헬퍼는 다른 하네스 파일처럼 하나씩 회수한다", 
     expect(out.text).not.toContain("[BACKUPS]");
   });
 
+  describe("옛 판(≤v26.161.0)이 깐 헬퍼 바이트 그대로 — ADR-111 지문(현행 번들 자리 = 백업 없이)", () => {
+    /** 실제 v26.161.0 태그의 `templates/scripts/*`(v26.150.0 과 바이트 같다) — 그 판이 `copyFile` 로 `.uzys-agent-harness/` 에 깔았다. */
+    const OLD = join(__dirname, "fixtures/legacy-helpers/v26.161.0");
+    const HELPERS = ["check-absence.sh", "protect-branch.sh", "spec-drift-check.sh"];
+
+    function oldInstall(): void {
+      install();
+      makeLegacyLog();
+      for (const h of HELPERS) {
+        const old = readFileSync(join(OLD, h), "utf8");
+        expect(old, `픽스처 자기검증 — ${h} 는 현행 번들과 다르다`).not.toBe(read(`${DIR}/${h}`));
+        writeFileSync(abs(`${DIR}/${h}`), old);
+      }
+    }
+    const helperBackups = (): string[] => HELPERS.flatMap((h) => backupsOf(`${DIR}/${h}`));
+
+    it("손대지 않은 설치본 → 바로 uninstall: 폴더가 남지 않고 헬퍼 백업 안내가 없다", () => {
+      oldInstall();
+
+      const out = uninstall();
+
+      expect(out.code).toBe(0);
+      expect(existsSync(abs(DIR))).toBe(false);
+      expect(out.text).not.toMatch(/\.uzys-agent-harness\/[\w-]+\.sh\.backup-|saved a copy/);
+    });
+
+    it("손대지 않은 설치본 → update → uninstall: update 도 헬퍼를 백업하지 않고 폴더가 남지 않는다", () => {
+      oldInstall();
+
+      runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT);
+      expect(helperBackups()).toEqual([]);
+      expect(read(PROTECT)).toBe(
+        readFileSync(join(TEMPLATES_DIR, "scripts/protect-branch.sh"), "utf8"),
+      );
+      const out = uninstall();
+
+      expect(out.code).toBe(0);
+      expect(existsSync(abs(DIR))).toBe(false);
+      expect(out.text).not.toMatch(/\.uzys-agent-harness\/[\w-]+\.sh\.backup-|saved a copy/);
+    });
+
+    it("고친 옛 헬퍼는 그 파일 하나만 백업으로 남는다 — 바로 uninstall", () => {
+      oldInstall();
+      const edited = `${read(PROTECT)}${MINE}`;
+      writeFileSync(abs(PROTECT), edited);
+
+      const out = uninstall();
+
+      expect(out.code).toBe(0);
+      expect(helperBackups()).toEqual([edited]);
+      expect(readdirSync(abs(DIR)).filter((n) => !n.includes(".backup-"))).toEqual([]);
+      expect(out.text).toMatch(
+        /\[BACKUPS\][\s\S]*\.uzys-agent-harness\/protect-branch\.sh\.backup-/,
+      );
+    });
+
+    it("고친 옛 헬퍼는 그 파일 하나만 백업으로 남는다 — update 뒤 uninstall", () => {
+      oldInstall();
+      const edited = `${read(PROTECT)}${MINE}`;
+      writeFileSync(abs(PROTECT), edited);
+
+      runUpdateMode(projectDir, TEMPLATES_DIR, HARNESS_ROOT);
+      const out = uninstall();
+
+      expect(out.code).toBe(0);
+      expect(helperBackups()).toEqual([edited]);
+      expect(readdirSync(abs(DIR)).filter((n) => !n.includes(".backup-"))).toEqual([]);
+    });
+  });
+
   it("--cli 는 기록 폴더를 건드리지 않는다(헬퍼는 남는 CLI 와 함께 쓴다)", () => {
     install(["claude", "codex"]);
     const before = read(PROTECT);

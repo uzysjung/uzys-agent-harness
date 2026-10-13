@@ -27,10 +27,11 @@ const sha = (text: string): string => createHash("sha256").update(text).digest("
  * "같음" 이다 — 생성물에서 한 줄이라도 빠지거나 더해지면 여기서 빨개진다.
  */
 describe("#774 옛 판 하네스 지문 — 생성물", () => {
-  it("ⓐ 집합 크기가 설계 실측과 같다 (152 경로 · 372 쌍 · 37 · 6 · 53 · 이름 절 50 · 8 · 2)", () => {
+  it("ⓐ 집합 크기가 설계 실측과 같다 (155 경로 · 379 쌍 · 37 · 6 · 53 · 이름 절 50 · 8 · 2)", () => {
     const pairs = [...LEGACY_HARNESS_FILES.values()].reduce((n, s) => n + s.size, 0);
-    expect(LEGACY_HARNESS_FILES.size).toBe(152);
-    expect(pairs).toBe(372);
+    // 설계 실측 152 · 372 + #812 헬퍼(`templates/scripts/` → `.uzys-agent-harness/`) 3 경로 · 7 쌍
+    expect(LEGACY_HARNESS_FILES.size).toBe(155);
+    expect(pairs).toBe(379);
     expect(LEGACY_AGENTS_MD_SECTION_KEYS.size).toBe(37);
     expect(LEGACY_AGENTS_MD_PREAMBLE_KEYS.size).toBe(6);
     expect(RETIRED_ANCHOR_SECTION_KEYS.size).toBe(53);
@@ -51,7 +52,11 @@ describe("#774 옛 판 하네스 지문 — 생성물", () => {
     );
     expect(LEGACY_STATUSLINE_VALUES.size).toBe(2);
     // 렌더본(`templates/codex/hooks/**` → `.codex/hooks/`)은 입력에서 뺐다 — 템플릿과 바이트가 달라 지문이 될 수 없다
-    expect([...LEGACY_HARNESS_FILES.keys()].every((p) => p.startsWith(".claude/"))).toBe(true);
+    expect(
+      [...LEGACY_HARNESS_FILES.keys()].every(
+        (p) => p.startsWith(".claude/") || p.startsWith(".uzys-agent-harness/"),
+      ),
+    ).toBe(true);
   });
 
   it("ⓑ 알려진 옛 바이트를 알아본다 — v26.125.0 의 은퇴 스킬 · ecc 커맨드 · 옛 앵커", () => {
