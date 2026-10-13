@@ -192,10 +192,10 @@ export const TRACK_AGENTS: ReadonlyArray<readonly [string, string]> = [
 /**
  * 은퇴한 에이전트 id — 번들에도 manifest 에도 없고 대체 파일도 없다. ADR-089 (#445).
  *
- * 이미 깔린 파일의 운명은 **기준선(install log, ADR-047)이 있느냐**로 갈린다. 있으면 `pruneOrphans`
- * 가 우리 소유임을 증명하고 `update` 때 회수한다(사용자 편집분은 백업) — v26.132.0 이후 install/
- * update 를 한 번이라도 돈 설치본이 여기다. 없으면(그 이전 레거시) 파일이 남고, 침묵하면 사용자는
- * 그게 죽은 사본인 줄 모른다 — 그때만 화면이 대신 말하고 손은 사용자가. 스킬 쪽
+ * 이미 깔린 파일의 운명은 **설치 기록(ADR-047)이 그 파일을 하네스 것이라 말하느냐**(`recorded()`)로 갈린다. 말하면
+ * `pruneOrphans` 가 `update` 때 회수한다(편집분 · 체크섬 없는 옛 판은 백업 — 파일 필드가 없던 옛 로그의 은퇴 자리도
+ * `RETIRED_PATHS` 로 여기다, #796 §1.2 ③). 말하지 못하면 파일이 남고, 침묵하면 사용자는 그게 죽은 사본인 줄
+ * 모른다 — 그때만 화면이 대신 말하고 손은 사용자가. 스킬 쪽
  * `RETIRED_SKILL_IDS`(`external-assets.ts`)와 같은 형태이고, 렌더는 이 목록만 읽는다
  * (`commands/install-render.ts`). 안내 스캔은 prune 뒤에 돈다 — 이미 지운 파일을 "지워도 된다"고
  * 말하지 않기 위해서다.

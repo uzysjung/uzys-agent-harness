@@ -23,7 +23,8 @@ import {
   writeInstallLog,
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
-import { pruneOrphans, runUpdateMode } from "../src/update-mode.js";
+import { RETIRED_PATHS } from "../src/manifest.js";
+import { runUpdateMode } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -159,47 +160,127 @@ describe("update 의 정책 파일 소유자 판정 (ADR-047)", () => {
   });
 });
 
-describe("pruneOrphans 소유자 판정 (ADR-047)", () => {
-  let target = "";
-  let source = "";
+/**
+ * update 의 은퇴 회수 — 템플릿에 없는 정책 파일을 치울지·백업할지를 **설치 기록 하나**(`recorded()` → `judge(op: remove)`)로
+ * 정한다(#796 PR-B · 설계 §5.5). 설치자 파일이 백업 없이 지워지는 길이 없어야 한다 — 내용이 살아남는지를 본다.
+ */
+describe("update 의 은퇴 회수 — 설치 기록이 판정한다 (ADR-047 · #796 §5.5)", () => {
+  let projectDir = "";
+  let templatesDir = "";
+  const rules = (): string => join(projectDir, ".claude/rules");
+  const recordedPaths = (): string[] =>
+    (readInstallLog(projectDir)?.policyFiles ?? []).map((f) => f.path);
 
   beforeEach(() => {
-    target = mkdtempSync(join(tmpdir(), "ch-prn-t-"));
-    source = mkdtempSync(join(tmpdir(), "ch-prn-s-"));
+    projectDir = mkdtempSync(join(tmpdir(), "ch-prn-p-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-prn-t-"));
+    for (const { dir } of POLICY_DIRS) {
+      mkdirSync(join(templatesDir, dir), { recursive: true });
+      mkdirSync(join(projectDir, ".claude", dir), { recursive: true });
+    }
   });
   afterEach(() => {
-    rmSync(target, { recursive: true, force: true });
-    rmSync(source, { recursive: true, force: true });
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
   });
+
+  /**
+   * `scan` = 기록 모양 — `writer`(지금 판: 쓰는 순간 적는다) · `old`(v26.132–161 의 옛 스캔: 설치 뒤 디스크를 훑어 적었다 —
+   * `records` 표시 없음) · `none`(v26.125 이하: 파일 필드 자체가 없다).
+   */
+  function log(scan: "writer" | "old" | "none", policyFiles: Record<string, string> = {}): void {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      ...(scan === "writer" ? { records: "writer" as const } : {}),
+      ...(scan === "none"
+        ? {}
+        : {
+            policyFiles: Object.entries(policyFiles).map(([path, text]) => ({
+              path,
+              sha256: hashContent(text),
+            })),
+          }),
+    });
+  }
+
+  const update = () =>
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["rules", "hooks"]);
 
   it("사용자가 직접 만든 룰은 지우지 않는다", () => {
-    // 이것이 이 변경의 핵심 회귀다. templates 에 없다는 이유로 지우면 그게 곧 사용자 파일 삭제다.
-    writeFileSync(join(target, "my-team-rule.md"), "our convention\n");
+    // 이것이 ADR-047 의 핵심 회귀다. templates 에 없다는 이유로 지우면 그게 곧 사용자 파일 삭제다.
+    writeFileSync(join(rules(), "my-team-rule.md"), "our convention\n");
+    log("writer", { "rules/git-policy.md": "v1\n" });
 
-    const removed = pruneOrphans(target, source, ".md", { prefix: "rules", baseline: new Map() });
+    const report = update();
 
-    expect(existsSync(join(target, "my-team-rule.md"))).toBe(true);
-    expect(removed).toEqual([]);
+    expect(readFileSync(join(rules(), "my-team-rule.md"), "utf8")).toBe("our convention\n");
+    expect(report.pruned[".claude/rules"]).toEqual([]);
   });
 
-  it("하네스가 깔았던 룰이 templates 에서 빠지면 지운다 (폐기 룰 회수)", () => {
-    writeFileSync(join(target, "deprecated-rule.md"), "old harness rule\n");
-    const baseline = new Map([["rules/deprecated-rule.md", hashContent("old harness rule\n")]]);
+  it("하네스가 깔았던 룰이 templates 에서 빠지면 백업 없이 지우고 기록에서도 뺀다 — 템플릿에 있는 것 · 다른 확장자는 그대로", () => {
+    writeFileSync(join(templatesDir, "rules/alive.md"), "alive\n");
+    writeFileSync(join(rules(), "alive.md"), "alive\n");
+    writeFileSync(join(rules(), "deprecated-rule.md"), "old harness rule\n");
+    writeFileSync(join(rules(), "stale.txt"), "x\n");
+    log("writer", {
+      "rules/alive.md": "alive\n",
+      "rules/deprecated-rule.md": "old harness rule\n",
+      "rules/stale.txt": "x\n",
+    });
 
-    const removed = pruneOrphans(target, source, ".md", { prefix: "rules", baseline });
+    const report = update();
 
-    expect(existsSync(join(target, "deprecated-rule.md"))).toBe(false);
-    expect(removed).toEqual(["deprecated-rule.md"]);
+    expect(report.pruned[".claude/rules"]).toEqual(["deprecated-rule.md"]);
+    expect(existsSync(join(rules(), "deprecated-rule.md"))).toBe(false);
+    expect(backupContents(rules(), "deprecated-rule.md")).toEqual([]);
+    expect(existsSync(join(rules(), "alive.md"))).toBe(true);
+    expect(existsSync(join(rules(), "stale.txt"))).toBe(true);
+    expect(recordedPaths()).not.toContain("rules/deprecated-rule.md");
   });
 
   it("하네스가 깔았지만 사용자가 고친 룰은 지우기 전에 내용을 남긴다", () => {
-    writeFileSync(join(target, "deprecated-rule.md"), "old harness rule + MY EDIT\n");
-    const baseline = new Map([["rules/deprecated-rule.md", hashContent("old harness rule\n")]]);
+    writeFileSync(join(rules(), "deprecated-rule.md"), "old harness rule + MY EDIT\n");
+    log("writer", { "rules/deprecated-rule.md": "old harness rule\n" });
 
-    pruneOrphans(target, source, ".md", { prefix: "rules", baseline });
+    update();
 
-    expect(existsSync(join(target, "deprecated-rule.md"))).toBe(false);
-    expect(backupContents(target, "deprecated-rule.md")).toContain("old harness rule + MY EDIT\n");
+    expect(existsSync(join(rules(), "deprecated-rule.md"))).toBe(false);
+    expect(backupContents(rules(), "deprecated-rule.md")).toContain("old harness rule + MY EDIT\n");
+  });
+
+  it("§1.2 ③ — 파일 필드 없는 옛 로그(v26.125 이하)의 은퇴 룰은 첫 update 가 백업 뒤 치운다", () => {
+    // 은퇴 이름의 파일 — 그 판이 깐 것인지 설치자가 쓴 것인지 기록이 말하지 못한다(체크섬 없음). 내용은 백업에 산다
+    expect(RETIRED_PATHS).toContain("rules/database.md");
+    writeFileSync(join(rules(), "database.md"), "my own database notes\n");
+    log("none");
+
+    const report = update();
+
+    expect(report.pruned[".claude/rules"]).toEqual(["database.md"]);
+    expect(existsSync(join(rules(), "database.md"))).toBe(false);
+    expect(backupContents(rules(), "database.md")).toContain("my own database notes\n");
+    expect(report.noChecksum).toContain(".claude/rules/database.md");
+    // 치운 자리는 기록에 남지 않는다 — 다음 update 가 다시 손대지 않는다
+    expect(recordedPaths()).not.toContain("rules/database.md");
+  });
+
+  it("§1.2 ④ — 옛 스캔이 적었지만 기록이 하네스 것이라 말하지 않는 항목은 sha 가 같아도 지우지 않는다", () => {
+    // v26.132–161 의 스캔은 템플릿과 이름이 같은 파일을 전부 적었다 — 기록 트랙(tooling) 밖 템플릿 이름의 설치자 파일도.
+    // 그 이름이 번들에서 빠지고(합성 templates 에 없다) 은퇴 목록(`RETIRED_PATHS`)에도 없으면 기록은 그 파일을 "하네스 것" 이라
+    // 말하지 않는다(`recorded()` none). 옛 회수는 기록 필드의 sha 만 보고 같으면 백업 없이 지웠다
+    expect(RETIRED_PATHS).not.toContain("rules/ui-components.md");
+    writeFileSync(join(rules(), "ui-components.md"), "our ui rule\n");
+    log("old", { "rules/ui-components.md": "our ui rule\n" });
+
+    const report = update();
+
+    expect(readFileSync(join(rules(), "ui-components.md"), "utf8")).toBe("our ui rule\n");
+    expect(report.pruned[".claude/rules"]).toEqual([]);
   });
 });
 
