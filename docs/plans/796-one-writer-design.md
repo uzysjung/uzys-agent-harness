@@ -112,6 +112,8 @@
 
 ### 3.3 `recorded()` 한 곳 수정 — `scanFieldOf` 의 스킬 단위
 
+> **철회(2026-10-14, #813)**: 스킬 폴더 단위 읽기는 26.170.0 대비 회귀(손으로 만든 하네스 이름 스킬 폴더가 `displaced` 없이 덮임 · opt-in 이름 폴더를 uninstall 이 치움)를 만들어 되돌렸다. 스킬 기록은 다시 필드 단위로 읽고, ⑧ 은 쓰기 쪽(필드가 없던 기록에 부분 `skillFiles` 를 만들지 않는다)이 막는다 — ADR-097 Consequences · `docs/plans/796-reviews/skill-read-review.md`.
+
 지금(recorded.ts:222): `.claude/skills/` 는 `skillFiles` 필드의 **존재**를 "다 훑은 기록" 으로 읽는다(옛 `collectSkillHashes` 가 `.claude/skills/` 전부를 한 번에 적었기 때문). writer 는 스킬 **폴더 단위**로 적으므로(한 스킬의 모든 파일을 같은 실행에서 판정) 읽기 단위도 폴더로: `present(skillFiles.some(f => f.path.startsWith(`${id}/`)))`. 정책 파일이 이미 `POLICY_DIRS` 폴더 단위인 것(recorded.ts:225-228)과 같은 모양이다.
 
 영향 대조: ⓐ S2–S4 옛 스캔은 깔린 스킬마다 항목이 있으므로 폴더 단위로 읽어도 같은 답 ⓑ `tests/recorded.test.ts:144-151`(B-2 — 필드 없음 → `no-sha`) 그대로 ⓒ `tests/uninstall-legacy-scan.test.ts:102`(BLOCKER-1 — 폴더 안 설치자 노트) 그대로(`isTarget` 이 거른다) ⓓ 새로 보호되는 장면 = §1.2 ⑧.

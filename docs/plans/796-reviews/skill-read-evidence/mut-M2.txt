@@ -1,0 +1,10 @@
+== M2 write invariant reverted
+-  const skillLedger = log.skillFiles === undefined && !x.walkedSkills ? [] : ledger.skillFiles;
++  const skillLedger = ledger.skillFiles; void x.walkedSkills;
+tsc=0
+     × 다른 옛 하네스 스킬은 'no checksum' 1회 백업이고 displaced 로 적히지 않는다 73ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/update-one-writer.test.ts > #796 ⓒ — 필드 없는 옛 로그 + --only new-skills 뒤 update 가 옛 스킬을 첫 접촉으로 읽지 않는다 (§1.2 ⑧) > 다른 옛 하네스 스킬은 'no checksum' 1회 백업이고 displaced 로 적히지 않는다
+AssertionError: expected [ { …(2) } ] to be undefined
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 49 passed (50)

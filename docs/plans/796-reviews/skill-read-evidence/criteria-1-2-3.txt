@@ -1,0 +1,54 @@
+# criterion 1/2 — hand-made harness-name skill files: sha at markers vs after uninstall; backups of that path ever created
+26.100.0/claude-A | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude-Am | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.100.0/claude-Ar | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude-N | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude-Nm | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.100.0/claude-Nr | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude+codex-A | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude+codex-Am | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.100.0/claude+codex-Ar | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude+codex-N | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.100.0/claude+codex-Nm | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.100.0/claude+codex-Nr | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.125.0/claude-A | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.125.0/claude-Am | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.125.0/claude-Ar | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.125.0/claude-N | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.125.0/claude-Nm | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.125.0/claude-Nr | objective-brief: DIFF(gone) bk=1; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.132.0/claude-A | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.132.0/claude-Am | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.132.0/claude-Ar | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.132.0/claude-N | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.132.0/claude-Nm | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.132.0/claude-Nr | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.150.0/claude-A | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.150.0/claude-Am | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.150.0/claude-Ar | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.150.0/claude-N | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.150.0/claude-Nm | objective-brief: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.150.0/claude-Nr | objective-brief: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude-A | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude-Am | natural-korean: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.161.0/claude-Ar | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude-N | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude-Nm | natural-korean: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.161.0/claude-Nr | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude+codex-A | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude+codex-Am | natural-korean: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.161.0/claude+codex-Ar | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude+codex-N | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+26.161.0/claude+codex-Nm | natural-korean: DIFF(gone) bk=1; ui-visual-review: DIFF(gone) bk=1; gemini-delegate: DIFF(gone) bk=1;
+26.161.0/claude+codex-Nr | natural-korean: BYTE-SAME bk=0; ui-visual-review: BYTE-SAME bk=0; gemini-delegate: BYTE-SAME bk=0;
+
+# criterion 3 — 26.100/125 N: skillFiles after o1 / displaced skill entries in any update record
+26.100.0/tooling_claude-N o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.100.0/tooling_claude-Nm o1.hasSkillFiles=true u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.100.0/tooling_claude-Nr o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.100.0/tooling_claude+codex-N o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.100.0/tooling_claude+codex-Nm o1.hasSkillFiles=true u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.100.0/tooling_claude+codex-Nr o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.125.0/tooling_claude-N o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.125.0/tooling_claude-Nm o1.hasSkillFiles=true u1.hasSkillFiles=true displacedSkills(any step)=[]
+26.125.0/tooling_claude-Nr o1.hasSkillFiles=false u1.hasSkillFiles=true displacedSkills(any step)=[]

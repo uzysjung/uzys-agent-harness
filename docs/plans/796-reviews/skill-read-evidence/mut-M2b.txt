@@ -1,0 +1,13 @@
+== M2b write invariant reverted + mechanism assertion removed (outcome only)
+-  const skillLedger = log.skillFiles === undefined && !x.walkedSkills ? [] : ledger.skillFiles;
++  const skillLedger = ledger.skillFiles; void x.walkedSkills;
+-    expect(readInstallLog(projectDir)?.skillFiles).toBeUndefined();
++    // removed-for-M2b
+tsc=0
+ ❯ tests/update-one-writer.test.ts (4 tests | 1 failed) 237ms
+     × 다른 옛 하네스 스킬은 'no checksum' 1회 백업이고 displaced 로 적히지 않는다 58ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected [ Array(1) ] to not include '.claude/skills/user-centered-explanat…'
+ ❯ tests/update-one-writer.test.ts:144:38
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
