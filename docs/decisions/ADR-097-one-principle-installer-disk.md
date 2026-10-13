@@ -127,9 +127,9 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
 - 측정: 다음 탐색 테스트(같은 프로토콜)에서 "같은 파일 · 다른 규칙" 발견 수 = 0 이 목표. 지금은 18.
 - `.codex/config.toml` 판정에 `smol-toml`(의존성 0 · BSD-3)을 번들한다 — 런타임 의존성 2 → 3.
 - 판정 표에 `harness · no-sha · 디스크 없음` 행을 더했다(#796 PR-0, Minor CR) — `create`, update 문구는 "wrote (new in this release)".
-  sha 칸("was missing — restored")에 접혀 있던 자리다. 같은 PR 에서 "기록이 그 자리를 다 적었나"(`scanFieldOf`)를 스킬은 폴더 단위로
-  읽고 은퇴 경로 항목은 세지 않는다 — 옛 스캔 로그(v26.126~v26.161) + 항목 없는 번들 스킬 이름 폴더(설치자가 손으로 만든 것)
-  한 장면에서 install · update · uninstall 판정이 첫 접촉(displaced, uninstall 이 되돌림)에서 `no-sha`(1회 백업 후 하네스 판 · uninstall 은
-  백업 뒤 치움)로 바뀐다 — 결정 3·7 의 **예외**: 그 폴더는 uninstall 뒤 제자리로 돌아오지 않고 `.backup-*` 로만 남는다(바이트 손실 없음).
-  사용자 확정 2026-10-13(ⓐ) — 기록 없이는 손으로 만든 폴더와 옛 update 가 기록 없이 깐 하네스 스킬을 가를 수 없고, 반대로 읽으면
-  옛 하네스 바이트를 되돌리는 더 해로운 결함이 남는다(설계 `docs/plans/796-one-writer-design.md` 검증 반영 N2 · PR #809 리뷰 HIGH-1).
+  sha 칸("was missing — restored")에 접혀 있던 자리다. 같은 PR 에서 "기록이 그 자리를 다 적었나"(`scanFieldOf`)에 은퇴 경로 항목은
+  세지 않는다. 스킬은 `skillFiles` 필드 단위로 읽는다 — 옛 스캔 로그(v26.126~v26.161)에 항목이 없는 번들 스킬 이름 폴더는 하네스가
+  깔지 않은 자리라 결정 3·7 그대로다(손으로 만든 폴더 → update 가 `displaced` · uninstall 이 되돌림, 하네스가 쓴 적 없는 이름 → 안 건드림).
+  필드가 없던 옛 로그(≤v26.125)에 일부만 담긴 필드가 생기는 길(`update --only new-skills`)은 쓰는 쪽이 막는다 — update 는 있는 스킬
+  폴더를 다 돌지 않은 실행에서 `skillFiles` 를 새로 만들지 않는다. PR-0 은 같은 장면을 폴더 단위로 읽어 결정 3·7 의 예외(되돌림 없음)로
+  두었고 사용자가 2026-10-13 임시로 받아들였으나, 게시판 v26.170.0 대비 회귀라 철회했다(`docs/plans/796-reviews/pra-review-loss.md` HIGH-1).
