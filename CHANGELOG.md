@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.171.0] — 2026-10-14 (update 도 install 과 같은 길로 쓴다 · 고친 헬퍼와 훅 줄이 지워질 때 백업이 남는다)
+
+### Changed
+- **update 가 install 과 같은 쓰기 경로 하나로 파일을 쓴다** (#796, PR #809 · #811 · #815, #797 PR #810). 디스크를 다시 훑어 따로 판정하던 update 전용 쓰기 경로를 지우고(src −565줄), 무엇이 하네스 몫인지는 설치 기록 하나가, 쓸지·백업할지·되돌릴지는 판정표 하나가 정한다. 설치자에게 달라지는 것:
+  - 다른 트랙 하네스 이름으로 둔 내 파일(예: `rules/ui-components.md` · `agents/strategist.md`)을 update 가 더는 덮지 않는다(전에는 덮고 "uninstall 때 되돌린다"고 말한 뒤 되돌리지 않았다).
+  - uninstall 뒤 하네스 바이트가 남지 않는다(옛 판 26.100~26.161 실설치 62회 0개 — 전에는 매번 2–3개).
+  - 지운 opt-in 스킬 · 룰 · 스킬은 다음 update 가 `was missing — reinstalled` 로 되살린다(빼려면 `--without`).
+  - 옛 판(≤v26.125) 설치본의 은퇴 룰·훅·에이전트를 첫 update 가 백업 뒤 치운다(전에는 두 번째 update).
+  - 옛 판(≤v26.125) 설치본에서 그 판 바이트 그대로인 하네스 파일은 update 가 백업 없이 현행 판으로 갈아 쓴다(ADR-111 결정 1ⓐ 를 update 에도).
+
+### Fixed
+- **고친 헬퍼 스크립트가 uninstall 에서 백업 없이 사라지던 결함** (#812, PR #814). uninstall 이 `.uzys-agent-harness/` 를 폴더째 지우지 않고 헬퍼를 다른 하네스 파일처럼 하나씩 회수한다 — 고친 헬퍼(예: `protect-branch.sh` 의 브랜치 이름)는 그 파일 하나가 백업으로 남고 화면이 알린다. 기록 폴더 안에 둔 내 파일과 displaced 로 적힌 내 헬퍼도 남거나 제자리로 돌아온다. 손대지 않은 옛 판(v26.141~) 헬퍼는 백업 없이 치워져 폴더가 남지 않는다.
+- **고친 하네스 훅 줄이 걷힐 때 백업이 없던 결함** (#800, PR #803 · #804). uninstall · install/update `--without` 이 `.claude/settings.json` 의 고친 하네스 훅 줄을 걷기 전에 그 파일을 한 번 백업한다.
+- **부분 update(`--only hooks` 등) 뒤 하네스 룰이 설치자 파일로 적히던 결함** (#796, PR #809).
+- **테스트가 git 백그라운드 정리와 겹쳐 가끔 실패하던 흔들림** (#801, PR #806).
+
+### 에이전트
+- reviewer(배포)의 방법 체크리스트를 판정 기준 하나로 줄였다(#798, PR #805, 4,622 → 3,392 B).
+
+### 알려진 한계
+- update · uninstall 화면이 백업한 은퇴 파일을 "may not be your edits" 로 세는 등 문구가 영역마다 다르다 — 화면 통일은 후속(PR-C).
+- 기록 폴더 안에 둔 내 파일이 uninstall 뒤 남지만 화면은 그 사실을 말하지 않는다.
+- ssr-htmx 트랙 옛 판(≤v26.125)이 깐 `ui-visual-review` 를 고쳤다면 update 를 거친 뒤 uninstall 은 그 파일을 남긴다(26.170.0 과 같음).
+
 ## [v26.170.0] — 2026-10-12 (옛 판으로 깔았어도 깨끗이 빠지고 · 하네스가 빌린 내 파일은 제자리로 돌아온다)
 
 ### Changed
