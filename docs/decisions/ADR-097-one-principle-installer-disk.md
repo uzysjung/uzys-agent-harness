@@ -128,5 +128,8 @@ install · update · uninstall 될 수 있어야 한다"* — 잣대는 ① 일�
 - `.codex/config.toml` 판정에 `smol-toml`(의존성 0 · BSD-3)을 번들한다 — 런타임 의존성 2 → 3.
 - 판정 표에 `harness · no-sha · 디스크 없음` 행을 더했다(#796 PR-0, Minor CR) — `create`, update 문구는 "wrote (new in this release)".
   sha 칸("was missing — restored")에 접혀 있던 자리다. 같은 PR 에서 "기록이 그 자리를 다 적었나"(`scanFieldOf`)를 스킬은 폴더 단위로
-  읽고 은퇴 경로 항목은 세지 않는다 — 옛 스캔 로그 + 항목 없는 번들 스킬 폴더 한 장면에서 install · uninstall 판정이 첫 접촉에서
-  `no-sha`(1회 백업)로 바뀐다(설계 `docs/plans/796-one-writer-design.md` 검증 반영 N2).
+  읽고 은퇴 경로 항목은 세지 않는다 — 옛 스캔 로그(v26.126~v26.161) + 항목 없는 번들 스킬 이름 폴더(설치자가 손으로 만든 것)
+  한 장면에서 install · update · uninstall 판정이 첫 접촉(displaced, uninstall 이 되돌림)에서 `no-sha`(1회 백업 후 하네스 판 · uninstall 은
+  백업 뒤 치움)로 바뀐다 — 결정 3·7 의 **예외**: 그 폴더는 uninstall 뒤 제자리로 돌아오지 않고 `.backup-*` 로만 남는다(바이트 손실 없음).
+  사용자 확정 2026-10-13(ⓐ) — 기록 없이는 손으로 만든 폴더와 옛 update 가 기록 없이 깐 하네스 스킬을 가를 수 없고, 반대로 읽으면
+  옛 하네스 바이트를 되돌리는 더 해로운 결함이 남는다(설계 `docs/plans/796-one-writer-design.md` 검증 반영 N2 · PR #809 리뷰 HIGH-1).
