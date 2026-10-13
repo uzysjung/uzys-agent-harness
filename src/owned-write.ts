@@ -6,11 +6,8 @@
  * 같은 버그가 두 번 났다 — 세 번째를 막으려면 규칙이 자산별 코드가 아니라 **한 도구**에 있어야
  * 한다 (`feedback_surface_symmetry` "결정의 범위 ≠ 구현의 범위").
  *
- * `.claude/` 쪽과 다른 점 하나: 저기는 templates 파일을 **복사**하므로 기준선을 나중에
- * 디스크에서 다시 훑지만(`collectPolicyHashes`), 외부 CLI 산출물은 템플릿을 **렌더**한
- * 결과라 디스크를 훑어도 "무엇이 하네스 것인지" 알 수 없다. 대신 쓰는 쪽이 방금 쓴 내용을
- * 알고 있으므로 **그 자리에서 기준선을 만든다** — 경로 목록을 따로 하드코딩할 필요가 없고,
- * 그래서 `POLICY_DIRS` 같은 열거 사본이 여기엔 생기지 않는다.
+ * 쓰는 쪽이 방금 쓴 내용을 알고 있으므로 **그 자리에서 기준선을 만든다** — `.claude/` 쪽 writer(`install-writes.ts`)와
+ * 같은 방식이다(#796 PR-A 로 update 의 디스크 재스캔이 사라졌다). 경로 목록을 따로 하드코딩할 필요가 없다.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

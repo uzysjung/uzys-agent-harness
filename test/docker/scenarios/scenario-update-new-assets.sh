@@ -49,7 +49,11 @@ done
 echo "✓ 전제: install 이 스크립트 2종을 깐다"
 
 # --- ① 구버전 설치본 모사: 스크립트가 없는 상태 → update ---
+# 그 판에는 스크립트가 없었으니 기록에도 없다 — 파일만 지우면 "기록에 있는데 지워졌다"(was missing — reinstalled)가 된다(#796 PR-A)
 rm -rf "${HARNESS_DIR:?}"/*.sh
+LOG_JSON="${HARNESS_DIR}/.harness-install.json"
+jq 'walk(if type == "array" then map(select((type != "object") or (((.path // "") | test("^\\.uzys-agent-harness/[^/]*\\.sh$")) | not))) else . end)' \
+  "${LOG_JSON}" >"${LOG_JSON}.tmp" && mv "${LOG_JSON}.tmp" "${LOG_JSON}"
 if [[ -f "${DRIFT}" ]]; then
   echo "FAIL: 삭제가 안 됐다 — 이후 판정이 무의미하다"
   exit 1
