@@ -1,0 +1,15 @@
+old-install exit=0
+u1 exit=0
+u1 NEWBACKUP ./.claude/agents/reviewer.md.backup-20261013T222323
+u1 NEWBACKUP ./.claude/hooks/session-start.sh.backup-20261013T222323
+u1 NEWBACKUP ./.claude/rules/git-policy.md.backup-20261013T222323
+u1 NEWBACKUP ./.claude/skills/north-star/SKILL.md.backup-20261013T222323
+u1 NEWBACKUP ./.claude/skills/north-star/my-notes.md.backup-20261013T222323
+u1 NEWBACKUP ./.uzys-agent-harness/check-absence.sh.backup-20261013T222323
+u1 NEWBACKUP ./.uzys-agent-harness/protect-branch.sh.backup-20261013T222323
+u1 NEWBACKUP ./.uzys-agent-harness/spec-drift-check.sh.backup-20261013T222323
+u1 NEWBACKUP ./.uzys-agent-harness/update-backups.json
+u2 exit=0
+u3 exit=0
+un exit=0
+un NEWBACKUP ./.claude/commands/uzys/auto.md.backup-20261013T222332
