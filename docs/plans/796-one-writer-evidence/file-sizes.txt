@@ -1,0 +1,8 @@
+    2871 src/update-mode.ts
+     919 src/install-writes.ts
+     272 src/owned-write.ts
+     977 src/install-log.ts
+     275 src/judge.ts
+     264 src/recorded.ts
+    2115 src/commands/install-render.ts
+    7693 total
