@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-13T07:02:52.629Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "rootClaudeMd": {
+      "path": "CLAUDE.md",
+      "sha256": "a7d37ffdcf3bffb89160d164e16c326173bea1b3e00583b011a3ad21c8cf2364"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "anthropics/claude-plugins-official",
+        "pluginId": "frontend-design@claude-plugins-official"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "product-skills",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "product-skills@claude-code-skills"
+      }
+    },
+    {
+      "id": "karpathy-coder",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "karpathy-coder@claude-code-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ]
+}

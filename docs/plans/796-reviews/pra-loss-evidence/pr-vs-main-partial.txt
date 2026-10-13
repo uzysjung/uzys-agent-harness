@@ -1,0 +1,12 @@
+26.100.0 claude-P1 | tokens(PR< >main): same | residual(PR< >main): same
+26.100.0 claude-P2 | tokens(PR< >main): same | residual(PR< >main): same
+26.100.0 claude-P3 | tokens(PR< >main): same | residual(PR< >main): same
+26.100.0 claude-P4 | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.132.0 claude-P1 | tokens(PR< >main): same | residual(PR< >main): same
+26.132.0 claude-P2 | tokens(PR< >main): same | residual(PR< >main): same
+26.132.0 claude-P3 | tokens(PR< >main): same | residual(PR< >main): same
+26.132.0 claude-P4 | tokens(PR< >main): < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): > ./.claude/agents/data-analyst.md > ./.claude/agents/strategist.md 
+26.161.0 claude-P1 | tokens(PR< >main): same | residual(PR< >main): same
+26.161.0 claude-P2 | tokens(PR< >main): same | residual(PR< >main): same
+26.161.0 claude-P3 | tokens(PR< >main): same | residual(PR< >main): same
+26.161.0 claude-P4 | tokens(PR< >main): < MINE-AGENTHN-strategist.md LIVE > MINE-AGENTHN-strategist.md BACKUP < MINE-RULEHN-ui LIVE > MINE-RULEHN-ui BACKUP  | residual(PR< >main): same

@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-13T07:01:27.666Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "rootClaudeMd": {
+      "path": "CLAUDE.md",
+      "sha256": "b175bd38d0470e62ee30e171e9a9a37e97970632cba3daae39db1b187805f373"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "anthropics/claude-plugins-official",
+        "pluginId": "frontend-design@claude-plugins-official"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "karpathy-coder",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "karpathy-coder@claude-code-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    },
+    {
+      "path": ".mcp-allowlist",
+      "change": "created",
+      "notes": [
+        "MCP allowlist (3 server)"
+      ]
+    }
+  ],
+  "skillFiles": [
+    {
+      "path": "agent-introspection-debugging/SKILL.md",
+      "sha256": "aff0d52785d3013d9f98de95ca778bfcab7c566db20352ead42852a1659292d2"
+    },
+    {
+      "path": "asis-tobe-decision/SKILL.md",
+      "sha256": "8880ea604b8458acd30b8dc515efc54a6a1640590c572d5f4be7034cbd2d7242"
+    },
+    {
+      "path": "compaction-handoff/SKILL.md",
+      "sha256": "b484a4408f25f4b78bf2e7cd88b1b3fec7b969d6c4a03de8a3b8e072719fc74f"
+    },
+    {
+      "path": "continuous-learning-v2/SKILL.md",
+      "sha256": "75485ddb37e2d1d6f056b404d9939bf46a2b409b1286aec209a510112e5b64b1"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer-loop.sh",
+      "sha256": "25ceefcc260c3599b6d12148d1a573110ace3091c723bdee3a3cf10692e5d4e2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/observer.md",
+      "sha256": "320d50ff2965efeabd6f07c2be134e11da160293e958c1bc27c309d613839ad2"
+    },
+    {
+      "path": "continuous-learning-v2/agents/session-guardian.sh",
+      "sha256": "ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c"
+    },
+    {
+      "path": "continuous-learning-v2/agents/start-observer.sh",
+      "sha256": "6b1966e38eb0c96d61de5d204b87097592884364be59e5bea6007289e8068936"
+    },
+    {
+      "path": "continuous-learning-v2/config.json",
+      "sha256": "6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970"
+    },
+    {
+      "path": "continuous-learning-v2/hooks/observe.sh",
+      "sha256": "e632c2f486248b8b141059c23586d5ca0187df8c34f53d7597cd845713e06948"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/detect-project.sh",
+      "sha256": "a39677edd0ce1deb7628ed31610baafc16090a710233963d2b6a55db64167cf9"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/instinct-cli.py",
+      "sha256": "0b060a762f0fc4ad56e45cbaa14c14fb9ab3f468763f6a32a17bb864fbd3fc30"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/lib/homunculus-dir.sh",
+      "sha256": "99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/migrate-homunculus.sh",
+      "sha256": "34f121c143a676d330f06209618aae8cb08f8155298cb5fa70c893314bf9b303"
+    },
+    {
+      "path": "continuous-learning-v2/scripts/test_parse_instinct.py",
+      "sha256": "acf556e8a8023347b35988bb490927a4e9f65f2579b03f26cad610687656605b"
+    },
+    {
+      "path": "deep-research/SKILL.md",
+      "sha256": "69be70af34e27112f192cbe201210c4cf541c24952670487213de715aa297b40"
+    },
+    {
+      "path": "deep-research/agents/openai.yaml",
+      "sha256": "cb877e559cfe405d0e12bfc9bcaef657ab05a30ef698e6f3e486e39c5e0a6d2d"
+    },
+    {
+      "path": "eval-harness/SKILL.md",
+      "sha256": "12399b9de9e044273fd4dd6a8177bc4f17db008a33df83557ef56770b1466a56"
+    },
+    {
+      "path": "eval-harness/agents/openai.yaml",
+      "sha256": "6f2c19eb59062ca776286c2f6a6a7f1b552b4f927a2b48de888a7dbb2eeec6bd"
+    },
+    {
+      "path": "find-skills/SKILL.md",
+      "sha256": "c00eeea0e13e74fe4a9d84ba0a8542205a1b736d65f13134fe1a6647eb14976f"
+    },
+    {
+      "path": "gap-analysis-e2e/SKILL.md",
+      "sha256": "739e9a181eac99c749b585fc4f2b64a30dcd4783083422afde64ea85a9a2b062"
+    },
+    {
+      "path": "gh-issue-workflow/ISSUE.template.md",
+      "sha256": "c30fbe41d1d6ca15a82c031441c8b20a6db20cabd3d52c9c2c7ec70ca97d60fa"
+    },
+    {
+      "path": "gh-issue-workflow/SKILL.md",
+      "sha256": "00dc33d939b034dac6c653a07a64da5b362e350bd9133def2f11420c94353008"
+    },
+    {
+      "path": "harness-health-audit/SKILL.md",
+      "sha256": "16501e7db181780684612f4f38db80861e775cc1204f444169efdbc5d9165bb3"
+    },
+    {
+      "path": "harness-health-audit/scripts/observation-digest.mjs",
+      "sha256": "cfedf96b819819142f2d69bdd6663bcbdd56301c429545b4f31cc2f358249cb8"
+    },
+    {
+      "path": "multi-persona-review/SKILL.md",
+      "sha256": "b23879e303b7d0c95d30a9369f20b1928f93c24114b891a29f8bb17816cfac20"
+    },
+    {
+      "path": "north-star/NORTH_STAR.template.md",
+      "sha256": "401ac922beb41b5b3c6d19313d5a46184cc90808aa330e0e288108355b5f8aff"
+    },
+    {
+      "path": "north-star/SKILL.md",
+      "sha256": "5b1f8176bb264e5a426594704e640eb69605d6482d6ba93f53329e9fe08dadcb"
+    },
+    {
+      "path": "northstar-roadmap/SKILL.md",
+      "sha256": "9a632a49e6bbf877fee61d448046444d57127b75b4f76f9b8ddf8946c8b7990b"
+    },
+    {
+      "path": "recurrence-prevention/SKILL.md",
+      "sha256": "40b8e5a14136cecf12a63cc2f709de2d80290e352aee88aa9a482200a3fd7295"
+    },
+    {
+      "path": "spec-scaling/SKILL.md",
+      "sha256": "93fe3ed443754bd368a45e71145434c1fd7efd349e25b0179bbb63774ac4ca0e"
+    },
+    {
+      "path": "strategic-compact/SKILL.md",
+      "sha256": "6bfc63c380eb89886335ad033f759a4ff3f1b1ae2c5a143598bb628e38c6e769"
+    },
+    {
+      "path": "strategic-compact/suggest-compact.sh",
+      "sha256": "62af1630b000713842e363447675ad5a94f72cddf47241df68fc9883de686689"
+    },
+    {
+      "path": "ultracode-service-audit/SKILL.md",
+      "sha256": "c7ca76cbda2f8d6b5750b68f524c92927ea375fb47a910ed02332e3a6fa1bca0"
+    },
+    {
+      "path": "verification-loop/SKILL.md",
+      "sha256": "41f481c1146b0b29ecbcf5c633090a6db3749ca4a814499d72b5b8941db694f5"
+    },
+    {
+      "path": "verification-loop/agents/openai.yaml",
+      "sha256": "1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3"
+    }
+  ],
+  "policyFiles": [
+    {
+      "path": "rules/change-management.md",
+      "sha256": "d21082487eeef59664899f85df6098bd46e3c74dbba3f2ebf9e49cf5bab64c34"
+    },
+    {
+      "path": "rules/cli-development.md",
+      "sha256": "b116324d53c7ed3b36d51474f17bd61eede610dff7abea4d3533656dd5cf9a34"
+    },
+    {
+      "path": "rules/code-style.md",
+      "sha256": "2e67fc49d4c8eacaa6dac9064cf566d7f3039509a5b6c5f03b5b2126b0043def"
+    },
+    {
+      "path": "rules/doc-governance.md",
+      "sha256": "5569bb742cc2c0666b2431e3eb662d5fdeb99f8f7224506e0379ce618c4bdf61"
+    },
+    {
+      "path": "rules/error-handling.md",
+      "sha256": "5ea6a188e3a925d5f1f38c1defb766bf71af7a408b58ecce208c7fd3059aa843"
+    },
+    {
+      "path": "rules/gates-taxonomy.md",
+      "sha256": "2276e03e41463f946d5b4867c953579aab91445bb781a4d24ecd9337d2f67e3d"
+    },
+    {
+      "path": "rules/git-policy.md",
+      "sha256": "1c83e7e9acd5967d31406fec70a231cd8de09d5931eb7ca8ebed68f428c3d081"
+    },
+    {
+      "path": "rules/no-false-ship.md",
+      "sha256": "2d760fd1f3387233703c04127bc595874a835ea46a50055d7c506cdbc7ece5cf"
+    },
+    {
+      "path": "rules/ship-checklist.md",
+      "sha256": "d371f417f9af32a72afa99e38378d5a95a085ea5c8ad106328cf41a5f61cf117"
+    },
+    {
+      "path": "rules/test-policy.md",
+      "sha256": "d775453a9b0c3fd7f65eba039e512ec6fc92eda448a2218738da6bb1c85a3023"
+    },
+    {
+      "path": "agents/build-error-resolver.md",
+      "sha256": "28597d1e97a68701999704b789a97a20a28b121b7c27ee6a6e80ab43bcd514b8"
+    },
+    {
+      "path": "agents/code-reviewer.md",
+      "sha256": "e112e5e0bbc501788e8a3bfd2771d34e31a8564bbd87391bff7401af1509782c"
+    },
+    {
+      "path": "agents/data-analyst.md",
+      "sha256": "1d75c07c51b8a000e536cd8a1c23e0609d93ea51b02cd48f9877610082cb2475"
+    },
+    {
+      "path": "agents/plan-checker.md",
+      "sha256": "467ddec15189cc4273adacd08f97e7eabe1cc164901882f2dd5bba81fbf72327"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "1a0153a7fcc8a170f3f08f2a4e392ca72117d413d690441b930028ce923a6094"
+    },
+    {
+      "path": "agents/security-reviewer.md",
+      "sha256": "eacaa50c2b2fdee398ba2e3c896c018ea8887d34701e5b841278ea2c1472cc19"
+    },
+    {
+      "path": "agents/silent-failure-hunter.md",
+      "sha256": "004ce0389356e0666d80c89cef39ad895ab326b3f7d19d34d23c70ab249a795d"
+    },
+    {
+      "path": "agents/strategist.md",
+      "sha256": "b217c7bd273e672de44d4df123201cc5c10203fa9bafad84a370d4b7d32b7fc6"
+    },
+    {
+      "path": "hooks/checkpoint-snapshot.sh",
+      "sha256": "f86e7f445cad48569353b9cbce6e162074fdb5224f4b0781734f5a200b94868c"
+    },
+    {
+      "path": "hooks/mcp-pre-exec.sh",
+      "sha256": "3a7b64149a45dca9e1c15a793e1e84cc28d1f7675d7b519c38cf4b4b27ef5219"
+    },
+    {
+      "path": "hooks/protect-files.sh",
+      "sha256": "f18aef8b355be30afc14e097e8f152a0f00351342e9c1505859f400b445af242"
+    },
+    {
+      "path": "hooks/session-start.sh",
+      "sha256": "894ebdc240b80b37da93b4124994471c1cb0a26d8592d7a621d8fa3a748e8c79"
+    },
+    {
+      "path": "hooks/spec-drift-check.sh",
+      "sha256": "1c7c81e4009866b204e03fd7c4eac87a1b66d7b467a747393dca2bab6793eee2"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-13T07:06:46.515Z
+  scope:     project
+  assets:    1
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 38 harness file(s)
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed harness hook wiring from an older version (script gone): hooks/session-start.sh · hooks/protect-files.sh
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ⊘ left  .claude/ — 3 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (0 asset(s))
