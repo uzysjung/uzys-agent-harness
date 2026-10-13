@@ -157,9 +157,10 @@ function harnessWrite(input: JudgeInput): Judgement {
   const update = input.run === "update";
   if (input.excluded) return j("leave", "", "keep"); // 설치자가 뺀 것 — 만들지도 갱신하지도 않는다
   if (disk === null) {
-    if (rec.state === "none") return j("create", update ? LINES.newInRelease : LINES.wrote, "sha");
+    // none · no-sha 디스크 없음: 기록이 그 파일을 열거하지 않는다(no-sha = 파일별 기록이 없던 옛 판) — 부재는 되살림의
+    // 근거가 아니다(ADR-096 D6). update 는 "new in this release" 로 말한다(#796 설계 §5.6 · 설계 2026-09-27 §1.2 표 행).
+    if (rec.state !== "sha") return j("create", update ? LINES.newInRelease : LINES.wrote, "sha");
     // sha · 디스크 없음: install 은 create, update 는 "was missing — restored".
-    // no-sha · 디스크 없음은 표에 행이 없다 — 같은 "기록 있음" 이라 sha 칸을 따른다(인계 문서 §표와 갈린 자리).
     return j("create", update ? LINES.restored : LINES.wrote, "sha");
   }
   if (rec.state === "none") {

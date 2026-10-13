@@ -208,25 +208,35 @@ export function recorded(
  * 부분 update(`--only`)가 없던 필드를 일부만 담아 만든다(#761 B-2 — `--only rules` 의 헬퍼만 든 `externalFiles` · `--only hooks` 의
  * `hooks/` 만 든 `policyFiles`). 그 필드를 "다 훑은 기록" 으로 읽으면 나머지 하네스 산출물이 첫 접촉이 된다.
  *
- * - `.claude/skills/` — `skillFiles`(스캔 범위 = `collectSkillHashes`, `.claude/skills/` 전부). 일부만 담는 쓰기
- *   (`recordNewSkillBaseline`)는 필드가 없으면 만들지 않는다
+ * - `.claude/skills/<id>/` — `skillFiles` 에 **같은 스킬 폴더의 항목이 하나라도** 있는가. writer 는 스킬 하나의 파일을 같은
+ *   실행에서 다 판정하고, 옛 스캔(`collectSkillHashes`)은 깔린 스킬마다 항목을 남겼다 — 폴더 단위로 읽어도 옛 스캔엔 같은 답이고,
+ *   다른 스킬만 적은 부분 기록이 이 스킬을 첫 접촉으로 뒤집지 않는다(#796 설계 §1.2 ⑧ · §3.3)
  * - 외부 CLI 만 쓰는 자리(소유 표에 claude 가 없는 경로 — `.agents/` · `.codex/` · `AGENTS.md` …) — `externalFiles` 에 **그런 자리의
  *   항목이 하나라도** 있는가(v26.133.0 부터 외부 변환이 렌더 전부를 적는다, B-1). CLI 중립 헬퍼(`.uzys-agent-harness/`)는 claude 도
  *   소유하므로 세지 않는다
- * - `.claude/` 정책 파일 — `policyFiles` 에 **같은 `POLICY_DIRS` 디렉터리의 항목이 하나라도** 있는가(update 는 디렉터리 단위로 다시 찍는다)
+ * - `.claude/` 정책 파일 — `policyFiles` 에 **같은 `POLICY_DIRS` 디렉터리의 항목이 하나라도** 있는가(update 는 디렉터리 단위로 다시 찍는다).
+ *   은퇴 경로(`RETIRED_PATHS` — 옛 스캔 · `retiredClaims` 가 이어 적은 것)는 세지 않는다: 은퇴 자리 하나의 소유 근거이지 그 디렉터리를
+ *   훑은 기록이 아니다. 세면 `--only hooks` 가 이어 적은 `rules/<은퇴>.md` 하나가 하네스 룰 전부를 첫 접촉으로 뒤집는다(#796 BLOCKER-1)
  *
  * 범위 밖이면 `outside`.
  */
 function scanFieldOf(log: InstallLog, path: string): "present" | "absent" | "outside" {
   const present = (yes: boolean) => (yes ? "present" : "absent");
-  if (path.startsWith(SKILLS_DIR)) return present(log.skillFiles !== undefined);
+  if (path.startsWith(SKILLS_DIR)) {
+    const folder = `${path.slice(SKILLS_DIR.length).split("/")[0]}/`;
+    return present((log.skillFiles ?? []).some((f) => f.path.startsWith(folder)));
+  }
   if (isExternalOnly(path))
     return present((log.externalFiles ?? []).some((f) => isExternalOnly(f.path)));
   const policy = POLICY_DIRS.find(
     ({ dir, ext }) => path.startsWith(`${CLAUDE_DIR}${dir}/`) && path.endsWith(ext),
   );
   if (policy === undefined) return "outside";
-  return present((log.policyFiles ?? []).some((f) => f.path.startsWith(`${policy.dir}/`)));
+  return present(
+    (log.policyFiles ?? []).some(
+      (f) => f.path.startsWith(`${policy.dir}/`) && !RETIRED_PATHS.includes(f.path),
+    ),
+  );
 }
 
 /** 외부 CLI 만 쓰는 자리 — 소유 표에 CLI 가 있고 그중에 claude 가 없다. */

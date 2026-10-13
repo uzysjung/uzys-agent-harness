@@ -20,6 +20,7 @@ import {
   installLogPath,
   readInstallLog,
 } from "../src/install-log.js";
+import { createInstallWriter } from "../src/install-writes.js";
 import { type InstallMode, type InstallReport, runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 import { trackOnlyMcp } from "./helpers/harness-mcp.js";
@@ -299,6 +300,53 @@ describe("쓰기 = 기록 — 디스크를 훑지 않는다", () => {
 });
 
 /* ─── 함께 쓰는 파일 — settings.json (criterion 4 · #563) ───────────────── */
+
+/**
+ * #796 설계 §5.1 — update 가 같은 writer 로 하네스 파일을 쓰려면 ① 판정의 동작(`run`)이 문구를 가르고 ② 화면에 안 나오는 조용한
+ * 판정(create · overwrite)까지 원장에 남아야 한다 — update 의 화면 필드(되살림 · 새 파일)가 거기서 나온다.
+ */
+describe("writer 원장 `writes` · `run` (#796 PR-0)", () => {
+  const writerLog = (): InstallLog =>
+    legacyLog({
+      records: "writer",
+      policyFiles: [
+        { path: "rules/restored.md", sha256: hashContent("old\n") },
+        { path: "rules/quiet.md", sha256: hashContent("old quiet\n") },
+      ],
+    });
+
+  function writeThree(run?: "install" | "update") {
+    write(".claude/rules/quiet.md", "old quiet\n");
+    const writer = createInstallWriter({
+      projectDir,
+      previousLog: writerLog(),
+      excluded: new Set(),
+      ...(run ? { run } : {}),
+    });
+    writer.harness(".claude/rules/restored.md", { content: "new\n" }); // 기록 sha · 디스크 없음
+    writer.harness(".claude/rules/fresh.md", { content: "fresh\n" }); // 기록 없음 · 디스크 없음
+    writer.harness(".claude/rules/quiet.md", { content: "new quiet\n" }); // 기록 sha 그대로 → 조용히 갱신
+    return writer.ledger();
+  }
+
+  it("writes 가 조용한 create · overwrite 도 담는다 — judged 는 알릴 것만", () => {
+    const ledger = writeThree("update");
+    expect(ledger.judged).toEqual([]);
+    expect(ledger.writes.map((w) => [w.path, w.verdict, w.record])).toEqual([
+      [".claude/rules/restored.md", "create", "sha"],
+      [".claude/rules/fresh.md", "create", "sha"],
+      [".claude/rules/quiet.md", "overwrite", "sha"],
+    ]);
+  });
+
+  it("run = update 면 문구가 update 의 것 — 되살림 · 새 파일 · 기본(install)은 wrote", () => {
+    const update = writeThree("update").writes.map((w) => w.line);
+    expect(update.slice(0, 2)).toEqual(["was missing — restored", "wrote (new in this release)"]);
+    rmSync(join(projectDir, ".claude"), { recursive: true, force: true });
+    const install = writeThree().writes.map((w) => w.line);
+    expect(install.slice(0, 2)).toEqual(["wrote", "wrote"]);
+  });
+});
 
 describe("`.claude/settings.json` — 하네스 몫만 (#563)", () => {
   const SETTINGS = ".claude/settings.json";

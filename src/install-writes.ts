@@ -34,7 +34,7 @@ import {
   installedClis,
   mergeExternalFiles,
 } from "./install-log.js";
-import { judge, type Verdict } from "./judge.js";
+import { judge, type RecordEffect, type Verdict } from "./judge.js";
 import { RETIRED_PATHS } from "./manifest.js";
 import { type McpJson, toClaudeServer } from "./mcp-merge.js";
 import { PRIOR_MCP_SERVERS, priorMcpValues, retiredMcpNames } from "./mcp-prior.js";
@@ -56,6 +56,22 @@ export interface JudgedWrite {
   /** 화면 한 줄 — `judge` 의 `line` 에 실제 백업 경로를 넣은 것. */
   line: string;
   /** 만든 백업 — project-relative(화면) · 절대(`BaselineReport.backups` 와 짝). */
+  backup?: string;
+  backupAbs?: string;
+}
+
+/**
+ * 하네스 파일 판정 **전부**(조용한 create · overwrite · leave 포함) — `JudgedWrite` 는 화면에 알릴 것만 담는다. update 가 이
+ * writer 로 쓸 때 화면 필드(되살림 · 새 파일 · 백업 · displaced)를 여기서 유도한다(#796 설계 §5.1). 프로젝트 밖 링크로 멈춘 자리는
+ * 판정하지 않았으므로 없다(`outside`).
+ */
+export interface WriteEntry {
+  /** project-relative */
+  path: string;
+  verdict: Verdict;
+  record: RecordEffect;
+  /** `judge` 의 `line` 에 실제 백업 경로를 넣은 것. 빈 문자열 = 알릴 것이 없다. */
+  line: string;
   backup?: string;
   backupAbs?: string;
 }
@@ -129,6 +145,8 @@ export interface WriteLedger {
   /** 만든 백업 파일의 절대경로. */
   backups: string[];
   judged: JudgedWrite[];
+  /** 하네스 파일 판정 전부 — 쓴 순서. */
+  writes: WriteEntry[];
   shared: SharedWrite[];
   /** #678 — 링크를 따라가면 프로젝트 밖이라 쓰지 않은 자리. 기록도 하지 않는다(우리 것으로 삼지 않는다). */
   outside: OutsideLink[];
@@ -164,12 +182,14 @@ export interface InstallWriter {
 /**
  * @param excluded 설치자가 뺀 것 한 목록(누적 — `cumulativeExcluded`). 함께 쓰는 파일의 키 판정에만 쓴다 —
  *   하네스 파일의 선택은 호출부가 이번 선택으로 이미 걸렀다.
+ * @param run 하네스 파일 판정의 동작(`judge` 의 `run`) — 같은 칸 안의 문구(update 의 되살림 · 새 파일)만 가른다. 기본 install.
  */
 export function createInstallWriter(args: {
   projectDir: string;
   previousLog: InstallLog | null;
   excluded: ReadonlySet<string>;
   now?: Date;
+  run?: "install" | "update";
 }): InstallWriter {
   const { projectDir, previousLog, excluded } = args;
   const now = args.now ?? new Date();
@@ -183,6 +203,7 @@ export function createInstallWriter(args: {
   const portionPaths: string[] = [];
   const backups: string[] = [];
   const judged: JudgedWrite[] = [];
+  const writes: WriteEntry[] = [];
   const shared: SharedWrite[] = [];
   const outside = createOutsideGuard(projectDir);
 
@@ -207,6 +228,7 @@ export function createInstallWriter(args: {
       rec: recorded(previousLog, path, opts),
       disk,
       next,
+      ...(args.run === undefined ? {} : { run: args.run }),
     });
     let backupAbs: string | undefined;
     const write = (): void => {
@@ -249,13 +271,11 @@ export function createInstallWriter(args: {
       default:
         throw new Error(`install: '${j.record}' is not a write record (${path})`);
     }
+    const line = backup === undefined ? j.line : j.line.replace(BACKUP_PLACEHOLDER, backup);
+    const backupPair = backup === undefined || backupAbs === undefined ? {} : { backup, backupAbs };
+    writes.push({ path, verdict: j.verdict, record: j.record, line, ...backupPair });
     if (j.line === "" || j.verdict === "create" || j.verdict === "overwrite") return null;
-    const out: JudgedWrite = {
-      path,
-      verdict: j.verdict,
-      line: backup === undefined ? j.line : j.line.replace(BACKUP_PLACEHOLDER, backup),
-      ...(backup === undefined || backupAbs === undefined ? {} : { backup, backupAbs }),
-    };
+    const out: JudgedWrite = { path, verdict: j.verdict, line, ...backupPair };
     judged.push(out);
     return out;
   }
@@ -416,6 +436,7 @@ export function createInstallWriter(args: {
       portionPaths: [...portionPaths],
       backups: [...backups],
       judged: [...judged],
+      writes: [...writes],
       shared: [...shared],
       outside: outside.list(),
     }),
