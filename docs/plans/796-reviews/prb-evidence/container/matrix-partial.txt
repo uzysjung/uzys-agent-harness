@@ -1,0 +1,9 @@
+ver       cs            flow LOST  bkOnly newbk                        records  harnessBytesAfterUn
+26.100.0  claude        H    0     15     o1=9 u1=25 u2=0 un=32        records=-  0 
+26.100.0  claude        Hm   0     15     o1=4 u1=30 u2=0 un=32        records=-  0 
+26.100.0  claude        R    0     15     o1=18 u1=16 u2=0 un=32       records=-  0 
+26.100.0  claude        Rm   0     15     o1=9 u1=25 u2=0 un=32        records=-  0 
+26.125.0  claude        H    0     14     o1=9 u1=26 u2=0 un=40        records=-  0 
+26.125.0  claude        Hm   0     14     o1=4 u1=31 u2=0 un=40        records=-  0 
+26.125.0  claude        R    0     14     o1=19 u1=16 u2=0 un=40       records=-  0 
+26.125.0  claude        Rm   0     14     o1=9 u1=26 u2=0 un=40        records=-  0 

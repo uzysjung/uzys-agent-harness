@@ -1,0 +1,8 @@
+## nc2-no-backup
+-      if (verdict === "backup+remove") backupFile(targetFile, now);
++      if (verdict === ("x" as string)) backupFile(targetFile, now);
+tsc=0
+     × 하네스가 깔았지만 사용자가 고친 룰은 지우기 전에 내용을 남긴다 6ms
+     × §1.2 ③ — 파일 필드 없는 옛 로그(v26.125 이하)의 은퇴 룰은 첫 update 가 백업 뒤 치운다 7ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 108 passed (110)

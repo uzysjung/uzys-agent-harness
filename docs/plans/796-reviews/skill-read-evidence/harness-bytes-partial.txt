@@ -1,0 +1,18 @@
+26.100.0/tooling_claude-H: 0
+26.100.0/tooling_claude-Hr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.100.0/tooling_claude-R: 0
+26.100.0/tooling_claude-Rr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.100.0/tooling_claude-S: 0
+26.100.0/tooling_claude-Sr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.125.0/tooling_claude-H: 0
+26.125.0/tooling_claude-Hr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.125.0/tooling_claude-R: 0
+26.125.0/tooling_claude-Rr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.125.0/tooling_claude-S: 0
+26.125.0/tooling_claude-Sr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude-H: 0
+26.161.0/tooling_claude-Hr: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude-R: 0
+26.161.0/tooling_claude-Rr: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude-S: 0
+26.161.0/tooling_claude-Sr: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 

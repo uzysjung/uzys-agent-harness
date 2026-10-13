@@ -1,0 +1,22 @@
+== M1 read reverted to folder-level
+-  if (path.startsWith(SKILLS_DIR)) return present(log.skillFiles !== undefined);
++  if (path.startsWith(SKILLS_DIR)) {
++    const folder = `${path.slice(SKILLS_DIR.length).split("/")[0]}/`;
++    return present((log.skillFiles ?? []).some((f) => f.path.startsWith(folder)));
++  }
+tsc=0
+     × 스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles) 4ms
+     × ⓐ 기본 이름 — update 는 백업 + displaced · uninstall 뒤 설치자 원본이 바이트 그대로 제자리 118ms
+     × ⓑ 하네스가 쓴 적 없는 opt-in 이름 — update · uninstall 모두 바이트 그대로 · 백업 0 158ms
+     × ④ 옛 로그(records 없음 · skillFiles 있음)에서도 ① 과 같다 — B3 좁히기 136ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/legacy-skill-record-read.test.ts > #796 HIGH-1 — v26.161 기록 위 손으로 만든 하네스 이름 스킬 폴더 > ⓐ 기본 이름 — update 는 백업 + displaced · uninstall 뒤 설치자 원본이 바이트 그대로 제자리
+AssertionError: expected [] to deeply equal [ Array(1) ]
+ FAIL  tests/legacy-skill-record-read.test.ts > #796 HIGH-1 — v26.161 기록 위 손으로 만든 하네스 이름 스킬 폴더 > ⓑ 하네스가 쓴 적 없는 opt-in 이름 — update · uninstall 모두 바이트 그대로 · 백업 0
+Error: ENOENT: no such file or directory, open '/var/folders/gn/wnyccy6j675632l597jcfm_r0000gp/T/legacy-skill-read-3jhuGw/.claude/skills/gemini-delegate/SKILL.md'
+ FAIL  tests/recorded.test.ts > recorded — 기록 있음 · sha 없음(#557 · A8) > 스캔 필드가 있는데 경로가 없으면 none — 스킬(skillFiles)
+AssertionError: expected { state: 'no-sha' } to deeply equal { state: 'none' }
+ FAIL  tests/update-dev-default-skills.test.ts > #761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 update 가 displaced 로 적는다 > ④ 옛 로그(records 없음 · skillFiles 있음)에서도 ① 과 같다 — B3 좁히기
+AssertionError: .claude/skills/multi-model-debate/SKILL.md: expected undefined to deeply equal [ Array(1) ]
+ Test Files  3 failed | 1 passed (4)
+      Tests  4 failed | 46 passed (50)

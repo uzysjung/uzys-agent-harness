@@ -28,7 +28,6 @@ import {
   buildUpdateSpec,
   collectRunBackups,
   keepHookRef,
-  pruneOrphans,
   retireMcpAllowlist,
   runUpdateMode,
 } from "../src/update-mode.js";
@@ -41,55 +40,7 @@ import {
  */
 const HARNESS_ROOT = join(__dirname, "..");
 
-/**
- * 디스크 내용이 "하네스가 놓아둔 그대로"인 기준선을 만든다 (ADR-047).
- * 소유가 증명된 상태 = 백업 없이 덮어쓰고, prune 대상이 될 수 있는 상태.
- */
-function ownedCtx(prefix: string, files: Record<string, string>) {
-  return {
-    prefix,
-    baseline: new Map(Object.entries(files).map(([n, c]) => [`${prefix}/${n}`, hashContent(c)])),
-  };
-}
-
-describe("pruneOrphans", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-pr-"));
-    mkdirSync(join(dir, "target"));
-    mkdirSync(join(dir, "source"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("removes harness-owned files in target that don't exist in source", () => {
-    writeFileSync(join(dir, "target", "alive.md"), "");
-    writeFileSync(join(dir, "target", "orphan.md"), "");
-    writeFileSync(join(dir, "source", "alive.md"), "");
-
-    // v26.132.0 (ADR-047) — 기준선이 소유를 증명해야 지운다. 이 목록에 없으면 사용자 파일이다.
-    const ctx = ownedCtx("rules", { "alive.md": "", "orphan.md": "" });
-    const removed = pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx);
-    expect(removed).toEqual(["orphan.md"]);
-    expect(existsSync(join(dir, "target", "alive.md"))).toBe(true);
-    expect(existsSync(join(dir, "target", "orphan.md"))).toBe(false);
-  });
-
-  it("returns empty when nothing to prune", () => {
-    writeFileSync(join(dir, "target", "x.md"), "");
-    writeFileSync(join(dir, "source", "x.md"), "");
-    const ctx = ownedCtx("rules", { "x.md": "" });
-    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx)).toEqual([]);
-  });
-
-  it("ignores files with different extension", () => {
-    writeFileSync(join(dir, "target", "stale.txt"), "");
-    const ctx = ownedCtx("rules", { "stale.txt": "" });
-    expect(pruneOrphans(join(dir, "target"), join(dir, "source"), ".md", ctx)).toEqual([]);
-    expect(existsSync(join(dir, "target", "stale.txt"))).toBe(true);
-  });
-});
+// 은퇴 회수(`pruneOrphans`)의 판정 단언은 `runUpdateMode` 경로로 `tests/policy-file-ownership.test.ts` 가 갖는다(#796 PR-B).
 
 /**
  * settings.json 이 가리키는 **없는 스크립트**를 지우는 런타임 치유기.
@@ -1014,6 +965,8 @@ describe("runUpdateMode (E2E with templates)", () => {
       spec: { tracks: ["tooling"], cli: ["claude"] },
       templates: { claudeDir: ".claude" },
       assets: [],
+      // 지금 판의 기록(쓰기 = 기록). 표시 없는 옛 스캔 항목은 기록 트랙 대상·은퇴 경로일 때만 소유를 말한다(#796 §1.2 ④)
+      records: "writer",
       policyFiles: [{ path: "rules/orphan-rule.md", sha256: hashContent("stale\n") }],
     });
 
@@ -1259,19 +1212,26 @@ describe("신규 자산 설치 (#283)", () => {
   /**
    * ADR-089 (#445) — 은퇴한 에이전트가 디스크에 남아 있으면 이름을 낸다.
    *
-   * **`pruneOrphans` 로 안 덮이는 구간이 이 행의 존재 이유다.** 소유를 증명할 수 있는 설치본
-   * (install log 의 `policyFiles` 기준선에 그 파일이 있는 경우)에서는 prune 이 알아서 지운다.
-   * 그런데 기준선이 없는 레거시 설치본에서는 소유를 주장할 수 없어 prune 이 건너뛰고, 그러면
-   * 죽은 descriptor 가 **영구히** 상주하는데 화면은 한 마디도 안 한다. 여기가 그 자리다.
+   * **`pruneOrphans` 로 안 덮이는 구간이 이 행의 존재 이유다.** 기록이 그 파일을 하네스 것이라 말하면(파일별 기록 ·
+   * 파일 필드가 없는 옛 로그의 은퇴 자리 — #796 §1.2 ③) prune 이 백업 뒤 치운다. 기록이 파일을 열거하는데 그 이름이
+   * 없으면 소유를 주장할 수 없어 prune 이 건너뛰고, 그러면 죽은 descriptor 가 **영구히** 상주하는데 화면은 한 마디도
+   * 안 한다. 여기가 그 자리다.
    */
   it("은퇴한 에이전트가 남아 있으면 이름을 낸다 (ADR-089)", () => {
+    const start = readInstallLog(projectDir);
+    if (start === null) throw new Error("설치 기록이 없다");
+    writeInstallLog(projectDir, {
+      ...start,
+      records: "writer",
+      policyFiles: [{ path: "rules/git-policy.md", sha256: hashContent("git v1\n") }],
+    });
     writeFileSync(join(projectDir, ".claude/agents/code-reviewer.md"), "옛 릴리즈가 깐 것\n");
     writeFileSync(join(projectDir, ".claude/agents/reviewer.md"), "core agent\n");
 
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
     expect(report.retiredAgents).toContain("code-reviewer");
-    // 지우지는 않는다 — 사용자가 고쳤는지 판정할 기준선이 없다. 말하고 손은 사용자가.
+    // 지우지는 않는다 — 기록이 그 파일을 하네스 것이라 말하지 않는다. 말하고 손은 사용자가.
     expect(existsSync(join(projectDir, ".claude/agents/code-reviewer.md"))).toBe(true);
     // 대조군 — 살아 있는 에이전트까지 쓸어담는 스캔이면 이 단언이 빨개진다.
     expect(report.retiredAgents).not.toContain("reviewer");

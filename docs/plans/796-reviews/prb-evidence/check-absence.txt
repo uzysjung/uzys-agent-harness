@@ -1,0 +1,4 @@
+검사 대상: src
+패턴: policyBaseline|baselineRecord|policyBase\b|ctx\.baseline  (canary 'ctx.baseline.has(key)' 검증 통과)
+매치: 0건 / 파일 77개(바이너리·빈 파일 제외)
+exit=0

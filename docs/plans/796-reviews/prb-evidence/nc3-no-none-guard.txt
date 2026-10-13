@@ -1,0 +1,12 @@
+## nc3-no-none-guard
+-    if (rec.state === "none" || ctx.outside.skip(targetFile)) continue; // 설치자 파일 · #678 밖의 실체
++    if (ctx.outside.skip(targetFile)) continue; // 설치자 파일 · #678 밖의 실체
+tsc=0
+     × 기록은 이번에 쓴 하네스 파일의 sha 만 담는다 — 같은 폴더의 설치자 파일은 적지 않는다 7ms
+     × 사용자가 직접 만든 룰은 지우지 않는다 4ms
+     × §1.2 ④ — 옛 스캔이 적었지만 기록이 하네스 것이라 말하지 않는 항목은 sha 가 같아도 지우지 않는다 8ms
+     × 기록에 sha 가 없는 옛 로그도 orphan 을 지우지 않는다 — 기준선이 소유를 증명하지 않는다 14ms
+     × 은퇴한 에이전트가 남아 있으면 이름을 낸다 (ADR-089) 5ms
+     × tooling 설치본에 남은 트랙 전용 에이전트는 이름을 낸다 (ADR-090 · #458) 8ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  6 failed | 104 passed (110)
