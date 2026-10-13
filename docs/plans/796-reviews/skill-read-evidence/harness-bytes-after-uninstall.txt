@@ -1,0 +1,42 @@
+26.100.0/tooling_claude-A: 0
+26.100.0/tooling_claude-Am: 0
+26.100.0/tooling_claude-Ar: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.100.0/tooling_claude-N: 0
+26.100.0/tooling_claude-Nm: 0
+26.100.0/tooling_claude-Nr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.100.0/tooling_claude+codex-A: 0
+26.100.0/tooling_claude+codex-Am: 0
+26.100.0/tooling_claude+codex-Ar: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.100.0/tooling_claude+codex-N: 0
+26.100.0/tooling_claude+codex-Nm: 0
+26.100.0/tooling_claude+codex-Nr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.125.0/tooling_claude-A: 0
+26.125.0/tooling_claude-Am: 0
+26.125.0/tooling_claude-Ar: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.125.0/tooling_claude-N: 0
+26.125.0/tooling_claude-Nm: 0
+26.125.0/tooling_claude-Nr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.132.0/tooling_claude-A: 0
+26.132.0/tooling_claude-Am: 0
+26.132.0/tooling_claude-Ar: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.132.0/tooling_claude-N: 0
+26.132.0/tooling_claude-Nm: 0
+26.132.0/tooling_claude-Nr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.150.0/tooling_claude-A: 0
+26.150.0/tooling_claude-Am: 0
+26.150.0/tooling_claude-Ar: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.150.0/tooling_claude-N: 0
+26.150.0/tooling_claude-Nm: 0
+26.150.0/tooling_claude-Nr: ./.claude/agents/data-analyst.md ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude-A: 0
+26.161.0/tooling_claude-Am: 0
+26.161.0/tooling_claude-Ar: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude-N: 0
+26.161.0/tooling_claude-Nm: 0
+26.161.0/tooling_claude-Nr: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude+codex-A: 0
+26.161.0/tooling_claude+codex-Am: 0
+26.161.0/tooling_claude+codex-Ar: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
+26.161.0/tooling_claude+codex-N: 0
+26.161.0/tooling_claude+codex-Nm: 0
+26.161.0/tooling_claude+codex-Nr: ./.claude/agents/strategist.md ./.claude/rules/ui-components.md 
