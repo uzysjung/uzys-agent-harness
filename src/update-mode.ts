@@ -91,7 +91,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { LINES, type Recorded } from "./judge.js";
+import { judge, LINES, type Recorded } from "./judge.js";
 import {
   type AssetEntry,
   type AssetSpec,
@@ -1354,14 +1354,13 @@ function updateHarnessFiles(args: {
   const targets = updateHarnessTargets(projectDir, templatesDir, log, wants, report, foreignOwned);
   for (const t of targets.files) writer.harness(t.path, { source: t.source }, { isTarget });
 
-  // 은퇴 회수(ADR-047) — 기록이 하네스 것이라 말하는 것만 지운다. 기준선은 실행 시작 때의 기록이다
-  const policyBase = new Map((log.policyFiles ?? []).map((f) => [f.path, f.sha256]));
+  // 은퇴 회수(ADR-047) — 기록이 하네스 것이라 말하는 것만 지운다. 판정은 실행 시작 때의 기록이다
   const prunedPolicy = new Set<string>(); // `.claude/` 상대
   for (const { dir, ext } of POLICY_DIRS) {
     if (!claude || !wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const label = `.claude/${dir}`;
     report.updated[label] = 0;
-    const ctx: PolicySyncCtx = { prefix: dir, baseline: policyBase, outside, recordOf };
+    const ctx: PolicySyncCtx = { prefix: dir, outside, recordOf };
     report.pruned[label] = pruneOrphans(
       join(projectDir, label),
       join(templatesDir, dir),
@@ -2260,20 +2259,13 @@ function refreshExternalCli(
   };
 }
 
-/**
- * 은퇴 회수(`pruneOrphans`)의 소유 판정 컨텍스트 (v26.132.0 · ADR-047).
- *
- * `prefix` 는 `.claude/` 기준 디렉터리명(`rules` 등) — install log 의 `policyFiles` 키가
- * 그 형식이라 baseline 조회에 필요하다.
- */
-export interface PolicySyncCtx {
+/** 은퇴 회수(`pruneOrphans`)의 컨텍스트 — `prefix` 는 `.claude/` 기준 디렉터리명(`rules` 등). */
+interface PolicySyncCtx {
   prefix: string;
-  /** 설치 시점 기준선 (`.claude/` 상대경로 → sha256). 빈 Map = 판정 불가. */
-  baseline: ReadonlyMap<string, string>;
-  /** #678 — 실체가 프로젝트 밖인 파일은 지우지 않는다. 없으면 판정하지 않는다(단위 테스트). */
-  outside?: OutsideGuard;
-  /** #761 — 경로(projectDir 상대) 하나의 기록 상태(`recorded()`). `no-sha` 로 읽는 자리는 sha 가 같아도 백업한다. */
-  recordOf?: (projectRel: string) => Recorded;
+  /** #678 — 실체가 프로젝트 밖인 파일은 지우지 않는다. */
+  outside: OutsideGuard;
+  /** 경로(projectDir 상대) 하나의 기록 상태(`recorded()`) — 지울지·백업할지는 이것 하나로 정한다. */
+  recordOf: (projectRel: string) => Recorded;
 }
 
 /**
@@ -2291,50 +2283,36 @@ function withoutLostBackups(
 }
 
 /**
- * Templates 에 없는데 target 에 있는 파일 제거 — **하네스가 깔았던 것만** (v26.132.0 · ADR-047).
+ * Templates 에 없는데 target 에 있는 파일 제거 — **설치 기록이 하네스 것이라 말하는 것만** (v26.132.0 · ADR-047).
  *
- * 그 전까지는 "templates 에 없다"만으로 지웠다. 그러면 사용자가 직접 만든 커스텀 룰·훅이
- * 백업도 없이 사라진다 — templates 에 없는 건 폐기된 하네스 룰도, 사용자가 쓴 팀 규칙도
- * 똑같이 "없음"이기 때문이다. 소유는 install log 기준선으로만 주장할 수 있다.
- *
- * 기록이 없으면(레거시 로그·로그 부재) **아무것도 지우지 않는다.** 폐기 룰이 남는 비용보다
- * 사용자 파일을 지우는 비용이 크다. 그쪽은 다음 install 이 기준선을 채우면 자연히 회수된다.
- *
- * 지우기 전 사용자가 고친 흔적이 있으면 백업을 남긴다 — 하네스가 깔았더라도 그 위에 쓴 내용은
- * 사용자 것이다.
+ * templates 에 없는 건 폐기된 하네스 룰도, 사용자가 쓴 팀 규칙도 똑같이 "없음"이다 — 소유는 기록으로만 주장한다. 지울지 ·
+ * 백업할지는 install · update · uninstall 이 쓰는 같은 판정(`recorded()` → `judge(op: remove)`)이 정한다(#796 §5.5): 기록에
+ * 없으면 남기고(옛 스캔 필터에 걸린 항목 포함), 기록 sha 그대로면 지우고, 다르거나 체크섬 없는 기록(옛 판 · 은퇴 자리)이면
+ * 그 파일 하나를 백업하고 지운다. 은퇴 자리는 템플릿이 없으므로 `next` 는 없다.
  */
-export function pruneOrphans(
+function pruneOrphans(
   target: string,
   source: string,
   ext: string,
   ctx: PolicySyncCtx,
-  now: Date = new Date(),
+  now: Date,
 ): string[] {
   if (!existsSync(target) || !existsSync(source)) return [];
   const removed: string[] = [];
   for (const file of readdirSync(target)) {
-    if (!file.endsWith(ext)) continue;
-    const sourceFile = join(source, file);
-    if (!existsSync(sourceFile)) {
-      const targetFile = join(target, file);
-      // 소유를 주장할 수 있는 것만 지운다. 기준선에 없으면 사용자가 만든 파일이다.
-      const key = `${ctx.prefix}/${file}`;
-      if (!ctx.baseline.has(key)) continue;
-      if (ctx.outside?.skip(targetFile)) continue; // #678 — 밖의 실체는 지우지 않는다
-      try {
-        const current = readFileSync(targetFile, "utf8");
-        // 기준선 sha 가 같아도 하네스 파일 쓰기와 같은 접근자(`recorded()`)가 `no-sha` 라 읽는 자리는 백업한다 — 은퇴
-        // 자리(`RETIRED_PATHS`)의 옛 스캔 · 옛 로그에서 이어받은 항목(`retiredClaims`)의 sha 는 하네스 내용의 증거가 아니다(#551
-        // 리뷰 B3 · PR-D 재리뷰 BLOCKER-1). 기록이 없으면(엔진 직접 호출) 기준선 sha 그대로
-        const owned =
-          ctx.baseline.get(key) === hashContent(current) &&
-          ctx.recordOf?.(`.claude/${key}`).state !== "no-sha";
-        if (!owned) backupFile(targetFile, now);
-        unlinkSync(targetFile);
-        removed.push(file);
-      } catch {
-        // best-effort — read-only? 다음 update 시 재시도
-      }
+    if (!file.endsWith(ext) || existsSync(join(source, file))) continue;
+    const targetFile = join(target, file);
+    const rec = ctx.recordOf(`.claude/${ctx.prefix}/${file}`);
+    try {
+      const disk = readFileSync(targetFile, "utf8");
+      const { verdict } = judge({ op: "remove", kind: "harness", rec, disk, next: null });
+      // 판정이 곧 동작이다 — `leave`(기록에 없는 설치자 파일 등)면 건드리지 않는다. #678 밖의 실체는 그 뒤에 거른다
+      if (verdict === "leave" || ctx.outside.skip(targetFile)) continue;
+      if (verdict === "backup+remove") backupFile(targetFile, now);
+      unlinkSync(targetFile);
+      removed.push(file);
+    } catch {
+      // best-effort — read-only? 다음 update 시 재시도
     }
   }
   return removed;
