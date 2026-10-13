@@ -118,7 +118,7 @@ describe("#597 — update 가 CLI 중립 헬퍼를 갱신한다", () => {
     ).toContain("# OLD RELEASE LINE");
   });
 
-  it("결측 헬퍼는 0단계 installNewAssets(#283) 가 채운다 — 이 PR 의 갱신 단계와 경계가 다르다", () => {
+  it("결측 헬퍼는 update 가 채운다(#283) — 기록에 있는 하네스 파일이 없으면 되살린다", () => {
     install(["claude"]);
     rmSync(join(projectDir, ".uzys-agent-harness", "check-absence.sh"), { force: true });
     runUpdateMode(projectDir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
@@ -171,6 +171,8 @@ describe("#597 — 갱신한 헬퍼의 기록·링크·부분 갱신 (B-666 NOTE
     }
   });
 
+  // #796 §1.2 ⑥ — 헬퍼도 install 과 같은 writer 규칙: 링크 너머가 프로젝트 **밖**이면 쓰지도 · 백업하지도 · 기록하지도 않고 밖 링크 줄로
+  // 알린다(안 링크는 따라가 판정한다 — install 과 같다)
   it("헬퍼가 링크면 프로젝트 밖 파일을 덮지 않고 남김으로 알린다", () => {
     install(["claude"]);
     const outside = mkdtempSync(join(tmpdir(), "ah-outside-"));
@@ -182,7 +184,8 @@ describe("#597 — 갱신한 헬퍼의 기록·링크·부분 갱신 (B-666 NOTE
       symlinkSync(target, helper);
       const report = runUpdateMode(projectDir, TEMPLATES, HARNESS_ROOT);
       expect(readFileSync(target, "utf8")).toBe("# installer's own file\n");
-      expect(report.helpersKept).toContain(HELPER);
+      expect((report.outsideLinks ?? []).map((o) => o.path)).toContain(HELPER);
+      expect(readdirSync(outside)).toEqual(["check-absence.sh"]); // 밖에 백업도 만들지 않는다
     } finally {
       rmSync(outside, { recursive: true, force: true });
     }

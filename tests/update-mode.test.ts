@@ -1,6 +1,5 @@
 import {
   copyFileSync,
-  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -16,7 +15,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { findStaleHookRefs } from "../src/hook-ref.js";
 import {
-  collectSkillHashes,
   hashContent,
   type InstallLog,
   installLogPath,
@@ -33,8 +31,6 @@ import {
   pruneOrphans,
   retireMcpAllowlist,
   runUpdateMode,
-  syncSkills,
-  updateDir,
 } from "../src/update-mode.js";
 
 /**
@@ -55,46 +51,6 @@ function ownedCtx(prefix: string, files: Record<string, string>) {
     baseline: new Map(Object.entries(files).map(([n, c]) => [`${prefix}/${n}`, hashContent(c)])),
   };
 }
-
-describe("updateDir", () => {
-  let dir: string;
-  beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "ch-up-"));
-    mkdirSync(join(dir, "target"));
-    mkdirSync(join(dir, "source"));
-  });
-  afterEach(() => {
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  it("overwrites only files that exist in target (Track 혼입 방지)", () => {
-    writeFileSync(join(dir, "target", "a.md"), "old-a");
-    writeFileSync(join(dir, "target", "b.md"), "old-b");
-    writeFileSync(join(dir, "source", "a.md"), "new-a");
-    writeFileSync(join(dir, "source", "b.md"), "new-b");
-    writeFileSync(join(dir, "source", "c.md"), "new-c"); // c.md not in target
-
-    const ctx = ownedCtx("rules", { "a.md": "old-a", "b.md": "old-b" });
-    const { updated } = updateDir(join(dir, "target"), join(dir, "source"), ".md", ctx);
-    expect(updated).toBe(2);
-    expect(readFileSync(join(dir, "target", "a.md"), "utf8")).toBe("new-a");
-    expect(readFileSync(join(dir, "target", "b.md"), "utf8")).toBe("new-b");
-    expect(existsSync(join(dir, "target", "c.md"))).toBe(false); // c.md NOT added
-  });
-
-  it("returns 0 when target/source missing", () => {
-    expect(updateDir("/nonexistent", "/also-nope", ".md", ownedCtx("rules", {})).updated).toBe(0);
-  });
-
-  it("filters by extension", () => {
-    writeFileSync(join(dir, "target", "x.md"), "");
-    writeFileSync(join(dir, "target", "y.txt"), "");
-    writeFileSync(join(dir, "source", "x.md"), "x");
-    writeFileSync(join(dir, "source", "y.txt"), "y");
-    const ctx = ownedCtx("rules", { "x.md": "", "y.txt": "" });
-    expect(updateDir(join(dir, "target"), join(dir, "source"), ".md", ctx).updated).toBe(1);
-  });
-});
 
 describe("pruneOrphans", () => {
   let dir: string;
@@ -754,7 +710,28 @@ describe("runUpdateMode (E2E with templates)", () => {
     rmSync(templatesDir, { recursive: true, force: true });
   });
 
+  /** 체크섬 이전 옛 판(≤v26.125)의 기록 모양 — 필드 없이 claude · 트랙만 말한다. 하네스 파일 갱신은 기록이 근거다(#796). */
+  const legacyLog = (): string =>
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+
   it("updates files + refreshes CLAUDE.md", () => {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      records: "writer",
+      policyFiles: [{ path: "rules/git-policy.md", sha256: hashContent("v1\n") }],
+    });
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(readFileSync(join(projectDir, ".claude/rules/git-policy.md"), "utf8")).toBe("v2\n");
     expect(readFileSync(join(projectDir, "CLAUDE-uzys-harness.md"), "utf8")).toBe(
@@ -779,7 +756,7 @@ describe("runUpdateMode (E2E with templates)", () => {
   describe("백업 목록 (#480 ③)", () => {
     const listFile = (): string => join(projectDir, ".uzys-agent-harness/update-backups.json");
     it("편집분이 백업되면 원본↔백업 쌍이 보고와 json 에 남는다 (룰 + 앵커, 기준선 없는 레거시)", () => {
-      mkdirSync(join(projectDir, ".uzys-agent-harness"), { recursive: true });
+      legacyLog();
       const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
       const paths = report.backups.map((b) => b.path);
@@ -1017,6 +994,13 @@ describe("runUpdateMode (E2E with templates)", () => {
    * 증명할 수 있을 때만 지운다.
    */
   it("설치 기록이 없으면 orphan 을 지우지 않는다 (사용자 파일일 수 있다)", () => {
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+    expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(true);
+    expect(report.pruned[".claude/rules"] ?? []).toEqual([]);
+  });
+
+  it("기록에 sha 가 없는 옛 로그도 orphan 을 지우지 않는다 — 기준선이 소유를 증명하지 않는다", () => {
+    legacyLog();
     const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
     expect(existsSync(join(projectDir, ".claude/rules/orphan-rule.md"))).toBe(true);
     expect(report.pruned[".claude/rules"]).toEqual([]);
@@ -1583,98 +1567,137 @@ describe("레거시 설치본 앵커 이행 (P5 · ADR-060)", () => {
  * 왜 중요한가: 이전까지 update 의 대상 목록에 `skills` 가 없어서, 한 번 설치된 스킬은
  * 영원히 그 시점에 고정됐다. 스킬을 아무리 개선해도 **기존 사용자에게 갈 통로가 없었다.**
  * 통로를 뚫되 사용자가 고친 내용은 잃지 않는다는 것이 ADR-046 의 결정이다.
+ *
+ * #796 — update 는 install 과 같은 writer 로 쓴다. 대상은 기록(`skillFiles`) + 이번 릴리즈 기본이고 판정 행은 `judge.test.ts` 가
+ * 행마다 문다 — 여기서는 `runUpdateMode` 로 디스크 결과(덮어쓰기 · 백업 · 번들 밖 파일 정리 · 남의 자리)를 본다.
  */
-describe("syncSkills (R-3a)", () => {
-  let target = "";
-  let source = "";
+describe(".claude/skills 갱신 (R-3a)", () => {
+  let projectDir = "";
+  let templatesDir = "";
+  const skills = (): string => join(projectDir, ".claude/skills");
 
   beforeEach(() => {
-    target = mkdtempSync(join(tmpdir(), "ch-sk-t-"));
-    source = mkdtempSync(join(tmpdir(), "ch-sk-s-"));
+    projectDir = mkdtempSync(join(tmpdir(), "ch-sk-p-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-sk-t-"));
+    mkdirSync(join(templatesDir, "skills"), { recursive: true });
+    mkdirSync(skills(), { recursive: true });
   });
   afterEach(() => {
-    rmSync(target, { recursive: true, force: true });
-    rmSync(source, { recursive: true, force: true });
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
   });
+
+  /** 지금 판의 기록(쓰기 = 기록) — `skillFiles` 에 적힌 스킬이 갱신 대상이다. */
+  function writerLog(skillFiles: Record<string, string>): void {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      records: "writer",
+      skillFiles: Object.entries(skillFiles).map(([path, text]) => ({
+        path,
+        sha256: hashContent(text),
+      })),
+    });
+  }
 
   /** templates 에 스킬 하나, 프로젝트에도 설치돼 있는 상태를 만든다. */
   function seed(skill: string, file: string, sourceText: string, targetText: string): void {
-    mkdirSync(join(source, skill), { recursive: true });
-    mkdirSync(join(target, skill), { recursive: true });
-    writeFileSync(join(source, skill, file), sourceText);
-    writeFileSync(join(target, skill, file), targetText);
+    mkdirSync(join(templatesDir, "skills", skill), { recursive: true });
+    mkdirSync(join(skills(), skill), { recursive: true });
+    writeFileSync(join(templatesDir, "skills", skill, file), sourceText);
+    writeFileSync(join(skills(), skill, file), targetText);
   }
 
   function backupsOf(skill: string): string[] {
-    return readdirSync(join(target, skill)).filter((f) => f.includes(".backup-"));
+    return readdirSync(join(skills(), skill)).filter((f) => f.includes(".backup-"));
   }
+
+  const update = () => runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["skills"]);
 
   it("사용자가 안 고쳤으면 백업 없이 덮어쓴다 — 개선분이 그대로 도달해야 한다", () => {
     seed("demo", "SKILL.md", "new\n", "old\n");
-    const baseline = new Map([["demo/SKILL.md", hashContent("old\n")]]);
+    writerLog({ "demo/SKILL.md": "old\n" });
 
-    const result = syncSkills(target, source, baseline, new Date(), () => null);
+    const report = update();
 
-    expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
-    expect(result.backedUp).toEqual([]);
+    expect(readFileSync(join(skills(), "demo/SKILL.md"), "utf8")).toBe("new\n");
+    expect(report.skillsBackedUp).toEqual([]);
     expect(backupsOf("demo")).toEqual([]);
-    expect(result.updated).toBe(1);
+    expect(report.updated[".claude/skills"]).toBe(1);
   });
 
   it("사용자가 고쳤으면 백업을 남기고 최신판을 자리에 놓는다 — 둘 다 지켜야 한다", () => {
     seed("demo", "SKILL.md", "new\n", "my-edit\n");
-    // 기준선은 설치 시점 원본. 디스크가 그와 다르다 = 사용자가 고쳤다.
-    const baseline = new Map([["demo/SKILL.md", hashContent("original\n")]]);
+    // 기록은 설치 시점 원본. 디스크가 그와 다르다 = 사용자가 고쳤다.
+    writerLog({ "demo/SKILL.md": "original\n" });
 
-    const result = syncSkills(target, source, baseline, new Date(), () => null);
+    const report = update();
 
     // 최신판이 활성 (ADR-046: 최신판이 활성, 편집분이 백업 — 반대가 아니다)
-    expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
-    expect(result.backedUp).toEqual(["demo/SKILL.md"]);
+    expect(readFileSync(join(skills(), "demo/SKILL.md"), "utf8")).toBe("new\n");
+    expect(report.skillsBackedUp).toEqual(["demo/SKILL.md"]);
     // 편집분이 백업에 살아 있어야 한다 — 이게 깨지면 사용자 작업이 소실된다
     const backups = backupsOf("demo");
     expect(backups).toHaveLength(1);
-    expect(readFileSync(join(target, "demo", backups[0] as string), "utf8")).toBe("my-edit\n");
+    expect(readFileSync(join(skills(), "demo", backups[0] as string), "utf8")).toBe("my-edit\n");
   });
 
-  it("기준선 기록이 없으면(레거시 설치) 보수적으로 백업한다 — 증명 없이 편집분을 지우지 않는다", () => {
-    seed("demo", "SKILL.md", "new\n", "unknown-origin\n");
+  it("체크섬 이전 옛 판(필드 없음)은 다르면 보수적으로 백업하고 같으면 아무것도 안 한다", () => {
+    // 옛 판의 스킬은 이번 릴리즈 기본이라 대상이다 — 기본 스킬 id 는 manifest 에서 뽑는다(열거는 썩는다)
+    const spec = buildAssetSpec({ tracks: ["tooling"], options: DEFAULT_OPTIONS });
+    const [first, second] = buildManifest(spec)
+      .filter((e) => e.type === "dir" && e.target.startsWith(".claude/skills/") && e.applies(spec))
+      .map((e) => e.target.slice(".claude/skills/".length));
+    expect(second, "tooling 기본 스킬이 둘 미만이면 이 테스트가 볼 대상이 없다").toBeDefined();
+    const [changed, same] = [first as string, second as string];
+    seed(changed, "SKILL.md", "new\n", "unknown-origin\n");
+    seed(same, "SKILL.md", "same\n", "same\n");
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
 
-    const result = syncSkills(target, source, new Map(), new Date(), () => null);
+    const report = update();
 
-    expect(result.backedUp).toEqual(["demo/SKILL.md"]);
-    expect(readFileSync(join(target, "demo/SKILL.md"), "utf8")).toBe("new\n");
+    expect(report.skillsBackedUp).toEqual([`${changed}/SKILL.md`]);
+    expect(readFileSync(join(skills(), changed, "SKILL.md"), "utf8")).toBe("new\n");
+    expect(backupsOf(same)).toEqual([]);
+    expect(report.updated[".claude/skills"]).toBe(1);
+    // 첫 접촉(설치자 파일)으로 읽지 않는다 — 옛 판의 하네스 스킬이다
+    expect(report.displaced ?? []).toEqual([]);
+    expect(report.displacedSame ?? []).toEqual([]);
   });
 
-  it("이미 최신이면 아무것도 안 한다 — 재실행이 백업 노이즈를 쌓으면 안 된다", () => {
-    seed("demo", "SKILL.md", "same\n", "same\n");
+  it("기록에도 이번 릴리즈 기본에도 없는 스킬은 새로 깔지 않는다 — update 가 고르지 않은 자산을 들이면 안 된다", () => {
+    mkdirSync(join(templatesDir, "skills/not-chosen"), { recursive: true });
+    writeFileSync(join(templatesDir, "skills/not-chosen/SKILL.md"), "x\n");
+    writerLog({});
 
-    const result = syncSkills(target, source, new Map(), new Date(), () => null); // 기준선 없어도 내용이 같으면 무동작
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
 
-    expect(result.updated).toBe(0);
-    expect(result.backedUp).toEqual([]);
-    expect(backupsOf("demo")).toEqual([]);
-  });
-
-  it("설치 안 된 스킬은 새로 깔지 않는다 — update 가 고르지 않은 자산을 들이면 안 된다", () => {
-    mkdirSync(join(source, "not-chosen"), { recursive: true });
-    writeFileSync(join(source, "not-chosen", "SKILL.md"), "x\n");
-
-    const result = syncSkills(target, source, new Map(), new Date(), () => null);
-
-    expect(existsSync(join(target, "not-chosen"))).toBe(false);
-    expect(result.updated).toBe(0);
+    expect(existsSync(join(skills(), "not-chosen"))).toBe(false);
+    expect(report.installedNew).not.toContain(".claude/skills/not-chosen");
   });
 
   it("설치된 스킬 안에 새로 생긴 파일은 가져온다 — 스킬의 일부다", () => {
     seed("demo", "SKILL.md", "s\n", "s\n");
-    mkdirSync(join(source, "demo/references"), { recursive: true });
-    writeFileSync(join(source, "demo/references/deep.md"), "ref\n");
+    mkdirSync(join(templatesDir, "skills/demo/references"), { recursive: true });
+    writeFileSync(join(templatesDir, "skills/demo/references/deep.md"), "ref\n");
+    writerLog({ "demo/SKILL.md": "s\n" });
 
-    const result = syncSkills(target, source, new Map(), new Date(), () => null);
+    const report = update();
 
-    expect(readFileSync(join(target, "demo/references/deep.md"), "utf8")).toBe("ref\n");
-    expect(result.updated).toBe(1);
+    expect(readFileSync(join(skills(), "demo/references/deep.md"), "utf8")).toBe("ref\n");
+    expect(report.updated[".claude/skills"]).toBe(1);
+    expect(report.installedNew).toEqual([]); // 스킬은 이미 있었다 — "새 스킬" 이 아니다
   });
 
   /**
@@ -1683,127 +1706,104 @@ describe("syncSkills (R-3a)", () => {
    * 백업으로 남는다. 실측: 26.152→26.153 에서 `clear-korean-communication/references/` 3파일이
    * 새 SKILL.md 가 가리키지 않는 채로 남았다.
    */
-  it("번들에서 사라진 파일은 지운다 — 우리가 깐 그대로면 백업 없이 (#477)", () => {
+  it("번들에서 사라진 파일은 지운다 — 우리가 깐 그대로면 백업 없이, 기록에서도 뺀다 (#477)", () => {
     seed("demo", "SKILL.md", "s\n", "s\n");
-    mkdirSync(join(target, "demo/references"), { recursive: true });
-    writeFileSync(join(target, "demo/references/old.md"), "old-ref\n");
-    const baseline = new Map([
-      ["demo/SKILL.md", hashContent("s\n")],
-      ["demo/references/old.md", hashContent("old-ref\n")],
-    ]);
+    mkdirSync(join(skills(), "demo/references"), { recursive: true });
+    writeFileSync(join(skills(), "demo/references/old.md"), "old-ref\n");
+    writerLog({ "demo/SKILL.md": "s\n", "demo/references/old.md": "old-ref\n" });
 
-    const result = syncSkills(target, source, baseline, new Date(), () => null);
+    const report = update();
 
-    expect(existsSync(join(target, "demo/references/old.md"))).toBe(false);
-    expect(existsSync(join(target, "demo/references")), "빈 디렉터리도 걷는다").toBe(false);
-    expect(result.pruned).toEqual(["demo/references/old.md"]);
-    expect(result.backedUp).toEqual([]);
+    expect(existsSync(join(skills(), "demo/references/old.md"))).toBe(false);
+    expect(existsSync(join(skills(), "demo/references")), "빈 디렉터리도 걷는다").toBe(false);
+    expect(report.skillsPruned).toEqual(["demo/references/old.md"]);
+    expect(report.skillsBackedUp).toEqual([]);
     expect(backupsOf("demo")).toEqual([]);
     // 디렉터리 내용 = 번들. 이것이 "지우고 다시 깐다" 의 정의다.
-    expect(readdirSync(join(target, "demo"))).toEqual(["SKILL.md"]);
+    expect(readdirSync(join(skills(), "demo"))).toEqual(["SKILL.md"]);
+    // 지운 파일은 기록에서도 빠진다 — 남으면 다음 update 가 "지운 하네스 파일" 로 되살린다
+    expect((readInstallLog(projectDir)?.skillFiles ?? []).map((f) => f.path)).toEqual([
+      "demo/SKILL.md",
+    ]);
   });
 
-  it("번들에 없는 파일이 사용자 것이면(기준선 없음·다름) 백업하고 지운다 (#477)", () => {
+  it("번들에 없는 파일이 사용자 것이면(기록 없음·다름) 백업하고 지운다 — 기록에는 번들 파일만 남는다 (#477 · 리뷰 HIGH-1)", () => {
     seed("demo", "SKILL.md", "s\n", "s\n");
-    writeFileSync(join(target, "demo/my-notes.md"), "mine\n");
-    mkdirSync(join(target, "demo/references"), { recursive: true });
-    writeFileSync(join(target, "demo/references/old.md"), "edited-ref\n");
-    const baseline = new Map([["demo/references/old.md", hashContent("original-ref\n")]]);
+    writeFileSync(join(skills(), "demo/my-notes.md"), "mine\n");
+    mkdirSync(join(skills(), "demo/references"), { recursive: true });
+    writeFileSync(join(skills(), "demo/references/old.md"), "edited-ref\n");
+    writerLog({ "demo/SKILL.md": "s\n", "demo/references/old.md": "original-ref\n" });
 
-    const result = syncSkills(target, source, baseline, new Date(), () => null);
+    const report = update();
 
-    expect(existsSync(join(target, "demo/my-notes.md"))).toBe(false);
-    expect(existsSync(join(target, "demo/references/old.md"))).toBe(false);
-    expect(result.pruned.sort()).toEqual(["demo/my-notes.md", "demo/references/old.md"]);
-    expect(result.backedUp.sort()).toEqual(["demo/my-notes.md", "demo/references/old.md"]);
+    expect(existsSync(join(skills(), "demo/my-notes.md"))).toBe(false);
+    expect(existsSync(join(skills(), "demo/references/old.md"))).toBe(false);
+    expect([...report.skillsPruned].sort()).toEqual(["demo/my-notes.md", "demo/references/old.md"]);
+    expect([...report.skillsBackedUp].sort()).toEqual([
+      "demo/my-notes.md",
+      "demo/references/old.md",
+    ]);
     // 편집분·출처 미상 파일은 백업에 살아 있어야 한다 — 이게 깨지면 사용자 작업이 소실된다
     const notes = backupsOf("demo").find((f) => f.startsWith("my-notes.md.backup-"));
     expect(notes).toBeDefined();
-    expect(readFileSync(join(target, "demo", notes as string), "utf8")).toBe("mine\n");
-    const refs = readdirSync(join(target, "demo/references")).filter((f) => f.includes(".backup-"));
+    expect(readFileSync(join(skills(), "demo", notes as string), "utf8")).toBe("mine\n");
+    const refs = readdirSync(join(skills(), "demo/references")).filter((f) =>
+      f.includes(".backup-"),
+    );
     expect(refs).toHaveLength(1);
-    expect(readFileSync(join(target, "demo/references", refs[0] as string), "utf8")).toBe(
+    expect(readFileSync(join(skills(), "demo/references", refs[0] as string), "utf8")).toBe(
       "edited-ref\n",
     );
-  });
-
-  it("기준선은 번들에 있는 파일만 담는다 — 사용자 파일이 들어가면 다음 update 가 백업 없이 지운다 (#477 리뷰 HIGH-1)", () => {
-    // install 재실행 경로: 사용자가 둔 my-notes.md 가 디스크에 있는 채로 기준선을 다시 찍는다.
-    seed("demo", "SKILL.md", "s\n", "s\n");
-    writeFileSync(join(target, "demo/my-notes.md"), "mine\n");
-    const project = mkdtempSync(join(tmpdir(), "ch-sk-p-"));
-    try {
-      mkdirSync(join(project, ".claude"), { recursive: true });
-      // templatesDir 는 <dir>/skills/<id>/… 형태 — source 의 부모를 흉내 낸다
-      const templates = mkdtempSync(join(tmpdir(), "ch-sk-tpl-"));
-      cpSync(source, join(templates, "skills"), { recursive: true });
-      cpSync(target, join(project, ".claude/skills"), { recursive: true });
-
-      const paths = collectSkillHashes(project, templates).map((f) => f.path);
-
-      expect(paths).toContain("demo/SKILL.md");
-      expect(paths, "사용자 파일이 기준선에 들어갔다").not.toContain("demo/my-notes.md");
-      // 그 기준선으로 sync 하면 사용자 파일은 백업이 남는다 — 위 필터가 지키는 약속
-      const baseline = new Map(
-        collectSkillHashes(project, templates).map((f) => [f.path, f.sha256]),
-      );
-      const result = syncSkills(target, source, baseline, new Date(), () => null);
-      expect(result.backedUp).toEqual(["demo/my-notes.md"]);
-      rmSync(templates, { recursive: true, force: true });
-    } finally {
-      rmSync(project, { recursive: true, force: true });
-    }
+    // 사용자 파일이 기록에 들어가면 다음 update 가 그것을 하네스 파일로 읽어 백업 없이 지운다(HIGH-1)
+    expect((readInstallLog(projectDir)?.skillFiles ?? []).map((f) => f.path)).toEqual([
+      "demo/SKILL.md",
+    ]);
   });
 
   it("우리가 남긴 *.backup-* 은 지우지 않는다 — 지우면 매 update 가 직전 백업을 먹는다 (#477)", () => {
     seed("demo", "SKILL.md", "s\n", "s\n");
-    writeFileSync(join(target, "demo/SKILL.md.backup-20260101T000000Z"), "prev\n");
+    writeFileSync(join(skills(), "demo/SKILL.md.backup-20260101T000000Z"), "prev\n");
+    writerLog({ "demo/SKILL.md": "s\n" });
 
-    const result = syncSkills(target, source, new Map(), new Date(), () => null);
+    const report = update();
 
-    expect(readFileSync(join(target, "demo/SKILL.md.backup-20260101T000000Z"), "utf8")).toBe(
+    expect(readFileSync(join(skills(), "demo/SKILL.md.backup-20260101T000000Z"), "utf8")).toBe(
       "prev\n",
     );
-    expect(result.pruned).toEqual([]);
-    expect(result.updated).toBe(0);
+    expect(report.skillsPruned).toEqual([]);
+    expect(report.updated[".claude/skills"]).toBe(0);
   });
 
   /**
    * 회귀 가드 (2026-08-02 · ADR-062 · 계획 리뷰 P0-6).
    *
    * `npx skills add` 의 프로젝트 스코프 설치처가 `.claude/skills/<id>` 이고 그 실체는 사용자의
-   * skills 저장소로 가는 **링크**다. 위 판정은 `existsSync(targetSkill)` 하나였는데 그 함수는
-   * 링크를 따라가므로, "우리가 깐 디렉터리"와 "남의 저장소를 가리키는 링크"가 같은 값을 준다.
-   * 그 상태로 쓰면 하네스가 `.claude/` **밖**에 있는 사용자 저장소 본문을 덮어쓴다 — 백업이
-   * 남아도 사용자가 찾아갈 자리가 아니다.
+   * skills 저장소로 가는 **링크**다. `existsSync` 는 링크를 따라가므로 "우리가 깐 디렉터리"와
+   * "남의 저장소를 가리키는 링크"가 같은 값을 준다. 그 상태로 쓰면 하네스가 `.claude/` **밖**에
+   * 있는 사용자 저장소 본문을 덮어쓴다 — 백업이 남아도 사용자가 찾아갈 자리가 아니다.
    *
    * 그래서 단언은 "건너뛰었다"가 아니라 **링크 대상 파일이 한 바이트도 안 변했다**로 쓴다.
-   * 반환값만 보면 건너뛰었다고 보고하면서 실제로는 쓰는 구현이 통과한다.
    */
   it("target 스킬이 심볼릭 링크면 건너뛴다 — 링크 대상(남의 저장소)을 덮어쓰지 않는다", () => {
-    // 링크가 가리킬 "사용자의 skills 저장소".
     const foreignRepo = mkdtempSync(join(tmpdir(), "ch-sk-foreign-"));
     try {
       const foreignSkill = join(foreignRepo, "demo");
       mkdirSync(foreignSkill, { recursive: true });
       writeFileSync(join(foreignSkill, "SKILL.md"), "their-body\n");
+      mkdirSync(join(templatesDir, "skills/demo"), { recursive: true });
+      writeFileSync(join(templatesDir, "skills/demo/SKILL.md"), "our-body\n");
+      symlinkSync(foreignSkill, join(skills(), "demo"), "dir");
+      writerLog({ "demo/SKILL.md": "their-body\n" });
 
-      // templates 쪽엔 같은 이름의 우리 판본이 있다.
-      mkdirSync(join(source, "demo"), { recursive: true });
-      writeFileSync(join(source, "demo", "SKILL.md"), "our-body\n");
-
-      // 프로젝트의 .claude/skills/demo 는 그 저장소로 가는 링크다.
-      symlinkSync(foreignSkill, join(target, "demo"), "dir");
-
-      const result = syncSkills(target, source, new Map(), new Date(), () => null);
+      const report = update();
 
       // 핵심 단언 — 링크 대상 본문 무변경.
       expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");
       // 백업 파일도 만들지 않는다 (남의 저장소에 우리 부산물을 남기지 않는다).
       expect(readdirSync(foreignSkill)).toEqual(["SKILL.md"]);
-      expect(result.updated).toBe(0);
+      expect(report.updated[".claude/skills"]).toBe(0);
       // 침묵 금지 — 건너뛴 사실을 보고한다.
-      expect(result.skippedLinks).toEqual(["demo"]);
+      expect(report.skillsSkippedLinks).toEqual(["demo"]);
     } finally {
       rmSync(foreignRepo, { recursive: true, force: true });
     }
@@ -1815,24 +1815,18 @@ describe("syncSkills (R-3a)", () => {
       const foreignSkill = join(foreignRepo, "linked");
       mkdirSync(foreignSkill, { recursive: true });
       writeFileSync(join(foreignSkill, "SKILL.md"), "their-body\n");
-      mkdirSync(join(source, "linked"), { recursive: true });
-      writeFileSync(join(source, "linked", "SKILL.md"), "our-body\n");
-      symlinkSync(foreignSkill, join(target, "linked"), "dir");
-
+      mkdirSync(join(templatesDir, "skills/linked"), { recursive: true });
+      writeFileSync(join(templatesDir, "skills/linked/SKILL.md"), "our-body\n");
+      symlinkSync(foreignSkill, join(skills(), "linked"), "dir");
       seed("owned", "SKILL.md", "new\n", "old\n");
+      writerLog({ "linked/SKILL.md": "their-body\n", "owned/SKILL.md": "old\n" });
 
-      const result = syncSkills(
-        target,
-        source,
-        new Map([["owned/SKILL.md", hashContent("old\n")]]),
-        new Date(),
-        () => null,
-      );
+      const report = update();
 
       expect(readFileSync(join(foreignSkill, "SKILL.md"), "utf8")).toBe("their-body\n");
-      expect(readFileSync(join(target, "owned/SKILL.md"), "utf8")).toBe("new\n");
-      expect(result.updated).toBe(1);
-      expect(result.skippedLinks).toEqual(["linked"]);
+      expect(readFileSync(join(skills(), "owned/SKILL.md"), "utf8")).toBe("new\n");
+      expect(report.updated[".claude/skills"]).toBe(1);
+      expect(report.skillsSkippedLinks).toEqual(["linked"]);
     } finally {
       rmSync(foreignRepo, { recursive: true, force: true });
     }

@@ -1609,8 +1609,8 @@ function writtenSoFar(
  * Install log write — `.uzys-agent-harness/.harness-install.json` (자산 list + scope + timestamp,
  * uninstall command 의 source). 실패는 install 자체를 fail 시키지 않음 (D16 — install 성공 우선).
  *
- * #551 PR-3 — **쓰기 = 기록.** 기준선은 설치 뒤 디스크를 훑어 만들지 않는다(`collectPolicyHashes` ·
- * `collectSkillHashes` 는 install 경로에서 끊었다 — 템플릿과 이름이 같은 설치자 파일을 담았다, R1). 이번 실행이
+ * #551 PR-3 — **쓰기 = 기록.** 기준선은 설치 뒤 디스크를 훑어 만들지 않는다(옛 판의 디스크 스캔은 템플릿과 이름이 같은
+ * 설치자 파일을 담았다, R1 — #796 에서 update 경로까지 걷었다). 이번 실행이
  * 판정대로 쓴 경로·sha 를 옛 기록 위에 누적하고(`composeWriterLog`), 옛 판 스캔 기록은 처음 한 번 소유 필터를
  * 거쳐 이어받는다(`records: "writer"`, Q1).
  */

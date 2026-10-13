@@ -12,17 +12,20 @@
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { listFilesRecursive } from "../src/fs-ops.js";
 import {
-  collectPolicyHashes,
   hashContent,
   installLogPath,
   POLICY_DIRS,
+  readInstallLog,
+  writeInstallLog,
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
-import { pruneOrphans, updateDir } from "../src/update-mode.js";
+import { pruneOrphans, runUpdateMode } from "../src/update-mode.js";
+
+const HARNESS_ROOT = resolve(__dirname, "..");
 
 /** `dir` 안에서 `name` 의 백업본들을 찾아 내용을 읽는다. 백업 명명 규칙에 의존하지 않기 위함. */
 function backupContents(dir: string, name: string): string[] {
@@ -31,75 +34,128 @@ function backupContents(dir: string, name: string): string[] {
     .map((rel) => readFileSync(join(dir, rel), "utf8"));
 }
 
-describe("updateDir 소유자 판정 (ADR-047)", () => {
-  let target = "";
-  let source = "";
+/**
+ * update 의 정책 파일 판정 — #796 부터 install 과 같은 writer(`judge`)로 쓴다. 판정 행은 `judge.test.ts` 가 행마다 문다 — 여기서는
+ * `runUpdateMode` 로 **사용자가 쓴 내용이 살아남는가**와 기록이 무엇을 담는가를 본다.
+ */
+describe("update 의 정책 파일 소유자 판정 (ADR-047)", () => {
+  let projectDir = "";
+  let templatesDir = "";
+  const rules = (): string => join(projectDir, ".claude/rules");
 
   beforeEach(() => {
-    target = mkdtempSync(join(tmpdir(), "ch-pol-t-"));
-    source = mkdtempSync(join(tmpdir(), "ch-pol-s-"));
+    projectDir = mkdtempSync(join(tmpdir(), "ch-pol-p-"));
+    templatesDir = mkdtempSync(join(tmpdir(), "ch-pol-t-"));
+    for (const { dir } of POLICY_DIRS) {
+      mkdirSync(join(templatesDir, dir), { recursive: true });
+      mkdirSync(join(projectDir, ".claude", dir), { recursive: true });
+    }
   });
   afterEach(() => {
-    rmSync(target, { recursive: true, force: true });
-    rmSync(source, { recursive: true, force: true });
+    rmSync(projectDir, { recursive: true, force: true });
+    rmSync(templatesDir, { recursive: true, force: true });
   });
 
+  /** `policyFiles` 를 받으면 지금 판의 기록(쓰기 = 기록), 안 받으면 체크섬 이전 옛 판(필드 없음). */
+  function log(policyFiles?: Record<string, string>): void {
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      ...(policyFiles === undefined
+        ? {}
+        : {
+            records: "writer" as const,
+            policyFiles: Object.entries(policyFiles).map(([path, text]) => ({
+              path,
+              sha256: hashContent(text),
+            })),
+          }),
+    });
+  }
+
+  const update = () =>
+    runUpdateMode(projectDir, templatesDir, HARNESS_ROOT, {}, ["rules", "hooks"]);
+
   it("사용자가 고친 룰은 편집 내용이 백업본으로 살아남는다", () => {
-    writeFileSync(join(source, "git-policy.md"), "harness v2\n");
-    writeFileSync(join(target, "git-policy.md"), "harness v1 + MY EDIT\n");
-    // 기준선 = 하네스가 놓아둔 원본. 디스크가 이것과 다르다 = 사용자가 고쳤다.
-    const baseline = new Map([["rules/git-policy.md", hashContent("harness v1\n")]]);
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "harness v2\n");
+    writeFileSync(join(rules(), "git-policy.md"), "harness v1 + MY EDIT\n");
+    // 기록 = 하네스가 놓아둔 원본. 디스크가 이것과 다르다 = 사용자가 고쳤다.
+    log({ "rules/git-policy.md": "harness v1\n" });
 
-    const result = updateDir(target, source, ".md", { prefix: "rules", baseline });
+    const report = update();
 
-    expect(readFileSync(join(target, "git-policy.md"), "utf8")).toBe("harness v2\n");
-    expect(backupContents(target, "git-policy.md")).toContain("harness v1 + MY EDIT\n");
-    expect(result.backedUp).toContain("rules/git-policy.md");
+    expect(readFileSync(join(rules(), "git-policy.md"), "utf8")).toBe("harness v2\n");
+    expect(backupContents(rules(), "git-policy.md")).toContain("harness v1 + MY EDIT\n");
+    expect(report.policyBackedUp).toContain("rules/git-policy.md");
   });
 
   it("사용자가 안 고친 룰은 백업 없이 덮어쓴다 (백업 노이즈 미축적)", () => {
     // 하네스가 개선해서 내용이 달라진 경우. 내용 비교만으로는 사용자 편집과 구분할 수 없어서
-    // 기준선이 필요하다 — 이걸 빼면 릴리즈마다 전 사용자에게 백업본이 쌓인다.
-    writeFileSync(join(source, "git-policy.md"), "harness v2\n");
-    writeFileSync(join(target, "git-policy.md"), "harness v1\n");
-    const baseline = new Map([["rules/git-policy.md", hashContent("harness v1\n")]]);
+    // 기록이 필요하다 — 이걸 빼면 릴리즈마다 전 사용자에게 백업본이 쌓인다.
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "harness v2\n");
+    writeFileSync(join(rules(), "git-policy.md"), "harness v1\n");
+    log({ "rules/git-policy.md": "harness v1\n" });
 
-    const result = updateDir(target, source, ".md", { prefix: "rules", baseline });
+    const report = update();
 
-    expect(readFileSync(join(target, "git-policy.md"), "utf8")).toBe("harness v2\n");
-    expect(backupContents(target, "git-policy.md")).toEqual([]);
-    expect(result.backedUp).toEqual([]);
+    expect(readFileSync(join(rules(), "git-policy.md"), "utf8")).toBe("harness v2\n");
+    expect(backupContents(rules(), "git-policy.md")).toEqual([]);
+    expect(report.policyBackedUp).toEqual([]);
   });
 
-  it("기준선 기록이 없으면 보수적으로 백업한다 (레거시 설치의 첫 update)", () => {
-    writeFileSync(join(source, "git-policy.md"), "harness v2\n");
-    writeFileSync(join(target, "git-policy.md"), "unknown provenance\n");
+  it("기록에 체크섬이 없으면 보수적으로 백업한다 (레거시 설치의 첫 update)", () => {
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "harness v2\n");
+    writeFileSync(join(rules(), "git-policy.md"), "unknown provenance\n");
+    log();
 
-    const result = updateDir(target, source, ".md", { prefix: "rules", baseline: new Map() });
+    const report = update();
 
-    expect(backupContents(target, "git-policy.md")).toContain("unknown provenance\n");
-    expect(result.backedUp).toContain("rules/git-policy.md");
+    expect(backupContents(rules(), "git-policy.md")).toContain("unknown provenance\n");
+    expect(report.policyBackedUp).toContain("rules/git-policy.md");
+    expect(report.noChecksum).toContain(".claude/rules/git-policy.md");
   });
 
   it("이미 최신이면 백업도 쓰기도 하지 않는다", () => {
-    writeFileSync(join(source, "git-policy.md"), "same\n");
-    writeFileSync(join(target, "git-policy.md"), "same\n");
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "same\n");
+    writeFileSync(join(rules(), "git-policy.md"), "same\n");
+    log();
 
-    const result = updateDir(target, source, ".md", { prefix: "rules", baseline: new Map() });
+    const report = update();
 
-    expect(backupContents(target, "git-policy.md")).toEqual([]);
-    expect(result.updated).toBe(0);
+    expect(backupContents(rules(), "git-policy.md")).toEqual([]);
+    expect(report.updated[".claude/rules"]).toBe(0);
   });
 
   it("훅(.sh)도 같은 판정을 받는다 — 자산 종류에 따라 보호가 갈리지 않는다", () => {
-    writeFileSync(join(source, "session-start.sh"), "echo v2\n");
-    writeFileSync(join(target, "session-start.sh"), "echo v1 # MY EDIT\n");
-    const baseline = new Map([["hooks/session-start.sh", hashContent("echo v1\n")]]);
+    writeFileSync(join(templatesDir, "hooks/session-start.sh"), "echo v2\n");
+    const hooks = join(projectDir, ".claude/hooks");
+    writeFileSync(join(hooks, "session-start.sh"), "echo v1 # MY EDIT\n");
+    log({ "hooks/session-start.sh": "echo v1\n" });
 
-    const result = updateDir(target, source, ".sh", { prefix: "hooks", baseline });
+    const report = update();
 
-    expect(backupContents(target, "session-start.sh")).toContain("echo v1 # MY EDIT\n");
-    expect(result.backedUp).toContain("hooks/session-start.sh");
+    expect(backupContents(hooks, "session-start.sh")).toContain("echo v1 # MY EDIT\n");
+    expect(report.policyBackedUp).toContain("hooks/session-start.sh");
+  });
+
+  it("기록은 이번에 쓴 하네스 파일의 sha 만 담는다 — 같은 폴더의 설치자 파일은 적지 않는다", () => {
+    writeFileSync(join(templatesDir, "rules/git-policy.md"), "v2\n");
+    writeFileSync(join(rules(), "git-policy.md"), "v1\n");
+    writeFileSync(join(rules(), "my-team-rule.md"), "mine\n"); // templates 에 없음
+    log({ "rules/git-policy.md": "v1\n" });
+
+    update();
+
+    const recorded = readInstallLog(projectDir)?.policyFiles ?? [];
+    expect(recorded.find((f) => f.path === "rules/git-policy.md")?.sha256).toBe(
+      hashContent("v2\n"),
+    );
+    expect(recorded.map((f) => f.path)).not.toContain("rules/my-team-rule.md");
+    expect(readFileSync(join(rules(), "my-team-rule.md"), "utf8")).toBe("mine\n");
   });
 });
 
@@ -144,47 +200,6 @@ describe("pruneOrphans 소유자 판정 (ADR-047)", () => {
 
     expect(existsSync(join(target, "deprecated-rule.md"))).toBe(false);
     expect(backupContents(target, "deprecated-rule.md")).toContain("old harness rule + MY EDIT\n");
-  });
-});
-
-describe("collectPolicyHashes 기준선", () => {
-  let projectDir = "";
-  let templatesDir = "";
-
-  beforeEach(() => {
-    projectDir = mkdtempSync(join(tmpdir(), "ch-cph-p-"));
-    templatesDir = mkdtempSync(join(tmpdir(), "ch-cph-t-"));
-    for (const { dir } of POLICY_DIRS) {
-      mkdirSync(join(templatesDir, dir), { recursive: true });
-      mkdirSync(join(projectDir, ".claude", dir), { recursive: true });
-    }
-  });
-  afterEach(() => {
-    rmSync(projectDir, { recursive: true, force: true });
-    rmSync(templatesDir, { recursive: true, force: true });
-  });
-
-  it("templates 에 있는 파일만 하네스 소유로 기록한다", () => {
-    writeFileSync(join(templatesDir, "rules/git-policy.md"), "v1\n");
-    writeFileSync(join(projectDir, ".claude/rules/git-policy.md"), "v1\n");
-    writeFileSync(join(projectDir, ".claude/rules/my-team-rule.md"), "mine\n"); // templates 에 없음
-
-    const hashes = collectPolicyHashes(projectDir, templatesDir);
-    const paths = hashes.map((h) => h.path);
-
-    expect(paths).toContain("rules/git-policy.md");
-    expect(paths).not.toContain("rules/my-team-rule.md");
-  });
-
-  it("디스크에 있는 내용의 해시를 기록한다 (다음 update 의 판정 기준)", () => {
-    writeFileSync(join(templatesDir, "hooks/session-start.sh"), "echo hi\n");
-    writeFileSync(join(projectDir, ".claude/hooks/session-start.sh"), "echo hi\n");
-
-    const hashes = collectPolicyHashes(projectDir, templatesDir);
-
-    expect(hashes.find((h) => h.path === "hooks/session-start.sh")?.sha256).toBe(
-      hashContent("echo hi\n"),
-    );
   });
 });
 
@@ -257,27 +272,5 @@ describe("install 재설치 시 정책 파일 보호 (ADR-047)", () => {
     install();
 
     expect(backupContents(hooks, basename(hook as string)).join("")).toContain("MY HOOK EDIT");
-  });
-});
-
-describe("정책 파일 보호 계약 (회귀 가드)", () => {
-  it("updateDir 은 baseline 없이 조용히 덮어쓰는 경로를 갖지 않는다", () => {
-    // 옛 시그니처(3-arg)로 부르면 타입 에러가 나야 한다. 런타임에서도 ctx 부재 시
-    // "판정 불가 → 보수적 백업"으로 떨어져야지, 무조건 덮어쓰기로 떨어지면 안 된다.
-    const target = mkdtempSync(join(tmpdir(), "ch-cnt-t-"));
-    const source = mkdtempSync(join(tmpdir(), "ch-cnt-s-"));
-    try {
-      writeFileSync(join(source, "r.md"), "new\n");
-      writeFileSync(join(target, "r.md"), "user content\n");
-      mkdirSync(dirname(join(target, "r.md")), { recursive: true });
-
-      const result = updateDir(target, source, ".md", { prefix: "rules", baseline: new Map() });
-
-      expect(result.backedUp.length).toBeGreaterThan(0);
-      expect(backupContents(target, "r.md")).toContain("user content\n");
-    } finally {
-      rmSync(target, { recursive: true, force: true });
-      rmSync(source, { recursive: true, force: true });
-    }
   });
 });

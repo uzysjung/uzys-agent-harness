@@ -135,7 +135,7 @@ describe("#782 — update 의 은퇴 회수가 떠난 자리에 설치자 원본
     expect(report.updateMode?.displacedRestored?.map((d) => [d.path, d.verdict])).toEqual([
       [RULE, "restore"],
     ]);
-    // N13-4 — 기록 정리는 그 사이 `refreshPolicyBaseline` 이 다시 쓴 기록 위에 한다(실행 시작 때 읽은 기록으로 덮지 않는다)
+    // 회수한 자리는 기록에서 빠지고 나머지 하네스 룰의 기록은 남는다
     const policy = (log().policyFiles ?? []).map((f) => f.path);
     expect(policy).not.toContain("rules/git-policy.md");
     expect(policy).toContain("rules/test-policy.md");
@@ -145,9 +145,8 @@ describe("#782 — update 의 은퇴 회수가 떠난 자리에 설치자 원본
   });
 
   it("①′ 실제 은퇴 목록(RETIRED_PATHS)의 자리 — 되돌린 원본을 다음 update 가 하네스 몫으로 적거나 다시 치우지 않는다", () => {
-    // 되돌리기는 `refreshPolicyBaseline` 뒤에 돈다 — 앞에서 돌면 `retiredClaims` 가 되돌린 설치자 파일을 기준선에
-    // 하네스 몫으로 적고, 다음 update 의 은퇴 회수가 그것을 백업으로 옮긴다(#788 리뷰 MEDIUM-1). ① 의 git-policy 는
-    // 은퇴 목록에 없어 이 순서를 물지 않는다.
+    // 되돌린 설치자 파일을 `retiredClaims` 가 하네스 몫으로 적으면 다음 update 의 은퇴 회수가 그것을 백업으로 옮긴다(#788 리뷰
+    // MEDIUM-1). #796 — 은퇴 자리는 실행 시작 때 한 번 세므로 되돌리기와 기록 쓰기의 순서가 이 결과를 바꾸지 않는다.
     run("add", ["tooling"], ["claude"]);
     const P = ".claude/rules/nextjs.md";
     const harness = "# old harness nextjs rule\n";
