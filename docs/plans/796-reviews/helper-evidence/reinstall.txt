@@ -1,0 +1,12 @@
+26.125.0 merged rc=0 MINE-EDRULE live=0 backup=1
+26.125.0 merged rc=0 MINE-PB live=0 backup=0
+26.125.0 merged backups=1 helper-backups: 
+26.125.0 main rc=0 MINE-EDRULE live=0 backup=1
+26.125.0 main rc=0 MINE-PB live=0 backup=0
+26.125.0 main backups=16 helper-backups: 
+26.161.0 merged rc=0 MINE-EDRULE live=0 backup=1
+26.161.0 merged rc=0 MINE-PB live=0 backup=1
+26.161.0 merged backups=2 helper-backups: ./.uzys-agent-harness/protect-branch.sh.backup-20261013T225036 
+26.161.0 main rc=0 MINE-EDRULE live=0 backup=1
+26.161.0 main rc=0 MINE-PB live=0 backup=1
+26.161.0 main backups=4 helper-backups: ./.uzys-agent-harness/check-absence.sh.backup-20261013T225039 ./.uzys-agent-harness/protect-branch.sh.backup-20261013T225039 ./.uzys-agent-harness/spec-drift-check.sh.backup-20261013T225039 

@@ -1,0 +1,5 @@
+2:uzys-agent-harness · uninstall
+11:  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+15:  ○ remove 3 harness file(s) under .uzys-agent-harness/ (3 with a copy saved beside as *.backup-<time>)
+20:  ○ leave .claude/ — 3 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md
+dry-run wrote nothing

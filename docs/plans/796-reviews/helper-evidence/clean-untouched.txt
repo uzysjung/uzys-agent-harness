@@ -1,0 +1,66 @@
+== 26.150.0 B pr rc=0 hdir=PRESENT
+   .uzys-agent-harness/check-absence.sh.backup-20261013T222434 (= old-version template bytes)
+   .uzys-agent-harness/protect-branch.sh.backup-20261013T222434 (= old-version template bytes)
+   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222434 (= old-version template bytes)
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 67 harness file(s) · .uzys-agent-harness/ 3
+   screen:   ✓ backed up  .uzys-agent-harness/protect-branch.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/protect-branch.sh.backup-20261013T222434)
+   screen:   ✓ backed up  .uzys-agent-harness/spec-drift-check.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/spec-drift-check.sh.backup-20261013T222434)
+   screen:   ✓ backed up  .uzys-agent-harness/check-absence.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/check-absence.sh.backup-20261013T222434)
+   screen: [BACKUPS] 하네스가 남긴 백업 40건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+   screen:   .uzys-agent-harness/check-absence.sh.backup-20261013T222434
+   screen:   .uzys-agent-harness/protect-branch.sh.backup-20261013T222434
+   screen:   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222434
+== 26.150.0 B main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+   screen: [BACKUPS] 하네스가 남긴 백업 37건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+== 26.150.0 U pr rc=0 hdir=PRESENT
+   .uzys-agent-harness/check-absence.sh.backup-20261013T222442 (= old-version template bytes)
+   .uzys-agent-harness/protect-branch.sh.backup-20261013T222442 (= old-version template bytes)
+   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222442 (= old-version template bytes)
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 82 harness file(s) · .uzys-agent-harness/ 3
+   screen: [BACKUPS] 하네스가 남긴 백업 40건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+   screen:   .uzys-agent-harness/check-absence.sh.backup-20261013T222442
+   screen:   .uzys-agent-harness/protect-branch.sh.backup-20261013T222442
+   screen:   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222442
+== 26.150.0 U main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+   screen: [BACKUPS] 하네스가 남긴 백업 37건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+== 26.161.0 B pr rc=0 hdir=PRESENT
+   .uzys-agent-harness/check-absence.sh.backup-20261013T222457 (= old-version template bytes)
+   .uzys-agent-harness/protect-branch.sh.backup-20261013T222457 (= old-version template bytes)
+   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222457 (= old-version template bytes)
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 38 harness file(s) · .uzys-agent-harness/ 3
+   screen:   ✓ backed up  .uzys-agent-harness/protect-branch.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/protect-branch.sh.backup-20261013T222457)
+   screen:   ✓ backed up  .uzys-agent-harness/spec-drift-check.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/spec-drift-check.sh.backup-20261013T222457)
+   screen:   ✓ backed up  .uzys-agent-harness/check-absence.sh — no checksum on record — saved a copy, removed from live (.uzys-agent-harness/check-absence.sh.backup-20261013T222457)
+   screen: [BACKUPS] 하네스가 남긴 백업 3건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+   screen:   .uzys-agent-harness/check-absence.sh.backup-20261013T222457
+   screen:   .uzys-agent-harness/protect-branch.sh.backup-20261013T222457
+   screen:   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222457
+== 26.161.0 B main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+== 26.161.0 U pr rc=0 hdir=PRESENT
+   .uzys-agent-harness/check-absence.sh.backup-20261013T222504 (= old-version template bytes)
+   .uzys-agent-harness/protect-branch.sh.backup-20261013T222504 (= old-version template bytes)
+   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222504 (= old-version template bytes)
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 52 harness file(s) · .uzys-agent-harness/ 3
+   screen: [BACKUPS] 하네스가 남긴 백업 3건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+   screen:   .uzys-agent-harness/check-absence.sh.backup-20261013T222504
+   screen:   .uzys-agent-harness/protect-branch.sh.backup-20261013T222504
+   screen:   .uzys-agent-harness/spec-drift-check.sh.backup-20261013T222504
+== 26.161.0 U main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+== 26.170.0 B pr rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 52 harness file(s) · .uzys-agent-harness/ 3
+== 26.170.0 B main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+== 26.170.0 U pr rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
+   screen:   ✓ removed  .claude/ 52 harness file(s) · .uzys-agent-harness/ 3
+== 26.170.0 U main rc=0 hdir=absent
+   screen: uzys-agent-harness · uninstall
