@@ -2297,10 +2297,11 @@ function pruneOrphans(
     if (!file.endsWith(ext) || existsSync(join(source, file))) continue;
     const targetFile = join(target, file);
     const rec = ctx.recordOf(`.claude/${ctx.prefix}/${file}`);
-    if (rec.state === "none" || ctx.outside.skip(targetFile)) continue; // 설치자 파일 · #678 밖의 실체
     try {
       const disk = readFileSync(targetFile, "utf8");
       const { verdict } = judge({ op: "remove", kind: "harness", rec, disk, next: null });
+      // 판정이 곧 동작이다 — `leave`(기록에 없는 설치자 파일 등)면 건드리지 않는다. #678 밖의 실체는 그 뒤에 거른다
+      if (verdict === "leave" || ctx.outside.skip(targetFile)) continue;
       if (verdict === "backup+remove") backupFile(targetFile, now);
       unlinkSync(targetFile);
       removed.push(file);
