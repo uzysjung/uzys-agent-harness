@@ -31,7 +31,7 @@ const HARNESS_ROOT = resolve(__dirname, "..");
  * `.claude/skills/<id>` 는 `npx skills add` 의 프로젝트 스코프 설치처이고 그 실체는
  * 다른 저장소로의 심볼릭 링크다. 그 위에 `cpSync` 가 디렉터리를 부으려다 죽는다.
  *
- * `update` 는 이 상황을 **이미 올바르게** 처리한다 (ADR-062 · `syncSkills` 의 `skippedLinks`):
+ * `update` 는 이 상황을 **이미 올바르게** 처리한다 (ADR-062 · update 의 `skillsSkippedLinks`):
  * 남의 도구가 소유한 자리는 건드리지 않고, 건너뛴 사실을 화면에 이름으로 낸다. 같은 정책이
  * `install` 경로에만 없어서 크래시로 나타난 것이므로, 이 스위트는 **install 이 update 와 같은
  * 판정을 하는가**를 문다.
@@ -488,7 +488,7 @@ describe("#343 install: 자산 자리가 디렉터리가 아닐 때", () => {
   });
 
   it("update 도 슬롯 **안의 파일**이 링크면 따라 쓰지 않는다", () => {
-    // install 은 막는데 update 는 덮던 자리 — `syncSkills` 의 파일 루프가 판정을 안 거쳤다.
+    // install 은 막는데 update 는 덮던 자리 — 옛 update 스킬 루프(#796 PR-A 로 삭제)가 판정을 안 거쳤다.
     install();
     const id = installedSkillId();
     const external = join(foreignRepo, "x.md");

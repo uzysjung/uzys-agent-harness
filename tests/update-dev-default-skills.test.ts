@@ -352,7 +352,7 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expect(screen).not.toContain("had files with these names");
   });
 
-  it("ⓑ 이번 릴리즈의 신규 룰과 같은 이름의 손수 만든 룰 → updateDir 경로에서도 백업 · displaced · 화면 같은 말", () => {
+  it("ⓑ 이번 릴리즈의 신규 룰과 같은 이름의 손수 만든 룰 → update 의 .claude/ 쓰기에서도 백업 · displaced · 화면 같은 말", () => {
     const RULE = ".claude/rules/git-policy.md";
     run("add", spec(["tooling"], CLIS));
     // 그 룰이 없던 옛 판 설치본 — 디스크와 기준선에서 뺀다
