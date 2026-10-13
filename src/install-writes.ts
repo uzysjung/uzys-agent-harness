@@ -35,6 +35,7 @@ import {
   mergeExternalFiles,
 } from "./install-log.js";
 import { judge, type RecordEffect, type Verdict } from "./judge.js";
+import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { RETIRED_PATHS } from "./manifest.js";
 import { type McpJson, toClaudeServer } from "./mcp-merge.js";
 import { PRIOR_MCP_SERVERS, priorMcpValues, retiredMcpNames } from "./mcp-prior.js";
@@ -222,10 +223,17 @@ export function createInstallWriter(args: {
     if (outside.skip(abs)) return null;
     const next = "source" in from ? readFileSync(from.source, "utf8") : from.content;
     const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
+    const rec = recorded(previousLog, path, opts);
+    // ADR-111 결정 1ⓐ — 체크섬 없는(`no-sha`) 하네스 자리가 옛 판 바이트 그대로면 그 지문이 빠진 체크섬 몫을 한다. 쓰는 자리는 현행
+    // 번들이라 지금 다시 채워진다 → 백업 없이 갱신(uninstall `removeRecordedFile` 과 같은 규칙 · #812 옛 판 헬퍼)
+    const diskSha = rec.state === "no-sha" && disk !== null ? hashContent(disk) : null;
     const j = judge({
       op: "write",
       kind: "harness",
-      rec: recorded(previousLog, path, opts),
+      rec:
+        diskSha !== null && isLegacyHarnessFile(path, diskSha)
+          ? { state: "sha", sha256: diskSha }
+          : rec,
       disk,
       next,
       ...(args.run === undefined ? {} : { run: args.run }),

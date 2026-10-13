@@ -58,7 +58,7 @@ import { renderEverySelectableMcp } from "../cli-transforms.js";
 import { tomlBasicString } from "../codex/trust-entry.js";
 import { c, status } from "../design.js";
 import { type DisplacedOutcome, restoreDisplaced, withoutRestored } from "../displaced.js";
-import { gitignoreRender } from "../env-files.js";
+import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
   backupFile,
@@ -91,7 +91,7 @@ import {
 import { INSTALLED_TRACKS, installedTracksText } from "../installer.js";
 import { judge } from "../judge.js";
 import { isLegacyHarnessFile, LEGACY_HARNESS_FILES } from "../legacy-fingerprints.js";
-import { RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
+import { buildManifest, isCliNeutralTarget, RETIRED_HOOK_WIRING_REFS } from "../manifest.js";
 import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge.js";
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
@@ -601,11 +601,22 @@ function settleLog(
       return true;
     }
   } else {
-    // v26.135.0 (#253) — 로그가 `.claude/` 밖으로 나왔다. 예전엔 templates 제거가 `.claude/` 를
-    // 통째로 지우며 로그도 딸려 갔지만 이제 그 경로가 없다 — **templates 보존 여부와 무관하게**
-    // 여기서 지운다. 디렉터리째 지우는 이유: `.uzys-agent-harness/` 는 하네스 전용이라
-    // 파일만 지우면 빈 디렉터리가 남고, 그러면 "전부 지웠다"가 거짓이 된다.
-    io.rm(join(projectDir, INSTALL_LOG_DIR));
+    // v26.135.0 (#253) — 로그가 `.claude/` 밖으로 나왔다 — **templates 보존 여부와 무관하게** 여기서 지운다.
+    // #812 — 폴더째 지우지 않는다: 헬퍼(`*.sh`)는 다른 하네스 파일처럼 `removeHarnessFiles` 가 파일 하나씩 회수했고(고친 것은
+    // 그 파일 하나를 백업 · displaced 는 되돌림), 여기서는 기록과 런타임 파일만 지운 뒤 빈 폴더를 걷는다. 남는 것(백업 ·
+    // 되돌린 설치자 파일)이 있으면 폴더도 남는다. 밖으로 나가는 링크면 예전처럼 링크만 걷는다(그 너머는 이 프로젝트 것이 아니다)
+    const recordDir = join(projectDir, INSTALL_LOG_DIR);
+    if (outsideLinkAt(projectDir, INSTALL_LOG_DIR) !== null) io.rm(recordDir);
+    else {
+      // 런타임 파일 = `.gitignore` 가 무시하는 그 둘(차단 로그 · update 백업 목록 — ADR-100)
+      for (const rel of [
+        `${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`,
+        ...HARNESS_RUNTIME_IGNORES,
+      ]) {
+        io.rm(join(projectDir, rel));
+      }
+      pruneEmptyDirsUpward(projectDir, recordDir);
+    }
     // v26.134.1 이하로 설치한 프로젝트의 잔재. `.claude/` 는 설치자 파일과 함께 남으므로(#746) 여기서 안 지우면 다음
     // 실행이 그 구 파일을 읽어 **이미 지운 자산을 다시 보고**한다.
     // #692 — `.claude` 가 밖으로 나가는 링크면 그 폴더는 남는다 — 그 너머의 옛 기록은 이 프로젝트 것이라 할 수 없다.
@@ -637,7 +648,10 @@ function dryRunLines(
   // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
-  lines.push("  ○ remove install record (.uzys-agent-harness/ — 로그·헬퍼 스크립트·차단 로그)");
+  // #812 — 헬퍼 스크립트는 위 하네스 파일 줄이 센다(고친 것은 백업) — 여기는 기록 · 런타임 파일뿐이다
+  lines.push(
+    "  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)",
+  );
   lines.push(
     ...plan.noReversePath.flatMap((a) => [
       c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
@@ -697,7 +711,7 @@ function advisoryLines(
   }
   // 하네스 파일을 회수한 뒤에도 남는 루트 파일 — 말하지 않으면 사용자가 존재조차 모른다. 그게 F-1f 가 잡는 구멍이다.
   lines.push(...rootFileAdvisoryLines(rootFiles, projectDir));
-  // #570 — 하네스가 남긴 백업 산물(디렉터·파일) 공지. 색인(.uzys-agent-harness/)은 이번에
+  // #570 — 하네스가 남긴 백업 산물(디렉터·파일) 공지. 색인(설치 기록 · update 백업 목록)은 이번에
   // 지워지므로, 남는 실물을 말하지 않으면 정체를 알 방법이 없다.
   lines.push(...backupArtifactAdvisoryLines(projectDir));
   return lines;
@@ -727,8 +741,6 @@ function backupArtifactAdvisoryLines(projectDir: string): string[] {
     }
   }
   for (const dir of BACKUP_SCAN_DIRS) {
-    // 설치 기록 디렉터리는 같은 실행에서 통째로 지워진다
-    if (dir === INSTALL_LOG_DIR) continue;
     const abs = join(projectDir, dir);
     // ADR-098 — 밖으로 나가는 링크 너머는 이 프로젝트 것이 아니다
     if (!existsSync(abs) || outsideLinkAt(projectDir, dir) !== null) continue;
@@ -1729,15 +1741,16 @@ function removeHarnessFiles(
 /**
  * 판정 후보 — 기록의 하네스 파일 전부(`.claude/` 정책 · 번들 스킬 · 외부 CLI 산출물 · `.installed-tracks`). 함께 쓰는 파일
  * (`kindOf === "shared"`)은 ⓐ 에서만 다룬다(B1 — 여기로 오면 설치자가 표 하나를 더한 `config.toml` 이 sha 가 달라 통째로
- * 빠진다). 설치 기록 디렉터리(`.uzys-agent-harness/`)는 `settleLog` 가 통째로 지운다.
+ * 빠진다). 설치 기록 폴더의 헬퍼(`.uzys-agent-harness/*.sh`)도 같은 판정으로 회수한다(#812) — 기록 · 런타임 파일만 `settleLog` 가 지운다.
  */
 function harnessCandidates(log: InstallLog): string[] {
   const paths = [
     ...(log.policyFiles ?? []).map((f) => `${CLAUDE_DIR}${f.path}`),
     ...(log.skillFiles ?? []).map((f) => `${SKILLS_DIR}${f.path}`),
-    ...(log.externalFiles ?? [])
-      .map((f) => f.path)
-      .filter((p) => !p.startsWith(`${INSTALL_LOG_DIR}/`)),
+    ...(log.externalFiles ?? []).map((f) => f.path),
+    // 헬퍼 — writer 기록은 `externalFiles` 에 sha 로 적지만 옛 기록(≤v26.161.0)엔 항목이 없다. `recorded()` 가 가른다
+    // (writer 기록에 없으면 `none` = 설치자 파일 · 옛 기록이면 `no-sha` = 번들 판과 같을 때만 백업 없이)
+    ...helperSources().keys(),
     // 어느 필드에도 적힌 적 없는 옛 판의 하네스 파일 — `isTarget` 이 알려 준다(A8 · install 과 같은 방식)
     INSTALLED_TRACKS,
     // 스캔 필드가 아예 없는 옛 로그(v26.125.0 이하)는 필드가 하네스 파일을 열거하지 못한다 — manifest 의 하네스 자리 ·
@@ -1754,15 +1767,26 @@ function harnessTargets(log: InstallLog): (path: string) => boolean {
   return (p) => p === INSTALLED_TRACKS || tracked(p);
 }
 
+/** CLI 중립 헬퍼(`.uzys-agent-harness/*.sh`) → 번들 원본(`templates/` 상대). 트랙과 무관하게 깔린다(manifest `applies: all`). */
+function helperSources(): Map<string, string> {
+  return new Map(
+    buildManifest({ tracks: [] })
+      .filter((e) => isCliNeutralTarget(e.target))
+      .map((e) => [e.target, e.source]),
+  );
+}
+
 /**
  * `judge` 의 `next` — 옛 로그(`no-sha`)에서 "내용이 하네스 판 그대로인가" 를 본다. 외부 CLI 산출물은 쓰는 순간 sha 를
  * 적었으므로 렌더하지 않는다(null).
  */
 function templateNext(harnessRoot: string, log: InstallLog, path: string): string | null {
   if (path === INSTALLED_TRACKS) return installedTracksText(log.spec.tracks.filter(isTrack));
-  if (!path.startsWith(CLAUDE_DIR)) return null;
+  const helper = helperSources().get(path);
+  if (helper === undefined && !path.startsWith(CLAUDE_DIR)) return null;
   try {
-    return readFileSync(join(harnessRoot, "templates", path.slice(CLAUDE_DIR.length)), "utf8");
+    const source = helper ?? path.slice(CLAUDE_DIR.length);
+    return readFileSync(join(harnessRoot, "templates", source), "utf8");
   } catch {
     return null;
   }

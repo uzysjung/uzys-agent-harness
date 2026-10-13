@@ -1,0 +1,33 @@
+== 26.100.0 main-only u1 backups: 10
+   ./.claude/hooks/protect-files.sh -> old-template-bytes
+   ./.claude/rules/change-management.md -> old-template-bytes
+   ./.claude/rules/cli-development.md -> old-template-bytes
+   ./.claude/rules/ship-checklist.md -> old-template-bytes
+   ./.claude/skills/compaction-handoff/SKILL.md -> old-template-bytes
+   ./.claude/skills/gh-issue-workflow/ISSUE.template.md -> old-template-bytes
+   ./.claude/skills/gh-issue-workflow/SKILL.md -> old-template-bytes
+   ./.claude/skills/model-orchestration/SKILL.md -> old-template-bytes
+   ./.claude/skills/multi-persona-review/SKILL.md -> old-template-bytes
+   ./.claude/skills/north-star/NORTH_STAR.template.md -> old-template-bytes
+   merged-only u1 backups: 
+   main u1:   ⊘ no checksum on record                    33 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+   main u1:   ▸ BACKUPS      34 file(s) saved before replacing, as *.backup-<time> — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits · list: .uzys-agent-harness/update-backups.json
+   merged u1:   ⊘ no checksum on record                    23 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+   merged u1:   ▸ BACKUPS      24 file(s) saved before replacing, as *.backup-<time> — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits · list: .uzys-agent-harness/update-backups.json
+== 26.125.0 main-only u1 backups: 11
+   ./.claude/hooks/protect-files.sh -> old-template-bytes
+   ./.claude/rules/change-management.md -> old-template-bytes
+   ./.claude/rules/cli-development.md -> old-template-bytes
+   ./.claude/rules/doc-governance.md -> old-template-bytes
+   ./.claude/rules/ship-checklist.md -> old-template-bytes
+   ./.claude/skills/compaction-handoff/SKILL.md -> old-template-bytes
+   ./.claude/skills/gh-issue-workflow/ISSUE.template.md -> old-template-bytes
+   ./.claude/skills/gh-issue-workflow/SKILL.md -> old-template-bytes
+   ./.claude/skills/multi-persona-review/SKILL.md -> old-template-bytes
+   ./.claude/skills/north-star/NORTH_STAR.template.md -> old-template-bytes
+   ./.claude/skills/recurrence-prevention/SKILL.md -> old-template-bytes
+   merged-only u1 backups: 
+   main u1:   ⊘ no checksum on record                    33 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+   main u1:   ▸ BACKUPS      34 file(s) saved before replacing, as *.backup-<time> — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits · list: .uzys-agent-harness/update-backups.json
+   merged u1:   ⊘ no checksum on record                    22 backed up once as *.backup-<time> — installed before checksums were kept, so these may not be your edits (usually what changed between releases); later updates compare precisely
+   merged u1:   ▸ BACKUPS      23 file(s) saved before replacing, as *.backup-<time> — no checksum on record for any of them (installed before checksums were kept), so they may not be your edits · list: .uzys-agent-harness/update-backups.json

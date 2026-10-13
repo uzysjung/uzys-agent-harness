@@ -412,11 +412,18 @@ const FILES = `
 .claude/skills/verification-loop/SKILL.md 1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2
 .claude/skills/verification-loop/agents/openai.yaml 1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3
 .claude/skills/verification-loop/references/tracks.md de11792d447c2e8ea67e8367c6655bd94646b1ba3f29184c4521cae01facc6ec
+.uzys-agent-harness/check-absence.sh b9bbc7bbdc69d51eac2a4e4748ee7c137dd585b4f3ca1d9bd2404eab9694c9b4
+.uzys-agent-harness/check-absence.sh c08d3a1df4188e5f37ddf7f7b53901184d87bdbed63c5c99afbddd0ef6a0442d
+.uzys-agent-harness/check-absence.sh 3655faf030e319e26a6386b316df004f4e2fee963fe0ebacb661030e85cda92e
+.uzys-agent-harness/protect-branch.sh 3356c4941ef1d5c174b10fd8858887f00b3b06c851788064e0e3cc6a6c8c56fd
+.uzys-agent-harness/protect-branch.sh ecd46450beae58c085a0d407c34441ae470092d9963bd4a37f09416a22cfad35
+.uzys-agent-harness/spec-drift-check.sh f35a64dd9954a776c3eabf356c0cda017db30e129d08022341a07c5a9d2b6f9a
+.uzys-agent-harness/spec-drift-check.sh 3c6925b03775454ec3a81e63dda400511824a9ac6e3f8f30b302ce1edf39d062
 `;
 
 /**
- * 옛 판이 `.claude/` 아래로 **그대로 복사**해 둔 하네스 파일 — 경로(프로젝트 상대) → 그 경로가 가졌던 바이트의 sha256 전부
- * (152 경로 · 372 쌍). `.agents/skills/<rel>` 은 `isLegacyHarnessFile` 이 `.claude/skills/<rel>` 로 조회한다.
+ * 옛 판이 `.claude/` · `.uzys-agent-harness/` 아래로 **그대로 복사**해 둔 하네스 파일 — 경로(프로젝트 상대) → 그 경로가 가졌던 바이트의 sha256 전부
+ * (155 경로 · 379 쌍). `.agents/skills/<rel>` 은 `isLegacyHarnessFile` 이 `.claude/skills/<rel>` 로 조회한다.
  */
 export const LEGACY_HARNESS_FILES: ReadonlyMap<string, ReadonlySet<string>> = (() => {
   const m = new Map<string, Set<string>>();
