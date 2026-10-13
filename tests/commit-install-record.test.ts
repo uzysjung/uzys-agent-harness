@@ -222,7 +222,11 @@ describe("B4: install 직후 같은 판 update 는 기록 바이트를 바꾸지
 
 /* ─── B3 — 커밋 → 클론 ───────────────────────────────────────────────────── */
 
-/** 사용자 전역 git 설정(훅 · 서명)이 끼지 않게 격리한 git. */
+/**
+ * 사용자 전역 git 설정(훅 · 서명)이 끼지 않게 격리한 git.
+ * `maintenance.auto=false` — commit 이 띄우는 분리된 `git maintenance run --auto` 가 느슨한 객체를 팩으로 묶으며 지우는
+ * 동안 바로 뒤 로컬 clone 이 같은 객체 폴더를 복사해 `failed to copy file` · `unable to read tree` 로 간헐 실패했다(#801).
+ */
 function git(cwd: string, ...args: string[]): string {
   return execFileSync(
     "git",
@@ -233,6 +237,8 @@ function git(cwd: string, ...args: string[]): string {
       "user.email=t@example.invalid",
       "-c",
       "commit.gpgsign=false",
+      "-c",
+      "maintenance.auto=false",
       ...args,
     ],
     {
