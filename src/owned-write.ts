@@ -225,16 +225,17 @@ export function createOwnedWriter(
         // 고친 것(sha) · 체크섬 없는 옛 판(no-sha) — 화면이 `checksumOnRecord` 로 다시 가른다. 첫 접촉은 `displaced` 로 간다.
         if (verdict === "backup+overwrite" && rec.state !== "none") backedUp.push(rel);
       }
+      // #761 — 첫 접촉 자리는 하네스가 떠날 때 되돌릴 근거(`displaced`). Q3 같음 = 백업 없이 두고 하네스 것으로 적지 않는다 —
+      // 그래도 이 경로를 **담당했다**(`true`): `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
+      // 쓰기 **전에** 적는다 — 덮어쓰기가 실패해 설치가 멈춰도 기록이 백업 자리를 가리킨다(PR #810 리뷰 MEDIUM).
+      if (record === "displaced" || record === "displaced+sha") {
+        displace({ path: rel, change: "displaced", notes: backupRel === null ? [] : [backupRel] });
+      }
       if (verdict !== "leave") {
         mkdirSync(dirname(absPath), { recursive: true });
         writeFileSync(absPath, content);
         updated++;
         if (refreshOnly && verdict === "create" && rec.state === "sha") restored.push(rel);
-      }
-      // #761 — 첫 접촉 자리는 하네스가 떠날 때 되돌릴 근거(`displaced`). Q3 같음 = 백업 없이 두고 하네스 것으로 적지 않는다 —
-      // 그래도 이 경로를 **담당했다**(`true`): `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
-      if (record === "displaced" || record === "displaced+sha") {
-        displace({ path: rel, change: "displaced", notes: backupRel === null ? [] : [backupRel] });
       }
       if (record === "sha" || record === "displaced+sha") {
         const digest = hashContent(content);
