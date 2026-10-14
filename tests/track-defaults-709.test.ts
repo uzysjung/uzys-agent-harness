@@ -334,8 +334,15 @@ describe("T11 — --with/--without mcp:railway-mcp-server 는 기록이 있을 �
 /* ─── T9ⓐ — 첫 설치 위저드 3단계 ──────────────────────────────────────────── */
 
 describe("리뷰 NOTE 7 — 트랙 표가 railway 를 기본으로 까는 트랙에서는 3단계가 그것을 체크한 채 보이고, 풀면 뺀다", () => {
-  it("csr-* · ssr-htmx · full 은 체크된 채 시작 — ssr-nextjs 단독은 미체크", () => {
-    for (const t of ["csr-supabase", "csr-fastify", "csr-fastapi", "ssr-htmx", "full"] as const)
+  it("csr-* · ssr-htmx · ssr-htmx-fastify · full 은 체크된 채 시작 — ssr-nextjs 단독은 미체크", () => {
+    for (const t of [
+      "csr-supabase",
+      "csr-fastify",
+      "csr-fastapi",
+      "ssr-htmx",
+      "ssr-htmx-fastify",
+      "full",
+    ] as const)
       expect(initialTargetSelection([t], []), t).toContain(`asset:${RAILWAY}`);
     expect(initialTargetSelection(["ssr-nextjs"], [])).not.toContain(`asset:${RAILWAY}`);
   });

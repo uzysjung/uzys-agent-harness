@@ -164,6 +164,7 @@ describe("buildManifest", () => {
         "csr-fastify",
         "csr-fastapi",
         "ssr-htmx",
+        "ssr-htmx-fastify",
         "ssr-nextjs",
         "data",
         "executive",

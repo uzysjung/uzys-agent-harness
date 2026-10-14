@@ -176,6 +176,7 @@ export const DEV_TRACKS: ReadonlyArray<Track> = [
   "csr-fastify",
   "csr-fastapi",
   "ssr-htmx",
+  "ssr-htmx-fastify",
   "ssr-nextjs",
   "data",
   "tooling",
@@ -537,7 +538,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
   // #709 (ADR-101) — Railway MCP 서버의 **선택** 경로. 서버 정의는 트랙 표(`templates/track-mcp-map.tsv`)의 같은 이름
-  //   행 하나다(key === 행 이름). 그 행의 패턴이 기본 트랙(csr-* · ssr-htmx · full)을 정하고, 이 항목은 그 밖의 트랙
+  //   행 하나다(key === 행 이름). 그 행의 패턴이 기본 트랙(csr-* · ssr-htmx · ssr-htmx-fastify · full)을 정하고, 이 항목은 그 밖의 트랙
   //   (ssr-nextjs 등)에서 위저드 체크 · `--with` 로 고르게 한다. experimental 이라 조건으로는 미리 체크되지 않는다.
   //   #712 (ADR-106) — 행이 Railway 공식 원격 서버(`https://mcp.railway.com`, OAuth)로 바뀌었다. 이름 · 키 id 는 그대로라 기록이
   //   이어져 update 가 같은 키를 갈아 끼운다.
@@ -545,7 +546,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "railway-mcp-server",
     tier: "experimental", // railwayapp/cli 621★ (원격 서버에 공개 저장소가 따로 없다 — 같은 벤더의 CLI 를 감시, REPO_OVERRIDE)
     description:
-      "Railway's official remote MCP (https://mcp.railway.com, signs in with OAuth on first use) in .mcp.json, Codex and OpenCode — default on csr-* · ssr-htmx · full; check it to add it on any other track",
+      "Railway's official remote MCP (https://mcp.railway.com, signs in with OAuth on first use) in .mcp.json, Codex and OpenCode — default on csr-* · ssr-htmx · ssr-htmx-fastify · full; check it to add it on any other track",
     category: "backend",
     source: "railwayapp",
     condition: { kind: "opt-in" },

@@ -16,7 +16,7 @@
 # 신규 MCP 추가 시: 이 파일에 1줄 추가만 하면 setup-harness.sh 수정 불필요.
 # 주석 (#) 라인은 무시.
 context7	*	npx	["-y", "@upstash/context7-mcp@latest"]
-railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|full	url	{"url":"https://mcp.railway.com"}
+railway-mcp-server	csr-supabase|csr-fastify|csr-fastapi|ssr-htmx|ssr-htmx-fastify|full	url	{"url":"https://mcp.railway.com"}
 supabase	csr-supabase|full	url	{"url":"https://mcp.supabase.com/mcp"}
 chrome-devtools	csr-*|ssr-*|full	npx	["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
 vercel	-	url	{"url":"https://mcp.vercel.com"}

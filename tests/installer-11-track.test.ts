@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runInstall } from "../src/installer.js";
+import { claudePaths } from "../src/rules-port.js";
 import { type InstallSpec, type OptionFlags, TRACKS, type Track } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -39,7 +40,8 @@ const TRACK_EXPECTATIONS: Record<Track, { rules: string[]; mcp?: string[] }> = {
   "csr-supabase": { rules: ["test-policy"], mcp: ["supabase"] },
   "csr-fastify": { rules: ["test-policy", "ship-checklist"] },
   "csr-fastapi": { rules: ["test-policy", "ship-checklist"] },
-  "ssr-htmx": { rules: ["test-policy"] },
+  "ssr-htmx": { rules: ["test-policy", "htmx-fastapi-ui"] },
+  "ssr-htmx-fastify": { rules: ["test-policy", "htmx-fastify-ui"] },
   "ssr-nextjs": { rules: ["ship-checklist"] },
   data: { rules: ["test-policy", "ship-checklist"] },
   executive: { rules: ["git-policy"] },
@@ -174,6 +176,36 @@ describe("UI 트랙 룰 라우팅", () => {
     } finally {
       rmSync(other, { recursive: true, force: true });
     }
+  });
+
+  // #820 — htmx 트랙은 백엔드마다 템플릿 형식이 달라 화면 룰이 갈린다. React 전용 `ui-components` 는 htmx 트랙에
+  // 가지 않는다 — Fastify 서버 JSX(`.tsx`)에서 같은 경로로 로드돼 "shadcn/ui 로" 안내가 daisyUI 안내와 부딪치기 때문이다.
+  it.each([
+    [["ssr-htmx"], ["htmx-fastapi-ui"], ["ui-components", "htmx-fastify-ui"]],
+    [["ssr-htmx-fastify"], ["htmx-fastify-ui"], ["ui-components", "htmx-fastapi-ui"]],
+    // full 은 htmx 룰을 받지 않는다 — AGENTS.md 벤더 상한(manifest `TRACK_RULES` 주석). htmx 트랙을 함께 고르면 받는다.
+    [["full"], ["ui-components"], ["htmx-fastapi-ui", "htmx-fastify-ui"]],
+    [["full", "ssr-htmx-fastify"], ["ui-components", "htmx-fastify-ui"], ["htmx-fastapi-ui"]],
+  ] as const)("%j 는 %j 를 깔고 %j 는 안 깐다", (tracks, present, absent) => {
+    runInstall({
+      runExternal: NO_EXTERNAL,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: buildSpec([...tracks], projectDir),
+    });
+    for (const r of present) {
+      expect(existsSync(join(projectDir, `.claude/rules/${r}.md`)), r).toBe(true);
+    }
+    for (const r of absent) {
+      expect(existsSync(join(projectDir, `.claude/rules/${r}.md`)), r).toBe(false);
+    }
+  });
+
+  it("htmx 룰은 그 백엔드의 템플릿 파일에서만 로드된다(paths)", () => {
+    const paths = (id: string): string[] =>
+      claudePaths(readFileSync(join(HARNESS_ROOT, `templates/rules/${id}.md`), "utf8"));
+    expect(paths("htmx-fastapi-ui")).toEqual(["**/*.html", "**/*.jinja", "**/*.jinja2", "**/*.j2"]);
+    expect(paths("htmx-fastify-ui")).toEqual(["**/*.tsx", "**/*.jsx"]);
   });
 });
 
