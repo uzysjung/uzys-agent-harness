@@ -271,7 +271,7 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expect(screen).not.toContain("edited external CLI files");
     expect(screen).not.toContain("no checksum");
     // 설치자 자기 파일의 백업은 새 판에 다시 얹을 편집이 아니다
-    expect(screen).not.toContain("to re-apply your edits");
+    expect(screen).not.toContain("to keep your edits across updates");
   }
 
   it("① 기본 스킬과 같은 이름의 손수 만든 폴더 → 백업 · 하네스 판 · displaced 2건 · 화면 'had files with these names'", () => {

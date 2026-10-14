@@ -126,7 +126,7 @@ describe("#677 — 기록에 있으나 기록 트랙 밖인 하네스 룰은 upd
     );
     // 리뷰 N1 — 회수 백업은 "지우기 전" 이다 · 다시 얹을 새 판이 없으니 NEXT 를 내지 않는다
     expect(screen).toMatch(/BACKUPS\s+1 file\(s\) saved before removing/);
-    expect(screen).not.toContain("re-apply your edits");
+    expect(screen).not.toContain("to keep your edits across updates");
   });
 
   it("이미 없으면 기록만 뺀다 — 화면은 말하지 않는다", () => {

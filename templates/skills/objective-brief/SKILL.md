@@ -192,7 +192,9 @@ question nobody will answer.
 **success_criteria** — prefer conditions someone else can check by running something or looking at
 something. Counts and numbers inside the criteria get compared literally, so verify them against
 reality before writing them; a criterion that says "all 12 cases pass" when there are 11 cases
-makes the worker either invent a case or report failure.
+makes the worker either invent a case or report failure. Verification items follow the
+project's policy for that stage; add checks for the task's risk or the user's request, not
+broader gates.
 
 **verification / communication** — the `[N줄]` caps are meant to be replaced with a real number.
 Leaving the placeholder in tells the worker nothing, and an uncapped handoff drifts into a report

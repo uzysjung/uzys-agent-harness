@@ -293,6 +293,8 @@ export function renderUpdateSummary(
   // #480 ③ — 백업이 있으면 **다음 행동**을 지목한다. 백업 사실만 알리면 설치자는 파일을 열어
   // 손으로 옮긴다 — 그게 이 이슈가 말한 스트레스다. "edited" 라고 부르지 않는다: 기록이 없던
   // 옛 설치본의 헬퍼처럼 설치자가 고치지 않았는데도 한 번 백업되는 파일이 있다(#597).
+  // #819 — 옮길 곳은 하네스 파일이 아니라 설치자 파일이다. 하네스 파일에 다시 얹으면 다음 update 가
+  // 또 백업으로 밀어낸다(설치 프로젝트에서 6회 반복).
   const backups = report.updateMode?.backups ?? [];
   if (backups.length > 0) {
     // #557 — 기록에 체크섬이 없던 백업은 편집인지 모른다. 다 그렇다면 "다시 얹으라" 고 하지 않는다 — 얹을 편집이 없을 수 있다
@@ -325,8 +327,8 @@ export function renderUpdateSummary(
         infoRow(
           "NEXT",
           unmeasured === backups.length
-            ? 'nothing to re-apply unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"'
-            : 'to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"',
+            ? 'nothing to carry over unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘"'
+            : 'backups are not loaded — to keep your edits across updates, ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘" (update replaces harness files every time, so edits put back inside them return as backups)',
         ),
       );
   }

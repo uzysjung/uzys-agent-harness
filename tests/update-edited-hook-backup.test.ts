@@ -97,5 +97,5 @@ it("은퇴한 배선의 고친 훅 줄 — update 가 걷고 백업에 편집이
   );
   expect(screen).toContain(`are in the copy: .claude/${backup}`);
   expect(screen).not.toContain("no checksum on record");
-  expect(screen).not.toContain("nothing to re-apply");
+  expect(screen).not.toContain("nothing to carry over");
 });
