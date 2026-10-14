@@ -269,7 +269,7 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     for (const slot of SLOTS) {
       const rel = `${slot}/${DEBATE}/SKILL.md`;
       expect(screen).toContain(
-        `${rel} — had a file with this name — saved as ${slot}/${DEBATE}/${backupsOf(rel)[0]}`,
+        `${rel} — had a file with this name — saved as ${slot}/${DEBATE}/${backupsOf(rel)[0]} — yours, put back on uninstall`,
       );
     }
     expect(screen).not.toContain("you edited it");
@@ -358,7 +358,7 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expect(displacedOf(RULE).map((f) => f.notes)).toEqual([[`.claude/rules/${backups[0]}`]]);
     expect(log().policyFiles?.some((f) => f.path === "rules/git-policy.md")).toBe(true);
     expect(screen).toContain(
-      `${RULE} — had a file with this name — saved as .claude/rules/${backups[0]}`,
+      `${RULE} — had a file with this name — saved as .claude/rules/${backups[0]} — yours, put back on uninstall`,
     );
     expect(screen).not.toContain("you edited it");
   });

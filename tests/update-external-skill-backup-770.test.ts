@@ -248,5 +248,13 @@ describe("#770 — update 의 외부 스킬 갱신은 고친 파일 하나만 �
     expect(list.backups.find((b) => b.path === AGENTS_SKILL)).toEqual(
       expect.not.objectContaining({ noChecksum: true }),
     );
+    // #817 — 이 백업도 화면이 파일마다 말하는 판정의 줄로 올라온다(그 전에는 BACKUPS 수에만 들었다)
+    expect(report.judged).toContainEqual(
+      expect.objectContaining({
+        path: AGENTS_SKILL,
+        recorded: "sha",
+        line: `you edited it — saved as ${pair?.backup}`,
+      }),
+    );
   });
 });

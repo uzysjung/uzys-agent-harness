@@ -139,7 +139,9 @@ describe("하네스 파일 쓰기가 판정을 탄다 — 첫 접촉 · 고친 �
     expect(read(backup)).toBe("# my own git policy\n");
     expect(log().rootFiles).toContainEqual({ path: RULE, change: "displaced", notes: [backup] });
     // 화면 = 판정의 줄 + 실제 백업 경로(편집이라 부르지 않는다)
-    expect(screen).toContain(`backed up  ${RULE} — had a file with this name — saved as ${backup}`);
+    expect(screen).toContain(
+      `backed up  ${RULE} — had a file with this name — saved as ${backup} — yours, put back on uninstall`,
+    );
     expect(screen).not.toContain("you edited");
   });
 

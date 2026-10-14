@@ -95,7 +95,9 @@ export const LINES = {
   newInRelease: "wrote (new in this release)",
   refreshed: "refreshed",
   sameAsHarness: "kept — already the same as the harness version (left yours in place)",
-  hadFile: "had a file with this name — saved as <file>.backup-<time>",
+  // 비켜 둔 설치자 파일은 하네스가 그 자리를 떠날 때(uninstall · 회수) 되돌린다(`displaced` · #782) — 그 약속을 같은 줄에
+  hadFile:
+    "had a file with this name — saved as <file>.backup-<time> — yours, put back on uninstall",
   noChecksum: "no checksum on record — saved a copy once",
   edited: "you edited it — saved as <file>.backup-<time>",
   removed: "removed",

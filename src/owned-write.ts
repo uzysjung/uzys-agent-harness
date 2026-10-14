@@ -235,6 +235,7 @@ export function createOwnedWriter(
           judged.push({
             path: rel,
             verdict,
+            recorded: rec.state,
             line: withBackup(line, backupRel),
             backup: backupRel,
             backupAbs: backup,

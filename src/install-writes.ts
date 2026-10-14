@@ -34,7 +34,7 @@ import {
   installedClis,
   mergeExternalFiles,
 } from "./install-log.js";
-import { judge, type RecordEffect, type Verdict, withBackup } from "./judge.js";
+import { judge, type Recorded, type RecordEffect, type Verdict, withBackup } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { RETIRED_PATHS } from "./manifest.js";
 import { type McpJson, toClaudeServer } from "./mcp-merge.js";
@@ -52,6 +52,11 @@ export interface JudgedWrite {
   /** project-relative */
   path: string;
   verdict: Verdict;
+  /**
+   * #817 — 판정에 넣은 기록 상태 = 백업 · 지우기의 까닭(`sha` 고친 하네스 파일 · `no-sha` 체크섬 없음 · `none` 기록 밖 설치자
+   * 파일). 화면 요약 · 백업 색인은 문구가 아니라 이것으로 센다.
+   */
+  recorded: Recorded["state"];
   /** 화면 한 줄 — `judge` 의 `line` 에 실제 백업 경로를 넣은 것. */
   line: string;
   /** 만든 백업 — project-relative(화면) · 절대(`BaselineReport.backups` 와 짝). */
@@ -69,6 +74,8 @@ export interface WriteEntry {
   path: string;
   verdict: Verdict;
   record: RecordEffect;
+  /** `JudgedWrite.recorded` 와 같다. */
+  recorded: Recorded["state"];
   /** `judge` 의 `line` 에 실제 백업 경로를 넣은 것. 빈 문자열 = 알릴 것이 없다. */
   line: string;
   backup?: string;
@@ -225,13 +232,14 @@ export function createInstallWriter(args: {
     // ADR-111 결정 1ⓐ — 체크섬 없는(`no-sha`) 하네스 자리가 옛 판 바이트 그대로면 그 지문이 빠진 체크섬 몫을 한다. 쓰는 자리는 현행
     // 번들이라 지금 다시 채워진다 → 백업 없이 갱신(uninstall `removeRecordedFile` 과 같은 규칙 · #812 옛 판 헬퍼)
     const diskSha = rec.state === "no-sha" && disk !== null ? hashContent(disk) : null;
+    const judgedRec: Recorded =
+      diskSha !== null && isLegacyHarnessFile(path, diskSha)
+        ? { state: "sha", sha256: diskSha }
+        : rec;
     const j = judge({
       op: "write",
       kind: "harness",
-      rec:
-        diskSha !== null && isLegacyHarnessFile(path, diskSha)
-          ? { state: "sha", sha256: diskSha }
-          : rec,
+      rec: judgedRec,
       disk,
       next,
       ...(args.run === undefined ? {} : { run: args.run }),
@@ -279,9 +287,17 @@ export function createInstallWriter(args: {
     }
     const line = backup === undefined ? j.line : withBackup(j.line, backup);
     const backupPair = backup === undefined || backupAbs === undefined ? {} : { backup, backupAbs };
-    writes.push({ path, verdict: j.verdict, record: j.record, line, ...backupPair });
+    const state = judgedRec.state;
+    writes.push({
+      path,
+      verdict: j.verdict,
+      record: j.record,
+      recorded: state,
+      line,
+      ...backupPair,
+    });
     if (j.line === "" || j.verdict === "create" || j.verdict === "overwrite") return null;
-    const out: JudgedWrite = { path, verdict: j.verdict, line, ...backupPair };
+    const out: JudgedWrite = { path, verdict: j.verdict, recorded: state, line, ...backupPair };
     judged.push(out);
     return out;
   }

@@ -793,6 +793,7 @@ describe("executeSpec", () => {
           {
             path: ".claude/rules/orphan.md",
             verdict: "remove",
+            recorded: "sha",
             line: "retired from the harness — removed",
           },
         ],
@@ -1140,6 +1141,7 @@ describe("executeSpec", () => {
         judged: ["multi-persona-review", "north-star"].map((id) => ({
           path: `.claude/skills/${id}/SKILL.md`,
           verdict: "backup+overwrite" as const,
+          recorded: "sha" as const,
           line: `you edited it — saved as .claude/skills/${id}/SKILL.md.backup-20261014T000000`,
           backup: `.claude/skills/${id}/SKILL.md.backup-20261014T000000`,
           backupAbs: `/p/.claude/skills/${id}/SKILL.md.backup-20261014T000000`,

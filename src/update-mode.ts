@@ -846,13 +846,11 @@ export function runUpdateMode(
 
   // #817 — 백업마다 까닭은 그 파일의 판정 줄이 말한다(기록 필드의 존재로 다시 가르지 않는다). 지우기 전 백업인지는 결과 디스크가
   // 말한다 — 지우는 자리가 여럿(은퇴 회수 · 번들 밖 스킬 파일 · 트랙 밖 룰 · 옛 앵커 · `.mcp-allowlist`)이라 자리마다 올리지 않는다
-  judged.push(...external.externalJudged);
+  judged.push(...external.externalJudged, ...(skillRefresh.judged ?? []));
   if (judged.length > 0) report.judged = judged;
+  // 체크섬 없음 = 판정에 넣은 기록 상태가 `no-sha` 인 백업(문구를 되읽지 않는다)
   const unmeasured = new Set(
-    judged
-      // 두 줄 다 백업 경로 자리가 없다 — 앞에 붙은 까닭(`removedRow`)과 무관하게 끝으로 알아본다
-      .filter((j) => j.line.endsWith(LINES.noChecksum) || j.line.endsWith(LINES.noChecksumRemoved))
-      .map((j) => j.path),
+    judged.filter((j) => j.recorded === "no-sha" && j.backup !== undefined).map((j) => j.path),
   );
   report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart).map((b) =>
     existsSync(join(projectDir, b.path)) ? b : { ...b, removed: true as const },
@@ -1419,10 +1417,10 @@ function updateHarnessFiles(args: {
   const ledger = writer.ledger();
   // 쓰기의 백업 줄이 회수 줄보다 앞에 온다(화면 순서 = 실행 순서)
   judged.unshift(
-    ...ledger.writes.flatMap(({ path, verdict, line, backup, backupAbs }) =>
+    ...ledger.writes.flatMap(({ path, verdict, recorded, line, backup, backupAbs }) =>
       backup === undefined || backupAbs === undefined
         ? []
-        : [{ path, verdict, line, backup, backupAbs }],
+        : [{ path, verdict, recorded, line, backup, backupAbs }],
     ),
   );
   recordHarnessWrites(projectDir, ledger, {
@@ -1471,14 +1469,16 @@ function removedRow(
   projectDir: string,
   path: string,
   why: string,
-  line: string,
+  judged: { line: string; recorded: Recorded["state"] },
   backupAbs: string | null,
 ): JudgedWrite {
-  if (backupAbs === null) return { path, verdict: "remove", line: `${why} — ${line}` };
+  const { line, recorded } = judged;
+  if (backupAbs === null) return { path, verdict: "remove", recorded, line: `${why} — ${line}` };
   const backup = relative(projectDir, backupAbs).split(sep).join("/");
   return {
     path,
     verdict: "backup+remove",
+    recorded,
     line: `${why} — ${withBackup(line, backup)}`,
     backup,
     backupAbs,
@@ -1528,7 +1528,9 @@ function pruneSkillExtras(
         backupAbs = backupFile(targetFile, now);
         backedUp.push(`${id}/${rel}`);
       }
-      judged.push(removedRow(projectDir, path, "not in bundle", line, backupAbs));
+      judged.push(
+        removedRow(projectDir, path, "not in bundle", { line, recorded: rec.state }, backupAbs),
+      );
       unlinkSync(targetFile);
       pruned.push(`${id}/${rel}`);
       // 비게 된 중간 디렉터리(예: references/)도 걷는다 — 빈 디렉터리는 "파일이 있었다" 는 흔적만 남긴다
@@ -1764,6 +1766,7 @@ function syncHarnessAnchor(
         judged.push({
           path: HARNESS_ANCHOR_FILE,
           verdict: "backup+overwrite",
+          recorded: rec.state,
           line: withBackup(line, rel),
           backup: rel,
           backupAbs: backup,
@@ -2408,7 +2411,13 @@ function pruneOrphans(
       unlinkSync(targetFile);
       removed.push(file);
       ctx.judged.push(
-        removedRow(ctx.projectDir, path, "retired from the harness", line, backupAbs),
+        removedRow(
+          ctx.projectDir,
+          path,
+          "retired from the harness",
+          { line, recorded: rec.state },
+          backupAbs,
+        ),
       );
     } catch {
       // best-effort — read-only? 다음 update 시 재시도

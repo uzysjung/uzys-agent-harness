@@ -46,6 +46,8 @@ import {
   writeInstallLog,
 } from "./install-log.js";
 import { outsideProjectTarget } from "./outside-project.js";
+import type { JudgedWrite } from "./install-writes.js";
+import { LINES, withBackup } from "./judge.js";
 import { excludedIds, recorded } from "./recorded.js";
 import {
   type CliTargets,
@@ -426,6 +428,8 @@ export interface ExternalSkillRefresh {
    * 자산을 지운 적이 있다(`north-star-skill`) — 그 릴리즈 뒤 옛 설치본이 도는 자리다.
    */
   notInCatalog: ReadonlyArray<string>;
+  /** #817 — 도구 호출 전후로 지킨 파일의 백업마다 판정의 줄(고친 기록 파일 · 비켜 둔 설치자 파일). 부재 = 없음. */
+  judged?: JudgedWrite[];
   /**
    * **설치 기록이 없어 무엇을 갱신해야 하는지 판정할 수 없다** (레거시 설치본).
    *
@@ -552,7 +556,7 @@ export function refreshExternalSkills(
     }
     throw e;
   }
-  const { report, displaced } = settle(ran);
+  const { report, displaced, judged } = settle(ran);
   // #770 — 도구가 다시 쓴 sha 로 기준선을 잇는다. 안 이으면 상류가 바뀐 다음 update 가 안 고친 파일을 "고쳤다" 로 백업한다.
   // #780 — 상류 파일에 덮여 비켜 둔 설치자 파일(`displaced`)도 같은 쓰기로 적는다 — uninstall 이 그 원본을 되돌린다
   recordRefreshedFiles(projectDir, log, report, displaced, deps.writeLog ?? writeInstallLog);
@@ -564,6 +568,7 @@ export function refreshExternalSkills(
       .map((r) => ({ id: r.asset.id, message: r.message ?? "failed" })),
     notInCatalog,
     unknown: false,
+    judged,
   };
 }
 
@@ -628,7 +633,11 @@ export function holdSkillSlots(
             hold.clis,
             { log: hold.log, scope: hold.scope },
           );
-    const out = { backups: [] as string[], displaced: [] as InstallLogRootFile[] };
+    const out = {
+      backups: [] as string[],
+      displaced: [] as InstallLogRootFile[],
+      judged: [] as JudgedWrite[],
+    };
     const back = new Set<string>();
     const failed: string[] = [];
     for (const f of moved) {
@@ -642,6 +651,17 @@ export function holdSkillSlots(
         }
         out.backups.push(r.backup);
         if (r.displaced !== null) out.displaced.push(r.displaced);
+        // 고친 기록 파일(sha) · 상류 파일에 덮여 비켜 둔 설치자 파일(none) — `judge` 의 같은 칸의 줄
+        const backup = toProjectRel(projectDir, r.backup);
+        const line = !f.recorded ? LINES.hadFile : r.gone ? LINES.editedRemoved : LINES.edited;
+        out.judged.push({
+          path: f.rel,
+          verdict: r.gone ? "backup+remove" : "backup+overwrite",
+          recorded: f.recorded ? "sha" : "none",
+          line: withBackup(line, backup),
+          backup,
+          backupAbs: r.backup,
+        });
       } catch (e) {
         failed.push(`${f.rel} (${e instanceof Error ? e.message : String(e)})`);
       }
@@ -662,6 +682,8 @@ export interface SettledSlots<R extends ExternalInstallReport | null = ExternalI
   report: R;
   backups: string[];
   displaced: InstallLogRootFile[];
+  /** #817 — `backups` 마다 판정의 줄. */
+  judged: JudgedWrite[];
 }
 
 /**
@@ -763,7 +785,7 @@ function settleAside(
   projectDir: string,
   f: AsideFile,
   restore: boolean,
-): "back" | { backup: string; displaced: InstallLogRootFile | null } {
+): "back" | { backup: string; gone: boolean; displaced: InstallLogRootFile | null } {
   let now: Buffer | null = null;
   try {
     now = readFileSync(f.abs);
@@ -778,9 +800,10 @@ function settleAside(
   }
   const backup = backupFromCopy(f.abs, f.aside);
   rmSync(f.aside, { force: true });
-  if (f.recorded || now === null) return { backup, displaced: null };
+  if (f.recorded || now === null) return { backup, gone: now === null, displaced: null };
   return {
     backup,
+    gone: false,
     displaced: { path: f.rel, change: "displaced", notes: [toProjectRel(projectDir, backup)] },
   };
 }
