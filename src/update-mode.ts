@@ -1516,10 +1516,13 @@ function pruneSkillExtras(
       if (outside.skip(targetFile)) continue;
       const path = `.claude/skills/${id}/${rel}`;
       const rec = recordOf(path);
-      // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말
-      const disk = readFileSync(targetFile, "utf8");
-      const j = judge({ op: "remove", kind: "harness", rec, disk, next: null });
-      const line = rec.state === "none" ? NOT_RECORDED_REMOVED : j.line;
+      // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말.
+      // 내용은 sha 기록만 읽는다(전과 같다) — `no-sha` 칸은 내용을 보지 않고 있다는 사실만 본다
+      const disk = rec.state === "sha" ? readFileSync(targetFile, "utf8") : "";
+      const line =
+        rec.state === "none"
+          ? NOT_RECORDED_REMOVED
+          : judge({ op: "remove", kind: "harness", rec, disk, next: null }).line;
       let backupAbs: string | null = null;
       if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
         backupAbs = backupFile(targetFile, now);
@@ -1660,7 +1663,7 @@ function writeBackupList(
       `${JSON.stringify(
         {
           updatedAt: new Date().toISOString(),
-          note: "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 바꾸기 전 판. noChecksum 이 없는 쌍은 기록과 달라진 파일 = 당신의 편집분이다 — 새 판에 다시 얹으려면 두 파일의 diff 를 보라. noChecksum: true 인 쌍은 옛 판이 체크섬을 기록하지 않아 비교 없이 한 번 백업한 것 — 대개 릴리즈 사이 템플릿 변경분이라 당신의 편집이 아닐 수 있다.",
+          note: "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 바꾸기 전 판. noChecksum 이 없는 쌍은 기록과 달라진 파일 = 당신의 편집분이다 — 새 판에 다시 얹으려면 두 파일의 diff 를 보라. noChecksum: true 인 쌍은 옛 판이 체크섬을 기록하지 않아 비교 없이 한 번 백업한 것 — 대개 릴리즈 사이 템플릿 변경분이라 당신의 편집이 아닐 수 있다. removed: true 인 쌍은 그 파일을 지우기 전에 남긴 것(은퇴한 하네스 파일 · 번들에 없는 스킬 파일 등) — 원본 자리에 새 판이 없다. 당신 파일이었다면 백업을 원래 이름으로 되돌리면 된다.",
           backups: backups.map((b) => (noChecksum.has(b.path) ? { ...b, noChecksum: true } : b)),
         },
         null,
@@ -1751,7 +1754,13 @@ function syncHarnessAnchor(
         const backup = backupFile(anchor, now);
         report.anchorBackedUp = true;
         const rel = relative(projectDir, backup).split(sep).join("/");
-        const line = recorded?.path === HARNESS_ANCHOR_FILE ? LINES.edited : LINES.noChecksum;
+        // 화면 줄은 같은 기록 상태의 판정(기록 sha 와 다름 = edited · 앵커 기록 없음 = no checksum)
+        const rec: Recorded =
+          recorded?.path === HARNESS_ANCHOR_FILE
+            ? { state: "sha", sha256: recorded.sha256 }
+            : { state: "no-sha" };
+        const next = readFileSync(templateMd, "utf8");
+        const { line } = judge({ op: "write", kind: "harness", rec, disk: current, next });
         judged.push({
           path: HARNESS_ANCHOR_FILE,
           verdict: "backup+overwrite",

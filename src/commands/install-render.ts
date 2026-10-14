@@ -323,7 +323,7 @@ export function renderUpdateSummary(
       ),
     );
     // 지우기 전 백업만 있으면 "새 판에 다시 얹으라" 할 새 판이 없다 — 되돌리는 길은 그 파일의 줄이 말했다
-    // #761 — 같은 이름의 설치자 파일(첫 접촉) 백업도 다시 얹을 "편집" 이 아니다 — 위 행이 "yours, put back on uninstall" 이라 말했다
+    // #761 — 같은 이름의 설치자 파일(첫 접촉) 백업도 다시 얹을 "편집" 이 아니다 — 그 파일의 줄이 "had a file with this name" 이라 말했다
     const displaced = new Set(report.updateMode?.displaced ?? []);
     const carry = replaced.filter((b) => !displaced.has(b.path)).length;
     if (carry > 0)
