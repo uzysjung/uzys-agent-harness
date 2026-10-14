@@ -174,6 +174,7 @@ More external assets are never pre-checked but can be added at step 3 or with `-
 - Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
 - Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
 - Security review: `security-guidance`, `claude-security`
+- Structural code search and lint rules: `ast-grep` (needs the ast-grep CLI installed)
 - Marketing and finance: `marketingskills`, `finance-skills`
 - Slides and video: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills`, and more
 - Teams that want a fixed development process: `openspec`, `bmad-method` (compared in [WORKFLOWS.md](docs/WORKFLOWS.md))
