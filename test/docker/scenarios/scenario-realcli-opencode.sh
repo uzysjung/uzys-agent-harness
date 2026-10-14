@@ -67,11 +67,14 @@ for f in "${RULE_SRC}"/*.md; do
     missing=1
     continue
   fi
-  # UI 트랙 전용 룰(src/manifest.ts UI_RULES)은 이 시나리오의 tooling 트랙에 실리면 안 된다 — 없어야 맞다.
-  if [[ "$(basename "${f}")" == "ui-components.md" ]]; then
-    grep -qF "## ${title}" "${AGENTS}" && { echo "FAIL: UI 트랙 전용 룰이 tooling AGENTS.md 에 실렸다"; missing=1; }
-    continue
-  fi
+  # UI 트랙 전용 룰(src/manifest.ts UI_RULES · htmx 트랙의 TRACK_RULES #820)은 이 시나리오의 tooling 트랙에
+  # 실리면 안 된다 — 없어야 맞다.
+  case "$(basename "${f}")" in
+    ui-components.md | htmx-*-ui.md)
+      grep -qF "## ${title}" "${AGENTS}" && { echo "FAIL: UI 트랙 전용 룰 $(basename "${f}") 이 tooling AGENTS.md 에 실렸다"; missing=1; }
+      continue
+      ;;
+  esac
   rule_count=$((rule_count + 1))
   if ! grep -qF "## ${title}" "${AGENTS}"; then
     echo "FAIL: 룰 항목 미도달 — $(basename "${f}") (## ${title})"
