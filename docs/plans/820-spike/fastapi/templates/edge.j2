@@ -1,0 +1,4 @@
+{# 경계 — 위반이 Jinja 구문 안·옆에 있을 때 #}
+<span class="badge {% if done %}bg-red-500{% endif %}">in jinja if</span>
+<div {% if hidden %}hidden{% endif %} class="m-[7px]">jinja between attributes</div>
+<a class="{{ 'bg-blue-500' if active else 'btn' }}">in jinja expression</a>

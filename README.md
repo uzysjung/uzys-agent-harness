@@ -149,7 +149,7 @@ Plugins are a Claude Code feature, so only Claude Code gets them. Rules and skil
 
 ## Supported stacks and the skills that come with them
 
-A track is a starting setup for a dev stack or a kind of work: the top nine rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository, or from one picked after checking its source, popularity, and install path. That does not vouch for the safety of its contents or the quality of what it produces ([SECURITY.md](SECURITY.md)).
+A track is a starting setup for a dev stack or a kind of work: the top ten rows are dev tracks, the bottom three are work tracks. Picking a track pre-checks the external skills and tools below. Everything pre-checked comes from an official repository, or from one picked after checking its source, popularity, and install path. That does not vouch for the safety of its contents or the quality of what it produces ([SECURITY.md](SECURITY.md)).
 
 | Track | Stack | Pre-checked external skills and tools |
 |---|---|---|
@@ -158,7 +158,8 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
-| `ssr-htmx` | htmx + FastAPI | `frontend-design` |
+| `ssr-htmx` | htmx + FastAPI (Python) + daisyUI | `frontend-design` |
+| `ssr-htmx-fastify` | htmx + Fastify (Node) + daisyUI | `frontend-design` |
 | `data` | Python data work (DuckDB, PySide6) | `anthropic-data-plugin` |
 | `tooling` | Bash and Markdown projects with no app stack | None |
 | `full` | Every dev track, plus documents | All of the above, plus `anthropic-document-skills` |
@@ -166,7 +167,7 @@ A track is a starting setup for a dev stack or a kind of work: the top nine rows
 | `project-management` | PM work | None |
 | `growth-marketing` | Growth and content marketing | None (`marketingskills` available) |
 
-MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*` and `ssr-htmx` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase` (Supabase's remote server — you sign in on first use). `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`. Each server is a row in step 3 of the wizard: uncheck it or pass `--without <name>` (e.g. `--without context7`) to leave it out of `.mcp.json`, Codex and OpenCode.
+MCP servers come too. Every track gets `context7` (current library docs). Web tracks (`csr-*`, `ssr-*`, `full`) add `chrome-devtools`, with Google's usage statistics turned off. The `csr-*`, `ssr-htmx` and `ssr-htmx-fastify` tracks add `railway-mcp-server` (Railway's remote server — you sign in on first use), and `csr-supabase` adds `supabase` (Supabase's remote server — you sign in on first use). `full` gets both. On `ssr-nextjs`, Railway MCP is not a default; pick it if you want it. Vercel's and GitHub's official remote servers (`vercel`, `github-mcp`) are never pre-checked — add them with `--with`. Each server is a row in step 3 of the wizard: uncheck it or pass `--without <name>` (e.g. `--without context7`) to leave it out of `.mcp.json`, Codex and OpenCode.
 
 More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 

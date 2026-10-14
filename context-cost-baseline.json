@@ -62,7 +62,17 @@
     "ssr-htmx": {
       "directive": {
         "items": 8,
-        "tokens": 4029
+        "tokens": 4141
+      },
+      "firing": {
+        "items": 16,
+        "tokens": 1842
+      }
+    },
+    "ssr-htmx-fastify": {
+      "directive": {
+        "items": 8,
+        "tokens": 3963
       },
       "firing": {
         "items": 16,

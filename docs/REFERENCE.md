@@ -27,7 +27,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 
 ## 2. 트랙
 
-`base` / `csr-*`(csr-supabase · csr-fastify · csr-fastapi) / `ssr-*`(ssr-htmx · ssr-nextjs) / `data` /
+`base` / `csr-*`(csr-supabase · csr-fastify · csr-fastapi) / `ssr-*`(ssr-htmx · ssr-htmx-fastify · ssr-nextjs) / `data` /
 `tooling` / `full`(= 모든 dev 트랙의 합) / `executive` / `project-management` / `growth-marketing`.
 
 **dev 트랙** = base + csr-* + ssr-* + data + tooling + full. `base` 는 dev 이지만 스택 전용 자산에서 빠진다.
@@ -65,7 +65,7 @@ tier 는 **미리 체크할지 여부를 정하지 않는다** — 그것은 `co
 |---|---|---|
 | **context7** | 모든 트랙(빼기: `--without context7` · 위저드 체크 해제) | `npx -y @upstash/context7-mcp@latest` |
 | **chrome-devtools** | csr-* · ssr-* · full (선택: `--with chrome-devtools` — 어느 트랙이든) | `npx -y chrome-devtools-mcp@latest --no-usage-statistics` |
-| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | 원격 `https://mcp.railway.com` (첫 사용 때 OAuth 로그인) |
+| **railway-mcp-server** | csr-supabase · csr-fastify · csr-fastapi · ssr-htmx · ssr-htmx-fastify · full (선택: `--with railway-mcp-server` — 어느 트랙이든) | 원격 `https://mcp.railway.com` (첫 사용 때 OAuth 로그인) |
 | **supabase** | csr-supabase · full (선택: `--with supabase` — 어느 트랙이든) | 원격 `https://mcp.supabase.com/mcp` (첫 사용 때 OAuth 로그인) |
 | **vercel** | 선택만(`--with vercel`) | 원격 `https://mcp.vercel.com` (첫 사용 때 OAuth 로그인) |
 | **github-mcp** | 선택만(`--with github-mcp`) | 원격 `https://api.githubcopilot.com/mcp/` — 환경변수 `GITHUB_PAT` 의 토큰을 `Authorization: Bearer` 로(파일에는 변수 이름만) |
@@ -116,12 +116,17 @@ nextjs-turbopack · market-research · investor-materials · investor-outreach)�
 
 ## 7. 룰 · 훅 · 스크립트 · 템플릿
 
-**룰** (`templates/rules/`) 7 파일 — `git-policy` · `change-management` · `doc-governance` 는 전 트랙,
+**룰** (`templates/rules/`) 9 파일 — `git-policy` · `change-management` · `doc-governance` 는 전 트랙,
 `test-policy` · `ship-checklist` 는 dev 트랙, `cli-development` 는 tooling · full, `ui-components`
-(React·Next.js UI 는 shadcn/ui 로 만들고 `@shadcn/lint` 로 검사) 는 csr-* · ssr-* · full. 배선 SSOT =
+(React·Next.js UI 는 shadcn/ui 로 만들고 `@shadcn/lint` 로 검사) 는 React 를 쓰는 csr-* · ssr-nextjs · full,
+`htmx-fastapi-ui`(Jinja 템플릿 · daisyUI · ast-grep 검사) 는 ssr-htmx, `htmx-fastify-ui`(서버 JSX 템플릿 ·
+daisyUI · `@shadcn/lint` 검사) 는 ssr-htmx-fastify — `full` 에는 없다(AGENTS.md 인라인 렌더가 Antigravity 24,000 B 상한을
+넘는다). 배선 SSOT =
 `src/manifest.ts` 의 `COMMON_RULES` · `DEV_RULES` · `UI_RULES` · `TRACK_RULES` → `resolveRules()`.
-`paths:` 로 지연 로드하는 룰은 `cli-development`(`*.sh`·`*.bash`) · `ui-components`(`*.tsx`·`*.jsx`) 둘이다.
-기술스택 상세 룰을 배포에서 뺀 경위는 ADR-060, `ui-components` 를 다시 넣은 근거는 #725 · #717.
+`paths:` 로 지연 로드하는 룰은 `cli-development`(`*.sh`·`*.bash`) · `ui-components`(`*.tsx`·`*.jsx`) ·
+`htmx-fastapi-ui`(`*.html`·`*.jinja`·`*.jinja2`·`*.j2`) · `htmx-fastify-ui`(`*.tsx`·`*.jsx`) 넷이다.
+기술스택 상세 룰을 배포에서 뺀 경위는 ADR-060, `ui-components` 를 다시 넣은 근거는 #725 · #717, htmx 룰 둘은 #820
+(린트 실측 = `docs/plans/820-spike/`).
 
 **훅** (`templates/hooks/`) 2 파일 — `session-start` · `protect-files`. 차단하는 훅은 `protect-files`
 하나이고 exit 2 마다 `.uzys-agent-harness/hook-blocks.log` 에 `날짜 · 훅 · 대상` 한 줄을 남긴다(ADR-061).

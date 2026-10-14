@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card bg-base-100">
+  <button class="btn btn-primary" hx-post="/save">ok</button>
+  <button class="btn bg-pink-500">raw color</button>
+  <div class="p-[13px] {{ extra }}">arbitrary value</div>
+  <p style="color: red">inline style</p>
+  {% for item in items %}
+  <span class="badge {% if item.done %}badge-success{% endif %}">{{ item.name }}</span>
+  <span class="badge hover:text-rose-600/50">raw color with variant</span>
+  {% endfor %}
+</div>
+{% endblock %}

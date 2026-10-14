@@ -7,6 +7,8 @@ export const TRACKS = [
   "csr-fastify",
   "csr-fastapi",
   "ssr-htmx",
+  // #820 — htmx 의 Node 백엔드. `ssr-htmx`(FastAPI) 의 id 는 설치 기록이 갖고 있어 그대로 두고 옆에 더했다.
+  "ssr-htmx-fastify",
   "ssr-nextjs",
   "data",
   "executive",

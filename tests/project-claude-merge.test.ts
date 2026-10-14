@@ -150,6 +150,7 @@ describe("mergeProjectClaude — the delivered project-root CLAUDE.md", () => {
       "csr-fastify",
       "csr-supabase",
       "ssr-htmx",
+      "ssr-htmx-fastify",
       "ssr-nextjs",
       "data",
       "executive",

@@ -1,0 +1,15 @@
+{
+  "name": "spike-820-fastify",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@shadcn/lint": "latest",
+    "@typescript-eslint/parser": "^8",
+    "daisyui": "^5",
+    "eslint": "^9.30",
+    "tailwindcss": "^4"
+  }
+}
