@@ -1,0 +1,172 @@
+######## j 1-install screen [main]
+$ agent-harness[main] install --track tooling --cli claude --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## j 1-install screen [br2]
+$ agent-harness[br2] install --track tooling --cli claude --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## j 1-install snapshot diff (< main  > br2)
+IDENTICAL
+######## j 2-own-linked screen [main]
+######## j 2-own-linked screen [br2]
+######## j 2-own-linked snapshot diff (< main  > br2)
+IDENTICAL
+######## j 3-update screen [main]
+$ agent-harness[main] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⊘ .claude/skills/objective-brief           linked · not ours — .agents/skills/objective-brief 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## j 3-update screen [br2]
+$ agent-harness[br2] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⊘ .claude/skills/objective-brief           linked · not ours — .agents/skills/objective-brief 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## j 3-update snapshot diff (< main  > br2)
+IDENTICAL
+######## j 4-dry-all screen [main]
+$ agent-harness[main] uninstall --dry-run
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  (no project-scope assets to reverse)
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ○ remove 51 harness file(s) under .claude/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ remove .claude/settings.json (the harness created it and only its part is in it)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ leave .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+
+rc=0
+######## j 4-dry-all screen [br2]
+$ agent-harness[br2] uninstall --dry-run
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  (no project-scope assets to reverse)
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ○ remove 51 harness file(s) under .claude/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ remove .claude/settings.json (the harness created it and only its part is in it)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ leave .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+
+rc=0
+######## j 4-dry-all snapshot diff (< main  > br2)
+IDENTICAL
+######## j 5-uninstall-all screen [main]
+$ agent-harness[main] uninstall --yes
+
+  ✓ removed  .claude/ 51 harness file(s) · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed (the harness created it and only its part was in it)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## j 5-uninstall-all screen [br2]
+$ agent-harness[br2] uninstall --yes
+
+  ✓ removed  .claude/ 51 harness file(s) · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed (the harness created it and only its part was in it)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## j 5-uninstall-all snapshot diff (< main  > br2)
+IDENTICAL

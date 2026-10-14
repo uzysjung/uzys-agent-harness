@@ -1,0 +1,334 @@
+######## i 1-install screen [main]
+$ agent-harness[v170] install --track tooling --cli claude --cli codex --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5791 tokens/session (directives 8 ~3949 · [rules 6 ~1530 · CLAUDE.md 2 ~2419] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md (Codex)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## i 1-install screen [br2]
+$ agent-harness[v170] install --track tooling --cli claude --cli codex --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5791 tokens/session (directives 8 ~3949 · [rules 6 ~1530 · CLAUDE.md 2 ~2419] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md (Codex)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## i 1-install snapshot diff (< main  > br2)
+IDENTICAL
+######## i 2-cli-codex screen [main]
+$ agent-harness[main] uninstall --cli codex
+
+  ✓ removed  .agents/ 41 harness file(s) · .codex/ 1
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## i 2-cli-codex screen [br2]
+$ agent-harness[br2] uninstall --cli codex
+
+  ✓ removed  .agents/ 33 harness file(s) · .codex/ 1
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/audit-harness-fit · .agents/skills/objective-brief — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## i 2-cli-codex snapshot diff (< main  > br2)
+0a1,14
+> D ./.agents
+> D ./.agents/skills
+> D ./.agents/skills/audit-harness-fit
+> F ./.agents/skills/audit-harness-fit/README.md 2aa6eb69e9991d01
+> F ./.agents/skills/audit-harness-fit/SKILL.md a23c98c78fd9c5f4
+> D ./.agents/skills/audit-harness-fit/evals
+> F ./.agents/skills/audit-harness-fit/evals/scenarios.yaml 714fe2ef457dd38f
+> D ./.agents/skills/audit-harness-fit/references
+> F ./.agents/skills/audit-harness-fit/references/apply.md 6f38cb6673546bfe
+> F ./.agents/skills/audit-harness-fit/references/audit.md b93eba13d00481e3
+> F ./.agents/skills/audit-harness-fit/references/populate.md eabe235e5e097ad4
+> F ./.agents/skills/audit-harness-fit/references/verification.md 695c1f08c6bee5de
+> D ./.agents/skills/objective-brief
+> F ./.agents/skills/objective-brief/SKILL.md 531c8f0f09492e4a
+20c34
+< L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [BROKEN]
+---
+> L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [resolves]
+67c81
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]
+---
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
+######## i 3-edited screen [main]
+######## i 3-edited screen [br2]
+######## i 3-edited snapshot diff (< main  > br2)
+0a1,15
+> D ./.agents
+> D ./.agents/skills
+> D ./.agents/skills/audit-harness-fit
+> F ./.agents/skills/audit-harness-fit/README.md 2aa6eb69e9991d01
+> F ./.agents/skills/audit-harness-fit/SKILL.md a23c98c78fd9c5f4
+> D ./.agents/skills/audit-harness-fit/evals
+> D ./.agents/skills/audit-harness-fit/references
+> F ./.agents/skills/audit-harness-fit/references/apply.md 24861ee7fbd2bd69
+> F ./.agents/skills/audit-harness-fit/references/audit.md b93eba13d00481e3
+> F ./.agents/skills/audit-harness-fit/references/my-ref.md c06d7583c37bdfa5
+> F ./.agents/skills/audit-harness-fit/references/populate.md eabe235e5e097ad4
+> F ./.agents/skills/audit-harness-fit/references/verification.md 695c1f08c6bee5de
+> D ./.agents/skills/objective-brief
+> F ./.agents/skills/objective-brief/SKILL.md a0ddb94ed3f38cfd
+> F ./.agents/skills/objective-brief/my-notes.md d18e19a63bb69e6d
+20c35
+< L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [BROKEN]
+---
+> L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [resolves]
+67c82
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]
+---
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
+######## i 4-update screen [main]
+$ agent-harness[main] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/rules                            2 files updated
+  ✓ .claude/agents                           1 files updated
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ⊘ .claude/skills owned by another tool     audit-harness-fit, objective-brief · 그 자리가 우리 디렉터리가 아니라 갱신하지 않았다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## i 4-update screen [br2]
+$ agent-harness[br2] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/rules                            2 files updated
+  ✓ .claude/agents                           1 files updated
+  ✓ backed up  .agents/skills/audit-harness-fit/references/apply.md — you edited it — saved as .agents/skills/audit-harness-fit/references/apply.md.backup-20261014T220708
+  ✓ backed up  .agents/skills/objective-brief/SKILL.md — you edited it — saved as .agents/skills/objective-brief/SKILL.md.backup-20261014T220708
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ .claude/skills/audit-harness-fit         linked · updated via .agents/skills/audit-harness-fit
+  ✓ .claude/skills/objective-brief           linked · updated via .agents/skills/objective-brief
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ BACKUPS      2 file(s) saved before replacing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         backups are not loaded — to keep your edits across updates, ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘" (update replaces harness files every time, so edits put back inside them return as backups)
+
+rc=0
+######## i 4-update snapshot diff (< main  > br2)
+0a1,18
+> D ./.agents
+> D ./.agents/skills
+> D ./.agents/skills/audit-harness-fit
+> F ./.agents/skills/audit-harness-fit/README.md 2aa6eb69e9991d01
+> F ./.agents/skills/audit-harness-fit/SKILL.md a23c98c78fd9c5f4
+> D ./.agents/skills/audit-harness-fit/evals
+> F ./.agents/skills/audit-harness-fit/evals/scenarios.yaml 714fe2ef457dd38f
+> D ./.agents/skills/audit-harness-fit/references
+> F ./.agents/skills/audit-harness-fit/references/apply.md 2a1283f2bdfcbd70
+> F ./.agents/skills/audit-harness-fit/references/apply.md.backup-TS 24861ee7fbd2bd69
+> F ./.agents/skills/audit-harness-fit/references/audit.md b93eba13d00481e3
+> F ./.agents/skills/audit-harness-fit/references/my-ref.md c06d7583c37bdfa5
+> F ./.agents/skills/audit-harness-fit/references/populate.md eabe235e5e097ad4
+> F ./.agents/skills/audit-harness-fit/references/verification.md 92ada034976db7ee
+> D ./.agents/skills/objective-brief
+> F ./.agents/skills/objective-brief/SKILL.md 86c5036d7bfc3726
+> F ./.agents/skills/objective-brief/SKILL.md.backup-TS a0ddb94ed3f38cfd
+> F ./.agents/skills/objective-brief/my-notes.md d18e19a63bb69e6d
+20c38
+< L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [BROKEN]
+---
+> L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [resolves]
+67c85
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]
+---
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
+######## i 5-update-again screen [main]
+$ agent-harness[main] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ⊘ .claude/skills owned by another tool     audit-harness-fit, objective-brief · 그 자리가 우리 디렉터리가 아니라 갱신하지 않았다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## i 5-update-again screen [br2]
+$ agent-harness[br2] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/skills/audit-harness-fit         linked · updated via .agents/skills/audit-harness-fit
+  ✓ .claude/skills/objective-brief           linked · updated via .agents/skills/objective-brief
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## i 5-update-again snapshot diff (< main  > br2)
+0a1,18
+> D ./.agents
+> D ./.agents/skills
+> D ./.agents/skills/audit-harness-fit
+> F ./.agents/skills/audit-harness-fit/README.md 2aa6eb69e9991d01
+> F ./.agents/skills/audit-harness-fit/SKILL.md a23c98c78fd9c5f4
+> D ./.agents/skills/audit-harness-fit/evals
+> F ./.agents/skills/audit-harness-fit/evals/scenarios.yaml 714fe2ef457dd38f
+> D ./.agents/skills/audit-harness-fit/references
+> F ./.agents/skills/audit-harness-fit/references/apply.md 2a1283f2bdfcbd70
+> F ./.agents/skills/audit-harness-fit/references/apply.md.backup-TS 24861ee7fbd2bd69
+> F ./.agents/skills/audit-harness-fit/references/audit.md b93eba13d00481e3
+> F ./.agents/skills/audit-harness-fit/references/my-ref.md c06d7583c37bdfa5
+> F ./.agents/skills/audit-harness-fit/references/populate.md eabe235e5e097ad4
+> F ./.agents/skills/audit-harness-fit/references/verification.md 92ada034976db7ee
+> D ./.agents/skills/objective-brief
+> F ./.agents/skills/objective-brief/SKILL.md 86c5036d7bfc3726
+> F ./.agents/skills/objective-brief/SKILL.md.backup-TS a0ddb94ed3f38cfd
+> F ./.agents/skills/objective-brief/my-notes.md d18e19a63bb69e6d
+20c38
+< L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [BROKEN]
+---
+> L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [resolves]
+67c85
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]
+---
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
+######## i 6-uninstall-all screen [main]
+$ agent-harness[main] uninstall --yes
+
+  ✓ removed  .claude/ 44 harness file(s) · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed (the harness created it and only its part was in it)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/audit-harness-fit (your link → ../../.agents/skills/audit-harness-fit) · skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## i 6-uninstall-all screen [br2]
+$ agent-harness[br2] uninstall --yes
+
+  ✓ removed  .claude/ 44 harness file(s) · .agents/ 8 · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed (the harness created it and only its part was in it)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 2 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: skills/audit-harness-fit (your link → ../../.agents/skills/audit-harness-fit) · skills/objective-brief (your link → ../../.agents/skills/objective-brief)
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · .github/workflows/ci.yml — yours now — a scaffold the harness handed over; it is never removed
+      CI 워크플로 스캐폴드
+[BACKUPS] 하네스가 남긴 백업 2건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .agents/skills/audit-harness-fit/references/apply.md.backup-20261014T220708
+  .agents/skills/objective-brief/SKILL.md.backup-20261014T220708
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## i 6-uninstall-all snapshot diff (< main  > br2)
+0a1,9
+> D ./.agents
+> D ./.agents/skills
+> D ./.agents/skills/audit-harness-fit
+> D ./.agents/skills/audit-harness-fit/references
+> F ./.agents/skills/audit-harness-fit/references/apply.md.backup-TS 24861ee7fbd2bd69
+> F ./.agents/skills/audit-harness-fit/references/my-ref.md c06d7583c37bdfa5
+> D ./.agents/skills/objective-brief
+> F ./.agents/skills/objective-brief/SKILL.md.backup-TS a0ddb94ed3f38cfd
+> F ./.agents/skills/objective-brief/my-notes.md d18e19a63bb69e6d
+3,4c12,13
+< L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [BROKEN]
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]
+---
+> L ./.claude/skills/audit-harness-fit -> ../../.agents/skills/audit-harness-fit [resolves]
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
