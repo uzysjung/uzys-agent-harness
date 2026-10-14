@@ -39,10 +39,10 @@ unrelated text, local customizations, headings, language, and formatting. Synchr
 mirrors only where ownership, synchronization contract, and scope are established.
 When an installer would overwrite a local fix, report the source/integration change
 needed; generator changes belong to a separately authorized task. When re-applying
-edits saved in an update backup, put project additions in a project-owned place the
-same CLI loads — the project's own section of CLAUDE.md / AGENTS.md, or a separately
-named file beside the harness asset — not back into the harness-owned file, which the
-next update replaces again and keeps only as a backup.
+edits saved in an update backup, put project additions in a project-owned place that
+update leaves alone and the same CLI actually loads — such as the project's own part of
+CLAUDE.md / AGENTS.md outside the harness block — and confirm it loads. Not back into the
+harness-owned file: the next update replaces it again and keeps the edit only as a backup.
 
 Keep removed content recoverable. Clean tracked content can use existing history;
 dirty or untracked content needs an authorized snapshot. Store snapshots outside

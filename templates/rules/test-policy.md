@@ -4,9 +4,9 @@
 belongs to the Delivery rule.
 
 - An ordinary change gets static checks and regression across the affected scope — not the whole
-  suite, even where the repository's CI runs everything on every job; independent verification
-  only where the Delivery rule requires it. A high-risk one widens that in
-  proportion to what it touches and what its failure would cost.
+  suite merely because the repository's CI runs it; independent verification only where the
+  Delivery rule requires it. A high-risk one widens that in proportion to what it touches and what
+  its failure would cost.
 - Preserve required outcomes with the least burdensome reliable protection.
   Prefer fixing the cause and reusing or improving existing mechanisms within scope;
   no new guard is needed when those suffice. Judge safeguards by credible risk,
@@ -30,5 +30,6 @@ belongs to the Delivery rule.
   adding indiscriminate retries. Correct or consolidate tests when their expectations are
   wrong, obsolete, or redundant; preserve coverage of the accepted contract and follow project
   policy for changes to mandatory gates.
-- If the affected scope cannot be established confidently, widen to the enclosing module or user
-  journey, not to the whole suite. When fixing an environment or CI, rerun the failing checks there.
+- If the affected scope cannot be established confidently, widen along what the change shares
+  (callers, data, configuration), not to the whole suite by default. After an environment or CI
+  fix, rerun what failed and what the fix could affect.

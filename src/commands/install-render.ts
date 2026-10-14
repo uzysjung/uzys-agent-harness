@@ -328,7 +328,7 @@ export function renderUpdateSummary(
           "NEXT",
           unmeasured === backups.length
             ? 'nothing to carry over unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘"'
-            : 'to keep your edits across updates, ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘" — update replaces harness files every time, so edits put back inside them return as backups',
+            : 'backups are not loaded — to keep your edits across updates, ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘" (update replaces harness files every time, so edits put back inside them return as backups)',
         ),
       );
   }

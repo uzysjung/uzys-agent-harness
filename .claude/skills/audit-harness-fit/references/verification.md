@@ -75,7 +75,8 @@ Generic requests to "think again" are assessed for evidence value, not presumed 
 Check project gates against the stage schedule: a merge gate that waits for every CI
 check where CI runs the whole suite, or an evidence rule that voids every result when
 the tree changes, turns each change into a full run. Report that conflict as a policy
-decision; do not propose such a gate.
+decision; propose such a gate only where project policy asks for it, and do not stand a
+local full run in for a blocked remote check.
 Document-only effects normally need document checks unless policy or dependencies
 require more. State checks not run and the resulting limits.
 
