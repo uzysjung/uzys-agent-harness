@@ -451,6 +451,48 @@ describe("#528 uninstall --cli", () => {
     ).toBe(true);
   });
 
+  // #769 리뷰 ⓕ — 남긴 본문은 그 뒤 update 가 claude 몫으로 갱신하고 · codex 를 다시 넣으면 백업 없이 이어받고 · 전량은 회수한다
+  it("링크 본문을 남긴 뒤 update · codex 재추가 · update · 전량 uninstall — 백업 0 · 끝에 본문 회수 · 링크는 안내", () => {
+    install(["claude", "codex"]);
+    const id = "user-centered-explanation";
+    const slot = join(projectDir, ".claude/skills", id);
+    rmSync(slot, { recursive: true, force: true });
+    symlinkSync(join("..", "..", ".agents/skills", id), slot);
+    const run = (mode: "update" | "add", cli: CliBase[]) =>
+      runInstall({
+        runExternal: null,
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        mode,
+        spec: { tracks: ["tooling"], options: { withCodexTrust: false }, cli, projectDir },
+      });
+
+    expect(removeCli("codex").code).toBe(0);
+    const upd = run("update", ["claude"]);
+    expect(upd.updateMode?.skillsLinked).toEqual([id]);
+    expect(upd.updateMode?.skillsLinkedNotOurs).toEqual([]);
+    run("add", ["codex"]);
+    run("update", ["claude", "codex"]);
+    const backups = readdirSync(join(projectDir, ".agents/skills", id)).filter((f) =>
+      f.includes(".backup-"),
+    );
+    expect(backups).toEqual([]);
+    expect(existsSync(join(slot, "SKILL.md"))).toBe(true);
+
+    const out: string[] = [];
+    uninstallAction(
+      { projectDir, yes: true },
+      {
+        exit: () => undefined as never,
+        log: (l: string) => out.push(l),
+        err: (l: string) => out.push(l),
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+    expect(has(`.agents/skills/${id}`)).toBe(false);
+    expect(out.join("\n")).toContain(`skills/${id} (your link → ../../.agents/skills/${id})`);
+  });
+
   it("옛 로그(`clis` 없음)에서도 유도한 집합으로 판정한다", () => {
     install(["claude", "codex"]);
     const logPath = join(projectDir, ".uzys-agent-harness/.harness-install.json");

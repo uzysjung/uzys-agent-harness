@@ -94,6 +94,7 @@ import {
   writeInstallLog,
 } from "./install-log.js";
 import { judge, LINES, type Recorded, withBackup } from "./judge.js";
+import { refreshLinkedSkillBodies } from "./linked-skill-bodies.js";
 import {
   type AssetEntry,
   type AssetSpec,
@@ -699,7 +700,13 @@ export function runUpdateMode(
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
   // 기준선을 잇는 규칙이 두 벌이 되고, 그게 ADR-046~048 을 세 번 반복하게 만든 구조다.
   const external = wants("external")
-    ? refreshExternalCli(projectDir, harnessRoot, legacyDroppedKeys(logAtStart), harnessMcp)
+    ? refreshExternalCli(
+        projectDir,
+        harnessRoot,
+        legacyDroppedKeys(logAtStart),
+        harnessMcp,
+        report.skillsSkippedLinks.filter((id) => linksToProjectSharedSkill(projectDir, id)),
+      )
     : {
         externalUpdated: 0,
         externalBackedUp: [],
@@ -784,9 +791,9 @@ export function runUpdateMode(
     if (!saidBySlotRow.has(f) && !merged.includes(f)) merged.push(f);
   }
   report.foreignOwned = merged;
-  // #524 — 슬롯 행에서 **이 프로젝트의 공유 자리로의 링크**를 가른다. 본문은 바로 위 외부 변환이
-  // 이미 갱신했고 여기서는 쓰지 않는다(같은 파일의 쓰기 주체는 하나 — `linked-skill-bodies.ts` 는
-  // add 전용). 이 줄이 바꾸는 것은 화면의 말뿐이다: 갱신된 자리를 "남의 것"이라 부르지 않는다.
+  // #524 — 슬롯 행에서 **이 프로젝트의 공유 자리로의 링크**를 가른다. 본문은 바로 위 외부 변환이(그 자리를 쓰는 외부 CLI 가
+  // 없으면 `refreshLinkedSkillBodies` 가 — #769) 이미 갱신했고 여기서는 쓰지 않는다. 이 줄이 바꾸는 것은 화면의 말뿐이다:
+  // 갱신된 자리를 "남의 것"이라 부르지 않는다.
   // 외부 변환을 안 돌린 실행(`--only`)은 갱신 여부를 말할 근거가 없어 종전 행에 둔다.
   if (wants("external")) {
     const linked = report.skillsSkippedLinks.filter((id) =>
@@ -2098,6 +2105,8 @@ function refreshExternalCli(
   droppedKeys: ReadonlyArray<string>,
   /** #709 — `.mcp.json` 에 쓴 것과 같은 하네스 MCP 서버. */
   harnessMcp: McpJson,
+  /** #524 · #769 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 링크인 id. */
+  linkedIds: ReadonlyArray<string>,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -2177,6 +2186,20 @@ function refreshExternalCli(
     // 앞 단계(하네스 파일 쓰기)가 헬퍼만 든 `externalFiles` 를 적어도 같은 답이다 — 헬퍼는 외부 자리로 세지 않는다(B-2)
     owned: recordedOwner(log),
   });
+  // #769 — 링크 슬롯의 공유 본문은 claude 의 몫이다: 이 실행의 외부 변환이 쓰지 않은 것(그 자리를 쓰는 외부 CLI 가 빠진 설치본 —
+  // `uninstall --cli codex` 뒤)은 add 와 같은 함수로 갱신한다. 외부 변환이 쓴 것은 건너뛴다(같은 파일의 쓰기 주체는 하나)
+  const linked = refreshLinkedSkillBodies({
+    harnessRoot,
+    projectDir,
+    ids: linkedIds.filter(
+      (id) => !result.externalFiles.some((f) => f.path === `${SHARED_SKILLS_DIR}/${id}/SKILL.md`),
+    ),
+    baseline: new Map(
+      mergeExternalFiles(log?.externalFiles, result.externalFiles).map((f) => [f.path, f.sha256]),
+    ),
+  });
+  const written = [...result.externalFiles, ...linked.files];
+  const displaced = [...(result.displaced ?? []), ...linked.displaced];
 
   // #782 — 은퇴한 옛 앵커 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본을 되돌린다 — 지운 뒤 · 아래 기록 쓰기 앞
   const anchorPath = result.anchorRetired?.action === "removed" ? result.anchorRetired.path : null;
@@ -2194,7 +2217,7 @@ function refreshExternalCli(
     // 빼기 **전** 집합을 같은 기록 쓰기에서 `spec.clis` 로 적는다(BLOCKER-1 — update 의 다른 기록 쓰기는 `spec` 을 건드리지
     // 않으므로 이 자리가 유일한 이행점이다. `buildInstallLog` 가 install 에서 하는 1회 이행을 대신한다, ADR-096 D3).
     const retiredPath = result.anchorRetired?.forget === true ? result.anchorRetired.path : null;
-    const merged = mergeExternalFiles(log.externalFiles, result.externalFiles).filter(
+    const merged = mergeExternalFiles(log.externalFiles, written).filter(
       (f) => f.path !== retiredPath,
     );
     const next: InstallLog =
@@ -2219,7 +2242,7 @@ function refreshExternalCli(
       .filter((f) => f.createdAsRoot === true)
       .map((f) => ({ path: f.path, change: "created" as const, notes: ["하네스 몫만(블록)"] }));
     // #761 — 세 변환이 첫 접촉으로 비켜 둔 설치자 파일도 같은 자리에 — 하네스가 떠날 때 되돌리는 근거다
-    const roots = [...created, ...withoutLostBackups(log.rootFiles, result.displaced ?? [])];
+    const roots = [...created, ...withoutLostBackups(log.rootFiles, displaced)];
     if (roots.length > 0) next.rootFiles = mergeRootFiles(log.rootFiles, roots);
     // #782 — 되돌린(또는 되돌릴 근거가 없어진) 앵커 자리의 displaced 기록을 같은 쓰기에서 뺀다
     if (anchorDisplaced.some((d) => d.forget))
@@ -2295,12 +2318,12 @@ function refreshExternalCli(
   const dropped = new Set(droppedKeys);
   return {
     externalUpdated: result.externalUpdated,
-    externalBackedUp: result.externalBackedUp,
-    externalJudged: result.externalJudged,
-    displaced: result.displaced ?? [],
-    externalForeignOwned: result.externalForeignOwned,
-    externalOutside: result.externalOutside,
-    written: result.externalFiles.map((f) => f.path),
+    externalBackedUp: [...result.externalBackedUp, ...linked.backedUp],
+    externalJudged: [...result.externalJudged, ...linked.judged],
+    displaced,
+    externalForeignOwned: [...result.externalForeignOwned, ...linked.foreignOwned],
+    externalOutside: [...result.externalOutside, ...linked.outside],
+    written: written.map((f) => f.path),
     skillsInstalled,
     skillsRestored,
     rulesRestored,

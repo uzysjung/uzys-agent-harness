@@ -2,11 +2,9 @@
  * linked-skill-bodies.ts — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 를 가리키는
  * 링크일 때, `install`(add) 이 그 **공유 본문**을 갱신한다 (#524 · Epic #527 S4).
  *
- * 왜 add 만인가: `update` 에서는 깔린 CLI 전부의 변환이 refresh 로 돌아 `.agents/skills/<id>` 가
- * 이미 최신판이 된다(`update-mode.ts` refreshExternalCli). 남는 구멍은 `install --cli claude` 처럼
- * 요청한 CLI 의 변환만 도는 add 다 — 링크 자리는 `.claude/` 쪽에서 "남의 것"으로 건너뛰고,
- * `.agents/` 쪽 변환은 이번 실행에 없어 아무도 본문을 안 쓴다. 그래서 update 에서는 여기를
- * 부르지 않는다(같은 파일을 두 주체가 쓰지 않게).
+ * 링크 자리는 `.claude/` 쪽에서 "남의 것"으로 건너뛰므로, 이번 실행에 `.agents/` 쪽 변환이 없으면 아무도 본문을 안 쓴다 —
+ * `install --cli claude` 처럼 요청한 CLI 의 변환만 도는 add, 그리고 그 자리를 쓰는 외부 CLI 가 빠진(`uninstall --cli codex`
+ * 뒤) 설치본의 update(#769 — `update-mode.ts` refreshExternalCli 가 외부 변환이 쓰지 않은 id 만 넘긴다).
  *
  * 바이트 정본은 `.agents/skills/` 를 쓰는 변환과 **같은 함수**(`writeBundledSkillDirs` — 포팅판)다.
  * 원문(Claude 판)을 쓰면 그 자리를 네이티브로 읽는 Codex·OpenCode·Antigravity 가 존재하지 않는
@@ -16,6 +14,7 @@
 import { join } from "node:path";
 import { writeBundledSkillDirs } from "./codex/skills.js";
 import type { InstallLogRootFile, InstallLogSkillFile } from "./install-log.js";
+import type { JudgedWrite } from "./install-writes.js";
 import type { OutsideLink } from "./outside-project.js";
 import { createOwnedWriter, type WriteJournal } from "./owned-write.js";
 
@@ -28,6 +27,9 @@ export interface LinkedSkillBodies {
   files: InstallLogSkillFile[];
   /** 설치자가 고친 본문이라 남긴 백업의 절대경로. */
   backupPaths: string[];
+  /** #769 — 백업을 남긴 본문(project 상대) · 파일마다의 판정 줄 — update 화면이 외부 변환의 것과 같이 읽는다. */
+  backedUp: string[];
+  judged: JudgedWrite[];
   /** #761 — 기준선에 없던 형제 파일(첫 접촉)을 비켜 둔 자리 — 기록의 `rootFiles` 로 간다. */
   displaced: InstallLogRootFile[];
   /** 공유 본문 **안**이 남의 것(파일 링크 등)이라 쓰지 않은 자리. */
@@ -67,6 +69,8 @@ export function refreshLinkedSkillBodies(params: {
     notOurs: ids.filter((id) => !baseline.has(bodyKey(id))),
     files: result.files,
     backupPaths: result.backupPaths,
+    backedUp: result.backedUp,
+    judged: result.judged ?? [],
     displaced: result.displaced ?? [],
     foreignOwned: result.foreignOwned,
     outside: result.outside ?? [],
