@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**32/58 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**33/59 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **58** (official 26 / vetted 30 / experimental 2) · 🟢 verified **32/58**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **59** (official 26 / vetted 30 / experimental 3) · 🟢 verified **33/59**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -143,7 +143,7 @@ stale row fails the build rather than misleading you.
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (11)
+#### 🛡️ Dev Tools (12)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -158,6 +158,7 @@ stale row fails the build rather than misleading you.
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `claude-security` | official | `claude-security@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `github-mcp` | vetted | templates (`--with github-mcp`) | claude+codex+opencode (templates) | 🟡 local |
+| `ast-grep` | experimental | `ast-grep/agent-skill :: ast-grep` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 
 #### 🧠 Understanding (5)
 

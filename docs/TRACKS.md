@@ -111,7 +111,7 @@ The `project-management` and `growth-marketing` tracks pre-check no external ass
 
 ### Dev tools, understanding, visual
 
-All opt-in, on any track: `security-guidance` · `claude-security` (security review) — `agent-browser` · `claude-video` · `understand-anything` (understanding) — `frontend-slides` · `marp-slide` · `gsap-skills` · `remotion` · `ppt-master` · `hyperframes` (visual & media; `hyperframes` renders HTML to MP4 and is a Claude Code plugin) — `game-engine`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
+All opt-in, on any track: `security-guidance` · `claude-security` (security review) — `ast-grep` (structural search and lint rules; needs the ast-grep CLI) — `agent-browser` · `claude-video` · `understand-anything` (understanding) — `frontend-slides` · `marp-slide` · `gsap-skills` · `remotion` · `ppt-master` · `hyperframes` (visual & media; `hyperframes` renders HTML to MP4 and is a Claude Code plugin) — `game-engine`. One-line descriptions for each are in the [compatibility matrix](COMPATIBILITY.md).
 
 ### Workflow bundles
 
