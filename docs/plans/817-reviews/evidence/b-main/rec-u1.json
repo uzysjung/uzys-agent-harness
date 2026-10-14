@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-14T13:02:50.680Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "rootClaudeMd": {
+      "path": "CLAUDE.md",
+      "sha256": "a79d0e993e42343adbbf0cae81f121b10cafac9f16686262e681a075d359cb13"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "anthropics/claude-plugins-official",
+        "pluginId": "frontend-design@claude-plugins-official"
+      }
+    },
+    {
+      "id": "find-skills",
+      "category": "dev-tools",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "vercel-labs/skills",
+        "skill": "find-skills"
+      }
+    },
+    {
+      "id": "karpathy-coder",
+      "category": "dev-tools",
+      "method": "plugin",
+      "scope": "project",
+      "detail": {
+        "marketplace": "alirezarezvani/claude-skills",
+        "pluginId": "karpathy-coder@claude-code-skills"
+      }
+    },
+    {
+      "id": "agent-browser",
+      "category": "understanding",
+      "method": "npm",
+      "scope": "project",
+      "detail": {
+        "pkg": "agent-browser"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp-allowlist",
+      "change": "created",
+      "notes": [
+        "MCP allowlist (3 server)"
+      ]
+    },
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    }
+  ],
+  "excludedKeysMigrated": true,
+  "policyFiles": [
+    {
+      "path": "agents/build-error-resolver.md",
+      "sha256": "28597d1e97a68701999704b789a97a20a28b121b7c27ee6a6e80ab43bcd514b8"
+    },
+    {
+      "path": "agents/code-reviewer.md",
+      "sha256": "e112e5e0bbc501788e8a3bfd2771d34e31a8564bbd87391bff7401af1509782c"
+    },
+    {
+      "path": "agents/plan-checker.md",
+      "sha256": "467ddec15189cc4273adacd08f97e7eabe1cc164901882f2dd5bba81fbf72327"
+    },
+    {
+      "path": "agents/security-reviewer.md",
+      "sha256": "eacaa50c2b2fdee398ba2e3c896c018ea8887d34701e5b841278ea2c1472cc19"
+    },
+    {
+      "path": "agents/silent-failure-hunter.md",
+      "sha256": "004ce0389356e0666d80c89cef39ad895ab326b3f7d19d34d23c70ab249a795d"
+    },
+    {
+      "path": "hooks/protect-files.sh",
+      "sha256": "5408a423eaade935d984d187f6f93387869cba9423b4644120f30025df4a7b5d"
+    },
+    {
+      "path": "hooks/session-start.sh",
+      "sha256": "238e4a9565b2cde0809fed3b49059fa5b3189ad1c2e86d4963fcbf5e73de7152"
+    },
+    {
+      "path": "rules/code-style.md",
+      "sha256": "2e67fc49d4c8eacaa6dac9064cf566d7f3039509a5b6c5f03b5b2126b0043def"
+    },
+    {
+      "path": "rules/error-handling.md",
+      "sha256": "5ea6a188e3a925d5f1f38c1defb766bf71af7a408b58ecce208c7fd3059aa843"
+    },
+    {
+      "path": "rules/gates-taxonomy.md",
+      "sha256": "2276e03e41463f946d5b4867c953579aab91445bb781a4d24ecd9337d2f67e3d"
+    },
+    {
+      "path": "rules/no-false-ship.md",
+      "sha256": "964853f056a2ed898b09648faaf5302d471d3e723dc8e15d387e32aba82eee14"
+    }
+  ],
+  "portions": [
+    {
+      "path": ".claude/settings.json",
+      "adapter": "json-keys",
+      "key": "hooks.PreToolUse#protect-files.sh",
+      "sha256": "d33990e28ef66649ab7c6bc3ce204830a0ad9bd8adbc580600d8448af4ac0464"
+    },
+    {
+      "path": ".claude/settings.json",
+      "adapter": "json-keys",
+      "key": "hooks.PreToolUse#protect-files.sh{}",
+      "sha256": "d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9"
+    },
+    {
+      "path": ".claude/settings.json",
+      "adapter": "json-keys",
+      "key": "hooks.SessionStart#session-start.sh",
+      "sha256": "81d46971115595c08cfa0a848fc882585c7bf19aa9bc313baf267a0d20d87693"
+    },
+    {
+      "path": ".claude/settings.json",
+      "adapter": "json-keys",
+      "key": "hooks.SessionStart#session-start.sh{}",
+      "sha256": "d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9"
+    }
+  ]
+}

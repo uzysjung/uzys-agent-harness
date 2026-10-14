@@ -1,0 +1,13 @@
+▸ scenario-update-external: update 가 외부 CLI 산출물을 갱신하는가 (R-3j-A)
+
+✓ install 완료 — codex/opencode 산출물 존재
+✓ 외부 CLI 기준선 기록 48건
+✓ 구버전 상태 재현 (.codex/config.toml)
+✓ 구버전 산출물이 최신판으로 갱신됨
+✓ 미편집 파일에는 백업 미생성
+✓ 편집분은 백업으로, 최신판이 자리에 (ADR-046 승계)
+✓ Update 요약에 external CLI 행 노출
+✓ 재실행해도 백업 미증가 (1건 유지)
+✓ claude 전용 프로젝트에 외부 CLI 산출물 미생성
+
+PASS: scenario-update-external

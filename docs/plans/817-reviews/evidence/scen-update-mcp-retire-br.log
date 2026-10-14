@@ -1,0 +1,12 @@
+▸ scenario-update-mcp-retire: 은퇴한 MCP allowlist 가 회수되는가 (ADR-072)
+
+✓ install 완료 (track=tooling)
+✓ ① install 이 .mcp-allowlist 미생성 (.mcp.json 은 존재 — 입력이 있는데도 안 만든다)
+✓ ② 훅 파일·배선 모두 부재 (탐지기는 protect-files 를 정상 검출)
+✓ 구 설치본 모사 (.mcp-allowlist + 훅 스크립트 + install log 기준선 기록)
+✓ ③ update 가 .mcp-allowlist 제거
+✓ ④ 백업에 사용자 편집분 보존 (.mcp-allowlist.backup-20261014T130952)
+✓ ⑤ 회수 사실을 화면에 고지
+✓ ⑥ 구 훅 스크립트도 update 가 물러냄
+
+PASS: scenario-update-mcp-retire (전항 ①~⑥)

@@ -614,13 +614,7 @@ function settleLog(
     const recordDir = join(projectDir, INSTALL_LOG_DIR);
     if (outsideLinkAt(projectDir, INSTALL_LOG_DIR) !== null) io.rm(recordDir);
     else {
-      // 런타임 파일 = `.gitignore` 가 무시하는 그 둘(차단 로그 · update 백업 목록 — ADR-100)
-      for (const rel of [
-        `${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`,
-        ...HARNESS_RUNTIME_IGNORES,
-      ]) {
-        io.rm(join(projectDir, rel));
-      }
+      for (const rel of RECORD_FILES) io.rm(join(projectDir, rel));
       pruneEmptyDirsUpward(projectDir, recordDir);
     }
     // v26.134.1 이하로 설치한 프로젝트의 잔재. `.claude/` 는 설치자 파일과 함께 남으므로(#746) 여기서 안 지우면 다음
@@ -1579,6 +1573,11 @@ const SKILLS_DIR = ".claude/skills/";
 /** CLI 폴더 — 회수 뒤 남은 설치자 파일을 이름으로 말하는 자리다(통째로 다루지 않는다). */
 const CLI_FOLDERS: ReadonlyArray<string> = [".claude", ".codex", ".opencode"];
 const LEFT_FILES_SHOWN = 3;
+/** 기록 폴더에서 `settleLog` 가 지우는 것 — 설치 기록 + 런타임 파일(`.gitignore` 가 무시하는 그 둘: 차단 로그 · update 백업 목록, ADR-100). */
+const RECORD_FILES: ReadonlyArray<string> = [
+  `${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}`,
+  ...HARNESS_RUNTIME_IGNORES,
+];
 
 /** 이번 실행이 회수하는 범위 — 전량은 전부, `--cli` 는 그 CLI 의 소유 접두(`cli-ownership.ts`). */
 interface RemovalScope {
@@ -1600,7 +1599,8 @@ const FULL_SCOPE: RemovalScope = {
   has: () => true,
   shared: UNINSTALL_SHARED,
   skeleton: PROJECT_SKELETON_DIRS,
-  folders: CLI_FOLDERS,
+  // #817 — 기록 폴더도 — 헬퍼는 파일 하나씩 회수하고(#812) 설치자 파일은 남으니, 폴더가 왜 남았는지 같은 줄로 말한다
+  folders: [...CLI_FOLDERS, INSTALL_LOG_DIR],
   importBlock: true,
   anchor: true,
 };
@@ -2314,8 +2314,8 @@ function leftFolderLines(
     const entries = new Map<string, string>();
     for (const n of yoursUnder(projectDir, dir)) {
       const full = `${dir}/${n.name}`;
-      // 옛 위치의 설치 기록(`.claude/.harness-install.json`)은 하네스 것이다 — `settleLog` 가 지운다
-      if (full === LEGACY_LOG) continue;
+      // 설치 기록(옛 위치 `.claude/.harness-install.json` 포함) · 런타임 파일은 하네스 것이다 — `settleLog` 가 지운다
+      if (full === LEGACY_LOG || RECORD_FILES.includes(full)) continue;
       if (!gone.has(full) && !assetFiles.has(full) && !said(full)) entries.set(n.name, n.shown);
     }
     for (const p of back)

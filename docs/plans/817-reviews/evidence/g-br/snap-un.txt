@@ -1,0 +1,9 @@
+0d542e0c8804  ./.agents/skills/frontend-design/LICENSE.txt
+d91970639e9f  ./.agents/skills/frontend-design/SKILL.md
+80bc1b18bdec  ./.agents/skills/multi-model-debate/SKILL.md
+676e112d4d85  ./.claude/settings.json
+0d542e0c8804  ./.claude/skills/frontend-design/LICENSE.txt
+d91970639e9f  ./.claude/skills/frontend-design/SKILL.md
+8712e573beed  ./.claude/skills/multi-model-debate/SKILL.md
+9b702459d0e9  ./CLAUDE.md
+441da2f7ce4d  ./skills-lock.json

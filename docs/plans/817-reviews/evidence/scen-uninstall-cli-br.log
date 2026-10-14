@@ -1,0 +1,15 @@
+▸ scenario-uninstall-cli: uninstall --cli 가 그 CLI 것만 회수하는가 (#528)
+
+✓ install 완료 (cli=claude,codex)
+✓ 전제 확인 — AGENTS.md · .codex/ · .agents/skills/audit-harness-fit · .claude/ 사본 존재
+✓ Project Context 에 문단 추가 (대조군 확인)
+✓ update 뒤에도 문단 보존 (전제)
+✓ 남의 스킬 심음 (.agents/skills/foreign-probe — 로그에 없음 확인)
+✓ uninstall --cli codex exit 0
+✓ .codex/ · .agents/skills/audit-harness-fit 회수 · .claude/ 사본 · 남의 스킬 보존
+✓ AGENTS.md 유지 + 문단 보존 + 하네스 절 제거
+✓ .claude/ · 루트 CLAUDE.md import · 앵커 파일 보존
+✓ install log clis = ["claude"]
+✓ 대조군 — 마지막 CLI 제거는 거절 (exit 1), 파일 무변경
+
+PASS: scenario-uninstall-cli

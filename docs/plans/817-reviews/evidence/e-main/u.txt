@@ -1,0 +1,41 @@
+Updating installed harness files in /w/p
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       csr-supabase
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       21 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: postgres-best-practices, supabase-agent-skills
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ .claude/rules                            2 files updated
+  ✓ .claude/agents                           2 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           6 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    1 files updated
+  ✓ .uzys-agent-harness/spec-drift-check.sh  1 files updated
+  ✓ .uzys-agent-harness/check-absence.sh     1 files updated
+  ✓ .claude/rules/ui-components.md           added by this release
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 25 items resident · ~6110 tokens/session (directives 8 ~4147 · [rules 6 ~1677 · CLAUDE.md 2 ~2470] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 6 external assets unmeasured)
+

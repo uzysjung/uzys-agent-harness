@@ -22,6 +22,11 @@ export interface PriorMcpServer {
   retired?: string;
   /** 살아 있는 이름을 새 값으로 갈아 끼웠을 때 화면이 덧붙이는 한 마디. */
   updated?: string;
+  /**
+   * #777 — 이 값은 처음부터 뜬 적이 없다(npm 에 없는 패키지). update 뒤에도 `.mcp.json` 에 그대로 남아 있으면(기록이 하네스 몫이라
+   * 말하지 않아 갈아 끼우지 않은 설치본) 화면이 이 한 마디로 알린다.
+   */
+  dead?: string;
 }
 
 export const PRIOR_MCP_SERVERS: ReadonlyArray<PriorMcpServer> = [
@@ -41,6 +46,7 @@ export const PRIOR_MCP_SERVERS: ReadonlyArray<PriorMcpServer> = [
     name: "supabase",
     value: { type: "stdio", command: "npx", args: ["-y", "@supabase/mcp-server"] },
     updated: "now Supabase's remote server — sign in on first use, see NEXT",
+    dead: 'runs @supabase/mcp-server, which is not on npm — this server never started. To use Supabase\'s official remote server, set it to { "type": "http", "url": "https://mcp.supabase.com/mcp" } (signs in on first use)',
   },
   {
     name: "chrome-devtools",

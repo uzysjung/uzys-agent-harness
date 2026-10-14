@@ -1,0 +1,19 @@
+▸ scenario-update-external-skills: update 가 외부 스킬을 갱신하는가 (#374)
+
+✓ install 완료 — 기록의 첫 스킬 자산 = frontend-design
+✓ install 직후 두 자리 모두 실제 디렉터리 (slot=frontend-design)
+✓ 변이 2/2 반영 확인
+✓ update 가 두 사본을 모두 상류판으로 되돌렸다
+✓ 고친 SKILL.md 두 사본만 *.backup-<시각> 으로 남고 화면·목록이 그것을 말한다 (#770)
+✓ 두 번째 update — 앞선 백업·설치자 노트가 남고, 안 고친 파일은 새 백업 없이 갱신된다 (#770)
+✓ install 재실행 — 고친 SKILL.md 만 백업되고 화면이 말하며, 노트·앞선 백업은 남는다 (#770 HIGH-1)
+✓ update 후에도 두 자리 모두 실제 디렉터리 (심링크 강등 없음)
+✓ update 화면에 external skills 행이 뜬다
+✓ claude 단독: update 가 .agents/ 를 만들지 않고 슬롯도 디렉터리로 유지
+✓ 설치 기록이 없으면 exit 1 · 화면이 'No install record' 를 말한다 · 트리 불변
+✓ 글로벌 설치본: 홈을 갱신하고 화면도 Global 이라고 말한다
+✓ 첫 추가 — 덮인 SKILL.md 는 백업 + displaced, 상류에 없는 이름은 제자리, 화면이 말한다 (#780)
+✓ uninstall --only — SKILL.md 원본이 제자리로 돌아오고 기록에서 displaced 가 빠진다 (#780)
+✓ uninstall(전량) — SKILL.md 원본이 제자리로 돌아온다 (#780)
+
+▸ scenario-update-external-skills PASS

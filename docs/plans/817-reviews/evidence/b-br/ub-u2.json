@@ -1,0 +1,60 @@
+{
+  "updatedAt": "2026-10-14T13:02:51.531Z",
+  "note": "update 가 남긴 백업 쌍. 원본(path)은 최신 번들판, 백업(backup)은 바꾸기 전 판. noChecksum 이 없는 쌍은 기록과 달라진 파일 = 당신의 편집분이다 — 새 판에 다시 얹으려면 두 파일의 diff 를 보라. noChecksum: true 인 쌍은 옛 판이 체크섬을 기록하지 않아 비교 없이 한 번 백업한 것 — 대개 릴리즈 사이 템플릿 변경분이라 당신의 편집이 아닐 수 있다. removed: true 인 쌍은 그 파일을 지우기 전에 남긴 것(은퇴한 하네스 파일 · 번들에 없는 스킬 파일 등) — 원본 자리에 새 판이 없다. 당신 파일이었다면 백업을 원래 이름으로 되돌리면 된다.",
+  "backups": [
+    {
+      "path": ".claude/agents/build-error-resolver.md",
+      "backup": ".claude/agents/build-error-resolver.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/agents/code-reviewer.md",
+      "backup": ".claude/agents/code-reviewer.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/agents/plan-checker.md",
+      "backup": ".claude/agents/plan-checker.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/agents/security-reviewer.md",
+      "backup": ".claude/agents/security-reviewer.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/agents/silent-failure-hunter.md",
+      "backup": ".claude/agents/silent-failure-hunter.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/rules/code-style.md",
+      "backup": ".claude/rules/code-style.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/rules/error-handling.md",
+      "backup": ".claude/rules/error-handling.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/rules/gates-taxonomy.md",
+      "backup": ".claude/rules/gates-taxonomy.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    },
+    {
+      "path": ".claude/rules/no-false-ship.md",
+      "backup": ".claude/rules/no-false-ship.md.backup-20261014T130251",
+      "removed": true,
+      "noChecksum": true
+    }
+  ]
+}

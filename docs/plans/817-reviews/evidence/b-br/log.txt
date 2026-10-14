@@ -1,0 +1,5 @@
+o exit=0
+m exit=0
+u1 exit=0
+u2 exit=0
+DONE

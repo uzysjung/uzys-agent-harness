@@ -68,9 +68,11 @@ function update(cli: CliBase[]): { report: InstallReport; screen: string } {
 
 const read = (rel: string): string => readFileSync(join(projectDir, rel), "utf8");
 const put = (rel: string, text: string): void => writeFileSync(join(projectDir, rel), text);
-const backupIndex = (): { backups: Array<{ path: string; noChecksum?: boolean }> } =>
+const backupIndex = (): {
+  backups: Array<{ path: string; backup: string; noChecksum?: boolean }>;
+} =>
   JSON.parse(read(".uzys-agent-harness/update-backups.json")) as {
-    backups: Array<{ path: string; noChecksum?: boolean }>;
+    backups: Array<{ path: string; backup: string; noChecksum?: boolean }>;
   };
 
 /** 체크섬 이전 옛 판의 기록 — 정책 · 스킬 기준선이 없다(`docs/USAGE.md` "No checksum on record"). */
@@ -95,8 +97,9 @@ describe("#557 — 기록에 체크섬이 없던 백업은 '당신이 고쳤다'
     const { report, screen } = update(["claude"]);
 
     expect(report.updateMode?.noChecksum).toEqual([RULE]);
-    expect(screen).not.toContain("edited policy files");
-    expect(screen).toMatch(/no checksum on record\s+1 backed up once/);
+    expect(screen).not.toContain("you edited it");
+    // #817 — 파일마다 판정의 줄
+    expect(screen).toContain(`backed up  ${RULE} — no checksum on record — saved a copy once`);
     expect(screen).toContain("may not be your edits");
     expect(screen).toContain("nothing to carry over unless you remember editing one of them");
     expect(screen).not.toContain("to keep your edits across updates");
@@ -112,7 +115,8 @@ describe("#557 — 기록에 체크섬이 없던 백업은 '당신이 고쳤다'
     const { report, screen } = update(["claude"]);
 
     expect(report.updateMode?.noChecksum).toBeUndefined();
-    expect(screen).toMatch(/edited policy files\s+1 backed up/);
+    const [backup] = backupIndex().backups;
+    expect(screen).toContain(`backed up  ${RULE} — you edited it — saved as ${backup?.backup}`);
     expect(screen).not.toContain("no checksum on record");
     expect(screen).toContain("to keep your edits across updates");
     const [entry] = backupIndex().backups;

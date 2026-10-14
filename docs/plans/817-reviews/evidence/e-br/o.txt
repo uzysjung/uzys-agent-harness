@@ -1,0 +1,45 @@
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       csr-supabase
+  ▸ CLI          claude
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, compaction-handoff, gh-issue-workflow, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui
+              · backend: postgres-best-practices, supabase-agent-skills
+              · session-start context cost: 20 items resident · ~5172 tokens/session (directives 7 ~3658 · [rules 5 ~1389 · CLAUDE.md 2 ~2269] · triggers 13 ~1514 · [skills 11 ~1322 · agents 2 ~192] · 5 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (5)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (11)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github, mine, railway-mcp-server, supabase
+  ✓ .env.example                             Supabase token guide
+
+━━ External assets (5) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+  ━━ 🗄️  Backend (API · DB · Deploy) ━━
+    ✓ supabase-agent-skills                    plugin · supabase@supabase-agent-skills
+    ✓ postgres-best-practices                  plugin · postgres-best-practices@supabase-agent-skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-supabase
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
