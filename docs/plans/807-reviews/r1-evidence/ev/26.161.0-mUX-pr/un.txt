@@ -1,0 +1,33 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-14T11:08:29.477Z
+  scope:     project
+  assets:    1
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 52 harness file(s) · .agents/ 41 · .codex/ 1 · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ⊘ .claude/agents/strategist.md — not put back — the spot is taken; your earlier file is at .claude/agents/strategist.md.backup-20261014T110829
+  ⊘ .claude/rules/ui-components.md — not put back — the spot is taken; your earlier file is at .claude/rules/ui-components.md.backup-20261014T110829
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 7 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: agents/strategist.md · rules/my-rule.md · rules/ui-components.md +4 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 7건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .claude/agents/reviewer.md.backup-20261014T110829
+  .claude/agents/strategist.md.backup-20261014T110829
+  .claude/rules/test-policy.md.backup-20261014T110829
+  .claude/rules/ui-components.md.backup-20261014T110829
+  .uzys-agent-harness/check-absence.sh.backup-20261014T110829
+  .uzys-agent-harness/protect-branch.sh.backup-20261014T110829
+  .uzys-agent-harness/spec-drift-check.sh.backup-20261014T110829
+
+✓ uninstall complete (0 asset(s))

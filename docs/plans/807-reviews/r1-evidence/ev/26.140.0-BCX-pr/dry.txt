@@ -1,0 +1,53 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-14T11:12:27.556Z
+  scope:     project
+  assets:    4
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  ○ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ○ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ○ npm uninstall --save-dev agent-browser
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ○ remove 91 harness file(s) under .claude/ (39 with a copy saved beside as *.backup-<time>)
+  ○ remove 46 harness file(s) under .agents/
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ put back 1 file(s) of yours (displaced): .claude/skills/model-orchestration/SKILL.md
+  ⊘ .claude/rules/ui-components.md — not put back — the spot is taken; your earlier file is at .claude/rules/ui-components.md.backup-20261014T111228
+  ○ remove retired harness hook wiring from .claude/settings.json: skills/strategic-compact/suggest-compact.sh
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove the harness part from .claude/settings.json: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ leave .claude/ — 6 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: rules/my-rule.md · rules/ui-components.md · settings.json +3 more
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 19건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .claude/agents/build-error-resolver.md.backup-20261014T111228
+  .claude/agents/code-reviewer.md.backup-20261014T111228
+  .claude/agents/plan-checker.md.backup-20261014T111228
+  .claude/agents/reviewer.md.backup-20261014T111228
+  .claude/agents/security-reviewer.md.backup-20261014T111228
+  .claude/agents/silent-failure-hunter.md.backup-20261014T111228
+  .claude/agents/strategist.md.backup-20261014T111228
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261014T111228
+  .claude/hooks/mcp-pre-exec.sh.backup-20261014T111228
+  .claude/hooks/spec-drift-check.sh.backup-20261014T111228
+  .claude/rules/code-style.md.backup-20261014T111228
+  .claude/rules/error-handling.md.backup-20261014T111228
+  .claude/rules/gates-taxonomy.md.backup-20261014T111228
+  .claude/rules/no-false-ship.md.backup-20261014T111228
+  .claude/rules/test-policy.md.backup-20261014T111228
+  .claude/rules/ui-components.md.backup-20261014T111228
+  .claude/skills/model-orchestration/SKILL.md.backup-20261014T111228
+  .mcp-allowlist.backup-20261014T111228
+  AGENTS.md.backup-20261014T111228
+

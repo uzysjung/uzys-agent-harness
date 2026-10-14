@@ -1,0 +1,14 @@
+
+uzys-agent-harness · uninstall --cli codex
+
+  installed: claude, codex
+  removing:  codex
+  remaining: claude
+
+  ✓ removed  .agents/ 46 harness file(s) · .codex/ 1
+  ✓ put back  .agents/skills/model-orchestration/SKILL.md (from .agents/skills/model-orchestration/SKILL.md.backup-20261014T112407)
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
