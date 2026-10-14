@@ -87,6 +87,8 @@ export const SOURCE_LABELS = {
   upstash: "upstash",
   // #726 — HyperFrames (Anthropic 공식 마켓플레이스 등재, 내용 저자 HeyGen).
   "heygen-com": "heygen-com",
+  // #822 — ast-grep 공식 조직(본체 ast-grep/ast-grep 16k★ MIT · 스킬 리포 893★, 실측 2026-10-14).
+  "ast-grep": "ast-grep",
   uzys: "this project",
 } as const;
 export type Source = keyof typeof SOURCE_LABELS;

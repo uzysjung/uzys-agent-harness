@@ -181,6 +181,7 @@ MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브�
 - 프론트엔드·디자인: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
 - 배포: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
 - 보안 리뷰: `security-guidance`, `claude-security`
+- 구조 기반 코드 검색·린트 규칙: `ast-grep` (ast-grep CLI 별도 설치 필요)
 - 마케팅·재무: `marketingskills`, `finance-skills`
 - 발표·영상: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills` 등
 - 정해진 개발 절차가 필요한 팀: `openspec`, `bmad-method` ([WORKFLOWS.md](docs/WORKFLOWS.md)에서 비교)

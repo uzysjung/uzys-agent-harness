@@ -751,6 +751,21 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     },
   },
 
+  // #822 (사용자 결정 2026-10-14) — ast-grep 공식 스킬. 언어에 매이지 않아 트랙에 묶지 않고 opt-in.
+  //   벤더 README 가 "설치하면 발견될 뿐 선호되지 않는다"고 적고, 기본으로 쓰게 하려면 상주 지시를 권한다 — 관측 없는
+  //   상주는 넣지 않으므로 원하는 사람이 고르는 자리에만 둔다. 스킬 파일에 CLI 설치 안내가 없어 description 에 적는다.
+  //   리포에 스킬이 2종(ast-grep · ast-grep-outline)이라 하나만 받는다. #820 의 htmx-fastapi-ui 룰은 이 스킬 없이 동작한다.
+  {
+    id: "ast-grep",
+    tier: "experimental", // ast-grep/agent-skill 893★ (license none — README "follows ast-grep's MIT"; 본체 ast-grep/ast-grep 16k MIT, 2026-10-14)
+    description:
+      "ast-grep — write and test structural (AST) search and lint rules across languages (ast-grep official). Needs the ast-grep CLI installed separately; fires reliably only when you ask for ast-grep",
+    category: "dev-tools",
+    source: "ast-grep",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "ast-grep/agent-skill", skill: "ast-grep" },
+  },
+
   // === dev tools (has_dev_track) ===
   // v26.110.0 (ADR-039) — security-guidance: 매 편집 패턴 경고 + LLM diff 리뷰 (훅 12파일,
   //   Python + Agent SDK 의존). 상시 훅 = 매 편집 비용 + 폭발 반경 — 실측 전 기본설치 금지
