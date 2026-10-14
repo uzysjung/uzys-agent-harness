@@ -32,6 +32,7 @@ import {
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { Track } from "../src/types.js";
+import { runUpdateMode } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 const old = (rel: string): string =>
@@ -152,6 +153,28 @@ describe("#807 트랙 밖 옛 하네스 파일의 displaced 기록", () => {
     expect(read(BAD_BACKUP)).toBe(old("agents/strategist.md"));
     expect(text).not.toContain("spot is taken");
     expect(text).not.toContain("put back");
+  });
+
+  it("현행 update 를 한 번 더 거쳐도 — update 는 그 자리를 설치자 것이라 다시 말하지 않고 uninstall 결말도 같다", () => {
+    oldToolingInstall(projectDir, true);
+    const good = fresh();
+    oldToolingInstall(good, false);
+
+    const report = runUpdateMode(projectDir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
+    runUpdateMode(good, join(HARNESS_ROOT, "templates"), HARNESS_ROOT);
+    const mentioned = [
+      ...(report.displaced ?? []),
+      ...(report.displacedSame ?? []),
+      ...(report.displacedRestored ?? []).map((d) => d.path),
+    ];
+    expect(mentioned).not.toContain(STRATEGIST);
+    expect(mentioned).not.toContain(DATA_ANALYST);
+    uninstall();
+    uninstall({}, good);
+
+    expect(existsSync(abs(STRATEGIST))).toBe(false);
+    expect(existsSync(abs(DATA_ANALYST))).toBe(false);
+    expect(liveFiles(projectDir)).toEqual(liveFiles(good));
   });
 
   it("미리보기도 되돌린다고 말하지 않는다", () => {
