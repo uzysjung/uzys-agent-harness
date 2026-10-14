@@ -38,7 +38,11 @@ markers/imports. Modify the canonical editable source within authorization. Pres
 unrelated text, local customizations, headings, language, and formatting. Synchronize
 mirrors only where ownership, synchronization contract, and scope are established.
 When an installer would overwrite a local fix, report the source/integration change
-needed; generator changes belong to a separately authorized task.
+needed; generator changes belong to a separately authorized task. When re-applying
+edits saved in an update backup, put project additions in a project-owned place the
+same CLI loads — the project's own section of CLAUDE.md / AGENTS.md, or a separately
+named file beside the harness asset — not back into the harness-owned file, which the
+next update replaces again and keeps only as a backup.
 
 Keep removed content recoverable. Clean tracked content can use existing history;
 dirty or untracked content needs an authorized snapshot. Store snapshots outside

@@ -90,7 +90,8 @@ Report what changed, what is supported by evidence, and material remaining gaps.
 Work autonomously through the authorized outcome, without seeking repeated
 confirmation for routine progress. Keep readiness and authority distinct:
 preparing or validating a change does not authorize applying it to shared
-systems or persistent application data.
+systems or persistent application data. An explicit user correction of a recorded
+procedure governs at once; fix that record before the next dependent action.
 
 Reuse approval that covers the action and target. Obtain explicit approval for
 destructive or privileged actions, deployment, and shared-state writes when

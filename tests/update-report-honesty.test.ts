@@ -98,8 +98,8 @@ describe("#557 — 기록에 체크섬이 없던 백업은 '당신이 고쳤다'
     expect(screen).not.toContain("edited policy files");
     expect(screen).toMatch(/no checksum on record\s+1 backed up once/);
     expect(screen).toContain("may not be your edits");
-    expect(screen).toContain("nothing to re-apply unless you remember editing one of them");
-    expect(screen).not.toContain("to re-apply your edits on the new version");
+    expect(screen).toContain("nothing to carry over unless you remember editing one of them");
+    expect(screen).not.toContain("to keep your edits across updates");
     expect(backupIndex().backups).toEqual([
       expect.objectContaining({ path: RULE, noChecksum: true }),
     ]);
@@ -114,7 +114,7 @@ describe("#557 — 기록에 체크섬이 없던 백업은 '당신이 고쳤다'
     expect(report.updateMode?.noChecksum).toBeUndefined();
     expect(screen).toMatch(/edited policy files\s+1 backed up/);
     expect(screen).not.toContain("no checksum on record");
-    expect(screen).toContain("to re-apply your edits on the new version");
+    expect(screen).toContain("to keep your edits across updates");
     const [entry] = backupIndex().backups;
     expect(entry?.path).toBe(RULE);
     expect(entry).not.toHaveProperty("noChecksum");

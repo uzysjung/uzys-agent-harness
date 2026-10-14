@@ -3,8 +3,9 @@
 **How far** to verify scales with the risk of the change; **when** those results must exist
 belongs to the Delivery rule.
 
-- An ordinary change gets the repository's baseline CI and regression across the affected scope;
-  independent verification only where the Delivery rule requires it. A high-risk one widens that in
+- An ordinary change gets static checks and regression across the affected scope — not the whole
+  suite, even where the repository's CI runs everything on every job; independent verification
+  only where the Delivery rule requires it. A high-risk one widens that in
   proportion to what it touches and what its failure would cost.
 - Preserve required outcomes with the least burdensome reliable protection.
   Prefer fixing the cause and reusing or improving existing mechanisms within scope;
@@ -29,4 +30,5 @@ belongs to the Delivery rule.
   adding indiscriminate retries. Correct or consolidate tests when their expectations are
   wrong, obsolete, or redundant; preserve coverage of the accepted contract and follow project
   policy for changes to mandatory gates.
-- If the affected scope cannot be established confidently, broaden the validation.
+- If the affected scope cannot be established confidently, widen to the enclosing module or user
+  journey, not to the whole suite. When fixing an environment or CI, rerun the failing checks there.
