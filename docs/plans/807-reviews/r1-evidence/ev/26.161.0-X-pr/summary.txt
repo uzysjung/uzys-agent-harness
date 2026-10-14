@@ -1,0 +1,29 @@
+## o-install
+TOK  LIVE live=[./CLAUDE.md ./.uzys-agent-harness/.harness-install.json ./.uzys-agent-harness/spec-drift-check.sh ./.uzys-agent-harness/check-absence.sh ./.uzys-agent-harness/protect-branch.sh ./.claude/rules/git-policy.md ./.claude/rules/doc-governance.md ./.claude/rules/cli-development.md ./.claude/rules/change-management.md ./.claude/rules/test-policy.md ./.claude/rules/ship-checklist.md ./.claude/skills/self-hosted-github-runner/SKILL.md ./.claude/skills/audit-harness-fit/SKILL.md ./.claude/skills/audit-harness-fit/references/populate.md ./.claude/skills/audit-harness-fit/references/verification.md ./.claude/skills/audit-harness-fit/references/apply.md ./.claude/skills/audit-harness-fit/references/audit.md ./.claude/skills/audit-harness-fit/README.md ./.claude/skills/audit-harness-fit/evals/scenarios.yaml ./.claude/skills/objective-brief/SKILL.md ./.claude/skills/compaction-handoff/SKILL.md ./.claude/skills/gh-issue-workflow/SKILL.md ./.claude/skills/gh-issue-workflow/references/operating-model.md ./.claude/skills/gh-issue-workflow/references/hierarchy.md ./.claude/skills/gh-issue-workflow/references/readiness.md ./.claude/skills/gh-issue-workflow/ISSUE.template.md ./.claude/skills/user-centered-explanation/SKILL.md ./.claude/skills/multi-persona-review/SKILL.md ./.claude/skills/multi-persona-review/references/worked-example.md ./.claude/skills/multi-persona-review/references/reviewer-design.md ./.claude/skills/north-star/SKILL.md ./.claude/skills/north-star/NORTH_STAR.template.md ./.claude/skills/north-star/references/roadmap-method.md ./.claude/skills/audit-service-gaps/SKILL.md ./.claude/skills/audit-service-gaps/references/worked-example.md ./.claude/skills/audit-service-gaps/references/modes-and-evidence.md ./.claude/skills/frontend-design/LICENSE.txt ./.claude/skills/frontend-design/SKILL.md ./.claude/skills/recurrence-prevention/SKILL.md ./.claude/skills/recurrence-prevention/references/failure-analysis.md ./.claude/settings.json ./.claude/agents/implementer.md ./.claude/agents/reviewer.md ./.claude/hooks/session-start.sh ./.claude/hooks/protect-files.sh ./.mcp.json ./skills-lock.json ./.codex/config.toml ./.codex/hooks/session-start.sh ./AGENTS.md ./.agents/skills/self-hosted-github-runner/SKILL.md ./.agents/skills/audit-harness-fit/SKILL.md ./.agents/skills/audit-harness-fit/references/populate.md ./.agents/skills/audit-harness-fit/references/verification.md ./.agents/skills/audit-harness-fit/references/apply.md ./.agents/skills/audit-harness-fit/references/audit.md ./.agents/skills/audit-harness-fit/README.md ./.agents/skills/audit-harness-fit/evals/scenarios.yaml ./.agents/skills/objective-brief/SKILL.md ./.agents/skills/compaction-handoff/SKILL.md ./.agents/skills/gh-issue-workflow/SKILL.md ./.agents/skills/gh-issue-workflow/references/operating-model.md ./.agents/skills/gh-issue-workflow/references/hierarchy.md ./.agents/skills/gh-issue-workflow/references/readiness.md ./.agents/skills/gh-issue-workflow/ISSUE.template.md ./.agents/skills/user-centered-explanation/SKILL.md ./.agents/skills/multi-persona-review/SKILL.md ./.agents/skills/multi-persona-review/references/worked-example.md ./.agents/skills/multi-persona-review/references/reviewer-design.md ./.agents/skills/north-star/SKILL.md ./.agents/skills/north-star/NORTH_STAR.template.md ./.agents/skills/north-star/references/roadmap-method.md ./.agents/skills/audit-service-gaps/SKILL.md ./.agents/skills/audit-service-gaps/references/worked-example.md ./.agents/skills/audit-service-gaps/references/modes-and-evidence.md ./.agents/skills/frontend-design/LICENSE.txt ./.agents/skills/frontend-design/SKILL.md ./.agents/skills/recurrence-prevention/SKILL.md ./.agents/skills/recurrence-prevention/references/failure-analysis.md ./CLAUDE-uzys-harness.md] bk=[]
+RECORDS - tracks ["tooling"]
+## u170
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md] bk=[]
+TOK MINE-UIHN BACKUP live=[] bk=[./.claude/rules/ui-components.md.backup-20261014T110823]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261014T110823]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261014T110823]
+TOK MINE-AGSKILL LIVE live=[./.agents/skills/mine2/SKILL.md] bk=[]
+DISPLACED .claude/rules/ui-components.md [".claude/rules/ui-components.md.backup-20261014T110823"]
+RECORDS - tracks ["tooling"]
+## dry
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md] bk=[]
+TOK MINE-UIHN BACKUP live=[] bk=[./.claude/rules/ui-components.md.backup-20261014T110823]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261014T110823]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261014T110823]
+TOK MINE-AGSKILL LIVE live=[./.agents/skills/mine2/SKILL.md] bk=[]
+DISPLACED .claude/rules/ui-components.md [".claude/rules/ui-components.md.backup-20261014T110823"]
+RECORDS - tracks ["tooling"]
+## un
+TOK MINE-RULE LIVE live=[./.claude/rules/my-rule.md] bk=[]
+TOK MINE-SKILL LIVE live=[./.claude/skills/mine/SKILL.md] bk=[]
+TOK MINE-UIHN BACKUP live=[] bk=[./.claude/rules/ui-components.md.backup-20261014T110823]
+TOK MINE-EDRULE BACKUP live=[] bk=[./.claude/rules/test-policy.md.backup-20261014T110823]
+TOK MINE-EDAGENT BACKUP live=[] bk=[./.claude/agents/reviewer.md.backup-20261014T110823]
+TOK MINE-AGSKILL LIVE live=[./.agents/skills/mine2/SKILL.md] bk=[]
+REC none
