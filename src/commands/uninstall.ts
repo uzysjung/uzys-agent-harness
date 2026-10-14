@@ -57,7 +57,12 @@ import { CLI_DISPLAY_NAMES } from "../cli-targets.js";
 import { renderEverySelectableMcp } from "../cli-transforms.js";
 import { tomlBasicString } from "../codex/trust-entry.js";
 import { c, status } from "../design.js";
-import { type DisplacedOutcome, restoreDisplaced, withoutRestored } from "../displaced.js";
+import {
+  type DisplacedOutcome,
+  isLegacyDisplaced,
+  restoreDisplaced,
+  withoutRestored,
+} from "../displaced.js";
 import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
@@ -1858,7 +1863,7 @@ function removeRecordedFile(
   const legacy =
     rec.state !== "sha" &&
     isLegacyHarnessFile(path, hashContent(disk)) &&
-    (rec.state === "no-sha" || mayReclaimLegacy(log, path));
+    (rec.state === "no-sha" || mayReclaimLegacy(log, projectDir, path));
   const inBundle = legacy && ctx.isTarget(bundlePath(path));
   const verdict = judge({
     op: "remove",
@@ -1906,13 +1911,15 @@ function bundlePath(path: string): string {
 
 /**
  * 기록이 없는 자리의 지문 회수 문(B2 · N7) — 그 자리를 쓰는 CLI 가 기록에 있고, 설치자가 뺀 자산(`excluded`)이 아니고, 하네스가
- * 비켜 둔 설치자 파일(`displaced`)의 자리가 아닐 때만.
+ * 비켜 둔 설치자 파일(`displaced`)의 자리가 아닐 때만. 원본이 옛 하네스 바이트인 트랙 밖 displaced 는 설치자 파일의 기록이 아니다(#807).
  */
-function mayReclaimLegacy(log: InstallLog, path: string): boolean {
+function mayReclaimLegacy(log: InstallLog, projectDir: string, path: string): boolean {
   const clis = installedClis(log);
   if (!ownersOf(path).some((c) => clis.includes(c))) return false;
   if (isExcludedPath(bundlePath(path), excludedIds(log))) return false;
-  return !(log.rootFiles ?? []).some((f) => f.path === path && f.change === "displaced");
+  return !(log.rootFiles ?? []).some(
+    (f) => f.path === path && f.change === "displaced" && !isLegacyDisplaced(log, projectDir, f),
+  );
 }
 
 /**
