@@ -1,0 +1,3 @@
+STILL THERE  .claude/agents/data-analyst.md
+STILL THERE  .claude/agents/implementer.md
+STILL THERE  .claude/rules/cli-development.md

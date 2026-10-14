@@ -1,0 +1,31 @@
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-14T23:29:04.800Z
+  scope:     project
+  tracks:    csr-fastapi, tooling
+  cli:       claude, antigravity
+
+  External assets (3)
+    ✓ frontend-design       skill  project
+    ✓ react-best-practices  skill  project
+    ✓ shadcn-ui             skill  project
+
+  Harness files
+    .claude/  .agents/  .uzys-agent-harness/  AGENTS.md
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json            생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .github/workflows/ci-python.yml  생성  CI 워크플로 스캐폴드
+    .github/workflows/ci.yml         생성  CI 워크플로 스캐폴드
+    .github/workflows/e2e.yml        생성  CI 워크플로 스캐폴드
+    .mcp.json                        생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+

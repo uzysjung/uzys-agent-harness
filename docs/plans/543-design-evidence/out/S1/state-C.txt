@@ -1,0 +1,4 @@
+# C (after update)
+tracks=tooling assets=frontend-design,react-best-practices,shadcn-ui policyFiles=12 skillFiles=42 externalFiles=55 portions=15
+mcp.json: chrome-devtools,context7,railway-mcp-server,vercel
+installed-tracks: tooling,

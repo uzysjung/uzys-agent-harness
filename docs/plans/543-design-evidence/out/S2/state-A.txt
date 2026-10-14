@@ -1,0 +1,4 @@
+# A (after install)
+tracks=csr-fastapi,tooling assets=frontend-design,react-best-practices,shadcn-ui policyFiles=12 skillFiles=42 externalFiles=53 portions=12
+mcp.json: chrome-devtools,context7,railway-mcp-server
+installed-tracks: csr-fastapi,tooling,

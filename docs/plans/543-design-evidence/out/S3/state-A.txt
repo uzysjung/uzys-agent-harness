@@ -1,0 +1,4 @@
+# A (after install)
+tracks=data,tooling assets=anthropic-data-plugin policyFiles=12 skillFiles=41 externalFiles=3 portions=10
+mcp.json: context7
+installed-tracks: data,tooling,

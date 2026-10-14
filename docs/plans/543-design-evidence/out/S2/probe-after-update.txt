@@ -1,0 +1,5 @@
+STILL THERE  .claude/rules/cli-development.md
+STILL THERE  .agents/rules/cli-development.md
+STILL THERE  .claude/rules/ui-components.md
+STILL THERE  .claude/skills/ui-visual-review
+STILL THERE  .claude/hooks/session-start.sh

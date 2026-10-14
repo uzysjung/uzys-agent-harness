@@ -1,0 +1,8 @@
+53c53
+< ./.claude/.installed-tracks 735c79dd1112
+---
+> ./.claude/.installed-tracks 4c7c03921570
+115c115
+< ./.uzys-agent-harness/.harness-install.json 50d6ca497883
+---
+> ./.uzys-agent-harness/.harness-install.json 89381b9b1dc8
