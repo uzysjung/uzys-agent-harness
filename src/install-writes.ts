@@ -34,7 +34,7 @@ import {
   installedClis,
   mergeExternalFiles,
 } from "./install-log.js";
-import { judge, type Recorded, type RecordEffect, type Verdict, withBackup } from "./judge.js";
+import { judge, type RecordEffect, type Recorded, type Verdict, withBackup } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { RETIRED_PATHS } from "./manifest.js";
 import { type McpJson, toClaudeServer } from "./mcp-merge.js";

@@ -45,9 +45,9 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { outsideProjectTarget } from "./outside-project.js";
 import type { JudgedWrite } from "./install-writes.js";
 import { LINES, withBackup } from "./judge.js";
+import { outsideProjectTarget } from "./outside-project.js";
 import { excludedIds, recorded } from "./recorded.js";
 import {
   type CliTargets,
