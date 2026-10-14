@@ -31,7 +31,7 @@ import {
   writeInstallLog,
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
-import type { Track } from "../src/types.js";
+import type { CliBase, Track } from "../src/types.js";
 import { runUpdateMode } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -65,13 +65,13 @@ const put = (rel: string, text: string, dir = projectDir): void => {
   writeFileSync(abs(rel, dir), text);
 };
 
-function install(tracks: Track[], dir = projectDir) {
+function install(tracks: Track[], dir = projectDir, cli: CliBase[] = ["claude"]) {
   return runInstall({
     runExternal: null,
     harnessRoot: HARNESS_ROOT,
     projectDir: dir,
     mode: "add",
-    spec: { tracks, options: { withCodexTrust: false }, cli: ["claude"], projectDir: dir },
+    spec: { tracks, options: { withCodexTrust: false }, cli, projectDir: dir },
   });
 }
 
@@ -223,5 +223,33 @@ describe("#807 회귀 — 트랙 안 하네스 자리의 displaced 는 기록 �
     uninstall();
 
     expect(read(DATA_ANALYST)).toBe(current("agents/data-analyst.md"));
+  });
+
+  // `.agents/skills/<id>` 는 `.claude/skills/<id>` 와 같은 번들 자리다 — 트랙 판정이 같은 답을 내야 한다(#807 리뷰 BLOCKER-1 · HIGH-1)
+  it("`.agents/skills/` 에 하네스 판과 같은 바이트로 둔 설치자 파일은 남는다 — `.claude/skills/` 자리와 같게", () => {
+    const rel = ".agents/skills/natural-korean/SKILL.md";
+    put(rel, current("skills/natural-korean/SKILL.md"));
+    install(["tooling"], projectDir, ["claude", "codex"]);
+    expect(readInstallLog(projectDir)?.rootFiles).toContainEqual({
+      path: rel,
+      change: "displaced",
+      notes: [],
+    });
+
+    uninstall();
+
+    expect(read(rel)).toBe(current("skills/natural-korean/SKILL.md"));
+  });
+
+  it("`.agents/skills/` 에 둔 옛 판 바이트 원본은 제자리로 돌아온다 — `.claude/skills/` 자리와 같게", () => {
+    const rel = ".agents/skills/compaction-handoff/SKILL.md";
+    put(rel, old("skills/compaction-handoff/SKILL.md"));
+    install(["tooling"], projectDir, ["claude", "codex"]);
+    expect(read(rel)).toBe(current("skills/compaction-handoff/SKILL.md"));
+
+    const text = uninstall();
+
+    expect(read(rel)).toBe(old("skills/compaction-handoff/SKILL.md"));
+    expect(text).toContain(`put back  ${rel}`);
   });
 });

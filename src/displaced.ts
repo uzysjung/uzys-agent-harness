@@ -21,7 +21,7 @@ import { hashContent, type InstallLog, type InstallLogRootFile } from "./install
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { isRecordedTrackTarget } from "./recorded.js";
+import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -48,6 +48,7 @@ function exists(abs: string): boolean {
  * (기록 트랙 밖 자리 — tooling 의 `agents/strategist.md` 등)을 첫 접촉으로 읽어 displaced 로 적었다. 그 "원본"(백업 · 백업이 없으면
  * 그 자리)이 옛 판 바이트 그대로면 비켜 둔 설치자 파일이 없다 — 되돌리지 않고(옛 하네스 바이트를 살리지 않는다) 지문 회수를 막지
  * 않는다. 현행 writer 는 기록 트랙 자리만 판정하므로 트랙 안의 displaced 는 기록 그대로다(ADR-097 결정 3·7 · ADR-111).
+ * 트랙 판정은 번들 경로로 한다 — `.agents/skills/<id>` 도 `.claude/skills/<id>` 와 같은 답을 낸다.
  */
 export function isLegacyDisplaced(
   log: InstallLog,
@@ -61,7 +62,10 @@ export function isLegacyDisplaced(
   } catch {
     return false; // 읽지 못한 원본은 설치자 것으로 둔다(지우지 않는 쪽)
   }
-  return isLegacyHarnessFile(f.path, hashContent(original)) && !isRecordedTrackTarget(log, f.path);
+  return (
+    isLegacyHarnessFile(f.path, hashContent(original)) &&
+    !isRecordedTrackTarget(log, bundlePath(f.path))
+  );
 }
 
 /**

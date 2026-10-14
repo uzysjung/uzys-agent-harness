@@ -108,6 +108,7 @@ import {
 } from "../outside-project.js";
 import { stripHarnessImport } from "../project-claude-merge.js";
 import {
+  bundlePath,
   excludedIds,
   isExcludedPath,
   kindOf,
@@ -1900,13 +1901,6 @@ function legacyFileCandidates(): string[] {
   return [...LEGACY_HARNESS_FILES.keys()].flatMap((p) =>
     p.startsWith(SKILLS_DIR) ? [p, `.agents/skills/${p.slice(SKILLS_DIR.length)}`] : [p],
   );
-}
-
-/** `.agents/skills/<rel>` 은 현행 설치가 `.claude/skills/<rel>` 과 같은 번들로 채운다 — 번들 · 제외 판정은 그 이름으로. */
-function bundlePath(path: string): string {
-  return path.startsWith(".agents/skills/")
-    ? `${SKILLS_DIR}${path.slice(".agents/skills/".length)}`
-    : path;
 }
 
 /**

@@ -67,6 +67,13 @@ export function ownersOf(path: string): CliBase[] {
   );
 }
 
+/** `.agents/skills/<rel>` 은 현행 설치가 `.claude/skills/<rel>` 과 같은 번들로 채운다 — 번들 · 트랙 · 제외 판정은 그 이름으로. */
+export function bundlePath(path: string): string {
+  return path.startsWith(".agents/skills/")
+    ? `${SKILLS_DIR}${path.slice(".agents/skills/".length)}`
+    : path;
+}
+
 /**
  * 기록 트랙으로 하네스가 쓰는 대상인가 — manifest 에서 유도(파일은 같은 경로, 디렉터리는 **그 아래 번들 템플릿에 있는
  * 파일**). 번들 스킬은 옵션 선택이 기록에 없으므로 전부 대상으로 본다(설계 §1.2).
