@@ -1,0 +1,23 @@
+Updating installed harness files in /w/p
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  ✓ external skills                          1 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5908 tokens/session (directives 8 ~4066 · [rules 6 ~1597 · CLAUDE.md 2 ~2469] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+

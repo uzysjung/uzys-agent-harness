@@ -1,0 +1,7 @@
+o exit=0
+m exit=0
+u exit=0
+u2 exit=0
+dry exit=0
+un exit=0
+DONE

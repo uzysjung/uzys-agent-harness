@@ -1,0 +1,32 @@
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+

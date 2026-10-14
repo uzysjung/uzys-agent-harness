@@ -1,0 +1,23 @@
+▸ scenario-no-record-legacy: 기록 전 판 설치본 → 세 명령 거절 · install 한 번으로 보통 설치본
+
+  $ agent-harness list → exit 1
+    ✗ No install record at /tmp/proj-no-record-legacy/.uzys-agent-harness/.harness-install.json
+      Harness files are here (.claude/.installed-tracks, .claude/CLAUDE.md, .claude/rules/cli-development.md) but no record of installing them.
+      Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once (tracks: see `list`) and commit .uzys-agent-harness/ (if .gitignore still lists `.uzys-agent-harness/` after that, the line is theirs — delete it).
+      To make this copy managed on its own: agent-harness install --track tooling
+  $ agent-harness update → exit 1
+    ✗ No install record at /tmp/proj-no-record-legacy/.uzys-agent-harness/.harness-install.json
+      Harness files are here (.claude/.installed-tracks, .claude/CLAUDE.md, .claude/rules/cli-development.md) but no record of installing them.
+      Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once (tracks: see `list`) and commit .uzys-agent-harness/ (if .gitignore still lists `.uzys-agent-harness/` after that, the line is theirs — delete it).
+      To make this copy managed on its own: agent-harness install --track tooling
+  $ agent-harness uninstall --yes → exit 1
+    ✗ No install record at /tmp/proj-no-record-legacy/.uzys-agent-harness/.harness-install.json
+      Harness files are here (.claude/.installed-tracks, .claude/CLAUDE.md, .claude/rules/cli-development.md) but no record of installing them.
+      Cloned from a teammate? Ask whoever installed it to run `install --track <t>` once (tracks: see `list`) and commit .uzys-agent-harness/ (if .gitignore still lists `.uzys-agent-harness/` after that, the line is theirs — delete it).
+      To make this copy managed on its own: agent-harness install --track tooling
+✓ 세 명령 exit 1 · 트리 불변 · --track tooling 제안
+  install 화면:  ⊘ .claude/CLAUDE.md            legacy anchor · no longer updated — content now in CLAUDE-uzys-harness.md; delete it when you no longer need it
+✓ install exit 0 · 기록 생성 · import · 옛 앵커 안내 1줄 · 같은 룰 백업 없음 · 옛 앵커 그대로
+✓ 그 뒤 update exit 0 — 보통 설치본
+
+PASS: scenario-no-record-legacy

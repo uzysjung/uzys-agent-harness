@@ -1,0 +1,32 @@
+
+uzys-agent-harness · uninstall
+
+  installed: 2026-10-14T13:05:12.907Z
+  scope:     project
+  assets:    1
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  (no project-scope assets to reverse)
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ○ remove 52 harness file(s) under .claude/
+  ○ remove 41 harness file(s) under .agents/
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ put back 2 file(s) of yours (displaced): .agents/skills/multi-model-debate/SKILL.md · .claude/skills/multi-model-debate/SKILL.md
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove the harness part from .claude/settings.json: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ leave .claude/ — 4 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md +1 more
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 2건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .agents/skills/multi-model-debate/SKILL.md.backup-20261014T130512
+  .claude/skills/multi-model-debate/SKILL.md.backup-20261014T130512
+

@@ -1,0 +1,15 @@
+▸ scenario-update-skills: update 가 skills 를 갱신하는가 (R-3a)
+
+✓ install 완료 — 스킬 14개
+✓ 기준선 기록 41건
+✓ 편집분 백업 생성 (1건)
+✓ 백업본에 편집 내용 보존
+✓ 백업 목록 파일 + 다음 행동 안내
+✓ 최신판이 자리를 차지 (편집분은 백업으로)
+✓ Update 요약에 .claude/skills 행 노출
+✓ 재실행해도 백업 미증가 (1건 유지) — 기준선이 갱신되고 있다
+✓ 번들에서 사라진 파일 삭제
+✓ 사용자 파일은 백업 뒤 삭제
+✓ Update 요약에 삭제 행 노출
+
+PASS: scenario-update-skills

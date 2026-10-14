@@ -1,0 +1,43 @@
+Updating installed harness files in /w/p
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/settings.json        removed the harness part · kept yours: statusLine
+  ✓ backed up  .claude/hooks/checkpoint-snapshot.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/mcp-pre-exec.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/spec-drift-check.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ⊘ not selected — untouched                 skills, new-skills, rules, anchor, external · run again with --only or the wizard to include
+  ⊘ .mcp-allowlist                           retired · the hook that read it is gone — backed up as /w/p/.mcp-allowlist.backup-20261014T130251
+  ⊘ agents                                   build-error-resolver · 이 릴리즈에서 은퇴 — .claude/agents/build-error-resolver.md 를 지워도 된다 · 모델이 기본으로 하는 일이라 대체 자산이 없다
+  ⊘ agents                                   code-reviewer · 이 릴리즈에서 은퇴 — .claude/agents/code-reviewer.md 를 지워도 된다 · Claude Code 의 `/code-review` 가 같은 일을 한다
+  ⊘ agents                                   plan-checker · 이 릴리즈에서 은퇴 — .claude/agents/plan-checker.md 를 지워도 된다 · `reviewer` 가 계획 문서도 같은 계약으로 검토한다
+  ⊘ agents                                   security-reviewer · 이 릴리즈에서 은퇴 — .claude/agents/security-reviewer.md 를 지워도 된다 · Claude Code 의 `/security-review` 가 같은 일을 한다
+  ⊘ agents                                   silent-failure-hunter · 이 릴리즈에서 은퇴 — .claude/agents/silent-failure-hunter.md 를 지워도 된다 · Claude Code 의 `/code-review` 가 같은 일을 한다
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 25 items resident · ~7198 tokens/session (directives 12 ~5837 · [rules 10 ~3972 · CLAUDE.md 2 ~1865] · triggers 13 ~1361 · [skills 5 ~746 · agents 8 ~615] · 1 external asset unmeasured)
+  ▸ BACKUPS      4 file(s) saved before removing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json
+

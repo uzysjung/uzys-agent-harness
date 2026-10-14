@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "installedAt": "2026-10-14T13:02:44.982Z",
+  "scope": "project",
+  "spec": {
+    "tracks": [
+      "tooling"
+    ],
+    "cli": [
+      "claude"
+    ],
+    "clis": [
+      "claude"
+    ]
+  },
+  "templates": {
+    "claudeDir": ".claude/",
+    "rootClaudeMd": {
+      "path": "CLAUDE-uzys-harness.md",
+      "sha256": "d92c6bbc4c2c1c7a2547e697f7f128b7918d4e2062c9af958b729e7cb0c58308"
+    }
+  },
+  "assets": [
+    {
+      "id": "frontend-design",
+      "category": "frontend",
+      "method": "skill",
+      "scope": "project",
+      "detail": {
+        "source": "anthropics/skills",
+        "skill": "frontend-design"
+      }
+    }
+  ],
+  "rootFiles": [
+    {
+      "path": ".mcp.json",
+      "change": "created",
+      "notes": [
+        "MCP 서버 정의 생성"
+      ]
+    }
+  ],
+  "skillFiles": [
+    {
+      "path": "audit-harness-fit/README.md",
+      "sha256": "2aa6eb69e9991d0156b140f5c4ca36dd87b32ad006aa8dc176f173e7a864ecb9"
+    },
+    {
+      "path": "audit-harness-fit/SKILL.md",
+      "sha256": "9dfd4565013a630c0aa66c9396b4d4073fe70f8601bff89989ebe162da7beb76"
+    },
+    {
+      "path": "audit-harness-fit/evals/scenarios.yaml",
+      "sha256": "714fe2ef457dd38fc9b3b354b7f2d616c5d7121770ef1dd889d008eaec661159"
+    },
+    {
+      "path": "audit-harness-fit/references/apply.md",
+      "sha256": "97886bd748ef2e2d9a979dd0cf65c5acf81a90c2a19d08851ce87c66df933f92"
+    },
+    {
+      "path": "audit-harness-fit/references/audit.md",
+      "sha256": "4b4eef5a9060ad0a7fb264b261c69802c1c3f0e7c61787ccca18be898c84c091"
+    },
+    {
+      "path": "audit-harness-fit/references/populate.md",
+      "sha256": "eabe235e5e097ad44a42588201ed89dca359e9fd1a301e29be02deb0338d38cf"
+    },
+    {
+      "path": "audit-harness-fit/references/verification.md",
+      "sha256": "18bd5f577b85cb043229ca9df160ec9c0f3fb70d01c3db5abb5ccbba7ae6dab1"
+    },
+    {
+      "path": "audit-service-gaps/SKILL.md",
+      "sha256": "bbc7782ea688ae74f12934145c1041f58a029eb07d9979c316849cb9fb88f56e"
+    },
+    {
+      "path": "audit-service-gaps/references/modes-and-evidence.md",
+      "sha256": "fa73b3edf2c55f5caf47f1f2d930d8c2ccd737af0a2def5f40a1db942029275d"
+    },
+    {
+      "path": "audit-service-gaps/references/worked-example.md",
+      "sha256": "e5f31f498e864dcaabe2a0d6a05fe1d64cd8be6a1b79a18de78bcbb42e06d658"
+    },
+    {
+      "path": "compaction-handoff/SKILL.md",
+      "sha256": "fe70142b0bbf21b5a7b6e9e5af8f0011e6b8e654746f97f4391384d5143c9701"
+    },
+    {
+      "path": "gh-issue-workflow/ISSUE.template.md",
+      "sha256": "6c897058f7cfbc7b3eb5a3688f21a106fda39b7ded0f05570cff349214aca427"
+    },
+    {
+      "path": "gh-issue-workflow/SKILL.md",
+      "sha256": "578c25a3687c7c6557c2bd115489f44a49d5668e2cb97e114a009d7066db7a72"
+    },
+    {
+      "path": "gh-issue-workflow/references/hierarchy.md",
+      "sha256": "0e16e38d5919e5eed0aa044899895fb13c3846a333f3470d8001bda09ba959c4"
+    },
+    {
+      "path": "gh-issue-workflow/references/operating-model.md",
+      "sha256": "c6feec997887d05d3385441258c464609e52c4bbebb7c0b7390a5d6016ad9a0a"
+    },
+    {
+      "path": "gh-issue-workflow/references/readiness.md",
+      "sha256": "08df321b014d96f8d5b5e0c7af7f36d09d719fb098bdaec7928af4a77c1866cb"
+    },
+    {
+      "path": "multi-persona-review/SKILL.md",
+      "sha256": "6da7f5ccfae30d3d7e4ee77f90a06d7de30a532b590482a01d779addd912864e"
+    },
+    {
+      "path": "multi-persona-review/references/reviewer-design.md",
+      "sha256": "4afc9d327f91139b4d272a54e1b1992766b7e0482b4479c76ca9b5284e28d7c8"
+    },
+    {
+      "path": "multi-persona-review/references/worked-example.md",
+      "sha256": "95b48adac8ae5a91cb60fb9d5c32c90365734225775f0f85f26fb72404345943"
+    },
+    {
+      "path": "north-star/NORTH_STAR.template.md",
+      "sha256": "741efd7d4c477f95ecd1fca85656d4582a694b3753ece77378ddab8ba0f0b69e"
+    },
+    {
+      "path": "north-star/SKILL.md",
+      "sha256": "0616424076bb18c4388d9e48ac4e4bacb51106b0b8bdcf6be223e413e0c43bf9"
+    },
+    {
+      "path": "north-star/references/roadmap-method.md",
+      "sha256": "32e812eac7356e15704d0eff162f3fe3d93f1de880c7107017c1d802463190b6"
+    },
+    {
+      "path": "objective-brief/SKILL.md",
+      "sha256": "531c8f0f09492e4a1643a5de38dbc293be9981a5c81ebc7f783620d5380a5806"
+    },
+    {
+      "path": "recurrence-prevention/SKILL.md",
+      "sha256": "46614922e61e79235493c80664da2f9e7d95d034c58c9a646b948a7c2a1f70b2"
+    },
+    {
+      "path": "recurrence-prevention/references/failure-analysis.md",
+      "sha256": "5fc80d28b3f52e92843e9ef431a9dab74d8b43cb3cfd7ed5d2aa359ad00586bc"
+    },
+    {
+      "path": "self-hosted-github-runner/SKILL.md",
+      "sha256": "a1394fde762c88fddc88db1502b15aabe88bdfc1c565e77bd3cdbb0512352d10"
+    },
+    {
+      "path": "user-centered-explanation/SKILL.md",
+      "sha256": "eab47a91badce5d6314f63889950c69c43fa5ea4660d544828794ada3684e0b8"
+    }
+  ],
+  "policyFiles": [
+    {
+      "path": "rules/change-management.md",
+      "sha256": "0c46f2fe8a9045c14a93895a1614b068d04a4b0e96c183d46ab688e57885c6a6"
+    },
+    {
+      "path": "rules/cli-development.md",
+      "sha256": "73813a5f6f0111507430c1f83c9a099b870bc2a03c16a391817dc74444597eaa"
+    },
+    {
+      "path": "rules/doc-governance.md",
+      "sha256": "c14e70d6fc5b0ca8e9385d293cccdc39512ec6e73fac6f34ed723572acbebd97"
+    },
+    {
+      "path": "rules/git-policy.md",
+      "sha256": "469077325ea8c4a67dfe827014370bc099494998f55aa76f864f6411b40b07d8"
+    },
+    {
+      "path": "rules/ship-checklist.md",
+      "sha256": "9423f862188ea0ddcb5ec9594e457988c23dc80a0bdba7ed6cc7630f8cc4623e"
+    },
+    {
+      "path": "rules/test-policy.md",
+      "sha256": "3460db5bbfaea281e417c55b5a76236b10c64c38cf38fe16b934f6799c1268b5"
+    },
+    {
+      "path": "agents/implementer.md",
+      "sha256": "a12f9132a55526208837e4960c96705df595c0e1cc2870eba1e56f2a87632de1"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "98c63bfe35afafb28b2543e5b3c662a5df58b66b877b753efc54b9af32208298"
+    },
+    {
+      "path": "hooks/protect-files.sh",
+      "sha256": "416780a048c3bf674e4348e8982906ae768ca81480b46b56c0fad800d9f21d55"
+    },
+    {
+      "path": "hooks/session-start.sh",
+      "sha256": "490b1d99f6d901d63e48a8122d67225f5c48cc835db0f410fed91c364666ba2e"
+    }
+  ]
+}

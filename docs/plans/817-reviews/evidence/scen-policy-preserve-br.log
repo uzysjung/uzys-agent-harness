@@ -1,0 +1,12 @@
+▸ scenario-policy-preserve: 재설치가 사용자 편집분을 덮치는가 (ADR-047)
+
+✓ install 완료
+✓ 정책 파일 기준선 11건 기록
+✓ 재설치 완료
+✓ 룰 편집분 보존 (test-policy.md.backup-20261014T130928)
+✓ 최신판이 자리를 차지
+✓ 훅 편집분 보존 (protect-files.sh.backup-20261014T130928)
+✓ 재설치 반복해도 백업 미증가 (2건 유지)
+✓ 사용자 커스텀 룰이 update 후에도 온전
+
+PASS: scenario-policy-preserve

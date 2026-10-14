@@ -1,0 +1,5 @@
+o exit=0
+edited .agents/skills/audit-harness-fit/SKILL.md
+m exit=0
+u exit=0
+DONE

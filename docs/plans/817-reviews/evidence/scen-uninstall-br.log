@@ -1,0 +1,9 @@
+▸ scenario-uninstall: install → uninstall reverse
+
+✓ install completed, log present
+✓ --dry-run 후 .claude/ 보존
+✓ 터미널·플래그 없는 uninstall 은 거절 (exit 1) · .claude/ · 기록 보존
+✓ uninstall → .claude/ 제거
+✓ uninstall → .uzys-agent-harness/ 제거
+
+━━━ PASS: scenario-uninstall ━━━
