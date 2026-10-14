@@ -55,7 +55,7 @@ grep -q "MY ANCHOR EDIT" CLAUDE-uzys-harness.md && fail "E: 편집분이 그대�
 BK=$(ls CLAUDE-uzys-harness.md.backup-* 2>/dev/null | head -1)
 [ -n "${BK}" ] || fail "E: 앵커 편집분이 백업 없이 사라졌다 (#480 재현)"
 grep -q "MY ANCHOR EDIT" "${BK}" || fail "E: 백업본에 편집 내용이 없다"
-grep -q "CLAUDE-uzys-harness.md edited" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/anchor-update.txt) \
+grep -qF "backed up  CLAUDE-uzys-harness.md — you edited it — saved as ${BK}" <(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' /tmp/anchor-update.txt) \
   || fail "E: Update 요약에 앵커 백업 행이 없다 (조용한 백업은 없는 것과 같다)"
 # 재실행: 편집이 없으니 백업이 늘면 안 된다 — 기준선을 다시 찍는지의 증거
 agent-harness update --project-dir "$(pwd)" > /dev/null 2>&1 || fail "E: 재실행 update 실패"

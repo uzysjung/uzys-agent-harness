@@ -34,7 +34,7 @@ import {
   installedClis,
   mergeExternalFiles,
 } from "./install-log.js";
-import { judge, type RecordEffect, type Verdict } from "./judge.js";
+import { judge, type RecordEffect, type Verdict, withBackup } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { RETIRED_PATHS } from "./manifest.js";
 import { type McpJson, toClaudeServer } from "./mcp-merge.js";
@@ -46,8 +46,6 @@ import type { InstallSpec } from "./types.js";
 
 const CLAUDE_DIR = ".claude/";
 const SKILLS_DIR = ".claude/skills/";
-/** 백업 이름의 자리표시 — `LINES` 가 이 모양으로 적고, 실제 백업 경로로 바꿔 화면에 낸다. */
-const BACKUP_PLACEHOLDER = "<file>.backup-<time>";
 
 /** 하네스 파일 판정 중 **알릴 것**(백업 · 같은 내용이라 설치자 파일을 둔 것). 조용한 판정은 담지 않는다. */
 export interface JudgedWrite {
@@ -279,7 +277,7 @@ export function createInstallWriter(args: {
       default:
         throw new Error(`install: '${j.record}' is not a write record (${path})`);
     }
-    const line = backup === undefined ? j.line : j.line.replace(BACKUP_PLACEHOLDER, backup);
+    const line = backup === undefined ? j.line : withBackup(j.line, backup);
     const backupPair = backup === undefined || backupAbs === undefined ? {} : { backup, backupAbs };
     writes.push({ path, verdict: j.verdict, record: j.record, line, ...backupPair });
     if (j.line === "" || j.verdict === "create" || j.verdict === "overwrite") return null;

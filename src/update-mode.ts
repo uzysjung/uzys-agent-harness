@@ -24,7 +24,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
+import { jsonSha } from "./adapters/json-keys.js";
 import { bundledSkillTargets } from "./agents-skill-targets.js";
 import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
 import {
@@ -63,6 +64,7 @@ import { backupFile, backupIfLossyUtf8, listFilesRecursive } from "./fs-ops.js";
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
+  type JudgedWrite,
   retiredClaims,
   SETTINGS_TARGET,
   type SharedWrite,
@@ -91,7 +93,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "./install-log.js";
-import { judge, LINES, type Recorded } from "./judge.js";
+import { judge, LINES, type Recorded, withBackup } from "./judge.js";
 import {
   type AssetEntry,
   type AssetSpec,
@@ -102,7 +104,8 @@ import {
   resolveRules,
   TRACK_AGENTS,
 } from "./manifest.js";
-import type { McpJson } from "./mcp-merge.js";
+import { type McpJson, toClaudeServer } from "./mcp-merge.js";
+import { PRIOR_MCP_SERVERS } from "./mcp-prior.js";
 import { type OutOfTrackReclaim, reclaimOutOfTrack } from "./out-of-track.js";
 import {
   createOutsideGuard,
@@ -153,13 +156,21 @@ export interface UpdateModeReport {
    * 다시 얹을 때(audit-harness-fit 에 요청) 그 파일이 증거다. 범용 스킬에 이 하네스의 백업
    * 규약을 심지 않는다(사용자 정정 2026-09-20) — 증거를 내는 쪽이 하네스다.
    */
-  backups: Array<{ path: string; backup: string }>;
+  backups: Array<{ path: string; backup: string; removed?: true }>;
   /**
-   * #557 — `backups` 중 **실행 시작 때 기록에 체크섬이 없던** 원본(projectDir 상대경로). 편집 여부를 잴 수 없어 한 번
-   * 보수적으로 백업한 것이라 "당신이 고쳤다" 고 부르지 않는다 — 대개 릴리즈 사이 템플릿 변경분이다(체크섬 이전 옛 판의 첫
-   * update). 기록 sha 와 디스크가 달랐던 것(진짜 편집)은 여기 없다. optional = 손으로 만드는 리포트 stub 은 "없음".
+   * #817 — 이번 update 가 하네스 파일에 한 일 중 알릴 것(백업 · 지우기), 파일마다 판정(`judge`)이 낸 줄 그대로 — `.claude/`
+   * 하네스 파일 · 은퇴 회수 · 번들 밖 스킬 파일 · 앵커 · 외부 CLI 산출물. 화면의 파일 줄과 `noChecksum` 이 이것 하나에서 나온다.
+   * optional = 손으로 만드는 리포트 stub 은 "없음".
+   */
+  judged?: JudgedWrite[];
+  /**
+   * #557 — `backups` 중 판정이 "기록에 체크섬이 없다" 고 낸 원본(projectDir 상대경로 — `judged` 의 줄에서). 편집 여부를 잴 수
+   * 없어 한 번 보수적으로 백업한 것이라 "당신이 고쳤다" 고 부르지 않는다. 바꾼 것(`removed` 아님)이면 대개 릴리즈 사이 템플릿
+   * 변경분이다. optional = 손으로 만드는 리포트 stub 은 "없음".
    */
   noChecksum?: string[];
+  /** #777 — update 뒤 `.mcp.json` 에 남은, 하네스 옛 판이 쓴 뜨지 않는 서버 값(`PriorMcpServer.dead`) — 이름과 화면의 한 마디. */
+  deadMcp?: ReadonlyArray<{ name: string; note: string }>;
   /**
    * #625 — 외부 CLI 의 함께 쓰는 파일(`.codex/config.toml` · 첫 접촉 `AGENTS.md` · `opencode.json`)에서 갈아 끼우지 않고
    * **남긴** 하네스 몫. `edited` = 기록 sha 와 달라 설치자가 고친 구간 · `unrecorded` = 기록이 없어 하네스가 쓴 그대로인지
@@ -594,9 +605,11 @@ export function runUpdateMode(
   //    무엇이 하네스 것인지 근거가 없어 건너뛴다(기록 날조 금지 — 헬퍼도).
   const harness =
     logAtStart === null
-      ? { displaced: [], restored: [], foreignOwned: [], outside: [] }
+      ? { displaced: [], restored: [], foreignOwned: [], outside: [], judged: [] }
       : updateHarnessFiles({ projectDir, templatesDir, log: logAtStart, wants, outside, report });
   const claudeDisplaced = harness.displaced;
+  // #817 — 판정이 알릴 줄을 낸 파일들(하네스 파일 → 앵커 → 외부 CLI 산출물 순)
+  const judged: JudgedWrite[] = [...harness.judged];
   const prunedRestored = harness.restored;
 
   // 2) 하네스 앵커 (프로젝트 루트 `CLAUDE-uzys-harness.md` — P5 · ADR-060).
@@ -619,7 +632,7 @@ export function runUpdateMode(
   // 무조건 훑어 적은 값이라 단서가 아니다, BLOCKER-5)
   // `spec.cli` 기반 판정과 같은 답을 내고, 디스크에 `.claude/` 가 있다는 사실은 들어오지 않는다.
   if (existsSync(claudeDir) && claudeManaged) {
-    if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report, outside);
+    if (wants("anchor")) syncHarnessAnchor(projectDir, templatesDir, report, outside, judged);
   }
 
   // 2.5) 함께 쓰는 파일 셋(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 하네스 몫 — install 과 **같은 writer**
@@ -690,6 +703,7 @@ export function runUpdateMode(
     : {
         externalUpdated: 0,
         externalBackedUp: [],
+        externalJudged: [],
         displaced: [],
         externalForeignOwned: [],
         externalOutside: [],
@@ -827,14 +841,23 @@ export function runUpdateMode(
   if (displacedMoved.length > 0) report.displaced = displacedMoved;
   if (displacedSame.length > 0) report.displacedSame = displacedSame;
 
-  report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart);
-  // #557 — 백업을 만드는 자리마다 사유를 올리지 않고(`collectRunBackups` 와 같은 이유) 실행 시작 때의 기록 하나로 가른다
-  // #761 — 첫 접촉 백업은 기록에 없던 것이 맞지만 "체크섬이 없었다" 가 아니다 — 설치자 파일이었다(위 `displaced`)
-  const onRecord = checksumOnRecord(logAtStart);
-  const firstContact = new Set(displacedMoved);
-  const noChecksum = report.backups
-    .map((b) => b.path)
-    .filter((p) => !onRecord(p) && !firstContact.has(p));
+  const deadMcp = claudeManaged ? deadMcpLeft(projectDir) : [];
+  if (deadMcp.length > 0) report.deadMcp = deadMcp;
+
+  // #817 — 백업마다 까닭은 그 파일의 판정 줄이 말한다(기록 필드의 존재로 다시 가르지 않는다). 지우기 전 백업인지는 결과 디스크가
+  // 말한다 — 지우는 자리가 여럿(은퇴 회수 · 번들 밖 스킬 파일 · 트랙 밖 룰 · 옛 앵커 · `.mcp-allowlist`)이라 자리마다 올리지 않는다
+  judged.push(...external.externalJudged);
+  if (judged.length > 0) report.judged = judged;
+  const unmeasured = new Set(
+    judged
+      // 두 줄 다 백업 경로 자리가 없다 — 앞에 붙은 까닭(`removedRow`)과 무관하게 끝으로 알아본다
+      .filter((j) => j.line.endsWith(LINES.noChecksum) || j.line.endsWith(LINES.noChecksumRemoved))
+      .map((j) => j.path),
+  );
+  report.backups = collectRunBackups(projectDir, startedAt, backupsAtStart).map((b) =>
+    existsSync(join(projectDir, b.path)) ? b : { ...b, removed: true as const },
+  );
+  const noChecksum = report.backups.map((b) => b.path).filter((p) => unmeasured.has(p));
   if (noChecksum.length > 0) report.noChecksum = noChecksum;
   writeBackupList(projectDir, report.backups, new Set(noChecksum));
   return report;
@@ -956,25 +979,24 @@ function reclaimOutOfTrackRecorded(
 }
 
 /**
- * #557 — 그 파일의 체크섬이 기록에 있었는가(projectDir 상대경로). 백업 판정들이 읽는 기준선 넷을 한 집합으로 본다 —
- * 정책(`policyFiles`, `.claude/` 상대) · 스킬(`skillFiles`, `.claude/skills/` 상대) · 앵커(`templates.rootClaudeMd`) ·
- * 외부 산출물·헬퍼(`externalFiles`) · 외부 도구가 놓은 스킬 파일(`assets[].files`, #770).
- * 기록이 없던 파일이 백업됐다면 편집 여부를 잴 수 없었던 것이다.
+ * #777 — update 뒤 `.mcp.json` 에 하네스 옛 판이 쓴 **뜨지 않는** 값(`PriorMcpServer.dead`)이 그대로 남은 서버. 갈아 끼우지 않는다 —
+ * 기록이 그 키를 하네스 몫이라 말하지 않으면 설치자 것이다(ADR-096 · ADR-106 결정 5 의 과잉 매칭 교훈). 알리기만 한다.
  */
-function checksumOnRecord(log: InstallLog | null): (path: string) => boolean {
-  // 기록 없음: CLI 경로로는 도달 불가 — 진입 판정(#699)이 먼저 거절. 엔진 단위 방어.
-  if (log === null) return () => false;
-  const paths = new Set<string>([
-    ...(log.policyFiles ?? []).map((f) => `.claude/${f.path}`),
-    ...(log.skillFiles ?? []).map((f) => `.claude/skills/${f.path}`),
-    ...(log.externalFiles ?? []).map((f) => f.path),
-    ...log.assets.flatMap((a) => a.files ?? []).map((f) => f.path),
-    // #800 — 함께 쓰는 파일은 몫마다 sha 가 있다 — 그 백업은 설치자 편집이 확실하다
-    ...(log.portions ?? []).map((p) => p.path),
-  ]);
-  const anchor = log.templates.rootClaudeMd;
-  if (anchor !== undefined) paths.add(anchor.path);
-  return (path) => paths.has(path);
+function deadMcpLeft(projectDir: string): Array<{ name: string; note: string }> {
+  let servers: Record<string, unknown> | undefined;
+  try {
+    servers = (JSON.parse(readFileSync(join(projectDir, ".mcp.json"), "utf8")) as McpJson)
+      .mcpServers;
+  } catch {
+    return []; // 없거나 못 읽는 파일 — 말할 근거가 없다
+  }
+  return PRIOR_MCP_SERVERS.flatMap((p) =>
+    p.dead !== undefined &&
+    servers?.[p.name] !== undefined &&
+    jsonSha(servers[p.name]) === jsonSha(toClaudeServer(p.value))
+      ? [{ name: p.name, note: p.dead }]
+      : [],
+  );
 }
 
 /** #724 — `.codex/config.toml` 을 갈아 끼우지 못한 실행에서 남은 옛 `[features]` 키 — 없으면 필드째 뺀다. */
@@ -1334,8 +1356,11 @@ function updateHarnessFiles(args: {
   restored: DisplacedOutcome[];
   foreignOwned: string[];
   outside: OutsideLink[];
+  /** #817 — 판정이 알릴 줄을 낸 백업 · 지우기(쓴 순서 → 은퇴 회수 → 번들 밖 스킬 파일). */
+  judged: JudgedWrite[];
 } {
   const { projectDir, templatesDir, log, wants, outside, report } = args;
+  const judged: JudgedWrite[] = [];
   const now = new Date();
   const claude = installedClis(log).includes("claude");
   // 옛 로그가 필드 없이 하네스 것으로 읽는 은퇴 자리 — 디스크를 만지기 **전**에 한 번 센다(#796 §3.4). 그래서 아래 되돌리기가
@@ -1360,7 +1385,7 @@ function updateHarnessFiles(args: {
     if (!claude || !wants(dir === "hooks" ? "hooks" : "rules")) continue;
     const label = `.claude/${dir}`;
     report.updated[label] = 0;
-    const ctx: PolicySyncCtx = { prefix: dir, outside, recordOf };
+    const ctx: PolicySyncCtx = { prefix: dir, outside, recordOf, projectDir, judged };
     report.pruned[label] = pruneOrphans(
       join(projectDir, label),
       join(templatesDir, dir),
@@ -1378,6 +1403,7 @@ function updateHarnessFiles(args: {
     outside,
     recordOf,
     now,
+    judged,
   );
   report.skillsPruned = skillPrune.pruned;
   report.skillsBackedUp.push(...skillPrune.backedUp);
@@ -1391,6 +1417,14 @@ function updateHarnessFiles(args: {
         });
 
   const ledger = writer.ledger();
+  // 쓰기의 백업 줄이 회수 줄보다 앞에 온다(화면 순서 = 실행 순서)
+  judged.unshift(
+    ...ledger.writes.flatMap(({ path, verdict, line, backup, backupAbs }) =>
+      backup === undefined || backupAbs === undefined
+        ? []
+        : [{ path, verdict, line, backup, backupAbs }],
+    ),
+  );
   recordHarnessWrites(projectDir, ledger, {
     claims,
     prunedPolicy,
@@ -1425,8 +1459,35 @@ function updateHarnessFiles(args: {
     restored,
     foreignOwned,
     outside: ledger.outside,
+    judged,
   };
 }
+
+/**
+ * #817 — 지운 하네스 파일 한 줄: 까닭(`why`) + 판정의 줄(백업했으면 그 경로를 넣어). 은퇴 회수와 번들 밖 스킬 파일이 같은 모양으로
+ * 말한다 — update 화면에서 "removed" 만으로는 왜 지웠는지 모른다.
+ */
+function removedRow(
+  projectDir: string,
+  path: string,
+  why: string,
+  line: string,
+  backupAbs: string | null,
+): JudgedWrite {
+  if (backupAbs === null) return { path, verdict: "remove", line: `${why} — ${line}` };
+  const backup = relative(projectDir, backupAbs).split(sep).join("/");
+  return {
+    path,
+    verdict: "backup+remove",
+    line: `${why} — ${withBackup(line, backup)}`,
+    backup,
+    backupAbs,
+  };
+}
+
+/** #817 — 번들 밖 스킬 파일 중 기록에 없는 것(설치자 노트 · 옛 판이 적지 않은 파일)의 줄. 판정표의 remove 는 이 칸을 남기지만 #477 은 지운다. */
+const NOT_RECORDED_REMOVED =
+  "not on the install record — saved as <file>.backup-<time>, removed from live";
 
 /**
  * #477 — 갱신한 번들 스킬 폴더에서 번들 목록 밖 파일을 지운다. 번들 스킬 디렉터리의 파일 목록이 "최신본이 가져야 할 파일" 이다 —
@@ -1441,6 +1502,7 @@ function pruneSkillExtras(
   outside: OutsideGuard,
   recordOf: (path: string) => Recorded,
   now: Date,
+  judged: JudgedWrite[],
 ): { pruned: string[]; backedUp: string[] } {
   const pruned: string[] = [];
   const backedUp: string[] = [];
@@ -1452,11 +1514,18 @@ function pruneSkillExtras(
       if (foreignOwnedTarget(projectDir, `.claude/skills/${id}/${rel}`) !== null) continue;
       const targetFile = join(targetSkill, rel);
       if (outside.skip(targetFile)) continue;
-      const rec = recordOf(`.claude/skills/${id}/${rel}`);
-      if (rec.state !== "sha" || hashContent(readFileSync(targetFile, "utf8")) !== rec.sha256) {
-        backupFile(targetFile, now);
+      const path = `.claude/skills/${id}/${rel}`;
+      const rec = recordOf(path);
+      // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말
+      const disk = readFileSync(targetFile, "utf8");
+      const j = judge({ op: "remove", kind: "harness", rec, disk, next: null });
+      const line = rec.state === "none" ? NOT_RECORDED_REMOVED : j.line;
+      let backupAbs: string | null = null;
+      if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
+        backupAbs = backupFile(targetFile, now);
         backedUp.push(`${id}/${rel}`);
       }
+      judged.push(removedRow(projectDir, path, "not in bundle", line, backupAbs));
       unlinkSync(targetFile);
       pruned.push(`${id}/${rel}`);
       // 비게 된 중간 디렉터리(예: references/)도 걷는다 — 빈 디렉터리는 "파일이 있었다" 는 흔적만 남긴다
@@ -1652,6 +1721,8 @@ function syncHarnessAnchor(
   templatesDir: string,
   report: UpdateModeReport,
   outside: OutsideGuard,
+  /** #817 — 백업했으면 판정과 같은 줄(기록 sha 와 다름 = edited · 기록 없음 = no checksum)을 받는 곳. */
+  judged: JudgedWrite[],
   now: Date = new Date(),
 ): void {
   // 구 앵커는 **지우지 않고 알린다** — 사용자가 고쳤는지 판정할 근거가 update 에는 없다.
@@ -1677,8 +1748,17 @@ function syncHarnessAnchor(
       const owned =
         recorded?.path === HARNESS_ANCHOR_FILE && hashContent(current) === recorded.sha256;
       if (!owned) {
-        backupFile(anchor, now);
+        const backup = backupFile(anchor, now);
         report.anchorBackedUp = true;
+        const rel = relative(projectDir, backup).split(sep).join("/");
+        const line = recorded?.path === HARNESS_ANCHOR_FILE ? LINES.edited : LINES.noChecksum;
+        judged.push({
+          path: HARNESS_ANCHOR_FILE,
+          verdict: "backup+overwrite",
+          line: withBackup(line, rel),
+          backup: rel,
+          backupAbs: backup,
+        });
       }
       copyFileSync(templateMd, anchor);
       // #615 사례 4 — 실제로 쓴 경우만 "refreshed" 다. 바이트가 같으면 아무 말도 하지 않는다.
@@ -2009,6 +2089,8 @@ function refreshExternalCli(
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
+  /** #817 — 외부 변환의 백업마다 판정의 줄. */
+  externalJudged: JudgedWrite[];
   /** #761 — 외부 변환이 첫 접촉으로 비켜 둔 설치자 파일(기록의 `rootFiles` 에 이미 합쳤다). */
   displaced: InstallLogRootFile[];
   externalForeignOwned: string[];
@@ -2202,6 +2284,7 @@ function refreshExternalCli(
   return {
     externalUpdated: result.externalUpdated,
     externalBackedUp: result.externalBackedUp,
+    externalJudged: result.externalJudged,
     displaced: result.displaced ?? [],
     externalForeignOwned: result.externalForeignOwned,
     externalOutside: result.externalOutside,
@@ -2266,6 +2349,9 @@ interface PolicySyncCtx {
   outside: OutsideGuard;
   /** 경로(projectDir 상대) 하나의 기록 상태(`recorded()`) — 지울지·백업할지는 이것 하나로 정한다. */
   recordOf: (projectRel: string) => Recorded;
+  projectDir: string;
+  /** #817 — 지운 파일마다 판정의 줄을 받는 곳. */
+  judged: JudgedWrite[];
 }
 
 /**
@@ -2302,15 +2388,19 @@ function pruneOrphans(
   for (const file of readdirSync(target)) {
     if (!file.endsWith(ext) || existsSync(join(source, file))) continue;
     const targetFile = join(target, file);
-    const rec = ctx.recordOf(`.claude/${ctx.prefix}/${file}`);
+    const path = `.claude/${ctx.prefix}/${file}`;
+    const rec = ctx.recordOf(path);
     try {
       const disk = readFileSync(targetFile, "utf8");
-      const { verdict } = judge({ op: "remove", kind: "harness", rec, disk, next: null });
+      const { verdict, line } = judge({ op: "remove", kind: "harness", rec, disk, next: null });
       // 판정이 곧 동작이다 — `leave`(기록에 없는 설치자 파일 등)면 건드리지 않는다. #678 밖의 실체는 그 뒤에 거른다
       if (verdict === "leave" || ctx.outside.skip(targetFile)) continue;
-      if (verdict === "backup+remove") backupFile(targetFile, now);
+      const backupAbs = verdict === "backup+remove" ? backupFile(targetFile, now) : null;
       unlinkSync(targetFile);
       removed.push(file);
+      ctx.judged.push(
+        removedRow(ctx.projectDir, path, "retired from the harness", line, backupAbs),
+      );
     } catch {
       // best-effort — read-only? 다음 update 시 재시도
     }

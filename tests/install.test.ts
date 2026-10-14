@@ -788,6 +788,14 @@ describe("executeSpec", () => {
       updateMode: {
         updated: { ".claude/rules": 5, ".claude/agents": 0, ".claude/hooks": 2 },
         pruned: { ".claude/rules": ["orphan.md"], ".claude/hooks": [] },
+        // #817 — 화면의 파일 줄은 판정의 줄(`judged`)에서 나온다
+        judged: [
+          {
+            path: ".claude/rules/orphan.md",
+            verdict: "remove",
+            line: "retired from the harness — removed",
+          },
+        ],
         staleHookRefs: ["dead.sh"],
         claudeMdUpdated: true,
         backups: [],
@@ -830,7 +838,9 @@ describe("executeSpec", () => {
     expect(log).not.toHaveBeenCalledWith(expect.stringContaining("ROLLBACK"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("CLAUDE-uzys-harness.md"));
     expect(log).toHaveBeenCalledWith(expect.stringContaining("stale hook refs"));
-    expect(log).toHaveBeenCalledWith(expect.stringContaining("orphan prune"));
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining(".claude/rules/orphan.md — retired from the harness — removed"),
+    );
     // #528 BLOCKER-6 — 기록된 설치본에는 "기록에 없는 .claude/" 안내가 없다(대조군).
     expect(log).not.toHaveBeenCalledWith(expect.stringContaining("not recorded as installed"));
   });
@@ -1126,6 +1136,14 @@ describe("executeSpec", () => {
         legacyAnchor: null,
         claudeUnrecorded: null,
         skillsBackedUp: ["multi-persona-review/SKILL.md", "north-star/SKILL.md"],
+        // #817 — 백업한 파일마다 판정의 줄(실제 백업 경로가 든 것)
+        judged: ["multi-persona-review", "north-star"].map((id) => ({
+          path: `.claude/skills/${id}/SKILL.md`,
+          verdict: "backup+overwrite" as const,
+          line: `you edited it — saved as .claude/skills/${id}/SKILL.md.backup-20261014T000000`,
+          backup: `.claude/skills/${id}/SKILL.md.backup-20261014T000000`,
+          backupAbs: `/p/.claude/skills/${id}/SKILL.md.backup-20261014T000000`,
+        })),
         skillsSkippedLinks: [],
         skillsPruned: [],
         policyBackedUp: [],
@@ -1153,7 +1171,8 @@ describe("executeSpec", () => {
     const out = log.mock.calls.flat().join("\n");
     expect(out).toContain(".claude/skills");
     expect(out).toContain("7 files updated");
-    expect(out).toContain("2 backed up");
+    for (const id of ["multi-persona-review", "north-star"])
+      expect(out).toContain(`backed up  .claude/skills/${id}/SKILL.md — you edited it — saved as`);
   });
 
   /**

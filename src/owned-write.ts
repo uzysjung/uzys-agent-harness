@@ -20,7 +20,8 @@ import {
   type InstallLogRootFile,
   type InstallLogSkillFile,
 } from "./install-log.js";
-import { judge, type Recorded } from "./judge.js";
+import type { JudgedWrite } from "./install-writes.js";
+import { judge, type Recorded, withBackup } from "./judge.js";
 import { createOutsideGuard, type OutsideLink } from "./outside-project.js";
 
 /**
@@ -51,6 +52,8 @@ export interface OwnedWriteResult {
    * 기준선에 없는 자리(첫 접촉)는 고친 것이 아니라 설치자 파일이라 `displaced` 로 간다(#761).
    */
   backedUp: string[];
+  /** #817 — 판정이 백업을 낸 파일마다 그 줄(실제 백업 경로가 든 것) — update 화면이 파일마다 그대로 말한다. 부재 = 없음. */
+  judged?: JudgedWrite[];
   /**
    * #761 (ADR-097 결정 7) — 기준선에 없는 자리에 있던 설치자 파일(첫 접촉). 다르면 `notes[0]` = 백업(project-relative)이고
    * 하네스 판이 자리를 잡는다(`files` 에도 든다) · 같으면 백업 없이 그대로 두고 하네스 것으로 삼지 않는다(Q3 — `files` 에 없다).
@@ -173,6 +176,7 @@ export function createOwnedWriter(
   const { now = new Date(), refreshOnly = false, journal, owned = () => false } = options;
   const written = new Map<string, string>();
   const backedUp: string[] = [];
+  const judged: JudgedWrite[] = [];
   const backupPaths: string[] = [];
   const foreignOwned: string[] = [];
   const restored: string[] = [];
@@ -208,7 +212,13 @@ export function createOwnedWriter(
       // 설치 증거다. 손으로 지운 것은 빼기가 아니라 되살린다(빼기는 `uninstall --cli`).
       if (disk === null && refreshOnly && !opts?.createInRefresh && rec.state !== "sha")
         return false;
-      const { verdict, record } = judge({ op: "write", kind: "harness", rec, disk, next: content });
+      const { verdict, record, line } = judge({
+        op: "write",
+        kind: "harness",
+        rec,
+        disk,
+        next: content,
+      });
       let backupRel: string | null = null;
       // #774 (ADR-111) `backupFirst` — 기준선 그대로인 파일을 덮기 전 1회. 판정이 아니라 실행 방식이라 `overwrite` 에서만 읽는다.
       if (
@@ -219,8 +229,17 @@ export function createOwnedWriter(
         backupPaths.push(backup);
         journal?.backup(backup);
         backupRel = relative(projectDir, backup).split(sep).join("/");
-        // 고친 것(sha) · 체크섬 없는 옛 판(no-sha) — 화면이 `checksumOnRecord` 로 다시 가른다. 첫 접촉은 `displaced` 로 간다.
-        if (verdict === "backup+overwrite" && rec.state !== "none") backedUp.push(rel);
+        // 고친 것(sha) · 체크섬 없는 옛 판(no-sha) — 까닭은 판정의 줄이 말한다(#817). 첫 접촉은 `displaced` 로도 간다.
+        if (verdict === "backup+overwrite") {
+          if (rec.state !== "none") backedUp.push(rel);
+          judged.push({
+            path: rel,
+            verdict,
+            line: withBackup(line, backupRel),
+            backup: backupRel,
+            backupAbs: backup,
+          });
+        }
       }
       // #761 — 첫 접촉 자리는 하네스가 떠날 때 되돌릴 근거(`displaced`). Q3 같음 = 백업 없이 두고 하네스 것으로 적지 않는다 —
       // 그래도 이 경로를 **담당했다**(`true`): `writeBundledSkillDirs` 는 `SKILL.md` 를 맡았을 때만 형제 파일을 쓴다(설계 §11 ⑦).
@@ -249,6 +268,7 @@ export function createOwnedWriter(
         outside: outside.list(),
         files: [...written].map(([path, sha256]) => ({ path, sha256 })),
         backedUp: [...backedUp],
+        judged: [...judged],
         backupPaths: [...backupPaths],
         updated,
         restored: [...restored],

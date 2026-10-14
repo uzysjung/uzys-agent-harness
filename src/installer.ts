@@ -641,6 +641,7 @@ function runInstallStages(
     externalBackups,
     externalUpdated: _externalUpdated,
     externalBackedUp: _externalBackedUp,
+    externalJudged: _externalJudged,
     displaced: cliDisplaced = [],
     externalForeignOwned,
     externalOutside,

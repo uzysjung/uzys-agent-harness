@@ -265,16 +265,20 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expect(log().externalFiles?.some((f) => f.path === `.agents/skills/${DEBATE}/SKILL.md`)).toBe(
       true,
     );
-    expect(screen).toContain(".claude/skills had files with these names");
-    expect(screen).toContain("external CLI files had files with these names");
-    expect(screen).not.toContain("edited files");
-    expect(screen).not.toContain("edited external CLI files");
+    // #817 — 파일마다 판정의 줄(install 과 같은 말) — 실제 백업 경로를 댄다
+    for (const slot of SLOTS) {
+      const rel = `${slot}/${DEBATE}/SKILL.md`;
+      expect(screen).toContain(
+        `${rel} — had a file with this name — saved as ${slot}/${DEBATE}/${backupsOf(rel)[0]}`,
+      );
+    }
+    expect(screen).not.toContain("you edited it");
     expect(screen).not.toContain("no checksum");
     // 설치자 자기 파일의 백업은 새 판에 다시 얹을 편집이 아니다
     expect(screen).not.toContain("to keep your edits across updates");
   }
 
-  it("① 기본 스킬과 같은 이름의 손수 만든 폴더 → 백업 · 하네스 판 · displaced 2건 · 화면 'had files with these names'", () => {
+  it("① 기본 스킬과 같은 이름의 손수 만든 폴더 → 백업 · 하네스 판 · displaced 2건 · 화면 'had a file with this name'", () => {
     handMadeDebate();
     const { screen } = updateWithScreen();
     expectDisplacedBoth(screen);
@@ -328,7 +332,7 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     // 형제 파일은 하네스가 새로 깔았다 — 하네스 것이다
     expect(log().skillFiles?.some((f) => f.path === `${DEBATE}/references/adapters.md`)).toBe(true);
     expect(screen).toContain("same as the harness version");
-    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("had a file with this name");
   });
 
   it("ⓑ 이번 릴리즈의 신규 룰과 같은 이름의 손수 만든 룰 → update 의 .claude/ 쓰기에서도 백업 · displaced · 화면 같은 말", () => {
@@ -353,7 +357,9 @@ describe("#761 — 첫 접촉: 같은 이름의 설치자 스킬 · 룰을 updat
     expect(read(`.claude/rules/${backups[0]}`)).toBe(MINE);
     expect(displacedOf(RULE).map((f) => f.notes)).toEqual([[`.claude/rules/${backups[0]}`]]);
     expect(log().policyFiles?.some((f) => f.path === "rules/git-policy.md")).toBe(true);
-    expect(screen).toContain("policy files had files with these names");
-    expect(screen).not.toContain("edited policy files");
+    expect(screen).toContain(
+      `${RULE} — had a file with this name — saved as .claude/rules/${backups[0]}`,
+    );
+    expect(screen).not.toContain("you edited it");
   });
 });

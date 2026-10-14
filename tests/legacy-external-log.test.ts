@@ -137,12 +137,12 @@ describe("#761 B-1 — 외부 기록이 없는 옛 로그: 하네스 산출물�
     expectHarnessRecorded();
     expect(report.updateMode?.noChecksum).toContain(HOOK);
     expect(screen).toContain("no checksum");
-    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("had a file with this name");
     expect(screen).not.toContain("same as the harness version");
 
     const again = runWithScreen("update").screen;
     expect(again).not.toContain("same as the harness version");
-    expect(again).not.toContain("had files with these names");
+    expect(again).not.toContain("had a file with this name");
 
     uninstall();
     expect(filesUnder(".agents")).toEqual([]);
@@ -182,11 +182,11 @@ describe("#761 B-2 — 옛 로그에 부분 update 를 먼저 돌려도 하네�
 
     expectHarnessRecorded();
     expect(displacedAll()).toEqual([]);
-    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("had a file with this name");
     expect(screen).not.toContain("same as the harness version");
 
     const again = runWithScreen("update").screen;
-    expect(again).not.toContain("had files with these names");
+    expect(again).not.toContain("had a file with this name");
     expect(again).not.toContain("same as the harness version");
     expect(displacedAll()).toEqual([]);
 
@@ -219,7 +219,7 @@ describe("#761 B-2 — 옛 로그에 부분 update 를 먼저 돌려도 하네�
     const { screen } = runWithScreen("update");
 
     expect(displacedAll()).toEqual([]);
-    expect(screen).not.toContain("had files with these names");
+    expect(screen).not.toContain("had a file with this name");
     expect(screen).not.toContain("same as the harness version");
   });
 });

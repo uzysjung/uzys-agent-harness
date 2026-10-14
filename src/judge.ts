@@ -109,6 +109,11 @@ export const LINES = {
   leftForYou: "left for you (yours now)",
 } as const;
 
+/** `LINES` 의 `<file>.backup-<time>` 자리에 실제 백업 경로(project 상대)를 넣는다 — 화면이 파일마다 백업 자리를 댄다. */
+export function withBackup(line: string, backup: string): string {
+  return line.replace("<file>.backup-<time>", backup);
+}
+
 function unreadable(adapter: Adapter, op: "write" | "remove"): string {
   const what = op === "write" ? "harness part not added" : "harness part not removed";
   return `could not read it (${ADAPTERS[adapter].unreadable}) — ${what}`;
