@@ -1,0 +1,73 @@
+Updating installed harness files in /w/p
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /w/p
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/rules                            7 files updated
+  ✓ .claude/agents                           3 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           14 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    added by this release
+  ✓ .uzys-agent-harness/spec-drift-check.sh  added by this release
+  ✓ .uzys-agent-harness/check-absence.sh     added by this release
+  ✓ .claude/skills/user-centered-explanation added by this release
+  ✓ .claude/skills/audit-service-gaps        added by this release
+  ✓ .claude/skills/objective-brief           added by this release
+  ✓ .claude/skills/audit-harness-fit         added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/self-hosted-github-runner added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .agents/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/audit-service-gaps        added by this release
+  ✓ .agents/skills/north-star                added by this release
+  ✓ .agents/skills/gh-issue-workflow         added by this release
+  ✓ .agents/skills/objective-brief           added by this release
+  ✓ .agents/skills/audit-harness-fit         added by this release
+  ✓ .agents/skills/model-orchestration       added by this release
+  ✓ .agents/skills/external-model-consult    added by this release
+  ✓ .agents/skills/self-hosted-github-runner added by this release
+  ✓ .agents/skills/multi-model-debate        added by this release
+  ✓ .claude/settings.json        removed the harness part · kept yours: statusLine
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ⊘ .claude/rules orphan prune               4 removed
+  ⊘ .claude/agents orphan prune              5 removed
+  ⊘ .claude/hooks orphan prune               3 removed
+  ✓ CLAUDE-uzys-harness.md                   created from template (anchor migration)
+  ✓ CLAUDE.md                                @CLAUDE-uzys-harness.md import added
+  ⊘ .claude/CLAUDE.md                        legacy anchor · no longer updated — content now in CLAUDE-uzys-harness.md; delete it when you no longer need it
+  ⊘ .mcp-allowlist                           retired · the hook that read it is gone — backed up as /w/p/.mcp-allowlist.backup-20261014T112351
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ⊘ edited policy files                      2 backed up as *.backup-<time>
+  ⊘ policy files had files with these names  2 backed up as *.backup-<time> — yours, put back on uninstall · .claude/rules/ui-components.md, .claude/agents/strategist.md
+  ✓ external CLI artifacts                   43 files updated
+  ✓ AGENTS.md                                removed 13 section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)
+  ⊘ same as the harness version              2 kept — already the same as the harness version (left yours in place) · .claude/agents/data-analyst.md, .agents/skills/natural-korean/SKILL.md
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 29 items resident · ~7589 tokens/session (directives 11 ~5586 · [rules 8 ~1725 · CLAUDE.md 3 ~3861] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+  ▸ BACKUPS      18 file(s) saved before replacing, as *.backup-<time> — 1 had no checksum on record (marked noChecksum in the list), so those may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         to re-apply your edits on the new version, ask audit-harness-fit: "update 백업본의 내 편집을 새 판에 다시 얹어줘"
+

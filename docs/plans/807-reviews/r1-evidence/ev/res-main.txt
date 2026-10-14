@@ -1,0 +1,12 @@
+c00eeea0e13e  ./.agents/skills/find-skills/SKILL.md
+b32b3d6fb735  ./.agents/skills/mine2/SKILL.md
+1d75c07c51b8  ./.claude/agents/data-analyst.md
+b8d0b387748b  ./.claude/agents/strategist.md
+5e9d04a9de20  ./.claude/rules/my-rule.md
+836b66be19c7  ./.claude/rules/ui-components.md
+676e112d4d85  ./.claude/settings.json
+2346616fc2a8  ./.claude/skills/mine/SKILL.md
+e6b311a3e958  ./CLAUDE.md
+2178c434a28e  ./package-lock.json
+ca3d163bab05  ./package.json
+0e7ecfa07bc1  ./skills-lock.json
