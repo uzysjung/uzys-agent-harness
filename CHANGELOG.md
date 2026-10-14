@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
-## [v26.173.0] — 2026-10-15 (update · uninstall 화면이 파일마다 한 일을 말한다)
+## [v26.173.0] — 2026-10-15 (update · uninstall 화면이 파일마다 한 일을 말한다 · Codex 를 빼도 Claude 링크 스킬이 남는다)
 
 ### Fixed
 - **update · uninstall 화면이 실제로 한 일을 파일마다 말한다** (#817 · #777, PR #828). 화면이 디스크를 다룬 판정 하나에서 줄을 만든다. 설치자에게 달라지는 것:
@@ -15,6 +15,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
   - uninstall 미리보기 · 실행 화면이 설치 기록 폴더에 남는 내 파일을 남긴다고 말한다(전에는 침묵).
   - 옛 판이 넣은 supabase MCP 항목(지금은 내려받을 수 없는 패키지)이 남아 있으면 안내 한 줄이 뜬다. 값은 바꾸지 않는다.
   - 런타임 목록 `update-backups.json` 이 지운 파일의 백업에 `removed` 를 단다. 파일을 쓰고 지우는 동작은 바뀌지 않았다(옛 npm 판 26.100 · 26.125 · 26.161 실설치 적대적 리뷰 — 장면 8개, 디스크 결과가 이전 판과 같음).
+- **Codex 를 빼도 Claude 가 링크로 쓰는 스킬 본문이 남는다** (#769, PR #831). Claude+Codex 설치에서 `.claude/skills/<id>` 를 `.agents/skills/<id>` 링크로 바꿔 둔 설치자(#524)가 `uninstall --cli codex` 를 하면, 전에는 링크가 가리키는 본문을 회수해 Claude 스킬이 깨졌다. 이제:
+  - 그 본문은 남고, 화면이 `left .agents/skills/<id> — still used by Claude Code through its .claude/skills/ link(s)` 한 줄로 말한다(미리보기도 같다).
+  - 그 뒤 update 가 남긴 본문을 새 판으로 갱신한다(`linked · updated via`). 내가 고친 파일은 백업한 뒤 갱신하고, 더한 파일은 남는다.
+  - 그 뒤 전량 uninstall 은 그 본문을 회수한다(기록 없는 옛 판 사본 포함).
+  - 옛 npm 판 26.125 · 26.161 · 26.170 실설치 적대적 리뷰 2라운드 — 설치자 파일 손실 0.
 
 ## [v26.172.0] — 2026-10-14 (검증 범위가 계획·CI 구성 때문에 전량으로 커지지 않는다 · htmx 트랙을 백엔드별 둘로 · 옛 판 update 설치본의 uninstall)
 
