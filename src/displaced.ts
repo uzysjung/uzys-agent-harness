@@ -15,11 +15,13 @@
  * 기록 정리(`withoutRestored`)는 호출부가 자기 기록 쓰기에 끼운다.
  */
 
-import { lstatSync, mkdirSync, renameSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { InstallLog, InstallLogRootFile } from "./install-log.js";
+import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
+import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
+import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -42,6 +44,31 @@ function exists(abs: string): boolean {
 }
 
 /**
+ * #807 — 이 displaced 기록이 설치자 파일을 말하지 않는다. v26.162~v26.170 의 update 는 옛 판이 트랙과 무관하게 깔아 둔 하네스 파일
+ * (기록 트랙 밖 자리 — tooling 의 `agents/strategist.md` 등)을 첫 접촉으로 읽어 displaced 로 적었다. 그 "원본"(백업 · 백업이 없으면
+ * 그 자리)이 옛 판 바이트 그대로면 비켜 둔 설치자 파일이 없다 — 되돌리지 않고(옛 하네스 바이트를 살리지 않는다) 지문 회수를 막지
+ * 않는다. 현행 writer 는 기록 트랙 자리만 판정하므로 트랙 안의 displaced 는 기록 그대로다(ADR-097 결정 3·7 · ADR-111).
+ * 트랙 판정은 번들 경로로 한다 — `.agents/skills/<id>` 도 `.claude/skills/<id>` 와 같은 답을 낸다.
+ */
+export function isLegacyDisplaced(
+  log: InstallLog,
+  projectDir: string,
+  f: InstallLogRootFile,
+): boolean {
+  if (f.change !== "displaced") return false;
+  let original: string;
+  try {
+    original = readFileSync(join(projectDir, f.notes[0] ?? f.path), "utf8");
+  } catch {
+    return false; // 읽지 못한 원본은 설치자 것으로 둔다(지우지 않는 쪽)
+  }
+  return (
+    isLegacyHarnessFile(f.path, hashContent(original)) &&
+    !isRecordedTrackTarget(log, bundlePath(f.path))
+  );
+}
+
+/**
  * 하네스가 자리를 떠난 **뒤** 부른다. `has` = 이번 remove 의 범위(프로젝트 상대 경로 술어) · `willBeGone` = 미리보기에서
  * "이번에 지울 하네스 판"(빈 자리로 친다 — uninstall dry-run 전용) · `write=false` 면 판정만.
  */
@@ -56,7 +83,8 @@ export function restoreDisplaced(
     const slot = join(projectDir, f.path);
     // 하네스는 밖에 쓰지 않았다 — 그 자리의 말은 밖 링크 줄이 한다
     if (outsideProjectTarget(projectDir, slot) !== null) continue;
-    const backup = f.notes[0] ?? null;
+    // #807 — 원본이 옛 하네스 바이트면 되돌릴 설치자 파일이 없다(백업 없는 자리와 같다 — 조용히 기록만 뺀다)
+    const backup = isLegacyDisplaced(log, projectDir, f) ? null : (f.notes[0] ?? null);
     const d = judgeDisplaced({
       backup,
       backupExists: backup !== null && exists(join(projectDir, backup)),
