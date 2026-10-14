@@ -5,7 +5,7 @@ import {
 } from "./external-assets.js";
 import { INSTALL_LOG_DIR } from "./install-log.js";
 import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
-import { anyTrack, hasDevTrack, hasUiTrack } from "./track-match.js";
+import { anyTrack, hasDevTrack } from "./track-match.js";
 import { type OptionFlags, TRACKS, type Track } from "./types.js";
 
 /**
@@ -106,7 +106,10 @@ const DEV_RULES = ["test-policy", "ship-checklist"];
 //   `@shadcn/lint` 로 검사한다. 아래 2026-08-02 에 뺀 shadcn 룰과 축이 다르다 — 그건 모델이 이미
 //   아는 사용법이었고, 이건 **모델이 모르는 새 도구**(2026-09 출시)와 **사용자가 고른 스택**이다.
 //   `paths:` 로 `.tsx`/`.jsx` 를 만질 때만 싣는다(Claude Code · Antigravity).
+// #820 — React 를 쓰는 트랙에만 간다. htmx 트랙은 화면이 서버 템플릿 + daisyUI 라 이 룰의 "shadcn/ui 로"가
+//   틀린 안내가 되고, Fastify 서버 JSX(`.tsx`)에서는 같은 경로로 로드돼 htmx 룰과 부딪친다.
 const UI_RULES: string[] = ["ui-components"];
+const REACT_UI_TRACKS = "csr-*|ssr-nextjs|full";
 
 // 2026-08-02 정비 — 기술스택 상세 룰(shadcn·nextjs·htmx·pyside6·database·api-contract·
 //   data-analysis·tauri)을 배포에서 뺐다. 모델이 이미 아는 것을 상주로 부담시키던 자리다.
@@ -117,11 +120,16 @@ const TRACK_RULES: Record<Track, string[]> = {
   "csr-supabase": [],
   "csr-fastify": [],
   "csr-fastapi": [],
-  "ssr-htmx": [],
+  // #820 — htmx 화면 기술(Tailwind v4 + daisyUI)과 그 스택에서 실제로 도는 린트. 백엔드마다 템플릿 형식이
+  //   달라 린트가 갈린다(Jinja = ast-grep · 서버 JSX = @shadcn/lint) — 실측 = `docs/plans/820-spike/`. `full` 은 아래.
+  "ssr-htmx": ["htmx-fastapi-ui"],
+  "ssr-htmx-fastify": ["htmx-fastify-ui"],
   "ssr-nextjs": [],
   data: [],
   executive: [],
   tooling: ["cli-development"],
+  // #820 — htmx 룰 둘은 `full` 에 넣지 않는다. OpenCode 가 섞인 설치는 룰을 AGENTS.md 본문에 인라인하는데, full 의 렌더가
+  //   Antigravity 상한(24,000 B)을 넘는다(22,322 → 24,455 B, `agents-md-size-budget`). htmx 를 쓰면 그 트랙을 함께 고른다.
   full: ["cli-development"],
   // v0.5.0 — executive-style baselines (no dev rules; common rules only).
   "project-management": [],
@@ -136,7 +144,7 @@ export function resolveRules(spec: AssetSpec): string[] {
       set.add(r);
     }
   }
-  if (hasUiTrack(spec.tracks)) {
+  if (anyTrack(spec.tracks, REACT_UI_TRACKS)) {
     for (const r of UI_RULES) {
       set.add(r);
     }

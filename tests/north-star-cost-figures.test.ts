@@ -79,7 +79,14 @@ describe("NORTH_STAR 상주 비용 수치 ↔ 실측", () => {
     // doc-governance: 같은 사실을 두 곳에 두면 한쪽이 썩는다. tooling 만 문서에 두는 이유는
     // 위 두 게이트가 그것만 대조하기 때문이다 — 대조되지 않는 수치를 늘리면 그게 곧 stale 밭이다.
     // 게이트 없이 옮겨 적힌 트랙명이 있으면 여기서 잡는다.
-    const ungated = ["csr-supabase", "csr-fastify", "csr-fastapi", "ssr-htmx", "ssr-nextjs"];
+    const ungated = [
+      "csr-supabase",
+      "csr-fastify",
+      "csr-fastapi",
+      "ssr-htmx",
+      "ssr-htmx-fastify",
+      "ssr-nextjs",
+    ];
     const leaked = ungated.filter((t) => new RegExp(`${t}\\s*[:\\s]*\\d`).test(northStar));
     expect(leaked, `게이트 없는 트랙 수치가 문서에 복제됐다: ${leaked.join(", ")}`).toEqual([]);
   });

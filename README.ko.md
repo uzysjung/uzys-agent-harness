@@ -156,7 +156,7 @@ your-project/
 
 ## 지원하는 스택과 함께 제공하는 스킬
 
-트랙은 개발 스택이나 업무 종류별로 묶어 둔 시작 구성이다. 표의 위쪽 9개가 개발 트랙, 아래쪽 3개가 업무 트랙이다. 트랙을 고르면 아래 외부 스킬과 도구가 미리 체크된다. 미리 체크되는 것은 모두 공식 저장소이거나, 출처와 인기도, 설치 경로를 확인해 고른 저장소다. 내용의 안전성이나 결과물의 품질까지 보증하지는 않는다([SECURITY.md](SECURITY.md)).
+트랙은 개발 스택이나 업무 종류별로 묶어 둔 시작 구성이다. 표의 위쪽 10개가 개발 트랙, 아래쪽 3개가 업무 트랙이다. 트랙을 고르면 아래 외부 스킬과 도구가 미리 체크된다. 미리 체크되는 것은 모두 공식 저장소이거나, 출처와 인기도, 설치 경로를 확인해 고른 저장소다. 내용의 안전성이나 결과물의 품질까지 보증하지는 않는다([SECURITY.md](SECURITY.md)).
 
 | 트랙 | 스택 | 미리 체크되는 외부 스킬·도구 |
 |---|---|---|
@@ -165,7 +165,8 @@ your-project/
 | `csr-fastify` | Vite + React + Fastify | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `csr-fastapi` | Vite + React + FastAPI | `frontend-design`, `react-best-practices`, `shadcn-ui` |
 | `ssr-nextjs` | Next.js (App Router) | `frontend-design`, `react-best-practices`, `shadcn-ui` |
-| `ssr-htmx` | htmx + FastAPI | `frontend-design` |
+| `ssr-htmx` | htmx + FastAPI (Python) + daisyUI | `frontend-design` |
+| `ssr-htmx-fastify` | htmx + Fastify (Node) + daisyUI | `frontend-design` |
 | `data` | Python 데이터 작업 (DuckDB, PySide6) | `anthropic-data-plugin` |
 | `tooling` | 앱 스택 없는 Bash·Markdown 프로젝트 | 없음 |
 | `full` | 개발 트랙 전부와 문서 작업 | 위 항목 전부 + `anthropic-document-skills` |
@@ -173,7 +174,7 @@ your-project/
 | `project-management` | PM 업무 | 없음 |
 | `growth-marketing` | 그로스·콘텐츠 마케팅 | 없음 (`marketingskills` 선택 가능) |
 
-MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서)가 들어가고, 웹 트랙(`csr-*`, `ssr-*`, `full`)에는 Google 사용 통계를 끈 `chrome-devtools`가 더해진다. `csr-*`와 `ssr-htmx` 트랙에는 `railway-mcp-server`(Railway 원격 서버 — 처음 쓸 때 로그인한다)가, `csr-supabase`에는 `supabase`(Supabase 원격 서버 — 처음 쓸 때 로그인한다)가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다. Vercel·GitHub 공식 원격 서버(`vercel`, `github-mcp`)는 미리 체크되지 않는다 — `--with`로 더한다. 서버마다 위저드 3단계에 한 줄씩 보이고, 체크를 풀거나 `--without <이름>`(예: `--without context7`)을 주면 `.mcp.json`·Codex·OpenCode 에서 빠진다.
+MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브러리 문서)가 들어가고, 웹 트랙(`csr-*`, `ssr-*`, `full`)에는 Google 사용 통계를 끈 `chrome-devtools`가 더해진다. `csr-*`·`ssr-htmx`·`ssr-htmx-fastify` 트랙에는 `railway-mcp-server`(Railway 원격 서버 — 처음 쓸 때 로그인한다)가, `csr-supabase`에는 `supabase`(Supabase 원격 서버 — 처음 쓸 때 로그인한다)가 더해진다. `full`은 둘 다 받는다. `ssr-nextjs`에서는 Railway MCP가 기본이 아니고, 직접 고르면 들어간다. Vercel·GitHub 공식 원격 서버(`vercel`, `github-mcp`)는 미리 체크되지 않는다 — `--with`로 더한다. 서버마다 위저드 3단계에 한 줄씩 보이고, 체크를 풀거나 `--without <이름>`(예: `--without context7`)을 주면 `.mcp.json`·Codex·OpenCode 에서 빠진다.
 
 미리 체크되지는 않지만 3단계나 `--with <id>`로 더할 수 있는 것도 있다.
 
