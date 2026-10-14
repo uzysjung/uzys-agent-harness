@@ -340,6 +340,37 @@ describe("⑥ ⑦ `--cli` 범위 · dry-run", () => {
     expect(read(AGENTS_COPY)).toBe(old("skills/compaction-handoff/SKILL.md"));
   });
 
+  // #769 리뷰 HIGH-2 (ⓔ4) — 링크 슬롯이 가리키는 본문은 claude 몫이다: --cli codex 는 남기고, claude 까지 나가는 전량은 회수한다
+  it("--cli codex 가 claude 링크 슬롯의 옛 사본을 남긴 뒤 · update · 전량 uninstall 은 그 사본을 회수한다", () => {
+    install(["claude", "codex"]);
+    putOldHarnessFiles();
+    toFieldless();
+    const slot = abs(".claude/skills/compaction-handoff");
+    rmSync(slot, { recursive: true, force: true });
+    symlinkSync(join("..", "..", ".agents/skills/compaction-handoff"), slot);
+    expect(readFileSync(join(slot, "SKILL.md"), "utf8")).toBe(
+      old("skills/compaction-handoff/SKILL.md"),
+    );
+
+    expect(uninstall({ cli: "codex", yes: true }).code).toBe(0);
+    expect(read(AGENTS_COPY)).toBe(old("skills/compaction-handoff/SKILL.md")); // Claude 가 아직 쓴다
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      mode: "update",
+      spec: {
+        tracks: ["tooling"],
+        options: { withCodexTrust: false },
+        cli: ["claude"],
+        projectDir,
+      },
+    });
+
+    expect(uninstall({ yes: true }).code).toBe(0);
+    expect(existsSync(abs(AGENTS_COPY))).toBe(false);
+  });
+
   it("dry-run 은 디스크를 바꾸지 않고 실행과 같은 수 · 같은 훅 줄을 말한다", () => {
     install(["claude", "codex"]);
     putOldHarnessFiles();

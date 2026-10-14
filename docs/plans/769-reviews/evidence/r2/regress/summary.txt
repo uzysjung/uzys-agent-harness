@@ -1,0 +1,8 @@
+a: snapshots identical 4/4 · screens identical 3/3
+d: snapshots identical 6/6 · screens identical 5/5
+e1: snapshots identical 5/5 · screens identical 4/4
+e2: snapshots identical 5/5 · screens identical 4/4
+e3: snapshots identical 4/4 · screens identical 3/3
+  screen differs: g 5-update.out
+  screen differs: g 6-uninstall-all.out
+g: snapshots identical 5/6 · screens identical 3/5

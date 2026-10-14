@@ -14,6 +14,7 @@ import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderBundledSkill } from "../src/codex/skills.js";
 import { createInstallRenderer } from "../src/commands/install-render.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
 import {
   hashContent,
   type InstallLog,
@@ -223,6 +224,38 @@ describe("Claude 자리 — 링크 스킬 · 백업 규약 (#529 · #524 · #536
       expect(screen).toContain(`linked · updated via .agents/skills/${id}`);
       const ownedRows = screen.split("\n").filter((l) => l.includes("owned by another tool"));
       expect(ownedRows.filter((l) => l.includes(id))).toEqual([]);
+    });
+
+    // #769 리뷰 HIGH-1 (ⓗ) — codex 를 빼면 `.agents/skills/` 를 쓰는 외부 변환이 없다. 남긴 본문은 claude 몫이라 update 가 갱신한다
+    it("①c `uninstall --cli codex` 뒤 update 가 남긴 공유 본문을 갱신하고 'linked · updated via' 로 말한다", () => {
+      install(["claude", "codex"]);
+      const id = sharedSkillId();
+      const body = bodyOf(id);
+      linkToShared(id);
+      uninstallAction(
+        { projectDir, cli: "codex" },
+        {
+          exit: () => undefined as never,
+          log: () => {},
+          err: () => {},
+          resolveHarnessRoot: () => HARNESS_ROOT,
+        },
+      );
+      expect(log().spec.clis).toEqual(["claude"]); // 대조군 — 남은 것은 claude 하나
+      writeFileSync(body, STALE);
+      setExternalSha(`.agents/skills/${id}/SKILL.md`, hashContent(STALE));
+
+      let captured: BaselineReport | undefined;
+      const report = update((b) => {
+        captured = b;
+      });
+
+      expect(readFileSync(body, "utf8")).toBe(portedOf(id));
+      expect(externalSha(`.agents/skills/${id}/SKILL.md`)).toBe(hashContent(portedOf(id)));
+      expect(backupsOf(body)).toEqual([]);
+      expect(report.updateMode?.skillsLinked).toEqual([id]);
+      expect(report.updateMode?.skillsLinkedNotOurs).toEqual([]);
+      expect(screenOf(captured)).toContain(`linked · updated via .agents/skills/${id}`);
     });
 
     it("② 설치자가 고친 공유 본문(기준선과 다름)은 백업 1개를 남기고 최신판으로", () => {

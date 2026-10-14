@@ -1,0 +1,136 @@
+######## e3 1-install screen [br]
+$ agent-harness[v161] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     10 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## e3 1-install screen [br2]
+$ agent-harness[v161] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     10 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## e3 1-install snapshot diff (< br  > br2)
+IDENTICAL
+######## e3 2-linked screen [br]
+######## e3 2-linked screen [br2]
+######## e3 2-linked snapshot diff (< br  > br2)
+IDENTICAL
+######## e3 3-dry screen [br]
+$ agent-harness[br] uninstall --cli codex --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove 26 harness file(s) under .agents/
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ leave .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ○ install log updated (clis: claude)
+
+rc=0
+######## e3 3-dry screen [br2]
+$ agent-harness[br2] uninstall --cli codex --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove 26 harness file(s) under .agents/
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ leave .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ○ install log updated (clis: claude)
+
+rc=0
+######## e3 3-dry snapshot diff (< br  > br2)
+IDENTICAL
+######## e3 4-cli-codex screen [br]
+$ agent-harness[br] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s) · .agents/ 26
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e3 4-cli-codex screen [br2]
+$ agent-harness[br2] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s) · .agents/ 26
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e3 4-cli-codex snapshot diff (< br  > br2)
+IDENTICAL

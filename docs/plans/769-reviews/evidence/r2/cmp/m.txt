@@ -1,0 +1,231 @@
+######## m 1-install screen [main]
+$ agent-harness[v161] install --track tooling --cli claude --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## m 1-install screen [br2]
+$ agent-harness[v161] install --track tooling --cli claude --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## m 1-install snapshot diff (< main  > br2)
+IDENTICAL
+######## m 2-moved-linked screen [main]
+######## m 2-moved-linked screen [br2]
+######## m 2-moved-linked snapshot diff (< main  > br2)
+IDENTICAL
+######## m 3-update screen [main]
+$ agent-harness[main] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  ✓ .claude/rules                            2 files updated
+  ✓ .claude/agents                           2 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           5 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    1 files updated
+  ✓ .uzys-agent-harness/spec-drift-check.sh  1 files updated
+  ✓ .uzys-agent-harness/check-absence.sh     1 files updated
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ⊘ .claude/skills/north-star                linked · not ours — .agents/skills/north-star 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+  ⊘ .claude/skills/objective-brief           linked · not ours — .agents/skills/objective-brief 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+  ✓ external skills                          1 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## m 3-update screen [br2]
+$ agent-harness[br2] update
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  ✓ .claude/rules                            2 files updated
+  ✓ .claude/agents                           2 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           5 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    1 files updated
+  ✓ .uzys-agent-harness/spec-drift-check.sh  1 files updated
+  ✓ .uzys-agent-harness/check-absence.sh     1 files updated
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ⊘ .claude/skills/north-star                linked · not ours — .agents/skills/north-star 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+  ⊘ .claude/skills/objective-brief           linked · not ours — .agents/skills/objective-brief 는 이 하네스가 쓴 기록이 없어 건드리지 않았다
+  ✓ external skills                          1 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+
+rc=0
+######## m 3-update snapshot diff (< main  > br2)
+IDENTICAL
+######## m 4-dry-all screen [main]
+$ agent-harness[main] uninstall --dry-run
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  (no project-scope assets to reverse)
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ (delete by hand if the harness installed it)
+  ○ remove 48 harness file(s) under .claude/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ remove the harness part from .claude/settings.json: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ leave .claude/ — 5 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md +2 more
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+rc=0
+######## m 4-dry-all screen [br2]
+$ agent-harness[br2] uninstall --dry-run
+
+[DRY RUN] reverse list (실제 변경 없음):
+
+  (no project-scope assets to reverse)
+  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ (delete by hand if the harness installed it)
+  ○ remove 48 harness file(s) under .claude/
+  ○ remove 3 harness file(s) under .uzys-agent-harness/
+  ○ remove 3 harness file(s) under .agents/
+  ○ strip harness @import from CLAUDE.md (본문 보존)
+  ○ remove CLAUDE-uzys-harness.md
+  ○ remove the harness part from .claude/settings.json: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ○ remove .mcp.json (the harness created it and only its part is in it)
+  ○ leave .claude/ — 5 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md +2 more
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+rc=0
+######## m 4-dry-all snapshot diff (< main  > br2)
+IDENTICAL
+######## m 5-uninstall-all screen [main]
+$ agent-harness[main] uninstall --yes
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 48 harness file(s) · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 5 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md +2 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## m 5-uninstall-all screen [br2]
+$ agent-harness[br2] uninstall --yes
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 48 harness file(s) · .uzys-agent-harness/ 3 · .agents/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 5 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/frontend-design/LICENSE.txt · skills/frontend-design/SKILL.md +2 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## m 5-uninstall-all snapshot diff (< main  > br2)
+4d3
+< F ./.agents/skills/north-star/NORTH_STAR.template.md 741efd7d4c477f95
+6,9d4
+< D ./.agents/skills/north-star/references
+< F ./.agents/skills/north-star/references/roadmap-method.md 32e812eac7356e15
+< D ./.agents/skills/objective-brief
+< F ./.agents/skills/objective-brief/SKILL.md 531c8f0f09492e4a
+17c12
+< L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [resolves]
+---
+> L ./.claude/skills/objective-brief -> ../../.agents/skills/objective-brief [BROKEN]

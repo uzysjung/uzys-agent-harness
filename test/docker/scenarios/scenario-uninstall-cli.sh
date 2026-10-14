@@ -14,6 +14,8 @@
 #   ④ claude 쪽(`.claude/` · 루트 `CLAUDE.md` 의 import)은 하나도 안 건드린다
 #   ⑤ 설치 로그의 `clis` 에 claude 만 남는다
 #   ⑥ 대조군 — 남은 claude 를 `--cli` 로 빼는 것은 거절된다(전량은 `uninstall`)
+#   ⑦ #769 — 설치자가 `.claude/skills/<id>` 를 `.agents/skills/<id>` 링크로 바꾼 스킬은(#524) 본문이 남아
+#      Claude 쪽 링크가 해석되고, 화면이 그 사실을 한 줄로 말한다. 링크 없는 ② 의 스킬은 그대로 회수된다
 
 set -euo pipefail
 
@@ -76,6 +78,21 @@ if grep -qF 'foreign-probe' "${PROJ}/.uzys-agent-harness/.harness-install.json";
 fi
 echo "✓ 남의 스킬 심음 (.agents/skills/foreign-probe — 로그에 없음 확인)"
 
+# --- ⑦ 준비 — 스킬 하나를 본문 한 벌 운용으로 바꾼다(#524: Claude 자리는 `.agents/skills/` 로의 링크) ---
+LINKED_SKILL=user-centered-explanation
+LINKED_SLOT="${PROJ}/.claude/skills/${LINKED_SKILL}"
+if [[ ! -d "${LINKED_SLOT}" || ! -f "${PROJ}/.agents/skills/${LINKED_SKILL}/SKILL.md" ]]; then
+  echo "FAIL: ${LINKED_SKILL} 가 양쪽에 깔리지 않았다 — 링크 장면의 전제가 없다"
+  exit 1
+fi
+rm -rf "${LINKED_SLOT}"
+ln -s "../../.agents/skills/${LINKED_SKILL}" "${LINKED_SLOT}"
+if [[ ! -f "${LINKED_SLOT}/SKILL.md" ]]; then
+  echo "FAIL: 링크가 본문을 가리키지 않는다 — 대조군 없이 아래 판정을 신뢰할 수 없다"
+  exit 1
+fi
+echo "✓ .claude/skills/${LINKED_SKILL} → .agents/skills/${LINKED_SKILL} 링크 (해석 확인)"
+
 # --- uninstall --cli codex ---
 set +e
 agent-harness uninstall --cli codex >/tmp/uninstall-cli-out.txt 2>&1
@@ -106,6 +123,18 @@ if [[ ! -f "${FOREIGN}/SKILL.md" ]]; then
   exit 1
 fi
 echo "✓ .codex/ · .agents/skills/${HARNESS_SKILL} 회수 · .claude/ 사본 · 남의 스킬 보존"
+
+# --- ⑦ 링크가 가리키는 본문은 남는 Claude 의 몫 ---
+if [[ ! -f "${PROJ}/.agents/skills/${LINKED_SKILL}/SKILL.md" || ! -f "${LINKED_SLOT}/SKILL.md" ]]; then
+  echo "FAIL: Claude 링크가 가리키는 .agents/skills/${LINKED_SKILL} 본문이 회수됐다 — Claude 스킬이 깨진다 (#769)"
+  exit 1
+fi
+if [[ "$(grep -c "\.agents/skills/${LINKED_SKILL}.*Claude Code" /tmp/uninstall-cli-out.txt)" != "1" ]]; then
+  echo "FAIL: 남긴 본문을 말하는 줄이 정확히 한 줄이 아니다"
+  cat /tmp/uninstall-cli-out.txt
+  exit 1
+fi
+echo "✓ .agents/skills/${LINKED_SKILL} 본문 보존 · Claude 링크 해석 · 화면 한 줄"
 
 # --- ③ AGENTS.md 는 남고 설치자 문단 보존, 하네스 절은 제거 ---
 if [[ ! -f "${AGENTS}" ]]; then

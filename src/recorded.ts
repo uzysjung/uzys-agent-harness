@@ -32,6 +32,7 @@ import { classifyBaselineTarget } from "./baseline-targets.js";
 import { CLI_OWNERSHIP } from "./cli-ownership.js";
 import { resolveBundleRoot } from "./context-cost.js";
 import { INTERNAL_BUNDLED_SKILL_IDS } from "./external-assets.js";
+import { linksToProjectSharedSkill } from "./foreign-slot.js";
 import { listFilesRecursive } from "./fs-ops.js";
 import { type InstallLog, installedClis, POLICY_DIRS } from "./install-log.js";
 import type { FileKind, Recorded } from "./judge.js";
@@ -65,6 +66,17 @@ export function ownersOf(path: string): CliBase[] {
       (o) => o.path === path || (o.path.endsWith("/") && path.startsWith(o.path)),
     ),
   );
+}
+
+/**
+ * #769 — 이 자리를 **실제로 쓰는** CLI = 소유 표(`ownersOf`) + 설치자가 `.claude/skills/<id>` 를 링크로 둔(#524) `.agents/skills/<id>`
+ * 본문이면 claude. 표는 접두만 보므로 링크로 생긴 사용은 디스크를 봐야 보인다 — `--cli` 회수 범위 · 옛 판 지문 회수가 이 함수 하나를 쓴다.
+ */
+export function usersOf(path: string, projectDir: string): CliBase[] {
+  const owners = ownersOf(path);
+  const id = /^\.agents\/skills\/([^/]+)\//.exec(path)?.[1];
+  const linked = id !== undefined && linksToProjectSharedSkill(projectDir, id);
+  return linked && !owners.includes("claude") ? [...owners, "claude"] : owners;
 }
 
 /** `.agents/skills/<rel>` 은 현행 설치가 `.claude/skills/<rel>` 과 같은 번들로 채운다 — 번들 · 트랙 · 제외 판정은 그 이름으로. */

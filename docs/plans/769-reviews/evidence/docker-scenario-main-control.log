@@ -1,0 +1,12 @@
+agent-harness/26.173.0 linux-arm64 node-v20.20.2
+▸ scenario-uninstall-cli: uninstall --cli 가 그 CLI 것만 회수하는가 (#528)
+
+✓ install 완료 (cli=claude,codex)
+✓ 전제 확인 — AGENTS.md · .codex/ · .agents/skills/audit-harness-fit · .claude/ 사본 존재
+✓ Project Context 에 문단 추가 (대조군 확인)
+✓ update 뒤에도 문단 보존 (전제)
+✓ 남의 스킬 심음 (.agents/skills/foreign-probe — 로그에 없음 확인)
+✓ .claude/skills/user-centered-explanation → .agents/skills/user-centered-explanation 링크 (해석 확인)
+✓ uninstall --cli codex exit 0
+✓ .codex/ · .agents/skills/audit-harness-fit 회수 · .claude/ 사본 · 남의 스킬 보존
+FAIL: Claude 링크가 가리키는 .agents/skills/user-centered-explanation 본문이 회수됐다 — Claude 스킬이 깨진다 (#769)

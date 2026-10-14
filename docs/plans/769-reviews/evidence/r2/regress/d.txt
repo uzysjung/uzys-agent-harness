@@ -1,0 +1,180 @@
+######## d 1-install screen [br]
+$ agent-harness[br] install --track tooling --cli claude --cli codex --cli opencode --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex + OpenCode artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7
+  ✓ .agents/skills/                          14 bundled skills (codex·antigravity 와 같은 자리)
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex · OpenCode
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## d 1-install screen [br2]
+$ agent-harness[br2] install --track tooling --cli claude --cli codex --cli opencode --scope project
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex + OpenCode artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7
+  ✓ .agents/skills/                          14 bundled skills (codex·antigravity 와 같은 자리)
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex · OpenCode
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## d 1-install snapshot diff (< br  > br2)
+IDENTICAL
+######## d 2-linked screen [br]
+######## d 2-linked screen [br2]
+######## d 2-linked snapshot diff (< br  > br2)
+IDENTICAL
+######## d 3-dry screen [br]
+$ agent-harness[br] uninstall --cli codex --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ would re-render AGENTS.md for OpenCode (your sections kept)
+  ○ install log updated (clis: claude, opencode)
+
+rc=0
+######## d 3-dry screen [br2]
+$ agent-harness[br2] uninstall --cli codex --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .codex/
+  ○ remove .codex/config.toml (the harness created it and only its part is in it)
+  ○ would re-render AGENTS.md for OpenCode (your sections kept)
+  ○ install log updated (clis: claude, opencode)
+
+rc=0
+######## d 3-dry snapshot diff (< br  > br2)
+IDENTICAL
+######## d 4-cli-codex screen [br]
+$ agent-harness[br] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ AGENTS.md — re-rendered for OpenCode (your sections kept)
+  ✓ install log updated (clis: claude, opencode)
+
+✓ codex removed (remaining: claude, opencode)
+rc=0
+######## d 4-cli-codex screen [br2]
+$ agent-harness[br2] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ AGENTS.md — re-rendered for OpenCode (your sections kept)
+  ✓ install log updated (clis: claude, opencode)
+
+✓ codex removed (remaining: claude, opencode)
+rc=0
+######## d 4-cli-codex snapshot diff (< br  > br2)
+IDENTICAL
+######## d 5-dry-oc screen [br]
+$ agent-harness[br] uninstall --cli opencode --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 40 harness file(s) under .agents/
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove opencode.json (the harness created it and only its part is in it)
+  ○ leave .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ○ install log updated (clis: claude)
+
+rc=0
+######## d 5-dry-oc screen [br2]
+$ agent-harness[br2] uninstall --cli opencode --dry-run
+
+[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 40 harness file(s) under .agents/
+  ○ remove AGENTS.md (the harness created it and only its part is in it)
+  ○ remove opencode.json (the harness created it and only its part is in it)
+  ○ leave .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ○ install log updated (clis: claude)
+
+rc=0
+######## d 5-dry-oc snapshot diff (< br  > br2)
+IDENTICAL
+######## d 6-cli-opencode screen [br]
+$ agent-harness[br] uninstall --cli opencode
+
+  ✓ removed  .agents/ 40 harness file(s)
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ opencode.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ opencode removed (remaining: claude)
+rc=0
+######## d 6-cli-opencode screen [br2]
+$ agent-harness[br2] uninstall --cli opencode
+
+  ✓ removed  .agents/ 40 harness file(s)
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ opencode.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/user-centered-explanation — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ opencode removed (remaining: claude)
+rc=0
+######## d 6-cli-opencode snapshot diff (< br  > br2)
+IDENTICAL

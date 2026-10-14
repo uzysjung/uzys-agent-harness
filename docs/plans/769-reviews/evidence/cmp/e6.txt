@@ -1,0 +1,572 @@
+######## e6 1-install screen [main]
+$ agent-harness[v125] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       12 selected
+              · understanding: agent-browser
+              · workflow: asis-tobe-decision, compaction-handoff, northstar-roadmap, recurrence-prevention
+              · dev-tools: find-skills, gap-analysis-e2e, harness-health-audit, karpathy-coder, multi-persona-review, ultracode-service-audit
+              · frontend: frontend-design
+              · session-start context cost: ~6075 tokens/session (rules ~3972 · CLAUDE.md ~938 · skills ~550 · agents ~615 · 4 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (10)                   coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (8)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (5)                    session-start · spec-drift · checkpoint · mcp-pre-exec (security)
+  ✓ commands (1)                 /ecc:* (ECC plugin OFF fallback)
+  ✓ skills (16)                  north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+  ✓ .mcp-allowlist               3 servers (D35 opt-in gate)
+
+  · ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (4) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          plugin · frontend-design@claude-plugins-official
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+    ✓ karpathy-coder                           plugin · karpathy-coder@claude-code-skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from .claude/CLAUDE.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             8 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ OPT-IN       1 experimental available — add with --with <id>: playwright-skill
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+
+rc=0
+######## e6 1-install screen [br]
+$ agent-harness[v125] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       12 selected
+              · understanding: agent-browser
+              · workflow: asis-tobe-decision, compaction-handoff, northstar-roadmap, recurrence-prevention
+              · dev-tools: find-skills, gap-analysis-e2e, harness-health-audit, karpathy-coder, multi-persona-review, ultracode-service-audit
+              · frontend: frontend-design
+              · session-start context cost: ~6075 tokens/session (rules ~3972 · CLAUDE.md ~938 · skills ~550 · agents ~615 · 4 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (10)                   coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (8)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (5)                    session-start · spec-drift · checkpoint · mcp-pre-exec (security)
+  ✓ commands (1)                 /ecc:* (ECC plugin OFF fallback)
+  ✓ skills (16)                  north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+  ✓ .mcp-allowlist               3 servers (D35 opt-in gate)
+
+  · ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (4) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          plugin · frontend-design@claude-plugins-official
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+    ✓ karpathy-coder                           plugin · karpathy-coder@claude-code-skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from .claude/CLAUDE.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             8 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ OPT-IN       1 experimental available — add with --with <id>: playwright-skill
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+
+rc=0
+######## e6 1-install snapshot diff (< main  > br)
+IDENTICAL
+######## e6 2-update screen [main]
+$ agent-harness[main] update
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/rules                            6 files updated
+  ✓ .claude/agents                           1 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           14 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    added by this release
+  ✓ .uzys-agent-harness/spec-drift-check.sh  added by this release
+  ✓ .uzys-agent-harness/check-absence.sh     added by this release
+  ✓ .claude/agents/implementer.md            added by this release
+  ✓ .claude/skills/audit-harness-fit         added by this release
+  ✓ .claude/skills/audit-service-gaps        added by this release
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .claude/skills/objective-brief           added by this release
+  ✓ .claude/skills/self-hosted-github-runner added by this release
+  ✓ .claude/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/audit-service-gaps        added by this release
+  ✓ .agents/skills/north-star                added by this release
+  ✓ .agents/skills/gh-issue-workflow         added by this release
+  ✓ .agents/skills/objective-brief           added by this release
+  ✓ .agents/skills/audit-harness-fit         added by this release
+  ✓ .agents/skills/model-orchestration       added by this release
+  ✓ .agents/skills/external-model-consult    added by this release
+  ✓ .agents/skills/self-hosted-github-runner added by this release
+  ✓ .agents/skills/natural-korean            added by this release
+  ✓ .agents/skills/multi-model-debate        added by this release
+  ✓ .claude/settings.json        removed the harness part · kept yours: statusLine
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ⊘ .codex/config.toml                       left — written by an earlier harness version and changed since — left as is; harness part not added · its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run
+  ⚠ .codex/config.toml                       [features] codex_hooks · child_agents_md make Codex warn at every start ("deprecated" / "ignoring unrecognized configuration") — delete those lines; if they sit inside the harness region, delete the whole region and run update
+  ✓ backed up  .claude/rules/code-style.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/error-handling.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/gates-taxonomy.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/no-false-ship.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/build-error-resolver.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/code-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/plan-checker.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/security-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/silent-failure-hunter.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/checkpoint-snapshot.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/mcp-pre-exec.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/spec-drift-check.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .codex/hooks/session-start.sh — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/compaction-handoff/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/multi-persona-review/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/recurrence-prevention/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  AGENTS.md — no checksum on record — saved a copy once
+  ✓ CLAUDE-uzys-harness.md                   created from template (anchor migration)
+  ✓ CLAUDE.md                                @CLAUDE-uzys-harness.md import added
+  ⊘ .claude/CLAUDE.md                        legacy anchor · no longer updated — content now in CLAUDE-uzys-harness.md; delete it when you no longer need it
+  ⊘ .mcp-allowlist                           retired · the hook that read it is gone — backed up as /w/p/.mcp-allowlist.backup-20261014T215123
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ✓ external CLI artifacts                   43 files updated
+  ✓ AGENTS.md                                removed 22 section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 27 items resident · ~6980 tokens/session (directives 9 ~4977 · [rules 6 ~1597 · CLAUDE.md 3 ~3380] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+  ▸ BACKUPS      18 file(s) saved before replacing (13 before removing), as *.backup-<time> — 5 replaced had no checksum on record (marked noChecksum in the list), so those may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         nothing to carry over unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘"
+
+rc=0
+######## e6 2-update screen [br]
+$ agent-harness[br] update
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ .claude/rules                            6 files updated
+  ✓ .claude/agents                           1 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           14 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    added by this release
+  ✓ .uzys-agent-harness/spec-drift-check.sh  added by this release
+  ✓ .uzys-agent-harness/check-absence.sh     added by this release
+  ✓ .claude/agents/implementer.md            added by this release
+  ✓ .claude/skills/audit-harness-fit         added by this release
+  ✓ .claude/skills/audit-service-gaps        added by this release
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .claude/skills/objective-brief           added by this release
+  ✓ .claude/skills/self-hosted-github-runner added by this release
+  ✓ .claude/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/audit-service-gaps        added by this release
+  ✓ .agents/skills/north-star                added by this release
+  ✓ .agents/skills/gh-issue-workflow         added by this release
+  ✓ .agents/skills/objective-brief           added by this release
+  ✓ .agents/skills/audit-harness-fit         added by this release
+  ✓ .agents/skills/model-orchestration       added by this release
+  ✓ .agents/skills/external-model-consult    added by this release
+  ✓ .agents/skills/self-hosted-github-runner added by this release
+  ✓ .agents/skills/natural-korean            added by this release
+  ✓ .agents/skills/multi-model-debate        added by this release
+  ✓ .claude/settings.json        removed the harness part · kept yours: statusLine
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ⊘ .codex/config.toml                       left — written by an earlier harness version and changed since — left as is; harness part not added · its [[hooks.session_start]] is the old format — current Codex ignores it, so the session-start hook does not run
+  ⚠ .codex/config.toml                       [features] codex_hooks · child_agents_md make Codex warn at every start ("deprecated" / "ignoring unrecognized configuration") — delete those lines; if they sit inside the harness region, delete the whole region and run update
+  ✓ backed up  .claude/rules/code-style.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/error-handling.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/gates-taxonomy.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/rules/no-false-ship.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/build-error-resolver.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/code-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/plan-checker.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/security-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/silent-failure-hunter.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/checkpoint-snapshot.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/mcp-pre-exec.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/spec-drift-check.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .codex/hooks/session-start.sh — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/compaction-handoff/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/multi-persona-review/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  .agents/skills/recurrence-prevention/SKILL.md — no checksum on record — saved a copy once
+  ✓ backed up  AGENTS.md — no checksum on record — saved a copy once
+  ✓ CLAUDE-uzys-harness.md                   created from template (anchor migration)
+  ✓ CLAUDE.md                                @CLAUDE-uzys-harness.md import added
+  ⊘ .claude/CLAUDE.md                        legacy anchor · no longer updated — content now in CLAUDE-uzys-harness.md; delete it when you no longer need it
+  ⊘ .mcp-allowlist                           retired · the hook that read it is gone — backed up as /w/p/.mcp-allowlist.backup-20261014T215123
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ✓ external CLI artifacts                   43 files updated
+  ✓ AGENTS.md                                removed 22 section(s) written by an older harness version (saved a copy as AGENTS.md.backup-<time>)
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 27 items resident · ~6980 tokens/session (directives 9 ~4977 · [rules 6 ~1597 · CLAUDE.md 3 ~3380] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+  ▸ BACKUPS      18 file(s) saved before replacing (13 before removing), as *.backup-<time> — 5 replaced had no checksum on record (marked noChecksum in the list), so those may not be your edits · list: .uzys-agent-harness/update-backups.json
+  ▸ NEXT         nothing to carry over unless you remember editing one of them — then ask audit-harness-fit: "update 백업본의 내 편집을 내 파일로 옮겨줘"
+
+rc=0
+######## e6 2-update snapshot diff (< main  > br)
+IDENTICAL
+######## e6 3-cli-codex screen [main]
+$ agent-harness[main] uninstall --cli codex
+
+  ✓ removed  .agents/ 46 harness file(s) · .codex/ 1
+  ✓ backed up  .agents/skills/asis-tobe-decision/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/gap-analysis-e2e/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/harness-health-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/harness-health-audit/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/northstar-roadmap/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/northstar-roadmap/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/ultracode-service-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123)
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ⊘ left  .codex/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e6 3-cli-codex screen [br]
+$ agent-harness[br] uninstall --cli codex
+
+  ✓ removed  .agents/ 45 harness file(s) · .codex/ 1
+  ✓ backed up  .agents/skills/asis-tobe-decision/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/gap-analysis-e2e/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/harness-health-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/harness-health-audit/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/northstar-roadmap/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/northstar-roadmap/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .agents/skills/ultracode-service-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.agents/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123)
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ⊘ left  .codex/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml
+  ⊘ left  .agents/skills/compaction-handoff — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e6 3-cli-codex snapshot diff (< main  > br)
+5a6
+> F ./.agents/skills/compaction-handoff/SKILL.md fe70142b0bbf21b5
+######## e6 4-uninstall-all screen [main]
+$ agent-harness[main] uninstall --yes
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 90 harness file(s) · .uzys-agent-harness/ 3
+  ✓ backed up  .claude/CLAUDE.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/CLAUDE.md.backup-20261014T215124)
+  ✓ backed up  .claude/agents/data-analyst.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/agents/data-analyst.md.backup-20261014T215124)
+  ✓ backed up  .claude/agents/strategist.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/agents/strategist.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/checkpoint.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/checkpoint.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/e2e.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/e2e.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/eval.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/eval.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/evolve.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/evolve.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/harness-audit.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/harness-audit.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/instinct-status.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/instinct-status.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/promote.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/promote.md.backup-20261014T215124)
+  ✓ backed up  .claude/commands/ecc/security-scan.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/security-scan.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/agent-introspection-debugging/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/agent-introspection-debugging/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/asis-tobe-decision/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/asis-tobe-decision/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/observer-loop.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/observer-loop.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/observer.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/observer.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/session-guardian.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/session-guardian.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/start-observer.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/start-observer.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/config.json — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/config.json.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/hooks/observe.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/hooks/observe.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/detect-project.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/detect-project.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/instinct-cli.py — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/instinct-cli.py.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py.backup-20261014T215124)
+  ✓ backed up  .claude/skills/deep-research/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/deep-research/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/deep-research/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/deep-research/agents/openai.yaml.backup-20261014T215124)
+  ✓ backed up  .claude/skills/eval-harness/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/eval-harness/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/eval-harness/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/eval-harness/agents/openai.yaml.backup-20261014T215124)
+  ✓ backed up  .claude/skills/gap-analysis-e2e/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/harness-health-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/harness-health-audit/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/harness-health-audit/scripts/observation-digest.mjs — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/harness-health-audit/scripts/observation-digest.mjs.backup-20261014T215124)
+  ✓ backed up  .claude/skills/northstar-roadmap/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/northstar-roadmap/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/spec-scaling/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/spec-scaling/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/strategic-compact/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/strategic-compact/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/strategic-compact/suggest-compact.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/strategic-compact/suggest-compact.sh.backup-20261014T215124)
+  ✓ backed up  .claude/skills/ultracode-service-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/ultracode-service-audit/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/verification-loop/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/verification-loop/SKILL.md.backup-20261014T215124)
+  ✓ backed up  .claude/skills/verification-loop/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/verification-loop/agents/openai.yaml.backup-20261014T215124)
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 3 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/compaction-handoff (your link → ../../.agents/skills/compaction-handoff) · skills/find-skills (your link → ../../.agents/skills/find-skills)
+  ⊘ left  .codex/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 62건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .agents/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123
+  .agents/skills/compaction-handoff/SKILL.md.backup-20261014T215123
+  .agents/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123
+  .agents/skills/harness-health-audit/SKILL.md.backup-20261014T215123
+  .agents/skills/multi-persona-review/SKILL.md.backup-20261014T215123
+  .agents/skills/northstar-roadmap/SKILL.md.backup-20261014T215123
+  .agents/skills/recurrence-prevention/SKILL.md.backup-20261014T215123
+  .agents/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123
+  .claude/CLAUDE.md.backup-20261014T215124
+  .claude/agents/build-error-resolver.md.backup-20261014T215123
+  .claude/agents/code-reviewer.md.backup-20261014T215123
+  .claude/agents/data-analyst.md.backup-20261014T215124
+  .claude/agents/plan-checker.md.backup-20261014T215123
+  .claude/agents/security-reviewer.md.backup-20261014T215123
+  .claude/agents/silent-failure-hunter.md.backup-20261014T215123
+  .claude/agents/strategist.md.backup-20261014T215124
+  .claude/commands/ecc/checkpoint.md.backup-20261014T215124
+  .claude/commands/ecc/e2e.md.backup-20261014T215124
+  .claude/commands/ecc/eval.md.backup-20261014T215124
+  .claude/commands/ecc/evolve.md.backup-20261014T215124
+  .claude/commands/ecc/harness-audit.md.backup-20261014T215124
+  .claude/commands/ecc/instinct-status.md.backup-20261014T215124
+  .claude/commands/ecc/promote.md.backup-20261014T215124
+  .claude/commands/ecc/security-scan.md.backup-20261014T215124
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261014T215123
+  .claude/hooks/mcp-pre-exec.sh.backup-20261014T215123
+  .claude/hooks/spec-drift-check.sh.backup-20261014T215123
+  .claude/rules/code-style.md.backup-20261014T215123
+  .claude/rules/error-handling.md.backup-20261014T215123
+  .claude/rules/gates-taxonomy.md.backup-20261014T215123
+  .claude/rules/no-false-ship.md.backup-20261014T215123
+  .claude/skills/agent-introspection-debugging/SKILL.md.backup-20261014T215124
+  .claude/skills/asis-tobe-decision/SKILL.md.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/SKILL.md.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/agents/observer-loop.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/agents/observer.md.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/agents/session-guardian.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/agents/start-observer.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/config.json.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/hooks/observe.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/scripts/detect-project.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/scripts/instinct-cli.py.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh.backup-20261014T215124
+  .claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py.backup-20261014T215124
+  .claude/skills/deep-research/SKILL.md.backup-20261014T215124
+  .claude/skills/deep-research/agents/openai.yaml.backup-20261014T215124
+  .claude/skills/eval-harness/SKILL.md.backup-20261014T215124
+  .claude/skills/eval-harness/agents/openai.yaml.backup-20261014T215124
+  .claude/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215124
+  .claude/skills/harness-health-audit/SKILL.md.backup-20261014T215124
+  .claude/skills/harness-health-audit/scripts/observation-digest.mjs.backup-20261014T215124
+  .claude/skills/northstar-roadmap/SKILL.md.backup-20261014T215124
+  .claude/skills/spec-scaling/SKILL.md.backup-20261014T215124
+  .claude/skills/strategic-compact/SKILL.md.backup-20261014T215124
+  .claude/skills/strategic-compact/suggest-compact.sh.backup-20261014T215124
+  .claude/skills/ultracode-service-audit/SKILL.md.backup-20261014T215124
+  .claude/skills/verification-loop/SKILL.md.backup-20261014T215124
+  .claude/skills/verification-loop/agents/openai.yaml.backup-20261014T215124
+  .codex/hooks/session-start.sh.backup-20261014T215123
+  .mcp-allowlist.backup-20261014T215123
+  AGENTS.md.backup-20261014T215123
+
+✓ uninstall complete (3 asset(s))
+rc=0
+######## e6 4-uninstall-all screen [br]
+$ agent-harness[br] uninstall --yes
+
+  ✓ claude plugin uninstall --scope project frontend-design@claude-plugins-official
+  ✓ claude plugin uninstall --scope project karpathy-coder@claude-code-skills
+  ✓ npm uninstall --save-dev agent-browser
+  ⊘ find-skills (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/find-skills/ · .agents/skills/find-skills/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 90 harness file(s) · .agents/ 1 · .uzys-agent-harness/ 3
+  ✓ backed up  .claude/CLAUDE.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/CLAUDE.md.backup-20261014T215123)
+  ✓ backed up  .claude/agents/data-analyst.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/agents/data-analyst.md.backup-20261014T215123)
+  ✓ backed up  .claude/agents/strategist.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/agents/strategist.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/checkpoint.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/checkpoint.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/e2e.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/e2e.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/eval.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/eval.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/evolve.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/evolve.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/harness-audit.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/harness-audit.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/instinct-status.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/instinct-status.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/promote.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/promote.md.backup-20261014T215123)
+  ✓ backed up  .claude/commands/ecc/security-scan.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/commands/ecc/security-scan.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/agent-introspection-debugging/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/agent-introspection-debugging/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/asis-tobe-decision/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/observer-loop.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/observer-loop.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/observer.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/observer.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/session-guardian.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/session-guardian.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/agents/start-observer.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/agents/start-observer.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/config.json — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/config.json.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/hooks/observe.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/hooks/observe.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/detect-project.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/detect-project.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/instinct-cli.py — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/instinct-cli.py.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py.backup-20261014T215123)
+  ✓ backed up  .claude/skills/deep-research/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/deep-research/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/deep-research/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/deep-research/agents/openai.yaml.backup-20261014T215123)
+  ✓ backed up  .claude/skills/eval-harness/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/eval-harness/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/eval-harness/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/eval-harness/agents/openai.yaml.backup-20261014T215123)
+  ✓ backed up  .claude/skills/gap-analysis-e2e/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/harness-health-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/harness-health-audit/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/harness-health-audit/scripts/observation-digest.mjs — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/harness-health-audit/scripts/observation-digest.mjs.backup-20261014T215123)
+  ✓ backed up  .claude/skills/northstar-roadmap/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/northstar-roadmap/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/spec-scaling/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/spec-scaling/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/strategic-compact/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/strategic-compact/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/strategic-compact/suggest-compact.sh — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/strategic-compact/suggest-compact.sh.backup-20261014T215123)
+  ✓ backed up  .claude/skills/ultracode-service-audit/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/verification-loop/SKILL.md — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/verification-loop/SKILL.md.backup-20261014T215123)
+  ✓ backed up  .claude/skills/verification-loop/agents/openai.yaml — older harness version (byte-identical, not in the current bundle) — saved a copy, removed from live (.claude/skills/verification-loop/agents/openai.yaml.backup-20261014T215123)
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed retired harness hook wiring: skills/strategic-compact/suggest-compact.sh
+  ✓ .claude/settings.json — removed the harness part: hooks.PreToolUse#protect-files.sh · hooks.SessionStart#session-start.sh (yours stays)
+  ✓ .mcp.json — removed (the harness created it and only its part was in it)
+  ⊘ left  .claude/ — 3 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/compaction-handoff (your link → ../../.agents/skills/compaction-handoff) · skills/find-skills (your link → ../../.agents/skills/find-skills)
+  ⊘ left  .codex/ — 1 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: config.toml
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+[BACKUPS] 하네스가 남긴 백업 62건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):
+  .agents/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123
+  .agents/skills/compaction-handoff/SKILL.md.backup-20261014T215123
+  .agents/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123
+  .agents/skills/harness-health-audit/SKILL.md.backup-20261014T215123
+  .agents/skills/multi-persona-review/SKILL.md.backup-20261014T215123
+  .agents/skills/northstar-roadmap/SKILL.md.backup-20261014T215123
+  .agents/skills/recurrence-prevention/SKILL.md.backup-20261014T215123
+  .agents/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123
+  .claude/CLAUDE.md.backup-20261014T215123
+  .claude/agents/build-error-resolver.md.backup-20261014T215123
+  .claude/agents/code-reviewer.md.backup-20261014T215123
+  .claude/agents/data-analyst.md.backup-20261014T215123
+  .claude/agents/plan-checker.md.backup-20261014T215123
+  .claude/agents/security-reviewer.md.backup-20261014T215123
+  .claude/agents/silent-failure-hunter.md.backup-20261014T215123
+  .claude/agents/strategist.md.backup-20261014T215123
+  .claude/commands/ecc/checkpoint.md.backup-20261014T215123
+  .claude/commands/ecc/e2e.md.backup-20261014T215123
+  .claude/commands/ecc/eval.md.backup-20261014T215123
+  .claude/commands/ecc/evolve.md.backup-20261014T215123
+  .claude/commands/ecc/harness-audit.md.backup-20261014T215123
+  .claude/commands/ecc/instinct-status.md.backup-20261014T215123
+  .claude/commands/ecc/promote.md.backup-20261014T215123
+  .claude/commands/ecc/security-scan.md.backup-20261014T215123
+  .claude/hooks/checkpoint-snapshot.sh.backup-20261014T215123
+  .claude/hooks/mcp-pre-exec.sh.backup-20261014T215123
+  .claude/hooks/spec-drift-check.sh.backup-20261014T215123
+  .claude/rules/code-style.md.backup-20261014T215123
+  .claude/rules/error-handling.md.backup-20261014T215123
+  .claude/rules/gates-taxonomy.md.backup-20261014T215123
+  .claude/rules/no-false-ship.md.backup-20261014T215123
+  .claude/skills/agent-introspection-debugging/SKILL.md.backup-20261014T215123
+  .claude/skills/asis-tobe-decision/SKILL.md.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/SKILL.md.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/agents/observer-loop.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/agents/observer.md.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/agents/session-guardian.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/agents/start-observer.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/config.json.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/hooks/observe.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/scripts/detect-project.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/scripts/instinct-cli.py.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh.backup-20261014T215123
+  .claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py.backup-20261014T215123
+  .claude/skills/deep-research/SKILL.md.backup-20261014T215123
+  .claude/skills/deep-research/agents/openai.yaml.backup-20261014T215123
+  .claude/skills/eval-harness/SKILL.md.backup-20261014T215123
+  .claude/skills/eval-harness/agents/openai.yaml.backup-20261014T215123
+  .claude/skills/gap-analysis-e2e/SKILL.md.backup-20261014T215123
+  .claude/skills/harness-health-audit/SKILL.md.backup-20261014T215123
+  .claude/skills/harness-health-audit/scripts/observation-digest.mjs.backup-20261014T215123
+  .claude/skills/northstar-roadmap/SKILL.md.backup-20261014T215123
+  .claude/skills/spec-scaling/SKILL.md.backup-20261014T215123
+  .claude/skills/strategic-compact/SKILL.md.backup-20261014T215123
+  .claude/skills/strategic-compact/suggest-compact.sh.backup-20261014T215123
+  .claude/skills/ultracode-service-audit/SKILL.md.backup-20261014T215123
+  .claude/skills/verification-loop/SKILL.md.backup-20261014T215123
+  .claude/skills/verification-loop/agents/openai.yaml.backup-20261014T215123
+  .codex/hooks/session-start.sh.backup-20261014T215123
+  .mcp-allowlist.backup-20261014T215123
+  AGENTS.md.backup-20261014T215123
+
+✓ uninstall complete (3 asset(s))
+rc=0
+######## e6 4-uninstall-all snapshot diff (< main  > br)
+IDENTICAL

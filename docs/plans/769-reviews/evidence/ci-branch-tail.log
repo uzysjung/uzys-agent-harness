@@ -1,0 +1,25 @@
+=============================== Coverage summary ===============================
+Statements   : 95.47% ( 7517/7873 )
+Branches     : 89.63% ( 5494/6129 )
+Functions    : 95.83% ( 1563/1631 )
+Lines        : 96.78% ( 6435/6649 )
+================================================================================
+
+> @uzysjung/agent-harness@26.172.0 build
+> tsup
+
+CLI Building entry: src/index.ts, src/trust-tier-drift.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/uzysjung/Development/Claude-Workspace/uzysClaudeUniversalEnv/.claude/worktrees/agent-a9c1c79c5b344a42c/tsup.config.ts
+CLI Target: node20
+CLI Cleaning output folder
+ESM Build start
+ESM dist/index.js                598.46 KB
+ESM dist/chunk-T2HBTG32.js       105.14 KB
+ESM dist/trust-tier-drift.js     2.46 KB
+ESM dist/trust-tier-drift.js.map 5.58 KB
+ESM dist/chunk-T2HBTG32.js.map   247.18 KB
+ESM dist/index.js.map            1.55 MB
+ESM ⚡️ Build success in 45ms
+CI_EXIT=0

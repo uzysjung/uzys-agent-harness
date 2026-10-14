@@ -1,0 +1,151 @@
+######## e5 1-install screen [main]
+$ agent-harness[v161] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · workflow: audit-harness-fit, compaction-handoff, gh-issue-workflow, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     10 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## e5 1-install screen [br]
+$ agent-harness[v161] install --track tooling --cli claude --cli codex --scope project
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       11 selected
+              · workflow: audit-harness-fit, compaction-handoff, gh-issue-workflow, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design
+              · session-start context cost: 20 items resident · ~5163 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 12 ~1393 · [skills 10 ~1201 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (10)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .mcp.json                    chrome-devtools, context7, github
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     10 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+rc=0
+######## e5 1-install snapshot diff (< main  > br)
+IDENTICAL
+######## e5 2-cli-codex screen [main]
+$ agent-harness[main] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s) · .agents/ 27
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e5 2-cli-codex screen [br]
+$ agent-harness[br] uninstall --cli codex
+
+  ✓ removed  .codex/ 1 harness file(s) · .agents/ 26
+  ✓ AGENTS.md — removed (the harness created it and only its part was in it)
+  ✓ .codex/config.toml — removed (the harness created it and only its part was in it)
+  ⊘ left  .agents/skills/compaction-handoff — still used by Claude Code through its .claude/skills/ link(s)
+  ✓ install log updated (clis: claude)
+
+✓ codex removed (remaining: claude)
+rc=0
+######## e5 2-cli-codex snapshot diff (< main  > br)
+2a3,4
+> D ./.agents/skills/compaction-handoff
+> F ./.agents/skills/compaction-handoff/SKILL.md fe70142b0bbf21b5
+40c42
+< L ./.claude/skills/compaction-handoff -> ../../.agents/skills/compaction-handoff [BROKEN]
+---
+> L ./.claude/skills/compaction-handoff -> ../../.agents/skills/compaction-handoff [resolves]
+######## e5 3-uninstall-all screen [main]
+$ agent-harness[main] uninstall --yes
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 37 harness file(s) · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed harness hook wiring from an older version (script gone): hooks/session-start.sh · hooks/protect-files.sh
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ⊘ left  .claude/ — 4 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/compaction-handoff (your link → ../../.agents/skills/compaction-handoff) · skills/frontend-design/LICENSE.txt +1 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## e5 3-uninstall-all screen [br]
+$ agent-harness[br] uninstall --yes
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ removed  .claude/ 37 harness file(s) · .agents/ 1 · .uzys-agent-harness/ 3
+  ✓ CLAUDE.md — harness @import removed (본문 보존)
+  ✓ CLAUDE-uzys-harness.md removed
+  ✓ .claude/settings.json — removed harness hook wiring from an older version (script gone): hooks/session-start.sh · hooks/protect-files.sh
+  ⊘ left  .mcp.json — may still hold the harness's MCP servers (not on record): context7 · chrome-devtools · github — delete them by hand if they are not yours
+  ⊘ left  .claude/ — 4 file(s) not on the install record — yours, or left by an older harness version; delete by hand any that are not yours: settings.json · skills/compaction-handoff (your link → ../../.agents/skills/compaction-handoff) · skills/frontend-design/LICENSE.txt +1 more
+  ✓ install log removed
+
+[ROOT] `.claude/` 밖에 남는 것 (자동으로 지우지 않는다):
+  · skills-lock.json — written by npx skills (not the harness) — it may still list the skills just removed; the harness does not edit it. Delete it if you no longer use npx skills
+
+✓ uninstall complete (0 asset(s))
+rc=0
+######## e5 3-uninstall-all snapshot diff (< main  > br)
+IDENTICAL

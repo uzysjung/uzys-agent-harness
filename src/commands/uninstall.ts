@@ -116,6 +116,7 @@ import {
   recorded,
   recordedTrackSpots,
   recordedTrackTargets,
+  usersOf,
 } from "../recorded.js";
 import { ruleHeadings } from "../rules-port.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
@@ -914,18 +915,32 @@ interface CliRemovalPlan {
    * 범위만 넘긴다 — 함께 쓰는 파일은 몫만(B1) · 링크 슬롯은 기록만 정리(B4) · 빈 뼈대 걷기(B2) 규칙이 그대로 든다.
    */
   scope: RemovalScope;
+  /** #769 — 표로는 범위 안이지만 남는 CLI 가 쓰고 있어(`usersOf` — 링크 슬롯의 본문) 남기는 하네스 기록 자리(슬롯 단위). */
+  kept: string[];
 }
 
-function planCliRemoval(target: CliBase, remaining: ReadonlyArray<CliBase>): CliRemovalPlan {
+function planCliRemoval(
+  target: CliBase,
+  remaining: ReadonlyArray<CliBase>,
+  log: InstallLog,
+  projectDir: string,
+): CliRemovalPlan {
   const { exclusive, sharedNowUnowned } = removableFor(target, remaining);
   const owned = [...exclusive, ...sharedNowUnowned];
   // 앵커 자리도 범위에 든다 — 그 자리를 하네스가 빌렸으면(`displaced`) 앵커를 지운 뒤 되돌린다
   const prefixes = owned
     .filter((o) => o.kind === "recorded" || o.kind === "anchor")
     .map((o) => o.path);
-  const has = (path: string): boolean => underAny(path, prefixes);
+  // #769 — 남는 CLI 가 실제로 쓰는 자리는 회수하지 않는다(남는 claude 의 링크 슬롯이 가리키는 `.agents/skills/<id>` 본문)
+  const used = (path: string): boolean =>
+    usersOf(path, projectDir).some((cli) => remaining.includes(cli));
+  const has = (path: string): boolean => underAny(path, prefixes) && !used(path);
+  const kept = harnessCandidates(log)
+    .filter((p) => underAny(p, prefixes) && used(p))
+    .map((p) => p.split("/").slice(0, 3).join("/"));
   return {
     target,
+    kept: [...new Set(kept)].sort(),
     scope: {
       has,
       // `.claude/settings.json` 은 claude 의 `.claude/` 아래 · `.codex/config.toml` 은 codex 의 `.codex/` 아래 · `AGENTS.md` ·
@@ -938,6 +953,13 @@ function planCliRemoval(target: CliBase, remaining: ReadonlyArray<CliBase>): Cli
       anchor: owned.some((o) => o.kind === "anchor"),
     },
   };
+}
+
+/** #769 — 남는 CLI 가 쓰고 있어 남긴 하네스 기록 자리를 한 줄로(없으면 말하지 않는다). */
+function keptForRemainingLines(plan: CliRemovalPlan, preview: boolean): string[] {
+  if (plan.kept.length === 0) return [];
+  const what = `${plan.kept.join(" · ")} — still used by Claude Code through its .claude/skills/ link(s)`;
+  return [preview ? `  ○ leave ${what}` : `  ${c.yellow("⊘")} left  ${what}`];
 }
 
 function removeCliHeader(
@@ -970,6 +992,7 @@ function removeCliDryRunLines(
     harnessRoot,
   });
   lines.push(...harnessRemovalLines(preview, installLog, projectDir, plan.scope, true));
+  lines.push(...keptForRemainingLines(plan, true));
   lines.push(...assetsLeftLines(installLog, projectDir, plan.scope));
   const rerender = agentsMdRerenderSet(plan.target, remaining, installLog, projectDir);
   if (rerender !== null) {
@@ -1138,7 +1161,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   const { options, installLog, projectDir, harnessRoot } = ctx;
   const installed = installedClis(installLog);
   const remaining = installed.filter((cli) => cli !== target);
-  const plan = planCliRemoval(target, remaining);
+  const plan = planCliRemoval(target, remaining, installLog, projectDir);
 
   for (const line of removeCliHeader(target, installed, remaining)) io.log(line);
 
@@ -1157,6 +1180,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   for (const line of harnessRemovalLines(done, installLog, projectDir, plan.scope, false)) {
     io.log(line);
   }
+  for (const line of keptForRemainingLines(plan, false)) io.log(line);
   for (const line of assetsLeftLines(installLog, projectDir, plan.scope)) io.log(line);
   // C-3 (#642) — `AGENTS.md` 를 읽는 CLI 가 남으면 그 집합으로 그 자리에서 다시 렌더한다(update 까지 옛 판이 남지 않는다)
   const rerenderSet = agentsMdRerenderSet(target, remaining, installLog, projectDir);
@@ -1909,7 +1933,8 @@ function legacyFileCandidates(): string[] {
  */
 function mayReclaimLegacy(log: InstallLog, projectDir: string, path: string): boolean {
   const clis = installedClis(log);
-  if (!ownersOf(path).some((c) => clis.includes(c))) return false;
+  // #769 — 링크 슬롯의 본문은 claude 도 쓴다(`usersOf`): codex 를 뺀 뒤의 전량 uninstall 도 그 옛 판 사본을 본다
+  if (!usersOf(path, projectDir).some((c) => clis.includes(c))) return false;
   if (isExcludedPath(bundlePath(path), excludedIds(log))) return false;
   return !(log.rootFiles ?? []).some(
     (f) => f.path === path && f.change === "displaced" && !isLegacyDisplaced(log, projectDir, f),
