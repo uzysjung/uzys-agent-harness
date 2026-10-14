@@ -7,6 +7,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.172.0] — 2026-10-14 (검증 범위가 계획·CI 구성 때문에 전량으로 커지지 않는다 · htmx 트랙을 백엔드별 둘로 · 옛 판 update 설치본의 uninstall)
+
+### Changed
+- **보통 변경은 영향 범위만 검증한다 — 저장소 CI 가 전량을 돈다는 이유나 계획에 적었다는 이유로 전량을 고르지 않는다** (#818 · #819, PR #821). 설치 프로젝트 두 곳에서 관측된 문제를 고친다. 한 곳은 하루 13분짜리 전량 테스트를 10회 돌렸고, 다른 곳은 직접 쓴 계획의 "same-head full CI"가 위임·리뷰로 복제됐다. 설치자에게 달라지는 것:
+  - Testing 룰: 범위가 불명확하면 공유하는 것(호출자 · 데이터 · 설정)을 따라 넓힌다(상한 없던 "broaden"을 대신한다). 환경·CI 를 고친 뒤에는 실패한 것과 수정이 영향을 줄 수 있는 것을 다시 돌린다.
+  - Delivery 룰: 계획·위임문에 적었다는 것만으로는 검증을 넓히지 않는다. 머지·게시 경로는 고른 검증과 저장소의 필수 체크에 함께 묶인다.
+  - 앵커 §6: 사용자의 명시적 교정은 즉시 효력이 있다. 활성 계획·위임문을 맞추고, 지속 변경은 프로젝트 소유 정본에 기록한다.
+  - audit-harness-fit: "머지 = CI 전부 초록" 같은 게이트를 단계 정책과의 충돌로 보고한다. 몰래 더하거나 로컬 실행으로 원격 필수 체크를 대신하지 않는다. objective-brief 는 단계 정책을 따르고, 작업 위험·사용자 요청에 따른 검증만 더한다.
+  - **update 뒤 프로젝트 절이 반복해서 지워지던 것**: 화면이 "백업 편집을 새 판에 다시 얹으라"고 안내해, 다시 하네스 파일에 넣으면 다음 update 가 또 밀어냈다(설치 프로젝트에서 6회). 이제 화면은 "백업은 로드되지 않는다 — 편집은 내 파일로 옮긴다"고 안내하고, 감사 스킬은 같은 동작을 주는 프로젝트 소유 자리로 옮긴 뒤 로드·실행을 확인한다.
+  - 상주 비용 base 3,837 → 3,953 tok(+116). 외부 반박 검토 2회(Codex · ChatGPT)를 반영했다.
+
+### Added
+- **htmx 트랙을 백엔드별 둘로** (#820, PR #824). `ssr-htmx` = htmx + FastAPI (Python) + daisyUI(id 유지 — 기존 설치본의 update 가 트랙을 그대로 유지한다). `ssr-htmx-fastify` = htmx + Fastify (Node) + daisyUI(신규). 템플릿을 다룰 때만 읽히는 화면 룰이 스택별로 깔린다. FastAPI(Jinja)는 **ast-grep** 규칙(원색 팔레트 · 임의 값 · 인라인 style)으로, Fastify(서버 JSX)는 `@shadcn/lint` 로 검사한다. 세 린트 경로 모두 Docker 실측에서 일부러 넣은 위반을 잡았다. React 전용 `ui-components` 룰은 htmx 트랙에 더는 깔리지 않는다.
+- **ast-grep 공식 스킬을 선택 항목으로** (#822, PR #825). 위저드 3단계나 `--with ast-grep` 으로 고른다. 어느 트랙에도 미리 체크되지 않는다(설치만으로는 모델이 고르지 않는다는 벤더 문서 근거). ast-grep CLI 는 별도로 설치해야 한다.
+
+### Fixed
+- **옛 판 설치본을 v26.162~v26.170 으로 update 한 뒤 uninstall 하면 하네스 에이전트가 남던 결함** (#807, PR #823). 트랙과 무관하게 에이전트를 전부 깔던 옛 판(예: v26.140 tooling)의 `strategist.md` · `data-analyst.md` 를 그 update 가 "설치자 파일"로 적어, uninstall 이 하네스 판을 못 알아봤다. 이제는 그 update 를 거치지 않은 설치자와 같게 백업 뒤 치운다(실제 npm 판 기준 남는 파일 2 → 0). 설치자가 직접 둔 파일은 `.claude/` · `.agents/` 자리 모두 그대로 남거나 제자리로 돌아온다(옛 판 실설치 적대적 리뷰 2라운드).
+
+### 알려진 한계
+- 옛 `ssr-htmx` 설치본을 update 하면 이미 깔린 `.claude/rules/ui-components.md` 가 남는다(`.tsx`/`.jsx` 에서만 읽혀 FastAPI 템플릿 작업과 충돌하지 않는다).
+- `full` 에 htmx 두 트랙을 함께 고르고 OpenCode 까지 섞으면 지시문 렌더가 Antigravity 상한(24,000 B)을 넘는다.
+- 문제의 update 가 설치자가 고친 에이전트 파일을 덮은 경우는 uninstall 뒤에도 "spot is taken"으로 남는다(원본은 백업에 있고, 화면이 사실대로 말한다).
+
 ## [v26.171.0] — 2026-10-14 (update 도 install 과 같은 길로 쓴다 · 고친 헬퍼와 훅 줄이 지워질 때 백업이 남는다)
 
 ### Changed
