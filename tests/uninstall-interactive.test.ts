@@ -50,6 +50,7 @@ function mkPrompts(over: Partial<UninstallPrompts> = {}): UninstallPrompts {
     cancel: vi.fn(),
     selectMode: vi.fn(async () => "selected" as const),
     selectCli: vi.fn(async () => null),
+    selectTrack: vi.fn(async () => null),
     selectAssets: vi.fn(async () => [] as string[]),
     confirm: vi.fn(async () => true),
     ...over,

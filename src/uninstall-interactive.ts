@@ -12,6 +12,7 @@
  * 본 모듈은 **선택만** 한다 — 판정과 되돌리기는 기존 `uninstallAction` 이 그대로 한다. 세 모드가
  * 각각 기존 엔진 하나에 1:1 로 대응하므로 새로운 파괴적 조합이 생기지 않는다:
  *   CLI 하나   → `--cli <name>` (그 CLI 전용 자리 + 마지막 사용자가 된 공유 자리)
+ *   트랙 하나  → `--track <name>` (그 트랙만 가져오는 룰 · 에이전트 · 스킬 — #543)
  *   선택 제거  → `--only <ids>` (하네스 파일 유지, 로그는 남은 자산으로 재기록)
  *   전량 제거  → 플래그 없음  (하네스 파일은 하나씩 회수 — `.claude/` · `.codex/` · `.opencode/` 의 설치자 파일은 제자리)
  * 화면의 `disabled`(CLI 가 하나 · 자산이 0)는 미리보기일 뿐이다 — 마지막 CLI · 빈 목록 · 없는 id 의
@@ -20,6 +21,7 @@
 
 import { cancel, confirm, intro, isCancel, multiselect, outro, select } from "@clack/prompts";
 import { CLI_OWNERSHIP, type OwnedPath, removableFor } from "./cli-ownership.js";
+import { resolveBundleRoot } from "./context-cost.js";
 import {
   type InstallLog,
   type InstallLogAsset,
@@ -27,8 +29,9 @@ import {
   readInstallLog,
 } from "./install-log.js";
 import { outsideLinkAt } from "./outside-project.js";
-import { CLI_BASE_LABELS } from "./prompts.js";
-import type { CliBase } from "./types.js";
+import { CLI_BASE_LABELS, TRACK_LABELS } from "./prompts.js";
+import { trackLeftLines, trackRemoval, trackRemovalNames } from "./track-removal.js";
+import { type CliBase, isTrack, type Track } from "./types.js";
 
 export interface RemovableRow {
   value: string;
@@ -36,7 +39,7 @@ export interface RemovableRow {
   hint: string;
 }
 
-export type UninstallMode = "cli" | "selected" | "all";
+export type UninstallMode = "cli" | "track" | "selected" | "all";
 
 export interface ModeChoice {
   value: UninstallMode;
@@ -62,6 +65,10 @@ export interface UninstallPrompts {
   ) => Promise<UninstallMode | null>;
   /** null = ESC/취소 */
   selectCli: (rows: ReadonlyArray<CliRow>) => Promise<CliBase | null>;
+  /** null = ESC/취소 (#543) */
+  selectTrack: (
+    rows: ReadonlyArray<Omit<CliRow, "value"> & { value: Track }>,
+  ) => Promise<Track | null>;
   /** null = ESC/취소. 빈 배열 = 아무것도 안 고름 */
   selectAssets: (rows: ReadonlyArray<RemovableRow>) => Promise<ReadonlyArray<string> | null>;
   confirm: (summary: string) => Promise<boolean | null>;
@@ -78,7 +85,7 @@ export interface InteractiveUninstallDeps {
 export interface InteractiveUninstallResult {
   ok: boolean;
   /** ok=true 일 때 `uninstallAction` 에 그대로 넘길 옵션. */
-  options?: { projectDir: string; only?: string; cli?: CliBase };
+  options?: { projectDir: string; only?: string; cli?: CliBase; track?: Track };
   reason?: "no-tty" | "no-log" | "cancelled" | "nothing-selected";
   message?: string;
 }
@@ -129,6 +136,7 @@ function hintFor(asset: InstallLogAsset): string {
 export function buildUninstallModeChoices(
   clis: ReadonlyArray<CliBase>,
   assetCount: number,
+  tracks?: ReadonlyArray<Track>,
 ): ModeChoice[] {
   return [
     {
@@ -140,6 +148,8 @@ export function buildUninstallModeChoices(
           : 'only one CLI here — use "Remove everything"',
       enabled: clis.length > 1,
     },
+    // #543 — 기록 트랙(어휘에 있는 것)이 둘 이상일 때만. 엔진이 마지막 트랙을 거절한다
+    ...(tracks === undefined ? [] : [trackMode(tracks.length > 1)]),
     {
       value: "selected",
       label: "Remove selected assets",
@@ -157,6 +167,15 @@ export function buildUninstallModeChoices(
     },
   ];
 }
+
+const trackMode = (many: boolean): ModeChoice => ({
+  value: "track",
+  label: "Remove one track",
+  hint: many
+    ? "files only that track installs go; the rest stay"
+    : 'only one track here — use "Remove everything"',
+  enabled: many,
+});
 
 /** CLI 폴더 — 통째로 다루지 않는다. 그 아래 하네스 파일만 하나씩 회수하고 설치자 파일은 제자리에 둔다(#746). */
 const CLI_FOLDERS: ReadonlyArray<string> = [".claude/", ".codex/", ".opencode/"];
@@ -267,7 +286,7 @@ export async function runInteractiveUninstall(
   const clis = installedClis(log);
 
   const mode = await prompts.selectMode(
-    buildUninstallModeChoices(clis, rows.length),
+    buildUninstallModeChoices(clis, rows.length, log.spec.tracks.filter(isTrack)),
     `uzys-agent-harness · uninstall     installed: ${clis.join(", ") || "(none)"} · assets ${rows.length}`,
   );
   if (mode === null) {
@@ -276,6 +295,7 @@ export async function runInteractiveUninstall(
   }
 
   if (mode === "cli") return pickCli(projectDir, clis, prompts);
+  if (mode === "track") return pickTrack(projectDir, log, prompts);
 
   if (mode === "all") {
     const ok = await prompts.confirm(
@@ -350,6 +370,35 @@ async function pickCli(
   return { ok: true, options: { projectDir, cli } };
 }
 
+/** "Remove one track" — 빠지는 이름 · 남기는 것은 `--track --dry-run` 과 같은 함수(`track-removal.ts`)로, 디스크는 보지 않는다. */
+async function pickTrack(
+  projectDir: string,
+  log: InstallLog,
+  prompts: UninstallPrompts,
+): Promise<InteractiveUninstallResult> {
+  const rows = log.spec.tracks
+    .filter(isTrack)
+    .map((t) => ({ value: t, label: TRACK_LABELS[t], hint: t }));
+  const track = await prompts.selectTrack(rows);
+  const r = track === null ? null : trackRemoval(log, track);
+  const ok =
+    track !== null &&
+    r !== null &&
+    (await prompts.confirm(
+      [
+        `Remove ${track}? This is the same as: agent-harness uninstall --track ${track}`,
+        `  · ${trackRemovalNames(r)}`,
+        ...trackLeftLines(log, r, resolveBundleRoot()).map((l) => `  · kept: ${l}`),
+        `  · remaining: ${r.remaining.join(", ")} — file counts: agent-harness uninstall --track ${track} --dry-run`,
+      ].join("\n"),
+    ));
+  if (!ok) {
+    prompts.cancel("Cancelled.");
+    return { ok: false, reason: "cancelled" };
+  }
+  return { ok: true, options: { projectDir, track } };
+}
+
 /* v8 ignore start — @clack/prompts 어댑터. 선택 로직은 위 순수 함수들이 갖고 tests 로 검증. */
 function defaultUninstallPrompts(): UninstallPrompts {
   return {
@@ -375,6 +424,14 @@ function defaultUninstallPrompts(): UninstallPrompts {
         options: rows.map((x) => ({ value: x.value, label: x.label, hint: x.hint })),
       });
       return isCancel(r) ? null : (r as CliBase);
+    },
+    selectTrack: async (rows) => {
+      const r = await select({
+        message:
+          'Which track?  (the last remaining track cannot be removed this way — use "Remove everything")',
+        options: rows.map((x) => ({ value: x.value, label: x.label, hint: x.hint })),
+      });
+      return isCancel(r) ? null : (r as Track);
     },
     selectAssets: async (rows) => {
       if (rows.length === 0) return [];

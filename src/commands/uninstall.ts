@@ -101,6 +101,7 @@ import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
 import {
+  createOutsideGuard,
   isOutsideProject,
   type OutsideLink,
   outsideLinkAt,
@@ -121,9 +122,15 @@ import {
 import { ruleHeadings } from "../rules-port.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
-import { CLI_BASES, type CliBase, isCliBase, isTrack } from "../types.js";
+import { trackLeftLines, trackRemoval, trackRemovalNames } from "../track-removal.js";
+import { CLI_BASES, type CliBase, isTrack, TRACKS, type Track } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
-import { BACKUP_SCAN_DIRS, BACKUP_SUFFIX, recordedRenderInputs } from "../update-mode.js";
+import {
+  BACKUP_SCAN_DIRS,
+  BACKUP_SUFFIX,
+  recordedRenderInputs,
+  upsertRootImport,
+} from "../update-mode.js";
 import { defaultHarnessRoot } from "./install.js";
 
 /** `.codex/config.toml` — 하네스 구간(`toml-region`)만 걷는 함께 쓰는 파일. */
@@ -152,6 +159,8 @@ export interface UninstallOptions {
    * 는 하네스 절만, #516).
    */
   cli?: string;
+  /** #543 — **트랙 하나만** 뺀다. 그 트랙만 가져오는 룰 · 에이전트 · 스킬을 네 CLI 자리에서 회수하고 기록에서 트랙을 뺀다. */
+  track?: string;
 }
 
 export interface UninstallActionDeps {
@@ -261,6 +270,15 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   if (options.keepTemplates) {
     for (const line of keepTemplatesRemovedLines(installLog)) err(line);
     exit(1);
+    return;
+  }
+
+  // #543 — 트랙 하나만 빼는 경로. `--cli` 와 섞이면 이쪽이 거절한다 · `--yes` 는 무시한다(전량으로 흘리지 않는다)
+  if (options.track !== undefined) {
+    removeTrackAction(
+      { options, installLog, projectDir, harnessRoot },
+      { log, err, exit, rm, writeLog },
+    );
     return;
   }
 
@@ -858,47 +876,52 @@ const TEMPLATE_DIR_FIELD: Partial<Record<CliBase, "claudeDir" | "codexDir" | "op
 };
 
 /**
- * 전제조건 검사. **아무것도 실행하기 전에** 전부 본다 (`--only` 의 pre-flight 와 같은 규율) —
- * 절반만 지우고 거절하면 되돌릴 방법이 없다.
- *
- * @returns 뺄 CLI. `null` 이면 이미 `exit` 했다.
+ * 전제조건 검사. **아무것도 실행하기 전에** 전부 본다 (`--only` 의 pre-flight 와 같은 규율) — 절반만 지우고 거절하면 되돌릴 방법이
+ * 없다. `--cli` · `--track` 이 같은 순서로 본다(#543). @returns 뺄 대상. `null` 이면 이미 `exit` 했다.
  */
-function resolveCliTarget(ctx: RemoveCliCtx, io: RemoveCliIo): CliBase | null {
-  const { options, installLog } = ctx;
-  // `--only`(자산만)는 이 명령이 하려는 일과 반대다. 조용히 한쪽을 이기게 하면 사용자는 자기가 시킨 것과 다른 결과를
-  // 받는다. (`--keep-templates` 는 v26.169.0 에서 없어져 `uninstallAction` 첫머리가 먼저 거절한다.)
-  if (options.only !== undefined) {
-    io.err(status.failure(c.red("ERROR: --cli 는 --only 와 함께 쓸 수 없다")));
-    io.err(
-      c.dim(
-        "       CLI 하나 제거: uninstall --cli <name>  /  자산 하나 제거: uninstall --only <id>",
-      ),
+function resolveScopeTarget<T extends string>(
+  io: RemoveCliIo,
+  s: {
+    flag: "cli" | "track";
+    value: string | undefined;
+    conflict: boolean;
+    vocab: ReadonlyArray<T>;
+    installed: ReadonlyArray<string>;
+  },
+): T | null {
+  const reject = (msg: string, hint: string): null => {
+    io.err(status.failure(c.red(`ERROR: ${msg}`)));
+    io.err(c.dim(`       ${hint}`));
+    io.exit(1);
+    return null;
+  };
+  if (s.conflict) {
+    return reject(
+      `--${s.flag} 는 --only · --cli · --track 중 하나만 쓸 수 있다`,
+      "CLI 하나: uninstall --cli <name>  /  트랙 하나: uninstall --track <name>  /  자산: uninstall --only <id>",
     );
-    io.exit(1);
-    return null;
   }
-  const target = (options.cli ?? "").trim();
-  if (!isCliBase(target)) {
-    io.err(status.failure(c.red(`ERROR: Invalid --cli value: ${target || "(empty)"}`)));
-    io.err(c.dim(`       Must be one of: ${CLI_BASES.join(" | ")}`));
-    io.exit(1);
-    return null;
+  const target = (s.value ?? "").trim();
+  if (!(s.vocab as ReadonlyArray<string>).includes(target)) {
+    return reject(
+      `Invalid --${s.flag} value: ${target || "(empty)"}`,
+      `Must be one of: ${s.vocab.join(" | ")}`,
+    );
   }
-  const installed = installedClis(installLog);
-  if (!installed.includes(target)) {
-    io.err(status.failure(c.red(`ERROR: ${target} is not installed in this project`)));
-    io.err(c.dim(`       installed: ${installed.join(", ") || "(none)"}`));
-    io.exit(1);
-    return null;
+  if (!s.installed.includes(target)) {
+    return reject(
+      `${target} is not installed in this project`,
+      `installed: ${s.installed.join(", ") || "(none)"}`,
+    );
   }
   // 마지막 하나는 거절한다 — 전량 삭제 경로를 두 개 두면 한쪽만 고쳐지는 날이 온다.
-  if (installed.length <= 1) {
-    io.err(status.failure(c.red(`ERROR: ${target} 는 이 프로젝트의 마지막 CLI 다`)));
-    io.err(c.dim("       전량 제거는 `agent-harness uninstall` 을 쓴다 (자산·설치 기록까지 함께)"));
-    io.exit(1);
-    return null;
+  if (s.installed.length <= 1) {
+    return reject(
+      `${target} 는 이 프로젝트의 마지막 ${s.flag === "cli" ? "CLI 다" : "트랙이다"}`,
+      "전량 제거는 `agent-harness uninstall` 을 쓴다 (자산·설치 기록까지 함께)",
+    );
   }
-  return target;
+  return target as T;
 }
 
 /** 이 경로가 회수 대상 자리에 속하는가. `/` 로 끝나는 항목은 접두 디렉터리다. */
@@ -962,46 +985,6 @@ function keptForRemainingLines(plan: CliRemovalPlan, preview: boolean): string[]
   return [preview ? `  ○ leave ${what}` : `  ${c.yellow("⊘")} left  ${what}`];
 }
 
-function removeCliHeader(
-  target: CliBase,
-  installed: ReadonlyArray<CliBase>,
-  remaining: ReadonlyArray<CliBase>,
-): string[] {
-  return [
-    "",
-    c.bold(`uzys-agent-harness · uninstall --cli ${target}`),
-    "",
-    c.dim(`  installed: ${installed.join(", ")}`),
-    c.dim(`  removing:  ${target}`),
-    c.dim(`  remaining: ${remaining.join(", ")}`),
-    "",
-  ];
-}
-
-/** dry-run 미리보기 — 실행 경로와 **같은 술어**를 쓴다. */
-function removeCliDryRunLines(
-  plan: CliRemovalPlan,
-  ctx: RemoveCliCtx,
-  remaining: ReadonlyArray<CliBase>,
-): string[] {
-  const { installLog, projectDir, harnessRoot } = ctx;
-  const lines = [c.yellow("[DRY RUN] CLI 제거 미리보기 (실제 변경 없음):"), ""];
-  const preview = removeHarnessFiles(installLog, projectDir, plan.scope, {
-    rm: () => {},
-    write: false,
-    harnessRoot,
-  });
-  lines.push(...harnessRemovalLines(preview, installLog, projectDir, plan.scope, true));
-  lines.push(...keptForRemainingLines(plan, true));
-  lines.push(...assetsLeftLines(installLog, projectDir, plan.scope));
-  const rerender = agentsMdRerenderSet(plan.target, remaining, installLog, projectDir);
-  if (rerender !== null) {
-    lines.push(`  ○ would re-render AGENTS.md for ${displayNames(rerender)} (your sections kept)`);
-  }
-  lines.push(`  ○ install log updated (clis: ${remaining.join(", ")})`, "");
-  return lines;
-}
-
 function displayNames(clis: ReadonlyArray<CliBase>): string {
   return clis.map((c) => CLI_DISPLAY_NAMES[c]).join(" · ");
 }
@@ -1015,12 +998,13 @@ function displayNames(clis: ReadonlyArray<CliBase>): string {
  * 있다(절 모델 `externalFiles` 또는 블록 모델 `portions`) · 파일이 있다. 기록 밖 파일에는 몫을 새로 더하지 않는다.
  */
 function agentsMdRerenderSet(
-  target: CliBase,
+  target: CliBase | null,
   remaining: ReadonlyArray<CliBase>,
   log: InstallLog,
   projectDir: string,
 ): CliBase[] | null {
-  if (!isAgentsMdCli(target)) return null;
+  // #543 — 트랙 제거(`null`)는 읽는 CLI 가 있으면 늘 다시 렌더한다(인라인 룰 · 상시 스킬 안내가 트랙을 따른다)
+  if (target !== null && !isAgentsMdCli(target)) return null;
   const set = agentsMdClis(remaining);
   if (set.length === 0) return null;
   const recorded =
@@ -1045,18 +1029,24 @@ function readTextOrEmpty(abs: string): string {
 /**
  * C-3 실행 — update 와 **같은 입력**(`recordedRenderInputs` · 기록의 기준선 · 몫)으로 렌더한다. 그래야 다음 update 가 같은
  * 바이트를 내고 조용하다(독립 검증 NOTE-8 — C-T3 의 "이어서 update 해도 백업 0건" 이 그 대조다).
+ * #543 — 입력은 **이번에 쓸 기록**(`log`)이다 — 디스크의 기록은 빠지는 트랙을 아직 들고 있다(설계 검증 NOTE 1, 상시 스킬 안내도).
  */
-function rerenderAgentsMd(ctx: RemoveCliCtx, set: ReadonlyArray<CliBase>): AgentsMdTransformReport {
-  const { installLog, projectDir, harnessRoot } = ctx;
+function rerenderAgentsMd(
+  ctx: RemoveCliCtx,
+  set: ReadonlyArray<CliBase>,
+  log: InstallLog,
+): AgentsMdTransformReport {
+  const { projectDir, harnessRoot } = ctx;
   return runAgentsMdTransform({
     harnessRoot,
     projectDir,
     clis: agentsMdClis(set),
-    ...recordedRenderInputs(projectDir, installLog),
-    baseline: new Map((installLog.externalFiles ?? []).map((f) => [f.path, f.sha256])),
+    ...recordedRenderInputs(projectDir, log, log.spec.tracks.filter(isTrack)),
+    baseline: new Map((log.externalFiles ?? []).map((f) => [f.path, f.sha256])),
     refreshOnly: true,
     installedByRecord: true,
-    shared: { portions: installLog.portions ?? [], excluded: [...excludedIds(installLog)] },
+    shared: { portions: log.portions ?? [], excluded: [...excludedIds(log)] },
+    log,
   });
 }
 
@@ -1135,77 +1125,204 @@ function settleCliLog(
     delete next.policyFiles;
     delete next.skillFiles;
   }
-  const survivors = (installLog.externalFiles ?? []).filter((f) => !done.forgotten.has(f.path));
-  if (survivors.length > 0) next.externalFiles = survivors;
-  else delete next.externalFiles;
-  // #761 — 되돌렸거나 되돌릴 근거가 없어진 displaced 기록을 뺀다(자리가 막혀 못 되돌린 것은 남긴다 — 다음 회수가 다시 본다)
-  if (installLog.rootFiles !== undefined) {
-    next.rootFiles = withoutRestored(installLog.rootFiles, done.displaced);
-  }
-  // #551 R1 — 몫을 판정한 파일은 걷고 남은 몫(설치자가 고친 키 · 못 읽어 남긴 몫)만 이어 적는다. 판정하지 않은
-  // 파일(다른 CLI 가 아직 쓰는 자리 · 밖 링크라 남긴 파일)의 몫은 그대로다. 파일째 지운 것은 남는 몫이 없다(#623 — 남겨 두면
-  // 설치자가 새로 만든 같은 이름의 파일에서 "설치자가 지운 몫" 으로 읽힌다).
-  const touched = new Set(done.shared.map((r) => r.path));
-  const portions = [
-    ...(installLog.portions ?? []).filter((p) => !touched.has(p.path)),
-    ...done.shared.flatMap((r) => r.portions),
-  ];
-  if (portions.length > 0) next.portions = portions;
-  else delete next.portions;
-  return next;
+  return forgetRemoved(next, done);
 }
 
-function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
-  const target = resolveCliTarget(ctx, io);
-  if (target === null) return;
+/** 회수 결과를 기록에 옮긴다(`--cli` · `--track`) — 회수한 파일(필드는 비어도 남긴다 — 없으면 옛 로그다) · 되돌린 displaced(#761) · 걷은 몫(#551 R1 · #623). */
+function forgetRemoved(next: InstallLog, done: HarnessRemoval): InstallLog {
+  const out: InstallLog = { ...next };
+  const kept =
+    (prefix: string) =>
+    (f: { path: string }): boolean =>
+      !done.forgotten.has(`${prefix}${f.path}`);
+  if (out.policyFiles !== undefined) out.policyFiles = out.policyFiles.filter(kept(CLAUDE_DIR));
+  if (out.skillFiles !== undefined) out.skillFiles = out.skillFiles.filter(kept(SKILLS_DIR));
+  const survivors = (out.externalFiles ?? []).filter(kept(""));
+  if (survivors.length > 0) out.externalFiles = survivors;
+  else delete out.externalFiles;
+  if (out.rootFiles !== undefined) out.rootFiles = withoutRestored(out.rootFiles, done.displaced);
+  const touched = new Set(done.shared.map((r) => r.path));
+  const portions = [
+    ...(out.portions ?? []).filter((p) => !touched.has(p.path)),
+    ...done.shared.flatMap((r) => r.portions),
+  ];
+  if (portions.length > 0) out.portions = portions;
+  else delete out.portions;
+  return out;
+}
+
+/** 범위 하나를 빼는 실행 — `--cli` · `--track` 이 범위 · 남김 줄 · 기록 규칙만 바꿔 부른다(#543 설계 검증 §5 ⓐ). */
+interface ScopedRemoval {
+  flag: "cli" | "track";
+  target: string;
+  installed: ReadonlyArray<string>;
+  remaining: ReadonlyArray<string>;
+  scope: RemovalScope;
+  leftLines: (preview: boolean) => string[];
+  rerenderSet: CliBase[] | null;
+  /** 회수 줄 뒤의 줄 · 기록의 다음 판(기록 쓰기 직전에 한 번 — 트랙은 짝인 메타파일도 여기서 쓴다). */
+  settle: (done: HarnessRemoval) => InstallLog;
+}
+
+function runScopedRemoval(ctx: RemoveCliCtx, io: RemoveCliIo, plan: ScopedRemoval): void {
   const { options, installLog, projectDir, harnessRoot } = ctx;
-  const installed = installedClis(installLog);
-  const remaining = installed.filter((cli) => cli !== target);
-  const plan = planCliRemoval(target, remaining, installLog, projectDir);
-
-  for (const line of removeCliHeader(target, installed, remaining)) io.log(line);
-
-  if (options.dryRun) {
-    for (const line of removeCliDryRunLines(plan, ctx, remaining)) io.log(line);
+  const preview = options.dryRun === true;
+  const remaining = plan.remaining.join(", ");
+  const recordNote = `${plan.flag === "cli" ? "clis" : "tracks"}: ${remaining}`;
+  const header = [
+    "",
+    c.bold(`uzys-agent-harness · uninstall --${plan.flag} ${plan.target}`),
+    "",
+    c.dim(`  installed: ${plan.installed.join(", ")}`),
+    c.dim(`  removing:  ${plan.target}`),
+    c.dim(`  remaining: ${remaining}`),
+    "",
+  ];
+  for (const line of header) io.log(line);
+  // 전량 경로와 같은 함수 — 범위 안에 기록된 하네스 파일만 하나씩(#746). 설치자 파일은 제자리에 둔다. 미리보기도 같은 판정이다
+  const done = removeHarnessFiles(installLog, projectDir, plan.scope, {
+    rm: preview ? () => {} : io.rm,
+    write: !preview,
+    harnessRoot,
+  });
+  const what = plan.flag === "cli" ? "CLI" : "트랙";
+  const lines = [
+    ...(preview ? [c.yellow(`[DRY RUN] ${what} 제거 미리보기 (실제 변경 없음):`), ""] : []),
+    ...harnessRemovalLines(done, installLog, projectDir, plan.scope, preview),
+    ...plan.leftLines(preview),
+  ];
+  if (preview) {
+    if (plan.rerenderSet !== null) {
+      lines.push(
+        `  ○ would re-render AGENTS.md for ${displayNames(plan.rerenderSet)} (your sections kept)`,
+      );
+    }
+    for (const line of [...lines, `  ○ install log updated (${recordNote})`, ""]) io.log(line);
     io.exit(0);
     return;
   }
-
-  // 전량 경로와 같은 함수 — 그 CLI 의 소유 자리 아래 기록된 하네스 파일만 하나씩(#746). 설치자 파일은 제자리에 둔다
-  const done = removeHarnessFiles(installLog, projectDir, plan.scope, {
-    rm: io.rm,
-    write: true,
-    harnessRoot,
-  });
-  for (const line of harnessRemovalLines(done, installLog, projectDir, plan.scope, false)) {
-    io.log(line);
-  }
-  for (const line of keptForRemainingLines(plan, false)) io.log(line);
-  for (const line of assetsLeftLines(installLog, projectDir, plan.scope)) io.log(line);
-  // C-3 (#642) — `AGENTS.md` 를 읽는 CLI 가 남으면 그 집합으로 그 자리에서 다시 렌더한다(update 까지 옛 판이 남지 않는다)
-  const rerenderSet = agentsMdRerenderSet(target, remaining, installLog, projectDir);
-  const rerender = rerenderSet === null ? null : rerenderAgentsMd(ctx, rerenderSet);
+  for (const line of lines) io.log(line);
+  const settled = plan.settle(done);
+  // C-3 (#642) — `AGENTS.md` 를 읽는 CLI 가 남으면 그 자리에서 다시 렌더한다(update 까지 옛 판이 남지 않는다)
+  const rerender =
+    plan.rerenderSet === null ? null : rerenderAgentsMd(ctx, plan.rerenderSet, settled);
   if (rerender !== null) for (const line of rerenderLines(rerender)) io.log(line);
-
-  const settled = settleCliLog(ctx, target, remaining, done, done.anchor.removed);
   const next = rerender === null ? settled : withRerender(settled, rerender);
   try {
     io.writeLog(projectDir, next);
-    io.log(`  ${status.success(`install log updated (clis: ${remaining.join(", ")})`)}`);
+    io.log(`  ${status.success(`install log updated (${recordNote})`)}`);
   } catch (e) {
     // 회수는 이미 끝났다 — 여기서 throw 하면 무엇이 지워졌는지도 사라진다(전량 경로와 같은 방침).
     io.err(status.failure(c.red(`ERROR: install log 갱신 실패 — ${installLogPath(projectDir)}`)));
     io.err(c.dim(`       ${e instanceof Error ? e.message : String(e)}`));
     io.log("");
     io.log(
-      c.yellow(`${target} 는 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)`),
+      c.yellow(
+        `${plan.target} 는 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)`,
+      ),
     );
     io.exit(1);
     return;
   }
   io.log("");
-  io.log(status.success(c.green(`${target} removed (remaining: ${remaining.join(", ")})`)));
+  io.log(status.success(c.green(`${plan.target} removed (remaining: ${remaining})`)));
   io.exit(0);
+}
+
+function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
+  const { options, installLog, projectDir } = ctx;
+  const installed = installedClis(installLog);
+  const target = resolveScopeTarget(io, {
+    flag: "cli",
+    value: options.cli,
+    conflict: options.only !== undefined,
+    vocab: CLI_BASES,
+    installed,
+  });
+  if (target === null) return;
+  const remaining = installed.filter((cli) => cli !== target);
+  const plan = planCliRemoval(target, remaining, installLog, projectDir);
+  runScopedRemoval(ctx, io, {
+    flag: "cli",
+    target,
+    installed,
+    remaining,
+    scope: plan.scope,
+    leftLines: (preview) => [
+      ...keptForRemainingLines(plan, preview),
+      ...assetsLeftLines(installLog, projectDir, plan.scope),
+    ],
+    rerenderSet: agentsMdRerenderSet(target, remaining, installLog, projectDir),
+    settle: (done) => settleCliLog(ctx, target, remaining, done, done.anchor.removed),
+  });
+}
+
+/** #543 — 그 트랙만 가져오는 룰 · 에이전트 · 스킬을 `--cli` 와 같은 뼈대로 뺀다. 함께 쓰는 파일 · 앵커에는 트랙의 몫이 없다. */
+function removeTrackAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
+  const { options, installLog, projectDir, harnessRoot } = ctx;
+  // 마지막 트랙은 **어휘에 있는 기록 트랙**으로 센다(모르는 문자열은 남는 트랙이 아니다)
+  const target = resolveScopeTarget(io, {
+    flag: "track",
+    value: options.track,
+    conflict: options.only !== undefined || options.cli !== undefined,
+    vocab: TRACKS,
+    installed: installLog.spec.tracks.filter(isTrack),
+  });
+  if (target === null) return;
+  const removal = trackRemoval(installLog, target);
+  // `.agents/` 자리는 같은 번들 이름으로 판정한다 — 스킬은 `bundlePath`, Antigravity 룰은 `.claude/rules/` 의 같은 이름
+  const has = (path: string): boolean => {
+    const p = bundlePath(path).replace(/^\.agents\/rules\//, ".claude/rules/");
+    return removal.only.some((t) => p === t || p.startsWith(`${t}/`));
+  };
+  const left = trackLeftLines(installLog, removal, harnessRoot);
+  runScopedRemoval(ctx, io, {
+    flag: "track",
+    target,
+    installed: removal.known,
+    remaining: removal.remaining,
+    scope: { has, shared: [], skeleton: [], folders: [], importBlock: false, anchor: false },
+    leftLines: (preview) => [
+      ...(preview ? [`  ○ ${trackRemovalNames(removal)}`] : rootImportLines(ctx)),
+      ...left.map((l) => (preview ? `  ○ leave ${l}` : `  ${c.yellow("⊘")} left  ${l}`)),
+    ],
+    rerenderSet: agentsMdRerenderSet(null, installedClis(installLog), installLog, projectDir),
+    settle: (done) => settleTrackLog(ctx, target, removal.remaining, done),
+  });
+}
+
+/** 루트 `CLAUDE.md` 의 하네스 블록(상시 스킬 안내)을 update 와 같은 함수로 맞춘다 — 방금 지운 스킬을 가리키게 두지 않는다. */
+function rootImportLines({ installLog, projectDir }: RemoveCliCtx): string[] {
+  const md = join(projectDir, "CLAUDE.md");
+  if (!installedClis(installLog).includes("claude") || !safeExists(md)) return [];
+  const done = upsertRootImport(projectDir, createOutsideGuard(projectDir));
+  return done ? [`  ${status.success("CLAUDE.md — harness block refreshed (본문 보존)")}`] : [];
+}
+
+/** 기록과 짝인 메타파일 · 그 sha 를 함께 맞춘다(아니면 heal 이 트랙을 되살린다). 고친 메타파일 · 밖 자리는 두고, 옛 기록에 필드를 만들지 않는다. */
+function settleTrackLog(
+  ctx: RemoveCliCtx,
+  target: Track,
+  remaining: ReadonlyArray<Track>,
+  done: HarnessRemoval,
+): InstallLog {
+  const { installLog, projectDir } = ctx;
+  const tracks = installLog.spec.tracks.filter((t) => t !== target);
+  const next = forgetRemoved({ ...installLog, spec: { ...installLog.spec, tracks } }, done);
+  const abs = join(projectDir, INSTALLED_TRACKS);
+  const key = INSTALLED_TRACKS.slice(CLAUDE_DIR.length);
+  const prior = installLog.policyFiles?.find((f) => f.path === key)?.sha256;
+  const edited =
+    prior !== undefined && safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
+  if (!installedClis(installLog).includes("claude") || edited) return next;
+  if (outsideProjectTarget(projectDir, abs) !== null) return next;
+  const content = installedTracksText(remaining);
+  writeFileSync(abs, content);
+  if (next.policyFiles !== undefined) {
+    const sha256 = hashContent(content);
+    next.policyFiles = [...next.policyFiles.filter((f) => f.path !== key), { path: key, sha256 }];
+  }
+  return next;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2748,6 +2865,10 @@ export function registerUninstallCommand(cli: import("../cli.js").Cli): void {
       "--cli <name>",
       `[Scope] Remove one CLI only (${CLI_BASES.join(" | ")}). Shared files stay until the last user leaves`,
     )
+    .option(
+      "--track <name>",
+      `[Scope] Remove one track only (${TRACKS.join(" | ")}). Files another recorded track also installs stay`,
+    )
     .option("--yes", "[Mode] Skip the interactive picker and remove everything (non-interactive)")
     /* v8 ignore next 3 — cac action callback. 분기 판정은 shouldRunInteractive 가 갖고 tests 로 검증. */
     .action(async (options: UninstallOptions) => {
@@ -2769,8 +2890,8 @@ export function shouldRunInteractive(options: UninstallOptions, isTty: boolean):
   if (options.yes || options.dryRun) return false;
   // #746 — 없어진 플래그는 엔진이 거절하고 대체 명령을 알린다. 화면으로 들여보내면 고른 옵션이 그 플래그를 조용히 덮는다
   if (options.keepTemplates) return false;
-  // #528 — `--cli` 도 "뺄 대상을 이미 지정한" 경우다. 화면으로 들여보내면 그 선택이 무시된다.
-  return options.only === undefined && options.cli === undefined;
+  // #528 — `--cli` 도 "뺄 대상을 이미 지정한" 경우다(#543 `--track` 도). 화면으로 들여보내면 그 선택이 무시된다.
+  return options.only === undefined && options.cli === undefined && options.track === undefined;
 }
 
 /* v8 ignore start — 얇은 배선. 판정은 shouldRunInteractive·lacksRemovalIntent, 선택은 uninstall-interactive, 실행은 uninstallAction 이 각각 tests 로 검증. */
@@ -2788,7 +2909,7 @@ async function dispatchUninstall(options: UninstallOptions): Promise<void> {
     console.error(
       status.failure(
         c.red(
-          "ERROR: no terminal and no flag saying what to remove — nothing was done. Pass --yes (remove everything), --only <ids>, --cli <name>, or --dry-run.",
+          "ERROR: no terminal and no flag saying what to remove — nothing was done. Pass --yes (remove everything), --only <ids>, --cli <name>, --track <name>, or --dry-run.",
         ),
       ),
     );
@@ -2810,7 +2931,8 @@ export function lacksRemovalIntent(options: UninstallOptions): boolean {
     options.yes === undefined &&
     options.dryRun === undefined &&
     options.only === undefined &&
-    options.cli === undefined
+    options.cli === undefined &&
+    options.track === undefined
   );
 }
 

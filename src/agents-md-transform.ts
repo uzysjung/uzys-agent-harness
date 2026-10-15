@@ -25,6 +25,7 @@ import {
 import { agentsSkillSlot } from "./agents-skill-targets.js";
 import { seedAgentsMdProjectContext } from "./anchor-seed.js";
 import { ensureDir } from "./fs-ops.js";
+import type { InstallLog } from "./install-log.js";
 import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "./owned-write.js";
 import { renderFillScaffold } from "./project-claude-merge.js";
 import { portRules, renderRulesBlock, ruleHeadings } from "./rules-port.js";
@@ -55,6 +56,8 @@ export interface AgentsMdTransformParams {
    * (`readLegacyAntigravityContext`). 없거나 안 채웠으면 `null`. 루트 `CLAUDE.md` 씨 다음 순위다(ADR-103).
    */
   legacyContext?: string | null;
+  /** #543 — 상시 스킬 안내를 이 기록으로 판정한다(`agentsSkillSlot`). 생략 = 디스크의 기록. */
+  log?: InstallLog;
 }
 
 export interface AgentsMdTransformReport {
@@ -100,6 +103,7 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     selectedInternalSkills: params.selectedInternalSkills,
     refreshOnly,
     writer,
+    ...(params.log === undefined ? {} : { log: params.log }),
   });
 
   const creates = !exists && (!refreshOnly || params.installedByRecord === true);

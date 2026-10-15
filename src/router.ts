@@ -103,7 +103,7 @@ export function buildRouterChoices(
     {
       value: "uninstall",
       label: "Uninstall",
-      hint: "remove everything, one CLI, or single assets",
+      hint: "remove everything, one CLI, one track, or single assets",
       enabled: true,
     },
     {

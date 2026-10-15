@@ -110,7 +110,7 @@ export interface Prompts {
   ) => Promise<ReadonlyArray<InstallTargetId> | null>;
 }
 
-const TRACK_LABELS: Record<Track, string> = {
+export const TRACK_LABELS: Record<Track, string> = {
   // #533 — base 는 모든 dev 트랙에 이미 들어 있다(dev 트랙 8종 ∪ base = 추가 파일 0, 설계 §5 실측).
   // 함께 골라도 해는 없어 막지 않고(사용자 결정 2026-09-27), 그 사실만 라벨로 알린다.
   base: "base — no stack yet — every dev track already includes it",
