@@ -1,0 +1,18 @@
+tracks: csr-fastapi,tooling -> csr-fastapi
+recorded harness candidates: 107
+
+=== ⓐ recordedTrackTargets (src/recorded.ts:106 — bundled skills all count as targets)
+[T-only = target under csr-fastapi+tooling, not under csr-fastapi] 2
+  .agents/rules/cli-development.md
+  .claude/rules/cli-development.md
+[not a target under either — shared files · meta · external renders · tool files] 2
+  .claude/.installed-tracks
+  AGENTS.md
+
+=== ⓑ buildManifest(buildAssetSpec) (src/manifest.ts:64·370 — install's track gating, skills included)
+[T-only = target under csr-fastapi+tooling, not under csr-fastapi] 2
+  .agents/rules/cli-development.md
+  .claude/rules/cli-development.md
+[not a target under either — shared files · meta · external renders · tool files] 2
+  .claude/.installed-tracks
+  AGENTS.md

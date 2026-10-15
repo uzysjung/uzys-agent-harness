@@ -1,0 +1,81 @@
+
+$ v125 install --track tooling --track csr-fastapi --cli claude --cli codex  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/rg-v125-base-UITpMq/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude · codex
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       14 selected
+              · understanding: agent-browser
+              · workflow: asis-tobe-decision, compaction-handoff, northstar-roadmap, recurrence-prevention
+              · dev-tools: find-skills, gap-analysis-e2e, harness-health-audit, karpathy-coder, multi-persona-review, ultracode-service-audit
+              · frontend: frontend-design, react-best-practices, shadcn-ui
+              · session-start context cost: ~8592 tokens/session (rules ~6264 · CLAUDE.md ~938 · skills ~775 · agents ~615 · 6 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (16)                   coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (8)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (5)                    session-start · spec-drift · checkpoint · mcp-pre-exec (security)
+  ✓ commands (1)                 /ecc:* (ECC plugin OFF fallback)
+  ✓ skills (20)                  north-star · gh-issue-workflow · ui-visual-review · cl-v2 (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold · 2 tracks noted
+  ✓ .mcp.json                    chrome-devtools, context7, github, railway-mcp-server
+  ✓ .mcp-allowlist               4 servers (D35 opt-in gate)
+
+  · ECC plugin not selected — cherry-pick fallback active (up to 4 agents + 8 skills + 3 commands)
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (6) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          plugin · frontend-design@claude-plugins-official
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+    ✓ karpathy-coder                           plugin · karpathy-coder@claude-code-skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from .claude/CLAUDE.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             8 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ OPT-IN       2 experimental available — add with --with <id>: railway-skills, playwright-skill
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+
+## uninstall --yes --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --yes — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli codex --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli codex — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli claude --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli claude — exit main=0 branch=0 · screen same · disk same · log same
+
+## update — exit main=0 branch=0 · screen same · disk DIFF · log same
+### disk diff:
+  main  : .uzys-agent-harness/update-backups.json 3e7fa9df068a
+  branch: .uzys-agent-harness/update-backups.json 1603b7d538fe
+
+## uninstall --only frontend-design — exit main=0 branch=0 · screen same · disk same · log same

@@ -1,0 +1,8 @@
+## v125 V0 control (no scope removal): update#1 177 lines · update#2 1 · update#3 0 · log.records=undefined
+## v125 V1 branch --track csr-fastapi: update#1 172 lines · update#2 1 · update#3 0 · log.records=undefined
+## v125 V2 main --cli antigravity: update#1 121 lines · update#2 1 · update#3 0 · log.records=undefined
+## v125 V3 branch --cli antigravity: update#1 121 lines · update#2 1 · update#3 0 · log.records=undefined
+## v150 V0 control (no scope removal): update#1 153 lines · update#2 1 · update#3 0 · log.records=undefined
+## v150 V1 branch --track csr-fastapi: update#1 146 lines · update#2 1 · update#3 0 · log.records=undefined
+## v150 V2 main --cli codex: update#1 96 lines · update#2 1 · update#3 0 · log.records=undefined
+## v150 V3 branch --cli codex: update#1 96 lines · update#2 1 · update#3 0 · log.records=undefined

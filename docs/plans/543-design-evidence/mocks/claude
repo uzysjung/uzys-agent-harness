@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Mock claude CLI for Docker test env (v26.64.0).
+# 실 claude CLI 는 npm registry 미공개. plugin install/uninstall + marketplace add 만 stub.
+#
+# Supports --scope <user|project|local> flag (ADR-020 검증용).
+
+set -euo pipefail
+
+if [[ "${1:-}" != "plugin" ]]; then
+  echo "mock-claude: unsupported command: $*" >&2
+  exit 1
+fi
+
+shift  # drop "plugin"
+subcmd="${1:-}"
+shift || true
+
+# Parse --scope + other flags. positional args 는 array 에.
+scope="user"
+positional=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scope) scope="$2"; shift 2;;
+    -s) scope="$2"; shift 2;;
+    --*) shift;;
+    *) positional+=("$1"); shift;;
+  esac
+done
+
+case "${subcmd}" in
+  install)
+    pid="${positional[0]:-unknown}"
+    dest="${HOME}/.claude/plugins/cache/test-marketplace/${pid}/v0.0.0"
+    mkdir -p "${dest}"
+    printf '{"id":"%s","scope":"%s"}\n' "${pid}" "${scope}" > "${dest}/.plugin.json"
+    echo "mock-claude: installed ${pid} scope=${scope}"
+    ;;
+  uninstall)
+    pid="${positional[0]:-unknown}"
+    rm -rf "${HOME}/.claude/plugins/cache/test-marketplace/${pid}" 2>/dev/null || true
+    echo "mock-claude: uninstalled ${pid} scope=${scope}"
+    ;;
+  marketplace)
+    action="${positional[0]:-}"
+    src="${positional[1]:-}"
+    case "${action}" in
+      add)
+        echo "mock-claude: marketplace added: ${src} scope=${scope}"
+        ;;
+      *)
+        echo "mock-claude: marketplace ${action} (noop)"
+        ;;
+    esac
+    ;;
+  *)
+    echo "mock-claude: unsupported subcommand: ${subcmd}" >&2
+    exit 1
+    ;;
+esac

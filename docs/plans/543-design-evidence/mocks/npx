@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# #543 실험용 mock `npx` — `npx skills@<ver> add <source> [--skill <id>] --agent <a>... --copy --yes` 만 흉내낸다.
+# 실 네트워크 없이, 실 도구가 놓는 자리(`.claude/skills/<id>` · `.agents/skills/<id>`)에 SKILL.md 하나를 둔다.
+# 호스트 ~/ 에는 아무것도 쓰지 않는다(HOME 도 실험 스크립트가 임시 폴더로 바꾼다).
+set -euo pipefail
+spec="${1:-}"; shift || true
+case "${spec}" in
+  skills@*|skills) ;;
+  *) echo "mock-npx: unsupported: ${spec} $*" >&2; exit 1;;
+esac
+action="${1:-}"; shift || true
+[[ "${action}" == "add" || "${action}" == "remove" ]] || { echo "mock-npx: unsupported skills ${action}" >&2; exit 1; }
+source=""; skill=""; agents=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --skill) skill="$2"; shift 2;;
+    --agent) agents+=("$2"); shift 2;;
+    --copy|--yes|-y|-g|--global) shift;;
+    --*) shift;;
+    *) [[ -z "${source}" ]] && source="$1"; shift;;
+  esac
+done
+id="${skill:-${source##*/}}"
+if [[ ${#agents[@]} -eq 0 ]]; then agents=(claude-code); fi
+for a in "${agents[@]}"; do
+  if [[ "${a}" == "claude-code" ]]; then root=".claude/skills"; else root=".agents/skills"; fi
+  dest="$(pwd)/${root}/${id}"
+  if [[ "${action}" == "add" ]]; then
+    mkdir -p "${dest}"
+    printf -- '---\nname: %s\n---\nmock skill body from %s\n' "${id}" "${source}" > "${dest}/SKILL.md"
+  else
+    rm -rf "${dest}"
+  fi
+done
+echo "mock-npx: ${action} ${source} (${id}) agents=${agents[*]}"

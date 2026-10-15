@@ -1,0 +1,27 @@
+Updating installed harness files in /tmp/ah-543-YSbJFW/S2
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/ah-543-YSbJFW/S2
+  ▸ TRACKS       csr-fastapi
+  ▸ CLI          claude · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       19 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ⊘ .agents/rules/cli-development.md         not in the recorded tracks (csr-fastapi) — kept: its Claude Code copy is in the install record · if you picked tooling (or full), record it so this rule is refreshed: agent-harness install --track tooling --cli antigravity
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 26 items resident · ~6266 tokens/session (directives 9 ~4303 · [rules 7 ~1800 · CLAUDE.md 2 ~2503] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 4 external assets unmeasured)
+

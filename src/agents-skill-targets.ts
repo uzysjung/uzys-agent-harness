@@ -90,6 +90,8 @@ export interface AgentsSkillSlotParams {
   refreshOnly: boolean;
   /** transform 이 만든 writer — 기준선·백업·카운트는 계속 이 writer 가 쥔다. */
   writer: OwnedWriter;
+  /** #543 — 아직 디스크에 쓰지 않은 기록(트랙 제거의 다음 판)으로 판정할 때. 생략 = 디스크의 기록. */
+  log?: InstallLog;
 }
 
 export interface AgentsSkillSlot {
@@ -111,7 +113,7 @@ export interface AgentsSkillSlot {
  */
 export function agentsSkillSlot(params: AgentsSkillSlotParams): AgentsSkillSlot {
   const { projectDir, selectedInternalSkills, refreshOnly, writer } = params;
-  const creatable = refreshOnly ? bundledSkillTargets(projectDir) : [];
+  const creatable = refreshOnly ? bundledSkillTargets(projectDir, params.log) : [];
   return {
     skillIds:
       creatable.length === 0

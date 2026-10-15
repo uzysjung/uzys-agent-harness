@@ -1,0 +1,120 @@
+
+$ branch install --track tooling --track data --cli claude  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/wiz-W4-49CaDW/app
+  ▸ TRACKS       tooling, data
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · data: anthropic-data-plugin
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 25 items resident · ~5979 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 17 ~1914 · [skills 14 ~1650 · agents 3 ~264] · 2 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (3)                   reviewer · implementer · data-analyst
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 📊 Data ━━
+    ✓ anthropic-data-plugin                    plugin · data@knowledge-work-plugins
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       data, tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+# log tracks order: ["data","tooling"]
+
+$ wizard (pty) keys: wait:What do you want to remove enter wait:Which track enter wait:Remove data y
+----- screen: before key enter -----
+┌  uzys-agent-harness · uninstall
+│
+◆  uzys-agent-harness · uninstall     installed: claude · assets 1
+│  ○ Remove one CLI [disabled] (only one CLI here — use "Remove everything")
+│  ● Remove one track (only that track's own files go)
+│  ○ Remove selected assets
+│  ○ Remove everything
+└
+----- screen: before key enter -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude · assets 1
+│  Remove one track
+│
+◆  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  ● data — Python data / DuckDB / PySide6 (data)
+│  ○ tooling — Bash + Markdown meta-project
+└
+----- screen: before key y -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude · assets 1
+│  Remove one track
+│
+◇  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  data — Python data / DuckDB / PySide6
+│
+◆  Remove data (remaining: tooling)? Same as: agent-harness uninstall --track data
+│    · remove 1 harness file(s) under .claude/ (1 with a copy saved beside as *.backup-<time>)
+│    · removes: agents data-analyst
+│    · leave asset anthropic-data-plugin (a default of data) — remove with: agent-harness uninstall --only anthropic-data-plugin
+│    · file counts: agent-harness uninstall --track data --dry-run
+│
+│  Proceed?
+│  ○ Yes / ● No
+└
+----- screen: final -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude · assets 1
+│  Remove one track
+│
+◇  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  data — Python data / DuckDB / PySide6
+│
+◇  Remove data (remaining: tooling)? Same as: agent-harness uninstall --track data
+│    · remove 1 harness file(s) under .claude/ (1 with a copy saved beside as *.backup-<time>)
+│    · removes: agents data-analyst
+│    · leave asset anthropic-data-plugin (a default of data) — remove with: agent-harness uninstall --only anthropic-data-plugin
+│    · file counts: agent-harness uninstall --track data --dry-run
+│
+│  Proceed?
+│  Yes
+
+uzys-agent-harness · uninstall --track data
+
+  installed: data, tooling
+  removing:  data
+  remaining: tooling
+
+  ✓ removed  .claude/ 1 harness file(s)
+  ✓ backed up  .claude/agents/data-analyst.md — you edited it — saved as .claude/agents/data-analyst.md.backup-20261015T014943, removed from live
+  ⊘ left  asset anthropic-data-plugin (a default of data) — remove with: agent-harness uninstall --only anthropic-data-plugin
+  ✓ install log updated (tracks: tooling)
+
+✓ data removed (remaining: tooling)
+
+
+# disk diff by wizard:
+  - .claude/.installed-tracks c65da3f99af5
+  - .claude/agents/data-analyst.md ffc55fab19c1
+  - .uzys-agent-harness/.harness-install.json 5e3ded2a6a85
+  + .claude/.installed-tracks 02be8427b4b0
+  + .claude/agents/data-analyst.md.backup-* ffc55fab19c1
+  + .uzys-agent-harness/.harness-install.json 79e27bfdf6a3
+# log tracks after: ["tooling"]

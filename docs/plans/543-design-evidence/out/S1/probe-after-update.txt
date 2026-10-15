@@ -1,0 +1,9 @@
+STILL THERE  .claude/rules/ui-components.md
+STILL THERE  .claude/skills/ui-visual-review
+STILL THERE  .agents/rules/ui-components.md
+STILL THERE  .agents/skills/ui-visual-review
+STILL THERE  .claude/skills/frontend-design
+STILL THERE  .agents/skills/frontend-design
+STILL THERE  .claude/rules/git-policy.md
+STILL THERE  .claude/skills/objective-brief
+STILL THERE  .claude/rules/cli-development.md

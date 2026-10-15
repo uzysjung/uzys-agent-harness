@@ -1,0 +1,10 @@
+## v125: install → update → update (no --track): 2nd update CHANGED 1 lines
+   3rd update: quiet
+## v150: install → update → update (no --track): 2nd update CHANGED 1 lines
+   3rd update: quiet
+## main uninstall --cli opencode: AGENTS.md backups on disk=1 · screen mentions AGENTS.md backup=false
+  ✓ AGENTS.md — re-rendered for Codex (your sections kept)
+## branch uninstall --cli opencode: AGENTS.md backups on disk=1 · screen mentions AGENTS.md backup=false
+  ✓ AGENTS.md — re-rendered for Codex (your sections kept)
+## branch uninstall --track csr-fastapi: AGENTS.md backups on disk=1 · screen mentions AGENTS.md backup=false
+  ✓ AGENTS.md — re-rendered for Codex · OpenCode (your sections kept)

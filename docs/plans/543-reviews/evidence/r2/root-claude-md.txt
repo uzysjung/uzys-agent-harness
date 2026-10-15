@@ -1,0 +1,111 @@
+
+$ R1 v125 → branch --track csr-fastapi --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: tooling, csr-fastapi
+  removing:  csr-fastapi
+  remaining: tooling
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .claude/
+  ○ removes: skills ui-visual-review
+  ○ leave asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ○ leave asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ○ leave asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ○ install log updated (tracks: tooling)
+# dry-run mentions CLAUDE.md: false
+
+$ R1 branch --track csr-fastapi  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: tooling, csr-fastapi
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 1 harness file(s)
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+# R1 root CLAUDE.md before→after --track:
+  (same)
+# installer line kept: false
+
+$ R2 branch --track csr-fastapi --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 2 harness file(s) under .claude/
+  ○ removes: rules ui-components · skills ui-visual-review
+  ○ leave asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ○ leave asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ○ leave asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ○ leave MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --cli claude --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ○ install log updated (tracks: tooling)
+# dry-run mentions CLAUDE.md: false
+
+$ R2 branch --track csr-fastapi  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 2 harness file(s)
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ⊘ left  MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --cli claude --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+# R2 root CLAUDE.md before→after --track:
+  (same)
+
+$ R2 [control] branch update on the opt-out copy  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/rmd-optout-upd-0ETEiZ/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/rmd-optout-upd-0ETEiZ/app
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       19 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 26 items resident · ~6255 tokens/session (directives 9 ~4292 · [rules 7 ~1789 · CLAUDE.md 2 ~2503] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 4 external assets unmeasured)
+# R2 control: root CLAUDE.md before→after update:
+  + <!-- uzys-harness:import:start -->
+  + @CLAUDE-uzys-harness.md
+  + ## Skills that apply continuously
+  + These installed skills apply to every response or delegation; no prompt ever looks like their job, so open them from this list:
+  + - `user-centered-explanation` — when explaining a development problem, change, or choice to the user, explain what the user does and sees before internal implementation — in every answer and report, not only when approval is asked for; for a detailed re-explanation, a UX before/after comparison, or laying out an important decision, apply this skill.
+  + - `model-orchestration` — when work is delegated, it decides which lane takes the work and how that lane is run.
+  + <!-- uzys-harness:import:end -->

@@ -243,6 +243,7 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
       cancel: vi.fn(),
       selectMode: vi.fn(async () => "all" as const),
       selectCli: vi.fn(async () => "codex" as const),
+      selectTrack: vi.fn(async () => null),
       selectAssets: vi.fn(async () => [] as string[]),
       confirm: vi.fn(async () => false),
       ...over,

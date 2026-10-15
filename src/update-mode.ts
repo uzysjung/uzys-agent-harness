@@ -1913,6 +1913,7 @@ function excludedSkillOf(log: InstallLog | null): (id: string) => boolean {
 export function recordedRenderInputs(
   projectDir: string,
   log: InstallLog | null,
+  tracks: ReadonlyArray<Track> = installedTracks(projectDir),
 ): { selectedInternalSkills: string[]; rules: string[] } {
   const excluded = excludedIds(log);
   return {
@@ -1926,7 +1927,7 @@ export function recordedRenderInputs(
     ),
     // #601 — install 과 같은 SSOT(resolveRules)를 설치된 트랙으로. 렌더 경로(AGENTS.md 절 · antigravity 룰 생성)는
     // 디스크 게이트가 없어, data 트랙 설치에서 update 만으로 cli-development(제6룰)가 생겼다.
-    rules: resolveRules({ tracks: installedTracks(projectDir) }).filter(
+    rules: resolveRules({ tracks }).filter(
       (r) => !isBaselineExcluded(`.claude/rules/${r}.md`, excluded),
     ),
   };

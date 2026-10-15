@@ -1,0 +1,89 @@
+
+$ v161 install --track tooling --track csr-fastapi --cli claude --cli codex --cli antigravity  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/rg-v161-base-6cjaPm/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude · codex · antigravity
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       13 selected
+              · workflow: audit-harness-fit, compaction-handoff, gh-issue-workflow, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui
+              · session-start context cost: 21 items resident · ~5284 tokens/session (directives 8 ~3770 · [rules 6 ~1501 · CLAUDE.md 2 ~2269] · triggers 13 ~1514 · [skills 11 ~1322 · agents 2 ~192] · 3 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (2)                   independent verifier · implementation lane · domain lanes (track)
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (11)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .mcp.json                    chrome-devtools, context7, github, railway-mcp-server
+
+━━ External assets (3) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+━━ Codex + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     10 skills
+  ✓ .agents/rules/uzys-harness.md            from CLAUDE-uzys-harness.md
+  ✓ .agents/skills/<id>/                     10 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude · Codex · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+## uninstall --yes --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --yes — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli codex --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli codex — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli claude --dry-run — exit main=0 branch=0 · screen same · disk same · log same
+
+## uninstall --cli claude — exit main=0 branch=0 · screen same · disk same · log same
+
+## update — exit main=0 branch=0 · screen same · disk DIFF · log DIFF
+### disk diff:
+  main  : .codex/config.toml d6e714117660
+  main  : .uzys-agent-harness/.harness-install.json fd510880dc61
+  main  : .uzys-agent-harness/update-backups.json 7769cdaf900c
+  branch: .codex/config.toml 9364788d851c
+  branch: .uzys-agent-harness/.harness-install.json 1f85673ad073
+  branch: .uzys-agent-harness/update-backups.json 8b62337b9cfc
+### log diff:
+  externalFiles: main=["{\"path\":\".agents/rules/change-management.md\",\"sha256\":\"f7511314ca935cd3dae370f797eb9e28bc029050d29f665ae629e8b6f72be366\"}","{\"path\":\".agents/rules/cli-development.md\",\"sha256\":\"758b3f7069127b4b23846e1f185da532d18b31995618eb19c50a856f2bde2ad8\"}","{\"path\":\".agents/rules/doc-governance.md\",\"sha256\":\"f15cf6a3845b8f6c60e3b0aaca0cd011d46189b511d417e22f7ea2d426446912\"}","{\"path branch=["{\"path\":\".agents/rules/change-management.md\",\"sha256\":\"f7511314ca935cd3dae370f797eb9e28bc029050d29f665ae629e8b6f72be366\"}","{\"path\":\".agents/rules/cli-development.md\",\"sha256\":\"758b3f7069127b4b23846e1f185da532d18b31995618eb19c50a856f2bde2ad8\"}","{\"path\":\".agents/rules/doc-governance.md\",\"sha256\":\"f15cf6a3845b8f6c60e3b0aaca0cd011d46189b511d417e22f7ea2d426446912\"}","{\"path
+  portions: main=["{\"path\":\".claude/settings.json\",\"adapter\":\"json-keys\",\"key\":\"hooks.PreToolUse#protect-files.sh\",\"sha256\":\"d33990e28ef66649ab7c6bc3ce204830a0ad9bd8adbc580600d8448af4ac0464\"}","{\"path\":\".claude/settings.json\",\"adapter\":\"json-keys\",\"key\":\"hooks.PreToolUse#protect-files.sh{}\",\"sha256\":\"d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9\"}","{\"path\":\".c branch=["{\"path\":\".claude/settings.json\",\"adapter\":\"json-keys\",\"key\":\"hooks.PreToolUse#protect-files.sh\",\"sha256\":\"d33990e28ef66649ab7c6bc3ce204830a0ad9bd8adbc580600d8448af4ac0464\"}","{\"path\":\".claude/settings.json\",\"adapter\":\"json-keys\",\"key\":\"hooks.PreToolUse#protect-files.sh{}\",\"sha256\":\"d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9\"}","{\"path\":\".c
+
+## uninstall --only frontend-design — exit main=1 branch=1 · screen same · disk same · log same
+### outputs (exit != 0)
+
+uzys-agent-harness · uninstall
+
+  installed: <ISO>
+  scope:     project
+  assets:    1 selected of 3 (--only)
+
+  ⊘ frontend-design (skill) — 자동 되돌리기 경로 없음, 기록 유지
+    ↳ files it put down are not on record (installed by an older version) — left: .claude/skills/frontend-design/ · .agents/skills/frontend-design/ (delete by hand if the harness installed it)
+  ✓ install log updated (3 asset(s) remain)
+
+아무것도 자동 제거되지 않았다 — 위 안내를 따라 직접 처리해야 한다
+
