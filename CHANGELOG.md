@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.174.0] — 2026-10-15 (트랙 하나를 뺀다)
+
+### Added
+- **트랙 하나를 뺀다 — `uninstall --track <name>` · 위저드 Uninstall → Remove one track** (#543, PR #834). 트랙을 잘못 골랐을 때 전량 uninstall 뒤 재설치하지 않아도 된다. 설치자에게 달라지는 것:
+  - 그 트랙에만 속한 룰 · 에이전트 · 스킬이 네 CLI 자리(`.claude/` · `.agents/` · AGENTS.md 인라인 룰)에서 함께 빠진다. 남는 트랙이 같이 쓰는 것(공통 룰 · 방법론 스킬 · 훅 · 앵커) · 내 파일 · `--with` 로 고른 항목은 남는다.
+  - 내가 고친 파일은 `<file>.backup-<time>` 으로 남긴 뒤 빠지고, 같은 이름의 내 원본은 제자리로 돌아온다. 기록과 `.claude/.installed-tracks` 에서도 그 트랙이 빠져 다음 update 가 되살리지 않는다.
+  - 위저드 확인 화면과 `--dry-run` 이 빠질 항목을 이름으로 보인다(`removes: rules ui-components · skills ui-visual-review`). 실제 삭제 미리보기에서 만든 목록이라 실행 결과와 같고, 백업 예고도 함께 나온다.
+  - 그 트랙 때문에 들어온 MCP 서버와 외부 스킬은 남기고, 빼는 명령을 화면이 댄다(MCP 는 설치된 CLI 전부에서 한 번에 빠지는 명령).
+  - 마지막 트랙 · 기록에 없는 트랙은 거절한다. `--yes` 가 함께 와도 전량 삭제가 되지 않는다.
+  - 설계 독립 검증과 옛 npm 판(26.125 ~ 26.169) 실설치 적대적 리뷰 3라운드를 거쳤다 — 설치자 파일 손실 0.
+
+### Fixed
+- `uninstall --cli 3` 처럼 문자열이 아닌 값이 내부 오류(`trim is not a function`) 대신 거절 메시지를 낸다. `uninstall --cli` 가 AGENTS.md 를 다시 그렸는데 바이트가 그대로면 "re-rendered" 줄을 내지 않는다.
+
+### 알려진 한계
+- 루트 `CLAUDE.md` 의 `> Active track(s):` 줄은 트랙을 더하거나 빼도 바뀌지 않는다(#833).
+
 ## [v26.173.0] — 2026-10-15 (update · uninstall 화면이 파일마다 한 일을 말한다 · Codex 를 빼도 Claude 링크 스킬이 남는다)
 
 ### Fixed
