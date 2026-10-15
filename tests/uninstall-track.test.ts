@@ -7,16 +7,19 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { installAction } from "../src/commands/install.js";
 import { listAction } from "../src/commands/list.js";
 import { type UninstallOptions, uninstallAction } from "../src/commands/uninstall.js";
 import {
@@ -550,5 +553,139 @@ describe("#543 위저드 Remove one track", () => {
     const mcp = /MCP servers .+$/m.exec(dry.text)?.[0] ?? "(none)";
     expect(summary).toContain(mcp);
     expect(summary).toContain("agent-harness uninstall --track csr-fastapi --dry-run");
+  });
+});
+
+describe("#543 적대적 리뷰 수정", () => {
+  const wizard = async (track: Track): Promise<string> => {
+    const confirm = vi.fn(async (_summary: string) => false);
+    await runInteractiveUninstall(projectDir, {
+      isTty: () => true,
+      prompts: {
+        intro: vi.fn(),
+        outro: vi.fn(),
+        cancel: vi.fn(),
+        selectMode: vi.fn(async () => "track" as const),
+        selectCli: vi.fn(async () => null),
+        selectTrack: vi.fn(async () => track),
+        selectAssets: vi.fn(async () => []),
+        confirm,
+      },
+    });
+    return String(confirm.mock.calls[0]?.[0] ?? "");
+  };
+
+  it("BLOCKER-1 · 뺀 스킬 · 이미 지운 룰은 빠질 이름에 없다 — dry-run 과 위저드가 엔진 미리보기에서 같은 이름을 낸다", async () => {
+    install(["tooling", "csr-fastapi"], ["claude"], {
+      baselineExclude: ["baseline:skills/ui-visual-review"],
+    });
+    const dry = uninstall({ track: "csr-fastapi", dryRun: true });
+    expect(dry.text).toContain("○ removes: rules ui-components\n");
+    expect(dry.text).not.toContain("skills ui-visual-review");
+    expect(await wizard("csr-fastapi")).toContain("· removes: rules ui-components\n");
+
+    // A7 — 설치자가 이미 지운 T 전용 룰
+    rmSync(projectDir, { recursive: true, force: true });
+    mkdirSync(projectDir);
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    rmSync(abs(".claude/rules/ui-components.md"));
+    const a7 = uninstall({ track: "csr-fastapi", dryRun: true });
+    expect(a7.text).toContain("○ removes: skills ui-visual-review\n");
+    expect(await wizard("csr-fastapi")).toContain("· removes: skills ui-visual-review\n");
+  });
+
+  it("HIGH-1 · MCP 기본 행을 빼는 안내 명령은 기록된 CLI 를 모두 달아 한 번에 세 자리에서 뺀다", () => {
+    install(["tooling", "csr-fastapi"], ["claude", "codex", "opencode"]);
+    expect(read(".codex/config.toml")).toContain("railway-mcp-server"); // 대조군
+    expect(read("opencode.json")).toContain("railway-mcp-server");
+
+    const out = uninstall({ track: "csr-fastapi" });
+    const command = /drop: agent-harness install (.+?) \(this re-runs/.exec(out.text)?.[1] ?? "";
+    const args = command.split(" ");
+    const values = (flag: string) => args.flatMap((a, i) => (args[i - 1] === flag ? [a] : []));
+    installAction(
+      { track: values("--track"), cli: values("--cli"), without: values("--without"), projectDir },
+      {
+        log: () => {},
+        err: () => {},
+        exit: (() => undefined) as never,
+        resolveHarnessRoot: () => HARNESS_ROOT,
+        runPipeline: (spec, harnessRoot, mode) =>
+          runInstall({
+            runExternal: null,
+            harnessRoot,
+            projectDir,
+            spec,
+            ...(mode ? { mode } : {}),
+          }),
+      },
+    );
+
+    for (const f of [".mcp.json", ".codex/config.toml", "opencode.json"]) {
+      expect(read(f), f).not.toContain("railway-mcp-server");
+      expect(read(f), f).not.toContain("chrome-devtools");
+    }
+    expect([...(log().spec.cli ?? [])].sort()).toEqual(["claude", "codex", "opencode"]);
+  });
+
+  it("HIGH-2 · 루트 CLAUDE.md 블록은 미리보기가 예고하고 · 앵커가 디스크에 없으면 건드리지 않는다", () => {
+    install(["tooling", "executive"], ["claude"]);
+    const dry = uninstall({ track: "tooling", dryRun: true });
+    expect(dry.text).toContain("○ would refresh the harness block in CLAUDE.md");
+
+    rmSync(abs("CLAUDE-uzys-harness.md")); // 옛 앵커 판처럼 루트 앵커가 없다
+    const before = read("CLAUDE.md");
+    expect(uninstall({ track: "tooling", dryRun: true }).text).not.toContain("harness block");
+    const out = uninstall({ track: "tooling" });
+
+    expect(out.code).toBe(0);
+    expect(read("CLAUDE.md")).toBe(before);
+    expect(out.text).not.toContain("harness block refreshed");
+  });
+
+  it("HIGH-2 · 블록이 없는 루트 CLAUDE.md 에는 블록을 새로 붙이지 않는다", () => {
+    install(["tooling", "executive"], ["claude"]);
+    put("CLAUDE.md", "# mine\n\nno harness block here\n");
+
+    const out = uninstall({ track: "tooling" });
+
+    expect(out.code).toBe(0);
+    expect(read("CLAUDE.md")).toBe("# mine\n\nno harness block here\n");
+  });
+
+  it("M1 · AGENTS.md 바이트가 그대로면 재렌더 줄을 내지 않는다", () => {
+    install(["full", "tooling"], ["claude", "codex"]);
+    const before = read("AGENTS.md");
+
+    const out = uninstall({ track: "tooling" });
+
+    expect(out.code).toBe(0);
+    expect(read("AGENTS.md")).toBe(before);
+    expect(out.text).not.toContain("AGENTS.md — re-rendered");
+  });
+
+  it("NOTE 4 · 문자열이 아닌 값은 내부 오류가 아니라 어휘 검사로 거절한다 — `--cli` 도 같다", () => {
+    install(["tooling", "csr-fastapi"], ["claude", "codex"]);
+
+    const num = uninstall({ track: 3 as never });
+    expect(num.code).toBe(1);
+    expect(num.errText).toContain("Invalid --track value: 3");
+    expect(uninstall({ track: true as never }).errText).toContain("Invalid --track value: true");
+    expect(uninstall({ cli: 3 as never }).errText).toContain("Invalid --cli value: 3");
+    expect(log().spec.tracks).toEqual(["csr-fastapi", "tooling"]);
+  });
+
+  it("M2 · A4 — 링크 슬롯의 스킬을 빼면 본문은 빠지고 설치자 링크는 끊어진 채 남는다(전량과 같다)", () => {
+    install(["tooling", "csr-fastapi"], ["claude", "codex"]);
+    rmSync(abs(".claude/skills/ui-visual-review"), { recursive: true });
+    symlinkSync("../../.agents/skills/ui-visual-review", abs(".claude/skills/ui-visual-review"));
+    expect(has(".claude/skills/ui-visual-review/SKILL.md")).toBe(true); // 링크 해석 대조군
+
+    const out = uninstall({ track: "csr-fastapi" });
+
+    expect(out.code).toBe(0);
+    expect(has(".agents/skills/ui-visual-review")).toBe(false);
+    expect(lstatSync(abs(".claude/skills/ui-visual-review")).isSymbolicLink()).toBe(true);
+    expect(has(".claude/skills/ui-visual-review")).toBe(false); // 끊어졌다
   });
 });

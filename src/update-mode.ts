@@ -1813,7 +1813,7 @@ function syncHarnessAnchor(
  * @returns 실제로 파일을 고쳤으면 true. 이미 import 가 살아 있으면 upsert 가 입력을 그대로
  *   돌려주고, 그때는 파일을 만지지 않는다.
  */
-export function upsertRootImport(projectDir: string, outside: OutsideGuard): boolean {
+function upsertRootImport(projectDir: string, outside: OutsideGuard): boolean {
   const target = join(projectDir, "CLAUDE.md");
   if (outside.skip(target)) return false; // #678
 

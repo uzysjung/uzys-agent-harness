@@ -64,6 +64,7 @@ import {
   withoutRestored,
 } from "../displaced.js";
 import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
+import { CONTINUOUS_SKILLS } from "../external-assets.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
   backupFile,
@@ -101,13 +102,12 @@ import { type McpJson, type McpServerConfig, toClaudeServer } from "../mcp-merge
 import { PRIOR_MCP_SERVERS } from "../mcp-prior.js";
 import { renderOpencodeMcp } from "../opencode/opencode-json.js";
 import {
-  createOutsideGuard,
   isOutsideProject,
   type OutsideLink,
   outsideLinkAt,
   outsideProjectTarget,
 } from "../outside-project.js";
-import { stripHarnessImport } from "../project-claude-merge.js";
+import { stripHarnessImport, upsertHarnessImport } from "../project-claude-merge.js";
 import {
   bundlePath,
   excludedIds,
@@ -122,15 +122,11 @@ import {
 import { ruleHeadings } from "../rules-port.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
+import type { TrackRemoval } from "../track-removal.js";
 import { trackLeftLines, trackRemoval, trackRemovalNames } from "../track-removal.js";
 import { CLI_BASES, type CliBase, isTrack, TRACKS, type Track } from "../types.js";
 import { runInteractiveUninstall } from "../uninstall-interactive.js";
-import {
-  BACKUP_SCAN_DIRS,
-  BACKUP_SUFFIX,
-  recordedRenderInputs,
-  upsertRootImport,
-} from "../update-mode.js";
+import { BACKUP_SCAN_DIRS, BACKUP_SUFFIX, recordedRenderInputs } from "../update-mode.js";
 import { defaultHarnessRoot } from "./install.js";
 
 /** `.codex/config.toml` — 하네스 구간(`toml-region`)만 걷는 함께 쓰는 파일. */
@@ -883,7 +879,7 @@ function resolveScopeTarget<T extends string>(
   io: RemoveCliIo,
   s: {
     flag: "cli" | "track";
-    value: string | undefined;
+    value: unknown;
     conflict: boolean;
     vocab: ReadonlyArray<T>;
     installed: ReadonlyArray<string>;
@@ -901,7 +897,7 @@ function resolveScopeTarget<T extends string>(
       "CLI 하나: uninstall --cli <name>  /  트랙 하나: uninstall --track <name>  /  자산: uninstall --only <id>",
     );
   }
-  const target = (s.value ?? "").trim();
+  const target = String(s.value ?? "").trim();
   if (!(s.vocab as ReadonlyArray<string>).includes(target)) {
     return reject(
       `Invalid --${s.flag} value: ${target || "(empty)"}`,
@@ -1158,7 +1154,7 @@ interface ScopedRemoval {
   installed: ReadonlyArray<string>;
   remaining: ReadonlyArray<string>;
   scope: RemovalScope;
-  leftLines: (preview: boolean) => string[];
+  leftLines: (preview: boolean, done: HarnessRemoval) => string[];
   rerenderSet: CliBase[] | null;
   /** 회수 줄 뒤의 줄 · 기록의 다음 판(기록 쓰기 직전에 한 번 — 트랙은 짝인 메타파일도 여기서 쓴다). */
   settle: (done: HarnessRemoval) => InstallLog;
@@ -1189,7 +1185,7 @@ function runScopedRemoval(ctx: RemoveCliCtx, io: RemoveCliIo, plan: ScopedRemova
   const lines = [
     ...(preview ? [c.yellow(`[DRY RUN] ${what} 제거 미리보기 (실제 변경 없음):`), ""] : []),
     ...harnessRemovalLines(done, installLog, projectDir, plan.scope, preview),
-    ...plan.leftLines(preview),
+    ...plan.leftLines(preview, done),
   ];
   if (preview) {
     if (plan.rerenderSet !== null) {
@@ -1204,9 +1200,12 @@ function runScopedRemoval(ctx: RemoveCliCtx, io: RemoveCliIo, plan: ScopedRemova
   for (const line of lines) io.log(line);
   const settled = plan.settle(done);
   // C-3 (#642) — `AGENTS.md` 를 읽는 CLI 가 남으면 그 자리에서 다시 렌더한다(update 까지 옛 판이 남지 않는다)
+  const agentsBefore = readTextOrEmpty(join(projectDir, AGENTS_MD));
   const rerender =
     plan.rerenderSet === null ? null : rerenderAgentsMd(ctx, plan.rerenderSet, settled);
-  if (rerender !== null) for (const line of rerenderLines(rerender)) io.log(line);
+  const rewrote =
+    rerender !== null && readTextOrEmpty(join(projectDir, AGENTS_MD)) !== agentsBefore;
+  if (rewrote) for (const line of rerenderLines(rerender)) io.log(line);
   const next = rerender === null ? settled : withRerender(settled, rerender);
   try {
     io.writeLog(projectDir, next);
@@ -1259,7 +1258,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
 
 /** #543 — 그 트랙만 가져오는 룰 · 에이전트 · 스킬을 `--cli` 와 같은 뼈대로 뺀다. 함께 쓰는 파일 · 앵커에는 트랙의 몫이 없다. */
 function removeTrackAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
-  const { options, installLog, projectDir, harnessRoot } = ctx;
+  const { options, installLog, projectDir } = ctx;
   // 마지막 트랙은 **어휘에 있는 기록 트랙**으로 센다(모르는 문자열은 남는 트랙이 아니다)
   const target = resolveScopeTarget(io, {
     flag: "track",
@@ -1270,33 +1269,68 @@ function removeTrackAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
   });
   if (target === null) return;
   const removal = trackRemoval(installLog, target);
-  // `.agents/` 자리는 같은 번들 이름으로 판정한다 — 스킬은 `bundlePath`, Antigravity 룰은 `.claude/rules/` 의 같은 이름
-  const has = (path: string): boolean => {
-    const p = bundlePath(path).replace(/^\.agents\/rules\//, ".claude/rules/");
-    return removal.only.some((t) => p === t || p.startsWith(`${t}/`));
-  };
-  const left = trackLeftLines(installLog, removal, harnessRoot);
   runScopedRemoval(ctx, io, {
     flag: "track",
     target,
     installed: removal.known,
     remaining: removal.remaining,
-    scope: { has, shared: [], skeleton: [], folders: [], importBlock: false, anchor: false },
-    leftLines: (preview) => [
-      ...(preview ? [`  ○ ${trackRemovalNames(removal)}`] : rootImportLines(ctx)),
-      ...left.map((l) => (preview ? `  ○ leave ${l}` : `  ${c.yellow("⊘")} left  ${l}`)),
-    ],
+    scope: { ...TRACK_SCOPE, has: removal.has },
+    leftLines: (preview, done) =>
+      preview
+        ? trackNotes(ctx, removal, done, false).map((l) => `  ○ ${l}`)
+        : trackNotes(ctx, removal, done, true),
     rerenderSet: agentsMdRerenderSet(null, installedClis(installLog), installLog, projectDir),
     settle: (done) => settleTrackLog(ctx, target, removal.remaining, done),
   });
 }
 
-/** 루트 `CLAUDE.md` 의 하네스 블록(상시 스킬 안내)을 update 와 같은 함수로 맞춘다 — 방금 지운 스킬을 가리키게 두지 않는다. */
-function rootImportLines({ installLog, projectDir }: RemoveCliCtx): string[] {
+const TRACK_SCOPE = { shared: [], skeleton: [], folders: [], importBlock: false, anchor: false };
+
+type TrackCtx = Pick<RemoveCliCtx, "installLog" | "projectDir" | "harnessRoot">;
+
+/** 회수 뒤 줄 — 빠지는 이름(엔진 미리보기에서, 리뷰 BLOCKER-1) · 루트 블록 · 남기는 것. dry-run · 위저드 · 실행이 같이 쓴다. */
+function trackNotes(ctx: TrackCtx, r: TrackRemoval, d: HarnessRemoval, write: boolean): string[] {
+  const md = join(ctx.projectDir, "CLAUDE.md");
+  // 미리보기는 이번에 지울 스킬을 빠진 것으로 친다 · 실행은 회수 뒤 디스크를 본다
+  const skills = write ? [] : d.removed.map((p) => /^\.claude\/skills\/([^/]+)\//.exec(p)?.[1]);
+  const block = rootBlockNext(ctx, new Set(skills));
+  if (write && block !== null) {
+    backupIfLossyUtf8(md);
+    writeFileSync(md, block);
+  }
+  const left = trackLeftLines(ctx.installLog, r, ctx.harnessRoot);
+  if (write) {
+    const refreshed = block === null ? [] : ["CLAUDE.md — harness block refreshed (본문 보존)"];
+    return [
+      ...refreshed.map((l) => `  ${status.success(l)}`),
+      ...left.map((l) => `  ⊘ left  ${l}`),
+    ];
+  }
+  const would = block === null ? [] : ["would refresh the harness block in CLAUDE.md (본문 보존)"];
+  return [trackRemovalNames(d.removed, r.target), ...would, ...left.map((l) => `leave ${l}`)];
+}
+
+/** #543 위저드 확인 화면 — dry-run 과 같은 엔진 미리보기(쓰지 않는다)로 무엇이 빠지는지 이름으로 말한다(리뷰 BLOCKER-1). */
+export function previewTrackRemoval(ctx: TrackCtx, target: Track): string[] {
+  const r = trackRemoval(ctx.installLog, target);
+  const io = { rm: () => {}, write: false, harnessRoot: ctx.harnessRoot };
+  const scope = { ...TRACK_SCOPE, has: r.has };
+  return trackNotes(ctx, r, removeHarnessFiles(ctx.installLog, ctx.projectDir, scope, io), false);
+}
+
+/** 루트 `CLAUDE.md` 하네스 블록(상시 스킬 안내)의 다음 판. update 와 같은 가드 — 기록된 앵커가 디스크에 있고 블록이 이미 있을 때만(리뷰 HIGH-2). */
+function rootBlockNext({ installLog, projectDir }: TrackCtx, gone: Set<unknown>): string | null {
+  const anchor = installLog.templates?.rootClaudeMd?.path;
   const md = join(projectDir, "CLAUDE.md");
-  if (!installedClis(installLog).includes("claude") || !safeExists(md)) return [];
-  const done = upsertRootImport(projectDir, createOutsideGuard(projectDir));
-  return done ? [`  ${status.success("CLAUDE.md — harness block refreshed (본문 보존)")}`] : [];
+  const text =
+    safeExists(md) && outsideProjectTarget(projectDir, md) === null ? readTextOrEmpty(md) : "";
+  if (anchor === undefined || !safeExists(join(projectDir, anchor))) return null;
+  if (stripHarnessImport(text) === null) return null; // 블록 마커가 없다 — 새로 붙이지 않는다
+  const continuousSkills = CONTINUOUS_SKILLS.map((s) => s.id).filter(
+    (id) => !gone.has(id) && safeExists(join(projectDir, ".claude/skills", id)),
+  );
+  const next = upsertHarnessImport(text, { projectName: "", tracks: [], continuousSkills });
+  return next === text ? null : next;
 }
 
 /** 기록과 짝인 메타파일 · 그 sha 를 함께 맞춘다(아니면 heal 이 트랙을 되살린다). 고친 메타파일 · 밖 자리는 두고, 옛 기록에 필드를 만들지 않는다. */

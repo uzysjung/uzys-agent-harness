@@ -21,6 +21,7 @@
 
 import { cancel, confirm, intro, isCancel, multiselect, outro, select } from "@clack/prompts";
 import { CLI_OWNERSHIP, type OwnedPath, removableFor } from "./cli-ownership.js";
+import { previewTrackRemoval } from "./commands/uninstall.js";
 import { resolveBundleRoot } from "./context-cost.js";
 import {
   type InstallLog,
@@ -30,7 +31,6 @@ import {
 } from "./install-log.js";
 import { outsideLinkAt } from "./outside-project.js";
 import { CLI_BASE_LABELS, TRACK_LABELS } from "./prompts.js";
-import { trackLeftLines, trackRemoval, trackRemovalNames } from "./track-removal.js";
 import { type CliBase, isTrack, type Track } from "./types.js";
 
 export interface RemovableRow {
@@ -65,7 +65,6 @@ export interface UninstallPrompts {
   ) => Promise<UninstallMode | null>;
   /** null = ESC/취소 */
   selectCli: (rows: ReadonlyArray<CliRow>) => Promise<CliBase | null>;
-  /** null = ESC/취소 (#543) */
   selectTrack: (
     rows: ReadonlyArray<Omit<CliRow, "value"> & { value: Track }>,
   ) => Promise<Track | null>;
@@ -148,7 +147,6 @@ export function buildUninstallModeChoices(
           : 'only one CLI here — use "Remove everything"',
       enabled: clis.length > 1,
     },
-    // #543 — 기록 트랙(어휘에 있는 것)이 둘 이상일 때만. 엔진이 마지막 트랙을 거절한다
     ...(tracks === undefined ? [] : [trackMode(tracks.length > 1)]),
     {
       value: "selected",
@@ -171,9 +169,7 @@ export function buildUninstallModeChoices(
 const trackMode = (many: boolean): ModeChoice => ({
   value: "track",
   label: "Remove one track",
-  hint: many
-    ? "files only that track installs go; the rest stay"
-    : 'only one track here — use "Remove everything"',
+  hint: many ? "only that track's own files go" : 'only one track here — use "Remove everything"',
   enabled: many,
 });
 
@@ -370,7 +366,7 @@ async function pickCli(
   return { ok: true, options: { projectDir, cli } };
 }
 
-/** "Remove one track" — 빠지는 이름 · 남기는 것은 `--track --dry-run` 과 같은 함수(`track-removal.ts`)로, 디스크는 보지 않는다. */
+/** "Remove one track" — 빠지는 이름 · 남기는 것을 `--track --dry-run` 과 같은 엔진 미리보기(`previewTrackRemoval`)로 보인다. */
 async function pickTrack(
   projectDir: string,
   log: InstallLog,
@@ -380,16 +376,17 @@ async function pickTrack(
     .filter(isTrack)
     .map((t) => ({ value: t, label: TRACK_LABELS[t], hint: t }));
   const track = await prompts.selectTrack(rows);
-  const r = track === null ? null : trackRemoval(log, track);
+  const left = rows.map((r) => r.value).filter((t) => t !== track);
   const ok =
     track !== null &&
-    r !== null &&
     (await prompts.confirm(
       [
-        `Remove ${track}? This is the same as: agent-harness uninstall --track ${track}`,
-        `  · ${trackRemovalNames(r)}`,
-        ...trackLeftLines(log, r, resolveBundleRoot()).map((l) => `  · kept: ${l}`),
-        `  · remaining: ${r.remaining.join(", ")} — file counts: agent-harness uninstall --track ${track} --dry-run`,
+        `Remove ${track} (remaining: ${left.join(", ")})? Same as: agent-harness uninstall --track ${track}`,
+        ...previewTrackRemoval(
+          { installLog: log, projectDir, harnessRoot: resolveBundleRoot() },
+          track,
+        ).map((l) => `  · ${l}`),
+        `  · file counts: agent-harness uninstall --track ${track} --dry-run`,
       ].join("\n"),
     ));
   if (!ok) {
