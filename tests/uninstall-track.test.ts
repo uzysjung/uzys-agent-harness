@@ -688,4 +688,34 @@ describe("#543 적대적 리뷰 수정", () => {
     expect(lstatSync(abs(".claude/skills/ui-visual-review")).isSymbolicLink()).toBe(true);
     expect(has(".claude/skills/ui-visual-review")).toBe(false); // 끊어졌다
   });
+
+  it("r2-1 · T1N2 — 상시 스킬 폴더에 설치자 노트가 남으면 미리보기도 실행도 루트 블록을 바꾸지 않는다(기준 하나)", () => {
+    install(["tooling", "executive"], ["claude", "codex"]);
+    for (const id of ["user-centered-explanation", "model-orchestration"]) {
+      put(`.claude/skills/${id}/my-notes.md`, "# mine\n");
+    }
+    const before = read("CLAUDE.md");
+
+    const dry = uninstall({ track: "tooling", dryRun: true });
+    const out = uninstall({ track: "tooling" });
+
+    expect(dry.text).not.toContain("would refresh the harness block");
+    expect(out.text).not.toContain("harness block refreshed");
+    expect(read("CLAUDE.md")).toBe(before);
+    expect(has(".claude/skills/user-centered-explanation/my-notes.md")).toBe(true);
+  });
+
+  it("r2 NOTE 1 · 위저드 확인 화면도 dry-run 과 같은 수 · 백업 예고를 낸다", async () => {
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    put(".claude/rules/ui-components.md", `${read(".claude/rules/ui-components.md")}\nmine\n`);
+
+    const dry = uninstall({ track: "csr-fastapi", dryRun: true });
+    const line =
+      /remove \d+ harness file\(s\) under \.claude\/ \(1 with a copy saved beside[^\n]*/.exec(
+        dry.text,
+      )?.[0];
+
+    expect(line).toBeDefined();
+    expect(await wizard("csr-fastapi")).toContain(`· ${line}`);
+  });
 });

@@ -1291,9 +1291,7 @@ type TrackCtx = Pick<RemoveCliCtx, "installLog" | "projectDir" | "harnessRoot">;
 /** 회수 뒤 줄 — 빠지는 이름(엔진 미리보기에서, 리뷰 BLOCKER-1) · 루트 블록 · 남기는 것. dry-run · 위저드 · 실행이 같이 쓴다. */
 function trackNotes(ctx: TrackCtx, r: TrackRemoval, d: HarnessRemoval, write: boolean): string[] {
   const md = join(ctx.projectDir, "CLAUDE.md");
-  // 미리보기는 이번에 지울 스킬을 빠진 것으로 친다 · 실행은 회수 뒤 디스크를 본다
-  const skills = write ? [] : d.removed.map((p) => /^\.claude\/skills\/([^/]+)\//.exec(p)?.[1]);
-  const block = rootBlockNext(ctx, new Set(skills));
+  const block = rootBlockNext(ctx, new Set(d.removed));
   if (write && block !== null) {
     backupIfLossyUtf8(md);
     writeFileSync(md, block);
@@ -1315,20 +1313,26 @@ export function previewTrackRemoval(ctx: TrackCtx, target: Track): string[] {
   const r = trackRemoval(ctx.installLog, target);
   const io = { rm: () => {}, write: false, harnessRoot: ctx.harnessRoot };
   const scope = { ...TRACK_SCOPE, has: r.has };
-  return trackNotes(ctx, r, removeHarnessFiles(ctx.installLog, ctx.projectDir, scope, io), false);
+  const done = removeHarnessFiles(ctx.installLog, ctx.projectDir, scope, io);
+  // dry-run 과 같은 수 · 백업 예고 줄(리뷰 r2 NOTE 1)
+  const counts = harnessRemovalLines(done, ctx.installLog, ctx.projectDir, scope, true);
+  return [...counts.map((l) => l.replace(/^\s*○ /, "")), ...trackNotes(ctx, r, done, false)];
 }
 
 /** 루트 `CLAUDE.md` 하네스 블록(상시 스킬 안내)의 다음 판. update 와 같은 가드 — 기록된 앵커가 디스크에 있고 블록이 이미 있을 때만(리뷰 HIGH-2). */
-function rootBlockNext({ installLog, projectDir }: TrackCtx, gone: Set<unknown>): string | null {
+function rootBlockNext({ installLog, projectDir }: TrackCtx, gone: Set<string>): string | null {
   const anchor = installLog.templates?.rootClaudeMd?.path;
   const md = join(projectDir, "CLAUDE.md");
   const text =
     safeExists(md) && outsideProjectTarget(projectDir, md) === null ? readTextOrEmpty(md) : "";
   if (anchor === undefined || !safeExists(join(projectDir, anchor))) return null;
   if (stripHarnessImport(text) === null) return null; // 블록 마커가 없다 — 새로 붙이지 않는다
-  const continuousSkills = CONTINUOUS_SKILLS.map((s) => s.id).filter(
-    (id) => !gone.has(id) && safeExists(join(projectDir, ".claude/skills", id)),
-  );
+  // 기준 하나(리뷰 r2-1) — 이번에 지울(미리보기) · 지운(실행) 파일을 빼고 그 스킬 폴더에 파일이 남으면 아직 깔린 스킬이다
+  const stays = (id: string) =>
+    listFilesRecursive(join(projectDir, SKILLS_DIR, id)).some(
+      (f) => !gone.has(`${SKILLS_DIR}${id}/${f}`),
+    );
+  const continuousSkills = CONTINUOUS_SKILLS.map((s) => s.id).filter(stays);
   const next = upsertHarnessImport(text, { projectName: "", tracks: [], continuousSkills });
   return next === text ? null : next;
 }
