@@ -1,0 +1,235 @@
+# A7 — 현행 · 설치자가 T 전용 룰을 지운 뒤 --track
+
+$ branch install --track tooling --track csr-fastapi --cli claude  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-x-oerqTd/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       19 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · session-start context cost: 26 items resident · ~6220 tokens/session (directives 9 ~4257 · [rules 7 ~1789 · CLAUDE.md 2 ~2468] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 4 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (7)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy · ui-components
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (15)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .github/workflows/e2e.yml    CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7, railway-mcp-server, chrome-devtools
+
+━━ External assets (3) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Remote MCP servers sign in on first use — railway-mcp-server
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# installer edits:
+deleted .claude/rules/ui-components.md
+
+# log before: tracks=["csr-fastapi","tooling"] clis=["claude"] records=writer
+
+$ branch uninstall --track csr-fastapi --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .claude/
+  ○ removes: skills ui-visual-review
+  ○ leave asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ○ leave asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ○ leave asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ○ leave MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --cli claude --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ○ install log updated (tracks: tooling)
+# dry-run disk change: 0
+
+$ branch uninstall --track csr-fastapi  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 1 harness file(s)
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ⊘ left  MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --cli claude --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+
+# disk diff by --track:
+  - .claude/.installed-tracks 735c79dd1112
+  - .claude/skills/ui-visual-review/SKILL.md 8d5c23460b4b
+  - .uzys-agent-harness/.harness-install.json beb258bf6caa
+  + .claude/.installed-tracks 02be8427b4b0
+  + .uzys-agent-harness/.harness-install.json 42f65120b78f
+# NAMES CHECK — said-but-not-removed: [] · removed-but-unsaid: []
+# log after: tracks=["tooling"] · meta="tooling\n" · metaSha=02be8427b4b0
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T01:24:44.303Z
+  scope:     project
+  tracks:    tooling
+  cli:       claude
+
+  External assets (3)
+    ✓ frontend-design       skill  project
+    ✓ react-best-practices  skill  project
+    ✓ shadcn-ui             skill  project
+
+  Harness files
+    .claude/  .uzys-agent-harness/
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json            생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .github/workflows/ci-python.yml  생성  CI 워크플로 스캐폴드
+    .github/workflows/ci.yml         생성  CI 워크플로 스캐폴드
+    .github/workflows/e2e.yml        생성  CI 워크플로 스캐폴드
+    .mcp.json                        생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-x-oerqTd/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-x-oerqTd/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5942 tokens/session (directives 8 ~4100 · [rules 6 ~1597 · CLAUDE.md 2 ~2503] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 1: quiet
+
+$ branch update (2)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-x-oerqTd/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-x-oerqTd/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5942 tokens/session (directives 8 ~4100 · [rules 6 ~1597 · CLAUDE.md 2 ~2503] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 2: quiet
+
+$ [ref] branch install --track tooling --cli claude  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A7-y-pnmPR5/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# COMPARE X(after --track + update) vs Y(fresh install of remaining) — '-' only in X, '+' only in Y
+  - .claude/skills/frontend-design/SKILL.md 9d04f3a6a23e
+  - .claude/skills/shadcn/SKILL.md 17f16984f6ed
+  - .claude/skills/vercel-react-best-practices/SKILL.md 580542854394
+  - .github/workflows/ci-python.yml 3e0f73dbe429
+  - .github/workflows/e2e.yml b48a5027ceae
+  - .mcp.json e92e3b8b3261
+  - .uzys-agent-harness/.harness-install.json 42f65120b78f
+  - CLAUDE.md 2794c001cb2c
+  + .mcp.json d1eae0a06ce4
+  + .uzys-agent-harness/.harness-install.json 9f5c6937b7be
+  + CLAUDE.md c6b2a515067e
+  log.assets - {"id":"frontend-design","category":"frontend","method":"skill","scope":"project","detail":{"source":"anthropics/skills","skill":"frontend-design"},"files":[{"path":".claude/skills/frontend-design/SKILL.md","sha256":"9d04f3a6a23e29334f246f046ca288075a91783f434c24d98ac7b6e5fb9647c8"}]}
+  log.assets - {"id":"react-best-practices","category":"frontend","method":"skill","scope":"project","detail":{"source":"https://github.com/vercel-labs/agent-skills","skill":"vercel-react-best-practices"},"files":[{"path":".claude/skills/vercel-react-best-practices/SKILL.md","sha256":"580542854394a82953a5da78a863091038b9fd90abd7676359b43642ae6f5880"}]}
+  log.assets - {"id":"shadcn-ui","category":"frontend","method":"skill","scope":"project","detail":{"source":"shadcn/ui","skill":"shadcn"},"files":[{"path":".claude/skills/shadcn/SKILL.md","sha256":"17f16984f6ed0f7a921204ec38685ad654f1c5a77c59b1bebf72ffc5f24f327d"}]}
+  log.portions - {"path":".mcp.json","adapter":"json-keys","key":"mcpServers.chrome-devtools","sha256":"4a4f4cdb710f10ad5ff20db8e428487cc49f8618db7242d873f3c09e3f47b32a"}
+  log.portions - {"path":".mcp.json","adapter":"json-keys","key":"mcpServers.railway-mcp-server","sha256":"3fb78b56920d92268aa474649620f6133102d6ab6bd282db2f4712bc7f0a9e44"}
+  log.rootFiles - {"path":".github/workflows/ci-python.yml","change":"created","notes":["CI 워크플로 스캐폴드"]}
+  log.rootFiles - {"path":".github/workflows/e2e.yml","change":"created","notes":["CI 워크플로 스캐폴드"]}

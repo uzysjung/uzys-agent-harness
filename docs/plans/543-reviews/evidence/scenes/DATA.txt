@@ -1,0 +1,240 @@
+# DATA — tooling+data · claude+codex+opencode+antigravity · 설치자가 data-analyst 고침 → --track data
+
+$ branch install --track tooling --track data --cli claude --cli codex --cli opencode --cli antigravity  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-x-BIH93f/app
+  ▸ TRACKS       tooling, data
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · data: anthropic-data-plugin
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 25 items resident · ~5979 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 17 ~1914 · [skills 14 ~1650 · agents 3 ~264] · 2 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (3)                   reviewer · implementer · data-analyst
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 📊 Data ━━
+    ✓ anthropic-data-plugin                    plugin · data@knowledge-work-plugins
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7
+  ✓ .agents/skills/                          14 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           6 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       data, tooling
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# installer edits:
+appended to .claude/agents/data-analyst.md
+
+# log before: tracks=["data","tooling"] clis=["claude","codex","opencode","antigravity"] records=writer
+
+$ branch uninstall --track data --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track data
+
+  installed: data, tooling
+  removing:  data
+  remaining: tooling
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .claude/ (1 with a copy saved beside as *.backup-<time>)
+  ○ removes: agents data-analyst
+  ○ leave asset anthropic-data-plugin (a default of data) — remove with: agent-harness uninstall --only anthropic-data-plugin
+  ○ would re-render AGENTS.md for Codex · OpenCode · Antigravity (your sections kept)
+  ○ install log updated (tracks: tooling)
+# dry-run disk change: 0
+
+$ branch uninstall --track data  (exit 0)
+
+uzys-agent-harness · uninstall --track data
+
+  installed: data, tooling
+  removing:  data
+  remaining: tooling
+
+  ✓ removed  .claude/ 1 harness file(s)
+  ✓ backed up  .claude/agents/data-analyst.md — you edited it — saved as .claude/agents/data-analyst.md.backup-20261015T003903, removed from live
+  ⊘ left  asset anthropic-data-plugin (a default of data) — remove with: agent-harness uninstall --only anthropic-data-plugin
+  ✓ AGENTS.md — re-rendered for Codex · OpenCode · Antigravity (your sections kept)
+  ✓ install log updated (tracks: tooling)
+
+✓ data removed (remaining: tooling)
+
+# disk diff by --track:
+  - .claude/.installed-tracks c65da3f99af5
+  - .claude/agents/data-analyst.md 457c27ec30fc
+  - .uzys-agent-harness/.harness-install.json 246b42434a4a
+  + .claude/.installed-tracks 02be8427b4b0
+  + .claude/agents/data-analyst.md.backup-* 457c27ec30fc
+  + .uzys-agent-harness/.harness-install.json 0f7f2e165c9c
+# NAMES CHECK — said-but-not-removed: [] · removed-but-unsaid: []
+# log after: tracks=["tooling"] · meta="tooling\n" · metaSha=02be8427b4b0
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T00:39:03.389Z
+  scope:     project
+  tracks:    tooling
+  cli:       claude, codex, opencode, antigravity
+
+  External assets (1)
+    ✓ anthropic-data-plugin  plugin  project
+
+  Harness files
+    .claude/  .agents/  .codex/  .uzys-agent-harness/  AGENTS.md  opencode.json
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json            생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .github/workflows/ci-python.yml  생성  CI 워크플로 스캐폴드
+    .github/workflows/ci.yml         생성  CI 워크플로 스캐폴드
+    .mcp.json                        생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-x-BIH93f/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-x-BIH93f/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5940 tokens/session (directives 8 ~4098 · [rules 6 ~1597 · CLAUDE.md 2 ~2501] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 1: quiet
+
+$ branch update (2)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-x-BIH93f/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-x-BIH93f/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5940 tokens/session (directives 8 ~4098 · [rules 6 ~1597 · CLAUDE.md 2 ~2501] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 2: quiet
+
+$ [ref] branch install --track tooling --cli claude --cli codex --cli opencode --cli antigravity  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/DATA-y-N8r8xM/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7
+  ✓ .agents/skills/                          14 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           6 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# COMPARE X(after --track + update) vs Y(fresh install of remaining) — '-' only in X, '+' only in Y
+  - .codex/config.toml eed657860741
+  - .github/workflows/ci-python.yml 3e0f73dbe429
+  - .uzys-agent-harness/.harness-install.json 0f7f2e165c9c
+  - CLAUDE.md 3b687137c484
+  + .codex/config.toml b936c960db38
+  + .uzys-agent-harness/.harness-install.json 8195d6461768
+  + CLAUDE.md c6b2a515067e
+  log.assets - {"id":"anthropic-data-plugin","category":"data","method":"plugin","scope":"project","detail":{"marketplace":"anthropics/knowledge-work-plugins","pluginId":"data@knowledge-work-plugins"}}
+  log.externalFiles - {"path":".codex/config.toml","sha256":"eed657860741051cdb57727d308b928a5f5084d9487b6bdcaa8f03293c54ba95"}
+  log.externalFiles + {"path":".codex/config.toml","sha256":"b936c960db38e00faee0753acc61d713a0fbc1b084cb9f585e3158834bf252d0"}
+  log.portions - {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"43ebe6a528b5a7c72af59f7bc57915040605c43b907d9cf4f637c47d4ccb11a9"}
+  log.portions + {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"3c5f7bc6d86e214d9295f613e6845b2154daea5060782d76de8ff6ac055bc159"}
+  log.rootFiles - {"path":".github/workflows/ci-python.yml","change":"created","notes":["CI 워크플로 스캐폴드"]}

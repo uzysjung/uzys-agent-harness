@@ -1,0 +1,14 @@
+▸ scenario-uninstall-track: uninstall --track 이 그 트랙 것만 회수하는가 (#543)
+
+✓ install 완료 (tracks=tooling,csr-fastapi · cli=claude,codex)
+✓ 전제 확인 — 빠질 것 · 남을 것 · AGENTS.md 의 ## UI Components 존재
+✓ Project Context 문단 추가 · update 뒤 보존 (전제)
+✓ --dry-run — 디스크 무변경 · 빼는 이름(rules ui-components · skills ui-visual-review)
+✓ uninstall --track csr-fastapi exit 0
+✓ csr 전용 룰 · 스킬 두 자리 회수 · 공통 룰 · tooling 룰 · 방법론 스킬 · 훅 · 앵커 · .codex/ 보존
+✓ AGENTS.md — ## UI Components 제거 · 설치자 문단 보존
+✓ 기록 트랙 = ["tooling"] · list 도 tooling
+✓ 이어서 update — 백업 0 · 디스크 변화 0
+✓ 대조군 — 마지막 트랙 제거는 거절 (exit 1), 파일 무변경
+
+PASS: scenario-uninstall-track

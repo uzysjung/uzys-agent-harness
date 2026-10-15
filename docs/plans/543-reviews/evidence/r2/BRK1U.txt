@@ -1,0 +1,111 @@
+# BRK1U — ⓑ 대조 — BRK1 과 같은 깨진 CLAUDE.md 에 --track 대신 update
+
+$ branch install --track tooling --track executive --cli claude  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/BRK1U-x-HaGZm6/app
+  ▸ TRACKS       tooling, executive
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 25 items resident · ~5996 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 17 ~1931 · [skills 14 ~1650 · agents 3 ~281] · 2 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (3)                   reviewer · implementer · strategist
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 💼 Business (Documents) ━━
+    ✓ anthropic-document-skills                plugin · document-skills@anthropic-agent-skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       executive, tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# installer edits:
+broken like BRK1
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/BRK1U-x-HaGZm6/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/BRK1U-x-HaGZm6/app
+  ▸ TRACKS       executive, tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 25 items resident · ~6197 tokens/session (directives 8 ~4266 · [rules 6 ~1597 · CLAUDE.md 2 ~2669] · triggers 17 ~1931 · [skills 14 ~1650 · agents 3 ~281] · 2 external assets unmeasured)
+
+# log before: tracks=["executive","tooling"] clis=["claude"] records=writer
+
+$ branch uninstall --track nope-skip --dry-run  (exit 1)
+✗ ERROR: Invalid --track value: nope-skip
+       Must be one of: base | tooling | csr-supabase | csr-fastify | csr-fastapi | ssr-htmx | ssr-htmx-fastify | ssr-nextjs | data | executive | full | project-management | growth-marketing
+# dry-run disk change: 0
+
+$ branch uninstall --track nope-skip  (exit 1)
+✗ ERROR: Invalid --track value: nope-skip
+       Must be one of: base | tooling | csr-supabase | csr-fastify | csr-fastapi | ssr-htmx | ssr-htmx-fastify | ssr-nextjs | data | executive | full | project-management | growth-marketing
+
+# disk diff by --track:
+  (none)
+# log after: tracks=["executive","tooling"] · meta="executive\ntooling\n" · metaSha=a12989cd2acb
+
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T01:25:35.484Z
+  scope:     project
+  tracks:    executive, tooling
+  cli:       claude
+
+  External assets (1)
+    ✓ anthropic-document-skills  plugin  project
+
+  Harness files
+    .claude/  .uzys-agent-harness/
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json     생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .github/workflows/ci.yml  생성  CI 워크플로 스캐폴드
+    .mcp.json                 생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall

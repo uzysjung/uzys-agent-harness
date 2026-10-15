@@ -1,0 +1,20 @@
+
+## main uninstall --yes
+  preview:   ○ remove 54 harness file(s) under .claude/ /   ○ remove 42 harness file(s) under .agents/ /   ○ remove 1 harness file(s) under .codex/ /   ○ remove 3 harness file(s) under .uzys-agent-harness/
+  run    :   ✓ removed  .claude/ 54 harness file(s) · .codex/ 1 · .uzys-agent-harness/ 3
+  files actually gone (not re-created): 63
+
+## main uninstall --cli codex
+  preview:   ○ remove 42 harness file(s) under .agents/ /   ○ remove 1 harness file(s) under .codex/
+  run    :   ✓ removed  .agents/ 42 harness file(s) · .codex/ 1
+  files actually gone (not re-created): 43
+
+## main uninstall --cli claude
+  preview:   ○ remove 54 harness file(s) under .claude/
+  run    :   ✓ removed  .claude/ 54 harness file(s)
+  files actually gone (not re-created): 55
+
+## branch uninstall --track csr-fastapi
+  preview:   ○ remove 2 harness file(s) under .claude/ /   ○ remove 1 harness file(s) under .agents/
+  run    :   ✓ removed  .claude/ 2 harness file(s)
+  files actually gone (not re-created): 2

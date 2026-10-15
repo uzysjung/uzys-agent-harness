@@ -1,0 +1,585 @@
+# A1s — 26.150.0 옛 스킬 스캔(번들 밖 파일까지 sha 로 적던 판) · 설치 전 T 스킬 폴더에 설치자 노트 → --track csr-fastapi
+# pre-install installer files:
+wrote .claude/skills/ui-visual-review/my-notes.md
+wrote .claude/rules/my-own.md
+
+$ v150 install --track tooling --track csr-fastapi --cli claude --cli codex  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-x-PHX4c3/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude · codex
+  ▸ SCOPE        Project — current directory only (no global write)
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · understanding: agent-browser
+              · workflow: audit-harness-fit, clear-korean-communication, compaction-handoff, gh-issue-workflow, north-star, recurrence-prevention, task-brief
+              · dev-tools: audit-service-gaps, find-skills, multi-persona-review, self-hosted-github-runner, verification-loop
+              · frontend: frontend-design, react-best-practices, shadcn-ui
+              · session-start context cost: 38 items resident · ~8174 tokens/session (directives 8 ~4314 · [rules 6 ~1360 · CLAUDE.md 2 ~2954] · triggers 30 ~3860 · [skills 21 ~3135 · agents 9 ~725] · 5 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    coding · git/PR · tests · ship checklist · MCP policy
+  ✓ agents (9)                   SOD reviewer (opus, independent verifier) + 3 base
+  ✓ hooks (3)                    session-start · protect-files · task-brief-nudge
+  ✓ skills (21)                  spec-scaling · deep-research · ui-visual-review · eval-harness (modified)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .mcp.json                    chrome-devtools, context7, github, railway-mcp-server
+
+  · ECC plugin not selected — cherry-pick fallback active
+  · Use --with ecc-plugin to install ECC plugin instead
+
+━━ External assets (5) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+  ━━ 🛡️  Dev Tools (Security · Quality) ━━
+    ✓ find-skills                              skill · vercel-labs/skills
+
+  ━━ 🧠 Understanding (Perception · Memory) ━━
+    ✓ agent-browser                            npm · agent-browser@0.31.0
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md
+  ✓ .codex/config.toml                       settings + [mcp_servers.*]
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/SKILL.md             11 skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project
+
+# installer edits:
+appended to .claude/skills/ui-visual-review/SKILL.md
+
+# log before: tracks=["tooling","csr-fastapi"] clis=undefined records=undefined
+
+$ branch uninstall --track csr-fastapi --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: tooling, csr-fastapi
+  removing:  csr-fastapi
+  remaining: tooling
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 1 harness file(s) under .claude/ (1 with a copy saved beside as *.backup-<time>)
+  ○ removes: rules ui-components · skills ui-visual-review
+  ○ leave asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ○ leave asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ○ leave asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ○ would re-render AGENTS.md for Codex (your sections kept)
+  ○ install log updated (tracks: tooling)
+# dry-run disk change: 0
+
+$ branch uninstall --track csr-fastapi  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: tooling, csr-fastapi
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 1 harness file(s)
+  ✓ backed up  .claude/skills/ui-visual-review/SKILL.md — you edited it — saved as .claude/skills/ui-visual-review/SKILL.md.backup-20261015T005802, removed from live
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ✓ AGENTS.md — re-rendered for Codex (your sections kept)
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+
+# disk diff by --track:
+  - .claude/.installed-tracks 735c79dd1112
+  - .claude/skills/ui-visual-review/SKILL.md 7b6ee93374bd
+  - .uzys-agent-harness/.harness-install.json a96463737ad6
+  - AGENTS.md 89b658ecd954
+  + .claude/.installed-tracks 02be8427b4b0
+  + .claude/skills/ui-visual-review/SKILL.md.backup-* 7b6ee93374bd
+  + .uzys-agent-harness/.harness-install.json 3213431f51c9
+  + AGENTS.md df72a5f47e93
+  + AGENTS.md.backup-* 89b658ecd954
+# NAMES CHECK — said-but-not-removed: ["rules/ui-components"] · removed-but-unsaid: []
+# log after: tracks=["tooling"] · meta="tooling\n" · metaSha=02be8427b4b0
+  .claude/skills/ui-visual-review: dir [SKILL.md.backup-20261015T005802, my-notes.md]
+  .claude/rules/my-own.md: file "mine\n"
+  .agents/skills/ui-visual-review: (absent)
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T00:58:02.777Z
+  scope:     project
+  tracks:    tooling
+  cli:       claude, codex
+
+  External assets (5)
+    ✓ frontend-design       skill  project
+    ✓ react-best-practices  skill  project
+    ✓ shadcn-ui             skill  project
+    ✓ find-skills           skill  project
+    ✓ agent-browser         npm    project
+
+  Harness files
+    .claude/  .agents/  .codex/  AGENTS.md
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .mcp.json  생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-x-PHX4c3/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-x-PHX4c3/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ .claude/rules                            6 files updated
+  ✓ .claude/agents                           2 files updated
+  ✓ .claude/hooks                            2 files updated
+  ✓ .claude/skills                           16 files updated
+  ✓ .uzys-agent-harness/protect-branch.sh    1 files updated
+  ✓ .uzys-agent-harness/spec-drift-check.sh  1 files updated
+  ✓ .uzys-agent-harness/check-absence.sh     1 files updated
+  ✓ .claude/skills/external-model-consult    added by this release
+  ✓ .claude/skills/model-orchestration       added by this release
+  ✓ .claude/skills/multi-model-debate        added by this release
+  ✓ .claude/skills/natural-korean            added by this release
+  ✓ .claude/skills/objective-brief           added by this release
+  ✓ .claude/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/user-centered-explanation added by this release
+  ✓ .agents/skills/objective-brief           added by this release
+  ✓ .agents/skills/model-orchestration       added by this release
+  ✓ .agents/skills/external-model-consult    added by this release
+  ✓ .agents/skills/natural-korean            added by this release
+  ✓ .agents/skills/multi-model-debate        added by this release
+  ✓ .claude/settings.json        removed the harness part · kept yours: statusLine
+  ✓ .mcp.json                    wrote the harness part — yours stays · updated: railway-mcp-server (now Railway's remote server — sign in on first use, see NEXT; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without railway-mcp-server), chrome-devtools (usage statistics off; not a default on tooling — kept because your install record has it; drop it: agent-harness install … --without chrome-devtools) · retired: github — the old @modelcontextprotocol/server-github is deprecated upstream and ran without a token. The agent uses the gh CLI for GitHub; to use GitHub's official MCP instead: agent-harness install … --with github-mcp (needs GITHUB_PAT)
+  ✓ backed up  .claude/agents/build-error-resolver.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/code-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/plan-checker.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/security-reviewer.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/agents/silent-failure-hunter.md — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/hooks/task-brief-nudge.sh — retired from the harness — no checksum on record — saved a copy, removed from live
+  ✓ backed up  .claude/skills/audit-harness-fit/references/official-criteria.md — not in bundle — not on the install record — saved as .claude/skills/audit-harness-fit/references/official-criteria.md.backup-20261015T005802, removed from live
+  ✓ CLAUDE-uzys-harness.md                   refreshed from template
+  ✓ CLAUDE.md                                harness block refreshed (skills that apply continuously)
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ✓ external CLI artifacts                   43 files updated
+  ✓ external skills                          3 refreshed from upstream
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   clear-korean-communication 는 user-centered-explanation 가 됐다 · user-centered-explanation 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 clear-korean-communication 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   e2e-testing · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 e2e-testing 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   python-patterns · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 python-patterns 는 지워도 된다
+  ⊘ skills                                   python-testing · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 python-testing 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   task-brief 는 objective-brief 가 됐다 · objective-brief 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 task-brief 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 27 items resident · ~6073 tokens/session (directives 9 ~4070 · [rules 7 ~1598 · CLAUDE.md 2 ~2472] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+  ▸ NEXT         Remote MCP servers sign in on first use — railway-mcp-server
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+                   Codex: codex mcp login railway-mcp-server (after trusting this folder)
+  ▸ BACKUPS      7 file(s) saved before removing, as *.backup-<time> · list: .uzys-agent-harness/update-backups.json
+# UPDATE QUIET CHECK 1: CHANGED
+  - .agents/skills/audit-harness-fit/SKILL.md 85c489aec23e
+  - .agents/skills/audit-service-gaps/SKILL.md ba9ac6df2315
+  - .agents/skills/compaction-handoff/SKILL.md 42d8300cddc4
+  - .agents/skills/gh-issue-workflow/SKILL.md 0b1ce6a696c1
+  - .agents/skills/multi-persona-review/SKILL.md 17f9f1a0c224
+  - .agents/skills/north-star/SKILL.md fa4427fb5724
+  - .agents/skills/recurrence-prevention/SKILL.md 62fe94e2cd34
+  - .agents/skills/self-hosted-github-runner/SKILL.md 4e5b86b9c7c8
+  - .claude/agents/build-error-resolver.md a050a74ed31a
+  - .claude/agents/code-reviewer.md e112e5e0bbc5
+  - .claude/agents/implementer.md a12f9132a555
+  - .claude/agents/plan-checker.md 86ad22297e6f
+  - .claude/agents/reviewer.md 1a0153a7fcc8
+  - .claude/agents/security-reviewer.md eacaa50c2b2f
+  - .claude/agents/silent-failure-hunter.md 004ce0389356
+  - .claude/hooks/protect-files.sh 0190071614b9
+  - .claude/hooks/session-start.sh 490b1d99f6d9
+  - .claude/hooks/task-brief-nudge.sh a5bca92a610e
+  - .claude/rules/change-management.md d2977a144259
+  - .claude/rules/cli-development.md cc0545a04706
+  - .claude/rules/doc-governance.md 7a79bba801a1
+  - .claude/rules/git-policy.md e1ebe8b7abf6
+  - .claude/rules/ship-checklist.md 1b42169da6e2
+  - .claude/rules/test-policy.md 9f1e71e12db4
+  - .claude/settings.json ebc12205d7e1
+  - .claude/skills/audit-harness-fit/SKILL.md 85c489aec23e
+  - .claude/skills/audit-harness-fit/references/official-criteria.md b80c77f12fdf
+  - .claude/skills/audit-service-gaps/SKILL.md ba9ac6df2315
+  - .claude/skills/compaction-handoff/SKILL.md 42d8300cddc4
+  - .claude/skills/gh-issue-workflow/SKILL.md 0b1ce6a696c1
+  - .claude/skills/multi-persona-review/SKILL.md 17f9f1a0c224
+  - .claude/skills/north-star/SKILL.md fa4427fb5724
+  - .claude/skills/north-star/references/roadmap-method.md fd58a20159eb
+  - .claude/skills/recurrence-prevention/SKILL.md 62fe94e2cd34
+  - .claude/skills/recurrence-prevention/references/failure-analysis.md 1dd840db9a2b
+  - .claude/skills/self-hosted-github-runner/SKILL.md 4e5b86b9c7c8
+  - .codex/config.toml 9be1cdd4a3d4
+  - .codex/hooks/session-start.sh 490b1d99f6d9
+  - .mcp.json cde3bc6cc49c
+  - .uzys-agent-harness/.harness-install.json 3213431f51c9
+  - .uzys-agent-harness/check-absence.sh c08d3a1df418
+  - .uzys-agent-harness/protect-branch.sh 3356c4941ef1
+  - .uzys-agent-harness/spec-drift-check.sh f35a64dd9954
+  - CLAUDE-uzys-harness.md 16347e86e7c1
+  - CLAUDE.md c411cf4b64a6
+  + .agents/skills/audit-harness-fit/README.md 2aa6eb69e999
+  + .agents/skills/audit-harness-fit/SKILL.md a23c98c78fd9
+  + .agents/skills/audit-harness-fit/evals/scenarios.yaml 714fe2ef457d
+  + .agents/skills/audit-harness-fit/references/apply.md 2a1283f2bdfc
+  + .agents/skills/audit-harness-fit/references/audit.md b93eba13d004
+  + .agents/skills/audit-harness-fit/references/populate.md eabe235e5e09
+  + .agents/skills/audit-harness-fit/references/verification.md 92ada034976d
+  + .agents/skills/audit-service-gaps/SKILL.md bbc7782ea688
+  + .agents/skills/audit-service-gaps/references/modes-and-evidence.md fa73b3edf2c5
+  + .agents/skills/audit-service-gaps/references/worked-example.md e5f31f498e86
+  + .agents/skills/compaction-handoff/SKILL.md fe70142b0bbf
+  + .agents/skills/external-model-consult/SKILL.md a4d429bcd473
+  + .agents/skills/external-model-consult/references/direct-calls.md 966db9c1f80c
+  + .agents/skills/external-model-consult/references/model-evidence.md 27dfc0eaac4b
+  + .agents/skills/external-model-consult/references/prompt-templates.md 2277839d5eb9
+  + .agents/skills/external-model-consult/scripts/codex-ask.sh c644272c25f3
+  + .agents/skills/external-model-consult/scripts/gemini-ask.sh 9c5eb72c61d1
+  + .agents/skills/gh-issue-workflow/ISSUE.template.md 6c897058f7cf
+  + .agents/skills/gh-issue-workflow/SKILL.md 7128c3faddf7
+  + .agents/skills/gh-issue-workflow/references/hierarchy.md 0e16e38d5919
+  + .agents/skills/gh-issue-workflow/references/operating-model.md c6feec997887
+  + .agents/skills/gh-issue-workflow/references/readiness.md 08df321b014d
+  + .agents/skills/model-orchestration/SKILL.md 78cb2ac0f153
+  + .agents/skills/multi-model-debate/SKILL.md b6e4e4855ca3
+  + .agents/skills/multi-model-debate/agents/openai.yaml 64eb836095ff
+  + .agents/skills/multi-model-debate/references/adapters.md 06d54103576b
+  + .agents/skills/multi-model-debate/references/evaluation.md 34f14eeecf69
+  + .agents/skills/multi-model-debate/references/prompts.md 45b348552563
+  + .agents/skills/multi-model-debate/references/research.md d99201f4774c
+  + .agents/skills/multi-persona-review/SKILL.md 6da7f5ccfae3
+  + .agents/skills/multi-persona-review/references/reviewer-design.md 4afc9d327f91
+  + .agents/skills/multi-persona-review/references/worked-example.md 95b48adac8ae
+  + .agents/skills/natural-korean/SKILL.md 0057cef32a4a
+  + .agents/skills/north-star/NORTH_STAR.template.md 741efd7d4c47
+  + .agents/skills/north-star/SKILL.md 0616424076bb
+  + .agents/skills/north-star/references/roadmap-method.md 32e812eac735
+  + .agents/skills/objective-brief/SKILL.md 86c5036d7bfc
+  + .agents/skills/recurrence-prevention/SKILL.md 46614922e61e
+  + .agents/skills/recurrence-prevention/references/failure-analysis.md 5fc80d28b3f5
+  + .agents/skills/self-hosted-github-runner/SKILL.md a1394fde762c
+  + .agents/skills/user-centered-explanation/SKILL.md eab47a91badc
+  + .claude/agents/build-error-resolver.md.backup-* a050a74ed31a
+  + .claude/agents/code-reviewer.md.backup-* e112e5e0bbc5
+  + .claude/agents/implementer.md 9ce4ce0b4046
+  + .claude/agents/plan-checker.md.backup-* 86ad22297e6f
+  + .claude/agents/reviewer.md 23f9999d6eae
+  + .claude/agents/security-reviewer.md.backup-* eacaa50c2b2f
+  + .claude/agents/silent-failure-hunter.md.backup-* 004ce0389356
+  + .claude/hooks/protect-files.sh 5408a423eaad
+  + .claude/hooks/session-start.sh 238e4a9565b2
+  + .claude/hooks/task-brief-nudge.sh.backup-* a5bca92a610e
+  + .claude/rules/change-management.md 0c46f2fe8a90
+  + .claude/rules/cli-development.md 73813a5f6f01
+  + .claude/rules/doc-governance.md c14e70d6fc5b
+  + .claude/rules/git-policy.md 469077325ea8
+  + .claude/rules/ship-checklist.md ecfe6606472e
+  + .claude/rules/test-policy.md c73652557728
+  + .claude/settings.json 953e5061405a
+  + .claude/skills/audit-harness-fit/README.md 2aa6eb69e999
+  + .claude/skills/audit-harness-fit/SKILL.md a23c98c78fd9
+  + .claude/skills/audit-harness-fit/evals/scenarios.yaml 714fe2ef457d
+  + .claude/skills/audit-harness-fit/references/apply.md 2a1283f2bdfc
+  + .claude/skills/audit-harness-fit/references/audit.md b93eba13d004
+  + .claude/skills/audit-harness-fit/references/official-criteria.md.backup-* b80c77f12fdf
+  + .claude/skills/audit-harness-fit/references/populate.md eabe235e5e09
+  + .claude/skills/audit-harness-fit/references/verification.md 92ada034976d
+  + .claude/skills/audit-service-gaps/SKILL.md bbc7782ea688
+  + .claude/skills/compaction-handoff/SKILL.md fe70142b0bbf
+  + .claude/skills/external-model-consult/SKILL.md a4d429bcd473
+  + .claude/skills/external-model-consult/references/direct-calls.md 966db9c1f80c
+  + .claude/skills/external-model-consult/references/model-evidence.md 27dfc0eaac4b
+  + .claude/skills/external-model-consult/references/prompt-templates.md 2277839d5eb9
+  + .claude/skills/external-model-consult/scripts/codex-ask.sh c644272c25f3
+  + .claude/skills/external-model-consult/scripts/gemini-ask.sh 9c5eb72c61d1
+  + .claude/skills/gh-issue-workflow/SKILL.md 7128c3faddf7
+  + .claude/skills/model-orchestration/SKILL.md 78cb2ac0f153
+  + .claude/skills/multi-model-debate/SKILL.md b6e4e4855ca3
+  + .claude/skills/multi-model-debate/agents/openai.yaml 64eb836095ff
+  + .claude/skills/multi-model-debate/references/adapters.md 06d54103576b
+  + .claude/skills/multi-model-debate/references/evaluation.md 34f14eeecf69
+  + .claude/skills/multi-model-debate/references/prompts.md 45b348552563
+  + .claude/skills/multi-model-debate/references/research.md d99201f4774c
+  + .claude/skills/multi-persona-review/SKILL.md 6da7f5ccfae3
+  + .claude/skills/natural-korean/SKILL.md 0057cef32a4a
+  + .claude/skills/north-star/SKILL.md 0616424076bb
+  + .claude/skills/north-star/references/roadmap-method.md 32e812eac735
+  + .claude/skills/objective-brief/SKILL.md 86c5036d7bfc
+  + .claude/skills/recurrence-prevention/SKILL.md 46614922e61e
+  + .claude/skills/recurrence-prevention/references/failure-analysis.md 5fc80d28b3f5
+  + .claude/skills/self-hosted-github-runner/SKILL.md a1394fde762c
+  + .claude/skills/user-centered-explanation/SKILL.md eab47a91badc
+  + .codex/config.toml 073d924e1dd5
+  + .codex/hooks/session-start.sh 238e4a9565b2
+  + .mcp.json 2389bcdca624
+  + .uzys-agent-harness/.harness-install.json 3fcffcc38681
+  + .uzys-agent-harness/check-absence.sh 3655faf030e3
+  + .uzys-agent-harness/protect-branch.sh ecd46450beae
+  + .uzys-agent-harness/spec-drift-check.sh 3c6925b03775
+  + .uzys-agent-harness/update-backups.json c34db5e0fe49
+  + CLAUDE-uzys-harness.md fb446a671119
+  + CLAUDE.md a34abae4288f
+
+$ branch update (2)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-x-PHX4c3/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-x-PHX4c3/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ⊘ agents                                   data-analyst · 이 트랙에서는 더 이상 설치하지 않는다 — data · full 트랙 전용 · .claude/agents/data-analyst.md 를 지워도 된다
+  ⊘ agents                                   strategist · 이 트랙에서는 더 이상 설치하지 않는다 — executive · full 트랙 전용 · .claude/agents/strategist.md 를 지워도 된다
+  ✓ external skills                          3 refreshed from upstream
+  ⊘ skills                                   agent-introspection-debugging · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 agent-introspection-debugging 는 지워도 된다
+  ⊘ skills                                   clear-korean-communication 는 user-centered-explanation 가 됐다 · user-centered-explanation 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 clear-korean-communication 는 지워도 된다
+  ⊘ skills                                   continuous-learning-v2 · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 continuous-learning-v2 는 지워도 된다
+  ⊘ skills                                   deep-research · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 deep-research 는 지워도 된다
+  ⊘ skills                                   e2e-testing · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 e2e-testing 는 지워도 된다
+  ⊘ skills                                   eval-harness · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 eval-harness 는 지워도 된다
+  ⊘ skills                                   python-patterns · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 python-patterns 는 지워도 된다
+  ⊘ skills                                   python-testing · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 python-testing 는 지워도 된다
+  ⊘ skills                                   spec-scaling · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 spec-scaling 는 지워도 된다
+  ⊘ skills                                   strategic-compact · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 strategic-compact 는 지워도 된다
+  ⊘ skills                                   task-brief 는 objective-brief 가 됐다 · objective-brief 는 new-skills 묶음이 깐다 · 옛 디렉터리(.claude/skills 또는 .agents/skills)의 task-brief 는 지워도 된다
+  ⊘ skills                                   verification-loop · 이 릴리즈에서 은퇴 — 옛 디렉터리(.claude/skills 또는 .agents/skills)의 verification-loop 는 지워도 된다
+  ⊘ external skills                          find-skills · 카탈로그에 없어 갱신 대상이 아니다
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 27 items resident · ~6073 tokens/session (directives 9 ~4070 · [rules 7 ~1598 · CLAUDE.md 2 ~2472] · triggers 18 ~2003 · [skills 14 ~1650 · agents 4 ~353] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 2: CHANGED
+  - .uzys-agent-harness/update-backups.json c34db5e0fe49
+
+$ [ref] branch install --track tooling --cli claude --cli codex  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/A1s-y-Ks6rll/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5907 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md (Codex)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# COMPARE X(after --track + update) vs Y(fresh install of remaining) — '-' only in X, '+' only in Y
+  - .agents/skills/clear-korean-communication/SKILL.md fe480eb8357a
+  - .agents/skills/find-skills/SKILL.md 6a17d97c1961
+  - .agents/skills/frontend-design/SKILL.md 9d04f3a6a23e
+  - .agents/skills/shadcn/SKILL.md 17f16984f6ed
+  - .agents/skills/task-brief/SKILL.md 0859fc0b6cf7
+  - .agents/skills/vercel-react-best-practices/SKILL.md 580542854394
+  - .agents/skills/verification-loop/SKILL.md 1744f867f786
+  - .claude/agents/data-analyst.md 1d75c07c51b8
+  - .claude/agents/strategist.md b217c7bd273e
+  - .claude/rules/my-own.md fcbc800db3f1
+  - .claude/settings.json 953e5061405a
+  - .claude/skills/agent-introspection-debugging/SKILL.md aff0d52785d3
+  - .claude/skills/clear-korean-communication/SKILL.md fe480eb8357a
+  - .claude/skills/clear-korean-communication/references/pre-send-checklist.md 65f93177e9a4
+  - .claude/skills/clear-korean-communication/references/why-it-works.md d4439db6a176
+  - .claude/skills/clear-korean-communication/references/worked-examples.md d53369cf02c6
+  - .claude/skills/continuous-learning-v2/SKILL.md 75485ddb37e2
+  - .claude/skills/continuous-learning-v2/agents/observer-loop.sh 25ceefcc260c
+  - .claude/skills/continuous-learning-v2/agents/observer.md 320d50ff2965
+  - .claude/skills/continuous-learning-v2/agents/session-guardian.sh ee6e4c0990f8
+  - .claude/skills/continuous-learning-v2/agents/start-observer.sh 6b1966e38eb0
+  - .claude/skills/continuous-learning-v2/config.json 6f17e7a99aaf
+  - .claude/skills/continuous-learning-v2/hooks/observe.sh e632c2f48624
+  - .claude/skills/continuous-learning-v2/scripts/detect-project.sh a39677edd0ce
+  - .claude/skills/continuous-learning-v2/scripts/instinct-cli.py 0b060a762f0f
+  - .claude/skills/continuous-learning-v2/scripts/lib/homunculus-dir.sh 99dfa99ae0f7
+  - .claude/skills/continuous-learning-v2/scripts/migrate-homunculus.sh 34f121c143a6
+  - .claude/skills/continuous-learning-v2/scripts/test_parse_instinct.py acf556e8a802
+  - .claude/skills/deep-research/SKILL.md b852bebb3190
+  - .claude/skills/deep-research/agents/openai.yaml cb877e559cfe
+  - .claude/skills/e2e-testing/SKILL.md f84ae93c159b
+  - .claude/skills/e2e-testing/agents/openai.yaml 5f50508a3006
+  - .claude/skills/eval-harness/SKILL.md 12399b9de9e0
+  - .claude/skills/eval-harness/agents/openai.yaml 6f2c19eb5906
+  - .claude/skills/find-skills/SKILL.md 6a17d97c1961
+  - .claude/skills/frontend-design/SKILL.md 9d04f3a6a23e
+  - .claude/skills/python-patterns/SKILL.md df0c0abbbd0e
+  - .claude/skills/python-testing/SKILL.md b304a8c503af
+  - .claude/skills/shadcn/SKILL.md 17f16984f6ed
+  - .claude/skills/spec-scaling/SKILL.md 93fe3ed44375
+  - .claude/skills/strategic-compact/SKILL.md 6bfc63c380eb
+  - .claude/skills/strategic-compact/suggest-compact.sh 62af1630b000
+  - .claude/skills/task-brief/SKILL.md 0859fc0b6cf7
+  - .claude/skills/ui-visual-review/my-notes.md cd5908d8cf95
+  - .claude/skills/vercel-react-best-practices/SKILL.md 580542854394
+  - .claude/skills/verification-loop/SKILL.md 1744f867f786
+  - .claude/skills/verification-loop/agents/openai.yaml 1907fd04fea5
+  - .claude/skills/verification-loop/references/tracks.md de11792d447c
+  - .codex/config.toml 073d924e1dd5
+  - .mcp.json 2389bcdca624
+  - .uzys-agent-harness/.harness-install.json 3fcffcc38681
+  - AGENTS.md df72a5f47e93
+  - CLAUDE.md a34abae4288f
+  - package-lock.json e16b6a1be183
+  - package.json 8701dbec4f37
+  + .claude/settings.json 62746b0d6111
+  + .codex/config.toml 57eb82684514
+  + .github/workflows/ci.yml 490d9af88833
+  + .mcp.json d1eae0a06ce4
+  + .uzys-agent-harness/.harness-install.json 97279459092d
+  + AGENTS.md 8ada200c7fd4
+  + CLAUDE.md c6b2a515067e
+  log.assets - {"id":"agent-browser","category":"understanding","method":"npm","scope":"project","detail":{"pkg":"agent-browser"}}
+  log.assets - {"id":"find-skills","category":"dev-tools","method":"skill","scope":"project","detail":{"source":"vercel-labs/skills","skill":"find-skills"}}
+  log.assets - {"id":"frontend-design","category":"frontend","method":"skill","scope":"project","detail":{"source":"anthropics/skills","skill":"frontend-design"}}
+  log.assets - {"id":"react-best-practices","category":"frontend","method":"skill","scope":"project","detail":{"source":"https://github.com/vercel-labs/agent-skills","skill":"vercel-react-best-practices"}}
+  log.assets - {"id":"shadcn-ui","category":"frontend","method":"skill","scope":"project","detail":{"source":"shadcn/ui","skill":"shadcn"}}
+  log.externalFiles - {"path":".agents/skills/clear-korean-communication/SKILL.md","sha256":"fe480eb8357a79abcc1f6c5954c61f0a8b3e7479b9835b7fbdead18a9dac4b46"}
+  log.externalFiles - {"path":".agents/skills/task-brief/SKILL.md","sha256":"0859fc0b6cf760edb83b4c41cb8156cc90b7c62f1d5b5dd364acd4c5f7935cc2"}
+  log.externalFiles - {"path":".agents/skills/verification-loop/SKILL.md","sha256":"1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2"}
+  log.externalFiles - {"path":".codex/config.toml","sha256":"073d924e1dd5cfa2ce1450c03a7251b8ca8002f348a93d94ad514d2923f3f767"}
+  log.externalFiles - {"path":"AGENTS.md","sha256":"df72a5f47e93df8f93e9408ee6416008f12bf63a436abe88c5d89a6f2b89d86e"}
+  log.externalFiles + {"path":".codex/config.toml","sha256":"57eb82684514d277e9c814011448e11b1ae87c9b63505175d449a063f627d218"}
+  log.externalFiles + {"path":"AGENTS.md","sha256":"8ada200c7fd4b2c625d3b9c9e4b3cc754024486225cbacc51e70041eac1871eb"}
+  log.policyFiles - {"path":"agents/data-analyst.md","sha256":"1d75c07c51b8a000e536cd8a1c23e0609d93ea51b02cd48f9877610082cb2475"}
+  log.policyFiles - {"path":"agents/strategist.md","sha256":"b217c7bd273e672de44d4df123201cc5c10203fa9bafad84a370d4b7d32b7fc6"}
+  log.portions - {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"b1d10b8d78b186a066dbc9df6bc1a640ed0ced28ce59d3aec8c901bb3ccb16bb"}
+  log.portions - {"path":".mcp.json","adapter":"json-keys","key":"mcpServers.chrome-devtools","sha256":"4a4f4cdb710f10ad5ff20db8e428487cc49f8618db7242d873f3c09e3f47b32a"}
+  log.portions - {"path":".mcp.json","adapter":"json-keys","key":"mcpServers.railway-mcp-server","sha256":"3fb78b56920d92268aa474649620f6133102d6ab6bd282db2f4712bc7f0a9e44"}
+  log.portions + {"path":".claude/settings.json","adapter":"json-keys","key":"hooks.PreToolUse[]","sha256":"d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9"}
+  log.portions + {"path":".claude/settings.json","adapter":"json-keys","key":"hooks.SessionStart[]","sha256":"d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9"}
+  log.portions + {"path":".claude/settings.json","adapter":"json-keys","key":"hooks{}","sha256":"d0fa9d19addc94f690f2539b3560104559ce248ac7d0907acdb5da72ac8973b9"}
+  log.portions + {"path":".claude/settings.json","adapter":"json-keys","key":"statusLine","sha256":"edf814dcfcaa2ed9e30af47c2e602f45dc2487a2c99576fd2ef6267966babc5c"}
+  log.portions + {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"e4fbe1490e7146b08f7c6b463407039b6f6904b7d36e098d58f3044cc06209de"}
+  log.records: A=undefined B="writer"
+  log.rootFiles + {"path":".claude/settings.json","change":"created","notes":["Claude Code 설정 — 하네스 몫만(훅 · statusLine)"]}
+  log.rootFiles + {"path":".github/workflows/ci.yml","change":"created","notes":["CI 워크플로 스캐폴드"]}
+  log.skillFiles - {"path":"agent-introspection-debugging/SKILL.md","sha256":"aff0d52785d3013d9f98de95ca778bfcab7c566db20352ead42852a1659292d2"}
+  log.skillFiles - {"path":"clear-korean-communication/SKILL.md","sha256":"fe480eb8357a79abcc1f6c5954c61f0a8b3e7479b9835b7fbdead18a9dac4b46"}
+  log.skillFiles - {"path":"clear-korean-communication/references/pre-send-checklist.md","sha256":"65f93177e9a442332c2c90f4e905c4d558b6349e47d5c86eee7705b76b71a1b9"}
+  log.skillFiles - {"path":"clear-korean-communication/references/why-it-works.md","sha256":"d4439db6a1765fab5fa6875d0528fe715366c270ea35853ad8bb1404388200cb"}
+  log.skillFiles - {"path":"clear-korean-communication/references/worked-examples.md","sha256":"d53369cf02c62147510bae3a0cfa878ce89013bed11a30c32cc675dd0a0df825"}
+  log.skillFiles - {"path":"continuous-learning-v2/SKILL.md","sha256":"75485ddb37e2d1d6f056b404d9939bf46a2b409b1286aec209a510112e5b64b1"}
+  log.skillFiles - {"path":"continuous-learning-v2/agents/observer-loop.sh","sha256":"25ceefcc260c3599b6d12148d1a573110ace3091c723bdee3a3cf10692e5d4e2"}
+  log.skillFiles - {"path":"continuous-learning-v2/agents/observer.md","sha256":"320d50ff2965efeabd6f07c2be134e11da160293e958c1bc27c309d613839ad2"}
+  log.skillFiles - {"path":"continuous-learning-v2/agents/session-guardian.sh","sha256":"ee6e4c0990f8d538cae1c85aa194e01e9ca2336e5d993ef68eb608b96cb0d82c"}
+  log.skillFiles - {"path":"continuous-learning-v2/agents/start-observer.sh","sha256":"6b1966e38eb0c96d61de5d204b87097592884364be59e5bea6007289e8068936"}
+  log.skillFiles - {"path":"continuous-learning-v2/config.json","sha256":"6f17e7a99aafe252ecd0b9212fb5f606be50b8ce1685f5a6435e46e87ffeb970"}
+  log.skillFiles - {"path":"continuous-learning-v2/hooks/observe.sh","sha256":"e632c2f486248b8b141059c23586d5ca0187df8c34f53d7597cd845713e06948"}
+  log.skillFiles - {"path":"continuous-learning-v2/scripts/detect-project.sh","sha256":"a39677edd0ce1deb7628ed31610baafc16090a710233963d2b6a55db64167cf9"}
+  log.skillFiles - {"path":"continuous-learning-v2/scripts/instinct-cli.py","sha256":"0b060a762f0fc4ad56e45cbaa14c14fb9ab3f468763f6a32a17bb864fbd3fc30"}
+  log.skillFiles - {"path":"continuous-learning-v2/scripts/lib/homunculus-dir.sh","sha256":"99dfa99ae0f7c6e2e15ed5b5bf3c46e91a5f089f4060ba93d5da5e85e04fd308"}
+  log.skillFiles - {"path":"continuous-learning-v2/scripts/migrate-homunculus.sh","sha256":"34f121c143a676d330f06209618aae8cb08f8155298cb5fa70c893314bf9b303"}
+  log.skillFiles - {"path":"continuous-learning-v2/scripts/test_parse_instinct.py","sha256":"acf556e8a8023347b35988bb490927a4e9f65f2579b03f26cad610687656605b"}
+  log.skillFiles - {"path":"deep-research/SKILL.md","sha256":"b852bebb31908f352c5397bde6de06ee7ca3c0e1c866fae4dedbd5c4fbb27323"}
+  log.skillFiles - {"path":"deep-research/agents/openai.yaml","sha256":"cb877e559cfe405d0e12bfc9bcaef657ab05a30ef698e6f3e486e39c5e0a6d2d"}
+  log.skillFiles - {"path":"e2e-testing/SKILL.md","sha256":"f84ae93c159bf6ecef5a60c9735dc82d96bc5f977ef52eb71678b66722acf684"}
+  log.skillFiles - {"path":"e2e-testing/agents/openai.yaml","sha256":"5f50508a300616d77f39dc50a51de10cabd05ef7ae770e7948ef6c28f340cdf2"}
+  log.skillFiles - {"path":"eval-harness/SKILL.md","sha256":"12399b9de9e044273fd4dd6a8177bc4f17db008a33df83557ef56770b1466a56"}
+  log.skillFiles - {"path":"eval-harness/agents/openai.yaml","sha256":"6f2c19eb59062ca776286c2f6a6a7f1b552b4f927a2b48de888a7dbb2eeec6bd"}
+  log.skillFiles - {"path":"find-skills/SKILL.md","sha256":"6a17d97c196102caee1f0081344d60f98115f25720b9610d10f07eef3a94e7c8"}
+  log.skillFiles - {"path":"frontend-design/SKILL.md","sha256":"9d04f3a6a23e29334f246f046ca288075a91783f434c24d98ac7b6e5fb9647c8"}
+  log.skillFiles - {"path":"python-patterns/SKILL.md","sha256":"df0c0abbbd0e6a01811d1b1d10d8fa7a8a19ce73afdc9432d24843f62649cdd2"}
+  log.skillFiles - {"path":"python-testing/SKILL.md","sha256":"b304a8c503af32644f97a889c5545ee4f90e91980462ad4ce33fee3dea6f414f"}
+  log.skillFiles - {"path":"shadcn/SKILL.md","sha256":"17f16984f6ed0f7a921204ec38685ad654f1c5a77c59b1bebf72ffc5f24f327d"}
+  log.skillFiles - {"path":"spec-scaling/SKILL.md","sha256":"93fe3ed443754bd368a45e71145434c1fd7efd349e25b0179bbb63774ac4ca0e"}
+  log.skillFiles - {"path":"strategic-compact/SKILL.md","sha256":"6bfc63c380eb89886335ad033f759a4ff3f1b1ae2c5a143598bb628e38c6e769"}
+  log.skillFiles - {"path":"strategic-compact/suggest-compact.sh","sha256":"62af1630b000713842e363447675ad5a94f72cddf47241df68fc9883de686689"}
+  log.skillFiles - {"path":"task-brief/SKILL.md","sha256":"0859fc0b6cf760edb83b4c41cb8156cc90b7c62f1d5b5dd364acd4c5f7935cc2"}
+  log.skillFiles - {"path":"ui-visual-review/my-notes.md","sha256":"cd5908d8cf95a7f5b36b4f8fb12fe7fb505dbc20d96cb6813413ef3e1042be79"}
+  log.skillFiles - {"path":"vercel-react-best-practices/SKILL.md","sha256":"580542854394a82953a5da78a863091038b9fd90abd7676359b43642ae6f5880"}
+  log.skillFiles - {"path":"verification-loop/SKILL.md","sha256":"1744f867f7868b83b480341c2e8d08bff3848c2408255871d3aba0c2f7eff2f2"}
+  log.skillFiles - {"path":"verification-loop/agents/openai.yaml","sha256":"1907fd04fea5c83d15faf14acfc978de90076d4351341cf9259639aa0c3b7bd3"}
+  log.skillFiles - {"path":"verification-loop/references/tracks.md","sha256":"de11792d447c2e8ea67e8367c6655bd94646b1ba3f29184c4521cae01facc6ec"}
+  log.spec: A={"tracks":["tooling"],"cli":["claude","codex"]} B={"tracks":["tooling"],"cli":["claude","codex"],"clis":["claude","codex"]}

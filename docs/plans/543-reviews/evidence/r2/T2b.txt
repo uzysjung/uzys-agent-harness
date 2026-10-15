@@ -1,0 +1,297 @@
+# T2b — full+tooling · 4 CLI → --track tooling (full 이 남음)
+
+$ branch install --track full --track tooling --cli claude --cli codex --cli opencode --cli antigravity  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-x-D7Dx49/app
+  ▸ TRACKS       full, tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       23 selected
+              · data: anthropic-data-plugin
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: postgres-best-practices, supabase-agent-skills
+              · session-start context cost: 28 items resident · ~6381 tokens/session (directives 9 ~4257 · [rules 7 ~1789 · CLAUDE.md 2 ~2468] · triggers 19 ~2124 · [skills 15 ~1771 · agents 4 ~353] · 8 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (7)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy · ui-components
+  ✓ agents (4)                   reviewer · implementer · data-analyst · strategist
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (15)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .github/workflows/e2e.yml    CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7, railway-mcp-server, supabase, chrome-devtools
+  ✓ .env.example                             Supabase token guide
+
+━━ External assets (7) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+  ━━ 🗄️  Backend (API · DB · Deploy) ━━
+    ✓ supabase-agent-skills                    plugin · supabase@supabase-agent-skills
+    ✓ postgres-best-practices                  plugin · postgres-best-practices@supabase-agent-skills
+
+  ━━ 📊 Data ━━
+    ✓ anthropic-data-plugin                    plugin · data@knowledge-work-plugins
+
+  ━━ 💼 Business (Documents) ━━
+    ✓ anthropic-document-skills                plugin · document-skills@anthropic-agent-skills
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     15 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7 · railway-mcp-server · supabase · chrome-devtools
+  ✓ .agents/skills/                          15 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           7 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     15 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       full, tooling
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+                 Remote MCP servers sign in on first use — railway-mcp-server · supabase
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+                   Codex: codex mcp login railway-mcp-server · codex mcp login supabase (after trusting this folder)
+                   OpenCode: opens the browser by itself (or: opencode mcp auth railway-mcp-server)
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# log before: tracks=["full","tooling"] clis=["claude","codex","opencode","antigravity"] records=writer
+
+$ branch uninstall --track tooling --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track tooling
+
+  installed: full, tooling
+  removing:  tooling
+  remaining: full
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ removes: nothing only tooling installs
+  ○ would re-render AGENTS.md for Codex · OpenCode · Antigravity (your sections kept)
+  ○ install log updated (tracks: full)
+# dry-run disk change: 0
+
+$ branch uninstall --track tooling  (exit 0)
+
+uzys-agent-harness · uninstall --track tooling
+
+  installed: full, tooling
+  removing:  tooling
+  remaining: full
+
+  ✓ install log updated (tracks: full)
+
+✓ tooling removed (remaining: full)
+
+# disk diff by --track:
+  - .claude/.installed-tracks 1a4f48f72486
+  - .uzys-agent-harness/.harness-install.json 29874ad69fd6
+  + .claude/.installed-tracks 0e716a5fef4e
+  + .uzys-agent-harness/.harness-install.json 1c8243e1070d
+# NAMES CHECK — said-but-not-removed: [] · removed-but-unsaid: []
+# log after: tracks=["full"] · meta="full\n" · metaSha=0e716a5fef4e
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T01:24:55.095Z
+  scope:     project
+  tracks:    full
+  cli:       claude, codex, opencode, antigravity
+
+  External assets (7)
+    ✓ frontend-design            skill   project
+    ✓ react-best-practices       skill   project
+    ✓ shadcn-ui                  skill   project
+    ✓ supabase-agent-skills      plugin  project
+    ✓ postgres-best-practices    plugin  project
+    ✓ anthropic-data-plugin      plugin  project
+    ✓ anthropic-document-skills  plugin  project
+
+  Harness files
+    .claude/  .agents/  .codex/  .uzys-agent-harness/  AGENTS.md  opencode.json
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json            생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .env.example                     생성  Supabase 토큰 가이드
+    .github/workflows/ci-python.yml  생성  CI 워크플로 스캐폴드
+    .github/workflows/ci.yml         생성  CI 워크플로 스캐폴드
+    .github/workflows/e2e.yml        생성  CI 워크플로 스캐폴드
+    .mcp.json                        생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-x-D7Dx49/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-x-D7Dx49/app
+  ▸ TRACKS       full
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       23 selected
+              · data: anthropic-data-plugin
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: postgres-best-practices, supabase-agent-skills
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 28 items resident · ~6451 tokens/session (directives 9 ~4327 · [rules 7 ~1789 · CLAUDE.md 2 ~2538] · triggers 19 ~2124 · [skills 15 ~1771 · agents 4 ~353] · 8 external assets unmeasured)
+# UPDATE QUIET CHECK 1: quiet
+
+$ branch update (2)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-x-D7Dx49/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-x-D7Dx49/app
+  ▸ TRACKS       full
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       23 selected
+              · data: anthropic-data-plugin
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: postgres-best-practices, supabase-agent-skills
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 28 items resident · ~6451 tokens/session (directives 9 ~4327 · [rules 7 ~1789 · CLAUDE.md 2 ~2538] · triggers 19 ~2124 · [skills 15 ~1771 · agents 4 ~353] · 8 external assets unmeasured)
+# UPDATE QUIET CHECK 2: quiet
+
+$ [ref] branch install --track full --cli claude --cli codex --cli opencode --cli antigravity  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T2b-y-IQa5KP/app
+  ▸ TRACKS       full
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       23 selected
+              · data: anthropic-data-plugin
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: postgres-best-practices, supabase-agent-skills
+              · session-start context cost: 28 items resident · ~6381 tokens/session (directives 9 ~4257 · [rules 7 ~1789 · CLAUDE.md 2 ~2468] · triggers 19 ~2124 · [skills 15 ~1771 · agents 4 ~353] · 8 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (7)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy · ui-components
+  ✓ agents (4)                   reviewer · implementer · data-analyst · strategist
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (15)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .github/workflows/e2e.yml    CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7, railway-mcp-server, supabase, chrome-devtools
+  ✓ .env.example                             Supabase token guide
+
+━━ External assets (7) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+  ━━ 🗄️  Backend (API · DB · Deploy) ━━
+    ✓ supabase-agent-skills                    plugin · supabase@supabase-agent-skills
+    ✓ postgres-best-practices                  plugin · postgres-best-practices@supabase-agent-skills
+
+  ━━ 📊 Data ━━
+    ✓ anthropic-data-plugin                    plugin · data@knowledge-work-plugins
+
+  ━━ 💼 Business (Documents) ━━
+    ✓ anthropic-document-skills                plugin · document-skills@anthropic-agent-skills
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     15 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7 · railway-mcp-server · supabase · chrome-devtools
+  ✓ .agents/skills/                          15 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           7 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     15 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       full
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+                 Remote MCP servers sign in on first use — railway-mcp-server · supabase
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+                   Codex: codex mcp login railway-mcp-server · codex mcp login supabase (after trusting this folder)
+                   OpenCode: opens the browser by itself (or: opencode mcp auth railway-mcp-server)
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# COMPARE X(after --track + update) vs Y(fresh install of remaining) — '-' only in X, '+' only in Y
+  - .codex/config.toml 2e05d382f730
+  - .uzys-agent-harness/.harness-install.json 1c8243e1070d
+  + .codex/config.toml b7cf04c1e05f
+  + .uzys-agent-harness/.harness-install.json 174b9c3ac650
+  log.externalFiles - {"path":".codex/config.toml","sha256":"2e05d382f730f9147504a0f4c27baab8fe24a5ca0334a2508c83d40013e0052b"}
+  log.externalFiles + {"path":".codex/config.toml","sha256":"b7cf04c1e05f46f848bee0d33ab9b3aa49adb5f974c85154b7e44c6c2fa1ac0b"}
+  log.portions - {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"1d9f8e08773db108605a0114328a5d25a5364789f98b27d931a83c162d54ee13"}
+  log.portions + {"path":".codex/config.toml","adapter":"toml-region","key":"tables","sha256":"5df58af6db1e0ef768da8753a717f8997ae327ba05d921a52704b4274486ede7"}

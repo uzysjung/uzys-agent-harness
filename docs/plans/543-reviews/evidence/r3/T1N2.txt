@@ -1,0 +1,228 @@
+# T1N2 — ⓐ' 상시 스킬 두 폴더(user-centered-explanation · model-orchestration) 모두에 설치자 노트 → --track tooling
+
+$ branch install --track tooling --track executive --cli claude --cli codex  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T1N2-x-Ns9Oyf/app
+  ▸ TRACKS       tooling, executive
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       16 selected
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 25 items resident · ~5996 tokens/session (directives 8 ~4065 · [rules 6 ~1597 · CLAUDE.md 2 ~2468] · triggers 17 ~1931 · [skills 14 ~1650 · agents 3 ~281] · 2 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (3)                   reviewer · implementer · strategist
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+
+━━ External assets (1) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 💼 Business (Documents) ━━
+    ✓ anthropic-document-skills                plugin · document-skills@anthropic-agent-skills
+
+━━ Codex artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                from CLAUDE-uzys-harness.md (Codex)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       executive, tooling
+  ▸ CLI          Claude · Codex
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+# installer edits:
+wrote .claude/skills/user-centered-explanation/my-notes.md
+wrote .claude/skills/model-orchestration/my-notes.md
+
+# log before: tracks=["executive","tooling"] clis=["claude","codex"] records=writer
+
+$ branch uninstall --track tooling --dry-run  (exit 0)
+
+uzys-agent-harness · uninstall --track tooling
+
+  installed: executive, tooling
+  removing:  tooling
+  remaining: executive
+
+[DRY RUN] 트랙 제거 미리보기 (실제 변경 없음):
+
+  ○ remove 29 harness file(s) under .claude/
+  ○ remove 25 harness file(s) under .agents/
+  ○ removes: agents implementer · rules cli-development, ship-checklist, test-policy · skills audit-service-gaps, compaction-handoff, external-model-consult, model-orchestration, multi-model-debate, multi-persona-review, natural-korean, recurrence-prevention, self-hosted-github-runner, user-centered-explanation
+  ○ would re-render AGENTS.md for Codex (your sections kept)
+  ○ install log updated (tracks: executive)
+# dry-run disk change: 0
+
+$ branch uninstall --track tooling  (exit 0)
+
+uzys-agent-harness · uninstall --track tooling
+
+  installed: executive, tooling
+  removing:  tooling
+  remaining: executive
+
+  ✓ removed  .claude/ 29 harness file(s) · .agents/ 25
+  ✓ AGENTS.md — re-rendered for Codex (your sections kept)
+  ✓ install log updated (tracks: executive)
+
+✓ tooling removed (remaining: executive)
+
+# disk diff by --track:
+  - .agents/skills/audit-service-gaps/SKILL.md bbc7782ea688
+  - .agents/skills/audit-service-gaps/references/modes-and-evidence.md fa73b3edf2c5
+  - .agents/skills/audit-service-gaps/references/worked-example.md e5f31f498e86
+  - .agents/skills/compaction-handoff/SKILL.md fe70142b0bbf
+  - .agents/skills/external-model-consult/SKILL.md a4d429bcd473
+  - .agents/skills/external-model-consult/references/direct-calls.md 966db9c1f80c
+  - .agents/skills/external-model-consult/references/model-evidence.md 27dfc0eaac4b
+  - .agents/skills/external-model-consult/references/prompt-templates.md 2277839d5eb9
+  - .agents/skills/external-model-consult/scripts/codex-ask.sh c644272c25f3
+  - .agents/skills/external-model-consult/scripts/gemini-ask.sh 9c5eb72c61d1
+  - .agents/skills/model-orchestration/SKILL.md 78cb2ac0f153
+  - .agents/skills/multi-model-debate/SKILL.md b6e4e4855ca3
+  - .agents/skills/multi-model-debate/agents/openai.yaml 64eb836095ff
+  - .agents/skills/multi-model-debate/references/adapters.md 06d54103576b
+  - .agents/skills/multi-model-debate/references/evaluation.md 34f14eeecf69
+  - .agents/skills/multi-model-debate/references/prompts.md 45b348552563
+  - .agents/skills/multi-model-debate/references/research.md d99201f4774c
+  - .agents/skills/multi-persona-review/SKILL.md 6da7f5ccfae3
+  - .agents/skills/multi-persona-review/references/reviewer-design.md 4afc9d327f91
+  - .agents/skills/multi-persona-review/references/worked-example.md 95b48adac8ae
+  - .agents/skills/natural-korean/SKILL.md 0057cef32a4a
+  - .agents/skills/recurrence-prevention/SKILL.md 46614922e61e
+  - .agents/skills/recurrence-prevention/references/failure-analysis.md 5fc80d28b3f5
+  - .agents/skills/self-hosted-github-runner/SKILL.md a1394fde762c
+  - .agents/skills/user-centered-explanation/SKILL.md eab47a91badc
+  - .claude/.installed-tracks a12989cd2acb
+  - .claude/agents/implementer.md 9ce4ce0b4046
+  - .claude/rules/cli-development.md 73813a5f6f01
+  - .claude/rules/ship-checklist.md ecfe6606472e
+  - .claude/rules/test-policy.md c73652557728
+  - .claude/skills/audit-service-gaps/SKILL.md bbc7782ea688
+  - .claude/skills/audit-service-gaps/references/modes-and-evidence.md fa73b3edf2c5
+  - .claude/skills/audit-service-gaps/references/worked-example.md e5f31f498e86
+  - .claude/skills/compaction-handoff/SKILL.md fe70142b0bbf
+  - .claude/skills/external-model-consult/SKILL.md a4d429bcd473
+  - .claude/skills/external-model-consult/references/direct-calls.md 966db9c1f80c
+  - .claude/skills/external-model-consult/references/model-evidence.md 27dfc0eaac4b
+  - .claude/skills/external-model-consult/references/prompt-templates.md 2277839d5eb9
+  - .claude/skills/external-model-consult/scripts/codex-ask.sh c644272c25f3
+  - .claude/skills/external-model-consult/scripts/gemini-ask.sh 9c5eb72c61d1
+  - .claude/skills/model-orchestration/SKILL.md 78cb2ac0f153
+  - .claude/skills/multi-model-debate/SKILL.md b6e4e4855ca3
+  - .claude/skills/multi-model-debate/agents/openai.yaml 64eb836095ff
+  - .claude/skills/multi-model-debate/references/adapters.md 06d54103576b
+  - .claude/skills/multi-model-debate/references/evaluation.md 34f14eeecf69
+  - .claude/skills/multi-model-debate/references/prompts.md 45b348552563
+  - .claude/skills/multi-model-debate/references/research.md d99201f4774c
+  - .claude/skills/multi-persona-review/SKILL.md 6da7f5ccfae3
+  - .claude/skills/multi-persona-review/references/reviewer-design.md 4afc9d327f91
+  - .claude/skills/multi-persona-review/references/worked-example.md 95b48adac8ae
+  - .claude/skills/natural-korean/SKILL.md 0057cef32a4a
+  - .claude/skills/recurrence-prevention/SKILL.md 46614922e61e
+  - .claude/skills/recurrence-prevention/references/failure-analysis.md 5fc80d28b3f5
+  - .claude/skills/self-hosted-github-runner/SKILL.md a1394fde762c
+  - .claude/skills/user-centered-explanation/SKILL.md eab47a91badc
+  - .uzys-agent-harness/.harness-install.json 45bc6aef4fb0
+  - AGENTS.md 8ada200c7fd4
+  + .claude/.installed-tracks 98aac0e40135
+  + .uzys-agent-harness/.harness-install.json 3b14d88f0755
+  + AGENTS.md 2dd20fe9ba02
+# NAMES CHECK — said-but-not-removed: [] · removed-but-unsaid: []
+# log after: tracks=["executive"] · meta="executive\n" · metaSha=98aac0e40135
+  .claude/skills/user-centered-explanation: dir [my-notes.md]
+  .claude/skills/model-orchestration: dir [my-notes.md]
+root block mentions uce=true mo=true
+
+$ branch list  (exit 0)
+
+uzys-agent-harness · installed
+
+  installed: 2026-10-15T01:48:41.298Z
+  scope:     project
+  tracks:    executive
+  cli:       claude, codex
+
+  External assets (1)
+    ✓ anthropic-document-skills  plugin  project
+
+  Harness files
+    .claude/  .agents/  .codex/  .uzys-agent-harness/  AGENTS.md
+    CLAUDE-uzys-harness.md
+
+  Root files
+    (uninstall 이 지우지 않는다 — 사용자 내용이 섞인다)
+    .claude/settings.json     생성  Claude Code 설정 — 하네스 몫만(훅 · statusLine)
+    .github/workflows/ci.yml  생성  CI 워크플로 스캐폴드
+    .mcp.json                 생성  MCP 서버 정의 생성
+
+  Selections
+    excluded: (none)
+
+  remove one:  agent-harness uninstall --only <id>
+  remove all:  agent-harness uninstall
+
+$ branch update  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T1N2-x-Ns9Oyf/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T1N2-x-Ns9Oyf/app
+  ▸ TRACKS       executive
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       5 selected
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, gh-issue-workflow, north-star, objective-brief
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 11 items resident · ~3726 tokens/session (directives 5 ~3011 · [rules 3 ~508 · CLAUDE.md 2 ~2503] · triggers 6 ~715 · [skills 4 ~544 · agents 2 ~171] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 1: quiet
+
+$ branch update (2)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T1N2-x-Ns9Oyf/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/T1N2-x-Ns9Oyf/app
+  ▸ TRACKS       executive
+  ▸ CLI          claude · codex
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       5 selected
+              · business: anthropic-document-skills
+              · workflow: audit-harness-fit, gh-issue-workflow, north-star, objective-brief
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 11 items resident · ~3726 tokens/session (directives 5 ~3011 · [rules 3 ~508 · CLAUDE.md 2 ~2503] · triggers 6 ~715 · [skills 4 ~544 · agents 2 ~171] · 1 external asset unmeasured)
+# UPDATE QUIET CHECK 2: quiet

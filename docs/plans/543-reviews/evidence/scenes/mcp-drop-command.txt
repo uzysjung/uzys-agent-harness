@@ -1,0 +1,215 @@
+
+$ branch install tooling+csr-fastapi 4cli --with vercel  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/mcpdrop-oOH2Y3/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       20 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · backend: vercel
+              · session-start context cost: 26 items resident · ~6220 tokens/session (directives 9 ~4257 · [rules 7 ~1789 · CLAUDE.md 2 ~2468] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 5 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (7)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy · ui-components
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (15)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .github/workflows/e2e.yml    CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7, railway-mcp-server, chrome-devtools, vercel
+
+━━ External assets (3) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     15 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7 · railway-mcp-server · chrome-devtools · vercel
+  ✓ .agents/skills/                          15 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           7 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     15 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+                 Remote MCP servers sign in on first use — railway-mcp-server · vercel
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+                   Codex: codex mcp login railway-mcp-server · codex mcp login vercel (after trusting this folder)
+                   OpenCode: opens the browser by itself (or: opencode mcp auth railway-mcp-server)
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+$ branch uninstall --track csr-fastapi  (exit 0)
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 2 harness file(s) · .agents/ 2
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ⊘ left  MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ✓ AGENTS.md — re-rendered for Codex · OpenCode · Antigravity (your sections kept)
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+# suggested: agent-harness install --track tooling --without railway-mcp-server --without chrome-devtools
+# before drop: mcp.json: railway=true chrome=true vercel=true | .codex/config.toml: railway=true chrome=true vercel=true | opencode.json: railway=true chrome=true vercel=true
+
+$ branch install --track tooling --without railway-mcp-server --without chrome-devtools  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/mcpdrop-oOH2Y3/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5942 tokens/session (directives 8 ~4100 · [rules 6 ~1597 · CLAUDE.md 2 ~2503] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             @import CLAUDE-uzys-harness.md (body preserved)
+  ⊘ .github/workflows/ci.yml     exists — preserved (no overwrite)
+  ⊘ .claude/settings.json        kept — the harness part is already in place
+  ✓ .mcp.json                    removed the harness part · removed the harness part: mcp:chrome-devtools, mcp:railway-mcp-server (you asked: --without mcp:chrome-devtools --without mcp:railway-mcp-server)
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Remote MCP servers sign in on first use — vercel
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login vercel)
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+# after drop: mcp.json: railway=false chrome=false vercel=true | .codex/config.toml: railway=true chrome=true vercel=true | opencode.json: railway=true chrome=true vercel=true
+# disk diff by drop command:
+  - .mcp.json a2f7cfa47222
+  - .uzys-agent-harness/.harness-install.json df6aa126b57c
+  + .mcp.json 0ea26dd7d498
+  + .uzys-agent-harness/.harness-install.json 1d0d3a07938e
+# log: tracks=["tooling"] cli=["claude"] clis=["claude","codex","opencode","antigravity"] excluded=["railway-mcp-server","chrome-devtools"]
+
+$ branch update (after drop)  (exit 0)
+Updating installed harness files in /private/tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/mcpdrop-oOH2Y3/app
+
+━━━ uzys-agent-harness · update ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/mcpdrop-oOH2Y3/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+
+━━ Update Mode ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  → frontend-design — visual direction, typography, and anti-generic UI guidance (Anthropic official). For new UI or an explicit redesign; do not let it override an existing design system
+  → React best practices — Vercel's data-fetching order, server rendering, serialization, and cache guidance. For performance work in React, not every component edit
+  → shadcn/ui — reads this project's component config and registry so the agent adds components the way your setup expects (shadcn official). Only for projects that use shadcn
+  ✓ external CLI artifacts                   2 files updated
+  ✓ external skills                          3 refreshed from upstream
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Update complete
+  ▸ MODE         update
+  ▸ CONTEXT      session-start context cost: 24 items resident · ~5942 tokens/session (directives 8 ~4100 · [rules 6 ~1597 · CLAUDE.md 2 ~2503] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+# after update: mcp.json: railway=false chrome=false vercel=true | .codex/config.toml: railway=false chrome=false vercel=true | opencode.json: railway=false chrome=false vercel=true
+# disk diff by update:
+  - .codex/config.toml ec1738a21cce
+  - .uzys-agent-harness/.harness-install.json 1d0d3a07938e
+  - opencode.json 30941932fc4f
+  + .codex/config.toml 930779b2b4b0
+  + .uzys-agent-harness/.harness-install.json 9874c1469736
+  + opencode.json 56e6a969eeb3
+
+$ [control] branch install --track tooling --cli claude --cli codex --cli opencode --cli antigravity --without railway-mcp-server --without chrome-devtools  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/mcpdrop-y-D8OpgA/app
+  ▸ TRACKS       tooling
+  ▸ CLI          claude · codex · opencode · antigravity
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       15 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 24 items resident · ~5942 tokens/session (directives 8 ~4100 · [rules 6 ~1597 · CLAUDE.md 2 ~2503] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (6)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             @import CLAUDE-uzys-harness.md (body preserved)
+  ⊘ .github/workflows/ci.yml     exists — preserved (no overwrite)
+  ⊘ .claude/settings.json        kept — the harness part is already in place
+  ✓ .mcp.json                    removed the harness part · removed the harness part: mcp:chrome-devtools, mcp:railway-mcp-server (you asked: --without mcp:chrome-devtools --without mcp:railway-mcp-server)
+
+━━ Codex + OpenCode + Antigravity artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode · Antigravity)
+  ✓ .codex/config.toml                       wrote the harness part — yours stays · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     14 bundled skills
+  ✓ opencode.json                            wrote the harness part — yours stays · harness mcp: context7 · vercel
+  ✓ .agents/skills/                          14 bundled skills (codex·antigravity 와 같은 자리)
+  ✓ .agents/rules/                           6 harness rules (with Antigravity trigger frontmatter)
+  ✓ .agents/skills/<id>/                     14 bundled skills
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       tooling
+  ▸ CLI          Claude · Codex · OpenCode · Antigravity
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+                 Remote MCP servers sign in on first use — vercel
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login vercel)
+                   Codex: codex mcp login vercel (after trusting this folder)
+                   OpenCode: opens the browser by itself (or: opencode mcp auth vercel)
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+# control after: mcp.json: railway=false chrome=false vercel=true | .codex/config.toml: railway=false chrome=false vercel=true | opencode.json: railway=false chrome=false vercel=true

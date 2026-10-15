@@ -1,0 +1,161 @@
+
+$ branch install --track tooling --track csr-fastapi --cli claude --cli codex --cli opencode  (exit 0)
+
+━━━ uzys-agent-harness · install ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ TARGET       /tmp/claude-502/-Users-uzysjung-Development-Claude-Workspace-uzysClaudeUniversalEnv/bf8b3ed9-40bc-44fc-82fa-f0cb3875779d/scratchpad/proj/wiz-W1-tF8b5y/app
+  ▸ TRACKS       tooling, csr-fastapi
+  ▸ CLI          claude · codex · opencode
+  ▸ OPTIONS      (none added)
+  ▸ ASSETS       19 selected
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · frontend: frontend-design, react-best-practices, shadcn-ui, ui-visual-review
+              · session-start context cost: 26 items resident · ~6220 tokens/session (directives 9 ~4257 · [rules 7 ~1789 · CLAUDE.md 2 ~2468] · triggers 17 ~1963 · [skills 15 ~1771 · agents 2 ~192] · 4 external assets unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (7)                    change-management · cli-development · doc-governance · git-policy · ship-checklist · test-policy · ui-components
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (15)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 2 tracks noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .github/workflows/ci-python.yml CI scaffold (fill-in template)
+  ✓ .github/workflows/e2e.yml    CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7, railway-mcp-server, chrome-devtools
+
+━━ External assets (3) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ━━ 🎨 Frontend (UI · Design) ━━
+    ✓ frontend-design                          skill · anthropics/skills
+    ✓ react-best-practices                     skill · https://github.com/vercel-labs/agent-skills · vercel-react-best-practices
+    ✓ shadcn-ui                                skill · shadcn/ui · shadcn
+
+━━ Codex + OpenCode artifacts ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ AGENTS.md                                shared (Codex · OpenCode)
+  ✓ .codex/config.toml                       wrote · harness regions: top · tables
+  ✓ .codex/hooks/                            1 files
+  ✓ .agents/skills/<id>/                     15 bundled skills
+  ✓ opencode.json                            wrote · harness mcp: context7 · railway-mcp-server · chrome-devtools
+  ✓ .agents/skills/                          15 bundled skills (codex·antigravity 와 같은 자리)
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       csr-fastapi, tooling
+  ▸ CLI          Claude · Codex · OpenCode
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+                 Codex turns on .codex/config.toml (MCP · hooks · sandbox · approval) only after you trust this folder:
+                 open Codex here → "Trust and continue"   (headless: agent-harness install … --with-codex-trust)
+                 Codex also runs the harness session-start hook only after you review it: at first launch it warns that hooks need review — open /hooks and trust it. The harness does not approve it for you.
+                 Remote MCP servers sign in on first use — railway-mcp-server
+                   Claude Code: approve the project's .mcp.json servers when asked, then /mcp → Authenticate (or: claude mcp login railway-mcp-server)
+                   Codex: codex mcp login railway-mcp-server (after trusting this folder)
+                   OpenCode: opens the browser by itself (or: opencode mcp auth railway-mcp-server)
+  ▸ FILL         CLAUDE.md · AGENTS.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+# log tracks order: ["csr-fastapi","tooling"]
+
+$ wizard (pty) keys: wait:What do you want to remove down enter wait:Which track enter wait:Remove csr y
+----- screen: before key down -----
+┌  uzys-agent-harness · uninstall
+│
+◆  uzys-agent-harness · uninstall     installed: claude, codex, opencode · assets 3
+│  ● Remove one CLI (that CLI's own files go; files shared with a remaining CLI stay; your text stays)
+│  ○ Remove one track
+│  ○ Remove selected assets
+│  ○ Remove everything
+└
+----- screen: before key enter -----
+┌  uzys-agent-harness · uninstall
+│
+◆  uzys-agent-harness · uninstall     installed: claude, codex, opencode · assets 3
+│  ○ Remove one CLI
+│  ● Remove one track (files only that track installs go; the rest stay)
+│  ○ Remove selected assets
+│  ○ Remove everything
+└
+----- screen: before key enter -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude, codex, opencode · assets 3
+│  Remove one track
+│
+◆  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  ● csr-fastapi — Vite + React + FastAPI (csr-fastapi)
+│  ○ tooling — Bash + Markdown meta-project
+└
+----- screen: before key y -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude, codex, opencode · assets 3
+│  Remove one track
+│
+◇  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  csr-fastapi — Vite + React + FastAPI
+│
+◆  Remove csr-fastapi? This is the same as: agent-harness uninstall --track csr-fastapi
+│    · removes: rules ui-components · skills ui-visual-review
+│    · kept: asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+│    · kept: asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+│    · kept: asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+│    · kept: MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --without railway-mcp-server --without
+│  chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+│    · remaining: tooling — file counts: agent-harness uninstall --track csr-fastapi --dry-run
+│
+│  Proceed?
+│  ○ Yes / ● No
+└
+----- screen: final -----
+┌  uzys-agent-harness · uninstall
+│
+◇  uzys-agent-harness · uninstall     installed: claude, codex, opencode · assets 3
+│  Remove one track
+│
+◇  Which track?  (the last remaining track cannot be removed this way — use "Remove everything")
+│  csr-fastapi — Vite + React + FastAPI
+│
+◇  Remove csr-fastapi? This is the same as: agent-harness uninstall --track csr-fastapi
+│    · removes: rules ui-components · skills ui-visual-review
+│    · kept: asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+│    · kept: asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+│    · kept: asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+│    · kept: MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --without railway-mcp-server --without
+│  chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+│    · remaining: tooling — file counts: agent-harness uninstall --track csr-fastapi --dry-run
+│
+│  Proceed?
+│  Yes
+
+uzys-agent-harness · uninstall --track csr-fastapi
+
+  installed: csr-fastapi, tooling
+  removing:  csr-fastapi
+  remaining: tooling
+
+  ✓ removed  .claude/ 2 harness file(s) · .agents/ 1
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  asset react-best-practices (a default of csr-fastapi) — remove with: agent-harness uninstall --only react-best-practices
+  ⊘ left  asset shadcn-ui (a default of csr-fastapi) — remove with: agent-harness uninstall --only shadcn-ui
+  ⊘ left  MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --without railway-mcp-server --without chrome-
+devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ✓ AGENTS.md — re-rendered for Codex · OpenCode (your sections kept)
+  ✓ install log updated (tracks: tooling)
+
+✓ csr-fastapi removed (remaining: tooling)
+
+
+# disk diff by wizard:
+  - .agents/skills/ui-visual-review/SKILL.md 8d5c23460b4b
+  - .claude/.installed-tracks 735c79dd1112
+  - .claude/rules/ui-components.md 836b66be19c7
+  - .claude/skills/ui-visual-review/SKILL.md 8d5c23460b4b
+  - .uzys-agent-harness/.harness-install.json 6699eaca9f14
+  - AGENTS.md d02905309734
+  + .claude/.installed-tracks 02be8427b4b0
+  + .uzys-agent-harness/.harness-install.json 51aeb8db7a64
+  + AGENTS.md cfa5a24353e1
+# log tracks after: ["tooling"]
