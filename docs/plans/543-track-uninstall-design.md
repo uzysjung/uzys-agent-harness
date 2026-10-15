@@ -1,6 +1,6 @@
 # #543 — 트랙 단위 uninstall 설계 (`uninstall --track <name>`)
 
-- 상태: 설계 초안 — 독립 설계 검증 대기 (구현 전)
+- 상태: 검증 반영 · 구현 — 독립 설계 검증(`docs/plans/543-design-verify.md`, PASS with notes · BLOCKER 0)의 NOTE 1~9 와 §5 ⓐ 를 반영했다. 검증 보고와 이 문서가 다르던 곳은 보고를 따랐고, 구현 중 드러난 차이는 §9
 - 이슈: #543 (원요청 #523 — 설치자 본인)
 - 날짜: 2026-10-15
 - 원칙 SSOT: 루트 `CLAUDE.md` §설치자 디스크는 한 원칙으로 다룬다 · ADR-096 · ADR-097 · ADR-111 · `src/displaced.ts`
@@ -76,16 +76,16 @@ S2(`cli-development` 룰 둘) · S3(`data-analyst.md`)은 두 술어가 같다. 
 
 - CLI: `agent-harness uninstall --track <name>` (`[--dry-run] [--project-dir <path>]`). 한 번에 **트랙 하나** — `--cli` 와 같은 모양(§4 D4). `--only` · `--cli` 와 함께 쓰면 거절(`--cli` 가 `--only` 를 거절하는 것과 같은 줄, `src/commands/uninstall.ts:868-879`).
 - 등록: `registerUninstallCommand` 에 `.option("--track <name>", "[Scope] Remove one track only (…TRACKS). Files other recorded tracks also install stay")` 한 줄(2732-2756). `UninstallOptions.track?: string`(132-155). `shouldRunInteractive`(2767) 와 `lacksRemovalIntent`(2808) 에 `track` 을 더한다 — 플래그가 있으면 화면을 건너뛰고, 비TTY 의 "의사 표현" 으로 센다.
-- 위저드: `uninstall-interactive.ts` 의 첫 화면에 넷째 모드 **Remove one track** (`UninstallMode` 에 `"track"`, `buildUninstallModeChoices(clis, assetCount, tracks)` — 기록 트랙이 둘 이상일 때만 enabled, 하나면 hint `only one track here — use "Remove everything"`). 고르면 `pickTrack` 이 `TRACK_LABELS`(`src/prompts.ts:113`) 로 행을 보이고, 확인 화면에 "This is the same as: `agent-harness uninstall --track <t>`" + 나가는 것(아래 §2.6 미리보기와 같은 집계) + 남는 트랙을 적는다. 결과 `{ projectDir, track }` → 기존 `runUninstallScreen` → `uninstallAction` (2821-2835, 바꿀 것 없음). 메뉴 라우터 hint(`src/router.ts:106` `"remove everything, one CLI, or single assets"`)에 `one track` 을 더한다.
+- 위저드: `uninstall-interactive.ts` 의 첫 화면에 넷째 모드 **Remove one track** (`UninstallMode` 에 `"track"`, `buildUninstallModeChoices(clis, assetCount, tracks)` — 기록 트랙이 둘 이상일 때만 enabled, 하나면 hint `only one track here — use "Remove everything"`). 고르면 `pickTrack` 이 `TRACK_LABELS`(`src/prompts.ts:113`) 로 행을 보이고, 확인 화면에 "This is the same as: `agent-harness uninstall --track <t>`" + **빠지는 이름**(`removes: rules ui-components · skills ui-visual-review`) + 남기는 것(외부 자산 · 기본 MCP 행과 빼는 명령) + 남는 트랙 + `file counts: agent-harness uninstall --track <t> --dry-run` 을 적는다(검증 NOTE 8 — 디스크는 보지 않는다). 이름 목록과 남김 줄은 `src/track-removal.ts` 의 함수 하나씩(`trackRemovalNames` · `trackLeftLines`)이 내고, dry-run 미리보기도 같은 함수를 부른다(사용자 요구 2026-10-15). 결과 `{ projectDir, track }` → 기존 `runUninstallScreen` → `uninstallAction` (2821-2835, 바꿀 것 없음). 메뉴 라우터 hint(`src/router.ts:106` `"remove everything, one CLI, or single assets"`)에 `one track` 을 더한다.
 - USAGE: §`uninstall` 의 선택지 목록 · 플래그 표에 한 줄씩, §"Adding and removing a CLI" 옆에 "Adding and removing a track" 짧은 절(위저드 Update 로 더하고 — 이미 설명돼 있다(`docs/USAGE.md:36`) — `uninstall --track` 으로 뺀다).
 
 ### 2.2 판정 규칙
 
-- **T 전용** = 기록의 하네스 파일 후보 중 `(기록 트랙의 manifest 대상) ∧ ¬(남는 트랙의 manifest 대상)`. 술어 = `claudeTargets(tracks)`(`src/track-heal.ts:43`) + 디렉터리 대상은 번들 템플릿 파일 여부(`src/recorded.ts:117-118` 규칙) — **ⓑ**(§1.4). 외부 CLI 자리는 번들 경로로 바꿔 같은 술어에 넣는다: `.agents/skills/<id>/…` → `bundlePath`(`src/recorded.ts:83`), `.agents/rules/<r>.md` → `.claude/rules/<r>.md`(`out-of-track.ts:28` 와 같은 정규식). 기록에 없는 파일은 후보가 아니므로 닿지 않는다(설치자 파일 · ADR-097 결정 1).
-- **옛 판 지문 파일(ⓑ′ `legacyFileCandidates`)** 은 현행 manifest 대상이 아니라 술어가 거짓 → 트랙 제거는 그것을 건드리지 않는다(은퇴 자산 정리는 전량 uninstall 의 몫 — ADR-111 결정 5 와 같은 선).
+- **T 전용** = 기록의 하네스 파일 후보 중 `(기록 트랙의 manifest 대상) ∧ ¬(남는 트랙의 manifest 대상)`. 술어 = `claudeTargets(tracks)`(`src/track-heal.ts:43`) + 디렉터리 대상은 번들 템플릿 파일 여부(`src/recorded.ts:117-118` 규칙) — **ⓑ**(§1.4). 외부 CLI 자리는 번들 경로로 바꿔 같은 술어에 넣는다: `.agents/skills/<id>/…` → `bundlePath`(`src/recorded.ts:83`), `.agents/rules/<r>.md` → `.claude/rules/<r>.md`(`out-of-track.ts:28` 와 같은 정규식). 기록에 없는 파일은 후보가 아니므로 닿지 않는다(writer 기록에서는 — 설치자 파일 · ADR-097 결정 1. 옛 스캔 기록은 `recorded()` 가 스캔 sha 로 가른다, 검증 NOTE 2).
+- **옛 판 지문 파일(ⓑ′ `legacyFileCandidates`)** — 은퇴 자리의 지문 파일은 술어 밖이고, T 전용 **현행** 자리의 지문 파일은 ADR-111 판정 그대로 회수된다(현행 번들 자리라 백업 없이 — 설치자 내용이 아니다, 검증 NOTE 9).
 - **`excluded`** 는 바꾸지 않는다. T 를 빼면 그 룰은 manifest 에 없으니 빼기 기록이 필요 없고, 나중에 `install --track T` 로 돌아온다. 남는 트랙의 자산 중 설치자가 뺀 것(`excluded`)은 지금처럼 건드리지 않는다(후보가 아니다 · ADR-099 R3).
 - **`--with` 항목**(외부 자산 · 선택 MCP 행): 트랙에 속하지 않은 명시 선택이라 **남긴다**. T 의 **기본** 외부 자산(`assets[]` 의 skill · plugin)과 T 기본 MCP 행은 §4 D1 · D2 — 추천은 남기고 화면이 빼는 명령을 댄다.
-- **마지막 트랙**: 거절 — "전량 제거는 `agent-harness uninstall`" (`--cli` 의 마지막 CLI 규칙 894-900 과 같은 문장 · 전량 삭제 경로를 둘 두지 않는다).
+- **마지막 트랙**: 거절 — "전량 제거는 `agent-harness uninstall`" (`--cli` 의 마지막 CLI 규칙과 같은 함수 `resolveScopeTarget` · 전량 삭제 경로를 둘 두지 않는다). 마지막 판정은 **어휘에 있는 기록 트랙**으로 센다 — 모르는 문자열은 남는 트랙으로 치지 않고, 기록에서 지우지도 않는다. 메타파일은 install 과 같이 어휘에 있는 남는 트랙(`installedTracksText`)으로 쓴다(검증 NOTE 6).
 - **없는 트랙 지정**: 어휘에 없는 이름(`!isTrack`)과 기록에 없는 트랙을 따로 거절한다 — `Invalid --track value` / `<t> is not installed in this project (recorded: …)`. 판정은 **읽은 기록**(heal 뒤)으로 한다 — 옛 판이 잘라 둔 트랙도 메타파일이 보증하면 기록 트랙이다.
 - **`base`**: 다른 dev 트랙이 남으면 T 전용 집합이 빈다(base ⊂ 모든 dev 트랙, `src/prompts.ts:114-116`). 거절하지 않고 기록만 갱신하며 화면이 "nothing only base installs — record updated" 라고 말한다. `full` 을 빼는 것도 같은 술어로 자연히 처리된다.
 - **CLI 집합은 바꾸지 않는다.** `spec.clis` · `templates.*` · `portions`(함께 쓰는 파일의 몫)은 그대로다. 함께 쓰는 파일에서 걷는 몫은 없다 — T 가 가져오는 훅은 없고(`ALWAYS_HOOKS` 는 `applies: all`, `src/manifest.ts:344·507`) MCP 는 D1 이다.
@@ -97,15 +97,16 @@ S2(`cli-development` 룰 둘) · S3(`data-analyst.md`)은 두 술어가 같다. 
 | T 전용 파일 회수(판정 · 백업 · 링크 · 밖 실체 · displaced 되돌리기 · 빈 폴더) | `removeHarnessFiles(log, projectDir, scope, io)`(`src/commands/uninstall.ts:1693-1769`) — `--cli` 가 쓰는 그 함수에 `RemovalScope`(1607-1620) 하나를 넘긴다: `{ has: onlyT, shared: [], skeleton: [], folders: [], importBlock: false, anchor: false }` | `planTrackRemoval(target, log, projectDir): { scope, remaining }` ≈ 35 — 술어 조립. `claudeTargets`(`track-heal.ts:43`, export 됨) + 번들 파일 존재 확인 ≈ 10 (`recorded.ts` 의 디렉터리 규칙을 작은 함수로 뽑아 둘이 같이 쓰게) |
 | 전제 검사(충돌 플래그 · 어휘 · 기록 · 마지막) | `resolveCliTarget`(866-902) 의 모양 | `resolveTrackTarget` ≈ 35 |
 | dry-run 미리보기 | `removeHarnessFiles(..., write: false)` + `harnessRemovalLines`(2190) + `assetsLeftLines`(2397) — `removeCliDryRunLines`(982-1003) 모양 | `removeTrackDryRunLines` ≈ 25 · 머리글 `removeTrackHeader` ≈ 12 |
-| `AGENTS.md` 를 남는 트랙으로 다시 렌더 | `rerenderAgentsMd`(1049) + `withRerender`(1064) + `rerenderLines`(1087) — `--cli` C-3 와 같은 함수 | `recordedRenderInputs(projectDir, log, tracks = installedTracks(projectDir))` 에 선택 인자 하나(`src/update-mode.ts:1913`) ≈ 3 — 재렌더가 **쓰기 전 기록**의 트랙이 아니라 남는 트랙을 받게. 조건: `AGENTS.md` 를 읽는 CLI 가 깔려 있고 파일이 기록에 있을 때(`agentsMdRerenderSet` 1017 의 조건을 target 없이 쓰는 판 ≈ 8) |
-| 기록 갱신 | `settleCliLog`(1110-1156) 의 모양 — 다른 점: `policyFiles` · `skillFiles` 는 필드째가 아니라 **`forgotten` 경로만** 뺀다 | `settleTrackLog` ≈ 45 — `spec.tracks` 제거 · 네 필드에서 `done.forgotten` 제거 · `rootFiles` = `withoutRestored(done.displaced)` · `.installed-tracks` 새 내용 쓰기와 그 sha(`installedTracksText`, `src/installer.ts:1313`; `hashContent`) |
-| 실행 묶기 | `removeCliAction`(1158-1209) 의 순서 | `removeTrackAction` ≈ 50 · `uninstallAction` 분기 3줄(268-274 옆) |
+| `AGENTS.md` 를 남는 트랙으로 다시 렌더 | `rerenderAgentsMd` + `withRerender` + `rerenderLines` — `--cli` C-3 와 같은 함수 | 재렌더 입력을 **settled 기록**(4 단계가 쓸 그 객체)으로 만든다: `recordedRenderInputs(projectDir, settled, settled.spec.tracks)` 로 `rules` · `selectedInternalSkills` 둘 다, `runAgentsMdTransform({ log: settled })` 로 `agentsSkillSlot` 의 `bundledSkillTargets` 디스크 읽기도 같은 객체(검증 NOTE 1). `--cli` 도 같은 경로를 쓴다(뼈대 공유). 조건: `agentsMdRerenderSet(null, …)` — 읽는 CLI 가 있고 파일이 기록에 있을 때 |
+| 루트 `CLAUDE.md` 하네스 블록(상시 스킬 안내) | update 의 `upsertRootImport` | claude 가 깔려 있고 파일이 있을 때 같은 함수로 맞춘다(§9 ①) |
+| 기록 갱신 | `settleCliLog` 의 뒤 절반을 `forgetRemoved(next, done)` 로 뽑아 둘이 같이 쓴다(검증 §5 ⓐ) — 네 필드에서 `done.forgotten` 제거(필드는 비어도 남긴다) · `rootFiles` = `withoutRestored` · 몫 | `settleTrackLog` — `spec.tracks` 제거 · `.installed-tracks` 새 내용 쓰기와 그 sha(필드 없는 옛 기록엔 `policyFiles` 를 만들지 않는다 · 설치자가 고친 메타파일 · 밖 자리는 그대로 둔다) |
+| 실행 묶기 | `removeCliAction` 의 순서를 `runScopedRemoval(ctx, io, plan)` 뼈대 하나로 뽑아 `--cli` · `--track` 이 같이 쓴다(검증 §5 ⓐ — `tests/uninstall-cli-scope.test.ts` 가 리그레션 그물, 단언 무변경) | `removeTrackAction` · 전제 검사는 `resolveScopeTarget` 하나(`--cli` 와 같은 순서) |
 | 남는 외부 자산 · MCP 기본 행 안내(D1 · D2 추천안) | `assetsLeftLines` 의 문장 모양 · `trackDefaultMcpAssetIds`(`src/cli-transforms.ts:201`) | `trackLeftLines` ≈ 25 |
 | CLI 표면 | `registerUninstallCommand` · `shouldRunInteractive` · `lacksRemovalIntent` | ≈ 8 |
-| 위저드 | `uninstall-interactive.ts` — `buildUninstallModeChoices` · `pickCli`(329-351) 모양 | `pickTrack` + 모드 한 항목 + `selectTrack` 프롬프트 ≈ 70 |
-| 루트 `CLAUDE.md` `> Active track(s):` (D3 추천안) | `dropHarnessQuoteBlocks`(`project-claude-merge.ts:231`)가 하네스 인용 블록을 알아본다 | 한 줄 바꾸기 ≈ 15 |
+| 위저드 | `uninstall-interactive.ts` — `buildUninstallModeChoices` · `pickCli` 모양 | `pickTrack` + 모드 한 항목 + `selectTrack` 프롬프트. 확인 화면은 manifest 이름으로만(검증 NOTE 8) |
+| 루트 `CLAUDE.md` `> Active track(s):` | — | **범위 밖**(검증 NOTE 4 · #833) |
 
-**예상 src 순증 ≈ 330줄**(uninstall.ts ≈ 230 · uninstall-interactive.ts ≈ 70 · update-mode.ts ≈ 5 · recorded.ts/track-heal.ts ≈ 10 · project-claude-merge.ts ≈ 15). 삭제 엔진 · 판정 함수 · 기록 접근자는 새로 만들지 않는다. `install-render.ts` 는 건드리지 않는다(uninstall 화면은 `commands/uninstall.ts` 가 직접 낸다).
+**src 순증 실측 260줄**(검증 추정 230 + 위저드 · dry-run 이름 목록 공유 함수와 §9 ① 루트 블록) — uninstall.ts +122 · track-removal.ts(신규) +74 · uninstall-interactive.ts +57 · agents-md-transform.ts/agents-skill-targets.ts +6 · update-mode.ts +1. 삭제 엔진 · 판정 함수 · 기록 접근자는 새로 만들지 않는다. `install-render.ts` 는 건드리지 않는다(uninstall 화면은 `commands/uninstall.ts` 가 직접 낸다).
 
 구현자가 피할 함정 둘:
 - `removeHarnessFiles` 는 **실행 시작 때의 기록**으로 판정한다(`recorded(log, …)` 1885). 기록을 먼저 바꾸면 T 전용 룰이 `isRecordedTrackTarget` 밖으로 떨어져 옛 스캔 로그(`records` 없음)에서 `none` 으로 읽힌다(`src/recorded.ts:186-187 · 203`) — 지우지 않는 쪽으로 틀리지만, 그러면 아무것도 안 빠진다. 순서는 §2.4.
@@ -114,15 +115,17 @@ S2(`cli-development` 룰 둘) · S3(`data-analyst.md`)은 두 술어가 같다. 
 ### 2.4 실행 순서 · 기록 갱신 · 중간 실패
 
 ```
-0 전제 검사(resolveTrackTarget)            — 아무것도 안 바꾸고 거절
+0 전제 검사(resolveScopeTarget)            — 아무것도 안 바꾸고 거절
 1 removeHarnessFiles(log, scope=onlyT)     — T 전용 파일: remove / backup+remove / forget · displaced 되돌림 · 빈 폴더
-2 rerenderAgentsMd(남는 트랙)               — AGENTS.md 를 읽는 CLI 가 남아 있고 파일이 기록에 있을 때
-3 .claude/.installed-tracks ← 남는 트랙     — claude 가 깔린 기록일 때(없으면 파일도 없다, track-heal.ts:64)
-4 writeInstallLog(settleTrackLog(...) + withRerender)
+1′ 루트 CLAUDE.md 하네스 블록 맞추기          — claude 가 깔려 있고 파일이 있을 때(§9 ①)
+3 settleTrackLog → .claude/.installed-tracks ← 남는 트랙 + 그 sha — claude 가 깔린 기록일 때
+2 rerenderAgentsMd(settled)                — AGENTS.md 를 읽는 CLI 가 있고 파일이 기록에 있을 때
+4 writeInstallLog(settled + withRerender)
 ```
 
 - **한 번의 기록 쓰기**(4)다 — `--cli` 와 같다. 3 과 4 는 붙어 있다: 메타파일만 바뀌고 기록이 안 바뀌면 sha 가 어긋나 heal 이 트랙을 더하지 않고(`track-heal.ts:79`), 기록은 여전히 T 를 말한다 — 즉 "파일은 빠졌고 기록은 T 를 아직 든 상태". 다음 실행(같은 명령)이 1 에서 없는 파일을 `forgotten` 으로 정리하고(1866-1869) 3·4 를 다시 한다. 되돌릴 수 없는 손실은 없다(백업은 1 에서 이미 남았다).
 - 1 뒤 2 가 실패해도 기록이 안 바뀌었으면 같은 명령 재실행으로 이어진다. 4 가 실패하면 `--cli` 와 같은 줄(`install log 갱신 실패 … 기록이 실제와 다르다`, 1195-1204)로 exit 1.
+- 구현은 3 을 2 앞에 둔다(settled 기록을 만들면서 메타파일을 쓰고, 그 기록으로 재렌더한다 — NOTE 1). 2 가 실패해도 기록은 T 를 들고 있고 메타파일 sha 가 어긋나 heal 은 아무것도 더하지 않는다 — 같은 명령 재실행으로 이어진다.
 - 2 를 4 앞에 두는 이유: 재렌더 결과(`externalFiles` sha · 블록 `portions`)를 같은 쓰기에 싣는다(`withRerender`). 안 실으면 다음 update 가 방금 쓴 `AGENTS.md` 를 "설치자가 고쳤다" 로 읽는다(#550 형태 — `src/commands/uninstall.ts:1063` 주석).
 - 1 이 떠난 자리의 displaced 되돌리기와 `rootFiles` 정리는 `removeHarnessFiles` 안의 `restoreDisplaced` + `withoutRestored` 그대로(`src/displaced.ts:75 · 109`).
 
@@ -131,7 +134,7 @@ S2(`cli-development` 룰 둘) · S3(`data-analyst.md`)은 두 술어가 같다. 
 - `--track` 은 "뺄 대상을 이미 말한" 플래그다: TTY 에서도 화면 없이 바로 실행(`shouldRunInteractive` 가 `--cli` 를 다루는 것과 같다, 2772-2773). `--dry-run` 과 함께 쓰면 미리보기만.
 - 플래그 없이 TTY → 화면 → 모드 선택 → 트랙 선택 → 확인(`initialValue: false`). 취소 · 미선택은 exit 0 무변경.
 - 비TTY 에서 `--track` 은 의사 표현이라 돈다(CI 스크립트용). 비TTY · 플래그 없음은 지금처럼 거절(2787-2796).
-- `--yes` 는 전량 전용이고 `--track` 에는 필요 없다(`--cli` 와 같다).
+- `--yes` 는 전량 전용이고 `--track` 에는 필요 없다(`--cli` 와 같다). `--track` 분기는 `--cli` 분기 바로 앞(`--only` 파싱 앞)이다 — `--yes` 가 같이 와도 트랙 제거만 하고, `--cli` · `--only` 와 함께면 거절한다(검증 NOTE 7).
 
 ### 2.6 화면 줄 예시
 
@@ -148,9 +151,10 @@ uzys-agent-harness · uninstall --track csr-fastapi
 
   ○ remove 2 harness file(s) under .claude/ (1 with a copy saved beside as *.backup-<time>)
   ○ remove 2 harness file(s) under .agents/
-  ○ re-render AGENTS.md for Codex · Antigravity (your sections kept)
-  ○ leave  .claude/skills/frontend-design · .agents/skills/frontend-design (asset frontend-design) — remove with: agent-harness uninstall --only frontend-design
-  ○ leave  .mcp.json servers chrome-devtools · railway-mcp-server — defaults of csr-fastapi, kept because your install record has them; drop: agent-harness install --track tooling --without chrome-devtools --without railway-mcp-server
+  ○ removes: rules ui-components · skills ui-visual-review
+  ○ leave asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ○ leave MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, kept because your install record has them) — drop: agent-harness install --track tooling --without railway-mcp-server --without chrome-devtools (this re-runs the whole install: harness files refreshed, edited ones backed up; --without stays on record, so add --with <id> to get one back later)
+  ○ would re-render AGENTS.md for Codex · Antigravity (your sections kept)
   ○ install log updated (tracks: tooling)
 ```
 
@@ -160,8 +164,8 @@ uzys-agent-harness · uninstall --track csr-fastapi
   ✓ removed  .claude/ 2 harness file(s) · .agents/ 2
   ✓ backed up  .claude/rules/ui-components.md — you edited it — saved as .claude/rules/ui-components.md.backup-20261015T083012, removed from live
   ✓ AGENTS.md — re-rendered for Codex · Antigravity (your sections kept)
-  ⊘ left  .claude/skills/frontend-design · .agents/skills/frontend-design (asset frontend-design) — remove with: agent-harness uninstall --only frontend-design
-  ⊘ left  .mcp.json servers chrome-devtools · railway-mcp-server — defaults of csr-fastapi, kept because your install record has them; drop: …
+  ⊘ left  asset frontend-design (a default of csr-fastapi) — remove with: agent-harness uninstall --only frontend-design
+  ⊘ left  MCP servers railway-mcp-server · chrome-devtools (defaults of csr-fastapi, …) — drop: …
   ✓ install log updated (tracks: tooling)
 
 ✓ csr-fastapi removed (remaining: tooling)
@@ -184,7 +188,9 @@ uzys-agent-harness · uninstall --track csr-fastapi
 7. **AGENTS.md**: codex 가 깔린 설치본에서 설치자가 `## Project Context` 를 채운 뒤 `--track csr-fastapi` → `## UI Components` 절 없음 · 설치자 문단 그대로 · 기록 `externalFiles["AGENTS.md"].sha256` 이 디스크와 같고 → 이어서 `runUpdateMode` 가 백업 0 · `AGENTS.md` 바이트 변화 0(C-T3 "이어서 update 해도 조용" 대조).
 8. **외부 자산 · MCP(D1 · D2 추천안)**: `assets[]` 의 `frontend-design` 이 남고 화면이 `--only frontend-design` 을 댄다; `.mcp.json` 의 `railway-mcp-server` 가 남고 화면이 drop 명령을 댄다. 결정이 바뀌면 이 두 단언만 바뀐다.
 9. **위저드**(`tests/uninstall-interactive.test.ts` 에 추가): `buildUninstallModeChoices(clis, 0, ["tooling","csr-fastapi"])` 에 `track` 모드 enabled, 트랙 하나면 disabled; 주입 프롬프트로 `selectMode → "track"` · `selectTrack → "csr-fastapi"` · `confirm → true` 면 결과 `{ track: "csr-fastapi" }`; 취소면 무변경.
-10. **옛 스캔 로그(records 없음)**: `tests/uninstall-legacy-scan.test.ts` 의 픽스처 모양으로 `policyFiles` 에 설치자 파일(`rules/ui-components.md` 와 같은 이름 · 다른 내용)이 섞인 기록 → `--track csr-fastapi` → 그 파일은 `recorded()` 필터에 걸려 `none` → 남는다(ADR-097 결정 1 "지우지 않는 쪽").
+10. **옛 스캔 로그(records 없음)** (검증 NOTE 2 로 기대값 정정): `tests/uninstall-legacy-scan.test.ts` 픽스처 모양으로 ⓐ 설치 뒤 설치자가 고친 T 전용 파일 → `backup+remove`(sha 불일치) ⓑ 스캔 sha 그대로인 T 전용 파일 → 백업 없이 제거 ⓒ `excluded` 에 든 T 전용 경로(`baseline:rules/ui-components`)는 후보가 아니라 남는다. 손실 음성 대조는 ⓐ 의 백업 파일 존재.
+
+검증 보고 §6 의 T1~T9 도 같은 파일에 둔다(`tests/uninstall-track.test.ts`). 그리고 dry-run 미리보기와 위저드 확인 화면이 **같은 이름 목록 · 같은 MCP 남김 줄**을 내는지 단언 하나(사용자 요구 2026-10-15).
 
 ### 3.2 Docker 시나리오 — `test/docker/scenarios/scenario-uninstall-track.sh`
 
@@ -197,7 +203,7 @@ uzys-agent-harness · uninstall --track csr-fastapi
 | A1 | 26.161.0 (디스크 스캔 기록 · `records` 없음) | tooling+csr-fastapi claude+antigravity 설치 → 현행 `uninstall --track csr-fastapi` | 스캔 기록의 설치자 동명 파일이 남는가(`recorded()` 필터) · `.agents/rules/ui-components.md` 가 빠지는가 · 메타파일 sha 가 옛 기록에 있어 heal 과 맞물리는가 |
 | A2 | 26.125.0 (파일 필드 없음) | 같은 설치 → `--track` | 후보가 `recordedTrackSpots`(1789) 에서 오고 `no-sha` → `templateNext` 로 바이트 비교 — 바이트 같으면 지우고 다르면 백업. 지문(ADR-111)이 끼는가 |
 | A3 | ≤26.163.0 (마지막 install 트랙으로 덮은 기록) | `install --track tooling --cli claude` → `install --track csr-fastapi --cli codex` (기록 `[csr-fastapi]`, 메타 `tooling\ncsr-fastapi`) → 현행 `--track csr-fastapi` | heal 이 되살린 tooling 이 "남는 트랙" 으로 쓰여 tooling 자산이 보호되는가 · 쓰는 기록이 누적 트랙을 담는가 |
-| A4 | 현행 | `.claude/skills/<id>` → `.agents/skills/<id>` 링크(#524) 상태에서 T 전용 스킬 제거 | 링크 자리 · 본문 둘 다 빠지고 끊어진 링크가 남지 않는가(`removeRecordedFile` 1908-1911 포인터 먼저) |
+| A4 | 현행 | `.claude/skills/<id>` → `.agents/skills/<id>` 링크(#524) 상태에서 T 전용 스킬 제거 | 본문은 빠지고 설치자 링크 슬롯은 기록만 정리돼 **끊어진 링크가 남는다**(전량 uninstall 과 같은 결과 — 검증 NOTE 3). 다른 결과면 회귀 |
 | A5 | 현행 | `.claude/skills` 폴더째 링크(#769 리뷰 HIGH-3 알려진 결함) | 이 설계가 더 나빠지지 않는가(같은 결과면 통과) |
 | A6 | 현행 | antigravity 단독(클로드 없음 — 메타파일 없음) `--track` | 3 단계가 안전하게 건너뛰는가 · `.agents/rules/<T>` 만 빠지는가 |
 | A7 | 현행 | T 전용 룰을 설치자가 지운 뒤 `--track` | `forgotten` 만, 화면 침묵(실재하는 것만 말한다) |
@@ -209,11 +215,11 @@ uzys-agent-harness · uninstall --track csr-fastapi
 |---|---|---|---|---|
 | D1 | T 의 **기본 MCP 행**(`railway-mcp-server` · `chrome-devtools`)을 `.mcp.json` · Codex · OpenCode 에서 걷는가 | **남기고 화면이 drop 명령을 댄다.** 기록이 기본 행과 `--with` 선택을 구분하지 않는다(§1.3 ⑤ · ADR-101) — 걷으려면 몫 기록에 출처 필드를 더하는 구조 변경이고, 원격 MCP 는 설치자가 로그인까지 한 상태라 지우면 되돌리기가 비싸다 | 트랙 표의 기본 행이면서 `assets[]` 에 `--with` 기록이 없는 서버는 걷는다(기록 모양 변경 없이 추론 — 옛 판 `--with` 는 `assets[]` 에 안 남아 오탐) | 추천안은 되돌릴 수 있다(설치자가 명령 한 줄). 대안은 **설치자 디스크 삭제 범위 확대 → 사용자 결정** |
 | D2 | T 의 **기본 외부 자산**(`frontend-design` 등 skill · `anthropic-data-plugin`)을 함께 빼는가 | **남기고 `--only <id>` 를 댄다**(`assetsLeftLines` 와 같은 줄). 자산은 CLI 소속도 트랙 소속도 아니라는 현행 규율(`settleCliLog` 1102 주석)과 같다 | T 의 조건(`any-track` 에 T 만 남고 남는 트랙이 없음)을 만족하는 `assets[]` 항목을 같은 실행에서 `--only` 와 같은 엔진으로 뺀다 | 추천안 되돌릴 수 있음. 대안은 플러그인 · npm 제거까지 번지는 **삭제 범위 확대 → 사용자 결정** |
-| D3 | 루트 `CLAUDE.md` 의 `> Active track(s): …` 줄을 남는 트랙으로 바꾸는가 | **바꾼다** — 하네스가 쓴 인용 블록이라 식별된다(`TRACK_NOTE_MARK`, `project-claude-merge.ts:222`); 안 바꾸면 "Tooling, CSR FastAPI" 가 영구히 남는다(실험 세 장면) | 두고 범위 밖 관찰로 넘긴다(install 추가 때도 안 바뀌는 기존 결함) | 낮다 — 한 줄 텍스트 |
+| D3 | 루트 `CLAUDE.md` 의 `> Active track(s): …` 줄을 남는 트랙으로 바꾸는가 | **결정: 두고 이슈(#833)** — 검증 NOTE 4(그 줄은 기록 밖 몫이라 디스크 내용 기반 소유 판정이 된다 · 더할 때도 안 바뀌는 대칭 결함). 초안 추천은 "바꾼다" — 하네스가 쓴 인용 블록이라 식별된다(`TRACK_NOTE_MARK`, `project-claude-merge.ts:222`); 안 바꾸면 "Tooling, CSR FastAPI" 가 영구히 남는다(실험 세 장면) | 두고 범위 밖 관찰로 넘긴다(install 추가 때도 안 바뀌는 기존 결함) | 낮다 — 한 줄 텍스트 |
 | D4 | `--track` 반복(`--track a --track b`) 허용 | **하나씩**(`--cli` 와 대칭 · 마지막 트랙 규칙이 단순) | 반복 허용 — 남는 집합으로 한 번에 계산(술어는 그대로) | 낮다 — 나중에 열 수 있다 |
 | D5 | 트랙 제거를 **ADR-094 문턱 위**로 다루는가 | 예 — 설치자 디스크 삭제 경로. 머지 전 독립 리뷰 + 옛 npm 판 실설치 적대적 리뷰(§3.3) | — | — |
 
-사용자 결정으로 표시한 것: D1 · D2 의 **대안**을 고를 때만(삭제 범위가 넓어진다). 추천안대로면 설계 검증 레인이 판정한다.
+결정(2026-10-15): D1 · D2 는 남기고 화면이 명령을 안내한다(NOTE 5 의 두 마디 — install 전체를 다시 돈다 · `--without` 은 기록에 남는다 — 를 MCP 줄에 적는다). D3 범위 밖(#833). D4 한 번에 하나.
 
 ## 5. Non-Goals
 
@@ -260,3 +266,12 @@ uzys-agent-harness · uninstall --track csr-fastapi
 | `out/<S>/root-claude-md-track-line.txt` | 루트 `CLAUDE.md` 의 `> Active track(s):` 줄(갱신 안 됨) |
 
 실험 환경: macOS(darwin 27), Node 로 `dist/index.js` 직접 실행, 빌드 = 이 워크트리 `npm run build`(2026-10-15, main 912e0e7 기준). 호스트 `~/` 에는 쓰지 않았다(`HOME` 임시 폴더).
+
+## 9. 구현 기록 — 설계 · 검증 보고와 달라진 것
+
+① **루트 `CLAUDE.md` 하네스 블록의 상시 스킬 안내** — 설계 · 검증 둘 다 보지 못한 자리. 마지막 dev 트랙을 빼고 비-dev 트랙이 남으면(T1) `user-centered-explanation` · `model-orchestration` 본문이 빠지는데 루트 `CLAUDE.md` 마커 블록은 그 둘을 "열어라" 고 계속 적고, 다음 update 가 그 블록을 고쳐 "이어서 update 해도 조용" 이 깨졌다(T1 이 잡았다). NOTE 1 과 같은 모양의 Claude 쪽 자리라 update 와 같은 함수(`upsertRootImport`)로 그 자리에서 맞춘다 — claude 가 깔려 있고 파일이 있을 때만(없으면 만들지 않는다). 실행 화면은 바뀌었을 때만 `CLAUDE.md — harness block refreshed (본문 보존)` 을 말하고, **미리보기는 이 줄을 예고하지 않는다**(남은 차이).
+② **T3 의 옵트인 스킬** — 검증 보고는 `compaction-handoff` 를 옵트인으로 들었지만 카탈로그 조건이 `has-dev-track`(dev 트랙 기본)이라 tooling 이 남으면 술어와 무관하게 남는다 — 음성 대조가 물지 않았다. 진짜 옵트인(`gemini-delegate`, `condition: opt-in`)으로 바꾸자 "T 전용 술어를 `recordedTrackTargets` 로" 변이에서 빨간불이 됐다.
+③ **T4 의 "다시 install 해도 그 스킬은 안 돌아온다"** — install 은 이번 실행의 선택이 기록의 선택을 대체한다(USAGE "What you drop stays dropped until your next install"). 트랙 제거는 `excluded` 를 바꾸지 않는다는 것만 단언하고, 다시 더하는 장면(A8)은 같은 빼기를 다시 준다.
+④ **MCP 남김 줄의 근거** — `.mcp.json` 몫 기록(`portions`)에 그 서버 키가 있을 때만 말한다. 몫 기록이 없는 옛 설치본 · claude 없이 codex/opencode 만 깐 설치본에서는 서버가 남아도 줄이 없다(삭제는 하지 않으니 손실은 없다 — 안내의 빈칸).
+⑤ **`.github/workflows/` CI 스캐폴드** — 트랙이 고른 스캐폴드(`ci-python.yml` · `e2e.yml`)는 설치 때 한 번 쓰는 설치자 파일이라 트랙 제거에서도 남는다(전량 uninstall 과 같다). T7 비교에서 `.mcp.json` 과 함께 뺐다.
+⑥ **`--cli` 의 거절 문구** — 전제 검사를 `resolveScopeTarget` 하나로 합치면서 `--cli` + `--only` 의 문구가 `--cli 는 --only · --cli · --track 중 하나만 쓸 수 있다` 로 바뀌었다(단언 없음, exit 1 그대로).

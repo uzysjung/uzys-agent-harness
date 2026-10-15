@@ -399,15 +399,15 @@ describe("#543 uninstall --track — 검증 보고 §6 장면", () => {
 
   it("T3 · `--with` 로 고른 옵트인 스킬은 남는다", () => {
     install(["tooling", "csr-fastapi"], ["claude", "codex"], {
-      userOverride: { forceInclude: ["compaction-handoff"], forceExclude: [] },
+      userOverride: { forceInclude: ["gemini-delegate"], forceExclude: [] },
     });
-    expect(has(".claude/skills/compaction-handoff/SKILL.md")).toBe(true); // 대조군
-    expect(has(".agents/skills/compaction-handoff/SKILL.md")).toBe(true);
+    expect(has(".claude/skills/gemini-delegate/SKILL.md")).toBe(true); // 대조군
+    expect(has(".agents/skills/gemini-delegate/SKILL.md")).toBe(true);
 
     uninstall({ track: "csr-fastapi" });
 
-    expect(has(".claude/skills/compaction-handoff/SKILL.md")).toBe(true);
-    expect(has(".agents/skills/compaction-handoff/SKILL.md")).toBe(true);
+    expect(has(".claude/skills/gemini-delegate/SKILL.md")).toBe(true);
+    expect(has(".agents/skills/gemini-delegate/SKILL.md")).toBe(true);
     expect(has(".claude/skills/ui-visual-review")).toBe(false);
   });
 

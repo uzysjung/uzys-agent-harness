@@ -33,7 +33,7 @@ Run the wizard again on an installed project and it shows what is installed — 
 - **Add nothing** and it does exactly what [`update`](#update) does.
 - **Add a track, a CLI, or an asset** and it does exactly what `install --track … --cli …` does with the combined set — new files arrive, installed ones are refreshed, edited ones are backed up. The confirm screen prints that command on a `RUNS AS` line.
 - **A checked box means the asset is there after the run.** A recommended asset that is not installed — dropped at install time, failed to install, or new in this release — starts unchecked; check it and the run becomes the `install …` above.
-- **An installed track or CLI cannot be dropped here** (projects with an install record). The record adds up every track and CLI any install added — `install --track data --cli codex` on a project installed with `--track tooling` records both tracks, and the next `update` brings every installed CLI to both — the summary names the recorded track for each file it adds that way (`recorded track data — installed for this CLI too`), not `added by this release`. Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
+- **An installed track or CLI cannot be dropped here** (projects with an install record). The record adds up every track and CLI any install added — `install --track data --cli codex` on a project installed with `--track tooling` records both tracks, and the next `update` brings every installed CLI to both — the summary names the recorded track for each file it adds that way (`recorded track data — installed for this CLI too`), not `added by this release`. Even if its box gets cleared, it stays in the run. To take one out, use **Uninstall** (or `uninstall --cli` / `uninstall --track`). Nothing is removed on this path — unchecking means "don't install this time", never "delete".
 
 **Uninstall** opens the same screen as [`uninstall`](#uninstall). If the record says Claude Code is installed but `.claude/` is gone, the menu shows a one-line repair command (`install --reinstall --track … --cli claude --scope …`) and Update stays disabled until you run it.
 
@@ -243,16 +243,17 @@ Read-only. Shows when the project was set up, the chosen tracks and CLIs, the in
 ### `uninstall`
 
 ```bash
-npx -y @uzysjung/agent-harness uninstall [--dry-run] [--only <ids>] [--cli <name>] [--yes] [--project-dir <path>]
+npx -y @uzysjung/agent-harness uninstall [--dry-run] [--only <ids>] [--cli <name>] [--track <name>] [--yes] [--project-dir <path>]
 ```
 
-Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with three choices, each the same as a flag:
+Run it with no flags in a terminal — or choose **Uninstall** in the wizard's menu — and it opens one screen with four choices, each the same as a flag:
 
 - **Remove one CLI** = `--cli <name>`. Disabled when only one CLI is installed.
+- **Remove one track** = `--track <name>`. Disabled when only one track is installed. The confirm step names what goes (`removes: rules ui-components · skills ui-visual-review`) and what stays, with the `--dry-run` that counts the files.
 - **Remove selected assets** = `--only <ids>`. A checklist follows where each row says exactly what removing it will do; harness files stay. Disabled when no external assets are recorded.
 - **Remove everything** = `--yes`.
 
-The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--dry-run`, `--yes`. Without a terminal **and** without one of those flags, `uninstall` refuses and removes nothing — a pipe or CI run can no longer remove everything by default. Without an install record, or with one it cannot read, it removes nothing and exits `1` with the same message as `list` and `update`.
+The confirm step names the equivalent command. Nothing happens until you confirm, and selecting nothing exits without changes. The same checks as the flags apply — the last CLI, the last track, an unknown id, or an empty list is refused. The screen is skipped when a flag already says what you want — `--only`, `--cli`, `--track`, `--dry-run`, `--yes`. Without a terminal **and** without one of those flags, `uninstall` refuses and removes nothing — a pipe or CI run can no longer remove everything by default. Without an install record, or with one it cannot read, it removes nothing and exits `1` with the same message as `list` and `update`.
 
 | Flag | What |
 |---|---|
@@ -260,6 +261,7 @@ The confirm step names the equivalent command. Nothing happens until you confirm
 | `--keep-templates` | Removed in v26.169.0; the command prints the `--only <ids>` that does the same |
 | `--only <ids>` | Remove just these assets (comma-separated, ids from `list`). Harness files untouched; the record keeps the rest |
 | `--cli <name>` | Remove one CLI only (`claude` / `codex` / `opencode` / `antigravity`). Shared files stay until the last CLI using them leaves |
+| `--track <name>` | Remove one track only. Files another installed track also brings stay; see [Adding and removing a track](#adding-and-removing-a-track) |
 | `--yes` | Skip the picker and remove everything |
 
 What it can and cannot reverse:
@@ -303,6 +305,13 @@ npx -y @uzysjung/agent-harness uninstall --cli codex     # add --dry-run to see 
 - **The last CLI is refused.** Removing everything is `uninstall` with no `--cli`, so there is only one path that deletes the install record. `--cli` also cannot be combined with `--only`.
 
 The record (`clis` in `.uzys-agent-harness/.harness-install.json`) is what every command reads to know which CLIs this project has — `list` prints it, and `update` refreshes exactly that set, including assets a new release adds.
+
+### Adding and removing a track
+
+- **Add** — in the wizard, **Update** → step 1, check the track. Or run `install --track <new>` — the record adds it to the tracks you have.
+- **Remove** — in the wizard, **Uninstall** → **Remove one track**. Or run `uninstall --track <name>` (one track per run; add `--dry-run` to see it first). The rules, agents and skills only that track brings leave every CLI's folder (`.claude/`, `.agents/`, and its inline rules in `AGENTS.md`); what another installed track also brings — shared rules, method skills, hooks, the anchor — stays. A file you edited is saved as `<file>.backup-<ts>` first. The track leaves the record and `.claude/.installed-tracks` together, so `update` does not bring it back.
+- **What stays, and how to remove it**: the track's external assets (`uninstall --only <id>`) and its default MCP servers. The screen prints an `install --track <remaining> --without <id>` for the servers — that command re-runs the whole install (harness files refreshed, edited ones backed up), and the `--without` stays on record, so adding the track back later needs `--with <id>` for that server.
+- **The last track is refused** — removing everything is `uninstall`. The `> Active track(s):` line in your `CLAUDE.md` is not updated ([#833](https://github.com/uzysjung/uzys-agent-harness/issues/833)).
 
 ---
 
