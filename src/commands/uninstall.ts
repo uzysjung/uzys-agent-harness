@@ -1333,7 +1333,7 @@ function rootBlockNext({ installLog, projectDir }: TrackCtx, gone: Set<string>):
       (f) => !gone.has(`${SKILLS_DIR}${id}/${f}`),
     );
   const continuousSkills = CONTINUOUS_SKILLS.map((s) => s.id).filter(stays);
-  const next = upsertHarnessImport(text, { projectName: "", tracks: [], continuousSkills });
+  const next = upsertHarnessImport(text, { projectName: "", continuousSkills });
   return next === text ? null : next;
 }
 

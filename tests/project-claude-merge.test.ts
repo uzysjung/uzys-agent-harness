@@ -6,7 +6,6 @@ import {
   renderFillScaffold,
   scaffoldBanner,
   stripHarnessImport,
-  TRACK_DISPLAY_NAMES,
   upsertHarnessImport,
   withContinuousSkillsNote,
 } from "../src/project-claude-merge.js";
@@ -124,42 +123,25 @@ describe("mergeProjectClaude — the delivered project-root CLAUDE.md", () => {
   it("uses the real project name as the H1 (fixes the shipped `# [Project Name]` literal)", () => {
     // Intent: this is the single most visible boilerplate bug — the literal placeholder title
     // shipped verbatim to every project. It must be replaced with the real basename.
-    const out = mergeProjectClaude({ projectName: "my-real-app", tracks: ["tooling"] });
+    const out = mergeProjectClaude({ projectName: "my-real-app" });
     expect(out.startsWith("# my-real-app\n")).toBe(true);
     expect(out).not.toContain("[Project Name]");
     expect(out).not.toContain("{PROJECT_NAME}");
   });
 
-  it("records the selected tracks as install metadata using display names", () => {
-    const out = mergeProjectClaude({ projectName: "app", tracks: ["tooling", "data"] });
-    expect(out).toContain("> Active track(s): Tooling, Data");
+  it("does not write an active-track note — the root file cannot be kept current (#833)", () => {
+    // 루트 CLAUDE.md 는 설치자 파일이라 트랙을 더하거나 빼도 이 줄을 갱신할 수 없다 — 낡은 안내를
+    // 매 세션 읽히느니 쓰지 않는다. 트랙의 SSOT 는 설치 기록(`list`)이다.
+    const out = mergeProjectClaude({ projectName: "app" });
+    expect(out).not.toContain("Active track(s)");
+    expect(out.startsWith("# app\n\n")).toBe(true);
   });
 
   it("embeds the shared scaffold verbatim (single source of truth with AGENTS.md)", () => {
     // Intent: CLAUDE.md and every AGENTS.md {PROJECT_CONTEXT} must come from one source so the
     // FILL prompts are byte-identical across all 4 CLIs. Proven by containment of the exact body.
-    const out = mergeProjectClaude({ projectName: "app", tracks: ["tooling"] });
+    const out = mergeProjectClaude({ projectName: "app" });
     expect(out).toContain(renderFillScaffold());
-  });
-
-  it("expands 'full' to every non-full track in the metadata note", () => {
-    const out = mergeProjectClaude({ projectName: "app", tracks: ["full"] });
-    for (const t of [
-      "tooling",
-      "csr-fastapi",
-      "csr-fastify",
-      "csr-supabase",
-      "ssr-htmx",
-      "ssr-htmx-fastify",
-      "ssr-nextjs",
-      "data",
-      "executive",
-      "project-management",
-      "growth-marketing",
-    ] as const) {
-      expect(out).toContain(TRACK_DISPLAY_NAMES[t]);
-    }
-    expect(out).not.toContain("Full");
   });
 });
 
@@ -174,10 +156,10 @@ describe("mergeProjectClaude — the delivered project-root CLAUDE.md", () => {
  */
 describe("upsertHarnessImport / stripHarnessImport — 구현 중 드러난 경계", () => {
   it("마커 블록이 있으면 블록을 또 붙이지 않고 **그 안만** 현행으로 되돌린다 (ADR-085)", () => {
-    const once = upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"] });
+    const once = upsertHarnessImport("# p\n", { projectName: "p" });
     // 사용자가 블록 안쪽 줄만 지운 상태 (마커는 남아 있다).
     const edited = once.replace("\n@CLAUDE-uzys-harness.md", "");
-    const out = upsertHarnessImport(edited, { projectName: "p", tracks: ["tooling"] });
+    const out = upsertHarnessImport(edited, { projectName: "p" });
     // 마커 안은 하네스 소유다 — 상시 스킬 안내가 선택에 따라 바뀌어야 하므로 블록 본문을
     // 다시 렌더한다. 그 결과 지워진 import 줄도 돌아온다. 하네스를 빼려면 블록째 지운다(strip).
     // 2026-09-13 전에는 "안쪽만 지운 상태를 그대로 둔다"였다 — 그때는 블록 안이 한 줄뿐이라
@@ -188,15 +170,15 @@ describe("upsertHarnessImport / stripHarnessImport — 구현 중 드러난 경�
 
   it("strip 은 하네스 블록만 걷어내 설치 전 내용으로 되돌린다 (바이트 동일)", () => {
     const user = "# 내 프로젝트\n\n팀 규칙:\n- 커밋은 한국어로\n";
-    const installed = upsertHarnessImport(user, { projectName: "p", tracks: ["tooling"] });
+    const installed = upsertHarnessImport(user, { projectName: "p" });
     expect(installed).not.toBe(user); // 전제: 실제로 뭔가 붙었다 (헛통과 차단)
     expect(stripHarnessImport(installed)).toBe(user);
   });
 
   it("우리가 만든 파일도 strip 하면 스캐폴드만 남는다 — 사용자 파일은 지우지 않는다", () => {
-    const created = upsertHarnessImport(null, { projectName: "p", tracks: ["tooling"] });
+    const created = upsertHarnessImport(null, { projectName: "p" });
     const stripped = stripHarnessImport(created);
-    expect(stripped).toBe(mergeProjectClaude({ projectName: "p", tracks: ["tooling"] }));
+    expect(stripped).toBe(mergeProjectClaude({ projectName: "p" }));
     expect(stripped).not.toContain("@CLAUDE-uzys-harness.md");
   });
 

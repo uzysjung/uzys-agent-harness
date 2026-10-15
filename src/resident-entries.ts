@@ -109,7 +109,6 @@ function plannedClaudeContext(spec: InstallSpec): Array<string | { text: string 
   const manifestSpec = buildManifestSpec(spec);
   const text = upsertHarnessImport(existing, {
     projectName: basename(spec.projectDir),
-    tracks: manifestSpec.tracks,
     continuousSkills: manifestSpec.selectedInternalSkills ?? [],
     ...(seeded === null ? {} : { projectContext: seeded }),
   });

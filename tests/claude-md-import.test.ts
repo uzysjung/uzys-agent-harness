@@ -20,13 +20,13 @@ const importCount = (s: string): number =>
 
 describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
   it("파일이 없으면 스캐폴드 + import 1줄로 생성한다", () => {
-    const out = upsertHarnessImport(null, { projectName: "demo", tracks: ["tooling"] });
+    const out = upsertHarnessImport(null, { projectName: "demo" });
     expect(importCount(out)).toBe(1);
   });
 
   it("기존 사용자 CLAUDE.md 는 본문 무손실 — import 1줄만 추가된다", () => {
     const user = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
-    const out = upsertHarnessImport(user, { projectName: "demo", tracks: ["tooling"] });
+    const out = upsertHarnessImport(user, { projectName: "demo" });
     expect(out).toContain("우리 팀 규칙:");
     expect(out).toContain("- 커밋은 한국어로");
     expect(importCount(out)).toBe(1);
@@ -37,8 +37,8 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
   });
 
   it("재실행해도 import 는 정확히 1줄 (idempotent)", () => {
-    const once = upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"] });
-    const twice = upsertHarnessImport(once, { projectName: "p", tracks: ["tooling"] });
+    const once = upsertHarnessImport("# p\n", { projectName: "p" });
+    const twice = upsertHarnessImport(once, { projectName: "p" });
     expect(twice).toBe(once);
     expect(importCount(twice)).toBe(1);
   });
@@ -47,7 +47,7 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     // Claude Code 는 코드펜스 내 @path 를 import 하지 않는다. 사용자가 문서에서
     // 이 파일명을 예시로 인용해도 중복 추가하거나 1줄 계약을 깨면 안 된다.
     const user = "# p\n\n```\n@CLAUDE-uzys-harness.md (예시)\n```\n";
-    const out = upsertHarnessImport(user, { projectName: "p", tracks: ["tooling"] });
+    const out = upsertHarnessImport(user, { projectName: "p" });
     expect(importCount(out)).toBe(1); // 펜스 밖 관리 줄 1개 (펜스 안 줄은 trim 매치 안 됨 — "(예시)" 접미)
     expect(out).toContain("```\n@CLAUDE-uzys-harness.md (예시)\n```");
   });
@@ -58,12 +58,12 @@ describe("루트 CLAUDE.md 의 하네스 import 관리", () => {
     // 펜스 안에 접미사 없는 진짜 import 줄을 두면, 가드 없이는 "이미 있다"로 오판해
     // 실 import 를 추가하지 않고, Claude Code 는 펜스 안을 무시하므로 하네스가 로드되지 않는다.
     const user = "# p\n\n```\n@CLAUDE-uzys-harness.md\n```\n";
-    const out = upsertHarnessImport(user, { projectName: "p", tracks: ["tooling"] });
+    const out = upsertHarnessImport(user, { projectName: "p" });
     // 파일 전체 실줄 = 펜스 안 1 + 펜스 밖 관리 1 = 2. 관리 대상은 펜스 밖 1줄이다.
     expect(importCount(out)).toBe(2);
     expect(out).toContain("```\n@CLAUDE-uzys-harness.md\n```");
     // idempotent 재실행에도 펜스 밖 줄이 또 늘면 안 된다.
-    expect(upsertHarnessImport(out, { projectName: "p", tracks: ["tooling"] })).toBe(out);
+    expect(upsertHarnessImport(out, { projectName: "p" })).toBe(out);
   });
 
   // ADR-085 — 상시 스킬 안내는 관리 블록 **안**에, 깔린 것만.

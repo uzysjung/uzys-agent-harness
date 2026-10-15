@@ -117,11 +117,11 @@ describe("installer (integration with templates/)", () => {
     expect(existsSync(join(projectDir, ".claude/rules/cli-development.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/test-policy.md"))).toBe(true);
     expect(existsSync(join(projectDir, ".claude/rules/ship-checklist.md"))).toBe(true);
-    // Root CLAUDE.md is a fill-in scaffold: real project name + active-track note + FILL sections.
+    // Root CLAUDE.md is a fill-in scaffold: real project name + FILL sections (no track note — #833).
     const rootMd = join(projectDir, "CLAUDE.md");
     expect(existsSync(rootMd)).toBe(true);
     const content = readFileSync(rootMd, "utf8");
-    expect(content).toContain("Active track(s): Tooling, Data");
+    expect(content).not.toContain("Active track(s)");
     expect(content).toContain("SCAFFOLD");
     expect(content).toContain("<!-- FILL:stack —");
     expect(content).not.toContain("[Project Name]");

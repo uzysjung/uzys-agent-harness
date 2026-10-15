@@ -1344,7 +1344,6 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
       rootPath(),
       upsertHarnessImport("# p\n", {
         projectName: "p",
-        tracks: ["tooling"],
         continuousSkills: ["user-centered-explanation"],
       }),
     );
@@ -1364,7 +1363,7 @@ describe("관리 블록 현행화 — 정상 설치본(앵커 있음) (ADR-085)"
   it("스킬을 더 깐 뒤 update 하면 안내가 생긴다 — 같은 상태로 다시 돌리면 파일을 만지지 않는다", () => {
     writeFileSync(
       rootPath(),
-      upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"], continuousSkills: [] }),
+      upsertHarnessImport("# p\n", { projectName: "p", continuousSkills: [] }),
     );
     mkdirSync(join(projectDir, ".claude/skills/user-centered-explanation"), { recursive: true });
     writeFileSync(

@@ -1820,7 +1820,6 @@ function upsertRootImport(projectDir: string, outside: OutsideGuard): boolean {
   const existing = existsSync(target) ? readFileSync(target, "utf8") : null;
   const next = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
-    tracks: installedTracks(projectDir),
     // ADR-085 — update 는 선택 목록을 인자로 받지 않는다. 앞 단계(하네스 파일 쓰기)가 지나간 디스크로 판정한다:
     // `.claude/skills/<id>` 가 있으면 그 스킬은 이 설치가 고른 것이다.
     continuousSkills: CONTINUOUS_SKILLS.map((s) => s.id).filter((id) =>
@@ -1835,7 +1834,7 @@ function upsertRootImport(projectDir: string, outside: OutsideGuard): boolean {
 }
 
 /**
- * 스캐폴드가 적는 "Active track(s)" — **설치 기록이 SSOT** 다. update 는 트랙을 인자로 받지
+ * 설치 기록의 트랙 — **설치 기록이 SSOT** 다. update 는 트랙을 인자로 받지
  * 않으므로 여기서 따로 추론하면 그 추론이 두 번째 사본이 된다. 기록이 없거나 지금 어휘에 없는
  * 트랙이면 빼고 쓴다 — 모르는 것을 지어내지 않는다.
  */

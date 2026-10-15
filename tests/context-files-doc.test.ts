@@ -30,7 +30,7 @@ describe("CONTEXT-FILES.md ↔ 코드 정합성", () => {
 
   it("문서에 적힌 import 블록이 실제 렌더 결과와 문자열로 일치한다", () => {
     // 지어낸 마커를 적는 것을 막는 유일한 방법은 실제 출력과 대조하는 것이다.
-    const rendered = upsertHarnessImport("# p\n", { projectName: "p", tracks: ["tooling"] });
+    const rendered = upsertHarnessImport("# p\n", { projectName: "p" });
     const markerStart = rendered.match(/<!-- uzys-harness:import:start -->/)?.[0];
     const markerEnd = rendered.match(/<!-- uzys-harness:import:end -->/)?.[0];
     expect(
