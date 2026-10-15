@@ -1256,7 +1256,6 @@ function installClaudeBaseline(
   // Project root CLAUDE.md — 없으면 fill-in 스캐폴드로 만들고, 있으면 앵커 import 한 줄만 얹는다.
   const rootClaudeMd = writeRootClaudeMd(
     projectDir,
-    manifestSpec.tracks,
     // ADR-085 · update(`upsertRootImport`)와 같은 판정 — 실제로 깔린 스킬만 안내한다. 밖 링크라 쓰지 않은
     // 스킬(ADR-098)을 "installed" 라 적으면 다음 update 가 그 절을 걷어 내 두 동작이 서로 반대로 쓴다.
     (manifestSpec.selectedInternalSkills ?? []).filter((id) =>
@@ -1734,7 +1733,6 @@ function accumulateCategory(
  */
 function writeRootClaudeMd(
   projectDir: string,
-  tracks: ReadonlyArray<Track>,
   continuousSkills: ReadonlyArray<string>,
   harnessRoot: string,
   writer: InstallWriter,
@@ -1748,7 +1746,6 @@ function writeRootClaudeMd(
   const seeded = existing === null ? seedRootClaudeProjectContext(projectDir, harnessRoot) : null;
   const content = upsertHarnessImport(existing, {
     projectName: basename(projectDir),
-    tracks,
     continuousSkills,
     ...(seeded === null ? {} : { projectContext: seeded }),
   });

@@ -735,7 +735,7 @@ describe("uninstallAction", () => {
 
   it("루트 CLAUDE.md 는 지우지 않고 import 블록만 회수 — 사용자 본문 무손실", () => {
     const userBody = "# 내 프로젝트\n\n우리 팀 규칙:\n- 커밋은 한국어로\n";
-    const installed = upsertHarnessImport(userBody, { projectName: "p", tracks: ["tooling"] });
+    const installed = upsertHarnessImport(userBody, { projectName: "p" });
     const log: InstallLog = {
       ...baseLog(),
       templates: {

@@ -315,7 +315,7 @@ export function residentCost(
   //  ② 프로젝트 스캐폴드 루트 `CLAUDE.md` — manifest 밖에서 `writeRootClaudeMd()` 가 쓴다
   //     (없으면 스캐폴드 생성, 있으면 앵커 import 한 줄 추가). **파일이 아니라 생성물**이라
   //     `fileTokens` 로는 영원히 0 이었다.
-  // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 2줄(프로젝트명·트랙)은
+  // ②는 `renderFillScaffold()` 만 잰다 — `mergeProjectClaude()` 의 머리 1줄(프로젝트명)은
   // 설치처마다 길이가 달라 ratchet 축으로 못 쓴다. 그만큼 이 값은 **하한**이다.
   const harnessAnchor = fileTokens(join(root, "templates", "CLAUDE.md"));
   // #615 — **그 CLI 가 실제로 읽는 앵커 파일**을 잰다. claude 를 안 고른 설치는 루트 `CLAUDE.md` 도

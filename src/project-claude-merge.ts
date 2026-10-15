@@ -1,5 +1,4 @@
 import { CONTINUOUS_SKILLS } from "./external-assets.js";
-import { TRACKS, type Track } from "./types.js";
 
 /**
  * Project-context scaffold for the delivered CLAUDE.md / AGENTS.md.
@@ -80,26 +79,6 @@ function importBlock(continuousSkills: ReadonlyArray<string>): string {
   const body = note ? `${HARNESS_IMPORT_LINE}\n\n${note}` : HARNESS_IMPORT_LINE;
   return `${IMPORT_MARKER_START}\n${body}\n${IMPORT_MARKER_END}`;
 }
-
-export const TRACK_DISPLAY_NAMES: Record<Track, string> = {
-  base: "Base",
-  tooling: "Tooling",
-  "csr-supabase": "CSR Supabase",
-  "csr-fastify": "CSR Fastify",
-  "csr-fastapi": "CSR FastAPI",
-  "ssr-htmx": "SSR htmx + FastAPI",
-  "ssr-htmx-fastify": "SSR htmx + Fastify",
-  "ssr-nextjs": "SSR Next.js",
-  data: "Data",
-  executive: "Executive",
-  full: "Full",
-  "project-management": "Project Management",
-  "growth-marketing": "Growth Marketing",
-};
-
-/** Tracks expanded when 'full' is selected — every track except 'full' itself.
- * Derived from TRACKS so a future track can't be silently omitted from a 'full' install. */
-const FULL_EXPANSION: ReadonlyArray<Track> = TRACKS.filter((t) => t !== "full");
 
 /**
  * The MUST-HAVE project-context sections, from a harness perspective: the context
@@ -311,8 +290,6 @@ export function isUnfilledScaffold(body: ReadonlyArray<string>): boolean {
 export interface MergeOptions {
   /** Project directory basename → the H1 title (fixes the shipped `# [Project Name]` literal). */
   projectName: string;
-  /** Selected tracks → the active-track note (genuine install metadata). */
-  tracks: ReadonlyArray<Track>;
   /**
    * ADR-085 — 이 설치가 깐 번들 스킬 id. 관리 블록 안의 상시 스킬 안내는 여기서 고른다.
    * 생략 = 안내 없음(레거시 호출부·테스트). update 는 `.claude/skills/<id>` 존재로 채운다.
@@ -328,16 +305,13 @@ export interface MergeOptions {
 }
 
 /**
- * Build the project-root CLAUDE.md: a real H1 project name + the active-track note (genuine
- * install metadata) + the shared fill scaffold. The scaffold is track-agnostic — the selected
- * tracks are recorded in the note; the installed-assets section is filled from real files at
- * fill time rather than from static per-track prose.
+ * Build the project-root CLAUDE.md: a real H1 project name + the shared fill scaffold. The
+ * scaffold is track-agnostic — the installed-assets section is filled from real files at fill time.
+ * 트랙 안내 줄(`> Active track(s):`)은 쓰지 않는다(#833) — 이 파일은 설치자 것이라 트랙을 더하거나
+ * 빼도 갱신할 수 없고, 낡은 안내를 매 세션 읽히게 된다. 트랙의 SSOT 는 설치 기록이다(`list`).
  */
 export function mergeProjectClaude(opts: MergeOptions): string {
-  const expanded = expandTracks(opts.tracks);
-  const trackList = expanded.map((t) => TRACK_DISPLAY_NAMES[t]).join(", ");
-  const header = `# ${opts.projectName}\n\n> Active track(s): ${trackList}`;
-  return `${header}\n\n${opts.projectContext ?? renderFillScaffold()}\n`;
+  return `# ${opts.projectName}\n\n${opts.projectContext ?? renderFillScaffold()}\n`;
 }
 
 /**
@@ -440,11 +414,4 @@ function hasHarnessImport(text: string): boolean {
     if (!inFence && line.trim() === HARNESS_IMPORT_LINE) return true;
   }
   return false;
-}
-
-function expandTracks(tracks: ReadonlyArray<Track>): ReadonlyArray<Track> {
-  if (tracks.includes("full")) {
-    return FULL_EXPANSION;
-  }
-  return tracks;
 }
