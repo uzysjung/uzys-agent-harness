@@ -67,8 +67,14 @@ agent-harness update >/tmp/uninstall-track-upd.txt 2>&1 || {
 grep -qF "${MARK}" AGENTS.md || { echo "FAIL: update 가 문단을 지웠다 — 전제가 깨졌다"; exit 1; }
 echo "✓ Project Context 문단 추가 · update 뒤 보존 (전제)"
 
+# 외부 자산 자리(`npx skills` 가 깐 것 — 설계 D2 로 남긴다)와 그 잠금 파일은 update 가 원격에서 다시 받아 바뀔 수 있다.
+# 판정 대상은 하네스 몫이다 — 그 자리를 비교에서 뺀다(2026-10-15 실측: 원격 갱신이 metadata.json 을 더해 간헐 red).
+EXTERNAL=$(jq -r '.assets[].files[]?.path' "${PROJ}/.uzys-agent-harness/.harness-install.json" | cut -d/ -f1-3 | sort -u)
 snapshot() {
-  find . -type f -not -path './.uzys-agent-harness/*' -print0 | sort -z | xargs -0 sha256sum
+  find . -type f -not -path './.uzys-agent-harness/*' -not -name skills-lock.json -print0 |
+    sort -z | xargs -0 sha256sum |
+    awk -v ext="${EXTERNAL}" 'BEGIN { n = split(ext, e, "\n") }
+      { for (i = 1; i <= n; i++) if (e[i] != "" && index($2, "./" e[i] "/") == 1) next; print }'
 }
 
 # --- 미리보기 ---
