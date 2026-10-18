@@ -26,8 +26,8 @@ case "$ENV_FILE" in "$PWD"/*) echo "env-file 은 저장소 밖에 둔다: $ENV_F
 
 # ── 결과를 보기 전에 고정하는 값 ─────────────────────────────────────────────
 CLAUDE_CODE_VERSION=2.1.302          # A/B 동일
-EFFORT=high                           # Anthropic: Opus 5.5 기본 medium → high 로 고정. GLM: 적용 여부 불명(설계 §1.6) — 같은 값을 넘긴다. 정리 세션도 같은 값
-MAX_TURNS=${EVAL_MAX_TURNS:-150}
+EFFORT=${EVAL_EFFORT:-high}                           # Anthropic: Opus 5.5 기본 medium → high 로 고정. GLM: 적용 여부 불명(설계 §1.6) — 같은 값을 넘긴다. 정리 세션도 같은 값
+MAX_TURNS=${EVAL_MAX_TURNS:-300}       # 안전망일 뿐 상한이 아니다 — 백그라운드 알림이 멈춘 세션을 다시 깨워 넘긴다(설계 §5.1). 상한은 벽시계
 MAX_BUDGET_USD=${EVAL_MAX_BUDGET_USD:-20}   # Anthropic 종량 상한(과제 세션). GLM 에서는 추정 불가라 사실상 무효 — 시간·턴 상한이 맡는다
 AGENT_TIMEOUT_MULT=${EVAL_AGENT_TIMEOUT_MULT:-0.67}  # DeepSWE 10800s × 0.67 ≈ 2h. B 는 정리 3회(세션당 턴 60)가 이 안에 포함된다
 CONCURRENCY=${EVAL_CONCURRENCY:-2}     # Docker Desktop 6 CPU · 8GB — 과제가 2 CPU/8GB 를 요구하니 2 가 상한

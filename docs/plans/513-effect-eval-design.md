@@ -23,7 +23,8 @@
 | **GLM 실행 컨테이너** `eval-513-glm` | **준비됨** — Claude Code 2.1.302 + 하네스 26.174.0, 토큰은 `--env-file` 로만 | **라우팅 확인** — 가짜 토큰이 Z.ai 에 도달해 Z.ai 형식 401(`token expired or incorrect`)을 받았고, BASE_URL 을 비운 대조는 Anthropic 형식 401(`Invalid bearer token`)을 받았다 | Claude Code 가 Z.ai 의 401 을 재시도 가능으로 보고 **10회 지수 백오프(3분)** 로 재시도한다 → 인증·한도 오류가 시간 지표를 오염시킨다(§8) |
 | **예비 실행 경로 리허설** (Pier → DeepSWE 컨테이너 → Claude Code → Z.ai) | **끝까지 이어짐** — Pier 가 amd64 과제 컨테이너에 Claude Code 2.1.302 를 설치하고 `api.z.ai` 만 허용하는 egress 프록시로 실행 | 가짜 토큰이라 401×10 뒤 `NonZeroAgentExitCodeError` — Pier 가 실패를 기록하고 검증기는 reward 0 을 냈다. 토큰은 로그에 0회, `config.json` 에는 마스킹 | 6분(이미지 빌드 포함). 진짜 키로 남은 확인 = `usage` 형식 · effort 전달(§10) |
 | **B 팔 리허설 — trial 안 정리 3회**(2차 구조 · 3차 B1 분리 뒤 재실행) | **정리 구간이 과제 세션보다 먼저 돈다** — 설치 단계(빌드) → `agent/prep/session-1.json` · `session-1-retry.json` … | 가짜 토큰: 정리 세션 1 이 401(API 오류) → 규칙대로 **1회 재실행** → 다시 401 → `agent/prep-infra-error.txt` + exit 96, 과제 세션은 돌지 않음(`claude-code.txt` 없음). 정리 jsonl 은 `agent/prep/sessions/` 에, `agent/sessions/` 는 비어 Pier `agent_result.n_agent_steps = 0`(분리 전에는 2 — 3차 B1). FILL 수 after-install **7**(6절 + 배너 1). A trial 에는 `prep/` 없음 | 세션당 3분(10회 재시도). 진짜 키에서 세션이 성공하면 3회 뒤 과제 세션으로 이어진다 — 그 경로는 2단계 첫 실행에서 본다 |
-| **진짜 키 라우팅 스모크**(메인 세션 실행) | **라우팅·인증 정상** — Z.ai 가 `429 · [1113] Insufficient balance or no resource package` 를 돌려줬다(401 아님 = 키 인증 통과) | usage 0 · `duration_ms 179768`(Claude Code 가 1113 을 재시도 가능으로 보고 약 3분). `API_TIMEOUT_MS=20000 · timeout 90` 조합은 결과 없이 exit 124 → 스크립트를 400초·기본 타임아웃으로 고침 | 1113 의 원인(한도 · 키 소속 · 국제판/중국판)은 사용자가 콘솔에서 확인 중(§10 3) |
+| **진짜 키 라우팅 스모크**(메인 세션 실행) | **라우팅·인증 정상** — Z.ai 가 `429 · [1113] Insufficient balance or no resource package` 를 돌려줬다(401 아님 = 키 인증 통과) | usage 0 · `duration_ms 179768`(Claude Code 가 1113 을 재시도 가능으로 보고 약 3분). `API_TIMEOUT_MS=20000 · timeout 90` 조합은 결과 없이 exit 124 → 스크립트를 400초·기본 타임아웃으로 고침 | 1113 의 원인 = 코딩 플랜이 아닌 키(사용자 확인). 코딩 플랜 키로 `pong` 정상(§10 3) |
+| **GLM 배관 시험 — 과제 2개 A/B 각 1회**(effort max · 턴 60 · 90분) | **배관 정상** — B 증거 ⓐ~ⓔ 전부 · 채점은 커밋분만 · 키 유출 0(대조군 1) | 4건 모두 턴 60 에 걸림 → 커밋 전 끊긴 3건 reward 0, A textual 만 1(상한 뒤 백그라운드 알림으로 재개해 34턴 더 돎) | **턴 상한은 두 팔에 같게 걸리지 않는다 → 상한은 벽시계 하나**(§5.1). 요약 = `513-eval-evidence/pilot-smoke/README.md` |
 
 **1회 실행(과제 1개 · 팔 1개) 추정** — Anthropic 종량 · Opus 5.5 · effort high: DeepSWE **$6–15 · 20–60분**, Terminal-Bench **$5–15 · 20–90분**, 실사용 과제 **$1–4 · 5–30분**. 근거는 §7 (DeepSWE 공식 평균 — Opus 5 max $11.84 · Fable 5 xhigh $13.41 — 에 Opus 5.5 단가($4/$20, Opus 5 의 80%)를 적용한 범위다. **Claude Code 로 돈 공개 수치는 없다** — 그래서 예비 실험의 첫 목적이 이 추정치를 실측으로 바꾸는 것이다).
 
@@ -91,7 +92,7 @@
 | 약관 — 자동화·벤치마크 | **명시 없음.** "공식 지원 도구 안에서만"(Claude Code 는 지원 도구 [S29]) · 계정 공유 금지 · 위반 시 속도 제한/동결, 3회 초과 시 차단. 자동화된 `claude -p` 실행이 "지원 도구 안"인지 **불명확** — 사용자 결정 항목(§10) | [S27] [S28] |
 | `-p` 에서 usage · 비용 | Claude Code 는 Z.ai 가 돌려주는 `usage` 토큰 수를 그대로 집계하지만 **USD 비용은 가격표에 없는 모델이라 `costBasis: unknown` / 0**. 비용은 **토큰 수 + Z.ai 콘솔 크레딧**으로 센다. `--max-budget-usd` 는 사실상 무효 → 시간·턴 상한이 대신한다 | [S22] 실측 |
 | 실측 — 라우팅 | 가짜 토큰: Z.ai 도달 → `401 token expired or incorrect` → Claude Code 가 `api_retry`(authentication_failed) 를 **최대 10회** 지수 백오프(관측 8회 · 100초 내 미종료). BASE_URL 비운 대조: Anthropic → `401 Invalid bearer token` → **즉시 종료**(0.3초). curl 직접 호출도 같은 두 오류 본문 | [`feasibility/glm-routing-smoke.md`] |
-| 실측 — **진짜 키**(메인 세션, 2026-10-18) | 같은 스모크: Z.ai 응답 **`429 · [1113] Insufficient balance or no resource package`**, usage 0, `duration_ms 179768`. 401 이 아니므로 **키 인증은 통과** — 주소·모델·인증 경로는 맞고, 남은 것은 계정·플랜·한도(공식 FAQ 의 1113 = 크레딧 소진/패키지 없음). Claude Code 는 1113 도 재시도 가능으로 보고 약 3분을 쓴다(`API_TIMEOUT_MS=20000 · timeout 90` 조합은 결과 없이 exit 124). 원인(한도 · 키 소속 · 국제판/중국판)은 사용자가 콘솔에서 확인 중 | 메인 세션 보고(요약만 — §10 3) |
+| 실측 — **진짜 키**(메인 세션, 2026-10-18) | 같은 스모크: Z.ai 응답 **`429 · [1113] Insufficient balance or no resource package`**, usage 0, `duration_ms 179768`. 401 이 아니므로 **키 인증은 통과** — 주소·모델·인증 경로는 맞고, 남은 것은 계정·플랜·한도(공식 FAQ 의 1113 = 크레딧 소진/패키지 없음). Claude Code 는 1113 도 재시도 가능으로 보고 약 3분을 쓴다(`API_TIMEOUT_MS=20000 · timeout 90` 조합은 결과 없이 exit 124). **원인 = 코딩 플랜이 아닌 키**(사용자 확인) — 코딩 플랜 키로 `pong` 정상 | 메인 세션 보고(요약만 — §10 3) |
 
 ### 1.7 이슈(2026-09-21) 이후 달라진 것
 
@@ -202,6 +203,7 @@ git 처리(skip-worktree · exclude · status 대조)는 **`/app` 이 git 저장
 ### 5.1 순서와 반복
 
 - 예비 = 과제당 A/B **각 1회**. 과제 단위로 A→B / B→A 를 seed 로 섞어 비슷한 시간대에 돈다(제공자 부하 편향 분산). `run-pilot.sh` 골격은 팔 단위 — 2단계에서 과제 인터리브로 바꾼다(명시).
+- **턴은 상한으로 쓰지 않는다 — 기록만 한다**(GLM 배관 시험 실측 2026-10-18): `--print` 세션이 `max_turns` 로 멈춘 뒤에도 앞서 띄운 백그라운드 명령의 완료 알림이 세션을 다시 깨워 상한을 넘겨 돈다(같은 session_id 에 `result` 줄 2개, 34턴 추가). 백그라운드 명령을 쓴 세션만 넘으므로 두 팔에 같은 상한이 아니다. 상한은 Pier 가 밖에서 집행하는 **벽시계 하나**(`--agent-timeout-multiplier`)와 예산이고, `--max-turns` 는 안전망 300 으로만 둔다. 턴·시간 집계는 `result` 줄을 모두 더한다.
 - **상한은 Opus 단계의 첫 A 실행 10건**(상한 없이 — 턴 300 · 4h 안전망만)의 시간·턴·비용 분포로 고정한다. **상한용 실행은 A 만** 돈다 — 상한을 정하는 사람이 B 결과를 보지 않게(N3). GLM 단계는 배관·B 로드 확인용이고 상한 산정에 쓰지 않는다(두 모델의 프로파일이 다르다 — §6.1).
 - B 의 `agent_execution` 은 정리 3세션을 포함한다 — 과제 구간 시간은 `agent_execution` − `prep/prep-timing.txt` 벽시계 합(summarize.sh). 상한(`--agent-timeout-multiplier`)도 정리를 포함하므로 B 에 정리만큼 여유를 더 주지 **않는다** — 그 시간이 제품의 비용이다.
 - 보고서가 읽는 상한 값은 스크립트 기본값이 아니라 **각 job 의 `config.json`** 에 기록된 `agents[].kwargs`(`max_turns` · `max_budget_usd` · `reasoning_effort`)와 `agent_timeout_multiplier` 다(N8 — `EVAL_*` 오버라이드가 있어도 실제 값이 남는다).
@@ -377,7 +379,7 @@ docs/plans/513-eval-evidence/
    | **`429 · [1113] Insufficient balance or no resource package`** | **계정·플랜·한도 문제. 라우팅(주소 · 모델 · 인증)은 정상** — 401 이 아니므로 키 인증은 통과한 것. 콘솔에서 한도 · 키 소속(개인/팀 플랜) · 국제판/중국판을 확인 |
    | exit 124(timeout) · 결과 없음 | timeout 이 Claude Code 의 10회 재시도(약 3분)를 담지 못했다 — 스크립트는 400초로 두었다 |
 
-   **메인 세션 실측(진짜 키, 2026-10-18)**: Z.ai 응답 `429 · [1113] Insufficient balance or no resource package`, usage 0, `duration_ms 179768` — 키 인증 통과(401 아님), Claude Code 가 1113 을 재시도 가능으로 보고 약 3분을 썼다. 처음 쓴 `API_TIMEOUT_MS=20000 · timeout 90` 조합은 이 재시도 때문에 결과 없이 124 로 끝났고 네트워크 차단 대조도 124 였다 → 스크립트를 timeout 400초 · 진짜 키일 때 `API_TIMEOUT_MS` 기본값으로 고쳤다. 1113 의 원인(한도 · 키 소속 · 국제판/중국판)은 사용자가 콘솔에서 확인 중 — 결과가 나오면 여기에 적는다. `init.model` 은 `--output-format json` 에 없으므로(N6) `modelUsage` 키로 확인한다.
+   **메인 세션 실측(진짜 키, 2026-10-18)**: Z.ai 응답 `429 · [1113] Insufficient balance or no resource package`, usage 0, `duration_ms 179768` — 키 인증 통과(401 아님), Claude Code 가 1113 을 재시도 가능으로 보고 약 3분을 썼다. 처음 쓴 `API_TIMEOUT_MS=20000 · timeout 90` 조합은 이 재시도 때문에 결과 없이 124 로 끝났고 네트워크 차단 대조도 124 였다 → 스크립트를 timeout 400초 · 진짜 키일 때 `API_TIMEOUT_MS` 기본값으로 고쳤다. **1113 의 원인 = 코딩 플랜이 아닌 키**(사용자 확인) — 코딩 플랜 키로 바꾼 뒤 `pong` · glm-5.3 · usage 정상. effort 는 같은 질문의 출력 토큰 low 137 · high 207 · max 234 로 전달되는 것으로 보인다(각 1회, 경향만). `init.model` 은 `--output-format json` 에 없으므로(N6) `modelUsage` 키로 확인한다.
 4. **effort 전달 확인(선택, 1턴)** — `-e CLAUDE_CODE_ALWAYS_ENABLE_EFFORT=1` 을 더해 3 을 반복하고 응답 지연·출력 토큰 차이를 본다. 차이가 없으면 "GLM 에서 effort 미전달"로 기록하고 두 팔 모두 같은 조건이니 그대로 진행.
 5. **과제 2개 A/B 각 1회** (DeepSWE, 상한 축소) — B 는 trial 안에서 정리 3회 → 과제 세션(§4.4). 별도 준비 단계는 없다.
    ```
