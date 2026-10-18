@@ -28,13 +28,13 @@ case "$ENV_FILE" in "$PWD"/*) echo "env-file 은 저장소 밖에 둔다: $ENV_F
 CLAUDE_CODE_VERSION=2.1.302          # A/B 동일
 EFFORT=${EVAL_EFFORT:-high}                           # Anthropic: Opus 5.5 기본 medium → high 로 고정. GLM: 적용 여부 불명(설계 §1.6) — 같은 값을 넘긴다. 정리 세션도 같은 값
 MAX_TURNS=${EVAL_MAX_TURNS:-300}       # 안전망일 뿐 상한이 아니다 — 백그라운드 알림이 멈춘 세션을 다시 깨워 넘긴다(설계 §5.1). 상한은 벽시계
-MAX_BUDGET_USD=${EVAL_MAX_BUDGET_USD:-20}   # Anthropic 종량 상한(과제 세션). GLM 에서는 추정 불가라 사실상 무효 — 시간·턴 상한이 맡는다
+MAX_BUDGET_USD=${EVAL_MAX_BUDGET_USD:-20}   # Anthropic 종량 상한(과제 세션). GLM 은 아래에서 1000 — Claude 가격표로 GLM 토큰을 환산한 가짜 금액이라 상한으로 쓰지 않는다(2026-10-19 실측: $20 에서 끊김)
 AGENT_TIMEOUT_MULT=${EVAL_AGENT_TIMEOUT_MULT:-0.67}  # DeepSWE 10800s × 0.67 ≈ 2h. B 는 정리 3회(세션당 턴 60)가 이 안에 포함된다
 CONCURRENCY=${EVAL_CONCURRENCY:-2}     # Docker Desktop 6 CPU · 8GB — 과제가 2 CPU/8GB 를 요구하니 2 가 상한
 case "$PROVIDER" in
   # Pier 의 claude-code 에이전트는 BASE_URL 이 있으면 -m 값을 ANTHROPIC_MODEL 과 DEFAULT_{OPUS,SONNET,HAIKU}_MODEL · SUBAGENT_MODEL 전부에 넣는다
   # (claude_code.py:1272-1290, 0.3.1) — 서브에이전트까지 한 모델로 묶인다. Anthropic 쪽은 §4.5 대로 SUBAGENT_MODEL 을 명시해 두 팔을 같은 모델로.
-  glm)       AE=(--ae ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic --ae API_TIMEOUT_MS=3000000); MODEL=${EVAL_MODEL:-glm-5.3} ;;  # EVAL_MODEL=glm-5.3-flash
+  glm)       AE=(--ae ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic --ae API_TIMEOUT_MS=3000000); MODEL=${EVAL_MODEL:-glm-5.3}; MAX_BUDGET_USD=${EVAL_MAX_BUDGET_USD:-1000}; export EVAL_PREP_MAX_BUDGET_USD=${EVAL_PREP_MAX_BUDGET_USD:-1000} ;;  # EVAL_MODEL=glm-5.3-flash
   anthropic) AE=(--ae CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5-5); MODEL=claude-opus-5-5 ;;
   *) echo "provider: glm|anthropic" >&2; exit 3 ;;
 esac

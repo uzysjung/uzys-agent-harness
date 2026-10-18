@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 
 from pier.agents.installed.base import NonZeroAgentExitCodeError
@@ -42,7 +43,7 @@ HARNESS_VERSION = "26.174.0"  # 결과를 보기 전에 고정. 바꾸면 사유
 PREP_PROMPT = "Use the audit-harness-fit skill to fill CLAUDE.md from repository evidence."
 PREP_SESSIONS = 3
 PREP_MAX_TURNS = 60
-PREP_MAX_BUDGET_USD = 10
+PREP_MAX_BUDGET_USD = float(os.environ.get("EVAL_PREP_MAX_BUDGET_USD", "10"))  # GLM 은 run-pilot 이 1000 — Claude 가격표 환산 금액이라 상한이 아니다
 HARNESS_PATHS = (
     ".claude/",
     ".uzys-agent-harness/",

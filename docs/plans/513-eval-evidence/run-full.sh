@@ -35,11 +35,15 @@ log "start model=$MODEL tasks=$(printf '%s\n' "$ORDER" | wc -l | tr -d ' ')"
 job_dir() { echo "$JOBS/513-deepswe-$MODEL-$2-full-$1"; }   # task arm
 done_ok() { [ -f "$1/result.json" ] && ls "$1"/*/result.json >/dev/null 2>&1; }
 quota_hit() { local a; for a in "$1"/*/agent; do [ -d "$a" ] && grep -rqE '\[1113\]|Insufficient balance' "$a" && return 0; done; return 1; }   # 과제·정리 세션 기록 전부
+budget_hit() { local a; for a in "$1"/*/agent; do [ -f "$a/claude-code.txt" ] && grep -q '"terminal_reason":"budget_exhausted"' "$a/claude-code.txt" && return 0; done; return 1; }   # 2026-10-19 이전 $20 환산 상한에 끊긴 팔 — 상한을 푼 뒤 그 팔만 다시(설계 §15)
 
 run_arm() { # task arm
   local task="$1" arm="$2" dir tries=0
   dir=$(job_dir "$task" "$arm")
   while :; do
+    if done_ok "$dir" && budget_hit "$dir"; then
+      mv "$dir" "$JOBS/invalid/$(basename "$dir")-budget-cap-$(date -u +%Y%m%dT%H%M%SZ)"; log "budget-cap $task $arm — 상한을 푼 설정으로 다시 돈다"
+    fi
     if done_ok "$dir" && ! quota_hit "$dir"; then return 0; fi
     if [ -d "$dir" ]; then
       if quota_hit "$dir"; then
