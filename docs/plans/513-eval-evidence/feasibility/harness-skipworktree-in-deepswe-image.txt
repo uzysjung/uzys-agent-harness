@@ -1,0 +1,38 @@
+# B2 — DeepSWE 이미지에서 상류 CLAUDE.md 가 있을 때: 설치 → skip-worktree + exclude → import 줄 잔존 · git status 동일 · diff 제외 (2026-10-18)
+
+스크립트: ../glm-container/harness-skipworktree-test.sh
+
+## 0) 상류 CLAUDE.md 를 만들어 커밋 (상류 저장소에 지시 파일이 있는 경우를 흉내)
+base=b6cad88b4ac004af47709702567a262a22c7478b
+status-before lines: 0
+## 1) 하네스 설치
+install exit 0
+## 설치 직후 git status
+ M .gitignore
+ M CLAUDE.md
+?? .claude/
+?? .github/workflows/ci.yml
+?? .mcp.json
+?? .uzys-agent-harness/
+?? CLAUDE-uzys-harness.md
+## 2) skip-worktree + exclude (pier-agent-b.py 와 같은 명령)
+skip-worktree: .gitignore
+skip-worktree: CLAUDE.md
+## status diff (before vs after) — 비어야 한다
+SAME
+## 3) 디스크의 CLAUDE.md — import 줄이 남아 있는가
+5:<!-- uzys-harness:import:start -->
+6:@CLAUDE-uzys-harness.md
+14:<!-- uzys-harness:import:end -->
+## .gitignore 하네스 줄 남아 있는가: 4
+## 4) 에이전트 흉내 — 소스 1줄 고치고 git add . && commit
+committed
+## git diff $BASE HEAD --stat (하네스 파일이 없어야 한다)
+ main.go | 1 +
+ 1 file changed, 1 insertion(+)
+## 하네스 경로가 diff 에 있나: 0
+## 한계 확인 — 에이전트가 CLAUDE.md 를 고의로 고치면
+On branch master
+nothing to commit, working tree clean
+CLAUDE.md in diff: 0 (skip-worktree 라 0 — model.patch 사후 점검으로만 보인다)
+exit 0

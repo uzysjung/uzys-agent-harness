@@ -1,0 +1,18 @@
+# B4 — Terminal-Bench 과제를 Pier 로 (harbor 아님) oracle/nop 재대조 (2026-10-18)
+
+클론: harbor-framework/terminal-bench @ 2e29ca91 · sparse checkout tasks/sound-change-cascade
+pier run -p dl/tbench/tasks/sound-change-cascade -a oracle → reward.txt = 1   (cpu 39.198 total)
+pier run -p dl/tbench/tasks/sound-change-cascade -a nop    → reward.txt = 0   (cpu 13.663 total)
+pier run -p dl/tbench/tasks -i sound-change-cascade -a nop  → 과제 1개 매치 (task_name terminal-bench/sound-change-cascade), reward 0 — -i/-x 는 폴더 이름(접두 없이)
+
+## oracle 로그 꼬리
+┃ Reward ┃ Count ┃
+┡━━━━━━━━╇━━━━━━━┩
+│ 1.0    │     1 │
+└────────┴───────┘
+Job Info
+Total runtime: 35s
+Results written to jobs/eval-513-tb-pier-oracle/result.json
+Inspect results by running `pier view jobs`
+pier run -p dl/tbench/tasks/sound-change-cascade -a oracle -o jobs --job-name  3.91s user 2.38s system 16% cpu 39.198 total
+exit 0

@@ -38,4 +38,4 @@
 | S32 | npm 레지스트리 — Claude Code 최신 | `npm view @anthropic-ai/claude-code version time` | ● | 2.1.302 (2026-10-16) |
 | S33 | npm 레지스트리 — 하네스 최신 | `npm view @uzysjung/agent-harness version` | ● | 26.174.0 |
 
-실측 산출물은 `feasibility/`(채점기 대조 · 자원표 · 라우팅 스모크), 실행 골격은 `glm-container/` · `pier-agent-b.py` · `run-pilot.sh`.
+실측 산출물은 `feasibility/`(채점기 대조 · 자원표 · 라우팅 스모크), 실행 골격은 `glm-container/` · `pier_agent_b.py` · `run-pilot.sh`.

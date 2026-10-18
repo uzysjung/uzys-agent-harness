@@ -37,7 +37,10 @@ case "$PROVIDER" in
 esac
 case "$BENCH" in
   deepswe) TASKS=(-p "${DEEPSWE_TASKS:-$HOME/eval-513/deep-swe/tasks}") ;;
-  tbench)  TASKS=(-d terminal-bench/terminal-bench@4.0.0 -x 'terminal-bench/fp8-rmsnorm-gemm' -x 'terminal-bench/jax-speedrun-gpu' -x 'terminal-bench/math-eval-grader' --override-gpus 0) ;;  # GPU 3종 제외 — 2026-10-18 task.toml 실측
+  # Pier 에는 -d(레지스트리) 가 없다(설계 검증 B4). 저장소를 클론해 -p 로 — DeepSWE 와 같은 러너·같은 B 에이전트·같은 env-file.
+  #   git clone --depth 1 https://github.com/harbor-framework/terminal-bench ~/eval-513/terminal-bench   (2e29ca91, 2026-10-15)
+  # -i/-x 는 과제 폴더 이름을 받는다(접두 `terminal-bench/` 없이 — 2026-10-18 `-i sound-change-cascade` 실측). GPU 3종 제외는 task.toml 전수 실측.
+  tbench)  TASKS=(-p "${TBENCH_TASKS:-$HOME/eval-513/terminal-bench/tasks}" -x fp8-rmsnorm-gemm -x jax-speedrun-gpu -x math-eval-grader --override-gpus 0) ;;
   *) echo "bench: deepswe|tbench" >&2; exit 3 ;;
 esac
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -47,7 +50,7 @@ run() { # arm agent...
   local arm="$1"; shift
   local cmd=(pier run "${TASKS[@]}" -l "$N_TASKS" --sample-seed "$SEED" "$@" -m "$MODEL"
     --ak "version=$CLAUDE_CODE_VERSION" --ak "reasoning_effort=$EFFORT" --ak "max_turns=$MAX_TURNS" --ak "max_budget_usd=$MAX_BUDGET_USD"
-    --ae CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 --ae DISABLE_AUTOUPDATER=1 "${AE[@]}"
+    --ae CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 --ae DISABLE_AUTOUPDATER=1 ${AE[@]+"${AE[@]}"}
     --env-file "$ENV_FILE" --agent-timeout-multiplier "$AGENT_TIMEOUT_MULT" -n "$CONCURRENCY" -y
     -o "$JOBS" --job-name "513-${BENCH}-${PROVIDER}-${arm}-${STAMP}")
   if [ "${DRY_RUN:-0}" = 1 ]; then printf '%q ' "${cmd[@]}"; echo; else "${cmd[@]}"; fi
@@ -55,6 +58,9 @@ run() { # arm agent...
 
 # 순서는 A→B 고정이 아니라 과제별로 섞는 것이 맞다(설계 §5). 골격에서는 팔 단위로 돈다 — 2단계에서 per-task 인터리브로 바꾼다.
 run A -a claude-code
-run B --agent-import-path "docs/plans/513-eval-evidence/pier-agent-b.py:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}"
+# --agent-import-path 는 모듈 경로(`module:Class`)다 — 파일 경로를 주면 "No module named …" 로 실패한다(2026-10-18 실측). PYTHONPATH 로 폴더를 올린다.
+export PYTHONPATH="docs/plans/513-eval-evidence${PYTHONPATH:+:$PYTHONPATH}"
+run B --agent-import-path "pier_agent_b:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}"
+# B 의 이미지 빌드가 실패한 과제(exit 97 등)는 A 결과에서도 뺀다 — 제외 목록은 집계 단계(summarize.sh)가 두 job 의 result.json 을 맞춰 만든다.
 
 echo "집계: bash docs/plans/513-eval-evidence/summarize.sh $JOBS 513-${BENCH}-${PROVIDER}-*-${STAMP}   (2단계에서 작성)"
