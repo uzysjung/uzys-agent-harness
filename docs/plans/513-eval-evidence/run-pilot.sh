@@ -34,7 +34,7 @@ CONCURRENCY=${EVAL_CONCURRENCY:-2}     # Docker Desktop 6 CPU · 8GB — 과제�
 case "$PROVIDER" in
   # Pier 의 claude-code 에이전트는 BASE_URL 이 있으면 -m 값을 ANTHROPIC_MODEL 과 DEFAULT_{OPUS,SONNET,HAIKU}_MODEL · SUBAGENT_MODEL 전부에 넣는다
   # (claude_code.py:1272-1290, 0.3.1) — 서브에이전트까지 한 모델로 묶인다. Anthropic 쪽은 §4.5 대로 SUBAGENT_MODEL 을 명시해 두 팔을 같은 모델로.
-  glm)       AE=(--ae ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic --ae API_TIMEOUT_MS=3000000); MODEL=glm-5.3 ;;
+  glm)       AE=(--ae ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic --ae API_TIMEOUT_MS=3000000); MODEL=${EVAL_MODEL:-glm-5.3} ;;  # EVAL_MODEL=glm-5.3-flash
   anthropic) AE=(--ae CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5-5); MODEL=claude-opus-5-5 ;;
   *) echo "provider: glm|anthropic" >&2; exit 3 ;;
 esac
@@ -45,7 +45,8 @@ case "$BENCH" in
   *) echo "bench: deepswe|tbench" >&2; exit 3 ;;
 esac
 INCLUDE=(); for t in $EVAL_TASKS; do INCLUDE+=(-i "$t"); done
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+STAMP=${EVAL_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}   # run-full.sh 가 과제 이름을 넣어 job 을 과제·팔 단위로 만든다
+TAG=${EVAL_MODEL:-$PROVIDER}
 JOBS="${EVAL_JOBS_DIR:-$HOME/eval-513/jobs}"
 
 run() { # arm agent...
@@ -54,17 +55,18 @@ run() { # arm agent...
     --ak "version=$CLAUDE_CODE_VERSION" --ak "reasoning_effort=$EFFORT" --ak "max_turns=$MAX_TURNS" --ak "max_budget_usd=$MAX_BUDGET_USD"
     --ae CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 --ae DISABLE_AUTOUPDATER=1 ${AE[@]+"${AE[@]}"}
     --env-file "$ENV_FILE" --agent-timeout-multiplier "$AGENT_TIMEOUT_MULT" -n "$CONCURRENCY" -y
-    -o "$JOBS" --job-name "513-${BENCH}-${PROVIDER}-${arm}-${STAMP}")
+    -o "$JOBS" --job-name "513-${BENCH}-${TAG}-${arm}-${STAMP}")
   if [ "${DRY_RUN:-0}" = 1 ]; then printf '%q ' "${cmd[@]}"; echo; else "${cmd[@]}"; fi
 }
 
 # 순서는 A→B 고정이 아니라 과제별로 섞는 것이 맞다(설계 §5). 골격에서는 팔 단위로 돈다 — 2단계에서 per-task 인터리브로 바꾼다.
-run A -a claude-code
+ARMS=${EVAL_ARMS:-A B}   # run-full.sh 는 한 팔씩 부른다
+case " $ARMS " in *" A "*) run A -a claude-code ;; esac
 # --agent-import-path 는 모듈 경로(`module:Class`)다 — 파일 경로를 주면 "No module named …" 로 실패한다(2026-10-18 실측). PYTHONPATH 로 폴더를 올린다.
 export PYTHONPATH="docs/plans/513-eval-evidence${PYTHONPATH:+:$PYTHONPATH}"
-run B --agent-import-path "pier_agent_b:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}"
+case " $ARMS " in *" B "*) run B --agent-import-path "pier_agent_b:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}" ;; esac
 
 # 집계(summarize.sh, 2단계): 두 job 의 result.json 을 과제로 맞춘 짝 표 · ①②②′③ · B 빌드 실패(exception.txt 'exit 97')·prep-infra-error 과제의 양팔 제외 목록 ·
 # prep-failed.txt 는 B 실패로 집계(제외 아님) · 정리 비용 = agent/prep/session-*.json 의 modelUsage, 정리 벽시계 = prep-timing.txt.
-echo "집계: bash docs/plans/513-eval-evidence/summarize.sh $JOBS 513-${BENCH}-${PROVIDER}-*-${STAMP}   (2단계에서 작성)"
+echo "집계: bash docs/plans/513-eval-evidence/summarize.sh $JOBS 513-${BENCH}-${TAG}-*-${STAMP}   (2단계에서 작성)"
 echo "유출 검사: bash docs/plans/513-eval-evidence/check-token-leak.sh $ENV_FILE $JOBS"
