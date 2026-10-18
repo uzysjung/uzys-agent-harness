@@ -3,7 +3,7 @@
 - 작성 2026-10-18 · 설계 레인(단일 에이전트 · `src/` 무수정 · 유료 실행 0회) · 브랜치 `feat/513-effect-eval`
 - 입력: 이슈 #513 본문(사용자 리서치 2026-09-21) · 사용자 추가 요구(GLM Coding Plan 실행 환경 · 키는 env-file · 제한 스모크 절차) · `docs/NORTH_STAR.md` §1 · `docs/USAGE.md` · `docs/TRACKS.md` · `src/manifest.ts` · `test/docker/`
 - 증거: `513-eval-evidence/` — `sources.md`(출처 33건 · 확인일) · `feasibility/`(채점기 대조 · 자원표 · 라우팅 스모크 · 하네스 설치/skip-worktree 관측 · Pier A/B 리허설 · 실사용 저장소 조사) · `glm-container/`(Dockerfile · 스크립트) · `pier_agent_b.py` · `run-pilot.sh` · `realuse-repo-survey.sh`
-- 독립 설계 검증: `docs/plans/513-design-verify.md`(BLOCK — BLOCKER 4 · NOTE 11, 2026-10-18). 전부 반영했다 — 반영 대조표는 §14.
+- 독립 설계 검증: 1차 `docs/plans/513-design-verify.md`(BLOCKER 4 · NOTE 11) · 2차 `docs/plans/513-design-verify-r2.md`(BLOCKER 7 · NOTE 9 — 1차 B1~B4 해소 확인, D9 구현 결함). 전부 반영했다 — 반영 대조표는 §14.
 - 2026-10-15 에 같은 작업이 한도로 중단돼 산출물이 없었다 — 이 문서는 처음부터 다시 썼고, 절마다 push 한다.
 
 ---
@@ -29,11 +29,11 @@
 
 | 안 | 과제 | 실행 수 | Anthropic 종량 (추정) | GLM 정액 (크레딧 기준) | 벽시계 |
 |---|---|---|---|---|---|
-| **최소 신호** | 실사용 6 (§5.4 R1·R2·R4·R7·R8·R9) | Opus 정리 18 + A/B 12 · GLM 배관 스모크 2 과제 | **$50–135** (상한 $150) — 과제 $30 + 도입(정리) $20–55 | Pro 5시간 크레딧 1주기 안 | 1–2일 |
-| **권장 (예비 실험)** | 실사용 6 · DeepSWE 12 · T-Bench 6 = 24 | Opus 정리 72 + 상한용 A 10 + A/B 48 · GLM 스모크 2–4 과제 | **$420–970** (상한 $1,000) — 과제 $350–750 + 도입 $70–220 | Pro 1–2주기 | 4–6일(동시 2) |
-| **본실험** | 100 (DeepSWE 40 · T-B 20 · QnA 20 · 실사용 20) × 3회 | 600 + 정리 210–300 | **$3,700–8,900** + Modal $100–300 | 해당 없음(Opus 로) | 2–3주 |
+| **최소 신호** | 실사용 6 (§5.4 R1·R2·R4·R7·R8·R9) | Opus A/B 12(B 는 정리 3세션 포함) · GLM 배관 스모크 2 과제 | **$50–135** (상한 $150) — 과제 $30 + 도입(정리) $20–55 | Pro 5시간 크레딧 1주기 안 | 1–2일 |
+| **권장 (예비 실험)** | 실사용 6 · DeepSWE 12 = 18 (T-Bench 는 예비 밖 — B2) | Opus 상한용 A 10 + A/B 36(정리 54세션 포함) · GLM 스모크 2 과제 | **$355–810** (상한 $850) — 과제 $300–650 + 도입 $55–160 | Pro 1주기 | 3–5일(동시 2) |
+| **본실험** | 100 (DeepSWE 40 · T-B 20 · QnA 20 · 실사용 20) × 3회 | 600 + 정리 900 세션 | **$5,400–10,000** + Modal $100–300 | 해당 없음(Opus 로) | 3–4주 |
 
-**B 의 구성(D9, 사용자 결정 2026-10-18)** = 하네스 설치 + **초기 정리 3회**(고정 프롬프트로 `audit-harness-fit` 이 `CLAUDE.md` 를 저장소 근거로 채우는 세션 ×3, 과제를 보기 전에, 시작 커밋 단위로 한 번, 결과를 모든 과제에 똑같이 적용) vs 순정 A. 정리 비용은 일회성 도입 비용으로 분리 공시하고 ②′ 로도 보고한다(§4.4).
+**B 의 구성(D9, 사용자 결정 2026-10-18 · 재검증 2차 구조)** = 하네스 설치 + **초기 정리 3회**(고정 프롬프트로 `audit-harness-fit` 이 `CLAUDE.md` 를 저장소 근거로 채우는 새 세션 ×3 — **B trial 안에서**, 과제 세션 직전에, 같은 컨테이너·같은 egress·같은 git 상태로, 과제 지시문 없이) vs 순정 A. 정리 비용은 trial 의 정리 구간으로 분리 공시하고 ②′ 로도 보고한다(§4.4).
 
 **추천 = 권장안.** ① **GLM 은 배관 스모크(과제 2–4개)에만** — Pier→컨테이너→Claude Code→Z.ai 경로, B 의 하네스 로드 증거(§10 5), `usage` 형식, effort 전달 여부를 확인하고 끝낸다(발표하지 않고 상한 산정에도 쓰지 않는다). ② **첫 유료 신호는 Opus 5.5 high 로 실사용 6과제 A/B** — NORTH_STAR §1 의 주장("필요한 틀만 남겨 생산성을 높인다")이 가장 직접 걸리고, 과제당 $1–4 라 하네스가 **방해하는** 방향은 작은 표본에서도 보인다. 실사용 과제가 컨테이너에서 재현되지 않으면 DeepSWE 12 + T-Bench 6 이 대신 첫 신호다. ③ 상한은 Opus A 10건으로 먼저 고정한 뒤 DeepSWE 12 · T-Bench 6 A/B. ④ DeepSWE 공개판 `glm-5.3 69%` · `opus-5 74%` 는 A 가 이상하게 낮을 때 배관 결함을 먼저 의심하는 **경보용 기준점**(비교값 아님). 예비 결과는 **발표하지 않는다** — 본실험의 과제군 · 상한 · 지표를 고정하는 데 쓴다.
 
@@ -110,7 +110,7 @@
 | 주지표 | 계산식 | 답하는 질문 |
 |---|---|---|
 | **① 동일 상한 해결률** | 과제군별 공통 상한(시간 · 턴 · 예산) 안에 제출하고 공식 채점을 통과한 실행 수 ÷ 전체 실행 수. 팔별로 | 같은 자원으로 더 많이 제대로 끝내는가 |
-| **② 성공 1건당 총비용** | Σ(성공·실패 전부의 비용) ÷ 성공 실행 수. 비용 = `modelUsage` 토큰 × 평가 당시 요율(입력 · 출력 · 캐시 쓰기 · 캐시 읽기 분리). GLM 은 토큰 수와 크레딧. **②′** = B 의 분자에 일회성 도입 비용(초기 정리 3회, §4.4)을 시작 커밋의 과제 수로 나눠 더한 값 — ② 와 ②′ 를 나란히 | 완성품 하나에 실제로 얼마 드는가(도입 비용 빼고 · 넣고) |
+| **② 성공 1건당 총비용** | Σ(성공·실패 전부의 비용) ÷ 성공 실행 수. 비용 = `modelUsage` 토큰 × 평가 당시 요율(입력 · 출력 · 캐시 쓰기 · 캐시 읽기 분리). GLM 은 토큰 수와 크레딧. **②′** = B 의 분자에 그 trial 의 정리 구간 비용(초기 정리 3회, §4.4 — `prep/session-*.json` 의 `modelUsage`)을 더한 값 — ② 와 ②′ 를 나란히 | 완성품 하나에 실제로 얼마 드는가(도입 비용 빼고 · 넣고) |
 | **③ 완료시간** | ⓐ 전체: 상한 내 성공률과 타임아웃 비율 ⓑ **A·B 둘 다 성공한 같은 과제**의 벽시계 비율(중앙값 · P90). **주값 = Pier `result.json` 의 `agent_execution` 시작→종료**(MCP 대기 · 훅 포함, 지시 전달부터 에이전트 종료까지), 보조 = Claude Code `result.duration_ms` | 같은 일을 더 빨리 끝내는가 |
 | **④ 수정 없이 수용 가능 비율** (실사용 과제만) | 사전 정의한 수용 기준(§5.4) 전부 충족 ÷ 실행 수. 채점자는 팔을 모른다 | 결과물이 그대로 쓸 수 있는가 |
 
@@ -124,13 +124,13 @@
 
 | 과제군 | 수 | 선정 규칙(결과를 보기 전에 고정) | 상한(과제당 · 팔당) |
 |---|---|---|---|
-| **실사용 과제** | **6** | §5.4 의 R1 · R2 · R4 · R7 · R8 · R9 — 공개 저장소 · 지시 파일 없음 · hidden test 로 자동 채점. **첫 유료 신호의 기본 과제군** | 벽시계 45분 · 턴 80 · Anthropic $8 |
-| **DeepSWE v1.1** | 12 | `pier run -p <clone>/tasks --sample-seed 513 -l 12` — **표본 목록은 실행 전에 뽑아 이 문서에 적고 고정한다**(언어 편중이어도 바꾸지 않는다; 바꾸려면 Change Log). 실사용 과제군을 못 쓰게 되면 이것이 첫 신호 | 벽시계 2h(`--agent-timeout-multiplier 0.67`) · 턴 150 · $20 |
-| **Terminal-Bench 4.0** | 6 | 저장소 클론 → `pier run -p <clone>/tasks -x fp8-rmsnorm-gemm -x jax-speedrun-gpu -x math-eval-grader --override-gpus 0 -l 6 --sample-seed 513`(DeepSWE 와 같은 러너·B 에이전트·env-file — 검증 B4). 추가 필터 `cpus ≤ 4` · `memory_mb ≤ 8192` · `allow_internet = true` 는 **실행 전 목록에서 손으로 걸러 기록** | 벽시계 2h(과제별 override) · 턴 150 · $20 |
+| **실사용 과제** | **6** | §5.4 의 R1 · R2 · R4 · R7 · R8 · R9 — 공개 저장소 · 지시 파일 없음 · 2026-07 이후 머지 · hidden test 로 자동 채점. **첫 유료 신호의 기본 과제군** | 벽시계 45분 · 턴 80 · Anthropic $8 (+ B 정리 3회) |
+| **DeepSWE v1.1** | 12 | **이름으로 고정** — Pier 의 `--sample-seed` 는 `iterdir` 순서를 섞어(`models/job/config.py:136·159`) 머신마다 결과가 다를 수 있으므로, 이 머신에서 seed 513 으로 뽑은 목록을 적고 `EVAL_TASKS` 로 `-i` 넘긴다(재검증 B6 · N9): `textual-kitty-key-phases` · `go-git-worktree-merge-conflicts` · `valibot-recursive-schema-composition` · `bandit-interprocedural-taint-checks` · `etree-xml-diff-patch` · `yaegi-go-embed-directives` · `abs-stepped-slices` · `effect-sse-httpapi-streaming` · `kgateway-consistent-hash-policy` · `sql-formatter-bigquery-pipe-formatting` · `katex-multicolumn-array-spans` · `claude-code-by-agents-recursive-delegation`(이 순서가 seed 순서 — 줄일 때 뒤에서부터). 실사용 과제군을 못 쓰게 되면 이것이 첫 신호 | 벽시계 2h(`--agent-timeout-multiplier 0.67`, B 의 정리 3회 포함) · 턴 150 · $20 |
+| **Terminal-Bench 4.0** | **0** | **예비 범위에서 뺀다**(재검증 B2 — `/app` 이 git 저장소가 아니라 B 의 git 처리가 성립하지 않는다; 예비 권장안은 실사용 6 + DeepSWE 12 라 영향 없음). **본실험 결정 필요**: "B 설치 전에 `git init` + 기준 커밋을 만들어 같은 규칙을 적용하는가, 아니면 git 처리 없이(`_git_guard` 가 건너뜀) 돌리는가". 러너는 `pier run -p <clone>/tasks -x fp8-rmsnorm-gemm -x jax-speedrun-gpu -x math-eval-grader --override-gpus 0`(검증 B4), 추가 필터 `cpus ≤ 4` · `memory_mb ≤ 8192` · `allow_internet = true` | — |
 | **SWE-Atlas-QnA** | 0 | 예비에서는 제외(16 CPU · Modal · 유료 채점). 본실험에 20 | — |
-| **합계** | **24** | Opus A/B × 1회 = **48 실행**. GLM 은 이 중 **2–4 과제 배관 스모크**만(§7.2) | |
+| **합계** | **18** | Opus A/B × 1회 = **36 실행** (+ B 마다 정리 3세션 = 54). GLM 은 이 중 **2 과제 배관 스모크**만(§7.2) | |
 
-과제 수를 줄여야 하면 **seed 순서의 뒤에서부터** 줄이고, B 결과를 보기 전에 정한다(N9). **최소 신호안** = 실사용 6 만(Opus 12 실행); **본실험**은 이슈 표(40 · 20 · 20 · 20 × 3회 = 600)를 그대로 쓰되 QnA 와 16 CPU 과제는 Modal 로.
+과제 수를 줄여야 하면 **seed 순서의 뒤에서부터** 줄이고, B 결과를 보기 전에 정한다(N9). **최소 신호안** = 실사용 6 만(Opus 12 실행); **본실험**은 이슈 표(40 · 20 · 20 · 20 × 3회 = 600)를 그대로 쓰되 QnA 와 16 CPU 과제는 Modal 로, T-Bench 는 위 git 결정 뒤.
 
 ---
 
@@ -162,25 +162,29 @@ DeepSWE 이미지에서 `install --track base --cli claude` 를 돌리면 **`.gi
 
 **설치 뒤 tracked 파일을 되돌리지 않는다**(`git checkout -- .` 는 상류 `CLAUDE.md` 에 더해진 import 줄을 지워 앵커 본문이 영영 로드되지 않는 **들키지 않는 부분-A** 를 만든다). 대신: 설치가 고친 tracked 파일(`.gitignore` · 있으면 `CLAUDE.md` · `AGENTS.md`)은 `git update-index --skip-worktree` 로 표시하고, untracked 하네스 경로는 `.git/info/exclude` 에 적는다 — 디스크의 하네스 몫은 그대로 남아 로드되고, `git add .` · `commit -a` · 검증기의 `git diff <base> HEAD` 에는 들어가지 않는다. **실측**(상류 CLAUDE.md 를 커밋해 둔 DeepSWE 이미지): 설치 후 `M .gitignore · M CLAUDE.md · ?? 6개` → skip-worktree + exclude 뒤 `git status --porcelain` 설치 전과 **동일** · 디스크 `CLAUDE.md` 5–14행에 `<!-- uzys-harness:import:start --> @CLAUDE-uzys-harness.md` **잔존** · 에이전트 흉내 커밋 뒤 `git diff <base> HEAD --stat` = `main.go | 1 +` 만, 하네스 경로 0.
 
-**설치 전후 `git status --porcelain` 이 같아야 한다.** 다르면 exit 97 — 설치 단계는 docker build 의 `RUN` 이라 이것은 **이미지 빌드 실패**다. 그 과제는 **두 팔 모두에서 제외하고 제외 목록에 적는다**(B 에서만 조용히 빠지면 선택 편향 — §5.3). 한계 한 줄: 에이전트가 그 파일을 고의로 고친 변경도 diff 에서 빠진다(실측: skip-worktree 된 `CLAUDE.md` 에 줄을 더하면 `nothing to commit`) — 벤치마크 과제에서는 일어나지 않는 편집이고 `model.patch` 와 컨테이너 안 `git diff` 사후 점검으로 확인한다.
+git 처리(skip-worktree · exclude · status 대조)는 **`/app` 이 git 저장소일 때만** 한다(`pier_agent_b.py` `_git_guard`) — T-Bench 과제의 `/app` 은 git 이 아니고(재검증 B2) 채점이 git 을 읽지 않아 하네스 파일이 채점에 섞일 길이 없다. 비-git 과제는 `git-repo: no` 한 줄을 남긴다. **설치 전후 `git status --porcelain -uall` 이 같아야 한다**(`-uall` — 디렉터리 축약 없이 파일 단위, 재검증 B3ⓑ). 다르면 exit 97 — 설치 단계는 docker build 의 `RUN` 이라 이것은 **이미지 빌드 실패**다. 그 과제는 **두 팔 모두에서 제외하고 제외 목록에 적는다**(B 에서만 조용히 빠지면 선택 편향 — §5.3). 한계 한 줄: 에이전트가 그 파일을 고의로 고친 변경도 diff 에서 빠진다(실측: skip-worktree 된 `CLAUDE.md` 에 줄을 더하면 `nothing to commit`) — 벤치마크 과제에서는 일어나지 않는 편집이고 `model.patch` 와 컨테이너 안 `git diff` 사후 점검으로 확인한다.
 
 ### 4.4 B 의 초기 정리 3회 (D9 — 사용자 결정 2026-10-18)
 
-**정의 — "초기 정리 1회"** = 설치 화면이 안내하는 정리 흐름을 그대로 따른 **한 세션**. 설치 화면 FILL 줄(실측 `feasibility/harness-install-in-deepswe-image.txt`): "`CLAUDE.md` — a fill-in scaffold. Open and paste each `<!-- FILL: … -->` prompt to your agent to tailor it to this project, or ask the **audit-harness-fit** skill to fill it from repository evidence". 그 두 번째 길을 쓴다 — 스킬 `templates/skills/audit-harness-fit/`(설치본 `.claude/skills/audit-harness-fit/`)의 "Fill or refresh project context → `references/populate.md`" 모드. 사람이 칠 프롬프트를 **문자 그대로** 고정한다:
+**구조(재검증 2차 반영 — 경우를 덧대지 않고 구조를 바꿨다).** 정리를 따로 돌려 `prep.tar` 로 옮겨 붙이는 1차 구현은 키 잘림 · 실패 삼킴 · 삭제 미전파 · 네트워크 열림(재검증 B1·B3·B4)을 낳았다. 그래서 **정리를 B trial 안에서 돈다** — 같은 컨테이너 · 같은 Pier egress 정책(API 호스트만) · 같은 사용자 · 같은 git 상태에서, 과제 세션 직전에 정리 세션 3회를 새 세션으로 돌린다(`pier_agent_b.py` `run()`: 정리 → B2 규칙 재적용 → `super().run()`). `prep-b.sh` · `prep.tar` · 키 매핑은 없다.
+
+**정의 — "초기 정리 1회"** = 설치 화면이 안내하는 정리 흐름을 그대로 따른 **한 세션**. 설치 화면 FILL 줄(실측 `feasibility/harness-install-in-deepswe-image.txt`): "`CLAUDE.md` — a fill-in scaffold. Open and paste each `<!-- FILL: … -->` prompt to your agent to tailor it to this project, or ask the **audit-harness-fit** skill to fill it from repository evidence". 그 두 번째 길을 쓴다 — 스킬 `templates/skills/audit-harness-fit/`(설치본 `.claude/skills/audit-harness-fit/`)의 "Fill or refresh project context → `references/populate.md`" 모드. 프롬프트는 **설치 화면 문구를 명령형으로 옮긴 고정 문장**(바이트 동일은 아니다 — N1)으로 코드(`PREP_PROMPT`)에 박아 둔다:
 
 > `Use the audit-harness-fit skill to fill CLAUDE.md from repository evidence.`
 
-(`--cli claude` 설치에는 `AGENTS.md` 가 없어 `CLAUDE.md` 만 — 다른 CLI 를 더하면 그때 문구를 늘린다.) **3회** = 같은 프롬프트를 **새 세션**으로 3번(정리가 누적된다). 각 세션은 `claude -p "<프롬프트>" --effort <단계 effort> --permission-mode bypassPermissions --max-turns 60 --max-budget-usd 10 --output-format json`. 스크립트 = `prep-b.sh`.
+(`--cli claude` 설치에는 `AGENTS.md` 가 없어 `CLAUDE.md` 만.) **3회** = 같은 프롬프트를 **새 세션**으로 3번(같은 `/app` 위에서 누적). 각 세션은 `claude -p "<프롬프트>" --effort <단계 effort> --permission-mode bypassPermissions --permission-prompts none --max-turns 60 --max-budget-usd 10 --disallowedTools EnterPlanMode --output-format json`, 세션 JSON 은 `<trial>/agent/prep/session-{1,2,3}.json`.
 
-**과제를 보기 전에 한다.** 정리 세션에는 과제 지시문(`instruction.md`)을 주지 않는다 — 컨테이너에는 시작 커밋의 저장소(/app)와 설치된 하네스만 있다. 정리 프롬프트(`prep-prompt.txt`) · 세션별 결과 JSON · 정리 뒤 파일 목록(`prep-git-status.txt`)을 저장소 밖 `<prep-dir>/<task-id>/` 에 남겨 사후에 "과제 정보가 정리 결과에 새지 않았는지" 를 대조할 수 있게 한다(새는 길 자체가 없지만, 기록은 남긴다).
+**과제를 보기 전에 한다 — 코드가 보증한다.** 정리 구간은 `run()` 의 `instruction` 인자를 참조하지 않는다(과제 지시문은 정리 뒤 `super().run()` 에만 들어간다). 네트워크는 과제 세션과 같은 egress 정책이라 정리 세션이 상류 커밋·이슈를 가져올 길이 **과제 세션과 같은 만큼만** 있다(DeepSWE `no-network` 과제에서는 없다). 기록: `prep/prep-prompt.txt` · 세션 JSON · `prep/prep-git-status.txt`(정리 뒤 `git status --porcelain -uall`) · 세션 jsonl 의 `WebFetch`/`git fetch`/`gh` 호출 수(사후 대조 항목, 기대 0).
 
-**단위와 재사용.** 정리는 **저장소 + 시작 커밋 단위로 한 번(3회)** 만 한다. 결과 `prep.tar`(하네스 경로 + 함께 쓰는 파일 — `.claude/` · `.uzys-agent-harness/` · `.mcp.json` · `CLAUDE.md` · `CLAUDE-uzys-harness.md` · `.github/workflows/ci.yml` · `AGENTS.md` · `.agents/` · `.gitignore`)를 같은 시작 커밋의 **모든 과제와 반복 실행에 똑같이** 적용한다 — 같은 B 가 매번 다른 정리를 받지 않는다. 적용은 `pier_agent_b.py` 의 `run()` 이 `super().run()` 직전에 호스트 `prep.tar` 를 `environment.upload_file` 로 올려 `/app` 에 푸는 것으로 한다(Pier 가 만드는 Dockerfile 에 `COPY` 를 끼울 자리가 없어 빌드 단계가 아니라 **실행 직전**; 몇 초가 `agent_execution` 에 들어가므로 공시한다). 푼 뒤 **B2 와 같은 규칙** — tracked 파일(`.gitignore` · `CLAUDE.md` · `AGENTS.md`)은 skip-worktree, untracked 는 이미 `.git/info/exclude` — 을 다시 적용하고 `git status --porcelain` 이 적용 전과 같아야 한다(다르면 exit 98 → 그 과제 **양팔 제외**). **정리가 하네스 경로 밖 소스를 건드렸으면**(`prep-touched-source.txt` 비어 있지 않음) 그 과제도 양팔 제외 — 정리는 맥락 파일만 채워야 한다.
+**단위 — trial 마다.** 정리는 **B trial 마다** 한다. 같은 저장소의 trial 끼리 정리 결과가 다를 수 있다 — 설치자가 저장소마다 처음 설치하고 정리하는 실제 조건과 같다. 결과 파일(`prep/` 아래 세션 JSON · `fill-count.txt` · `prep-git-status.txt`)을 trial 마다 남기므로 사후에 trial 간 차이를 볼 수 있다. 예비 실험은 1회 반복이라 "같은 B 가 다른 정리를 받는" 영향이 작다(본실험 3회 반복에서는 반복 간 분산의 한 성분으로 공시). 정리 뒤 **B2 규칙**(tracked `.gitignore` · `CLAUDE.md` · `AGENTS.md` · `.mcp.json` skip-worktree, untracked 는 `.git/info/exclude`)을 다시 적용하고 `git status --porcelain -uall` 이 설치 직후 기준선과 같아야 한다 — 다르면 정리가 하네스 경로 밖 소스를 건드린 것이고 아래 실패 규칙의 "제품의 실패" 다.
 
-**비용은 따로 집계하고 공개한다.** 정리 3회의 토큰 · 시간 · 비용(세션 JSON 의 `usage` · `total_cost_usd` · `duration_ms`)은 과제 비용과 분리한 **일회성 도입 비용**이다. 보고서에는 ⓐ 과제 비용만의 ②(성공 1건당 비용)와 ⓑ 도입 비용을 그 시작 커밋의 과제 수로 나눠 더한 ②′ 를 **함께** 적는다(이슈 원칙 "초기 작업을 무료로 치지 않는다"). 예비 실험은 과제 24 = 시작 커밋 24 이므로 ⓑ 는 도입 비용 전액이 과제 하나에 얹힌다 — 본실험에서 같은 저장소의 과제가 여럿이면 배분 수가 커진다(그 수를 밝힌다).
+**정리 세션 실패 규칙(근거: B 에서만 빠지는 선택 편향을 막는다 — §5.3).** ⓐ **API·인프라 오류**(`api_error_status` · `terminal_reason == api_error` · 네트워크 예외)는 **1회 재실행**; 다시 실패하면 `agent/prep-infra-error.txt` 를 남기고 exit 96 → 그 trial 은 §5.3 의 "인프라 오류 → 1회 재실행" 규칙(양팔 동일). ⓑ **그 밖의 실패**(`is_error` · 턴 상한 도달 · 정리가 소스를 건드림)는 **제품의 실패**다 — `agent/prep-failed.txt` 에 사유를 적고 과제 세션 없이 exit 95 → 검증기 reward 0 = **B 의 실패로 집계하고 제외하지 않는다**. 제외하면 "정리가 잘 되는 저장소"만 B 에 남아 하네스에 유리해진다.
 
-**B 판정 증거에 더한다**(§10 5 ⓔ): 정리 뒤 `CLAUDE.md` 의 `<!-- FILL:` 수가 설치 직후(6 — `identity · stack · architecture · installed-assets · boundaries · verify`)보다 **줄었는가**(`fill-count.txt`: after-install → session-1/2/3 → after-prep) · 정리 세션 로그 3개(`sessions/session-{1,2,3}.json`)가 남았는가 · trial 의 `agent/prep-applied.txt` 가 `applied` 인가.
+**비용은 따로 집계하고 공개한다.** 정리 3회의 토큰 · 시간 · 비용은 trial 의 **정리 구간**으로 분리한다 — 세션 JSON 의 `modelUsage`(서브에이전트 포함; `usage` 아님 — N3) · `duration_ms` · `prep/prep-timing.txt`(세션별 벽시계). Pier 의 `agent_execution` 은 정리 구간을 포함하므로 과제 구간 시간 = `agent_execution` − 정리 벽시계(summarize.sh). 보고서에는 ⓐ 과제 비용만의 ②와 ⓑ 정리 비용을 더한 ②′ 를 **함께** 적는다(이슈 원칙 "초기 작업을 무료로 치지 않는다"). trial 마다 정리하므로 ②′ 의 배분 수는 1 이다.
 
-**모델 일관성.** 정리 세션도 그 단계의 실행 모델·effort 와 같다(GLM 단계 = `glm-5.3`, Opus 단계 = `claude-opus-5-5` high; `prep-b.sh <env-file> <provider>` 가 run-pilot.sh 와 같은 env 를 쓴다). GLM 단계의 정리 결과를 Opus 단계에 재사용하지 않는다.
+**B 판정 증거에 더한다**(§10 7 ⓔ): `prep/prep-done.txt` 존재 · `fill-count.txt` 가 `after-install 6 → after-prep <6`(새 스캐폴드) **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류에 `CLAUDE.md` 가 있어 FILL 안내가 뜨지 않는 저장소 — N2) · 세션 JSON 3개 · `prep-timing.txt` 3줄.
+
+**모델 일관성.** 정리 세션은 그 trial 의 모델·effort·env 를 그대로 쓴다(`_claude_env()` 가 부모 `run()` 과 같은 조립 — `ANTHROPIC_MODEL` · `DEFAULT_*` · `SUBAGENT_MODEL` · `CLAUDE_CONFIG_DIR`). GLM 단계 = `glm-5.3`, Opus 단계 = `claude-opus-5-5` high.
 
 ### 4.5 비대칭 주의
 
@@ -196,6 +200,7 @@ DeepSWE 이미지에서 `install --track base --cli claude` 를 돌리면 **`.gi
 
 - 예비 = 과제당 A/B **각 1회**. 과제 단위로 A→B / B→A 를 seed 로 섞어 비슷한 시간대에 돈다(제공자 부하 편향 분산). `run-pilot.sh` 골격은 팔 단위 — 2단계에서 과제 인터리브로 바꾼다(명시).
 - **상한은 Opus 단계의 첫 A 실행 10건**(상한 없이 — 턴 300 · 4h 안전망만)의 시간·턴·비용 분포로 고정한다. **상한용 실행은 A 만** 돈다 — 상한을 정하는 사람이 B 결과를 보지 않게(N3). GLM 단계는 배관·B 로드 확인용이고 상한 산정에 쓰지 않는다(두 모델의 프로파일이 다르다 — §6.1).
+- B 의 `agent_execution` 은 정리 3세션을 포함한다 — 과제 구간 시간은 `agent_execution` − `prep/prep-timing.txt` 벽시계 합(summarize.sh). 상한(`--agent-timeout-multiplier`)도 정리를 포함하므로 B 에 정리만큼 여유를 더 주지 **않는다** — 그 시간이 제품의 비용이다.
 - 보고서가 읽는 상한 값은 스크립트 기본값이 아니라 **각 job 의 `config.json`** 에 기록된 `agents[].kwargs`(`max_turns` · `max_budget_usd` · `reasoning_effort`)와 `agent_timeout_multiplier` 다(N8 — `EVAL_*` 오버라이드가 있어도 실제 값이 남는다).
 - 동시 실행 **2**(이 머신 6 CPU / 8 GB, 과제가 2 CPU / 8 GB). 두 팔은 같은 동시성.
 - 본실험 = 과제당 3회 독립 실행, **3회 중 1회 성공을 성공으로 세지 않는다** — 실행 단위 성공률(pass@1 추정)로 집계. pass^k 는 보조로.
@@ -213,7 +218,9 @@ DeepSWE 이미지에서 `install --track base --cli claude` 를 돌리면 **`.gi
 |---|---|
 | 시간 · 턴 · 예산 상한 초과, 컨텍스트 초과, 훅 오차단, MCP 미연결로 멈춤 | **실패로 집계**(두 팔 동일) |
 | 제공자 5xx/429 · 인프라 오류(이미지 pull 실패 · Docker OOM) | 같은 규칙으로 **1회 재실행**, 원 로그 보존, 두 팔 똑같이. B 만 골라 재실행하지 않는다 |
-| **B 의 에이전트 이미지 빌드 실패**(하네스 설치 실패 · exit 97 · npm 부재) | **그 과제를 두 팔 모두에서 제외**하고 제외 목록(과제 id · 사유)을 보고서에 적는다 — B 에서만 빠지는 선택 편향을 막는다(B2). Node 가 과제 이미지에 있다는 것은 **표본 1개의 관측**(mars-base, node 24)이라 이 규칙이 그 경우도 덮는다 |
+| **B 의 에이전트 이미지 빌드 실패**(하네스 설치 실패 · exit 97 · npm 부재) | **그 과제를 두 팔 모두에서 제외**하고 제외 목록(과제 id · 사유)을 보고서에 적는다 — B 에서만 빠지는 선택 편향을 막는다(B2). 빌드 시점이라 `/logs/agent/excluded.txt` 를 쓸 수 없으므로 summarize.sh 가 trial 의 `exception.txt` 에 `exit 97` 이 있는 과제를 제외 목록으로 만든다(N4). Node 가 과제 이미지에 있다는 것은 **표본 1개의 관측**(mars-base, node 24)이라 이 규칙이 그 경우도 덮는다 |
+| **정리 세션의 API·인프라 오류**(§4.4) | 세션 1회 재실행 → 다시 실패면 `agent/prep-infra-error.txt` + exit 96 → **그 trial 을 양팔 동일 규칙으로 1회 재실행**(위 제공자 오류 행과 같다) |
+| **정리 세션의 그 밖의 실패**(`is_error` · 턴 60 상한 · 정리가 소스를 건드림) | **B 의 실패로 집계(reward 0), 제외하지 않는다** — `agent/prep-failed.txt` 에 사유. 제외하면 정리가 잘 되는 저장소만 B 에 남아 하네스에 유리해진다 |
 | GLM 401/1113(한도) 로 재시도 루프 | **그 실행 무효 + 재실행**(한도 회복 뒤). Claude Code 의 10회 재시도(수 분)는 시간 지표를 오염시키므로 `api_retry` 이벤트가 있는 실행은 시간 집계에서 표시한다 |
 | 에이전트가 `instruction.md` 밖 정답(업스트림 머지 커밋)을 네트워크로 찾음 | DeepSWE 는 no-network 라 불가. T-Bench 인터넷 허용 과제는 trajectory 에서 fetch 도메인을 사후 점검 |
 
@@ -221,24 +228,24 @@ DeepSWE 이미지에서 `install --track base --cli claude` 를 돌리면 **`.gi
 
 **실사용 과제 저장소는 에이전트 지시 파일(`CLAUDE.md` · `AGENTS.md` · `.claude/` · `.cursor/` · `.cursorrules` · `GEMINI.md` · `.github/copilot-instructions.md` · `.windsurfrules` · `.clinerules`)이 없는 공개 저장소에서 고른다.** 이 리포는 자기 자신이 하네스라 A 팔이 성립하지 않으므로 제외한다(옛 §5.4 의 #833 · #543 등은 A 가 이미 개발 사본 하네스를 갖고 있었다). 저장소가 선언하는 트랙은 과제를 보기 전에 스택으로 정해 기록한다(Node CLI/라이브러리 · Python 라이브러리 · Rust/Go CLI → 전부 `base`; 스택 트랙은 Vite/Next/FastAPI 류 앱일 때만).
 
-**선정 규칙**: ⓐ 2026-07 이후 머지된 PR 이 이슈를 닫고(`closes/fixes #N`) 테스트 파일을 함께 바꿨다 ⓑ 시작 커밋 = PR 의 base ⓒ 지시문 = 이슈 본문(제목 · 재현 · 기대 동작)만 — PR 본문 · diff · 테스트는 주지 않는다 ⓓ **자동 수용 검사** = PR 의 테스트 파일 변경(hidden test)을 에이전트의 최종 커밋 위에 적용해 실행 → 새 테스트 통과 **그리고** 기존 스위트 그대로 green(DeepSWE 와 같은 f2p/p2p 구조) ⓔ DeepSWE 91 저장소와 겹치는 저장소 제외(`encode/httpx` 탈락).
+**선정 규칙**: ⓐ **2026-07-01 이후 머지**된 PR 이 이슈를 닫고(`closes/fixes #N`) 테스트 파일을 함께 바꿨다 — 날짜의 이유는 모델 학습 마감 이후의 변경이어야 "기억으로 푸는 과제"가 아니기 때문이고, 스크립트가 `mergedAt` 으로 집행한다(재검증 B7) ⓑ 시작 커밋 = PR 의 base ⓒ 지시문 = 이슈 본문(제목 · 재현 · 기대 동작)만 — PR 본문 · diff · 테스트는 주지 않는다 ⓓ **자동 수용 검사** = PR 의 테스트 파일 변경(hidden test)을 에이전트의 최종 커밋 위에 적용해 실행 → 새 테스트 통과 **그리고** 기존 스위트 그대로 green(DeepSWE 와 같은 f2p/p2p 구조) ⓔ DeepSWE 91 저장소와 겹치는 저장소 제외(`encode/httpx` 탈락) ⓕ 과제 생성 스크립트(2단계)는 **base 커밋 체크아웃**에서 같은 9 경로의 지시 파일 부재를 한 번 더 확인한다(조사는 기본 브랜치 HEAD 를 봤다 — N9).
 
-**조사 결과**(2026-10-18 `gh api`, `feasibility/realuse-repo-survey.md` · 스크립트 `realuse-repo-survey.sh`): 후보 20곳 중 **지시 파일 없음 18곳**(`colinhacks/zod` 는 `CLAUDE.md · AGENTS.md · .claude · .cursorrules` 로 탈락). **대조군**: 같은 검사가 이 리포에서 `CLAUDE.md · .claude` 를 **찾았다** — 탐지기가 문다. 최근 머지 PR 20건 안에 "이슈를 닫고 테스트를 바꾼" PR 이 있는 곳 **14곳** 중 10곳을 예비 후보로 고른다:
+**조사 결과**(2026-10-18 `gh api`, 머지 ≥ 2026-07-01 필터 — `feasibility/realuse-repo-survey.md` · 스크립트 `realuse-repo-survey.sh`): 후보 20곳 중 **지시 파일 없음 18곳**(`colinhacks/zod` 는 `CLAUDE.md · AGENTS.md · .claude · .cursorrules` 로 탈락). **대조군**: 같은 검사가 이 리포에서 `CLAUDE.md · .claude` 를 **찾았다** — 탐지기가 문다. 최근 머지 PR 30건 안에 규칙 ⓐ 를 지키는 PR 이 있는 곳 **12곳**(`spf13/cobra` 는 #2356 이 2026-04-24, `hynek/structlog` 는 #818 이 2026-06-01 이라 날짜 필터에서 빠졌다 — 재검증 B7). 그중 10곳:
 
-| # | 저장소(언어) | 과제 = 이슈 → PR(hidden test) | 유형 | 자동 수용 검사 |
+| # | 저장소(언어) | 과제 = 이슈 → PR(hidden test) · 머지일 | 유형 | 자동 수용 검사 |
 |---|---|---|---|---|
-| R1 | `yargs/yargs` (JS) | #2454 → #2590 choices 중복 제거 | 작은 변경 | PR 테스트 1 + `npm test` |
-| R2 | `sharkdp/bat` (Rust) | #4034 → #4035 닫힌 stdout 패닉 | 작은 변경 | PR 테스트 1 + `cargo test` |
-| R3 | `jqlang/jq` (C) | #3668 → #3670 `strftime` 빈 결과·오버플로 | 작은 변경 | PR 테스트 2 + `make check` |
-| R4 | `spf13/cobra` (Go) | #2257 → #2356 completion 이 `os.Args` 를 변형 | 작은 변경 | PR 테스트 1 + `go test ./...` |
-| R5 | `go-chi/chi` (Go) | #843 → #1159 자기 자신 Mount 패닉 | 작은 변경 | PR 테스트 1 + `go test ./...` |
-| R6 | `stretchr/testify` (Go) | #1211 → #1938 surplus matcher | 작은 변경 | PR 테스트 1 + `go test ./...` |
-| R7 | `chalk/chalk` (JS) | #604 → #689 underline 스타일·색 | 기능 추가 | PR 테스트 1 + `npm test` |
-| R8 | `tj/commander.js` (JS) | #2614 → #2615 유니코드 variadic placeholder | 기능 추가 | PR 테스트 1 + `npm test` |
-| R9 | `pallets/click` (Py) | #3822 → #3858 `click.Path` 제네릭 | 기능 추가 | PR 테스트 2 + `pytest` |
-| R10 | `casey/just` (Rust) | #3064 → #3755 recipe `--help` | 기능 추가 | PR 테스트 2 + `cargo test` |
+| R1 | `yargs/yargs` (JS) | #2454 → #2590 choices 중복 제거 · 10-13 | 작은 변경 | PR 테스트 1 + `npm test` |
+| R2 | `sharkdp/bat` (Rust) | #4034 → #4035 닫힌 stdout 패닉 · 10-07 | 작은 변경 | PR 테스트 1 + `cargo test` |
+| R3 | `jqlang/jq` (C) | #3668 → #3670 `strftime` 빈 결과·오버플로 · 10-13 | 작은 변경 | PR 테스트 2 + `make check` |
+| R4 | `go-chi/chi` (Go) | #843 → #1159 자기 자신 Mount 패닉 · 08-27 | 작은 변경 | PR 테스트 1 + `go test ./...` |
+| R5 | `stretchr/testify` (Go) | #1211 → #1938 surplus matcher · 08-24 | 작은 변경 | PR 테스트 1 + `go test ./...` |
+| R6 | `junegunn/fzf` (Go) | #4903 → #4907 `--listen` 상태 payload · 09-06 | 작은 변경 | PR 테스트 1 + `go test ./...` |
+| R7 | `chalk/chalk` (JS) | #604 → #689 underline 스타일·색 · 07-25 | 기능 추가 | PR 테스트 1 + `npm test` |
+| R8 | `tj/commander.js` (JS) | #2614 → #2615 유니코드 variadic placeholder · 09-28 | 기능 추가 | PR 테스트 1 + `npm test` |
+| R9 | `pallets/click` (Py) | #3822 → #3858 `click.Path` 제네릭 · 09-08 | 기능 추가 | PR 테스트 2 + `pytest` |
+| R10 | `casey/just` (Rust) | #3064 → #3755 recipe `--help` · 10-17 | 기능 추가 | PR 테스트 2 + `cargo test` |
 
-예비: 작은 변경 6 · 기능 추가 4 중 **6개**(R1 · R2 · R4 · R7 · R8 · R9 — 언어 4종)를 쓴다. 나머지 4 + `sindresorhus/execa #1256` · `hynek/structlog #818` · `junegunn/fzf #4907` · `sharkdp/hyperfine #1002`(테스트 전용 PR — 과제로 약함)는 본실험 풀. **작업 재개 유형은 예비에서 0** — 다중 커밋 PR 의 첫 커밋을 WIP 로 쓰는 구성이 가능하지만 후보별 확인이 안 됐다(2단계). 2단계 첫 확인: 각 과제의 base 커밋에서 테스트가 컨테이너 안에서 재현되게 도는가(의존성 설치 네트워크 포함) — 안 되면 그 과제를 뺀다.
+예비: 작은 변경 6 · 기능 추가 4 중 **6개**(R1 · R2 · R4 · R7 · R8 · R9 — 언어 4종: JS 3 · Rust · Go · Py)를 쓴다. 나머지 4 + `sindresorhus/execa #1256`(07-07) · `sharkdp/hyperfine #1002`(테스트 전용 PR — 과제로 약함)는 본실험 풀. **작업 재개 유형은 예비에서 0** — 다중 커밋 PR 의 첫 커밋을 WIP 로 쓰는 구성이 가능하지만 후보별 확인이 안 됐다(2단계). 2단계 첫 확인: 각 과제의 base 커밋에서 테스트가 컨테이너 안에서 재현되게 도는가(의존성 설치 네트워크 포함) — 안 되면 그 과제를 뺀다.
 
 채점은 **자동 검사가 주**다. 사람이 "수정 없이 수용" 을 판정할 때는 항목마다 **서면 사유**(재현 절차 · 코드 위치)를 붙인다(N11 — 채점자가 하네스 작성자라 문체로 팔을 알아볼 수 있다). "필요한 질문"과 "이미 준 정보를 다시 묻는 질문"을 구분해 기록한다(`-p` 에서 `AskUserQuestion` 은 비활성 — 질문은 결과 텍스트의 요청으로 나타난다).
 
@@ -279,19 +286,19 @@ GLM-5.3 에서 관측된 B−A 차이는 **Opus 5.5 에 대한 효과가 아니�
 
 | | 최소 신호 | **권장(예비)** | 본실험 |
 |---|---|---|---|
-| 과제 | 실사용 6 | **24** (실 6 · DS 12 · TB 6) | 100 (DS 40 · TB 20 · QnA 20 · 실 20) |
-| Opus 실행 | A/B 12 | 상한용 **A 10**(DS 6 · TB 4, 상한 없이) + A/B **48** = 58 | 600 (×3회) |
-| **초기 정리(D9, Opus)** | 6 시작 커밋 × 3 세션 = **18** | 24 × 3 = **72** | 시작 커밋 ≈ 70–100 × 3 = **210–300** |
-| GLM 실행 | 배관 스모크 2 과제 × (정리 3 + A/B) = 10 | 2–4 과제 × 5 = 10–20 | 없음 |
-| **Anthropic 종량 — 과제** | 실 12×$2.5 ≈ **$30** | A 10×$12 + DS 24×$10 + TB 12×$10 + 실 12×$2.5 ≈ **$510** | DS 240×$10 + TB 120×$10 + QnA 120×$5 + 실 120×$2.5 ≈ **$4,500** |
-| **Anthropic 종량 — 도입(정리)** | 18 × $1–3(맥락 채우기 세션, 턴 60 상한) ≈ **$20–55** | 72 × $1–3 ≈ **$70–220** | 210–300 × $1–3 ≈ **$200–900** |
-| **Anthropic 합계** | **$50–135**, 상한 $150 | **$420–970**, 상한 $1,000 | **$3,700–8,900** |
-| **GLM 정액** | 10 실행 — Pro(12,000/5h) 1주기 안. 크레딧 공식의 배수가 비공개라 **크레딧 수는 실측으로**(Z.ai 콘솔 전·후 스냅샷) | 10–20 실행 — 1–2주기 | 해당 없음 |
+| 과제 | 실사용 6 | **18** (실 6 · DS 12) — T-Bench 는 예비 밖(B2) | 100 (DS 40 · TB 20 · QnA 20 · 실 20) |
+| Opus 실행 | A/B 12 | 상한용 **A 10**(DS, 상한 없이) + A/B **36** = 46 | 600 (×3회) |
+| **초기 정리(D9, Opus) — B trial 마다 3 세션** | 6 × 3 = **18** | 18 × 3 = **54** | 300 B trial × 3 = **900** |
+| GLM 실행 | 배관 스모크 2 과제 × A/B(B 는 정리 3 포함) = 4 trial | 같음 4 trial | 없음 |
+| **Anthropic 종량 — 과제** | 실 12×$2.5 ≈ **$30** | A 10×$12 + DS 24×$10 + 실 12×$2.5 ≈ **$390** → $300–650 | DS 240×$10 + TB 120×$10 + QnA 120×$5 + 실 120×$2.5 ≈ **$4,500** |
+| **Anthropic 종량 — 도입(정리)** | 18 × $1–3(맥락 채우기 세션, 턴 60 상한) ≈ **$20–55** | 54 × $1–3 ≈ **$55–160** | 900 × $1–3 ≈ **$900–2,700** |
+| **Anthropic 합계** | **$50–135**, 상한 $150 | **$355–810**, 상한 $850 | **$5,400–10,000** |
+| **GLM 정액** | 4 trial(정리 6 세션 포함) — Pro(12,000/5h) 1주기 안. 크레딧 공식의 배수가 비공개라 **크레딧 수는 실측으로**(Z.ai 콘솔 전·후 스냅샷) | 같음 | 해당 없음 |
 | 인프라 | 로컬 Docker $0 | 로컬 $0 | Modal(QnA 16 CPU · GPU 3) **$100–300** |
-| 벽시계 | 1–2일 | **4–6일**(동시 2 · 정리 세션 5–15분 ×72 ≈ 6–18h 포함) | 2–3주 |
-| 얻는 것 | 배관 + 실사용에서 **방해 여부** | 배관 + Opus 기준 상한 고정 + 첫 신호(3 과제군) + 표본 산정 + 도입 비용 실측 | 공개 가능한 효과 추정(CI 포함) |
+| 벽시계 | 1–2일 | **3–5일**(동시 2 · 정리 세션 5–15분 ×54 ≈ 5–14h 포함) | 3–4주 |
+| 얻는 것 | 배관 + 실사용에서 **방해 여부** | 배관 + Opus 기준 상한 고정 + 첫 신호(2 과제군) + 표본 산정 + 도입 비용 실측 | 공개 가능한 효과 추정(CI 포함) |
 
-도입 비용 추정의 근거는 없다(한 번도 잰 적 없음) — "맥락 6절을 저장소 근거로 채우는 세션 1회 = 입력 0.2–1M · 출력 5–20k 토큰" 가정. 예비 첫 시작 커밋 2개의 정리 6세션에서 실측으로 바꾼다.
+trial 마다 정리하므로 본실험의 정리 세션 수는 **B trial 수 × 3** 이다(저장소 단위 재사용이 아니다 — 재검증 2차 구조). 도입 비용 추정의 근거는 없다(한 번도 잰 적 없음) — "맥락 6절을 저장소 근거로 채우는 세션 1회 = 입력 0.2–1M · 출력 5–20k 토큰" 가정. 스모크 2 과제의 정리 6세션에서 실측으로 바꾼다.
 
 가격은 2026-10-18 요율[S23]. 추정의 가장 큰 불확실성은 **Claude Code 가 과제당 쓰는 토큰**이고, 예비 단계 첫 10 실행에서 측정값으로 바꾼다 — 그 시점에 권장안 예산을 재확인한다(초과 예상이면 과제 수를 줄이고 사유 기록).
 
@@ -328,13 +335,13 @@ docs/plans/513-eval-evidence/
 │  ├─ probe.sh                     curl 직접 대조
 │  ├─ harness-in-task.sh           과제 이미지 안 하네스 설치 → git 이 보는 것(§4.3 근거)
 │  └─ harness-skipworktree-test.sh 상류 CLAUDE.md 가 있을 때 skip-worktree + exclude 처리 검증(B2 실측)
-├─ pier_agent_b.py                 Pier 커스텀 에이전트(모듈 — `--agent-import-path pier_agent_b:HarnessedClaudeCode`): B = claude-code + 하네스 설치 단계(/opt/eval-513 증거) + run() 직전 복사
-├─ prep-b.sh                       D9 초기 정리 3회 — 과제 이미지에 Claude Code·하네스 설치 → 고정 프롬프트 세션 ×3 → prep.tar · 세션 JSON · FILL 수(저장소 밖 out-dir)
-├─ realuse-repo-survey.sh          실사용 후보 저장소의 지시 파일 부재 + 테스트 동반 PR 조사(gh api, 대조군 포함)
-└─ run-pilot.sh                    예비 실행 러너 — env-file · provider(glm|anthropic) · bench(deepswe|tbench, 둘 다 -p 클론) · n · seed. DRY_RUN=1 지원
+├─ pier_agent_b.py                 Pier 커스텀 에이전트(모듈 — `--agent-import-path pier_agent_b:HarnessedClaudeCode`): B = 하네스 설치 단계(빌드, git 과제만 git 처리) + run() 앞단 정리 3세션(같은 컨테이너·egress) + B2 재적용 + 과제 세션
+├─ check-token-leak.sh             토큰 값으로 산출물 grep — 메모리 비교 · 파일 수만 출력 · 대조군(심은 파일 → 1) 내장
+├─ realuse-repo-survey.sh          실사용 후보 저장소의 지시 파일 부재 + 2026-07-01 이후 머지 · 테스트 동반 PR 조사(gh api, 대조군 포함)
+└─ run-pilot.sh                    예비 실행 러너 — env-file · provider(glm|anthropic) · bench(deepswe|tbench) · EVAL_TASKS 로 과제 고정(-i). DRY_RUN=1 지원
 ```
 
-흐름: `run-pilot.sh <env-file> anthropic deepswe 12` → Pier 가 과제 컨테이너 이미지를 빌드하고(설치 단계에서 Claude Code · [B] 하네스 설치 + skip-worktree/exclude) → [B] `/opt/eval-513` → `/logs/agent` 복사 → `claude --print …` → 커밋 수집 → 별도 검증 컨테이너 채점 → `jobs/<job>/<trial>/{config.json, result.json, agent/claude-code.txt, agent/sessions/…/*.jsonl, verifier/reward.json, artifacts/model.patch}`. 집계 스크립트 `summarize.sh`(두 job 의 result.json 을 과제로 맞춰 짝 표 · ①②③ · B 빌드 실패 과제의 양팔 제외 목록)는 2단계 첫 산출물. 실사용 과제는 Harbor 과제 형식(`task.toml` · `instruction.md` = 이슈 본문 · `tests/` = PR 의 테스트 변경 + 기존 스위트 · `environment/Dockerfile` = base 커밋 체크아웃)으로 만들어 같은 러너로 돈다 — 과제 생성 스크립트도 2단계.
+흐름: `EVAL_TASKS='…' run-pilot.sh <env-file> anthropic deepswe` → Pier 가 과제 컨테이너 이미지를 빌드하고(설치 단계에서 Claude Code · [B] 하네스 설치 + skip-worktree/exclude) → [B] `/opt/eval-513` → `/logs/agent` 복사 → [B] 정리 세션 ×3(`agent/prep/`) → B2 재적용 → `claude --print …` → 커밋 수집 → 별도 검증 컨테이너 채점 → `jobs/<job>/<trial>/{config.json, result.json, agent/claude-code.txt, agent/prep/…, agent/sessions/…/*.jsonl, verifier/reward.json, artifacts/model.patch}`. 집계 스크립트 `summarize.sh`(두 job 의 result.json 을 과제로 맞춘 짝 표 · ①②②′③ · `exit 97`/`prep-infra-error` 과제의 양팔 제외 목록 · `prep-failed` 는 B 실패 · 과제 구간 시간 = `agent_execution` − 정리 벽시계)는 2단계 첫 산출물. 실사용 과제는 Harbor 과제 형식(`task.toml` · `instruction.md` = 이슈 본문 · `tests/` = PR 의 테스트 변경 + 기존 스위트 · `environment/Dockerfile` = base 커밋 체크아웃)으로 만들어 같은 러너로 돈다 — 과제 생성 스크립트도 2단계.
 
 ---
 
@@ -347,41 +354,43 @@ docs/plans/513-eval-evidence/
    mkdir -p ~/eval-513 && chmod 700 ~/eval-513
    printf 'ANTHROPIC_AUTH_TOKEN=%s\n' '<키>' > ~/eval-513/glm.env && chmod 600 ~/eval-513/glm.env
    ```
-2. **라우팅 확인(진짜 키, 1턴)** — 비용: 토큰 수백
+2. **과제 저장소를 받고 스모크 과제 id 를 고정한다**(재검증 B6 — 클론이 실행보다 앞에 온다)
+   ```
+   git clone --depth 1 https://github.com/datacurve-ai/deep-swe ~/eval-513/deep-swe   # tasks 35 MB · 과제 이미지는 Pier 가 받는다
+   export EVAL_TASKS='textual-kitty-key-phases go-git-worktree-merge-conflicts'          # §3 의 seed 513 목록 앞 2개 — 이름으로 고정
+   ```
+3. **라우팅 확인(진짜 키, 1턴)** — 비용: 토큰 수백
    ```
    bash docs/plans/513-eval-evidence/glm-container/smoke-glm.sh ~/eval-513/glm.env
    ```
    기대: `zai` 결과 `pong` · `anthropic-control` 은 401 · 산출물 `/tmp/eval-513-smoke/zai.json` 에 `usage.input_tokens > 0`, `total_cost_usd` 0 또는 `modelUsage.*.costBasis = "unknown"`(비용 USD 는 신뢰하지 않는다 — 토큰과 Z.ai 콘솔 크레딧이 기준). `init.model` 이 `glm-5.3` 인지 확인.
-3. **effort 전달 확인(선택, 1턴)** — `-e CLAUDE_CODE_ALWAYS_ENABLE_EFFORT=1` 을 더해 2 를 반복하고 응답 지연·출력 토큰 차이를 본다. 차이가 없으면 "GLM 에서 effort 미전달"로 기록하고 두 팔 모두 같은 조건이니 그대로 진행.
-3b. **초기 정리 3회(B 준비, D9)** — 과제 1~2개의 시작 커밋마다 한 번. 과제 지시문 없이, 그 단계의 모델(GLM)로:
+4. **effort 전달 확인(선택, 1턴)** — `-e CLAUDE_CODE_ALWAYS_ENABLE_EFFORT=1` 을 더해 3 을 반복하고 응답 지연·출력 토큰 차이를 본다. 차이가 없으면 "GLM 에서 effort 미전달"로 기록하고 두 팔 모두 같은 조건이니 그대로 진행.
+5. **과제 2개 A/B 각 1회** (DeepSWE, 상한 축소) — B 는 trial 안에서 정리 3회 → 과제 세션(§4.4). 별도 준비 단계는 없다.
    ```
-   for t in <task-id-1> <task-id-2>; do
-     bash docs/plans/513-eval-evidence/prep-b.sh ~/eval-513/glm.env glm ~/eval-513/deep-swe/tasks/$t ~/eval-513/prep/$t
-   done
+   EVAL_MAX_TURNS=60 EVAL_AGENT_TIMEOUT_MULT=0.25 EVAL_CONCURRENCY=1 \
+     bash docs/plans/513-eval-evidence/run-pilot.sh ~/eval-513/glm.env glm deepswe
    ```
-   산출물 `~/eval-513/prep/<task>/{prep.tar, prep-prompt.txt, sessions/session-{1,2,3}.json, fill-count.txt, prep-git-status.txt}`. `fill-count.txt` 의 FILL 수가 6 에서 줄었는지, `prep-touched-source.txt` 가 비었는지(아니면 그 과제 양팔 제외) 확인. 세션 3개의 `usage`·`duration_ms` 가 도입 비용이다.
-4. **과제 1~2개 A/B 각 1회** (DeepSWE, 상한 축소) — `EVAL_PREP_DIR=~/eval-513/prep` 로 B 가 정리 결과를 적용한다
-   ```
-   git clone --depth 1 https://github.com/datacurve-ai/deep-swe ~/eval-513/deep-swe   # tasks 35 MB
-   EVAL_MAX_TURNS=60 EVAL_AGENT_TIMEOUT_MULT=0.17 EVAL_CONCURRENCY=1 \
-     bash docs/plans/513-eval-evidence/run-pilot.sh ~/eval-513/glm.env glm deepswe 2 513
-   ```
-   상한: 벽시계 30분(10800×0.17) · 턴 60 · 동시 1. 먼저 `DRY_RUN=1` 로 명령을 눈으로 본다.
-5. **B 가 실제로 B 였는지** (설계 검증 B3 반영 — `init` 에 `hooks` 필드는 없고 `hook_response` 는 Pier 명령에 `--include-hook-events` 가 없어 나오지 않는다) — 각 B trial 에서
+   상한: 벽시계 45분(10800×0.25 — B 의 정리 3세션 포함) · 과제 세션 턴 60 · 정리 세션 턴 60 ×3 · 동시 1. 먼저 `DRY_RUN=1` 로 명령을 눈으로 본다(`-i` 두 개가 보여야 한다).
+6. **B 가 실제로 B 였는지** (설계 검증 B3 반영 — `init` 에 `hooks` 필드는 없다) — 각 B trial 에서
    ⓐ `agent/claude-code.txt` 첫 줄 `system/init` 의 **`skills`** 에 설치 기록의 스킬 id 전부(`objective-brief` · `audit-harness-fit` · `north-star` · `gh-issue-workflow` · 메서드 스킬 10종) · **`agents`** 에 `reviewer` · `implementer` · **`mcp_servers`** 에 `context7`(status 무관)
    ⓑ `agent/sessions/projects/-app/*.jsonl`(호스트 trial 폴더에 남는다)에 session-start 훅 출력 문자열 `Session started. Branch:`
    ⓒ `agent/harness-install-record.json` · `harness-git-status-diff.txt`(0바이트) — 설치 단계가 `/opt/eval-513/` 에 쓰고 B 클래스의 `run()` 이 `super().run()` 직전에 `/logs/agent/` 로 복사한 것(빌드 시점에 `/logs/agent` 에 쓴 파일은 실행 시 bind mount 에 가려진다)
    ⓓ A trial 의 같은 자리에 ⓐ 의 하네스 스킬·에이전트·`context7` 과 ⓑ 의 문자열이 **없음**
-   ⓔ (D9) `agent/prep-applied.txt` = `applied` · `agent/fill-count.txt` 의 `after-prep` FILL 수 < `after-install`(6) · `<prep-dir>/<task>/sessions/session-{1,2,3}.json` 3개 존재.
-   다섯 중 하나라도 어긋나면 결과를 쓰지 않고 멈춘다. **가짜 토큰 리허설로 양성/음성 대조 완료**(`feasibility/pier-B-arm-rehearsal.md`): B 의 `init.skills` 30개 중 하네스 스킬 **14개 전부** · `agents` 에 `implementer` · `reviewer` · `mcp_servers` = `[{context7, pending, project}]` · 세션 jsonl 에 `Session started. Branch:` **3회** · `/logs/agent/` 에 `harness-install-record.json` · `harness-git-status-diff.txt`(0바이트) · `harness-git.txt`(`skip-worktree .gitignore`); A 는 `skills` 16(내장만) · `agents` 5(내장만) · `mcp_servers []` · 문자열 **0회**. 덤으로 **SessionStart 훅 이벤트(`hook_started` · `hook_response`, `hook_name: SessionStart:startup`)는 `--include-hook-events` 없이도 stream-json 에 항상 나온다** — B 에 1쌍, A 에 0 → ⓑ 의 가장 싼 확인. 주의: B 에서는 이 훅 이벤트가 `init` 보다 앞에 오므로 `init` 은 첫 줄로 읽지 말고 `"subtype":"init"` 으로 찾는다. 보조: `init.memory_paths` 는 두 팔 모두 `{auto: …/memory/}` 만 — `CLAUDE.md` 를 열거하지 않는다(보조 증거로 쓸 수 없음, 실측).
-6. **usage · 비용 · 채점 · 결과 위치** — trial 마다
-   - `result.json` → `agent_result.{n_input_tokens, n_output_tokens, cost_usd}` · `verifier_result.rewards`
+   ⓔ (D9) `agent/prep/prep-done.txt` 존재 · `agent/prep/session-{1,2,3}.json` 3개 · `agent/prep/prep-timing.txt` 3줄 · `agent/fill-count.txt` 가 `after-install 6 → after-prep <6` **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류 CLAUDE.md 저장소, N2) · 정리 세션이 과제 세션(`claude-code.txt`)보다 **먼저**(세션 jsonl 의 시각 순서) · A trial 에는 `agent/prep/` 이 없음.
+   다섯 중 하나라도 어긋나면 결과를 쓰지 않고 멈춘다. `agent/prep-failed.txt` 가 있는 B trial 은 결과를 쓰되 **B 실패**로 집계하고(§5.3), `agent/prep-infra-error.txt` 가 있으면 양팔 재실행. **가짜 토큰 리허설로 양성/음성 대조 완료**(`feasibility/pier-B-arm-rehearsal.md`): B 의 `init.skills` 30개 중 하네스 스킬 **14개 전부** · `agents` 에 `implementer` · `reviewer` · `mcp_servers` = `[{context7, pending, project}]` · 세션 jsonl 에 `Session started. Branch:` **3회** · `/logs/agent/` 에 `harness-install-record.json` · `harness-git-status-diff.txt`(0바이트) · `harness-git.txt`(`skip-worktree .gitignore`); A 는 `skills` 16(내장만) · `agents` 5(내장만) · `mcp_servers []` · 문자열 **0회**. 덤으로 **SessionStart 훅 이벤트(`hook_started` · `hook_response`, `hook_name: SessionStart:startup`)는 `--include-hook-events` 없이도 stream-json 에 항상 나온다** — B 에 1쌍, A 에 0 → ⓑ 의 가장 싼 확인. 주의: B 에서는 이 훅 이벤트가 `init` 보다 앞에 오므로 `init` 은 첫 줄로 읽지 말고 `"subtype":"init"` 으로 찾는다. 보조: `init.memory_paths` 는 두 팔 모두 `{auto: …/memory/}` 만 — `CLAUDE.md` 를 열거하지 않는다(보조 증거로 쓸 수 없음, 실측).
+7. **usage · 비용 · 채점 · 결과 위치** — trial 마다
+   - `result.json` → `agent_result.{n_input_tokens, n_output_tokens, cost_usd}`(과제 세션) · `verifier_result.rewards` · `agent_execution`(정리 포함 벽시계)
    - `agent/claude-code.txt` 마지막 `result` 줄 → `usage` · `modelUsage` · `num_turns` · `duration_ms` · `permission_denials` · `api_retry` 유무
+   - **정리 구간(B)**: `agent/prep/session-{1,2,3}.json` 의 `modelUsage` · `duration_ms` · `is_error` · `agent/prep/prep-timing.txt`(세션별 벽시계·FILL 수) — 이것이 ②′ 의 도입 비용
    - `verifier/reward.json`(`reward` · `f2p` · `p2p`) · `artifacts/model.patch`(채점된 diff — 하네스 파일이 들어 있으면 §4.3 실패)
    - Z.ai 콘솔의 5시간 크레딧 소비량(실행 전·후 스냅샷) — 이것이 GLM 의 "비용"
-7. **정리** — `docker rmi eval-513-glm` 와 Pier 가 만든 `<task>__*-main` · `*-pier-egress-proxy` 이미지 · `~/eval-513/jobs` 는 보존하되 **`grep -rl '<키 앞 8자>' ~/eval-513/jobs`(`sessions/` 포함 전체)** 가 0건임을 확인한 뒤 `docs/plans/513-eval-evidence/pilot-smoke/` 에 요약만 복사. 키는 실행 중 컨테이너 env 에 있으므로 에이전트가 `env` 를 치면 `claude-code.txt` 와 세션 jsonl 에 남을 수 있다 — 남았으면 그 파일은 복사하지 않는다.
+8. **정리** — `docker rmi eval-513-glm` 와 Pier 가 만든 `<task>__*-main` · `*-pier-egress-proxy` 이미지. `~/eval-513/jobs` 는 보존하되 **토큰 값으로** 유출 검사(재검증 B5):
+   ```
+   bash docs/plans/513-eval-evidence/check-token-leak.sh ~/eval-513/glm.env ~/eval-513
+   ```
+   토큰은 env-file 에서 읽어 메모리에서만 비교하고 출력은 일치 **파일 수**만. 대조군(토큰을 심은 임시 파일 → 1)이 함께 돌아 0 이 "없다"의 증거가 된다(실측: 심은 파일 1 · 깨끗한 폴더 0 · 1단계 `jobs/` 0). 0 이면 `docs/plans/513-eval-evidence/pilot-smoke/` 에 요약만 복사, 아니면 그 파일은 복사하지 않는다(키는 실행 중 컨테이너 env 에 있어 에이전트가 `env` 를 치면 로그에 남을 수 있다).
 
-이 7단계가 끝나면 권장안 1단계(GLM 24 과제)로 가는 데 바뀔 것은 과제 수와 상한값뿐이다.
+이 8단계가 끝나면 권장안(Opus 18 과제)으로 가는 데 바뀔 것은 provider · 과제 목록(§3) · 상한값뿐이다.
 
 ---
 
@@ -393,7 +402,7 @@ docs/plans/513-eval-evidence/
 | D2 | **모델 · effort** | Opus 5.5 · high (두 팔 동일) | Fable 5.1 은 2.5배 단가, Opus 5.5 medium(기본)은 더 싸지만 리더보드와 거리가 멀다 |
 | D3 | **Anthropic 인증** | API 키(`ANTHROPIC_API_KEY`, 종량 — `total_cost_usd` 가 실제 과금과 같은 가격표) | 구독 토큰(`claude setup-token`)은 비용이 보이지 않고 한도가 실험을 끊는다 |
 | D4 | **GLM 토큰 주입** | env-file 하나(`~/eval-513/glm.env`, 저장소 밖 · 0600). 컨테이너 직접 실행은 `docker run --env-file`, Pier 실행은 `pier run --env-file`(dotenv → 호스트 env → 에이전트 컨테이너). **남지 않는 곳** = `pier` 자신의 argv · `lock.json` · `config.json`(마스킹). **있는 곳** = 실행 중 호스트 `ps`(Pier 가 `docker compose exec -e KEY=VALUE` 로 넘긴다) · 컨테이너 env(에이전트가 `env` 를 치면 로그에 남는다) — 단일 사용자 머신 전제. `--ae ANTHROPIC_AUTH_TOKEN=` 은 `pier` argv 에도 남으니 쓰지 않는다 | 키 소유자가 경로와 보관 방식을 정한다 |
-| **D9 (결정 2026-10-18)** | **B 의 상태** | **B = 하네스 설치 + 초기 정리 3회**, 비교 대상은 순정 A(미설치). 예비 실험도 이 구성. 정의·단위·비용 분리·증거 = §4.4. B 가 과제 중 `.claude/`·`CLAUDE.md` 를 건드린 턴 수는 그래도 따로 센다(§2) | 사용자 결정 완료 |
+| **D9 (결정 2026-10-18)** | **B 의 상태** | **B = 하네스 설치 + 초기 정리 3회**, 비교 대상은 순정 A(미설치). 예비 실험도 이 구성. 정리는 **B trial 안에서**(재검증 2차 구조 — 저장소 단위 재사용이 아니라 trial 마다). 정의·실패 규칙·비용 분리·증거 = §4.4. B 가 과제 중 `.claude/`·`CLAUDE.md` 를 건드린 턴 수는 그래도 따로 센다(§2) | 사용자 결정 완료 |
 | D5 | **GLM 약관 해석** | 자동화된 `claude -p` 실행이 "지원 도구 안"인지 **불명확** — 저위험 가정(Claude Code 는 지원 도구, 계정 공유 없음, 동시 1–2) | 위반 시 계정 제한은 사용자의 손실 |
 | D6 | **공개 여부** | 설계·스크립트는 이 리포에 공개(이미 공개 리포) · 결과는 본실험까지 비공개 | 예비 결과는 효과 주장이 아니다(§6) |
 | D7 | **QnA 를 본실험에 넣는가** | 넣되 Modal — 라이선스 미표기는 Scale 에 확인 뒤 | 비용 + 라이선스 |
@@ -431,7 +440,28 @@ docs/plans/513-eval-evidence/
 | N9 seed 뒤에서부터 · 실행 전 확정 | §3 · §8 | — |
 | N11 자동 검사 우선 · 서면 사유 | §5.4 · D8 | — |
 | 더 단순한 대안 1–3 | §0 추천 · §3 · §6 기준점 · §7.2 | — |
-| **D9 사용자 결정** (B = 설치 + 초기 정리 3회) | §4.4 신설 · §4.2 · §2 ②′ · §7.2 도입 비용 행 · §10 3b/5ⓔ · `prep-b.sh` · `pier_agent_b.py prep_dir` | 실행 없음(유료) — 프롬프트·FILL 수 6 은 설치 화면·`src/project-claude-merge.ts` 실측 |
+| **D9 사용자 결정** (B = 설치 + 초기 정리 3회) | §4.4 · §4.2 · §2 ②′ · §7.2 도입 비용 행 · §10 5/6ⓔ/7 · `pier_agent_b.py` | 프롬프트·FILL 수 6 은 설치 화면·`src/project-claude-merge.ts` 실측 · trial 내 정리 리허설 = `feasibility/pier-B-inline-prep-rehearsal.md` |
+
+**2차 검증(`513-design-verify-r2.md`) 반영**
+
+| 건 | 반영 | 증거 |
+|---|---|---|
+| B1 prep.tar 키 잘림 · '설치만 한 B' 분기 | **구조 변경** — 정리를 B trial 안에서(키·tar·분기 없음) | `pier_agent_b.py` `run()` · 리허설 |
+| B2 T-Bench `/app` 비-git | `_git_guard` — git 과제만 git 처리; T-Bench 는 예비 밖, 본실험 git 초기화 결정 항목(§3) | — |
+| B3 정리 실패 삼킴 · `-uall` · 겹쳐 풀기 | 세션별 판정(API 1회 재실행 · 그 밖 B 실패) · `-uall` · tar 없음 | `pier_agent_b.py` · 리허설(401 → 재실행 → `prep-infra-error.txt`) |
+| B4 정리가 네트워크 열린 컨테이너 | 같은 Pier egress 안에서 정리 | 리허설의 `egress-proxy/` |
+| B5 토큰 grep 이 토큰을 안 봄 | `check-token-leak.sh` — 값으로 grep · 메모리 비교 · 건수만 · 대조군 1 | 실측 심은 파일 1 · 깨끗 0 · `jobs/` 0 |
+| B6 §10 순서 · 과제 id | 클론 → `EVAL_TASKS` 고정(seed 513 목록 앞 2) → 실행 | `sample513.py` 재현(iterdir 순서 의존 명시) |
+| B7 R4 cobra 04-24 · structlog 06-01 | 날짜 필터를 스크립트에 · R4 = `go-chi/chi` #1159(08-27) · structlog 풀 제외 · 이유 한 줄 | `realuse-repo-survey.md`(머지일 열) |
+| N1 프롬프트 ≠ 바이트 동일 | "명령형으로 옮긴 고정 문장" 으로 서술 | — |
+| N2 상류 CLAUDE.md 저장소 FILL 0 | ⓔ 두 갈래 | — |
+| N3 ②′ 가 `usage` | `modelUsage` 로 | — |
+| N4 exit 98 구별 불가 | 빌드 실패 = `exception.txt` 'exit 97' · 실행 중 = `prep-failed.txt`/`prep-infra-error.txt` 파일로 구별 | — |
+| N5 run() 경로 리허설 없음 · 사용자 차이 | 새 구조 리허설 · 설치 단계 `chmod a+rwX` 하네스 파일 전부 | 리허설 |
+| N6 `.mcp.json` tracked | `SHARED_TRACKED` 에 추가 | — |
+| N7 예산 재계산 | §7.2 — T-Bench 0 · 정리 = B trial × 3 | — |
+| N8 설치 오류 삼킴 | `prep-b.sh` 삭제로 해당 없음 | — |
+| N9 base 커밋에서 지시 파일 재확인 | §5.4 규칙 ⓕ | — |
 
 ## 13. 1단계에서 하지 않은 것 (Non-Goals 확인)
 
