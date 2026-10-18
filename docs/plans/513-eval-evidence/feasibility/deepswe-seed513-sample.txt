@@ -1,0 +1,7 @@
+# DeepSWE 과제 표본 — Pier 0.3.1 의 --sample-seed 513 을 이 머신(datacurve-ai/deep-swe @ 0b9fabbb, macOS APFS iterdir 순서)에서 재현 (2026-10-18)
+# 주의: Pier 는 iterdir 순서를 섞는다(models/job/config.py:136·159) — 순서가 다른 머신에서는 다른 표본이 나온다. 그래서 목록을 이름으로 고정한다(설계 §3).
+
+valid tasks: 113
+iterdir-order first 3: ['prometheus-typed-label-sorting', 'python-statemachine-state-data-scoping', 'skrub-duration-encoding']
+seed 513 first 12: ['textual-kitty-key-phases', 'go-git-worktree-merge-conflicts', 'valibot-recursive-schema-composition', 'bandit-interprocedural-taint-checks', 'etree-xml-diff-patch', 'yaegi-go-embed-directives', 'abs-stepped-slices', 'effect-sse-httpapi-streaming', 'kgateway-consistent-hash-policy', 'sql-formatter-bigquery-pipe-formatting', 'katex-multicolumn-array-spans', 'claude-code-by-agents-recursive-delegation']
+sorted-order shuffle first 12: ['ytt-jsonpath-query-api', 'goreleaser-retry-publish-auditing', 'python-statemachine-state-data-scoping', 'drizzle-orm-window-function-builders', 'scriggo-method-declarations', 'obsidian-linter-link-format-conversion', 'awilix-async-container-initialization', 'tengo-destructuring-bindings', 'pest-character-class-coalescing', 'bandit-structured-nosec-directives', 'dynamodb-toolbox-conditional-attribute-requirements', 'dateutil-rfc5545-timezone-interop']

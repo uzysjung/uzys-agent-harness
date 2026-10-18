@@ -22,6 +22,7 @@
 | **SWE-Atlas-QnA** (124) | **로컬 부적합** — 모든 과제가 16 CPU / 16 GB 를 요구. 공식 권장은 Modal | **미실행** — 채점이 LLM(Opus 4.5)이라 oracle 대조도 유료 | 코드 변경 시 실패 처리 → B 의 하네스 파일을 채점 diff 에서 빼는 절차가 필수(§4.3). 예비 실험에서 제외, 본실험에서 Modal 로 |
 | **GLM 실행 컨테이너** `eval-513-glm` | **준비됨** — Claude Code 2.1.302 + 하네스 26.174.0, 토큰은 `--env-file` 로만 | **라우팅 확인** — 가짜 토큰이 Z.ai 에 도달해 Z.ai 형식 401(`token expired or incorrect`)을 받았고, BASE_URL 을 비운 대조는 Anthropic 형식 401(`Invalid bearer token`)을 받았다 | Claude Code 가 Z.ai 의 401 을 재시도 가능으로 보고 **10회 지수 백오프(3분)** 로 재시도한다 → 인증·한도 오류가 시간 지표를 오염시킨다(§8) |
 | **예비 실행 경로 리허설** (Pier → DeepSWE 컨테이너 → Claude Code → Z.ai) | **끝까지 이어짐** — Pier 가 amd64 과제 컨테이너에 Claude Code 2.1.302 를 설치하고 `api.z.ai` 만 허용하는 egress 프록시로 실행 | 가짜 토큰이라 401×10 뒤 `NonZeroAgentExitCodeError` — Pier 가 실패를 기록하고 검증기는 reward 0 을 냈다. 토큰은 로그에 0회, `config.json` 에는 마스킹 | 6분(이미지 빌드 포함). 진짜 키로 남은 확인 = `usage` 형식 · effort 전달(§10) |
+| **B 팔 리허설 — trial 안 정리 3회**(2차 구조) | **정리 구간이 과제 세션보다 먼저 돈다** — 설치 단계(빌드) → `agent/prep/session-1.json` … | 가짜 토큰: 정리 세션 1 이 401(API 오류) → 규칙대로 **1회 재실행** → 다시 401 → `agent/prep-infra-error.txt` + exit 96, 과제 세션은 돌지 않음(`claude-code.txt` 없음). FILL 수 after-install **7**(6절 + 배너 1). A trial 에는 `prep/` 없음 | 세션당 3분(10회 재시도). 진짜 키에서 세션이 성공하면 3회 뒤 과제 세션으로 이어진다 — 그 경로는 2단계 첫 실행에서 본다 |
 
 **1회 실행(과제 1개 · 팔 1개) 추정** — Anthropic 종량 · Opus 5.5 · effort high: DeepSWE **$6–15 · 20–60분**, Terminal-Bench **$5–15 · 20–90분**, 실사용 과제 **$1–4 · 5–30분**. 근거는 §7 (DeepSWE 공식 평균 — Opus 5 max $11.84 · Fable 5 xhigh $13.41 — 에 Opus 5.5 단가($4/$20, Opus 5 의 80%)를 적용한 범위다. **Claude Code 로 돈 공개 수치는 없다** — 그래서 예비 실험의 첫 목적이 이 추정치를 실측으로 바꾸는 것이다).
 
@@ -182,7 +183,7 @@ git 처리(skip-worktree · exclude · status 대조)는 **`/app` 이 git 저장
 
 **비용은 따로 집계하고 공개한다.** 정리 3회의 토큰 · 시간 · 비용은 trial 의 **정리 구간**으로 분리한다 — 세션 JSON 의 `modelUsage`(서브에이전트 포함; `usage` 아님 — N3) · `duration_ms` · `prep/prep-timing.txt`(세션별 벽시계). Pier 의 `agent_execution` 은 정리 구간을 포함하므로 과제 구간 시간 = `agent_execution` − 정리 벽시계(summarize.sh). 보고서에는 ⓐ 과제 비용만의 ②와 ⓑ 정리 비용을 더한 ②′ 를 **함께** 적는다(이슈 원칙 "초기 작업을 무료로 치지 않는다"). trial 마다 정리하므로 ②′ 의 배분 수는 1 이다.
 
-**B 판정 증거에 더한다**(§10 7 ⓔ): `prep/prep-done.txt` 존재 · `fill-count.txt` 가 `after-install 6 → after-prep <6`(새 스캐폴드) **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류에 `CLAUDE.md` 가 있어 FILL 안내가 뜨지 않는 저장소 — N2) · 세션 JSON 3개 · `prep-timing.txt` 3줄.
+**B 판정 증거에 더한다**(§10 6 ⓔ): `prep/prep-done.txt` 존재 · `fill-count.txt` 가 `after-install 7 → after-prep <7`(새 스캐폴드 — 6절 + 배너 1, 리허설 실측) **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류에 `CLAUDE.md` 가 있어 FILL 안내가 뜨지 않는 저장소 — N2) · 세션 JSON 3개 · `prep-timing.txt` 3줄.
 
 **모델 일관성.** 정리 세션은 그 trial 의 모델·effort·env 를 그대로 쓴다(`_claude_env()` 가 부모 `run()` 과 같은 조립 — `ANTHROPIC_MODEL` · `DEFAULT_*` · `SUBAGENT_MODEL` · `CLAUDE_CONFIG_DIR`). GLM 단계 = `glm-5.3`, Opus 단계 = `claude-opus-5-5` high.
 
@@ -376,7 +377,7 @@ docs/plans/513-eval-evidence/
    ⓑ `agent/sessions/projects/-app/*.jsonl`(호스트 trial 폴더에 남는다)에 session-start 훅 출력 문자열 `Session started. Branch:`
    ⓒ `agent/harness-install-record.json` · `harness-git-status-diff.txt`(0바이트) — 설치 단계가 `/opt/eval-513/` 에 쓰고 B 클래스의 `run()` 이 `super().run()` 직전에 `/logs/agent/` 로 복사한 것(빌드 시점에 `/logs/agent` 에 쓴 파일은 실행 시 bind mount 에 가려진다)
    ⓓ A trial 의 같은 자리에 ⓐ 의 하네스 스킬·에이전트·`context7` 과 ⓑ 의 문자열이 **없음**
-   ⓔ (D9) `agent/prep/prep-done.txt` 존재 · `agent/prep/session-{1,2,3}.json` 3개 · `agent/prep/prep-timing.txt` 3줄 · `agent/fill-count.txt` 가 `after-install 6 → after-prep <6` **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류 CLAUDE.md 저장소, N2) · 정리 세션이 과제 세션(`claude-code.txt`)보다 **먼저**(세션 jsonl 의 시각 순서) · A trial 에는 `agent/prep/` 이 없음.
+   ⓔ (D9) `agent/prep/prep-done.txt` 존재 · `agent/prep/session-{1,2,3}.json` 3개 · `agent/prep/prep-timing.txt` 3줄 · `agent/fill-count.txt` 가 `after-install 7 → after-prep <7` **또는** `after-install 0 → prep-git-status.txt 에 CLAUDE.md`(상류 CLAUDE.md 저장소, N2) · 정리 세션이 과제 세션(`claude-code.txt`)보다 **먼저**(세션 jsonl 의 시각 순서) · A trial 에는 `agent/prep/` 이 없음.
    다섯 중 하나라도 어긋나면 결과를 쓰지 않고 멈춘다. `agent/prep-failed.txt` 가 있는 B trial 은 결과를 쓰되 **B 실패**로 집계하고(§5.3), `agent/prep-infra-error.txt` 가 있으면 양팔 재실행. **가짜 토큰 리허설로 양성/음성 대조 완료**(`feasibility/pier-B-arm-rehearsal.md`): B 의 `init.skills` 30개 중 하네스 스킬 **14개 전부** · `agents` 에 `implementer` · `reviewer` · `mcp_servers` = `[{context7, pending, project}]` · 세션 jsonl 에 `Session started. Branch:` **3회** · `/logs/agent/` 에 `harness-install-record.json` · `harness-git-status-diff.txt`(0바이트) · `harness-git.txt`(`skip-worktree .gitignore`); A 는 `skills` 16(내장만) · `agents` 5(내장만) · `mcp_servers []` · 문자열 **0회**. 덤으로 **SessionStart 훅 이벤트(`hook_started` · `hook_response`, `hook_name: SessionStart:startup`)는 `--include-hook-events` 없이도 stream-json 에 항상 나온다** — B 에 1쌍, A 에 0 → ⓑ 의 가장 싼 확인. 주의: B 에서는 이 훅 이벤트가 `init` 보다 앞에 오므로 `init` 은 첫 줄로 읽지 말고 `"subtype":"init"` 으로 찾는다. 보조: `init.memory_paths` 는 두 팔 모두 `{auto: …/memory/}` 만 — `CLAUDE.md` 를 열거하지 않는다(보조 증거로 쓸 수 없음, 실측).
 7. **usage · 비용 · 채점 · 결과 위치** — trial 마다
    - `result.json` → `agent_result.{n_input_tokens, n_output_tokens, cost_usd}`(과제 세션) · `verifier_result.rewards` · `agent_execution`(정리 포함 벽시계)
