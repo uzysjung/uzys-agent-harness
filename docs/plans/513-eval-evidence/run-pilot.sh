@@ -13,7 +13,8 @@
 # 두 팔을 같은 과제 목록 · 같은 플래그로 돈다. 차이는 -a (claude-code vs pier_agent_b:HarnessedClaudeCode) 하나다.
 # B 는 trial 안에서 정리 3회(설계 §4.4) → 과제 세션. 정리 산출물 = <trial>/agent/prep/{session-1..3.json, prep-timing.txt, prep-git-status.txt}.
 # 결과: jobs/<job-name>/<trial>/{config.json, result.json, agent/claude-code.txt, agent/sessions/…, verifier/reward.json|reward.txt, artifacts/model.patch}
-#       result.json 의 agent_result.{n_input_tokens,n_output_tokens,cost_usd} 는 **과제 세션**의 Claude Code result 에서 Pier 가 채운다
+#       result.json 의 agent_result.{n_input_tokens,n_output_tokens,cost_usd,n_agent_steps} 는 agent/sessions/projects/*/ 의 jsonl 전부에서 Pier 가 합산한다 —
+#       정리 세션은 CLAUDE_CONFIG_DIR=agent/prep/sessions 로 분리돼 거기 없으므로(3차 검증 B1) 이 값은 **과제 세션만**이다. 정리 비용은 agent/prep/session-*.json 의 modelUsage.
 #       (GLM 에서는 cost_usd 가 비거나 0 — Claude Code 가 모델을 모른다. 토큰 수와 Z.ai 콘솔 크레딧으로 센다).
 set -euo pipefail
 cd "$(dirname "$0")/../../.."

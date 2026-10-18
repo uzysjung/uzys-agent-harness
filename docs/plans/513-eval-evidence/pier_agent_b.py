@@ -57,6 +57,9 @@ SHARED_TRACKED = (".gitignore", "CLAUDE.md", "AGENTS.md", ".mcp.json")  # 설치
 EVIDENCE_DIR = "/opt/eval-513"
 AGENT_LOGS = str(EnvironmentPaths().agent_dir)  # /logs/agent — 호스트 trial 폴더에 bind mount
 PREP_DIR = f"{AGENT_LOGS}/prep"
+# 정리 세션의 설정 디렉터리 — Pier 집계(claude_code.py:201 `_get_session_dir` · :708 `glob("*.jsonl")`) 밖. 과제 세션과 같은 곳에 두면
+# 정리 토큰·스텝이 `agent_result` 에 합산되고 자동 메모리가 정리→과제로 넘어간다(3차 검증 B1 — 리허설 실측 `n_agent_steps 2`).
+PREP_CONFIG_DIR = f"{PREP_DIR}/sessions"
 
 
 def _git_guard(body: str) -> str:
@@ -85,6 +88,7 @@ class HarnessedClaudeCode(ClaudeCode):
         git_part = _git_guard(
             f"git config --global --add safe.directory /app; "
             f"git status --porcelain -uall > {EVIDENCE_DIR}/status-before.txt; "
+            f"git rev-parse HEAD > {EVIDENCE_DIR}/head-before.txt; "  # 3차 N2 — 정리가 커밋을 만들면 status 대조가 못 보므로 HEAD 도 대조
             f"echo 'git-repo: yes' > {EVIDENCE_DIR}/git-repo.txt; "
         )
         git_after = _git_guard(
@@ -128,6 +132,8 @@ class HarnessedClaudeCode(ClaudeCode):
             "ANTHROPIC_BASE_URL": self._get_env("ANTHROPIC_BASE_URL"),
             "CLAUDE_CODE_OAUTH_TOKEN": self._get_env("CLAUDE_CODE_OAUTH_TOKEN") or "",
             "CLAUDE_CODE_MAX_OUTPUT_TOKENS": self._get_env("CLAUDE_CODE_MAX_OUTPUT_TOKENS"),
+            "FORCE_AUTO_BACKGROUND_TASKS": "1",  # 부모 run() 과 같은 두 키(3차 N5)
+            "ENABLE_BACKGROUND_TASKS": "1",
         }
         env = self.build_process_env(env, include_resolved_env=False)
         env = {k: v for k, v in env.items() if v}
@@ -141,7 +147,7 @@ class HarnessedClaudeCode(ClaudeCode):
         env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
         env["IS_SANDBOX"] = "1"
         env.update(self._resolved_env_vars)
-        env["CLAUDE_CONFIG_DIR"] = (EnvironmentPaths.agent_dir / "sessions").as_posix()  # 과제 세션과 같은 곳 → 세션 jsonl 이 함께 남는다
+        env["CLAUDE_CONFIG_DIR"] = (EnvironmentPaths.agent_dir / "sessions").as_posix()  # 과제 세션과 같은 값 — 정리 세션은 _prep_session 이 PREP_CONFIG_DIR 로 바꾼다
         return env
 
     async def _sh(self, environment, command: str, env: dict[str, str] | None = None) -> str:
@@ -152,17 +158,19 @@ class HarnessedClaudeCode(ClaudeCode):
         except NonZeroAgentExitCodeError as e:  # pragma: no cover — 호출자가 '; true' 를 붙이므로 보통 오지 않는다
             return f"__exec_error__ {e}"
 
-    async def _prep_session(self, environment, i: int, env: dict[str, str]) -> dict:
+    async def _prep_session(self, environment, i: int, env: dict[str, str], attempt: int = 1) -> dict:
+        env = {**env, "CLAUDE_CONFIG_DIR": PREP_CONFIG_DIR}  # 3차 B1 — 정리 jsonl·자동 메모리를 과제 세션과 분리
         effort = self._resolved_flags.get("reasoning_effort")
         effort_flag = f"--effort {effort} " if effort else ""
-        out = f"{PREP_DIR}/session-{i}.json"
+        suffix = "" if attempt == 1 else "-retry"  # 3차 N1 — 재실행이 첫 시도의 JSON 을 덮어쓰지 않게
+        out = f"{PREP_DIR}/session-{i}{suffix}.json"
         cmd = (
             'export PATH="$HOME/.local/bin:$PATH"; cd /app; '
-            f"start=$(date -u +%s); "
+            f"mkdir -p {PREP_CONFIG_DIR}; start=$(date -u +%s); "
             f"claude -p {shlex.quote(PREP_PROMPT)} {effort_flag}--permission-mode bypassPermissions --permission-prompts none "
             f"--max-turns {PREP_MAX_TURNS} --max-budget-usd {PREP_MAX_BUDGET_USD} --disallowedTools EnterPlanMode "
-            f"--output-format json > {out} 2> {PREP_DIR}/session-{i}.stderr </dev/null; code=$?; "
-            f"echo \"session-{i} exit=$code wall=$(( $(date -u +%s) - start ))s fill=$(grep -c '<!-- FILL:' CLAUDE.md 2>/dev/null || true)\" >> {PREP_DIR}/prep-timing.txt; "
+            f"--output-format json > {out} 2> {PREP_DIR}/session-{i}{suffix}.stderr </dev/null; code=$?; "
+            f"echo \"session-{i}{suffix} exit=$code wall=$(( $(date -u +%s) - start ))s fill=$(grep -c '<!-- FILL:' CLAUDE.md 2>/dev/null || true)\" >> {PREP_DIR}/prep-timing.txt; "
             f"cat {out}; true"
         )
         raw = await self._sh(environment, cmd, env)
@@ -189,7 +197,7 @@ class HarnessedClaudeCode(ClaudeCode):
             if ok:
                 continue
             if self._is_api_or_infra(d):
-                d2 = await self._prep_session(environment, i, env)  # API·인프라 오류는 1회 재실행
+                d2 = await self._prep_session(environment, i, env, attempt=2)  # API·인프라 오류는 1회 재실행 → session-{i}-retry.json
                 ok2 = d2.get("type") == "result" and not d2.get("is_error") and (d2.get("num_turns") or 0) > 0 and not d2.get("_exit_nonzero")
                 if ok2:
                     continue
@@ -208,13 +216,19 @@ class HarnessedClaudeCode(ClaudeCode):
                 f"cd /app; {_skip_worktree_cmd(f'{PREP_DIR}/prep-git.txt')} "
                 f"git status --porcelain -uall > {PREP_DIR}/prep-git-status.txt; "
                 f"diff {AGENT_LOGS}/status-before.txt {PREP_DIR}/prep-git-status.txt > {PREP_DIR}/prep-git-status-diff.txt || true; "
-                f"cat {PREP_DIR}/prep-git-status-diff.txt;"
+                f"cat {PREP_DIR}/prep-git-status-diff.txt; "
+                f"[ \"$(git rev-parse HEAD)\" = \"$(cat {AGENT_LOGS}/head-before.txt)\" ] || echo 'prep made a commit';"
             ) + " true",
         )
         if status.strip():
-            await self._sh(environment, f"echo 'prep touched tracked/untracked files outside harness paths' > {AGENT_LOGS}/prep-failed.txt; true")
+            await self._sh(environment, f"echo 'prep touched tracked/untracked files outside harness paths, or made a commit' > {AGENT_LOGS}/prep-failed.txt; true")
             await self.exec_as_agent(environment, command="exit 95")
-        await self._sh(environment, f"cd /app; echo \"after-prep $(grep -c '<!-- FILL:' CLAUDE.md 2>/dev/null || true)\" >> {AGENT_LOGS}/fill-count.txt; echo done > {PREP_DIR}/prep-done.txt; true")
+        await self._sh(
+            environment,
+            f"cd /app; echo \"after-prep $(grep -c '<!-- FILL:' CLAUDE.md 2>/dev/null || true)\" >> {AGENT_LOGS}/fill-count.txt; "
+            f"wc -l < .uzys-agent-harness/hook-blocks.log 2>/dev/null > {PREP_DIR}/hook-blocks-after-prep.txt || echo 0 > {PREP_DIR}/hook-blocks-after-prep.txt; "  # 3차 N4 — 과제 세션의 훅 차단 수 기준선
+            f"echo done > {PREP_DIR}/prep-done.txt; true",
+        )
 
         # 3) 과제 세션 — 부모 그대로
         await super().run(instruction, environment, context)

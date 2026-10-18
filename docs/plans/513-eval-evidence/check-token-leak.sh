@@ -12,6 +12,13 @@ ENV_FILE="${1:?env-file}"; shift
 tok=$(grep -E '^(ANTHROPIC_AUTH_TOKEN|ANTHROPIC_API_KEY)=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"'"'"' \r\n')
 [ "${#tok}" -ge 8 ] || { echo "토큰이 8자 미만이거나 env-file 에 없다 — 검사 불가" >&2; exit 2; }
 
+# env-file 자체가 검사 대상 안에 있으면 항상 1 이 난다(3차 검증 B2 실측) — 그 호출은 거절한다. 산출물 폴더(jobs/ 등)만 준다.
+envabs="$(cd "$(dirname "$ENV_FILE")" && pwd -P)/$(basename "$ENV_FILE")"
+for d in "$@"; do
+  dabs=$(cd "$d" 2>/dev/null && pwd -P) || continue
+  case "$envabs" in "$dabs"/*) echo "env-file 이 검사 대상 안에 있다($d) — 항상 1 이 난다. jobs/ 처럼 산출물 폴더만 준다" >&2; exit 3;; esac
+done
+
 # 대조군: 심은 파일에서 정확히 1 이 나와야 한다
 ctl=$(mktemp -d); printf 'noise\n%s\nnoise\n' "$tok" > "$ctl/planted.txt"
 c=$(grep -rlF -- "$tok" "$ctl" 2>/dev/null | wc -l | tr -d ' ')
