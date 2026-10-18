@@ -1,0 +1,8 @@
+# SWE-Atlas-QnA task.toml (scaleapi/SWE-Atlas data/qa, 2026-10-18 실측) — 124 tasks + dataset.toml
+ 124 memory_mb = 16384
+ 124 gpus = 0
+ 124 cpus = 16
+ 124 allow_internet = true
+
+verifier.env: EVAL_API_KEY=${OPENAI_API_KEY} · EVAL_BASE_URL=${OPENAI_API_BASE} · EVAL_MODEL 기본 anthropic/claude-opus-4-5-20251101 (LLM 채점 — 유료)
+이미지: ghcr.io/scaleapi/swe-atlas-v1.1:<repo>@sha256 (digest 핀)

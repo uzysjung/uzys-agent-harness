@@ -1,0 +1,81 @@
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+## node/npm 유무
+/usr/bin/node
+v24.12.0
+/usr/bin/npm
+11.6.2
+## 설치 전 git status
+(end)
+## agent-harness install --track base --cli claude
+exit 0
+              · workflow: audit-harness-fit, ci-scaffold, compaction-handoff, gh-issue-workflow, model-orchestration, natural-korean, north-star, objective-brief, recurrence-prevention, user-centered-explanation
+              · dev-tools: audit-service-gaps, external-model-consult, multi-model-debate, multi-persona-review, self-hosted-github-runner
+              · session-start context cost: 23 items resident · ~5795 tokens/session (directives 7 ~3953 · [rules 5 ~1485 · CLAUDE.md 2 ~2468] · triggers 16 ~1842 · [skills 14 ~1650 · agents 2 ~192] · 1 external asset unmeasured)
+
+━━ Templates ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ rules (5)                    change-management · doc-governance · git-policy · ship-checklist · test-policy
+  ✓ agents (2)                   reviewer · implementer
+  ✓ hooks (2)                    session-start · protect-files
+  ✓ skills (14)                  bundled methodology skills (track · opt-in)
+  ✓ CLAUDE.md (root)             fill-in scaffold + @import · 1 track noted
+  ✓ .github/workflows/ci.yml     CI scaffold (fill-in template)
+  ✓ .claude/settings.json        wrote (harness part only) · added: statusLine, hooks.SessionStart#session-start.sh, hooks.PreToolUse#protect-files.sh
+  ✓ .mcp.json                    wrote (harness part only) · added: context7
+  ✓ .gitignore                   wrote the harness part — yours stays · added: .env, .factory/, .goose/, .uzys-agent-harness/hook-blocks.log, .uzys-agent-harness/update-backups.json, .claude.backup-*/, .codex.backup-*/, .opencode.backup-*/, *.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*
+
+━━ Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ▸ STATUS       Install complete
+  ▸ TRACKS       base
+  ▸ CLI          Claude
+
+  ▸ NEXT         Open Claude — installed rules & skills are now active
+  ▸ FILL         CLAUDE.md — a fill-in scaffold. Open and paste each <!-- FILL: … --> prompt to your agent to tailor it to this project, or ask the audit-harness-fit skill to fill it from repository evidence
+
+## 설치 후 git status (tracked 변경 · untracked)
+ M .gitignore
+?? .claude/
+?? .github/workflows/ci.yml
+?? .mcp.json
+?? .uzys-agent-harness/
+?? CLAUDE-uzys-harness.md
+?? CLAUDE.md
+## .gitignore diff
+diff --git a/.gitignore b/.gitignore
+index 5b3812a..fe3c7ee 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -10,3 +10,15 @@ builds/*
+ .vscode/
+ .DS_Store
+ packages.abs.json
++
++# Secret env (auto-added by agent-harness install)
++.env
++# agent CLI / harness 자동 생성물 (auto-added by agent-harness)
++.factory/
++.goose/
++.uzys-agent-harness/hook-blocks.log
++.uzys-agent-harness/update-backups.json
++.claude.backup-*/
++.codex.backup-*/
++.opencode.backup-*/
++*.backup-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T*
+## .claude/settings.json hooks
+5
+.claude:
+agents
+commands
+hooks
+rules
+settings.json
+skills
+
+.claude/hooks:
+protect-files.sh
+session-start.sh
+## 기록
+check-absence.sh
+protect-branch.sh
+spec-drift-check.sh

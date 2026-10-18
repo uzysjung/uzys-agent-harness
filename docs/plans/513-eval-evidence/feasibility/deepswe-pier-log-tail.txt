@@ -1,0 +1,31 @@
+# pier run 로그 꼬리 (2026-10-18, 로컬 Docker Desktop arm64 · amd64 이미지 에뮬레이션 · NCPU=6 · Mem 8GB)
+
+## oracle
+│ 6      │     1 │
+│ 6      │     1 │
+│ 6      │     1 │
+│ 6      │     1 │
+│ 1.0    │     1 │
+│ 1.0    │     1 │
+│ 1.0    │     1 │
+└────────┴───────┘
+Job Info
+Total runtime: 1m 32s
+Results written to jobs/eval-513-oracle/result.json
+Inspect results by running `pier view jobs`
+pier run -p dl/deep-swe/tasks/abs-stepped-slices -a oracle -o jobs --job-name  2.79s user 1.44s system 4% cpu 1:34.66 total
+oracle exit 0
+
+## nop
+│ 6      │     1 │
+│ 6      │     1 │
+│ 0.0    │     1 │
+│ 1.0    │     1 │
+│ 0.5    │     1 │
+└────────┴───────┘
+Job Info
+Total runtime: 1m 44s
+Results written to jobs/eval-513-nop/result.json
+Inspect results by running `pier view jobs`
+pier run -p dl/deep-swe/tasks/abs-stepped-slices -a nop -o jobs --job-name  -  3.36s user 1.70s system 4% cpu 1:47.05 total
+nop exit 0

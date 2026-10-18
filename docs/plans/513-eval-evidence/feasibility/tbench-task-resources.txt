@@ -1,0 +1,25 @@
+# Terminal-Bench 4.0 task.toml 자원 요구 집계 — harbor-framework/terminal-bench @ 2e29ca91 (2026-10-15), 66 tasks (2026-10-18 실측)
+gpus>0 과제:
+fp8-rmsnorm-gemm
+jax-speedrun-gpu
+math-eval-grader
+
+  59 gpus = 0
+  46 cpus = 2
+  38 memory_mb = 4096
+  22 memory_mb = 8192
+  14 cpus = 4
+  10 memory_mb = 16384
+   7 cpus = 8
+   4 gpus = 1
+   4 cpus = 16
+   2 memory_mb = 32768
+   2 allow_internet = false
+   1 cpus = 1
+
+agent timeout_sec (초):
+  66 28800.0
+
+docker-compose 언급 task.toml: 0
+
+로컬 Docker 로 돈 과제: sound-change-cascade — cpus 2 · memory 4096 · gpus 0 · verifier timeout 300

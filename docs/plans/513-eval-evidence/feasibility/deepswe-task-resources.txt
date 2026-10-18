@@ -1,0 +1,12 @@
+# DeepSWE v1.1 task.toml 자원 요구 집계 — datacurve-ai/deep-swe @ 0b9fabbb (2026-08-26), 113 tasks (2026-10-18 실측)
+ 226 storage_mb = 20480
+ 226 network_mode = "no-network"
+ 226 memory_mb = 8192
+ 226 cpus = 2
+ 113 timeout_sec = 300.0
+ 113 timeout_sec = 1800.0
+ 113 timeout_sec = 10800.0
+ 113 gpus = 0
+ 113 environment_mode = "separate"
+
+# 샘플 이미지 public.ecr.aws/d3j8x8q7/swe-bench-202605:kh7d5m4ed35zfp7gyhx7wdahed82yw72-v1.1 — manifest platform linux/amd64, pull 후 2.76GB

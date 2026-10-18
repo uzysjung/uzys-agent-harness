@@ -1,0 +1,29 @@
+# harbor run 로그 꼬리 (2026-10-18, terminal-bench/terminal-bench@4.0.0 · sound-change-cascade · 로컬 Docker)
+
+## oracle
+│      1 │          0 │ 1.000 │
+└────────┴────────────┴───────┘
+┏━━━━━━━━┳━━━━━━━┓
+┃ Reward ┃ Count ┃
+┡━━━━━━━━╇━━━━━━━┩
+│ 1.0    │     1 │
+└────────┴───────┘
+Job Info
+Total runtime: 49s
+Results written to jobs/eval-513-tb-oracle/result.json
+Inspect results by running `harbor view jobs`
+Share results by running `harbor upload jobs/eval-513-tb-oracle`
+harbor run -d terminal-bench/terminal-bench@4.0.0 -i  -a oracle -e docker -n   6.62s user 3.77s system 17% cpu 1:00.80 total
+tb-oracle exit 0
+
+## nop
+┡━━━━━━━━╇━━━━━━━┩
+│ 0.0    │     1 │
+└────────┴───────┘
+Job Info
+Total runtime: 16s
+Results written to jobs/eval-513-tb-nop/result.json
+Inspect results by running `harbor view jobs`
+Share results by running `harbor upload jobs/eval-513-tb-nop`
+harbor run -d terminal-bench/terminal-bench@4.0.0 -i  -a nop -e docker -n 1 -  4.70s user 1.95s system 30% cpu 22.163 total
+tb-nop exit 0
