@@ -60,7 +60,8 @@ run() { # arm agent...
 run A -a claude-code
 # --agent-import-path 는 모듈 경로(`module:Class`)다 — 파일 경로를 주면 "No module named …" 로 실패한다(2026-10-18 실측). PYTHONPATH 로 폴더를 올린다.
 export PYTHONPATH="docs/plans/513-eval-evidence${PYTHONPATH:+:$PYTHONPATH}"
-run B --agent-import-path "pier_agent_b:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}"
+# D9: B 는 prep-b.sh 가 만든 정리 결과(<EVAL_PREP_DIR>/<task-id>/prep.tar)를 실행 직전에 적용한다. 없으면 정리 0회로 돌고 trial 에 none 으로 남는다.
+run B --agent-import-path "pier_agent_b:HarnessedClaudeCode" --ak "track=${EVAL_TRACK:-base}" --ak "prep_dir=${EVAL_PREP_DIR:-$HOME/eval-513/prep}"
 # B 의 이미지 빌드가 실패한 과제(exit 97 등)는 A 결과에서도 뺀다 — 제외 목록은 집계 단계(summarize.sh)가 두 job 의 result.json 을 맞춰 만든다.
 
 echo "집계: bash docs/plans/513-eval-evidence/summarize.sh $JOBS 513-${BENCH}-${PROVIDER}-*-${STAMP}   (2단계에서 작성)"
