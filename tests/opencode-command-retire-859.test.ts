@@ -18,9 +18,9 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderCliArtifacts } from "../src/commands/install-render.js";
+import { createInstallRenderer, renderCliArtifacts } from "../src/commands/install-render.js";
 import { readInstallLog, writeInstallLog } from "../src/install-log.js";
-import { runInstall } from "../src/installer.js";
+import { type BaselineReport, type ProgressEvent, runInstall } from "../src/installer.js";
 import type { InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -126,5 +126,44 @@ describe("#859 — 설치자 커맨드는 이름이 번들 스킬과 같아도 �
     const report = run("install", { baselineExclude: [`baseline:skills/${id}`] });
     expect(readFileSync(path, "utf8")).toBe(MINE);
     expect(report.opencode?.retiredCommands ?? []).toEqual([]);
+  });
+});
+
+describe("#859 AC4 — update 화면도 은퇴한 OpenCode 커맨드를 알린다", () => {
+  it("기록된 옛 커맨드를 update 가 은퇴시키면 install 화면과 같은 '1 retired' 줄을 낸다", () => {
+    run("install");
+    const id = installedSkillId();
+    const path = writeCommand(id);
+    const log = readInstallLog(projectDir);
+    if (log === null) throw new Error("설치 기록이 없다");
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: [
+        ...(log.externalFiles ?? []),
+        { path: `.opencode/commands/${id}.md`, sha256: "old" },
+      ],
+    });
+
+    let captured: BaselineReport | undefined;
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec: spec(),
+      mode: "update",
+      runExternal: null,
+      onProgress: (e: ProgressEvent) => {
+        if (e.type === "baseline-complete") captured = e.baseline;
+      },
+    });
+    if (captured === undefined) throw new Error("baseline-complete 이벤트가 오지 않았다");
+    expect(existsSync(path)).toBe(false);
+    expect(captured.updateMode?.retiredCommands).toEqual([`.opencode/commands/${id}.md`]);
+
+    const lines: string[] = [];
+    createInstallRenderer((m) => lines.push(m), spec(), false).callbacks.onProgress?.({
+      type: "baseline-complete",
+      baseline: captured,
+    });
+    expect(lines.join("\n")).toMatch(/\.opencode\/commands\/.*1 retired/);
   });
 });
