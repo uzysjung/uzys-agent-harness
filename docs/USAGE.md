@@ -151,7 +151,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode / 
 
 On Codex the ported `session-start.sh` runs only after you review and trust it — separately from trusting the folder. On first launch Codex warns that hooks need review; open `/hooks` and trust it there. The harness does not approve it for you, and Codex asks again whenever the hook changes ([Codex hooks](https://developers.openai.com/codex/hooks)).
 
-If a harness hook script goes missing, `update` puts it back and keeps its `settings.json` entry. An entry whose script is not the harness's and is missing is removed by `update` and only reported by `install` — a hook pointing at a missing file would otherwise fail on every edit.
+If a harness hook script goes missing, `update` puts it back and keeps its `settings.json` entry. An entry whose script is not the harness's and is missing is left in place by both `install` and `update`, which list it on screen — it may be a team hook whose script is generated later, and the harness keeps no copy to bring it back from. A hook pointing at a missing file fails on every edit, so remove the entry yourself if it is stale. The only such entries `update` removes are wirings an earlier harness release installed and later retired.
 
 ### Slash commands
 

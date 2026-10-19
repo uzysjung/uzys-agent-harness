@@ -278,8 +278,8 @@ describe("install 의 settings.json — 이번 선택으로 렌더한 하네스 
       "깔지 않은 훅을 부르는 참조를 썼다 — Write/Edit 마다 exit 127",
     ).not.toContain(PROTECT);
     expect(settingsText()).toContain(SESSION);
-    // install 은 사후 치유를 하지 않는다 — 보고할 것이 없다
-    expect(report.staleHookRefs).toEqual([]);
+    // 깔지 않은 훅을 부르는 참조를 쓰지 않았으니 알릴 죽은 참조도 없다
+    expect(report.keptHookRefs ?? []).toEqual([]);
   });
 
   it("② 앞 설치가 적은 하네스 훅이 이번 선택에서 빠지면 그 참조를 뺀다 (설치자 훅은 그대로)", () => {
@@ -333,7 +333,7 @@ describe("install 의 settings.json — 이번 선택으로 렌더한 하네스 
       spec: { tracks: ["tooling"], options: baseOptions, cli: ["codex"], projectDir },
     });
 
-    expect(report.staleHookRefs).toEqual([]);
+    expect(report.keptHookRefs ?? []).toEqual([]);
     expect(existsSync(join(projectDir, ".claude/settings.json"))).toBe(false);
   });
 });
