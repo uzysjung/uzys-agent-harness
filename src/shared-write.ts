@@ -245,6 +245,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     writer.write(abs, upserted.text, { createInRefresh: true });
   } else if (upserted.changed) {
     mkdirSync(dirname(abs), { recursive: true });
+    if (onDisk !== null) backupIfLossyUtf8(abs); // #653 · #847 — 설치자 파일의 비UTF-8 바이트를 다시 쓰기 전에 보존한다
     writeFileSync(abs, upserted.text);
   }
   // #600 — 몫은 쓴 자리에서 적는다. 변환이 뒤에서 던져도 이 몫은 기록에 남아 재실행 · uninstall 이 알아본다
