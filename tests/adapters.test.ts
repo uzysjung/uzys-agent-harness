@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { ADAPTERS, adapterFor, excludedKeys, keyId, SHARED_FILES } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
 import { configRegions, renderConfigToml } from "../src/codex/config-toml.js";
+import { hashContent } from "../src/install-log.js";
 
 const none = new Set<string>();
 const fresh = new Map<string, string>();
@@ -886,5 +887,35 @@ describe("설치 뒤 체크아웃이 CRLF 로 바꿔도 하네스 몫을 알아�
     const again = upsertOk(adapter, onDisk, v2, u.portions);
     expect(again.kept).toEqual([]);
     expect(again.changed).toBe(true);
+  });
+});
+
+/* ─── 렌더 값 쪽 CRLF(#841) ─────────────────────────────────────────────── */
+
+describe("marker-md — 렌더 값이 CRLF 여도(autocrlf 체크아웃 템플릿) 자기 블록을 알아본다(#841)", () => {
+  const md = ADAPTERS["marker-md"];
+  const x = "# Mine\n";
+  const v1 = "## Rules\r\n\r\nline\r\n";
+  const v2 = new Map([["agents", "## Rules\n\nline 2"]]);
+
+  it("CRLF 렌더로 깐 블록 — update 는 새 판으로 갈아 끼우고 uninstall 은 블록을 걷는다", () => {
+    const u = upsertOk(md, x, new Map([["agents", v1]]));
+    const again = upsertOk(md, u.text, v2, u.portions);
+    expect(again.kept).toEqual([]);
+    expect(again.replaced).toEqual(["agents"]);
+    const s = stripOk(md, u.text, u.portions);
+    expect(s.kept).toEqual([]);
+    expect(s.removed).toEqual(["agents"]);
+    expect(s.text).toBe(x);
+  });
+
+  it("CRLF 원문 sha 로 기록된 옛 설치 — 블록을 하네스 몫으로 알아보고 다음 기록은 \\r 없는 규약으로 고쳐 적는다", () => {
+    const u = upsertOk(md, x, new Map([["agents", v1]]));
+    const tainted = new Map([["agents", hashContent(v1)]]); // #841 이전 판의 기록
+    expect(stripOk(md, u.text, tainted).text).toBe(x);
+    const healed = upsertOk(md, u.text, v2, tainted);
+    expect(healed.kept).toEqual([]);
+    expect(healed.replaced).toEqual(["agents"]);
+    expect(stripOk(md, healed.text, healed.portions).text).toBe(x);
   });
 });

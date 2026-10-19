@@ -40,8 +40,25 @@ function normEol(s: string): string {
   return s.replace(/\r\n/g, "\n").replace(/\r$/, "");
 }
 
-function shas(blocks: ReadonlyMap<string, Region>): Map<string, string> {
-  return new Map([...blocks].map(([k, b]) => [k, hashContent(normEol(b.body))]));
+/** 몫의 sha 는 쓸 때도 읽을 때도 \r 을 뺀 본문으로 잰다(#841) — 렌더 값이 CRLF 여도 기록과 재읽기가 같은 규약이다. */
+function sha(body: string): string {
+  return hashContent(normEol(body));
+}
+
+/**
+ * `recorded` 를 주면 블록 본문 **원문** sha 가 기록과 같은 키는 그 기록을 지금 값으로 본다 — #841 이전 판이 CRLF 렌더
+ * 원문으로 잰 기록도 손대지 않은 블록이면 하네스 몫으로 알아봐, 다음 갱신이 \r 없는 규약으로 다시 적는다(자가 치유).
+ */
+function shas(
+  blocks: ReadonlyMap<string, Region>,
+  recorded: ReadonlyMap<string, string> = new Map(),
+): Map<string, string> {
+  return new Map(
+    [...blocks].map(([k, b]) => {
+      const raw = hashContent(b.body);
+      return [k, recorded.get(k) === raw ? raw : sha(b.body)];
+    }),
+  );
 }
 
 function at<T>(map: ReadonlyMap<string, T>, key: string): T {
@@ -70,9 +87,9 @@ export const markerMd: PortionAdapter<string> = {
     const blocks = parseBlocks(base);
     if (blocks === null) return { ok: false, reason: UNREADABLE };
     const plan = planUpsert({
-      render: new Map([...input.render].map(([k, v]) => [k, hashContent(v)])),
+      render: new Map([...input.render].map(([k, v]) => [k, sha(v)])),
       recorded: fresh ? new Map() : input.recorded,
-      present: shas(blocks),
+      present: shas(blocks, fresh ? new Map() : input.recorded),
       excluded: input.excluded,
     });
     const edits: Edit[] = [
@@ -108,7 +125,7 @@ export const markerMd: PortionAdapter<string> = {
     if (blocks === null) return { ok: false, reason: UNREADABLE };
     const plan = planStrip({
       recorded: input.recorded,
-      present: shas(blocks),
+      present: shas(blocks, input.recorded),
       excluded: input.excluded,
     });
     const text = applyEdits(
