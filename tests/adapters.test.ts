@@ -871,7 +871,18 @@ describe("json-keys 훅 — 몫은 핸들러 하나, 같은 묶음의 다른 핸
     const u = upsertOk(js, "{}", sessionRender);
     const s = stripOk(js, withDup(u.text, at), u.portions);
     expect(s.removed).toEqual(["hooks.SessionStart#session-start.sh"]);
+    // 설치자 줄까지 걷었다 — 호출부가 걷기 전에 백업하고 "yours stays" 라 하지 않게 알린다(#800 경로)
+    expect(s.removedEdited).toEqual(["hooks.SessionStart#session-start.sh"]);
     expect(JSON.parse(s.text)).toEqual({ hooks: { SessionStart: [{ hooks: [prettier] }] } });
+  });
+
+  it("렌더에서 빠진 훅을 upsert 가 걷을 때도 설치자 줄까지 걷었으면 removedEdited 로 알린다(#840)", () => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const again = upsertOk(js, withDup(u.text, "unshift"), new Map(), u.portions);
+    expect(again.removed).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(again.removedEdited).toEqual(["hooks.SessionStart#session-start.sh"]);
+    // 중복이 없으면 고친 것이 없다
+    expect(upsertOk(js, u.text, new Map(), u.portions).removedEdited).toEqual([]);
   });
 
   it("같은 스크립트 핸들러가 둘이어도 update 는 기록과 같은 하네스 핸들러를 새 판으로 갈고 설치자 것은 그대로 둔다(#840)", () => {

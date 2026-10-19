@@ -194,3 +194,25 @@ describe("#800 기록된 하네스 훅 줄을 설치자가 고쳤으면 걷기 �
     expect(out.text).toMatch(/settings\.json — removed the harness part.*\(yours stays\)/);
   });
 });
+
+describe("#840 설치자가 같은 훅 스크립트를 자기 묶음으로 또 등록했으면 걷기 전에 settings.json 을 백업한다", () => {
+  it("설치자 묶음이 앞에 있어도 · 하네스 줄이 그대로여도 — 설치자 줄은 백업에 · 라이브엔 하네스 훅 없음 · 'yours stays' 라 하지 않는다", () => {
+    install(["claude"]);
+    const settings = JSON.parse(readFileSync(abs(SETTINGS), "utf8"));
+    const mine = { type: "command", command: ORIG("session-start.sh"), timeout: 30 };
+    settings.hooks.SessionStart.unshift({ matcher: "startup", hooks: [mine] });
+    writeFileSync(abs(SETTINGS), `${JSON.stringify(settings, null, 2)}\n`);
+
+    const out = uninstall({ yes: true });
+    expect(out.code).toBe(0);
+    const saved = backups();
+    expect(saved).toHaveLength(1);
+    expect(JSON.parse(saved[0] ?? "{}").hooks.SessionStart[0]).toEqual({
+      matcher: "startup",
+      hooks: [mine],
+    });
+    expectNoHarnessHook();
+    expect(out.text).toContain("hooks.SessionStart#session-start.sh");
+    expect(out.text).not.toMatch(/settings\.json — removed.*\(yours stays\)/);
+  });
+});
