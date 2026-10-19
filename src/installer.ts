@@ -715,6 +715,8 @@ function runInstallStages(
   const forgotten = new Set([
     ...outOfTrack.forget,
     ...(anchorRetired?.forget === true ? [anchorRetired.path] : []),
+    // #859 — 은퇴한(또는 이미 없는) 옛 OpenCode 커맨드 기록. 남기면 같은 이름의 설치자 커맨드를 다음 실행이 다시 지운다
+    ...(cliTransforms.opencode?.forgetCommands ?? []),
   ]);
   // #782 — 하네스가 떠난 자리(트랙 밖 룰 · 옛 앵커)를 빌렸으면(`displaced`) 설치자 원본을 되돌린다. 기록 정리는 앞 기록의
   // `rootFiles` 에서 한다 — `buildInstallLog` 가 그 값을 `mergeRootFiles` 로 이어받는다
