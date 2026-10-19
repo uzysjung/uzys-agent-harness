@@ -17,10 +17,10 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   readdirSync,
   readFileSync,
   rmdirSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -60,7 +60,12 @@ import {
   linksToProjectSharedSkill,
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
-import { backupFile, backupIfLossyUtf8, listFilesRecursive } from "./fs-ops.js";
+import {
+  backupFile,
+  backupIfLossyUtf8,
+  listEntriesRecursive,
+  listFilesRecursive,
+} from "./fs-ops.js";
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
@@ -1638,13 +1643,14 @@ export function collectRunBackups(
     if (!BACKUP_SUFFIX.test(rel)) return;
     if (exclude?.has(rel)) return;
     const abs = join(projectDir, rel);
-    if (statSync(abs).mtimeMs < startedAt - 1000) return;
+    // 링크 백업(#839 — 링크를 링크 그대로 남긴다)은 링크 자체의 시각이다 — 따라가면 가리키는 본체의 시각을 읽는다
+    if (lstatSync(abs).mtimeMs < startedAt - 1000) return;
     out.push({ path: rel.replace(BACKUP_SUFFIX, ""), backup: rel });
   };
   for (const e of readdirSync(projectDir, { withFileTypes: true }))
     if (e.isFile()) consider(e.name);
   for (const dir of BACKUP_SCAN_DIRS) {
-    for (const rel of listFilesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);
+    for (const { rel } of listEntriesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);
   }
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }
