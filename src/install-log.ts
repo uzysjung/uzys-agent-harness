@@ -878,6 +878,8 @@ function isValidInstallLogShape(value: unknown): value is InstallLog {
   const spec = v.spec as Record<string, unknown> | undefined;
   if (typeof spec !== "object" || spec === null) return false;
   if (!Array.isArray(spec.tracks)) return false;
+  // #852 — 구기록은 cli · 현기록은 clis. 둘 다 없으면 installedClis 가 읽을 곳이 없다
+  if (!Array.isArray(spec.cli) && !Array.isArray(spec.clis)) return false;
   if (!Array.isArray(v.assets)) return false;
   if (typeof v.templates !== "object" || v.templates === null) return false;
   return true;

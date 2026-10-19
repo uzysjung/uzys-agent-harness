@@ -61,6 +61,14 @@ describe("readInstallLogStatus — 없음/깨짐/정상 (#640)", () => {
       "spec.tracks 결번",
       (v: Record<string, unknown>) => delete (v.spec as Record<string, unknown>).tracks,
     ],
+    [
+      "spec.cli · spec.clis 둘 다 결번 (#852)",
+      (v: Record<string, unknown>) => {
+        const spec = v.spec as Record<string, unknown>;
+        delete spec.cli;
+        delete spec.clis;
+      },
+    ],
     ["assets 결번", (v: Record<string, unknown>) => delete v.assets],
     ["templates 결번", (v: Record<string, unknown>) => delete v.templates],
   ])("파싱은 되지만 %s 이면 corrupted", (_label, mutate) => {
@@ -68,6 +76,31 @@ describe("readInstallLogStatus — 없음/깨짐/정상 (#640)", () => {
     mutate(value);
     writeLog(JSON.stringify(value));
     expect(readInstallLogStatus(dir).status).toBe("corrupted");
+  });
+
+  // #852 — 한쪽만 있는 기록은 정상이다(구기록 = cli 만 · 현기록 = clis)
+  it.each([
+    ["cli 만 (구기록)", "clis"],
+    ["clis 만", "cli"],
+  ])("%s 이면 ok", (_label, drop) => {
+    const value = JSON.parse(VALID) as { spec: Record<string, unknown> };
+    delete value.spec[drop];
+    writeLog(JSON.stringify(value));
+    const result = readInstallLogStatus(dir);
+    expect(result.status).toBe("ok");
+    expect(result.log?.spec.tracks).toEqual(["base"]);
+  });
+
+  it("listAction 이 cli · clis 둘 다 없는 기록을 corrupted 로 안내한다 (#852 — TypeError 아님)", () => {
+    const value = JSON.parse(VALID) as { spec: Record<string, unknown> };
+    delete value.spec.cli;
+    delete value.spec.clis;
+    writeLog(JSON.stringify(value));
+    const err = vi.fn();
+    const exit = vi.fn(() => undefined as never);
+    listAction({ projectDir: dir }, { err, exit });
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(err).toHaveBeenCalledWith(expect.stringContaining("corrupted"));
   });
 
   it("정상 기록은 ok + log 반환", () => {
