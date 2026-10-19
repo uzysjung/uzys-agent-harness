@@ -211,6 +211,33 @@ describe("refreshExternalSkills — 무엇을, 어떤 명령으로 다시 받는
     expect(npxArgs(spawn)[0]).toContain("owner/a");
   });
 
+  it("#851 — 자산마다 기록된 scope 로 다시 받는다: global 로 깐 자산은 `-g`(홈) · project 자산은 프로젝트", () => {
+    // mixed 이력(#560) — global 로 깐 opt-in 자산 뒤에 플래그 없는 재설치가 있어 로그의 scope 는 project 다.
+    const spawn = makeSpawn();
+    const base = fakeLog([
+      { id: "skill-a", method: "skill" },
+      { id: "skill-opt-in", method: "skill" },
+    ]);
+    const r = refreshExternalSkills(tmpProject(), {
+      spawn,
+      assets: CATALOG,
+      log: () => {},
+      readLog: () => ({
+        ...base,
+        assets: base.assets.map((a) =>
+          a.id === "skill-opt-in" ? { ...a, scope: "global" as const } : a,
+        ),
+      }),
+    });
+    expect(r).toMatchObject({ attempted: 2, refreshed: 2 });
+    const calls = npxArgs(spawn);
+    const globalCall = calls.find((a) => a.includes("owner/b"));
+    const projectCall = calls.find((a) => a.includes("owner/a"));
+    expect(globalCall, "global 기록 자산이 프로젝트에 사본으로 깔린다").toContain("-g");
+    expect(projectCall).not.toContain("-g");
+    expect(projectCall).toContain("--copy");
+  });
+
   it("실패는 자산 이름과 함께 보고되고 예외를 던지지 않는다", () => {
     const spawn = vi.fn(() => ({
       pid: 0,
