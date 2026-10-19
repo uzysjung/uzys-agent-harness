@@ -33,7 +33,7 @@ import {
   SKILLS_BLOCK,
   withoutAgentsBlock,
 } from "./agents-md-merge.js";
-import { backupFile } from "./fs-ops.js";
+import { backupFile, backupIfLossyUtf8 } from "./fs-ops.js";
 import { hashContent, type InstallLogPortion } from "./install-log.js";
 import { judge } from "./judge.js";
 import type { OwnedWriter } from "./owned-write.js";
@@ -543,7 +543,11 @@ export function stripShared(params: StripSharedParams): SharedStripResult {
             : `${path}.backup-<time>`,
         };
   if (params.write && fileRemoved) rmSync(abs);
-  else if (params.write && res.changed) writeFileSync(abs, res.text);
+  else if (params.write && res.changed) {
+    // #653 · #847 — 문자열 왕복으로 다시 쓰면 설치자 줄의 비UTF-8 바이트가 영구 변형된다. 그 전에 원시 바이트를 보존한다
+    backupIfLossyUtf8(abs);
+    writeFileSync(abs, res.text);
+  }
   const action = res.removed.length > 0 ? "removed" : res.kept.length > 0 ? "left" : "none";
   return out(action, {
     removed: res.removed,
