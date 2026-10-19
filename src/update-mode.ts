@@ -54,7 +54,11 @@ import {
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "./external-assets.js";
-import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
+import {
+  type ExternalSkillRefresh,
+  type GlobalCopyReclaim,
+  refreshExternalSkills,
+} from "./external-installer.js";
 import {
   foreignOwnedTarget,
   linksToProjectSharedSkill,
@@ -331,6 +335,11 @@ export interface UpdateModeReport {
    * optional = 부재는 "없음"(손으로 만드는 리포트 stub 이 여럿이다).
    */
   catalogRemoved?: ReadonlyArray<CatalogRemoved>;
+  /**
+   * #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본을 회수한 자리(자산 · 자리 · 남긴 파일). 백업은 `judged` 가
+   * 파일마다 말한다. optional = 부재는 "없음".
+   */
+  globalCopiesReclaimed?: ReadonlyArray<GlobalCopyReclaim>;
   /**
    * 설치 기록이 없어 **무엇을 갱신해야 하는지 판정할 수 없었다** (레거시 설치본).
    *
@@ -857,6 +866,7 @@ export function runUpdateMode(
     ).filter((id) => !skillRefresh.notInCatalog.includes(id)),
   ].filter((id) => !saidAsRemoved.has(id));
   report.externalSkillsUnknown = skillRefresh.unknown;
+  if (skillRefresh.reclaimed !== undefined) report.globalCopiesReclaimed = skillRefresh.reclaimed;
 
   const outsideLinks = mergeOutside(
     harness.outside,
