@@ -116,6 +116,17 @@ function updateScreen(): string {
   return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 }
 
+/** `list` 화면 — 색을 벗긴 출력. */
+function listScreen(): string {
+  const out: string[] = [];
+  listAction(
+    { projectDir },
+    { log: (m) => out.push(m), err: () => {}, exit: (() => undefined) as never },
+  );
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+  return out.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+}
+
 function update(): InstallReport {
   return runInstall({
     runExternal: null,
@@ -151,11 +162,13 @@ describe("R3 — 기록된 빼기는 선택에도 걸린다", () => {
     );
     expect(updateScreen()).toContain(`${RULE} — excluded (still on disk`);
     expect(screen).not.toContain(`uninstall --only ${RULE}`);
+    expect(listScreen()).toContain(`⊘ ${RULE}  (baseline · still on disk)`); // #861 — list 도 update 와 같은 말
 
     rmSync(abs(RULE_FILE));
     update(); // A — 손 삭제 뒤 update 는 기록의 최신 선택을 지킨다
     expect(existsSync(abs(RULE_FILE))).toBe(false);
     expect(readInstallLog(projectDir)?.excluded).toContain(RULE);
+    expect(listScreen()).toContain(`⊘ ${RULE}  (baseline)`); // 디스크에 없으면 접미사도 없다
 
     const again = install().screen; // B — 플래그 없는 install 은 새 선택이다
     expect(existsSync(abs(RULE_FILE))).toBe(true);
