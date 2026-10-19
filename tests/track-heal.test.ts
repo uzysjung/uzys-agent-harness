@@ -7,6 +7,8 @@ import {
   hashContent,
   type InstallLog,
   installLogPath,
+  legacyDroppedKeys,
+  legacyReleasedCatalog,
   readInstallLog,
 } from "../src/install-log.js";
 import { type InstallMode, runInstall } from "../src/installer.js";
@@ -160,6 +162,59 @@ describe("B1 — 덮어쓰인 기록에서 정당한 룰을 지우지 않는다"
     expect(screen).not.toContain("cli-development.md");
     expect(raw().externalFiles?.map((f) => f.path)).not.toContain(RULE);
     expect(update()).not.toContain("cli-development.md"); // 다음 실행도 조용하다
+  });
+});
+
+describe("#853 — 트랙을 되살린 읽기도 옛 판이 지운 것으로 적은 키를 되살렸다고 말한다", () => {
+  /** 26.162–26.163 이 남긴 모습 — 하네스 statusLine 을 파일 · 몫에서 빼고 excluded 에 키 id 로 적었다(표시 없음). */
+  const legacyExcluded = (l: InstallLog): InstallLog => {
+    const { excludedKeysMigrated: _m, ...unmarked } = l;
+    return {
+      ...unmarked,
+      portions: (l.portions ?? []).filter(
+        (p) => !(p.path === ".claude/settings.json" && p.key === "statusLine"),
+      ),
+      excluded: ["settings:statusLine"],
+    };
+  };
+
+  function dropStatusLine(): void {
+    const path = join(dir, ".claude/settings.json");
+    const { statusLine: _s, ...rest } = JSON.parse(readFileSync(path, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    writeFileSync(path, JSON.stringify(rest, null, 2));
+  }
+
+  it("heal 과 키 이관이 같은 읽기에서 겹친다 → 되살린 기록이 이관한 키를 내고 update 가 '↺ restored' 를 말한다", () => {
+    s3(legacyExcluded);
+    dropStatusLine();
+
+    const log = readInstallLog(dir);
+    expect(log?.spec.tracks).toEqual(["data", "tooling"]); // heal 이 일어났다
+    expect(legacyDroppedKeys(log)).toEqual(["settings:statusLine"]);
+    expect(legacyReleasedCatalog(log)).toEqual([]);
+
+    const screen = update();
+
+    expect(screen).toContain(
+      "restored 1 harness part(s) an earlier version had marked as removed (settings:statusLine)",
+    );
+  });
+
+  it("이관만(heal 없음) — 현행처럼 키를 낸다", () => {
+    s3((l) => legacyExcluded(noMetaSha(l)));
+    const log = readInstallLog(dir);
+    expect(log?.spec.tracks).toEqual(["data"]); // heal 없음
+    expect(legacyDroppedKeys(log)).toEqual(["settings:statusLine"]);
+  });
+
+  it("heal 만(이관 대상 없음) — 낼 키가 없다", () => {
+    s3();
+    const log = readInstallLog(dir);
+    expect(log?.spec.tracks).toEqual(["data", "tooling"]);
+    expect(legacyDroppedKeys(log)).toEqual([]);
   });
 });
 
