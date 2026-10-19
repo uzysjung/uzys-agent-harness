@@ -133,7 +133,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
     });
 
     it("옛 `.opencode/commands/<id>.md` 는 백업하고 지운다 (같은 이름이 두 줄로 뜨지 않게)", () => {
-      // 전환 전 설치본 재현.
+      // 전환 전 설치본 재현 — 하네스가 쓴 커맨드라 기록(`externalFiles` 기준선)에 있다.
       const cmdDir = join(project, ".opencode/commands");
       mkdirSync(cmdDir, { recursive: true });
       writeFileSync(join(cmdDir, "compaction-handoff.md"), '---\ndescription: "old"\n---\n\nold\n');
@@ -145,7 +145,7 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
         mcp: HARNESS_MCP,
         projectDir: project,
         selectedInternalSkills: ["compaction-handoff"],
-        baseline: new Map(),
+        baseline: new Map([[".opencode/commands/compaction-handoff.md", "sha-of-old"]]),
       });
 
       expect(existsSync(join(cmdDir, "compaction-handoff.md"))).toBe(false);
@@ -154,6 +154,58 @@ describe("runOpencodeTransform (E2E against templates/)", () => {
       // 백업을 남긴다 — 사용자가 고쳤을 수 있고 그 편집분을 되살릴 방법이 없다.
       const backups = readdirSync(cmdDir).filter((f) => f.startsWith("compaction-handoff.md."));
       expect(backups.length).toBeGreaterThan(0);
+    });
+
+    /**
+     * #859 — 은퇴는 **하네스가 쓴 기록**이 있는 커맨드만, 그리고 이번에 같은 이름의 스킬을 둘 때만이다. 이름이 번들 스킬과
+     * 같다는 것만으로 설치자 커맨드를 지우면 install · update 마다 백업 뒤 삭제가 되풀이된다(ADR-096 D6).
+     */
+    describe("#859 — 소유 판정 없이 이름 충돌만으로 지우지 않는다", () => {
+      const NAME = "natural-korean";
+      const REL = `.opencode/commands/${NAME}.md`;
+      const MINE = '---\ndescription: "mine"\n---\n\nmy own\n';
+      const write = () => {
+        mkdirSync(join(project, ".opencode/commands"), { recursive: true });
+        writeFileSync(join(project, REL), MINE);
+      };
+      const transform = (over: {
+        selectedInternalSkills?: string[];
+        baseline?: Map<string, string>;
+        owned?: (rel: string) => boolean;
+      }) =>
+        runOpencodeTransform({
+          harnessRoot: HARNESS_ROOT,
+          mcp: HARNESS_MCP,
+          projectDir: project,
+          selectedInternalSkills: [NAME],
+          baseline: new Map(),
+          ...over,
+        });
+
+      it("기록에 없는 설치자 커맨드(번들 스킬과 같은 이름)는 남긴다 — 백업도 만들지 않는다", () => {
+        write();
+        const report = transform({});
+        expect(readFileSync(join(project, REL), "utf8")).toBe(MINE);
+        expect(report.retiredCommands).toEqual([]);
+        expect(readdirSync(join(project, ".opencode/commands"))).toEqual([`${NAME}.md`]);
+      });
+
+      it("옛 판 로그 수준 소유(`owned`)로 하네스 것이라 말하는 커맨드는 은퇴시킨다", () => {
+        write();
+        const report = transform({ owned: (rel) => rel === REL });
+        expect(existsSync(join(project, REL))).toBe(false);
+        expect(report.retiredCommands).toEqual([join(project, REL)]);
+      });
+
+      it("기록된 커맨드라도 이번에 그 스킬을 두지 않으면(뺀 스킬) 지우지 않는다", () => {
+        write();
+        const report = transform({
+          selectedInternalSkills: [],
+          baseline: new Map([[REL, "sha-of-old"]]),
+        });
+        expect(readFileSync(join(project, REL), "utf8")).toBe(MINE);
+        expect(report.retiredCommands).toEqual([]);
+      });
     });
 
     it("selectedInternalSkills 빈 배열(기본) → 스킬 미생성 (0개)", () => {

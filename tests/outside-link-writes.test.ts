@@ -201,10 +201,21 @@ describe("#678 링크 너머가 프로젝트 밖이면 install · update 가 쓰
   });
 
   it("B2: opencode 옛 커맨드 은퇴가 밖 링크 너머 파일을 지우지도 · 백업하지도 않는다", () => {
+    // #859 — 은퇴 대상은 하네스가 쓴 기록이 있는 커맨드뿐이다. 그 기록을 둔 채로 밖 링크 가드가 무는지 본다.
+    run(["opencode"], ["tooling"]);
+    const log = readInstallLog(projectDir);
+    if (log === null) throw new Error("설치 기록이 없다");
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: [
+        ...(log.externalFiles ?? []),
+        { path: ".opencode/commands/audit-harness-fit.md", sha256: "x" },
+      ],
+    });
     const outCmds = join(outDir, "commands");
     mkdirSync(outCmds);
     writeFileSync(join(outCmds, "audit-harness-fit.md"), "shared cmd\n");
-    mkdirSync(join(projectDir, ".opencode"));
+    mkdirSync(join(projectDir, ".opencode"), { recursive: true });
     symlinkSync(outCmds, join(projectDir, ".opencode/commands"));
     const before = tree(outCmds);
 
