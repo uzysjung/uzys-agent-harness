@@ -973,17 +973,4 @@ describe("marker-md — 렌더 값이 CRLF 여도(autocrlf 체크아웃 템플�
     expect(healed.replaced).toEqual(["agents"]);
     expect(stripOk(md, healed.text, healed.portions).text).toBe(x);
   });
-
-  it("CRLF 원문 sha 로 기록된 뒤 파일이 LF 로 재정규화돼도 알아본다 — 설치자가 고친 블록은 여전히 남긴다", () => {
-    const u = upsertOk(md, x, new Map([["agents", v1]]));
-    const tainted = new Map([["agents", hashContent(v1)]]); // #841 이전 판의 기록
-    const lf = u.text.replace(/\r\n/g, "\n");
-    expect(stripOk(md, lf, tainted).text).toBe(x);
-    const healed = upsertOk(md, lf, v2, tainted);
-    expect(healed.kept).toEqual([]);
-    expect(healed.replaced).toEqual(["agents"]);
-    const edited = lf.replace("line\n", "my line\n");
-    expect(stripOk(md, edited, tainted).kept).toEqual(["agents"]);
-    expect(upsertOk(md, edited, v2, tainted).kept).toEqual(["agents"]);
-  });
 });

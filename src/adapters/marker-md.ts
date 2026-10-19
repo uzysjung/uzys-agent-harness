@@ -46,9 +46,8 @@ function sha(body: string): string {
 }
 
 /**
- * `recorded` 를 주면 블록 본문의 **원문** 또는 그 CRLF 형태의 sha 가 기록과 같은 키는 그 기록을 지금 값으로 본다 — #841
- * 이전 판이 CRLF 렌더 원문으로 잰 기록도, 손대지 않은 블록이면(그 뒤 파일이 LF 로 재정규화됐어도) 하네스 몫으로 알아봐
- * 다음 갱신이 \r 없는 규약으로 다시 적는다(자가 치유). 둘 다 하네스가 쓴 바이트의 줄 끝만 바꾼 것이다.
+ * `recorded` 를 주면 블록 본문 **원문** sha 가 기록과 같은 키는 그 기록을 지금 값으로 본다 — #841 이전 판이 CRLF 렌더
+ * 원문으로 잰 기록도 손대지 않은 블록이면 하네스 몫으로 알아봐, 다음 갱신이 \r 없는 규약으로 다시 적는다(자가 치유).
  */
 function shas(
   blocks: ReadonlyMap<string, Region>,
@@ -56,10 +55,8 @@ function shas(
 ): Map<string, string> {
   return new Map(
     [...blocks].map(([k, b]) => {
-      const rec = recorded.get(k);
-      const asWritten = [b.body, normEol(b.body).replace(/\n/g, "\r\n")];
-      const matches = rec !== undefined && asWritten.some((v) => hashContent(v) === rec);
-      return [k, matches ? rec : sha(b.body)];
+      const raw = hashContent(b.body);
+      return [k, recorded.get(k) === raw ? raw : sha(b.body)];
     }),
   );
 }
