@@ -495,11 +495,12 @@ export function conflictingIds(options: Pick<InstallOptions, "with" | "without">
 /**
  * v26.47.0 — Normalize cac repeatable flag (string | string[] | undefined) → string[].
  * Trim 빈 문자열 + dedup.
+ * #860 — 파서(mri)는 숫자 값을 number 로 넘긴다(`--with 5` → 5 · `--without 0` → 0). 문자열로 받아 모르는 id 경고로 보낸다.
  */
 function normalizeRepeatable(value: string | string[] | undefined): string[] {
-  if (!value) return [];
+  if (value === undefined) return [];
   const arr = Array.isArray(value) ? value : [value];
-  return [...new Set(arr.map((s) => s.trim()).filter((s) => s.length > 0))];
+  return [...new Set(arr.map((s) => String(s).trim()).filter((s) => s.length > 0))];
 }
 
 /* v8 ignore start — thin dep-inject defaults. tests 는 항상 runPipeline / resolveHarnessRoot 주입. */
