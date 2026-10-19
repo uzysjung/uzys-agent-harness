@@ -163,7 +163,11 @@ export interface UninstallActionDeps {
   log?: (msg: string) => void;
   err?: (msg: string) => void;
   exit?: (code: number) => never;
-  spawn?: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
+  spawn?: (
+    cmd: string,
+    args: ReadonlyArray<string>,
+    opts: { cwd: string },
+  ) => SpawnSyncReturns<string>;
   rm?: (path: string) => void;
   /** `--only` 후 로그 재기록. 실패 경로를 테스트에서 재현하기 위해 주입 가능. */
   writeLog?: (projectDir: string, log: InstallLog) => void;
@@ -1587,7 +1591,11 @@ interface ReversePlan {
 }
 
 interface ReverseCtx {
-  spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
+  spawn: (
+    cmd: string,
+    args: ReadonlyArray<string>,
+    opts: { cwd: string },
+  ) => SpawnSyncReturns<string>;
   projectDir: string;
   rm: (path: string) => void;
 }
@@ -1645,7 +1653,11 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
         assetId: asset.id,
         label: `claude plugin uninstall --scope project ${pluginId}`,
         execute: () => {
-          const r = spawn("claude", ["plugin", "uninstall", "--scope", "project", pluginId]);
+          // #845 — install 과 같은 계약(cwd=projectDir): claude 는 cwd 로 프로젝트를 찾고 npm 은 cwd 의 package.json 을
+          // 고친다. 빠지면 `--project-dir` 이 아니라 명령을 친 자리의 프로젝트가 바뀌고 대상 기록은 성공으로 남는다.
+          const r = spawn("claude", ["plugin", "uninstall", "--scope", "project", pluginId], {
+            cwd: ctx.projectDir,
+          });
           if (r.status === 0) return { ok: true };
           // #655 — 사용자가 claude CLI 로 이미 지운 플러그인은 "not found" 로 실패한다.
           // 이것을 실패로 세면 기록에서 빼질 수 없는 막다길이 되고, 전량 uninstall 도
@@ -1674,7 +1686,7 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
         assetId: asset.id,
         label: `npm uninstall --save-dev ${pkg}`,
         execute: () => {
-          const r = spawn("npm", ["uninstall", "--save-dev", pkg]);
+          const r = spawn("npm", ["uninstall", "--save-dev", pkg], { cwd: ctx.projectDir });
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
         },
       };
@@ -2873,8 +2885,17 @@ function readRootClaudeMd(projectDir: string): string | null {
 }
 
 /* v8 ignore start — thin dep-inject defaults. tests 는 항상 mock 주입. */
-function defaultSpawn(cmd: string, args: ReadonlyArray<string>): SpawnSyncReturns<string> {
-  return spawnSync(cmd, [...args], { encoding: "utf8", stdio: "pipe", timeout: 120_000 });
+function defaultSpawn(
+  cmd: string,
+  args: ReadonlyArray<string>,
+  opts: { cwd: string },
+): SpawnSyncReturns<string> {
+  return spawnSync(cmd, [...args], {
+    encoding: "utf8",
+    stdio: "pipe",
+    timeout: 120_000,
+    cwd: opts.cwd,
+  });
 }
 
 function defaultRm(path: string): void {
