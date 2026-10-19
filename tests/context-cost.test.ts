@@ -74,7 +74,45 @@ describe("unmeasured 는 외부 자산만 센다 (#856)", () => {
     expect(externals, "tooling 기본에 external 이 생기면 이 대조를 다시 본다").toEqual([]);
     expect(formatSummary(spec)).not.toMatch(/external assets? unmeasured/);
   });
+
+  /**
+   * #856 리뷰 HIGH — MCP 서버 행도 internal 이지만 세션마다 tool schema 가 상주한다. ADR-044 §4 "미계측 항목은 그대로
+   * 명시한다: 외부 자산 · MCP tool schema(서버 제공)" — 빼면 상주 비용을 숨긴다. external 이라 부르지 않고 따로 말한다.
+   */
+  it("MCP 서버 행은 세지 않는 것이 아니라 'MCP server tool schema' 미계측으로 따로 센다", () => {
+    const one = summarizeContextCost(["context7"]);
+    expect(one).toMatchObject({ unmeasuredCount: 0, mcpUnmeasuredCount: 1 });
+    const line = formatResidentCostLine(
+      residentCost(
+        buildManifest(buildManifestSpec(surfaceSpec(["tooling"]))).filter((e) =>
+          e.applies(buildManifestSpec(surfaceSpec(["tooling"]))),
+        ),
+      ),
+      one,
+    );
+    expect(line).toContain(" · 1 MCP server tool schema unmeasured)");
+    expect(line).not.toContain("external");
+    expect(summarizeContextCost(["ci-scaffold", "context7"]).mcpUnmeasuredCount).toBe(1);
+  });
+
+  it("csr-supabase 확인 화면 · 설치 헤더 — 트랙 기본 MCP 4종을 미계측으로 말한다", () => {
+    const spec = surfaceSpec(["csr-supabase"]);
+    expect(formatSummary(spec)).toContain("4 MCP server tool schemas unmeasured");
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    expect(lines.join("\n")).toContain("4 MCP server tool schemas unmeasured");
+  });
 });
+
+function surfaceSpec(tracks: Track[]): InstallSpec {
+  return {
+    projectDir: "/tmp/x",
+    tracks,
+    cli: ["claude"],
+    options: {},
+    scope: "project",
+  } as unknown as InstallSpec;
+}
 
 /** 표시 표면 증거 (no-false-ship — "표시된다" 주장은 렌더 실행 산출물로 증명). */
 describe("context cost surfaces", () => {
@@ -99,7 +137,10 @@ describe("context cost surfaces", () => {
   const expectedLine = (): string => {
     const assetSpec = buildManifestSpec(spec);
     const entries = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
-    const line = formatResidentCostLine(residentCost(entries), 0);
+    const line = formatResidentCostLine(residentCost(entries), {
+      unmeasuredCount: 0,
+      mcpUnmeasuredCount: 0,
+    });
     // unmeasured 절은 자산 선택에 따라 달라지므로 그 앞부분(개수·토큰·내역)만 비교한다.
     return (line ?? "").split(" · 0 external")[0]?.replace(/\)$/, "") ?? "";
   };

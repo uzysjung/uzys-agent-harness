@@ -837,10 +837,7 @@ export function formatSummary(spec: InstallSpec): string {
     // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
     // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
     // #320 H1 — 헤더와 같은 이유로 **설치기와 같은 spec**(`buildManifestSpec`)으로 센다.
-    const cost = formatResidentCostLine(
-      residentCostFor(spec),
-      summarizeContextCost(finalAssets).unmeasuredCount,
-    );
+    const cost = formatResidentCostLine(residentCostFor(spec), summarizeContextCost(finalAssets));
     if (cost) lines.push(`  · ${cost}`);
   }
 
