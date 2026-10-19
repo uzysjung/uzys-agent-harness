@@ -40,6 +40,7 @@ function pipelineFor(report: InstallReport) {
       mode: report.mode,
       envFiles: report.envFiles,
       rootClaudeMd: null,
+      ...(report.keptHookRefs ? { keptHookRefs: report.keptHookRefs } : {}),
     };
     callbacks?.onProgress?.({ type: "baseline-complete", baseline });
     if (report.external && report.external.attempted.length > 0) {
@@ -75,7 +76,6 @@ const fakeReport: InstallReport = {
   ciScaffold: null,
   external: null,
   updateMode: null,
-  staleHookRefs: [],
   mode: "fresh",
   envFiles: {
     envExampleCreated: false,
@@ -440,39 +440,32 @@ describe("executeSpec", () => {
   });
 
   /**
-   * M-1 — fresh/add/reinstall 분기의 stale hook ref 보고.
+   * #603 · #857 — install 은 스크립트가 없는 훅 참조를 **지우지 않는다**(설치자 몫일 수 있다 — 팀이 커밋한 생성물 배선).
+   * 화면은 실제로 한 일("지우지 않았다")과 경로를 말한다 — 무음이면 지금 유일한 파손 신호(bash exit 127)의 원인을
+   * 설치자가 못 찾고, "removed" 라 적으면 거짓이다(아래 update 분기와 같은 계약).
    *
-   * WHY: 치유기를 install 경로에서도 부르기로 한 처방(A′)의 **채택 조건이 소리를 내는 것**이었다.
-   * 경쟁안이던 "훅 커맨드가 스스로 파일 존재를 확인하고 조용히 넘어간다"(B)는
-   * *지금 유일한 파손 신호(bash exit 127)를 지우면서 아무 말도 안 한다* 는 이유로 기각됐다.
-   * 즉 **렌더가 빠지면 채택안이 기각안으로 퇴화한다** — 이 테스트가 그 퇴화를 막는다.
-   * update 분기는 위 `"renders Update Mode summary…"` 가 이미 지킨다.
-   *
-   * **라벨만 단언하지 않는다.** 경로 나열이 빠지면 사용자는 "2 removed" 만 보고 *무엇이*
-   * 지워졌는지 모르며, 그 상태로는 자기 훅이 사라진 이유를 추적할 방법이 없다. 그래서
-   * 건수와 경로를 **둘 다** 단언하고, 참조를 2건 넣어 나열이 잘리지 않는지까지 본다.
+   * 옛 리포트 모양(`staleHookRefs`)을 함께 실어도 마지막 요약이 "removed" 줄을 내지 않는다 — 지우는 경로가 없는데
+   * 지웠다고 말하던 죽은 줄(#857)이 되살아나는 것을 문다. 참조를 **2건** 넣는다 — 1건이면 절단을 통과시킨다.
    */
-  it("fresh 분기가 제거된 stale hook ref 를 라벨·건수·경로로 노출한다 (무음 금지)", () => {
+  it("install 분기는 남긴 죽은 훅 참조를 건수·경로로 노출한다 — 지웠다고 말하지 않는다", () => {
     const log = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
+    const refs = ["skills/sidecar-skill/suggest.sh", "hooks/legacy-thing.sh"];
     const runPipeline = pipelineFor({
       ...fakeReport,
-      staleHookRefs: ["skills/sidecar-skill/suggest.sh", "hooks/legacy-thing.sh"],
-    });
+      keptHookRefs: refs,
+      staleHookRefs: refs,
+    } as InstallReport);
     executeSpec(baseSpec, { log, exit, runPipeline, resolveHarnessRoot: () => "/h" });
 
-    const row = log.mock.calls
-      .map((args) => String(args[0]))
-      .find((l) => l.includes("stale hook refs"));
-    expect(
-      row,
-      "fresh 분기에 stale hook ref 행이 없다 — install 이 사용자의 settings.json 에서 훅을 " +
-        "지우면서 아무 말도 안 한다. 무음 no-op 은 이 처방의 기각 사유였다.",
-    ).toBeDefined();
-    expect(row).toContain("2 removed");
-    // 경로 나열 — 하나라도 빠지면 사용자가 그 파일을 못 찾는다 (건수만으로는 추적 불가).
+    const lines = log.mock.calls.map((args) => String(args[0]));
+    const row = lines.find((l) => l.includes("스크립트가 없는 훅 참조"));
+    expect(row, "install 이 남긴 죽은 훅 참조를 화면이 말하지 않는다").toBeDefined();
+    expect(row).toContain("2건 — 지우지 않았다");
     expect(row).toContain("skills/sidecar-skill/suggest.sh");
     expect(row).toContain("hooks/legacy-thing.sh");
+    expect(lines.filter((l) => l.includes("stale hook refs"))).toEqual([]);
+    expect(lines.filter((l) => /\bremoved\b/.test(l) && l.includes("hook"))).toEqual([]);
   });
 
   it("shortens long /private/tmp paths in TARGET row", () => {

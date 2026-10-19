@@ -752,23 +752,7 @@ export function renderFinalSummary(
   // v26.78.1 (R2): pairwise if-chain → spec.cli derive. antigravity 누락 + claude 무조건
   //   prepend(claude 미선택 시에도 "Claude" 표기) 버그 fix. 헤더와 동일 SSOT.
   log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
-  // M-1 — settings.json 이 가리키던 없는 스크립트를 지웠으면 **소리를 낸다.** 무음 no-op 은
-  //   이 처방을 채택할 때 명시적 기각 사유였다: 지금 유일한 파손 신호(bash exit 127)를 지우면서
-  //   아무 말도 안 하면, 다음에 참조가 깨져도 아무도 모른다 (`no-false-ship` 원칙 5).
-  //   update 분기(아래 renderPhase1Rows — renderUpdateSummary 는 STATUS/BACKUP 만 찍는다)와
-  //   **같은 라벨·같은 정보량**을 쓰고, 어느 파일이 지워졌는지
-  //   `.claude/` 기준 상대경로로 함께 보여준다 — 파일명만으로는 사용자가 못 찾는다.
-  if (report.staleHookRefs.length > 0) {
-    log(
-      infoRow(
-        "HOOK",
-        c.yellow(
-          `settings.json stale hook refs · ${report.staleHookRefs.length} removed ` +
-            `(${report.staleHookRefs.join(", ")})`,
-        ),
-      ),
-    );
-  }
+  // #857 — install 은 죽은 훅 참조를 지우지 않는다 — 알리는 줄은 Phase 1 행(`keptHookRefs`)이 낸다.
   if (report.external && report.external.skipped > 0) {
     log("");
     log(
