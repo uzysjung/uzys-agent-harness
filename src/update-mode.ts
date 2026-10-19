@@ -1885,7 +1885,7 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  */
 /** 디스크 기준으로 지금 깔린 번들 스킬 — update 는 선택 목록의 사본을 두지 않는다(ADR-085). */
 /** 리뷰 #693 NOTE-1 — 기록 트랙의 baseline 대상 중 설치자가 뺐는데 디스크에 남은 것(install 의 `excludedOnDisk` 와 같은 판정). */
-function excludedBaselineOnDisk(projectDir: string, log: InstallLog | null): string[] {
+export function excludedBaselineOnDisk(projectDir: string, log: InstallLog | null): string[] {
   const excluded = excludedIds(log);
   if (excluded.size === 0) return [];
   const spec = buildAssetSpec({ tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS });

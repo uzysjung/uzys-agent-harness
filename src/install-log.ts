@@ -699,17 +699,16 @@ export function readInstallLogStatus(projectDir: string): InstallLogStatus {
     );
   }
   const migrated = migrateExcluded(log, projectDir);
+  // #585 후속(리뷰 B1·B2) — 옛 판이 덮어쓴 트랙을 sha 로 보증된 메타파일로 되살린다(읽는 쪽 전부가 같은 트랙을 본다)
+  const healed = healRecordedTracks(migrated.log, projectDir, installedClis(migrated.log));
+  // #853 — 호출자가 받는 객체에 건다. heal 은 새 객체를 낼 수 있다
   if (migrated.droppedKeys.length > 0) {
-    LEGACY_RELEASED.set(migrated.log, {
+    LEGACY_RELEASED.set(healed, {
       released: migrated.droppedKeys,
       catalog: migrated.releasedCatalog,
     });
   }
-  // #585 후속(리뷰 B1·B2) — 옛 판이 덮어쓴 트랙을 sha 로 보증된 메타파일로 되살린다(읽는 쪽 전부가 같은 트랙을 본다)
-  return {
-    status: "ok",
-    log: healRecordedTracks(migrated.log, projectDir, installedClis(migrated.log)),
-  };
+  return { status: "ok", log: healed };
 }
 
 /** 읽은 기록 → 그 기록을 읽을 때 옛 판 정리(R5 · 설계 §2.2)가 푼 것. 기록 파일에는 남지 않는다(화면용 — 이력은 `selections`). */
@@ -878,6 +877,8 @@ function isValidInstallLogShape(value: unknown): value is InstallLog {
   const spec = v.spec as Record<string, unknown> | undefined;
   if (typeof spec !== "object" || spec === null) return false;
   if (!Array.isArray(spec.tracks)) return false;
+  // #852 — 구기록은 cli · 현기록은 clis. 둘 다 없으면 installedClis 가 읽을 곳이 없다
+  if (!Array.isArray(spec.cli) && !Array.isArray(spec.clis)) return false;
   if (!Array.isArray(v.assets)) return false;
   if (typeof v.templates !== "object" || v.templates === null) return false;
   return true;
