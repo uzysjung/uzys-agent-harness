@@ -15,6 +15,7 @@ import {
   accessSync,
   existsSync,
   constants as fsConstants,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -33,7 +34,13 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { backupFromCopy, claimBackupDir, listFilesRecursive } from "./fs-ops.js";
+import {
+  backupFromCopy,
+  backupLink,
+  claimBackupDir,
+  listEntriesRecursive,
+  listFilesRecursive,
+} from "./fs-ops.js";
 import {
   buildAssetEntries,
   hashContent,
@@ -713,13 +720,14 @@ export function skillSlotsFor(
 
 /**
  * 도구 호출 전에 옮긴 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일.
- * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로).
+ * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로) · `link` = 링크 자체를 옮겼다(#839).
  */
 interface AsideFile {
   abs: string;
   rel: string;
   slot: string;
   recorded: boolean;
+  link: boolean;
   aside: string;
 }
 
@@ -730,6 +738,8 @@ interface AsideFile {
  * 같은 파일은 실경로(폴더를 realpath 한 자리 + 이름)로 한 번만 든다 — `.claude/skills/<id>` 가 `.agents/skills/<id>` 로의 링크면
  * (#524) 두 자리가 한 폴더라 경로 둘로 잡혀 두 번째 옮기기가 ENOENT 로 죽는다(#838). 링크를 거치지 않는 경로를 남긴다 — 도구가
  * 링크 자리를 실제 폴더로 바꿔도 설치자 파일은 원래 있던 폴더로 돌아간다.
+ * 스킬 폴더 안의 링크(파일 · 폴더 — 공유 에셋 등)는 따라가지 않고 링크 자체를 옮긴다 — 도구가 폴더를 새로 만들면 링크도
+ * 사라진다(#839). 스킬 루트 바로 아래 링크는 스킬 자리 그 자체(#524)라 들지 않는다 — 그 안을 지키는 것이 hold 다.
  */
 function slotFilesToKeep(
   projectDir: string,
@@ -755,8 +765,9 @@ function slotFilesToKeep(
   const realProject = realpathSync(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
-    for (const rel of listFilesRecursive(join(projectDir, slot))) {
+    for (const { rel, link } of listEntriesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
+      if (link && (SKILL_ROOTS as ReadonlyArray<string>).includes(dirname(path))) continue;
       const abs = join(projectDir, path);
       const real = join(realpathSync(dirname(abs)), basename(abs));
       const prev = out.get(real);
@@ -768,13 +779,15 @@ function slotFilesToKeep(
       )
         continue;
       try {
-        if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
-          continue;
-        accessSync(abs, fsConstants.R_OK);
+        if (!link) {
+          if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
+            continue;
+          accessSync(abs, fsConstants.R_OK);
+        }
       } catch {
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
-      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined });
+      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined, link });
     }
   }
   return [...out.values()];
@@ -784,7 +797,8 @@ function slotFilesToKeep(
  * 도구 호출 뒤 한 파일. 원래 자리가 비었거나(설치자 파일) 같은 바이트면, 또는 `restore`(도구가 실패했거나 예외로 끝났다)면
  * 제자리로 되돌린다(`"back"`). 그 밖은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다 — 상류 파일에 덮인 설치자 파일은
  * `displaced`(notes[0] = 백업)로도 적는다: 그 자산이 자리를 떠나면(uninstall) 원본이 돌아온다(#780). 바뀌었거나 지워진
- * 고친 하네스 파일은 백업만 남는다.
+ * 고친 하네스 파일은 백업만 남는다. 링크(#839)는 내용을 재지 않는다 — 자리가 비었으면 되돌리고, 도구가 그 이름에 무엇을 놓았으면
+ * 링크 그대로 백업으로 남긴다.
  */
 function settleAside(
   projectDir: string,
@@ -792,20 +806,24 @@ function settleAside(
   restore: boolean,
 ): "back" | { backup: string; gone: boolean; displaced: InstallLogRootFile | null } {
   let now: Buffer | null = null;
+  let vacant = false;
   try {
-    now = readFileSync(f.abs);
+    if (f.link) lstatSync(f.abs);
+    else now = readFileSync(f.abs);
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code !== "ENOENT" && code !== "ENOTDIR") throw e;
+    vacant = true;
   }
-  if (restore || (now === null ? !f.recorded : now.equals(readFileSync(f.aside)))) {
+  const keep = vacant ? f.link || !f.recorded : now?.equals(readFileSync(f.aside)) === true;
+  if (restore || keep) {
     mkdirSync(dirname(f.abs), { recursive: true });
     renameSync(f.aside, f.abs);
     return "back";
   }
-  const backup = backupFromCopy(f.abs, f.aside);
+  const backup = f.link ? backupLink(f.abs, f.aside) : backupFromCopy(f.abs, f.aside);
   rmSync(f.aside, { force: true });
-  if (f.recorded || now === null) return { backup, gone: now === null, displaced: null };
+  if (f.recorded || vacant) return { backup, gone: vacant, displaced: null };
   return {
     backup,
     gone: false,
