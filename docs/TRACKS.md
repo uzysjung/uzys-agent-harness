@@ -66,7 +66,7 @@ Three more built-in skills are **opt-in on every track**: `gemini-delegate` · `
 
 ## What each stack adds
 
-Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checked on any track — add them at step 3 or with `--with <id>`; that includes every `⚠ experimental` asset.
+Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checked — add them at step 3 or with `--with <id>`; that includes every `⚠ experimental` asset. The one exception is a row marked **opt-in (default on …)**: a track's default MCP server starts checked on the tracks it names, because those tracks install it anyway. That includes `railway-mcp-server`, which stays ⚠ experimental — step 3 shows it as `⚠ experimental (default on your tracks)`. Uncheck it or pass `--without <id>` to leave it out.
 
 ### Frontend
 

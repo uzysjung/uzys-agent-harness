@@ -163,7 +163,7 @@ Every external asset carries a tier. Step 3 shows two of the three as a badge:
 
 - **`★ official`** — Anthropic-official marketplaces and this harness's own assets.
 - **vetted** — 1,000+ GitHub stars, not archived, install path verified. **No badge.** Whether it is pre-checked depends on the asset's condition, not its tier — most vetted assets are opt-in.
-- **`⚠ experimental (opt-in)`** — under 1,000 stars. Never pre-checked, sorted to the bottom of its category; you add it deliberately with a check or `--with`.
+- **`⚠ experimental (opt-in)`** — under 1,000 stars. Never pre-checked, sorted to the bottom of its category; you add it deliberately with a check or `--with`. **One exception:** an experimental asset that is also a track's default MCP server — `railway-mcp-server` on `csr-*`/`ssr-htmx`/`ssr-htmx-fastify`/`full` — starts checked on those tracks, because the track installs it anyway; step 3 shows it as **`⚠ experimental (default on your tracks)`**. Uncheck it or pass `--without railway-mcp-server` to leave it out.
 
 Tiers inform; they never block. A monthly CI job re-reads star counts and archive status and fails if a label no longer matches; another re-runs every install command.
 
