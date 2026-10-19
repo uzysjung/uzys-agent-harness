@@ -152,20 +152,25 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   });
 
   // 3. 옛 커맨드 사본 은퇴. 안 지우면 OpenCode 커맨드 목록에 같은 이름이 **두 줄**로 뜬다
-  //   (옛 `source: "command"` + 새 `source: "skill"`). 대상은 번들 스킬 이름인 것만 —
-  //   목록을 적지 않고 `templates/skills/<이름>/SKILL.md` 존재로 유도한다. 사용자가 직접
-  //   쓴 커맨드는 그 조건에 안 걸린다.
+  //   (옛 `source: "command"` + 새 `source: "skill"`).
+  //
+  //   #859 — 대상은 두 조건을 다 만족하는 것만이다. ⓐ **하네스가 쓴 기록**이 있다 — 기준선(`externalFiles`) 또는
+  //   옛 판의 로그 수준 소유(`owned`). 이름이 번들 스킬과 같다는 것은 소유의 근거가 아니다(ADR-096 D6) — 설치자가
+  //   같은 이름으로 직접 쓴 커맨드는 남긴다. ⓑ 이번 실행이 같은 이름의 스킬을 `.agents/skills/` 에 둔다(`skillIds`) —
+  //   뺀 스킬(`--without baseline:skills/<id>`)의 커맨드는 두 줄이 될 일이 없고, 지우면 대신할 것이 없다.
   //
   //   판정 대신 **백업하고 지운다**: 우리가 렌더한 파일이지만 사용자가 고쳤을 수 있고,
   //   그 편집분을 되살릴 방법이 없다(`retireMcpAllowlist` 와 같은 이유). 파일이 다시
   //   생기지 않으므로 이 백업은 프로젝트당 한 번뿐이다.
   const retiredCommands: string[] = [];
   const cmdDir = join(projectDir, ".opencode/commands");
+  const harnessWrote = (rel: string): boolean =>
+    baseline.has(rel) || (params.owned?.(rel) ?? false);
   if (existsSync(cmdDir)) {
     for (const entry of readdirSync(cmdDir)) {
       if (!entry.endsWith(".md")) continue;
       const id = entry.slice(0, -3);
-      if (!existsSync(join(harnessRoot, "templates/skills", id, "SKILL.md"))) continue;
+      if (!skillIds.includes(id) || !harnessWrote(`.opencode/commands/${entry}`)) continue;
       const victim = join(cmdDir, entry);
       // #678 — 실체가 프로젝트 밖이면(`.opencode/commands` → dotfiles 등) 지우지도 백업하지도 않는다.
       if (writer.skipOutside(victim)) continue;
