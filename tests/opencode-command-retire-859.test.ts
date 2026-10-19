@@ -167,3 +167,55 @@ describe("#859 AC4 — update 화면도 은퇴한 OpenCode 커맨드를 알린�
     expect(lines.join("\n")).toMatch(/\.opencode\/commands\/.*1 retired/);
   });
 });
+
+/**
+ * #859 리뷰 HIGH — 은퇴한 경로가 기록(`externalFiles`)에 남으면, 설치자가 같은 이름으로 새로 쓴 커맨드를 다음 실행이 다시 하네스
+ * 것으로 읽고 백업 뒤 지운다(실행마다 백업이 쌓인다). 은퇴는 기록에서도 빼야 프로젝트당 한 번으로 끝난다.
+ */
+describe("#859 — 은퇴한 옛 커맨드는 기록에서도 빠지고, 같은 이름의 새 설치자 커맨드는 다음 실행이 건드리지 않는다", () => {
+  const recordCommand = (id: string): void => {
+    const log = readInstallLog(projectDir);
+    if (log === null) throw new Error("설치 기록이 없다");
+    writeInstallLog(projectDir, {
+      ...log,
+      externalFiles: [
+        ...(log.externalFiles ?? []),
+        { path: `.opencode/commands/${id}.md`, sha256: "old" },
+      ],
+    });
+  };
+  const recordedPaths = (): string[] =>
+    (readInstallLog(projectDir)?.externalFiles ?? []).map((f) => f.path);
+
+  for (const retireBy of ["install", "update"] as const) {
+    it(`${retireBy} 로 은퇴 → 기록에 경로 없음 → 다시 쓴 동명 커맨드를 다음 install · update 가 남긴다`, () => {
+      run("install");
+      const id = installedSkillId();
+      const rel = `.opencode/commands/${id}.md`;
+      writeCommand(id);
+      recordCommand(id);
+
+      run(retireBy);
+      expect(existsSync(join(projectDir, rel))).toBe(false);
+      expect(recordedPaths()).not.toContain(rel);
+      const backupsAfterRetire = commandBackups().length;
+      expect(backupsAfterRetire).toBeGreaterThan(0);
+
+      const path = writeCommand(id);
+      run("install");
+      expect(readFileSync(path, "utf8")).toBe(MINE);
+      run("update");
+      expect(readFileSync(path, "utf8")).toBe(MINE);
+      expect(commandBackups()).toHaveLength(backupsAfterRetire);
+      expect(recordedPaths()).not.toContain(rel);
+    });
+  }
+
+  it("기록에 있는데 디스크에 이미 없는 옛 커맨드 경로도 기록에서 뺀다", () => {
+    run("install");
+    const id = installedSkillId();
+    recordCommand(id);
+    run("install");
+    expect(recordedPaths()).not.toContain(`.opencode/commands/${id}.md`);
+  });
+});

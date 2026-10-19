@@ -2225,12 +2225,16 @@ function refreshExternalCli(
     // ADR-103 — 은퇴한 옛 Antigravity 앵커는 기록에서 뺀다. 그 경로가 `spec.clis` 없는 옛 로그의 antigravity 유도 근거이므로
     // 빼기 **전** 집합을 같은 기록 쓰기에서 `spec.clis` 로 적는다(BLOCKER-1 — update 의 다른 기록 쓰기는 `spec` 을 건드리지
     // 않으므로 이 자리가 유일한 이행점이다. `buildInstallLog` 가 install 에서 하는 1회 이행을 대신한다, ADR-096 D3).
-    const retiredPath = result.anchorRetired?.forget === true ? result.anchorRetired.path : null;
+    // #859 — 은퇴한(또는 이미 없는) 옛 OpenCode 커맨드 기록도 같은 쓰기에서 뺀다(install 의 `forgotten` 과 같다)
+    const forget = new Set([
+      ...(result.anchorRetired?.forget === true ? [result.anchorRetired.path] : []),
+      ...(result.opencode?.forgetCommands ?? []),
+    ]);
     const merged = mergeExternalFiles(log.externalFiles, written).filter(
-      (f) => f.path !== retiredPath,
+      (f) => !forget.has(f.path),
     );
     const next: InstallLog =
-      retiredPath === null
+      forget.size === 0
         ? { ...log }
         : { ...log, spec: { ...log.spec, clis: [...installedClis(log)] } };
     if (merged.length > 0) next.externalFiles = merged;
