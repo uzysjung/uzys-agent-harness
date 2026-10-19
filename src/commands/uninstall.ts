@@ -1357,9 +1357,11 @@ function settleTrackLog(
   const next = forgetRemoved({ ...installLog, spec: { ...installLog.spec, tracks } }, done);
   const abs = join(projectDir, INSTALLED_TRACKS);
   const key = INSTALLED_TRACKS.slice(CLAUDE_DIR.length);
-  const prior = installLog.policyFiles?.find((f) => f.path === key)?.sha256;
-  const edited =
-    prior !== undefined && safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
+  // #854 — 옛 기록(sha 없음)은 전량 uninstall 과 같은 기준(`templateNext` — 기록 트랙으로 쓴 하네스 판)으로 고쳤는지 본다
+  const prior =
+    installLog.policyFiles?.find((f) => f.path === key)?.sha256 ??
+    hashContent(installedTracksText(installLog.spec.tracks.filter(isTrack)));
+  const edited = safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
   if (!installedClis(installLog).includes("claude") || edited) return next;
   if (outsideProjectTarget(projectDir, abs) !== null) return next;
   const content = installedTracksText(remaining);
