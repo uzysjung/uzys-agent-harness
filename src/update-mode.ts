@@ -606,7 +606,14 @@ export function runUpdateMode(
   //    무엇이 하네스 것인지 근거가 없어 건너뛴다(기록 날조 금지 — 헬퍼도).
   const harness =
     logAtStart === null
-      ? { displaced: [], restored: [], foreignOwned: [], outside: [], judged: [] }
+      ? {
+          displaced: [],
+          restored: [],
+          foreignOwned: [],
+          outside: [],
+          judged: [],
+          wrote: new Set<string>(),
+        }
       : updateHarnessFiles({ projectDir, templatesDir, log: logAtStart, wants, outside, report });
   const claudeDisplaced = harness.displaced;
   // #817 — 판정이 알릴 줄을 낸 파일들(하네스 파일 → 앵커 → 외부 CLI 산출물 순)
@@ -638,7 +645,7 @@ export function runUpdateMode(
 
   // 2.5) 함께 쓰는 파일 셋(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 하네스 몫 — install 과 **같은 writer**
   //      (ADR-099 R2). 기록에 있는데 사라진 몫(훅 배선 · 하네스 서버 · 줄)을 되돌리고 설치자 키는 그대로 둔다.
-  //      자리가 정해져 있다: 0단계(훅 스크립트 되살림) **뒤** — 렌더의 `hookInstalled` 가 되살린 뒤 디스크를 읽는다 —
+  //      자리가 정해져 있다: 1단계(훅 스크립트 쓰기 · 되살림) **뒤** — 렌더의 `hookInstalled` 가 그 쓰기 원장을 읽는다(#843) —
   //      3단계(죽은 참조 알림) **앞** — 탐지기가 최종본을 본다.
   // #709 — 하네스 MCP 서버는 **한 번** 렌더해 `.mcp.json`(2.5단계)과 Codex · OpenCode(4단계)가 같은 값을 받는다. 기록 트랙의
   //   기본 행 ∪ 기록된 선택 행(`.mcp.json` 몫), 기록된 빼기 제외 — 실행 시작 때 읽은 기록으로(2.5단계가 기록을 다시 쓴다).
@@ -657,6 +664,7 @@ export function runUpdateMode(
     claudeManaged,
     droppedKeys: legacyDroppedKeys(logAtStart),
     harnessMcp,
+    harnessWrote: harness.wrote,
   });
 
   // 3) settings.json 죽은 훅 참조 — **알리기만** 한다(install #603 과 같다).
@@ -1050,7 +1058,7 @@ function recordedHarnessHook(
  * 되살리지 않는다(R3). 기록이 없는 설치본(로그 없음)은 건드리지 않는다 — 무엇이 하네스 몫인지 근거가 없다.
  *
  * - `.claude/settings.json` — claude 가 깔린 집합 · `--only hooks`. 렌더의 `hookInstalled` = 이 트랙의 훅 · 빼지 않음 ·
- *   (0단계가 되살린 뒤) 디스크에 있음 — install 과 같은 술어
+ *   1단계 writer 가 이번에 판정해 쓴 것(#843 — 밖 링크 · 원본 없는 자리는 디스크에 있어도 아니다) — install 과 같은 술어
  * - `.mcp.json` — 기록 트랙 · `--only external`(Codex · OpenCode MCP 와 같은 원천)
  * - `.gitignore` — 파일이 있을 때만 · `--only rules`
  *
@@ -1069,6 +1077,8 @@ function writeUpdateSharedFiles(args: {
   droppedKeys: ReadonlyArray<string>;
   /** #709 — 이 실행의 하네스 MCP 서버(Codex · OpenCode 와 같은 값). */
   harnessMcp: McpJson;
+  /** #843 — 1단계 writer 가 이번에 판정해 쓴 하네스 파일(projectDir 상대). */
+  harnessWrote: ReadonlySet<string>;
 }): { writes: SharedWrite[]; legacyRestored: string[]; outside: OutsideLink[] } {
   const { projectDir, harnessRoot, templatesDir, wants } = args;
   const log = readInstallLog(projectDir);
@@ -1095,7 +1105,7 @@ function writeUpdateSharedFiles(args: {
         return (
           manifest.some((e) => e.target === target && e.applies(spec)) &&
           !isBaselineExcluded(target, excluded) &&
-          existsSync(join(projectDir, target))
+          args.harnessWrote.has(target)
         );
       },
       // 기록이 claude 를 깔린 CLI 로 말한다 = install 이 이 파일을 썼다 — 없으면 만든다(훅 배선이 여기 산다)
@@ -1363,6 +1373,8 @@ function updateHarnessFiles(args: {
   outside: OutsideLink[];
   /** #817 — 판정이 알릴 줄을 낸 백업 · 지우기(쓴 순서 → 은퇴 회수 → 번들 밖 스킬 파일). */
   judged: JudgedWrite[];
+  /** #843 — writer 가 이번에 판정해 쓴 경로(밖 링크로 건너뛴 자리는 없다) — 훅 배선이 이것만 부른다. */
+  wrote: ReadonlySet<string>;
 } {
   const { projectDir, templatesDir, log, wants, outside, report } = args;
   const judged: JudgedWrite[] = [];
@@ -1465,6 +1477,7 @@ function updateHarnessFiles(args: {
     foreignOwned,
     outside: ledger.outside,
     judged,
+    wrote: new Set(ledger.writes.map((w) => w.path)),
   };
 }
 
