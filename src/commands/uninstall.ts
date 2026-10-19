@@ -108,7 +108,7 @@ import {
   outsideProjectTarget,
 } from "../outside-project.js";
 import {
-  dropHarnessQuoteBlocks,
+  scaffoldBanner,
   stripHarnessImport,
   upsertHarnessImport,
 } from "../project-claude-merge.js";
@@ -2680,12 +2680,31 @@ function safeRealpath(abs: string): string | null {
 /**
  * #656 — 하네스 제거 후 남는 스캐폴드 배너를 정정한다. 배너 문장("SCAFFOLD — not filled in
  * yet…")은 하네스가 쓴 것이므로 지워도 사용자 몫이 아니다 — 그대로 두면 하네스가 없는
- * 프로젝트가 "아직 안 채웠다"고 계속 주장한다. #837 — 표식 한 줄이 아니라 배너 인용 블록 3줄을
- * 통째로 걷는다(채우는 법 · 앵커 안내도 하네스가 쓴 거짓이다). 옛 판 걷기(`stripLegacyAgentsMd`)와 같은 함수다.
+ * 프로젝트가 "아직 안 채웠다"고 계속 주장한다. #837 — 표식 한 줄이 아니라 배너 3줄(채우는 법 · 앵커 안내도 하네스가
+ * 쓴 거짓이다)을 걷되, **하네스가 쓴 줄과 똑같은 줄만** 걷는다. 인용 블록째 걷으면 배너 바로 아래 설치자가 적은 인용 줄까지
+ * 백업 없이 사라진다 — 루트 `CLAUDE.md` 는 sha 판정이 없는 설치자 파일이다.
  */
 function neutralizeScaffoldBanner(text: string): string {
-  return dropHarnessQuoteBlocks(text.split("\n")).join("\n");
+  return text
+    .split("\n")
+    .filter((line) => !SCAFFOLD_BANNER_LINES.has(line.replace(/\r$/, "")))
+    .join("\n");
 }
+
+/**
+ * 하네스가 루트 `CLAUDE.md` · `AGENTS.md` 에 쓴 배너 줄 — 현행 판 + 옛 판 문구(태그 v26.96.0~v26.174.0 의
+ * `project-claude-merge.ts` 실측, 2026-10-19). 옛 판 문구는 그 판이 쓴 바이트 그대로 고정한다(상수가 바뀌어도 옛 디스크는 그대로다).
+ */
+const SCAFFOLD_BANNER_LINES: ReadonlySet<string> = new Set([
+  ...scaffoldBanner("claude").split("\n"),
+  ...scaffoldBanner("agents-md").split("\n"),
+  // v26.96.0~v26.139.0 — 네 자리에 같은 배너
+  "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.",
+  // v26.140.0
+  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+  // v26.141.0~v26.148.1
+  "> The working principles live in this project's harness anchor — `CLAUDE-uzys-harness.md` (Claude Code, imported from this file), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+]);
 
 /**
  * 기준선과 같은 `AGENTS.md` 를 어떻게 할지 — 실행과 dry-run 이 **같은 술어**를 쓴다.

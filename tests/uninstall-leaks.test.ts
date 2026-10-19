@@ -23,6 +23,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
+import { hashContent, installLogPath } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { scaffoldBanner } from "../src/project-claude-merge.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
@@ -148,6 +149,66 @@ describe("#837 — 스캐폴드 배너 3줄이 전부 걷힌다", () => {
     expect(after).toContain("## Identity & Purpose"); // 채울 절은 설치자 몫으로 남는다
     expect(bannerLeft(after, "claude")).toEqual([]);
     expect(after).not.toContain("imported at the bottom of this file");
+  });
+
+  // 리뷰 BLOCKER — 인용 블록째 걷으면 배너 바로 아래 설치자가 적은 인용 줄이 백업 없이 사라졌다. 배너 줄과 똑같은 줄만 걷는다
+  const MY_NOTE = "> MY OWN NOTE: deploy only on Fridays";
+  const addUnderBanner = (path: string, surface: "claude" | "agents-md"): void => {
+    const last = scaffoldBanner(surface).split("\n").at(-1) ?? "";
+    const text = readFileSync(path, "utf8");
+    expect(text).toContain(last); // 전제: 배너가 깔렸다
+    writeFileSync(path, text.replace(last, `${last}\n${MY_NOTE}`), "utf8");
+  };
+
+  it("루트 CLAUDE.md — 배너 바로 아래 설치자 인용 줄은 남고 배너 3줄만 걷힌다", () => {
+    install(["claude"]);
+    const root = join(projectDir, "CLAUDE.md");
+    addUnderBanner(root, "claude");
+    uninstall();
+    const after = readFileSync(root, "utf8");
+    expect(after).toContain(MY_NOTE);
+    expect(bannerLeft(after, "claude")).toEqual([]);
+  });
+
+  it("AGENTS.md — 배너 바로 아래 설치자 인용 줄은 남고 배너 3줄만 걷힌다", () => {
+    writeFileSync(join(projectDir, "CLAUDE.md"), "# my project\n\nmy own notes\n", "utf8");
+    install(["codex"]);
+    const agents = join(projectDir, "AGENTS.md");
+    addUnderBanner(agents, "agents-md");
+    // 설치자가 고친 마커 파일은 통째로 남는다(#516) — 기록 sha 를 맞춰 "걷어 쓰는" 경로로 보낸다
+    const logPath = installLogPath(projectDir);
+    const rec = JSON.parse(readFileSync(logPath, "utf8"));
+    for (const f of rec.externalFiles ?? [])
+      if (f.path === "AGENTS.md") f.sha256 = hashContent(readFileSync(agents, "utf8"));
+    writeFileSync(logPath, JSON.stringify(rec), "utf8");
+    uninstall();
+    const after = readFileSync(agents, "utf8");
+    expect(after).toContain(MY_NOTE);
+    expect(after).toContain("my own notes");
+    expect(bannerLeft(after, "agents-md")).toEqual([]);
+  });
+
+  it("설치 전부터 있던 설치자 인용 줄(트랙 안내와 같은 낱말)은 바이트 그대로 돌아온다", () => {
+    const mine = "# p\n\n> Active track(s): mine (my own wording)\n\nbody\n";
+    const root = join(projectDir, "CLAUDE.md");
+    writeFileSync(root, mine, "utf8");
+    install(["claude"]);
+    expect(readFileSync(root, "utf8")).toContain("uzys-harness:import"); // 전제: import 를 걷는 경로다
+    uninstall();
+    expect(readFileSync(root, "utf8")).toBe(mine);
+  });
+
+  it("옛 판 배너 문구(v26.141.0~v26.148.1 의 앵커 줄)도 걷는다", () => {
+    install(["claude"]);
+    const root = join(projectDir, "CLAUDE.md");
+    const old =
+      "> The working principles live in this project's harness anchor — `CLAUDE-uzys-harness.md` (Claude Code, imported from this file), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.";
+    const current = scaffoldBanner("claude").split("\n").at(-1) ?? "";
+    writeFileSync(root, readFileSync(root, "utf8").replace(current, old), "utf8");
+    uninstall();
+    const after = readFileSync(root, "utf8");
+    expect(after).not.toContain(old);
+    expect(bannerLeft(after, "claude")).toEqual([]);
   });
 });
 
