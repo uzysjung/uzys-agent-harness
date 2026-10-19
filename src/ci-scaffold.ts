@@ -33,13 +33,14 @@ interface WorkflowVariant {
   applies: (tracks: ReadonlyArray<Track>) => boolean;
 }
 
-const PYTHON_TRACKS = "data|csr-fastapi|full";
+const PYTHON_TRACKS = "data|csr-fastapi|ssr-htmx|full";
 
 /**
  * Track → 변형 매핑 (결정론 — 코드로 되는 건 코드로. 사용자가 받는 파일을 사전에 알 수 있어야 한다):
  *  - node CI: node 계열 트랙, 또는 python 계열이 전혀 없을 때의 fallback — 명시 opt-in 이
  *    트랙 매핑 밖(예: PM 단독)이라고 무설치가 되면 silent no-op (no-false-ship 위반).
- *  - python CI: python 계열 트랙. csr-fastapi·full 은 polyglot — node 와 양쪽 설치.
+ *  - python CI: python 계열 트랙. csr-fastapi·ssr-htmx(FastAPI + daisyUI npm 빌드)·full 은
+ *    polyglot — node 와 양쪽 설치 (#855).
  *  - e2e(Playwright): UI 트랙만 (`hasUiTrack` = csr-*|ssr-*|full).
  */
 const VARIANTS: ReadonlyArray<WorkflowVariant> = [

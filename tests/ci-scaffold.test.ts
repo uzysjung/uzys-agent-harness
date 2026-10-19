@@ -54,6 +54,25 @@ describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () 
     ]);
   });
 
+  // WHY: ssr-htmx 는 FastAPI 백엔드 + daisyUI npm 빌드 — Python 게이트가 빠지면 백엔드가
+  //   npm CI 만으로 검증된다(#855). ssr-htmx-fastify 는 Node 라 python 변형을 받지 않는다.
+  it("polyglot 트랙(ssr-htmx): node + python + e2e 3종 전부 (#855)", () => {
+    const report = run(["ssr-htmx"]);
+    expect(report.written.sort()).toEqual([
+      ".github/workflows/ci-python.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/e2e.yml",
+    ]);
+  });
+
+  it("ssr-htmx-fastify(Node 백엔드): ci.yml + e2e.yml, python 변형 없음 (#855 경계)", () => {
+    const report = run(["ssr-htmx-fastify"]);
+    expect(report.written.sort()).toEqual([
+      ".github/workflows/ci.yml",
+      ".github/workflows/e2e.yml",
+    ]);
+  });
+
   // WHY: 명시 --with 인데 트랙이 매핑 밖(PM 단독)이면 무설치 = silent no-op (no-false-ship 위반).
   //   제네릭 node 스캐폴드 fallback 이 무설치보다 정직하다.
   it("비-dev 트랙(project-management) 명시 opt-in: node ci.yml fallback (silent no-op 방지)", () => {
