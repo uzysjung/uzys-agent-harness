@@ -452,7 +452,9 @@ export async function runInteractive(
         cli: cli ?? ["claude"],
         installed: installed.installed.map((id) => `asset:${id}`),
       });
-      if (result === null) {
+      if (result === null || "back" in result) {
+        // #850 — 확정 전 편집도 다음 진입까지 들고 간다(리셋은 트랙 변경 때만 — confirm ESC 와 같다).
+        if (result !== null) targetSelections = result.back;
         step = "cli"; // silent back
         continue;
       }
@@ -576,7 +578,9 @@ async function runUpdateFlow(ctx: UpdateFlowContext): Promise<InteractiveResult>
         cli: cli ?? [...lockedClis],
         installed: installed.installed.map((id) => `asset:${id}`),
       });
-      if (result === null) {
+      if (result === null || "back" in result) {
+        // #850 — 새 설치 흐름과 같다: 확정 전 편집을 들고 Step 2 로.
+        if (result !== null) targetSelections = result.back;
         step = "cli";
         continue;
       }
