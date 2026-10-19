@@ -1,0 +1,10 @@
+<!-- uzys-harness:import:start -->
+@CLAUDE-uzys-harness.md
+
+## Skills that apply continuously
+
+These installed skills apply to every response or delegation; no prompt ever looks like their job, so open them from this list:
+
+- `user-centered-explanation` — when explaining a development problem, change, or choice to the user, explain what the user does and sees before internal implementation — in every answer and report, not only when approval is asked for; for a detailed re-explanation, a UX before/after comparison, or laying out an important decision, apply this skill.
+- `model-orchestration` — when work is delegated, it decides which lane takes the work and how that lane is run.
+<!-- uzys-harness:import:end -->
