@@ -7,6 +7,8 @@
  * Opt-in 자산은 추천에 포함 X — 사용자가 의식적으로 골라야 함.
  */
 
+import { trackDefaultMcpAssetIds } from "./cli-transforms.js";
+import { resolveBundleRoot } from "./context-cost.js";
 import { assetTrustTier, EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "./types.js";
 
@@ -31,7 +33,25 @@ export function recommendedExternalAssets(presets: ReadonlyArray<Track>): Readon
 }
 
 /**
- * v26.82.0 (Phase R, S6) — preset recommended + userOverride 적용 후 최종 선택 자산 id (정렬).
+ * #709 리뷰 NOTE 7 — 트랙의 기본으로 깔리는 자산: 카탈로그 추천 ∪ **트랙 표가 기본으로 까는 고를 수 있는 MCP 서버**
+ * (`railway-mcp-server` on csr-* · ssr-htmx · ssr-htmx-fastify · full 등). 뒤의 것은 experimental · opt-in 이라 카탈로그
+ * 추천에 안 들지만 실제로 깔린다 — 미체크로 보이면 화면이 결과와 다르다. 체크를 풀면 추천 대비 빼기(`--without <id>`)라
+ * `.mcp.json` · Codex · OpenCode 에서 모두 빠진다.
+ *
+ * #849 — 위저드 3단계 초기 체크 · 사용자 override 계산 · 확인 화면 / 설치 헤더 요약이 **이 하나**를 기준으로 쓴다.
+ * 요약만 카탈로그 추천을 따로 세면 체크된 채 깔리는 MCP 가 개수와 목록에서 빠진다.
+ */
+export function trackDefaultAssets(tracks: ReadonlyArray<Track>): string[] {
+  return [
+    ...new Set([
+      ...recommendedExternalAssets(tracks),
+      ...trackDefaultMcpAssetIds(resolveBundleRoot(), tracks),
+    ]),
+  ];
+}
+
+/**
+ * v26.82.0 (Phase R, S6) — 트랙 기본(`trackDefaultAssets`) + userOverride 적용 후 최종 선택 자산 id (정렬).
  * 이전엔 install.ts `computeFinalAssets` ↔ interactive.ts `formatSummary` 에 동일 merge 가
  * 중복 구현 (v26.62.4 주석이 본 위치를 통합 지점으로 지목). 우선순위: forceExclude > forceInclude.
  */
@@ -39,7 +59,7 @@ export function finalSelectedAssets(
   tracks: ReadonlyArray<Track>,
   userOverride?: InstallSpec["userOverride"],
 ): string[] {
-  const selected = new Set(recommendedExternalAssets(tracks));
+  const selected = new Set(trackDefaultAssets(tracks));
   if (userOverride) {
     for (const id of userOverride.forceExclude) selected.delete(id);
     for (const id of userOverride.forceInclude) selected.add(id);
