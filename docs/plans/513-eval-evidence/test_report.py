@@ -67,6 +67,22 @@ class OldJobs(unittest.TestCase):
         self.assertIn("C2", summary)
 
 
+PROBE = pathlib.Path.home() / "eval-513" / "jobs-probe"
+
+
+@unittest.skipUnless((PROBE / "swt-pier-nop-probe").is_dir(), "SWT nop 확인 job 없음")
+class VerifierTimeoutOnEmptyPatch(unittest.TestCase):
+    def test_empty_patch_timeout_is_no_submission_zero(self):
+        # SWT nop 확인(2026-10-19): 빈 패치 → 검증기 1200초 초과 ×2. 정의상 0점 — 인프라 무효로 재실행하지 않는다
+        ts = [t for t in report.load_trials(PROBE) if t["job"] == "swt-pier-nop-probe"]
+        self.assertEqual(len(ts), 1)
+        t = ts[0]
+        self.assertEqual(t["exc"], None)
+        self.assertTrue(t["verifier_timeout_empty"])
+        self.assertEqual((t["reward"], t["submitted"]), (0.0, False))
+        self.assertTrue(report.valid(t))
+
+
 class Effect(unittest.TestCase):
     def test_bootstrap_bounds(self):
         mean, lo, hi, p = report.bootstrap([1.0] * 10)

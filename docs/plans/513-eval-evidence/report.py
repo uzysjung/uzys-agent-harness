@@ -23,7 +23,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import eval_common as ec  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
-TERMS = ("스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료", "시간 상한", "턴 상한", "예산 상한", "API 오류", "설정 실패", "인프라 오류", "스크립트 세션")
+TERMS = ("스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료", "시간 상한", "턴 상한", "예산 상한", "API 오류", "설정 실패", "인프라 오류", "결과 없음", "스크립트 세션")
 SELF_FINISHED = {"스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료"}
 OK_EXC = {None, "AgentTimeoutError", "NonZeroAgentExitCodeError"}
 DETECTION = {  # 설계 §5 검출 한계(공개 p 모의, 효과 0 오판 2–3%)
@@ -63,7 +63,7 @@ def arm_of(cfg: dict) -> str:
         return "B"  # 옛 형식
     if ag.get("name") == "claude-code":
         return "A"
-    raise ValueError(f"팔을 판정할 수 없다: {ag}")
+    return str(ag.get("name"))  # nop · oracle 등 — 짝·경보에 들어가지 않는다
 
 
 def load_trials(root: pathlib.Path) -> list[dict]:
@@ -108,8 +108,19 @@ def swt_patch(t: dict) -> str | None:
     out = t["dir"] / "verifier" / "test-stdout.txt"
     if not out.is_file():
         return None
-    m = re.search(r"\+ cat /root/model_test\.patch\n(.*?)\n=+\n", out.read_text(errors="replace"), re.S)
+    # set -x 출력: `++ cat /root/model_test.patch` · <패치> · `++ echo ====…` · `====…` (빈 패치면 echo 줄이 바로 온다)
+    m = re.search(r"^\+\+ cat /root/model_test\.patch\n(.*?)^\+\+ echo =+$", out.read_text(errors="replace"), re.S | re.M)
     return m.group(1) if m else None
+
+
+def swt_coverage_delta(t: dict) -> float | None:
+    """SWT 검증기 보고(`SWTBench report starts here` 다음 줄 JSON)의 coverage_delta_pred — 보조 지표 ΔC 의 재료."""
+    out = t["dir"] / "verifier" / "test-stdout.txt"
+    m = re.search(r"^SWTBench report starts here\n(\{.*\})$", out.read_text(errors="replace"), re.M) if out.is_file() else None
+    try:
+        return float(json.loads(m.group(1))["coverage_delta_pred"]) if m else None
+    except (ValueError, KeyError, TypeError):
+        return None
 
 
 def patch_files(patch: str) -> list[str]:
@@ -148,6 +159,11 @@ def classify(t: dict) -> dict:
         patch = swt_patch(t)
         submitted = bool(patch and patch.strip())
     rew = ((r.get("verifier_result") or {}).get("rewards") or {}).get("reward")
+    verifier_timeout_empty = exc == "VerifierTimeoutError" and not submitted
+    if verifier_timeout_empty:
+        # 빈 패치(제출 없음)는 정의상 0점 — 검증기가 빈 지시어로 전체 스위트를 돌다 시간 초과해도 인프라 무효로 재실행하지 않는다
+        # (SWT nop 확인 2026-10-19: 1200초 초과 ×2 = 42분). 테스트가 든 패치의 검증기 시간 초과는 그대로 인프라 오류.
+        exc, rew = None, 0
     out = {
         "exc": exc,
         "reward": None if rew is None else float(rew),
@@ -156,14 +172,17 @@ def classify(t: dict) -> dict:
         "test_only_violation": None,
         "session_s": (ev["session_finished_at"] - ev["session_started_at"]) if "session_started_at" in ev and "session_finished_at" in ev else _agent_exec_s(r),
         "in_tokens": (r.get("agent_result") or {}).get("n_input_tokens"),
+        "verifier_timeout_empty": verifier_timeout_empty,
     }
     if t["bench"] == "swtbench" and patch is not None:
         files = patch_files(patch)
         out["test_only_violation"] = any(not is_test_path(f) for f in files)
         out["patch_files"] = files
+    if t["bench"] == "swtbench":
+        out["coverage_delta"] = swt_coverage_delta(t)
 
     if not r:
-        term = "인프라 오류"
+        term = "결과 없음"  # 진행 중이거나 끊긴 시행 — run-tier.sh 가 다음 실행에서 invalid/ 로 옮기고 다시 돈다
     elif exc == "EvalSetupError" or (exc == "RuntimeError" and "eval" in str((r.get("exception_info") or {}).get("exception_message", "")).lower()):
         term = "설정 실패"
     elif exc not in OK_EXC:
@@ -263,7 +282,7 @@ def won(t: dict | None) -> bool:
 
 
 def valid(t: dict | None) -> bool:
-    return bool(t and t["term"] not in ("인프라 오류",))
+    return bool(t and t["term"] not in ("인프라 오류", "결과 없음"))
 
 
 def alarms(trials: list[dict], invalid_rows: list, tier: str) -> list[tuple[str, str, str, str]]:
@@ -289,7 +308,7 @@ def alarms(trials: list[dict], invalid_rows: list, tier: str) -> list[tuple[str,
     rows.append(("C4", "비용", "WARN" if c4 else ("PASS" if rt or rk else "N/A"), f"짝 {len(fin)} · 시간 B/A 중앙값 {_f(mt)} · 입력 토큰 B/A 중앙값 {_f(mk)} (WARN > 2.0)"))
     ta, tb = sum(t["term"] == "시간 상한" for t in A), sum(t["term"] == "시간 상한" for t in B)
     rows.append(("C5", "시간 상한", "WARN" if tb > ta + 1 else "PASS", f"B {tb} · A {ta} (WARN: B > A + 1)"))
-    infra = [t for t in trials if t["term"] == "인프라 오류"]
+    infra = [t for t in trials if t["term"] in ("인프라 오류", "결과 없음")]
     n_inv = len(invalid_rows) + len(infra)
     denom = len(trials) + len(invalid_rows)
     share = n_inv / denom if denom else 0.0
@@ -406,7 +425,10 @@ def render(root: pathlib.Path, tier: str, harness: str, post_hoc: bool, trials: 
             if na or nb:
                 L.append(f"| {term} | {na} | {nb} |")
         if bench == "swtbench":
-            L += ["", "SWT 보조: " + " · ".join(
+            cov = {arm: [t["coverage_delta"] for t in bt if t["arm"] == arm and t.get("coverage_delta") is not None] for arm in "AB"}
+            dc = statistics.mean(cov["B"]) - statistics.mean(cov["A"]) if cov["A"] and cov["B"] else None
+            L += ["", f"SWT ΔC(coverage_delta_pred 평균 B − A): {_f(dc)}"]
+            L += ["SWT 보조: " + " · ".join(
                 f"{arm} 커밋함 {sum(bool(t['committed']) for t in bt if t['arm'] == arm)} · '테스트만' 위반 {sum(bool(t['test_only_violation']) for t in bt if t['arm'] == arm)}" for arm in "AB"
             )]
         succ = {arm: [t for t in bt if t["arm"] == arm and won(t)] for arm in "AB"}
@@ -421,7 +443,7 @@ def render(root: pathlib.Path, tier: str, harness: str, post_hoc: bool, trials: 
         L.append("")
     L += ["## 무효·재실행", ""]
     L += [f"- {r[0]} {r[1]} {r[2] if len(r) > 2 else ''}" for r in inv] or ["- 없음"]
-    L += [f"- 인프라 예외: {t['job']} ({t['exc']})" for t in trials if t["term"] == "인프라 오류"]
+    L += [f"- {t['term']}: {t['job']} ({t['exc']})" for t in trials if t["term"] in ("인프라 오류", "결과 없음")]
     L += ["", "## 잠금본", "", "```", lock.rstrip(), "```", ""]
     return "\n".join(L), summary
 

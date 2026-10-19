@@ -137,14 +137,18 @@ base_image() { # bench task → 과제 이미지 이름(DeepSWE docker_image · 
   esac
 }
 
+record_digest() { # bench task — 과제 이미지의 레지스트리 digest(설계 §6 잠금본). Pier 가 끝에 이미지를 지워 로컬 inspect 로는 못 읽는다 — 시행 전에 레지스트리에서
+  local img dig
+  [ "$DRY" = 1 ] && return 0
+  img=$(base_image "$1" "$2"); [ -n "$img" ] || return 0
+  dig=$(docker buildx imagetools inspect "$img" </dev/null 2>&1 | sed -n 's/^Digest: *//p' | head -1)
+  printf '%s\t%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$1" "$2" "$img" "${dig:-unknown}" >> "$ROOT/image-digests.tsv"
+}
+
 clean_images() { # bench task — 이 과제의 시행이 만든 이미지 + 과제 이미지(다른 프로젝트 이미지는 이름으로 걸러 건드리지 않는다)
-  local bench="$1" task="$2" t trial img dig
+  local bench="$1" task="$2" t trial img
   [ "$DRY" = 1 ] && { log "clean images $bench $task"; return 0; }
   img=$(base_image "$bench" "$task")
-  if [ -n "$img" ]; then
-    dig=$(docker image inspect --format '{{join .RepoDigests ","}}' "$img" 2>/dev/null </dev/null)
-    printf '%s\t%s\t%s\t%s\n' "$bench" "$task" "$img" "${dig:-absent}" >> "$ROOT/image-digests.tsv"
-  fi
   for t in "$ROOT/$bench"-?-r*-"$task"/*/; do
     [ -f "$t/result.json" ] || continue
     trial=$(basename "$t" | tr '[:upper:]' '[:lower:]')
@@ -159,6 +163,7 @@ clean_images() { # bench task — 이 과제의 시행이 만든 이미지 + 과
 log "start tier=$TIER harness=$VER benches=[$BENCHES] arms=[$ARMS] N(deepswe)=$N_DS N(swt)=$N_SWT reps=$REPS root=$ROOT"
 for bench in $BENCHES; do
   for task in $(tasks_of "$bench"); do
+    record_digest "$bench" "$task"
     rep=1
     while [ "$rep" -le "$REPS" ]; do
       pids=""
