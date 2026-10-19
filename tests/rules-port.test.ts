@@ -1,6 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { antigravityFrontmatter } from "../src/antigravity/transform.js";
 import {
   claudePaths,
   portRules,
@@ -70,6 +72,25 @@ describe("portRules — 배포 룰 전량", () => {
     );
     expect(byName.get("cli-development")?.paths).toEqual(["**/*.sh", "**/*.bash"]);
     expect(byName.get("git-policy")?.paths).toEqual([]);
+  });
+});
+
+// #842 — autocrlf 체크아웃(.gitattributes 없음)이면 배포 룰이 CRLF 바이트로 디스크에 있다.
+describe("portRules — CRLF 룰 파일도 LF 와 같게 옮긴다(#842)", () => {
+  it("frontmatter 를 벗기고 paths 를 읽는다 — 본문에 YAML 이 새지 않고 Antigravity 는 상시 룰로 내려가지 않는다", () => {
+    const root = mkdtempSync(join(tmpdir(), "rules-port-crlf-"));
+    try {
+      const lf = readFileSync(join(RULES_DIR, "cli-development.md"), "utf8");
+      mkdirSync(join(root, "templates/rules"), { recursive: true });
+      writeFileSync(join(root, "templates/rules/cli-development.md"), lf.replace(/\r?\n/g, "\r\n"));
+      const [crlf] = portRules(root, ["cli-development"]);
+      const [want] = portRules(ROOT, ["cli-development"]);
+      expect(crlf?.paths).toEqual(["**/*.sh", "**/*.bash"]);
+      expect(crlf?.body).toBe(want?.body);
+      expect(antigravityFrontmatter(crlf ?? { paths: [] })).not.toContain("always_on");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 
