@@ -22,6 +22,7 @@ import {
 } from "../install-log.js";
 import { excludedIds } from "../recorded.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
+import { excludedBaselineOnDisk } from "../update-mode.js";
 
 export interface ListOptions {
   projectDir?: string;
@@ -106,8 +107,12 @@ export function formatSelectionRows(log: InstallLog, projectDir: string): string
   const rows: string[] = [];
   const excluded = [...excludedIds(log)].sort();
   if (excluded.length === 0) rows.push(c.dim("    excluded: (none)"));
+  // #861 — baseline id 는 디스크 대상으로만 잡힌다. update 와 같은 판정(claude 가 깔린 기록만)
+  const baselineOnDisk = installedClis(log).includes("claude")
+    ? excludedBaselineOnDisk(projectDir, log)
+    : [];
   const still = new Set(
-    excludedStillThere(projectDir, new Set(excluded), [], log).map((e) => e.id),
+    excludedStillThere(projectDir, new Set(excluded), baselineOnDisk, log).map((e) => e.id),
   );
   for (const id of excluded) {
     const kind = id.startsWith("baseline:") ? "baseline" : isKeyId(id) ? "harness part" : "asset";
