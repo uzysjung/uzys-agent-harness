@@ -108,6 +108,7 @@ import {
   outsideProjectTarget,
 } from "../outside-project.js";
 import {
+  HARNESS_IMPORT_LINE,
   scaffoldBanner,
   stripHarnessImport,
   upsertHarnessImport,
@@ -1842,6 +1843,8 @@ interface HarnessRemoval {
   legacyWiring: string[];
   /** 루트 `CLAUDE.md` 의 하네스 import 블록을 걷었다(미리보기면 걷을 것이 있다). */
   importStripped: boolean;
+  /** #846 — 실체가 프로젝트 밖이라 import 블록을 걷지 않고 남긴 루트 `CLAUDE.md`. */
+  importOutside?: OutsideLink;
   /** 하네스 앵커 — 지웠는가(기록을 뺄지 정한다) · 화면 줄. */
   anchor: { removed: boolean; lines: string[] };
   /** 지운(미리보기면 지울) 앵커 경로 — 미리보기의 되돌리기 판정이 "빈 자리" 로 친다. */
@@ -1911,7 +1914,7 @@ function removeHarnessFiles(
   // 없는 파일을 가리키는 import 가 매 세션 로드된다. import 를 앵커보다 **먼저** 걷는다(반대면 잠깐이라도 끊긴 import 가 남는다)
   if (scope.importBlock) {
     const outside = rootImportOutside(projectDir);
-    if (outside !== null) out.outside.push(outside);
+    if (outside !== null) out.importOutside = outside;
     out.importStripped = io.write ? stripRootImport(projectDir) : hasRootImport(projectDir);
   }
   if (scope.anchor) {
@@ -2404,6 +2407,9 @@ function harnessRemovalLines(
         ? "  ○ strip harness @import from CLAUDE.md (본문 보존)"
         : `  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`,
     );
+  }
+  if (r.importOutside !== undefined) {
+    lines.push(importOutsideLine(r.importOutside, r.removedAnchor !== undefined));
   }
   lines.push(...r.anchor.lines);
   lines.push(...displacedLines(r.displaced, preview));
@@ -2912,6 +2918,15 @@ function rootImportOutside(projectDir: string): OutsideLink | null {
   if (outside === null) return null;
   const current = readRootClaudeMd(projectDir);
   return current !== null && stripHarnessImport(current) !== null ? outside : null;
+}
+
+/**
+ * #846 리뷰 — 밖이라 남긴 루트 `CLAUDE.md` 에는 import 블록이 그대로 있다. 같은 실행이 앵커를 지우면 그 import 는 없는 파일을
+ * 가리키므로, 손으로 걷을 것을 같은 줄이 말한다. 미리보기와 실행이 같은 문구다.
+ */
+function importOutsideLine(o: OutsideLink, anchorGone: boolean): string {
+  const pointing = anchorGone ? ", pointing at the anchor this uninstall removes" : "";
+  return `  ${c.yellow("⊘")} CLAUDE.md kept — link target is outside the project (${o.target}). Not touched — its harness @import block (${HARNESS_IMPORT_LINE}) is left in it${pointing} — delete that block by hand.`;
 }
 
 function rootClaudeMdOutside(projectDir: string): OutsideLink | null {

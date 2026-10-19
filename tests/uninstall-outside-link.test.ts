@@ -137,6 +137,15 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(lstatSync(join(projectDir, "CLAUDE.md")).isSymbolicLink()).toBe(true);
     expect(out.text).toContain(line);
     expect(out.text).not.toContain("harness @import removed");
+
+    // 리뷰 MEDIUM — 같은 실행이 앵커를 지우므로 밖 파일의 import 는 없는 파일을 가리킨다. 손으로 걷을 것을 같은 줄이 말한다
+    expect(existsSync(join(projectDir, "CLAUDE-uzys-harness.md"))).toBe(false);
+    const said = (text: string) => text.split("\n").find((l) => l.includes(line)) ?? "";
+    expect(said(out.text)).toContain(
+      "its harness @import block (@CLAUDE-uzys-harness.md) is left in it, pointing at the anchor this uninstall removes — delete that block by hand",
+    );
+    expect(said(preview.text)).toBe(said(out.text)); // 미리보기도 같은 문구
+    expect(out.text.split(line)).toHaveLength(2); // 한 줄로 말한다 — 일반 "kept" 줄과 겹치지 않는다
   });
 
   it("#846 회귀 — 프로젝트 안 루트 CLAUDE.md 는 지금처럼 import 를 걷는다", () => {
