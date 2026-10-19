@@ -158,6 +158,53 @@ describe("#678 링크 너머가 프로젝트 밖이면 install · update 가 쓰
     );
   });
 
+  /** settings.json 이 부르는 `.claude/hooks/` 스크립트 이름들. */
+  const wiredHooks = (): string[] =>
+    [
+      ...readFileSync(join(projectDir, ".claude/settings.json"), "utf8").matchAll(
+        /\.claude\/hooks\/([\w.-]+\.sh)/g,
+      ),
+    ].map((m) => m[1] ?? "");
+
+  it("#843 install: 밖 링크라 쓰지 않은 훅 스크립트 · 깨진 밖 링크는 settings.json 에 배선하지 않는다", () => {
+    const outHook = linkOutFile(".claude/hooks/session-start.sh", "echo mine\n");
+    // 깨진 밖 링크 — 지금처럼 배선하지 않는다
+    mkdirSync(join(projectDir, ".claude/hooks"), { recursive: true });
+    symlinkSync(join(outDir, "gone.sh"), join(projectDir, ".claude/hooks/protect-files.sh"));
+
+    const { report, screen } = run(["claude"], ["tooling"]);
+
+    expect(readFileSync(outHook, "utf8")).toBe("echo mine\n");
+    expect(report.outsideLinks?.map((o) => o.path)).toContain(".claude/hooks/session-start.sh");
+    expect(screen).toContain(".claude/hooks/session-start.sh — left as is");
+    expect(wiredHooks()).toEqual([]);
+    const portions = readInstallLog(projectDir)?.portions ?? [];
+    expect(portions.some((p) => p.key.includes("session-start.sh"))).toBe(false);
+  });
+
+  it("#843 install: 평범한 훅 설치는 지금처럼 전부 배선한다", () => {
+    run(["claude"], ["tooling"]);
+
+    expect(wiredHooks().sort()).toEqual(["protect-files.sh", "session-start.sh"]);
+    const portions = readInstallLog(projectDir)?.portions ?? [];
+    expect(portions.some((p) => p.key.includes("session-start.sh"))).toBe(true);
+  });
+
+  it("#843 update: 훅 자리가 밖 링크로 바뀌면 그 배선을 하네스 몫에서 뺀다 · 나머지는 둔다", () => {
+    run(["claude"], ["tooling"]);
+    expect(wiredHooks()).toContain("session-start.sh");
+    linkOutFile(".claude/hooks/session-start.sh", "echo mine\n");
+
+    const { report } = run(["claude"], ["tooling"], "update");
+
+    expect(report.updateMode?.outsideLinks?.map((o) => o.path)).toContain(
+      ".claude/hooks/session-start.sh",
+    );
+    expect(wiredHooks()).toEqual(["protect-files.sh"]);
+    const portions = readInstallLog(projectDir)?.portions ?? [];
+    expect(portions.some((p) => p.key.includes("session-start.sh"))).toBe(false);
+  });
+
   it("B3: `.claude` 가 밖이면 범주 줄을 세지 않고 NEXT 가 '켜졌다' 고 말하지 않는다", () => {
     mkdirSync(join(outDir, "claude"));
     symlinkSync(join(outDir, "claude"), join(projectDir, ".claude"));

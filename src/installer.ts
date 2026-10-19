@@ -1235,12 +1235,15 @@ function installClaudeBaseline(
   );
 
   if (settingsSource !== null) {
+    // #843 — "깔렸다" 는 이번 실행의 쓰기 판정(원장)이 말한다. 디스크 존재는 밖 링크(#678 이 건너뛴 자리) · 원본이 없어
+    // 못 쓴 자리의 옛 파일도 참이라, 쓰지 않은 스크립트를 부르는 훅을 짓는다
+    const wrote = new Set(writer.ledger().writes.map((w) => w.path));
     writeSettingsPortion(writer, settingsSource, projectDir, previousLog, (script) => {
       const target = `${HOOKS_PREFIX}${script}`;
       return (
         manifest.some((e) => e.target === target && e.applies(manifestSpec)) &&
         !isBaselineExcluded(target, baselineExcluded) &&
-        existsSync(join(projectDir, target))
+        wrote.has(target)
       );
     });
     // #603 — 죽은 훅 참조는 **지우지 않고 알리기만** 한다. install 시점의 설치 기록에 없는 참조는 설치자 몫이다
