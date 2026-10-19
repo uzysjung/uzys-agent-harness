@@ -1185,6 +1185,17 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #848 — 번들 밖 파일을 지우지 못했다(권한 등). 조용하면 설치자는 남은 파일이 왜 남았는지 모른다.
+    const pruneFailed = baseline.updateMode.skillsPruneFailed ?? [];
+    if (pruneFailed.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          ".claude/skills not in bundle",
+          `${pruneFailed.join(", ")} · could not be read, backed up, or removed (permissions?) — left in place; the next update tries again`,
+        ),
+      );
+    }
     // #678 — 실체가 프로젝트 밖이라 쓰지 않은 자리. install · uninstall 과 같은 판정 · 같은 줄.
     for (const row of outsideLinkRows(baseline.updateMode.outsideLinks ?? [])) log(row);
     // #343 — 외부 CLI 산출물(`.agents/skills/<id>` 등)에서 같은 이유로 건너뛴 자리.
