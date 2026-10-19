@@ -272,6 +272,11 @@ export interface UpdateModeReport {
    */
   skillsPruned: string[];
   /**
+   * #848 — 번들 밖이라 지우려다 읽기 · 백업 · 지우기가 실패해(권한 등) **남겨 둔** 스킬 파일(`.claude/skills/` 상대경로).
+   * 그 파일만 건너뛰고 update 는 끝까지 돌아 기록을 갱신한다 — 다음 update 가 다시 본다. 옵셔널 = 없음은 0건.
+   */
+  skillsPruneFailed?: string[];
+  /**
    * v26.132.0 (ADR-047) — 사용자가 고쳐서 백업본을 남긴 정책 파일 (`.claude/` 상대경로).
    * `skillsBackedUp` 과 같은 이유로 화면에 노출한다 — 안 보이면 사용자는 자기 편집분이
    * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
@@ -1424,6 +1429,7 @@ function updateHarnessFiles(args: {
   );
   report.skillsPruned = skillPrune.pruned;
   report.skillsBackedUp.push(...skillPrune.backedUp);
+  if (skillPrune.failed.length > 0) report.skillsPruneFailed = skillPrune.failed;
   // #782 — 은퇴 회수가 떠난 자리에 설치자 원본을 되돌린다
   const restored =
     prunedPolicy.size === 0
@@ -1523,9 +1529,10 @@ function pruneSkillExtras(
   recordOf: (path: string) => Recorded,
   now: Date,
   judged: JudgedWrite[],
-): { pruned: string[]; backedUp: string[] } {
+): { pruned: string[]; backedUp: string[]; failed: string[] } {
   const pruned: string[] = [];
   const backedUp: string[] = [];
+  const failed: string[] = [];
   for (const id of ids) {
     const targetSkill = join(projectDir, ".claude/skills", id);
     const bundled = new Set(listFilesRecursive(join(templatesDir, "skills", id)));
@@ -1536,22 +1543,30 @@ function pruneSkillExtras(
       if (outside.skip(targetFile)) continue;
       const path = `.claude/skills/${id}/${rel}`;
       const rec = recordOf(path);
-      // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말.
-      // 내용은 sha 기록만 읽는다(전과 같다) — `no-sha` 칸은 내용을 보지 않고 있다는 사실만 본다
-      const disk = rec.state === "sha" ? readFileSync(targetFile, "utf8") : "";
-      const line =
-        rec.state === "none"
-          ? NOT_RECORDED_REMOVED
-          : judge({ op: "remove", kind: "harness", rec, disk, next: null }).line;
+      let line: string;
       let backupAbs: string | null = null;
-      if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
-        backupAbs = backupFile(targetFile, now);
-        backedUp.push(`${id}/${rel}`);
+      try {
+        // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말.
+        // 내용은 sha 기록만 읽는다(전과 같다) — `no-sha` 칸은 내용을 보지 않고 있다는 사실만 본다
+        const disk = rec.state === "sha" ? readFileSync(targetFile, "utf8") : "";
+        line =
+          rec.state === "none"
+            ? NOT_RECORDED_REMOVED
+            : judge({ op: "remove", kind: "harness", rec, disk, next: null }).line;
+        if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
+          backupAbs = backupFile(targetFile, now);
+        }
+        unlinkSync(targetFile);
+      } catch {
+        // #848 — best-effort(`pruneOrphans` 와 같은 방침): 그 파일만 남기고 다음 update 가 다시 본다. 던지면 이미 새 판을 쓴
+        // 뒤 기록 갱신 전에 멈춰 기록 · 디스크가 갈라진다
+        failed.push(`${id}/${rel}`);
+        continue;
       }
+      if (backupAbs !== null) backedUp.push(`${id}/${rel}`);
       judged.push(
         removedRow(projectDir, path, "not in bundle", { line, recorded: rec.state }, backupAbs),
       );
-      unlinkSync(targetFile);
       pruned.push(`${id}/${rel}`);
       // 비게 된 중간 디렉터리(예: references/)도 걷는다 — 빈 디렉터리는 "파일이 있었다" 는 흔적만 남긴다
       for (
@@ -1562,7 +1577,7 @@ function pruneSkillExtras(
         rmdirSync(d);
     }
   }
-  return { pruned, backedUp };
+  return { pruned, backedUp, failed };
 }
 
 /**
