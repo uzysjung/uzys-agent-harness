@@ -532,29 +532,41 @@ export function refreshExternalSkills(
     clis,
     scope: log.scope,
   });
+  // #851 — 자산마다 기록된 scope 로 다시 받는다. `log.scope` 는 마지막 install 의 것이라 global 로 깐 자산 뒤에 플래그 없는
+  // 재설치가 있었으면(mixed 이력 — #560) project 를 말한다. 그걸로 부르면 `-g` 없이 프로젝트에 기록 밖 사본이 생긴다.
+  const scopeOf = (a: ExternalAsset): InstallScope =>
+    resolveScope(log.assets.find((r) => r.id === a.id)?.scope ?? log.scope);
   const run = deps.run ?? runExternalInstall;
   let ran: ExternalInstallReport;
   try {
-    ran = run(
-      {
-        tracks: log.spec.tracks as ReadonlyArray<Track>,
-        // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
-        options: DEFAULT_OPTIONS,
-        // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
-        // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
-        // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
-        cli: clis,
-        userOverride: { forceInclude: [...installedIds], forceExclude: [] },
-        scope: log.scope,
-        projectDir,
-      },
-      {
-        assets: targets,
-        ...(deps.spawn ? { spawn: deps.spawn } : {}),
-        ...(deps.log ? { log: deps.log } : {}),
-        ...(deps.warn ? { warn: deps.warn } : {}),
-      },
+    const runs = [...new Set(targets.map(scopeOf))].map((scope) =>
+      run(
+        {
+          tracks: log.spec.tracks as ReadonlyArray<Track>,
+          // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
+          options: DEFAULT_OPTIONS,
+          // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
+          // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
+          // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
+          cli: clis,
+          userOverride: { forceInclude: [...installedIds], forceExclude: [] },
+          scope,
+          projectDir,
+        },
+        {
+          assets: targets.filter((a) => scopeOf(a) === scope),
+          ...(deps.spawn ? { spawn: deps.spawn } : {}),
+          ...(deps.log ? { log: deps.log } : {}),
+          ...(deps.warn ? { warn: deps.warn } : {}),
+        },
+      ),
     );
+    ran = {
+      attempted: runs.flatMap((r) => r.attempted),
+      succeeded: runs.reduce((n, r) => n + r.succeeded, 0),
+      skipped: runs.reduce((n, r) => n + r.skipped, 0),
+      excludedByCli: runs.flatMap((r) => r.excludedByCli),
+    };
   } catch (e) {
     // #780 — 도구 호출이 예외로 끝났다. 옮긴 파일을 제자리로 — 되돌리지 못한 파일은 백업 폴더에 남는다
     try {
