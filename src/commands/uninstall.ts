@@ -1908,6 +1908,8 @@ function removeHarnessFiles(
   // ⓔ 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스 import 블록만 걷는다. 안 걷으면 앵커를 지운 뒤
   // 없는 파일을 가리키는 import 가 매 세션 로드된다. import 를 앵커보다 **먼저** 걷는다(반대면 잠깐이라도 끊긴 import 가 남는다)
   if (scope.importBlock) {
+    const outside = rootImportOutside(projectDir);
+    if (outside !== null) out.outside.push(outside);
     out.importStripped = io.write ? stripRootImport(projectDir) : hasRootImport(projectDir);
   }
   if (scope.anchor) {
@@ -2857,6 +2859,7 @@ function pruneEmptyDirsUpward(projectDir: string, startDir: string): void {
  * 명령이 실패로 끝나고, 사용자는 무엇이 남았는지 알 수 없게 된다 (D16 과 같은 방침).
  */
 function stripRootImport(projectDir: string): boolean {
+  if (rootClaudeMdOutside(projectDir) !== null) return false;
   const current = readRootClaudeMd(projectDir);
   const withoutImport = current === null ? null : stripHarnessImport(current);
   if (withoutImport === null) return false;
@@ -2874,8 +2877,24 @@ function stripRootImport(projectDir: string): boolean {
 
 /** 미리보기용 — 실행 경로와 **같은 술어**를 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
 function hasRootImport(projectDir: string): boolean {
+  if (rootClaudeMdOutside(projectDir) !== null) return false;
   const current = readRootClaudeMd(projectDir);
   return current !== null && stripHarnessImport(current) !== null;
+}
+
+/**
+ * #846 (ADR-098) — 루트 `CLAUDE.md` 의 실체가 프로젝트 밖이면(설치 뒤 dotfiles 로 옮기고 링크) import 를 걷지 않는다 — 그 파일은 다른
+ * 프로젝트가 같이 쓸 수 있다. 걷을 import 가 있을 때만 그 자리를 돌려준다(화면이 "남김 + 대상" 을 말한다).
+ */
+function rootImportOutside(projectDir: string): OutsideLink | null {
+  const outside = rootClaudeMdOutside(projectDir);
+  if (outside === null) return null;
+  const current = readRootClaudeMd(projectDir);
+  return current !== null && stripHarnessImport(current) !== null ? outside : null;
+}
+
+function rootClaudeMdOutside(projectDir: string): OutsideLink | null {
+  return outsideProjectTarget(projectDir, join(projectDir, "CLAUDE.md"));
 }
 
 function readRootClaudeMd(projectDir: string): string | null {

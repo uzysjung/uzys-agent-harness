@@ -119,6 +119,37 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(existsSync(join(projectDir, ".claude"))).toBe(false);
   });
 
+  it("#846 — 설치 뒤 밖으로 옮겨 링크한 루트 CLAUDE.md 는 import 를 걷지 않고 남김 + 대상을 말한다 (실행 · 미리보기 같은 판정)", () => {
+    writeFileSync(join(projectDir, "CLAUDE.md"), "# my project\n\nmy own notes\n", "utf8");
+    install(["claude"]);
+    const target = linkOutside("/CLAUDE.md");
+    const before = readFileSync(target, "utf8");
+    expect(before).toContain("uzys-harness:import:start"); // 전제: 밖 실체에 하네스 import 가 있다
+    const line = `⊘ CLAUDE.md kept — link target is outside the project (${target})`;
+
+    const preview = run({ dryRun: true });
+    expect(preview.text).toContain(line);
+    expect(preview.text).not.toContain("strip harness @import from CLAUDE.md");
+
+    const out = run({ yes: true });
+    expect(out.code).toBe(0);
+    expect(readFileSync(target, "utf8")).toBe(before); // 밖 파일은 바이트 그대로
+    expect(lstatSync(join(projectDir, "CLAUDE.md")).isSymbolicLink()).toBe(true);
+    expect(out.text).toContain(line);
+    expect(out.text).not.toContain("harness @import removed");
+  });
+
+  it("#846 회귀 — 프로젝트 안 루트 CLAUDE.md 는 지금처럼 import 를 걷는다", () => {
+    writeFileSync(join(projectDir, "CLAUDE.md"), "# my project\n\nmy own notes\n", "utf8");
+    install(["claude"]);
+
+    const out = run({ yes: true });
+    expect(out.text).toContain("CLAUDE.md — harness @import removed");
+    expect(readFileSync(join(projectDir, "CLAUDE.md"), "utf8")).toBe(
+      "# my project\n\nmy own notes\n",
+    );
+  });
+
   it("--dry-run(전량) — 계획 화면이 같은 줄을 말하고 옮기겠다고 하지 않는다", () => {
     install(["claude", "codex"]);
     const target = linkOutside(".codex");
