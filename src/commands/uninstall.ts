@@ -374,6 +374,8 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // #780 — `--only` 가 자산을 지운 뒤 되돌린 displaced 자리. 기록 정리는 `settleLog` 가 한다
   let onlyDisplaced: DisplacedOutcome[] = [];
   let copiesRemoved = 0;
+  /** #851 — 프로젝트 사본을 회수한 자산 id. `--only` 면 그 자산은 기록에 남는다(홈 사본은 global 그대로). */
+  const copiedIds = new Set<string>();
   try {
     reversed = executeReverse(plan, log, logSurvives, journal);
     const copies = reclaimGlobalSkillCopies(projectDir, installLog, {
@@ -382,7 +384,10 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       rm: rmJ,
     });
     for (const r of copies) {
-      if (r.removed.length > 0) journal.push(`removed the project copy ${r.slot}`);
+      if (r.removed.length > 0) {
+        journal.push(`removed the project copy ${r.slot}`);
+        copiedIds.add(r.id);
+      }
       copiesRemoved += r.removed.length;
     }
     for (const line of globalCopyLines(copies, false)) log(line);
@@ -459,6 +464,8 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       copiesRemoved === 0 &&
       assetsOnly &&
       (logSurvives || plan.noReversePath.length > 0),
+    // #851 — `--only <global 자산>` 이 사본만 지웠으면 그 자산은 남는다 — "0 asset(s)" 만으로 끝내면 요청이 무시된 것처럼 읽힌다
+    copiesOnly: assetsOnly ? [...copiedIds].filter((id) => !removedIds.includes(id)) : [],
   });
   log("");
   log(outcome.line);
@@ -532,6 +539,7 @@ function summarize(r: {
   failed: number;
   nothingDone: boolean;
   logWriteFailed: boolean;
+  copiesOnly: ReadonlyArray<string>;
 }): { line: string; code: number } {
   if (r.failed > 0)
     return {
@@ -548,7 +556,14 @@ function summarize(r: {
       line: c.yellow("자산은 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)"),
       code: 1,
     };
-  return { line: status.success(c.green(`uninstall complete (${r.succeeded} asset(s))`)), code: 0 };
+  const kept =
+    r.copiesOnly.length > 0
+      ? ` — removed the project copies; ${r.copiesOnly.join(", ")} stays installed globally (see above)`
+      : "";
+  return {
+    line: status.success(c.green(`uninstall complete (${r.succeeded} asset(s))${kept}`)),
+    code: 0,
+  };
 }
 
 function headerLines(

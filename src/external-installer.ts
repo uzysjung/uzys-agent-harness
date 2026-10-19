@@ -834,8 +834,8 @@ export interface GlobalCopyReclaim {
  *
  * 파일마다 홈의 global 사본(같은 상대 경로)과 바이트로 대어 같으면 지우고, 다르거나 global 사본에 없으면 그 파일 하나를 백업하고
  * 지운다. global 사본이 아예 없으면 댈 수 없어 파일마다 백업하고 지운다. 다른 자산 · 하네스 기록이 말하는 경로, 앞선 백업은 건드리지
- * 않는다. 자리가 실제 폴더가 아니면(링크 — 도구의 `--copy` 는 폴더를 만든다) · 프로젝트 밖으로 풀리면 · 홈의 그 자리와 같은 폴더면
- * 따라가지 않는다. 폴더 안의 링크는 지우지 않고 남긴다. 소스 전체를 까는 자산(`detail.skill` 없음)은 기록된 스킬 이름(`skills` —
+ * 않는다. 설치자가 뺀 자산(`excludedIds`)은 보지 않는다. 같은 폴더로 풀리는 자리는 한 번만 본다. 자리가 실제 폴더가 아니면(링크 —
+ * 도구의 `--copy` 는 폴더를 만든다) · 프로젝트 밖으로 풀리면 · 홈의 그 자리와 같은 폴더면 따라가지 않는다. 폴더 안의 링크는 지우지 않고 남긴다. 소스 전체를 까는 자산(`detail.skill` 없음)은 기록된 스킬 이름(`skills` —
  * install · update 가 홈 스킬 자리를 재 남긴다)마다 같은 자리를 본다. 이름이 없는 옛 기록은 보지 않는다.
  */
 export function reclaimGlobalSkillCopies(
@@ -847,9 +847,13 @@ export function reclaimGlobalSkillCopies(
   const roots = clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
   const others = new Set(log.assets.flatMap((a) => (a.files ?? []).map((f) => f.path)));
   const rm = opts.rm ?? ((abs: string) => rmSync(abs, { force: true }));
+  // 설치자가 뺀 자산(누적 `excluded` — ADR-099 R3)은 update 가 갱신하지 않듯 회수도 하지 않는다 — 그 자리는 하네스 몫이 아니다
+  const excluded = excludedIds(log);
+  // 한 폴더는 한 번만 — `.claude/skills` 가 `.agents/skills` 로의 링크면(#524 · #838) 두 자리가 한 폴더다(미리보기 = 실행)
+  const seen = new Set<string>();
   const out: GlobalCopyReclaim[] = [];
   for (const a of log.assets) {
-    if (a.method !== "skill" || a.scope !== "global") continue;
+    if (a.method !== "skill" || a.scope !== "global" || excluded.has(a.id)) continue;
     if (opts.ids !== undefined && !opts.ids.has(a.id)) continue;
     // 소스 전체를 까는 자산(`detail.skill` 없음)은 install · update 가 잰 이름(`skills`)으로 — 이름이 없는 옛 기록은 다음 update 가 잰다
     const skill = a.detail.skill;
@@ -858,6 +862,11 @@ export function reclaimGlobalSkillCopies(
     for (const name of names) {
       for (const root of roots) {
         const slot = `${root}/${name}`;
+        const real = realOrNull(join(projectDir, slot));
+        if (real !== null) {
+          if (seen.has(real)) continue;
+          seen.add(real);
+        }
         const ctx = { log, others, write: opts.write, rm, id: a.id };
         const r = reclaimCopy(projectDir, slot, join(globalSkillRoot(root), name), ctx);
         if (r !== null) out.push(r);
@@ -954,6 +963,14 @@ function reclaimCopy(
   }
   if (ctx.write && res.removed.length > 0) pruneEmptyDirs(abs);
   return res.removed.length > 0 || res.left.length > 0 ? res : null;
+}
+
+function realOrNull(abs: string): string | null {
+  try {
+    return realpathSync(abs);
+  } catch {
+    return null;
+  }
 }
 
 function readOrNull(abs: string): Buffer | null {

@@ -24,7 +24,11 @@ import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createInstallRenderer } from "../src/commands/install-render.js";
 import { type UninstallOptions, uninstallAction } from "../src/commands/uninstall.js";
-import { type ExternalInstallerDeps, refreshExternalSkills } from "../src/external-installer.js";
+import {
+  type ExternalInstallerDeps,
+  reclaimGlobalSkillCopies,
+  refreshExternalSkills,
+} from "../src/external-installer.js";
 import {
   hashContent,
   type InstallLog,
@@ -347,5 +351,122 @@ describe("#851 AC3 — uninstall 이 같은 판정으로 회수한다", () => {
     expect(r.text).not.toMatch(/leave \.claude\/ — .*skills\/g\//);
     expect(readFileSync(abs(".claude/skills/g/notes.md"), "utf8")).toBe(EDITED);
     expect(backupsIn(".claude/skills/g")).toEqual([]);
+  });
+});
+
+describe("#851 리뷰 — 회수의 가드가 문다", () => {
+  it("설치자가 뺀 자산(excluded)의 사본은 update · uninstall 모두 회수하지 않는다", () => {
+    const log = mixedInstall();
+    writeInstallLog(projectDir, { ...log, excluded: ["skill-g"] });
+    seedCopies();
+    const report = update();
+    expect(report.globalCopiesReclaimed).toBeUndefined();
+    expect(readFileSync(abs(".claude/skills/g/notes.md"), "utf8")).toBe(EDITED);
+    expect(readFileSync(abs(".agents/skills/g/SKILL.md"), "utf8")).toBe(BODY);
+    const un = uninstall({ yes: true });
+    expect(un.text).not.toMatch(/a project copy of skill-g/);
+    expect(readFileSync(abs(".claude/skills/g/notes.md"), "utf8")).toBe(EDITED);
+    expect(backupsIn(".claude/skills/g")).toEqual([]);
+  });
+
+  it("다른 자산 · 하네스 기록이 말하는 경로는 지우지 않는다", () => {
+    const log = mixedInstall();
+    // 하네스 번들 스킬 하나(실제 폴더 — 공유 스킬 링크 자리는 회수가 애초에 따라가지 않는다) — 같은 이름의 global 자산이 기록에 있다고 친다
+    const bundled = readdirSync(abs(".claude/skills")).find(
+      (n) =>
+        n !== "a" &&
+        lstatSync(abs(`.claude/skills/${n}`)).isDirectory() &&
+        existsSync(abs(`.claude/skills/${n}/SKILL.md`)),
+    );
+    if (bundled === undefined) throw new Error("no bundled skill installed");
+    const harnessFile = `.claude/skills/${bundled}/SKILL.md`;
+    const harnessBytes = readFileSync(abs(harnessFile), "utf8");
+    put(projectDir, ".claude/skills/g/SKILL.md", BODY);
+    put(projectDir, ".claude/skills/g/extra.md", "other asset\n");
+    const next: InstallLog = {
+      ...log,
+      assets: [
+        ...log.assets.map((a) =>
+          a.id === "skill-a"
+            ? {
+                ...a,
+                files: [
+                  ...(a.files ?? []),
+                  { path: ".claude/skills/g/extra.md", sha256: hashContent("other asset\n") },
+                ],
+              }
+            : a,
+        ),
+        {
+          id: "harness-named",
+          category: "dev",
+          method: "skill",
+          scope: "global",
+          detail: { source: "owner/h", skill: bundled },
+        },
+      ],
+    };
+    const copies = reclaimGlobalSkillCopies(projectDir, next, { write: true });
+    const removed = copies.flatMap((r) => r.removed);
+    expect(removed).toContain(".claude/skills/g/SKILL.md");
+    expect(removed).not.toContain(".claude/skills/g/extra.md");
+    expect(removed).not.toContain(harnessFile);
+    expect(readFileSync(abs(".claude/skills/g/extra.md"), "utf8")).toBe("other asset\n");
+    expect(readFileSync(abs(harnessFile), "utf8")).toBe(harnessBytes);
+  });
+
+  it("스킬 루트가 프로젝트 밖으로의 링크면 그 안의 사본을 따라가 지우지 않는다", () => {
+    const log = mixedInstall();
+    const outside = mkdtempSync(join(tmpdir(), "uzys-851-outside-"));
+    try {
+      put(outside, "g/SKILL.md", BODY);
+      rmSync(abs(".agents"), { recursive: true, force: true });
+      mkdirSync(abs(".agents"), { recursive: true });
+      symlinkSync(outside, abs(".agents/skills"));
+      const copies = reclaimGlobalSkillCopies(projectDir, log, { write: true });
+      expect(copies.map((r) => r.slot)).not.toContain(".agents/skills/g");
+      expect(readFileSync(join(outside, "g/SKILL.md"), "utf8")).toBe(BODY);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("사본 폴더 안의 링크는 지우지 않고 남긴 줄로 말한다", () => {
+    const log = mixedInstall();
+    put(projectDir, "shared.md", "shared\n");
+    put(projectDir, ".claude/skills/g/SKILL.md", BODY);
+    symlinkSync(abs("shared.md"), abs(".claude/skills/g/shared.md"));
+    const copies = reclaimGlobalSkillCopies(projectDir, log, { write: true });
+    expect(lstatSync(abs(".claude/skills/g/shared.md")).isSymbolicLink()).toBe(true);
+    expect(copies.flatMap((r) => r.left.map((l) => l.path))).toContain(
+      ".claude/skills/g/shared.md",
+    );
+    expect(copies.flatMap((r) => r.removed)).not.toContain(".claude/skills/g/shared.md");
+  });
+
+  it(".claude/skills 가 .agents/skills 로의 링크면 미리보기와 실행이 같은 한 자리를 말한다", () => {
+    mixedInstall();
+    rmSync(abs(".claude/skills/g"), { recursive: true, force: true });
+    put(home, ".claude/skills/g/SKILL.md", BODY);
+    put(projectDir, ".agents/skills/g/SKILL.md", BODY);
+    // 하네스가 깐 .claude/skills 의 다른 스킬은 이 판정과 무관하다 — 루트를 링크로 바꾼다
+    rmSync(abs(".claude/skills"), { recursive: true, force: true });
+    symlinkSync(abs(".agents/skills"), abs(".claude/skills"));
+    const dry = uninstall({ dryRun: true });
+    const previewed = dry.text.match(/○ remove \S+ \(a project copy of skill-g/g) ?? [];
+    const run = uninstall({ yes: true });
+    const done = run.text.match(/removed {2}\S+ — a project copy of skill-g/g) ?? [];
+    expect(previewed).toHaveLength(1);
+    expect(done).toHaveLength(1);
+  });
+
+  it("uninstall --only <global 자산> 이 사본만 지우면 끝줄이 그 자산이 global 로 남는다고 말한다", () => {
+    mixedInstall();
+    seedCopies();
+    const r = uninstall({ only: "skill-g" });
+    expect(r.code).toBe(0);
+    expect(r.text).toMatch(
+      /uninstall complete \(0 asset\(s\)\) — removed the project copies; skill-g stays installed globally/,
+    );
   });
 });
