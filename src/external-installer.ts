@@ -19,6 +19,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   renameSync,
   rmdirSync,
@@ -827,7 +828,12 @@ function settleAside(
     if (code !== "ENOENT" && code !== "ENOTDIR") throw e;
     vacant = true;
   }
-  const keep = vacant ? f.link || !f.recorded : now?.equals(readFileSync(f.aside)) === true;
+  // 링크는 같은 글자를 가리키는 링크가 그 자리에 있으면 같은 것이다 — 도구가 같은 링크를 다시 놓았다
+  const keep = vacant
+    ? f.link || !f.recorded
+    : f.link
+      ? lstatSync(f.abs).isSymbolicLink() && readlinkSync(f.abs) === readlinkSync(f.aside)
+      : now?.equals(readFileSync(f.aside)) === true;
   if (restore || keep) {
     mkdirSync(dirname(f.abs), { recursive: true });
     renameSync(f.aside, f.abs);
