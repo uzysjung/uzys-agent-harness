@@ -1,7 +1,7 @@
 # 26.174.0 · superlight — 묶음 deepswe-swt-v1
 
 - 단계: **superlight** (사전 등록)
-- jobs: `/Users/uzysjung/eval-513/rehearsal/a` · 시행 2 · 무효 이동 0 · 생성 2026-10-19T02:32Z
+- jobs: `/Users/uzysjung/eval-513/rehearsal/a` · 시행 2 · 무효 이동 0 · 생성 2026-10-19T03:04Z
 - 결론: **경보 없음** (경보만 — 효과 주장 없음, 설계 §5)
 
 | # | 경보 | 판정 | 근거 |

@@ -1,6 +1,6 @@
 # #513 실행기 인계 (설계 5차 c88614e 대상 · 2026-10-19)
 
-코드: `eval_agent.py`(EvalClaudeCode) · `eval_common.py`(CLAUDE.md·기대값, Pier 무의존) · `run-tier.sh` · `report.py` · `add-worktree-collect.py` · `test_report.py` · `rehearsal/` · `expected/import-block-26.174.0.txt`.
+코드: `eval_agent.py`(EvalClaudeCode) · `eval_common.py`(CLAUDE.md·기대값, Pier 무의존) · `run-tier.sh` · `report.py` · `add-worktree-collect.py` · `test_report.py` · `fixtures/`(시험 고정 데이터 + `make-fixtures.py`) · `rehearsal/` · `expected/import-block-26.174.0.txt`.
 `pier_agent_b.py` · `run-pilot.sh` · `run-full.sh` 는 옛 시행의 재현 기록이라 남겼다(새 실행기는 참조하지 않는다).
 
 ## 임의로 정한 가정·기본값
@@ -13,7 +13,7 @@
 - 잠금본 = `ROOT/lock.txt`(모델·effort·상한·배율·Pier·Claude Code·base_url·`eval_agent.py`/`eval_common.py`/순서 파일 sha·extra_ak·env-file 경로). 다르면 exit 4 — 실행기 코드를 고치면 앞 시행을 재사용할 수 없다(의도). ROOT 기본 = `~/eval-513/jobs-v1/<판>`.
 - 무효 재실행 상한: 1113 → 30분 대기 × 12회 · 결과 없이 끊김 → 2회. 그 밖의 예외(빌드 실패 등)는 시행으로 남고 리포트가 "인프라 오류"로 C6 에 센다.
 - 이미지 삭제: 과제마다 trial 이미지 + `hb__<과제>*` + 과제 원본 이미지(DeepSWE `docker_image` · SWT `FROM`). 원본 이미지 digest 는 시행 **전에** `docker buildx imagetools inspect` 로 레지스트리에서 읽어 `ROOT/image-digests.tsv` 에(Pier 의 `down --rmi all` 이 끝에 지워 로컬 inspect 로는 못 읽었다 — 리허설 실측 "absent").
-- 검증기 시간 초과 + 빈 패치 = "제출 없음 → 0점"(리포트가 인프라 무효로 세지 않고, run-tier.sh 도 다시 돌지 않는다 — 조정자 지시). 패치가 있는데 검증기 시간 초과면 "인프라 오류"(C6).
+- **검증기 재시도** 판정 = `VerifierTimeoutError` 이거나 result 의 검증기 경과(finished − started)가 한 번의 상한(Pier trial.py:221–229 식: 과제 `[verifier].timeout_sec` × 배율)을 넘음 — Pier 는 시간 초과 시 같은 환경에서 한 번 더 채점하고(trial.py:332–337) 두 번째가 끝나면 exception_info 가 비어 남는다. 빈 패치면 "제출 없음 → 0점"(유효, 다시 안 돎 — 조정자 지시). 패치가 있으면 종료 사유 "검증기 재시도" = 무효(C6 에 셈) · run-tier.sh 가 `report.py --rerun-check` 로 보고 invalid/ 로 옮겨 다시 돈다(최대 `EVAL_VERIFIER_RETRIES`=2, 넘으면 남겨 둔다 — 횟수는 run-tier.sh 실행마다 새로 센다). 가짜 pier 로 이 재실행 경로를 돌려 확인했다. 단일 시도 + 상한 밖의 몇 초 오버헤드가 상한을 넘으면 오탐이 날 수 있다(관측 없음).
 - 종료 사유: "백그라운드 대기 중 종료" = 메인 스레드 마지막 assistant 메시지 **뒤** 에 `task_updated killed`(옛 bandit·obsidian B 는 killed 가 result 줄 **앞** 에 찍혔다 — 설계 문구 "result 직후" 와 순서가 다름). 제출이 있어도 이 사유가 우선한다(제출 여부는 따로 표기).
 - "SWT 커밋함" 은 종료 사유 칸이 아니라 별도 표기(보조 지표 "SWT 커밋 수")로 냈다 — 종료 사유와 겹칠 수 있어서.
 - "테스트만" 위반 = 패치 파일 중 경로에 `tests/`·`test/`·`testing/` 이 없고 이름이 `test_*`·`*_test.py`·`tests.py`·`conftest.py` 가 아닌 것이 하나라도.
@@ -38,9 +38,13 @@
 - 유출: `check-token-leak.sh` glm.env · 더미 env 모두 0(대조군 1). 남은 컨테이너·이미지 0.
 
 ## 미심쩍은 부분
-- SWT 빈 패치는 검증기 1200초 초과 → Pier 재시도 1회로 시행 하나가 최대 ~40분(nop 확인 42분) — §1 소요 추정에 없다. 또 SWT 검증기 **재시도는 1차가 망가뜨린 /testbed 에서 돈다**(위 (c)) — 패치가 있는 시행이 시간 초과하면 그 재시도 점수는 믿을 수 없어 "인프라 오류"로 둔다.
+- SWT 빈 패치는 검증기 1200초 초과 → Pier 재시도 1회로 시행 하나가 최대 ~40분(nop 확인 42분) — §1 소요 추정에 없다. 또 SWT 검증기 **재시도는 1차가 망가뜨린 /testbed 에서 돈다**(위 (c)) — 그래서 패치가 있는 재시도 시행은 "검증기 재시도"(무효)로 둔다.
 - `evidence_check` 의 실제 세션 경로(system/init 스킬·에이전트, jsonl `Session started. Branch:`)는 모델 호출 없는 리허설로는 돌지 않았다 — 옛 B 시행에서 필드 이름만 확인했다. 슈퍼라이트 첫 결과에서 C1 비고를 본다.
-- `run-tier.sh` 의 `record_digest`(레지스트리 digest)와 `finished` 로그 줄은 리허설 **뒤**에 넣었다 — 리허설 실행은 그 전 판으로 돌았고 digest 명령은 손으로만 확인했다(두 과제 이미지 모두 sha256 이 나옴).
+- `run-tier.sh` 의 `record_digest` · `finished` 줄 · 검증기 재시도 재실행은 리허설 **뒤**에 넣었다 — 실 Docker 로는 안 돌았고 가짜 `pier`(정상 시행을 복사)로 루프만 돌렸다(digest 는 실제 레지스트리 값이 기록됨).
+- 시험 고정 데이터(`fixtures/`)는 실측에서 판정이 읽는 줄만 뽑았다(claude-code.txt 는 init · 마지막 메인 assistant · 그 뒤 result/task 줄). 원본이 바뀌면 `python3 -I fixtures/make-fixtures.py` 로 다시 만든다.
+
+## TODO
+- N4 판 비교 퇴행 경보((Δ_Y − Δ_X) CI 상한 < 0 → "판 Y 퇴행", 설계 §5)는 report.py 에 없다 — 미디엄 전에 넣는다(index.md 의 "이전 판 대비" 는 지금 줄을 옮겨 적기만 한다).
 - `background_killed` 는 Claude Code 2.1.302 의 stream-json 모양에 묶여 있다. 판을 올리면 옛 결과로 만든 시험(test_report.py)이 먼저 깨지는지 본다.
 - 리포트의 "이전 판 대비" 는 index.md 에서 같은 단계의 다른 판 마지막 줄을 그대로 옮길 뿐이다(수치 비교 아님).
 
@@ -59,5 +63,5 @@ PYTHONPATH=$H pier run -p ~/eval-513/swtbench/tasks/swtbench-verified -i sympy__
 # (d) 리포트 · 유출 · 단위 시험
 for c in a b c-off c-timeout; do python3 -I $H/report.py $R/$c superlight 26.174.0 --out $H/reports/rehearsal/$c.md --no-index; done
 bash $H/check-token-leak.sh ~/eval-513/glm.env $R; bash $H/check-token-leak.sh $R/dummy.env $R/a $R/b $R/c-off $R/c-timeout
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest $H/test_report.py
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest $H/test_report.py      # fixtures/ 시험은 ~/eval-513 없이도 돈다(HOME 을 바꿔도 Fixtures 는 실행)
 ```

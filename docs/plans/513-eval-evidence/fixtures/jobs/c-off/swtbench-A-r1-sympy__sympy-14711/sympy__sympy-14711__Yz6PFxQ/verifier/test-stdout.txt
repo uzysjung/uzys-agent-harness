@@ -1,0 +1,16 @@
+++ cat /root/model_test.patch
+diff --git a/sympy/physics/vector/tests/test_eval513_rehearsal.py b/sympy/physics/vector/tests/test_eval513_rehearsal.py
+deleted file mode 100644
+index 8fda8b0367..0000000000
+--- a/sympy/physics/vector/tests/test_eval513_rehearsal.py
++++ /dev/null
+@@ -1,6 +0,0 @@
+-from sympy.physics.vector import ReferenceFrame
+-
+-
+-def test_vector_add_zero():
+-    N = ReferenceFrame('N')
+-    assert sum([N.x, (0 * N.x)]) == N.x
+++ echo ====================================================================================================
+SWTBench report starts here
+{"patch_is_None": false, "patch_exists": false, "patch_successfully_applied": false, "resolved": false, "coverage_pred": null, "coverage_gold": null, "coverage_base": null, "coverage_delta_pred": null, "coverage_delta_gold": null, "model_patch": "diff --git a/sympy/physics/vector/tests/test_eval513_rehearsal.py b/sympy/physics/vector/tests/test_eval513_rehearsal.py\ndeleted file mode 100644\nindex 8fda8b0367..0000000000\n--- a/sympy/physics/vector/tests/test_eval513_rehearsal.py\n+++ /dev/null\n@@ -1,6 +0,0 @@\n-from sympy.physics.vector import ReferenceFrame\n-\n-\n-def test_vector_add_zero():\n-    N = ReferenceFrame('N')\n-    assert sum([N.x, (0 * N.x)]) == N.x\n"}

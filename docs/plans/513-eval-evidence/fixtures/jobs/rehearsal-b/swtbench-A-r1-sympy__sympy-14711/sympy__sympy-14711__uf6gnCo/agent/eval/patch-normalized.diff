@@ -1,0 +1,12 @@
+diff --git a/sympy/physics/vector/tests/test_eval513_rehearsal.py b/sympy/physics/vector/tests/test_eval513_rehearsal.py
+new file mode 100644
+index 0000000000..8fda8b0367
+--- /dev/null
++++ b/sympy/physics/vector/tests/test_eval513_rehearsal.py
+@@ -0,0 +1,6 @@
++from sympy.physics.vector import ReferenceFrame
++
++
++def test_vector_add_zero():
++    N = ReferenceFrame('N')
++    assert sum([N.x, (0 * N.x)]) == N.x

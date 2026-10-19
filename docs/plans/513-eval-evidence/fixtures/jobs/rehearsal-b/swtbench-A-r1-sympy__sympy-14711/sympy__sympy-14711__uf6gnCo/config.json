@@ -1,0 +1,66 @@
+{
+  "task": {
+    "path": "@FIX@/tasks/sympy__sympy-14711",
+    "git_url": null,
+    "git_commit_id": null,
+    "name": null,
+    "ref": null,
+    "overwrite": false,
+    "download_dir": null,
+    "source": "swtbench-verified"
+  },
+  "trial_name": "sympy__sympy-14711__uf6gnCo",
+  "trials_dir": "/Users/uzysjung/eval-513/rehearsal/b/swtbench-A-r1-sympy__sympy-14711",
+  "timeout_multiplier": 1.0,
+  "agent_timeout_multiplier": 3.0,
+  "verifier_timeout_multiplier": null,
+  "agent_setup_timeout_multiplier": null,
+  "environment_build_timeout_multiplier": null,
+  "agent": {
+    "name": null,
+    "import_path": "eval_agent:EvalClaudeCode",
+    "model_name": "glm-5.3",
+    "override_timeout_sec": null,
+    "override_setup_timeout_sec": null,
+    "max_timeout_sec": null,
+    "kwargs": {
+      "version": "2.1.302",
+      "reasoning_effort": "max",
+      "max_turns": 300,
+      "max_budget_usd": 1000,
+      "harness": "off",
+      "bench": "swtbench",
+      "session": "script:/Users/uzysjung/Development/Claude-Workspace/uzysClaudeUniversalEnv/.claude/worktrees/agent-aed53f7b7beb5d6de/docs/plans/513-eval-evidence/rehearsal/commit-test-session.sh"
+    },
+    "env": {
+      "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+      "API_TIMEOUT_MS": "3000000"
+    }
+  },
+  "environment": {
+    "type": "docker",
+    "import_path": null,
+    "force_build": false,
+    "delete": true,
+    "cpu_enforcement_policy": "auto",
+    "memory_enforcement_policy": "auto",
+    "override_cpus": null,
+    "override_memory_mb": null,
+    "override_storage_mb": null,
+    "override_gpus": null,
+    "suppress_override_warnings": false,
+    "mounts": null,
+    "env": {},
+    "kwargs": {}
+  },
+  "verifier": {
+    "override_timeout_sec": null,
+    "max_timeout_sec": null,
+    "env": {},
+    "disable": false
+  },
+  "artifacts": [],
+  "job_id": "df294203-58ed-4051-9315-63cea8372536"
+}

@@ -18,12 +18,14 @@ import random
 import re
 import statistics
 import sys
+import tomllib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import eval_common as ec  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
-TERMS = ("스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료", "시간 상한", "턴 상한", "예산 상한", "API 오류", "설정 실패", "인프라 오류", "결과 없음", "스크립트 세션")
+TERMS = ("스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료", "시간 상한", "턴 상한", "예산 상한", "API 오류", "설정 실패", "검증기 재시도", "인프라 오류", "결과 없음", "스크립트 세션")
+INVALID_TERMS = ("검증기 재시도", "인프라 오류", "결과 없음")  # C6 에 세고 짝·판정에서 뺀다
 SELF_FINISHED = {"스스로 끝냄+제출", "스스로 끝냄+제출 없음", "백그라운드 대기 중 종료"}
 OK_EXC = {None, "AgentTimeoutError", "NonZeroAgentExitCodeError"}
 DETECTION = {  # 설계 §5 검출 한계(공개 p 모의, 효과 0 오판 2–3%)
@@ -79,6 +81,7 @@ def load_trials(root: pathlib.Path) -> list[dict]:
             t = {
                 "job": job.name,
                 "dir": td,
+                "cfg": cfg,
                 "task_dir": task_dir,
                 "task": task_dir.name,
                 "bench": kw.get("bench") or ec.bench_of_task_dir(task_dir),
@@ -159,10 +162,11 @@ def classify(t: dict) -> dict:
         patch = swt_patch(t)
         submitted = bool(patch and patch.strip())
     rew = ((r.get("verifier_result") or {}).get("rewards") or {}).get("reward")
-    verifier_timeout_empty = exc == "VerifierTimeoutError" and not submitted
+    retried = verifier_retried(t, r, exc)
+    verifier_timeout_empty = retried and not submitted
     if verifier_timeout_empty:
         # 빈 패치(제출 없음)는 정의상 0점 — 검증기가 빈 지시어로 전체 스위트를 돌다 시간 초과해도 인프라 무효로 재실행하지 않는다
-        # (SWT nop 확인 2026-10-19: 1200초 초과 ×2 = 42분). 테스트가 든 패치의 검증기 시간 초과는 그대로 인프라 오류.
+        # (SWT nop 확인 2026-10-19: 1200초 초과 ×2 = 42분). 패치가 있는데 재시도했으면 아래에서 "검증기 재시도"(무효·재실행).
         exc, rew = None, 0
     out = {
         "exc": exc,
@@ -172,6 +176,7 @@ def classify(t: dict) -> dict:
         "test_only_violation": None,
         "session_s": (ev["session_finished_at"] - ev["session_started_at"]) if "session_started_at" in ev and "session_finished_at" in ev else _agent_exec_s(r),
         "in_tokens": (r.get("agent_result") or {}).get("n_input_tokens"),
+        "verifier_retried": retried,
         "verifier_timeout_empty": verifier_timeout_empty,
     }
     if t["bench"] == "swtbench" and patch is not None:
@@ -183,6 +188,8 @@ def classify(t: dict) -> dict:
 
     if not r:
         term = "결과 없음"  # 진행 중이거나 끊긴 시행 — run-tier.sh 가 다음 실행에서 invalid/ 로 옮기고 다시 돈다
+    elif retried and submitted:
+        term = "검증기 재시도"  # 2차 채점은 1차가 바꿔 놓은 트리에서 돈다(SWT test.sh 의 rm -rf /testbed/*) — 점수를 믿을 수 없다. 무효 · run-tier.sh 가 다시 돈다
     elif exc == "EvalSetupError" or (exc == "RuntimeError" and "eval" in str((r.get("exception_info") or {}).get("exception_message", "")).lower()):
         term = "설정 실패"
     elif exc not in OK_EXC:
@@ -207,12 +214,37 @@ def classify(t: dict) -> dict:
     return out
 
 
-def _agent_exec_s(r: dict):
-    a = (r or {}).get("agent_execution") or {}
+def verifier_limit_s(t: dict) -> float | None:
+    """Pier 의 검증기 상한(trial.py:221–229) = min(override or 과제 [verifier].timeout_sec, max) × (verifier 배율 or 전체 배율)."""
+    cfg = t.get("cfg") or {}
+    v = cfg.get("verifier") or {}
+    try:
+        base = v.get("override_timeout_sec") or tomllib.loads((t["task_dir"] / "task.toml").read_text())["verifier"]["timeout_sec"]
+    except (OSError, KeyError, ValueError):
+        return None
+    cap = v.get("max_timeout_sec") or float("inf")
+    mult = cfg.get("verifier_timeout_multiplier")
+    return min(float(base), cap) * float(mult if mult is not None else cfg.get("timeout_multiplier", 1.0))
+
+
+def verifier_retried(t: dict, r: dict, exc) -> bool:
+    """검증기가 한 번 시간 초과해 Pier 가 같은 환경에서 다시 채점했는가(trial.py:332–337 stop_after_attempt(2)).
+    두 번째가 끝나면 exception_info 가 비어 남으므로 예외만으로는 못 본다 — 검증기 경과가 한 번의 상한을 넘었으면 재시도가 있었다."""
+    if exc == "VerifierTimeoutError":
+        return True
+    lim, s = verifier_limit_s(t), _span_s((r or {}).get("verifier"))
+    return lim is not None and s is not None and s > lim
+
+
+def _span_s(a) -> float | None:
     try:
         return (dt.datetime.fromisoformat(a["finished_at"].replace("Z", "+00:00")) - dt.datetime.fromisoformat(a["started_at"].replace("Z", "+00:00"))).total_seconds()
     except (KeyError, TypeError, AttributeError, ValueError):
         return None
+
+
+def _agent_exec_s(r: dict):
+    return _span_s((r or {}).get("agent_execution"))
 
 
 # ── §6 증거 점검 (C1) ────────────────────────────────────────────────────────
@@ -282,7 +314,7 @@ def won(t: dict | None) -> bool:
 
 
 def valid(t: dict | None) -> bool:
-    return bool(t and t["term"] not in ("인프라 오류", "결과 없음"))
+    return bool(t and t["term"] not in INVALID_TERMS)
 
 
 def alarms(trials: list[dict], invalid_rows: list, tier: str) -> list[tuple[str, str, str, str]]:
@@ -308,7 +340,7 @@ def alarms(trials: list[dict], invalid_rows: list, tier: str) -> list[tuple[str,
     rows.append(("C4", "비용", "WARN" if c4 else ("PASS" if rt or rk else "N/A"), f"짝 {len(fin)} · 시간 B/A 중앙값 {_f(mt)} · 입력 토큰 B/A 중앙값 {_f(mk)} (WARN > 2.0)"))
     ta, tb = sum(t["term"] == "시간 상한" for t in A), sum(t["term"] == "시간 상한" for t in B)
     rows.append(("C5", "시간 상한", "WARN" if tb > ta + 1 else "PASS", f"B {tb} · A {ta} (WARN: B > A + 1)"))
-    infra = [t for t in trials if t["term"] in ("인프라 오류", "결과 없음")]
+    infra = [t for t in trials if t["term"] in INVALID_TERMS]
     n_inv = len(invalid_rows) + len(infra)
     denom = len(trials) + len(invalid_rows)
     share = n_inv / denom if denom else 0.0
@@ -443,7 +475,7 @@ def render(root: pathlib.Path, tier: str, harness: str, post_hoc: bool, trials: 
         L.append("")
     L += ["## 무효·재실행", ""]
     L += [f"- {r[0]} {r[1]} {r[2] if len(r) > 2 else ''}" for r in inv] or ["- 없음"]
-    L += [f"- {t['term']}: {t['job']} ({t['exc']})" for t in trials if t["term"] in ("인프라 오류", "결과 없음")]
+    L += [f"- {t['term']}: {t['job']} ({t['exc']})" for t in trials if t["term"] in INVALID_TERMS]
     L += ["", "## 잠금본", "", "```", lock.rstrip(), "```", ""]
     return "\n".join(L), summary
 
@@ -472,7 +504,18 @@ def update_index(harness: str, tier: str, summary: str) -> None:
     p.write_text("\n".join(lines) + "\n")
 
 
+def rerun_check(job_dir: pathlib.Path) -> int:
+    """run-tier.sh 용 — 이 job 의 시행이 "검증기 재시도"(패치 있음)면 사유를 찍고 0, 아니면 1."""
+    hits = [t for t in load_trials(job_dir.parent) if t["job"] == job_dir.name and t["term"] == "검증기 재시도"]
+    for t in hits:
+        print(f"{t['job']}: 검증기 재시도(패치 있음) — 무효, 다시 돈다")
+    return 0 if hits else 1
+
+
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["--rerun-check"]:
+        return rerun_check(pathlib.Path(argv[1]))
     ap = argparse.ArgumentParser()
     ap.add_argument("jobs", type=pathlib.Path)
     ap.add_argument("tier", choices=["superlight", "light", "medium", "heavy"])

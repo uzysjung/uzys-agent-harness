@@ -1,0 +1,34 @@
+{
+  "harness": "off",
+  "bench": "swtbench",
+  "workdir": "/testbed",
+  "session": "script:/Users/uzysjung/Development/Claude-Workspace/uzysClaudeUniversalEnv/.claude/worktrees/agent-aed53f7b7beb5d6de/docs/plans/513-eval-evidence/rehearsal/commit-test-session.sh",
+  "normalize": false,
+  "steps": [
+    "① CLAUDE.md",
+    "③ exclude",
+    "④ evidence",
+    "⑤ session"
+  ],
+  "head_before": "c6753448b5c34f95e250105d76709fe4d349ca1f",
+  "upstream_claude_md": false,
+  "upstream_tracked": false,
+  "expected_a_sha256": "b5969ab00987940c6d6816399715638cce42c95cd600c09bf7048d7e85808a36",
+  "exclude_added": [
+    "CLAUDE.md"
+  ],
+  "skip_worktree": [],
+  "claude_md_before_session_sha256": "b5969ab00987940c6d6816399715638cce42c95cd600c09bf7048d7e85808a36",
+  "fill_placeholders": 0,
+  "import_block_before_session": false,
+  "status_at_start_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "session_started_at": 1792375710.811692,
+  "session_script_exit": 0,
+  "session_finished_at": 1792375711.113523,
+  "head_after": "0e51e45d17d382477314e61518d3b093faaecbf1",
+  "committed": true,
+  "n_commits": 1,
+  "normalized": false,
+  "patch_bytes": 0,
+  "import_block_after_session": false
+}

