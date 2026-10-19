@@ -381,8 +381,12 @@ export function summarizeContextCost(
   let unmeasuredCount = 0;
   for (const id of assetIds) {
     const tokens = assetDescriptorTokens(id, root);
-    if (tokens === null) unmeasuredCount += 1;
-    else {
+    if (tokens === null) {
+      // #856 — unmeasured 는 외부 자산 한정이다(위 ADR-032 정의). 하네스 번들인데 descriptor 가
+      // 없는 internal(ci-scaffold · MCP 행)은 셀 descriptor 가 없으므로 "external" 로 세지 않는다.
+      if (EXTERNAL_ASSETS.find((a) => a.id === id)?.method.kind !== "internal")
+        unmeasuredCount += 1;
+    } else {
       measuredTokens += tokens;
       measuredCount += 1;
     }

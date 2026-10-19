@@ -7,11 +7,13 @@ import {
   assetDescriptorTokens,
   formatResidentCostLine,
   residentCost,
+  summarizeContextCost,
 } from "../src/context-cost.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
+import { finalSelectedAssets } from "../src/preset-recommend.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
 
 const HARNESS_ROOT_FOR_INSTALL = resolve(__dirname, "..");
@@ -43,6 +45,34 @@ describe("path robustness + degraded frontmatter (SOD 리뷰 F1/F7 회귀 가드
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "SKILL.md"), "no frontmatter body");
     expect(assetDescriptorTokens("compaction-handoff", root)).toBeNull();
+  });
+});
+
+/**
+ * #856 — unmeasured 버킷은 외부 자산 한정(ADR-032). descriptor 가 없는 하네스 번들 자산
+ * (ci-scaffold)이 "external unmeasured" 로 세어지면 화면이 하네스 자산을 외부라고 오보한다.
+ */
+describe("unmeasured 는 외부 자산만 센다 (#856)", () => {
+  it("descriptor 없는 internal(ci-scaffold)은 세지 않고, 진짜 external 은 그대로 센다", () => {
+    expect(assetDescriptorTokens("ci-scaffold")).toBeNull(); // 전제: descriptor 가 없다
+    expect(summarizeContextCost(["ci-scaffold"]).unmeasuredCount).toBe(0);
+    expect(summarizeContextCost(["frontend-design"]).unmeasuredCount).toBe(1);
+  });
+
+  it("tooling 확인 화면 — ci-scaffold 가 선택돼도 'external asset unmeasured' 를 내지 않는다", () => {
+    const spec = {
+      projectDir: "/tmp/x",
+      tracks: ["tooling"],
+      cli: ["claude"],
+      options: {},
+      scope: "project",
+    } as unknown as InstallSpec;
+    expect(finalSelectedAssets(spec.tracks)).toContain("ci-scaffold");
+    const externals = finalSelectedAssets(spec.tracks).filter(
+      (id) => EXTERNAL_ASSETS.find((a) => a.id === id)?.method.kind !== "internal",
+    );
+    expect(externals, "tooling 기본에 external 이 생기면 이 대조를 다시 본다").toEqual([]);
+    expect(formatSummary(spec)).not.toMatch(/external assets? unmeasured/);
   });
 });
 
