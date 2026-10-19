@@ -107,7 +107,11 @@ import {
   outsideLinkAt,
   outsideProjectTarget,
 } from "../outside-project.js";
-import { stripHarnessImport, upsertHarnessImport } from "../project-claude-merge.js";
+import {
+  dropHarnessQuoteBlocks,
+  stripHarnessImport,
+  upsertHarnessImport,
+} from "../project-claude-merge.js";
 import {
   bundlePath,
   excludedIds,
@@ -2672,13 +2676,11 @@ function safeRealpath(abs: string): string | null {
 /**
  * #656 — 하네스 제거 후 남는 스캐폴드 배너를 정정한다. 배너 문장("SCAFFOLD — not filled in
  * yet…")은 하네스가 쓴 것이므로 지워도 사용자 몫이 아니다 — 그대로 두면 하네스가 없는
- * 프로젝트가 "아직 안 채웠다"고 계속 주장한다.
+ * 프로젝트가 "아직 안 채웠다"고 계속 주장한다. #837 — 표식 한 줄이 아니라 배너 인용 블록 3줄을
+ * 통째로 걷는다(채우는 법 · 앵커 안내도 하네스가 쓴 거짓이다). 옛 판 걷기(`stripLegacyAgentsMd`)와 같은 함수다.
  */
 function neutralizeScaffoldBanner(text: string): string {
-  return text
-    .split("\n")
-    .filter((line) => !line.includes("SCAFFOLD — not filled in yet"))
-    .join("\n");
+  return dropHarnessQuoteBlocks(text.split("\n")).join("\n");
 }
 
 /**
@@ -2856,8 +2858,10 @@ function pruneEmptyDirsUpward(projectDir: string, startDir: string): void {
  */
 function stripRootImport(projectDir: string): boolean {
   const current = readRootClaudeMd(projectDir);
-  const stripped = current === null ? null : stripHarnessImport(current);
-  if (stripped === null) return false;
+  const withoutImport = current === null ? null : stripHarnessImport(current);
+  if (withoutImport === null) return false;
+  // #837 — 배너는 방금 걷은 import 와 회수한 앵커 파일을 가리킨다("imported at the bottom of this file") — 같이 정정한다
+  const stripped = neutralizeScaffoldBanner(withoutImport);
   try {
     // #653 — 비UTF-8 바이트가 섞인 파일을 문자열 왕복으로 재작성 전에 원시 바이트를 보존한다.
     backupIfLossyUtf8(join(projectDir, "CLAUDE.md"));

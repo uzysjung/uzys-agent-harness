@@ -6,6 +6,7 @@
  * - #655: claude CLI 가 "not found" 로 실패하는 플러그인은 already-removed 로 성공 처리.
  * - #656: 걷어낸 AGENTS.md 에 거짓 스캐폴드 배너("not filled in yet")가 남지 않는다.
  * - #611: 전량 uninstall 후 빈 docs/decisions 디렉터를 걷는다.
+ * - #837: 배너 3줄이 통째로 걷힌다 — 걷어 쓰는 `AGENTS.md` · 루트 `CLAUDE.md`(import 를 걷는 경로).
  */
 import {
   existsSync,
@@ -23,6 +24,7 @@ import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { runInstall } from "../src/installer.js";
+import { scaffoldBanner } from "../src/project-claude-merge.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -118,6 +120,34 @@ describe("#656 — 거짓 스캐폴드 배너가 남지 않는다", () => {
         "SCAFFOLD — not filled in yet",
       );
     }
+  });
+});
+
+describe("#837 — 스캐폴드 배너 3줄이 전부 걷힌다", () => {
+  const bannerLeft = (text: string, surface: "claude" | "agents-md") =>
+    scaffoldBanner(surface)
+      .split("\n")
+      .filter((line) => text.includes(line));
+
+  it("씨뿌린 AGENTS.md(미편집) — 배너 3줄 모두 없고 설치자 본문은 남는다", () => {
+    writeFileSync(join(projectDir, "CLAUDE.md"), "# my project\n\nmy own notes\n", "utf8");
+    install(["codex"]);
+    uninstall();
+    const after = readFileSync(join(projectDir, "AGENTS.md"), "utf8");
+    expect(after).toContain("my own notes");
+    expect(bannerLeft(after, "agents-md")).toEqual([]);
+  });
+
+  it("하네스가 깐 루트 CLAUDE.md — import 를 걷을 때 배너 3줄(지운 앵커를 가리키는 줄 포함)도 걷는다", () => {
+    install(["claude"]);
+    const root = join(projectDir, "CLAUDE.md");
+    expect(bannerLeft(readFileSync(root, "utf8"), "claude")).toHaveLength(3); // 전제: 배너가 실제로 깔렸다
+    uninstall();
+    const after = readFileSync(root, "utf8");
+    expect(after).not.toContain("uzys-harness:import");
+    expect(after).toContain("## Identity & Purpose"); // 채울 절은 설치자 몫으로 남는다
+    expect(bannerLeft(after, "claude")).toEqual([]);
+    expect(after).not.toContain("imported at the bottom of this file");
   });
 });
 
