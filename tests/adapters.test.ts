@@ -847,6 +847,50 @@ describe("json-keys 훅 — 몫은 핸들러 하나, 같은 묶음의 다른 핸
     expect([...(js.read(legacy, key, "/work/other")?.keys() ?? [])]).toEqual([]);
   });
 
+  // #840 — 설치자가 같은 스크립트를 자기 묶음(다른 timeout)으로 한 번 더 등록했다
+  const mineDup = {
+    hooks: [
+      {
+        type: "command",
+        command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
+        timeout: 30,
+      },
+      prettier,
+    ],
+  };
+  const withDup = (text: string, at: "unshift" | "push") => {
+    const j = JSON.parse(text);
+    j.hooks.SessionStart[at](structuredClone(mineDup));
+    return JSON.stringify(j);
+  };
+
+  it.each([
+    "unshift",
+    "push",
+  ] as const)("같은 스크립트 핸들러가 둘이면(설치자 묶음 %s) strip 은 둘 다 걷고 설치자 묶음의 다른 핸들러는 남긴다(#840)", (at) => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const s = stripOk(js, withDup(u.text, at), u.portions);
+    expect(s.removed).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(JSON.parse(s.text)).toEqual({ hooks: { SessionStart: [{ hooks: [prettier] }] } });
+  });
+
+  it("같은 스크립트 핸들러가 둘이어도 update 는 기록과 같은 하네스 핸들러를 새 판으로 갈고 설치자 것은 그대로 둔다(#840)", () => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const v2 = new Map<string, unknown>([
+      ["hooks.SessionStart#session-start.sh", HOOK("session-start.sh", { matcher: "startup" })],
+    ]);
+    const v2Handler = {
+      type: "command",
+      command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
+      timeout: 5,
+    };
+    (v2.get("hooks.SessionStart#session-start.sh") as { hooks: unknown[] }).hooks[0] = v2Handler;
+    const again = upsertOk(js, withDup(u.text, "unshift"), v2, u.portions);
+    expect(again.kept).toEqual([]);
+    expect(again.replaced).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(JSON.parse(again.text).hooks.SessionStart).toEqual([mineDup, { hooks: [v2Handler] }]);
+  });
+
   it("렌더 묶음에 그 스크립트를 부르는 핸들러가 없으면 조용히 넘어가지 않는다", () => {
     const bad = new Map<string, unknown>([["hooks.SessionStart#session-start.sh", homeHook]]);
     expect(() =>
