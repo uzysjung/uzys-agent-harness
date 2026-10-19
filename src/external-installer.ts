@@ -18,12 +18,13 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmdirSync,
   rmSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import {
   assetReachesCli,
@@ -726,6 +727,9 @@ interface AsideFile {
  * 자리마다 지켜야 할 파일 — 고친 기록 파일과 기록 밖 파일(기록 sha 와 같은 파일은 도구가 갱신해도 된다). 기록이 하네스
  * 것(`recorded()`)이거나 다른 자산 것이라 말하는 경로는 설치자 파일이 아니라 옮기지 않는다. 프로젝트 밖으로 풀리는 자리는
  * 도구도 쓰지 않는다(#678). 옮기기 전에 다 모은다 — 겹친 자리(루트 · 그 안의 스킬)의 백업 폴더를 다시 줍지 않게.
+ * 같은 파일은 실경로(폴더를 realpath 한 자리 + 이름)로 한 번만 든다 — `.claude/skills/<id>` 가 `.agents/skills/<id>` 로의 링크면
+ * (#524) 두 자리가 한 폴더라 경로 둘로 잡혀 두 번째 옮기기가 ENOENT 로 죽는다(#838). 링크를 거치지 않는 경로를 남긴다 — 도구가
+ * 링크 자리를 실제 폴더로 바꿔도 설치자 파일은 원래 있던 폴더로 돌아간다.
  */
 function slotFilesToKeep(
   projectDir: string,
@@ -747,21 +751,22 @@ function slotFilesToKeep(
     ...mine.map((f) => f.path.split("/").slice(0, 3).join("/")),
     ...hold.slots,
   ]);
-  const out: Omit<AsideFile, "aside">[] = [];
-  const seen = new Set<string>();
+  const out = new Map<string, Omit<AsideFile, "aside">>();
+  const realProject = realpathSync(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
     for (const rel of listFilesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
-      if (seen.has(path)) continue;
-      seen.add(path);
+      const abs = join(projectDir, path);
+      const real = join(realpathSync(dirname(abs)), basename(abs));
+      const prev = out.get(real);
+      if (prev !== undefined && (prev.rel === path || real !== join(realProject, path))) continue;
       const recordedSha = sha.get(path);
       if (
         recordedSha === undefined &&
         (others.has(path) || recorded(hold.log, path).state !== "none")
       )
         continue;
-      const abs = join(projectDir, path);
       try {
         if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
           continue;
@@ -769,10 +774,10 @@ function slotFilesToKeep(
       } catch {
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
-      out.push({ abs, rel: path, slot, recorded: recordedSha !== undefined });
+      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined });
     }
   }
-  return out;
+  return [...out.values()];
 }
 
 /**
