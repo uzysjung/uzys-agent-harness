@@ -364,12 +364,6 @@ export interface InstallReport {
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks/skills 갱신 + orphan prune + stale hook). null when not update mode. */
   updateMode: UpdateModeReport | null;
-  /**
-   * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로). update 경로 전용 —
-   * install 은 settings.json 의 하네스 몫을 **이번 선택으로 렌더**해 몫만 쓰므로 사후 치유가 없다(#551 PR-3 ·
-   * 설계 N13). install 에서는 항상 `[]`.
-   */
-  staleHookRefs: string[];
   /** #603 — install 이 발견만 하고 지우지 않은 죽은 훅 참조(`.claude/` 상대경로). 화면은 한 줄로 알린다. */
   keptHookRefs?: string[];
   /**
@@ -841,7 +835,6 @@ function runInstallStages(
     cliTransforms.codexOptIn,
   );
 
-  // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
   return {
     ...baseline,
     // #770 HIGH-1 — 외부 스킬을 다시 받으며 남긴 백업은 Phase 1 행 뒤에 생긴다 — 보고에도 싣는다
@@ -849,7 +842,6 @@ function runInstallStages(
       ? { backups: [...(baseline.backups ?? []), ...externalSkillBackups] }
       : {}),
     external,
-    staleHookRefs: [],
   };
 }
 
@@ -902,9 +894,8 @@ function runUpdateInstall(ctx: InstallContext, templatesDir: string): InstallRep
     rootClaudeMd: null,
   };
   ctx.onProgress?.({ type: "baseline-complete", baseline });
-  // update 경로의 치유 결과는 `updateMode.staleHookRefs` 가 이미 싣는다 — 여기서 다시 담으면
-  // 같은 사실이 두 필드가 되고 렌더가 중복 보고한다.
-  return { ...baseline, external: null, staleHookRefs: [] };
+  // 죽은 훅 참조는 `updateMode.staleHookRefs` 가 싣는다(알리기만 — 지우지 않는다, #857).
+  return { ...baseline, external: null };
 }
 
 /**
@@ -1247,7 +1238,7 @@ function installClaudeBaseline(
       );
     });
     // #603 — 죽은 훅 참조는 **지우지 않고 알리기만** 한다. install 시점의 설치 기록에 없는 참조는 설치자 몫이다
-    // (팀이 커밋한 `generated-*.sh` 배선 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). 지우는 치유는 update 몫.
+    // (팀이 커밋한 `generated-*.sh` 배선 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). update 도 알리기만 한다(#746 · #857).
     result.keptHookRefs.push(
       ...findStaleHookRefs(
         join(projectDir, ".claude", "settings.json"),
