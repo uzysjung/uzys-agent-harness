@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-19
-- PR: TBD
+- PR: #875
 - Issue: #851 (AC3)
 
 ## Context
