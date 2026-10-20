@@ -303,6 +303,28 @@ describe("#851 — 소스 전체를 까는 global 자산이 깐 스킬 이름을
     ]);
   });
 
+  it("잠금 파일에 같은 소스의 예전 이름이 있어도 이번 호출이 건드리지 않은 폴더는 들지 않는다", () => {
+    mkdirSync(dirname(lockPath()), { recursive: true });
+    writeFileSync(
+      lockPath(),
+      JSON.stringify({ version: 3, skills: { old: { source: "owner/whole" } }, dismissed: {} }),
+    );
+    put(home, ".claude/skills/old/SKILL.md", BODY("old")); // 예전에 이 소스가 깐 폴더 — 이번 호출은 그대로 둔다
+    expect(installGlobal(fakeTool())?.skills).toEqual(["x", "y"]);
+  });
+
+  it("도구가 읽지 않는 옛 판(version < 3) 잠금 파일이면 이름을 기록하지 않는다", () => {
+    mkdirSync(dirname(lockPath()), { recursive: true });
+    writeFileSync(
+      lockPath(),
+      JSON.stringify({
+        version: 2,
+        skills: { x: { source: "owner/whole" }, y: { source: "owner/whole" } },
+      }),
+    );
+    expect(installGlobal(fakeTool(BODY, { lock: "none" }))?.skills).toBeUndefined();
+  });
+
   it("XDG_STATE_HOME 이 있으면 도구처럼 그 아래 잠금 파일을 읽는다", () => {
     const state = mkdtempSync(join(tmpdir(), "uzys-851w-state-"));
     try {
