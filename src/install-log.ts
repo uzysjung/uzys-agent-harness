@@ -62,6 +62,13 @@ export interface InstallLogAsset {
    * 빈 배열 = 놓은 것이 없다고 기록됐다. `INSTALL_LOG_VERSION` 은 올리지 않는다(부재를 정상으로 읽는 관행).
    */
   files?: ReadonlyArray<InstallLogSkillFile>;
+  /**
+   * #851 (ADR-112) — 소스 전체를 까는 global `skill` 자산(`detail.skill` 없음)이 홈 스킬 자리에 깐 스킬 폴더 이름. install · update 가
+   * 도구 호출 전후로 잰다(`installOne` — 바뀐 폴더 ∩ 도구 잠금 파일이 이 소스로 적은 이름). 회수(`reclaimGlobalSkillCopies`)가 이 이름으로 프로젝트 사본 자리를 찾는다. 다시 깔면
+   * 합집합이다 — 상류가 이름을 바꿔도 옛 이름은 이 자산이 깐 자리다. **부재 = 이름을 모른다**(이 필드 이전의 기록 — 회수하지 않고,
+   * 다음 update 가 잰다). `INSTALL_LOG_VERSION` 은 올리지 않는다(`files` 와 같은 관행).
+   */
+  skills?: ReadonlyArray<string>;
 }
 
 /**
@@ -363,15 +370,33 @@ export function buildAssetEntries(
   return report.attempted
     .filter((r) => r.ok)
     .map((r) => {
-      const entry = assetToLogEntry(r.asset, scope, r.version);
-      if (r.files === undefined) return entry;
       const recordedBefore = previous?.find((a) => a.id === r.asset.id);
+      const entry = {
+        ...assetToLogEntry(r.asset, scope, r.version),
+        ...skillNames(recordedBefore, scope, r.skills),
+      };
+      if (r.files === undefined) return entry;
       // 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 다시 깔아도 "모름" 그대로 둔다 — 옛 판이 놓은 파일은
       // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
       // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
       if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
       return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
+}
+
+/**
+ * #851 (ADR-112) — global 자산의 스킬 이름 기록. 이번에 잰 이름(`run`)을 앞선 global 기록의 이름에 더한다 — 재지 않았으면 앞선
+ * 이름을 잇는다. project 로 깔면 이름을 두지 않는다(그 자리는 `files` 가 말한다). 남길 이름이 없으면 필드를 두지 않는다.
+ */
+export function skillNames(
+  prior: InstallLogAsset | undefined,
+  scope: InstallScope,
+  run: ReadonlyArray<string> | undefined,
+): { skills?: string[] } {
+  if (scope !== "global") return {};
+  const kept = prior?.scope === "global" && Array.isArray(prior.skills) ? prior.skills : [];
+  const names = [...new Set([...kept, ...(run ?? [])])].sort();
+  return names.length > 0 ? { skills: names } : {};
 }
 
 /**

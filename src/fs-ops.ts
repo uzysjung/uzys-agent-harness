@@ -5,6 +5,8 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
+  symlinkSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
@@ -130,6 +132,14 @@ export function backupFromCopy(target: string, source: string, now: Date = new D
   );
 }
 
+/** #839 — 링크를 링크 그대로 `<target>.backup-<시각>` 으로 남긴다(가리키는 글자 그대로 — 대상 본체는 건드리지 않는다). */
+export function backupLink(target: string, source: string, now: Date = new Date()): string {
+  mkdirSync(dirname(target), { recursive: true });
+  return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) =>
+    symlinkSync(readlinkSync(source), c),
+  );
+}
+
 /** #780 — `<dir>.backup-<시각>[-n]` 폴더를 새로 만든다(`backupFile` 과 같은 이름 규칙 — 무시 목록 · 백업 정리가 같이 본다). */
 export function claimBackupDir(target: string, now: Date = new Date()): string {
   return claimBackupPath(`${target}.backup-${formatStamp(now)}`, (c) => mkdirSync(c));
@@ -159,6 +169,27 @@ export function listFilesRecursive(dir: string, prefix = ""): string[] {
       out.push(...listFilesRecursive(join(dir, entry.name), rel));
     } else if (entry.isFile()) {
       out.push(rel);
+    }
+  }
+  return out;
+}
+
+/**
+ * #839 — `listFilesRecursive` 와 같되 안의 링크(파일 · 폴더)는 따라가지 않고 그 자체를 낸다(`link: true`). `dir` 자체가 링크면
+ * 따라 들어간다. 외부 스킬 도구 앞의 hold 전용 — 기록(`snapshotSkillRoots`)은 링크를 건너뛰는 `listFilesRecursive` 를 쓴다.
+ */
+export function listEntriesRecursive(
+  dir: string,
+  prefix = "",
+): Array<{ rel: string; link: boolean }> {
+  if (!existsSync(dir)) return [];
+  const out: Array<{ rel: string; link: boolean }> = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      out.push(...listEntriesRecursive(join(dir, entry.name), rel));
+    } else if (entry.isFile() || entry.isSymbolicLink()) {
+      out.push({ rel, link: entry.isSymbolicLink() });
     }
   }
   return out;

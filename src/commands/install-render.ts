@@ -41,7 +41,7 @@ import {
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
-import type { AssetInstallResult } from "../external-installer.js";
+import type { AssetInstallResult, GlobalCopyReclaim } from "../external-installer.js";
 import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
@@ -603,6 +603,22 @@ export function renderCliArtifacts(
   log("");
 }
 
+/** #851 (ADR-112) — 회수한 프로젝트 사본마다 한 줄 · 남긴 파일마다 한 줄. */
+export function globalCopyRows(copies: ReadonlyArray<GlobalCopyReclaim>): string[] {
+  return copies.flatMap((r) => [
+    ...(r.removed.length > 0
+      ? [
+          assetRow(
+            "success",
+            r.slot,
+            `removed — a project copy of ${r.id}, which is on record as installed globally (an older update put it here)`,
+          ),
+        ]
+      : []),
+    ...r.left.map((l) => assetRow("skip", l.path, `left — ${l.why}`)),
+  ]);
+}
+
 /** ADR-103 — update 가 `AGENTS.md` 를 새로 만들었거나 다른 앵커의 설치자 글을 옮겨 심었으면 그 한 줄. */
 export function agentsMdNewsRow(n: UpdateModeReport["agentsMd"]): string | null {
   if (n === undefined) return null;
@@ -1067,6 +1083,8 @@ function renderPhase1Rows(
     if (agentsNews) log(agentsNews);
     const retired = anchorRetireRow(baseline.updateMode.anchorRetired ?? null);
     if (retired) log(retired);
+    // #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본을 회수했다(백업은 아래 판정 줄이 파일마다 말한다)
+    for (const row of globalCopyRows(baseline.updateMode.globalCopiesReclaimed ?? [])) log(row);
     // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
     for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
     // #782 — 하네스가 떠난 자리(은퇴 회수 · 트랙 밖 룰 · 옛 앵커)에 설치자 원본을 되돌렸다
