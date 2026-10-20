@@ -64,7 +64,7 @@ export interface InstallLogAsset {
   files?: ReadonlyArray<InstallLogSkillFile>;
   /**
    * #851 (ADR-112) — 소스 전체를 까는 global `skill` 자산(`detail.skill` 없음)이 홈 스킬 자리에 깐 스킬 폴더 이름. install · update 가
-   * 도구 호출 전후로 잰다(`installOne`). 회수(`reclaimGlobalSkillCopies`)가 이 이름으로 프로젝트 사본 자리를 찾는다. 다시 깔면
+   * 도구 호출 전후로 잰다(`installOne` — 바뀐 폴더 ∩ 도구 잠금 파일이 이 소스로 적은 이름). 회수(`reclaimGlobalSkillCopies`)가 이 이름으로 프로젝트 사본 자리를 찾는다. 다시 깔면
    * 합집합이다 — 상류가 이름을 바꿔도 옛 이름은 이 자산이 깐 자리다. **부재 = 이름을 모른다**(이 필드 이전의 기록 — 회수하지 않고,
    * 다음 update 가 잰다). `INSTALL_LOG_VERSION` 은 올리지 않는다(`files` 와 같은 관행).
    */

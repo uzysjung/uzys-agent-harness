@@ -65,6 +65,7 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), "uzys-851w-home-"));
   vi.stubEnv("HOME", home);
   vi.stubEnv("CLAUDE_CONFIG_DIR", "");
+  vi.stubEnv("XDG_STATE_HOME", "");
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -92,11 +93,23 @@ const okSpawn = (): SpawnSyncReturns<string> => ({
 });
 type SpawnFn = NonNullable<ExternalInstallerDeps["spawn"]>;
 
+/** `skills@1.5.11` `getSkillLockPath` 그대로 — 흉내 도구가 잠금 파일을 쓰는 자리. */
+const lockPath = (): string =>
+  process.env.XDG_STATE_HOME
+    ? join(process.env.XDG_STATE_HOME, "skills", ".skill-lock.json")
+    : join(home, ".agents", ".skill-lock.json");
+
 /**
- * `npx skills add <source> --agent … --copy -g` 의 흉내 — `skills@1.5.11` 처럼 까는 스킬 폴더마다 지우고 새로 만든다
- * (`cleanAndCreateDirectory`). `-g` 가 아니면 아무것도 하지 않는다(이 파일의 대상은 global 자산이다).
+ * `npx skills add <source> --agent … --copy -g` 의 흉내 — `skills@1.5.11` 처럼 까는 스킬 폴더마다 지우고 새로 만들고(`cleanAndCreateDirectory`),
+ * 잠금 파일에 스킬 이름(정규화 전 — 폴더는 `sanitizeName` 한 것)마다 `source` 를 적는다. `-g` 가 아니면 아무것도 하지 않는다.
+ * `lock` = 잠금 파일을 어떻게 남기나(`none` 안 씀 · `garbage` 해석 불가) · `skillNames` = 소스의 스킬 이름 · `during` = 호출 중 다른 손.
  */
-function fakeTool(body: (n: string) => string = BODY): SpawnFn {
+function fakeTool(
+  body: (n: string) => string = BODY,
+  opts: { lock?: "write" | "none" | "garbage"; skillNames?: string[]; during?: () => void } = {},
+): SpawnFn {
+  const skillNames = opts.skillNames ?? NAMES;
+  const lock = opts.lock ?? "write";
   return vi.fn((_cmd: string, args: ReadonlyArray<string>) => {
     if (args.includes("-g") && args.includes("owner/whole")) {
       const agents = args.flatMap((a, i) => (args[i - 1] === "--agent" ? [a] : []));
@@ -104,10 +117,25 @@ function fakeTool(body: (n: string) => string = BODY): SpawnFn {
         agents.map((a) => (a === "claude-code" ? ".claude/skills" : ".agents/skills")),
       );
       for (const root of roots) {
-        for (const n of NAMES) {
+        for (const name of skillNames) {
+          const n = name.toLowerCase();
           rmSync(join(home, root, n), { recursive: true, force: true });
           put(home, `${root}/${n}/SKILL.md`, body(n));
         }
+      }
+      opts.during?.();
+      if (lock === "garbage") {
+        mkdirSync(dirname(lockPath()), { recursive: true });
+        writeFileSync(lockPath(), "{ not json");
+      } else if (lock === "write") {
+        const prev = existsSync(lockPath())
+          ? (JSON.parse(readFileSync(lockPath(), "utf8")) as { skills: Record<string, unknown> })
+          : { skills: {} };
+        const skills = { ...prev.skills };
+        for (const name of skillNames)
+          skills[name] = { source: "owner/whole", sourceType: "github" };
+        mkdirSync(dirname(lockPath()), { recursive: true });
+        writeFileSync(lockPath(), JSON.stringify({ version: 3, skills, dismissed: {} }));
       }
     }
     return okSpawn();
@@ -193,35 +221,102 @@ function expectReclaimed(): void {
   for (const n of NAMES) expect(existsSync(join(home, `.claude/skills/${n}/SKILL.md`))).toBe(true);
 }
 
+/** install --global 로 WHOLE 을 깐다(흉내 도구로). 깐 뒤 기록의 그 자산 엔트리. */
+function installGlobal(spawn: SpawnFn): InstallLogAsset | undefined {
+  runInstall({
+    // installer 는 cli · scope 도 넘긴다(`runExternalPhase`) — 주입점의 타입이 그 둘을 적지 않을 뿐이다
+    runExternal: (ctx, deps) =>
+      runExternalInstall(ctx as Parameters<typeof runExternalInstall>[0], {
+        ...deps,
+        assets: [WHOLE],
+        spawn,
+      }),
+    harnessRoot: HARNESS_ROOT,
+    projectDir,
+    mode: "add",
+    spec: {
+      tracks: ["tooling"],
+      options: { withCodexTrust: false },
+      cli: ["claude", "codex"],
+      projectDir,
+      scope: "global",
+      userOverride: { forceInclude: ["whole"], forceExclude: [] },
+    },
+  });
+  return readInstallLog(projectDir)?.assets.find((a) => a.id === "whole");
+}
+
 describe("#851 — 소스 전체를 까는 global 자산이 깐 스킬 이름을 잰다", () => {
   it("install --global → 기록에 이번에 깐 이름 · 이미 있던 같은 바이트의 폴더도 든다 · 설치자 자신의 홈 스킬은 들지 않는다", () => {
-    put(home, ".claude/skills/x/SKILL.md", BODY("x")); // 앞서 깔려 있던 같은 판
+    // 앞서 깔려 있던 같은 판 — 두 자리 모두(한 자리만 두면 다른 자리의 새 폴더가 같은 이름을 대신 잡아 준다)
+    put(home, ".claude/skills/x/SKILL.md", BODY("x"));
+    put(home, ".agents/skills/x/SKILL.md", BODY("x"));
     put(home, ".claude/skills/mine/SKILL.md", "# mine\n"); // 설치자 스킬 — 도구가 건드리지 않는다
-    const spawn = fakeTool();
-    runInstall({
-      // installer 는 cli · scope 도 넘긴다(`runExternalPhase`) — 주입점의 타입이 그 둘을 적지 않을 뿐이다
-      runExternal: (ctx, deps) =>
-        runExternalInstall(ctx as Parameters<typeof runExternalInstall>[0], {
-          ...deps,
-          assets: [WHOLE],
-          spawn,
-        }),
-      harnessRoot: HARNESS_ROOT,
-      projectDir,
-      mode: "add",
-      spec: {
-        tracks: ["tooling"],
-        options: { withCodexTrust: false },
-        cli: ["claude", "codex"],
-        projectDir,
-        scope: "global",
-        userOverride: { forceInclude: ["whole"], forceExclude: [] },
-      },
-    });
-    const entry = readInstallLog(projectDir)?.assets.find((a) => a.id === "whole");
+    const entry = installGlobal(fakeTool());
     expect(entry?.scope).toBe("global");
     expect(entry?.skills).toEqual(["x", "y"]);
     expect(entry?.files).toBeUndefined();
+  });
+
+  it("호출 중 설치자 홈 스킬 폴더가 바뀌어도(편집기 원자 저장) 그 이름은 들지 않고, 같은 실행의 회수가 그 프로젝트 폴더를 지우지 않는다", () => {
+    put(home, ".claude/skills/mine/SKILL.md", "# mine\n");
+    put(projectDir, ".claude/skills/mine/SKILL.md", "# mine\n");
+    seedLog([wholeEntry()]);
+    const during = (): void => {
+      put(home, ".claude/skills/mine/.SKILL.md.swp", "tmp");
+      rmSync(join(home, ".claude/skills/mine/.SKILL.md.swp"));
+    };
+    update(fakeTool(BODY, { during }));
+    expect(readInstallLog(projectDir)?.assets.find((a) => a.id === "whole")?.skills).toEqual([
+      "x",
+      "y",
+    ]);
+    expect(readFileSync(abs(".claude/skills/mine/SKILL.md"), "utf8")).toBe("# mine\n");
+  });
+
+  it("호출 중 다른 손이 홈에 새로 만든 스킬 폴더는 이 자산 이름이 아니다", () => {
+    const entry = installGlobal(
+      fakeTool(BODY, { during: () => put(home, ".claude/skills/fresh/SKILL.md", "# fresh\n") }),
+    );
+    expect(entry?.skills).toEqual(["x", "y"]);
+  });
+
+  it("잠금 파일이 없으면 이름을 기록하지 않는다", () => {
+    expect(installGlobal(fakeTool(BODY, { lock: "none" }))?.skills).toBeUndefined();
+  });
+
+  it("잠금 파일이 해석되지 않으면 이름을 기록하지 않는다", () => {
+    expect(installGlobal(fakeTool(BODY, { lock: "garbage" }))?.skills).toBeUndefined();
+  });
+
+  it("잠금 파일의 다른 소스 항목 이름은 들지 않는다 · 스킬 이름은 도구처럼 폴더 이름으로 정규화한다", () => {
+    mkdirSync(dirname(lockPath()), { recursive: true });
+    writeFileSync(
+      lockPath(),
+      JSON.stringify({ version: 3, skills: { z: { source: "someone/else" } }, dismissed: {} }),
+    );
+    // z 는 다른 소스가 깐 것 — 이번 호출 중 바뀌어도 들지 않는다
+    const during = (): void => put(home, ".claude/skills/z/SKILL.md", "# z\n");
+    expect(installGlobal(fakeTool(BODY, { skillNames: ["X", "Y"], during }))?.skills).toEqual([
+      "x",
+      "y",
+    ]);
+  });
+
+  it("XDG_STATE_HOME 이 있으면 도구처럼 그 아래 잠금 파일을 읽는다", () => {
+    const state = mkdtempSync(join(tmpdir(), "uzys-851w-state-"));
+    try {
+      vi.stubEnv("XDG_STATE_HOME", state);
+      expect(installGlobal(fakeTool())?.skills).toEqual(["x", "y"]);
+      expect(existsSync(join(state, "skills", ".skill-lock.json"))).toBe(true);
+    } finally {
+      rmSync(state, { recursive: true, force: true });
+    }
+  });
+
+  it("다시 깔면 앞선 global 기록의 이름에 더한다(상류가 이름을 바꿔도 옛 이름 자리는 이 자산 것)", () => {
+    seedLog([wholeEntry({ skills: ["old"] })]);
+    expect(installGlobal(fakeTool())?.skills).toEqual(["old", "x", "y"]);
   });
 
   it("project 로 깐 소스 전체 자산은 이름을 두지 않는다(그 자리는 files 가 말한다)", () => {

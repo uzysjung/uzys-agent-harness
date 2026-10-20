@@ -119,7 +119,8 @@ export interface AssetInstallResult {
   files?: ToolFiles;
   /**
    * #851 (ADR-112) — global scope 의 소스 전체 `skill`(`method.skill` 없음)만. 이 호출이 홈 스킬 자리에 깐 스킬 폴더 이름
-   * (`homeSkillDirs` 전후 비교). 기록의 `skills` 가 된다.
+   * (`homeSkillDirs` 전후 비교 ∩ 도구 잠금 파일이 이 소스로 적은 이름 — `lockedSkillNames`). 기록의 `skills` 가 된다. 부재 = 잴 수
+   * 없었다(잠금 파일을 못 읽었다 — 기록하지 않는다).
    */
   skills?: string[];
   /**
@@ -174,9 +175,9 @@ function snapshotSkillRoots(projectDir: string): Map<string, string> {
 
 /**
  * #851 (ADR-112) — 홈 스킬 자리의 스킬 폴더마다 정체(`ino:ctime`). 도구(`skills@1.5.11` `installSkillForAgent` 의 `--copy` 경로)는 까는
- * 폴더를 **지우고 새로 만든다**(`cleanAndCreateDirectory`) — 그래서 이미 깔려 있던 같은 바이트의 폴더도 호출 뒤 정체가 바뀌고, 도구가
- * 안 건드린 폴더(설치자 스킬 · 다른 소스)는 그대로다. 내용 비교는 이미 있던 폴더를 놓치고, 도구의 잠금 파일은 키가 폴더 이름이
- * 아니다(정규화 전 이름). 링크 · 파일은 스킬 폴더가 아니다(`--copy` 는 폴더를 만든다).
+ * 폴더를 **지우고 새로 만든다**(`cleanAndCreateDirectory`) — 그래서 이미 깔려 있던 같은 바이트의 폴더도 호출 뒤 정체가 바뀐다(내용
+ * 비교는 이미 있던 폴더를 놓친다). 정체는 호출 중 다른 손(설치자 편집기의 원자 저장 · 다른 프로세스)이 바꾼 폴더도 잡으므로 이것만으로
+ * 이름을 정하지 않는다 — 잠금 파일(`lockedSkillNames`)과 겹친 것만 쓴다. 링크 · 파일은 스킬 폴더가 아니다(`--copy` 는 폴더를 만든다).
  */
 function homeSkillDirs(roots: ReadonlyArray<string>): Map<string, string> {
   const out = new Map<string, string>();
@@ -208,6 +209,43 @@ function writtenSkillNames(
     .filter(([dir, id]) => before.get(dir) !== id)
     .map(([dir]) => basename(dir));
   return [...new Set(names)].sort();
+}
+
+/**
+ * #851 (ADR-112) — 도구 잠금 파일이 이 소스로 적은 스킬의 폴더 이름. `skills@1.5.11` 실측(`getSkillLockPath` · `addSkillToLock` ·
+ * `sanitizeName`): global 설치마다 `$XDG_STATE_HOME/skills/.skill-lock.json`(없으면 `~/.agents/.skill-lock.json`)의 `skills[<스킬 이름>]` 에
+ * `source`(github 줄임 `owner/repo` 는 그대로)를 적고, 폴더 이름은 그 스킬 이름을 정규화한 것이다. 못 읽거나 도구가 읽지 않는 판이면
+ * `null` — 이름을 기록하지 않는다(덜 회수하는 쪽).
+ */
+function lockedSkillNames(source: string): Set<string> | null {
+  const xdg = process.env.XDG_STATE_HOME;
+  const path = xdg
+    ? join(xdg, "skills", ".skill-lock.json")
+    : join(homedir(), ".agents", ".skill-lock.json");
+  try {
+    const lock = JSON.parse(readFileSync(path, "utf8")) as { version?: unknown; skills?: unknown };
+    if (typeof lock.version !== "number" || lock.version < 3) return null;
+    if (typeof lock.skills !== "object" || lock.skills === null) return null;
+    const out = new Set<string>();
+    for (const [name, entry] of Object.entries(lock.skills as Record<string, unknown>)) {
+      if ((entry as { source?: unknown } | null)?.source === source)
+        out.add(toolSkillDirName(name));
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/** `skills@1.5.11` `sanitizeName` 그대로 — 스킬 이름 → 그 도구가 만드는 폴더 이름. */
+function toolSkillDirName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9._]+/g, "-")
+      .replace(/^[.-]+|[.-]+$/g, "")
+      .substring(0, 255) || "unnamed-skill"
+  );
 }
 
 function diffSnapshots(
@@ -385,7 +423,11 @@ function installOne(
         const before = homeSkillDirs(roots);
         const result = runSpawn(asset, ctx.spawn, "npx", args, cwd);
         if (!result.ok) return result;
-        return { ...result, skills: writtenSkillNames(before, homeSkillDirs(roots)) };
+        // 호출 중 다른 손이 바꾼 폴더는 이 자산 것이 아니다 — 도구가 이 소스로 잠금 파일에 적은 이름과 겹친 것만
+        const locked = lockedSkillNames(method.source);
+        if (locked === null) return result;
+        const written = writtenSkillNames(before, homeSkillDirs(roots));
+        return { ...result, skills: written.filter((n) => locked.has(n)) };
       }
       // #678 — 스킬 자리가 프로젝트 밖으로 풀리는 CLI 는 그 자리로 도구를 부르지 않는다(도구는 링크를 따라 밖에 쓴다).
       // 남은 CLI 가 없으면 부르지 않는다. 에이전트 미지정(레거시 `cli: []`)은 두 자리 모두 쓰므로 하나라도 밖이면 부르지 않는다.
