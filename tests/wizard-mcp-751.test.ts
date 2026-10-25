@@ -23,6 +23,7 @@ import {
   updateInitialSelection,
 } from "../src/interactive.js";
 import { buildPageGroups, type InstallTargetId, type Prompts } from "../src/prompts.js";
+import { excludedIds } from "../src/recorded.js";
 import type { DetectedInstall } from "../src/state.js";
 import {
   type CliBase,
@@ -214,5 +215,164 @@ describe("#751 — 깔린 context7 · supabase 는 update 3단계에 체크 · i
     // 대조군 — 빼지 않은 하네스 서버는 남는다
     expect(after.mcp).toContain("railway-mcp-server");
     expect(read(wizardDir)).toEqual(read(flagDir));
+  });
+});
+
+/**
+ * #908 — 뺀 서버를 3단계에서 다시 체크하면 깔린다. 빼기는 두 형태로 기록된다: 자산 id(`--without railway-mcp-server`) ·
+ * 키 id(`--without mcp:railway-mcp-server`). 위저드는 3단계에 자산 id 로만 체크를 받으므로, 기록의 키 id 도 자산 id 로
+ * 풀어 대조해야 다시 체크한 서버가 무시되지 않는다(`classifyUpdateIntent` · `unchecked`).
+ */
+describe("#908 — 뺀 MCP 서버를 위저드 3단계에서 다시 체크하면 깔린다", () => {
+  const RAILWAY = "railway-mcp-server";
+  const FORMS = [
+    ["키 id", `mcp:${RAILWAY}`],
+    ["자산 id", RAILWAY],
+  ] as const;
+  /** [CLI 를 그대로 둔다 · CLI(codex)를 더한다] */
+  const CLI_CASES = [
+    ["CLI 유지", false],
+    ["CLI 추가", true],
+  ] as const;
+
+  /** csr-supabase(claude)를 `--without <without>` 으로 깐다 — railway 는 트랙 기본이라 빼지 않으면 깔린다. */
+  function installedWithout(without: string): string {
+    const dir = mkdtempSync(join(tmpdir(), "wiz-908-"));
+    dirs.push(dir);
+    const warnings: string[] = [];
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      runExternal: null,
+      spec: installSpecFromOptions(
+        { track: [TRACK], cli: ["claude"], without: [without], projectDir: dir },
+        ["claude"],
+        (m) => warnings.push(m),
+        HARNESS_ROOT,
+      ),
+    });
+    expect(warnings, "빼기 id 가 받아들여져야 한다 — 경고가 나면 전제가 틀렸다").toEqual([]);
+    // 전제 — 뺀 서버는 안 깔렸고, 빼기는 입력한 형태 그대로 기록됐다
+    expect(mcpServers(dir)).not.toContain(RAILWAY);
+    expect([...excludedIds(readInstallLog(dir))]).toContain(without);
+    return dir;
+  }
+  const mcpServers = (dir: string): string[] =>
+    Object.keys(
+      (JSON.parse(readFileSync(join(dir, ".mcp.json"), "utf8")) as { mcpServers: object })
+        .mcpServers,
+    );
+
+  /** 위저드를 한 번 돈다 — 3단계에서 railway 를 다시 체크하거나 두고, CLI 를 더하거나 둔다. */
+  async function wizard(dir: string, o: { recheck: boolean; addCodex: boolean }) {
+    let initialTargets: ReadonlyArray<InstallTargetId> = [];
+    const confirmInstall = vi.fn(async (_s: string) => true);
+    const result = await runInteractive(dir, {
+      prompts: prompts({
+        selectCli: vi.fn(async (initial?: CliTargets): Promise<CliTargets> => {
+          const base: CliTargets = initial ?? ["claude"];
+          return o.addCodex ? [...base, "codex"] : base;
+        }),
+        selectInstallTargets: vi.fn(async (initial: ReadonlyArray<InstallTargetId>) => {
+          initialTargets = initial;
+          return o.recheck ? [...initial, `asset:${RAILWAY}` as const] : initial;
+        }),
+        confirmInstall,
+      }),
+      detect,
+      isTty: () => true,
+    });
+    const summary = confirmInstall.mock.calls[0]?.[0] ?? "";
+    // 전제 — 3단계는 뺀 서버를 해제된 채로 보인다(그래서 다시 체크가 의미 있다)
+    expect(initialTargets).not.toContain(`asset:${RAILWAY}`);
+    return { result, summary };
+  }
+  /** 확인 화면 `RUNS AS` 의 `--without` 값들. */
+  const withoutOf = (summary: string): string[] =>
+    [
+      ...(summary.split("\n").find((l) => l.includes("RUNS AS")) ?? "").matchAll(
+        /--without (\S+)/g,
+      ),
+    ].map((m) => m[1] ?? "");
+  const selectedCount = (summary: string): number =>
+    Number(/Assets:\s+(\d+) selected/.exec(summary)?.[1] ?? Number.NaN);
+  const runAdd = (dir: string, result: Awaited<ReturnType<typeof wizard>>["result"]): void => {
+    if (!result.spec) throw new Error("spec 이 없다");
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      runExternal: null,
+      spec: result.spec,
+      mode: "add",
+    });
+  };
+
+  describe.each(FORMS)("%s 로 뺀 기록", (_label, without) => {
+    it.each(
+      CLI_CASES,
+    )("%s — 다시 체크하면 add 이고 설치 뒤 서버가 깔리고 기록의 빼기가 풀린다", async (_c, addCodex) => {
+      const dir = installedWithout(without);
+      const { result, summary } = await wizard(dir, { recheck: true, addCodex });
+      expect(result.mode).toBe("add");
+      expect(withoutOf(summary)).not.toContain(without);
+      runAdd(dir, result);
+      expect(mcpServers(dir)).toContain(RAILWAY);
+      expect([...excludedIds(readInstallLog(dir))]).not.toContain(without);
+    });
+
+    it("CLI 유지 · 다시 체크하지 않으면 refresh(update) 그대로다", async () => {
+      const dir = installedWithout(without);
+      const { result } = await wizard(dir, { recheck: false, addCodex: false });
+      expect(result.mode).toBe("update");
+    });
+
+    it("CLI 추가 · 다시 체크하지 않으면 그 빼기를 이어 가고 서버는 안 깔린다", async () => {
+      const dir = installedWithout(without);
+      const { result, summary } = await wizard(dir, { recheck: false, addCodex: true });
+      expect(result.mode).toBe("add");
+      expect(withoutOf(summary)).toContain(without);
+      runAdd(dir, result);
+      expect(mcpServers(dir)).not.toContain(RAILWAY);
+      expect([...excludedIds(readInstallLog(dir))]).toContain(without);
+    });
+  });
+
+  it.each(
+    FORMS,
+  )("%s — 확인 화면의 수가 다시 체크한 서버를 센다(뺀 채 두면 하나 적다)", async (_label, without) => {
+    const kept = await wizard(installedWithout(without), { recheck: false, addCodex: true });
+    const rechecked = await wizard(installedWithout(without), { recheck: true, addCodex: true });
+    expect(selectedCount(rechecked.summary)).toBe(selectedCount(kept.summary) + 1);
+  });
+
+  it("다시 체크한 서버만 풀린다 — 같은 키 형태로 뺀 다른 서버는 계속 빠진다", async () => {
+    const dir = installedWithout(`mcp:${RAILWAY}`);
+    // 두 번째 서버도 키 id 로 뺀 기록을 만든다(CLI 추가로 다시 설치)
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      runExternal: null,
+      spec: installSpecFromOptions(
+        {
+          track: [TRACK],
+          cli: ["claude"],
+          without: [`mcp:${RAILWAY}`, "mcp:supabase"],
+          projectDir: dir,
+        },
+        ["claude"],
+        () => {},
+        HARNESS_ROOT,
+      ),
+    });
+    expect(mcpServers(dir)).not.toContain("supabase");
+    const { result, summary } = await wizard(dir, { recheck: true, addCodex: false });
+    expect(result.mode).toBe("add");
+    expect(withoutOf(summary).filter((id) => id.startsWith("mcp:"))).toEqual(["mcp:supabase"]);
+    runAdd(dir, result);
+    expect(mcpServers(dir)).toContain(RAILWAY);
+    expect(mcpServers(dir)).not.toContain("supabase");
+    const recordedOut = [...excludedIds(readInstallLog(dir))];
+    expect(recordedOut).toContain("mcp:supabase");
+    expect(recordedOut).not.toContain(`mcp:${RAILWAY}`);
   });
 });
