@@ -11,7 +11,7 @@
  *      함께 쓰는 파일은 하네스 몫만 걷고, 하네스가 자리를 빌렸던 설치자 파일(`displaced`)은 원래 이름으로 되돌린다.
  *      기록에 없는 설치자 파일은 제자리에 둔다. 실체가 프로젝트 밖이면 건드리지 않고 "남김 + 링크 → 대상" 을
  *      말한다(#692 · ADR-098). `AGENTS.md` 는 하네스 절만 걷어내고 설치자 절을 남긴다 (#516).
- *   4. install log 자체도 함께 제거.
+ *   4. install log 자체도 함께 제거 — 되돌리기에 실패한 자산이 있으면 지우지 않고 남은 것으로 다시 쓴다(#889).
  *
  * 옵션:
  *   --dry-run        실제 변경 없이 reverse list 만 출력.
@@ -110,7 +110,7 @@ import {
 } from "../outside-project.js";
 import {
   HARNESS_IMPORT_LINE,
-  scaffoldBanner,
+  SCAFFOLD_BANNER_LINES,
   stripHarnessImport,
   upsertHarnessImport,
 } from "../project-claude-merge.js";
@@ -376,7 +376,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     return;
   }
 
-  // install log 가 남는가 = `--only` 인가 (settleLog: --only 만 재기록, 나머지는 삭제)
+  // install log 가 남는가 = `--only` 인가 (settleLog: --only 는 재기록, 전량은 삭제 — 되돌리기에 실패한 자산이 있으면 전량도 재기록, #889)
   const logSurvives = selectedIds !== null;
 
   let reversed: ReturnType<typeof executeReverse>;
@@ -385,6 +385,8 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   let copiesRemoved = 0;
   /** #851 — 프로젝트 사본을 회수한 자산 id. `--only` 면 그 자산은 기록에 남는다(홈 사본은 global 그대로). */
   const copiedIds = new Set<string>();
+  /** #889 — 전량 실행이 회수한 하네스 파일. 되돌리기에 실패해 기록을 남길 때 `settleLog` 가 회수한 것을 기록에서 뺀다. */
+  let harnessDone: HarnessRemoval | null = null;
   try {
     reversed = executeReverse(plan, log, logSurvives, journal);
     const copies = reclaimGlobalSkillCopies(projectDir, installLog, {
@@ -416,6 +418,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
         write: true,
         harnessRoot,
       });
+      harnessDone = done;
       for (const r of done.shared) {
         if (r.removed.length > 0 || r.fileRemoved)
           journal.push(`removed the harness part from ${r.path}`);
@@ -446,10 +449,18 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     exit(1);
     return;
   }
-  const { succeeded, failed, removedIds } = reversed;
+  const { succeeded, failed, removedIds, failedIds } = reversed;
 
   const logWriteFailed = settleLog(
-    { installLog, projectDir, selectedIds, removedIds, displaced: onlyDisplaced },
+    {
+      installLog,
+      projectDir,
+      selectedIds,
+      removedIds,
+      failedIds,
+      displaced: onlyDisplaced,
+      harness: harnessDone,
+    },
     { log, err, rm, writeLog },
   );
 
@@ -600,10 +611,11 @@ function executeReverse(
   log: (msg: string) => void,
   logSurvives: boolean,
   journal?: string[],
-): { succeeded: number; failed: number; removedIds: string[] } {
+): { succeeded: number; failed: number; removedIds: string[]; failedIds: string[] } {
   let succeeded = 0;
   let failed = 0;
   const removedIds: string[] = [];
+  const failedIds: string[] = [];
   for (const step of plan.reverseSteps) {
     const result = step.execute();
     if (result.ok) {
@@ -613,20 +625,26 @@ function executeReverse(
       succeeded++;
     } else {
       log(`  ${c.yellow("⊘")} ${step.label}  (${result.message ?? "failed"})`);
+      failedIds.push(step.assetId);
       failed++;
     }
     for (const note of result.notes ?? []) log(c.dim(`    ↳ ${note}`));
   }
-  // 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가
-  // 아무것도 안 한 실행에 붙어 거짓 보고가 된다 (no-false-ship).
-  // "기록 유지"는 **로그가 남을 때만** 참이다. `--keep-templates` 는 `.claude/` 를 남기면서도
-  // 로그는 지우므로(settleLog), templates 보존 여부로 판단하면 지워질 기록을 유지한다고 말한다.
-  const tail = logSurvives ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
-  for (const asset of plan.noReversePath) {
-    log(`  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`);
-    for (const hint of plan.hints.get(asset.id) ?? []) log(c.dim(`    ↳ ${hint}`));
-  }
-  return { succeeded, failed, removedIds };
+  // #889 — 되돌리기에 실패한 자산이 있으면 전량 실행도 기록을 남긴다(`settleLog`) — 그때는 이 자산들도 기록에 남는다
+  for (const line of noReverseLines(plan, logSurvives || failed > 0)) log(line);
+  return { succeeded, failed, removedIds, failedIds };
+}
+
+/**
+ * 자동 되돌리기 경로가 없는 자산은 **말한다.** 조용히 넘기면 `uninstall complete` 가 아무것도 안 한 실행에 붙어 거짓 보고가
+ * 된다 (no-false-ship). "기록 유지"는 **기록이 남을 때만** 참이다 — 실행과 미리보기(#883)가 이 함수 하나로 같은 말을 한다.
+ */
+function noReverseLines(plan: ReversePlan, recordKept: boolean): string[] {
+  const tail = recordKept ? "자동 되돌리기 경로 없음, 기록 유지" : "자동 되돌리기 경로 없음";
+  return plan.noReversePath.flatMap((asset) => [
+    `  ${c.yellow("⊘")} ${asset.id} (${asset.method}) — ${tail}`,
+    ...(plan.hints.get(asset.id) ?? []).map((hint) => c.dim(`    ↳ ${hint}`)),
+  ]);
 }
 
 /** 제거 후 로그 처리. @returns 재기록에 실패했는가 (실패해도 uninstall 을 죽이지 않는다). */
@@ -636,8 +654,12 @@ function settleLog(
     projectDir: string;
     selectedIds: string[] | null;
     removedIds: string[];
+    /** #889 — 되돌리기에 실패한 자산. 하나라도 있으면 전량 실행도 기록을 지우지 않고 남은 것으로 다시 쓴다. */
+    failedIds: string[];
     /** #780 — `--only` 가 되돌린 displaced 자리. 되돌렸거나 백업이 없는 것은 기록에서 뺀다. */
     displaced: ReadonlyArray<DisplacedOutcome>;
+    /** #889 — 전량 실행이 회수한 하네스 파일(`--only` 면 `null`). 기록을 남길 때 회수한 것을 기록에서도 뺀다. */
+    harness: HarnessRemoval | null;
   },
   io: {
     log: (msg: string) => void;
@@ -646,18 +668,29 @@ function settleLog(
     writeLog: (projectDir: string, log: InstallLog) => void;
   },
 ): boolean {
-  const { installLog, projectDir, selectedIds, removedIds } = ctx;
-  if (selectedIds) {
+  const { installLog, projectDir, selectedIds, removedIds, failedIds } = ctx;
+  if (selectedIds || failedIds.length > 0) {
     // v26.123.0 (F-1c) — 로그를 지우는 게 아니라 **되돌린 것만 빼고 다시 쓴다**.
     // 실패한 항목은 남긴다 — 실제로 안 지워진 걸 기록에서 지우면 그게 곧 거짓 기록이다.
+    // #889 — 전량 실행도 같다: 실패한 자산이 있는데 기록을 지우면 그 자산을 뺄 길(같은 명령 · `--only`)이 영영 사라진다.
     const remaining = installLog.assets.filter((a) => !removedIds.includes(a.id));
-    // #780 — 원본 기록의 `rootFiles` 에 건다(N13-3 — 화면용으로 비운 `--only` 의 루트 파일 목록과 섞지 않는다)
-    const rootFiles = ctx.displaced.some((d) => d.forget)
-      ? { rootFiles: withoutRestored(installLog.rootFiles, ctx.displaced) }
-      : {};
+    const next = selectedIds
+      ? {
+          ...installLog,
+          assets: remaining,
+          // #780 — 원본 기록의 `rootFiles` 에 건다(N13-3 — 화면용으로 비운 `--only` 의 루트 파일 목록과 섞지 않는다)
+          ...(ctx.displaced.some((d) => d.forget)
+            ? { rootFiles: withoutRestored(installLog.rootFiles, ctx.displaced) }
+            : {}),
+        }
+      : afterFullRemoval({ ...installLog, assets: remaining }, ctx.harness);
     try {
-      io.writeLog(projectDir, { ...installLog, assets: remaining, ...rootFiles });
-      io.log(`  ${status.success(`install log updated (${remaining.length} asset(s) remain)`)}`);
+      io.writeLog(projectDir, next);
+      if (selectedIds) {
+        io.log(`  ${status.success(`install log updated (${remaining.length} asset(s) remain)`)}`);
+      } else {
+        for (const line of recordKeptLines(failedIds)) io.log(line);
+      }
     } catch (e) {
       // 되돌리기는 이미 끝난 뒤다 — 스택트레이스로 죽으면 무엇이 지워졌는지도 사라진다.
       io.err(status.failure(c.red(`ERROR: install log 갱신 실패 — ${installLogPath(projectDir)}`)));
@@ -689,6 +722,50 @@ function settleLog(
   return false;
 }
 
+/**
+ * #889 — 전량 실행이 기록을 남길 때의 다음 판. 하네스 파일 · 함께 쓰는 파일의 몫 기록은 **그대로 둔다** — 같은 명령을 다시 돌리면
+ * 없는 파일 · 이미 걷은 몫은 할 일이 없어 지나가고(#676 과 같은 계약), update 는 평소처럼 "was missing — restored" 로 다시 깐다
+ * (회차 1 — 회수분까지 빼면 update 가 그 몫을 "안 깐 것" 으로 읽어 Codex 설정 · 훅 없이 성공했다).
+ *
+ * 빼는 것은 **설치자 파일만 남은 자리**의 기록뿐이다: 정리한 displaced 줄(`withoutRestored` 와 같은 `forget`)과 그 자리의 하네스
+ * 파일 기록(앵커 포함), 하네스 절을 걷어 설치자 절만 남긴 `AGENTS.md`(`--cli` 의 `forgetRemoved` 도 그 기록을 뺀다). 남겨 두면
+ * 재실행이 그 파일을 "고친 하네스 판" 으로 읽어 백업 이름으로 치우거나 "modified since install — Remove manually" 라고 말한다.
+ */
+function afterFullRemoval(next: InstallLog, done: HarnessRemoval | null): InstallLog {
+  if (done === null) return next;
+  const back = new Set([
+    ...done.displaced.filter((d) => d.forget).map((d) => d.path),
+    ...done.stripped,
+    ...done.legacyAgentsMd.filter((l) => !l.fileRemoved).map((l) => l.path),
+  ]);
+  if (back.size === 0) return next;
+  const out: InstallLog = { ...next, rootFiles: withoutRestored(next.rootFiles, done.displaced) };
+  const stays =
+    (prefix: string) =>
+    (f: { path: string }): boolean =>
+      !back.has(`${prefix}${f.path}`);
+  if (out.policyFiles !== undefined) out.policyFiles = out.policyFiles.filter(stays(CLAUDE_DIR));
+  if (out.skillFiles !== undefined) out.skillFiles = out.skillFiles.filter(stays(SKILLS_DIR));
+  if (out.externalFiles !== undefined) out.externalFiles = out.externalFiles.filter(stays(""));
+  const anchor = out.templates.rootClaudeMd;
+  if (anchor !== undefined && back.has(anchor.path)) {
+    out.templates = { ...out.templates }; // 원본 기록의 객체를 고치지 않는다
+    delete out.templates.rootClaudeMd;
+  }
+  return out;
+}
+
+/** #889 — 기록을 남긴 전량 실행의 화면 줄. 무엇이 남았는지와 이어 가는 명령을 말한다(같은 명령 · 그 자산만 빼는 `--only`). */
+function recordKeptLines(failedIds: ReadonlyArray<string>): string[] {
+  const ids = failedIds.join(", ");
+  return [
+    `  ${c.yellow("⊘")} install log kept (${INSTALL_LOG_DIR}/${INSTALL_LOG_FILENAME}) — not removed: ${ids}`,
+    c.dim(
+      `    ↳ fix the cause above, then run the same command again — or only those: agent-harness uninstall --only ${failedIds.join(",")}`,
+    ),
+  ];
+}
+
 /** dry-run 미리보기 — 실행 경로와 같은 판정을 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
 function dryRunLines(
   plan: ReversePlan,
@@ -710,15 +787,14 @@ function dryRunLines(
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
   // #812 — 헬퍼 스크립트는 위 하네스 파일 줄이 센다(고친 것은 백업) — 여기는 기록 · 런타임 파일뿐이다
+  // #883 — `--only` 는 기록을 지우지 않고 남은 자산으로 다시 쓴다(`settleLog`) — 실행이 낼 그 줄을 미리 말한다.
+  // 미리보기는 계획된 단계를 다 성공한 것으로 친다(`plannedAssets`)
   lines.push(
-    "  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)",
+    assetsOnly
+      ? `  ○ install log updated (${installLog.assets.length - plannedAssets(plan, installLog).length} asset(s) remain)`
+      : "  ○ remove install record (.uzys-agent-harness/ — 설치 기록·차단 로그·update 백업 목록)",
   );
-  lines.push(
-    ...plan.noReversePath.flatMap((a) => [
-      c.dim(`  ⊘ ${a.id} (${a.method}) — 자동 되돌리기 경로 없음, 기록 유지`),
-      ...(plan.hints.get(a.id) ?? []).map((h) => c.dim(`    ↳ ${h}`)),
-    ]),
-  );
+  lines.push(...noReverseLines(plan, assetsOnly));
   if (!assetsOnly) {
     // 실행과 같은 함수를 쓰지 않고 판정한다(write: false) — 미리보기가 말한 것과 실행 결과가 같다
     const preview = removeHarnessFiles(installLog, projectDir, FULL_SCOPE, {
@@ -1404,12 +1480,21 @@ function settleTrackLog(
     installLog.policyFiles?.find((f) => f.path === key)?.sha256 ??
     hashContent(installedTracksText(installLog.spec.tracks.filter(isTrack)));
   const edited = safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
-  if (!installedClis(installLog).includes("claude") || edited) return next;
+  if (!installedClis(installLog).includes("claude")) return next;
   if (outsideProjectTarget(projectDir, abs) !== null) return next;
   const content = installedTracksText(remaining);
+  const sha256 = hashContent(content);
+  if (edited) {
+    // #863 — 고친 메타파일은 그대로 둔다(#854). 다만 기록의 sha 는 남는 트랙의 하네스 판으로 바꾼다 — 옛 sha 를 두면 설치자가 메모를
+    // 지워 내용이 옛 판과 같아지는 순간 heal 이 그 파일을 근거로 뺀 트랙을 되살린다. sha 가 없던 옛 기록이 이미 같은 기준
+    // (`installedTracksText(기록 트랙)`)으로 고쳤는지 보므로 두 기록이 같은 판정을 낸다. 항목이 없던 기록에는 만들지 않는다(쓰지 않았다)
+    if (next.policyFiles?.some((f) => f.path === key)) {
+      next.policyFiles = next.policyFiles.map((f) => (f.path === key ? { path: key, sha256 } : f));
+    }
+    return next;
+  }
   writeFileSync(abs, content);
   if (next.policyFiles !== undefined) {
-    const sha256 = hashContent(content);
     next.policyFiles = [...next.policyFiles.filter((f) => f.path !== key), { path: key, sha256 }];
   }
   return next;
@@ -2742,21 +2827,6 @@ function neutralizeScaffoldBanner(text: string): string {
     .filter((line) => !SCAFFOLD_BANNER_LINES.has(line.replace(/\r$/, "")))
     .join("\n");
 }
-
-/**
- * 하네스가 루트 `CLAUDE.md` · `AGENTS.md` 에 쓴 배너 줄 — 현행 판 + 옛 판 문구(태그 v26.96.0~v26.174.0 의
- * `project-claude-merge.ts` 실측, 2026-10-19). 옛 판 문구는 그 판이 쓴 바이트 그대로 고정한다(상수가 바뀌어도 옛 디스크는 그대로다).
- */
-const SCAFFOLD_BANNER_LINES: ReadonlySet<string> = new Set([
-  ...scaffoldBanner("claude").split("\n"),
-  ...scaffoldBanner("agents-md").split("\n"),
-  // v26.96.0~v26.139.0 — 네 자리에 같은 배너
-  "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.",
-  // v26.140.0
-  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
-  // v26.141.0~v26.148.1
-  "> The working principles live in this project's harness anchor — `CLAUDE-uzys-harness.md` (Claude Code, imported from this file), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
-]);
 
 /**
  * 기준선과 같은 `AGENTS.md` 를 어떻게 할지 — 실행과 dry-run 이 **같은 술어**를 쓴다.

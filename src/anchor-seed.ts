@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { projectContextInstallerLines } from "./agents-md-merge.js";
 import { AGENTS_MD_TEMPLATE } from "./agents-md-render.js";
 import {
+  dropContinuousSkillsNote,
   dropHarnessQuoteBlocks,
   isUnfilledScaffold,
   type ScaffoldSurface,
@@ -86,7 +87,9 @@ export function seedRootClaudeProjectContext(
   if (template === null) return null;
   const installer = projectContextInstallerLines({ existing: agents, template });
   if (installer === null) return null;
-  const body = dropHarnessQuoteBlocks(installer);
+  // #880 — 마커 없는 옛 판(pre-#503)의 상시 스킬 안내 조각도 하네스 것이다. 옮기면 새 파일의 import 블록이 같은 안내를 한 번 더
+  // 써서 두 벌이 되고, 설치자 몫으로 옮긴 사본은 update · uninstall 이 못 고친다(판정 `isUnfilledScaffold` 도 이 조각을 뗀다)
+  const body = dropContinuousSkillsNote(dropHarnessQuoteBlocks(installer));
   if (isUnfilledScaffold(body)) return null;
   return compose(body, "claude");
 }

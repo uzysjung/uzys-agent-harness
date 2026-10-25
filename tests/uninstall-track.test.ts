@@ -29,12 +29,14 @@ import {
   writeInstallLog,
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
+import { detectInstallState } from "../src/state.js";
 import type { CliBase, InstallSpec, Track } from "../src/types.js";
 import {
   buildUninstallModeChoices,
   runInteractiveUninstall,
   type UninstallPrompts,
 } from "../src/uninstall-interactive.js";
+import { buildUpdateSpec } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -203,6 +205,30 @@ describe("#543 uninstall --track — 판정 기준", () => {
     uninstall({ track: "csr-fastapi" });
 
     expect(read(".claude/.installed-tracks")).toBe("csr-fastapi\ntooling\n# my custom note\n");
+  });
+
+  it("2e · #863 고친 메타파일을 남긴 뒤 메모를 지워도 뺀 트랙이 되살아나지 않는다 — 기록 읽기 · update 모두", () => {
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    put(".claude/.installed-tracks", "csr-fastapi\ntooling\n# my custom note\n");
+    uninstall({ track: "csr-fastapi" });
+    expect(read(".claude/.installed-tracks")).toContain("# my custom note"); // 고친 파일은 그대로(#854)
+
+    // 설치자가 메모만 지운다 — 내용이 트랙을 빼기 전 하네스 판과 바이트로 같아진다
+    put(".claude/.installed-tracks", "csr-fastapi\ntooling\n");
+
+    expect(log().spec.tracks).toEqual(["tooling"]); // readInstallLog 는 heal 을 거친다
+    // `agent-harness update` 와 같은 입력 — 감지한(heal 을 거친) 트랙으로 spec 을 만든다
+    const detected = detectInstallState(projectDir);
+    expect(detected.tracks).toEqual(["tooling"]);
+    runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      mode: "update",
+      spec: buildUpdateSpec(projectDir, detected.tracks),
+    });
+    expect(log().spec.tracks).toEqual(["tooling"]);
+    expect(has(".claude/rules/ui-components.md")).toBe(false); // 뺀 트랙의 룰이 다시 깔리지 않았다
   });
 
   it("3 · 고친 파일은 그 파일 하나를 백업한 뒤 빠진다", () => {
