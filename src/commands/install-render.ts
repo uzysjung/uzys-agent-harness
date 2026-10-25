@@ -127,7 +127,7 @@ export function renderInstallHeader(
   }
   log(infoRow("OPTIONS", formatOptions(spec)));
   // v26.82.0 (Phase R, S6) — merge 는 preset-recommend.ts 단일 구현 (이전 computeFinalAssets 중복).
-  const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
+  const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride, spec.keyExclude);
   if (finalAssets.length > 0) {
     // v26.102.0 (ADR-031) — 선택 수와 실제 설치 수의 어긋남을 약속 시점에 고지 (SOD 리뷰 F3:
     // executive/codex 가 "4 selected" 약속 후 0 설치이던 불일치). 숨김 없이 분해만 병기.

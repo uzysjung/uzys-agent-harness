@@ -818,7 +818,7 @@ export function formatSummary(spec: InstallSpec): string {
   //   Step 3 에서 무엇을 confirm 했는지 알 수 없음. preset recommended +
   //   userOverride 적용 후 최종 selected assets list 표시.
   // v26.82.0 (Phase R, S6) — merge/그룹화는 preset-recommend.ts 단일 구현 사용 (중복 제거).
-  const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride);
+  const finalAssets = finalSelectedAssets(spec.tracks, spec.userOverride, spec.keyExclude);
   if (finalAssets.length > 0) {
     // v26.102.0 (ADR-031) — confirm 화면의 약속 숫자에 CLI 도달 분해 병기 (SOD 리뷰 F3:
     // "4 selected" 확정 후 0 설치이던 불일치 — 숨김 없이 고지만).

@@ -211,6 +211,16 @@ export function trackDefaultMcpAssetIds(
 }
 
 /**
+ * #904 — 설치자가 뺀 고를 수 있는 MCP 서버의 자산 id. 렌더가 서버를 거르는 규칙(`droppedMcpServers` — 자산 id · 키 id 둘 다)을
+ * 그대로 써서 키 id(`mcp:<서버>`)를 자산 id 로 풀어 준다. 화면(ASSETS 줄 · 비용 줄)이 `.mcp.json` 과 같은 서버를 세게 하는 입력이다.
+ */
+export function droppedMcpAssetIds(harnessRoot: string, excluded: ReadonlySet<string>): string[] {
+  const rows = trackRows(harnessRoot);
+  const assetOf = selectableMcpServers(rows);
+  return droppedMcpServers(rows, excluded).flatMap((name) => assetOf.get(name) ?? []);
+}
+
+/**
  * #722 (설계 검증 B3) — 이 트랙의 **기본 행** 서버 이름(트랙 표 패턴이 맞는 행 · 템플릿 서버). 화면이 기록으로 남은 서버를
  * 갈아 끼울 때 "이 트랙의 기본이 아니다" 를 가른다 — 렌더(`renderHarnessMcp`)와 같은 표를 읽는다.
  */

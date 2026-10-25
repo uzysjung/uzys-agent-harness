@@ -538,7 +538,15 @@ export function withRecordedExclusions(
     ],
     [],
   );
-  return { spec: specWithExclusions(spec, excluded), excluded };
+  // #904 — 화면(자산 수 · 상주 비용)이 기록된 키 id 빼기(`mcp:<서버>`)도 따르게 spec 이 싣는다. update 는 이 필드를 다른 곳에 읽지 않는다
+  const keyExclude = [...excluded].filter(isKeyId);
+  return {
+    spec: {
+      ...specWithExclusions(spec, excluded),
+      ...(keyExclude.length > 0 ? { keyExclude } : {}),
+    },
+    excluded,
+  };
 }
 
 /**

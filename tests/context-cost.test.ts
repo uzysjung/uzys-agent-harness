@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { installSpecFromOptions } from "../src/commands/install.js";
 import { renderInstallHeader, renderUpdateSummary } from "../src/commands/install-render.js";
 import {
   assetDescriptorTokens,
@@ -14,8 +15,10 @@ import {
   EXTERNAL_ASSETS,
   INTERNAL_BUNDLED_SKILL_IDS,
 } from "../src/external-assets.js";
+import { thisRunExclusions } from "../src/install-writes.js";
 import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
+import { withoutAccepts } from "../src/key-ids.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { finalSelectedAssets } from "../src/preset-recommend.js";
 import { type CliBase, DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
@@ -172,6 +175,108 @@ describe("비용 줄은 고른 CLI 가 받는 자산만 센다 (#865)", () => {
       userOverride: { forceInclude: [], forceExclude: ["railway-mcp-server"] },
     });
     expect(line).toContain(`${all - 1} MCP server tool schemas unmeasured`);
+  });
+});
+
+/**
+ * #904 — 트랙 기본 MCP 서버를 키 id 형태(`--without mcp:<서버>`)로 빼도 자산 id 형태(`--without <서버>`)와 같이 센다. 두 형태
+ * 모두 `.mcp.json` 에서는 빠지는데, 키 id 형태만 화면(ASSETS 줄 · 비용 줄 · update 요약)이 계속 세던 어긋남을 고정한다.
+ */
+describe("키 id 로 뺀 MCP 서버는 화면이 세지 않는다 (#904)", () => {
+  const tracks: Track[] = ["csr-supabase"];
+  const SERVER = "railway-mcp-server";
+  const KEY = `mcp:${SERVER}`;
+  /** 트랙 기본 MCP 서버 수(context7 · railway · supabase · chrome-devtools) — 아래 기대값의 기준선. */
+  const ALL = summarizeContextCost(finalSelectedAssets(tracks)).mcpUnmeasuredCount;
+  const mcpPart = (n: number): string =>
+    `${n} MCP server tool schema${n === 1 ? "" : "s"} unmeasured`;
+
+  const dirs: string[] = [];
+  afterEach(() => {
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
+  });
+
+  /** 화면 중 이 이슈가 보는 줄 — ASSETS 줄(수) · 카테고리별 id 줄 · 비용 줄. 경로가 든 줄은 빼서 실행끼리 비교할 수 있다. */
+  const picked = (text: string): string =>
+    text
+      .split("\n")
+      .filter((l) => /\d+ selected|^\s+· [a-z-]+: |session-start context cost/.test(l))
+      .join("\n");
+
+  /**
+   * `install --track csr-supabase --without <without>` 를 한 뒤의 네 화면 — 확인 화면 · 설치 헤더 · update 헤더 · update 요약.
+   * spec 은 비대화형 `executeSpec` 이 화면에 넘기는 것과 같은 길(`installSpecFromOptions` → `thisRunExclusions`)로 만들고,
+   * update 쪽은 그 설치가 남긴 기록에서 `buildUpdateSpec` 이 읽는다.
+   */
+  const screens = (without: string[]): Record<string, string> => {
+    const projectDir = mkdtempSync(join(tmpdir(), "cost-keyid-"));
+    dirs.push(projectDir);
+    const warnings: string[] = [];
+    const parsed = installSpecFromOptions(
+      { track: [...tracks], without, projectDir },
+      ["claude"],
+      (m) => warnings.push(m),
+      HARNESS_ROOT_FOR_INSTALL,
+    );
+    expect(warnings, "빼기 id 가 받아들여져야 한다 — 경고가 나면 전제가 틀렸다").toEqual([]);
+    const spec = thisRunExclusions(
+      parsed,
+      null,
+      withoutAccepts(HARNESS_ROOT_FOR_INSTALL, parsed, null),
+    ).spec;
+    const header: string[] = [];
+    renderInstallHeader((m) => header.push(m), spec);
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT_FOR_INSTALL,
+      projectDir,
+      spec,
+      mode: "add",
+    });
+    const updateSpec = buildUpdateSpec(projectDir, tracks);
+    const updateHeader: string[] = [];
+    renderInstallHeader((m) => updateHeader.push(m), updateSpec, "update");
+    const summary: string[] = [];
+    renderUpdateSummary((m) => summary.push(m), updateSpec, report);
+    return {
+      confirm: picked(formatSummary(spec)),
+      header: picked(header.join("\n")),
+      updateHeader: picked(updateHeader.join("\n")),
+      updateSummary: picked(summary.join("\n")),
+    };
+  };
+  const selectedCount = (text: string): number =>
+    Number(/(\d+) selected/.exec(text)?.[1] ?? Number.NaN);
+  /** ASSETS 줄을 내는 화면 · 비용 줄을 내는 화면. update 헤더는 비용 줄을 안 찍고(#458), update 요약은 ASSETS 줄이 없다. */
+  const assetsScreens = ["confirm", "header", "updateHeader"];
+  const costScreens = ["confirm", "header", "updateSummary"];
+
+  it("--without mcp:<서버> — ASSETS 줄 · 비용 줄 · update 요약이 그 서버를 세지 않는다", () => {
+    const base = screens([]);
+    expect(base.header, "전제 — 트랙 기본 MCP 라 아무것도 안 빼면 센다").toContain(SERVER);
+    const byKey = screens([KEY]);
+    for (const name of assetsScreens) {
+      expect.soft(byKey[name], name).not.toContain(SERVER);
+      expect.soft(selectedCount(byKey[name] ?? ""), name).toBe(selectedCount(base[name] ?? "") - 1);
+    }
+    for (const name of costScreens) expect.soft(byKey[name], name).toContain(mcpPart(ALL - 1));
+  });
+
+  it("두 형태(--without <서버> · --without mcp:<서버>)가 같은 화면을 낸다", () => {
+    const byAsset = screens([SERVER]);
+    const byKey = screens([KEY]);
+    for (const name of Object.keys(byAsset)) expect.soft(byKey[name], name).toBe(byAsset[name]);
+    // 대조군 — 자산 id 형태는 서버를 빼고 센다(두 형태가 함께 틀려 같아지는 경우를 막는다)
+    expect(byAsset.header).not.toContain(SERVER);
+    expect(byAsset.header).toContain(mcpPart(ALL - 1));
+  });
+
+  it("뺀 것이 없으면 현행 수 그대로이고, 이 트랙의 MCP 가 아닌 키 id 는 수를 바꾸지 않는다", () => {
+    const none = screens([]);
+    for (const name of costScreens) expect.soft(none[name], name).toContain(mcpPart(ALL));
+    for (const name of assetsScreens) expect.soft(none[name], name).toContain(SERVER);
+    const other = screens(["settings:statusLine"]);
+    for (const name of Object.keys(none)) expect.soft(other[name], name).toBe(none[name]);
   });
 });
 
