@@ -468,6 +468,26 @@ describe("#918 회차 3 — hold 가 옮긴 파일은 언제나 옮기기 전 �
     });
   }
 
+  // 루트 자체를 `src` 로 링크한 구성 — 도구는 링크를 따라 `src/frontend-design` 을 실제로 새로 쓰지만, 그 폴더는 스킬 루트 그 자리가
+  // 아니라 기록이 "상류가 뺀 고친 파일" 이라 말해도 live 에서 빼지 않는다
+  for (const [what, run] of [
+    ["update", (dir: string) => update(dir)],
+    ["install 재실행", (dir: string) => install(dir, ["claude"])],
+  ] as const) {
+    it(`${what} — \`.claude/skills → src\` + 위조 기록: 설치자 파일은 제자리 · 백업 0`, () => {
+      const dir = mkdtempSync(join(tmpdir(), "uzys-918-r3-root-"));
+      dirs.push(dir);
+      install(dir, ["claude"]);
+      put(dir, OWN, OWN_BODY);
+      rmSync(join(dir, ".claude/skills"), { recursive: true, force: true });
+      symlinkSync("../src", join(dir, ".claude/skills"));
+      forge(dir, FD.id, [`${C}/mine.ts`]);
+      run(dir);
+      expect(read(dir, OWN)).toBe(OWN_BODY);
+      expect(backupsIn(dir)).toEqual([]);
+    });
+  }
+
   // 대조 — 정규 레이아웃(#524 · #838): claude 자리가 `.agents` 자리로의 링크면 그 안 설치자 노트는 원래 있던 `.agents` 폴더로 돌아간다
   it("대조 — `.claude/skills/<id>` → `.agents/skills/<id>` 링크 자리의 노트는 `.agents` 폴더에 남고 도구는 claude 자리를 새로 쓴다", () => {
     const dir = mkdtempSync(join(tmpdir(), "uzys-918-r3-ok-"));

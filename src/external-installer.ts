@@ -860,11 +860,13 @@ export function holdSkillSlots(
         // 같은 글자를 쓴다), 도구가 링크 자리를 실폴더로 바꿔 다른 곳을 가리키면 원래 폴더로
         const literal = realFileOrNull(f.abs) === f.real;
         const at = literal ? f : { ...f, abs: inProjectSpelling(projectDir, f.real) };
+        // 빈 자리의 백업+제거는 도구가 새로 쓴 폴더가 스킬 폴더 그 자리(#901 — 글자 · 실경로 둘 다 스킬 루트 안)일 때만이다. 루트를
+        // 프로젝트 안 다른 폴더(`src` 등)로 링크한 구성에서는 그 폴더의 파일을 live 에서 빼지 않고 제자리로
         const r = settleAside(
           projectDir,
           at,
           restore,
-          f.folder !== null && rewritten.has(f.folder),
+          f.folder !== null && rewritten.has(f.folder) && inCanonicalSkillRoot(projectDir, f.real),
         );
         if (r === "back") {
           // 원래 폴더로 돌아갔으면 글자 경로의 파일은 도구 것이다 — 도구가 놓은 파일 목록에서 빼지 않는다
@@ -1157,6 +1159,14 @@ function reclaimCopy(
   }
   if (ctx.write && res.removed.length > 0) pruneEmptyDirs(abs);
   return res.removed.length > 0 || res.left.length > 0 ? res : null;
+}
+
+/** #918 — 실경로(`realpathSync` 꼴)가 프로젝트의 스킬 루트(`.claude/skills/` · `.agents/skills/`) 그 자리 아래인가 — 루트가 풀린 다른 폴더는 아니다. */
+function inCanonicalSkillRoot(projectDir: string, real: string): boolean {
+  const rel = relative(realOrNull(projectDir) ?? projectDir, real)
+    .split(sep)
+    .join("/");
+  return SKILL_ROOTS.some((r) => rel.startsWith(`${r}/`));
 }
 
 /** 실경로(`realpathSync` 꼴)를 프로젝트 경로의 글자로 — 프로젝트 경로 자체가 링크여도(`/var` → `/private/var`) 화면 · 보고가 같은 글자를 쓴다. 밖이면 그대로. */
