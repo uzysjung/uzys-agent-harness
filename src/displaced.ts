@@ -19,12 +19,13 @@
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { basename, dirname, join, posix } from "node:path";
 import { backupOriginal } from "./fs-ops.js";
-import { inHarnessSlot } from "./harness-slot.js";
+import { harnessBytesAt, holdsHarnessBytes } from "./harness-bytes.js";
+import { inHarnessSlot, inSlotByName } from "./harness-slot.js";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
+import { bundlePath, isRecordedTrackTarget, recordedTrackTargets } from "./recorded.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -34,6 +35,13 @@ export interface DisplacedOutcome {
   line: string;
   /** 이 displaced 기록을 지운다. */
   forget: boolean;
+  /**
+   * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리(project 상대). 화면이 말할 뿐 하네스는 옮기지 않는다. 하네스가 만든
+   * 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 받지 못한다. `safe` = 그 `mv` 가
+   * 덮는 것이 하네스가 놓은 바이트뿐이다(자리가 비었거나, 현재 바이트가 현재 번들이 그 자리에 까는 판 · 그 자리에 적힌 기록 sha 와
+   * 같다). 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
+   */
+  handBack?: { from: string; to: string; safe: boolean };
 }
 
 /** lstat 기준 존재 — 끊어진 링크도 "있다"(그 자리가 막혀 있다). */
@@ -66,6 +74,44 @@ function outsideBackup(projectDir: string, backup: string): string | null {
  */
 function isBackupOf(path: string, backup: string): boolean {
   return backupOriginal(posix.normalize(backup)) === posix.normalize(path);
+}
+
+/**
+ * #911 — `mv` 가 덮는 것이 하네스가 놓은 바이트뿐인가. 자리가 **번들이 까는 이름**이어야 하고(`harnessBytesAt` — 기록이 아니라 번들
+ * 에서 구한다), 거기에 지금 아무것도 없거나 현재 바이트가 하네스가 놓은 것(`holdsHarnessBytes` — 번들 판 · 기록 sha)이어야 한다. 링크로
+ * 둔 자리 너머는 위조 링크가 정할 수 있어(`.agents → .` 면 `rules/git-policy.md` 는 설치자의 다른 파일이다) 이름만으로는 부족하다 — 설치자
+ * 파일은 위조자가 바이트를 몰라 이 대조를 통과시킬 수 없다.
+ */
+function replacesOnlyHarnessCopy(
+  log: InstallLog,
+  projectDir: string,
+  path: string,
+  isTarget: (path: string) => boolean,
+): boolean {
+  if (harnessBytesAt(log, path, isTarget) === null) return false;
+  return !exists(join(projectDir, path)) || holdsHarnessBytes(log, projectDir, path, isTarget);
+}
+
+/**
+ * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리. 이름이 하네스 자리 안인 기록(실경로가 밖인 링크로 둔 자리)에서 그 자리에
+ * 하네스가 만든 이름의 백업이 프로젝트 안에 실재하고 설치자 파일일 때만 — 글자부터 밖인 기록(`.env`)이나 믿을 수 없는 백업 이름은 받지
+ * 못한다. 옮기는 명령까지 받는 것은 `replacesOnlyHarnessCopy` 를 통과한 자리뿐이다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
+ */
+function handBackOf(
+  log: InstallLog,
+  projectDir: string,
+  f: InstallLogRootFile,
+  isTarget: (path: string) => boolean,
+): { from: string; to: string; safe: boolean } | null {
+  const backup = f.notes[0];
+  if (backup === undefined || !inSlotByName(f.path)) return null;
+  if (outsideBackup(projectDir, backup) !== null || !isBackupOf(f.path, backup)) return null;
+  if (!exists(join(projectDir, backup)) || isLegacyDisplaced(log, projectDir, f)) return null;
+  return {
+    from: posix.normalize(backup),
+    to: posix.normalize(f.path),
+    safe: replacesOnlyHarnessCopy(log, projectDir, f.path, isTarget),
+  };
 }
 
 /**
@@ -105,6 +151,8 @@ export function restoreDisplaced(
   opts: { has: (path: string) => boolean; willBeGone?: ReadonlySet<string>; write: boolean },
 ): DisplacedOutcome[] {
   const out: DisplacedOutcome[] = [];
+  // 번들이 까는 자리의 판정은 한 번만 짓는다(링크로 둔 자리 아래 displaced 가 많아도 manifest 는 한 번)
+  let bundleTargets: ((path: string) => boolean) | undefined;
   for (const f of log.rootFiles ?? []) {
     if (f.change !== "displaced" || !opts.has(f.path)) continue;
     const slot = join(projectDir, f.path);
@@ -113,12 +161,15 @@ export function restoreDisplaced(
     // #901 — displaced 는 하네스 파일 자리에서만 생긴다. 자리가 글자로든 실경로로든 그 밖이면(`.env` · 링크로 둔 자리 폴더 너머 ·
     // 함께 쓰는 파일) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
     if (!inHarnessSlot(projectDir, f.path)) {
+      bundleTargets ??= recordedTrackTargets(log);
+      const handBack = handBackOf(log, projectDir, f, bundleTargets);
       out.push({
         path: f.path,
         backup: f.notes[0] ?? null,
         verdict: "advise",
         line: "not put back — the install record says this tool moved a file of yours aside here, but this is (or leads) outside the places this tool installs to; left it as is",
         forget: true,
+        ...(handBack === null ? {} : { handBack }),
       });
       continue;
     }

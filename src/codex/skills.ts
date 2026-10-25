@@ -40,6 +40,15 @@ export function renderBundledSkill(source: string): string {
   return `${frontmatter}\n${portBody(body)}\n`;
 }
 
+/**
+ * 번들 스킬 폴더 안 파일 하나의 CLI 별 판 — `SKILL.md` 는 frontmatter 를 지키고, 형제 `.md`·`.sh` 는 본문 포팅, 그 밖은 그대로.
+ * 쓰는 쪽(`writeBundledSkillDirs`)과 "현재 번들이 이 자리에 까는 바이트" 를 묻는 쪽(`harness-bytes.ts`)이 이 함수 하나를 쓴다.
+ */
+export function renderBundledSkillFile(rel: string, raw: string): string {
+  if (rel === "SKILL.md") return renderBundledSkill(raw);
+  return rel.endsWith(".md") || rel.endsWith(".sh") ? `${portBody(raw)}\n` : raw;
+}
+
 /** Port a skill body for Codex/Antigravity: slash + project-dir env-var rename. */
 function portBody(body: string): string {
   return renameSlashes(body)
@@ -95,7 +104,9 @@ export function writeBundledSkillDirs(params: BundledSkillDirParams): string[] {
     // 건너뛴 경로를 report 에 실으면 "깔았다"는 거짓 보고가 된다. 형제도 함께 건너뛴다 —
     // refresh 모드에서 `SKILL.md` 가 없다는 것은 이 스킬이 이 프로젝트에 없다는 뜻이고,
     // 남의 도구가 소유한 슬롯이면 그 트리에 우리 파일을 흘리지 않아야 한다(#343).
-    if (!writer.write(targetSkill, renderBundledSkill(readFileSync(srcSkill, "utf8")))) {
+    if (
+      !writer.write(targetSkill, renderBundledSkillFile("SKILL.md", readFileSync(srcSkill, "utf8")))
+    ) {
       continue;
     }
     written.push(targetSkill);
@@ -104,7 +115,7 @@ export function writeBundledSkillDirs(params: BundledSkillDirParams): string[] {
       if (rel.split("/").some((segment) => segment.startsWith("."))) continue;
       const segments = rel.split("/");
       const raw = readFileSync(join(srcDir, ...segments), "utf8");
-      const ported = rel.endsWith(".md") || rel.endsWith(".sh") ? `${portBody(raw)}\n` : raw;
+      const ported = renderBundledSkillFile(rel, raw);
       const target = join(targetDir, ...segments);
       // `createInRefresh`: 바로 위에서 `SKILL.md` 를 담당했다는 것이 **이 CLI 가 설치돼 있고
       // 이 스킬이 선택됐다**는 증거다(antigravity 룰이 앵커 반환값을 쓰는 것과 같은 논거).

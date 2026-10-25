@@ -81,6 +81,11 @@ export function antigravityFrontmatter(rule: Pick<PortedRule, "paths">): string 
   return `---\ntrigger: glob\nglobs: "${rule.paths.join(", ")}"\n---\n\n`;
 }
 
+/** `.agents/rules/<name>.md` 의 판 — frontmatter + 본문(쓰는 쪽과 `harness-bytes.ts` 가 함께 쓴다). */
+export function renderAntigravityRule(rule: PortedRule): string {
+  return `${antigravityFrontmatter(rule)}${rule.body}\n`;
+}
+
 /**
  * Antigravity 용 project-scope 자산 생성 (rules + dev-method skills).
  */
@@ -119,7 +124,7 @@ export function runAntigravityTransform(
   const harnessRuleFiles: string[] = [];
   for (const rule of portRules(harnessRoot, rules)) {
     const target = join(projectDir, ".agents", "rules", `${rule.name}.md`);
-    const content = `${antigravityFrontmatter(rule)}${rule.body}\n`;
+    const content = renderAntigravityRule(rule);
     if (!writer.write(target, content, { createInRefresh: antigravityInstalled })) {
       continue;
     }
