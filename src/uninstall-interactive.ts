@@ -117,7 +117,9 @@ function hintFor(asset: InstallLogAsset): string {
       // #573 — 기록된 경로만 지운다. 옛 기록(파일 목록 없음)은 지우지 않는다 — 엔진과 같은 판정
       return asset.files === undefined
         ? 'files not on record (older install) — nothing removed; only "Remove everything" clears it'
-        : `removes the ${asset.files.length} file(s) on record`;
+        : asset.filesPartial === true
+          ? `removes the ${asset.files.length} file(s) on record; files in other folders are not on record (older install) — left`
+          : `removes the ${asset.files.length} file(s) on record`;
     case "npm":
       return "npm uninstall --save-dev";
     case "npx-run":

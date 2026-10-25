@@ -67,6 +67,7 @@ import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
 import { CONTINUOUS_SKILLS } from "../external-assets.js";
 import {
   type GlobalCopyReclaim,
+  isSkillName,
   reclaimGlobalSkillCopies,
   SKILL_ROOTS,
 } from "../external-installer.js";
@@ -245,6 +246,10 @@ interface ReverseStep {
    * 실제 동작 — dry-run 일 때는 호출 안 함. `notes` = 라벨 아래 덧붙일 줄(백업한 파일 · 남긴 파일 — #573).
    */
   execute: () => { ok: boolean; message?: string; notes?: string[] };
+  /**
+   * #912 — 계획 단계에 정한 덧붙일 줄(일부 폴더만 말하는 목록의 남는 폴더). 미리보기와 실행이 같은 줄을 낸다 — 실행은 `notes` 뒤에.
+   */
+  hints?: string[];
 }
 
 interface GlobalAdvisory {
@@ -637,7 +642,8 @@ function executeReverse(
       failedIds.push(step.assetId);
       failed++;
     }
-    for (const note of result.notes ?? []) log(c.dim(`    ↳ ${note}`));
+    for (const note of [...(result.notes ?? []), ...(step.hints ?? [])])
+      log(c.dim(`    ↳ ${note}`));
   }
   // #889 — 되돌리기에 실패한 자산이 있으면 전량 실행도 기록을 남긴다(`settleLog`) — 그때는 이 자산들도 기록에 남는다
   for (const line of noReverseLines(plan, logSurvives || failed > 0)) log(line);
@@ -790,7 +796,12 @@ function dryRunLines(
   if (plan.reverseSteps.length === 0 && copies.length === 0) {
     lines.push(c.dim("  (no project-scope assets to reverse)"));
   }
-  lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
+  lines.push(
+    ...plan.reverseSteps.flatMap((s) => [
+      `  ○ ${s.label}`,
+      ...(s.hints ?? []).map((hint) => c.dim(`    ↳ ${hint}`)),
+    ]),
+  );
   lines.push(...globalCopyLines(copies, true));
   // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
@@ -1775,18 +1786,43 @@ function noReverseHints(asset: InstallLogAsset, ctx: ReverseCtx): string[] {
   }
   if (asset.method !== "skill") return [];
   // #573 — 파일 목록이 없는 옛 기록. 무엇을 놓았는지 모르므로 지우지 않고, 그 스킬 이름의 자리 중 실재하는 것을 댄다
-  const name = asset.detail.skill;
-  const left =
-    name === undefined
-      ? []
-      : [".claude/skills", ".agents/skills"]
-          .map((root) => `${root}/${name}/`)
-          .filter((p) => existsSync(join(ctx.projectDir, p)));
+  const left = unlistedFoldersLeft(asset, ctx.projectDir);
   return [
     left.length > 0
       ? `files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`
       : "files it put down are not on record (installed by an older version) — nothing removed",
   ];
+}
+
+/**
+ * #573 · #912 — 기록이 "모름" 이라 말하는 스킬 폴더 가운데 실재하는 것(`<root>/<name>/`). 목록이 일부 폴더만 말하면(`filesPartial`)
+ * 그 목록 폴더는 뺀다. 소스 전체 자산(`detail.skill` 없음)은 폴더 이름을 모른다 — 빈 배열.
+ */
+function unlistedFoldersLeft(asset: InstallLogAsset, projectDir: string): string[] {
+  const name = asset.detail.skill;
+  // #901 — `detail.skill` 도 기록의 글자다(`..` 면 스킬 루트 위 폴더를 "손으로 지우라" 고 말하게 된다) — 스킬 이름 한 자리만 댄다.
+  // #911 과 같은 까닭으로 하네스가 쓰는 글자의 이름만 댄다(공백 · 줄바꿈이 든 이름이면 손으로 지우는 명령이 다른 파일을 겨냥한다)
+  if (!isSkillName(name) || !isPlainPath(name)) return [];
+  const listed = new Set((asset.files ?? []).map((f) => f.path.split("/").slice(0, 3).join("/")));
+  return [".claude/skills", ".agents/skills"]
+    .filter((root) => !listed.has(`${root}/${name}`))
+    .map((root) => `${root}/${name}/`)
+    .filter((p) => existsSync(join(projectDir, p)));
+}
+
+/** #912 — 일부 폴더만 말하는 목록(`filesPartial`)의 남는 폴더 줄. 이름을 모르는 소스 전체 자산은 폴더를 대지 않는다. */
+function partialHints(asset: InstallLogAsset, projectDir: string): string[] {
+  const left = unlistedFoldersLeft(asset, projectDir);
+  if (left.length > 0) {
+    return [
+      `other files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`,
+    ];
+  }
+  // 이름을 모르거나(소스 전체 자산) 댈 수 없는 이름(위 거름)이면 폴더 없이 남긴다고만 말한다
+  const name = asset.detail.skill;
+  return name === undefined || !isSkillName(name) || !isPlainPath(name)
+    ? ["other files it put down are not on record (installed by an older version) — left as is"]
+    : [];
 }
 
 function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): ReverseStep | null {
@@ -1819,10 +1855,14 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
       // 경로만** 하네스가 직접 지운다. 기록이 없으면(옛 판) 지우지 않는다 — `noReverseHints` 가 남는 것을 말한다.
       const files = asset.files;
       if (files === undefined) return null;
+      // #912 — 목록이 일부 폴더만 말하면(옛 판이 깐 자산) 목록 파일만 지우고, 목록 밖 폴더는 남는다고 같은 문구로 말한다. 계획 단계에
+      // 정해 미리보기와 실행이 같은 줄을 낸다
+      const hints = asset.filesPartial === true ? partialHints(asset, ctx.projectDir) : [];
       return {
         assetId: asset.id,
         label: `remove ${asset.id} — ${files.length} file(s) on record`,
         execute: () => removeToolFiles(files, ctx.projectDir, ctx.rm),
+        ...(hints.length > 0 ? { hints } : {}),
       };
     }
     case "npm": {

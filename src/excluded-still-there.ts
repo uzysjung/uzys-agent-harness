@@ -57,8 +57,12 @@ export function excludedStillThere(
  */
 function assetStillThere(projectDir: string, asset: InstallLogAsset): boolean {
   if (asset.method !== "skill" || asset.scope === "global") return true;
-  if (asset.files !== undefined)
-    return asset.files.some((f) => existsSync(join(projectDir, f.path)));
+  if (asset.files?.some((f) => existsSync(join(projectDir, f.path)))) return true;
+  if (asset.files !== undefined && asset.filesPartial !== true) return false;
+  // 목록 없음 · 일부 폴더만 말하는 목록(#912) — 목록 밖 폴더는 스킬 자리로 본다
   const dir = asset.detail.skill ?? asset.id;
-  return [".claude/skills", ".agents/skills"].some((d) => existsSync(join(projectDir, d, dir)));
+  const listed = new Set((asset.files ?? []).map((f) => f.path.split("/").slice(0, 3).join("/")));
+  return [".claude/skills", ".agents/skills"].some(
+    (d) => !listed.has(`${d}/${dir}`) && existsSync(join(projectDir, d, dir)),
+  );
 }
