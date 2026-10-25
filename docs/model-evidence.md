@@ -56,6 +56,50 @@
 - stale_when: 모델 세대 교체 · 설계 판단이 큰 과제 · 2027-04 이후
 
 ### 판단(측정 아님) — 2026-10-25 · Sonnet 5.5 xhigh 를 단순 개선의 기본으로 쓴다
+- status: superseded-by 판단 2026-10-25 저녁(아래)
 - 근거: E-2026-10-25-01 ~ 03(3건 모두 블라인드 리뷰 BLOCKER 0 · 재작업 0 · 8 ~ 9점 · 7 ~ 8분). 대상 = 이슈에 AC 와 해결안이 있고 설계 판단 · 기록 스키마 · 보안 경계 결정이 없는 패턴 적용 · 기계적 수정. 설치자 디스크 · 보안 경로면 독립 리뷰는 그대로 붙인다.
 - 사용자 지시(2026-10-25): "단순 개선 작업은 Sonnet 5.5 에게 시켜 보고 검증해서 잘 하면 써 봐 — xhigh 이상".
 - 다시 볼 때: 같은 유형에서 BLOCKER 나 재작업이 나오면, 또는 Opus 대조를 같은 과제로 재면.
+
+### E-2026-10-25-04 · cost — 같은 날 레인들의 실제 비용 (API 정가 환산)
+- status: measured
+- date: 2026-10-25 · where: uzys-agent-harness 개발 세션 · scope: session
+- task_type: implementation · review
+- method: 레인 기록(`tasks/<id>.output`)의 assistant `usage` 를 message.id 로 중복 제거해 합산 · 단가 $/MTok = Opus 5.5 입력 4 · 출력 20 · 캐시 읽기 0.20 · 캐시 쓰기(5분) 5 / Sonnet 5.5 입력 2 · 출력 10 · 캐시 읽기 0.20 · 캐시 쓰기 2.5 · actual-model-from-transcript ✓ · 구독 요금제의 실제 소진량과는 다를 수 있다
+- result:
+
+  | 레인 | 모델 | 캐시 읽기 | 출력 | 비용 |
+  |---|---|---|---|---|
+  | E-01 구현(#894) | Sonnet 5.5 xhigh | 5.31M | 48k | $1.90 |
+  | E-02 구현(#904) | Sonnet 5.5 xhigh | 6.61M | 45k | $2.18 |
+  | E-03 구현(#908) | Sonnet 5.5 xhigh | 4.52M | 36k | $1.60 |
+  | #911 구현(2회차) | Sonnet 5.5 xhigh | 28.05M | 124k | $8.08 |
+  | E-02 · E-03 블라인드 리뷰 | Opus 5.5 | — | — | $5.83 · $3.78 |
+  | 이슈 5건 묶음 구현 레인 4개 | Opus 5.5 | 31~51M | 117~199k | $11.85 ~ $16.82 |
+
+- conclusion: 캐시 읽기가 비용의 절반 이상이고 그 단가는 두 모델이 같다 — 같은 토큰이면 Opus 가 약 1.4배, 턴을 30% 덜 쓰면 역전한다. 작업 알림의 토큰 수(E-01 ~ 03 의 13.5 ~ 16.6만)는 캐시 읽기를 세지 않아 비용 비교에 못 쓴다. 단순 PR 의 블라인드 리뷰가 구현보다 비쌌다.
+- limits: 같은 과제의 Opus 대조 없음 · 묶음 레인은 과제 수 · 난이도가 달라 건당 비교 불가.
+- source: 사용자 질문(2026-10-25 "opus가 더 싸지?") · PR #900 · #905 · #909 · #914
+- stale_when: 단가 변경 · 모델 세대 교체
+
+### E-2026-10-25-05 · implementation — 링크 자리 uninstall 안내 (CLI · 화면 · 기록 위조 경계)
+- status: measured
+- date: 2026-10-25 · where: uzys-agent-harness 개발 세션 · scope: task
+- task_type: implementation
+- method: same-brief ✗ · isolated-worktree ✓ · 세션 점검 + Opus 5.5 독립 리뷰 · actual-model-from-transcript ✓(`claude-sonnet-5-5` · `xhigh`)
+- candidates: Sonnet 5.5 · xhigh
+- result:
+
+  | 조합 | overall/10 | 결함 | 재작업 | 비용 | 시간 |
+  |---|---|---|---|---|---|
+  | Sonnet 5.5 · xhigh | — | BLOCKER 1(세션 점검: 위조 기록이 하네스 밖 파일의 `mv` 안내를 냈다) | 1회 | $8.08 | 2회차 합 |
+
+- conclusion: 화면 문구 과제로 분류했지만 설치 기록 위조라는 보안 경계가 숨어 있었고, 첫 판은 그 경계를 보지 못했다. 단순 개선 분류를 잘못 고른 사례이기도 하다.
+- limits: 과제 1건 · 독립 리뷰 결과는 PR #914 에 있다.
+- source: PR #914 · 이슈 #911
+- stale_when: 모델 세대 교체 · 2027-04 이후
+
+### 판단(측정 아님) — 2026-10-25 저녁 · 단순 개선도 Opus 5.5 medium 으로 돌린다
+- 근거: E-04(비용 차가 ±15% 안이라 비용으로 가르지 못한다) · E-05(Sonnet 4건 중 1건 재작업) · 시드 대장 E-2026-10-04-01(같은 과제에서 Opus medium 이 Sonnet xhigh 보다 싸고 빨랐다 — 다른 프로젝트).
+- 사용자 질문(2026-10-25): "opus가 더 싸지?".
+- 다시 볼 때: 다음 단순 건의 Opus medium 비용을 E-01 ~ 03 과 대조해 이 대장에 남긴 뒤.
