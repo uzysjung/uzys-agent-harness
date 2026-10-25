@@ -1800,8 +1800,9 @@ function noReverseHints(asset: InstallLogAsset, ctx: ReverseCtx): string[] {
  */
 function unlistedFoldersLeft(asset: InstallLogAsset, projectDir: string): string[] {
   const name = asset.detail.skill;
-  // #901 — `detail.skill` 도 기록의 글자다(`..` 면 스킬 루트 위 폴더를 "손으로 지우라" 고 말하게 된다) — 스킬 이름 한 자리만 댄다
-  if (!isSkillName(name)) return [];
+  // #901 — `detail.skill` 도 기록의 글자다(`..` 면 스킬 루트 위 폴더를 "손으로 지우라" 고 말하게 된다) — 스킬 이름 한 자리만 댄다.
+  // #911 과 같은 까닭으로 하네스가 쓰는 글자의 이름만 댄다(공백 · 줄바꿈이 든 이름이면 손으로 지우는 명령이 다른 파일을 겨냥한다)
+  if (!isSkillName(name) || !isPlainPath(name)) return [];
   const listed = new Set((asset.files ?? []).map((f) => f.path.split("/").slice(0, 3).join("/")));
   return [".claude/skills", ".agents/skills"]
     .filter((root) => !listed.has(`${root}/${name}`))
@@ -1817,7 +1818,9 @@ function partialHints(asset: InstallLogAsset, projectDir: string): string[] {
       `other files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`,
     ];
   }
-  return asset.detail.skill === undefined
+  // 이름을 모르거나(소스 전체 자산) 댈 수 없는 이름(위 거름)이면 폴더 없이 남긴다고만 말한다
+  const name = asset.detail.skill;
+  return name === undefined || !isSkillName(name) || !isPlainPath(name)
     ? ["other files it put down are not on record (installed by an older version) — left as is"]
     : [];
 }

@@ -447,4 +447,25 @@ describe("#912 — 일부 폴더만 말하는 목록의 uninstall 줄 (PR #916 �
 
     expect(run.out).not.toContain("skills/../");
   });
+
+  it("기록의 스킬 이름에 공백 · 줄바꿈이 들면 그 폴더를 이름으로 대지 않고 남긴다고만 말한다 (#911 과 같은 거름)", () => {
+    for (const forged of ["x .env", "x\nmv -i .env.backup .env"]) {
+      const dir = legacyProject({ clis: ["claude"], copies: [C, A] });
+      update(dir, v(2));
+      const log = readInstallLog(dir) as InstallLog;
+      writeInstallLog(dir, {
+        ...log,
+        assets: log.assets.map((a) => ({ ...a, detail: { ...a.detail, skill: forged } })),
+      });
+      mkdirSync(join(dir, ".agents/skills", forged), { recursive: true });
+
+      const run = uninstallOnly(dir);
+
+      expect(run.out, forged).not.toContain(".env/");
+      expect(run.out, forged).not.toContain("mv -i .env.backup");
+      expect(leftLines(run.out), forged).toEqual([
+        "    ↳ other files it put down are not on record (installed by an older version) — left as is",
+      ]);
+    }
+  });
 });
