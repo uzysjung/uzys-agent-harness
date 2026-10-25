@@ -138,3 +138,21 @@
 - limits: 과제마다 1건 · 과제 난이도가 서로 다르다 · 설계 먼저의 효과는 가설이다.
 - source: PR #914 · #916 · #920 · 이슈 #911 · #912 · #918 · #922
 - stale_when: 모델 세대 교체 · 2027-04 이후
+
+### E-2026-10-26-08 · implementation · research — 화면 안내 한 줄과 외부 저장소 검토 (단순 개선 · 조사)
+- status: measured
+- date: 2026-10-26 · where: uzys-agent-harness 개발 세션 · scope: task
+- task_type: implementation · research
+- method: same-brief ✗ · isolated-worktree ✓(구현) · 세션 점검(독립 리뷰 없음 — 화면 문구 · 문서라 문턱 아래) · actual-model-from-transcript ✓(`claude-opus-5-5` · `medium`) · cost = 레인 기록 usage 합(API 정가 환산, E-04 와 같은 방법)
+- candidates: Opus 5.5 · medium
+- result:
+
+  | 과제 | 결함 | 재작업 | 비용 | 시간 |
+  |---|---|---|---|---|
+  | #891 — install · update 화면 한 줄 + 문서 문단 + 테스트 13 | 기능 결함 0 · 새 함수를 기존 함수의 JSDoc 사이에 끼움 1(세션이 직접 옮김) | 0회 | $1.55 | 6.3분 |
+  | #877 — 외부 저장소 적용성 검토 보고서 | 세션이 핵심 사실 2개(실행기 종류 · Gemini 강제)를 원본에서 재확인 — 둘 다 맞음 | 0회 | $1.34 | 4.0분 |
+
+- conclusion: 판단(단순 개선 = Opus medium)의 둘째 · 셋째 대조. 둘 다 1회차에 끝났고 E-06 의 1회차($2.23)보다 쌌다. 브리프에 측정값 · 따라 할 기존 패턴 · 비범위를 못박은 과제였다. 레인은 브리프의 크기 수치(21 KB, codex 단독 렌더)를 실제 설치 측정(18 KB)으로 고쳐 보고했다.
+- limits: 과제마다 1건 · Sonnet 대조 없음 · 채점 없이 세션 점검만.
+- source: PR #925 · #924 · 이슈 #891 · #877
+- stale_when: 모델 세대 교체 · 2027-04 이후
