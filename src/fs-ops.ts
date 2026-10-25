@@ -2,13 +2,14 @@ import {
   copyFileSync,
   existsSync,
   constants as fsConstants,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   symlinkSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { outsideProjectTarget } from "./outside-project.js";
 
 /** Ensure a directory exists, creating parents as needed. Idempotent. */
@@ -155,7 +156,43 @@ export function backupOriginal(backupPath: string): string | null {
 }
 
 /**
- * `dir` 아래 모든 파일의 상대 경로 (디렉터리 자체는 제외). 순서는 readdir 순.
+ * #890 · #897 — AppleDouble 짝인가: 이름이 `._<name>` 이고 같은 폴더에 `<name>`(파일 · 폴더 · 링크)이 있다. macOS 는 확장 속성을 담지
+ * 못하는 볼륨(exFAT · FAT · SMB 등)에 그것을 이 이름의 파일로 두고, `<name>` 을 옮기거나 지우면 짝도 함께 옮기거나 지운다(실측
+ * 2026-10-25, macOS exFAT 디스크 이미지 — 새 파일 · 폴더마다 짝이 생긴다). 짝은 독립 파일이 아니라 `<name>` 에 딸린 메타데이터라
+ * 기록 · 소유 판정 · 정리 · 백업 · 되돌리기 어디에도 따로 들지 않는다 — 디렉터리 목록이 그 판정들로 흘러가는 곳은 모두 이것으로 거른다.
+ * `<name>` 이 없는 `._x` 는 평범한 파일이다(일반 볼륨의 설치자 파일 — 지금처럼 지킨다).
+ */
+export function isAppleDoubleOf(name: string, siblings: ReadonlySet<string>): boolean {
+  return name.length > 2 && name.startsWith("._") && siblings.has(name.slice(2));
+}
+
+/**
+ * 목록을 거치지 않은 경로(설치 기록의 파일 등)가 AppleDouble 짝인가 — 같은 판정(`isAppleDoubleOf`)을 디스크의 이름 짝으로 본다. 옛 판이
+ * 짝을 자산 파일로 적어 둔 기록이 있다(#890) — 기록은 고치지 않고 읽는 쪽이 이것으로 거른다. 못 보면 false(평범한 파일).
+ */
+export function isAppleDoublePath(abs: string): boolean {
+  const name = basename(abs);
+  try {
+    return (
+      isAppleDoubleOf(name, new Set([name.slice(2)])) &&
+      lstatSync(join(dirname(abs), name.slice(2)), { throwIfNoEntry: false }) !== undefined
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** `readdirSync` 결과에서 AppleDouble 짝(`isAppleDoubleOf`)을 뺀다 — 이름 배열 · `Dirent` 배열 둘 다. */
+export function withoutAppleDouble<T extends string | { name: string }>(
+  entries: ReadonlyArray<T>,
+): T[] {
+  const nameOf = (e: T): string => (typeof e === "string" ? e : e.name);
+  const names = new Set(entries.map(nameOf));
+  return entries.filter((e) => !isAppleDoubleOf(nameOf(e), names));
+}
+
+/**
+ * `dir` 아래 모든 파일의 상대 경로 (디렉터리 자체는 제외). 순서는 readdir 순. AppleDouble 짝은 들지 않는다(`isAppleDoubleOf`).
  *
  * `readdirSync(dir, { recursive: true })` 를 안 쓰는 이유: 그 옵션은 Node 20.1.0 에 들어왔는데
  * `engines` 는 `>=20.0.0` 이다. 20.0.x 에서 조용히 `undefined` 를 흘리는 대신 직접 순회한다.
@@ -163,7 +200,7 @@ export function backupOriginal(backupPath: string): string | null {
 export function listFilesRecursive(dir: string, prefix = ""): string[] {
   if (!existsSync(dir)) return [];
   const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of withoutAppleDouble(readdirSync(dir, { withFileTypes: true }))) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       out.push(...listFilesRecursive(join(dir, entry.name), rel));
@@ -177,6 +214,7 @@ export function listFilesRecursive(dir: string, prefix = ""): string[] {
 /**
  * #839 — `listFilesRecursive` 와 같되 안의 링크(파일 · 폴더)는 따라가지 않고 그 자체를 낸다(`link: true`). `dir` 자체가 링크면
  * 따라 들어간다. 외부 스킬 도구 앞의 hold 전용 — 기록(`snapshotSkillRoots`)은 링크를 건너뛰는 `listFilesRecursive` 를 쓴다.
+ * AppleDouble 짝은 들지 않는다 — 짝을 두는 볼륨은 `<name>` 을 옮길 때 짝을 함께 옮긴다(따로 옮기면 되돌리기가 ENOENT 로 죽는다, #890).
  */
 export function listEntriesRecursive(
   dir: string,
@@ -184,7 +222,7 @@ export function listEntriesRecursive(
 ): Array<{ rel: string; link: boolean }> {
   if (!existsSync(dir)) return [];
   const out: Array<{ rel: string; link: boolean }> = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of withoutAppleDouble(readdirSync(dir, { withFileTypes: true }))) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
       out.push(...listEntriesRecursive(join(dir, entry.name), rel));
