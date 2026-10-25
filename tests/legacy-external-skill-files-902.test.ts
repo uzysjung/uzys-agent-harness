@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { judgedRow } from "../src/commands/install-render.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
 import { EXTERNAL_ASSETS } from "../src/external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -356,86 +357,155 @@ describe("#902 — 기설치 위 install 도 같은 판정이다", () => {
   const FD = found;
   const FD_SKILL = ".agents/skills/frontend-design/SKILL.md";
   const FD_NOTE = ".agents/skills/frontend-design/mine.md";
+  const FD_CLAUDE = ".claude/skills/frontend-design/SKILL.md";
 
-  function install(dir: string) {
+  /** `npx skills add --agent … --copy` 처럼 고른 에이전트의 자리마다 스킬 폴더를 지우고 `body` 로 다시 쓴다. */
+  function fakeTool(dir: string, body: string): NonNullable<ExternalInstallerDeps["spawn"]> {
+    return (cmd, args) => {
+      if (cmd !== "npx" || args[1] !== "add") return ok();
+      const agents = args.flatMap((a, i) => (args[i - 1] === "--agent" ? [a] : []));
+      for (const agent of new Set(agents)) {
+        const root = agent === "claude-code" ? ".claude/skills" : ".agents/skills";
+        rmSync(join(dir, root, "frontend-design"), { recursive: true, force: true });
+        put(dir, `${root}/frontend-design/SKILL.md`, body);
+      }
+      return ok();
+    };
+  }
+
+  function install(dir: string, cli: CliTargets, body = "# frontend-design\n") {
     return runInstall({
       harnessRoot: HARNESS_ROOT,
       projectDir: dir,
       spec: {
         tracks: ["tooling"],
         options: { withCodexTrust: false },
-        cli: ["codex"],
+        cli,
         projectDir: dir,
         userOverride: { forceInclude: ["frontend-design"], forceExclude: [] },
       } satisfies InstallSpec,
       mode: "add",
       runExternal: (ctx, deps) =>
-        runExternalInstall(
-          { ...ctx, cli: ["codex"] as CliTargets },
-          {
-            ...deps,
-            assets: [FD],
-            spawn: (cmd, args) => {
-              if (cmd === "npx" && args[1] === "add") {
-                rmSync(join(dir, ".agents/skills/frontend-design"), {
-                  recursive: true,
-                  force: true,
-                });
-                put(dir, FD_SKILL, "# frontend-design\n");
-              }
-              return ok();
-            },
-          },
-        ),
+        runExternalInstall({ ...ctx, cli }, { ...deps, assets: [FD], spawn: fakeTool(dir, body) }),
     });
   }
 
-  it("옛 기록 + 폴더 안 설치자 노트 → 재설치 뒤 노트 바이트가 백업으로 남고 보고의 백업에 든다 · 목록이 처음 적힌다", () => {
+  /** 옛 판(파일 목록을 적지 않던 판)으로 깐 모양 — 실제 설치 뒤 자산 기록에서 `files` 를 뺀다. */
+  function legacyInstall(cli: CliTargets, body?: string): string {
     const dir = mkdtempSync(join(tmpdir(), "uzys-902-install-"));
     dirs.push(dir);
-    install(dir);
+    install(dir, cli, body);
     const log = readInstallLog(dir) as InstallLog;
     writeFileSync(
       join(dir, ".uzys-agent-harness/.harness-install.json"),
       JSON.stringify({ ...log, assets: log.assets.map(({ files: _f, ...a }) => a) }),
     );
+    return dir;
+  }
+
+  function fdRecord(dir: string): InstallLogAsset | undefined {
+    return readInstallLog(dir)?.assets.find((a) => a.id === "frontend-design");
+  }
+
+  function uninstallOnly(dir: string): { out: string; code: number | null } {
+    const lines: string[] = [];
+    let code: number | null = null;
+    uninstallAction(
+      { projectDir: dir, only: "frontend-design" },
+      {
+        exit: (c: number) => {
+          code ??= c;
+          return undefined as never;
+        },
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+        log: (l: string) => lines.push(l.replace(/\x1b\[[0-9;]*m/g, "")),
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+        err: (l: string) => lines.push(l.replace(/\x1b\[[0-9;]*m/g, "")),
+        spawn: (() => ok()) as never,
+        resolveHarnessRoot: () => HARNESS_ROOT,
+      },
+    );
+    return { out: lines.join("\n"), code };
+  }
+
+  it("옛 기록 + 폴더 안 설치자 노트 → 재설치 뒤 노트 바이트가 백업으로 남고 보고의 백업에 든다 · 목록이 처음 적힌다", () => {
+    const dir = legacyInstall(["codex"]);
     put(dir, FD_NOTE, NOTE_BODY);
 
-    const result = install(dir);
+    const result = install(dir, ["codex"]);
 
     const saved = backupsOf(dir, FD_NOTE);
     expect(saved).toHaveLength(1);
     expect(read(dir, saved[0] as string)).toBe(NOTE_BODY);
     expect((result.backups ?? []).map((b) => b.replace(`${dir}/`, ""))).toContain(saved[0]);
+    expect(fdRecord(dir)?.files?.map((f) => f.path)).toEqual([FD_SKILL]);
+  });
+
+  it("옛 판 claude+codex → CLI 일부(claude)만 고른 install → update → uninstall --only: 옛 .agents 사본을 설치자 원본으로 되살리지 않는다 (PR #906 리뷰 BLOCKER-1)", () => {
+    const dir = legacyInstall(["claude", "codex"], "# frontend-design V1\n");
+
+    // 이번 실행은 .agents 자리를 비우지 않았다 — 거기 옛 사본이 비교에 안 잡히므로 목록을 적지 않는다("모름" 그대로)
+    install(dir, ["claude"], "# frontend-design V2\n");
+    expect(fdRecord(dir), "대조군: 자산 기록은 남는다").toBeDefined();
+    expect(fdRecord(dir)?.files).toBeUndefined();
+    expect(read(dir, FD_SKILL)).toBe("# frontend-design V1\n");
+
+    // update 는 깔린 CLI 전부(claude+codex)를 비우고 다시 받는다 — 그때 두 자리의 목록이 처음 적힌다
+    const r = refreshExternalSkills(dir, {
+      spawn: fakeTool(dir, "# frontend-design V3\n"),
+      assets: [FD],
+      log: () => {},
+      warn: () => {},
+    });
+    expect(r.refreshed).toBe(1);
     expect(
-      readInstallLog(dir)
-        ?.assets.find((a) => a.id === "frontend-design")
-        ?.files?.map((f) => f.path),
-    ).toEqual([FD_SKILL]);
+      fdRecord(dir)
+        ?.files?.map((f) => f.path)
+        .sort(),
+    ).toEqual([FD_SKILL, FD_CLAUDE]);
+    // 옛 도구 사본을 "had a file with this name — yours" 로 읽지 않는다
+    expect(r.judged?.filter((j) => j.recorded === "none") ?? []).toEqual([]);
+    expect((readInstallLog(dir)?.rootFiles ?? []).filter((f) => f.change === "displaced")).toEqual(
+      [],
+    );
+
+    const run = uninstallOnly(dir);
+    expect(run.code).toBe(0);
+    expect(run.out).not.toContain("put back");
+    expect(existsSync(join(dir, FD_SKILL)), "옛 V1 이 되살아나지 않는다").toBe(false);
+    expect(existsSync(join(dir, FD_CLAUDE))).toBe(false);
   });
 });
 
-describe("#902 — buildAssetEntries: 목록을 처음 적는 것은 hold 가 자리를 비운 실행뿐", () => {
-  const report = (): ExternalInstallReport => ({
-    attempted: [
-      {
-        asset: SKILL,
-        ok: true,
-        files: { created: [{ path: CLAUDE_SKILL, sha256: hashContent(V2) }], changed: [] },
-      },
-    ],
-    succeeded: 1,
-    skipped: 0,
-    excludedByCli: [],
-  });
-
-  it("project(hold 가 자리를 비웠다) → 이번에 놓인 파일로 목록을 처음 적는다", () => {
-    const [entry] = buildAssetEntries(report(), "project", [assetRecord()]);
+describe("#902 — 목록을 처음 적는 것은 hold 가 그 자산의 자리를 전부 비운 실행뿐", () => {
+  it("buildAssetEntries — hold 를 거친 보고의 도구 파일로 옛 기록의 목록을 처음 적는다", () => {
+    const report: ExternalInstallReport = {
+      attempted: [
+        {
+          asset: SKILL,
+          ok: true,
+          files: { created: [{ path: CLAUDE_SKILL, sha256: hashContent(V2) }], changed: [] },
+        },
+      ],
+      succeeded: 1,
+      skipped: 0,
+      excludedByCli: [],
+    };
+    const [entry] = buildAssetEntries(report, "project", [assetRecord()]);
     expect(entry?.files).toEqual([{ path: CLAUDE_SKILL, sha256: hashContent(V2) }]);
   });
 
-  it("global 기록 scope(hold 가 프로젝트 자리를 들지 않았다 — 옛 파일이 비교에 안 잡힌다) → '모름' 그대로", () => {
-    const [entry] = buildAssetEntries(report(), "global", [assetRecord()]);
-    expect(entry?.files).toBeUndefined();
+  it("기록 scope 가 global 인데 자산은 project(mixed 이력) → hold 가 프로젝트 자리를 들지 않으므로 '모름' 그대로", () => {
+    const dir = installedProject();
+    const path = join(dir, ".uzys-agent-harness/.harness-install.json");
+    writeFileSync(
+      path,
+      JSON.stringify({ ...(readInstallLog(dir) as InstallLog), scope: "global" }),
+    );
+
+    const r = refresh(dir, V2);
+
+    expect(r.refreshed).toBe(1);
+    expect(recordedPaths(dir)).toBeUndefined();
   });
 });

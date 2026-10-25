@@ -376,12 +376,10 @@ export function buildAssetEntries(
         ...skillNames(recordedBefore, scope, r.skills),
       };
       if (r.files === undefined) return entry;
-      // #902 — 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 도구를 부르기 전에 hold 가 그 자리를 비워(`unlistedSkillSlots`)
-      // 이번에 도구가 놓은 파일이 전부 `created` 다 — 그것으로 목록을 처음 적어 다음 실행부터 기록대로 판정한다. hold 는 `scope` 가
-      // global 이면 프로젝트 자리를 들지 않는다(`skillSlotsFor` — 이 `scope` 가 그 hold 의 것이다). 그때는 옛 파일이 호출 전부터
-      // 있어 비교에 안 잡혀 목록이 모자라므로 "모름" 그대로 둔다 — 모자란 목록이면 uninstall 이 남는 파일을 말하지 않는다(PR #686 리뷰 B1).
-      if (recordedBefore !== undefined && recordedBefore.files === undefined && scope === "global")
-        return entry;
+      // #902 — 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)도 이번 결과로 목록을 처음 적는다. 보고가 여기 오기 전에 hold 가
+      // 그 자산이 깔렸을 수 있는 자리를 전부 비웠으면 도구가 놓은 파일이 전부 `created` 이고, 다 비우지 못한 실행(CLI 일부 · global)은
+      // hold 가 그 자산의 `files` 를 빼서 돌려준다(`holdSkillSlots`) — 위에서 "모름" 그대로 남는다. 모자란 목록이면 uninstall 이 남는
+      // 옛 사본을 설치자 것으로 읽는다(PR #686 리뷰 B1 · PR #906 리뷰 BLOCKER-1).
       return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
 }

@@ -740,6 +740,9 @@ export function refreshExternalSkills(
  * #902 — `unlisted` 자리의 파일은 도구 것인지 설치자 것인지 모른다. 같은 바이트면 도구 파일로 두고(`created` 에 남는다 —
  * `buildAssetEntries` 가 그것으로 목록을 처음 적는다), 바이트가 다르거나 도구가 새로 쓴 폴더에서 빠졌으면 그 파일 하나를
  * 백업만 하고 되살리지 않는다(되살리면 상류가 바꾼 · 뺀 옛 도구 파일이 설치자 원본으로 남는다). displaced 로도 적지 않는다.
+ * 목록 없는 옛 기록 자산의 `files` 는 이 hold 가 그 자산이 깔렸을 수 있는 자리(깔린 CLI 의 스킬 루트 전부)를 다 비운 실행에서만
+ * 보고에 남긴다 — 이번에 고른 CLI 가 일부이거나 global 이면 비우지 않은 자리의 옛 사본이 비교에 안 잡혀 목록이 모자라므로, 그
+ * 자산은 "모름" 으로 돌려준다(PR #906 리뷰 BLOCKER-1 · PR #686 리뷰 B1). 다음 update(깔린 CLI 전부)가 목록을 처음 적는다.
  */
 export function holdSkillSlots(
   projectDir: string,
@@ -753,6 +756,12 @@ export function holdSkillSlots(
   },
 ): <R extends ExternalInstallReport | null>(report: R) => SettledSlots<R> {
   const now = new Date();
+  const heldAll =
+    resolveScope(hold.scope) !== "global" &&
+    skillRootsOf(installedClis(hold.log)).every((r) => skillRootsOf(hold.clis).includes(r));
+  const unheld = new Set(
+    heldAll ? [] : hold.recorded.filter((a) => a.files === undefined).map((a) => a.id),
+  );
   const asides = new Map<string, string>();
   const moved: AsideFile[] = [];
   try {
@@ -841,7 +850,10 @@ export function holdSkillSlots(
         `could not put back ${failed.length} file(s) moved aside before the skill tool ran — they stay in ${at}: ${failed.join(", ")}`,
       );
     }
-    return { ...out, report: (report === null ? null : withoutCreated(report, back)) as R };
+    return {
+      ...out,
+      report: (report === null ? null : withoutFiles(withoutCreated(report, back), unheld)) as R,
+    };
   };
 }
 
@@ -866,7 +878,7 @@ export function skillSlotsFor(
   ctx: { log: InstallLog | null; scope: InstallScope | undefined },
 ): string[] {
   if (resolveScope(ctx.scope) === "global") return [];
-  const roots = clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
+  const roots = skillRootsOf(clis);
   const out = new Set<string>();
   for (const a of assets) {
     if (a.method.kind !== "skill") continue;
@@ -1223,6 +1235,29 @@ function settleAside(
     backup,
     gone: false,
     displaced: { path: f.rel, change: "displaced", notes: [toProjectRel(projectDir, backup)] },
+  };
+}
+
+/** CLI 들의 몫이 놓이는 스킬 루트 — 에이전트 미지정(레거시 `cli: []`)은 두 루트 모두. */
+function skillRootsOf(
+  clis: ReadonlyArray<CliTargets[number]>,
+): Array<(typeof SKILL_ROOTS)[number]> {
+  return clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
+}
+
+/** #902 — `ids` 자산의 도구 파일 보고를 뺀다("모름") — 기록이 그 자산의 목록을 모자라게 적지 않게. */
+function withoutFiles(
+  report: ExternalInstallReport,
+  ids: ReadonlySet<string>,
+): ExternalInstallReport {
+  if (ids.size === 0) return report;
+  return {
+    ...report,
+    attempted: report.attempted.map((r) => {
+      if (!ids.has(r.asset.id) || r.files === undefined) return r;
+      const { files: _unknown, ...rest } = r;
+      return rest;
+    }),
   };
 }
 
