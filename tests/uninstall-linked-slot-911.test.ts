@@ -247,6 +247,8 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
 
     expect(text).toContain(`${slot} — not put back`);
     expect(text).not.toContain("mv -i");
+    // 사실 줄(링크 너머 자리의 백업)도 없다 — 이 기록은 그 자리를 하네스 자리로 말할 수 없다
+    expect(text).not.toContain("(record: a backup of");
     if (backupOnDisk) expect(read(backup)).toBe("ATTACK\n");
   });
 });
