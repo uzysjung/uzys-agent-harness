@@ -58,7 +58,8 @@ if [ -z "$TARGETS" ]; then
 fi
 
 # 대조군: 되는 줄 아는 파일 하나가 이력을 내는지 먼저 본다. 안 나오면 git 이 아니라 절차가 틀렸다.
-if ! git log -1 --format=%H -- "CLAUDE.md" >/dev/null 2>&1; then
+# 출력으로 판정한다 — git log 는 매치되는 커밋이 없어도 빈 출력에 exit 0 이다(#879). stderr 는 버리지 않는다.
+if [ -z "$(git log -1 --format=%H -- "CLAUDE.md")" ]; then
   echo "대조군(CLAUDE.md)이 이력을 안 낸다 — 이 실행은 무효다." >&2
   exit 2
 fi

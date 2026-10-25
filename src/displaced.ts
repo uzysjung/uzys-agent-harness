@@ -16,7 +16,7 @@
  */
 
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
@@ -44,6 +44,18 @@ function exists(abs: string): boolean {
 }
 
 /**
+ * #887 — 기록이 댄 백업 자리가 프로젝트 밖인가. 설치 기록은 커밋되는 파일이라 믿을 수 없다(`../`, 밖으로 나가는 폴더 링크) —
+ * 밖이면 그 실제 경로, 아니면 null. 옮길 항목이 **놓인 폴더**를 푼다: 백업이 링크면 rename 은 링크 자체를 옮기므로 링크가 가리키는
+ * 곳은 묻지 않는다(#839 링크 백업은 밖을 가리켜도 되돌린다). 하네스 백업은 늘 그 자리 옆에 만들어지므로(`backupFile`) 정상
+ * 기록은 여기 걸리지 않는다.
+ */
+function outsideBackup(projectDir: string, backup: string): string | null {
+  const abs = join(projectDir, backup);
+  const hit = outsideProjectTarget(projectDir, dirname(abs));
+  return hit === null ? null : join(hit.target, basename(abs));
+}
+
+/**
  * #807 — 이 displaced 기록이 설치자 파일을 말하지 않는다. v26.162~v26.170 의 update 는 옛 판이 트랙과 무관하게 깔아 둔 하네스 파일
  * (기록 트랙 밖 자리 — tooling 의 `agents/strategist.md` 등)을 첫 접촉으로 읽어 displaced 로 적었다. 그 "원본"(백업 · 백업이 없으면
  * 그 자리)이 옛 판 바이트 그대로면 비켜 둔 설치자 파일이 없다 — 되돌리지 않고(옛 하네스 바이트를 살리지 않는다) 지문 회수를 막지
@@ -56,9 +68,11 @@ export function isLegacyDisplaced(
   f: InstallLogRootFile,
 ): boolean {
   if (f.change !== "displaced") return false;
+  const at = f.notes[0] ?? f.path;
+  if (outsideBackup(projectDir, at) !== null) return false; // #887 — 밖은 읽지 않는다(설치자 것으로 둔다)
   let original: string;
   try {
-    original = readFileSync(join(projectDir, f.notes[0] ?? f.path), "utf8");
+    original = readFileSync(join(projectDir, at), "utf8");
   } catch {
     return false; // 읽지 못한 원본은 설치자 것으로 둔다(지우지 않는 쪽)
   }
@@ -85,6 +99,18 @@ export function restoreDisplaced(
     if (outsideProjectTarget(projectDir, slot) !== null) continue;
     // #807 — 원본이 옛 하네스 바이트면 되돌릴 설치자 파일이 없다(백업 없는 자리와 같다 — 조용히 기록만 뺀다)
     const backup = isLegacyDisplaced(log, projectDir, f) ? null : (f.notes[0] ?? null);
+    // #887 — 백업이 밖이면 옮기지 않는다(밖 파일을 프로젝트 안으로 끌어오는 것이다). 하네스가 쓴 기록일 수 없으니 기록도 뺀다
+    const away = backup === null ? null : outsideBackup(projectDir, backup);
+    if (away !== null) {
+      out.push({
+        path: f.path,
+        backup,
+        verdict: "advise",
+        line: `not put back — the install record points its backup outside this project (${away}); left that file where it is`,
+        forget: true,
+      });
+      continue;
+    }
     const d = judgeDisplaced({
       backup,
       backupExists: backup !== null && exists(join(projectDir, backup)),

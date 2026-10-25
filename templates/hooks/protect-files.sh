@@ -41,9 +41,12 @@ if [ -z "$FILE_PATH" ]; then
 fi
 
 BASENAME=$(basename "$FILE_PATH")
+# #888 — 대소문자를 접어서 본다. macOS·Windows 기본 볼륨은 대소문자를 가리지 않아 `.ENV` 쓰기가 `.env` 를
+# 덮는다. 아래 패턴도 전부 소문자로 쓴다(`Gemfile.lock` → `gemfile.lock`). bash 3.2(macOS)에는 `${var,,}` 가 없다.
+FOLDED=$(printf '%s' "$BASENAME" | LC_ALL=C tr 'A-Z' 'a-z')
 
-# 보호 패턴 확인
-case "$BASENAME" in
+# 보호 패턴 확인 (소문자)
+case "$FOLDED" in
   # 예시·템플릿 파일에는 시크릿이 없다 — 에이전트가 만들고 고치는 것이 정상이다 (2차 감사 G-01).
   .env.example|.env.sample|.env.template)
     exit 0
@@ -57,8 +60,8 @@ case "$BASENAME" in
     echo "BLOCKED: Protected file: $BASENAME. Environment files must be edited manually." >&2
     exit 2
     ;;
-  package-lock.json|npm-shrinkwrap.json|yarn.lock|pnpm-lock.yaml|Cargo.lock|poetry.lock|uv.lock|\
-Gemfile.lock|composer.lock|bun.lock|bun.lockb|Pipfile.lock|packages.lock.json|flake.lock|deno.lock|go.sum)
+  package-lock.json|npm-shrinkwrap.json|yarn.lock|pnpm-lock.yaml|cargo.lock|poetry.lock|uv.lock|\
+gemfile.lock|composer.lock|bun.lock|bun.lockb|pipfile.lock|packages.lock.json|flake.lock|deno.lock|go.sum)
     log_block "$FILE_PATH"
     echo "BLOCKED: Protected file: $BASENAME. Lock files should not be edited directly." >&2
     exit 2
