@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { executeSpec, installAction, specFromOptions } from "../src/commands/install.js";
+import { buildCli } from "../src/cli.js";
+import {
+  executeSpec,
+  type InstallOptions,
+  installAction,
+  specFromOptions,
+} from "../src/commands/install.js";
 import { renderInstallHeader } from "../src/commands/install-render.js";
 import { estimateTokens } from "../src/context-cost.js";
 import { type BaselineReport, type InstallReport, runInstall } from "../src/installer.js";
@@ -1608,6 +1614,49 @@ describe("v26.49.0 — --with/--without validation (unknown asset id)", () => {
       { log, err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
     );
     expect(err).toHaveBeenCalledWith(expect.stringContaining("Unknown asset id 'fake-id'"));
+  });
+
+  /** #860 — 실제 파서(cac·mri)는 숫자 값을 number 로 넘긴다. 0 은 조용히 사라지고 5 는 TypeError 였다. */
+  it.each([
+    [["--with", "5"], "Unknown asset id '5' (--with). Skipping."],
+    [["--without", "0"], "Unknown asset id '0' (--without). Skipping."],
+    [["--with", "0"], "Unknown asset id '0' (--with). Skipping."],
+    [["--with", "railway-skills", "--with", "7"], "Unknown asset id '7' (--with). Skipping."],
+  ])("파서를 거친 숫자 값 %j → 경고 + 진행 (#860)", (flags, warning) => {
+    const parsed = buildCli().parse(
+      ["node", "agent-harness", "install", "--track", "tooling", ...flags],
+      { run: false },
+    );
+    const err = vi.fn();
+    const exit = vi.fn() as unknown as (code: number) => never;
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { ...(parsed.options as InstallOptions), projectDir: "/tmp/p" },
+      { log: vi.fn(), err, exit, runPipeline, resolveHarnessRoot: () => "/h" },
+    );
+    expect(err).toHaveBeenCalledWith(expect.stringContaining(warning));
+    expect(exit).not.toHaveBeenCalled();
+    expect(runPipeline).toHaveBeenCalledOnce();
+  });
+
+  it("파서를 거쳐 --with/--without 없이 들어오면 경고가 없다 (#860 — 회귀)", () => {
+    const parsed = buildCli().parse(["node", "agent-harness", "install", "--track", "tooling"], {
+      run: false,
+    });
+    const err = vi.fn();
+    const runPipeline = pipelineFor(fakeReport);
+    installAction(
+      { ...(parsed.options as InstallOptions), projectDir: "/tmp/p" },
+      {
+        log: vi.fn(),
+        err,
+        exit: vi.fn() as unknown as (code: number) => never,
+        runPipeline,
+        resolveHarnessRoot: () => "/h",
+      },
+    );
+    expect(err).not.toHaveBeenCalledWith(expect.stringContaining("Unknown asset id"));
+    expect(runPipeline).toHaveBeenCalledOnce();
   });
 
   /**
