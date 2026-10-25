@@ -7,7 +7,7 @@
  * Opt-in 자산은 추천에 포함 X — 사용자가 의식적으로 골라야 함.
  */
 
-import { trackDefaultMcpAssetIds } from "./cli-transforms.js";
+import { droppedMcpAssetIds, trackDefaultMcpAssetIds } from "./cli-transforms.js";
 import { resolveBundleRoot } from "./context-cost.js";
 import {
   assetReachesCli,
@@ -63,11 +63,18 @@ export function trackDefaultAssets(tracks: ReadonlyArray<Track>): string[] {
 export function finalSelectedAssets(
   tracks: ReadonlyArray<Track>,
   userOverride?: InstallSpec["userOverride"],
+  keyExclude: InstallSpec["keyExclude"] = [],
 ): string[] {
   const selected = new Set(trackDefaultAssets(tracks));
   if (userOverride) {
     for (const id of userOverride.forceExclude) selected.delete(id);
     for (const id of userOverride.forceInclude) selected.add(id);
+  }
+  // #904 — 키 id(`--without mcp:<서버>`)로 뺀 MCP 서버도 자산 id 로 뺀 것과 같이 센다 — 렌더가 `.mcp.json` 에서 거르는 서버와 같다
+  if (keyExclude.length > 0) {
+    for (const id of droppedMcpAssetIds(resolveBundleRoot(), new Set(keyExclude))) {
+      selected.delete(id);
+    }
   }
   return [...selected].sort();
 }
@@ -78,9 +85,9 @@ export function finalSelectedAssets(
  * 않는 자산의 미계측 비용을 세지 않는다. 카탈로그에 없는 id 는 도달 가능으로 둔다(ASSETS 줄의 도달 분해와 같은 규칙).
  */
 export function residentSelectedAssets(
-  spec: Pick<InstallSpec, "tracks" | "userOverride" | "cli">,
+  spec: Pick<InstallSpec, "tracks" | "userOverride" | "keyExclude" | "cli">,
 ): string[] {
-  return finalSelectedAssets(spec.tracks, spec.userOverride).filter((id) => {
+  return finalSelectedAssets(spec.tracks, spec.userOverride, spec.keyExclude).filter((id) => {
     const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
     return asset === undefined || assetReachesCli(asset, spec.cli);
   });
