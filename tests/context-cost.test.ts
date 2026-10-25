@@ -1,20 +1,25 @@
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { renderInstallHeader } from "../src/commands/install-render.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { renderInstallHeader, renderUpdateSummary } from "../src/commands/install-render.js";
 import {
   assetDescriptorTokens,
   formatResidentCostLine,
   residentCost,
   summarizeContextCost,
 } from "../src/context-cost.js";
-import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import {
+  assetCliSupport,
+  EXTERNAL_ASSETS,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "../src/external-assets.js";
 import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { finalSelectedAssets } from "../src/preset-recommend.js";
-import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
+import { type CliBase, DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
+import { buildUpdateSpec } from "../src/update-mode.js";
 
 const HARNESS_ROOT_FOR_INSTALL = resolve(__dirname, "..");
 
@@ -101,6 +106,72 @@ describe("unmeasured 는 외부 자산만 센다 (#856)", () => {
     const lines: string[] = [];
     renderInstallHeader((m) => lines.push(m), spec);
     expect(lines.join("\n")).toContain("4 MCP server tool schemas unmeasured");
+  });
+});
+
+/**
+ * #865 — 비용 줄은 실제로 깔리는 자산만 센다. 고른 CLI 가 받지 못하는 자산(Antigravity 는 MCP 를 받지 않고, 플러그인은 claude
+ * 만 받는다)은 미계측 수에 들지 않는다 — 확인 화면 · 설치 헤더 · update 요약 셋 다. update 요약은 기록된 `--without` 도 따른다.
+ */
+describe("비용 줄은 고른 CLI 가 받는 자산만 센다 (#865)", () => {
+  const tracks: Track[] = ["csr-supabase"];
+  /** 그 CLI 로 깔리는 외부(비-internal) 자산 수 — 카탈로그의 방식 · 도달 목록에서 따로 센다. */
+  const externalsFor = (cli: CliBase): number =>
+    finalSelectedAssets(tracks).filter((id) => {
+      const a = EXTERNAL_ASSETS.find((x) => x.id === id);
+      return a !== undefined && a.method.kind !== "internal" && assetCliSupport(a).includes(cli);
+    }).length;
+  const externalPart = (n: number): string => `${n} external asset${n === 1 ? "" : "s"} unmeasured`;
+
+  let projectDir = "";
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), "cost-reach-"));
+  });
+  afterEach(() => rmSync(projectDir, { recursive: true, force: true }));
+
+  /** 설치한 뒤 update 요약의 CONTEXT 줄 — update 가 쓰는 spec(`buildUpdateSpec`) 그대로. */
+  const updateCostLine = (spec: InstallSpec): string => {
+    const report = runInstall({
+      runExternal: null,
+      harnessRoot: HARNESS_ROOT_FOR_INSTALL,
+      projectDir,
+      spec,
+      mode: "add",
+    });
+    const lines: string[] = [];
+    renderUpdateSummary((m) => lines.push(m), buildUpdateSpec(projectDir, tracks), report);
+    return lines.find((l) => l.includes("session-start context cost")) ?? "";
+  };
+
+  it("Antigravity 단독 — 세 화면 모두 MCP tool schema 를 세지 않고 외부 자산은 Antigravity 가 받는 것만 센다", () => {
+    // 대조군 — claude 는 같은 트랙에서 더 많이 받는다(이 테스트가 가를 수 있다는 전제)
+    expect(externalsFor("antigravity")).toBeLessThan(externalsFor("claude"));
+    const spec: InstallSpec = { ...surfaceSpec(tracks), cli: ["antigravity"], projectDir };
+    const header: string[] = [];
+    renderInstallHeader((m) => header.push(m), spec);
+    const surfaces = {
+      confirm: formatSummary(spec),
+      header: header.join("\n"),
+      update: updateCostLine(spec),
+    };
+    // 화면마다 따로 판정한다 — 하나가 틀려도 나머지의 결과가 함께 보이게
+    for (const [name, text] of Object.entries(surfaces)) {
+      expect.soft(text, name).toContain("session-start context cost");
+      expect.soft(text, name).not.toContain("MCP server tool schema");
+      expect.soft(text, name).toContain(externalPart(externalsFor("antigravity")));
+    }
+  });
+
+  it("기록에 --without 으로 뺀 MCP 서버는 update 요약이 세지 않는다", () => {
+    const base = surfaceSpec(tracks);
+    const all = summarizeContextCost(finalSelectedAssets(tracks)).mcpUnmeasuredCount;
+    expect(finalSelectedAssets(tracks)).toContain("railway-mcp-server"); // 전제 — 트랙 기본 MCP
+    const line = updateCostLine({
+      ...base,
+      projectDir,
+      userOverride: { forceInclude: [], forceExclude: ["railway-mcp-server"] },
+    });
+    expect(line).toContain(`${all - 1} MCP server tool schemas unmeasured`);
   });
 });
 

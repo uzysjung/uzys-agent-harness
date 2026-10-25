@@ -82,6 +82,11 @@ export interface SharedWriteResult {
   added: string[];
   /** `portions` 에 기록 sha 만 잇고 파일에는 없는 키(어댑터 키 — `UpsertOk.missing`). 화면은 파일에 있는 몫으로 세지 않는다. */
   missing: string[];
+  /**
+   * #881 — `missing` 중 이번 렌더에 있는 키: 되돌리려 했지만 자리를 모양이 다른 설치자 값이 차지해 쓰지 못했다(어댑터 키).
+   * 화면이 "could not restore" 로 말한다. 부재 = 없음.
+   */
+  unrestored?: string[];
   /** 설치자가 뺀(`excluded`) 키 중 이번에 걷은 것 — 키 id(리뷰 #693 NOTE-2). */
   removedOut: string[];
   /** `removedOut` 중 고친 값이었는데도 걷은 것 — 키 id. */
@@ -264,6 +269,8 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
       ? (ADAPTERS["json-keys"].read(onDisk, render.keys(), projectDir) ?? new Map<string, string>())
       : new Map<string, string>();
   const sameAsRender = (k: string) => present.get(k) === jsonSha(render.get(k));
+  // #881 — 되돌리려 했지만 자리 모양이 달라 못 쓴 기록된 몫(`missing` 중 이번 렌더에 있는 것)
+  const unrestored = upserted.missing.filter((k) => render.has(k));
   return result(action, {
     kept: upserted.kept.filter((k) => !isRegion(k) && !sameAsRender(k) && !excluded.has(k)),
     leftAsIs: upserted.kept.filter((k) => isRegion(k) && !excluded.has(k)),
@@ -281,6 +288,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     restored: ids(restoredKeys),
     added,
     missing: upserted.missing,
+    ...(unrestored.length > 0 ? { unrestored } : {}),
     ...(onDisk === null && !ownCreated ? { createdAsRoot: true as const } : {}),
   });
 }

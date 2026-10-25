@@ -321,19 +321,25 @@ describe("#600 멈춘 install 은 쓴 것을 기록에 남긴다", () => {
   });
 
   // PR #691 리뷰 HIGH-1 — `--with-codex-trust` 로 홈 파일에 넣은 trust 항목도 하네스가 쓴 것이다.
+  // #882 뒤로는 trust 쓰기가 CODEX_HOME 을 먼저 보므로 HOME 과 함께 그것도 지운다 — 셸 값이면 실제 config 에 쓴다.
   describe("홈 Codex trust 항목을 넣은 뒤 멈춘 install", () => {
     let home: string;
     let prevHome: string | undefined;
+    let prevCodexHome: string | undefined;
     beforeEach(() => {
       prevHome = process.env.HOME;
+      prevCodexHome = process.env.CODEX_HOME;
       home = mkdtempSync(join(tmpdir(), "interrupted600-home-"));
       process.env.HOME = home;
+      Reflect.deleteProperty(process.env, "CODEX_HOME");
       // opencode 변환이 codex(trust 등록) 뒤에 돈다 — 그 자리를 디렉터리로 막아 root 와 무관하게 멈춘다
       mkdirSync(join(projectDir, "opencode.json"));
     });
     afterEach(() => {
       if (prevHome === undefined) Reflect.deleteProperty(process.env, "HOME");
       else process.env.HOME = prevHome;
+      if (prevCodexHome === undefined) Reflect.deleteProperty(process.env, "CODEX_HOME");
+      else process.env.CODEX_HOME = prevCodexHome;
       rmSync(home, { recursive: true, force: true });
     });
     const trustSpec = (): Partial<InstallSpec> => ({

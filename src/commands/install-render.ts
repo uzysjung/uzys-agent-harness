@@ -1,5 +1,5 @@
-import { homedir } from "node:os";
 import { retiredFeaturesLeftBehind } from "../codex/config-toml.js";
+import { codexConfigLabel, codexConfigPath } from "../codex/opt-in.js";
 import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
@@ -56,7 +56,11 @@ import { LINES } from "../judge.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import type { OutOfTrackReclaim } from "../out-of-track.js";
 import type { OutsideLink } from "../outside-project.js";
-import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
+import {
+  finalSelectedAssets,
+  groupAssetsByCategory,
+  residentSelectedAssets,
+} from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
@@ -151,7 +155,11 @@ export function renderInstallHeader(
     // 디스크에 남아 매 세션 상주하는데 계획에는 없어서, 설치자는 실제보다 작은 숫자를 본다
     // (실측: 화면 agents 2 · 디스크 4). 갱신 **후 디스크**로 잰 줄을 `renderUpdateSummary` 가 낸다.
     if (mode !== "update") {
-      const cost = formatResidentCostLine(residentCostFor(spec), summarizeContextCost(finalAssets));
+      // #865 — 비용은 고른 CLI 가 받는 자산만 센다(ASSETS 줄은 위처럼 고른 전부와 도달 분해를 말한다)
+      const cost = formatResidentCostLine(
+        residentCostFor(spec),
+        summarizeContextCost(residentSelectedAssets(spec)),
+      );
       if (cost) log(`              ${c.dim(`· ${cost}`)}`);
     }
   }
@@ -233,11 +241,19 @@ export function createInstallRenderer(
           }
         }
         if (releasedLater.length > 0) {
-          const failed = new Set(
-            event.report.attempted.filter((r) => !r.ok).map((r) => r.asset.id),
-          );
+          // #844 · #864 — 다시 골랐어도 이 단계가 깔지 않은 것(설치 실패 · 고른 CLI 밖이라 시도하지 않음)은 "installed again" 이 아니다
+          const notInstalled = new Map<string, string>();
+          for (const r of event.report.attempted) {
+            if (!r.ok) notInstalled.set(r.asset.id, `the install failed (see ${r.asset.id} above)`);
+          }
+          for (const a of excluded) {
+            notInstalled.set(
+              a.id,
+              `not installed — requires ${assetCliSupport(a).join("/")}, selected [${spec.cli.join(", ")}]`,
+            );
+          }
           log("");
-          for (const row of releasedRows(releasedLater, failed)) log(row);
+          for (const row of releasedRows(releasedLater, notInstalled)) log(row);
         }
       }
     },
@@ -296,7 +312,7 @@ export function renderUpdateSummary(
       spec,
       residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
     ),
-    summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)),
+    summarizeContextCost(residentSelectedAssets(spec)),
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // 설계 검증 B2 — update 가 원격 MCP 서버를 더했거나 갈아 끼웠으면(예: railway 가 원격으로) 첫 사용 안내를 같은 문장으로
@@ -554,7 +570,8 @@ export function renderCliArtifacts(
           : trust.status === "already-present"
             ? "already present"
             : (trust.message ?? "error");
-      log(assetRow(kind, "~/.codex/config.toml trust entry", meta));
+      // #882 — 실제로 쓴(쓰려던) 파일을 가리킨다 — `CODEX_HOME` 이면 그 자리다
+      log(assetRow(kind, `${codexConfigLabel(trust.configPath)} trust entry`, meta));
     }
   }
   if (report.opencode) {
@@ -664,11 +681,14 @@ export function anchorRetireRow(r: AnchorRetireResult | null): string | null {
 function sharedRow(r: SharedWriteResult, part: string): string | null {
   if (r.action === "skipped") return null;
   if (r.action === "left") return assetRow("skip", r.path, `left — ${r.line}`);
-  // 안 쓴 파일을 "최신" 이라 하지 않는다 — 남겨 둔 하네스 구간이 있으면 그 구간은 최신인지 모른다
+  // 안 쓴 파일을 "최신" 이라 하지 않는다 — 남겨 둔 하네스 구간이 있으면 그 구간은 최신인지 모른다 · 못 되돌린 몫이 있으면(#881) 아니다
+  const unrestored = r.unrestored ?? [];
   const unchanged =
-    r.leftAsIs.length > 0
-      ? "nothing written — yours stays"
-      : "harness part already current — yours stays";
+    unrestored.length > 0
+      ? "nothing written"
+      : r.leftAsIs.length > 0
+        ? "nothing written — yours stays"
+        : "harness part already current — yours stays";
   // 걷기만 한 실행은 "썼다" 고 하지 않고, 고친 값까지 걷었으면 "yours stays" 라 하지 않는다(리뷰 #693 NOTE-2)
   const onlyRemoved =
     r.removedOut.length > 0 && !r.replaced && r.added.length === 0 && r.restored.length === 0;
@@ -685,10 +705,15 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
   const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
   const restored = r.restored.length > 0 ? ` · ${restoredKeysPart(r.restored)}` : "";
+  const notRestored = unrestored.length > 0 ? ` · ${unrestoredPart(unrestored)}` : "";
   const out = excludedKeyParts(r)
     .map((p) => ` · ${p}`)
     .join("");
-  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
+  return assetRow(
+    unrestored.length > 0 ? "skip" : "success",
+    r.path,
+    `${verb} · ${part}${kept}${left}${restored}${notRestored}${out}`,
+  );
 }
 
 /**
@@ -721,6 +746,7 @@ function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): 
   if (parts.length > 0)
     parts.push("not updated to this release — delete that part and run update to take the new one");
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(" · ")}`);
+  if ((f.unrestored ?? []).length > 0) parts.push(unrestoredPart(f.unrestored ?? []));
   return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
 }
 
@@ -844,10 +870,11 @@ export function renderFinalSummary(
   // #637 — 플래그 없는 재설치는 codexOptIn 자체를 안 만들어, **이미 등록된** trust 를
   // 확인하지 않고 안내를 되살렸다 — Codex 는 묻지도 않는데 "trust this folder" 를 말한다.
   // 전역 config 의 해당 항목 존재를 직접 본다(등록 여부 판정은 trust-entry 의 SSOT).
+  // #882 — 쓰는 쪽(`runCodexOptIn`)과 같은 자리를 본다 — 자리 규칙은 `codexConfigPath` 하나다
+  const configPath = codexConfigPath();
+  const configLabel = codexConfigLabel(configPath);
   const alreadyTrustedGlobally = (() => {
     try {
-      const home = process.env.CODEX_HOME ?? join(homedir(), ".codex");
-      const configPath = join(home, "config.toml");
       if (!existsSync(configPath)) return false;
       return hasTrustEntry(readFileSync(configPath, "utf8"), spec.projectDir);
     } catch {
@@ -868,11 +895,11 @@ export function renderFinalSummary(
     const entry = `[projects.${tomlBasicString(trust?.key ?? spec.projectDir)}]`;
     const headless =
       trust?.status === "unreadable"
-        ? "headless: fix ~/.codex/config.toml (not valid TOML), then run with --with-codex-trust again"
+        ? `headless: fix ${configLabel} (not valid TOML), then run with --with-codex-trust again`
         : trust?.status === "error"
-          ? `headless: add ${entry} trust_level = "trusted" to ~/.codex/config.toml by hand (the harness could not append it safely)`
+          ? `headless: add ${entry} trust_level = "trusted" to ${configLabel} by hand (the harness could not append it safely)`
           : trust?.status === "left"
-            ? `headless: ~/.codex/config.toml already has ${entry} with a trust_level other than "trusted" — the harness left your setting; change it by hand`
+            ? `headless: ${configLabel} already has ${entry} with a trust_level other than "trusted" — the harness left your setting; change it by hand`
             : "headless: agent-harness install … --with-codex-trust";
     log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
   }
@@ -1703,8 +1730,11 @@ export function sharedFileRow(f: SharedWrite): string | null {
   if (f.path === ".mcp.json") parts.push(...mcpChangeParts(f));
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
   if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
+  if (f.unrestored.length > 0) parts.push(unrestoredPart(f.unrestored));
   parts.push(...excludedKeyParts(f));
-  const row = assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+  // #881 — 못 되돌린 몫이 있으면 성공(✓)으로 말하지 않는다
+  const ok = f.changed && f.unrestored.length === 0;
+  const row = assetRow(ok ? "success" : "skip", f.path, parts.join(" · "), 28);
   // ADR-100 — 기록 폴더를 통째로 무시하던 줄을 걷었다: 그 폴더가 이제 커밋 대상이라는 것을 같은 자리에서 말한다
   if (f.path === ".gitignore" && (f.retired ?? []).includes(GITIGNORE_RECORD_DIR_LINE)) {
     return `${row}\n${assetRow("success", f.path, GITIGNORE_RECORD_DIR_NOTE, 28)}`;
@@ -1855,14 +1885,17 @@ function installedByExternalPhase(id: string): boolean {
   return EXTERNAL_ASSETS.some((a) => a.id === id && a.method.kind !== "internal");
 }
 
-/** @param failed #844 — 외부 단계에서 설치가 실패한 id. 다시 골랐어도 깔리지 않았으니 "installed again" 이라 하지 않는다. */
+/**
+ * @param notInstalled #844 · #864 — 외부 단계가 깔지 않은 id → 까닭(설치 실패 · 고른 CLI 밖). 다시 골랐어도 깔리지 않았으니
+ *   "installed again" 이라 하지 않는다.
+ */
 export function releasedRows(
   items: ReadonlyArray<ReleasedItem>,
-  failed: ReadonlySet<string> = new Set(),
+  notInstalled: ReadonlyMap<string, string> = new Map(),
 ): string[] {
   return items.map((r) =>
-    failed.has(r.id)
-      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but the install failed (see ${r.id} above): this install did not pass --without ${r.id}`
+    notInstalled.has(r.id)
+      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${r.id}`
       : r.again
         ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
         : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
@@ -1891,6 +1924,15 @@ export const KEPT_OUT_SCOPE =
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
   const drop = ids.map((id) => `--without ${id}`).join(" ");
   return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
+}
+
+/**
+ * #881 — 기록에 있는데 사라진 하네스 몫을 되돌리지 못했다: 들어갈 자리를 모양이 다른 값(예: 목록이어야 할 `hooks.<Event>` 에
+ * 객체)이 차지했다. 그 값은 설치자 것이라 덮지 않는다 — 고칠 곳과 다시 돌릴 명령을 말한다. update · install(--reinstall 포함)이
+ * 같은 줄을 쓴다.
+ */
+export function unrestoredPart(names: ReadonlyArray<string>): string {
+  return `was missing — could not restore: ${names.join(", ")} ${c.dim("(the value it goes into has a different shape — fix or remove that value, then run update)")}`;
 }
 
 /**

@@ -9,7 +9,12 @@
 
 import { trackDefaultMcpAssetIds } from "./cli-transforms.js";
 import { resolveBundleRoot } from "./context-cost.js";
-import { assetTrustTier, EXTERNAL_ASSETS, filterApplicableAssets } from "./external-assets.js";
+import {
+  assetReachesCli,
+  assetTrustTier,
+  EXTERNAL_ASSETS,
+  filterApplicableAssets,
+} from "./external-assets.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "./types.js";
 
 /**
@@ -65,6 +70,20 @@ export function finalSelectedAssets(
     for (const id of userOverride.forceInclude) selected.add(id);
   }
   return [...selected].sort();
+}
+
+/**
+ * #865 — 상주 비용 줄이 세는 자산: 최종 선택(`finalSelectedAssets` — update 는 기록된 빼기가 spec 의 `userOverride` 로 이미
+ * 들어 있다) 중 **고른 CLI 가 실제로 받는 것**만. 확인 화면 · 설치 헤더 · update 요약이 이 하나로 센다 — CLI 밖이라 깔리지
+ * 않는 자산의 미계측 비용을 세지 않는다. 카탈로그에 없는 id 는 도달 가능으로 둔다(ASSETS 줄의 도달 분해와 같은 규칙).
+ */
+export function residentSelectedAssets(
+  spec: Pick<InstallSpec, "tracks" | "userOverride" | "cli">,
+): string[] {
+  return finalSelectedAssets(spec.tracks, spec.userOverride).filter((id) => {
+    const asset = EXTERNAL_ASSETS.find((a) => a.id === id);
+    return asset === undefined || assetReachesCli(asset, spec.cli);
+  });
 }
 
 /**

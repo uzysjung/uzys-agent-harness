@@ -226,17 +226,23 @@ describe("Matrix invariants — cross-cutting", () => {
   // ADR-097 결정 2 (#567) — `--with-codex-trust` 는 **범위 조건 없이** 이 폴더의 trust 한 줄을 홈의
   // Codex 설정에 더한다(예전에는 scope=global 에서만 돌아 프로젝트 설치에서는 조용히 무시됐다).
   // HOME 을 임시 디렉터리로 돌린다 — 테스트 폴더를 실제 `~/.codex/config.toml` 에 등록하지 않는다.
+  // #882 뒤로는 쓰기가 CODEX_HOME 을 먼저 보므로 그것도 지운다 — 셸에 CODEX_HOME 이 있으면 실제 config 에 쓴다.
   describe("--with-codex-trust (범위 무관)", () => {
     let home: string;
     let prevHome: string | undefined;
+    let prevCodexHome: string | undefined;
     beforeEach(() => {
       prevHome = process.env.HOME;
+      prevCodexHome = process.env.CODEX_HOME;
       home = mkdtempSync(join(tmpdir(), "ch-home-"));
       process.env.HOME = home;
+      delete process.env.CODEX_HOME;
     });
     afterEach(() => {
       if (prevHome === undefined) delete process.env.HOME;
       else process.env.HOME = prevHome;
+      if (prevCodexHome === undefined) delete process.env.CODEX_HOME;
+      else process.env.CODEX_HOME = prevCodexHome;
       rmSync(home, { recursive: true, force: true });
     });
 

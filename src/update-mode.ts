@@ -191,6 +191,8 @@ export interface UpdateModeReport {
     edited: ReadonlyArray<string>;
     unrecorded: ReadonlyArray<string>;
     kept: ReadonlyArray<string>;
+    /** #881 — 기록에 있는데 사라진 하네스 몫 중 자리 모양이 달라 되돌리지 못한 키(`SharedWriteResult.unrestored`). 부재 = 없음. */
+    unrestored?: ReadonlyArray<string>;
     left?: string;
     /** `.codex/config.toml` 에 남은 하네스 훅이 옛 flat 형식이라 현행 Codex 가 무시한다(`hasLegacyHarnessHook`). */
     legacyHook?: true;
@@ -1170,13 +1172,14 @@ function writeUpdateSharedFiles(args: {
   }
   const dropped = new Set(args.droppedKeys);
   return {
-    // 말할 것이 있는 파일만 — 이미 최신인 파일까지 매 update 화면에 올리지 않는다
+    // 말할 것이 있는 파일만 — 이미 최신인 파일까지 매 update 화면에 올리지 않는다. 되돌리지 못한 몫(#881)은 말할 것이다
     writes: ledger.shared.filter(
       (w) =>
         w.changed ||
         w.verdict === "leave+advise" ||
         w.keptOut.length > 0 ||
-        w.removedOut.length > 0,
+        w.removedOut.length > 0 ||
+        w.unrestored.length > 0,
     ),
     legacyRestored: [
       ...new Set(ledger.shared.flatMap((w) => [...w.restored, ...w.addedIds])),
@@ -2416,7 +2419,11 @@ function refreshExternalCli(
     // #625 — install 화면(`sharedRow`)이 말하는 "남긴 것" 을 update 도 말한다. 고친 구간과 기록이 없어 모르는 구간은
     // 다른 사실이라 기록(`portions`)으로 가른다 — 어댑터는 기록된 키가 고쳐졌으면 남기고 기록 sha 를 잇는다(계약 ⓑ)
     sharedLeft: result.sharedFiles
-      .filter((f) => f.action === "left" || f.leftAsIs.length + f.kept.length > 0)
+      .filter(
+        (f) =>
+          f.action === "left" ||
+          f.leftAsIs.length + f.kept.length + (f.unrestored ?? []).length > 0,
+      )
       .map((f) => {
         const recordedKeys = new Set(
           (log?.portions ?? []).filter((p) => p.path === f.path).map((p) => p.key),
@@ -2426,6 +2433,7 @@ function refreshExternalCli(
           edited: f.leftAsIs.filter((k) => recordedKeys.has(k)),
           unrecorded: f.leftAsIs.filter((k) => !recordedKeys.has(k)),
           kept: [...f.kept],
+          ...(f.unrestored !== undefined ? { unrestored: [...f.unrestored] } : {}),
           ...(f.action === "left" ? { left: f.line } : {}),
           // #625 — 남긴 구간이 옛 훅 형식이면 현행 Codex 가 무시해 세션 시작 훅이 돌지 않는다(#627) — 화면이 덧붙인다
           ...(f.path === ".codex/config.toml" && legacyHookOnDisk(projectDir, f.path)
