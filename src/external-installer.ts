@@ -1038,13 +1038,16 @@ function isAppleDoubleOf(abs: string): boolean {
 /**
  * #890 — `dir` 의 볼륨이 AppleDouble 짝(`._<name>`)을 `<name>` 과 함께 옮기는가. macOS 는 확장 속성을 담지 못하는 볼륨(exFAT · FAT ·
  * SMB 등)에 그것을 같은 폴더의 `._<name>` 파일로 두고, `<name>` 을 옮기거나 지우면 짝도 함께 옮기거나 지운다 — 짝 없이 옮겨 온 파일은
- * 도착한 자리의 `._<name>` 을 지운다(실측 2026-10-25, macOS exFAT 디스크 이미지). 볼륨 종류는 Node 가 알려 주지 않아 `dir`(이번에 만든
- * 빈 백업 폴더) 안에서 직접 재 본다. 못 재면 false — 짝도 평범한 파일로 다룬다(지금까지의 동작).
+ * 도착한 자리의 `._<name>` 을 지운다(실측 2026-10-25, macOS exFAT 디스크 이미지). 볼륨 종류는 Node 가 알려 주지 않아 `dir`(이번 실행이
+ * 만든 백업 폴더 — 옮긴 것은 스킬 · 루트 이름의 하위 폴더에 든다) 안에서 직접 재 본다. 못 재면 false — 짝도 평범한 파일로 다룬다(지금까지의 동작).
  */
 function movesAppleDouble(dir: string): boolean {
-  const [from, fromPair, to, toPair] = ["probe", "._probe", "probe-moved", "._probe-moved"].map(
-    (n) => join(dir, n),
-  ) as [string, string, string, string];
+  const [from, fromPair, to, toPair] = [
+    ".uzys-probe",
+    "._.uzys-probe",
+    ".uzys-probe-moved",
+    "._.uzys-probe-moved",
+  ].map((n) => join(dir, n)) as [string, string, string, string];
   try {
     writeFileSync(from, "");
     writeFileSync(fromPair, "");
