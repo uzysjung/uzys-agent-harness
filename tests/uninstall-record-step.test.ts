@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type UninstallOptions, uninstallAction } from "../src/commands/uninstall.js";
 import {
   INSTALL_LOG_DIR,
@@ -33,6 +33,15 @@ const OPENSPEC = {
   detail: { pkg: "@fission-ai/openspec" },
 } as const;
 
+/** 자동 되돌리기 경로가 없는 자산(fire-and-forget) — uninstall 은 말만 한다. */
+const NPX_RUN = {
+  id: "gsd",
+  category: "workflow",
+  method: "npx-run",
+  scope: "project",
+  detail: {},
+} as const;
+
 /** 하네스가 자리를 빌린 설치자 파일 — install 이 백업으로 비켜 두고, uninstall 이 원래 이름으로 되돌린다(displaced). */
 const MINE_PATH = ".claude/rules/git-policy.md";
 const MINE = "MINE — 우리 팀 git 규칙\n";
@@ -41,13 +50,16 @@ let projectDir = "";
 beforeEach(() => {
   projectDir = mkdtempSync(join(tmpdir(), "un889-"));
 });
-afterEach(() => rmSync(projectDir, { recursive: true, force: true }));
+afterEach(() => {
+  vi.useRealTimers();
+  rmSync(projectDir, { recursive: true, force: true });
+});
 
 const abs = (rel: string): string => join(projectDir, rel);
 const read = (rel: string): string => readFileSync(abs(rel), "utf8");
 
 /** tooling · claude 설치 + 설치자 파일 하나가 하네스 자리에 있던 상태 + `--with openspec` 의 기록. */
-function installWithNpmAsset(): void {
+function installWithNpmAsset(extra: ReadonlyArray<InstallLog["assets"][number]> = []): void {
   mkdirSync(dirname(abs(MINE_PATH)), { recursive: true });
   writeFileSync(abs(MINE_PATH), MINE);
   runInstall({
@@ -58,7 +70,7 @@ function installWithNpmAsset(): void {
   });
   const log = readInstallLog(projectDir);
   if (log === null) throw new Error("install log missing");
-  writeInstallLog(projectDir, { ...log, assets: [...log.assets, { ...OPENSPEC }] });
+  writeInstallLog(projectDir, { ...log, assets: [...log.assets, { ...OPENSPEC }, ...extra] });
   // 시나리오 자기검증 — 하네스 판이 설치자 파일 자리를 차지했고, 기록이 그 자리를 displaced 로 안다
   expect(read(MINE_PATH)).not.toBe(MINE);
   expect(readInstallLog(projectDir)?.rootFiles?.some((f) => f.path === MINE_PATH)).toBe(true);
@@ -124,6 +136,7 @@ describe("#889 전량 uninstall — 되돌리기에 실패한 자산은 기록�
     const log = readInstallLog(projectDir);
     expect(log?.assets.map((a) => a.id)).toContain("openspec");
     expect(log?.policyFiles ?? []).toEqual([]);
+    expect(log?.templates.rootClaudeMd, "지운 앵커도 기록에서 빠진다").toBeUndefined();
     expect(log?.rootFiles?.some((f) => f.path === MINE_PATH && f.change === "displaced")).toBe(
       false,
     );
@@ -132,8 +145,12 @@ describe("#889 전량 uninstall — 되돌리기에 실패한 자산은 기록�
   });
 
   it("원인을 고치고 같은 명령을 다시 돌리면 이어서 끝난다 — 되돌린 설치자 파일은 그대로다", () => {
+    // 백업 이름은 초 단위 시각이다 — 같은 초에 다시 돌리면 이름이 겹쳐 결함이 가려진다. 실제처럼 시간을 띄운다
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T01:00:00Z"));
     installWithNpmAsset();
     uninstall({ yes: true }, true);
+    vi.setSystemTime(new Date("2026-10-22T02:00:00Z"));
 
     const again = uninstall({ yes: true });
 
@@ -189,7 +206,7 @@ describe("#889 전량 uninstall — 되돌리기에 실패한 자산은 기록�
  */
 describe("#883 --only 미리보기는 실행과 같은 기록 단계를 말한다", () => {
   it("`--only --dry-run` 은 기록 삭제가 아니라 실행이 낼 '기록 갱신' 줄을 낸다", () => {
-    installWithNpmAsset();
+    installWithNpmAsset([{ ...NPX_RUN }]);
     const before = readFileSync(installLogPath(projectDir), "utf8");
 
     const preview = uninstall({ only: "openspec", dryRun: true });
@@ -198,9 +215,10 @@ describe("#883 --only 미리보기는 실행과 같은 기록 단계를 말한�
     expect(preview.text).not.toContain("remove install record");
     expect(readFileSync(installLogPath(projectDir), "utf8")).toBe(before); // 미리보기는 쓰지 않는다
     const run = uninstall({ only: "openspec" });
-    const said = /✓ install log updated \((\d+) asset\(s\) remain\)/.exec(run.text)?.[1];
-    expect(said, "실행이 기록 갱신 줄을 냈다").toBeDefined();
-    expect(preview.text).toContain(`○ install log updated (${said} asset(s) remain)`);
+    expect(run.text, "실행은 남은 자산으로 기록을 다시 쓴다").toContain(
+      "✓ install log updated (1 asset(s) remain)",
+    );
+    expect(preview.text).toContain("○ install log updated (1 asset(s) remain)");
   });
 
   it("회귀 — 전량 `--dry-run` 은 지금처럼 기록 삭제 단계를 말한다", () => {
@@ -211,5 +229,23 @@ describe("#883 --only 미리보기는 실행과 같은 기록 단계를 말한�
     expect(preview.code).toBe(0);
     expect(preview.text).toContain("○ remove install record (.uzys-agent-harness/");
     expect(preview.text).not.toContain("install log updated");
+  });
+
+  it("자동 경로 없는 자산의 '기록 유지' 는 기록이 남는 실행에서만 말한다 — 미리보기 · 실행이 같은 말", () => {
+    installWithNpmAsset([{ ...NPX_RUN }]);
+    const line = "gsd (npx-run) — 자동 되돌리기 경로 없음";
+
+    const fullPreview = uninstall({ dryRun: true });
+    const onlyPreview = uninstall({ only: "gsd", dryRun: true });
+    expect(fullPreview.text).toContain(line);
+    expect(fullPreview.text, "전량은 기록을 지운다").not.toContain(`${line}, 기록 유지`);
+    expect(onlyPreview.text).toContain(`${line}, 기록 유지`);
+
+    const failedRun = uninstall({ yes: true }, true);
+    expect(failedRun.text, "실패로 기록이 남으면 그렇게 말한다").toContain(`${line}, 기록 유지`);
+    const fullRun = uninstall({ yes: true });
+    expect(fullRun.text).toContain(line);
+    expect(fullRun.text).not.toContain(`${line}, 기록 유지`);
+    expect(existsSync(abs(INSTALL_LOG_DIR))).toBe(false);
   });
 });
