@@ -19,7 +19,7 @@
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { basename, dirname, join, posix } from "node:path";
 import { backupOriginal } from "./fs-ops.js";
-import { inHarnessSlot } from "./harness-slot.js";
+import { inHarnessSlot, inSlotByName } from "./harness-slot.js";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
@@ -34,6 +34,11 @@ export interface DisplacedOutcome {
   line: string;
   /** 이 displaced 기록을 지운다. */
   forget: boolean;
+  /**
+   * #911 — 링크로 둔 자리라 되돌리지 못한 원본을 설치자가 손으로 옮길 쌍(project 상대). 화면이 명령으로 말할 뿐 하네스는 옮기지 않는다.
+   * 하네스가 만든 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 명령을 받지 못한다.
+   */
+  handBack?: { from: string; to: string };
 }
 
 /** lstat 기준 존재 — 끊어진 링크도 "있다"(그 자리가 막혀 있다). */
@@ -66,6 +71,23 @@ function outsideBackup(projectDir: string, backup: string): string | null {
  */
 function isBackupOf(path: string, backup: string): boolean {
   return backupOriginal(posix.normalize(backup)) === posix.normalize(path);
+}
+
+/**
+ * #911 — 링크로 둔 자리라 되돌리지 못한 원본을 손으로 옮길 쌍. 이름이 하네스 자리 안인 기록(실경로가 밖인 링크로 둔 자리)에서 그 자리에
+ * 하네스가 만든 이름의 백업이 프로젝트 안에 실재하고 설치자 파일일 때만 — 글자부터 밖인 기록(`.env`)이나 믿을 수 없는 백업 이름에는
+ * 명령을 만들어 주지 않는다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
+ */
+function handBackOf(
+  log: InstallLog,
+  projectDir: string,
+  f: InstallLogRootFile,
+): { from: string; to: string } | null {
+  const backup = f.notes[0];
+  if (backup === undefined || !inSlotByName(f.path)) return null;
+  if (outsideBackup(projectDir, backup) !== null || !isBackupOf(f.path, backup)) return null;
+  if (!exists(join(projectDir, backup)) || isLegacyDisplaced(log, projectDir, f)) return null;
+  return { from: posix.normalize(backup), to: posix.normalize(f.path) };
 }
 
 /**
@@ -113,12 +135,14 @@ export function restoreDisplaced(
     // #901 — displaced 는 하네스 파일 자리에서만 생긴다. 자리가 글자로든 실경로로든 그 밖이면(`.env` · 링크로 둔 자리 폴더 너머 ·
     // 함께 쓰는 파일) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
     if (!inHarnessSlot(projectDir, f.path)) {
+      const handBack = handBackOf(log, projectDir, f);
       out.push({
         path: f.path,
         backup: f.notes[0] ?? null,
         verdict: "advise",
         line: "not put back — the install record says this tool moved a file of yours aside here, but this is (or leads) outside the places this tool installs to; left it as is",
         forget: true,
+        ...(handBack === null ? {} : { handBack }),
       });
       continue;
     }

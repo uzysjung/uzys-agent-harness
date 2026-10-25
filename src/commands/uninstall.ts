@@ -419,6 +419,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
         if (d.verdict === "restore") journal.push(`put back ${d.path}`);
       }
       for (const line of displacedLines(onlyDisplaced, false)) log(line);
+      for (const line of byHandLines([], onlyDisplaced, projectDir)) log(line);
     } else {
       const done = removeHarnessFiles(installLog, projectDir, FULL_SCOPE, {
         rm: rmJ,
@@ -822,7 +823,7 @@ function dryRunLines(
       willBeGone: new Set(plannedAssetFiles(plan, installLog)),
       write: false,
     });
-    lines.push(...displacedLines(preview, true));
+    lines.push(...displacedLines(preview, true), ...byHandLines([], preview, projectDir));
   }
   lines.push(...advisoryLines(plan, projectDir, rootFiles, globalTrust), "");
   return lines;
@@ -2617,6 +2618,7 @@ function harnessRemovalLines(
   }
   lines.push(...sharedStripLines(r.shared, preview));
   lines.push(...leftFolderLines(r, log, projectDir, scope, preview, alsoGone));
+  lines.push(...byHandLines(r.offSlot, r.displaced, projectDir));
   return lines;
 }
 
@@ -2971,28 +2973,92 @@ function globalCopyLines(copies: ReadonlyArray<GlobalCopyReclaim>, preview: bool
 const ASSET_SLOTS = skillFolders(SKILL_ROOTS);
 
 /**
- * #901 — 기록에 있지만 자리 밖이라 건드리지 않은 기록 경로의 줄. 링크로 둔 자리(`.codex → shared-codex`) 아래는 그 링크 하나에 한 줄
- * (밖 링크 줄과 같은 묶음 — 폴더 링크 아래 파일을 파일마다 말하지 않는다), 기록 글자 자체가 자리 밖이면 경로마다 한 줄.
+ * #901 — 기록에 있지만 자리 밖이라 건드리지 않은 기록 경로를 묶는다. 링크로 둔 자리(`.codex → shared-codex`) 아래는 그 링크 하나로
+ * (밖 링크 줄과 같은 묶음 — 폴더 링크 아래 파일을 파일마다 말하지 않는다), 기록 글자 자체가 자리 밖이면 경로마다.
  */
-function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[] {
-  const lines: string[] = [];
-  const byLink = new Map<string, { target: string; n: number }>();
+function offSlotGroups(
+  paths: ReadonlyArray<string>,
+  projectDir: string,
+): { literal: string[]; byLink: Map<string, { target: string; files: string[] }> } {
+  const literal: string[] = [];
+  const byLink = new Map<string, { target: string; files: string[] }>();
   for (const path of paths) {
     const link = linkOnPath(projectDir, path);
     if (link === null) {
-      lines.push(offSlotLine(path, "lists it"));
+      literal.push(path);
       continue;
     }
-    const g = byLink.get(link.link) ?? { target: link.target, n: 0 };
-    g.n += 1;
+    const g = byLink.get(link.link) ?? { target: link.target, files: [] };
+    g.files.push(path);
     byLink.set(link.link, g);
   }
-  for (const [link, g] of byLink) {
+  return { literal, byLink };
+}
+
+/** #901 — 자리 밖이라 건드리지 않은 기록 경로의 줄: 링크 하나에 한 줄(파일 이름은 `byHandLines` 가 푼다), 글자부터 밖이면 경로마다 한 줄. */
+function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[] {
+  const { literal, byLink } = offSlotGroups(paths, projectDir);
+  return [
+    ...literal.map((path) => offSlotLine(path, "lists it")),
+    ...[...byLink].map(
+      ([link, g]) =>
+        `  ${c.yellow("⊘")} ${link} — your link (→ ${g.target}) leads outside the places this tool installs to; left ${g.files.length} file(s) on the install record under it. Not touched — remove by hand if intended.`,
+    ),
+  ];
+}
+
+/**
+ * #911 — 링크로 둔 자리라 하네스가 건드리지 않은 것을 설치자가 손으로 끝내는 법을 한 덩어리로 모은다: 못 되돌린 설치자 원본을 옮길 명령 ·
+ * 남긴 파일의 이름. 위 줄들이 말한 것을 이름으로 풀 뿐 — 아무것도 옮기거나 지우지 않고, 미리보기도 같은 판정을 말한다. 남이 커밋한
+ * 기록의 경로일 수 있어 "하네스 파일이다" 라고 단정하지 않고 확인을 요구한다.
+ */
+function byHandLines(
+  offSlot: ReadonlyArray<string>,
+  displaced: ReadonlyArray<DisplacedOutcome>,
+  projectDir: string,
+): string[] {
+  const back = displaced.flatMap((d) => (d.handBack === undefined ? [] : [d.handBack]));
+  const links = [...offSlotGroups(offSlot, projectDir).byLink]
+    // 링크 자체가 그 기록이면(말단 링크) 위 줄이 이미 그 이름이다
+    .map(([link, g]) => ({
+      link,
+      target: g.target,
+      files: g.files.filter((f) => f !== link).sort(),
+    }))
+    .filter((g) => g.files.length > 0);
+  if (back.length === 0 && links.length === 0) return [];
+  const yours = new Set(back.map((b) => b.to));
+  const lines = [
+    `  ${c.yellow("⊘")} left for you to finish by hand (nothing here was touched — run from the project folder):`,
+  ];
+  if (back.length > 0) {
     lines.push(
-      `  ${c.yellow("⊘")} ${link} — your link (→ ${g.target}) leads outside the places this tool installs to; left ${g.n} file(s) on the install record under it. Not touched — remove by hand if intended.`,
+      c.dim("      your files this tool moved aside — put each back (replaces the harness copy):"),
     );
+    for (const b of back) lines.push(c.dim(`        mv -i ${shellArg(b.from)} ${shellArg(b.to)}`));
+  }
+  for (const g of links) {
+    lines.push(
+      c.dim(
+        `      listed on the install record under your link ${g.link} (→ ${g.target}) — check, then remove if intended:`,
+      ),
+    );
+    for (const file of g.files) {
+      lines.push(
+        c.dim(
+          yours.has(file)
+            ? `        ${file}  (your own file goes back here — do not delete)`
+            : `        ${file}`,
+        ),
+      );
+    }
   }
   return lines;
+}
+
+/** 손으로 칠 명령의 경로 — 공백 · 셸 문자가 있으면 작은따옴표로 묶는다. */
+function shellArg(path: string): string {
+  return /^[\w@%+=:,./-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
 }
 
 /** 경로의 가장 얕은 링크 성분(project 상대)과 그 링크 글자 — 없으면 null. */

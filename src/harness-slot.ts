@@ -86,6 +86,14 @@ function realRel(projectDir: string, norm: string, follow: boolean): string | nu
   return slash === ".." || slash.startsWith("../") ? null : slash;
 }
 
+/**
+ * 기록의 글자 경로만 `slots` 안인가(실경로는 묻지 않는다) — 이름은 자리 안인데 실경로가 밖인 링크로 둔 자리(#911)를, 글자부터 밖인
+ * 기록(`.env`)과 가른다.
+ */
+export function inSlotByName(path: string, slots: SlotSet = HARNESS_FILES): boolean {
+  return within(posix.normalize(path), slots);
+}
+
 /** 기록의 경로(`path` — 프로젝트 상대)가 글자 · 실경로 둘 다 `slots` 안인가. 실경로를 풀 수 없으면 아니다. */
 export function inHarnessSlot(
   projectDir: string,
