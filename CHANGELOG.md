@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
-## [v26.175.0] — 2026-10-25 (uninstall · update 가 설치자 몫을 더 정확히 가른다 · 버그 26건)
+## [v26.175.0] — 2026-10-25 (uninstall · update 가 설치자 몫을 더 정확히 가른다 · 버그 47건)
 
 ### Fixed
 - **uninstall 이 남의 자리를 건드리지 않는다** (#845 #837 #846 #854, PR #869)
@@ -36,12 +36,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 - **외부 스킬 자리** (#838 #839 #851, PR #875 · ADR-112)
   - `.claude/skills/<id>` 가 `.agents/skills/<id>` 로의 링크여도 install · update 가 ENOENT 로 멈추지 않는다. 스킬 폴더 안 링크 파일·폴더가 외부 스킬 갱신 뒤에도 제자리에 남는다.
   - global 로 깐 외부 스킬은 update 가 홈에서 갱신하고 프로젝트에 사본을 만들지 않는다. 옛 update(v26.174.0 이하)가 만든 프로젝트 사본은 다음 update · uninstall 이 회수한다 — 홈 사본과 다른 파일은 그 파일 하나를 백업한 뒤 지운다.
+- **uninstall 이 중간에 실패해도 이어서 끝낸다** (#889 #883 #863 #862 #880, PR #896)
+  - 전량 uninstall 중 `npm uninstall` · `claude plugin uninstall` 이 실패하면(레지스트리 타임아웃 · claude CLI 없음) 설치 기록을 지우지 않고 남긴다. 화면이 남은 자산과 `uninstall --only <id>` 로 이어 가는 명령을 댄다. 다시 돌리면 남은 것만 끝내고, 이미 되돌린 설치자 파일은 건드리지 않는다. 그 사이 `update` 를 돌리면 지운 하네스 몫(Codex 설정 · 훅 포함)을 다시 깐다.
+  - `uninstall --only <id> --dry-run` 이 실제로는 안 일어나는 "기록 전체 삭제"를 예고하지 않는다 — 실행과 같은 말을 한다.
+  - `.claude/.installed-tracks` 에 메모를 둔 채 트랙을 뺀 뒤 메모를 지워도 뺀 트랙이 되살아나지 않는다.
+  - 씨뿌린 AGENTS.md 배너 아래 이어 적은 인용 메모가 uninstall 뒤에도 남는다(배너 줄만 걷는다).
+  - 옛 판 AGENTS.md 가 있는 프로젝트에 Claude Code 를 더해도 루트 CLAUDE.md 에 상시 스킬 안내가 두 벌 생기지 않는다.
+- **화면이 실제로 깔린 것만 말한다 · Codex trust 자리** (#864 #865 #882 #881, PR #899)
+  - 고른 CLI 로는 깔 수 없는 재선택 자산에 초록 "installed again" 대신 "selected again, but not installed — requires …" 가 나온다.
+  - 확인 화면 · 설치 헤더 · update 요약의 비용 줄이 고른 CLI 가 받는 자산만 센다(claude 기본 설치의 숫자는 그대로).
+  - `CODEX_HOME` 을 둔 환경(샌드박스 · CI)에서 `--with-codex-trust` 가 Codex 가 실제로 읽는 `$CODEX_HOME/config.toml` 에 trust 를 쓰고, 재설치가 그 파일을 봐서 "trust this folder" 를 다시 권하지 않는다.
+  - `.claude/settings.json` 의 `hooks.<Event>` 가 다른 도구 때문에 목록이 아닌 값으로 바뀌었으면 update · `--reinstall` 이 "kept yours" 라고 거짓으로 말하지 않고, 되돌리지 못한 이유와 고치는 법을 말한다(그 값은 덮지 않는다). `opencode.json` 도 같다.
+- **macOS 외장 볼륨(exFAT 등)에서 install · 재설치 · update · uninstall 이 끝까지 돈다** (#890 #897, PR #898) — 그런 볼륨은 파일마다 확장 속성을 `._<name>` 짝 파일로 따로 두는데, 하네스가 그 짝을 독립 파일로 다뤄 첫 install 이 `could not put back … ENOENT` 로 멈추고, 이어 하는 install · update 가 `ENOTDIR` 로 멈추고, update · uninstall 이 짝 파일을 백업하거나 "yours" 로 안내했다. 이제 `<name>` 옆의 `._<name>` 은 그 파일의 속성으로 보고 따로 다루지 않는다. 옛 판이 짝을 적어 둔 기록도 그대로 지나간다.
+- **링크로 둔 스킬 자리** (#885 #867, PR #898) — `.agents` 를 프로젝트 안 다른 폴더로 링크해 둔 설치본에서 install 이 공유 스킬 자리를 "남의 도구 소유"로 알리지 않고 본문을 갱신하며, `uninstall --cli codex` 가 Claude 가 링크로 쓰는 본문을 지우지 않는다. 기록이 `.agents` 에만 있는 구성에서 손대지 않은 외부 스킬 파일을 설치자 파일로 백업하지 않는다.
+- update 의 스킬 폴더 정리에서 지우기만 실패하면 방금 만든 백업을 걷어, 화면과 백업 목록이 같은 말을 하고 재시도마다 백업이 쌓이지 않는다(#868). codex 만 깐 설치본에서 update 가 설치자의 `.claude/agents/` 파일에 "지워도 된다"를 말하지 않는다(#884). (PR #898)
 - 새 루트 CLAUDE.md 에 트랙 안내 줄(`> Active track(s): …`)을 쓰지 않는다. 트랙을 바꿔도 갱신되지 않는 줄이었다(#833, PR #836).
+
+### Security
+- **보호 훅이 대소문자 변형을 막는다** (#888, PR #895) — macOS · Windows 기본 볼륨에서 에이전트가 `.ENV` · `ID_RSA` · `server.PEM` 처럼 대소문자만 바꾼 이름으로 쓰려 해도 막고 `hook-blocks.log` 에 남긴다. 전에는 통과해 실제 `.env` 가 통째로 바뀌었다. `.env.example` 류 예시 파일은 그대로 통과한다.
+- **남이 커밋한 설치 기록이 파일을 옮기지 못한다** (#887 #894, PR #895 · #900) — 기록이 프로젝트 밖 파일이나, 그 자리의 하네스 백업 이름(`<자리>.backup-<시각>`)이 아닌 프로젝트 안 파일(`.env` 등)을 "백업"이라 가리키면 uninstall · update · `--reinstall` 이 그 파일을 옮기지 않고 이유를 말한다. 하네스가 만든 정상 백업 · 링크 백업의 되돌리기는 그대로다.
+- 기록 없는 프로젝트에서 `CLAUDE.md` · `AGENTS.md` 등이 폴더여도 list · update · uninstall · 위저드가 멈추지 않는다(#886). 비UTF-8 바이트가 섞인 공유 파일에 install · update 가 하네스 몫을 병합할 때도 원본 바이트를 먼저 백업한다(#878 — 수정은 #847 이 넣었고 이 판에서 회귀 테스트로 고정). 개발용 `npm run assets:history` 의 대조군 검사가 실제로 무효 실행을 선언한다(#879).
 
 ### Changed
 - 개발 의존성: esbuild 0.27.7 → 0.28.2 · vite 갱신(PR #876). 배포물 의존성 변화 없음.
 
 ### 알려진 한계
+- 일반 디스크(APFS 등)에서도 외부 스킬 폴더 안 `<name>` 옆에 놓인 `._<name>` 은 그 파일의 속성 사본으로 보고, 재설치 · update 때 따로 남기지 않는다(#890). 외장 볼륨 폴더를 `cp -R` · `rsync -a` 로 복사하면 생기는 파일이고 내용은 원본에 이미 붙은 속성의 사본이다.
+- settings.json 에서 설치자가 하네스 훅 줄을 고치고 같은 스크립트를 부르는 자기 묶음을 그 앞에 두면, uninstall 뒤 빈 훅 묶음이 남는다(백업은 생긴다 · #866 보류).
 - v26.174.0 이하에서 CRLF 템플릿으로 깐 뒤 AGENTS.md 줄 끝이 재정규화되면 그 블록은 "설치자가 고친 블록"으로 남는다(#841).
 - 옛 기록(스킬 이름 없음)에서 update 없이 uninstall 을 먼저 돌리면 소스 전체를 까는 외부 자산의 프로젝트 사본은 회수하지 못한다(#851).
 
