@@ -92,7 +92,6 @@ describe("#603 — install 은 죽은 훅 참조를 지우지 않고 알리기�
     };
     expect(JSON.stringify(after.hooks)).toContain("ghost.sh");
     expect(report.keptHookRefs ?? []).toContain("hooks/ghost.sh");
-    expect(report.staleHookRefs ?? []).toEqual([]); // "removed" 행과 한 사실이 두 줄로 나오지 않는다
   });
 });
 

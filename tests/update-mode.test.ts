@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createInstallRenderer } from "../src/commands/install-render.js";
 import { findStaleHookRefs } from "../src/hook-ref.js";
 import {
   hashContent,
@@ -21,6 +22,7 @@ import {
   readInstallLog,
   writeInstallLog,
 } from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
 import { upsertHarnessImport } from "../src/project-claude-merge.js";
 import { DEFAULT_OPTIONS, UPDATE_GROUPS } from "../src/types.js";
@@ -1717,6 +1719,55 @@ describe(".claude/skills 갱신 (R-3a)", () => {
     expect((readInstallLog(projectDir)?.skillFiles ?? []).map((f) => f.path)).toEqual([
       "demo/SKILL.md",
     ]);
+  });
+
+  it("번들 밖 파일 하나를 백업하지 못해도 그 파일만 남기고 끝까지 돌아 기록을 갱신한다 (#848)", () => {
+    seed("demo", "SKILL.md", "new\n", "old\n");
+    // 이름이 길어 `<file>.backup-<시각>` 이 파일 이름 한도(255)를 넘는다 — root 로 돌아도 백업이 실패한다(권한 fault 대역)
+    const long = `${"n".repeat(240)}.md`;
+    writeFileSync(join(skills(), "demo", long), "mine\n");
+    writeFileSync(join(skills(), "demo/other.md"), "mine too\n"); // 실패한 파일 뒤에 오는 이름 — 루프가 이어지는지 본다
+    writerLog({ "demo/SKILL.md": "old\n" });
+
+    const report = update();
+
+    expect(readFileSync(join(skills(), "demo/SKILL.md"), "utf8")).toBe("new\n");
+    // 기록이 새 판을 말한다 — 갈라지면 다음 릴리즈가 하네스가 쓴 바이트를 "you edited it" 으로 백업한다
+    expect(
+      readInstallLog(projectDir)?.skillFiles?.find((f) => f.path === "demo/SKILL.md")?.sha256,
+    ).toBe(hashContent("new\n"));
+    expect(readFileSync(join(skills(), "demo", long), "utf8")).toBe("mine\n");
+    expect(report.skillsPruneFailed).toEqual([`demo/${long}`]);
+    expect(report.skillsPruned).toEqual(["demo/other.md"]);
+    expect(report.skillsBackedUp).toEqual(["demo/other.md"]);
+  });
+
+  it("남겨 둔 파일은 update 화면이 이름으로 말한다 (#848)", () => {
+    const spec = {
+      tracks: ["tooling" as const],
+      options: { withCodexTrust: false },
+      cli: ["claude" as const],
+      projectDir,
+    };
+    runInstall({ harnessRoot: HARNESS_ROOT, projectDir, spec, mode: "add", runExternal: null });
+    const [id] = readdirSync(skills());
+    if (id === undefined) throw new Error("tooling 설치에 스킬이 없다");
+    const long = `${"n".repeat(240)}.md`;
+    writeFileSync(join(skills(), id, long), "mine\n");
+    const out: string[] = [];
+    const renderer = createInstallRenderer((m) => out.push(m), spec, false);
+
+    runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir,
+      spec,
+      mode: "update",
+      runExternal: null,
+      onProgress: (e) => renderer.callbacks.onProgress?.(e),
+    });
+
+    const row = out.find((l) => l.includes(`${id}/${long}`));
+    expect(row).toContain("left in place; the next update tries again");
   });
 
   it("우리가 남긴 *.backup-* 은 지우지 않는다 — 지우면 매 update 가 직전 백업을 먹는다 (#477)", () => {

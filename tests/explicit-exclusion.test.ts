@@ -36,7 +36,11 @@ import {
 } from "../src/commands/install-render.js";
 import { listAction } from "../src/commands/list.js";
 import { excludedStillThere } from "../src/excluded-still-there.js";
-import { type ExternalAsset, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import {
+  EXTERNAL_ASSETS,
+  type ExternalAsset,
+  INTERNAL_BUNDLED_SKILL_IDS,
+} from "../src/external-assets.js";
 import { refreshExternalSkills } from "../src/external-installer.js";
 import {
   appendSelection,
@@ -717,6 +721,67 @@ describe("선택 기록 — 대체 범위 · opt-in · 효과분 · 옛 기록 �
     });
     update();
     expect(readFileSync(abs(`.claude/skills/${X}/SKILL.md`), "utf8")).not.toBe(old);
+  });
+
+  describe("#844 — 외부 단계가 까는 자산의 '다시 깔았다' 는 그 단계의 결과와 맞춘다", () => {
+    const FD = "frontend-design"; // ssr-htmx 기본 · 외부 단계(`npx skills`)가 깐다
+    const tracks: Track[] = ["ssr-htmx"];
+    const AGAIN = `↺ ${FD} — dropped earlier, installed again`;
+    const FAILED = `${FD} — selected again, but the install failed (see ${FD} above)`;
+
+    /** 외부 단계를 `ok` 결과로 흉내 내 install 을 화면과 함께 돌린다. */
+    const installWithExternal = (ok: boolean): string => {
+      const s = spec({ tracks });
+      const lines: string[] = [];
+      const renderer = createInstallRenderer((m) => lines.push(m), s, false);
+      runInstall({
+        runExternal: (_ctx, deps) => {
+          const attempted = EXTERNAL_ASSETS.filter((a) => a.id === FD).map((asset) => {
+            const r = ok ? { asset, ok } : { asset, ok, message: "npx exited 1" };
+            deps.onAssetResult?.(r);
+            return r;
+          });
+          return {
+            attempted,
+            succeeded: ok ? 1 : 0,
+            skipped: ok ? 0 : 1,
+            excludedByCli: [],
+          };
+        },
+        ...(renderer.callbacks.externalDeps
+          ? { externalDeps: renderer.callbacks.externalDeps }
+          : {}),
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: s,
+        mode: "add",
+        onProgress: (event) => renderer.callbacks.onProgress?.(event),
+      });
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+      return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+    };
+
+    it("실패하면 '다시 깔았다' 고 하지 않고 실패를 말한다 · 기록에 깔렸다고 적지 않는다", () => {
+      install({ tracks, userOverride: { forceInclude: [], forceExclude: [FD] } });
+      expect(rawLog().excluded).toEqual([FD]);
+
+      const screen = installWithExternal(false);
+
+      expect(screen).not.toContain(AGAIN);
+      expect(screen).toContain(FAILED);
+      // 실패 줄은 외부 단계의 결과 행 뒤에 온다
+      expect(screen.indexOf(FAILED)).toBeGreaterThan(screen.indexOf("npx exited 1"));
+      expect(rawLog().assets.some((a) => a.id === FD)).toBe(false);
+    });
+
+    it("성공하면 지금처럼 '다시 깔았다' 고 말한다", () => {
+      install({ tracks, userOverride: { forceInclude: [], forceExclude: [FD] } });
+
+      const screen = installWithExternal(true);
+
+      expect(screen).toContain(`${AGAIN}: this install did not pass --without ${FD}`);
+      expect(screen).not.toContain(FAILED);
+    });
   });
 
   it("V6 — 이력은 효과분만: 같은 선택의 재설치 · update 는 늘리지 않는다", () => {
