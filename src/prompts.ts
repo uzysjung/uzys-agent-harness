@@ -94,6 +94,8 @@ export interface Prompts {
    * 카테고리 그룹화. 추천 ✓ pre-check. ESC → null (silent back).
    * v26.61.0 — recap (tracks/cli) 추가. alt screen 안에서 동작 — terminal scrollback
    *   본질 차단 → wizard scroll 시 cursor highlight 항상 visible.
+   * #850 — 첫 페이지 ESC 는 `{ back }` 으로 그때까지 페이지에서 확정한 편집을 돌려준다. 위저드가 그것을
+   *   다음 진입의 초기값으로 쓴다(리셋은 트랙 변경 때만 — confirm ESC 로 돌아오는 경로와 같다). null 도 뒤로다.
    */
   selectInstallTargets: (
     initialChecked: ReadonlyArray<InstallTargetId>,
@@ -107,7 +109,12 @@ export interface Prompts {
        */
       installed?: ReadonlyArray<string>;
     },
-  ) => Promise<ReadonlyArray<InstallTargetId> | null>;
+  ) => Promise<ReadonlyArray<InstallTargetId> | InstallTargetsBack | null>;
+}
+
+/** #850 — Step 3 첫 페이지 ESC(Step 2 로 뒤로). `back` = 그때까지 페이지에서 확정한 선택. */
+export interface InstallTargetsBack {
+  back: ReadonlyArray<InstallTargetId>;
 }
 
 export const TRACK_LABELS: Record<Track, string> = {
@@ -580,11 +587,10 @@ export const defaultPrompts: Prompts = {
     // v26.63.1 — alt screen exit 후 main buffer 에 Step 3 완료 라인 출력. alt buffer
     //   안 동작은 main 에 흔적 0 → Step 1·2·4 사이 Step 3 missing → 사용자 보고.
     //   clack `◇` marker + `│` line 으로 다른 step 과 시각 일관성 유지.
-    if (resultIds !== null) {
-      process.stdout.write(
-        `◇  Step ${step.current}/${step.total} — Install targets  ·  ${resultIds.length} selected\n│\n`,
-      );
-    }
+    if (resultIds === null) return { back: [...collected] as ReadonlyArray<InstallTargetId> };
+    process.stdout.write(
+      `◇  Step ${step.current}/${step.total} — Install targets  ·  ${resultIds.length} selected\n│\n`,
+    );
     return resultIds;
   },
 };

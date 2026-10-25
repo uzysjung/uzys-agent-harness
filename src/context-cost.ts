@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTINUOUS_SKILLS, EXTERNAL_ASSETS } from "./external-assets.js";
+import { parseTrackMcpMap, selectableMcpServers } from "./mcp-merge.js";
 import { renderFillScaffold, withContinuousSkillsNote } from "./project-claude-merge.js";
 import type { CliTargets } from "./types.js";
 
@@ -369,7 +370,17 @@ export interface ContextCostSummary {
   /** 실측된 스킬들의 토큰 합 (추정치). */
   measuredTokens: number;
   measuredCount: number;
+  /** 외부 자산(ADR-032) — 설치 시점에 콘텐츠를 모른다. */
   unmeasuredCount: number;
+  /** #856 — MCP 서버 행. 세션마다 서버가 주는 tool schema 가 상주하지만 설치 시점엔 잴 수 없다(ADR-044 §4). */
+  mcpUnmeasuredCount: number;
+}
+
+/** #856 — 트랙 표(`templates/track-mcp-map.tsv`)의 고를 수 있는 MCP 서버 행인 자산 id. */
+function mcpServerAssetIds(root: string): Set<string> {
+  const path = join(root, "templates", "track-mcp-map.tsv");
+  if (!existsSync(path)) return new Set();
+  return new Set(selectableMcpServers(parseTrackMcpMap(readFileSync(path, "utf8"))).values());
 }
 
 export function summarizeContextCost(
@@ -379,15 +390,22 @@ export function summarizeContextCost(
   let measuredTokens = 0;
   let measuredCount = 0;
   let unmeasuredCount = 0;
+  let mcpUnmeasuredCount = 0;
+  const mcp = mcpServerAssetIds(root);
   for (const id of assetIds) {
     const tokens = assetDescriptorTokens(id, root);
-    if (tokens === null) unmeasuredCount += 1;
-    else {
+    if (tokens === null) {
+      // #856 — 미계측은 둘로 가른다(ADR-044 §4). MCP 서버 행은 tool schema 가 상주하므로 따로 센다 — "external" 이라
+      // 부르지 않는다(ADR-032 의 external = 외부 자산). 그 밖의 internal(ci-scaffold 류)은 세션에 상주시키는 것이 없어 세지 않는다.
+      if (mcp.has(id)) mcpUnmeasuredCount += 1;
+      else if (EXTERNAL_ASSETS.find((a) => a.id === id)?.method.kind !== "internal")
+        unmeasuredCount += 1;
+    } else {
       measuredTokens += tokens;
       measuredCount += 1;
     }
   }
-  return { measuredTokens, measuredCount, unmeasuredCount };
+  return { measuredTokens, measuredCount, unmeasuredCount, mcpUnmeasuredCount };
 }
 
 /**
@@ -420,7 +438,11 @@ export function formatContextCostLine(s: ContextCostSummary): string | null {
  * 붙고 나머지 둘에 없던 것이 정확히 그 형태였다. 계약은
  * `tests/context-cost-display-parity.test.ts` 가 글롭으로 강제한다.
  */
-export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number): string | null {
+export function formatResidentCostLine(
+  r: ResidentCost,
+  unmeasured: Pick<ContextCostSummary, "unmeasuredCount" | "mcpUnmeasuredCount">,
+): string | null {
+  const { unmeasuredCount, mcpUnmeasuredCount } = unmeasured;
   if (r.total === 0) return null;
   // ADR-083 — 내역을 **두 축으로 묶어** 보여준다. 총합은 그대로 낸다(설치자는 전부를 문다).
   // 달라지는 것은 "그중 무엇을 줄일 수 있는가"가 한눈에 갈린다는 것이다:
@@ -442,7 +464,12 @@ export function formatResidentCostLine(r: ResidentCost, unmeasuredCount: number)
     unmeasuredCount > 0
       ? ` · ${unmeasuredCount} external asset${unmeasuredCount === 1 ? "" : "s"} unmeasured`
       : "";
-  return `session-start context cost: ${r.items.total} items resident · ~${r.total} tokens/session (${parts}${external})`;
+  // #856 (ADR-044 §4) — MCP 서버가 세션마다 주는 tool schema 는 상주하지만 설치 시점엔 잴 수 없다 — 숫자에 없다는 것을 말한다
+  const mcp =
+    mcpUnmeasuredCount > 0
+      ? ` · ${mcpUnmeasuredCount} MCP server tool schema${mcpUnmeasuredCount === 1 ? "" : "s"} unmeasured`
+      : "";
+  return `session-start context cost: ${r.items.total} items resident · ~${r.total} tokens/session (${parts}${external}${mcp})`;
 }
 
 /**

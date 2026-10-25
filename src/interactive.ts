@@ -21,6 +21,7 @@ import {
   finalSelectedAssets,
   groupAssetsByCategory,
   recommendedExternalAssets,
+  trackDefaultAssets,
 } from "./preset-recommend.js";
 import {
   defaultPrompts,
@@ -160,20 +161,6 @@ function recordedBundledSkillIds(log: InstallLog | null): string[] {
 }
 
 /**
- * #709 리뷰 NOTE 7 — 3단계가 트랙의 기본으로 보이는 자산: 카탈로그 추천 ∪ **트랙 표가 기본으로 까는 고를 수 있는 MCP 서버**
- * (`railway-mcp-server` on csr-* · ssr-htmx · ssr-htmx-fastify · full). 뒤의 것은 experimental 이라 카탈로그 추천에 안 들지만 실제로 깔린다 — 미체크로
- * 보이면 화면이 결과와 다르다. 체크를 풀면 추천 대비 빼기(`--without <id>`)라 `.mcp.json` · Codex · OpenCode 에서 모두 빠진다.
- */
-function wizardRecommended(tracks: ReadonlyArray<Track>): string[] {
-  return [
-    ...new Set([
-      ...recommendedExternalAssets(tracks),
-      ...trackDefaultMcpAssetIds(resolveBundleRoot(), tracks),
-    ]),
-  ];
-}
-
-/**
  * step 3 의 초기 체크 = **트랙 추천 ∪ 이미 설치된 project 자산**.
  *
  * 추천만 쓰면 추천 밖의 설치된 자산이 빈칸으로 보여, 사용자가 "안 깔렸다"고 읽는다.
@@ -183,7 +170,7 @@ export function initialTargetSelection(
   tracks: ReadonlyArray<Track>,
   installedProjectAssetIds: ReadonlyArray<string>,
 ): InstallTargetId[] {
-  const ids = new Set<string>(wizardRecommended(tracks));
+  const ids = new Set<string>(trackDefaultAssets(tracks));
   for (const id of installedProjectAssetIds) ids.add(id);
   const assets = [...ids].map((id) => `asset:${id}` as InstallTargetId);
   // 트랙이 고르는 자산은 **전부 체크된 채로** 시작한다. 기본값을 바꾸는 것이 아니라 기본값을
@@ -465,7 +452,9 @@ export async function runInteractive(
         cli: cli ?? ["claude"],
         installed: installed.installed.map((id) => `asset:${id}`),
       });
-      if (result === null) {
+      if (result === null || "back" in result) {
+        // #850 — 확정 전 편집도 다음 진입까지 들고 간다(리셋은 트랙 변경 때만 — confirm ESC 와 같다).
+        if (result !== null) targetSelections = result.back;
         step = "cli"; // silent back
         continue;
       }
@@ -589,7 +578,9 @@ async function runUpdateFlow(ctx: UpdateFlowContext): Promise<InteractiveResult>
         cli: cli ?? [...lockedClis],
         installed: installed.installed.map((id) => `asset:${id}`),
       });
-      if (result === null) {
+      if (result === null || "back" in result) {
+        // #850 — 새 설치 흐름과 같다: 확정 전 편집을 들고 Step 2 로.
+        if (result !== null) targetSelections = result.back;
         step = "cli";
         continue;
       }
@@ -795,7 +786,7 @@ export function computeUserOverride(
   tracks: ReadonlyArray<Track>,
   assetIds: ReadonlyArray<string>,
 ): { forceInclude: ReadonlyArray<string>; forceExclude: ReadonlyArray<string> } | undefined {
-  const recommended = new Set(wizardRecommended(tracks));
+  const recommended = new Set(trackDefaultAssets(tracks));
   const selected = new Set(assetIds);
   const forceExclude = [...recommended].filter((id) => !selected.has(id)).sort();
   // #726 (ADR-104) — 선택에는 기록에서 온 **카탈로그 밖 id**(빠진 자산)가 섞인다(행이 없어 해제할 수도 없다). 그 id 를
@@ -846,10 +837,7 @@ export function formatSummary(spec: InstallSpec): string {
     // 해제분을 빼고 센다 (ADR-074). 이 숫자는 이 저장소의 1차 지표(Context Cost per Install)이고,
     // 상주 비용을 줄이려고 항목을 푼 사용자에게 안 줄어든 숫자를 보이면 그 자체가 거짓 보고다.
     // #320 H1 — 헤더와 같은 이유로 **설치기와 같은 spec**(`buildManifestSpec`)으로 센다.
-    const cost = formatResidentCostLine(
-      residentCostFor(spec),
-      summarizeContextCost(finalAssets).unmeasuredCount,
-    );
+    const cost = formatResidentCostLine(residentCostFor(spec), summarizeContextCost(finalAssets));
     if (cost) lines.push(`  · ${cost}`);
   }
 
