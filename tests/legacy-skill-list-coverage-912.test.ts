@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
+import { excludedStillThere } from "../src/excluded-still-there.js";
 import { type ExternalInstallerDeps, refreshExternalSkills } from "../src/external-installer.js";
 import { listFilesRecursive } from "../src/fs-ops.js";
 import {
@@ -23,6 +24,7 @@ import {
   writeInstallLog,
 } from "../src/install-log.js";
 import type { CliBase } from "../src/types.js";
+import { buildRemovableRows } from "../src/uninstall-interactive.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
@@ -385,5 +387,31 @@ describe("#912 AC8 — 덮인 폴더에 상류가 파일을 더하고 바꾼다"
     const out = uninstallOnly(partial.dir);
     expect(out.out).not.toContain("put back");
     expect(existsSync(join(partial.dir, C, "new.md"))).toBe(false);
+  });
+});
+
+describe("#912 — 일부 폴더만 말하는 목록을 읽는 화면", () => {
+  it("uninstall 선택 화면은 목록 파일을 지우고 다른 폴더는 남긴다고 말한다", () => {
+    const dir = legacyProject({ clis: ["claude"], copies: [C, A] });
+    update(dir, v(2));
+    const [row] = buildRemovableRows(readInstallLog(dir)?.assets ?? []);
+    expect(row?.hint).toBe(
+      "removes the 2 file(s) on record; files in other folders are not on record (older install) — left",
+    );
+  });
+
+  it("뺀 자산의 목록 파일이 없어도 '모름' 인 폴더가 남아 있으면 아직 있다고 본다", () => {
+    const dir = legacyProject({ clis: ["claude"], copies: [C, A] });
+    update(dir, v(2));
+    rmSync(join(dir, C), { recursive: true, force: true });
+    const log = readInstallLog(dir);
+    expect(excludedStillThere(dir, new Set([SKILL.id]), [], log)).toEqual([
+      { id: SKILL.id, catalog: true },
+    ]);
+    rmSync(join(dir, A), { recursive: true, force: true });
+    expect(
+      excludedStillThere(dir, new Set([SKILL.id]), [], log),
+      "대조군: 둘 다 없으면 없다",
+    ).toEqual([]);
   });
 });
