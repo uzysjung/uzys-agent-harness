@@ -573,17 +573,8 @@ export function renderCliArtifacts(
         ),
       );
     }
-    // ADR-081 — 옛 커맨드 사본을 지웠으면 말한다. 조용히 지우면 사용자는 자기가 쓰던
-    // 슬래시 커맨드가 왜 사라졌는지 알 방법이 없다 (스킬로 옮겨져 이름은 그대로 뜬다).
-    if (report.opencode.retiredCommands.length > 0) {
-      log(
-        assetRow(
-          "skip",
-          ".opencode/commands/",
-          `${report.opencode.retiredCommands.length} retired · 같은 스킬이 .agents/skills/ 로 옮겨졌다 (백업 남김)`,
-        ),
-      );
-    }
+    const retiredCmds = retiredCommandsRow(report.opencode.retiredCommands.length);
+    if (retiredCmds) log(retiredCmds);
   }
   // v26.78.1 (R2) — Antigravity 산출물: rules + dev-method skills. 원칙·맥락은 위 `AGENTS.md` 줄이 말한다(ADR-103).
   // #564 — 숫자는 **이번 실행이 쓴 것**(변환 반환값 — writer 가 받아 기록에 적은 경로)에서 센다.
@@ -616,6 +607,19 @@ export function renderCliArtifacts(
     }
   }
   log("");
+}
+
+/**
+ * ADR-081 — 옛 OpenCode 커맨드 사본을 지웠으면 말한다. 조용히 지우면 사용자는 자기가 쓰던 슬래시 커맨드가 왜 사라졌는지
+ * 알 방법이 없다 (스킬로 옮겨져 이름은 그대로 뜬다). #859 — install · update 가 이 한 줄을 같이 쓴다.
+ */
+export function retiredCommandsRow(count: number): string | null {
+  if (count === 0) return null;
+  return assetRow(
+    "skip",
+    ".opencode/commands/",
+    `${count} retired · 같은 스킬이 .agents/skills/ 로 옮겨졌다 (백업 남김)`,
+  );
 }
 
 /** ADR-103 — update 가 `AGENTS.md` 를 새로 만들었거나 다른 앵커의 설치자 글을 옮겨 심었으면 그 한 줄. */
@@ -1066,6 +1070,9 @@ function renderPhase1Rows(
     if (agentsNews) log(agentsNews);
     const retired = anchorRetireRow(baseline.updateMode.anchorRetired ?? null);
     if (retired) log(retired);
+    // #859 — 옛 OpenCode 커맨드 사본을 은퇴시켰다(install 화면과 같은 줄)
+    const retiredCmds = retiredCommandsRow(baseline.updateMode.retiredCommands?.length ?? 0);
+    if (retiredCmds) log(retiredCmds);
     // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
     for (const row of outOfTrackRows(baseline.updateMode.outOfTrack)) log(row);
     // #782 — 하네스가 떠난 자리(은퇴 회수 · 트랙 밖 룰 · 옛 앵커)에 설치자 원본을 되돌렸다

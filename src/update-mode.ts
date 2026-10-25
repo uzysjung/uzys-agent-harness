@@ -417,6 +417,11 @@ export interface UpdateModeReport {
   /** ADR-103 — 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)를 은퇴시켰다. 부재 = 기록에 앵커가 없었다. */
   anchorRetired?: AnchorRetireResult;
   /**
+   * #859 — 백업하고 지운 옛 OpenCode 커맨드 사본(`.opencode/commands/<id>.md`, project-relative). install 화면과 같은 줄로
+   * 말한다 — 조용히 지우면 설치자는 쓰던 슬래시 커맨드가 왜 사라졌는지 알 수 없다. 부재 = 은퇴 없음.
+   */
+  retiredCommands?: ReadonlyArray<string>;
+  /**
    * #782 — 이 update 가 떠난 하네스 자리(은퇴 회수 · 트랙 밖 룰 · 옛 Antigravity 앵커) 중 설치자 원본을 비켜 두었던 자리
    * (`displaced`)의 되돌리기 결과. 부재 = 그런 자리가 없었다.
    */
@@ -736,6 +741,7 @@ export function runUpdateMode(
         restoredFiles: [],
         legacyRestored: [],
         anchorRetired: null,
+        retiredCommands: [],
         anchorDisplaced: [],
         agentsMd: null,
         agentsMdLegacyDropped: 0,
@@ -755,6 +761,7 @@ export function runUpdateMode(
   if (displacedRestored.length > 0) report.displacedRestored = displacedRestored;
   report.externalUpdated = external.externalUpdated;
   if (external.anchorRetired !== null) report.anchorRetired = external.anchorRetired;
+  if (external.retiredCommands.length > 0) report.retiredCommands = external.retiredCommands;
   if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
   if (external.agentsMdLegacyDropped > 0) {
     report.agentsMdLegacyDropped = external.agentsMdLegacyDropped;
@@ -2163,6 +2170,8 @@ function refreshExternalCli(
   legacyRestored: string[];
   /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과(기록에 앵커가 없었으면 `null`). */
   anchorRetired: AnchorRetireResult | null;
+  /** #859 — `UpdateModeReport.retiredCommands` 와 같다(project-relative). */
+  retiredCommands: string[];
   /** #782 — 은퇴한 앵커 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본 되돌리기 결과. */
   anchorDisplaced: DisplacedOutcome[];
   /** ADR-103 — `UpdateModeReport.agentsMd` 와 같다(없으면 `null`). */
@@ -2244,12 +2253,16 @@ function refreshExternalCli(
     // ADR-103 — 은퇴한 옛 Antigravity 앵커는 기록에서 뺀다. 그 경로가 `spec.clis` 없는 옛 로그의 antigravity 유도 근거이므로
     // 빼기 **전** 집합을 같은 기록 쓰기에서 `spec.clis` 로 적는다(BLOCKER-1 — update 의 다른 기록 쓰기는 `spec` 을 건드리지
     // 않으므로 이 자리가 유일한 이행점이다. `buildInstallLog` 가 install 에서 하는 1회 이행을 대신한다, ADR-096 D3).
-    const retiredPath = result.anchorRetired?.forget === true ? result.anchorRetired.path : null;
+    // #859 — 은퇴한(또는 이미 없는) 옛 OpenCode 커맨드 기록도 같은 쓰기에서 뺀다(install 의 `forgotten` 과 같다)
+    const forget = new Set([
+      ...(result.anchorRetired?.forget === true ? [result.anchorRetired.path] : []),
+      ...(result.opencode?.forgetCommands ?? []),
+    ]);
     const merged = mergeExternalFiles(log.externalFiles, written).filter(
-      (f) => f.path !== retiredPath,
+      (f) => !forget.has(f.path),
     );
     const next: InstallLog =
-      retiredPath === null
+      forget.size === 0
         ? { ...log }
         : { ...log, spec: { ...log.spec, clis: [...installedClis(log)] } };
     if (merged.length > 0) next.externalFiles = merged;
@@ -2377,6 +2390,9 @@ function refreshExternalCli(
       ),
     ],
     anchorRetired: result.anchorRetired,
+    retiredCommands: (result.opencode?.retiredCommands ?? []).map((p) =>
+      relative(projectDir, p).split(sep).join("/"),
+    ),
     anchorDisplaced,
     agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
     agentsMdLegacyDropped: result.agentsMd?.agentsMd.droppedLegacySections ?? 0,
