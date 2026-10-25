@@ -70,8 +70,10 @@ import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
   backupFile,
   backupIfLossyUtf8,
+  isAppleDoublePath,
   listFilesRecursive,
   PROJECT_SKELETON_DIRS,
+  withoutAppleDouble,
 } from "../fs-ops.js";
 import { LEGACY_HOOK_REFS, removeRetiredHookRefs } from "../hook-ref.js";
 import {
@@ -874,7 +876,7 @@ function advisoryLines(
  */
 function backupArtifactAdvisoryLines(projectDir: string): string[] {
   const found: string[] = [];
-  for (const e of readdirSync(projectDir, { withFileTypes: true })) {
+  for (const e of withoutAppleDouble(readdirSync(projectDir, { withFileTypes: true }))) {
     if (CLI_FOLDERS.some((d) => e.name.startsWith(`${d}.backup-`))) {
       found.push(e.name);
     } else if (e.isFile() && BACKUP_SUFFIX.test(e.name)) {
@@ -2673,7 +2675,8 @@ function yoursUnder(projectDir: string, dir: string): Array<{ name: string; show
   const walk = (abs: string, prefix: string): void => {
     let entries: Dirent[];
     try {
-      entries = readdirSync(abs, { withFileTypes: true });
+      // #897 — AppleDouble 짝은 그 파일의 속성이다 — 하네스 파일의 짝을 "당신 파일" 로 안내하지 않는다
+      entries = withoutAppleDouble(readdirSync(abs, { withFileTypes: true }));
     } catch {
       return;
     }
@@ -2962,8 +2965,20 @@ function removeToolFiles(
   const notes: string[] = [];
   const removed: string[] = [];
   let failed = 0;
-  for (const { path, sha256 } of files) {
+  // #890 — 옛 판이 적은 AppleDouble 짝(`._<name>`)은 그 파일의 속성이다 — 내용을 재 백업하지 않고 짝과 함께 치운다. 지우기 전에 가른다
+  // (짝 `<name>` 을 먼저 지우면 이름 짝이 안 보인다)
+  const pairs = new Set(files.filter((f) => isAppleDoublePath(join(projectDir, f.path))));
+  for (const file of files) {
+    const { path, sha256 } = file;
     const abs = join(projectDir, path);
+    if (pairs.has(file)) {
+      try {
+        rm(abs);
+      } catch {
+        // 짝을 두는 볼륨은 `<name>` 을 지울 때 함께 지운다 — 남아도 그 파일의 속성일 뿐이다
+      }
+      continue;
+    }
     let isLink: boolean;
     try {
       isLink = lstatSync(abs).isSymbolicLink();

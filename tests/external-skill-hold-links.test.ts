@@ -155,6 +155,58 @@ describe("#838 — 두 스킬 자리가 링크로 한 폴더면 그 안의 설�
   });
 });
 
+describe("#867 — 기록이 `.agents` 에만 있고 `.claude` 자리가 그 링크면 같은 실파일의 기록 sha 로 판정한다", () => {
+  /** codex 로 먼저 깔고 claude 를 더한 뒤 설치자가 링크를 건 모양 — 기록은 `.agents/skills/a/SKILL.md` 하나뿐이다. */
+  function agentsOnlyRecord(): string {
+    const dir = project();
+    const log = readInstallLog(dir) as InstallLog;
+    writeInstallLog(dir, {
+      ...log,
+      assets: log.assets.map((a) => ({
+        ...a,
+        files: (a.files ?? []).filter((f) => f.path.startsWith(".agents/")),
+      })),
+    });
+    // 대조군 — 조작이 먹었다. 안 먹으면 아래 판정이 링크와 무관하게 갈린다
+    expect(readInstallLog(dir)?.assets[0]?.files?.map((f) => f.path)).toEqual([
+      `${AGENTS_SLOT}/SKILL.md`,
+    ]);
+    link(dir, CLAUDE_SLOT, "../../.agents/skills/a");
+    return dir;
+  }
+  const backupsIn = (dir: string, slot: string): string[] =>
+    readdirSync(join(dir, slot)).filter((n) => n.includes(".backup-"));
+
+  it("손대지 않은 파일은 링크 경로로 보여도 백업 · displaced · 판정 줄을 남기지 않는다", () => {
+    const dir = agentsOnlyRecord();
+    put(dir, `${AGENTS_SLOT}/SKILL.md`, V1);
+
+    const r = refresh(dir);
+
+    expect(r.refreshed).toBe(1);
+    expect(r.judged ?? []).toEqual([]);
+    expect(backupsIn(dir, AGENTS_SLOT)).toEqual([]);
+    expect(backupsIn(dir, CLAUDE_SLOT)).toEqual([]);
+    expect(readInstallLog(dir)?.rootFiles ?? []).toEqual([]);
+    expect(asideDirsLeft(dir)).toEqual([]);
+  });
+
+  it("설치자가 고친 파일은 지금처럼 한 번 백업한다 — 기록 파일의 편집이지 설치자 파일(displaced)이 아니다", () => {
+    const dir = agentsOnlyRecord();
+    put(dir, `${AGENTS_SLOT}/SKILL.md`, "# my edit\n");
+
+    const r = refresh(dir);
+
+    expect((r.judged ?? []).map((j) => [j.path, j.recorded])).toEqual([
+      [`${AGENTS_SLOT}/SKILL.md`, "sha"],
+    ]);
+    const backups = backupsIn(dir, AGENTS_SLOT);
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(dir, AGENTS_SLOT, backups[0] as string), "utf8")).toBe("# my edit\n");
+    expect(readInstallLog(dir)?.rootFiles ?? []).toEqual([]);
+  });
+});
+
 describe("#839 — 스킬 폴더 안의 링크(파일 · 폴더)도 도구가 폴더를 새로 만든 뒤 제자리에 있다", () => {
   function linkedSlot(): string {
     const dir = project();

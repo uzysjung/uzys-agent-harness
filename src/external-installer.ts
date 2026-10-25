@@ -1015,6 +1015,12 @@ function realOrNull(abs: string): string | null {
   }
 }
 
+/** 폴더를 realpath 한 자리 + 이름 — 파일 자체가 링크여도 따라가지 않는다(`slotFilesToKeep` 의 실경로와 같은 잣대). 폴더가 없으면 `null`. */
+function realFileOrNull(abs: string): string | null {
+  const dir = realOrNull(dirname(abs));
+  return dir === null ? null : join(dir, basename(abs));
+}
+
 function readOrNull(abs: string): Buffer | null {
   try {
     return readFileSync(abs);
@@ -1049,6 +1055,7 @@ interface AsideFile {
  * 링크 자리를 실제 폴더로 바꿔도 설치자 파일은 원래 있던 폴더로 돌아간다.
  * 스킬 폴더 안의 링크(파일 · 폴더 — 공유 에셋 등)는 따라가지 않고 링크 자체를 옮긴다 — 도구가 폴더를 새로 만들면 링크도
  * 사라진다(#839). 스킬 루트 바로 아래 링크는 스킬 자리 그 자체(#524)라 들지 않는다 — 그 안을 지키는 것이 hold 다.
+ * AppleDouble 짝(`._<name>`)은 목록에 들지 않는다(`listEntriesRecursive`) — 그 볼륨이 `<name>` 과 함께 옮긴다(#890).
  */
 function slotFilesToKeep(
   projectDir: string,
@@ -1060,14 +1067,27 @@ function slotFilesToKeep(
 ): Omit<AsideFile, "aside">[] {
   const mine = hold.recorded.flatMap((a) => a.files ?? []);
   const sha = new Map(mine.map((f) => [f.path, f.sha256]));
+  // #867 — 기록 sha 는 실파일로도 찾는다: 기록이 `.agents/skills/<id>/…` 에만 있고 `.claude/skills/<id>` 가 그곳으로의 링크면 링크 경로로
+  // 본 같은 파일이 "기록 밖 = 설치자 파일" 로 읽혀 갱신마다 백업 · displaced 가 생긴다
+  const realSha = new Map(
+    mine.flatMap((f) => {
+      const real = realFileOrNull(join(projectDir, f.path));
+      return real === null ? [] : [[real, f.sha256] as const];
+    }),
+  );
   const targetIds = new Set(hold.recorded.map((a) => a.id));
   const others = new Set(
     (hold.log?.assets ?? [])
       .filter((a) => !targetIds.has(a.id))
       .flatMap((a) => (a.files ?? []).map((f) => f.path)),
   );
+  // 자리는 기록 파일이 **든 폴더**(`<root>/<id>`)다 — 루트 바로 아래 파일(옛 판이 적은 AppleDouble 짝 `<root>/._<id>` 등)은 자리가
+  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다)
   const slots = new Set([
-    ...mine.map((f) => f.path.split("/").slice(0, 3).join("/")),
+    ...mine
+      .map((f) => f.path.split("/"))
+      .filter((parts) => parts.length > 3)
+      .map((parts) => parts.slice(0, 3).join("/")),
     ...hold.slots,
   ]);
   const out = new Map<string, Omit<AsideFile, "aside">>();
@@ -1081,7 +1101,7 @@ function slotFilesToKeep(
       const real = join(realpathSync(dirname(abs)), basename(abs));
       const prev = out.get(real);
       if (prev !== undefined && (prev.rel === path || real !== join(realProject, path))) continue;
-      const recordedSha = sha.get(path);
+      const recordedSha = sha.get(path) ?? realSha.get(real);
       if (
         recordedSha === undefined &&
         (others.has(path) || recorded(hold.log, path).state !== "none")
