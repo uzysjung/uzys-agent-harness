@@ -182,6 +182,24 @@ export function scaffoldBanner(surface: ScaffoldSurface): string {
 }
 
 /**
+ * 하네스가 루트 `CLAUDE.md` · `AGENTS.md` 에 쓴 배너 줄 — 현행 판 + 옛 판 문구(태그 v26.96.0~v26.174.0 의
+ * `project-claude-merge.ts` 실측, 2026-10-19). 옛 판 문구는 그 판이 쓴 바이트 그대로 고정한다(상수가 바뀌어도 옛 디스크는 그대로다).
+ *
+ * #837 · #862 — 배너는 **이 줄과 똑같은 줄만** 하네스 것이다. 인용 블록째 하네스 것으로 보면 배너 바로 아래 설치자가 이어 적은
+ * 인용 줄까지 하네스 몫이 된다 — uninstall 의 배너 걷기(#837)도 "채웠는가" 판정(#862)도 이 집합 하나로 가른다.
+ */
+export const SCAFFOLD_BANNER_LINES: ReadonlySet<string> = new Set([
+  ...scaffoldBanner("claude").split("\n"),
+  ...scaffoldBanner("agents-md").split("\n"),
+  // v26.96.0~v26.139.0 — 네 자리에 같은 배너
+  "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.",
+  // v26.140.0
+  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+  // v26.141.0~v26.148.1
+  "> The working principles live in this project's harness anchor — `CLAUDE-uzys-harness.md` (Claude Code, imported from this file), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+]);
+
+/**
  * Shared project-context scaffold body: the visible banner followed by the six MUST-HAVE
  * sections, each a `## Title` + a self-contained `<!-- FILL:id — … -->` comment + an honest
  * `_(not filled yet — …)_` placeholder. Pure and track-agnostic, so the Claude Code CLAUDE.md
@@ -264,9 +282,21 @@ function dropFillComments(lines: ReadonlyArray<string>): string[] {
   return out;
 }
 
+/**
+ * #862 — 하네스가 쓴 인용 **줄**만 뗀다: 배너 줄(`SCAFFOLD_BANNER_LINES` 와 똑같은 줄) · 트랙 안내 줄(v26.140.0 이하 루트 `CLAUDE.md`
+ * 머리 — 트랙 이름이 들어 있어 머리말로 알아본다). 인용 블록째 떼면 배너 바로 아래 이어 적은 설치자 인용 줄이 "안 채움" 으로 읽혀
+ * uninstall 이 그 줄이 든 `AGENTS.md` 를 파일째 지웠다.
+ */
+function dropHarnessBannerLines(lines: ReadonlyArray<string>): string[] {
+  return lines.filter((line) => {
+    const bare = line.replace(/\r$/, "");
+    return !SCAFFOLD_BANNER_LINES.has(bare) && !bare.startsWith(`> ${TRACK_NOTE_MARK}`);
+  });
+}
+
 /** 비교용 — 하네스가 쓴 줄(배너 · 트랙 안내 · FILL 주석 · 상시 스킬 안내)과 빈 줄 · 줄 끝 공백을 뺀 나머지. */
 function scaffoldComparable(lines: ReadonlyArray<string>): string[] {
-  return dropFillComments(dropContinuousSkillsNote(dropHarnessQuoteBlocks(lines)))
+  return dropFillComments(dropContinuousSkillsNote(dropHarnessBannerLines(lines)))
     .map((l) => l.replace(/\r$/, "").trimEnd())
     .filter((l) => l.trim() !== "");
 }

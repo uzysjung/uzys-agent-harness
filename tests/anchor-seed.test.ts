@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { seedAgentsMdProjectContext, seedRootClaudeProjectContext } from "../src/anchor-seed.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
 import { runInstall } from "../src/installer.js";
 import type { CliBase, InstallSpec } from "../src/types.js";
 
@@ -131,6 +132,80 @@ describe("#528 앵커 씨 뿌리기", () => {
     fill("AGENTS.md", "## Stack & Commands", "빌드는 `cargo build`.");
 
     expect(seedRootClaudeProjectContext(projectDir, join(projectDir, "no-such-root"))).toBeNull();
+  });
+
+  /**
+   * #880 — 마커 없는 옛 판(pre-#503) `AGENTS.md` 의 상시 스킬 안내 조각은 하네스 것이다. 씨로 옮기면 새 루트 `CLAUDE.md` 의 import
+   * 블록이 같은 안내를 한 번 더 써서 한 파일에 두 벌이 되고, 설치자 몫으로 옮긴 사본은 그 시점 문안으로 굳어 update · uninstall 이
+   * 못 고친다.
+   */
+  describe("#880 상시 스킬 안내는 씨로 옮기지 않는다", () => {
+    const HEADING = "## Skills that apply continuously";
+    const FROZEN = "OLD-WORDING — 옛 판이 쓴 안내 문안";
+    const count = (text: string, needle: string): number => text.split(needle).length - 1;
+    const runUninstall = (): void => {
+      uninstallAction(
+        { projectDir, yes: true },
+        {
+          log: () => {},
+          err: () => {},
+          exit: () => undefined as never,
+          resolveHarnessRoot: () => HARNESS_ROOT,
+        },
+      );
+    };
+
+    it("마커 없는 안내 조각이 든 AGENTS.md → 새 루트 CLAUDE.md 에 안내는 import 블록 한 벌뿐 · uninstall 뒤 본문에 사본이 없다", () => {
+      writeFileSync(
+        join(projectDir, "AGENTS.md"),
+        [
+          "# legacy — Agent Guide",
+          "",
+          "## Project Context",
+          "",
+          "We ship on Fridays — 결제 팀 저장소.",
+          "",
+          HEADING,
+          "",
+          "These installed skills apply to every response or delegation; no prompt ever looks like their job, so open them from this list:",
+          "",
+          `- \`user-centered-explanation\` — ${FROZEN}.`,
+          "",
+          "## Harness Rules",
+          "",
+          "(old harness rules)",
+          "",
+        ].join("\n"),
+      );
+
+      install(["claude"]);
+
+      const root = readFileSync(join(projectDir, "CLAUDE.md"), "utf8");
+      expect(root, "씨는 옮겨졌다").toContain("We ship on Fridays — 결제 팀 저장소.");
+      expect(root).not.toContain(FROZEN);
+      // 하네스가 쓴 안내는 import 블록(마커 안) 한 벌이다 — 그 블록이 이 설치에서 안내를 쓰는지부터 본다
+      const block = root.slice(root.indexOf("<!-- uzys-harness:import:start -->"));
+      expect(count(block, HEADING), "픽스처 자기검증 — import 블록이 안내를 쓴다").toBe(1);
+      expect(count(root, HEADING)).toBe(1);
+
+      runUninstall();
+
+      const after = readFileSync(join(projectDir, "CLAUDE.md"), "utf8");
+      expect(after).toContain("We ship on Fridays — 결제 팀 저장소.");
+      expect(after).not.toContain(HEADING);
+      expect(after).not.toContain(FROZEN);
+    });
+
+    it("회귀 — 마커 형식 AGENTS.md 에서 뿌린 루트 CLAUDE.md 도 안내는 한 벌이다", () => {
+      install(["opencode"]);
+      fill("AGENTS.md", "## Stack & Commands", "빌드는 `cargo build`.");
+
+      install(["claude"]);
+
+      const root = readFileSync(join(projectDir, "CLAUDE.md"), "utf8");
+      expect(root).toContain("빌드는 `cargo build`.");
+      expect(count(root, HEADING)).toBe(1);
+    });
   });
 
   it("설치자가 맨 위에 적은 인용문은 남긴다 — 떼는 것은 하네스 앞머리뿐", () => {

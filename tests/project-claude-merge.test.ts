@@ -111,6 +111,25 @@ describe("isUnfilledScaffold — 하네스 줄을 뗀 뒤 판정한다 (BLOCKER-
     expect(isUnfilledScaffold(noComments)).toBe(true);
   });
 
+  it("#862 배너 인용 블록에 이어 적은 설치자 인용 줄도 채운 것이다 — 배너는 하네스가 쓴 줄과 똑같은 줄만 뗀다", () => {
+    const banner = scaffoldBanner("agents-md");
+    const scaffold = renderFillScaffold("agents-md");
+    expect(scaffold, "픽스처 자기검증 — 스캐폴드가 배너로 시작한다").toContain(banner);
+    const noted = scaffold.replace(banner, `${banner}\n> MY NOTE — 결제 팀 저장소.`);
+    expect(isUnfilledScaffold(noted.split("\n"))).toBe(false);
+  });
+
+  it("회귀 — 옛 판 배너 문구 · 트랙 안내 줄(v26.140.0 이하 루트 CLAUDE.md 머리)은 하네스 줄이다", () => {
+    const old =
+      "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.";
+    const scaffold = renderFillScaffold("agents-md").replace(
+      scaffoldBanner("agents-md").split("\n")[2] ?? "",
+      old,
+    );
+    expect(scaffold, "픽스처 자기검증 — 옛 셋째 줄로 바꿨다").toContain(old);
+    expect(isUnfilledScaffold(`> Active track(s): Tooling\n\n${scaffold}`.split("\n"))).toBe(true);
+  });
+
   it("설치자 문장이 한 줄이라도 있으면 채운 것이다 — 안내 뒤에 적은 문단도", () => {
     const filled = `${renderFillScaffold("agents-md")}\n\nWe ship on Fridays.`;
     expect(isUnfilledScaffold(filled.split("\n"))).toBe(false);
