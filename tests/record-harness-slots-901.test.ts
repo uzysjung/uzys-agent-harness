@@ -6,7 +6,7 @@
  *
  * 설치자에게 달라지는 것: 남이 커밋한 기록을 받은 프로젝트에서 uninstall 을 돌려도 하네스 자리(소유 표 — `.claude/` · `.codex/` ·
  * `.agents/skills/` · 앵커 …) 밖의 파일은 옮겨지지도 · 빠지지도 · 다른 내용으로 바뀌지도 않고, 화면이 "기록이 적었지만 이 도구가
- * 까는 자리 밖이라 건드리지 않았다" 고 말한다. 하네스가 만든 정상 기록(자리째 링크로 옮긴 구성 포함)의 회수 · 되돌리기는 그대로다.
+ * 까는 자리 밖이라 건드리지 않았다" 고 말한다. 하네스가 만든 정상 기록(#524 링크 슬롯 포함)의 회수 · 되돌리기는 그대로다. 링크로 둔 자리는 `record-slot-links-901.test.ts`.
  */
 
 import {
@@ -15,7 +15,6 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -262,22 +261,22 @@ describe("#901 AC2 — 기록이 하네스(그 자산의) 자리 밖 설치자 �
     const text = uninstall();
 
     for (const screen of [preview, text]) {
-      expect(screen).toContain(`.env left — the install record lists it, but it is ${OUTSIDE}`);
+      expect(screen).toContain(
+        `.env left — the install record lists it, but it is (or leads) ${OUTSIDE}`,
+      );
       expect(screen).not.toContain("harness file(s) under .env");
     }
   });
 });
 
 describe("#901 AC3 — 하네스가 만든 정상 기록의 회수 · 되돌리기는 그대로", () => {
-  it("네 CLI · 자리째 프로젝트 안 다른 폴더로 옮긴 `.agents` · `.codex` · 비켜 둔 설치자 룰: 기록된 하네스 파일이 다 회수되고 원본이 돌아온다", () => {
-    // 설치자가 `.agents` 를 dotfiles 식 폴더로 둔 프로젝트(#885)
-    mkdirSync(abs("dotfiles/agents"), { recursive: true });
-    symlinkSync("dotfiles/agents", abs(".agents"));
+  it("네 CLI · 비켜 둔 설치자 룰 · #524 링크 슬롯(`.claude/skills/<id>` → `.agents/skills/<id>`): 기록된 하네스 파일이 다 회수되고 원본이 돌아온다", () => {
     put(".claude/rules/git-policy.md", MINE);
     install(["claude", "codex", "opencode", "antigravity"]);
-    // install 뒤 `.codex` 를 프로젝트 안 다른 폴더로 옮기고 링크를 건다(#746 회귀와 같은 구성)
-    renameSync(abs(".codex"), abs("shared-codex"));
-    symlinkSync("shared-codex", abs(".codex"));
+    // #524 — 설치자가 Claude 자리를 공유 자리로의 링크로 둔다(실경로도 하네스 자리 안이다)
+    const id = "model-orchestration";
+    rmSync(abs(`.claude/skills/${id}`), { recursive: true, force: true });
+    symlinkSync(join("..", "..", ".agents", "skills", id), abs(`.claude/skills/${id}`));
     const log = readInstallLog(projectDir);
     if (log === null) throw new Error("install log missing");
     const recordedPaths = [
@@ -286,6 +285,10 @@ describe("#901 AC3 — 하네스가 만든 정상 기록의 회수 · 되돌리�
       ...(log.externalFiles ?? []).map((f) => f.path),
     ].filter((p) => p !== "AGENTS.md" && p !== "opencode.json" && p !== ".codex/config.toml");
     expect(recordedPaths.length, "전제 — 기록이 하네스 파일을 적었다").toBeGreaterThan(20);
+    expect(
+      recordedPaths.some((p) => p.startsWith(`.agents/skills/${id}/`)),
+      "전제 — 링크가 가리키는 공유 본문이 기록에 있다",
+    ).toBe(true);
     expect(
       (log.rootFiles ?? []).some(
         (f) => f.path === ".claude/rules/git-policy.md" && f.change === "displaced",
