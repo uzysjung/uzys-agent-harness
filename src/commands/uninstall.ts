@@ -3002,7 +3002,7 @@ function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[
     ...literal.map((path) => offSlotLine(path, "lists it")),
     ...[...byLink].map(
       ([link, g]) =>
-        `  ${c.yellow("⊘")} ${link} — your link (→ ${g.target}) leads outside the places this tool installs to; left ${g.files.length} file(s) on the install record under it. Not touched — remove by hand if intended.`,
+        `  ${c.yellow("⊘")} ${oneLine(link)} — your link (→ ${oneLine(g.target)}) leads outside the places this tool installs to; left ${g.files.length} file(s) on the install record under it. Not touched — remove by hand if intended.`,
     ),
   ];
 }
@@ -3010,8 +3010,10 @@ function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[
 /**
  * #911 — 링크로 둔 자리라 하네스가 건드리지 않은 것을 설치자가 손으로 끝내는 법을 한 덩어리로 모은다: 못 되돌린 설치자 원본을 옮길 명령 ·
  * 남긴 파일의 이름. 위 줄들이 말한 것을 이름으로 풀 뿐 — 아무것도 옮기거나 지우지 않고, 미리보기도 같은 판정을 말한다. 남이 커밋한
- * 기록의 경로일 수 있어 "하네스 파일이다" 라고 단정하지 않고 확인을 요구한다. 옮기는 명령은 번들이 까는 자산 이름의 자리에만 준다
- * (`handBack.asset`) — 그 밖(위조 기록이 `.env` 를 자리로 적은 것)은 백업이 남아 있다는 사실만 말한다.
+ * 기록의 경로일 수 있어 "하네스 파일이다" 라고 단정하지 않고 확인을 요구한다. 옮기는 명령은 그 `mv` 가 덮는 것이 하네스가 놓은 바이트뿐인
+ * 자리에만 준다(`handBack.safe`) — 그 밖(위조 기록이 `.env` 를 자리로 적은 것 · 링크 너머가 설치자의 다른 파일)은 백업이 남아 있다는 사실만
+ * 말한다. 이 덩어리에 찍는 기록 · 링크 유래 글자는 제어 문자를 이스케이프해 한 줄로 가둔다(`oneLine`) — 줄바꿈으로 진짜와 같은 명령 줄을
+ * 끼워 넣지 못하게.
  */
 function byHandLines(
   offSlot: ReadonlyArray<string>,
@@ -3028,44 +3030,58 @@ function byHandLines(
     }))
     .filter((g) => g.files.length > 0);
   if (back.length === 0 && links.length === 0) return [];
-  const movable = back.filter((b) => b.asset);
-  const unsure = back.filter((b) => !b.asset);
+  const movable = back.filter((b) => b.safe);
+  const unsure = back.filter((b) => !b.safe);
   const yours = new Set(movable.map((b) => b.to));
   const lines = [
     `  ${c.yellow("⊘")} left for you to finish by hand (nothing here was touched — run from the project folder):`,
   ];
   if (movable.length > 0) {
     lines.push(
-      c.dim("      your files this tool moved aside — put each back (replaces the harness copy):"),
+      c.dim(
+        "      your files this tool moved aside — put each back (only an empty place or a harness copy is overwritten):",
+      ),
     );
     // 번들 자산 이름뿐이라 셸이 풀어 읽는 글자가 없다(`<자산>.backup-<시각>`)
-    for (const b of movable) lines.push(c.dim(`        mv -i ${b.from} ${b.to}`));
+    for (const b of movable) {
+      lines.push(c.dim(`        mv -i ${oneLine(b.from)} ${oneLine(b.to)}`));
+    }
   }
   if (unsure.length > 0) {
     lines.push(
       c.dim(
-        "      backups the install record names, for places that are not files this tool installs — no command is given; look at each before you move it anywhere:",
+        "      backups the install record names — no command is given, because the place each one belongs is not an empty place or a copy this tool put there; look at each before you move it anywhere:",
       ),
     );
-    for (const b of unsure) lines.push(c.dim(`        ${b.from}  (record: a backup of ${b.to})`));
+    for (const b of unsure) {
+      lines.push(c.dim(`        ${oneLine(b.from)}  (record: a backup of ${oneLine(b.to)})`));
+    }
   }
   for (const g of links) {
     lines.push(
       c.dim(
-        `      listed on the install record under your link ${g.link} (→ ${g.target}) — check, then remove if intended:`,
+        `      listed on the install record under your link ${oneLine(g.link)} (→ ${oneLine(g.target)}) — check, then remove if intended:`,
       ),
     );
     for (const file of g.files) {
       lines.push(
         c.dim(
           yours.has(file)
-            ? `        ${file}  (your own file goes back here — do not delete)`
-            : `        ${file}`,
+            ? `        ${oneLine(file)}  (your own file goes back here — do not delete)`
+            : `        ${oneLine(file)}`,
         ),
       );
     }
   }
   return lines;
+}
+
+/** 기록 · 링크 유래 글자를 한 줄로 — 제어 문자(줄바꿈 · ESC 포함)는 `\uXXXX` 로 적는다. 평범한 이름은 그대로다. */
+function oneLine(text: string): string {
+  return text.replace(
+    /[\p{Cc}\u2028\u2029]/gu,
+    (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
 }
 
 /** 경로의 가장 얕은 링크 성분(project 상대)과 그 링크 글자 — 없으면 null. */

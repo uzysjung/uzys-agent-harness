@@ -19,12 +19,12 @@
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { basename, dirname, join, posix } from "node:path";
 import { backupOriginal } from "./fs-ops.js";
+import { harnessBytesAt } from "./harness-bytes.js";
 import { inHarnessSlot, inSlotByName } from "./harness-slot.js";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
 
 export interface DisplacedOutcome {
@@ -37,10 +37,11 @@ export interface DisplacedOutcome {
   forget: boolean;
   /**
    * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리(project 상대). 화면이 말할 뿐 하네스는 옮기지 않는다. 하네스가 만든
-   * 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 받지 못한다. `asset` = 그 자리가 현재
-   * 번들이 까는 하네스 자산 이름이다(기록이 아니라 번들에서 유도) — 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
+   * 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 받지 못한다. `safe` = 그 `mv` 가
+   * 덮는 것이 하네스가 놓은 바이트뿐이다(자리가 비었거나, 현재 바이트가 현재 번들이 그 자리에 까는 판과 같다 — 기록이 아니라 번들에서
+   * 구한다). 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
    */
-  handBack?: { from: string; to: string; asset: boolean };
+  handBack?: { from: string; to: string; safe: boolean };
 }
 
 /** lstat 기준 존재 — 끊어진 링크도 "있다"(그 자리가 막혀 있다). */
@@ -76,32 +77,33 @@ function isBackupOf(path: string, backup: string): boolean {
 }
 
 /**
- * #911 — 이 자리가 현재 번들이 실제로 까는 하네스 자산 이름인가. **기록이 아니라 번들에서 유도한다** — 기록은 남이 커밋한 것일 수 있어
- * 링크로 둔 자리(`.opencode → .`)에 `.env` 를 하네스 자리로 적을 수 있다. 다른 CLI 자리의 사본(`.agents/rules/` · `.codex/hooks/` ·
- * `.agents/skills/`)은 같은 번들 원본의 `.claude/` 이름으로 되짚어 manifest(트랙 · 번들 템플릿에 있는 파일)에 묻고, 앵커는 이름이다.
+ * #911 — `mv` 가 덮는 것이 하네스가 놓은 바이트뿐인가. 자리가 **번들이 까는 이름**이어야 하고(`harnessBytesAt` — 기록이 아니라 번들
+ * 에서 구한다), 거기에 지금 아무것도 없거나 현재 바이트가 그 판과 같아야 한다. 링크로 둔 자리 너머는 위조 링크가 정할 수 있어(`.agents →
+ * .` 면 `rules/git-policy.md` 는 설치자의 다른 파일이다) 이름만으로는 부족하다 — 설치자 파일은 위조자가 바이트를 몰라 이 대조를 통과시킬
+ * 수 없다.
  */
-function isBundledAsset(log: InstallLog, path: string): boolean {
-  const norm = posix.normalize(path);
-  if (norm === HARNESS_ANCHOR_FILE) return true;
-  const twin = norm.startsWith(".agents/rules/")
-    ? `.claude/rules/${norm.slice(".agents/rules/".length)}`
-    : norm.startsWith(".codex/hooks/")
-      ? `.claude/hooks/${norm.slice(".codex/hooks/".length)}`
-      : bundlePath(norm);
-  return isRecordedTrackTarget(log, twin);
+function replacesOnlyHarnessCopy(log: InstallLog, projectDir: string, path: string): boolean {
+  const harness = harnessBytesAt(log, path);
+  if (harness === null) return false;
+  const slot = join(projectDir, path);
+  try {
+    if (!lstatSync(slot).isFile()) return false;
+    return readFileSync(slot).equals(harness);
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "ENOENT";
+  }
 }
 
 /**
  * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리. 이름이 하네스 자리 안인 기록(실경로가 밖인 링크로 둔 자리)에서 그 자리에
  * 하네스가 만든 이름의 백업이 프로젝트 안에 실재하고 설치자 파일일 때만 — 글자부터 밖인 기록(`.env`)이나 믿을 수 없는 백업 이름은 받지
- * 못한다. 옮기는 명령까지 받는 것은 번들 자산 이름의 자리뿐이다(`asset`) — 링크 너머가 어디든 위조 기록이 쓰이는 파일(`.env`)로 가는 길을
- * 손으로 열어 주지 않는다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
+ * 못한다. 옮기는 명령까지 받는 것은 `replacesOnlyHarnessCopy` 를 통과한 자리뿐이다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
  */
 function handBackOf(
   log: InstallLog,
   projectDir: string,
   f: InstallLogRootFile,
-): { from: string; to: string; asset: boolean } | null {
+): { from: string; to: string; safe: boolean } | null {
   const backup = f.notes[0];
   if (backup === undefined || !inSlotByName(f.path)) return null;
   if (outsideBackup(projectDir, backup) !== null || !isBackupOf(f.path, backup)) return null;
@@ -109,7 +111,7 @@ function handBackOf(
   return {
     from: posix.normalize(backup),
     to: posix.normalize(f.path),
-    asset: isBundledAsset(log, f.path),
+    safe: replacesOnlyHarnessCopy(log, projectDir, f.path),
   };
 }
 

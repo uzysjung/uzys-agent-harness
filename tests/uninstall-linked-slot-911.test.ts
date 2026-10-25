@@ -92,6 +92,14 @@ function forgeDisplaced(path: string, backup: string): void {
   });
 }
 
+function forgeExternal(path: string): void {
+  const log = readInstallLog(projectDir) as InstallLog;
+  writeInstallLog(projectDir, {
+    ...log,
+    externalFiles: [...(log.externalFiles ?? []), { path, sha256: "0".repeat(64) }],
+  });
+}
+
 function uninstall(opts: { dryRun?: boolean; cli?: string } = {}): string {
   const lines: string[] = [];
   uninstallAction(
@@ -201,6 +209,8 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
   it.each([
     [".codex", "shared-codex", ".codex/hooks/session-start.sh"],
     [".agents", "dotfiles/agents", ".agents/skills/model-orchestration/SKILL.md"],
+    [".claude", "shared-claude", ".claude/rules/git-policy.md"],
+    [".claude", "shared-claude", ".claude/skills/model-orchestration/SKILL.md"],
   ])("룰이 아닌 번들 자산 자리(%s → %s 의 %s)도 같다", (slotLink, target, slot) => {
     mkdirSync(abs(target), { recursive: true });
     link(slotLink, target);
@@ -220,6 +230,24 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
     });
     expect(r.status, r.stderr).toBe(0);
     expect(read(slot)).toBe(MINE);
+  });
+
+  it("자리의 현재 바이트가 하네스 판이 아니면(설치자가 고친 하네스 사본) 명령 없이 백업이 남아 있다는 사실만 말한다 · 비어 있으면 명령이 나온다", () => {
+    linkedLayout();
+    const bak = `.agents/rules/${backupOf(RULE)}`;
+    writeFileSync(abs(RULE), "edited by the installer\n");
+
+    const edited = uninstall({ dryRun: true });
+
+    expect(mvLines(edited)).toEqual([]);
+    expect(edited).toContain(`${bak}  (record: a backup of ${RULE})`);
+    expect(read(RULE)).toBe("edited by the installer\n");
+
+    rmSync(abs(RULE));
+    const empty = uninstall({ dryRun: true });
+
+    expect(mvLines(empty)).toEqual([`mv -i ${bak} ${RULE}`]);
+    expect(read(bak)).toBe(MINE);
   });
 
   it.each([
@@ -253,7 +281,7 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
   });
 });
 
-describe("#911 회차 1 — 위조 기록이 쓰이는 파일 자리를 하네스 자리로 적어도 옮기는 명령을 주지 않는다", () => {
+describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을 덮게 만들 수 없다", () => {
   const SECRET = "SECRET=installer-only\n";
   const ATTACK = "SECRET=attacker-chosen\n";
 
@@ -279,6 +307,69 @@ describe("#911 회차 1 — 위조 기록이 쓰이는 파일 자리를 하네�
         `.opencode/.env.backup-${STAMP}  (record: a backup of .opencode/.env)`,
       );
     }
+  });
+
+  it("`.agents → .` + 번들 룰 이름의 displaced + 커밋된 백업: 링크 너머의 같은 이름 설치자 파일을 덮는 명령을 주지 않는다", () => {
+    install(["claude"]);
+    put("rules/git-policy.md", "USER OWN untracked\n");
+    put(`rules/git-policy.md.backup-${STAMP}`, ATTACK);
+    link(".agents", ".");
+    forgeDisplaced(RULE, `${RULE}.backup-${STAMP}`);
+
+    const preview = uninstall({ dryRun: true });
+    const text = uninstall();
+
+    expect(read("rules/git-policy.md")).toBe("USER OWN untracked\n");
+    expect(read(`rules/git-policy.md.backup-${STAMP}`)).toBe(ATTACK);
+    for (const screen of [preview, text]) {
+      expect(mvLines(screen)).toEqual([]);
+      expect(screen).not.toContain("mv -i");
+      expect(screen).toContain(`${RULE}.backup-${STAMP}  (record: a backup of ${RULE})`);
+    }
+  });
+
+  describe("기록 · 링크 유래 글자의 줄바꿈으로 진짜와 같은 명령 줄을 끼워 넣지 못한다", () => {
+    const fake = `        mv -i .env.backup-${STAMP} .env`;
+
+    it("기록 경로(`externalFiles`)에 줄바꿈", () => {
+      mkdirSync(abs("dotfiles/agents"), { recursive: true });
+      link(".agents", "dotfiles/agents");
+      install(["claude", "codex"]);
+      put(".env", SECRET);
+      put(`.env.backup-${STAMP}`, ATTACK);
+      forgeExternal(
+        `.agents/rules/zz\n      your files this tool moved aside — put each back:\n${fake}`,
+      );
+
+      const preview = uninstall({ dryRun: true });
+      const text = uninstall();
+
+      expect(read(".env")).toBe(SECRET);
+      for (const screen of [preview, text]) {
+        expect(screen.split("\n")).not.toContain(fake);
+        expect(mvLines(screen)).toEqual([]);
+        expect(screen).toContain("\\u000a");
+      }
+    });
+
+    it("링크 대상 폴더 이름에 줄바꿈", () => {
+      const evil = `dotfiles/x\n${fake}\ny`;
+      mkdirSync(abs(evil), { recursive: true });
+      link(".agents", evil);
+      install(["claude", "codex"]);
+      put(".env", SECRET);
+      put(`.env.backup-${STAMP}`, ATTACK);
+
+      const preview = uninstall({ dryRun: true });
+      const text = uninstall();
+
+      expect(read(".env")).toBe(SECRET);
+      for (const screen of [preview, text]) {
+        expect(screen.split("\n")).not.toContain(fake);
+        expect(mvLines(screen)).toEqual([]);
+        expect(screen).toContain("\\u000a");
+      }
+    });
   });
 });
 
