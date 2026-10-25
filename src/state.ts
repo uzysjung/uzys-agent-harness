@@ -77,11 +77,18 @@ function tracksFromLog(tracks: ReadonlyArray<string>): Track[] {
 
 function collectTraces(projectDir: string): Trace[] {
   const at = (rel: string): string => join(projectDir, rel);
-  const contains = (rel: string, needle: string): boolean =>
-    existsSync(at(rel)) && readFileSync(at(rel), "utf8").includes(needle);
+  // #886 — 흔적은 안내 전용이다: 읽지 못하는 자리(디렉터리 · 권한)는 흔적에서 빠질 뿐 명령을 멈추지 않는다
+  const text = (rel: string): string | null => {
+    try {
+      return readFileSync(at(rel), "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const contains = (rel: string, needle: string): boolean => text(rel)?.includes(needle) === true;
   const traces: Trace[] = [];
-  if (existsSync(at(META_FILE)))
-    traces.push({ path: META_FILE, tracks: readMetafile(at(META_FILE)) });
+  const meta = text(META_FILE);
+  if (meta !== null) traces.push({ path: META_FILE, tracks: tracksIn(meta) });
   if (existsSync(at(HARNESS_ANCHOR_FILE))) traces.push({ path: HARNESS_ANCHOR_FILE });
   if (contains("CLAUDE.md", "<!-- uzys-harness:import:start -->"))
     traces.push({ path: "CLAUDE.md" });
@@ -92,9 +99,9 @@ function collectTraces(projectDir: string): Trace[] {
   return traces;
 }
 
-function readMetafile(path: string): Track[] {
+function tracksIn(metafile: string): Track[] {
   const seen = new Set<Track>();
-  for (const word of readFileSync(path, "utf8").split(/\s+/)) {
+  for (const word of metafile.split(/\s+/)) {
     if (isTrack(word)) seen.add(word);
   }
   return [...seen].sort();

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { listAction } from "../src/commands/list.js";
 import { detectInstallState, notInstalledLines, suggestedTracks } from "../src/state.js";
 
 let dir: string;
@@ -166,5 +167,47 @@ describe("notInstalledLines — 세 명령이 함께 쓰는 문장 (설계 no-re
     ]);
     writeLog(["tooling"]);
     expect(notInstalledLines(detectInstallState(dir), dir)).toEqual([]);
+  });
+});
+
+/**
+ * #886 — 흔적 스캔은 안내 전용이다(ADR-096 "오판해도 비용은 문장 하나"). 흔적 자리가 디렉터리여도(브랜치 체크아웃의
+ * 파일 ↔ 폴더 충돌) list · update · uninstall · 위저드가 EISDIR 로 멈추지 않고 그 흔적만 빠진다.
+ */
+describe("detectInstallState — 읽지 못하는 흔적 자리 (#886)", () => {
+  it.each([
+    "CLAUDE.md",
+    "AGENTS.md",
+    ".claude/.installed-tracks",
+  ])("%s 가 디렉터리면 그 흔적만 빠지고 나머지 흔적은 그대로다", (rel) => {
+    put("CLAUDE-uzys-harness.md", "# anchor\n");
+    put(".claude/rules/cli-development.md", "# rule\n");
+    mkdirSync(join(dir, rel), { recursive: true });
+    const result = detectInstallState(dir);
+    expect(result.state).toBe("none");
+    expect(result.traces.map((t) => t.path)).toEqual([
+      "CLAUDE-uzys-harness.md",
+      ".claude/rules/cli-development.md",
+    ]);
+  });
+
+  it("list 가 빈 프로젝트와 같은 안내로 끝난다 — CLAUDE.md 가 디렉터리여도", () => {
+    const listed = (): { codes: number[]; out: string } => {
+      const out: string[] = [];
+      const codes: number[] = [];
+      listAction(
+        { projectDir: dir },
+        {
+          log: (m: string) => out.push(m),
+          err: (m: string) => out.push(m),
+          exit: ((code: number) => codes.push(code)) as unknown as (code: number) => never,
+        },
+      );
+      return { codes, out: out.join("\n") };
+    };
+    const empty = listed();
+    mkdirSync(join(dir, "CLAUDE.md"));
+    expect(listed()).toEqual(empty);
+    expect(empty.out).toContain("No harness install found");
   });
 });
