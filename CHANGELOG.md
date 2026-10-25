@@ -7,6 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.175.0] — 2026-10-25 (uninstall · update 가 설치자 몫을 더 정확히 가른다 · 버그 26건)
+
+### Fixed
+- **uninstall 이 남의 자리를 건드리지 않는다** (#845 #837 #846 #854, PR #869)
+  - `uninstall --project-dir A` 를 다른 폴더에서 실행해도 `npm uninstall` · `claude plugin uninstall` 이 A 에서 돈다. 전에는 명령을 친 폴더의 package.json · 플러그인 등록을 고쳤다.
+  - uninstall 뒤 AGENTS.md · 루트 CLAUDE.md 에 스캐폴드 배너가 남지 않는다. 하네스가 쓴 배너 줄과 바이트가 같은 줄만 지우고, 그 아래 설치자가 적은 인용 줄은 남긴다.
+  - 루트 CLAUDE.md 가 프로젝트 밖으로 링크돼 있으면 밖 원본을 고치지 않고, 손으로 걷어야 할 import 블록을 같은 줄에서 알린다.
+  - 기록에 sha 가 없는 옛 설치본에서 `uninstall --track` 이 설치자가 고친 `.claude/.installed-tracks` 를 덮어쓰지 않는다.
+- **공유 파일의 하네스 몫만 다룬다** (#841 #842 #840 #847, PR #870)
+  - Windows autocrlf 처럼 템플릿이 CRLF 로 풀린 환경에서도 update 가 AGENTS.md 하네스 블록을 갱신하고 uninstall 이 걷는다. 룰 frontmatter 가 AGENTS.md 본문으로 새지 않는다.
+  - 같은 훅 스크립트가 두 번 등록돼 있어도 uninstall 이 하네스 핸들러를 모두 걷는다. 설치자 줄까지 걷을 때는 settings.json 을 먼저 백업한다.
+  - 공유 파일(settings.json · .mcp.json · .gitignore · config.toml · opencode.json · AGENTS.md)에 비UTF-8 바이트가 섞였으면 다시 쓰기 전에 원본 바이트를 백업하고 알린다.
+- **화면이 실제로 한 일만 말한다** (#843 #844 #848 #857, PR #871)
+  - 훅 스크립트 자리가 프로젝트 밖 링크라 이번에 쓰지 않은 스크립트는 settings.json 에 배선하지 않는다.
+  - 외부 설치가 실패한 자산은 초록 "installed again" 대신 노란 "selected again, but the install failed" 로 나온다.
+  - 스킬 폴더 안 파일 하나를 못 지워도 update 가 멈추지 않고 기록까지 갱신하며, 남긴 파일을 알린다.
+  - USAGE 와 화면이 "update 가 없는 스크립트 훅을 지운다"고 말하지 않는다(실제로는 남기고 경로를 보여 준다).
+- **깨진 기록 · 플래그 · list** (#852 #853 #860 #861, PR #872)
+  - cli 줄이 빠진 설치 기록은 TypeError 대신 "깨진 기록" 복구 안내를 낸다. 트랙을 되살린 실행에서도 "↺ restored N" 안내가 남는다.
+  - `--with 5` · `--without 0` 처럼 숫자를 주면 죽거나 조용히 사라지지 않고 "Unknown asset id" 경고 후 진행한다.
+  - `list` 의 빼기 목록도 디스크에 남은 baseline 을 update 와 같이 "still on disk" 로 표기한다.
+- **위저드 · 비용 줄 · CI 스캐폴드** (#849 #850 #855 #856 #858, PR #873)
+  - 위저드 확인 화면 · 설치 헤더 · update 요약의 자산 수에 트랙 기본 MCP 4종이 들어간다(예: csr-supabase 21 → 25 selected).
+  - 위저드 3단계에서 ESC 로 나갔다 돌아와도 확정한 편집이 남는다. `ssr-htmx` 트랙에 Python CI 도 깔린다.
+  - 하네스 자체 자산(ci-scaffold)을 "external unmeasured" 로 세지 않고, MCP tool schema 는 따로 "unmeasured" 로 드러낸다. experimental 티어 문서에 트랙 기본 MCP 예외를 적었다.
+- **OpenCode 커맨드** (#859, PR #874) — 하네스가 쓴 기록이 없는 `.opencode/commands/<id>.md` 는 스킬과 이름이 같아도 지우지 않는다. 은퇴한 경로는 기록에서도 빠지고 update 화면이 알린다.
+- **외부 스킬 자리** (#838 #839 #851, PR #875 · ADR-112)
+  - `.claude/skills/<id>` 가 `.agents/skills/<id>` 로의 링크여도 install · update 가 ENOENT 로 멈추지 않는다. 스킬 폴더 안 링크 파일·폴더가 외부 스킬 갱신 뒤에도 제자리에 남는다.
+  - global 로 깐 외부 스킬은 update 가 홈에서 갱신하고 프로젝트에 사본을 만들지 않는다. 옛 update(v26.174.0 이하)가 만든 프로젝트 사본은 다음 update · uninstall 이 회수한다 — 홈 사본과 다른 파일은 그 파일 하나를 백업한 뒤 지운다.
+- 새 루트 CLAUDE.md 에 트랙 안내 줄(`> Active track(s): …`)을 쓰지 않는다. 트랙을 바꿔도 갱신되지 않는 줄이었다(#833, PR #836).
+
+### Changed
+- 개발 의존성: esbuild 0.27.7 → 0.28.2 · vite 갱신(PR #876). 배포물 의존성 변화 없음.
+
+### 알려진 한계
+- v26.174.0 이하에서 CRLF 템플릿으로 깐 뒤 AGENTS.md 줄 끝이 재정규화되면 그 블록은 "설치자가 고친 블록"으로 남는다(#841).
+- 옛 기록(스킬 이름 없음)에서 update 없이 uninstall 을 먼저 돌리면 소스 전체를 까는 외부 자산의 프로젝트 사본은 회수하지 못한다(#851).
+
 ## [v26.174.0] — 2026-10-15 (트랙 하나를 뺀다)
 
 ### Added
