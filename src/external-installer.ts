@@ -839,20 +839,16 @@ export function holdSkillSlots(
     // 이 폴더 안에서만 "상류가 뺐다" 로 백업+제거한다(그 밖은 제자리로). 이번에 파일을 놓은 폴더 + 성공한 이름 있는 자산의 카탈로그 자리
     // (도구가 그 폴더를 통째로 새로 쓴다 — 기록이 아니라 카탈로그라 위조로 넓힐 수 없다)
     const ok = (report?.attempted ?? []).filter((r) => r.ok);
-    // 판정은 실경로로 한다(#918) — 도구가 링크 자리를 실폴더로 바꿨을 뿐이면 링크 너머 폴더는 새로 쓰지 않았다. 폴더는 그 실경로가 든
-    // 스킬 루트 바로 아래 자리다(`skillFolderOfReal` — 같은 실파일이 다른 루트 철자로 더 깊게 보여도 같은 폴더)
-    const roots = realSkillRoots(projectDir);
+    // 판정은 실경로로 한다(#918) — 도구가 링크 자리를 실폴더로 바꿨을 뿐이면 링크 너머 폴더는 새로 쓰지 않았다
     const rewritten = new Set(
       [
-        ...ok.flatMap((r) =>
-          (r.files?.created ?? []).map((x) => realFileOrNull(join(projectDir, x.path))),
-        ),
+        ...ok.flatMap((r) => (r.files?.created ?? []).map((x) => skillFolderOf(x.path))),
         ...skillSlotsFor(
           ok.map((r) => r.asset),
           hold.clis,
           { log: hold.log, scope: hold.scope },
-        ).map((slot) => realOrNull(join(projectDir, slot))),
-      ].flatMap((real) => (real === null ? [] : (skillFolderOfReal(roots, real) ?? []))),
+        ),
+      ].flatMap((p) => realOrNull(join(projectDir, p)) ?? []),
     );
     const back = new Set<string>();
     const failed: string[] = [];
@@ -1165,24 +1161,6 @@ function reclaimCopy(
   return res.removed.length > 0 || res.left.length > 0 ? res : null;
 }
 
-/** #918 — 두 스킬 루트의 실경로(풀 수 있는 것만). */
-function realSkillRoots(projectDir: string): string[] {
-  return SKILL_ROOTS.flatMap((r) => realOrNull(join(projectDir, r)) ?? []);
-}
-
-/**
- * #918 — 실경로(`realpathSync` 꼴)가 든 스킬 폴더 — 그 경로를 품은 가장 깊은 스킬 루트 실경로 바로 아래 자리. 글자 철자와 무관하다:
- * `.agents/skills` 가 `.claude/skills/my-own` 으로의 링크여도 도구가 놓은 `jk-a/SKILL.md` 의 폴더는 `my-own/jk-a` 이지 `my-own` 이 아니다.
- * 루트 자체이거나 어느 루트에도 들지 않으면 `null`.
- */
-function skillFolderOfReal(roots: ReadonlyArray<string>, real: string): string | null {
-  let root = "";
-  for (const r of roots) if (real.startsWith(`${r}${sep}`) && r.length > root.length) root = r;
-  if (root === "") return null;
-  const name = real.slice(root.length + 1).split(sep)[0];
-  return name === undefined || name === "" ? null : join(root, name);
-}
-
 /** #918 — 실경로(`realpathSync` 꼴)가 프로젝트의 스킬 루트(`.claude/skills/` · `.agents/skills/`) 그 자리 아래인가 — 루트가 풀린 다른 폴더는 아니다. */
 function inCanonicalSkillRoot(projectDir: string, real: string): boolean {
   const rel = relative(realOrNull(projectDir) ?? projectDir, real)
@@ -1307,7 +1285,6 @@ function slotFilesToKeep(
   // #912 — 제자리에 남긴 파일이 든 스킬 폴더. 실경로 중복(같은 파일을 다른 자리 경로로 다시 만남)은 옮긴 것이라 들지 않는다
   const left = new Set<string>();
   const realProject = realpathSync(projectDir);
-  const roots = realSkillRoots(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
     // #918 — 스킬 폴더 밖으로 풀리는 링크 자리는 따라가지 않는다 — 도구도 그 자리로 부르지 않는다(`installOne`)
@@ -1347,7 +1324,7 @@ function slotFilesToKeep(
         abs,
         real,
         rel: path,
-        folder: skillFolderOfReal(roots, real),
+        folder: realOrNull(join(projectDir, skillFolderOf(path))),
         slot,
         recorded: listed,
         unlisted: !listed && unlistedAt(path) && backupOriginal(path) === null,
