@@ -3,7 +3,7 @@
  *
  * 하네스 자산과 같은 이름의 설치자 파일이 있던 자리에 하네스 판을 쓰면 그 원본을 백업하고 기록에 `rootFiles.change =
  * displaced`(`notes[0]` = 백업 경로)로 적는다. 하네스가 그 자리를 떠나면(파일을 지운 뒤) 원본을 원래 이름으로 되돌린다 —
- * 자리가 막혔거나 백업이 없으면 되돌리지 않고 말한다.
+ * 자리가 막혔거나 백업이 없거나, 기록이 댄 백업이 프로젝트 밖이거나 이 자리의 백업 이름이 아니면(#887 · #894) 되돌리지 않고 말한다.
  *
  * 배선(호출부가 하네스 판을 지운 **뒤**, 그 실행의 기록 쓰기 **앞**에 부른다):
  *   - uninstall 전량 · `--cli` — `commands/uninstall.ts` `removeHarnessFiles`
@@ -16,7 +16,8 @@
  */
 
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, posix } from "node:path";
+import { backupOriginal } from "./fs-ops.js";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
@@ -53,6 +54,16 @@ function outsideBackup(projectDir: string, backup: string): string | null {
   const abs = join(projectDir, backup);
   const hit = outsideProjectTarget(projectDir, dirname(abs));
   return hit === null ? null : join(hit.target, basename(abs));
+}
+
+/**
+ * #894 — 기록이 댄 백업이 하네스가 **이 자리에** 만드는 이름(`<자리>.backup-<시각>[-n]`)인가. `notes[0]` 은 커밋되는 기록의 글자라
+ * 프로젝트 **안**의 아무 파일(`.env`)도 가리킬 수 있다 — 하네스 백업은 늘 그 자리 옆에 그 이름으로 만들어진다(`backupFile` ·
+ * `backupFromCopy` · `backupLink`, 기록은 상대 경로). 글자 그대로 믿지 않고 정규화한 뒤 자리와 맞댄다(`../` · `./` · 중복 구분자).
+ * 이름 규칙은 `fs-ops.ts` `backupOriginal` 이 안다.
+ */
+function isBackupOf(path: string, backup: string): boolean {
+  return backupOriginal(posix.normalize(backup)) === posix.normalize(path);
 }
 
 /**
@@ -107,6 +118,17 @@ export function restoreDisplaced(
         backup,
         verdict: "advise",
         line: `not put back — the install record points its backup outside this project (${away}); left that file where it is`,
+        forget: true,
+      });
+      continue;
+    }
+    // #894 — 안쪽 쌍둥이: 이 자리의 백업 이름이 아니면 프로젝트 안 파일이어도 옮기지 않는다(`.env` 를 하네스 자리로 보내는 기록)
+    if (backup !== null && !isBackupOf(f.path, backup)) {
+      out.push({
+        path: f.path,
+        backup,
+        verdict: "advise",
+        line: `not put back — the install record names ${JSON.stringify(backup)} as the backup, which is not a backup this tool made for this file; left that file where it is`,
         forget: true,
       });
       continue;
