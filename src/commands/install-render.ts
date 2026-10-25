@@ -233,11 +233,19 @@ export function createInstallRenderer(
           }
         }
         if (releasedLater.length > 0) {
-          const failed = new Set(
-            event.report.attempted.filter((r) => !r.ok).map((r) => r.asset.id),
-          );
+          // #844 · #864 — 다시 골랐어도 이 단계가 깔지 않은 것(설치 실패 · 고른 CLI 밖이라 시도하지 않음)은 "installed again" 이 아니다
+          const notInstalled = new Map<string, string>();
+          for (const r of event.report.attempted) {
+            if (!r.ok) notInstalled.set(r.asset.id, `the install failed (see ${r.asset.id} above)`);
+          }
+          for (const a of excluded) {
+            notInstalled.set(
+              a.id,
+              `not installed — requires ${assetCliSupport(a).join("/")}, selected [${spec.cli.join(", ")}]`,
+            );
+          }
           log("");
-          for (const row of releasedRows(releasedLater, failed)) log(row);
+          for (const row of releasedRows(releasedLater, notInstalled)) log(row);
         }
       }
     },
@@ -1857,14 +1865,17 @@ function installedByExternalPhase(id: string): boolean {
   return EXTERNAL_ASSETS.some((a) => a.id === id && a.method.kind !== "internal");
 }
 
-/** @param failed #844 — 외부 단계에서 설치가 실패한 id. 다시 골랐어도 깔리지 않았으니 "installed again" 이라 하지 않는다. */
+/**
+ * @param notInstalled #844 · #864 — 외부 단계가 깔지 않은 id → 까닭(설치 실패 · 고른 CLI 밖). 다시 골랐어도 깔리지 않았으니
+ *   "installed again" 이라 하지 않는다.
+ */
 export function releasedRows(
   items: ReadonlyArray<ReleasedItem>,
-  failed: ReadonlySet<string> = new Set(),
+  notInstalled: ReadonlyMap<string, string> = new Map(),
 ): string[] {
   return items.map((r) =>
-    failed.has(r.id)
-      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but the install failed (see ${r.id} above): this install did not pass --without ${r.id}`
+    notInstalled.has(r.id)
+      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${r.id}`
       : r.again
         ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
         : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,

@@ -41,7 +41,7 @@ import {
   type ExternalAsset,
   INTERNAL_BUNDLED_SKILL_IDS,
 } from "../src/external-assets.js";
-import { refreshExternalSkills } from "../src/external-installer.js";
+import { refreshExternalSkills, selectExternalTargets } from "../src/external-installer.js";
 import {
   appendSelection,
   hashContent,
@@ -794,6 +794,42 @@ describe("선택 기록 — 대체 범위 · opt-in · 효과분 · 옛 기록 �
 
       expect(screen).toContain(`${AGAIN}: this install did not pass --without ${FD}`);
       expect(screen).not.toContain(FAILED);
+    });
+
+    it("#864 — 다시 고른 자산이 고른 CLI 밖이면 '다시 깔았다' 고 하지 않고 깔지 않은 까닭을 말한다", () => {
+      const X = "anthropic-data-plugin"; // data 트랙 기본 · 플러그인이라 claude 만 받는다
+      const data: Track[] = ["data"];
+      install({ tracks: data, userOverride: { forceInclude: [], forceExclude: [X] } });
+      expect(rawLog().excluded).toEqual([X]);
+
+      const s = spec({ tracks: data, cli: ["codex"] });
+      const lines: string[] = [];
+      const renderer = createInstallRenderer((m) => lines.push(m), s, false);
+      runInstall({
+        // 도달 판정은 실제 선택기 그대로 — 고른 CLI 밖 자산은 시도하지 않는다
+        runExternal: (ctx) => ({
+          attempted: [],
+          succeeded: 0,
+          skipped: 0,
+          excludedByCli: selectExternalTargets(EXTERNAL_ASSETS, { ...ctx, cli: s.cli })
+            .excludedByCli,
+        }),
+        harnessRoot: HARNESS_ROOT,
+        projectDir,
+        spec: s,
+        mode: "add",
+        onProgress: (event) => renderer.callbacks.onProgress?.(event),
+      });
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI 색 코드를 벗긴다
+      const screen = lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
+
+      expect(screen).toMatch(
+        new RegExp(`not installed — requires claude, selected \\[codex\\]: .*${X}`),
+      );
+      expect(screen).not.toContain(`↺ ${X} — dropped earlier, installed again`);
+      expect(screen).toContain(
+        `${X} — selected again, but not installed — requires claude, selected [codex]: this install did not pass --without ${X}`,
+      );
     });
   });
 
