@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { backupIfLossyUtf8 } from "./fs-ops.js";
 import { LEGACY_HOOK_COMMANDS } from "./legacy-fingerprints.js";
 
 /**
@@ -192,6 +193,7 @@ export function removeRetiredHookRefs(
     });
   }
   if (removed.length > 0 && opts.write !== false) {
+    backupIfLossyUtf8(settingsPath); // #653 · #847 — 재직렬화가 비UTF-8 바이트를 영구 변형하기 전에 원시 바이트를 보존한다
     writeFileSync(settingsPath, `${JSON.stringify({ ...settings, hooks }, null, 2)}\n`);
   }
   return removed;

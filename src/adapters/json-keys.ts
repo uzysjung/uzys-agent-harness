@@ -29,6 +29,7 @@ import { projectAnchoredRef } from "../hook-ref.js";
 import { hashContent } from "../install-log.js";
 import {
   type PortionAdapter,
+  type PortionShas,
   planStrip,
   planUpsert,
   type StripResult,
@@ -127,21 +128,38 @@ interface HandlerAt {
   hi: number;
 }
 
-/** 이벤트 배열에서 그 스크립트를 부르는 핸들러의 자리. 없으면 undefined. */
+/** 이벤트 배열에서 그 스크립트를 부르는 핸들러의 자리 **전부**(배열 순서) — 설치자가 같은 스크립트를 또 등록했을 수 있다(#840). */
+function findHandlers(
+  root: JsonObject,
+  path: ReadonlyArray<string>,
+  script: string,
+  claudeDir: string | undefined,
+): HandlerAt[] {
+  const groups = walk(root, path);
+  if (!Array.isArray(groups)) return [];
+  const out: HandlerAt[] = [];
+  for (const [gi, group] of groups.entries()) {
+    if (!isObject(group) || !Array.isArray(group.hooks)) continue;
+    for (const [hi, h] of group.hooks.entries()) {
+      if (callsScript(h, script, claudeDir)) out.push({ groups, gi, hooks: group.hooks, hi });
+    }
+  }
+  return out;
+}
+
+/**
+ * 그중 하네스 몫인 핸들러 — 값이 기록 sha 와 같은 것, 없으면(설치자가 고쳤다) 첫 것. 없으면 undefined.
+ * 같은 스크립트를 부르는 설치자 핸들러가 앞에 와도 그것을 하네스 몫으로 읽지 않는다(#840).
+ */
 function findHandler(
   root: JsonObject,
   path: ReadonlyArray<string>,
   script: string,
   claudeDir: string | undefined,
+  sha?: string,
 ): HandlerAt | undefined {
-  const groups = walk(root, path);
-  if (!Array.isArray(groups)) return undefined;
-  for (const [gi, group] of groups.entries()) {
-    if (!isObject(group) || !Array.isArray(group.hooks)) continue;
-    const hi = group.hooks.findIndex((h) => callsScript(h, script, claudeDir));
-    if (hi !== -1) return { groups, gi, hooks: group.hooks, hi };
-  }
-  return undefined;
+  const all = findHandlers(root, path, script, claudeDir);
+  return all.find((at) => jsonSha(at.hooks[at.hi]) === sha) ?? all[0];
 }
 
 /** 렌더가 준 묶음에서 그 스크립트를 부르는 핸들러 — 없으면 렌더가 잘못됐다. */
@@ -167,10 +185,15 @@ function walk(root: JsonObject, path: ReadonlyArray<string>): unknown {
   return cur;
 }
 
-function readKey(root: JsonObject, key: string, claudeDir: string | undefined): unknown {
+function readKey(
+  root: JsonObject,
+  key: string,
+  claudeDir: string | undefined,
+  sha?: string,
+): unknown {
   const p = parseKey(key);
   if (p.kind === "item" || p.kind === "group") {
-    const at = findHandler(root, p.path, p.script, claudeDir);
+    const at = findHandler(root, p.path, p.script, claudeDir, sha);
     if (at === undefined) return undefined;
     return p.kind === "item" ? at.hooks[at.hi] : at.groups[at.gi];
   }
@@ -189,6 +212,7 @@ function writeKey(
   value: unknown,
   created: string[],
   claudeDir: string | undefined,
+  sha?: string,
 ): boolean {
   const p = parseKey(key);
   if (p.kind === "container" || p.kind === "group") return false;
@@ -211,7 +235,7 @@ function writeKey(
   if (p.kind === "item") {
     // 있으면 핸들러만 갈아 끼운다(묶음 · 형제 핸들러는 그대로). 없으면 렌더의 묶음을 새로 붙이고 그 묶음을
     // 하네스가 만들었다고 적는다 — 설치자 묶음 안에 끼워 넣지 않는다(뺄 때 그 묶음을 걷을 근거가 없다).
-    const at = findHandler(root, chain, p.script, claudeDir);
+    const at = findHandler(root, chain, p.script, claudeDir, sha);
     if (at !== undefined) {
       at.hooks[at.hi] = structuredClone(renderedHandler(key, value, claudeDir));
     } else {
@@ -225,27 +249,51 @@ function writeKey(
 }
 
 /**
- * @param ownsGroup 핸들러 키일 때 — 그 핸들러의 묶음을 하네스가 만들었나. 그렇고 비면 묶음째 걷는다.
+ * 핸들러 키는 그 스크립트를 부르는 핸들러를 **전부** 뺀다 — 스크립트가 함께 사라지므로 하나라도 남기면 죽은 참조다(N-f · #840).
+ * @param ownsGroup 핸들러 키일 때 — 하네스 몫 핸들러(`sha` 로 고른 것)의 묶음을 하네스가 만들었나. 그렇고 비면 그 묶음째
+ *   걷는다. 설치자 묶음은 비어도 남는다.
+ * @returns 하네스 몫이 아닌 핸들러(설치자가 같은 스크립트로 또 등록한 줄)까지 걷었나 — 호출부가 `removedEdited` 로 보내
+ *   걷기 전 백업(#800)을 받게 한다.
  */
 function deleteKey(
   root: JsonObject,
   key: string,
   claudeDir: string | undefined,
   ownsGroup = false,
-): void {
+  sha?: string,
+): boolean {
   const p = parseKey(key);
-  if (p.kind === "group") return;
+  if (p.kind === "group") return false;
   if (p.kind === "item") {
-    const at = findHandler(root, p.path, p.script, claudeDir);
-    if (at === undefined) return;
-    at.hooks.splice(at.hi, 1);
-    if (ownsGroup && at.hooks.length === 0) at.groups.splice(at.gi, 1);
-    return;
+    const ours = findHandler(root, p.path, p.script, claudeDir, sha);
+    const all = findHandlers(root, p.path, p.script, claudeDir);
+    for (const at of [...all].reverse()) at.hooks.splice(at.hi, 1);
+    if (ours !== undefined && ownsGroup && ours.hooks.length === 0) {
+      ours.groups.splice(ours.gi, 1);
+    }
+    return all.length > 1;
   }
   const holderPath = p.kind === "container" ? p.path.slice(0, -1) : p.path;
   const name = p.kind === "container" ? (p.path.at(-1) ?? "") : p.name;
   const holder = holderPath.length === 0 ? root : walk(root, holderPath);
   if (isObject(holder)) delete holder[name];
+  return false;
+}
+
+/** `plan.remove` 를 걷고 `removedEdited` 를 돌려준다 — 계획의 것 + 설치자 줄까지 걷은 키(#840). */
+function deleteRemoved(
+  root: JsonObject,
+  plan: { remove: string[]; removedEdited: string[] },
+  recorded: PortionShas,
+  claudeDir: string | undefined,
+): string[] {
+  const owned = ownedGroups(recorded.keys());
+  const edited = [...plan.removedEdited];
+  for (const k of plan.remove) {
+    const extra = deleteKey(root, k, claudeDir, owned.has(k), recorded.get(k));
+    if (extra && !edited.includes(k)) edited.push(k);
+  }
+  return edited;
 }
 
 function isEmptyContainer(v: unknown): boolean {
@@ -273,11 +321,12 @@ function present(
   root: JsonObject,
   keys: Iterable<string>,
   claudeDir: string | undefined,
+  recorded: PortionShas = new Map(),
 ): Map<string, string> {
   const out = new Map<string, string>();
   for (const k of keys) {
     if (isContainerKey(k)) continue;
-    const v = readKey(root, k, claudeDir);
+    const v = readKey(root, k, claudeDir, recorded.get(k));
     if (v !== undefined) out.set(k, jsonSha(v));
   }
   return out;
@@ -336,15 +385,22 @@ export const jsonKeys: PortionAdapter<unknown> = {
     const plan = planUpsert({
       render: new Map([...render].map(renderSha)),
       recorded: recordedValues,
-      present: present(root, [...recordedValues.keys(), ...render.keys()], claudeDir),
+      present: present(
+        root,
+        [...recordedValues.keys(), ...render.keys()],
+        claudeDir,
+        recordedValues,
+      ),
       excluded: input.excluded,
       alwaysStrip,
     });
     const before = stable(root);
     const created: string[] = [];
     const owned = ownedGroups(recorded.keys());
-    for (const k of plan.remove) deleteKey(root, k, claudeDir, owned.has(k));
-    for (const k of plan.replace) writeKey(root, k, render.get(k), created, claudeDir);
+    const removedEdited = deleteRemoved(root, plan, recorded, claudeDir);
+    for (const k of plan.replace) {
+      writeKey(root, k, render.get(k), created, claudeDir, recorded.get(k));
+    }
     const kept = [...plan.kept];
     const restored = [...plan.restored];
     const missing = [...plan.missing];
@@ -378,7 +434,7 @@ export const jsonKeys: PortionAdapter<unknown> = {
       restored,
       missing,
       removed: plan.remove,
-      removedEdited: plan.removedEdited,
+      removedEdited,
       replaced: plan.replace,
       kept,
     };
@@ -390,13 +446,13 @@ export const jsonKeys: PortionAdapter<unknown> = {
     const claudeDir = claudeDirOf(input.projectDir);
     const plan = planStrip({
       recorded: new Map([...input.recorded].filter(([k]) => !isContainerKey(k))),
-      present: present(root, valueKeys(input.recorded), claudeDir),
+      present: present(root, valueKeys(input.recorded), claudeDir, input.recorded),
       excluded: input.excluded,
       alwaysStrip,
     });
     const before = stable(root);
     const owned = ownedGroups(input.recorded.keys());
-    for (const k of plan.remove) deleteKey(root, k, claudeDir, owned.has(k));
+    const removedEdited = deleteRemoved(root, plan, input.recorded, claudeDir);
     const containers = pruneContainers(root, [...input.recorded.keys()].filter(isContainerKey));
     for (const c of containers) plan.portions.set(c, CONTAINER_SHA);
     carryGroups(root, plan.portions, owned, claudeDir);
@@ -406,7 +462,7 @@ export const jsonKeys: PortionAdapter<unknown> = {
       text: changed ? serialize(root) : existing,
       changed,
       removed: plan.remove,
-      removedEdited: plan.removedEdited,
+      removedEdited,
       kept: plan.kept,
       portions: plan.portions,
       empty: Object.keys(root).length === 0,
