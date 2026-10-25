@@ -103,3 +103,38 @@
 - 근거: E-04(비용 차가 ±15% 안이라 비용으로 가르지 못한다) · E-05(Sonnet 4건 중 1건 재작업) · 시드 대장 E-2026-10-04-01(같은 과제에서 Opus medium 이 Sonnet xhigh 보다 싸고 빨랐다 — 다른 프로젝트).
 - 사용자 질문(2026-10-25): "opus가 더 싸지?".
 - 다시 볼 때: 다음 단순 건의 Opus medium 비용을 E-01 ~ 03 과 대조해 이 대장에 남긴 뒤.
+
+### E-2026-10-25-06 · implementation — uninstall 화면 줄의 기록 글자 거름 (CLI · 화면 · 단순 개선)
+- status: measured
+- date: 2026-10-25 · where: uzys-agent-harness 개발 세션 · scope: task
+- task_type: implementation
+- method: same-brief ✗ · isolated-worktree ✓ · 세션 점검(독립 리뷰 없음 — 화면 문구라 문턱 아래) · actual-model-from-transcript ✓(`claude-opus-5-5` · `medium`) · cost = 레인 기록 usage 합(API 정가 환산)
+- candidates: Opus 5.5 · medium
+- result:
+
+  | 조합 | 결함 | 재작업 | 비용 | 시간 |
+  |---|---|---|---|---|
+  | Opus 5.5 · medium | 정상 설치자 화면 회귀 1(낱개 공백까지 `\u0020` 으로 찍음 — 세션 점검) | 1회 | 1회차 $2.23 · 합 $3.40 | 합 14.6분 |
+
+- conclusion: 판단(E-04 이후 단순 개선 = Opus medium)의 첫 대조. 1회차 비용은 Sonnet xhigh 단순 3건(E-01 ~ 03, $1.60 ~ 2.18 · 재작업 0)과 비슷했고, 재작업이 1회 났다. Opus medium 이 더 싸거나 정확하다는 증거는 아직 없다.
+- limits: 과제 1건 · 같은 과제의 Sonnet 대조 없음 · 채점 없이 세션 점검만.
+- source: PR #921 · 이슈 #919
+- stale_when: 모델 세대 교체 · 2027-04 이후
+
+### E-2026-10-25-07 · cost — 보안 · 링크 경계 PR 의 비용은 모델보다 리뷰 회차가 정했다
+- status: measured
+- date: 2026-10-25 · where: uzys-agent-harness 개발 세션 · scope: session
+- task_type: implementation · review · design
+- method: 레인 기록 usage 합(API 정가 환산, E-04 와 같은 방법) · actual-model-from-transcript ✓
+- result:
+
+  | 과제 | 구현 | 리뷰 · 검증 | 회차 | 합 |
+  |---|---|---|---|---|
+  | #912 — 설계 먼저(Fable 설계 검증 2회 → 구현) | Opus 5.5 high $6.21 | 설계 검증 $9.39 · 적대 리뷰 $9.79 | 구현 1 | $25.39 |
+  | #911 — 바로 구현 | Sonnet 5.5 xhigh $27.70 | Opus 리뷰 $15.69 | 5 | $43.39 |
+  | #918 — 바로 구현 | Opus 5.5 high $20.01 | Opus 리뷰 $23.60 + $6.59 | 5(회차 4 는 회귀를 만들어 되돌림) | $50.20 |
+
+- conclusion: 남이 커밋한 기록 · 링크를 다루는 과제에서는 회차마다 새 링크 조합이 나왔고, 비용은 모델이 아니라 회차 수를 따라갔다. 착수 전 설계를 검증한 #912 가 회차 · 비용 모두 가장 작았다. 회차가 3 을 넘으면 "main 보다 나빠진 장면만 BLOCK" 으로 재판정하고 남은 조합은 설계 이슈로 뗐다(#922).
+- limits: 과제마다 1건 · 과제 난이도가 서로 다르다 · 설계 먼저의 효과는 가설이다.
+- source: PR #914 · #916 · #920 · 이슈 #911 · #912 · #918 · #922
+- stale_when: 모델 세대 교체 · 2027-04 이후
