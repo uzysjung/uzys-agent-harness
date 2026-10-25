@@ -73,13 +73,12 @@ describe("uninstallAction", () => {
       { projectDir: tmpDir },
       { log: vi.fn(), err: vi.fn(), exit, spawn, rm: vi.fn() },
     );
-    expect(spawn).toHaveBeenCalledWith("claude", [
-      "plugin",
-      "uninstall",
-      "--scope",
-      "project",
-      "p@mp",
-    ]);
+    // #845 — 대상 프로젝트(`--project-dir`)에서 돈다. 테스트 프로세스의 cwd(리포)가 아니다.
+    expect(spawn).toHaveBeenCalledWith(
+      "claude",
+      ["plugin", "uninstall", "--scope", "project", "p@mp"],
+      { cwd: tmpDir },
+    );
     expect(exit).toHaveBeenCalledWith(0);
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -147,7 +146,9 @@ describe("uninstallAction", () => {
       },
     );
     // npm-global: asset.id 로 fallback
-    expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"]);
+    expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "fallback-pkg-id"], {
+      cwd: tmpDir,
+    });
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -176,7 +177,9 @@ describe("uninstallAction", () => {
         rm: vi.fn(),
       },
     );
-    expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "vercel"]);
+    expect(spawn).toHaveBeenCalledWith("npm", ["uninstall", "--save-dev", "vercel"], {
+      cwd: tmpDir,
+    });
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -856,13 +859,11 @@ describe("uninstallAction — --only (항목별 제거)", () => {
       { log: vi.fn(), err: vi.fn(), exit, spawn, rm: vi.fn() },
     );
     expect(spawn).toHaveBeenCalledOnce();
-    expect(spawn).toHaveBeenCalledWith("claude", [
-      "plugin",
-      "uninstall",
-      "--scope",
-      "project",
-      "drop@mp",
-    ]);
+    expect(spawn).toHaveBeenCalledWith(
+      "claude",
+      ["plugin", "uninstall", "--scope", "project", "drop@mp"],
+      { cwd: tmpDir },
+    );
     expect(exit).toHaveBeenCalledWith(0);
     rmSync(tmpDir, { recursive: true, force: true });
   });
@@ -1440,15 +1441,13 @@ describe("uninstallAction — 은퇴한 자산 id 가 든 옛 로그 (#492)", ()
     const logFn = vi.fn();
     const exit = vi.fn() as unknown as (code: number) => never;
     uninstallAction({ projectDir: tmpDir }, { log: logFn, err: vi.fn(), exit, spawn, rm: vi.fn() });
-    expect(spawn).toHaveBeenCalledWith("claude", [
-      "plugin",
-      "uninstall",
-      "--scope",
-      "project",
-      "ecc@ecc",
-    ]);
+    expect(spawn).toHaveBeenCalledWith(
+      "claude",
+      ["plugin", "uninstall", "--scope", "project", "ecc@ecc"],
+      { cwd: tmpDir },
+    );
     // #573 — 파일 목록이 없는 옛 기록의 스킬은 외부 도구를 부르지 않고 남는 것을 말한다
-    expect(spawn).not.toHaveBeenCalledWith("npx", expect.anything());
+    expect(spawn).not.toHaveBeenCalledWith("npx", expect.anything(), expect.anything());
     const output = logFn.mock.calls.flat().join("\n");
     expect(output).toContain("find-skills (skill)");
     expect(output).toContain("not on record");

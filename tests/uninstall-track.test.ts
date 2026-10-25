@@ -166,6 +166,45 @@ describe("#543 uninstall --track — 판정 기준", () => {
     );
   });
 
+  /** ≤v26.161.0 기록 — 메타파일 항목이 없다. */
+  const dropMetafileRecord = (): void => {
+    const l = log();
+    writeInstallLog(projectDir, {
+      ...l,
+      policyFiles: (l.policyFiles ?? []).filter((f) => f.path !== ".installed-tracks"),
+    });
+  };
+
+  it("2b · #854 옛 기록(sha 없음) — 설치자가 고친 메타파일은 덮어쓰지 않고 그대로 둔다", () => {
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    dropMetafileRecord();
+    put(".claude/.installed-tracks", "csr-fastapi\ntooling\n# my custom note\n");
+
+    const out = uninstall({ track: "csr-fastapi" });
+
+    expect(out.code).toBe(0);
+    expect(read(".claude/.installed-tracks")).toBe("csr-fastapi\ntooling\n# my custom note\n");
+    expect(log().spec.tracks).toEqual(["tooling"]); // 기록은 빠진다 — heal 은 sha 없는 메타파일을 근거로 삼지 않는다
+  });
+
+  it("2c · #854 회귀 — 옛 기록(sha 없음)이라도 하네스 판 그대로면 남는 트랙으로 다시 쓴다", () => {
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    dropMetafileRecord();
+
+    uninstall({ track: "csr-fastapi" });
+
+    expect(read(".claude/.installed-tracks")).toBe("tooling\n");
+  });
+
+  it("2d · 회귀 — sha 가 있는 기록에서 고친 메타파일은 그대로 둔다", () => {
+    install(["tooling", "csr-fastapi"], ["claude"]);
+    put(".claude/.installed-tracks", "csr-fastapi\ntooling\n# my custom note\n");
+
+    uninstall({ track: "csr-fastapi" });
+
+    expect(read(".claude/.installed-tracks")).toBe("csr-fastapi\ntooling\n# my custom note\n");
+  });
+
   it("3 · 고친 파일은 그 파일 하나를 백업한 뒤 빠진다", () => {
     install(["tooling", "csr-fastapi"], ["claude"]);
     put(".claude/rules/ui-components.md", `${read(".claude/rules/ui-components.md")}\nmine\n`);
