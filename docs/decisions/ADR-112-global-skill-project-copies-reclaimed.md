@@ -1,6 +1,6 @@
 # ADR-112: 기록이 global 인 외부 스킬의 프로젝트 사본은 하네스 몫으로 회수한다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-19
 - PR: #875
 - Issue: #851 (AC3)
