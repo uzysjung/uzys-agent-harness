@@ -103,6 +103,11 @@ export const LINES = {
   removed: "removed",
   noChecksumRemoved: "no checksum on record — saved a copy, removed from live",
   editedRemoved: "you edited it — saved as <file>.backup-<time>, removed from live",
+  // #902 — 옛 판이 파일 목록 없이 깐 외부 스킬 폴더의 파일: 도구 것인지 설치자 것인지 몰라 되살리지 않고 백업만 남긴다
+  noFileList:
+    "no file list on record (an older version installed this skill) — saved as <file>.backup-<time>",
+  noFileListRemoved:
+    "no file list on record (an older version installed this skill) — saved as <file>.backup-<time>, removed from live (if it was yours, rename it back)",
   sharedCreated: "wrote (harness part only)",
   upsert: "wrote the harness part — yours stays",
   strip: "removed the harness part — yours stays",

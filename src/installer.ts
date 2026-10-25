@@ -32,6 +32,7 @@ import {
   runExternalInstall,
   selectExternalTargets,
   skillSlotsFor,
+  unlistedSkillSlots,
 } from "./external-installer.js";
 import { foreignOwnedTarget, linksToProjectSharedSkill } from "./foreign-slot.js";
 import {
@@ -1367,9 +1368,12 @@ function runExternalPhase(
   // #780 — 처음 더하는 자산도 같다: 기록이 없으니 그 자산이 쓸 자리(`skillSlotsFor`)를 들어 그 자리의 설치자 파일을 지킨다.
   const skills = targets.filter((a) => a.method.kind === "skill");
   const skillIds = new Set(skills.map((a) => a.id));
+  const slotCtx = { log: previousLog, scope: spec.scope };
   const settle = holdSkillSlots(projectDir, {
     recorded: (previousLog?.assets ?? []).filter((a) => a.method === "skill" && skillIds.has(a.id)),
-    slots: skillSlotsFor(skills, spec.cli, { log: previousLog, scope: spec.scope }),
+    slots: skillSlotsFor(skills, spec.cli, slotCtx),
+    // #902 — 옛 판이 파일 목록 없이 깐 자산의 자리 — 그 안 파일은 되살리지 않고 백업만 남긴다
+    unlisted: unlistedSkillSlots(skills, spec.cli, slotCtx),
     log: previousLog,
     clis: spec.cli,
     scope: spec.scope,

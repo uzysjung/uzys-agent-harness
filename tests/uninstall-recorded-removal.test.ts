@@ -256,22 +256,24 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
     expect(run.code).toBe(1); // 지운 것이 없다 — 성공이라 하지 않는다
   });
 
-  it("옛 기록 위에서 다시 깔아도 '모름' 은 '0개' 가 되지 않는다 — 남는 자리를 계속 말한다 (PR #686 리뷰 B1)", () => {
+  it("옛 기록 위에서 다시 깔면 '모름' 이 '0개' 도 모자란 목록도 아닌, 이번에 도구가 놓은 파일 전부가 된다 — uninstall 이 그 파일을 지운다 (PR #686 리뷰 B1 · #902)", () => {
     install(["codex"]);
     const log = readInstallLog(projectDir) as InstallLog;
     writeFileSync(
       join(projectDir, ".uzys-agent-harness/.harness-install.json"),
       JSON.stringify({ ...log, assets: log.assets.map(({ files: _f, ...a }) => a) }),
     );
-    install(["codex"]); // 새 판으로 재설치 — 옛 판이 놓은 파일은 호출 전부터 있어 이번 비교에 안 잡힌다
+    // 새 판으로 재설치 — hold 가 옛 판이 놓은 파일을 호출 전에 비켜 두므로 도구가 다시 놓은 파일이 전부 이번 비교에 잡힌다
+    install(["codex"]);
 
-    const asset = readInstallLog(projectDir)?.assets.find((a) => a.id === "frontend-design");
-    expect(asset, "대조군: 재설치 뒤에도 자산 기록이 있다").toBeDefined();
-    expect(asset?.files).toBeUndefined();
+    expect(fdFiles().sort()).toEqual([
+      ".agents/skills/frontend-design/SKILL.md",
+      ".agents/skills/frontend-design/refs/typography.md",
+    ]);
     const run = uninstall({ only: "frontend-design" });
-    expect(existsSync(join(projectDir, ".agents/skills/frontend-design/SKILL.md"))).toBe(true);
-    expect(run.out).toContain("not on record");
-    expect(run.code).toBe(1);
+    expect(existsSync(join(projectDir, ".agents/skills/frontend-design"))).toBe(false);
+    expect(run.out).toContain("remove frontend-design — 2 file(s) on record");
+    expect(run.code).toBe(0);
   });
 
   it("--cli claude 는 자산을 건드리지 않는다 — `.claude/` 쪽 도구 사본과 기록이 남고 `--only` 로 빼는 길을 말한다 (A1 · N8 · #746)", () => {
