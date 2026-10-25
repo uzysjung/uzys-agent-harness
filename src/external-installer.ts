@@ -26,7 +26,7 @@ import {
   rmSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import {
   assetReachesCli,
@@ -61,7 +61,7 @@ import {
 } from "./install-log.js";
 import type { JudgedWrite } from "./install-writes.js";
 import { LINES, withBackup } from "./judge.js";
-import { outsideProjectTarget } from "./outside-project.js";
+import { outsideProjectTarget, resolveWriteTarget } from "./outside-project.js";
 import { excludedIds, recorded } from "./recorded.js";
 import {
   type CliTargets,
@@ -127,9 +127,10 @@ export interface AssetInstallResult {
   skills?: string[];
   /**
    * #678 — 스킬 자리가 링크를 따라 **프로젝트 밖**으로 풀려 도구를 그 자리로 부르지 않은 것(설치 화면이 함께 말한다).
-   * `root` = project 상대 스킬 자리(`.claude/skills` 등), `target` = 그 자리가 풀린 절대경로.
+   * `root` = project 상대 스킬 자리(`.claude/skills` 등), `target` = 그 자리가 풀린 절대경로. #918 — `slot` 이 있으면 루트가 아니라
+   * 그 자산의 스킬 폴더(`<root>/<skill>`)가 스킬 폴더 밖(프로젝트 안 다른 폴더)으로 풀리는 링크라 부르지 않았다.
    */
-  outside?: ReadonlyArray<{ root: string; target: string }>;
+  outside?: ReadonlyArray<{ root: string; target: string; slot?: string }>;
 }
 
 /**
@@ -147,6 +148,13 @@ export interface ToolFiles {
    * 파일까지 담는다 — 기록이 그 폴더부터 목록으로 잇는다(`buildAssetEntries`). `holdSkillSlots` 의 판정만 적는다.
    */
   covered?: string[];
+}
+
+/** #678 · #918 — 링크로 밖이라 부르지 않은 스킬 자리 하나의 화면 문구. install · update 가 같은 줄을 쓴다. */
+export function outsideSlotNote(o: { root: string; target: string; slot?: string }): string {
+  return o.slot !== undefined
+    ? `${o.slot}/ left as is (links outside the skill folders: ${o.target})`
+    : `${o.root}/ left as is (links outside the project: ${o.target})`;
 }
 
 /**
@@ -439,18 +447,32 @@ function installOne(
       }
       // #678 — 스킬 자리가 프로젝트 밖으로 풀리는 CLI 는 그 자리로 도구를 부르지 않는다(도구는 링크를 따라 밖에 쓴다).
       // 남은 CLI 가 없으면 부르지 않는다. 에이전트 미지정(레거시 `cli: []`)은 두 자리 모두 쓰므로 하나라도 밖이면 부르지 않는다.
-      const outside = SKILL_ROOTS.flatMap((root) => {
-        const hit = outsideProjectTarget(cwd, join(cwd, root));
-        return hit === null ? [] : [{ root, target: hit.target }];
-      });
+      // #918 — 그 자산의 스킬 폴더가 스킬 폴더 밖(프로젝트 안 `src/…` 등)으로 풀리는 링크여도 같다 — 도구는 링크를 실폴더로 바꾸고
+      // hold 는 그 너머를 따라가지 않는다(`inSkillFolders`)
+      const outside = SKILL_ROOTS.flatMap(
+        (root): Array<{ root: string; target: string; slot?: string }> => {
+          const hit = outsideProjectTarget(cwd, join(cwd, root));
+          if (hit !== null) return [{ root, target: hit.target }];
+          const slot = method.skill === undefined ? root : `${root}/${method.skill}`;
+          if (inSkillFolders(cwd, slot)) return [];
+          return [{ root, target: resolveWriteTarget(join(cwd, slot)) ?? slot, slot }];
+        },
+      );
       const outRoots = new Set(outside.map((o) => o.root));
       const cli = ctx.cli.filter((c) => !outRoots.has(skillRootOf(c)));
       if (outside.length > 0 && cli.length === 0) {
-        const where = outside.map((o) => `${o.root} → ${o.target}`).join(", ");
+        const away = outside.filter((o) => o.slot === undefined);
+        const where = away.map((o) => `${o.root} → ${o.target}`).join(", ");
+        const reasons = [
+          ...(away.length > 0 ? [`the skill folder links outside the project (${where})`] : []),
+          ...outside.flatMap((o) =>
+            o.slot === undefined ? [] : [`${o.slot} links outside the skill folders (${o.target})`],
+          ),
+        ];
         return {
           asset,
           ok: false,
-          message: `not installed — the skill folder links outside the project (${where}); left as is`,
+          message: `not installed — ${reasons.join("; ")}; left as is`,
           outside,
         };
       }
@@ -548,6 +570,8 @@ export interface ExternalSkillRefresh {
   notInCatalog: ReadonlyArray<string>;
   /** #817 — 도구 호출 전후로 지킨 파일의 백업마다 판정의 줄(고친 기록 파일 · 비켜 둔 설치자 파일). 부재 = 없음. */
   judged?: JudgedWrite[];
+  /** #678 · #918 — 갱신은 했지만 일부 CLI 자리가 링크로 밖이라 그 자리는 부르지 않은 자산. 화면이 install 과 같은 줄을 낸다. 부재 = 없음. */
+  leftAsIs?: ReadonlyArray<{ id: string; outside: NonNullable<AssetInstallResult["outside"]> }>;
   /** #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 자산 사본을 회수한 자리. 백업은 `judged` 에 든다. 부재 = 없음. */
   reclaimed?: GlobalCopyReclaim[];
   /**
@@ -656,6 +680,7 @@ export function refreshExternalSkills(
   const slotCtx = { log, scope: "project" as const };
   const settle = holdSkillSlots(projectDir, {
     recorded: log.assets.filter((a) => targetIds.has(a.id)),
+    assets: targets,
     slots: skillSlotsFor(inProject, clis, slotCtx),
     unlisted: unlistedSkillSlots(inProject, clis, slotCtx),
     log,
@@ -716,6 +741,11 @@ export function refreshExternalSkills(
   // 홈 사본이 이미 새 판이라 상류가 바꾼 파일은 "다르다" 로 백업하고 지운다(무손실).
   const late = reclaimNewlyNamed(projectDir, log, next);
   const reclaimedAll = [...reclaimed, ...late];
+  const leftAsIs = report.attempted.flatMap((r) =>
+    r.ok && r.outside !== undefined && r.outside.length > 0
+      ? [{ id: r.asset.id, outside: r.outside }]
+      : [],
+  );
   return {
     attempted: report.attempted.length,
     refreshed: report.succeeded,
@@ -725,6 +755,7 @@ export function refreshExternalSkills(
     notInCatalog,
     unknown: false,
     ...(reclaimedAll.length > 0 ? { reclaimed: reclaimedAll } : {}),
+    ...(leftAsIs.length > 0 ? { leftAsIs } : {}),
     judged: [...reclaimedAll.flatMap((r) => r.judged), ...judged],
   };
 }
@@ -755,6 +786,8 @@ export function holdSkillSlots(
   projectDir: string,
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
+    /** #918 — 이번 대상의 카탈로그 항목. 기록 유래 자리의 스킬 이름은 여기서 구한다 — 이 목록에 없는 자산은 기록 유래 자리를 들지 않는다. */
+    assets: ReadonlyArray<ExternalAsset>;
     slots: ReadonlyArray<string>;
     unlisted?: ReadonlyArray<string>;
     log: InstallLog | null;
@@ -802,11 +835,20 @@ export function holdSkillSlots(
       displaced: [] as InstallLogRootFile[],
       judged: [] as JudgedWrite[],
     };
-    // #902 — 도구가 이번에 새로 쓴 스킬 폴더. 파일 목록 없는 옛 기록의 파일이 그 폴더에서 빠졌으면 되살리지 않는다
+    // #902 — 도구가 이번에 새로 쓴 스킬 폴더. 파일 목록 없는 옛 기록의 파일이 그 폴더에서 빠졌으면 되살리지 않는다. #918 — 기록 파일도
+    // 이 폴더 안에서만 "상류가 뺐다" 로 백업+제거한다(그 밖은 제자리로). 이번에 파일을 놓은 폴더 + 성공한 이름 있는 자산의 카탈로그 자리
+    // (도구가 그 폴더를 통째로 새로 쓴다 — 기록이 아니라 카탈로그라 위조로 넓힐 수 없다)
+    const ok = (report?.attempted ?? []).filter((r) => r.ok);
+    // 판정은 실경로로 한다(#918) — 도구가 링크 자리를 실폴더로 바꿨을 뿐이면 링크 너머 폴더는 새로 쓰지 않았다
     const rewritten = new Set(
-      (report?.attempted ?? []).flatMap((r) =>
-        r.ok ? (r.files?.created ?? []).map((x) => skillFolderOf(x.path)) : [],
-      ),
+      [
+        ...ok.flatMap((r) => (r.files?.created ?? []).map((x) => skillFolderOf(x.path))),
+        ...skillSlotsFor(
+          ok.map((r) => r.asset),
+          hold.clis,
+          { log: hold.log, scope: hold.scope },
+        ),
+      ].flatMap((p) => realOrNull(join(projectDir, p)) ?? []),
     );
     const back = new Set<string>();
     const failed: string[] = [];
@@ -814,9 +856,21 @@ export function holdSkillSlots(
       const restore =
         failedSlots === null || failedSlots.some((s) => f.rel === s || f.rel.startsWith(`${s}/`));
       try {
-        const r = settleAside(projectDir, f, restore, rewritten.has(skillFolderOf(f.rel)));
+        // #918 — 되돌릴 자리는 옮기기 전 그 파일이 실제로 있던 자리다. 글자 경로가 아직 그 자리를 가리키면 그 글자로(화면 · 기록이
+        // 같은 글자를 쓴다), 도구가 링크 자리를 실폴더로 바꿔 다른 곳을 가리키면 원래 폴더로
+        const literal = realFileOrNull(f.abs) === f.real;
+        const at = literal ? f : { ...f, abs: inProjectSpelling(projectDir, f.real) };
+        // 빈 자리의 백업+제거는 도구가 새로 쓴 폴더가 스킬 폴더 그 자리(#901 — 글자 · 실경로 둘 다 스킬 루트 안)일 때만이다. 루트를
+        // 프로젝트 안 다른 폴더(`src` 등)로 링크한 구성에서는 그 폴더의 파일을 live 에서 빼지 않고 제자리로
+        const r = settleAside(
+          projectDir,
+          at,
+          restore,
+          f.folder !== null && rewritten.has(f.folder) && inCanonicalSkillRoot(projectDir, f.real),
+        );
         if (r === "back") {
-          back.add(f.rel);
+          // 원래 폴더로 돌아갔으면 글자 경로의 파일은 도구 것이다 — 도구가 놓은 파일 목록에서 빼지 않는다
+          if (literal) back.add(f.rel);
           continue;
         }
         out.backups.push(r.backup);
@@ -1107,6 +1161,22 @@ function reclaimCopy(
   return res.removed.length > 0 || res.left.length > 0 ? res : null;
 }
 
+/** #918 — 실경로(`realpathSync` 꼴)가 프로젝트의 스킬 루트(`.claude/skills/` · `.agents/skills/`) 그 자리 아래인가 — 루트가 풀린 다른 폴더는 아니다. */
+function inCanonicalSkillRoot(projectDir: string, real: string): boolean {
+  const rel = relative(realOrNull(projectDir) ?? projectDir, real)
+    .split(sep)
+    .join("/");
+  return SKILL_ROOTS.some((r) => rel.startsWith(`${r}/`));
+}
+
+/** 실경로(`realpathSync` 꼴)를 프로젝트 경로의 글자로 — 프로젝트 경로 자체가 링크여도(`/var` → `/private/var`) 화면 · 보고가 같은 글자를 쓴다. 밖이면 그대로. */
+function inProjectSpelling(projectDir: string, real: string): string {
+  const at = relative(realOrNull(projectDir) ?? projectDir, real);
+  return at === "" || at === ".." || at.startsWith(`..${sep}`) || isAbsolute(at)
+    ? real
+    : join(projectDir, at);
+}
+
 function realOrNull(abs: string): string | null {
   try {
     return realpathSync(abs);
@@ -1140,7 +1210,11 @@ function errText(e: unknown): string {
  */
 interface AsideFile {
   abs: string;
+  /** #918 — 옮기기 전 그 파일이 실제로 있던 자리(폴더 realpath + 이름). 되돌릴 자리는 언제나 여기다 — 링크 경로가 아니다. */
+  real: string;
   rel: string;
+  /** #918 — 그 파일이 든 스킬 폴더(`<root>/<name>`)의 옮기기 전 실경로. "도구가 이번에 새로 쓴 폴더" 판정은 이것으로 한다. */
+  folder: string | null;
   slot: string;
   recorded: boolean;
   unlisted: boolean;
@@ -1163,6 +1237,7 @@ function slotFilesToKeep(
   projectDir: string,
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
+    assets: ReadonlyArray<ExternalAsset>;
     slots: ReadonlyArray<string>;
     unlisted?: ReadonlyArray<string> | undefined;
     log: InstallLog | null;
@@ -1185,12 +1260,15 @@ function slotFilesToKeep(
       .flatMap((a) => (a.files ?? []).map((f) => f.path)),
   );
   // 자리는 기록 파일이 **든 폴더**(`<root>/<id>`)다 — 루트 바로 아래 파일(옛 판이 적은 AppleDouble 짝 `<root>/._<id>` 등)은 자리가
-  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다)
+  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다). #918 — 그 자산이 쓸 수 있는 스킬 폴더만(`recordedSlots`)
   const slots = new Set([
-    ...mine
-      .map((f) => f.path.split("/"))
-      .filter((parts) => parts.length > 3)
-      .map((parts) => parts.slice(0, 3).join("/")),
+    ...hold.recorded.flatMap((a) =>
+      recordedSlots(
+        projectDir,
+        a,
+        hold.assets.find((c) => c.id === a.id),
+      ),
+    ),
     ...hold.slots,
   ]);
   // #902 — 파일이 든 가장 안쪽 자리가 목록 없는 옛 기록의 자리면 그 파일은 도구 것인지 모른다(소스 전체 자산의 루트 자리 안에서도
@@ -1209,6 +1287,8 @@ function slotFilesToKeep(
   const realProject = realpathSync(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
+    // #918 — 스킬 폴더 밖으로 풀리는 링크 자리는 따라가지 않는다 — 도구도 그 자리로 부르지 않는다(`installOne`)
+    if (!inSkillFolders(projectDir, slot)) continue;
     for (const { rel, link } of listEntriesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
       if (link && (SKILL_ROOTS as ReadonlyArray<string>).includes(dirname(path))) {
@@ -1242,7 +1322,9 @@ function slotFilesToKeep(
       const listed = recordedSha !== undefined;
       out.set(real, {
         abs,
+        real,
         rel: path,
+        folder: realOrNull(join(projectDir, skillFolderOf(path))),
         slot,
         recorded: listed,
         unlisted: !listed && unlistedAt(path) && backupOriginal(path) === null,
@@ -1251,6 +1333,59 @@ function slotFilesToKeep(
     }
   }
   return { files: [...out.values()], left, ownerOf };
+}
+
+/**
+ * #918 — 기록 `files` 가 말하는 자리(항목의 `<root>/<name>` 접두) 가운데 그 자산이 쓸 수 있는 스킬 폴더. 기록은 커밋되는 파일이라
+ * (ADR-100) 경로 글자를 그대로 자리로 삼으면 남이 고친 기록 하나로 hold 가 `src/a/b/` · 다른 스킬 폴더를 훑어 그 안 파일을 백업으로
+ * 옮긴다. 이름은 기록이 아니라 카탈로그(`catalog` — 이번 대상의 그 id 항목)가 정한다: 이름 있는 자산은 `<스킬 루트>/<method.skill>` 만이고
+ * 기록의 `detail.skill` 이 그와 다르면(위조 · 상류가 이름을 바꾼 옛 기록) 기록 유래 자리를 들지 않는다 — 그 폴더 파일은 제자리에 남는다.
+ * 소스 전체 자산(`method.skill` 없음)은 스킬 루트 바로 아래 한 자리(`isSkillName`)다 — project 로 깐 그 자산은 이름을 기록하지 않는다
+ * (`skillNames`). 카탈로그에 없는 id 는 자리를 들지 않는다. 글자와 실경로가 둘 다 그 폴더 안이어야 한다(`inHarnessSlot` — #901 의 같은
+ * 판정. 자리끼리 잇는 링크 #524 는 실경로도 스킬 폴더라 그대로다).
+ */
+function recordedSlots(
+  projectDir: string,
+  asset: InstallLogAsset,
+  catalog: ExternalAsset | undefined,
+): string[] {
+  if (catalog?.method.kind !== "skill") return [];
+  const named = catalog.method.skill;
+  if (asset.detail.skill !== named || (named !== undefined && !isSkillName(named))) return [];
+  const out = new Set<string>();
+  for (const f of asset.files ?? []) {
+    const parts = f.path.split("/");
+    if (parts.length <= 3) continue;
+    const root = `${parts[0]}/${parts[1]}`;
+    const name = parts[2];
+    if (!(SKILL_ROOTS as ReadonlyArray<string>).includes(root) || !isSkillName(name)) continue;
+    if (named !== undefined && name !== named) continue;
+    const slot = `${root}/${name}`;
+    if (!inSkillFolders(projectDir, slot)) continue;
+    out.add(slot);
+  }
+  return [...out];
+}
+
+/**
+ * #918 — 스킬 자리(`<root>` · `<root>/<name>`)가 글자 · 실경로 둘 다 스킬 폴더 안 **같은 이름** 자리인가(`inHarnessSlot` — #901 의 판정).
+ * 스킬 폴더 = 두 스킬 루트와 그 루트가 풀린 자리(설치자가 루트를 프로젝트 안 다른 폴더로 링크해 둔 구성은 그 폴더가 스킬 루트다).
+ * 자리끼리 잇는 링크(#524 `.claude/skills/<id>` → `.agents/skills/<id>`)는 안이고, `<root>/<name>` 이 `src/a/b` · 다른 이름의 스킬 폴더로
+ * 풀리면 아니다. 자리 안 한 파일로 잰다 — 자리 자체가 링크면 그 실경로가 판정 대상이다. 프로젝트 밖은 호출부의 #678 판정이 먼저 말한다.
+ * 실경로를 풀 수 없으면(권한 · 링크 고리 · 프로젝트 경로가 폴더가 아님) 판정하지 않는다 — 지금까지의 동작 그대로(#678 과 같은 관행).
+ */
+function inSkillFolders(projectDir: string, slot: string): boolean {
+  if (resolveWriteTarget(join(projectDir, slot)) === null) return true;
+  const name = slot.split("/").slice(2).join("/");
+  const base = resolveWriteTarget(projectDir) ?? projectDir;
+  const roots = SKILL_ROOTS.flatMap((r) => {
+    const real = resolveWriteTarget(join(projectDir, r));
+    if (real === null) return [r];
+    const rel = relative(base, real).split(sep).join("/");
+    return rel === "" || rel === ".." || rel.startsWith("../") || isAbsolute(rel) ? [r] : [r, rel];
+  });
+  const places = [...new Set(roots.map((r) => (name === "" ? `${r}/` : `${r}/${name}/`)))];
+  return inHarnessSlot(projectDir, `${slot}/_`, { places });
 }
 
 /**
@@ -1288,10 +1423,9 @@ function settleAside(
     vacant = true;
   }
   // 링크는 같은 글자를 가리키는 링크가 그 자리에 있으면 같은 것이다 — 도구가 같은 링크를 다시 놓았다
+  // #918 — 빈 자리의 백업+제거(상류가 뺐다)는 도구가 이번에 새로 쓴 폴더 안에서만 — 그 밖은 기록이 무엇이라 말해도 제자리로
   const keep = vacant
-    ? f.unlisted
-      ? !folderRewritten
-      : f.link || !f.recorded
+    ? !folderRewritten || f.link || (!f.recorded && !f.unlisted)
     : f.link
       ? lstatSync(f.abs).isSymbolicLink() && readlinkSync(f.abs) === readlinkSync(f.aside)
       : now?.equals(readFileSync(f.aside)) === true;

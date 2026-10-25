@@ -166,6 +166,7 @@ const OK = { attempted: [], succeeded: 0, skipped: 0, excludedByCli: [] };
 function installHold(dir: string) {
   return holdSkillSlots(dir, {
     recorded: [],
+    assets: [],
     slots: [".agents/skills", ".claude/skills"],
     log: null,
     clis: ["claude", "codex"],

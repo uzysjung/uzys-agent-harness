@@ -1371,6 +1371,7 @@ function runExternalPhase(
   const slotCtx = { log: previousLog, scope: spec.scope };
   const settle = holdSkillSlots(projectDir, {
     recorded: (previousLog?.assets ?? []).filter((a) => a.method === "skill" && skillIds.has(a.id)),
+    assets: skills,
     slots: skillSlotsFor(skills, spec.cli, slotCtx),
     // #902 — 옛 판이 파일 목록 없이 깐 자산의 자리 — 그 안 파일은 되살리지 않고 백업만 남긴다
     unlisted: unlistedSkillSlots(skills, spec.cli, slotCtx),

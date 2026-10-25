@@ -41,7 +41,11 @@ import {
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "../external-assets.js";
-import type { AssetInstallResult, GlobalCopyReclaim } from "../external-installer.js";
+import {
+  type AssetInstallResult,
+  type GlobalCopyReclaim,
+  outsideSlotNote,
+} from "../external-installer.js";
 import type { JudgedWrite, SharedWrite } from "../install-writes.js";
 import {
   type BaselineReport,
@@ -283,7 +287,7 @@ export function createInstallRenderer(
         // #678 — 일부 CLI 자리만 밖이라 그 자리는 부르지 않았다 — 깔린 자리만 말한다.
         const outsideNote =
           result.ok && result.outside?.length
-            ? ` · ${result.outside.map((o) => `${o.root}/ left as is (links outside the project: ${o.target})`).join(" · ")}`
+            ? ` · ${result.outside.map(outsideSlotNote).join(" · ")}`
             : "";
         const meta = `${base}${outsideNote}`;
         log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
@@ -1365,6 +1369,8 @@ function renderPhase1Rows(
         ),
       );
     }
+    // #918 — 갱신은 했지만 일부 CLI 자리는 링크로 밖이라 부르지 않았다 — install 과 같은 줄로 그 자리를 말한다
+    for (const row of leftAsIsRows(baseline.updateMode.externalSkillsLeftAsIs ?? [])) log(row);
     if (baseline.updateMode.externalSkillsFailed.length > 0) {
       // 실패가 여럿이면 이름만 낸다 — 사유를 전부 이어 붙이면 한 줄이 1,000자를 넘어 표
       // 정렬이 깨진다(리뷰 NIT-1). 사유는 첫 건만 대표로 싣는다: 대개 같은 원인이다.
@@ -1838,6 +1844,15 @@ export function excludedKeyParts(f: {
  * 옛 것 치우기)을 명령으로 준다. skill 은 update 가 갱신하던 것이라 갱신 중단을 함께 말한다 — 플러그인은 하네스가 원래
  * 갱신하지 않았으니 말하지 않는다. 대체 자산이 이 설치본의 CLI 에 안 닿으면 받는 명령 대신 그 사실을 말한다.
  */
+/** #918 — update 가 갱신은 했지만 링크로 밖이라 부르지 않은 스킬 자리. 자산마다 한 줄 — install 의 자산 행과 같은 문구. */
+export function leftAsIsRows(
+  items: NonNullable<UpdateModeReport["externalSkillsLeftAsIs"]>,
+): string[] {
+  return items.map(({ id, outside }) =>
+    assetRow("skip", "external skills", `${id}: ${outside.map(outsideSlotNote).join(" · ")}`),
+  );
+}
+
 export function catalogRemovedRows(items: ReadonlyArray<CatalogRemoved>): string[] {
   return items.map((e) => {
     const parts: string[] = [
