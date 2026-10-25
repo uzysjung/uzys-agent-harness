@@ -427,13 +427,6 @@ export function stripHarnessImport(text: string): string | null {
 }
 
 /**
- * import 가 이미 사는가 — 마커 블록이거나, 사용자가 손으로 적은 실제 import 줄이거나.
- *
- * **코드펜스 안은 세지 않는다.** Claude Code 는 펜스 안의 `@path` 를 import 로 읽지 않으므로,
- * 문서에서 이 파일명을 예시로 인용한 것을 import 로 오인하면 진짜 import 를 영영 안 넣는다
- * (= 앵커가 조용히 안 실린다).
- */
-/**
  * #891 — 설치자가 루트 `CLAUDE.md` 에 `@AGENTS.md`(`@./AGENTS.md`)를 import 하는가. 하네스는 이 줄을 쓰지도 고치지도
  * 않는다 — Claude Code 문서가 권하는 공유 패턴이라 설치자가 넣는다. 펜스 코드와 인라인 코드 안은 import 가 아니다
  * (Claude Code 가 그 안의 `@path` 를 읽지 않는다).
@@ -452,6 +445,13 @@ export function importsAgentsMd(text: string): boolean {
   return false;
 }
 
+/**
+ * import 가 이미 사는가 — 마커 블록이거나, 사용자가 손으로 적은 실제 import 줄이거나.
+ *
+ * **코드펜스 안은 세지 않는다.** Claude Code 는 펜스 안의 `@path` 를 import 로 읽지 않으므로,
+ * 문서에서 이 파일명을 예시로 인용한 것을 import 로 오인하면 진짜 import 를 영영 안 넣는다
+ * (= 앵커가 조용히 안 실린다).
+ */
 function hasHarnessImport(text: string): boolean {
   if (text.includes(IMPORT_MARKER_START)) return true;
   let inFence = false;
