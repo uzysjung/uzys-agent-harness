@@ -44,6 +44,7 @@ import {
   listEntriesRecursive,
   listFilesRecursive,
 } from "./fs-ops.js";
+import { inHarnessSlot, skillFolders } from "./harness-slot.js";
 import {
   buildAssetEntries,
   hashContent,
@@ -961,8 +962,16 @@ function reclaimCopy(
   } catch {
     return null; // 판정할 수 없다 — 건드리지 않는다
   }
-  const homeExists = existsSync(home);
   const res: GlobalCopyReclaim = { id: ctx.id, slot, removed: [], judged: [], left: [] };
+  // #901 — 스킬 폴더를 링크로 둔 자리(`.agents/skills → ..`)는 실경로가 스킬 폴더 밖이다 — 그 아래를 훑어 치우지 않는다
+  if (!inHarnessSlot(projectDir, slot, skillFolders(SKILL_ROOTS))) {
+    res.left.push({
+      path: slot,
+      why: "it leads outside the skill folders this tool installs to — not touched",
+    });
+    return res;
+  }
+  const homeExists = existsSync(home);
   const now = new Date();
   let entries: Array<{ rel: string; link: boolean }>;
   try {

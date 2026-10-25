@@ -10,6 +10,7 @@
  */
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -239,13 +240,17 @@ describe("#629/#630 — 링크 따라가기: 프로젝트 안은 회수, 밖은 
     symlinkSync(dest, link);
   };
 
-  it("프로젝트 안 대상으로 이어진 링크는 따라가 하네스 파일을 회수하고 집계에 든다", () => {
+  it("#901 — 프로젝트 안이라도 하네스 자리 밖 대상으로 이어진 링크는 따라가 지우지 않는다 — 대상 · 링크가 남고 화면이 말한다", () => {
     install(["claude", "codex"]);
     const real = join(projectDir, "sub", "real-session-start.sh");
     relink(hook(), real);
+    const before = readFileSync(real, "utf8");
     const out = uninstall().join("\n");
-    expect(existsSync(real)).toBe(false);
-    expect(out).toMatch(/removed {2}.*\.codex\/ \d+/);
+    expect(readFileSync(real, "utf8")).toBe(before);
+    expect(lstatSync(hook()).isSymbolicLink()).toBe(true);
+    expect(out).toContain(
+      `.codex/hooks/session-start.sh — your link (→ ${real}) leads outside the places this tool installs to`,
+    );
   });
 
   it("프로젝트 안 대상으로 이어진 config.toml 은 하네스 구간을 걷는다", () => {
