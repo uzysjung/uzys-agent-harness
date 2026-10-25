@@ -1,0 +1,222 @@
+import type { SpawnSyncReturns } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { EXTERNAL_ASSETS, type ExternalAsset } from "../src/external-assets.js";
+import {
+  type ExternalInstallerDeps,
+  refreshExternalSkills,
+  runExternalInstall,
+} from "../src/external-installer.js";
+import { listFilesRecursive } from "../src/fs-ops.js";
+import {
+  hashContent,
+  type InstallLog,
+  readInstallLog,
+  writeInstallLog,
+} from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
+import type { CliTargets, InstallSpec } from "../src/types.js";
+import { createMockAsset } from "./helpers/mock-asset.js";
+
+/**
+ * #918 — 설치 기록은 커밋된다(ADR-100). 남이 고친 기록의 외부 스킬 `files` 가 그 자산의 스킬 폴더 밖(4단 이상 경로 · 다른 스킬
+ * 폴더 · `../` · 링크로 둔 자리)을 가리켜도 update · install 재실행의 hold 가 그 파일을 제자리에서 빼 백업으로 옮기지 않는다.
+ * 실 도구 대신 "고른 에이전트 자리를 폴더째 지우고 상류판을 쓰는" 목(`legacy-external-skill-files-902` 방식).
+ */
+
+const HARNESS_ROOT = resolve(__dirname, "..");
+const found = EXTERNAL_ASSETS.find((a) => a.id === "frontend-design");
+if (found === undefined) throw new Error("catalog has no frontend-design");
+const FD = found;
+const BODY = "# frontend-design\n";
+const SRC = "src/a/b/c.ts";
+const SRC_BODY = "export const x = 1;\n";
+const MINE = ".claude/skills/my-own/SKILL.md";
+const MINE_BODY = "# my own skill\n";
+
+const dirs: string[] = [];
+afterEach(() => {
+  vi.useRealTimers();
+  while (dirs.length > 0) rmSync(dirs.pop() as string, { recursive: true, force: true });
+});
+
+// 실행마다 시계를 하루씩 민다 — 한 테스트 안의 여러 실행이 같은 초의 백업 이름으로 겹치지 않게
+let day = 0;
+function tick(): void {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date(Date.UTC(2026, 10, 1 + ++day)) });
+}
+
+function put(dir: string, rel: string, body: string): void {
+  mkdirSync(dirname(join(dir, rel)), { recursive: true });
+  writeFileSync(join(dir, rel), body);
+}
+
+function read(dir: string, rel: string): string {
+  return readFileSync(join(dir, rel), "utf8");
+}
+
+function ok(): SpawnSyncReturns<string> {
+  return { pid: 0, output: [], stdout: "", stderr: "", status: 0, signal: null };
+}
+
+/** `npx skills add --agent … --copy` 처럼 고른 에이전트 자리마다 `<root>/<name>` 을 지우고 상류판으로 다시 쓴다. */
+function fakeTool(dir: string, name: string): NonNullable<ExternalInstallerDeps["spawn"]> {
+  return (cmd, args) => {
+    if (cmd !== "npx" || args[1] !== "add") return ok();
+    const agents = args.flatMap((a, i) => (args[i - 1] === "--agent" ? [a] : []));
+    for (const agent of new Set(agents)) {
+      const root = agent === "claude-code" ? ".claude/skills" : ".agents/skills";
+      rmSync(join(dir, root, name), { recursive: true, force: true });
+      put(dir, `${root}/${name}/SKILL.md`, BODY);
+    }
+    return ok();
+  };
+}
+
+function install(dir: string, cli: CliTargets): void {
+  tick();
+  runInstall({
+    harnessRoot: HARNESS_ROOT,
+    projectDir: dir,
+    spec: {
+      tracks: ["tooling"],
+      options: { withCodexTrust: false },
+      cli,
+      projectDir: dir,
+      userOverride: { forceInclude: ["frontend-design"], forceExclude: [] },
+    } satisfies InstallSpec,
+    mode: "add",
+    runExternal: (ctx, deps) =>
+      runExternalInstall(
+        { ...ctx, cli },
+        { ...deps, assets: [FD], spawn: fakeTool(dir, "frontend-design") },
+      ),
+  });
+}
+
+function update(dir: string, asset: ExternalAsset = FD, name = "frontend-design"): void {
+  tick();
+  refreshExternalSkills(dir, {
+    spawn: fakeTool(dir, name),
+    assets: [asset],
+    log: () => {},
+    warn: () => {},
+  });
+}
+
+/** 기록의 `id` 자산 `files` 에 위조 항목을 더한다 — 기록 sha 는 디스크와 다르다(설치자가 "고친" 하네스 파일로 읽히는 모양). */
+function forge(dir: string, id: string, paths: ReadonlyArray<string>): void {
+  const log = readInstallLog(dir) as InstallLog;
+  writeInstallLog(dir, {
+    ...log,
+    assets: log.assets.map((a) =>
+      a.id === id
+        ? {
+            ...a,
+            files: [
+              ...(a.files ?? []),
+              ...paths.map((path) => ({ path, sha256: hashContent("forged\n") })),
+            ],
+          }
+        : a,
+    ),
+  });
+}
+
+function backupsIn(dir: string): string[] {
+  return listFilesRecursive(dir).filter((p) => p.includes(".backup-"));
+}
+
+/** 설치 · 설치자 파일 두 개 · 기록 위조 뒤의 프로젝트. */
+function forgedProject(paths: ReadonlyArray<string>, prep?: (dir: string) => void): string {
+  const dir = mkdtempSync(join(tmpdir(), "uzys-918-"));
+  dirs.push(dir);
+  install(dir, ["claude"]);
+  put(dir, SRC, SRC_BODY);
+  put(dir, MINE, MINE_BODY);
+  prep?.(dir);
+  forge(dir, "frontend-design", paths);
+  return dir;
+}
+
+function expectUntouched(dir: string): void {
+  expect(read(dir, SRC)).toBe(SRC_BODY);
+  expect(read(dir, MINE)).toBe(MINE_BODY);
+  expect(backupsIn(dir)).toEqual([]);
+}
+
+const FORGED: ReadonlyArray<[string, ReadonlyArray<string>, ((dir: string) => void)?]> = [
+  ["4단 이상 경로", [SRC]],
+  ["다른 스킬 폴더", [MINE]],
+  ["`../` 로 접두를 바꾼 소스 경로", [`src/../${SRC}`]],
+  ["`../` 로 다른 스킬 폴더로 돌아오는 경로", [".claude/skills/my-own/../my-own/SKILL.md"]],
+  [
+    "스킬 자리를 프로젝트 안 다른 폴더로의 링크로 둔 자리",
+    [".agents/skills/frontend-design/c.ts"],
+    (dir) => {
+      mkdirSync(join(dir, ".agents/skills"), { recursive: true });
+      symlinkSync("../../src/a/b", join(dir, ".agents/skills/frontend-design"));
+    },
+  ],
+];
+
+describe("#918 — 기록이 스킬 폴더 밖을 가리켜도 hold 는 그 파일을 옮기지 않는다", () => {
+  it("대조군 — 위조 없는 기록은 update · install 재실행에서 백업을 남기지 않는다", () => {
+    const dir = forgedProject([]);
+    update(dir);
+    install(dir, ["claude"]);
+    expectUntouched(dir);
+    expect(read(dir, ".claude/skills/frontend-design/SKILL.md")).toBe(BODY);
+  });
+
+  for (const [what, paths, prep] of FORGED) {
+    it(`update — ${what}`, () => {
+      const dir = forgedProject(paths, prep);
+      update(dir);
+      expectUntouched(dir);
+    });
+
+    it(`install 재실행 — ${what}`, () => {
+      const dir = forgedProject(paths, prep);
+      install(dir, ["claude"]);
+      expectUntouched(dir);
+    });
+  }
+
+  it("소스 전체 자산(`detail.skill` 없음)의 기록이 스킬 루트 밖을 가리켜도 update 는 그 파일을 옮기지 않는다", () => {
+    const whole = createMockAsset({
+      id: "whole",
+      condition: { kind: "any-track", tracks: ["tooling"] },
+      method: { kind: "skill", source: "owner/whole" },
+    });
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-whole-"));
+    dirs.push(dir);
+    put(dir, ".claude/skills/w/SKILL.md", BODY);
+    put(dir, SRC, SRC_BODY);
+    writeInstallLog(dir, {
+      schemaVersion: 1,
+      installedAt: "2026-10-01T00:00:00.000Z",
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["claude"] },
+      templates: { claudeDir: ".claude/" },
+      assets: [
+        {
+          id: whole.id,
+          category: "dev-tools",
+          method: "skill",
+          scope: "project",
+          detail: { source: "owner/whole" },
+          files: [
+            { path: ".claude/skills/w/SKILL.md", sha256: hashContent(BODY) },
+            { path: SRC, sha256: hashContent("forged\n") },
+          ],
+        },
+      ],
+    } as InstallLog);
+    update(dir, whole, "w");
+    expect(read(dir, SRC)).toBe(SRC_BODY);
+    expect(backupsIn(dir)).toEqual([]);
+  });
+});

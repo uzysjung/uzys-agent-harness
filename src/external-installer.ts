@@ -1185,12 +1185,9 @@ function slotFilesToKeep(
       .flatMap((a) => (a.files ?? []).map((f) => f.path)),
   );
   // 자리는 기록 파일이 **든 폴더**(`<root>/<id>`)다 — 루트 바로 아래 파일(옛 판이 적은 AppleDouble 짝 `<root>/._<id>` 등)은 자리가
-  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다)
+  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다). #918 — 그 자산이 쓸 수 있는 스킬 폴더만(`recordedSlots`)
   const slots = new Set([
-    ...mine
-      .map((f) => f.path.split("/"))
-      .filter((parts) => parts.length > 3)
-      .map((parts) => parts.slice(0, 3).join("/")),
+    ...hold.recorded.flatMap((a) => recordedSlots(projectDir, a)),
     ...hold.slots,
   ]);
   // #902 — 파일이 든 가장 안쪽 자리가 목록 없는 옛 기록의 자리면 그 파일은 도구 것인지 모른다(소스 전체 자산의 루트 자리 안에서도
@@ -1251,6 +1248,35 @@ function slotFilesToKeep(
     }
   }
   return { files: [...out.values()], left, ownerOf };
+}
+
+/**
+ * #918 — 기록 `files` 가 말하는 자리(항목의 `<root>/<name>` 접두) 가운데 그 자산이 쓸 수 있는 스킬 폴더. 기록은 커밋되는 파일이라
+ * (ADR-100) 경로 글자를 그대로 자리로 삼으면 남이 고친 기록 하나로 hold 가 `src/a/b/` · 다른 스킬 폴더를 훑어 그 안 파일을 백업으로
+ * 옮긴다. 이름 있는 자산은 `<스킬 루트>/<detail.skill>` 만 · 소스 전체 자산(`detail.skill` 없음)은 스킬 루트 바로 아래 한 자리
+ * (`isSkillName`)다 — project 로 깐 그 자산은 이름을 기록하지 않는다(`skillNames`). 글자와 실경로가 둘 다 그 폴더 안이어야 한다
+ * (`inHarnessSlot` — #901 의 같은 판정. 자리끼리 잇는 링크 #524 는 실경로도 스킬 폴더라 그대로다).
+ */
+function recordedSlots(projectDir: string, asset: InstallLogAsset): string[] {
+  const named = asset.detail.skill;
+  if (named !== undefined && !isSkillName(named)) return [];
+  const out = new Set<string>();
+  for (const f of asset.files ?? []) {
+    const parts = f.path.split("/");
+    if (parts.length <= 3) continue;
+    const root = `${parts[0]}/${parts[1]}`;
+    const name = parts[2];
+    if (!(SKILL_ROOTS as ReadonlyArray<string>).includes(root) || !isSkillName(name)) continue;
+    if (named !== undefined && name !== named) continue;
+    const slot = `${root}/${name}`;
+    // 자리 안 한 파일로 잰다 — 자리 자체가 링크면 그 실경로가 판정 대상이다
+    if (
+      !inHarnessSlot(projectDir, `${slot}/_`, skillFolders(SKILL_ROOTS.map((r) => `${r}/${name}`)))
+    )
+      continue;
+    out.add(slot);
+  }
+  return [...out];
 }
 
 /**
