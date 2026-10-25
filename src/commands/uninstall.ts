@@ -723,14 +723,32 @@ function settleLog(
 }
 
 /**
- * #889 — 전량 실행이 기록을 남길 때의 다음 판. 회수한 하네스 파일 · 걷은 몫 · 되돌린 displaced · 지운 앵커는 기록에서도 뺀다
- * (`--cli` · `--track` 과 같은 `forgetRemoved`). 그대로 두면 같은 명령을 다시 돌릴 때 기록이 이미 되돌린 설치자 파일을 하네스
- * 판을 고친 것으로 읽어 백업 이름으로 치운다. 회수하지 못한 것(못 읽음 · 밖 링크)은 기록에 남아 다시 돌릴 때 이어 간다.
+ * #889 — 전량 실행이 기록을 남길 때의 다음 판. 하네스 파일 · 함께 쓰는 파일의 몫 기록은 **그대로 둔다** — 같은 명령을 다시 돌리면
+ * 없는 파일 · 이미 걷은 몫은 할 일이 없어 지나가고(#676 과 같은 계약), update 는 평소처럼 "was missing — restored" 로 다시 깐다
+ * (회차 1 — 회수분까지 빼면 update 가 그 몫을 "안 깐 것" 으로 읽어 Codex 설정 · 훅 없이 성공했다).
+ *
+ * 빼는 것은 **설치자 파일만 남은 자리**의 기록뿐이다: 정리한 displaced 줄(`withoutRestored` 와 같은 `forget`)과 그 자리의 하네스
+ * 파일 기록(앵커 포함), 하네스 절을 걷어 설치자 절만 남긴 `AGENTS.md`(`--cli` 의 `forgetRemoved` 도 그 기록을 뺀다). 남겨 두면
+ * 재실행이 그 파일을 "고친 하네스 판" 으로 읽어 백업 이름으로 치우거나 "modified since install — Remove manually" 라고 말한다.
  */
 function afterFullRemoval(next: InstallLog, done: HarnessRemoval | null): InstallLog {
   if (done === null) return next;
-  const out = forgetRemoved(next, done);
-  if (done.anchor.removed) {
+  const back = new Set([
+    ...done.displaced.filter((d) => d.forget).map((d) => d.path),
+    ...done.stripped,
+    ...done.legacyAgentsMd.filter((l) => !l.fileRemoved).map((l) => l.path),
+  ]);
+  if (back.size === 0) return next;
+  const out: InstallLog = { ...next, rootFiles: withoutRestored(next.rootFiles, done.displaced) };
+  const stays =
+    (prefix: string) =>
+    (f: { path: string }): boolean =>
+      !back.has(`${prefix}${f.path}`);
+  if (out.policyFiles !== undefined) out.policyFiles = out.policyFiles.filter(stays(CLAUDE_DIR));
+  if (out.skillFiles !== undefined) out.skillFiles = out.skillFiles.filter(stays(SKILLS_DIR));
+  if (out.externalFiles !== undefined) out.externalFiles = out.externalFiles.filter(stays(""));
+  const anchor = out.templates.rootClaudeMd;
+  if (anchor !== undefined && back.has(anchor.path)) {
     out.templates = { ...out.templates }; // 원본 기록의 객체를 고치지 않는다
     delete out.templates.rootClaudeMd;
   }

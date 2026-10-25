@@ -21,6 +21,8 @@ import {
 } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { detectInstallState } from "../src/state.js";
+import type { CliBase } from "../src/types.js";
+import { buildUpdateSpec } from "../src/update-mode.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
 
@@ -58,15 +60,18 @@ afterEach(() => {
 const abs = (rel: string): string => join(projectDir, rel);
 const read = (rel: string): string => readFileSync(abs(rel), "utf8");
 
-/** tooling · claude 설치 + 설치자 파일 하나가 하네스 자리에 있던 상태 + `--with openspec` 의 기록. */
-function installWithNpmAsset(extra: ReadonlyArray<InstallLog["assets"][number]> = []): void {
+/** tooling 설치 + 설치자 파일 하나가 하네스 자리에 있던 상태 + `--with openspec` 의 기록. */
+function installWithNpmAsset(
+  extra: ReadonlyArray<InstallLog["assets"][number]> = [],
+  cli: CliBase[] = ["claude"],
+): void {
   mkdirSync(dirname(abs(MINE_PATH)), { recursive: true });
   writeFileSync(abs(MINE_PATH), MINE);
   runInstall({
     runExternal: null,
     harnessRoot: HARNESS_ROOT,
     projectDir,
-    spec: { tracks: ["tooling"], options: { withCodexTrust: false }, cli: ["claude"], projectDir },
+    spec: { tracks: ["tooling"], options: { withCodexTrust: false }, cli, projectDir },
   });
   const log = readInstallLog(projectDir);
   if (log === null) throw new Error("install log missing");
@@ -114,6 +119,42 @@ const backups = (): string[] =>
     .map(String)
     .filter((p) => p.includes(".backup-"));
 
+/** 프로젝트의 파일(백업 · 설치 기록 파일 제외, 프로젝트 상대) — 설치 직후와 비교한다. */
+const files = (): string[] =>
+  readdirSync(projectDir, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => join(e.parentPath, e.name).slice(projectDir.length + 1))
+    .filter((p) => !p.includes(".backup-") && p !== `${INSTALL_LOG_DIR}/.harness-install.json`)
+    .sort();
+
+const CONTEXT = "CONTEXT — 결제 팀 저장소.";
+
+/**
+ * 설치자가 AGENTS.md 의 Project Context 를 채우고 update — update 가 설치자 절을 살린 채 다시 써서 기록 sha = 디스크가 된다(uninstall 이
+ * "설치자 절만 남기기" 로 들어가는 조건).
+ */
+function fillAgentsContext(): void {
+  const agents = read("AGENTS.md");
+  expect(agents, "시나리오 자기검증 — 채울 자리가 있다").toContain("## Project Context\n");
+  writeFileSync(
+    abs("AGENTS.md"),
+    agents.replace("## Project Context\n", `## Project Context\n\n${CONTEXT}\n`),
+  );
+  update();
+  expect(read("AGENTS.md")).toContain(CONTEXT);
+}
+
+/** `agent-harness update` 와 같은 입력 — 감지한 트랙으로 만든 spec 으로 update 파이프라인을 돈다(외부 도구는 부르지 않는다). */
+function update(): void {
+  runInstall({
+    runExternal: null,
+    harnessRoot: HARNESS_ROOT,
+    projectDir,
+    mode: "update",
+    spec: buildUpdateSpec(projectDir, detectInstallState(projectDir).tracks),
+  });
+}
+
 /**
  * #889 — 전량 uninstall 중 되돌리기(npm · plugin)가 실패해도 기록을 통째로 지우던 결함. 기록이 사라지면 남은 devDependency 를
  * 뺄 길(같은 명령 · `--only`)이 영영 막히고, 다시 돌리면 "설치가 없다" 며 install 을 권했다.
@@ -130,16 +171,19 @@ describe("#889 전량 uninstall — 되돌리기에 실패한 자산은 기록�
     expect(out.text).not.toContain("install log removed");
     expect(out.text).toContain("install log kept");
     expect(out.text).toContain("agent-harness uninstall --only openspec");
-    // 기록은 남고 그 자산만 든다 — 하네스 파일은 회수돼 기록에서도 빠졌다
+    // 기록은 남는다. 설치자 파일이 돌아온 자리의 기록(displaced 줄 · 그 자리의 하네스 판)만 빠지고, 회수한 하네스 파일 기록은
+    // 그대로라 update 가 평소처럼 다시 깔 수 있다(회차 1)
     expect(existsSync(installLogPath(projectDir))).toBe(true);
     expect(detectInstallState(projectDir).state).toBe("installed");
     const log = readInstallLog(projectDir);
     expect(log?.assets.map((a) => a.id)).toContain("openspec");
-    expect(log?.policyFiles ?? []).toEqual([]);
-    expect(log?.templates.rootClaudeMd, "지운 앵커도 기록에서 빠진다").toBeUndefined();
     expect(log?.rootFiles?.some((f) => f.path === MINE_PATH && f.change === "displaced")).toBe(
       false,
     );
+    const policy = (log?.policyFiles ?? []).map((f) => `.claude/${f.path}`);
+    expect(policy).not.toContain(MINE_PATH);
+    expect(policy).toContain(".claude/rules/test-policy.md");
+    expect(log?.templates.rootClaudeMd).toBeDefined();
     // 하네스 파일 회수 · 설치자 파일 되돌리기는 그대로 일어났다
     expect(read(MINE_PATH)).toBe(MINE);
   });
@@ -162,6 +206,57 @@ describe("#889 전량 uninstall — 되돌리기에 실패한 자산은 기록�
     // 첫 실행이 되돌린 설치자 파일을 두 번째 실행이 "고친 하네스 파일" 로 읽어 백업 이름으로 치우지 않는다
     expect(read(MINE_PATH)).toBe(MINE);
     expect(backups()).toEqual([]);
+  });
+
+  it("회차 1 · 몫 기록을 남겨도 재실행은 설치자 몫(함께 쓰는 파일 · AGENTS.md 설치자 절)을 건드리지 않는다", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-22T01:00:00Z"));
+    writeFileSync(abs(".gitignore"), "node_modules/\nMY-IGNORE\n");
+    writeFileSync(
+      abs(".mcp.json"),
+      `${JSON.stringify({ mcpServers: { mine: { command: "mine" } } })}\n`,
+    );
+    installWithNpmAsset([], ["claude", "codex"]);
+    fillAgentsContext();
+    uninstall({ yes: true }, true);
+    const kept = [".gitignore", ".mcp.json", "AGENTS.md"].map((p) => [p, read(p)] as const);
+    expect(read("AGENTS.md")).toContain("CONTEXT — 결제 팀 저장소.");
+    expect(read(".gitignore")).toContain("MY-IGNORE");
+    const savedBefore = backups();
+    vi.setSystemTime(new Date("2026-10-22T02:00:00Z"));
+
+    const again = uninstall({ yes: true });
+
+    expect(again.code).toBe(0);
+    for (const [p, text] of kept) expect(read(p), p).toBe(text);
+    expect(backups()).toEqual(savedBefore);
+    expect(existsSync(abs(INSTALL_LOG_DIR))).toBe(false);
+    // 설치자 절만 남은 AGENTS.md 를 "고쳤으니 손으로 지우라" 고 하지 않는다
+    expect(again.text).not.toContain("AGENTS.md kept — modified since install");
+  });
+
+  it("회차 1 · 기록을 남긴 뒤 update 는 지운 하네스 몫을 다시 깐다 — Codex 설정 · 훅 · AGENTS.md 하네스 절도", () => {
+    installWithNpmAsset([], ["claude", "codex"]);
+    fillAgentsContext();
+    const installed = files();
+    for (const p of [".codex/config.toml", ".codex/hooks/session-start.sh", "AGENTS.md"])
+      expect(installed, `시나리오 자기검증 — 설치가 ${p} 를 깔았다`).toContain(p);
+    uninstall({ yes: true }, true);
+    expect(existsSync(abs(".codex/config.toml")), "시나리오 자기검증 — 회수됐다").toBe(false);
+    expect(read("AGENTS.md"), "시나리오 자기검증 — 하네스 절을 걷었다").not.toContain(
+      "## Harness Rules",
+    );
+
+    update();
+
+    const after = files();
+    // `.claude/.installed-tracks` 는 보통 설치본에서 지워도 update 가 다시 만들지 않는다(대조 실측) — 이 PR 의 몫이 아니다
+    for (const p of installed.filter((f) => f !== ".claude/.installed-tracks"))
+      expect(after, p).toContain(p);
+    expect(read("AGENTS.md")).toContain(CONTEXT);
+    expect(read("AGENTS.md")).toContain("## Harness Rules");
+    // 돌아온 설치자 파일은 다시 첫 접촉으로 비켜 둔다 — 내용은 백업에 있다
+    expect(backups().some((b) => b.startsWith(MINE_PATH) && read(b) === MINE)).toBe(true);
   });
 
   it("남은 자산만 `--only` 로 뺄 수도 있다", () => {
