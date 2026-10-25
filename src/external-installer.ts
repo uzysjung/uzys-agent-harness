@@ -146,7 +146,7 @@ export interface ToolFiles {
  * antigravity 는 공용 `.agents/skills/`(`SKILLS_CLI_AGENT_MAP` 주석). `--agent` 를 넘기지 않는 레거시 경로(`cli: []`)는
  * 더 많은 도구 자리에 깔지만 그 자리는 기록하지 않는다 — 남는 것은 지우지 않는 쪽이다.
  */
-const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
+export const SKILL_ROOTS = [".claude/skills", ".agents/skills"] as const;
 
 /** `npx skills add --agent <cli> --copy` 가 그 CLI 몫을 놓는 자리. */
 function skillRootOf(cli: CliTargets[number]): (typeof SKILL_ROOTS)[number] {
@@ -898,9 +898,11 @@ export function reclaimGlobalSkillCopies(
     if (a.method !== "skill" || a.scope !== "global" || excluded.has(a.id)) continue;
     if (opts.ids !== undefined && !opts.ids.has(a.id)) continue;
     // 소스 전체를 까는 자산(`detail.skill` 없음)은 install · update 가 잰 이름(`skills`)으로 — 이름이 없는 옛 기록은 다음 update 가 잰다
+    // #901 — `detail.skill` 도 기록의 글자다(`..` 면 자리가 스킬 루트 위 폴더 — 프로젝트 전체를 훑어 치운다). 같은 거름을 건다
     const skill = a.detail.skill;
-    const names =
-      skill !== undefined ? [skill] : (Array.isArray(a.skills) ? a.skills : []).filter(isSkillName);
+    const names = (skill !== undefined ? [skill] : Array.isArray(a.skills) ? a.skills : []).filter(
+      isSkillName,
+    );
     for (const name of names) {
       for (const root of roots) {
         const slot = `${root}/${name}`;

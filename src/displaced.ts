@@ -3,7 +3,8 @@
  *
  * 하네스 자산과 같은 이름의 설치자 파일이 있던 자리에 하네스 판을 쓰면 그 원본을 백업하고 기록에 `rootFiles.change =
  * displaced`(`notes[0]` = 백업 경로)로 적는다. 하네스가 그 자리를 떠나면(파일을 지운 뒤) 원본을 원래 이름으로 되돌린다 —
- * 자리가 막혔거나 백업이 없거나, 기록이 댄 백업이 프로젝트 밖이거나 이 자리의 백업 이름이 아니면(#887 · #894) 되돌리지 않고 말한다.
+ * 자리가 막혔거나 백업이 없거나, 기록이 댄 백업이 프로젝트 밖이거나 이 자리의 백업 이름이 아니거나(#887 · #894), 그 자리가 하네스
+ * 자리 밖이면(#901 · `harness-slot.ts`) 되돌리지 않고 말한다.
  *
  * 배선(호출부가 하네스 판을 지운 **뒤**, 그 실행의 기록 쓰기 **앞**에 부른다):
  *   - uninstall 전량 · `--cli` — `commands/uninstall.ts` `removeHarnessFiles`
@@ -18,6 +19,7 @@
 import { lstatSync, mkdirSync, readFileSync, renameSync } from "node:fs";
 import { basename, dirname, join, posix } from "node:path";
 import { backupOriginal } from "./fs-ops.js";
+import { inHarnessSlot } from "./harness-slot.js";
 import { hashContent, type InstallLog, type InstallLogRootFile } from "./install-log.js";
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
@@ -108,6 +110,18 @@ export function restoreDisplaced(
     const slot = join(projectDir, f.path);
     // 하네스는 밖에 쓰지 않았다 — 그 자리의 말은 밖 링크 줄이 한다
     if (outsideProjectTarget(projectDir, slot) !== null) continue;
+    // #901 — displaced 는 하네스 자리에서만 생긴다. 자리가 그 밖이면(`.env`) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴
+    // 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
+    if (!inHarnessSlot(projectDir, f.path)) {
+      out.push({
+        path: f.path,
+        backup: f.notes[0] ?? null,
+        verdict: "advise",
+        line: "not put back — the install record says this tool moved a file of yours aside here, but this is outside the places this tool installs to; left it as is",
+        forget: true,
+      });
+      continue;
+    }
     // #807 — 원본이 옛 하네스 바이트면 되돌릴 설치자 파일이 없다(백업 없는 자리와 같다 — 조용히 기록만 뺀다)
     const backup = isLegacyDisplaced(log, projectDir, f) ? null : (f.notes[0] ?? null);
     // #887 — 백업이 밖이면 옮기지 않는다(밖 파일을 프로젝트 안으로 끌어오는 것이다). 하네스가 쓴 기록일 수 없으니 기록도 뺀다
