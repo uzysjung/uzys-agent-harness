@@ -135,6 +135,7 @@ import {
   usersOf,
 } from "../recorded.js";
 import { ruleHeadings } from "../rules-port.js";
+import { oneLine, screenText } from "../screen-text.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
 import type { TrackRemoval } from "../track-removal.js";
@@ -195,10 +196,10 @@ export interface UninstallActionDeps {
  * NOTE-1): 전량 uninstall 은 같은 실행에서 기록을 지우므로, 설치자가 손으로 정리할 근거는 이 줄뿐이다.
  */
 function keptOutsideLinkLine(o: OutsideLink, log: InstallLog): string {
-  const head = `  ${c.yellow("⊘")} ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}). Nothing behind it is removed`;
+  const head = `  ${c.yellow("⊘")} ${screenText(o.link)} — left as is: the link points outside the project (${screenText(o.link)} → ${screenText(o.linkTarget)}). Nothing behind it is removed`;
   const files = recordedUnder(log, o.link);
   if (files.length === 0) return `${head}; clean up harness files there by hand if intended.`;
-  const shown = files.slice(0, KEPT_LINK_FILES_SHOWN).join(" · ");
+  const shown = files.slice(0, KEPT_LINK_FILES_SHOWN).map(screenText).join(" · ");
   const more =
     files.length > KEPT_LINK_FILES_SHOWN ? ` +${files.length - KEPT_LINK_FILES_SHOWN} more` : "";
   return `${head}; harness files there on record: ${shown}${more} — clean them up by hand if intended.`;
@@ -917,7 +918,7 @@ function backupArtifactAdvisoryLines(projectDir: string): string[] {
     c.yellow(
       `[BACKUPS] 하네스가 남긴 백업 ${found.length}건 (자동으로 지우지 않는다 — 내용 확인 후 삭제):`,
     ),
-    ...found.sort().map((f) => c.dim(`  ${f}`)),
+    ...found.sort().map((f) => c.dim(`  ${screenText(f)}`)),
   ];
 }
 
@@ -944,14 +945,14 @@ function rootFileAdvisoryLines(
     c.yellow(header),
     ...[...outside.values()].map(({ link: o, files }) =>
       c.dim(
-        `  · ${o.link} — left as is: the link points outside the project (${o.link} → ${o.linkTarget}); harness files there: ${files.join(" · ")} (other projects linked to it may use them)`,
+        `  · ${screenText(o.link)} — left as is: the link points outside the project (${screenText(o.link)} → ${screenText(o.linkTarget)}); harness files there: ${files.map(screenText).join(" · ")} (other projects linked to it may use them)`,
       ),
     ),
     ...inside.flatMap((f) => [
-      c.dim(`  · ${f.path} — ${rootFileMeaning(f, projectDir)}`),
+      c.dim(`  · ${screenText(f.path)} — ${rootFileMeaning(f, projectDir)}`),
       // displaced 의 notes 는 백업 경로 하나 — 위 줄이 이미 댔다
       ...(f.change !== "displaced" && f.notes.length > 0
-        ? [c.dim(`      ${f.notes.join(" / ")}`)]
+        ? [c.dim(`      ${f.notes.map(oneLine).join(" / ")}`)]
         : []),
     ]),
   ];
@@ -982,8 +983,8 @@ function rootFileMeaning(f: InstallLogRootFile, projectDir: string): string {
       const backup = f.notes[0];
       if (backup === undefined) return "하네스 판과 같은 설치자 파일이 있던 자리 (그대로 두었다)";
       return existsSync(join(projectDir, backup))
-        ? `하네스가 쓴 자리 — 원래 있던 설치자 파일은 ${backup} 에 있다`
-        : `하네스가 쓴 자리 — 원래 있던 설치자 파일의 백업(${backup})이 더는 없다`;
+        ? `하네스가 쓴 자리 — 원래 있던 설치자 파일은 ${screenText(backup)} 에 있다`
+        : `하네스가 쓴 자리 — 원래 있던 설치자 파일의 백업(${screenText(backup)})이 더는 없다`;
     }
   }
 }
@@ -2511,14 +2512,16 @@ function displacedLines(displaced: ReadonlyArray<DisplacedOutcome>, preview: boo
   const restore = displaced.filter((d) => d.verdict === "restore");
   if (preview && restore.length > 0) {
     lines.push(
-      `  ○ put back ${restore.length} file(s) of yours (displaced): ${restore.map((d) => d.path).join(" · ")}`,
+      `  ○ put back ${restore.length} file(s) of yours (displaced): ${restore.map((d) => screenText(d.path)).join(" · ")}`,
     );
   }
   for (const d of displaced) {
     if (d.verdict === "restore" && !preview) {
-      lines.push(`  ${status.success(`put back  ${d.path} (from ${d.backup})`)}`);
+      lines.push(
+        `  ${status.success(`put back  ${screenText(d.path)} (from ${screenText(String(d.backup))})`)}`,
+      );
     } else if (d.verdict === "advise") {
-      lines.push(`  ${c.yellow("⊘")} ${d.path} — ${d.line}`);
+      lines.push(`  ${c.yellow("⊘")} ${screenText(d.path)} — ${d.line}`);
     }
   }
   return lines;
@@ -2675,7 +2678,7 @@ function outsideLines(outside: ReadonlyArray<OutsideLink>, log: InstallLog): str
   for (const o of outside) if (!byLink.has(o.link)) byLink.set(o.link, o);
   return [...byLink.values()].map((o) =>
     o.link === o.path
-      ? `  ${c.yellow("⊘")} ${o.path} kept — link target is outside the project (${o.target}). Not touched; remove manually if intended.`
+      ? `  ${c.yellow("⊘")} ${screenText(o.path)} kept — link target is outside the project (${screenText(o.target)}). Not touched; remove manually if intended.`
       : keptOutsideLinkLine(o, log),
   );
 }
@@ -3046,7 +3049,7 @@ function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[
     ...literal.map((path) => offSlotLine(path, "lists it")),
     ...[...byLink].map(
       ([link, g]) =>
-        `  ${c.yellow("⊘")} ${oneLine(link)} — your link (→ ${oneLine(g.target)}) leads outside the places this tool installs to; left ${g.files.length} file(s) on the install record under it. Not touched — remove by hand if intended.`,
+        `  ${c.yellow("⊘")} ${screenText(link)} — your link (→ ${screenText(g.target)}) leads outside the places this tool installs to; left ${g.files.length} file(s) on the install record under it. Not touched — remove by hand if intended.`,
     ),
   ];
 }
@@ -3140,14 +3143,6 @@ function isPlainPath(path: string): boolean {
     .every((seg) => /^[A-Za-z0-9._][A-Za-z0-9._-]*$/.test(seg) && seg !== "." && seg !== "..");
 }
 
-/** #910 링크 요약 줄에 찍는 링크 이름 · 대상의 제어 문자(줄바꿈 · ESC 포함)를 `\uXXXX` 로 적어 한 줄에 가둔다. 평범한 이름은 그대로다. */
-function oneLine(text: string): string {
-  return text.replace(
-    /[\p{Cc}\u2028\u2029]/gu,
-    (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`,
-  );
-}
-
 /** 경로의 가장 얕은 링크 성분(project 상대)과 그 링크 글자 — 없으면 null. */
 function linkOnPath(projectDir: string, path: string): { link: string; target: string } | null {
   const parts = path.split("/");
@@ -3166,7 +3161,7 @@ function linkOnPath(projectDir: string, path: string): { link: string; target: s
 
 /** #901 — 기록에 있지만 하네스 자리 밖이라 건드리지 않은 경로의 줄(미리보기 · 실행 같은 말). */
 function offSlotLine(path: string, what: string): string {
-  return `  ${c.yellow("⊘")} ${path} left — the install record ${what}, but it is (or leads) outside the places this tool installs to. Not touched.`;
+  return `  ${c.yellow("⊘")} ${screenText(path)} left — the install record ${what}, but it is (or leads) outside the places this tool installs to. Not touched.`;
 }
 
 /**
