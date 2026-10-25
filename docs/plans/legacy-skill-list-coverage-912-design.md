@@ -1,7 +1,7 @@
-# #912 설계 — 옛 기록 외부 스킬의 파일 목록에 "그 목록이 말하는 폴더"를 함께 적는다
+# #912 설계 — 옛 기록 외부 스킬의 파일 목록이 "자기 항목이 든 폴더만" 말하게 한다
 
 - 이슈: #912 · 앞 PR: #906(#902) · 관련: #686 리뷰 B1 · #770 · #780 · #867
-- 상태: 설계 검증 전(2026-10-25)
+- 상태: 설계 검증 1회 반영(2026-10-25, 판정문 BLOCKER 2 · NOTE 7 — 아래 §검증 반영)
 
 ## 설치자에게 달라지는 것
 
@@ -28,45 +28,60 @@
 
 ### 기록
 
-`InstallLogAsset` 에 선택 필드 `filesSlots?: ReadonlyArray<string>` — `files` 가 말하는 스킬 폴더(`<root>/<name>`, project 상대,
-정렬 · 중복 없음). `INSTALL_LOG_VERSION` 은 올리지 않는다(이 파일의 선택 필드 관행).
+`InstallLogAsset` 에 선택 표지 `filesPartial?: true` — "`files` 는 **자기 항목이 든 스킬 폴더만** 말한다(그 밖 폴더는 모름)".
+`INSTALL_LOG_VERSION` 은 올리지 않는다(이 파일의 선택 필드 관행).
 
 | 기록 | 뜻 |
 |---|---|
 | `files` 없음 | 모든 폴더 모름 — 지금 그대로 |
-| `files` 있음 · `filesSlots` 없음 | 목록이 모든 폴더를 말한다 — v26.164.0 이후 처음 깐 자산, 지금 그대로 |
-| `files` 있음 · `filesSlots` 있음 | 목록은 `filesSlots` 의 폴더만 말한다. 그 밖 폴더는 **"모름" — `files` 없음과 같은 처리** |
+| `files` 있음 · 표지 없음 | 목록이 모든 폴더를 말한다 — v26.164.0 이후 처음 깐 자산, 지금 그대로 |
+| `files` 있음 · `filesPartial: true` | 목록은 자기 항목이 든 폴더(항목 경로의 3-세그먼트 접두 `<root>/<name>` — `skillFolderOf`)만 말한다. 그 밖 폴더는 **"모름" — `files` 없음과 같은 처리** |
 
-### 쓰는 규칙 (install · update 가 함께 쓰는 한 곳)
+덮은 폴더 집합을 따로 적지 않는 이유: 덮은 폴더마다 목록 항목이 하나 이상 있고(규칙 1 이 "도구가 그 폴더에 썼다"를 요구한다)
+어느 쓰기도 항목을 빼지 않으므로, 덮은 폴더 = `files` 의 3-세그먼트 접두 집합이 언제나 성립한다. 둘째 목록을 두면 동기화할 것만 는다.
 
-앞 기록이 "모름"(`files` 없음)이거나 `filesSlots` 가 있는 자산이 이번 실행에서 ok 일 때만:
+### 쓰는 규칙 (install · update 가 함께 쓰는 `buildAssetEntries`)
 
-1. **덮은 폴더** = 이번 실행의 hold 가 호출 전에 그 폴더의 파일을 **하나도 남기지 않고** 비켜 두었고(원래 비어 있던 폴더 포함),
-   도구가 이번에 그 폴더에 파일을 썼다. 호출 전부터 제자리에 남은 파일이 하나라도 있으면(못 읽음 · 다른 자산 · 하네스 기록이
-   말하는 경로) 그 폴더는 덮은 폴더가 아니다 — 그 파일이 목록에서 빠져 짧은 목록이 되기 때문이다. 판정 근거는 hold 가 이미
-   아는 사실(옮긴 것 · 건너뛴 것 · 도구 보고)이고 디스크 존재가 아니다.
-2. 덮은 폴더의 목록 = 호출 뒤 그 폴더에 있는 도구 바이트 전부 — 도구 보고의 `created` 와, 같은 바이트라 제자리로 돌린 파일
-   (지금 `withoutCreated` 가 `created` 에서 빼는 것). 후자는 도구가 방금 쓴 바이트와 같으므로 도구 파일로 적는다(같은 바이트면
-   하네스 판과 같다 — 원칙의 "내용이 하네스 판과 같으면 그대로 둔다").
-3. `files` = (앞 목록 가운데 덮은 폴더 **밖** 항목) ∪ (2 의 항목), `filesSlots` = 앞 `filesSlots` ∪ 덮은 폴더.
-4. 덮은 폴더가 하나도 없으면 기록을 바꾸지 않는다(모름 유지 — 지금 그대로).
+앞 기록이 "모름"(`files` 없음)이거나 `filesPartial` 인 자산이 이번 실행에서 ok 일 때만:
 
-앞 기록이 `files` 있음 · `filesSlots` 없음이면 지금 병합(`mergeToolFiles`) 그대로다. 처음 더하는 자산(앞 기록 없음)도 지금 그대로다.
+1. **덮은 폴더** = 이번 실행의 hold 가 든 자리(`slots`) 안의 폴더 가운데, hold 가 호출 전에 그 폴더의 파일을 **하나도 남기지 않고**
+   비켜 두었고(원래 비어 있던 폴더 포함) 도구가 이번에 그 폴더에 파일을 쓴 폴더. 판정 근거는 hold 가 이미 아는 사실(옮긴 것 ·
+   건너뛴 것 · 도구 보고)이고 디스크 존재가 아니다. 셈의 경계:
+   - "남은 것" = `slotFilesToKeep` 가 건너뛴 셋 — 못 읽음 · 다른 자산 기록이 말하는 경로 · 하네스 기록이 말하는 경로. 이 가운데
+     하나라도 든 폴더는 덮은 폴더가 아니다(그 파일이 목록에서 빠져 짧은 목록이 되기 때문이다 — 다른 자산 · 하네스 경로 때문에 못
+     덮는 것은 과잉이지만 안전하다).
+   - 실경로 중복(같은 실파일을 다른 자리 경로로 다시 만나 건너뜀 — 링크 자리)은 "옮긴 것"이다.
+   - 도구 보고(`created`)에만 나오고 hold 가 든 자리 밖인 폴더는 hold 가 들여다본 적이 없어 덮은 폴더가 아니다.
+2. 덮은 폴더의 목록 = 호출 뒤 그 폴더에 있는 도구 바이트 전부 — 도구 보고의 `created` 와, 같은 바이트라 제자리로 돌린 파일(지금
+   `withoutCreated` 가 `created` 에서 빼는 것). 근거: 목록 없는 자리의 파일은 기록이 "옛 하네스 판이 이 폴더를 깔았다"고 말하는
+   자리의 파일이라 ADR-097 결정 7 의 "기록 없는 설치자 파일"이 아니다. 같은 바이트면 지금 도구가 쓴 사본과 구별되지 않고, 빼면 짧은
+   목록이 된다(다음 update 가 displaced 로 읽어 `--only` 가 옛 바이트를 되살린다). 그래서 도구 파일로 적는다 — 설치자 바이트 손실은
+   없다(지워져도 상류 사본과 같은 바이트다). 결정 7 의 적용 범위(처음 더하는 자산 · 목록 있는 자리의 설치자 파일)는 그대로다.
+3. `files` = (앞 목록 가운데 덮은 폴더 **밖** 항목) ∪ (2 의 항목), 그리고 `filesPartial: true`.
+4. 덮은 폴더가 하나도 없으면 목록의 **경로 집합과 표지**를 바꾸지 않는다(옛 기록이면 모름 유지 — 지금 그대로).
 
-링크로 한 폴더가 두 자리로 읽히면(`.claude/skills/<id>` → `.agents/skills/<id>`, #524 · #838 · #867) 덮음은 실경로로 같은
-폴더면 같다 — `filesSlots` 에는 도구 보고의 글자 경로를 적고, 읽을 때 실경로로도 맞춘다(#867 의 `realSha` 와 같은 방식).
+규칙 1 ~ 4 는 목록의 경로 집합과 표지에 대한 것이다. **앞 목록에 이미 있는 경로의 sha 는 덮은 폴더 여부와 무관하게 지금 병합대로
+이번 도구 보고(`changed`)의 값으로 잇는다**(`mergeToolFiles`). 규칙 4 의 "바꾸지 않는다"는 경로 집합 · 표지가 그대로라는 뜻이고,
+sha 갱신은 그 밖이다. (안 이으면 기록 sha 와 같아 제자리에 둔 파일을 도구가 덮어도 기록이 옛 sha 로 남아, 상류가 다시 바뀌는
+update 부터 그 파일이 "you edited it" 으로 백업된다.)
 
-### 읽는 쪽 (전수 — 구현 레인이 grep 으로 다시 세고 빠진 곳을 보고한다)
+앞 기록이 `files` 있음 · 표지 없음이면 지금 병합(`mergeToolFiles`) 그대로다. 처음 더하는 자산(앞 기록 없음)도 지금 그대로다.
 
-"목록이 모든 폴더를 말한다"를 전제로 쓰는 자리는 `filesSlots` 밖 폴더를 모름으로 다룬다. 전제를 안 쓰는 자리는 그대로다.
+링크로 한 폴더가 두 자리로 읽히면(`.claude/skills/<id>` → `.agents/skills/<id>`, #524 · #838 · #867) 두 글자 경로가 모두 `created` 에
+나오고 둘 다 덮은 폴더다. 이후 판정은 지금처럼 `realSha` 가 파일 단위로 맞춘다.
+
+### 쓰고 읽는 곳 (검증 레인이 grep 으로 센 전수)
 
 | 자리 | 지금 | 바뀌는 것 |
 |---|---|---|
-| `unlistedSkillSlots` (external-installer) | `files` 없음 자산의 자리 | `filesSlots` 밖 자리도 넣는다 — hold 의 "모름" 처리가 그대로 붙는다 |
-| uninstall `case "skill"` (`commands/uninstall.ts` ~1816) · `noReverseHints` | `files` 없으면 지우지 않고 남는 것을 알림 | 목록 파일만 지우고, `filesSlots` 밖 폴더는 같은 문구로 남는다고 알림 |
-| `uninstall-interactive.ts` ~118 화면 문구 | 모름 / N개 | 일부 모름이면 둘 다 말한다 |
-| `excluded-still-there.ts` ~60 · `install-log.ts` `assetFiles` | 목록 있으면 목록만 본다 | `filesSlots` 밖 폴더는 지금 "모름" 가지(폴더 존재)를 함께 본다 |
-| `uninstall.ts` 527 · 2491 · 2503 · 2649 · 2732 · `reclaimGlobalSkillCopies` · `slotFilesToKeep` 의 `others` | 다른 자산이 말하는 경로 집합 등 | 전제를 쓰는지 하나씩 판정 — 경로 집합으로만 쓰면 그대로 |
+| `buildAssetEntries` (install-log) | 옛 기록이면 `files` 를 적지 않음 | 위 규칙 1 ~ 4 + sha 이음. hold 결과(덮은 폴더 · 제자리로 돌린 같은 바이트 파일)를 입력으로 받는다 |
+| `recordRefreshedFiles` (external-installer :1303-1310) — update 의 옮겨 적기 | `files` · `skills` 만 옮기고 `files` 만 비교 | 표지도 옮겨 적고 비교한다(안 그러면 update 경로가 표지를 떨어뜨린다) |
+| `unlistedSkillSlots` (external-installer) | `files` 없음 자산의 자리 | 표지가 있으면 목록 항목이 든 폴더 밖 자리도 넣는다 — hold 의 "모름" 처리가 그대로 붙는다 |
+| uninstall `case "skill"` (`commands/uninstall.ts` ~1816) · `noReverseHints` | `files` 없으면 지우지 않고 남는 것을 알림 | 목록 파일만 지우고, 목록 밖 폴더는 같은 문구로 남는다고 알림(이름이 있는 스킬만 폴더 이름이 붙는다 — whole-source 는 지금처럼 이름 없이 "nothing removed") |
+| `uninstall-interactive.ts` ~118 화면 문구 | 모름 / N개 | 표지가 있으면 둘 다 말한다 |
+| `excluded-still-there.ts` ~60 | 목록 있으면 목록만 본다 | 표지가 있으면 목록 밖 폴더는 지금 "모름" 가지(폴더 존재)를 함께 본다 |
+| `uninstall.ts` 527 · 2491 · 2503 · 2649 · 2732 · `reclaimGlobalSkillCopies` `others` · `slotFilesToKeep` `mine`/`others` | 경로 집합으로만 쓴다 | 변경 없음(덮지 못한 폴더의 파일은 2649 가 지금의 "모름"과 같이 "not on the install record — yours, or left by an older harness version"으로 센다) |
+| `install-log.ts` `assetFiles` | — | 변경 없음 — `excludedKeysMigrated` 없는 기록에만 도달하고, 표지를 쓰는 판은 그 표지를 항상 찍는다 |
 | 판정 줄(`judge.ts` `noFileList*`) | — | 그대로 |
 
 ## 버리는 대안
@@ -74,25 +89,34 @@
 - **이슈 1안**(모든 사본 자리를 덮었을 때만 목록) — 실행은 "모든 사본 자리"를 알 수 없다. #906 회차 1 이 이 판정으로 깨졌다.
 - **디스크로 사본 자리를 세어 판정** — 디스크 존재를 판정 근거로 쓰게 되고(ADR-096), 링크 · 대소문자 무시 볼륨에서 셈이 틀린다.
 - **남은 폴더 파일을 "sha 모름" 항목으로 목록에 넣기** — uninstall 이 그 파일을 지우게 되어 지금의 "모름 = 남기고 알림"과 달라진다.
+- **덮은 폴더 목록을 따로 적기**(`filesSlots`) — `files` 에서 언제나 유도되는 값이라 동기화할 둘째 목록만 는다(검증 NOTE-1).
 - **목록을 자리별 맵으로 바꾸기**(`filesBySlot`) — 읽는 쪽 전부를 고쳐야 하고 옛 기록 · v26.164.0 이후 기록과 두 갈래가 된다.
-  `filesSlots` 는 v26.164.0 이후 기록을 한 글자도 바꾸지 않는다.
 
 ## 남는 위험 (감수)
 
-- 옛 하네스 판(v26.176.0 이하)으로 되돌려 돌리면 `filesSlots` 를 모르고 `files` 를 모든 폴더로 읽는다 → 덮지 못한 폴더의 옛 도구
-  파일이 displaced 로 적혀 uninstall 이 그 파일을 "yours"로 되살릴 수 있다. 설치자 바이트는 잃지 않는다(남는 것은 낡은 도구 파일
-  한 벌). 판 되돌리기는 드물고, 이 기록의 선택 필드 관행이 같은 위험을 이미 안는다.
+- 표지를 모르는 판(v26.176.0 이하)이 이 기록을 읽으면 `files` 를 모든 폴더로 읽는다 → 덮지 못한 폴더의 옛 도구 파일이 displaced 로
+  적혀 uninstall 이 그 파일을 "yours"로 되살릴 수 있다. 설치자 바이트는 잃지 않는다(남는 것은 낡은 도구 파일 한 벌). 현실 경로는 판
+  되돌리기보다 **커밋된 기록(ADR-100)을 옛 판 팀원이 update 하는 것**이다 — CHANGELOG 에 "팀원은 같은 판 이상으로" 한 줄을 둔다.
 
 ## Acceptance Criteria (이슈 AC 의 구체화 — Clarification: "목록을 적지 않고" → "덮지 못한 폴더는 목록이 말하지 않고")
 
-1. 목록 없는 옛 기록 + 설치자 파일 없음 + 상류가 바뀌는 update 2회 → 두 번째 update 는 덮은 폴더에서 백업을 만들지 않는다
-   (claude 만 · claude + codex 둘 다).
+1. 목록 없는 옛 기록 + 설치자 파일 없음 + 상류가 매번 바뀌는 update 3회(V1→V2→V3→V4) → 두 번째 · 세 번째 update 는 덮은 폴더에서
+   백업 0, `judged` 에 `recorded: "sha"` 행 0, 기록 sha = 마지막 상류 판(claude 만 · claude + codex 둘 다).
 2. 덮지 못한 자리가 있는 실행 — #906 리뷰 세 장면(CLI 일부 재설치 · `uninstall --cli codex` 뒤 update → codex 다시 더하기 →
-   `uninstall --only` · project → global) → 덮지 못한 폴더는 `filesSlots` 밖이고, displaced 0, 이후 uninstall 이 낡은 도구 파일을
-   설치자 원본으로 되살리지 않는다.
+   `uninstall --only` · project → global) → 덮지 못한 폴더는 목록 밖이고, displaced 0, 이후 uninstall 이 낡은 도구 파일을 설치자
+   원본으로 되살리지 않는다.
 3. 옛 기록 폴더에 설치자 노트가 있으면 첫 update 는 지금처럼 백업 + "no file list on record" 줄. 그 폴더가 덮인 뒤 설치자가 노트를
    다시 두면 다음 update 에서 설치자 파일로 남는다.
-4. 덮은 폴더에 호출 전부터 남은 파일이 있으면(못 읽는 파일 등) 그 폴더는 덮은 폴더가 아니다 — 목록 · `filesSlots` 에 들지 않는다.
+4. 덮을 폴더에 호출 전부터 남은 파일이 있으면(못 읽는 파일 등) 그 폴더는 덮은 폴더가 아니다 — 목록에 들지 않는다.
 5. 링크 자리(`.claude/skills/<id>` → `.agents/skills/<id>`)에서도 1 · 2 가 같다.
-6. `filesSlots` 없는 기록의 동작 불변 — 기존 스위트를 고치지 않고 green.
+6. `files` 있음 · 표지 없음 기록(v26.164.0 이후 처음 깐 자산)의 동작 불변 — 그 기록을 쓰는 기존 스위트는 고치지 않고 green.
+   옛 기록이 덮인 뒤 "목록 계속 모름"을 단언하던 기존 테스트 — `legacy-external-skill-files-902` 의 `files` toBeUndefined 4곳(L168 ·
+   L207 · L417 `expectNotRevived` · L434)과 `uninstall-recorded-removal` 의 B1(L259-275) — 는 이 설계가 바꾸는 계약을 고정한 것이므로
+   "덮은 폴더는 목록 · 그 밖은 모름"으로 고쳐 쓴다. 고치는 단언은 그 다섯 곳뿐이다(그 밖이 red 면 회귀다).
 7. 새 회귀 테스트는 src 변경만 되돌리면 red(되돌린 코드가 typecheck 통과).
+
+## 검증 반영 (설계 검증 2026-10-25, design-verifier-xhigh)
+
+- BLOCKER-1(규칙 4 가 sha 이음을 끊어 3회차부터 "you edited it" 반복) → §쓰는 규칙의 sha 이음 문단 + AC1 3회.
+- BLOCKER-2(AC6 이 AC1 과 양립 불가) → AC6 범위 한정 + 바뀌는 단언 다섯 곳을 이름으로.
+- NOTE-1 표지 방식 채택 · NOTE-2 규칙 2 근거 교체 · NOTE-3 셈의 경계 · NOTE-4 `recordRefreshedFiles` · NOTE-5 표 답 · NOTE-6 남는 위험.
