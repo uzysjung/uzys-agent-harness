@@ -26,6 +26,7 @@ import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
 import { bundlePath, isRecordedTrackTarget, recordedTrackTargets } from "./recorded.js";
+import { screenText } from "./screen-text.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -182,7 +183,7 @@ export function restoreDisplaced(
         path: f.path,
         backup,
         verdict: "advise",
-        line: `not put back — the install record points its backup outside this project (${away}); left that file where it is`,
+        line: `not put back — the install record points its backup outside this project (${screenText(away)}); left that file where it is`,
         forget: true,
       });
       continue;
@@ -193,7 +194,7 @@ export function restoreDisplaced(
         path: f.path,
         backup,
         verdict: "advise",
-        line: `not put back — the install record names ${JSON.stringify(backup)} as the backup, which is not a backup this tool made for this file; left that file where it is`,
+        line: `not put back — the install record names "${screenText(backup)}" as the backup, which is not a backup this tool made for this file; left that file where it is`,
         forget: true,
       });
       continue;
