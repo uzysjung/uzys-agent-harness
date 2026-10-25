@@ -65,6 +65,7 @@ import {
 } from "../displaced.js";
 import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
 import { CONTINUOUS_SKILLS } from "../external-assets.js";
+import { type GlobalCopyReclaim, reclaimGlobalSkillCopies } from "../external-installer.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
   backupFile,
@@ -342,9 +343,12 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   };
 
   const plan = planReverse(targetAssets, { spawn, projectDir, rm: rmJ });
+  // #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본(대상 자산 것만). 미리보기와 실행이 같은 함수다
+  const copyIds = selectedIds ? new Set(selectedIds) : undefined;
   for (const line of headerLines(installLog, selectedIds, targetAssets.length)) log(line);
 
   if (options.dryRun) {
+    const copies = reclaimGlobalSkillCopies(projectDir, installLog, { ids: copyIds, write: false });
     for (const line of dryRunLines(
       plan,
       installLog,
@@ -353,6 +357,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
       rootFiles,
       harnessRoot,
       globalTrust,
+      copies,
     )) {
       log(line);
     }
@@ -377,8 +382,24 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   let reversed: ReturnType<typeof executeReverse>;
   // #780 — `--only` 가 자산을 지운 뒤 되돌린 displaced 자리. 기록 정리는 `settleLog` 가 한다
   let onlyDisplaced: DisplacedOutcome[] = [];
+  let copiesRemoved = 0;
+  /** #851 — 프로젝트 사본을 회수한 자산 id. `--only` 면 그 자산은 기록에 남는다(홈 사본은 global 그대로). */
+  const copiedIds = new Set<string>();
   try {
     reversed = executeReverse(plan, log, logSurvives, journal);
+    const copies = reclaimGlobalSkillCopies(projectDir, installLog, {
+      ids: copyIds,
+      write: true,
+      rm: rmJ,
+    });
+    for (const r of copies) {
+      if (r.removed.length > 0) {
+        journal.push(`removed the project copy ${r.slot}`);
+        copiedIds.add(r.id);
+      }
+      copiesRemoved += r.removed.length;
+    }
+    for (const line of globalCopyLines(copies, false)) log(line);
     if (assetsOnly) {
       const removed = new Set(reversed.removedIds);
       onlyDisplaced = restoreDisplaced(installLog, projectDir, {
@@ -447,7 +468,13 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
     //   ③ 반면 global 자산만 남은 경우는 **정확한 수기 명령을 출력했으므로** 성공이다.
     //      D16 설계대로의 정상이고, 여기까지 묶으면 global scope 사용자는 exit 0 을 영원히
     //      못 받는다 (로그가 지워져 재시도하면 더 나빠진다).
-    nothingDone: succeeded === 0 && assetsOnly && (logSurvives || plan.noReversePath.length > 0),
+    nothingDone:
+      succeeded === 0 &&
+      copiesRemoved === 0 &&
+      assetsOnly &&
+      (logSurvives || plan.noReversePath.length > 0),
+    // #851 — `--only <global 자산>` 이 사본만 지웠으면 그 자산은 남는다 — "0 asset(s)" 만으로 끝내면 요청이 무시된 것처럼 읽힌다
+    copiesOnly: assetsOnly ? [...copiedIds].filter((id) => !removedIds.includes(id)) : [],
   });
   log("");
   log(outcome.line);
@@ -521,6 +548,7 @@ function summarize(r: {
   failed: number;
   nothingDone: boolean;
   logWriteFailed: boolean;
+  copiesOnly: ReadonlyArray<string>;
 }): { line: string; code: number } {
   if (r.failed > 0)
     return {
@@ -537,7 +565,14 @@ function summarize(r: {
       line: c.yellow("자산은 제거됐으나 install log 를 갱신하지 못했다 (기록이 실제와 다르다)"),
       code: 1,
     };
-  return { line: status.success(c.green(`uninstall complete (${r.succeeded} asset(s))`)), code: 0 };
+  const kept =
+    r.copiesOnly.length > 0
+      ? ` — removed the project copies; ${r.copiesOnly.join(", ")} stays installed globally (see above)`
+      : "";
+  return {
+    line: status.success(c.green(`uninstall complete (${r.succeeded} asset(s))${kept}`)),
+    code: 0,
+  };
 }
 
 function headerLines(
@@ -663,12 +698,14 @@ function dryRunLines(
   rootFiles: ReadonlyArray<InstallLogRootFile>,
   harnessRoot: string,
   globalTrust: InstallLog["codexTrust"],
+  copies: ReadonlyArray<GlobalCopyReclaim>,
 ): string[] {
   const lines = [c.yellow("[DRY RUN] reverse list (실제 변경 없음):"), ""];
-  if (plan.reverseSteps.length === 0) {
+  if (plan.reverseSteps.length === 0 && copies.length === 0) {
     lines.push(c.dim("  (no project-scope assets to reverse)"));
   }
   lines.push(...plan.reverseSteps.map((s) => `  ○ ${s.label}`));
+  lines.push(...globalCopyLines(copies, true));
   // #607 — 실제 실행이 수행하는 단계는 전부 미리보기에 있어야 한다. 마지막 단계인
   // 설치 기록 디렉터리 제거가 빠져 있어 "전체 역순 단계"를 보고 승인한 사용자가
   // 실제 실행에서 겪는 변화가 계획보다 하나 많았다.
@@ -690,7 +727,11 @@ function dryRunLines(
       harnessRoot,
       assetFilesGone: plannedAssetFiles(plan, installLog),
     });
-    lines.push(...harnessRemovalLines(preview, installLog, projectDir, FULL_SCOPE, true));
+    // 회수할 사본은 위 줄이 말했다 — "남는 설치자 파일" 로 다시 세지 않는다
+    const copyFiles = copies.flatMap((r) => r.removed);
+    lines.push(
+      ...harnessRemovalLines(preview, installLog, projectDir, FULL_SCOPE, true, copyFiles),
+    );
   } else {
     // #780 — `--only` 도 그 자산이 비켜 둔 설치자 파일을 되돌린다. 실행과 같은 함수로 판정한다
     const preview = restoreDisplaced(installLog, projectDir, {
@@ -2371,6 +2412,8 @@ function harnessRemovalLines(
   projectDir: string,
   scope: RemovalScope,
   preview: boolean,
+  /** 미리보기 전용 — 이 실행이 먼저 지울 다른 파일(#851 사본). 남는 설치자 파일로 세지 않는다. */
+  alsoGone: ReadonlyArray<string> = [],
 ): string[] {
   const lines: string[] = [];
   const groups = new Map<string, { removed: number; backedUp: number }>();
@@ -2470,7 +2513,7 @@ function harnessRemovalLines(
     );
   }
   lines.push(...sharedStripLines(r.shared, preview));
-  lines.push(...leftFolderLines(r, log, projectDir, scope, preview));
+  lines.push(...leftFolderLines(r, log, projectDir, scope, preview, alsoGone));
   return lines;
 }
 
@@ -2498,11 +2541,14 @@ function leftFolderLines(
   projectDir: string,
   scope: RemovalScope,
   preview: boolean,
+  alsoGone: ReadonlyArray<string>,
 ): string[] {
   const assetFiles = new Set(log.assets.flatMap((a) => (a.files ?? []).map((f) => f.path)));
   // 미리보기는 아직 지우지 않았다 — 이번에 지울 하네스 파일 · 파일째 지울 함께 쓰는 파일을 빼고 센다
   const gone = new Set(
-    preview ? [...r.removed, ...r.shared.filter((s) => s.fileRemoved).map((s) => s.path)] : [],
+    preview
+      ? [...r.removed, ...r.shared.filter((s) => s.fileRemoved).map((s) => s.path), ...alsoGone]
+      : [],
   );
   const back = preview ? r.displaced.filter((d) => d.verdict === "restore").map((d) => d.path) : [];
   // 이미 다른 줄이 말한 기록 경로(밖 링크 · 읽지 못함 · 고친 AGENTS.md)는 "설치자 파일" 로 다시 세지 않는다
@@ -2800,6 +2846,32 @@ function removeLegacyAgentsMd(
   out.forgotten.add(path);
   // `--cli` 가 이 파일을 "판정한 파일" 로 읽어 몫 기록(옛 블록)을 비우게 — 남는 하네스 몫은 없다
   out.shared.push({ path, action: "none", line: "", removed: [], kept: [], portions: [] });
+}
+
+/**
+ * #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본의 줄. 자리마다 한 줄 · 백업한 파일마다 한 줄 · 남긴 파일마다
+ * 한 줄. 미리보기와 실행이 같은 판정(`reclaimGlobalSkillCopies`)의 결과를 받는다.
+ */
+function globalCopyLines(copies: ReadonlyArray<GlobalCopyReclaim>, preview: boolean): string[] {
+  const what = (r: GlobalCopyReclaim): string =>
+    `a project copy of ${r.id}, which is on record as installed globally (an older update put it here)`;
+  return copies.flatMap((r) => {
+    if (preview) {
+      const saved =
+        r.judged.length > 0
+          ? ` — ${r.judged.length} with a copy saved beside as *.backup-<time>`
+          : "";
+      return [
+        ...(r.removed.length > 0 ? [`  ○ remove ${r.slot} (${what(r)}${saved})`] : []),
+        ...r.left.map((l) => `  ○ leave ${l.path} — ${l.why}`),
+      ];
+    }
+    return [
+      ...(r.removed.length > 0 ? [`  ${status.success(`removed  ${r.slot} — ${what(r)}`)}`] : []),
+      ...r.judged.map((j) => `  ${status.success(`backed up  ${j.path} — ${j.line}`)}`),
+      ...r.left.map((l) => `  ${c.yellow("⊘")} left  ${l.path} — ${l.why}`),
+    ];
+  });
 }
 
 /**

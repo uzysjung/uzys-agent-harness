@@ -17,10 +17,10 @@
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   readdirSync,
   readFileSync,
   rmdirSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -54,13 +54,22 @@ import {
   RENAMED_SKILL_IDS,
   RETIRED_SKILL_IDS,
 } from "./external-assets.js";
-import { type ExternalSkillRefresh, refreshExternalSkills } from "./external-installer.js";
+import {
+  type ExternalSkillRefresh,
+  type GlobalCopyReclaim,
+  refreshExternalSkills,
+} from "./external-installer.js";
 import {
   foreignOwnedTarget,
   linksToProjectSharedSkill,
   occupiedByNonDirectory,
 } from "./foreign-slot.js";
-import { backupFile, backupIfLossyUtf8, listFilesRecursive } from "./fs-ops.js";
+import {
+  backupFile,
+  backupIfLossyUtf8,
+  listEntriesRecursive,
+  listFilesRecursive,
+} from "./fs-ops.js";
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
@@ -326,6 +335,11 @@ export interface UpdateModeReport {
    * optional = 부재는 "없음"(손으로 만드는 리포트 stub 이 여럿이다).
    */
   catalogRemoved?: ReadonlyArray<CatalogRemoved>;
+  /**
+   * #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본을 회수한 자리(자산 · 자리 · 남긴 파일). 백업은 `judged` 가
+   * 파일마다 말한다. optional = 부재는 "없음".
+   */
+  globalCopiesReclaimed?: ReadonlyArray<GlobalCopyReclaim>;
   /**
    * 설치 기록이 없어 **무엇을 갱신해야 하는지 판정할 수 없었다** (레거시 설치본).
    *
@@ -852,6 +866,7 @@ export function runUpdateMode(
     ).filter((id) => !skillRefresh.notInCatalog.includes(id)),
   ].filter((id) => !saidAsRemoved.has(id));
   report.externalSkillsUnknown = skillRefresh.unknown;
+  if (skillRefresh.reclaimed !== undefined) report.globalCopiesReclaimed = skillRefresh.reclaimed;
 
   const outsideLinks = mergeOutside(
     harness.outside,
@@ -1673,13 +1688,14 @@ export function collectRunBackups(
     if (!BACKUP_SUFFIX.test(rel)) return;
     if (exclude?.has(rel)) return;
     const abs = join(projectDir, rel);
-    if (statSync(abs).mtimeMs < startedAt - 1000) return;
+    // 링크 백업(#839 — 링크를 링크 그대로 남긴다)은 링크 자체의 시각이다 — 따라가면 가리키는 본체의 시각을 읽는다
+    if (lstatSync(abs).mtimeMs < startedAt - 1000) return;
     out.push({ path: rel.replace(BACKUP_SUFFIX, ""), backup: rel });
   };
   for (const e of readdirSync(projectDir, { withFileTypes: true }))
     if (e.isFile()) consider(e.name);
   for (const dir of BACKUP_SCAN_DIRS) {
-    for (const rel of listFilesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);
+    for (const { rel } of listEntriesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);
   }
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }

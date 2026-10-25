@@ -15,15 +15,18 @@ import {
   accessSync,
   existsSync,
   constants as fsConstants,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
+  realpathSync,
   renameSync,
   rmdirSync,
   rmSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, relative, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import { CATEGORIES as CATEGORY_ORDER } from "./categories.js";
 import {
   assetReachesCli,
@@ -32,7 +35,15 @@ import {
   type ExternalAssetMethod,
   filterApplicableAssets,
 } from "./external-assets.js";
-import { backupFromCopy, claimBackupDir, listFilesRecursive } from "./fs-ops.js";
+import {
+  backupFile,
+  backupFromCopy,
+  backupLink,
+  backupOriginal,
+  claimBackupDir,
+  listEntriesRecursive,
+  listFilesRecursive,
+} from "./fs-ops.js";
 import {
   buildAssetEntries,
   hashContent,
@@ -43,6 +54,7 @@ import {
   installedClis,
   mergeRootFiles,
   readInstallLog,
+  skillNames,
   writeInstallLog,
 } from "./install-log.js";
 import type { JudgedWrite } from "./install-writes.js";
@@ -106,6 +118,12 @@ export interface AssetInstallResult {
    */
   files?: ToolFiles;
   /**
+   * #851 (ADR-112) — global scope 의 소스 전체 `skill`(`method.skill` 없음)만. 이 호출이 홈 스킬 자리에 깐 스킬 폴더 이름
+   * (`homeSkillDirs` 전후 비교 ∩ 도구 잠금 파일이 이 소스로 적은 이름 — `lockedSkillNames`). 기록의 `skills` 가 된다. 부재 = 잴 수
+   * 없었다(잠금 파일을 못 읽었다 — 기록하지 않는다).
+   */
+  skills?: string[];
+  /**
    * #678 — 스킬 자리가 링크를 따라 **프로젝트 밖**으로 풀려 도구를 그 자리로 부르지 않은 것(설치 화면이 함께 말한다).
    * `root` = project 상대 스킬 자리(`.claude/skills` 등), `target` = 그 자리가 풀린 절대경로.
    */
@@ -153,6 +171,81 @@ function snapshotSkillRoots(projectDir: string): Map<string, string> {
     }
   }
   return out;
+}
+
+/**
+ * #851 (ADR-112) — 홈 스킬 자리의 스킬 폴더마다 정체(`ino:ctime`). 도구(`skills@1.5.11` `installSkillForAgent` 의 `--copy` 경로)는 까는
+ * 폴더를 **지우고 새로 만든다**(`cleanAndCreateDirectory`) — 그래서 이미 깔려 있던 같은 바이트의 폴더도 호출 뒤 정체가 바뀐다(내용
+ * 비교는 이미 있던 폴더를 놓친다). 정체는 호출 중 다른 손(설치자 편집기의 원자 저장 · 다른 프로세스)이 바꾼 폴더도 잡으므로 이것만으로
+ * 이름을 정하지 않는다 — 잠금 파일(`lockedSkillNames`)과 겹친 것만 쓴다. 링크 · 파일은 스킬 폴더가 아니다(`--copy` 는 폴더를 만든다).
+ */
+function homeSkillDirs(roots: ReadonlyArray<string>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const root of roots) {
+    let names: string[];
+    try {
+      names = readdirSync(root);
+    } catch {
+      continue; // 자리가 아직 없다
+    }
+    for (const name of names) {
+      try {
+        const st = lstatSync(join(root, name), { bigint: true });
+        if (st.isDirectory()) out.set(join(root, name), `${st.ino}:${st.ctimeNs}`);
+      } catch {
+        /* 읽지 못한 자리는 이름의 근거가 아니다 */
+      }
+    }
+  }
+  return out;
+}
+
+/** 호출 전후 정체가 다른(새로 생긴) 스킬 폴더 이름. */
+function writtenSkillNames(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+): string[] {
+  const names = [...after]
+    .filter(([dir, id]) => before.get(dir) !== id)
+    .map(([dir]) => basename(dir));
+  return [...new Set(names)].sort();
+}
+
+/**
+ * #851 (ADR-112) — 도구 잠금 파일이 이 소스로 적은 스킬의 폴더 이름. `skills@1.5.11` 실측(`getSkillLockPath` · `addSkillToLock` ·
+ * `sanitizeName`): global 설치마다 `$XDG_STATE_HOME/skills/.skill-lock.json`(없으면 `~/.agents/.skill-lock.json`)의 `skills[<스킬 이름>]` 에
+ * `source`(github 줄임 `owner/repo` 는 그대로)를 적고, 폴더 이름은 그 스킬 이름을 정규화한 것이다. 못 읽거나 도구가 읽지 않는 판이면
+ * `null` — 이름을 기록하지 않는다(덜 회수하는 쪽).
+ */
+function lockedSkillNames(source: string): Set<string> | null {
+  const xdg = process.env.XDG_STATE_HOME;
+  const path = xdg
+    ? join(xdg, "skills", ".skill-lock.json")
+    : join(homedir(), ".agents", ".skill-lock.json");
+  try {
+    const lock = JSON.parse(readFileSync(path, "utf8")) as { version?: unknown; skills?: unknown };
+    if (typeof lock.version !== "number" || lock.version < 3) return null;
+    if (typeof lock.skills !== "object" || lock.skills === null) return null;
+    const out = new Set<string>();
+    for (const [name, entry] of Object.entries(lock.skills as Record<string, unknown>)) {
+      if ((entry as { source?: unknown } | null)?.source === source)
+        out.add(toolSkillDirName(name));
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/** `skills@1.5.11` `sanitizeName` 그대로 — 스킬 이름 → 그 도구가 만드는 폴더 이름. */
+function toolSkillDirName(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9._]+/g, "-")
+      .replace(/^[.-]+|[.-]+$/g, "")
+      .substring(0, 255) || "unnamed-skill"
+  );
 }
 
 function diffSnapshots(
@@ -317,7 +410,24 @@ function installOne(
     case "skill": {
       // global 은 홈에 깐다 — 이 프로젝트에 놓은 것이 없다(되돌리기는 안내뿐, D16)
       if (ctx.scope === "global") {
-        return runSpawn(asset, ctx.spawn, "npx", buildSkillArgs(method, ctx.cli, ctx.scope), cwd);
+        const args = buildSkillArgs(method, ctx.cli, ctx.scope);
+        if (method.skill !== undefined) return runSpawn(asset, ctx.spawn, "npx", args, cwd);
+        // #851 (ADR-112) — 소스 전체를 까는 자산은 무엇을 깔았는지 이름이 없다 — 홈 스킬 자리를 호출 전후로 재 기록에 남긴다
+        const roots = [
+          ...new Set(
+            (ctx.cli.length === 0 ? [...SKILL_ROOTS] : ctx.cli.map(skillRootOf)).map(
+              globalSkillRoot,
+            ),
+          ),
+        ];
+        const before = homeSkillDirs(roots);
+        const result = runSpawn(asset, ctx.spawn, "npx", args, cwd);
+        if (!result.ok) return result;
+        // 호출 중 다른 손이 바꾼 폴더는 이 자산 것이 아니다 — 도구가 이 소스로 잠금 파일에 적은 이름과 겹친 것만
+        const locked = lockedSkillNames(method.source);
+        if (locked === null) return result;
+        const written = writtenSkillNames(before, homeSkillDirs(roots));
+        return { ...result, skills: written.filter((n) => locked.has(n)) };
       }
       // #678 — 스킬 자리가 프로젝트 밖으로 풀리는 CLI 는 그 자리로 도구를 부르지 않는다(도구는 링크를 따라 밖에 쓴다).
       // 남은 CLI 가 없으면 부르지 않는다. 에이전트 미지정(레거시 `cli: []`)은 두 자리 모두 쓰므로 하나라도 밖이면 부르지 않는다.
@@ -430,6 +540,8 @@ export interface ExternalSkillRefresh {
   notInCatalog: ReadonlyArray<string>;
   /** #817 — 도구 호출 전후로 지킨 파일의 백업마다 판정의 줄(고친 기록 파일 · 비켜 둔 설치자 파일). 부재 = 없음. */
   judged?: JudgedWrite[];
+  /** #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 자산 사본을 회수한 자리. 백업은 `judged` 에 든다. 부재 = 없음. */
+  reclaimed?: GlobalCopyReclaim[];
   /**
    * **설치 기록이 없어 무엇을 갱신해야 하는지 판정할 수 없다** (레거시 설치본).
    *
@@ -498,6 +610,15 @@ export function refreshExternalSkills(
   if (!log) {
     return { ...none, unknown: true };
   }
+  // #851 (ADR-112) — 옛 update 가 global 자산을 `-g` 없이 다시 받아 프로젝트에 만든 사본을 회수한다. 도구를 부르기 **전에** —
+  // 홈 사본을 이번 갱신 전의 판으로 대고, 아래 hold 가 그 파일을 설치자 파일로 옮겨 두지 않게.
+  const reclaimed = reclaimGlobalSkillCopies(projectDir, log, { write: true });
+  const copies = {
+    ...(reclaimed.length > 0 ? { reclaimed } : {}),
+    ...(reclaimed.some((r) => r.judged.length > 0)
+      ? { judged: reclaimed.flatMap((r) => r.judged) }
+      : {}),
+  };
   // ADR-099 R3 — 설치자가 뺀 자산(누적 `excluded`)은 기록에 깔렸다고 남아 있어도 갱신하지도 되살리지도 않는다(#566)
   const excluded = excludedIds(log);
   const installedIds = new Set(
@@ -509,7 +630,7 @@ export function refreshExternalSkills(
   const inCatalog = new Set(targets.map((a) => a.id));
   const notInCatalog = [...installedIds].filter((id) => !inCatalog.has(id));
   if (targets.length === 0) {
-    return { ...none, notInCatalog, unknown: false };
+    return { ...none, notInCatalog, unknown: false, ...copies };
   }
   // #770 (ADR-097 결정 3·5) — 도구(`npx skills add --copy`)는 스킬 폴더를 **새로 만든다**(컨테이너 실측: 폴더 안의
   // 기록 밖 파일이 사라진다). 그래서 호출 **전에** 그 폴더의 내용을 들고 있다가 호출 **뒤에** 판정한다 — 설치자가 고친
@@ -524,29 +645,41 @@ export function refreshExternalSkills(
     clis,
     scope: log.scope,
   });
+  // #851 — 자산마다 기록된 scope 로 다시 받는다. `log.scope` 는 마지막 install 의 것이라 global 로 깐 자산 뒤에 플래그 없는
+  // 재설치가 있었으면(mixed 이력 — #560) project 를 말한다. 그걸로 부르면 `-g` 없이 프로젝트에 기록 밖 사본이 생긴다.
+  const scopeOf = (a: ExternalAsset): InstallScope =>
+    resolveScope(log.assets.find((r) => r.id === a.id)?.scope ?? log.scope);
   const run = deps.run ?? runExternalInstall;
   let ran: ExternalInstallReport;
   try {
-    ran = run(
-      {
-        tracks: log.spec.tracks as ReadonlyArray<Track>,
-        // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
-        options: DEFAULT_OPTIONS,
-        // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
-        // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
-        // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
-        cli: clis,
-        userOverride: { forceInclude: [...installedIds], forceExclude: [] },
-        scope: log.scope,
-        projectDir,
-      },
-      {
-        assets: targets,
-        ...(deps.spawn ? { spawn: deps.spawn } : {}),
-        ...(deps.log ? { log: deps.log } : {}),
-        ...(deps.warn ? { warn: deps.warn } : {}),
-      },
+    const runs = [...new Set(targets.map(scopeOf))].map((scope) =>
+      run(
+        {
+          tracks: log.spec.tracks as ReadonlyArray<Track>,
+          // `forceInclude` 가 조건 판정을 앞지르므로 옵션 값은 결과에 영향을 주지 않는다.
+          options: DEFAULT_OPTIONS,
+          // #528 — 대상 CLI 는 **깔린 집합**(`installedClis`)이다. `spec.cli` 는 마지막 install 의
+          // 요청이라 `uninstall --cli` 뒤에도 뺀 CLI 를 말하고, 반대로 그걸 비우면 `buildSkillArgs` 가
+          // `--agent`·`--copy` 를 못 붙여 Claude 몫이 조용히 빠진다(재리뷰 BLOCKER-3).
+          cli: clis,
+          userOverride: { forceInclude: [...installedIds], forceExclude: [] },
+          scope,
+          projectDir,
+        },
+        {
+          assets: targets.filter((a) => scopeOf(a) === scope),
+          ...(deps.spawn ? { spawn: deps.spawn } : {}),
+          ...(deps.log ? { log: deps.log } : {}),
+          ...(deps.warn ? { warn: deps.warn } : {}),
+        },
+      ),
     );
+    ran = {
+      attempted: runs.flatMap((r) => r.attempted),
+      succeeded: runs.reduce((n, r) => n + r.succeeded, 0),
+      skipped: runs.reduce((n, r) => n + r.skipped, 0),
+      excludedByCli: runs.flatMap((r) => r.excludedByCli),
+    };
   } catch (e) {
     // #780 — 도구 호출이 예외로 끝났다. 옮긴 파일을 제자리로 — 되돌리지 못한 파일은 백업 폴더에 남는다
     try {
@@ -559,7 +692,17 @@ export function refreshExternalSkills(
   const { report, displaced, judged } = settle(ran);
   // #770 — 도구가 다시 쓴 sha 로 기준선을 잇는다. 안 이으면 상류가 바뀐 다음 update 가 안 고친 파일을 "고쳤다" 로 백업한다.
   // #780 — 상류 파일에 덮여 비켜 둔 설치자 파일(`displaced`)도 같은 쓰기로 적는다 — uninstall 이 그 원본을 되돌린다
-  recordRefreshedFiles(projectDir, log, report, displaced, deps.writeLog ?? writeInstallLog);
+  const next = recordRefreshedFiles(
+    projectDir,
+    log,
+    report,
+    displaced,
+    deps.writeLog ?? writeInstallLog,
+  );
+  // #851 (ADR-112) — 이번 갱신이 처음 기록한 스킬 이름(이름이 없던 옛 기록)의 프로젝트 사본. 갱신 전 회수는 이름을 몰라 못 봤다 —
+  // 홈 사본이 이미 새 판이라 상류가 바꾼 파일은 "다르다" 로 백업하고 지운다(무손실).
+  const late = reclaimNewlyNamed(projectDir, log, next);
+  const reclaimedAll = [...reclaimed, ...late];
   return {
     attempted: report.attempted.length,
     refreshed: report.succeeded,
@@ -568,7 +711,8 @@ export function refreshExternalSkills(
       .map((r) => ({ id: r.asset.id, message: r.message ?? "failed" })),
     notInCatalog,
     unknown: false,
-    judged,
+    ...(reclaimedAll.length > 0 ? { reclaimed: reclaimedAll } : {}),
+    judged: [...reclaimedAll.flatMap((r) => r.judged), ...judged],
   };
 }
 
@@ -710,15 +854,189 @@ export function skillSlotsFor(
   return [...out];
 }
 
+/** #851 (ADR-112) — 회수한(미리보기면 회수할) 프로젝트 사본 하나. */
+export interface GlobalCopyReclaim {
+  /** 기록의 자산 id. */
+  id: string;
+  /** project 상대 자리(`.claude/skills/<skill>` 등). */
+  slot: string;
+  /** 지운(미리보기면 지울) 파일(project 상대). */
+  removed: string[];
+  /** 지우기 전에 백업한 파일마다 판정의 줄 — 미리보기면 `backup` 이 없다. */
+  judged: JudgedWrite[];
+  /** 지우지 않고 남긴 파일과 까닭. */
+  left: Array<{ path: string; why: string }>;
+}
+
+/**
+ * #851 (ADR-112, 사용자 확정 2026-10-19) — 기록 scope 가 global 인 외부 스킬 자산의 **프로젝트 사본**을 회수한다. v26.174.0 이하의
+ * update 는 그 자산을 `-g` 없이 다시 받아(`--copy`) 이번 CLI 자리마다 `<root>/<skill>` 사본을 기록 밖에 만들었다 — 기록이 global 이라
+ * 말하는 자산의 프로젝트 자리는 하네스 refresh 가 만든 자리다(디스크 존재가 아니라 기록으로 가른다 — ADR-096). update(갱신 전) ·
+ * uninstall(전량 · `--only`) · 각 미리보기가 이 함수 하나를 쓴다.
+ *
+ * 파일마다 홈의 global 사본(같은 상대 경로)과 바이트로 대어 같으면 지우고, 다르거나 global 사본에 없으면 그 파일 하나를 백업하고
+ * 지운다. global 사본이 아예 없으면 댈 수 없어 파일마다 백업하고 지운다. 다른 자산 · 하네스 기록이 말하는 경로, 앞선 백업은 건드리지
+ * 않는다. 설치자가 뺀 자산(`excludedIds`)은 보지 않는다. 같은 폴더로 풀리는 자리는 한 번만 본다. 자리가 실제 폴더가 아니면(링크 —
+ * 도구의 `--copy` 는 폴더를 만든다) · 프로젝트 밖으로 풀리면 · 홈의 그 자리와 같은 폴더면 따라가지 않는다. 폴더 안의 링크는 지우지 않고 남긴다. 소스 전체를 까는 자산(`detail.skill` 없음)은 기록된 스킬 이름(`skills` —
+ * install · update 가 홈 스킬 자리를 재 남긴다)마다 같은 자리를 본다. 이름이 없는 옛 기록은 보지 않는다.
+ */
+export function reclaimGlobalSkillCopies(
+  projectDir: string,
+  log: InstallLog,
+  opts: { ids?: ReadonlySet<string> | undefined; write: boolean; rm?: (abs: string) => void },
+): GlobalCopyReclaim[] {
+  const clis = installedClis(log);
+  const roots = clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
+  const others = new Set(log.assets.flatMap((a) => (a.files ?? []).map((f) => f.path)));
+  const rm = opts.rm ?? ((abs: string) => rmSync(abs, { force: true }));
+  // 설치자가 뺀 자산(누적 `excluded` — ADR-099 R3)은 update 가 갱신하지 않듯 회수도 하지 않는다 — 그 자리는 하네스 몫이 아니다
+  const excluded = excludedIds(log);
+  // 한 폴더는 한 번만 — `.claude/skills` 가 `.agents/skills` 로의 링크면(#524 · #838) 두 자리가 한 폴더다(미리보기 = 실행)
+  const seen = new Set<string>();
+  const out: GlobalCopyReclaim[] = [];
+  for (const a of log.assets) {
+    if (a.method !== "skill" || a.scope !== "global" || excluded.has(a.id)) continue;
+    if (opts.ids !== undefined && !opts.ids.has(a.id)) continue;
+    // 소스 전체를 까는 자산(`detail.skill` 없음)은 install · update 가 잰 이름(`skills`)으로 — 이름이 없는 옛 기록은 다음 update 가 잰다
+    const skill = a.detail.skill;
+    const names =
+      skill !== undefined ? [skill] : (Array.isArray(a.skills) ? a.skills : []).filter(isSkillName);
+    for (const name of names) {
+      for (const root of roots) {
+        const slot = `${root}/${name}`;
+        const real = realOrNull(join(projectDir, slot));
+        if (real !== null) {
+          if (seen.has(real)) continue;
+          seen.add(real);
+        }
+        const ctx = { log, others, write: opts.write, rm, id: a.id };
+        const r = reclaimCopy(projectDir, slot, join(globalSkillRoot(root), name), ctx);
+        if (r !== null) out.push(r);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 프로젝트 스킬 루트의 global 짝 — `skills@1.5.11` `getAgentBaseDir` 실측(2026-10-19): claude-code 는 `$CLAUDE_CONFIG_DIR/skills`
+ * (없으면 `~/.claude/skills`), `.agents/skills` 를 쓰는 에이전트(codex · opencode · antigravity)는 공용 `~/.agents/skills`.
+ */
+function globalSkillRoot(root: (typeof SKILL_ROOTS)[number]): string {
+  if (root === ".claude/skills") {
+    return join(process.env.CLAUDE_CONFIG_DIR?.trim() || join(homedir(), ".claude"), "skills");
+  }
+  return join(homedir(), ".agents/skills");
+}
+
+/**
+ * #851 — 기록의 스킬 이름이 스킬 루트 바로 아래 한 자리인가. 잰 이름은 `readdir` 의 것이라 늘 그렇다 — 손으로 고친(커밋된) 기록의
+ * `../` 같은 이름이 루트 밖을 겨냥하지 않게 거른다.
+ */
+function isSkillName(name: unknown): name is string {
+  return (
+    typeof name === "string" && name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name)
+  );
+}
+
+function reclaimCopy(
+  projectDir: string,
+  slot: string,
+  home: string,
+  ctx: {
+    log: InstallLog;
+    others: ReadonlySet<string>;
+    write: boolean;
+    rm: (abs: string) => void;
+    id: string;
+  },
+): GlobalCopyReclaim | null {
+  const abs = join(projectDir, slot);
+  try {
+    if (lstatSync(abs, { throwIfNoEntry: false })?.isDirectory() !== true) return null;
+    if (outsideProjectTarget(projectDir, abs) !== null) return null;
+    if (existsSync(home) && realpathSync(abs) === realpathSync(home)) return null;
+  } catch {
+    return null; // 판정할 수 없다 — 건드리지 않는다
+  }
+  const homeExists = existsSync(home);
+  const res: GlobalCopyReclaim = { id: ctx.id, slot, removed: [], judged: [], left: [] };
+  const now = new Date();
+  let entries: Array<{ rel: string; link: boolean }>;
+  try {
+    entries = listEntriesRecursive(abs);
+  } catch (e) {
+    res.left.push({ path: slot, why: `could not read it (${errText(e)})` });
+    return res;
+  }
+  for (const { rel, link } of entries) {
+    if (backupOriginal(rel) !== null) continue; // 앞선 백업 — 설치자 몫이다
+    const path = `${slot}/${rel}`;
+    if (ctx.others.has(path) || recorded(ctx.log, path).state !== "none") continue;
+    if (link) {
+      res.left.push({ path, why: "a link — not part of the copy the tool put here" });
+      continue;
+    }
+    const file = join(abs, rel);
+    try {
+      const mine = readFileSync(file);
+      const same = homeExists && readOrNull(join(home, rel))?.equals(mine) === true;
+      const backupAbs = !same && ctx.write ? backupFile(file, now) : undefined;
+      if (ctx.write) ctx.rm(file);
+      res.removed.push(path);
+      if (same) continue;
+      const line = homeExists
+        ? `not the same as the global copy (${join(home, rel)}) — saved as <file>.backup-<time>, removed from live`
+        : `no global copy at ${home} to compare — saved as <file>.backup-<time>, removed from live`;
+      const judged: JudgedWrite = {
+        path,
+        verdict: "backup+remove",
+        recorded: homeExists ? "sha" : "no-sha",
+        line,
+      };
+      if (backupAbs !== undefined) {
+        const backup = toProjectRel(projectDir, backupAbs);
+        Object.assign(judged, { line: withBackup(line, backup), backup, backupAbs });
+      }
+      res.judged.push(judged);
+    } catch (e) {
+      res.left.push({ path, why: `could not back up or remove it (${errText(e)})` });
+    }
+  }
+  if (ctx.write && res.removed.length > 0) pruneEmptyDirs(abs);
+  return res.removed.length > 0 || res.left.length > 0 ? res : null;
+}
+
+function realOrNull(abs: string): string | null {
+  try {
+    return realpathSync(abs);
+  } catch {
+    return null;
+  }
+}
+
+function readOrNull(abs: string): Buffer | null {
+  try {
+    return readFileSync(abs);
+  } catch {
+    return null;
+  }
+}
+
+function errText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 /**
  * 도구 호출 전에 옮긴 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일.
- * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로).
+ * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로) · `link` = 링크 자체를 옮겼다(#839).
  */
 interface AsideFile {
   abs: string;
   rel: string;
   slot: string;
   recorded: boolean;
+  link: boolean;
   aside: string;
 }
 
@@ -726,6 +1044,11 @@ interface AsideFile {
  * 자리마다 지켜야 할 파일 — 고친 기록 파일과 기록 밖 파일(기록 sha 와 같은 파일은 도구가 갱신해도 된다). 기록이 하네스
  * 것(`recorded()`)이거나 다른 자산 것이라 말하는 경로는 설치자 파일이 아니라 옮기지 않는다. 프로젝트 밖으로 풀리는 자리는
  * 도구도 쓰지 않는다(#678). 옮기기 전에 다 모은다 — 겹친 자리(루트 · 그 안의 스킬)의 백업 폴더를 다시 줍지 않게.
+ * 같은 파일은 실경로(폴더를 realpath 한 자리 + 이름)로 한 번만 든다 — `.claude/skills/<id>` 가 `.agents/skills/<id>` 로의 링크면
+ * (#524) 두 자리가 한 폴더라 경로 둘로 잡혀 두 번째 옮기기가 ENOENT 로 죽는다(#838). 링크를 거치지 않는 경로를 남긴다 — 도구가
+ * 링크 자리를 실제 폴더로 바꿔도 설치자 파일은 원래 있던 폴더로 돌아간다.
+ * 스킬 폴더 안의 링크(파일 · 폴더 — 공유 에셋 등)는 따라가지 않고 링크 자체를 옮긴다 — 도구가 폴더를 새로 만들면 링크도
+ * 사라진다(#839). 스킬 루트 바로 아래 링크는 스킬 자리 그 자체(#524)라 들지 않는다 — 그 안을 지키는 것이 hold 다.
  */
 function slotFilesToKeep(
   projectDir: string,
@@ -747,39 +1070,44 @@ function slotFilesToKeep(
     ...mine.map((f) => f.path.split("/").slice(0, 3).join("/")),
     ...hold.slots,
   ]);
-  const out: Omit<AsideFile, "aside">[] = [];
-  const seen = new Set<string>();
+  const out = new Map<string, Omit<AsideFile, "aside">>();
+  const realProject = realpathSync(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
-    for (const rel of listFilesRecursive(join(projectDir, slot))) {
+    for (const { rel, link } of listEntriesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
-      if (seen.has(path)) continue;
-      seen.add(path);
+      if (link && (SKILL_ROOTS as ReadonlyArray<string>).includes(dirname(path))) continue;
+      const abs = join(projectDir, path);
+      const real = join(realpathSync(dirname(abs)), basename(abs));
+      const prev = out.get(real);
+      if (prev !== undefined && (prev.rel === path || real !== join(realProject, path))) continue;
       const recordedSha = sha.get(path);
       if (
         recordedSha === undefined &&
         (others.has(path) || recorded(hold.log, path).state !== "none")
       )
         continue;
-      const abs = join(projectDir, path);
       try {
-        if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
-          continue;
-        accessSync(abs, fsConstants.R_OK);
+        if (!link) {
+          if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
+            continue;
+          accessSync(abs, fsConstants.R_OK);
+        }
       } catch {
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
-      out.push({ abs, rel: path, slot, recorded: recordedSha !== undefined });
+      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined, link });
     }
   }
-  return out;
+  return [...out.values()];
 }
 
 /**
  * 도구 호출 뒤 한 파일. 원래 자리가 비었거나(설치자 파일) 같은 바이트면, 또는 `restore`(도구가 실패했거나 예외로 끝났다)면
  * 제자리로 되돌린다(`"back"`). 그 밖은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다 — 상류 파일에 덮인 설치자 파일은
  * `displaced`(notes[0] = 백업)로도 적는다: 그 자산이 자리를 떠나면(uninstall) 원본이 돌아온다(#780). 바뀌었거나 지워진
- * 고친 하네스 파일은 백업만 남는다.
+ * 고친 하네스 파일은 백업만 남는다. 링크(#839)는 내용을 재지 않는다 — 자리가 비었으면 되돌리고, 도구가 그 이름에 무엇을 놓았으면
+ * 링크 그대로 백업으로 남긴다.
  */
 function settleAside(
   projectDir: string,
@@ -787,20 +1115,29 @@ function settleAside(
   restore: boolean,
 ): "back" | { backup: string; gone: boolean; displaced: InstallLogRootFile | null } {
   let now: Buffer | null = null;
+  let vacant = false;
   try {
-    now = readFileSync(f.abs);
+    if (f.link) lstatSync(f.abs);
+    else now = readFileSync(f.abs);
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code !== "ENOENT" && code !== "ENOTDIR") throw e;
+    vacant = true;
   }
-  if (restore || (now === null ? !f.recorded : now.equals(readFileSync(f.aside)))) {
+  // 링크는 같은 글자를 가리키는 링크가 그 자리에 있으면 같은 것이다 — 도구가 같은 링크를 다시 놓았다
+  const keep = vacant
+    ? f.link || !f.recorded
+    : f.link
+      ? lstatSync(f.abs).isSymbolicLink() && readlinkSync(f.abs) === readlinkSync(f.aside)
+      : now?.equals(readFileSync(f.aside)) === true;
+  if (restore || keep) {
     mkdirSync(dirname(f.abs), { recursive: true });
     renameSync(f.aside, f.abs);
     return "back";
   }
-  const backup = backupFromCopy(f.abs, f.aside);
+  const backup = f.link ? backupLink(f.abs, f.aside) : backupFromCopy(f.abs, f.aside);
   rmSync(f.aside, { force: true });
-  if (f.recorded || now === null) return { backup, gone: now === null, displaced: null };
+  if (f.recorded || vacant) return { backup, gone: vacant, displaced: null };
   return {
     backup,
     gone: false,
@@ -842,36 +1179,76 @@ function toProjectRel(projectDir: string, abs: string): string {
   return relative(projectDir, abs).split(sep).join("/");
 }
 
-/** #770 — 갱신한 자산의 `files` 를 이번 호출의 결과로 잇는다(install 의 `buildAssetEntries` 와 같은 병합). 바뀐 것이 없으면 쓰지 않는다. */
+/**
+ * #770 — 갱신한 자산의 `files` 를 이번 호출의 결과로 잇는다(install 의 `buildAssetEntries` 와 같은 병합). #851 — global 자산이 이번에
+ * 잰 스킬 이름(`skills`)도 같은 쓰기로 더한다. 바뀐 것이 없으면 쓰지 않는다. 돌려주는 것은 디스크에 남은 기록이다(쓰기에 실패하면 앞의 것).
+ */
 function recordRefreshedFiles(
   projectDir: string,
   log: InstallLog,
   report: ExternalInstallReport,
   displaced: ReadonlyArray<InstallLogRootFile>,
   writeLog: (projectDir: string, log: InstallLog) => void,
-): void {
+): InstallLog {
   const next = new Map(
     buildAssetEntries(report, log.scope, log.assets)
       .filter((e) => e.files !== undefined)
       .map((e) => [e.id, e.files]),
   );
+  const named = new Map(
+    report.attempted.flatMap((r) =>
+      r.ok && r.skills !== undefined ? [[r.asset.id, r.skills]] : [],
+    ),
+  );
   let changed = displaced.length > 0;
   const assets = log.assets.map((a) => {
     const files = next.get(a.id);
-    if (files === undefined || JSON.stringify(files) === JSON.stringify(a.files)) return a;
+    const { skills } = skillNames(a, a.scope, named.get(a.id));
+    const sameFiles = files === undefined || JSON.stringify(files) === JSON.stringify(a.files);
+    const sameSkills = skills === undefined || JSON.stringify(skills) === JSON.stringify(a.skills);
+    if (sameFiles && sameSkills) return a;
     changed = true;
-    return { ...a, files };
+    return { ...a, ...(sameFiles ? {} : { files }), ...(skills !== undefined ? { skills } : {}) };
   });
-  if (!changed) return;
+  if (!changed) return log;
+  const written: InstallLog = {
+    ...log,
+    assets,
+    ...(displaced.length > 0 ? { rootFiles: mergeRootFiles(log.rootFiles, displaced) } : {}),
+  };
   try {
-    writeLog(projectDir, {
-      ...log,
-      assets,
-      ...(displaced.length > 0 ? { rootFiles: mergeRootFiles(log.rootFiles, displaced) } : {}),
-    });
+    writeLog(projectDir, written);
+    return written;
   } catch {
     // 기록 실패가 update 자체를 실패시키지는 않는다(update-mode 의 다른 writeInstallLog 들과 같은 방침).
+    return log;
   }
+}
+
+/**
+ * #851 (ADR-112) — `after` 가 `before` 에 없던 스킬 이름을 더한 자산의 그 이름 자리만 회수한다. 갱신 전 회수(`refreshExternalSkills`
+ * 첫머리)가 이미 본 이름은 다시 보지 않는다 — 남긴 링크 줄이 두 번 나오지 않게.
+ */
+function reclaimNewlyNamed(
+  projectDir: string,
+  before: InstallLog,
+  after: InstallLog,
+): GlobalCopyReclaim[] {
+  const gained = new Map<string, string[]>();
+  for (const a of after.assets) {
+    const old = new Set(before.assets.find((b) => b.id === a.id)?.skills ?? []);
+    const added = (a.skills ?? []).filter((n) => !old.has(n));
+    if (added.length > 0) gained.set(a.id, added);
+  }
+  if (gained.size === 0) return [];
+  const only: InstallLog = {
+    ...after,
+    assets: after.assets.map((a) => {
+      const names = gained.get(a.id);
+      return names === undefined ? a : { ...a, skills: names };
+    }),
+  };
+  return reclaimGlobalSkillCopies(projectDir, only, { ids: new Set(gained.keys()), write: true });
 }
 
 /**
