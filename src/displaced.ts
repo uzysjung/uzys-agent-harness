@@ -25,7 +25,7 @@ import { hashContent, type InstallLog, type InstallLogRootFile } from "./install
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
+import { bundlePath, isRecordedTrackTarget, recorded } from "./recorded.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -38,8 +38,8 @@ export interface DisplacedOutcome {
   /**
    * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리(project 상대). 화면이 말할 뿐 하네스는 옮기지 않는다. 하네스가 만든
    * 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 받지 못한다. `safe` = 그 `mv` 가
-   * 덮는 것이 하네스가 놓은 바이트뿐이다(자리가 비었거나, 현재 바이트가 현재 번들이 그 자리에 까는 판과 같다 — 기록이 아니라 번들에서
-   * 구한다). 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
+   * 덮는 것이 하네스가 놓은 바이트뿐이다(자리가 비었거나, 현재 바이트가 현재 번들이 그 자리에 까는 판 · 그 자리에 적힌 기록 sha 와
+   * 같다). 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
    */
   handBack?: { from: string; to: string; safe: boolean };
 }
@@ -80,7 +80,9 @@ function isBackupOf(path: string, backup: string): boolean {
  * #911 — `mv` 가 덮는 것이 하네스가 놓은 바이트뿐인가. 자리가 **번들이 까는 이름**이어야 하고(`harnessBytesAt` — 기록이 아니라 번들
  * 에서 구한다), 거기에 지금 아무것도 없거나 현재 바이트가 그 판과 같아야 한다. 링크로 둔 자리 너머는 위조 링크가 정할 수 있어(`.agents →
  * .` 면 `rules/git-policy.md` 는 설치자의 다른 파일이다) 이름만으로는 부족하다 — 설치자 파일은 위조자가 바이트를 몰라 이 대조를 통과시킬
- * 수 없다.
+ * 수 없다. 현재 번들 판과 다르더라도 **그 자리에 적힌 기록 sha 와 같으면** 하네스가 설치한 판이다(설치한 판보다 새 판으로 지울 때 — 흔하다).
+ * 기록은 위조될 수 있지만 sha 를 맞추려면 위조자가 그 자리의 설치자 파일 바이트를 알아야 하고, 알 수 있는 파일은 git 이 추적하는 파일이라
+ * 되돌릴 수 있다.
  */
 function replacesOnlyHarnessCopy(log: InstallLog, projectDir: string, path: string): boolean {
   const harness = harnessBytesAt(log, path);
@@ -88,7 +90,10 @@ function replacesOnlyHarnessCopy(log: InstallLog, projectDir: string, path: stri
   const slot = join(projectDir, path);
   try {
     if (!lstatSync(slot).isFile()) return false;
-    return readFileSync(slot).equals(harness);
+    const disk = readFileSync(slot);
+    if (disk.equals(harness)) return true;
+    const rec = recorded(log, path);
+    return rec.state === "sha" && rec.sha256 === hashContent(disk.toString("utf8"));
   } catch (e) {
     return (e as NodeJS.ErrnoException).code === "ENOENT";
   }

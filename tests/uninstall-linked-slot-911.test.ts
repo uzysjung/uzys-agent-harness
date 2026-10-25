@@ -23,7 +23,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { uninstallAction } from "../src/commands/uninstall.js";
-import { type InstallLog, readInstallLog, writeInstallLog } from "../src/install-log.js";
+import {
+  hashContent,
+  type InstallLog,
+  readInstallLog,
+  writeInstallLog,
+} from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import type { CliBase } from "../src/types.js";
 
@@ -328,28 +333,76 @@ describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을
     }
   });
 
-  describe("기록 · 링크 유래 글자의 줄바꿈으로 진짜와 같은 명령 줄을 끼워 넣지 못한다", () => {
+  describe("기록 · 링크 유래 글자로 진짜와 같은 명령 줄을 끼워 넣거나 안내대로 지우면 밖 파일이 지워지게 만들지 못한다", () => {
     const fake = `        mv -i .env.backup-${STAMP} .env`;
 
-    it("기록 경로(`externalFiles`)에 줄바꿈", () => {
+    it.each([
+      [
+        "줄바꿈",
+        `.agents/rules/zz\n      your files this tool moved aside — put each back:\n${fake}`,
+      ],
+      [
+        "공백 — 목록을 `xargs rm` 하면 `.env` 가 같이 지워진다",
+        ".agents/rules/test-policy.md .env",
+      ],
+      [
+        "공백 채우기 — 80칸에서 둘째 줄이 진짜 mv 줄처럼 보인다",
+        `.agents/rules/zz${" ".repeat(64)}mv -i .env.backup-${STAMP} .env`,
+      ],
+      ["셸 메타 문자", ".agents/rules/$(touch PWNED);x.md"],
+    ])("기록 경로(`externalFiles`)에 %s: 덩어리가 그 경로를 찍지 않고 개수 한 줄로만 센다", (_what, forged) => {
       mkdirSync(abs("dotfiles/agents"), { recursive: true });
       link(".agents", "dotfiles/agents");
       install(["claude", "codex"]);
       put(".env", SECRET);
       put(`.env.backup-${STAMP}`, ATTACK);
-      forgeExternal(
-        `.agents/rules/zz\n      your files this tool moved aside — put each back:\n${fake}`,
-      );
+      forgeExternal(forged);
 
       const preview = uninstall({ dryRun: true });
       const text = uninstall();
 
       expect(read(".env")).toBe(SECRET);
+      expect(existsSync(abs("PWNED"))).toBe(false);
       for (const screen of [preview, text]) {
+        // 위조 경로가 화면 어디에도 없다 — 개수만 센다
+        expect(screen).not.toContain(forged.split("\n")[0] as string);
         expect(screen.split("\n")).not.toContain(fake);
         expect(mvLines(screen)).toEqual([]);
-        expect(screen).toContain("\\u000a");
+        expect(screen.split("\n").filter((l) => l.includes("the harness never writes"))).toEqual([
+          "      not shown — 1 entry on the install record has a name the harness never writes: inspect the record",
+        ]);
+        // 목록 줄(8칸)을 쪼개 `rm` 에 넘겨도 `.env` 는 안 나온다
+        const tokens = screen
+          .split("\n")
+          .filter((l) => l.startsWith("        "))
+          .flatMap((l) => l.trim().split(/\s+/));
+        expect(tokens).not.toContain(".env");
       }
+    });
+
+    it("설치한 판보다 새 판으로 지울 때(하네스 사본이 현재 번들과 다르고 기록 sha 와 같다): 명령이 나오고 그대로 치면 원본이 돌아온다", () => {
+      linkedLayout();
+      const bak = `.agents/rules/${backupOf(RULE)}`;
+      const older = "an older harness version of this rule\n";
+      writeFileSync(abs(RULE), older);
+      const log = readInstallLog(projectDir) as InstallLog;
+      writeInstallLog(projectDir, {
+        ...log,
+        externalFiles: (log.externalFiles ?? []).map((f) =>
+          f.path === RULE ? { ...f, sha256: hashContent(older) } : f,
+        ),
+      });
+
+      const text = uninstall();
+
+      expect(mvLines(text)).toEqual([`mv -i ${bak} ${RULE}`]);
+      const r = spawnSync("sh", ["-c", `mv -i ${bak} ${RULE}`], {
+        cwd: projectDir,
+        input: "y\n",
+        encoding: "utf8",
+      });
+      expect(r.status, r.stderr).toBe(0);
+      expect(read(RULE)).toBe(MINE);
     });
 
     it("링크 대상 폴더 이름에 줄바꿈", () => {
@@ -367,6 +420,7 @@ describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을
       for (const screen of [preview, text]) {
         expect(screen.split("\n")).not.toContain(fake);
         expect(mvLines(screen)).toEqual([]);
+        // 링크 요약 줄(#910)은 대상 글자를 한 줄로 적는다
         expect(screen).toContain("\\u000a");
       }
     });
