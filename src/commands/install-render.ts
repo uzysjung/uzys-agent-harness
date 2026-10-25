@@ -56,7 +56,11 @@ import { LINES } from "../judge.js";
 import { RETIRED_AGENTS, TRACK_AGENTS } from "../manifest.js";
 import type { OutOfTrackReclaim } from "../out-of-track.js";
 import type { OutsideLink } from "../outside-project.js";
-import { finalSelectedAssets, groupAssetsByCategory } from "../preset-recommend.js";
+import {
+  finalSelectedAssets,
+  groupAssetsByCategory,
+  residentSelectedAssets,
+} from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
@@ -151,7 +155,11 @@ export function renderInstallHeader(
     // 디스크에 남아 매 세션 상주하는데 계획에는 없어서, 설치자는 실제보다 작은 숫자를 본다
     // (실측: 화면 agents 2 · 디스크 4). 갱신 **후 디스크**로 잰 줄을 `renderUpdateSummary` 가 낸다.
     if (mode !== "update") {
-      const cost = formatResidentCostLine(residentCostFor(spec), summarizeContextCost(finalAssets));
+      // #865 — 비용은 고른 CLI 가 받는 자산만 센다(ASSETS 줄은 위처럼 고른 전부와 도달 분해를 말한다)
+      const cost = formatResidentCostLine(
+        residentCostFor(spec),
+        summarizeContextCost(residentSelectedAssets(spec)),
+      );
       if (cost) log(`              ${c.dim(`· ${cost}`)}`);
     }
   }
@@ -304,7 +312,7 @@ export function renderUpdateSummary(
       spec,
       residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
     ),
-    summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)),
+    summarizeContextCost(residentSelectedAssets(spec)),
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // 설계 검증 B2 — update 가 원격 MCP 서버를 더했거나 갈아 끼웠으면(예: railway 가 원격으로) 첫 사용 안내를 같은 문장으로
