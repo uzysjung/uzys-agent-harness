@@ -8,7 +8,15 @@
  *
  * 개발자의 실제 `~/.codex` 를 건드리지 않도록 HOME 을 임시 폴더로 바꾼다(`runCodexOptIn` 은 `homedir()` 를 쓴다).
  */
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -235,5 +243,33 @@ describe("uninstall — trust 항목을 손수 지울 목록에 올린다 (#644 
     expect(second.report.codexOptIn?.trustEntry.status).toBe("already-present");
     expect(readInstallLog(projectDir)?.codexTrust).toBeUndefined();
     expect(uninstall({ dryRun: true })).not.toContain("Codex trust entry");
+  });
+});
+
+describe("#882 — CODEX_HOME 을 둔 환경: 쓰기와 확인이 Codex 가 읽는 같은 파일을 본다", () => {
+  let codexHome = "";
+  beforeEach(() => {
+    // HOME 아래 기본 자리(~/.codex)와 다른 곳 — 위 beforeEach 의 별칭 설정을 이 블록에서만 바꾼다(afterEach 가 되돌린다)
+    codexHome = mkdtempSync(join(tmpdir(), "trust-codex-home-"));
+    process.env.CODEX_HOME = codexHome;
+  });
+  afterEach(() => rmSync(codexHome, { recursive: true, force: true }));
+
+  it("--with-codex-trust 는 $CODEX_HOME/config.toml 에 쓰고 화면이 그 파일을 가리킨다 · 플래그 없는 재설치는 trust 안내를 내지 않는다", () => {
+    const first = install(true);
+
+    const written = join(codexHome, "config.toml");
+    expect(first.report.codexOptIn?.trustEntry.status).toBe("registered");
+    expect(hasTrustEntry(readFileSync(written, "utf8"), projectDir)).toBe(true);
+    expect(existsSync(configPath)).toBe(false); // ~/.codex 는 Codex 가 읽지 않는 자리다
+    const row = screen(first.spec, first.report)
+      .split("\n")
+      .find((l) => l.includes("trust entry"));
+    expect(row).toContain(`${written} trust entry`);
+    expect(row).not.toContain("~/.codex/config.toml");
+    expect(readInstallLog(projectDir)?.codexTrust?.configPath).toBe(written);
+
+    const again = install(false);
+    expect(finalSummary(again.spec, again.report)).not.toContain('"Trust and continue"');
   });
 });

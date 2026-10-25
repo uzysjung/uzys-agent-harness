@@ -1,5 +1,5 @@
-import { homedir } from "node:os";
 import { retiredFeaturesLeftBehind } from "../codex/config-toml.js";
+import { codexConfigLabel, codexConfigPath } from "../codex/opt-in.js";
 import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
 /**
  * Install 출력 렌더 레이어 (v26.82.0, Phase R).
@@ -554,7 +554,8 @@ export function renderCliArtifacts(
           : trust.status === "already-present"
             ? "already present"
             : (trust.message ?? "error");
-      log(assetRow(kind, "~/.codex/config.toml trust entry", meta));
+      // #882 — 실제로 쓴(쓰려던) 파일을 가리킨다 — `CODEX_HOME` 이면 그 자리다
+      log(assetRow(kind, `${codexConfigLabel(trust.configPath)} trust entry`, meta));
     }
   }
   if (report.opencode) {
@@ -844,10 +845,11 @@ export function renderFinalSummary(
   // #637 — 플래그 없는 재설치는 codexOptIn 자체를 안 만들어, **이미 등록된** trust 를
   // 확인하지 않고 안내를 되살렸다 — Codex 는 묻지도 않는데 "trust this folder" 를 말한다.
   // 전역 config 의 해당 항목 존재를 직접 본다(등록 여부 판정은 trust-entry 의 SSOT).
+  // #882 — 쓰는 쪽(`runCodexOptIn`)과 같은 자리를 본다 — 자리 규칙은 `codexConfigPath` 하나다
+  const configPath = codexConfigPath();
+  const configLabel = codexConfigLabel(configPath);
   const alreadyTrustedGlobally = (() => {
     try {
-      const home = process.env.CODEX_HOME ?? join(homedir(), ".codex");
-      const configPath = join(home, "config.toml");
       if (!existsSync(configPath)) return false;
       return hasTrustEntry(readFileSync(configPath, "utf8"), spec.projectDir);
     } catch {
@@ -868,11 +870,11 @@ export function renderFinalSummary(
     const entry = `[projects.${tomlBasicString(trust?.key ?? spec.projectDir)}]`;
     const headless =
       trust?.status === "unreadable"
-        ? "headless: fix ~/.codex/config.toml (not valid TOML), then run with --with-codex-trust again"
+        ? `headless: fix ${configLabel} (not valid TOML), then run with --with-codex-trust again`
         : trust?.status === "error"
-          ? `headless: add ${entry} trust_level = "trusted" to ~/.codex/config.toml by hand (the harness could not append it safely)`
+          ? `headless: add ${entry} trust_level = "trusted" to ${configLabel} by hand (the harness could not append it safely)`
           : trust?.status === "left"
-            ? `headless: ~/.codex/config.toml already has ${entry} with a trust_level other than "trusted" — the harness left your setting; change it by hand`
+            ? `headless: ${configLabel} already has ${entry} with a trust_level other than "trusted" — the harness left your setting; change it by hand`
             : "headless: agent-harness install … --with-codex-trust";
     log(cont(`open Codex here → ${c.bold('"Trust and continue"')}   ${c.dim(`(${headless})`)}`));
   }

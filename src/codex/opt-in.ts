@@ -32,10 +32,26 @@ export interface CodexOptInContext {
   codexHome?: string;
 }
 
+/**
+ * #882 — Codex 가 읽는 전역 config 의 자리. 쓰기(`runCodexOptIn`)와 확인(설치 화면이 "이미 신뢰했나" 를 보는 곳)이 이 한
+ * 함수를 쓴다 — 둘이 갈리면 `CODEX_HOME` 을 둔 환경에서 Codex 가 읽지 않는 파일에 trust 를 쓰고 "등록했다" 고 말한다.
+ * 우선순위 = 주입(`codexHome`) → `CODEX_HOME`(빈 값은 없는 것으로) → `~/.codex`.
+ */
+export function codexConfigPath(codexHome?: string): string {
+  const env = process.env.CODEX_HOME;
+  const home = codexHome ?? (env !== undefined && env !== "" ? env : join(homedir(), ".codex"));
+  return join(home, "config.toml");
+}
+
+/** 화면에 찍는 그 파일 — 홈 아래면 `~/…`(기본 자리는 지금처럼 `~/.codex/config.toml`), 밖이면 경로 그대로. */
+export function codexConfigLabel(configPath: string = codexConfigPath()): string {
+  const home = homedir();
+  return configPath.startsWith(`${home}/`) ? `~${configPath.slice(home.length)}` : configPath;
+}
+
 /** ~/.codex/config.toml 에 프로젝트 trust entry 등록. */
 export function runCodexOptIn(ctx: CodexOptInContext): CodexOptInReport {
-  const codexHome = ctx.codexHome ?? join(homedir(), ".codex");
-  const configPath = join(codexHome, "config.toml");
+  const configPath = codexConfigPath(ctx.codexHome);
   const result = registerTrustEntry({ configPath, projectDir: ctx.projectDir });
   return {
     trustEntry: {
