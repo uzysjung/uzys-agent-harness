@@ -1,5 +1,14 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -75,7 +84,12 @@ function fakeTool(dir: string, name: string): NonNullable<ExternalInstallerDeps[
   };
 }
 
-function install(dir: string, cli: CliTargets): void {
+function install(
+  dir: string,
+  cli: CliTargets,
+  asset: ExternalAsset = FD,
+  name = "frontend-design",
+): void {
   tick();
   runInstall({
     harnessRoot: HARNESS_ROOT,
@@ -85,20 +99,17 @@ function install(dir: string, cli: CliTargets): void {
       options: { withCodexTrust: false },
       cli,
       projectDir: dir,
-      userOverride: { forceInclude: ["frontend-design"], forceExclude: [] },
+      userOverride: { forceInclude: [asset.id], forceExclude: [] },
     } satisfies InstallSpec,
     mode: "add",
     runExternal: (ctx, deps) =>
-      runExternalInstall(
-        { ...ctx, cli },
-        { ...deps, assets: [FD], spawn: fakeTool(dir, "frontend-design") },
-      ),
+      runExternalInstall({ ...ctx, cli }, { ...deps, assets: [asset], spawn: fakeTool(dir, name) }),
   });
 }
 
-function update(dir: string, asset: ExternalAsset = FD, name = "frontend-design"): void {
+function update(dir: string, asset: ExternalAsset = FD, name = "frontend-design") {
   tick();
-  refreshExternalSkills(dir, {
+  return refreshExternalSkills(dir, {
     spawn: fakeTool(dir, name),
     assets: [asset],
     log: () => {},
@@ -267,5 +278,151 @@ describe("#918 — 기록이 스킬 폴더 밖을 가리켜도 hold 는 그 파�
     update(dir, whole, "w");
     expect(read(dir, SRC)).toBe(SRC_BODY);
     expect(backupsIn(dir)).toEqual([]);
+  });
+});
+
+const jk = EXTERNAL_ASSETS.find((a) => a.id === "jakubkrehel-skills");
+if (jk === undefined) throw new Error("catalog has no jakubkrehel-skills");
+const JK = jk;
+
+/** 소스 전체 자산(jakubkrehel-skills · 도구가 `jk` 폴더를 쓴다)을 claude 로 깐 프로젝트. */
+function wholeProject(): string {
+  const dir = mkdtempSync(join(tmpdir(), "uzys-918-ws-"));
+  dirs.push(dir);
+  install(dir, ["claude"], JK, "jk");
+  return dir;
+}
+
+function editRecord(
+  dir: string,
+  id: string,
+  edit: (a: InstallLog["assets"][number]) => object,
+): void {
+  const log = readInstallLog(dir) as InstallLog;
+  writeInstallLog(dir, {
+    ...log,
+    assets: log.assets.map((a) => (a.id === id ? { ...a, ...edit(a) } : a)),
+  });
+}
+
+describe("#918 회차 2 — 기록 파일의 백업+제거는 도구가 이번에 새로 쓴 폴더 안에서만", () => {
+  const runs = [
+    ["update", (dir: string) => update(dir, JK, "jk")],
+    ["install 재실행", (dir: string) => install(dir, ["claude"], JK, "jk")],
+  ] as const;
+
+  for (const [what, run] of runs) {
+    it(`${what} — 소스 전체 자산 기록에 다른 스킬 폴더(${MINE})를 넣어도 제자리 · 백업 0`, () => {
+      const dir = wholeProject();
+      put(dir, MINE, MINE_BODY);
+      forge(dir, JK.id, [MINE]);
+      run(dir);
+      expect(read(dir, MINE)).toBe(MINE_BODY);
+      expect(backupsIn(dir)).toEqual([]);
+    });
+
+    it(`${what} — 소스 전체 자산 기록의 \`detail.skill\` 까지 위조해도 제자리 · 백업 0`, () => {
+      const dir = wholeProject();
+      put(dir, MINE, MINE_BODY);
+      forge(dir, JK.id, [MINE], "my-own");
+      run(dir);
+      expect(read(dir, MINE)).toBe(MINE_BODY);
+      expect(backupsIn(dir)).toEqual([]);
+    });
+  }
+
+  // 정상에서 바뀌는 것 — 상류가 뺀 소스 전체 자산의 옛 스킬 폴더에서 설치자가 고친 기록 파일은 백업+제거 대신 제자리(손실 없는 쪽)
+  it("update — 상류가 뺀 소스 전체 자산의 옛 폴더에서 고친 기록 파일은 제자리 · 백업 0", () => {
+    const OLD = ".claude/skills/old-jk/SKILL.md";
+    const EDITED = "# old jk — my edits\n";
+    const dir = wholeProject();
+    put(dir, OLD, EDITED);
+    editRecord(dir, JK.id, (a) => ({
+      files: [...(a.files ?? []), { path: OLD, sha256: hashContent(BODY) }],
+    }));
+    update(dir, JK, "jk");
+    expect(read(dir, OLD)).toBe(EDITED);
+    expect(backupsIn(dir)).toEqual([]);
+  });
+
+  // 대조 — 이름 있는 자산의 폴더는 도구가 통째로 새로 쓴다: 상류가 뺀 파일을 고쳤으면 그 파일 하나를 백업하고 live 에서 뺀다(그대로)
+  it("update — 이름 있는 자산 폴더에서 상류가 뺀 고친 기록 파일은 백업+제거(그대로)", () => {
+    const GONE = ".claude/skills/frontend-design/old.md";
+    const dir = forgedProject([]);
+    put(dir, GONE, "# my edits\n");
+    editRecord(dir, FD.id, (a) => ({
+      files: [...(a.files ?? []), { path: GONE, sha256: hashContent("upstream\n") }],
+    }));
+    update(dir);
+    expect(existsSync(join(dir, GONE))).toBe(false);
+    expect(backupsIn(dir).filter((p) => p.startsWith(`${GONE}.backup-`))).toHaveLength(1);
+  });
+});
+
+describe("#918 회차 2 — 스킬 자리가 스킬 폴더 밖으로 풀리는 링크면 그 자리로 도구를 부르지 않고 hold 도 따라가지 않는다", () => {
+  /** 카탈로그 자리 `slot` 을 `src/a/b` 로의 상대 링크로 바꾼 프로젝트. */
+  function linkedProject(cli: CliTargets, slot: string): string {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-lc-"));
+    dirs.push(dir);
+    install(dir, cli);
+    put(dir, SRC, SRC_BODY);
+    put(dir, "src/a/b/d.ts", "export const d = 1;\n");
+    rmSync(join(dir, slot), { recursive: true, force: true });
+    mkdirSync(dirname(join(dir, slot)), { recursive: true });
+    symlinkSync("../../src/a/b", join(dir, slot));
+    return dir;
+  }
+
+  function expectSrcInPlace(dir: string, slot: string): void {
+    expect(read(dir, SRC)).toBe(SRC_BODY);
+    expect(read(dir, "src/a/b/d.ts")).toBe("export const d = 1;\n");
+    expect(lstatSync(join(dir, slot)).isSymbolicLink()).toBe(true);
+    expect(backupsIn(dir)).toEqual([]);
+  }
+
+  const C = ".claude/skills/frontend-design";
+  const A = ".agents/skills/frontend-design";
+
+  it("update · claude 만 — 도구를 부르지 않고 화면 줄이 그 자리를 말한다", () => {
+    const dir = linkedProject(["claude"], C);
+    const r = update(dir);
+    expectSrcInPlace(dir, C);
+    expect(r.failed.map((f) => f.message).join("\n")).toContain(
+      `${C} links outside the skill folders`,
+    );
+  });
+
+  it("install 재실행 · claude 만", () => {
+    const dir = linkedProject(["claude"], C);
+    install(dir, ["claude"]);
+    expectSrcInPlace(dir, C);
+  });
+
+  it("update · claude+codex 에서 `.agents` 자리 링크 — claude 자리만 새로 쓴다", () => {
+    const dir = linkedProject(["claude", "codex"], A);
+    update(dir);
+    expectSrcInPlace(dir, A);
+    expect(read(dir, `${C}/SKILL.md`)).toBe(BODY);
+  });
+
+  it("install 재실행 · claude+codex 에서 `.agents` 자리 링크", () => {
+    const dir = linkedProject(["claude", "codex"], A);
+    install(dir, ["claude", "codex"]);
+    expectSrcInPlace(dir, A);
+  });
+
+  // 대조 — 정규 레이아웃(#524 `.claude/skills/<id>` → `.agents/skills/<id>`, 둘 다 스킬 폴더)은 지금처럼 도구가 두 자리를 쓴다
+  it("대조 — 자리끼리 잇는 링크는 그대로 처리된다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-lc-ok-"));
+    dirs.push(dir);
+    install(dir, ["claude", "codex"]);
+    put(dir, `${A}/note.md`, "my note\n");
+    rmSync(join(dir, C), { recursive: true, force: true });
+    symlinkSync("../../.agents/skills/frontend-design", join(dir, C));
+    const r = update(dir);
+    expect(r.failed).toEqual([]);
+    expect(read(dir, `${A}/SKILL.md`)).toBe(BODY);
+    expect(read(dir, `${C}/SKILL.md`)).toBe(BODY);
+    expect(read(dir, `${A}/note.md`)).toBe("my note\n");
   });
 });

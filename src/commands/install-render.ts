@@ -283,7 +283,7 @@ export function createInstallRenderer(
         // #678 — 일부 CLI 자리만 밖이라 그 자리는 부르지 않았다 — 깔린 자리만 말한다.
         const outsideNote =
           result.ok && result.outside?.length
-            ? ` · ${result.outside.map((o) => `${o.root}/ left as is (links outside the project: ${o.target})`).join(" · ")}`
+            ? ` · ${result.outside.map((o) => (o.slot !== undefined ? `${o.slot}/ left as is (links outside the skill folders: ${o.target})` : `${o.root}/ left as is (links outside the project: ${o.target})`)).join(" · ")}`
             : "";
         const meta = `${base}${outsideNote}`;
         log(`  ${assetRow(result.ok ? "success" : "skip", result.asset.id, meta)}`);
