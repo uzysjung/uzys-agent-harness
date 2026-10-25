@@ -107,7 +107,7 @@ function update(dir: string, asset: ExternalAsset = FD, name = "frontend-design"
 }
 
 /** 기록의 `id` 자산 `files` 에 위조 항목을 더한다 — 기록 sha 는 디스크와 다르다(설치자가 "고친" 하네스 파일로 읽히는 모양). */
-function forge(dir: string, id: string, paths: ReadonlyArray<string>): void {
+function forge(dir: string, id: string, paths: ReadonlyArray<string>, skill?: string): void {
   const log = readInstallLog(dir) as InstallLog;
   writeInstallLog(dir, {
     ...log,
@@ -115,6 +115,7 @@ function forge(dir: string, id: string, paths: ReadonlyArray<string>): void {
       a.id === id
         ? {
             ...a,
+            ...(skill !== undefined ? { detail: { ...a.detail, skill } } : {}),
             files: [
               ...(a.files ?? []),
               ...paths.map((path) => ({ path, sha256: hashContent("forged\n") })),
@@ -130,14 +131,18 @@ function backupsIn(dir: string): string[] {
 }
 
 /** 설치 · 설치자 파일 두 개 · 기록 위조 뒤의 프로젝트. */
-function forgedProject(paths: ReadonlyArray<string>, prep?: (dir: string) => void): string {
+function forgedProject(
+  paths: ReadonlyArray<string>,
+  prep?: (dir: string) => void,
+  skill?: string,
+): string {
   const dir = mkdtempSync(join(tmpdir(), "uzys-918-"));
   dirs.push(dir);
   install(dir, ["claude"]);
   put(dir, SRC, SRC_BODY);
   put(dir, MINE, MINE_BODY);
   prep?.(dir);
-  forge(dir, "frontend-design", paths);
+  forge(dir, "frontend-design", paths, skill);
   return dir;
 }
 
@@ -182,6 +187,50 @@ describe("#918 — 기록이 스킬 폴더 밖을 가리켜도 hold 는 그 파�
       const dir = forgedProject(paths, prep);
       install(dir, ["claude"]);
       expectUntouched(dir);
+    });
+  }
+
+  // 기록의 이름까지 위조해도 자리 이름은 카탈로그가 정한다 — 기록이 자리를 정하지 않는다
+  it("update — 기록의 `detail.skill` 까지 다른 스킬 폴더 이름으로 위조", () => {
+    const dir = forgedProject([MINE], undefined, "my-own");
+    update(dir);
+    expectUntouched(dir);
+  });
+
+  it("install 재실행 — 기록의 `detail.skill` 까지 다른 스킬 폴더 이름으로 위조", () => {
+    const dir = forgedProject([MINE], undefined, "my-own");
+    install(dir, ["claude"]);
+    expectUntouched(dir);
+  });
+
+  // 대조 — 상류가 스킬 이름을 바꾼 옛 기록(기록 이름 ≠ 카탈로그 이름): 설치자가 고친 옛 폴더 파일이 사라지지 않는다
+  for (const [what, run] of [
+    ["update", (dir: string) => update(dir)],
+    ["install 재실행", (dir: string) => install(dir, ["claude"])],
+  ] as const) {
+    it(`${what} — 이름이 바뀐 옛 기록의 옛 폴더 파일은 제자리`, () => {
+      const OLD = ".claude/skills/old-design/SKILL.md";
+      const EDITED = "# old design — my edits\n";
+      const dir = mkdtempSync(join(tmpdir(), "uzys-918-rename-"));
+      dirs.push(dir);
+      install(dir, ["claude"]);
+      put(dir, OLD, EDITED);
+      const log = readInstallLog(dir) as InstallLog;
+      writeInstallLog(dir, {
+        ...log,
+        assets: log.assets.map((a) =>
+          a.id === "frontend-design"
+            ? {
+                ...a,
+                detail: { ...a.detail, skill: "old-design" },
+                files: [{ path: OLD, sha256: hashContent(BODY) }],
+              }
+            : a,
+        ),
+      });
+      run(dir);
+      expect(read(dir, OLD)).toBe(EDITED);
+      expect(backupsIn(dir)).toEqual([]);
     });
   }
 

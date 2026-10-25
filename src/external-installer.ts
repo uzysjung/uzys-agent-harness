@@ -656,6 +656,7 @@ export function refreshExternalSkills(
   const slotCtx = { log, scope: "project" as const };
   const settle = holdSkillSlots(projectDir, {
     recorded: log.assets.filter((a) => targetIds.has(a.id)),
+    assets: targets,
     slots: skillSlotsFor(inProject, clis, slotCtx),
     unlisted: unlistedSkillSlots(inProject, clis, slotCtx),
     log,
@@ -755,6 +756,8 @@ export function holdSkillSlots(
   projectDir: string,
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
+    /** #918 — 이번 대상의 카탈로그 항목. 기록 유래 자리의 스킬 이름은 여기서 구한다 — 없으면 기록 유래 자리를 들지 않는다. */
+    assets?: ReadonlyArray<ExternalAsset>;
     slots: ReadonlyArray<string>;
     unlisted?: ReadonlyArray<string>;
     log: InstallLog | null;
@@ -1163,6 +1166,7 @@ function slotFilesToKeep(
   projectDir: string,
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
+    assets?: ReadonlyArray<ExternalAsset> | undefined;
     slots: ReadonlyArray<string>;
     unlisted?: ReadonlyArray<string> | undefined;
     log: InstallLog | null;
@@ -1187,7 +1191,13 @@ function slotFilesToKeep(
   // 자리는 기록 파일이 **든 폴더**(`<root>/<id>`)다 — 루트 바로 아래 파일(옛 판이 적은 AppleDouble 짝 `<root>/._<id>` 등)은 자리가
   // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다). #918 — 그 자산이 쓸 수 있는 스킬 폴더만(`recordedSlots`)
   const slots = new Set([
-    ...hold.recorded.flatMap((a) => recordedSlots(projectDir, a)),
+    ...hold.recorded.flatMap((a) =>
+      recordedSlots(
+        projectDir,
+        a,
+        hold.assets?.find((c) => c.id === a.id),
+      ),
+    ),
     ...hold.slots,
   ]);
   // #902 — 파일이 든 가장 안쪽 자리가 목록 없는 옛 기록의 자리면 그 파일은 도구 것인지 모른다(소스 전체 자산의 루트 자리 안에서도
@@ -1253,13 +1263,20 @@ function slotFilesToKeep(
 /**
  * #918 — 기록 `files` 가 말하는 자리(항목의 `<root>/<name>` 접두) 가운데 그 자산이 쓸 수 있는 스킬 폴더. 기록은 커밋되는 파일이라
  * (ADR-100) 경로 글자를 그대로 자리로 삼으면 남이 고친 기록 하나로 hold 가 `src/a/b/` · 다른 스킬 폴더를 훑어 그 안 파일을 백업으로
- * 옮긴다. 이름 있는 자산은 `<스킬 루트>/<detail.skill>` 만 · 소스 전체 자산(`detail.skill` 없음)은 스킬 루트 바로 아래 한 자리
- * (`isSkillName`)다 — project 로 깐 그 자산은 이름을 기록하지 않는다(`skillNames`). 글자와 실경로가 둘 다 그 폴더 안이어야 한다
- * (`inHarnessSlot` — #901 의 같은 판정. 자리끼리 잇는 링크 #524 는 실경로도 스킬 폴더라 그대로다).
+ * 옮긴다. 이름은 기록이 아니라 카탈로그(`catalog` — 이번 대상의 그 id 항목)가 정한다: 이름 있는 자산은 `<스킬 루트>/<method.skill>` 만이고
+ * 기록의 `detail.skill` 이 그와 다르면(위조 · 상류가 이름을 바꾼 옛 기록) 기록 유래 자리를 들지 않는다 — 그 폴더 파일은 제자리에 남는다.
+ * 소스 전체 자산(`method.skill` 없음)은 스킬 루트 바로 아래 한 자리(`isSkillName`)다 — project 로 깐 그 자산은 이름을 기록하지 않는다
+ * (`skillNames`). 카탈로그에 없는 id 는 자리를 들지 않는다. 글자와 실경로가 둘 다 그 폴더 안이어야 한다(`inHarnessSlot` — #901 의 같은
+ * 판정. 자리끼리 잇는 링크 #524 는 실경로도 스킬 폴더라 그대로다).
  */
-function recordedSlots(projectDir: string, asset: InstallLogAsset): string[] {
-  const named = asset.detail.skill;
-  if (named !== undefined && !isSkillName(named)) return [];
+function recordedSlots(
+  projectDir: string,
+  asset: InstallLogAsset,
+  catalog: ExternalAsset | undefined,
+): string[] {
+  if (catalog?.method.kind !== "skill") return [];
+  const named = catalog.method.skill;
+  if (asset.detail.skill !== named || (named !== undefined && !isSkillName(named))) return [];
   const out = new Set<string>();
   for (const f of asset.files ?? []) {
     const parts = f.path.split("/");
