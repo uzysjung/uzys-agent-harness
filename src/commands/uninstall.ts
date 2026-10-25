@@ -3028,6 +3028,8 @@ function byHandLines(
   log: InstallLog,
 ): string[] {
   let hidden = 0;
+  // 번들이 까는 자리의 판정은 한 번만 짓는다 — 파일마다 manifest 를 다시 지으면 링크 아래 파일이 많은 설치본에서 느려진다
+  let bundleTargets: ((path: string) => boolean) | undefined;
   const stands = (path: string, confirmed: () => boolean): boolean => {
     if (isPlainPath(path) && confirmed()) return true;
     hidden += 1;
@@ -3040,7 +3042,12 @@ function byHandLines(
     // 링크 자체가 그 기록이면(말단 링크) 위 줄이 이미 그 이름이다
     const shown = g.files
       .filter((f) => f !== link)
-      .filter((f) => stands(f, () => isPlainPath(link) && holdsHarnessBytes(log, projectDir, f)))
+      .filter((f) =>
+        stands(f, () => {
+          bundleTargets ??= recordedTrackTargets(log);
+          return isPlainPath(link) && holdsHarnessBytes(log, projectDir, f, bundleTargets);
+        }),
+      )
       .sort();
     return shown.length > 0 ? [{ link, files: shown }] : [];
   });

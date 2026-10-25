@@ -16,12 +16,17 @@ import { renderBundledSkillFile } from "./codex/skills.js";
 import { renderCodexHook } from "./codex/transform.js";
 import { resolveBundleRoot } from "./context-cost.js";
 import { hashContent, type InstallLog } from "./install-log.js";
-import { isRecordedTrackTarget, recorded } from "./recorded.js";
+import { recorded, recordedTrackTargets } from "./recorded.js";
 import { portRules } from "./rules-port.js";
 
 const CLAUDE_DIR = ".claude/";
 
-export function harnessBytesAt(log: InstallLog, path: string): Buffer | null {
+/** `isTarget` — 기록 트랙이 번들에서 까는 자리인가. 여러 경로를 묻는 호출부는 한 번 지어(`recordedTrackTargets`, #761 N4) 넘긴다 — 경로마다 manifest 를 다시 짓지 않게. */
+export function harnessBytesAt(
+  log: InstallLog,
+  path: string,
+  isTarget: (path: string) => boolean = recordedTrackTargets(log),
+): Buffer | null {
   const norm = posix.normalize(path);
   const root = resolveBundleRoot();
   const text = (rel: string): string => readFileSync(join(root, "templates", rel), "utf8");
@@ -29,27 +34,25 @@ export function harnessBytesAt(log: InstallLog, path: string): Buffer | null {
     // 룰·훅·스킬은 세 CLI 가 한 번들에서 렌더한다 — 이름은 `.claude/` 쪽 이름으로 되짚어 manifest 에 묻는다
     const rule = /^\.agents\/rules\/([^/]+)\.md$/.exec(norm)?.[1];
     if (rule !== undefined) {
-      const [ported] = isRecordedTrackTarget(log, `${CLAUDE_DIR}rules/${rule}.md`)
-        ? portRules(root, [rule])
-        : [];
+      const [ported] = isTarget(`${CLAUDE_DIR}rules/${rule}.md`) ? portRules(root, [rule]) : [];
       return ported === undefined ? null : Buffer.from(renderAntigravityRule(ported));
     }
     const hook = /^\.codex\/hooks\/([^/]+)$/.exec(norm)?.[1];
     if (hook !== undefined) {
-      return isRecordedTrackTarget(log, `${CLAUDE_DIR}hooks/${hook}`)
+      return isTarget(`${CLAUDE_DIR}hooks/${hook}`)
         ? Buffer.from(renderCodexHook(text(`hooks/${hook}`)))
         : null;
     }
     const skill = /^\.agents\/skills\/([^/]+\/.+)$/.exec(norm)?.[1];
     if (skill !== undefined) {
-      return isRecordedTrackTarget(log, `${CLAUDE_DIR}skills/${skill}`)
+      return isTarget(`${CLAUDE_DIR}skills/${skill}`)
         ? Buffer.from(
             renderBundledSkillFile(skill.slice(skill.indexOf("/") + 1), text(`skills/${skill}`)),
           )
         : null;
     }
     // `.claude/` 는 번들 템플릿을 그대로 복사한다
-    if (norm.startsWith(CLAUDE_DIR) && isRecordedTrackTarget(log, norm)) {
+    if (norm.startsWith(CLAUDE_DIR) && isTarget(norm)) {
       return readFileSync(join(root, "templates", norm.slice(CLAUDE_DIR.length)));
     }
   } catch {
@@ -63,14 +66,19 @@ export function harnessBytesAt(log: InstallLog, path: string): Buffer | null {
  * 새 판으로 지울 때 · 번들이 은퇴시킨 파일). 기록은 위조될 수 있지만 sha 를 맞추려면 위조자가 그 자리 파일의 바이트를 알아야 하고, 알 수
  * 있는 파일은 저장소가 추적하는 파일이라 되돌릴 수 있다. 말단이 링크이거나 읽을 수 없으면 아니다.
  */
-export function holdsHarnessBytes(log: InstallLog, projectDir: string, path: string): boolean {
+export function holdsHarnessBytes(
+  log: InstallLog,
+  projectDir: string,
+  path: string,
+  isTarget: (path: string) => boolean = recordedTrackTargets(log),
+): boolean {
   const slot = join(projectDir, path);
   try {
     if (!lstatSync(slot).isFile()) return false;
     const disk = readFileSync(slot);
-    const bundle = harnessBytesAt(log, path);
+    const bundle = harnessBytesAt(log, path, isTarget);
     if (bundle !== null && disk.equals(bundle)) return true;
-    const rec = recorded(log, path);
+    const rec = recorded(log, path, { isTarget });
     return rec.state === "sha" && rec.sha256 === hashContent(disk.toString("utf8"));
   } catch {
     return false;

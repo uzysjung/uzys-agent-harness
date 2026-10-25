@@ -25,7 +25,7 @@ import { hashContent, type InstallLog, type InstallLogRootFile } from "./install
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
-import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
+import { bundlePath, isRecordedTrackTarget, recordedTrackTargets } from "./recorded.js";
 
 export interface DisplacedOutcome {
   path: string;
@@ -82,9 +82,14 @@ function isBackupOf(path: string, backup: string): boolean {
  * 둔 자리 너머는 위조 링크가 정할 수 있어(`.agents → .` 면 `rules/git-policy.md` 는 설치자의 다른 파일이다) 이름만으로는 부족하다 — 설치자
  * 파일은 위조자가 바이트를 몰라 이 대조를 통과시킬 수 없다.
  */
-function replacesOnlyHarnessCopy(log: InstallLog, projectDir: string, path: string): boolean {
-  if (harnessBytesAt(log, path) === null) return false;
-  return !exists(join(projectDir, path)) || holdsHarnessBytes(log, projectDir, path);
+function replacesOnlyHarnessCopy(
+  log: InstallLog,
+  projectDir: string,
+  path: string,
+  isTarget: (path: string) => boolean,
+): boolean {
+  if (harnessBytesAt(log, path, isTarget) === null) return false;
+  return !exists(join(projectDir, path)) || holdsHarnessBytes(log, projectDir, path, isTarget);
 }
 
 /**
@@ -96,6 +101,7 @@ function handBackOf(
   log: InstallLog,
   projectDir: string,
   f: InstallLogRootFile,
+  isTarget: (path: string) => boolean,
 ): { from: string; to: string; safe: boolean } | null {
   const backup = f.notes[0];
   if (backup === undefined || !inSlotByName(f.path)) return null;
@@ -104,7 +110,7 @@ function handBackOf(
   return {
     from: posix.normalize(backup),
     to: posix.normalize(f.path),
-    safe: replacesOnlyHarnessCopy(log, projectDir, f.path),
+    safe: replacesOnlyHarnessCopy(log, projectDir, f.path, isTarget),
   };
 }
 
@@ -145,6 +151,8 @@ export function restoreDisplaced(
   opts: { has: (path: string) => boolean; willBeGone?: ReadonlySet<string>; write: boolean },
 ): DisplacedOutcome[] {
   const out: DisplacedOutcome[] = [];
+  // 번들이 까는 자리의 판정은 한 번만 짓는다(링크로 둔 자리 아래 displaced 가 많아도 manifest 는 한 번)
+  let bundleTargets: ((path: string) => boolean) | undefined;
   for (const f of log.rootFiles ?? []) {
     if (f.change !== "displaced" || !opts.has(f.path)) continue;
     const slot = join(projectDir, f.path);
@@ -153,7 +161,8 @@ export function restoreDisplaced(
     // #901 — displaced 는 하네스 파일 자리에서만 생긴다. 자리가 글자로든 실경로로든 그 밖이면(`.env` · 링크로 둔 자리 폴더 너머 ·
     // 함께 쓰는 파일) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
     if (!inHarnessSlot(projectDir, f.path)) {
-      const handBack = handBackOf(log, projectDir, f);
+      bundleTargets ??= recordedTrackTargets(log);
+      const handBack = handBackOf(log, projectDir, f, bundleTargets);
       out.push({
         path: f.path,
         backup: f.notes[0] ?? null,
