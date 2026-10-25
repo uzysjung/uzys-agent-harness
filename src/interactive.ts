@@ -1,7 +1,7 @@
-import { keyId } from "./adapters/index.js";
+import { isKeyId, keyId } from "./adapters/index.js";
 import { BASELINE_PREFIX, listBaselineTargets } from "./baseline-targets.js";
 import { CLI_BASE_SORT_ORDER } from "./cli-targets.js";
-import { trackDefaultMcpAssetIds } from "./cli-transforms.js";
+import { droppedMcpAssetIds, trackDefaultMcpAssetIds } from "./cli-transforms.js";
 import {
   type InstallOptions,
   installCommandLine,
@@ -250,7 +250,9 @@ export function classifyUpdateIntent(
   if (!sameSet(confirmed.tracks, recordTracks)) return "add";
   if (!sameSet(confirmed.cli, recordClis)) return "add";
   // ADR-099 R3 — 해제 비교의 기준은 기록의 **누적** 빼기다(마지막 설치분이 아니다)
-  const out = excludedIds(log);
+  // #908 — 키 id(`mcp:<서버>`)로 뺀 서버도 자산 id 로 풀어 넣는다. 체크는 자산 id 로만 오므로, 안 풀면 다시 체크한 서버가 "그대로"로 읽힌다
+  const recordedOut = excludedIds(log);
+  const out = new Set([...recordedOut, ...droppedMcpAssetIds(resolveBundleRoot(), recordedOut)]);
   const recorded = log?.assets ?? [];
   const covered = coveredByRecord(log, legacyTracks);
   const picked = new Set(confirmed.assetIds);
@@ -734,7 +736,8 @@ async function confirmUpdate(input: ConfirmUpdateInput): Promise<InteractiveResu
 
 /**
  * 설계 selection-record §3 — 기록의 최신 빼기(`excludedIds(log)`) 중 확인 화면에서 **아직 해제된** id. 위저드가 보여 주지 않는 키 id
- * 는 늘 여기 든다(설치자가 체크할 수 없었으니 빼기를 이어 간다). baseline 은 이번 트랙이 내는 것만 — 밖의 것은 install 이 이어받는다.
+ * 는 늘 여기 든다(설치자가 체크할 수 없었으니 빼기를 이어 간다) — 고를 수 있는 MCP 서버의 키 id 는 3단계에 자산 id 로 보이므로
+ * 그 서버를 다시 체크했으면 더는 들지 않는다(#908). baseline 은 이번 트랙이 내는 것만 — 밖의 것은 install 이 이어받는다.
  */
 export function unchecked(
   log: InstallLog | null,
@@ -744,8 +747,12 @@ export function unchecked(
 ): string[] {
   const checked = new Set([...assetIds, ...baselineIds]);
   const offered = new Set(listBaselineTargets({ tracks }).map((t) => t.id));
+  // #908 — 키 id 로 뺀 서버를 다시 체크했으면(체크는 자산 id 로 온다) 그 빼기는 이번 실행에서 푼다
+  const rechecked = (id: string): boolean =>
+    isKeyId(id) &&
+    droppedMcpAssetIds(resolveBundleRoot(), new Set([id])).some((a) => checked.has(a));
   return [...excludedIds(log)]
-    .filter((id) => !checked.has(id))
+    .filter((id) => !checked.has(id) && !rechecked(id))
     .filter((id) => !id.startsWith(BASELINE_PREFIX) || offered.has(id))
     .sort();
 }
