@@ -1,13 +1,12 @@
 /**
- * #911 — `uninstall --only <외부 스킬>` 도 같다(`uninstall-linked-slot-911.test.ts` 의 짝). `.agents` 를 프로젝트 안 다른 폴더로 링크해 둔
- * 설치본에서 그 스킬을 처음 더할 때 상류 파일에 덮인 설치자 파일은 백업 + displaced 로 적히고, `--only` 가 되돌리려 해도 링크 너머라
- * 하네스가 옮기지 못한다(#901) — 그 백업을 제자리로 옮기는 명령을 화면이 말한다. 파일은 건드리지 않는다.
+ * #911 — `uninstall --only <외부 스킬>` 도 같은 덩어리를 쓴다(`uninstall-linked-slot-911.test.ts` 의 짝). `.agents` 를 프로젝트 안 다른
+ * 폴더로 링크해 둔 설치본에서 그 스킬을 처음 더할 때 상류 파일에 덮인 설치자 파일은 백업 + displaced 로 적히고, `--only` 가 되돌리려 해도
+ * 링크 너머라 하네스가 옮기지 못한다(#901). 외부 스킬 파일은 현재 번들이 까는 하네스 자산이 아니라(기록의 글자로만 안다) 옮기는 명령은 주지
+ * 않는다 — 백업이 남아 있다는 사실만 말한다. 파일은 건드리지 않는다.
  */
 
 import type { SpawnSyncReturns } from "node:child_process";
-import { spawnSync } from "node:child_process";
 import {
-  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -91,7 +90,7 @@ function uninstall(dryRun = false): string {
   return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-it("`.agents` 링크 + 첫 추가가 덮은 설치자 스킬 파일: `--only` 가 못 되돌리는 대신 옮길 명령을 말한다 · 미리보기도 같다 · 명령을 치면 원본이 돌아온다", () => {
+it("`.agents` 링크 + 첫 추가가 덮은 설치자 스킬 파일: `--only` 가 못 되돌리는 대신 백업이 남아 있다는 사실을 말한다 · 미리보기도 같다 · 옮기는 명령은 주지 않는다", () => {
   mkdirSync(abs("dotfiles/agents/skills/frontend-design"), { recursive: true });
   symlinkSync("dotfiles/agents", abs(".agents"));
   runInstall({
@@ -130,16 +129,9 @@ it("`.agents` 링크 + 첫 추가가 덮은 설치자 스킬 파일: `--only` �
 
   for (const screen of [preview, text]) {
     expect(screen).toContain(`${SKILL} — not put back`);
-    expect(screen).toContain(`mv -i ${bak} ${SKILL}`);
+    expect(screen).toContain(`${bak}  (record: a backup of ${SKILL})`);
+    expect(screen).not.toContain("mv -i");
   }
   // 화면이 말할 뿐이다 — 백업은 그대로
   expect(readFileSync(abs(bak), "utf8")).toBe(MINE);
-  const r = spawnSync("sh", ["-c", `mv -i ${bak} ${SKILL}`], {
-    cwd: projectDir,
-    input: "y\n",
-    encoding: "utf8",
-  });
-  expect(r.status, r.stderr).toBe(0);
-  expect(readFileSync(abs(SKILL), "utf8")).toBe(MINE);
-  expect(existsSync(abs(bak))).toBe(false);
 });

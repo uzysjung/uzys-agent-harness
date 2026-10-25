@@ -198,19 +198,26 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
     expect(existsSync(abs(bak))).toBe(false);
   });
 
-  it("셸이 풀어 읽는 글자(공백)가 든 자리: 따옴표로 묶어 그대로 쳐도 옮겨진다", () => {
-    mkdirSync(abs("dotfiles/agents"), { recursive: true });
-    link(".agents", "dotfiles/agents");
+  it.each([
+    [".codex", "shared-codex", ".codex/hooks/session-start.sh"],
+    [".agents", "dotfiles/agents", ".agents/skills/model-orchestration/SKILL.md"],
+  ])("룰이 아닌 번들 자산 자리(%s → %s 의 %s)도 같다", (slotLink, target, slot) => {
+    mkdirSync(abs(target), { recursive: true });
+    link(slotLink, target);
+    put(slot, MINE);
     install(["claude", "codex"]);
-    const slot = ".agents/rules/my rule.md";
-    put(`${slot}.backup-${STAMP}`, MINE);
-    forgeDisplaced(slot, `${slot}.backup-${STAMP}`);
+    const backup = backupOf(slot);
+    expect(backup, "전제 — 설치가 설치자 파일을 백업으로 비켜 두었다").toBeDefined();
+    const bak = `${dirname(slot)}/${backup}`;
 
     const text = uninstall();
 
-    const printed = mvLines(text);
-    expect(printed).toEqual([`mv -i '${slot}.backup-${STAMP}' '${slot}'`]);
-    const r = spawnSync("sh", ["-c", printed[0] as string], { cwd: projectDir, encoding: "utf8" });
+    expect(mvLines(text)).toEqual([`mv -i ${bak} ${slot}`]);
+    const r = spawnSync("sh", ["-c", `mv -i ${bak} ${slot}`], {
+      cwd: projectDir,
+      input: "y\n",
+      encoding: "utf8",
+    });
     expect(r.status, r.stderr).toBe(0);
     expect(read(slot)).toBe(MINE);
   });
@@ -218,11 +225,11 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
   it.each([
     [
       "백업 이름이 이 자리의 것이 아니다(`.env` 를 하네스 자리로 보내는 기록)",
-      ".agents/rules/x.md",
+      RULE,
       `.env.backup-${STAMP}`,
       true,
     ],
-    ["백업이 이미 없다", ".agents/rules/y.md", `.agents/rules/y.md.backup-${STAMP}`, false],
+    ["백업이 이미 없다", RULE, `${RULE}.backup-${STAMP}`, false],
     [
       "글자부터 하네스 자리 밖이다(링크 너머가 아니라 기록이 `.env`)",
       ".env",
@@ -241,6 +248,35 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
     expect(text).toContain(`${slot} — not put back`);
     expect(text).not.toContain("mv -i");
     if (backupOnDisk) expect(read(backup)).toBe("ATTACK\n");
+  });
+});
+
+describe("#911 회차 1 — 위조 기록이 쓰이는 파일 자리를 하네스 자리로 적어도 옮기는 명령을 주지 않는다", () => {
+  const SECRET = "SECRET=installer-only\n";
+  const ATTACK = "SECRET=attacker-chosen\n";
+
+  it.each([
+    ["`.opencode → .`", ".", ".env"],
+    ["`.opencode → apps/web`", "apps/web", "apps/web/.env"],
+  ])("%s + displaced `.opencode/.env` + 커밋된 백업: mv 줄 0 · 쓰이는 `.env` 그대로 · 백업이 남아 있다는 사실만 말한다", (_what, target, env) => {
+    install(["claude", "codex"]);
+    put(env, SECRET);
+    put(`${env}.backup-${STAMP}`, ATTACK);
+    link(".opencode", target);
+    forgeDisplaced(".opencode/.env", `.opencode/.env.backup-${STAMP}`);
+
+    const preview = uninstall({ dryRun: true });
+    const text = uninstall();
+
+    expect(read(env)).toBe(SECRET);
+    expect(read(`${env}.backup-${STAMP}`)).toBe(ATTACK);
+    for (const screen of [preview, text]) {
+      expect(mvLines(screen)).toEqual([]);
+      expect(screen).not.toContain("mv -i");
+      expect(screen).toContain(
+        `.opencode/.env.backup-${STAMP}  (record: a backup of .opencode/.env)`,
+      );
+    }
   });
 });
 

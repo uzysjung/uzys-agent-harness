@@ -3010,7 +3010,8 @@ function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[
 /**
  * #911 — 링크로 둔 자리라 하네스가 건드리지 않은 것을 설치자가 손으로 끝내는 법을 한 덩어리로 모은다: 못 되돌린 설치자 원본을 옮길 명령 ·
  * 남긴 파일의 이름. 위 줄들이 말한 것을 이름으로 풀 뿐 — 아무것도 옮기거나 지우지 않고, 미리보기도 같은 판정을 말한다. 남이 커밋한
- * 기록의 경로일 수 있어 "하네스 파일이다" 라고 단정하지 않고 확인을 요구한다.
+ * 기록의 경로일 수 있어 "하네스 파일이다" 라고 단정하지 않고 확인을 요구한다. 옮기는 명령은 번들이 까는 자산 이름의 자리에만 준다
+ * (`handBack.asset`) — 그 밖(위조 기록이 `.env` 를 자리로 적은 것)은 백업이 남아 있다는 사실만 말한다.
  */
 function byHandLines(
   offSlot: ReadonlyArray<string>,
@@ -3027,15 +3028,26 @@ function byHandLines(
     }))
     .filter((g) => g.files.length > 0);
   if (back.length === 0 && links.length === 0) return [];
-  const yours = new Set(back.map((b) => b.to));
+  const movable = back.filter((b) => b.asset);
+  const unsure = back.filter((b) => !b.asset);
+  const yours = new Set(movable.map((b) => b.to));
   const lines = [
     `  ${c.yellow("⊘")} left for you to finish by hand (nothing here was touched — run from the project folder):`,
   ];
-  if (back.length > 0) {
+  if (movable.length > 0) {
     lines.push(
       c.dim("      your files this tool moved aside — put each back (replaces the harness copy):"),
     );
-    for (const b of back) lines.push(c.dim(`        mv -i ${shellArg(b.from)} ${shellArg(b.to)}`));
+    // 번들 자산 이름뿐이라 셸이 풀어 읽는 글자가 없다(`<자산>.backup-<시각>`)
+    for (const b of movable) lines.push(c.dim(`        mv -i ${b.from} ${b.to}`));
+  }
+  if (unsure.length > 0) {
+    lines.push(
+      c.dim(
+        "      backups the install record names, for places that are not files this tool installs — no command is given; look at each before you move it anywhere:",
+      ),
+    );
+    for (const b of unsure) lines.push(c.dim(`        ${b.from}  (record: a backup of ${b.to})`));
   }
   for (const g of links) {
     lines.push(
@@ -3054,11 +3066,6 @@ function byHandLines(
     }
   }
   return lines;
-}
-
-/** 손으로 칠 명령의 경로 — 공백 · 셸 문자가 있으면 작은따옴표로 묶는다. */
-function shellArg(path: string): string {
-  return /^[\w@%+=:,./-]+$/.test(path) ? path : `'${path.replace(/'/g, "'\\''")}'`;
 }
 
 /** 경로의 가장 얕은 링크 성분(project 상대)과 그 링크 글자 — 없으면 null. */

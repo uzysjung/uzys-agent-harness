@@ -24,6 +24,7 @@ import { hashContent, type InstallLog, type InstallLogRootFile } from "./install
 import { judgeDisplaced } from "./judge.js";
 import { isLegacyHarnessFile } from "./legacy-fingerprints.js";
 import { outsideProjectTarget } from "./outside-project.js";
+import { HARNESS_ANCHOR_FILE } from "./project-claude-merge.js";
 import { bundlePath, isRecordedTrackTarget } from "./recorded.js";
 
 export interface DisplacedOutcome {
@@ -35,10 +36,11 @@ export interface DisplacedOutcome {
   /** 이 displaced 기록을 지운다. */
   forget: boolean;
   /**
-   * #911 — 링크로 둔 자리라 되돌리지 못한 원본을 설치자가 손으로 옮길 쌍(project 상대). 화면이 명령으로 말할 뿐 하네스는 옮기지 않는다.
-   * 하네스가 만든 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 명령을 받지 못한다.
+   * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리(project 상대). 화면이 말할 뿐 하네스는 옮기지 않는다. 하네스가 만든
+   * 이름의 백업이 실제로 있고 자리 이름이 하네스 자리 안일 때만 — 글자부터 밖인 기록(`.env`)은 받지 못한다. `asset` = 그 자리가 현재
+   * 번들이 까는 하네스 자산 이름이다(기록이 아니라 번들에서 유도) — 화면은 이때만 옮기는 명령을 주고, 아니면 백업이 남아 있다는 사실만 말한다.
    */
-  handBack?: { from: string; to: string };
+  handBack?: { from: string; to: string; asset: boolean };
 }
 
 /** lstat 기준 존재 — 끊어진 링크도 "있다"(그 자리가 막혀 있다). */
@@ -74,20 +76,41 @@ function isBackupOf(path: string, backup: string): boolean {
 }
 
 /**
- * #911 — 링크로 둔 자리라 되돌리지 못한 원본을 손으로 옮길 쌍. 이름이 하네스 자리 안인 기록(실경로가 밖인 링크로 둔 자리)에서 그 자리에
- * 하네스가 만든 이름의 백업이 프로젝트 안에 실재하고 설치자 파일일 때만 — 글자부터 밖인 기록(`.env`)이나 믿을 수 없는 백업 이름에는
- * 명령을 만들어 주지 않는다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
+ * #911 — 이 자리가 현재 번들이 실제로 까는 하네스 자산 이름인가. **기록이 아니라 번들에서 유도한다** — 기록은 남이 커밋한 것일 수 있어
+ * 링크로 둔 자리(`.opencode → .`)에 `.env` 를 하네스 자리로 적을 수 있다. 다른 CLI 자리의 사본(`.agents/rules/` · `.codex/hooks/` ·
+ * `.agents/skills/`)은 같은 번들 원본의 `.claude/` 이름으로 되짚어 manifest(트랙 · 번들 템플릿에 있는 파일)에 묻고, 앵커는 이름이다.
+ */
+function isBundledAsset(log: InstallLog, path: string): boolean {
+  const norm = posix.normalize(path);
+  if (norm === HARNESS_ANCHOR_FILE) return true;
+  const twin = norm.startsWith(".agents/rules/")
+    ? `.claude/rules/${norm.slice(".agents/rules/".length)}`
+    : norm.startsWith(".codex/hooks/")
+      ? `.claude/hooks/${norm.slice(".codex/hooks/".length)}`
+      : bundlePath(norm);
+  return isRecordedTrackTarget(log, twin);
+}
+
+/**
+ * #911 — 링크로 둔 자리라 되돌리지 못한 원본의 백업과 자리. 이름이 하네스 자리 안인 기록(실경로가 밖인 링크로 둔 자리)에서 그 자리에
+ * 하네스가 만든 이름의 백업이 프로젝트 안에 실재하고 설치자 파일일 때만 — 글자부터 밖인 기록(`.env`)이나 믿을 수 없는 백업 이름은 받지
+ * 못한다. 옮기는 명령까지 받는 것은 번들 자산 이름의 자리뿐이다(`asset`) — 링크 너머가 어디든 위조 기록이 쓰이는 파일(`.env`)로 가는 길을
+ * 손으로 열어 주지 않는다. 명령을 받는 쪽은 사람이다(여기서 옮기지 않는다).
  */
 function handBackOf(
   log: InstallLog,
   projectDir: string,
   f: InstallLogRootFile,
-): { from: string; to: string } | null {
+): { from: string; to: string; asset: boolean } | null {
   const backup = f.notes[0];
   if (backup === undefined || !inSlotByName(f.path)) return null;
   if (outsideBackup(projectDir, backup) !== null || !isBackupOf(f.path, backup)) return null;
   if (!exists(join(projectDir, backup)) || isLegacyDisplaced(log, projectDir, f)) return null;
-  return { from: posix.normalize(backup), to: posix.normalize(f.path) };
+  return {
+    from: posix.normalize(backup),
+    to: posix.normalize(f.path),
+    asset: isBundledAsset(log, f.path),
+  };
 }
 
 /**
