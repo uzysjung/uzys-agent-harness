@@ -21,7 +21,7 @@ import { isContainerKey, jsonSha } from "./adapters/json-keys.js";
 import { BASELINE_PREFIX } from "./baseline-targets.js";
 import { gitignoreRender, RETIRED_GITIGNORE_LINES } from "./env-files.js";
 import { EXTERNAL_ASSETS } from "./external-assets.js";
-import { backupFile, copyFile } from "./fs-ops.js";
+import { backupFile, backupIfLossyUtf8, copyFile } from "./fs-ops.js";
 import { isLegacyHookLine, projectAnchoredRef } from "./hook-ref.js";
 import {
   appendSelection,
@@ -383,6 +383,8 @@ export function createInstallWriter(args: {
         backups.push(backupAbs);
       }
       mkdirSync(dirname(abs), { recursive: true });
+      // #653 · #847 — 문자열 왕복이 설치자 줄의 비UTF-8 바이트를 영구 변형하기 전에 원시 바이트를 보존한다
+      if (disk !== null) backupIfLossyUtf8(abs, now);
       writeFileSync(abs, res.text);
     }
     portionPaths.push(path);

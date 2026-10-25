@@ -151,10 +151,7 @@ export function renderInstallHeader(
     // 디스크에 남아 매 세션 상주하는데 계획에는 없어서, 설치자는 실제보다 작은 숫자를 본다
     // (실측: 화면 agents 2 · 디스크 4). 갱신 **후 디스크**로 잰 줄을 `renderUpdateSummary` 가 낸다.
     if (mode !== "update") {
-      const cost = formatResidentCostLine(
-        residentCostFor(spec),
-        summarizeContextCost(finalAssets).unmeasuredCount,
-      );
+      const cost = formatResidentCostLine(residentCostFor(spec), summarizeContextCost(finalAssets));
       if (cost) log(`              ${c.dim(`· ${cost}`)}`);
     }
   }
@@ -174,10 +171,21 @@ export function createInstallRenderer(
   // v26.55.0 — Phase 2 grouped progress UX (ADR-016). category 변경 시 ━━ <Title> ━━ 헤더 출력.
   // external-installer 가 카테고리 순서로 정렬해 호출 → 첫 번째 호출이 category 1 의 첫 자산.
   let currentCategory: Category | null = null;
+  // #844 — 외부 단계가 까는 자산의 "installed again" 은 그 단계의 결과를 본 뒤에 말한다(Phase 1 시점엔 아직 안 깔렸다)
+  let releasedLater: ReleasedItem[] = [];
   const callbacks: PipelineCallbacks = {
     onProgress: (event) => {
       if (event.type === "baseline-complete") {
-        renderPhase1Rows(log, event.baseline, verbose);
+        const released = event.baseline.releasedThisRun ?? [];
+        releasedLater = released.filter((r) => r.again && installedByExternalPhase(r.id));
+        renderPhase1Rows(
+          log,
+          {
+            ...event.baseline,
+            releasedThisRun: released.filter((r) => !releasedLater.includes(r)),
+          },
+          verbose,
+        );
       } else if (event.type === "install-log-error") {
         // #600 — 파일은 다 깔렸는데 기록을 못 남겼다. 침묵하면 `uninstall` · `update` 가 이 설치를 못 보는 이유를
         // 설치자가 알 길이 없다.
@@ -223,6 +231,13 @@ export function createInstallRenderer(
               `  ${c.dim(`· ${ids.length} asset(s) not installed — requires ${support}, selected [${spec.cli.join(", ")}]: ${ids.join(", ")}`)}`,
             );
           }
+        }
+        if (releasedLater.length > 0) {
+          const failed = new Set(
+            event.report.attempted.filter((r) => !r.ok).map((r) => r.asset.id),
+          );
+          log("");
+          for (const row of releasedRows(releasedLater, failed)) log(row);
         }
       }
     },
@@ -281,7 +296,7 @@ export function renderUpdateSummary(
       spec,
       residentCostFor(spec, residentEntriesOnDisk(spec), contextFilesOnDisk(spec)),
     ),
-    summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)).unmeasuredCount,
+    summarizeContextCost(finalSelectedAssets(spec.tracks, spec.userOverride)),
   );
   if (cost) log(infoRow("CONTEXT", cost));
   // 설계 검증 B2 — update 가 원격 MCP 서버를 더했거나 갈아 끼웠으면(예: railway 가 원격으로) 첫 사용 안내를 같은 문장으로
@@ -558,17 +573,8 @@ export function renderCliArtifacts(
         ),
       );
     }
-    // ADR-081 — 옛 커맨드 사본을 지웠으면 말한다. 조용히 지우면 사용자는 자기가 쓰던
-    // 슬래시 커맨드가 왜 사라졌는지 알 방법이 없다 (스킬로 옮겨져 이름은 그대로 뜬다).
-    if (report.opencode.retiredCommands.length > 0) {
-      log(
-        assetRow(
-          "skip",
-          ".opencode/commands/",
-          `${report.opencode.retiredCommands.length} retired · 같은 스킬이 .agents/skills/ 로 옮겨졌다 (백업 남김)`,
-        ),
-      );
-    }
+    const retiredCmds = retiredCommandsRow(report.opencode.retiredCommands.length);
+    if (retiredCmds) log(retiredCmds);
   }
   // v26.78.1 (R2) — Antigravity 산출물: rules + dev-method skills. 원칙·맥락은 위 `AGENTS.md` 줄이 말한다(ADR-103).
   // #564 — 숫자는 **이번 실행이 쓴 것**(변환 반환값 — writer 가 받아 기록에 적은 경로)에서 센다.
@@ -601,6 +607,19 @@ export function renderCliArtifacts(
     }
   }
   log("");
+}
+
+/**
+ * ADR-081 — 옛 OpenCode 커맨드 사본을 지웠으면 말한다. 조용히 지우면 사용자는 자기가 쓰던 슬래시 커맨드가 왜 사라졌는지
+ * 알 방법이 없다 (스킬로 옮겨져 이름은 그대로 뜬다). #859 — install · update 가 이 한 줄을 같이 쓴다.
+ */
+export function retiredCommandsRow(count: number): string | null {
+  if (count === 0) return null;
+  return assetRow(
+    "skip",
+    ".opencode/commands/",
+    `${count} retired · 같은 스킬이 .agents/skills/ 로 옮겨졌다 (백업 남김)`,
+  );
 }
 
 /** #851 (ADR-112) — 회수한 프로젝트 사본마다 한 줄 · 남긴 파일마다 한 줄. */
@@ -750,23 +769,7 @@ export function renderFinalSummary(
   // v26.78.1 (R2): pairwise if-chain → spec.cli derive. antigravity 누락 + claude 무조건
   //   prepend(claude 미선택 시에도 "Claude" 표기) 버그 fix. 헤더와 동일 SSOT.
   log(infoRow("CLI", spec.cli.map((b) => CLI_SUMMARY_LABELS[b]).join(" · ")));
-  // M-1 — settings.json 이 가리키던 없는 스크립트를 지웠으면 **소리를 낸다.** 무음 no-op 은
-  //   이 처방을 채택할 때 명시적 기각 사유였다: 지금 유일한 파손 신호(bash exit 127)를 지우면서
-  //   아무 말도 안 하면, 다음에 참조가 깨져도 아무도 모른다 (`no-false-ship` 원칙 5).
-  //   update 분기(아래 renderPhase1Rows — renderUpdateSummary 는 STATUS/BACKUP 만 찍는다)와
-  //   **같은 라벨·같은 정보량**을 쓰고, 어느 파일이 지워졌는지
-  //   `.claude/` 기준 상대경로로 함께 보여준다 — 파일명만으로는 사용자가 못 찾는다.
-  if (report.staleHookRefs.length > 0) {
-    log(
-      infoRow(
-        "HOOK",
-        c.yellow(
-          `settings.json stale hook refs · ${report.staleHookRefs.length} removed ` +
-            `(${report.staleHookRefs.join(", ")})`,
-        ),
-      ),
-    );
-  }
+  // #857 — install 은 죽은 훅 참조를 지우지 않는다 — 알리는 줄은 Phase 1 행(`keptHookRefs`)이 낸다.
   if (report.external && report.external.skipped > 0) {
     log("");
     log(
@@ -1083,6 +1086,9 @@ function renderPhase1Rows(
     if (agentsNews) log(agentsNews);
     const retired = anchorRetireRow(baseline.updateMode.anchorRetired ?? null);
     if (retired) log(retired);
+    // #859 — 옛 OpenCode 커맨드 사본을 은퇴시켰다(install 화면과 같은 줄)
+    const retiredCmds = retiredCommandsRow(baseline.updateMode.retiredCommands?.length ?? 0);
+    if (retiredCmds) log(retiredCmds);
     // #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 외부 스킬 사본을 회수했다(백업은 아래 판정 줄이 파일마다 말한다)
     for (const row of globalCopyRows(baseline.updateMode.globalCopiesReclaimed ?? [])) log(row);
     // #677 — 기록 트랙 밖으로 새어 든 하네스 룰을 치웠다
@@ -1182,6 +1188,17 @@ function renderPhase1Rows(
           "skip",
           ".claude/skills owned by another tool",
           `${baseline.updateMode.skillsSkippedLinks.join(", ")} · 그 자리가 우리 디렉터리가 아니라 갱신하지 않았다`,
+        ),
+      );
+    }
+    // #848 — 번들 밖 파일을 지우지 못했다(권한 등). 조용하면 설치자는 남은 파일이 왜 남았는지 모른다.
+    const pruneFailed = baseline.updateMode.skillsPruneFailed ?? [];
+    if (pruneFailed.length > 0) {
+      log(
+        assetRow(
+          "skip",
+          ".claude/skills not in bundle",
+          `${pruneFailed.join(", ")} · could not be read, backed up, or removed (permissions?) — left in place; the next update tries again`,
         ),
       );
     }
@@ -1831,13 +1848,24 @@ export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>)
 }
 
 /** 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않은 id 한 줄씩. */
+type ReleasedItem = { id: string; again: boolean; tail: string };
+
+/** #844 — 외부 단계(npm · 플러그인 · `npx skills`)가 까는 카탈로그 자산인가 — 번들(internal)은 Phase 1 이 깐다. */
+function installedByExternalPhase(id: string): boolean {
+  return EXTERNAL_ASSETS.some((a) => a.id === id && a.method.kind !== "internal");
+}
+
+/** @param failed #844 — 외부 단계에서 설치가 실패한 id. 다시 골랐어도 깔리지 않았으니 "installed again" 이라 하지 않는다. */
 export function releasedRows(
-  items: ReadonlyArray<{ id: string; again: boolean; tail: string }>,
+  items: ReadonlyArray<ReleasedItem>,
+  failed: ReadonlySet<string> = new Set(),
 ): string[] {
   return items.map((r) =>
-    r.again
-      ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
-      : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
+    failed.has(r.id)
+      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but the install failed (see ${r.id} above): this install did not pass --without ${r.id}`
+      : r.again
+        ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
+        : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
   );
 }
 

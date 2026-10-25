@@ -108,7 +108,12 @@ import {
   outsideLinkAt,
   outsideProjectTarget,
 } from "../outside-project.js";
-import { stripHarnessImport, upsertHarnessImport } from "../project-claude-merge.js";
+import {
+  HARNESS_IMPORT_LINE,
+  scaffoldBanner,
+  stripHarnessImport,
+  upsertHarnessImport,
+} from "../project-claude-merge.js";
 import {
   bundlePath,
   excludedIds,
@@ -164,7 +169,11 @@ export interface UninstallActionDeps {
   log?: (msg: string) => void;
   err?: (msg: string) => void;
   exit?: (code: number) => never;
-  spawn?: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
+  spawn?: (
+    cmd: string,
+    args: ReadonlyArray<string>,
+    opts: { cwd: string },
+  ) => SpawnSyncReturns<string>;
   rm?: (path: string) => void;
   /** `--only` 후 로그 재기록. 실패 경로를 테스트에서 재현하기 위해 주입 가능. */
   writeLog?: (projectDir: string, log: InstallLog) => void;
@@ -1390,9 +1399,11 @@ function settleTrackLog(
   const next = forgetRemoved({ ...installLog, spec: { ...installLog.spec, tracks } }, done);
   const abs = join(projectDir, INSTALLED_TRACKS);
   const key = INSTALLED_TRACKS.slice(CLAUDE_DIR.length);
-  const prior = installLog.policyFiles?.find((f) => f.path === key)?.sha256;
-  const edited =
-    prior !== undefined && safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
+  // #854 — 옛 기록(sha 없음)은 전량 uninstall 과 같은 기준(`templateNext` — 기록 트랙으로 쓴 하네스 판)으로 고쳤는지 본다
+  const prior =
+    installLog.policyFiles?.find((f) => f.path === key)?.sha256 ??
+    hashContent(installedTracksText(installLog.spec.tracks.filter(isTrack)));
+  const edited = safeExists(abs) && hashContent(readTextOrEmpty(abs)) !== prior;
   if (!installedClis(installLog).includes("claude") || edited) return next;
   if (outsideProjectTarget(projectDir, abs) !== null) return next;
   const content = installedTracksText(remaining);
@@ -1628,7 +1639,11 @@ interface ReversePlan {
 }
 
 interface ReverseCtx {
-  spawn: (cmd: string, args: ReadonlyArray<string>) => SpawnSyncReturns<string>;
+  spawn: (
+    cmd: string,
+    args: ReadonlyArray<string>,
+    opts: { cwd: string },
+  ) => SpawnSyncReturns<string>;
   projectDir: string;
   rm: (path: string) => void;
 }
@@ -1686,7 +1701,11 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
         assetId: asset.id,
         label: `claude plugin uninstall --scope project ${pluginId}`,
         execute: () => {
-          const r = spawn("claude", ["plugin", "uninstall", "--scope", "project", pluginId]);
+          // #845 — install 과 같은 계약(cwd=projectDir): claude 는 cwd 로 프로젝트를 찾고 npm 은 cwd 의 package.json 을
+          // 고친다. 빠지면 `--project-dir` 이 아니라 명령을 친 자리의 프로젝트가 바뀌고 대상 기록은 성공으로 남는다.
+          const r = spawn("claude", ["plugin", "uninstall", "--scope", "project", pluginId], {
+            cwd: ctx.projectDir,
+          });
           if (r.status === 0) return { ok: true };
           // #655 — 사용자가 claude CLI 로 이미 지운 플러그인은 "not found" 로 실패한다.
           // 이것을 실패로 세면 기록에서 빼질 수 없는 막다길이 되고, 전량 uninstall 도
@@ -1715,7 +1734,7 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
         assetId: asset.id,
         label: `npm uninstall --save-dev ${pkg}`,
         execute: () => {
-          const r = spawn("npm", ["uninstall", "--save-dev", pkg]);
+          const r = spawn("npm", ["uninstall", "--save-dev", pkg], { cwd: ctx.projectDir });
           return r.status === 0 ? { ok: true } : { ok: false, message: (r.stderr || "").trim() };
         },
       };
@@ -1865,6 +1884,8 @@ interface HarnessRemoval {
   legacyWiring: string[];
   /** 루트 `CLAUDE.md` 의 하네스 import 블록을 걷었다(미리보기면 걷을 것이 있다). */
   importStripped: boolean;
+  /** #846 — 실체가 프로젝트 밖이라 import 블록을 걷지 않고 남긴 루트 `CLAUDE.md`. */
+  importOutside?: OutsideLink;
   /** 하네스 앵커 — 지웠는가(기록을 뺄지 정한다) · 화면 줄. */
   anchor: { removed: boolean; lines: string[] };
   /** 지운(미리보기면 지울) 앵커 경로 — 미리보기의 되돌리기 판정이 "빈 자리" 로 친다. */
@@ -1933,6 +1954,8 @@ function removeHarnessFiles(
   // ⓔ 루트 `CLAUDE.md` 는 **사용자 소유**다 (P5 · ADR-060) — 지우지 않고 하네스 import 블록만 걷는다. 안 걷으면 앵커를 지운 뒤
   // 없는 파일을 가리키는 import 가 매 세션 로드된다. import 를 앵커보다 **먼저** 걷는다(반대면 잠깐이라도 끊긴 import 가 남는다)
   if (scope.importBlock) {
+    const outside = rootImportOutside(projectDir);
+    if (outside !== null) out.importOutside = outside;
     out.importStripped = io.write ? stripRootImport(projectDir) : hasRootImport(projectDir);
   }
   if (scope.anchor) {
@@ -2428,6 +2451,9 @@ function harnessRemovalLines(
         : `  ${status.success("CLAUDE.md — harness @import removed (본문 보존)")}`,
     );
   }
+  if (r.importOutside !== undefined) {
+    lines.push(importOutsideLine(r.importOutside, r.removedAnchor !== undefined));
+  }
   lines.push(...r.anchor.lines);
   lines.push(...displacedLines(r.displaced, preview));
   for (const path of r.stripped) {
@@ -2706,14 +2732,31 @@ function safeRealpath(abs: string): string | null {
 /**
  * #656 — 하네스 제거 후 남는 스캐폴드 배너를 정정한다. 배너 문장("SCAFFOLD — not filled in
  * yet…")은 하네스가 쓴 것이므로 지워도 사용자 몫이 아니다 — 그대로 두면 하네스가 없는
- * 프로젝트가 "아직 안 채웠다"고 계속 주장한다.
+ * 프로젝트가 "아직 안 채웠다"고 계속 주장한다. #837 — 표식 한 줄이 아니라 배너 3줄(채우는 법 · 앵커 안내도 하네스가
+ * 쓴 거짓이다)을 걷되, **하네스가 쓴 줄과 똑같은 줄만** 걷는다. 인용 블록째 걷으면 배너 바로 아래 설치자가 적은 인용 줄까지
+ * 백업 없이 사라진다 — 루트 `CLAUDE.md` 는 sha 판정이 없는 설치자 파일이다.
  */
 function neutralizeScaffoldBanner(text: string): string {
   return text
     .split("\n")
-    .filter((line) => !line.includes("SCAFFOLD — not filled in yet"))
+    .filter((line) => !SCAFFOLD_BANNER_LINES.has(line.replace(/\r$/, "")))
     .join("\n");
 }
+
+/**
+ * 하네스가 루트 `CLAUDE.md` · `AGENTS.md` 에 쓴 배너 줄 — 현행 판 + 옛 판 문구(태그 v26.96.0~v26.174.0 의
+ * `project-claude-merge.ts` 실측, 2026-10-19). 옛 판 문구는 그 판이 쓴 바이트 그대로 고정한다(상수가 바뀌어도 옛 디스크는 그대로다).
+ */
+const SCAFFOLD_BANNER_LINES: ReadonlySet<string> = new Set([
+  ...scaffoldBanner("claude").split("\n"),
+  ...scaffoldBanner("agents-md").split("\n"),
+  // v26.96.0~v26.139.0 — 네 자리에 같은 배너
+  "> The universal harness rules (Rule 1–12) live in the separate rules layer. This file is **project-specific context only**.",
+  // v26.140.0
+  "> The working principles live in this project's harness anchor — `.claude/CLAUDE.md` (Claude Code), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+  // v26.141.0~v26.148.1
+  "> The working principles live in this project's harness anchor — `CLAUDE-uzys-harness.md` (Claude Code, imported from this file), `AGENTS.md` (Codex/OpenCode), or `.agents/rules/uzys-harness.md` (Antigravity). This file is **project-specific context only**.",
+]);
 
 /**
  * 기준선과 같은 `AGENTS.md` 를 어떻게 할지 — 실행과 dry-run 이 **같은 술어**를 쓴다.
@@ -2915,9 +2958,12 @@ function pruneEmptyDirsUpward(projectDir: string, startDir: string): void {
  * 명령이 실패로 끝나고, 사용자는 무엇이 남았는지 알 수 없게 된다 (D16 과 같은 방침).
  */
 function stripRootImport(projectDir: string): boolean {
+  if (rootClaudeMdOutside(projectDir) !== null) return false;
   const current = readRootClaudeMd(projectDir);
-  const stripped = current === null ? null : stripHarnessImport(current);
-  if (stripped === null) return false;
+  const withoutImport = current === null ? null : stripHarnessImport(current);
+  if (withoutImport === null) return false;
+  // #837 — 배너는 방금 걷은 import 와 회수한 앵커 파일을 가리킨다("imported at the bottom of this file") — 같이 정정한다
+  const stripped = neutralizeScaffoldBanner(withoutImport);
   try {
     // #653 — 비UTF-8 바이트가 섞인 파일을 문자열 왕복으로 재작성 전에 원시 바이트를 보존한다.
     backupIfLossyUtf8(join(projectDir, "CLAUDE.md"));
@@ -2930,8 +2976,33 @@ function stripRootImport(projectDir: string): boolean {
 
 /** 미리보기용 — 실행 경로와 **같은 술어**를 쓴다 (미리보기가 실제와 어긋나면 미리보기가 아니다). */
 function hasRootImport(projectDir: string): boolean {
+  if (rootClaudeMdOutside(projectDir) !== null) return false;
   const current = readRootClaudeMd(projectDir);
   return current !== null && stripHarnessImport(current) !== null;
+}
+
+/**
+ * #846 (ADR-098) — 루트 `CLAUDE.md` 의 실체가 프로젝트 밖이면(설치 뒤 dotfiles 로 옮기고 링크) import 를 걷지 않는다 — 그 파일은 다른
+ * 프로젝트가 같이 쓸 수 있다. 걷을 import 가 있을 때만 그 자리를 돌려준다(화면이 "남김 + 대상" 을 말한다).
+ */
+function rootImportOutside(projectDir: string): OutsideLink | null {
+  const outside = rootClaudeMdOutside(projectDir);
+  if (outside === null) return null;
+  const current = readRootClaudeMd(projectDir);
+  return current !== null && stripHarnessImport(current) !== null ? outside : null;
+}
+
+/**
+ * #846 리뷰 — 밖이라 남긴 루트 `CLAUDE.md` 에는 import 블록이 그대로 있다. 같은 실행이 앵커를 지우면 그 import 는 없는 파일을
+ * 가리키므로, 손으로 걷을 것을 같은 줄이 말한다. 미리보기와 실행이 같은 문구다.
+ */
+function importOutsideLine(o: OutsideLink, anchorGone: boolean): string {
+  const pointing = anchorGone ? ", pointing at the anchor this uninstall removes" : "";
+  return `  ${c.yellow("⊘")} CLAUDE.md kept — link target is outside the project (${o.target}). Not touched — its harness @import block (${HARNESS_IMPORT_LINE}) is left in it${pointing} — delete that block by hand.`;
+}
+
+function rootClaudeMdOutside(projectDir: string): OutsideLink | null {
+  return outsideProjectTarget(projectDir, join(projectDir, "CLAUDE.md"));
 }
 
 function readRootClaudeMd(projectDir: string): string | null {
@@ -2945,8 +3016,17 @@ function readRootClaudeMd(projectDir: string): string | null {
 }
 
 /* v8 ignore start — thin dep-inject defaults. tests 는 항상 mock 주입. */
-function defaultSpawn(cmd: string, args: ReadonlyArray<string>): SpawnSyncReturns<string> {
-  return spawnSync(cmd, [...args], { encoding: "utf8", stdio: "pipe", timeout: 120_000 });
+function defaultSpawn(
+  cmd: string,
+  args: ReadonlyArray<string>,
+  opts: { cwd: string },
+): SpawnSyncReturns<string> {
+  return spawnSync(cmd, [...args], {
+    encoding: "utf8",
+    stdio: "pipe",
+    timeout: 120_000,
+    cwd: opts.cwd,
+  });
 }
 
 function defaultRm(path: string): void {

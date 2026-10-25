@@ -281,6 +281,11 @@ export interface UpdateModeReport {
    */
   skillsPruned: string[];
   /**
+   * #848 — 번들 밖이라 지우려다 읽기 · 백업 · 지우기가 실패해(권한 등) **남겨 둔** 스킬 파일(`.claude/skills/` 상대경로).
+   * 그 파일만 건너뛰고 update 는 끝까지 돌아 기록을 갱신한다 — 다음 update 가 다시 본다. 옵셔널 = 없음은 0건.
+   */
+  skillsPruneFailed?: string[];
+  /**
    * v26.132.0 (ADR-047) — 사용자가 고쳐서 백업본을 남긴 정책 파일 (`.claude/` 상대경로).
    * `skillsBackedUp` 과 같은 이유로 화면에 노출한다 — 안 보이면 사용자는 자기 편집분이
    * 어디 갔는지 알 수 없고, 그러면 백업은 있어도 없는 것과 같다.
@@ -425,6 +430,11 @@ export interface UpdateModeReport {
   }>;
   /** ADR-103 — 옛 Antigravity 앵커(`.agents/rules/uzys-harness.md`)를 은퇴시켰다. 부재 = 기록에 앵커가 없었다. */
   anchorRetired?: AnchorRetireResult;
+  /**
+   * #859 — 백업하고 지운 옛 OpenCode 커맨드 사본(`.opencode/commands/<id>.md`, project-relative). install 화면과 같은 줄로
+   * 말한다 — 조용히 지우면 설치자는 쓰던 슬래시 커맨드가 왜 사라졌는지 알 수 없다. 부재 = 은퇴 없음.
+   */
+  retiredCommands?: ReadonlyArray<string>;
   /**
    * #782 — 이 update 가 떠난 하네스 자리(은퇴 회수 · 트랙 밖 룰 · 옛 Antigravity 앵커) 중 설치자 원본을 비켜 두었던 자리
    * (`displaced`)의 되돌리기 결과. 부재 = 그런 자리가 없었다.
@@ -620,7 +630,14 @@ export function runUpdateMode(
   //    무엇이 하네스 것인지 근거가 없어 건너뛴다(기록 날조 금지 — 헬퍼도).
   const harness =
     logAtStart === null
-      ? { displaced: [], restored: [], foreignOwned: [], outside: [], judged: [] }
+      ? {
+          displaced: [],
+          restored: [],
+          foreignOwned: [],
+          outside: [],
+          judged: [],
+          wrote: new Set<string>(),
+        }
       : updateHarnessFiles({ projectDir, templatesDir, log: logAtStart, wants, outside, report });
   const claudeDisplaced = harness.displaced;
   // #817 — 판정이 알릴 줄을 낸 파일들(하네스 파일 → 앵커 → 외부 CLI 산출물 순)
@@ -652,7 +669,7 @@ export function runUpdateMode(
 
   // 2.5) 함께 쓰는 파일 셋(`.claude/settings.json` · `.mcp.json` · `.gitignore`)의 하네스 몫 — install 과 **같은 writer**
   //      (ADR-099 R2). 기록에 있는데 사라진 몫(훅 배선 · 하네스 서버 · 줄)을 되돌리고 설치자 키는 그대로 둔다.
-  //      자리가 정해져 있다: 0단계(훅 스크립트 되살림) **뒤** — 렌더의 `hookInstalled` 가 되살린 뒤 디스크를 읽는다 —
+  //      자리가 정해져 있다: 1단계(훅 스크립트 쓰기 · 되살림) **뒤** — 렌더의 `hookInstalled` 가 그 쓰기 원장을 읽는다(#843) —
   //      3단계(죽은 참조 알림) **앞** — 탐지기가 최종본을 본다.
   // #709 — 하네스 MCP 서버는 **한 번** 렌더해 `.mcp.json`(2.5단계)과 Codex · OpenCode(4단계)가 같은 값을 받는다. 기록 트랙의
   //   기본 행 ∪ 기록된 선택 행(`.mcp.json` 몫), 기록된 빼기 제외 — 실행 시작 때 읽은 기록으로(2.5단계가 기록을 다시 쓴다).
@@ -671,6 +688,7 @@ export function runUpdateMode(
     claudeManaged,
     droppedKeys: legacyDroppedKeys(logAtStart),
     harnessMcp,
+    harnessWrote: harness.wrote,
   });
 
   // 3) settings.json 죽은 훅 참조 — **알리기만** 한다(install #603 과 같다).
@@ -737,6 +755,7 @@ export function runUpdateMode(
         restoredFiles: [],
         legacyRestored: [],
         anchorRetired: null,
+        retiredCommands: [],
         anchorDisplaced: [],
         agentsMd: null,
         agentsMdLegacyDropped: 0,
@@ -756,6 +775,7 @@ export function runUpdateMode(
   if (displacedRestored.length > 0) report.displacedRestored = displacedRestored;
   report.externalUpdated = external.externalUpdated;
   if (external.anchorRetired !== null) report.anchorRetired = external.anchorRetired;
+  if (external.retiredCommands.length > 0) report.retiredCommands = external.retiredCommands;
   if (external.agentsMd !== null) report.agentsMd = external.agentsMd;
   if (external.agentsMdLegacyDropped > 0) {
     report.agentsMdLegacyDropped = external.agentsMdLegacyDropped;
@@ -1065,7 +1085,7 @@ function recordedHarnessHook(
  * 되살리지 않는다(R3). 기록이 없는 설치본(로그 없음)은 건드리지 않는다 — 무엇이 하네스 몫인지 근거가 없다.
  *
  * - `.claude/settings.json` — claude 가 깔린 집합 · `--only hooks`. 렌더의 `hookInstalled` = 이 트랙의 훅 · 빼지 않음 ·
- *   (0단계가 되살린 뒤) 디스크에 있음 — install 과 같은 술어
+ *   1단계 writer 가 이번에 판정해 쓴 것(#843 — 밖 링크 · 원본 없는 자리는 디스크에 있어도 아니다) — install 과 같은 술어
  * - `.mcp.json` — 기록 트랙 · `--only external`(Codex · OpenCode MCP 와 같은 원천)
  * - `.gitignore` — 파일이 있을 때만 · `--only rules`
  *
@@ -1084,6 +1104,8 @@ function writeUpdateSharedFiles(args: {
   droppedKeys: ReadonlyArray<string>;
   /** #709 — 이 실행의 하네스 MCP 서버(Codex · OpenCode 와 같은 값). */
   harnessMcp: McpJson;
+  /** #843 — 1단계 writer 가 이번에 판정해 쓴 하네스 파일(projectDir 상대). */
+  harnessWrote: ReadonlySet<string>;
 }): { writes: SharedWrite[]; legacyRestored: string[]; outside: OutsideLink[] } {
   const { projectDir, harnessRoot, templatesDir, wants } = args;
   const log = readInstallLog(projectDir);
@@ -1110,7 +1132,7 @@ function writeUpdateSharedFiles(args: {
         return (
           manifest.some((e) => e.target === target && e.applies(spec)) &&
           !isBaselineExcluded(target, excluded) &&
-          existsSync(join(projectDir, target))
+          args.harnessWrote.has(target)
         );
       },
       // 기록이 claude 를 깔린 CLI 로 말한다 = install 이 이 파일을 썼다 — 없으면 만든다(훅 배선이 여기 산다)
@@ -1378,6 +1400,8 @@ function updateHarnessFiles(args: {
   outside: OutsideLink[];
   /** #817 — 판정이 알릴 줄을 낸 백업 · 지우기(쓴 순서 → 은퇴 회수 → 번들 밖 스킬 파일). */
   judged: JudgedWrite[];
+  /** #843 — writer 가 이번에 판정해 쓴 경로(밖 링크로 건너뛴 자리는 없다) — 훅 배선이 이것만 부른다. */
+  wrote: ReadonlySet<string>;
 } {
   const { projectDir, templatesDir, log, wants, outside, report } = args;
   const judged: JudgedWrite[] = [];
@@ -1427,6 +1451,7 @@ function updateHarnessFiles(args: {
   );
   report.skillsPruned = skillPrune.pruned;
   report.skillsBackedUp.push(...skillPrune.backedUp);
+  if (skillPrune.failed.length > 0) report.skillsPruneFailed = skillPrune.failed;
   // #782 — 은퇴 회수가 떠난 자리에 설치자 원본을 되돌린다
   const restored =
     prunedPolicy.size === 0
@@ -1480,6 +1505,7 @@ function updateHarnessFiles(args: {
     foreignOwned,
     outside: ledger.outside,
     judged,
+    wrote: new Set(ledger.writes.map((w) => w.path)),
   };
 }
 
@@ -1525,9 +1551,10 @@ function pruneSkillExtras(
   recordOf: (path: string) => Recorded,
   now: Date,
   judged: JudgedWrite[],
-): { pruned: string[]; backedUp: string[] } {
+): { pruned: string[]; backedUp: string[]; failed: string[] } {
   const pruned: string[] = [];
   const backedUp: string[] = [];
+  const failed: string[] = [];
   for (const id of ids) {
     const targetSkill = join(projectDir, ".claude/skills", id);
     const bundled = new Set(listFilesRecursive(join(templatesDir, "skills", id)));
@@ -1538,22 +1565,30 @@ function pruneSkillExtras(
       if (outside.skip(targetFile)) continue;
       const path = `.claude/skills/${id}/${rel}`;
       const rec = recordOf(path);
-      // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말.
-      // 내용은 sha 기록만 읽는다(전과 같다) — `no-sha` 칸은 내용을 보지 않고 있다는 사실만 본다
-      const disk = rec.state === "sha" ? readFileSync(targetFile, "utf8") : "";
-      const line =
-        rec.state === "none"
-          ? NOT_RECORDED_REMOVED
-          : judge({ op: "remove", kind: "harness", rec, disk, next: null }).line;
+      let line: string;
       let backupAbs: string | null = null;
-      if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
-        backupAbs = backupFile(targetFile, now);
-        backedUp.push(`${id}/${rel}`);
+      try {
+        // 지우는 규칙은 판정 밖(#477 — 기록에 없는 설치자 파일도 백업 뒤 지운다). 화면 줄은 그 기록 상태의 판정과 같은 말.
+        // 내용은 sha 기록만 읽는다(전과 같다) — `no-sha` 칸은 내용을 보지 않고 있다는 사실만 본다
+        const disk = rec.state === "sha" ? readFileSync(targetFile, "utf8") : "";
+        line =
+          rec.state === "none"
+            ? NOT_RECORDED_REMOVED
+            : judge({ op: "remove", kind: "harness", rec, disk, next: null }).line;
+        if (rec.state !== "sha" || hashContent(disk) !== rec.sha256) {
+          backupAbs = backupFile(targetFile, now);
+        }
+        unlinkSync(targetFile);
+      } catch {
+        // #848 — best-effort(`pruneOrphans` 와 같은 방침): 그 파일만 남기고 다음 update 가 다시 본다. 던지면 이미 새 판을 쓴
+        // 뒤 기록 갱신 전에 멈춰 기록 · 디스크가 갈라진다
+        failed.push(`${id}/${rel}`);
+        continue;
       }
+      if (backupAbs !== null) backedUp.push(`${id}/${rel}`);
       judged.push(
         removedRow(projectDir, path, "not in bundle", { line, recorded: rec.state }, backupAbs),
       );
-      unlinkSync(targetFile);
       pruned.push(`${id}/${rel}`);
       // 비게 된 중간 디렉터리(예: references/)도 걷는다 — 빈 디렉터리는 "파일이 있었다" 는 흔적만 남긴다
       for (
@@ -1564,7 +1599,7 @@ function pruneSkillExtras(
         rmdirSync(d);
     }
   }
-  return { pruned, backedUp };
+  return { pruned, backedUp, failed };
 }
 
 /**
@@ -1901,7 +1936,7 @@ function recordAnchorBaseline(projectDir: string, anchor: string): void {
  */
 /** 디스크 기준으로 지금 깔린 번들 스킬 — update 는 선택 목록의 사본을 두지 않는다(ADR-085). */
 /** 리뷰 #693 NOTE-1 — 기록 트랙의 baseline 대상 중 설치자가 뺐는데 디스크에 남은 것(install 의 `excludedOnDisk` 와 같은 판정). */
-function excludedBaselineOnDisk(projectDir: string, log: InstallLog | null): string[] {
+export function excludedBaselineOnDisk(projectDir: string, log: InstallLog | null): string[] {
   const excluded = excludedIds(log);
   if (excluded.size === 0) return [];
   const spec = buildAssetSpec({ tracks: installedTracks(projectDir), options: DEFAULT_OPTIONS });
@@ -2151,6 +2186,8 @@ function refreshExternalCli(
   legacyRestored: string[];
   /** ADR-103 — 옛 Antigravity 앵커 은퇴 결과(기록에 앵커가 없었으면 `null`). */
   anchorRetired: AnchorRetireResult | null;
+  /** #859 — `UpdateModeReport.retiredCommands` 와 같다(project-relative). */
+  retiredCommands: string[];
   /** #782 — 은퇴한 앵커 자리를 하네스가 빌렸으면(`displaced`) 설치자 원본 되돌리기 결과. */
   anchorDisplaced: DisplacedOutcome[];
   /** ADR-103 — `UpdateModeReport.agentsMd` 와 같다(없으면 `null`). */
@@ -2232,12 +2269,16 @@ function refreshExternalCli(
     // ADR-103 — 은퇴한 옛 Antigravity 앵커는 기록에서 뺀다. 그 경로가 `spec.clis` 없는 옛 로그의 antigravity 유도 근거이므로
     // 빼기 **전** 집합을 같은 기록 쓰기에서 `spec.clis` 로 적는다(BLOCKER-1 — update 의 다른 기록 쓰기는 `spec` 을 건드리지
     // 않으므로 이 자리가 유일한 이행점이다. `buildInstallLog` 가 install 에서 하는 1회 이행을 대신한다, ADR-096 D3).
-    const retiredPath = result.anchorRetired?.forget === true ? result.anchorRetired.path : null;
+    // #859 — 은퇴한(또는 이미 없는) 옛 OpenCode 커맨드 기록도 같은 쓰기에서 뺀다(install 의 `forgotten` 과 같다)
+    const forget = new Set([
+      ...(result.anchorRetired?.forget === true ? [result.anchorRetired.path] : []),
+      ...(result.opencode?.forgetCommands ?? []),
+    ]);
     const merged = mergeExternalFiles(log.externalFiles, written).filter(
-      (f) => f.path !== retiredPath,
+      (f) => !forget.has(f.path),
     );
     const next: InstallLog =
-      retiredPath === null
+      forget.size === 0
         ? { ...log }
         : { ...log, spec: { ...log.spec, clis: [...installedClis(log)] } };
     if (merged.length > 0) next.externalFiles = merged;
@@ -2365,6 +2406,9 @@ function refreshExternalCli(
       ),
     ],
     anchorRetired: result.anchorRetired,
+    retiredCommands: (result.opencode?.retiredCommands ?? []).map((p) =>
+      relative(projectDir, p).split(sep).join("/"),
+    ),
     anchorDisplaced,
     agentsMd: agentsMdNews(result.agentsMd, agentsMdBefore, priorPaths),
     agentsMdLegacyDropped: result.agentsMd?.agentsMd.droppedLegacySections ?? 0,

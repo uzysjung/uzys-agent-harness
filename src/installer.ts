@@ -364,12 +364,6 @@ export interface InstallReport {
   external: ExternalInstallReport | null;
   /** Update-mode report (rules/agents/commands/hooks/skills 갱신 + orphan prune + stale hook). null when not update mode. */
   updateMode: UpdateModeReport | null;
-  /**
-   * M-1 — settings.json 이 가리키는 없는 스크립트를 지운 결과 (`.claude/` 기준 상대경로). update 경로 전용 —
-   * install 은 settings.json 의 하네스 몫을 **이번 선택으로 렌더**해 몫만 쓰므로 사후 치유가 없다(#551 PR-3 ·
-   * 설계 N13). install 에서는 항상 `[]`.
-   */
-  staleHookRefs: string[];
   /** #603 — install 이 발견만 하고 지우지 않은 죽은 훅 참조(`.claude/` 상대경로). 화면은 한 줄로 알린다. */
   keptHookRefs?: string[];
   /**
@@ -715,6 +709,8 @@ function runInstallStages(
   const forgotten = new Set([
     ...outOfTrack.forget,
     ...(anchorRetired?.forget === true ? [anchorRetired.path] : []),
+    // #859 — 은퇴한(또는 이미 없는) 옛 OpenCode 커맨드 기록. 남기면 같은 이름의 설치자 커맨드를 다음 실행이 다시 지운다
+    ...(cliTransforms.opencode?.forgetCommands ?? []),
   ]);
   // #782 — 하네스가 떠난 자리(트랙 밖 룰 · 옛 앵커)를 빌렸으면(`displaced`) 설치자 원본을 되돌린다. 기록 정리는 앞 기록의
   // `rootFiles` 에서 한다 — `buildInstallLog` 가 그 값을 `mergeRootFiles` 로 이어받는다
@@ -841,7 +837,6 @@ function runInstallStages(
     cliTransforms.codexOptIn,
   );
 
-  // install 은 settings.json 을 렌더한 몫만 쓰므로 사후 치유가 없다(설계 N13) — update 경로만 싣는다.
   return {
     ...baseline,
     // #770 HIGH-1 — 외부 스킬을 다시 받으며 남긴 백업은 Phase 1 행 뒤에 생긴다 — 보고에도 싣는다
@@ -849,7 +844,6 @@ function runInstallStages(
       ? { backups: [...(baseline.backups ?? []), ...externalSkillBackups] }
       : {}),
     external,
-    staleHookRefs: [],
   };
 }
 
@@ -902,9 +896,8 @@ function runUpdateInstall(ctx: InstallContext, templatesDir: string): InstallRep
     rootClaudeMd: null,
   };
   ctx.onProgress?.({ type: "baseline-complete", baseline });
-  // update 경로의 치유 결과는 `updateMode.staleHookRefs` 가 이미 싣는다 — 여기서 다시 담으면
-  // 같은 사실이 두 필드가 되고 렌더가 중복 보고한다.
-  return { ...baseline, external: null, staleHookRefs: [] };
+  // 죽은 훅 참조는 `updateMode.staleHookRefs` 가 싣는다(알리기만 — 지우지 않는다, #857).
+  return { ...baseline, external: null };
 }
 
 /**
@@ -1235,16 +1228,19 @@ function installClaudeBaseline(
   );
 
   if (settingsSource !== null) {
+    // #843 — "깔렸다" 는 이번 실행의 쓰기 판정(원장)이 말한다. 디스크 존재는 밖 링크(#678 이 건너뛴 자리) · 원본이 없어
+    // 못 쓴 자리의 옛 파일도 참이라, 쓰지 않은 스크립트를 부르는 훅을 짓는다
+    const wrote = new Set(writer.ledger().writes.map((w) => w.path));
     writeSettingsPortion(writer, settingsSource, projectDir, previousLog, (script) => {
       const target = `${HOOKS_PREFIX}${script}`;
       return (
         manifest.some((e) => e.target === target && e.applies(manifestSpec)) &&
         !isBaselineExcluded(target, baselineExcluded) &&
-        existsSync(join(projectDir, target))
+        wrote.has(target)
       );
     });
     // #603 — 죽은 훅 참조는 **지우지 않고 알리기만** 한다. install 시점의 설치 기록에 없는 참조는 설치자 몫이다
-    // (팀이 커밋한 `generated-*.sh` 배선 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). 지우는 치유는 update 몫.
+    // (팀이 커밋한 `generated-*.sh` 배선 — 스크립트는 빌드 산출물이라 새 클론엔 아직 없다). update 도 알리기만 한다(#746 · #857).
     result.keptHookRefs.push(
       ...findStaleHookRefs(
         join(projectDir, ".claude", "settings.json"),

@@ -33,7 +33,7 @@ import {
   SKILLS_BLOCK,
   withoutAgentsBlock,
 } from "./agents-md-merge.js";
-import { backupFile } from "./fs-ops.js";
+import { backupFile, backupIfLossyUtf8 } from "./fs-ops.js";
 import { hashContent, type InstallLogPortion } from "./install-log.js";
 import { judge } from "./judge.js";
 import type { OwnedWriter } from "./owned-write.js";
@@ -245,6 +245,7 @@ export function writeShared<V>(params: WriteSharedParams<V>): SharedWriteResult 
     writer.write(abs, upserted.text, { createInRefresh: true });
   } else if (upserted.changed) {
     mkdirSync(dirname(abs), { recursive: true });
+    if (onDisk !== null) backupIfLossyUtf8(abs); // #653 · #847 — 설치자 파일의 비UTF-8 바이트를 다시 쓰기 전에 보존한다
     writeFileSync(abs, upserted.text);
   }
   // #600 — 몫은 쓴 자리에서 적는다. 변환이 뒤에서 던져도 이 몫은 기록에 남아 재실행 · uninstall 이 알아본다
@@ -543,7 +544,11 @@ export function stripShared(params: StripSharedParams): SharedStripResult {
             : `${path}.backup-<time>`,
         };
   if (params.write && fileRemoved) rmSync(abs);
-  else if (params.write && res.changed) writeFileSync(abs, res.text);
+  else if (params.write && res.changed) {
+    // #653 · #847 — 문자열 왕복으로 다시 쓰면 설치자 줄의 비UTF-8 바이트가 영구 변형된다. 그 전에 원시 바이트를 보존한다
+    backupIfLossyUtf8(abs);
+    writeFileSync(abs, res.text);
+  }
   const action = res.removed.length > 0 ? "removed" : res.kept.length > 0 ? "left" : "none";
   return out(action, {
     removed: res.removed,

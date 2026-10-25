@@ -7,11 +7,13 @@ import {
   assetDescriptorTokens,
   formatResidentCostLine,
   residentCost,
+  summarizeContextCost,
 } from "../src/context-cost.js";
-import { INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
+import { EXTERNAL_ASSETS, INTERNAL_BUNDLED_SKILL_IDS } from "../src/external-assets.js";
 import { buildManifestSpec, runInstall } from "../src/installer.js";
 import { formatSummary } from "../src/interactive.js";
 import { buildAssetSpec, buildManifest } from "../src/manifest.js";
+import { finalSelectedAssets } from "../src/preset-recommend.js";
 import { DEFAULT_OPTIONS, type InstallSpec, type Track } from "../src/types.js";
 
 const HARNESS_ROOT_FOR_INSTALL = resolve(__dirname, "..");
@@ -46,6 +48,72 @@ describe("path robustness + degraded frontmatter (SOD 리뷰 F1/F7 회귀 가드
   });
 });
 
+/**
+ * #856 — unmeasured 버킷은 외부 자산 한정(ADR-032). descriptor 가 없는 하네스 번들 자산
+ * (ci-scaffold)이 "external unmeasured" 로 세어지면 화면이 하네스 자산을 외부라고 오보한다.
+ */
+describe("unmeasured 는 외부 자산만 센다 (#856)", () => {
+  it("descriptor 없는 internal(ci-scaffold)은 세지 않고, 진짜 external 은 그대로 센다", () => {
+    expect(assetDescriptorTokens("ci-scaffold")).toBeNull(); // 전제: descriptor 가 없다
+    expect(summarizeContextCost(["ci-scaffold"]).unmeasuredCount).toBe(0);
+    expect(summarizeContextCost(["frontend-design"]).unmeasuredCount).toBe(1);
+  });
+
+  it("tooling 확인 화면 — ci-scaffold 가 선택돼도 'external asset unmeasured' 를 내지 않는다", () => {
+    const spec = {
+      projectDir: "/tmp/x",
+      tracks: ["tooling"],
+      cli: ["claude"],
+      options: {},
+      scope: "project",
+    } as unknown as InstallSpec;
+    expect(finalSelectedAssets(spec.tracks)).toContain("ci-scaffold");
+    const externals = finalSelectedAssets(spec.tracks).filter(
+      (id) => EXTERNAL_ASSETS.find((a) => a.id === id)?.method.kind !== "internal",
+    );
+    expect(externals, "tooling 기본에 external 이 생기면 이 대조를 다시 본다").toEqual([]);
+    expect(formatSummary(spec)).not.toMatch(/external assets? unmeasured/);
+  });
+
+  /**
+   * #856 리뷰 HIGH — MCP 서버 행도 internal 이지만 세션마다 tool schema 가 상주한다. ADR-044 §4 "미계측 항목은 그대로
+   * 명시한다: 외부 자산 · MCP tool schema(서버 제공)" — 빼면 상주 비용을 숨긴다. external 이라 부르지 않고 따로 말한다.
+   */
+  it("MCP 서버 행은 세지 않는 것이 아니라 'MCP server tool schema' 미계측으로 따로 센다", () => {
+    const one = summarizeContextCost(["context7"]);
+    expect(one).toMatchObject({ unmeasuredCount: 0, mcpUnmeasuredCount: 1 });
+    const line = formatResidentCostLine(
+      residentCost(
+        buildManifest(buildManifestSpec(surfaceSpec(["tooling"]))).filter((e) =>
+          e.applies(buildManifestSpec(surfaceSpec(["tooling"]))),
+        ),
+      ),
+      one,
+    );
+    expect(line).toContain(" · 1 MCP server tool schema unmeasured)");
+    expect(line).not.toContain("external");
+    expect(summarizeContextCost(["ci-scaffold", "context7"]).mcpUnmeasuredCount).toBe(1);
+  });
+
+  it("csr-supabase 확인 화면 · 설치 헤더 — 트랙 기본 MCP 4종을 미계측으로 말한다", () => {
+    const spec = surfaceSpec(["csr-supabase"]);
+    expect(formatSummary(spec)).toContain("4 MCP server tool schemas unmeasured");
+    const lines: string[] = [];
+    renderInstallHeader((m) => lines.push(m), spec);
+    expect(lines.join("\n")).toContain("4 MCP server tool schemas unmeasured");
+  });
+});
+
+function surfaceSpec(tracks: Track[]): InstallSpec {
+  return {
+    projectDir: "/tmp/x",
+    tracks,
+    cli: ["claude"],
+    options: {},
+    scope: "project",
+  } as unknown as InstallSpec;
+}
+
 /** 표시 표면 증거 (no-false-ship — "표시된다" 주장은 렌더 실행 산출물로 증명). */
 describe("context cost surfaces", () => {
   const spec: InstallSpec = {
@@ -69,7 +137,10 @@ describe("context cost surfaces", () => {
   const expectedLine = (): string => {
     const assetSpec = buildManifestSpec(spec);
     const entries = buildManifest(assetSpec).filter((e) => e.applies(assetSpec));
-    const line = formatResidentCostLine(residentCost(entries), 0);
+    const line = formatResidentCostLine(residentCost(entries), {
+      unmeasuredCount: 0,
+      mcpUnmeasuredCount: 0,
+    });
     // unmeasured 절은 자산 선택에 따라 달라지므로 그 앞부분(개수·토큰·내역)만 비교한다.
     return (line ?? "").split(" · 0 external")[0]?.replace(/\)$/, "") ?? "";
   };

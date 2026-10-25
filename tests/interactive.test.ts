@@ -345,7 +345,8 @@ describe("runInteractive", () => {
         (initial: ReadonlyArray<InstallTargetId>) => Promise<ReadonlyArray<InstallTargetId> | null>
       >()
       .mockResolvedValueOnce(null) // step3 ESC → back to step2 (silent)
-      .mockResolvedValueOnce([] as ReadonlyArray<InstallTargetId>);
+      // confirm ESC 뒤 재진입도 확정한다 — 계약 밖 undefined 를 돌려주지 않는다(#850 에서 드러남).
+      .mockResolvedValue([] as ReadonlyArray<InstallTargetId>);
     const confirmInstall = vi
       .fn<(summary: string) => Promise<boolean | null>>()
       .mockResolvedValueOnce(null) // confirm ESC → back to step3 (silent)

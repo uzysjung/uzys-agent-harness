@@ -74,7 +74,9 @@ export function portRules(harnessRoot: string, ruleNames: ReadonlyArray<string>)
   for (const name of ruleNames) {
     const src = join(harnessRoot, "templates/rules", `${name}.md`);
     if (!existsSync(src)) continue;
-    const source = readFileSync(src, "utf8");
+    // #842 — autocrlf 체크아웃이면 템플릿이 CRLF 다. 읽는 이 한 지점에서 LF 로 맞춘다 — 아래 판정은 전부 LF 기준이고,
+    // 못 맞추면 frontmatter 를 못 봐 AGENTS.md 본문에 YAML 이 새고 Antigravity 의 조건부 룰이 상시 룰이 된다.
+    const source = readFileSync(src, "utf8").replace(/\r\n/g, "\n");
     ported.push({ name, body: stripClaudeFrontmatter(source), paths: claudePaths(source) });
   }
   return ported;

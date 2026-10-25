@@ -151,7 +151,7 @@ The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode / 
 
 On Codex the ported `session-start.sh` runs only after you review and trust it — separately from trusting the folder. On first launch Codex warns that hooks need review; open `/hooks` and trust it there. The harness does not approve it for you, and Codex asks again whenever the hook changes ([Codex hooks](https://developers.openai.com/codex/hooks)).
 
-If a harness hook script goes missing, `update` puts it back and keeps its `settings.json` entry. An entry whose script is not the harness's and is missing is removed by `update` and only reported by `install` — a hook pointing at a missing file would otherwise fail on every edit.
+If a harness hook script goes missing, `update` puts it back and keeps its `settings.json` entry. An entry whose script is not the harness's and is missing is left in place by both `install` and `update`, which list it on screen — it may be a team hook whose script is generated later, and the harness keeps no copy to bring it back from. A hook pointing at a missing file fails on every edit, so remove the entry yourself if it is stale. The only such entries `update` removes are wirings an earlier harness release installed and later retired.
 
 ### Slash commands
 
@@ -163,7 +163,7 @@ Every external asset carries a tier. Step 3 shows two of the three as a badge:
 
 - **`★ official`** — Anthropic-official marketplaces and this harness's own assets.
 - **vetted** — 1,000+ GitHub stars, not archived, install path verified. **No badge.** Whether it is pre-checked depends on the asset's condition, not its tier — most vetted assets are opt-in.
-- **`⚠ experimental (opt-in)`** — under 1,000 stars. Never pre-checked, sorted to the bottom of its category; you add it deliberately with a check or `--with`.
+- **`⚠ experimental (opt-in)`** — under 1,000 stars. Never pre-checked, sorted to the bottom of its category; you add it deliberately with a check or `--with`. **One exception:** an experimental asset that is also a track's default MCP server — `railway-mcp-server` on `csr-*`/`ssr-htmx`/`ssr-htmx-fastify`/`full` — starts checked on those tracks, because the track installs it anyway; step 3 shows it as **`⚠ experimental (default on your tracks)`**. Uncheck it or pass `--without railway-mcp-server` to leave it out.
 
 Tiers inform; they never block. A monthly CI job re-reads star counts and archive status and fails if a label no longer matches; another re-runs every install command.
 

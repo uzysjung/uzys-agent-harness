@@ -79,6 +79,13 @@ export interface OpencodeTransformReport {
   skillFiles: string[];
   /** 옛 `.opencode/commands/<id>.md` 를 백업하고 지운 경로들 (ADR-081 전환 뒷정리). */
   retiredCommands: string[];
+  /**
+   * #859 — 기록(`externalFiles`)에서 뺄 옛 커맨드 경로(project-relative): 이번에 은퇴시켰거나 이미 디스크에 없는 것.
+   * 하네스는 이 자리를 더는 쓰지 않으므로 남은 기록은 낡은 근거다 — 남기면 설치자가 같은 이름으로 새로 쓴 커맨드를 다음
+   * 실행이 다시 하네스 것으로 읽고 백업 뒤 지운다(실행마다 백업이 쌓인다). 호출부(install · update)가 같은 기록 쓰기에서 뺀다.
+   * optional = 손으로 만드는 report stub 은 "뺄 것 없음".
+   */
+  forgetCommands?: string[];
   /** v26.133.0 (ADR-048) — 소유권 결과 (기준선 · 백업된 사용자 편집분). */
   ownership: OwnedWriteResult;
 }
@@ -152,20 +159,26 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   });
 
   // 3. 옛 커맨드 사본 은퇴. 안 지우면 OpenCode 커맨드 목록에 같은 이름이 **두 줄**로 뜬다
-  //   (옛 `source: "command"` + 새 `source: "skill"`). 대상은 번들 스킬 이름인 것만 —
-  //   목록을 적지 않고 `templates/skills/<이름>/SKILL.md` 존재로 유도한다. 사용자가 직접
-  //   쓴 커맨드는 그 조건에 안 걸린다.
+  //   (옛 `source: "command"` + 새 `source: "skill"`).
+  //
+  //   #859 — 대상은 두 조건을 다 만족하는 것만이다. ⓐ **하네스가 쓴 기록**이 있다 — 기준선(`externalFiles`) 또는
+  //   옛 판의 로그 수준 소유(`owned`). 이름이 번들 스킬과 같다는 것은 소유의 근거가 아니다(ADR-096 D6) — 설치자가
+  //   같은 이름으로 직접 쓴 커맨드는 남긴다. ⓑ 이번 실행이 같은 이름의 스킬을 `.agents/skills/` 에 둔다(`skillIds`) —
+  //   뺀 스킬(`--without baseline:skills/<id>`)의 커맨드는 두 줄이 될 일이 없고, 지우면 대신할 것이 없다.
   //
   //   판정 대신 **백업하고 지운다**: 우리가 렌더한 파일이지만 사용자가 고쳤을 수 있고,
-  //   그 편집분을 되살릴 방법이 없다(`retireMcpAllowlist` 와 같은 이유). 파일이 다시
-  //   생기지 않으므로 이 백업은 프로젝트당 한 번뿐이다.
+  //   그 편집분을 되살릴 방법이 없다(`retireMcpAllowlist` 와 같은 이유). 은퇴한 경로는 기록에서도
+  //   뺀다(`forgetCommands`) — 그래야 이 백업이 프로젝트당 한 번뿐이다.
   const retiredCommands: string[] = [];
+  const forgetCommands: string[] = [];
   const cmdDir = join(projectDir, ".opencode/commands");
+  const harnessWrote = (rel: string): boolean =>
+    baseline.has(rel) || (params.owned?.(rel) ?? false);
   if (existsSync(cmdDir)) {
     for (const entry of readdirSync(cmdDir)) {
       if (!entry.endsWith(".md")) continue;
       const id = entry.slice(0, -3);
-      if (!existsSync(join(harnessRoot, "templates/skills", id, "SKILL.md"))) continue;
+      if (!skillIds.includes(id) || !harnessWrote(`.opencode/commands/${entry}`)) continue;
       const victim = join(cmdDir, entry);
       // #678 — 실체가 프로젝트 밖이면(`.opencode/commands` → dotfiles 등) 지우지도 백업하지도 않는다.
       if (writer.skipOutside(victim)) continue;
@@ -173,10 +186,17 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
         backupFile(victim);
         unlinkSync(victim);
         retiredCommands.push(victim);
+        forgetCommands.push(`.opencode/commands/${entry}`);
       } catch {
         // 뒷정리라 실패해도 설치를 세우지 않는다 (read-only 디렉터리 등).
       }
     }
+  }
+
+  // 기록에 남았는데 디스크에 이미 없는 옛 커맨드도 뺀다 — 근거가 사라진 기록이 다음 동명 파일을 하네스 것으로 만든다
+  for (const rel of baseline.keys()) {
+    if (/^\.opencode\/commands\/[^/]+\.md$/.test(rel) && !existsSync(join(projectDir, rel)))
+      forgetCommands.push(rel);
   }
 
   return {
@@ -184,6 +204,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
     opencodeJson,
     skillFiles,
     retiredCommands,
+    forgetCommands,
     ownership: writer.result(),
   };
 }

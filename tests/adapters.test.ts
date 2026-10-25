@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { ADAPTERS, adapterFor, excludedKeys, keyId, SHARED_FILES } from "../src/adapters/index.js";
 import { readToml } from "../src/adapters/toml-region.js";
 import { configRegions, renderConfigToml } from "../src/codex/config-toml.js";
+import { hashContent } from "../src/install-log.js";
 
 const none = new Set<string>();
 const fresh = new Map<string, string>();
@@ -846,6 +847,61 @@ describe("json-keys 훅 — 몫은 핸들러 하나, 같은 묶음의 다른 핸
     expect([...(js.read(legacy, key, "/work/other")?.keys() ?? [])]).toEqual([]);
   });
 
+  // #840 — 설치자가 같은 스크립트를 자기 묶음(다른 timeout)으로 한 번 더 등록했다
+  const mineDup = {
+    hooks: [
+      {
+        type: "command",
+        command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
+        timeout: 30,
+      },
+      prettier,
+    ],
+  };
+  const withDup = (text: string, at: "unshift" | "push") => {
+    const j = JSON.parse(text);
+    j.hooks.SessionStart[at](structuredClone(mineDup));
+    return JSON.stringify(j);
+  };
+
+  it.each([
+    "unshift",
+    "push",
+  ] as const)("같은 스크립트 핸들러가 둘이면(설치자 묶음 %s) strip 은 둘 다 걷고 설치자 묶음의 다른 핸들러는 남긴다(#840)", (at) => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const s = stripOk(js, withDup(u.text, at), u.portions);
+    expect(s.removed).toEqual(["hooks.SessionStart#session-start.sh"]);
+    // 설치자 줄까지 걷었다 — 호출부가 걷기 전에 백업하고 "yours stays" 라 하지 않게 알린다(#800 경로)
+    expect(s.removedEdited).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(JSON.parse(s.text)).toEqual({ hooks: { SessionStart: [{ hooks: [prettier] }] } });
+  });
+
+  it("렌더에서 빠진 훅을 upsert 가 걷을 때도 설치자 줄까지 걷었으면 removedEdited 로 알린다(#840)", () => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const again = upsertOk(js, withDup(u.text, "unshift"), new Map(), u.portions);
+    expect(again.removed).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(again.removedEdited).toEqual(["hooks.SessionStart#session-start.sh"]);
+    // 중복이 없으면 고친 것이 없다
+    expect(upsertOk(js, u.text, new Map(), u.portions).removedEdited).toEqual([]);
+  });
+
+  it("같은 스크립트 핸들러가 둘이어도 update 는 기록과 같은 하네스 핸들러를 새 판으로 갈고 설치자 것은 그대로 둔다(#840)", () => {
+    const u = upsertOk(js, "{}", sessionRender);
+    const v2 = new Map<string, unknown>([
+      ["hooks.SessionStart#session-start.sh", HOOK("session-start.sh", { matcher: "startup" })],
+    ]);
+    const v2Handler = {
+      type: "command",
+      command: 'bash "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"',
+      timeout: 5,
+    };
+    (v2.get("hooks.SessionStart#session-start.sh") as { hooks: unknown[] }).hooks[0] = v2Handler;
+    const again = upsertOk(js, withDup(u.text, "unshift"), v2, u.portions);
+    expect(again.kept).toEqual([]);
+    expect(again.replaced).toEqual(["hooks.SessionStart#session-start.sh"]);
+    expect(JSON.parse(again.text).hooks.SessionStart).toEqual([mineDup, { hooks: [v2Handler] }]);
+  });
+
   it("렌더 묶음에 그 스크립트를 부르는 핸들러가 없으면 조용히 넘어가지 않는다", () => {
     const bad = new Map<string, unknown>([["hooks.SessionStart#session-start.sh", homeHook]]);
     expect(() =>
@@ -886,5 +942,35 @@ describe("설치 뒤 체크아웃이 CRLF 로 바꿔도 하네스 몫을 알아�
     const again = upsertOk(adapter, onDisk, v2, u.portions);
     expect(again.kept).toEqual([]);
     expect(again.changed).toBe(true);
+  });
+});
+
+/* ─── 렌더 값 쪽 CRLF(#841) ─────────────────────────────────────────────── */
+
+describe("marker-md — 렌더 값이 CRLF 여도(autocrlf 체크아웃 템플릿) 자기 블록을 알아본다(#841)", () => {
+  const md = ADAPTERS["marker-md"];
+  const x = "# Mine\n";
+  const v1 = "## Rules\r\n\r\nline\r\n";
+  const v2 = new Map([["agents", "## Rules\n\nline 2"]]);
+
+  it("CRLF 렌더로 깐 블록 — update 는 새 판으로 갈아 끼우고 uninstall 은 블록을 걷는다", () => {
+    const u = upsertOk(md, x, new Map([["agents", v1]]));
+    const again = upsertOk(md, u.text, v2, u.portions);
+    expect(again.kept).toEqual([]);
+    expect(again.replaced).toEqual(["agents"]);
+    const s = stripOk(md, u.text, u.portions);
+    expect(s.kept).toEqual([]);
+    expect(s.removed).toEqual(["agents"]);
+    expect(s.text).toBe(x);
+  });
+
+  it("CRLF 원문 sha 로 기록된 옛 설치 — 블록을 하네스 몫으로 알아보고 다음 기록은 \\r 없는 규약으로 고쳐 적는다", () => {
+    const u = upsertOk(md, x, new Map([["agents", v1]]));
+    const tainted = new Map([["agents", hashContent(v1)]]); // #841 이전 판의 기록
+    expect(stripOk(md, u.text, tainted).text).toBe(x);
+    const healed = upsertOk(md, u.text, v2, tainted);
+    expect(healed.kept).toEqual([]);
+    expect(healed.replaced).toEqual(["agents"]);
+    expect(stripOk(md, healed.text, healed.portions).text).toBe(x);
   });
 });
