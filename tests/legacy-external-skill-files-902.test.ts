@@ -163,9 +163,14 @@ describe("#902 — 파일 목록 없는 옛 기록의 외부 스킬 폴더: upda
       }),
     );
     expect(judgedRow(row as NonNullable<typeof row>)).toContain(`backed up  ${NOTE} — `);
-    // 소유를 모른다 — uninstall 이 되살릴 displaced 로도, 추론한 목록으로도 적지 않는다
+    // 소유를 모른다 — uninstall 이 되살릴 displaced 로 적지 않는다. #912 — 도구가 새로 쓴 폴더는 그 폴더부터 목록이 생기고 노트는 들지 않는다
     expect(displacedIn(dir)).toEqual([]);
-    expect(recordOf(dir)?.files).toBeUndefined();
+    expect(
+      recordOf(dir)
+        ?.files?.map((f) => f.path)
+        .sort(),
+    ).toEqual([AGENTS_SKILL, CLAUDE_REF, CLAUDE_SKILL].sort());
+    expect(recordOf(dir)?.filesPartial).toBe(true);
   });
 
   it("바이트가 다른 도구 자리 파일(고쳤거나 상류가 바꿨다) → 앞 바이트를 백업하고 상류판이 들어간다 · 같은 바이트는 조용히 둔다", () => {
@@ -188,7 +193,7 @@ describe("#902 — 파일 목록 없는 옛 기록의 외부 스킬 폴더: upda
     ]);
   });
 
-  it("두 번째 update — 목록은 계속 '모름' · 앞 update 가 남긴 백업은 다시 백업하지 않고 제자리 · 상류가 안 바뀐 파일은 조용히 (R1-M1)", () => {
+  it("두 번째 update — 덮인 폴더는 목록으로 이어진다(#912) · 앞 update 가 남긴 백업은 다시 백업하지 않고 제자리 · 상류가 안 바뀐 파일은 조용히 (R1-M1)", () => {
     // 두 실행의 백업 시각이 같은 초로 겹치지 않게(실 update 는 초 단위로 겹치지 않는다)
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-25T01:00:00Z") });
     const dir = installedProject();
@@ -204,7 +209,12 @@ describe("#902 — 파일 목록 없는 옛 기록의 외부 스킬 폴더: upda
     expect(backupsOf(dir, NOTE), "백업의 백업이 생기지 않는다").toEqual([noteBackup]);
     expect(backupsOf(dir, CLAUDE_SKILL)).toEqual(firstSkill);
     expect(second.judged ?? []).toEqual([]);
-    expect(recordOf(dir)?.files).toBeUndefined();
+    expect(
+      recordOf(dir)
+        ?.files?.map((f) => f.path)
+        .sort(),
+    ).toEqual([AGENTS_SKILL, CLAUDE_REF, CLAUDE_SKILL].sort());
+    expect(recordOf(dir)?.filesPartial).toBe(true);
   });
 
   it("도구가 실패하면 옛 기록 자리의 파일도 전부 제자리로 돌아온다", () => {
@@ -411,14 +421,17 @@ describe("#902 — 기설치 위 install · CLI 를 빼고 더하는 이력도 �
     return lines.join("\n");
   }
 
-  /** 옛 `.agents` 사본(V1)이 "yours" 로 기록되지도 되살아나지도 않고, 기록은 "모름" 이라 uninstall 이 남기고 말한다. */
+  /**
+   * 옛 `.agents` 사본(V1)이 "yours" 로 기록되지도 되살아나지도 않는다. #912 — 그 폴더는 도구가 새로 쓴 뒤 목록에 들어(일부 폴더만 말하는
+   * 목록) uninstall 이 목록대로 지운다.
+   */
   function expectNotRevived(dir: string): void {
     expect(displacedIn(dir)).toEqual([]);
-    expect(recordOf(dir, "frontend-design")?.files).toBeUndefined();
+    expect(recordOf(dir, "frontend-design")?.files?.map((f) => f.path)).toContain(FD_SKILL);
+    expect(recordOf(dir, "frontend-design")?.filesPartial).toBe(true);
     const out = uninstall(dir, { only: "frontend-design" });
     expect(out).not.toContain("put back");
-    expect(out).toContain("not on record");
-    expect(read(dir, FD_SKILL)).not.toBe(FD_V1);
+    expect(existsSync(join(dir, FD_SKILL)) ? read(dir, FD_SKILL) : null).not.toBe(FD_V1);
   }
 
   it("옛 기록 + 폴더 안 설치자 노트 → 재설치 뒤 노트 바이트가 백업으로 남고 보고의 백업에 든다", () => {
@@ -431,7 +444,8 @@ describe("#902 — 기설치 위 install · CLI 를 빼고 더하는 이력도 �
     expect(saved).toHaveLength(1);
     expect(read(dir, saved[0] as string)).toBe(NOTE_BODY);
     expect((result.backups ?? []).map((b) => b.replace(`${dir}/`, ""))).toContain(saved[0]);
-    expect(recordOf(dir, "frontend-design")?.files).toBeUndefined();
+    expect(recordOf(dir, "frontend-design")?.files?.map((f) => f.path)).toEqual([FD_SKILL]);
+    expect(recordOf(dir, "frontend-design")?.filesPartial).toBe(true);
   });
 
   it("옛 판 claude+codex → CLI 일부(claude)만 고른 install → update → uninstall --only (리뷰 회차 0 BLOCKER-1)", () => {

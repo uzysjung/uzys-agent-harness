@@ -256,7 +256,7 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
     expect(run.code).toBe(1); // 지운 것이 없다 — 성공이라 하지 않는다
   });
 
-  it("옛 기록 위에서 다시 깔아도 '모름' 은 '0개' 가 되지 않는다 — 남는 자리를 계속 말한다 (PR #686 리뷰 B1)", () => {
+  it("옛 기록 위에서 다시 깔면 도구가 새로 쓴 폴더부터 목록이 생긴다 — '모름' 이 '0개' 가 되지 않는다 (PR #686 리뷰 B1 · #912)", () => {
     install(["codex"]);
     const log = readInstallLog(projectDir) as InstallLog;
     writeFileSync(
@@ -267,11 +267,15 @@ describe("#573 — 외부 스킬은 기록된 경로만 지운다", () => {
 
     const asset = readInstallLog(projectDir)?.assets.find((a) => a.id === "frontend-design");
     expect(asset, "대조군: 재설치 뒤에도 자산 기록이 있다").toBeDefined();
-    expect(asset?.files).toBeUndefined();
+    expect(asset?.files?.map((f) => f.path).sort()).toEqual([
+      ".agents/skills/frontend-design/SKILL.md",
+      ".agents/skills/frontend-design/refs/typography.md",
+    ]);
+    expect(asset?.filesPartial).toBe(true);
     const run = uninstall({ only: "frontend-design" });
-    expect(existsSync(join(projectDir, ".agents/skills/frontend-design/SKILL.md"))).toBe(true);
-    expect(run.out).toContain("not on record");
-    expect(run.code).toBe(1);
+    expect(existsSync(join(projectDir, ".agents/skills/frontend-design/SKILL.md"))).toBe(false);
+    expect(run.out).not.toContain("not on record");
+    expect(run.code).toBe(0);
   });
 
   it("--cli claude 는 자산을 건드리지 않는다 — `.claude/` 쪽 도구 사본과 기록이 남고 `--only` 로 빼는 길을 말한다 (A1 · N8 · #746)", () => {

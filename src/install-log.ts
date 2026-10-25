@@ -63,6 +63,12 @@ export interface InstallLogAsset {
    */
   files?: ReadonlyArray<InstallLogSkillFile>;
   /**
+   * #912 — `files` 는 **자기 항목이 든 스킬 폴더**(항목 경로의 3-세그먼트 접두 `<root>/<name>`)만 말한다 — 그 밖 폴더는 "모름"(`files`
+   * 없음과 같은 처리). 파일 목록 없이 깐 옛 기록(v26.163.0 이하)을 도구가 폴더째 새로 쓴 폴더부터 목록으로 잇는다(`buildAssetEntries`).
+   * 부재 = 목록이 모든 폴더를 말한다(v26.164.0 이후 처음 깐 자산). `INSTALL_LOG_VERSION` 은 올리지 않는다(`files` 와 같은 관행).
+   */
+  filesPartial?: true;
+  /**
    * #851 (ADR-112) — 소스 전체를 까는 global `skill` 자산(`detail.skill` 없음)이 홈 스킬 자리에 깐 스킬 폴더 이름. install · update 가
    * 도구 호출 전후로 잰다(`installOne` — 바뀐 폴더 ∩ 도구 잠금 파일이 이 소스로 적은 이름). 회수(`reclaimGlobalSkillCopies`)가 이 이름으로 프로젝트 사본 자리를 찾는다. 다시 깔면
    * 합집합이다 — 상류가 이름을 바꿔도 옛 이름은 이 자산이 깐 자리다. **부재 = 이름을 모른다**(이 필드 이전의 기록 — 회수하지 않고,
@@ -376,10 +382,26 @@ export function buildAssetEntries(
         ...skillNames(recordedBefore, scope, r.skills),
       };
       if (r.files === undefined) return entry;
-      // 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 다시 깔아도 "모름" 그대로 둔다 — 옛 판이 놓은 파일은
-      // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
-      // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
-      if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
+      if (
+        recordedBefore !== undefined &&
+        (recordedBefore.files === undefined || recordedBefore.filesPartial === true)
+      ) {
+        // #912 — 옛 판이 깐 자산(파일 목록 없음 · 또는 일부 폴더만 말하는 목록)은 목록이 말하는 폴더와 이번에 도구가 덮은 폴더
+        // (`ToolFiles.covered` — hold 가 호출 전에 다 비켜 두었고 도구가 새로 쓴 폴더)만 목록으로 잇는다. 그 밖 폴더의 파일은 옛 판이
+        // 호출 전부터 둔 것이라 이번 비교에 안 잡힌다 — 목록에 넣지 않고 "모름" 으로 둔다(넣으면 짧은 목록이 되어 다음 update 가 그
+        // 파일을 설치자 것으로 읽는다 — PR #686 리뷰 B1 · #906). 아는 폴더가 없으면 그대로 "모름"이다.
+        const known = new Set([
+          ...(recordedBefore.files ?? []).map((f) => skillFolderOf(f.path)),
+          ...(r.files.covered ?? []),
+        ]);
+        if (known.size === 0) return entry;
+        const created = r.files.created.filter((f) => known.has(skillFolderOf(f.path)));
+        return {
+          ...entry,
+          files: mergeToolFiles(recordedBefore.files, { created, changed: r.files.changed }),
+          filesPartial: true as const,
+        };
+      }
       return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
 }
@@ -413,6 +435,11 @@ function mergeToolFiles(
   for (const f of prior ?? []) byPath.set(f.path, changed.get(f.path) ?? f.sha256);
   for (const f of run.created) byPath.set(f.path, f.sha256);
   return [...byPath].map(([path, sha256]) => ({ path, sha256 }));
+}
+
+/** 스킬 루트 바로 아래 한 자리(`<root>/<name>`) — 그 안 파일의 스킬 폴더. */
+export function skillFolderOf(path: string): string {
+  return path.split("/").slice(0, 3).join("/");
 }
 
 function assetToLogEntry(

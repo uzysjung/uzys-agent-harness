@@ -55,6 +55,7 @@ import {
   installedClis,
   mergeRootFiles,
   readInstallLog,
+  skillFolderOf,
   skillNames,
   writeInstallLog,
 } from "./install-log.js";
@@ -140,6 +141,12 @@ export interface AssetInstallResult {
 export interface ToolFiles {
   created: InstallLogSkillFile[];
   changed: InstallLogSkillFile[];
+  /**
+   * #912 — 기록이 "모름" 이라 말하는 스킬 폴더(`unlistedSkillSlots`) 가운데 이번에 덮은 폴더(`<root>/<name>`): hold 가 호출 전에 그
+   * 폴더의 파일을 하나도 남기지 않고 비켜 두었고 도구가 이번에 그 폴더에 썼다. 그 폴더의 `created` 는 같은 바이트라 제자리로 돌린
+   * 파일까지 담는다 — 기록이 그 폴더부터 목록으로 잇는다(`buildAssetEntries`). `holdSkillSlots` 의 판정만 적는다.
+   */
+  covered?: string[];
 }
 
 /**
@@ -758,8 +765,9 @@ export function holdSkillSlots(
   const now = new Date();
   const asides = new Map<string, string>();
   const moved: AsideFile[] = [];
+  const kept = slotFilesToKeep(projectDir, hold);
   try {
-    for (const f of slotFilesToKeep(projectDir, hold)) {
+    for (const f of kept.files) {
       // 스킬 루트 밖(`.claude/skills.backup-<시각>/<id>/…`) — 루트 안에 두면 끊긴 실행이 남긴 폴더를 CLI 가 스킬로 읽는다
       const root = dirname(f.slot);
       let dir = asides.get(root);
@@ -843,8 +851,45 @@ export function holdSkillSlots(
         `could not put back ${failed.length} file(s) moved aside before the skill tool ran — they stay in ${at}: ${failed.join(", ")}`,
       );
     }
-    return { ...out, report: (report === null ? null : withoutCreated(report, back)) as R };
+    const settled =
+      report === null ? null : settledReport(report, back, coveredBy(report, kept, hold));
+    return { ...out, report: settled as R };
   };
+}
+
+/**
+ * #912 — 자산마다 이번에 덮은 폴더(`ToolFiles.covered`). 후보는 그 자산의 "모름" 자리(`unlisted`) 안에서 도구가 이번에 파일을
+ * 놓은 폴더이고, hold 가 호출 전에 그 폴더의 파일을 하나라도 제자리에 남겼으면(못 읽음 · 다른 자산 · 하네스 기록 — `left`) 뺀다.
+ * 판정은 hold 가 아는 사실(옮긴 것 · 건너뛴 것 · 도구 보고)로만 한다 — 디스크 존재로 덮음을 정하지 않는다(ADR-096).
+ */
+function coveredBy(
+  report: ExternalInstallReport,
+  kept: SlotKeep,
+  hold: {
+    unlisted?: ReadonlyArray<string> | undefined;
+    log: InstallLog | null;
+    clis: ReadonlyArray<CliTargets[number]>;
+    scope: InstallScope | undefined;
+  },
+): Map<AssetInstallResult, Set<string>> {
+  const unlisted = new Set(hold.unlisted ?? []);
+  const out = new Map<AssetInstallResult, Set<string>>();
+  if (unlisted.size === 0) return out;
+  for (const r of report.attempted) {
+    if (!r.ok || r.files === undefined) continue;
+    const own = new Set(
+      skillSlotsFor([r.asset], hold.clis, { log: hold.log, scope: hold.scope }).filter((s) =>
+        unlisted.has(s),
+      ),
+    );
+    const folders = new Set<string>();
+    for (const f of r.files.created) {
+      const folder = skillFolderOf(f.path);
+      if (own.has(kept.ownerOf(f.path)) && !kept.left.has(folder)) folders.add(folder);
+    }
+    if (folders.size > 0) out.set(r, folders);
+  }
+  return out;
 }
 
 /** 도구 호출 뒤 판정의 결과 — `backups` = 이번에 남긴 백업(절대 경로) · `displaced` = 상류 파일에 덮여 비켜 둔 설치자 파일. */
@@ -879,19 +924,24 @@ export function skillSlotsFor(
 }
 
 /**
- * #902 — `skillSlotsFor` 가운데 기록이 파일 목록(`files`) 없이 말하는 자산의 자리. v26.163.0 이하가 그렇게 적었고, 그 뒤 판도
- * 목록을 잇지 않았다. 그 자리의 파일은 도구가 놓은 옛 판인지 설치자 파일인지 기록이 말하지 않는다.
+ * #902 — `skillSlotsFor` 가운데 기록이 파일 목록(`files`) 없이 말하는 자산의 자리. v26.163.0 이하가 그렇게 적었다. 그 자리의 파일은
+ * 도구가 놓은 옛 판인지 설치자 파일인지 기록이 말하지 않는다. #912 — 목록이 자기 항목이 든 폴더만 말하면(`filesPartial`) 그 밖 자리도
+ * 든다(소스 전체 자산의 루트 자리는 그대로 든다 — 그 안 목록 폴더는 hold 가 더 긴 자리로 가른다).
  */
 export function unlistedSkillSlots(
   assets: ReadonlyArray<ExternalAsset>,
   clis: ReadonlyArray<CliTargets[number]>,
   ctx: { log: InstallLog | null; scope: InstallScope | undefined },
 ): string[] {
-  const unlisted = assets.filter((a) => {
+  const out = assets.flatMap((a) => {
     const prior = ctx.log?.assets.find((r) => r.id === a.id);
-    return prior !== undefined && prior.files === undefined;
+    if (prior === undefined) return [];
+    if (prior.files === undefined) return skillSlotsFor([a], clis, ctx);
+    if (prior.filesPartial !== true) return [];
+    const listed = new Set(prior.files.map((f) => skillFolderOf(f.path)));
+    return skillSlotsFor([a], clis, ctx).filter((s) => !listed.has(s));
   });
-  return skillSlotsFor(unlisted, clis, ctx);
+  return [...new Set(out)];
 }
 
 /** #851 (ADR-112) — 회수한(미리보기면 회수할) 프로젝트 사본 하나. */
@@ -1117,7 +1167,7 @@ function slotFilesToKeep(
     unlisted?: ReadonlyArray<string> | undefined;
     log: InstallLog | null;
   },
-): Omit<AsideFile, "aside">[] {
+): SlotKeep {
   const mine = hold.recorded.flatMap((a) => a.files ?? []);
   const sha = new Map(mine.map((f) => [f.path, f.sha256]));
   // #867 — 기록 sha 는 실파일로도 찾는다: 기록이 `.agents/skills/<id>/…` 에만 있고 `.claude/skills/<id>` 가 그곳으로의 링크면 링크 경로로
@@ -1147,18 +1197,24 @@ function slotFilesToKeep(
   // 목록 있는 자산 폴더의 파일은 그 폴더가 말한다). 하네스 백업 이름(`<file>.backup-<시각>`)은 상류가 놓지 않는다 — 설치자 몫이다
   // (앞 update 가 남긴 백업을 다시 백업하지 않는다 — PR #906 리뷰 R1-M1)
   const unlisted = new Set(hold.unlisted ?? []);
-  const unlistedAt = (path: string): boolean => {
+  const ownerOf = (path: string): string => {
     let owner = "";
     for (const s of slots) if (path.startsWith(`${s}/`) && s.length > owner.length) owner = s;
-    return unlisted.has(owner);
+    return owner;
   };
+  const unlistedAt = (path: string): boolean => unlisted.has(ownerOf(path));
   const out = new Map<string, Omit<AsideFile, "aside">>();
+  // #912 — 제자리에 남긴 파일이 든 스킬 폴더. 실경로 중복(같은 파일을 다른 자리 경로로 다시 만남)은 옮긴 것이라 들지 않는다
+  const left = new Set<string>();
   const realProject = realpathSync(projectDir);
   for (const slot of slots) {
     if (outsideProjectTarget(projectDir, join(projectDir, slot)) !== null) continue;
     for (const { rel, link } of listEntriesRecursive(join(projectDir, slot))) {
       const path = `${slot}/${rel}`;
-      if (link && (SKILL_ROOTS as ReadonlyArray<string>).includes(dirname(path))) continue;
+      if (link && (SKILL_ROOTS as ReadonlyArray<string>).includes(dirname(path))) {
+        left.add(skillFolderOf(path));
+        continue;
+      }
       const abs = join(projectDir, path);
       const real = join(realpathSync(dirname(abs)), basename(abs));
       const prev = out.get(real);
@@ -1167,15 +1223,20 @@ function slotFilesToKeep(
       if (
         recordedSha === undefined &&
         (others.has(path) || recorded(hold.log, path).state !== "none")
-      )
+      ) {
+        left.add(skillFolderOf(path));
         continue;
+      }
       try {
         if (!link) {
-          if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha)
+          if (recordedSha !== undefined && hashContent(readFileSync(abs, "utf8")) === recordedSha) {
+            left.add(skillFolderOf(path));
             continue;
+          }
           accessSync(abs, fsConstants.R_OK);
         }
       } catch {
+        left.add(skillFolderOf(path));
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
       const listed = recordedSha !== undefined;
@@ -1189,7 +1250,17 @@ function slotFilesToKeep(
       });
     }
   }
-  return [...out.values()];
+  return { files: [...out.values()], left, ownerOf };
+}
+
+/**
+ * hold 가 호출 전에 본 것 — `files` = 옮길 파일 · `left` = 제자리에 남긴 파일이 든 스킬 폴더(#912) · `ownerOf` = 경로가 든 가장 안쪽
+ * 자리(없으면 `""`).
+ */
+interface SlotKeep {
+  files: Omit<AsideFile, "aside">[];
+  left: ReadonlySet<string>;
+  ownerOf: (path: string) => string;
 }
 
 /**
@@ -1239,27 +1310,30 @@ function settleAside(
   };
 }
 
-/** 스킬 루트 바로 아래 한 자리(`<root>/<name>`) — 그 안 파일의 스킬 폴더. */
-function skillFolderOf(path: string): string {
-  return path.split("/").slice(0, 3).join("/");
-}
-
-/** 설치자 바이트가 제자리로 돌아간 경로는 도구가 놓은 파일이 아니다 — 기록이 그 자산 것으로 적지 않게 뺀다. */
-function withoutCreated(
+/**
+ * 설치자 바이트가 제자리로 돌아간 경로는 도구가 놓은 파일이 아니다 — 기록이 그 자산 것으로 적지 않게 뺀다. #912 — 덮은 폴더
+ * (`covered`)는 예외다: 그 폴더의 파일은 기록이 "옛 하네스 판이 깔았다" 고 말하는 자리의 것이라 같은 바이트면 도구 사본과 구별되지
+ * 않는다. 빼면 짧은 목록이 되어 다음 update 가 그 파일을 설치자 것(displaced)으로 읽는다. 덮은 폴더는 보고에 함께 싣는다.
+ */
+function settledReport(
   report: ExternalInstallReport,
   paths: ReadonlySet<string>,
+  covered: ReadonlyMap<AssetInstallResult, ReadonlySet<string>>,
 ): ExternalInstallReport {
-  if (paths.size === 0) return report;
+  if (paths.size === 0 && covered.size === 0) return report;
   return {
     ...report,
-    attempted: report.attempted.map((r) =>
-      r.files === undefined
-        ? r
-        : {
-            ...r,
-            files: { ...r.files, created: r.files.created.filter((x) => !paths.has(x.path)) },
-          },
-    ),
+    attempted: report.attempted.map((r) => {
+      if (r.files === undefined) return r;
+      const folders = covered.get(r);
+      const created = r.files.created.filter(
+        (x) => !paths.has(x.path) || folders?.has(skillFolderOf(x.path)) === true,
+      );
+      return {
+        ...r,
+        files: { ...r.files, created, ...(folders ? { covered: [...folders].sort() } : {}) },
+      };
+    }),
   };
 }
 
@@ -1292,7 +1366,7 @@ function recordRefreshedFiles(
   const next = new Map(
     buildAssetEntries(report, log.scope, log.assets)
       .filter((e) => e.files !== undefined)
-      .map((e) => [e.id, e.files]),
+      .map((e) => [e.id, e]),
   );
   const named = new Map(
     report.attempted.flatMap((r) =>
@@ -1301,13 +1375,22 @@ function recordRefreshedFiles(
   );
   let changed = displaced.length > 0;
   const assets = log.assets.map((a) => {
-    const files = next.get(a.id);
+    const entry = next.get(a.id);
+    const files = entry?.files;
+    // #912 — 목록이 일부 폴더만 말한다는 표지도 같은 쓰기로 옮긴다 — 빠지면 그 목록이 모든 폴더를 말하는 것으로 읽힌다
+    const partial = entry?.filesPartial === true ? { filesPartial: true as const } : {};
+    const sameFiles =
+      files === undefined ||
+      (JSON.stringify(files) === JSON.stringify(a.files) && entry?.filesPartial === a.filesPartial);
     const { skills } = skillNames(a, a.scope, named.get(a.id));
-    const sameFiles = files === undefined || JSON.stringify(files) === JSON.stringify(a.files);
     const sameSkills = skills === undefined || JSON.stringify(skills) === JSON.stringify(a.skills);
     if (sameFiles && sameSkills) return a;
     changed = true;
-    return { ...a, ...(sameFiles ? {} : { files }), ...(skills !== undefined ? { skills } : {}) };
+    return {
+      ...a,
+      ...(sameFiles ? {} : { files, ...partial }),
+      ...(skills !== undefined ? { skills } : {}),
+    };
   });
   if (!changed) return log;
   const written: InstallLog = {

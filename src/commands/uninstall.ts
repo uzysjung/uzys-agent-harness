@@ -1770,18 +1770,26 @@ function noReverseHints(asset: InstallLogAsset, ctx: ReverseCtx): string[] {
   }
   if (asset.method !== "skill") return [];
   // #573 — 파일 목록이 없는 옛 기록. 무엇을 놓았는지 모르므로 지우지 않고, 그 스킬 이름의 자리 중 실재하는 것을 댄다
-  const name = asset.detail.skill;
-  const left =
-    name === undefined
-      ? []
-      : [".claude/skills", ".agents/skills"]
-          .map((root) => `${root}/${name}/`)
-          .filter((p) => existsSync(join(ctx.projectDir, p)));
+  const left = unlistedFoldersLeft(asset, ctx.projectDir);
   return [
     left.length > 0
       ? `files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`
       : "files it put down are not on record (installed by an older version) — nothing removed",
   ];
+}
+
+/**
+ * #573 · #912 — 기록이 "모름" 이라 말하는 스킬 폴더 가운데 실재하는 것(`<root>/<name>/`). 목록이 일부 폴더만 말하면(`filesPartial`)
+ * 그 목록 폴더는 뺀다. 소스 전체 자산(`detail.skill` 없음)은 폴더 이름을 모른다 — 빈 배열.
+ */
+function unlistedFoldersLeft(asset: InstallLogAsset, projectDir: string): string[] {
+  const name = asset.detail.skill;
+  if (name === undefined) return [];
+  const listed = new Set((asset.files ?? []).map((f) => f.path.split("/").slice(0, 3).join("/")));
+  return [".claude/skills", ".agents/skills"]
+    .filter((root) => !listed.has(`${root}/${name}`))
+    .map((root) => `${root}/${name}/`)
+    .filter((p) => existsSync(join(projectDir, p)));
 }
 
 function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): ReverseStep | null {
@@ -1817,7 +1825,20 @@ function buildProjectReverseStep(asset: InstallLogAsset, ctx: ReverseCtx): Rever
       return {
         assetId: asset.id,
         label: `remove ${asset.id} — ${files.length} file(s) on record`,
-        execute: () => removeToolFiles(files, ctx.projectDir, ctx.rm),
+        execute: () => {
+          // #912 — 목록이 일부 폴더만 말하면(옛 판이 깐 자산) 목록 파일만 지우고, 목록 밖 폴더는 남는다고 같은 문구로 말한다
+          const left =
+            asset.filesPartial === true ? unlistedFoldersLeft(asset, ctx.projectDir) : [];
+          const r = removeToolFiles(files, ctx.projectDir, ctx.rm);
+          if (asset.filesPartial !== true) return r;
+          const note =
+            left.length > 0
+              ? `other files it put down are not on record (installed by an older version) — left: ${left.join(" · ")} (delete by hand if the harness installed it)`
+              : asset.detail.skill === undefined
+                ? "other files it put down are not on record (installed by an older version) — left as is"
+                : null;
+          return note === null ? r : { ...r, notes: [...r.notes, note] };
+        },
       };
     }
     case "npm": {
