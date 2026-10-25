@@ -105,6 +105,14 @@ function forgeExternal(path: string): void {
   });
 }
 
+function forgePolicy(path: string): void {
+  const log = readInstallLog(projectDir) as InstallLog;
+  writeInstallLog(projectDir, {
+    ...log,
+    policyFiles: [...(log.policyFiles ?? []), { path, sha256: "0".repeat(64) }],
+  });
+}
+
 function uninstall(opts: { dryRun?: boolean; cli?: string } = {}): string {
   const lines: string[] = [];
   uninstallAction(
@@ -131,6 +139,21 @@ const listedPaths = (screen: string): string[] =>
 /** 화면이 말한 `mv` 명령 줄. */
 const mvLines = (screen: string): string[] =>
   [...screen.matchAll(/^ {8}(mv -i .*)$/gm)].map((m) => m[1] as string);
+/** "손으로 끝낼 것" 덩어리 — 머리줄부터 이어지는 들여쓴 줄(없으면 빈 배열). */
+function handBlock(screen: string): string[] {
+  const lines = screen.split("\n");
+  const at = lines.findIndex((l) => l.includes("left for you to finish by hand"));
+  if (at < 0) return [];
+  const out = [lines[at] as string];
+  for (const l of lines.slice(at + 1)) {
+    if (!l.startsWith("      ")) break;
+    out.push(l);
+  }
+  return out;
+}
+/** 덩어리의 "이름 없이 센" 줄 — 덩어리마다 많아야 하나. */
+const countLines = (screen: string): string[] =>
+  handBlock(screen).filter((l) => l.includes("not shown —"));
 
 /** 설치자가 `.agents` 를 dotfiles 식 폴더로 · `.codex` 를 공유 폴더로 링크해 둔 프로젝트(#885 · #746) + 그 자리에 비켜 둔 설치자 룰 하나. */
 function linkedLayout(): void {
@@ -244,8 +267,11 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
 
     const edited = uninstall({ dryRun: true });
 
+    // 고친 사본은 이름 대신 개수로 간다(목록 줄 하나 + 옮길 수 없는 백업 하나) — 지우라고도 옮기라고도 권하지 않는다
     expect(mvLines(edited)).toEqual([]);
-    expect(edited).toContain(`${bak}  (record: a backup of ${RULE})`);
+    expect(handBlock(edited).join("\n")).not.toContain(RULE);
+    expect(countLines(edited)).toHaveLength(1);
+    expect(countLines(edited)[0]).toContain("2 entries on the install record");
     expect(read(RULE)).toBe("edited by the installer\n");
 
     rmSync(abs(RULE));
@@ -280,8 +306,8 @@ describe("#911 AC2 — 되돌리지 않은 displaced 설치자 파일은 손으�
 
     expect(text).toContain(`${slot} — not put back`);
     expect(text).not.toContain("mv -i");
-    // 사실 줄(링크 너머 자리의 백업)도 없다 — 이 기록은 그 자리를 하네스 자리로 말할 수 없다
-    expect(text).not.toContain("(record: a backup of");
+    // 센 것도 없다 — 이 기록은 덩어리에 아무것도 더하지 못한다
+    expect(countLines(text)).toEqual([]);
     if (backupOnDisk) expect(read(backup)).toBe("ATTACK\n");
   });
 });
@@ -308,9 +334,9 @@ describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을
     for (const screen of [preview, text]) {
       expect(mvLines(screen)).toEqual([]);
       expect(screen).not.toContain("mv -i");
-      expect(screen).toContain(
-        `.opencode/.env.backup-${STAMP}  (record: a backup of .opencode/.env)`,
-      );
+      // 덩어리는 하네스 밖 파일의 이름을 말하지 않는다 — 센 줄 하나뿐
+      expect(handBlock(screen).join("\n")).not.toContain(".env");
+      expect(countLines(screen)).toHaveLength(1);
     }
   });
 
@@ -329,7 +355,59 @@ describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을
     for (const screen of [preview, text]) {
       expect(mvLines(screen)).toEqual([]);
       expect(screen).not.toContain("mv -i");
-      expect(screen).toContain(`${RULE}.backup-${STAMP}  (record: a backup of ${RULE})`);
+      expect(handBlock(screen).join("\n")).not.toContain("git-policy");
+      expect(countLines(screen)).toHaveLength(1);
+    }
+  });
+
+  it.each([
+    [
+      "`.opencode → .` + 기록 `.opencode/.env`",
+      () => {
+        link(".opencode", ".");
+        forgeExternal(".opencode/.env");
+      },
+    ],
+    [
+      "`.agents → .` + 기록 `.agents/.env` · `.agents/rules/.env`",
+      () => {
+        rmSync(abs(".agents"), { recursive: true, force: true });
+        link(".agents", ".");
+        forgeExternal(".agents/.env");
+        forgeExternal(".agents/rules/.env");
+      },
+    ],
+    [
+      "`.claude/rules → ..` + 기록 `.claude/rules/.env`",
+      () => {
+        rmSync(abs(".claude/rules"), { recursive: true });
+        link(".claude/rules", "..");
+        forgePolicy("rules/.env");
+      },
+    ],
+  ])("링크 + 평범한 이름의 기록 경로 — %s: 목록이 쓰이는 `.env` 를 하네스 파일처럼 대지 않는다 · 목록대로 지워도 `.env` 가 남는다", (_what, forge) => {
+    install(["claude", "codex"]);
+    put(".env", SECRET);
+    forge();
+
+    const preview = uninstall({ dryRun: true });
+    const text = uninstall();
+
+    expect(read(".env")).toBe(SECRET);
+    for (const screen of [preview, text]) {
+      const block = handBlock(screen);
+      // 덩어리 안에 `.env` 로 끝나는 이름이 없다 — 센 줄 하나가 대신 말한다
+      expect(block.filter((l) => /\.env\s*$/.test(l))).toEqual([]);
+      expect(countLines(screen)).toHaveLength(1);
+      // 목록(8칸)을 `rm` 에 넘겨도 `.env` 는 그대로다
+      const listed = block
+        .filter((l) => /^ {8}\S/.test(l))
+        .map((l) => l.trim().split(/\s+/)[0] as string);
+      const r = spawnSync("rm", ["-f", "--", ...listed.filter((p) => !p.startsWith("mv"))], {
+        cwd: projectDir,
+      });
+      expect(r.status).toBe(0);
+      expect(read(".env")).toBe(SECRET);
     }
   });
 
@@ -368,9 +446,8 @@ describe("#911 위조 기록 — 화면 안내로 하네스 자리 밖 파일을
         expect(screen).not.toContain(forged.split("\n")[0] as string);
         expect(screen.split("\n")).not.toContain(fake);
         expect(mvLines(screen)).toEqual([]);
-        expect(screen.split("\n").filter((l) => l.includes("the harness never writes"))).toEqual([
-          "      not shown — 1 entry on the install record has a name the harness never writes: inspect the record",
-        ]);
+        expect(countLines(screen)).toHaveLength(1);
+        expect(countLines(screen)[0]).toContain("1 entry on the install record that this tool");
         // 목록 줄(8칸)을 쪼개 `rm` 에 넘겨도 `.env` 는 안 나온다
         const tokens = screen
           .split("\n")

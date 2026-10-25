@@ -129,8 +129,15 @@ it("`.agents` 링크 + 첫 추가가 덮은 설치자 스킬 파일: `--only` �
 
   for (const screen of [preview, text]) {
     expect(screen).toContain(`${SKILL} — not put back`);
-    expect(screen).toContain(`${bak}  (record: a backup of ${SKILL})`);
     expect(screen).not.toContain("mv -i");
+    // 외부 스킬 파일은 번들이 까는 자리가 아니라 이름으로 말하지 않고 센다
+    const lines = screen.split("\n");
+    const at = lines.findIndex((l) => l.includes("left for you to finish by hand"));
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(lines[at + 1]).toContain("not shown — 1 entry on the install record");
+    // 덩어리는 머리줄과 센 줄, 둘뿐이다
+    expect(lines.slice(at, at + 2).join("\n")).not.toContain("frontend-design");
+    expect(lines[at + 2]?.startsWith("      ") ?? false).toBe(false);
   }
   // 화면이 말할 뿐이다 — 백업은 그대로
   expect(readFileSync(abs(bak), "utf8")).toBe(MINE);

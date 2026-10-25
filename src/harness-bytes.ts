@@ -9,14 +9,14 @@
  * 번들이 이 이름으로 까는 자리가 아니면 null — 이름이 자산이어야 한다는 문(`isRecordedTrackTarget` — manifest · 번들에 실재)도 여기서 건다.
  */
 
-import { readFileSync } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { renderAntigravityRule } from "./antigravity/transform.js";
 import { renderBundledSkillFile } from "./codex/skills.js";
 import { renderCodexHook } from "./codex/transform.js";
 import { resolveBundleRoot } from "./context-cost.js";
-import type { InstallLog } from "./install-log.js";
-import { isRecordedTrackTarget } from "./recorded.js";
+import { hashContent, type InstallLog } from "./install-log.js";
+import { isRecordedTrackTarget, recorded } from "./recorded.js";
 import { portRules } from "./rules-port.js";
 
 const CLAUDE_DIR = ".claude/";
@@ -56,4 +56,23 @@ export function harnessBytesAt(log: InstallLog, path: string): Buffer | null {
     /* 템플릿을 읽지 못하면 하네스 판을 알 수 없다 */
   }
   return null;
+}
+
+/**
+ * 이 자리의 **현재 바이트**가 하네스가 놓은 것인가 — 현재 번들이 그 자리에 까는 판과 같거나, 그 자리에 적힌 기록 sha 와 같다(설치한 판보다
+ * 새 판으로 지울 때 · 번들이 은퇴시킨 파일). 기록은 위조될 수 있지만 sha 를 맞추려면 위조자가 그 자리 파일의 바이트를 알아야 하고, 알 수
+ * 있는 파일은 저장소가 추적하는 파일이라 되돌릴 수 있다. 말단이 링크이거나 읽을 수 없으면 아니다.
+ */
+export function holdsHarnessBytes(log: InstallLog, projectDir: string, path: string): boolean {
+  const slot = join(projectDir, path);
+  try {
+    if (!lstatSync(slot).isFile()) return false;
+    const disk = readFileSync(slot);
+    const bundle = harnessBytesAt(log, path);
+    if (bundle !== null && disk.equals(bundle)) return true;
+    const rec = recorded(log, path);
+    return rec.state === "sha" && rec.sha256 === hashContent(disk.toString("utf8"));
+  } catch {
+    return false;
+  }
 }

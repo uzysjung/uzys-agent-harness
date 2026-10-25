@@ -79,6 +79,7 @@ import {
   PROJECT_SKELETON_DIRS,
   withoutAppleDouble,
 } from "../fs-ops.js";
+import { holdsHarnessBytes } from "../harness-bytes.js";
 import { ANCHOR_FILES, HARNESS_FILES, inHarnessSlot, skillFolders } from "../harness-slot.js";
 import { LEGACY_HOOK_REFS, removeRetiredHookRefs } from "../hook-ref.js";
 import {
@@ -419,7 +420,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
         if (d.verdict === "restore") journal.push(`put back ${d.path}`);
       }
       for (const line of displacedLines(onlyDisplaced, false)) log(line);
-      for (const line of byHandLines([], onlyDisplaced, projectDir)) log(line);
+      for (const line of byHandLines([], onlyDisplaced, projectDir, installLog)) log(line);
     } else {
       const done = removeHarnessFiles(installLog, projectDir, FULL_SCOPE, {
         rm: rmJ,
@@ -823,7 +824,10 @@ function dryRunLines(
       willBeGone: new Set(plannedAssetFiles(plan, installLog)),
       write: false,
     });
-    lines.push(...displacedLines(preview, true), ...byHandLines([], preview, projectDir));
+    lines.push(
+      ...displacedLines(preview, true),
+      ...byHandLines([], preview, projectDir, installLog),
+    );
   }
   lines.push(...advisoryLines(plan, projectDir, rootFiles, globalTrust), "");
   return lines;
@@ -2618,7 +2622,7 @@ function harnessRemovalLines(
   }
   lines.push(...sharedStripLines(r.shared, preview));
   lines.push(...leftFolderLines(r, log, projectDir, scope, preview, alsoGone));
-  lines.push(...byHandLines(r.offSlot, r.displaced, projectDir));
+  lines.push(...byHandLines(r.offSlot, r.displaced, projectDir, log));
   return lines;
 }
 
@@ -3012,35 +3016,35 @@ function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[
  * 남긴 파일의 이름. 위 줄들이 말한 것을 이름으로 풀 뿐 — 아무것도 옮기거나 지우지 않고, 미리보기도 같은 판정을 말한다. 옮기는 명령은 그
  * `mv` 가 덮는 것이 하네스가 놓은 바이트뿐인 자리에만 준다(`handBack.safe`) — 그 밖은 백업이 남아 있다는 사실만 말한다.
  *
- * 설치자가 그대로 쳐 넣거나(`xargs rm`) 줄째 복사할 수 있는 덩어리라, 여기에는 **하네스가 쓰는 글자로만 된 경로**(`isPlainPath`)만 이름으로
- * 찍는다. 남이 커밋한 기록의 경로는 공백 · 줄바꿈 · 따옴표 · `$()` 로 한 줄을 여러 명령으로 바꿀 수 있어 — 그 밖의 경로는 찍지 않고 덩어리
- * 끝에 개수만 센다(경우별 이스케이프 대신 한 성질).
+ * 설치자가 그대로 쳐 넣거나(`xargs rm`) 줄째 복사할 수 있는 덩어리라, **이름으로 말하는 모든 경로는 판정 하나(`stands`)를 지난다**: 하네스가
+ * 쓰는 글자로만 된 경로(`isPlainPath`)이고, 그 자리가 하네스가 놓은 것으로 확인될 때만 — 파일은 현재 바이트가 번들 판 · 기록 sha 와
+ * 같을 때(`holdsHarnessBytes`), `mv` 의 자리는 비었거나 그럴 때(`handBack.safe`). 남이 커밋한 기록은 링크와 평범한 이름만으로 링크 너머
+ * 아무 파일(`.env`)이나 "하네스 파일" 로 댈 수 있다. 그 밖은 이름 없이 덩어리 끝에 개수로만 센다 — 설치자가 고친 하네스 사본도 여기로 간다.
  */
 function byHandLines(
   offSlot: ReadonlyArray<string>,
   displaced: ReadonlyArray<DisplacedOutcome>,
   projectDir: string,
+  log: InstallLog,
 ): string[] {
   let hidden = 0;
-  const plain = (...paths: string[]): boolean => {
-    if (paths.every(isPlainPath)) return true;
+  const stands = (path: string, confirmed: () => boolean): boolean => {
+    if (isPlainPath(path) && confirmed()) return true;
     hidden += 1;
     return false;
   };
   const back = displaced.flatMap((d) => (d.handBack === undefined ? [] : [d.handBack]));
-  const movable = back.filter((b) => b.safe && plain(b.from, b.to));
-  const unsure = back.filter((b) => !b.safe && plain(b.from, b.to));
+  // 백업 이름은 `handBackOf` 가 자리 이름에서 맞춰 보았다 — 여기서는 글자만 본다
+  const movable = back.filter((b) => stands(b.from, () => true) && stands(b.to, () => b.safe));
   const links = [...offSlotGroups(offSlot, projectDir).byLink].flatMap(([link, g]) => {
     // 링크 자체가 그 기록이면(말단 링크) 위 줄이 이미 그 이름이다
-    const files = g.files.filter((f) => f !== link);
-    if (!isPlainPath(link)) {
-      hidden += files.length;
-      return [];
-    }
-    const shown = files.filter((f) => plain(f)).sort();
+    const shown = g.files
+      .filter((f) => f !== link)
+      .filter((f) => stands(f, () => isPlainPath(link) && holdsHarnessBytes(log, projectDir, f)))
+      .sort();
     return shown.length > 0 ? [{ link, files: shown }] : [];
   });
-  if (movable.length === 0 && unsure.length === 0 && links.length === 0 && hidden === 0) return [];
+  if (movable.length === 0 && links.length === 0 && hidden === 0) return [];
   const yours = new Set(movable.map((b) => b.to));
   const lines = [
     `  ${c.yellow("⊘")} left for you to finish by hand (nothing here was touched — run from the project folder):`,
@@ -3052,14 +3056,6 @@ function byHandLines(
       ),
     );
     for (const b of movable) lines.push(c.dim(`        mv -i ${b.from} ${b.to}`));
-  }
-  if (unsure.length > 0) {
-    lines.push(
-      c.dim(
-        "      backups the install record names — no command is given, because the place each one belongs is not an empty place or a copy this tool put there; look at each before you move it anywhere:",
-      ),
-    );
-    for (const b of unsure) lines.push(c.dim(`        ${b.from}  (record: a backup of ${b.to})`));
   }
   for (const g of links) {
     lines.push(
@@ -3080,7 +3076,7 @@ function byHandLines(
   if (hidden > 0) {
     lines.push(
       c.dim(
-        `      not shown — ${hidden} entr${hidden === 1 ? "y" : "ies"} on the install record ${hidden === 1 ? "has a name" : "have names"} the harness never writes: inspect the record`,
+        `      not shown — ${hidden} entr${hidden === 1 ? "y" : "ies"} on the install record that this tool cannot confirm it wrote or cannot safely put back (a name it never writes, or contents that differ from what it installed): inspect the record, and look for *.backup-* files`,
       ),
     );
   }
