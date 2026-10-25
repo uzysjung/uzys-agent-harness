@@ -69,6 +69,7 @@ import {
   backupIfLossyUtf8,
   listEntriesRecursive,
   listFilesRecursive,
+  withoutAppleDouble,
 } from "./fs-ops.js";
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
@@ -1704,7 +1705,7 @@ export function collectRunBackups(
     if (lstatSync(abs).mtimeMs < startedAt - 1000) return;
     out.push({ path: rel.replace(BACKUP_SUFFIX, ""), backup: rel });
   };
-  for (const e of readdirSync(projectDir, { withFileTypes: true }))
+  for (const e of withoutAppleDouble(readdirSync(projectDir, { withFileTypes: true })))
     if (e.isFile()) consider(e.name);
   for (const dir of BACKUP_SCAN_DIRS) {
     for (const { rel } of listEntriesRecursive(join(projectDir, dir))) consider(`${dir}/${rel}`);

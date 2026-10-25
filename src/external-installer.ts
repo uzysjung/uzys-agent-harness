@@ -24,7 +24,6 @@ import {
   renameSync,
   rmdirSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, sep } from "node:path";
@@ -746,8 +745,6 @@ export function holdSkillSlots(
 ): <R extends ExternalInstallReport | null>(report: R) => SettledSlots<R> {
   const now = new Date();
   const asides = new Map<string, string>();
-  // #890 — 백업 폴더(= 그 스킬 루트의 볼륨)마다 AppleDouble 짝을 볼륨이 함께 옮기는가. 짝이 하나라도 있을 때만 잰다
-  const carries = new Map<string, boolean>();
   const moved: AsideFile[] = [];
   try {
     for (const f of slotFilesToKeep(projectDir, hold)) {
@@ -757,13 +754,6 @@ export function holdSkillSlots(
       if (dir === undefined) {
         dir = claimBackupDir(join(projectDir, root), now);
         asides.set(root, dir);
-      }
-      // #890 — 그런 볼륨(macOS 의 exFAT 등)에서 `._<name>` 은 `<name>` 의 확장 속성이다 — 볼륨이 `<name>` 과 함께 옮기고 지운다. 따로
-      // 옮기면 `<name>` 을 옮길 때 도착한 자리에서 지워져 되돌리기가 ENOENT 로 죽는다. `<name>` 을 따라가게 둔다
-      if (f.appleDouble) {
-        const together = carries.get(dir) ?? movesAppleDouble(dir);
-        carries.set(dir, together);
-        if (together) continue;
       }
       const aside = join(dir, f.rel.slice(root.length + 1));
       mkdirSync(dirname(aside), { recursive: true });
@@ -1025,45 +1015,6 @@ function realOrNull(abs: string): string | null {
   }
 }
 
-/** #890 — `._<name>` 이고 같은 폴더에 `<name>`(파일 · 폴더)이 있다 — macOS 가 확장 속성을 따로 두는 볼륨의 AppleDouble 짝 모양. */
-function isAppleDoubleOf(abs: string): boolean {
-  const name = basename(abs);
-  return (
-    name.length > 2 &&
-    name.startsWith("._") &&
-    lstatSync(join(dirname(abs), name.slice(2)), { throwIfNoEntry: false }) !== undefined
-  );
-}
-
-/**
- * #890 — `dir` 의 볼륨이 AppleDouble 짝(`._<name>`)을 `<name>` 과 함께 옮기는가. macOS 는 확장 속성을 담지 못하는 볼륨(exFAT · FAT ·
- * SMB 등)에 그것을 같은 폴더의 `._<name>` 파일로 두고, `<name>` 을 옮기거나 지우면 짝도 함께 옮기거나 지운다 — 짝 없이 옮겨 온 파일은
- * 도착한 자리의 `._<name>` 을 지운다(실측 2026-10-25, macOS exFAT 디스크 이미지). 볼륨 종류는 Node 가 알려 주지 않아 `dir`(이번 실행이
- * 만든 백업 폴더 — 옮긴 것은 스킬 · 루트 이름의 하위 폴더에 든다) 안에서 직접 재 본다. 못 재면 false — 짝도 평범한 파일로 다룬다(지금까지의 동작).
- */
-function movesAppleDouble(dir: string): boolean {
-  const [from, fromPair, to, toPair] = [
-    ".uzys-probe",
-    "._.uzys-probe",
-    ".uzys-probe-moved",
-    "._.uzys-probe-moved",
-  ].map((n) => join(dir, n)) as [string, string, string, string];
-  try {
-    writeFileSync(from, "");
-    writeFileSync(fromPair, "");
-    renameSync(from, to);
-    return existsSync(toPair) && !existsSync(fromPair);
-  } catch {
-    return false;
-  } finally {
-    try {
-      for (const p of [from, fromPair, to, toPair]) rmSync(p, { force: true });
-    } catch {
-      // 우리 백업 폴더 안의 빈 파일이다 — 남으면 그 폴더가 남을 뿐이다
-    }
-  }
-}
-
 /** 폴더를 realpath 한 자리 + 이름 — 파일 자체가 링크여도 따라가지 않는다(`slotFilesToKeep` 의 실경로와 같은 잣대). 폴더가 없으면 `null`. */
 function realFileOrNull(abs: string): string | null {
   const dir = realOrNull(dirname(abs));
@@ -1085,7 +1036,6 @@ function errText(e: unknown): string {
 /**
  * 도구 호출 전에 옮긴 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일.
  * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로) · `link` = 링크 자체를 옮겼다(#839).
- * `appleDouble` = 옮기기 전 같은 폴더에 `<name>` 이 있던 `._<name>`(#890 — 볼륨이 짝으로 다루면 따로 옮기지 않는다).
  */
 interface AsideFile {
   abs: string;
@@ -1093,7 +1043,6 @@ interface AsideFile {
   slot: string;
   recorded: boolean;
   link: boolean;
-  appleDouble: boolean;
   aside: string;
 }
 
@@ -1106,6 +1055,7 @@ interface AsideFile {
  * 링크 자리를 실제 폴더로 바꿔도 설치자 파일은 원래 있던 폴더로 돌아간다.
  * 스킬 폴더 안의 링크(파일 · 폴더 — 공유 에셋 등)는 따라가지 않고 링크 자체를 옮긴다 — 도구가 폴더를 새로 만들면 링크도
  * 사라진다(#839). 스킬 루트 바로 아래 링크는 스킬 자리 그 자체(#524)라 들지 않는다 — 그 안을 지키는 것이 hold 다.
+ * AppleDouble 짝(`._<name>`)은 목록에 들지 않는다(`listEntriesRecursive`) — 그 볼륨이 `<name>` 과 함께 옮긴다(#890).
  */
 function slotFilesToKeep(
   projectDir: string,
@@ -1131,8 +1081,13 @@ function slotFilesToKeep(
       .filter((a) => !targetIds.has(a.id))
       .flatMap((a) => (a.files ?? []).map((f) => f.path)),
   );
+  // 자리는 기록 파일이 **든 폴더**(`<root>/<id>`)다 — 루트 바로 아래 파일(옛 판이 적은 AppleDouble 짝 `<root>/._<id>` 등)은 자리가
+  // 아니다(#890 — 그 파일을 폴더로 훑다 ENOTDIR 로 멈췄다)
   const slots = new Set([
-    ...mine.map((f) => f.path.split("/").slice(0, 3).join("/")),
+    ...mine
+      .map((f) => f.path.split("/"))
+      .filter((parts) => parts.length > 3)
+      .map((parts) => parts.slice(0, 3).join("/")),
     ...hold.slots,
   ]);
   const out = new Map<string, Omit<AsideFile, "aside">>();
@@ -1161,16 +1116,7 @@ function slotFilesToKeep(
       } catch {
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
-      // 짝 판정은 옮기기 전에 — 짝 `<name>` 을 먼저 옮기면 그 뒤에는 이름 짝이 안 보인다
-      const appleDouble = !link && isAppleDoubleOf(abs);
-      out.set(real, {
-        abs,
-        rel: path,
-        slot,
-        recorded: recordedSha !== undefined,
-        link,
-        appleDouble,
-      });
+      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined, link });
     }
   }
   return [...out.values()];

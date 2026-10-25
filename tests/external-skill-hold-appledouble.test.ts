@@ -9,60 +9,102 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { holdSkillSlots, refreshExternalSkills } from "../src/external-installer.js";
-import { hashContent, type InstallLog, writeInstallLog } from "../src/install-log.js";
+import { uninstallAction } from "../src/commands/uninstall.js";
+import { EXTERNAL_ASSETS } from "../src/external-assets.js";
+import {
+  type ExternalInstallerDeps,
+  holdSkillSlots,
+  refreshExternalSkills,
+  runExternalInstall,
+} from "../src/external-installer.js";
+import {
+  hashContent,
+  type InstallLog,
+  readInstallLog,
+  writeInstallLog,
+} from "../src/install-log.js";
+import { runInstall } from "../src/installer.js";
+import type { InstallSpec } from "../src/types.js";
+import { runUpdateMode } from "../src/update-mode.js";
 import { createMockAsset } from "./helpers/mock-asset.js";
 
 /**
- * #890 — macOS 외장 볼륨(exFAT · FAT · SMB 등 — 확장 속성을 같은 폴더의 `._<name>` 파일로 두는 볼륨)에서 외부 스킬 도구 앞의
- * hold(#770 · #780)가 `._<name>` 을 따로 옮겼다가 되돌리지 못해 install 이 "could not put back N file(s)" 로 멈췄다.
+ * #890 · #897 — macOS 외장 볼륨(exFAT · FAT · SMB 등 — 확장 속성을 같은 폴더의 `._<name>` 파일로 두는 볼륨)에서 하네스가 그 짝을
+ * 독립 파일로 다뤄 install 이 "could not put back N file(s)" 로 멈추고(외부 스킬 hold), 기록에 적힌 짝 때문에 다음 install · update 가
+ * ENOTDIR 로 멈추고, update 는 짝을 "번들 밖 파일" 로 백업 · 삭제하고, uninstall 은 짝을 "당신 파일" 로 안내했다.
  *
  * 그런 볼륨은 `<name>` 을 옮기면 `._<name>` 을 함께 옮기고, 짝 없이 옮겨 온 파일은 도착한 자리의 `._<name>` 을 지우고, `<name>` 을
- * 지우면 `._<name>` 도 지운다(실측 2026-10-25 — `hdiutil create -fs ExFAT` 이미지, 그 이미지에서 실제 hold 로 재현 · 해소 확인). CI 는
- * Linux 라 그 동작을 `node:fs` 에서 모사한다 — `appleDouble.on` 이 켜진 동안만, 이름이 `._` 로 시작하지 않는 대상에 짝을 붙여 다룬다.
- * 꺼져 있으면 실물 그대로다(일반 볼륨 — `._<name>` 도 평범한 파일).
+ * 지우면 짝도 지운다 · 새 파일 · 폴더마다 짝이 생긴다(실측 2026-10-25 — `hdiutil create -fs ExFAT` 이미지). CI 는 Linux 라 그 동작을
+ * `node:fs` 에서 모사한다 — `volume.pairs` 가 켜진 동안 이름이 `._` 로 시작하지 않는 대상에 짝을 붙여 옮기고 지우며, `volume.stamp` 가
+ * 켜져 있으면 새로 생긴 파일 · 폴더에 짝을 만든다. 꺼져 있으면 실물 그대로다(일반 볼륨).
  */
-const appleDouble = { on: false };
+const volume = { pairs: false, stamp: false };
 vi.mock("node:fs", async (importOriginal) => {
   const real = await importOriginal<typeof import("node:fs")>();
-  const pair = (p: unknown): string | null => {
-    const s = String(p);
-    return appleDouble.on && !basename(s).startsWith("._")
-      ? join(dirname(s), `._${basename(s)}`)
-      : null;
+  const pairOf = (p: unknown): string | null => {
+    if (!volume.pairs || typeof p !== "string" || basename(p).startsWith("._")) return null;
+    return join(dirname(p), `._${basename(p)}`);
+  };
+  const stamp = (p: unknown): void => {
+    const pair = volume.stamp ? pairOf(p) : null;
+    if (pair !== null && real.existsSync(String(p)) && !real.existsSync(pair))
+      real.writeFileSync(pair, `xattr of ${basename(String(p))}\n`);
   };
   return {
     ...real,
+    writeFileSync: (p: string, ...rest: [never, never?]) => {
+      const fresh = typeof p === "string" && !real.existsSync(p);
+      real.writeFileSync(p, ...rest);
+      if (fresh) stamp(p);
+    },
+    copyFileSync: (from: string, to: string, mode?: number) => {
+      const fresh = !real.existsSync(to);
+      real.copyFileSync(from, to, mode);
+      if (fresh) stamp(to);
+    },
+    mkdirSync: (p: string, opts?: Parameters<typeof real.mkdirSync>[1]) => {
+      const made: string[] = [];
+      for (let d = resolve(p); !real.existsSync(d) && dirname(d) !== d; d = dirname(d))
+        made.push(d);
+      const out = real.mkdirSync(p, opts);
+      for (const d of made) stamp(d);
+      return out;
+    },
     renameSync: (from: string, to: string) => {
       real.renameSync(from, to);
-      const [a, b] = [pair(from), pair(to)];
+      const [a, b] = [pairOf(from), pairOf(to)];
       if (a === null || b === null) return;
       if (real.existsSync(a)) real.renameSync(a, b);
       else real.rmSync(b, { force: true });
     },
     rmSync: (p: string, opts?: Parameters<typeof real.rmSync>[1]) => {
       real.rmSync(p, opts);
-      const a = pair(p);
+      const a = pairOf(p);
       if (a !== null) real.rmSync(a, { force: true });
     },
     unlinkSync: (p: string) => {
       real.unlinkSync(p);
-      const a = pair(p);
+      const a = pairOf(p);
       if (a !== null) real.rmSync(a, { force: true });
     },
     rmdirSync: (p: string) => {
+      // 그 볼륨의 rmdir 는 짝만 남은 폴더의 짝을 치우고 지운다
+      if (volume.pairs && real.readdirSync(p).every((n) => n.startsWith("._")))
+        for (const n of real.readdirSync(p)) real.rmSync(join(p, n), { force: true });
       real.rmdirSync(p);
-      const a = pair(p);
+      const a = pairOf(p);
       if (a !== null) real.rmSync(a, { force: true });
     },
   };
 });
 
+const HARNESS_ROOT = join(__dirname, "..");
 const dirs: string[] = [];
 afterEach(() => {
-  appleDouble.on = false;
+  volume.pairs = false;
+  volume.stamp = false;
   while (dirs.length > 0) rmSync(dirs.pop() as string, { recursive: true, force: true });
 });
 
@@ -89,6 +131,8 @@ function walk(dir: string, prefix = ""): string[] {
     .sort();
 }
 
+const isPairName = (path: string): boolean => basename(path).startsWith("._");
+
 /**
  * #890 신고 그대로의 모양 — 기록 없는 첫 install(하네스 번들 스킬을 막 쓴 뒤) · 소스 전체를 까는 외부 자산이라 자리가 스킬 루트 전체.
  * 하네스 스킬 폴더 · 그 안 하위 폴더 · 앞선 update 의 백업 · 설치자 노트마다 짝이 있다.
@@ -113,7 +157,7 @@ function runTool(dir: string): void {
   for (const root of [".claude/skills", ".agents/skills"]) {
     rmSync(join(dir, root, "jk"), { recursive: true, force: true });
     put(dir, `${root}/jk/SKILL.md`, "# jk upstream\n");
-    if (appleDouble.on) put(dir, `${root}/._jk`, "xattr of jk\n");
+    if (volume.pairs) put(dir, `${root}/._jk`, "xattr of jk\n");
   }
 }
 
@@ -131,7 +175,7 @@ function installHold(dir: string) {
 
 describe("#890 — AppleDouble 짝을 두는 볼륨에서 외부 스킬 hold 가 끝까지 돌고 아무것도 잃지 않는다", () => {
   it("신고 모양(기록 없음 · 스킬 루트 전체 자리): 되돌리기가 실패하지 않고 파일 · 짝 · 앞선 백업이 원래 바이트로 제자리에 있다", () => {
-    appleDouble.on = true;
+    volume.pairs = true;
     const dir = reportedLayout();
     const before = walk(dir);
 
@@ -154,7 +198,7 @@ describe("#890 — AppleDouble 짝을 두는 볼륨에서 외부 스킬 hold 가
   });
 
   it("도구가 예외로 끝나도(전부 제자리로) 짝을 잃지 않는다", () => {
-    appleDouble.on = true;
+    volume.pairs = true;
     const dir = reportedLayout();
     const before = walk(dir);
 
@@ -164,7 +208,7 @@ describe("#890 — AppleDouble 짝을 두는 볼륨에서 외부 스킬 hold 가
   });
 
   it("update — 손대지 않은 외부 스킬 파일의 짝은 '설치자 파일' 로 백업 · displaced 되지 않는다", () => {
-    appleDouble.on = true;
+    volume.pairs = true;
     const dir = mkdtempSync(join(tmpdir(), "uzys-890-upd-"));
     dirs.push(dir);
     const SKILL = createMockAsset({
@@ -214,24 +258,185 @@ describe("#890 — AppleDouble 짝을 두는 볼륨에서 외부 스킬 hold 가
     expect(readdirSync(join(dir, ".agents/skills/a")).sort()).toEqual(["._SKILL.md", "SKILL.md"]);
   });
 
-  it("짝을 두지 않는 볼륨(일반 볼륨)에서는 `._<name>` 도 평범한 설치자 파일로 지금처럼 지킨다 — 회귀 없음", () => {
-    const dir = reportedLayout();
+  it("짝 없는 `._<name>`(일반 볼륨의 평범한 파일)은 지금처럼 설치자 파일로 비켜 두었다가 돌려놓는다 — 회귀 없음", () => {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-890-plain-"));
+    dirs.push(dir);
+    put(dir, ".claude/skills/jk/._orphan", "a plain file named like a pair\n");
+    put(dir, ".claude/skills/jk/notes.md", "my notes\n");
     const before = walk(dir);
 
     const settle = installHold(dir);
-    // 일반 볼륨의 `._<name>` 은 그냥 파일이다 — hold 가 비켜 두지 않으면 도구가 폴더를 새로 만들 때 사라진다
-    expect(existsSync(join(dir, ".claude/skills/keep/._NOTE.md"))).toBe(false);
-    runTool(dir);
+    // 비켜 두지 않으면 도구가 폴더를 새로 만들 때 사라진다
+    expect(existsSync(join(dir, ".claude/skills/jk/._orphan"))).toBe(false);
+    rmSync(join(dir, ".claude/skills/jk"), { recursive: true, force: true });
+    put(dir, ".claude/skills/jk/SKILL.md", "# jk upstream\n");
     settle(OK);
 
-    expect(walk(dir)).toEqual(
-      [
-        ...before,
-        ".agents/skills/jk/",
-        ".agents/skills/jk/SKILL.md=# jk upstream\n",
-        ".claude/skills/jk/",
-        ".claude/skills/jk/SKILL.md=# jk upstream\n",
-      ].sort(),
+    expect(walk(dir)).toEqual([...before, ".claude/skills/jk/SKILL.md=# jk upstream\n"].sort());
+  });
+});
+
+/**
+ * 회차 1 (리뷰 BLOCKER-1) — 신고자가 이어서 하는 순서 그대로: 첫 install → 같은 install 다시(신고 화면이 시키는 것 · 트랙 추가) →
+ * update → uninstall. 외부 도구만 가짜이고 hold · 기록 · 정리 · 되돌리기는 실물이다. 짝을 기록에 적으면 다음 실행이 그 파일을 스킬
+ * 자리로 훑다 ENOTDIR 로 멈췄다.
+ */
+describe("#890 · #897 — 짝을 두는 볼륨에서 install → install 다시 → update → uninstall", () => {
+  const ASSETS = EXTERNAL_ASSETS.filter((a) =>
+    ["frontend-design", "jakubkrehel-skills"].includes(a.id),
+  );
+  const NOTE = ".claude/skills/frontend-design/mine.md";
+
+  function project(): { dir: string; spec: InstallSpec } {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-890-seq-"));
+    dirs.push(dir);
+    return {
+      dir,
+      spec: {
+        tracks: ["csr-fastify"],
+        options: { withCodexTrust: false },
+        cli: ["claude", "codex"],
+        projectDir: dir,
+        userOverride: { forceInclude: ASSETS.map((a) => a.id), forceExclude: [] },
+      },
+    };
+  }
+
+  /** `npx skills add` — 소스마다 그 스킬 폴더를 두 루트에 지우고 새로 만든다. 그 밖의 호출(버전 확인 등)은 빈 성공. */
+  function tool(dir: string): NonNullable<ExternalInstallerDeps["spawn"]> {
+    let round = 0;
+    return (cmd, args) => {
+      if (cmd === "npx" && args.includes("add")) {
+        round++;
+        const skill = args.includes("anthropics/skills") ? "frontend-design" : "jk-a";
+        for (const root of [".claude/skills", ".agents/skills"]) {
+          rmSync(join(dir, root, skill), { recursive: true, force: true });
+          put(dir, `${root}/${skill}/SKILL.md`, `# ${skill} r${round}\n`);
+          put(dir, `${root}/${skill}/references/guide.md`, `guide r${round}\n`);
+        }
+      }
+      return {
+        pid: 0,
+        output: [],
+        stdout: "",
+        stderr: "",
+        status: 0,
+        signal: null,
+      } as SpawnSyncReturns<string>;
+    };
+  }
+
+  function run(dir: string, spec: InstallSpec, mode: "fresh" | "add") {
+    const spawn = tool(dir);
+    return runInstall({
+      harnessRoot: HARNESS_ROOT,
+      projectDir: dir,
+      spec,
+      mode,
+      runExternal: (c, d) =>
+        runExternalInstall({ ...c, cli: spec.cli }, { ...d, spawn, assets: ASSETS }),
+    });
+  }
+
+  const recordedPairs = (dir: string): string[] =>
+    (readInstallLog(dir)?.assets ?? []).flatMap((a) =>
+      (a.files ?? []).map((f) => f.path).filter(isPairName),
     );
+
+  function sequence(dir: string, spec: InstallSpec, afterFirst?: () => void) {
+    run(dir, spec, "fresh");
+    afterFirst?.();
+    put(dir, NOTE, "my note in an external skill folder\n");
+    run(dir, spec, "add");
+    // 설치자가 고친 하네스 파일 둘 — update 가 백업을 남긴다(그 볼륨이면 백업에도 짝이 생긴다: 루트 · 스킬 폴더 안)
+    for (const rel of ["CLAUDE-uzys-harness.md", ".claude/skills/north-star/SKILL.md"])
+      writeFileSync(join(dir, rel), `${readFileSync(join(dir, rel), "utf8")}\nmy edit\n`);
+    const spawn = tool(dir);
+    const updated = runUpdateMode(dir, join(HARNESS_ROOT, "templates"), HARNESS_ROOT, {
+      refreshSkills: (p) =>
+        refreshExternalSkills(p, { spawn, assets: ASSETS, log: () => {}, warn: () => {} }),
+    });
+    const noteAfterUpdate = readFileSync(join(dir, NOTE), "utf8");
+    const lines: string[] = [];
+    let code: number | null = null;
+    uninstallAction(
+      { projectDir: dir, yes: true },
+      {
+        exit: (c: number) => {
+          code ??= c;
+          return undefined as never;
+        },
+        log: (l: string) => lines.push(l),
+        err: (l: string) => lines.push(l),
+        resolveHarnessRoot: () => HARNESS_ROOT,
+        spawn: (cmd, args) => spawn(cmd, args, { encoding: "utf8", stdio: "pipe" } as never),
+      },
+    );
+    return { updated, noteAfterUpdate, lines, code };
+  }
+
+  it("멈추지 않고, 짝을 기록 · 백업 · 정리 · '당신 파일' 안내 어디에도 따로 들이지 않으며, 설치자 파일은 끝까지 남는다", () => {
+    volume.pairs = true;
+    volume.stamp = true;
+    const { dir, spec } = project();
+
+    const { updated, noteAfterUpdate, lines, code } = sequence(dir, spec, () => {
+      // 대조군 — 이 모사가 실제로 짝을 만든다. 안 만들면 아래 단언이 전부 다른 이유로 green 이다
+      expect(existsSync(join(dir, ".claude/skills/._frontend-design"))).toBe(true);
+      expect(existsSync(join(dir, ".claude/skills/frontend-design/._SKILL.md"))).toBe(true);
+      expect(recordedPairs(dir)).toEqual([]);
+    });
+
+    expect(updated.externalSkillsRefreshed).toBe(ASSETS.length);
+    expect(updated.externalSkillsFailed).toEqual([]);
+    // 대조군 — 고친 두 파일의 백업은 목록에 오른다. 짝 백업만 빠진다
+    expect(updated.backups.map((b) => b.path)).toEqual(
+      expect.arrayContaining(["CLAUDE-uzys-harness.md", ".claude/skills/north-star/SKILL.md"]),
+    );
+    expect(updated.backups.filter((b) => isPairName(b.path))).toEqual([]);
+    expect(updated.skillsPruned.filter(isPairName)).toEqual([]);
+    expect(noteAfterUpdate).toBe("my note in an external skill folder\n");
+    expect(code).toBe(0);
+    expect(lines.filter((l) => l.includes("/._") || l.includes(" ._"))).toEqual([]);
+    expect(readFileSync(join(dir, NOTE), "utf8")).toBe("my note in an external skill folder\n");
+  });
+
+  it("옛 판이 짝을 자산 파일로 적어 둔 기록이어도 같은 순서가 멈추지 않는다 — 기록은 고치지 않고 읽는 쪽이 거른다", () => {
+    volume.pairs = true;
+    volume.stamp = true;
+    const { dir, spec } = project();
+
+    const { updated, lines, code } = sequence(dir, spec, () => {
+      // 옛 판(≤ v26.174.0)이 그 볼륨에서 남긴 기록 모양 — 스킬 폴더의 짝 · 그 안 파일의 짝을 자산 파일로 적었다
+      const log = readInstallLog(dir) as InstallLog;
+      const pairs = [
+        ".claude/skills/._frontend-design",
+        ".claude/skills/frontend-design/._SKILL.md",
+        ".agents/skills/._frontend-design",
+      ];
+      writeInstallLog(dir, {
+        ...log,
+        assets: log.assets.map((a) =>
+          a.id === "frontend-design"
+            ? {
+                ...a,
+                files: [
+                  ...(a.files ?? []),
+                  // 그 뒤 속성이 바뀌었다(다른 프로세스가 다시 만든 짝) — 기록 sha 와 다르다
+                  ...pairs.map((path) => ({
+                    path,
+                    sha256: hashContent(`xattr at install of ${path}\n`),
+                  })),
+                ],
+              }
+            : a,
+        ),
+      });
+      expect(recordedPairs(dir)).toEqual(expect.arrayContaining(pairs));
+    });
+
+    expect(updated.externalSkillsRefreshed).toBe(ASSETS.length);
+    expect(code).toBe(0);
+    expect(lines.filter((l) => l.includes("/._") || l.includes(" ._"))).toEqual([]);
   });
 });
