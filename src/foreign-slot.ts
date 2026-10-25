@@ -1,5 +1,6 @@
 import { lstatSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { isOutsideProject } from "./outside-project.js";
 
 /**
  * foreign-slot.ts — "그 자리는 우리 것이 아니다" 판정 (#343 · ADR-062 적용 표면 확장).
@@ -46,10 +47,11 @@ export function occupiedByNonDirectory(path: string): boolean {
  * 남의 것"(#343)에서 이 한 모양만 뺀다. 본문을 쓸지는 여기서 정하지 않는다 — 그 자리가 우리 기록에
  * 있는지(`externalFiles`)는 호출자가 본다. 이 술어는 "어디를 가리키는가"만 답한다.
  *
- * **양쪽을 realpath 한다.** 한쪽만 풀면 macOS 임시 디렉터리(`/var/…` → `/private/var/…`)처럼
- * 프로젝트 경로 자체가 링크를 품은 곳에서 모든 링크가 "밖"으로 읽힌다. 깨진 링크(`realpathSync`
- * 가 던진다) · 다른 id · 디렉터리가 아닌 대상 · 프로젝트 밖은 전부 false — 기존 foreign 규칙으로
- * 떨어진다.
+ * **양쪽을 끝까지 realpath 한다.** 한쪽만 풀면 macOS 임시 디렉터리(`/var/…` → `/private/var/…`)처럼
+ * 프로젝트 경로 자체가 링크를 품은 곳에서 모든 링크가 "밖"으로 읽히고, `.agents` 가 프로젝트 안 다른 폴더로의
+ * 링크인 구성(dotfiles 식)에서는 `.agents/skills/<id>` 꼬리가 실경로와 어긋나 공유 자리를 "남의 것" 으로 읽는다(#885).
+ * 깨진 링크(`realpathSync` 가 던진다) · 다른 id · 디렉터리가 아닌 대상 · 프로젝트 밖(`.agents` 가 밖을
+ * 가리켜도)은 전부 false — 기존 foreign 규칙으로 떨어진다.
  */
 export function linksToProjectSharedSkill(projectDir: string, id: string): boolean {
   const slot = join(projectDir, ".claude/skills", id);
@@ -57,7 +59,9 @@ export function linksToProjectSharedSkill(projectDir: string, id: string): boole
   try {
     const real = realpathSync(slot);
     return (
-      real === join(realpathSync(projectDir), ".agents/skills", id) && statSync(real).isDirectory()
+      real === realpathSync(join(projectDir, ".agents/skills", id)) &&
+      !isOutsideProject(projectDir, real) &&
+      statSync(real).isDirectory()
     );
   } catch {
     return false;

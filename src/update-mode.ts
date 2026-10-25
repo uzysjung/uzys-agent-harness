@@ -723,10 +723,13 @@ export function runUpdateMode(
   //      것이 디스크에 남아 있다**. 다만 지우는 것은 위 둘과 다르다: `.mcp-allowlist` 는 우리가
   //      만든 자동 생성물이라 회수했지만, 에이전트 파일은 사용자가 고쳤을 수 있고 update 시점에
   //      그것을 판정할 기준선이 없다. 그래서 말만 한다.
-  report.retiredAgents = staleAgentFiles(claudeDir);
+  // #884 — 두 판정 모두 claude 가 깔린 집합에서만 — 아니면 그 `.claude/agents/` 는 통째로 설치자 것이다(위 앵커 · 훅 판정과 같은 게이트)
+  report.retiredAgents = claudeManaged ? staleAgentFiles(claudeDir) : [];
   // 3.7) 트랙에서 **강등된** 에이전트 (ADR-090 · #458). 같은 자리에 두는 이유는 사용자가 할 일이
   //      같아서다(지워도 된다). 판정 근거만 다르다 — 은퇴는 목록, 강등은 **이 설치본의 트랙**이다.
-  report.demotedAgents = demotedAgentFiles(claudeDir, installedTracks(projectDir));
+  report.demotedAgents = claudeManaged
+    ? demotedAgentFiles(claudeDir, installedTracks(projectDir))
+    : [];
 
   // 4) 외부 CLI 산출물 — v26.134.0 (R-3j-A · ADR-049).
   // install 과 **같은 함수**를 refresh 모드로 부른다. 여기서 transform 을 따로 부르면
@@ -1582,6 +1585,15 @@ function pruneSkillExtras(
       } catch {
         // #848 — best-effort(`pruneOrphans` 와 같은 방침): 그 파일만 남기고 다음 update 가 다시 본다. 던지면 이미 새 판을 쓴
         // 뒤 기록 갱신 전에 멈춰 기록 · 디스크가 갈라진다
+        // #868 — 백업 뒤 지우기만 실패했으면 원본이 그대로 남았다 — 방금 만든 백업을 걷는다. 남기면 화면("left in place")과 백업 목록이
+        // 다른 말을 하고, 다음 update 가 다시 시도할 때마다 같은 파일의 백업이 하나씩 쌓인다
+        if (backupAbs !== null) {
+          try {
+            unlinkSync(backupAbs);
+          } catch {
+            // 방금 같은 폴더에 만든 파일이다 — 못 지우면 디스크에 남은 그대로 백업 목록이 줍는다
+          }
+        }
         failed.push(`${id}/${rel}`);
         continue;
       }

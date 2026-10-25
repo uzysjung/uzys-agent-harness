@@ -1072,6 +1072,51 @@ describe("신규 자산 설치 (#283)", () => {
     expect(report.installedNew).toContain(".uzys-agent-harness/spec-drift-check.sh");
   });
 
+  it("codex 만 깐 설치본의 `.claude/agents/` 파일에는 '은퇴 · 강등 — 지워도 된다' 를 말하지 않는다 (#884)", () => {
+    // 같은 화면이 그 `.claude/` 를 "기록에 없다 — 당신 것" 이라고 말한다(`claudeUnrecorded`). 그 안 파일에 "지워도 된다" 를 내면
+    // 하네스가 깐 적 없는 설치자 파일을 지우라고 시키는 것이다 — 이름이 은퇴 · 강등 id 와 같을 뿐이다
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      spec: { tracks: ["tooling"], cli: ["codex"], clis: ["codex"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+    });
+    writeFileSync(join(projectDir, ".claude/agents/code-reviewer.md"), "# my own reviewer\n");
+    writeFileSync(join(projectDir, ".claude/agents/strategist.md"), "# my own strategist\n");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.claudeUnrecorded).not.toBeNull();
+    expect(report.retiredAgents).toEqual([]);
+    expect(report.demotedAgents).toEqual([]);
+    expect(readFileSync(join(projectDir, ".claude/agents/code-reviewer.md"), "utf8")).toBe(
+      "# my own reviewer\n",
+    );
+  });
+
+  it("claude 를 깐 설치본에서는 같은 파일을 은퇴 · 강등으로 계속 알린다 — #884 게이트의 대조군", () => {
+    // 기록이 파일을 열거하는 판(writer) — 옛 로그면 은퇴 자리를 prune 이 먼저 치워 알릴 것이 남지 않는다(ADR-089 행과 같은 픽스처)
+    writeInstallLog(projectDir, {
+      schemaVersion: 1,
+      installedAt: new Date(0).toISOString(),
+      scope: "project",
+      records: "writer",
+      spec: { tracks: ["tooling"], cli: ["claude"], clis: ["claude"] },
+      templates: { claudeDir: ".claude" },
+      assets: [],
+      policyFiles: [{ path: "rules/git-policy.md", sha256: hashContent("git v1\n") }],
+    });
+    writeFileSync(join(projectDir, ".claude/agents/code-reviewer.md"), "옛 릴리즈가 깐 것\n");
+    writeFileSync(join(projectDir, ".claude/agents/strategist.md"), "옛 릴리즈가 깐 것\n");
+
+    const report = runUpdateMode(projectDir, templatesDir, HARNESS_ROOT);
+
+    expect(report.retiredAgents).toContain("code-reviewer");
+    expect(report.demotedAgents).toContain("strategist");
+  });
+
   it("#528 옛 로그가 `spec.cli: [opencode]` 여도 앵커 기록이 있으면 새 Claude 자산을 깐다", () => {
     // Epic #527 의 실측 결함: 위저드 Add 에서 claude 를 풀고 opencode 를 체크하면 파일은 남고
     // 로그의 `spec.cli` 만 덮인다. 그 뒤 update 는 `.claude/` 를 갱신은 하면서도 **새 릴리즈가
