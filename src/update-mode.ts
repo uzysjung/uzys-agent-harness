@@ -71,6 +71,7 @@ import {
   listFilesRecursive,
   withoutAppleDouble,
 } from "./fs-ops.js";
+import { HARNESS_FILES, inHarnessSlot } from "./harness-slot.js";
 import { findStaleHookRefs, keepHookRef, removeRetiredHookRefs } from "./hook-ref.js";
 import {
   createInstallWriter,
@@ -2511,6 +2512,8 @@ function pruneOrphans(
       const { verdict, line } = judge({ op: "remove", kind: "harness", rec, disk, next: null });
       // 판정이 곧 동작이다 — `leave`(기록에 없는 설치자 파일 등)면 건드리지 않는다. #678 밖의 실체는 그 뒤에 거른다
       if (verdict === "leave" || ctx.outside.skip(targetFile)) continue;
+      // #901 — 정책 폴더를 링크로 둔 자리(`.claude/rules → ..`)는 실경로가 자리 밖이다 — 기록이 하네스 것이라 해도 치우지 않는다
+      if (!inHarnessSlot(ctx.projectDir, path, HARNESS_FILES, { follow: true })) continue;
       const backupAbs = verdict === "backup+remove" ? backupFile(targetFile, now) : null;
       unlinkSync(targetFile);
       removed.push(file);

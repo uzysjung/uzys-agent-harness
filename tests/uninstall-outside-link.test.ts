@@ -257,20 +257,24 @@ describe("uninstall — 프로젝트 밖으로 나가는 CLI 폴더 링크는 �
     expect(out.text).not.toContain("left  .claude/");
   });
 
-  it("회귀 — 프로젝트 **안**을 가리키는 `.codex` 링크는 따라가 파일 단위로 회수하고 링크는 남는다 (#746)", () => {
+  it("#901 — 프로젝트 **안** 다른 폴더로 옮긴 `.codex` 링크 아래의 기록 파일은 회수하지 않고 링크 하나로 말한다 · 링크는 남는다 (#746 회수의 대가)", () => {
     install(["claude", "codex"]);
     renameSync(join(projectDir, ".codex"), join(projectDir, "shared-codex"));
     symlinkSync("shared-codex", join(projectDir, ".codex"));
+    const hook = join(projectDir, "shared-codex", "hooks", "session-start.sh");
+    const before = readFileSync(hook, "utf8");
 
     const out = run({ yes: true });
 
     expect(out.code).toBe(0);
     expect(lstatSync(join(projectDir, ".codex")).isSymbolicLink()).toBe(true);
     expect(readlinkSync(join(projectDir, ".codex"))).toBe("shared-codex");
-    // 하네스가 쓴 것(config.toml · hooks/)은 실체에서 회수됐다
-    expect(readdirSync(join(projectDir, "shared-codex"))).toEqual([]);
+    // 기록 파일의 실경로(`shared-codex/…`)가 하네스 자리 밖이다 — 남는 쪽(손실이 아니다)
+    expect(readFileSync(hook, "utf8")).toBe(before);
     expect(backups(".codex")).toEqual([]);
-    expect(out.text).not.toContain("left as is");
+    expect(out.text).toContain(
+      ".codex — your link (→ shared-codex) leads outside the places this tool installs to",
+    );
   });
 
   it("확인 전 대화형 화면(전량 · CLI 하나)도 남김 + 링크 → 대상을 말한다", async () => {

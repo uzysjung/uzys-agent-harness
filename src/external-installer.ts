@@ -44,6 +44,7 @@ import {
   listEntriesRecursive,
   listFilesRecursive,
 } from "./fs-ops.js";
+import { inHarnessSlot, skillFolders } from "./harness-slot.js";
 import {
   buildAssetEntries,
   hashContent,
@@ -636,19 +637,24 @@ export function refreshExternalSkills(
   // 기록 밖 파일이 사라진다). 그래서 호출 **전에** 그 폴더의 내용을 들고 있다가 호출 **뒤에** 판정한다 — 설치자가 고친
   // 하네스 파일(기록 sha 와 다름)은 그 파일 하나를 백업하고, 안 고친 파일은 조용히 갱신되며, 설치자 파일(기록 밖 —
   // 노트 · 앞선 update 의 백업)은 제자리로 되돌린다. 화면·목록은 `collectRunBackups` 가 디스크에서 줍는다.
-  const targetIds = new Set(targets.map((a) => a.id));
-  const clis = [...installedClis(log)] as CliTargets;
-  const settle = holdSkillSlots(projectDir, {
-    recorded: log.assets.filter((a) => targetIds.has(a.id)),
-    slots: skillSlotsFor(targets, clis, { log, scope: log.scope }),
-    log,
-    clis,
-    scope: log.scope,
-  });
   // #851 — 자산마다 기록된 scope 로 다시 받는다. `log.scope` 는 마지막 install 의 것이라 global 로 깐 자산 뒤에 플래그 없는
   // 재설치가 있었으면(mixed 이력 — #560) project 를 말한다. 그걸로 부르면 `-g` 없이 프로젝트에 기록 밖 사본이 생긴다.
   const scopeOf = (a: ExternalAsset): InstallScope =>
     resolveScope(log.assets.find((r) => r.id === a.id)?.scope ?? log.scope);
+  // #902 — 옛 판이 파일 목록 없이 깐 자산의 자리도 든다(다른 바이트 · 빠진 파일은 백업만). 드는 자리도 자산의 기록 scope 로 고른다 —
+  // `log.scope` 로 고르면 project 로 깐 뒤 `--scope global` 을 돌린 설치본에서 자리가 없었다(PR #906 리뷰 R1-BLOCKER-1)
+  const targetIds = new Set(targets.map((a) => a.id));
+  const clis = [...installedClis(log)] as CliTargets;
+  const inProject = targets.filter((a) => scopeOf(a) === "project");
+  const slotCtx = { log, scope: "project" as const };
+  const settle = holdSkillSlots(projectDir, {
+    recorded: log.assets.filter((a) => targetIds.has(a.id)),
+    slots: skillSlotsFor(inProject, clis, slotCtx),
+    unlisted: unlistedSkillSlots(inProject, clis, slotCtx),
+    log,
+    clis,
+    scope: "project",
+  });
   const run = deps.run ?? runExternalInstall;
   let ran: ExternalInstallReport;
   try {
@@ -726,18 +732,24 @@ export function refreshExternalSkills(
  * 없다. 도구는 스킬 폴더(`<자리>`)만 새로 만들어 옆 폴더는 건드리지 않는다.
  *
  * `recorded` = 기록에 있는 이번 대상 자산(그 `files` 가 기록 sha 다) · `slots` = 이번 대상이 쓸 자리(`skillSlotsFor` —
- * 처음 더하는 자산은 기록이 없어 이것만이 자리를 말한다) · `log` = 기록(하네스 · 다른 자산 것이라 말하는 경로는 옮기지
- * 않는다) · `clis` · `scope` = 도구가 실패한 자산의 자리를 가린다.
+ * 처음 더하는 자산은 기록이 없어 이것만이 자리를 말한다) · `unlisted` = 그 가운데 기록이 파일 목록 없이 말하는 자리
+ * (`unlistedSkillSlots`) · `log` = 기록(하네스 · 다른 자산 것이라 말하는 경로는 옮기지 않는다) · `clis` · `scope` = 도구가
+ * 실패한 자산의 자리를 가린다.
  *
  * 판정 함수에는 도구의 보고를 넘긴다 — `null` 이면 도구 호출이 예외로 끝났다(전부 제자리로). 도구가 실패한 자산의 자리도
  * 원본을 제자리로 되돌린다(리뷰 MEDIUM-1: 그 자산은 기록되지 않으니 displaced 로 적으면 "uninstall 이 되돌린다" 를 지킬
  * 수 없다). 돌려주는 보고에서는 설치자 바이트가 제자리로 돌아간 경로를 도구가 놓은 파일(`created`)에서 뺀다.
+ *
+ * #902 — `unlisted` 자리의 파일은 도구 것인지 설치자 것인지 모른다. 같은 바이트면 그대로 두고, 바이트가 다르거나 도구가 새로
+ * 쓴 폴더에서 빠졌으면 그 파일 하나를 백업만 하고 되살리지 않는다(되살리면 상류가 바꾼 · 뺀 옛 도구 파일이 설치자 원본으로
+ * 남는다). displaced 로도 적지 않는다. 기록에 목록을 추론해 적지도 않는다 — 그 자산은 계속 "모름" 이다(`buildAssetEntries`).
  */
 export function holdSkillSlots(
   projectDir: string,
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
     slots: ReadonlyArray<string>;
+    unlisted?: ReadonlyArray<string>;
     log: InstallLog | null;
     clis: ReadonlyArray<CliTargets[number]>;
     scope: InstallScope | undefined;
@@ -782,26 +794,40 @@ export function holdSkillSlots(
       displaced: [] as InstallLogRootFile[],
       judged: [] as JudgedWrite[],
     };
+    // #902 — 도구가 이번에 새로 쓴 스킬 폴더. 파일 목록 없는 옛 기록의 파일이 그 폴더에서 빠졌으면 되살리지 않는다
+    const rewritten = new Set(
+      (report?.attempted ?? []).flatMap((r) =>
+        r.ok ? (r.files?.created ?? []).map((x) => skillFolderOf(x.path)) : [],
+      ),
+    );
     const back = new Set<string>();
     const failed: string[] = [];
     for (const f of moved) {
       const restore =
         failedSlots === null || failedSlots.some((s) => f.rel === s || f.rel.startsWith(`${s}/`));
       try {
-        const r = settleAside(projectDir, f, restore);
+        const r = settleAside(projectDir, f, restore, rewritten.has(skillFolderOf(f.rel)));
         if (r === "back") {
           back.add(f.rel);
           continue;
         }
         out.backups.push(r.backup);
         if (r.displaced !== null) out.displaced.push(r.displaced);
-        // 고친 기록 파일(sha) · 상류 파일에 덮여 비켜 둔 설치자 파일(none) — `judge` 의 같은 칸의 줄
+        // 고친 기록 파일(sha) · 상류 파일에 덮여 비켜 둔 설치자 파일(none) · 목록 없는 옛 기록의 파일(no-sha) — `judge` 의 같은 칸의 줄
         const backup = toProjectRel(projectDir, r.backup);
-        const line = !f.recorded ? LINES.hadFile : r.gone ? LINES.editedRemoved : LINES.edited;
+        const line = f.unlisted
+          ? r.gone
+            ? LINES.noFileListRemoved
+            : LINES.noFileList
+          : !f.recorded
+            ? LINES.hadFile
+            : r.gone
+              ? LINES.editedRemoved
+              : LINES.edited;
         out.judged.push({
           path: f.rel,
           verdict: r.gone ? "backup+remove" : "backup+overwrite",
-          recorded: f.recorded ? "sha" : "none",
+          recorded: f.recorded ? "sha" : f.unlisted ? "no-sha" : "none",
           line: withBackup(line, backup),
           backup,
           backupAbs: r.backup,
@@ -833,8 +859,8 @@ export interface SettledSlots<R extends ExternalInstallReport | null = ExternalI
 /**
  * #780 — 이번 대상 외부 스킬 자산이 도구 호출로 쓸 스킬 자리(project 상대). `method.skill` 이 있으면 이번 CLI 마다
  * `<root>/<skill>` · 없으면(소스 전체를 까는 자산) 두 루트 전체. global 은 홈에 깔아 프로젝트 자리를 쓰지 않는다.
- * 옛 판이 깐 자산(기록은 있는데 `files` 가 없다)은 폴더 안의 무엇이 도구 것인지 몰라 들지 않는다 — `buildAssetEntries` 와
- * 같은 판정이다(들면 상류가 바꾼 옛 도구 파일을 "설치자 원본" 으로 되살린다).
+ * 옛 판이 깐 자산(기록은 있는데 `files` 가 없다)의 자리도 든다(#902) — 그 자리는 `unlistedSkillSlots` 가 따로 말하고, hold 는
+ * 그 안 파일을 설치자 원본으로 되살리지 않고 백업만 남긴다.
  */
 export function skillSlotsFor(
   assets: ReadonlyArray<ExternalAsset>,
@@ -846,12 +872,26 @@ export function skillSlotsFor(
   const out = new Set<string>();
   for (const a of assets) {
     if (a.method.kind !== "skill") continue;
-    const prior = ctx.log?.assets.find((r) => r.id === a.id);
-    if (prior !== undefined && prior.files === undefined) continue;
     const skill = a.method.skill;
     for (const root of roots) out.add(skill === undefined ? root : `${root}/${skill}`);
   }
   return [...out];
+}
+
+/**
+ * #902 — `skillSlotsFor` 가운데 기록이 파일 목록(`files`) 없이 말하는 자산의 자리. v26.163.0 이하가 그렇게 적었고, 그 뒤 판도
+ * 목록을 잇지 않았다. 그 자리의 파일은 도구가 놓은 옛 판인지 설치자 파일인지 기록이 말하지 않는다.
+ */
+export function unlistedSkillSlots(
+  assets: ReadonlyArray<ExternalAsset>,
+  clis: ReadonlyArray<CliTargets[number]>,
+  ctx: { log: InstallLog | null; scope: InstallScope | undefined },
+): string[] {
+  const unlisted = assets.filter((a) => {
+    const prior = ctx.log?.assets.find((r) => r.id === a.id);
+    return prior !== undefined && prior.files === undefined;
+  });
+  return skillSlotsFor(unlisted, clis, ctx);
 }
 
 /** #851 (ADR-112) — 회수한(미리보기면 회수할) 프로젝트 사본 하나. */
@@ -961,8 +1001,16 @@ function reclaimCopy(
   } catch {
     return null; // 판정할 수 없다 — 건드리지 않는다
   }
-  const homeExists = existsSync(home);
   const res: GlobalCopyReclaim = { id: ctx.id, slot, removed: [], judged: [], left: [] };
+  // #901 — 스킬 폴더를 링크로 둔 자리(`.agents/skills → ..`)는 실경로가 스킬 폴더 밖이다 — 그 아래를 훑어 치우지 않는다
+  if (!inHarnessSlot(projectDir, slot, skillFolders(SKILL_ROOTS))) {
+    res.left.push({
+      path: slot,
+      why: "it leads outside the skill folders this tool installs to — not touched",
+    });
+    return res;
+  }
+  const homeExists = existsSync(home);
   const now = new Date();
   let entries: Array<{ rel: string; link: boolean }>;
   try {
@@ -1036,7 +1084,8 @@ function errText(e: unknown): string {
 }
 
 /**
- * 도구 호출 전에 옮긴 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · 아니면 설치자 파일.
+ * 도구 호출 전에 옮긴 파일 하나. `recorded` = 하네스 파일인데 기록 sha 와 다르다(설치자가 고쳤다) · `unlisted` = 기록이 파일 목록
+ * 없이 말하는 자리의 파일 — 도구 것인지 설치자 것인지 모른다(#902) · 둘 다 아니면 설치자 파일.
  * `slot` = 그 파일이 든 자리 · `aside` = 백업 폴더 안의 자리(절대 경로) · `link` = 링크 자체를 옮겼다(#839).
  */
 interface AsideFile {
@@ -1044,6 +1093,7 @@ interface AsideFile {
   rel: string;
   slot: string;
   recorded: boolean;
+  unlisted: boolean;
   link: boolean;
   aside: string;
 }
@@ -1064,6 +1114,7 @@ function slotFilesToKeep(
   hold: {
     recorded: ReadonlyArray<InstallLogAsset>;
     slots: ReadonlyArray<string>;
+    unlisted?: ReadonlyArray<string> | undefined;
     log: InstallLog | null;
   },
 ): Omit<AsideFile, "aside">[] {
@@ -1092,6 +1143,15 @@ function slotFilesToKeep(
       .map((parts) => parts.slice(0, 3).join("/")),
     ...hold.slots,
   ]);
+  // #902 — 파일이 든 가장 안쪽 자리가 목록 없는 옛 기록의 자리면 그 파일은 도구 것인지 모른다(소스 전체 자산의 루트 자리 안에서도
+  // 목록 있는 자산 폴더의 파일은 그 폴더가 말한다). 하네스 백업 이름(`<file>.backup-<시각>`)은 상류가 놓지 않는다 — 설치자 몫이다
+  // (앞 update 가 남긴 백업을 다시 백업하지 않는다 — PR #906 리뷰 R1-M1)
+  const unlisted = new Set(hold.unlisted ?? []);
+  const unlistedAt = (path: string): boolean => {
+    let owner = "";
+    for (const s of slots) if (path.startsWith(`${s}/`) && s.length > owner.length) owner = s;
+    return unlisted.has(owner);
+  };
   const out = new Map<string, Omit<AsideFile, "aside">>();
   const realProject = realpathSync(projectDir);
   for (const slot of slots) {
@@ -1118,7 +1178,15 @@ function slotFilesToKeep(
       } catch {
         continue; // 못 읽으면 편집을 잴 수 없다 — 도구에 맡긴다
       }
-      out.set(real, { abs, rel: path, slot, recorded: recordedSha !== undefined, link });
+      const listed = recordedSha !== undefined;
+      out.set(real, {
+        abs,
+        rel: path,
+        slot,
+        recorded: listed,
+        unlisted: !listed && unlistedAt(path) && backupOriginal(path) === null,
+        link,
+      });
     }
   }
   return [...out.values()];
@@ -1129,12 +1197,14 @@ function slotFilesToKeep(
  * 제자리로 되돌린다(`"back"`). 그 밖은 호출 전 내용을 `<file>.backup-<시각>` 으로 남긴다 — 상류 파일에 덮인 설치자 파일은
  * `displaced`(notes[0] = 백업)로도 적는다: 그 자산이 자리를 떠나면(uninstall) 원본이 돌아온다(#780). 바뀌었거나 지워진
  * 고친 하네스 파일은 백업만 남는다. 링크(#839)는 내용을 재지 않는다 — 자리가 비었으면 되돌리고, 도구가 그 이름에 무엇을 놓았으면
- * 링크 그대로 백업으로 남긴다.
+ * 링크 그대로 백업으로 남긴다. #902 — 목록 없는 옛 기록의 파일(`unlisted`)은 고친 하네스 파일처럼 백업만 남기고, 원래 자리가
+ * 비었어도 도구가 그 폴더를 새로 썼으면(`folderRewritten`) 되살리지 않는다 — 상류가 뺀 옛 도구 파일일 수 있다.
  */
 function settleAside(
   projectDir: string,
   f: AsideFile,
   restore: boolean,
+  folderRewritten: boolean,
 ): "back" | { backup: string; gone: boolean; displaced: InstallLogRootFile | null } {
   let now: Buffer | null = null;
   let vacant = false;
@@ -1148,7 +1218,9 @@ function settleAside(
   }
   // 링크는 같은 글자를 가리키는 링크가 그 자리에 있으면 같은 것이다 — 도구가 같은 링크를 다시 놓았다
   const keep = vacant
-    ? f.link || !f.recorded
+    ? f.unlisted
+      ? !folderRewritten
+      : f.link || !f.recorded
     : f.link
       ? lstatSync(f.abs).isSymbolicLink() && readlinkSync(f.abs) === readlinkSync(f.aside)
       : now?.equals(readFileSync(f.aside)) === true;
@@ -1159,12 +1231,17 @@ function settleAside(
   }
   const backup = f.link ? backupLink(f.abs, f.aside) : backupFromCopy(f.abs, f.aside);
   rmSync(f.aside, { force: true });
-  if (f.recorded || vacant) return { backup, gone: vacant, displaced: null };
+  if (f.recorded || f.unlisted || vacant) return { backup, gone: vacant, displaced: null };
   return {
     backup,
     gone: false,
     displaced: { path: f.rel, change: "displaced", notes: [toProjectRel(projectDir, backup)] },
   };
+}
+
+/** 스킬 루트 바로 아래 한 자리(`<root>/<name>`) — 그 안 파일의 스킬 폴더. */
+function skillFolderOf(path: string): string {
+  return path.split("/").slice(0, 3).join("/");
 }
 
 /** 설치자 바이트가 제자리로 돌아간 경로는 도구가 놓은 파일이 아니다 — 기록이 그 자산 것으로 적지 않게 뺀다. */

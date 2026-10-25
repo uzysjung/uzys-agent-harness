@@ -110,14 +110,14 @@ export function restoreDisplaced(
     const slot = join(projectDir, f.path);
     // 하네스는 밖에 쓰지 않았다 — 그 자리의 말은 밖 링크 줄이 한다
     if (outsideProjectTarget(projectDir, slot) !== null) continue;
-    // #901 — displaced 는 하네스 자리에서만 생긴다. 자리가 그 밖이면(`.env`) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴
-    // 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
+    // #901 — displaced 는 하네스 파일 자리에서만 생긴다. 자리가 글자로든 실경로로든 그 밖이면(`.env` · 링크로 둔 자리 폴더 너머 ·
+    // 함께 쓰는 파일) 기록이 대는 백업을 그리로 옮기지 않는다. 하네스가 쓴 기록일 수 없으니 기록도 뺀다(#887 · #894 와 같다)
     if (!inHarnessSlot(projectDir, f.path)) {
       out.push({
         path: f.path,
         backup: f.notes[0] ?? null,
         verdict: "advise",
-        line: "not put back — the install record says this tool moved a file of yours aside here, but this is outside the places this tool installs to; left it as is",
+        line: "not put back — the install record says this tool moved a file of yours aside here, but this is (or leads) outside the places this tool installs to; left it as is",
         forget: true,
       });
       continue;

@@ -79,7 +79,7 @@ import {
   PROJECT_SKELETON_DIRS,
   withoutAppleDouble,
 } from "../fs-ops.js";
-import { inHarnessSlot } from "../harness-slot.js";
+import { ANCHOR_FILES, HARNESS_FILES, inHarnessSlot, skillFolders } from "../harness-slot.js";
 import { LEGACY_HOOK_REFS, removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
@@ -2169,8 +2169,9 @@ function removeRecordedFile(
     out.outside.push(outside);
     return;
   }
-  // #901 — 하네스 자리 밖을 적은 기록(`externalFiles: .env` 등)은 따르지 않는다 — 하네스가 쓴 기록일 수 없으니 기록도 뺀다
-  if (!inHarnessSlot(projectDir, path)) {
+  // #901 — 하네스 자리 밖을 적은 기록(`externalFiles: .env` 등) · 실경로가 자리 밖인 것(자리 폴더 링크 · 말단 링크 너머)은 따르지
+  // 않는다 — 하네스가 쓴 기록일 수 없으니 기록도 뺀다
+  if (!inHarnessSlot(projectDir, path, HARNESS_FILES, { follow: true })) {
     out.offSlot.push(path);
     out.forgotten.add(path);
     return;
@@ -2592,7 +2593,7 @@ function harnessRemovalLines(
     );
   }
   lines.push(...outsideLines(r.outside, log));
-  for (const path of r.offSlot) lines.push(offSlotLine(path, "lists it"));
+  lines.push(...offSlotLines(r.offSlot, projectDir));
   for (const path of r.kept) {
     lines.push(
       `  ${c.yellow("⊘")} ${path} kept — modified since install. Remove manually if intended.`,
@@ -2657,6 +2658,7 @@ function leftFolderLines(
   const said = (full: string): boolean =>
     r.unjudged.includes(full) ||
     r.kept.includes(full) ||
+    r.offSlot.includes(full) ||
     r.outside.some((o) => o.path === full || full.startsWith(`${o.link}/`));
   // 기록에 없는 파일을 설치자 것이라 단정하지 않는다 — 옛 판은 자기가 깐 것을 다 적지 않았고(은퇴한 스킬 · 강등된 에이전트 · 옛
   // 커맨드), 그 위에서 새 판이 쓴 기록(`records: "writer"`)도 그것을 이어받지 못한다(PR-D 리뷰 N1 · 재리뷰 BLOCKER-1 ①)
@@ -2754,7 +2756,7 @@ function removeAnchor(
   if (!existsSync(abs)) return { removed: false, lines: [] };
   const outside = outsideProjectTarget(projectDir, abs);
   if (outside !== null) return { removed: false, lines: outsideLines([outside], log) };
-  if (!inHarnessSlot(projectDir, rootMd.path)) {
+  if (!inHarnessSlot(projectDir, rootMd.path, ANCHOR_FILES, { follow: true })) {
     return { removed: false, lines: [offSlotLine(rootMd.path, "names it as the harness anchor")] };
   }
   let disk: string;
@@ -2966,11 +2968,52 @@ function globalCopyLines(copies: ReadonlyArray<GlobalCopyReclaim>, preview: bool
 }
 
 /** #901 — 외부 스킬 자산이 파일을 놓는 자리(`--copy` 가 에이전트마다 쓰는 스킬 폴더). */
-const ASSET_SLOTS = SKILL_ROOTS.map((root) => `${root}/`);
+const ASSET_SLOTS = skillFolders(SKILL_ROOTS);
+
+/**
+ * #901 — 기록에 있지만 자리 밖이라 건드리지 않은 기록 경로의 줄. 링크로 둔 자리(`.codex → shared-codex`) 아래는 그 링크 하나에 한 줄
+ * (밖 링크 줄과 같은 묶음 — 폴더 링크 아래 파일을 파일마다 말하지 않는다), 기록 글자 자체가 자리 밖이면 경로마다 한 줄.
+ */
+function offSlotLines(paths: ReadonlyArray<string>, projectDir: string): string[] {
+  const lines: string[] = [];
+  const byLink = new Map<string, { target: string; n: number }>();
+  for (const path of paths) {
+    const link = linkOnPath(projectDir, path);
+    if (link === null) {
+      lines.push(offSlotLine(path, "lists it"));
+      continue;
+    }
+    const g = byLink.get(link.link) ?? { target: link.target, n: 0 };
+    g.n += 1;
+    byLink.set(link.link, g);
+  }
+  for (const [link, g] of byLink) {
+    lines.push(
+      `  ${c.yellow("⊘")} ${link} — your link (→ ${g.target}) leads outside the places this tool installs to; left ${g.n} file(s) on the install record under it. Not touched — remove by hand if intended.`,
+    );
+  }
+  return lines;
+}
+
+/** 경로의 가장 얕은 링크 성분(project 상대)과 그 링크 글자 — 없으면 null. */
+function linkOnPath(projectDir: string, path: string): { link: string; target: string } | null {
+  const parts = path.split("/");
+  for (let i = 1; i <= parts.length; i++) {
+    const rel = parts.slice(0, i).join("/");
+    try {
+      if (lstatSync(join(projectDir, rel), { throwIfNoEntry: false })?.isSymbolicLink() === true) {
+        return { link: rel, target: readlinkSync(join(projectDir, rel)) };
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 /** #901 — 기록에 있지만 하네스 자리 밖이라 건드리지 않은 경로의 줄(미리보기 · 실행 같은 말). */
 function offSlotLine(path: string, what: string): string {
-  return `  ${c.yellow("⊘")} ${path} left — the install record ${what}, but it is outside the places this tool installs to. Not touched.`;
+  return `  ${c.yellow("⊘")} ${path} left — the install record ${what}, but it is (or leads) outside the places this tool installs to. Not touched.`;
 }
 
 /**
@@ -3023,7 +3066,7 @@ function removeToolFiles(
     // #901 — 이 자산의 자리는 스킬 폴더다. 그 밖을 적은 기록(`.env` 등)은 따르지 않는다
     if (!inHarnessSlot(projectDir, path, ASSET_SLOTS)) {
       notes.push(
-        `left ${path} — the install record lists it for this asset, but it is outside the skill folders this asset installs to`,
+        `left ${path} — the install record lists it for this asset, but it is (or leads) outside the skill folders this asset installs to`,
       );
       continue;
     }

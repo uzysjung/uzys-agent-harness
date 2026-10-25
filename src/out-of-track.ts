@@ -19,6 +19,7 @@ import { lstatSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { isBaselineExcluded } from "./baseline-targets.js";
 import { backupFile } from "./fs-ops.js";
+import { inHarnessSlot } from "./harness-slot.js";
 import type { InstallLog } from "./install-log.js";
 import { judge } from "./judge.js";
 import { resolveRules } from "./manifest.js";
@@ -82,6 +83,8 @@ export function reclaimOutOfTrack(args: {
     if (isBaselineExcluded(`.claude/rules/${name}.md`, args.excluded)) continue;
     const abs = join(projectDir, f.path);
     if (args.outside.skip(abs)) continue;
+    // #901 — `.agents/rules` 를 링크로 둔 자리는 실경로가 자리 밖이다(`.agents/rules → ..` 면 루트의 같은 이름 파일) — 회수하지 않는다
+    if (!inHarnessSlot(projectDir, f.path)) continue;
     const stat = lstatSync(abs, { throwIfNoEntry: false });
     if (stat !== undefined && !stat.isFile()) continue; // 링크 · 디렉터리는 설치자 것이다
     // 남기기는 **있는 파일**을 지우지 않는 보호다. 이미 없으면(설치자가 지웠다) 남길 것이 없다 — 아래 판정이 기록만 정리하고
