@@ -135,7 +135,7 @@ import {
   usersOf,
 } from "../recorded.js";
 import { ruleHeadings } from "../rules-port.js";
-import { screenText } from "../screen-text.js";
+import { oneLine, screenText } from "../screen-text.js";
 import { type SharedStripResult, stripShared } from "../shared-write.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
 import type { TrackRemoval } from "../track-removal.js";
@@ -952,7 +952,7 @@ function rootFileAdvisoryLines(
       c.dim(`  · ${screenText(f.path)} — ${rootFileMeaning(f, projectDir)}`),
       // displaced 의 notes 는 백업 경로 하나 — 위 줄이 이미 댔다
       ...(f.change !== "displaced" && f.notes.length > 0
-        ? [c.dim(`      ${f.notes.join(" / ")}`)]
+        ? [c.dim(`      ${f.notes.map(oneLine).join(" / ")}`)]
         : []),
     ]),
   ];

@@ -10,6 +10,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -86,11 +87,11 @@ function uninstall(dryRun: boolean): string {
   return lines.join("\n").replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-/** 위조 글자 넷 — 줄바꿈으로 새 줄 · 공백 채우기로 80칸 줄바꿈에 보이는 줄 · 공백으로 나뉜 인자 · 셸 메타 문자. */
+/** 위조 글자 넷 — 줄바꿈으로 새 줄 · 공백 채우기로 80칸 줄바꿈에 보이는 줄 · 탭으로 나뉜 인자 · 셸 메타 문자(낱개 공백은 정상 이름에도 있어 그대로 둔다). */
 const FORGED = (prefix: string): [string, string][] => [
   ["줄바꿈", `${prefix}zz\n        ${FAKE}`],
   ["공백 채우기", `${prefix}zz${" ".repeat(64)}${FAKE}`],
-  ["공백", `${prefix}a.md .env`],
+  ["탭", `${prefix}a.md\t.env`],
   ["셸 메타 문자", `${prefix}$(touch PWNED);x.md`],
 ];
 
@@ -168,12 +169,57 @@ describe("#919 — 기록 유래 글자는 uninstall 화면에서 한 토막에 
   });
 });
 
+describe("#919 회차 1 — 낱개 공백은 그대로 · 이어진 공백 · 끝 공백은 이스케이프", () => {
+  it("정상 설치본의 밖 링크 대상에 낱개 공백(`My Drive`)이 있으면 화면이 그 이름 그대로 찍는다", () => {
+    install();
+    const outside = join(root, "My Drive", "Application Support", "shared-codex");
+    mkdirSync(outside, { recursive: true });
+    rmSync(abs(".codex"), { recursive: true, force: true });
+    symlinkSync(outside, abs(".codex"));
+    for (const screen of [uninstall(true), uninstall(false)]) {
+      expect(screen).toContain(`(.codex → ${realpathSync(outside)})`);
+      expect(screen).not.toContain("\\u0020");
+    }
+  });
+
+  it.each([
+    ["두 칸 이상", "a  b", "a\\u0020\\u0020b"],
+    ["앞 끝", " a", "\\u0020a"],
+    ["뒤 끝", "a ", "a\\u0020"],
+  ])("%s 공백은 이스케이프", (_what, text, shown) => {
+    expect(screenText(text)).toBe(shown);
+  });
+});
+
+describe("#919 회차 1 — [ROOT] 기록 note 줄은 제어 문자로 새 줄을 끼우지 못한다", () => {
+  it("note 에 줄바꿈 · CR · ESC — 실행 · --dry-run", () => {
+    install();
+    put("docs/x.md", "x\n");
+    const note = `ok\n      ${FAKE}\r\u001b[2K${FAKE}`;
+    forge((log) => ({
+      ...log,
+      rootFiles: [
+        ...(log.rootFiles ?? []),
+        { path: "docs/x.md", change: "created", notes: [note] },
+      ],
+    }));
+    for (const screen of [uninstall(true), uninstall(false)]) {
+      expect(screen).toContain("ok\\u000a");
+      expect(screen).toContain("\\u000d\\u001b");
+      expect(screen).not.toContain("\r");
+      expect(screen.split("\n").filter((l) => l.trim().startsWith("mv "))).toEqual([]);
+    }
+  });
+});
+
 describe("#919 — 정상 이름은 그대로 찍힌다", () => {
   it.each([
     ".claude/rules/git-policy.md",
     `.agents/rules/test-policy.md.backup-${STAMP}`,
     "../shared-codex",
     "/Users/me/dotfiles/agents",
+    "/Users/me/My Drive/dotfiles",
+    "/Users/me/Library/Application Support/agents",
     "dotfiles/한글-폴더/agents",
     ".claude.backup-20261025T000000-2",
   ])("%s", (text) => {
