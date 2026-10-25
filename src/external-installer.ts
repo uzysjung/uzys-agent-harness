@@ -1025,7 +1025,7 @@ function globalSkillRoot(root: (typeof SKILL_ROOTS)[number]): string {
  * #851 — 기록의 스킬 이름이 스킬 루트 바로 아래 한 자리인가. 잰 이름은 `readdir` 의 것이라 늘 그렇다 — 손으로 고친(커밋된) 기록의
  * `../` 같은 이름이 루트 밖을 겨냥하지 않게 거른다.
  */
-function isSkillName(name: unknown): name is string {
+export function isSkillName(name: unknown): name is string {
   return (
     typeof name === "string" && name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name)
   );

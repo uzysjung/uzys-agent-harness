@@ -150,12 +150,12 @@ function update(dir: string, body: Upstream) {
   });
 }
 
-function uninstallOnly(dir: string): { out: string; code: number } {
+function uninstallOnly(dir: string, dryRun = false): { out: string; code: number } {
   tick();
   const lines: string[] = [];
   let code = 0;
   uninstallAction(
-    { projectDir: dir, only: SKILL.id },
+    { projectDir: dir, only: SKILL.id, ...(dryRun ? { dryRun: true } : {}) },
     {
       exit: ((c: number) => {
         code = c;
@@ -413,5 +413,38 @@ describe("#912 — 일부 폴더만 말하는 목록을 읽는 화면", () => {
       excludedStillThere(dir, new Set([SKILL.id]), [], log),
       "대조군: 둘 다 없으면 없다",
     ).toEqual([]);
+  });
+});
+
+describe("#912 — 일부 폴더만 말하는 목록의 uninstall 줄 (PR #916 리뷰 MEDIUM-2 · LOW-1)", () => {
+  /** 남는 폴더를 말하는 줄만. */
+  const leftLines = (out: string) => out.split("\n").filter((l) => l.includes("not on record"));
+
+  it("미리보기(--only --dry-run)와 실행이 같은 '남는 폴더' 줄을 낸다", () => {
+    const dir = legacyProject({ clis: ["claude"], copies: [C, A] });
+    update(dir, v(2));
+
+    const preview = uninstallOnly(dir, true);
+    expect(existsSync(join(dir, C, "SKILL.md")), "대조군: 미리보기는 지우지 않는다").toBe(true);
+    const run = uninstallOnly(dir);
+
+    expect(leftLines(run.out)).toEqual([
+      `    ↳ other files it put down are not on record (installed by an older version) — left: ${A}/ (delete by hand if the harness installed it)`,
+    ]);
+    expect(leftLines(preview.out)).toEqual(leftLines(run.out));
+  });
+
+  it("기록의 스킬 이름이 한 자리가 아니면(`..`) 스킬 루트 위 폴더를 손으로 지우라고 말하지 않는다", () => {
+    const dir = legacyProject({ clis: ["claude"], copies: [C, A] });
+    update(dir, v(2));
+    const log = readInstallLog(dir) as InstallLog;
+    writeInstallLog(dir, {
+      ...log,
+      assets: log.assets.map((a) => ({ ...a, detail: { ...a.detail, skill: ".." } })),
+    });
+
+    const run = uninstallOnly(dir);
+
+    expect(run.out).not.toContain("skills/../");
   });
 });
