@@ -91,6 +91,11 @@ const HOOK_NAMES = ["session-start"];
 
 const ENV_VAR_RENAME = /CLAUDE_PROJECT_DIR/g;
 
+/** `.codex/hooks/<name>.sh` 의 판 — 번들 훅에서 환경 변수 이름만 바꾼다(쓰는 쪽과 `harness-bytes.ts` 가 함께 쓴다). */
+export function renderCodexHook(source: string): string {
+  return source.replace(ENV_VAR_RENAME, "CODEX_PROJECT_DIR");
+}
+
 export function runCodexTransform(params: CodexTransformParams): CodexTransformReport {
   const {
     harnessRoot,
@@ -140,7 +145,7 @@ export function runCodexTransform(params: CodexTransformParams): CodexTransformR
     if (!existsSync(src)) {
       continue;
     }
-    const ported = readFileSync(src, "utf8").replace(ENV_VAR_RENAME, "CODEX_PROJECT_DIR");
+    const ported = renderCodexHook(readFileSync(src, "utf8"));
     const target = join(hookDir, `${hook}.sh`);
     // refresh 모드가 건너뛴 경로에는 파일이 없다 — chmod 를 무조건 걸면 ENOENT 로 터진다.
     if (!writer.write(target, ported)) continue;
