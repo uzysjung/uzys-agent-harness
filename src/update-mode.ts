@@ -333,6 +333,8 @@ export interface UpdateModeReport {
    * 화면에 낸다 — 침묵하면 사용자는 깔린 것 중 일부만 갱신됐다는 사실을 알 수 없다.
    */
   externalSkillsNotInCatalog: ReadonlyArray<string>;
+  /** #918 — 갱신은 했지만 일부 CLI 자리가 링크로 밖이라 부르지 않은 외부 스킬(`ExternalSkillRefresh.leftAsIs`). 부재 = 없음. */
+  externalSkillsLeftAsIs?: ExternalSkillRefresh["leftAsIs"];
   /**
    * ADR-104 (#726) — 설치 기록에 남은 **카탈로그에서 뺀 자산**(`REMOVED_CATALOG_ASSETS`). 자산마다 한 줄로 말한다 —
    * 위 `externalSkillsNotInCatalog` 에는 넣지 않는다(한 자산에 두 줄이 나오지 않게). 플러그인도 여기 든다(종전엔 무음).
@@ -856,6 +858,7 @@ export function runUpdateMode(
     : { attempted: 0, refreshed: 0, failed: [], notInCatalog: [], unknown: false };
   report.externalSkillsRefreshed = skillRefresh.refreshed;
   report.externalSkillsFailed = skillRefresh.failed;
+  if (skillRefresh.leftAsIs !== undefined) report.externalSkillsLeftAsIs = skillRefresh.leftAsIs;
   // 개명·은퇴한 스킬은 **디스크에서** 찾는다. 위 refresh 는 `method: "skill"`(npx 외부 스킬)만
   // 훑으므로 번들 스킬(`method: "internal"`)은 기록에 그 부류로 남지 않는다 — 그쪽만 보면
   // 옛 이름의 디렉터리를 그대로 들고 있는 설치자에게 화면이 한 마디도 안 한다.

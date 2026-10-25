@@ -150,6 +150,13 @@ export interface ToolFiles {
   covered?: string[];
 }
 
+/** #678 · #918 — 링크로 밖이라 부르지 않은 스킬 자리 하나의 화면 문구. install · update 가 같은 줄을 쓴다. */
+export function outsideSlotNote(o: { root: string; target: string; slot?: string }): string {
+  return o.slot !== undefined
+    ? `${o.slot}/ left as is (links outside the skill folders: ${o.target})`
+    : `${o.root}/ left as is (links outside the project: ${o.target})`;
+}
+
 /**
  * `npx skills add --agent … --copy` 가 사본을 놓는 자리 — claude-code 는 `.claude/skills/`, codex · opencode ·
  * antigravity 는 공용 `.agents/skills/`(`SKILLS_CLI_AGENT_MAP` 주석). `--agent` 를 넘기지 않는 레거시 경로(`cli: []`)는
@@ -563,6 +570,8 @@ export interface ExternalSkillRefresh {
   notInCatalog: ReadonlyArray<string>;
   /** #817 — 도구 호출 전후로 지킨 파일의 백업마다 판정의 줄(고친 기록 파일 · 비켜 둔 설치자 파일). 부재 = 없음. */
   judged?: JudgedWrite[];
+  /** #678 · #918 — 갱신은 했지만 일부 CLI 자리가 링크로 밖이라 그 자리는 부르지 않은 자산. 화면이 install 과 같은 줄을 낸다. 부재 = 없음. */
+  leftAsIs?: ReadonlyArray<{ id: string; outside: NonNullable<AssetInstallResult["outside"]> }>;
   /** #851 (ADR-112) — 옛 update 가 프로젝트에 만든 global 자산 사본을 회수한 자리. 백업은 `judged` 에 든다. 부재 = 없음. */
   reclaimed?: GlobalCopyReclaim[];
   /**
@@ -732,6 +741,11 @@ export function refreshExternalSkills(
   // 홈 사본이 이미 새 판이라 상류가 바꾼 파일은 "다르다" 로 백업하고 지운다(무손실).
   const late = reclaimNewlyNamed(projectDir, log, next);
   const reclaimedAll = [...reclaimed, ...late];
+  const leftAsIs = report.attempted.flatMap((r) =>
+    r.ok && r.outside !== undefined && r.outside.length > 0
+      ? [{ id: r.asset.id, outside: r.outside }]
+      : [],
+  );
   return {
     attempted: report.attempted.length,
     refreshed: report.succeeded,
@@ -741,6 +755,7 @@ export function refreshExternalSkills(
     notInCatalog,
     unknown: false,
     ...(reclaimedAll.length > 0 ? { reclaimed: reclaimedAll } : {}),
+    ...(leftAsIs.length > 0 ? { leftAsIs } : {}),
     judged: [...reclaimedAll.flatMap((r) => r.judged), ...judged],
   };
 }
@@ -824,23 +839,36 @@ export function holdSkillSlots(
     // 이 폴더 안에서만 "상류가 뺐다" 로 백업+제거한다(그 밖은 제자리로). 이번에 파일을 놓은 폴더 + 성공한 이름 있는 자산의 카탈로그 자리
     // (도구가 그 폴더를 통째로 새로 쓴다 — 기록이 아니라 카탈로그라 위조로 넓힐 수 없다)
     const ok = (report?.attempted ?? []).filter((r) => r.ok);
-    const rewritten = new Set([
-      ...ok.flatMap((r) => (r.files?.created ?? []).map((x) => skillFolderOf(x.path))),
-      ...skillSlotsFor(
-        ok.map((r) => r.asset),
-        hold.clis,
-        { log: hold.log, scope: hold.scope },
-      ),
-    ]);
+    // 판정은 실경로로 한다(#918) — 도구가 링크 자리를 실폴더로 바꿨을 뿐이면 링크 너머 폴더는 새로 쓰지 않았다
+    const rewritten = new Set(
+      [
+        ...ok.flatMap((r) => (r.files?.created ?? []).map((x) => skillFolderOf(x.path))),
+        ...skillSlotsFor(
+          ok.map((r) => r.asset),
+          hold.clis,
+          { log: hold.log, scope: hold.scope },
+        ),
+      ].flatMap((p) => realOrNull(join(projectDir, p)) ?? []),
+    );
     const back = new Set<string>();
     const failed: string[] = [];
     for (const f of moved) {
       const restore =
         failedSlots === null || failedSlots.some((s) => f.rel === s || f.rel.startsWith(`${s}/`));
       try {
-        const r = settleAside(projectDir, f, restore, rewritten.has(skillFolderOf(f.rel)));
+        // #918 — 되돌릴 자리는 옮기기 전 그 파일이 실제로 있던 자리다. 글자 경로가 아직 그 자리를 가리키면 그 글자로(화면 · 기록이
+        // 같은 글자를 쓴다), 도구가 링크 자리를 실폴더로 바꿔 다른 곳을 가리키면 원래 폴더로
+        const literal = realFileOrNull(f.abs) === f.real;
+        const at = literal ? f : { ...f, abs: inProjectSpelling(projectDir, f.real) };
+        const r = settleAside(
+          projectDir,
+          at,
+          restore,
+          f.folder !== null && rewritten.has(f.folder),
+        );
         if (r === "back") {
-          back.add(f.rel);
+          // 원래 폴더로 돌아갔으면 글자 경로의 파일은 도구 것이다 — 도구가 놓은 파일 목록에서 빼지 않는다
+          if (literal) back.add(f.rel);
           continue;
         }
         out.backups.push(r.backup);
@@ -1131,6 +1159,14 @@ function reclaimCopy(
   return res.removed.length > 0 || res.left.length > 0 ? res : null;
 }
 
+/** 실경로(`realpathSync` 꼴)를 프로젝트 경로의 글자로 — 프로젝트 경로 자체가 링크여도(`/var` → `/private/var`) 화면 · 보고가 같은 글자를 쓴다. 밖이면 그대로. */
+function inProjectSpelling(projectDir: string, real: string): string {
+  const at = relative(realOrNull(projectDir) ?? projectDir, real);
+  return at === "" || at === ".." || at.startsWith(`..${sep}`) || isAbsolute(at)
+    ? real
+    : join(projectDir, at);
+}
+
 function realOrNull(abs: string): string | null {
   try {
     return realpathSync(abs);
@@ -1164,7 +1200,11 @@ function errText(e: unknown): string {
  */
 interface AsideFile {
   abs: string;
+  /** #918 — 옮기기 전 그 파일이 실제로 있던 자리(폴더 realpath + 이름). 되돌릴 자리는 언제나 여기다 — 링크 경로가 아니다. */
+  real: string;
   rel: string;
+  /** #918 — 그 파일이 든 스킬 폴더(`<root>/<name>`)의 옮기기 전 실경로. "도구가 이번에 새로 쓴 폴더" 판정은 이것으로 한다. */
+  folder: string | null;
   slot: string;
   recorded: boolean;
   unlisted: boolean;
@@ -1272,7 +1312,9 @@ function slotFilesToKeep(
       const listed = recordedSha !== undefined;
       out.set(real, {
         abs,
+        real,
         rel: path,
+        folder: realOrNull(join(projectDir, skillFolderOf(path))),
         slot,
         recorded: listed,
         unlisted: !listed && unlistedAt(path) && backupOriginal(path) === null,

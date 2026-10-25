@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { leftAsIsRows } from "../src/commands/install-render.js";
 import { EXTERNAL_ASSETS, type ExternalAsset } from "../src/external-assets.js";
 import {
   type ExternalInstallerDeps,
@@ -424,5 +425,80 @@ describe("#918 회차 2 — 스킬 자리가 스킬 폴더 밖으로 풀리는 �
     expect(read(dir, `${A}/SKILL.md`)).toBe(BODY);
     expect(read(dir, `${C}/SKILL.md`)).toBe(BODY);
     expect(read(dir, `${A}/note.md`)).toBe("my note\n");
+  });
+});
+
+describe("#918 회차 3 — hold 가 옮긴 파일은 언제나 옮기기 전 실제로 있던 자리로 돌아간다", () => {
+  const C = ".claude/skills/frontend-design";
+  const A = ".agents/skills/frontend-design";
+  const OWN = "src/frontend-design/mine.ts";
+  const OWN_BODY = "export const mine = 1;\n";
+
+  /** `.agents/skills → src` · `.claude/skills/frontend-design → src/frontend-design` 링크 둘 — 설치자 `src/frontend-design/mine.ts`. */
+  function twoLinks(forged: boolean): string {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-r3-"));
+    dirs.push(dir);
+    install(dir, ["claude"]);
+    put(dir, OWN, OWN_BODY);
+    rmSync(join(dir, ".agents/skills"), { recursive: true, force: true });
+    mkdirSync(join(dir, ".agents"), { recursive: true });
+    symlinkSync("../src", join(dir, ".agents/skills"));
+    rmSync(join(dir, C), { recursive: true, force: true });
+    symlinkSync("../../src/frontend-design", join(dir, C));
+    if (forged) forge(dir, FD.id, [`${C}/mine.ts`]);
+    return dir;
+  }
+
+  for (const forged of [false, true]) {
+    const what = forged ? "기록에 그 경로를 위조해도" : "위조 없이";
+    it(`update — 링크 둘(${what}): 설치자 파일은 원래 폴더 · 백업 0`, () => {
+      const dir = twoLinks(forged);
+      update(dir);
+      expect(read(dir, OWN)).toBe(OWN_BODY);
+      expect(existsSync(join(dir, C, "mine.ts"))).toBe(false);
+      expect(backupsIn(dir)).toEqual([]);
+    });
+
+    it(`install 재실행 — 링크 둘(${what}): 설치자 파일은 원래 폴더 · 백업 0`, () => {
+      const dir = twoLinks(forged);
+      install(dir, ["claude"]);
+      expect(read(dir, OWN)).toBe(OWN_BODY);
+      expect(existsSync(join(dir, C, "mine.ts"))).toBe(false);
+      expect(backupsIn(dir)).toEqual([]);
+    });
+  }
+
+  // 대조 — 정규 레이아웃(#524 · #838): claude 자리가 `.agents` 자리로의 링크면 그 안 설치자 노트는 원래 있던 `.agents` 폴더로 돌아간다
+  it("대조 — `.claude/skills/<id>` → `.agents/skills/<id>` 링크 자리의 노트는 `.agents` 폴더에 남고 도구는 claude 자리를 새로 쓴다", () => {
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-r3-ok-"));
+    dirs.push(dir);
+    install(dir, ["claude"]);
+    mkdirSync(join(dir, A), { recursive: true });
+    put(dir, `${A}/SKILL.md`, BODY);
+    put(dir, `${A}/note.md`, "my note\n");
+    rmSync(join(dir, C), { recursive: true, force: true });
+    symlinkSync("../../.agents/skills/frontend-design", join(dir, C));
+    const r = update(dir);
+    expect(r.failed).toEqual([]);
+    expect(read(dir, `${A}/note.md`)).toBe("my note\n");
+    expect(lstatSync(join(dir, C)).isDirectory()).toBe(true);
+    expect(read(dir, `${C}/SKILL.md`)).toBe(BODY);
+    expect(backupsIn(dir)).toEqual([]);
+  });
+});
+
+describe("#918 회차 3 — update 도 일부 CLI 자리만 링크로 밖이면 그 자리를 한 줄로 말한다", () => {
+  it("claude+codex 에서 `.agents` 자리 링크 — 갱신 결과와 화면 줄", () => {
+    const A = ".agents/skills/frontend-design";
+    const dir = mkdtempSync(join(tmpdir(), "uzys-918-r3-line-"));
+    dirs.push(dir);
+    install(dir, ["claude", "codex"]);
+    put(dir, SRC, SRC_BODY);
+    rmSync(join(dir, A), { recursive: true, force: true });
+    symlinkSync("../../src/a/b", join(dir, A));
+    const r = update(dir);
+    expect(r.failed).toEqual([]);
+    const rows = leftAsIsRows(r.leftAsIs ?? []).join("\n");
+    expect(rows).toContain(`frontend-design: ${A}/ left as is (links outside the skill folders:`);
   });
 });
