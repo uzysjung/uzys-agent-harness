@@ -64,7 +64,8 @@ const put = (rel: string, text: string): void => {
 };
 const read = (rel: string): string => readFileSync(abs(rel), "utf8");
 /** 프로젝트 루트의 `.env` 백업 — 하네스가 `.env` 를 옮겼다면 여기 생긴다. */
-const envBackups = (): string[] => readdirSync(projectDir).filter((n) => n.startsWith(".env.backup-"));
+const envBackups = (): string[] =>
+  readdirSync(projectDir).filter((n) => n.startsWith(".env.backup-"));
 
 function install(cli: CliBase[] = ["claude"]): InstallLog {
   runInstall({
@@ -231,7 +232,7 @@ describe("#901 AC2 — 기록이 하네스(그 자산의) 자리 밖 설치자 �
       () => undefined,
     ],
   ];
-  it.each(FORGED)("uninstall --yes — %s: `.env` 가 제자리 그대로 · 백업으로 옮겨지지 않는다", (_l, edit, prepare) => {
+  it.each(FORGED)("uninstall --yes — %s: `.env` 가 제자리에 남는다", (_l, edit, prepare) => {
     install();
     prepare();
     put(".env", SECRET);
