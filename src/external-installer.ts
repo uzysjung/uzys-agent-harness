@@ -636,22 +636,24 @@ export function refreshExternalSkills(
   // 기록 밖 파일이 사라진다). 그래서 호출 **전에** 그 폴더의 내용을 들고 있다가 호출 **뒤에** 판정한다 — 설치자가 고친
   // 하네스 파일(기록 sha 와 다름)은 그 파일 하나를 백업하고, 안 고친 파일은 조용히 갱신되며, 설치자 파일(기록 밖 —
   // 노트 · 앞선 update 의 백업)은 제자리로 되돌린다. 화면·목록은 `collectRunBackups` 가 디스크에서 줍는다.
-  // #902 — 옛 판이 파일 목록 없이 깐 자산의 자리도 든다 — 무엇이 도구 것인지 몰라 다른 바이트 · 빠진 파일은 백업만 남긴다.
-  const targetIds = new Set(targets.map((a) => a.id));
-  const clis = [...installedClis(log)] as CliTargets;
-  const slotCtx = { log, scope: log.scope };
-  const settle = holdSkillSlots(projectDir, {
-    recorded: log.assets.filter((a) => targetIds.has(a.id)),
-    slots: skillSlotsFor(targets, clis, slotCtx),
-    unlisted: unlistedSkillSlots(targets, clis, slotCtx),
-    log,
-    clis,
-    scope: log.scope,
-  });
   // #851 — 자산마다 기록된 scope 로 다시 받는다. `log.scope` 는 마지막 install 의 것이라 global 로 깐 자산 뒤에 플래그 없는
   // 재설치가 있었으면(mixed 이력 — #560) project 를 말한다. 그걸로 부르면 `-g` 없이 프로젝트에 기록 밖 사본이 생긴다.
   const scopeOf = (a: ExternalAsset): InstallScope =>
     resolveScope(log.assets.find((r) => r.id === a.id)?.scope ?? log.scope);
+  // #902 — 옛 판이 파일 목록 없이 깐 자산의 자리도 든다(다른 바이트 · 빠진 파일은 백업만). 드는 자리도 자산의 기록 scope 로 고른다 —
+  // `log.scope` 로 고르면 project 로 깐 뒤 `--scope global` 을 돌린 설치본에서 자리가 없었다(PR #906 리뷰 R1-BLOCKER-1)
+  const targetIds = new Set(targets.map((a) => a.id));
+  const clis = [...installedClis(log)] as CliTargets;
+  const inProject = targets.filter((a) => scopeOf(a) === "project");
+  const slotCtx = { log, scope: "project" as const };
+  const settle = holdSkillSlots(projectDir, {
+    recorded: log.assets.filter((a) => targetIds.has(a.id)),
+    slots: skillSlotsFor(inProject, clis, slotCtx),
+    unlisted: unlistedSkillSlots(inProject, clis, slotCtx),
+    log,
+    clis,
+    scope: "project",
+  });
   const run = deps.run ?? runExternalInstall;
   let ran: ExternalInstallReport;
   try {
@@ -737,12 +739,9 @@ export function refreshExternalSkills(
  * 원본을 제자리로 되돌린다(리뷰 MEDIUM-1: 그 자산은 기록되지 않으니 displaced 로 적으면 "uninstall 이 되돌린다" 를 지킬
  * 수 없다). 돌려주는 보고에서는 설치자 바이트가 제자리로 돌아간 경로를 도구가 놓은 파일(`created`)에서 뺀다.
  *
- * #902 — `unlisted` 자리의 파일은 도구 것인지 설치자 것인지 모른다. 같은 바이트면 도구 파일로 두고(`created` 에 남는다 —
- * `buildAssetEntries` 가 그것으로 목록을 처음 적는다), 바이트가 다르거나 도구가 새로 쓴 폴더에서 빠졌으면 그 파일 하나를
- * 백업만 하고 되살리지 않는다(되살리면 상류가 바꾼 · 뺀 옛 도구 파일이 설치자 원본으로 남는다). displaced 로도 적지 않는다.
- * 목록 없는 옛 기록 자산의 `files` 는 이 hold 가 그 자산이 깔렸을 수 있는 자리(깔린 CLI 의 스킬 루트 전부)를 다 비운 실행에서만
- * 보고에 남긴다 — 이번에 고른 CLI 가 일부이거나 global 이면 비우지 않은 자리의 옛 사본이 비교에 안 잡혀 목록이 모자라므로, 그
- * 자산은 "모름" 으로 돌려준다(PR #906 리뷰 BLOCKER-1 · PR #686 리뷰 B1). 다음 update(깔린 CLI 전부)가 목록을 처음 적는다.
+ * #902 — `unlisted` 자리의 파일은 도구 것인지 설치자 것인지 모른다. 같은 바이트면 그대로 두고, 바이트가 다르거나 도구가 새로
+ * 쓴 폴더에서 빠졌으면 그 파일 하나를 백업만 하고 되살리지 않는다(되살리면 상류가 바꾼 · 뺀 옛 도구 파일이 설치자 원본으로
+ * 남는다). displaced 로도 적지 않는다. 기록에 목록을 추론해 적지도 않는다 — 그 자산은 계속 "모름" 이다(`buildAssetEntries`).
  */
 export function holdSkillSlots(
   projectDir: string,
@@ -756,12 +755,6 @@ export function holdSkillSlots(
   },
 ): <R extends ExternalInstallReport | null>(report: R) => SettledSlots<R> {
   const now = new Date();
-  const heldAll =
-    resolveScope(hold.scope) !== "global" &&
-    skillRootsOf(installedClis(hold.log)).every((r) => skillRootsOf(hold.clis).includes(r));
-  const unheld = new Set(
-    heldAll ? [] : hold.recorded.filter((a) => a.files === undefined).map((a) => a.id),
-  );
   const asides = new Map<string, string>();
   const moved: AsideFile[] = [];
   try {
@@ -814,8 +807,7 @@ export function holdSkillSlots(
       try {
         const r = settleAside(projectDir, f, restore, rewritten.has(skillFolderOf(f.rel)));
         if (r === "back") {
-          // 옛 기록 자리의 같은 바이트는 도구가 방금 다시 놓은 도구 파일이다 — 도구가 놓은 파일에서 빼지 않는다
-          if (!f.unlisted) back.add(f.rel);
+          back.add(f.rel);
           continue;
         }
         out.backups.push(r.backup);
@@ -850,10 +842,7 @@ export function holdSkillSlots(
         `could not put back ${failed.length} file(s) moved aside before the skill tool ran — they stay in ${at}: ${failed.join(", ")}`,
       );
     }
-    return {
-      ...out,
-      report: (report === null ? null : withoutFiles(withoutCreated(report, back), unheld)) as R,
-    };
+    return { ...out, report: (report === null ? null : withoutCreated(report, back)) as R };
   };
 }
 
@@ -878,7 +867,7 @@ export function skillSlotsFor(
   ctx: { log: InstallLog | null; scope: InstallScope | undefined },
 ): string[] {
   if (resolveScope(ctx.scope) === "global") return [];
-  const roots = skillRootsOf(clis);
+  const roots = clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
   const out = new Set<string>();
   for (const a of assets) {
     if (a.method.kind !== "skill") continue;
@@ -1144,7 +1133,8 @@ function slotFilesToKeep(
     ...hold.slots,
   ]);
   // #902 — 파일이 든 가장 안쪽 자리가 목록 없는 옛 기록의 자리면 그 파일은 도구 것인지 모른다(소스 전체 자산의 루트 자리 안에서도
-  // 목록 있는 자산 폴더의 파일은 그 폴더가 말한다)
+  // 목록 있는 자산 폴더의 파일은 그 폴더가 말한다). 하네스 백업 이름(`<file>.backup-<시각>`)은 상류가 놓지 않는다 — 설치자 몫이다
+  // (앞 update 가 남긴 백업을 다시 백업하지 않는다 — PR #906 리뷰 R1-M1)
   const unlisted = new Set(hold.unlisted ?? []);
   const unlistedAt = (path: string): boolean => {
     let owner = "";
@@ -1183,7 +1173,7 @@ function slotFilesToKeep(
         rel: path,
         slot,
         recorded: listed,
-        unlisted: !listed && unlistedAt(path),
+        unlisted: !listed && unlistedAt(path) && backupOriginal(path) === null,
         link,
       });
     }
@@ -1235,29 +1225,6 @@ function settleAside(
     backup,
     gone: false,
     displaced: { path: f.rel, change: "displaced", notes: [toProjectRel(projectDir, backup)] },
-  };
-}
-
-/** CLI 들의 몫이 놓이는 스킬 루트 — 에이전트 미지정(레거시 `cli: []`)은 두 루트 모두. */
-function skillRootsOf(
-  clis: ReadonlyArray<CliTargets[number]>,
-): Array<(typeof SKILL_ROOTS)[number]> {
-  return clis.length === 0 ? [...SKILL_ROOTS] : [...new Set(clis.map(skillRootOf))];
-}
-
-/** #902 — `ids` 자산의 도구 파일 보고를 뺀다("모름") — 기록이 그 자산의 목록을 모자라게 적지 않게. */
-function withoutFiles(
-  report: ExternalInstallReport,
-  ids: ReadonlySet<string>,
-): ExternalInstallReport {
-  if (ids.size === 0) return report;
-  return {
-    ...report,
-    attempted: report.attempted.map((r) => {
-      if (!ids.has(r.asset.id) || r.files === undefined) return r;
-      const { files: _unknown, ...rest } = r;
-      return rest;
-    }),
   };
 }
 

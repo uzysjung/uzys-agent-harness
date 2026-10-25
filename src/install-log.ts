@@ -376,10 +376,10 @@ export function buildAssetEntries(
         ...skillNames(recordedBefore, scope, r.skills),
       };
       if (r.files === undefined) return entry;
-      // #902 — 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)도 이번 결과로 목록을 처음 적는다. 보고가 여기 오기 전에 hold 가
-      // 그 자산이 깔렸을 수 있는 자리를 전부 비웠으면 도구가 놓은 파일이 전부 `created` 이고, 다 비우지 못한 실행(CLI 일부 · global)은
-      // hold 가 그 자산의 `files` 를 빼서 돌려준다(`holdSkillSlots`) — 위에서 "모름" 그대로 남는다. 모자란 목록이면 uninstall 이 남는
-      // 옛 사본을 설치자 것으로 읽는다(PR #686 리뷰 B1 · PR #906 리뷰 BLOCKER-1).
+      // 옛 판이 깐 자산(기록은 있는데 파일 목록이 없다)은 다시 깔아도 "모름" 그대로 둔다 — 옛 판이 놓은 파일은
+      // 호출 전부터 있어 이번 비교에 안 잡히므로, 여기서 목록을 만들면 "0개" 가 되어 uninstall 이 남는 파일을
+      // 말하지 않고 기록만 지운다(PR #686 리뷰 B1). 모름이면 uninstall 이 지우지 않고 남는 폴더를 알린다.
+      if (recordedBefore !== undefined && recordedBefore.files === undefined) return entry;
       return { ...entry, files: mergeToolFiles(recordedBefore?.files, r.files) };
     });
 }
