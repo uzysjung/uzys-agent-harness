@@ -96,6 +96,24 @@ export interface InstallRenderer {
 /** 옛 앵커(`.claude/CLAUDE.md`) 안내 — update(기록 있는 설치본)와 install(기록 없는 옛 판, #595)이 같은 문장을 쓴다. */
 const LEGACY_ANCHOR_NOTE = `legacy anchor · no longer updated — content now in ${HARNESS_ANCHOR_FILE}; delete it when you no longer need it`;
 /**
+ * #891 — 루트 `CLAUDE.md` 가 `@AGENTS.md` 를 import 할 때의 한 줄. install · update 가 같은 줄을 낸다. 고치지 않고 알리기만
+ * 한다 — import 줄은 설치자 몫이고, AGENTS.md 의 자기 절이 필요하면 남기는 것도 설치자 판단이다. 크기는 그 자리에서 잰 값.
+ */
+export function agentsMdImportRow(
+  hit: BaselineReport["agentsMdImport"],
+  labelWidth?: number,
+): string | null {
+  if (hit === undefined) return null;
+  const kb = Math.round(hit.bytes / 1024);
+  return assetRow(
+    "skip",
+    "CLAUDE.md (root)",
+    `imports @AGENTS.md — Claude Code reads the harness principles · rules twice — AGENTS.md (${kb} KB) carries them again, and it already gets them via ${HARNESS_ANCHOR_FILE} and .claude/rules/. Left as is — drop the import unless you need AGENTS.md's own sections`,
+    labelWidth,
+  );
+}
+
+/**
  * install header (TARGET / TRACKS / CLI / OPTIONS / ASSETS) 렌더.
  * #560 — SCOPE 행은 없다. 하네스 파일은 늘 이 프로젝트에 쓰이고, 그 행의 Global 문구("writes to ~/.claude/")가 사실이 아니었다.
  * wizard 모드는 Step 3 review + Step 4 confirm 에서 이미 표시하므로 호출 안 함.
@@ -1202,6 +1220,8 @@ function renderPhase1Rows(
     if (baseline.updateMode.legacyAnchor) {
       log(assetRow("skip", baseline.updateMode.legacyAnchor, LEGACY_ANCHOR_NOTE));
     }
+    const agentsImport = agentsMdImportRow(baseline.agentsMdImport);
+    if (agentsImport !== null) log(agentsImport);
     // #524 — 이 프로젝트의 `.agents/skills/<id>` 로의 링크는 "남의 것" 행이 아니라 여기서 말한다.
     linkedSkillRows(
       log,
@@ -1574,6 +1594,8 @@ function renderPhase1Rows(
   if (baseline.legacyAnchor) {
     log(assetRow("skip", baseline.legacyAnchor, LEGACY_ANCHOR_NOTE, TEMPLATES_COL));
   }
+  const agentsImport = agentsMdImportRow(baseline.agentsMdImport, TEMPLATES_COL);
+  if (agentsImport !== null) log(agentsImport);
   // v26.108.0 (ADR-037) — CI 스캐폴드 (opt-in). no-clobber: 기존 파일 보존은 skip 행으로
   //   정직 보고 (숨기면 "설치됨" 오인 — no-false-ship).
   if (baseline.ciScaffold) {

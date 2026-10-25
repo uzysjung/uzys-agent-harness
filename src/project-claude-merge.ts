@@ -433,6 +433,25 @@ export function stripHarnessImport(text: string): string | null {
  * 문서에서 이 파일명을 예시로 인용한 것을 import 로 오인하면 진짜 import 를 영영 안 넣는다
  * (= 앵커가 조용히 안 실린다).
  */
+/**
+ * #891 — 설치자가 루트 `CLAUDE.md` 에 `@AGENTS.md`(`@./AGENTS.md`)를 import 하는가. 하네스는 이 줄을 쓰지도 고치지도
+ * 않는다 — Claude Code 문서가 권하는 공유 패턴이라 설치자가 넣는다. 펜스 코드와 인라인 코드 안은 import 가 아니다
+ * (Claude Code 가 그 안의 `@path` 를 읽지 않는다).
+ */
+export function importsAgentsMd(text: string): boolean {
+  let inFence = false;
+  for (const line of text.split("\n")) {
+    if (/^\s*(?:```|~~~)/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    const outsideCode = line.replace(/`[^`]*`/g, " ");
+    if (/(?:^|\s)@(?:\.\/)?AGENTS\.md(?=\s|$)/.test(outsideCode)) return true;
+  }
+  return false;
+}
+
 function hasHarnessImport(text: string): boolean {
   if (text.includes(IMPORT_MARKER_START)) return true;
   let inFence = false;

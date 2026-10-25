@@ -7,6 +7,7 @@ import {
   isKeyId,
   sharedPathOfKeyId,
 } from "./adapters/index.js";
+import { isAgentsMdCli } from "./agents-md-render.js";
 import type { AgentsMdTransformReport } from "./agents-md-transform.js";
 import { seedRootClaudeProjectContext } from "./anchor-seed.js";
 import type { AnchorRetireResult } from "./antigravity/retire-anchor.js";
@@ -88,7 +89,7 @@ import {
   type OutsideLink,
   outsideProjectTarget,
 } from "./outside-project.js";
-import { upsertHarnessImport } from "./project-claude-merge.js";
+import { importsAgentsMd, upsertHarnessImport } from "./project-claude-merge.js";
 import { excludedIds, recordedOwner } from "./recorded.js";
 import type { SharedWriteResult } from "./shared-write.js";
 import { detectInstallState, LEGACY_ANCHOR_FILE } from "./state.js";
@@ -294,6 +295,11 @@ export interface BaselineReport {
    */
   legacyAnchor?: string;
   /**
+   * #891 — 루트 `CLAUDE.md` 가 `@AGENTS.md` 를 import 하고 AGENTS.md 를 읽는 CLI 가 함께 깔렸다. Claude Code 가 하네스
+   * 원칙·룰을 두 번 읽는다는 사실만 화면에 알린다(import 줄은 설치자 몫이라 고치지 않는다). `bytes` = 지금 AGENTS.md 크기.
+   */
+  agentsMdImport?: { bytes: number };
+  /**
    * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
    * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
    */
@@ -391,6 +397,8 @@ export interface InstallReport {
   pendingKeyExcludes?: Array<{ id: string; path: string }>;
   /** #595 — 기록 없이 남은 옛 앵커. `BaselineReport` 와 같은 이유로 여기도 선언한다. */
   legacyAnchor?: string;
+  /** #891 — `BaselineReport.agentsMdImport` 와 같다. */
+  agentsMdImport?: { bytes: number };
   /**
    * 설계 selection-record §3 — 전에 뺐는데 이번 install 이 `--without` 을 주지 않아 빠진 id. `again` = 이번 실행이 다시 깔았다
    * (화면 `↺ <id> — dropped earlier, installed again …`) · 아니면 `tail` 이 언제 돌아오는지 말한다.
@@ -772,6 +780,7 @@ function runInstallStages(
     legacyRestored: legacyRestored(previousLog, ledger.shared, cliSharedFiles),
     pendingKeyExcludes: pendingKeyExcludes(projectDir, spec.keyExclude ?? [], ledger.portionPaths),
     ...(legacyAnchor ? { legacyAnchor } : {}),
+    ...agentsMdImportField(projectDir, [...spec.cli, ...installedClis(previousLog)]),
     releasedThisRun: releasedThisRun({
       projectDir,
       spec,
@@ -848,6 +857,29 @@ function runInstallStages(
   };
 }
 
+/**
+ * #891 — claude 와 AGENTS.md 를 읽는 CLI 가 함께 깔렸고 루트 `CLAUDE.md` 가 `@AGENTS.md` 를 import 하면 그 사실(지금
+ * AGENTS.md 크기와 함께). install · update 가 같은 판정을 쓴다 — 쓰기가 끝난 뒤의 디스크를 읽는다. `clis` = 이번 선택 +
+ * 기록에 깔린 CLI(add 가 codex 만 더해도 앞서 깐 claude 를 센다).
+ */
+function agentsMdImportField(
+  projectDir: string,
+  clis: ReadonlyArray<string>,
+): { agentsMdImport?: { bytes: number } } {
+  if (!clis.includes("claude") || !clis.some(isAgentsMdCli)) return {};
+  const read = (name: string): string | null => {
+    try {
+      return readFileSync(join(projectDir, name), "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const root = read("CLAUDE.md");
+  const agents = read("AGENTS.md");
+  if (root === null || agents === null || !importsAgentsMd(root)) return {};
+  return { agentsMdImport: { bytes: Buffer.byteLength(agents, "utf8") } };
+}
+
 /** #595 — 기록이 없고 옛 앵커가 다른 하네스 흔적과 함께 있으면 그 경로. Claude Code 를 고른 설치에서만. */
 function legacyAnchorTrace(projectDir: string, spec: InstallSpec): string | null {
   if (!spec.cli.includes("claude")) return null;
@@ -895,6 +927,10 @@ function runUpdateInstall(ctx: InstallContext, templatesDir: string): InstallRep
       gitignoreNpxSkillsAdded: [],
     },
     rootClaudeMd: null,
+    ...agentsMdImportField(ctx.projectDir, [
+      ...ctx.spec.cli,
+      ...installedClis(readInstallLog(ctx.projectDir)),
+    ]),
   };
   ctx.onProgress?.({ type: "baseline-complete", baseline });
   // 죽은 훅 참조는 `updateMode.staleHookRefs` 가 싣는다(알리기만 — 지우지 않는다, #857).

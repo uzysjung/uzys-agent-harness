@@ -93,6 +93,14 @@ Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니�
 v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에
 채워 둔 글을 `AGENTS.md` 의 `## Project Context` 로 한 번 옮기고 파일을 치웁니다(ADR-103).
 
+**`CLAUDE.md` 에 `@AGENTS.md` 를 넣지 않는 편이 낫습니다.** Codex 는 `AGENTS.md` 안의 `@` 참조를 따라가지
+않아서, 하네스는 원칙과 룰을 `AGENTS.md` 본문에 그대로 넣습니다 — 참조 한 줄만 남기면 Codex 가 원칙을 받지
+못합니다. 그런데 루트 `CLAUDE.md` 가 `@AGENTS.md` 를 불러오면 Claude Code 는 이미 `CLAUDE-uzys-harness.md` 와
+`.claude/rules/` 로 받은 원칙·룰을 **한 번 더** 읽습니다(Claude Code + Codex 기준 약 18 KB, 2026-10-26
+측정). 그래서 import 는 빼고, Claude Code 에만 줄 맥락은 루트 `CLAUDE.md` 에 직접 쓰기를 권합니다.
+`AGENTS.md` 에 적은 여러분의 절이 Claude Code 에도 꼭 필요할 때만 중복을 감수하고 남기세요. 하네스는 이 줄을
+고치지 않고, 두 도구가 함께 깔려 있으면 설치·`update` 화면이 한 줄로 알려 줍니다(그 자리에서 잰 크기와 함께).
+
 **공유 파일은 마지막 도구가 나갈 때까지 남습니다.** `uninstall --cli <이름>` 으로 도구 하나를 뺄 때,
 그 도구만 쓰는 자리는 함께 사라지지만 아래 자리는 쓰는 도구가 하나라도 남아 있으면 그대로입니다.
 
