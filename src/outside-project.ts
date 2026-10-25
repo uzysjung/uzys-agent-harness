@@ -36,7 +36,7 @@ export function isOutsideProject(projectDir: string, target: string): boolean {
  * (밖 폴더 링크 안에 **새로** 만드는 것도 밖에 쓰는 것이다). 깨진 링크는 링크 문자열을 따라간다 — 쓰기는
  * 깨진 링크의 대상을 만든다. 풀 수 없으면(권한 등) null = 모른다.
  */
-function resolveWriteTarget(abs: string): string | null {
+export function resolveWriteTarget(abs: string): string | null {
   const tail: string[] = [];
   const hops = new Set<string>();
   let path = abs;

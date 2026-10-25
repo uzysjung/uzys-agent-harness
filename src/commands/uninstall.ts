@@ -65,7 +65,11 @@ import {
 } from "../displaced.js";
 import { gitignoreRender, HARNESS_RUNTIME_IGNORES } from "../env-files.js";
 import { CONTINUOUS_SKILLS } from "../external-assets.js";
-import { type GlobalCopyReclaim, reclaimGlobalSkillCopies } from "../external-installer.js";
+import {
+  type GlobalCopyReclaim,
+  reclaimGlobalSkillCopies,
+  SKILL_ROOTS,
+} from "../external-installer.js";
 import { foreignOwnedTarget } from "../foreign-slot.js";
 import {
   backupFile,
@@ -75,6 +79,7 @@ import {
   PROJECT_SKELETON_DIRS,
   withoutAppleDouble,
 } from "../fs-ops.js";
+import { inHarnessSlot } from "../harness-slot.js";
 import { LEGACY_HOOK_REFS, removeRetiredHookRefs } from "../hook-ref.js";
 import {
   hashContent,
@@ -1958,6 +1963,8 @@ interface HarnessRemoval {
   unjudged: string[];
   /** 실체가 프로젝트 밖이라 건드리지 않은 것(ADR-098). */
   outside: OutsideLink[];
+  /** #901 — 기록에 있지만 하네스 자리 밖이라 건드리지 않은 경로(남이 커밋한 기록이 `.env` 등을 하네스 파일로 적었다). */
+  offSlot: string[];
   /** displaced 자리 — 하네스 판을 지운 뒤 설치자 원본을 원래 이름으로(#761). */
   displaced: DisplacedOutcome[];
   /** 함께 쓰는 파일의 몫 걷기 결과. */
@@ -2009,6 +2016,7 @@ function removeHarnessFiles(
     legacyAgentsMd: [],
     unjudged: [],
     outside: [],
+    offSlot: [],
     displaced: [],
     shared: [],
     retiredWiring: [],
@@ -2159,6 +2167,12 @@ function removeRecordedFile(
   const outside = outsideProjectTarget(projectDir, abs);
   if (outside !== null) {
     out.outside.push(outside);
+    return;
+  }
+  // #901 — 하네스 자리 밖을 적은 기록(`externalFiles: .env` 등)은 따르지 않는다 — 하네스가 쓴 기록일 수 없으니 기록도 뺀다
+  if (!inHarnessSlot(projectDir, path)) {
+    out.offSlot.push(path);
+    out.forgotten.add(path);
     return;
   }
   let st: ReturnType<typeof lstatSync>;
@@ -2578,6 +2592,7 @@ function harnessRemovalLines(
     );
   }
   lines.push(...outsideLines(r.outside, log));
+  for (const path of r.offSlot) lines.push(offSlotLine(path, "lists it"));
   for (const path of r.kept) {
     lines.push(
       `  ${c.yellow("⊘")} ${path} kept — modified since install. Remove manually if intended.`,
@@ -2739,6 +2754,9 @@ function removeAnchor(
   if (!existsSync(abs)) return { removed: false, lines: [] };
   const outside = outsideProjectTarget(projectDir, abs);
   if (outside !== null) return { removed: false, lines: outsideLines([outside], log) };
+  if (!inHarnessSlot(projectDir, rootMd.path)) {
+    return { removed: false, lines: [offSlotLine(rootMd.path, "names it as the harness anchor")] };
+  }
   let disk: string;
   try {
     disk = readFileSync(abs, "utf8");
@@ -2947,6 +2965,14 @@ function globalCopyLines(copies: ReadonlyArray<GlobalCopyReclaim>, preview: bool
   });
 }
 
+/** #901 — 외부 스킬 자산이 파일을 놓는 자리(`--copy` 가 에이전트마다 쓰는 스킬 폴더). */
+const ASSET_SLOTS = SKILL_ROOTS.map((root) => `${root}/`);
+
+/** #901 — 기록에 있지만 하네스 자리 밖이라 건드리지 않은 경로의 줄(미리보기 · 실행 같은 말). */
+function offSlotLine(path: string, what: string): string {
+  return `  ${c.yellow("⊘")} ${path} left — the install record ${what}, but it is outside the places this tool installs to. Not touched.`;
+}
+
 /**
  * #573 — 외부 도구가 놓은 파일을 **기록된 경로만** 지운다(설계 §1.2 harness 행의 `remove` 규칙).
  *
@@ -2992,6 +3018,13 @@ function removeToolFiles(
     }
     if (isLink) {
       notes.push(`left ${path} — it is a link now, not the copy that was installed`);
+      continue;
+    }
+    // #901 — 이 자산의 자리는 스킬 폴더다. 그 밖을 적은 기록(`.env` 등)은 따르지 않는다
+    if (!inHarnessSlot(projectDir, path, ASSET_SLOTS)) {
+      notes.push(
+        `left ${path} — the install record lists it for this asset, but it is outside the skill folders this asset installs to`,
+      );
       continue;
     }
     try {
