@@ -100,6 +100,11 @@ export interface SharedWrite {
    * 빼는 명령(`--without <id>` — update 가 지키고 다음 install 이 대체)을 함께 말한다(ADR-099 R1 · §4).
    */
   restored: string[];
+  /**
+   * #881 — 기록에 있는데 파일에 없고, 되돌리려 했지만 그 자리를 모양이 다른 설치자 값이 차지해 쓰지 못한 하네스 키(화면용
+   * 짧은 이름). 설치자 값이 이긴 것이 아니라 `kept` 가 아니다 — 화면이 "could not restore" 로 말한다.
+   */
+  unrestored: string[];
   /** `added` 의 키 id — 옛 판이 뺀 것으로 적었던 키를 되살렸는지(R5) 가른다. */
   addedIds: string[];
   /** 설치자가 뺀(`excluded`) 키 중 이번에 파일에서 걷은 것 — 키 id. 화면이 "걷었다" 고 확인한다(리뷰 #693 NOTE-2). */
@@ -334,6 +339,7 @@ export function createInstallWriter(args: {
         added: [],
         kept: [],
         restored: [],
+        unrestored: [],
         addedIds: [],
         removedOut: [],
         removedEdited: [],
@@ -420,14 +426,19 @@ export function createInstallWriter(args: {
       addedKeys.length === 0 &&
       restoredKeys.size === 0;
     const wrote = onlyRemoved ? "removed the harness part" : j.line;
-    // 바뀐 것이 없으면 "썼다" 고 하지 않는다 — 하네스 몫이 이미 있거나, 설치자 것이 그 자리를 다 채웠다
+    // #881 — 되돌리려 했지만 자리 모양이 달라 못 쓴 기록된 몫(`missing` 중 이번 렌더에 있는 것)
+    const unrestored = names(res.missing.filter((k) => render.has(k)));
+    // 바뀐 것이 없으면 "썼다" 고 하지 않는다 — 하네스 몫이 이미 있거나, 설치자 것이 그 자리를 다 채웠다. 못 되돌린 몫이 있으면
+    // "이미 제자리" 라 하지 않는다
     const line = res.changed
       ? removedEdited.length > 0
         ? wrote.replace(" — yours stays", "")
         : wrote
-      : valueKeys.length > 0
-        ? "kept — the harness part is already in place"
-        : "nothing written — yours already has these";
+      : unrestored.length > 0
+        ? "nothing written"
+        : valueKeys.length > 0
+          ? "kept — the harness part is already in place"
+          : "nothing written — yours already has these";
     const retired = names(res.removed.filter((k) => !out.has(k) && !render.has(k)));
     const replaced = names(res.replaced);
     return result(j.verdict, line, {
@@ -439,6 +450,7 @@ export function createInstallWriter(args: {
       added: names(addedKeys),
       kept: names(res.kept.filter((k) => !out.has(k))),
       restored,
+      unrestored,
       addedIds: ids(addedKeys),
       removedOut: ids(removedOut),
       removedEdited: ids(removedEdited),

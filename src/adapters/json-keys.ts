@@ -406,16 +406,20 @@ export const jsonKeys: PortionAdapter<unknown> = {
     const missing = [...plan.missing];
     for (const k of plan.add) {
       if (!writeKey(root, k, render.get(k), created, claudeDir)) {
-        // 컨테이너 모양이 달라 못 썼다 — 기록에 있던 키면 그 sha 를 잇는다(되돌릴 근거, ADR-099 R1)
+        // 컨테이너 모양이 달라 못 썼다
         const prior = recordedValues.get(k);
-        if (prior === undefined) plan.portions.delete(k);
-        else {
+        if (prior === undefined) {
+          // 처음 더하려던 키 — 그 자리를 설치 전부터 있던 설치자 값이 차지했다(Q3)
+          plan.portions.delete(k);
+          kept.push(k);
+        } else {
+          // #881 — 기록된 몫이 사라졌는데 그 자리 모양이 달라 되돌리지 못했다. 이긴 설치자 값이 아니라 "kept yours" 가 아니다 —
+          // 기록 sha 를 잇는(되돌릴 근거, ADR-099 R1) `missing` 이고, 렌더에 있는 키라 호출부가 "되돌리지 못했다" 로 말한다
           plan.portions.set(k, prior);
           missing.push(k);
         }
         const r = restored.indexOf(k);
         if (r >= 0) restored.splice(r, 1);
-        kept.push(k);
       }
     }
     const containers = pruneContainers(root, [

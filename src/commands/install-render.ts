@@ -681,11 +681,14 @@ export function anchorRetireRow(r: AnchorRetireResult | null): string | null {
 function sharedRow(r: SharedWriteResult, part: string): string | null {
   if (r.action === "skipped") return null;
   if (r.action === "left") return assetRow("skip", r.path, `left — ${r.line}`);
-  // 안 쓴 파일을 "최신" 이라 하지 않는다 — 남겨 둔 하네스 구간이 있으면 그 구간은 최신인지 모른다
+  // 안 쓴 파일을 "최신" 이라 하지 않는다 — 남겨 둔 하네스 구간이 있으면 그 구간은 최신인지 모른다 · 못 되돌린 몫이 있으면(#881) 아니다
+  const unrestored = r.unrestored ?? [];
   const unchanged =
-    r.leftAsIs.length > 0
-      ? "nothing written — yours stays"
-      : "harness part already current — yours stays";
+    unrestored.length > 0
+      ? "nothing written"
+      : r.leftAsIs.length > 0
+        ? "nothing written — yours stays"
+        : "harness part already current — yours stays";
   // 걷기만 한 실행은 "썼다" 고 하지 않고, 고친 값까지 걷었으면 "yours stays" 라 하지 않는다(리뷰 #693 NOTE-2)
   const onlyRemoved =
     r.removedOut.length > 0 && !r.replaced && r.added.length === 0 && r.restored.length === 0;
@@ -702,10 +705,15 @@ function sharedRow(r: SharedWriteResult, part: string): string | null {
   const kept = r.kept.length > 0 ? ` · kept yours: ${r.kept.join(" · ")}` : "";
   const left = r.leftAsIs.length > 0 ? ` · harness part left as is: ${r.leftAsIs.join(" · ")}` : "";
   const restored = r.restored.length > 0 ? ` · ${restoredKeysPart(r.restored)}` : "";
+  const notRestored = unrestored.length > 0 ? ` · ${unrestoredPart(unrestored)}` : "";
   const out = excludedKeyParts(r)
     .map((p) => ` · ${p}`)
     .join("");
-  return assetRow("success", r.path, `${verb} · ${part}${kept}${left}${restored}${out}`);
+  return assetRow(
+    unrestored.length > 0 ? "skip" : "success",
+    r.path,
+    `${verb} · ${part}${kept}${left}${restored}${notRestored}${out}`,
+  );
 }
 
 /**
@@ -738,6 +746,7 @@ function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): 
   if (parts.length > 0)
     parts.push("not updated to this release — delete that part and run update to take the new one");
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(" · ")}`);
+  if ((f.unrestored ?? []).length > 0) parts.push(unrestoredPart(f.unrestored ?? []));
   return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
 }
 
@@ -1721,8 +1730,11 @@ export function sharedFileRow(f: SharedWrite): string | null {
   if (f.path === ".mcp.json") parts.push(...mcpChangeParts(f));
   if (f.kept.length > 0) parts.push(`kept yours: ${f.kept.join(", ")}`);
   if (f.restored.length > 0) parts.push(restoredKeysPart(f.restored));
+  if (f.unrestored.length > 0) parts.push(unrestoredPart(f.unrestored));
   parts.push(...excludedKeyParts(f));
-  const row = assetRow(f.changed ? "success" : "skip", f.path, parts.join(" · "), 28);
+  // #881 — 못 되돌린 몫이 있으면 성공(✓)으로 말하지 않는다
+  const ok = f.changed && f.unrestored.length === 0;
+  const row = assetRow(ok ? "success" : "skip", f.path, parts.join(" · "), 28);
   // ADR-100 — 기록 폴더를 통째로 무시하던 줄을 걷었다: 그 폴더가 이제 커밋 대상이라는 것을 같은 자리에서 말한다
   if (f.path === ".gitignore" && (f.retired ?? []).includes(GITIGNORE_RECORD_DIR_LINE)) {
     return `${row}\n${assetRow("success", f.path, GITIGNORE_RECORD_DIR_NOTE, 28)}`;
@@ -1912,6 +1924,15 @@ export const KEPT_OUT_SCOPE =
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
   const drop = ids.map((id) => `--without ${id}`).join(" ");
   return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
+}
+
+/**
+ * #881 — 기록에 있는데 사라진 하네스 몫을 되돌리지 못했다: 들어갈 자리를 모양이 다른 값(예: 목록이어야 할 `hooks.<Event>` 에
+ * 객체)이 차지했다. 그 값은 설치자 것이라 덮지 않는다 — 고칠 곳과 다시 돌릴 명령을 말한다. update · install(--reinstall 포함)이
+ * 같은 줄을 쓴다.
+ */
+export function unrestoredPart(names: ReadonlyArray<string>): string {
+  return `was missing — could not restore: ${names.join(", ")} ${c.dim("(the value it goes into has a different shape — fix or remove that value, then run update)")}`;
 }
 
 /**
