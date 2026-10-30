@@ -182,7 +182,8 @@ listening` 이 찍힌 **뒤에** `gh run rerun` · `gh workflow run` 을 실행�
 
 기본값은 이렇다 — 레포는 `gh repo view`, 라벨은 `<레포 이름>-local`, 이미지는
 `myoung34/github-runner:ubuntu-noble`(24.04), 아키텍처는 호스트 하드웨어 것(Rosetta 셸에서도 arm64).
-`REPO` · `LABEL` · `IMAGE` · `PLATFORM` 환경변수로 바꾼다. 이럴 때는 아무것도 바꾸지 않고 멈춘다:
+`REPO` · `LABEL` · `IMAGE` · `PLATFORM` 환경변수로 바꾼다. 기본 라벨·이름은 이 레포에서 스크립트를
+쓰는 모든 사람에게 같으므로, 두 사람이 동시에 띄우지 말거나 서로 다른 `LABEL` 을 쓴다. 이럴 때는 아무것도 바꾸지 않고 멈춘다:
 private 이 아닌 레포(public · internal) · fork PR 워크플로가 켜진 private 레포 · `CI_RUNNER_LABEL` 에 남의 값이 이미 있음 · GitHub 상태를 읽지 못함(인증·네트워크 —
 "없음"으로 읽지 않는다) · 러너가 뜨지 않음(변수는 러너가 `Listening for Jobs` 를 찍은 뒤에야 설정한다).
 스크립트는 아래 세 기본값을 그대로 구현한다 — 손으로 띄울 때도 같은 이유로 지킨다.

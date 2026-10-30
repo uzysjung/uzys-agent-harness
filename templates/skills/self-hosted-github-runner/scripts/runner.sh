@@ -41,6 +41,7 @@ if [ -z "${PLATFORM:-}" ]; then
     *) die "unknown host architecture $arch; set PLATFORM" ;;
   esac
 fi
+case "$LABEL" in ''|*[!A-Za-z0-9._-]*) die "LABEL may contain only letters, digits, '.', '_' and '-'" 2 ;; esac
 case "$(lower "$LABEL")" in
   self-hosted|linux|macos|windows|x64|arm64|arm)
     die "LABEL=$LABEL is a default label that any self-hosted runner matches" ;;
@@ -145,10 +146,12 @@ case "$cmd" in
       echo "CI_RUNNER_LABEL is '$CURRENT', not '$LABEL'; left as is" >&2
     fi
     # Ours by name, plus anything else carrying our label (e.g. registered by job code with the token).
-    ids=$(gh api "/repos/$REPO/actions/runners" --jq ".runners[]|select(.name==\"$NAME\" or any(.labels[]; (.name|ascii_downcase)==\"$(lower "$LABEL")\"))|.id")
-    for id in $ids; do
+    ids=$(gh api "/repos/$REPO/actions/runners" --jq ".runners[]|select(.name==\"$NAME\" or any(.labels[]; (.name|ascii_downcase)==\"$(lower "$LABEL")\"))|\"\(.id) \(.name)\"")
+    while read -r id rname; do
+      [ -n "$id" ] || continue
       gh api -X DELETE "/repos/$REPO/actions/runners/$id"
-    done
+      echo "unregistered runner $rname ($id)"
+    done <<< "$ids"
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     read_label
     [ "$CURRENT" != "$LABEL" ] || die "CI_RUNNER_LABEL is still '$LABEL'"
