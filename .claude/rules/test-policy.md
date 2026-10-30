@@ -16,7 +16,7 @@
 | **머지** | typecheck(전체) + 영향 범위 테스트 + **변경 파일** lint·format · 새 가드 도입 시 변이 테스트 | **독립 리뷰 — 문턱 위만**(아래는 리그레션) (사용자 확정 2026-09-13, #423 · ADR-087) |
 | **배포(tag)** | 풀 테스트 + E2E + `ship-checklist` 전항 · **CI green 이 배포의 전제(`needs:`)** | **필수** — 릴리즈에 든 문턱 위 변경이 머지 전 독립 리뷰를 받았는지 확인한다. 릴리즈 커밋(bump·CHANGELOG) 자체는 CI 가 판정(ADR-094) |
 
-**머지 전 독립 리뷰 문턱** = 핵심 사용자 기능 · 되돌리기 어려운 것 · 돈·권한. 이 리포에서는 **설치자 디스크·공유 상태를 되돌리기 어렵게 바꾸는 변경**(update·uninstall 의 삭제·덮어쓰기 경로 · 백업 규약 · 심링크 처리 · 저장소 설정) · **릴리즈 배선**이 그것이다(ADR-094 — `src/`·`templates/` 전부가 아니다. 틀려도 설치자가 잃는 것이 없고 변이 대조가 이미 무는 변경은 CI 만). 그 밖(`tests/` · `docs/` · `.claude/` 개발 사본 · 리팩터 · 문구 · 설치 화면 문구·숫자)은 리그레션 테스트로 들어오고 릴리즈 게이트(docker-e2e · install-matrix)가 마지막에 본다. 갈리면 독립 리뷰 쪽으로. **검증의 리듬**(#424): 구현 중에는 변경 부분의 빠른 검사만 → 사용자 씬의 수정분이 모이면 독립 검토 → 끝난 뒤 통합 테스트 · 빌드 · 실사용 흐름. 작은 수정마다 전체 검증을 반복하지 않고 재검사는 영향받은 부분만 — 단 문서·자산 변경의 "영향받은 부분"은 아래 §영향 범위대로 전체다.
+**머지 전 독립 리뷰 문턱** = 핵심 사용자 기능 · 되돌리기 어려운 것 · 돈·권한. 이 리포에서는 **설치자 디스크·공유 상태를 되돌리기 어렵게 바꾸는 변경**(update·uninstall 의 삭제·덮어쓰기 경로 · 백업 규약 · 심링크 처리 · 저장소 설정) · **릴리즈 배선**이 그것이다(ADR-094 — `src/`·`templates/` 전부가 아니다. 틀려도 설치자가 잃는 것이 없고 변이 대조가 이미 무는 변경은 CI 만). 그 밖(`tests/` · `docs/` · `.claude/` 개발 사본 · 리팩터 · 문구 · 설치 화면 문구·숫자)은 리그레션 테스트로 들어오고 릴리즈 게이트(docker-e2e · install-matrix)가 마지막에 본다. 갈리면 독립 리뷰 쪽으로. **검증의 리듬**(#424): 구현 중에는 변경 부분의 빠른 검사만 → 사용자 씬의 수정분이 모이면 독립 검토 → 끝난 뒤 통합 테스트 · 빌드 · 실사용 흐름. 작은 수정마다 전체 검증을 반복하지 않고 재검사는 영향받은 부분만 — 문서·자산 변경의 "영향받은 부분"은 아래 §영향 범위대로 고른다. 풀 스위트(`npm run ci`)는 배포(tag) 몫이다(사용자 확정 2026-10-30).
 
 **GitHub Actions 는 태그(`v*`) push 시에만 돈다 — PR 에는 CI 가 없다.** 머지 단의 방어는 로컬 실행 + 독립 리뷰가 전부이고, 배포 단의 `needs:` 배선이 마지막 방어선이다. 태그 push 후 릴리스 CI 는 `gh run view <run-id> --json conclusion` 으로 판정한다 — `gh run watch --exit-status` 는 실패한 run 에 exit 0 을 낸 실측이 있다(#377). 추가 릴리스 게이트 = `install-matrix.yml`(태그 + `workflow_dispatch`) — fresh-env 설치 매트릭스(OS×Node×pm + 멀티트랙 + npx github: smoke), First-Run Success 회귀 게이트. 머지 후 `gh workflow run install-matrix.yml --ref main` 로 검증.
 
@@ -24,7 +24,7 @@
 
 ## 영향 범위를 도구·grep 으로 도출하지 마라 — 두 번 틀렸다
 
-ⓐ `npx vitest related <문서·자산 파일>` 은 **0건을 고른다**(스위트 다수가 `readFileSync`/`readdirSync` 로 경로를 읽어 import 그래프 밖). 실측: `templates/CLAUDE.md` 한 곳을 고치자 **건드리지 않은 테스트 2개**가 깨졌다. ⓑ 룰 변경 후 `grep -rln "rules/" tests/` 로 고른 14개는 전부 green 이었는데 `tests/north-star-cost-figures.test.ts` 가 red 였다(그 파일엔 `rules/` 문자열이 없다). → **문서·자산 변경의 영향 범위 = 파일을 경로로 읽는 게이트 전체.** 고르기가 애매해지면 전체를 돌려라.
+ⓐ `npx vitest related <문서·자산 파일>` 은 **0건을 고른다**(스위트 다수가 `readFileSync`/`readdirSync` 로 경로를 읽어 import 그래프 밖). 실측: `templates/CLAUDE.md` 한 곳을 고치자 **건드리지 않은 테스트 2개**가 깨졌다. ⓑ 룰 변경 후 `grep -rln "rules/" tests/` 로 고른 14개는 전부 green 이었는데 `tests/north-star-cost-figures.test.ts` 가 red 였다(그 파일엔 `rules/` 문자열이 없다). → **문서·자산 변경의 영향 범위 = 그 파일 · 그 디렉터리를 경로로 읽는 게이트 + 상주 문서를 통째로 읽는 비용 게이트**(`north-star-cost-figures` · `resident-cost-honesty` · `baseline-targets` · `resident-rule-reference-liveness` · `context-cost-ratchet`). 파일 이름만이 아니라 디렉터리 읽기(`readdirSync`)·매니페스트 경유까지 따라가 고르고, 수정이 다 모인 뒤 **한 번** 돌린다. 고르기가 애매하면 그 변경이 공유하는 것(디렉터리 · 매니페스트 · 설정)을 따라 넓힌다 — 기본값으로 전체를 돌리지 않는다. 남는 위험은 배포(tag) CI 의 풀 스위트가 출하 전에 잡는다.
 
 ## `변이 테스트` = 입력 변이 (이 리포 확정 어휘)
 
