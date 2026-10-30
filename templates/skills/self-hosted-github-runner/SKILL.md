@@ -61,28 +61,28 @@ jobs:
 
 전 잡에 적용해야 한다. 하나라도 빠뜨리면 그 잡만 호스티드를 기다리다 영원히 큐에 남는다.
 
-## Step 2 — 아키텍처를 **재고 나서** 정한다
+## Step 2 — Mac 에서는 네이티브 arm64 로 띄우고, 실제 실행으로 확인한다
 
-self-hosted 머신이 Apple Silicon 이면 arm64 다. 워크플로가 `ubuntu-latest`(x64)를 전제하고 쓴
-것들이 여기서 깨진다. 두 선택지가 있고, **추측하지 말고 재라**:
+Apple Silicon Mac 에서 amd64 컨테이너는 에뮬레이션으로 돈다. 같은 잡이 이만큼 차이 난다:
 
-```bash
-for P in linux/arm64 linux/amd64; do
-  docker run --rm --platform $P node:22-bookworm-slim node -e "
-    const s=Date.now(); let h=0; for(let i=0;i<8e6;i++){h=(h*31+i)>>>0;}
-    console.log('$P ms='+(Date.now()-s));"
-done
-```
+| 실측(M-series) | linux/arm64 | linux/amd64 |
+|---|---|---|
+| 정수 루프 마이크로벤치(Docker Desktop) | 127ms | 497ms |
+| 실제 CI `checks` 잡 — npm ci · typecheck · lint · 테스트 685개(OrbStack, 2026-10-30) | **55~100초**(3회) | 3분 35초 |
 
-실측 사례(M-series, Docker Desktop): arm64 **127ms** vs amd64 **497ms** — 에뮬레이션이 3.9배 느렸다.
+그래서 [`scripts/runner.sh`](scripts/runner.sh) 는 **호스트 아키텍처를 기본값**으로 쓴다(Apple
+Silicon → `linux/arm64`). 다만 속도는 **의존성이 그 아키텍처에서 실제로 도는 다음**의 기준이다 —
+네이티브 모듈 하나만 prebuild 가 없어도 스위트가 통째로 죽는다. 그 확인을 추측이나 벤치마크가
+아니라 **실제 워크플로 1회**로 한다:
 
-**그런데 이 숫자로 고르지 마라.** 나도 이걸 보고 arm64 를 골랐다가 되돌렸다. 속도는 **의존성이
-그 아키텍처에서 실제로 도는 다음**의 기준이다 — 돌지 않는 것이 빠를 수는 없다. 네이티브 모듈
-하나만 prebuild 가 없어도 테스트 스위트가 통째로 죽는다.
+- 첫 실행에서 설치·빌드·테스트가 통과하면 arm64 를 계속 쓴다. 위 실측 레포가 이 경우다.
+- 네이티브 모듈·바이너리 실패가 나오면 코드 결함으로 읽기 전에 **같은 커밋을 `PLATFORM=linux/amd64`
+  로 한 번 더 돌려 대조한다.** amd64 에서만 통과하면 아키텍처 문제다(아래 함정들). 대조 없이 고치기
+  시작하면 "CI 환경이 달라서인가"를 끝내 지우지 못한다.
+- **amd64 로 고정하는 경우**: 워크플로가 amd64 전용 바이너리를 받거나, 이 실행이 배포 산출물을
+  만든다(산출물이 `ubuntu-latest` 의 것과 같아야 한다).
 
-**기본값은 `ubuntu-latest` 와 같은 amd64 로 두고**, arm64 는 "이 레포의 네이티브 의존성이 arm64
-prebuild 를 갖고 있다"를 확인한 뒤에 성능 최적화로 택하라. 아키텍처를 맞춰 두면 실패했을 때
-"CI 환경이 달라서인가"를 먼저 의심하지 않아도 된다 — 그 의심을 지우는 값이 3.9배보다 크다.
+보고에는 어느 아키텍처에서 돌았는지 적는다(§보고할 때).
 
 ### 흔히 깨지는 것: 아키텍처 하드코딩된 도구 설치
 
@@ -164,27 +164,38 @@ npm 캐시인가"로 몇 시간 쫓다가 결국 `ldd` 한 줄로 끝냈다.
 docker run --rm --entrypoint sh <이미지> -c 'grep PRETTY_NAME /etc/os-release; ldd --version | head -1'
 ```
 
-띄우기·내리기·상태확인을 스크립트 하나로 묶어 두면 원복(Step 5)까지 한 곳에 남는다. 핵심은 이것이다:
+띄우기·내리기·상태 확인은 함께 들어 있는 스크립트 하나가 한다. 레포 루트에서 실행한다:
 
 ```bash
-TOKEN=$(gh api -X POST /repos/<owner>/<repo>/actions/runners/registration-token --jq .token)
-
-ENVFILE=$(mktemp); chmod 600 "$ENVFILE"
-cat > "$ENVFILE" <<EOF
-REPO_URL=https://github.com/<owner>/<repo>
-RUNNER_NAME=local-docker
-RUNNER_TOKEN=$TOKEN
-RUNNER_WORKDIR=/tmp/runner/work
-LABELS=<고유 라벨>
-EPHEMERAL=true
-EOF
-
-docker run -d --name ci-runner --env-file "$ENVFILE" \
-  -v ci-runner-work:/tmp/runner myoung34/github-runner:latest
-rm -f "$ENVFILE"
-
-gh variable set CI_RUNNER_LABEL --body '<고유 라벨>' --repo <owner>/<repo>
+bash <이 스킬 폴더>/scripts/runner.sh up --jobs 2   # 러너가 뜬 뒤 변수 설정 + 잡 2개를 차례로 처리
+bash <이 스킬 폴더>/scripts/runner.sh status
+bash <이 스킬 폴더>/scripts/runner.sh down          # 원복(Step 5)
 ```
+
+**`up` 은 N 개 잡이 끝날 때까지 터미널을 붙잡는다.** 백그라운드나 별도 셸에서 띄우고, `runner 1/N
+listening` 이 찍힌 **뒤에** `gh run rerun` · `gh workflow run` 을 실행한다 — 변수는 그때 설정되므로,
+먼저 재실행하면 잡이 다시 호스티드로 가서 실패하고 `up` 은 오지 않을 잡을 기다린다. `up` 이 끝난 뒤
+`down` 한다.
+
+`<이 스킬 폴더>` 를 빼고 `scripts/runner.sh` 로 부르지 마라 — 레포 루트에서는 그 레포 자신의
+`scripts/` 를 가리킨다. 스크립트가 출력하는 원복 명령은 자기 경로를 그대로 쓴다.
+
+기본값은 이렇다 — 레포는 `gh repo view`, 라벨은 `<레포 이름>-local`, 이미지는
+`myoung34/github-runner:ubuntu-noble`(24.04), 아키텍처는 호스트 하드웨어 것(Rosetta 셸에서도 arm64).
+`REPO` · `LABEL` · `IMAGE` · `PLATFORM` 환경변수로 바꾼다. 이럴 때는 아무것도 바꾸지 않고 멈춘다:
+public 레포 · `CI_RUNNER_LABEL` 에 남의 값이 이미 있음 · GitHub 상태를 읽지 못함(인증·네트워크 —
+"없음"으로 읽지 않는다) · 러너가 뜨지 않음(변수는 러너가 `Listening for Jobs` 를 찍은 뒤에야 설정한다).
+스크립트는 아래 세 기본값을 그대로 구현한다 — 손으로 띄울 때도 같은 이유로 지킨다.
+
+### Mac 호스트에서 알아 둘 것
+
+- OrbStack 에서 실측했다(2026-10-30). Docker Desktop · Colima 는 이 스크립트로 아직 돌려 보지 않았다.
+  토큰 파일을 `$HOME` 아래에 만들어 마운트하므로, 엔진이 홈 디렉터리를 공유해야 한다(원격
+  `DOCKER_HOST` · 원격 context 는 안 된다). 자원은 §자원.
+- 이미지를 받을 때 macOS 가 **키체인 접근 허용**을 물을 수 있다. `~/.docker/config.json` 의
+  `"credsStore": "osxkeychain"` 때문에 Docker CLI 가 레지스트리 자격증명을 키체인에서 찾는 것이다 —
+  OrbStack·러너 문제가 아니다. 거부하면 공개 이미지도 받기가 실패할 수 있다. 전역 Docker 설정이므로
+  바꿀지는 사용자가 정한다.
 
 ### 안전한 기본값 세 가지 — 하나씩 이유가 있다
 
@@ -195,9 +206,17 @@ gh variable set CI_RUNNER_LABEL --body '<고유 라벨>' --repo <owner>/<repo>
 **2. `EPHEMERAL=true`.** 비-ephemeral 러너는 잡 사이에 작업 디렉터리와 프로세스 상태가 남는다 —
 한 잡이 심어 놓은 것이 다음 잡에서 실행된다(러너 오염). ephemeral 이면 잡 하나를 처리하고
 등록을 스스로 해제한다. **다음 잡을 돌리려면 다시 띄워야 해서 불편한데, 그 불편이 곧 격리다.**
+잡이 여럿인 워크플로(`checks` → `ci-gate` 처럼 `needs:` 로 이어진 것)는 `--jobs N` 으로 그 수만큼
+차례로 다시 띄운다. N 은 이 이벤트가 **실제로 돌릴** 잡 수다 — matrix 다리는 하나씩 세고, `if:` 로
+건너뛰는 잡은 세지 않는다. 많이 세면 `up` 이 마지막 잡을 영영 기다리고, 적게 세면 남은 잡이 큐에
+머문다. 중간에 Ctrl-C 로 끊었으면 `down` 을 실행한다(스크립트가 그 명령을 출력한다).
 
-**3. 등록 토큰을 `-e` 로 넘기지 마라.** `docker inspect` 에 평문으로 남는다. 600 권한 임시 파일로
-넘기고 곧바로 지운다. 토큰 자체는 1시간 유효·등록 시 1회 소비지만, 그 사이에 남길 이유가 없다.
+**3. 등록 토큰을 컨테이너 환경 설정에 넣지 마라.** `-e` 든 `--env-file` 이든 Docker 데몬에는 같은
+`Config.Env` 로 가서 `docker inspect` 에 평문으로 남는다 — `--env-file` 은 명령줄·셸 기록만 피한다.
+스크립트는 토큰을 600 권한 파일에 쓰고 **읽기 전용 마운트**로 넘긴 뒤, 엔트리포인트 앞에서 그 파일을
+읽어 환경변수로 바꾸고, 러너가 등록되면 파일을 지운다(실측 2026-10-30: `docker inspect` 의 env 에
+`RUNNER_TOKEN` 없음). 컨테이너 안에서 root 로 도는 잡 코드는 여전히 프로세스 환경에서 토큰을 읽을 수
+있다 — 그래서 ephemeral 과 짧은 수명이 함께 필요하다. 토큰 자체는 1시간 유효·등록 시 1회 소비지만, 그 사이에 남길 이유가 없다.
 
 ### `services:` 를 쓸 때만 docker.sock 을 붙인다 — 기본은 끈다
 
@@ -206,7 +225,7 @@ gh variable set CI_RUNNER_LABEL --body '<고유 라벨>' --repo <owner>/<repo>
 
 **이건 사실상 호스트 장악 권한이다** — 그 소켓에 닿는 코드는 호스트 파일시스템을 마운트한 root
 컨테이너를 띄울 수 있다. 필요 없는 잡까지 이 권한 아래 돌리지 마라. 워크플로에 `services:` 가
-없으면 **빼라.**
+없으면 **빼라.** 스크립트는 `--docker` 를 줄 때만 붙인다.
 
 **소켓만 주면 반쯤만 동작한다 — `--network host` 가 같이 필요하다.** 러너가 컨테이너 안이면
 서비스 컨테이너는 **호스트 포트**에 게시되는데, 워크플로는 `localhost:5432` 를 본다. GitHub
@@ -260,6 +279,10 @@ gh workflow run <wf>.yml --ref <branch>
 # 잡이 실제로 시작하는지 본다 — queued 에서 안 움직이면 라벨이 안 맞는 것이다
 ```
 
+**이미 실패한 PR 실행은 새 커밋 없이 `gh run rerun <run-id>` 로 옮긴다.** 다시 실행할 때 `vars` 를
+새로 읽으므로, 변수를 설정한 뒤 재실행하면 같은 PR 실행이 self-hosted 에 배정되고 PR 체크도 그
+결과로 갱신된다(2026-10-30 실측).
+
 **결제 실패 계정에서도 self-hosted 러너에는 잡이 배정된다** — 2026-08-20 실측. 같은 레포에서
 호스티드 잡은 `"The job was not started because recent account payments have failed…"` 로 2~4초 만에
 스텝 0개로 죽었는데, self-hosted 로 라벨을 옮기니 같은 워크플로가 정상적으로 스텝을 밟았다.
@@ -278,12 +301,9 @@ gh workflow run <wf>.yml --ref <branch>
 
 임시 조치는 **끝내는 방법이 있을 때만 임시**다. 없으면 그냥 새 영구 상태다.
 
-```bash
-gh variable delete CI_RUNNER_LABEL --repo <owner>/<repo>   # 호스티드로 복귀
-ID=$(gh api /repos/<owner>/<repo>/actions/runners --jq '.runners[]|select(.name=="local-docker")|.id')
-gh api -X DELETE /repos/<owner>/<repo>/actions/runners/$ID  # 등록 해제
-docker rm -f ci-runner
-```
+`bash <이 스킬 폴더>/scripts/runner.sh down` 이 세 가지를 한다 — 변수 삭제(우리 라벨일 때만 ·
+호스티드로 복귀) · 러너 등록 해제 · 컨테이너 제거. 끝에 변수를 다시 읽어 아직 우리 라벨이면 실패로
+끝난다. 마치면 `status` 로 셋 다 비었는지 확인한다.
 
 **등록 해제를 빼먹지 마라.** 컨테이너만 지우면 GitHub 에는 offline 러너가 남고, 그 라벨로 오는
 잡은 영영 큐에 머문다.
