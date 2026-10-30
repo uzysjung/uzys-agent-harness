@@ -66,7 +66,7 @@ TOKENFILE=""
 VAR_SET=0
 cleanup() {
   local rc=$?
-  [ -z "$TOKENFILE" ] || rm -f "$TOKENFILE"
+  [ -z "$TOKENFILE" ] || { : > "$TOKENFILE"; rm -f "$TOKENFILE"; }
   if [ "$rc" -ne 0 ] && [ "$VAR_SET" = 1 ]; then
     echo "runner.sh: stopped with CI_RUNNER_LABEL=$LABEL still set; restore with: bash $SELF down" >&2
   fi
@@ -90,7 +90,8 @@ launch() {
     >/dev/null
   for _ in $(seq 1 40); do
     if docker logs "$NAME" 2>&1 | grep -q "Listening for Jobs"; then
-      rm -f "$TOKENFILE"; TOKENFILE=""
+      # Empty it before unlinking: the container keeps the mounted inode, and job code runs as root.
+      : > "$TOKENFILE"; rm -f "$TOKENFILE"; TOKENFILE=""
       return 0
     fi
     [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" = true ] || break
@@ -113,8 +114,12 @@ case "$cmd" in
     done
     case "$JOBS" in ''|*[!0-9]*|0*) die "--jobs must be a positive integer" 2 ;; esac
     visibility=$(gh api "/repos/$REPO" --jq .visibility)
-    [ -n "$visibility" ] || die "cannot read $REPO visibility"
-    [ "$visibility" != public ] || die "$REPO is public: fork PRs would run arbitrary code on this machine"
+    # Only private repositories, and only when fork PRs cannot start workflows: a fork PR's
+    # code would otherwise run on this machine. Anything unreadable counts as a refusal.
+    [ "$visibility" = private ] || die "$REPO visibility is '${visibility:-unknown}', not private"
+    fork_prs=$(gh api "/repos/$REPO/actions/permissions/fork-pr-workflows-private-repos" \
+      --jq .run_workflows_from_fork_pull_requests) || die "cannot read $REPO fork PR workflow setting"
+    [ "$fork_prs" = false ] || die "$REPO runs workflows from fork pull requests; disable that first"
     read_label
     [ -z "$CURRENT" ] || [ "$CURRENT" = "$LABEL" ] || die "CI_RUNNER_LABEL is already '$CURRENT'; not overwriting"
     echo "repo=$REPO label=$LABEL platform=$PLATFORM docker=$DOCKER jobs=$JOBS"
@@ -139,7 +144,8 @@ case "$cmd" in
     elif [ -n "$CURRENT" ]; then
       echo "CI_RUNNER_LABEL is '$CURRENT', not '$LABEL'; left as is" >&2
     fi
-    ids=$(gh api "/repos/$REPO/actions/runners" --jq ".runners[]|select(.name==\"$NAME\")|.id")
+    # Ours by name, plus anything else carrying our label (e.g. registered by job code with the token).
+    ids=$(gh api "/repos/$REPO/actions/runners" --jq ".runners[]|select(.name==\"$NAME\" or any(.labels[]; (.name|ascii_downcase)==\"$(lower "$LABEL")\"))|.id")
     for id in $ids; do
       gh api -X DELETE "/repos/$REPO/actions/runners/$id"
     done

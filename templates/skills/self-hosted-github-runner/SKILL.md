@@ -183,7 +183,7 @@ listening` 이 찍힌 **뒤에** `gh run rerun` · `gh workflow run` 을 실행�
 기본값은 이렇다 — 레포는 `gh repo view`, 라벨은 `<레포 이름>-local`, 이미지는
 `myoung34/github-runner:ubuntu-noble`(24.04), 아키텍처는 호스트 하드웨어 것(Rosetta 셸에서도 arm64).
 `REPO` · `LABEL` · `IMAGE` · `PLATFORM` 환경변수로 바꾼다. 이럴 때는 아무것도 바꾸지 않고 멈춘다:
-public 레포 · `CI_RUNNER_LABEL` 에 남의 값이 이미 있음 · GitHub 상태를 읽지 못함(인증·네트워크 —
+private 이 아닌 레포(public · internal) · fork PR 워크플로가 켜진 private 레포 · `CI_RUNNER_LABEL` 에 남의 값이 이미 있음 · GitHub 상태를 읽지 못함(인증·네트워크 —
 "없음"으로 읽지 않는다) · 러너가 뜨지 않음(변수는 러너가 `Listening for Jobs` 를 찍은 뒤에야 설정한다).
 스크립트는 아래 세 기본값을 그대로 구현한다 — 손으로 띄울 때도 같은 이유로 지킨다.
 
@@ -216,7 +216,11 @@ public 레포 · `CI_RUNNER_LABEL` 에 남의 값이 이미 있음 · GitHub 상
 스크립트는 토큰을 600 권한 파일에 쓰고 **읽기 전용 마운트**로 넘긴 뒤, 엔트리포인트 앞에서 그 파일을
 읽어 환경변수로 바꾸고, 러너가 등록되면 파일을 지운다(실측 2026-10-30: `docker inspect` 의 env 에
 `RUNNER_TOKEN` 없음). 컨테이너 안에서 root 로 도는 잡 코드는 여전히 프로세스 환경에서 토큰을 읽을 수
-있다 — 그래서 ephemeral 과 짧은 수명이 함께 필요하다. 토큰 자체는 1시간 유효·등록 시 1회 소비지만, 그 사이에 남길 이유가 없다.
+있다 — 그래서 ephemeral 과 짧은 수명이 함께 필요하다. 러너가 등록되면 파일을 **비운 뒤** 지운다 — 리눅스 Docker 엔진의 파일 bind mount 는 inode 를 쥐고
+있어서, 지우기만 하면 컨테이너 안에서는 그대로 읽힌다(OrbStack 은 지우는 것만으로 안에서도
+사라졌다 — 2026-10-30 대조 실측). 토큰은 1시간 동안 유효하고 그 안에 다른 러너를 등록하는 데
+쓰일 수 있다고 보고 다룬다. 그래서 `down` 은 우리 이름의 러너뿐 아니라 **우리 라벨을 단 러너를 모두**
+등록 해제한다.
 
 ### `services:` 를 쓸 때만 docker.sock 을 붙인다 — 기본은 끈다
 
@@ -254,6 +258,8 @@ docker rm -f probe
   의존성에 대한 것이 아니다.
 
 public 레포면 **하지 마라.** fork PR 이 임의 코드를 실행한다 — GitHub 이 명시적으로 말린다.
+internal 레포와, fork PR 워크플로(`Settings → Actions → Fork pull request workflows`)를 켠 private
+레포도 같다. 스크립트는 `private` 이고 그 설정이 꺼져 있을 때만 띄운다.
 
 private 레포라면 착수 전에 실측해서 알린다:
 
