@@ -1,8 +1,8 @@
 # ADR-115: 배포 앵커의 자율 진행 문장을 실패 행동 이름으로 구체화한다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-03
-- PR: (머지 시 기입)
+- PR: #945
 - Amends: ADR-091 결정 1(앵커는 사용자 문안) — 사용자가 조사 결과의 문장 단위 제안 중 이 한 건을 채택했다(2026-11-03).
 - Context: 사용자가 Working Principles 가 "정말 좋은가 · 필요한가"를 조사하라고 했다(근거 = `docs/research/working-principles-2026-11.md`).
   조사가 근거로 받친 판정은 다섯 갈래다.
