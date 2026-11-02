@@ -1,8 +1,8 @@
 # ADR-114: Impeccable 을 선택 항목으로 되돌린다 — 기본은 frontend-design
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-03
-- PR: (머지 시 기입)
+- PR: #940
 - Supersedes: ADR-060 결정 3 중 impeccable 제거 한 항목(부분). ADR-060 의 나머지는 유효하다.
 - Context: #927 에서 사용자가 "Impeccable 을 넣고 taste 는 옵션 정도"를 제안했다. Impeccable 은
   ADR-035(2026-07-18)에서 기본 → opt-in 으로 내려갔고 ADR-060(2026-08-02)에서 카탈로그에서 빠졌다.
