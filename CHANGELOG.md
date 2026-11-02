@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.179.0] — 2026-11-03 (Impeccable 선택 항목 · natural-korean 퇴고 지침)
+
+### Added
+- **UI 트랙에서 Impeccable 을 선택 항목으로 고를 수 있다** (#927, PR #940 · ADR-114) — 위저드 3단계나 `--with impeccable` 로 고른다. 기본으로 미리 체크되는 디자인 스킬은 지금처럼 frontend-design 이다. Impeccable 이 하는 일 가운데 고르기 전에 알아야 할 세 가지를 설명에 적었다. ① 첫 실행 때 네이티브 엔진(약 20MB)을 받는다 ② 텔레메트리를 꺼도 새 디자인을 시작할 때 impeccable.style 로 요청이 나간다(`DO_NOT_TRACK=1` · `IMPECCABLE_NO_UPDATE_CHECK=1` 로 줄인다) ③ `OPENAI_API_KEY` 가 있으면 화면 스크린샷을 OpenAI 로 올릴 수 있다. 설치는 다른 외부 스킬과 같은 경로라 Impeccable 자체 설치기가 까는 편집 훅과 설정 파일 변경은 생기지 않는다(컨테이너 실설치로 네 CLI 확인). 근거 = `docs/research/design-skills-2026-11.md`.
+
+### Changed
+- **natural-korean 이 퇴고에서 세 가지를 더 지킨다** (#928, PR #940) — ① '-고 · -며 · -지만' 같은 연결어미와 '그리고 · 그러나' 뒤에 습관처럼 쉼표를 찍지 않는다 ② 고칠 이유를 한 문장으로 못 대면 고치지 않는다 ③ 퇴고 뒤 새로 생긴 상투구 · 굵은 글씨 · 목록, 눈에 띄는 분량 증가, 말투 등급(합쇼체 · 해요체 · 한다체) 변화를 확인한다. 원문과 결과를 비교하는 검사 스크립트는 싣지 않았다 — 현행 모델로 개발 문서 16건을 퇴고해 보니 수치 · 코드 · 링크 · 인용 · 말투 손상이 0건이었다. 근거 = `docs/research/natural-korean-code-analysis-2026-11.md` §3.8.
+
 ## [v26.178.0] — 2026-11-02 (테스트 범위 · @AGENTS.md 중복 안내 · self-hosted runner 스크립트 · statusLine)
 
 ### Changed
