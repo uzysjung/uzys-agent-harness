@@ -39,7 +39,7 @@ export function recommendedExternalAssets(presets: ReadonlyArray<Track>): Readon
 
 /**
  * #709 리뷰 NOTE 7 — 트랙의 기본으로 깔리는 자산: 카탈로그 추천 ∪ **트랙 표가 기본으로 까는 고를 수 있는 MCP 서버**
- * (`railway-mcp-server` on csr-* · ssr-htmx · ssr-htmx-fastify · full 등). 뒤의 것은 experimental · opt-in 이라 카탈로그
+ * (`railway-mcp-server` on csr-* · ssr-htmx · ssr-htmx-fastify · ssr-htmx-hono · full 등). 뒤의 것은 experimental · opt-in 이라 카탈로그
  * 추천에 안 들지만 실제로 깔린다 — 미체크로 보이면 화면이 결과와 다르다. 체크를 풀면 추천 대비 빼기(`--without <id>`)라
  * `.mcp.json` · Codex · OpenCode 에서 모두 빠진다.
  *

@@ -124,12 +124,15 @@ const TRACK_RULES: Record<Track, string[]> = {
   //   달라 린트가 갈린다(Jinja = ast-grep · 서버 JSX = @shadcn/lint) — 실측 = `docs/plans/820-spike/`. `full` 은 아래.
   "ssr-htmx": ["htmx-fastapi-ui"],
   "ssr-htmx-fastify": ["htmx-fastify-ui"],
+  // #935 — 같은 서버 JSX 라도 Hono 는 자식을 기본으로 이스케이프하고(@kitajs/html 은 반대) 테스트 도구가 따로 있다.
+  "ssr-htmx-hono": ["htmx-hono-ui"],
   "ssr-nextjs": [],
   data: [],
   executive: [],
   tooling: ["cli-development"],
-  // #820 — htmx 룰 둘은 `full` 에 넣지 않는다. OpenCode 가 섞인 설치는 룰을 AGENTS.md 본문에 인라인하는데, full 의 렌더가
-  //   Antigravity 상한(24,000 B)을 넘는다(22,322 → 24,455 B, `agents-md-size-budget`). htmx 를 쓰면 그 트랙을 함께 고른다.
+  // #820 — htmx 룰(#935 부터 셋)은 `full` 에 넣지 않는다. OpenCode 가 섞인 설치는 룰을 AGENTS.md 본문에 인라인하는데, full 의 렌더가
+  //   Antigravity 상한(24,000 B)을 넘는다(22,322 → 24,455 B, `agents-md-size-budget`). htmx 를 쓰면 그 트랙을 함께 고른다 —
+  //   #935 실설치 측정: 그 조합도 Antigravity 와 Codex·OpenCode 중 하나를 함께 깔면 상한을 넘는다(full+ssr-htmx · full+ssr-htmx-hono).
   full: ["cli-development"],
   // v0.5.0 — executive-style baselines (no dev rules; common rules only).
   "project-management": [],

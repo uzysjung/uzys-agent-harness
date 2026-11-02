@@ -127,6 +127,7 @@ export const TRACK_LABELS: Record<Track, string> = {
   "csr-fastapi": "csr-fastapi — Vite + React + FastAPI",
   "ssr-htmx": "ssr-htmx — htmx + FastAPI (Python) + daisyUI",
   "ssr-htmx-fastify": "ssr-htmx-fastify — htmx + Fastify (Node) + daisyUI",
+  "ssr-htmx-hono": "ssr-htmx-hono — htmx + Hono (TypeScript) + daisyUI",
   "ssr-nextjs": "ssr-nextjs — Next.js (App Router)",
   data: "data — Python data / DuckDB / PySide6",
   executive: "executive — proposals / DD / pitch (no agent-skills)",

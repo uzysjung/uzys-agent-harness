@@ -10,6 +10,8 @@ paths:
 
 FastAPI 가 렌더하는 htmx 화면(Jinja·HTML)은 Tailwind v4 + daisyUI 클래스(`btn` · `card` · `bg-base-100`)로 만든다. 다른 CSS 체계나 Tailwind v3 이면 바꾸기 전에 묻는다. 없으면 첫 UI 작업 때 `https://daisyui.com/docs/install/` 대로 설치한다.
 
+htmx 주 버전(package.json · `<script src>`)을 먼저 보고 그 판 문서대로 쓴다. 4 는 2 와 달리 상속이 명시적(`:inherited`)이고 4xx·5xx 응답도 swap 하며, `hx-disable` 은 옛 `hx-disabled-elt` 다(처리 끄기는 `hx-ignore`).
+
 `@shadcn/lint` 는 템플릿을 못 읽으니 ast-grep(`pip install ast-grep-cli`)으로 검사한다. 없으면 아래 두 파일을 프로젝트 루트에 만들고 lint 명령에 `ast-grep scan` 을 더한다. UI 를 바꾼 뒤 돌려 보고된 줄을 고친다 — 오타·없는 클래스는 못 잡는다.
 
 `sgconfig.yml`:
