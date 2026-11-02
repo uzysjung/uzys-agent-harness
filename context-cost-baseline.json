@@ -12,7 +12,7 @@
     "base": {
       "directive": {
         "items": 7,
-        "tokens": 3953
+        "tokens": 3980
       },
       "firing": {
         "items": 16,
@@ -22,7 +22,7 @@
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4065
+        "tokens": 4092
       },
       "firing": {
         "items": 16,
@@ -32,7 +32,7 @@
     "csr-supabase": {
       "directive": {
         "items": 8,
-        "tokens": 4145
+        "tokens": 4172
       },
       "firing": {
         "items": 17,
@@ -42,7 +42,7 @@
     "csr-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4145
+        "tokens": 4172
       },
       "firing": {
         "items": 17,
@@ -52,7 +52,7 @@
     "csr-fastapi": {
       "directive": {
         "items": 8,
-        "tokens": 4145
+        "tokens": 4172
       },
       "firing": {
         "items": 17,
@@ -62,7 +62,7 @@
     "ssr-htmx": {
       "directive": {
         "items": 8,
-        "tokens": 4257
+        "tokens": 4284
       },
       "firing": {
         "items": 16,
@@ -72,7 +72,7 @@
     "ssr-htmx-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4079
+        "tokens": 4106
       },
       "firing": {
         "items": 16,
@@ -82,7 +82,7 @@
     "ssr-nextjs": {
       "directive": {
         "items": 8,
-        "tokens": 4145
+        "tokens": 4172
       },
       "firing": {
         "items": 17,
@@ -92,7 +92,7 @@
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 3953
+        "tokens": 3980
       },
       "firing": {
         "items": 17,
@@ -112,7 +112,7 @@
     "full": {
       "directive": {
         "items": 9,
-        "tokens": 4257
+        "tokens": 4284
       },
       "firing": {
         "items": 19,
