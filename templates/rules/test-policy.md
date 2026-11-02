@@ -3,10 +3,12 @@
 **How far** to verify scales with the risk of the change; **when** those results must exist
 belongs to the Delivery rule.
 
-- An ordinary change gets static checks and regression across the affected scope — not the whole
-  suite merely because the repository's CI runs it; independent verification only where the
-  Delivery rule requires it. A high-risk one widens that in proportion to what it touches and what
-  its failure would cost.
+- **Before running tests, name the affected scope** — what changed and which tests exercise it,
+  including the callers, data, and configuration it shares — and run that with static checks.
+  Widen only for a reason you can name: shared code or configuration changed, the scope cannot be
+  established (widen along what it shares, not to the whole suite), or a high-risk area below, in
+  proportion to what it touches and what failure would cost. Independent verification only where
+  the Delivery rule requires it.
 - Preserve required outcomes with the least burdensome reliable protection.
   Prefer fixing the cause and reusing or improving existing mechanisms within scope;
   no new guard is needed when those suffice. Judge safeguards by credible risk,
@@ -20,7 +22,7 @@ belongs to the Delivery rule.
 - High-risk includes at least authentication, authorization, payments and settlement, personal
   data, data integrity, concurrency, state transitions, and migrations.
 - Full regression, full E2E, full mutation, and periodic security scanning belong to the CI/CD
-  schedule, not to a per-change decision.
+  schedule and the release step. For an ordinary change, ask before running them.
 - For a high-risk change, cover normal, boundary, failure, misuse, and recovery paths,
   omitting one only when failure on it is not plausible.
 - Use production-compatible dependencies when a substitute's behavioral differences could affect
@@ -30,6 +32,4 @@ belongs to the Delivery rule.
   adding indiscriminate retries. Correct or consolidate tests when their expectations are
   wrong, obsolete, or redundant; preserve coverage of the accepted contract and follow project
   policy for changes to mandatory gates.
-- If the affected scope cannot be established confidently, widen along what the change shares
-  (callers, data, configuration), not to the whole suite by default. After an environment or CI
-  fix, rerun what failed and what the fix could affect.
+- After an environment or CI fix, rerun what failed and what the fix could affect.
