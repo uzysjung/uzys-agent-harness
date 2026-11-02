@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.180.0] — 2026-11-03 (htmx + Hono 트랙 · htmx 주 버전 확인)
+
+### Added
+- **htmx + Hono 트랙 `ssr-htmx-hono`** (#935, PR #942) — 위저드 1단계나 `--track ssr-htmx-hono` 로 고른다. 고르면 네 CLI 에 화면 룰 `htmx-hono-ui` 가 깔린다(`.tsx` · `.jsx` 를 열 때 읽힌다).
+  - 룰이 다루는 것: `hono/jsx` 컴포넌트를 `c.html()` 로 돌려주고 Tailwind v4 + daisyUI 로 만든다. 자식 · 속성은 기본으로 이스케이프되니 `raw()` · `dangerouslySetInnerHTML` 에 사용자 입력을 넣지 않는다. hono 가 4.13.7 미만이면 올린다(GHSA-hxh3-vqpv-xpqv — 경계 컴포넌트의 문자열 자식이 이스케이프되지 않는다). 테스트는 `testClient` 로 하되 라우트를 체이닝해야 타입이 잡힌다. 대상은 Hono v4 다.
+  - 기본 자산과 MCP 는 `ssr-htmx-fastify` 와 같다. 기존 트랙 id 는 그대로다.
+  - htpy 는 넣지 않았다. FastHTML 은 보류했다. 근거 = `docs/research/htmx-stacks-2026-11.md`.
+
+### Changed
+- **htmx 룰 셋이 htmx 주 버전을 먼저 확인하라고 말한다** (#935, PR #942) — htmx 4(2026-08-28 안정판)는 속성 상속이 명시적(`:inherited`)이고, 4xx · 5xx 응답도 swap 하며, `hx-disable` 이 옛 `hx-disabled-elt` 다. 프로젝트의 판(package.json · `<script src>`)을 보고 그 판 문서대로 쓴다. update 로 들어온다.
+  - 알려진 한계: htmx 트랙이 든 두 트랙 조합(예: `csr-fastify` + `ssr-htmx`, `full` + `ssr-htmx-hono`)에 Antigravity 와 Codex(또는 CLI 넷 전부)를 함께 깔면 `AGENTS.md` 가 Antigravity 상한 24,000 B 를 11~131 B 넘는다. 넘는 만큼 끝줄(전역 설정은 보고만 한다)이 Antigravity 에서 잘린다. 단일 트랙은 모두 상한 안이다.
+
 ## [v26.179.0] — 2026-11-03 (Impeccable 선택 항목 · natural-korean 퇴고 지침)
 
 ### Added
