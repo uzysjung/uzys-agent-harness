@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.178.0] — 2026-11-02 (테스트 범위 · @AGENTS.md 중복 안내 · self-hosted runner 스크립트 · statusLine)
+
+### Changed
+- **에이전트가 테스트 전에 영향 범위를 말하고 그만큼만 돌린다 — 평범한 변경의 전체 회귀 · E2E 는 먼저 묻는다** (#933, PR #936) — 세션이 길어지면 작은 변경에도 머지 때 전체 E2E 를 돌리던 것을 고친다. Testing 룰 첫 항목이 "바뀐 것 → 그것을 검사하는 테스트"를 먼저 말하게 하고, 범위를 넓히는 이유를 셋(공유 코드 · 설정 변경 · 범위를 못 정함 · 고위험)으로 못박는다. Delivery 룰의 "통합 테스트 · 사용자 흐름 검증"은 영향받은 범위로 좁히고 전체는 배포 몫이라고 적었다. 근거 = `docs/research/test-scope-before-run-2026-11.md`. 상주 지시문 +27 토큰.
+- statusLine 의 claude-powerline 을 1.32.1 → 1.32.5 로 올렸다(#934, PR #936) — 버그 수정만. update 로 바뀌고, 그 줄을 고친 설치자는 자기 값이 남는다.
+
+### Added
+- **루트 `CLAUDE.md` 가 `@AGENTS.md` 를 불러오면 install · update 화면이 한 줄로 알린다** (#891, PR #925) — Claude Code 와 Codex · OpenCode · Antigravity 를 함께 깐 설치본에서 그 import 가 있으면 Claude Code 가 하네스 원칙 · 룰을 두 번 읽는다(Claude Code + Codex 기준 약 18 KB, 그 자리에서 잰 크기를 화면이 댄다). 하네스는 그 줄을 고치지 않는다. Codex 는 `@` 참조를 따라가지 않으므로 `AGENTS.md` 의 원칙 · 룰 인라인은 그대로다(`docs/CONTEXT-FILES.md` §3).
+- **self-hosted-github-runner 스킬이 Mac 에서 네이티브 arm64 러너를 띄우는 스크립트를 함께 싣는다** (PR #929 · #930) — 러너는 private 저장소이고 fork PR 워크플로가 꺼져 있을 때만 뜬다(public · internal · 설정을 못 읽음 → 거부). 등록 토큰 파일은 등록 직후 비우고 지우며, `down` 은 그 스킬의 라벨을 단 러너를 모두 등록 해제한다.
+
 ## [v26.177.0] — 2026-10-25 (남이 커밋한 설치 기록 · 옛 판 외부 스킬의 백업 잡음 · 링크로 둔 자리의 uninstall 안내)
 
 ### Security
