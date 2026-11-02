@@ -15,7 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 ### Added
 - **루트 `CLAUDE.md` 가 `@AGENTS.md` 를 불러오면 install · update 화면이 한 줄로 알린다** (#891, PR #925) — Claude Code 와 Codex · OpenCode · Antigravity 를 함께 깐 설치본에서 그 import 가 있으면 Claude Code 가 하네스 원칙 · 룰을 두 번 읽는다(Claude Code + Codex 기준 약 18 KB, 그 자리에서 잰 크기를 화면이 댄다). 하네스는 그 줄을 고치지 않는다. Codex 는 `@` 참조를 따라가지 않으므로 `AGENTS.md` 의 원칙 · 룰 인라인은 그대로다(`docs/CONTEXT-FILES.md` §3).
-- **self-hosted-github-runner 스킬이 Mac 에서 네이티브 arm64 러너를 띄우는 스크립트를 함께 싣는다** (PR #929 · #930) — 러너는 private 저장소이고 fork PR 워크플로가 꺼져 있을 때만 뜬다(public · internal · 설정을 못 읽음 → 거부). 등록 토큰 파일은 등록 직후 비우고 지우며, `down` 은 그 스킬의 라벨을 단 러너를 모두 등록 해제한다.
+- **self-hosted-github-runner 스킬이 Mac 에서 네이티브 arm64 러너를 띄우는 스크립트를 함께 싣는다** (PR #929 · #930 · #939) — 러너는 private 저장소이고 fork PR 워크플로가 꺼져 있을 때만 뜬다(public · internal · 설정을 못 읽음 → 거부). 등록 토큰 파일은 등록 직후 비우고 지운다. `up` 은 다른 러너가 이미 같은 라벨을 달고 있으면 거부하고, 통과하면 그 라벨을 이 머신에서 쓴다고 기록한다. `down` 은 그 기록이 있을 때만 `CI_RUNNER_LABEL` 과 같은 라벨의 다른 러너(잡 코드가 붙인 것)를 지운다 — 기록이 없으면 설치자의 상시 러너 · 변수는 그대로 두고 이름만 알린다.
+  - 알려진 한계: 기록에는 만료가 없다 — `up` 뒤 `down` 없이 같은 라벨로 상시 러너를 새로 붙이면 다음 `down` 이 그 러너를 지운다. 러너 이름이 `<owner>-<repo>-runner` 와 같은 기존 등록은 `up` 이 덮어쓴다.
 
 ## [v26.177.0] — 2026-10-25 (남이 커밋한 설치 기록 · 옛 판 외부 스킬의 백업 잡음 · 링크로 둔 자리의 uninstall 안내)
 
