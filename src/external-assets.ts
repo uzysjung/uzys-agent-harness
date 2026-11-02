@@ -713,6 +713,23 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     // skills found", 새 이름은 설치 완료). 디렉터리는 여전히 `skills/taste-skill/` 이다.
     method: { kind: "skill", source: "Leonxlnx/taste-skill", skill: "design-taste-frontend" },
   },
+  // 2026-11-03 (#927 · ADR-114) — ADR-060 이 뺀 impeccable 을 opt-in 으로 되돌린다(사용자 결정). 기본은
+  //   frontend-design 그대로다: 이 스킬은 첫 실행에 네이티브 엔진(~20MB)을 받고, 텔레메트리를 꺼도
+  //   impeccable.style 로 디자인 방향 요청이 나가며, OPENAI_API_KEY 가 있으면 화면 스크린샷을 OpenAI 로
+  //   올리는 경로가 있다 — 근거 = docs/research/design-skills-2026-11.md (v4.8.0 · engine-v0.1.18).
+  //   자체 설치기(`npx impeccable install`)는 훅을 기본으로 깔고 함께 쓰는 설정 파일을 고치므로 쓰지 않는다.
+  //   `npx skills add --copy` 경로는 스킬 폴더만 놓는다(컨테이너 실측 2026-11-03, skills@1.5.11: 네 CLI 자리
+  //   `.claude/skills/impeccable` · `.agents/skills/impeccable` 만 생기고 settings·hooks 파일 0).
+  {
+    id: "impeccable",
+    tier: "vetted", // pbakaus/impeccable ★100,126 (2026-11-03 gh api)
+    description:
+      "impeccable — design workflow with an anti-generic UI detector and PRODUCT.md/DESIGN.md project context (pbakaus). Downloads a native engine on first use and calls impeccable.style even with telemetry off; with OPENAI_API_KEY set it can upload page screenshots to OpenAI. Opt-in, not a default",
+    category: "frontend",
+    source: "pbakaus",
+    condition: { kind: "opt-in" },
+    method: { kind: "skill", source: "pbakaus/impeccable", skill: "impeccable" },
+  },
   {
     id: "scroll-world",
     tier: "vetted", // oso95/scroll-world 6,863 (2026-08-02)
