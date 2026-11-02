@@ -130,6 +130,9 @@ describe("runner.sh 는 자기가 띄우지 않은 러너를 등록 해제하지
     const r = run(["up"]);
     expect(r.code, r.err).toBe(3);
     expect(r.err).toContain("my-persistent-mac");
+    // 남의 러너인데 down 을 권하면 그 down 이 설치자 상태를 건드리는 길로 이끈다.
+    expect(r.err).toContain("choose another LABEL");
+    expect(r.err).not.toContain("run down");
     expect(writes(), "거부한 up 이 무언가를 썼다").toEqual([]);
     expect(existsSync(claimFile()), "거부한 up 이 claim 을 남겼다").toBe(false);
   });
@@ -170,6 +173,10 @@ describe("runner.sh 는 자기가 띄우지 않은 러너를 등록 해제하지
     expect(log()).not.toContain(`DELETE /repos/${REPO}/actions/runners/115`);
     expect(log()).not.toContain(`DELETE /repos/${REPO}/actions/runners/200`);
     expect(r.err).toContain("my-persistent-mac");
+    // 리뷰 N6: 라벨이 설치자 것일 수 있으니 설치자의 CI_RUNNER_LABEL 도 그대로 둔다.
+    expect(log()).not.toContain(`DELETE /repos/${REPO}/actions/variables/CI_RUNNER_LABEL`);
+    expect(readFileSync(join(dir, "var"), "utf8")).toBe(LABEL);
+    expect(r.err).toContain("left as is");
   });
 
   it("ⓒ up 이 claim 을 남긴 뒤 붙은 같은 라벨의 다른 러너는 down 이 지우고 claim 을 치운다", () => {
@@ -181,6 +188,8 @@ describe("runner.sh 는 자기가 띄우지 않은 러너를 등록 해제하지
     const down = run(["down"]);
     expect(down.code, down.err).toBe(0);
     expect(log()).toContain(`DELETE /repos/${REPO}/actions/runners/301`);
+    expect(log()).toContain(`DELETE /repos/${REPO}/actions/variables/CI_RUNNER_LABEL`);
+    expect(existsSync(join(dir, "var")), "claim 이 있는데 down 이 변수를 남겼다").toBe(false);
     expect(existsSync(claimFile()), "down 이 claim 을 치우지 않았다").toBe(false);
   });
 });

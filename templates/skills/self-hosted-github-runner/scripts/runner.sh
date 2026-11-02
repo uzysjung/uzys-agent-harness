@@ -19,8 +19,9 @@
 # The registration token goes in through a 600 file mounted read-only, never through the
 # container's environment config, so `docker inspect` does not show it.
 # `up` refuses a LABEL another runner of this repository already carries, then claims the label
-# on this machine (${XDG_STATE_HOME:-~/.local/state}/self-hosted-github-runner/). `down` unregisters
-# other runners carrying it only under that claim; otherwise it names them and leaves them.
+# on this machine (${XDG_STATE_HOME:-~/.local/state}/self-hosted-github-runner/). Only under that
+# claim does `down` delete CI_RUNNER_LABEL or unregister other runners carrying the label; without
+# it, it names them and leaves them.
 # Exit codes: 2 usage · 3 refused or GitHub state unknown · 4 runner failed to start.
 set -euo pipefail
 
@@ -72,6 +73,9 @@ label_runners() {
   gh api --paginate "/repos/$REPO/actions/runners" \
     --jq ".runners[]|select(.name==\"$NAME\" or any(.labels[]; (.name|ascii_downcase)==\"$(lower "$LABEL")\"))|\"\(.id) \(.name)\""
 }
+
+# True when an earlier `up` on this machine claimed $LABEL for $REPO.
+claimed() { [ "$(cat "$CLAIM" 2>/dev/null || true)" = "$(lower "$LABEL")" ]; }
 
 TOKENFILE=""
 VAR_SET=0
@@ -141,7 +145,10 @@ case "$cmd" in
     # mistake it for one of ours, so refuse here instead.
     held=$(label_runners) || die "cannot read $REPO runners"
     others=$(while read -r _ rname; do [ -z "$rname" ] || [ "$rname" = "$NAME" ] || printf ' %s' "$rname"; done <<< "$held")
-    [ -z "$others" ] || die "runner(s)$others already carry label '$LABEL'; if this script started them run down first, otherwise choose another LABEL"
+    if [ -n "$others" ]; then
+      if claimed; then die "runner(s)$others carry label '$LABEL' since an earlier up on this machine; run down first"; fi
+      die "runner(s)$others already carry label '$LABEL'; choose another LABEL"
+    fi
     mkdir -p "${CLAIM%/*}"
     lower "$LABEL" > "$CLAIM"
     echo "repo=$REPO label=$LABEL platform=$PLATFORM docker=$DOCKER jobs=$JOBS"
@@ -160,29 +167,32 @@ case "$cmd" in
     echo "served $JOBS job(s); restore hosted runners with: bash $SELF down"
     ;;
   down)
+    # Without this machine's claim the label may be the installer's own: change only what is ours by name.
+    ours=0
+    if claimed; then ours=1; fi
     read_label
-    if [ "$CURRENT" = "$LABEL" ]; then
+    if [ "$CURRENT" = "$LABEL" ] && [ "$ours" = 1 ]; then
       gh api -X DELETE "/repos/$REPO/actions/variables/CI_RUNNER_LABEL" >/dev/null
+    elif [ "$CURRENT" = "$LABEL" ]; then
+      echo "CI_RUNNER_LABEL is '$CURRENT' but no up on this machine claimed it; left as is" >&2
     elif [ -n "$CURRENT" ]; then
       echo "CI_RUNNER_LABEL is '$CURRENT', not '$LABEL'; left as is" >&2
     fi
-    # Ours by name, always. Others carrying our label only under this machine's claim: `up` refused
-    # the label while another runner held it, so they appeared afterwards (e.g. job code with the token).
-    claimed=0
-    [ "$(cat "$CLAIM" 2>/dev/null || true)" != "$(lower "$LABEL")" ] || claimed=1
+    # Ours by name, always. Others carrying our label only under the claim: `up` refused the label
+    # while another runner held it, so they appeared afterwards (e.g. job code with the token).
     ids=$(label_runners)
     left=""
     while read -r id rname; do
       [ -n "$id" ] || continue
-      if [ "$rname" != "$NAME" ] && [ "$claimed" = 0 ]; then left="$left $rname ($id)"; continue; fi
+      if [ "$rname" != "$NAME" ] && [ "$ours" = 0 ]; then left="$left $rname ($id)"; continue; fi
       gh api -X DELETE "/repos/$REPO/actions/runners/$id"
       echo "unregistered runner $rname ($id)"
     done <<< "$ids"
     [ -z "$left" ] || echo "runner.sh: left runner(s)$left carrying label '$LABEL': no up on this machine claimed it" >&2
-    [ "$claimed" = 0 ] || rm -f "$CLAIM"
+    [ "$ours" = 0 ] || rm -f "$CLAIM"
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     read_label
-    [ "$CURRENT" != "$LABEL" ] || die "CI_RUNNER_LABEL is still '$LABEL'"
+    [ "$ours" = 0 ] || [ "$CURRENT" != "$LABEL" ] || die "CI_RUNNER_LABEL is still '$LABEL'"
     echo "restored: $NAME unregistered and removed; CI_RUNNER_LABEL is ${CURRENT:-unset}"
     ;;
   status)
@@ -191,5 +201,5 @@ case "$cmd" in
     gh api "/repos/$REPO/actions/runners" --jq '.runners[] | "\(.name) \(.status) " + ([.labels[].name]|join(","))'
     docker ps -a --filter "name=^${NAME}$" --format '{{.Names}} {{.Status}}'
     ;;
-  *) sed -n '2,24p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,25p' "$0" >&2; exit 2 ;;
 esac
