@@ -405,11 +405,17 @@ function workspaceSiblings(
   selfName: string = basename(resolve(__dirname, "..")),
 ): string[] | null {
   try {
-    const names = readdirSync(workspace, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name)
+    const dirs = readdirSync(workspace, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+      .map((d) => d.name);
+    const names = dirs
       // 영어 단어에 부분일치하는 짧은 이름(`temp` ⊂ `template`)은 오탐만 낳는다 → 6자 이상.
-      .filter((n) => !n.startsWith(".") && n !== selfName && n.length >= 6)
+      .filter((n) => n !== selfName && n.length >= 6)
+      // `<형제>-backups` · `<형제>-worktrees` 같은 부속 폴더는 별도 프로젝트가 아니다. 이름은 본체가 이미
+      // 덮고, 남는 조각은 흔한 영어 단어(`backups`)라 오탐만 낳는다(2026-11-02 형제 프로젝트의 백업 폴더로 실측).
+      .filter(
+        (n) => !dirs.some((m) => m !== n && n.startsWith(m) && /[-_.]/.test(n[m.length] ?? "")),
+      )
       // git worktree 는 **별도 프로젝트가 아니라 브랜치**다. 디렉터리명에 브랜치명이 섞여
       // (`ea-wt-evidence`) 흔한 영어 단어를 후보로 만들어 오탐만 낳는다. 본체는 부모
       // 디렉터리 이름으로 이미 커버된다. 판별: worktree 의 `.git` 은 디렉터리가 아니라 파일.
