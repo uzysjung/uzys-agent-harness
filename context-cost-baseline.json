@@ -82,7 +82,7 @@
     "ssr-htmx-hono": {
       "directive": {
         "items": 8,
-        "tokens": 4249
+        "tokens": 4277
       },
       "firing": {
         "items": 16,
