@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**33/59 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**34/60 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **59** (official 26 / vetted 30 / experimental 3) · 🟢 verified **33/59**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **60** (official 26 / vetted 31 / experimental 3) · 🟢 verified **34/60**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -99,7 +99,7 @@ stale row fails the build rather than misleading you.
 | `openspec` | vetted | `@fission-ai/openspec@1.4.1` (npm) | 4-CLI (npm) | 🟢 Docker |
 | `bmad-method` | vetted | `bmad-method@6.9.0` (npx) | Claude Code (npx) | 🟢 Docker |
 
-#### 🎨 Frontend (11)
+#### 🎨 Frontend (12)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -108,6 +108,7 @@ stale row fails the build rather than misleading you.
 | `frontend-design` | official | `anthropics/skills :: frontend-design` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `jakubkrehel-skills` | vetted | `jakubkrehel/skills` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `taste-skill` | vetted | `Leonxlnx/taste-skill :: design-taste-frontend` | 4-CLI (skills.sh --agent) | 🟢 Docker |
+| `impeccable` | vetted | `pbakaus/impeccable :: impeccable` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `scroll-world` | vetted | `oso95/scroll-world :: scroll-world` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `preline` | vetted | `htmlstreamofficial/preline :: preline-theme-generator` | 4-CLI (skills.sh --agent) | 🟢 Docker |
 | `react-best-practices` | vetted | `vercel-labs/agent-skills :: vercel-react-best-practices` | 4-CLI (skills.sh --agent) | 🟢 Docker |

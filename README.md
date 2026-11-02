@@ -171,7 +171,7 @@ MCP servers come too. Every track gets `context7` (current library docs). Web tr
 
 More external assets are never pre-checked but can be added at step 3 or with `--with <id>`:
 
-- Frontend and design: `web-design-guidelines`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
+- Frontend and design: `web-design-guidelines`, `impeccable`, `taste-skill`, `jakubkrehel-skills`, `preline`, `scroll-world`
 - Deployment: `vercel-cli`, `netlify-cli`, `supabase-cli`, `railway-mcp-server`, `vercel`, `railway-skills`
 - Security review: `security-guidance`, `claude-security`
 - Structural code search and lint rules: `ast-grep` (needs the ast-grep CLI installed)

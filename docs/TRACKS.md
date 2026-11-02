@@ -75,6 +75,7 @@ Pre-checked on top of the set above. Rows marked **opt-in** are never pre-checke
 | `react-best-practices` | React hook, performance, and component patterns (vercel-labs) | `csr-*` · `ssr-nextjs` · `full` |
 | `shadcn-ui` | Radix-based components + Tailwind theme (shadcn) | `csr-*` · `ssr-nextjs` · `full` |
 | `web-design-guidelines` | Visual hierarchy, colour, spacing (vercel-labs) — `frontend-design` covers the default | opt-in |
+| `impeccable` | Design workflow with an anti-generic UI detector and `PRODUCT.md`/`DESIGN.md` context (pbakaus). Downloads a native engine on first use and calls impeccable.style even with telemetry off — `DO_NOT_TRACK=1` and `IMPECCABLE_NO_UPDATE_CHECK=1` reduce it; with `OPENAI_API_KEY` set it can upload page screenshots to OpenAI | opt-in |
 | `taste-skill` | Learns your design language, then adjusts variety, motion, and density (Leonxlnx) | opt-in |
 | `jakubkrehel-skills` | Typography, OKLCH colour, accessibility, layout, UX writing — one concern per skill | opt-in |
 | `scroll-world` | Scroll-driven 3D landing pages (oso95) | opt-in |
